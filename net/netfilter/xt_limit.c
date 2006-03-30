@@ -141,6 +141,7 @@ static struct xt_match ipt_limit_reg = {
 	.match		= ipt_limit_match,
 	.matchsize	= sizeof(struct xt_rateinfo),
 	.checkentry	= ipt_limit_checkentry,
+	.family		= AF_INET,
 	.me		= THIS_MODULE,
 };
 static struct xt_match limit6_reg = {
@@ -148,29 +149,30 @@ static struct xt_match limit6_reg = {
 	.match		= ipt_limit_match,
 	.matchsize	= sizeof(struct xt_rateinfo),
 	.checkentry	= ipt_limit_checkentry,
+	.family		= AF_INET6,
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init xt_limit_init(void)
 {
 	int ret;
 	
-	ret = xt_register_match(AF_INET, &ipt_limit_reg);
+	ret = xt_register_match(&ipt_limit_reg);
 	if (ret)
 		return ret;
 	
-	ret = xt_register_match(AF_INET6, &limit6_reg);
+	ret = xt_register_match(&limit6_reg);
 	if (ret)
-		xt_unregister_match(AF_INET, &ipt_limit_reg);
+		xt_unregister_match(&ipt_limit_reg);
 
 	return ret;
 }
 
-static void __exit fini(void)
+static void __exit xt_limit_fini(void)
 {
-	xt_unregister_match(AF_INET, &ipt_limit_reg);
-	xt_unregister_match(AF_INET6, &limit6_reg);
+	xt_unregister_match(&ipt_limit_reg);
+	xt_unregister_match(&limit6_reg);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(xt_limit_init);
+module_exit(xt_limit_fini);

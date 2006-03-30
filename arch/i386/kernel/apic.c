@@ -38,6 +38,7 @@
 #include <asm/i8253.h>
 
 #include <mach_apic.h>
+#include <mach_apicdef.h>
 #include <mach_ipi.h>
 
 #include "io_ports.h"

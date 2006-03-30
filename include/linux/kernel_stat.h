@@ -46,7 +46,7 @@ static inline int kstat_irqs(int irq)
 {
 	int cpu, sum = 0;
 
-	for_each_cpu(cpu)
+	for_each_possible_cpu(cpu)
 		sum += kstat_cpu(cpu).irqs[irq];
 
 	return sum;

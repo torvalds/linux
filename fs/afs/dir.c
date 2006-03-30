@@ -32,7 +32,7 @@ static int afs_d_delete(struct dentry *dentry);
 static int afs_dir_lookup_filldir(void *_cookie, const char *name, int nlen,
 				  loff_t fpos, ino_t ino, unsigned dtype);
 
-struct file_operations afs_dir_file_operations = {
+const struct file_operations afs_dir_file_operations = {
 	.open		= afs_dir_open,
 	.readdir	= afs_dir_readdir,
 };

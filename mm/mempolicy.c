@@ -86,6 +86,7 @@
 #include <linux/swap.h>
 #include <linux/seq_file.h>
 #include <linux/proc_fs.h>
+#include <linux/migrate.h>
 
 #include <asm/tlbflush.h>
 #include <asm/uaccess.h>
@@ -95,11 +96,8 @@
 #define MPOL_MF_INVERT (MPOL_MF_INTERNAL << 1)		/* Invert check for nodemask */
 #define MPOL_MF_STATS (MPOL_MF_INTERNAL << 2)		/* Gather statistics */
 
-/* The number of pages to migrate per call to migrate_pages() */
-#define MIGRATE_CHUNK_SIZE 256
-
-static kmem_cache_t *policy_cache;
-static kmem_cache_t *sn_cache;
+static struct kmem_cache *policy_cache;
+static struct kmem_cache *sn_cache;
 
 #define PDprintk(fmt...)
 
@@ -331,17 +329,10 @@ check_range(struct mm_struct *mm, unsigned long start, unsigned long end,
 	struct vm_area_struct *first, *vma, *prev;
 
 	if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) {
-		/* Must have swap device for migration */
-		if (nr_swap_pages <= 0)
-			return ERR_PTR(-ENODEV);
 
-		/*
-		 * Clear the LRU lists so pages can be isolated.
-		 * Note that pages may be moved off the LRU after we have
-		 * drained them. Those pages will fail to migrate like other
-		 * pages that may be busy.
-		 */
-		lru_add_drain_all();
+		err = migrate_prep();
+		if (err)
+			return ERR_PTR(err);
 	}
 
 	first = find_vma(mm, start);
@@ -431,6 +422,37 @@ static int contextualize_policy(int mode, nodemask_t *nodes)
 	return mpol_check_policy(mode, nodes);
 }
 
+
+/*
+ * Update task->flags PF_MEMPOLICY bit: set iff non-default
+ * mempolicy.  Allows more rapid checking of this (combined perhaps
+ * with other PF_* flag bits) on memory allocation hot code paths.
+ *
+ * If called from outside this file, the task 'p' should -only- be
+ * a newly forked child not yet visible on the task list, because
+ * manipulating the task flags of a visible task is not safe.
+ *
+ * The above limitation is why this routine has the funny name
+ * mpol_fix_fork_child_flag().
+ *
+ * It is also safe to call this with a task pointer of current,
+ * which the static wrapper mpol_set_task_struct_flag() does,
+ * for use within this file.
+ */
+
+void mpol_fix_fork_child_flag(struct task_struct *p)
+{
+	if (p->mempolicy)
+		p->flags |= PF_MEMPOLICY;
+	else
+		p->flags &= ~PF_MEMPOLICY;
+}
+
+static void mpol_set_task_struct_flag(void)
+{
+	mpol_fix_fork_child_flag(current);
+}
+
 /* Set the process memory policy */
 long do_set_mempolicy(int mode, nodemask_t *nodes)
 {
@@ -443,6 +465,7 @@ long do_set_mempolicy(int mode, nodemask_t *nodes)
 		return PTR_ERR(new);
 	mpol_free(current->mempolicy);
 	current->mempolicy = new;
+	mpol_set_task_struct_flag();
 	if (new && new->policy == MPOL_INTERLEAVE)
 		current->il_next = first_node(new->v.nodes);
 	return 0;
@@ -550,92 +573,18 @@ long do_get_mempolicy(int *policy, nodemask_t *nmask,
 	return err;
 }
 
+#ifdef CONFIG_MIGRATION
 /*
  * page migration
  */
-
 static void migrate_page_add(struct page *page, struct list_head *pagelist,
 				unsigned long flags)
 {
 	/*
 	 * Avoid migrating a page that is shared with others.
 	 */
-	if ((flags & MPOL_MF_MOVE_ALL) || page_mapcount(page) == 1) {
-		if (isolate_lru_page(page))
-			list_add_tail(&page->lru, pagelist);
-	}
-}
-
-/*
- * Migrate the list 'pagelist' of pages to a certain destination.
- *
- * Specify destination with either non-NULL vma or dest_node >= 0
- * Return the number of pages not migrated or error code
- */
-static int migrate_pages_to(struct list_head *pagelist,
-			struct vm_area_struct *vma, int dest)
-{
-	LIST_HEAD(newlist);
-	LIST_HEAD(moved);
-	LIST_HEAD(failed);
-	int err = 0;
-	unsigned long offset = 0;
-	int nr_pages;
-	struct page *page;
-	struct list_head *p;
-
-redo:
-	nr_pages = 0;
-	list_for_each(p, pagelist) {
-		if (vma) {
-			/*
-			 * The address passed to alloc_page_vma is used to
-			 * generate the proper interleave behavior. We fake
-			 * the address here by an increasing offset in order
-			 * to get the proper distribution of pages.
-			 *
-			 * No decision has been made as to which page
-			 * a certain old page is moved to so we cannot
-			 * specify the correct address.
-			 */
-			page = alloc_page_vma(GFP_HIGHUSER, vma,
-					offset + vma->vm_start);
-			offset += PAGE_SIZE;
-		}
-		else
-			page = alloc_pages_node(dest, GFP_HIGHUSER, 0);
-
-		if (!page) {
-			err = -ENOMEM;
-			goto out;
-		}
-		list_add_tail(&page->lru, &newlist);
-		nr_pages++;
-		if (nr_pages > MIGRATE_CHUNK_SIZE)
-			break;
-	}
-	err = migrate_pages(pagelist, &newlist, &moved, &failed);
-
-	putback_lru_pages(&moved);	/* Call release pages instead ?? */
-
-	if (err >= 0 && list_empty(&newlist) && !list_empty(pagelist))
-		goto redo;
-out:
-	/* Return leftover allocated pages */
-	while (!list_empty(&newlist)) {
-		page = list_entry(newlist.next, struct page, lru);
-		list_del(&page->lru);
-		__free_page(page);
-	}
-	list_splice(&failed, pagelist);
-	if (err < 0)
-		return err;
-
-	/* Calculate number of leftover pages */
-	nr_pages = 0;
-	list_for_each(p, pagelist)
-		nr_pages++;
-	return nr_pages;
+	if ((flags & MPOL_MF_MOVE_ALL) || page_mapcount(page) == 1)
+		isolate_lru_page(page, pagelist);
 }
 
 /*
@@ -742,7 +691,22 @@ int do_migrate_pages(struct mm_struct *mm,
 	if (err < 0)
 		return err;
 	return busy;
+
 }
+
+#else
+
+static void migrate_page_add(struct page *page, struct list_head *pagelist,
+				unsigned long flags)
+{
+}
+
+int do_migrate_pages(struct mm_struct *mm,
+	const nodemask_t *from_nodes, const nodemask_t *to_nodes, int flags)
+{
+	return -ENOSYS;
+}
+#endif
 
 long do_mbind(unsigned long start, unsigned long len,
 		unsigned long mode, nodemask_t *nmask, unsigned long flags)
@@ -808,6 +772,7 @@ long do_mbind(unsigned long start, unsigned long len,
 		if (!err && nr_failed && (flags & MPOL_MF_STRICT))
 			err = -EIO;
 	}
+
 	if (!list_empty(&pagelist))
 		putback_lru_pages(&pagelist);
 
@@ -947,7 +912,7 @@ asmlinkage long sys_migrate_pages(pid_t pid, unsigned long maxnode,
 	/*
 	 * Check if this process has the right to modify the specified
 	 * process. The right exists if the process has administrative
-	 * capabilities, superuser priviledges or the same
+	 * capabilities, superuser privileges or the same
 	 * userid as the target process.
 	 */
 	if ((current->euid != task->suid) && (current->euid != task->uid) &&

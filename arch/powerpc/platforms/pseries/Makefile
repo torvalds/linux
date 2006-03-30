@@ -1,5 +1,6 @@
 obj-y			:= pci.o lpar.o hvCall.o nvram.o reconfig.o \
-			   setup.o iommu.o ras.o rtasd.o pci_dlpar.o
+			   setup.o iommu.o ras.o rtasd.o pci_dlpar.o \
+			   firmware.o
 obj-$(CONFIG_SMP)	+= smp.o
 obj-$(CONFIG_IBMVIO)	+= vio.o
 obj-$(CONFIG_XICS)	+= xics.o

@@ -91,7 +91,7 @@ static void ixp4xx_config_irq(unsigned irq, enum ixp4xx_irq_type type);
 /*
  * IRQ -> GPIO mapping table
  */
-static int irq2gpio[32] = {
+static char irq2gpio[32] = {
 	-1, -1, -1, -1, -1, -1,  0,  1,
 	-1, -1, -1, -1, -1, -1, -1, -1,
 	-1, -1, -1,  2,  3,  4,  5,  6,
@@ -152,6 +152,9 @@ static int ixp4xx_set_irq_type(unsigned int irq, unsigned int type)
 
 	/* Set the new style */
 	*int_reg |= (int_style << (line * IXP4XX_GPIO_STYLE_SIZE));
+
+	/* Configure the line as an input */
+	gpio_line_config(line, IXP4XX_GPIO_IN);
 
 	return 0;
 }

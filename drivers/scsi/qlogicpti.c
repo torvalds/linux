@@ -24,6 +24,7 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/jiffies.h>
 
 #include <asm/byteorder.h>
 
@@ -1017,7 +1018,7 @@ static inline void cmd_frob(struct Command_Entry *cmd, struct scsi_cmnd *Cmnd,
 	if (Cmnd->device->tagged_supported) {
 		if (qpti->cmd_count[Cmnd->device->id] == 0)
 			qpti->tag_ages[Cmnd->device->id] = jiffies;
-		if ((jiffies - qpti->tag_ages[Cmnd->device->id]) > (5*HZ)) {
+		if (time_after(jiffies, qpti->tag_ages[Cmnd->device->id] + (5*HZ))) {
 			cmd->control_flags = CFLAG_ORDERED_TAG;
 			qpti->tag_ages[Cmnd->device->id] = jiffies;
 		} else

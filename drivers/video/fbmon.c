@@ -1281,7 +1281,7 @@ int fb_validate_mode(const struct fb_var_screeninfo *var, struct fb_info *info)
 		-EINVAL : 0;
 }
 
-#if defined(__i386__)
+#if defined(CONFIG_FB_FIRMWARE_EDID) && defined(__i386__)
 #include <linux/pci.h>
 
 /*
@@ -1311,11 +1311,11 @@ const unsigned char *fb_firmware_edid(struct device *device)
 {
 	return NULL;
 }
-#endif /* _i386_ */
+#endif
+EXPORT_SYMBOL(fb_firmware_edid);
 
 EXPORT_SYMBOL(fb_parse_edid);
 EXPORT_SYMBOL(fb_edid_to_monspecs);
-EXPORT_SYMBOL(fb_firmware_edid);
 EXPORT_SYMBOL(fb_get_mode);
 EXPORT_SYMBOL(fb_validate_mode);
 EXPORT_SYMBOL(fb_destroy_modedb);

@@ -470,7 +470,7 @@ static int r_open(struct inode *inode, struct file *file)
 	return ret;
 }
 
-static struct file_operations r_file_operations = {
+static const struct file_operations r_file_operations = {
 	.open = r_open,
 	.read = seq_read,
 	.llseek = seq_lseek,

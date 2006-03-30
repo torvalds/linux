@@ -218,8 +218,8 @@ static void dnp_set_vpp(struct map_info *not_used, int on)
 	{
 		if(--vpp_counter == 0)
 			setcsc(CSC_RBWR, getcsc(CSC_RBWR) | 0x4);
-		else if(vpp_counter < 0)
-			BUG();
+		else
+			BUG_ON(vpp_counter < 0);
 	}
 	spin_unlock_irq(&dnpc_spin);
 }
@@ -240,8 +240,8 @@ static void adnp_set_vpp(struct map_info *not_used, int on)
 	{
 		if(--vpp_counter == 0)
 			setcsc(CSC_RBWR, getcsc(CSC_RBWR) | 0x8);
-		else if(vpp_counter < 0)
-			BUG();
+		else
+			BUG_ON(vpp_counter < 0);
 	}
 	spin_unlock_irq(&dnpc_spin);
 }

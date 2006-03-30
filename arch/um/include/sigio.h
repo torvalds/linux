@@ -8,9 +8,6 @@
 
 extern int write_sigio_irq(int fd);
 extern int register_sigio_fd(int fd);
-extern int read_sigio_fd(int fd);
-extern int add_sigio_fd(int fd, int read);
-extern int ignore_sigio_fd(int fd);
 extern void sigio_lock(void);
 extern void sigio_unlock(void);
 

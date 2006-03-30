@@ -2944,7 +2944,7 @@ static int cryptocop_ioctl_process(struct inode *inode, struct file *filp, unsig
 		int spdl_err;
 		/* Mark output pages dirty. */
 		spdl_err = set_page_dirty_lock(outpages[i]);
-		DEBUG(if (spdl_err)printk("cryptocop_ioctl_process: set_page_dirty_lock returned %d\n", spdl_err));
+		DEBUG(if (spdl_err < 0)printk("cryptocop_ioctl_process: set_page_dirty_lock returned %d\n", spdl_err));
 	}
 	for (i = 0; i < nooutpages; i++){
 		put_page(outpages[i]);

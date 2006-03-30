@@ -1,5 +1,4 @@
 /*
- *   arch/ppc64/kernel/rtas-proc.c
  *   Copyright (C) 2000 Tilmann Bitterberg
  *   (tilmann@bitterberg.de)
  *
@@ -258,7 +257,7 @@ static int __init proc_rtas_init(void)
 {
 	struct proc_dir_entry *entry;
 
-	if (_machine != PLATFORM_PSERIES && _machine != PLATFORM_PSERIES_LPAR)
+	if (!machine_is(pseries))
 		return 1;
 
 	rtas_node = of_find_node_by_name(NULL, "rtas");

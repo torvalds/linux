@@ -839,7 +839,9 @@ static int loop_set_fd(struct loop_device *lo, struct file *lo_file,
 
 	set_blocksize(bdev, lo_blocksize);
 
-	kernel_thread(loop_thread, lo, CLONE_KERNEL);
+	error = kernel_thread(loop_thread, lo, CLONE_KERNEL);
+	if (error < 0)
+		goto out_putf;
 	wait_for_completion(&lo->lo_done);
 	return 0;
 
@@ -1144,7 +1146,7 @@ static int lo_ioctl(struct inode * inode, struct file * file,
 	struct loop_device *lo = inode->i_bdev->bd_disk->private_data;
 	int err;
 
-	down(&lo->lo_ctl_mutex);
+	mutex_lock(&lo->lo_ctl_mutex);
 	switch (cmd) {
 	case LOOP_SET_FD:
 		err = loop_set_fd(lo, file, inode->i_bdev, arg);
@@ -1170,7 +1172,7 @@ static int lo_ioctl(struct inode * inode, struct file * file,
 	default:
 		err = lo->ioctl ? lo->ioctl(lo, cmd, arg) : -EINVAL;
 	}
-	up(&lo->lo_ctl_mutex);
+	mutex_unlock(&lo->lo_ctl_mutex);
 	return err;
 }
 
@@ -1178,9 +1180,9 @@ static int lo_open(struct inode *inode, struct file *file)
 {
 	struct loop_device *lo = inode->i_bdev->bd_disk->private_data;
 
-	down(&lo->lo_ctl_mutex);
+	mutex_lock(&lo->lo_ctl_mutex);
 	lo->lo_refcnt++;
-	up(&lo->lo_ctl_mutex);
+	mutex_unlock(&lo->lo_ctl_mutex);
 
 	return 0;
 }
@@ -1189,9 +1191,9 @@ static int lo_release(struct inode *inode, struct file *file)
 {
 	struct loop_device *lo = inode->i_bdev->bd_disk->private_data;
 
-	down(&lo->lo_ctl_mutex);
+	mutex_lock(&lo->lo_ctl_mutex);
 	--lo->lo_refcnt;
-	up(&lo->lo_ctl_mutex);
+	mutex_unlock(&lo->lo_ctl_mutex);
 
 	return 0;
 }
@@ -1233,12 +1235,12 @@ int loop_unregister_transfer(int number)
 	xfer_funcs[n] = NULL;
 
 	for (lo = &loop_dev[0]; lo < &loop_dev[max_loop]; lo++) {
-		down(&lo->lo_ctl_mutex);
+		mutex_lock(&lo->lo_ctl_mutex);
 
 		if (lo->lo_encryption == xfer)
 			loop_release_xfer(lo);
 
-		up(&lo->lo_ctl_mutex);
+		mutex_unlock(&lo->lo_ctl_mutex);
 	}
 
 	return 0;
@@ -1285,7 +1287,7 @@ static int __init loop_init(void)
 		lo->lo_queue = blk_alloc_queue(GFP_KERNEL);
 		if (!lo->lo_queue)
 			goto out_mem4;
-		init_MUTEX(&lo->lo_ctl_mutex);
+		mutex_init(&lo->lo_ctl_mutex);
 		init_completion(&lo->lo_done);
 		init_completion(&lo->lo_bh_done);
 		lo->lo_number = i;

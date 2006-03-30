@@ -615,7 +615,7 @@ extern struct bus_type usb_bus_type;
  */
 struct usb_class_driver {
 	char *name;
-	struct file_operations *fops;
+	const struct file_operations *fops;
 	int minor_base;
 };
 

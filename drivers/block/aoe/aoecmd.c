@@ -8,6 +8,7 @@
 #include <linux/blkdev.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
+#include <linux/genhd.h>
 #include <asm/unaligned.h>
 #include "aoe.h"
 
@@ -28,6 +29,7 @@ new_skb(struct net_device *if_dev, ulong len)
 		skb->protocol = __constant_htons(ETH_P_AOE);
 		skb->priority = 0;
 		skb_put(skb, len);
+		memset(skb->head, 0, len);
 		skb->next = skb->prev = NULL;
 
 		/* tell the network layer not to perform IP checksums
@@ -188,12 +190,67 @@ aoecmd_ata_rw(struct aoedev *d, struct frame *f)
 	}
 }
 
+/* some callers cannot sleep, and they can call this function,
+ * transmitting the packets later, when interrupts are on
+ */
+static struct sk_buff *
+aoecmd_cfg_pkts(ushort aoemajor, unsigned char aoeminor, struct sk_buff **tail)
+{
+	struct aoe_hdr *h;
+	struct aoe_cfghdr *ch;
+	struct sk_buff *skb, *sl, *sl_tail;
+	struct net_device *ifp;
+
+	sl = sl_tail = NULL;
+
+	read_lock(&dev_base_lock);
+	for (ifp = dev_base; ifp; dev_put(ifp), ifp = ifp->next) {
+		dev_hold(ifp);
+		if (!is_aoe_netif(ifp))
+			continue;
+
+		skb = new_skb(ifp, sizeof *h + sizeof *ch);
+		if (skb == NULL) {
+			printk(KERN_INFO "aoe: aoecmd_cfg: skb alloc failure\n");
+			continue;
+		}
+		if (sl_tail == NULL)
+			sl_tail = skb;
+		h = (struct aoe_hdr *) skb->mac.raw;
+		memset(h, 0, sizeof *h + sizeof *ch);
+
+		memset(h->dst, 0xff, sizeof h->dst);
+		memcpy(h->src, ifp->dev_addr, sizeof h->src);
+		h->type = __constant_cpu_to_be16(ETH_P_AOE);
+		h->verfl = AOE_HVER;
+		h->major = cpu_to_be16(aoemajor);
+		h->minor = aoeminor;
+		h->cmd = AOECMD_CFG;
+
+		skb->next = sl;
+		sl = skb;
+	}
+	read_unlock(&dev_base_lock);
+
+	if (tail != NULL)
+		*tail = sl_tail;
+	return sl;
+}
+
 /* enters with d->lock held */
 void
 aoecmd_work(struct aoedev *d)
 {
 	struct frame *f;
 	struct buf *buf;
+
+	if (d->flags & DEVFL_PAUSE) {
+		if (!aoedev_isbusy(d))
+			d->sendq_hd = aoecmd_cfg_pkts(d->aoemajor,
+						d->aoeminor, &d->sendq_tl);
+		return;
+	}
+
 loop:
 	f = getframe(d, FREETAG);
 	if (f == NULL)
@@ -229,6 +286,8 @@ rexmit(struct aoedev *d, struct frame *f)
 	h = (struct aoe_hdr *) f->data;
 	f->tag = n;
 	h->tag = cpu_to_be32(n);
+	memcpy(h->dst, d->addr, sizeof h->dst);
+	memcpy(h->src, d->ifp->dev_addr, sizeof h->src);
 
 	skb = skb_prepare(d, f);
 	if (skb) {
@@ -272,7 +331,7 @@ rexmit_timer(ulong vp)
 	spin_lock_irqsave(&d->lock, flags);
 
 	if (d->flags & DEVFL_TKILL) {
-tdie:		spin_unlock_irqrestore(&d->lock, flags);
+		spin_unlock_irqrestore(&d->lock, flags);
 		return;
 	}
 	f = d->frames;
@@ -283,7 +342,7 @@ tdie:		spin_unlock_irqrestore(&d->lock, flags);
 			n /= HZ;
 			if (n > MAXWAIT) { /* waited too long.  device failure. */
 				aoedev_downdev(d);
-				goto tdie;
+				break;
 			}
 			rexmit(d, f);
 		}
@@ -303,6 +362,37 @@ tdie:		spin_unlock_irqrestore(&d->lock, flags);
 	spin_unlock_irqrestore(&d->lock, flags);
 
 	aoenet_xmit(sl);
+}
+
+/* this function performs work that has been deferred until sleeping is OK
+ */
+void
+aoecmd_sleepwork(void *vp)
+{
+	struct aoedev *d = (struct aoedev *) vp;
+
+	if (d->flags & DEVFL_GDALLOC)
+		aoeblk_gdalloc(d);
+
+	if (d->flags & DEVFL_NEWSIZE) {
+		struct block_device *bd;
+		unsigned long flags;
+		u64 ssize;
+
+		ssize = d->gd->capacity;
+		bd = bdget_disk(d->gd, 0);
+
+		if (bd) {
+			mutex_lock(&bd->bd_inode->i_mutex);
+			i_size_write(bd->bd_inode, (loff_t)ssize<<9);
+			mutex_unlock(&bd->bd_inode->i_mutex);
+			bdput(bd);
+		}
+		spin_lock_irqsave(&d->lock, flags);
+		d->flags |= DEVFL_UP;
+		d->flags &= ~DEVFL_NEWSIZE;
+		spin_unlock_irqrestore(&d->lock, flags);
+	}
 }
 
 static void
@@ -339,21 +429,29 @@ ataid_complete(struct aoedev *d, unsigned char *id)
 		d->geo.heads = le16_to_cpu(get_unaligned((__le16 *) &id[55<<1]));
 		d->geo.sectors = le16_to_cpu(get_unaligned((__le16 *) &id[56<<1]));
 	}
+
+	if (d->ssize != ssize)
+		printk(KERN_INFO "aoe: %012llx e%lu.%lu v%04x has %llu "
+			"sectors\n", (unsigned long long)mac_addr(d->addr),
+			d->aoemajor, d->aoeminor,
+			d->fw_ver, (long long)ssize);
 	d->ssize = ssize;
 	d->geo.start = 0;
 	if (d->gd != NULL) {
 		d->gd->capacity = ssize;
-		d->flags |= DEVFL_UP;
-		return;
+		d->flags |= DEVFL_NEWSIZE;
+	} else {
+		if (d->flags & DEVFL_GDALLOC) {
+			printk(KERN_INFO "aoe: %s: %s e%lu.%lu, %s\n",
+			       __FUNCTION__,
+			       "can't schedule work for",
+			       d->aoemajor, d->aoeminor,
+			       "it's already on! (This really shouldn't happen).\n");
+			return;
+		}
+		d->flags |= DEVFL_GDALLOC;
 	}
-	if (d->flags & DEVFL_WORKON) {
-		printk(KERN_INFO "aoe: ataid_complete: can't schedule work, it's already on!  "
-			"(This really shouldn't happen).\n");
-		return;
-	}
-	INIT_WORK(&d->work, aoeblk_gdalloc, d);
 	schedule_work(&d->work);
-	d->flags |= DEVFL_WORKON;
 }
 
 static void
@@ -419,6 +517,8 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 	ahout = (struct aoe_atahdr *) (f->data + sizeof(struct aoe_hdr));
 	buf = f->buf;
 
+	if (ahout->cmdstat == WIN_IDENTIFY)
+		d->flags &= ~DEVFL_PAUSE;
 	if (ahin->cmdstat & 0xa9) {	/* these bits cleared on success */
 		printk(KERN_CRIT "aoe: aoecmd_ata_rsp: ata error cmd=%2.2Xh "
 			"stat=%2.2Xh from e%ld.%ld\n", 
@@ -451,7 +551,6 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 				return;
 			}
 			ataid_complete(d, (char *) (ahin+1));
-			/* d->flags |= DEVFL_WC_UPDATE; */
 			break;
 		default:
 			printk(KERN_INFO "aoe: aoecmd_ata_rsp: unrecognized "
@@ -484,51 +583,19 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 	f->tag = FREETAG;
 
 	aoecmd_work(d);
-
 	sl = d->sendq_hd;
 	d->sendq_hd = d->sendq_tl = NULL;
 
 	spin_unlock_irqrestore(&d->lock, flags);
-
 	aoenet_xmit(sl);
 }
 
 void
 aoecmd_cfg(ushort aoemajor, unsigned char aoeminor)
 {
-	struct aoe_hdr *h;
-	struct aoe_cfghdr *ch;
-	struct sk_buff *skb, *sl;
-	struct net_device *ifp;
+	struct sk_buff *sl;
 
-	sl = NULL;
-
-	read_lock(&dev_base_lock);
-	for (ifp = dev_base; ifp; dev_put(ifp), ifp = ifp->next) {
-		dev_hold(ifp);
-		if (!is_aoe_netif(ifp))
-			continue;
-
-		skb = new_skb(ifp, sizeof *h + sizeof *ch);
-		if (skb == NULL) {
-			printk(KERN_INFO "aoe: aoecmd_cfg: skb alloc failure\n");
-			continue;
-		}
-		h = (struct aoe_hdr *) skb->mac.raw;
-		memset(h, 0, sizeof *h + sizeof *ch);
-
-		memset(h->dst, 0xff, sizeof h->dst);
-		memcpy(h->src, ifp->dev_addr, sizeof h->src);
-		h->type = __constant_cpu_to_be16(ETH_P_AOE);
-		h->verfl = AOE_HVER;
-		h->major = cpu_to_be16(aoemajor);
-		h->minor = aoeminor;
-		h->cmd = AOECMD_CFG;
-
-		skb->next = sl;
-		sl = skb;
-	}
-	read_unlock(&dev_base_lock);
+	sl = aoecmd_cfg_pkts(aoemajor, aoeminor, NULL);
 
 	aoenet_xmit(sl);
 }
@@ -561,9 +628,6 @@ aoecmd_ata_id(struct aoedev *d)
 	f->waited = 0;
 	f->writedatalen = 0;
 
-	/* this message initializes the device, so we reset the rttavg */
-	d->rttavg = MAXTIMER;
-
 	/* set up ata header */
 	ah->scnt = 1;
 	ah->cmdstat = WIN_IDENTIFY;
@@ -571,12 +635,8 @@ aoecmd_ata_id(struct aoedev *d)
 
 	skb = skb_prepare(d, f);
 
-	/* we now want to start the rexmit tracking */
-	d->flags &= ~DEVFL_TKILL;
-	d->timer.data = (ulong) d;
+	d->rttavg = MAXTIMER;
 	d->timer.function = rexmit_timer;
-	d->timer.expires = jiffies + TIMERTICK;
-	add_timer(&d->timer);
 
 	return skb;
 }
@@ -590,7 +650,7 @@ aoecmd_cfg_rsp(struct sk_buff *skb)
 	ulong flags, sysminor, aoemajor;
 	u16 bufcnt;
 	struct sk_buff *sl;
-	enum { MAXFRAMES = 8 };
+	enum { MAXFRAMES = 16 };
 
 	h = (struct aoe_hdr *) skb->mac.raw;
 	ch = (struct aoe_cfghdr *) (h+1);
@@ -618,23 +678,28 @@ aoecmd_cfg_rsp(struct sk_buff *skb)
 	if (bufcnt > MAXFRAMES)	/* keep it reasonable */
 		bufcnt = MAXFRAMES;
 
-	d = aoedev_set(sysminor, h->src, skb->dev, bufcnt);
+	d = aoedev_by_sysminor_m(sysminor, bufcnt);
 	if (d == NULL) {
-		printk(KERN_INFO "aoe: aoecmd_cfg_rsp: device set failure\n");
+		printk(KERN_INFO "aoe: aoecmd_cfg_rsp: device sysminor_m failure\n");
 		return;
 	}
 
 	spin_lock_irqsave(&d->lock, flags);
 
-	if (d->flags & (DEVFL_UP | DEVFL_CLOSEWAIT)) {
+	/* permit device to migrate mac and network interface */
+	d->ifp = skb->dev;
+	memcpy(d->addr, h->src, sizeof d->addr);
+
+	/* don't change users' perspective */
+	if (d->nopen && !(d->flags & DEVFL_PAUSE)) {
 		spin_unlock_irqrestore(&d->lock, flags);
 		return;
 	}
-
+	d->flags |= DEVFL_PAUSE;	/* force pause */
 	d->fw_ver = be16_to_cpu(ch->fwver);
 
-	/* we get here only if the device is new */
-	sl = aoecmd_ata_id(d);
+	/* check for already outstanding ataid */
+	sl = aoedev_isbusy(d) == 0 ? aoecmd_ata_id(d) : NULL;
 
 	spin_unlock_irqrestore(&d->lock, flags);
 

@@ -118,7 +118,7 @@
 
 // enable CTS interrupt
 #define MOXA_MUST_IER_ECTSI		0x80
-// eanble RTS interrupt
+// enable RTS interrupt
 #define MOXA_MUST_IER_ERTSI		0x40
 // enable Xon/Xoff interrupt
 #define MOXA_MUST_IER_XINT		0x20

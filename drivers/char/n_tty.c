@@ -132,7 +132,7 @@ static void put_tty_queue(unsigned char c, struct tty_struct *tty)
  *	We test the TTY_THROTTLED bit first so that it always
  *	indicates the current state. The decision about whether
  *	it is worth allowing more input has been taken by the caller.
- *	Can sleep, may be called under the atomic_read semaphore but
+ *	Can sleep, may be called under the atomic_read_lock mutex but
  *	this is not guaranteed.
  */
  
@@ -1132,7 +1132,7 @@ static inline int input_available_p(struct tty_struct *tty, int amt)
  *	buffer, and once to drain the space from the (physical) beginning of
  *	the buffer to head pointer.
  *
- *	Called under the tty->atomic_read sem and with TTY_DONT_FLIP set
+ *	Called under the tty->atomic_read_lock sem and with TTY_DONT_FLIP set
  *
  */
  
@@ -1262,11 +1262,11 @@ do_it_again:
 	 *	Internal serialization of reads.
 	 */
 	if (file->f_flags & O_NONBLOCK) {
-		if (down_trylock(&tty->atomic_read))
+		if (!mutex_trylock(&tty->atomic_read_lock))
 			return -EAGAIN;
 	}
 	else {
-		if (down_interruptible(&tty->atomic_read))
+		if (mutex_lock_interruptible(&tty->atomic_read_lock))
 			return -ERESTARTSYS;
 	}
 
@@ -1393,7 +1393,7 @@ do_it_again:
 			timeout = time;
 	}
 	clear_bit(TTY_DONT_FLIP, &tty->flags);
-	up(&tty->atomic_read);
+	mutex_unlock(&tty->atomic_read_lock);
 	remove_wait_queue(&tty->read_wait, &wait);
 
 	if (!waitqueue_active(&tty->read_wait))

@@ -859,18 +859,6 @@ config RAMFS
 	  To compile this as a module, choose M here: the module will be called
 	  ramfs.
 
-config RELAYFS_FS
-	tristate "Relayfs file system support"
-	---help---
-	  Relayfs is a high-speed data relay filesystem designed to provide
-	  an efficient mechanism for tools and facilities to relay large
-	  amounts of data from kernel space to user space.
-
-	  To compile this code as a module, choose M here: the module will be
-	  called relayfs.
-
-	  If unsure, say N.
-
 config CONFIGFS_FS
 	tristate "Userspace-driven configuration filesystem (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
@@ -1567,6 +1555,7 @@ config RPCSEC_GSS_SPKM3
 	select CRYPTO
 	select CRYPTO_MD5
 	select CRYPTO_DES
+	select CRYPTO_CAST5
 	help
 	  Provides for secure RPC calls by means of a gss-api
 	  mechanism based on the SPKM3 public-key mechanism.

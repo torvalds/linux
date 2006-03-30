@@ -25,6 +25,16 @@ config NET_RADIO
 	  the tools from
 	  <http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/Tools.html>.
 
+config NET_WIRELESS_RTNETLINK
+	bool "Wireless Extension API over RtNetlink"
+	depends on NET_RADIO
+	---help---
+	  Support the Wireless Extension API over the RtNetlink socket
+	  in addition to the traditional ioctl interface (selected above).
+
+	  For now, few tools use this facility, but it might grow in the
+	  future. The only downside is that it adds 4.5 kB to your kernel.
+
 # Note : the cards are obsolete (can't buy them anymore), but the drivers
 # are not, as people are still using them...
 comment "Obsolete Wireless cards support (pre-802.11)"

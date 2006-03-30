@@ -39,16 +39,16 @@ static struct ipt_match dscp_match = {
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init ipt_dscp_init(void)
 {
 	return ipt_register_match(&dscp_match);
 }
 
-static void __exit fini(void)
+static void __exit ipt_dscp_fini(void)
 {
 	ipt_unregister_match(&dscp_match);
 
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ipt_dscp_init);
+module_exit(ipt_dscp_fini);

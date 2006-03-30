@@ -21,6 +21,9 @@
 #ifdef CONFIG_40x
 #include <asm/io.h>
 #endif
+#ifdef CONFIG_XILINX_VIRTEX
+#include <platforms/4xx/xparameters/xparameters.h>
+#endif
 extern unsigned long timebase_period_ns;
 
 /* For those boards that don't provide one.
@@ -742,7 +745,7 @@ embed_config(bd_t **bdp)
 }
 #endif /* WILLOW */
 
-#ifdef CONFIG_XILINX_ML300
+#if defined(CONFIG_XILINX_ML300) || defined(CONFIG_XILINX_ML403)
 void
 embed_config(bd_t ** bdp)
 {
@@ -779,7 +782,7 @@ embed_config(bd_t ** bdp)
 	timebase_period_ns = 1000000000 / bd->bi_tbfreq;
 	/* see bi_tbfreq definition in arch/ppc/platforms/4xx/xilinx_ml300.h */
 }
-#endif /* CONFIG_XILINX_ML300 */
+#endif /* CONFIG_XILINX_ML300 || CONFIG_XILINX_ML403 */
 
 #ifdef CONFIG_IBM_OPENBIOS
 /* This could possibly work for all treeboot roms.

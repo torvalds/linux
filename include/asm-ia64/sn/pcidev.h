@@ -76,6 +76,7 @@ extern void sn_pci_controller_fixup(int segment, int busnum,
  				    struct pci_bus *bus);
 extern void sn_bus_store_sysdata(struct pci_dev *dev);
 extern void sn_bus_free_sysdata(void);
+extern void sn_generate_path(struct pci_bus *pci_bus, char *address);
 extern void sn_pci_fixup_slot(struct pci_dev *dev);
 extern void sn_pci_unfixup_slot(struct pci_dev *dev);
 extern void sn_irq_lh_init(void);

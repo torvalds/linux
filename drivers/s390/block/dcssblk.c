@@ -388,12 +388,11 @@ dcssblk_add_store(struct device *dev, struct device_attribute *attr, const char 
 	/*
 	 * get a struct dcssblk_dev_info
 	 */
-	dev_info = kmalloc(sizeof(struct dcssblk_dev_info), GFP_KERNEL);
+	dev_info = kzalloc(sizeof(struct dcssblk_dev_info), GFP_KERNEL);
 	if (dev_info == NULL) {
 		rc = -ENOMEM;
 		goto out;
 	}
-	memset(dev_info, 0, sizeof(struct dcssblk_dev_info));
 
 	strcpy(dev_info->segment_name, local_buf);
 	strlcpy(dev_info->dev.bus_id, local_buf, BUS_ID_SIZE);

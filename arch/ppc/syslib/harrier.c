@@ -1,6 +1,4 @@
 /*
- * arch/ppc/syslib/harrier.c
- *
  * Motorola MCG Harrier northbridge/memory controller support
  *
  * Author: Dale Farnsworth

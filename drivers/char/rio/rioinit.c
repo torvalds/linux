@@ -51,15 +51,12 @@ static char *_rioinit_c_sccs_ = "@(#)rioinit.c	1.3";
 
 
 #include "linux_compat.h"
-#include "typdef.h"
 #include "pkt.h"
 #include "daemon.h"
 #include "rio.h"
 #include "riospace.h"
-#include "top.h"
 #include "cmdpkt.h"
 #include "map.h"
-#include "riotypes.h"
 #include "rup.h"
 #include "port.h"
 #include "riodrvr.h"
@@ -72,22 +69,17 @@ static char *_rioinit_c_sccs_ = "@(#)rioinit.c	1.3";
 #include "unixrup.h"
 #include "board.h"
 #include "host.h"
-#include "error.h"
 #include "phb.h"
 #include "link.h"
 #include "cmdblk.h"
 #include "route.h"
-#include "control.h"
 #include "cirrus.h"
 #include "rioioctl.h"
 #include "rio_linux.h"
 
-#undef bcopy
-#define bcopy rio_pcicopy
-
 int RIOPCIinit(struct rio_info *p, int Mode);
 
-static int RIOScrub(int, BYTE *, int);
+static int RIOScrub(int, u8 *, int);
 
 
 /**
@@ -99,12 +91,8 @@ static int RIOScrub(int, BYTE *, int);
 ** bits < 0 indicates 8 bit operation requested,
 ** bits > 0 indicates 16 bit operation.
 */
-int
-RIOAssignAT(p, Base, virtAddr, mode)
-struct rio_info *	p;
-int		Base;
-caddr_t	virtAddr;
-int		mode;
+
+int RIOAssignAT(struct rio_info *p, int	Base, caddr_t	virtAddr, int mode)
 {
 	int		bits;
 	struct DpRam *cardp = (struct DpRam *)virtAddr;
@@ -124,29 +112,25 @@ int		mode;
 	/*
 	** Revision 01 AT host cards don't support WORD operations,
 	*/
-	if ( RBYTE(cardp->DpRevision) == 01 )
+	if (readb(&cardp->DpRevision) == 01)
 		bits = BYTE_OPERATION;
 
 	p->RIOHosts[p->RIONumHosts].Type = RIO_AT;
-	p->RIOHosts[p->RIONumHosts].Copy = bcopy;
+	p->RIOHosts[p->RIONumHosts].Copy = rio_copy_to_card;
 											/* set this later */
 	p->RIOHosts[p->RIONumHosts].Slot = -1;
 	p->RIOHosts[p->RIONumHosts].Mode = SLOW_LINKS | SLOW_AT_BUS | bits;
-	WBYTE(p->RIOHosts[p->RIONumHosts].Control, 
-			BOOT_FROM_RAM | EXTERNAL_BUS_OFF | 
-			p->RIOHosts[p->RIONumHosts].Mode | 
-			INTERRUPT_DISABLE );
-	WBYTE(p->RIOHosts[p->RIONumHosts].ResetInt,0xff);
-	WBYTE(p->RIOHosts[p->RIONumHosts].Control,
-			BOOT_FROM_RAM | EXTERNAL_BUS_OFF | 
-			p->RIOHosts[p->RIONumHosts].Mode |
-			INTERRUPT_DISABLE );
-	WBYTE(p->RIOHosts[p->RIONumHosts].ResetInt,0xff);
+	writeb(BOOT_FROM_RAM | EXTERNAL_BUS_OFF | p->RIOHosts[p->RIONumHosts].Mode | INTERRUPT_DISABLE ,
+		&p->RIOHosts[p->RIONumHosts].Control);
+	writeb(0xFF, &p->RIOHosts[p->RIONumHosts].ResetInt);
+	writeb(BOOT_FROM_RAM | EXTERNAL_BUS_OFF | p->RIOHosts[p->RIONumHosts].Mode | INTERRUPT_DISABLE,
+		&p->RIOHosts[p->RIONumHosts].Control);
+	writeb(0xFF, &p->RIOHosts[p->RIONumHosts].ResetInt);
 	p->RIOHosts[p->RIONumHosts].UniqueNum =
-		((RBYTE(p->RIOHosts[p->RIONumHosts].Unique[0])&0xFF)<<0)|
-		((RBYTE(p->RIOHosts[p->RIONumHosts].Unique[1])&0xFF)<<8)|
-		((RBYTE(p->RIOHosts[p->RIONumHosts].Unique[2])&0xFF)<<16)|
-		((RBYTE(p->RIOHosts[p->RIONumHosts].Unique[3])&0xFF)<<24);
+		((readb(&p->RIOHosts[p->RIONumHosts].Unique[0])&0xFF)<<0)|
+		((readb(&p->RIOHosts[p->RIONumHosts].Unique[1])&0xFF)<<8)|
+		((readb(&p->RIOHosts[p->RIONumHosts].Unique[2])&0xFF)<<16)|
+		((readb(&p->RIOHosts[p->RIONumHosts].Unique[3])&0xFF)<<24);
 	rio_dprintk (RIO_DEBUG_INIT, "RIO-init: Uniquenum 0x%x\n",p->RIOHosts[p->RIONumHosts].UniqueNum);
 
 	p->RIONumHosts++;
@@ -154,7 +138,7 @@ int		mode;
 	return(1);
 }
 
-static	uchar	val[] = {
+static	u8	val[] = {
 #ifdef VERY_LONG_TEST
 	  0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80,
 	  0xa5, 0xff, 0x5a, 0x00, 0xff, 0xc9, 0x36, 
@@ -167,12 +151,7 @@ static	uchar	val[] = {
 ** RAM test a board. 
 ** Nothing too complicated, just enough to check it out.
 */
-int
-RIOBoardTest(paddr, caddr, type, slot)
-paddr_t	paddr;
-caddr_t	caddr;
-uchar	type;
-int		slot;
+int RIOBoardTest(unsigned long paddr, caddr_t	caddr, unsigned char type, int slot)
 {
 	struct DpRam *DpRam = (struct DpRam *)caddr;
 	char *ram[4];
@@ -180,8 +159,8 @@ int		slot;
 	int  op, bank;
 	int  nbanks;
 
-	rio_dprintk (RIO_DEBUG_INIT, "RIO-init: Reset host type=%d, DpRam=0x%x, slot=%d\n",
-			type,(int)DpRam, slot);
+	rio_dprintk (RIO_DEBUG_INIT, "RIO-init: Reset host type=%d, DpRam=%p, slot=%d\n",
+			type, DpRam, slot);
 
 	RIOHostReset(type, DpRam, slot);
 
@@ -209,12 +188,11 @@ int		slot;
 
 
 	if (nbanks == 3) {
-		rio_dprintk (RIO_DEBUG_INIT, "RIO-init: Memory: 0x%x(0x%x), 0x%x(0x%x), 0x%x(0x%x)\n",
-				(int)ram[0], size[0], (int)ram[1], size[1], (int)ram[2], size[2]);
+		rio_dprintk (RIO_DEBUG_INIT, "RIO-init: Memory: %p(0x%x), %p(0x%x), %p(0x%x)\n",
+				ram[0], size[0], ram[1], size[1], ram[2], size[2]);
 	} else {
-		rio_dprintk (RIO_DEBUG_INIT, "RIO-init: 0x%x(0x%x), 0x%x(0x%x), 0x%x(0x%x), 0x%x(0x%x)\n",
-			(int)ram[0], size[0], (int)ram[1], size[1], (int)ram[2], size[2], (int)ram[3], 
-					size[3]);
+		rio_dprintk (RIO_DEBUG_INIT, "RIO-init: %p(0x%x), %p(0x%x), %p(0x%x), %p(0x%x)\n",
+				ram[0], size[0], ram[1], size[1], ram[2], size[2], ram[3], size[3]);
 	}
 
 	/*
@@ -224,7 +202,7 @@ int		slot;
 	*/
 	for (op=0; op<TEST_END; op++) {
 		for (bank=0; bank<nbanks; bank++) {
-			if (RIOScrub(op, (BYTE *)ram[bank], size[bank]) == RIO_FAIL) {
+			if (RIOScrub(op, (u8 *)ram[bank], size[bank]) == RIO_FAIL) {
 				rio_dprintk (RIO_DEBUG_INIT, "RIO-init: RIOScrub band %d, op %d failed\n", 
 							bank, op);
 				return RIO_FAIL;
@@ -233,7 +211,7 @@ int		slot;
 	}
 
 	rio_dprintk (RIO_DEBUG_INIT, "Test completed\n");
-	return RIO_SUCCESS;
+	return 0;
 }
 
 
@@ -248,13 +226,10 @@ int		slot;
 ** Call with op not zero, and the RAM will be read and compated with val[op-1]
 ** to check that the data from the previous phase was retained.
 */
-static int
-RIOScrub(op, ram, size)
-int		op;
-BYTE *	ram;
-int		size; 
+
+static int RIOScrub(int op, u8 *ram, int size)
 {
-	int				off;
+	int off;
 	unsigned char	oldbyte;
 	unsigned char	newbyte;
 	unsigned char	invbyte;
@@ -279,15 +254,15 @@ int		size;
 	*/
 	if (op) {
 		for (off=0; off<size; off++) {
-			if (RBYTE(ram[off]) != oldbyte) {
-				rio_dprintk (RIO_DEBUG_INIT, "RIO-init: Byte Pre Check 1: BYTE at offset 0x%x should have been=%x, was=%x\n", off, oldbyte, RBYTE(ram[off]));
+			if (readb(ram + off) != oldbyte) {
+				rio_dprintk (RIO_DEBUG_INIT, "RIO-init: Byte Pre Check 1: BYTE at offset 0x%x should have been=%x, was=%x\n", off, oldbyte, readb(ram + off));
 				return RIO_FAIL;
 			}
 		}
 		for (off=0; off<size; off+=2) {
-			if (*(ushort *)&ram[off] != oldword) {
-				rio_dprintk (RIO_DEBUG_INIT, "RIO-init: Word Pre Check: WORD at offset 0x%x should have been=%x, was=%x\n",off,oldword,*(ushort *)&ram[off]);
-				rio_dprintk (RIO_DEBUG_INIT, "RIO-init: Word Pre Check: BYTE at offset 0x%x is %x BYTE at offset 0x%x is %x\n", off, RBYTE(ram[off]), off+1, RBYTE(ram[off+1]));
+			if (readw(ram + off) != oldword) {
+				rio_dprintk (RIO_DEBUG_INIT, "RIO-init: Word Pre Check: WORD at offset 0x%x should have been=%x, was=%x\n",off,oldword, readw(ram + off));
+				rio_dprintk (RIO_DEBUG_INIT, "RIO-init: Word Pre Check: BYTE at offset 0x%x is %x BYTE at offset 0x%x is %x\n", off, readb(ram + off), off+1, readb(ram+off+1));
 				return RIO_FAIL;
 			}
 		}
@@ -301,13 +276,13 @@ int		size;
 	** the BYTE read/write test.
 	*/
 	for (off=0; off<size; off++) {
-		if (op && (RBYTE(ram[off]) != oldbyte)) {
-			rio_dprintk (RIO_DEBUG_INIT, "RIO-init: Byte Pre Check 2: BYTE at offset 0x%x should have been=%x, was=%x\n", off, oldbyte, RBYTE(ram[off]));
+		if (op && (readb(ram + off) != oldbyte)) {
+			rio_dprintk (RIO_DEBUG_INIT, "RIO-init: Byte Pre Check 2: BYTE at offset 0x%x should have been=%x, was=%x\n", off, oldbyte, readb(ram + off));
 			return RIO_FAIL;
 		}
-		WBYTE(ram[off],invbyte);
-		if (RBYTE(ram[off]) != invbyte) {
-			rio_dprintk (RIO_DEBUG_INIT, "RIO-init: Byte Inv Check: BYTE at offset 0x%x should have been=%x, was=%x\n", off, invbyte, RBYTE(ram[off]));
+		writeb(invbyte, ram + off);
+		if (readb(ram + off) != invbyte) {
+			rio_dprintk (RIO_DEBUG_INIT, "RIO-init: Byte Inv Check: BYTE at offset 0x%x should have been=%x, was=%x\n", off, invbyte, readb(ram + off));
 			return RIO_FAIL;
 		}
 	}
@@ -320,16 +295,16 @@ int		size;
 	** This is the WORD operation test.
 	*/
 	for (off=0; off<size; off+=2) {
-		if (*(ushort *)&ram[off] != invword) {
-			rio_dprintk (RIO_DEBUG_INIT, "RIO-init: Word Inv Check: WORD at offset 0x%x should have been=%x, was=%x\n", off, invword, *(ushort *)&ram[off]);
-		rio_dprintk (RIO_DEBUG_INIT, "RIO-init: Word Inv Check: BYTE at offset 0x%x is %x BYTE at offset 0x%x is %x\n", off, RBYTE(ram[off]), off+1, RBYTE(ram[off+1]));
+		if (readw(ram + off) != invword) {
+			rio_dprintk (RIO_DEBUG_INIT, "RIO-init: Word Inv Check: WORD at offset 0x%x should have been=%x, was=%x\n", off, invword, readw(ram + off));
+			rio_dprintk (RIO_DEBUG_INIT, "RIO-init: Word Inv Check: BYTE at offset 0x%x is %x BYTE at offset 0x%x is %x\n", off, readb(ram + off), off+1, readb(ram+off+1));
 			return RIO_FAIL;
 		}
 
-		*(ushort *)&ram[off] = newword;
-		if ( *(ushort *)&ram[off] != newword ) {
-			rio_dprintk (RIO_DEBUG_INIT, "RIO-init: Post Word Check 1: WORD at offset 0x%x should have been=%x, was=%x\n", off, newword, *(ushort *)&ram[off]);
-			rio_dprintk (RIO_DEBUG_INIT, "RIO-init: Post Word Check 1: BYTE at offset 0x%x is %x BYTE at offset 0x%x is %x\n", off, RBYTE(ram[off]), off+1, RBYTE(ram[off+1]));
+		writew(newword, ram + off);
+		if ( readw(ram + off) != newword ) {
+			rio_dprintk (RIO_DEBUG_INIT, "RIO-init: Post Word Check 1: WORD at offset 0x%x should have been=%x, was=%x\n", off, newword, readw(ram + off));
+			rio_dprintk (RIO_DEBUG_INIT, "RIO-init: Post Word Check 1: BYTE at offset 0x%x is %x BYTE at offset 0x%x is %x\n", off, readb(ram + off), off+1, readb(ram + off + 1));
 			return RIO_FAIL;
 		}
 	}
@@ -340,16 +315,16 @@ int		size;
 	** required test data.
 	*/
 	for (off=0; off<size; off++) {
-		if (RBYTE(ram[off]) != newbyte) {
-			rio_dprintk (RIO_DEBUG_INIT, "RIO-init: Post Byte Check: BYTE at offset 0x%x should have been=%x, was=%x\n", off, newbyte, RBYTE(ram[off]));
+		if (readb(ram + off) != newbyte) {
+			rio_dprintk (RIO_DEBUG_INIT, "RIO-init: Post Byte Check: BYTE at offset 0x%x should have been=%x, was=%x\n", off, newbyte, readb(ram + off));
 			return RIO_FAIL;
 		}
 	}
 
 	for (off=0; off<size; off+=2) {
-		if ( *(ushort *)&ram[off] != newword ) {
-			rio_dprintk (RIO_DEBUG_INIT, "RIO-init: Post Word Check 2: WORD at offset 0x%x should have been=%x, was=%x\n", off, newword, *(ushort *)&ram[off]);
-			rio_dprintk (RIO_DEBUG_INIT, "RIO-init: Post Word Check 2: BYTE at offset 0x%x is %x BYTE at offset 0x%x is %x\n", off, RBYTE(ram[off]), off+1, RBYTE(ram[off+1]));
+		if (readw(ram + off) != newword ) {
+			rio_dprintk (RIO_DEBUG_INIT, "RIO-init: Post Word Check 2: WORD at offset 0x%x should have been=%x, was=%x\n", off, newword, readw(ram + off));
+			rio_dprintk (RIO_DEBUG_INIT, "RIO-init: Post Word Check 2: BYTE at offset 0x%x is %x BYTE at offset 0x%x is %x\n", off, readb(ram + off), off+1, readb(ram + off + 1));
 			return RIO_FAIL;
 		}
 	}
@@ -360,41 +335,37 @@ int		size;
 	swapword = invbyte | (newbyte << 8);
 
 	for (off=0; off<size; off+=2) {
-		WBYTE(ram[off],invbyte);
-		WBYTE(ram[off+1],newbyte);
+		writeb(invbyte, &ram[off]);
+		writeb(newbyte, &ram[off+1]);
 	}
 
 	for ( off=0; off<size; off+=2 ) {
-		if (*(ushort *)&ram[off] != swapword) {
-			rio_dprintk (RIO_DEBUG_INIT, "RIO-init: SwapWord Check 1: WORD at offset 0x%x should have been=%x, was=%x\n", off, swapword, *((ushort *)&ram[off]));
-			rio_dprintk (RIO_DEBUG_INIT, "RIO-init: SwapWord Check 1: BYTE at offset 0x%x is %x BYTE at offset 0x%x is %x\n", off, RBYTE(ram[off]), off+1, RBYTE(ram[off+1]));
+		if (readw(ram + off) != swapword) {
+			rio_dprintk (RIO_DEBUG_INIT, "RIO-init: SwapWord Check 1: WORD at offset 0x%x should have been=%x, was=%x\n", off, swapword, readw(ram + off));
+			rio_dprintk (RIO_DEBUG_INIT, "RIO-init: SwapWord Check 1: BYTE at offset 0x%x is %x BYTE at offset 0x%x is %x\n", off, readb(ram + off), off+1, readb(ram + off + 1));
 			return RIO_FAIL;
 		}
-		*((ushort *)&ram[off]) = ~swapword;
+		writew(~swapword, ram + off);
 	}
 
 	for (off=0; off<size; off+=2) {
-		if (RBYTE(ram[off]) != newbyte) {
-			rio_dprintk (RIO_DEBUG_INIT, "RIO-init: SwapWord Check 2: BYTE at offset 0x%x should have been=%x, was=%x\n", off, newbyte, RBYTE(ram[off]));
+		if (readb(ram + off) != newbyte) {
+			rio_dprintk (RIO_DEBUG_INIT, "RIO-init: SwapWord Check 2: BYTE at offset 0x%x should have been=%x, was=%x\n", off, newbyte, readb(ram + off));
 			return RIO_FAIL;
 		}
-		if (RBYTE(ram[off+1]) != invbyte) {
-			rio_dprintk (RIO_DEBUG_INIT, "RIO-init: SwapWord Check 2: BYTE at offset 0x%x should have been=%x, was=%x\n", off+1, invbyte, RBYTE(ram[off+1]));
+		if (readb(ram + off + 1) != invbyte) {
+			rio_dprintk (RIO_DEBUG_INIT, "RIO-init: SwapWord Check 2: BYTE at offset 0x%x should have been=%x, was=%x\n", off+1, invbyte, readb(ram + off + 1));
 			return RIO_FAIL;
 		}
-		*((ushort *)&ram[off]) = newword;
+		writew(newword, ram + off);
 	}
-	return RIO_SUCCESS;
+	return 0;
 }
 
 
-int
-RIODefaultName(p, HostP, UnitId)
-struct rio_info *	p;
-struct Host *	HostP;
-uint			UnitId;
+int RIODefaultName(struct rio_info *p, struct Host *HostP, unsigned int	UnitId)
 {
-	bcopy("UNKNOWN RTA X-XX",HostP->Mapping[UnitId].Name,17);
+	memcpy(HostP->Mapping[UnitId].Name, "UNKNOWN RTA X-XX", 17);
 	HostP->Mapping[UnitId].Name[12]='1'+(HostP-p->RIOHosts);
 	if ((UnitId+1) > 9) {
 		HostP->Mapping[UnitId].Name[14]='0'+((UnitId+1)/10);
@@ -412,8 +383,7 @@ uint			UnitId;
 
 static struct rioVersion	stVersion;
 
-struct rioVersion *
-RIOVersid(void)
+struct rioVersion *RIOVersid(void)
 {
     strlcpy(stVersion.version, "RIO driver for linux V1.0",
 	    sizeof(stVersion.version));
@@ -423,40 +393,31 @@ RIOVersid(void)
     return &stVersion;
 }
 
-void
-RIOHostReset(Type, DpRamP, Slot)
-uint Type;
-volatile struct DpRam *DpRamP;
-uint Slot; 
+void RIOHostReset(unsigned int Type, struct DpRam *DpRamP, unsigned int Slot)
 {
 	/*
 	** Reset the Tpu
 	*/
 	rio_dprintk (RIO_DEBUG_INIT,  "RIOHostReset: type 0x%x", Type);
 	switch ( Type ) {
-		case RIO_AT:
-			rio_dprintk (RIO_DEBUG_INIT, " (RIO_AT)\n");
-			WBYTE(DpRamP->DpControl,  BOOT_FROM_RAM | EXTERNAL_BUS_OFF | 
-					  INTERRUPT_DISABLE | BYTE_OPERATION |
-					  SLOW_LINKS | SLOW_AT_BUS);
-			WBYTE(DpRamP->DpResetTpu, 0xFF);
-			udelay(3);
-
+	case RIO_AT:
+		rio_dprintk (RIO_DEBUG_INIT, " (RIO_AT)\n");
+		writeb(BOOT_FROM_RAM | EXTERNAL_BUS_OFF | INTERRUPT_DISABLE | BYTE_OPERATION |
+			SLOW_LINKS | SLOW_AT_BUS, &DpRamP->DpControl);
+		writeb(0xFF, &DpRamP->DpResetTpu);
+		udelay(3);
 			rio_dprintk (RIO_DEBUG_INIT,  "RIOHostReset: Don't know if it worked. Try reset again\n");
-			WBYTE(DpRamP->DpControl,  BOOT_FROM_RAM | EXTERNAL_BUS_OFF |
-					  INTERRUPT_DISABLE | BYTE_OPERATION |
-					  SLOW_LINKS | SLOW_AT_BUS);
-			WBYTE(DpRamP->DpResetTpu, 0xFF);
-			udelay(3);
-			break;
+		writeb(BOOT_FROM_RAM | EXTERNAL_BUS_OFF | INTERRUPT_DISABLE |
+			BYTE_OPERATION | SLOW_LINKS | SLOW_AT_BUS, &DpRamP->DpControl);
+		writeb(0xFF, &DpRamP->DpResetTpu);
+		udelay(3);
+		break;
 	case RIO_PCI:
 		rio_dprintk (RIO_DEBUG_INIT, " (RIO_PCI)\n");
-		DpRamP->DpControl  = RIO_PCI_BOOT_FROM_RAM;
-		DpRamP->DpResetInt = 0xFF;
-		DpRamP->DpResetTpu = 0xFF;
+		writeb(RIO_PCI_BOOT_FROM_RAM, &DpRamP->DpControl);
+		writeb(0xFF, &DpRamP->DpResetInt);
+		writeb(0xFF, &DpRamP->DpResetTpu);
 		udelay(100);
-		/* for (i=0; i<6000; i++);  */
-		/* suspend( 3 ); */
 		break;
 	default:
 		rio_dprintk (RIO_DEBUG_INIT, " (UNKNOWN)\n");

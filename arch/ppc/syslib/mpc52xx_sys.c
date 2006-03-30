@@ -1,6 +1,4 @@
 /*
- * arch/ppc/syslib/mpc52xx_sys.c
- *
  * Freescale MPC52xx system descriptions
  *
  *

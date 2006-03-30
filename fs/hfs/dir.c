@@ -313,7 +313,7 @@ static int hfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	return res;
 }
 
-struct file_operations hfs_dir_operations = {
+const struct file_operations hfs_dir_operations = {
 	.read		= generic_read_dir,
 	.readdir	= hfs_readdir,
 	.llseek		= generic_file_llseek,

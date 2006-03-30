@@ -45,9 +45,11 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/dma-mapping.h>
 #include <linux/syscalls.h>
 #include <linux/delay.h>
 #include <linux/smp_lock.h>
+#include <linux/kthread.h>
 #include <asm/semaphore.h>
 
 #include <scsi/scsi.h>
@@ -805,8 +807,8 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 	 * to driver communication memory to be allocated below 2gig
 	 */
 	if (aac_drivers[index].quirks & AAC_QUIRK_31BIT) 
-		if (pci_set_dma_mask(pdev, 0x7FFFFFFFULL) ||
-				pci_set_consistent_dma_mask(pdev, 0x7FFFFFFFULL))
+		if (pci_set_dma_mask(pdev, DMA_31BIT_MASK) ||
+				pci_set_consistent_dma_mask(pdev, DMA_31BIT_MASK))
 			goto out;
 	
 	pci_set_master(pdev);
@@ -850,10 +852,10 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 	/*
 	 *	Start any kernel threads needed
 	 */
-	aac->thread_pid = kernel_thread((int (*)(void *))aac_command_thread,
-	  aac, 0);
-	if (aac->thread_pid < 0) {
+	aac->thread = kthread_run(aac_command_thread, aac, AAC_DRIVERNAME);
+	if (IS_ERR(aac->thread)) {
 		printk(KERN_ERR "aacraid: Unable to create command thread.\n");
+		error = PTR_ERR(aac->thread);
 		goto out_deinit;
 	}
 
@@ -934,9 +936,7 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 	return 0;
 
  out_deinit:
-	kill_proc(aac->thread_pid, SIGKILL, 0);
-	wait_for_completion(&aac->aif_completion);
-
+	kthread_stop(aac->thread);
 	aac_send_shutdown(aac);
 	aac_adapter_disable_int(aac);
 	free_irq(pdev->irq, aac);
@@ -970,8 +970,7 @@ static void __devexit aac_remove_one(struct pci_dev *pdev)
 
 	scsi_remove_host(shost);
 
-	kill_proc(aac->thread_pid, SIGKILL, 0);
-	wait_for_completion(&aac->aif_completion);
+	kthread_stop(aac->thread);
 
 	aac_send_shutdown(aac);
 	aac_adapter_disable_int(aac);

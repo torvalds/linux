@@ -102,9 +102,7 @@ struct uart_sunsu_port {
 #endif
 };
 
-#define _INLINE_
-
-static _INLINE_ unsigned int serial_in(struct uart_sunsu_port *up, int offset)
+static unsigned int serial_in(struct uart_sunsu_port *up, int offset)
 {
 	offset <<= up->port.regshift;
 
@@ -121,8 +119,7 @@ static _INLINE_ unsigned int serial_in(struct uart_sunsu_port *up, int offset)
 	}
 }
 
-static _INLINE_ void
-serial_out(struct uart_sunsu_port *up, int offset, int value)
+static void serial_out(struct uart_sunsu_port *up, int offset, int value)
 {
 #ifndef CONFIG_SPARC64
 	/*
@@ -316,7 +313,7 @@ static void sunsu_enable_ms(struct uart_port *port)
 	spin_unlock_irqrestore(&up->port.lock, flags);
 }
 
-static _INLINE_ struct tty_struct *
+static struct tty_struct *
 receive_chars(struct uart_sunsu_port *up, unsigned char *status, struct pt_regs *regs)
 {
 	struct tty_struct *tty = up->port.info->tty;
@@ -395,7 +392,7 @@ receive_chars(struct uart_sunsu_port *up, unsigned char *status, struct pt_regs 
 	return tty;
 }
 
-static _INLINE_ void transmit_chars(struct uart_sunsu_port *up)
+static void transmit_chars(struct uart_sunsu_port *up)
 {
 	struct circ_buf *xmit = &up->port.info->xmit;
 	int count;
@@ -431,7 +428,7 @@ static _INLINE_ void transmit_chars(struct uart_sunsu_port *up)
 		__stop_tx(up);
 }
 
-static _INLINE_ void check_modem_status(struct uart_sunsu_port *up)
+static void check_modem_status(struct uart_sunsu_port *up)
 {
 	int status;
 
@@ -644,7 +641,7 @@ static int sunsu_startup(struct uart_port *port)
 
 	/*
 	 * Clear the FIFO buffers and disable them.
-	 * (they will be reeanbled in set_termios())
+	 * (they will be reenabled in set_termios())
 	 */
 	if (uart_config[up->port.type].flags & UART_CLEAR_FIFO) {
 		serial_outp(up, UART_FCR, UART_FCR_ENABLE_FIFO);
@@ -1377,6 +1374,14 @@ static __inline__ void wait_for_xmitr(struct uart_sunsu_port *up)
 	}
 }
 
+static void sunsu_console_putchar(struct uart_port *port, int ch)
+{
+	struct uart_sunsu_port *up = (struct uart_sunsu_port *)port;
+
+	wait_for_xmitr(up);
+	serial_out(up, UART_TX, ch);
+}
+
 /*
  *	Print a string to the serial port trying not to disturb
  *	any possible real use of the port...
@@ -1386,7 +1391,6 @@ static void sunsu_console_write(struct console *co, const char *s,
 {
 	struct uart_sunsu_port *up = &sunsu_ports[co->index];
 	unsigned int ier;
-	int i;
 
 	/*
 	 *	First save the UER then disable the interrupts
@@ -1394,22 +1398,7 @@ static void sunsu_console_write(struct console *co, const char *s,
 	ier = serial_in(up, UART_IER);
 	serial_out(up, UART_IER, 0);
 
-	/*
-	 *	Now, do each character
-	 */
-	for (i = 0; i < count; i++, s++) {
-		wait_for_xmitr(up);
-
-		/*
-		 *	Send the character out.
-		 *	If a LF, also do CR...
-		 */
-		serial_out(up, UART_TX, *s);
-		if (*s == 10) {
-			wait_for_xmitr(up);
-			serial_out(up, UART_TX, 13);
-		}
-	}
+	uart_console_write(&up->port, s, count, sunsu_console_putchar);
 
 	/*
 	 *	Finally, wait for transmitter to become empty

@@ -27,9 +27,9 @@ xt_addr_cmp(const union xt_policy_addr *a1, const union xt_policy_addr *m,
 {
 	switch (family) {
 	case AF_INET:
-		return (a1->a4.s_addr ^ a2->a4.s_addr) & m->a4.s_addr;
+		return !((a1->a4.s_addr ^ a2->a4.s_addr) & m->a4.s_addr);
 	case AF_INET6:
-		return ipv6_masked_addr_cmp(&a1->a6, &m->a6, &a2->a6);
+		return !ipv6_masked_addr_cmp(&a1->a6, &m->a6, &a2->a6);
 	}
 	return 0;
 }
@@ -44,7 +44,7 @@ match_xfrm_state(struct xfrm_state *x, const struct xt_policy_elem *e,
 #define MATCH(x,y)		(!e->match.x || ((e->x == (y)) ^ e->invert.x))
 
 	return MATCH_ADDR(saddr, smask, (union xt_policy_addr *)&x->props.saddr) &&
-	       MATCH_ADDR(daddr, dmask, (union xt_policy_addr *)&x->id.daddr.a4) &&
+	       MATCH_ADDR(daddr, dmask, (union xt_policy_addr *)&x->id.daddr) &&
 	       MATCH(proto, x->id.proto) &&
 	       MATCH(mode, x->props.mode) &&
 	       MATCH(spi, x->id.spi) &&
@@ -172,6 +172,7 @@ static struct xt_match policy_match = {
 	.match		= match,
 	.matchsize	= sizeof(struct xt_policy_info),
 	.checkentry 	= checkentry,
+	.family		= AF_INET,
 	.me		= THIS_MODULE,
 };
 
@@ -181,6 +182,7 @@ static struct xt_match policy6_match = {
 	.match		= match,
 	.matchsize	= sizeof(struct xt_policy_info),
 	.checkentry	= checkentry,
+	.family		= AF_INET6,
 	.me		= THIS_MODULE,
 };
 
@@ -188,19 +190,19 @@ static int __init init(void)
 {
 	int ret;
 
-	ret = xt_register_match(AF_INET, &policy_match);
+	ret = xt_register_match(&policy_match);
 	if (ret)
 		return ret;
-	ret = xt_register_match(AF_INET6, &policy6_match);
+	ret = xt_register_match(&policy6_match);
 	if (ret)
-		xt_unregister_match(AF_INET, &policy_match);
+		xt_unregister_match(&policy_match);
 	return ret;
 }
 
 static void __exit fini(void)
 {
-	xt_unregister_match(AF_INET6, &policy6_match);
-	xt_unregister_match(AF_INET, &policy_match);
+	xt_unregister_match(&policy6_match);
+	xt_unregister_match(&policy_match);
 }
 
 module_init(init);

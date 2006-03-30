@@ -21,9 +21,9 @@
 #include <linux/spinlock.h>
 #include <linux/slab.h>
 
-int dir_notify_enable = 1;
+int dir_notify_enable __read_mostly = 1;
 
-static kmem_cache_t *dn_cache;
+static kmem_cache_t *dn_cache __read_mostly;
 
 static void redo_inode_mask(struct inode *inode)
 {

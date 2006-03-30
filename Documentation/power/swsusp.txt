@@ -17,6 +17,11 @@ Some warnings, first.
  * but it will probably only crash.
  *
  * (*) suspend/resume support is needed to make it safe.
+ *
+ * If you have any filesystems on USB devices mounted before suspend,
+ * they won't be accessible after resume and you may lose data, as though
+ * you have unplugged the USB devices with mounted filesystems on them
+ * (see the FAQ below for details).
 
 You need to append resume=/dev/your_swap_partition to kernel command
 line. Then you suspend by
@@ -27,18 +32,17 @@ echo shutdown > /sys/power/disk; echo disk > /sys/power/state
 
 echo platform > /sys/power/disk; echo disk > /sys/power/state
 
+. If you have SATA disks, you'll need recent kernels with SATA suspend
+support. For suspend and resume to work, make sure your disk drivers
+are built into kernel -- not modules. [There's way to make
+suspend/resume with modular disk drivers, see FAQ, but you probably
+should not do that.]
+
 If you want to limit the suspend image size to N bytes, do
 
 echo N > /sys/power/image_size
 
 before suspend (it is limited to 500 MB by default).
-
-Encrypted suspend image:
-------------------------
-If you want to store your suspend image encrypted with a temporary
-key to prevent data gathering after resume you must compile
-crypto and the aes algorithm into the kernel - modules won't work
-as they cannot be loaded at resume time.
 
 
 Article about goals and implementation of Software Suspend for Linux
@@ -333,4 +337,37 @@ init=/bin/bash, then swapon and starting suspend sequence manually
 usually does the trick. Then it is good idea to try with latest
 vanilla kernel.
 
+Q: How can distributions ship a swsusp-supporting kernel with modular
+disk drivers (especially SATA)?
+
+A: Well, it can be done, load the drivers, then do echo into
+/sys/power/disk/resume file from initrd. Be sure not to mount
+anything, not even read-only mount, or you are going to lose your
+data.
+
+Q: How do I make suspend more verbose?
+
+A: If you want to see any non-error kernel messages on the virtual
+terminal the kernel switches to during suspend, you have to set the
+kernel console loglevel to at least 5, for example by doing
+
+	echo 5 > /proc/sys/kernel/printk
+
+Q: Is this true that if I have a mounted filesystem on a USB device and
+I suspend to disk, I can lose data unless the filesystem has been mounted
+with "sync"?
+
+A: That's right.  It depends on your hardware, and it could be true even for
+suspend-to-RAM.  In fact, even with "-o sync" you can lose data if your
+programs have information in buffers they haven't written out to disk.
+
+If you're lucky, your hardware will support low-power modes for USB
+controllers while the system is asleep.  Lots of hardware doesn't,
+however.  Shutting off the power to a USB controller is equivalent to
+unplugging all the attached devices.
+
+Remember that it's always a bad idea to unplug a disk drive containing a
+mounted filesystem.  With USB that's true even when your system is asleep!
+The safest thing is to unmount all USB-based filesystems before suspending
+and remount them after resuming.
 

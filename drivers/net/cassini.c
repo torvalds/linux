@@ -192,12 +192,15 @@
 static char version[] __devinitdata =
 	DRV_MODULE_NAME ".c:v" DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
 
+static int cassini_debug = -1;	/* -1 == use CAS_DEF_MSG_ENABLE as value */
+static int link_mode;
+
 MODULE_AUTHOR("Adrian Sun (asun@darksunrising.com)");
 MODULE_DESCRIPTION("Sun Cassini(+) ethernet driver");
 MODULE_LICENSE("GPL");
-MODULE_PARM(cassini_debug, "i");
+module_param(cassini_debug, int, 0);
 MODULE_PARM_DESC(cassini_debug, "Cassini bitmapped debugging message enable value");
-MODULE_PARM(link_mode, "i");
+module_param(link_mode, int, 0);
 MODULE_PARM_DESC(link_mode, "default link mode");
 
 /*
@@ -209,7 +212,7 @@ MODULE_PARM_DESC(link_mode, "default link mode");
  * Value in seconds, for user input.
  */
 static int linkdown_timeout = DEFAULT_LINKDOWN_TIMEOUT;
-MODULE_PARM(linkdown_timeout, "i");
+module_param(linkdown_timeout, int, 0);
 MODULE_PARM_DESC(linkdown_timeout,
 "min reset interval in sec. for PCS linkdown issue; disabled if not positive");
 
@@ -221,8 +224,6 @@ MODULE_PARM_DESC(linkdown_timeout,
 static int link_transition_timeout;
 
 
-static int cassini_debug = -1;	/* -1 == use CAS_DEF_MSG_ENABLE as value */
-static int link_mode;
 
 static u16 link_modes[] __devinitdata = {
 	BMCR_ANENABLE,			 /* 0 : autoneg */

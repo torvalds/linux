@@ -4,6 +4,7 @@
 # $arg1 is [b]zImage filename
 
 binoffset="./scripts/binoffset"
+test -e $binoffset || cc -o $binoffset ./scripts/binoffset.c || exit 1
 
 IKCFG_ST="0x49 0x4b 0x43 0x46 0x47 0x5f 0x53 0x54"
 IKCFG_ED="0x49 0x4b 0x43 0x46 0x47 0x5f 0x45 0x44"
@@ -20,7 +21,7 @@ function dump_config {
     let start="$start + 8"
     let size="$end - $start"
 
-    head --bytes="$end" "$file" | tail --bytes="$size" | zcat
+    dd if="$file" ibs=1 skip="$start" count="$size" 2>/dev/null | zcat
 
     clean_up
     exit 0
@@ -45,7 +46,7 @@ then
 	exit 1
 fi
 
-TMPFILE="/tmp/ikconfig-$$"
+TMPFILE=`mktemp -t ikconfig-XXXXXX` || exit 1
 image="$1"
 
 # vmlinux: Attempt to dump the configuration from the file directly

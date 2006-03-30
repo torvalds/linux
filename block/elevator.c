@@ -33,6 +33,7 @@
 #include <linux/init.h>
 #include <linux/compiler.h>
 #include <linux/delay.h>
+#include <linux/blktrace_api.h>
 
 #include <asm/uaccess.h>
 
@@ -333,6 +334,8 @@ void elv_insert(request_queue_t *q, struct request *rq, int where)
 	struct list_head *pos;
 	unsigned ordseq;
 
+	blk_add_trace_rq(q, rq, BLK_TA_INSERT);
+
 	rq->q = q;
 
 	switch (where) {
@@ -499,6 +502,7 @@ struct request *elv_next_request(request_queue_t *q)
 			 * not be passed by new incoming requests
 			 */
 			rq->flags |= REQ_STARTED;
+			blk_add_trace_rq(q, rq, BLK_TA_ISSUE);
 		}
 
 		if (!q->boundary_rq || q->boundary_rq == rq) {
@@ -724,8 +728,7 @@ void elv_unregister_queue(struct request_queue *q)
 int elv_register(struct elevator_type *e)
 {
 	spin_lock_irq(&elv_list_lock);
-	if (elevator_find(e->elevator_name))
-		BUG();
+	BUG_ON(elevator_find(e->elevator_name));
 	list_add_tail(&e->list, &elv_list);
 	spin_unlock_irq(&elv_list_lock);
 

@@ -86,8 +86,9 @@
  * - The __xxx_page_state variants can be used safely when interrupts are
  * disabled.
  * - The __xxx_page_state variants can be used if the field is only
- * modified from process context, or only modified from interrupt context.
- * In this case, the field should be commented here.
+ * modified from process context and protected from preemption, or only
+ * modified from interrupt context.  In this case, the field should be
+ * commented here.
  */
 struct page_state {
 	unsigned long nr_dirty;		/* Dirty writeable pages */
@@ -239,22 +240,19 @@ extern void __mod_page_state_offset(unsigned long offset, unsigned long delta);
 #define __ClearPageDirty(page)	__clear_bit(PG_dirty, &(page)->flags)
 #define TestClearPageDirty(page) test_and_clear_bit(PG_dirty, &(page)->flags)
 
-#define SetPageLRU(page)	set_bit(PG_lru, &(page)->flags)
 #define PageLRU(page)		test_bit(PG_lru, &(page)->flags)
-#define TestSetPageLRU(page)	test_and_set_bit(PG_lru, &(page)->flags)
-#define TestClearPageLRU(page)	test_and_clear_bit(PG_lru, &(page)->flags)
+#define SetPageLRU(page)	set_bit(PG_lru, &(page)->flags)
+#define ClearPageLRU(page)	clear_bit(PG_lru, &(page)->flags)
+#define __ClearPageLRU(page)	__clear_bit(PG_lru, &(page)->flags)
 
 #define PageActive(page)	test_bit(PG_active, &(page)->flags)
 #define SetPageActive(page)	set_bit(PG_active, &(page)->flags)
 #define ClearPageActive(page)	clear_bit(PG_active, &(page)->flags)
-#define TestClearPageActive(page) test_and_clear_bit(PG_active, &(page)->flags)
-#define TestSetPageActive(page) test_and_set_bit(PG_active, &(page)->flags)
+#define __ClearPageActive(page)	__clear_bit(PG_active, &(page)->flags)
 
 #define PageSlab(page)		test_bit(PG_slab, &(page)->flags)
-#define SetPageSlab(page)	set_bit(PG_slab, &(page)->flags)
-#define ClearPageSlab(page)	clear_bit(PG_slab, &(page)->flags)
-#define TestClearPageSlab(page)	test_and_clear_bit(PG_slab, &(page)->flags)
-#define TestSetPageSlab(page)	test_and_set_bit(PG_slab, &(page)->flags)
+#define __SetPageSlab(page)	__set_bit(PG_slab, &(page)->flags)
+#define __ClearPageSlab(page)	__clear_bit(PG_slab, &(page)->flags)
 
 #ifdef CONFIG_HIGHMEM
 #define PageHighMem(page)	is_highmem(page_zone(page))
@@ -329,8 +327,8 @@ extern void __mod_page_state_offset(unsigned long offset, unsigned long delta);
 #define TestClearPageReclaim(page) test_and_clear_bit(PG_reclaim, &(page)->flags)
 
 #define PageCompound(page)	test_bit(PG_compound, &(page)->flags)
-#define SetPageCompound(page)	set_bit(PG_compound, &(page)->flags)
-#define ClearPageCompound(page)	clear_bit(PG_compound, &(page)->flags)
+#define __SetPageCompound(page)	__set_bit(PG_compound, &(page)->flags)
+#define __ClearPageCompound(page) __clear_bit(PG_compound, &(page)->flags)
 
 #ifdef CONFIG_SWAP
 #define PageSwapCache(page)	test_bit(PG_swapcache, &(page)->flags)

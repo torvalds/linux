@@ -201,9 +201,9 @@ static int intel_i810_insert_entries(struct agp_memory *mem, off_t pg_start,
 	temp = agp_bridge->current_size;
 	num_entries = A_SIZE_FIX(temp)->num_entries;
 
-	if ((pg_start + mem->page_count) > num_entries) {
+	if ((pg_start + mem->page_count) > num_entries)
 		return -EINVAL;
-	}
+
 	for (j = pg_start; j < (pg_start + mem->page_count); j++) {
 		if (!PGE_EMPTY(agp_bridge, readl(agp_bridge->gatt_table+j)))
 			return -EBUSY;
@@ -221,7 +221,7 @@ static int intel_i810_insert_entries(struct agp_memory *mem, off_t pg_start,
 			agp_bridge->driver->tlb_flush(mem);
 			return 0;
 		}
-		if((type == AGP_PHYS_MEMORY) && (mem->type == AGP_PHYS_MEMORY))
+		if ((type == AGP_PHYS_MEMORY) && (mem->type == AGP_PHYS_MEMORY))
 			goto insert;
 		return -EINVAL;
 	}
@@ -328,7 +328,7 @@ static struct agp_memory *intel_i810_alloc_by_type(size_t pg_count, int type)
 static void intel_i810_free_by_type(struct agp_memory *curr)
 {
 	agp_free_key(curr->key);
-	if(curr->type == AGP_PHYS_MEMORY) {
+	if (curr->type == AGP_PHYS_MEMORY) {
 		if (curr->page_count == 4)
 			i8xx_destroy_pages(gart_to_virt(curr->memory[0]));
 		else {
@@ -1603,11 +1603,10 @@ static int __devinit agp_intel_probe(struct pci_dev *pdev,
 		name = "i820";
 		break;
 	case PCI_DEVICE_ID_INTEL_82830_HB:
-		if (find_i830(PCI_DEVICE_ID_INTEL_82830_CGC)) {
+		if (find_i830(PCI_DEVICE_ID_INTEL_82830_CGC))
 			bridge->driver = &intel_830_driver;
-		} else {
+		else
 			bridge->driver = &intel_830mp_driver;
-		}
 		name = "830M";
 		break;
 	case PCI_DEVICE_ID_INTEL_82840_HB:
@@ -1619,11 +1618,10 @@ static int __devinit agp_intel_probe(struct pci_dev *pdev,
 		name = "i845";
 		break;
 	case PCI_DEVICE_ID_INTEL_82845G_HB:
-		if (find_i830(PCI_DEVICE_ID_INTEL_82845G_IG)) {
+		if (find_i830(PCI_DEVICE_ID_INTEL_82845G_IG))
 			bridge->driver = &intel_830_driver;
-		} else {
+		else
 			bridge->driver = &intel_845_driver;
-		}
 		name = "845G";
 		break;
 	case PCI_DEVICE_ID_INTEL_82850_HB:
@@ -1648,11 +1646,10 @@ static int __devinit agp_intel_probe(struct pci_dev *pdev,
 		name = "i860";
 		break;
 	case PCI_DEVICE_ID_INTEL_82865_HB:
-		if (find_i830(PCI_DEVICE_ID_INTEL_82865_IG)) {
+		if (find_i830(PCI_DEVICE_ID_INTEL_82865_IG))
 			bridge->driver = &intel_830_driver;
-		} else {
+		else
 			bridge->driver = &intel_845_driver;
-		}
 		name = "865";
 		break;
 	case PCI_DEVICE_ID_INTEL_82875_HB:
@@ -1660,35 +1657,31 @@ static int __devinit agp_intel_probe(struct pci_dev *pdev,
 		name = "i875";
 		break;
 	case PCI_DEVICE_ID_INTEL_82915G_HB:
-		if (find_i830(PCI_DEVICE_ID_INTEL_82915G_IG)) {
+		if (find_i830(PCI_DEVICE_ID_INTEL_82915G_IG))
 			bridge->driver = &intel_915_driver;
-		} else {
+		else
 			bridge->driver = &intel_845_driver;
-		}
 		name = "915G";
 		break;
 	case PCI_DEVICE_ID_INTEL_82915GM_HB:
-		if (find_i830(PCI_DEVICE_ID_INTEL_82915GM_IG)) {
+		if (find_i830(PCI_DEVICE_ID_INTEL_82915GM_IG))
 			bridge->driver = &intel_915_driver;
-		} else {
+		else
 			bridge->driver = &intel_845_driver;
-		}
 		name = "915GM";
 		break;
 	case PCI_DEVICE_ID_INTEL_82945G_HB:
-		if (find_i830(PCI_DEVICE_ID_INTEL_82945G_IG)) {
+		if (find_i830(PCI_DEVICE_ID_INTEL_82945G_IG))
 			bridge->driver = &intel_915_driver;
-		} else {
+		else
 			bridge->driver = &intel_845_driver;
-		}
 		name = "945G";
 		break;
 	case PCI_DEVICE_ID_INTEL_82945GM_HB:
-		if (find_i830(PCI_DEVICE_ID_INTEL_82945GM_IG)) {
+		if (find_i830(PCI_DEVICE_ID_INTEL_82945GM_IG))
 			bridge->driver = &intel_915_driver;
-		} else {
+		else
 			bridge->driver = &intel_845_driver;
-		}
 		name = "945GM";
 		break;
 	case PCI_DEVICE_ID_INTEL_7505_0:
@@ -1724,7 +1717,7 @@ static int __devinit agp_intel_probe(struct pci_dev *pdev,
 	*/
 	r = &pdev->resource[0];
 	if (!r->start && r->end) {
-		if(pci_assign_resource(pdev, 0)) {
+		if (pci_assign_resource(pdev, 0)) {
 			printk(KERN_ERR PFX "could not assign resource 0\n");
 			agp_put_bridge(bridge);
 			return -ENODEV;

@@ -348,7 +348,7 @@ static int sysfs_release(struct inode * inode, struct file * filp)
 	return 0;
 }
 
-struct file_operations sysfs_file_operations = {
+const struct file_operations sysfs_file_operations = {
 	.read		= sysfs_read_file,
 	.write		= sysfs_write_file,
 	.llseek		= generic_file_llseek,

@@ -32,6 +32,7 @@
 #include <linux/kmod.h>
 
 #include <linux/spinlock.h>
+#include <linux/mutex.h>
 #include <asm/irq.h>
 
 #undef PARPORT_PARANOID
@@ -50,7 +51,7 @@ static DEFINE_SPINLOCK(full_list_lock);
 
 static LIST_HEAD(drivers);
 
-static DECLARE_MUTEX(registration_lock);
+static DEFINE_MUTEX(registration_lock);
 
 /* What you can do to a port that's gone away.. */
 static void dead_write_lines (struct parport *p, unsigned char b){}
@@ -158,11 +159,11 @@ int parport_register_driver (struct parport_driver *drv)
 	if (list_empty(&portlist))
 		get_lowlevel_driver ();
 
-	down(&registration_lock);
+	mutex_lock(&registration_lock);
 	list_for_each_entry(port, &portlist, list)
 		drv->attach(port);
 	list_add(&drv->list, &drivers);
-	up(&registration_lock);
+	mutex_unlock(&registration_lock);
 
 	return 0;
 }
@@ -188,11 +189,11 @@ void parport_unregister_driver (struct parport_driver *drv)
 {
 	struct parport *port;
 
-	down(&registration_lock);
+	mutex_lock(&registration_lock);
 	list_del_init(&drv->list);
 	list_for_each_entry(port, &portlist, list)
 		drv->detach(port);
-	up(&registration_lock);
+	mutex_unlock(&registration_lock);
 }
 
 static void free_port (struct parport *port)
@@ -366,7 +367,7 @@ void parport_announce_port (struct parport *port)
 #endif
 
 	parport_proc_register(port);
-	down(&registration_lock);
+	mutex_lock(&registration_lock);
 	spin_lock_irq(&parportlist_lock);
 	list_add_tail(&port->list, &portlist);
 	for (i = 1; i < 3; i++) {
@@ -383,7 +384,7 @@ void parport_announce_port (struct parport *port)
 		if (slave)
 			attach_driver_chain(slave);
 	}
-	up(&registration_lock);
+	mutex_unlock(&registration_lock);
 }
 
 /**
@@ -409,7 +410,7 @@ void parport_remove_port(struct parport *port)
 {
 	int i;
 
-	down(&registration_lock);
+	mutex_lock(&registration_lock);
 
 	/* Spread the word. */
 	detach_driver_chain (port);
@@ -436,7 +437,7 @@ void parport_remove_port(struct parport *port)
 	}
 	spin_unlock(&parportlist_lock);
 
-	up(&registration_lock);
+	mutex_unlock(&registration_lock);
 
 	parport_proc_unregister(port);
 

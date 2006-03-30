@@ -23,7 +23,7 @@
  */
 
 #include <linux/sched.h>		/* wake_up() */
-#include <asm/semaphore.h>		/* struct semaphore */
+#include <linux/mutex.h>		/* struct mutex */
 #include <linux/rwsem.h>		/* struct rw_semaphore */
 #include <linux/workqueue.h>		/* struct workqueue_struct */
 #include <linux/pm.h>			/* pm_message_t */
@@ -137,7 +137,7 @@ struct snd_card {
 
 #ifdef CONFIG_PM
 	unsigned int power_state;	/* power state */
-	struct semaphore power_lock;	/* power lock */
+	struct mutex power_lock;	/* power lock */
 	wait_queue_head_t power_sleep;
 #endif
 
@@ -150,12 +150,12 @@ struct snd_card {
 #ifdef CONFIG_PM
 static inline void snd_power_lock(struct snd_card *card)
 {
-	down(&card->power_lock);
+	mutex_lock(&card->power_lock);
 }
 
 static inline void snd_power_unlock(struct snd_card *card)
 {
-	up(&card->power_lock);
+	mutex_unlock(&card->power_lock);
 }
 
 static inline unsigned int snd_power_get_state(struct snd_card *card)
@@ -186,7 +186,7 @@ struct snd_minor {
 	int type;			/* SNDRV_DEVICE_TYPE_XXX */
 	int card;			/* card number */
 	int device;			/* device number */
-	struct file_operations *f_ops;	/* file operations */
+	const struct file_operations *f_ops;	/* file operations */
 	void *private_data;		/* private data for f_ops->open */
 	char name[0];			/* device name (keep at the end of
 								structure) */
@@ -200,14 +200,14 @@ extern int snd_ecards_limit;
 void snd_request_card(int card);
 
 int snd_register_device(int type, struct snd_card *card, int dev,
-			struct file_operations *f_ops, void *private_data,
+			const struct file_operations *f_ops, void *private_data,
 			const char *name);
 int snd_unregister_device(int type, struct snd_card *card, int dev);
 void *snd_lookup_minor_data(unsigned int minor, int type);
 
 #ifdef CONFIG_SND_OSSEMUL
 int snd_register_oss_device(int type, struct snd_card *card, int dev,
-			    struct file_operations *f_ops, void *private_data,
+			    const struct file_operations *f_ops, void *private_data,
 			    const char *name);
 int snd_unregister_oss_device(int type, struct snd_card *card, int dev);
 void *snd_lookup_oss_minor_data(unsigned int minor, int type);

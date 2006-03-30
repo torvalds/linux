@@ -182,7 +182,7 @@ struct snd_opl4 {
 	struct snd_info_entry *proc_entry;
 	int memory_access;
 #endif
-	struct semaphore access_mutex;
+	struct mutex access_mutex;
 
 #if defined(CONFIG_SND_SEQUENCER) || defined(CONFIG_SND_SEQUENCER_MODULE)
 	int used;

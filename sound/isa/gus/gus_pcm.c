@@ -114,8 +114,6 @@ static void snd_gf1_pcm_trigger_up(struct snd_pcm_substream *substream)
 	unsigned char pan;
 	unsigned int voice;
 
-	if (substream == NULL)
-		return;
 	spin_lock_irqsave(&pcmp->lock, flags);
 	if (pcmp->flags & SNDRV_GF1_PCM_PFLG_ACTIVE) {
 		spin_unlock_irqrestore(&pcmp->lock, flags);

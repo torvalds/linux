@@ -35,7 +35,7 @@
 
 static struct super_operations hugetlbfs_ops;
 static struct address_space_operations hugetlbfs_aops;
-struct file_operations hugetlbfs_file_operations;
+const struct file_operations hugetlbfs_file_operations;
 static struct inode_operations hugetlbfs_dir_inode_operations;
 static struct inode_operations hugetlbfs_inode_operations;
 
@@ -56,48 +56,10 @@ static void huge_pagevec_release(struct pagevec *pvec)
 	pagevec_reinit(pvec);
 }
 
-/*
- * huge_pages_needed tries to determine the number of new huge pages that
- * will be required to fully populate this VMA.  This will be equal to
- * the size of the VMA in huge pages minus the number of huge pages
- * (covered by this VMA) that are found in the page cache.
- *
- * Result is in bytes to be compatible with is_hugepage_mem_enough()
- */
-static unsigned long
-huge_pages_needed(struct address_space *mapping, struct vm_area_struct *vma)
-{
-	int i;
-	struct pagevec pvec;
-	unsigned long start = vma->vm_start;
-	unsigned long end = vma->vm_end;
-	unsigned long hugepages = (end - start) >> HPAGE_SHIFT;
-	pgoff_t next = vma->vm_pgoff >> (HPAGE_SHIFT - PAGE_SHIFT);
-	pgoff_t endpg = next + hugepages;
-
-	pagevec_init(&pvec, 0);
-	while (next < endpg) {
-		if (!pagevec_lookup(&pvec, mapping, next, PAGEVEC_SIZE))
-			break;
-		for (i = 0; i < pagevec_count(&pvec); i++) {
-			struct page *page = pvec.pages[i];
-			if (page->index > next)
-				next = page->index;
-			if (page->index >= endpg)
-				break;
-			next++;
-			hugepages--;
-		}
-		huge_pagevec_release(&pvec);
-	}
-	return hugepages << HPAGE_SHIFT;
-}
-
 static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct inode *inode = file->f_dentry->d_inode;
-	struct address_space *mapping = inode->i_mapping;
-	unsigned long bytes;
+	struct hugetlbfs_inode_info *info = HUGETLBFS_I(inode);
 	loff_t len, vma_len;
 	int ret;
 
@@ -113,10 +75,6 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 	if (vma->vm_end - vma->vm_start < HPAGE_SIZE)
 		return -EINVAL;
 
-	bytes = huge_pages_needed(mapping, vma);
-	if (!is_hugepage_mem_enough(bytes))
-		return -ENOMEM;
-
 	vma_len = (loff_t)(vma->vm_end - vma->vm_start);
 
 	mutex_lock(&inode->i_mutex);
@@ -128,6 +86,10 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 	len = vma_len + ((loff_t)vma->vm_pgoff << PAGE_SHIFT);
 	if (!(vma->vm_flags & VM_WRITE) && len > inode->i_size)
 		goto out;
+
+	if (vma->vm_flags & VM_MAYSHARE)
+		if (hugetlb_extend_reservation(info, len >> HPAGE_SHIFT) != 0)
+			goto out;
 
 	ret = 0;
 	hugetlb_prefault_arch_hook(vma->vm_mm);
@@ -227,13 +189,18 @@ static void truncate_huge_page(struct page *page)
 	put_page(page);
 }
 
-static void truncate_hugepages(struct address_space *mapping, loff_t lstart)
+static void truncate_hugepages(struct inode *inode, loff_t lstart)
 {
+	struct address_space *mapping = &inode->i_data;
 	const pgoff_t start = lstart >> HPAGE_SHIFT;
 	struct pagevec pvec;
 	pgoff_t next;
 	int i;
 
+	hugetlb_truncate_reservation(HUGETLBFS_I(inode),
+				     lstart >> HPAGE_SHIFT);
+	if (!mapping->nrpages)
+		return;
 	pagevec_init(&pvec, 0);
 	next = start;
 	while (1) {
@@ -262,8 +229,7 @@ static void truncate_hugepages(struct address_space *mapping, loff_t lstart)
 
 static void hugetlbfs_delete_inode(struct inode *inode)
 {
-	if (inode->i_data.nrpages)
-		truncate_hugepages(&inode->i_data, 0);
+	truncate_hugepages(inode, 0);
 	clear_inode(inode);
 }
 
@@ -296,8 +262,7 @@ static void hugetlbfs_forget_inode(struct inode *inode)
 	inode->i_state |= I_FREEING;
 	inodes_stat.nr_inodes--;
 	spin_unlock(&inode_lock);
-	if (inode->i_data.nrpages)
-		truncate_hugepages(&inode->i_data, 0);
+	truncate_hugepages(inode, 0);
 	clear_inode(inode);
 	destroy_inode(inode);
 }
@@ -356,7 +321,7 @@ static int hugetlb_vmtruncate(struct inode *inode, loff_t offset)
 	if (!prio_tree_empty(&mapping->i_mmap))
 		hugetlb_vmtruncate_list(&mapping->i_mmap, pgoff);
 	spin_unlock(&mapping->i_mmap_lock);
-	truncate_hugepages(mapping, offset);
+	truncate_hugepages(inode, offset);
 	return 0;
 }
 
@@ -573,6 +538,7 @@ static struct inode *hugetlbfs_alloc_inode(struct super_block *sb)
 		hugetlbfs_inc_free_inodes(sbinfo);
 		return NULL;
 	}
+	p->prereserved_hpages = 0;
 	return &p->vfs_inode;
 }
 
@@ -600,7 +566,7 @@ static void init_once(void *foo, kmem_cache_t *cachep, unsigned long flags)
 		inode_init_once(&ei->vfs_inode);
 }
 
-struct file_operations hugetlbfs_file_operations = {
+const struct file_operations hugetlbfs_file_operations = {
 	.mmap			= hugetlbfs_file_mmap,
 	.fsync			= simple_sync_file,
 	.get_unmapped_area	= hugetlb_get_unmapped_area,
@@ -771,21 +737,6 @@ static struct file_system_type hugetlbfs_fs_type = {
 
 static struct vfsmount *hugetlbfs_vfsmount;
 
-/*
- * Return the next identifier for a shm file
- */
-static unsigned long hugetlbfs_counter(void)
-{
-	static DEFINE_SPINLOCK(lock);
-	static unsigned long counter;
-	unsigned long ret;
-
-	spin_lock(&lock);
-	ret = ++counter;
-	spin_unlock(&lock);
-	return ret;
-}
-
 static int can_do_hugetlb_shm(void)
 {
 	return likely(capable(CAP_IPC_LOCK) ||
@@ -801,18 +752,16 @@ struct file *hugetlb_zero_setup(size_t size)
 	struct dentry *dentry, *root;
 	struct qstr quick_string;
 	char buf[16];
+	static atomic_t counter;
 
 	if (!can_do_hugetlb_shm())
 		return ERR_PTR(-EPERM);
-
-	if (!is_hugepage_mem_enough(size))
-		return ERR_PTR(-ENOMEM);
 
 	if (!user_shm_lock(size, current->user))
 		return ERR_PTR(-ENOMEM);
 
 	root = hugetlbfs_vfsmount->mnt_root;
-	snprintf(buf, 16, "%lu", hugetlbfs_counter());
+	snprintf(buf, 16, "%u", atomic_inc_return(&counter));
 	quick_string.name = buf;
 	quick_string.len = strlen(quick_string.name);
 	quick_string.hash = 0;
@@ -831,6 +780,11 @@ struct file *hugetlb_zero_setup(size_t size)
 	if (!inode)
 		goto out_file;
 
+	error = -ENOMEM;
+	if (hugetlb_extend_reservation(HUGETLBFS_I(inode),
+				       size >> HPAGE_SHIFT) != 0)
+		goto out_inode;
+
 	d_instantiate(dentry, inode);
 	inode->i_size = size;
 	inode->i_nlink = 0;
@@ -841,6 +795,8 @@ struct file *hugetlb_zero_setup(size_t size)
 	file->f_mode = FMODE_WRITE | FMODE_READ;
 	return file;
 
+out_inode:
+	iput(inode);
 out_file:
 	put_filp(file);
 out_dentry:

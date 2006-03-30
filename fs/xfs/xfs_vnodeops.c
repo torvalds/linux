@@ -615,6 +615,7 @@ xfs_setattr(
 			code = xfs_igrow_start(ip, vap->va_size, credp);
 		}
 		xfs_iunlock(ip, XFS_ILOCK_EXCL);
+		vn_iowait(vp); /* wait for the completion of any pending DIOs */
 		if (!code)
 			code = xfs_itruncate_data(ip, vap->va_size);
 		if (code) {
@@ -847,7 +848,7 @@ xfs_setattr(
 	 * If this is a synchronous mount, make sure that the
 	 * transaction goes to disk before returning to the user.
 	 * This is slightly sub-optimal in that truncates require
-	 * two sync transactions instead of one for wsync filesytems.
+	 * two sync transactions instead of one for wsync filesystems.
 	 * One for the truncate and one for the timestamps since we
 	 * don't want to change the timestamps unless we're sure the
 	 * truncate worked.  Truncates are less than 1% of the laddis
@@ -1169,7 +1170,7 @@ xfs_fsync(
 
 		/*
 		 * If this inode is on the RT dev we need to flush that
-		 * cache aswell.
+		 * cache as well.
 		 */
 		if (ip->i_d.di_flags & XFS_DIFLAG_REALTIME)
 			xfs_blkdev_issue_flush(ip->i_mount->m_rtdev_targp);
@@ -1334,7 +1335,7 @@ xfs_inactive_symlink_rmt(
 	 */
 	done = 0;
 	XFS_BMAP_INIT(&free_list, &first_block);
-	nmaps = sizeof(mval) / sizeof(mval[0]);
+	nmaps = ARRAY_SIZE(mval);
 	if ((error = xfs_bmapi(tp, ip, 0, XFS_B_TO_FSB(mp, size),
 			XFS_BMAPI_METADATA, &first_block, 0, mval, &nmaps,
 			&free_list)))
@@ -1379,7 +1380,7 @@ xfs_inactive_symlink_rmt(
 	 */
 	ntp = xfs_trans_dup(tp);
 	/*
-	 * Commit the transaction containing extent freeing and EFD's.
+	 * Commit the transaction containing extent freeing and EFDs.
 	 * If we get an error on the commit here or on the reserve below,
 	 * we need to unlock the inode since the new transaction doesn't
 	 * have the inode attached.
@@ -1556,7 +1557,7 @@ xfs_release(
 			if ((error = xfs_inactive_free_eofblocks(mp, ip)))
 				return error;
 			/* Update linux inode block count after free above */
-			LINVFS_GET_IP(vp)->i_blocks = XFS_FSB_TO_BB(mp,
+			vn_to_inode(vp)->i_blocks = XFS_FSB_TO_BB(mp,
 				ip->i_d.di_nblocks + ip->i_delayed_blks);
 		}
 	}
@@ -1637,7 +1638,7 @@ xfs_inactive(
 			if ((error = xfs_inactive_free_eofblocks(mp, ip)))
 				return VN_INACTIVE_CACHE;
 			/* Update linux inode block count after free above */
-			LINVFS_GET_IP(vp)->i_blocks = XFS_FSB_TO_BB(mp,
+			vn_to_inode(vp)->i_blocks = XFS_FSB_TO_BB(mp,
 				ip->i_d.di_nblocks + ip->i_delayed_blks);
 		}
 		goto out;
@@ -2022,7 +2023,7 @@ xfs_create(
 	XFS_QM_DQRELE(mp, gdqp);
 
 	/*
-	 * Propogate the fact that the vnode changed after the
+	 * Propagate the fact that the vnode changed after the
 	 * xfs_inode locks have been released.
 	 */
 	VOP_VNODE_CHANGE(vp, VCHANGE_FLAGS_TRUNCATED, 3);
@@ -2369,7 +2370,7 @@ xfs_remove(
 	 * for a log reservation. Since we'll have to wait for the
 	 * inactive code to complete before returning from xfs_iget,
 	 * we need to make sure that we don't have log space reserved
-	 * when we call xfs_iget.  Instead we get an unlocked referece
+	 * when we call xfs_iget.  Instead we get an unlocked reference
 	 * to the inode before getting our log reservation.
 	 */
 	error = xfs_get_dir_entry(dentry, &ip);
@@ -3019,7 +3020,7 @@ xfs_rmdir(
 	 * for a log reservation.  Since we'll have to wait for the
 	 * inactive code to complete before returning from xfs_iget,
 	 * we need to make sure that we don't have log space reserved
-	 * when we call xfs_iget.  Instead we get an unlocked referece
+	 * when we call xfs_iget.  Instead we get an unlocked reference
 	 * to the inode before getting our log reservation.
 	 */
 	error = xfs_get_dir_entry(dentry, &cdp);
@@ -3186,7 +3187,7 @@ xfs_rmdir(
 
 	/* Fall through to std_return with error = 0 or the errno
 	 * from xfs_trans_commit. */
-std_return:
+ std_return:
 	if (DM_EVENT_ENABLED(dir_vp->v_vfsp, dp, DM_EVENT_POSTREMOVE)) {
 		(void) XFS_SEND_NAMESP(mp, DM_EVENT_POSTREMOVE,
 					dir_vp, DM_RIGHT_NULL,
@@ -3196,12 +3197,12 @@ std_return:
 	}
 	return error;
 
-error1:
+ error1:
 	xfs_bmap_cancel(&free_list);
 	cancel_flags |= XFS_TRANS_ABORT;
 	/* FALLTHROUGH */
 
-error_return:
+ error_return:
 	xfs_trans_cancel(tp, cancel_flags);
 	goto std_return;
 }
@@ -4310,8 +4311,10 @@ xfs_free_file_space(
 	ASSERT(attr_flags & ATTR_NOLOCK ? attr_flags & ATTR_DMI : 1);
 	if (attr_flags & ATTR_NOLOCK)
 		need_iolock = 0;
-	if (need_iolock)
+	if (need_iolock) {
 		xfs_ilock(ip, XFS_IOLOCK_EXCL);
+		vn_iowait(vp);	/* wait for the completion of any pending DIOs */
+	}
 
 	rounding = MAX((__uint8_t)(1 << mp->m_sb.sb_blocklog),
 			(__uint8_t)NBPP);

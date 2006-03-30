@@ -381,8 +381,8 @@ sync_sb_inodes(struct super_block *sb, struct writeback_control *wbc)
 			list_move(&inode->i_list, &sb->s_dirty);
 		}
 		spin_unlock(&inode_lock);
-		cond_resched();
 		iput(inode);
+		cond_resched();
 		spin_lock(&inode_lock);
 		if (wbc->nr_to_write <= 0)
 			break;

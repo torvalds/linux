@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/sandpoint_setup.c
- *
  * Board setup routines for the Motorola SPS Sandpoint Test Platform.
  *
  * Author: Mark A. Greer

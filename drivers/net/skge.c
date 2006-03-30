@@ -44,7 +44,7 @@
 #include "skge.h"
 
 #define DRV_NAME		"skge"
-#define DRV_VERSION		"1.4"
+#define DRV_VERSION		"1.5"
 #define PFX			DRV_NAME " "
 
 #define DEFAULT_TX_RING_SIZE	128
@@ -357,7 +357,7 @@ static struct net_device_stats *skge_get_stats(struct net_device *dev)
 	skge->net_stats.rx_bytes = data[1];
 	skge->net_stats.tx_packets = data[2] + data[4] + data[6];
 	skge->net_stats.rx_packets = data[3] + data[5] + data[7];
-	skge->net_stats.multicast = data[5] + data[7];
+	skge->net_stats.multicast = data[3] + data[5];
 	skge->net_stats.collisions = data[10];
 	skge->net_stats.tx_aborted_errors = data[12];
 
@@ -781,7 +781,7 @@ static void skge_rx_setup(struct skge_port *skge, struct skge_element *e,
  * Note: DMA address is not changed by chip.
  * 	 MTU not changed while receiver active.
  */
-static void skge_rx_reuse(struct skge_element *e, unsigned int size)
+static inline void skge_rx_reuse(struct skge_element *e, unsigned int size)
 {
 	struct skge_rx_desc *rd = e->desc;
 
@@ -829,7 +829,7 @@ static int skge_rx_fill(struct skge_port *skge)
 	do {
 		struct sk_buff *skb;
 
-		skb = dev_alloc_skb(skge->rx_buf_size + NET_IP_ALIGN);
+		skb = alloc_skb(skge->rx_buf_size + NET_IP_ALIGN, GFP_KERNEL);
 		if (!skb)
 			return -ENOMEM;
 
@@ -847,8 +847,7 @@ static void skge_link_up(struct skge_port *skge)
 		    LED_BLK_OFF|LED_SYNC_OFF|LED_ON);
 
 	netif_carrier_on(skge->netdev);
-	if (skge->tx_avail > MAX_SKB_FRAGS + 1)
-		netif_wake_queue(skge->netdev);
+	netif_wake_queue(skge->netdev);
 
 	if (netif_msg_link(skge))
 		printk(KERN_INFO PFX
@@ -2155,7 +2154,7 @@ static int skge_up(struct net_device *dev)
 		printk(KERN_INFO PFX "%s: enabling interface\n", dev->name);
 
 	if (dev->mtu > RX_BUF_SIZE)
-		skge->rx_buf_size = dev->mtu + ETH_HLEN + NET_IP_ALIGN;
+		skge->rx_buf_size = dev->mtu + ETH_HLEN;
 	else
 		skge->rx_buf_size = RX_BUF_SIZE;
 
@@ -2189,8 +2188,6 @@ static int skge_up(struct net_device *dev)
 			      skge->dma + rx_size);
 	if (err)
 		goto free_rx_ring;
-
-	skge->tx_avail = skge->tx_ring.count - 1;
 
 	/* Initialize MAC */
 	spin_lock_bh(&hw->phy_lock);
@@ -2294,6 +2291,12 @@ static int skge_down(struct net_device *dev)
 	return 0;
 }
 
+static inline int skge_avail(const struct skge_ring *ring)
+{
+	return ((ring->to_clean > ring->to_use) ? 0 : ring->count)
+		+ (ring->to_clean - ring->to_use) - 1;
+}
+
 static int skge_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 {
 	struct skge_port *skge = netdev_priv(dev);
@@ -2314,7 +2317,7 @@ static int skge_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_LOCKED;
 	}
 
-	if (unlikely(skge->tx_avail < skb_shinfo(skb)->nr_frags +1)) {
+	if (unlikely(skge_avail(&skge->tx_ring) < skb_shinfo(skb)->nr_frags + 1)) {
 		if (!netif_queue_stopped(dev)) {
 			netif_stop_queue(dev);
 
@@ -2390,8 +2393,7 @@ static int skge_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 		       dev->name, e - ring->start, skb->len);
 
 	ring->to_use = e->next;
-	skge->tx_avail -= skb_shinfo(skb)->nr_frags + 1;
-	if (skge->tx_avail <= MAX_SKB_FRAGS + 1) {
+	if (skge_avail(&skge->tx_ring) <= MAX_SKB_FRAGS + 1) {
 		pr_debug("%s: transmit queue full\n", dev->name);
 		netif_stop_queue(dev);
 	}
@@ -2404,35 +2406,37 @@ static int skge_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 }
 
-static inline void skge_tx_free(struct skge_hw *hw, struct skge_element *e)
+static void skge_tx_complete(struct skge_port *skge, struct skge_element *last)
 {
-	/* This ring element can be skb or fragment */
-	if (e->skb) {
-		pci_unmap_single(hw->pdev,
-			       pci_unmap_addr(e, mapaddr),
-			       pci_unmap_len(e, maplen),
-			       PCI_DMA_TODEVICE);
-		dev_kfree_skb(e->skb);
+	struct pci_dev *pdev = skge->hw->pdev;
+	struct skge_element *e;
+
+	for (e = skge->tx_ring.to_clean; e != last; e = e->next) {
+		struct sk_buff *skb = e->skb;
+		int i;
+
 		e->skb = NULL;
-	} else {
-		pci_unmap_page(hw->pdev,
-			       pci_unmap_addr(e, mapaddr),
-			       pci_unmap_len(e, maplen),
-			       PCI_DMA_TODEVICE);
+		pci_unmap_single(pdev, pci_unmap_addr(e, mapaddr),
+				 skb_headlen(skb), PCI_DMA_TODEVICE);
+
+		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
+			e = e->next;
+			pci_unmap_page(pdev, pci_unmap_addr(e, mapaddr),
+				       skb_shinfo(skb)->frags[i].size,
+				       PCI_DMA_TODEVICE);
+		}
+
+		dev_kfree_skb(skb);
 	}
+	skge->tx_ring.to_clean = e;
 }
 
 static void skge_tx_clean(struct skge_port *skge)
 {
-	struct skge_ring *ring = &skge->tx_ring;
-	struct skge_element *e;
 
 	spin_lock_bh(&skge->tx_lock);
-	for (e = ring->to_clean; e != ring->to_use; e = e->next) {
-		++skge->tx_avail;
-		skge_tx_free(skge->hw, e);
-	}
-	ring->to_clean = e;
+	skge_tx_complete(skge, skge->tx_ring.to_use);
+	netif_wake_queue(skge->netdev);
 	spin_unlock_bh(&skge->tx_lock);
 }
 
@@ -2592,7 +2596,7 @@ static inline struct sk_buff *skge_rx_get(struct skge_port *skge,
 		goto error;
 
 	if (len < RX_COPY_THRESHOLD) {
-		skb = dev_alloc_skb(len + 2);
+		skb = alloc_skb(len + 2, GFP_ATOMIC);
 		if (!skb)
 			goto resubmit;
 
@@ -2607,10 +2611,11 @@ static inline struct sk_buff *skge_rx_get(struct skge_port *skge,
 		skge_rx_reuse(e, skge->rx_buf_size);
 	} else {
 		struct sk_buff *nskb;
-		nskb = dev_alloc_skb(skge->rx_buf_size + NET_IP_ALIGN);
+		nskb = alloc_skb(skge->rx_buf_size + NET_IP_ALIGN, GFP_ATOMIC);
 		if (!nskb)
 			goto resubmit;
 
+		skb_reserve(nskb, NET_IP_ALIGN);
 		pci_unmap_single(skge->hw->pdev,
 				 pci_unmap_addr(e, mapaddr),
 				 pci_unmap_len(e, maplen),
@@ -2661,30 +2666,29 @@ resubmit:
 static void skge_tx_done(struct skge_port *skge)
 {
 	struct skge_ring *ring = &skge->tx_ring;
-	struct skge_element *e;
+	struct skge_element *e, *last;
 
 	spin_lock(&skge->tx_lock);
-	for (e = ring->to_clean; prefetch(e->next), e != ring->to_use; e = e->next) {
+	last = ring->to_clean;
+	for (e = ring->to_clean; e != ring->to_use; e = e->next) {
 		struct skge_tx_desc *td = e->desc;
-		u32 control;
 
-		rmb();
-		control = td->control;
-		if (control & BMU_OWN)
+		if (td->control & BMU_OWN)
 			break;
 
-		if (unlikely(netif_msg_tx_done(skge)))
-			printk(KERN_DEBUG PFX "%s: tx done slot %td status 0x%x\n",
-			       skge->netdev->name, e - ring->start, td->status);
-
-		skge_tx_free(skge->hw, e);
-		e->skb = NULL;
-		++skge->tx_avail;
+		if (td->control & BMU_EOF) {
+			last = e->next;
+			if (unlikely(netif_msg_tx_done(skge)))
+				printk(KERN_DEBUG PFX "%s: tx done slot %td\n",
+				       skge->netdev->name, e - ring->start);
+		}
 	}
-	ring->to_clean = e;
+
+	skge_tx_complete(skge, last);
+
 	skge_write8(skge->hw, Q_ADDR(txqaddr[skge->port], Q_CSR), CSR_IRQ_CL_F);
 
-	if (skge->tx_avail > MAX_SKB_FRAGS + 1)
+	if (skge_avail(&skge->tx_ring) > MAX_SKB_FRAGS + 1)
 		netif_wake_queue(skge->netdev);
 
 	spin_unlock(&skge->tx_lock);
@@ -2718,8 +2722,7 @@ static int skge_poll(struct net_device *dev, int *budget)
 			netif_receive_skb(skb);
 
 			++work_done;
-		} else
-			skge_rx_reuse(e, skge->rx_buf_size);
+		}
 	}
 	ring->to_clean = e;
 

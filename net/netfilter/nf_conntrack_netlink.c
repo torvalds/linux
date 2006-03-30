@@ -4,7 +4,7 @@
  * (C) 2001 by Jay Schulist <jschlst@samba.org>
  * (C) 2002-2006 by Harald Welte <laforge@gnumonks.org>
  * (C) 2003 by Patrick Mchardy <kaber@trash.net>
- * (C) 2005 by Pablo Neira Ayuso <pablo@eurodev.net>
+ * (C) 2005-2006 by Pablo Neira Ayuso <pablo@eurodev.net>
  *
  * I've reworked this stuff to use attributes instead of conntrack 
  * structures. 5.44 am. I need more tea. --pablo 05/07/11.
@@ -55,20 +55,18 @@ static char __initdata version[] = "0.93";
 
 static inline int
 ctnetlink_dump_tuples_proto(struct sk_buff *skb, 
-			    const struct nf_conntrack_tuple *tuple)
+			    const struct nf_conntrack_tuple *tuple,
+			    struct nf_conntrack_protocol *proto)
 {
-	struct nf_conntrack_protocol *proto;
 	int ret = 0;
+	struct nfattr *nest_parms = NFA_NEST(skb, CTA_TUPLE_PROTO);
 
 	NFA_PUT(skb, CTA_PROTO_NUM, sizeof(u_int8_t), &tuple->dst.protonum);
 
-	/* If no protocol helper is found, this function will return the
-	 * generic protocol helper, so proto won't *ever* be NULL */
-	proto = nf_ct_proto_find_get(tuple->src.l3num, tuple->dst.protonum);
 	if (likely(proto->tuple_to_nfattr))
 		ret = proto->tuple_to_nfattr(skb, tuple);
 	
-	nf_ct_proto_put(proto);
+	NFA_NEST_END(skb, nest_parms);
 
 	return ret;
 
@@ -77,33 +75,44 @@ nfattr_failure:
 }
 
 static inline int
-ctnetlink_dump_tuples(struct sk_buff *skb, 
-		      const struct nf_conntrack_tuple *tuple)
+ctnetlink_dump_tuples_ip(struct sk_buff *skb,
+			 const struct nf_conntrack_tuple *tuple,
+			 struct nf_conntrack_l3proto *l3proto)
 {
-	struct nfattr *nest_parms;
-	struct nf_conntrack_l3proto *l3proto;
 	int ret = 0;
-	
-	l3proto = nf_ct_l3proto_find_get(tuple->src.l3num);
-	
-	nest_parms = NFA_NEST(skb, CTA_TUPLE_IP);
+	struct nfattr *nest_parms = NFA_NEST(skb, CTA_TUPLE_IP);
+
 	if (likely(l3proto->tuple_to_nfattr))
 		ret = l3proto->tuple_to_nfattr(skb, tuple);
-	NFA_NEST_END(skb, nest_parms);
 
-	nf_ct_l3proto_put(l3proto);
-
-	if (unlikely(ret < 0))
-		return ret;
-
-	nest_parms = NFA_NEST(skb, CTA_TUPLE_PROTO);
-	ret = ctnetlink_dump_tuples_proto(skb, tuple);
 	NFA_NEST_END(skb, nest_parms);
 
 	return ret;
 
 nfattr_failure:
 	return -1;
+}
+
+static inline int
+ctnetlink_dump_tuples(struct sk_buff *skb,
+		      const struct nf_conntrack_tuple *tuple)
+{
+	int ret;
+	struct nf_conntrack_l3proto *l3proto;
+	struct nf_conntrack_protocol *proto;
+
+	l3proto = nf_ct_l3proto_find_get(tuple->src.l3num);
+	ret = ctnetlink_dump_tuples_ip(skb, tuple, l3proto);
+	nf_ct_l3proto_put(l3proto);
+
+	if (unlikely(ret < 0))
+		return ret;
+
+	proto = nf_ct_proto_find_get(tuple->src.l3num, tuple->dst.protonum);
+	ret = ctnetlink_dump_tuples_proto(skb, tuple, proto);
+	nf_ct_proto_put(proto);
+
+	return ret;
 }
 
 static inline int
@@ -1153,6 +1162,37 @@ nfattr_failure:
 }			
 
 static inline int
+ctnetlink_exp_dump_mask(struct sk_buff *skb,
+			const struct nf_conntrack_tuple *tuple,
+			const struct nf_conntrack_tuple *mask)
+{
+	int ret;
+	struct nf_conntrack_l3proto *l3proto;
+	struct nf_conntrack_protocol *proto;
+	struct nfattr *nest_parms = NFA_NEST(skb, CTA_EXPECT_MASK);
+
+	l3proto = nf_ct_l3proto_find_get(tuple->src.l3num);
+	ret = ctnetlink_dump_tuples_ip(skb, mask, l3proto);
+	nf_ct_l3proto_put(l3proto);
+
+	if (unlikely(ret < 0))
+		goto nfattr_failure;
+
+	proto = nf_ct_proto_find_get(tuple->src.l3num, tuple->dst.protonum);
+	ret = ctnetlink_dump_tuples_proto(skb, mask, proto);
+	nf_ct_proto_put(proto);
+	if (unlikely(ret < 0))
+		goto nfattr_failure;
+
+	NFA_NEST_END(skb, nest_parms);
+
+	return 0;
+
+nfattr_failure:
+	return -1;
+}
+
+static inline int
 ctnetlink_exp_dump_expect(struct sk_buff *skb,
                           const struct nf_conntrack_expect *exp)
 {
@@ -1162,7 +1202,7 @@ ctnetlink_exp_dump_expect(struct sk_buff *skb,
 
 	if (ctnetlink_exp_dump_tuple(skb, &exp->tuple, CTA_EXPECT_TUPLE) < 0)
 		goto nfattr_failure;
-	if (ctnetlink_exp_dump_tuple(skb, &exp->mask, CTA_EXPECT_MASK) < 0)
+	if (ctnetlink_exp_dump_mask(skb, &exp->tuple, &exp->mask) < 0)
 		goto nfattr_failure;
 	if (ctnetlink_exp_dump_tuple(skb,
 				 &master->tuplehash[IP_CT_DIR_ORIGINAL].tuple,

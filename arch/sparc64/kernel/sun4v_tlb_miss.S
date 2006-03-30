@@ -29,15 +29,15 @@
 	 *
 	 * index_mask = (512 << (tsb_reg & 0x7UL)) - 1UL;
 	 * tsb_base = tsb_reg & ~0x7UL;
-	 * tsb_index = ((vaddr >> PAGE_SHIFT) & tsb_mask);
+	 * tsb_index = ((vaddr >> HASH_SHIFT) & tsb_mask);
 	 * tsb_ptr = tsb_base + (tsb_index * 16);
 	 */
-#define COMPUTE_TSB_PTR(TSB_PTR, VADDR, TMP1, TMP2)	\
+#define COMPUTE_TSB_PTR(TSB_PTR, VADDR, HASH_SHIFT, TMP1, TMP2) \
 	and	TSB_PTR, 0x7, TMP1;			\
 	mov	512, TMP2;				\
 	andn	TSB_PTR, 0x7, TSB_PTR;			\
 	sllx	TMP2, TMP1, TMP2;			\
-	srlx	VADDR, PAGE_SHIFT, TMP1;		\
+	srlx	VADDR, HASH_SHIFT, TMP1;		\
 	sub	TMP2, 1, TMP2;				\
 	and	TMP1, TMP2, TMP1;			\
 	sllx	TMP1, 4, TMP1;				\
@@ -53,7 +53,7 @@ sun4v_itlb_miss:
 
 	LOAD_ITLB_INFO(%g2, %g4, %g5)
 	COMPUTE_TAG_TARGET(%g6, %g4, %g5, kvmap_itlb_4v)
-	COMPUTE_TSB_PTR(%g1, %g4, %g3, %g7)
+	COMPUTE_TSB_PTR(%g1, %g4, PAGE_SHIFT, %g3, %g7)
 
 	/* Load TSB tag/pte into %g2/%g3 and compare the tag.  */
 	ldda	[%g1] ASI_QUAD_LDD_PHYS_4V, %g2
@@ -99,7 +99,7 @@ sun4v_dtlb_miss:
 
 	LOAD_DTLB_INFO(%g2, %g4, %g5)
 	COMPUTE_TAG_TARGET(%g6, %g4, %g5, kvmap_dtlb_4v)
-	COMPUTE_TSB_PTR(%g1, %g4, %g3, %g7)
+	COMPUTE_TSB_PTR(%g1, %g4, PAGE_SHIFT, %g3, %g7)
 
 	/* Load TSB tag/pte into %g2/%g3 and compare the tag.  */
 	ldda	[%g1] ASI_QUAD_LDD_PHYS_4V, %g2
@@ -171,21 +171,26 @@ sun4v_dtsb_miss:
 
 	/* fallthrough */
 
-	/* Create TSB pointer into %g1.  This is something like:
-	 *
-	 * index_mask = (512 << (tsb_reg & 0x7UL)) - 1UL;
-	 * tsb_base = tsb_reg & ~0x7UL;
-	 * tsb_index = ((vaddr >> PAGE_SHIFT) & tsb_mask);
-	 * tsb_ptr = tsb_base + (tsb_index * 16);
-	 */
 sun4v_tsb_miss_common:
-	COMPUTE_TSB_PTR(%g1, %g4, %g5, %g7)
+	COMPUTE_TSB_PTR(%g1, %g4, PAGE_SHIFT, %g5, %g7)
 
-	/* Branch directly to page table lookup.  We have SCRATCHPAD_MMU_MISS
-	 * still in %g2, so it's quite trivial to get at the PGD PHYS value
-	 * so we can preload it into %g7.
-	 */
 	sub	%g2, TRAP_PER_CPU_FAULT_INFO, %g2
+
+#ifdef CONFIG_HUGETLB_PAGE
+	mov	SCRATCHPAD_UTSBREG2, %g5
+	ldxa	[%g5] ASI_SCRATCHPAD, %g5
+	cmp	%g5, -1
+	be,pt	%xcc, 80f
+	 nop
+	COMPUTE_TSB_PTR(%g5, %g4, HPAGE_SHIFT, %g2, %g7)
+
+	/* That clobbered %g2, reload it.  */
+	ldxa	[%g0] ASI_SCRATCHPAD, %g2
+	sub	%g2, TRAP_PER_CPU_FAULT_INFO, %g2
+
+80:	stx	%g5, [%g2 + TRAP_PER_CPU_TSB_HUGE_TEMP]
+#endif
+
 	ba,pt	%xcc, tsb_miss_page_table_walk_sun4v_fastpath
 	 ldx	[%g2 + TRAP_PER_CPU_PGD_PADDR], %g7
 

@@ -16,7 +16,7 @@
  *
  * The parport parameter controls which parports will be scanned.
  * Scanning all parports causes some printers to print a garbage page.
- *       -- March 14, 1999  Billy Donahue <billy@escape.com> 
+ *       -- March 14, 1999  Billy Donahue <billy@escape.com>
  *
  * Fixed data format to BGR, added force_rgb parameter. Added missing
  * parport_unregister_driver() on module removal.
@@ -88,7 +88,7 @@ static inline unsigned int qcam_ready2(struct qcam_device *qcam)
 	return (parport_read_data(qcam->pport) & 0x1)?1:0;
 }
 
-static unsigned int qcam_await_ready1(struct qcam_device *qcam, 
+static unsigned int qcam_await_ready1(struct qcam_device *qcam,
 					     int value)
 {
 	unsigned long oldjiffies = jiffies;
@@ -98,7 +98,7 @@ static unsigned int qcam_await_ready1(struct qcam_device *qcam,
 		if (qcam_ready1(qcam) == value)
 			return 0;
 
-	/* If the camera didn't respond within 1/25 second, poll slowly 
+	/* If the camera didn't respond within 1/25 second, poll slowly
 	   for a while. */
 	for (i = 0; i < 50; i++)
 	{
@@ -123,7 +123,7 @@ static unsigned int qcam_await_ready2(struct qcam_device *qcam, int value)
 		if (qcam_ready2(qcam) == value)
 			return 0;
 
-	/* If the camera didn't respond within 1/25 second, poll slowly 
+	/* If the camera didn't respond within 1/25 second, poll slowly
 	   for a while. */
 	for (i = 0; i < 50; i++)
 	{
@@ -157,12 +157,12 @@ static int qcam_write_data(struct qcam_device *qcam, unsigned int data)
 	unsigned int idata;
 	parport_write_data(qcam->pport, data);
 	idata = qcam_read_data(qcam);
-	if (data != idata) 
+	if (data != idata)
 	{
-		printk(KERN_WARNING "cqcam: sent %x but received %x\n", data, 
+		printk(KERN_WARNING "cqcam: sent %x but received %x\n", data,
 		       idata);
 		return 1;
-	} 
+	}
 	return 0;
 }
 
@@ -193,12 +193,12 @@ static int qc_detect(struct qcam_device *qcam)
 	   no device was found".  Fix this one day. */
 	if (qcam->pport->probe_info[0].class == PARPORT_CLASS_MEDIA
 	    && qcam->pport->probe_info[0].model
-	    && !strcmp(qcam->pdev->port->probe_info[0].model, 
+	    && !strcmp(qcam->pdev->port->probe_info[0].model,
 		       "Color QuickCam 2.0")) {
 		printk(KERN_DEBUG "QuickCam: Found by IEEE1284 probe.\n");
 		return 1;
 	}
-	
+
 	if (probe < 2)
 		return 0;
 
@@ -206,11 +206,11 @@ static int qc_detect(struct qcam_device *qcam)
 
 	/* look for a heartbeat */
 	ostat = stat = parport_read_status(qcam->pport);
-	for (i=0; i<250; i++) 
+	for (i=0; i<250; i++)
 	{
 		mdelay(1);
 		stat = parport_read_status(qcam->pport);
-		if (ostat != stat) 
+		if (ostat != stat)
 		{
 			if (++count >= 3) return 1;
 			ostat = stat;
@@ -226,11 +226,11 @@ static int qc_detect(struct qcam_device *qcam)
 	count = 0;
 
 	ostat = stat = parport_read_status(qcam->pport);
-	for (i=0; i<250; i++) 
+	for (i=0; i<250; i++)
 	{
 		mdelay(1);
 		stat = parport_read_status(qcam->pport);
-		if (ostat != stat) 
+		if (ostat != stat)
 		{
 			if (++count >= 3) return 1;
 			ostat = stat;
@@ -247,7 +247,7 @@ static void qc_reset(struct qcam_device *qcam)
 	parport_write_control(qcam->pport, 0x8);
 	mdelay(1);
 	parport_write_control(qcam->pport, 0xc);
-	mdelay(1);          
+	mdelay(1);
 }
 
 /* Reset the QuickCam and program for brightness, contrast,
@@ -258,7 +258,7 @@ static void qc_setup(struct qcam_device *q)
 	qc_reset(q);
 
 	/* Set the brightness.  */
-       	qcam_set(q, 11, q->brightness);
+	qcam_set(q, 11, q->brightness);
 
 	/* Set the height and width.  These refer to the actual
 	   CCD area *before* applying the selected decimation.  */
@@ -272,12 +272,12 @@ static void qc_setup(struct qcam_device *q)
 	/* Set contrast and white balance.  */
 	qcam_set(q, 0x19, q->contrast);
 	qcam_set(q, 0x1f, q->whitebal);
-	
+
 	/* Set the speed.  */
 	qcam_set(q, 45, 2);
 }
 
-/* Read some bytes from the camera and put them in the buffer. 
+/* Read some bytes from the camera and put them in the buffer.
    nbytes should be a multiple of 3, because bidirectional mode gives
    us three bytes at a time.  */
 
@@ -383,7 +383,7 @@ static long qc_capture(struct qcam_device *q, char __user *buf, unsigned long le
 
 	if (qcam_set(q, 7, (q->mode | (is_bi_dir?1:0)) + 1))
 		return -EIO;
-	
+
 	lines = q->height;
 	pixelsperline = q->width;
 	bitsperxfer = (is_bi_dir) ? 24 : 8;
@@ -499,7 +499,7 @@ static int qcam_do_ioctl(struct inode *inode, struct file *file,
 {
 	struct video_device *dev = video_devdata(file);
 	struct qcam_device *qcam=(struct qcam_device *)dev;
-	
+
 	switch(cmd)
 	{
 		case VIDIOCGCAP:
@@ -574,7 +574,7 @@ static int qcam_do_ioctl(struct inode *inode, struct file *file,
 			 */
 			if (p->depth != 24 || p->palette != VIDEO_PALETTE_RGB24)
 				return -EINVAL;
-			
+
 			/*
 			 *	Now load the camera.
 			 */
@@ -584,7 +584,7 @@ static int qcam_do_ioctl(struct inode *inode, struct file *file,
 
 			mutex_lock(&qcam->lock);
 			parport_claim_or_block(qcam->pdev);
-			qc_setup(qcam); 
+			qc_setup(qcam);
 			parport_release(qcam->pdev);
 			mutex_unlock(&qcam->lock);
 			return 0;
@@ -601,11 +601,11 @@ static int qcam_do_ioctl(struct inode *inode, struct file *file,
 				return -EINVAL;
 			if(vw->width<80||vw->width>320)
 				return -EINVAL;
-				
+
 			qcam->width = 80;
 			qcam->height = 60;
 			qcam->mode = QC_DECIMATION_4;
-			
+
 			if(vw->width>=160 && vw->height>=120)
 			{
 				qcam->width = 160;
@@ -627,7 +627,7 @@ static int qcam_do_ioctl(struct inode *inode, struct file *file,
 				qcam->mode = QC_BILLIONS | QC_DECIMATION_1;
 			}
 #endif
-			/* Ok we figured out what to use from our 
+			/* Ok we figured out what to use from our
 			   wide choice */
 			mutex_lock(&qcam->lock);
 			parport_claim_or_block(qcam->pdev);
@@ -676,7 +676,7 @@ static ssize_t qcam_read(struct file *file, char __user *buf,
 	mutex_lock(&qcam->lock);
 	parport_claim_or_block(qcam->pdev);
 	/* Probably should have a semaphore against multiple users */
-	len = qc_capture(qcam, buf,count); 
+	len = qc_capture(qcam, buf,count);
 	parport_release(qcam->pdev);
 	mutex_unlock(&qcam->lock);
 	return len;
@@ -707,7 +707,7 @@ static struct video_device qcam_template=
 static struct qcam_device *qcam_init(struct parport *port)
 {
 	struct qcam_device *q;
-	
+
 	q = kmalloc(sizeof(struct qcam_device), GFP_KERNEL);
 	if(q==NULL)
 		return NULL;
@@ -718,14 +718,14 @@ static struct qcam_device *qcam_init(struct parport *port)
 
 	q->bidirectional = (q->pport->modes & PARPORT_MODE_TRISTATE)?1:0;
 
-	if (q->pdev == NULL) 
+	if (q->pdev == NULL)
 	{
 		printk(KERN_ERR "c-qcam: couldn't register for %s.\n",
 		       port->name);
 		kfree(q);
 		return NULL;
 	}
-	
+
 	memcpy(&q->vdev, &qcam_template, sizeof(qcam_template));
 
 	mutex_init(&q->lock);
@@ -766,11 +766,11 @@ static int init_cqcam(struct parport *port)
 	qcam = qcam_init(port);
 	if (qcam==NULL)
 		return -ENODEV;
-		
+
 	parport_claim_or_block(qcam->pdev);
 
 	qc_reset(qcam);
-	
+
 	if (probe && qc_detect(qcam)==0)
 	{
 		parport_release(qcam->pdev);
@@ -782,7 +782,7 @@ static int init_cqcam(struct parport *port)
 	qc_setup(qcam);
 
 	parport_release(qcam->pdev);
-	
+
 	if (video_register_device(&qcam->vdev, VFL_TYPE_GRABBER, video_nr)==-1)
 	{
 		printk(KERN_ERR "Unable to register Colour QuickCam on %s\n",
@@ -792,9 +792,9 @@ static int init_cqcam(struct parport *port)
 		return -ENODEV;
 	}
 
-	printk(KERN_INFO "video%d: Colour QuickCam found on %s\n", 
+	printk(KERN_INFO "video%d: Colour QuickCam found on %s\n",
 	       qcam->vdev.minor, qcam->pport->name);
-	
+
 	qcams[num_cams++] = qcam;
 
 	return 0;

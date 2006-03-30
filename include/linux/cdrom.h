@@ -378,7 +378,6 @@ struct cdrom_generic_command
 #define CDC_MEDIA_CHANGED 	0x80    /* media changed */
 #define CDC_PLAY_AUDIO		0x100   /* audio functions */
 #define CDC_RESET               0x200   /* hard reset device */
-#define CDC_IOCTLS              0x400   /* driver has non-standard ioctls */
 #define CDC_DRIVE_STATUS        0x800   /* driver implements drive status */
 #define CDC_GENERIC_PACKET	0x1000	/* driver implements generic packets */
 #define CDC_CD_R		0x2000	/* drive is a CD-R */
@@ -974,9 +973,7 @@ struct cdrom_device_ops {
 	int (*reset) (struct cdrom_device_info *);
 	/* play stuff */
 	int (*audio_ioctl) (struct cdrom_device_info *,unsigned int, void *);
-	/* dev-specific */
- 	int (*dev_ioctl) (struct cdrom_device_info *,
-			  unsigned int, unsigned long);
+
 /* driver specifications */
 	const int capability;   /* capability flags */
 	int n_minors;           /* number of active minor devices */

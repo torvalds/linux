@@ -90,18 +90,39 @@ extern void __tsb_insert(unsigned long ent, unsigned long tag, unsigned long pte
 extern void tsb_flush(unsigned long ent, unsigned long tag);
 extern void tsb_init(struct tsb *tsb, unsigned long size);
 
-typedef struct {
-	spinlock_t		lock;
-	unsigned long		sparc64_ctx_val;
+struct tsb_config {
 	struct tsb		*tsb;
 	unsigned long		tsb_rss_limit;
 	unsigned long		tsb_nentries;
 	unsigned long		tsb_reg_val;
 	unsigned long		tsb_map_vaddr;
 	unsigned long		tsb_map_pte;
-	struct hv_tsb_descr	tsb_descr;
+};
+
+#define MM_TSB_BASE	0
+
+#ifdef CONFIG_HUGETLB_PAGE
+#define MM_TSB_HUGE	1
+#define MM_NUM_TSBS	2
+#else
+#define MM_NUM_TSBS	1
+#endif
+
+typedef struct {
+	spinlock_t		lock;
+	unsigned long		sparc64_ctx_val;
+	unsigned long		huge_pte_count;
+	struct tsb_config	tsb_block[MM_NUM_TSBS];
+	struct hv_tsb_descr	tsb_descr[MM_NUM_TSBS];
 } mm_context_t;
 
 #endif /* !__ASSEMBLY__ */
+
+#define TSB_CONFIG_TSB		0x00
+#define TSB_CONFIG_RSS_LIMIT	0x08
+#define TSB_CONFIG_NENTRIES	0x10
+#define TSB_CONFIG_REG_VAL	0x18
+#define TSB_CONFIG_MAP_VADDR	0x20
+#define TSB_CONFIG_MAP_PTE	0x28
 
 #endif /* __MMU_H */

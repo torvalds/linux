@@ -61,7 +61,7 @@ struct snd_mixer_oss {
 			  unsigned int active_index);
 	void *private_data_recsrc;
 	void (*private_free_recsrc)(struct snd_mixer_oss *mixer);
-	struct semaphore reg_mutex;
+	struct mutex reg_mutex;
 	struct snd_info_entry *proc_entry;
 	int oss_dev_alloc;
 	/* --- */

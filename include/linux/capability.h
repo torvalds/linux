@@ -357,7 +357,8 @@ static inline kernel_cap_t cap_invert(kernel_cap_t c)
 
 #define cap_is_fs_cap(c)     (CAP_TO_MASK(c) & CAP_FS_MASK)
 
-extern int capable(int cap);
+int capable(int cap);
+int __capable(struct task_struct *t, int cap);
 
 #endif /* __KERNEL__ */
 

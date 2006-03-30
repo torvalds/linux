@@ -117,9 +117,7 @@ int show_interrupts(struct seq_file *p, void *v)
 #ifndef CONFIG_SMP
 		seq_printf(p, "%10u ", kstat_irqs(i));
 #else
-		for (j = 0; j < NR_CPUS; j++) {
-			if (!cpu_online(j))
-				continue;
+		for_each_online_cpu(j) {
 			seq_printf(p, "%10u ",
 				   kstat_cpu(j).irqs[i]);
 		}
@@ -729,7 +727,7 @@ void handler_irq(int irq, struct pt_regs *regs)
 }
 
 #ifdef CONFIG_BLK_DEV_FD
-extern irqreturn_t floppy_interrupt(int, void *, struct pt_regs *);;
+extern irqreturn_t floppy_interrupt(int, void *, struct pt_regs *);
 
 /* XXX No easy way to include asm/floppy.h XXX */
 extern unsigned char *pdma_vaddr;

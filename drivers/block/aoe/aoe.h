@@ -1,5 +1,5 @@
 /* Copyright (c) 2004 Coraid, Inc.  See COPYING for GPL terms. */
-#define VERSION "14"
+#define VERSION "22"
 #define AOE_MAJOR 152
 #define DEVICE_NAME "aoe"
 
@@ -75,8 +75,9 @@ enum {
 	DEVFL_TKILL = (1<<1),	/* flag for timer to know when to kill self */
 	DEVFL_EXT = (1<<2),	/* device accepts lba48 commands */
 	DEVFL_CLOSEWAIT = (1<<3), /* device is waiting for all closes to revalidate */
-	DEVFL_WC_UPDATE = (1<<4), /* this device needs to update write cache status */
-	DEVFL_WORKON = (1<<4),
+	DEVFL_GDALLOC = (1<<4),	/* need to alloc gendisk */
+	DEVFL_PAUSE = (1<<5),
+	DEVFL_NEWSIZE = (1<<6),	/* need to update dev size in block layer */
 
 	BUFFL_FAIL = 1,
 };
@@ -152,16 +153,17 @@ void aoechr_exit(void);
 void aoechr_error(char *);
 
 void aoecmd_work(struct aoedev *d);
-void aoecmd_cfg(ushort, unsigned char);
+void aoecmd_cfg(ushort aoemajor, unsigned char aoeminor);
 void aoecmd_ata_rsp(struct sk_buff *);
 void aoecmd_cfg_rsp(struct sk_buff *);
+void aoecmd_sleepwork(void *vp);
 
 int aoedev_init(void);
 void aoedev_exit(void);
 struct aoedev *aoedev_by_aoeaddr(int maj, int min);
+struct aoedev *aoedev_by_sysminor_m(ulong sysminor, ulong bufcnt);
 void aoedev_downdev(struct aoedev *d);
-struct aoedev *aoedev_set(ulong, unsigned char *, struct net_device *, ulong);
-int aoedev_busy(void);
+int aoedev_isbusy(struct aoedev *d);
 
 int aoenet_init(void);
 void aoenet_exit(void);

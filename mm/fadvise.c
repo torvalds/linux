@@ -15,6 +15,7 @@
 #include <linux/backing-dev.h>
 #include <linux/pagevec.h>
 #include <linux/fadvise.h>
+#include <linux/writeback.h>
 #include <linux/syscalls.h>
 
 #include <asm/unistd.h>
@@ -22,13 +23,36 @@
 /*
  * POSIX_FADV_WILLNEED could set PG_Referenced, and POSIX_FADV_NOREUSE could
  * deactivate the pages and clear PG_Referenced.
+ *
+ * LINUX_FADV_ASYNC_WRITE: start async writeout of any dirty pages between file
+ * offsets `offset' and `offset+len' inclusive.  Any pages which are currently
+ * under writeout are skipped, whether or not they are dirty.
+ *
+ * LINUX_FADV_WRITE_WAIT: wait upon writeout of any dirty pages between file
+ * offsets `offset' and `offset+len'.
+ *
+ * By combining these two operations the application may do several things:
+ *
+ * LINUX_FADV_ASYNC_WRITE: push some or all of the dirty pages at the disk.
+ *
+ * LINUX_FADV_WRITE_WAIT, LINUX_FADV_ASYNC_WRITE: push all of the currently
+ * dirty pages at the disk.
+ *
+ * LINUX_FADV_WRITE_WAIT, LINUX_FADV_ASYNC_WRITE, LINUX_FADV_WRITE_WAIT: push
+ * all of the currently dirty pages at the disk, wait until they have been
+ * written.
+ *
+ * It should be noted that none of these operations write out the file's
+ * metadata.  So unless the application is strictly performing overwrites of
+ * already-instantiated disk blocks, there are no guarantees here that the data
+ * will be available after a crash.
  */
 asmlinkage long sys_fadvise64_64(int fd, loff_t offset, loff_t len, int advice)
 {
 	struct file *file = fget(fd);
 	struct address_space *mapping;
 	struct backing_dev_info *bdi;
-	loff_t endbyte;
+	loff_t endbyte;			/* inclusive */
 	pgoff_t start_index;
 	pgoff_t end_index;
 	unsigned long nrpages;
@@ -56,6 +80,8 @@ asmlinkage long sys_fadvise64_64(int fd, loff_t offset, loff_t len, int advice)
 	endbyte = offset + len;
 	if (!len || endbyte < len)
 		endbyte = -1;
+	else
+		endbyte--;		/* inclusive */
 
 	bdi = mapping->backing_dev_info;
 
@@ -78,7 +104,7 @@ asmlinkage long sys_fadvise64_64(int fd, loff_t offset, loff_t len, int advice)
 
 		/* First and last PARTIAL page! */
 		start_index = offset >> PAGE_CACHE_SHIFT;
-		end_index = (endbyte-1) >> PAGE_CACHE_SHIFT;
+		end_index = endbyte >> PAGE_CACHE_SHIFT;
 
 		/* Careful about overflow on the "+1" */
 		nrpages = end_index - start_index + 1;
@@ -96,11 +122,21 @@ asmlinkage long sys_fadvise64_64(int fd, loff_t offset, loff_t len, int advice)
 			filemap_flush(mapping);
 
 		/* First and last FULL page! */
-		start_index = (offset + (PAGE_CACHE_SIZE-1)) >> PAGE_CACHE_SHIFT;
+		start_index = (offset+(PAGE_CACHE_SIZE-1)) >> PAGE_CACHE_SHIFT;
 		end_index = (endbyte >> PAGE_CACHE_SHIFT);
 
-		if (end_index > start_index)
-			invalidate_mapping_pages(mapping, start_index, end_index-1);
+		if (end_index >= start_index)
+			invalidate_mapping_pages(mapping, start_index,
+						end_index);
+		break;
+	case LINUX_FADV_ASYNC_WRITE:
+		ret = __filemap_fdatawrite_range(mapping, offset, endbyte,
+						WB_SYNC_NONE);
+		break;
+	case LINUX_FADV_WRITE_WAIT:
+		ret = wait_on_page_writeback_range(mapping,
+					offset >> PAGE_CACHE_SHIFT,
+					endbyte >> PAGE_CACHE_SHIFT);
 		break;
 	default:
 		ret = -EINVAL;

@@ -25,6 +25,7 @@
 #include <linux/i2c.h>
 #include <linux/hwmon.h>
 #include <linux/err.h>
+#include <linux/mutex.h>
 #include "lm75.h"
 
 
@@ -47,7 +48,7 @@ I2C_CLIENT_INSMOD_1(lm75);
 struct lm75_data {
 	struct i2c_client	client;
 	struct class_device *class_dev;
-	struct semaphore	update_lock;
+	struct mutex		update_lock;
 	char			valid;		/* !=0 if following fields are valid */
 	unsigned long		last_updated;	/* In jiffies */
 	u16			temp_input;	/* Register values */
@@ -91,10 +92,10 @@ static ssize_t set_##value(struct device *dev, struct device_attribute *attr, co
 	struct lm75_data *data = i2c_get_clientdata(client);	\
 	int temp = simple_strtoul(buf, NULL, 10);		\
 								\
-	down(&data->update_lock);				\
+	mutex_lock(&data->update_lock);				\
 	data->value = LM75_TEMP_TO_REG(temp);			\
 	lm75_write_value(client, reg, data->value);		\
-	up(&data->update_lock);					\
+	mutex_unlock(&data->update_lock);					\
 	return count;						\
 }
 set(temp_max, LM75_REG_TEMP_OS);
@@ -188,7 +189,7 @@ static int lm75_detect(struct i2c_adapter *adapter, int address, int kind)
 	/* Fill in the remaining client fields and put it into the global list */
 	strlcpy(new_client->name, name, I2C_NAME_SIZE);
 	data->valid = 0;
-	init_MUTEX(&data->update_lock);
+	mutex_init(&data->update_lock);
 
 	/* Tell the I2C layer a new client has arrived */
 	if ((err = i2c_attach_client(new_client)))
@@ -264,7 +265,7 @@ static struct lm75_data *lm75_update_device(struct device *dev)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct lm75_data *data = i2c_get_clientdata(client);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 
 	if (time_after(jiffies, data->last_updated + HZ + HZ / 2)
 	    || !data->valid) {
@@ -277,7 +278,7 @@ static struct lm75_data *lm75_update_device(struct device *dev)
 		data->valid = 1;
 	}
 
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 
 	return data;
 }

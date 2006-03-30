@@ -69,8 +69,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.52"
-#define DRV_MODULE_RELDATE	"Mar 06, 2006"
+#define DRV_MODULE_VERSION	"3.55"
+#define DRV_MODULE_RELDATE	"Mar 27, 2006"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -224,6 +224,10 @@ static struct pci_device_id tg3_pci_tbl[] = {
 	{ PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_TIGON3_5754,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
 	{ PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_TIGON3_5754M,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
+	{ PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_TIGON3_5755,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
+	{ PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_TIGON3_5755M,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
 	{ PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_TIGON3_5787,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
@@ -493,21 +497,20 @@ static void tg3_write_mem(struct tg3 *tp, u32 off, u32 val)
 	unsigned long flags;
 
 	spin_lock_irqsave(&tp->indirect_lock, flags);
-	pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_BASE_ADDR, off);
-	pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_DATA, val);
+	if (tp->write32 != tg3_write_indirect_reg32) {
+		tw32_f(TG3PCI_MEM_WIN_BASE_ADDR, off);
+		tw32_f(TG3PCI_MEM_WIN_DATA, val);
 
-	/* Always leave this as zero. */
-	pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_BASE_ADDR, 0);
+		/* Always leave this as zero. */
+		tw32_f(TG3PCI_MEM_WIN_BASE_ADDR, 0);
+	} else {
+		pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_BASE_ADDR, off);
+		pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_DATA, val);
+
+		/* Always leave this as zero. */
+		pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_BASE_ADDR, 0);
+	}
 	spin_unlock_irqrestore(&tp->indirect_lock, flags);
-}
-
-static void tg3_write_mem_fast(struct tg3 *tp, u32 off, u32 val)
-{
-	/* If no workaround is needed, write to mem space directly */
-	if (tp->write32 != tg3_write_indirect_reg32)
-		tw32(NIC_SRAM_WIN_BASE + off, val);
-	else
-		tg3_write_mem(tp, off, val);
 }
 
 static void tg3_read_mem(struct tg3 *tp, u32 off, u32 *val)
@@ -515,11 +518,19 @@ static void tg3_read_mem(struct tg3 *tp, u32 off, u32 *val)
 	unsigned long flags;
 
 	spin_lock_irqsave(&tp->indirect_lock, flags);
-	pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_BASE_ADDR, off);
-	pci_read_config_dword(tp->pdev, TG3PCI_MEM_WIN_DATA, val);
+	if (tp->write32 != tg3_write_indirect_reg32) {
+		tw32_f(TG3PCI_MEM_WIN_BASE_ADDR, off);
+		*val = tr32(TG3PCI_MEM_WIN_DATA);
 
-	/* Always leave this as zero. */
-	pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_BASE_ADDR, 0);
+		/* Always leave this as zero. */
+		tw32_f(TG3PCI_MEM_WIN_BASE_ADDR, 0);
+	} else {
+		pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_BASE_ADDR, off);
+		pci_read_config_dword(tp->pdev, TG3PCI_MEM_WIN_DATA, val);
+
+		/* Always leave this as zero. */
+		pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_BASE_ADDR, 0);
+	}
 	spin_unlock_irqrestore(&tp->indirect_lock, flags);
 }
 
@@ -1148,6 +1159,19 @@ static int tg3_halt_cpu(struct tg3 *, u32);
 static int tg3_nvram_lock(struct tg3 *);
 static void tg3_nvram_unlock(struct tg3 *);
 
+static void tg3_power_down_phy(struct tg3 *tp)
+{
+	/* The PHY should not be powered down on some chips because
+	 * of bugs.
+	 */
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5700 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5704 ||
+	    (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5780 &&
+	     (tp->tg3_flags2 & TG3_FLG2_MII_SERDES)))
+		return;
+	tg3_writephy(tp, MII_BMCR, BMCR_PDOWN);
+}
+
 static int tg3_set_power_state(struct tg3 *tp, pci_power_t state)
 {
 	u32 misc_host_ctrl;
@@ -1327,8 +1351,7 @@ static int tg3_set_power_state(struct tg3 *tp, pci_power_t state)
 			tg3_writephy(tp, MII_TG3_EXT_CTRL,
 				     MII_TG3_EXT_CTRL_FORCE_LED_OFF);
 			tg3_writephy(tp, MII_TG3_AUX_CTRL, 0x01b2);
-			if (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5700)
-				tg3_writephy(tp, MII_BMCR, BMCR_PDOWN);
+			tg3_power_down_phy(tp);
 		}
 	}
 
@@ -1351,11 +1374,11 @@ static int tg3_set_power_state(struct tg3 *tp, pci_power_t state)
 		}
 	}
 
+	tg3_write_sig_post_reset(tp, RESET_KIND_SHUTDOWN);
+
 	/* Finally, set the new power state. */
 	pci_write_config_word(tp->pdev, pm + PCI_PM_CTRL, power_control);
 	udelay(100);	/* Delay after power state change */
-
-	tg3_write_sig_post_reset(tp, RESET_KIND_SHUTDOWN);
 
 	return 0;
 }
@@ -3584,7 +3607,7 @@ static inline int tg3_40bit_overflow_test(struct tg3 *tp, dma_addr_t mapping,
 					  int len)
 {
 #if defined(CONFIG_HIGHMEM) && (BITS_PER_LONG == 64)
-	if (tp->tg3_flags2 & TG3_FLG2_5780_CLASS)
+	if (tp->tg3_flags & TG3_FLAG_40BIT_DMA_BUG)
 		return (((u64) mapping + len) > DMA_40BIT_MASK);
 	return 0;
 #else
@@ -4545,6 +4568,7 @@ static int tg3_chip_reset(struct tg3 *tp)
 	}
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5755 ||
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787)
 		tw32(GRC_FASTBOOT_PC, 0);
 
@@ -6140,6 +6164,9 @@ static int tg3_reset_hw(struct tg3 *tp)
 			gpio_mask |= GRC_LCLCTRL_GPIO_OE3 |
 				     GRC_LCLCTRL_GPIO_OUTPUT3;
 
+		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5755)
+			gpio_mask |= GRC_LCLCTRL_GPIO_UART_SEL;
+
 		tp->grc_local_ctrl |= tr32(GRC_LOCAL_CTRL) & gpio_mask;
 
 		/* GPIO1 must be driven high for eeprom write protect */
@@ -6179,7 +6206,8 @@ static int tg3_reset_hw(struct tg3 *tp)
 	}
 
 	/* Enable host coalescing bug fix */
-	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787)
+	if ((GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5755) ||
+	    (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787))
 		val |= (1 << 29);
 
 	tw32_f(WDMAC_MODE, val);
@@ -6237,6 +6265,9 @@ static int tg3_reset_hw(struct tg3 *tp)
 	udelay(100);
 
 	tp->rx_mode = RX_MODE_ENABLE;
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5755)
+		tp->rx_mode |= RX_MODE_IPV6_CSUM_ENABLE;
+
 	tw32_f(MAC_RX_MODE, tp->rx_mode);
 	udelay(10);
 
@@ -6437,6 +6468,9 @@ static void tg3_timer(unsigned long __opaque)
 {
 	struct tg3 *tp = (struct tg3 *) __opaque;
 
+	if (tp->irq_sync)
+		goto restart_timer;
+
 	spin_lock(&tp->lock);
 
 	if (!(tp->tg3_flags & TG3_FLAG_TAGGED_STATUS)) {
@@ -6513,11 +6547,11 @@ static void tg3_timer(unsigned long __opaque)
 		if (tp->tg3_flags & TG3_FLAG_ENABLE_ASF) {
 			u32 val;
 
-			tg3_write_mem_fast(tp, NIC_SRAM_FW_CMD_MBOX,
-					   FWCMD_NICDRV_ALIVE2);
-			tg3_write_mem_fast(tp, NIC_SRAM_FW_CMD_LEN_MBOX, 4);
+			tg3_write_mem(tp, NIC_SRAM_FW_CMD_MBOX,
+				      FWCMD_NICDRV_ALIVE2);
+			tg3_write_mem(tp, NIC_SRAM_FW_CMD_LEN_MBOX, 4);
 			/* 5 seconds timeout */
-			tg3_write_mem_fast(tp, NIC_SRAM_FW_CMD_DATA_MBOX, 5);
+			tg3_write_mem(tp, NIC_SRAM_FW_CMD_DATA_MBOX, 5);
 			val = tr32(GRC_RX_CPU_EVENT);
 			val |= (1 << 14);
 			tw32(GRC_RX_CPU_EVENT, val);
@@ -6527,6 +6561,7 @@ static void tg3_timer(unsigned long __opaque)
 
 	spin_unlock(&tp->lock);
 
+restart_timer:
 	tp->timer.expires = jiffies + tp->timer_offset;
 	add_timer(&tp->timer);
 }
@@ -7895,7 +7930,8 @@ static int tg3_set_tx_csum(struct net_device *dev, u32 data)
   		return 0;
   	}
   
-	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787)
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5755 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787)
 		ethtool_op_set_tx_hw_csum(dev, data);
 	else
 		ethtool_op_set_tx_csum(dev, data);
@@ -8320,7 +8356,8 @@ static int tg3_test_memory(struct tg3 *tp)
 	int i;
 
 	if (tp->tg3_flags2 & TG3_FLG2_5705_PLUS) {
-		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787)
+		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5755 ||
+		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787)
 			mem_tbl = mem_tbl_5755;
 		else
 			mem_tbl = mem_tbl_5705;
@@ -8373,8 +8410,11 @@ static int tg3_run_loopback(struct tg3 *tp, int loopback_mode)
 		}
 		mac_mode = (tp->mac_mode & ~MAC_MODE_PORT_MODE_MASK) |
 			   MAC_MODE_LINK_POLARITY | MAC_MODE_PORT_MODE_GMII;
-		if ((tp->phy_id & PHY_ID_MASK) == PHY_ID_BCM5401)
+		if ((tp->phy_id & PHY_ID_MASK) == PHY_ID_BCM5401) {
 			mac_mode &= ~MAC_MODE_LINK_POLARITY;
+			tg3_writephy(tp, MII_TG3_EXT_CTRL,
+				     MII_TG3_EXT_CTRL_LNK3_LED_MODE);
+		}
 		tw32(MAC_MODE, mac_mode);
 	}
 	else
@@ -8912,6 +8952,47 @@ static void __devinit tg3_get_5752_nvram_info(struct tg3 *tp)
 	}
 }
 
+static void __devinit tg3_get_5755_nvram_info(struct tg3 *tp)
+{
+	u32 nvcfg1;
+
+	nvcfg1 = tr32(NVRAM_CFG1);
+
+	/* NVRAM protection for TPM */
+	if (nvcfg1 & (1 << 27))
+		tp->tg3_flags2 |= TG3_FLG2_PROTECTED_NVRAM;
+
+	switch (nvcfg1 & NVRAM_CFG1_5752VENDOR_MASK) {
+		case FLASH_5755VENDOR_ATMEL_EEPROM_64KHZ:
+		case FLASH_5755VENDOR_ATMEL_EEPROM_376KHZ:
+			tp->nvram_jedecnum = JEDEC_ATMEL;
+			tp->tg3_flags |= TG3_FLAG_NVRAM_BUFFERED;
+			tp->nvram_pagesize = ATMEL_AT24C512_CHIP_SIZE;
+
+			nvcfg1 &= ~NVRAM_CFG1_COMPAT_BYPASS;
+			tw32(NVRAM_CFG1, nvcfg1);
+			break;
+		case FLASH_5752VENDOR_ATMEL_FLASH_BUFFERED:
+		case FLASH_5755VENDOR_ATMEL_FLASH_1:
+		case FLASH_5755VENDOR_ATMEL_FLASH_2:
+		case FLASH_5755VENDOR_ATMEL_FLASH_3:
+		case FLASH_5755VENDOR_ATMEL_FLASH_4:
+			tp->nvram_jedecnum = JEDEC_ATMEL;
+			tp->tg3_flags |= TG3_FLAG_NVRAM_BUFFERED;
+			tp->tg3_flags2 |= TG3_FLG2_FLASH;
+			tp->nvram_pagesize = 264;
+			break;
+		case FLASH_5752VENDOR_ST_M45PE10:
+		case FLASH_5752VENDOR_ST_M45PE20:
+		case FLASH_5752VENDOR_ST_M45PE40:
+			tp->nvram_jedecnum = JEDEC_ST;
+			tp->tg3_flags |= TG3_FLAG_NVRAM_BUFFERED;
+			tp->tg3_flags2 |= TG3_FLG2_FLASH;
+			tp->nvram_pagesize = 256;
+			break;
+	}
+}
+
 static void __devinit tg3_get_5787_nvram_info(struct tg3 *tp)
 {
 	u32 nvcfg1;
@@ -8985,6 +9066,8 @@ static void __devinit tg3_nvram_init(struct tg3 *tp)
 
 		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752)
 			tg3_get_5752_nvram_info(tp);
+		else if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5755)
+			tg3_get_5755_nvram_info(tp);
 		else if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787)
 			tg3_get_5787_nvram_info(tp);
 		else
@@ -9298,6 +9381,7 @@ static int tg3_nvram_write_block_buffered(struct tg3 *tp, u32 offset, u32 len,
 			nvram_cmd |= NVRAM_CMD_LAST;
 
 		if ((GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5752) &&
+		    (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5755) &&
 		    (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5787) &&
 		    (tp->nvram_jedecnum == JEDEC_ST) &&
 		    (nvram_cmd & NVRAM_CMD_FIRST)) {
@@ -9436,12 +9520,18 @@ static inline struct subsys_tbl_ent *lookup_by_subsys(struct tg3 *tp)
 	return NULL;
 }
 
-/* Since this function may be called in D3-hot power state during
- * tg3_init_one(), only config cycles are allowed.
- */
 static void __devinit tg3_get_eeprom_hw_cfg(struct tg3 *tp)
 {
 	u32 val;
+	u16 pmcsr;
+
+	/* On some early chips the SRAM cannot be accessed in D3hot state,
+	 * so need make sure we're in D0.
+	 */
+	pci_read_config_word(tp->pdev, tp->pm_cap + PCI_PM_CTRL, &pmcsr);
+	pmcsr &= ~PCI_PM_CTRL_STATE_MASK;
+	pci_write_config_word(tp->pdev, tp->pm_cap + PCI_PM_CTRL, pmcsr);
+	msleep(1);
 
 	/* Make sure register accesses (indirect or otherwise)
 	 * will function correctly.
@@ -10026,6 +10116,7 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5750 ||
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5755 ||
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787 ||
 	    (tp->tg3_flags2 & TG3_FLG2_5780_CLASS))
 		tp->tg3_flags2 |= TG3_FLG2_5750_PLUS;
@@ -10035,7 +10126,8 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 		tp->tg3_flags2 |= TG3_FLG2_5705_PLUS;
 
 	if (tp->tg3_flags2 & TG3_FLG2_5750_PLUS) {
-		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787) {
+		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5755 ||
+		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787) {
 			tp->tg3_flags2 |= TG3_FLG2_HW_TSO_2;
 			tp->tg3_flags2 |= TG3_FLG2_1SHOT_MSI;
 		} else
@@ -10045,6 +10137,7 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5705 &&
 	    GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5750 &&
 	    GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5752 &&
+	    GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5755 &&
 	    GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5787)
 		tp->tg3_flags2 |= TG3_FLG2_JUMBO_CAPABLE;
 
@@ -10201,6 +10294,9 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	else if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752)
 		tp->grc_local_ctrl |= GRC_LCLCTRL_GPIO_OE3;
 
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5755)
+		tp->grc_local_ctrl |= GRC_LCLCTRL_GPIO_UART_SEL;
+
 	/* Force the chip into D0. */
 	err = tg3_set_power_state(tp, PCI_D0);
 	if (err) {
@@ -10256,6 +10352,7 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 		tp->tg3_flags2 |= TG3_FLG2_PHY_5704_A0_BUG;
 
 	if ((tp->tg3_flags2 & TG3_FLG2_5705_PLUS) &&
+	    (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5755) &&
 	    (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5787))
 		tp->tg3_flags2 |= TG3_FLG2_PHY_BER_BUG;
 
@@ -10395,7 +10492,8 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	/* All chips before 5787 can get confused if TX buffers
 	 * straddle the 4GB address boundary in some cases.
 	 */
-	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787)
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5755 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787)
 		tp->dev->hard_start_xmit = tg3_start_xmit;
 	else
 		tp->dev->hard_start_xmit = tg3_start_xmit_dma_bug;
@@ -10447,6 +10545,7 @@ static int __devinit tg3_get_device_address(struct tg3 *tp)
 {
 	struct net_device *dev = tp->dev;
 	u32 hi, lo, mac_offset;
+	int addr_ok = 0;
 
 #ifdef CONFIG_SPARC64
 	if (!tg3_get_macaddr_sparc(tp))
@@ -10476,29 +10575,34 @@ static int __devinit tg3_get_device_address(struct tg3 *tp)
 		dev->dev_addr[3] = (lo >> 16) & 0xff;
 		dev->dev_addr[4] = (lo >>  8) & 0xff;
 		dev->dev_addr[5] = (lo >>  0) & 0xff;
-	}
-	/* Next, try NVRAM. */
-	else if (!(tp->tg3_flags & TG3_FLG2_SUN_570X) &&
-		 !tg3_nvram_read(tp, mac_offset + 0, &hi) &&
-		 !tg3_nvram_read(tp, mac_offset + 4, &lo)) {
-		dev->dev_addr[0] = ((hi >> 16) & 0xff);
-		dev->dev_addr[1] = ((hi >> 24) & 0xff);
-		dev->dev_addr[2] = ((lo >>  0) & 0xff);
-		dev->dev_addr[3] = ((lo >>  8) & 0xff);
-		dev->dev_addr[4] = ((lo >> 16) & 0xff);
-		dev->dev_addr[5] = ((lo >> 24) & 0xff);
-	}
-	/* Finally just fetch it out of the MAC control regs. */
-	else {
-		hi = tr32(MAC_ADDR_0_HIGH);
-		lo = tr32(MAC_ADDR_0_LOW);
 
-		dev->dev_addr[5] = lo & 0xff;
-		dev->dev_addr[4] = (lo >> 8) & 0xff;
-		dev->dev_addr[3] = (lo >> 16) & 0xff;
-		dev->dev_addr[2] = (lo >> 24) & 0xff;
-		dev->dev_addr[1] = hi & 0xff;
-		dev->dev_addr[0] = (hi >> 8) & 0xff;
+		/* Some old bootcode may report a 0 MAC address in SRAM */
+		addr_ok = is_valid_ether_addr(&dev->dev_addr[0]);
+	}
+	if (!addr_ok) {
+		/* Next, try NVRAM. */
+		if (!(tp->tg3_flags & TG3_FLG2_SUN_570X) &&
+		    !tg3_nvram_read(tp, mac_offset + 0, &hi) &&
+		    !tg3_nvram_read(tp, mac_offset + 4, &lo)) {
+			dev->dev_addr[0] = ((hi >> 16) & 0xff);
+			dev->dev_addr[1] = ((hi >> 24) & 0xff);
+			dev->dev_addr[2] = ((lo >>  0) & 0xff);
+			dev->dev_addr[3] = ((lo >>  8) & 0xff);
+			dev->dev_addr[4] = ((lo >> 16) & 0xff);
+			dev->dev_addr[5] = ((lo >> 24) & 0xff);
+		}
+		/* Finally just fetch it out of the MAC control regs. */
+		else {
+			hi = tr32(MAC_ADDR_0_HIGH);
+			lo = tr32(MAC_ADDR_0_LOW);
+
+			dev->dev_addr[5] = lo & 0xff;
+			dev->dev_addr[4] = (lo >> 8) & 0xff;
+			dev->dev_addr[3] = (lo >> 16) & 0xff;
+			dev->dev_addr[2] = (lo >> 24) & 0xff;
+			dev->dev_addr[1] = hi & 0xff;
+			dev->dev_addr[0] = (hi >> 8) & 0xff;
+		}
 	}
 
 	if (!is_valid_ether_addr(&dev->dev_addr[0])) {
@@ -10984,6 +11088,7 @@ static char * __devinit tg3_phy_string(struct tg3 *tp)
 	case PHY_ID_BCM5752:	return "5752";
 	case PHY_ID_BCM5714:	return "5714";
 	case PHY_ID_BCM5780:	return "5780";
+	case PHY_ID_BCM5755:	return "5755";
 	case PHY_ID_BCM5787:	return "5787";
 	case PHY_ID_BCM8002:	return "8002/serdes";
 	case 0:			return "serdes";
@@ -11332,7 +11437,8 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	 * checksumming.
 	 */
 	if ((tp->tg3_flags & TG3_FLAG_BROKEN_CHECKSUMS) == 0) {
-		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787)
+		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5755 ||
+		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787)
 			dev->features |= NETIF_F_HW_CSUM;
 		else
 			dev->features |= NETIF_F_IP_CSUM;

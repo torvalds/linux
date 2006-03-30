@@ -1146,12 +1146,14 @@ void arpt_unregister_table(struct arpt_table *table)
 static struct arpt_target arpt_standard_target = {
 	.name		= ARPT_STANDARD_TARGET,
 	.targetsize	= sizeof(int),
+	.family		= NF_ARP,
 };
 
 static struct arpt_target arpt_error_target = {
 	.name		= ARPT_ERROR_TARGET,
 	.target		= arpt_error,
 	.targetsize	= ARPT_FUNCTION_MAXNAMELEN,
+	.family		= NF_ARP,
 };
 
 static struct nf_sockopt_ops arpt_sockopts = {
@@ -1164,15 +1166,15 @@ static struct nf_sockopt_ops arpt_sockopts = {
 	.get		= do_arpt_get_ctl,
 };
 
-static int __init init(void)
+static int __init arp_tables_init(void)
 {
 	int ret;
 
 	xt_proto_init(NF_ARP);
 
 	/* Noone else will be downing sem now, so we won't sleep */
-	xt_register_target(NF_ARP, &arpt_standard_target);
-	xt_register_target(NF_ARP, &arpt_error_target);
+	xt_register_target(&arpt_standard_target);
+	xt_register_target(&arpt_error_target);
 
 	/* Register setsockopt */
 	ret = nf_register_sockopt(&arpt_sockopts);
@@ -1185,7 +1187,7 @@ static int __init init(void)
 	return 0;
 }
 
-static void __exit fini(void)
+static void __exit arp_tables_fini(void)
 {
 	nf_unregister_sockopt(&arpt_sockopts);
 	xt_proto_fini(NF_ARP);
@@ -1195,5 +1197,5 @@ EXPORT_SYMBOL(arpt_register_table);
 EXPORT_SYMBOL(arpt_unregister_table);
 EXPORT_SYMBOL(arpt_do_table);
 
-module_init(init);
-module_exit(fini);
+module_init(arp_tables_init);
+module_exit(arp_tables_fini);

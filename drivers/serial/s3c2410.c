@@ -1586,25 +1586,19 @@ s3c24xx_serial_console_txrdy(struct uart_port *port, unsigned int ufcon)
 }
 
 static void
+s3c24xx_serial_console_putchar(struct uart_port *port, int ch)
+{
+	unsigned int ufcon = rd_regl(cons_uart, S3C2410_UFCON);
+	while (!s3c24xx_serial_console_txrdy(port, ufcon))
+		barrier();
+	wr_regb(cons_uart, S3C2410_UTXH, ch);
+}
+
+static void
 s3c24xx_serial_console_write(struct console *co, const char *s,
 			     unsigned int count)
 {
-	int i;
-	unsigned int ufcon = rd_regl(cons_uart, S3C2410_UFCON);
-
-	for (i = 0; i < count; i++) {
-		while (!s3c24xx_serial_console_txrdy(cons_uart, ufcon))
-			barrier();
-
-		wr_regb(cons_uart, S3C2410_UTXH, s[i]);
-
-		if (s[i] == '\n') {
-			while (!s3c24xx_serial_console_txrdy(cons_uart, ufcon))
-				barrier();
-
-			wr_regb(cons_uart, S3C2410_UTXH, '\r');
-		}
-	}
+	uart_console_write(cons_uart, s, count, s3c24xx_serial_console_putchar);
 }
 
 static void __init

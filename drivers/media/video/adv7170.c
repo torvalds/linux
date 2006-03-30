@@ -1,9 +1,9 @@
-/* 
+/*
  * adv7170 - adv7170, adv7171 video encoder driver version 0.0.1
  *
  * Copyright (C) 2002 Maxim Yevtyushkin <max@linuxmedialabs.com>
  *
- * Based on adv7176 driver by:    
+ * Based on adv7176 driver by:
  *
  * Copyright (C) 1998 Dave Perks <dperks@ibm.net>
  * Copyright (C) 1999 Wolfgang Scherr <scherr@net4you.net>
@@ -53,7 +53,6 @@ MODULE_AUTHOR("Maxim Yevtyushkin");
 MODULE_LICENSE("GPL");
 
 #include <linux/i2c.h>
-#include <linux/i2c-dev.h>
 
 #define I2C_NAME(x) (x)->name
 
@@ -125,24 +124,21 @@ adv7170_write_block (struct i2c_client *client,
 	if (i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		/* do raw I2C, not smbus compatible */
 		struct adv7170 *encoder = i2c_get_clientdata(client);
-		struct i2c_msg msg;
 		u8 block_data[32];
+		int block_len;
 
-		msg.addr = client->addr;
-		msg.flags = 0;
 		while (len >= 2) {
-			msg.buf = (char *) block_data;
-			msg.len = 0;
-			block_data[msg.len++] = reg = data[0];
+			block_len = 0;
+			block_data[block_len++] = reg = data[0];
 			do {
-				block_data[msg.len++] =
+				block_data[block_len++] =
 				    encoder->reg[reg++] = data[1];
 				len -= 2;
 				data += 2;
 			} while (len >= 2 && data[0] == reg &&
-				 msg.len < 32);
-			if ((ret = i2c_transfer(client->adapter,
-						&msg, 1)) < 0)
+				 block_len < 32);
+			if ((ret = i2c_master_send(client, block_data,
+						   block_len)) < 0)
 				break;
 		}
 	} else {
@@ -177,7 +173,7 @@ adv7170_write_block (struct i2c_client *client,
 static const unsigned char init_NTSC[] = {
 	0x00, 0x10,		// MR0
 	0x01, 0x20,		// MR1
-	0x02, 0x0e,		// MR2 RTC control: bits 2 and 1 
+	0x02, 0x0e,		// MR2 RTC control: bits 2 and 1
 	0x03, 0x80,		// MR3
 	0x04, 0x30,		// MR4
 	0x05, 0x00,		// Reserved
@@ -200,7 +196,7 @@ static const unsigned char init_NTSC[] = {
 	0x16, 0x00,		// CGMS_WSS_0
 	0x17, 0x00,		// CGMS_WSS_1
 	0x18, 0x00,		// CGMS_WSS_2
-	0x19, 0x00,		// Teletext Ctl 
+	0x19, 0x00,		// Teletext Ctl
 };
 
 static const unsigned char init_PAL[] = {
@@ -385,7 +381,7 @@ static unsigned short normal_i2c[] =
 };
 
 static unsigned short ignore = I2C_CLIENT_END;
-                                                                                
+
 static struct i2c_client_address_data addr_data = {
 	.normal_i2c		= normal_i2c,
 	.probe			= &ignore,

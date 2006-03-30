@@ -15,12 +15,14 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/fs.h>
+#include <linux/mutex.h>
 #include <linux/init.h>
 #include <linux/string.h>
 #include <linux/security.h>
 #include <linux/major.h>
 #include <linux/seq_file.h>
 #include <linux/percpu.h>
+#include <linux/audit.h>
 #include <asm/uaccess.h>
 #include <asm/semaphore.h>
 
@@ -44,7 +46,7 @@ static int __init checkreqprot_setup(char *str)
 __setup("checkreqprot=", checkreqprot_setup);
 
 
-static DECLARE_MUTEX(sel_sem);
+static DEFINE_MUTEX(sel_mutex);
 
 /* global data for booleans */
 static struct dentry *bool_dir = NULL;
@@ -126,6 +128,10 @@ static ssize_t sel_write_enforce(struct file * file, const char __user * buf,
 		length = task_has_security(current, SECURITY__SETENFORCE);
 		if (length)
 			goto out;
+		audit_log(current->audit_context, GFP_KERNEL, AUDIT_MAC_STATUS,
+			"enforcing=%d old_enforcing=%d auid=%u", new_value, 
+			selinux_enforcing,
+			audit_get_loginuid(current->audit_context));
 		selinux_enforcing = new_value;
 		if (selinux_enforcing)
 			avc_ss_reset(0);
@@ -176,6 +182,9 @@ static ssize_t sel_write_disable(struct file * file, const char __user * buf,
 		length = selinux_disable();
 		if (length < 0)
 			goto out;
+		audit_log(current->audit_context, GFP_KERNEL, AUDIT_MAC_STATUS,
+			"selinux=0 auid=%u",
+			audit_get_loginuid(current->audit_context));
 	}
 
 	length = count;
@@ -230,7 +239,7 @@ static ssize_t sel_write_load(struct file * file, const char __user * buf,
 	ssize_t length;
 	void *data = NULL;
 
-	down(&sel_sem);
+	mutex_lock(&sel_mutex);
 
 	length = task_has_security(current, SECURITY__LOAD_POLICY);
 	if (length)
@@ -261,8 +270,11 @@ static ssize_t sel_write_load(struct file * file, const char __user * buf,
 		length = ret;
 	else
 		length = count;
+	audit_log(current->audit_context, GFP_KERNEL, AUDIT_MAC_POLICY_LOAD,
+		"policy loaded auid=%u",
+		audit_get_loginuid(current->audit_context));
 out:
-	up(&sel_sem);
+	mutex_unlock(&sel_mutex);
 	vfree(data);
 	return length;
 }
@@ -709,12 +721,11 @@ static ssize_t sel_read_bool(struct file *filep, char __user *buf,
 {
 	char *page = NULL;
 	ssize_t length;
-	ssize_t end;
 	ssize_t ret;
 	int cur_enforcing;
 	struct inode *inode;
 
-	down(&sel_sem);
+	mutex_lock(&sel_mutex);
 
 	ret = -EFAULT;
 
@@ -740,26 +751,9 @@ static ssize_t sel_read_bool(struct file *filep, char __user *buf,
 
 	length = scnprintf(page, PAGE_SIZE, "%d %d", cur_enforcing,
 			  bool_pending_values[inode->i_ino - BOOL_INO_OFFSET]);
-	if (length < 0) {
-		ret = length;
-		goto out;
-	}
-
-	if (*ppos >= length) {
-		ret = 0;
-		goto out;
-	}
-	if (count + *ppos > length)
-		count = length - *ppos;
-	end = count + *ppos;
-	if (copy_to_user(buf, (char *) page + *ppos, count)) {
-		ret = -EFAULT;
-		goto out;
-	}
-	*ppos = end;
-	ret = count;
+	ret = simple_read_from_buffer(buf, count, ppos, page, length);
 out:
-	up(&sel_sem);
+	mutex_unlock(&sel_mutex);
 	if (page)
 		free_page((unsigned long)page);
 	return ret;
@@ -773,7 +767,7 @@ static ssize_t sel_write_bool(struct file *filep, const char __user *buf,
 	int new_value;
 	struct inode *inode;
 
-	down(&sel_sem);
+	mutex_lock(&sel_mutex);
 
 	length = task_has_security(current, SECURITY__SETBOOL);
 	if (length)
@@ -812,7 +806,7 @@ static ssize_t sel_write_bool(struct file *filep, const char __user *buf,
 	length = count;
 
 out:
-	up(&sel_sem);
+	mutex_unlock(&sel_mutex);
 	if (page)
 		free_page((unsigned long) page);
 	return length;
@@ -831,7 +825,7 @@ static ssize_t sel_commit_bools_write(struct file *filep,
 	ssize_t length = -EFAULT;
 	int new_value;
 
-	down(&sel_sem);
+	mutex_lock(&sel_mutex);
 
 	length = task_has_security(current, SECURITY__SETBOOL);
 	if (length)
@@ -869,7 +863,7 @@ static ssize_t sel_commit_bools_write(struct file *filep,
 	length = count;
 
 out:
-	up(&sel_sem);
+	mutex_unlock(&sel_mutex);
 	if (page)
 		free_page((unsigned long) page);
 	return length;
@@ -987,7 +981,7 @@ out:
 	return ret;
 err:
 	kfree(values);
-	d_genocide(dir);
+	sel_remove_bools(dir);
 	ret = -ENOMEM;
 	goto out;
 }
@@ -1168,37 +1162,38 @@ static int sel_make_avc_files(struct dentry *dir)
 		dentry = d_alloc_name(dir, files[i].name);
 		if (!dentry) {
 			ret = -ENOMEM;
-			goto err;
+			goto out;
 		}
 
 		inode = sel_make_inode(dir->d_sb, S_IFREG|files[i].mode);
 		if (!inode) {
 			ret = -ENOMEM;
-			goto err;
+			goto out;
 		}
 		inode->i_fop = files[i].ops;
 		d_add(dentry, inode);
 	}
 out:
 	return ret;
-err:
-	d_genocide(dir);
-	goto out;
 }
 
-static int sel_make_dir(struct super_block *sb, struct dentry *dentry)
+static int sel_make_dir(struct inode *dir, struct dentry *dentry)
 {
 	int ret = 0;
 	struct inode *inode;
 
-	inode = sel_make_inode(sb, S_IFDIR | S_IRUGO | S_IXUGO);
+	inode = sel_make_inode(dir->i_sb, S_IFDIR | S_IRUGO | S_IXUGO);
 	if (!inode) {
 		ret = -ENOMEM;
 		goto out;
 	}
 	inode->i_op = &simple_dir_inode_operations;
 	inode->i_fop = &simple_dir_operations;
+	/* directory inodes start off with i_nlink == 2 (for "." entry) */
+	inode->i_nlink++;
 	d_add(dentry, inode);
+	/* bump link count on parent directory, too */
+	dir->i_nlink++;
 out:
 	return ret;
 }
@@ -1207,7 +1202,7 @@ static int sel_fill_super(struct super_block * sb, void * data, int silent)
 {
 	int ret;
 	struct dentry *dentry;
-	struct inode *inode;
+	struct inode *inode, *root_inode;
 	struct inode_security_struct *isec;
 
 	static struct tree_descr selinux_files[] = {
@@ -1228,30 +1223,33 @@ static int sel_fill_super(struct super_block * sb, void * data, int silent)
 	};
 	ret = simple_fill_super(sb, SELINUX_MAGIC, selinux_files);
 	if (ret)
-		return ret;
+		goto err;
+
+	root_inode = sb->s_root->d_inode;
 
 	dentry = d_alloc_name(sb->s_root, BOOL_DIR_NAME);
-	if (!dentry)
-		return -ENOMEM;
+	if (!dentry) {
+		ret = -ENOMEM;
+		goto err;
+	}
 
-	inode = sel_make_inode(sb, S_IFDIR | S_IRUGO | S_IXUGO);
-	if (!inode)
-		goto out;
-	inode->i_op = &simple_dir_inode_operations;
-	inode->i_fop = &simple_dir_operations;
-	d_add(dentry, inode);
-	bool_dir = dentry;
-	ret = sel_make_bools();
+	ret = sel_make_dir(root_inode, dentry);
 	if (ret)
-		goto out;
+		goto err;
+
+	bool_dir = dentry;
 
 	dentry = d_alloc_name(sb->s_root, NULL_FILE_NAME);
-	if (!dentry)
-		return -ENOMEM;
+	if (!dentry) {
+		ret = -ENOMEM;
+		goto err;
+	}
 
 	inode = sel_make_inode(sb, S_IFCHR | S_IRUGO | S_IWUGO);
-	if (!inode)
-		goto out;
+	if (!inode) {
+		ret = -ENOMEM;
+		goto err;
+	}
 	isec = (struct inode_security_struct*)inode->i_security;
 	isec->sid = SECINITSID_DEVNULL;
 	isec->sclass = SECCLASS_CHR_FILE;
@@ -1262,22 +1260,23 @@ static int sel_fill_super(struct super_block * sb, void * data, int silent)
 	selinux_null = dentry;
 
 	dentry = d_alloc_name(sb->s_root, "avc");
-	if (!dentry)
-		return -ENOMEM;
+	if (!dentry) {
+		ret = -ENOMEM;
+		goto err;
+	}
 
-	ret = sel_make_dir(sb, dentry);
+	ret = sel_make_dir(root_inode, dentry);
 	if (ret)
-		goto out;
+		goto err;
 
 	ret = sel_make_avc_files(dentry);
 	if (ret)
-		goto out;
-
-	return 0;
+		goto err;
 out:
-	dput(dentry);
+	return ret;
+err:
 	printk(KERN_ERR "%s:  failed while creating inodes\n", __FUNCTION__);
-	return -ENOMEM;
+	goto out;
 }
 
 static struct super_block *sel_get_sb(struct file_system_type *fs_type,

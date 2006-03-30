@@ -906,8 +906,7 @@ queue_next:
 	if (!creq)
 		goto startio;
 
-	if (creq->nr_phys_segments > SG_MAX)
-		BUG();
+	BUG_ON(creq->nr_phys_segments > SG_MAX);
 
 	if ((c = cmd_alloc(h,1)) == NULL)
 		goto startio;

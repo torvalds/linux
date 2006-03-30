@@ -147,15 +147,12 @@ postcore_initcall(of_bus_driver_init);
 
 int of_register_driver(struct of_platform_driver *drv)
 {
-	int count = 0;
-
 	/* initialize common driver fields */
 	drv->driver.name = drv->name;
 	drv->driver.bus = &of_platform_bus_type;
 
 	/* register with core */
-	count = driver_register(&drv->driver);
-	return count ? count : 1;
+	return driver_register(&drv->driver);
 }
 
 void of_unregister_driver(struct of_platform_driver *drv)

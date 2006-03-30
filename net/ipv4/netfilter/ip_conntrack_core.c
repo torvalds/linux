@@ -77,11 +77,11 @@ unsigned int ip_ct_log_invalid;
 static LIST_HEAD(unconfirmed);
 static int ip_conntrack_vmalloc;
 
-static unsigned int ip_conntrack_next_id = 1;
-static unsigned int ip_conntrack_expect_next_id = 1;
+static unsigned int ip_conntrack_next_id;
+static unsigned int ip_conntrack_expect_next_id;
 #ifdef CONFIG_IP_NF_CONNTRACK_EVENTS
-struct notifier_block *ip_conntrack_chain;
-struct notifier_block *ip_conntrack_expect_chain;
+ATOMIC_NOTIFIER_HEAD(ip_conntrack_chain);
+ATOMIC_NOTIFIER_HEAD(ip_conntrack_expect_chain);
 
 DEFINE_PER_CPU(struct ip_conntrack_ecache, ip_conntrack_ecache);
 
@@ -92,7 +92,7 @@ __ip_ct_deliver_cached_events(struct ip_conntrack_ecache *ecache)
 {
 	DEBUGP("ecache: delivering events for %p\n", ecache->ct);
 	if (is_confirmed(ecache->ct) && !is_dying(ecache->ct) && ecache->events)
-		notifier_call_chain(&ip_conntrack_chain, ecache->events,
+		atomic_notifier_call_chain(&ip_conntrack_chain, ecache->events,
 				    ecache->ct);
 	ecache->events = 0;
 	ip_conntrack_put(ecache->ct);

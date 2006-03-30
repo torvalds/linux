@@ -18,7 +18,6 @@
 #include <linux/bitops.h>
 
 #include <asm/page.h>
-#include <asm/semaphore.h>
 #include <asm/processor.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -30,7 +29,6 @@
 #include <linux/adb.h>
 #include <linux/cuda.h>
 #include <linux/pmu.h>
-#include <asm/prom.h>
 #include <asm/system.h>
 #include <asm/pci-bridge.h>
 #include <asm/irq.h>
@@ -208,27 +206,6 @@ EXPORT_SYMBOL(adb_try_handler_change);
 EXPORT_SYMBOL(cuda_request);
 EXPORT_SYMBOL(cuda_poll);
 #endif /* CONFIG_ADB_CUDA */
-#ifdef CONFIG_PPC_OF
-EXPORT_SYMBOL(find_devices);
-EXPORT_SYMBOL(find_type_devices);
-EXPORT_SYMBOL(find_compatible_devices);
-EXPORT_SYMBOL(find_path_device);
-EXPORT_SYMBOL(device_is_compatible);
-EXPORT_SYMBOL(machine_is_compatible);
-EXPORT_SYMBOL(find_all_nodes);
-EXPORT_SYMBOL(get_property);
-EXPORT_SYMBOL(request_OF_resource);
-EXPORT_SYMBOL(release_OF_resource);
-EXPORT_SYMBOL(of_find_node_by_name);
-EXPORT_SYMBOL(of_find_node_by_type);
-EXPORT_SYMBOL(of_find_compatible_node);
-EXPORT_SYMBOL(of_find_node_by_path);
-EXPORT_SYMBOL(of_find_all_nodes);
-EXPORT_SYMBOL(of_get_parent);
-EXPORT_SYMBOL(of_get_next_child);
-EXPORT_SYMBOL(of_node_get);
-EXPORT_SYMBOL(of_node_put);
-#endif /* CONFIG_PPC_OF */
 #if defined(CONFIG_BOOTX_TEXT)
 EXPORT_SYMBOL(btext_update_display);
 #endif
@@ -262,9 +239,6 @@ EXPORT_SYMBOL(console_drivers);
 EXPORT_SYMBOL(xmon);
 EXPORT_SYMBOL(xmon_printf);
 #endif
-EXPORT_SYMBOL(__up);
-EXPORT_SYMBOL(__down);
-EXPORT_SYMBOL(__down_interruptible);
 
 #if defined(CONFIG_KGDB) || defined(CONFIG_XMON)
 extern void (*debugger)(struct pt_regs *regs);

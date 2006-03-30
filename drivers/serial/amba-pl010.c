@@ -51,8 +51,6 @@
 #include <linux/amba/serial.h>
 
 #include <asm/io.h>
-#include <asm/irq.h>
-#include <asm/hardware.h>
 
 #define UART_NR		2
 
@@ -62,47 +60,19 @@
 
 #define AMBA_ISR_PASS_LIMIT	256
 
-/*
- * Access macros for the AMBA UARTs
- */
-#define UART_GET_INT_STATUS(p)	readb((p)->membase + UART010_IIR)
-#define UART_PUT_ICR(p, c)	writel((c), (p)->membase + UART010_ICR)
-#define UART_GET_FR(p)		readb((p)->membase + UART01x_FR)
-#define UART_GET_CHAR(p)	readb((p)->membase + UART01x_DR)
-#define UART_PUT_CHAR(p, c)	writel((c), (p)->membase + UART01x_DR)
-#define UART_GET_RSR(p)		readb((p)->membase + UART01x_RSR)
-#define UART_GET_CR(p)		readb((p)->membase + UART010_CR)
-#define UART_PUT_CR(p,c)	writel((c), (p)->membase + UART010_CR)
-#define UART_GET_LCRL(p)	readb((p)->membase + UART010_LCRL)
-#define UART_PUT_LCRL(p,c)	writel((c), (p)->membase + UART010_LCRL)
-#define UART_GET_LCRM(p)	readb((p)->membase + UART010_LCRM)
-#define UART_PUT_LCRM(p,c)	writel((c), (p)->membase + UART010_LCRM)
-#define UART_GET_LCRH(p)	readb((p)->membase + UART010_LCRH)
-#define UART_PUT_LCRH(p,c)	writel((c), (p)->membase + UART010_LCRH)
 #define UART_RX_DATA(s)		(((s) & UART01x_FR_RXFE) == 0)
 #define UART_TX_READY(s)	(((s) & UART01x_FR_TXFF) == 0)
-#define UART_TX_EMPTY(p)	((UART_GET_FR(p) & UART01x_FR_TMSK) == 0)
 
-#define UART_DUMMY_RSR_RX	/*256*/0
+#define UART_DUMMY_RSR_RX	256
 #define UART_PORT_SIZE		64
-
-/*
- * On the Integrator platform, the port RTS and DTR are provided by
- * bits in the following SC_CTRLS register bits:
- *        RTS  DTR
- *  UART0  7    6
- *  UART1  5    4
- */
-#define SC_CTRLC	(IO_ADDRESS(INTEGRATOR_SC_BASE) + INTEGRATOR_SC_CTRLC_OFFSET)
-#define SC_CTRLS	(IO_ADDRESS(INTEGRATOR_SC_BASE) + INTEGRATOR_SC_CTRLS_OFFSET)
 
 /*
  * We wrap our port structure around the generic uart_port.
  */
 struct uart_amba_port {
 	struct uart_port	port;
-	unsigned int		dtr_mask;
-	unsigned int		rts_mask;
+	struct amba_device	*dev;
+	struct amba_pl010_data	*data;
 	unsigned int		old_status;
 };
 
@@ -110,36 +80,36 @@ static void pl010_stop_tx(struct uart_port *port)
 {
 	unsigned int cr;
 
-	cr = UART_GET_CR(port);
+	cr = readb(port->membase + UART010_CR);
 	cr &= ~UART010_CR_TIE;
-	UART_PUT_CR(port, cr);
+	writel(cr, port->membase + UART010_CR);
 }
 
 static void pl010_start_tx(struct uart_port *port)
 {
 	unsigned int cr;
 
-	cr = UART_GET_CR(port);
+	cr = readb(port->membase + UART010_CR);
 	cr |= UART010_CR_TIE;
-	UART_PUT_CR(port, cr);
+	writel(cr, port->membase + UART010_CR);
 }
 
 static void pl010_stop_rx(struct uart_port *port)
 {
 	unsigned int cr;
 
-	cr = UART_GET_CR(port);
+	cr = readb(port->membase + UART010_CR);
 	cr &= ~(UART010_CR_RIE | UART010_CR_RTIE);
-	UART_PUT_CR(port, cr);
+	writel(cr, port->membase + UART010_CR);
 }
 
 static void pl010_enable_ms(struct uart_port *port)
 {
 	unsigned int cr;
 
-	cr = UART_GET_CR(port);
+	cr = readb(port->membase + UART010_CR);
 	cr |= UART010_CR_MSIE;
-	UART_PUT_CR(port, cr);
+	writel(cr, port->membase + UART010_CR);
 }
 
 static void
@@ -152,9 +122,9 @@ pl010_rx_chars(struct uart_port *port)
 	struct tty_struct *tty = port->info->tty;
 	unsigned int status, ch, flag, rsr, max_count = 256;
 
-	status = UART_GET_FR(port);
+	status = readb(port->membase + UART01x_FR);
 	while (UART_RX_DATA(status) && max_count--) {
-		ch = UART_GET_CHAR(port);
+		ch = readb(port->membase + UART01x_DR);
 		flag = TTY_NORMAL;
 
 		port->icount.rx++;
@@ -163,7 +133,7 @@ pl010_rx_chars(struct uart_port *port)
 		 * Note that the error handling code is
 		 * out of the main execution path
 		 */
-		rsr = UART_GET_RSR(port) | UART_DUMMY_RSR_RX;
+		rsr = readb(port->membase + UART01x_RSR) | UART_DUMMY_RSR_RX;
 		if (unlikely(rsr & UART01x_RSR_ANY)) {
 			if (rsr & UART01x_RSR_BE) {
 				rsr &= ~(UART01x_RSR_FE | UART01x_RSR_PE);
@@ -193,7 +163,7 @@ pl010_rx_chars(struct uart_port *port)
 		uart_insert_char(port, rsr, UART01x_RSR_OE, ch, flag);
 
 	ignore_char:
-		status = UART_GET_FR(port);
+		status = readb(port->membase + UART01x_FR);
 	}
 	tty_flip_buffer_push(tty);
 	return;
@@ -205,7 +175,7 @@ static void pl010_tx_chars(struct uart_port *port)
 	int count;
 
 	if (port->x_char) {
-		UART_PUT_CHAR(port, port->x_char);
+		writel(port->x_char, port->membase + UART01x_DR);
 		port->icount.tx++;
 		port->x_char = 0;
 		return;
@@ -217,7 +187,7 @@ static void pl010_tx_chars(struct uart_port *port)
 
 	count = port->fifosize >> 1;
 	do {
-		UART_PUT_CHAR(port, xmit->buf[xmit->tail]);
+		writel(xmit->buf[xmit->tail], port->membase + UART01x_DR);
 		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
 		port->icount.tx++;
 		if (uart_circ_empty(xmit))
@@ -236,9 +206,9 @@ static void pl010_modem_status(struct uart_port *port)
 	struct uart_amba_port *uap = (struct uart_amba_port *)port;
 	unsigned int status, delta;
 
-	UART_PUT_ICR(&uap->port, 0);
+	writel(0, uap->port.membase + UART010_ICR);
 
-	status = UART_GET_FR(&uap->port) & UART01x_FR_MODEM_ANY;
+	status = readb(uap->port.membase + UART01x_FR) & UART01x_FR_MODEM_ANY;
 
 	delta = status ^ uap->old_status;
 	uap->old_status = status;
@@ -266,7 +236,7 @@ static irqreturn_t pl010_int(int irq, void *dev_id, struct pt_regs *regs)
 
 	spin_lock(&port->lock);
 
-	status = UART_GET_INT_STATUS(port);
+	status = readb(port->membase + UART010_IIR);
 	if (status) {
 		do {
 			if (status & (UART010_IIR_RTIS | UART010_IIR_RIS))
@@ -283,7 +253,7 @@ static irqreturn_t pl010_int(int irq, void *dev_id, struct pt_regs *regs)
 			if (pass_counter-- == 0)
 				break;
 
-			status = UART_GET_INT_STATUS(port);
+			status = readb(port->membase + UART010_IIR);
 		} while (status & (UART010_IIR_RTIS | UART010_IIR_RIS |
 				   UART010_IIR_TIS));
 		handled = 1;
@@ -296,7 +266,7 @@ static irqreturn_t pl010_int(int irq, void *dev_id, struct pt_regs *regs)
 
 static unsigned int pl010_tx_empty(struct uart_port *port)
 {
-	return UART_GET_FR(port) & UART01x_FR_BUSY ? 0 : TIOCSER_TEMT;
+	return readb(port->membase + UART01x_FR) & UART01x_FR_BUSY ? 0 : TIOCSER_TEMT;
 }
 
 static unsigned int pl010_get_mctrl(struct uart_port *port)
@@ -304,7 +274,7 @@ static unsigned int pl010_get_mctrl(struct uart_port *port)
 	unsigned int result = 0;
 	unsigned int status;
 
-	status = UART_GET_FR(port);
+	status = readb(port->membase + UART01x_FR);
 	if (status & UART01x_FR_DCD)
 		result |= TIOCM_CAR;
 	if (status & UART01x_FR_DSR)
@@ -318,20 +288,9 @@ static unsigned int pl010_get_mctrl(struct uart_port *port)
 static void pl010_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
 	struct uart_amba_port *uap = (struct uart_amba_port *)port;
-	unsigned int ctrls = 0, ctrlc = 0;
 
-	if (mctrl & TIOCM_RTS)
-		ctrlc |= uap->rts_mask;
-	else
-		ctrls |= uap->rts_mask;
-
-	if (mctrl & TIOCM_DTR)
-		ctrlc |= uap->dtr_mask;
-	else
-		ctrls |= uap->dtr_mask;
-
-	__raw_writel(ctrls, SC_CTRLS);
-	__raw_writel(ctrlc, SC_CTRLC);
+	if (uap->data)
+		uap->data->set_mctrl(uap->dev, uap->port.membase, mctrl);
 }
 
 static void pl010_break_ctl(struct uart_port *port, int break_state)
@@ -340,12 +299,12 @@ static void pl010_break_ctl(struct uart_port *port, int break_state)
 	unsigned int lcr_h;
 
 	spin_lock_irqsave(&port->lock, flags);
-	lcr_h = UART_GET_LCRH(port);
+	lcr_h = readb(port->membase + UART010_LCRH);
 	if (break_state == -1)
 		lcr_h |= UART01x_LCRH_BRK;
 	else
 		lcr_h &= ~UART01x_LCRH_BRK;
-	UART_PUT_LCRH(port, lcr_h);
+	writel(lcr_h, port->membase + UART010_LCRH);
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
@@ -364,13 +323,13 @@ static int pl010_startup(struct uart_port *port)
 	/*
 	 * initialise the old status of the modem signals
 	 */
-	uap->old_status = UART_GET_FR(port) & UART01x_FR_MODEM_ANY;
+	uap->old_status = readb(port->membase + UART01x_FR) & UART01x_FR_MODEM_ANY;
 
 	/*
 	 * Finally, enable interrupts
 	 */
-	UART_PUT_CR(port, UART01x_CR_UARTEN | UART010_CR_RIE |
-			  UART010_CR_RTIE);
+	writel(UART01x_CR_UARTEN | UART010_CR_RIE | UART010_CR_RTIE,
+	       port->membase + UART010_CR);
 
 	return 0;
 }
@@ -385,11 +344,12 @@ static void pl010_shutdown(struct uart_port *port)
 	/*
 	 * disable all interrupts, disable the port
 	 */
-	UART_PUT_CR(port, 0);
+	writel(0, port->membase + UART010_CR);
 
 	/* disable break condition and fifos */
-	UART_PUT_LCRH(port, UART_GET_LCRH(port) &
-		~(UART01x_LCRH_BRK | UART01x_LCRH_FEN));
+	writel(readb(port->membase + UART010_LCRH) &
+		~(UART01x_LCRH_BRK | UART01x_LCRH_FEN),
+	       port->membase + UART010_LCRH);
 }
 
 static void
@@ -466,25 +426,25 @@ pl010_set_termios(struct uart_port *port, struct termios *termios,
 		port->ignore_status_mask |= UART_DUMMY_RSR_RX;
 
 	/* first, disable everything */
-	old_cr = UART_GET_CR(port) & ~UART010_CR_MSIE;
+	old_cr = readb(port->membase + UART010_CR) & ~UART010_CR_MSIE;
 
 	if (UART_ENABLE_MS(port, termios->c_cflag))
 		old_cr |= UART010_CR_MSIE;
 
-	UART_PUT_CR(port, 0);
+	writel(0, port->membase + UART010_CR);
 
 	/* Set baud rate */
 	quot -= 1;
-	UART_PUT_LCRM(port, ((quot & 0xf00) >> 8));
-	UART_PUT_LCRL(port, (quot & 0xff));
+	writel((quot & 0xf00) >> 8, port->membase + UART010_LCRM);
+	writel(quot & 0xff, port->membase + UART010_LCRL);
 
 	/*
 	 * ----------v----------v----------v----------v-----
 	 * NOTE: MUST BE WRITTEN AFTER UARTLCR_M & UARTLCR_L
 	 * ----------^----------^----------^----------^-----
 	 */
-	UART_PUT_LCRH(port, lcr_h);
-	UART_PUT_CR(port, old_cr);
+	writel(lcr_h, port->membase + UART010_LCRH);
+	writel(old_cr, port->membase + UART010_CR);
 
 	spin_unlock_irqrestore(&port->lock, flags);
 }
@@ -556,87 +516,53 @@ static struct uart_ops amba_pl010_pops = {
 	.verify_port	= pl010_verify_port,
 };
 
-static struct uart_amba_port amba_ports[UART_NR] = {
-	{
-		.port	= {
-			.membase	= (void *)IO_ADDRESS(INTEGRATOR_UART0_BASE),
-			.mapbase	= INTEGRATOR_UART0_BASE,
-			.iotype		= UPIO_MEM,
-			.irq		= IRQ_UARTINT0,
-			.uartclk	= 14745600,
-			.fifosize	= 16,
-			.ops		= &amba_pl010_pops,
-			.flags		= UPF_BOOT_AUTOCONF,
-			.line		= 0,
-		},
-		.dtr_mask	= 1 << 5,
-		.rts_mask	= 1 << 4,
-	},
-	{
-		.port	= {
-			.membase	= (void *)IO_ADDRESS(INTEGRATOR_UART1_BASE),
-			.mapbase	= INTEGRATOR_UART1_BASE,
-			.iotype		= UPIO_MEM,
-			.irq		= IRQ_UARTINT1,
-			.uartclk	= 14745600,
-			.fifosize	= 16,
-			.ops		= &amba_pl010_pops,
-			.flags		= UPF_BOOT_AUTOCONF,
-			.line		= 1,
-		},
-		.dtr_mask	= 1 << 7,
-		.rts_mask	= 1 << 6,
-	}
-};
+static struct uart_amba_port *amba_ports[UART_NR];
 
 #ifdef CONFIG_SERIAL_AMBA_PL010_CONSOLE
+
+static void pl010_console_putchar(struct uart_port *port, int ch)
+{
+	unsigned int status;
+
+	do {
+		status = readb(port->membase + UART01x_FR);
+		barrier();
+	} while (!UART_TX_READY(status));
+	writel(ch, port->membase + UART01x_DR);
+}
 
 static void
 pl010_console_write(struct console *co, const char *s, unsigned int count)
 {
-	struct uart_port *port = &amba_ports[co->index].port;
+	struct uart_port *port = &amba_ports[co->index]->port;
 	unsigned int status, old_cr;
-	int i;
 
 	/*
 	 *	First save the CR then disable the interrupts
 	 */
-	old_cr = UART_GET_CR(port);
-	UART_PUT_CR(port, UART01x_CR_UARTEN);
+	old_cr = readb(port->membase + UART010_CR);
+	writel(UART01x_CR_UARTEN, port->membase + UART010_CR);
 
-	/*
-	 *	Now, do each character
-	 */
-	for (i = 0; i < count; i++) {
-		do {
-			status = UART_GET_FR(port);
-		} while (!UART_TX_READY(status));
-		UART_PUT_CHAR(port, s[i]);
-		if (s[i] == '\n') {
-			do {
-				status = UART_GET_FR(port);
-			} while (!UART_TX_READY(status));
-			UART_PUT_CHAR(port, '\r');
-		}
-	}
+	uart_console_write(port, s, count, pl010_console_putchar);
 
 	/*
 	 *	Finally, wait for transmitter to become empty
 	 *	and restore the TCR
 	 */
 	do {
-		status = UART_GET_FR(port);
+		status = readb(port->membase + UART01x_FR);
+		barrier();
 	} while (status & UART01x_FR_BUSY);
-	UART_PUT_CR(port, old_cr);
+	writel(old_cr, port->membase + UART010_CR);
 }
 
 static void __init
 pl010_console_get_options(struct uart_port *port, int *baud,
 			     int *parity, int *bits)
 {
-	if (UART_GET_CR(port) & UART01x_CR_UARTEN) {
+	if (readb(port->membase + UART010_CR) & UART01x_CR_UARTEN) {
 		unsigned int lcr_h, quot;
-		lcr_h = UART_GET_LCRH(port);
+		lcr_h = readb(port->membase + UART010_LCRH);
 
 		*parity = 'n';
 		if (lcr_h & UART01x_LCRH_PEN) {
@@ -651,7 +577,7 @@ pl010_console_get_options(struct uart_port *port, int *baud,
 		else
 			*bits = 8;
 
-		quot = UART_GET_LCRL(port) | UART_GET_LCRM(port) << 8;
+		quot = readb(port->membase + UART010_LCRL) | readb(port->membase + UART010_LCRM) << 8;
 		*baud = port->uartclk / (16 * (quot + 1));
 	}
 }
@@ -671,7 +597,7 @@ static int __init pl010_console_setup(struct console *co, char *options)
 	 */
 	if (co->index >= UART_NR)
 		co->index = 0;
-	port = &amba_ports[co->index].port;
+	port = &amba_ports[co->index]->port;
 
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
@@ -692,24 +618,6 @@ static struct console amba_console = {
 	.data		= &amba_reg,
 };
 
-static int __init amba_console_init(void)
-{
-	/*
-	 * All port initializations are done statically
-	 */
-	register_console(&amba_console);
-	return 0;
-}
-console_initcall(amba_console_init);
-
-static int __init amba_late_console_init(void)
-{
-	if (!(amba_console.flags & CON_ENABLED))
-		register_console(&amba_console);
-	return 0;
-}
-late_initcall(amba_late_console_init);
-
 #define AMBA_CONSOLE	&amba_console
 #else
 #define AMBA_CONSOLE	NULL
@@ -727,29 +635,75 @@ static struct uart_driver amba_reg = {
 
 static int pl010_probe(struct amba_device *dev, void *id)
 {
-	int i;
+	struct uart_amba_port *port;
+	void __iomem *base;
+	int i, ret;
 
-	for (i = 0; i < UART_NR; i++) {
-		if (amba_ports[i].port.mapbase != dev->res.start)
-			continue;
+	for (i = 0; i < ARRAY_SIZE(amba_ports); i++)
+		if (amba_ports[i] == NULL)
+			break;
 
-		amba_ports[i].port.dev = &dev->dev;
-		uart_add_one_port(&amba_reg, &amba_ports[i].port);
-		amba_set_drvdata(dev, &amba_ports[i]);
-		break;
+	if (i == ARRAY_SIZE(amba_ports)) {
+		ret = -EBUSY;
+		goto out;
 	}
 
-	return 0;
+	port = kzalloc(sizeof(struct uart_amba_port), GFP_KERNEL);
+	if (!port) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	base = ioremap(dev->res.start, PAGE_SIZE);
+	if (!base) {
+		ret = -ENOMEM;
+		goto free;
+	}
+
+	port->port.dev = &dev->dev;
+	port->port.mapbase = dev->res.start;
+	port->port.membase = base;
+	port->port.iotype = UPIO_MEM;
+	port->port.irq = dev->irq[0];
+	port->port.uartclk = 14745600;
+	port->port.fifosize = 16;
+	port->port.ops = &amba_pl010_pops;
+	port->port.flags = UPF_BOOT_AUTOCONF;
+	port->port.line = i;
+	port->dev = dev;
+	port->data = dev->dev.platform_data;
+
+	amba_ports[i] = port;
+
+	amba_set_drvdata(dev, port);
+	ret = uart_add_one_port(&amba_reg, &port->port);
+	if (ret) {
+		amba_set_drvdata(dev, NULL);
+		amba_ports[i] = NULL;
+		iounmap(base);
+ free:
+		kfree(port);
+	}
+
+ out:
+	return ret;
 }
 
 static int pl010_remove(struct amba_device *dev)
 {
-	struct uart_amba_port *uap = amba_get_drvdata(dev);
-
-	if (uap)
-		uart_remove_one_port(&amba_reg, &uap->port);
+	struct uart_amba_port *port = amba_get_drvdata(dev);
+	int i;
 
 	amba_set_drvdata(dev, NULL);
+
+	uart_remove_one_port(&amba_reg, &port->port);
+
+	for (i = 0; i < ARRAY_SIZE(amba_ports); i++)
+		if (amba_ports[i] == port)
+			amba_ports[i] = NULL;
+
+	iounmap(port->port.membase);
+	kfree(port);
 
 	return 0;
 }

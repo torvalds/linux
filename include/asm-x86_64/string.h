@@ -40,26 +40,15 @@ extern void *__memcpy(void *to, const void *from, size_t len);
 
 
 #define __HAVE_ARCH_MEMSET
-#define memset __builtin_memset
+void *memset(void *s, int c, size_t n);
 
 #define __HAVE_ARCH_MEMMOVE
 void * memmove(void * dest,const void *src,size_t count);
 
-/* Use C out of line version for memcmp */ 
-#define memcmp __builtin_memcmp
 int memcmp(const void * cs,const void * ct,size_t count);
-
-/* out of line string functions use always C versions */ 
-#define strlen __builtin_strlen
 size_t strlen(const char * s);
-
-#define strcpy __builtin_strcpy
-char * strcpy(char * dest,const char *src);
-
-#define strcat __builtin_strcat
-char * strcat(char * dest, const char * src);
-
-#define strcmp __builtin_strcmp
+char *strcpy(char * dest,const char *src);
+char *strcat(char * dest, const char * src);
 int strcmp(const char * cs,const char * ct);
 
 #endif /* __KERNEL__ */

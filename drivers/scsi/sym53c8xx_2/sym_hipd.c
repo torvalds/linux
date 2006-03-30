@@ -40,7 +40,6 @@
 
 #include <linux/slab.h>
 #include <asm/param.h>		/* for timeouts in units of HZ */
-#include <scsi/scsi_dbg.h>
 
 #include "sym_glue.h"
 #include "sym_nvram.h"
@@ -1432,29 +1431,18 @@ static int sym_prepare_nego(struct sym_hcb *np, struct sym_ccb *cp, u_char *msgp
 
 	switch (nego) {
 	case NS_SYNC:
-		msgptr[msglen++] = M_EXTENDED;
-		msgptr[msglen++] = 3;
-		msgptr[msglen++] = M_X_SYNC_REQ;
-		msgptr[msglen++] = goal->period;
-		msgptr[msglen++] = goal->offset;
+		msglen += spi_populate_sync_msg(msgptr + msglen, goal->period,
+				goal->offset);
 		break;
 	case NS_WIDE:
-		msgptr[msglen++] = M_EXTENDED;
-		msgptr[msglen++] = 2;
-		msgptr[msglen++] = M_X_WIDE_REQ;
-		msgptr[msglen++] = goal->width;
+		msglen += spi_populate_width_msg(msgptr + msglen, goal->width);
 		break;
 	case NS_PPR:
-		msgptr[msglen++] = M_EXTENDED;
-		msgptr[msglen++] = 6;
-		msgptr[msglen++] = M_X_PPR_REQ;
-		msgptr[msglen++] = goal->period;
-		msgptr[msglen++] = 0;
-		msgptr[msglen++] = goal->offset;
-		msgptr[msglen++] = goal->width;
-		msgptr[msglen++] = (goal->iu ? PPR_OPT_IU : 0) |
+		msglen += spi_populate_ppr_msg(msgptr + msglen, goal->period,
+				goal->offset, goal->width,
+				(goal->iu ? PPR_OPT_IU : 0) |
 					(goal->dt ? PPR_OPT_DT : 0) |
-					(goal->qas ? PPR_OPT_QAS : 0);
+					(goal->qas ? PPR_OPT_QAS : 0));
 		break;
 	}
 
@@ -3950,11 +3938,7 @@ sym_sync_nego_check(struct sym_hcb *np, int req, struct sym_ccb *cp)
 	/*
 	 *  It was a request. Prepare an answer message.
 	 */
-	np->msgout[0] = M_EXTENDED;
-	np->msgout[1] = 3;
-	np->msgout[2] = M_X_SYNC_REQ;
-	np->msgout[3] = per;
-	np->msgout[4] = ofs;
+	spi_populate_sync_msg(np->msgout, per, ofs);
 
 	if (DEBUG_FLAGS & DEBUG_NEGO) {
 		sym_print_nego_msg(np, target, "sync msgout", np->msgout);
@@ -4080,14 +4064,7 @@ sym_ppr_nego_check(struct sym_hcb *np, int req, int target)
 	/*
 	 *  It was a request. Prepare an answer message.
 	 */
-	np->msgout[0] = M_EXTENDED;
-	np->msgout[1] = 6;
-	np->msgout[2] = M_X_PPR_REQ;
-	np->msgout[3] = per;
-	np->msgout[4] = 0;
-	np->msgout[5] = ofs;
-	np->msgout[6] = wide;
-	np->msgout[7] = opts;
+	spi_populate_ppr_msg(np->msgout, per, ofs, wide, opts);
 
 	if (DEBUG_FLAGS & DEBUG_NEGO) {
 		sym_print_nego_msg(np, target, "ppr msgout", np->msgout);
@@ -4199,10 +4176,7 @@ sym_wide_nego_check(struct sym_hcb *np, int req, struct sym_ccb *cp)
 	/*
 	 *  It was a request. Prepare an answer message.
 	 */
-	np->msgout[0] = M_EXTENDED;
-	np->msgout[1] = 2;
-	np->msgout[2] = M_X_WIDE_REQ;
-	np->msgout[3] = wide;
+	spi_populate_width_msg(np->msgout, wide);
 
 	np->msgin [0] = M_NOOP;
 
@@ -4247,11 +4221,8 @@ static void sym_wide_nego(struct sym_hcb *np, struct sym_tcb *tp, struct sym_ccb
 		 * a single SCSI command (Suggested by Justin Gibbs).
 		 */
 		if (tp->tgoal.offset) {
-			np->msgout[0] = M_EXTENDED;
-			np->msgout[1] = 3;
-			np->msgout[2] = M_X_SYNC_REQ;
-			np->msgout[3] = tp->tgoal.period;
-			np->msgout[4] = tp->tgoal.offset;
+			spi_populate_sync_msg(np->msgout, tp->tgoal.period,
+					tp->tgoal.offset);
 
 			if (DEBUG_FLAGS & DEBUG_NEGO) {
 				sym_print_nego_msg(np, cp->target,

@@ -117,6 +117,34 @@ static struct security_operations *secondary_ops = NULL;
 static LIST_HEAD(superblock_security_head);
 static DEFINE_SPINLOCK(sb_security_lock);
 
+static kmem_cache_t *sel_inode_cache;
+
+/* Return security context for a given sid or just the context 
+   length if the buffer is null or length is 0 */
+static int selinux_getsecurity(u32 sid, void *buffer, size_t size)
+{
+	char *context;
+	unsigned len;
+	int rc;
+
+	rc = security_sid_to_context(sid, &context, &len);
+	if (rc)
+		return rc;
+
+	if (!buffer || !size)
+		goto getsecurity_exit;
+
+	if (size < len) {
+		len = -ERANGE;
+		goto getsecurity_exit;
+	}
+	memcpy(buffer, context, len);
+
+getsecurity_exit:
+	kfree(context);
+	return len;
+}
+
 /* Allocate and free functions for each kind of security blob. */
 
 static int task_alloc_security(struct task_struct *task)
@@ -146,10 +174,11 @@ static int inode_alloc_security(struct inode *inode)
 	struct task_security_struct *tsec = current->security;
 	struct inode_security_struct *isec;
 
-	isec = kzalloc(sizeof(struct inode_security_struct), GFP_KERNEL);
+	isec = kmem_cache_alloc(sel_inode_cache, SLAB_KERNEL);
 	if (!isec)
 		return -ENOMEM;
 
+	memset(isec, 0, sizeof(*isec));
 	init_MUTEX(&isec->sem);
 	INIT_LIST_HEAD(&isec->list);
 	isec->inode = inode;
@@ -172,7 +201,7 @@ static void inode_free_security(struct inode *inode)
 	spin_unlock(&sbsec->isec_lock);
 
 	inode->i_security = NULL;
-	kfree(isec);
+	kmem_cache_free(sel_inode_cache, isec);
 }
 
 static int file_alloc_security(struct file *file)
@@ -1929,7 +1958,6 @@ static int selinux_inode_init_security(struct inode *inode, struct inode *dir,
 	struct task_security_struct *tsec;
 	struct inode_security_struct *dsec;
 	struct superblock_security_struct *sbsec;
-	struct inode_security_struct *isec;
 	u32 newsid, clen;
 	int rc;
 	char *namep = NULL, *context;
@@ -1937,7 +1965,6 @@ static int selinux_inode_init_security(struct inode *inode, struct inode *dir,
 	tsec = current->security;
 	dsec = dir->i_security;
 	sbsec = dir->i_sb->s_security;
-	isec = inode->i_security;
 
 	if (tsec->create_sid && sbsec->behavior != SECURITY_FS_USE_MNTPOINT) {
 		newsid = tsec->create_sid;
@@ -1957,7 +1984,7 @@ static int selinux_inode_init_security(struct inode *inode, struct inode *dir,
 
 	inode_security_set_sid(inode, newsid);
 
-	if (sbsec->behavior == SECURITY_FS_USE_MNTPOINT)
+	if (!ss_initialized || sbsec->behavior == SECURITY_FS_USE_MNTPOINT)
 		return -EOPNOTSUPP;
 
 	if (name) {
@@ -2209,6 +2236,11 @@ static int selinux_inode_removexattr (struct dentry *dentry, char *name)
 	return -EACCES;
 }
 
+static const char *selinux_inode_xattr_getsuffix(void)
+{
+      return XATTR_SELINUX_SUFFIX;
+}
+
 /*
  * Copy the in-core inode security context value to the user.  If the
  * getxattr() prior to this succeeded, check to see if we need to
@@ -2216,47 +2248,14 @@ static int selinux_inode_removexattr (struct dentry *dentry, char *name)
  *
  * Permission check is handled by selinux_inode_getxattr hook.
  */
-static int selinux_inode_getsecurity(struct inode *inode, const char *name, void *buffer, size_t size, int err)
+static int selinux_inode_getsecurity(const struct inode *inode, const char *name, void *buffer, size_t size, int err)
 {
 	struct inode_security_struct *isec = inode->i_security;
-	char *context;
-	unsigned len;
-	int rc;
 
-	if (strcmp(name, XATTR_SELINUX_SUFFIX)) {
-		rc = -EOPNOTSUPP;
-		goto out;
-	}
+	if (strcmp(name, XATTR_SELINUX_SUFFIX))
+		return -EOPNOTSUPP;
 
-	rc = security_sid_to_context(isec->sid, &context, &len);
-	if (rc)
-		goto out;
-
-	/* Probe for required buffer size */
-	if (!buffer || !size) {
-		rc = len;
-		goto out_free;
-	}
-
-	if (size < len) {
-		rc = -ERANGE;
-		goto out_free;
-	}
-
-	if (err > 0) {
-		if ((len == err) && !(memcmp(context, buffer, len))) {
-			/* Don't need to canonicalize value */
-			rc = err;
-			goto out_free;
-		}
-		memset(buffer, 0, size);
-	}
-	memcpy(buffer, context, len);
-	rc = len;
-out_free:
-	kfree(context);
-out:
-	return rc;
+	return selinux_getsecurity(isec->sid, buffer, size);
 }
 
 static int selinux_inode_setsecurity(struct inode *inode, const char *name,
@@ -4053,6 +4052,13 @@ static int selinux_ipc_permission(struct kern_ipc_perm *ipcp, short flag)
 	return ipc_has_perm(ipcp, av);
 }
 
+static int selinux_ipc_getsecurity(struct kern_ipc_perm *ipcp, void *buffer, size_t size)
+{
+	struct ipc_security_struct *isec = ipcp->security;
+
+	return selinux_getsecurity(isec->sid, buffer, size);
+}
+
 /* module stacking operations */
 static int selinux_register_security (const char *name, struct security_operations *ops)
 {
@@ -4094,8 +4100,7 @@ static int selinux_getprocattr(struct task_struct *p,
 			       char *name, void *value, size_t size)
 {
 	struct task_security_struct *tsec;
-	u32 sid, len;
-	char *context;
+	u32 sid;
 	int error;
 
 	if (current != p) {
@@ -4103,9 +4108,6 @@ static int selinux_getprocattr(struct task_struct *p,
 		if (error)
 			return error;
 	}
-
-	if (!size)
-		return -ERANGE;
 
 	tsec = p->security;
 
@@ -4123,16 +4125,7 @@ static int selinux_getprocattr(struct task_struct *p,
 	if (!sid)
 		return 0;
 
-	error = security_sid_to_context(sid, &context, &len);
-	if (error)
-		return error;
-	if (len > size) {
-		kfree(context);
-		return -ERANGE;
-	}
-	memcpy(value, context, len);
-	kfree(context);
-	return len;
+	return selinux_getsecurity(sid, value, size);
 }
 
 static int selinux_setprocattr(struct task_struct *p,
@@ -4290,6 +4283,7 @@ static struct security_operations selinux_ops = {
 	.inode_getxattr =		selinux_inode_getxattr,
 	.inode_listxattr =		selinux_inode_listxattr,
 	.inode_removexattr =		selinux_inode_removexattr,
+	.inode_xattr_getsuffix =        selinux_inode_xattr_getsuffix,
 	.inode_getsecurity =            selinux_inode_getsecurity,
 	.inode_setsecurity =            selinux_inode_setsecurity,
 	.inode_listsecurity =           selinux_inode_listsecurity,
@@ -4327,6 +4321,7 @@ static struct security_operations selinux_ops = {
 	.task_to_inode =                selinux_task_to_inode,
 
 	.ipc_permission =		selinux_ipc_permission,
+	.ipc_getsecurity =		selinux_ipc_getsecurity,
 
 	.msg_msg_alloc_security =	selinux_msg_msg_alloc_security,
 	.msg_msg_free_security =	selinux_msg_msg_free_security,
@@ -4408,6 +4403,9 @@ static __init int selinux_init(void)
 	tsec = current->security;
 	tsec->osid = tsec->sid = SECINITSID_KERNEL;
 
+	sel_inode_cache = kmem_cache_create("selinux_inode_security",
+					    sizeof(struct inode_security_struct),
+					    0, SLAB_PANIC, NULL, NULL);
 	avc_init();
 
 	original_ops = secondary_ops = security_ops;

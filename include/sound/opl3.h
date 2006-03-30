@@ -53,6 +53,7 @@
 
 #include "driver.h"
 #include <linux/time.h>
+#include <linux/mutex.h>
 #include "core.h"
 #include "hwdep.h"
 #include "timer.h"
@@ -229,7 +230,6 @@
 #define OPL3_HW_OPL3_CS		0x0302	/* CS4232/CS4236+ */
 #define OPL3_HW_OPL3_FM801	0x0303	/* FM801 */
 #define OPL3_HW_OPL3_CS4281	0x0304	/* CS4281 */
-#define OPL3_HW_OPL3_PC98	0x0305	/* PC9800 */
 #define OPL3_HW_OPL4		0x0400	/* YMF278B/YMF295 */
 #define OPL3_HW_OPL4_ML		0x0401	/* YMF704/YMF721 */
 #define OPL3_HW_MASK		0xff00
@@ -312,7 +312,7 @@ struct snd_opl3 {
 	int sys_timer_status;		/* system timer run status */
 	spinlock_t sys_timer_lock;	/* Lock for system timer access */
 #endif
-	struct semaphore access_mutex;	/* locking */
+	struct mutex access_mutex;	/* locking */
 };
 
 /* opl3.c */

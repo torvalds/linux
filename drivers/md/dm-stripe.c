@@ -49,9 +49,9 @@ static inline struct stripe_c *alloc_context(unsigned int stripes)
 static int get_stripe(struct dm_target *ti, struct stripe_c *sc,
 		      unsigned int stripe, char **argv)
 {
-	sector_t start;
+	unsigned long long start;
 
-	if (sscanf(argv[1], SECTOR_FORMAT, &start) != 1)
+	if (sscanf(argv[1], "%llu", &start) != 1)
 		return -EINVAL;
 
 	if (dm_get_device(ti, argv[0], start, sc->stripe_width,
@@ -103,7 +103,7 @@ static int stripe_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		return -EINVAL;
 	}
 
-	if (((uint32_t)ti->len) & (chunk_size - 1)) {
+	if (ti->len & (chunk_size - 1)) {
 		ti->error = "dm-stripe: Target length not divisible by "
 		    "chunk size";
 		return -EINVAL;
@@ -201,10 +201,11 @@ static int stripe_status(struct dm_target *ti,
 		break;
 
 	case STATUSTYPE_TABLE:
-		DMEMIT("%d " SECTOR_FORMAT, sc->stripes, sc->chunk_mask + 1);
+		DMEMIT("%d %llu", sc->stripes,
+			(unsigned long long)sc->chunk_mask + 1);
 		for (i = 0; i < sc->stripes; i++)
-			DMEMIT(" %s " SECTOR_FORMAT, sc->stripe[i].dev->name,
-			       sc->stripe[i].physical_start);
+			DMEMIT(" %s %llu", sc->stripe[i].dev->name,
+			    (unsigned long long)sc->stripe[i].physical_start);
 		break;
 	}
 	return 0;

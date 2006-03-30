@@ -568,5 +568,6 @@ asmlinkage long compat_sys_newfstatat(unsigned int dfd, char __user * filename,
 				      int flag);
 asmlinkage long compat_sys_openat(unsigned int dfd, const char __user *filename,
 				   int flags, int mode);
+asmlinkage long sys_unshare(unsigned long unshare_flags);
 
 #endif

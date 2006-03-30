@@ -664,7 +664,8 @@ static int __init init_jfs_fs(void)
 
 	jfs_inode_cachep =
 	    kmem_cache_create("jfs_ip", sizeof(struct jfs_inode_info), 0, 
-			    SLAB_RECLAIM_ACCOUNT, init_once, NULL);
+			    SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD,
+			    init_once, NULL);
 	if (jfs_inode_cachep == NULL)
 		return -ENOMEM;
 

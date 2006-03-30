@@ -112,7 +112,7 @@ int fat_generic_ioctl(struct inode *inode, struct file *filp,
 	}
 }
 
-struct file_operations fat_file_operations = {
+const struct file_operations fat_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= do_sync_read,
 	.write		= do_sync_write,

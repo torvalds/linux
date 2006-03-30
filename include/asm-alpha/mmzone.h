@@ -59,9 +59,6 @@ PLAT_NODE_DATA_LOCALNR(unsigned long p, int n)
 #define kvaddr_to_nid(kaddr)	pa_to_nid(__pa(kaddr))
 #define node_start_pfn(nid)	(NODE_DATA(nid)->node_start_pfn)
 
-#define local_mapnr(kvaddr) \
-      ((__pa(kvaddr) >> PAGE_SHIFT) - node_start_pfn(kvaddr_to_nid(kvaddr)))
-
 /*
  * Given a kaddr, LOCAL_BASE_ADDR finds the owning node of the memory
  * and returns the kaddr corresponding to first physical page in the
@@ -86,8 +83,7 @@ PLAT_NODE_DATA_LOCALNR(unsigned long p, int n)
 	pte_t pte;                                                           \
 	unsigned long pfn;                                                   \
 									     \
-	pfn = ((unsigned long)((page)-page_zone(page)->zone_mem_map)) << 32; \
-	pfn += page_zone(page)->zone_start_pfn << 32;			     \
+	pfn = page_to_pfn(page) << 32; \
 	pte_val(pte) = pfn | pgprot_val(pgprot);			     \
 									     \
 	pte;								     \
@@ -104,19 +100,8 @@ PLAT_NODE_DATA_LOCALNR(unsigned long p, int n)
 	__xx;                                                           \
 })
 
-#define pfn_to_page(pfn)						\
-({									\
- 	unsigned long kaddr = (unsigned long)__va((pfn) << PAGE_SHIFT);	\
-	(NODE_DATA(kvaddr_to_nid(kaddr))->node_mem_map + local_mapnr(kaddr));	\
-})
-
-#define page_to_pfn(page)						\
-	((page) - page_zone(page)->zone_mem_map +			\
-	 (page_zone(page)->zone_start_pfn))
-
 #define page_to_pa(page)						\
-	((( (page) - page_zone(page)->zone_mem_map )			\
-	+ page_zone(page)->zone_start_pfn) << PAGE_SHIFT)
+	(page_to_pfn(page) << PAGE_SHIFT)
 
 #define pfn_to_nid(pfn)		pa_to_nid(((u64)(pfn) << PAGE_SHIFT))
 #define pfn_valid(pfn)							\

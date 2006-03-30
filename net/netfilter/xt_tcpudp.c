@@ -204,6 +204,7 @@ static struct xt_match tcp_matchstruct = {
 	.match		= tcp_match,
 	.matchsize	= sizeof(struct xt_tcp),
 	.proto		= IPPROTO_TCP,
+	.family		= AF_INET,
 	.checkentry	= tcp_checkentry,
 	.me		= THIS_MODULE,
 };
@@ -213,6 +214,7 @@ static struct xt_match tcp6_matchstruct = {
 	.match		= tcp_match,
 	.matchsize	= sizeof(struct xt_tcp),
 	.proto		= IPPROTO_TCP,
+	.family		= AF_INET6,
 	.checkentry	= tcp_checkentry,
 	.me		= THIS_MODULE,
 };
@@ -222,6 +224,7 @@ static struct xt_match udp_matchstruct = {
 	.match		= udp_match,
 	.matchsize	= sizeof(struct xt_udp),
 	.proto		= IPPROTO_UDP,
+	.family		= AF_INET,
 	.checkentry	= udp_checkentry,
 	.me		= THIS_MODULE,
 };
@@ -230,47 +233,48 @@ static struct xt_match udp6_matchstruct = {
 	.match		= udp_match,
 	.matchsize	= sizeof(struct xt_udp),
 	.proto		= IPPROTO_UDP,
+	.family		= AF_INET6,
 	.checkentry	= udp_checkentry,
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init xt_tcpudp_init(void)
 {
 	int ret;
-	ret = xt_register_match(AF_INET, &tcp_matchstruct);
+	ret = xt_register_match(&tcp_matchstruct);
 	if (ret)
 		return ret;
 
-	ret = xt_register_match(AF_INET6, &tcp6_matchstruct);
+	ret = xt_register_match(&tcp6_matchstruct);
 	if (ret)
 		goto out_unreg_tcp;
 
-	ret = xt_register_match(AF_INET, &udp_matchstruct);
+	ret = xt_register_match(&udp_matchstruct);
 	if (ret)
 		goto out_unreg_tcp6;
 	
-	ret = xt_register_match(AF_INET6, &udp6_matchstruct);
+	ret = xt_register_match(&udp6_matchstruct);
 	if (ret)
 		goto out_unreg_udp;
 
 	return ret;
 
 out_unreg_udp:
-	xt_unregister_match(AF_INET, &tcp_matchstruct);
+	xt_unregister_match(&tcp_matchstruct);
 out_unreg_tcp6:
-	xt_unregister_match(AF_INET6, &tcp6_matchstruct);
+	xt_unregister_match(&tcp6_matchstruct);
 out_unreg_tcp:
-	xt_unregister_match(AF_INET, &tcp_matchstruct);
+	xt_unregister_match(&tcp_matchstruct);
 	return ret;
 }
 
-static void __exit fini(void)
+static void __exit xt_tcpudp_fini(void)
 {
-	xt_unregister_match(AF_INET6, &udp6_matchstruct);
-	xt_unregister_match(AF_INET, &udp_matchstruct);
-	xt_unregister_match(AF_INET6, &tcp6_matchstruct);
-	xt_unregister_match(AF_INET, &tcp_matchstruct);
+	xt_unregister_match(&udp6_matchstruct);
+	xt_unregister_match(&udp_matchstruct);
+	xt_unregister_match(&tcp6_matchstruct);
+	xt_unregister_match(&tcp_matchstruct);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(xt_tcpudp_init);
+module_exit(xt_tcpudp_fini);

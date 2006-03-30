@@ -217,7 +217,7 @@ static int hplance_close(struct net_device *dev)
 
 int __init hplance_init_module(void)
 {
-	return dio_module_init(&hplance_driver);
+	return dio_register_driver(&hplance_driver);
 }
 
 void __exit hplance_cleanup_module(void)

@@ -780,6 +780,80 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	return 0;
 }
 
+/* Filter out unrelated packets, call ieee80211_rx[_mgt] */
+int ieee80211_rx_any(struct ieee80211_device *ieee,
+		     struct sk_buff *skb, struct ieee80211_rx_stats *stats)
+{
+	struct ieee80211_hdr_4addr *hdr;
+	int is_packet_for_us;
+	u16 fc;
+
+	if (ieee->iw_mode == IW_MODE_MONITOR)
+		return ieee80211_rx(ieee, skb, stats) ? 0 : -EINVAL;
+
+	hdr = (struct ieee80211_hdr_4addr *)skb->data;
+	fc = le16_to_cpu(hdr->frame_ctl);
+
+	if ((fc & IEEE80211_FCTL_VERS) != 0)
+		return -EINVAL;
+		
+	switch (fc & IEEE80211_FCTL_FTYPE) {
+	case IEEE80211_FTYPE_MGMT:
+		ieee80211_rx_mgt(ieee, hdr, stats);
+		return 0;
+	case IEEE80211_FTYPE_DATA:
+		break;
+	case IEEE80211_FTYPE_CTL:
+		return 0;
+	default:
+		return -EINVAL;
+	}
+
+	is_packet_for_us = 0;
+	switch (ieee->iw_mode) {
+	case IW_MODE_ADHOC:
+		/* our BSS and not from/to DS */
+		if (memcmp(hdr->addr3, ieee->bssid, ETH_ALEN) == 0)
+		if ((fc & (IEEE80211_FCTL_TODS+IEEE80211_FCTL_FROMDS)) == 0) {
+			/* promisc: get all */
+			if (ieee->dev->flags & IFF_PROMISC)
+				is_packet_for_us = 1;
+			/* to us */
+			else if (memcmp(hdr->addr1, ieee->dev->dev_addr, ETH_ALEN) == 0)
+				is_packet_for_us = 1;
+			/* mcast */
+			else if (is_multicast_ether_addr(hdr->addr1))
+				is_packet_for_us = 1;
+		}
+		break;
+	case IW_MODE_INFRA:
+		/* our BSS (== from our AP) and from DS */
+		if (memcmp(hdr->addr2, ieee->bssid, ETH_ALEN) == 0)
+		if ((fc & (IEEE80211_FCTL_TODS+IEEE80211_FCTL_FROMDS)) == IEEE80211_FCTL_FROMDS) {
+			/* promisc: get all */
+			if (ieee->dev->flags & IFF_PROMISC)
+				is_packet_for_us = 1;
+			/* to us */
+			else if (memcmp(hdr->addr1, ieee->dev->dev_addr, ETH_ALEN) == 0)
+				is_packet_for_us = 1;
+			/* mcast */
+			else if (is_multicast_ether_addr(hdr->addr1)) {
+				/* not our own packet bcasted from AP */
+				if (memcmp(hdr->addr3, ieee->dev->dev_addr, ETH_ALEN))
+					is_packet_for_us = 1;
+			}
+		}
+		break;
+	default:
+		/* ? */
+		break;
+	}
+
+	if (is_packet_for_us)
+		return (ieee80211_rx(ieee, skb, stats) ? 0 : -EINVAL);
+	return 0;
+}
+
 #define MGMT_FRAME_FIXED_PART_LENGTH		0x24
 
 static u8 qos_oui[QOS_OUI_LEN] = { 0x00, 0x50, 0xF2 };

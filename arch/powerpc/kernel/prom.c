@@ -383,14 +383,14 @@ static int __devinit finish_node_interrupts(struct device_node *np,
 			/* Apple uses bits in there in a different way, let's
 			 * only keep the real sense bit on macs
 			 */
-			if (_machine == PLATFORM_POWERMAC)
+			if (machine_is(powermac))
 				sense &= 0x1;
 			np->intrs[intrcount].sense = map_mpic_senses[sense];
 		}
 
 #ifdef CONFIG_PPC64
 		/* We offset irq numbers for the u3 MPIC by 128 in PowerMac */
-		if (_machine == PLATFORM_POWERMAC && ic && ic->parent) {
+		if (machine_is(powermac) && ic && ic->parent) {
 			char *name = get_property(ic->parent, "name", NULL);
 			if (name && !strcmp(name, "u3"))
 				np->intrs[intrcount].line += 128;
@@ -570,6 +570,18 @@ int __init of_scan_flat_dt(int (*it)(unsigned long node,
 	return rc;
 }
 
+unsigned long __init of_get_flat_dt_root(void)
+{
+	unsigned long p = ((unsigned long)initial_boot_params) +
+		initial_boot_params->off_dt_struct;
+
+	while(*((u32 *)p) == OF_DT_NOP)
+		p += 4;
+	BUG_ON (*((u32 *)p) != OF_DT_BEGIN_NODE);
+	p += 4;
+	return _ALIGN(p + strlen((char *)p) + 1, 4);
+}
+
 /**
  * This  function can be used within scan_flattened_dt callback to get
  * access to properties
@@ -610,6 +622,25 @@ void* __init of_get_flat_dt_prop(unsigned long node, const char *name,
 		p += sz;
 		p = _ALIGN(p, 4);
 	} while(1);
+}
+
+int __init of_flat_dt_is_compatible(unsigned long node, const char *compat)
+{
+	const char* cp;
+	unsigned long cplen, l;
+
+	cp = of_get_flat_dt_prop(node, "compatible", &cplen);
+	if (cp == NULL)
+		return 0;
+	while (cplen > 0) {
+		if (strncasecmp(cp, compat, strlen(compat)) == 0)
+			return 1;
+		l = strlen(cp) + 1;
+		cp += l;
+		cplen -= l;
+	}
+
+	return 0;
 }
 
 static void *__init unflatten_dt_alloc(unsigned long *mem, unsigned long size,
@@ -686,7 +717,7 @@ static unsigned long __init unflatten_dt_node(unsigned long mem,
 #ifdef DEBUG
 				if ((strlen(p) + l + 1) != allocl) {
 					DBG("%s: p: %d, l: %d, a: %d\n",
-					    pathp, strlen(p), l, allocl);
+					    pathp, (int)strlen(p), l, allocl);
 				}
 #endif
 				p += strlen(p);
@@ -829,10 +860,6 @@ void __init unflatten_device_tree(void)
 
 	/* Allocate memory for the expanded device tree */
 	mem = lmb_alloc(size + 4, __alignof__(struct device_node));
-	if (!mem) {
-		DBG("Couldn't allocate memory with lmb_alloc()!\n");
-		panic("Couldn't allocate memory with lmb_alloc()!\n");
-	}
 	mem = (unsigned long) __va(mem);
 
 	((u32 *)mem)[size / 4] = 0xdeadbeef;
@@ -858,35 +885,73 @@ void __init unflatten_device_tree(void)
 	DBG(" <- unflatten_device_tree()\n");
 }
 
-
 static int __init early_init_dt_scan_cpus(unsigned long node,
-					  const char *uname, int depth, void *data)
+					  const char *uname, int depth,
+					  void *data)
 {
+	static int logical_cpuid = 0;
+	char *type = of_get_flat_dt_prop(node, "device_type", NULL);
+#ifdef CONFIG_ALTIVEC
 	u32 *prop;
-	unsigned long size;
-	char *type = of_get_flat_dt_prop(node, "device_type", &size);
+#endif
+	u32 *intserv;
+	int i, nthreads;
+	unsigned long len;
+	int found = 0;
 
 	/* We are scanning "cpu" nodes only */
 	if (type == NULL || strcmp(type, "cpu") != 0)
 		return 0;
 
-	boot_cpuid = 0;
-	boot_cpuid_phys = 0;
-	if (initial_boot_params && initial_boot_params->version >= 2) {
-		/* version 2 of the kexec param format adds the phys cpuid
-		 * of booted proc.
-		 */
-		boot_cpuid_phys = initial_boot_params->boot_cpuid_phys;
+	/* Get physical cpuid */
+	intserv = of_get_flat_dt_prop(node, "ibm,ppc-interrupt-server#s", &len);
+	if (intserv) {
+		nthreads = len / sizeof(int);
 	} else {
-		/* Check if it's the boot-cpu, set it's hw index now */
-		if (of_get_flat_dt_prop(node,
-					"linux,boot-cpu", NULL) != NULL) {
-			prop = of_get_flat_dt_prop(node, "reg", NULL);
-			if (prop != NULL)
-				boot_cpuid_phys = *prop;
-		}
+		intserv = of_get_flat_dt_prop(node, "reg", NULL);
+		nthreads = 1;
 	}
-	set_hard_smp_processor_id(0, boot_cpuid_phys);
+
+	/*
+	 * Now see if any of these threads match our boot cpu.
+	 * NOTE: This must match the parsing done in smp_setup_cpu_maps.
+	 */
+	for (i = 0; i < nthreads; i++) {
+		/*
+		 * version 2 of the kexec param format adds the phys cpuid of
+		 * booted proc.
+		 */
+		if (initial_boot_params && initial_boot_params->version >= 2) {
+			if (intserv[i] ==
+					initial_boot_params->boot_cpuid_phys) {
+				found = 1;
+				break;
+			}
+		} else {
+			/*
+			 * Check if it's the boot-cpu, set it's hw index now,
+			 * unfortunately this format did not support booting
+			 * off secondary threads.
+			 */
+			if (of_get_flat_dt_prop(node,
+					"linux,boot-cpu", NULL) != NULL) {
+				found = 1;
+				break;
+			}
+		}
+
+#ifdef CONFIG_SMP
+		/* logical cpu id is always 0 on UP kernels */
+		logical_cpuid++;
+#endif
+	}
+
+	if (found) {
+		DBG("boot cpu: logical %d physical %d\n", logical_cpuid,
+			intserv[i]);
+		boot_cpuid = logical_cpuid;
+		set_hard_smp_processor_id(boot_cpuid, intserv[i]);
+	}
 
 #ifdef CONFIG_ALTIVEC
 	/* Check if we have a VMX and eventually update CPU features */
@@ -905,16 +970,10 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 #endif /* CONFIG_ALTIVEC */
 
 #ifdef CONFIG_PPC_PSERIES
-	/*
-	 * Check for an SMT capable CPU and set the CPU feature. We do
-	 * this by looking at the size of the ibm,ppc-interrupt-server#s
-	 * property
-	 */
-	prop = (u32 *)of_get_flat_dt_prop(node, "ibm,ppc-interrupt-server#s",
-				       &size);
-	cur_cpu_spec->cpu_features &= ~CPU_FTR_SMT;
-	if (prop && ((size / sizeof(u32)) > 1))
+	if (nthreads > 1)
 		cur_cpu_spec->cpu_features |= CPU_FTR_SMT;
+	else
+		cur_cpu_spec->cpu_features &= ~CPU_FTR_SMT;
 #endif
 
 	return 0;
@@ -923,7 +982,6 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 static int __init early_init_dt_scan_chosen(unsigned long node,
 					    const char *uname, int depth, void *data)
 {
-	u32 *prop;
 	unsigned long *lprop;
 	unsigned long l;
 	char *p;
@@ -933,14 +991,6 @@ static int __init early_init_dt_scan_chosen(unsigned long node,
 	if (depth != 1 ||
 	    (strcmp(uname, "chosen") != 0 && strcmp(uname, "chosen@0") != 0))
 		return 0;
-
-	/* get platform type */
-	prop = (u32 *)of_get_flat_dt_prop(node, "linux,platform", NULL);
-	if (prop == NULL)
-		return 0;
-#ifdef CONFIG_PPC_MULTIPLATFORM
-	_machine = *prop;
-#endif
 
 #ifdef CONFIG_PPC64
 	/* check if iommu is forced on or off */
@@ -968,15 +1018,15 @@ static int __init early_init_dt_scan_chosen(unsigned long node,
 	 * set of RTAS infos now if available
 	 */
 	{
-		u64 *basep, *entryp;
+		u64 *basep, *entryp, *sizep;
 
 		basep = of_get_flat_dt_prop(node, "linux,rtas-base", NULL);
 		entryp = of_get_flat_dt_prop(node, "linux,rtas-entry", NULL);
-		prop = of_get_flat_dt_prop(node, "linux,rtas-size", NULL);
-		if (basep && entryp && prop) {
+		sizep = of_get_flat_dt_prop(node, "linux,rtas-size", NULL);
+		if (basep && entryp && sizep) {
 			rtas.base = *basep;
 			rtas.entry = *entryp;
-			rtas.size = *prop;
+			rtas.size = *sizep;
 		}
 	}
 #endif /* CONFIG_PPC_RTAS */
@@ -1005,25 +1055,13 @@ static int __init early_init_dt_scan_chosen(unsigned long node,
 
 	if (strstr(cmd_line, "mem=")) {
 		char *p, *q;
-		unsigned long maxmem = 0;
 
 		for (q = cmd_line; (p = strstr(q, "mem=")) != 0; ) {
 			q = p + 4;
 			if (p > cmd_line && p[-1] != ' ')
 				continue;
-			maxmem = simple_strtoul(q, &q, 0);
-			if (*q == 'k' || *q == 'K') {
-				maxmem <<= 10;
-				++q;
-			} else if (*q == 'm' || *q == 'M') {
-				maxmem <<= 20;
-				++q;
-			} else if (*q == 'g' || *q == 'G') {
-				maxmem <<= 30;
-				++q;
-			}
+			memory_limit = memparse(q, &q);
 		}
-		memory_limit = maxmem;
 	}
 
 	/* break now */
@@ -1759,7 +1797,7 @@ static int of_finish_dynamic_node(struct device_node *node)
 	/* We don't support that function on PowerMac, at least
 	 * not yet
 	 */
-	if (_machine == PLATFORM_POWERMAC)
+	if (machine_is(powermac))
 		return -ENODEV;
 
 	/* fix up new node's linux_phandle field */

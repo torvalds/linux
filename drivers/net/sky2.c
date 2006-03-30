@@ -1175,7 +1175,7 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 		/* just drop the packet if non-linear expansion fails */
 		if (skb_header_cloned(skb) &&
 		    pskb_expand_head(skb, 0, 0, GFP_ATOMIC)) {
-			dev_kfree_skb_any(skb);
+			dev_kfree_skb(skb);
 			goto out_unlock;
 		}
 
@@ -1324,7 +1324,7 @@ static void sky2_tx_complete(struct sky2_port *sky2, u16 done)
 				       PCI_DMA_TODEVICE);
 		}
 
-		dev_kfree_skb_any(skb);
+		dev_kfree_skb(skb);
 	}
 
 	sky2->tx_cons = put;
@@ -2478,17 +2478,34 @@ static const struct sky2_stat {
 	{ "rx_unicast",    GM_RXF_UC_OK },
 	{ "tx_mac_pause",  GM_TXF_MPAUSE },
 	{ "rx_mac_pause",  GM_RXF_MPAUSE },
-	{ "collisions",    GM_TXF_SNG_COL },
+	{ "collisions",    GM_TXF_COL },
 	{ "late_collision",GM_TXF_LAT_COL },
 	{ "aborted", 	   GM_TXF_ABO_COL },
+	{ "single_collisions", GM_TXF_SNG_COL },
 	{ "multi_collisions", GM_TXF_MUL_COL },
-	{ "fifo_underrun", GM_TXE_FIFO_UR },
-	{ "fifo_overflow", GM_RXE_FIFO_OV },
-	{ "rx_toolong",    GM_RXF_LNG_ERR },
-	{ "rx_jabber",     GM_RXF_JAB_PKT },
+
+	{ "rx_short",      GM_RXF_SHT },
 	{ "rx_runt", 	   GM_RXE_FRAG },
+	{ "rx_64_byte_packets", GM_RXF_64B },
+	{ "rx_65_to_127_byte_packets", GM_RXF_127B },
+	{ "rx_128_to_255_byte_packets", GM_RXF_255B },
+	{ "rx_256_to_511_byte_packets", GM_RXF_511B },
+	{ "rx_512_to_1023_byte_packets", GM_RXF_1023B },
+	{ "rx_1024_to_1518_byte_packets", GM_RXF_1518B },
+	{ "rx_1518_to_max_byte_packets", GM_RXF_MAX_SZ },
 	{ "rx_too_long",   GM_RXF_LNG_ERR },
+	{ "rx_fifo_overflow", GM_RXE_FIFO_OV },
+	{ "rx_jabber",     GM_RXF_JAB_PKT },
 	{ "rx_fcs_error",   GM_RXF_FCS_ERR },
+
+	{ "tx_64_byte_packets", GM_TXF_64B },
+	{ "tx_65_to_127_byte_packets", GM_TXF_127B },
+	{ "tx_128_to_255_byte_packets", GM_TXF_255B },
+	{ "tx_256_to_511_byte_packets", GM_TXF_511B },
+	{ "tx_512_to_1023_byte_packets", GM_TXF_1023B },
+	{ "tx_1024_to_1518_byte_packets", GM_TXF_1518B },
+	{ "tx_1519_to_max_byte_packets", GM_TXF_MAX_SZ },
+	{ "tx_fifo_underrun", GM_TXE_FIFO_UR },
 };
 
 static u32 sky2_get_rx_csum(struct net_device *dev)
@@ -2590,7 +2607,7 @@ static struct net_device_stats *sky2_get_stats(struct net_device *dev)
 	sky2->net_stats.rx_bytes = data[1];
 	sky2->net_stats.tx_packets = data[2] + data[4] + data[6];
 	sky2->net_stats.rx_packets = data[3] + data[5] + data[7];
-	sky2->net_stats.multicast = data[5] + data[7];
+	sky2->net_stats.multicast = data[3] + data[5];
 	sky2->net_stats.collisions = data[10];
 	sky2->net_stats.tx_aborted_errors = data[12];
 

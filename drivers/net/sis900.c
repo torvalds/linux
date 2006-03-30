@@ -128,6 +128,7 @@ static const struct mii_chip_info {
 	{ "SiS 900 Internal MII PHY", 		0x001d, 0x8000, LAN },
 	{ "SiS 7014 Physical Layer Solution", 	0x0016, 0xf830, LAN },
 	{ "Altimata AC101LF PHY",               0x0022, 0x5520, LAN },
+	{ "ADM 7001 LAN PHY",			0x002e, 0xcc60, LAN },
 	{ "AMD 79C901 10BASE-T PHY",  		0x0000, 0x6B70, LAN },
 	{ "AMD 79C901 HomePNA PHY",		0x0000, 0x6B90, HOME},
 	{ "ICS LAN PHY",			0x0015, 0xF440, LAN },
@@ -1692,7 +1693,7 @@ static irqreturn_t sis900_interrupt(int irq, void *dev_instance, struct pt_regs 
  *
  *	Process receive interrupt events, 
  *	put buffer to higher layer and refill buffer pool
- *	Note: This fucntion is called by interrupt handler, 
+ *	Note: This function is called by interrupt handler,
  *	don't do "too much" work here
  */
 
@@ -1839,7 +1840,7 @@ static int sis900_rx(struct net_device *net_dev)
  *
  *	Check for error condition and free socket buffer etc 
  *	schedule for more transmission as needed
- *	Note: This fucntion is called by interrupt handler, 
+ *	Note: This function is called by interrupt handler,
  *	don't do "too much" work here
  */
 
@@ -2282,7 +2283,7 @@ static void set_rx_mode(struct net_device *net_dev)
 	int i, table_entries;
 	u32 rx_mode;
 
-	/* 635 Hash Table entires = 256(2^16) */
+	/* 635 Hash Table entries = 256(2^16) */
 	if((sis_priv->chipset_rev >= SIS635A_900_REV) ||
 			(sis_priv->chipset_rev == SIS900B_900_REV))
 		table_entries = 16;

@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/prpmc800.c
- *
  * Author: Dale Farnsworth <dale.farnsworth@mvista.com>
  *
  * 2001-2004 (c) MontaVista, Software, Inc.  This file is licensed under

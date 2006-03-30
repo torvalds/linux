@@ -56,6 +56,7 @@
 #include <linux/seq_file.h>
 #include <linux/miscdevice.h>
 #include <linux/suspend.h>
+#include <linux/mutex.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_ioctl.h>
 #include <scsi/scsi.h>
@@ -81,7 +82,7 @@
 static struct pktcdvd_device *pkt_devs[MAX_WRITERS];
 static struct proc_dir_entry *pkt_proc;
 static int pkt_major;
-static struct semaphore ctl_mutex;	/* Serialize open/close/setup/teardown */
+static struct mutex ctl_mutex;	/* Serialize open/close/setup/teardown */
 static mempool_t *psd_pool;
 
 
@@ -227,16 +228,6 @@ static int pkt_grow_pktlist(struct pktcdvd_device *pd, int nr_packets)
 		nr_packets--;
 	}
 	return 1;
-}
-
-static void *pkt_rb_alloc(gfp_t gfp_mask, void *data)
-{
-	return kmalloc(sizeof(struct pkt_rb_node), gfp_mask);
-}
-
-static void pkt_rb_free(void *ptr, void *data)
-{
-	kfree(ptr);
 }
 
 static inline struct pkt_rb_node *pkt_rbtree_next(struct pkt_rb_node *node)
@@ -2018,7 +2009,7 @@ static int pkt_open(struct inode *inode, struct file *file)
 
 	VPRINTK("pktcdvd: entering open\n");
 
-	down(&ctl_mutex);
+	mutex_lock(&ctl_mutex);
 	pd = pkt_find_dev_from_minor(iminor(inode));
 	if (!pd) {
 		ret = -ENODEV;
@@ -2044,14 +2035,14 @@ static int pkt_open(struct inode *inode, struct file *file)
 		set_blocksize(inode->i_bdev, CD_FRAMESIZE);
 	}
 
-	up(&ctl_mutex);
+	mutex_unlock(&ctl_mutex);
 	return 0;
 
 out_dec:
 	pd->refcnt--;
 out:
 	VPRINTK("pktcdvd: failed open (%d)\n", ret);
-	up(&ctl_mutex);
+	mutex_unlock(&ctl_mutex);
 	return ret;
 }
 
@@ -2060,27 +2051,17 @@ static int pkt_close(struct inode *inode, struct file *file)
 	struct pktcdvd_device *pd = inode->i_bdev->bd_disk->private_data;
 	int ret = 0;
 
-	down(&ctl_mutex);
+	mutex_lock(&ctl_mutex);
 	pd->refcnt--;
 	BUG_ON(pd->refcnt < 0);
 	if (pd->refcnt == 0) {
 		int flush = test_bit(PACKET_WRITABLE, &pd->flags);
 		pkt_release_dev(pd, flush);
 	}
-	up(&ctl_mutex);
+	mutex_unlock(&ctl_mutex);
 	return ret;
 }
 
-
-static void *psd_pool_alloc(gfp_t gfp_mask, void *data)
-{
-	return kmalloc(sizeof(struct packet_stacked_data), gfp_mask);
-}
-
-static void psd_pool_free(void *ptr, void *data)
-{
-	kfree(ptr);
-}
 
 static int pkt_end_io_read_cloned(struct bio *bio, unsigned int bytes_done, int err)
 {
@@ -2474,7 +2455,8 @@ static int pkt_setup_dev(struct pkt_ctrl_command *ctrl_cmd)
 	if (!pd)
 		return ret;
 
-	pd->rb_pool = mempool_create(PKT_RB_POOL_SIZE, pkt_rb_alloc, pkt_rb_free, NULL);
+	pd->rb_pool = mempool_create_kmalloc_pool(PKT_RB_POOL_SIZE,
+						  sizeof(struct pkt_rb_node));
 	if (!pd->rb_pool)
 		goto out_mem;
 
@@ -2596,21 +2578,21 @@ static int pkt_ctl_ioctl(struct inode *inode, struct file *file, unsigned int cm
 	case PKT_CTRL_CMD_SETUP:
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
-		down(&ctl_mutex);
+		mutex_lock(&ctl_mutex);
 		ret = pkt_setup_dev(&ctrl_cmd);
-		up(&ctl_mutex);
+		mutex_unlock(&ctl_mutex);
 		break;
 	case PKT_CTRL_CMD_TEARDOWN:
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
-		down(&ctl_mutex);
+		mutex_lock(&ctl_mutex);
 		ret = pkt_remove_dev(&ctrl_cmd);
-		up(&ctl_mutex);
+		mutex_unlock(&ctl_mutex);
 		break;
 	case PKT_CTRL_CMD_STATUS:
-		down(&ctl_mutex);
+		mutex_lock(&ctl_mutex);
 		pkt_get_status(&ctrl_cmd);
-		up(&ctl_mutex);
+		mutex_unlock(&ctl_mutex);
 		break;
 	default:
 		return -ENOTTY;
@@ -2638,7 +2620,8 @@ static int __init pkt_init(void)
 {
 	int ret;
 
-	psd_pool = mempool_create(PSD_POOL_SIZE, psd_pool_alloc, psd_pool_free, NULL);
+	psd_pool = mempool_create_kmalloc_pool(PSD_POOL_SIZE,
+					sizeof(struct packet_stacked_data));
 	if (!psd_pool)
 		return -ENOMEM;
 
@@ -2656,7 +2639,7 @@ static int __init pkt_init(void)
 		goto out;
 	}
 
-	init_MUTEX(&ctl_mutex);
+	mutex_init(&ctl_mutex);
 
 	pkt_proc = proc_mkdir("pktcdvd", proc_root_driver);
 

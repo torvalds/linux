@@ -201,31 +201,14 @@ struct bus_type pnp_bus_type = {
 	.resume = pnp_bus_resume,
 };
 
-
-static int count_devices(struct device * dev, void * c)
-{
-	int * count = c;
-	(*count)++;
-	return 0;
-}
-
 int pnp_register_driver(struct pnp_driver *drv)
 {
-	int count;
-
 	pnp_dbg("the driver '%s' has been registered", drv->name);
 
 	drv->driver.name = drv->name;
 	drv->driver.bus = &pnp_bus_type;
 
-	count = driver_register(&drv->driver);
-
-	/* get the number of initial matches */
-	if (count >= 0){
-		count = 0;
-		driver_for_each_device(&drv->driver, NULL, &count, count_devices);
-	}
-	return count;
+	return driver_register(&drv->driver);
 }
 
 void pnp_unregister_driver(struct pnp_driver *drv)

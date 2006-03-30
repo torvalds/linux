@@ -28,21 +28,18 @@
 /*
  * This does not append a newline
  */
-static void putstr(const char *s)
+static void putc(int c)
 {
-	while (*s) {
-		while (AMBA_UART_FR & (1 << 5));
+	while (AMBA_UART_FR & (1 << 5))
+		barrier();
 
-		AMBA_UART_DR = *s;
+	AMBA_UART_DR = c;
+}
 
-		if (*s == '\n') {
-			while (AMBA_UART_FR & (1 << 5));
-
-			AMBA_UART_DR = '\r';
-		}
-		s++;
-	}
-	while (AMBA_UART_FR & (1 << 3));
+static inline void flush(void)
+{
+	while (AMBA_UART_FR & (1 << 3))
+		barrier();
 }
 
 /*

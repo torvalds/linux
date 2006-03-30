@@ -64,7 +64,7 @@ extern struct cachefs_index_def afs_cache_cell_index_def;
  * dir.c
  */
 extern struct inode_operations afs_dir_inode_operations;
-extern struct file_operations afs_dir_file_operations;
+extern const struct file_operations afs_dir_file_operations;
 
 /*
  * file.c
@@ -105,7 +105,7 @@ extern struct cachefs_netfs afs_cache_netfs;
  * mntpt.c
  */
 extern struct inode_operations afs_mntpt_inode_operations;
-extern struct file_operations afs_mntpt_file_operations;
+extern const struct file_operations afs_mntpt_file_operations;
 extern struct afs_timer afs_mntpt_expiry_timer;
 extern struct afs_timer_ops afs_mntpt_expiry_timer_ops;
 extern unsigned long afs_mntpt_expiry_timeout;

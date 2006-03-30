@@ -759,7 +759,7 @@ struct device_reg_24xx {
 #define FA_NVRAM_FUNC0_ADDR	0x80
 #define FA_NVRAM_FUNC1_ADDR	0x180
 
-#define FA_NVRAM_VPD_SIZE	0x80
+#define FA_NVRAM_VPD_SIZE	0x200
 #define FA_NVRAM_VPD0_ADDR	0x00
 #define FA_NVRAM_VPD1_ADDR	0x100
 					/*

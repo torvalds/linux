@@ -37,11 +37,11 @@
 #include <linux/string.h>
 #include <linux/threads.h>
 #include <linux/tty.h>
+#include <linux/dmi.h>
 #include <linux/serial.h>
 #include <linux/serial_core.h>
 #include <linux/efi.h>
 #include <linux/initrd.h>
-#include <linux/platform.h>
 #include <linux/pm.h>
 #include <linux/cpufreq.h>
 
@@ -131,8 +131,8 @@ EXPORT_SYMBOL(ia64_max_iommu_merge_mask);
 /*
  * We use a special marker for the end of memory and it uses the extra (+1) slot
  */
-struct rsvd_region rsvd_region[IA64_MAX_RSVD_REGIONS + 1];
-int num_rsvd_regions;
+struct rsvd_region rsvd_region[IA64_MAX_RSVD_REGIONS + 1] __initdata;
+int num_rsvd_regions __initdata;
 
 
 /*
@@ -141,7 +141,7 @@ int num_rsvd_regions;
  * caller-specified function is called with the memory ranges that remain after filtering.
  * This routine does not assume the incoming segments are sorted.
  */
-int
+int __init
 filter_rsvd_memory (unsigned long start, unsigned long end, void *arg)
 {
 	unsigned long range_start, range_end, prev_start;
@@ -177,7 +177,7 @@ filter_rsvd_memory (unsigned long start, unsigned long end, void *arg)
 	return 0;
 }
 
-static void
+static void __init
 sort_regions (struct rsvd_region *rsvd_region, int max)
 {
 	int j;
@@ -218,7 +218,7 @@ __initcall(register_memory);
  * initrd, etc.  There are currently %IA64_MAX_RSVD_REGIONS defined,
  * see include/asm-ia64/meminit.h if you need to define more.
  */
-void
+void __init
 reserve_memory (void)
 {
 	int n = 0;
@@ -270,7 +270,7 @@ reserve_memory (void)
  * Grab the initrd start and end from the boot parameter struct given us by
  * the boot loader.
  */
-void
+void __init
 find_initrd (void)
 {
 #ifdef CONFIG_BLK_DEV_INITRD
@@ -362,7 +362,7 @@ mark_bsp_online (void)
 }
 
 #ifdef CONFIG_SMP
-static void
+static void __init
 check_for_logical_procs (void)
 {
 	pal_logical_to_physical_t info;
@@ -389,6 +389,14 @@ check_for_logical_procs (void)
 }
 #endif
 
+static __initdata int nomca;
+static __init int setup_nomca(char *s)
+{
+	nomca = 1;
+	return 0;
+}
+early_param("nomca", setup_nomca);
+
 void __init
 setup_arch (char **cmdline_p)
 {
@@ -402,35 +410,15 @@ setup_arch (char **cmdline_p)
 	efi_init();
 	io_port_init();
 
+	parse_early_param();
+
 #ifdef CONFIG_IA64_GENERIC
-	{
-		const char *mvec_name = strstr (*cmdline_p, "machvec=");
-		char str[64];
-
-		if (mvec_name) {
-			const char *end;
-			size_t len;
-
-			mvec_name += 8;
-			end = strchr (mvec_name, ' ');
-			if (end)
-				len = end - mvec_name;
-			else
-				len = strlen (mvec_name);
-			len = min(len, sizeof (str) - 1);
-			strncpy (str, mvec_name, len);
-			str[len] = '\0';
-			mvec_name = str;
-		} else
-			mvec_name = acpi_get_sysname();
-		machvec_init(mvec_name);
-	}
+	machvec_init(NULL);
 #endif
 
 	if (early_console_setup(*cmdline_p) == 0)
 		mark_bsp_online();
 
-	parse_early_param();
 #ifdef CONFIG_ACPI
 	/* Initialize the ACPI boot-time table parser */
 	acpi_table_init();
@@ -446,7 +434,7 @@ setup_arch (char **cmdline_p)
 	find_memory();
 
 	/* process SAL system table: */
-	ia64_sal_init(efi.sal_systab);
+	ia64_sal_init(__va(efi.sal_systab));
 
 	ia64_setup_printk_clock();
 
@@ -493,7 +481,7 @@ setup_arch (char **cmdline_p)
 #endif
 
 	/* enable IA-64 Machine Check Abort Handling unless disabled */
-	if (!strstr(saved_command_line, "nomca"))
+	if (!nomca)
 		ia64_mca_init();
 
 	platform_setup(cmdline_p);
@@ -623,7 +611,7 @@ struct seq_operations cpuinfo_op = {
 	.show =		show_cpuinfo
 };
 
-void
+static void __cpuinit
 identify_cpu (struct cpuinfo_ia64 *c)
 {
 	union {
@@ -700,7 +688,7 @@ setup_per_cpu_areas (void)
  * In addition, the minimum of the i-cache stride sizes is calculated for
  * "flush_icache_range()".
  */
-static void
+static void __cpuinit
 get_max_cacheline_size (void)
 {
 	unsigned long line_size, max = 1;
@@ -763,10 +751,10 @@ get_max_cacheline_size (void)
  * cpu_init() initializes state that is per-CPU.  This function acts
  * as a 'CPU state barrier', nothing should get across.
  */
-void
+void __cpuinit
 cpu_init (void)
 {
-	extern void __devinit ia64_mmu_init (void *);
+	extern void __cpuinit ia64_mmu_init (void *);
 	unsigned long num_phys_stacked;
 	pal_vm_info_2_u_t vmi;
 	unsigned int max_ctx;
@@ -894,9 +882,16 @@ void sched_cacheflush(void)
 	ia64_sal_cache_flush(3);
 }
 
-void
+void __init
 check_bugs (void)
 {
 	ia64_patch_mckinley_e9((unsigned long) __start___mckinley_e9_bundles,
 			       (unsigned long) __end___mckinley_e9_bundles);
 }
+
+static int __init run_dmi_scan(void)
+{
+	dmi_scan_machine();
+	return 0;
+}
+core_initcall(run_dmi_scan);

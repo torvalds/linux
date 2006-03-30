@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/pq2ads.c
- *
  * PQ2ADS platform support
  *
  * Author: Kumar Gala <galak@kernel.crashing.org>

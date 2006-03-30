@@ -21,6 +21,9 @@
  */
 
 #include <sound/driver.h>
+
+#ifdef CONFIG_SND_PCM_OSS_PLUGINS
+
 #include <linux/time.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -103,7 +106,7 @@ static snd_pcm_sframes_t linear_transfer(struct snd_pcm_plugin *plugin,
 	return frames;
 }
 
-int conv_index(int src_format, int dst_format)
+static int conv_index(int src_format, int dst_format)
 {
 	int src_endian, dst_endian, sign, src_width, dst_width;
 
@@ -156,3 +159,5 @@ int snd_pcm_plugin_build_linear(struct snd_pcm_substream *plug,
 	*r_plugin = plugin;
 	return 0;
 }
+
+#endif

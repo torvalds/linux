@@ -1275,7 +1275,7 @@ static int buffer_prepare(struct videobuf_queue *q,
 	    buf->vb.field  != field      ||
 	    buf->vb.field  != fh->video_fmt.field  ||
 	    buf->fmt       != &fh->video_fmt) {
-		saa7146_dma_free(dev,buf);
+		saa7146_dma_free(dev,q,buf);
 	}
 
 	if (STATE_NEEDS_INIT == buf->vb.state) {
@@ -1304,7 +1304,7 @@ static int buffer_prepare(struct videobuf_queue *q,
 			saa7146_pgtable_alloc(dev->pci, &buf->pt[0]);
 		}
 
-		err = videobuf_iolock(dev->pci,&buf->vb, &vv->ov_fb);
+		err = videobuf_iolock(q,&buf->vb, &vv->ov_fb);
 		if (err)
 			goto oops;
 		err = saa7146_pgtable_build(dev,buf);
@@ -1318,7 +1318,7 @@ static int buffer_prepare(struct videobuf_queue *q,
 
  oops:
 	DEB_D(("error out.\n"));
-	saa7146_dma_free(dev,buf);
+	saa7146_dma_free(dev,q,buf);
 
 	return err;
 }
@@ -1363,7 +1363,7 @@ static void buffer_release(struct videobuf_queue *q, struct videobuf_buffer *vb)
 	struct saa7146_buf *buf = (struct saa7146_buf *)vb;
 
 	DEB_CAP(("vbuf:%p\n",vb));
-	saa7146_dma_free(dev,buf);
+	saa7146_dma_free(dev,q,buf);
 }
 
 static struct videobuf_queue_ops video_qops = {

@@ -77,28 +77,13 @@ static struct acpi_blacklist_item acpi_blacklist[] __initdata = {
 
 static int __init blacklist_by_year(void)
 {
-	int year;
-	char *s = dmi_get_system_info(DMI_BIOS_DATE);
-
-	if (!s)
+	int year = dmi_get_year(DMI_BIOS_DATE);
+	/* Doesn't exist? Likely an old system */
+	if (year == -1) 
+		return 1;
+	/* 0? Likely a buggy new BIOS */
+	if (year == 0)
 		return 0;
-	if (!*s)
-		return 0;
-
-	s = strrchr(s, '/');
-	if (!s)
-		return 0;
-
-	s += 1;
-
-	year = simple_strtoul(s, NULL, 0);
-
-	if (year < 100) {	/* 2-digit year */
-		year += 1900;
-		if (year < 1996)	/* no dates < spec 1.0 */
-			year += 100;
-	}
-
 	if (year < CONFIG_ACPI_BLACKLIST_YEAR) {
 		printk(KERN_ERR PREFIX "BIOS age (%d) fails cutoff (%d), "
 		       "acpi=force is required to enable ACPI\n",

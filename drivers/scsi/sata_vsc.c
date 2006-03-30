@@ -230,11 +230,11 @@ static irqreturn_t vsc_sata_interrupt (int irq, void *dev_instance,
 					handled += ata_host_intr(ap, qc);
 				} else if (is_vsc_sata_int_err(i, int_status)) {
 					/*
-					 * On some chips (i.e. Intel 31244), an error 
+					 * On some chips (i.e. Intel 31244), an error
 					 * interrupt will sneak in at initialization
 					 * time (phy state changes).  Clearing the SCR
 					 * error register is not required, but it prevents
-					 * the phy state change interrupts from recurring 
+					 * the phy state change interrupts from recurring
 					 * later.
 					 */
 					u32 err_status;
@@ -263,7 +263,6 @@ static struct scsi_host_template vsc_sata_sht = {
 	.name			= DRV_NAME,
 	.ioctl			= ata_scsi_ioctl,
 	.queuecommand		= ata_scsi_queuecmd,
-	.eh_timed_out		= ata_scsi_timed_out,
 	.eh_strategy_handler	= ata_scsi_error,
 	.can_queue		= ATA_DEF_QUEUE,
 	.this_id		= ATA_SHT_THIS_ID,

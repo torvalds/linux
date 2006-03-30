@@ -24,36 +24,44 @@ Since kernel 2.3.99-pre6, this driver incorporates the support for the
 
 This driver supports the following hardware:
 
-   3c590 Vortex 10Mbps
-   3c592 EISA 10mbps Demon/Vortex
-   3c597 EISA Fast Demon/Vortex
-   3c595 Vortex 100baseTx
-   3c595 Vortex 100baseT4
-   3c595 Vortex 100base-MII
-   3Com Vortex
-   3c900 Boomerang 10baseT
-   3c900 Boomerang 10Mbps Combo
-   3c900 Cyclone 10Mbps TPO
-   3c900B Cyclone 10Mbps T
-   3c900 Cyclone 10Mbps Combo
-   3c900 Cyclone 10Mbps TPC
-   3c900B-FL Cyclone 10base-FL
-   3c905 Boomerang 100baseTx
-   3c905 Boomerang 100baseT4
-   3c905B Cyclone 100baseTx
-   3c905B Cyclone 10/100/BNC
-   3c905B-FX Cyclone 100baseFx
-   3c905C Tornado
-   3c980 Cyclone
-   3cSOHO100-TX Hurricane
-   3c555 Laptop Hurricane
-   3c575 Boomerang CardBus
-   3CCFE575 Cyclone CardBus
-   3CCFE575CT Cyclone CardBus
-   3CCFE656 Cyclone CardBus
-   3CCFEM656 Cyclone CardBus
-   3c450 Cyclone/unknown
-
+	3c590 Vortex 10Mbps
+	3c592 EISA 10Mbps Demon/Vortex
+	3c597 EISA Fast Demon/Vortex
+	3c595 Vortex 100baseTx
+	3c595 Vortex 100baseT4
+	3c595 Vortex 100base-MII
+	3c900 Boomerang 10baseT
+	3c900 Boomerang 10Mbps Combo
+	3c900 Cyclone 10Mbps TPO
+	3c900 Cyclone 10Mbps Combo
+	3c900 Cyclone 10Mbps TPC
+	3c900B-FL Cyclone 10base-FL
+	3c905 Boomerang 100baseTx
+	3c905 Boomerang 100baseT4
+	3c905B Cyclone 100baseTx
+	3c905B Cyclone 10/100/BNC
+	3c905B-FX Cyclone 100baseFx
+	3c905C Tornado
+	3c920B-EMB-WNM (ATI Radeon 9100 IGP)
+	3c980 Cyclone
+	3c980C Python-T
+	3cSOHO100-TX Hurricane
+	3c555 Laptop Hurricane
+	3c556 Laptop Tornado
+	3c556B Laptop Hurricane
+	3c575 [Megahertz] 10/100 LAN  CardBus
+	3c575 Boomerang CardBus
+	3CCFE575BT Cyclone CardBus
+	3CCFE575CT Tornado CardBus
+	3CCFE656 Cyclone CardBus
+	3CCFEM656B Cyclone+Winmodem CardBus
+	3CXFEM656C Tornado+Winmodem CardBus
+	3c450 HomePNA Tornado
+	3c920 Tornado
+	3c982 Hydra Dual Port A
+	3c982 Hydra Dual Port B
+	3c905B-T4
+	3c920B-EMB-WNM Tornado
 
 Module parameters
 =================
@@ -293,11 +301,6 @@ Donald's wake-on-LAN page:
 
      http://www.scyld.com/wakeonlan.html
 
-3Com's documentation for many NICs, including the ones supported by
-this driver is available at 
-
-     http://support.3com.com/partners/developer/developer_form.html
-
 3Com's DOS-based application for setting up the NICs EEPROMs:
 
 	ftp://ftp.3com.com/pub/nic/3c90x/3c90xx2.exe
@@ -312,10 +315,10 @@ Autonegotiation notes
 ---------------------
 
   The driver uses a one-minute heartbeat for adapting to changes in
-  the external LAN environment.  This means that when, for example, a
-  machine is unplugged from a hubbed 10baseT LAN plugged into a
-  switched 100baseT LAN, the throughput will be quite dreadful for up
-  to sixty seconds.  Be patient.
+  the external LAN environment if link is up and 5 seconds if link is down.
+  This means that when, for example, a machine is unplugged from a hubbed
+  10baseT LAN plugged into a  switched 100baseT LAN, the throughput
+  will be quite dreadful for up to sixty seconds.  Be patient.
 
   Cisco interoperability note from Walter Wong <wcw+@CMU.EDU>:
 

@@ -71,15 +71,15 @@ static struct ipt_match iprange_match = {
 	.me		= THIS_MODULE
 };
 
-static int __init init(void)
+static int __init ipt_iprange_init(void)
 {
 	return ipt_register_match(&iprange_match);
 }
 
-static void __exit fini(void)
+static void __exit ipt_iprange_fini(void)
 {
 	ipt_unregister_match(&iprange_match);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ipt_iprange_init);
+module_exit(ipt_iprange_fini);

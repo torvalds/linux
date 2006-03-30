@@ -28,6 +28,7 @@
 #include <linux/writeback.h>
 #include <linux/interrupt.h>
 #include <linux/cpu.h>
+#include <linux/blktrace_api.h>
 
 /*
  * for max sense size
@@ -784,6 +785,8 @@ void blk_queue_stack_limits(request_queue_t *t, request_queue_t *b)
 	t->max_hw_segments = min(t->max_hw_segments,b->max_hw_segments);
 	t->max_segment_size = min(t->max_segment_size,b->max_segment_size);
 	t->hardsect_size = max(t->hardsect_size,b->hardsect_size);
+	if (!test_bit(QUEUE_FLAG_CLUSTER, &b->queue_flags))
+		clear_bit(QUEUE_FLAG_CLUSTER, &t->queue_flags);
 }
 
 EXPORT_SYMBOL(blk_queue_stack_limits);
@@ -905,17 +908,15 @@ init_tag_map(request_queue_t *q, struct blk_queue_tag *tags, int depth)
 				__FUNCTION__, depth);
 	}
 
-	tag_index = kmalloc(depth * sizeof(struct request *), GFP_ATOMIC);
+	tag_index = kzalloc(depth * sizeof(struct request *), GFP_ATOMIC);
 	if (!tag_index)
 		goto fail;
 
 	nr_ulongs = ALIGN(depth, BITS_PER_LONG) / BITS_PER_LONG;
-	tag_map = kmalloc(nr_ulongs * sizeof(unsigned long), GFP_ATOMIC);
+	tag_map = kzalloc(nr_ulongs * sizeof(unsigned long), GFP_ATOMIC);
 	if (!tag_map)
 		goto fail;
 
-	memset(tag_index, 0, depth * sizeof(struct request *));
-	memset(tag_map, 0, nr_ulongs * sizeof(unsigned long));
 	tags->real_max_depth = depth;
 	tags->max_depth = depth;
 	tags->tag_index = tag_index;
@@ -1556,8 +1557,10 @@ void blk_plug_device(request_queue_t *q)
 	if (test_bit(QUEUE_FLAG_STOPPED, &q->queue_flags))
 		return;
 
-	if (!test_and_set_bit(QUEUE_FLAG_PLUGGED, &q->queue_flags))
+	if (!test_and_set_bit(QUEUE_FLAG_PLUGGED, &q->queue_flags)) {
 		mod_timer(&q->unplug_timer, jiffies + q->unplug_delay);
+		blk_add_trace_generic(q, NULL, 0, BLK_TA_PLUG);
+	}
 }
 
 EXPORT_SYMBOL(blk_plug_device);
@@ -1621,13 +1624,20 @@ static void blk_backing_dev_unplug(struct backing_dev_info *bdi,
 	/*
 	 * devices don't necessarily have an ->unplug_fn defined
 	 */
-	if (q->unplug_fn)
+	if (q->unplug_fn) {
+		blk_add_trace_pdu_int(q, BLK_TA_UNPLUG_IO, NULL,
+					q->rq.count[READ] + q->rq.count[WRITE]);
+
 		q->unplug_fn(q);
+	}
 }
 
 static void blk_unplug_work(void *data)
 {
 	request_queue_t *q = data;
+
+	blk_add_trace_pdu_int(q, BLK_TA_UNPLUG_IO, NULL,
+				q->rq.count[READ] + q->rq.count[WRITE]);
 
 	q->unplug_fn(q);
 }
@@ -1635,6 +1645,9 @@ static void blk_unplug_work(void *data)
 static void blk_unplug_timeout(unsigned long data)
 {
 	request_queue_t *q = (request_queue_t *)data;
+
+	blk_add_trace_pdu_int(q, BLK_TA_UNPLUG_TIMER, NULL,
+				q->rq.count[READ] + q->rq.count[WRITE]);
 
 	kblockd_schedule_work(&q->unplug_work);
 }
@@ -1752,6 +1765,9 @@ static void blk_release_queue(struct kobject *kobj)
 
 	if (q->queue_tags)
 		__blk_queue_free_tags(q);
+
+	if (q->blk_trace)
+		blk_trace_shutdown(q);
 
 	kmem_cache_free(requestq_cachep, q);
 }
@@ -2129,6 +2145,8 @@ rq_starved:
 	
 	rq_init(q, rq);
 	rq->rl = rl;
+
+	blk_add_trace_generic(q, bio, rw, BLK_TA_GETRQ);
 out:
 	return rq;
 }
@@ -2156,6 +2174,8 @@ static struct request *get_request_wait(request_queue_t *q, int rw,
 
 		if (!rq) {
 			struct io_context *ioc;
+
+			blk_add_trace_generic(q, bio, rw, BLK_TA_SLEEPRQ);
 
 			__generic_unplug_device(q);
 			spin_unlock_irq(q->queue_lock);
@@ -2210,6 +2230,8 @@ EXPORT_SYMBOL(blk_get_request);
  */
 void blk_requeue_request(request_queue_t *q, struct request *rq)
 {
+	blk_add_trace_rq(q, rq, BLK_TA_REQUEUE);
+
 	if (blk_rq_tagged(rq))
 		blk_queue_end_tag(q, rq);
 
@@ -2457,10 +2479,12 @@ void blk_execute_rq_nowait(request_queue_t *q, struct gendisk *bd_disk,
 	rq->rq_disk = bd_disk;
 	rq->flags |= REQ_NOMERGE;
 	rq->end_io = done;
-	elv_add_request(q, rq, where, 1);
-	generic_unplug_device(q);
+	WARN_ON(irqs_disabled());
+	spin_lock_irq(q->queue_lock);
+	__elv_add_request(q, rq, where, 1);
+	__generic_unplug_device(q);
+	spin_unlock_irq(q->queue_lock);
 }
-
 EXPORT_SYMBOL_GPL(blk_execute_rq_nowait);
 
 /**
@@ -2844,6 +2868,8 @@ static int __make_request(request_queue_t *q, struct bio *bio)
 			if (!q->back_merge_fn(q, req, bio))
 				break;
 
+			blk_add_trace_bio(q, bio, BLK_TA_BACKMERGE);
+
 			req->biotail->bi_next = bio;
 			req->biotail = bio;
 			req->nr_sectors = req->hard_nr_sectors += nr_sectors;
@@ -2858,6 +2884,8 @@ static int __make_request(request_queue_t *q, struct bio *bio)
 
 			if (!q->front_merge_fn(q, req, bio))
 				break;
+
+			blk_add_trace_bio(q, bio, BLK_TA_FRONTMERGE);
 
 			bio->bi_next = req->bio;
 			req->bio = bio;
@@ -2976,6 +3004,7 @@ void generic_make_request(struct bio *bio)
 	request_queue_t *q;
 	sector_t maxsector;
 	int ret, nr_sectors = bio_sectors(bio);
+	dev_t old_dev;
 
 	might_sleep();
 	/* Test device or partition size, when known. */
@@ -3002,6 +3031,8 @@ void generic_make_request(struct bio *bio)
 	 * NOTE: we don't repeat the blk_size check for each new device.
 	 * Stacking drivers are expected to know what they are doing.
 	 */
+	maxsector = -1;
+	old_dev = 0;
 	do {
 		char b[BDEVNAME_SIZE];
 
@@ -3033,6 +3064,15 @@ end_io:
 		 * of partition p to block n+start(p) of the disk.
 		 */
 		blk_partition_remap(bio);
+
+		if (maxsector != -1)
+			blk_add_trace_remap(q, bio, old_dev, bio->bi_sector, 
+					    maxsector);
+
+		blk_add_trace_bio(q, bio, BLK_TA_QUEUE);
+
+		maxsector = bio->bi_sector;
+		old_dev = bio->bi_bdev->bd_dev;
 
 		ret = q->make_request_fn(q, bio);
 	} while (ret);
@@ -3152,6 +3192,8 @@ static int __end_that_request_first(struct request *req, int uptodate,
 {
 	int total_bytes, bio_nbytes, error, next_idx = 0;
 	struct bio *bio;
+
+	blk_add_trace_rq(req->q, req, BLK_TA_COMPLETE);
 
 	/*
 	 * extend uptodate bool to allow < 0 value to be direct io error
@@ -3472,7 +3514,7 @@ int __init blk_dev_init(void)
 	iocontext_cachep = kmem_cache_create("blkdev_ioc",
 			sizeof(struct io_context), 0, SLAB_PANIC, NULL, NULL);
 
-	for_each_cpu(i)
+	for_each_possible_cpu(i)
 		INIT_LIST_HEAD(&per_cpu(blk_cpu_done, i));
 
 	open_softirq(BLOCK_SOFTIRQ, blk_done_softirq, NULL);
@@ -3497,11 +3539,17 @@ void put_io_context(struct io_context *ioc)
 	BUG_ON(atomic_read(&ioc->refcount) == 0);
 
 	if (atomic_dec_and_test(&ioc->refcount)) {
+		struct cfq_io_context *cic;
+
 		rcu_read_lock();
 		if (ioc->aic && ioc->aic->dtor)
 			ioc->aic->dtor(ioc->aic);
-		if (ioc->cic && ioc->cic->dtor)
-			ioc->cic->dtor(ioc->cic);
+		if (ioc->cic_root.rb_node != NULL) {
+			struct rb_node *n = rb_first(&ioc->cic_root);
+
+			cic = rb_entry(n, struct cfq_io_context, rb_node);
+			cic->dtor(ioc);
+		}
 		rcu_read_unlock();
 
 		kmem_cache_free(iocontext_cachep, ioc);
@@ -3514,6 +3562,7 @@ void exit_io_context(void)
 {
 	unsigned long flags;
 	struct io_context *ioc;
+	struct cfq_io_context *cic;
 
 	local_irq_save(flags);
 	task_lock(current);
@@ -3525,9 +3574,11 @@ void exit_io_context(void)
 
 	if (ioc->aic && ioc->aic->exit)
 		ioc->aic->exit(ioc->aic);
-	if (ioc->cic && ioc->cic->exit)
-		ioc->cic->exit(ioc->cic);
-
+	if (ioc->cic_root.rb_node != NULL) {
+		cic = rb_entry(rb_first(&ioc->cic_root), struct cfq_io_context, rb_node);
+		cic->exit(ioc);
+	}
+ 
 	put_io_context(ioc);
 }
 
@@ -3556,7 +3607,7 @@ struct io_context *current_io_context(gfp_t gfp_flags)
 		ret->last_waited = jiffies; /* doesn't matter... */
 		ret->nr_batch_requests = 0; /* because this is 0 */
 		ret->aic = NULL;
-		ret->cic = NULL;
+		ret->cic_root.rb_node = NULL;
 		tsk->io_context = ret;
 	}
 

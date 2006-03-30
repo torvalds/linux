@@ -198,13 +198,13 @@ static int mxb_probe(struct saa7146_dev* dev)
 	/* loop through all i2c-devices on the bus and look who is there */
 	list_for_each(item,&mxb->i2c_adapter.clients) {
 		client = list_entry(item, struct i2c_client, list);
-		if( I2C_TEA6420_1 == client->addr )
+		if( I2C_ADDR_TEA6420_1 == client->addr )
 			mxb->tea6420_1 = client;
-		if( I2C_TEA6420_2 == client->addr )
+		if( I2C_ADDR_TEA6420_2 == client->addr )
 			mxb->tea6420_2 = client;
 		if( I2C_TEA6415C_2 == client->addr )
 			mxb->tea6415c = client;
-		if( I2C_TDA9840 == client->addr )
+		if( I2C_ADDR_TDA9840 == client->addr )
 			mxb->tda9840 = client;
 		if( I2C_SAA7111 == client->addr )
 			mxb->saa7111a = client;
@@ -788,6 +788,12 @@ static int mxb_ioctl(struct saa7146_fh *fh, unsigned int cmd, void *arg)
 				mxb->cur_mode = V4L2_TUNER_MODE_STEREO;
 				byte = TDA9840_SET_STEREO;
 				DEB_D(("VIDIOC_S_TUNER: V4L2_TUNER_MODE_STEREO\n"));
+				break;
+			}
+			case V4L2_TUNER_MODE_LANG1_LANG2: {
+				mxb->cur_mode = V4L2_TUNER_MODE_LANG1_LANG2;
+				byte = TDA9840_SET_BOTH;
+				DEB_D(("VIDIOC_S_TUNER: V4L2_TUNER_MODE_LANG1_LANG2\n"));
 				break;
 			}
 			case V4L2_TUNER_MODE_LANG1: {

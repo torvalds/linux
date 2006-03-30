@@ -310,3 +310,5 @@ ENTRY(sys_call_table)
 	.long sys_pselect6
 	.long sys_ppoll
 	.long sys_unshare		/* 310 */
+	.long sys_set_robust_list
+	.long sys_get_robust_list

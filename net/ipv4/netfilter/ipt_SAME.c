@@ -189,16 +189,16 @@ static struct ipt_target same_reg = {
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init ipt_same_init(void)
 {
 	return ipt_register_target(&same_reg);
 }
 
-static void __exit fini(void)
+static void __exit ipt_same_fini(void)
 {
 	ipt_unregister_target(&same_reg);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ipt_same_init);
+module_exit(ipt_same_fini);
 

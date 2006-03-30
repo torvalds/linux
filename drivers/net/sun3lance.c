@@ -71,7 +71,7 @@ static int lance_debug = LANCE_DEBUG;
 #else
 static int lance_debug = 1;
 #endif
-MODULE_PARM(lance_debug, "i");
+module_param(lance_debug, int, 0);
 MODULE_PARM_DESC(lance_debug, "SUN3 Lance debug level (0-3)");
 MODULE_LICENSE("GPL");
 

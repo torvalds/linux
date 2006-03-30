@@ -38,7 +38,7 @@ typedef struct xfs_cap_set {
 /*
  * For Linux, we take the bitfields directly from capability.h
  * and no longer attempt to keep this attribute ondisk compatible
- * with IRIX.  Since this attribute is only set on exectuables,
+ * with IRIX.  Since this attribute is only set on executables,
  * it just doesn't make much sense to try.  We do use a different
  * named attribute though, to avoid confusion.
  */

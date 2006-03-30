@@ -111,7 +111,7 @@ config SA1100_LART
 	bool "LART"
 	help
 	  Say Y here if you are using the Linux Advanced Radio Terminal
-	  (also known as the LART).  See <http://www.lart.tudelft.nl/> for
+	  (also known as the LART).  See <http://www.lartmaker.nl/> for
 	  information on the LART.
 
 config SA1100_PLEB

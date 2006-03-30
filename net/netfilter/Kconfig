@@ -11,7 +11,7 @@ config NETFILTER_NETLINK_QUEUE
 	tristate "Netfilter NFQUEUE over NFNETLINK interface"
 	depends on NETFILTER_NETLINK
 	help
-	  If this option isenabled, the kernel will include support
+	  If this option is enabled, the kernel will include support
 	  for queueing packets via NFNETLINK.
 	  
 config NETFILTER_NETLINK_LOG
@@ -66,7 +66,7 @@ config NF_CONNTRACK_EVENTS
 	help
 	  If this option is enabled, the connection tracking code will
 	  provide a notifier chain that can be used by other kernel code
-	  to get notified aboutchanges in the connection tracking state.
+	  to get notified about changes in the connection tracking state.
 
 	  If unsure, say `N'.
 
@@ -153,7 +153,7 @@ config NETFILTER_XT_TARGET_NFQUEUE
 	tristate '"NFQUEUE" target Support'
 	depends on NETFILTER_XTABLES
 	help
-	  This Target replaced the old obsolete QUEUE target.
+	  This target replaced the old obsolete QUEUE target.
 
 	  As opposed to QUEUE, it supports 65535 different queues,
 	  not just one.

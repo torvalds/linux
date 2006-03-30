@@ -759,7 +759,7 @@ static void __iomem *radeon_find_rom(struct radeonfb_info *rinfo)
                 rom = rom_base;
         
                 for (i = 0; (i < 512) && (stage != 4); i++) {
-                    for(j = 0;j < sizeof(radeon_sig)/sizeof(char *);j++) {
+                    for (j = 0; j < ARRAY_SIZE(radeon_sig); j++) {
                         if (radeon_sig[j][0] == *rom)
                                 if (strncmp(radeon_sig[j], rom,
                                             strlen(radeon_sig[j])) == 0) {
@@ -1596,7 +1596,7 @@ static int radeonfb_blank (int blank, struct fb_info *info)
 		return 0;
 		
 #ifdef CONFIG_PMAC_BACKLIGHT
-	if (rinfo->dviDisp_type == MT_LCD && _machine == _MACH_Pmac) {
+	if (rinfo->dviDisp_type == MT_LCD && machine_is(powermac)) {
 		set_backlight_enable(!blank);
 		return 0;
 	}

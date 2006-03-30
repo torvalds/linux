@@ -457,6 +457,11 @@ ChangeLog
 
 Note, a technical ChangeLog aimed at kernel hackers is in fs/ntfs/ChangeLog.
 
+2.1.27:
+	- Implement page migration support so the kernel can move memory used
+	  by NTFS files and directories around for management purposes.
+	- Add support for writing to sparse files created with Windows XP SP2.
+	- Many minor improvements and bug fixes.
 2.1.26:
 	- Implement support for sector sizes above 512 bytes (up to the maximum
 	  supported by NTFS which is 4096 bytes).

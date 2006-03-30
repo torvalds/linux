@@ -369,6 +369,11 @@ static int av7110_ioctl(struct saa7146_fh *fh, unsigned int cmd, void *arg)
 			fm_matrix = 0x3001; // stereo
 			src = 0x0020;
 			break;
+		case V4L2_TUNER_MODE_LANG1_LANG2:
+			dprintk(2, "VIDIOC_S_TUNER: V4L2_TUNER_MODE_LANG1_LANG2\n");
+			fm_matrix = 0x3000; // bilingual
+			src = 0x0020;
+			break;
 		case V4L2_TUNER_MODE_LANG1:
 			dprintk(2, "VIDIOC_S_TUNER: V4L2_TUNER_MODE_LANG1\n");
 			fm_matrix = 0x3000; // mono

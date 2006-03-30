@@ -38,26 +38,25 @@
 #include <asm/ioctls.h>
 
 static atomic_t inotify_cookie;
-static atomic_t inotify_watches;
 
-static kmem_cache_t *watch_cachep;
-static kmem_cache_t *event_cachep;
+static kmem_cache_t *watch_cachep __read_mostly;
+static kmem_cache_t *event_cachep __read_mostly;
 
-static struct vfsmount *inotify_mnt;
+static struct vfsmount *inotify_mnt __read_mostly;
 
 /* these are configurable via /proc/sys/fs/inotify/ */
-int inotify_max_user_instances;
-int inotify_max_user_watches;
-int inotify_max_queued_events;
+int inotify_max_user_instances __read_mostly;
+int inotify_max_user_watches __read_mostly;
+int inotify_max_queued_events __read_mostly;
 
 /*
  * Lock ordering:
  *
  * dentry->d_lock (used to keep d_move() away from dentry->d_parent)
- * iprune_sem (synchronize shrink_icache_memory())
+ * iprune_mutex (synchronize shrink_icache_memory())
  * 	inode_lock (protects the super_block->s_inodes list)
- * 	inode->inotify_sem (protects inode->inotify_watches and watches->i_list)
- * 		inotify_dev->sem (protects inotify_device and watches->d_list)
+ * 	inode->inotify_mutex (protects inode->inotify_watches and watches->i_list)
+ * 		inotify_dev->mutex (protects inotify_device and watches->d_list)
  */
 
 /*
@@ -79,12 +78,12 @@ int inotify_max_queued_events;
 /*
  * struct inotify_device - represents an inotify instance
  *
- * This structure is protected by the semaphore 'sem'.
+ * This structure is protected by the mutex 'mutex'.
  */
 struct inotify_device {
 	wait_queue_head_t 	wq;		/* wait queue for i/o */
 	struct idr		idr;		/* idr mapping wd -> watch */
-	struct semaphore	sem;		/* protects this bad boy */
+	struct mutex		mutex;		/* protects this bad boy */
 	struct list_head 	events;		/* list of queued events */
 	struct list_head	watches;	/* list of watches */
 	atomic_t		count;		/* reference count */
@@ -101,7 +100,7 @@ struct inotify_device {
  * device.  In read(), this list is walked and all events that can fit in the
  * buffer are returned.
  *
- * Protected by dev->sem of the device in which we are queued.
+ * Protected by dev->mutex of the device in which we are queued.
  */
 struct inotify_kernel_event {
 	struct inotify_event	event;	/* the user-space event */
@@ -112,8 +111,8 @@ struct inotify_kernel_event {
 /*
  * struct inotify_watch - represents a watch request on a specific inode
  *
- * d_list is protected by dev->sem of the associated watch->dev.
- * i_list and mask are protected by inode->inotify_sem of the associated inode.
+ * d_list is protected by dev->mutex of the associated watch->dev.
+ * i_list and mask are protected by inode->inotify_mutex of the associated inode.
  * dev, inode, and wd are never written to once the watch is created.
  */
 struct inotify_watch {
@@ -261,7 +260,7 @@ static struct inotify_kernel_event * kernel_event(s32 wd, u32 mask, u32 cookie,
 /*
  * inotify_dev_get_event - return the next event in the given dev's queue
  *
- * Caller must hold dev->sem.
+ * Caller must hold dev->mutex.
  */
 static inline struct inotify_kernel_event *
 inotify_dev_get_event(struct inotify_device *dev)
@@ -272,7 +271,7 @@ inotify_dev_get_event(struct inotify_device *dev)
 /*
  * inotify_dev_queue_event - add a new event to the given device
  *
- * Caller must hold dev->sem.  Can sleep (calls kernel_event()).
+ * Caller must hold dev->mutex.  Can sleep (calls kernel_event()).
  */
 static void inotify_dev_queue_event(struct inotify_device *dev,
 				    struct inotify_watch *watch, u32 mask,
@@ -315,7 +314,7 @@ static void inotify_dev_queue_event(struct inotify_device *dev,
 /*
  * remove_kevent - cleans up and ultimately frees the given kevent
  *
- * Caller must hold dev->sem.
+ * Caller must hold dev->mutex.
  */
 static void remove_kevent(struct inotify_device *dev,
 			  struct inotify_kernel_event *kevent)
@@ -332,7 +331,7 @@ static void remove_kevent(struct inotify_device *dev,
 /*
  * inotify_dev_event_dequeue - destroy an event on the given device
  *
- * Caller must hold dev->sem.
+ * Caller must hold dev->mutex.
  */
 static void inotify_dev_event_dequeue(struct inotify_device *dev)
 {
@@ -346,7 +345,7 @@ static void inotify_dev_event_dequeue(struct inotify_device *dev)
 /*
  * inotify_dev_get_wd - returns the next WD for use by the given dev
  *
- * Callers must hold dev->sem.  This function can sleep.
+ * Callers must hold dev->mutex.  This function can sleep.
  */
 static int inotify_dev_get_wd(struct inotify_device *dev,
 			      struct inotify_watch *watch)
@@ -381,9 +380,51 @@ static int find_inode(const char __user *dirname, struct nameidata *nd,
 }
 
 /*
+ * inotify_inode_watched - returns nonzero if there are watches on this inode
+ * and zero otherwise.  We call this lockless, we do not care if we race.
+ */
+static inline int inotify_inode_watched(struct inode *inode)
+{
+	return !list_empty(&inode->inotify_watches);
+}
+
+/*
+ * Get child dentry flag into synch with parent inode.
+ * Flag should always be clear for negative dentrys.
+ */
+static void set_dentry_child_flags(struct inode *inode, int watched)
+{
+	struct dentry *alias;
+
+	spin_lock(&dcache_lock);
+	list_for_each_entry(alias, &inode->i_dentry, d_alias) {
+		struct dentry *child;
+
+		list_for_each_entry(child, &alias->d_subdirs, d_u.d_child) {
+			if (!child->d_inode) {
+				WARN_ON(child->d_flags & DCACHE_INOTIFY_PARENT_WATCHED);
+				continue;
+			}
+			spin_lock(&child->d_lock);
+			if (watched) {
+				WARN_ON(child->d_flags &
+						DCACHE_INOTIFY_PARENT_WATCHED);
+				child->d_flags |= DCACHE_INOTIFY_PARENT_WATCHED;
+			} else {
+				WARN_ON(!(child->d_flags &
+					DCACHE_INOTIFY_PARENT_WATCHED));
+				child->d_flags&=~DCACHE_INOTIFY_PARENT_WATCHED;
+			}
+			spin_unlock(&child->d_lock);
+		}
+	}
+	spin_unlock(&dcache_lock);
+}
+
+/*
  * create_watch - creates a watch on the given device.
  *
- * Callers must hold dev->sem.  Calls inotify_dev_get_wd() so may sleep.
+ * Callers must hold dev->mutex.  Calls inotify_dev_get_wd() so may sleep.
  * Both 'dev' and 'inode' (by way of nameidata) need to be pinned.
  */
 static struct inotify_watch *create_watch(struct inotify_device *dev,
@@ -426,7 +467,6 @@ static struct inotify_watch *create_watch(struct inotify_device *dev,
 	get_inotify_watch(watch);
 
 	atomic_inc(&dev->user->inotify_watches);
-	atomic_inc(&inotify_watches);
 
 	return watch;
 }
@@ -434,7 +474,7 @@ static struct inotify_watch *create_watch(struct inotify_device *dev,
 /*
  * inotify_find_dev - find the watch associated with the given inode and dev
  *
- * Callers must hold inode->inotify_sem.
+ * Callers must hold inode->inotify_mutex.
  */
 static struct inotify_watch *inode_find_dev(struct inode *inode,
 					    struct inotify_device *dev)
@@ -458,8 +498,10 @@ static void remove_watch_no_event(struct inotify_watch *watch,
 	list_del(&watch->i_list);
 	list_del(&watch->d_list);
 
+	if (!inotify_inode_watched(watch->inode))
+		set_dentry_child_flags(watch->inode, 0);
+
 	atomic_dec(&dev->user->inotify_watches);
-	atomic_dec(&inotify_watches);
 	idr_remove(&dev->idr, watch->wd);
 	put_inotify_watch(watch);
 }
@@ -469,7 +511,7 @@ static void remove_watch_no_event(struct inotify_watch *watch,
  * the IN_IGNORED event to the given device signifying that the inode is no
  * longer watched.
  *
- * Callers must hold both inode->inotify_sem and dev->sem.  We drop a
+ * Callers must hold both inode->inotify_mutex and dev->mutex.  We drop a
  * reference to the inode before returning.
  *
  * The inode is not iput() so as to remain atomic.  If the inode needs to be
@@ -481,16 +523,39 @@ static void remove_watch(struct inotify_watch *watch,struct inotify_device *dev)
 	remove_watch_no_event(watch, dev);
 }
 
+/* Kernel API */
+
 /*
- * inotify_inode_watched - returns nonzero if there are watches on this inode
- * and zero otherwise.  We call this lockless, we do not care if we race.
+ * inotify_d_instantiate - instantiate dcache entry for inode
  */
-static inline int inotify_inode_watched(struct inode *inode)
+void inotify_d_instantiate(struct dentry *entry, struct inode *inode)
 {
-	return !list_empty(&inode->inotify_watches);
+	struct dentry *parent;
+
+	if (!inode)
+		return;
+
+	WARN_ON(entry->d_flags & DCACHE_INOTIFY_PARENT_WATCHED);
+	spin_lock(&entry->d_lock);
+	parent = entry->d_parent;
+	if (inotify_inode_watched(parent->d_inode))
+		entry->d_flags |= DCACHE_INOTIFY_PARENT_WATCHED;
+	spin_unlock(&entry->d_lock);
 }
 
-/* Kernel API */
+/*
+ * inotify_d_move - dcache entry has been moved
+ */
+void inotify_d_move(struct dentry *entry)
+{
+	struct dentry *parent;
+
+	parent = entry->d_parent;
+	if (inotify_inode_watched(parent->d_inode))
+		entry->d_flags |= DCACHE_INOTIFY_PARENT_WATCHED;
+	else
+		entry->d_flags &= ~DCACHE_INOTIFY_PARENT_WATCHED;
+}
 
 /**
  * inotify_inode_queue_event - queue an event to all watches on this inode
@@ -507,21 +572,21 @@ void inotify_inode_queue_event(struct inode *inode, u32 mask, u32 cookie,
 	if (!inotify_inode_watched(inode))
 		return;
 
-	down(&inode->inotify_sem);
+	mutex_lock(&inode->inotify_mutex);
 	list_for_each_entry_safe(watch, next, &inode->inotify_watches, i_list) {
 		u32 watch_mask = watch->mask;
 		if (watch_mask & mask) {
 			struct inotify_device *dev = watch->dev;
 			get_inotify_watch(watch);
-			down(&dev->sem);
+			mutex_lock(&dev->mutex);
 			inotify_dev_queue_event(dev, watch, mask, cookie, name);
 			if (watch_mask & IN_ONESHOT)
 				remove_watch_no_event(watch, dev);
-			up(&dev->sem);
+			mutex_unlock(&dev->mutex);
 			put_inotify_watch(watch);
 		}
 	}
-	up(&inode->inotify_sem);
+	mutex_unlock(&inode->inotify_mutex);
 }
 EXPORT_SYMBOL_GPL(inotify_inode_queue_event);
 
@@ -538,7 +603,7 @@ void inotify_dentry_parent_queue_event(struct dentry *dentry, u32 mask,
 	struct dentry *parent;
 	struct inode *inode;
 
-	if (!atomic_read (&inotify_watches))
+	if (!(dentry->d_flags & DCACHE_INOTIFY_PARENT_WATCHED))
 		return;
 
 	spin_lock(&dentry->d_lock);
@@ -569,7 +634,7 @@ EXPORT_SYMBOL_GPL(inotify_get_cookie);
  * @list: list of inodes being unmounted (sb->s_inodes)
  *
  * Called with inode_lock held, protecting the unmounting super block's list
- * of inodes, and with iprune_sem held, keeping shrink_icache_memory() at bay.
+ * of inodes, and with iprune_mutex held, keeping shrink_icache_memory() at bay.
  * We temporarily drop inode_lock, however, and CAN block.
  */
 void inotify_unmount_inodes(struct list_head *list)
@@ -618,7 +683,7 @@ void inotify_unmount_inodes(struct list_head *list)
 		 * We can safely drop inode_lock here because we hold
 		 * references on both inode and next_i.  Also no new inodes
 		 * will be added since the umount has begun.  Finally,
-		 * iprune_sem keeps shrink_icache_memory() away.
+		 * iprune_mutex keeps shrink_icache_memory() away.
 		 */
 		spin_unlock(&inode_lock);
 
@@ -626,16 +691,16 @@ void inotify_unmount_inodes(struct list_head *list)
 			iput(need_iput_tmp);
 
 		/* for each watch, send IN_UNMOUNT and then remove it */
-		down(&inode->inotify_sem);
+		mutex_lock(&inode->inotify_mutex);
 		watches = &inode->inotify_watches;
 		list_for_each_entry_safe(watch, next_w, watches, i_list) {
 			struct inotify_device *dev = watch->dev;
-			down(&dev->sem);
+			mutex_lock(&dev->mutex);
 			inotify_dev_queue_event(dev, watch, IN_UNMOUNT,0,NULL);
 			remove_watch(watch, dev);
-			up(&dev->sem);
+			mutex_unlock(&dev->mutex);
 		}
-		up(&inode->inotify_sem);
+		mutex_unlock(&inode->inotify_mutex);
 		iput(inode);		
 
 		spin_lock(&inode_lock);
@@ -651,14 +716,14 @@ void inotify_inode_is_dead(struct inode *inode)
 {
 	struct inotify_watch *watch, *next;
 
-	down(&inode->inotify_sem);
+	mutex_lock(&inode->inotify_mutex);
 	list_for_each_entry_safe(watch, next, &inode->inotify_watches, i_list) {
 		struct inotify_device *dev = watch->dev;
-		down(&dev->sem);
+		mutex_lock(&dev->mutex);
 		remove_watch(watch, dev);
-		up(&dev->sem);
+		mutex_unlock(&dev->mutex);
 	}
-	up(&inode->inotify_sem);
+	mutex_unlock(&inode->inotify_mutex);
 }
 EXPORT_SYMBOL_GPL(inotify_inode_is_dead);
 
@@ -670,10 +735,10 @@ static unsigned int inotify_poll(struct file *file, poll_table *wait)
 	int ret = 0;
 
 	poll_wait(file, &dev->wq, wait);
-	down(&dev->sem);
+	mutex_lock(&dev->mutex);
 	if (!list_empty(&dev->events))
 		ret = POLLIN | POLLRDNORM;
-	up(&dev->sem);
+	mutex_unlock(&dev->mutex);
 
 	return ret;
 }
@@ -695,9 +760,9 @@ static ssize_t inotify_read(struct file *file, char __user *buf,
 
 		prepare_to_wait(&dev->wq, &wait, TASK_INTERRUPTIBLE);
 
-		down(&dev->sem);
+		mutex_lock(&dev->mutex);
 		events = !list_empty(&dev->events);
-		up(&dev->sem);
+		mutex_unlock(&dev->mutex);
 		if (events) {
 			ret = 0;
 			break;
@@ -720,7 +785,7 @@ static ssize_t inotify_read(struct file *file, char __user *buf,
 	if (ret)
 		return ret;
 
-	down(&dev->sem);
+	mutex_lock(&dev->mutex);
 	while (1) {
 		struct inotify_kernel_event *kevent;
 
@@ -750,7 +815,7 @@ static ssize_t inotify_read(struct file *file, char __user *buf,
 
 		remove_kevent(dev, kevent);
 	}
-	up(&dev->sem);
+	mutex_unlock(&dev->mutex);
 
 	return ret;
 }
@@ -763,37 +828,37 @@ static int inotify_release(struct inode *ignored, struct file *file)
 	 * Destroy all of the watches on this device.  Unfortunately, not very
 	 * pretty.  We cannot do a simple iteration over the list, because we
 	 * do not know the inode until we iterate to the watch.  But we need to
-	 * hold inode->inotify_sem before dev->sem.  The following works.
+	 * hold inode->inotify_mutex before dev->mutex.  The following works.
 	 */
 	while (1) {
 		struct inotify_watch *watch;
 		struct list_head *watches;
 		struct inode *inode;
 
-		down(&dev->sem);
+		mutex_lock(&dev->mutex);
 		watches = &dev->watches;
 		if (list_empty(watches)) {
-			up(&dev->sem);
+			mutex_unlock(&dev->mutex);
 			break;
 		}
 		watch = list_entry(watches->next, struct inotify_watch, d_list);
 		get_inotify_watch(watch);
-		up(&dev->sem);
+		mutex_unlock(&dev->mutex);
 
 		inode = watch->inode;
-		down(&inode->inotify_sem);
-		down(&dev->sem);
+		mutex_lock(&inode->inotify_mutex);
+		mutex_lock(&dev->mutex);
 		remove_watch_no_event(watch, dev);
-		up(&dev->sem);
-		up(&inode->inotify_sem);
+		mutex_unlock(&dev->mutex);
+		mutex_unlock(&inode->inotify_mutex);
 		put_inotify_watch(watch);
 	}
 
 	/* destroy all of the events on this device */
-	down(&dev->sem);
+	mutex_lock(&dev->mutex);
 	while (!list_empty(&dev->events))
 		inotify_dev_event_dequeue(dev);
-	up(&dev->sem);
+	mutex_unlock(&dev->mutex);
 
 	/* free this device: the put matching the get in inotify_init() */
 	put_inotify_dev(dev);
@@ -811,26 +876,26 @@ static int inotify_ignore(struct inotify_device *dev, s32 wd)
 	struct inotify_watch *watch;
 	struct inode *inode;
 
-	down(&dev->sem);
+	mutex_lock(&dev->mutex);
 	watch = idr_find(&dev->idr, wd);
 	if (unlikely(!watch)) {
-		up(&dev->sem);
+		mutex_unlock(&dev->mutex);
 		return -EINVAL;
 	}
 	get_inotify_watch(watch);
 	inode = watch->inode;
-	up(&dev->sem);
+	mutex_unlock(&dev->mutex);
 
-	down(&inode->inotify_sem);
-	down(&dev->sem);
+	mutex_lock(&inode->inotify_mutex);
+	mutex_lock(&dev->mutex);
 
 	/* make sure that we did not race */
 	watch = idr_find(&dev->idr, wd);
 	if (likely(watch))
 		remove_watch(watch, dev);
 
-	up(&dev->sem);
-	up(&inode->inotify_sem);
+	mutex_unlock(&dev->mutex);
+	mutex_unlock(&inode->inotify_mutex);
 	put_inotify_watch(watch);
 
 	return 0;
@@ -855,7 +920,7 @@ static long inotify_ioctl(struct file *file, unsigned int cmd,
 	return ret;
 }
 
-static struct file_operations inotify_fops = {
+static const struct file_operations inotify_fops = {
 	.poll           = inotify_poll,
 	.read           = inotify_read,
 	.release        = inotify_release,
@@ -905,7 +970,7 @@ asmlinkage long sys_inotify_init(void)
 	INIT_LIST_HEAD(&dev->events);
 	INIT_LIST_HEAD(&dev->watches);
 	init_waitqueue_head(&dev->wq);
-	sema_init(&dev->sem, 1);
+	mutex_init(&dev->mutex);
 	dev->event_count = 0;
 	dev->queue_size = 0;
 	dev->max_events = inotify_max_queued_events;
@@ -960,8 +1025,8 @@ asmlinkage long sys_inotify_add_watch(int fd, const char __user *path, u32 mask)
 	inode = nd.dentry->d_inode;
 	dev = filp->private_data;
 
-	down(&inode->inotify_sem);
-	down(&dev->sem);
+	mutex_lock(&inode->inotify_mutex);
+	mutex_lock(&dev->mutex);
 
 	if (mask & IN_MASK_ADD)
 		mask_add = 1;
@@ -993,13 +1058,16 @@ asmlinkage long sys_inotify_add_watch(int fd, const char __user *path, u32 mask)
 		goto out;
 	}
 
+	if (!inotify_inode_watched(inode))
+		set_dentry_child_flags(inode, 1);
+
 	/* Add the watch to the device's and the inode's list */
 	list_add(&watch->d_list, &dev->watches);
 	list_add(&watch->i_list, &inode->inotify_watches);
 	ret = watch->wd;
 out:
-	up(&dev->sem);
-	up(&inode->inotify_sem);
+	mutex_unlock(&dev->mutex);
+	mutex_unlock(&inode->inotify_mutex);
 	path_release(&nd);
 fput_and_out:
 	fput_light(filp, fput_needed);
@@ -1065,7 +1133,6 @@ static int __init inotify_setup(void)
 	inotify_max_user_watches = 8192;
 
 	atomic_set(&inotify_cookie, 0);
-	atomic_set(&inotify_watches, 0);
 
 	watch_cachep = kmem_cache_create("inotify_watch_cache",
 					 sizeof(struct inotify_watch),

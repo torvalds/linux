@@ -107,6 +107,10 @@ static unsigned int sock_poll(struct file *file,
 			      struct poll_table_struct *wait);
 static long sock_ioctl(struct file *file,
 		      unsigned int cmd, unsigned long arg);
+#ifdef CONFIG_COMPAT
+static long compat_sock_ioctl(struct file *file,
+		      unsigned int cmd, unsigned long arg);
+#endif
 static int sock_fasync(int fd, struct file *filp, int on);
 static ssize_t sock_readv(struct file *file, const struct iovec *vector,
 			  unsigned long count, loff_t *ppos);
@@ -128,6 +132,9 @@ static struct file_operations socket_file_ops = {
 	.aio_write =	sock_aio_write,
 	.poll =		sock_poll,
 	.unlocked_ioctl = sock_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = compat_sock_ioctl,
+#endif
 	.mmap =		sock_mmap,
 	.open =		sock_no_open,	/* special open code to disallow open via /proc */
 	.release =	sock_close,
@@ -312,7 +319,8 @@ static int init_inodecache(void)
 {
 	sock_inode_cachep = kmem_cache_create("sock_inode_cache",
 				sizeof(struct socket_alloc),
-				0, SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT,
+				0, (SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT|
+					SLAB_MEM_SPREAD),
 				init_once, NULL);
 	if (sock_inode_cachep == NULL)
 		return -ENOMEM;
@@ -531,7 +539,7 @@ static int sock_no_open(struct inode *irrelevant, struct file *dontcare)
 	return -ENXIO;
 }
 
-struct file_operations bad_sock_fops = {
+const struct file_operations bad_sock_fops = {
 	.owner = THIS_MODULE,
 	.open = sock_no_open,
 };
@@ -2135,6 +2143,20 @@ void socket_seq_show(struct seq_file *seq)
 	seq_printf(seq, "sockets: used %d\n", counter);
 }
 #endif /* CONFIG_PROC_FS */
+
+#ifdef CONFIG_COMPAT
+static long compat_sock_ioctl(struct file *file, unsigned cmd,
+				unsigned long arg)
+{
+	struct socket *sock = file->private_data;
+	int ret = -ENOIOCTLCMD;
+
+	if (sock->ops->compat_ioctl)
+		ret = sock->ops->compat_ioctl(sock, cmd, arg);
+
+	return ret;
+}
+#endif
 
 /* ABI emulation layers need these two */
 EXPORT_SYMBOL(move_addr_to_kernel);

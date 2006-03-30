@@ -543,6 +543,25 @@ static int compat_sock_getsockopt(struct socket *sock, int level, int optname,
 	return sock_getsockopt(sock, level, optname, optval, optlen);
 }
 
+int compat_sock_get_timestamp(struct sock *sk, struct timeval __user *userstamp)
+{
+	struct compat_timeval __user *ctv =
+			(struct compat_timeval __user*) userstamp;
+	int err = -ENOENT;
+
+	if (!sock_flag(sk, SOCK_TIMESTAMP))
+		sock_enable_timestamp(sk);
+	if (sk->sk_stamp.tv_sec == -1)
+		return err;
+	if (sk->sk_stamp.tv_sec == 0)
+		do_gettimeofday(&sk->sk_stamp);
+	if (put_user(sk->sk_stamp.tv_sec, &ctv->tv_sec) ||
+			put_user(sk->sk_stamp.tv_usec, &ctv->tv_usec))
+		err = -EFAULT;
+	return err;
+}
+EXPORT_SYMBOL(compat_sock_get_timestamp);
+
 asmlinkage long compat_sys_getsockopt(int fd, int level, int optname,
 				char __user *optval, int __user *optlen)
 {

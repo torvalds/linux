@@ -49,6 +49,17 @@ config MMC_PXA
 
 	  If unsure, say N.
 
+config MMC_SDHCI
+	tristate "Secure Digital Host Controller Interface support  (EXPERIMENTAL)"
+	depends on PCI && MMC && EXPERIMENTAL
+	help
+	  This select the generic Secure Digital Host Controller Interface.
+	  It is used by manufacturers such as Texas Instruments(R), Ricoh(R)
+	  and Toshiba(R). Most controllers found in laptops are of this type.
+	  If you have a controller with this interface, say Y or M here.
+
+	  If unsure, say N.
+
 config MMC_WBSD
 	tristate "Winbond W83L51xD SD/MMC Card Interface support"
 	depends on MMC && ISA_DMA_API

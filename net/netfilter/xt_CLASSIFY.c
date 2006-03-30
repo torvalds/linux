@@ -47,6 +47,7 @@ static struct xt_target classify_reg = {
 	.table		= "mangle",
 	.hooks		= (1 << NF_IP_LOCAL_OUT) | (1 << NF_IP_FORWARD) |
 		          (1 << NF_IP_POST_ROUTING),
+	.family		= AF_INET,
 	.me 		= THIS_MODULE,
 };
 static struct xt_target classify6_reg = { 
@@ -56,30 +57,31 @@ static struct xt_target classify6_reg = {
 	.table		= "mangle",
 	.hooks		= (1 << NF_IP_LOCAL_OUT) | (1 << NF_IP_FORWARD) |
 		          (1 << NF_IP_POST_ROUTING),
+	.family		= AF_INET6,
 	.me 		= THIS_MODULE,
 };
 
 
-static int __init init(void)
+static int __init xt_classify_init(void)
 {
 	int ret;
 
-	ret = xt_register_target(AF_INET, &classify_reg);
+	ret = xt_register_target(&classify_reg);
 	if (ret)
 		return ret;
 
-	ret = xt_register_target(AF_INET6, &classify6_reg);
+	ret = xt_register_target(&classify6_reg);
 	if (ret)
-		xt_unregister_target(AF_INET, &classify_reg);
+		xt_unregister_target(&classify_reg);
 
 	return ret;
 }
 
-static void __exit fini(void)
+static void __exit xt_classify_fini(void)
 {
-	xt_unregister_target(AF_INET, &classify_reg);
-	xt_unregister_target(AF_INET6, &classify6_reg);
+	xt_unregister_target(&classify_reg);
+	xt_unregister_target(&classify6_reg);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(xt_classify_init);
+module_exit(xt_classify_fini);

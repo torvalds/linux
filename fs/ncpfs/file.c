@@ -46,7 +46,7 @@ int ncp_make_open(struct inode *inode, int right)
 		NCP_FINFO(inode)->volNumber, 
 		NCP_FINFO(inode)->dirEntNum);
 	error = -EACCES;
-	down(&NCP_FINFO(inode)->open_sem);
+	mutex_lock(&NCP_FINFO(inode)->open_mutex);
 	if (!atomic_read(&NCP_FINFO(inode)->opened)) {
 		struct ncp_entry_info finfo;
 		int result;
@@ -93,7 +93,7 @@ int ncp_make_open(struct inode *inode, int right)
 	}
 
 out_unlock:
-	up(&NCP_FINFO(inode)->open_sem);
+	mutex_unlock(&NCP_FINFO(inode)->open_mutex);
 out:
 	return error;
 }
@@ -283,7 +283,7 @@ static int ncp_release(struct inode *inode, struct file *file) {
 	return 0;
 }
 
-struct file_operations ncp_file_operations =
+const struct file_operations ncp_file_operations =
 {
 	.llseek		= remote_llseek,
 	.read		= ncp_file_read,

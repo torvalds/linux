@@ -144,8 +144,23 @@ static int check(const char *tablename,
 {
 	struct xt_helper_info *info = matchinfo;
 
+#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
+	if (nf_ct_l3proto_try_module_get(match->family) < 0) {
+		printk(KERN_WARNING "can't load nf_conntrack support for "
+				    "proto=%d\n", match->family);
+		return 0;
+	}
+#endif
 	info->name[29] = '\0';
 	return 1;
+}
+
+static void
+destroy(const struct xt_match *match, void *matchinfo, unsigned int matchsize)
+{
+#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
+	nf_ct_l3proto_module_put(match->family);
+#endif
 }
 
 static struct xt_match helper_match = {
@@ -153,6 +168,8 @@ static struct xt_match helper_match = {
 	.match		= match,
 	.matchsize	= sizeof(struct xt_helper_info),
 	.checkentry	= check,
+	.destroy	= destroy,
+	.family		= AF_INET,
 	.me		= THIS_MODULE,
 };
 static struct xt_match helper6_match = {
@@ -160,31 +177,33 @@ static struct xt_match helper6_match = {
 	.match		= match,
 	.matchsize	= sizeof(struct xt_helper_info),
 	.checkentry	= check,
+	.destroy	= destroy,
+	.family		= AF_INET6,
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init xt_helper_init(void)
 {
 	int ret;
 	need_conntrack();
 
-	ret = xt_register_match(AF_INET, &helper_match);
+	ret = xt_register_match(&helper_match);
 	if (ret < 0)
 		return ret;
 
-	ret = xt_register_match(AF_INET6, &helper6_match);
+	ret = xt_register_match(&helper6_match);
 	if (ret < 0)
-		xt_unregister_match(AF_INET, &helper_match);
+		xt_unregister_match(&helper_match);
 
 	return ret;
 }
 
-static void __exit fini(void)
+static void __exit xt_helper_fini(void)
 {
-	xt_unregister_match(AF_INET, &helper_match);
-	xt_unregister_match(AF_INET6, &helper6_match);
+	xt_unregister_match(&helper_match);
+	xt_unregister_match(&helper6_match);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(xt_helper_init);
+module_exit(xt_helper_fini);
 

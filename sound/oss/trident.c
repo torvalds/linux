@@ -190,7 +190,7 @@
  *
  *	Lock order (high->low)
  *		lock	-	hardware lock
- *		open_sem - 	guard opens
+ *		open_mutex - 	guard opens
  *		sem	-	guard dmabuf, write re-entry etc
  */
 
@@ -216,6 +216,8 @@
 #include <linux/pm.h>
 #include <linux/gameport.h>
 #include <linux/kernel.h>
+#include <linux/mutex.h>
+
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/dma.h>
@@ -349,7 +351,7 @@ struct trident_state {
 	unsigned chans_num;
 	unsigned long fmt_flag;
 	/* Guard against mmap/write/read races */
-	struct semaphore sem;
+	struct mutex sem;
 
 };
 
@@ -402,7 +404,7 @@ struct trident_card {
 	struct trident_card *next;
 
 	/* single open lock mechanism, only used for recording */
-	struct semaphore open_sem;
+	struct mutex open_mutex;
 
 	/* The trident has a certain amount of cross channel interaction
 	   so we use a single per card lock */
@@ -1881,7 +1883,7 @@ trident_read(struct file *file, char __user *buffer, size_t count, loff_t * ppos
 	if (!access_ok(VERIFY_WRITE, buffer, count))
 		return -EFAULT;
 
-	down(&state->sem);
+	mutex_lock(&state->sem);
 	if (!dmabuf->ready && (ret = prog_dmabuf_record(state)))
 		goto out;
 
@@ -1913,7 +1915,7 @@ trident_read(struct file *file, char __user *buffer, size_t count, loff_t * ppos
 				goto out;
 			}
 
-			up(&state->sem);
+			mutex_unlock(&state->sem);
 			/* No matter how much space left in the buffer, */ 
 			/* we have to wait until CSO == ESO/2 or CSO == ESO */ 
 			/* when address engine interrupts */
@@ -1940,7 +1942,7 @@ trident_read(struct file *file, char __user *buffer, size_t count, loff_t * ppos
 					ret = -ERESTARTSYS;
 				goto out;
 			}
-			down(&state->sem);
+			mutex_lock(&state->sem);
 			if (dmabuf->mapped) {
 				if (!ret)
 					ret = -ENXIO;
@@ -1968,7 +1970,7 @@ trident_read(struct file *file, char __user *buffer, size_t count, loff_t * ppos
 		start_adc(state);
 	}
 out:
-	up(&state->sem);
+	mutex_unlock(&state->sem);
 	return ret;
 }
 
@@ -1996,7 +1998,7 @@ trident_write(struct file *file, const char __user *buffer, size_t count, loff_t
 	 *      Guard against an mmap or ioctl while writing
 	 */
 
-	down(&state->sem);
+	mutex_lock(&state->sem);
 
 	if (dmabuf->mapped) {
 		ret = -ENXIO;
@@ -2045,7 +2047,7 @@ trident_write(struct file *file, const char __user *buffer, size_t count, loff_t
 			tmo = (dmabuf->dmasize * HZ) / (dmabuf->rate * 2);
 			tmo >>= sample_shift[dmabuf->fmt];
 			unlock_set_fmt(state);
-			up(&state->sem);
+			mutex_unlock(&state->sem);
 
 			/* There are two situations when sleep_on_timeout */ 
 			/* returns, one is when the interrupt is serviced */ 
@@ -2073,7 +2075,7 @@ trident_write(struct file *file, const char __user *buffer, size_t count, loff_t
 					ret = -ERESTARTSYS;
 				goto out_nolock;
 			}
-			down(&state->sem);
+			mutex_lock(&state->sem);
 			if (dmabuf->mapped) {
 				if (!ret)
 					ret = -ENXIO;
@@ -2131,7 +2133,7 @@ trident_write(struct file *file, const char __user *buffer, size_t count, loff_t
 		start_dac(state);
 	}
 out:
-	up(&state->sem);
+	mutex_unlock(&state->sem);
 out_nolock:
 	return ret;
 }
@@ -2152,24 +2154,24 @@ trident_poll(struct file *file, struct poll_table_struct *wait)
 	 *      prog_dmabuf events
 	 */
 
-	down(&state->sem);
+	mutex_lock(&state->sem);
 
 	if (file->f_mode & FMODE_WRITE) {
 		if (!dmabuf->ready && prog_dmabuf_playback(state)) {
-			up(&state->sem);
+			mutex_unlock(&state->sem);
 			return 0;
 		}
 		poll_wait(file, &dmabuf->wait, wait);
 	}
 	if (file->f_mode & FMODE_READ) {
 		if (!dmabuf->ready && prog_dmabuf_record(state)) {
-			up(&state->sem);
+			mutex_unlock(&state->sem);
 			return 0;
 		}
 		poll_wait(file, &dmabuf->wait, wait);
 	}
 
-	up(&state->sem);
+	mutex_unlock(&state->sem);
 
 	spin_lock_irqsave(&state->card->lock, flags);
 	trident_update_ptr(state);
@@ -2207,7 +2209,7 @@ trident_mmap(struct file *file, struct vm_area_struct *vma)
 	 *      a read or write against an mmap.
 	 */
 
-	down(&state->sem);
+	mutex_lock(&state->sem);
 
 	if (vma->vm_flags & VM_WRITE) {
 		if ((ret = prog_dmabuf_playback(state)) != 0)
@@ -2232,7 +2234,7 @@ trident_mmap(struct file *file, struct vm_area_struct *vma)
 	dmabuf->mapped = 1;
 	ret = 0;
 out:
-	up(&state->sem);
+	mutex_unlock(&state->sem);
 	return ret;
 }
 
@@ -2429,15 +2431,15 @@ trident_ioctl(struct inode *inode, struct file *file,
 							unlock_set_fmt(state);
 							break;
 						}
-						down(&state->card->open_sem);
+						mutex_lock(&state->card->open_mutex);
 						ret = ali_allocate_other_states_resources(state, 6);
 						if (ret < 0) {
-							up(&state->card->open_sem);
+							mutex_unlock(&state->card->open_mutex);
 							unlock_set_fmt(state);
 							break;
 						}
 						state->card->multi_channel_use_count++;
-						up(&state->card->open_sem);
+						mutex_unlock(&state->card->open_mutex);
 					} else
 						val = 2;	/*yield to 2-channels */
 				} else
@@ -2727,11 +2729,11 @@ trident_open(struct inode *inode, struct file *file)
 
 	/* find an available virtual channel (instance of /dev/dsp) */
 	while (card != NULL) {
-		down(&card->open_sem);
+		mutex_lock(&card->open_mutex);
 		if (file->f_mode & FMODE_READ) {
 			/* Skip opens on cards that are in 6 channel mode */
 			if (card->multi_channel_use_count > 0) {
-				up(&card->open_sem);
+				mutex_unlock(&card->open_mutex);
 				card = card->next;
 				continue;
 			}
@@ -2740,16 +2742,16 @@ trident_open(struct inode *inode, struct file *file)
 			if (card->states[i] == NULL) {
 				state = card->states[i] = kmalloc(sizeof(*state), GFP_KERNEL);
 				if (state == NULL) {
-					up(&card->open_sem);
+					mutex_unlock(&card->open_mutex);
 					return -ENOMEM;
 				}
 				memset(state, 0, sizeof(*state));
-				init_MUTEX(&state->sem);
+				mutex_init(&state->sem);
 				dmabuf = &state->dmabuf;
 				goto found_virt;
 			}
 		}
-		up(&card->open_sem);
+		mutex_unlock(&card->open_mutex);
 		card = card->next;
 	}
 	/* no more virtual channel avaiable */
@@ -2816,7 +2818,7 @@ trident_open(struct inode *inode, struct file *file)
 	}
 
 	state->open_mode |= file->f_mode & (FMODE_READ | FMODE_WRITE);
-	up(&card->open_sem);
+	mutex_unlock(&card->open_mutex);
 
 	pr_debug("trident: open virtual channel %d, hard channel %d\n",
 		 state->virt, dmabuf->channel->num);
@@ -2845,7 +2847,7 @@ trident_release(struct inode *inode, struct file *file)
 		 state->virt, dmabuf->channel->num);
 
 	/* stop DMA state machine and free DMA buffers/channels */
-	down(&card->open_sem);
+	mutex_lock(&card->open_mutex);
 
 	if (file->f_mode & FMODE_WRITE) {
 		stop_dac(state);
@@ -2878,8 +2880,8 @@ trident_release(struct inode *inode, struct file *file)
 	card->states[state->virt] = NULL;
 	kfree(state);
 
-	/* we're covered by the open_sem */
-	up(&card->open_sem);
+	/* we're covered by the open_mutex */
+	mutex_unlock(&card->open_mutex);
 
 	return 0;
 }
@@ -4405,7 +4407,7 @@ trident_probe(struct pci_dev *pci_dev, const struct pci_device_id *pci_id)
 	card->banks[BANK_B].addresses = &bank_b_addrs;
 	card->banks[BANK_B].bitmap = 0UL;
 
-	init_MUTEX(&card->open_sem);
+	mutex_init(&card->open_mutex);
 	spin_lock_init(&card->lock);
 	init_timer(&card->timer);
 

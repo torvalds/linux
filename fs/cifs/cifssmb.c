@@ -4908,7 +4908,7 @@ SetEARetry:
 	parm_data->list_len = cpu_to_le32(count);
 	parm_data->list[0].EA_flags = 0;
 	/* we checked above that name len is less than 255 */
-	parm_data->list[0].name_len = (__u8)name_len;;
+	parm_data->list[0].name_len = (__u8)name_len;
 	/* EA names are always ASCII */
 	if(ea_name)
 		strncpy(parm_data->list[0].name,ea_name,name_len);

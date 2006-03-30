@@ -40,7 +40,7 @@ network interface card supports some sort of interrupt load mitigation or
 + How to use CONFIG_PACKET_MMAP
 --------------------------------------------------------------------------------
 
-From the user standpoint, you should use the higher level libpcap library, wich
+From the user standpoint, you should use the higher level libpcap library, which
 is a de facto standard, portable across nearly all operating systems
 including Win32. 
 
@@ -217,8 +217,8 @@ called pg_vec, its size limits the number of blocks that can be allocated.
 
 kmalloc allocates any number of bytes of phisically contiguous memory from 
 a pool of pre-determined sizes. This pool of memory is mantained by the slab 
-allocator wich is at the end the responsible for doing the allocation and 
-hence wich imposes the maximum memory that kmalloc can allocate. 
+allocator which is at the end the responsible for doing the allocation and 
+hence which imposes the maximum memory that kmalloc can allocate. 
 
 In a 2.4/2.6 kernel and the i386 architecture, the limit is 131072 bytes. The 
 predetermined sizes that kmalloc uses can be checked in the "size-<bytes>" 
@@ -254,7 +254,7 @@ and, the number of frames be
 
 	<block number> * <block size> / <frame size>
 
-Suposse the following parameters, wich apply for 2.6 kernel and an
+Suposse the following parameters, which apply for 2.6 kernel and an
 i386 architecture:
 
 	<size-max> = 131072 bytes
@@ -360,7 +360,7 @@ TP_STATUS_LOSING      : indicates there were packet drops from last time
                         statistics where checked with getsockopt() and
                         the PACKET_STATISTICS option.
 
-TP_STATUS_CSUMNOTREADY: currently it's used for outgoing IP packets wich 
+TP_STATUS_CSUMNOTREADY: currently it's used for outgoing IP packets which 
                         it's checksum will be done in hardware. So while 
                         reading the packet we should not try to check the 
                         checksum. 

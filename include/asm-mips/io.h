@@ -556,24 +556,11 @@ extern void pci_iounmap(struct pci_dev *dev, void __iomem *);
  */
 #define __ISA_IO_base ((char *)(isa_slot_offset))
 
-#define isa_readb(a)		readb(__ISA_IO_base + (a))
-#define isa_readw(a)		readw(__ISA_IO_base + (a))
-#define isa_readl(a)		readl(__ISA_IO_base + (a))
-#define isa_readq(a)		readq(__ISA_IO_base + (a))
-#define isa_writeb(b,a)		writeb(b,__ISA_IO_base + (a))
-#define isa_writew(w,a)		writew(w,__ISA_IO_base + (a))
-#define isa_writel(l,a)		writel(l,__ISA_IO_base + (a))
-#define isa_writeq(q,a)		writeq(q,__ISA_IO_base + (a))
-#define isa_memset_io(a,b,c)	memset_io(__ISA_IO_base + (a),(b),(c))
-#define isa_memcpy_fromio(a,b,c) memcpy_fromio((a),__ISA_IO_base + (b),(c))
-#define isa_memcpy_toio(a,b,c)	memcpy_toio(__ISA_IO_base + (a),(b),(c))
-
 /*
  * We don't have csum_partial_copy_fromio() yet, so we cheat here and
  * just copy it. The net code will then do the checksum later.
  */
 #define eth_io_copy_and_sum(skb,src,len,unused) memcpy_fromio((skb)->data,(src),(len))
-#define isa_eth_io_copy_and_sum(a,b,c,d) eth_copy_and_sum((a),(b),(c),(d))
 
 /*
  *     check_signature         -       find BIOS signatures

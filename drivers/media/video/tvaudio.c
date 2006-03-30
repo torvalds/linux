@@ -30,10 +30,10 @@
 #include <linux/init.h>
 #include <linux/smp_lock.h>
 
-#include <media/audiochip.h>
+#include <media/tvaudio.h>
 #include <media/v4l2-common.h>
 
-#include "tvaudio.h"
+#include <media/i2c-addr.h>
 
 /* ---------------------------------------------------------------------- */
 /* insmod args                                                            */
@@ -102,7 +102,7 @@ struct CHIPDESC {
 
 	/* input switch register + values for v4l inputs */
 	int  inputreg;
-	int  inputmap[8];
+	int  inputmap[4];
 	int  inputmute;
 	int  inputmask;
 };
@@ -119,9 +119,10 @@ struct CHIPSTATE {
 	audiocmd   shadow;
 
 	/* current settings */
-	__u16 left,right,treble,bass,mode;
+	__u16 left,right,treble,bass,muted,mode;
 	int prevmode;
 	int radio;
+	int input;
 
 	/* thread */
 	pid_t                tpid;
@@ -137,14 +138,14 @@ struct CHIPSTATE {
 /* i2c addresses                                                          */
 
 static unsigned short normal_i2c[] = {
-	I2C_TDA8425   >> 1,
-	I2C_TEA6300   >> 1,
-	I2C_TEA6420   >> 1,
-	I2C_TDA9840   >> 1,
-	I2C_TDA985x_L >> 1,
-	I2C_TDA985x_H >> 1,
-	I2C_TDA9874   >> 1,
-	I2C_PIC16C54  >> 1,
+	I2C_ADDR_TDA8425   >> 1,
+	I2C_ADDR_TEA6300   >> 1,
+	I2C_ADDR_TEA6420   >> 1,
+	I2C_ADDR_TDA9840   >> 1,
+	I2C_ADDR_TDA985x_L >> 1,
+	I2C_ADDR_TDA985x_H >> 1,
+	I2C_ADDR_TDA9874   >> 1,
+	I2C_ADDR_PIC16C54  >> 1,
 	I2C_CLIENT_END };
 I2C_CLIENT_INSMOD;
 
@@ -1101,9 +1102,8 @@ static int tda8425_shift12(int val) { return (val >> 12) | 0xf0; }
 static int tda8425_initialize(struct CHIPSTATE *chip)
 {
 	struct CHIPDESC *desc = chiplist + chip->type;
-	int inputmap[8] = { /* tuner	*/ TDA8425_S1_CH2, /* radio  */ TDA8425_S1_CH1,
-			    /* extern	*/ TDA8425_S1_CH1, /* intern */ TDA8425_S1_OFF,
-			    /* off	*/ TDA8425_S1_OFF, /* on     */ TDA8425_S1_CH2};
+	int inputmap[4] = { /* tuner	*/ TDA8425_S1_CH2, /* radio  */ TDA8425_S1_CH1,
+			    /* extern	*/ TDA8425_S1_CH1, /* intern */ TDA8425_S1_OFF};
 
 	if (chip->c.adapter->id == I2C_HW_B_RIVA) {
 		memcpy (desc->inputmap, inputmap, sizeof (inputmap));
@@ -1269,8 +1269,8 @@ static struct CHIPDESC chiplist[] = {
 		.name       = "tda9840",
 		.id         = I2C_DRIVERID_TDA9840,
 		.insmodopt  = &tda9840,
-		.addr_lo    = I2C_TDA9840 >> 1,
-		.addr_hi    = I2C_TDA9840 >> 1,
+		.addr_lo    = I2C_ADDR_TDA9840 >> 1,
+		.addr_hi    = I2C_ADDR_TDA9840 >> 1,
 		.registers  = 5,
 
 		.checkit    = tda9840_checkit,
@@ -1286,8 +1286,8 @@ static struct CHIPDESC chiplist[] = {
 		.id         = I2C_DRIVERID_TDA9873,
 		.checkit    = tda9873_checkit,
 		.insmodopt  = &tda9873,
-		.addr_lo    = I2C_TDA985x_L >> 1,
-		.addr_hi    = I2C_TDA985x_H >> 1,
+		.addr_lo    = I2C_ADDR_TDA985x_L >> 1,
+		.addr_hi    = I2C_ADDR_TDA985x_H >> 1,
 		.registers  = 3,
 		.flags      = CHIP_HAS_INPUTSEL,
 
@@ -1298,7 +1298,7 @@ static struct CHIPDESC chiplist[] = {
 		.init       = { 4, { TDA9873_SW, 0xa4, 0x06, 0x03 } },
 		.inputreg   = TDA9873_SW,
 		.inputmute  = TDA9873_MUTE | TDA9873_AUTOMUTE,
-		.inputmap   = {0xa0, 0xa2, 0xa0, 0xa0, 0xc0},
+		.inputmap   = {0xa0, 0xa2, 0xa0, 0xa0},
 		.inputmask  = TDA9873_INP_MASK|TDA9873_MUTE|TDA9873_AUTOMUTE,
 
 	},
@@ -1308,8 +1308,8 @@ static struct CHIPDESC chiplist[] = {
 		.checkit    = tda9874a_checkit,
 		.initialize = tda9874a_initialize,
 		.insmodopt  = &tda9874a,
-		.addr_lo    = I2C_TDA9874 >> 1,
-		.addr_hi    = I2C_TDA9874 >> 1,
+		.addr_lo    = I2C_ADDR_TDA9874 >> 1,
+		.addr_hi    = I2C_ADDR_TDA9874 >> 1,
 
 		.getmode    = tda9874a_getmode,
 		.setmode    = tda9874a_setmode,
@@ -1319,8 +1319,8 @@ static struct CHIPDESC chiplist[] = {
 		.name       = "tda9850",
 		.id         = I2C_DRIVERID_TDA9850,
 		.insmodopt  = &tda9850,
-		.addr_lo    = I2C_TDA985x_L >> 1,
-		.addr_hi    = I2C_TDA985x_H >> 1,
+		.addr_lo    = I2C_ADDR_TDA985x_L >> 1,
+		.addr_hi    = I2C_ADDR_TDA985x_H >> 1,
 		.registers  = 11,
 
 		.getmode    = tda985x_getmode,
@@ -1332,8 +1332,8 @@ static struct CHIPDESC chiplist[] = {
 		.name       = "tda9855",
 		.id         = I2C_DRIVERID_TDA9855,
 		.insmodopt  = &tda9855,
-		.addr_lo    = I2C_TDA985x_L >> 1,
-		.addr_hi    = I2C_TDA985x_H >> 1,
+		.addr_lo    = I2C_ADDR_TDA985x_L >> 1,
+		.addr_hi    = I2C_ADDR_TDA985x_H >> 1,
 		.registers  = 11,
 		.flags      = CHIP_HAS_VOLUME | CHIP_HAS_BASSTREBLE,
 
@@ -1357,8 +1357,8 @@ static struct CHIPDESC chiplist[] = {
 		.name       = "tea6300",
 		.id         = I2C_DRIVERID_TEA6300,
 		.insmodopt  = &tea6300,
-		.addr_lo    = I2C_TEA6300 >> 1,
-		.addr_hi    = I2C_TEA6300 >> 1,
+		.addr_lo    = I2C_ADDR_TEA6300 >> 1,
+		.addr_hi    = I2C_ADDR_TEA6300 >> 1,
 		.registers  = 6,
 		.flags      = CHIP_HAS_VOLUME | CHIP_HAS_BASSTREBLE | CHIP_HAS_INPUTSEL,
 
@@ -1379,8 +1379,8 @@ static struct CHIPDESC chiplist[] = {
 		.id         = I2C_DRIVERID_TEA6300,
 		.initialize = tea6320_initialize,
 		.insmodopt  = &tea6320,
-		.addr_lo    = I2C_TEA6300 >> 1,
-		.addr_hi    = I2C_TEA6300 >> 1,
+		.addr_lo    = I2C_ADDR_TEA6300 >> 1,
+		.addr_hi    = I2C_ADDR_TEA6300 >> 1,
 		.registers  = 8,
 		.flags      = CHIP_HAS_VOLUME | CHIP_HAS_BASSTREBLE | CHIP_HAS_INPUTSEL,
 
@@ -1400,8 +1400,8 @@ static struct CHIPDESC chiplist[] = {
 		.name       = "tea6420",
 		.id         = I2C_DRIVERID_TEA6420,
 		.insmodopt  = &tea6420,
-		.addr_lo    = I2C_TEA6420 >> 1,
-		.addr_hi    = I2C_TEA6420 >> 1,
+		.addr_lo    = I2C_ADDR_TEA6420 >> 1,
+		.addr_hi    = I2C_ADDR_TEA6420 >> 1,
 		.registers  = 1,
 		.flags      = CHIP_HAS_INPUTSEL,
 
@@ -1413,8 +1413,8 @@ static struct CHIPDESC chiplist[] = {
 		.name       = "tda8425",
 		.id         = I2C_DRIVERID_TDA8425,
 		.insmodopt  = &tda8425,
-		.addr_lo    = I2C_TDA8425 >> 1,
-		.addr_hi    = I2C_TDA8425 >> 1,
+		.addr_lo    = I2C_ADDR_TDA8425 >> 1,
+		.addr_hi    = I2C_ADDR_TDA8425 >> 1,
 		.registers  = 9,
 		.flags      = CHIP_HAS_VOLUME | CHIP_HAS_BASSTREBLE | CHIP_HAS_INPUTSEL,
 
@@ -1437,8 +1437,8 @@ static struct CHIPDESC chiplist[] = {
 		.name       = "pic16c54 (PV951)",
 		.id         = I2C_DRIVERID_PIC16C54_PV9,
 		.insmodopt  = &pic16c54,
-		.addr_lo    = I2C_PIC16C54 >> 1,
-		.addr_hi    = I2C_PIC16C54>> 1,
+		.addr_lo    = I2C_ADDR_PIC16C54 >> 1,
+		.addr_hi    = I2C_ADDR_PIC16C54>> 1,
 		.registers  = 2,
 		.flags      = CHIP_HAS_INPUTSEL,
 
@@ -1446,8 +1446,7 @@ static struct CHIPDESC chiplist[] = {
 		.inputmap   = {PIC16C54_MISC_SND_NOTMUTE|PIC16C54_MISC_SWITCH_TUNER,
 			     PIC16C54_MISC_SND_NOTMUTE|PIC16C54_MISC_SWITCH_LINE,
 			     PIC16C54_MISC_SND_NOTMUTE|PIC16C54_MISC_SWITCH_LINE,
-			     PIC16C54_MISC_SND_MUTE,PIC16C54_MISC_SND_MUTE,
-			     PIC16C54_MISC_SND_NOTMUTE},
+			     PIC16C54_MISC_SND_MUTE},
 		.inputmute  = PIC16C54_MISC_SND_MUTE,
 	},
 	{
@@ -1456,8 +1455,8 @@ static struct CHIPDESC chiplist[] = {
 		/*.id         = I2C_DRIVERID_TA8874Z, */
 		.checkit    = ta8874z_checkit,
 		.insmodopt  = &ta8874z,
-		.addr_lo    = I2C_TDA9840 >> 1,
-		.addr_hi    = I2C_TDA9840 >> 1,
+		.addr_lo    = I2C_ADDR_TDA9840 >> 1,
+		.addr_hi    = I2C_ADDR_TDA9840 >> 1,
 		.registers  = 2,
 
 		.getmode    = ta8874z_getmode,
@@ -1583,28 +1582,40 @@ static int chip_detach(struct i2c_client *client)
 	return 0;
 }
 
+static int tvaudio_set_ctrl(struct CHIPSTATE *chip, struct v4l2_control *ctrl)
+{
+	struct CHIPDESC *desc = chiplist + chip->type;
+
+	switch (ctrl->id) {
+	case V4L2_CID_AUDIO_MUTE:
+		if (ctrl->value < 0 || ctrl->value >= 2)
+			return -ERANGE;
+		chip->muted = ctrl->value;
+		if (chip->muted)
+			chip_write_masked(chip,desc->inputreg,desc->inputmute,desc->inputmask);
+		else
+			chip_write_masked(chip,desc->inputreg,
+					desc->inputmap[chip->input],desc->inputmask);
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+
 /* ---------------------------------------------------------------------- */
 /* video4linux interface                                                  */
 
 static int chip_command(struct i2c_client *client,
 			unsigned int cmd, void *arg)
 {
-	__u16 *sarg = arg;
 	struct CHIPSTATE *chip = i2c_get_clientdata(client);
 	struct CHIPDESC  *desc = chiplist + chip->type;
 
 	v4l_dbg(1, debug, &chip->c, "%s: chip_command 0x%x\n", chip->c.name, cmd);
 
 	switch (cmd) {
-	case AUDC_SET_INPUT:
-		if (desc->flags & CHIP_HAS_INPUTSEL) {
-			if (*sarg & 0x80)
-				chip_write_masked(chip,desc->inputreg,desc->inputmute,desc->inputmask);
-			else
-				chip_write_masked(chip,desc->inputreg,desc->inputmap[*sarg],desc->inputmask);
-		}
-		break;
-
 	case AUDC_SET_RADIO:
 		chip->radio = 1;
 		chip->watch_stereo = 0;
@@ -1668,6 +1679,48 @@ static int chip_command(struct i2c_client *client,
 		break;
 	}
 
+	case VIDIOC_S_CTRL:
+		return tvaudio_set_ctrl(chip, arg);
+
+	case VIDIOC_INT_G_AUDIO_ROUTING:
+	{
+		struct v4l2_routing *rt = arg;
+
+		rt->input = chip->input;
+		rt->output = 0;
+		break;
+	}
+
+	case VIDIOC_INT_S_AUDIO_ROUTING:
+	{
+		struct v4l2_routing *rt = arg;
+
+		if (!(desc->flags & CHIP_HAS_INPUTSEL) || rt->input >= 4)
+				return -EINVAL;
+		/* There are four inputs: tuner, radio, extern and intern. */
+		chip->input = rt->input;
+		if (chip->muted)
+			break;
+		chip_write_masked(chip, desc->inputreg,
+				desc->inputmap[chip->input], desc->inputmask);
+		break;
+	}
+
+	case VIDIOC_S_AUDIO:
+	{
+		struct v4l2_audio *sarg = arg;
+
+		if (!(desc->flags & CHIP_HAS_INPUTSEL) || sarg->index >= 4)
+				return -EINVAL;
+		/* There are four inputs: tuner, radio, extern and intern. */
+		chip->input = sarg->index;
+		if (chip->muted)
+			break;
+		chip_write_masked(chip, desc->inputreg,
+				desc->inputmap[chip->input], desc->inputmask);
+		break;
+	}
+
 	case VIDIOC_S_TUNER:
 	{
 		struct v4l2_tuner *vt = arg;
@@ -1680,6 +1733,7 @@ static int chip_command(struct i2c_client *client,
 			mode = VIDEO_SOUND_MONO;
 			break;
 		case V4L2_TUNER_MODE_STEREO:
+		case V4L2_TUNER_MODE_LANG1_LANG2:
 			mode = VIDEO_SOUND_STEREO;
 			break;
 		case V4L2_TUNER_MODE_LANG1:

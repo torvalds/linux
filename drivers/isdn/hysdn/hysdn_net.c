@@ -24,7 +24,7 @@
 #include "hysdn_defs.h"
 
 unsigned int hynet_enable = 0xffffffff; 
-MODULE_PARM(hynet_enable, "i");
+module_param(hynet_enable, uint, 0);
 
 /* store the actual version for log reporting */
 char *hysdn_net_revision = "$Revision: 1.8.6.4 $";
@@ -83,12 +83,12 @@ net_open(struct net_device *dev)
 
 	/* Fill in the MAC-level header (if not already set) */
 	if (!card->mac_addr[0]) {
-		for (i = 0; i < ETH_ALEN - sizeof(ulong); i++)
+		for (i = 0; i < ETH_ALEN - sizeof(unsigned long); i++)
 			dev->dev_addr[i] = 0xfc;
 		if ((in_dev = dev->ip_ptr) != NULL) {
 			struct in_ifaddr *ifa = in_dev->ifa_list;
 			if (ifa != NULL)
-				memcpy(dev->dev_addr + (ETH_ALEN - sizeof(ulong)), &ifa->ifa_local, sizeof(ulong));
+				memcpy(dev->dev_addr + (ETH_ALEN - sizeof(unsigned long)), &ifa->ifa_local, sizeof(unsigned long));
 		}
 	} else
 		memcpy(dev->dev_addr, card->mac_addr, ETH_ALEN);
@@ -197,7 +197,7 @@ hysdn_tx_netack(hysdn_card * card)
 /* we got a packet from the network, go and queue it */
 /*****************************************************/
 void
-hysdn_rx_netpkt(hysdn_card * card, uchar * buf, word len)
+hysdn_rx_netpkt(hysdn_card * card, unsigned char *buf, unsigned short len)
 {
 	struct net_local *lp = card->netif;
 	struct sk_buff *skb;

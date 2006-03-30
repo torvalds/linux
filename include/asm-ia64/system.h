@@ -265,6 +265,8 @@ void sched_cacheflush(void);
 
 #define arch_align_stack(x) (x)
 
+void default_idle(void);
+
 #endif /* __KERNEL__ */
 
 #endif /* __ASSEMBLY__ */

@@ -95,7 +95,7 @@ static int __devinit snd_vortex_midi(vortex_t * vortex)
 		return temp;
 	}
 #else
-	port = (unsigned long)(vortex->mmio + (VORTEX_MIDI_DATA >> 2));
+	port = (unsigned long)(vortex->mmio + VORTEX_MIDI_DATA);
 	if ((temp =
 	     snd_mpu401_uart_new(vortex->card, 0, MPU401_HW_AUREAL, port,
 				 1, 0, 0, &rmidi)) != 0) {
@@ -105,7 +105,7 @@ static int __devinit snd_vortex_midi(vortex_t * vortex)
 		return temp;
 	}
 	mpu = rmidi->private_data;
-	mpu->cport = (unsigned long)(vortex->mmio + (VORTEX_MIDI_CMD >> 2));
+	mpu->cport = (unsigned long)(vortex->mmio + VORTEX_MIDI_CMD);
 #endif
 	vortex->rmidi = rmidi;
 	return 0;

@@ -94,7 +94,7 @@ static struct rxrpc_service AFSCM_service = {
 	.error_func	= afscm_error,
 	.aemap_func	= afscm_aemap,
 	.ops_begin	= &AFSCM_ops[0],
-	.ops_end	= &AFSCM_ops[sizeof(AFSCM_ops) / sizeof(AFSCM_ops[0])],
+	.ops_end	= &AFSCM_ops[ARRAY_SIZE(AFSCM_ops)],
 };
 
 static DECLARE_COMPLETION(kafscmd_alive);

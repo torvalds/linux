@@ -22,6 +22,9 @@
 #include <linux/smp_lock.h>
 #include <asm/uaccess.h>
 #include <asm/nvram.h>
+#ifdef CONFIG_PPC_PMAC
+#include <asm/machdep.h>
+#endif
 
 #define NVRAM_SIZE	8192
 
@@ -92,7 +95,7 @@ static int nvram_ioctl(struct inode *inode, struct file *file,
 	case IOC_NVRAM_GET_OFFSET: {
 		int part, offset;
 
-		if (_machine != _MACH_Pmac)
+		if (!machine_is(powermac))
 			return -EINVAL;
 		if (copy_from_user(&part, (void __user*)arg, sizeof(part)) != 0)
 			return -EFAULT;

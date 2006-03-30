@@ -59,7 +59,7 @@ static const struct mctl g450_controls[] =
 	}, offsetof(struct matrox_fb_info, altout.tvo_params.testout) },
 };
 
-#define G450CTRLS (sizeof(g450_controls)/sizeof(g450_controls[0]))
+#define G450CTRLS ARRAY_SIZE(g450_controls)
 
 /* Return: positive number: id found
            -EINVAL:         id not found, return failure

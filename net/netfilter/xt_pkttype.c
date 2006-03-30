@@ -37,6 +37,7 @@ static struct xt_match pkttype_match = {
 	.name		= "pkttype",
 	.match		= match,
 	.matchsize	= sizeof(struct xt_pkttype_info),
+	.family		= AF_INET,
 	.me		= THIS_MODULE,
 };
 
@@ -44,28 +45,29 @@ static struct xt_match pkttype6_match = {
 	.name		= "pkttype",
 	.match		= match,
 	.matchsize	= sizeof(struct xt_pkttype_info),
+	.family		= AF_INET6,
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init xt_pkttype_init(void)
 {
 	int ret;
-	ret = xt_register_match(AF_INET, &pkttype_match);
+	ret = xt_register_match(&pkttype_match);
 	if (ret)
 		return ret;
 
-	ret = xt_register_match(AF_INET6, &pkttype6_match);
+	ret = xt_register_match(&pkttype6_match);
 	if (ret)
-		xt_unregister_match(AF_INET, &pkttype_match);
+		xt_unregister_match(&pkttype_match);
 
 	return ret;
 }
 
-static void __exit fini(void)
+static void __exit xt_pkttype_fini(void)
 {
-	xt_unregister_match(AF_INET, &pkttype_match);
-	xt_unregister_match(AF_INET6, &pkttype6_match);
+	xt_unregister_match(&pkttype_match);
+	xt_unregister_match(&pkttype6_match);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(xt_pkttype_init);
+module_exit(xt_pkttype_fini);

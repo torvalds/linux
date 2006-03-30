@@ -190,8 +190,9 @@ void x25_write_internal(struct sock *sk, int frametype)
 			dptr    = skb_put(skb, len);
 			memcpy(dptr, addresses, len);
 			len     = x25_create_facilities(facilities,
-							&x25->facilities,
-					     x25->neighbour->global_facil_mask);
+					&x25->facilities,
+					&x25->dte_facilities,
+					x25->neighbour->global_facil_mask);
 			dptr    = skb_put(skb, len);
 			memcpy(dptr, facilities, len);
 			dptr = skb_put(skb, x25->calluserdata.cudlength);
@@ -206,6 +207,7 @@ void x25_write_internal(struct sock *sk, int frametype)
 			*dptr++ = 0x00;		/* Address lengths */
 			len     = x25_create_facilities(facilities,
 							&x25->facilities,
+							&x25->dte_facilities,
 							x25->vc_facil_mask);
 			dptr    = skb_put(skb, len);
 			memcpy(dptr, facilities, len);

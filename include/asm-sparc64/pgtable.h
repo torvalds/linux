@@ -105,6 +105,7 @@
 #define _PAGE_RES1_4U	  _AC(0x0002000000000000,UL) /* Reserved             */
 #define _PAGE_SZ32MB_4U	  _AC(0x0001000000000000,UL) /* (Panther) 32MB page  */
 #define _PAGE_SZ256MB_4U  _AC(0x2001000000000000,UL) /* (Panther) 256MB page */
+#define _PAGE_SZALL_4U	  _AC(0x6001000000000000,UL) /* All pgsz bits        */
 #define _PAGE_SN_4U	  _AC(0x0000800000000000,UL) /* (Cheetah) Snoop      */
 #define _PAGE_RES2_4U	  _AC(0x0000780000000000,UL) /* Reserved             */
 #define _PAGE_PADDR_4U	  _AC(0x000007FFFFFFE000,UL) /* (Cheetah) pa[42:13]  */
@@ -150,6 +151,7 @@
 #define _PAGE_SZ512K_4V	  _AC(0x0000000000000002,UL) /* 512K Page            */
 #define _PAGE_SZ64K_4V	  _AC(0x0000000000000001,UL) /* 64K Page             */
 #define _PAGE_SZ8K_4V	  _AC(0x0000000000000000,UL) /* 8K Page              */
+#define _PAGE_SZALL_4V	  _AC(0x0000000000000007,UL) /* All pgsz bits        */
 
 #if PAGE_SHIFT == 13
 #define _PAGE_SZBITS_4U	_PAGE_SZ8K_4U

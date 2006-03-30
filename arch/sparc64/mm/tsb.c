@@ -15,9 +15,9 @@
 
 extern struct tsb swapper_tsb[KERNEL_TSB_NENTRIES];
 
-static inline unsigned long tsb_hash(unsigned long vaddr, unsigned long nentries)
+static inline unsigned long tsb_hash(unsigned long vaddr, unsigned long hash_shift, unsigned long nentries)
 {
-	vaddr >>= PAGE_SHIFT;
+	vaddr >>= hash_shift;
 	return vaddr & (nentries - 1);
 }
 
@@ -36,7 +36,8 @@ void flush_tsb_kernel_range(unsigned long start, unsigned long end)
 	unsigned long v;
 
 	for (v = start; v < end; v += PAGE_SIZE) {
-		unsigned long hash = tsb_hash(v, KERNEL_TSB_NENTRIES);
+		unsigned long hash = tsb_hash(v, PAGE_SHIFT,
+					      KERNEL_TSB_NENTRIES);
 		struct tsb *ent = &swapper_tsb[hash];
 
 		if (tag_compare(ent->tag, v)) {
@@ -46,49 +47,91 @@ void flush_tsb_kernel_range(unsigned long start, unsigned long end)
 	}
 }
 
-void flush_tsb_user(struct mmu_gather *mp)
+static void __flush_tsb_one(struct mmu_gather *mp, unsigned long hash_shift, unsigned long tsb, unsigned long nentries)
 {
-	struct mm_struct *mm = mp->mm;
-	unsigned long nentries, base, flags;
-	struct tsb *tsb;
-	int i;
+	unsigned long i;
 
-	spin_lock_irqsave(&mm->context.lock, flags);
-
-	tsb = mm->context.tsb;
-	nentries = mm->context.tsb_nentries;
-
-	if (tlb_type == cheetah_plus || tlb_type == hypervisor)
-		base = __pa(tsb);
-	else
-		base = (unsigned long) tsb;
-	
 	for (i = 0; i < mp->tlb_nr; i++) {
 		unsigned long v = mp->vaddrs[i];
 		unsigned long tag, ent, hash;
 
 		v &= ~0x1UL;
 
-		hash = tsb_hash(v, nentries);
-		ent = base + (hash * sizeof(struct tsb));
+		hash = tsb_hash(v, hash_shift, nentries);
+		ent = tsb + (hash * sizeof(struct tsb));
 		tag = (v >> 22UL);
 
 		tsb_flush(ent, tag);
 	}
+}
 
+void flush_tsb_user(struct mmu_gather *mp)
+{
+	struct mm_struct *mm = mp->mm;
+	unsigned long nentries, base, flags;
+
+	spin_lock_irqsave(&mm->context.lock, flags);
+
+	base = (unsigned long) mm->context.tsb_block[MM_TSB_BASE].tsb;
+	nentries = mm->context.tsb_block[MM_TSB_BASE].tsb_nentries;
+	if (tlb_type == cheetah_plus || tlb_type == hypervisor)
+		base = __pa(base);
+	__flush_tsb_one(mp, PAGE_SHIFT, base, nentries);
+
+#ifdef CONFIG_HUGETLB_PAGE
+	if (mm->context.tsb_block[MM_TSB_HUGE].tsb) {
+		base = (unsigned long) mm->context.tsb_block[MM_TSB_HUGE].tsb;
+		nentries = mm->context.tsb_block[MM_TSB_HUGE].tsb_nentries;
+		if (tlb_type == cheetah_plus || tlb_type == hypervisor)
+			base = __pa(base);
+		__flush_tsb_one(mp, HPAGE_SHIFT, base, nentries);
+	}
+#endif
 	spin_unlock_irqrestore(&mm->context.lock, flags);
 }
 
-static void setup_tsb_params(struct mm_struct *mm, unsigned long tsb_bytes)
+#if defined(CONFIG_SPARC64_PAGE_SIZE_8KB)
+#define HV_PGSZ_IDX_BASE	HV_PGSZ_IDX_8K
+#define HV_PGSZ_MASK_BASE	HV_PGSZ_MASK_8K
+#elif defined(CONFIG_SPARC64_PAGE_SIZE_64KB)
+#define HV_PGSZ_IDX_BASE	HV_PGSZ_IDX_64K
+#define HV_PGSZ_MASK_BASE	HV_PGSZ_MASK_64K
+#elif defined(CONFIG_SPARC64_PAGE_SIZE_512KB)
+#define HV_PGSZ_IDX_BASE	HV_PGSZ_IDX_512K
+#define HV_PGSZ_MASK_BASE	HV_PGSZ_MASK_512K
+#elif defined(CONFIG_SPARC64_PAGE_SIZE_4MB)
+#define HV_PGSZ_IDX_BASE	HV_PGSZ_IDX_4MB
+#define HV_PGSZ_MASK_BASE	HV_PGSZ_MASK_4MB
+#else
+#error Broken base page size setting...
+#endif
+
+#ifdef CONFIG_HUGETLB_PAGE
+#if defined(CONFIG_HUGETLB_PAGE_SIZE_64K)
+#define HV_PGSZ_IDX_HUGE	HV_PGSZ_IDX_64K
+#define HV_PGSZ_MASK_HUGE	HV_PGSZ_MASK_64K
+#elif defined(CONFIG_HUGETLB_PAGE_SIZE_512K)
+#define HV_PGSZ_IDX_HUGE	HV_PGSZ_IDX_512K
+#define HV_PGSZ_MASK_HUGE	HV_PGSZ_MASK_512K
+#elif defined(CONFIG_HUGETLB_PAGE_SIZE_4MB)
+#define HV_PGSZ_IDX_HUGE	HV_PGSZ_IDX_4MB
+#define HV_PGSZ_MASK_HUGE	HV_PGSZ_MASK_4MB
+#else
+#error Broken huge page size setting...
+#endif
+#endif
+
+static void setup_tsb_params(struct mm_struct *mm, unsigned long tsb_idx, unsigned long tsb_bytes)
 {
 	unsigned long tsb_reg, base, tsb_paddr;
 	unsigned long page_sz, tte;
 
-	mm->context.tsb_nentries = tsb_bytes / sizeof(struct tsb);
+	mm->context.tsb_block[tsb_idx].tsb_nentries =
+		tsb_bytes / sizeof(struct tsb);
 
 	base = TSBMAP_BASE;
 	tte = pgprot_val(PAGE_KERNEL_LOCKED);
-	tsb_paddr = __pa(mm->context.tsb);
+	tsb_paddr = __pa(mm->context.tsb_block[tsb_idx].tsb);
 	BUG_ON(tsb_paddr & (tsb_bytes - 1UL));
 
 	/* Use the smallest page size that can map the whole TSB
@@ -147,61 +190,49 @@ static void setup_tsb_params(struct mm_struct *mm, unsigned long tsb_bytes)
 		/* Physical mapping, no locked TLB entry for TSB.  */
 		tsb_reg |= tsb_paddr;
 
-		mm->context.tsb_reg_val = tsb_reg;
-		mm->context.tsb_map_vaddr = 0;
-		mm->context.tsb_map_pte = 0;
+		mm->context.tsb_block[tsb_idx].tsb_reg_val = tsb_reg;
+		mm->context.tsb_block[tsb_idx].tsb_map_vaddr = 0;
+		mm->context.tsb_block[tsb_idx].tsb_map_pte = 0;
 	} else {
 		tsb_reg |= base;
 		tsb_reg |= (tsb_paddr & (page_sz - 1UL));
 		tte |= (tsb_paddr & ~(page_sz - 1UL));
 
-		mm->context.tsb_reg_val = tsb_reg;
-		mm->context.tsb_map_vaddr = base;
-		mm->context.tsb_map_pte = tte;
+		mm->context.tsb_block[tsb_idx].tsb_reg_val = tsb_reg;
+		mm->context.tsb_block[tsb_idx].tsb_map_vaddr = base;
+		mm->context.tsb_block[tsb_idx].tsb_map_pte = tte;
 	}
 
 	/* Setup the Hypervisor TSB descriptor.  */
 	if (tlb_type == hypervisor) {
-		struct hv_tsb_descr *hp = &mm->context.tsb_descr;
+		struct hv_tsb_descr *hp = &mm->context.tsb_descr[tsb_idx];
 
-		switch (PAGE_SIZE) {
-		case 8192:
+		switch (tsb_idx) {
+		case MM_TSB_BASE:
+			hp->pgsz_idx = HV_PGSZ_IDX_BASE;
+			break;
+#ifdef CONFIG_HUGETLB_PAGE
+		case MM_TSB_HUGE:
+			hp->pgsz_idx = HV_PGSZ_IDX_HUGE;
+			break;
+#endif
 		default:
-			hp->pgsz_idx = HV_PGSZ_IDX_8K;
-			break;
-
-		case 64 * 1024:
-			hp->pgsz_idx = HV_PGSZ_IDX_64K;
-			break;
-
-		case 512 * 1024:
-			hp->pgsz_idx = HV_PGSZ_IDX_512K;
-			break;
-
-		case 4 * 1024 * 1024:
-			hp->pgsz_idx = HV_PGSZ_IDX_4MB;
-			break;
+			BUG();
 		};
 		hp->assoc = 1;
 		hp->num_ttes = tsb_bytes / 16;
 		hp->ctx_idx = 0;
-		switch (PAGE_SIZE) {
-		case 8192:
+		switch (tsb_idx) {
+		case MM_TSB_BASE:
+			hp->pgsz_mask = HV_PGSZ_MASK_BASE;
+			break;
+#ifdef CONFIG_HUGETLB_PAGE
+		case MM_TSB_HUGE:
+			hp->pgsz_mask = HV_PGSZ_MASK_HUGE;
+			break;
+#endif
 		default:
-			hp->pgsz_mask = HV_PGSZ_MASK_8K;
-			break;
-
-		case 64 * 1024:
-			hp->pgsz_mask = HV_PGSZ_MASK_64K;
-			break;
-
-		case 512 * 1024:
-			hp->pgsz_mask = HV_PGSZ_MASK_512K;
-			break;
-
-		case 4 * 1024 * 1024:
-			hp->pgsz_mask = HV_PGSZ_MASK_4MB;
-			break;
+			BUG();
 		};
 		hp->tsb_base = tsb_paddr;
 		hp->resv = 0;
@@ -241,11 +272,11 @@ void __init tsb_cache_init(void)
 	}
 }
 
-/* When the RSS of an address space exceeds mm->context.tsb_rss_limit,
- * do_sparc64_fault() invokes this routine to try and grow the TSB.
+/* When the RSS of an address space exceeds tsb_rss_limit for a TSB,
+ * do_sparc64_fault() invokes this routine to try and grow it.
  *
  * When we reach the maximum TSB size supported, we stick ~0UL into
- * mm->context.tsb_rss_limit so the grow checks in update_mmu_cache()
+ * tsb_rss_limit for that TSB so the grow checks in do_sparc64_fault()
  * will not trigger any longer.
  *
  * The TSB can be anywhere from 8K to 1MB in size, in increasing powers
@@ -257,7 +288,7 @@ void __init tsb_cache_init(void)
  * the number of entries that the current TSB can hold at once.  Currently,
  * we trigger when the RSS hits 3/4 of the TSB capacity.
  */
-void tsb_grow(struct mm_struct *mm, unsigned long rss)
+void tsb_grow(struct mm_struct *mm, unsigned long tsb_index, unsigned long rss)
 {
 	unsigned long max_tsb_size = 1 * 1024 * 1024;
 	unsigned long new_size, old_size, flags;
@@ -297,7 +328,8 @@ retry_tsb_alloc:
 		 * down to a 0-order allocation and force no TSB
 		 * growing for this address space.
 		 */
-		if (mm->context.tsb == NULL && new_cache_index > 0) {
+		if (mm->context.tsb_block[tsb_index].tsb == NULL &&
+		    new_cache_index > 0) {
 			new_cache_index = 0;
 			new_size = 8192;
 			new_rss_limit = ~0UL;
@@ -307,8 +339,8 @@ retry_tsb_alloc:
 		/* If we failed on a TSB grow, we are under serious
 		 * memory pressure so don't try to grow any more.
 		 */
-		if (mm->context.tsb != NULL)
-			mm->context.tsb_rss_limit = ~0UL;
+		if (mm->context.tsb_block[tsb_index].tsb != NULL)
+			mm->context.tsb_block[tsb_index].tsb_rss_limit = ~0UL;
 		return;
 	}
 
@@ -339,23 +371,26 @@ retry_tsb_alloc:
 	 */
 	spin_lock_irqsave(&mm->context.lock, flags);
 
-	old_tsb = mm->context.tsb;
-	old_cache_index = (mm->context.tsb_reg_val & 0x7UL);
-	old_size = mm->context.tsb_nentries * sizeof(struct tsb);
+	old_tsb = mm->context.tsb_block[tsb_index].tsb;
+	old_cache_index =
+		(mm->context.tsb_block[tsb_index].tsb_reg_val & 0x7UL);
+	old_size = (mm->context.tsb_block[tsb_index].tsb_nentries *
+		    sizeof(struct tsb));
 
 
 	/* Handle multiple threads trying to grow the TSB at the same time.
 	 * One will get in here first, and bump the size and the RSS limit.
 	 * The others will get in here next and hit this check.
 	 */
-	if (unlikely(old_tsb && (rss < mm->context.tsb_rss_limit))) {
+	if (unlikely(old_tsb &&
+		     (rss < mm->context.tsb_block[tsb_index].tsb_rss_limit))) {
 		spin_unlock_irqrestore(&mm->context.lock, flags);
 
 		kmem_cache_free(tsb_caches[new_cache_index], new_tsb);
 		return;
 	}
 
-	mm->context.tsb_rss_limit = new_rss_limit;
+	mm->context.tsb_block[tsb_index].tsb_rss_limit = new_rss_limit;
 
 	if (old_tsb) {
 		extern void copy_tsb(unsigned long old_tsb_base,
@@ -372,8 +407,8 @@ retry_tsb_alloc:
 		copy_tsb(old_tsb_base, old_size, new_tsb_base, new_size);
 	}
 
-	mm->context.tsb = new_tsb;
-	setup_tsb_params(mm, new_size);
+	mm->context.tsb_block[tsb_index].tsb = new_tsb;
+	setup_tsb_params(mm, tsb_index, new_size);
 
 	spin_unlock_irqrestore(&mm->context.lock, flags);
 
@@ -394,40 +429,65 @@ retry_tsb_alloc:
 
 int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 {
+#ifdef CONFIG_HUGETLB_PAGE
+	unsigned long huge_pte_count;
+#endif
+	unsigned int i;
+
 	spin_lock_init(&mm->context.lock);
 
 	mm->context.sparc64_ctx_val = 0UL;
+
+#ifdef CONFIG_HUGETLB_PAGE
+	/* We reset it to zero because the fork() page copying
+	 * will re-increment the counters as the parent PTEs are
+	 * copied into the child address space.
+	 */
+	huge_pte_count = mm->context.huge_pte_count;
+	mm->context.huge_pte_count = 0;
+#endif
 
 	/* copy_mm() copies over the parent's mm_struct before calling
 	 * us, so we need to zero out the TSB pointer or else tsb_grow()
 	 * will be confused and think there is an older TSB to free up.
 	 */
-	mm->context.tsb = NULL;
+	for (i = 0; i < MM_NUM_TSBS; i++)
+		mm->context.tsb_block[i].tsb = NULL;
 
 	/* If this is fork, inherit the parent's TSB size.  We would
 	 * grow it to that size on the first page fault anyways.
 	 */
-	tsb_grow(mm, get_mm_rss(mm));
+	tsb_grow(mm, MM_TSB_BASE, get_mm_rss(mm));
 
-	if (unlikely(!mm->context.tsb))
+#ifdef CONFIG_HUGETLB_PAGE
+	if (unlikely(huge_pte_count))
+		tsb_grow(mm, MM_TSB_HUGE, huge_pte_count);
+#endif
+
+	if (unlikely(!mm->context.tsb_block[MM_TSB_BASE].tsb))
 		return -ENOMEM;
 
 	return 0;
 }
 
+static void tsb_destroy_one(struct tsb_config *tp)
+{
+	unsigned long cache_index;
+
+	if (!tp->tsb)
+		return;
+	cache_index = tp->tsb_reg_val & 0x7UL;
+	kmem_cache_free(tsb_caches[cache_index], tp->tsb);
+	tp->tsb = NULL;
+	tp->tsb_reg_val = 0UL;
+}
+
 void destroy_context(struct mm_struct *mm)
 {
-	unsigned long flags, cache_index;
+	unsigned long flags, i;
 
-	cache_index = (mm->context.tsb_reg_val & 0x7UL);
-	kmem_cache_free(tsb_caches[cache_index], mm->context.tsb);
-
-	/* We can remove these later, but for now it's useful
-	 * to catch any bogus post-destroy_context() references
-	 * to the TSB.
-	 */
-	mm->context.tsb = NULL;
-	mm->context.tsb_reg_val = 0UL;
+	for (i = 0; i < MM_NUM_TSBS; i++)
+		tsb_destroy_one(&mm->context.tsb_block[i]);
 
 	spin_lock_irqsave(&ctx_alloc_lock, flags);
 

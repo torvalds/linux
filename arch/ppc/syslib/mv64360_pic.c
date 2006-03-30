@@ -1,6 +1,4 @@
 /*
- * arch/ppc/kernel/mv64360_pic.c
- *
  * Interrupt controller support for Marvell's MV64360.
  *
  * Author: Rabeeh Khoury <rabeeh@galileo.co.il>

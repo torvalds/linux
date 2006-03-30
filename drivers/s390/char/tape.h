@@ -250,6 +250,7 @@ extern void tape_free_request(struct tape_request *);
 extern int tape_do_io(struct tape_device *, struct tape_request *);
 extern int tape_do_io_async(struct tape_device *, struct tape_request *);
 extern int tape_do_io_interruptible(struct tape_device *, struct tape_request *);
+extern int tape_cancel_io(struct tape_device *, struct tape_request *);
 void tape_hotplug_event(struct tape_device *, int major, int action);
 
 static inline int

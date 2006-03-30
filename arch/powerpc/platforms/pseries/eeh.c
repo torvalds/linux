@@ -1018,7 +1018,7 @@ static int __init eeh_init_proc(void)
 {
 	struct proc_dir_entry *e;
 
-	if (platform_is_pseries()) {
+	if (machine_is(pseries)) {
 		e = create_proc_entry("ppc64/eeh", 0, NULL);
 		if (e)
 			e->proc_fops = &proc_eeh_operations;

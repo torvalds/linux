@@ -17,11 +17,13 @@ The format of this option is:
 			ttyX for any other virtual console
 			ttySx for a serial port
 			lp0 for the first parallel port
+			ttyUSB0 for the first USB serial device
 
 	options:	depend on the driver. For the serial port this
-			defines the baudrate/parity/bits of the port,
-			in the format BBBBPN, where BBBB is the speed,
-			P is parity (n/o/e), and N is bits. Default is
+			defines the baudrate/parity/bits/flow control of
+			the port, in the format BBBBPNF, where BBBB is the
+			speed, P is parity (n/o/e), N is number of bits,
+			and F is flow control ('r' for RTS). Default is
 			9600n8. The maximum baudrate is 115200.
 
 You can specify multiple console= options on the kernel command line.
@@ -44,6 +46,9 @@ become the console.
 
 You will need to create a new device to use /dev/console. The official
 /dev/console is now character device 5,1.
+
+(You can also use a network device as a console.  See
+Documentation/networking/netconsole.txt for information on that.)
 
 Here's an example that will use /dev/ttyS1 (COM2) as the console.
 Replace the sample values as needed.

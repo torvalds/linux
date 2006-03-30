@@ -199,13 +199,11 @@ pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr)
 	pte_t *pte = NULL;
 
 	pgd = pgd_offset(mm, addr);
-	if (pgd) {
-		pud = pud_offset(pgd, addr);
-		if (pud) {
-			pmd = pmd_alloc(mm, pud, addr);
-			if (pmd)
-				pte = pte_alloc_map(mm, pmd, addr);
-		}
+	pud = pud_alloc(mm, pgd, addr);
+	if (pud) {
+		pmd = pmd_alloc(mm, pud, addr);
+		if (pmd)
+			pte = pte_alloc_map(mm, pmd, addr);
 	}
 	return pte;
 }
@@ -231,12 +229,13 @@ pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
 	return pte;
 }
 
-#define mk_pte_huge(entry) do { pte_val(entry) |= _PAGE_SZHUGE; } while (0)
-
 void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 		     pte_t *ptep, pte_t entry)
 {
 	int i;
+
+	if (!pte_present(*ptep) && pte_present(entry))
+		mm->context.huge_pte_count++;
 
 	for (i = 0; i < (1 << HUGETLB_PAGE_ORDER); i++) {
 		set_pte_at(mm, addr, ptep, entry);
@@ -253,6 +252,8 @@ pte_t huge_ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
 	int i;
 
 	entry = *ptep;
+	if (pte_present(entry))
+		mm->context.huge_pte_count--;
 
 	for (i = 0; i < (1 << HUGETLB_PAGE_ORDER); i++) {
 		pte_clear(mm, addr, ptep);
@@ -261,18 +262,6 @@ pte_t huge_ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
 	}
 
 	return entry;
-}
-
-/*
- * This function checks for proper alignment of input addr and len parameters.
- */
-int is_aligned_hugepage_range(unsigned long addr, unsigned long len)
-{
-	if (len & ~HPAGE_MASK)
-		return -EINVAL;
-	if (addr & ~HPAGE_MASK)
-		return -EINVAL;
-	return 0;
 }
 
 struct page *follow_huge_addr(struct mm_struct *mm,
@@ -302,6 +291,15 @@ static void context_reload(void *__data)
 
 void hugetlb_prefault_arch_hook(struct mm_struct *mm)
 {
+	struct tsb_config *tp = &mm->context.tsb_block[MM_TSB_HUGE];
+
+	if (likely(tp->tsb != NULL))
+		return;
+
+	tsb_grow(mm, MM_TSB_HUGE, 0);
+	tsb_context_switch(mm);
+	smp_tsb_sync(mm);
+
 	/* On UltraSPARC-III+ and later, configure the second half of
 	 * the Data-TLB for huge pages.
 	 */

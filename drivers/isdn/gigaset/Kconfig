@@ -1,0 +1,42 @@
+menu "Siemens Gigaset"
+	depends on ISDN_I4L
+
+config ISDN_DRV_GIGASET
+	tristate "Siemens Gigaset support (isdn)"
+	depends on ISDN_I4L && m
+#	depends on ISDN_I4L && MODULES
+	help
+	  Say m here if you have a Gigaset or Sinus isdn device.
+
+if ISDN_DRV_GIGASET!=n
+
+config GIGASET_BASE
+	tristate "Gigaset base station support"
+	depends on ISDN_DRV_GIGASET && USB
+	help
+	  Say m here if you need to communicate with the base
+	  directly via USB.
+
+config GIGASET_M105
+	tristate "Gigaset M105 support"
+	depends on ISDN_DRV_GIGASET && USB
+	help
+	  Say m here if you need the driver for the Gigaset M105 device.
+
+config GIGASET_DEBUG
+	bool "Gigaset debugging"
+	help
+	  This enables debugging code in the Gigaset drivers.
+	  If in doubt, say yes.
+
+config GIGASET_UNDOCREQ
+	bool "Support for undocumented USB requests"
+	help
+	  This enables support for USB requests we only know from
+	  reverse engineering (currently M105 only). If you need
+	  features like configuration mode of M105, say yes. If you
+	  care about your device, say no.
+
+endif
+
+endmenu

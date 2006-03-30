@@ -29,20 +29,25 @@ extern int init_new_context(struct task_struct *tsk, struct mm_struct *mm);
 extern void destroy_context(struct mm_struct *mm);
 
 extern void __tsb_context_switch(unsigned long pgd_pa,
-				 unsigned long tsb_reg,
-				 unsigned long tsb_vaddr,
-				 unsigned long tsb_pte,
+				 struct tsb_config *tsb_base,
+				 struct tsb_config *tsb_huge,
 				 unsigned long tsb_descr_pa);
 
 static inline void tsb_context_switch(struct mm_struct *mm)
 {
-	__tsb_context_switch(__pa(mm->pgd), mm->context.tsb_reg_val,
-			     mm->context.tsb_map_vaddr,
-			     mm->context.tsb_map_pte,
-			     __pa(&mm->context.tsb_descr));
+	__tsb_context_switch(__pa(mm->pgd),
+			     &mm->context.tsb_block[0],
+#ifdef CONFIG_HUGETLB_PAGE
+			     (mm->context.tsb_block[1].tsb ?
+			      &mm->context.tsb_block[1] :
+			      NULL)
+#else
+			     NULL
+#endif
+			     , __pa(&mm->context.tsb_descr[0]));
 }
 
-extern void tsb_grow(struct mm_struct *mm, unsigned long mm_rss);
+extern void tsb_grow(struct mm_struct *mm, unsigned long tsb_index, unsigned long mm_rss);
 #ifdef CONFIG_SMP
 extern void smp_tsb_sync(struct mm_struct *mm);
 #else

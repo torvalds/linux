@@ -450,8 +450,7 @@ int deregister_mtd_blktrans(struct mtd_blktrans_ops *tr)
 
 	kfree(tr->blkcore_priv);
 
-	if (!list_empty(&tr->devs))
-		BUG();
+	BUG_ON(!list_empty(&tr->devs));
 	return 0;
 }
 

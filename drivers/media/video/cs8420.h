@@ -20,7 +20,7 @@
 #define __CS8420_H__
 
 /* Initialization Sequence */
-	 
+
 static __u8 init8420[] = {
 	1, 0x01,	2, 0x02,	3, 0x00,	4, 0x46,
 	5, 0x24,	6, 0x84,	18, 0x18,	19, 0x13,

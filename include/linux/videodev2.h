@@ -75,7 +75,7 @@ struct video_device
 	int minor;
 
 	/* device ops + callbacks */
-	struct file_operations *fops;
+	const struct file_operations *fops;
 	void (*release)(struct video_device *vfd);
 
 
@@ -883,6 +883,7 @@ struct v4l2_modulator
 #define V4L2_TUNER_MODE_LANG2		0x0002
 #define V4L2_TUNER_MODE_SAP		0x0002
 #define V4L2_TUNER_MODE_LANG1		0x0003
+#define V4L2_TUNER_MODE_LANG1_LANG2	0x0004
 
 struct v4l2_frequency
 {

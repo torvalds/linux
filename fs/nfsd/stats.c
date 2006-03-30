@@ -80,7 +80,7 @@ static int nfsd_proc_open(struct inode *inode, struct file *file)
 	return single_open(file, nfsd_proc_show, NULL);
 }
 
-static struct file_operations nfsd_proc_fops = {
+static const struct file_operations nfsd_proc_fops = {
 	.owner = THIS_MODULE,
 	.open = nfsd_proc_open,
 	.read  = seq_read,

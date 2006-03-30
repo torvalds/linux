@@ -4,6 +4,7 @@
 #include <linux/device.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
+#include <linux/workqueue.h>
 #include <asm/atomic.h>
 
 struct request_queue;
@@ -73,7 +74,6 @@ struct scsi_device {
 	unsigned sector_size;	/* size in bytes */
 
 	void *hostdata;		/* available to low-level driver */
-	char devfs_name[256];	/* devfs junk */
 	char type;
 	char scsi_level;
 	char inq_periph_qual;	/* PQ from INQUIRY data */	
@@ -138,6 +138,8 @@ struct scsi_device {
 	struct device		sdev_gendev;
 	struct class_device	sdev_classdev;
 
+	struct execute_work	ew; /* used to get process context on put */
+
 	enum scsi_device_state sdev_state;
 	unsigned long		sdev_data[0];
 } __attribute__((aligned(sizeof(unsigned long))));
@@ -154,6 +156,11 @@ struct scsi_device {
 #define scmd_printk(prefix, scmd, fmt, a...)	\
 	dev_printk(prefix, &(scmd)->device->sdev_gendev, fmt, ##a)
 
+enum scsi_target_state {
+	STARGET_RUNNING = 1,
+	STARGET_DEL,
+};
+
 /*
  * scsi_target: representation of a scsi target, for now, this is only
  * used for single_lun devices. If no one has active IO to the target,
@@ -168,8 +175,13 @@ struct scsi_target {
 	unsigned int		channel;
 	unsigned int		id; /* target id ... replace
 				     * scsi_device.id eventually */
-	unsigned long		create:1; /* signal that it needs to be added */
+	unsigned int		create:1; /* signal that it needs to be added */
+	unsigned int		pdt_1f_for_no_lun;	/* PDT = 0x1f */
+						/* means no lun present */
+
 	char			scsi_level;
+	struct execute_work	ew;
+	enum scsi_target_state	state;
 	void 			*hostdata; /* available to low-level driver */
 	unsigned long		starget_data[0]; /* for the transport */
 	/* starget_data must be the last element!!!! */
@@ -249,6 +261,11 @@ extern int scsi_mode_sense(struct scsi_device *sdev, int dbd, int modepage,
 			   unsigned char *buffer, int len, int timeout,
 			   int retries, struct scsi_mode_data *data,
 			   struct scsi_sense_hdr *);
+extern int scsi_mode_select(struct scsi_device *sdev, int pf, int sp,
+			    int modepage, unsigned char *buffer, int len,
+			    int timeout, int retries,
+			    struct scsi_mode_data *data,
+			    struct scsi_sense_hdr *);
 extern int scsi_test_unit_ready(struct scsi_device *sdev, int timeout,
 				int retries);
 extern int scsi_device_set_state(struct scsi_device *sdev,
@@ -280,6 +297,11 @@ extern int scsi_execute_async(struct scsi_device *sdev,
 			      int timeout, int retries, void *privdata,
 			      void (*done)(void *, char *, int, int),
 			      gfp_t gfp);
+
+static inline void scsi_device_reprobe(struct scsi_device *sdev)
+{
+	device_reprobe(&sdev->sdev_gendev);
+}
 
 static inline unsigned int sdev_channel(struct scsi_device *sdev)
 {

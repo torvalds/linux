@@ -29,7 +29,7 @@ struct debugfs_blob_wrapper {
 #if defined(CONFIG_DEBUG_FS)
 struct dentry *debugfs_create_file(const char *name, mode_t mode,
 				   struct dentry *parent, void *data,
-				   struct file_operations *fops);
+				   const struct file_operations *fops);
 
 struct dentry *debugfs_create_dir(const char *name, struct dentry *parent);
 

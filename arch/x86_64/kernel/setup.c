@@ -46,6 +46,7 @@
 #include <linux/cpufreq.h>
 #include <linux/dmi.h>
 #include <linux/dma-mapping.h>
+#include <linux/ctype.h>
 
 #include <asm/mtrr.h>
 #include <asm/uaccess.h>
@@ -67,6 +68,7 @@
 #include <asm/swiotlb.h>
 #include <asm/sections.h>
 #include <asm/gart-mapping.h>
+#include <asm/dmi.h>
 
 /*
  * Machine setup..
@@ -90,6 +92,12 @@ int acpi_numa __initdata;
 int bootloader_type;
 
 unsigned long saved_video_mode;
+
+/* 
+ * Early DMI memory
+ */
+int dmi_alloc_index;
+char dmi_alloc_data[DMI_MAX_DATA];
 
 /*
  * Setup options
@@ -270,6 +278,13 @@ static void __init probe_roms(void)
 	}
 }
 
+/* Check for full argument with no trailing characters */
+static int fullarg(char *p, char *arg)
+{
+	int l = strlen(arg);
+	return !memcmp(p, arg, l) && (p[l] == 0 || isspace(p[l]));
+}
+
 static __init void parse_cmdline_early (char ** cmdline_p)
 {
 	char c = ' ', *to = command_line, *from = COMMAND_LINE;
@@ -293,10 +308,10 @@ static __init void parse_cmdline_early (char ** cmdline_p)
 #endif
 #ifdef CONFIG_ACPI
 		/* "acpi=off" disables both ACPI table parsing and interpreter init */
-		if (!memcmp(from, "acpi=off", 8))
+		if (fullarg(from,"acpi=off"))
 			disable_acpi();
 
-		if (!memcmp(from, "acpi=force", 10)) { 
+		if (fullarg(from, "acpi=force")) { 
 			/* add later when we do DMI horrors: */
 			acpi_force = 1;
 			acpi_disabled = 0;
@@ -304,52 +319,47 @@ static __init void parse_cmdline_early (char ** cmdline_p)
 
 		/* acpi=ht just means: do ACPI MADT parsing 
 		   at bootup, but don't enable the full ACPI interpreter */
-		if (!memcmp(from, "acpi=ht", 7)) { 
+		if (fullarg(from, "acpi=ht")) { 
 			if (!acpi_force)
 				disable_acpi();
 			acpi_ht = 1; 
 		}
-                else if (!memcmp(from, "pci=noacpi", 10)) 
+                else if (fullarg(from, "pci=noacpi")) 
 			acpi_disable_pci();
-		else if (!memcmp(from, "acpi=noirq", 10))
+		else if (fullarg(from, "acpi=noirq"))
 			acpi_noirq_set();
 
-		else if (!memcmp(from, "acpi_sci=edge", 13))
+		else if (fullarg(from, "acpi_sci=edge"))
 			acpi_sci_flags.trigger =  1;
-		else if (!memcmp(from, "acpi_sci=level", 14))
+		else if (fullarg(from, "acpi_sci=level"))
 			acpi_sci_flags.trigger = 3;
-		else if (!memcmp(from, "acpi_sci=high", 13))
+		else if (fullarg(from, "acpi_sci=high"))
 			acpi_sci_flags.polarity = 1;
-		else if (!memcmp(from, "acpi_sci=low", 12))
+		else if (fullarg(from, "acpi_sci=low"))
 			acpi_sci_flags.polarity = 3;
 
 		/* acpi=strict disables out-of-spec workarounds */
-		else if (!memcmp(from, "acpi=strict", 11)) {
+		else if (fullarg(from, "acpi=strict")) {
 			acpi_strict = 1;
 		}
 #ifdef CONFIG_X86_IO_APIC
-		else if (!memcmp(from, "acpi_skip_timer_override", 24))
+		else if (fullarg(from, "acpi_skip_timer_override"))
 			acpi_skip_timer_override = 1;
 #endif
 #endif
 
-		if (!memcmp(from, "disable_timer_pin_1", 19))
+		if (fullarg(from, "disable_timer_pin_1"))
 			disable_timer_pin_1 = 1;
-		if (!memcmp(from, "enable_timer_pin_1", 18))
+		if (fullarg(from, "enable_timer_pin_1"))
 			disable_timer_pin_1 = -1;
 
-		if (!memcmp(from, "nolapic", 7) ||
-		    !memcmp(from, "disableapic", 11))
+		if (fullarg(from, "nolapic") || fullarg(from, "disableapic"))
 			disable_apic = 1;
 
-		/* Don't confuse with noapictimer */
-		if (!memcmp(from, "noapic", 6) &&
-			(from[6] == ' ' || from[6] == 0))
+		if (fullarg(from, "noapic"))
 			skip_ioapic_setup = 1;
 
-		/* Make sure to not confuse with apic= */
-		if (!memcmp(from, "apic", 4) &&
-			(from[4] == ' ' || from[4] == 0)) {
+		if (fullarg(from,"apic")) {
 			skip_ioapic_setup = 0;
 			ioapic_force = 1;
 		}
@@ -388,7 +398,7 @@ static __init void parse_cmdline_early (char ** cmdline_p)
 			iommu_setup(from+6); 
 		}
 
-		if (!memcmp(from,"oops=panic", 10))
+		if (fullarg(from,"oops=panic"))
 			panic_on_oops = 1;
 
 		if (!memcmp(from, "noexec=", 7))
@@ -611,10 +621,13 @@ void __init setup_arch(char **cmdline_p)
 	 * we are rounding upwards:
 	 */
 	end_pfn = e820_end_of_ram();
+	num_physpages = end_pfn;		/* for pfn_valid */
 
 	check_efer();
 
 	init_memory_mapping(0, (end_pfn_map << PAGE_SHIFT));
+
+	dmi_scan_machine();
 
 	zap_low_mappings(0);
 
@@ -708,6 +721,12 @@ void __init setup_arch(char **cmdline_p)
 
 	check_ioapic();
 
+	/*
+	 * set this early, so we dont allocate cpu0
+	 * if MADT list doesnt list BSP first
+	 * mpparse.c/MP_processor_info() allocates logical cpu numbers.
+	 */
+	cpu_set(0, cpu_present_map);
 #ifdef CONFIG_ACPI
 	/*
 	 * Read APIC and some other early information from ACPI tables.
@@ -836,7 +855,7 @@ static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
 	unsigned bits;
 #ifdef CONFIG_NUMA
 	int node = 0;
-	unsigned apicid = phys_proc_id[cpu];
+	unsigned apicid = hard_smp_processor_id();
 #endif
 
 	bits = 0;
@@ -846,7 +865,7 @@ static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
 	/* Low order bits define the core id (index of core in socket) */
 	cpu_core_id[cpu] = phys_proc_id[cpu] & ((1 << bits)-1);
 	/* Convert the APIC ID into the socket ID */
-	phys_proc_id[cpu] >>= bits;
+	phys_proc_id[cpu] = phys_pkg_id(bits);
 
 #ifdef CONFIG_NUMA
   	node = phys_proc_id[cpu];
@@ -872,8 +891,8 @@ static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
  	}
 	numa_set_node(cpu, node);
 
-  	printk(KERN_INFO "CPU %d(%d) -> Node %d -> Core %d\n",
-  			cpu, c->x86_max_cores, node, cpu_core_id[cpu]);
+  	printk(KERN_INFO "CPU %d/%x(%d) -> Node %d -> Core %d\n",
+  			cpu, apicid, c->x86_max_cores, node, cpu_core_id[cpu]);
 #endif
 #endif
 }
@@ -927,8 +946,6 @@ static int __init init_amd(struct cpuinfo_x86 *c)
 
 	if (c->extended_cpuid_level >= 0x80000008) {
 		c->x86_max_cores = (cpuid_ecx(0x80000008) & 0xff) + 1;
-		if (c->x86_max_cores & (c->x86_max_cores - 1))
-			c->x86_max_cores = 1;
 
 		amd_detect_cmp(c);
 	}
@@ -945,7 +962,6 @@ static void __cpuinit detect_ht(struct cpuinfo_x86 *c)
 
 	cpuid(1, &eax, &ebx, &ecx, &edx);
 
-	c->apicid = phys_pkg_id(0);
 
 	if (!cpu_has(c, X86_FEATURE_HT) || cpu_has(c, X86_FEATURE_CMP_LEGACY))
 		return;
@@ -1154,6 +1170,8 @@ void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 			c->x86_capability[2] = cpuid_edx(0x80860001);
 	}
 
+	c->apicid = phys_pkg_id(0);
+
 	/*
 	 * Vendor-specific initialization.  In this section we
 	 * canonicalize the feature flags, meaning if there are
@@ -1261,7 +1279,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 
 		/* Intel-defined (#2) */
-		"pni", NULL, NULL, "monitor", "ds_cpl", "vmx", NULL, "est",
+		"pni", NULL, NULL, "monitor", "ds_cpl", "vmx", "smx", "est",
 		"tm2", NULL, "cid", NULL, NULL, "cx16", "xtpr", NULL,
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
@@ -1344,8 +1362,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	{ 
 		int i; 
 		for ( i = 0 ; i < 32*NCAPINTS ; i++ )
-			if ( test_bit(i, &c->x86_capability) &&
-			     x86_cap_flags[i] != NULL )
+			if (cpu_has(c, i) && x86_cap_flags[i] != NULL)
 				seq_printf(m, " %s", x86_cap_flags[i]);
 	}
 		
@@ -1402,11 +1419,4 @@ struct seq_operations cpuinfo_op = {
 	.stop =	c_stop,
 	.show =	show_cpuinfo,
 };
-
-static int __init run_dmi_scan(void)
-{
-	dmi_scan_machine();
-	return 0;
-}
-core_initcall(run_dmi_scan);
 

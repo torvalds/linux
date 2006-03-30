@@ -486,8 +486,7 @@ static void pc_close(struct tty_struct * tty, struct file * filp)
 		} /* End channel is open more than once */
 
 		/* Port open only once go ahead with shutdown & reset */
-		if (ch->count < 0)
-			BUG();
+		BUG_ON(ch->count < 0);
 
 		/* ---------------------------------------------------------------
 			Let the rest of the driver know the channel is being closed.

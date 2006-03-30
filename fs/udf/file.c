@@ -248,7 +248,7 @@ static int udf_release_file(struct inode * inode, struct file * filp)
 	return 0;
 }
 
-struct file_operations udf_file_operations = {
+const struct file_operations udf_file_operations = {
 	.read			= generic_file_read,
 	.ioctl			= udf_ioctl,
 	.open			= generic_file_open,

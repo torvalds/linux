@@ -421,3 +421,22 @@ void nfs_delegation_reap_unclaimed(struct nfs4_client *clp)
 		nfs_free_delegation(delegation);
 	}
 }
+
+int nfs4_copy_delegation_stateid(nfs4_stateid *dst, struct inode *inode)
+{
+	struct nfs4_client *clp = NFS_SERVER(inode)->nfs4_state;
+	struct nfs_inode *nfsi = NFS_I(inode);
+	struct nfs_delegation *delegation;
+	int res = 0;
+
+	if (nfsi->delegation_state == 0)
+		return 0;
+	spin_lock(&clp->cl_lock);
+	delegation = nfsi->delegation;
+	if (delegation != NULL) {
+		memcpy(dst->data, delegation->stateid.data, sizeof(dst->data));
+		res = 1;
+	}
+	spin_unlock(&clp->cl_lock);
+	return res;
+}

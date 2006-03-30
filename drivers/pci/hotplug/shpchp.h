@@ -33,6 +33,7 @@
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/sched.h>	/* signal_pending(), struct timer_list */
+#include <linux/mutex.h>
 
 #include "pci_hotplug.h"
 
@@ -45,6 +46,7 @@
 extern int shpchp_poll_mode;
 extern int shpchp_poll_time;
 extern int shpchp_debug;
+extern struct workqueue_struct *shpchp_wq;
 
 /*#define dbg(format, arg...) do { if (shpchp_debug) printk(KERN_DEBUG "%s: " format, MY_NAME , ## arg); } while (0)*/
 #define dbg(format, arg...) do { if (shpchp_debug) printk("%s: " format, MY_NAME , ## arg); } while (0)
@@ -52,10 +54,8 @@ extern int shpchp_debug;
 #define info(format, arg...) printk(KERN_INFO "%s: " format, MY_NAME , ## arg)
 #define warn(format, arg...) printk(KERN_WARNING "%s: " format, MY_NAME , ## arg)
 
-#define SLOT_MAGIC	0x67267321
+#define SLOT_NAME_SIZE 10
 struct slot {
-	u32 magic;
-	struct slot *next;
 	u8 bus;
 	u8 device;
 	u16 status;
@@ -70,26 +70,27 @@ struct slot {
 	struct hpc_ops *hpc_ops;
 	struct hotplug_slot *hotplug_slot;
 	struct list_head	slot_list;
+	char name[SLOT_NAME_SIZE];
+	struct work_struct work;	/* work for button event */
+	struct mutex lock;
 };
 
 struct event_info {
 	u32 event_type;
-	u8 hp_slot;
+	struct slot *p_slot;
+	struct work_struct work;
 };
 
 struct controller {
-	struct controller *next;
-	struct semaphore crit_sect;	/* critical section semaphore */
+	struct mutex crit_sect;		/* critical section mutex */
+	struct mutex cmd_lock;		/* command lock */
 	struct php_ctlr_state_s *hpc_ctlr_handle; /* HPC controller handle */
 	int num_slots;			/* Number of slots on ctlr */
 	int slot_num_inc;		/* 1 or -1 */
 	struct pci_dev *pci_dev;
-	struct pci_bus *pci_bus;
-	struct event_info event_queue[10];
-	struct slot *slot;
+	struct list_head slot_list;
 	struct hpc_ops *hpc_ops;
 	wait_queue_head_t queue;	/* sleep & wake process */
-	u8 next_event;
 	u8 bus;
 	u8 device;
 	u8 function;
@@ -105,12 +106,6 @@ struct controller {
 	volatile int cmd_busy;
 };
 
-struct hotplug_params {
-	u8	cache_line_size;
-	u8	latency_timer;
-	u8	enable_serr;
-	u8	enable_perr;
-};
 
 /* Define AMD SHPC ID  */
 #define PCI_DEVICE_ID_AMD_GOLAM_7450	0x7450 
@@ -180,11 +175,8 @@ struct hotplug_params {
 /* sysfs functions for the hotplug controller info */
 extern void shpchp_create_ctrl_files	(struct controller *ctrl);
 
-/* controller functions */
-extern int	shpchp_event_start_thread(void);
-extern void	shpchp_event_stop_thread(void);
-extern int	shpchp_enable_slot(struct slot *slot);
-extern int	shpchp_disable_slot(struct slot *slot);
+extern int	shpchp_sysfs_enable_slot(struct slot *slot);
+extern int	shpchp_sysfs_disable_slot(struct slot *slot);
 
 extern u8	shpchp_handle_attention_button(u8 hp_slot, void *inst_id);
 extern u8	shpchp_handle_switch_change(u8 hp_slot, void *inst_id);
@@ -195,16 +187,28 @@ extern u8	shpchp_handle_power_fault(u8 hp_slot, void *inst_id);
 extern int	shpchp_save_config(struct controller *ctrl, int busnumber, int num_ctlr_slots, int first_device_num);
 extern int	shpchp_configure_device(struct slot *p_slot);
 extern int	shpchp_unconfigure_device(struct slot *p_slot);
-extern void	get_hp_hw_control_from_firmware(struct pci_dev *dev);
-extern void	get_hp_params_from_firmware(struct pci_dev *dev,
-		struct hotplug_params *hpp);
-extern int	shpchprm_get_physical_slot_number(struct controller *ctrl,
-		u32 *sun, u8 busnum, u8 devnum);
 extern void	shpchp_remove_ctrl_files(struct controller *ctrl);
+extern void	cleanup_slots(struct controller *ctrl);
+extern void	queue_pushbutton_work(void *data);
 
 
-/* Global variables */
-extern struct controller *shpchp_ctrl_list;
+#ifdef CONFIG_ACPI
+static inline int get_hp_params_from_firmware(struct pci_dev *dev,
+			struct hotplug_params *hpp)
+{
+	if (ACPI_FAILURE(acpi_get_hp_params_from_firmware(dev, hpp)))
+			return -ENODEV;
+	return 0;
+}
+#define get_hp_hw_control_from_firmware(pdev) \
+	do { \
+		if (DEVICE_ACPI_HANDLE(&(pdev->dev))) \
+			acpi_run_oshp(DEVICE_ACPI_HANDLE(&(pdev->dev))); \
+	} while (0)
+#else
+#define get_hp_params_from_firmware(dev, hpp) (-ENODEV)
+#define get_hp_hw_control_from_firmware(dev) do { } while (0)
+#endif
 
 struct ctrl_reg {
 	volatile u32 base_offset;
@@ -286,10 +290,6 @@ static inline int slot_paranoia_check (struct slot *slot, const char *function)
 		dbg("%s - slot == NULL", function);
 		return -1;
 	}
-	if (slot->magic != SLOT_MAGIC) {
-		dbg("%s - bad magic number for slot", function);
-		return -1;
-	}
 	if (!slot->hotplug_slot) {
 		dbg("%s - slot->hotplug_slot == NULL!", function);
 		return -1;
@@ -314,44 +314,19 @@ static inline struct slot *get_slot (struct hotplug_slot *hotplug_slot, const ch
 
 static inline struct slot *shpchp_find_slot (struct controller *ctrl, u8 device)
 {
-	struct slot *p_slot, *tmp_slot = NULL;
+	struct slot *slot;
 
 	if (!ctrl)
 		return NULL;
 
-	p_slot = ctrl->slot;
-
-	while (p_slot && (p_slot->device != device)) {
-		tmp_slot = p_slot;
-		p_slot = p_slot->next;
-	}
-	if (p_slot == NULL) {
-		err("ERROR: shpchp_find_slot device=0x%x\n", device);
-		p_slot = tmp_slot;
+	list_for_each_entry(slot, &ctrl->slot_list, slot_list) {
+		if (slot->device == device)
+			return slot;
 	}
 
-	return (p_slot);
-}
+	err("%s: slot (device=0x%x) not found\n", __FUNCTION__, device);
 
-static inline int wait_for_ctrl_irq (struct controller *ctrl)
-{
-    DECLARE_WAITQUEUE(wait, current);
-	int retval = 0;
-
-	add_wait_queue(&ctrl->queue, &wait);
-
-	if (!shpchp_poll_mode) {
-		/* Sleep for up to 1 second */
-		msleep_interruptible(1000);
-	} else {
-		/* Sleep for up to 2 seconds */
-		msleep_interruptible(2000);
-	}
-	remove_wait_queue(&ctrl->queue, &wait);
-	if (signal_pending(current))
-		retval =  -EINTR;
-
-	return retval;
+	return NULL;
 }
 
 static inline void amd_pogo_errata_save_misc_reg(struct slot *p_slot)
@@ -425,13 +400,6 @@ static inline void amd_pogo_errata_restore_misc_reg(struct slot *p_slot)
 	else
 		pcix_misc2_temp &= ~PERRNONFATALENABLE_MASK;
 	pci_write_config_dword(p_slot->ctrl->pci_dev, PCIX_MISCII_OFFSET, pcix_misc2_temp);
-}
-
-#define SLOT_NAME_SIZE 10
-
-static inline void make_slot_name(char *buffer, int buffer_size, struct slot *slot)
-{
-	snprintf(buffer, buffer_size, "%04d_%04d", slot->bus, slot->number);
 }
 
 enum php_ctlr_type {

@@ -10,6 +10,8 @@ Introduction
   by the 's3c2410' architecture of ARM Linux. Currently the S3C2410 and
   the S3C2440 are supported CPUs.
 
+  Support for the S3C2400 series is in progress.
+
 
 Configuration
 -------------
@@ -31,6 +33,11 @@ Machines
 
     A general purpose development board, see EB2410ITX.txt for further
     details
+
+  Simtec Electronics IM2440D20 (Osiris)
+
+    CPU Module from Simtec Electronics, with a S3C2440A CPU, nand flash
+    and a PCMCIA controller.
 
   Samsung SMDK2410
 
@@ -85,6 +92,26 @@ Adding New Machines
   mailing list information.
 
 
+I2C
+---
+
+  The hardware I2C core in the CPU is supported in single master
+  mode, and can be configured via platform data.
+
+
+RTC
+---
+
+  Support for the onboard RTC unit, including alarm function.
+
+
+Watchdog
+--------
+
+  The onchip watchdog is available via the standard watchdog
+  interface.
+
+
 NAND
 ----
 
@@ -119,6 +146,15 @@ Clock Management
   The core provides the interface defined in the header file
   include/asm-arm/hardware/clock.h, to allow control over the
   various clock units
+
+
+Suspend to RAM
+--------------
+
+  For boards that provide support for suspend to RAM, the
+  system can be placed into low power suspend.
+
+  See Suspend.txt for more information.
 
 
 Platform Data
@@ -158,6 +194,7 @@ Platform Data
 	exported outside arch/arm/mach-s3c2410/, or exported to
 	modules via EXPORT_SYMBOL() and related functions.
 
+
 Port Contributors
 -----------------
 
@@ -188,8 +225,11 @@ Document Changes
   08 Mar 2005 - BJD - Added LCVR to list of people, updated introduction
   08 Mar 2005 - BJD - Added section on adding machines
   09 Sep 2005 - BJD - Added section on platform data
+  11 Feb 2006 - BJD - Added I2C, RTC and Watchdog sections
+  11 Feb 2006 - BJD - Added Osiris machine, and S3C2400 information
+
 
 Document Author
 ---------------
 
-Ben Dooks, (c) 2004-2005 Simtec Electronics
+Ben Dooks, (c) 2004-2005,2006 Simtec Electronics

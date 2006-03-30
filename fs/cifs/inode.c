@@ -163,9 +163,9 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 
 		if (num_of_bytes < end_of_file)
 			cFYI(1, ("allocation size less than end of file"));
-		cFYI(1,
-		     ("Size %ld and blocks %ld",
-		      (unsigned long) inode->i_size, inode->i_blocks));
+		cFYI(1, ("Size %ld and blocks %llu",
+			(unsigned long) inode->i_size,
+			(unsigned long long)inode->i_blocks));
 		if (S_ISREG(inode->i_mode)) {
 			cFYI(1, ("File inode"));
 			inode->i_op = &cifs_file_inode_ops;
@@ -574,9 +574,9 @@ int cifs_unlink(struct inode *inode, struct dentry *direntry)
 
 	/* Unlink can be called from rename so we can not grab the sem here
 	   since we deadlock otherwise */
-/*	down(&direntry->d_sb->s_vfs_rename_sem);*/
+/*	mutex_lock(&direntry->d_sb->s_vfs_rename_mutex);*/
 	full_path = build_path_from_dentry(direntry);
-/*	up(&direntry->d_sb->s_vfs_rename_sem);*/
+/*	mutex_unlock(&direntry->d_sb->s_vfs_rename_mutex);*/
 	if (full_path == NULL) {
 		FreeXid(xid);
 		return -ENOMEM;
@@ -718,9 +718,9 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 	cifs_sb = CIFS_SB(inode->i_sb);
 	pTcon = cifs_sb->tcon;
 
-	down(&inode->i_sb->s_vfs_rename_sem);
+	mutex_lock(&inode->i_sb->s_vfs_rename_mutex);
 	full_path = build_path_from_dentry(direntry);
-	up(&inode->i_sb->s_vfs_rename_sem);
+	mutex_unlock(&inode->i_sb->s_vfs_rename_mutex);
 	if (full_path == NULL) {
 		FreeXid(xid);
 		return -ENOMEM;
@@ -803,9 +803,9 @@ int cifs_rmdir(struct inode *inode, struct dentry *direntry)
 	cifs_sb = CIFS_SB(inode->i_sb);
 	pTcon = cifs_sb->tcon;
 
-	down(&inode->i_sb->s_vfs_rename_sem);
+	mutex_lock(&inode->i_sb->s_vfs_rename_mutex);
 	full_path = build_path_from_dentry(direntry);
-	up(&inode->i_sb->s_vfs_rename_sem);
+	mutex_unlock(&inode->i_sb->s_vfs_rename_mutex);
 	if (full_path == NULL) {
 		FreeXid(xid);
 		return -ENOMEM;
@@ -1137,9 +1137,9 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 			rc = 0;
 	}
 		
-	down(&direntry->d_sb->s_vfs_rename_sem);
+	mutex_lock(&direntry->d_sb->s_vfs_rename_mutex);
 	full_path = build_path_from_dentry(direntry);
-	up(&direntry->d_sb->s_vfs_rename_sem);
+	mutex_unlock(&direntry->d_sb->s_vfs_rename_mutex);
 	if (full_path == NULL) {
 		FreeXid(xid);
 		return -ENOMEM;

@@ -24,7 +24,7 @@
  */
 
 /* define _CPIA_DEBUG_ for verbose debug output (see cpia.h) */
-/* #define _CPIA_DEBUG_  1 */  
+/* #define _CPIA_DEBUG_  1 */
 
 #include <linux/config.h>
 
@@ -58,7 +58,7 @@ static int video_nr = -1;
 
 #ifdef MODULE
 module_param(video_nr, int, 0);
-MODULE_AUTHOR("Scott J. Bertin <sbertin@securenym.net> & Peter Pregler <Peter_Pregler@email.com> & Johannes Erdfelt <johannes@erdfeld.com>");
+MODULE_AUTHOR("Scott J. Bertin <sbertin@securenym.net> & Peter Pregler <Peter_Pregler@email.com> & Johannes Erdfelt <johannes@erdfelt.com>");
 MODULE_DESCRIPTION("V4L-driver for Vision CPiA based cameras");
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("video");
@@ -67,11 +67,11 @@ MODULE_SUPPORTED_DEVICE("video");
 static unsigned short colorspace_conv = 0;
 module_param(colorspace_conv, ushort, 0444);
 MODULE_PARM_DESC(colorspace_conv,
-                 "\n<n> Colorspace conversion:"
-                 "\n0 = disable"
-                 "\n1 = enable"
-                 "\nDefault value is 0"
-                 "\n");
+		 "\n<n> Colorspace conversion:"
+		 "\n0 = disable"
+		 "\n1 = enable"
+		 "\nDefault value is 0"
+		 "\n");
 
 #define ABOUT "V4L-Driver for Vision CPiA based cameras"
 
@@ -189,8 +189,8 @@ enum {
 #define TC             94
 #define	EXP_ACC_DARK   50
 #define	EXP_ACC_LIGHT  90
-#define HIGH_COMP_102 160		
-#define MAX_COMP      239		
+#define HIGH_COMP_102 160
+#define MAX_COMP      239
 #define DARK_TIME       3
 #define LIGHT_TIME      3
 
@@ -208,7 +208,7 @@ static u8 flicker_jumps[2][2][4] =
 static void reset_camera_struct(struct cam_data *cam);
 static int find_over_exposure(int brightness);
 static void set_flicker(struct cam_params *params, volatile u32 *command_flags,
-                        int on);
+			int on);
 
 
 /**********************************************************************
@@ -262,7 +262,7 @@ static void rvfree(void *mem, unsigned long size)
 static struct proc_dir_entry *cpia_proc_root=NULL;
 
 static int cpia_read_proc(char *page, char **start, off_t off,
-                          int count, int *eof, void *data)
+			  int count, int *eof, void *data)
 {
 	char *out = page;
 	int len, tmp;
@@ -276,58 +276,58 @@ static int cpia_read_proc(char *page, char **start, off_t off,
 	out += sprintf(out, "V4L Driver version:       %d.%d.%d\n",
 		       CPIA_MAJ_VER, CPIA_MIN_VER, CPIA_PATCH_VER);
 	out += sprintf(out, "CPIA Version:             %d.%02d (%d.%d)\n",
-	               cam->params.version.firmwareVersion,
-	               cam->params.version.firmwareRevision,
-	               cam->params.version.vcVersion,
-	               cam->params.version.vcRevision);
+		       cam->params.version.firmwareVersion,
+		       cam->params.version.firmwareRevision,
+		       cam->params.version.vcVersion,
+		       cam->params.version.vcRevision);
 	out += sprintf(out, "CPIA PnP-ID:              %04x:%04x:%04x\n",
-	               cam->params.pnpID.vendor, cam->params.pnpID.product,
-	               cam->params.pnpID.deviceRevision);
+		       cam->params.pnpID.vendor, cam->params.pnpID.product,
+		       cam->params.pnpID.deviceRevision);
 	out += sprintf(out, "VP-Version:               %d.%d %04x\n",
-	               cam->params.vpVersion.vpVersion,
-	               cam->params.vpVersion.vpRevision,
-	               cam->params.vpVersion.cameraHeadID);
-	
+		       cam->params.vpVersion.vpVersion,
+		       cam->params.vpVersion.vpRevision,
+		       cam->params.vpVersion.cameraHeadID);
+
 	out += sprintf(out, "system_state:             %#04x\n",
-	               cam->params.status.systemState);
+		       cam->params.status.systemState);
 	out += sprintf(out, "grab_state:               %#04x\n",
-	               cam->params.status.grabState);
+		       cam->params.status.grabState);
 	out += sprintf(out, "stream_state:             %#04x\n",
-	               cam->params.status.streamState);
+		       cam->params.status.streamState);
 	out += sprintf(out, "fatal_error:              %#04x\n",
-	               cam->params.status.fatalError);
+		       cam->params.status.fatalError);
 	out += sprintf(out, "cmd_error:                %#04x\n",
-	               cam->params.status.cmdError);
+		       cam->params.status.cmdError);
 	out += sprintf(out, "debug_flags:              %#04x\n",
-	               cam->params.status.debugFlags);
+		       cam->params.status.debugFlags);
 	out += sprintf(out, "vp_status:                %#04x\n",
-	               cam->params.status.vpStatus);
+		       cam->params.status.vpStatus);
 	out += sprintf(out, "error_code:               %#04x\n",
-	               cam->params.status.errorCode);
+		       cam->params.status.errorCode);
 	/* QX3 specific entries */
 	if (cam->params.qx3.qx3_detected) {
 		out += sprintf(out, "button:                   %4d\n",
-		               cam->params.qx3.button);
+			       cam->params.qx3.button);
 		out += sprintf(out, "cradled:                  %4d\n",
-		               cam->params.qx3.cradled);
+			       cam->params.qx3.cradled);
 	}
 	out += sprintf(out, "video_size:               %s\n",
-	               cam->params.format.videoSize == VIDEOSIZE_CIF ?
+		       cam->params.format.videoSize == VIDEOSIZE_CIF ?
 		       "CIF " : "QCIF");
 	out += sprintf(out, "roi:                      (%3d, %3d) to (%3d, %3d)\n",
-	               cam->params.roi.colStart*8,
-	               cam->params.roi.rowStart*4,
-	               cam->params.roi.colEnd*8,
-	               cam->params.roi.rowEnd*4);
+		       cam->params.roi.colStart*8,
+		       cam->params.roi.rowStart*4,
+		       cam->params.roi.colEnd*8,
+		       cam->params.roi.rowEnd*4);
 	out += sprintf(out, "actual_fps:               %3d\n", cam->fps);
 	out += sprintf(out, "transfer_rate:            %4dkB/s\n",
-	               cam->transfer_rate);
-	
+		       cam->transfer_rate);
+
 	out += sprintf(out, "\nread-write\n");
 	out += sprintf(out, "-----------------------  current       min"
-	               "       max   default  comment\n");
+		       "       max   default  comment\n");
 	out += sprintf(out, "brightness:             %8d  %8d  %8d  %8d\n",
-	               cam->params.colourParams.brightness, 0, 100, 50);
+		       cam->params.colourParams.brightness, 0, 100, 50);
 	if (cam->params.version.firmwareVersion == 1 &&
 	   cam->params.version.firmwareRevision == 2)
 		/* 1-02 firmware limits contrast to 80 */
@@ -336,26 +336,26 @@ static int cpia_read_proc(char *page, char **start, off_t off,
 		tmp = 96;
 
 	out += sprintf(out, "contrast:               %8d  %8d  %8d  %8d"
-	               "  steps of 8\n",
-	               cam->params.colourParams.contrast, 0, tmp, 48);
+		       "  steps of 8\n",
+		       cam->params.colourParams.contrast, 0, tmp, 48);
 	out += sprintf(out, "saturation:             %8d  %8d  %8d  %8d\n",
-	               cam->params.colourParams.saturation, 0, 100, 50);
+		       cam->params.colourParams.saturation, 0, 100, 50);
 	tmp = (25000+5000*cam->params.sensorFps.baserate)/
 	      (1<<cam->params.sensorFps.divisor);
 	out += sprintf(out, "sensor_fps:             %4d.%03d  %8d  %8d  %8d\n",
-	               tmp/1000, tmp%1000, 3, 30, 15);
+		       tmp/1000, tmp%1000, 3, 30, 15);
 	out += sprintf(out, "stream_start_line:      %8d  %8d  %8d  %8d\n",
-	               2*cam->params.streamStartLine, 0,
+		       2*cam->params.streamStartLine, 0,
 		       cam->params.format.videoSize == VIDEOSIZE_CIF ? 288:144,
 		       cam->params.format.videoSize == VIDEOSIZE_CIF ? 240:120);
 	out += sprintf(out, "sub_sample:             %8s  %8s  %8s  %8s\n",
-	               cam->params.format.subSample == SUBSAMPLE_420 ?
+		       cam->params.format.subSample == SUBSAMPLE_420 ?
 		       "420" : "422", "420", "422", "422");
 	out += sprintf(out, "yuv_order:              %8s  %8s  %8s  %8s\n",
-	               cam->params.format.yuvOrder == YUVORDER_YUYV ?
+		       cam->params.format.yuvOrder == YUVORDER_YUYV ?
 		       "YUYV" : "UYVY", "YUYV" , "UYVY", "YUYV");
 	out += sprintf(out, "ecp_timing:             %8s  %8s  %8s  %8s\n",
-	               cam->params.ecpTiming ? "slow" : "normal", "slow",
+		       cam->params.ecpTiming ? "slow" : "normal", "slow",
 		       "normal", "normal");
 
 	if (cam->params.colourBalance.balanceMode == 2) {
@@ -366,11 +366,11 @@ static int cpia_read_proc(char *page, char **start, off_t off,
 	out += sprintf(out, "color_balance_mode:     %8s  %8s  %8s"
 		       "  %8s\n",  tmpstr, "manual", "auto", "auto");
 	out += sprintf(out, "red_gain:               %8d  %8d  %8d  %8d\n",
-	               cam->params.colourBalance.redGain, 0, 212, 32);
+		       cam->params.colourBalance.redGain, 0, 212, 32);
 	out += sprintf(out, "green_gain:             %8d  %8d  %8d  %8d\n",
-	               cam->params.colourBalance.greenGain, 0, 212, 6);
+		       cam->params.colourBalance.greenGain, 0, 212, 6);
 	out += sprintf(out, "blue_gain:              %8d  %8d  %8d  %8d\n",
-	               cam->params.colourBalance.blueGain, 0, 212, 92);
+		       cam->params.colourBalance.blueGain, 0, 212, 92);
 
 	if (cam->params.version.firmwareVersion == 1 &&
 	   cam->params.version.firmwareRevision == 2)
@@ -381,11 +381,11 @@ static int cpia_read_proc(char *page, char **start, off_t off,
 
 	if (cam->params.exposure.gainMode == 0)
 		out += sprintf(out, "max_gain:                unknown  %28s"
-		               "  powers of 2\n", tmpstr); 
+			       "  powers of 2\n", tmpstr);
 	else
 		out += sprintf(out, "max_gain:               %8d  %28s"
 			       "  1,2,4 or 8 \n",
-		               1<<(cam->params.exposure.gainMode-1), tmpstr);
+			       1<<(cam->params.exposure.gainMode-1), tmpstr);
 
 	switch(cam->params.exposure.expMode) {
 	case 1:
@@ -402,10 +402,10 @@ static int cpia_read_proc(char *page, char **start, off_t off,
 	out += sprintf(out, "exposure_mode:          %8s  %8s  %8s"
 		       "  %8s\n",  tmpstr, "manual", "auto", "auto");
 	out += sprintf(out, "centre_weight:          %8s  %8s  %8s  %8s\n",
-	               (2-cam->params.exposure.centreWeight) ? "on" : "off",
-	               "off", "on", "on");
+		       (2-cam->params.exposure.centreWeight) ? "on" : "off",
+		       "off", "on", "on");
 	out += sprintf(out, "gain:                   %8d  %8d  max_gain  %8d  1,2,4,8 possible\n",
-	               1<<cam->params.exposure.gain, 1, 1);
+		       1<<cam->params.exposure.gain, 1, 1);
 	if (cam->params.version.firmwareVersion == 1 &&
 	   cam->params.version.firmwareRevision == 2)
 		/* 1-02 firmware limits fineExp/2 to 127 */
@@ -414,7 +414,7 @@ static int cpia_read_proc(char *page, char **start, off_t off,
 		tmp = 510;
 
 	out += sprintf(out, "fine_exp:               %8d  %8d  %8d  %8d\n",
-	               cam->params.exposure.fineExp*2, 0, tmp, 0);
+		       cam->params.exposure.fineExp*2, 0, tmp, 0);
 	if (cam->params.version.firmwareVersion == 1 &&
 	   cam->params.version.firmwareRevision == 2)
 		/* 1-02 firmware limits coarseExpHi to 0 */
@@ -426,46 +426,46 @@ static int cpia_read_proc(char *page, char **start, off_t off,
 		       "  %8d\n", cam->params.exposure.coarseExpLo+
 		       256*cam->params.exposure.coarseExpHi, 0, tmp, 185);
 	out += sprintf(out, "red_comp:               %8d  %8d  %8d  %8d\n",
-	               cam->params.exposure.redComp, COMP_RED, 255, COMP_RED);
+		       cam->params.exposure.redComp, COMP_RED, 255, COMP_RED);
 	out += sprintf(out, "green1_comp:            %8d  %8d  %8d  %8d\n",
-	               cam->params.exposure.green1Comp, COMP_GREEN1, 255,
+		       cam->params.exposure.green1Comp, COMP_GREEN1, 255,
 		       COMP_GREEN1);
 	out += sprintf(out, "green2_comp:            %8d  %8d  %8d  %8d\n",
-	               cam->params.exposure.green2Comp, COMP_GREEN2, 255,
+		       cam->params.exposure.green2Comp, COMP_GREEN2, 255,
 		       COMP_GREEN2);
 	out += sprintf(out, "blue_comp:              %8d  %8d  %8d  %8d\n",
-	               cam->params.exposure.blueComp, COMP_BLUE, 255, COMP_BLUE);
-	
+		       cam->params.exposure.blueComp, COMP_BLUE, 255, COMP_BLUE);
+
 	out += sprintf(out, "apcor_gain1:            %#8x  %#8x  %#8x  %#8x\n",
-	               cam->params.apcor.gain1, 0, 0xff, 0x1c);
+		       cam->params.apcor.gain1, 0, 0xff, 0x1c);
 	out += sprintf(out, "apcor_gain2:            %#8x  %#8x  %#8x  %#8x\n",
-	               cam->params.apcor.gain2, 0, 0xff, 0x1a);
+		       cam->params.apcor.gain2, 0, 0xff, 0x1a);
 	out += sprintf(out, "apcor_gain4:            %#8x  %#8x  %#8x  %#8x\n",
-	               cam->params.apcor.gain4, 0, 0xff, 0x2d);
+		       cam->params.apcor.gain4, 0, 0xff, 0x2d);
 	out += sprintf(out, "apcor_gain8:            %#8x  %#8x  %#8x  %#8x\n",
-	               cam->params.apcor.gain8, 0, 0xff, 0x2a);
+		       cam->params.apcor.gain8, 0, 0xff, 0x2a);
 	out += sprintf(out, "vl_offset_gain1:        %8d  %8d  %8d  %8d\n",
-	               cam->params.vlOffset.gain1, 0, 255, 24);
+		       cam->params.vlOffset.gain1, 0, 255, 24);
 	out += sprintf(out, "vl_offset_gain2:        %8d  %8d  %8d  %8d\n",
-	               cam->params.vlOffset.gain2, 0, 255, 28);
+		       cam->params.vlOffset.gain2, 0, 255, 28);
 	out += sprintf(out, "vl_offset_gain4:        %8d  %8d  %8d  %8d\n",
-	               cam->params.vlOffset.gain4, 0, 255, 30);
+		       cam->params.vlOffset.gain4, 0, 255, 30);
 	out += sprintf(out, "vl_offset_gain8:        %8d  %8d  %8d  %8d\n",
-	               cam->params.vlOffset.gain8, 0, 255, 30);
+		       cam->params.vlOffset.gain8, 0, 255, 30);
 	out += sprintf(out, "flicker_control:        %8s  %8s  %8s  %8s\n",
-	               cam->params.flickerControl.flickerMode ? "on" : "off",
+		       cam->params.flickerControl.flickerMode ? "on" : "off",
 		       "off", "on", "off");
 	out += sprintf(out, "mains_frequency:        %8d  %8d  %8d  %8d"
-	               " only 50/60\n",
-	               cam->mainsFreq ? 60 : 50, 50, 60, 50);
+		       " only 50/60\n",
+		       cam->mainsFreq ? 60 : 50, 50, 60, 50);
 	if(cam->params.flickerControl.allowableOverExposure < 0)
 		out += sprintf(out, "allowable_overexposure: %4dauto      auto  %8d      auto\n",
-		               -cam->params.flickerControl.allowableOverExposure,
-		               255);
+			       -cam->params.flickerControl.allowableOverExposure,
+			       255);
 	else
 		out += sprintf(out, "allowable_overexposure: %8d      auto  %8d      auto\n",
-		               cam->params.flickerControl.allowableOverExposure,
-		               255);
+			       cam->params.flickerControl.allowableOverExposure,
+			       255);
 	out += sprintf(out, "compression_mode:       ");
 	switch(cam->params.compression.mode) {
 	case CPIA_COMPRESSION_NONE:
@@ -483,52 +483,52 @@ static int cpia_read_proc(char *page, char **start, off_t off,
 	}
 	out += sprintf(out, "    none,auto,manual      auto\n");
 	out += sprintf(out, "decimation_enable:      %8s  %8s  %8s  %8s\n",
-        	       cam->params.compression.decimation ==
-		       DECIMATION_ENAB ? "on":"off", "off", "on", 
+		       cam->params.compression.decimation ==
+		       DECIMATION_ENAB ? "on":"off", "off", "on",
 		       "off");
 	out += sprintf(out, "compression_target:    %9s %9s %9s %9s\n",
-	               cam->params.compressionTarget.frTargeting  == 
+		       cam->params.compressionTarget.frTargeting  ==
 		       CPIA_COMPRESSION_TARGET_FRAMERATE ?
 		       "framerate":"quality",
 		       "framerate", "quality", "quality");
 	out += sprintf(out, "target_framerate:       %8d  %8d  %8d  %8d\n",
-	               cam->params.compressionTarget.targetFR, 1, 30, 15);
+		       cam->params.compressionTarget.targetFR, 1, 30, 15);
 	out += sprintf(out, "target_quality:         %8d  %8d  %8d  %8d\n",
-	               cam->params.compressionTarget.targetQ, 1, 64, 5);
+		       cam->params.compressionTarget.targetQ, 1, 64, 5);
 	out += sprintf(out, "y_threshold:            %8d  %8d  %8d  %8d\n",
-	               cam->params.yuvThreshold.yThreshold, 0, 31, 6);
+		       cam->params.yuvThreshold.yThreshold, 0, 31, 6);
 	out += sprintf(out, "uv_threshold:           %8d  %8d  %8d  %8d\n",
-	               cam->params.yuvThreshold.uvThreshold, 0, 31, 6);
+		       cam->params.yuvThreshold.uvThreshold, 0, 31, 6);
 	out += sprintf(out, "hysteresis:             %8d  %8d  %8d  %8d\n",
-	               cam->params.compressionParams.hysteresis, 0, 255, 3);
+		       cam->params.compressionParams.hysteresis, 0, 255, 3);
 	out += sprintf(out, "threshold_max:          %8d  %8d  %8d  %8d\n",
-	               cam->params.compressionParams.threshMax, 0, 255, 11);
+		       cam->params.compressionParams.threshMax, 0, 255, 11);
 	out += sprintf(out, "small_step:             %8d  %8d  %8d  %8d\n",
-	               cam->params.compressionParams.smallStep, 0, 255, 1);
+		       cam->params.compressionParams.smallStep, 0, 255, 1);
 	out += sprintf(out, "large_step:             %8d  %8d  %8d  %8d\n",
-	               cam->params.compressionParams.largeStep, 0, 255, 3);
+		       cam->params.compressionParams.largeStep, 0, 255, 3);
 	out += sprintf(out, "decimation_hysteresis:  %8d  %8d  %8d  %8d\n",
-	               cam->params.compressionParams.decimationHysteresis,
+		       cam->params.compressionParams.decimationHysteresis,
 		       0, 255, 2);
 	out += sprintf(out, "fr_diff_step_thresh:    %8d  %8d  %8d  %8d\n",
-	               cam->params.compressionParams.frDiffStepThresh,
+		       cam->params.compressionParams.frDiffStepThresh,
 		       0, 255, 5);
 	out += sprintf(out, "q_diff_step_thresh:     %8d  %8d  %8d  %8d\n",
-	               cam->params.compressionParams.qDiffStepThresh,
+		       cam->params.compressionParams.qDiffStepThresh,
 		       0, 255, 3);
 	out += sprintf(out, "decimation_thresh_mod:  %8d  %8d  %8d  %8d\n",
-	               cam->params.compressionParams.decimationThreshMod,
+		       cam->params.compressionParams.decimationThreshMod,
 		       0, 255, 2);
 	/* QX3 specific entries */
 	if (cam->params.qx3.qx3_detected) {
-		out += sprintf(out, "toplight:               %8s  %8s  %8s  %8s\n", 
-		               cam->params.qx3.toplight ? "on" : "off",
+		out += sprintf(out, "toplight:               %8s  %8s  %8s  %8s\n",
+			       cam->params.qx3.toplight ? "on" : "off",
 			       "off", "on", "off");
-		out += sprintf(out, "bottomlight:            %8s  %8s  %8s  %8s\n", 
-		               cam->params.qx3.bottomlight ? "on" : "off",
+		out += sprintf(out, "bottomlight:            %8s  %8s  %8s  %8s\n",
+			       cam->params.qx3.bottomlight ? "on" : "off",
 			       "off", "on", "off");
 	}
-	
+
 	len = out - page;
 	len -= off;
 	if (len < count) {
@@ -543,7 +543,7 @@ static int cpia_read_proc(char *page, char **start, off_t off,
 
 
 static int match(char *checkstr, char **buffer, unsigned long *count,
-                 int *find_colon, int *err)
+		 int *find_colon, int *err)
 {
 	int ret, colon_found = 1;
 	int len = strlen(checkstr);
@@ -583,7 +583,7 @@ static unsigned long int value(char **buffer, unsigned long *count, int *err)
 }
 
 static int cpia_write_proc(struct file *file, const char __user *buf,
-                           unsigned long count, void *data)
+			   unsigned long count, void *data)
 {
 	struct cam_data *cam = data;
 	struct cam_params new_params;
@@ -619,12 +619,12 @@ static int cpia_write_proc(struct file *file, const char __user *buf,
 		retval = -EINVAL;
 		goto out;
 	}
-	
+
 	buffer = page;
-	
+
 	if (mutex_lock_interruptible(&cam->param_lock))
 		return -ERESTARTSYS;
-	
+
 	/*
 	 * Skip over leading whitespace
 	 */
@@ -632,15 +632,15 @@ static int cpia_write_proc(struct file *file, const char __user *buf,
 		--count;
 		++buffer;
 	}
-	
+
 	memcpy(&new_params, &cam->params, sizeof(struct cam_params));
 	new_mains = cam->mainsFreq;
-	
+
 #define MATCH(x) (match(x, &buffer, &count, &find_colon, &retval))
 #define VALUE (value(&buffer,&count, &retval))
 #define FIRMWARE_VERSION(x,y) (new_params.version.firmwareVersion == (x) && \
-                               new_params.version.firmwareRevision == (y))
-	
+			       new_params.version.firmwareRevision == (y))
+
 	retval = 0;
 	while (count && !retval) {
 		find_colon = 1;
@@ -656,7 +656,7 @@ static int cpia_write_proc(struct file *file, const char __user *buf,
 			}
 			command_flags |= COMMAND_SETCOLOURPARAMS;
 			if(new_params.flickerControl.allowableOverExposure < 0)
-				new_params.flickerControl.allowableOverExposure = 
+				new_params.flickerControl.allowableOverExposure =
 					-find_over_exposure(new_params.colourParams.brightness);
 			if(new_params.flickerControl.flickerMode != 0)
 				command_flags |= COMMAND_SETFLICKERCTRL;
@@ -721,7 +721,7 @@ static int cpia_write_proc(struct file *file, const char __user *buf,
 					/* Either base rate would work here */
 					new_params.sensorFps.baserate = 1;
 				}
-				new_params.flickerControl.coarseJump = 
+				new_params.flickerControl.coarseJump =
 					flicker_jumps[new_mains]
 					[new_params.sensorFps.baserate]
 					[new_params.sensorFps.divisor];
@@ -1085,7 +1085,7 @@ static int cpia_write_proc(struct file *file, const char __user *buf,
 		} else if (MATCH("mains_frequency")) {
 			if (!retval && MATCH("50")) {
 				new_mains = 0;
-				new_params.flickerControl.coarseJump = 
+				new_params.flickerControl.coarseJump =
 					flicker_jumps[new_mains]
 					[new_params.sensorFps.baserate]
 					[new_params.sensorFps.divisor];
@@ -1093,7 +1093,7 @@ static int cpia_write_proc(struct file *file, const char __user *buf,
 					command_flags |= COMMAND_SETFLICKERCTRL;
 			} else if (!retval && MATCH("60")) {
 				new_mains = 1;
-				new_params.flickerControl.coarseJump = 
+				new_params.flickerControl.coarseJump =
 					flicker_jumps[new_mains]
 					[new_params.sensorFps.baserate]
 					[new_params.sensorFps.divisor];
@@ -1103,7 +1103,7 @@ static int cpia_write_proc(struct file *file, const char __user *buf,
 				retval = -EINVAL;
 		} else if (MATCH("allowable_overexposure")) {
 			if (!retval && MATCH("auto")) {
-				new_params.flickerControl.allowableOverExposure = 
+				new_params.flickerControl.allowableOverExposure =
 					-find_over_exposure(new_params.colourParams.brightness);
 				if(new_params.flickerControl.flickerMode != 0)
 					command_flags |= COMMAND_SETFLICKERCTRL;
@@ -1146,10 +1146,10 @@ static int cpia_write_proc(struct file *file, const char __user *buf,
 			command_flags |= COMMAND_SETCOMPRESSION;
 		} else if (MATCH("compression_target")) {
 			if (!retval && MATCH("quality"))
-				new_params.compressionTarget.frTargeting = 
+				new_params.compressionTarget.frTargeting =
 					CPIA_COMPRESSION_TARGET_QUALITY;
 			else if (!retval && MATCH("framerate"))
-				new_params.compressionTarget.frTargeting = 
+				new_params.compressionTarget.frTargeting =
 					CPIA_COMPRESSION_TARGET_FRAMERATE;
 			else
 				retval = -EINVAL;
@@ -1173,7 +1173,7 @@ static int cpia_write_proc(struct file *file, const char __user *buf,
 			if (!retval) {
 				if(val > 0 && val <= 64)
 					new_params.compressionTarget.targetQ = val;
-				else 
+				else
 					retval = -EINVAL;
 			}
 			command_flags |= COMMAND_SETCOMPRESSIONTARGET;
@@ -1288,19 +1288,19 @@ static int cpia_write_proc(struct file *file, const char __user *buf,
 			}
 			command_flags |= COMMAND_SETCOMPRESSIONPARAMS;
 		} else if (MATCH("toplight")) {
-		        if (!retval && MATCH("on"))
+			if (!retval && MATCH("on"))
 				new_params.qx3.toplight = 1;
 			else if (!retval && MATCH("off"))
 				new_params.qx3.toplight = 0;
-			else 
+			else
 				retval = -EINVAL;
 			command_flags |= COMMAND_SETLIGHTS;
 		} else if (MATCH("bottomlight")) {
-		        if (!retval && MATCH("on"))
+			if (!retval && MATCH("on"))
 				new_params.qx3.bottomlight = 1;
-			else if (!retval && MATCH("off"))  
+			else if (!retval && MATCH("off"))
 				new_params.qx3.bottomlight = 0;
-			else 
+			else
 				retval = -EINVAL;
 			command_flags |= COMMAND_SETLIGHTS;
 		} else {
@@ -1326,7 +1326,7 @@ static int cpia_write_proc(struct file *file, const char __user *buf,
 			}
 		}
 	}
-#undef MATCH	
+#undef MATCH
 #undef VALUE
 #undef FIRMWARE_VERSION
 	if (!retval) {
@@ -1349,24 +1349,24 @@ static int cpia_write_proc(struct file *file, const char __user *buf,
 		retval = size;
 	} else
 		DBG("error: %d\n", retval);
-	
+
 	mutex_unlock(&cam->param_lock);
-	
+
 out:
 	free_page((unsigned long)page);
- 	return retval;
+	return retval;
 }
 
 static void create_proc_cpia_cam(struct cam_data *cam)
 {
 	char name[7];
 	struct proc_dir_entry *ent;
-	
+
 	if (!cpia_proc_root || !cam)
 		return;
 
 	sprintf(name, "video%d", cam->vdev.minor);
-	
+
 	ent = create_proc_entry(name, S_IFREG|S_IRUGO|S_IWUSR, cpia_proc_root);
 	if (!ent)
 		return;
@@ -1374,9 +1374,9 @@ static void create_proc_cpia_cam(struct cam_data *cam)
 	ent->data = cam;
 	ent->read_proc = cpia_read_proc;
 	ent->write_proc = cpia_write_proc;
-	/* 
+	/*
 	   size of the proc entry is 3736 bytes for the standard webcam;
- 	   the extra features of the QX3 microscope add 189 bytes.
+	   the extra features of the QX3 microscope add 189 bytes.
 	   (we have not yet probed the camera to see which type it is).
 	*/
 	ent->size = 3736 + 189;
@@ -1386,10 +1386,10 @@ static void create_proc_cpia_cam(struct cam_data *cam)
 static void destroy_proc_cpia_cam(struct cam_data *cam)
 {
 	char name[7];
-	
+
 	if (!cam || !cam->proc_entry)
 		return;
-	
+
 	sprintf(name, "video%d", cam->vdev.minor);
 	remove_proc_entry(name, cpia_proc_root);
 	cam->proc_entry = NULL;
@@ -1596,13 +1596,13 @@ static void set_vw_size(struct cam_data *cam)
 		cam->vc.width = cam->vw.width;
 	if(cam->vc.height == 0)
 		cam->vc.height = cam->vw.height;
-	
+
 	cam->params.roi.colStart += cam->vc.x >> 3;
 	cam->params.roi.colEnd = cam->params.roi.colStart +
-	                         (cam->vc.width >> 3);
+				 (cam->vc.width >> 3);
 	cam->params.roi.rowStart += cam->vc.y >> 2;
 	cam->params.roi.rowEnd = cam->params.roi.rowStart +
-	                         (cam->vc.height >> 2);
+				 (cam->vc.height >> 2);
 
 	return;
 }
@@ -1624,7 +1624,7 @@ static int allocate_frame_buf(struct cam_data *cam)
 static int free_frame_buf(struct cam_data *cam)
 {
 	int i;
-	
+
 	rvfree(cam->frame_buf, FRAME_NUM*CPIA_MAX_FRAME_SIZE);
 	cam->frame_buf = NULL;
 	for (i=0; i < FRAME_NUM; i++)
@@ -1667,7 +1667,7 @@ static int do_command(struct cam_data *cam, u16 command, u8 a, u8 b, u8 c, u8 d)
 		mutex_lock(&cam->param_lock);
 		datasize=8;
 		break;
-	case CPIA_COMMAND_ReadMCPorts: 
+	case CPIA_COMMAND_ReadMCPorts:
 	case CPIA_COMMAND_ReadVCRegs:
 		datasize = 4;
 		break;
@@ -1746,10 +1746,10 @@ static int do_command(struct cam_data *cam, u16 command, u8 a, u8 b, u8 c, u8 d)
 			mutex_unlock(&cam->param_lock);
 			break;
 
-		case CPIA_COMMAND_ReadMCPorts: 
-			if (!cam->params.qx3.qx3_detected) 
+		case CPIA_COMMAND_ReadMCPorts:
+			if (!cam->params.qx3.qx3_detected)
 				break;
-			/* test button press */ 
+			/* test button press */
 			cam->params.qx3.button = ((data[1] & 0x02) == 0);
 			if (cam->params.qx3.button) {
 				/* button pressed - unlock the latch */
@@ -1770,9 +1770,9 @@ static int do_command(struct cam_data *cam, u16 command, u8 a, u8 b, u8 c, u8 d)
 
 /* send a command  to the camera with an additional data transaction */
 static int do_command_extended(struct cam_data *cam, u16 command,
-                               u8 a, u8 b, u8 c, u8 d,
-                               u8 e, u8 f, u8 g, u8 h,
-                               u8 i, u8 j, u8 k, u8 l)
+			       u8 a, u8 b, u8 c, u8 d,
+			       u8 e, u8 f, u8 g, u8 h,
+			       u8 i, u8 j, u8 k, u8 l)
 {
 	int retval;
 	u8 cmd[8], data[8];
@@ -1809,10 +1809,10 @@ static int do_command_extended(struct cam_data *cam, u16 command,
 #define LIMIT(x) ((((x)>0xffffff)?0xff0000:(((x)<=0xffff)?0:(x)&0xff0000))>>16)
 
 static int convert420(unsigned char *yuv, unsigned char *rgb, int out_fmt,
-                      int linesize, int mmap_kludge)
+		      int linesize, int mmap_kludge)
 {
 	int y, u, v, r, g, b, y1;
-	
+
 	/* Odd lines use the same u and v as the previous line.
 	 * Because of compression, it is necessary to get this
 	 * information from the decoded image. */
@@ -1925,7 +1925,7 @@ static int convert420(unsigned char *yuv, unsigned char *rgb, int out_fmt,
 
 
 static int yuvconvert(unsigned char *yuv, unsigned char *rgb, int out_fmt,
-                      int in_uyvy, int mmap_kludge)
+		      int in_uyvy, int mmap_kludge)
 {
 	int y, u, v, r, g, b, y1;
 
@@ -2078,21 +2078,21 @@ static int parse_picture(struct cam_data *cam, int size)
 		mutex_unlock(&cam->param_lock);
 		return -1;
 	}
-	
+
 	if (ibuf[17] != SUBSAMPLE_420 && ibuf[17] != SUBSAMPLE_422) {
 		LOG("illegal subtype %d\n",ibuf[17]);
 		mutex_unlock(&cam->param_lock);
 		return -1;
 	}
 	subsample_422 = ibuf[17] == SUBSAMPLE_422;
-	
+
 	if (ibuf[18] != YUVORDER_YUYV && ibuf[18] != YUVORDER_UYVY) {
 		LOG("illegal yuvorder %d\n",ibuf[18]);
 		mutex_unlock(&cam->param_lock);
 		return -1;
 	}
 	in_uyvy = ibuf[18] == YUVORDER_UYVY;
-	
+
 	if ((ibuf[24] != cam->params.roi.colStart) ||
 	    (ibuf[25] != cam->params.roi.colEnd) ||
 	    (ibuf[26] != cam->params.roi.rowStart) ||
@@ -2104,20 +2104,20 @@ static int parse_picture(struct cam_data *cam, int size)
 	cols = 8*(ibuf[25] - ibuf[24]);
 	rows = 4*(ibuf[27] - ibuf[26]);
 
-	
+
 	if ((ibuf[28] != NOT_COMPRESSED) && (ibuf[28] != COMPRESSED)) {
 		LOG("illegal compression %d\n",ibuf[28]);
 		mutex_unlock(&cam->param_lock);
 		return -1;
 	}
 	compressed = (ibuf[28] == COMPRESSED);
-	
+
 	if (ibuf[29] != NO_DECIMATION && ibuf[29] != DECIMATION_ENAB) {
 		LOG("illegal decimation %d\n",ibuf[29]);
 		mutex_unlock(&cam->param_lock);
 		return -1;
 	}
-	decimation = (ibuf[29] == DECIMATION_ENAB);	
+	decimation = (ibuf[29] == DECIMATION_ENAB);
 
 	cam->params.yuvThreshold.yThreshold = ibuf[30];
 	cam->params.yuvThreshold.uvThreshold = ibuf[31];
@@ -2131,7 +2131,7 @@ static int parse_picture(struct cam_data *cam, int size)
 	cam->params.status.errorCode = ibuf[39];
 	cam->fps = ibuf[41];
 	mutex_unlock(&cam->param_lock);
-	
+
 	linesize = skipcount(cols, out_fmt);
 	ibuf += FRAME_HEADER_SIZE;
 	size -= FRAME_HEADER_SIZE;
@@ -2150,14 +2150,14 @@ static int parse_picture(struct cam_data *cam, int size)
 			if (!compressed || (compressed && !(*ibuf & 1))) {
 				if(subsample_422 || even_line) {
 				obuf += yuvconvert(ibuf, obuf, out_fmt,
-				                   in_uyvy, cam->mmap_kludge);
+						   in_uyvy, cam->mmap_kludge);
 				ibuf += 4;
 				ll -= 4;
 			} else {
 					/* SUBSAMPLE_420 on an odd line */
 					obuf += convert420(ibuf, obuf,
-					                   out_fmt, linesize,
-			                		   cam->mmap_kludge);
+							   out_fmt, linesize,
+							   cam->mmap_kludge);
 					ibuf += 2;
 					ll -= 2;
 				}
@@ -2183,7 +2183,7 @@ static int parse_picture(struct cam_data *cam, int size)
 
 			if ((size > 3) && (ibuf[0] == EOI) && (ibuf[1] == EOI) &&
 			   (ibuf[2] == EOI) && (ibuf[3] == EOI)) {
-			 	size -= 4;
+				size -= 4;
 				break;
 			}
 
@@ -2204,7 +2204,7 @@ static int parse_picture(struct cam_data *cam, int size)
 			return -1;
 		}
 	}
-	
+
 	if(decimation) {
 		/* interpolate odd rows */
 		int i, j;
@@ -2233,7 +2233,7 @@ static int parse_picture(struct cam_data *cam, int size)
 static inline int init_stream_cap(struct cam_data *cam)
 {
 	return do_command(cam, CPIA_COMMAND_InitStreamCap,
-	                  0, cam->params.streamStartLine, 0, 0);
+			  0, cam->params.streamStartLine, 0, 0);
 }
 
 
@@ -2254,7 +2254,7 @@ static int find_over_exposure(int brightness)
 	int MaxAllowableOverExposure, OverExposure;
 
 	MaxAllowableOverExposure = FLICKER_MAX_EXPOSURE - brightness -
-	                           FLICKER_BRIGHTNESS_CONSTANT;
+				   FLICKER_BRIGHTNESS_CONSTANT;
 
 	if (MaxAllowableOverExposure < FLICKER_ALLOWABLE_OVER_EXPOSURE) {
 		OverExposure = MaxAllowableOverExposure;
@@ -2280,62 +2280,62 @@ static void dispatch_commands(struct cam_data *cam)
 	DEB_BYTE(cam->cmd_queue>>8);
 	if (cam->cmd_queue & COMMAND_SETFORMAT) {
 		do_command(cam, CPIA_COMMAND_SetFormat,
-	        	   cam->params.format.videoSize,
-	        	   cam->params.format.subSample,
-	        	   cam->params.format.yuvOrder, 0);
+			   cam->params.format.videoSize,
+			   cam->params.format.subSample,
+			   cam->params.format.yuvOrder, 0);
 		do_command(cam, CPIA_COMMAND_SetROI,
-	        	   cam->params.roi.colStart, cam->params.roi.colEnd,
-	        	   cam->params.roi.rowStart, cam->params.roi.rowEnd);
+			   cam->params.roi.colStart, cam->params.roi.colEnd,
+			   cam->params.roi.rowStart, cam->params.roi.rowEnd);
 		cam->first_frame = 1;
 	}
 
 	if (cam->cmd_queue & COMMAND_SETCOLOURPARAMS)
 		do_command(cam, CPIA_COMMAND_SetColourParams,
-		           cam->params.colourParams.brightness,
-		           cam->params.colourParams.contrast,
-		           cam->params.colourParams.saturation, 0);
+			   cam->params.colourParams.brightness,
+			   cam->params.colourParams.contrast,
+			   cam->params.colourParams.saturation, 0);
 
 	if (cam->cmd_queue & COMMAND_SETAPCOR)
 		do_command(cam, CPIA_COMMAND_SetApcor,
-		           cam->params.apcor.gain1,
-		           cam->params.apcor.gain2,
-		           cam->params.apcor.gain4,
-		           cam->params.apcor.gain8);
+			   cam->params.apcor.gain1,
+			   cam->params.apcor.gain2,
+			   cam->params.apcor.gain4,
+			   cam->params.apcor.gain8);
 
 	if (cam->cmd_queue & COMMAND_SETVLOFFSET)
 		do_command(cam, CPIA_COMMAND_SetVLOffset,
-		           cam->params.vlOffset.gain1,
-		           cam->params.vlOffset.gain2,
-		           cam->params.vlOffset.gain4,
-		           cam->params.vlOffset.gain8);
+			   cam->params.vlOffset.gain1,
+			   cam->params.vlOffset.gain2,
+			   cam->params.vlOffset.gain4,
+			   cam->params.vlOffset.gain8);
 
 	if (cam->cmd_queue & COMMAND_SETEXPOSURE) {
 		do_command_extended(cam, CPIA_COMMAND_SetExposure,
-		                    cam->params.exposure.gainMode,
-		                    1,
-		                    cam->params.exposure.compMode,
-		                    cam->params.exposure.centreWeight,
-		                    cam->params.exposure.gain,
-		                    cam->params.exposure.fineExp,
-		                    cam->params.exposure.coarseExpLo,
-		                    cam->params.exposure.coarseExpHi,
-		                    cam->params.exposure.redComp,
-		                    cam->params.exposure.green1Comp,
-		                    cam->params.exposure.green2Comp,
-		                    cam->params.exposure.blueComp);
+				    cam->params.exposure.gainMode,
+				    1,
+				    cam->params.exposure.compMode,
+				    cam->params.exposure.centreWeight,
+				    cam->params.exposure.gain,
+				    cam->params.exposure.fineExp,
+				    cam->params.exposure.coarseExpLo,
+				    cam->params.exposure.coarseExpHi,
+				    cam->params.exposure.redComp,
+				    cam->params.exposure.green1Comp,
+				    cam->params.exposure.green2Comp,
+				    cam->params.exposure.blueComp);
 		if(cam->params.exposure.expMode != 1) {
 			do_command_extended(cam, CPIA_COMMAND_SetExposure,
-		                	    0,
-		                	    cam->params.exposure.expMode,
-		                	    0, 0,
-		                	    cam->params.exposure.gain,
-		                	    cam->params.exposure.fineExp,
-		                	    cam->params.exposure.coarseExpLo,
-		                	    cam->params.exposure.coarseExpHi,
-		                	    0, 0, 0, 0);
+					    0,
+					    cam->params.exposure.expMode,
+					    0, 0,
+					    cam->params.exposure.gain,
+					    cam->params.exposure.fineExp,
+					    cam->params.exposure.coarseExpLo,
+					    cam->params.exposure.coarseExpHi,
+					    0, 0, 0, 0);
 		}
 	}
-	
+
 	if (cam->cmd_queue & COMMAND_SETCOLOURBALANCE) {
 		if (cam->params.colourBalance.balanceMode == 1) {
 			do_command(cam, CPIA_COMMAND_SetColourBalance,
@@ -2358,47 +2358,47 @@ static void dispatch_commands(struct cam_data *cam)
 
 	if (cam->cmd_queue & COMMAND_SETCOMPRESSIONTARGET)
 		do_command(cam, CPIA_COMMAND_SetCompressionTarget,
-		           cam->params.compressionTarget.frTargeting,
-		           cam->params.compressionTarget.targetFR,
-		           cam->params.compressionTarget.targetQ, 0);
+			   cam->params.compressionTarget.frTargeting,
+			   cam->params.compressionTarget.targetFR,
+			   cam->params.compressionTarget.targetQ, 0);
 
 	if (cam->cmd_queue & COMMAND_SETYUVTHRESH)
 		do_command(cam, CPIA_COMMAND_SetYUVThresh,
-		           cam->params.yuvThreshold.yThreshold,
-		           cam->params.yuvThreshold.uvThreshold, 0, 0);
+			   cam->params.yuvThreshold.yThreshold,
+			   cam->params.yuvThreshold.uvThreshold, 0, 0);
 
 	if (cam->cmd_queue & COMMAND_SETCOMPRESSIONPARAMS)
 		do_command_extended(cam, CPIA_COMMAND_SetCompressionParams,
-		            0, 0, 0, 0,
-		            cam->params.compressionParams.hysteresis,
-		            cam->params.compressionParams.threshMax,
-		            cam->params.compressionParams.smallStep,
-		            cam->params.compressionParams.largeStep,
-		            cam->params.compressionParams.decimationHysteresis,
-		            cam->params.compressionParams.frDiffStepThresh,
-		            cam->params.compressionParams.qDiffStepThresh,
-		            cam->params.compressionParams.decimationThreshMod);
+			    0, 0, 0, 0,
+			    cam->params.compressionParams.hysteresis,
+			    cam->params.compressionParams.threshMax,
+			    cam->params.compressionParams.smallStep,
+			    cam->params.compressionParams.largeStep,
+			    cam->params.compressionParams.decimationHysteresis,
+			    cam->params.compressionParams.frDiffStepThresh,
+			    cam->params.compressionParams.qDiffStepThresh,
+			    cam->params.compressionParams.decimationThreshMod);
 
 	if (cam->cmd_queue & COMMAND_SETCOMPRESSION)
 		do_command(cam, CPIA_COMMAND_SetCompression,
-		           cam->params.compression.mode,
+			   cam->params.compression.mode,
 			   cam->params.compression.decimation, 0, 0);
 
 	if (cam->cmd_queue & COMMAND_SETSENSORFPS)
 		do_command(cam, CPIA_COMMAND_SetSensorFPS,
-		           cam->params.sensorFps.divisor,
-		           cam->params.sensorFps.baserate, 0, 0);
+			   cam->params.sensorFps.divisor,
+			   cam->params.sensorFps.baserate, 0, 0);
 
 	if (cam->cmd_queue & COMMAND_SETFLICKERCTRL)
 		do_command(cam, CPIA_COMMAND_SetFlickerCtrl,
-		           cam->params.flickerControl.flickerMode,
-		           cam->params.flickerControl.coarseJump,
-		           abs(cam->params.flickerControl.allowableOverExposure),
-		           0);
+			   cam->params.flickerControl.flickerMode,
+			   cam->params.flickerControl.coarseJump,
+			   abs(cam->params.flickerControl.allowableOverExposure),
+			   0);
 
 	if (cam->cmd_queue & COMMAND_SETECPTIMING)
 		do_command(cam, CPIA_COMMAND_SetECPTiming,
-		           cam->params.ecpTiming, 0, 0, 0);
+			   cam->params.ecpTiming, 0, 0, 0);
 
 	if (cam->cmd_queue & COMMAND_PAUSE)
 		do_command(cam, CPIA_COMMAND_EndStreamCap, 0, 0, 0, 0);
@@ -2409,9 +2409,9 @@ static void dispatch_commands(struct cam_data *cam)
 	if (cam->cmd_queue & COMMAND_SETLIGHTS && cam->params.qx3.qx3_detected)
 	  {
 	    int p1 = (cam->params.qx3.bottomlight == 0) << 1;
-            int p2 = (cam->params.qx3.toplight == 0) << 3;
-            do_command(cam, CPIA_COMMAND_WriteVCReg,  0x90, 0x8F, 0x50, 0);
-            do_command(cam, CPIA_COMMAND_WriteMCPort, 2, 0, (p1|p2|0xE0), 0);
+	    int p2 = (cam->params.qx3.toplight == 0) << 3;
+	    do_command(cam, CPIA_COMMAND_WriteVCReg,  0x90, 0x8F, 0x50, 0);
+	    do_command(cam, CPIA_COMMAND_WriteMCPort, 2, 0, (p1|p2|0xE0), 0);
 	  }
 
 	cam->cmd_queue = COMMAND_NONE;
@@ -2422,11 +2422,11 @@ static void dispatch_commands(struct cam_data *cam)
 
 
 static void set_flicker(struct cam_params *params, volatile u32 *command_flags,
-                        int on)
+			int on)
 {
 	/* Everything in here is from the Windows driver */
 #define FIRMWARE_VERSION(x,y) (params->version.firmwareVersion == (x) && \
-                               params->version.firmwareRevision == (y))
+			       params->version.firmwareRevision == (y))
 /* define for compgain calculation */
 #if 0
 #define COMPGAIN(base, curexp, newexp) \
@@ -2441,7 +2441,7 @@ static void set_flicker(struct cam_params *params, volatile u32 *command_flags,
      (u16)(((u32)(curexp * (u8)(curcomp + 128)) / (u8)(basecomp - 128)))
 #endif
 
- 
+
 	int currentexp = params->exposure.coarseExpLo +
 			 params->exposure.coarseExpHi*256;
 	int startexp;
@@ -2482,7 +2482,7 @@ static void set_flicker(struct cam_params *params, volatile u32 *command_flags,
 		}
 		if(FIRMWARE_VERSION(1,2))
 			params->exposure.compMode = 0;
-		else 
+		else
 			params->exposure.compMode = 1;
 
 		params->apcor.gain1 = 0x18;
@@ -2533,14 +2533,14 @@ static void set_flicker(struct cam_params *params, volatile u32 *command_flags,
 }
 
 #define FIRMWARE_VERSION(x,y) (cam->params.version.firmwareVersion == (x) && \
-                               cam->params.version.firmwareRevision == (y))
+			       cam->params.version.firmwareRevision == (y))
 /* monitor the exposure and adjust the sensor frame rate if needed */
 static void monitor_exposure(struct cam_data *cam)
 {
 	u8 exp_acc, bcomp, gain, coarseL, cmd[8], data[8];
 	int retval, light_exp, dark_exp, very_dark_exp;
 	int old_exposure, new_exposure, framerate;
-	
+
 	/* get necessary stats and register settings from camera */
 	/* do_command can't handle this, so do it ourselves */
 	cmd[0] = CPIA_COMMAND_ReadVPRegs>>8;
@@ -2564,17 +2564,17 @@ static void monitor_exposure(struct cam_data *cam)
 
 	mutex_lock(&cam->param_lock);
 	light_exp = cam->params.colourParams.brightness +
-	            TC - 50 + EXP_ACC_LIGHT;
+		    TC - 50 + EXP_ACC_LIGHT;
 	if(light_exp > 255)
 		light_exp = 255;
 	dark_exp = cam->params.colourParams.brightness +
-	           TC - 50 - EXP_ACC_DARK;
+		   TC - 50 - EXP_ACC_DARK;
 	if(dark_exp < 0)
 		dark_exp = 0;
 	very_dark_exp = dark_exp/2;
-	
+
 	old_exposure = cam->params.exposure.coarseExpHi * 256 +
-	               cam->params.exposure.coarseExpLo;
+		       cam->params.exposure.coarseExpLo;
 
 	if(!cam->params.flickerControl.disabled) {
 		/* Flicker control on */
@@ -2667,11 +2667,11 @@ static void monitor_exposure(struct cam_data *cam)
 			cam->exposure_status = EXPOSURE_NORMAL;
 		}
 	}
-	
+
 	framerate = cam->fps;
 	if(framerate > 30 || framerate < 1)
 		framerate = 1;
-	
+
 	if(!cam->params.flickerControl.disabled) {
 		/* Flicker control on */
 		if((cam->exposure_status == EXPOSURE_VERY_DARK ||
@@ -2683,10 +2683,10 @@ static void monitor_exposure(struct cam_data *cam)
 			++cam->params.sensorFps.divisor;
 			cam->cmd_queue |= COMMAND_SETSENSORFPS;
 
-			cam->params.flickerControl.coarseJump = 
+			cam->params.flickerControl.coarseJump =
 				flicker_jumps[cam->mainsFreq]
-				             [cam->params.sensorFps.baserate]
-				             [cam->params.sensorFps.divisor];
+					     [cam->params.sensorFps.baserate]
+					     [cam->params.sensorFps.divisor];
 			cam->cmd_queue |= COMMAND_SETFLICKERCTRL;
 
 			new_exposure = cam->params.flickerControl.coarseJump-1;
@@ -2704,15 +2704,15 @@ static void monitor_exposure(struct cam_data *cam)
 		   cam->params.sensorFps.divisor > 0) {
 
 			/* light for too long */
-		   	int max_exp = FIRMWARE_VERSION(1,2) ? MAX_EXP_102 : MAX_EXP ; 
+			int max_exp = FIRMWARE_VERSION(1,2) ? MAX_EXP_102 : MAX_EXP ;
 
 			--cam->params.sensorFps.divisor;
 			cam->cmd_queue |= COMMAND_SETSENSORFPS;
 
-			cam->params.flickerControl.coarseJump = 
+			cam->params.flickerControl.coarseJump =
 				flicker_jumps[cam->mainsFreq]
-				             [cam->params.sensorFps.baserate]
-				             [cam->params.sensorFps.divisor];
+					     [cam->params.sensorFps.baserate]
+					     [cam->params.sensorFps.divisor];
 			cam->cmd_queue |= COMMAND_SETFLICKERCTRL;
 
 			new_exposure = cam->params.flickerControl.coarseJump-1;
@@ -2772,7 +2772,7 @@ static void monitor_exposure(struct cam_data *cam)
 
    It also adjust the colour balance when an exposure step is detected - as
    long as flicker is running
-*/   
+*/
 static void restart_flicker(struct cam_data *cam)
 {
 	int cam_exposure, old_exp;
@@ -2786,22 +2786,22 @@ static void restart_flicker(struct cam_data *cam)
 	}
 	cam_exposure = cam->raw_image[39]*2;
 	old_exp = cam->params.exposure.coarseExpLo +
-	          cam->params.exposure.coarseExpHi*256;
- 	/* 
-	  see how far away camera exposure is from a valid 
- 	  flicker exposure value
- 	*/
- 	cam_exposure %= cam->params.flickerControl.coarseJump;
+		  cam->params.exposure.coarseExpHi*256;
+	/*
+	  see how far away camera exposure is from a valid
+	  flicker exposure value
+	*/
+	cam_exposure %= cam->params.flickerControl.coarseJump;
 	if(!cam->params.flickerControl.disabled &&
-     	   cam_exposure <= cam->params.flickerControl.coarseJump - 3) {
+	   cam_exposure <= cam->params.flickerControl.coarseJump - 3) {
 		/* Flicker control auto-disabled */
 		cam->params.flickerControl.disabled = 1;
 	}
-	
+
 	if(cam->params.flickerControl.disabled &&
 	   cam->params.flickerControl.flickerMode &&
 	   old_exp > cam->params.flickerControl.coarseJump +
-	             ROUND_UP_EXP_FOR_FLICKER) {
+		     ROUND_UP_EXP_FOR_FLICKER) {
 		/* exposure is now high enough to switch
 		   flicker control back on */
 		set_flicker(&cam->params, &cam->cmd_queue, 1);
@@ -2818,7 +2818,7 @@ static int clear_stall(struct cam_data *cam)
 {
 	/* FIXME: Does this actually work? */
 	LOG("Clearing stall\n");
-	
+
 	cam->ops->streamRead(cam->lowlevel_data, cam->raw_image, 0);
 	do_command(cam, CPIA_COMMAND_GetCameraStatus,0,0,0,0);
 	return cam->params.status.streamState != STREAM_PAUSED;
@@ -2878,7 +2878,7 @@ static int fetch_frame(void *data)
 					return -EINTR;
 
 				do_command(cam, CPIA_COMMAND_GetCameraStatus,
-				           0, 0, 0, 0);
+					   0, 0, 0, 0);
 			}
 			if(cam->params.status.streamState != STREAM_READY) {
 				continue;
@@ -2903,18 +2903,18 @@ static int fetch_frame(void *data)
 
 		/* Switch flicker control back on if it got turned off */
 		restart_flicker(cam);
-		
+
 		/* If AEC is enabled, monitor the exposure and
 		   adjust the sensor frame rate if needed */
 		if(cam->params.exposure.expMode == 2)
 			monitor_exposure(cam);
-		
+
 		/* camera idle now so dispatch queued commands */
 		dispatch_commands(cam);
 
 		/* Update our knowledge of the camera state */
- 		do_command(cam, CPIA_COMMAND_GetColourBalance, 0, 0, 0, 0);
- 		do_command(cam, CPIA_COMMAND_GetExposure, 0, 0, 0, 0);
+		do_command(cam, CPIA_COMMAND_GetColourBalance, 0, 0, 0, 0);
+		do_command(cam, CPIA_COMMAND_GetExposure, 0, 0, 0, 0);
 		do_command(cam, CPIA_COMMAND_ReadMCPorts, 0, 0, 0, 0);
 
 		/* decompress and convert image to by copying it from
@@ -2933,7 +2933,7 @@ static int fetch_frame(void *data)
 				   uncompressed. */
 				cam->first_frame = 1;
 				do_command(cam, CPIA_COMMAND_SetGrabMode,
-		        		   CPIA_GRAB_SINGLE, 0, 0, 0);
+					   CPIA_GRAB_SINGLE, 0, 0, 0);
 				/* FIXME: Trial & error - need up to 70ms for
 				   the grab mode change to complete ? */
 				msleep_interruptible(70);
@@ -2957,12 +2957,12 @@ static int fetch_frame(void *data)
 		if (cam->first_frame) {
 			cam->first_frame = 0;
 			do_command(cam, CPIA_COMMAND_SetCompression,
-		        	   cam->params.compression.mode,
+				   cam->params.compression.mode,
 				   cam->params.compression.decimation, 0, 0);
 
 			/* Switch from single-grab to continuous grab */
 			do_command(cam, CPIA_COMMAND_SetGrabMode,
-		        	   CPIA_GRAB_CONTINUOUS, 0, 0, 0);
+				   CPIA_GRAB_CONTINUOUS, 0, 0, 0);
 		}
 		return 0;
 	}
@@ -2977,12 +2977,12 @@ static int capture_frame(struct cam_data *cam, struct video_mmap *vm)
 		if ((err = allocate_frame_buf(cam)))
 			return err;
 	}
-	
+
 	cam->curframe = vm->frame;
 	cam->frame[cam->curframe].state = FRAME_READY;
 	return fetch_frame(cam);
 }
-  
+
 static int goto_high_power(struct cam_data *cam)
 {
 	if (do_command(cam, CPIA_COMMAND_GotoHiPower, 0, 0, 0, 0))
@@ -3039,22 +3039,22 @@ static void save_camera_state(struct cam_data *cam)
 static int set_camera_state(struct cam_data *cam)
 {
 	cam->cmd_queue = COMMAND_SETCOMPRESSION |
-	                 COMMAND_SETCOMPRESSIONTARGET |
-	                 COMMAND_SETCOLOURPARAMS |
-	                 COMMAND_SETFORMAT |
-	                 COMMAND_SETYUVTHRESH |
-	                 COMMAND_SETECPTIMING |
-	                 COMMAND_SETCOMPRESSIONPARAMS |
-	                 COMMAND_SETEXPOSURE |
-	                 COMMAND_SETCOLOURBALANCE |
-	                 COMMAND_SETSENSORFPS |
-	                 COMMAND_SETAPCOR |
-	                 COMMAND_SETFLICKERCTRL |
-	                 COMMAND_SETVLOFFSET;
+			 COMMAND_SETCOMPRESSIONTARGET |
+			 COMMAND_SETCOLOURPARAMS |
+			 COMMAND_SETFORMAT |
+			 COMMAND_SETYUVTHRESH |
+			 COMMAND_SETECPTIMING |
+			 COMMAND_SETCOMPRESSIONPARAMS |
+			 COMMAND_SETEXPOSURE |
+			 COMMAND_SETCOLOURBALANCE |
+			 COMMAND_SETSENSORFPS |
+			 COMMAND_SETAPCOR |
+			 COMMAND_SETFLICKERCTRL |
+			 COMMAND_SETVLOFFSET;
 
 	do_command(cam, CPIA_COMMAND_SetGrabMode, CPIA_GRAB_SINGLE,0,0,0);
 	dispatch_commands(cam);
-	
+
 	/* Wait 6 frames for the sensor to get all settings and
 	   AEC/ACB to settle */
 	msleep_interruptible(6*(cam->params.sensorFps.baserate ? 33 : 40) *
@@ -3062,7 +3062,7 @@ static int set_camera_state(struct cam_data *cam)
 
 	if(signal_pending(current))
 		return -EINTR;
-	
+
 	save_camera_state(cam);
 
 	return 0;
@@ -3094,9 +3094,9 @@ static int reset_camera(struct cam_data *cam)
 		if (goto_low_power(cam))
 			return -ENODEV;
 	}
-	
+
 	/* procedure described in developer's guide p3-28 */
-	
+
 	/* Check the firmware version. */
 	cam->params.version.firmwareVersion = 0;
 	get_version_information(cam);
@@ -3113,14 +3113,14 @@ static int reset_camera(struct cam_data *cam)
 	cam->params.qx3.qx3_detected = (cam->params.pnpID.vendor == 0x0813 &&
 					cam->params.pnpID.product == 0x0001);
 
- 	/* The fatal error checking should be done after
+	/* The fatal error checking should be done after
 	 * the camera powers up (developer's guide p 3-38) */
 
 	/* Set streamState before transition to high power to avoid bug
 	 * in firmware 1-02 */
 	do_command(cam, CPIA_COMMAND_ModifyCameraStatus, STREAMSTATE, 0,
-	           STREAM_NOT_READY, 0);
-	
+		   STREAM_NOT_READY, 0);
+
 	/* GotoHiPower */
 	err = goto_high_power(cam);
 	if (err)
@@ -3142,16 +3142,16 @@ static int reset_camera(struct cam_data *cam)
 			/* Firmware 1-02 may do this for parallel port cameras,
 			 * just clear the flags (developer's guide p 3-38) */
 			do_command(cam, CPIA_COMMAND_ModifyCameraStatus,
-			           FATALERROR, ~(COM_FLAG|CPIA_FLAG), 0, 0);
+				   FATALERROR, ~(COM_FLAG|CPIA_FLAG), 0, 0);
 		}
 	}
-	
+
 	/* Check the camera status again */
 	if (cam->params.status.fatalError) {
 		if (cam->params.status.fatalError)
 			return -EIO;
 	}
-	
+
 	/* VPVersion can't be retrieved before the camera is in HiPower,
 	 * so get it here instead of in get_version_information. */
 	do_command(cam, CPIA_COMMAND_GetVPVersion, 0, 0, 0, 0);
@@ -3193,24 +3193,24 @@ static int cpia_open(struct inode *inode, struct file *file)
 		if (!cam->raw_image)
 			goto oops;
 	}
-	
+
 	if (!cam->decompressed_frame.data) {
 		cam->decompressed_frame.data = rvmalloc(CPIA_MAX_FRAME_SIZE);
 		if (!cam->decompressed_frame.data)
 			goto oops;
 	}
-	
+
 	/* open cpia */
 	err = -ENODEV;
 	if (cam->ops->open(cam->lowlevel_data))
 		goto oops;
-	
+
 	/* reset the camera */
 	if ((err = reset_camera(cam)) != 0) {
 		cam->ops->close(cam->lowlevel_data);
 		goto oops;
 	}
-	
+
 	err = -EINTR;
 	if(signal_pending(current))
 		goto oops;
@@ -3224,7 +3224,7 @@ static int cpia_open(struct inode *inode, struct file *file)
 
 	/* init it to something */
 	cam->mmap_kludge = 0;
-	
+
 	++cam->open_count;
 	file->private_data = dev;
 	mutex_unlock(&cam->busy_lock);
@@ -3250,10 +3250,10 @@ static int cpia_close(struct inode *inode, struct file *file)
 	struct cam_data *cam = dev->priv;
 
 	if (cam->ops) {
-	        /* Return ownership of /proc/cpia/videoX to root */
+		/* Return ownership of /proc/cpia/videoX to root */
 		if(cam->proc_entry)
 			cam->proc_entry->uid = 0;
-	
+
 		/* save camera state for later open (developers guide ch 3.5.3) */
 		save_camera_state(cam);
 
@@ -3342,7 +3342,7 @@ static ssize_t cpia_read(struct file *file, char __user *buf,
 		return -EFAULT;
 	}
 	if (copy_to_user(buf, cam->decompressed_frame.data,
-	                cam->decompressed_frame.count)) {
+			cam->decompressed_frame.count)) {
 		DBG("copy_to_user failed\n");
 		mutex_unlock(&cam->busy_lock);
 		return -EFAULT;
@@ -3361,7 +3361,7 @@ static int cpia_do_ioctl(struct inode *inode, struct file *file,
 
 	if (!cam || !cam->ops)
 		return -ENODEV;
-	
+
 	/* make this _really_ smp-safe */
 	if (mutex_lock_interruptible(&cam->busy_lock))
 		return -EINTR;
@@ -3405,7 +3405,7 @@ static int cpia_do_ioctl(struct inode *inode, struct file *file,
 		v->norm = 0;
 		break;
 	}
-	
+
 	case VIDIOCSCHAN:
 	{
 		struct video_channel *v = arg;
@@ -3424,7 +3424,7 @@ static int cpia_do_ioctl(struct inode *inode, struct file *file,
 		*pic = cam->vp;
 		break;
 	}
-	
+
 	case VIDIOCSPICT:
 	{
 		struct video_picture *vp = arg;
@@ -3458,11 +3458,11 @@ static int cpia_do_ioctl(struct inode *inode, struct file *file,
 
 		/* Adjust flicker control if necessary */
 		if(cam->params.flickerControl.allowableOverExposure < 0)
-			cam->params.flickerControl.allowableOverExposure = 
+			cam->params.flickerControl.allowableOverExposure =
 				-find_over_exposure(cam->params.colourParams.brightness);
 		if(cam->params.flickerControl.flickerMode != 0)
 			cam->cmd_queue |= COMMAND_SETFLICKERCTRL;
-		
+
 
 		/* queue command to update camera */
 		cam->cmd_queue |= COMMAND_SETCOLOURPARAMS;
@@ -3482,7 +3482,7 @@ static int cpia_do_ioctl(struct inode *inode, struct file *file,
 		*vw = cam->vw;
 		break;
 	}
-	
+
 	case VIDIOCSWIN:
 	{
 		/* copy_from_user, check validity, copy to internal structure */
@@ -3514,7 +3514,7 @@ static int cpia_do_ioctl(struct inode *inode, struct file *file,
 
 			/* video size is changing, reset the subcapture area */
 			memset(&cam->vc, 0, sizeof(cam->vc));
-			
+
 			set_vw_size(cam);
 			DBG("%d / %d\n", cam->vw.width, cam->vw.height);
 			cam->cmd_queue |= COMMAND_SETFORMAT;
@@ -3547,7 +3547,7 @@ static int cpia_do_ioctl(struct inode *inode, struct file *file,
 			vm->offsets[i] = CPIA_MAX_FRAME_SIZE * i;
 		break;
 	}
-	
+
 	case VIDIOCMCAPTURE:
 	{
 		struct video_mmap *vm = arg;
@@ -3597,7 +3597,7 @@ static int cpia_do_ioctl(struct inode *inode, struct file *file,
 
 			/* video size is changing, reset the subcapture area */
 			memset(&cam->vc, 0, sizeof(cam->vc));
-			
+
 			set_vw_size(cam);
 			cam->cmd_queue |= COMMAND_SETFORMAT;
 			dispatch_commands(cam);
@@ -3608,7 +3608,7 @@ static int cpia_do_ioctl(struct inode *inode, struct file *file,
 
 		break;
 	}
-	
+
 	case VIDIOCSYNC:
 	{
 		int *frame = arg;
@@ -3649,7 +3649,7 @@ static int cpia_do_ioctl(struct inode *inode, struct file *file,
 		*vc = cam->vc;
 
 		break;
-	}	
+	}
 
 	case VIDIOCSCAPTURE:
 	{
@@ -3665,7 +3665,7 @@ static int cpia_do_ioctl(struct inode *inode, struct file *file,
 			retval = -EINVAL;
 			break;
 		}
-		
+
 		/* Clip to the resolution we can set for the ROI
 		   (every 8 columns and 4 rows) */
 		vc->x      = vc->x      & ~(__u32)7;
@@ -3681,14 +3681,14 @@ static int cpia_do_ioctl(struct inode *inode, struct file *file,
 		}
 
 		DBG("%d,%d/%dx%d\n", vc->x,vc->y,vc->width, vc->height);
-		
+
 		mutex_lock(&cam->param_lock);
-		
+
 		cam->vc.x      = vc->x;
 		cam->vc.y      = vc->y;
 		cam->vc.width  = vc->width;
 		cam->vc.height = vc->height;
-		
+
 		set_vw_size(cam);
 		cam->cmd_queue |= COMMAND_SETFORMAT;
 
@@ -3699,7 +3699,7 @@ static int cpia_do_ioctl(struct inode *inode, struct file *file,
 		dispatch_commands(cam);
 		break;
 	}
-	
+
 	case VIDIOCGUNIT:
 	{
 		struct video_unit *vu = arg;
@@ -3715,7 +3715,7 @@ static int cpia_do_ioctl(struct inode *inode, struct file *file,
 		break;
 	}
 
-		
+
 	/* pointless to implement overlay with this camera */
 	case VIDIOCCAPTURE:
 	case VIDIOCGFBUF:
@@ -3738,7 +3738,7 @@ static int cpia_do_ioctl(struct inode *inode, struct file *file,
 
 	mutex_unlock(&cam->busy_lock);
 	return retval;
-} 
+}
 
 static int cpia_ioctl(struct inode *inode, struct file *file,
 		     unsigned int cmd, unsigned long arg)
@@ -3759,7 +3759,7 @@ static int cpia_mmap(struct file *file, struct vm_area_struct *vma)
 
 	if (!cam || !cam->ops)
 		return -ENODEV;
-	
+
 	DBG("cpia_mmap: %ld\n", size);
 
 	if (size > FRAME_NUM*CPIA_MAX_FRAME_SIZE)
@@ -3767,7 +3767,7 @@ static int cpia_mmap(struct file *file, struct vm_area_struct *vma)
 
 	if (!cam || !cam->ops)
 		return -ENODEV;
-	
+
 	/* make this _really_ smp-safe */
 	if (mutex_lock_interruptible(&cam->busy_lock))
 		return -EINTR;
@@ -3851,11 +3851,11 @@ static void reset_camera_struct(struct cam_data *cam)
 	cam->params.flickerControl.flickerMode = 0;
 	cam->params.flickerControl.disabled = 1;
 
-	cam->params.flickerControl.coarseJump = 
+	cam->params.flickerControl.coarseJump =
 		flicker_jumps[cam->mainsFreq]
-		             [cam->params.sensorFps.baserate]
-		             [cam->params.sensorFps.divisor];
-	cam->params.flickerControl.allowableOverExposure = 
+			     [cam->params.sensorFps.baserate]
+			     [cam->params.sensorFps.divisor];
+	cam->params.flickerControl.allowableOverExposure =
 		-find_over_exposure(cam->params.colourParams.brightness);
 	cam->params.vlOffset.gain1 = 20;
 	cam->params.vlOffset.gain2 = 24;
@@ -3870,21 +3870,21 @@ static void reset_camera_struct(struct cam_data *cam)
 	cam->params.compressionParams.qDiffStepThresh = 3;
 	cam->params.compressionParams.decimationThreshMod = 2;
 	/* End of default values from Software Developer's Guide */
-	
+
 	cam->transfer_rate = 0;
 	cam->exposure_status = EXPOSURE_NORMAL;
-	
+
 	/* Set Sensor FPS to 15fps. This seems better than 30fps
 	 * for indoor lighting. */
 	cam->params.sensorFps.divisor = 1;
 	cam->params.sensorFps.baserate = 1;
-	
+
 	cam->params.yuvThreshold.yThreshold = 6; /* From windows driver */
 	cam->params.yuvThreshold.uvThreshold = 6; /* From windows driver */
-	
+
 	cam->params.format.subSample = SUBSAMPLE_422;
 	cam->params.format.yuvOrder = YUVORDER_YUYV;
-	
+
 	cam->params.compression.mode = CPIA_COMPRESSION_AUTO;
 	cam->params.compressionTarget.frTargeting =
 		CPIA_COMPRESSION_TARGET_QUALITY;
@@ -3898,7 +3898,7 @@ static void reset_camera_struct(struct cam_data *cam)
 	cam->params.qx3.cradled = 0;
 
 	cam->video_size = VIDEOSIZE_CIF;
-	
+
 	cam->vp.colour = 32768;      /* 50% */
 	cam->vp.hue = 32768;         /* 50% */
 	cam->vp.brightness = 32768;  /* 50% */
@@ -3911,7 +3911,7 @@ static void reset_camera_struct(struct cam_data *cam)
 	cam->vc.y = 0;
 	cam->vc.width = 0;
 	cam->vc.height = 0;
-	
+
 	cam->vw.x = 0;
 	cam->vw.y = 0;
 	set_vw_size(cam);
@@ -3928,7 +3928,7 @@ static void reset_camera_struct(struct cam_data *cam)
 
 /* initialize cam_data structure  */
 static void init_camera_struct(struct cam_data *cam,
-                               struct cpia_camera_ops *ops )
+			       struct cpia_camera_ops *ops )
 {
 	int i;
 
@@ -3945,7 +3945,7 @@ static void init_camera_struct(struct cam_data *cam,
 
 	memcpy(&cam->vdev, &cpia_template, sizeof(cpia_template));
 	cam->vdev.priv = cam;
-	
+
 	cam->curframe = 0;
 	for (i = 0; i < FRAME_NUM; i++) {
 		cam->frame[i].width = 0;
@@ -3961,15 +3961,15 @@ static void init_camera_struct(struct cam_data *cam,
 
 struct cam_data *cpia_register_camera(struct cpia_camera_ops *ops, void *lowlevel)
 {
-        struct cam_data *camera;
-	
+	struct cam_data *camera;
+
 	if ((camera = kmalloc(sizeof(struct cam_data), GFP_KERNEL)) == NULL)
 		return NULL;
 
-	
+
 	init_camera_struct( camera, ops );
 	camera->lowlevel_data = lowlevel;
-	
+
 	/* register v4l device */
 	if (video_register_device(&camera->vdev, VFL_TYPE_GRABBER, video_nr) == -1) {
 		kfree(camera);
@@ -3982,7 +3982,7 @@ struct cam_data *cpia_register_camera(struct cpia_camera_ops *ops, void *lowleve
 	/* open cpia */
 	if (camera->ops->open(camera->lowlevel_data))
 		return camera;
-	
+
 	/* reset the camera */
 	if (reset_camera(camera) != 0) {
 		camera->ops->close(camera->lowlevel_data);
@@ -4022,11 +4022,11 @@ void cpia_unregister_camera(struct cam_data *cam)
 		DBG("camera open -- setting ops to NULL\n");
 		cam->ops = NULL;
 	}
-	
+
 #ifdef CONFIG_PROC_FS
 	DBG("destroying /proc/cpia/video%d\n", cam->vdev.minor);
 	destroy_proc_cpia_cam(cam);
-#endif	
+#endif
 	if (!cam->open_count) {
 		DBG("freeing camera\n");
 		kfree(cam);

@@ -143,7 +143,7 @@ static void inet6_prefix_notify(int event, struct inet6_dev *idev,
 				struct prefix_info *pinfo);
 static int ipv6_chk_same_addr(const struct in6_addr *addr, struct net_device *dev);
 
-static struct notifier_block *inet6addr_chain;
+static ATOMIC_NOTIFIER_HEAD(inet6addr_chain);
 
 struct ipv6_devconf ipv6_devconf = {
 	.forwarding		= 0,
@@ -593,7 +593,7 @@ out2:
 	read_unlock_bh(&addrconf_lock);
 
 	if (likely(err == 0))
-		notifier_call_chain(&inet6addr_chain, NETDEV_UP, ifa);
+		atomic_notifier_call_chain(&inet6addr_chain, NETDEV_UP, ifa);
 	else {
 		kfree(ifa);
 		ifa = ERR_PTR(err);
@@ -688,7 +688,7 @@ static void ipv6_del_addr(struct inet6_ifaddr *ifp)
 
 	ipv6_ifa_notify(RTM_DELADDR, ifp);
 
-	notifier_call_chain(&inet6addr_chain,NETDEV_DOWN,ifp);
+	atomic_notifier_call_chain(&inet6addr_chain, NETDEV_DOWN, ifp);
 
 	addrconf_del_timer(ifp);
 
@@ -3767,12 +3767,12 @@ static void addrconf_sysctl_unregister(struct ipv6_devconf *p)
 
 int register_inet6addr_notifier(struct notifier_block *nb)
 {
-        return notifier_chain_register(&inet6addr_chain, nb);
+        return atomic_notifier_chain_register(&inet6addr_chain, nb);
 }
 
 int unregister_inet6addr_notifier(struct notifier_block *nb)
 {
-        return notifier_chain_unregister(&inet6addr_chain,nb);
+        return atomic_notifier_chain_unregister(&inet6addr_chain,nb);
 }
 
 /*

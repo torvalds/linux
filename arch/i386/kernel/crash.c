@@ -105,7 +105,7 @@ static int crash_nmi_callback(struct pt_regs *regs, int cpu)
 		return 1;
 	local_irq_disable();
 
-	if (!user_mode(regs)) {
+	if (!user_mode_vm(regs)) {
 		crash_fixup_ss_esp(&fixed_regs, regs);
 		regs = &fixed_regs;
 	}

@@ -20,6 +20,7 @@
 #include <linux/root_dev.h>
 #include <linux/utsname.h>
 #include <linux/cpu.h>
+#include <linux/pfn.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/sections.h>
@@ -275,10 +276,6 @@ void __init setup_arch(char **cmdline_p)
 
 	sh_mv_setup(cmdline_p);
 
-#define PFN_UP(x)	(((x) + PAGE_SIZE-1) >> PAGE_SHIFT)
-#define PFN_DOWN(x)	((x) >> PAGE_SHIFT)
-#define PFN_PHYS(x)	((x) << PAGE_SHIFT)
-
 	/*
 	 * Find the highest page frame number we have available
 	 */
@@ -404,9 +401,8 @@ static int __init topology_init(void)
 {
 	int cpu_id;
 
-	for (cpu_id = 0; cpu_id < NR_CPUS; cpu_id++)
-		if (cpu_possible(cpu_id))
-			register_cpu(&cpu[cpu_id], cpu_id, NULL);
+	for_each_cpu(cpu_id)
+		register_cpu(&cpu[cpu_id], cpu_id, NULL);
 
 	return 0;
 }

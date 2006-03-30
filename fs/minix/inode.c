@@ -80,7 +80,8 @@ static int init_inodecache(void)
 {
 	minix_inode_cachep = kmem_cache_create("minix_inode_cache",
 					     sizeof(struct minix_inode_info),
-					     0, SLAB_RECLAIM_ACCOUNT,
+					     0, (SLAB_RECLAIM_ACCOUNT|
+						SLAB_MEM_SPREAD),
 					     init_once, NULL);
 	if (minix_inode_cachep == NULL)
 		return -ENOMEM;
@@ -126,11 +127,11 @@ static int minix_remount (struct super_block * sb, int * flags, char * data)
 		mark_buffer_dirty(sbi->s_sbh);
 
 		if (!(sbi->s_mount_state & MINIX_VALID_FS))
-			printk ("MINIX-fs warning: remounting unchecked fs, "
-				"running fsck is recommended.\n");
+			printk("MINIX-fs warning: remounting unchecked fs, "
+				"running fsck is recommended\n");
 		else if ((sbi->s_mount_state & MINIX_ERROR_FS))
-			printk ("MINIX-fs warning: remounting fs with errors, "
-				"running fsck is recommended.\n");
+			printk("MINIX-fs warning: remounting fs with errors, "
+				"running fsck is recommended\n");
 	}
 	return 0;
 }
@@ -244,11 +245,11 @@ static int minix_fill_super(struct super_block *s, void *data, int silent)
 		mark_buffer_dirty(bh);
 	}
 	if (!(sbi->s_mount_state & MINIX_VALID_FS))
-		printk ("MINIX-fs: mounting unchecked file system, "
-			"running fsck is recommended.\n");
+		printk("MINIX-fs: mounting unchecked file system, "
+			"running fsck is recommended\n");
  	else if (sbi->s_mount_state & MINIX_ERROR_FS)
-		printk ("MINIX-fs: mounting file system with errors, "
-			"running fsck is recommended.\n");
+		printk("MINIX-fs: mounting file system with errors, "
+			"running fsck is recommended\n");
 	return 0;
 
 out_iput:
@@ -272,19 +273,19 @@ out_no_bitmap:
 
 out_no_map:
 	if (!silent)
-		printk ("MINIX-fs: can't allocate map\n");
+		printk("MINIX-fs: can't allocate map\n");
 	goto out_release;
 
 out_no_fs:
 	if (!silent)
-		printk("VFS: Can't find a Minix or Minix V2 filesystem on device "
-		       "%s.\n", s->s_id);
+		printk("VFS: Can't find a Minix or Minix V2 filesystem "
+			"on device %s\n", s->s_id);
     out_release:
 	brelse(bh);
 	goto out;
 
 out_bad_hblock:
-	printk("MINIX-fs: blocksize too small for device.\n");
+	printk("MINIX-fs: blocksize too small for device\n");
 	goto out;
 
 out_bad_sb:
@@ -523,7 +524,7 @@ int minix_sync_inode(struct inode * inode)
 		sync_dirty_buffer(bh);
 		if (buffer_req(bh) && !buffer_uptodate(bh))
 		{
-			printk ("IO error syncing minix inode [%s:%08lx]\n",
+			printk("IO error syncing minix inode [%s:%08lx]\n",
 				inode->i_sb->s_id, inode->i_ino);
 			err = -1;
 		}

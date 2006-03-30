@@ -112,7 +112,7 @@
 
 /* CPM Ethernet through SCC1 or SCC2 */
 
-#ifdef CONFIG_SCC1_ENET		/* Probably 860 variant */
+#if defined(CONFIG_SCC1_ENET) || defined(CONFIG_MPC8xx_SECOND_ETH_SCC1)		/* Probably 860 variant */
 /* Bits in parallel I/O port registers that have to be set/cleared
  * to configure the pins for SCC1 use.
  * TCLK - CLK1, RCLK - CLK2.

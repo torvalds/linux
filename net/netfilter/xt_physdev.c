@@ -121,6 +121,7 @@ static struct xt_match physdev_match = {
 	.match		= match,
 	.matchsize	= sizeof(struct xt_physdev_info),
 	.checkentry	= checkentry,
+	.family		= AF_INET,
 	.me		= THIS_MODULE,
 };
 
@@ -129,29 +130,30 @@ static struct xt_match physdev6_match = {
 	.match		= match,
 	.matchsize	= sizeof(struct xt_physdev_info),
 	.checkentry	= checkentry,
+	.family		= AF_INET6,
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init xt_physdev_init(void)
 {
 	int ret;
 
-	ret = xt_register_match(AF_INET, &physdev_match);
+	ret = xt_register_match(&physdev_match);
 	if (ret < 0)
 		return ret;
 
-	ret = xt_register_match(AF_INET6, &physdev6_match);
+	ret = xt_register_match(&physdev6_match);
 	if (ret < 0)
-		xt_unregister_match(AF_INET, &physdev_match);
+		xt_unregister_match(&physdev_match);
 
 	return ret;
 }
 
-static void __exit fini(void)
+static void __exit xt_physdev_fini(void)
 {
-	xt_unregister_match(AF_INET, &physdev_match);
-	xt_unregister_match(AF_INET6, &physdev6_match);
+	xt_unregister_match(&physdev_match);
+	xt_unregister_match(&physdev6_match);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(xt_physdev_init);
+module_exit(xt_physdev_fini);

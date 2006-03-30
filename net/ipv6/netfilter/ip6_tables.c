@@ -1377,12 +1377,14 @@ icmp6_checkentry(const char *tablename,
 static struct ip6t_target ip6t_standard_target = {
 	.name		= IP6T_STANDARD_TARGET,
 	.targetsize	= sizeof(int),
+	.family		= AF_INET6,
 };
 
 static struct ip6t_target ip6t_error_target = {
 	.name		= IP6T_ERROR_TARGET,
 	.target		= ip6t_error,
 	.targetsize	= IP6T_FUNCTION_MAXNAMELEN,
+	.family		= AF_INET6,
 };
 
 static struct nf_sockopt_ops ip6t_sockopts = {
@@ -1401,18 +1403,19 @@ static struct ip6t_match icmp6_matchstruct = {
 	.matchsize	= sizeof(struct ip6t_icmp),
 	.checkentry	= icmp6_checkentry,
 	.proto		= IPPROTO_ICMPV6,
+	.family		= AF_INET6,
 };
 
-static int __init init(void)
+static int __init ip6_tables_init(void)
 {
 	int ret;
 
 	xt_proto_init(AF_INET6);
 
 	/* Noone else will be downing sem now, so we won't sleep */
-	xt_register_target(AF_INET6, &ip6t_standard_target);
-	xt_register_target(AF_INET6, &ip6t_error_target);
-	xt_register_match(AF_INET6, &icmp6_matchstruct);
+	xt_register_target(&ip6t_standard_target);
+	xt_register_target(&ip6t_error_target);
+	xt_register_match(&icmp6_matchstruct);
 
 	/* Register setsockopt */
 	ret = nf_register_sockopt(&ip6t_sockopts);
@@ -1426,12 +1429,12 @@ static int __init init(void)
 	return 0;
 }
 
-static void __exit fini(void)
+static void __exit ip6_tables_fini(void)
 {
 	nf_unregister_sockopt(&ip6t_sockopts);
-	xt_unregister_match(AF_INET6, &icmp6_matchstruct);
-	xt_unregister_target(AF_INET6, &ip6t_error_target);
-	xt_unregister_target(AF_INET6, &ip6t_standard_target);
+	xt_unregister_match(&icmp6_matchstruct);
+	xt_unregister_target(&ip6t_error_target);
+	xt_unregister_target(&ip6t_standard_target);
 	xt_proto_fini(AF_INET6);
 }
 
@@ -1514,5 +1517,5 @@ EXPORT_SYMBOL(ip6t_do_table);
 EXPORT_SYMBOL(ip6t_ext_hdr);
 EXPORT_SYMBOL(ipv6_find_hdr);
 
-module_init(init);
-module_exit(fini);
+module_init(ip6_tables_init);
+module_exit(ip6_tables_fini);

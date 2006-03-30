@@ -84,19 +84,16 @@ struct slot *alloc_slot_struct(struct device_node *dn, int drc_index, char *drc_
 {
 	struct slot *slot;
 	
-	slot = kmalloc(sizeof (struct slot), GFP_KERNEL);
+	slot = kzalloc(sizeof(struct slot), GFP_KERNEL);
 	if (!slot)
 		goto error_nomem;
-	memset(slot, 0, sizeof (struct slot));
-	slot->hotplug_slot = kmalloc(sizeof (struct hotplug_slot), GFP_KERNEL);
+	slot->hotplug_slot = kzalloc(sizeof(struct hotplug_slot), GFP_KERNEL);
 	if (!slot->hotplug_slot)
 		goto error_slot;	
-	memset(slot->hotplug_slot, 0, sizeof (struct hotplug_slot));
-	slot->hotplug_slot->info = kmalloc(sizeof (struct hotplug_slot_info),
+	slot->hotplug_slot->info = kzalloc(sizeof(struct hotplug_slot_info),
 					   GFP_KERNEL);
 	if (!slot->hotplug_slot->info)
 		goto error_hpslot;
-	memset(slot->hotplug_slot->info, 0, sizeof (struct hotplug_slot_info));
 	slot->hotplug_slot->name = kmalloc(BUS_ID_SIZE + 1, GFP_KERNEL);
 	if (!slot->hotplug_slot->name)
 		goto error_info;	

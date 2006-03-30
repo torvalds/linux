@@ -1,6 +1,4 @@
 /*
- *  arch/ppc/kernel/open_pic.c -- OpenPIC Interrupt Handling
- *
  *  Copyright (C) 1997 Geert Uytterhoeven
  *
  *  This file is subject to the terms and conditions of the GNU General Public
@@ -218,7 +216,7 @@ static void openpic_safe_writefield(volatile u_int __iomem *addr, u_int mask,
 u_int openpic_read_IPI(volatile u_int __iomem * addr)
 {
          u_int val = 0;
-#if defined(OPENPIC_BIG_ENDIAN) || defined(CONFIG_POWER3)
+#if defined(OPENPIC_BIG_ENDIAN)
         val = in_be32(addr);
 #else
         val = in_le32(addr);

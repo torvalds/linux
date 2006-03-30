@@ -25,23 +25,6 @@ extern struct node_map_data node_data[];
 	pg_data_t *__pgdat = NODE_DATA(nid);				\
 	__pgdat->node_start_pfn + __pgdat->node_spanned_pages;		\
 })
-#define node_localnr(pfn, nid)		((pfn) - node_start_pfn(nid))
-
-#define pfn_to_page(pfn)						\
-({									\
-	unsigned long __pfn = (pfn);					\
-	int __node  = pfn_to_nid(__pfn);				\
-	&NODE_DATA(__node)->node_mem_map[node_localnr(__pfn,__node)];	\
-})
-
-#define page_to_pfn(pg)							\
-({									\
-	struct page *__page = pg;					\
-	struct zone *__zone = page_zone(__page);			\
-	BUG_ON(__zone == NULL);						\
-	(unsigned long)(__page - __zone->zone_mem_map)			\
-		+ __zone->zone_start_pfn;				\
-})
 
 /* We have these possible memory map layouts:
  * Astro: 0-3.75, 67.75-68, 4-64

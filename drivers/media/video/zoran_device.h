@@ -4,7 +4,7 @@
  * Media Labs LML33/LML33R10.
  *
  * This part handles card-specific data and detection
- * 
+ *
  * Copyright (C) 2000 Serguei Miridonov <mirsev@cicese.mx>
  *
  * Currently maintained by:

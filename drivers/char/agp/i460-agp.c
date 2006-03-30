@@ -400,10 +400,10 @@ static int i460_insert_memory_large_io_page (struct agp_memory *mem,
 	num_entries = A_SIZE_8(temp)->num_entries;
 
 	/* Figure out what pg_start means in terms of our large GART pages */
-	start	 	= &i460.lp_desc[pg_start / I460_KPAGES_PER_IOPAGE];
-	end 		= &i460.lp_desc[(pg_start + mem->page_count - 1) / I460_KPAGES_PER_IOPAGE];
-	start_offset 	= pg_start % I460_KPAGES_PER_IOPAGE;
-	end_offset 	= (pg_start + mem->page_count - 1) % I460_KPAGES_PER_IOPAGE;
+	start = &i460.lp_desc[pg_start / I460_KPAGES_PER_IOPAGE];
+	end = &i460.lp_desc[(pg_start + mem->page_count - 1) / I460_KPAGES_PER_IOPAGE];
+	start_offset = pg_start % I460_KPAGES_PER_IOPAGE;
+	end_offset = (pg_start + mem->page_count - 1) % I460_KPAGES_PER_IOPAGE;
 
 	if (end > i460.lp_desc + num_entries) {
 		printk(KERN_ERR PFX "Looks like we're out of AGP memory\n");
@@ -458,10 +458,10 @@ static int i460_remove_memory_large_io_page (struct agp_memory *mem,
 	num_entries = A_SIZE_8(temp)->num_entries;
 
 	/* Figure out what pg_start means in terms of our large GART pages */
-	start	 	= &i460.lp_desc[pg_start / I460_KPAGES_PER_IOPAGE];
-	end 		= &i460.lp_desc[(pg_start + mem->page_count - 1) / I460_KPAGES_PER_IOPAGE];
-	start_offset 	= pg_start % I460_KPAGES_PER_IOPAGE;
-	end_offset 	= (pg_start + mem->page_count - 1) % I460_KPAGES_PER_IOPAGE;
+	start = &i460.lp_desc[pg_start / I460_KPAGES_PER_IOPAGE];
+	end = &i460.lp_desc[(pg_start + mem->page_count - 1) / I460_KPAGES_PER_IOPAGE];
+	start_offset = pg_start % I460_KPAGES_PER_IOPAGE;
+	end_offset = (pg_start + mem->page_count - 1) % I460_KPAGES_PER_IOPAGE;
 
 	for (i = 0, lp = start; lp <= end; ++lp) {
 		for (idx = ((lp == start) ? start_offset : 0);

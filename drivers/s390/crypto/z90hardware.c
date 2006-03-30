@@ -2214,7 +2214,7 @@ ICACRT_msg_to_type50CRT_msg(struct ica_rsa_modexpo_crt *icaMsg_p,
 		long_len = 128;
 	}
 
-	tmp_size = ((mod_len <= 128) ? TYPE50_CRB1_LEN : TYPE50_CRB2_LEN) +
+	tmp_size = ((long_len <= 64) ? TYPE50_CRB1_LEN : TYPE50_CRB2_LEN) +
 		    CALLER_HEADER;
 
 	memset(z90cMsg_p, 0, tmp_size);
@@ -2479,8 +2479,16 @@ convert_response(unsigned char *response, unsigned char *buffer,
 
 	if (reply_code)
 		switch (reply_code) {
+		case REP82_ERROR_MACHINE_FAILURE:
+			if (errh_p->type == TYPE82_RSP_CODE)
+				PRINTKW("Machine check failure\n");
+			else
+				PRINTKW("Module failure\n");
+			return REC_HARDWAR_ERR;
 		case REP82_ERROR_OPERAND_INVALID:
+			return REC_OPERAND_INV;
 		case REP88_ERROR_MESSAGE_MALFORMD:
+			PRINTKW("Message malformed\n");
 			return REC_OPERAND_INV;
 		case REP82_ERROR_OPERAND_SIZE:
 			return REC_OPERAND_SIZE;

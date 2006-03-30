@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/4xx/ibm405gp.h
- *
  * Author: Armin Kuster akuster@mvista.com
  *
  * 2001 (c) MontaVista, Software, Inc.  This file is licensed under

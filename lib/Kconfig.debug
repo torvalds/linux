@@ -78,12 +78,16 @@ config SCHEDSTATS
 	  this adds.
 
 config DEBUG_SLAB
-	bool "Debug memory allocations"
+	bool "Debug slab memory allocations"
 	depends on DEBUG_KERNEL && SLAB
 	help
 	  Say Y here to have the kernel do limited verification on memory
 	  allocation as well as poisoning memory on free to catch use of freed
 	  memory. This can make kmalloc/kfree-intensive workloads much slower.
+
+config DEBUG_SLAB_LEAK
+	bool "Memory leak debugging"
+	depends on DEBUG_SLAB
 
 config DEBUG_PREEMPT
 	bool "Debug preemptible kernel"
@@ -168,7 +172,7 @@ config DEBUG_IOREMAP
 
 config DEBUG_FS
 	bool "Debug Filesystem"
-	depends on DEBUG_KERNEL && SYSFS
+	depends on SYSFS
 	help
 	  debugfs is a virtual file system that kernel developers use to put
 	  debugging files into.  Enable this option to be able to read and
@@ -194,6 +198,16 @@ config FRAME_POINTER
 	  and slower, but it might give very useful debugging information on
 	  some architectures or if you use external debuggers.
 	  If you don't debug the kernel, you can say N.
+
+config UNWIND_INFO
+	bool "Compile the kernel with frame unwind information"
+	depends on !IA64
+	depends on !MODULES || !(MIPS || PARISC || PPC || SUPERH || SPARC64 || V850)
+	help
+	  If you say Y here the resulting kernel image will be slightly larger
+	  but not slower, and it will give very useful debugging information.
+	  If you don't debug the kernel, you can say N, but we may not be able
+	  to solve problems without frame unwind information or frame pointers.
 
 config FORCED_INLINING
 	bool "Force gcc to inline functions marked 'inline'"

@@ -13,46 +13,6 @@
 #ifndef BNX2_H
 #define BNX2_H
 
-#include <linux/config.h>
-
-#include <linux/module.h>
-#include <linux/moduleparam.h>
-
-#include <linux/kernel.h>
-#include <linux/timer.h>
-#include <linux/errno.h>
-#include <linux/ioport.h>
-#include <linux/slab.h>
-#include <linux/vmalloc.h>
-#include <linux/interrupt.h>
-#include <linux/pci.h>
-#include <linux/init.h>
-#include <linux/netdevice.h>
-#include <linux/etherdevice.h>
-#include <linux/skbuff.h>
-#include <linux/dma-mapping.h>
-#include <asm/bitops.h>
-#include <asm/io.h>
-#include <asm/irq.h>
-#include <linux/delay.h>
-#include <asm/byteorder.h>
-#include <linux/time.h>
-#include <linux/ethtool.h>
-#include <linux/mii.h>
-#ifdef NETIF_F_HW_VLAN_TX
-#include <linux/if_vlan.h>
-#define BCM_VLAN 1
-#endif
-#ifdef NETIF_F_TSO
-#include <net/ip.h>
-#include <net/tcp.h>
-#include <net/checksum.h>
-#define BCM_TSO 1
-#endif
-#include <linux/workqueue.h>
-#include <linux/crc32.h>
-#include <linux/prefetch.h>
-
 /* Hardware data structures and register definitions automatically
  * generated from RTL code. Do not modify.
  */
@@ -3917,15 +3877,17 @@ struct bnx2 {
 #define USING_MSI_FLAG			0x20
 #define ASF_ENABLE_FLAG			0x40
 
-	struct tx_bd		*tx_desc_ring;
-	struct sw_bd		*tx_buf_ring;
-	u32			tx_prod_bseq;
-	u16			tx_prod;
-	u16			tx_cons;
-	int			tx_ring_size;
+	/* Put tx producer and consumer fields in separate cache lines. */
 
-	u16			hw_tx_cons;
-	u16			hw_rx_cons;
+	u32		tx_prod_bseq __attribute__((aligned(L1_CACHE_BYTES)));
+	u16		tx_prod;
+
+	struct tx_bd	*tx_desc_ring;
+	struct sw_bd	*tx_buf_ring;
+	int		tx_ring_size;
+
+	u16		tx_cons __attribute__((aligned(L1_CACHE_BYTES)));
+	u16		hw_tx_cons;
 
 #ifdef BCM_VLAN 
 	struct			vlan_group *vlgrp;
@@ -3939,6 +3901,7 @@ struct bnx2 {
 	u32			rx_prod_bseq;
 	u16			rx_prod;
 	u16			rx_cons;
+	u16			hw_rx_cons;
 
 	u32			rx_csum;
 
@@ -4038,6 +4001,7 @@ struct bnx2 {
 	struct statistics_block	*stats_blk;
 	dma_addr_t		stats_blk_mapping;
 
+	u32			hc_cmd;
 	u32			rx_mode;
 
 	u16			req_line_speed;
@@ -4082,6 +4046,8 @@ struct bnx2 {
 
 	struct flash_spec	*flash_info;
 	u32			flash_size;
+
+	int			status_stats_size;
 };
 
 static u32 bnx2_reg_rd_ind(struct bnx2 *bp, u32 offset);

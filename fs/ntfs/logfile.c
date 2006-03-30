@@ -515,10 +515,10 @@ BOOL ntfs_check_logfile(struct inode *log_vi, RESTART_PAGE_HEADER **rp)
 		log_page_size = PAGE_CACHE_SIZE;
 	log_page_mask = log_page_size - 1;
 	/*
-	 * Use generic_ffs() instead of ffs() to enable the compiler to
+	 * Use ntfs_ffs() instead of ffs() to enable the compiler to
 	 * optimize log_page_size and log_page_bits into constants.
 	 */
-	log_page_bits = generic_ffs(log_page_size) - 1;
+	log_page_bits = ntfs_ffs(log_page_size) - 1;
 	size &= ~(s64)(log_page_size - 1);
 	/*
 	 * Ensure the log file is big enough to store at least the two restart

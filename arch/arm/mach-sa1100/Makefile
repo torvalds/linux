@@ -3,7 +3,7 @@
 #
 
 # Common support
-obj-y := generic.o irq.o dma.o time.o
+obj-y := clock.o generic.o irq.o dma.o time.o #nmi-oopser.o
 obj-m :=
 obj-n :=
 obj-  :=

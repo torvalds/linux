@@ -682,7 +682,9 @@ nfs_stat_to_errno(int stat)
 	.p_encode   =  (kxdrproc_t) nfs_xdr_##argtype,			\
 	.p_decode   =  (kxdrproc_t) nfs_xdr_##restype,			\
 	.p_bufsiz   =  MAX(NFS_##argtype##_sz,NFS_##restype##_sz) << 2,	\
-	.p_timer    =  timer						\
+	.p_timer    =  timer,						\
+	.p_statidx  =  NFSPROC_##proc,					\
+	.p_name     =  #proc,						\
 	}
 struct rpc_procinfo	nfs_procedures[] = {
     PROC(GETATTR,	fhandle,	attrstat, 1),
@@ -704,6 +706,6 @@ struct rpc_procinfo	nfs_procedures[] = {
 
 struct rpc_version		nfs_version2 = {
 	.number			= 2,
-	.nrprocs		= sizeof(nfs_procedures)/sizeof(nfs_procedures[0]),
+	.nrprocs		= ARRAY_SIZE(nfs_procedures),
 	.procs			= nfs_procedures
 };

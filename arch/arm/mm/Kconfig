@@ -62,7 +62,7 @@ config CPU_ARM720T
 # ARM920T
 config CPU_ARM920T
 	bool "Support ARM920T processor" if !ARCH_S3C2410
-	depends on ARCH_INTEGRATOR || ARCH_S3C2410 || ARCH_IMX || ARCH_AAEC2000 || ARCH_AT91RM9200
+	depends on ARCH_EP93XX || ARCH_INTEGRATOR || ARCH_S3C2410 || ARCH_IMX || ARCH_AAEC2000 || ARCH_AT91RM9200
 	default y if ARCH_S3C2410 || ARCH_AT91RM9200
 	select CPU_32v4
 	select CPU_ABRT_EV4T
@@ -239,6 +239,17 @@ config CPU_XSCALE
 	select CPU_CACHE_VIVT
 	select CPU_TLB_V4WBI
 
+# XScale Core Version 3
+config CPU_XSC3
+	bool
+	depends on ARCH_IXP23XX
+	default y
+	select CPU_32v5
+	select CPU_ABRT_EV5T
+	select CPU_CACHE_VIVT
+	select CPU_TLB_V4WBI
+	select IO_36
+
 # ARMv6
 config CPU_V6
 	bool "Support ARM V6 processor"
@@ -266,12 +277,18 @@ config CPU_32v6K
 # This defines the compiler instruction set which depends on the machine type.
 config CPU_32v3
 	bool
+	select TLS_REG_EMUL if SMP
+	select NEEDS_SYSCALL_FOR_CMPXCHG if SMP
 
 config CPU_32v4
 	bool
+	select TLS_REG_EMUL if SMP
+	select NEEDS_SYSCALL_FOR_CMPXCHG if SMP
 
 config CPU_32v5
 	bool
+	select TLS_REG_EMUL if SMP
+	select NEEDS_SYSCALL_FOR_CMPXCHG if SMP
 
 config CPU_32v6
 	bool
@@ -355,11 +372,17 @@ config CPU_TLB_V4WBI
 config CPU_TLB_V6
 	bool
 
+#
+# CPU supports 36-bit I/O
+#
+config IO_36
+	bool
+
 comment "Processor Features"
 
 config ARM_THUMB
 	bool "Support Thumb user binaries"
-	depends on CPU_ARM720T || CPU_ARM920T || CPU_ARM922T || CPU_ARM925T || CPU_ARM926T || CPU_ARM1020 || CPU_ARM1020E || CPU_ARM1022 || CPU_ARM1026 || CPU_XSCALE || CPU_V6
+	depends on CPU_ARM720T || CPU_ARM920T || CPU_ARM922T || CPU_ARM925T || CPU_ARM926T || CPU_ARM1020 || CPU_ARM1020E || CPU_ARM1022 || CPU_ARM1026 || CPU_XSCALE || CPU_XSC3 || CPU_V6
 	default y
 	help
 	  Say Y if you want to include kernel support for running user space
@@ -417,7 +440,6 @@ config CPU_BPREDICT_DISABLE
 
 config TLS_REG_EMUL
 	bool
-	default y if SMP && (CPU_32v5 || CPU_32v4 || CPU_32v3)
 	help
 	  An SMP system using a pre-ARMv6 processor (there are apparently
 	  a few prototypes like that in existence) and therefore access to
@@ -436,7 +458,6 @@ config HAS_TLS_REG
 
 config NEEDS_SYSCALL_FOR_CMPXCHG
 	bool
-	default y if SMP && (CPU_32v5 || CPU_32v4 || CPU_32v3)
 	help
 	  SMP on a pre-ARMv6 processor?  Well OK then.
 	  Forget about fast user space cmpxchg support.

@@ -1743,10 +1743,10 @@ static int iobase;
 static int iobase1;
 static int iobase2;
 static int iobase3;
-MODULE_PARM(iobase, "i");
-MODULE_PARM(iobase1, "i");
-MODULE_PARM(iobase2, "i");
-MODULE_PARM(iobase3, "i");
+module_param(iobase, int, 0);
+module_param(iobase1, int, 0);
+module_param(iobase2, int, 0);
+module_param(iobase3, int, 0);
 
 MODULE_LICENSE("GPL");
 #endif /* MODULE */

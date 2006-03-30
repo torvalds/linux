@@ -992,7 +992,7 @@ nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
 	if (argp->opcnt > 100)
 		goto xdr_error;
 
-	if (argp->opcnt > sizeof(argp->iops)/sizeof(argp->iops[0])) {
+	if (argp->opcnt > ARRAY_SIZE(argp->iops)) {
 		argp->ops = kmalloc(argp->opcnt * sizeof(*argp->ops), GFP_KERNEL);
 		if (!argp->ops) {
 			argp->ops = argp->iops;

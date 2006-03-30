@@ -78,6 +78,7 @@ static struct xt_match string_match = {
 	.matchsize	= sizeof(struct xt_string_info),
 	.checkentry	= checkentry,
 	.destroy 	= destroy,
+	.family		= AF_INET,
 	.me 		= THIS_MODULE
 };
 static struct xt_match string6_match = {
@@ -86,28 +87,29 @@ static struct xt_match string6_match = {
 	.matchsize	= sizeof(struct xt_string_info),
 	.checkentry	= checkentry,
 	.destroy 	= destroy,
+	.family		= AF_INET6,
 	.me 		= THIS_MODULE
 };
 
-static int __init init(void)
+static int __init xt_string_init(void)
 {
 	int ret;
 
-	ret = xt_register_match(AF_INET, &string_match);
+	ret = xt_register_match(&string_match);
 	if (ret)
 		return ret;
-	ret = xt_register_match(AF_INET6, &string6_match);
+	ret = xt_register_match(&string6_match);
 	if (ret)
-		xt_unregister_match(AF_INET, &string_match);
+		xt_unregister_match(&string_match);
 
 	return ret;
 }
 
-static void __exit fini(void)
+static void __exit xt_string_fini(void)
 {
-	xt_unregister_match(AF_INET, &string_match);
-	xt_unregister_match(AF_INET6, &string6_match);
+	xt_unregister_match(&string_match);
+	xt_unregister_match(&string6_match);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(xt_string_init);
+module_exit(xt_string_fini);

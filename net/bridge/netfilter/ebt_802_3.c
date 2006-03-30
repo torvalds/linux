@@ -58,16 +58,16 @@ static struct ebt_match filter_802_3 =
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init ebt_802_3_init(void)
 {
 	return ebt_register_match(&filter_802_3);
 }
 
-static void __exit fini(void)
+static void __exit ebt_802_3_fini(void)
 {
 	ebt_unregister_match(&filter_802_3);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ebt_802_3_init);
+module_exit(ebt_802_3_fini);
 MODULE_LICENSE("GPL");

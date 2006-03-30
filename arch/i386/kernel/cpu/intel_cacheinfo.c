@@ -173,8 +173,12 @@ unsigned int __cpuinit init_intel_cacheinfo(struct cpuinfo_x86 *c)
 	unsigned int trace = 0, l1i = 0, l1d = 0, l2 = 0, l3 = 0; /* Cache sizes */
 	unsigned int new_l1d = 0, new_l1i = 0; /* Cache sizes from cpuid(4) */
 	unsigned int new_l2 = 0, new_l3 = 0, i; /* Cache sizes from cpuid(4) */
+	unsigned int l2_id = 0, l3_id = 0, num_threads_sharing, index_msb;
+#ifdef CONFIG_SMP
+	unsigned int cpu = (c == &boot_cpu_data) ? 0 : (c - cpu_data);
+#endif
 
-	if (c->cpuid_level > 4) {
+	if (c->cpuid_level > 3) {
 		static int is_initialized;
 
 		if (is_initialized == 0) {
@@ -205,9 +209,15 @@ unsigned int __cpuinit init_intel_cacheinfo(struct cpuinfo_x86 *c)
 					break;
 				    case 2:
 					new_l2 = this_leaf.size/1024;
+					num_threads_sharing = 1 + this_leaf.eax.split.num_threads_sharing;
+					index_msb = get_count_order(num_threads_sharing);
+					l2_id = c->apicid >> index_msb;
 					break;
 				    case 3:
 					new_l3 = this_leaf.size/1024;
+					num_threads_sharing = 1 + this_leaf.eax.split.num_threads_sharing;
+					index_msb = get_count_order(num_threads_sharing);
+					l3_id = c->apicid >> index_msb;
 					break;
 				    default:
 					break;
@@ -215,11 +225,19 @@ unsigned int __cpuinit init_intel_cacheinfo(struct cpuinfo_x86 *c)
 			}
 		}
 	}
-	if (c->cpuid_level > 1) {
+	/*
+	 * Don't use cpuid2 if cpuid4 is supported. For P4, we use cpuid2 for
+	 * trace cache
+	 */
+	if ((num_cache_leaves == 0 || c->x86 == 15) && c->cpuid_level > 1) {
 		/* supports eax=2  call */
 		int i, j, n;
 		int regs[4];
 		unsigned char *dp = (unsigned char *)regs;
+		int only_trace = 0;
+
+		if (num_cache_leaves != 0 && c->x86 == 15)
+			only_trace = 1;
 
 		/* Number of times to iterate */
 		n = cpuid_eax(2) & 0xFF;
@@ -241,6 +259,8 @@ unsigned int __cpuinit init_intel_cacheinfo(struct cpuinfo_x86 *c)
 				while (cache_table[k].descriptor != 0)
 				{
 					if (cache_table[k].descriptor == des) {
+						if (only_trace && cache_table[k].cache_type != LVL_TRACE)
+							break;
 						switch (cache_table[k].cache_type) {
 						case LVL_1_INST:
 							l1i += cache_table[k].size;
@@ -266,34 +286,45 @@ unsigned int __cpuinit init_intel_cacheinfo(struct cpuinfo_x86 *c)
 				}
 			}
 		}
-
-		if (new_l1d)
-			l1d = new_l1d;
-
-		if (new_l1i)
-			l1i = new_l1i;
-
-		if (new_l2)
-			l2 = new_l2;
-
-		if (new_l3)
-			l3 = new_l3;
-
-		if ( trace )
-			printk (KERN_INFO "CPU: Trace cache: %dK uops", trace);
-		else if ( l1i )
-			printk (KERN_INFO "CPU: L1 I cache: %dK", l1i);
-		if ( l1d )
-			printk(", L1 D cache: %dK\n", l1d);
-		else
-			printk("\n");
-		if ( l2 )
-			printk(KERN_INFO "CPU: L2 cache: %dK\n", l2);
-		if ( l3 )
-			printk(KERN_INFO "CPU: L3 cache: %dK\n", l3);
-
-		c->x86_cache_size = l3 ? l3 : (l2 ? l2 : (l1i+l1d));
 	}
+
+	if (new_l1d)
+		l1d = new_l1d;
+
+	if (new_l1i)
+		l1i = new_l1i;
+
+	if (new_l2) {
+		l2 = new_l2;
+#ifdef CONFIG_SMP
+		cpu_llc_id[cpu] = l2_id;
+#endif
+	}
+
+	if (new_l3) {
+		l3 = new_l3;
+#ifdef CONFIG_SMP
+		cpu_llc_id[cpu] = l3_id;
+#endif
+	}
+
+	if (trace)
+		printk (KERN_INFO "CPU: Trace cache: %dK uops", trace);
+	else if ( l1i )
+		printk (KERN_INFO "CPU: L1 I cache: %dK", l1i);
+
+	if (l1d)
+		printk(", L1 D cache: %dK\n", l1d);
+	else
+		printk("\n");
+
+	if (l2)
+		printk(KERN_INFO "CPU: L2 cache: %dK\n", l2);
+
+	if (l3)
+		printk(KERN_INFO "CPU: L3 cache: %dK\n", l3);
+
+	c->x86_cache_size = l3 ? l3 : (l2 ? l2 : (l1i+l1d));
 
 	return l2;
 }
@@ -330,7 +361,7 @@ static void __cpuinit cache_shared_cpu_map_setup(unsigned int cpu, int index)
 		}
 	}
 }
-static void __devinit cache_remove_shared_cpu_map(unsigned int cpu, int index)
+static void __cpuinit cache_remove_shared_cpu_map(unsigned int cpu, int index)
 {
 	struct _cpuid4_info	*this_leaf, *sibling_leaf;
 	int sibling;

@@ -117,27 +117,23 @@ static int init_slots(struct controller *ctrl)
 	slot_number = ctrl->first_slot;
 
 	while (number_of_slots) {
-		slot = kmalloc(sizeof(*slot), GFP_KERNEL);
+		slot = kzalloc(sizeof(*slot), GFP_KERNEL);
 		if (!slot)
 			goto error;
 
-		memset(slot, 0, sizeof(struct slot));
 		slot->hotplug_slot =
-				kmalloc(sizeof(*(slot->hotplug_slot)),
+				kzalloc(sizeof(*(slot->hotplug_slot)),
 						GFP_KERNEL);
 		if (!slot->hotplug_slot)
 			goto error_slot;
 		hotplug_slot = slot->hotplug_slot;
-		memset(hotplug_slot, 0, sizeof(struct hotplug_slot));
 
 		hotplug_slot->info =
-			kmalloc(sizeof(*(hotplug_slot->info)),
+			kzalloc(sizeof(*(hotplug_slot->info)),
 						GFP_KERNEL);
 		if (!hotplug_slot->info)
 			goto error_hpslot;
 		hotplug_slot_info = hotplug_slot->info;
-		memset(hotplug_slot_info, 0,
-					sizeof(struct hotplug_slot_info));
 		hotplug_slot->name = kmalloc(SLOT_NAME_SIZE, GFP_KERNEL);
 		if (!hotplug_slot->name)
 			goto error_info;
@@ -373,12 +369,11 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 	u8 value;
 	struct pci_dev *pdev;
 	
-	ctrl = kmalloc(sizeof(*ctrl), GFP_KERNEL);
+	ctrl = kzalloc(sizeof(*ctrl), GFP_KERNEL);
 	if (!ctrl) {
 		err("%s : out of memory\n", __FUNCTION__);
 		goto err_out_none;
 	}
-	memset(ctrl, 0, sizeof(struct controller));
 
 	pdev = dev->port;
 	ctrl->pci_dev = pdev;
@@ -439,7 +434,7 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 	}
 
 	/* Wait for exclusive access to hardware */
-	down(&ctrl->crit_sect);
+	mutex_lock(&ctrl->crit_sect);
 
 	t_slot->hpc_ops->get_adapter_status(t_slot, &value); /* Check if slot is occupied */
 	
@@ -447,7 +442,7 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 		rc = t_slot->hpc_ops->power_off_slot(t_slot); /* Power off slot if not occupied*/
 		if (rc) {
 			/* Done with exclusive hardware access */
-			up(&ctrl->crit_sect);
+			mutex_unlock(&ctrl->crit_sect);
 			goto err_out_free_ctrl_slot;
 		} else
 			/* Wait for the command to complete */
@@ -455,7 +450,7 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 	}
 
 	/* Done with exclusive hardware access */
-	up(&ctrl->crit_sect);
+	mutex_unlock(&ctrl->crit_sect);
 
 	return 0;
 

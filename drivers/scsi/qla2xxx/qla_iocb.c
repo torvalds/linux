@@ -466,7 +466,7 @@ __qla2x00_marker(scsi_qla_host_t *ha, uint16_t loop_id, uint16_t lun,
 	mrk->entry_type = MARKER_TYPE;
 	mrk->modifier = type;
 	if (type != MK_SYNC_ALL) {
-		if (IS_QLA24XX(ha) || IS_QLA25XX(ha)) {
+		if (IS_QLA24XX(ha) || IS_QLA54XX(ha)) {
 			mrk24 = (struct mrk_entry_24xx *) mrk;
 			mrk24->nport_handle = cpu_to_le16(loop_id);
 			mrk24->lun[1] = LSB(lun);
@@ -519,7 +519,7 @@ qla2x00_req_pkt(scsi_qla_host_t *ha)
 	for (timer = HZ; timer; timer--) {
 		if ((req_cnt + 2) >= ha->req_q_cnt) {
 			/* Calculate number of free request entries. */
-			if (IS_QLA24XX(ha) || IS_QLA25XX(ha))
+			if (IS_QLA24XX(ha) || IS_QLA54XX(ha))
 				cnt = (uint16_t)RD_REG_DWORD(
 				    &reg->isp24.req_q_out);
 			else
@@ -593,7 +593,7 @@ qla2x00_isp_cmd(scsi_qla_host_t *ha)
 		ha->request_ring_ptr++;
 
 	/* Set chip new ring index. */
-	if (IS_QLA24XX(ha) || IS_QLA25XX(ha)) {
+	if (IS_QLA24XX(ha) || IS_QLA54XX(ha)) {
 		WRT_REG_DWORD(&reg->isp24.req_q_in, ha->req_ring_index);
 		RD_REG_DWORD_RELAXED(&reg->isp24.req_q_in);
 	} else {

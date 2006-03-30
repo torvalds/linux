@@ -9,13 +9,54 @@
  * Written by: Michael Chan  (mchan@broadcom.com)
  */
 
+#include <linux/config.h>
+
+#include <linux/module.h>
+#include <linux/moduleparam.h>
+
+#include <linux/kernel.h>
+#include <linux/timer.h>
+#include <linux/errno.h>
+#include <linux/ioport.h>
+#include <linux/slab.h>
+#include <linux/vmalloc.h>
+#include <linux/interrupt.h>
+#include <linux/pci.h>
+#include <linux/init.h>
+#include <linux/netdevice.h>
+#include <linux/etherdevice.h>
+#include <linux/skbuff.h>
+#include <linux/dma-mapping.h>
+#include <asm/bitops.h>
+#include <asm/io.h>
+#include <asm/irq.h>
+#include <linux/delay.h>
+#include <asm/byteorder.h>
+#include <linux/time.h>
+#include <linux/ethtool.h>
+#include <linux/mii.h>
+#ifdef NETIF_F_HW_VLAN_TX
+#include <linux/if_vlan.h>
+#define BCM_VLAN 1
+#endif
+#ifdef NETIF_F_TSO
+#include <net/ip.h>
+#include <net/tcp.h>
+#include <net/checksum.h>
+#define BCM_TSO 1
+#endif
+#include <linux/workqueue.h>
+#include <linux/crc32.h>
+#include <linux/prefetch.h>
+#include <linux/cache.h>
+
 #include "bnx2.h"
 #include "bnx2_fw.h"
 
 #define DRV_MODULE_NAME		"bnx2"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"1.4.38"
-#define DRV_MODULE_RELDATE	"February 10, 2006"
+#define DRV_MODULE_VERSION	"1.4.39"
+#define DRV_MODULE_RELDATE	"March 22, 2006"
 
 #define RUN_AT(x) (jiffies + (x))
 
@@ -313,8 +354,6 @@ bnx2_disable_int(struct bnx2 *bp)
 static void
 bnx2_enable_int(struct bnx2 *bp)
 {
-	u32 val;
-
 	REG_WR(bp, BNX2_PCICFG_INT_ACK_CMD,
 	       BNX2_PCICFG_INT_ACK_CMD_INDEX_VALID |
 	       BNX2_PCICFG_INT_ACK_CMD_MASK_INT | bp->last_status_idx);
@@ -322,8 +361,7 @@ bnx2_enable_int(struct bnx2 *bp)
 	REG_WR(bp, BNX2_PCICFG_INT_ACK_CMD,
 	       BNX2_PCICFG_INT_ACK_CMD_INDEX_VALID | bp->last_status_idx);
 
-	val = REG_RD(bp, BNX2_HC_COMMAND);
-	REG_WR(bp, BNX2_HC_COMMAND, val | BNX2_HC_COMMAND_COAL_NOW);
+	REG_WR(bp, BNX2_HC_COMMAND, bp->hc_cmd | BNX2_HC_COMMAND_COAL_NOW);
 }
 
 static void
@@ -362,15 +400,11 @@ bnx2_free_mem(struct bnx2 *bp)
 {
 	int i;
 
-	if (bp->stats_blk) {
-		pci_free_consistent(bp->pdev, sizeof(struct statistics_block),
-				    bp->stats_blk, bp->stats_blk_mapping);
-		bp->stats_blk = NULL;
-	}
 	if (bp->status_blk) {
-		pci_free_consistent(bp->pdev, sizeof(struct status_block),
+		pci_free_consistent(bp->pdev, bp->status_stats_size,
 				    bp->status_blk, bp->status_blk_mapping);
 		bp->status_blk = NULL;
+		bp->stats_blk = NULL;
 	}
 	if (bp->tx_desc_ring) {
 		pci_free_consistent(bp->pdev,
@@ -395,14 +429,13 @@ bnx2_free_mem(struct bnx2 *bp)
 static int
 bnx2_alloc_mem(struct bnx2 *bp)
 {
-	int i;
+	int i, status_blk_size;
 
-	bp->tx_buf_ring = kmalloc(sizeof(struct sw_bd) * TX_DESC_CNT,
-				     GFP_KERNEL);
+	bp->tx_buf_ring = kzalloc(sizeof(struct sw_bd) * TX_DESC_CNT,
+				  GFP_KERNEL);
 	if (bp->tx_buf_ring == NULL)
 		return -ENOMEM;
 
-	memset(bp->tx_buf_ring, 0, sizeof(struct sw_bd) * TX_DESC_CNT);
 	bp->tx_desc_ring = pci_alloc_consistent(bp->pdev,
 					        sizeof(struct tx_bd) *
 						TX_DESC_CNT,
@@ -428,21 +461,22 @@ bnx2_alloc_mem(struct bnx2 *bp)
 
 	}
 
-	bp->status_blk = pci_alloc_consistent(bp->pdev,
-					      sizeof(struct status_block),
+	/* Combine status and statistics blocks into one allocation. */
+	status_blk_size = L1_CACHE_ALIGN(sizeof(struct status_block));
+	bp->status_stats_size = status_blk_size +
+				sizeof(struct statistics_block);
+
+	bp->status_blk = pci_alloc_consistent(bp->pdev, bp->status_stats_size,
 					      &bp->status_blk_mapping);
 	if (bp->status_blk == NULL)
 		goto alloc_mem_err;
 
-	memset(bp->status_blk, 0, sizeof(struct status_block));
+	memset(bp->status_blk, 0, bp->status_stats_size);
 
-	bp->stats_blk = pci_alloc_consistent(bp->pdev,
-					     sizeof(struct statistics_block),
-					     &bp->stats_blk_mapping);
-	if (bp->stats_blk == NULL)
-		goto alloc_mem_err;
+	bp->stats_blk = (void *) ((unsigned long) bp->status_blk +
+				  status_blk_size);
 
-	memset(bp->stats_blk, 0, sizeof(struct statistics_block));
+	bp->stats_blk_mapping = bp->status_blk_mapping + status_blk_size;
 
 	return 0;
 
@@ -1926,6 +1960,13 @@ bnx2_poll(struct net_device *dev, int *budget)
 		spin_lock(&bp->phy_lock);
 		bnx2_phy_int(bp);
 		spin_unlock(&bp->phy_lock);
+
+		/* This is needed to take care of transient status
+		 * during link changes.
+		 */
+		REG_WR(bp, BNX2_HC_COMMAND,
+		       bp->hc_cmd | BNX2_HC_COMMAND_COAL_NOW_WO_INT);
+		REG_RD(bp, BNX2_HC_COMMAND);
 	}
 
 	if (bp->status_blk->status_tx_quick_consumer_index0 != bp->hw_tx_cons)
@@ -3307,6 +3348,8 @@ bnx2_init_chip(struct bnx2 *bp)
 
 	udelay(20);
 
+	bp->hc_cmd = REG_RD(bp, BNX2_HC_COMMAND);
+
 	return rc;
 }
 
@@ -3746,7 +3789,6 @@ bnx2_run_loopback(struct bnx2 *bp, int loopback_mode)
 	struct sk_buff *skb, *rx_skb;
 	unsigned char *packet;
 	u16 rx_start_idx, rx_idx;
-	u32 val;
 	dma_addr_t map;
 	struct tx_bd *txbd;
 	struct sw_bd *rx_buf;
@@ -3777,8 +3819,9 @@ bnx2_run_loopback(struct bnx2 *bp, int loopback_mode)
 	map = pci_map_single(bp->pdev, skb->data, pkt_size,
 		PCI_DMA_TODEVICE);
 
-	val = REG_RD(bp, BNX2_HC_COMMAND);
-	REG_WR(bp, BNX2_HC_COMMAND, val | BNX2_HC_COMMAND_COAL_NOW_WO_INT);
+	REG_WR(bp, BNX2_HC_COMMAND,
+	       bp->hc_cmd | BNX2_HC_COMMAND_COAL_NOW_WO_INT);
+
 	REG_RD(bp, BNX2_HC_COMMAND);
 
 	udelay(5);
@@ -3802,8 +3845,9 @@ bnx2_run_loopback(struct bnx2 *bp, int loopback_mode)
 
 	udelay(100);
 
-	val = REG_RD(bp, BNX2_HC_COMMAND);
-	REG_WR(bp, BNX2_HC_COMMAND, val | BNX2_HC_COMMAND_COAL_NOW_WO_INT);
+	REG_WR(bp, BNX2_HC_COMMAND,
+	       bp->hc_cmd | BNX2_HC_COMMAND_COAL_NOW_WO_INT);
+
 	REG_RD(bp, BNX2_HC_COMMAND);
 
 	udelay(5);
@@ -3939,7 +3983,6 @@ static int
 bnx2_test_intr(struct bnx2 *bp)
 {
 	int i;
-	u32 val;
 	u16 status_idx;
 
 	if (!netif_running(bp->dev))
@@ -3948,8 +3991,7 @@ bnx2_test_intr(struct bnx2 *bp)
 	status_idx = REG_RD(bp, BNX2_PCICFG_INT_ACK_CMD) & 0xffff;
 
 	/* This register is not touched during run-time. */
-	val = REG_RD(bp, BNX2_HC_COMMAND);
-	REG_WR(bp, BNX2_HC_COMMAND, val | BNX2_HC_COMMAND_COAL_NOW);
+	REG_WR(bp, BNX2_HC_COMMAND, bp->hc_cmd | BNX2_HC_COMMAND_COAL_NOW);
 	REG_RD(bp, BNX2_HC_COMMAND);
 
 	for (i = 0; i < 10; i++) {

@@ -201,6 +201,54 @@ static struct clk ohci_clk = {
 	.pmc_mask	= 1 << AT91_ID_UHP,
 	.mode		= pmc_periph_mode,
 };
+static struct clk ether_clk = {
+	.name		= "ether_clk",
+	.parent		= &mck,
+	.pmc_mask	= 1 << AT91_ID_EMAC,
+	.mode		= pmc_periph_mode,
+};
+static struct clk mmc_clk = {
+	.name		= "mci_clk",
+	.parent		= &mck,
+	.pmc_mask	= 1 << AT91_ID_MCI,
+	.mode		= pmc_periph_mode,
+};
+static struct clk twi_clk = {
+	.name		= "twi_clk",
+	.parent		= &mck,
+	.pmc_mask	= 1 << AT91_ID_TWI,
+	.mode		= pmc_periph_mode,
+};
+static struct clk usart0_clk = {
+	.name		= "usart0_clk",
+	.parent		= &mck,
+	.pmc_mask	= 1 << AT91_ID_US0,
+	.mode		= pmc_periph_mode,
+};
+static struct clk usart1_clk = {
+	.name		= "usart1_clk",
+	.parent		= &mck,
+	.pmc_mask	= 1 << AT91_ID_US1,
+	.mode		= pmc_periph_mode,
+};
+static struct clk usart2_clk = {
+	.name		= "usart2_clk",
+	.parent		= &mck,
+	.pmc_mask	= 1 << AT91_ID_US2,
+	.mode		= pmc_periph_mode,
+};
+static struct clk usart3_clk = {
+	.name		= "usart3_clk",
+	.parent		= &mck,
+	.pmc_mask	= 1 << AT91_ID_US3,
+	.mode		= pmc_periph_mode,
+};
+static struct clk spi_clk = {
+	.name		= "spi0_clk",
+	.parent		= &mck,
+	.pmc_mask	= 1 << AT91_ID_SPI,
+	.mode		= pmc_periph_mode,
+};
 
 static struct clk *const clock_list[] = {
 	/* four primary clocks -- MUST BE FIRST! */
@@ -223,15 +271,18 @@ static struct clk *const clock_list[] = {
 
 	/* MCK and peripherals */
 	&mck,
-	// usart0..usart3
-	// mmc
+	&usart0_clk,
+	&usart1_clk,
+	&usart2_clk,
+	&usart3_clk,
+	&mmc_clk,
 	&udc_clk,
-	// i2c
-	// spi
+	&twi_clk,
+	&spi_clk,
 	// ssc0..ssc2
 	// tc0..tc5
 	&ohci_clk,
-	// ether
+	&ether_clk,
 };
 
 
@@ -360,7 +411,7 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 			u32	pckr;
 
 			pckr = at91_sys_read(AT91_PMC_PCKR(clk->id));
-			pckr &= 0x03;
+			pckr &= AT91_PMC_CSS_PLLB;	/* clock selection */
 			pckr |= prescale << 2;
 			at91_sys_write(AT91_PMC_PCKR(clk->id), pckr);
 			clk->rate_hz = actual;
@@ -440,7 +491,7 @@ static int at91_clk_show(struct seq_file *s, void *unused)
 		else
 			state = "";
 
-		seq_printf(s, "%-10s users=%d %-3s %9ld Hz %s\n",
+		seq_printf(s, "%-10s users=%2d %-3s %9ld Hz %s\n",
 			clk->name, clk->users, state, clk_get_rate(clk),
 			clk->parent ? clk->parent->name : "");
 	}
@@ -483,9 +534,16 @@ static u32 __init at91_pll_rate(struct clk *pll, u32 freq, u32 reg)
 		freq *= mul + 1;
 	} else
 		freq = 0;
-	if (pll == &pllb && (reg & (1 << 28)))
-		freq /= 2;
+
 	return freq;
+}
+
+static u32 __init at91_usb_rate(struct clk *pll, u32 freq, u32 reg)
+{
+	if (pll == &pllb && (reg & AT91_PMC_USB96M))
+		return freq / 2;
+	else
+		return freq;
 }
 
 static unsigned __init at91_pll_calc(unsigned main_freq, unsigned out_freq)
@@ -550,8 +608,8 @@ int __init at91_clock_init(unsigned long main_clock)
 	if (!main_clock) {
 		do {
 			tmp = at91_sys_read(AT91_CKGR_MCFR);
-		} while (!(tmp & 0x10000));
-		main_clock = (tmp & 0xffff) * (AT91_SLOW_CLOCK / 16);
+		} while (!(tmp & AT91_PMC_MAINRDY));
+		main_clock = (tmp & AT91_PMC_MAINF) * (AT91_SLOW_CLOCK / 16);
 	}
 	main_clk.rate_hz = main_clock;
 
@@ -566,12 +624,15 @@ int __init at91_clock_init(unsigned long main_clock)
 	 *
 	 * REVISIT:  assumes MCK doesn't derive from PLLB!
 	 */
-	at91_pllb_usb_init = at91_pll_calc(main_clock, 48000000 * 2) | 0x10000000;
+	at91_pllb_usb_init = at91_pll_calc(main_clock, 48000000 * 2) | AT91_PMC_USB96M;
 	pllb.rate_hz = at91_pll_rate(&pllb, main_clock, at91_pllb_usb_init);
 	at91_sys_write(AT91_PMC_PCDR, (1 << AT91_ID_UHP) | (1 << AT91_ID_UDP));
 	at91_sys_write(AT91_PMC_SCDR, AT91_PMC_UHP | AT91_PMC_UDP);
 	at91_sys_write(AT91_CKGR_PLLBR, 0);
 	at91_sys_write(AT91_PMC_SCER, AT91_PMC_MCKUDP);
+
+	udpck.rate_hz = at91_usb_rate(&pllb, pllb.rate_hz, at91_pllb_usb_init);
+	uhpck.rate_hz = at91_usb_rate(&pllb, pllb.rate_hz, at91_pllb_usb_init);
 
 	/*
 	 * MCK and CPU derive from one of those primary clocks.

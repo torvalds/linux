@@ -55,11 +55,11 @@ MODULE_AUTHOR("Pantelis Antoniou <panto@intracom.gr>");
 MODULE_DESCRIPTION("Motorola 8xx FEC ethernet driver");
 MODULE_LICENSE("GPL");
 
-MODULE_PARM(fec_8xx_debug, "i");
+int fec_8xx_debug = -1;		/* -1 == use FEC_8XX_DEF_MSG_ENABLE as value */
+module_param(fec_8xx_debug, int, 0);
 MODULE_PARM_DESC(fec_8xx_debug,
 		 "FEC 8xx bitmapped debugging message enable value");
 
-int fec_8xx_debug = -1;		/* -1 == use FEC_8XX_DEF_MSG_ENABLE as value */
 
 /*************************************************/
 

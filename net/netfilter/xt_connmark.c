@@ -64,7 +64,22 @@ checkentry(const char *tablename,
 		printk(KERN_WARNING "connmark: only support 32bit mark\n");
 		return 0;
 	}
+#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
+	if (nf_ct_l3proto_try_module_get(match->family) < 0) {
+		printk(KERN_WARNING "can't load nf_conntrack support for "
+				    "proto=%d\n", match->family);
+		return 0;
+	}
+#endif
 	return 1;
+}
+
+static void
+destroy(const struct xt_match *match, void *matchinfo, unsigned int matchsize)
+{
+#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
+	nf_ct_l3proto_module_put(match->family);
+#endif
 }
 
 static struct xt_match connmark_match = {
@@ -72,6 +87,8 @@ static struct xt_match connmark_match = {
 	.match		= match,
 	.matchsize	= sizeof(struct xt_connmark_info),
 	.checkentry	= checkentry,
+	.destroy	= destroy,
+	.family		= AF_INET,
 	.me		= THIS_MODULE
 };
 
@@ -80,30 +97,32 @@ static struct xt_match connmark6_match = {
 	.match		= match,
 	.matchsize	= sizeof(struct xt_connmark_info),
 	.checkentry	= checkentry,
+	.destroy	= destroy,
+	.family		= AF_INET6,
 	.me		= THIS_MODULE
 };
 
-static int __init init(void)
+static int __init xt_connmark_init(void)
 {
 	int ret;
 
 	need_conntrack();
 
-	ret = xt_register_match(AF_INET, &connmark_match);
+	ret = xt_register_match(&connmark_match);
 	if (ret)
 		return ret;
 
-	ret = xt_register_match(AF_INET6, &connmark6_match);
+	ret = xt_register_match(&connmark6_match);
 	if (ret)
-		xt_unregister_match(AF_INET, &connmark_match);
+		xt_unregister_match(&connmark_match);
 	return ret;
 }
 
-static void __exit fini(void)
+static void __exit xt_connmark_fini(void)
 {
-	xt_unregister_match(AF_INET6, &connmark6_match);
-	xt_unregister_match(AF_INET, &connmark_match);
+	xt_unregister_match(&connmark6_match);
+	xt_unregister_match(&connmark_match);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(xt_connmark_init);
+module_exit(xt_connmark_fini);

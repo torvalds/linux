@@ -42,7 +42,6 @@
 	thunk rwsem_wake_thunk,rwsem_wake
 	thunk rwsem_downgrade_thunk,rwsem_downgrade_wake
 #endif	
-	thunk do_softirq_thunk,do_softirq
 	
 	thunk __down_failed,__down
 	thunk_retrax __down_failed_interruptible,__down_interruptible

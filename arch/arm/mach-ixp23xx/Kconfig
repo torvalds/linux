@@ -1,0 +1,25 @@
+if ARCH_IXP23XX
+
+config ARCH_SUPPORTS_BIG_ENDIAN
+	bool
+	default y
+
+menu "Intel IXP23xx Implementation Options"
+
+comment "IXP23xx Platforms"
+
+config MACH_ESPRESSO
+	bool "Support IP Fabrics Double Espresso platform"
+	help
+
+config MACH_IXDP2351
+	bool "Support Intel IXDP2351 platform"
+	help
+
+config MACH_ROADRUNNER
+	bool "Support ADI RoadRunner platform"
+	help
+
+endmenu
+
+endif

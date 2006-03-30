@@ -176,5 +176,21 @@ extern int pci_hp_change_slot_info	(struct hotplug_slot *slot,
 					 struct hotplug_slot_info *info);
 extern struct subsystem pci_hotplug_slots_subsys;
 
+struct hotplug_params {
+	u8 cache_line_size;
+	u8 latency_timer;
+	u8 enable_serr;
+	u8 enable_perr;
+};
+
+#ifdef CONFIG_ACPI
+#include <acpi/acpi.h>
+#include <acpi/acpi_bus.h>
+#include <acpi/actypes.h>
+extern acpi_status acpi_run_oshp(acpi_handle handle);
+extern acpi_status acpi_get_hp_params_from_firmware(struct pci_dev *dev,
+				struct hotplug_params *hpp);
+int acpi_root_bridge(acpi_handle handle);
+#endif
 #endif
 

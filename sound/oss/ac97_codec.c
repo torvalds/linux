@@ -55,7 +55,7 @@
 #include <linux/pci.h>
 #include <linux/ac97_codec.h>
 #include <asm/uaccess.h>
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
 
 #define CODEC_ID_BUFSZ 14
 
@@ -304,7 +304,7 @@ static const unsigned int ac97_oss_rm[] = {
 
 static LIST_HEAD(codecs);
 static LIST_HEAD(codec_drivers);
-static DECLARE_MUTEX(codec_sem);
+static DEFINE_MUTEX(codec_mutex);
 
 /* reads the given OSS mixer from the ac97 the caller must have insured that the ac97 knows
    about that given mixer, and should be holding a spinlock for the card */
@@ -769,9 +769,9 @@ void ac97_release_codec(struct ac97_codec *codec)
 {
 	/* Remove from the list first, we don't want to be
 	   "rediscovered" */
-	down(&codec_sem);
+	mutex_lock(&codec_mutex);
 	list_del(&codec->list);
-	up(&codec_sem);
+	mutex_unlock(&codec_mutex);
 	/*
 	 *	The driver needs to deal with internal
 	 *	locking to avoid accidents here. 
@@ -889,7 +889,7 @@ int ac97_probe_codec(struct ac97_codec *codec)
 	 *	callbacks.
 	 */
 	 
-	down(&codec_sem);
+	mutex_lock(&codec_mutex);
 	list_add(&codec->list, &codecs);
 
 	list_for_each(l, &codec_drivers) {
@@ -903,7 +903,7 @@ int ac97_probe_codec(struct ac97_codec *codec)
 		}
 	}
 
-	up(&codec_sem);
+	mutex_unlock(&codec_mutex);
 	return 1;
 }
 
@@ -1439,7 +1439,7 @@ int ac97_register_driver(struct ac97_driver *driver)
 	struct list_head *l;
 	struct ac97_codec *c;
 	
-	down(&codec_sem);
+	mutex_lock(&codec_mutex);
 	INIT_LIST_HEAD(&driver->list);
 	list_add(&driver->list, &codec_drivers);
 	
@@ -1452,7 +1452,7 @@ int ac97_register_driver(struct ac97_driver *driver)
 			continue;
 		c->driver = driver;
 	}
-	up(&codec_sem);
+	mutex_unlock(&codec_mutex);
 	return 0;
 }
 
@@ -1471,7 +1471,7 @@ void ac97_unregister_driver(struct ac97_driver *driver)
 	struct list_head *l;
 	struct ac97_codec *c;
 	
-	down(&codec_sem);
+	mutex_lock(&codec_mutex);
 	list_del_init(&driver->list);
 
 	list_for_each(l, &codecs)
@@ -1483,7 +1483,7 @@ void ac97_unregister_driver(struct ac97_driver *driver)
 		}
 	}
 	
-	up(&codec_sem);
+	mutex_unlock(&codec_mutex);
 }
 
 EXPORT_SYMBOL_GPL(ac97_unregister_driver);
@@ -1494,14 +1494,14 @@ static int swap_headphone(int remove_master)
 	struct ac97_codec *c;
 	
 	if (remove_master) {
-		down(&codec_sem);
+		mutex_lock(&codec_mutex);
 		list_for_each(l, &codecs)
 		{
 			c = list_entry(l, struct ac97_codec, list);
 			if (supported_mixer(c, SOUND_MIXER_PHONEOUT))
 				c->supported_mixers &= ~SOUND_MASK_PHONEOUT;
 		}
-		up(&codec_sem);
+		mutex_unlock(&codec_mutex);
 	} else
 		ac97_hw[SOUND_MIXER_PHONEOUT].offset = AC97_MASTER_VOL_STEREO;
 

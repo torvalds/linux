@@ -2461,11 +2461,8 @@ ahc_construct_sdtr(struct ahc_softc *ahc, struct ahc_devinfo *devinfo,
 {
 	if (offset == 0)
 		period = AHC_ASYNC_XFER_PERIOD;
-	ahc->msgout_buf[ahc->msgout_index++] = MSG_EXTENDED;
-	ahc->msgout_buf[ahc->msgout_index++] = MSG_EXT_SDTR_LEN;
-	ahc->msgout_buf[ahc->msgout_index++] = MSG_EXT_SDTR;
-	ahc->msgout_buf[ahc->msgout_index++] = period;
-	ahc->msgout_buf[ahc->msgout_index++] = offset;
+	ahc->msgout_index += spi_populate_sync_msg(
+			ahc->msgout_buf + ahc->msgout_index, period, offset);
 	ahc->msgout_len += 5;
 	if (bootverbose) {
 		printf("(%s:%c:%d:%d): Sending SDTR period %x, offset %x\n",
@@ -2482,10 +2479,8 @@ static void
 ahc_construct_wdtr(struct ahc_softc *ahc, struct ahc_devinfo *devinfo,
 		   u_int bus_width)
 {
-	ahc->msgout_buf[ahc->msgout_index++] = MSG_EXTENDED;
-	ahc->msgout_buf[ahc->msgout_index++] = MSG_EXT_WDTR_LEN;
-	ahc->msgout_buf[ahc->msgout_index++] = MSG_EXT_WDTR;
-	ahc->msgout_buf[ahc->msgout_index++] = bus_width;
+	ahc->msgout_index += spi_populate_width_msg(
+			ahc->msgout_buf + ahc->msgout_index, bus_width);
 	ahc->msgout_len += 4;
 	if (bootverbose) {
 		printf("(%s:%c:%d:%d): Sending WDTR %x\n",
@@ -2505,14 +2500,9 @@ ahc_construct_ppr(struct ahc_softc *ahc, struct ahc_devinfo *devinfo,
 {
 	if (offset == 0)
 		period = AHC_ASYNC_XFER_PERIOD;
-	ahc->msgout_buf[ahc->msgout_index++] = MSG_EXTENDED;
-	ahc->msgout_buf[ahc->msgout_index++] = MSG_EXT_PPR_LEN;
-	ahc->msgout_buf[ahc->msgout_index++] = MSG_EXT_PPR;
-	ahc->msgout_buf[ahc->msgout_index++] = period;
-	ahc->msgout_buf[ahc->msgout_index++] = 0;
-	ahc->msgout_buf[ahc->msgout_index++] = offset;
-	ahc->msgout_buf[ahc->msgout_index++] = bus_width;
-	ahc->msgout_buf[ahc->msgout_index++] = ppr_options;
+	ahc->msgout_index += spi_populate_ppr_msg(
+			ahc->msgout_buf + ahc->msgout_index, period, offset,
+			bus_width, ppr_options);
 	ahc->msgout_len += 8;
 	if (bootverbose) {
 		printf("(%s:%c:%d:%d): Sending PPR bus_width %x, period %x, "

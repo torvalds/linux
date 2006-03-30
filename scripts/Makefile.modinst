@@ -2,7 +2,7 @@
 # Installing modules
 # ==========================================================================
 
-.PHONY: __modinst
+PHONY := __modinst
 __modinst:
 
 include scripts/Kbuild.include
@@ -12,7 +12,7 @@ include scripts/Kbuild.include
 __modules := $(sort $(shell grep -h '\.ko' /dev/null $(wildcard $(MODVERDIR)/*.mod)))
 modules := $(patsubst %.o,%.ko,$(wildcard $(__modules:.ko=.o)))
 
-.PHONY: $(modules)
+PHONY += $(modules)
 __modinst: $(modules)
 	@:
 
@@ -27,3 +27,9 @@ modinst_dir = $(if $(KBUILD_EXTMOD),$(ext-mod-dir),kernel/$(@D))
 
 $(modules):
 	$(call cmd,modules_install,$(MODLIB)/$(modinst_dir))
+
+
+# Declare the contents of the .PHONY variable as phony.  We keep that
+# information in a variable se we can use it in if_changed and friends.
+
+.PHONY: $(PHONY)

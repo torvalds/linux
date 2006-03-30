@@ -75,7 +75,7 @@ static inline void leave_mm(int cpu)
 {
 	if (read_pda(mmu_state) == TLBSTATE_OK)
 		BUG();
-	clear_bit(cpu, &read_pda(active_mm)->cpu_vm_mask);
+	cpu_clear(cpu, read_pda(active_mm)->cpu_vm_mask);
 	load_cr3(swapper_pg_dir);
 }
 
@@ -85,7 +85,7 @@ static inline void leave_mm(int cpu)
  * [cpu0: the cpu that switches]
  * 1) switch_mm() either 1a) or 1b)
  * 1a) thread switch to a different mm
- * 1a1) clear_bit(cpu, &old_mm->cpu_vm_mask);
+ * 1a1) cpu_clear(cpu, old_mm->cpu_vm_mask);
  * 	Stop ipi delivery for the old mm. This is not synchronized with
  * 	the other cpus, but smp_invalidate_interrupt ignore flush ipis
  * 	for the wrong mm, and in the worst case we perform a superfluous
@@ -95,7 +95,7 @@ static inline void leave_mm(int cpu)
  *	was in lazy tlb mode.
  * 1a3) update cpu active_mm
  * 	Now cpu0 accepts tlb flushes for the new mm.
- * 1a4) set_bit(cpu, &new_mm->cpu_vm_mask);
+ * 1a4) cpu_set(cpu, new_mm->cpu_vm_mask);
  * 	Now the other cpus will send tlb flush ipis.
  * 1a4) change cr3.
  * 1b) thread switch without mm change

@@ -29,6 +29,7 @@
 #include <linux/hwmon.h>
 #include <linux/hwmon-vid.h>
 #include <linux/err.h>
+#include <linux/mutex.h>
 
 /* Type of the extra sensor */
 static unsigned short extra_sensor_type;
@@ -121,7 +122,7 @@ static struct i2c_driver gl520_driver = {
 struct gl520_data {
 	struct i2c_client client;
 	struct class_device *class_dev;
-	struct semaphore update_lock;
+	struct mutex update_lock;
 	char valid;		/* zero until the following fields are valid */
 	unsigned long last_updated;	/* in jiffies */
 
@@ -303,7 +304,7 @@ static ssize_t set_in_min(struct i2c_client *client, struct gl520_data *data, co
 	long v = simple_strtol(buf, NULL, 10);
 	u8 r;
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 
 	if (n == 0)
 		r = VDD_TO_REG(v);
@@ -317,7 +318,7 @@ static ssize_t set_in_min(struct i2c_client *client, struct gl520_data *data, co
 	else
 		gl520_write_value(client, reg, r);
 
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -331,7 +332,7 @@ static ssize_t set_in_max(struct i2c_client *client, struct gl520_data *data, co
 	else
 		r = IN_TO_REG(v);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 
 	data->in_max[n] = r;
 
@@ -340,7 +341,7 @@ static ssize_t set_in_max(struct i2c_client *client, struct gl520_data *data, co
 	else
 		gl520_write_value(client, reg, r);
 
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -373,7 +374,7 @@ static ssize_t set_fan_min(struct i2c_client *client, struct gl520_data *data, c
 	unsigned long v = simple_strtoul(buf, NULL, 10);
 	u8 r;
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	r = FAN_TO_REG(v, data->fan_div[n - 1]);
 	data->fan_min[n - 1] = r;
 
@@ -390,7 +391,7 @@ static ssize_t set_fan_min(struct i2c_client *client, struct gl520_data *data, c
 	data->beep_mask &= data->alarm_mask;
 	gl520_write_value(client, GL520_REG_BEEP_MASK, data->beep_mask);
 
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -409,7 +410,7 @@ static ssize_t set_fan_div(struct i2c_client *client, struct gl520_data *data, c
 		return -EINVAL;
 	}
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	data->fan_div[n - 1] = r;
 
 	if (n == 1)
@@ -417,7 +418,7 @@ static ssize_t set_fan_div(struct i2c_client *client, struct gl520_data *data, c
 	else
 		gl520_write_value(client, reg, (gl520_read_value(client, reg) & ~0x30) | (r << 4));
 
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -425,10 +426,10 @@ static ssize_t set_fan_off(struct i2c_client *client, struct gl520_data *data, c
 {
 	u8 r = simple_strtoul(buf, NULL, 10)?1:0;
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	data->fan_off = r;
 	gl520_write_value(client, reg, (gl520_read_value(client, reg) & ~0x0c) | (r << 2));
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -454,10 +455,10 @@ static ssize_t set_temp_max(struct i2c_client *client, struct gl520_data *data, 
 {
 	long v = simple_strtol(buf, NULL, 10);
 
-	down(&data->update_lock);
-	data->temp_max[n - 1] = TEMP_TO_REG(v);;
+	mutex_lock(&data->update_lock);
+	data->temp_max[n - 1] = TEMP_TO_REG(v);
 	gl520_write_value(client, reg, data->temp_max[n - 1]);
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -465,10 +466,10 @@ static ssize_t set_temp_max_hyst(struct i2c_client *client, struct gl520_data *d
 {
 	long v = simple_strtol(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	data->temp_max_hyst[n - 1] = TEMP_TO_REG(v);
 	gl520_write_value(client, reg, data->temp_max_hyst[n - 1]);
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -491,10 +492,10 @@ static ssize_t set_beep_enable(struct i2c_client *client, struct gl520_data *dat
 {
 	u8 r = simple_strtoul(buf, NULL, 10)?0:1;
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	data->beep_enable = !r;
 	gl520_write_value(client, reg, (gl520_read_value(client, reg) & ~0x04) | (r << 2));
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -502,11 +503,11 @@ static ssize_t set_beep_mask(struct i2c_client *client, struct gl520_data *data,
 {
 	u8 r = simple_strtoul(buf, NULL, 10);
 	
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	r &= data->alarm_mask;
 	data->beep_mask = r;
 	gl520_write_value(client, reg, r);
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -561,7 +562,7 @@ static int gl520_detect(struct i2c_adapter *adapter, int address, int kind)
 	/* Fill in the remaining client fields */
 	strlcpy(new_client->name, "gl520sm", I2C_NAME_SIZE);
 	data->valid = 0;
-	init_MUTEX(&data->update_lock);
+	mutex_init(&data->update_lock);
 
 	/* Tell the I2C layer a new client has arrived */
 	if ((err = i2c_attach_client(new_client)))
@@ -685,7 +686,7 @@ static struct gl520_data *gl520_update_device(struct device *dev)
 	struct gl520_data *data = i2c_get_clientdata(client);
 	int val;
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 
 	if (time_after(jiffies, data->last_updated + 2 * HZ) || !data->valid) {
 
@@ -750,7 +751,7 @@ static struct gl520_data *gl520_update_device(struct device *dev)
 		data->valid = 1;
 	}
 
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 
 	return data;
 }

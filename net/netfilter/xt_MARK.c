@@ -119,6 +119,7 @@ static struct xt_target ipt_mark_reg_v0 = {
 	.table		= "mangle",
 	.checkentry	= checkentry_v0,
 	.me		= THIS_MODULE,
+	.family		= AF_INET,
 	.revision	= 0,
 };
 
@@ -129,6 +130,7 @@ static struct xt_target ipt_mark_reg_v1 = {
 	.table		= "mangle",
 	.checkentry	= checkentry_v1,
 	.me		= THIS_MODULE,
+	.family		= AF_INET,
 	.revision	= 1,
 };
 
@@ -139,36 +141,37 @@ static struct xt_target ip6t_mark_reg_v0 = {
 	.table		= "mangle",
 	.checkentry	= checkentry_v0,
 	.me		= THIS_MODULE,
+	.family		= AF_INET6,
 	.revision	= 0,
 };
 
-static int __init init(void)
+static int __init xt_mark_init(void)
 {
 	int err;
 
-	err = xt_register_target(AF_INET, &ipt_mark_reg_v0);
+	err = xt_register_target(&ipt_mark_reg_v0);
 	if (err)
 		return err;
 
-	err = xt_register_target(AF_INET, &ipt_mark_reg_v1);
+	err = xt_register_target(&ipt_mark_reg_v1);
 	if (err)
-		xt_unregister_target(AF_INET, &ipt_mark_reg_v0);
+		xt_unregister_target(&ipt_mark_reg_v0);
 
-	err = xt_register_target(AF_INET6, &ip6t_mark_reg_v0);
+	err = xt_register_target(&ip6t_mark_reg_v0);
 	if (err) {
-		xt_unregister_target(AF_INET, &ipt_mark_reg_v0);
-		xt_unregister_target(AF_INET, &ipt_mark_reg_v1);
+		xt_unregister_target(&ipt_mark_reg_v0);
+		xt_unregister_target(&ipt_mark_reg_v1);
 	}
 
 	return err;
 }
 
-static void __exit fini(void)
+static void __exit xt_mark_fini(void)
 {
-	xt_unregister_target(AF_INET, &ipt_mark_reg_v0);
-	xt_unregister_target(AF_INET, &ipt_mark_reg_v1);
-	xt_unregister_target(AF_INET6, &ip6t_mark_reg_v0);
+	xt_unregister_target(&ipt_mark_reg_v0);
+	xt_unregister_target(&ipt_mark_reg_v1);
+	xt_unregister_target(&ip6t_mark_reg_v0);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(xt_mark_init);
+module_exit(xt_mark_fini);

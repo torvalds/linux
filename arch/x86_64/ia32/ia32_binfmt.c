@@ -58,7 +58,7 @@ struct elf_phdr;
 
 #define USE_ELF_CORE_DUMP 1
 
-/* Overwrite elfcore.h */ 
+/* Override elfcore.h */ 
 #define _LINUX_ELFCORE_H 1
 typedef unsigned int elf_greg_t;
 

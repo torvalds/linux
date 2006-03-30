@@ -23,6 +23,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/time.h>
+#include <linux/mutex.h>
 #include <sound/core.h>
 #include <sound/minors.h>
 #include <sound/pcm.h>
@@ -35,7 +36,7 @@ MODULE_LICENSE("GPL");
 
 static LIST_HEAD(snd_pcm_devices);
 static LIST_HEAD(snd_pcm_notify_list);
-static DECLARE_MUTEX(register_mutex);
+static DEFINE_MUTEX(register_mutex);
 
 static int snd_pcm_free(struct snd_pcm *pcm);
 static int snd_pcm_dev_free(struct snd_device *device);
@@ -67,7 +68,7 @@ static int snd_pcm_control_ioctl(struct snd_card *card,
 
 			if (get_user(device, (int __user *)arg))
 				return -EFAULT;
-			down(&register_mutex);
+			mutex_lock(&register_mutex);
 			device = device < 0 ? 0 : device + 1;
 			while (device < SNDRV_PCM_DEVICES) {
 				if (snd_pcm_search(card, device))
@@ -76,7 +77,7 @@ static int snd_pcm_control_ioctl(struct snd_card *card,
 			}
 			if (device == SNDRV_PCM_DEVICES)
 				device = -1;
-			up(&register_mutex);
+			mutex_unlock(&register_mutex);
 			if (put_user(device, (int __user *)arg))
 				return -EFAULT;
 			return 0;
@@ -100,7 +101,7 @@ static int snd_pcm_control_ioctl(struct snd_card *card,
 				return -EINVAL;
 			if (get_user(subdevice, &info->subdevice))
 				return -EFAULT;
-			down(&register_mutex);
+			mutex_lock(&register_mutex);
 			pcm = snd_pcm_search(card, device);
 			if (pcm == NULL) {
 				err = -ENXIO;
@@ -125,7 +126,7 @@ static int snd_pcm_control_ioctl(struct snd_card *card,
 			}
 			err = snd_pcm_info_user(substream, info);
 		_error:
-			up(&register_mutex);
+			mutex_unlock(&register_mutex);
 			return err;
 		}
 	case SNDRV_CTL_IOCTL_PCM_PREFER_SUBDEVICE:
@@ -140,6 +141,9 @@ static int snd_pcm_control_ioctl(struct snd_card *card,
 	}
 	return -ENOIOCTLCMD;
 }
+
+#if defined(CONFIG_PROC_FS) && defined(CONFIG_SND_VERBOSE_PROCFS)
+
 #define STATE(v) [SNDRV_PCM_STATE_##v] = #v
 #define STREAM(v) [SNDRV_PCM_STREAM_##v] = #v
 #define READY(v) [SNDRV_PCM_READY_##v] = #v
@@ -197,7 +201,6 @@ const char *snd_pcm_format_name(snd_pcm_format_t format)
 	return snd_pcm_format_names[format];
 }
 
-#ifdef CONFIG_PROC_FS
 static char *snd_pcm_stream_names[] = {
 	STREAM(PLAYBACK),
 	STREAM(CAPTURE),
@@ -260,6 +263,7 @@ static const char *snd_pcm_state_name(snd_pcm_state_t state)
 
 #if defined(CONFIG_SND_PCM_OSS) || defined(CONFIG_SND_PCM_OSS_MODULE)
 #include <linux/soundcard.h>
+
 static const char *snd_pcm_oss_format_name(int format)
 {
 	switch (format) {
@@ -622,7 +626,7 @@ int snd_pcm_new_stream(struct snd_pcm *pcm, int stream, int substream_count)
 	struct snd_pcm_substream *substream, *prev;
 
 #if defined(CONFIG_SND_PCM_OSS) || defined(CONFIG_SND_PCM_OSS_MODULE)
-	init_MUTEX(&pstr->oss.setup_mutex);
+	mutex_init(&pstr->oss.setup_mutex);
 #endif
 	pstr->stream = stream;
 	pstr->pcm = pcm;
@@ -716,7 +720,7 @@ int snd_pcm_new(struct snd_card *card, char *id, int device,
 		snd_pcm_free(pcm);
 		return err;
 	}
-	init_MUTEX(&pcm->open_mutex);
+	mutex_init(&pcm->open_mutex);
 	init_waitqueue_head(&pcm->open_wait);
 	if ((err = snd_device_new(card, SNDRV_DEV_PCM, pcm, &ops)) < 0) {
 		snd_pcm_free(pcm);
@@ -902,9 +906,9 @@ static int snd_pcm_dev_register(struct snd_device *device)
 	struct snd_pcm *pcm = device->device_data;
 
 	snd_assert(pcm != NULL && device != NULL, return -ENXIO);
-	down(&register_mutex);
+	mutex_lock(&register_mutex);
 	if (snd_pcm_search(pcm->card, pcm->device)) {
-		up(&register_mutex);
+		mutex_unlock(&register_mutex);
 		return -EBUSY;
 	}
 	list_add_tail(&pcm->list, &snd_pcm_devices);
@@ -928,7 +932,7 @@ static int snd_pcm_dev_register(struct snd_device *device)
 					       pcm, str)) < 0)
 		{
 			list_del(&pcm->list);
-			up(&register_mutex);
+			mutex_unlock(&register_mutex);
 			return err;
 		}
 		for (substream = pcm->streams[cidx].substream; substream; substream = substream->next)
@@ -939,7 +943,7 @@ static int snd_pcm_dev_register(struct snd_device *device)
 		notify = list_entry(list, struct snd_pcm_notify, list);
 		notify->n_register(pcm);
 	}
-	up(&register_mutex);
+	mutex_unlock(&register_mutex);
 	return 0;
 }
 
@@ -950,7 +954,7 @@ static int snd_pcm_dev_disconnect(struct snd_device *device)
 	struct snd_pcm_substream *substream;
 	int cidx;
 
-	down(&register_mutex);
+	mutex_lock(&register_mutex);
 	list_del_init(&pcm->list);
 	for (cidx = 0; cidx < 2; cidx++)
 		for (substream = pcm->streams[cidx].substream; substream; substream = substream->next)
@@ -961,7 +965,7 @@ static int snd_pcm_dev_disconnect(struct snd_device *device)
 		notify = list_entry(list, struct snd_pcm_notify, list);
 		notify->n_disconnect(pcm);
 	}
-	up(&register_mutex);
+	mutex_unlock(&register_mutex);
 	return 0;
 }
 
@@ -973,7 +977,7 @@ static int snd_pcm_dev_unregister(struct snd_device *device)
 	struct snd_pcm *pcm = device->device_data;
 
 	snd_assert(pcm != NULL, return -ENXIO);
-	down(&register_mutex);
+	mutex_lock(&register_mutex);
 	list_del(&pcm->list);
 	for (cidx = 0; cidx < 2; cidx++) {
 		devtype = -1;
@@ -994,7 +998,7 @@ static int snd_pcm_dev_unregister(struct snd_device *device)
 		notify = list_entry(list, struct snd_pcm_notify, list);
 		notify->n_unregister(pcm);
 	}
-	up(&register_mutex);
+	mutex_unlock(&register_mutex);
 	return snd_pcm_free(pcm);
 }
 
@@ -1003,7 +1007,7 @@ int snd_pcm_notify(struct snd_pcm_notify *notify, int nfree)
 	struct list_head *p;
 
 	snd_assert(notify != NULL && notify->n_register != NULL && notify->n_unregister != NULL, return -EINVAL);
-	down(&register_mutex);
+	mutex_lock(&register_mutex);
 	if (nfree) {
 		list_del(&notify->list);
 		list_for_each(p, &snd_pcm_devices)
@@ -1014,7 +1018,7 @@ int snd_pcm_notify(struct snd_pcm_notify *notify, int nfree)
 		list_for_each(p, &snd_pcm_devices)
 			notify->n_register(list_entry(p, struct snd_pcm, list));
 	}
-	up(&register_mutex);
+	mutex_unlock(&register_mutex);
 	return 0;
 }
 
@@ -1029,7 +1033,7 @@ static void snd_pcm_proc_read(struct snd_info_entry *entry,
 	struct list_head *p;
 	struct snd_pcm *pcm;
 
-	down(&register_mutex);
+	mutex_lock(&register_mutex);
 	list_for_each(p, &snd_pcm_devices) {
 		pcm = list_entry(p, struct snd_pcm, list);
 		snd_iprintf(buffer, "%02i-%02i: %s : %s",
@@ -1042,7 +1046,7 @@ static void snd_pcm_proc_read(struct snd_info_entry *entry,
 				    pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream_count);
 		snd_iprintf(buffer, "\n");
 	}
-	up(&register_mutex);
+	mutex_unlock(&register_mutex);
 }
 
 static struct snd_info_entry *snd_pcm_proc_entry = NULL;
@@ -1101,7 +1105,6 @@ EXPORT_SYMBOL(snd_pcm_new_stream);
 EXPORT_SYMBOL(snd_pcm_notify);
 EXPORT_SYMBOL(snd_pcm_open_substream);
 EXPORT_SYMBOL(snd_pcm_release_substream);
-EXPORT_SYMBOL(snd_pcm_format_name);
   /* pcm_native.c */
 EXPORT_SYMBOL(snd_pcm_link_rwlock);
 #ifdef CONFIG_PM

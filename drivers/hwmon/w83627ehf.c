@@ -42,7 +42,9 @@
 #include <linux/i2c.h>
 #include <linux/i2c-isa.h>
 #include <linux/hwmon.h>
+#include <linux/hwmon-sysfs.h>
 #include <linux/err.h>
+#include <linux/mutex.h>
 #include <asm/io.h>
 #include "lm75.h"
 
@@ -177,9 +179,9 @@ temp1_to_reg(int temp)
 struct w83627ehf_data {
 	struct i2c_client client;
 	struct class_device *class_dev;
-	struct semaphore lock;
+	struct mutex lock;
 
-	struct semaphore update_lock;
+	struct mutex update_lock;
 	char valid;		/* !=0 if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
 
@@ -230,7 +232,7 @@ static u16 w83627ehf_read_value(struct i2c_client *client, u16 reg)
 	struct w83627ehf_data *data = i2c_get_clientdata(client);
 	int res, word_sized = is_word_sized(reg);
 
-	down(&data->lock);
+	mutex_lock(&data->lock);
 
 	w83627ehf_set_bank(client, reg);
 	outb_p(reg & 0xff, client->addr + ADDR_REG_OFFSET);
@@ -242,7 +244,7 @@ static u16 w83627ehf_read_value(struct i2c_client *client, u16 reg)
 	}
 	w83627ehf_reset_bank(client, reg);
 
-	up(&data->lock);
+	mutex_unlock(&data->lock);
 
 	return res;
 }
@@ -252,7 +254,7 @@ static int w83627ehf_write_value(struct i2c_client *client, u16 reg, u16 value)
 	struct w83627ehf_data *data = i2c_get_clientdata(client);
 	int word_sized = is_word_sized(reg);
 
-	down(&data->lock);
+	mutex_lock(&data->lock);
 
 	w83627ehf_set_bank(client, reg);
 	outb_p(reg & 0xff, client->addr + ADDR_REG_OFFSET);
@@ -264,7 +266,7 @@ static int w83627ehf_write_value(struct i2c_client *client, u16 reg, u16 value)
 	outb_p(value & 0xff, client->addr + DATA_REG_OFFSET);
 	w83627ehf_reset_bank(client, reg);
 
-	up(&data->lock);
+	mutex_unlock(&data->lock);
 	return 0;
 }
 
@@ -322,7 +324,7 @@ static struct w83627ehf_data *w83627ehf_update_device(struct device *dev)
 	struct w83627ehf_data *data = i2c_get_clientdata(client);
 	int i;
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 
 	if (time_after(jiffies, data->last_updated + HZ)
 	 || !data->valid) {
@@ -397,7 +399,7 @@ static struct w83627ehf_data *w83627ehf_update_device(struct device *dev)
 		data->valid = 1;
 	}
 
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return data;
 }
 
@@ -407,9 +409,12 @@ static struct w83627ehf_data *w83627ehf_update_device(struct device *dev)
 
 #define show_fan_reg(reg) \
 static ssize_t \
-show_##reg(struct device *dev, char *buf, int nr) \
+show_##reg(struct device *dev, struct device_attribute *attr, \
+	   char *buf) \
 { \
 	struct w83627ehf_data *data = w83627ehf_update_device(dev); \
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr); \
+	int nr = sensor_attr->index; \
 	return sprintf(buf, "%d\n", \
 		       fan_from_reg(data->reg[nr], \
 				    div_from_reg(data->fan_div[nr]))); \
@@ -418,23 +423,28 @@ show_fan_reg(fan);
 show_fan_reg(fan_min);
 
 static ssize_t
-show_fan_div(struct device *dev, char *buf, int nr)
+show_fan_div(struct device *dev, struct device_attribute *attr,
+	     char *buf)
 {
 	struct w83627ehf_data *data = w83627ehf_update_device(dev);
-	return sprintf(buf, "%u\n",
-		       div_from_reg(data->fan_div[nr]));
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int nr = sensor_attr->index;
+	return sprintf(buf, "%u\n", div_from_reg(data->fan_div[nr]));
 }
 
 static ssize_t
-store_fan_min(struct device *dev, const char *buf, size_t count, int nr)
+store_fan_min(struct device *dev, struct device_attribute *attr,
+	      const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct w83627ehf_data *data = i2c_get_clientdata(client);
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int nr = sensor_attr->index;
 	unsigned int val = simple_strtoul(buf, NULL, 10);
 	unsigned int reg;
 	u8 new_div;
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	if (!val) {
 		/* No min limit, alarm disabled */
 		data->fan_min[nr] = 255;
@@ -482,63 +492,46 @@ store_fan_min(struct device *dev, const char *buf, size_t count, int nr)
 	}
 	w83627ehf_write_value(client, W83627EHF_REG_FAN_MIN[nr],
 			      data->fan_min[nr]);
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 
 	return count;
 }
 
-#define sysfs_fan_offset(offset) \
-static ssize_t \
-show_reg_fan_##offset(struct device *dev, struct device_attribute *attr, \
-		      char *buf) \
-{ \
-	return show_fan(dev, buf, offset-1); \
-} \
-static DEVICE_ATTR(fan##offset##_input, S_IRUGO, \
-		   show_reg_fan_##offset, NULL);
+static struct sensor_device_attribute sda_fan_input[] = {
+	SENSOR_ATTR(fan1_input, S_IRUGO, show_fan, NULL, 0),
+	SENSOR_ATTR(fan2_input, S_IRUGO, show_fan, NULL, 1),
+	SENSOR_ATTR(fan3_input, S_IRUGO, show_fan, NULL, 2),
+	SENSOR_ATTR(fan4_input, S_IRUGO, show_fan, NULL, 3),
+	SENSOR_ATTR(fan5_input, S_IRUGO, show_fan, NULL, 4),
+};
 
-#define sysfs_fan_min_offset(offset) \
-static ssize_t \
-show_reg_fan##offset##_min(struct device *dev, struct device_attribute *attr, \
-			   char *buf) \
-{ \
-	return show_fan_min(dev, buf, offset-1); \
-} \
-static ssize_t \
-store_reg_fan##offset##_min(struct device *dev, struct device_attribute *attr, \
-			    const char *buf, size_t count) \
-{ \
-	return store_fan_min(dev, buf, count, offset-1); \
-} \
-static DEVICE_ATTR(fan##offset##_min, S_IRUGO | S_IWUSR, \
-		   show_reg_fan##offset##_min, \
-		   store_reg_fan##offset##_min);
+static struct sensor_device_attribute sda_fan_min[] = {
+	SENSOR_ATTR(fan1_min, S_IWUSR | S_IRUGO, show_fan_min,
+		    store_fan_min, 0),
+	SENSOR_ATTR(fan2_min, S_IWUSR | S_IRUGO, show_fan_min,
+		    store_fan_min, 1),
+	SENSOR_ATTR(fan3_min, S_IWUSR | S_IRUGO, show_fan_min,
+		    store_fan_min, 2),
+	SENSOR_ATTR(fan4_min, S_IWUSR | S_IRUGO, show_fan_min,
+		    store_fan_min, 3),
+	SENSOR_ATTR(fan5_min, S_IWUSR | S_IRUGO, show_fan_min,
+		    store_fan_min, 4),
+};
 
-#define sysfs_fan_div_offset(offset) \
-static ssize_t \
-show_reg_fan##offset##_div(struct device *dev, struct device_attribute *attr, \
-			   char *buf) \
-{ \
-	return show_fan_div(dev, buf, offset - 1); \
-} \
-static DEVICE_ATTR(fan##offset##_div, S_IRUGO, \
-		   show_reg_fan##offset##_div, NULL);
+static struct sensor_device_attribute sda_fan_div[] = {
+	SENSOR_ATTR(fan1_div, S_IRUGO, show_fan_div, NULL, 0),
+	SENSOR_ATTR(fan2_div, S_IRUGO, show_fan_div, NULL, 1),
+	SENSOR_ATTR(fan3_div, S_IRUGO, show_fan_div, NULL, 2),
+	SENSOR_ATTR(fan4_div, S_IRUGO, show_fan_div, NULL, 3),
+	SENSOR_ATTR(fan5_div, S_IRUGO, show_fan_div, NULL, 4),
+};
 
-sysfs_fan_offset(1);
-sysfs_fan_min_offset(1);
-sysfs_fan_div_offset(1);
-sysfs_fan_offset(2);
-sysfs_fan_min_offset(2);
-sysfs_fan_div_offset(2);
-sysfs_fan_offset(3);
-sysfs_fan_min_offset(3);
-sysfs_fan_div_offset(3);
-sysfs_fan_offset(4);
-sysfs_fan_min_offset(4);
-sysfs_fan_div_offset(4);
-sysfs_fan_offset(5);
-sysfs_fan_min_offset(5);
-sysfs_fan_div_offset(5);
+static void device_create_file_fan(struct device *dev, int i)
+{
+	device_create_file(dev, &sda_fan_input[i].dev_attr);
+	device_create_file(dev, &sda_fan_div[i].dev_attr);
+	device_create_file(dev, &sda_fan_min[i].dev_attr);
+}
 
 #define show_temp1_reg(reg) \
 static ssize_t \
@@ -561,27 +554,24 @@ store_temp1_##reg(struct device *dev, struct device_attribute *attr, \
 	struct w83627ehf_data *data = i2c_get_clientdata(client); \
 	u32 val = simple_strtoul(buf, NULL, 10); \
  \
-	down(&data->update_lock); \
+	mutex_lock(&data->update_lock); \
 	data->temp1_##reg = temp1_to_reg(val); \
 	w83627ehf_write_value(client, W83627EHF_REG_TEMP1_##REG, \
 			      data->temp1_##reg); \
-	up(&data->update_lock); \
+	mutex_unlock(&data->update_lock); \
 	return count; \
 }
 store_temp1_reg(OVER, max);
 store_temp1_reg(HYST, max_hyst);
 
-static DEVICE_ATTR(temp1_input, S_IRUGO, show_temp1, NULL);
-static DEVICE_ATTR(temp1_max, S_IRUGO| S_IWUSR,
-		   show_temp1_max, store_temp1_max);
-static DEVICE_ATTR(temp1_max_hyst, S_IRUGO| S_IWUSR,
-		   show_temp1_max_hyst, store_temp1_max_hyst);
-
 #define show_temp_reg(reg) \
 static ssize_t \
-show_##reg (struct device *dev, char *buf, int nr) \
+show_##reg(struct device *dev, struct device_attribute *attr, \
+	   char *buf) \
 { \
 	struct w83627ehf_data *data = w83627ehf_update_device(dev); \
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr); \
+	int nr = sensor_attr->index; \
 	return sprintf(buf, "%d\n", \
 		       LM75_TEMP_FROM_REG(data->reg[nr])); \
 }
@@ -591,55 +581,42 @@ show_temp_reg(temp_max_hyst);
 
 #define store_temp_reg(REG, reg) \
 static ssize_t \
-store_##reg (struct device *dev, const char *buf, size_t count, int nr) \
+store_##reg(struct device *dev, struct device_attribute *attr, \
+	    const char *buf, size_t count) \
 { \
 	struct i2c_client *client = to_i2c_client(dev); \
 	struct w83627ehf_data *data = i2c_get_clientdata(client); \
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr); \
+	int nr = sensor_attr->index; \
 	u32 val = simple_strtoul(buf, NULL, 10); \
  \
-	down(&data->update_lock); \
+	mutex_lock(&data->update_lock); \
 	data->reg[nr] = LM75_TEMP_TO_REG(val); \
 	w83627ehf_write_value(client, W83627EHF_REG_TEMP_##REG[nr], \
 			      data->reg[nr]); \
-	up(&data->update_lock); \
+	mutex_unlock(&data->update_lock); \
 	return count; \
 }
 store_temp_reg(OVER, temp_max);
 store_temp_reg(HYST, temp_max_hyst);
 
-#define sysfs_temp_offset(offset) \
-static ssize_t \
-show_reg_temp##offset (struct device *dev, struct device_attribute *attr, \
-		       char *buf) \
-{ \
-	return show_temp(dev, buf, offset - 2); \
-} \
-static DEVICE_ATTR(temp##offset##_input, S_IRUGO, \
-		   show_reg_temp##offset, NULL);
-
-#define sysfs_temp_reg_offset(reg, offset) \
-static ssize_t \
-show_reg_temp##offset##_##reg(struct device *dev, struct device_attribute *attr, \
-			      char *buf) \
-{ \
-	return show_temp_##reg(dev, buf, offset - 2); \
-} \
-static ssize_t \
-store_reg_temp##offset##_##reg(struct device *dev, struct device_attribute *attr, \
-			       const char *buf, size_t count) \
-{ \
-	return store_temp_##reg(dev, buf, count, offset - 2); \
-} \
-static DEVICE_ATTR(temp##offset##_##reg, S_IRUGO| S_IWUSR, \
-		   show_reg_temp##offset##_##reg, \
-		   store_reg_temp##offset##_##reg);
-
-sysfs_temp_offset(2);
-sysfs_temp_reg_offset(max, 2);
-sysfs_temp_reg_offset(max_hyst, 2);
-sysfs_temp_offset(3);
-sysfs_temp_reg_offset(max, 3);
-sysfs_temp_reg_offset(max_hyst, 3);
+static struct sensor_device_attribute sda_temp[] = {
+	SENSOR_ATTR(temp1_input, S_IRUGO, show_temp1, NULL, 0),
+	SENSOR_ATTR(temp2_input, S_IRUGO, show_temp, NULL, 0),
+	SENSOR_ATTR(temp3_input, S_IRUGO, show_temp, NULL, 1),
+	SENSOR_ATTR(temp1_max, S_IRUGO | S_IWUSR, show_temp1_max,
+		    store_temp1_max, 0),
+	SENSOR_ATTR(temp2_max, S_IRUGO | S_IWUSR, show_temp_max,
+		    store_temp_max, 0),
+	SENSOR_ATTR(temp3_max, S_IRUGO | S_IWUSR, show_temp_max,
+		    store_temp_max, 1),
+	SENSOR_ATTR(temp1_max_hyst, S_IRUGO | S_IWUSR, show_temp1_max_hyst,
+		    store_temp1_max_hyst, 0),
+	SENSOR_ATTR(temp2_max_hyst, S_IRUGO | S_IWUSR, show_temp_max_hyst,
+		    store_temp_max_hyst, 0),
+	SENSOR_ATTR(temp3_max_hyst, S_IRUGO | S_IWUSR, show_temp_max_hyst,
+		    store_temp_max_hyst, 1),
+};
 
 /*
  * Driver and client management
@@ -673,6 +650,7 @@ static int w83627ehf_detect(struct i2c_adapter *adapter)
 {
 	struct i2c_client *client;
 	struct w83627ehf_data *data;
+	struct device *dev;
 	int i, err = 0;
 
 	if (!request_region(address + REGION_OFFSET, REGION_LENGTH,
@@ -689,14 +667,15 @@ static int w83627ehf_detect(struct i2c_adapter *adapter)
 	client = &data->client;
 	i2c_set_clientdata(client, data);
 	client->addr = address;
-	init_MUTEX(&data->lock);
+	mutex_init(&data->lock);
 	client->adapter = adapter;
 	client->driver = &w83627ehf_driver;
 	client->flags = 0;
+	dev = &client->dev;
 
 	strlcpy(client->name, "w83627ehf", I2C_NAME_SIZE);
 	data->valid = 0;
-	init_MUTEX(&data->update_lock);
+	mutex_init(&data->update_lock);
 
 	/* Tell the i2c layer a new client has arrived */
 	if ((err = i2c_attach_client(client)))
@@ -720,42 +699,18 @@ static int w83627ehf_detect(struct i2c_adapter *adapter)
 		data->has_fan |= (1 << 4);
 
 	/* Register sysfs hooks */
-	data->class_dev = hwmon_device_register(&client->dev);
+	data->class_dev = hwmon_device_register(dev);
 	if (IS_ERR(data->class_dev)) {
 		err = PTR_ERR(data->class_dev);
 		goto exit_detach;
 	}
 
-	device_create_file(&client->dev, &dev_attr_fan1_input);
-	device_create_file(&client->dev, &dev_attr_fan1_min);
-	device_create_file(&client->dev, &dev_attr_fan1_div);
-	device_create_file(&client->dev, &dev_attr_fan2_input);
-	device_create_file(&client->dev, &dev_attr_fan2_min);
-	device_create_file(&client->dev, &dev_attr_fan2_div);
-	device_create_file(&client->dev, &dev_attr_fan3_input);
-	device_create_file(&client->dev, &dev_attr_fan3_min);
-	device_create_file(&client->dev, &dev_attr_fan3_div);
-
-	if (data->has_fan & (1 << 3)) {
-		device_create_file(&client->dev, &dev_attr_fan4_input);
-		device_create_file(&client->dev, &dev_attr_fan4_min);
-		device_create_file(&client->dev, &dev_attr_fan4_div);
+	for (i = 0; i < 5; i++) {
+		if (data->has_fan & (1 << i))
+			device_create_file_fan(dev, i);
 	}
-	if (data->has_fan & (1 << 4)) {
-		device_create_file(&client->dev, &dev_attr_fan5_input);
-		device_create_file(&client->dev, &dev_attr_fan5_min);
-		device_create_file(&client->dev, &dev_attr_fan5_div);
-	}
-
-	device_create_file(&client->dev, &dev_attr_temp1_input);
-	device_create_file(&client->dev, &dev_attr_temp1_max);
-	device_create_file(&client->dev, &dev_attr_temp1_max_hyst);
-	device_create_file(&client->dev, &dev_attr_temp2_input);
-	device_create_file(&client->dev, &dev_attr_temp2_max);
-	device_create_file(&client->dev, &dev_attr_temp2_max_hyst);
-	device_create_file(&client->dev, &dev_attr_temp3_input);
-	device_create_file(&client->dev, &dev_attr_temp3_max);
-	device_create_file(&client->dev, &dev_attr_temp3_max_hyst);
+	for (i = 0; i < ARRAY_SIZE(sda_temp); i++)
+		device_create_file(dev, &sda_temp[i].dev_attr);
 
 	return 0;
 

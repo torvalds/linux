@@ -1,6 +1,4 @@
 /*
- * arch/ppc/boot/simple/head.S
- *
  * Initial board bringup code for many different boards.
  *
  * Author: Tom Rini
@@ -63,6 +61,13 @@ start_:
 			 * configuration keys.
 			 * On PReP, r3 is the pointer to the residual data.
 			 */
+#endif
+
+#if defined(CONFIG_XILINX_VIRTEX_4_FX)
+	/* PPC errata 213: only for Virtex-4 FX */
+	mfccr0  0
+	oris    0,0,0x50000000@h
+	mtccr0  0
 #endif
 
 	mflr	r3	/* Save our actual starting address. */

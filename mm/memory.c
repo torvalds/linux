@@ -277,7 +277,7 @@ void free_pgtables(struct mmu_gather **tlb, struct vm_area_struct *vma,
 		anon_vma_unlink(vma);
 		unlink_file_vma(vma);
 
-		if (is_hugepage_only_range(vma->vm_mm, addr, HPAGE_SIZE)) {
+		if (is_vm_hugetlb_page(vma)) {
 			hugetlb_free_pgd_range(tlb, addr, vma->vm_end,
 				floor, next? next->vm_start: ceiling);
 		} else {
@@ -285,8 +285,7 @@ void free_pgtables(struct mmu_gather **tlb, struct vm_area_struct *vma,
 			 * Optimization: gather nearby vmas into one call down
 			 */
 			while (next && next->vm_start <= vma->vm_end + PMD_SIZE
-			  && !is_hugepage_only_range(vma->vm_mm, next->vm_start,
-							HPAGE_SIZE)) {
+			       && !is_vm_hugetlb_page(next)) {
 				vma = next;
 				next = vma->vm_next;
 				anon_vma_unlink(vma);
@@ -388,7 +387,7 @@ struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr, pte_
 {
 	unsigned long pfn = pte_pfn(pte);
 
-	if (vma->vm_flags & VM_PFNMAP) {
+	if (unlikely(vma->vm_flags & VM_PFNMAP)) {
 		unsigned long off = (addr - vma->vm_start) >> PAGE_SHIFT;
 		if (pfn == vma->vm_pgoff + off)
 			return NULL;
@@ -401,8 +400,6 @@ struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr, pte_
 	 * we should just do "return pfn_to_page(pfn)", but
 	 * in the meantime we check that we get a valid pfn,
 	 * and that the resulting page looks ok.
-	 *
-	 * Remove this test eventually!
 	 */
 	if (unlikely(!pfn_valid(pfn))) {
 		print_bad_pte(vma, pte, addr);
@@ -1074,6 +1071,8 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 			}
 			if (pages) {
 				pages[i] = page;
+
+				flush_anon_page(page, start);
 				flush_dcache_page(page);
 			}
 			if (vmas)
@@ -1221,9 +1220,7 @@ out:
  * The page has to be a nice clean _individual_ kernel allocation.
  * If you allocate a compound page, you need to have marked it as
  * such (__GFP_COMP), or manually just split the page up yourself
- * (which is mainly an issue of doing "set_page_count(page, 1)" for
- * each sub-page, and then freeing them one by one when you free
- * them rather than freeing it as a compound page).
+ * (see split_page()).
  *
  * NOTE! Traditionally this was done with "remap_pfn_range()" which
  * took an arbitrary page protection parameter. This doesn't allow
@@ -2357,10 +2354,8 @@ int make_pages_present(unsigned long addr, unsigned long end)
 	if (!vma)
 		return -1;
 	write = (vma->vm_flags & VM_WRITE) != 0;
-	if (addr >= end)
-		BUG();
-	if (end > vma->vm_end)
-		BUG();
+	BUG_ON(addr >= end);
+	BUG_ON(end > vma->vm_end);
 	len = (end+PAGE_SIZE-1)/PAGE_SIZE-addr/PAGE_SIZE;
 	ret = get_user_pages(current, current->mm, addr,
 			len, write, 0, NULL, NULL);

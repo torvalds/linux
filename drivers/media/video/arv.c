@@ -161,39 +161,39 @@ void iic(int n, unsigned long addr, unsigned long data1, unsigned long data2,
 {
 	int i;
 
-  	/* Slave Address */
-  	ar_outl(addr, PLDI2CDATA);
+	/* Slave Address */
+	ar_outl(addr, PLDI2CDATA);
 	wait_for_vsync();
 
-  	/* Start */
-  	ar_outl(1, PLDI2CCND);
+	/* Start */
+	ar_outl(1, PLDI2CCND);
 	wait_acknowledge();
 
 	/* Transfer data 1 */
-  	ar_outl(data1, PLDI2CDATA);
+	ar_outl(data1, PLDI2CDATA);
 	wait_for_vsync();
-  	ar_outl(PLDI2CSTEN_STEN, PLDI2CSTEN);
+	ar_outl(PLDI2CSTEN_STEN, PLDI2CSTEN);
 	wait_acknowledge();
 
 	/* Transfer data 2 */
-  	ar_outl(data2, PLDI2CDATA);
+	ar_outl(data2, PLDI2CDATA);
 	wait_for_vsync();
-  	ar_outl(PLDI2CSTEN_STEN, PLDI2CSTEN);
+	ar_outl(PLDI2CSTEN_STEN, PLDI2CSTEN);
 	wait_acknowledge();
 
 	if (n == 3) {
 		/* Transfer data 3 */
-	  	ar_outl(data3, PLDI2CDATA);
+		ar_outl(data3, PLDI2CDATA);
 		wait_for_vsync();
-	  	ar_outl(PLDI2CSTEN_STEN, PLDI2CSTEN);
+		ar_outl(PLDI2CSTEN_STEN, PLDI2CSTEN);
 		wait_acknowledge();
-  	}
+	}
 
-  	/* Stop */
+	/* Stop */
 	for (i = 0; i < 100; i++)
 		cpu_relax();
-  	ar_outl(2, PLDI2CCND);
-  	ar_outl(2, PLDI2CCND);
+	ar_outl(2, PLDI2CCND);
+	ar_outl(2, PLDI2CCND);
 
 	while (ar_inl(PLDI2CSTS) & PLDI2CSTS_BB)
 		cpu_relax();
@@ -204,24 +204,24 @@ void init_iic(void)
 {
 	DEBUG(1, "init_iic:\n");
 
-  	/*
+	/*
 	 * ICU Setting (iic)
 	 */
-  	/* I2C Setting */
-  	ar_outl(0x0, PLDI2CCR);      	/* I2CCR Disable                   */
-  	ar_outl(0x0300, PLDI2CMOD); 	/* I2CMOD ACK/8b-data/7b-addr/auto */
-  	ar_outl(0x1, PLDI2CACK);	/* I2CACK ACK                      */
+	/* I2C Setting */
+	ar_outl(0x0, PLDI2CCR);      	/* I2CCR Disable                   */
+	ar_outl(0x0300, PLDI2CMOD); 	/* I2CMOD ACK/8b-data/7b-addr/auto */
+	ar_outl(0x1, PLDI2CACK);	/* I2CACK ACK                      */
 
     	/* I2C CLK */
-   	/* 50MH-100k */
+	/* 50MH-100k */
 	if (freq == 75) {
-  		ar_outl(369, PLDI2CFREQ);	/* BCLK = 75MHz */
+		ar_outl(369, PLDI2CFREQ);	/* BCLK = 75MHz */
 	} else if (freq == 50) {
 		ar_outl(244, PLDI2CFREQ);	/* BCLK = 50MHz */
 	} else {
 		ar_outl(244, PLDI2CFREQ);	/* default: BCLK = 50MHz */
 	}
-  	ar_outl(0x1, PLDI2CCR); 	/* I2CCR Enable */
+	ar_outl(0x1, PLDI2CCR); 	/* I2CCR Enable */
 }
 
 /**************************************************************************
@@ -253,7 +253,7 @@ static inline void wait_for_vertical_sync(int exp_line)
 
 	/*
 	 * check HCOUNT because we cannot check vertical sync.
- 	 */
+	 */
 	for (; tmout >= 0; tmout--) {
 		l = ar_inl(ARVHCOUNT);
 		if (l == exp_line)
@@ -562,8 +562,8 @@ static void ar_interrupt(int irq, void *dev, struct pt_regs *regs)
 		/* operations for interlace mode */
 		if ( line_count < (AR_HEIGHT_VGA/2) ) 	/* even line */
 			line_number = (line_count << 1);
-		else 		  			/* odd line */
- 			line_number =
+		else 					/* odd line */
+			line_number =
 			(((line_count - (AR_HEIGHT_VGA/2)) << 1) + 1);
 	} else {
 		line_number = line_count;
@@ -651,7 +651,7 @@ static int ar_initialize(struct video_device *dev)
 		cr |= ARVCR1_NORMAL;
 	ar_outl(cr, ARVCR1);
 
-  	/*
+	/*
 	 * Initialize IIC so that CPU can communicate with AR LSI,
 	 * and send boot commands to AR LSI.
 	 */
@@ -846,7 +846,7 @@ static int __init ar_init(void)
 	 * so register video device as a frame grabber type.
 	 * device is named "video[0-64]".
 	 * video_register_device() initializes h/w using ar_initialize().
- 	 */
+	 */
 	if (video_register_device(ar->vdev, VFL_TYPE_GRABBER, video_nr) != 0) {
 		/* return -1, -ENFILE(full) or others */
 		printk("arv: register video (Colour AR) failed.\n");

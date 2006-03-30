@@ -1,4 +1,4 @@
-/* 
+/*
  * saa7111 - Philips SAA7111A video decoder driver version 0.0.3
  *
  * Copyright (C) 1998 Dave Perks <dperks@ibm.net>
@@ -52,7 +52,6 @@ MODULE_AUTHOR("Dave Perks");
 MODULE_LICENSE("GPL");
 
 #include <linux/i2c.h>
-#include <linux/i2c-dev.h>
 
 #define I2C_NAME(s) (s)->name
 
@@ -70,8 +69,10 @@ MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
 /* ----------------------------------------------------------------------- */
 
+#define SAA7111_NR_REG		0x18
+
 struct saa7111 {
-	unsigned char reg[32];
+	unsigned char reg[SAA7111_NR_REG];
 
 	int norm;
 	int input;
@@ -110,24 +111,21 @@ saa7111_write_block (struct i2c_client *client,
 	if (i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		/* do raw I2C, not smbus compatible */
 		struct saa7111 *decoder = i2c_get_clientdata(client);
-		struct i2c_msg msg;
 		u8 block_data[32];
+		int block_len;
 
-		msg.addr = client->addr;
-		msg.flags = 0;
 		while (len >= 2) {
-			msg.buf = (char *) block_data;
-			msg.len = 0;
-			block_data[msg.len++] = reg = data[0];
+			block_len = 0;
+			block_data[block_len++] = reg = data[0];
 			do {
-				block_data[msg.len++] =
+				block_data[block_len++] =
 				    decoder->reg[reg++] = data[1];
 				len -= 2;
 				data += 2;
 			} while (len >= 2 && data[0] == reg &&
-				 msg.len < 32);
-			if ((ret = i2c_transfer(client->adapter,
-						&msg, 1)) < 0)
+				 block_len < 32);
+			if ((ret = i2c_master_send(client, block_data,
+						   block_len)) < 0)
 				break;
 		}
 	} else {
@@ -210,6 +208,7 @@ saa7111_command (struct i2c_client *client,
 	switch (cmd) {
 
 	case 0:
+		break;
 	case DECODER_INIT:
 	{
 		struct video_decoder_init *init = arg;
@@ -227,11 +226,11 @@ saa7111_command (struct i2c_client *client,
 	{
 		int i;
 
-		for (i = 0; i < 32; i += 16) {
+		for (i = 0; i < SAA7111_NR_REG; i += 16) {
 			int j;
 
 			printk(KERN_DEBUG "%s: %03x", I2C_NAME(client), i);
-			for (j = 0; j < 16; ++j) {
+			for (j = 0; j < 16 && i + j < SAA7111_NR_REG; ++j) {
 				printk(" %02x",
 				       saa7111_read(client, i + j));
 			}
@@ -483,7 +482,7 @@ saa7111_command (struct i2c_client *client,
 static unsigned short normal_i2c[] = { I2C_SAA7111 >> 1, I2C_CLIENT_END };
 
 static unsigned short ignore = I2C_CLIENT_END;
-                                                                                
+
 static struct i2c_client_address_data addr_data = {
 	.normal_i2c		= normal_i2c,
 	.probe			= &ignore,

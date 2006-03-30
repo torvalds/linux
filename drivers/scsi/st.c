@@ -35,7 +35,6 @@ static const char *verstr = "20050830";
 #include <linux/spinlock.h>
 #include <linux/blkdev.h>
 #include <linux/moduleparam.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/cdev.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
@@ -87,8 +86,9 @@ static int st_nr_dev;
 static struct class *st_sysfs_class;
 
 MODULE_AUTHOR("Kai Makisara");
-MODULE_DESCRIPTION("SCSI Tape Driver");
+MODULE_DESCRIPTION("SCSI tape (st) driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS_CHARDEV_MAJOR(SCSI_TAPE_MAJOR);
 
 /* Set 'perm' (4th argument) to 0 to disable module_param's definition
  * of sysfs parameters (which module_param doesn't yet support).
@@ -3590,12 +3590,11 @@ static struct st_buffer *
 
 	i = sizeof(struct st_buffer) + (max_sg - 1) * sizeof(struct scatterlist) +
 		max_sg * sizeof(struct st_buf_fragment);
-	tb = kmalloc(i, priority);
+	tb = kzalloc(i, priority);
 	if (!tb) {
 		printk(KERN_NOTICE "st: Can't allocate new tape buffer.\n");
 		return NULL;
 	}
-	memset(tb, 0, i);
 	tb->frp_segs = tb->orig_frp_segs = 0;
 	tb->use_sg = max_sg;
 	tb->frp = (struct st_buf_fragment *)(&(tb->sg[0]) + max_sg);
@@ -3924,14 +3923,13 @@ static int st_probe(struct device *dev)
 			goto out_put_disk;
 		}
 
-		tmp_da = kmalloc(tmp_dev_max * sizeof(struct scsi_tape *), GFP_ATOMIC);
+		tmp_da = kzalloc(tmp_dev_max * sizeof(struct scsi_tape *), GFP_ATOMIC);
 		if (tmp_da == NULL) {
 			write_unlock(&st_dev_arr_lock);
 			printk(KERN_ERR "st: Can't extend device array.\n");
 			goto out_put_disk;
 		}
 
-		memset(tmp_da, 0, tmp_dev_max * sizeof(struct scsi_tape *));
 		if (scsi_tapes != NULL) {
 			memcpy(tmp_da, scsi_tapes,
 			       st_dev_max * sizeof(struct scsi_tape *));
@@ -3948,13 +3946,12 @@ static int st_probe(struct device *dev)
 	if (i >= st_dev_max)
 		panic("scsi_devices corrupt (st)");
 
-	tpnt = kmalloc(sizeof(struct scsi_tape), GFP_ATOMIC);
+	tpnt = kzalloc(sizeof(struct scsi_tape), GFP_ATOMIC);
 	if (tpnt == NULL) {
 		write_unlock(&st_dev_arr_lock);
 		printk(KERN_ERR "st: Can't allocate device descriptor.\n");
 		goto out_put_disk;
 	}
-	memset(tpnt, 0, sizeof(struct scsi_tape));
 	kref_init(&tpnt->kref);
 	tpnt->disk = disk;
 	sprintf(disk->disk_name, "st%d", i);
@@ -4056,21 +4053,6 @@ static int st_probe(struct device *dev)
 		do_create_class_files(tpnt, dev_num, mode);
 	}
 
-	for (mode = 0; mode < ST_NBR_MODES; ++mode) {
-		/* Make sure that the minor numbers corresponding to the four
-		   first modes always get the same names */
-		i = mode << (4 - ST_NBR_MODE_BITS);
-		/*  Rewind entry  */
-		devfs_mk_cdev(MKDEV(SCSI_TAPE_MAJOR, TAPE_MINOR(dev_num, mode, 0)),
-			      S_IFCHR | S_IRUGO | S_IWUGO,
-			      "%s/mt%s", SDp->devfs_name, st_formats[i]);
-		/*  No-rewind entry  */
-		devfs_mk_cdev(MKDEV(SCSI_TAPE_MAJOR, TAPE_MINOR(dev_num, mode, 1)),
-			      S_IFCHR | S_IRUGO | S_IWUGO,
-			      "%s/mt%sn", SDp->devfs_name, st_formats[i]);
-	}
-	disk->number = devfs_register_tape(SDp->devfs_name);
-
 	sdev_printk(KERN_WARNING, SDp,
 		    "Attached scsi tape %s", tape_name(tpnt));
 	printk(KERN_WARNING "%s: try direct i/o: %s (alignment %d B)\n",
@@ -4124,13 +4106,9 @@ static int st_remove(struct device *dev)
 			scsi_tapes[i] = NULL;
 			st_nr_dev--;
 			write_unlock(&st_dev_arr_lock);
-			devfs_unregister_tape(tpnt->disk->number);
 			sysfs_remove_link(&tpnt->device->sdev_gendev.kobj,
 					  "tape");
 			for (mode = 0; mode < ST_NBR_MODES; ++mode) {
-				j = mode << (4 - ST_NBR_MODE_BITS);
-				devfs_remove("%s/mt%s", SDp->devfs_name, st_formats[j]);
-				devfs_remove("%s/mt%sn", SDp->devfs_name, st_formats[j]);
 				for (j=0; j < 2; j++) {
 					class_device_destroy(st_sysfs_class,
 							     MKDEV(SCSI_TAPE_MAJOR,

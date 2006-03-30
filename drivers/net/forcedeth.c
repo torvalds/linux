@@ -134,6 +134,7 @@
 #include <linux/random.h>
 #include <linux/init.h>
 #include <linux/if_vlan.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/irq.h>
 #include <asm/io.h>
@@ -2932,7 +2933,7 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 	if (id->driver_data & DEV_HAS_HIGH_DMA) {
 		/* packet format 3: supports 40-bit addressing */
 		np->desc_ver = DESC_VER_3;
-		if (pci_set_dma_mask(pci_dev, 0x0000007fffffffffULL)) {
+		if (pci_set_dma_mask(pci_dev, DMA_39BIT_MASK)) {
 			printk(KERN_INFO "forcedeth: 64-bit DMA failed, using 32-bit addressing for device %s.\n",
 					pci_name(pci_dev));
 		} else {

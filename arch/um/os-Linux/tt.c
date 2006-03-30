@@ -110,6 +110,16 @@ int wait_for_stop(int pid, int sig, int cont_type, void *relay)
 	}
 }
 
+void forward_ipi(int fd, int pid)
+{
+	int err;
+
+	err = os_set_owner(fd, pid);
+	if(err < 0)
+		printk("forward_ipi: set_owner failed, fd = %d, me = %d, "
+		       "target = %d, err = %d\n", fd, os_getpid(), pid, -err);
+}
+
 /*
  *-------------------------
  * only for tt mode (will be deleted in future...)

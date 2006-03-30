@@ -13,8 +13,8 @@
  *********************************************************************/
 
 #include <linux/kernel.h>
-#include <linux/module.h> 
-#include <linux/moduleparam.h> 
+#include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/cpufreq.h>
 #include <linux/pci.h>
@@ -28,21 +28,21 @@
  *
  * These parameters are got from IST-SMI BIOS call.
  * If user gives it, these are used.
- * 
+ *
  */
-static int		smi_port	= 0;
-static int		smi_cmd		= 0;
-static unsigned int	smi_sig		= 0;
+static int smi_port = 0;
+static int smi_cmd = 0;
+static unsigned int smi_sig = 0;
 
 /* info about the processor */
-static unsigned int	speedstep_processor = 0;
+static unsigned int speedstep_processor = 0;
 
-/* 
- *   There are only two frequency states for each processor. Values
+/*
+ * There are only two frequency states for each processor. Values
  * are in kHz for the time being.
  */
 static struct cpufreq_frequency_table speedstep_freqs[] = {
-	{SPEEDSTEP_HIGH, 	0},
+	{SPEEDSTEP_HIGH,	0},
 	{SPEEDSTEP_LOW,		0},
 	{0,			CPUFREQ_TABLE_END},
 };
@@ -75,7 +75,9 @@ static int speedstep_smi_ownership (void)
 	__asm__ __volatile__(
 		"out %%al, (%%dx)\n"
 		: "=D" (result)
-		: "a" (command), "b" (function), "c" (0), "d" (smi_port), "D" (0), "S" (magic)
+		: "a" (command), "b" (function), "c" (0), "d" (smi_port),
+			"D" (0), "S" (magic)
+		: "memory"
 	);
 
 	dprintk("result is %x\n", result);
@@ -123,7 +125,7 @@ static int speedstep_smi_get_freqs (unsigned int *low, unsigned int *high)
 	*low  = low_mhz  * 1000;
 
 	return result;
-} 
+}
 
 /**
  * speedstep_get_state - set the SpeedStep state
@@ -204,7 +206,7 @@ static void speedstep_set_state (unsigned int state)
  * speedstep_target - set a new CPUFreq policy
  * @policy: new policy
  * @target_freq: new freq
- * @relation: 
+ * @relation:
  *
  * Sets a new CPUFreq policy/freq.
  */
@@ -283,7 +285,7 @@ static int speedstep_cpu_init(struct cpufreq_policy *policy)
 	state = speedstep_get_state();
 	speed = speedstep_freqs[state].frequency;
 
-	dprintk("currently at %s speed setting - %i MHz\n", 
+	dprintk("currently at %s speed setting - %i MHz\n",
 		(speed == speedstep_freqs[SPEEDSTEP_LOW].frequency) ? "low" : "high",
 		(speed / 1000));
 
@@ -296,7 +298,7 @@ static int speedstep_cpu_init(struct cpufreq_policy *policy)
 	if (result)
 		return (result);
 
-        cpufreq_frequency_table_get_attr(speedstep_freqs, policy->cpu);
+	cpufreq_frequency_table_get_attr(speedstep_freqs, policy->cpu);
 
 	return 0;
 }
@@ -332,8 +334,8 @@ static struct freq_attr* speedstep_attr[] = {
 
 static struct cpufreq_driver speedstep_driver = {
 	.name		= "speedstep-smi",
-	.verify 	= speedstep_verify,
-	.target 	= speedstep_target,
+	.verify		= speedstep_verify,
+	.target		= speedstep_target,
 	.init		= speedstep_cpu_init,
 	.exit		= speedstep_cpu_exit,
 	.get		= speedstep_get,
@@ -370,13 +372,12 @@ static int __init speedstep_init(void)
 		return -ENODEV;
 	}
 
-	dprintk("signature:0x%.8lx, command:0x%.8lx, event:0x%.8lx, perf_level:0x%.8lx.\n", 
+	dprintk("signature:0x%.8lx, command:0x%.8lx, event:0x%.8lx, perf_level:0x%.8lx.\n",
 		ist_info.signature, ist_info.command, ist_info.event, ist_info.perf_level);
 
-
-	/* Error if no IST-SMI BIOS or no PARM 
+	/* Error if no IST-SMI BIOS or no PARM
 		 sig= 'ISGE' aka 'Intel Speedstep Gate E' */
-	if ((ist_info.signature !=  0x47534943) && ( 
+	if ((ist_info.signature !=  0x47534943) && (
 	    (smi_port == 0) || (smi_cmd == 0)))
 		return -ENODEV;
 
@@ -386,17 +387,15 @@ static int __init speedstep_init(void)
 		smi_sig = ist_info.signature;
 
 	/* setup smi_port from MODLULE_PARM or BIOS */
-	if ((smi_port > 0xff) || (smi_port < 0)) {
+	if ((smi_port > 0xff) || (smi_port < 0))
 		return -EINVAL;
-	} else if (smi_port == 0) {
+	else if (smi_port == 0)
 		smi_port = ist_info.command & 0xff;
-	}
 
-	if ((smi_cmd > 0xff) || (smi_cmd < 0)) {
+	if ((smi_cmd > 0xff) || (smi_cmd < 0))
 		return -EINVAL;
-	} else if (smi_cmd == 0) {
+	else if (smi_cmd == 0)
 		smi_cmd = (ist_info.command >> 16) & 0xff;
-	}
 
 	return cpufreq_register_driver(&speedstep_driver);
 }

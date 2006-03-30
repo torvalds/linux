@@ -48,7 +48,7 @@
 static struct hlist_head kprobe_table[KPROBE_TABLE_SIZE];
 static struct hlist_head kretprobe_inst_table[KPROBE_TABLE_SIZE];
 
-DECLARE_MUTEX(kprobe_mutex);		/* Protects kprobe_table */
+DEFINE_MUTEX(kprobe_mutex);		/* Protects kprobe_table */
 DEFINE_SPINLOCK(kretprobe_lock);	/* Protects kretprobe_inst_table */
 static DEFINE_PER_CPU(struct kprobe *, kprobe_instance) = NULL;
 
@@ -323,10 +323,10 @@ struct hlist_head __kprobes *kretprobe_inst_table_head(struct task_struct *tsk)
 }
 
 /*
- * This function is called from exit_thread or flush_thread when task tk's
- * stack is being recycled so that we can recycle any function-return probe
- * instances associated with this task. These left over instances represent
- * probed functions that have been called but will never return.
+ * This function is called from finish_task_switch when task tk becomes dead,
+ * so that we can recycle any function-return probe instances associated
+ * with this task. These left over instances represent probed functions
+ * that have been called but will never return.
  */
 void __kprobes kprobe_flush_task(struct task_struct *tk)
 {
@@ -336,7 +336,7 @@ void __kprobes kprobe_flush_task(struct task_struct *tk)
 	unsigned long flags = 0;
 
 	spin_lock_irqsave(&kretprobe_lock, flags);
-        head = kretprobe_inst_table_head(current);
+        head = kretprobe_inst_table_head(tk);
         hlist_for_each_entry_safe(ri, node, tmp, head, hlist) {
                 if (ri->task == tk)
                         recycle_rp_inst(ri);
@@ -460,7 +460,7 @@ static int __kprobes __register_kprobe(struct kprobe *p,
 	}
 
 	p->nmissed = 0;
-	down(&kprobe_mutex);
+	mutex_lock(&kprobe_mutex);
 	old_p = get_kprobe(p->addr);
 	if (old_p) {
 		ret = register_aggr_kprobe(old_p, p);
@@ -477,7 +477,7 @@ static int __kprobes __register_kprobe(struct kprobe *p,
   	arch_arm_kprobe(p);
 
 out:
-	up(&kprobe_mutex);
+	mutex_unlock(&kprobe_mutex);
 
 	if (ret && probed_mod)
 		module_put(probed_mod);
@@ -496,10 +496,10 @@ void __kprobes unregister_kprobe(struct kprobe *p)
 	struct kprobe *old_p, *list_p;
 	int cleanup_p;
 
-	down(&kprobe_mutex);
+	mutex_lock(&kprobe_mutex);
 	old_p = get_kprobe(p->addr);
 	if (unlikely(!old_p)) {
-		up(&kprobe_mutex);
+		mutex_unlock(&kprobe_mutex);
 		return;
 	}
 	if (p != old_p) {
@@ -507,7 +507,7 @@ void __kprobes unregister_kprobe(struct kprobe *p)
 			if (list_p == p)
 			/* kprobe p is a valid probe */
 				goto valid_p;
-		up(&kprobe_mutex);
+		mutex_unlock(&kprobe_mutex);
 		return;
 	}
 valid_p:
@@ -523,7 +523,7 @@ valid_p:
 		cleanup_p = 0;
 	}
 
-	up(&kprobe_mutex);
+	mutex_unlock(&kprobe_mutex);
 
 	synchronize_sched();
 	if (p->mod_refcounted &&

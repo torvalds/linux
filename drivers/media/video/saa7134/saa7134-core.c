@@ -254,12 +254,12 @@ void saa7134_pgtable_free(struct pci_dev *pci, struct saa7134_pgtable *pt)
 
 /* ------------------------------------------------------------------ */
 
-void saa7134_dma_free(struct saa7134_dev *dev,struct saa7134_buf *buf)
+void saa7134_dma_free(struct videobuf_queue *q,struct saa7134_buf *buf)
 {
 	BUG_ON(in_interrupt());
 
 	videobuf_waiton(&buf->vb,0,0);
-	videobuf_dma_pci_unmap(dev->pci, &buf->vb.dma);
+	videobuf_dma_unmap(q, &buf->vb.dma);
 	videobuf_dma_free(&buf->vb.dma);
 	buf->vb.state = STATE_NEEDS_INIT;
 }
@@ -960,7 +960,7 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	if (saa7134_no_overlay <= 0) {
 		saa7134_video_template.type |= VID_TYPE_OVERLAY;
 	} else {
-		printk("bttv: Overlay support disabled.\n");
+		printk("%s: Overlay support disabled.\n",dev->name);
 	}
 	dev->video_dev = vdev_init(dev,&saa7134_video_template,"video");
 	err = video_register_device(dev->video_dev,VFL_TYPE_GRABBER,

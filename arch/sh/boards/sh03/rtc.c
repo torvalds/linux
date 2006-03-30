@@ -9,6 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/time.h>
+#include <linux/bcd.h>
 #include <asm/io.h>
 #include <linux/rtc.h>
 #include <linux/spinlock.h>
@@ -33,14 +34,6 @@
 #define RTC_BUSY	1
 #define RTC_STOP	2
 
-#ifndef BCD_TO_BIN
-#define BCD_TO_BIN(val) ((val)=((val)&15) + ((val)>>4)*10)
-#endif
-
-#ifndef BIN_TO_BCD
-#define BIN_TO_BCD(val)	((val)=(((val)/10)<<4) + (val)%10)
-#endif
-
 extern void (*rtc_get_time)(struct timespec *);
 extern int (*rtc_set_time)(const time_t);
 extern spinlock_t rtc_lock;
@@ -48,13 +41,9 @@ extern spinlock_t rtc_lock;
 unsigned long get_cmos_time(void)
 {
 	unsigned int year, mon, day, hour, min, sec;
-	int i;
 
 	spin_lock(&rtc_lock);
  again:
-	for (i = 0 ; i < 1000000 ; i++)	/* may take up to 1 second... */
-		if (!(ctrl_inb(RTC_CTL) & RTC_BUSY))
-			break;
 	do {
 		sec  = (ctrl_inb(RTC_SEC1) & 0xf) + (ctrl_inb(RTC_SEC10) & 0x7) * 10;
 		min  = (ctrl_inb(RTC_MIN1) & 0xf) + (ctrl_inb(RTC_MIN10) & 0xf) * 10;

@@ -186,6 +186,7 @@ static struct xt_match sctp_match = {
 	.matchsize	= sizeof(struct xt_sctp_info),
 	.proto		= IPPROTO_SCTP,
 	.checkentry	= checkentry,
+	.family		= AF_INET,
 	.me		= THIS_MODULE
 };
 
@@ -195,28 +196,29 @@ static struct xt_match sctp6_match = {
 	.matchsize	= sizeof(struct xt_sctp_info),
 	.proto		= IPPROTO_SCTP,
 	.checkentry	= checkentry,
+	.family		= AF_INET6,
 	.me		= THIS_MODULE
 };
 
-static int __init init(void)
+static int __init xt_sctp_init(void)
 {
 	int ret;
-	ret = xt_register_match(AF_INET, &sctp_match);
+	ret = xt_register_match(&sctp_match);
 	if (ret)
 		return ret;
 
-	ret = xt_register_match(AF_INET6, &sctp6_match);
+	ret = xt_register_match(&sctp6_match);
 	if (ret)
-		xt_unregister_match(AF_INET, &sctp_match);
+		xt_unregister_match(&sctp_match);
 
 	return ret;
 }
 
-static void __exit fini(void)
+static void __exit xt_sctp_fini(void)
 {
-	xt_unregister_match(AF_INET6, &sctp6_match);
-	xt_unregister_match(AF_INET, &sctp_match);
+	xt_unregister_match(&sctp6_match);
+	xt_unregister_match(&sctp_match);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(xt_sctp_init);
+module_exit(xt_sctp_fini);

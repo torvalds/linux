@@ -29,6 +29,8 @@
 
 #define SMP_CACHE_BYTES L1_CACHE_BYTES
 
+#define __read_mostly __attribute__((__section__(".data.read_mostly")))
+
 extern void flush_data_cache_local(void *);  /* flushes local data-cache only */
 extern void flush_instruction_cache_local(void *); /* flushes local code-cache only */
 #ifdef CONFIG_SMP

@@ -218,7 +218,7 @@ NCR_D700_probe_one(struct NCR_D700_private *p, int siop, int irq,
 	return 0;
 
  detect_failed:
-	release_region(host->base, 64);
+	release_region(region, 64);
  region_failed:
 	kfree(hostdata);
 

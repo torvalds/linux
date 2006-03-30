@@ -53,6 +53,8 @@ struct krb5_ctx {
 	struct xdr_netobj	mech_used;
 };
 
+extern spinlock_t krb5_seq_lock;
+
 #define KG_TOK_MIC_MSG    0x0101
 #define KG_TOK_WRAP_MSG   0x0201
 

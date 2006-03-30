@@ -207,7 +207,7 @@ static int __init nsc_ircc_init(void)
  	/* Register with PnP subsystem to detect disable ports */
 	ret = pnp_register_driver(&nsc_ircc_pnp_driver);
 
- 	if (ret >= 0)
+ 	if (!ret)
  		pnp_registered = 1;
 
 	ret = -ENODEV;
@@ -812,7 +812,7 @@ static int nsc_ircc_init_39x(nsc_chip_t *chip, chipio_t *info)
 	int cfg_base = info->cfg_base;
 	int enabled;
 
-	/* User is shure about his config... accept it. */
+	/* User is sure about his config... accept it. */
 	IRDA_DEBUG(2, "%s(): nsc_ircc_init_39x (user settings): "
 		   "io=0x%04x, irq=%d, dma=%d\n", 
 		   __FUNCTION__, info->fir_base, info->irq, info->dma);

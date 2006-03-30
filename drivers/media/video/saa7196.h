@@ -2,14 +2,14 @@
     Definitions for the Philips SAA7196 digital video decoder,
     scaler, and clock generator circuit (DESCpro), as used in
     the PlanB video input of the Powermac 7x00/8x00 series.
-  
+
     Copyright (C) 1998 Michel Lanners (mlan@cpu.lu)
 
     The register defines are shamelessly copied from the meteor
     driver out of NetBSD (with permission),
     and are copyrighted (c) 1995 Mark Tinguely and Jim Lowe
     (Thanks !)
-  
+
     Additional debugging and coding by Takashi Oe (toe@unlinfo.unl.edu)
 
     The default values used for PlanB are my mistakes.

@@ -140,7 +140,6 @@ int io_remap_pfn_range(struct vm_area_struct *vma, unsigned long from,
 	vma->vm_flags |= VM_IO | VM_RESERVED | VM_PFNMAP;
 	vma->vm_pgoff = phys_base >> PAGE_SHIFT;
 
-	prot = __pgprot(pg_iobits);
 	offset -= from;
 	dir = pgd_offset(mm, from);
 	flush_cache_range(vma, beg, end);

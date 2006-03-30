@@ -132,12 +132,10 @@ int __init scoop_probe(struct platform_device *pdev)
 	if (!mem)
 		return -EINVAL;
 
-	devptr = kmalloc(sizeof(struct scoop_dev), GFP_KERNEL);
-
+	devptr = kzalloc(sizeof(struct scoop_dev), GFP_KERNEL);
 	if (!devptr)
-		return  -ENOMEM;
+		return -ENOMEM;
 
-	memset(devptr, 0, sizeof(struct scoop_dev));
 	spin_lock_init(&devptr->scoop_lock);
 
 	inf = pdev->dev.platform_data;

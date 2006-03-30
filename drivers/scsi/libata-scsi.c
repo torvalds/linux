@@ -41,6 +41,7 @@
 #include <scsi/scsi_eh.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_request.h>
+#include <scsi/scsi_transport.h>
 #include <linux/libata.h>
 #include <linux/hdreg.h>
 #include <asm/uaccess.h>
@@ -52,6 +53,7 @@
 typedef unsigned int (*ata_xlat_func_t)(struct ata_queued_cmd *qc, const u8 *scsicmd);
 static struct ata_device *
 ata_scsi_find_dev(struct ata_port *ap, const struct scsi_device *scsidev);
+enum scsi_eh_timer_return ata_scsi_timed_out(struct scsi_cmnd *cmd);
 
 #define RW_RECOVERY_MPAGE 0x1
 #define RW_RECOVERY_MPAGE_LEN 12
@@ -90,6 +92,14 @@ static const u8 def_control_mpage[CONTROL_MPAGE_LEN] = {
 	0,	/* [QAM+QERR may be 1, see 05-359r1] */
 	0, 0, 0, 0, 0xff, 0xff,
 	0, 30	/* extended self test time, see 05-359r1 */
+};
+
+/*
+ * libata transport template.  libata doesn't do real transport stuff.
+ * It just needs the eh_timed_out hook.
+ */
+struct scsi_transport_template ata_scsi_transport_template = {
+	.eh_timed_out		= ata_scsi_timed_out,
 };
 
 
@@ -246,7 +256,7 @@ int ata_task_ioctl(struct scsi_device *scsidev, void __user *arg)
 	scsi_cmd[14] = args[0];
 
 	/* Good values for timeout and retries?  Values below
-	   from scsi_ioctl_send_command() for default case... */	
+	   from scsi_ioctl_send_command() for default case... */
 	if (scsi_execute_req(scsidev, scsi_cmd, DMA_NONE, NULL, 0, &sshdr,
 			     (10*HZ), 5))
 		rc = -EIO;
@@ -257,19 +267,7 @@ int ata_task_ioctl(struct scsi_device *scsidev, void __user *arg)
 
 int ata_scsi_ioctl(struct scsi_device *scsidev, int cmd, void __user *arg)
 {
-	struct ata_port *ap;
-	struct ata_device *dev;
 	int val = -EINVAL, rc = -EINVAL;
-
-	ap = (struct ata_port *) &scsidev->host->hostdata[0];
-	if (!ap)
-		goto out;
-
-	dev = ata_scsi_find_dev(ap, scsidev);
-	if (!dev) {
-		rc = -ENODEV;
-		goto out;
-	}
 
 	switch (cmd) {
 	case ATA_IOC_GET_IO32:
@@ -299,7 +297,6 @@ int ata_scsi_ioctl(struct scsi_device *scsidev, int cmd, void __user *arg)
 		break;
 	}
 
-out:
 	return rc;
 }
 
@@ -404,12 +401,12 @@ int ata_scsi_device_resume(struct scsi_device *sdev)
 	return ata_device_resume(ap, dev);
 }
 
-int ata_scsi_device_suspend(struct scsi_device *sdev)
+int ata_scsi_device_suspend(struct scsi_device *sdev, pm_message_t state)
 {
 	struct ata_port *ap = (struct ata_port *) &sdev->host->hostdata[0];
 	struct ata_device *dev = &ap->device[sdev->id];
 
-	return ata_device_suspend(ap, dev);
+	return ata_device_suspend(ap, dev, state);
 }
 
 /**
@@ -428,7 +425,7 @@ int ata_scsi_device_suspend(struct scsi_device *sdev)
  *	LOCKING:
  *	spin_lock_irqsave(host_set lock)
  */
-void ata_to_sense_error(unsigned id, u8 drv_stat, u8 drv_err, u8 *sk, u8 *asc, 
+void ata_to_sense_error(unsigned id, u8 drv_stat, u8 drv_err, u8 *sk, u8 *asc,
 			u8 *ascq)
 {
 	int i;
@@ -485,7 +482,7 @@ void ata_to_sense_error(unsigned id, u8 drv_stat, u8 drv_err, u8 *sk, u8 *asc,
 		/* Look for drv_err */
 		for (i = 0; sense_table[i][0] != 0xFF; i++) {
 			/* Look for best matches first */
-			if ((sense_table[i][0] & drv_err) == 
+			if ((sense_table[i][0] & drv_err) ==
 			    sense_table[i][0]) {
 				*sk = sense_table[i][1];
 				*asc = sense_table[i][2];
@@ -508,7 +505,7 @@ void ata_to_sense_error(unsigned id, u8 drv_stat, u8 drv_err, u8 *sk, u8 *asc,
 		}
 	}
 	/* No error?  Undecoded? */
-	printk(KERN_WARNING "ata%u: no sense translation for status: 0x%02x\n", 
+	printk(KERN_WARNING "ata%u: no sense translation for status: 0x%02x\n",
 	       id, drv_stat);
 
 	/* We need a sensible error return here, which is tricky, and one
@@ -1140,14 +1137,14 @@ static unsigned int ata_scsi_verify_xlat(struct ata_queued_cmd *qc, const u8 *sc
 
 		DPRINTK("block %u track %u cyl %u head %u sect %u\n",
 			(u32)block, track, cyl, head, sect);
-		
-		/* Check whether the converted CHS can fit. 
-		   Cylinder: 0-65535 
+
+		/* Check whether the converted CHS can fit.
+		   Cylinder: 0-65535
 		   Head: 0-15
 		   Sector: 1-255*/
-		if ((cyl >> 16) || (head >> 4) || (sect >> 8) || (!sect)) 
+		if ((cyl >> 16) || (head >> 4) || (sect >> 8) || (!sect))
 			goto out_of_range;
-		
+
 		tf->command = ATA_CMD_VERIFY;
 		tf->nsect = n_block & 0xff; /* Sector count 0 means 256 sectors */
 		tf->lbal = sect;
@@ -1279,7 +1276,7 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc, const u8 *scsicm
 		tf->lbal = block & 0xff;
 
 		tf->device |= ATA_LBA;
-	} else { 
+	} else {
 		/* CHS */
 		u32 sect, head, cyl, track;
 
@@ -1299,8 +1296,8 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc, const u8 *scsicm
 		DPRINTK("block %u track %u cyl %u head %u sect %u\n",
 			(u32)block, track, cyl, head, sect);
 
-		/* Check whether the converted CHS can fit. 
-		   Cylinder: 0-65535 
+		/* Check whether the converted CHS can fit.
+		   Cylinder: 0-65535
 		   Head: 0-15
 		   Sector: 1-255*/
 		if ((cyl >> 16) || (head >> 4) || (sect >> 8) || (!sect))
@@ -1687,7 +1684,7 @@ unsigned int ata_scsiop_inq_83(struct ata_scsi_args *args, u8 *rbuf,
 
 	if (buflen > (ATA_SERNO_LEN + num + 3)) {
 		/* piv=0, assoc=lu, code_set=ACSII, designator=vendor */
-		rbuf[num + 0] = 2;	
+		rbuf[num + 0] = 2;
 		rbuf[num + 3] = ATA_SERNO_LEN;
 		num += 4;
 		ata_id_string(args->id, (unsigned char *) rbuf + num,
@@ -1697,8 +1694,8 @@ unsigned int ata_scsiop_inq_83(struct ata_scsi_args *args, u8 *rbuf,
 	if (buflen > (sat_model_serial_desc_len + num + 3)) {
 		/* SAT defined lu model and serial numbers descriptor */
 		/* piv=0, assoc=lu, code_set=ACSII, designator=t10 vendor id */
-		rbuf[num + 0] = 2;	
-		rbuf[num + 1] = 1;	
+		rbuf[num + 0] = 2;
+		rbuf[num + 1] = 1;
 		rbuf[num + 3] = sat_model_serial_desc_len;
 		num += 4;
 		memcpy(rbuf + num, "ATA     ", 8);
@@ -2587,6 +2584,21 @@ static inline void ata_scsi_dump_cdb(struct ata_port *ap,
 #endif
 }
 
+static inline void __ata_scsi_queuecmd(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *),
+				       struct ata_port *ap, struct ata_device *dev)
+{
+	if (dev->class == ATA_DEV_ATA) {
+		ata_xlat_func_t xlat_func = ata_get_xlat_func(dev,
+							      cmd->cmnd[0]);
+
+		if (xlat_func)
+			ata_scsi_translate(ap, dev, cmd, done, xlat_func);
+		else
+			ata_scsi_simulate(ap, dev, cmd, done);
+	} else
+		ata_scsi_translate(ap, dev, cmd, done, atapi_xlat);
+}
+
 /**
  *	ata_scsi_queuecmd - Issue SCSI cdb to libata-managed device
  *	@cmd: SCSI command to be sent
@@ -2621,24 +2633,13 @@ int ata_scsi_queuecmd(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 	ata_scsi_dump_cdb(ap, cmd);
 
 	dev = ata_scsi_find_dev(ap, scsidev);
-	if (unlikely(!dev)) {
+	if (likely(dev))
+		__ata_scsi_queuecmd(cmd, done, ap, dev);
+	else {
 		cmd->result = (DID_BAD_TARGET << 16);
 		done(cmd);
-		goto out_unlock;
 	}
 
-	if (dev->class == ATA_DEV_ATA) {
-		ata_xlat_func_t xlat_func = ata_get_xlat_func(dev,
-							      cmd->cmnd[0]);
-
-		if (xlat_func)
-			ata_scsi_translate(ap, dev, cmd, done, xlat_func);
-		else
-			ata_scsi_simulate(ap, dev, cmd, done);
-	} else
-		ata_scsi_translate(ap, dev, cmd, done, atapi_xlat);
-
-out_unlock:
 	spin_unlock(&ap->host_set->lock);
 	spin_lock(shost->host_lock);
 	return 0;

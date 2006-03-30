@@ -49,6 +49,7 @@ static struct xt_match mac_match = {
 	.matchsize	= sizeof(struct xt_mac_info),
 	.hooks		= (1 << NF_IP_PRE_ROUTING) | (1 << NF_IP_LOCAL_IN) |
 			  (1 << NF_IP_FORWARD),
+	.family		= AF_INET,
 	.me		= THIS_MODULE,
 };
 static struct xt_match mac6_match = {
@@ -57,28 +58,29 @@ static struct xt_match mac6_match = {
 	.matchsize	= sizeof(struct xt_mac_info),
 	.hooks		= (1 << NF_IP_PRE_ROUTING) | (1 << NF_IP_LOCAL_IN) |
 			  (1 << NF_IP_FORWARD),
+	.family		= AF_INET6,
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init xt_mac_init(void)
 {
 	int ret;
-	ret = xt_register_match(AF_INET, &mac_match);
+	ret = xt_register_match(&mac_match);
 	if (ret)
 		return ret;
 
-	ret = xt_register_match(AF_INET6, &mac6_match);
+	ret = xt_register_match(&mac6_match);
 	if (ret)
-		xt_unregister_match(AF_INET, &mac_match);
+		xt_unregister_match(&mac_match);
 
 	return ret;
 }
 
-static void __exit fini(void)
+static void __exit xt_mac_fini(void)
 {
-	xt_unregister_match(AF_INET, &mac_match);
-	xt_unregister_match(AF_INET6, &mac6_match);
+	xt_unregister_match(&mac_match);
+	xt_unregister_match(&mac6_match);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(xt_mac_init);
+module_exit(xt_mac_fini);

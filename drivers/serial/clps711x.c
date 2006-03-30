@@ -424,6 +424,13 @@ static struct uart_port clps711x_ports[UART_NR] = {
 };
 
 #ifdef CONFIG_SERIAL_CLPS711X_CONSOLE
+static void clps711xuart_console_putchar(struct uart_port *port, int ch)
+{
+	while (clps_readl(SYSFLG(port)) & SYSFLG_UTXFF)
+		barrier();
+	clps_writel(ch, UARTDR(port));
+}
+
 /*
  *	Print a string to the serial port trying not to disturb
  *	any possible real use of the port...
@@ -438,7 +445,6 @@ clps711xuart_console_write(struct console *co, const char *s,
 {
 	struct uart_port *port = clps711x_ports + co->index;
 	unsigned int status, syscon;
-	int i;
 
 	/*
 	 *	Ensure that the port is enabled.
@@ -446,21 +452,7 @@ clps711xuart_console_write(struct console *co, const char *s,
 	syscon = clps_readl(SYSCON(port));
 	clps_writel(syscon | SYSCON_UARTEN, SYSCON(port));
 
-	/*
-	 *	Now, do each character
-	 */
-	for (i = 0; i < count; i++) {
-		do {
-			status = clps_readl(SYSFLG(port));
-		} while (status & SYSFLG_UTXFF);
-		clps_writel(s[i], UARTDR(port));
-		if (s[i] == '\n') {
-			do {
-				status = clps_readl(SYSFLG(port));
-			} while (status & SYSFLG_UTXFF);
-			clps_writel('\r', UARTDR(port));
-		}
-	}
+	uart_console_write(port, s, count, clps711xuart_console_putchar);
 
 	/*
 	 *	Finally, wait for transmitter to become empty

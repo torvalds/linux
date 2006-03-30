@@ -8,8 +8,8 @@
 
 #include <linux/moduleparam.h>
 #include <linux/vmalloc.h>
-#include <linux/smp_lock.h>
 #include <linux/delay.h>
+#include <linux/kthread.h>
 
 #include <scsi/scsi_tcq.h>
 #include <scsi/scsicam.h>
@@ -1146,6 +1146,57 @@ qla2x00_config_dma_addressing(scsi_qla_host_t *ha)
 	pci_set_consistent_dma_mask(ha->pdev, DMA_32BIT_MASK);
 }
 
+static inline void
+qla2x00_set_isp_flags(scsi_qla_host_t *ha)
+{
+	ha->device_type = DT_EXTENDED_IDS;
+	switch (ha->pdev->device) {
+	case PCI_DEVICE_ID_QLOGIC_ISP2100:
+		ha->device_type |= DT_ISP2100;
+		ha->device_type &= ~DT_EXTENDED_IDS;
+		break;
+	case PCI_DEVICE_ID_QLOGIC_ISP2200:
+		ha->device_type |= DT_ISP2200;
+		ha->device_type &= ~DT_EXTENDED_IDS;
+		break;
+	case PCI_DEVICE_ID_QLOGIC_ISP2300:
+		ha->device_type |= DT_ISP2300;
+		ha->device_type |= DT_ZIO_SUPPORTED;
+		break;
+	case PCI_DEVICE_ID_QLOGIC_ISP2312:
+		ha->device_type |= DT_ISP2312;
+		ha->device_type |= DT_ZIO_SUPPORTED;
+		break;
+	case PCI_DEVICE_ID_QLOGIC_ISP2322:
+		ha->device_type |= DT_ISP2322;
+		ha->device_type |= DT_ZIO_SUPPORTED;
+		if (ha->pdev->subsystem_vendor == 0x1028 &&
+		    ha->pdev->subsystem_device == 0x0170)
+			ha->device_type |= DT_OEM_001;
+		break;
+	case PCI_DEVICE_ID_QLOGIC_ISP6312:
+		ha->device_type |= DT_ISP6312;
+		break;
+	case PCI_DEVICE_ID_QLOGIC_ISP6322:
+		ha->device_type |= DT_ISP6322;
+		break;
+	case PCI_DEVICE_ID_QLOGIC_ISP2422:
+		ha->device_type |= DT_ISP2422;
+		ha->device_type |= DT_ZIO_SUPPORTED;
+		break;
+	case PCI_DEVICE_ID_QLOGIC_ISP2432:
+		ha->device_type |= DT_ISP2432;
+		ha->device_type |= DT_ZIO_SUPPORTED;
+		break;
+	case PCI_DEVICE_ID_QLOGIC_ISP5422:
+		ha->device_type |= DT_ISP5422;
+		break;
+	case PCI_DEVICE_ID_QLOGIC_ISP5432:
+		ha->device_type |= DT_ISP5432;
+		break;
+	}
+}
+
 static int
 qla2x00_iospace_config(scsi_qla_host_t *ha)
 {
@@ -1307,7 +1358,8 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 	ha->brd_info = brd_info;
 	sprintf(ha->host_str, "%s_%ld", ha->brd_info->drv_name, ha->host_no);
 
-	ha->dpc_pid = -1;
+	/* Set ISP-type information. */
+	qla2x00_set_isp_flags(ha);
 
 	/* Configure PCI I/O space */
 	ret = qla2x00_iospace_config(ha);
@@ -1386,7 +1438,7 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 		ha->gid_list_info_size = 6;
 		if (IS_QLA2322(ha) || IS_QLA6322(ha))
 			ha->optrom_size = OPTROM_SIZE_2322;
-	} else if (IS_QLA24XX(ha) || IS_QLA25XX(ha)) {
+	} else if (IS_QLA24XX(ha) || IS_QLA54XX(ha)) {
 		host->max_id = MAX_TARGETS_2200;
 		ha->mbx_count = MAILBOX_REGISTER_COUNT;
 		ha->request_q_length = REQUEST_ENTRY_CNT_24XX;
@@ -1449,9 +1501,6 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 	 */
 	spin_lock_init(&ha->mbx_reg_lock);
 
-	init_completion(&ha->dpc_inited);
-	init_completion(&ha->dpc_exited);
-
 	qla2x00_config_dma_addressing(ha);
 	if (qla2x00_mem_alloc(ha)) {
 		qla_printk(KERN_WARNING, ha,
@@ -1478,16 +1527,14 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 	/*
 	 * Startup the kernel thread for this host adapter
 	 */
-	ha->dpc_should_die = 0;
-	ha->dpc_pid = kernel_thread(qla2x00_do_dpc, ha, 0);
-	if (ha->dpc_pid < 0) {
+	ha->dpc_thread = kthread_create(qla2x00_do_dpc, ha,
+			"%s_dpc", ha->host_str);
+	if (IS_ERR(ha->dpc_thread)) {
 		qla_printk(KERN_WARNING, ha,
 		    "Unable to start DPC thread!\n");
-
-		ret = -ENODEV;
+		ret = PTR_ERR(ha->dpc_thread);
 		goto probe_failed;
 	}
-	wait_for_completion(&ha->dpc_inited);
 
 	host->this_id = 255;
 	host->cmd_per_lun = 3;
@@ -1517,7 +1564,7 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	reg = ha->iobase;
-	if (IS_QLA24XX(ha) || IS_QLA25XX(ha)) {
+	if (IS_QLA24XX(ha) || IS_QLA54XX(ha)) {
 		WRT_REG_DWORD(&reg->isp24.hccr, HCCRX_CLR_HOST_INT);
 		WRT_REG_DWORD(&reg->isp24.hccr, HCCRX_CLR_RISC_INT);
 	} else {
@@ -1621,8 +1668,6 @@ EXPORT_SYMBOL_GPL(qla2x00_remove_one);
 static void
 qla2x00_free_device(scsi_qla_host_t *ha)
 {
-	int ret;
-
 	/* Abort any outstanding IO descriptors. */
 	if (!IS_QLA2100(ha) && !IS_QLA2200(ha))
 		qla2x00_cancel_io_descriptors(ha);
@@ -1632,18 +1677,15 @@ qla2x00_free_device(scsi_qla_host_t *ha)
 		qla2x00_stop_timer(ha);
 
 	/* Kill the kernel thread for this host */
-	if (ha->dpc_pid >= 0) {
-		ha->dpc_should_die = 1;
-		wmb();
-		ret = kill_proc(ha->dpc_pid, SIGHUP, 1);
-		if (ret) {
-			qla_printk(KERN_ERR, ha,
-			    "Unable to signal DPC thread -- (%d)\n", ret);
+	if (ha->dpc_thread) {
+		struct task_struct *t = ha->dpc_thread;
 
-			/* TODO: SOMETHING MORE??? */
-		} else {
-			wait_for_completion(&ha->dpc_exited);
-		}
+		/*
+		 * qla2xxx_wake_dpc checks for ->dpc_thread
+		 * so we need to zero it out.
+		 */
+		ha->dpc_thread = NULL;
+		kthread_stop(t);
 	}
 
 	/* Stop currently executing firmware. */
@@ -1775,8 +1817,8 @@ qla2x00_mark_all_devices_lost(scsi_qla_host_t *ha, int defer)
 		atomic_set(&fcport->state, FCS_DEVICE_LOST);
 	}
 
-	if (defer && ha->dpc_wait && !ha->dpc_active)
-		up(ha->dpc_wait);
+	if (defer)
+		qla2xxx_wake_dpc(ha);
 }
 
 /*
@@ -1993,18 +2035,12 @@ qla2x00_mem_free(scsi_qla_host_t *ha)
 {
 	struct list_head	*fcpl, *fcptemp;
 	fc_port_t	*fcport;
-	unsigned int	wtime;/* max wait time if mbx cmd is busy. */
 
 	if (ha == NULL) {
 		/* error */
 		DEBUG2(printk("%s(): ERROR invalid ha pointer.\n", __func__));
 		return;
 	}
-
-	/* Make sure all other threads are stopped. */
-	wtime = 60 * 1000;
-	while (ha->dpc_wait && wtime)
-		wtime = msleep_interruptible(wtime);
 
 	/* free ioctl memory */
 	qla2x00_free_ioctl_mem(ha);
@@ -2118,8 +2154,7 @@ qla2x00_allocate_sp_pool(scsi_qla_host_t *ha)
 	int      rval;
 
 	rval = QLA_SUCCESS;
-	ha->srb_mempool = mempool_create(SRB_MIN_REQ, mempool_alloc_slab,
-	    mempool_free_slab, srb_cachep);
+	ha->srb_mempool = mempool_create_slab_pool(SRB_MIN_REQ, srb_cachep);
 	if (ha->srb_mempool == NULL) {
 		qla_printk(KERN_INFO, ha, "Unable to allocate SRB mempool.\n");
 		rval = QLA_FUNCTION_FAILED;
@@ -2156,7 +2191,6 @@ qla2x00_free_sp_pool( scsi_qla_host_t *ha)
 static int
 qla2x00_do_dpc(void *data)
 {
-	DECLARE_MUTEX_LOCKED(sem);
 	scsi_qla_host_t *ha;
 	fc_port_t	*fcport;
 	uint8_t		status;
@@ -2164,32 +2198,19 @@ qla2x00_do_dpc(void *data)
 
 	ha = (scsi_qla_host_t *)data;
 
-	lock_kernel();
-
-	daemonize("%s_dpc", ha->host_str);
-	allow_signal(SIGHUP);
-
-	ha->dpc_wait = &sem;
-
 	set_user_nice(current, -20);
 
-	unlock_kernel();
-
-	complete(&ha->dpc_inited);
-
-	while (1) {
+	while (!kthread_should_stop()) {
 		DEBUG3(printk("qla2x00: DPC handler sleeping\n"));
 
-		if (down_interruptible(&sem))
-			break;
-
-		if (ha->dpc_should_die)
-			break;
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule();
+		__set_current_state(TASK_RUNNING);
 
 		DEBUG3(printk("qla2x00: DPC handler waking up\n"));
 
 		/* Initialization not yet finished. Don't do anything yet. */
-		if (!ha->flags.init_done || ha->dpc_active)
+		if (!ha->flags.init_done)
 			continue;
 
 		DEBUG3(printk("scsi(%ld): DPC handler\n", ha->host_no));
@@ -2273,7 +2294,7 @@ qla2x00_do_dpc(void *data)
 					} else
 						status =
 						    qla2x00_local_device_login(
-							ha, fcport->loop_id);
+							ha, fcport);
 
 					if (status == QLA_SUCCESS) {
 						fcport->old_loop_id = fcport->loop_id;
@@ -2356,10 +2377,16 @@ qla2x00_do_dpc(void *data)
 	/*
 	 * Make sure that nobody tries to wake us up again.
 	 */
-	ha->dpc_wait = NULL;
 	ha->dpc_active = 0;
 
-	complete_and_exit(&ha->dpc_exited, 0);
+	return 0;
+}
+
+void
+qla2xxx_wake_dpc(scsi_qla_host_t *ha)
+{
+	if (ha->dpc_thread)
+		wake_up_process(ha->dpc_thread);
 }
 
 /*
@@ -2540,11 +2567,8 @@ qla2x00_timer(scsi_qla_host_t *ha)
 	    test_bit(LOGIN_RETRY_NEEDED, &ha->dpc_flags) ||
 	    test_bit(RESET_MARKER_NEEDED, &ha->dpc_flags) ||
 	    test_bit(BEACON_BLINK_NEEDED, &ha->dpc_flags) ||
-	    test_bit(RELOGIN_NEEDED, &ha->dpc_flags)) &&
-	    ha->dpc_wait && !ha->dpc_active) {
-
-		up(ha->dpc_wait);
-	}
+	    test_bit(RELOGIN_NEEDED, &ha->dpc_flags)))
+		qla2xxx_wake_dpc(ha);
 
 	qla2x00_restart_timer(ha, WATCH_INTERVAL);
 }
@@ -2576,13 +2600,12 @@ qla2x00_down_timeout(struct semaphore *sema, unsigned long timeout)
 
 /* Firmware interface routines. */
 
-#define FW_BLOBS	6
+#define FW_BLOBS	5
 #define FW_ISP21XX	0
 #define FW_ISP22XX	1
 #define FW_ISP2300	2
 #define FW_ISP2322	3
-#define FW_ISP63XX	4
-#define FW_ISP24XX	5
+#define FW_ISP24XX	4
 
 static DECLARE_MUTEX(qla_fw_lock);
 
@@ -2591,7 +2614,6 @@ static struct fw_blob qla_fw_blobs[FW_BLOBS] = {
 	{ .name = "ql2200_fw.bin", .segs = { 0x1000, 0 }, },
 	{ .name = "ql2300_fw.bin", .segs = { 0x800, 0 }, },
 	{ .name = "ql2322_fw.bin", .segs = { 0x800, 0x1c000, 0x1e000, 0 }, },
-	{ .name = "ql6312_fw.bin", .segs = { 0x800, 0 }, },
 	{ .name = "ql2400_fw.bin", },
 };
 
@@ -2605,13 +2627,11 @@ qla2x00_request_firmware(scsi_qla_host_t *ha)
 		blob = &qla_fw_blobs[FW_ISP21XX];
 	} else if (IS_QLA2200(ha)) {
 		blob = &qla_fw_blobs[FW_ISP22XX];
-	} else if (IS_QLA2300(ha) || IS_QLA2312(ha)) {
+	} else if (IS_QLA2300(ha) || IS_QLA2312(ha) || IS_QLA6312(ha)) {
 		blob = &qla_fw_blobs[FW_ISP2300];
-	} else if (IS_QLA2322(ha)) {
+	} else if (IS_QLA2322(ha) || IS_QLA6322(ha)) {
 		blob = &qla_fw_blobs[FW_ISP2322];
-	} else if (IS_QLA6312(ha) || IS_QLA6322(ha)) {
-		blob = &qla_fw_blobs[FW_ISP63XX];
-	} else if (IS_QLA24XX(ha)) {
+	} else if (IS_QLA24XX(ha) || IS_QLA54XX(ha)) {
 		blob = &qla_fw_blobs[FW_ISP24XX];
 	}
 
@@ -2666,6 +2686,10 @@ static struct pci_device_id qla2xxx_pci_tbl[] = {
 	{ PCI_VENDOR_ID_QLOGIC, PCI_DEVICE_ID_QLOGIC_ISP2422,
 		PCI_ANY_ID, PCI_ANY_ID, },
 	{ PCI_VENDOR_ID_QLOGIC, PCI_DEVICE_ID_QLOGIC_ISP2432,
+		PCI_ANY_ID, PCI_ANY_ID, },
+	{ PCI_VENDOR_ID_QLOGIC, PCI_DEVICE_ID_QLOGIC_ISP5422,
+		PCI_ANY_ID, PCI_ANY_ID, },
+	{ PCI_VENDOR_ID_QLOGIC, PCI_DEVICE_ID_QLOGIC_ISP5432,
 		PCI_ANY_ID, PCI_ANY_ID, },
 	{ 0 },
 };

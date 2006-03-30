@@ -23,7 +23,6 @@
 #include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/delay.h>
-#include <linux/i2c-dev.h>
 #include <linux/slab.h>
 #include <sound/core.h>
 #include "pmac.h"

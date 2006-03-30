@@ -138,6 +138,8 @@
 #endif
 #ifdef CONFIG_SOUND_CMPCI_JOYSTICK
 #include <linux/gameport.h>
+#include <linux/mutex.h>
+
 #endif
 
 /* --------------------------------------------------------------------- */
@@ -392,7 +394,7 @@ struct cm_state {
 	unsigned char fmt, enable;
 
 	spinlock_t lock;
-	struct semaphore open_sem;
+	struct mutex open_mutex;
 	mode_t open_mode;
 	wait_queue_head_t open_wait;
 
@@ -1711,7 +1713,7 @@ static int mixer_ioctl(struct cm_state *s, unsigned int cmd, unsigned long arg)
 	case SOUND_MIXER_RECSRC: /* Arg contains a bit for each recording source */
 		if (get_user(val, p))
 			return -EFAULT;
-		i = generic_hweight32(val);
+		i = hweight32(val);
 		for (j = i = 0; i < SOUND_MIXER_NRDEVICES; i++) {
 			if (!(val & (1 << i)))
 				continue;
@@ -2825,21 +2827,21 @@ static int cm_open(struct inode *inode, struct file *file)
        	VALIDATE_STATE(s);
 	file->private_data = s;
 	/* wait for device to become free */
-	down(&s->open_sem);
+	mutex_lock(&s->open_mutex);
 	while (s->open_mode & file->f_mode) {
 		if (file->f_flags & O_NONBLOCK) {
-			up(&s->open_sem);
+			mutex_unlock(&s->open_mutex);
 			return -EBUSY;
 		}
 		add_wait_queue(&s->open_wait, &wait);
 		__set_current_state(TASK_INTERRUPTIBLE);
-		up(&s->open_sem);
+		mutex_unlock(&s->open_mutex);
 		schedule();
 		remove_wait_queue(&s->open_wait, &wait);
 		set_current_state(TASK_RUNNING);
 		if (signal_pending(current))
 			return -ERESTARTSYS;
-		down(&s->open_sem);
+		mutex_lock(&s->open_mutex);
 	}
 	if (file->f_mode & FMODE_READ) {
 		s->status &= ~DO_BIGENDIAN_R;
@@ -2867,7 +2869,7 @@ static int cm_open(struct inode *inode, struct file *file)
 	}
 	set_fmt(s, fmtm, fmts);
 	s->open_mode |= file->f_mode & (FMODE_READ | FMODE_WRITE);
-	up(&s->open_sem);
+	mutex_unlock(&s->open_mutex);
 	return nonseekable_open(inode, file);
 }
 
@@ -2879,7 +2881,7 @@ static int cm_release(struct inode *inode, struct file *file)
 	lock_kernel();
 	if (file->f_mode & FMODE_WRITE)
 		drain_dac(s, file->f_flags & O_NONBLOCK);
-	down(&s->open_sem);
+	mutex_lock(&s->open_mutex);
 	if (file->f_mode & FMODE_WRITE) {
 		stop_dac(s);
 
@@ -2903,7 +2905,7 @@ static int cm_release(struct inode *inode, struct file *file)
 		s->status &= ~DO_BIGENDIAN_R;
 	}
 	s->open_mode &= ~(file->f_mode & (FMODE_READ|FMODE_WRITE));
-	up(&s->open_sem);
+	mutex_unlock(&s->open_mutex);
 	wake_up(&s->open_wait);
 	unlock_kernel();
 	return 0;
@@ -3080,7 +3082,7 @@ static int __devinit cm_probe(struct pci_dev *pcidev, const struct pci_device_id
 	init_waitqueue_head(&s->dma_adc.wait);
 	init_waitqueue_head(&s->dma_dac.wait);
 	init_waitqueue_head(&s->open_wait);
-	init_MUTEX(&s->open_sem);
+	mutex_init(&s->open_mutex);
 	spin_lock_init(&s->lock);
 	s->magic = CM_MAGIC;
 	s->dev = pcidev;

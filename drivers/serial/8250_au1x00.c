@@ -51,7 +51,7 @@ static struct plat_serial8250_port au1x00_data[] = {
 #elif defined(CONFIG_SOC_AU1100)
 	PORT(UART0_ADDR, AU1100_UART0_INT),
 	PORT(UART1_ADDR, AU1100_UART1_INT),
-	PORT(UART2_ADDR, AU1100_UART2_INT),
+	/* The internal UART2 does not exist on the AU1100 processor. */
 	PORT(UART3_ADDR, AU1100_UART3_INT),
 #elif defined(CONFIG_SOC_AU1550)
 	PORT(UART0_ADDR, AU1550_UART0_INT),

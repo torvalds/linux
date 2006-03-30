@@ -1170,7 +1170,7 @@ static struct inode_operations fuse_dir_inode_operations = {
 	.removexattr	= fuse_removexattr,
 };
 
-static struct file_operations fuse_dir_operations = {
+static const struct file_operations fuse_dir_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
 	.readdir	= fuse_readdir,

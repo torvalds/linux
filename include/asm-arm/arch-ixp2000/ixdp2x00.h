@@ -72,12 +72,11 @@
 
 #ifndef __ASSEMBLY__
 /*
- * Master NPU will always have flash and be PCI master.
- * Slave NPU may or may not have flash but will never be PCI master.
+ * The master NPU is always PCI master.
  */
 static inline unsigned int ixdp2x00_master_npu(void)
 {
-	return ((ixp2000_has_flash()) && (ixp2000_is_pcimaster()));
+	return !!ixp2000_is_pcimaster();
 }
 
 /*

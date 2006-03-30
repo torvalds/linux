@@ -51,6 +51,17 @@ name:
   [99:]	x
 
 /*
+ * Tag MCA recoverable instruction ranges.
+ */
+
+	.section "__mca_table", "a"		// declare section & section attributes
+	.previous
+
+# define MCA_RECOVER_RANGE(y)			\
+	.xdata4 "__mca_table", y-., 99f-.;	\
+  [99:]
+
+/*
  * Mark instructions that need a load of a virtual address patched to be
  * a load of a physical address.  We use this either in critical performance
  * path (ivt.S - TLB miss processing) or in places where it might not be

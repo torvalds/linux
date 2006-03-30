@@ -1,6 +1,4 @@
 /*
- * arch/ppc/boot/simple/mpc52xx_tty.c
- *
  * Minimal serial functions needed to send messages out a MPC52xx
  * Programmable Serial Controller (PSC).
  *

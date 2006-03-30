@@ -26,7 +26,7 @@
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include <linux/wait.h>
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
 
 #if defined(CONFIG_SND_SEQUENCER) || defined(CONFIG_SND_SEQUENCER_MODULE)
 #include "seq_device.h"
@@ -130,7 +130,7 @@ struct snd_rawmidi {
 	void *private_data;
 	void (*private_free) (struct snd_rawmidi *rmidi);
 
-	struct semaphore open_mutex;
+	struct mutex open_mutex;
 	wait_queue_head_t open_wait;
 
 	struct snd_info_entry *dev;

@@ -895,7 +895,7 @@ extern void ufs_set_link(struct inode *, struct ufs_dir_entry *, struct buffer_h
 
 /* file.c */
 extern struct inode_operations ufs_file_inode_operations;
-extern struct file_operations ufs_file_operations;
+extern const struct file_operations ufs_file_operations;
 
 extern struct address_space_operations ufs_aops;
 
@@ -915,7 +915,7 @@ extern struct buffer_head * ufs_bread (struct inode *, unsigned, int, int *);
 extern int ufs_getfrag_block (struct inode *inode, sector_t fragment, struct buffer_head *bh_result, int create);
 
 /* namei.c */
-extern struct file_operations ufs_dir_operations;
+extern const struct file_operations ufs_dir_operations;
         
 /* super.c */
 extern void ufs_warning (struct super_block *, const char *, const char *, ...) __attribute__ ((format (printf, 3, 4)));

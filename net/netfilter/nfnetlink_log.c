@@ -1081,13 +1081,13 @@ cleanup_netlink_notifier:
 	return status;
 }
 
-static int __init init(void)
+static int __init nfnetlink_log_init(void)
 {
 	
 	return init_or_cleanup(1);
 }
 
-static void __exit fini(void)
+static void __exit nfnetlink_log_fini(void)
 {
 	init_or_cleanup(0);
 }
@@ -1097,5 +1097,5 @@ MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_NFNL_SUBSYS(NFNL_SUBSYS_ULOG);
 
-module_init(init);
-module_exit(fini);
+module_init(nfnetlink_log_init);
+module_exit(nfnetlink_log_fini);

@@ -34,7 +34,7 @@
 #include <linux/types.h>
 #include <linux/wait.h>
 
-/* includes for structures and defines regarding video 
+/* includes for structures and defines regarding video
    #include<linux/videodev.h> */
 
 /* I/O commands, error codes */
@@ -173,7 +173,7 @@ zr36060_wait_end (struct zr36060 *ptr)
 /* =========================================================================
    Local helper function:
 
-   basic test of "connectivity", writes/reads to/from memory the SOF marker 
+   basic test of "connectivity", writes/reads to/from memory the SOF marker
    ========================================================================= */
 
 static int
@@ -208,9 +208,9 @@ zr36060_basic_test (struct zr36060 *ptr)
 
 static int
 zr36060_pushit (struct zr36060 *ptr,
-	        u16             startreg,
-	        u16             len,
-	        const char     *data)
+		u16             startreg,
+		u16             len,
+		const char     *data)
 {
 	int i = 0;
 
@@ -335,7 +335,7 @@ static const char zr36060_decimation_v[8] = { 1, 1, 1, 0, 0, 0, 0, 0 };
 /* ------------------------------------------------------------------------- */
 
 /* SOF (start of frame) segment depends on width, height and sampling ratio
-                         of each color component */
+			 of each color component */
 
 static int
 zr36060_set_sof (struct zr36060 *ptr)
@@ -367,8 +367,8 @@ zr36060_set_sof (struct zr36060 *ptr)
 
 /* ------------------------------------------------------------------------- */
 
-/* SOS (start of scan) segment depends on the used scan components 
-                        of each color component */
+/* SOS (start of scan) segment depends on the used scan components
+			of each color component */
 
 static int
 zr36060_set_sos (struct zr36060 *ptr)
@@ -385,7 +385,7 @@ zr36060_set_sos (struct zr36060 *ptr)
 	for (i = 0; i < NO_OF_COMPONENTS; i++) {
 		sos_data[5 + (i * 2)] = i;	// index
 		sos_data[6 + (i * 2)] = (zr36060_td[i] << 4) |
-				        zr36060_ta[i]; // AC/DC tbl.sel.
+					zr36060_ta[i]; // AC/DC tbl.sel.
 	}
 	sos_data[2 + 1 + (2 * NO_OF_COMPONENTS) + 2] = 00;	// scan start
 	sos_data[2 + 1 + (2 * NO_OF_COMPONENTS) + 3] = 0x3f;
@@ -999,7 +999,7 @@ zr36060_cleanup_module (void)
 		dprintk(1,
 			"zr36060: something's wrong - %d codecs left somehow.\n",
 			zr36060_codecs);
-	} 
+	}
 
 	/* however, we can't just stay alive */
 	videocodec_unregister(&zr36060_codec);

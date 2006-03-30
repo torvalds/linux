@@ -94,7 +94,7 @@ void __init plat_setup(void)
 
 	argptr = prom_getcmdline();
 
-#if defined(CONFIG_SERIAL_AU1X00_CONSOLE) || defined(CONFIG_SERIAL_8250_CONSOLE)
+#ifdef CONFIG_SERIAL_8250_CONSOLE
 	if ((argptr = strstr(argptr, "console=")) == NULL) {
 		argptr = prom_getcmdline();
 		strcat(argptr, " console=ttyS0,115200");

@@ -33,6 +33,7 @@
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/types.h>
+#include <linux/mutex.h>
 #include <asm/io.h>
 #include <asm/semaphore.h>
 
@@ -48,7 +49,7 @@ static u8 *smi_data_buf;
 static dma_addr_t smi_data_buf_handle;
 static unsigned long smi_data_buf_size;
 static u32 smi_data_buf_phys_addr;
-static DECLARE_MUTEX(smi_data_lock);
+static DEFINE_MUTEX(smi_data_lock);
 
 static unsigned int host_control_action;
 static unsigned int host_control_smi_type;
@@ -139,9 +140,9 @@ static ssize_t smi_data_buf_size_store(struct device *dev,
 	buf_size = simple_strtoul(buf, NULL, 10);
 
 	/* make sure SMI data buffer is at least buf_size */
-	down(&smi_data_lock);
+	mutex_lock(&smi_data_lock);
 	ret = smi_data_buf_realloc(buf_size);
-	up(&smi_data_lock);
+	mutex_unlock(&smi_data_lock);
 	if (ret)
 		return ret;
 
@@ -154,7 +155,7 @@ static ssize_t smi_data_read(struct kobject *kobj, char *buf, loff_t pos,
 	size_t max_read;
 	ssize_t ret;
 
-	down(&smi_data_lock);
+	mutex_lock(&smi_data_lock);
 
 	if (pos >= smi_data_buf_size) {
 		ret = 0;
@@ -165,7 +166,7 @@ static ssize_t smi_data_read(struct kobject *kobj, char *buf, loff_t pos,
 	ret = min(max_read, count);
 	memcpy(buf, smi_data_buf + pos, ret);
 out:
-	up(&smi_data_lock);
+	mutex_unlock(&smi_data_lock);
 	return ret;
 }
 
@@ -174,7 +175,7 @@ static ssize_t smi_data_write(struct kobject *kobj, char *buf, loff_t pos,
 {
 	ssize_t ret;
 
-	down(&smi_data_lock);
+	mutex_lock(&smi_data_lock);
 
 	ret = smi_data_buf_realloc(pos + count);
 	if (ret)
@@ -183,7 +184,7 @@ static ssize_t smi_data_write(struct kobject *kobj, char *buf, loff_t pos,
 	memcpy(smi_data_buf + pos, buf, count);
 	ret = count;
 out:
-	up(&smi_data_lock);
+	mutex_unlock(&smi_data_lock);
 	return ret;
 }
 
@@ -201,9 +202,9 @@ static ssize_t host_control_action_store(struct device *dev,
 	ssize_t ret;
 
 	/* make sure buffer is available for host control command */
-	down(&smi_data_lock);
+	mutex_lock(&smi_data_lock);
 	ret = smi_data_buf_realloc(sizeof(struct apm_cmd));
-	up(&smi_data_lock);
+	mutex_unlock(&smi_data_lock);
 	if (ret)
 		return ret;
 
@@ -302,7 +303,7 @@ static ssize_t smi_request_store(struct device *dev,
 	unsigned long val = simple_strtoul(buf, NULL, 10);
 	ssize_t ret;
 
-	down(&smi_data_lock);
+	mutex_lock(&smi_data_lock);
 
 	if (smi_data_buf_size < sizeof(struct smi_cmd)) {
 		ret = -ENODEV;
@@ -334,7 +335,7 @@ static ssize_t smi_request_store(struct device *dev,
 	}
 
 out:
-	up(&smi_data_lock);
+	mutex_unlock(&smi_data_lock);
 	return ret;
 }
 
@@ -483,26 +484,15 @@ static void dcdbas_host_control(void)
 static int dcdbas_reboot_notify(struct notifier_block *nb, unsigned long code,
 				void *unused)
 {
-	static unsigned int notify_cnt = 0;
-
 	switch (code) {
 	case SYS_DOWN:
 	case SYS_HALT:
 	case SYS_POWER_OFF:
 		if (host_control_on_shutdown) {
 			/* firmware is going to perform host control action */
-			if (++notify_cnt == 2) {
-				printk(KERN_WARNING
-				       "Please wait for shutdown "
-				       "action to complete...\n");
-				dcdbas_host_control();
-			}
-			/*
-			 * register again and initiate the host control
-			 * action on the second notification to allow
-			 * everyone that registered to be notified
-			 */
-			register_reboot_notifier(nb);
+			printk(KERN_WARNING "Please wait for shutdown "
+			       "action to complete...\n");
+			dcdbas_host_control();
 		}
 		break;
 	}
@@ -513,7 +503,7 @@ static int dcdbas_reboot_notify(struct notifier_block *nb, unsigned long code,
 static struct notifier_block dcdbas_reboot_nb = {
 	.notifier_call = dcdbas_reboot_notify,
 	.next = NULL,
-	.priority = 0
+	.priority = INT_MIN
 };
 
 static DCDBAS_BIN_ATTR_RW(smi_data);
@@ -530,29 +520,26 @@ static DCDBAS_DEV_ATTR_RW(host_control_action);
 static DCDBAS_DEV_ATTR_RW(host_control_smi_type);
 static DCDBAS_DEV_ATTR_RW(host_control_on_shutdown);
 
-static struct device_attribute *dcdbas_dev_attrs[] = {
-	&dev_attr_smi_data_buf_size,
-	&dev_attr_smi_data_buf_phys_addr,
-	&dev_attr_smi_request,
-	&dev_attr_host_control_action,
-	&dev_attr_host_control_smi_type,
-	&dev_attr_host_control_on_shutdown,
+static struct attribute *dcdbas_dev_attrs[] = {
+	&dev_attr_smi_data_buf_size.attr,
+	&dev_attr_smi_data_buf_phys_addr.attr,
+	&dev_attr_smi_request.attr,
+	&dev_attr_host_control_action.attr,
+	&dev_attr_host_control_smi_type.attr,
+	&dev_attr_host_control_on_shutdown.attr,
 	NULL
 };
 
-/**
- * dcdbas_init: initialize driver
- */
-static int __init dcdbas_init(void)
+static struct attribute_group dcdbas_attr_group = {
+	.attrs = dcdbas_dev_attrs,
+};
+
+static int __devinit dcdbas_probe(struct platform_device *dev)
 {
-	int i;
+	int i, error;
 
 	host_control_action = HC_ACTION_NONE;
 	host_control_smi_type = HC_SMITYPE_NONE;
-
-	dcdbas_pdev = platform_device_register_simple(DRIVER_NAME, -1, NULL, 0);
-	if (IS_ERR(dcdbas_pdev))
-		return PTR_ERR(dcdbas_pdev);
 
 	/*
 	 * BIOS SMI calls require buffer addresses be in 32-bit address space.
@@ -561,19 +548,79 @@ static int __init dcdbas_init(void)
 	dcdbas_pdev->dev.coherent_dma_mask = DMA_32BIT_MASK;
 	dcdbas_pdev->dev.dma_mask = &dcdbas_pdev->dev.coherent_dma_mask;
 
+	error = sysfs_create_group(&dev->dev.kobj, &dcdbas_attr_group);
+	if (error)
+		return error;
+
+	for (i = 0; dcdbas_bin_attrs[i]; i++) {
+		error = sysfs_create_bin_file(&dev->dev.kobj,
+					      dcdbas_bin_attrs[i]);
+		if (error) {
+			while (--i >= 0)
+				sysfs_remove_bin_file(&dev->dev.kobj,
+						      dcdbas_bin_attrs[i]);
+			sysfs_create_group(&dev->dev.kobj, &dcdbas_attr_group);
+			return error;
+		}
+	}
+
 	register_reboot_notifier(&dcdbas_reboot_nb);
 
-	for (i = 0; dcdbas_bin_attrs[i]; i++)
-		sysfs_create_bin_file(&dcdbas_pdev->dev.kobj,
-				      dcdbas_bin_attrs[i]);
-
-	for (i = 0; dcdbas_dev_attrs[i]; i++)
-		device_create_file(&dcdbas_pdev->dev, dcdbas_dev_attrs[i]);
-
-	dev_info(&dcdbas_pdev->dev, "%s (version %s)\n",
+	dev_info(&dev->dev, "%s (version %s)\n",
 		 DRIVER_DESCRIPTION, DRIVER_VERSION);
 
 	return 0;
+}
+
+static int __devexit dcdbas_remove(struct platform_device *dev)
+{
+	int i;
+
+	unregister_reboot_notifier(&dcdbas_reboot_nb);
+	for (i = 0; dcdbas_bin_attrs[i]; i++)
+		sysfs_remove_bin_file(&dev->dev.kobj, dcdbas_bin_attrs[i]);
+	sysfs_remove_group(&dev->dev.kobj, &dcdbas_attr_group);
+
+	return 0;
+}
+
+static struct platform_driver dcdbas_driver = {
+	.driver		= {
+		.name	= DRIVER_NAME,
+		.owner	= THIS_MODULE,
+	},
+	.probe		= dcdbas_probe,
+	.remove		= __devexit_p(dcdbas_remove),
+};
+
+/**
+ * dcdbas_init: initialize driver
+ */
+static int __init dcdbas_init(void)
+{
+	int error;
+
+	error = platform_driver_register(&dcdbas_driver);
+	if (error)
+		return error;
+
+	dcdbas_pdev = platform_device_alloc(DRIVER_NAME, -1);
+	if (!dcdbas_pdev) {
+		error = -ENOMEM;
+		goto err_unregister_driver;
+	}
+
+	error = platform_device_add(dcdbas_pdev);
+	if (error)
+		goto err_free_device;
+
+	return 0;
+
+ err_free_device:
+	platform_device_put(dcdbas_pdev);
+ err_unregister_driver:
+	platform_driver_unregister(&dcdbas_driver);
+	return error;
 }
 
 /**
@@ -588,6 +635,15 @@ static void __exit dcdbas_exit(void)
 	unregister_reboot_notifier(&dcdbas_reboot_nb);
 	smi_data_buf_free();
 	platform_device_unregister(dcdbas_pdev);
+	platform_driver_unregister(&dcdbas_driver);
+
+	/*
+	 * We have to free the buffer here instead of dcdbas_remove
+	 * because only in module exit function we can be sure that
+	 * all sysfs attributes belonging to this module have been
+	 * released.
+	 */
+	smi_data_buf_free();
 }
 
 module_init(dcdbas_init);

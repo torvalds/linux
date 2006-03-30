@@ -584,19 +584,20 @@ static int init_or_cleanup(int init)
 	return ret;
 }
 
+MODULE_ALIAS("nf_conntrack-" __stringify(AF_INET6));
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Yasuyuki KOZAKAI @USAGI <yasuyuki.kozakai@toshiba.co.jp>");
 
-static int __init init(void)
+static int __init nf_conntrack_l3proto_ipv6_init(void)
 {
 	need_conntrack();
 	return init_or_cleanup(1);
 }
 
-static void __exit fini(void)
+static void __exit nf_conntrack_l3proto_ipv6_fini(void)
 {
 	init_or_cleanup(0);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(nf_conntrack_l3proto_ipv6_init);
+module_exit(nf_conntrack_l3proto_ipv6_fini);

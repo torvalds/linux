@@ -39,6 +39,7 @@ static struct xt_target notrack_reg = {
 	.target		= target,
 	.targetsize	= 0,
 	.table		= "raw",
+	.family		= AF_INET,
 	.me		= THIS_MODULE,
 };
 
@@ -47,29 +48,30 @@ static struct xt_target notrack6_reg = {
 	.target		= target,
 	.targetsize	= 0,
 	.table		= "raw",
+	.family		= AF_INET6,
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init xt_notrack_init(void)
 {
 	int ret;
 
-	ret = xt_register_target(AF_INET, &notrack_reg);
+	ret = xt_register_target(&notrack_reg);
 	if (ret)
 		return ret;
 
-	ret = xt_register_target(AF_INET6, &notrack6_reg);
+	ret = xt_register_target(&notrack6_reg);
 	if (ret)
-		xt_unregister_target(AF_INET, &notrack_reg);
+		xt_unregister_target(&notrack_reg);
 
 	return ret;
 }
 
-static void __exit fini(void)
+static void __exit xt_notrack_fini(void)
 {
-	xt_unregister_target(AF_INET6, &notrack6_reg);
-	xt_unregister_target(AF_INET, &notrack_reg);
+	xt_unregister_target(&notrack6_reg);
+	xt_unregister_target(&notrack_reg);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(xt_notrack_init);
+module_exit(xt_notrack_fini);

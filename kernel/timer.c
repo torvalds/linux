@@ -86,7 +86,8 @@ struct tvec_t_base_s {
 } ____cacheline_aligned_in_smp;
 
 typedef struct tvec_t_base_s tvec_base_t;
-static DEFINE_PER_CPU(tvec_base_t, tvec_bases);
+static DEFINE_PER_CPU(tvec_base_t *, tvec_bases);
+static tvec_base_t boot_tvec_bases;
 
 static inline void set_running_timer(tvec_base_t *base,
 					struct timer_list *timer)
@@ -157,7 +158,7 @@ EXPORT_SYMBOL(__init_timer_base);
 void fastcall init_timer(struct timer_list *timer)
 {
 	timer->entry.next = NULL;
-	timer->base = &per_cpu(tvec_bases, raw_smp_processor_id()).t_base;
+	timer->base = &per_cpu(tvec_bases, raw_smp_processor_id())->t_base;
 }
 EXPORT_SYMBOL(init_timer);
 
@@ -218,7 +219,7 @@ int __mod_timer(struct timer_list *timer, unsigned long expires)
 		ret = 1;
 	}
 
-	new_base = &__get_cpu_var(tvec_bases);
+	new_base = __get_cpu_var(tvec_bases);
 
 	if (base != &new_base->t_base) {
 		/*
@@ -258,7 +259,7 @@ EXPORT_SYMBOL(__mod_timer);
  */
 void add_timer_on(struct timer_list *timer, int cpu)
 {
-	tvec_base_t *base = &per_cpu(tvec_bases, cpu);
+	tvec_base_t *base = per_cpu(tvec_bases, cpu);
   	unsigned long flags;
 
   	BUG_ON(timer_pending(timer) || !timer->function);
@@ -504,7 +505,7 @@ unsigned long next_timer_interrupt(void)
 	}
 	hr_expires += jiffies;
 
-	base = &__get_cpu_var(tvec_bases);
+	base = __get_cpu_var(tvec_bases);
 	spin_lock(&base->t_base.lock);
 	expires = base->timer_jiffies + (LONG_MAX >> 1);
 	list = NULL;
@@ -696,18 +697,9 @@ static void second_overflow(void)
 
 	/*
 	 * Compute the frequency estimate and additional phase adjustment due
-	 * to frequency error for the next second. When the PPS signal is
-	 * engaged, gnaw on the watchdog counter and update the frequency
-	 * computed by the pll and the PPS signal.
+	 * to frequency error for the next second.
 	 */
-	pps_valid++;
-	if (pps_valid == PPS_VALID) {	/* PPS signal lost */
-		pps_jitter = MAXTIME;
-		pps_stabil = MAXFREQ;
-		time_status &= ~(STA_PPSSIGNAL | STA_PPSJITTER |
-				STA_PPSWANDER | STA_PPSERROR);
-	}
-	ltemp = time_freq + pps_freq;
+	ltemp = time_freq;
 	time_adj += shift_right(ltemp,(SHIFT_USEC + SHIFT_HZ - SHIFT_SCALE));
 
 #if HZ == 100
@@ -901,7 +893,7 @@ EXPORT_SYMBOL(xtime_lock);
  */
 static void run_timer_softirq(struct softirq_action *h)
 {
-	tvec_base_t *base = &__get_cpu_var(tvec_bases);
+	tvec_base_t *base = __get_cpu_var(tvec_bases);
 
  	hrtimer_run_queues();
 	if (time_after_eq(jiffies, base->timer_jiffies))
@@ -914,6 +906,7 @@ static void run_timer_softirq(struct softirq_action *h)
 void run_local_timers(void)
 {
 	raise_softirq(TIMER_SOFTIRQ);
+	softlockup_tick();
 }
 
 /*
@@ -944,7 +937,6 @@ void do_timer(struct pt_regs *regs)
 	/* prevent loading jiffies before storing new jiffies_64 value. */
 	barrier();
 	update_times();
-	softlockup_tick(regs);
 }
 
 #ifdef __ARCH_WANT_SYS_ALARM
@@ -955,19 +947,7 @@ void do_timer(struct pt_regs *regs)
  */
 asmlinkage unsigned long sys_alarm(unsigned int seconds)
 {
-	struct itimerval it_new, it_old;
-	unsigned int oldalarm;
-
-	it_new.it_interval.tv_sec = it_new.it_interval.tv_usec = 0;
-	it_new.it_value.tv_sec = seconds;
-	it_new.it_value.tv_usec = 0;
-	do_setitimer(ITIMER_REAL, &it_new, &it_old);
-	oldalarm = it_old.it_value.tv_sec;
-	/* ehhh.. We can't return 0 if we have an alarm pending.. */
-	/* And we'd better return too much than too little anyway */
-	if ((!oldalarm && it_old.it_value.tv_usec) || it_old.it_value.tv_usec >= 500000)
-		oldalarm++;
-	return oldalarm;
+	return alarm_setitimer(seconds);
 }
 
 #endif
@@ -1256,12 +1236,32 @@ asmlinkage long sys_sysinfo(struct sysinfo __user *info)
 	return 0;
 }
 
-static void __devinit init_timers_cpu(int cpu)
+static int __devinit init_timers_cpu(int cpu)
 {
 	int j;
 	tvec_base_t *base;
 
-	base = &per_cpu(tvec_bases, cpu);
+	base = per_cpu(tvec_bases, cpu);
+	if (!base) {
+		static char boot_done;
+
+		/*
+		 * Cannot do allocation in init_timers as that runs before the
+		 * allocator initializes (and would waste memory if there are
+		 * more possible CPUs than will ever be installed/brought up).
+		 */
+		if (boot_done) {
+			base = kmalloc_node(sizeof(*base), GFP_KERNEL,
+						cpu_to_node(cpu));
+			if (!base)
+				return -ENOMEM;
+			memset(base, 0, sizeof(*base));
+		} else {
+			base = &boot_tvec_bases;
+			boot_done = 1;
+		}
+		per_cpu(tvec_bases, cpu) = base;
+	}
 	spin_lock_init(&base->t_base.lock);
 	for (j = 0; j < TVN_SIZE; j++) {
 		INIT_LIST_HEAD(base->tv5.vec + j);
@@ -1273,6 +1273,7 @@ static void __devinit init_timers_cpu(int cpu)
 		INIT_LIST_HEAD(base->tv1.vec + j);
 
 	base->timer_jiffies = jiffies;
+	return 0;
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -1295,8 +1296,8 @@ static void __devinit migrate_timers(int cpu)
 	int i;
 
 	BUG_ON(cpu_online(cpu));
-	old_base = &per_cpu(tvec_bases, cpu);
-	new_base = &get_cpu_var(tvec_bases);
+	old_base = per_cpu(tvec_bases, cpu);
+	new_base = get_cpu_var(tvec_bases);
 
 	local_irq_disable();
 	spin_lock(&new_base->t_base.lock);
@@ -1326,7 +1327,8 @@ static int __devinit timer_cpu_notify(struct notifier_block *self,
 	long cpu = (long)hcpu;
 	switch(action) {
 	case CPU_UP_PREPARE:
-		init_timers_cpu(cpu);
+		if (init_timers_cpu(cpu) < 0)
+			return NOTIFY_BAD;
 		break;
 #ifdef CONFIG_HOTPLUG_CPU
 	case CPU_DEAD:

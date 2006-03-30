@@ -310,7 +310,7 @@ struct dentry *hpfs_lookup(struct inode *dir, struct dentry *dentry, struct name
 	return ERR_PTR(-ENOENT);
 }
 
-struct file_operations hpfs_dir_ops =
+const struct file_operations hpfs_dir_ops =
 {
 	.llseek		= hpfs_dir_lseek,
 	.read		= generic_read_dir,

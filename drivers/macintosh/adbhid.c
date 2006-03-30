@@ -1206,15 +1206,16 @@ init_ms_a3(int id)
 static int __init adbhid_init(void)
 {
 #ifndef CONFIG_MAC
-	if ( (_machine != _MACH_chrp) && (_machine != _MACH_Pmac) )
-	    return 0;
+	if (!machine_is(chrp) && !machine_is(powermac))
+		return 0;
 #endif
 
 	led_request.complete = 1;
 
 	adbhid_probe();
 
-	notifier_chain_register(&adb_client_list, &adbhid_adb_notifier);
+	blocking_notifier_chain_register(&adb_client_list,
+			&adbhid_adb_notifier);
 
 	return 0;
 }

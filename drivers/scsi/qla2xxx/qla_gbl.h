@@ -42,7 +42,7 @@ extern int qla2x00_loop_resync(scsi_qla_host_t *);
 
 extern int qla2x00_find_new_loop_id(scsi_qla_host_t *, fc_port_t *);
 extern int qla2x00_fabric_login(scsi_qla_host_t *, fc_port_t *, uint16_t *);
-extern int qla2x00_local_device_login(scsi_qla_host_t *, uint16_t);
+extern int qla2x00_local_device_login(scsi_qla_host_t *, fc_port_t *);
 
 extern void qla2x00_restart_queues(scsi_qla_host_t *, uint8_t);
 
@@ -80,6 +80,8 @@ extern int qla2x00_down_timeout(struct semaphore *, unsigned long);
 extern struct fw_blob *qla2x00_request_firmware(scsi_qla_host_t *);
 
 extern int qla2x00_wait_for_hba_online(scsi_qla_host_t *);
+
+extern void qla2xxx_wake_dpc(scsi_qla_host_t *);
 
 /*
  * Global Function Prototypes in qla_iocb.c source file.
@@ -164,7 +166,8 @@ qla24xx_login_fabric(scsi_qla_host_t *, uint16_t, uint8_t, uint8_t, uint8_t,
     uint16_t *, uint8_t);
 
 extern int
-qla2x00_login_local_device(scsi_qla_host_t *, uint16_t, uint16_t *, uint8_t);
+qla2x00_login_local_device(scsi_qla_host_t *, fc_port_t *, uint16_t *,
+    uint8_t);
 
 extern int
 qla2x00_fabric_logout(scsi_qla_host_t *, uint16_t, uint8_t, uint8_t, uint8_t);

@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/4xx/ocotea.c
- *
  * Ocotea board specific routines
  *
  * Matt Porter <mporter@kernel.crashing.org>

@@ -223,6 +223,8 @@
 #include <linux/reboot.h>
 #include <linux/bitops.h>
 #include <linux/wait.h>
+#include <linux/mutex.h>
+
 
 #include <asm/current.h>
 #include <asm/dma.h>
@@ -397,7 +399,7 @@ struct ess_state {
 	/* this locks around the oss state in the driver */
 	spinlock_t lock;
 	/* only let 1 be opening at a time */
-	struct semaphore open_sem;
+	struct mutex open_mutex;
 	wait_queue_head_t open_wait;
 	mode_t open_mode;
 
@@ -3020,26 +3022,26 @@ ess_open(struct inode *inode, struct file *file)
        	VALIDATE_STATE(s);
 	file->private_data = s;
 	/* wait for device to become free */
-	down(&s->open_sem);
+	mutex_lock(&s->open_mutex);
 	while (s->open_mode & file->f_mode) {
 		if (file->f_flags & O_NONBLOCK) {
-			up(&s->open_sem);
+			mutex_unlock(&s->open_mutex);
 			return -EWOULDBLOCK;
 		}
-		up(&s->open_sem);
+		mutex_unlock(&s->open_mutex);
 		interruptible_sleep_on(&s->open_wait);
 		if (signal_pending(current))
 			return -ERESTARTSYS;
-		down(&s->open_sem);
+		mutex_lock(&s->open_mutex);
 	}
 
 	/* under semaphore.. */
 	if ((s->card->dmapages==NULL) && allocate_buffers(s)) {
-		up(&s->open_sem);
+		mutex_unlock(&s->open_mutex);
 		return -ENOMEM;
 	}
 
-	/* we're covered by the open_sem */
+	/* we're covered by the open_mutex */
 	if( ! s->card->dsps_open )  {
 		maestro_power(s->card,ACPI_D0);
 		start_bob(s);
@@ -3076,7 +3078,7 @@ ess_open(struct inode *inode, struct file *file)
 	set_fmt(s, fmtm, fmts);
 	s->open_mode |= file->f_mode & (FMODE_READ | FMODE_WRITE);
 
-	up(&s->open_sem);
+	mutex_unlock(&s->open_mutex);
 	return nonseekable_open(inode, file);
 }
 
@@ -3089,7 +3091,7 @@ ess_release(struct inode *inode, struct file *file)
 	lock_kernel();
 	if (file->f_mode & FMODE_WRITE)
 		drain_dac(s, file->f_flags & O_NONBLOCK);
-	down(&s->open_sem);
+	mutex_lock(&s->open_mutex);
 	if (file->f_mode & FMODE_WRITE) {
 		stop_dac(s);
 	}
@@ -3098,7 +3100,7 @@ ess_release(struct inode *inode, struct file *file)
 	}
 		
 	s->open_mode &= (~file->f_mode) & (FMODE_READ|FMODE_WRITE);
-	/* we're covered by the open_sem */
+	/* we're covered by the open_mutex */
 	M_printk("maestro: %d dsps now alive\n",s->card->dsps_open-1);
 	if( --s->card->dsps_open <= 0) {
 		s->card->dsps_open = 0;
@@ -3106,7 +3108,7 @@ ess_release(struct inode *inode, struct file *file)
 		free_buffers(s);
 		maestro_power(s->card,ACPI_D2);
 	}
-	up(&s->open_sem);
+	mutex_unlock(&s->open_mutex);
 	wake_up(&s->open_wait);
 	unlock_kernel();
 	return 0;
@@ -3466,7 +3468,7 @@ maestro_probe(struct pci_dev *pcidev,const struct pci_device_id *pdid)
 		init_waitqueue_head(&s->dma_dac.wait);
 		init_waitqueue_head(&s->open_wait);
 		spin_lock_init(&s->lock);
-		init_MUTEX(&s->open_sem);
+		mutex_init(&s->open_mutex);
 		s->magic = ESS_STATE_MAGIC;
 		
 		s->apu[0] = 6*i;

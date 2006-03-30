@@ -275,7 +275,7 @@ static void indirect_print_item(struct item_head *ih, char *item)
 	int j;
 	__le32 *unp;
 	__u32 prev = INT_MAX;
-	int num;
+	int num = 0;
 
 	unp = (__le32 *) item;
 

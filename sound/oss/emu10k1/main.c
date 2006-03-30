@@ -1320,7 +1320,7 @@ static int __devinit emu10k1_probe(struct pci_dev *pci_dev, const struct pci_dev
 	card->is_aps = (subsysvid == EMU_APS_SUBID);
 
 	spin_lock_init(&card->lock);
-	init_MUTEX(&card->open_sem);
+	mutex_init(&card->open_sem);
 	card->open_mode = 0;
 	init_waitqueue_head(&card->open_wait);
 

@@ -1,0 +1,21 @@
+if ARCH_EP93XX
+
+menu "Cirrus EP93xx Implementation Options"
+
+comment "EP93xx Platforms"
+
+config MACH_GESBC9312
+	bool "Support Glomation GESBC-9312-sx"
+	help
+	  Say 'Y' here if you want your kernel to support the Glomation
+	  GESBC-9312-sx board.
+
+config MACH_TS72XX
+	bool "Support Technologic Systems TS-72xx SBC"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Technologic Systems TS-72xx board.
+
+endmenu
+
+endif

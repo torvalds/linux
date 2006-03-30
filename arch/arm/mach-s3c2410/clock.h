@@ -19,7 +19,11 @@ struct clk {
 	int		      usage;
 	unsigned long         rate;
 	unsigned long         ctrlbit;
+
 	int		    (*enable)(struct clk *, int enable);
+	int		    (*set_rate)(struct clk *c, unsigned long rate);
+	unsigned long	    (*round_rate)(struct clk *c, unsigned long rate);
+	int		    (*set_parent)(struct clk *c, struct clk *parent);
 };
 
 /* other clocks which may be registered by board support */
@@ -30,10 +34,14 @@ extern struct clk s3c24xx_clkout0;
 extern struct clk s3c24xx_clkout1;
 extern struct clk s3c24xx_uclk;
 
+extern struct clk clk_usb_bus;
+
 /* exports for arch/arm/mach-s3c2410
  *
  * Please DO NOT use these outside of arch/arm/mach-s3c2410
 */
+
+extern struct mutex clocks_mutex;
 
 extern int s3c24xx_clkcon_enable(struct clk *clk, int enable);
 extern int s3c24xx_register_clock(struct clk *clk);

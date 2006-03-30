@@ -23,7 +23,7 @@ static struct acpi_table_slit *acpi_slit;
 
 static nodemask_t nodes_parsed __initdata;
 static nodemask_t nodes_found __initdata;
-static struct node nodes[MAX_NUMNODES] __initdata;
+static struct bootnode nodes[MAX_NUMNODES] __initdata;
 static u8 pxm2node[256] = { [0 ... 255] = 0xff };
 
 /* Too small nodes confuse the VM badly. Usually they result
@@ -57,7 +57,7 @@ static __init int conflicting_nodes(unsigned long start, unsigned long end)
 {
 	int i;
 	for_each_node_mask(i, nodes_parsed) {
-		struct node *nd = &nodes[i];
+		struct bootnode *nd = &nodes[i];
 		if (nd->start == nd->end)
 			continue;
 		if (nd->end > start && nd->start < end)
@@ -70,7 +70,7 @@ static __init int conflicting_nodes(unsigned long start, unsigned long end)
 
 static __init void cutoff_node(int i, unsigned long start, unsigned long end)
 {
-	struct node *nd = &nodes[i];
+	struct bootnode *nd = &nodes[i];
 	if (nd->start < start) {
 		nd->start = start;
 		if (nd->end < nd->start)
@@ -159,7 +159,7 @@ acpi_numa_processor_affinity_init(struct acpi_table_processor_affinity *pa)
 void __init
 acpi_numa_memory_affinity_init(struct acpi_table_memory_affinity *ma)
 {
-	struct node *nd;
+	struct bootnode *nd;
 	unsigned long start, end;
 	int node, pxm;
 	int i;

@@ -165,7 +165,8 @@ void __init plat_setup(void)
 
 	/* Set up panic notifier */
 	for (i = 0; i < sizeof(lasat_panic_block) / sizeof(struct notifier_block); i++)
-		notifier_chain_register(&panic_notifier_list, &lasat_panic_block[i]);
+		atomic_notifier_chain_register(&panic_notifier_list,
+				&lasat_panic_block[i]);
 
 	lasat_reboot_setup();
 
@@ -174,8 +175,8 @@ void __init plat_setup(void)
 
 #ifdef CONFIG_DS1603
 	ds1603 = &ds_defs[mips_machtype];
-	rtc_get_time = ds1603_read;
-	rtc_set_time = ds1603_set;
+	rtc_mips_get_time = ds1603_read;
+	rtc_mips_set_time = ds1603_set;
 #endif
 
 #ifdef DYNAMIC_SERIAL_INIT

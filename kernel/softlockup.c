@@ -1,12 +1,11 @@
 /*
  * Detect Soft Lockups
  *
- * started by Ingo Molnar, (C) 2005, Red Hat
+ * started by Ingo Molnar, Copyright (C) 2005, 2006 Red Hat, Inc.
  *
  * this code detects soft lockups: incidents in where on a CPU
  * the kernel does not reschedule for 10 seconds or more.
  */
-
 #include <linux/mm.h>
 #include <linux/cpu.h>
 #include <linux/init.h>
@@ -17,13 +16,14 @@
 
 static DEFINE_SPINLOCK(print_lock);
 
-static DEFINE_PER_CPU(unsigned long, timestamp) = 0;
-static DEFINE_PER_CPU(unsigned long, print_timestamp) = 0;
+static DEFINE_PER_CPU(unsigned long, touch_timestamp);
+static DEFINE_PER_CPU(unsigned long, print_timestamp);
 static DEFINE_PER_CPU(struct task_struct *, watchdog_task);
 
 static int did_panic = 0;
-static int softlock_panic(struct notifier_block *this, unsigned long event,
-				void *ptr)
+
+static int
+softlock_panic(struct notifier_block *this, unsigned long event, void *ptr)
 {
 	did_panic = 1;
 
@@ -36,7 +36,7 @@ static struct notifier_block panic_block = {
 
 void touch_softlockup_watchdog(void)
 {
-	per_cpu(timestamp, raw_smp_processor_id()) = jiffies;
+	per_cpu(touch_timestamp, raw_smp_processor_id()) = jiffies;
 }
 EXPORT_SYMBOL(touch_softlockup_watchdog);
 
@@ -44,25 +44,35 @@ EXPORT_SYMBOL(touch_softlockup_watchdog);
  * This callback runs from the timer interrupt, and checks
  * whether the watchdog thread has hung or not:
  */
-void softlockup_tick(struct pt_regs *regs)
+void softlockup_tick(void)
 {
 	int this_cpu = smp_processor_id();
-	unsigned long timestamp = per_cpu(timestamp, this_cpu);
+	unsigned long touch_timestamp = per_cpu(touch_timestamp, this_cpu);
 
-	if (per_cpu(print_timestamp, this_cpu) == timestamp)
+	/* prevent double reports: */
+	if (per_cpu(print_timestamp, this_cpu) == touch_timestamp ||
+		did_panic ||
+			!per_cpu(watchdog_task, this_cpu))
 		return;
 
-	/* Do not cause a second panic when there already was one */
-	if (did_panic)
+	/* do not print during early bootup: */
+	if (unlikely(system_state != SYSTEM_RUNNING)) {
+		touch_softlockup_watchdog();
 		return;
+	}
 
-	if (time_after(jiffies, timestamp + 10*HZ)) {
-		per_cpu(print_timestamp, this_cpu) = timestamp;
+	/* Wake up the high-prio watchdog task every second: */
+	if (time_after(jiffies, touch_timestamp + HZ))
+		wake_up_process(per_cpu(watchdog_task, this_cpu));
+
+	/* Warn about unreasonable 10+ seconds delays: */
+	if (time_after(jiffies, touch_timestamp + 10*HZ)) {
+		per_cpu(print_timestamp, this_cpu) = touch_timestamp;
 
 		spin_lock(&print_lock);
 		printk(KERN_ERR "BUG: soft lockup detected on CPU#%d!\n",
 			this_cpu);
-		show_regs(regs);
+		dump_stack();
 		spin_unlock(&print_lock);
 	}
 }
@@ -77,18 +87,16 @@ static int watchdog(void * __bind_cpu)
 	sched_setscheduler(current, SCHED_FIFO, &param);
 	current->flags |= PF_NOFREEZE;
 
-	set_current_state(TASK_INTERRUPTIBLE);
-
 	/*
-	 * Run briefly once per second - if this gets delayed for
-	 * more than 10 seconds then the debug-printout triggers
-	 * in softlockup_tick():
+	 * Run briefly once per second to reset the softlockup timestamp.
+	 * If this gets delayed for more than 10 seconds then the
+	 * debug-printout triggers in softlockup_tick().
 	 */
 	while (!kthread_should_stop()) {
-		msleep_interruptible(1000);
+		set_current_state(TASK_INTERRUPTIBLE);
 		touch_softlockup_watchdog();
+		schedule();
 	}
-	__set_current_state(TASK_RUNNING);
 
 	return 0;
 }
@@ -110,11 +118,11 @@ cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 			printk("watchdog for %i failed\n", hotcpu);
 			return NOTIFY_BAD;
 		}
+  		per_cpu(touch_timestamp, hotcpu) = jiffies;
   		per_cpu(watchdog_task, hotcpu) = p;
 		kthread_bind(p, hotcpu);
  		break;
 	case CPU_ONLINE:
-
 		wake_up_process(per_cpu(watchdog_task, hotcpu));
 		break;
 #ifdef CONFIG_HOTPLUG_CPU
@@ -144,6 +152,5 @@ __init void spawn_softlockup_task(void)
 	cpu_callback(&cpu_nfb, CPU_ONLINE, cpu);
 	register_cpu_notifier(&cpu_nfb);
 
-	notifier_chain_register(&panic_notifier_list, &panic_block);
+	atomic_notifier_chain_register(&panic_notifier_list, &panic_block);
 }
-

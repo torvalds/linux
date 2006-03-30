@@ -34,7 +34,7 @@
 #include <linux/types.h>
 #include <linux/wait.h>
 
-/* includes for structures and defines regarding video 
+/* includes for structures and defines regarding video
    #include<linux/videodev.h> */
 
 /* I/O commands, error codes */
@@ -143,8 +143,8 @@ zr36016_readi (struct zr36016 *ptr,
 
 static void
 zr36016_writei (struct zr36016 *ptr,
-	        u16             reg,
-	        u8              value)
+		u16             reg,
+		u8              value)
 {
 	dprintk(4, "%s: writing indirect 0x%02x to 0x%04x\n", ptr->name,
 		value, reg);
@@ -192,7 +192,7 @@ zr36016_basic_test (struct zr36016 *ptr)
 		dprintk(1, "\n");
 	}
 	// for testing just write 0, then the default value to a register and read
-	// it back in both cases 
+	// it back in both cases
 	zr36016_writei(ptr, ZR016I_PAX_LO, 0x00);
 	if (zr36016_readi(ptr, ZR016I_PAX_LO) != 0x0) {
 		dprintk(1,
@@ -232,17 +232,17 @@ zr36016_basic_test (struct zr36016 *ptr)
 static int zr36016_pushit (struct zr36016 *ptr,
 			   u16             startreg,
 			   u16             len,
-                           const char     *data)
+			   const char     *data)
 {
-        int i=0;
+	int i=0;
 
-        dprintk(4, "%s: write data block to 0x%04x (len=%d)\n",
+	dprintk(4, "%s: write data block to 0x%04x (len=%d)\n",
 		ptr->name, startreg,len);
-        while (i<len) {
-                zr36016_writei(ptr, startreg++,  data[i++]);
-        }
+	while (i<len) {
+		zr36016_writei(ptr, startreg++,  data[i++]);
+	}
 
-        return i;
+	return i;
 }
 #endif
 

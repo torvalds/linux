@@ -130,8 +130,6 @@ extern int npmem_ranges;
 #define __va(x)			((void *)((unsigned long)(x)+PAGE_OFFSET))
 
 #ifndef CONFIG_DISCONTIGMEM
-#define pfn_to_page(pfn)	(mem_map + (pfn))
-#define page_to_pfn(page)	((unsigned long)((page) - mem_map))
 #define pfn_valid(pfn)		((pfn) < max_mapnr)
 #endif /* CONFIG_DISCONTIGMEM */
 
@@ -152,6 +150,7 @@ extern int npmem_ranges;
 
 #endif /* __KERNEL__ */
 
+#include <asm-generic/memory_model.h>
 #include <asm-generic/page.h>
 
 #endif /* _PARISC_PAGE_H */

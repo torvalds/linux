@@ -61,9 +61,4 @@ extern int platform_int_priority[NR_INTC_IRQS];
 #define code_resource (platform_parms.kram_res_p[STANDARD_KRAM_RESOURCES - 2])
 #define data_resource (platform_parms.kram_res_p[STANDARD_KRAM_RESOURCES - 1])
 
-/* Be prepared to 64-bit sign extensions */
-#define PFN_UP(x)       ((((x) + PAGE_SIZE-1) >> PAGE_SHIFT) & 0x000fffff)
-#define PFN_DOWN(x)     (((x) >> PAGE_SHIFT) & 0x000fffff)
-#define PFN_PHYS(x)     ((x) << PAGE_SHIFT)
-
 #endif	/* __ASM_SH64_PLATFORM_H */

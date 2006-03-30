@@ -54,7 +54,7 @@
  * Note, the NFS filehandle also includes an fsid portion which
  * may have an inode number in it.  That number is hardcoded to
  * 32bits and there is no way for XFS to intercept it.  In
- * practice this means when exporting an XFS filesytem with 64bit
+ * practice this means when exporting an XFS filesystem with 64bit
  * inodes you should either export the mountpoint (rather than
  * a subdirectory) or use the "fsid" export option.
  */

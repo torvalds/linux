@@ -1,7 +1,7 @@
 /*
  * unistr.c - NTFS Unicode string handling. Part of the Linux-NTFS project.
  *
- * Copyright (c) 2001-2005 Anton Altaparmakov
+ * Copyright (c) 2001-2006 Anton Altaparmakov
  *
  * This program/include file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as published
@@ -18,6 +18,8 @@
  * distribution in the file COPYING); if not, write to the Free Software
  * Foundation,Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+
+#include <linux/slab.h>
 
 #include "types.h"
 #include "debug.h"
@@ -242,7 +244,7 @@ int ntfs_file_compare_values(FILE_NAME_ATTR *file_name_attr1,
  * map dictates, into a little endian, 2-byte Unicode string.
  *
  * This function allocates the string and the caller is responsible for
- * calling kmem_cache_free(ntfs_name_cache, @outs); when finished with it.
+ * calling kmem_cache_free(ntfs_name_cache, *@outs); when finished with it.
  *
  * On success the function returns the number of Unicode characters written to
  * the output string *@outs (>= 0), not counting the terminating Unicode NULL
@@ -262,37 +264,48 @@ int ntfs_nlstoucs(const ntfs_volume *vol, const char *ins,
 	wchar_t wc;
 	int i, o, wc_len;
 
-	/* We don't trust outside sources. */
-	if (ins) {
+	/* We do not trust outside sources. */
+	if (likely(ins)) {
 		ucs = kmem_cache_alloc(ntfs_name_cache, SLAB_NOFS);
-		if (ucs) {
+		if (likely(ucs)) {
 			for (i = o = 0; i < ins_len; i += wc_len) {
 				wc_len = nls->char2uni(ins + i, ins_len - i,
 						&wc);
-				if (wc_len >= 0) {
-					if (wc) {
+				if (likely(wc_len >= 0 &&
+						o < NTFS_MAX_NAME_LEN)) {
+					if (likely(wc)) {
 						ucs[o++] = cpu_to_le16(wc);
 						continue;
-					} /* else (!wc) */
+					} /* else if (!wc) */
 					break;
-				} /* else (wc_len < 0) */
-				goto conversion_err;
+				} /* else if (wc_len < 0 ||
+						o >= NTFS_MAX_NAME_LEN) */
+				goto name_err;
 			}
 			ucs[o] = 0;
 			*outs = ucs;
 			return o;
-		} /* else (!ucs) */
-		ntfs_error(vol->sb, "Failed to allocate name from "
-				"ntfs_name_cache!");
+		} /* else if (!ucs) */
+		ntfs_error(vol->sb, "Failed to allocate buffer for converted "
+				"name from ntfs_name_cache.");
 		return -ENOMEM;
-	} /* else (!ins) */
-	ntfs_error(NULL, "Received NULL pointer.");
+	} /* else if (!ins) */
+	ntfs_error(vol->sb, "Received NULL pointer.");
 	return -EINVAL;
-conversion_err:
-	ntfs_error(vol->sb, "Name using character set %s contains characters "
-			"that cannot be converted to Unicode.", nls->charset);
+name_err:
 	kmem_cache_free(ntfs_name_cache, ucs);
-	return -EILSEQ;
+	if (wc_len < 0) {
+		ntfs_error(vol->sb, "Name using character set %s contains "
+				"characters that cannot be converted to "
+				"Unicode.", nls->charset);
+		i = -EILSEQ;
+	} else /* if (o >= NTFS_MAX_NAME_LEN) */ {
+		ntfs_error(vol->sb, "Name is too long (maximum length for a "
+				"name on NTFS is %d Unicode characters.",
+				NTFS_MAX_NAME_LEN);
+		i = -ENAMETOOLONG;
+	}
+	return i;
 }
 
 /**

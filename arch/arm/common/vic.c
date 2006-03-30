@@ -22,22 +22,21 @@
 #include <linux/list.h>
 
 #include <asm/io.h>
-#include <asm/irq.h>
 #include <asm/mach/irq.h>
 #include <asm/hardware/vic.h>
 
-static void __iomem *vic_base;
-
 static void vic_mask_irq(unsigned int irq)
 {
-	irq -= IRQ_VIC_START;
-	writel(1 << irq, vic_base + VIC_INT_ENABLE_CLEAR);
+	void __iomem *base = get_irq_chipdata(irq);
+	irq &= 31;
+	writel(1 << irq, base + VIC_INT_ENABLE_CLEAR);
 }
 
 static void vic_unmask_irq(unsigned int irq)
 {
-	irq -= IRQ_VIC_START;
-	writel(1 << irq, vic_base + VIC_INT_ENABLE);
+	void __iomem *base = get_irq_chipdata(irq);
+	irq &= 31;
+	writel(1 << irq, base + VIC_INT_ENABLE);
 }
 
 static struct irqchip vic_chip = {
@@ -46,43 +45,49 @@ static struct irqchip vic_chip = {
 	.unmask	= vic_unmask_irq,
 };
 
-void __init vic_init(void __iomem *base, u32 vic_sources)
+/**
+ * vic_init - initialise a vectored interrupt controller
+ * @base: iomem base address
+ * @irq_start: starting interrupt number, must be muliple of 32
+ * @vic_sources: bitmask of interrupt sources to allow
+ */
+void __init vic_init(void __iomem *base, unsigned int irq_start,
+		     u32 vic_sources)
 {
 	unsigned int i;
 
-	vic_base = base;
-
 	/* Disable all interrupts initially. */
 
-	writel(0, vic_base + VIC_INT_SELECT);
-	writel(0, vic_base + VIC_INT_ENABLE);
-	writel(~0, vic_base + VIC_INT_ENABLE_CLEAR);
-	writel(0, vic_base + VIC_IRQ_STATUS);
-	writel(0, vic_base + VIC_ITCR);
-	writel(~0, vic_base + VIC_INT_SOFT_CLEAR);
+	writel(0, base + VIC_INT_SELECT);
+	writel(0, base + VIC_INT_ENABLE);
+	writel(~0, base + VIC_INT_ENABLE_CLEAR);
+	writel(0, base + VIC_IRQ_STATUS);
+	writel(0, base + VIC_ITCR);
+	writel(~0, base + VIC_INT_SOFT_CLEAR);
 
 	/*
 	 * Make sure we clear all existing interrupts
 	 */
-	writel(0, vic_base + VIC_VECT_ADDR);
+	writel(0, base + VIC_VECT_ADDR);
 	for (i = 0; i < 19; i++) {
 		unsigned int value;
 
-		value = readl(vic_base + VIC_VECT_ADDR);
-		writel(value, vic_base + VIC_VECT_ADDR);
+		value = readl(base + VIC_VECT_ADDR);
+		writel(value, base + VIC_VECT_ADDR);
 	}
 
 	for (i = 0; i < 16; i++) {
-		void __iomem *reg = vic_base + VIC_VECT_CNTL0 + (i * 4);
+		void __iomem *reg = base + VIC_VECT_CNTL0 + (i * 4);
 		writel(VIC_VECT_CNTL_ENABLE | i, reg);
 	}
 
-	writel(32, vic_base + VIC_DEF_VECT_ADDR);
+	writel(32, base + VIC_DEF_VECT_ADDR);
 
 	for (i = 0; i < 32; i++) {
-		unsigned int irq = IRQ_VIC_START + i;
+		unsigned int irq = irq_start + i;
 
 		set_irq_chip(irq, &vic_chip);
+		set_irq_chipdata(irq, base);
 
 		if (vic_sources & (1 << i)) {
 			set_irq_handler(irq, do_level_IRQ);

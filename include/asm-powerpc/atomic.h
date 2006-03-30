@@ -8,6 +8,7 @@
 typedef struct { volatile int counter; } atomic_t;
 
 #ifdef __KERNEL__
+#include <linux/compiler.h>
 #include <asm/synch.h>
 #include <asm/asm-compat.h>
 
@@ -176,20 +177,29 @@ static __inline__ int atomic_dec_return(atomic_t *v)
  * Atomically adds @a to @v, so long as it was not @u.
  * Returns non-zero if @v was not @u, and zero otherwise.
  */
-#define atomic_add_unless(v, a, u)			\
-({							\
-	int c, old;					\
-	c = atomic_read(v);				\
-	for (;;) {					\
-		if (unlikely(c == (u)))			\
-			break;				\
-		old = atomic_cmpxchg((v), c, c + (a));	\
-		if (likely(old == c))			\
-			break;				\
-		c = old;				\
-	}						\
-	c != (u);					\
-})
+static __inline__ int atomic_add_unless(atomic_t *v, int a, int u)
+{
+	int t;
+
+	__asm__ __volatile__ (
+	LWSYNC_ON_SMP
+"1:	lwarx	%0,0,%1		# atomic_add_unless\n\
+	cmpw	0,%0,%3 \n\
+	beq-	2f \n\
+	add	%0,%2,%0 \n"
+	PPC405_ERR77(0,%2)
+"	stwcx.	%0,0,%1 \n\
+	bne-	1b \n"
+	ISYNC_ON_SMP
+"	subf	%0,%2,%0 \n\
+2:"
+	: "=&r" (t)
+	: "r" (&v->counter), "r" (a), "r" (u)
+	: "cc", "memory");
+
+	return t != u;
+}
+
 #define atomic_inc_not_zero(v) atomic_add_unless((v), 1, 0)
 
 #define atomic_sub_and_test(a, v)	(atomic_sub_return((a), (v)) == 0)

@@ -105,7 +105,7 @@ static ssize_t nfsctl_transaction_write(struct file *file, const char __user *bu
 	char *data;
 	ssize_t rv;
 
-	if (ino >= sizeof(write_op)/sizeof(write_op[0]) || !write_op[ino])
+	if (ino >= ARRAY_SIZE(write_op) || !write_op[ino])
 		return -EINVAL;
 
 	data = simple_transaction_get(file, buf, size);
@@ -134,7 +134,7 @@ static ssize_t nfsctl_transaction_read(struct file *file, char __user *buf, size
 	return simple_transaction_read(file, buf, size, pos);
 }
 
-static struct file_operations transaction_ops = {
+static const struct file_operations transaction_ops = {
 	.write		= nfsctl_transaction_write,
 	.read		= nfsctl_transaction_read,
 	.release	= simple_transaction_release,
@@ -146,7 +146,7 @@ static int exports_open(struct inode *inode, struct file *file)
 	return seq_open(file, &nfs_exports_op);
 }
 
-static struct file_operations exports_operations = {
+static const struct file_operations exports_operations = {
 	.open		= exports_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

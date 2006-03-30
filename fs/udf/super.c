@@ -140,7 +140,8 @@ static int init_inodecache(void)
 {
 	udf_inode_cachep = kmem_cache_create("udf_inode_cache",
 					     sizeof(struct udf_inode_info),
-					     0, SLAB_RECLAIM_ACCOUNT,
+					     0, (SLAB_RECLAIM_ACCOUNT|
+						SLAB_MEM_SPREAD),
 					     init_once, NULL);
 	if (udf_inode_cachep == NULL)
 		return -ENOMEM;
@@ -660,8 +661,7 @@ udf_find_anchor(struct super_block *sb)
 		 *     lastblock
 		 *  however, if the disc isn't closed, it could be 512 */
 
-		for (i=0; (!lastblock && i<sizeof(last)/sizeof(int)); i++)
-		{
+		for (i = 0; !lastblock && i < ARRAY_SIZE(last); i++) {
 			if (last[i] < 0 || !(bh = sb_bread(sb, last[i])))
 			{
 				ident = location = 0;
@@ -672,7 +672,7 @@ udf_find_anchor(struct super_block *sb)
 				location = le32_to_cpu(((tag *)bh->b_data)->tagLocation);
 				udf_release_data(bh);
 			}
-	
+
 			if (ident == TAG_IDENT_AVDP)
 			{
 				if (location == last[i] - UDF_SB_SESSION(sb))
@@ -753,8 +753,7 @@ udf_find_anchor(struct super_block *sb)
 		}
 	}
 
-	for (i=0; i<sizeof(UDF_SB_ANCHOR(sb))/sizeof(int); i++)
-	{
+	for (i = 0; i < ARRAY_SIZE(UDF_SB_ANCHOR(sb)); i++) {
 		if (UDF_SB_ANCHOR(sb)[i])
 		{
 			if (!(bh = udf_read_tagged(sb,
@@ -1313,8 +1312,7 @@ udf_load_partition(struct super_block *sb, kernel_lb_addr *fileset)
 	if (!sb)
 		return 1;
 
-	for (i=0; i<sizeof(UDF_SB_ANCHOR(sb))/sizeof(int); i++)
-	{
+	for (i = 0; i < ARRAY_SIZE(UDF_SB_ANCHOR(sb)); i++) {
 		if (UDF_SB_ANCHOR(sb)[i] && (bh = udf_read_tagged(sb,
 			UDF_SB_ANCHOR(sb)[i], UDF_SB_ANCHOR(sb)[i], &ident)))
 		{
@@ -1325,7 +1323,7 @@ udf_load_partition(struct super_block *sb, kernel_lb_addr *fileset)
 			main_e = le32_to_cpu( anchor->mainVolDescSeqExt.extLength );
 			main_e = main_e >> sb->s_blocksize_bits;
 			main_e += main_s;
-	
+
 			/* Locate the reserve sequence */
 			reserve_s = le32_to_cpu(anchor->reserveVolDescSeqExt.extLocation);
 			reserve_e = le32_to_cpu(anchor->reserveVolDescSeqExt.extLength);
@@ -1344,12 +1342,10 @@ udf_load_partition(struct super_block *sb, kernel_lb_addr *fileset)
 		}
 	}
 
-	if (i == sizeof(UDF_SB_ANCHOR(sb))/sizeof(int))
-	{
+	if (i == ARRAY_SIZE(UDF_SB_ANCHOR(sb))) {
 		udf_debug("No Anchor block found\n");
 		return 1;
-	}
-	else
+	} else
 		udf_debug("Using anchor in block %d\n", UDF_SB_ANCHOR(sb)[i]);
 
 	for (i=0; i<UDF_SB_NUMPARTS(sb); i++)
@@ -1515,7 +1511,7 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 	sb->s_fs_info = sbi;
 	memset(UDF_SB(sb), 0x00, sizeof(struct udf_sb_info));
 
-	init_MUTEX(&sbi->s_alloc_sem);
+	mutex_init(&sbi->s_alloc_mutex);
 
 	if (!udf_parse_options((char *)options, &uopt))
 		goto error_out;

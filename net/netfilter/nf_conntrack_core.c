@@ -23,6 +23,8 @@
  * 26 Jan 2006: Harald Welte <laforge@netfilter.org>
  * 	- restructure nf_conn (introduce nf_conn_help)
  * 	- redesign 'features' how they were originally intended
+ * 26 Feb 2006: Pablo Neira Ayuso <pablo@eurodev.net>
+ * 	- add support for L3 protocol module load on demand.
  *
  * Derived from net/ipv4/netfilter/ip_conntrack_core.c
  */
@@ -85,11 +87,11 @@ unsigned int nf_ct_log_invalid;
 static LIST_HEAD(unconfirmed);
 static int nf_conntrack_vmalloc;
 
-static unsigned int nf_conntrack_next_id = 1;
-static unsigned int nf_conntrack_expect_next_id = 1;
+static unsigned int nf_conntrack_next_id;
+static unsigned int nf_conntrack_expect_next_id;
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
-struct notifier_block *nf_conntrack_chain;
-struct notifier_block *nf_conntrack_expect_chain;
+ATOMIC_NOTIFIER_HEAD(nf_conntrack_chain);
+ATOMIC_NOTIFIER_HEAD(nf_conntrack_expect_chain);
 
 DEFINE_PER_CPU(struct nf_conntrack_ecache, nf_conntrack_ecache);
 
@@ -101,7 +103,7 @@ __nf_ct_deliver_cached_events(struct nf_conntrack_ecache *ecache)
 	DEBUGP("ecache: delivering events for %p\n", ecache->ct);
 	if (nf_ct_is_confirmed(ecache->ct) && !nf_ct_is_dying(ecache->ct)
 	    && ecache->events)
-		notifier_call_chain(&nf_conntrack_chain, ecache->events,
+		atomic_notifier_call_chain(&nf_conntrack_chain, ecache->events,
 				    ecache->ct);
 
 	ecache->events = 0;
@@ -238,6 +240,35 @@ nf_ct_l3proto_find_get(u_int16_t l3proto)
 
 void nf_ct_l3proto_put(struct nf_conntrack_l3proto *p)
 {
+	module_put(p->me);
+}
+
+int
+nf_ct_l3proto_try_module_get(unsigned short l3proto)
+{
+	int ret;
+	struct nf_conntrack_l3proto *p;
+
+retry:	p = nf_ct_l3proto_find_get(l3proto);
+	if (p == &nf_conntrack_generic_l3proto) {
+		ret = request_module("nf_conntrack-%d", l3proto);
+		if (!ret)
+			goto retry;
+
+		return -EPROTOTYPE;
+	}
+
+	return 0;
+}
+
+void nf_ct_l3proto_module_put(unsigned short l3proto)
+{
+	struct nf_conntrack_l3proto *p;
+
+	preempt_disable();
+	p = __nf_ct_l3proto_find(l3proto);
+	preempt_enable();
+
 	module_put(p->me);
 }
 

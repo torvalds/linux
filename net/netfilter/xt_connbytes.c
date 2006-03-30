@@ -148,6 +148,7 @@ static struct xt_match connbytes_match = {
 	.match		= match,
 	.checkentry	= check,
 	.matchsize	= sizeof(struct xt_connbytes_info),
+	.family		= AF_INET,
 	.me		= THIS_MODULE
 };
 static struct xt_match connbytes6_match = {
@@ -155,27 +156,28 @@ static struct xt_match connbytes6_match = {
 	.match		= match,
 	.checkentry	= check,
 	.matchsize	= sizeof(struct xt_connbytes_info),
+	.family		= AF_INET6,
 	.me		= THIS_MODULE
 };
 
-static int __init init(void)
+static int __init xt_connbytes_init(void)
 {
 	int ret;
-	ret = xt_register_match(AF_INET, &connbytes_match);
+	ret = xt_register_match(&connbytes_match);
 	if (ret)
 		return ret;
 
-	ret = xt_register_match(AF_INET6, &connbytes6_match);
+	ret = xt_register_match(&connbytes6_match);
 	if (ret)
-		xt_unregister_match(AF_INET, &connbytes_match);
+		xt_unregister_match(&connbytes_match);
 	return ret;
 }
 
-static void __exit fini(void)
+static void __exit xt_connbytes_fini(void)
 {
-	xt_unregister_match(AF_INET, &connbytes_match);
-	xt_unregister_match(AF_INET6, &connbytes6_match);
+	xt_unregister_match(&connbytes_match);
+	xt_unregister_match(&connbytes6_match);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(xt_connbytes_init);
+module_exit(xt_connbytes_fini);

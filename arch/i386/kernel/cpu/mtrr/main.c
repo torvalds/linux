@@ -36,6 +36,7 @@
 #include <linux/pci.h>
 #include <linux/smp.h>
 #include <linux/cpu.h>
+#include <linux/mutex.h>
 
 #include <asm/mtrr.h>
 
@@ -47,7 +48,7 @@
 u32 num_var_ranges = 0;
 
 unsigned int *usage_table;
-static DECLARE_MUTEX(mtrr_sem);
+static DEFINE_MUTEX(mtrr_mutex);
 
 u32 size_or_mask, size_and_mask;
 
@@ -333,7 +334,7 @@ int mtrr_add_page(unsigned long base, unsigned long size,
 	/* No CPU hotplug when we change MTRR entries */
 	lock_cpu_hotplug();
 	/*  Search for existing MTRR  */
-	down(&mtrr_sem);
+	mutex_lock(&mtrr_mutex);
 	for (i = 0; i < num_var_ranges; ++i) {
 		mtrr_if->get(i, &lbase, &lsize, &ltype);
 		if (base >= lbase + lsize)
@@ -371,7 +372,7 @@ int mtrr_add_page(unsigned long base, unsigned long size,
 		printk(KERN_INFO "mtrr: no more MTRRs available\n");
 	error = i;
  out:
-	up(&mtrr_sem);
+	mutex_unlock(&mtrr_mutex);
 	unlock_cpu_hotplug();
 	return error;
 }
@@ -464,7 +465,7 @@ int mtrr_del_page(int reg, unsigned long base, unsigned long size)
 	max = num_var_ranges;
 	/* No CPU hotplug when we change MTRR entries */
 	lock_cpu_hotplug();
-	down(&mtrr_sem);
+	mutex_lock(&mtrr_mutex);
 	if (reg < 0) {
 		/*  Search for existing MTRR  */
 		for (i = 0; i < max; ++i) {
@@ -503,7 +504,7 @@ int mtrr_del_page(int reg, unsigned long base, unsigned long size)
 		set_mtrr(reg, 0, 0, 0);
 	error = reg;
  out:
-	up(&mtrr_sem);
+	mutex_unlock(&mtrr_mutex);
 	unlock_cpu_hotplug();
 	return error;
 }
@@ -685,7 +686,7 @@ void mtrr_ap_init(void)
 	if (!mtrr_if || !use_intel())
 		return;
 	/*
-	 * Ideally we should hold mtrr_sem here to avoid mtrr entries changed,
+	 * Ideally we should hold mtrr_mutex here to avoid mtrr entries changed,
 	 * but this routine will be called in cpu boot time, holding the lock
 	 * breaks it. This routine is called in two cases: 1.very earily time
 	 * of software resume, when there absolutely isn't mtrr entry changes;

@@ -372,14 +372,6 @@ extern int xfs_bmbt_get_rec(struct xfs_btree_cur *, xfs_fileoff_t *,
 				xfs_exntst_t *, int *);
 #endif
 
-/*
- * Search an extent list for the extent which includes block
- * bno.
- */
-xfs_bmbt_rec_t *xfs_bmap_do_search_extents(xfs_bmbt_rec_t *,
-			xfs_extnum_t, xfs_extnum_t, xfs_fileoff_t, int *,
-			xfs_extnum_t *, xfs_bmbt_irec_t *, xfs_bmbt_irec_t *);
-
 #endif	/* __KERNEL__ */
 
 #endif	/* __XFS_BMAP_BTREE_H__ */

@@ -503,7 +503,7 @@ static loff_t sysfs_dir_lseek(struct file * file, loff_t offset, int origin)
 	return offset;
 }
 
-struct file_operations sysfs_dir_operations = {
+const struct file_operations sysfs_dir_operations = {
 	.open		= sysfs_dir_open,
 	.release	= sysfs_dir_close,
 	.llseek		= sysfs_dir_lseek,

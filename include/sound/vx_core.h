@@ -206,7 +206,7 @@ struct vx_core {
 	int audio_monitor[4];			/* playback hw-monitor level */
 	unsigned char audio_monitor_active[4];	/* playback hw-monitor mute/unmute */
 
-	struct semaphore mixer_mutex;
+	struct mutex mixer_mutex;
 
 	const struct firmware *firmware[4]; /* loaded firmware data */
 };

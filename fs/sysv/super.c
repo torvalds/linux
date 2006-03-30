@@ -377,10 +377,10 @@ static int sysv_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->s_sb = sb;
 	sbi->s_block_base = 0;
 	sb->s_fs_info = sbi;
-	
+
 	sb_set_blocksize(sb, BLOCK_SIZE);
 
-	for (i = 0; i < sizeof(flavours)/sizeof(flavours[0]) && !size; i++) {
+	for (i = 0; i < ARRAY_SIZE(flavours) && !size; i++) {
 		brelse(bh);
 		bh = sb_bread(sb, flavours[i].block);
 		if (!bh)
