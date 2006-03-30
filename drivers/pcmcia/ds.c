@@ -546,7 +546,7 @@ static int pcmcia_device_query(struct pcmcia_device *p_dev)
 			tmp = vers1->str + vers1->ofs[i];
 
 			length = strlen(tmp) + 1;
-			if ((length < 3) || (length > 255))
+			if ((length < 2) || (length > 255))
 				continue;
 
 			p_dev->prod_id[i] = kmalloc(sizeof(char) * length,
