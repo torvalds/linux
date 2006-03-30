@@ -698,19 +698,12 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
  * audit_free - free a per-task audit context
  * @tsk: task whose audit context block to free
  *
- * Called from copy_process and __put_task_struct.
+ * Called from copy_process and do_exit
  */
 void audit_free(struct task_struct *tsk)
 {
 	struct audit_context *context;
 
-	/*
-	 * No need to lock the task - when we execute audit_free()
-	 * then the task has no external references anymore, and
-	 * we are tearing it down. (The locking also confuses
-	 * DEBUG_LOCKDEP - this freeing may occur in softirq
-	 * contexts as well, via RCU.)
-	 */
 	context = audit_get_context(tsk, 0, 0);
 	if (likely(!context))
 		return;
