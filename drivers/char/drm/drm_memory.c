@@ -79,65 +79,6 @@ void *drm_realloc(void *oldpt, size_t oldsize, size_t size, int area)
 	return pt;
 }
 
-/**
- * Allocate pages.
- *
- * \param order size order.
- * \param area memory area. (Not used.)
- * \return page address on success, or zero on failure.
- *
- * Allocate and reserve free pages.
- */
-unsigned long drm_alloc_pages(int order, int area)
-{
-	unsigned long address;
-	unsigned long bytes = PAGE_SIZE << order;
-	unsigned long addr;
-	unsigned int sz;
-
-	address = __get_free_pages(GFP_KERNEL|__GFP_COMP, order);
-	if (!address)
-		return 0;
-
-	/* Zero */
-	memset((void *)address, 0, bytes);
-
-	/* Reserve */
-	for (addr = address, sz = bytes;
-	     sz > 0; addr += PAGE_SIZE, sz -= PAGE_SIZE) {
-		SetPageReserved(virt_to_page(addr));
-	}
-
-	return address;
-}
-
-/**
- * Free pages.
- *
- * \param address address of the pages to free.
- * \param order size order.
- * \param area memory area. (Not used.)
- *
- * Unreserve and free pages allocated by alloc_pages().
- */
-void drm_free_pages(unsigned long address, int order, int area)
-{
-	unsigned long bytes = PAGE_SIZE << order;
-	unsigned long addr;
-	unsigned int sz;
-
-	if (!address)
-		return;
-
-	/* Unreserve */
-	for (addr = address, sz = bytes;
-	     sz > 0; addr += PAGE_SIZE, sz -= PAGE_SIZE) {
-		ClearPageReserved(virt_to_page(addr));
-	}
-
-	free_pages(address, order);
-}
-
 #if __OS_HAS_AGP
 /** Wrapper around agp_allocate_memory() */
 DRM_AGP_MEM *drm_alloc_agp(drm_device_t * dev, int pages, u32 type)

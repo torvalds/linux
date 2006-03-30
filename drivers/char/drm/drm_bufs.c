@@ -474,8 +474,7 @@ static void drm_cleanup_buf_error(drm_device_t * dev, drm_buf_entry_t * entry)
 	if (entry->seg_count) {
 		for (i = 0; i < entry->seg_count; i++) {
 			if (entry->seglist[i]) {
-				drm_free_pages(entry->seglist[i],
-					       entry->page_order, DRM_MEM_DMA);
+				drm_pci_free(dev, entry->seglist[i]);
 			}
 		}
 		drm_free(entry->seglist,
@@ -678,7 +677,7 @@ int drm_addbufs_pci(drm_device_t * dev, drm_buf_desc_t * request)
 	int total;
 	int page_order;
 	drm_buf_entry_t *entry;
-	unsigned long page;
+	drm_dma_handle_t *dmah;
 	drm_buf_t *buf;
 	int alignment;
 	unsigned long offset;
@@ -781,8 +780,10 @@ int drm_addbufs_pci(drm_device_t * dev, drm_buf_desc_t * request)
 	page_count = 0;
 
 	while (entry->buf_count < count) {
-		page = drm_alloc_pages(page_order, DRM_MEM_DMA);
-		if (!page) {
+		
+		dmah = drm_pci_alloc(dev, PAGE_SIZE << page_order, 0x1000, 0xfffffffful);
+		
+		if (!dmah) {
 			/* Set count correctly so we free the proper amount. */
 			entry->buf_count = count;
 			entry->seg_count = count;
@@ -794,13 +795,13 @@ int drm_addbufs_pci(drm_device_t * dev, drm_buf_desc_t * request)
 			atomic_dec(&dev->buf_alloc);
 			return -ENOMEM;
 		}
-		entry->seglist[entry->seg_count++] = page;
+		entry->seglist[entry->seg_count++] = dmah;
 		for (i = 0; i < (1 << page_order); i++) {
 			DRM_DEBUG("page %d @ 0x%08lx\n",
 				  dma->page_count + page_count,
-				  page + PAGE_SIZE * i);
+				  (unsigned long)dmah->vaddr + PAGE_SIZE * i);
 			temp_pagelist[dma->page_count + page_count++]
-			    = page + PAGE_SIZE * i;
+				= (unsigned long)dmah->vaddr + PAGE_SIZE * i;
 		}
 		for (offset = 0;
 		     offset + size <= total && entry->buf_count < count;
@@ -811,7 +812,8 @@ int drm_addbufs_pci(drm_device_t * dev, drm_buf_desc_t * request)
 			buf->order = order;
 			buf->used = 0;
 			buf->offset = (dma->byte_count + byte_count + offset);
-			buf->address = (void *)(page + offset);
+			buf->address = (void *)(dmah->vaddr + offset);
+			buf->bus_address = dmah->busaddr + offset;
 			buf->next = NULL;
 			buf->waiting = 0;
 			buf->pending = 0;
