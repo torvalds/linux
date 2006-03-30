@@ -54,7 +54,8 @@ EXPORT_SYMBOL(plpar_hcall);
 EXPORT_SYMBOL(plpar_hcall_4out);
 EXPORT_SYMBOL(plpar_hcall_norets);
 EXPORT_SYMBOL(plpar_hcall_8arg_2ret);
-
+EXPORT_SYMBOL(plpar_hcall_7arg_7ret);
+EXPORT_SYMBOL(plpar_hcall_9arg_9ret);
 extern void pSeries_find_serial_port(void);
 
 
