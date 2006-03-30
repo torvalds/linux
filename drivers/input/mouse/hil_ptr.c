@@ -233,9 +233,8 @@ static void hil_ptr_disconnect(struct serio *serio)
 		return;
 	}
 
-	input_unregister_device(ptr->dev);
 	serio_close(serio);
-	input_free_device(ptr->dev);
+	input_unregister_device(ptr->dev);
 	kfree(ptr);
 }
 

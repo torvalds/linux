@@ -240,9 +240,8 @@ static void hil_kbd_disconnect(struct serio *serio)
 		return;
 	}
 
-	input_unregister_device(kbd->dev);
 	serio_close(serio);
-	input_free_device(kbd->dev);
+	input_unregister_device(kbd->dev);
 	kfree(kbd);
 }
 

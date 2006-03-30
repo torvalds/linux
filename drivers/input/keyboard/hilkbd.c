@@ -334,7 +334,6 @@ static void __exit hil_exit(void)
 
 	input_unregister_device(hil_dev.dev);
 
-	input_free_device(hil_dev.dev);
 	hil_dev.dev = NULL;
 
 #if defined(CONFIG_PARISC)
