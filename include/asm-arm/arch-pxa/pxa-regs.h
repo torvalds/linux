@@ -485,7 +485,7 @@
 #define SACR1_ENLBF	(1 << 5)	/* Enable Loopback */
 #define SACR1_DRPL	(1 << 4) 	/* Disable Replaying Function */
 #define SACR1_DREC	(1 << 3)	/* Disable Recording Function */
-#define SACR1_AMSL	(1 << 1)	/* Specify Alternate Mode */
+#define SACR1_AMSL	(1 << 0)	/* Specify Alternate Mode */
 
 #define SASR0_I2SOFF	(1 << 7)	/* Controller Status */
 #define SASR0_ROR	(1 << 6)	/* Rx FIFO Overrun */
