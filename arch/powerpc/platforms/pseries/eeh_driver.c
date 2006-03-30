@@ -293,9 +293,10 @@ void handle_eeh_events (struct eeh_event *event)
 	frozen_pdn = PCI_DN(frozen_dn);
 	frozen_pdn->eeh_freeze_count++;
 
-	pci_str = pci_name (frozen_pdn->pcidev);
-	drv_str = pcid_name (frozen_pdn->pcidev);
-	if (!pci_str) {
+	if (frozen_pdn->pcidev) {
+		pci_str = pci_name (frozen_pdn->pcidev);
+		drv_str = pcid_name (frozen_pdn->pcidev);
+	} else {
 		pci_str = pci_name (event->dev);
 		drv_str = pcid_name (event->dev);
 	}
