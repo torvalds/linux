@@ -329,7 +329,6 @@ static enum audit_state audit_filter_syscall(struct task_struct *tsk,
 	return AUDIT_BUILD_CONTEXT;
 }
 
-/* This should be called with task_lock() held. */
 static inline struct audit_context *audit_get_context(struct task_struct *tsk,
 						      int return_valid,
 						      int return_code)
@@ -823,15 +822,10 @@ void audit_syscall_exit(int valid, long return_code)
 	struct task_struct *tsk = current;
 	struct audit_context *context;
 
-	get_task_struct(tsk);
-	task_lock(tsk);
 	context = audit_get_context(tsk, valid, return_code);
-	task_unlock(tsk);
 
-	/* Not having a context here is ok, since the parent may have
-	 * called __put_task_struct. */
 	if (likely(!context))
-		goto out;
+		return;
 
 	if (context->in_syscall && context->auditable)
 		audit_log_exit(context, tsk);
@@ -849,8 +843,6 @@ void audit_syscall_exit(int valid, long return_code)
 		audit_free_aux(context);
 		tsk->audit_context = context;
 	}
- out:
-	put_task_struct(tsk);
 }
 
 /**
