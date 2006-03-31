@@ -1014,7 +1014,7 @@ static struct ipmi_smi_handlers handlers =
 
 #define SI_MAX_PARMS 4
 static LIST_HEAD(smi_infos);
-static DECLARE_MUTEX(smi_infos_lock);
+static DEFINE_MUTEX(smi_infos_lock);
 static int smi_num; /* Used to sequence the SMIs */
 
 #define DEFAULT_REGSPACING	1
@@ -2276,7 +2276,7 @@ static int try_smi_init(struct smi_info *new_smi)
 		       new_smi->slave_addr, new_smi->irq);
 	}
 
-	down(&smi_infos_lock);
+	mutex_lock(&smi_infos_lock);
 	if (!is_new_interface(new_smi)) {
 		printk(KERN_WARNING "ipmi_si: duplicate interface\n");
 		rv = -EBUSY;
@@ -2432,7 +2432,7 @@ static int try_smi_init(struct smi_info *new_smi)
 
 	list_add_tail(&new_smi->link, &smi_infos);
 
-	up(&smi_infos_lock);
+	mutex_unlock(&smi_infos_lock);
 
 	printk(" IPMI %s interface initialized\n",si_to_str[new_smi->si_type]);
 
@@ -2469,7 +2469,7 @@ static int try_smi_init(struct smi_info *new_smi)
 
 	kfree(new_smi);
 
-	up(&smi_infos_lock);
+	mutex_unlock(&smi_infos_lock);
 
 	return rv;
 }
@@ -2527,26 +2527,26 @@ static __devinit int init_ipmi_si(void)
 #endif
 
 	if (si_trydefaults) {
-		down(&smi_infos_lock);
+		mutex_lock(&smi_infos_lock);
 		if (list_empty(&smi_infos)) {
 			/* No BMC was found, try defaults. */
-			up(&smi_infos_lock);
+			mutex_unlock(&smi_infos_lock);
 			default_find_bmc();
 		} else {
-			up(&smi_infos_lock);
+			mutex_unlock(&smi_infos_lock);
 		}
 	}
 
-	down(&smi_infos_lock);
+	mutex_lock(&smi_infos_lock);
 	if (list_empty(&smi_infos)) {
-		up(&smi_infos_lock);
+		mutex_unlock(&smi_infos_lock);
 #ifdef CONFIG_PCI
 		pci_unregister_driver(&ipmi_pci_driver);
 #endif
 		printk("ipmi_si: Unable to find any System Interface(s)\n");
 		return -ENODEV;
 	} else {
-		up(&smi_infos_lock);
+		mutex_unlock(&smi_infos_lock);
 		return 0;
 	}
 }
@@ -2622,10 +2622,10 @@ static __exit void cleanup_ipmi_si(void)
 	pci_unregister_driver(&ipmi_pci_driver);
 #endif
 
-	down(&smi_infos_lock);
+	mutex_lock(&smi_infos_lock);
 	list_for_each_entry_safe(e, tmp_e, &smi_infos, link)
 		cleanup_one_si(e);
-	up(&smi_infos_lock);
+	mutex_unlock(&smi_infos_lock);
 
 	driver_unregister(&ipmi_driver);
 }

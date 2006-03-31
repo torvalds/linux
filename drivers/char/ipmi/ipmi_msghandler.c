@@ -38,6 +38,7 @@
 #include <linux/sched.h>
 #include <linux/poll.h>
 #include <linux/spinlock.h>
+#include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/ipmi.h>
 #include <linux/ipmi_smi.h>
@@ -234,7 +235,7 @@ struct ipmi_smi
 
 	/* The list of command receivers that are registered for commands
 	   on this interface. */
-	struct semaphore cmd_rcvrs_lock;
+	struct mutex     cmd_rcvrs_mutex;
 	struct list_head cmd_rcvrs;
 
 	/* Events that were queues because no one was there to receive
@@ -387,10 +388,10 @@ static void clean_up_interface_data(ipmi_smi_t intf)
 
 	/* Wholesale remove all the entries from the list in the
 	 * interface and wait for RCU to know that none are in use. */
-	down(&intf->cmd_rcvrs_lock);
+	mutex_lock(&intf->cmd_rcvrs_mutex);
 	list_add_rcu(&list, &intf->cmd_rcvrs);
 	list_del_rcu(&intf->cmd_rcvrs);
-	up(&intf->cmd_rcvrs_lock);
+	mutex_unlock(&intf->cmd_rcvrs_mutex);
 	synchronize_rcu();
 
 	list_for_each_entry_safe(rcvr, rcvr2, &list, link)
@@ -846,7 +847,7 @@ int ipmi_destroy_user(ipmi_user_t user)
 	 * since other things may be using it till we do
 	 * synchronize_rcu()) then free everything in that list.
 	 */
-	down(&intf->cmd_rcvrs_lock);
+	mutex_lock(&intf->cmd_rcvrs_mutex);
 	list_for_each_entry_rcu(rcvr, &intf->cmd_rcvrs, link) {
 		if (rcvr->user == user) {
 			list_del_rcu(&rcvr->link);
@@ -854,7 +855,7 @@ int ipmi_destroy_user(ipmi_user_t user)
 			rcvrs = rcvr;
 		}
 	}
-	up(&intf->cmd_rcvrs_lock);
+	mutex_unlock(&intf->cmd_rcvrs_mutex);
 	synchronize_rcu();
 	while (rcvrs) {
 		rcvr = rcvrs;
@@ -984,7 +985,7 @@ int ipmi_register_for_cmd(ipmi_user_t   user,
 	rcvr->netfn = netfn;
 	rcvr->user = user;
 
-	down(&intf->cmd_rcvrs_lock);
+	mutex_lock(&intf->cmd_rcvrs_mutex);
 	/* Make sure the command/netfn is not already registered. */
 	entry = find_cmd_rcvr(intf, netfn, cmd);
 	if (entry) {
@@ -995,7 +996,7 @@ int ipmi_register_for_cmd(ipmi_user_t   user,
 	list_add_rcu(&rcvr->link, &intf->cmd_rcvrs);
 
  out_unlock:
-	up(&intf->cmd_rcvrs_lock);
+	mutex_unlock(&intf->cmd_rcvrs_mutex);
 	if (rv)
 		kfree(rcvr);
 
@@ -1009,17 +1010,17 @@ int ipmi_unregister_for_cmd(ipmi_user_t   user,
 	ipmi_smi_t      intf = user->intf;
 	struct cmd_rcvr *rcvr;
 
-	down(&intf->cmd_rcvrs_lock);
+	mutex_lock(&intf->cmd_rcvrs_mutex);
 	/* Make sure the command/netfn is not already registered. */
 	rcvr = find_cmd_rcvr(intf, netfn, cmd);
 	if ((rcvr) && (rcvr->user == user)) {
 		list_del_rcu(&rcvr->link);
-		up(&intf->cmd_rcvrs_lock);
+		mutex_unlock(&intf->cmd_rcvrs_mutex);
 		synchronize_rcu();
 		kfree(rcvr);
 		return 0;
 	} else {
-		up(&intf->cmd_rcvrs_lock);
+		mutex_unlock(&intf->cmd_rcvrs_mutex);
 		return -ENOENT;
 	}
 }
@@ -2365,7 +2366,7 @@ int ipmi_register_smi(struct ipmi_smi_handlers *handlers,
 	spin_lock_init(&intf->events_lock);
 	INIT_LIST_HEAD(&intf->waiting_events);
 	intf->waiting_events_count = 0;
-	init_MUTEX(&intf->cmd_rcvrs_lock);
+	mutex_init(&intf->cmd_rcvrs_mutex);
 	INIT_LIST_HEAD(&intf->cmd_rcvrs);
 	init_waitqueue_head(&intf->waitq);
 
