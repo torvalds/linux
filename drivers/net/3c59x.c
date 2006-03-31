@@ -2083,16 +2083,14 @@ vortex_error(struct net_device *dev, int status)
 		}
 		if (tx_status & 0x14)  vp->stats.tx_fifo_errors++;
 		if (tx_status & 0x38)  vp->stats.tx_aborted_errors++;
+		if (tx_status & 0x08)  vp->xstats.tx_max_collisions++;
 		iowrite8(0, ioaddr + TxStatus);
 		if (tx_status & 0x30) {			/* txJabber or txUnderrun */
 			do_tx_reset = 1;
-		} else if (tx_status & 0x08) {	/* maxCollisions */
-			vp->xstats.tx_max_collisions++;
-			if (vp->drv_flags & MAX_COLLISION_RESET) {
-				do_tx_reset = 1;
-				reset_mask = 0x0108;		/* Reset interface logic, but not download logic */
-			}
-		} else {						/* Merely re-enable the transmitter. */
+		} else if ((tx_status & 0x08) && (vp->drv_flags & MAX_COLLISION_RESET))  {	/* maxCollisions */
+			do_tx_reset = 1;
+			reset_mask = 0x0108;		/* Reset interface logic, but not download logic */
+		} else {				/* Merely re-enable the transmitter. */
 			iowrite16(TxEnable, ioaddr + EL3_CMD);
 		}
 	}
