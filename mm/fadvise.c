@@ -35,17 +35,6 @@
  *
  * LINUX_FADV_ASYNC_WRITE: push some or all of the dirty pages at the disk.
  *
- * LINUX_FADV_WRITE_WAIT, LINUX_FADV_ASYNC_WRITE: push all of the currently
- * dirty pages at the disk.
- *
- * LINUX_FADV_WRITE_WAIT, LINUX_FADV_ASYNC_WRITE, LINUX_FADV_WRITE_WAIT: push
- * all of the currently dirty pages at the disk, wait until they have been
- * written.
- *
- * It should be noted that none of these operations write out the file's
- * metadata.  So unless the application is strictly performing overwrites of
- * already-instantiated disk blocks, there are no guarantees here that the data
- * will be available after a crash.
  */
 asmlinkage long sys_fadvise64_64(int fd, loff_t offset, loff_t len, int advice)
 {
@@ -128,15 +117,6 @@ asmlinkage long sys_fadvise64_64(int fd, loff_t offset, loff_t len, int advice)
 		if (end_index >= start_index)
 			invalidate_mapping_pages(mapping, start_index,
 						end_index);
-		break;
-	case LINUX_FADV_ASYNC_WRITE:
-		ret = __filemap_fdatawrite_range(mapping, offset, endbyte,
-						WB_SYNC_NONE);
-		break;
-	case LINUX_FADV_WRITE_WAIT:
-		ret = wait_on_page_writeback_range(mapping,
-					offset >> PAGE_CACHE_SHIFT,
-					endbyte >> PAGE_CACHE_SHIFT);
 		break;
 	default:
 		ret = -EINVAL;

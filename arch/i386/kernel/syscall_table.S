@@ -313,3 +313,4 @@ ENTRY(sys_call_table)
 	.long sys_set_robust_list
 	.long sys_get_robust_list
 	.long sys_splice
+	.long sys_sync_file_range
