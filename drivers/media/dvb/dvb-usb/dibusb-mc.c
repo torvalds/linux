@@ -35,6 +35,8 @@ static struct usb_device_id dibusb_dib3000mc_table [] = {
 /* 07 */	{ USB_DEVICE(USB_VID_EMPIA,		USB_PID_DIGIVOX_MINI_SL_WARM) },
 /* 08 */	{ USB_DEVICE(USB_VID_GRANDTEC,          USB_PID_GRANDTEC_DVBT_USB2_COLD) },
 /* 09 */	{ USB_DEVICE(USB_VID_GRANDTEC,          USB_PID_GRANDTEC_DVBT_USB2_WARM) },
+/* 10 */	{ USB_DEVICE(USB_VID_ULTIMA_ELECTRONIC,	USB_PID_ARTEC_T14_COLD) },
+/* 11 */	{ USB_DEVICE(USB_VID_ULTIMA_ELECTRONIC,	USB_PID_ARTEC_T14_WARM) },
 			{ }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE (usb, dibusb_dib3000mc_table);
@@ -75,7 +77,7 @@ static struct dvb_usb_properties dibusb_mc_properties = {
 		}
 	},
 
-	.num_device_descs = 5,
+	.num_device_descs = 6,
 	.devices = {
 		{   "DiBcom USB2.0 DVB-T reference design (MOD3000P)",
 			{ &dibusb_dib3000mc_table[0], NULL },
@@ -97,6 +99,10 @@ static struct dvb_usb_properties dibusb_mc_properties = {
 		{   "GRAND - USB2.0 DVB-T adapter",
 			{ &dibusb_dib3000mc_table[8], NULL },
 			{ &dibusb_dib3000mc_table[9], NULL },
+		},
+		{   "Artec T14 - USB2.0 DVB-T",
+			{ &dibusb_dib3000mc_table[10], NULL },
+			{ &dibusb_dib3000mc_table[11], NULL },
 		},
 		{ NULL },
 	}
