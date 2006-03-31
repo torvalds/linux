@@ -131,7 +131,7 @@ typedef u64				pal_cache_line_state_t;
 #define PAL_CACHE_LINE_STATE_MODIFIED	3	/* Modified */
 
 typedef struct pal_freq_ratio {
-	u64 den : 32, num : 32;	/* numerator & denominator */
+	u32 den, num;		/* numerator & denominator */
 } itc_ratio, proc_ratio;
 
 typedef	union  pal_cache_config_info_1_s {
@@ -152,10 +152,10 @@ typedef	union  pal_cache_config_info_1_s {
 
 typedef	union  pal_cache_config_info_2_s {
 	struct {
-		u64		cache_size	: 32,	/*cache size in bytes*/
+		u32		cache_size;		/*cache size in bytes*/
 
 
-				alias_boundary	: 8,	/* 39-32 aliased addr
+		u32		alias_boundary	: 8,	/* 39-32 aliased addr
 							 * separation for max
 							 * performance.
 							 */
