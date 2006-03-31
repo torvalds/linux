@@ -215,21 +215,19 @@ int __mod_timer(struct timer_list *timer, unsigned long expires)
 		 * handler yet has not finished. This also guarantees that
 		 * the timer is serialized wrt itself.
 		 */
-		if (unlikely(base->running_timer == timer)) {
-			/* The timer remains on a former base */
-			new_base = base;
-		} else {
+		if (likely(base->running_timer != timer)) {
 			/* See the comment in lock_timer_base() */
 			timer->base = NULL;
 			spin_unlock(&base->lock);
-			spin_lock(&new_base->lock);
-			timer->base = new_base;
+			base = new_base;
+			spin_lock(&base->lock);
+			timer->base = base;
 		}
 	}
 
 	timer->expires = expires;
-	internal_add_timer(new_base, timer);
-	spin_unlock_irqrestore(&new_base->lock, flags);
+	internal_add_timer(base, timer);
+	spin_unlock_irqrestore(&base->lock, flags);
 
 	return ret;
 }
