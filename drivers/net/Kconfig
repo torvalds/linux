@@ -2313,13 +2313,11 @@ config S2IO_NAPI
 
 endmenu
 
-if !UML
 source "drivers/net/tokenring/Kconfig"
 
 source "drivers/net/wireless/Kconfig"
 
 source "drivers/net/pcmcia/Kconfig"
-endif
 
 source "drivers/net/wan/Kconfig"
 

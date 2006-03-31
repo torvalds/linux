@@ -22,6 +22,9 @@ config SBUS
 config PCI
 	bool
 
+config PCMCIA
+	bool
+
 config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
