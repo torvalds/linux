@@ -64,7 +64,7 @@ sys_call_table:
 /*215*/	.long sys_ipc, sys_sigreturn, sys_clone, sys_ioprio_get, sys_adjtimex
 /*220*/	.long sys_sigprocmask, sys_ni_syscall, sys_delete_module, sys_ni_syscall, sys_getpgid
 /*225*/	.long sys_bdflush, sys_sysfs, sys_nis_syscall, sys_setfsuid16, sys_setfsgid16
-/*230*/	.long sys_select, sys_time, sys_nis_syscall, sys_stime, sys_statfs64
+/*230*/	.long sys_select, sys_time, sys_splice, sys_stime, sys_statfs64
 					  /* "We are the Knights of the Forest of Ni!!" */
 /*235*/	.long sys_fstatfs64, sys_llseek, sys_mlock, sys_munlock, sys_mlockall
 /*240*/	.long sys_munlockall, sys_sched_setparam, sys_sched_getparam, sys_sched_setscheduler, sys_sched_getscheduler
