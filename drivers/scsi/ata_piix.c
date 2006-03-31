@@ -301,7 +301,7 @@ static struct piix_map_db ich6_map_db = {
 	.mask = 0x3,
 	.map = {
 		/* PM   PS   SM   SS       MAP */
-		{  P0,  P1,  P2,  P3 }, /* 00b */
+		{  P0,  P2,  P1,  P3 }, /* 00b */
 		{ IDE, IDE,  P1,  P3 }, /* 01b */
 		{  P0,  P2, IDE, IDE }, /* 10b */
 		{  RV,  RV,  RV,  RV },
@@ -312,7 +312,7 @@ static struct piix_map_db ich6m_map_db = {
 	.mask = 0x3,
 	.map = {
 		/* PM   PS   SM   SS       MAP */
-		{  P0,  P1,  P2,  P3 }, /* 00b */
+		{  P0,  P2,  RV,  RV }, /* 00b */
 		{  RV,  RV,  RV,  RV },
 		{  P0,  P2, IDE, IDE }, /* 10b */
 		{  RV,  RV,  RV,  RV },
