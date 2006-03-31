@@ -278,7 +278,7 @@ static void ata_unpack_xfermask(unsigned int xfer_mask,
 }
 
 static const struct ata_xfer_ent {
-	unsigned int shift, bits;
+	int shift, bits;
 	u8 base;
 } ata_xfer_tbl[] = {
 	{ ATA_SHIFT_PIO, ATA_BITS_PIO, XFER_PIO_0 },
