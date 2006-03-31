@@ -1,4 +1,4 @@
-February 2003             Kernel Parameters                     v2.5.59
+                          Kernel Parameters
                           ~~~~~~~~~~~~~~~~~
 
 The following is a consolidated list of the kernel parameters as implemented
@@ -1682,20 +1682,6 @@ running once the system is up.
 
 
 ______________________________________________________________________
-Changelog:
-
-2000-06-??	Mr. Unknown
-	The last known update (for 2.4.0) - the changelog was not kept before.
-
-2002-11-24	Petr Baudis <pasky@ucw.cz>
-		Randy Dunlap <randy.dunlap@verizon.net>
-	Update for 2.5.49, description for most of the options introduced,
-	references to other documentation (C files, READMEs, ..), added S390,
-	PPC, SPARC, MTD, ALSA and OSS category. Minor corrections and
-	reformatting.
-
-2005-10-19	Randy Dunlap <rdunlap@xenotime.net>
-	Lots of typos, whitespace, some reformatting.
 
 TODO:
 
