@@ -13,6 +13,7 @@
 #include "kern_util.h"
 #include "skas/mm_id.h"
 #include "irq_user.h"
+#include "sysdep/tls.h"
 
 #define OS_TYPE_FILE 1 
 #define OS_TYPE_DIR 2 
@@ -238,10 +239,10 @@ extern int helper_wait(int pid);
 
 
 /* tls.c */
-extern int os_set_thread_area(void *data, int pid);
-extern int os_get_thread_area(void *data, int pid);
-/* umid.c */
+extern int os_set_thread_area(user_desc_t *info, int pid);
+extern int os_get_thread_area(user_desc_t *info, int pid);
 
+/* umid.c */
 extern int umid_file_name(char *name, char *buf, int len);
 extern int set_umid(char *name);
 extern char *get_umid(void);

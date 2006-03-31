@@ -1,6 +1,7 @@
 #include <errno.h>
 #include <sys/ptrace.h>
 #include <asm/ldt.h>
+#include "sysdep/tls.h"
 #include "uml-config.h"
 
 /* TLS support - we basically rely on the host's one.*/
@@ -18,9 +19,8 @@
 #define PTRACE_SET_THREAD_AREA 26
 #endif
 
-int os_set_thread_area(void *data, int pid)
+int os_set_thread_area(user_desc_t *info, int pid)
 {
-	struct user_desc *info = data;
 	int ret;
 
 	ret = ptrace(PTRACE_SET_THREAD_AREA, pid, info->entry_number,
@@ -32,9 +32,8 @@ int os_set_thread_area(void *data, int pid)
 
 #ifdef UML_CONFIG_MODE_SKAS
 
-int os_get_thread_area(void *data, int pid)
+int os_get_thread_area(user_desc_t *info, int pid)
 {
-	struct user_desc *info = data;
 	int ret;
 
 	ret = ptrace(PTRACE_GET_THREAD_AREA, pid, info->entry_number,
@@ -49,10 +48,10 @@ int os_get_thread_area(void *data, int pid)
 #ifdef UML_CONFIG_MODE_TT
 #include "linux/unistd.h"
 
-_syscall1(int, get_thread_area, struct user_desc *, u_info);
-_syscall1(int, set_thread_area, struct user_desc *, u_info);
+_syscall1(int, get_thread_area, user_desc_t *, u_info);
+_syscall1(int, set_thread_area, user_desc_t *, u_info);
 
-int do_set_thread_area_tt(struct user_desc *info)
+int do_set_thread_area_tt(user_desc_t *info)
 {
 	int ret;
 
@@ -63,7 +62,7 @@ int do_set_thread_area_tt(struct user_desc *info)
 	return ret;
 }
 
-int do_get_thread_area_tt(struct user_desc *info)
+int do_get_thread_area_tt(user_desc_t *info)
 {
 	int ret;
 
