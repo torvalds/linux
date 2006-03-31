@@ -19,9 +19,7 @@
 #include <linux/ioctl.h>
 #include <linux/init.h>
 #include <linux/mtd/compatmac.h>
-#ifdef CONFIG_PROC_FS
 #include <linux/proc_fs.h>
-#endif
 
 #include <linux/mtd/mtd.h>
 
@@ -296,10 +294,11 @@ EXPORT_SYMBOL(unregister_mtd_user);
 EXPORT_SYMBOL(default_mtd_writev);
 EXPORT_SYMBOL(default_mtd_readv);
 
+#ifdef CONFIG_PROC_FS
+
 /*====================================================================*/
 /* Support for /proc/mtd */
 
-#ifdef CONFIG_PROC_FS
 static struct proc_dir_entry *proc_mtd;
 
 static inline int mtd_proc_info (char *buf, int i)
@@ -344,30 +343,26 @@ done:
         return ((count < begin+len-off) ? count : begin+len-off);
 }
 
-#endif /* CONFIG_PROC_FS */
-
 /*====================================================================*/
 /* Init code */
 
 static int __init init_mtd(void)
 {
-#ifdef CONFIG_PROC_FS
 	if ((proc_mtd = create_proc_entry( "mtd", 0, NULL )))
 		proc_mtd->read_proc = mtd_read_proc;
-#endif
 	return 0;
 }
 
 static void __exit cleanup_mtd(void)
 {
-#ifdef CONFIG_PROC_FS
         if (proc_mtd)
 		remove_proc_entry( "mtd", NULL);
-#endif
 }
 
 module_init(init_mtd);
 module_exit(cleanup_mtd);
+
+#endif /* CONFIG_PROC_FS */
 
 
 MODULE_LICENSE("GPL");
