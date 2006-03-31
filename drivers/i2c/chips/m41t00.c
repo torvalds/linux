@@ -1,6 +1,4 @@
 /*
- * drivers/i2c/chips/m41t00.c
- *
  * I2C client/driver for the ST M41T00 Real-Time Clock chip.
  *
  * Author: Mark A. Greer <mgreer@mvista.com>
@@ -13,9 +11,6 @@
 /*
  * This i2c client/driver wedges between the drivers/char/genrtc.c RTC
  * interface and the SMBus interface of the i2c subsystem.
- * It would be more efficient to use i2c msgs/i2c_transfer directly but, as
- * recommened in .../Documentation/i2c/writing-clients section
- * "Sending and receiving", using SMBus level communication is preferred.
  */
 
 #include <linux/kernel.h>
@@ -41,17 +36,17 @@ static unsigned short ignore[] = { I2C_CLIENT_END };
 static unsigned short normal_addr[] = { 0x68, I2C_CLIENT_END };
 
 static struct i2c_client_address_data addr_data = {
-	.normal_i2c		= normal_addr,
-	.probe			= ignore,
-	.ignore			= ignore,
+	.normal_i2c	= normal_addr,
+	.probe		= ignore,
+	.ignore		= ignore,
 };
 
 ulong
 m41t00_get_rtc_time(void)
 {
-	s32	sec, min, hour, day, mon, year;
-	s32	sec1, min1, hour1, day1, mon1, year1;
-	ulong	limit = 10;
+	s32 sec, min, hour, day, mon, year;
+	s32 sec1, min1, hour1, day1, mon1, year1;
+	ulong limit = 10;
 
 	sec = min = hour = day = mon = year = 0;
 	sec1 = min1 = hour1 = day1 = mon1 = year1 = 0;
@@ -97,12 +92,12 @@ m41t00_get_rtc_time(void)
 	mon &= 0x1f;
 	year &= 0xff;
 
-	BCD_TO_BIN(sec);
-	BCD_TO_BIN(min);
-	BCD_TO_BIN(hour);
-	BCD_TO_BIN(day);
-	BCD_TO_BIN(mon);
-	BCD_TO_BIN(year);
+	sec = BCD2BIN(sec);
+	min = BCD2BIN(min);
+	hour = BCD2BIN(hour);
+	day = BCD2BIN(day);
+	mon = BCD2BIN(mon);
+	year = BCD2BIN(year);
 
 	year += 1900;
 	if (year < 1970)
@@ -115,17 +110,17 @@ static void
 m41t00_set(void *arg)
 {
 	struct rtc_time	tm;
-	ulong	nowtime = *(ulong *)arg;
+	ulong nowtime = *(ulong *)arg;
 
 	to_tm(nowtime, &tm);
 	tm.tm_year = (tm.tm_year - 1900) % 100;
 
-	BIN_TO_BCD(tm.tm_sec);
-	BIN_TO_BCD(tm.tm_min);
-	BIN_TO_BCD(tm.tm_hour);
-	BIN_TO_BCD(tm.tm_mon);
-	BIN_TO_BCD(tm.tm_mday);
-	BIN_TO_BCD(tm.tm_year);
+	tm.tm_sec = BIN2BCD(tm.tm_sec);
+	tm.tm_min = BIN2BCD(tm.tm_min);
+	tm.tm_hour = BIN2BCD(tm.tm_hour);
+	tm.tm_mon = BIN2BCD(tm.tm_mon);
+	tm.tm_mday = BIN2BCD(tm.tm_mday);
+	tm.tm_year = BIN2BCD(tm.tm_year);
 
 	mutex_lock(&m41t00_mutex);
 	if ((i2c_smbus_write_byte_data(save_client, 0, tm.tm_sec & 0x7f) < 0)
@@ -143,7 +138,6 @@ m41t00_set(void *arg)
 		dev_warn(&save_client->dev,"m41t00: can't write to rtc chip\n");
 
 	mutex_unlock(&m41t00_mutex);
-	return;
 }
 
 static ulong new_time;
@@ -180,7 +174,7 @@ m41t00_probe(struct i2c_adapter *adap, int addr, int kind)
 	if (!client)
 		return -ENOMEM;
 
-	strncpy(client->name, M41T00_DRV_NAME, I2C_NAME_SIZE);
+	strlcpy(client->name, M41T00_DRV_NAME, I2C_NAME_SIZE);
 	client->addr = addr;
 	client->adapter = adap;
 	client->driver = &m41t00_driver;
@@ -204,7 +198,7 @@ m41t00_attach(struct i2c_adapter *adap)
 static int
 m41t00_detach(struct i2c_client *client)
 {
-	int	rc;
+	int rc;
 
 	if ((rc = i2c_detach_client(client)) == 0) {
 		kfree(client);
@@ -232,7 +226,6 @@ static void __exit
 m41t00_exit(void)
 {
 	i2c_del_driver(&m41t00_driver);
-	return;
 }
 
 module_init(m41t00_init);
