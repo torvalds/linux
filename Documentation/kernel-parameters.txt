@@ -1046,9 +1046,9 @@ running once the system is up.
 	noltlbs		[PPC] Do not use large page/tlb entries for kernel
 			lowmem mapping on PPC40x.
 
-	nomce		[IA-32] Machine Check Exception
-
 	nomca		[IA-64] Disable machine check abort handling
+
+	nomce		[IA-32] Machine Check Exception
 
 	noresidual	[PPC] Don't use residual data on PReP machines.
 
