@@ -700,14 +700,19 @@ static int recalc_task_prio(task_t *p, unsigned long long now)
 	if (likely(sleep_time > 0)) {
 		/*
 		 * User tasks that sleep a long time are categorised as
-		 * idle and will get just interactive status to stay active &
-		 * prevent them suddenly becoming cpu hogs and starving
-		 * other processes.
+		 * idle. They will only have their sleep_avg increased to a
+		 * level that makes them just interactive priority to stay
+		 * active yet prevent them suddenly becoming cpu hogs and
+		 * starving other processes.
 		 */
 		if (p->mm && p->sleep_type != SLEEP_NONINTERACTIVE &&
 			sleep_time > INTERACTIVE_SLEEP(p)) {
-				p->sleep_avg = JIFFIES_TO_NS(MAX_SLEEP_AVG -
-						DEF_TIMESLICE);
+				unsigned long ceiling;
+
+				ceiling = JIFFIES_TO_NS(MAX_SLEEP_AVG -
+					DEF_TIMESLICE);
+				if (p->sleep_avg < ceiling)
+					p->sleep_avg = ceiling;
 		} else {
 			/*
 			 * Tasks waking from uninterruptible sleep are
