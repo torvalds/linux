@@ -133,6 +133,7 @@
 #define DPLL_VGA_MODE_DISABLE		(1 << 28)
 #define DPLL_P2_MASK			1
 #define DPLL_P2_SHIFT			23
+#define DPLL_I9XX_P2_SHIFT              24
 #define DPLL_P1_FORCE_DIV2		(1 << 21)
 #define DPLL_P1_MASK			0x1f
 #define DPLL_P1_SHIFT			16

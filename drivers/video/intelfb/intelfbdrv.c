@@ -1480,7 +1480,7 @@ intelfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 	intelfbhw_cursor_hide(dinfo);
 
 	/* If XFree killed the cursor - restore it */
-	physical = (dinfo->mobile || IS_I9xx(dinfo)) ? dinfo->cursor.physical :
+	physical = (dinfo->mobile || IS_I9XX(dinfo)) ? dinfo->cursor.physical :
 		   (dinfo->cursor.offset << 12);
 
 	if (INREG(CURSOR_A_BASEADDR) != physical) {

@@ -47,8 +47,8 @@ struct pll_min_max {
 	int min_n, max_n;
 	int min_p, max_p;
 	int min_p1, max_p1;
-	int min_vco_freq, max_vco_freq;
-	int p_transition_clock;
+	int min_vco, max_vco;
+	int p_transition_clk, ref_clk;
 	int p_inc_lo, p_inc_hi;
 };
 
@@ -57,8 +57,8 @@ struct pll_min_max {
 #define PLLS_MAX 2
 
 static struct pll_min_max plls[PLLS_MAX] = {
-	{ 108, 140, 18, 26, 6, 16, 3, 16, 4, 128, 0, 31, 930000, 1400000, 165000, 4, 22 }, //I8xx
-	{  75, 120, 10, 20, 5, 9, 4,  7, 5, 80, 1, 8, 930000, 2800000, 200000, 10, 5 }  //I9xx
+  { 108, 140, 18, 26, 6, 16, 3, 16, 4, 128, 0, 31, 930000, 1400000, 165000, 48000, 4, 22 }, //I8xx
+  {  75, 120, 10, 20, 5, 9, 4,  7, 5, 80, 1, 8, 930000, 2800000, 200000, 96000, 10, 5 }  //I9xx
 };
 
 int
@@ -570,21 +570,26 @@ static int calc_vclock3(int index, int m, int n, int p)
 {
 	if (p == 0 || n == 0)
 		return 0;
-	return PLL_REFCLK * m / n / p;
+	return plls[index].ref_clk * m / n / p;
 }
 
-static int calc_vclock(int index, int m1, int m2, int n, int p1, int p2)
+static int calc_vclock(int index, int m1, int m2, int n, int p1, int p2, int lvds)
 {
+	int p2_val;
 	switch(index)
 	{
 	case PLLS_I9xx:
 		if (p1 == 0)
 			return 0;
-		return ((PLL_REFCLK * (5 * (m1 + 2) + (m2 + 2)) / (n + 2) /
-			 ((p1)) * (p2 ? 10 : 5)));
+		if (lvds)
+			p2_val = p2 ? 7 : 14;
+		else
+			p2_val = p2 ? 5 : 10;
+		return ((plls[index].ref_clk * (5 * (m1 + 2) + (m2 + 2)) / (n + 2) /
+			 ((p1)) * (p2_val)));
 	case PLLS_I8xx:
 	default:
-		return ((PLL_REFCLK * (5 * (m1 + 2) + (m2 + 2)) / (n + 2) /
+		return ((plls[index].ref_clk * (5 * (m1 + 2) + (m2 + 2)) / (n + 2) /
 			 ((p1+2) * (1 << (p2 + 1)))));
 	}
 }
@@ -596,7 +601,7 @@ intelfbhw_print_hw_state(struct intelfb_info *dinfo, struct intelfb_hwstate *hw)
 	int i, m1, m2, n, p1, p2;
 	int index = dinfo->pll_index;
 	DBG_MSG("intelfbhw_print_hw_state\n");
-	
+
 	if (!hw || !dinfo)
 		return;
 	/* Read in as much of the HW state as possible. */
@@ -611,12 +616,14 @@ intelfbhw_print_hw_state(struct intelfb_info *dinfo, struct intelfb_hwstate *hw)
 		p1 = 0;
 	else
 		p1 = (hw->vga_pd >> VGAPD_0_P1_SHIFT) & DPLL_P1_MASK;
+
 	p2 = (hw->vga_pd >> VGAPD_0_P2_SHIFT) & DPLL_P2_MASK;
+
 	printk("	VGA0: (m1, m2, n, p1, p2) = (%d, %d, %d, %d, %d)\n",
 	       m1, m2, n, p1, p2);
 	printk("	VGA0: clock is %d\n",
-	       calc_vclock(index, m1, m2, n, p1, p2));
-	
+	       calc_vclock(index, m1, m2, n, p1, p2, 0));
+
 	n = (hw->vga1_divisor >> FP_N_DIVISOR_SHIFT) & FP_DIVISOR_MASK;
 	m1 = (hw->vga1_divisor >> FP_M1_DIVISOR_SHIFT) & FP_DIVISOR_MASK;
 	m2 = (hw->vga1_divisor >> FP_M2_DIVISOR_SHIFT) & FP_DIVISOR_MASK;
@@ -627,39 +634,96 @@ intelfbhw_print_hw_state(struct intelfb_info *dinfo, struct intelfb_hwstate *hw)
 	p2 = (hw->vga_pd >> VGAPD_1_P2_SHIFT) & DPLL_P2_MASK;
 	printk("	VGA1: (m1, m2, n, p1, p2) = (%d, %d, %d, %d, %d)\n",
 	       m1, m2, n, p1, p2);
-	printk("	VGA1: clock is %d\n", calc_vclock(index, m1, m2, n, p1, p2));
-	
+	printk("	VGA1: clock is %d\n", calc_vclock(index, m1, m2, n, p1, p2, 0));
+
 	printk("	DPLL_A:			0x%08x\n", hw->dpll_a);
 	printk("	DPLL_B:			0x%08x\n", hw->dpll_b);
 	printk("	FPA0:			0x%08x\n", hw->fpa0);
 	printk("	FPA1:			0x%08x\n", hw->fpa1);
 	printk("	FPB0:			0x%08x\n", hw->fpb0);
 	printk("	FPB1:			0x%08x\n", hw->fpb1);
-	
+
 	n = (hw->fpa0 >> FP_N_DIVISOR_SHIFT) & FP_DIVISOR_MASK;
 	m1 = (hw->fpa0 >> FP_M1_DIVISOR_SHIFT) & FP_DIVISOR_MASK;
 	m2 = (hw->fpa0 >> FP_M2_DIVISOR_SHIFT) & FP_DIVISOR_MASK;
-	if (hw->dpll_a & DPLL_P1_FORCE_DIV2)
-		p1 = 0;
-	else
-		p1 = (hw->dpll_a >> DPLL_P1_SHIFT) & DPLL_P1_MASK;
-	p2 = (hw->dpll_a >> DPLL_P2_SHIFT) & DPLL_P2_MASK;
+
+	if (IS_I9XX(dinfo)) {
+		int tmpp1;
+
+		if (hw->dpll_a & DPLL_P1_FORCE_DIV2)
+			p1 = 0;
+		else
+			p1 = (hw->dpll_a >> DPLL_P1_SHIFT) & 0xff;
+
+		tmpp1 = p1;
+
+		switch (tmpp1)
+		{
+		case 0x1: p1 = 1; break;
+		case 0x2: p1 = 2; break;
+		case 0x4: p1 = 3; break;
+		case 0x8: p1 = 4; break;
+		case 0x10: p1 = 5; break;
+		case 0x20: p1 = 6; break;
+		case 0x40: p1 = 7; break;
+		case 0x80: p1 = 8; break;
+		default: break;
+		}
+
+		p2 = (hw->dpll_a >> DPLL_I9XX_P2_SHIFT) & DPLL_P2_MASK;
+
+	} else {
+		if (hw->dpll_a & DPLL_P1_FORCE_DIV2)
+			p1 = 0;
+		else
+			p1 = (hw->dpll_a >> DPLL_P1_SHIFT) & DPLL_P1_MASK;
+		p2 = (hw->dpll_a >> DPLL_P2_SHIFT) & DPLL_P2_MASK;
+	}
+
 	printk("	PLLA0: (m1, m2, n, p1, p2) = (%d, %d, %d, %d, %d)\n",
 	       m1, m2, n, p1, p2);
-	printk("	PLLA0: clock is %d\n", calc_vclock(index, m1, m2, n, p1, p2));
-	
+	printk("	PLLA0: clock is %d\n", calc_vclock(index, m1, m2, n, p1, p2, 0));
+
 	n = (hw->fpa1 >> FP_N_DIVISOR_SHIFT) & FP_DIVISOR_MASK;
 	m1 = (hw->fpa1 >> FP_M1_DIVISOR_SHIFT) & FP_DIVISOR_MASK;
 	m2 = (hw->fpa1 >> FP_M2_DIVISOR_SHIFT) & FP_DIVISOR_MASK;
-	if (hw->dpll_a & DPLL_P1_FORCE_DIV2)
-		p1 = 0;
-	else
-		p1 = (hw->dpll_a >> DPLL_P1_SHIFT) & DPLL_P1_MASK;
-	p2 = (hw->dpll_a >> DPLL_P2_SHIFT) & DPLL_P2_MASK;
+
+	if (IS_I9XX(dinfo)) {
+		int tmpp1;
+
+		if (hw->dpll_a & DPLL_P1_FORCE_DIV2)
+			p1 = 0;
+		else
+			p1 = (hw->dpll_a >> DPLL_P1_SHIFT) & 0xff;
+
+		tmpp1 = p1;
+
+		switch (tmpp1)
+		{
+		case 0x1: p1 = 1; break;
+		case 0x2: p1 = 2; break;
+		case 0x4: p1 = 3; break;
+		case 0x8: p1 = 4; break;
+		case 0x10: p1 = 5; break;
+		case 0x20: p1 = 6; break;
+		case 0x40: p1 = 7; break;
+		case 0x80: p1 = 8; break;
+		default: break;
+		}
+
+		p2 = (hw->dpll_a >> DPLL_I9XX_P2_SHIFT) & DPLL_P2_MASK;
+
+	} else {
+		if (hw->dpll_a & DPLL_P1_FORCE_DIV2)
+			p1 = 0;
+		else
+			p1 = (hw->dpll_a >> DPLL_P1_SHIFT) & DPLL_P1_MASK;
+		p2 = (hw->dpll_a >> DPLL_P2_SHIFT) & DPLL_P2_MASK;
+	}
 	printk("	PLLA1: (m1, m2, n, p1, p2) = (%d, %d, %d, %d, %d)\n",
 	       m1, m2, n, p1, p2);
-	printk("	PLLA1: clock is %d\n", calc_vclock(index, m1, m2, n, p1, p2));
-	
+	printk("	PLLA1: clock is %d\n", calc_vclock(index, m1, m2, n, p1, p2, 0));
+
 #if 0
 	printk("	PALETTE_A:\n");
 	for (i = 0; i < PALETTE_8_ENTRIES)
@@ -767,7 +831,7 @@ splitm(int index, unsigned int m, unsigned int *retm1, unsigned int *retm2)
 	/* no point optimising too much - brute force m */
 	for (m1 = plls[index].min_m1; m1 < plls[index].max_m1+1; m1++) {
 		for (m2 = plls[index].min_m2; m2 < plls[index].max_m2+1; m2++) {
-			testm  = ( 5 * ( m1 + 2 )) + (m2 + 2);
+			testm = (5 * (m1 + 2)) + (m2 + 2);
 			if (testm == m) {
 				*retm1 = (unsigned int)m1;
 				*retm2 = (unsigned int)m2;
@@ -785,21 +849,11 @@ splitp(int index, unsigned int p, unsigned int *retp1, unsigned int *retp2)
 	int p1, p2;
 
 	if (index == PLLS_I9xx) {
-		switch (p) {
-		case 10:
-			p1 = 2;
-			p2 = 0;
-			break;
-		case 20:
-			p1 = 1;
-			p2 = 0;
-			break;
-		default:
-			p1 = (p / 10) + 1;
-			p2 = 0;
-			break;
-		}
-		
+
+		p2 = 0; // for now
+
+		p1 = p / (p2 ? 5 : 10);
+
 		*retp1 = (unsigned int)p1;
 		*retp2 = (unsigned int)p2;
 		return 0;
@@ -844,13 +898,13 @@ calc_pll_params(int index, int clock, u32 *retm1, u32 *retm2, u32 *retn, u32 *re
 
 	DBG_MSG("Clock is %d\n", clock);
 
-	div_max = plls[index].max_vco_freq / clock;
+	div_max = plls[index].max_vco / clock;
 	if (index == PLLS_I9xx)
 		div_min = 5;
 	else
-		div_min = ROUND_UP_TO(plls[index].min_vco_freq, clock) / clock;
+		div_min = ROUND_UP_TO(plls[index].min_vco, clock) / clock;
 
-	if (clock <= plls[index].p_transition_clock)
+	if (clock <= plls[index].p_transition_clk)
 		p_inc = plls[index].p_inc_lo;
 	else
 		p_inc = plls[index].p_inc_hi;
@@ -860,15 +914,6 @@ calc_pll_params(int index, int clock, u32 *retm1, u32 *retm2, u32 *retn, u32 *re
 		p_min = plls[index].min_p;
 	if (p_max > plls[index].max_p)
 		p_max = plls[index].max_p;
-
-	if (clock < PLL_REFCLK && index == PLLS_I9xx) {
-		p_min = 10;
-		p_max = 20;
-		/* this makes 640x480 work it really shouldn't
-		   - SOMEONE WITHOUT DOCS WOZ HERE */
-		if (clock < 30000)
-			clock *= 4;
-	}
 
 	DBG_MSG("p range is %d-%d (%d)\n", p_min, p_max, p_inc);
 
@@ -883,7 +928,7 @@ calc_pll_params(int index, int clock, u32 *retm1, u32 *retm2, u32 *retn, u32 *re
 		f_vco = clock * p;
 
 		do {
-			m = ROUND_UP_TO(f_vco * n, PLL_REFCLK) / PLL_REFCLK;
+			m = ROUND_UP_TO(f_vco * n, plls[index].ref_clk) / plls[index].ref_clk;
 			if (m < plls[index].min_m)
 				m = plls[index].min_m + 1;
 			if (m > plls[index].max_m)
@@ -899,7 +944,7 @@ calc_pll_params(int index, int clock, u32 *retm1, u32 *retm2, u32 *retn, u32 *re
 					f_err = clock - f_out;
 				else/* slightly bias the error for bigger clocks */
 					f_err = f_out - clock + 1;
-				
+
 				if (f_err < err_best) {
 					m_best = m;
 					n_best = n;
@@ -928,14 +973,14 @@ calc_pll_params(int index, int clock, u32 *retm1, u32 *retm2, u32 *retn, u32 *re
 		"f: %d (%d), VCO: %d\n",
 		m, m1, m2, n, n1, p, p1, p2,
 		calc_vclock3(index, m, n, p),
-		calc_vclock(index, m1, m2, n1, p1, p2),
+		calc_vclock(index, m1, m2, n1, p1, p2, 0),
 		calc_vclock3(index, m, n, p) * p);
 	*retm1 = m1;
 	*retm2 = m2;
 	*retn = n1;
 	*retp1 = p1;
 	*retp2 = p2;
-	*retclock = calc_vclock(index, m1, m2, n1, p1, p2);
+	*retclock = calc_vclock(index, m1, m2, n1, p1, p2, 0);
 
 	return 0;
 }
@@ -1032,7 +1077,7 @@ intelfbhw_mode_to_hw(struct intelfb_info *dinfo, struct intelfb_hwstate *hw,
 	/* Desired clock in kHz */
 	clock_target = 1000000000 / var->pixclock;
 
-	if (calc_pll_params(dinfo->pll_index, clock_target, &m1, &m2, 
+	if (calc_pll_params(dinfo->pll_index, clock_target, &m1, &m2,
 			    &n, &p1, &p2, &clock)) {
 		WRN_MSG("calc_pll_params failed\n");
 		return 1;
@@ -1053,7 +1098,14 @@ intelfbhw_mode_to_hw(struct intelfb_info *dinfo, struct intelfb_hwstate *hw,
 	*dpll &= ~DPLL_P1_FORCE_DIV2;
 	*dpll &= ~((DPLL_P2_MASK << DPLL_P2_SHIFT) |
 		   (DPLL_P1_MASK << DPLL_P1_SHIFT));
-	*dpll |= (p2 << DPLL_P2_SHIFT) | (p1 << DPLL_P1_SHIFT);
+
+	if (IS_I9XX(dinfo)) {
+		*dpll |= (p2 << DPLL_I9XX_P2_SHIFT);
+		*dpll |= (1 << (p1 - 1)) << DPLL_P1_SHIFT;
+	} else {
+		*dpll |= (p2 << DPLL_P2_SHIFT) | (p1 << DPLL_P1_SHIFT);
+	}
+
 	*fp0 = (n << FP_N_DIVISOR_SHIFT) |
 	       (m1 << FP_M1_DIVISOR_SHIFT) |
 	       (m2 << FP_M2_DIVISOR_SHIFT);
@@ -1264,19 +1316,19 @@ intelfbhw_program_mode(struct intelfb_info *dinfo,
 	tmp = INREG(pipe_conf_reg);
 	tmp &= ~PIPECONF_ENABLE;
 	OUTREG(pipe_conf_reg, tmp);
-	
+
 	count = 0;
 	do {
-	  tmp_val[count%3] = INREG(0x70000);
-	  if ((tmp_val[0] == tmp_val[1]) && (tmp_val[1]==tmp_val[2]))
-	    break;
-	  count++;
-	  udelay(1);
-	  if (count % 200 == 0) {
-	    tmp = INREG(pipe_conf_reg);
-	    tmp &= ~PIPECONF_ENABLE;
-	    OUTREG(pipe_conf_reg, tmp);
-	  }
+		tmp_val[count%3] = INREG(0x70000);
+		if ((tmp_val[0] == tmp_val[1]) && (tmp_val[1]==tmp_val[2]))
+			break;
+		count++;
+		udelay(1);
+		if (count % 200 == 0) {
+			tmp = INREG(pipe_conf_reg);
+			tmp &= ~PIPECONF_ENABLE;
+			OUTREG(pipe_conf_reg, tmp);
+		}
 	} while(count < 2000);
 
 	OUTREG(ADPA, INREG(ADPA) & ~ADPA_DAC_ENABLE);
@@ -1289,7 +1341,7 @@ intelfbhw_program_mode(struct intelfb_info *dinfo,
 	tmp &= ~DISPPLANE_PLANE_ENABLE;
 	OUTREG(DSPBCNTR, tmp);
 
-	/* Wait for vblank.  For now, just wait for a 50Hz cycle (20ms)) */
+	/* Wait for vblank. For now, just wait for a 50Hz cycle (20ms)) */
 	mdelay(20);
 
 	/* Disable Sync */
@@ -1359,7 +1411,7 @@ intelfbhw_program_mode(struct intelfb_info *dinfo,
 			OUTREG(DSPACNTR,
 			       hw->disp_a_ctrl|DISPPLANE_PLANE_ENABLE);
 			mdelay(1);
-              }
+		}
 	}
 
 	OUTREG(DSPACNTR, hw->disp_a_ctrl & ~DISPPLANE_PLANE_ENABLE);
@@ -1744,7 +1796,7 @@ intelfbhw_cursor_init(struct intelfb_info *dinfo)
 	DBG_MSG("intelfbhw_cursor_init\n");
 #endif
 
-	if (dinfo->mobile || IS_I9xx(dinfo)) {
+	if (dinfo->mobile || IS_I9XX(dinfo)) {
 		if (!dinfo->cursor.physical)
 			return;
 		tmp = INREG(CURSOR_A_CONTROL);
@@ -1777,7 +1829,7 @@ intelfbhw_cursor_hide(struct intelfb_info *dinfo)
 #endif
 
 	dinfo->cursor_on = 0;
-	if (dinfo->mobile || IS_I9xx(dinfo)) {
+	if (dinfo->mobile || IS_I9XX(dinfo)) {
 		if (!dinfo->cursor.physical)
 			return;
 		tmp = INREG(CURSOR_A_CONTROL);
@@ -1807,7 +1859,7 @@ intelfbhw_cursor_show(struct intelfb_info *dinfo)
 	if (dinfo->cursor_blanked)
 		return;
 
-	if (dinfo->mobile || IS_I9xx(dinfo)) {
+	if (dinfo->mobile || IS_I9XX(dinfo)) {
 		if (!dinfo->cursor.physical)
 			return;
 		tmp = INREG(CURSOR_A_CONTROL);
@@ -1833,8 +1885,8 @@ intelfbhw_cursor_setpos(struct intelfb_info *dinfo, int x, int y)
 #endif
 
 	/*
-	 * Sets the position.  The coordinates are assumed to already
-	 * have any offset adjusted.  Assume that the cursor is never
+	 * Sets the position. The coordinates are assumed to already
+	 * have any offset adjusted. Assume that the cursor is never
 	 * completely off-screen, and that x, y are always >= 0.
 	 */
 
@@ -1842,7 +1894,7 @@ intelfbhw_cursor_setpos(struct intelfb_info *dinfo, int x, int y)
 	      ((y & CURSOR_POS_MASK) << CURSOR_Y_SHIFT);
 	OUTREG(CURSOR_A_POSITION, tmp);
 
-	if (IS_I9xx(dinfo)) {
+	if (IS_I9XX(dinfo)) {
 		OUTREG(CURSOR_A_BASEADDR, dinfo->cursor.physical);
 	}
 }
