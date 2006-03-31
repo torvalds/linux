@@ -558,8 +558,8 @@ static int acpi_processor_start(struct acpi_device *device)
 	 */
 	if (processor_device_array[pr->id] != NULL &&
 	    processor_device_array[pr->id] != (void *)device) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "BIOS reporting wrong ACPI id"
-			"for the processor\n"));
+		printk(KERN_WARNING "BIOS reported wrong ACPI id"
+			"for the processor\n");
 		return_VALUE(-ENODEV);
 	}
 	processor_device_array[pr->id] = (void *)device;
