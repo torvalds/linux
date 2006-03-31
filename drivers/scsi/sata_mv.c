@@ -1991,7 +1991,7 @@ comreset_retry:
 	tf.nsect = readb((void __iomem *) ap->ioaddr.nsect_addr);
 
 	dev->class = ata_dev_classify(&tf);
-	if (!ata_dev_present(dev)) {
+	if (!ata_dev_enabled(dev)) {
 		VPRINTK("Port disabled post-sig: No device present.\n");
 		ata_port_disable(ap);
 	}

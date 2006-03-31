@@ -411,7 +411,7 @@ static const char *sata_spd_string(unsigned int spd)
 
 static void ata_dev_disable(struct ata_port *ap, struct ata_device *dev)
 {
-	if (ata_dev_present(dev)) {
+	if (ata_dev_enabled(dev)) {
 		printk(KERN_WARNING "ata%u: dev %u disabled\n",
 		       ap->id, dev->devno);
 		dev->class++;
@@ -1222,7 +1222,7 @@ static int ata_dev_configure(struct ata_port *ap, struct ata_device *dev,
 	unsigned int xfer_mask;
 	int i, rc;
 
-	if (!ata_dev_present(dev)) {
+	if (!ata_dev_enabled(dev)) {
 		DPRINTK("ENTER/EXIT (host %u, dev %u) -- nodev\n",
 			ap->id, dev->devno);
 		return 0;
@@ -1401,7 +1401,7 @@ static int ata_bus_probe(struct ata_port *ap)
 
 		dev->class = classes[i];
 
-		if (!ata_dev_present(dev))
+		if (!ata_dev_enabled(dev))
 			continue;
 
 		WARN_ON(dev->id != NULL);
@@ -1565,7 +1565,7 @@ void sata_phy_reset(struct ata_port *ap)
 struct ata_device *ata_dev_pair(struct ata_port *ap, struct ata_device *adev)
 {
 	struct ata_device *pair = &ap->device[1 - adev->devno];
-	if (!ata_dev_present(pair))
+	if (!ata_dev_enabled(pair))
 		return NULL;
 	return pair;
 }
@@ -1778,7 +1778,7 @@ static int ata_host_set_pio(struct ata_port *ap)
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
 		struct ata_device *dev = &ap->device[i];
 
-		if (!ata_dev_present(dev))
+		if (!ata_dev_enabled(dev))
 			continue;
 
 		if (!dev->pio_mode) {
@@ -1802,7 +1802,7 @@ static void ata_host_set_dma(struct ata_port *ap)
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
 		struct ata_device *dev = &ap->device[i];
 
-		if (!ata_dev_present(dev) || !dev->dma_mode)
+		if (!ata_dev_enabled(dev) || !dev->dma_mode)
 			continue;
 
 		dev->xfer_mode = dev->dma_mode;
@@ -1830,7 +1830,7 @@ static void ata_set_mode(struct ata_port *ap)
 		struct ata_device *dev = &ap->device[i];
 		unsigned int pio_mask, dma_mask;
 
-		if (!ata_dev_present(dev))
+		if (!ata_dev_enabled(dev))
 			continue;
 
 		ata_dev_xfermask(ap, dev);
@@ -1858,7 +1858,7 @@ static void ata_set_mode(struct ata_port *ap)
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
 		struct ata_device *dev = &ap->device[i];
 
-		if (!ata_dev_present(dev))
+		if (!ata_dev_enabled(dev))
 			continue;
 
 		rc = ata_dev_set_mode(ap, dev);
@@ -2550,7 +2550,7 @@ int ata_dev_revalidate(struct ata_port *ap, struct ata_device *dev,
 	u16 *id;
 	int rc;
 
-	if (!ata_dev_present(dev))
+	if (!ata_dev_enabled(dev))
 		return -ENODEV;
 
 	class = dev->class;
@@ -2679,7 +2679,7 @@ static void ata_dev_xfermask(struct ata_port *ap, struct ata_device *dev)
 	/* FIXME: Use port-wide xfermask for now */
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
 		struct ata_device *d = &ap->device[i];
-		if (!ata_dev_present(d))
+		if (!ata_dev_enabled(d))
 			continue;
 		xfer_mask &= ata_pack_xfermask(d->pio_mask, d->mwdma_mask,
 					       d->udma_mask);
@@ -4299,7 +4299,7 @@ int ata_device_resume(struct ata_port *ap, struct ata_device *dev)
 		ap->flags &= ~ATA_FLAG_SUSPENDED;
 		ata_set_mode(ap);
 	}
-	if (!ata_dev_present(dev))
+	if (!ata_dev_enabled(dev))
 		return 0;
 	if (dev->class == ATA_DEV_ATA)
 		ata_start_drive(ap, dev);
@@ -4317,7 +4317,7 @@ int ata_device_resume(struct ata_port *ap, struct ata_device *dev)
  */
 int ata_device_suspend(struct ata_port *ap, struct ata_device *dev, pm_message_t state)
 {
-	if (!ata_dev_present(dev))
+	if (!ata_dev_enabled(dev))
 		return 0;
 	if (dev->class == ATA_DEV_ATA)
 		ata_flush_cache(ap, dev);

@@ -2349,7 +2349,7 @@ ata_scsi_find_dev(struct ata_port *ap, const struct scsi_device *scsidev)
 		     (scsidev->lun != 0)))
 		return NULL;
 
-	if (unlikely(!ata_dev_present(dev)))
+	if (unlikely(!ata_dev_enabled(dev)))
 		return NULL;
 
 	if (!atapi_enabled || (ap->flags & ATA_FLAG_NO_ATAPI)) {
@@ -2743,7 +2743,7 @@ void ata_scsi_scan_host(struct ata_port *ap)
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
 		dev = &ap->device[i];
 
-		if (ata_dev_present(dev))
+		if (ata_dev_enabled(dev))
 			scsi_scan_target(&ap->host->shost_gendev, 0, i, 0, 0);
 	}
 }
