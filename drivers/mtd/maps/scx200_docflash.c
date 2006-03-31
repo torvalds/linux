@@ -70,7 +70,7 @@ static struct mtd_partition partition_info[] = {
 		.size   = 0x80000
 	},
 };
-#define NUM_PARTITIONS (sizeof(partition_info)/sizeof(partition_info[0]))
+#define NUM_PARTITIONS ARRAY_SIZE(partition_info)
 #endif
 
 

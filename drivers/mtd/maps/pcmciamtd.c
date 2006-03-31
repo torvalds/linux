@@ -616,7 +616,7 @@ static void pcmciamtd_config(dev_link_t *link)
 	} else if(mem_type == 2) {
 		mtd = do_map_probe("map_rom", &dev->pcmcia_map);
 	} else {
-		for(i = 0; i < sizeof(probes) / sizeof(char *); i++) {
+		for(i = 0; i < ARRAY_SIZE(probes); i++) {
 			DEBUG(1, "Trying %s", probes[i]);
 			mtd = do_map_probe(probes[i], &dev->pcmcia_map);
 			if(mtd)

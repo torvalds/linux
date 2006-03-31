@@ -300,7 +300,7 @@ static struct mtd_partition partition_info[]=
 	},
 };
 
-#define NUM_PARTITIONS (sizeof(partition_info)/sizeof(partition_info[0]))
+#define NUM_PARTITIONS ARRAY_SIZE(partition_info)
 
 static struct mtd_info *mymtd;
 static struct mtd_info *lowlvl_parts[NUM_PARTITIONS];
@@ -345,7 +345,7 @@ static struct mtd_partition higlvl_partition_info[]=
 	},
 };
 
-#define NUM_HIGHLVL_PARTITIONS (sizeof(higlvl_partition_info)/sizeof(partition_info[0]))
+#define NUM_HIGHLVL_PARTITIONS ARRAY_SIZE(higlvl_partition_info)
 
 
 static int dnp_adnp_probe(void)

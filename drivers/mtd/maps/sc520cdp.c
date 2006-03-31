@@ -107,7 +107,7 @@ static struct map_info sc520cdp_map[] = {
 	},
 };
 
-#define NUM_FLASH_BANKS	(sizeof(sc520cdp_map)/sizeof(struct map_info))
+#define NUM_FLASH_BANKS	ARRAY_SIZE(sc520cdp_map)
 
 static struct mtd_info *mymtd[NUM_FLASH_BANKS];
 static struct mtd_info *merged_mtd;

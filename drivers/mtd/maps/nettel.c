@@ -128,8 +128,7 @@ static struct mtd_partition nettel_amd_partitions[] = {
 	}
 };
 
-#define NUM_AMD_PARTITIONS \
-	(sizeof(nettel_amd_partitions)/sizeof(nettel_amd_partitions[0]))
+#define NUM_AMD_PARTITIONS ARRAY_SIZE(nettel_amd_partitions)
 
 /****************************************************************************/
 

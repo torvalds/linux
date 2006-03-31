@@ -2035,7 +2035,7 @@ static int jedec_probe_chip(struct map_info *map, __u32 base,
 		DEBUG(MTD_DEBUG_LEVEL3,
 		      "Search for id:(%02x %02x) interleave(%d) type(%d)\n",
 			cfi->mfr, cfi->id, cfi_interleave(cfi), cfi->device_type);
-		for (i=0; i<sizeof(jedec_table)/sizeof(jedec_table[0]); i++) {
+		for (i = 0; i < ARRAY_SIZE(jedec_table); i++) {
 			if ( jedec_match( base, map, cfi, &jedec_table[i] ) ) {
 				DEBUG( MTD_DEBUG_LEVEL3,
 				       "MTD %s(): matched device 0x%x,0x%x unlock_addrs: 0x%.4x 0x%.4x\n",
