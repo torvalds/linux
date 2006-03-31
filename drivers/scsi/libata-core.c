@@ -1349,13 +1349,13 @@ err_out_nosup:
  *	PCI/etc. bus probe sem.
  *
  *	RETURNS:
- *	Zero on success, non-zero on error.
+ *	Zero on success, negative errno otherwise.
  */
 
 static int ata_bus_probe(struct ata_port *ap)
 {
 	unsigned int classes[ATA_MAX_DEVICES];
-	unsigned int i, rc, found = 0;
+	int i, rc, found = 0;
 
 	ata_port_probe(ap);
 
@@ -1421,7 +1421,7 @@ static int ata_bus_probe(struct ata_port *ap)
 
 err_out_disable:
 	ap->ops->port_disable(ap);
-	return -1;
+	return -ENODEV;
 }
 
 /**
