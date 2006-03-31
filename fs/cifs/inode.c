@@ -569,7 +569,10 @@ int cifs_unlink(struct inode *inode, struct dentry *direntry)
 
 	xid = GetXid();
 
-	cifs_sb = CIFS_SB(inode->i_sb);
+	if(inode)
+		cifs_sb = CIFS_SB(inode->i_sb);
+	else
+		cifs_sb = CIFS_SB(dentry->d_sb);
 	pTcon = cifs_sb->tcon;
 
 	/* Unlink can be called from rename so we can not grab the sem here
