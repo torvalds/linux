@@ -22,6 +22,7 @@
 #include <linux/pipe_fs_i.h>
 #include <linux/mm_inline.h>
 #include <linux/swap.h>
+#include <linux/module.h>
 
 /*
  * Passed to the actors
@@ -566,6 +567,9 @@ ssize_t generic_splice_sendpage(struct inode *inode, struct file *out,
 {
 	return move_from_pipe(inode, out, len, flags, pipe_to_sendpage);
 }
+
+EXPORT_SYMBOL(generic_file_splice_write);
+EXPORT_SYMBOL(generic_file_splice_read);
 
 static long do_splice_from(struct inode *pipe, struct file *out, size_t len,
 			   unsigned int flags)
