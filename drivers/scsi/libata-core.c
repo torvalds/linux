@@ -1305,6 +1305,8 @@ static int ata_dev_configure(struct ata_port *ap, struct ata_device *dev,
 
 	/* ATAPI-specific feature tests */
 	else if (dev->class == ATA_DEV_ATAPI) {
+		char *cdb_intr_string = "";
+
 		rc = atapi_cdb_len(id);
 		if ((rc < 12) || (rc > ATAPI_CDB_LEN)) {
 			printk(KERN_WARNING "ata%u: unsupported CDB len\n", ap->id);
@@ -1313,13 +1315,16 @@ static int ata_dev_configure(struct ata_port *ap, struct ata_device *dev,
 		}
 		dev->cdb_len = (unsigned int) rc;
 
-		if (ata_id_cdb_intr(dev->id))
+		if (ata_id_cdb_intr(dev->id)) {
 			dev->flags |= ATA_DFLAG_CDB_INTR;
+			cdb_intr_string = ", CDB intr";
+		}
 
 		/* print device info to dmesg */
 		if (print_info)
-			printk(KERN_INFO "ata%u: dev %u ATAPI, max %s\n",
-			       ap->id, dev->devno, ata_mode_string(xfer_mask));
+			printk(KERN_INFO "ata%u: dev %u ATAPI, max %s%s\n",
+			       ap->id, dev->devno, ata_mode_string(xfer_mask),
+			       cdb_intr_string);
 	}
 
 	ap->host->max_cmd_len = 0;
