@@ -397,6 +397,18 @@ static const char *ata_mode_string(unsigned int xfer_mask)
 	return "<n/a>";
 }
 
+static const char *sata_spd_string(unsigned int spd)
+{
+	static const char * const spd_str[] = {
+		"1.5 Gbps",
+		"3.0 Gbps",
+	};
+
+	if (spd == 0 || (spd - 1) >= ARRAY_SIZE(spd_str))
+		return "<unknown>";
+	return spd_str[spd - 1];
+}
+
 static void ata_dev_disable(struct ata_port *ap, struct ata_device *dev)
 {
 	if (ata_dev_present(dev)) {
@@ -1452,7 +1464,6 @@ void ata_port_probe(struct ata_port *ap)
 static void sata_print_link_status(struct ata_port *ap)
 {
 	u32 sstatus, tmp;
-	const char *speed;
 
 	if (!ap->ops->scr_read)
 		return;
@@ -1461,14 +1472,8 @@ static void sata_print_link_status(struct ata_port *ap)
 
 	if (sata_dev_present(ap)) {
 		tmp = (sstatus >> 4) & 0xf;
-		if (tmp & (1 << 0))
-			speed = "1.5";
-		else if (tmp & (1 << 1))
-			speed = "3.0";
-		else
-			speed = "<unknown>";
-		printk(KERN_INFO "ata%u: SATA link up %s Gbps (SStatus %X)\n",
-		       ap->id, speed, sstatus);
+		printk(KERN_INFO "ata%u: SATA link up %s (SStatus %X)\n",
+		       ap->id, sata_spd_string(tmp), sstatus);
 	} else {
 		printk(KERN_INFO "ata%u: SATA link down (SStatus %X)\n",
 		       ap->id, sstatus);
