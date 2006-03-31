@@ -28,6 +28,7 @@
 #include <linux/pagemap.h>
 #include <linux/list.h>
 #include <linux/init.h>
+#include <linux/mount.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mutex.h>
 
@@ -613,8 +614,6 @@ static struct mtd_erase_region_info *calc_erase_regions(
 	return info;
 }
 
-
-extern dev_t __init name_to_dev_t(const char *line);
 
 static struct blkmtd_dev *add_device(char *devname, int readonly, int erase_size)
 {
