@@ -31,7 +31,7 @@ extern unsigned long uml_physmem;
 extern unsigned long uml_reserved;
 extern unsigned long end_vm;
 extern unsigned long start_vm;
-extern unsigned long highmem;
+extern unsigned long long highmem;
 
 extern char host_info[];
 

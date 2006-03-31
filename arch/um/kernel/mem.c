@@ -30,7 +30,7 @@ extern char __binary_start;
 unsigned long *empty_zero_page = NULL;
 unsigned long *empty_bad_page = NULL;
 pgd_t swapper_pg_dir[PTRS_PER_PGD];
-unsigned long highmem;
+unsigned long long highmem;
 int kmalloc_ok = 0;
 
 static unsigned long brk_end;
