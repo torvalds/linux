@@ -562,22 +562,3 @@ int sr_is_xa(Scsi_CD *cd)
 #endif
 	return is_xa;
 }
-
-int sr_dev_ioctl(struct cdrom_device_info *cdi,
-		 unsigned int cmd, unsigned long arg)
-{
-	Scsi_CD *cd = cdi->handle;
-	int ret;
-	
-	ret = scsi_nonblockable_ioctl(cd->device, cmd,
-				      (void __user *)arg, NULL);
-	/*
-	 * ENODEV means that we didn't recognise the ioctl, or that we
-	 * cannot execute it in the current device state.  In either
-	 * case fall through to scsi_ioctl, which will return ENDOEV again
-	 * if it doesn't recognise the ioctl
-	 */
-	if (ret != -ENODEV)
-		return ret;
-	return scsi_ioctl(cd->device, cmd, (void __user *)arg);
-}

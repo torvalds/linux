@@ -4,7 +4,7 @@
  * Version :	7	18.3.05
  *
  * Authors :	Jean Tourrilhes - HPL - <jt@hpl.hp.com>
- * Copyright (c) 2001-2005 Jean Tourrilhes, All Rights Reserved.
+ * Copyright (c) 2001-2006 Jean Tourrilhes, All Rights Reserved.
  */
 
 #ifndef _IW_HANDLER_H
@@ -435,6 +435,16 @@ extern int dev_get_wireless_info(char * buffer, char **start, off_t offset,
 
 /* Handle IOCTLs, called in net/core/dev.c */
 extern int wireless_process_ioctl(struct ifreq *ifr, unsigned int cmd);
+
+/* Handle RtNetlink requests, called in net/core/rtnetlink.c */
+extern int wireless_rtnetlink_set(struct net_device *	dev,
+				  char *		data,
+				  int			len);
+extern int wireless_rtnetlink_get(struct net_device *	dev,
+				  char *		data,
+				  int			len,
+				  char **		p_buf,
+				  int *			p_len);
 
 /* Second : functions that may be called by driver modules */
 

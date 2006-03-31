@@ -126,7 +126,7 @@ static int i810_map_buffer(drm_buf_t * buf, struct file *filp)
 	drm_device_t *dev = priv->head->dev;
 	drm_i810_buf_priv_t *buf_priv = buf->dev_private;
 	drm_i810_private_t *dev_priv = dev->dev_private;
-	struct file_operations *old_fops;
+	const struct file_operations *old_fops;
 	int retcode = 0;
 
 	if (buf_priv->currently_mapped == I810_BUF_MAPPED)

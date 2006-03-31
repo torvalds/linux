@@ -491,7 +491,7 @@ config NLS_KOI8_U
 	  (koi8-u) and Belarusian (koi8-ru) character sets.
 
 config NLS_UTF8
-	tristate "NLS UTF8"
+	tristate "NLS UTF-8"
 	depends on NLS
 	help
 	  If you want to display filenames with native language characters

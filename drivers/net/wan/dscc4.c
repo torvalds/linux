@@ -105,6 +105,7 @@
 #include <linux/delay.h>
 #include <net/syncppp.h>
 #include <linux/hdlc.h>
+#include <linux/mutex.h>
 
 /* Version */
 static const char version[] = "$Id: dscc4.c,v 1.173 2003/09/20 23:55:34 romieu Exp $ for Linux\n";
@@ -112,7 +113,7 @@ static int debug;
 static int quartz;
 
 #ifdef CONFIG_DSCC4_PCI_RST
-static DECLARE_MUTEX(dscc4_sem);
+static DEFINE_MUTEX(dscc4_mutex);
 static u32 dscc4_pci_config_store[16];
 #endif
 
@@ -1018,7 +1019,7 @@ static void dscc4_pci_reset(struct pci_dev *pdev, void __iomem *ioaddr)
 {
 	int i;
 
-	down(&dscc4_sem);
+	mutex_lock(&dscc4_mutex);
 	for (i = 0; i < 16; i++)
 		pci_read_config_dword(pdev, i << 2, dscc4_pci_config_store + i);
 
@@ -1039,7 +1040,7 @@ static void dscc4_pci_reset(struct pci_dev *pdev, void __iomem *ioaddr)
 
 	for (i = 0; i < 16; i++)
 		pci_write_config_dword(pdev, i << 2, dscc4_pci_config_store[i]);
-	up(&dscc4_sem);
+	mutex_unlock(&dscc4_mutex);
 }
 #else
 #define dscc4_pci_reset(pdev,ioaddr)	do {} while (0)

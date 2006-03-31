@@ -85,7 +85,7 @@ void __log_wait_for_space(journal_t *journal)
 		if (journal->j_flags & JFS_ABORT)
 			return;
 		spin_unlock(&journal->j_state_lock);
-		down(&journal->j_checkpoint_sem);
+		mutex_lock(&journal->j_checkpoint_mutex);
 
 		/*
 		 * Test again, another process may have checkpointed while we
@@ -98,7 +98,7 @@ void __log_wait_for_space(journal_t *journal)
 			log_do_checkpoint(journal);
 			spin_lock(&journal->j_state_lock);
 		}
-		up(&journal->j_checkpoint_sem);
+		mutex_unlock(&journal->j_checkpoint_mutex);
 	}
 }
 

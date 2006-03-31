@@ -772,8 +772,6 @@ megasas_queue_command(struct scsi_cmnd *scmd, void (*done) (struct scsi_cmnd *))
 		goto out_return_cmd;
 
 	cmd->scmd = scmd;
-	scmd->SCp.ptr = (char *)cmd;
-	scmd->SCp.sent_command = jiffies;
 
 	/*
 	 * Issue the command to the FW
@@ -804,6 +802,12 @@ static int megasas_slave_configure(struct scsi_device *sdev)
 	 */
 	if (sdev->channel < MEGASAS_MAX_PD_CHANNELS && sdev->type == TYPE_DISK)
 		return -ENXIO;
+
+	/*
+	 * The RAID firmware may require extended timeouts.
+	 */
+	if (sdev->channel >= MEGASAS_MAX_PD_CHANNELS)
+		sdev->timeout = 90 * HZ;
 	return 0;
 }
 
@@ -875,23 +879,6 @@ static int megasas_generic_reset(struct scsi_cmnd *scmd)
 	return ret_val;
 }
 
-static enum scsi_eh_timer_return megasas_reset_timer(struct scsi_cmnd *scmd)
-{
-	unsigned long seconds;
-
-	if (scmd->SCp.ptr) {
-		seconds = (jiffies - scmd->SCp.sent_command) / HZ;
-
-		if (seconds < 90) {
-			return EH_RESET_TIMER;
-		} else {
-			return EH_NOT_HANDLED;
-		}
-	}
-
-	return EH_HANDLED;
-}
-
 /**
  * megasas_reset_device -	Device reset handler entry point
  */
@@ -915,7 +902,7 @@ static int megasas_reset_bus_host(struct scsi_cmnd *scmd)
 	int ret;
 
 	/*
-	 * Frist wait for all commands to complete
+	 * First wait for all commands to complete
 	 */
 	ret = megasas_generic_reset(scmd);
 
@@ -962,7 +949,6 @@ static struct scsi_host_template megasas_template = {
 	.eh_device_reset_handler = megasas_reset_device,
 	.eh_bus_reset_handler = megasas_reset_bus_host,
 	.eh_host_reset_handler = megasas_reset_bus_host,
-	.eh_timed_out = megasas_reset_timer,
 	.use_clustering = ENABLE_CLUSTERING,
 };
 

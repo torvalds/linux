@@ -39,7 +39,7 @@ static int ext2_release_file (struct inode * inode, struct file * filp)
  * We have mostly NULL's here: the current defaults are ok for
  * the ext2 filesystem.
  */
-struct file_operations ext2_file_operations = {
+const struct file_operations ext2_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_file_read,
 	.write		= generic_file_write,
@@ -53,10 +53,12 @@ struct file_operations ext2_file_operations = {
 	.readv		= generic_file_readv,
 	.writev		= generic_file_writev,
 	.sendfile	= generic_file_sendfile,
+	.splice_read	= generic_file_splice_read,
+	.splice_write	= generic_file_splice_write,
 };
 
 #ifdef CONFIG_EXT2_FS_XIP
-struct file_operations ext2_xip_file_operations = {
+const struct file_operations ext2_xip_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= xip_file_read,
 	.write		= xip_file_write,

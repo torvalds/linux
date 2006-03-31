@@ -20,7 +20,7 @@
 #include <linux/agp_backend.h>
 
 #ifdef CONFIG_PPC_PMAC
-#include <asm/processor.h>
+#include <asm/machdep.h>
 #include <asm/prom.h>
 #include <asm/pmac_feature.h>
 #endif
@@ -2080,7 +2080,7 @@ static void radeon_reinitialize_M9P(struct radeonfb_info *rinfo)
 	OUTREG(0x2ec, 0x6332a3f0);
 	mdelay(17);
 
-	OUTPLL(pllPPLL_REF_DIV, rinfo->pll.ref_div);;
+	OUTPLL(pllPPLL_REF_DIV, rinfo->pll.ref_div);
 	OUTPLL(pllPPLL_DIV_0, rinfo->save_regs[92]);
 
 	mdelay(40);
@@ -2745,7 +2745,7 @@ void radeonfb_pm_init(struct radeonfb_info *rinfo, int dynclk)
 		rinfo->pm_mode |= radeon_pm_off;
 	}
 #if defined(CONFIG_PPC_PMAC)
-	if (_machine == _MACH_Pmac && rinfo->of_node) {
+	if (machine_is(powermac) && rinfo->of_node) {
 		if (rinfo->is_mobility && rinfo->pm_reg &&
 		    rinfo->family <= CHIP_FAMILY_RV250)
 			rinfo->pm_mode |= radeon_pm_d2;

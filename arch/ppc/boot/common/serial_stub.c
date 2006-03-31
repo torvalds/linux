@@ -1,6 +1,4 @@
 /*
- * arch/ppc/boot/common/serial_stub.c
- *
  * This is a few stub routines to make the boot code cleaner looking when
  * there is no serial port support doesn't need to be closed, for example.
  *

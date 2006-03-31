@@ -46,7 +46,7 @@ struct dn_zone
 	u32			dz_hashmask;
 #define DZ_HASHMASK(dz)	((dz)->dz_hashmask)
 	int			dz_order;
-	u16			dz_mask;
+	__le16			dz_mask;
 #define DZ_MASK(dz)	((dz)->dz_mask)
 };
 
@@ -84,14 +84,14 @@ static int dn_fib_hash_zombies;
 
 static inline dn_fib_idx_t dn_hash(dn_fib_key_t key, struct dn_zone *dz)
 {
-	u16 h = ntohs(key.datum)>>(16 - dz->dz_order);
+	u16 h = dn_ntohs(key.datum)>>(16 - dz->dz_order);
 	h ^= (h >> 10);
 	h ^= (h >> 6);
 	h &= DZ_HASHMASK(dz);
 	return *(dn_fib_idx_t *)&h;
 }
 
-static inline dn_fib_key_t dz_key(u16 dst, struct dn_zone *dz)
+static inline dn_fib_key_t dz_key(__le16 dst, struct dn_zone *dz)
 {
 	dn_fib_key_t k;
 	k.datum = dst & DZ_MASK(dz);
@@ -250,7 +250,7 @@ static int dn_fib_nh_match(struct rtmsg *r, struct nlmsghdr *nlh, struct dn_kern
 
 	for_nexthops(fi) {
 		int attrlen = nhlen - sizeof(struct rtnexthop);
-		dn_address gw;
+		__le16 gw;
 
 		if (attrlen < 0 || (nhlen -= nhp->rtnh_len) < 0)
 			return -EINVAL;
@@ -457,7 +457,7 @@ static int dn_fib_table_insert(struct dn_fib_table *tb, struct rtmsg *r, struct 
 
 	dz_key_0(key);
 	if (rta->rta_dst) {
-		dn_address dst;
+		__le16 dst;
 		memcpy(&dst, rta->rta_dst, 2);
 		if (dst & ~DZ_MASK(dz))
 			return -EINVAL;
@@ -593,7 +593,7 @@ static int dn_fib_table_delete(struct dn_fib_table *tb, struct rtmsg *r, struct 
 
 	dz_key_0(key);
 	if (rta->rta_dst) {
-		dn_address dst;
+		__le16 dst;
 		memcpy(&dst, rta->rta_dst, 2);
 		if (dst & ~DZ_MASK(dz))
 			return -EINVAL;

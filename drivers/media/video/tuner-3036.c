@@ -5,7 +5,7 @@
  *
  * The SAB3036 is just about different enough from the chips that
  * tuner.c copes with to make it not worth the effort to crowbar
- * the support into that file.  So instead we have a separate driver. 
+ * the support into that file.  So instead we have a separate driver.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -56,15 +56,15 @@ tuner_getstatus (struct i2c_client *c)
 
 #define TUNER_FL        0x80
 
-static int 
+static int
 tuner_islocked (struct i2c_client *c)
 {
-        return (tuner_getstatus(c) & TUNER_FL);
+	return (tuner_getstatus(c) & TUNER_FL);
 }
 
 /* ---------------------------------------------------------------------- */
 
-static void 
+static void
 set_tv_freq(struct i2c_client *c, int freq)
 {
 	u16 div = ((freq * 20) / 16);
@@ -73,26 +73,26 @@ set_tv_freq(struct i2c_client *c, int freq)
 
 	if (debug)
 		printk(KERN_DEBUG "tuner: setting frequency %dMHz, divisor %x\n", freq / 16, div);
-	
+
 	/* Select high tuning current */
 	buffer[0] = 0x29;
 	buffer[1] = 0x3e;
 
 	if (i2c_master_send(c, buffer, 2) != 2)
 		printk("tuner: i2c i/o error 1\n");
-	
+
 	buffer[0] = 0x80 | ((div>>8) & 0x7f);
 	buffer[1] = div & 0xff;
 
 	if (i2c_master_send(c, buffer, 2) != 2)
 		printk("tuner: i2c i/o error 2\n");
-	
+
 	while (!tuner_islocked(c) && time_before(jiffies, give_up))
 		schedule();
-	       
+
 	if (!tuner_islocked(c))
 		printk(KERN_WARNING "tuner: failed to achieve PLL lock\n");
-	
+
 	/* Select low tuning current and engage AFC */
 	buffer[0] = 0x29;
 	buffer[1] = 0xb2;
@@ -106,7 +106,7 @@ set_tv_freq(struct i2c_client *c, int freq)
 
 /* ---------------------------------------------------------------------- */
 
-static int 
+static int
 tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 {
 	static unsigned char buffer[] = { 0x29, 0x32, 0x2a, 0, 0x2b, 0 };
@@ -116,18 +116,18 @@ tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 	if (this_adap > 0)
 		return -1;
 	this_adap++;
-	
-        client_template.adapter = adap;
-        client_template.addr = addr;
+
+	client_template.adapter = adap;
+	client_template.addr = addr;
 
 	client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL);
-        if (client == NULL)
-                return -ENOMEM;
-        memcpy(client, &client_template, sizeof(struct i2c_client));
+	if (client == NULL)
+		return -ENOMEM;
+	memcpy(client, &client_template, sizeof(struct i2c_client));
 
 	printk("tuner: SAB3036 found, status %02x\n", tuner_getstatus(client));
 
-        i2c_attach_client(client);
+	i2c_attach_client(client);
 
 	if (i2c_master_send(client, buffer, 2) != 2)
 		printk("tuner: i2c i/o error 1\n");
@@ -138,30 +138,30 @@ tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 	return 0;
 }
 
-static int 
+static int
 tuner_detach(struct i2c_client *c)
 {
 	return 0;
 }
 
-static int 
+static int
 tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 {
 	int *iarg = (int*)arg;
 
-	switch (cmd) 
+	switch (cmd)
 	{
 		case VIDIOCSFREQ:
 			set_tv_freq(client, *iarg);
 			break;
-	    
+
 		default:
 			return -EINVAL;
 	}
 	return 0;
 }
 
-static int 
+static int
 tuner_probe(struct i2c_adapter *adap)
 {
 	this_adap = 0;
@@ -172,8 +172,8 @@ tuner_probe(struct i2c_adapter *adap)
 
 /* ----------------------------------------------------------------------- */
 
-static struct i2c_driver 
-i2c_driver_tuner = 
+static struct i2c_driver
+i2c_driver_tuner =
 {
 	.driver = {
 		.name	=	"sab3036",
@@ -186,7 +186,7 @@ i2c_driver_tuner =
 
 static struct i2c_client client_template =
 {
-        .driver		= &i2c_driver_tuner,
+	.driver		= &i2c_driver_tuner,
 	.name		= "SAB3036",
 };
 

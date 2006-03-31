@@ -25,6 +25,7 @@
 
 #include <linux/config.h>
 #include <linux/ioctl.h>
+#include <linux/errno.h>
 
 #define	MTRR_IOCTL_BASE	'M'
 

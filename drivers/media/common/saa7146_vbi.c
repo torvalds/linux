@@ -236,7 +236,7 @@ static int buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,e
 	}
 
 	if (buf->vb.size != size)
-		saa7146_dma_free(dev,buf);
+		saa7146_dma_free(dev,q,buf);
 
 	if (STATE_NEEDS_INIT == buf->vb.state) {
 		buf->vb.width  = llength;
@@ -247,7 +247,7 @@ static int buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,e
 		saa7146_pgtable_free(dev->pci, &buf->pt[2]);
 		saa7146_pgtable_alloc(dev->pci, &buf->pt[2]);
 
-		err = videobuf_iolock(dev->pci,&buf->vb, NULL);
+		err = videobuf_iolock(q,&buf->vb, NULL);
 		if (err)
 			goto oops;
 		err = saa7146_pgtable_build_single(dev->pci, &buf->pt[2], buf->vb.dma.sglist, buf->vb.dma.sglen);
@@ -261,7 +261,7 @@ static int buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,e
 
  oops:
 	DEB_VBI(("error out.\n"));
-	saa7146_dma_free(dev,buf);
+	saa7146_dma_free(dev,q,buf);
 
 	return err;
 }
@@ -301,7 +301,7 @@ static void buffer_release(struct videobuf_queue *q, struct videobuf_buffer *vb)
 	struct saa7146_buf *buf = (struct saa7146_buf *)vb;
 
 	DEB_VBI(("vb:%p\n",vb));
-	saa7146_dma_free(dev,buf);
+	saa7146_dma_free(dev,q,buf);
 }
 
 static struct videobuf_queue_ops vbi_qops = {
@@ -410,7 +410,7 @@ static int vbi_open(struct saa7146_dev *dev, struct file *file)
 			    V4L2_FIELD_SEQ_TB, // FIXME: does this really work?
 			    sizeof(struct saa7146_buf),
 			    file);
-	init_MUTEX(&fh->vbi_q.lock);
+	mutex_init(&fh->vbi_q.lock);
 
 	init_timer(&fh->vbi_read_timeout);
 	fh->vbi_read_timeout.function = vbi_read_timeout;

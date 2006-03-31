@@ -107,22 +107,22 @@ static spinlock_t bc_lock = SPIN_LOCK_UNLOCKED;
 char tipc_bclink_name[] = "multicast-link";
 
 
-static inline u32 buf_seqno(struct sk_buff *buf)
+static u32 buf_seqno(struct sk_buff *buf)
 {
 	return msg_seqno(buf_msg(buf));
 } 
 
-static inline u32 bcbuf_acks(struct sk_buff *buf)
+static u32 bcbuf_acks(struct sk_buff *buf)
 {
 	return (u32)(unsigned long)TIPC_SKB_CB(buf)->handle;
 }
 
-static inline void bcbuf_set_acks(struct sk_buff *buf, u32 acks)
+static void bcbuf_set_acks(struct sk_buff *buf, u32 acks)
 {
 	TIPC_SKB_CB(buf)->handle = (void *)(unsigned long)acks;
 }
 
-static inline void bcbuf_decr_acks(struct sk_buff *buf)
+static void bcbuf_decr_acks(struct sk_buff *buf)
 {
 	bcbuf_set_acks(buf, bcbuf_acks(buf) - 1);
 }
@@ -134,7 +134,7 @@ static inline void bcbuf_decr_acks(struct sk_buff *buf)
  * Called with 'node' locked, bc_lock unlocked
  */
 
-static inline void bclink_set_gap(struct node *n_ptr)
+static void bclink_set_gap(struct node *n_ptr)
 {
 	struct sk_buff *buf = n_ptr->bclink.deferred_head;
 
@@ -154,7 +154,7 @@ static inline void bclink_set_gap(struct node *n_ptr)
  *       distribute NACKs, but tries to use the same spacing (divide by 16). 
  */
 
-static inline int bclink_ack_allowed(u32 n)
+static int bclink_ack_allowed(u32 n)
 {
 	return((n % TIPC_MIN_LINK_WIN) == tipc_own_tag);
 }
@@ -271,7 +271,7 @@ static void bclink_send_nack(struct node *n_ptr)
 		msg_set_bcgap_to(msg, n_ptr->bclink.gap_to);
 		msg_set_bcast_tag(msg, tipc_own_tag);
 
-		if (tipc_bearer_send(&bcbearer->bearer, buf, 0)) {
+		if (tipc_bearer_send(&bcbearer->bearer, buf, NULL)) {
 			bcl->stats.sent_nacks++;
 			buf_discard(buf);
 		} else {
@@ -314,7 +314,7 @@ void tipc_bclink_check_gap(struct node *n_ptr, u32 last_sent)
  * Only tipc_net_lock set.
  */
 
-void tipc_bclink_peek_nack(u32 dest, u32 sender_tag, u32 gap_after, u32 gap_to)
+static void tipc_bclink_peek_nack(u32 dest, u32 sender_tag, u32 gap_after, u32 gap_to)
 {
 	struct node *n_ptr = tipc_node_find(dest);
 	u32 my_after, my_to;
@@ -425,9 +425,9 @@ void tipc_bclink_recv_pkt(struct sk_buff *buf)
 					      msg_bcgap_to(msg));
 		} else {
 			tipc_bclink_peek_nack(msg_destnode(msg),
-					 msg_bcast_tag(msg),
-					 msg_bcgap_after(msg),
-					 msg_bcgap_to(msg));
+					      msg_bcast_tag(msg),
+					      msg_bcgap_after(msg),
+					      msg_bcgap_to(msg));
 		}
 		buf_discard(buf);
 		return;
@@ -525,16 +525,18 @@ u32 tipc_bclink_acks_missing(struct node *n_ptr)
  * Returns 0 if packet sent successfully, non-zero if not
  */
 
-int tipc_bcbearer_send(struct sk_buff *buf,
-		       struct tipc_bearer *unused1,
-		       struct tipc_media_addr *unused2)
+static int tipc_bcbearer_send(struct sk_buff *buf,
+			      struct tipc_bearer *unused1,
+			      struct tipc_media_addr *unused2)
 {
 	static int send_count = 0;
 
-	struct node_map remains;
-	struct node_map remains_new;
+	struct node_map *remains;
+	struct node_map *remains_new;
+	struct node_map *remains_tmp;
 	int bp_index;
 	int swap_time;
+	int err;
 
 	/* Prepare buffer for broadcasting (if first time trying to send it) */
 
@@ -555,7 +557,9 @@ int tipc_bcbearer_send(struct sk_buff *buf,
 
 	/* Send buffer over bearers until all targets reached */
 	
-	remains = tipc_cltr_bcast_nodes;
+	remains = kmalloc(sizeof(struct node_map), GFP_ATOMIC);
+	remains_new = kmalloc(sizeof(struct node_map), GFP_ATOMIC);
+	*remains = tipc_cltr_bcast_nodes;
 
 	for (bp_index = 0; bp_index < MAX_BEARERS; bp_index++) {
 		struct bearer *p = bcbearer->bpairs[bp_index].primary;
@@ -564,8 +568,8 @@ int tipc_bcbearer_send(struct sk_buff *buf,
 		if (!p)
 			break;	/* no more bearers to try */
 
-		tipc_nmap_diff(&remains, &p->nodes, &remains_new);
-		if (remains_new.count == remains.count)
+		tipc_nmap_diff(remains, &p->nodes, remains_new);
+		if (remains_new->count == remains->count)
 			continue;	/* bearer pair doesn't add anything */
 
 		if (!p->publ.blocked &&
@@ -583,17 +587,27 @@ swap:
 		bcbearer->bpairs[bp_index].primary = s;
 		bcbearer->bpairs[bp_index].secondary = p;
 update:
-		if (remains_new.count == 0)
-			return TIPC_OK;
+		if (remains_new->count == 0) {
+			err = TIPC_OK;
+			goto out;
+		}
 
+		/* swap map */
+		remains_tmp = remains;
 		remains = remains_new;
+		remains_new = remains_tmp;
 	}
 	
 	/* Unable to reach all targets */
 
 	bcbearer->bearer.publ.blocked = 1;
 	bcl->stats.bearer_congs++;
-	return ~TIPC_OK;
+	err = ~TIPC_OK;
+
+ out:
+	kfree(remains_new);
+	kfree(remains);
+	return err;
 }
 
 /**

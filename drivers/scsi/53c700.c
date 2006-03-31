@@ -238,14 +238,6 @@ static char *NCR_700_SBCL_to_phase[] = {
 	"MSG IN",
 };
 
-static __u8 NCR_700_SDTR_msg[] = {
-	0x01,			/* Extended message */
-	0x03,			/* Extended message Length */
-	0x01,			/* SDTR Extended message */
-	NCR_700_MIN_PERIOD,
-	NCR_700_MAX_OFFSET
-};
-
 /* This translates the SDTR message offset and period to a value
  * which can be loaded into the SXFER_REG.
  *
@@ -266,7 +258,7 @@ NCR_700_offset_period_to_sxfer(struct NCR_700_Host_Parameters *hostdata,
 		return 0;
 
 	if(period < hostdata->min_period) {
-		printk(KERN_WARNING "53c700: Period %dns is less than this chip's minimum, setting to %d\n", period*4, NCR_700_SDTR_msg[3]*4);
+		printk(KERN_WARNING "53c700: Period %dns is less than this chip's minimum, setting to %d\n", period*4, NCR_700_MIN_PERIOD*4);
 		period = hostdata->min_period;
 	}
 	XFERP = (period*4 * hostdata->sync_clock)/1000 - 4;
@@ -1434,11 +1426,9 @@ NCR_700_start_command(struct scsi_cmnd *SCp)
 
 	if(hostdata->fast &&
 	   NCR_700_is_flag_clear(SCp->device, NCR_700_DEV_NEGOTIATED_SYNC)) {
-		memcpy(&hostdata->msgout[count], NCR_700_SDTR_msg,
-		       sizeof(NCR_700_SDTR_msg));
-		hostdata->msgout[count+3] = spi_period(SCp->device->sdev_target);
-		hostdata->msgout[count+4] = spi_offset(SCp->device->sdev_target);
-		count += sizeof(NCR_700_SDTR_msg);
+		count += spi_populate_sync_msg(&hostdata->msgout[count],
+				spi_period(SCp->device->sdev_target),
+				spi_offset(SCp->device->sdev_target));
 		NCR_700_set_flag(SCp->device, NCR_700_DEV_BEGIN_SYNC_NEGOTIATION);
 	}
 

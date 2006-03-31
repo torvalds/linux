@@ -153,13 +153,13 @@ static struct ip_conntrack_helper amanda_helper = {
 	},
 };
 
-static void __exit fini(void)
+static void __exit ip_conntrack_amanda_fini(void)
 {
 	ip_conntrack_helper_unregister(&amanda_helper);
 	kfree(amanda_buffer);
 }
 
-static int __init init(void)
+static int __init ip_conntrack_amanda_init(void)
 {
 	int ret;
 
@@ -177,5 +177,5 @@ static int __init init(void)
 
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ip_conntrack_amanda_init);
+module_exit(ip_conntrack_amanda_fini);

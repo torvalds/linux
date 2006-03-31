@@ -629,7 +629,7 @@ static int set_mac_address(struct net_device *dev, void *addr)
 static struct net_device *dev_cs89x0;
 static int debug;
 
-MODULE_PARM(debug, "i");
+module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "CS89[02]0 debug level (0-5)");
 MODULE_LICENSE("GPL");
 

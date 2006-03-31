@@ -9,7 +9,7 @@
 DOCBOOKS := wanbook.xml z8530book.xml mcabook.xml videobook.xml \
 	    kernel-hacking.xml kernel-locking.xml deviceiobook.xml \
 	    procfs-guide.xml writing_usb_driver.xml \
-	    sis900.xml kernel-api.xml journal-api.xml lsm.xml usb.xml \
+	    kernel-api.xml journal-api.xml lsm.xml usb.xml \
 	    gadget.xml libata.xml mtdnand.xml librs.xml rapidio.xml
 
 ###
@@ -28,7 +28,7 @@ PS_METHOD	= $(prefer-db2x)
 
 ###
 # The targets that may be used.
-.PHONY:	xmldocs sgmldocs psdocs pdfdocs htmldocs mandocs installmandocs
+PHONY += xmldocs sgmldocs psdocs pdfdocs htmldocs mandocs installmandocs
 
 BOOKS := $(addprefix $(obj)/,$(DOCBOOKS))
 xmldocs: $(BOOKS)
@@ -211,3 +211,9 @@ clean-dirs := $(patsubst %.xml,%,$(DOCBOOKS))
 
 #man put files in man subdir - traverse down
 subdir- := man/
+
+
+# Declare the contents of the .PHONY variable as phony.  We keep that
+# information in a variable se we can use it in if_changed and friends.
+
+.PHONY: $(PHONY)

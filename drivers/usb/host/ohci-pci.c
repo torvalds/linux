@@ -35,7 +35,10 @@ ohci_pci_start (struct usb_hcd *hcd)
 	struct ohci_hcd	*ohci = hcd_to_ohci (hcd);
 	int		ret;
 
-	if(hcd->self.controller && hcd->self.controller->bus == &pci_bus_type) {
+	/* REVISIT this whole block should move to reset(), which handles
+	 * all the other one-time init.
+	 */
+	if (hcd->self.controller) {
 		struct pci_dev *pdev = to_pci_dev(hcd->self.controller);
 
 		/* AMD 756, for most chips (early revs), corrupts register
@@ -45,7 +48,8 @@ ohci_pci_start (struct usb_hcd *hcd)
 				&& pdev->device == 0x740c) {
 			ohci->flags = OHCI_QUIRK_AMD756;
 			ohci_dbg (ohci, "AMD756 erratum 4 workaround\n");
-			// also somewhat erratum 10 (suspend/resume issues)
+			/* also erratum 10 (suspend/resume issues) */
+			device_init_wakeup(&hcd->self.root_hub->dev, 0);
 		}
 
 		/* FIXME for some of the early AMD 760 southbridges, OHCI
@@ -88,6 +92,13 @@ ohci_pci_start (struct usb_hcd *hcd)
 			ohci_dbg (ohci,
 				"enabled Compaq ZFMicro chipset quirk\n");
 		}
+
+		/* RWC may not be set for add-in PCI cards, since boot
+		 * firmware probably ignored them.  This transfers PCI
+		 * PM wakeup capabilities (once the PCI layer is fixed).
+		 */
+		if (device_may_wakeup(&pdev->dev))
+			ohci->hc_control |= OHCI_CTRL_RWC;
 	}
 
 	/* NOTE: there may have already been a first reset, to

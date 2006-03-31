@@ -71,6 +71,8 @@ struct inotify_event {
 
 #ifdef CONFIG_INOTIFY
 
+extern void inotify_d_instantiate(struct dentry *, struct inode *);
+extern void inotify_d_move(struct dentry *);
 extern void inotify_inode_queue_event(struct inode *, __u32, __u32,
 				      const char *);
 extern void inotify_dentry_parent_queue_event(struct dentry *, __u32, __u32,
@@ -80,6 +82,15 @@ extern void inotify_inode_is_dead(struct inode *);
 extern u32 inotify_get_cookie(void);
 
 #else
+
+static inline void inotify_d_instantiate(struct dentry *dentry,
+					struct inode *inode)
+{
+}
+
+static inline void inotify_d_move(struct dentry *dentry)
+{
+}
 
 static inline void inotify_inode_queue_event(struct inode *inode,
 					     __u32 mask, __u32 cookie,

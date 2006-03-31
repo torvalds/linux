@@ -58,6 +58,13 @@
 		VMLINUX_SYMBOL(__stop___ksymtab_gpl) = .;		\
 	}								\
 									\
+	/* Kernel symbol table: GPL-future-only symbols */		\
+	__ksymtab_gpl_future : AT(ADDR(__ksymtab_gpl_future) - LOAD_OFFSET) { \
+		VMLINUX_SYMBOL(__start___ksymtab_gpl_future) = .;	\
+		*(__ksymtab_gpl_future)					\
+		VMLINUX_SYMBOL(__stop___ksymtab_gpl_future) = .;	\
+	}								\
+									\
 	/* Kernel symbol table: Normal symbols */			\
 	__kcrctab         : AT(ADDR(__kcrctab) - LOAD_OFFSET) {		\
 		VMLINUX_SYMBOL(__start___kcrctab) = .;			\
@@ -70,6 +77,13 @@
 		VMLINUX_SYMBOL(__start___kcrctab_gpl) = .;		\
 		*(__kcrctab_gpl)					\
 		VMLINUX_SYMBOL(__stop___kcrctab_gpl) = .;		\
+	}								\
+									\
+	/* Kernel symbol table: GPL-future-only symbols */		\
+	__kcrctab_gpl_future : AT(ADDR(__kcrctab_gpl_future) - LOAD_OFFSET) { \
+		VMLINUX_SYMBOL(__start___kcrctab_gpl_future) = .;	\
+		*(__kcrctab_gpl_future)					\
+		VMLINUX_SYMBOL(__stop___kcrctab_gpl_future) = .;	\
 	}								\
 									\
 	/* Kernel symbol table: strings */				\

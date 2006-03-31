@@ -10,7 +10,7 @@ both hardware adapters listed above. In this document the Intel(R)
 PRO/Wireless 2915ABG Driver for Linux will be used to reference the
 unified driver.
 
-Copyright (C) 2004-2005, Intel Corporation
+Copyright (C) 2004-2006, Intel Corporation
 
 README.ipw2200
 
@@ -26,9 +26,11 @@ Index
 1.2. Module parameters
 1.3. Wireless Extension Private Methods
 1.4. Sysfs Helper Files
+1.5. Supported channels
 2.   Ad-Hoc Networking
 3.   Interacting with Wireless Tools
 3.1. iwconfig mode
+3.2. iwconfig sens
 4.   About the Version Numbers
 5.   Firmware installation
 6.   Support
@@ -314,6 +316,35 @@ For the device level files, see /sys/bus/pci/drivers/ipw2200:
 	running ifconfig and is therefore disabled by default.
 
 
+1.5. Supported channels
+-----------------------------------------------
+
+Upon loading the Intel(R) PRO/Wireless 2915ABG Driver for Linux, a
+message stating the detected geography code and the number of 802.11
+channels supported by the card will be displayed in the log.
+
+The geography code corresponds to a regulatory domain as shown in the
+table below.
+
+					  Supported channels
+Code	Geography			802.11bg	802.11a
+
+---	Restricted			11 	 	 0
+ZZF	Custom US/Canada		11	 	 8
+ZZD	Rest of World			13	 	 0
+ZZA	Custom USA & Europe & High	11		13
+ZZB	Custom NA & Europe    		11		13
+ZZC	Custom Japan			11	 	 4
+ZZM	Custom 				11	 	 0
+ZZE	Europe				13		19
+ZZJ	Custom Japan			14	 	 4
+ZZR	Rest of World			14	 	 0
+ZZH	High Band			13	 	 4
+ZZG	Custom Europe			13	 	 4
+ZZK	Europe 				13		24
+ZZL	Europe				11		13
+
+
 2.   Ad-Hoc Networking
 -----------------------------------------------
 
@@ -352,6 +383,15 @@ iwconfig eth1 mode ad-hoc essid testing channel 2
 When configuring the mode of the adapter, all run-time configured parameters
 are reset to the value used when the module was loaded.  This includes
 channels, rates, ESSID, etc.
+
+3.2 iwconfig sens
+-----------------------------------------------
+
+The 'iwconfig ethX sens XX' command will not set the signal sensitivity
+threshold, as described in iwconfig documentation, but rather the number
+of consecutive missed beacons that will trigger handover, i.e. roaming
+to another access point. At the same time, it will set the disassociation
+threshold to 3 times the given value.
 
 
 4.   About the Version Numbers
@@ -408,7 +448,7 @@ For general information and support, go to:
 7.  License
 -----------------------------------------------
 
-  Copyright(c) 2003 - 2005 Intel Corporation. All rights reserved.
+  Copyright(c) 2003 - 2006 Intel Corporation. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify it 
   under the terms of the GNU General Public License version 2 as 

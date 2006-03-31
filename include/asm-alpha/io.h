@@ -534,9 +534,6 @@ extern void outsl (unsigned long port, const void *src, unsigned long count);
 #define eth_io_copy_and_sum(skb,src,len,unused) \
   memcpy_fromio((skb)->data,src,len)
 
-#define isa_eth_io_copy_and_sum(skb,src,len,unused) \
-  isa_memcpy_fromio((skb)->data,src,len)
-
 static inline int
 check_signature(const volatile void __iomem *io_addr,
 		const unsigned char *signature, int length)
@@ -548,87 +545,6 @@ check_signature(const volatile void __iomem *io_addr,
 		signature++;
 	} while (--length);
 	return 1;
-}
-
-
-/*
- * ISA space is mapped to some machine-specific location on Alpha.
- * Call into the existing hooks to get the address translated.
- */
-
-static inline u8
-isa_readb(unsigned long offset)
-{
-	void __iomem *addr = ioremap(offset, 1);
-	u8 ret = readb(addr);
-	iounmap(addr);
-	return ret;
-}
-
-static inline u16
-isa_readw(unsigned long offset)
-{
-	void __iomem *addr = ioremap(offset, 2);
-	u16 ret = readw(addr);
-	iounmap(addr);
-	return ret;
-}
-
-static inline u32
-isa_readl(unsigned long offset)
-{
-	void __iomem *addr = ioremap(offset, 2);
-	u32 ret = readl(addr);
-	iounmap(addr);
-	return ret;
-}
-
-static inline void
-isa_writeb(u8 b, unsigned long offset)
-{
-	void __iomem *addr = ioremap(offset, 2);
-	writeb(b, addr);
-	iounmap(addr);
-}
-
-static inline void
-isa_writew(u16 w, unsigned long offset)
-{
-	void __iomem *addr = ioremap(offset, 2);
-	writew(w, addr);
-	iounmap(addr);
-}
-
-static inline void
-isa_writel(u32 l, unsigned long offset)
-{
-	void __iomem *addr = ioremap(offset, 2);
-	writel(l, addr);
-	iounmap(addr);
-}
-
-static inline void
-isa_memset_io(unsigned long offset, u8 val, long n)
-{
-	void __iomem *addr = ioremap(offset, n);
-	memset_io(addr, val, n);
-	iounmap(addr);
-}
-
-static inline void
-isa_memcpy_fromio(void *dest, unsigned long offset, long n)
-{
-	void __iomem *addr = ioremap(offset, n);
-	memcpy_fromio(dest, addr, n);
-	iounmap(addr);
-}
-
-static inline void
-isa_memcpy_toio(unsigned long offset, const void *src, long n)
-{
-	void __iomem *addr = ioremap(offset, n);
-	memcpy_toio(addr, src, n);
-	iounmap(addr);
 }
 
 /*

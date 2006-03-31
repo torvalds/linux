@@ -288,8 +288,6 @@ void gpio_line_config(int line, int direction)
 
 	local_irq_save(flags);
 	if (direction == GPIO_OUT) {
-		irq_desc[line + IRQ_IXP2000_GPIO0].valid = 0;
-
 		/* if it's an output, it ain't an interrupt anymore */
 		GPIO_IRQ_falling_edge &= ~(1 << line);
 		GPIO_IRQ_rising_edge &= ~(1 << line);
@@ -350,11 +348,6 @@ static int ixp2000_GPIO_irq_type(unsigned int irq, unsigned int type)
 	else
 		GPIO_IRQ_level_high &= ~(1 << line);
 	update_gpio_int_csrs();
-
-	/*
-	 * Finally, mark the corresponding IRQ as valid.
-	 */
-	irq_desc[irq].valid = 1;
 
 	return 0;
 }
@@ -506,14 +499,10 @@ void __init ixp2000_init_irq(void)
 	}
 	set_irq_chained_handler(IRQ_IXP2000_ERRSUM, ixp2000_err_irq_handler);
 
-	/*
-	 * GPIO IRQs are invalid until someone sets the interrupt mode
-	 * by calling set_irq_type().
-	 */
 	for (irq = IRQ_IXP2000_GPIO0; irq <= IRQ_IXP2000_GPIO7; irq++) {
 		set_irq_chip(irq, &ixp2000_GPIO_irq_chip);
 		set_irq_handler(irq, do_level_IRQ);
-		set_irq_flags(irq, 0);
+		set_irq_flags(irq, IRQF_VALID);
 	}
 	set_irq_chained_handler(IRQ_IXP2000_GPIO, ixp2000_GPIO_irq_handler);
 

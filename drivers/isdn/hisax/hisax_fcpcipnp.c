@@ -387,8 +387,7 @@ static void hdlc_fill_fifo(struct fritz_bcs *bcs)
 
 	DBG(0x40, "hdlc_fill_fifo");
 
-	if (skb->len == 0)
-		BUG();
+	BUG_ON(skb->len == 0);
 
 	bcs->ctrl.sr.cmd &= ~HDLC_CMD_XME;
 	if (bcs->tx_skb->len > bcs->fifo_size) {
@@ -630,9 +629,7 @@ static void fritz_b_l2l1(struct hisax_if *ifc, int pr, void *arg)
 
 	switch (pr) {
 	case PH_DATA | REQUEST:
-		if (bcs->tx_skb)
-			BUG();
-		
+		BUG_ON(bcs->tx_skb);
 		bcs->tx_skb = skb;
 		DBG_SKB(1, skb);
 		hdlc_fill_fifo(bcs);

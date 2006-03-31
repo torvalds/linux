@@ -174,20 +174,6 @@ static inline void __set_io_port_base(unsigned long pbase)
 	generic_io_base = pbase;
 }
 
-#define isa_readb(a) readb(ioport_map(a, 1))
-#define isa_readw(a) readw(ioport_map(a, 2))
-#define isa_readl(a) readl(ioport_map(a, 4))
-#define isa_writeb(b,a) writeb(b,ioport_map(a, 1))
-#define isa_writew(w,a) writew(w,ioport_map(a, 2))
-#define isa_writel(l,a) writel(l,ioport_map(a, 4))
-
-#define isa_memset_io(a,b,c) \
-  memset((void *)(ioport_map((unsigned long)(a), 1)),(b),(c))
-#define isa_memcpy_fromio(a,b,c) \
-  memcpy((a),(void *)(ioport_map((unsigned long)(b), 1)),(c))
-#define isa_memcpy_toio(a,b,c) \
-  memcpy((void *)(ioport_map((unsigned long)(a), 1)),(b),(c))
-
 /* We really want to try and get these to memcpy etc */
 extern void memcpy_fromio(void *, volatile void __iomem *, unsigned long);
 extern void memcpy_toio(volatile void __iomem *, const void *, unsigned long);

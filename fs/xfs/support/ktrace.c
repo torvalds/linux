@@ -39,8 +39,8 @@ ktrace_init(int zentries)
 void
 ktrace_uninit(void)
 {
-	kmem_cache_destroy(ktrace_hdr_zone);
-	kmem_cache_destroy(ktrace_ent_zone);
+	kmem_zone_destroy(ktrace_hdr_zone);
+	kmem_zone_destroy(ktrace_ent_zone);
 }
 
 /*

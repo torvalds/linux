@@ -9,6 +9,7 @@ struct pipe_buffer {
 	struct page *page;
 	unsigned int offset, len;
 	struct pipe_buf_operations *ops;
+	unsigned int stolen;
 };
 
 struct pipe_buf_operations {
@@ -16,6 +17,7 @@ struct pipe_buf_operations {
 	void * (*map)(struct file *, struct pipe_inode_info *, struct pipe_buffer *);
 	void (*unmap)(struct pipe_inode_info *, struct pipe_buffer *);
 	void (*release)(struct pipe_inode_info *, struct pipe_buffer *);
+	int (*steal)(struct pipe_inode_info *, struct pipe_buffer *);
 };
 
 struct pipe_inode_info {
@@ -52,5 +54,11 @@ void pipe_wait(struct inode * inode);
 
 struct inode* pipe_new(struct inode* inode);
 void free_pipe_info(struct inode* inode);
+
+/*
+ * splice is tied to pipes as a transport (at least for now), so we'll just
+ * add the splice flags here.
+ */
+#define SPLICE_F_MOVE	(0x01)	/* move pages instead of copying */
 
 #endif

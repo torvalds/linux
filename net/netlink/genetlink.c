@@ -13,26 +13,27 @@
 #include <linux/socket.h>
 #include <linux/string.h>
 #include <linux/skbuff.h>
+#include <linux/mutex.h>
 #include <net/sock.h>
 #include <net/genetlink.h>
 
 struct sock *genl_sock = NULL;
 
-static DECLARE_MUTEX(genl_sem); /* serialization of message processing */
+static DEFINE_MUTEX(genl_mutex); /* serialization of message processing */
 
 static void genl_lock(void)
 {
-	down(&genl_sem);
+	mutex_lock(&genl_mutex);
 }
 
 static int genl_trylock(void)
 {
-	return down_trylock(&genl_sem);
+	return !mutex_trylock(&genl_mutex);
 }
 
 static void genl_unlock(void)
 {
-	up(&genl_sem);
+	mutex_unlock(&genl_mutex);
 
 	if (genl_sock && genl_sock->sk_receive_queue.qlen)
 		genl_sock->sk_data_ready(genl_sock, 0);

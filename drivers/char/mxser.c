@@ -243,10 +243,10 @@ static int verbose = 0;
 
 MODULE_AUTHOR("Casper Yang");
 MODULE_DESCRIPTION("MOXA Smartio/Industio Family Multiport Board Device Driver");
-MODULE_PARM(ioaddr, "1-4i");
-MODULE_PARM(ttymajor, "i");
-MODULE_PARM(calloutmajor, "i");
-MODULE_PARM(verbose, "i");
+module_param_array(ioaddr, int, NULL, 0);
+module_param(ttymajor, int, 0);
+module_param(calloutmajor, int, 0);
+module_param(verbose, bool, 0);
 MODULE_LICENSE("GPL");
 
 struct mxser_log {

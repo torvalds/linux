@@ -804,7 +804,7 @@ xfs_trans_reserve_quota_bydquots(
 	}
 
 	/*
-	 * Didnt change anything critical, so, no need to log
+	 * Didn't change anything critical, so, no need to log
 	 */
 	return (0);
 }

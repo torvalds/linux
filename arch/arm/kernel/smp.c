@@ -337,9 +337,6 @@ void __init smp_prepare_boot_cpu(void)
 	unsigned int cpu = smp_processor_id();
 
 	per_cpu(cpu_data, cpu).idle = current;
-
-	cpu_set(cpu, cpu_present_map);
-	cpu_set(cpu, cpu_online_map);
 }
 
 static void send_ipi_message(cpumask_t callmap, enum ipi_msg_type msg)

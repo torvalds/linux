@@ -70,4 +70,6 @@ source "drivers/sn/Kconfig"
 
 source "drivers/edac/Kconfig"
 
+source "drivers/rtc/Kconfig"
+
 endmenu

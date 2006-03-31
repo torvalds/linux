@@ -212,8 +212,8 @@ static void indy_timer_setup(struct irqaction *irq)
 void __init ip22_time_init(void)
 {
 	/* setup hookup functions */
-	rtc_get_time = indy_rtc_get_time;
-	rtc_set_time = indy_rtc_set_time;
+	rtc_mips_get_time = indy_rtc_get_time;
+	rtc_mips_set_time = indy_rtc_set_time;
 
 	board_time_init = indy_time_init;
 	board_timer_setup = indy_timer_setup;

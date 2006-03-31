@@ -95,15 +95,13 @@ static int add_slot(struct pci_dev *dev)
 	struct hotplug_slot *slot;
 	int retval = -ENOMEM;
 
-	slot = kmalloc(sizeof(struct hotplug_slot), GFP_KERNEL);
+	slot = kzalloc(sizeof(struct hotplug_slot), GFP_KERNEL);
 	if (!slot)
 		goto error;
-	memset(slot, 0, sizeof(*slot));
 
-	slot->info = kmalloc(sizeof(struct hotplug_slot_info), GFP_KERNEL);
+	slot->info = kzalloc(sizeof(struct hotplug_slot_info), GFP_KERNEL);
 	if (!slot->info)
 		goto error_slot;
-	memset(slot->info, 0, sizeof(struct hotplug_slot_info));
 
 	slot->info->power_status = 1;
 	slot->info->max_bus_speed = PCI_SPEED_UNKNOWN;
@@ -227,11 +225,10 @@ static void pci_rescan_bus(const struct pci_bus *bus)
 {
 	unsigned int devfn;
 	struct pci_dev *dev;
-	dev = kmalloc(sizeof(struct pci_dev), GFP_KERNEL);
+	dev = kzalloc(sizeof(struct pci_dev), GFP_KERNEL);
 	if (!dev)
 		return;
 
-	memset(dev, 0, sizeof(dev));
 	dev->bus = (struct pci_bus*)bus;
 	dev->sysdata = bus->sysdata;
 	for (devfn = 0; devfn < 0x100; devfn += 8) {

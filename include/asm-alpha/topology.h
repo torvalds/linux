@@ -27,8 +27,8 @@ static inline cpumask_t node_to_cpumask(int node)
 	cpumask_t node_cpu_mask = CPU_MASK_NONE;
 	int cpu;
 
-	for(cpu = 0; cpu < NR_CPUS; cpu++) {
-		if (cpu_online(cpu) && (cpu_to_node(cpu) == node))
+	for_each_online_cpu(cpu) {
+		if (cpu_to_node(cpu) == node)
 			cpu_set(cpu, node_cpu_mask);
 	}
 

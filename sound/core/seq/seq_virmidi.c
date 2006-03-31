@@ -167,7 +167,7 @@ static void snd_virmidi_output_trigger(struct snd_rawmidi_substream *substream, 
 			return;		/* ignored */
 		}
 		if (vmidi->event.type != SNDRV_SEQ_EVENT_NONE) {
-			if (snd_seq_kernel_client_dispatch(vmidi->client, &vmidi->event, 0, 0) < 0)
+			if (snd_seq_kernel_client_dispatch(vmidi->client, &vmidi->event, in_atomic(), 0) < 0)
 				return;
 			vmidi->event.type = SNDRV_SEQ_EVENT_NONE;
 		}
@@ -186,7 +186,7 @@ static void snd_virmidi_output_trigger(struct snd_rawmidi_substream *substream, 
 				pbuf += res;
 				count -= res;
 				if (vmidi->event.type != SNDRV_SEQ_EVENT_NONE) {
-					if (snd_seq_kernel_client_dispatch(vmidi->client, &vmidi->event, 0, 0) < 0)
+					if (snd_seq_kernel_client_dispatch(vmidi->client, &vmidi->event, in_atomic(), 0) < 0)
 						return;
 					vmidi->event.type = SNDRV_SEQ_EVENT_NONE;
 				}

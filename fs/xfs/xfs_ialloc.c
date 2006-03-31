@@ -136,10 +136,8 @@ xfs_ialloc_ag_alloc(
 	int		ninodes;	/* num inodes per buf */
 	xfs_agino_t	thisino;	/* current inode number, for loop */
 	int		version;	/* inode version number to use */
-	int		isaligned;	/* inode allocation at stripe unit */
+	int		isaligned = 0;	/* inode allocation at stripe unit */
 					/* boundary */
-	xfs_dinode_core_t dic;          /* a dinode_core to copy to new */
-					/* inodes */
 
 	args.tp = tp;
 	args.mp = tp->t_mountp;
@@ -154,47 +152,75 @@ xfs_ialloc_ag_alloc(
 		return XFS_ERROR(ENOSPC);
 	args.minlen = args.maxlen = XFS_IALLOC_BLOCKS(args.mp);
 	/*
-	 * Set the alignment for the allocation.
-	 * If stripe alignment is turned on then align at stripe unit
-	 * boundary.
-	 * If the cluster size is smaller than a filesystem block
-	 * then we're doing I/O for inodes in filesystem block size pieces,
-	 * so don't need alignment anyway.
-	 */
-	isaligned = 0;
-	if (args.mp->m_sinoalign) {
-		ASSERT(!(args.mp->m_flags & XFS_MOUNT_NOALIGN));
-		args.alignment = args.mp->m_dalign;
-		isaligned = 1;
-	} else if (XFS_SB_VERSION_HASALIGN(&args.mp->m_sb) &&
-	    args.mp->m_sb.sb_inoalignmt >=
-	    XFS_B_TO_FSBT(args.mp, XFS_INODE_CLUSTER_SIZE(args.mp)))
-		args.alignment = args.mp->m_sb.sb_inoalignmt;
-	else
-		args.alignment = 1;
+	 * First try to allocate inodes contiguous with the last-allocated
+	 * chunk of inodes.  If the filesystem is striped, this will fill
+	 * an entire stripe unit with inodes.
+ 	 */
 	agi = XFS_BUF_TO_AGI(agbp);
-	/*
-	 * Need to figure out where to allocate the inode blocks.
-	 * Ideally they should be spaced out through the a.g.
-	 * For now, just allocate blocks up front.
-	 */
-	args.agbno = be32_to_cpu(agi->agi_root);
-	args.fsbno = XFS_AGB_TO_FSB(args.mp, be32_to_cpu(agi->agi_seqno),
-				    args.agbno);
-	/*
-	 * Allocate a fixed-size extent of inodes.
-	 */
-	args.type = XFS_ALLOCTYPE_NEAR_BNO;
-	args.mod = args.total = args.wasdel = args.isfl = args.userdata =
-		args.minalignslop = 0;
-	args.prod = 1;
-	/*
-	 * Allow space for the inode btree to split.
-	 */
-	args.minleft = XFS_IN_MAXLEVELS(args.mp) - 1;
-	if ((error = xfs_alloc_vextent(&args)))
-		return error;
+	newino = be32_to_cpu(agi->agi_newino);
+	if(likely(newino != NULLAGINO)) {
+		args.agbno = XFS_AGINO_TO_AGBNO(args.mp, newino) +
+				XFS_IALLOC_BLOCKS(args.mp);
+		args.fsbno = XFS_AGB_TO_FSB(args.mp,
+				be32_to_cpu(agi->agi_seqno), args.agbno);
+		args.type = XFS_ALLOCTYPE_THIS_BNO;
+		args.mod = args.total = args.wasdel = args.isfl =
+			args.userdata = args.minalignslop = 0;
+		args.prod = 1;
+		args.alignment = 1;
+		/*
+		 * Allow space for the inode btree to split.
+		 */
+		args.minleft = XFS_IN_MAXLEVELS(args.mp) - 1;
+		if ((error = xfs_alloc_vextent(&args)))
+			return error;
+	} else
+		args.fsbno = NULLFSBLOCK;
 
+	if (unlikely(args.fsbno == NULLFSBLOCK)) {
+		/*
+		 * Set the alignment for the allocation.
+		 * If stripe alignment is turned on then align at stripe unit
+		 * boundary.
+		 * If the cluster size is smaller than a filesystem block 
+		 * then we're doing I/O for inodes in filesystem block size 
+		 * pieces, so don't need alignment anyway.
+		 */
+		isaligned = 0;
+		if (args.mp->m_sinoalign) {
+			ASSERT(!(args.mp->m_flags & XFS_MOUNT_NOALIGN));
+			args.alignment = args.mp->m_dalign;
+			isaligned = 1;
+		} else if (XFS_SB_VERSION_HASALIGN(&args.mp->m_sb) &&
+			   args.mp->m_sb.sb_inoalignmt >= 
+			   XFS_B_TO_FSBT(args.mp,
+			  	XFS_INODE_CLUSTER_SIZE(args.mp)))
+				args.alignment = args.mp->m_sb.sb_inoalignmt;
+		else
+			args.alignment = 1;
+		/*
+		 * Need to figure out where to allocate the inode blocks.
+		 * Ideally they should be spaced out through the a.g.
+		 * For now, just allocate blocks up front.
+		 */
+		args.agbno = be32_to_cpu(agi->agi_root);
+		args.fsbno = XFS_AGB_TO_FSB(args.mp,
+				be32_to_cpu(agi->agi_seqno), args.agbno);
+		/*
+		 * Allocate a fixed-size extent of inodes.
+		 */
+		args.type = XFS_ALLOCTYPE_NEAR_BNO;
+		args.mod = args.total = args.wasdel = args.isfl =
+			args.userdata = args.minalignslop = 0;
+		args.prod = 1;
+		/*
+		 * Allow space for the inode btree to split.
+		 */
+		args.minleft = XFS_IN_MAXLEVELS(args.mp) - 1;
+		if ((error = xfs_alloc_vextent(&args)))
+			return error;
+	}
+ 
 	/*
 	 * If stripe alignment is turned on, then try again with cluster
 	 * alignment.
@@ -250,10 +276,6 @@ xfs_ialloc_ag_alloc(
 	else
 		version = XFS_DINODE_VERSION_1;
 
-	memset(&dic, 0, sizeof(xfs_dinode_core_t));
-	INT_SET(dic.di_magic, ARCH_CONVERT, XFS_DINODE_MAGIC);
-	INT_SET(dic.di_version, ARCH_CONVERT, version);
-
 	for (j = 0; j < nbufs; j++) {
 		/*
 		 * Get the block.
@@ -266,12 +288,13 @@ xfs_ialloc_ag_alloc(
 		ASSERT(fbuf);
 		ASSERT(!XFS_BUF_GETERROR(fbuf));
 		/*
-		 * Loop over the inodes in this buffer.
+		 * Set initial values for the inodes in this buffer.
 		 */
-
+		xfs_biozero(fbuf, 0, ninodes << args.mp->m_sb.sb_inodelog);
 		for (i = 0; i < ninodes; i++) {
 			free = XFS_MAKE_IPTR(args.mp, fbuf, i);
-			memcpy(&(free->di_core), &dic, sizeof(xfs_dinode_core_t));
+			INT_SET(free->di_core.di_magic, ARCH_CONVERT, XFS_DINODE_MAGIC);
+			INT_SET(free->di_core.di_version, ARCH_CONVERT, version);
 			INT_SET(free->di_next_unlinked, ARCH_CONVERT, NULLAGINO);
 			xfs_ialloc_log_di(tp, fbuf, i,
 				XFS_DI_CORE_BITS | XFS_DI_NEXT_UNLINKED);
@@ -1028,7 +1051,7 @@ xfs_difree(
 	rec.ir_freecount++;
 
 	/*
-	 * When an inode cluster is free, it becomes elgible for removal
+	 * When an inode cluster is free, it becomes eligible for removal
 	 */
 	if ((mp->m_flags & XFS_MOUNT_IDELETE) &&
 	    (rec.ir_freecount == XFS_IALLOC_INODES(mp))) {

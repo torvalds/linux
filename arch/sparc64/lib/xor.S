@@ -2,9 +2,10 @@
  * arch/sparc64/lib/xor.S
  *
  * High speed xor_block operation for RAID4/5 utilizing the
- * UltraSparc Visual Instruction Set.
+ * UltraSparc Visual Instruction Set and Niagara store-init/twin-load.
  *
  * Copyright (C) 1997, 1999 Jakub Jelinek (jj@ultra.linux.cz)
+ * Copyright (C) 2006 David S. Miller <davem@davemloft.net>
  */
 
 #include <asm/visasm.h>
@@ -19,6 +20,8 @@
  */
 	.text
 	.align	32
+
+	/* VIS versions. */
 	.globl	xor_vis_2
 	.type	xor_vis_2,#function
 xor_vis_2:
@@ -352,3 +355,298 @@ xor_vis_5:
 	ret
 	 restore
 	.size	xor_vis_5, .-xor_vis_5
+
+	/* Niagara versions. */
+	.globl		xor_niagara_2
+	.type		xor_niagara_2,#function
+xor_niagara_2:		/* %o0=bytes, %o1=dest, %o2=src */
+	save		%sp, -192, %sp
+	prefetch	[%i1], #n_writes
+	prefetch	[%i2], #one_read
+	rd		%asi, %g7
+	wr		%g0, ASI_BLK_INIT_QUAD_LDD_P, %asi
+	srlx		%i0, 6, %g1
+	mov		%i1, %i0
+	mov		%i2, %i1
+1:	ldda		[%i1 + 0x00] %asi, %i2	/* %i2/%i3 = src  + 0x00 */
+	ldda		[%i1 + 0x10] %asi, %i4	/* %i4/%i5 = src  + 0x10 */
+	ldda		[%i1 + 0x20] %asi, %g2	/* %g2/%g3 = src  + 0x20 */
+	ldda		[%i1 + 0x30] %asi, %l0	/* %l0/%l1 = src  + 0x30 */
+	prefetch	[%i1 + 0x40], #one_read
+	ldda		[%i0 + 0x00] %asi, %o0  /* %o0/%o1 = dest + 0x00 */
+	ldda		[%i0 + 0x10] %asi, %o2  /* %o2/%o3 = dest + 0x10 */
+	ldda		[%i0 + 0x20] %asi, %o4  /* %o4/%o5 = dest + 0x20 */
+	ldda		[%i0 + 0x30] %asi, %l2  /* %l2/%l3 = dest + 0x30 */
+	prefetch	[%i0 + 0x40], #n_writes
+	xor		%o0, %i2, %o0
+	xor		%o1, %i3, %o1
+	stxa		%o0, [%i0 + 0x00] %asi
+	stxa		%o1, [%i0 + 0x08] %asi
+	xor		%o2, %i4, %o2
+	xor		%o3, %i5, %o3
+	stxa		%o2, [%i0 + 0x10] %asi
+	stxa		%o3, [%i0 + 0x18] %asi
+	xor		%o4, %g2, %o4
+	xor		%o5, %g3, %o5
+	stxa		%o4, [%i0 + 0x20] %asi
+	stxa		%o5, [%i0 + 0x28] %asi
+	xor		%l2, %l0, %l2
+	xor		%l3, %l1, %l3
+	stxa		%l2, [%i0 + 0x30] %asi
+	stxa		%l3, [%i0 + 0x38] %asi
+	add		%i0, 0x40, %i0
+	subcc		%g1, 1, %g1
+	bne,pt		%xcc, 1b
+	 add		%i1, 0x40, %i1
+	membar		#Sync
+	wr		%g7, 0x0, %asi
+	ret
+	 restore
+	.size		xor_niagara_2, .-xor_niagara_2
+
+	.globl		xor_niagara_3
+	.type		xor_niagara_3,#function
+xor_niagara_3:		/* %o0=bytes, %o1=dest, %o2=src1, %o3=src2 */
+	save		%sp, -192, %sp
+	prefetch	[%i1], #n_writes
+	prefetch	[%i2], #one_read
+	prefetch	[%i3], #one_read
+	rd		%asi, %g7
+	wr		%g0, ASI_BLK_INIT_QUAD_LDD_P, %asi
+	srlx		%i0, 6, %g1
+	mov		%i1, %i0
+	mov		%i2, %i1
+	mov		%i3, %l7
+1:	ldda		[%i1 + 0x00] %asi, %i2	/* %i2/%i3 = src1 + 0x00 */
+	ldda		[%i1 + 0x10] %asi, %i4	/* %i4/%i5 = src1 + 0x10 */
+	ldda		[%l7 + 0x00] %asi, %g2	/* %g2/%g3 = src2 + 0x00 */
+	ldda		[%l7 + 0x10] %asi, %l0	/* %l0/%l1 = src2 + 0x10 */
+	ldda		[%i0 + 0x00] %asi, %o0  /* %o0/%o1 = dest + 0x00 */
+	ldda		[%i0 + 0x10] %asi, %o2  /* %o2/%o3 = dest + 0x10 */
+	xor		%g2, %i2, %g2
+	xor		%g3, %i3, %g3
+	xor		%o0, %g2, %o0
+	xor		%o1, %g3, %o1
+	stxa		%o0, [%i0 + 0x00] %asi
+	stxa		%o1, [%i0 + 0x08] %asi
+	ldda		[%i1 + 0x20] %asi, %i2	/* %i2/%i3 = src1 + 0x20 */
+	ldda		[%l7 + 0x20] %asi, %g2	/* %g2/%g3 = src2 + 0x20 */
+	ldda		[%i0 + 0x20] %asi, %o0	/* %o0/%o1 = dest + 0x20 */
+	xor		%l0, %i4, %l0
+	xor		%l1, %i5, %l1
+	xor		%o2, %l0, %o2
+	xor		%o3, %l1, %o3
+	stxa		%o2, [%i0 + 0x10] %asi
+	stxa		%o3, [%i0 + 0x18] %asi
+	ldda		[%i1 + 0x30] %asi, %i4	/* %i4/%i5 = src1 + 0x30 */
+	ldda		[%l7 + 0x30] %asi, %l0	/* %l0/%l1 = src2 + 0x30 */
+	ldda		[%i0 + 0x30] %asi, %o2	/* %o2/%o3 = dest + 0x30 */
+	prefetch	[%i1 + 0x40], #one_read
+	prefetch	[%l7 + 0x40], #one_read
+	prefetch	[%i0 + 0x40], #n_writes
+	xor		%g2, %i2, %g2
+	xor		%g3, %i3, %g3
+	xor		%o0, %g2, %o0
+	xor		%o1, %g3, %o1
+	stxa		%o0, [%i0 + 0x20] %asi
+	stxa		%o1, [%i0 + 0x28] %asi
+	xor		%l0, %i4, %l0
+	xor		%l1, %i5, %l1
+	xor		%o2, %l0, %o2
+	xor		%o3, %l1, %o3
+	stxa		%o2, [%i0 + 0x30] %asi
+	stxa		%o3, [%i0 + 0x38] %asi
+	add		%i0, 0x40, %i0
+	add		%i1, 0x40, %i1
+	subcc		%g1, 1, %g1
+	bne,pt		%xcc, 1b
+	 add		%l7, 0x40, %l7
+	membar		#Sync
+	wr		%g7, 0x0, %asi
+	ret
+	 restore
+	.size		xor_niagara_3, .-xor_niagara_3
+
+	.globl		xor_niagara_4
+	.type		xor_niagara_4,#function
+xor_niagara_4:		/* %o0=bytes, %o1=dest, %o2=src1, %o3=src2, %o4=src3 */
+	save		%sp, -192, %sp
+	prefetch	[%i1], #n_writes
+	prefetch	[%i2], #one_read
+	prefetch	[%i3], #one_read
+	prefetch	[%i4], #one_read
+	rd		%asi, %g7
+	wr		%g0, ASI_BLK_INIT_QUAD_LDD_P, %asi
+	srlx		%i0, 6, %g1
+	mov		%i1, %i0
+	mov		%i2, %i1
+	mov		%i3, %l7
+	mov		%i4, %l6
+1:	ldda		[%i1 + 0x00] %asi, %i2	/* %i2/%i3 = src1 + 0x00 */
+	ldda		[%l7 + 0x00] %asi, %i4	/* %i4/%i5 = src2 + 0x00 */
+	ldda		[%l6 + 0x00] %asi, %g2	/* %g2/%g3 = src3 + 0x00 */
+	ldda		[%i0 + 0x00] %asi, %l0	/* %l0/%l1 = dest + 0x00 */
+	xor		%i4, %i2, %i4
+	xor		%i5, %i3, %i5
+	ldda		[%i1 + 0x10] %asi, %i2	/* %i2/%i3 = src1 + 0x10 */
+	xor		%g2, %i4, %g2
+	xor		%g3, %i5, %g3
+	ldda		[%i7 + 0x10] %asi, %i4	/* %i4/%i5 = src2 + 0x10 */
+	xor		%l0, %g2, %l0
+	xor		%l1, %g3, %l1
+	stxa		%l0, [%i0 + 0x00] %asi
+	stxa		%l1, [%i0 + 0x08] %asi
+	ldda		[%i6 + 0x10] %asi, %g2	/* %g2/%g3 = src3 + 0x10 */
+	ldda		[%i0 + 0x10] %asi, %l0	/* %l0/%l1 = dest + 0x10 */
+
+	xor		%i4, %i2, %i4
+	xor		%i5, %i3, %i5
+	ldda		[%i1 + 0x20] %asi, %i2	/* %i2/%i3 = src1 + 0x20 */
+	xor		%g2, %i4, %g2
+	xor		%g3, %i5, %g3
+	ldda		[%i7 + 0x20] %asi, %i4	/* %i4/%i5 = src2 + 0x20 */
+	xor		%l0, %g2, %l0
+	xor		%l1, %g3, %l1
+	stxa		%l0, [%i0 + 0x10] %asi
+	stxa		%l1, [%i0 + 0x18] %asi
+	ldda		[%i6 + 0x20] %asi, %g2	/* %g2/%g3 = src3 + 0x20 */
+	ldda		[%i0 + 0x20] %asi, %l0	/* %l0/%l1 = dest + 0x20 */
+
+	xor		%i4, %i2, %i4
+	xor		%i5, %i3, %i5
+	ldda		[%i1 + 0x30] %asi, %i2	/* %i2/%i3 = src1 + 0x30 */
+	xor		%g2, %i4, %g2
+	xor		%g3, %i5, %g3
+	ldda		[%i7 + 0x30] %asi, %i4	/* %i4/%i5 = src2 + 0x30 */
+	xor		%l0, %g2, %l0
+	xor		%l1, %g3, %l1
+	stxa		%l0, [%i0 + 0x20] %asi
+	stxa		%l1, [%i0 + 0x28] %asi
+	ldda		[%i6 + 0x30] %asi, %g2	/* %g2/%g3 = src3 + 0x30 */
+	ldda		[%i0 + 0x30] %asi, %l0	/* %l0/%l1 = dest + 0x30 */
+
+	prefetch	[%i1 + 0x40], #one_read
+	prefetch	[%l7 + 0x40], #one_read
+	prefetch	[%l6 + 0x40], #one_read
+	prefetch	[%i0 + 0x40], #n_writes
+
+	xor		%i4, %i2, %i4
+	xor		%i5, %i3, %i5
+	xor		%g2, %i4, %g2
+	xor		%g3, %i5, %g3
+	xor		%l0, %g2, %l0
+	xor		%l1, %g3, %l1
+	stxa		%l0, [%i0 + 0x30] %asi
+	stxa		%l1, [%i0 + 0x38] %asi
+
+	add		%i0, 0x40, %i0
+	add		%i1, 0x40, %i1
+	add		%l7, 0x40, %l7
+	subcc		%g1, 1, %g1
+	bne,pt		%xcc, 1b
+	 add		%l6, 0x40, %l6
+	membar		#Sync
+	wr		%g7, 0x0, %asi
+	ret
+	 restore
+	.size		xor_niagara_4, .-xor_niagara_4
+
+	.globl		xor_niagara_5
+	.type		xor_niagara_5,#function
+xor_niagara_5:		/* %o0=bytes, %o1=dest, %o2=src1, %o3=src2, %o4=src3, %o5=src4 */
+	save		%sp, -192, %sp
+	prefetch	[%i1], #n_writes
+	prefetch	[%i2], #one_read
+	prefetch	[%i3], #one_read
+	prefetch	[%i4], #one_read
+	prefetch	[%i5], #one_read
+	rd		%asi, %g7
+	wr		%g0, ASI_BLK_INIT_QUAD_LDD_P, %asi
+	srlx		%i0, 6, %g1
+	mov		%i1, %i0
+	mov		%i2, %i1
+	mov		%i3, %l7
+	mov		%i4, %l6
+	mov		%i5, %l5
+1:	ldda		[%i1 + 0x00] %asi, %i2	/* %i2/%i3 = src1 + 0x00 */
+	ldda		[%l7 + 0x00] %asi, %i4	/* %i4/%i5 = src2 + 0x00 */
+	ldda		[%l6 + 0x00] %asi, %g2	/* %g2/%g3 = src3 + 0x00 */
+	ldda		[%l5 + 0x00] %asi, %l0	/* %l0/%l1 = src4 + 0x00 */
+	ldda		[%i0 + 0x00] %asi, %l2	/* %l2/%l3 = dest + 0x00 */
+	xor		%i4, %i2, %i4
+	xor		%i5, %i3, %i5
+	ldda		[%i1 + 0x10] %asi, %i2	/* %i2/%i3 = src1 + 0x10 */
+	xor		%g2, %i4, %g2
+	xor		%g3, %i5, %g3
+	ldda		[%l7 + 0x10] %asi, %i4	/* %i4/%i5 = src2 + 0x10 */
+	xor		%l0, %g2, %l0
+	xor		%l1, %g3, %l1
+	ldda		[%l6 + 0x10] %asi, %g2	/* %g2/%g3 = src3 + 0x10 */
+	xor		%l2, %l0, %l2
+	xor		%l3, %l1, %l3
+	stxa		%l2, [%i0 + 0x00] %asi
+	stxa		%l3, [%i0 + 0x08] %asi
+	ldda		[%l5 + 0x10] %asi, %l0	/* %l0/%l1 = src4 + 0x10 */
+	ldda		[%i0 + 0x10] %asi, %l2	/* %l2/%l3 = dest + 0x10 */
+
+	xor		%i4, %i2, %i4
+	xor		%i5, %i3, %i5
+	ldda		[%i1 + 0x20] %asi, %i2	/* %i2/%i3 = src1 + 0x20 */
+	xor		%g2, %i4, %g2
+	xor		%g3, %i5, %g3
+	ldda		[%l7 + 0x20] %asi, %i4	/* %i4/%i5 = src2 + 0x20 */
+	xor		%l0, %g2, %l0
+	xor		%l1, %g3, %l1
+	ldda		[%l6 + 0x20] %asi, %g2	/* %g2/%g3 = src3 + 0x20 */
+	xor		%l2, %l0, %l2
+	xor		%l3, %l1, %l3
+	stxa		%l2, [%i0 + 0x10] %asi
+	stxa		%l3, [%i0 + 0x18] %asi
+	ldda		[%l5 + 0x20] %asi, %l0	/* %l0/%l1 = src4 + 0x20 */
+	ldda		[%i0 + 0x20] %asi, %l2	/* %l2/%l3 = dest + 0x20 */
+
+	xor		%i4, %i2, %i4
+	xor		%i5, %i3, %i5
+	ldda		[%i1 + 0x30] %asi, %i2	/* %i2/%i3 = src1 + 0x30 */
+	xor		%g2, %i4, %g2
+	xor		%g3, %i5, %g3
+	ldda		[%l7 + 0x30] %asi, %i4	/* %i4/%i5 = src2 + 0x30 */
+	xor		%l0, %g2, %l0
+	xor		%l1, %g3, %l1
+	ldda		[%l6 + 0x30] %asi, %g2	/* %g2/%g3 = src3 + 0x30 */
+	xor		%l2, %l0, %l2
+	xor		%l3, %l1, %l3
+	stxa		%l2, [%i0 + 0x20] %asi
+	stxa		%l3, [%i0 + 0x28] %asi
+	ldda		[%l5 + 0x30] %asi, %l0	/* %l0/%l1 = src4 + 0x30 */
+	ldda		[%i0 + 0x30] %asi, %l2	/* %l2/%l3 = dest + 0x30 */
+
+	prefetch	[%i1 + 0x40], #one_read
+	prefetch	[%l7 + 0x40], #one_read
+	prefetch	[%l6 + 0x40], #one_read
+	prefetch	[%l5 + 0x40], #one_read
+	prefetch	[%i0 + 0x40], #n_writes
+
+	xor		%i4, %i2, %i4
+	xor		%i5, %i3, %i5
+	xor		%g2, %i4, %g2
+	xor		%g3, %i5, %g3
+	xor		%l0, %g2, %l0
+	xor		%l1, %g3, %l1
+	xor		%l2, %l0, %l2
+	xor		%l3, %l1, %l3
+	stxa		%l2, [%i0 + 0x30] %asi
+	stxa		%l3, [%i0 + 0x38] %asi
+
+	add		%i0, 0x40, %i0
+	add		%i1, 0x40, %i1
+	add		%l7, 0x40, %l7
+	add		%l6, 0x40, %l6
+	subcc		%g1, 1, %g1
+	bne,pt		%xcc, 1b
+	 add		%l5, 0x40, %l5
+	membar		#Sync
+	wr		%g7, 0x0, %asi
+	ret
+	 restore
+	.size		xor_niagara_5, .-xor_niagara_5

@@ -73,12 +73,6 @@ extern void set_normalized_timespec(struct timespec *ts, time_t sec, long nsec);
 #define timespec_valid(ts) \
 	(((ts)->tv_sec >= 0) && (((unsigned long) (ts)->tv_nsec) < NSEC_PER_SEC))
 
-/*
- * 64-bit nanosec type. Large enough to span 292+ years in nanosecond
- * resolution. Ought to be enough for a while.
- */
-typedef s64 nsec_t;
-
 extern struct timespec xtime;
 extern struct timespec wall_to_monotonic;
 extern seqlock_t xtime_lock;
@@ -101,6 +95,7 @@ extern long do_utimes(int dfd, char __user *filename, struct timeval *times);
 struct itimerval;
 extern int do_setitimer(int which, struct itimerval *value,
 			struct itimerval *ovalue);
+extern unsigned int alarm_setitimer(unsigned int seconds);
 extern int do_getitimer(int which, struct itimerval *value);
 extern void getnstimeofday(struct timespec *tv);
 
@@ -113,9 +108,9 @@ extern struct timespec timespec_trunc(struct timespec t, unsigned gran);
  * Returns the scalar nanosecond representation of the timespec
  * parameter.
  */
-static inline nsec_t timespec_to_ns(const struct timespec *ts)
+static inline s64 timespec_to_ns(const struct timespec *ts)
 {
-	return ((nsec_t) ts->tv_sec * NSEC_PER_SEC) + ts->tv_nsec;
+	return ((s64) ts->tv_sec * NSEC_PER_SEC) + ts->tv_nsec;
 }
 
 /**
@@ -125,9 +120,9 @@ static inline nsec_t timespec_to_ns(const struct timespec *ts)
  * Returns the scalar nanosecond representation of the timeval
  * parameter.
  */
-static inline nsec_t timeval_to_ns(const struct timeval *tv)
+static inline s64 timeval_to_ns(const struct timeval *tv)
 {
-	return ((nsec_t) tv->tv_sec * NSEC_PER_SEC) +
+	return ((s64) tv->tv_sec * NSEC_PER_SEC) +
 		tv->tv_usec * NSEC_PER_USEC;
 }
 
@@ -137,7 +132,7 @@ static inline nsec_t timeval_to_ns(const struct timeval *tv)
  *
  * Returns the timespec representation of the nsec parameter.
  */
-extern struct timespec ns_to_timespec(const nsec_t nsec);
+extern struct timespec ns_to_timespec(const s64 nsec);
 
 /**
  * ns_to_timeval - Convert nanoseconds to timeval
@@ -145,7 +140,7 @@ extern struct timespec ns_to_timespec(const nsec_t nsec);
  *
  * Returns the timeval representation of the nsec parameter.
  */
-extern struct timeval ns_to_timeval(const nsec_t nsec);
+extern struct timeval ns_to_timeval(const s64 nsec);
 
 #endif /* __KERNEL__ */
 

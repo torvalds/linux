@@ -753,7 +753,7 @@ static void icmp_redirect(struct sk_buff *skb)
 	case ICMP_REDIR_HOST:
 	case ICMP_REDIR_HOSTTOS:
 		ip_rt_redirect(skb->nh.iph->saddr, ip, skb->h.icmph->un.gateway,
-			       iph->saddr, iph->tos, skb->dev);
+			       iph->saddr, skb->dev);
 		break;
   	}
 out:

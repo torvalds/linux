@@ -4,53 +4,6 @@
 comment "USB Device Class drivers"
 	depends on USB
 
-config OBSOLETE_OSS_USB_DRIVER
-	bool "Obsolete OSS USB drivers"
-	depends on USB && SOUND
-	help
-	  This option enables support for the obsolete USB Audio and Midi
-	  drivers that are scheduled for removal in the near future since
-	  there are ALSA drivers for the same hardware.
-
-	  Please contact Adrian Bunk <bunk@stusta.de> if you had to
-	  say Y here because of missing support in the ALSA drivers.
-
-	  If unsure, say N.
-
-config USB_AUDIO
-	tristate "USB Audio support"
-	depends on USB && SOUND && OBSOLETE_OSS_USB_DRIVER
-	help
-	  Say Y here if you want to connect USB audio equipment such as
-	  speakers to your computer's USB port. You only need this if you use
-	  the OSS sound driver; ALSA has its own option for usb audio support.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called audio.
-
-config USB_MIDI
-	tristate "USB MIDI support"
-	depends on USB && SOUND && OBSOLETE_OSS_USB_DRIVER
-	---help---
-	  Say Y here if you want to connect a USB MIDI device to your
-	  computer's USB port.  You only need this if you use the OSS
-	  sound system; USB MIDI devices are supported by ALSA's USB
-	  audio driver. This driver is for devices that comply with
-	  'Universal Serial Bus Device Class Definition for MIDI Device'.
-
-	  The following devices are known to work:
-	  * Steinberg USB2MIDI
-	  * Roland MPU64
-	  * Roland PC-300
-	  * Roland SC8850
-	  * Roland UM-1
-	  * Roland UM-2
-	  * Roland UA-100
-	  * Yamaha MU1000
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called usb-midi.
-
 config USB_ACM
 	tristate "USB Modem (CDC ACM) support"
 	depends on USB

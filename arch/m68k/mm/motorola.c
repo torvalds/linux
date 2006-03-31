@@ -276,7 +276,7 @@ void free_initmem(void)
 	addr = (unsigned long)&__init_begin;
 	for (; addr < (unsigned long)&__init_end; addr += PAGE_SIZE) {
 		virt_to_page(addr)->flags &= ~(1 << PG_reserved);
-		set_page_count(virt_to_page(addr), 1);
+		init_page_count(virt_to_page(addr));
 		free_page(addr);
 		totalram_pages++;
 	}

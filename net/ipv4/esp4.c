@@ -90,6 +90,7 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 
 	esph->spi = x->id.spi;
 	esph->seq_no = htonl(++x->replay.oseq);
+	xfrm_aevent_doreplay(x);
 
 	if (esp->conf.ivlen)
 		crypto_cipher_set_iv(tfm, esp->conf.ivec, crypto_tfm_alg_ivsize(tfm));

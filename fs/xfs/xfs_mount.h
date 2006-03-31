@@ -267,6 +267,34 @@ typedef struct xfs_ioops {
 #define XFS_IODONE(vfsp) \
 	(*(mp)->m_io_ops.xfs_iodone)(vfsp)
 
+#ifdef HAVE_PERCPU_SB
+
+/*
+ * Valid per-cpu incore superblock counters. Note that if you add new counters,
+ * you may need to define new counter disabled bit field descriptors as there
+ * are more possible fields in the superblock that can fit in a bitfield on a
+ * 32 bit platform. The XFS_SBS_* values for the current current counters just
+ * fit.
+ */
+typedef struct xfs_icsb_cnts {
+	uint64_t	icsb_fdblocks;
+	uint64_t	icsb_ifree;
+	uint64_t	icsb_icount;
+	unsigned long	icsb_flags;
+} xfs_icsb_cnts_t;
+
+#define XFS_ICSB_FLAG_LOCK	(1 << 0)	/* counter lock bit */
+
+#define XFS_ICSB_SB_LOCKED	(1 << 0)	/* sb already locked */
+#define XFS_ICSB_LAZY_COUNT	(1 << 1)	/* accuracy not needed */
+
+extern int	xfs_icsb_init_counters(struct xfs_mount *);
+extern void	xfs_icsb_sync_counters_lazy(struct xfs_mount *);
+
+#else
+#define xfs_icsb_init_counters(mp)	(0)
+#define xfs_icsb_sync_counters_lazy(mp)	do { } while (0)
+#endif
 
 typedef struct xfs_mount {
 	bhv_desc_t		m_bhv;		/* vfs xfs behavior */
@@ -351,7 +379,7 @@ typedef struct xfs_mount {
 #endif
 	int			m_dalign;	/* stripe unit */
 	int			m_swidth;	/* stripe width */
-	int			m_sinoalign;	/* stripe unit inode alignmnt */
+	int			m_sinoalign;	/* stripe unit inode alignment */
 	int			m_attr_magicpct;/* 37% of the blocksize */
 	int			m_dir_magicpct;	/* 37% of the dir blocksize */
 	__uint8_t		m_mk_sharedro;	/* mark shared ro on unmount */
@@ -372,6 +400,11 @@ typedef struct xfs_mount {
 	struct xfs_qmops	m_qm_ops;	/* vector of XQM ops */
 	struct xfs_ioops	m_io_ops;	/* vector of I/O ops */
 	atomic_t		m_active_trans;	/* number trans frozen */
+#ifdef HAVE_PERCPU_SB
+	xfs_icsb_cnts_t		*m_sb_cnts;	/* per-cpu superblock counters */
+	unsigned long		m_icsb_counters; /* disabled per-cpu counters */
+	struct notifier_block	m_icsb_notifier; /* hotplug cpu notifier */
+#endif
 } xfs_mount_t;
 
 /*
@@ -386,8 +419,6 @@ typedef struct xfs_mount {
 #define XFS_MOUNT_FS_SHUTDOWN	(1ULL << 4)	/* atomic stop of all filesystem
 						   operations, typically for
 						   disk errors in metadata */
-#define XFS_MOUNT_NOATIME	(1ULL << 5)	/* don't modify inode access
-						   times on reads */
 #define XFS_MOUNT_RETERR	(1ULL << 6)     /* return alignment errors to
 						   user */
 #define XFS_MOUNT_NOALIGN	(1ULL << 7)	/* turn off stripe alignment
@@ -411,6 +442,8 @@ typedef struct xfs_mount {
 #define XFS_MOUNT_DIRSYNC	(1ULL << 21)	/* synchronous directory ops */
 #define XFS_MOUNT_COMPAT_IOSIZE	(1ULL << 22)	/* don't report large preferred
 						 * I/O size in stat() */
+#define XFS_MOUNT_NO_PERCPU_SB	(1ULL << 23)	/* don't use per-cpu superblock
+						   counters */
 
 
 /*
@@ -471,11 +504,6 @@ xfs_preferred_iosize(xfs_mount_t *mp)
 #define XFS_FORCE_UMOUNT	0x4
 #define XFS_CORRUPT_INCORE	0x8	/* Corrupt in-memory data structures */
 #define XFS_SHUTDOWN_REMOTE_REQ 0x10	/* Shutdown came from remote cell */
-
-/*
- * xflags for xfs_syncsub
- */
-#define XFS_XSYNC_RELOC		0x01
 
 /*
  * Flags for xfs_mountfs
@@ -548,6 +576,8 @@ extern void	xfs_unmountfs_close(xfs_mount_t *, struct cred *);
 extern int	xfs_unmountfs_writesb(xfs_mount_t *);
 extern int	xfs_unmount_flush(xfs_mount_t *, int);
 extern int	xfs_mod_incore_sb(xfs_mount_t *, xfs_sb_field_t, int, int);
+extern int	xfs_mod_incore_sb_unlocked(xfs_mount_t *, xfs_sb_field_t,
+			int, int);
 extern int	xfs_mod_incore_sb_batch(xfs_mount_t *, xfs_mod_sb_t *,
 			uint, int);
 extern struct xfs_buf *xfs_getsb(xfs_mount_t *, int);

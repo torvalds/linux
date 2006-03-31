@@ -268,7 +268,7 @@ e1000_validate_option(int *value, struct e1000_option *opt,
 		BUG();
 	}
 
-	DPRINTK(PROBE, INFO, "Invalid %s specified (%i) %s\n",
+	DPRINTK(PROBE, INFO, "Invalid %s value specified (%i) %s\n",
 	       opt->name, *value, opt->err);
 	*value = opt->def;
 	return -1;

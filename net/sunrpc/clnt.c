@@ -28,12 +28,11 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/utsname.h>
+#include <linux/workqueue.h>
 
 #include <linux/sunrpc/clnt.h>
-#include <linux/workqueue.h>
 #include <linux/sunrpc/rpc_pipe_fs.h>
-
-#include <linux/nfs.h>
+#include <linux/sunrpc/metrics.h>
 
 
 #define RPC_SLACK_SPACE		(1024)	/* total overkill */
@@ -71,8 +70,15 @@ rpc_setup_pipedir(struct rpc_clnt *clnt, char *dir_name)
 	static uint32_t clntid;
 	int error;
 
+	clnt->cl_vfsmnt = ERR_PTR(-ENOENT);
+	clnt->cl_dentry = ERR_PTR(-ENOENT);
 	if (dir_name == NULL)
 		return 0;
+
+	clnt->cl_vfsmnt = rpc_get_mount();
+	if (IS_ERR(clnt->cl_vfsmnt))
+		return PTR_ERR(clnt->cl_vfsmnt);
+
 	for (;;) {
 		snprintf(clnt->cl_pathname, sizeof(clnt->cl_pathname),
 				"%s/clnt%x", dir_name,
@@ -85,6 +91,7 @@ rpc_setup_pipedir(struct rpc_clnt *clnt, char *dir_name)
 		if (error != -EEXIST) {
 			printk(KERN_INFO "RPC: Couldn't create pipefs entry %s, error %d\n",
 					clnt->cl_pathname, error);
+			rpc_put_mount();
 			return error;
 		}
 	}
@@ -147,6 +154,7 @@ rpc_new_client(struct rpc_xprt *xprt, char *servname,
 	clnt->cl_vers     = version->number;
 	clnt->cl_prot     = xprt->prot;
 	clnt->cl_stats    = program->stats;
+	clnt->cl_metrics  = rpc_alloc_iostats(clnt);
 	rpc_init_wait_queue(&clnt->cl_pmap_default.pm_bindwait, "bindwait");
 
 	if (!clnt->cl_port)
@@ -175,7 +183,11 @@ rpc_new_client(struct rpc_xprt *xprt, char *servname,
 	return clnt;
 
 out_no_auth:
-	rpc_rmdir(clnt->cl_pathname);
+	if (!IS_ERR(clnt->cl_dentry)) {
+		rpc_rmdir(clnt->cl_pathname);
+		dput(clnt->cl_dentry);
+		rpc_put_mount();
+	}
 out_no_path:
 	if (clnt->cl_server != clnt->cl_inline_name)
 		kfree(clnt->cl_server);
@@ -240,11 +252,15 @@ rpc_clone_client(struct rpc_clnt *clnt)
 	new->cl_autobind = 0;
 	new->cl_oneshot = 0;
 	new->cl_dead = 0;
+	if (!IS_ERR(new->cl_dentry)) {
+		dget(new->cl_dentry);
+		rpc_get_mount();
+	}
 	rpc_init_rtt(&new->cl_rtt_default, clnt->cl_xprt->timeout.to_initval);
 	if (new->cl_auth)
 		atomic_inc(&new->cl_auth->au_count);
 	new->cl_pmap		= &new->cl_pmap_default;
-	rpc_init_wait_queue(&new->cl_pmap_default.pm_bindwait, "bindwait");
+	new->cl_metrics         = rpc_alloc_iostats(clnt);
 	return new;
 out_no_clnt:
 	printk(KERN_INFO "RPC: out of memory in %s\n", __FUNCTION__);
@@ -314,6 +330,12 @@ rpc_destroy_client(struct rpc_clnt *clnt)
 	if (clnt->cl_server != clnt->cl_inline_name)
 		kfree(clnt->cl_server);
 out_free:
+	rpc_free_iostats(clnt->cl_metrics);
+	clnt->cl_metrics = NULL;
+	if (!IS_ERR(clnt->cl_dentry)) {
+		dput(clnt->cl_dentry);
+		rpc_put_mount();
+	}
 	kfree(clnt);
 	return 0;
 }
@@ -473,15 +495,16 @@ rpc_call_async(struct rpc_clnt *clnt, struct rpc_message *msg, int flags,
 	int		status;
 
 	/* If this client is slain all further I/O fails */
+	status = -EIO;
 	if (clnt->cl_dead) 
-		return -EIO;
+		goto out_release;
 
 	flags |= RPC_TASK_ASYNC;
 
 	/* Create/initialize a new RPC task */
 	status = -ENOMEM;
 	if (!(task = rpc_new_task(clnt, flags, tk_ops, data)))
-		goto out;
+		goto out_release;
 
 	/* Mask signals on GSS_AUTH upcalls */
 	rpc_task_sigmask(task, &oldset);		
@@ -496,7 +519,10 @@ rpc_call_async(struct rpc_clnt *clnt, struct rpc_message *msg, int flags,
 		rpc_release_task(task);
 
 	rpc_restore_sigmask(&oldset);		
-out:
+	return status;
+out_release:
+	if (tk_ops->rpc_release != NULL)
+		tk_ops->rpc_release(data);
 	return status;
 }
 
@@ -993,6 +1019,8 @@ call_timeout(struct rpc_task *task)
 	}
 
 	dprintk("RPC: %4d call_timeout (major)\n", task->tk_pid);
+	task->tk_timeouts++;
+
 	if (RPC_IS_SOFT(task)) {
 		printk(KERN_NOTICE "%s: server %s not responding, timed out\n",
 				clnt->cl_protname, clnt->cl_server);
@@ -1045,6 +1073,11 @@ call_decode(struct rpc_task *task)
 		return;
 	}
 
+	/*
+	 * Ensure that we see all writes made by xprt_complete_rqst()
+	 * before it changed req->rq_received.
+	 */
+	smp_rmb();
 	req->rq_rcv_buf.len = req->rq_private_buf.len;
 
 	/* Check that the softirq receive buffer is valid */
@@ -1194,8 +1227,8 @@ call_verify(struct rpc_task *task)
 			task->tk_action = call_bind;
 			goto out_retry;
 		case RPC_AUTH_TOOWEAK:
-			printk(KERN_NOTICE "call_verify: server requires stronger "
-			       "authentication.\n");
+			printk(KERN_NOTICE "call_verify: server %s requires stronger "
+			       "authentication.\n", task->tk_client->cl_server);
 			break;
 		default:
 			printk(KERN_WARNING "call_verify: unknown auth error: %x\n", n);

@@ -15,6 +15,7 @@
 #include <linux/pipe_fs_i.h>
 #include <linux/uio.h>
 #include <linux/highmem.h>
+#include <linux/pagemap.h>
 
 #include <asm/uaccess.h>
 #include <asm/ioctls.h>
@@ -94,11 +95,20 @@ static void anon_pipe_buf_release(struct pipe_inode_info *info, struct pipe_buff
 {
 	struct page *page = buf->page;
 
-	if (info->tmp_page) {
-		__free_page(page);
+	/*
+	 * If nobody else uses this page, and we don't already have a
+	 * temporary page, let's keep track of it as a one-deep
+	 * allocation cache
+	 */
+	if (page_count(page) == 1 && !info->tmp_page) {
+		info->tmp_page = page;
 		return;
 	}
-	info->tmp_page = page;
+
+	/*
+	 * Otherwise just release our reference to it
+	 */
+	page_cache_release(page);
 }
 
 static void *anon_pipe_buf_map(struct file *file, struct pipe_inode_info *info, struct pipe_buffer *buf)
@@ -111,11 +121,19 @@ static void anon_pipe_buf_unmap(struct pipe_inode_info *info, struct pipe_buffer
 	kunmap(buf->page);
 }
 
+static int anon_pipe_buf_steal(struct pipe_inode_info *info,
+			       struct pipe_buffer *buf)
+{
+	buf->stolen = 1;
+	return 0;
+}
+
 static struct pipe_buf_operations anon_pipe_buf_ops = {
 	.can_merge = 1,
 	.map = anon_pipe_buf_map,
 	.unmap = anon_pipe_buf_unmap,
 	.release = anon_pipe_buf_release,
+	.steal = anon_pipe_buf_steal,
 };
 
 static ssize_t
@@ -152,6 +170,11 @@ pipe_readv(struct file *filp, const struct iovec *_iov,
 				chars = total_len;
 
 			addr = ops->map(filp, info, buf);
+			if (IS_ERR(addr)) {
+				if (!ret)
+					ret = PTR_ERR(addr);
+				break;
+			}
 			error = pipe_iov_copy_to_user(iov, addr + buf->offset, chars);
 			ops->unmap(info, buf);
 			if (unlikely(error)) {
@@ -254,8 +277,16 @@ pipe_writev(struct file *filp, const struct iovec *_iov,
 		struct pipe_buf_operations *ops = buf->ops;
 		int offset = buf->offset + buf->len;
 		if (ops->can_merge && offset + chars <= PAGE_SIZE) {
-			void *addr = ops->map(filp, info, buf);
-			int error = pipe_iov_copy_from_user(offset + addr, iov, chars);
+			void *addr;
+			int error;
+
+			addr = ops->map(filp, info, buf);
+			if (IS_ERR(addr)) {
+				error = PTR_ERR(addr);
+				goto out;
+			}
+			error = pipe_iov_copy_from_user(offset + addr, iov,
+							chars);
 			ops->unmap(info, buf);
 			ret = error;
 			do_wakeup = 1;
@@ -568,7 +599,7 @@ pipe_rdwr_open(struct inode *inode, struct file *filp)
  * The file_operations structs are not static because they
  * are also used in linux/fs/fifo.c to do operations on FIFOs.
  */
-struct file_operations read_fifo_fops = {
+const struct file_operations read_fifo_fops = {
 	.llseek		= no_llseek,
 	.read		= pipe_read,
 	.readv		= pipe_readv,
@@ -580,7 +611,7 @@ struct file_operations read_fifo_fops = {
 	.fasync		= pipe_read_fasync,
 };
 
-struct file_operations write_fifo_fops = {
+const struct file_operations write_fifo_fops = {
 	.llseek		= no_llseek,
 	.read		= bad_pipe_r,
 	.write		= pipe_write,
@@ -592,7 +623,7 @@ struct file_operations write_fifo_fops = {
 	.fasync		= pipe_write_fasync,
 };
 
-struct file_operations rdwr_fifo_fops = {
+const struct file_operations rdwr_fifo_fops = {
 	.llseek		= no_llseek,
 	.read		= pipe_read,
 	.readv		= pipe_readv,
@@ -662,10 +693,9 @@ struct inode* pipe_new(struct inode* inode)
 {
 	struct pipe_inode_info *info;
 
-	info = kmalloc(sizeof(struct pipe_inode_info), GFP_KERNEL);
+	info = kzalloc(sizeof(struct pipe_inode_info), GFP_KERNEL);
 	if (!info)
 		goto fail_page;
-	memset(info, 0, sizeof(*info));
 	inode->i_pipe = info;
 
 	init_waitqueue_head(PIPE_WAIT(*inode));
@@ -676,7 +706,7 @@ fail_page:
 	return NULL;
 }
 
-static struct vfsmount *pipe_mnt;
+static struct vfsmount *pipe_mnt __read_mostly;
 static int pipefs_delete_dentry(struct dentry *dentry)
 {
 	return 1;

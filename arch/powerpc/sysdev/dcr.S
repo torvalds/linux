@@ -1,6 +1,4 @@
 /*
- * arch/ppc/syslib/dcr.S
- *
  * "Indirect" DCR access
  *
  * Copyright (c) 2004 Eugene Surovegin <ebs@ebshome.net>

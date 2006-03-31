@@ -50,7 +50,8 @@
 #define IA64_THREAD_PM_VALID	(__IA64_UL(1) << 2)	/* performance registers valid? */
 #define IA64_THREAD_UAC_NOPRINT	(__IA64_UL(1) << 3)	/* don't log unaligned accesses */
 #define IA64_THREAD_UAC_SIGBUS	(__IA64_UL(1) << 4)	/* generate SIGBUS on unaligned acc. */
-							/* bit 5 is currently unused */
+#define IA64_THREAD_MIGRATION	(__IA64_UL(1) << 5)	/* require migration
+							   sync at ctx sw */
 #define IA64_THREAD_FPEMU_NOPRINT (__IA64_UL(1) << 6)	/* don't log any fpswa faults */
 #define IA64_THREAD_FPEMU_SIGFPE  (__IA64_UL(1) << 7)	/* send a SIGFPE for fpswa faults */
 
@@ -180,7 +181,6 @@ DECLARE_PER_CPU(struct cpuinfo_ia64, cpu_info);
 #define local_cpu_data		(&__ia64_per_cpu_var(cpu_info))
 #define cpu_data(cpu)		(&per_cpu(cpu_info, cpu))
 
-extern void identify_cpu (struct cpuinfo_ia64 *);
 extern void print_cpu_info (struct cpuinfo_ia64 *);
 
 typedef struct {

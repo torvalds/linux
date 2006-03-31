@@ -269,10 +269,13 @@ BTFIXUPDEF_CALL_CONST(pte_t, mk_pte, struct page *, pgprot_t)
 
 BTFIXUPDEF_CALL_CONST(pte_t, mk_pte_phys, unsigned long, pgprot_t)
 BTFIXUPDEF_CALL_CONST(pte_t, mk_pte_io, unsigned long, pgprot_t, int)
+BTFIXUPDEF_CALL_CONST(pgprot_t, pgprot_noncached, pgprot_t)
 
 #define mk_pte(page,pgprot) BTFIXUP_CALL(mk_pte)(page,pgprot)
 #define mk_pte_phys(page,pgprot) BTFIXUP_CALL(mk_pte_phys)(page,pgprot)
 #define mk_pte_io(page,pgprot,space) BTFIXUP_CALL(mk_pte_io)(page,pgprot,space)
+
+#define pgprot_noncached(pgprot) BTFIXUP_CALL(pgprot_noncached)(pgprot)
 
 BTFIXUPDEF_INT(pte_modify_mask)
 
@@ -308,9 +311,6 @@ BTFIXUPDEF_CALL(pte_t *, pte_offset_kernel, pmd_t *, unsigned long)
 
 #define pte_unmap(pte)		do{}while(0)
 #define pte_unmap_nested(pte)	do{}while(0)
-
-/* The permissions for pgprot_val to make a page mapped on the obio space */
-extern unsigned int pg_iobits;
 
 /* Certain architectures need to do special things when pte's
  * within a page table are directly modified.  Thus, the following

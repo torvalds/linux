@@ -44,6 +44,7 @@ static int
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
+      const struct xt_match *match,
       const void *matchinfo,
       int offset,
       unsigned int protoff,
@@ -99,17 +100,13 @@ match(const struct sk_buff *skb,
 static int
 checkentry(const char *tablename,
           const void *entry,
+	  const struct xt_match *match,
           void *matchinfo,
           unsigned int matchinfosize,
           unsigned int hook_mask)
 {
 	const struct ip6t_ah *ahinfo = matchinfo;
 
-	if (matchinfosize != IP6T_ALIGN(sizeof(struct ip6t_ah))) {
-		DEBUGP("ip6t_ah: matchsize %u != %u\n",
-		       matchinfosize, IP6T_ALIGN(sizeof(struct ip6t_ah)));
-		return 0;
-	}
 	if (ahinfo->invflags & ~IP6T_AH_INV_MASK) {
 		DEBUGP("ip6t_ah: unknown flags %X\n", ahinfo->invflags);
 		return 0;
@@ -119,20 +116,21 @@ checkentry(const char *tablename,
 
 static struct ip6t_match ah_match = {
 	.name		= "ah",
-	.match		= &match,
-	.checkentry	= &checkentry,
+	.match		= match,
+	.matchsize	= sizeof(struct ip6t_ah),
+	.checkentry	= checkentry,
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init ip6t_ah_init(void)
 {
 	return ip6t_register_match(&ah_match);
 }
 
-static void __exit cleanup(void)
+static void __exit ip6t_ah_fini(void)
 {
 	ip6t_unregister_match(&ah_match);
 }
 
-module_init(init);
-module_exit(cleanup);
+module_init(ip6t_ah_init);
+module_exit(ip6t_ah_fini);

@@ -14,20 +14,20 @@
  * accompanying it.
  */
 
-static int bnx2_COM_b06FwReleaseMajor = 0x1;
-static int bnx2_COM_b06FwReleaseMinor = 0x0;
-static int bnx2_COM_b06FwReleaseFix = 0x0;
-static u32 bnx2_COM_b06FwStartAddr = 0x080008b4;
-static u32 bnx2_COM_b06FwTextAddr = 0x08000000;
-static int bnx2_COM_b06FwTextLen = 0x57bc;
-static u32 bnx2_COM_b06FwDataAddr = 0x08005840;
-static int bnx2_COM_b06FwDataLen = 0x0;
-static u32 bnx2_COM_b06FwRodataAddr = 0x080057c0;
-static int bnx2_COM_b06FwRodataLen = 0x58;
-static u32 bnx2_COM_b06FwBssAddr = 0x08005860;
-static int bnx2_COM_b06FwBssLen = 0x88;
-static u32 bnx2_COM_b06FwSbssAddr = 0x08005840;
-static int bnx2_COM_b06FwSbssLen = 0x1c;
+static const int bnx2_COM_b06FwReleaseMajor = 0x1;
+static const int bnx2_COM_b06FwReleaseMinor = 0x0;
+static const int bnx2_COM_b06FwReleaseFix = 0x0;
+static const u32 bnx2_COM_b06FwStartAddr = 0x080008b4;
+static const u32 bnx2_COM_b06FwTextAddr = 0x08000000;
+static const int bnx2_COM_b06FwTextLen = 0x57bc;
+static const u32 bnx2_COM_b06FwDataAddr = 0x08005840;
+static const int bnx2_COM_b06FwDataLen = 0x0;
+static const u32 bnx2_COM_b06FwRodataAddr = 0x080057c0;
+static const int bnx2_COM_b06FwRodataLen = 0x58;
+static const u32 bnx2_COM_b06FwBssAddr = 0x08005860;
+static const int bnx2_COM_b06FwBssLen = 0x88;
+static const u32 bnx2_COM_b06FwSbssAddr = 0x08005840;
+static const int bnx2_COM_b06FwSbssLen = 0x1c;
 static u32 bnx2_COM_b06FwText[(0x57bc/4) + 1] = {
 	0x0a00022d, 0x00000000, 0x00000000, 0x0000000d, 0x636f6d20, 0x322e352e,
 	0x38000000, 0x02050802, 0x00000000, 0x00000003, 0x00000014, 0x00000032,
@@ -2325,20 +2325,20 @@ static u32 bnx2_rv2p_proc2[] = {
 	0x0000000c, 0x29520000, 0x00000018, 0x80000002, 0x0000000c, 0x29800000,
 	0x00000018, 0x00570000 };
 
-static int bnx2_TPAT_b06FwReleaseMajor = 0x1;
-static int bnx2_TPAT_b06FwReleaseMinor = 0x0;
-static int bnx2_TPAT_b06FwReleaseFix = 0x0;
-static u32 bnx2_TPAT_b06FwStartAddr = 0x08000860;
-static u32 bnx2_TPAT_b06FwTextAddr = 0x08000800;
-static int bnx2_TPAT_b06FwTextLen = 0x122c;
-static u32 bnx2_TPAT_b06FwDataAddr = 0x08001a60;
-static int bnx2_TPAT_b06FwDataLen = 0x0;
-static u32 bnx2_TPAT_b06FwRodataAddr = 0x00000000;
-static int bnx2_TPAT_b06FwRodataLen = 0x0;
-static u32 bnx2_TPAT_b06FwBssAddr = 0x08001aa0;
-static int bnx2_TPAT_b06FwBssLen = 0x250;
-static u32 bnx2_TPAT_b06FwSbssAddr = 0x08001a60;
-static int bnx2_TPAT_b06FwSbssLen = 0x34;
+static const int bnx2_TPAT_b06FwReleaseMajor = 0x1;
+static const int bnx2_TPAT_b06FwReleaseMinor = 0x0;
+static const int bnx2_TPAT_b06FwReleaseFix = 0x0;
+static const u32 bnx2_TPAT_b06FwStartAddr = 0x08000860;
+static const u32 bnx2_TPAT_b06FwTextAddr = 0x08000800;
+static const int bnx2_TPAT_b06FwTextLen = 0x122c;
+static const u32 bnx2_TPAT_b06FwDataAddr = 0x08001a60;
+static const int bnx2_TPAT_b06FwDataLen = 0x0;
+static const u32 bnx2_TPAT_b06FwRodataAddr = 0x00000000;
+static const int bnx2_TPAT_b06FwRodataLen = 0x0;
+static const u32 bnx2_TPAT_b06FwBssAddr = 0x08001aa0;
+static const int bnx2_TPAT_b06FwBssLen = 0x250;
+static const u32 bnx2_TPAT_b06FwSbssAddr = 0x08001a60;
+static const int bnx2_TPAT_b06FwSbssLen = 0x34;
 static u32 bnx2_TPAT_b06FwText[(0x122c/4) + 1] = {
 	0x0a000218, 0x00000000, 0x00000000, 0x0000000d, 0x74706174, 0x20322e35,
 	0x2e313100, 0x02050b01, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
@@ -2540,20 +2540,20 @@ static u32 bnx2_TPAT_b06FwRodata[(0x0/4) + 1] = { 0x0 };
 static u32 bnx2_TPAT_b06FwBss[(0x250/4) + 1] = { 0x0 };
 static u32 bnx2_TPAT_b06FwSbss[(0x34/4) + 1] = { 0x0 };
 
-static int bnx2_TXP_b06FwReleaseMajor = 0x1;
-static int bnx2_TXP_b06FwReleaseMinor = 0x0;
-static int bnx2_TXP_b06FwReleaseFix = 0x0;
-static u32 bnx2_TXP_b06FwStartAddr = 0x080034b0;
-static u32 bnx2_TXP_b06FwTextAddr = 0x08000000;
-static int bnx2_TXP_b06FwTextLen = 0x5748;
-static u32 bnx2_TXP_b06FwDataAddr = 0x08005760;
-static int bnx2_TXP_b06FwDataLen = 0x0;
-static u32 bnx2_TXP_b06FwRodataAddr = 0x00000000;
-static int bnx2_TXP_b06FwRodataLen = 0x0;
-static u32 bnx2_TXP_b06FwBssAddr = 0x080057a0;
-static int bnx2_TXP_b06FwBssLen = 0x1c4;
-static u32 bnx2_TXP_b06FwSbssAddr = 0x08005760;
-static int bnx2_TXP_b06FwSbssLen = 0x38;
+static const int bnx2_TXP_b06FwReleaseMajor = 0x1;
+static const int bnx2_TXP_b06FwReleaseMinor = 0x0;
+static const int bnx2_TXP_b06FwReleaseFix = 0x0;
+static const u32 bnx2_TXP_b06FwStartAddr = 0x080034b0;
+static const u32 bnx2_TXP_b06FwTextAddr = 0x08000000;
+static const int bnx2_TXP_b06FwTextLen = 0x5748;
+static const u32 bnx2_TXP_b06FwDataAddr = 0x08005760;
+static const int bnx2_TXP_b06FwDataLen = 0x0;
+static const u32 bnx2_TXP_b06FwRodataAddr = 0x00000000;
+static const int bnx2_TXP_b06FwRodataLen = 0x0;
+static const u32 bnx2_TXP_b06FwBssAddr = 0x080057a0;
+static const int bnx2_TXP_b06FwBssLen = 0x1c4;
+static const u32 bnx2_TXP_b06FwSbssAddr = 0x08005760;
+static const int bnx2_TXP_b06FwSbssLen = 0x38;
 static u32 bnx2_TXP_b06FwText[(0x5748/4) + 1] = {
 	0x0a000d2c, 0x00000000, 0x00000000, 0x0000000d, 0x74787020, 0x322e352e,
 	0x38000000, 0x02050800, 0x0000000a, 0x000003e8, 0x0000ea60, 0x00000000,

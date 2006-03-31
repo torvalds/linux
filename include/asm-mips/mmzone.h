@@ -22,20 +22,6 @@
 		       NODE_DATA(__n)->node_spanned_pages) : 0);\
 })
 
-#define pfn_to_page(pfn)					\
-({								\
- 	unsigned long __pfn = (pfn);				\
-	pg_data_t *__pg = NODE_DATA(pfn_to_nid(__pfn));		\
-	__pg->node_mem_map + (__pfn - __pg->node_start_pfn);	\
-})
-
-#define page_to_pfn(p)						\
-({								\
-	struct page *__p = (p);					\
-	struct zone *__z = page_zone(__p);			\
-	((__p - __z->zone_mem_map) + __z->zone_start_pfn);	\
-})
-
 /* XXX: FIXME -- wli */
 #define kern_addr_valid(addr)	(0)
 

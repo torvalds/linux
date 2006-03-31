@@ -11,4 +11,26 @@ config LBD
 	  your machine, or if you want to have a raid or loopback device
 	  bigger than 2TB.  Otherwise say N.
 
+config BLK_DEV_IO_TRACE
+	bool "Support for tracing block io actions"
+	depends on SYSFS
+	select RELAY
+	select DEBUG_FS
+	help
+	  Say Y here, if you want to be able to trace the block layer actions
+	  on a given queue. Tracing allows you to see any traffic happening
+	  on a block device queue. For more information (and the user space
+	  support tools needed), fetch the blktrace app from:
+
+	  git://brick.kernel.dk/data/git/blktrace.git
+
+config LSF
+	bool "Support for Large Single Files"
+	depends on X86 || (MIPS && 32BIT) || PPC32 || ARCH_S390_31 || SUPERH || UML
+	default n
+	help
+	  When CONFIG_LBD is disabled, say Y here if you want to
+	  handle large file(bigger than 2TB), otherwise say N.
+	  When CONFIG_LBD is enabled, Y is set automatically.
+
 source block/Kconfig.iosched

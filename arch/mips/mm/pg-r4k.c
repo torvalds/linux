@@ -124,7 +124,7 @@ static inline void build_nop(void)
 
 static inline void build_src_pref(int advance)
 {
-	if (!(load_offset & (cpu_dcache_line_size() - 1))) {
+	if (!(load_offset & (cpu_dcache_line_size() - 1)) && advance) {
 		union mips_instruction mi;
 
 		mi.i_format.opcode     = pref_op;
@@ -166,7 +166,7 @@ static inline void build_load_reg(int reg)
 
 static inline void build_dst_pref(int advance)
 {
-	if (!(store_offset & (cpu_dcache_line_size() - 1))) {
+	if (!(store_offset & (cpu_dcache_line_size() - 1)) && advance) {
 		union mips_instruction mi;
 
 		mi.i_format.opcode     = pref_op;
@@ -340,6 +340,12 @@ void __init build_clear_page(void)
 
 	if (cpu_has_prefetch) {
 		switch (current_cpu_data.cputype) {
+		case CPU_TX49XX:
+			/* TX49 supports only Pref_Load */
+			pref_offset_clear = 0;
+			pref_offset_copy = 0;
+			break;
+
 		case CPU_RM9000:
 			/*
 			 * As a workaround for erratum G105 which make the

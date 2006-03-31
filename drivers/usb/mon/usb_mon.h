@@ -49,7 +49,7 @@ void mon_reader_del(struct mon_bus *mbus, struct mon_reader *r);
  */
 extern char mon_dmapeek(unsigned char *dst, dma_addr_t dma_addr, int len);
 
-extern struct semaphore mon_lock;
+extern struct mutex mon_lock;
 
 extern struct file_operations mon_fops_text;
 extern struct file_operations mon_fops_stat;

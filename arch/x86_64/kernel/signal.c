@@ -443,9 +443,6 @@ int do_signal(struct pt_regs *regs, sigset_t *oldset)
 	if (!user_mode(regs))
 		return 1;
 
-	if (try_to_freeze())
-		goto no_signal;
-
 	if (!oldset)
 		oldset = &current->blocked;
 
@@ -463,7 +460,6 @@ int do_signal(struct pt_regs *regs, sigset_t *oldset)
 		return handle_signal(signr, &info, &ka, oldset, regs);
 	}
 
- no_signal:
 	/* Did we come from a system call? */
 	if ((long)regs->orig_rax >= 0) {
 		/* Restart the system call - no handlers present */

@@ -158,8 +158,6 @@ struct k_sigaction {
 
 #define ptrace_signal_deliver(regs, cookie) do { } while (0)
 
-void set_sigdelayed(pid_t pid, int signo, int code, void __user *addr);
-
 #endif /* __KERNEL__ */
 
 # endif /* !__ASSEMBLY__ */

@@ -70,10 +70,10 @@ void __init prom_init(void)
 
 	if ((read_c0_prid() & 0xff) == PRID_REV_TX4927) {
 		mips_machtype = MACH_TOSHIBA_RBTX4927;
- 		toshiba_name  = "TX4927";
+		toshiba_name  = "TX4927";
 	} else {
 		mips_machtype = MACH_TOSHIBA_RBTX4937;
- 		toshiba_name  = "TX4937";
+		toshiba_name  = "TX4937";
 	}
 
 	msize = tx4927_get_mem_size();

@@ -8,9 +8,8 @@
  *  Copyright (C) 2002 by Ron Minnich <rminnich@lanl.gov>
  *
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ *  it under the terms of the GNU General Public License version 2
+ *  as published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -235,6 +234,7 @@ struct Tcreate {
 	struct v9fs_str name;
 	u32 perm;
 	u8 mode;
+	struct v9fs_str extension;
 };
 
 struct Rcreate {
@@ -348,8 +348,6 @@ int v9fs_t_attach(struct v9fs_session_info *v9ses, char *uname, char *aname,
 
 int v9fs_t_clunk(struct v9fs_session_info *v9ses, u32 fid);
 
-int v9fs_t_flush(struct v9fs_session_info *v9ses, u16 oldtag);
-
 int v9fs_t_stat(struct v9fs_session_info *v9ses, u32 fid,
 		struct v9fs_fcall **rcall);
 
@@ -366,7 +364,7 @@ int v9fs_t_remove(struct v9fs_session_info *v9ses, u32 fid,
 		  struct v9fs_fcall **rcall);
 
 int v9fs_t_create(struct v9fs_session_info *v9ses, u32 fid, char *name,
-		  u32 perm, u8 mode, struct v9fs_fcall **rcall);
+	u32 perm, u8 mode, char *extension, struct v9fs_fcall **rcall);
 
 int v9fs_t_read(struct v9fs_session_info *v9ses, u32 fid,
 		u64 offset, u32 count, struct v9fs_fcall **rcall);
@@ -374,3 +372,4 @@ int v9fs_t_read(struct v9fs_session_info *v9ses, u32 fid,
 int v9fs_t_write(struct v9fs_session_info *v9ses, u32 fid, u64 offset,
 		 u32 count, const char __user * data,
 		 struct v9fs_fcall **rcall);
+int v9fs_printfcall(char *, int, struct v9fs_fcall *, int);

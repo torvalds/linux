@@ -74,7 +74,7 @@ late_initcall(start_lost_tick_compensation);
  *
  *			-johnstul@us.ibm.com "math is hard, lets go shopping!"
  */
-static unsigned long cyc2ns_scale; 
+static unsigned long cyc2ns_scale __read_mostly;
 #define CYC2NS_SCALE_FACTOR 10 /* 2^10, carefully chosen */
 
 static inline void set_cyc2ns_scale(unsigned long cpu_khz)

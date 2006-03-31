@@ -1,7 +1,7 @@
 #ifndef __INCLUDED_TDA9840__
 #define __INCLUDED_TDA9840__
 
-#define	I2C_TDA9840		0x42
+#define	I2C_ADDR_TDA9840		0x42
 
 #define TDA9840_DETECT		_IOR('v',1,int)
 /* return values for TDA9840_DETCT */

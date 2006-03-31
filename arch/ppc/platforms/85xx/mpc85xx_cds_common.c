@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platform/85xx/mpc85xx_cds_common.c
- *
  * MPC85xx CDS board specific routines
  *
  * Maintainer: Kumar Gala <galak@kernel.crashing.org>

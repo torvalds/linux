@@ -366,7 +366,7 @@ static int __devinit eisa_probe(struct parisc_device *dev)
 			eisa_dev.eeprom_addr = MIRAGE_EEPROM_BASE_ADDR;
 		}
 	}
-	eisa_eeprom_addr = ioremap(eisa_dev.eeprom_addr, HPEE_MAX_LENGTH);
+	eisa_eeprom_addr = ioremap_nocache(eisa_dev.eeprom_addr, HPEE_MAX_LENGTH);
 	result = eisa_enumerator(eisa_dev.eeprom_addr, &eisa_dev.hba.io_space,
 			&eisa_dev.hba.lmmio_space);
 	init_eisa_pic();

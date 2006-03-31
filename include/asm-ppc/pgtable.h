@@ -12,6 +12,7 @@
 #include <asm/processor.h>		/* For TASK_SIZE */
 #include <asm/mmu.h>
 #include <asm/page.h>
+#include <asm/io.h>			/* For sub-arch specific PPC_PIN_SIZE */
 struct mm_struct;
 
 extern unsigned long va_to_phys(unsigned long address);
@@ -127,9 +128,8 @@ extern unsigned long ioremap_bot, ioremap_base;
  * of RAM.  -- Cort
  */
 #define VMALLOC_OFFSET (0x1000000) /* 16M */
-#ifdef CONFIG_44x
-#include <asm/ibm44x.h>
-#define VMALLOC_START (((_ALIGN((long)high_memory, PPC44x_PIN_SIZE) + VMALLOC_OFFSET) & ~(VMALLOC_OFFSET-1)))
+#ifdef PPC_PIN_SIZE
+#define VMALLOC_START (((_ALIGN((long)high_memory, PPC_PIN_SIZE) + VMALLOC_OFFSET) & ~(VMALLOC_OFFSET-1)))
 #else
 #define VMALLOC_START ((((long)high_memory + VMALLOC_OFFSET) & ~(VMALLOC_OFFSET-1)))
 #endif
@@ -837,7 +837,8 @@ static inline int io_remap_pfn_range(struct vm_area_struct *vma,
  */
 #define pgtable_cache_init()	do { } while (0)
 
-extern int get_pteptr(struct mm_struct *mm, unsigned long addr, pte_t **ptep);
+extern int get_pteptr(struct mm_struct *mm, unsigned long addr, pte_t **ptep,
+		      pmd_t **pmdp);
 
 #include <asm-generic/pgtable.h>
 

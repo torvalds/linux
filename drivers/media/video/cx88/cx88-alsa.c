@@ -63,7 +63,7 @@ struct cx88_audio_dev {
 	/* audio controls */
 	int                        irq;
 
-	snd_card_t                 *card;
+	struct snd_card            *card;
 
 	spinlock_t                 reg_lock;
 
@@ -82,7 +82,7 @@ struct cx88_audio_dev {
 	struct cx88_buffer   *buf;
 
 	long opened;
-	snd_pcm_substream_t *substream;
+	struct snd_pcm_substream *substream;
 
 };
 typedef struct cx88_audio_dev snd_cx88_card_t;
@@ -96,7 +96,7 @@ typedef struct cx88_audio_dev snd_cx88_card_t;
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
 static int enable[SNDRV_CARDS] = {1, [1 ... (SNDRV_CARDS - 1)] = 1};
-static snd_card_t *snd_cx88_cards[SNDRV_CARDS];
+static struct snd_card *snd_cx88_cards[SNDRV_CARDS];
 
 module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable cx88x soundcard. default enabled.");
@@ -303,7 +303,7 @@ static int dsp_buffer_free(snd_cx88_card_t *chip)
 	BUG_ON(!chip->dma_size);
 
 	dprintk(2,"Freeing buffer\n");
-	videobuf_dma_pci_unmap(chip->pci, &chip->dma_risc);
+	videobuf_pci_dma_unmap(chip->pci, &chip->dma_risc);
 	videobuf_dma_free(&chip->dma_risc);
 	btcx_riscmem_free(chip->pci,&chip->buf->risc);
 	kfree(chip->buf);
@@ -320,7 +320,7 @@ static int dsp_buffer_free(snd_cx88_card_t *chip)
 /*
  * Digital hardware definition
  */
-static snd_pcm_hardware_t snd_cx88_digital_hw = {
+static struct snd_pcm_hardware snd_cx88_digital_hw = {
 	.info = SNDRV_PCM_INFO_MMAP |
 		SNDRV_PCM_INFO_INTERLEAVED |
 		SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -342,16 +342,16 @@ static snd_pcm_hardware_t snd_cx88_digital_hw = {
 /*
  * audio pcm capture runtime free
  */
-static void snd_card_cx88_runtime_free(snd_pcm_runtime_t *runtime)
+static void snd_card_cx88_runtime_free(struct snd_pcm_runtime *runtime)
 {
 }
 /*
  * audio pcm capture open callback
  */
-static int snd_cx88_pcm_open(snd_pcm_substream_t *substream)
+static int snd_cx88_pcm_open(struct snd_pcm_substream *substream)
 {
 	snd_cx88_card_t *chip = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err;
 
 	if (test_and_set_bit(0, &chip->opened))
@@ -380,7 +380,7 @@ _error:
 /*
  * audio close callback
  */
-static int snd_cx88_close(snd_pcm_substream_t *substream)
+static int snd_cx88_close(struct snd_pcm_substream *substream)
 {
 	snd_cx88_card_t *chip = snd_pcm_substream_chip(substream);
 
@@ -393,8 +393,8 @@ static int snd_cx88_close(snd_pcm_substream_t *substream)
 /*
  * hw_params callback
  */
-static int snd_cx88_hw_params(snd_pcm_substream_t * substream,
-				 snd_pcm_hw_params_t * hw_params)
+static int snd_cx88_hw_params(struct snd_pcm_substream * substream,
+			      struct snd_pcm_hw_params * hw_params)
 {
 	snd_cx88_card_t *chip = snd_pcm_substream_chip(substream);
 	struct cx88_buffer *buf;
@@ -429,7 +429,7 @@ static int snd_cx88_hw_params(snd_pcm_substream_t * substream,
 	videobuf_dma_init_kernel(&buf->vb.dma,PCI_DMA_FROMDEVICE,
 			(PAGE_ALIGN(buf->vb.size) >> PAGE_SHIFT));
 
-	videobuf_dma_pci_map(chip->pci,&buf->vb.dma);
+	videobuf_pci_dma_map(chip->pci,&buf->vb.dma);
 
 
 	cx88_risc_databuffer(chip->pci, &buf->risc,
@@ -453,7 +453,7 @@ static int snd_cx88_hw_params(snd_pcm_substream_t * substream,
 /*
  * hw free callback
  */
-static int snd_cx88_hw_free(snd_pcm_substream_t * substream)
+static int snd_cx88_hw_free(struct snd_pcm_substream * substream)
 {
 
 	snd_cx88_card_t *chip = snd_pcm_substream_chip(substream);
@@ -469,7 +469,7 @@ static int snd_cx88_hw_free(snd_pcm_substream_t * substream)
 /*
  * prepare callback
  */
-static int snd_cx88_prepare(snd_pcm_substream_t *substream)
+static int snd_cx88_prepare(struct snd_pcm_substream *substream)
 {
 	return 0;
 }
@@ -478,7 +478,7 @@ static int snd_cx88_prepare(snd_pcm_substream_t *substream)
 /*
  * trigger callback
  */
-static int snd_cx88_card_trigger(snd_pcm_substream_t *substream, int cmd)
+static int snd_cx88_card_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	snd_cx88_card_t *chip = snd_pcm_substream_chip(substream);
 	int err;
@@ -505,10 +505,10 @@ static int snd_cx88_card_trigger(snd_pcm_substream_t *substream, int cmd)
 /*
  * pointer callback
  */
-static snd_pcm_uframes_t snd_cx88_pointer(snd_pcm_substream_t *substream)
+static snd_pcm_uframes_t snd_cx88_pointer(struct snd_pcm_substream *substream)
 {
 	snd_cx88_card_t *chip = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct snd_pcm_runtime *runtime = substream->runtime;
 
 	if (chip->read_count) {
 		chip->read_count -= snd_pcm_lib_period_bytes(substream);
@@ -525,7 +525,7 @@ static snd_pcm_uframes_t snd_cx88_pointer(snd_pcm_substream_t *substream)
 /*
  * operators
  */
-static snd_pcm_ops_t snd_cx88_pcm_ops = {
+static struct snd_pcm_ops snd_cx88_pcm_ops = {
 	.open = snd_cx88_pcm_open,
 	.close = snd_cx88_close,
 	.ioctl = snd_pcm_lib_ioctl,
@@ -542,7 +542,7 @@ static snd_pcm_ops_t snd_cx88_pcm_ops = {
 static int __devinit snd_cx88_pcm(snd_cx88_card_t *chip, int device, char *name)
 {
 	int err;
-	snd_pcm_t *pcm;
+	struct snd_pcm *pcm;
 
 	err = snd_pcm_new(chip->card, name, device, 0, 1, &pcm);
 	if (err < 0)
@@ -557,7 +557,8 @@ static int __devinit snd_cx88_pcm(snd_cx88_card_t *chip, int device, char *name)
 /****************************************************************************
 				CONTROL INTERFACE
  ****************************************************************************/
-static int snd_cx88_capture_volume_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *info)
+static int snd_cx88_capture_volume_info(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_info *info)
 {
 	info->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	info->count = 1;
@@ -568,7 +569,8 @@ static int snd_cx88_capture_volume_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_i
 }
 
 /* OK - TODO: test it */
-static int snd_cx88_capture_volume_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *value)
+static int snd_cx88_capture_volume_get(struct snd_kcontrol *kcontrol,
+				       struct snd_ctl_elem_value *value)
 {
 	snd_cx88_card_t *chip = snd_kcontrol_chip(kcontrol);
 	struct cx88_core *core=chip->core;
@@ -579,7 +581,8 @@ static int snd_cx88_capture_volume_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_va
 }
 
 /* OK - TODO: test it */
-static int snd_cx88_capture_volume_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *value)
+static int snd_cx88_capture_volume_put(struct snd_kcontrol *kcontrol,
+				       struct snd_ctl_elem_value *value)
 {
 	snd_cx88_card_t *chip = snd_kcontrol_chip(kcontrol);
 	struct cx88_core *core=chip->core;
@@ -595,7 +598,7 @@ static int snd_cx88_capture_volume_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_va
 	return v != old_control;
 }
 
-static snd_kcontrol_new_t snd_cx88_capture_volume = {
+static struct snd_kcontrol_new snd_cx88_capture_volume = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Capture Volume",
 	.info = snd_cx88_capture_volume_info,
@@ -641,7 +644,7 @@ static int snd_cx88_free(snd_cx88_card_t *chip)
 /*
  * Component Destructor
  */
-static void snd_cx88_dev_free(snd_card_t * card)
+static void snd_cx88_dev_free(struct snd_card * card)
 {
 	snd_cx88_card_t *chip = card->private_data;
 
@@ -654,8 +657,9 @@ static void snd_cx88_dev_free(snd_card_t * card)
  */
 
 static int devno;
-static int __devinit snd_cx88_create(snd_card_t *card, struct pci_dev *pci,
-				    snd_cx88_card_t **rchip)
+static int __devinit snd_cx88_create(struct snd_card *card,
+				     struct pci_dev *pci,
+				     snd_cx88_card_t **rchip)
 {
 	snd_cx88_card_t   *chip;
 	struct cx88_core  *core;
@@ -672,6 +676,11 @@ static int __devinit snd_cx88_create(snd_card_t *card, struct pci_dev *pci,
 	chip = (snd_cx88_card_t *) card->private_data;
 
 	core = cx88_core_get(pci);
+	if (NULL == core) {
+		err = -EINVAL;
+		kfree (chip);
+		return err;
+	}
 
 	if (!pci_dma_supported(pci,0xffffffff)) {
 		dprintk(0, "%s/1: Oops: no 32bit PCI DMA ???\n",core->name);
@@ -688,11 +697,6 @@ static int __devinit snd_cx88_create(snd_card_t *card, struct pci_dev *pci,
 	spin_lock_init(&chip->reg_lock);
 
 	cx88_reset(core);
-	if (NULL == core) {
-		err = -EINVAL;
-		kfree (chip);
-		return err;
-	}
 	chip->core = core;
 
 	/* get irq */
@@ -726,7 +730,7 @@ static int __devinit snd_cx88_create(snd_card_t *card, struct pci_dev *pci,
 static int __devinit cx88_audio_initdev(struct pci_dev *pci,
 				    const struct pci_device_id *pci_id)
 {
-	snd_card_t       *card;
+	struct snd_card  *card;
 	snd_cx88_card_t  *chip;
 	int              err;
 

@@ -51,6 +51,10 @@
 #include <platforms/4xx/xilinx_ml300.h>
 #endif
 
+#if defined(CONFIG_XILINX_ML403)
+#include <platforms/4xx/xilinx_ml403.h>
+#endif
+
 #ifndef __ASSEMBLY__
 
 #ifdef CONFIG_40x

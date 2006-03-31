@@ -72,6 +72,9 @@ int phys_proc_id[NR_CPUS] __read_mostly = {[0 ... NR_CPUS-1] = BAD_APICID};
 /* Core ID of each logical CPU */
 int cpu_core_id[NR_CPUS] __read_mostly = {[0 ... NR_CPUS-1] = BAD_APICID};
 
+/* Last level cache ID of each logical CPU */
+int cpu_llc_id[NR_CPUS] __cpuinitdata = {[0 ... NR_CPUS-1] = BAD_APICID};
+
 /* representing HT siblings of each logical CPU */
 cpumask_t cpu_sibling_map[NR_CPUS] __read_mostly;
 EXPORT_SYMBOL(cpu_sibling_map);
@@ -440,6 +443,18 @@ static void __devinit smp_callin(void)
 
 static int cpucount;
 
+/* maps the cpu to the sched domain representing multi-core */
+cpumask_t cpu_coregroup_map(int cpu)
+{
+	struct cpuinfo_x86 *c = cpu_data + cpu;
+	/*
+	 * For perf, we return last level cache shared map.
+	 * TBD: when power saving sched policy is added, we will return
+	 *      cpu_core_map when power saving policy is enabled
+	 */
+	return c->llc_shared_map;
+}
+
 /* representing cpus for which sibling maps can be computed */
 static cpumask_t cpu_sibling_setup_map;
 
@@ -459,11 +474,15 @@ set_cpu_sibling_map(int cpu)
 				cpu_set(cpu, cpu_sibling_map[i]);
 				cpu_set(i, cpu_core_map[cpu]);
 				cpu_set(cpu, cpu_core_map[i]);
+				cpu_set(i, c[cpu].llc_shared_map);
+				cpu_set(cpu, c[i].llc_shared_map);
 			}
 		}
 	} else {
 		cpu_set(cpu, cpu_sibling_map[cpu]);
 	}
+
+	cpu_set(cpu, c[cpu].llc_shared_map);
 
 	if (current_cpu_data.x86_max_cores == 1) {
 		cpu_core_map[cpu] = cpu_sibling_map[cpu];
@@ -472,6 +491,11 @@ set_cpu_sibling_map(int cpu)
 	}
 
 	for_each_cpu_mask(i, cpu_sibling_setup_map) {
+		if (cpu_llc_id[cpu] != BAD_APICID &&
+		    cpu_llc_id[cpu] == cpu_llc_id[i]) {
+			cpu_set(i, c[cpu].llc_shared_map);
+			cpu_set(cpu, c[i].llc_shared_map);
+		}
 		if (phys_proc_id[cpu] == phys_proc_id[i]) {
 			cpu_set(i, cpu_core_map[cpu]);
 			cpu_set(cpu, cpu_core_map[i]);
@@ -899,6 +923,7 @@ static int __devinit do_boot_cpu(int apicid, int cpu)
 	unsigned short nmi_high = 0, nmi_low = 0;
 
 	++cpucount;
+	alternatives_smp_switch(1);
 
 	/*
 	 * We can't use kernel_thread since we must avoid to
@@ -1002,7 +1027,6 @@ void cpu_exit_clear(void)
 
 	cpu_clear(cpu, cpu_callout_map);
 	cpu_clear(cpu, cpu_callin_map);
-	cpu_clear(cpu, cpu_present_map);
 
 	cpu_clear(cpu, smp_commenced_mask);
 	unmap_cpu_to_logical_apicid(cpu);
@@ -1014,30 +1038,19 @@ struct warm_boot_cpu_info {
 	int cpu;
 };
 
-static void __devinit do_warm_boot_cpu(void *p)
+static void __cpuinit do_warm_boot_cpu(void *p)
 {
 	struct warm_boot_cpu_info *info = p;
 	do_boot_cpu(info->apicid, info->cpu);
 	complete(info->complete);
 }
 
-int __devinit smp_prepare_cpu(int cpu)
+static int __cpuinit __smp_prepare_cpu(int cpu)
 {
 	DECLARE_COMPLETION(done);
 	struct warm_boot_cpu_info info;
 	struct work_struct task;
 	int	apicid, ret;
-
-	lock_cpu_hotplug();
-
-	/*
-	 * On x86, CPU0 is never offlined.  Trying to bring up an
-	 * already-booted CPU will hang.  So check for that case.
-	 */
-	if (cpu_online(cpu)) {
-		ret = -EINVAL;
-		goto exit;
-	}
 
 	apicid = x86_cpu_to_apicid[cpu];
 	if (apicid == BAD_APICID) {
@@ -1063,7 +1076,6 @@ int __devinit smp_prepare_cpu(int cpu)
 	zap_low_mappings();
 	ret = 0;
 exit:
-	unlock_cpu_hotplug();
 	return ret;
 }
 #endif
@@ -1368,6 +1380,8 @@ void __cpu_die(unsigned int cpu)
 		/* They ack this in play_dead by setting CPU_DEAD */
 		if (per_cpu(cpu_state, cpu) == CPU_DEAD) {
 			printk ("CPU %d is now offline\n", cpu);
+			if (1 == num_online_cpus())
+				alternatives_smp_switch(0);
 			return;
 		}
 		msleep(100);
@@ -1389,6 +1403,22 @@ void __cpu_die(unsigned int cpu)
 
 int __devinit __cpu_up(unsigned int cpu)
 {
+#ifdef CONFIG_HOTPLUG_CPU
+	int ret=0;
+
+	/*
+	 * We do warm boot only on cpus that had booted earlier
+	 * Otherwise cold boot is all handled from smp_boot_cpus().
+	 * cpu_callin_map is set during AP kickstart process. Its reset
+	 * when a cpu is taken offline from cpu_exit_clear().
+	 */
+	if (!cpu_isset(cpu, cpu_callin_map))
+		ret = __smp_prepare_cpu(cpu);
+
+	if (ret)
+		return -EIO;
+#endif
+
 	/* In case one didn't come up */
 	if (!cpu_isset(cpu, cpu_callin_map)) {
 		printk(KERN_DEBUG "skipping cpu%d, didn't come online\n", cpu);

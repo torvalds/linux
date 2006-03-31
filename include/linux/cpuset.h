@@ -4,7 +4,7 @@
  *  cpuset interface
  *
  *  Copyright (C) 2003 BULL SA
- *  Copyright (C) 2004 Silicon Graphics, Inc.
+ *  Copyright (C) 2004-2006 Silicon Graphics, Inc.
  *
  */
 
@@ -50,6 +50,18 @@ extern char *cpuset_task_status_allowed(struct task_struct *task, char *buffer);
 
 extern void cpuset_lock(void);
 extern void cpuset_unlock(void);
+
+extern int cpuset_mem_spread_node(void);
+
+static inline int cpuset_do_page_mem_spread(void)
+{
+	return current->flags & PF_SPREAD_PAGE;
+}
+
+static inline int cpuset_do_slab_mem_spread(void)
+{
+	return current->flags & PF_SPREAD_SLAB;
+}
 
 #else /* !CONFIG_CPUSETS */
 
@@ -98,6 +110,21 @@ static inline char *cpuset_task_status_allowed(struct task_struct *task,
 
 static inline void cpuset_lock(void) {}
 static inline void cpuset_unlock(void) {}
+
+static inline int cpuset_mem_spread_node(void)
+{
+	return 0;
+}
+
+static inline int cpuset_do_page_mem_spread(void)
+{
+	return 0;
+}
+
+static inline int cpuset_do_slab_mem_spread(void)
+{
+	return 0;
+}
 
 #endif /* !CONFIG_CPUSETS */
 

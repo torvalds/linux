@@ -224,6 +224,9 @@ source "net/irda/Kconfig"
 source "net/bluetooth/Kconfig"
 source "net/ieee80211/Kconfig"
 
+config WIRELESS_EXT
+	bool
+
 endif   # if NET
 endmenu # Networking
 

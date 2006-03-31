@@ -201,7 +201,7 @@ static struct nf_hook_ops ipt_ops[] = {
 	},
 };
 
-static int __init init(void)
+static int __init iptable_mangle_init(void)
 {
 	int ret;
 
@@ -247,7 +247,7 @@ static int __init init(void)
 	return ret;
 }
 
-static void __exit fini(void)
+static void __exit iptable_mangle_fini(void)
 {
 	unsigned int i;
 
@@ -257,5 +257,5 @@ static void __exit fini(void)
 	ipt_unregister_table(&packet_mangler);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(iptable_mangle_init);
+module_exit(iptable_mangle_fini);

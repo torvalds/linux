@@ -76,6 +76,90 @@ static inline int spu_reacquire_runnable(struct spu_context *ctx, u32 *npc,
 	return 0;
 }
 
+/*
+ * SPU syscall restarting is tricky because we violate the basic
+ * assumption that the signal handler is running on the interrupted
+ * thread. Here instead, the handler runs on PowerPC user space code,
+ * while the syscall was called from the SPU.
+ * This means we can only do a very rough approximation of POSIX
+ * signal semantics.
+ */
+int spu_handle_restartsys(struct spu_context *ctx, long *spu_ret,
+			  unsigned int *npc)
+{
+	int ret;
+
+	switch (*spu_ret) {
+	case -ERESTARTSYS:
+	case -ERESTARTNOINTR:
+		/*
+		 * Enter the regular syscall restarting for
+		 * sys_spu_run, then restart the SPU syscall
+		 * callback.
+		 */
+		*npc -= 8;
+		ret = -ERESTARTSYS;
+		break;
+	case -ERESTARTNOHAND:
+	case -ERESTART_RESTARTBLOCK:
+		/*
+		 * Restart block is too hard for now, just return -EINTR
+		 * to the SPU.
+		 * ERESTARTNOHAND comes from sys_pause, we also return
+		 * -EINTR from there.
+		 * Assume that we need to be restarted ourselves though.
+		 */
+		*spu_ret = -EINTR;
+		ret = -ERESTARTSYS;
+		break;
+	default:
+		printk(KERN_WARNING "%s: unexpected return code %ld\n",
+			__FUNCTION__, *spu_ret);
+		ret = 0;
+	}
+	return ret;
+}
+
+int spu_process_callback(struct spu_context *ctx)
+{
+	struct spu_syscall_block s;
+	u32 ls_pointer, npc;
+	char *ls;
+	long spu_ret;
+	int ret;
+
+	/* get syscall block from local store */
+	npc = ctx->ops->npc_read(ctx);
+	ls = ctx->ops->get_ls(ctx);
+	ls_pointer = *(u32*)(ls + npc);
+	if (ls_pointer > (LS_SIZE - sizeof(s)))
+		return -EFAULT;
+	memcpy(&s, ls + ls_pointer, sizeof (s));
+
+	/* do actual syscall without pinning the spu */
+	ret = 0;
+	spu_ret = -ENOSYS;
+	npc += 4;
+
+	if (s.nr_ret < __NR_syscalls) {
+		spu_release(ctx);
+		/* do actual system call from here */
+		spu_ret = spu_sys_callback(&s);
+		if (spu_ret <= -ERESTARTSYS) {
+			ret = spu_handle_restartsys(ctx, &spu_ret, &npc);
+		}
+		spu_acquire(ctx);
+		if (ret == -ERESTARTSYS)
+			return ret;
+	}
+
+	/* write result, jump over indirect pointer */
+	memcpy(ls + ls_pointer, &spu_ret, sizeof (spu_ret));
+	ctx->ops->npc_write(ctx, npc);
+	ctx->ops->runcntl_write(ctx, SPU_RUNCNTL_RUNNABLE);
+	return ret;
+}
+
 static inline int spu_process_events(struct spu_context *ctx)
 {
 	struct spu *spu = ctx->spu;
@@ -107,6 +191,13 @@ long spufs_run_spu(struct file *file, struct spu_context *ctx,
 		ret = spufs_wait(ctx->stop_wq, spu_stopped(ctx, status));
 		if (unlikely(ret))
 			break;
+		if ((*status & SPU_STATUS_STOPPED_BY_STOP) &&
+		    (*status >> SPU_STOP_STATUS_SHIFT == 0x2104)) {
+			ret = spu_process_callback(ctx);
+			if (ret)
+				break;
+			*status &= ~SPU_STATUS_STOPPED_BY_STOP;
+		}
 		if (unlikely(ctx->state != SPU_STATE_RUNNABLE)) {
 			ret = spu_reacquire_runnable(ctx, npc, status);
 			if (ret)

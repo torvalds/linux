@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/ev64360.c
- *
  * Board setup routines for the Marvell EV-64360-BP Evaluation Board.
  *
  * Author: Lee Nicks <allinux@gmail.com>
@@ -300,7 +298,7 @@ ev64360_fixup_eth_pdata(struct platform_device *pdev)
 }
 #endif
 
-static int __init
+static int
 ev64360_platform_notify(struct device *dev)
 {
 	static struct {

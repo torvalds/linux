@@ -25,7 +25,7 @@ struct ipc_ids {
 	int max_id;
 	unsigned short seq;
 	unsigned short seq_max;
-	struct semaphore sem;	
+	struct mutex mutex;
 	struct ipc_id_ary nullentry;
 	struct ipc_id_ary* entries;
 };
@@ -40,7 +40,7 @@ void __init ipc_init_proc_interface(const char *path, const char *header,
 #define ipc_init_proc_interface(path, header, ids, show) do {} while (0)
 #endif
 
-/* must be called with ids->sem acquired.*/
+/* must be called with ids->mutex acquired.*/
 int ipc_findkey(struct ipc_ids* ids, key_t key);
 int ipc_addid(struct ipc_ids* ids, struct kern_ipc_perm* new, int size);
 

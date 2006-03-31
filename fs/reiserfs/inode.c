@@ -466,7 +466,6 @@ static int reiserfs_get_block_create_0(struct inode *inode, sector_t block,
    direct_IO request. */
 static int reiserfs_get_blocks_direct_io(struct inode *inode,
 					 sector_t iblock,
-					 unsigned long max_blocks,
 					 struct buffer_head *bh_result,
 					 int create)
 {
@@ -2793,7 +2792,7 @@ static int invalidatepage_can_drop(struct inode *inode, struct buffer_head *bh)
 }
 
 /* clm -- taken from fs/buffer.c:block_invalidate_page */
-static int reiserfs_invalidatepage(struct page *page, unsigned long offset)
+static void reiserfs_invalidatepage(struct page *page, unsigned long offset)
 {
 	struct buffer_head *head, *bh, *next;
 	struct inode *inode = page->mapping->host;
@@ -2832,10 +2831,12 @@ static int reiserfs_invalidatepage(struct page *page, unsigned long offset)
 	 * The get_block cached value has been unconditionally invalidated,
 	 * so real IO is not possible anymore.
 	 */
-	if (!offset && ret)
+	if (!offset && ret) {
 		ret = try_to_release_page(page, 0);
+		/* maybe should BUG_ON(!ret); - neilb */
+	}
       out:
-	return ret;
+	return;
 }
 
 static int reiserfs_set_page_dirty(struct page *page)

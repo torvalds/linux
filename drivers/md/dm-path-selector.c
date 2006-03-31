@@ -86,8 +86,7 @@ void dm_put_path_selector(struct path_selector_type *pst)
 	if (--psi->use == 0)
 		module_put(psi->pst.module);
 
-	if (psi->use < 0)
-		BUG();
+	BUG_ON(psi->use < 0);
 
 out:
 	up_read(&_ps_lock);

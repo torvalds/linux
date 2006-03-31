@@ -3,6 +3,7 @@
  * linux/fs/autofs/autofs_i.h
  *
  *   Copyright 1997-1998 Transmeta Corporation - All Rights Reserved
+ *   Copyright 2005-2006 Ian Kent <raven@themaw.net>
  *
  * This file is part of the Linux kernel and is made available under
  * the terms of the GNU General Public License, version 2, or at your
@@ -13,6 +14,7 @@
 /* Internal header file for autofs */
 
 #include <linux/auto_fs4.h>
+#include <linux/mutex.h>
 #include <linux/list.h>
 
 /* This is the range of ioctl() numbers we claim as ours */
@@ -40,14 +42,6 @@
 
 #define AUTOFS_SUPER_MAGIC 0x0187
 
-/*
- * If the daemon returns a negative response (AUTOFS_IOC_FAIL) then the
- * kernel will keep the negative response cached for up to the time given
- * here, although the time can be shorter if the kernel throws the dcache
- * entry away.  This probably should be settable from user space.
- */
-#define AUTOFS_NEGATIVE_TIMEOUT (60*HZ)	/* 1 minute */
-
 /* Unified info structure.  This is pointed to by both the dentry and
    inode structures.  Each file in the filesystem has an instance of this
    structure.  It holds a reference to the dentry, so dentries are never
@@ -62,6 +56,7 @@ struct autofs_info {
 
 	struct autofs_sb_info *sbi;
 	unsigned long last_used;
+	atomic_t count;
 
 	mode_t	mode;
 	size_t	size;
@@ -82,27 +77,41 @@ struct autofs_wait_queue {
 	int hash;
 	int len;
 	char *name;
+	u32 dev;
+	u64 ino;
+	uid_t uid;
+	gid_t gid;
+	pid_t pid;
+	pid_t tgid;
 	/* This is for status reporting upon return */
 	int status;
-	atomic_t notified;
+	atomic_t notify;
 	atomic_t wait_ctr;
 };
 
 #define AUTOFS_SBI_MAGIC 0x6d4a556d
 
+#define AUTOFS_TYPE_INDIRECT     0x0001
+#define AUTOFS_TYPE_DIRECT       0x0002
+#define AUTOFS_TYPE_OFFSET       0x0004
+
 struct autofs_sb_info {
 	u32 magic;
 	struct dentry *root;
+	int pipefd;
 	struct file *pipe;
 	pid_t oz_pgrp;
 	int catatonic;
 	int version;
 	int sub_version;
+	int min_proto;
+	int max_proto;
 	unsigned long exp_timeout;
+	unsigned int type;
 	int reghost_enabled;
 	int needs_reghost;
 	struct super_block *sb;
-	struct semaphore wq_sem;
+	struct mutex wq_mutex;
 	spinlock_t fs_lock;
 	struct autofs_wait_queue *queues; /* Wait queue pointer */
 };
@@ -165,8 +174,10 @@ int autofs4_expire_multi(struct super_block *, struct vfsmount *,
 extern struct inode_operations autofs4_symlink_inode_operations;
 extern struct inode_operations autofs4_dir_inode_operations;
 extern struct inode_operations autofs4_root_inode_operations;
-extern struct file_operations autofs4_dir_operations;
-extern struct file_operations autofs4_root_operations;
+extern struct inode_operations autofs4_indirect_root_inode_operations;
+extern struct inode_operations autofs4_direct_root_inode_operations;
+extern const struct file_operations autofs4_dir_operations;
+extern const struct file_operations autofs4_root_operations;
 
 /* Initializing function */
 
@@ -174,13 +185,6 @@ int autofs4_fill_super(struct super_block *, void *, int);
 struct autofs_info *autofs4_init_ino(struct autofs_info *, struct autofs_sb_info *sbi, mode_t mode);
 
 /* Queue management functions */
-
-enum autofs_notify
-{
-	NFY_NONE,
-	NFY_MOUNT,
-	NFY_EXPIRE
-};
 
 int autofs4_wait(struct autofs_sb_info *,struct dentry *, enum autofs_notify);
 int autofs4_wait_release(struct autofs_sb_info *,autofs_wqt_t,int);
@@ -199,12 +203,22 @@ static inline int autofs4_follow_mount(struct vfsmount **mnt, struct dentry **de
 	return res;
 }
 
+static inline u32 autofs4_get_dev(struct autofs_sb_info *sbi)
+{
+	return new_encode_dev(sbi->sb->s_dev);
+}
+
+static inline u64 autofs4_get_ino(struct autofs_sb_info *sbi)
+{
+	return sbi->sb->s_root->d_inode->i_ino;
+}
+
 static inline int simple_positive(struct dentry *dentry)
 {
 	return dentry->d_inode && !d_unhashed(dentry);
 }
 
-static inline int simple_empty_nolock(struct dentry *dentry)
+static inline int __simple_empty(struct dentry *dentry)
 {
 	struct dentry *child;
 	int ret = 0;
@@ -216,3 +230,6 @@ static inline int simple_empty_nolock(struct dentry *dentry)
 out:
 	return ret;
 }
+
+void autofs4_dentry_release(struct dentry *);
+

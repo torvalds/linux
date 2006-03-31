@@ -49,24 +49,30 @@
 #define DRV_VERSION	"0.9"
 
 enum {
+	/*
+	 * host flags
+	 */
 	SIL_FLAG_RERR_ON_DMA_ACT = (1 << 29),
 	SIL_FLAG_MOD15WRITE	= (1 << 30),
+	SIL_DFL_HOST_FLAGS	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
+				  ATA_FLAG_MMIO,
 
+	/*
+	 * Controller IDs
+	 */
 	sil_3112		= 0,
-	sil_3112_m15w		= 1,
-	sil_3512		= 2,
-	sil_3114		= 3,
+	sil_3512		= 1,
+	sil_3114		= 2,
 
-	SIL_FIFO_R0		= 0x40,
-	SIL_FIFO_W0		= 0x41,
-	SIL_FIFO_R1		= 0x44,
-	SIL_FIFO_W1		= 0x45,
-	SIL_FIFO_R2		= 0x240,
-	SIL_FIFO_W2		= 0x241,
-	SIL_FIFO_R3		= 0x244,
-	SIL_FIFO_W3		= 0x245,
-
+	/*
+	 * Register offsets
+	 */
 	SIL_SYSCFG		= 0x48,
+
+	/*
+	 * Register bits
+	 */
+	/* SYSCFG */
 	SIL_MASK_IDE0_INT	= (1 << 22),
 	SIL_MASK_IDE1_INT	= (1 << 23),
 	SIL_MASK_IDE2_INT	= (1 << 24),
@@ -75,9 +81,12 @@ enum {
 	SIL_MASK_4PORT		= SIL_MASK_2PORT |
 				  SIL_MASK_IDE2_INT | SIL_MASK_IDE3_INT,
 
-	SIL_IDE2_BMDMA		= 0x200,
-
+	/* BMDMA/BMDMA2 */
 	SIL_INTR_STEERING	= (1 << 1),
+
+	/*
+	 * Others
+	 */
 	SIL_QUIRK_MOD15WRITE	= (1 << 0),
 	SIL_QUIRK_UDMA5MAX	= (1 << 1),
 };
@@ -90,13 +99,13 @@ static void sil_post_set_mode (struct ata_port *ap);
 
 
 static const struct pci_device_id sil_pci_tbl[] = {
-	{ 0x1095, 0x3112, PCI_ANY_ID, PCI_ANY_ID, 0, 0, sil_3112_m15w },
-	{ 0x1095, 0x0240, PCI_ANY_ID, PCI_ANY_ID, 0, 0, sil_3112_m15w },
+	{ 0x1095, 0x3112, PCI_ANY_ID, PCI_ANY_ID, 0, 0, sil_3112 },
+	{ 0x1095, 0x0240, PCI_ANY_ID, PCI_ANY_ID, 0, 0, sil_3112 },
 	{ 0x1095, 0x3512, PCI_ANY_ID, PCI_ANY_ID, 0, 0, sil_3512 },
 	{ 0x1095, 0x3114, PCI_ANY_ID, PCI_ANY_ID, 0, 0, sil_3114 },
-	{ 0x1002, 0x436e, PCI_ANY_ID, PCI_ANY_ID, 0, 0, sil_3112_m15w },
-	{ 0x1002, 0x4379, PCI_ANY_ID, PCI_ANY_ID, 0, 0, sil_3112_m15w },
-	{ 0x1002, 0x437a, PCI_ANY_ID, PCI_ANY_ID, 0, 0, sil_3112_m15w },
+	{ 0x1002, 0x436e, PCI_ANY_ID, PCI_ANY_ID, 0, 0, sil_3112 },
+	{ 0x1002, 0x4379, PCI_ANY_ID, PCI_ANY_ID, 0, 0, sil_3112 },
+	{ 0x1002, 0x437a, PCI_ANY_ID, PCI_ANY_ID, 0, 0, sil_3112 },
 	{ }	/* terminate list */
 };
 
@@ -141,7 +150,6 @@ static struct scsi_host_template sil_sht = {
 	.can_queue		= ATA_DEF_QUEUE,
 	.this_id		= ATA_SHT_THIS_ID,
 	.sg_tablesize		= LIBATA_MAX_PRD,
-	.max_sectors		= ATA_MAX_SECTORS,
 	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
 	.emulated		= ATA_SHT_EMULATED,
 	.use_clustering		= ATA_SHT_USE_CLUSTERING,
@@ -159,7 +167,7 @@ static const struct ata_port_operations sil_ops = {
 	.check_status		= ata_check_status,
 	.exec_command		= ata_exec_command,
 	.dev_select		= ata_std_dev_select,
-	.phy_reset		= sata_phy_reset,
+	.probe_reset		= ata_std_probe_reset,
 	.post_set_mode		= sil_post_set_mode,
 	.bmdma_setup            = ata_bmdma_setup,
 	.bmdma_start            = ata_bmdma_start,
@@ -181,19 +189,7 @@ static const struct ata_port_info sil_port_info[] = {
 	/* sil_3112 */
 	{
 		.sht		= &sil_sht,
-		.host_flags	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
-				  ATA_FLAG_SRST | ATA_FLAG_MMIO,
-		.pio_mask	= 0x1f,			/* pio0-4 */
-		.mwdma_mask	= 0x07,			/* mwdma0-2 */
-		.udma_mask	= 0x3f,			/* udma0-5 */
-		.port_ops	= &sil_ops,
-	},
-	/* sil_3112_15w - keep it sync'd w/ sil_3112 */
-	{
-		.sht		= &sil_sht,
-		.host_flags	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
-				  ATA_FLAG_SRST | ATA_FLAG_MMIO |
-				  SIL_FLAG_MOD15WRITE,
+		.host_flags	= SIL_DFL_HOST_FLAGS | SIL_FLAG_MOD15WRITE,
 		.pio_mask	= 0x1f,			/* pio0-4 */
 		.mwdma_mask	= 0x07,			/* mwdma0-2 */
 		.udma_mask	= 0x3f,			/* udma0-5 */
@@ -202,9 +198,7 @@ static const struct ata_port_info sil_port_info[] = {
 	/* sil_3512 */
 	{
 		.sht		= &sil_sht,
-		.host_flags	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
-				  ATA_FLAG_SRST | ATA_FLAG_MMIO |
-				  SIL_FLAG_RERR_ON_DMA_ACT,
+		.host_flags	= SIL_DFL_HOST_FLAGS | SIL_FLAG_RERR_ON_DMA_ACT,
 		.pio_mask	= 0x1f,			/* pio0-4 */
 		.mwdma_mask	= 0x07,			/* mwdma0-2 */
 		.udma_mask	= 0x3f,			/* udma0-5 */
@@ -213,9 +207,7 @@ static const struct ata_port_info sil_port_info[] = {
 	/* sil_3114 */
 	{
 		.sht		= &sil_sht,
-		.host_flags	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
-				  ATA_FLAG_SRST | ATA_FLAG_MMIO |
-				  SIL_FLAG_RERR_ON_DMA_ACT,
+		.host_flags	= SIL_DFL_HOST_FLAGS | SIL_FLAG_RERR_ON_DMA_ACT,
 		.pio_mask	= 0x1f,			/* pio0-4 */
 		.mwdma_mask	= 0x07,			/* mwdma0-2 */
 		.udma_mask	= 0x3f,			/* udma0-5 */
@@ -229,16 +221,17 @@ static const struct {
 	unsigned long tf;	/* ATA taskfile register block */
 	unsigned long ctl;	/* ATA control/altstatus register block */
 	unsigned long bmdma;	/* DMA register block */
+	unsigned long fifo_cfg;	/* FIFO Valid Byte Count and Control */
 	unsigned long scr;	/* SATA control register block */
 	unsigned long sien;	/* SATA Interrupt Enable register */
 	unsigned long xfer_mode;/* data transfer mode register */
 	unsigned long sfis_cfg;	/* SATA FIS reception config register */
 } sil_port[] = {
 	/* port 0 ... */
-	{ 0x80, 0x8A, 0x00, 0x100, 0x148, 0xb4, 0x14c },
-	{ 0xC0, 0xCA, 0x08, 0x180, 0x1c8, 0xf4, 0x1cc },
-	{ 0x280, 0x28A, 0x200, 0x300, 0x348, 0x2b4, 0x34c },
-	{ 0x2C0, 0x2CA, 0x208, 0x380, 0x3c8, 0x2f4, 0x3cc },
+	{ 0x80, 0x8A, 0x00, 0x40, 0x100, 0x148, 0xb4, 0x14c },
+	{ 0xC0, 0xCA, 0x08, 0x44, 0x180, 0x1c8, 0xf4, 0x1cc },
+	{ 0x280, 0x28A, 0x200, 0x240, 0x300, 0x348, 0x2b4, 0x34c },
+	{ 0x2C0, 0x2CA, 0x208, 0x244, 0x380, 0x3c8, 0x2f4, 0x3cc },
 	/* ... port 3 */
 };
 
@@ -354,22 +347,12 @@ static void sil_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val)
 static void sil_dev_config(struct ata_port *ap, struct ata_device *dev)
 {
 	unsigned int n, quirks = 0;
-	unsigned char model_num[40];
-	const char *s;
-	unsigned int len;
+	unsigned char model_num[41];
 
-	ata_dev_id_string(dev->id, model_num, ATA_ID_PROD_OFS,
-			  sizeof(model_num));
-	s = &model_num[0];
-	len = strnlen(s, sizeof(model_num));
-
-	/* ATAPI specifies that empty space is blank-filled; remove blanks */
-	while ((len > 0) && (s[len - 1] == ' '))
-		len--;
+	ata_id_c_string(dev->id, model_num, ATA_ID_PROD_OFS, sizeof(model_num));
 
 	for (n = 0; sil_blacklist[n].product; n++)
-		if (!memcmp(sil_blacklist[n].product, s,
-			    strlen(sil_blacklist[n].product))) {
+		if (!strcmp(sil_blacklist[n].product, model_num)) {
 			quirks = sil_blacklist[n].quirk;
 			break;
 		}
@@ -380,17 +363,15 @@ static void sil_dev_config(struct ata_port *ap, struct ata_device *dev)
 	     (quirks & SIL_QUIRK_MOD15WRITE))) {
 		printk(KERN_INFO "ata%u(%u): applying Seagate errata fix (mod15write workaround)\n",
 		       ap->id, dev->devno);
-		ap->host->max_sectors = 15;
-		ap->host->hostt->max_sectors = 15;
-		dev->flags |= ATA_DFLAG_LOCK_SECTORS;
+		dev->max_sectors = 15;
 		return;
 	}
 
 	/* limit to udma5 */
 	if (quirks & SIL_QUIRK_UDMA5MAX) {
 		printk(KERN_INFO "ata%u(%u): applying Maxtor errata fix %s\n",
-		       ap->id, dev->devno, s);
-		ap->udma_mask &= ATA_UDMA5;
+		       ap->id, dev->devno, model_num);
+		dev->udma_mask &= ATA_UDMA5;
 		return;
 	}
 }
@@ -431,13 +412,12 @@ static int sil_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc)
 		goto err_out_regions;
 
-	probe_ent = kmalloc(sizeof(*probe_ent), GFP_KERNEL);
+	probe_ent = kzalloc(sizeof(*probe_ent), GFP_KERNEL);
 	if (probe_ent == NULL) {
 		rc = -ENOMEM;
 		goto err_out_regions;
 	}
 
-	memset(probe_ent, 0, sizeof(*probe_ent));
 	INIT_LIST_HEAD(&probe_ent->node);
 	probe_ent->dev = pci_dev_to_dev(pdev);
 	probe_ent->port_ops = sil_port_info[ent->driver_data].port_ops;
@@ -474,19 +454,12 @@ static int sil_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (cls) {
 		cls >>= 3;
 		cls++;  /* cls = (line_size/8)+1 */
-		writeb(cls, mmio_base + SIL_FIFO_R0);
-		writeb(cls, mmio_base + SIL_FIFO_W0);
-		writeb(cls, mmio_base + SIL_FIFO_R1);
-		writeb(cls, mmio_base + SIL_FIFO_W1);
-		if (ent->driver_data == sil_3114) {
-			writeb(cls, mmio_base + SIL_FIFO_R2);
-			writeb(cls, mmio_base + SIL_FIFO_W2);
-			writeb(cls, mmio_base + SIL_FIFO_R3);
-			writeb(cls, mmio_base + SIL_FIFO_W3);
-		}
+		for (i = 0; i < probe_ent->n_ports; i++)
+			writew(cls << 8 | cls,
+			       mmio_base + sil_port[i].fifo_cfg);
 	} else
 		dev_printk(KERN_WARNING, &pdev->dev,
-			 "cache line size not set.  Driver may not function\n");
+			   "cache line size not set.  Driver may not function\n");
 
 	/* Apply R_ERR on DMA activate FIS errata workaround */
 	if (probe_ent->host_flags & SIL_FLAG_RERR_ON_DMA_ACT) {
@@ -509,10 +482,10 @@ static int sil_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		irq_mask = SIL_MASK_4PORT;
 
 		/* flip the magic "make 4 ports work" bit */
-		tmp = readl(mmio_base + SIL_IDE2_BMDMA);
+		tmp = readl(mmio_base + sil_port[2].bmdma);
 		if ((tmp & SIL_INTR_STEERING) == 0)
 			writel(tmp | SIL_INTR_STEERING,
-			       mmio_base + SIL_IDE2_BMDMA);
+			       mmio_base + sil_port[2].bmdma);
 
 	} else {
 		irq_mask = SIL_MASK_2PORT;

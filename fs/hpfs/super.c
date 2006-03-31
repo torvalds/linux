@@ -181,8 +181,8 @@ static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
 
 	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
 	    SLAB_CTOR_CONSTRUCTOR) {
-		init_MUTEX(&ei->i_sem);
-		init_MUTEX(&ei->i_parent);
+		mutex_init(&ei->i_mutex);
+		mutex_init(&ei->i_parent_mutex);
 		inode_init_once(&ei->vfs_inode);
 	}
 }
@@ -191,7 +191,8 @@ static int init_inodecache(void)
 {
 	hpfs_inode_cachep = kmem_cache_create("hpfs_inode_cache",
 					     sizeof(struct hpfs_inode_info),
-					     0, SLAB_RECLAIM_ACCOUNT,
+					     0, (SLAB_RECLAIM_ACCOUNT|
+						SLAB_MEM_SPREAD),
 					     init_once, NULL);
 	if (hpfs_inode_cachep == NULL)
 		return -ENOMEM;

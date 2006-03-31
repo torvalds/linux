@@ -159,11 +159,11 @@ void jffs2_stop_garbage_collect_thread(struct jffs2_sb_info *c);
 void jffs2_garbage_collect_trigger(struct jffs2_sb_info *c);
 
 /* dir.c */
-extern struct file_operations jffs2_dir_operations;
+extern const struct file_operations jffs2_dir_operations;
 extern struct inode_operations jffs2_dir_inode_operations;
 
 /* file.c */
-extern struct file_operations jffs2_file_operations;
+extern const struct file_operations jffs2_file_operations;
 extern struct inode_operations jffs2_file_inode_operations;
 extern struct address_space_operations jffs2_file_address_operations;
 int jffs2_fsync(struct file *, struct dentry *, int);

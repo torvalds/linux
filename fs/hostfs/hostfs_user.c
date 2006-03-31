@@ -360,7 +360,6 @@ int do_statfs(char *root, long *bsize_out, long long *blocks_out,
 	spare_out[2] = buf.f_spare[2];
 	spare_out[3] = buf.f_spare[3];
 	spare_out[4] = buf.f_spare[4];
-	spare_out[5] = buf.f_spare[5];
 	return(0);
 }
 

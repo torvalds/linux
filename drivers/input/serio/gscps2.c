@@ -1,7 +1,7 @@
 /*
  * drivers/input/serio/gscps2.c
  *
- * Copyright (c) 2004 Helge Deller <deller@gmx.de>
+ * Copyright (c) 2004-2006 Helge Deller <deller@gmx.de>
  * Copyright (c) 2002 Laurent Canet <canetl@esiee.fr>
  * Copyright (c) 2002 Thibaut Varene <varenet@parisc-linux.org>
  *
@@ -354,7 +354,7 @@ static int __init gscps2_probe(struct parisc_device *dev)
 	memset(serio, 0, sizeof(struct serio));
 	ps2port->port = serio;
 	ps2port->padev = dev;
-	ps2port->addr = ioremap(hpa, GSC_STATUS + 4);
+	ps2port->addr = ioremap_nocache(hpa, GSC_STATUS + 4);
 	spin_lock_init(&ps2port->lock);
 
 	gscps2_reset(ps2port);

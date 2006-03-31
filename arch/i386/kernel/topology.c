@@ -41,6 +41,15 @@ int arch_register_cpu(int num){
 		parent = &node_devices[node].node;
 #endif /* CONFIG_NUMA */
 
+	/*
+	 * CPU0 cannot be offlined due to several
+	 * restrictions and assumptions in kernel. This basically
+	 * doesnt add a control file, one cannot attempt to offline
+	 * BSP.
+	 */
+	if (!num)
+		cpu_devices[num].cpu.no_control = 1;
+
 	return register_cpu(&cpu_devices[num].cpu, num, parent);
 }
 

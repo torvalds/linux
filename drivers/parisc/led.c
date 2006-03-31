@@ -499,11 +499,16 @@ static int led_halt(struct notifier_block *, unsigned long, void *);
 static struct notifier_block led_notifier = {
 	.notifier_call = led_halt,
 };
+static int notifier_disabled = 0;
 
 static int led_halt(struct notifier_block *nb, unsigned long event, void *buf) 
 {
 	char *txt;
-	
+
+	if (notifier_disabled)
+		return NOTIFY_OK;
+
+	notifier_disabled = 1;
 	switch (event) {
 	case SYS_RESTART:	txt = "SYSTEM RESTART";
 				break;
@@ -527,7 +532,6 @@ static int led_halt(struct notifier_block *nb, unsigned long event, void *buf)
 		if (led_func_ptr)
 			led_func_ptr(0xff); /* turn all LEDs ON */
 	
-	unregister_reboot_notifier(&led_notifier);
 	return NOTIFY_OK;
 }
 
@@ -756,6 +760,12 @@ found:
 not_found:
 	lcd_info.model = DISPLAY_MODEL_NONE;
 	return 1;
+}
+
+static void __exit led_exit(void)
+{
+	unregister_reboot_notifier(&led_notifier);
+	return;
 }
 
 #ifdef CONFIG_PROC_FS

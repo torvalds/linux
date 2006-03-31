@@ -354,16 +354,17 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 	QDEBUG("entered\n");
 
 	/* all macros expand to constant values at compile time */
-	size =    NLMSG_SPACE(sizeof(struct nfqnl_msg_packet_hdr))
-		+ NLMSG_SPACE(sizeof(u_int32_t))	/* ifindex */
-		+ NLMSG_SPACE(sizeof(u_int32_t))	/* ifindex */
+	size =    NLMSG_SPACE(sizeof(struct nfgenmsg)) +
+		+ NFA_SPACE(sizeof(struct nfqnl_msg_packet_hdr))
+		+ NFA_SPACE(sizeof(u_int32_t))	/* ifindex */
+		+ NFA_SPACE(sizeof(u_int32_t))	/* ifindex */
 #ifdef CONFIG_BRIDGE_NETFILTER
-		+ NLMSG_SPACE(sizeof(u_int32_t))	/* ifindex */
-		+ NLMSG_SPACE(sizeof(u_int32_t))	/* ifindex */
+		+ NFA_SPACE(sizeof(u_int32_t))	/* ifindex */
+		+ NFA_SPACE(sizeof(u_int32_t))	/* ifindex */
 #endif
-		+ NLMSG_SPACE(sizeof(u_int32_t))	/* mark */
-		+ NLMSG_SPACE(sizeof(struct nfqnl_msg_packet_hw))
-		+ NLMSG_SPACE(sizeof(struct nfqnl_msg_packet_timestamp));
+		+ NFA_SPACE(sizeof(u_int32_t))	/* mark */
+		+ NFA_SPACE(sizeof(struct nfqnl_msg_packet_hw))
+		+ NFA_SPACE(sizeof(struct nfqnl_msg_packet_timestamp));
 
 	outdev = entinf->outdev;
 
@@ -388,7 +389,7 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 		else
 			data_len = queue->copy_range;
 		
-		size += NLMSG_SPACE(data_len);
+		size += NFA_SPACE(data_len);
 		break;
 	
 	default:
@@ -1116,13 +1117,13 @@ cleanup_netlink_notifier:
 	return status;
 }
 
-static int __init init(void)
+static int __init nfnetlink_queue_init(void)
 {
 	
 	return init_or_cleanup(1);
 }
 
-static void __exit fini(void)
+static void __exit nfnetlink_queue_fini(void)
 {
 	init_or_cleanup(0);
 }
@@ -1132,5 +1133,5 @@ MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_NFNL_SUBSYS(NFNL_SUBSYS_QUEUE);
 
-module_init(init);
-module_exit(fini);
+module_init(nfnetlink_queue_init);
+module_exit(nfnetlink_queue_fini);

@@ -234,7 +234,12 @@ asmlinkage int sys_ipc(uint call, int first, int second, int third,
  */
 asmlinkage int sys_fork(struct pt_regs *regs)
 {
+#ifdef CONFIG_MMU
 	return do_fork(SIGCHLD, regs->ARM_sp, regs, 0, NULL, NULL);
+#else
+	/* can not support in nommu mode */
+	return(-EINVAL);
+#endif
 }
 
 /* Clone a task - this clones the calling program thread.

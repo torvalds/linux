@@ -57,7 +57,7 @@ extern void iic_local_disable(void);
 extern u8 iic_get_target_id(int cpu);
 
 extern void spider_init_IRQ(void);
-extern int spider_get_irq(unsigned long int_pending);
+extern int spider_get_irq(int node);
 
 #endif
 #endif /* ASM_CELL_PIC_H */

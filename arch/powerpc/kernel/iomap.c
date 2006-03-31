@@ -1,6 +1,4 @@
 /*
- * arch/ppc64/kernel/iomap.c
- *
  * ppc64 "iomap" interface implementation.
  *
  * (C) Copyright 2004 Linus Torvalds

@@ -69,13 +69,13 @@ extern unsigned long next_timer_interrupt(void);
  * @timer: the timer to be added
  *
  * The kernel will do a ->function(->data) callback from the
- * timer interrupt at the ->expired point in the future. The
+ * timer interrupt at the ->expires point in the future. The
  * current time is 'jiffies'.
  *
- * The timer's ->expired, ->function (and if the handler uses it, ->data)
+ * The timer's ->expires, ->function (and if the handler uses it, ->data)
  * fields must be set prior calling this function.
  *
- * Timers with an ->expired field in the past will be executed in the next
+ * Timers with an ->expires field in the past will be executed in the next
  * timer tick.
  */
 static inline void add_timer(struct timer_list *timer)
@@ -96,6 +96,7 @@ static inline void add_timer(struct timer_list *timer)
 
 extern void init_timers(void);
 extern void run_local_timers(void);
-extern int it_real_fn(void *);
+struct hrtimer;
+extern int it_real_fn(struct hrtimer *);
 
 #endif

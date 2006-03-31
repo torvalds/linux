@@ -2112,7 +2112,7 @@ static int snd_pcm_open(struct file *file, struct snd_pcm *pcm, int stream)
 	}
 	init_waitqueue_entry(&wait, current);
 	add_wait_queue(&pcm->open_wait, &wait);
-	down(&pcm->open_mutex);
+	mutex_lock(&pcm->open_mutex);
 	while (1) {
 		err = snd_pcm_open_file(file, pcm, stream, &pcm_file);
 		if (err >= 0)
@@ -2125,16 +2125,16 @@ static int snd_pcm_open(struct file *file, struct snd_pcm *pcm, int stream)
 		} else
 			break;
 		set_current_state(TASK_INTERRUPTIBLE);
-		up(&pcm->open_mutex);
+		mutex_unlock(&pcm->open_mutex);
 		schedule();
-		down(&pcm->open_mutex);
+		mutex_lock(&pcm->open_mutex);
 		if (signal_pending(current)) {
 			err = -ERESTARTSYS;
 			break;
 		}
 	}
 	remove_wait_queue(&pcm->open_wait, &wait);
-	up(&pcm->open_mutex);
+	mutex_unlock(&pcm->open_mutex);
 	if (err < 0)
 		goto __error;
 	return err;
@@ -2160,9 +2160,9 @@ static int snd_pcm_release(struct inode *inode, struct file *file)
 	pcm = substream->pcm;
 	snd_pcm_drop(substream);
 	fasync_helper(-1, file, 0, &substream->runtime->fasync);
-	down(&pcm->open_mutex);
+	mutex_lock(&pcm->open_mutex);
 	snd_pcm_release_file(pcm_file);
-	up(&pcm->open_mutex);
+	mutex_unlock(&pcm->open_mutex);
 	wake_up(&pcm->open_wait);
 	module_put(pcm->card->module);
 	snd_card_file_remove(pcm->card, file);
@@ -2539,6 +2539,14 @@ static int snd_pcm_common_ioctl1(struct snd_pcm_substream *substream,
 		return snd_pcm_drain(substream);
 	case SNDRV_PCM_IOCTL_DROP:
 		return snd_pcm_drop(substream);
+	case SNDRV_PCM_IOCTL_PAUSE:
+	{
+		int res;
+		snd_pcm_stream_lock_irq(substream);
+		res = snd_pcm_pause(substream, (int)(unsigned long)arg);
+		snd_pcm_stream_unlock_irq(substream);
+		return res;
+	}
 	}
 	snd_printd("unknown ioctl = 0x%x\n", cmd);
 	return -ENOTTY;
@@ -2618,14 +2626,6 @@ static int snd_pcm_playback_ioctl1(struct snd_pcm_substream *substream,
 		result = snd_pcm_playback_forward(substream, frames);
 		__put_user(result, _frames);
 		return result < 0 ? result : 0;
-	}
-	case SNDRV_PCM_IOCTL_PAUSE:
-	{
-		int res;
-		snd_pcm_stream_lock_irq(substream);
-		res = snd_pcm_pause(substream, (int)(unsigned long)arg);
-		snd_pcm_stream_unlock_irq(substream);
-		return res;
 	}
 	}
 	return snd_pcm_common_ioctl1(substream, cmd, arg);

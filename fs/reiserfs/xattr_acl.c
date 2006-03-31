@@ -182,7 +182,7 @@ struct posix_acl *reiserfs_get_acl(struct inode *inode, int type)
 {
 	char *name, *value;
 	struct posix_acl *acl, **p_acl;
-	size_t size;
+	int size;
 	int retval;
 	struct reiserfs_inode_info *reiserfs_i = REISERFS_I(inode);
 
@@ -206,7 +206,7 @@ struct posix_acl *reiserfs_get_acl(struct inode *inode, int type)
 		return posix_acl_dup(*p_acl);
 
 	size = reiserfs_xattr_get(inode, name, NULL, 0);
-	if ((int)size < 0) {
+	if (size < 0) {
 		if (size == -ENODATA || size == -ENOSYS) {
 			*p_acl = ERR_PTR(-ENODATA);
 			return NULL;

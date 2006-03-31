@@ -1,6 +1,6 @@
 /*
  * Transmeta's Efficeon AGPGART driver.
- * 
+ *
  * Based upon a diff by Linus around November '02.
  *
  * Ported to the 2.6 kernel by Carlos Puchol <cpglinux@puchol.com>
@@ -9,7 +9,7 @@
 
 /*
  * NOTE-cpg-040217:
- * 
+ *
  *   - when compiled as a module, after loading the module,
  *     it will refuse to unload, indicating it is in use,
  *     when it is not.
@@ -45,7 +45,7 @@
  *      8: Present
  *    7:6: reserved, write as zero
  *    5:0: GATT directory index: which 1st-level entry
- * 
+ *
  * The Efficeon AGP spec requires pages to be WB-cacheable
  * but to be explicitly CLFLUSH'd after any changes.
  */
@@ -125,7 +125,7 @@ static int efficeon_configure(void)
 	struct aper_size_info_lvl2 *current_size;
 
 	printk(KERN_DEBUG PFX "efficeon_configure()\n");
-	
+
 	current_size = A_SIZE_LVL2(agp_bridge->current_size);
 
 	/* aperture size */
@@ -190,7 +190,7 @@ static int efficeon_create_gatt_table(struct agp_bridge_data *bridge)
 	const int present = EFFICEON_PRESENT;
 	const int clflush_chunk = ((cpuid_ebx(1) >> 8) & 0xff) << 3;
 	int num_entries, l1_pages;
-	
+
 	num_entries = A_SIZE_LVL2(agp_bridge->current_size)->num_entries;
 
 	printk(KERN_DEBUG PFX "efficeon_create_gatt_table(%d)\n", num_entries);
@@ -257,12 +257,12 @@ static int efficeon_insert_memory(struct agp_memory * mem, off_t pg_start, int t
 
 		if (!page)
 			continue;
-		
+
 		page += (index & 0x3ff);
 		*page = insert;
 
 		/* clflush is slow, so don't clflush until we have to */
-		if ( last_page && 
+		if ( last_page &&
 		     ((unsigned long)page^(unsigned long)last_page) & clflush_mask )
 		    asm volatile("clflush %0" : : "m" (*last_page));
 
@@ -373,7 +373,7 @@ static int __devinit agp_efficeon_probe(struct pci_dev *pdev,
 	*/
 	r = &pdev->resource[0];
 	if (!r->start && r->end) {
-		if(pci_assign_resource(pdev, 0)) {
+		if (pci_assign_resource(pdev, 0)) {
 			printk(KERN_ERR PFX "could not assign resource 0\n");
 			return -ENODEV;
 		}

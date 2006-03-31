@@ -60,6 +60,7 @@
 #include <linux/genhd.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/mutex.h>
 
 #define _IDE_DISK
 
@@ -78,7 +79,7 @@ struct ide_disk_obj {
 	struct kref	kref;
 };
 
-static DECLARE_MUTEX(idedisk_ref_sem);
+static DEFINE_MUTEX(idedisk_ref_mutex);
 
 #define to_ide_disk(obj) container_of(obj, struct ide_disk_obj, kref)
 
@@ -89,11 +90,11 @@ static struct ide_disk_obj *ide_disk_get(struct gendisk *disk)
 {
 	struct ide_disk_obj *idkp = NULL;
 
-	down(&idedisk_ref_sem);
+	mutex_lock(&idedisk_ref_mutex);
 	idkp = ide_disk_g(disk);
 	if (idkp)
 		kref_get(&idkp->kref);
-	up(&idedisk_ref_sem);
+	mutex_unlock(&idedisk_ref_mutex);
 	return idkp;
 }
 
@@ -101,9 +102,9 @@ static void ide_disk_release(struct kref *);
 
 static void ide_disk_put(struct ide_disk_obj *idkp)
 {
-	down(&idedisk_ref_sem);
+	mutex_lock(&idedisk_ref_mutex);
 	kref_put(&idkp->kref, ide_disk_release);
-	up(&idedisk_ref_sem);
+	mutex_unlock(&idedisk_ref_mutex);
 }
 
 /*
@@ -976,8 +977,6 @@ static void idedisk_setup (ide_drive_t *drive)
 	if (drive->using_dma)
 		ide_dma_verbose(drive);
 	printk("\n");
-
-	drive->no_io_32bit = id->dword_io ? 1 : 0;
 
 	/* write cache enabled? */
 	if ((id->csfo & 1) || (id->cfs_enable_1 & (1 << 5)))

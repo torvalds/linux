@@ -26,6 +26,20 @@ The following mount options are supported:
 	nostrict	Unset strict conformance
 	iocharset=	Set the NLS character set
 
+The uid= and gid= options need a bit more explaining.  They will accept a
+decimal numeric value which will be used as the default ID for that mount.
+They will also accept the string "ignore" and "forget".  For files on the disk
+that are owned by nobody ( -1 ), they will instead look as if they are owned
+by the default ID.  The ignore option causes the default ID to override all
+IDs on the disk, not just -1.  The forget option causes all IDs to be written
+to disk as -1, so when the media is later remounted, they will appear to be
+owned by whatever default ID it is mounted with at that time.
+
+For typical desktop use of removable media, you should set the ID to that
+of the interactively logged on user, and also specify both the forget and
+ignore options.  This way the interactive user will always see the files
+on the disk as belonging to him.
+
 The remaining are for debugging and disaster recovery:
 
 	novrs		Skip volume sequence recognition 

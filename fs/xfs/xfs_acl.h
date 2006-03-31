@@ -55,8 +55,8 @@ struct xfs_inode;
 
 extern struct kmem_zone *xfs_acl_zone;
 #define xfs_acl_zone_init(zone, name)	\
-		(zone) = kmem_zone_init(sizeof(xfs_acl_t), name)
-#define xfs_acl_zone_destroy(zone)	kmem_cache_destroy(zone)
+		(zone) = kmem_zone_init(sizeof(xfs_acl_t), (name))
+#define xfs_acl_zone_destroy(zone)	kmem_zone_destroy(zone)
 
 extern int xfs_acl_inherit(struct vnode *, struct vattr *, xfs_acl_t *);
 extern int xfs_acl_iaccess(struct xfs_inode *, mode_t, cred_t *);

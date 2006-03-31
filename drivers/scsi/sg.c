@@ -44,7 +44,6 @@ static int sg_version_num = 30533;	/* 2 digits for each component */
 #include <linux/poll.h>
 #include <linux/smp_lock.h>
 #include <linux/moduleparam.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/cdev.h>
 #include <linux/seq_file.h>
 #include <linux/blkdev.h>
@@ -1140,32 +1139,6 @@ sg_fasync(int fd, struct file *filp, int mode)
 	return (retval < 0) ? retval : 0;
 }
 
-/* When startFinish==1 increments page counts for pages other than the 
-   first of scatter gather elements obtained from alloc_pages().
-   When startFinish==0 decrements ... */
-static void
-sg_rb_correct4mmap(Sg_scatter_hold * rsv_schp, int startFinish)
-{
-	struct scatterlist *sg = rsv_schp->buffer;
-	struct page *page;
-	int k, m;
-
-	SCSI_LOG_TIMEOUT(3, printk("sg_rb_correct4mmap: startFinish=%d, scatg=%d\n", 
-				   startFinish, rsv_schp->k_use_sg));
-	/* N.B. correction _not_ applied to base page of each allocation */
-	for (k = 0; k < rsv_schp->k_use_sg; ++k, ++sg) {
-		for (m = PAGE_SIZE; m < sg->length; m += PAGE_SIZE) {
-			page = sg->page;
-			if (startFinish)
-				get_page(page);
-			else {
-				if (page_count(page) > 0)
-					__put_page(page);
-			}
-		}
-	}
-}
-
 static struct page *
 sg_vma_nopage(struct vm_area_struct *vma, unsigned long addr, int *type)
 {
@@ -1237,10 +1210,7 @@ sg_mmap(struct file *filp, struct vm_area_struct *vma)
 		sa += len;
 	}
 
-	if (0 == sfp->mmap_called) {
-		sg_rb_correct4mmap(rsv_schp, 1);	/* do only once per fd lifetime */
-		sfp->mmap_called = 1;
-	}
+	sfp->mmap_called = 1;
 	vma->vm_flags |= VM_RESERVED;
 	vma->vm_private_data = sfp;
 	vma->vm_ops = &sg_mmap_vm_ops;
@@ -1361,7 +1331,7 @@ static int sg_alloc(struct gendisk *disk, struct scsi_device *scsidp)
 	void *old_sg_dev_arr = NULL;
 	int k, error;
 
-	sdp = kmalloc(sizeof(Sg_device), GFP_KERNEL);
+	sdp = kzalloc(sizeof(Sg_device), GFP_KERNEL);
 	if (!sdp) {
 		printk(KERN_WARNING "kmalloc Sg_device failure\n");
 		return -ENOMEM;
@@ -1373,12 +1343,11 @@ static int sg_alloc(struct gendisk *disk, struct scsi_device *scsidp)
 		int tmp_dev_max = sg_nr_dev + SG_DEV_ARR_LUMP;
 		write_unlock_irqrestore(&sg_dev_arr_lock, iflags);
 
-		tmp_da = kmalloc(tmp_dev_max * sizeof(Sg_device *), GFP_KERNEL);
+		tmp_da = kzalloc(tmp_dev_max * sizeof(Sg_device *), GFP_KERNEL);
 		if (unlikely(!tmp_da))
 			goto expand_failed;
 
 		write_lock_irqsave(&sg_dev_arr_lock, iflags);
-		memset(tmp_da, 0, tmp_dev_max * sizeof(Sg_device *));
 		memcpy(tmp_da, sg_dev_arr, sg_dev_max * sizeof(Sg_device *));
 		old_sg_dev_arr = sg_dev_arr;
 		sg_dev_arr = tmp_da;
@@ -1391,7 +1360,6 @@ static int sg_alloc(struct gendisk *disk, struct scsi_device *scsidp)
 	if (unlikely(k >= SG_MAX_DEVS))
 		goto overflow;
 
-	memset(sdp, 0, sizeof(*sdp));
 	SCSI_LOG_TIMEOUT(3, printk("sg_alloc: dev=%d \n", k));
 	sprintf(disk->disk_name, "sg%d", k);
 	disk->first_minor = k;
@@ -1458,14 +1426,10 @@ sg_add(struct class_device *cl_dev, struct class_interface *cl_intf)
 	k = error;
 	sdp = sg_dev_arr[k];
 
-	devfs_mk_cdev(MKDEV(SCSI_GENERIC_MAJOR, k),
-			S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP,
-			"%s/generic", scsidp->devfs_name);
 	error = cdev_add(cdev, MKDEV(SCSI_GENERIC_MAJOR, k), 1);
-	if (error) {
-		devfs_remove("%s/generic", scsidp->devfs_name);
+	if (error)
 		goto out;
-	}
+
 	sdp->cdev = cdev;
 	if (sg_sysfs_valid) {
 		struct class_device * sg_class_member;
@@ -1555,7 +1519,6 @@ sg_remove(struct class_device *cl_dev, struct class_interface *cl_intf)
 		class_device_destroy(sg_sysfs_class, MKDEV(SCSI_GENERIC_MAJOR, k));
 		cdev_del(sdp->cdev);
 		sdp->cdev = NULL;
-		devfs_remove("%s/generic", scsidp->devfs_name);
 		put_disk(sdp->disk);
 		sdp->disk = NULL;
 		if (NULL == sdp->headfp)
@@ -1577,6 +1540,7 @@ MODULE_AUTHOR("Douglas Gilbert");
 MODULE_DESCRIPTION("SCSI generic (sg) driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(SG_VERSION_STR);
+MODULE_ALIAS_CHARDEV_MAJOR(SCSI_GENERIC_MAJOR);
 
 MODULE_PARM_DESC(def_reserved_size, "size of buffer reserved for each fd");
 MODULE_PARM_DESC(allow_dio, "allow direct I/O (default: 0 (disallow))");
@@ -2395,8 +2359,6 @@ __sg_remove_sfp(Sg_device * sdp, Sg_fd * sfp)
 		SCSI_LOG_TIMEOUT(6, 
 			printk("__sg_remove_sfp:    bufflen=%d, k_use_sg=%d\n",
 			(int) sfp->reserve.bufflen, (int) sfp->reserve.k_use_sg));
-		if (sfp->mmap_called)
-			sg_rb_correct4mmap(&sfp->reserve, 0);	/* undo correction */
 		sg_remove_scat(&sfp->reserve);
 	}
 	sfp->parentdp = NULL;
@@ -2478,9 +2440,9 @@ sg_page_malloc(int rqSz, int lowDma, int *retSzp)
 		return resp;
 
 	if (lowDma)
-		page_mask = GFP_ATOMIC | GFP_DMA | __GFP_NOWARN;
+		page_mask = GFP_ATOMIC | GFP_DMA | __GFP_COMP | __GFP_NOWARN;
 	else
-		page_mask = GFP_ATOMIC | __GFP_NOWARN;
+		page_mask = GFP_ATOMIC | __GFP_COMP | __GFP_NOWARN;
 
 	for (order = 0, a_size = PAGE_SIZE; a_size < rqSz;
 	     order++, a_size <<= 1) ;
@@ -2974,4 +2936,3 @@ static int sg_proc_seq_show_debug(struct seq_file *s, void *v)
 
 module_init(init_sg);
 module_exit(exit_sg);
-MODULE_ALIAS_CHARDEV_MAJOR(SCSI_GENERIC_MAJOR);

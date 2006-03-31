@@ -34,7 +34,6 @@
 #include <asm/mach/irq.h>
 
 #include <asm/arch/pxa-regs.h>
-#include <asm/arch/irq.h>
 #include <asm/arch/tosa.h>
 
 #include <asm/hardware/scoop.h>

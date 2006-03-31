@@ -719,6 +719,11 @@ address which can extend beyond that limit.
     - model : this is your board name/model
     - #address-cells : address representation for "root" devices
     - #size-cells: the size representation for "root" devices
+    - device_type : This property shouldn't be necessary. However, if
+      you decide to create a device_type for your root node, make sure it
+      is _not_ "chrp" unless your platform is a pSeries or PAPR compliant
+      one for 64-bit, or a CHRP-type machine for 32-bit as this will
+      matched by the kernel this way.
 
   Additionally, some recommended properties are:
 
@@ -1363,6 +1368,78 @@ platforms are moved over to use the flattened-device-tree model.
 		interrupts = <26 1>;
 		phy = "ulpi";
 	};
+
+
+   g) Freescale SOC SEC Security Engines
+
+   Required properties:
+
+    - device_type : Should be "crypto"
+    - model : Model of the device.  Should be "SEC1" or "SEC2"
+    - compatible : Should be "talitos"
+    - reg : Offset and length of the register set for the device
+    - interrupts : <a b> where a is the interrupt number and b is a
+      field that represents an encoding of the sense and level
+      information for the interrupt.  This should be encoded based on
+      the information in section 2) depending on the type of interrupt
+      controller you have.
+    - interrupt-parent : the phandle for the interrupt controller that
+      services interrupts for this device.
+    - num-channels : An integer representing the number of channels
+      available.
+    - channel-fifo-len : An integer representing the number of
+      descriptor pointers each channel fetch fifo can hold.
+    - exec-units-mask : The bitmask representing what execution units
+      (EUs) are available. It's a single 32 bit cell. EU information
+      should be encoded following the SEC's Descriptor Header Dword
+      EU_SEL0 field documentation, i.e. as follows:
+
+        bit 0 = reserved - should be 0
+        bit 1 = set if SEC has the ARC4 EU (AFEU)
+        bit 2 = set if SEC has the DES/3DES EU (DEU)
+        bit 3 = set if SEC has the message digest EU (MDEU)
+        bit 4 = set if SEC has the random number generator EU (RNG)
+        bit 5 = set if SEC has the public key EU (PKEU)
+        bit 6 = set if SEC has the AES EU (AESU)
+        bit 7 = set if SEC has the Kasumi EU (KEU)
+
+      bits 8 through 31 are reserved for future SEC EUs.
+
+    - descriptor-types-mask : The bitmask representing what descriptors
+      are available. It's a single 32 bit cell. Descriptor type
+      information should be encoded following the SEC's Descriptor
+      Header Dword DESC_TYPE field documentation, i.e. as follows:
+
+        bit 0  = set if SEC supports the aesu_ctr_nonsnoop desc. type
+        bit 1  = set if SEC supports the ipsec_esp descriptor type
+        bit 2  = set if SEC supports the common_nonsnoop desc. type
+        bit 3  = set if SEC supports the 802.11i AES ccmp desc. type
+        bit 4  = set if SEC supports the hmac_snoop_no_afeu desc. type
+        bit 5  = set if SEC supports the srtp descriptor type
+        bit 6  = set if SEC supports the non_hmac_snoop_no_afeu desc.type
+        bit 7  = set if SEC supports the pkeu_assemble descriptor type
+        bit 8  = set if SEC supports the aesu_key_expand_output desc.type
+        bit 9  = set if SEC supports the pkeu_ptmul descriptor type
+        bit 10 = set if SEC supports the common_nonsnoop_afeu desc. type
+        bit 11 = set if SEC supports the pkeu_ptadd_dbl descriptor type
+
+      ..and so on and so forth.
+
+   Example:
+
+       /* MPC8548E */
+       crypto@30000 {
+               device_type = "crypto";
+               model = "SEC2";
+               compatible = "talitos";
+               reg = <30000 10000>;
+               interrupts = <1d 3>;
+               interrupt-parent = <40000>;
+               num-channels = <4>;
+               channel-fifo-len = <24>;
+               exec-units-mask = <000000fe>;
+               descriptor-types-mask = <073f1127>;
+       };
 
 
    More devices will be defined as this spec matures.

@@ -60,6 +60,9 @@ extern void tcp_time_wait(struct sock *sk, int state, int timeo);
 /* Minimal RCV_MSS. */
 #define TCP_MIN_RCVMSS		536U
 
+/* The least MTU to use for probing */
+#define TCP_BASE_MSS		512
+
 /* After receiving this amount of duplicate ACKs fast retransmit starts. */
 #define TCP_FASTRETRANS_THRESH 3
 
@@ -219,6 +222,9 @@ extern int sysctl_tcp_nometrics_save;
 extern int sysctl_tcp_moderate_rcvbuf;
 extern int sysctl_tcp_tso_win_divisor;
 extern int sysctl_tcp_abc;
+extern int sysctl_tcp_mtu_probing;
+extern int sysctl_tcp_base_mss;
+extern int sysctl_tcp_workaround_signed_windows;
 
 extern atomic_t tcp_memory_allocated;
 extern atomic_t tcp_sockets_allocated;
@@ -347,6 +353,12 @@ extern int			tcp_getsockopt(struct sock *sk, int level,
 extern int			tcp_setsockopt(struct sock *sk, int level, 
 					       int optname, char __user *optval, 
 					       int optlen);
+extern int			compat_tcp_getsockopt(struct sock *sk,
+					int level, int optname,
+					char __user *optval, int __user *optlen);
+extern int			compat_tcp_setsockopt(struct sock *sk,
+					int level, int optname,
+					char __user *optval, int optlen);
 extern void			tcp_set_keepalive(struct sock *sk, int val);
 extern int			tcp_recvmsg(struct kiocb *iocb, struct sock *sk,
 					    struct msghdr *msg,
@@ -446,6 +458,10 @@ extern int tcp_read_sock(struct sock *sk, read_descriptor_t *desc,
 			 sk_read_actor_t recv_actor);
 
 extern void tcp_initialize_rcv_mss(struct sock *sk);
+
+extern int tcp_mtu_to_mss(struct sock *sk, int pmtu);
+extern int tcp_mss_to_mtu(struct sock *sk, int mss);
+extern void tcp_mtup_init(struct sock *sk);
 
 static inline void __tcp_fast_path_on(struct tcp_sock *tp, u32 snd_wnd)
 {

@@ -20,6 +20,15 @@
 #include <linux/module.h>
 #include <asm/uaccess.h>
 
+struct sock *xfrm_nl;
+EXPORT_SYMBOL(xfrm_nl);
+
+u32 sysctl_xfrm_aevent_etime = XFRM_AE_ETIME;
+EXPORT_SYMBOL(sysctl_xfrm_aevent_etime);
+
+u32 sysctl_xfrm_aevent_rseqth = XFRM_AE_SEQT_SIZE;
+EXPORT_SYMBOL(sysctl_xfrm_aevent_rseqth);
+
 /* Each xfrm_state may be linked to two tables:
 
    1. Hash table by (spi,daddr,ah/esp) to find SA by SPI. (input,ctl)
@@ -50,17 +59,19 @@ static DEFINE_SPINLOCK(xfrm_state_gc_lock);
 
 static int xfrm_state_gc_flush_bundles;
 
-static int __xfrm_state_delete(struct xfrm_state *x);
+int __xfrm_state_delete(struct xfrm_state *x);
 
 static struct xfrm_state_afinfo *xfrm_state_get_afinfo(unsigned short family);
 static void xfrm_state_put_afinfo(struct xfrm_state_afinfo *afinfo);
 
-static int km_query(struct xfrm_state *x, struct xfrm_tmpl *t, struct xfrm_policy *pol);
-static void km_state_expired(struct xfrm_state *x, int hard);
+int km_query(struct xfrm_state *x, struct xfrm_tmpl *t, struct xfrm_policy *pol);
+void km_state_expired(struct xfrm_state *x, int hard, u32 pid);
 
 static void xfrm_state_gc_destroy(struct xfrm_state *x)
 {
 	if (del_timer(&x->timer))
+		BUG();
+	if (del_timer(&x->rtimer))
 		BUG();
 	kfree(x->aalg);
 	kfree(x->ealg);
@@ -153,7 +164,7 @@ static void xfrm_timer_handler(unsigned long data)
 
 	x->km.dying = warn;
 	if (warn)
-		km_state_expired(x, 0);
+		km_state_expired(x, 0, 0);
 resched:
 	if (next != LONG_MAX &&
 	    !mod_timer(&x->timer, jiffies + make_jiffies(next)))
@@ -168,12 +179,14 @@ expired:
 		goto resched;
 	}
 	if (!__xfrm_state_delete(x) && x->id.spi)
-		km_state_expired(x, 1);
+		km_state_expired(x, 1, 0);
 
 out:
 	spin_unlock(&x->lock);
 	xfrm_state_put(x);
 }
+
+static void xfrm_replay_timer_handler(unsigned long data);
 
 struct xfrm_state *xfrm_state_alloc(void)
 {
@@ -190,11 +203,16 @@ struct xfrm_state *xfrm_state_alloc(void)
 		init_timer(&x->timer);
 		x->timer.function = xfrm_timer_handler;
 		x->timer.data	  = (unsigned long)x;
+		init_timer(&x->rtimer);
+		x->rtimer.function = xfrm_replay_timer_handler;
+		x->rtimer.data     = (unsigned long)x;
 		x->curlft.add_time = (unsigned long)xtime.tv_sec;
 		x->lft.soft_byte_limit = XFRM_INF;
 		x->lft.soft_packet_limit = XFRM_INF;
 		x->lft.hard_byte_limit = XFRM_INF;
 		x->lft.hard_packet_limit = XFRM_INF;
+		x->replay_maxage = 0;
+		x->replay_maxdiff = 0;
 		spin_lock_init(&x->lock);
 	}
 	return x;
@@ -212,7 +230,7 @@ void __xfrm_state_destroy(struct xfrm_state *x)
 }
 EXPORT_SYMBOL(__xfrm_state_destroy);
 
-static int __xfrm_state_delete(struct xfrm_state *x)
+int __xfrm_state_delete(struct xfrm_state *x)
 {
 	int err = -ESRCH;
 
@@ -227,6 +245,8 @@ static int __xfrm_state_delete(struct xfrm_state *x)
 		}
 		spin_unlock(&xfrm_state_lock);
 		if (del_timer(&x->timer))
+			__xfrm_state_put(x);
+		if (del_timer(&x->rtimer))
 			__xfrm_state_put(x);
 
 		/* The number two in this test is the reference
@@ -249,6 +269,7 @@ static int __xfrm_state_delete(struct xfrm_state *x)
 
 	return err;
 }
+EXPORT_SYMBOL(__xfrm_state_delete);
 
 int xfrm_state_delete(struct xfrm_state *x)
 {
@@ -426,6 +447,10 @@ static void __xfrm_state_insert(struct xfrm_state *x)
 	if (!mod_timer(&x->timer, jiffies + HZ))
 		xfrm_state_hold(x);
 
+	if (x->replay_maxage &&
+	    !mod_timer(&x->rtimer, jiffies + x->replay_maxage))
+		xfrm_state_hold(x);
+
 	wake_up(&km_waitq);
 }
 
@@ -580,7 +605,7 @@ int xfrm_state_check_expire(struct xfrm_state *x)
 	    (x->curlft.bytes >= x->lft.soft_byte_limit ||
 	     x->curlft.packets >= x->lft.soft_packet_limit)) {
 		x->km.dying = 1;
-		km_state_expired(x, 0);
+		km_state_expired(x, 0, 0);
 	}
 	return 0;
 }
@@ -762,6 +787,61 @@ out:
 }
 EXPORT_SYMBOL(xfrm_state_walk);
 
+
+void xfrm_replay_notify(struct xfrm_state *x, int event)
+{
+	struct km_event c;
+	/* we send notify messages in case
+	 *  1. we updated on of the sequence numbers, and the seqno difference
+	 *     is at least x->replay_maxdiff, in this case we also update the
+	 *     timeout of our timer function
+	 *  2. if x->replay_maxage has elapsed since last update,
+	 *     and there were changes
+	 *
+	 *  The state structure must be locked!
+	 */
+
+	switch (event) {
+	case XFRM_REPLAY_UPDATE:
+		if (x->replay_maxdiff &&
+		    (x->replay.seq - x->preplay.seq < x->replay_maxdiff) &&
+		    (x->replay.oseq - x->preplay.oseq < x->replay_maxdiff))
+			return;
+
+		break;
+
+	case XFRM_REPLAY_TIMEOUT:
+		if ((x->replay.seq == x->preplay.seq) &&
+		    (x->replay.bitmap == x->preplay.bitmap) &&
+		    (x->replay.oseq == x->preplay.oseq))
+			return;
+
+		break;
+	}
+
+	memcpy(&x->preplay, &x->replay, sizeof(struct xfrm_replay_state));
+	c.event = XFRM_MSG_NEWAE;
+	c.data.aevent = event;
+	km_state_notify(x, &c);
+
+	if (x->replay_maxage &&
+	    !mod_timer(&x->rtimer, jiffies + x->replay_maxage))
+		xfrm_state_hold(x);
+}
+EXPORT_SYMBOL(xfrm_replay_notify);
+
+static void xfrm_replay_timer_handler(unsigned long data)
+{
+	struct xfrm_state *x = (struct xfrm_state*)data;
+
+	spin_lock(&x->lock);
+
+	if (xfrm_aevent_is_on() && x->km.state == XFRM_STATE_VALID)
+		xfrm_replay_notify(x, XFRM_REPLAY_TIMEOUT);
+
+	spin_unlock(&x->lock);
+}
+
 int xfrm_replay_check(struct xfrm_state *x, u32 seq)
 {
 	u32 diff;
@@ -805,6 +885,9 @@ void xfrm_replay_advance(struct xfrm_state *x, u32 seq)
 		diff = x->replay.seq - seq;
 		x->replay.bitmap |= (1U << diff);
 	}
+
+	if (xfrm_aevent_is_on())
+		xfrm_replay_notify(x, XFRM_REPLAY_UPDATE);
 }
 EXPORT_SYMBOL(xfrm_replay_advance);
 
@@ -835,11 +918,12 @@ void km_state_notify(struct xfrm_state *x, struct km_event *c)
 EXPORT_SYMBOL(km_policy_notify);
 EXPORT_SYMBOL(km_state_notify);
 
-static void km_state_expired(struct xfrm_state *x, int hard)
+void km_state_expired(struct xfrm_state *x, int hard, u32 pid)
 {
 	struct km_event c;
 
 	c.data.hard = hard;
+	c.pid = pid;
 	c.event = XFRM_MSG_EXPIRE;
 	km_state_notify(x, &c);
 
@@ -847,11 +931,12 @@ static void km_state_expired(struct xfrm_state *x, int hard)
 		wake_up(&km_waitq);
 }
 
+EXPORT_SYMBOL(km_state_expired);
 /*
  * We send to all registered managers regardless of failure
  * We are happy with one success
 */
-static int km_query(struct xfrm_state *x, struct xfrm_tmpl *t, struct xfrm_policy *pol)
+int km_query(struct xfrm_state *x, struct xfrm_tmpl *t, struct xfrm_policy *pol)
 {
 	int err = -EINVAL, acqret;
 	struct xfrm_mgr *km;
@@ -865,6 +950,7 @@ static int km_query(struct xfrm_state *x, struct xfrm_tmpl *t, struct xfrm_polic
 	read_unlock(&xfrm_km_lock);
 	return err;
 }
+EXPORT_SYMBOL(km_query);
 
 int km_new_mapping(struct xfrm_state *x, xfrm_address_t *ipaddr, u16 sport)
 {
@@ -883,17 +969,19 @@ int km_new_mapping(struct xfrm_state *x, xfrm_address_t *ipaddr, u16 sport)
 }
 EXPORT_SYMBOL(km_new_mapping);
 
-void km_policy_expired(struct xfrm_policy *pol, int dir, int hard)
+void km_policy_expired(struct xfrm_policy *pol, int dir, int hard, u32 pid)
 {
 	struct km_event c;
 
 	c.data.hard = hard;
+	c.pid = pid;
 	c.event = XFRM_MSG_POLEXPIRE;
 	km_policy_notify(pol, dir, &c);
 
 	if (hard)
 		wake_up(&km_waitq);
 }
+EXPORT_SYMBOL(km_policy_expired);
 
 int xfrm_user_policy(struct sock *sk, int optname, u8 __user *optval, int optlen)
 {

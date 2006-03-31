@@ -415,6 +415,7 @@ ipt_log_target(struct sk_buff **pskb,
 	       const struct net_device *in,
 	       const struct net_device *out,
 	       unsigned int hooknum,
+	       const struct xt_target *target,
 	       const void *targinfo,
 	       void *userinfo)
 {
@@ -437,35 +438,29 @@ ipt_log_target(struct sk_buff **pskb,
 
 static int ipt_log_checkentry(const char *tablename,
 			      const void *e,
+			      const struct xt_target *target,
 			      void *targinfo,
 			      unsigned int targinfosize,
 			      unsigned int hook_mask)
 {
 	const struct ipt_log_info *loginfo = targinfo;
 
-	if (targinfosize != IPT_ALIGN(sizeof(struct ipt_log_info))) {
-		DEBUGP("LOG: targinfosize %u != %u\n",
-		       targinfosize, IPT_ALIGN(sizeof(struct ipt_log_info)));
-		return 0;
-	}
-
 	if (loginfo->level >= 8) {
 		DEBUGP("LOG: level %u >= 8\n", loginfo->level);
 		return 0;
 	}
-
 	if (loginfo->prefix[sizeof(loginfo->prefix)-1] != '\0') {
 		DEBUGP("LOG: prefix term %i\n",
 		       loginfo->prefix[sizeof(loginfo->prefix)-1]);
 		return 0;
 	}
-
 	return 1;
 }
 
 static struct ipt_target ipt_log_reg = {
 	.name		= "LOG",
 	.target		= ipt_log_target,
+	.targetsize	= sizeof(struct ipt_log_info),
 	.checkentry	= ipt_log_checkentry,
 	.me		= THIS_MODULE,
 };
@@ -476,7 +471,7 @@ static struct nf_logger ipt_log_logger ={
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init ipt_log_init(void)
 {
 	if (ipt_register_target(&ipt_log_reg))
 		return -EINVAL;
@@ -490,11 +485,11 @@ static int __init init(void)
 	return 0;
 }
 
-static void __exit fini(void)
+static void __exit ipt_log_fini(void)
 {
 	nf_log_unregister_logger(&ipt_log_logger);
 	ipt_unregister_target(&ipt_log_reg);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ipt_log_init);
+module_exit(ipt_log_fini);

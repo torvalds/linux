@@ -158,7 +158,7 @@ static int ohci_s3c2410_hub_control (
 		"s3c2410_hub_control(%p,0x%04x,0x%04x,0x%04x,%p,%04x)\n",
 		hcd, typeReq, wValue, wIndex, buf, wLength);
 
-	/* if we are only an humble host without any special capabilites
+	/* if we are only an humble host without any special capabilities
 	 * process the request straight away and exit */
 
 	if (info == NULL) {

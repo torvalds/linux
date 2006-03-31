@@ -155,7 +155,7 @@ static int fd_request_irq(void)
 
 static unsigned long dma_mem_alloc(unsigned long size)
 {
-	return __get_dma_pages(GFP_KERNEL,get_order(size));
+	return __get_dma_pages(GFP_KERNEL|__GFP_NORETRY,get_order(size));
 }
 
 

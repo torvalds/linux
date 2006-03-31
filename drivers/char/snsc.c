@@ -5,7 +5,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2004 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (C) 2004, 2006 Silicon Graphics, Inc. All rights reserved.
  */
 
 /*
@@ -77,7 +77,7 @@ scdrv_open(struct inode *inode, struct file *file)
 	scd = container_of(inode->i_cdev, struct sysctl_data_s, scd_cdev);
 
 	/* allocate memory for subchannel data */
-	sd = kmalloc(sizeof (struct subch_data_s), GFP_KERNEL);
+	sd = kzalloc(sizeof (struct subch_data_s), GFP_KERNEL);
 	if (sd == NULL) {
 		printk("%s: couldn't allocate subchannel data\n",
 		       __FUNCTION__);
@@ -85,7 +85,6 @@ scdrv_open(struct inode *inode, struct file *file)
 	}
 
 	/* initialize subch_data_s fields */
-	memset(sd, 0, sizeof (struct subch_data_s));
 	sd->sd_nasid = scd->scd_nasid;
 	sd->sd_subch = ia64_sn_irtr_open(scd->scd_nasid);
 
@@ -394,7 +393,7 @@ scdrv_init(void)
 			sprintf(devnamep, "#%d", geo_slab(geoid));
 
 			/* allocate sysctl device data */
-			scd = kmalloc(sizeof (struct sysctl_data_s),
+			scd = kzalloc(sizeof (struct sysctl_data_s),
 				      GFP_KERNEL);
 			if (!scd) {
 				printk("%s: failed to allocate device info"
@@ -402,7 +401,6 @@ scdrv_init(void)
 				       SYSCTL_BASENAME, devname);
 				continue;
 			}
-			memset(scd, 0, sizeof (struct sysctl_data_s));
 
 			/* initialize sysctl device data fields */
 			scd->scd_nasid = cnodeid_to_nasid(cnode);

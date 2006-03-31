@@ -35,6 +35,7 @@
 #include <linux/spinlock.h>
 #include <linux/ethtool.h>
 #include <linux/netdevice.h>
+#include <linux/crc32.h>
 #include "../8390.h"
 
 #include <pcmcia/cs_types.h>
@@ -1682,17 +1683,67 @@ static struct net_device_stats *get_stats(struct net_device *dev)
 	return &ei_local->stat;
 }
 
+/*
+ * Form the 64 bit 8390 multicast table from the linked list of addresses
+ * associated with this dev structure.
+ */
+ 
+static inline void make_mc_bits(u8 *bits, struct net_device *dev)
+{
+	struct dev_mc_list *dmi;
+	u32 crc;
+
+	for (dmi=dev->mc_list; dmi; dmi=dmi->next) {
+		
+		crc = ether_crc(ETH_ALEN, dmi->dmi_addr);
+		/* 
+		 * The 8390 uses the 6 most significant bits of the
+		 * CRC to index the multicast table.
+		 */
+		bits[crc>>29] |= (1<<((crc>>26)&7));
+	}
+}
+
 /**
  * do_set_multicast_list - set/clear multicast filter
  * @dev: net device for which multicast filter is adjusted
  *
- *	Set or clear the multicast filter for this adaptor. May be called
- *	from a BH in 2.1.x. Must be called with lock held. 
+ *	Set or clear the multicast filter for this adaptor.
+ *	Must be called with lock held. 
  */
  
 static void do_set_multicast_list(struct net_device *dev)
 {
 	long e8390_base = dev->base_addr;
+	int i;
+	struct ei_device *ei_local = (struct ei_device*)netdev_priv(dev);
+
+	if (!(dev->flags&(IFF_PROMISC|IFF_ALLMULTI))) {
+		memset(ei_local->mcfilter, 0, 8);
+		if (dev->mc_list)
+			make_mc_bits(ei_local->mcfilter, dev);
+	} else {
+		/* set to accept-all */
+		memset(ei_local->mcfilter, 0xFF, 8);
+	}
+
+	/* 
+	 * DP8390 manuals don't specify any magic sequence for altering
+	 * the multicast regs on an already running card. To be safe, we
+	 * ensure multicast mode is off prior to loading up the new hash
+	 * table. If this proves to be not enough, we can always resort
+	 * to stopping the NIC, loading the table and then restarting.
+	 */
+	 
+	if (netif_running(dev))
+		outb_p(E8390_RXCONFIG, e8390_base + EN0_RXCR);
+
+	outb_p(E8390_NODMA + E8390_PAGE1, e8390_base + E8390_CMD);
+	for(i = 0; i < 8; i++) 
+	{
+		outb_p(ei_local->mcfilter[i], e8390_base + EN1_MULT_SHIFT(i));
+	}
+	outb_p(E8390_NODMA + E8390_PAGE0, e8390_base + E8390_CMD);
 
   	if(dev->flags&IFF_PROMISC)
   		outb_p(E8390_RXCONFIG | 0x58, e8390_base + EN0_RXCR);
@@ -1794,12 +1845,6 @@ static void AX88190_init(struct net_device *dev, int startp)
 		if(inb_p(e8390_base + EN1_PHYS_SHIFT(i))!=dev->dev_addr[i])
 			printk(KERN_ERR "Hw. address read/write mismap %d\n",i);
 	}
-	/*
-	 * Initialize the multicast list to accept-all.  If we enable multicast
-	 * the higher levels can do the filtering.
-	 */
-	for (i = 0; i < 8; i++)
-		outb_p(0xff, e8390_base + EN1_MULT + i);
 
 	outb_p(ei_local->rx_start_page, e8390_base + EN1_CURPAG);
 	outb_p(E8390_NODMA+E8390_PAGE0+E8390_STOP, e8390_base+E8390_CMD);

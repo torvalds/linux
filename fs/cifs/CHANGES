@@ -160,7 +160,7 @@ improperly zeroed buffer in CIFS Unix extensions set times call.
 Version 1.25
 ------------
 Fix internationalization problem in cifs readdir with filenames that map to 
-longer UTF8 strings than the string on the wire was in Unicode.  Add workaround
+longer UTF-8 strings than the string on the wire was in Unicode.  Add workaround
 for readdir to netapp servers. Fix search rewind (seek into readdir to return 
 non-consecutive entries).  Do not do readdir when server negotiates 
 buffer size to small to fit filename. Add support for reading POSIX ACLs from

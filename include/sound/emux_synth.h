@@ -113,7 +113,7 @@ struct snd_emux {
 	struct snd_emux_voice *voices;	/* Voices (EMU 'channel') */
 	int use_time;	/* allocation counter */
 	spinlock_t voice_lock;	/* Lock for voice access */
-	struct semaphore register_mutex;
+	struct mutex register_mutex;
 	int client;		/* For the sequencer client */
 	int ports[SNDRV_EMUX_MAX_PORTS];	/* The ports for this device */
 	struct snd_emux_port *portptrs[SNDRV_EMUX_MAX_PORTS];

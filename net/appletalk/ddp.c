@@ -1819,6 +1819,22 @@ static int atalk_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	return rc;
 }
 
+
+#ifdef CONFIG_COMPAT
+static int atalk_compat_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
+{
+	/*
+	 * All Appletalk ioctls except SIOCATALKDIFADDR are standard.  And
+	 * SIOCATALKDIFADDR is handled by upper layer as well, so there is
+	 * nothing to do.  Eventually SIOCATALKDIFADDR should be moved
+	 * here so there is no generic SIOCPROTOPRIVATE translation in the
+	 * system.
+	 */
+	return -ENOIOCTLCMD;
+}
+#endif
+
+
 static struct net_proto_family atalk_family_ops = {
 	.family		= PF_APPLETALK,
 	.create		= atalk_create,
@@ -1836,6 +1852,9 @@ static const struct proto_ops SOCKOPS_WRAPPED(atalk_dgram_ops) = {
 	.getname	= atalk_getname,
 	.poll		= datagram_poll,
 	.ioctl		= atalk_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= atalk_compat_ioctl,
+#endif
 	.listen		= sock_no_listen,
 	.shutdown	= sock_no_shutdown,
 	.setsockopt	= sock_no_setsockopt,

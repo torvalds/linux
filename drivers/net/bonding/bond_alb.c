@@ -1261,7 +1261,7 @@ int bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 	struct ethhdr *eth_data;
 	struct alb_bond_info *bond_info = &(BOND_ALB_INFO(bond));
 	struct slave *tx_slave = NULL;
-	static u32 ip_bcast = 0xffffffff;
+	static const u32 ip_bcast = 0xffffffff;
 	int hash_size = 0;
 	int do_tx_balance = 1;
 	u32 hash_index = 0;

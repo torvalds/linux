@@ -1,118 +1,78 @@
-How to get the Nebula, PCTV, FusionHDTV Lite and Twinhan DST cards working
-==========================================================================
+How to get the bt8xx cards working
+==================================
 
-This class of cards has a bt878a as the PCI interface, and
-require the bttv driver.
+1) General information
+======================
 
-Please pay close attention to the warning about the bttv module
-options below for the DST card.
+This class of cards has a bt878a as the PCI interface, and require the bttv driver
+for accessing the i2c bus and the gpio pins of the bt8xx chipset.
+Please see Documentation/dvb/cards.txt => o Cards based on the Conexant Bt8xx PCI bridge:
 
-1) General informations
-=======================
-
-These drivers require the bttv driver to provide the means to access
-the i2c bus and the gpio pins of the bt8xx chipset.
-
-Because of this, you need to enable
-"Device drivers" => "Multimedia devices"
-  => "Video For Linux" => "BT848 Video For Linux"
-
-Furthermore you need to enable
-"Device drivers" => "Multimedia devices" => "Digital Video Broadcasting Devices"
-  => "DVB for Linux" "DVB Core Support" "BT8xx based PCI cards"
+Compiling kernel please enable:
+a.)"Device drivers" => "Multimedia devices" => "Video For Linux" => "BT848 Video For Linux"
+b.)"Device drivers" => "Multimedia devices" => "Digital Video Broadcasting Devices"
+ => "DVB for Linux" "DVB Core Support" "Bt8xx based PCI Cards"
 
 2) Loading Modules
 ==================
 
-In general you need to load the bttv driver, which will handle the gpio and
-i2c communication for us, plus the common dvb-bt8xx device driver.
-The frontends for Nebula (nxt6000), Pinnacle PCTV (cx24110), TwinHan (dst),
-FusionHDTV DVB-T Lite (mt352) and FusionHDTV5 Lite (lgdt330x) are loaded
-automatically by the dvb-bt8xx device driver.
+In default cases bttv is loaded automatically.
+To load the backend either place dvb-bt8xx in etc/modules, or apply manually:
 
-3a) Nebula / Pinnacle PCTV / FusionHDTV Lite
----------------------------------------------
+	$ modprobe dvb-bt8xx
 
-   $ modprobe bttv (normally bttv is being loaded automatically by kmod)
-   $ modprobe dvb-bt8xx
+All frontends will be loaded automatically.
+People running udev please see Documentation/dvb/udev.txt.
 
-(or just place dvb-bt8xx in /etc/modules for automatic loading)
+In the following cases overriding the PCI type detection for dvb-bt8xx might be necessary:
 
+2a) Running TwinHan and Clones
+------------------------------
 
-3b) TwinHan and Clones
+	$ modprobe bttv card=113
+	$ modprobe dvb-bt8xx
+	$ modprobe dst
+
+Useful parameters for verbosity level and debugging the dst module:
+
+verbose=0:		messages are disabled
+	1:		only error messages are displayed
+	2:		notifications are displayed
+	3:		other useful messages are displayed
+	4:		debug setting
+dst_addons=0:		card is a free to air (FTA) card only
+	   0x20:	card has a conditional access slot for scrambled channels
+
+The autodetected values are determined by the cards' "response string".
+In your logs see f. ex.: dst_get_device_id: Recognize [DSTMCI].
+For bug reports please send in a complete log with verbose=4 activated.
+Please also see Documentation/dvb/ci.txt.
+
+2b) Running multiple cards
 --------------------------
 
-   $ modprobe bttv card=0x71
-   $ modprobe dvb-bt8xx
-   $ modprobe dst
+Examples of card ID's:
 
-The value 0x71 will override the PCI type detection for dvb-bt8xx,
-which  is necessary for TwinHan cards. Omission of this parameter might result
-in a system lockup.
+Pinnacle PCTV Sat:		 94
+Nebula Electronics Digi TV:	104
+pcHDTV HD-2000 TV:		112
+Twinhan DST and clones:		113
+Avermedia AverTV DVB-T 771:	123
+Avermedia AverTV DVB-T 761:	124
+DViCO FusionHDTV DVB-T Lite:	128
+DViCO FusionHDTV 5 Lite:	135
 
-If you're having an older card (blue color PCB) and card=0x71 locks up
-your machine, try using 0x68, too. If that does not work, ask on the
-mailing list.
-
-The DST module takes a couple of useful parameters.
-
-verbose takes values 0 to 4. These values control the verbosity level,
-and can be used to debug also.
-
-verbose=0 means complete disabling of messages
-	1 only error messages are displayed
-	2 notifications are also displayed
-	3 informational messages are also displayed
-	4 debug setting
-
-dst_addons takes values 0 and 0x20. A value of 0 means it is a FTA card.
-0x20 means it has a Conditional Access slot.
-
-The autodetected values are determined by the cards 'response string'
-which you can see in your logs e.g.
-
-dst_get_device_id: Recognise [DSTMCI]
-
-If you need to sent in bug reports on the dst, please do send in a complete
-log with the verbose=4 module parameter. For general usage, the default setting
-of verbose=1 is ideal.
-
-
-4) Multiple cards
---------------------------
-
-If you happen to be running multiple cards, it would be advisable to load
-the bttv module with the card id. This would help to solve any module loading
-problems that you might face.
-
-For example, if you have a Twinhan and Clones card along with a FusionHDTV5 Lite
-
-	$ modprobe bttv card=0x71 card=0x87
-
-Here the order of the card id is important and should be the same as that of the
-physical order of the cards. Here card=0x71 represents the Twinhan and clones
-and card=0x87 represents Fusion HDTV5 Lite. These arguments can also be
-specified in decimal, rather than hex:
-
+Notice: The order of the card ID should be uprising:
+Example:
 	$ modprobe bttv card=113 card=135
+	$ modprobe dvb-bt8xx
 
-Some examples of card-id's
+For a full list of card ID's please see Documentation/video4linux/CARDLIST.bttv.
+In case of further problems send questions to the mailing list: www.linuxdvb.org.
 
-Pinnacle Sat		0x5e  (94)
-Nebula Digi TV		0x68  (104)
-PC HDTV			0x70  (112)
-Twinhan			0x71  (113)
-FusionHDTV DVB-T Lite	0x80  (128)
-FusionHDTV5 Lite	0x87  (135)
-
-For a full list of card-id's, see the V4L Documentation within the kernel
-source:  linux/Documentation/video4linux/CARDLIST.bttv
-
-If you have problems with this please do ask on the mailing list.
-
---
 Authors: Richard Walker,
 	 Jamie Honan,
 	 Michael Hunold,
 	 Manu Abraham,
+	 Uwe Bugla,
 	 Michael Krufky

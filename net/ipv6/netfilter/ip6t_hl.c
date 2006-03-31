@@ -18,10 +18,10 @@ MODULE_AUTHOR("Maciej Soltysiak <solt@dns.toxicfilms.tv>");
 MODULE_DESCRIPTION("IP tables Hop Limit matching module");
 MODULE_LICENSE("GPL");
 
-static int match(const struct sk_buff *skb, const struct net_device *in,
-		 const struct net_device *out, const void *matchinfo,
-		 int offset, unsigned int protoff,
-		 int *hotdrop)
+static int match(const struct sk_buff *skb,
+		 const struct net_device *in, const struct net_device *out,
+		 const struct xt_match *match, const void *matchinfo,
+		 int offset, unsigned int protoff, int *hotdrop)
 {
 	const struct ip6t_hl_info *info = matchinfo;
 	const struct ipv6hdr *ip6h = skb->nh.ipv6h;
@@ -48,33 +48,23 @@ static int match(const struct sk_buff *skb, const struct net_device *in,
 	return 0;
 }
 
-static int checkentry(const char *tablename, const void *entry,
-		      void *matchinfo, unsigned int matchsize,
-		      unsigned int hook_mask)
-{
-	if (matchsize != IP6T_ALIGN(sizeof(struct ip6t_hl_info)))
-		return 0;
-
-	return 1;
-}
-
 static struct ip6t_match hl_match = {
 	.name		= "hl",
-	.match		= &match,
-	.checkentry	= &checkentry,
+	.match		= match,
+	.matchsize	= sizeof(struct ip6t_hl_info),
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init ip6t_hl_init(void)
 {
 	return ip6t_register_match(&hl_match);
 }
 
-static void __exit fini(void)
+static void __exit ip6t_hl_fini(void)
 {
 	ip6t_unregister_match(&hl_match);
 
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ip6t_hl_init);
+module_exit(ip6t_hl_fini);

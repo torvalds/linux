@@ -62,7 +62,6 @@ static int snd_emu10k1_synth_new_device(struct snd_seq_device *dev)
 
 	if (snd_emux_register(emu, dev->card, arg->index, "Emu10k1") < 0) {
 		snd_emux_free(emu);
-		emu->hw = NULL;
 		return -ENOMEM;
 	}
 

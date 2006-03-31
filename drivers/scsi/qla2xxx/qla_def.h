@@ -31,82 +31,6 @@
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_transport_fc.h>
 
-#if defined(CONFIG_SCSI_QLA2XXX_EMBEDDED_FIRMWARE)
-#if defined(CONFIG_SCSI_QLA21XX) || defined(CONFIG_SCSI_QLA21XX_MODULE)
-#define IS_QLA2100(ha)	((ha)->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2100)
-#else
-#define IS_QLA2100(ha)	0
-#endif
-
-#if defined(CONFIG_SCSI_QLA22XX) || defined(CONFIG_SCSI_QLA22XX_MODULE)
-#define IS_QLA2200(ha)	((ha)->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2200)
-#else
-#define IS_QLA2200(ha)	0
-#endif
-
-#if defined(CONFIG_SCSI_QLA2300) || defined(CONFIG_SCSI_QLA2300_MODULE)
-#define IS_QLA2300(ha)	((ha)->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2300)
-#define IS_QLA2312(ha)	((ha)->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2312)
-#else
-#define IS_QLA2300(ha)	0
-#define IS_QLA2312(ha)	0
-#endif
-
-#if defined(CONFIG_SCSI_QLA2322) || defined(CONFIG_SCSI_QLA2322_MODULE)
-#define IS_QLA2322(ha)	((ha)->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2322)
-#else
-#define IS_QLA2322(ha)	0
-#endif
-
-#if defined(CONFIG_SCSI_QLA6312) || defined(CONFIG_SCSI_QLA6312_MODULE)
-#define IS_QLA6312(ha)	((ha)->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP6312)
-#define IS_QLA6322(ha)	((ha)->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP6322)
-#else
-#define IS_QLA6312(ha)	0
-#define IS_QLA6322(ha)	0
-#endif
-
-#if defined(CONFIG_SCSI_QLA24XX) || defined(CONFIG_SCSI_QLA24XX_MODULE)
-#define IS_QLA2422(ha)	((ha)->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2422)
-#define IS_QLA2432(ha)	((ha)->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2432)
-#else
-#define IS_QLA2422(ha)	0
-#define IS_QLA2432(ha)	0
-#endif
-
-#if defined(CONFIG_SCSI_QLA25XX) || defined(CONFIG_SCSI_QLA25XX_MODULE)
-#define IS_QLA2512(ha)	((ha)->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2512)
-#define IS_QLA2522(ha)	((ha)->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2522)
-#else
-#define IS_QLA2512(ha)	0
-#define IS_QLA2522(ha)	0
-#endif
-
-#else	/* !defined(CONFIG_SCSI_QLA2XXX_EMBEDDED_FIRMWARE) */
-
-#define IS_QLA2100(ha)	((ha)->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2100)
-#define IS_QLA2200(ha)	((ha)->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2200)
-#define IS_QLA2300(ha)	((ha)->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2300)
-#define IS_QLA2312(ha)	((ha)->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2312)
-#define IS_QLA2322(ha)	((ha)->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2322)
-#define IS_QLA6312(ha)	((ha)->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP6312)
-#define IS_QLA6322(ha)	((ha)->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP6322)
-#define IS_QLA2422(ha)	((ha)->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2422)
-#define IS_QLA2432(ha)	((ha)->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2432)
-#define IS_QLA2512(ha)	((ha)->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2512)
-#define IS_QLA2522(ha)	((ha)->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2522)
-#endif
-
-#define IS_QLA23XX(ha)	(IS_QLA2300(ha) || IS_QLA2312(ha) || IS_QLA2322(ha) || \
-    			 IS_QLA6312(ha) || IS_QLA6322(ha))
-#define IS_QLA24XX(ha)	(IS_QLA2422(ha) || IS_QLA2432(ha))
-#define IS_QLA25XX(ha)	(IS_QLA2512(ha) || IS_QLA2522(ha))
-
-/*
- * Only non-ISP2[12]00 have extended addressing support in the firmware.
- */
-#define HAS_EXTENDED_IDS(ha)	(!IS_QLA2100(ha) && !IS_QLA2200(ha))
-
 /*
  * We have MAILBOX_REGISTER_COUNT sized arrays in a few places,
  * but that's fine as we don't look at the last 24 ones for
@@ -838,7 +762,6 @@ typedef struct {
 #define PD_STATE_WAIT_PORT_LOGOUT_ACK		11
 
 
-#define QLA_ZIO_MODE_5		(BIT_2 | BIT_0)
 #define QLA_ZIO_MODE_6		(BIT_2 | BIT_1)
 #define QLA_ZIO_DISABLED	0
 #define QLA_ZIO_DEFAULT_TIMER	2
@@ -2300,6 +2223,47 @@ typedef struct scsi_qla_host {
 #define	SWITCH_FOUND			BIT_3
 #define	DFLG_NO_CABLE			BIT_4
 
+	uint32_t	device_type;
+#define DT_ISP2100			BIT_0
+#define DT_ISP2200			BIT_1
+#define DT_ISP2300			BIT_2
+#define DT_ISP2312			BIT_3
+#define DT_ISP2322			BIT_4
+#define DT_ISP6312			BIT_5
+#define DT_ISP6322			BIT_6
+#define DT_ISP2422			BIT_7
+#define DT_ISP2432			BIT_8
+#define DT_ISP5422			BIT_9
+#define DT_ISP5432			BIT_10
+#define DT_ISP_LAST			(DT_ISP5432 << 1)
+
+#define DT_ZIO_SUPPORTED		BIT_28
+#define DT_OEM_001			BIT_29
+#define DT_ISP2200A			BIT_30
+#define DT_EXTENDED_IDS			BIT_31
+
+#define DT_MASK(ha)	((ha)->device_type & (DT_ISP_LAST - 1))
+#define IS_QLA2100(ha)	(DT_MASK(ha) & DT_ISP2100)
+#define IS_QLA2200(ha)	(DT_MASK(ha) & DT_ISP2200)
+#define IS_QLA2300(ha)	(DT_MASK(ha) & DT_ISP2300)
+#define IS_QLA2312(ha)	(DT_MASK(ha) & DT_ISP2312)
+#define IS_QLA2322(ha)	(DT_MASK(ha) & DT_ISP2322)
+#define IS_QLA6312(ha)	(DT_MASK(ha) & DT_ISP6312)
+#define IS_QLA6322(ha)	(DT_MASK(ha) & DT_ISP6322)
+#define IS_QLA2422(ha)	(DT_MASK(ha) & DT_ISP2422)
+#define IS_QLA2432(ha)	(DT_MASK(ha) & DT_ISP2432)
+#define IS_QLA5422(ha)	(DT_MASK(ha) & DT_ISP5422)
+#define IS_QLA5432(ha)	(DT_MASK(ha) & DT_ISP5432)
+
+#define IS_QLA23XX(ha)	(IS_QLA2300(ha) || IS_QLA2312(ha) || IS_QLA2322(ha) || \
+    			 IS_QLA6312(ha) || IS_QLA6322(ha))
+#define IS_QLA24XX(ha)	(IS_QLA2422(ha) || IS_QLA2432(ha))
+#define IS_QLA54XX(ha)	(IS_QLA5422(ha) || IS_QLA5432(ha))
+
+#define IS_ZIO_SUPPORTED(ha)	((ha)->device_type & DT_ZIO_SUPPORTED)
+#define IS_OEM_001(ha)		((ha)->device_type & DT_OEM_001)
+#define HAS_EXTENDED_IDS(ha)	((ha)->device_type & DT_EXTENDED_IDS)
+
 	/* SRB cache. */
 #define SRB_MIN_REQ	128
 	mempool_t	*srb_mempool;
@@ -2381,6 +2345,8 @@ typedef struct scsi_qla_host {
 	/* NVRAM configuration data */
 	uint16_t	nvram_size;
 	uint16_t	nvram_base;
+	uint16_t	vpd_size;
+	uint16_t	vpd_base;
 
 	uint16_t	loop_reset_delay;
 	uint8_t		retry_count;
@@ -2414,11 +2380,7 @@ typedef struct scsi_qla_host {
 	struct sns_cmd_pkt	*sns_cmd;
 	dma_addr_t		sns_cmd_dma;
 
-	pid_t			dpc_pid;
-	int			dpc_should_die;
-	struct completion	dpc_inited;
-	struct completion	dpc_exited;
-	struct semaphore	*dpc_wait;
+	struct task_struct	*dpc_thread;
 	uint8_t dpc_active;                  /* DPC routine is active */
 
 	/* Timeout timers. */

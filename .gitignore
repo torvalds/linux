@@ -16,6 +16,7 @@
 #
 # Top-level generic files
 #
+tags
 vmlinux*
 System.map
 Module.symvers
@@ -30,3 +31,5 @@ include/linux/autoconf.h
 include/linux/compile.h
 include/linux/version.h
 
+# stgit generated dirs
+patches-*

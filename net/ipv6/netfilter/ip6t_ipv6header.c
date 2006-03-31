@@ -29,6 +29,7 @@ static int
 ipv6header_match(const struct sk_buff *skb,
 		 const struct net_device *in,
 		 const struct net_device *out,
+		 const struct xt_match *match,
 		 const void *matchinfo,
 		 int offset,
 		 unsigned int protoff,
@@ -125,16 +126,12 @@ ipv6header_match(const struct sk_buff *skb,
 static int
 ipv6header_checkentry(const char *tablename,
 		      const void *ip,
+		      const struct xt_match *match,
 		      void *matchinfo,
 		      unsigned int matchsize,
 		      unsigned int hook_mask)
 {
 	const struct ip6t_ipv6header_info *info = matchinfo;
-
-	/* Check for obvious errors */
-	/* This match is valid in all hooks! */
-	if (matchsize != IP6T_ALIGN(sizeof(struct ip6t_ipv6header_info)))
-		return 0;
 
 	/* invflags is 0 or 0xff in hard mode */
 	if ((!info->modeflag) && info->invflags != 0x00 &&
@@ -147,6 +144,7 @@ ipv6header_checkentry(const char *tablename,
 static struct ip6t_match ip6t_ipv6header_match = {
 	.name		= "ipv6header",
 	.match		= &ipv6header_match,
+	.matchsize	= sizeof(struct ip6t_ipv6header_info),
 	.checkentry	= &ipv6header_checkentry,
 	.destroy	= NULL,
 	.me		= THIS_MODULE,

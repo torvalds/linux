@@ -172,7 +172,7 @@ static struct hlist_head *dn_find_list(struct sock *sk)
 /* 
  * Valid ports are those greater than zero and not already in use.
  */
-static int check_port(unsigned short port)
+static int check_port(__le16 port)
 {
 	struct sock *sk;
 	struct hlist_node *node;
@@ -661,7 +661,7 @@ disc_reject:
 	}
 }
 
-char *dn_addr2asc(dn_address addr, char *buf)
+char *dn_addr2asc(__u16 addr, char *buf)
 {
 	unsigned short node, area;
 
@@ -801,7 +801,7 @@ static int dn_auto_bind(struct socket *sock)
 	/* End of compatibility stuff */
 
 	scp->addr.sdn_add.a_len = dn_htons(2);
-	rv = dn_dev_bind_default((dn_address *)scp->addr.sdn_add.a_addr);
+	rv = dn_dev_bind_default((__le16 *)scp->addr.sdn_add.a_addr);
 	if (rv == 0) {
 		rv = dn_hash_sock(sk);
 		if (rv)
@@ -1021,7 +1021,7 @@ static void dn_user_copy(struct sk_buff *skb, struct optdata_dn *opt)
         opt->opt_optl   = *ptr++;
         opt->opt_status = 0;
         memcpy(opt->opt_data, ptr, opt->opt_optl);
-        skb_pull(skb, opt->opt_optl + 1);
+        skb_pull(skb, dn_ntohs(opt->opt_optl) + 1);
 
 }
 
@@ -1121,8 +1121,8 @@ static int dn_accept(struct socket *sock, struct socket *newsock, int flags)
 
 	skb_pull(skb, dn_username2sockaddr(skb->data, skb->len, &(DN_SK(newsk)->addr), &type));
 	skb_pull(skb, dn_username2sockaddr(skb->data, skb->len, &(DN_SK(newsk)->peer), &type));
-	*(dn_address *)(DN_SK(newsk)->peer.sdn_add.a_addr) = cb->src;
-	*(dn_address *)(DN_SK(newsk)->addr.sdn_add.a_addr) = cb->dst;
+	*(__le16 *)(DN_SK(newsk)->peer.sdn_add.a_addr) = cb->src;
+	*(__le16 *)(DN_SK(newsk)->addr.sdn_add.a_addr) = cb->dst;
 
 	menuver = *skb->data;
 	skb_pull(skb, 1);
@@ -1365,7 +1365,7 @@ static int __dn_setsockopt(struct socket *sock, int level,int optname, char __us
 			if (optlen != sizeof(struct optdata_dn))
 				return -EINVAL;
 
-			if (u.opt.opt_optl > 16)
+			if (dn_ntohs(u.opt.opt_optl) > 16)
 				return -EINVAL;
 
 			memcpy(&scp->conndata_out, &u.opt, optlen);
@@ -1378,7 +1378,7 @@ static int __dn_setsockopt(struct socket *sock, int level,int optname, char __us
 			if (optlen != sizeof(struct optdata_dn))
 				return -EINVAL;
 
-			if (u.opt.opt_optl > 16)
+			if (dn_ntohs(u.opt.opt_optl) > 16)
 				return -EINVAL;
 
 			memcpy(&scp->discdata_out, &u.opt, optlen);
@@ -1693,7 +1693,7 @@ static int dn_recvmsg(struct kiocb *iocb, struct socket *sock,
 	if (rv)
 		goto out;
 
-	if (flags & ~(MSG_PEEK|MSG_OOB|MSG_WAITALL|MSG_DONTWAIT|MSG_NOSIGNAL)) {
+	if (flags & ~(MSG_CMSG_COMPAT|MSG_PEEK|MSG_OOB|MSG_WAITALL|MSG_DONTWAIT|MSG_NOSIGNAL)) {
 		rv = -EOPNOTSUPP;
 		goto out;
 	}

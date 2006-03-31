@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 Dell Inc.
+ * Copyright (C) 2005-2006 Dell Inc.
  *	Released under GPL v2.
  *
  * Serial Attached SCSI (SAS) transport class.
@@ -38,7 +38,9 @@
 
 #define SAS_HOST_ATTRS		0
 #define SAS_PORT_ATTRS		17
-#define SAS_RPORT_ATTRS		5
+#define SAS_RPORT_ATTRS		7
+#define SAS_END_DEV_ATTRS	3
+#define SAS_EXPANDER_ATTRS	7
 
 struct sas_internal {
 	struct scsi_transport_template t;
@@ -47,9 +49,13 @@ struct sas_internal {
 	struct class_device_attribute private_host_attrs[SAS_HOST_ATTRS];
 	struct class_device_attribute private_phy_attrs[SAS_PORT_ATTRS];
 	struct class_device_attribute private_rphy_attrs[SAS_RPORT_ATTRS];
+	struct class_device_attribute private_end_dev_attrs[SAS_END_DEV_ATTRS];
+	struct class_device_attribute private_expander_attrs[SAS_EXPANDER_ATTRS];
 
 	struct transport_container phy_attr_cont;
 	struct transport_container rphy_attr_cont;
+	struct transport_container end_dev_attr_cont;
+	struct transport_container expander_attr_cont;
 
 	/*
 	 * The array of null terminated pointers to attributes
@@ -58,6 +64,8 @@ struct sas_internal {
 	struct class_device_attribute *host_attrs[SAS_HOST_ATTRS + 1];
 	struct class_device_attribute *phy_attrs[SAS_PORT_ATTRS + 1];
 	struct class_device_attribute *rphy_attrs[SAS_RPORT_ATTRS + 1];
+	struct class_device_attribute *end_dev_attrs[SAS_END_DEV_ATTRS + 1];
+	struct class_device_attribute *expander_attrs[SAS_EXPANDER_ATTRS + 1];
 };
 #define to_sas_internal(tmpl)	container_of(tmpl, struct sas_internal, t)
 
@@ -65,6 +73,7 @@ struct sas_host_attrs {
 	struct list_head rphy_list;
 	struct mutex lock;
 	u32 next_target_id;
+	u32 next_expander_id;
 };
 #define to_sas_host_attrs(host)	((struct sas_host_attrs *)(host)->shost_data)
 
@@ -151,6 +160,7 @@ static struct {
 	{ SAS_SATA_SPINUP_HOLD,		"Spin-up hold" },
 	{ SAS_LINK_RATE_1_5_GBPS,	"1.5 Gbit" },
 	{ SAS_LINK_RATE_3_0_GBPS,	"3.0 Gbit" },
+	{ SAS_LINK_RATE_6_0_GBPS,	"6.0 Gbit" },
 };
 sas_bitfield_name_search(linkspeed, sas_linkspeed_names)
 
@@ -168,6 +178,7 @@ static int sas_host_setup(struct transport_container *tc, struct device *dev,
 	INIT_LIST_HEAD(&sas_host->rphy_list);
 	mutex_init(&sas_host->lock);
 	sas_host->next_target_id = 0;
+	sas_host->next_expander_id = 0;
 	return 0;
 }
 
@@ -272,7 +283,7 @@ show_sas_phy_##field(struct class_device *cdev, char *buf)		\
 	if (!phy->local_attached)					\
 		return -EINVAL;						\
 									\
-	error = i->f->get_linkerrors(phy);				\
+	error = i->f->get_linkerrors ? i->f->get_linkerrors(phy) : 0;	\
 	if (error)							\
 		return error;						\
 	return snprintf(buf, 20, "%u\n", phy->field);			\
@@ -391,10 +402,9 @@ struct sas_phy *sas_phy_alloc(struct device *parent, int number)
 	struct Scsi_Host *shost = dev_to_shost(parent);
 	struct sas_phy *phy;
 
-	phy = kmalloc(sizeof(*phy), GFP_KERNEL);
+	phy = kzalloc(sizeof(*phy), GFP_KERNEL);
 	if (!phy)
 		return NULL;
-	memset(phy, 0, sizeof(*phy));
 
 	get_device(parent);
 
@@ -403,7 +413,12 @@ struct sas_phy *sas_phy_alloc(struct device *parent, int number)
 	device_initialize(&phy->dev);
 	phy->dev.parent = get_device(parent);
 	phy->dev.release = sas_phy_release;
-	sprintf(phy->dev.bus_id, "phy-%d:%d", shost->host_no, number);
+	if (scsi_is_sas_expander_device(parent)) {
+		struct sas_rphy *rphy = dev_to_rphy(parent);
+		sprintf(phy->dev.bus_id, "phy-%d-%d:%d", shost->host_no,
+			rphy->scsi_target_id, number);
+	} else
+		sprintf(phy->dev.bus_id, "phy-%d:%d", shost->host_no, number);
 
 	transport_setup_device(&phy->dev);
 
@@ -534,6 +549,53 @@ show_sas_rphy_device_type(struct class_device *cdev, char *buf)
 static SAS_CLASS_DEVICE_ATTR(rphy, device_type, S_IRUGO,
 		show_sas_rphy_device_type, NULL);
 
+static ssize_t
+show_sas_rphy_enclosure_identifier(struct class_device *cdev, char *buf)
+{
+	struct sas_rphy *rphy = transport_class_to_rphy(cdev);
+	struct sas_phy *phy = dev_to_phy(rphy->dev.parent);
+	struct Scsi_Host *shost = dev_to_shost(phy->dev.parent);
+	struct sas_internal *i = to_sas_internal(shost->transportt);
+	u64 identifier;
+	int error;
+
+	/*
+	 * Only devices behind an expander are supported, because the
+	 * enclosure identifier is a SMP feature.
+	 */
+	if (phy->local_attached)
+		return -EINVAL;
+
+	error = i->f->get_enclosure_identifier(rphy, &identifier);
+	if (error)
+		return error;
+	return sprintf(buf, "0x%llx\n", (unsigned long long)identifier);
+}
+
+static SAS_CLASS_DEVICE_ATTR(rphy, enclosure_identifier, S_IRUGO,
+		show_sas_rphy_enclosure_identifier, NULL);
+
+static ssize_t
+show_sas_rphy_bay_identifier(struct class_device *cdev, char *buf)
+{
+	struct sas_rphy *rphy = transport_class_to_rphy(cdev);
+	struct sas_phy *phy = dev_to_phy(rphy->dev.parent);
+	struct Scsi_Host *shost = dev_to_shost(phy->dev.parent);
+	struct sas_internal *i = to_sas_internal(shost->transportt);
+	int val;
+
+	if (phy->local_attached)
+		return -EINVAL;
+
+	val = i->f->get_bay_identifier(rphy);
+	if (val < 0)
+		return val;
+	return sprintf(buf, "%d\n", val);
+}
+
+static SAS_CLASS_DEVICE_ATTR(rphy, bay_identifier, S_IRUGO,
+		show_sas_rphy_bay_identifier, NULL);
+
 sas_rphy_protocol_attr(identify.initiator_port_protocols,
 		initiator_port_protocols);
 sas_rphy_protocol_attr(identify.target_port_protocols, target_port_protocols);
@@ -541,8 +603,103 @@ sas_rphy_simple_attr(identify.sas_address, sas_address, "0x%016llx\n",
 		unsigned long long);
 sas_rphy_simple_attr(identify.phy_identifier, phy_identifier, "%d\n", u8);
 
+/* only need 8 bytes of data plus header (4 or 8) */
+#define BUF_SIZE 64
+
+int sas_read_port_mode_page(struct scsi_device *sdev)
+{
+	char *buffer = kzalloc(BUF_SIZE, GFP_KERNEL), *msdata;
+	struct sas_rphy *rphy = target_to_rphy(sdev->sdev_target);
+	struct sas_end_device *rdev;
+	struct scsi_mode_data mode_data;
+	int res, error;
+
+	BUG_ON(rphy->identify.device_type != SAS_END_DEVICE);
+
+	rdev = rphy_to_end_device(rphy);
+
+	if (!buffer)
+		return -ENOMEM;
+
+	res = scsi_mode_sense(sdev, 1, 0x19, buffer, BUF_SIZE, 30*HZ, 3,
+			      &mode_data, NULL);
+
+	error = -EINVAL;
+	if (!scsi_status_is_good(res))
+		goto out;
+
+	msdata = buffer +  mode_data.header_length +
+		mode_data.block_descriptor_length;
+
+	if (msdata - buffer > BUF_SIZE - 8)
+		goto out;
+
+	error = 0;
+
+	rdev->ready_led_meaning = msdata[2] & 0x10 ? 1 : 0;
+	rdev->I_T_nexus_loss_timeout = (msdata[4] << 8) + msdata[5];
+	rdev->initiator_response_timeout = (msdata[6] << 8) + msdata[7];
+
+ out:
+	kfree(buffer);
+	return error;
+}
+EXPORT_SYMBOL(sas_read_port_mode_page);
+
+static DECLARE_TRANSPORT_CLASS(sas_end_dev_class,
+			       "sas_end_device", NULL, NULL, NULL);
+
+#define sas_end_dev_show_simple(field, name, format_string, cast)	\
+static ssize_t								\
+show_sas_end_dev_##name(struct class_device *cdev, char *buf)		\
+{									\
+	struct sas_rphy *rphy = transport_class_to_rphy(cdev);		\
+	struct sas_end_device *rdev = rphy_to_end_device(rphy);		\
+									\
+	return snprintf(buf, 20, format_string, cast rdev->field);	\
+}
+
+#define sas_end_dev_simple_attr(field, name, format_string, type)	\
+	sas_end_dev_show_simple(field, name, format_string, (type))	\
+static SAS_CLASS_DEVICE_ATTR(end_dev, name, S_IRUGO, 			\
+		show_sas_end_dev_##name, NULL)
+
+sas_end_dev_simple_attr(ready_led_meaning, ready_led_meaning, "%d\n", int);
+sas_end_dev_simple_attr(I_T_nexus_loss_timeout, I_T_nexus_loss_timeout,
+			"%d\n", int);
+sas_end_dev_simple_attr(initiator_response_timeout, initiator_response_timeout,
+			"%d\n", int);
+
+static DECLARE_TRANSPORT_CLASS(sas_expander_class,
+			       "sas_expander", NULL, NULL, NULL);
+
+#define sas_expander_show_simple(field, name, format_string, cast)	\
+static ssize_t								\
+show_sas_expander_##name(struct class_device *cdev, char *buf)		\
+{									\
+	struct sas_rphy *rphy = transport_class_to_rphy(cdev);		\
+	struct sas_expander_device *edev = rphy_to_expander_device(rphy); \
+									\
+	return snprintf(buf, 20, format_string, cast edev->field);	\
+}
+
+#define sas_expander_simple_attr(field, name, format_string, type)	\
+	sas_expander_show_simple(field, name, format_string, (type))	\
+static SAS_CLASS_DEVICE_ATTR(expander, name, S_IRUGO, 			\
+		show_sas_expander_##name, NULL)
+
+sas_expander_simple_attr(vendor_id, vendor_id, "%s\n", char *);
+sas_expander_simple_attr(product_id, product_id, "%s\n", char *);
+sas_expander_simple_attr(product_rev, product_rev, "%s\n", char *);
+sas_expander_simple_attr(component_vendor_id, component_vendor_id,
+			 "%s\n", char *);
+sas_expander_simple_attr(component_id, component_id, "%u\n", unsigned int);
+sas_expander_simple_attr(component_revision_id, component_revision_id, "%u\n",
+			 unsigned int);
+sas_expander_simple_attr(level, level, "%d\n", int);
+
 static DECLARE_TRANSPORT_CLASS(sas_rphy_class,
-		"sas_rphy", NULL, NULL, NULL);
+		"sas_device", NULL, NULL, NULL);
 
 static int sas_rphy_match(struct attribute_container *cont, struct device *dev)
 {
@@ -563,45 +720,140 @@ static int sas_rphy_match(struct attribute_container *cont, struct device *dev)
 	return &i->rphy_attr_cont.ac == cont;
 }
 
-static void sas_rphy_release(struct device *dev)
+static int sas_end_dev_match(struct attribute_container *cont,
+			     struct device *dev)
+{
+	struct Scsi_Host *shost;
+	struct sas_internal *i;
+	struct sas_rphy *rphy;
+
+	if (!scsi_is_sas_rphy(dev))
+		return 0;
+	shost = dev_to_shost(dev->parent->parent);
+	rphy = dev_to_rphy(dev);
+
+	if (!shost->transportt)
+		return 0;
+	if (shost->transportt->host_attrs.ac.class !=
+			&sas_host_class.class)
+		return 0;
+
+	i = to_sas_internal(shost->transportt);
+	return &i->end_dev_attr_cont.ac == cont &&
+		rphy->identify.device_type == SAS_END_DEVICE;
+}
+
+static int sas_expander_match(struct attribute_container *cont,
+			      struct device *dev)
+{
+	struct Scsi_Host *shost;
+	struct sas_internal *i;
+	struct sas_rphy *rphy;
+
+	if (!scsi_is_sas_rphy(dev))
+		return 0;
+	shost = dev_to_shost(dev->parent->parent);
+	rphy = dev_to_rphy(dev);
+
+	if (!shost->transportt)
+		return 0;
+	if (shost->transportt->host_attrs.ac.class !=
+			&sas_host_class.class)
+		return 0;
+
+	i = to_sas_internal(shost->transportt);
+	return &i->expander_attr_cont.ac == cont &&
+		(rphy->identify.device_type == SAS_EDGE_EXPANDER_DEVICE ||
+		 rphy->identify.device_type == SAS_FANOUT_EXPANDER_DEVICE);
+}
+
+static void sas_expander_release(struct device *dev)
 {
 	struct sas_rphy *rphy = dev_to_rphy(dev);
+	struct sas_expander_device *edev = rphy_to_expander_device(rphy);
 
 	put_device(dev->parent);
-	kfree(rphy);
+	kfree(edev);
+}
+
+static void sas_end_device_release(struct device *dev)
+{
+	struct sas_rphy *rphy = dev_to_rphy(dev);
+	struct sas_end_device *edev = rphy_to_end_device(rphy);
+
+	put_device(dev->parent);
+	kfree(edev);
 }
 
 /**
- * sas_rphy_alloc  --  allocates and initialize a SAS remote PHY structure
- * @parent:		SAS PHY this remote PHY is conneted to
+ * sas_end_device_alloc - allocate an rphy for an end device
  *
  * Allocates an SAS remote PHY structure, connected to @parent.
  *
  * Returns:
  *	SAS PHY allocated or %NULL if the allocation failed.
  */
-struct sas_rphy *sas_rphy_alloc(struct sas_phy *parent)
+struct sas_rphy *sas_end_device_alloc(struct sas_phy *parent)
 {
 	struct Scsi_Host *shost = dev_to_shost(&parent->dev);
-	struct sas_rphy *rphy;
+	struct sas_end_device *rdev;
 
-	rphy = kmalloc(sizeof(*rphy), GFP_KERNEL);
-	if (!rphy) {
+	rdev = kzalloc(sizeof(*rdev), GFP_KERNEL);
+	if (!rdev) {
 		put_device(&parent->dev);
 		return NULL;
 	}
-	memset(rphy, 0, sizeof(*rphy));
 
-	device_initialize(&rphy->dev);
-	rphy->dev.parent = get_device(&parent->dev);
-	rphy->dev.release = sas_rphy_release;
-	sprintf(rphy->dev.bus_id, "rphy-%d:%d-%d",
+	device_initialize(&rdev->rphy.dev);
+	rdev->rphy.dev.parent = get_device(&parent->dev);
+	rdev->rphy.dev.release = sas_end_device_release;
+	sprintf(rdev->rphy.dev.bus_id, "end_device-%d:%d-%d",
 		shost->host_no, parent->port_identifier, parent->number);
-	transport_setup_device(&rphy->dev);
+	rdev->rphy.identify.device_type = SAS_END_DEVICE;
+	transport_setup_device(&rdev->rphy.dev);
 
-	return rphy;
+	return &rdev->rphy;
 }
-EXPORT_SYMBOL(sas_rphy_alloc);
+EXPORT_SYMBOL(sas_end_device_alloc);
+
+/**
+ * sas_expander_alloc - allocate an rphy for an end device
+ *
+ * Allocates an SAS remote PHY structure, connected to @parent.
+ *
+ * Returns:
+ *	SAS PHY allocated or %NULL if the allocation failed.
+ */
+struct sas_rphy *sas_expander_alloc(struct sas_phy *parent,
+				    enum sas_device_type type)
+{
+	struct Scsi_Host *shost = dev_to_shost(&parent->dev);
+	struct sas_expander_device *rdev;
+	struct sas_host_attrs *sas_host = to_sas_host_attrs(shost);
+
+	BUG_ON(type != SAS_EDGE_EXPANDER_DEVICE &&
+	       type != SAS_FANOUT_EXPANDER_DEVICE);
+
+	rdev = kzalloc(sizeof(*rdev), GFP_KERNEL);
+	if (!rdev) {
+		put_device(&parent->dev);
+		return NULL;
+	}
+
+	device_initialize(&rdev->rphy.dev);
+	rdev->rphy.dev.parent = get_device(&parent->dev);
+	rdev->rphy.dev.release = sas_expander_release;
+	mutex_lock(&sas_host->lock);
+	rdev->rphy.scsi_target_id = sas_host->next_expander_id++;
+	mutex_unlock(&sas_host->lock);
+	sprintf(rdev->rphy.dev.bus_id, "expander-%d:%d",
+		shost->host_no, rdev->rphy.scsi_target_id);
+	rdev->rphy.identify.device_type = type;
+	transport_setup_device(&rdev->rphy.dev);
+
+	return &rdev->rphy;
+}
+EXPORT_SYMBOL(sas_expander_alloc);
 
 /**
  * sas_rphy_add  --  add a SAS remote PHY to the device hierachy
@@ -633,11 +885,10 @@ int sas_rphy_add(struct sas_rphy *rphy)
 	    (identify->target_port_protocols &
 	     (SAS_PROTOCOL_SSP|SAS_PROTOCOL_STP|SAS_PROTOCOL_SATA)))
 		rphy->scsi_target_id = sas_host->next_target_id++;
-	else
-		rphy->scsi_target_id = -1;
 	mutex_unlock(&sas_host->lock);
 
-	if (rphy->scsi_target_id != -1) {
+	if (identify->device_type == SAS_END_DEVICE &&
+	    rphy->scsi_target_id != -1) {
 		scsi_scan_target(&rphy->dev, parent->port_identifier,
 				rphy->scsi_target_id, ~0, 0);
 	}
@@ -670,7 +921,17 @@ void sas_rphy_free(struct sas_rphy *rphy)
 	put_device(rphy->dev.parent);
 	put_device(rphy->dev.parent);
 	put_device(rphy->dev.parent);
-	kfree(rphy);
+	if (rphy->identify.device_type == SAS_END_DEVICE) {
+		struct sas_end_device *edev = rphy_to_end_device(rphy);
+
+		kfree(edev);
+	} else {
+		/* must be expander */
+		struct sas_expander_device *edev =
+			rphy_to_expander_device(rphy);
+
+		kfree(edev);
+	}
 }
 EXPORT_SYMBOL(sas_rphy_free);
 
@@ -723,7 +984,8 @@ EXPORT_SYMBOL(sas_rphy_delete);
  */
 int scsi_is_sas_rphy(const struct device *dev)
 {
-	return dev->release == sas_rphy_release;
+	return dev->release == sas_end_device_release ||
+		dev->release == sas_expander_release;
 }
 EXPORT_SYMBOL(scsi_is_sas_rphy);
 
@@ -761,27 +1023,38 @@ static int sas_user_scan(struct Scsi_Host *shost, uint channel,
  * Setup / Teardown code
  */
 
-#define SETUP_RPORT_ATTRIBUTE(field)					\
-	i->private_rphy_attrs[count] = class_device_attr_##field;	\
-	i->private_rphy_attrs[count].attr.mode = S_IRUGO;		\
-	i->private_rphy_attrs[count].store = NULL;			\
-	i->rphy_attrs[count] = &i->private_rphy_attrs[count];	\
-	count++
+#define SETUP_TEMPLATE(attrb, field, perm, test)				\
+	i->private_##attrb[count] = class_device_attr_##field;		\
+	i->private_##attrb[count].attr.mode = perm;			\
+	i->private_##attrb[count].store = NULL;				\
+	i->attrb[count] = &i->private_##attrb[count];			\
+	if (test)							\
+		count++
+
+
+#define SETUP_RPORT_ATTRIBUTE(field) 					\
+	SETUP_TEMPLATE(rphy_attrs, field, S_IRUGO, 1)
+
+#define SETUP_OPTIONAL_RPORT_ATTRIBUTE(field, func)			\
+	SETUP_TEMPLATE(rphy_attrs, field, S_IRUGO, i->f->func)
 
 #define SETUP_PORT_ATTRIBUTE(field)					\
-	i->private_phy_attrs[count] = class_device_attr_##field;	\
-        i->private_phy_attrs[count].attr.mode = S_IRUGO;		\
-        i->private_phy_attrs[count].store = NULL;			\
-        i->phy_attrs[count] = &i->private_phy_attrs[count];		\
-	count++
+	SETUP_TEMPLATE(phy_attrs, field, S_IRUGO, 1)
+
+#define SETUP_OPTIONAL_PORT_ATTRIBUTE(field, func)			\
+	SETUP_TEMPLATE(phy_attrs, field, S_IRUGO, i->f->func)
 
 #define SETUP_PORT_ATTRIBUTE_WRONLY(field)				\
-	i->private_phy_attrs[count] = class_device_attr_##field;	\
-	i->private_phy_attrs[count].attr.mode = S_IWUGO;		\
-	i->private_phy_attrs[count].show = NULL;			\
-	i->phy_attrs[count] = &i->private_phy_attrs[count];		\
-	count++
+	SETUP_TEMPLATE(phy_attrs, field, S_IWUGO, 1)
 
+#define SETUP_OPTIONAL_PORT_ATTRIBUTE_WRONLY(field, func)		\
+	SETUP_TEMPLATE(phy_attrs, field, S_IWUGO, i->f->func)
+
+#define SETUP_END_DEV_ATTRIBUTE(field)					\
+	SETUP_TEMPLATE(end_dev_attrs, field, S_IRUGO, 1)
+
+#define SETUP_EXPANDER_ATTRIBUTE(field)					\
+	SETUP_TEMPLATE(expander_attrs, expander_##field, S_IRUGO, 1)
 
 /**
  * sas_attach_transport  --  instantiate SAS transport template
@@ -793,10 +1066,9 @@ sas_attach_transport(struct sas_function_template *ft)
 	struct sas_internal *i;
 	int count;
 
-	i = kmalloc(sizeof(struct sas_internal), GFP_KERNEL);
+	i = kzalloc(sizeof(struct sas_internal), GFP_KERNEL);
 	if (!i)
 		return NULL;
-	memset(i, 0, sizeof(struct sas_internal));
 
 	i->t.user_scan = sas_user_scan;
 
@@ -815,6 +1087,16 @@ sas_attach_transport(struct sas_function_template *ft)
 	i->rphy_attr_cont.ac.attrs = &i->rphy_attrs[0];
 	i->rphy_attr_cont.ac.match = sas_rphy_match;
 	transport_container_register(&i->rphy_attr_cont);
+
+	i->end_dev_attr_cont.ac.class = &sas_end_dev_class.class;
+	i->end_dev_attr_cont.ac.attrs = &i->end_dev_attrs[0];
+	i->end_dev_attr_cont.ac.match = sas_end_dev_match;
+	transport_container_register(&i->end_dev_attr_cont);
+
+	i->expander_attr_cont.ac.class = &sas_expander_class.class;
+	i->expander_attr_cont.ac.attrs = &i->expander_attrs[0];
+	i->expander_attr_cont.ac.match = sas_expander_match;
+	transport_container_register(&i->expander_attr_cont);
 
 	i->f = ft;
 
@@ -838,8 +1120,8 @@ sas_attach_transport(struct sas_function_template *ft)
 	SETUP_PORT_ATTRIBUTE(running_disparity_error_count);
 	SETUP_PORT_ATTRIBUTE(loss_of_dword_sync_count);
 	SETUP_PORT_ATTRIBUTE(phy_reset_problem_count);
-	SETUP_PORT_ATTRIBUTE_WRONLY(link_reset);
-	SETUP_PORT_ATTRIBUTE_WRONLY(hard_reset);
+	SETUP_OPTIONAL_PORT_ATTRIBUTE_WRONLY(link_reset, phy_reset);
+	SETUP_OPTIONAL_PORT_ATTRIBUTE_WRONLY(hard_reset, phy_reset);
 	i->phy_attrs[count] = NULL;
 
 	count = 0;
@@ -848,7 +1130,27 @@ sas_attach_transport(struct sas_function_template *ft)
 	SETUP_RPORT_ATTRIBUTE(rphy_device_type);
 	SETUP_RPORT_ATTRIBUTE(rphy_sas_address);
 	SETUP_RPORT_ATTRIBUTE(rphy_phy_identifier);
+	SETUP_OPTIONAL_RPORT_ATTRIBUTE(rphy_enclosure_identifier,
+				       get_enclosure_identifier);
+	SETUP_OPTIONAL_RPORT_ATTRIBUTE(rphy_bay_identifier,
+				       get_bay_identifier);
 	i->rphy_attrs[count] = NULL;
+
+	count = 0;
+	SETUP_END_DEV_ATTRIBUTE(end_dev_ready_led_meaning);
+	SETUP_END_DEV_ATTRIBUTE(end_dev_I_T_nexus_loss_timeout);
+	SETUP_END_DEV_ATTRIBUTE(end_dev_initiator_response_timeout);
+	i->end_dev_attrs[count] = NULL;
+
+	count = 0;
+	SETUP_EXPANDER_ATTRIBUTE(vendor_id);
+	SETUP_EXPANDER_ATTRIBUTE(product_id);
+	SETUP_EXPANDER_ATTRIBUTE(product_rev);
+	SETUP_EXPANDER_ATTRIBUTE(component_vendor_id);
+	SETUP_EXPANDER_ATTRIBUTE(component_id);
+	SETUP_EXPANDER_ATTRIBUTE(component_revision_id);
+	SETUP_EXPANDER_ATTRIBUTE(level);
+	i->expander_attrs[count] = NULL;
 
 	return &i->t;
 }
@@ -865,6 +1167,8 @@ void sas_release_transport(struct scsi_transport_template *t)
 	transport_container_unregister(&i->t.host_attrs);
 	transport_container_unregister(&i->phy_attr_cont);
 	transport_container_unregister(&i->rphy_attr_cont);
+	transport_container_unregister(&i->end_dev_attr_cont);
+	transport_container_unregister(&i->expander_attr_cont);
 
 	kfree(i);
 }
@@ -883,9 +1187,19 @@ static __init int sas_transport_init(void)
 	error = transport_class_register(&sas_rphy_class);
 	if (error)
 		goto out_unregister_phy;
+	error = transport_class_register(&sas_end_dev_class);
+	if (error)
+		goto out_unregister_rphy;
+	error = transport_class_register(&sas_expander_class);
+	if (error)
+		goto out_unregister_end_dev;
 
 	return 0;
 
+ out_unregister_end_dev:
+	transport_class_unregister(&sas_end_dev_class);
+ out_unregister_rphy:
+	transport_class_unregister(&sas_rphy_class);
  out_unregister_phy:
 	transport_class_unregister(&sas_phy_class);
  out_unregister_transport:
@@ -900,6 +1214,8 @@ static void __exit sas_transport_exit(void)
 	transport_class_unregister(&sas_host_class);
 	transport_class_unregister(&sas_phy_class);
 	transport_class_unregister(&sas_rphy_class);
+	transport_class_unregister(&sas_end_dev_class);
+	transport_class_unregister(&sas_expander_class);
 }
 
 MODULE_AUTHOR("Christoph Hellwig");

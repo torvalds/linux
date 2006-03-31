@@ -30,22 +30,7 @@
 #include <linux/syscalls.h>
 
 #include <linux/string.h>
-EXPORT_SYMBOL(memchr);
-EXPORT_SYMBOL(memcmp);
-EXPORT_SYMBOL(memmove);
-EXPORT_SYMBOL(memscan);
 EXPORT_SYMBOL(memset);
-EXPORT_SYMBOL(strcat);
-EXPORT_SYMBOL(strchr);
-EXPORT_SYMBOL(strcmp);
-EXPORT_SYMBOL(strcpy);
-EXPORT_SYMBOL(strlen);
-EXPORT_SYMBOL(strncat);
-EXPORT_SYMBOL(strncmp);
-EXPORT_SYMBOL(strncpy);
-EXPORT_SYMBOL(strnlen);
-EXPORT_SYMBOL(strrchr);
-EXPORT_SYMBOL(strstr);
 EXPORT_SYMBOL(strpbrk);
 
 #include <asm/atomic.h>
@@ -82,16 +67,12 @@ EXPORT_SYMBOL($global$);
 #endif
 
 #include <asm/io.h>
-EXPORT_SYMBOL(__ioremap);
-EXPORT_SYMBOL(iounmap);
 EXPORT_SYMBOL(memcpy_toio);
 EXPORT_SYMBOL(memcpy_fromio);
 EXPORT_SYMBOL(memset_io);
 
 #include <asm/unistd.h>
-EXPORT_SYMBOL(sys_open);
 EXPORT_SYMBOL(sys_lseek);
-EXPORT_SYMBOL(sys_read);
 EXPORT_SYMBOL(sys_write);
 
 #include <asm/semaphore.h>

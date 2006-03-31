@@ -1,9 +1,9 @@
 /*
     hexium_gemini.c - v4l2 driver for Hexium Gemini frame grabber cards
-               
+
     Visit http://www.mihu.de/linux/saa7146/ and follow the link
     to "hexium" for further details about this card.
-    
+
     Copyright (C) 2003 Michael Hunold <michael@mihu.de>
 
     This program is free software; you can redistribute it and/or modify
@@ -81,7 +81,7 @@ struct hexium
 
 	struct video_device	*video_dev;
 	struct i2c_adapter	i2c_adapter;
-		
+
 	int 		cur_input;	/* current input */
 	v4l2_std_id 	cur_std;	/* current standard */
 	int		cur_bw;		/* current black/white status */
@@ -174,7 +174,7 @@ static struct saa7146_standard hexium_standards[] = {
 		.h_offset	= 1,	.h_pixels 	= 720,
 		.v_max_out	= 576,	.h_max_out	= 768,
 	}
-};		
+};
 
 /* bring hardware to a sane state. this has to be done, just in case someone
    wants to capture from this device before it has been properly initialized.
@@ -311,7 +311,7 @@ static int hexium_ioctl(struct saa7146_fh *fh, unsigned int cmd, void *arg)
 	struct saa7146_dev *dev = fh->dev;
 	struct hexium *hexium = (struct hexium *) dev->ext_priv;
 /*
-	struct saa7146_vv *vv = dev->vv_data; 
+	struct saa7146_vv *vv = dev->vv_data;
 */
 	switch (cmd) {
 	case VIDIOC_ENUMINPUT:

@@ -49,6 +49,7 @@
 #include <linux/blkdev.h>
 #include <linux/smp_lock.h>
 #include <linux/completion.h>
+#include <linux/mutex.h>
 #include <scsi/scsi_host.h>
 
 struct us_data;
@@ -103,9 +104,9 @@ typedef void (*pm_hook)(struct us_data *, int);	/* power management hook */
 struct us_data {
 	/* The device we're working with
 	 * It's important to note:
-	 *    (o) you must hold dev_semaphore to change pusb_dev
+	 *    (o) you must hold dev_mutex to change pusb_dev
 	 */
-	struct semaphore	dev_semaphore;	 /* protect pusb_dev */
+	struct mutex		dev_mutex;	 /* protect pusb_dev */
 	struct usb_device	*pusb_dev;	 /* this usb_device */
 	struct usb_interface	*pusb_intf;	 /* this interface */
 	struct us_unusual_dev   *unusual_dev;	 /* device-filter entry     */

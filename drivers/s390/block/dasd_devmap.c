@@ -16,6 +16,7 @@
 #include <linux/config.h>
 #include <linux/ctype.h>
 #include <linux/init.h>
+#include <linux/module.h>
 
 #include <asm/debug.h>
 #include <asm/uaccess.h>
@@ -69,6 +70,8 @@ int dasd_autodetect = 0;	/* is true, when autodetection is active */
  * strings when running as a module.
  */
 static char *dasd[256];
+module_param_array(dasd, charp, NULL, 0);
+
 /*
  * Single spinlock to protect devmap structures and lists.
  */
@@ -434,8 +437,7 @@ dasd_forget_ranges(void)
 	spin_lock(&dasd_devmap_lock);
 	for (i = 0; i < 256; i++) {
 		list_for_each_entry_safe(devmap, n, &dasd_hashlists[i], list) {
-			if (devmap->device != NULL)
-				BUG();
+			BUG_ON(devmap->device != NULL);
 			list_del(&devmap->list);
 			kfree(devmap);
 		}
@@ -544,8 +546,7 @@ dasd_delete_device(struct dasd_device *device)
 
 	/* First remove device pointer from devmap. */
 	devmap = dasd_find_busid(device->cdev->dev.bus_id);
-	if (IS_ERR(devmap))
-		BUG();
+	BUG_ON(IS_ERR(devmap));
 	spin_lock(&dasd_devmap_lock);
 	if (devmap->device != device) {
 		spin_unlock(&dasd_devmap_lock);
@@ -715,10 +716,51 @@ dasd_discipline_show(struct device *dev, struct device_attribute *attr, char *bu
 
 static DEVICE_ATTR(discipline, 0444, dasd_discipline_show, NULL);
 
+/*
+ * extended error-reporting
+ */
+static ssize_t
+dasd_eer_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct dasd_devmap *devmap;
+	int eer_flag;
+
+	devmap = dasd_find_busid(dev->bus_id);
+	if (!IS_ERR(devmap) && devmap->device)
+		eer_flag = dasd_eer_enabled(devmap->device);
+	else
+		eer_flag = 0;
+	return snprintf(buf, PAGE_SIZE, eer_flag ? "1\n" : "0\n");
+}
+
+static ssize_t
+dasd_eer_store(struct device *dev, struct device_attribute *attr,
+	       const char *buf, size_t count)
+{
+	struct dasd_devmap *devmap;
+	int rc;
+
+	devmap = dasd_devmap_from_cdev(to_ccwdev(dev));
+	if (IS_ERR(devmap))
+		return PTR_ERR(devmap);
+	if (!devmap->device)
+		return count;
+	if (buf[0] == '1') {
+		rc = dasd_eer_enable(devmap->device);
+		if (rc)
+			return rc;
+	} else
+		dasd_eer_disable(devmap->device);
+	return count;
+}
+
+static DEVICE_ATTR(eer_enabled, 0644, dasd_eer_show, dasd_eer_store);
+
 static struct attribute * dasd_attrs[] = {
 	&dev_attr_readonly.attr,
 	&dev_attr_discipline.attr,
 	&dev_attr_use_diag.attr,
+	&dev_attr_eer_enabled.attr,
 	NULL,
 };
 

@@ -157,11 +157,10 @@ ccwgroup_create(struct device *root,
 	if (argc > 256) /* disallow dumb users */
 		return -EINVAL;
 
-	gdev = kmalloc(sizeof(*gdev) + argc*sizeof(gdev->cdev[0]), GFP_KERNEL);
+	gdev = kzalloc(sizeof(*gdev) + argc*sizeof(gdev->cdev[0]), GFP_KERNEL);
 	if (!gdev)
 		return -ENOMEM;
 
-	memset(gdev, 0, sizeof(*gdev) + argc*sizeof(gdev->cdev[0]));
 	atomic_set(&gdev->onoff, 0);
 
 	del_drvdata = 0;

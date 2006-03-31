@@ -281,7 +281,7 @@ static void tda827xa_agcf(struct i2c_client *c)
 static void tda8290_i2c_bridge(struct i2c_client *c, int close)
 {
 	unsigned char  enable[2] = { 0x21, 0xC0 };
-	unsigned char disable[2] = { 0x21, 0x80 };
+	unsigned char disable[2] = { 0x21, 0x00 };
 	unsigned char *msg;
 	if(close) {
 		msg = enable;
@@ -302,6 +302,7 @@ static int tda8290_tune(struct i2c_client *c, u16 ifc, unsigned int freq)
 	unsigned char soft_reset[]  = { 0x00, 0x00 };
 	unsigned char easy_mode[]   = { 0x01, t->tda8290_easy_mode };
 	unsigned char expert_mode[] = { 0x01, 0x80 };
+	unsigned char agc_out_on[]  = { 0x02, 0x00 };
 	unsigned char gainset_off[] = { 0x28, 0x14 };
 	unsigned char if_agc_spd[]  = { 0x0f, 0x88 };
 	unsigned char adc_head_6[]  = { 0x05, 0x04 };
@@ -320,6 +321,7 @@ static int tda8290_tune(struct i2c_client *c, u16 ifc, unsigned int freq)
 		      pll_stat;
 
 	i2c_master_send(c, easy_mode, 2);
+	i2c_master_send(c, agc_out_on, 2);
 	i2c_master_send(c, soft_reset, 2);
 	msleep(1);
 
@@ -470,6 +472,7 @@ static void standby(struct i2c_client *c)
 	struct tuner *t = i2c_get_clientdata(c);
 	unsigned char cb1[] = { 0x30, 0xD0 };
 	unsigned char tda8290_standby[] = { 0x00, 0x02 };
+	unsigned char tda8290_agc_tri[] = { 0x02, 0x20 };
 	struct i2c_msg msg = {.addr = t->tda827x_addr, .flags=0, .buf=cb1, .len = 2};
 
 	tda8290_i2c_bridge(c, 1);
@@ -477,6 +480,7 @@ static void standby(struct i2c_client *c)
 		cb1[1] = 0x90;
 	i2c_transfer(c->adapter, &msg, 1);
 	tda8290_i2c_bridge(c, 0);
+	i2c_master_send(c, tda8290_agc_tri, 2);
 	i2c_master_send(c, tda8290_standby, 2);
 }
 
@@ -565,7 +569,7 @@ int tda8290_init(struct i2c_client *c)
 		strlcpy(c->name, "tda8290+75a", sizeof(c->name));
 		t->tda827x_ver = 2;
 	}
-	tuner_info("tuner: type set to %s\n", c->name);
+	tuner_info("type set to %s\n", c->name);
 
 	t->set_tv_freq    = set_tv_freq;
 	t->set_radio_freq = set_radio_freq;

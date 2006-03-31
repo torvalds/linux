@@ -93,6 +93,27 @@ static inline unsigned long wait_piowc(void)
 	return (ws & SH_PIO_WRITE_STATUS_WRITE_DEADLOCK_MASK) != 0;
 }
 
+/**
+ * sn_migrate - SN-specific task migration actions
+ * @task: Task being migrated to new CPU
+ *
+ * SN2 PIO writes from separate CPUs are not guaranteed to arrive in order.
+ * Context switching user threads which have memory-mapped MMIO may cause
+ * PIOs to issue from seperate CPUs, thus the PIO writes must be drained
+ * from the previous CPU's Shub before execution resumes on the new CPU.
+ */
+void sn_migrate(struct task_struct *task)
+{
+	pda_t *last_pda = pdacpu(task_thread_info(task)->last_cpu);
+	volatile unsigned long *adr = last_pda->pio_write_status_addr;
+	unsigned long val = last_pda->pio_write_status_val;
+
+	/* Drain PIO writes from old CPU's Shub */
+	while (unlikely((*adr & SH_PIO_WRITE_STATUS_PENDING_WRITE_COUNT_MASK)
+			!= val))
+		cpu_relax();
+}
+
 void sn_tlb_migrate_finish(struct mm_struct *mm)
 {
 	/* flush_tlb_mm is inefficient if more than 1 users of mm */

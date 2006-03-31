@@ -55,9 +55,9 @@ static int snd_gus_synth_use(void *private_data, struct snd_seq_port_subscribe *
 
 	if (info->voices > 32)
 		return -EINVAL;
-	down(&gus->register_mutex);
+	mutex_lock(&gus->register_mutex);
 	if (!snd_gus_use_inc(gus)) {
-		up(&gus->register_mutex);
+		mutex_unlock(&gus->register_mutex);
 		return -EFAULT;
 	}
 	for (idx = 0; idx < info->voices; idx++) {
@@ -65,12 +65,12 @@ static int snd_gus_synth_use(void *private_data, struct snd_seq_port_subscribe *
 		if (voice == NULL) {
 			snd_gus_synth_free_voices(gus, info->sender.client, info->sender.port);
 			snd_gus_use_dec(gus);
-			up(&gus->register_mutex);
+			mutex_unlock(&gus->register_mutex);
 			return -EBUSY;
 		}
 		voice->index = idx;
 	}
-	up(&gus->register_mutex);
+	mutex_unlock(&gus->register_mutex);
 	return 0;
 }
 
@@ -79,10 +79,10 @@ static int snd_gus_synth_unuse(void *private_data, struct snd_seq_port_subscribe
 	struct snd_gus_port * port = private_data;
 	struct snd_gus_card * gus = port->gus;
 
-	down(&gus->register_mutex);
+	mutex_lock(&gus->register_mutex);
 	snd_gus_synth_free_voices(gus, info->sender.client, info->sender.port);
 	snd_gus_use_dec(gus);
-	up(&gus->register_mutex);
+	mutex_unlock(&gus->register_mutex);
 	return 0;
 }
 
@@ -223,7 +223,7 @@ static int snd_gus_synth_new_device(struct snd_seq_device *dev)
 	if (gus == NULL)
 		return -EINVAL;
 
-	init_MUTEX(&gus->register_mutex);
+	mutex_init(&gus->register_mutex);
 	gus->gf1.seq_client = -1;
 	
 	/* allocate new client */

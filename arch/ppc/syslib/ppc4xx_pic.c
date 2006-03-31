@@ -1,6 +1,4 @@
 /*
- * arch/ppc/syslib/ppc4xx_pic.c
- *
  * Interrupt controller driver for PowerPC 4xx-based processors.
  *
  * Eugene Surovegin <eugene.surovegin@zultys.com> or <ebs@ebshome.net>

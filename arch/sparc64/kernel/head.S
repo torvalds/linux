@@ -26,6 +26,7 @@
 #include <asm/head.h>
 #include <asm/ttable.h>
 #include <asm/mmu.h>
+#include <asm/cpudata.h>
 	
 /* This section from from _start to sparc64_boot_end should fit into
  * 0x0000000000404000 to 0x0000000000408000.
@@ -94,12 +95,17 @@ sparc64_boot:
 	wrpr	%g1, 0x0, %pstate
 	ba,a,pt	%xcc, 1f
 
-	.globl	prom_finddev_name, prom_chosen_path
-	.globl	prom_getprop_name, prom_mmu_name
-	.globl	prom_callmethod_name, prom_translate_name
+	.globl	prom_finddev_name, prom_chosen_path, prom_root_node
+	.globl	prom_getprop_name, prom_mmu_name, prom_peer_name
+	.globl	prom_callmethod_name, prom_translate_name, prom_root_compatible
 	.globl	prom_map_name, prom_unmap_name, prom_mmu_ihandle_cache
 	.globl	prom_boot_mapped_pc, prom_boot_mapping_mode
 	.globl	prom_boot_mapping_phys_high, prom_boot_mapping_phys_low
+	.globl	is_sun4v
+prom_peer_name:
+	.asciz	"peer"
+prom_compatible_name:
+	.asciz	"compatible"
 prom_finddev_name:
 	.asciz	"finddevice"
 prom_chosen_path:
@@ -116,7 +122,13 @@ prom_map_name:
 	.asciz	"map"
 prom_unmap_name:
 	.asciz	"unmap"
+prom_sun4v_name:
+	.asciz	"sun4v"
 	.align	4
+prom_root_compatible:
+	.skip	64
+prom_root_node:
+	.word	0
 prom_mmu_ihandle_cache:
 	.word	0
 prom_boot_mapped_pc:
@@ -128,8 +140,54 @@ prom_boot_mapping_phys_high:
 	.xword	0
 prom_boot_mapping_phys_low:
 	.xword	0
+is_sun4v:
+	.word	0
 1:
 	rd	%pc, %l0
+
+	mov	(1b - prom_peer_name), %l1
+	sub	%l0, %l1, %l1
+	mov	0, %l2
+
+	/* prom_root_node = prom_peer(0) */
+	stx	%l1, [%sp + 2047 + 128 + 0x00]	! service, "peer"
+	mov	1, %l3
+	stx	%l3, [%sp + 2047 + 128 + 0x08]	! num_args, 1
+	stx	%l3, [%sp + 2047 + 128 + 0x10]	! num_rets, 1
+	stx	%l2, [%sp + 2047 + 128 + 0x18]	! arg1, 0
+	stx	%g0, [%sp + 2047 + 128 + 0x20]	! ret1
+	call	%l7
+	 add	%sp, (2047 + 128), %o0		! argument array
+
+	ldx	[%sp + 2047 + 128 + 0x20], %l4	! prom root node
+	mov	(1b - prom_root_node), %l1
+	sub	%l0, %l1, %l1
+	stw	%l4, [%l1]
+
+	mov	(1b - prom_getprop_name), %l1
+	mov	(1b - prom_compatible_name), %l2
+	mov	(1b - prom_root_compatible), %l5
+	sub	%l0, %l1, %l1
+	sub	%l0, %l2, %l2
+	sub	%l0, %l5, %l5
+
+	/* prom_getproperty(prom_root_node, "compatible",
+	 *                  &prom_root_compatible, 64)
+	 */
+	stx	%l1, [%sp + 2047 + 128 + 0x00]	! service, "getprop"
+	mov	4, %l3
+	stx	%l3, [%sp + 2047 + 128 + 0x08]	! num_args, 4
+	mov	1, %l3
+	stx	%l3, [%sp + 2047 + 128 + 0x10]	! num_rets, 1
+	stx	%l4, [%sp + 2047 + 128 + 0x18]	! arg1, prom_root_node
+	stx	%l2, [%sp + 2047 + 128 + 0x20]	! arg2, "compatible"
+	stx	%l5, [%sp + 2047 + 128 + 0x28]	! arg3, &prom_root_compatible
+	mov	64, %l3
+	stx	%l3, [%sp + 2047 + 128 + 0x30]	! arg4, size
+	stx	%g0, [%sp + 2047 + 128 + 0x38]	! ret1
+	call	%l7
+	 add	%sp, (2047 + 128), %o0		! argument array
+
 	mov	(1b - prom_finddev_name), %l1
 	mov	(1b - prom_chosen_path), %l2
 	mov	(1b - prom_boot_mapped_pc), %l3
@@ -238,6 +296,27 @@ prom_boot_mapping_phys_low:
 	add	%sp, (192 + 128), %sp
 
 sparc64_boot_after_remap:
+	sethi	%hi(prom_root_compatible), %g1
+	or	%g1, %lo(prom_root_compatible), %g1
+	sethi	%hi(prom_sun4v_name), %g7
+	or	%g7, %lo(prom_sun4v_name), %g7
+	mov	5, %g3
+1:	ldub	[%g7], %g2
+	ldub	[%g1], %g4
+	cmp	%g2, %g4
+	bne,pn	%icc, 2f
+	 add	%g7, 1, %g7
+	subcc	%g3, 1, %g3
+	bne,pt	%xcc, 1b
+	 add	%g1, 1, %g1
+
+	sethi	%hi(is_sun4v), %g1
+	or	%g1, %lo(is_sun4v), %g1
+	mov	1, %g7
+	stw	%g7, [%g1]
+
+2:
+	BRANCH_IF_SUN4V(g1, jump_to_sun4u_init)
 	BRANCH_IF_CHEETAH_BASE(g1,g7,cheetah_boot)
 	BRANCH_IF_CHEETAH_PLUS_OR_FOLLOWON(g1,g7,cheetah_plus_boot)
 	ba,pt	%xcc, spitfire_boot
@@ -301,18 +380,56 @@ jump_to_sun4u_init:
 	 nop
 
 sun4u_init:
+	BRANCH_IF_SUN4V(g1, sun4v_init)
+
 	/* Set ctx 0 */
-	mov	PRIMARY_CONTEXT, %g7
-	stxa	%g0, [%g7] ASI_DMMU
+	mov		PRIMARY_CONTEXT, %g7
+	stxa		%g0, [%g7] ASI_DMMU
+	membar		#Sync
+
+	mov		SECONDARY_CONTEXT, %g7
+	stxa		%g0, [%g7] ASI_DMMU
 	membar	#Sync
 
-	mov	SECONDARY_CONTEXT, %g7
-	stxa	%g0, [%g7] ASI_DMMU
-	membar	#Sync
+	ba,pt		%xcc, sun4u_continue
+	 nop
 
-	BRANCH_IF_ANY_CHEETAH(g1,g7,cheetah_tlb_fixup)
+sun4v_init:
+	/* Set ctx 0 */
+	mov		PRIMARY_CONTEXT, %g7
+	stxa		%g0, [%g7] ASI_MMU
+	membar		#Sync
+
+	mov		SECONDARY_CONTEXT, %g7
+	stxa		%g0, [%g7] ASI_MMU
+	membar		#Sync
+	ba,pt		%xcc, niagara_tlb_fixup
+	 nop
+
+sun4u_continue:
+	BRANCH_IF_ANY_CHEETAH(g1, g7, cheetah_tlb_fixup)
 
 	ba,pt	%xcc, spitfire_tlb_fixup
+	 nop
+
+niagara_tlb_fixup:
+	mov	3, %g2		/* Set TLB type to hypervisor. */
+	sethi	%hi(tlb_type), %g1
+	stw	%g2, [%g1 + %lo(tlb_type)]
+
+	/* Patch copy/clear ops.  */
+	call	niagara_patch_copyops
+	 nop
+	call	niagara_patch_bzero
+	 nop
+	call	niagara_patch_pageops
+	 nop
+
+	/* Patch TLB/cache ops.  */
+	call	hypervisor_patch_cachetlbops
+	 nop
+
+	ba,pt	%xcc, tlb_fixup_done
 	 nop
 
 cheetah_tlb_fixup:
@@ -411,85 +528,55 @@ setup_trap_table:
 	wrpr	%g0, 15, %pil
 
 	/* Make the firmware call to jump over to the Linux trap table.  */
-	call	prom_set_trap_table
+	sethi	%hi(is_sun4v), %o0
+	lduw	[%o0 + %lo(is_sun4v)], %o0
+	brz,pt	%o0, 1f
+	 nop
+
+	TRAP_LOAD_TRAP_BLOCK(%g2, %g3)
+	add	%g2, TRAP_PER_CPU_FAULT_INFO, %g2
+	stxa	%g2, [%g0] ASI_SCRATCHPAD
+
+	/* Compute physical address:
+	 *
+	 * paddr = kern_base + (mmfsa_vaddr - KERNBASE)
+	 */
+	sethi	%hi(KERNBASE), %g3
+	sub	%g2, %g3, %g2
+	sethi	%hi(kern_base), %g3
+	ldx	[%g3 + %lo(kern_base)], %g3
+	add	%g2, %g3, %o1
+
+	call	prom_set_trap_table_sun4v
+	 sethi	%hi(sparc64_ttable_tl0), %o0
+
+	ba,pt	%xcc, 2f
+	 nop
+
+1:	call	prom_set_trap_table
 	 sethi	%hi(sparc64_ttable_tl0), %o0
 
 	/* Start using proper page size encodings in ctx register.  */
-	sethi	%hi(sparc64_kern_pri_context), %g3
+2:	sethi	%hi(sparc64_kern_pri_context), %g3
 	ldx	[%g3 + %lo(sparc64_kern_pri_context)], %g2
-	mov	PRIMARY_CONTEXT, %g1
-	stxa	%g2, [%g1] ASI_DMMU
+
+	mov		PRIMARY_CONTEXT, %g1
+
+661:	stxa		%g2, [%g1] ASI_DMMU
+	.section	.sun4v_1insn_patch, "ax"
+	.word		661b
+	stxa		%g2, [%g1] ASI_MMU
+	.previous
+
 	membar	#Sync
-
-	/* The Linux trap handlers expect various trap global registers
-	 * to be setup with some fixed values.  So here we set these
-	 * up very carefully.  These globals are:
-	 *
-	 * Alternate Globals (PSTATE_AG):
-	 *
-	 * %g6			--> current_thread_info()
-	 *
-	 * MMU Globals (PSTATE_MG):
-	 *
-	 * %g1			--> TLB_SFSR
-	 * %g2			--> ((_PAGE_VALID | _PAGE_SZ4MB |
-	 *			      _PAGE_CP | _PAGE_CV | _PAGE_P | _PAGE_W)
-	 *			     ^ 0xfffff80000000000)
-	 * (this %g2 value is used for computing the PAGE_OFFSET kernel
-	 *  TLB entries quickly, the virtual address of the fault XOR'd
-	 *  with this %g2 value is the PTE to load into the TLB)
-	 * %g3			--> VPTE_BASE_CHEETAH or VPTE_BASE_SPITFIRE
-	 *
-	 * Interrupt Globals (PSTATE_IG, setup by init_irqwork_curcpu()):
-	 *
-	 * %g6			--> __irq_work[smp_processor_id()]
-	 */
-
-	rdpr	%pstate, %o1
-	mov	%g6, %o2
-	wrpr	%o1, PSTATE_AG, %pstate
-	mov	%o2, %g6
-
-#define KERN_HIGHBITS		((_PAGE_VALID|_PAGE_SZ4MB)^0xfffff80000000000)
-#define KERN_LOWBITS		(_PAGE_CP | _PAGE_CV | _PAGE_P | _PAGE_W)
-	wrpr	%o1, PSTATE_MG, %pstate
-	mov	TSB_REG, %g1
-	stxa	%g0, [%g1] ASI_DMMU
-	membar	#Sync
-	stxa	%g0, [%g1] ASI_IMMU
-	membar	#Sync
-	mov	TLB_SFSR, %g1
-	sethi	%uhi(KERN_HIGHBITS), %g2
-	or	%g2, %ulo(KERN_HIGHBITS), %g2
-	sllx	%g2, 32, %g2
-	or	%g2, KERN_LOWBITS, %g2
-
-	BRANCH_IF_ANY_CHEETAH(g3,g7,8f)
-	ba,pt	%xcc, 9f
-	 nop
-
-8:
-	sethi		%uhi(VPTE_BASE_CHEETAH), %g3
-	or		%g3, %ulo(VPTE_BASE_CHEETAH), %g3
-	ba,pt		%xcc, 2f
-	 sllx		%g3, 32, %g3
-
-9:
-	sethi		%uhi(VPTE_BASE_SPITFIRE), %g3
-	or		%g3, %ulo(VPTE_BASE_SPITFIRE), %g3
-	sllx		%g3, 32, %g3
-
-2:
-	clr	%g7
-#undef KERN_HIGHBITS
-#undef KERN_LOWBITS
 
 	/* Kill PROM timer */
 	sethi	%hi(0x80000000), %o2
 	sllx	%o2, 32, %o2
 	wr	%o2, 0, %tick_cmpr
 
-	BRANCH_IF_ANY_CHEETAH(o2,o3,1f)
+	BRANCH_IF_SUN4V(o2, 1f)
+	BRANCH_IF_ANY_CHEETAH(o2, o3, 1f)
 
 	ba,pt	%xcc, 2f
 	 nop
@@ -502,7 +589,6 @@ setup_trap_table:
 
 2:
 	wrpr	%g0, %g0, %wstate
-	wrpr	%o1, 0x0, %pstate
 
 	call	init_irqwork_curcpu
 	 nop
@@ -517,7 +603,7 @@ setup_trap_table:
 	 restore
 
 	.globl	setup_tba
-setup_tba:	/* i0 = is_starfire */
+setup_tba:
 	save	%sp, -192, %sp
 
 	/* The boot processor is the only cpu which invokes this
@@ -536,30 +622,34 @@ setup_tba:	/* i0 = is_starfire */
 	 restore
 sparc64_boot_end:
 
-#include "systbls.S"
 #include "ktlb.S"
+#include "tsb.S"
 #include "etrap.S"
 #include "rtrap.S"
 #include "winfixup.S"
 #include "entry.S"
+#include "sun4v_tlb_miss.S"
+#include "sun4v_ivec.S"
 
 /*
  * The following skip makes sure the trap table in ttable.S is aligned
  * on a 32K boundary as required by the v9 specs for TBA register.
+ *
+ * We align to a 32K boundary, then we have the 32K kernel TSB,
+ * then the 32K aligned trap table.
  */
 1:
 	.skip	0x4000 + _start - 1b
 
-#ifdef CONFIG_SBUS
-/* This is just a hack to fool make depend config.h discovering
-   strategy: As the .S files below need config.h, but
-   make depend does not find it for them, we include config.h
-   in head.S */
-#endif
+	.globl	swapper_tsb
+swapper_tsb:
+	.skip	(32 * 1024)
 
 ! 0x0000000000408000
 
 #include "ttable.S"
+
+#include "systbls.S"
 
 	.data
 	.align	8

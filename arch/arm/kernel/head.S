@@ -28,10 +28,9 @@
 #define PROCINFO_INITFUNC	12
 
 #define MACHINFO_TYPE		0
-#define MACHINFO_PHYSRAM	4
-#define MACHINFO_PHYSIO		8
-#define MACHINFO_PGOFFIO	12
-#define MACHINFO_NAME		16
+#define MACHINFO_PHYSIO		4
+#define MACHINFO_PGOFFIO	8
+#define MACHINFO_NAME		12
 
 #define KERNEL_RAM_ADDR	(PAGE_OFFSET + TEXT_OFFSET)
 
@@ -82,6 +81,7 @@
 ENTRY(stext)
 	msr	cpsr_c, #PSR_F_BIT | PSR_I_BIT | MODE_SVC @ ensure svc mode
 						@ and irqs disabled
+	mrc	p15, 0, r9, c0, c0		@ get processor id
 	bl	__lookup_processor_type		@ r5=procinfo r9=cpuid
 	movs	r10, r5				@ invalid processor (r5=0)?
 	beq	__error_p			@ yes, error 'p'
@@ -156,6 +156,7 @@ ENTRY(secondary_startup)
 	 * as it has already been validated by the primary processor.
 	 */
 	msr	cpsr_c, #PSR_F_BIT | PSR_I_BIT | MODE_SVC
+	mrc	p15, 0, r9, c0, c0		@ get processor id
 	bl	__lookup_processor_type
 	movs	r10, r5				@ invalid processor?
 	moveq	r0, #'p'			@ yes, error 'p'
@@ -450,19 +451,19 @@ __error:
  * (and therefore, we are not in the correct address space).  We have to
  * calculate the offset.
  *
+ *	r9 = cpuid
  * Returns:
  *	r3, r4, r6 corrupted
  *	r5 = proc_info pointer in physical address space
- *	r9 = cpuid
+ *	r9 = cpuid (preserved)
  */
 	.type	__lookup_processor_type, %function
 __lookup_processor_type:
 	adr	r3, 3f
-	ldmda	r3, {r5, r6, r9}
-	sub	r3, r3, r9			@ get offset between virt&phys
+	ldmda	r3, {r5 - r7}
+	sub	r3, r3, r7			@ get offset between virt&phys
 	add	r5, r5, r3			@ convert virt addresses to
 	add	r6, r6, r3			@ physical address space
-	mrc	p15, 0, r9, c0, c0		@ get processor id
 1:	ldmia	r5, {r3, r4}			@ value, mask
 	and	r4, r4, r9			@ mask wanted bits
 	teq	r3, r4
@@ -477,10 +478,11 @@ __lookup_processor_type:
  * This provides a C-API version of the above function.
  */
 ENTRY(lookup_processor_type)
-	stmfd	sp!, {r4 - r6, r9, lr}
+	stmfd	sp!, {r4 - r7, r9, lr}
+	mov	r9, r0
 	bl	__lookup_processor_type
 	mov	r0, r5
-	ldmfd	sp!, {r4 - r6, r9, pc}
+	ldmfd	sp!, {r4 - r7, r9, pc}
 
 /*
  * Look in include/asm-arm/procinfo.h and arch/arm/kernel/arch.[ch] for

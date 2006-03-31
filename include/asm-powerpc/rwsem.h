@@ -4,7 +4,7 @@
 #ifdef __KERNEL__
 
 /*
- * include/asm-ppc64/rwsem.h: R/W semaphores for PPC using the stuff
+ * include/asm-powerpc/rwsem.h: R/W semaphores for PPC using the stuff
  * in lib/rwsem.c.  Adapted largely from include/asm-i386/rwsem.h
  * by Paul Mackerras <paulus@samba.org>.
  */

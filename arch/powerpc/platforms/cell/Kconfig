@@ -10,4 +10,9 @@ config SPU_FS
 	  Units on machines implementing the Broadband Processor
 	  Architecture.
 
+config SPUFS_MMAP
+	bool
+	depends on SPU_FS && SPARSEMEM && !PPC_64K_PAGES
+	default y
+
 endmenu

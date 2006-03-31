@@ -69,10 +69,11 @@ Unregisters new callback with connector core.
 
 struct cb_id *id 		- unique connector's user identifier.
 
-void cn_netlink_send(struct cn_msg *msg, u32 __groups, int gfp_mask);
+int cn_netlink_send(struct cn_msg *msg, u32 __groups, int gfp_mask);
 
 Sends message to the specified groups.  It can be safely called from
-any context, but may silently fail under strong memory pressure.
+softirq context, but may silently fail under strong memory pressure.
+If there are no listeners for given group -ESRCH can be returned.
 
 struct cn_msg *			- message header(with attached data).
 u32 __group			- destination group.

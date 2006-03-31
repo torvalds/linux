@@ -81,6 +81,31 @@ char ____cacheline_aligned xpc_remote_copy_buffer[XPC_RP_HEADER_SIZE +
 
 
 /*
+ * Guarantee that the kmalloc'd memory is cacheline aligned.
+ */
+static void *
+xpc_kmalloc_cacheline_aligned(size_t size, gfp_t flags, void **base)
+{
+	/* see if kmalloc will give us cachline aligned memory by default */
+	*base = kmalloc(size, flags);
+	if (*base == NULL) {
+		return NULL;
+	}
+	if ((u64) *base == L1_CACHE_ALIGN((u64) *base)) {
+		return *base;
+	}
+	kfree(*base);
+
+	/* nope, we'll have to do it ourselves */
+	*base = kmalloc(size + L1_CACHE_BYTES, flags);
+	if (*base == NULL) {
+		return NULL;
+	}
+	return (void *) L1_CACHE_ALIGN((u64) *base);
+}
+
+
+/*
  * Given a nasid, get the physical address of the  partition's reserved page
  * for that nasid. This function returns 0 on any error.
  */
@@ -1038,13 +1063,12 @@ xpc_discovery(void)
 	remote_vars = (struct xpc_vars *) remote_rp;
 
 
-	discovered_nasids = kmalloc(sizeof(u64) * xp_nasid_mask_words,
+	discovered_nasids = kzalloc(sizeof(u64) * xp_nasid_mask_words,
 							GFP_KERNEL);
 	if (discovered_nasids == NULL) {
 		kfree(remote_rp_base);
 		return;
 	}
-	memset(discovered_nasids, 0, sizeof(u64) * xp_nasid_mask_words);
 
 	rp = (struct xpc_rsvd_page *) xpc_rsvd_page;
 

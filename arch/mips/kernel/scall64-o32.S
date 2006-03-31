@@ -328,7 +328,7 @@ sys_call_table:
 	PTR	sys_setdomainname
 	PTR	sys32_newuname
 	PTR	sys_ni_syscall			/* sys_modify_ldt */
-	PTR	sys32_adjtimex
+	PTR	compat_sys_adjtimex
 	PTR	sys_mprotect			/* 4125 */
 	PTR	compat_sys_sigprocmask
 	PTR	sys_ni_syscall			/* was creat_module */

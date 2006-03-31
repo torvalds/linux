@@ -232,6 +232,59 @@ static void spu_hw_runcntl_stop(struct spu_context *ctx)
 	spin_unlock_irq(&ctx->spu->register_lock);
 }
 
+static int spu_hw_set_mfc_query(struct spu_context * ctx, u32 mask, u32 mode)
+{
+	struct spu_problem *prob = ctx->spu->problem;
+	int ret;
+
+	spin_lock_irq(&ctx->spu->register_lock);
+	ret = -EAGAIN;
+	if (in_be32(&prob->dma_querytype_RW))
+		goto out;
+	ret = 0;
+	out_be32(&prob->dma_querymask_RW, mask);
+	out_be32(&prob->dma_querytype_RW, mode);
+out:
+	spin_unlock_irq(&ctx->spu->register_lock);
+	return ret;
+}
+
+static u32 spu_hw_read_mfc_tagstatus(struct spu_context * ctx)
+{
+	return in_be32(&ctx->spu->problem->dma_tagstatus_R);
+}
+
+static u32 spu_hw_get_mfc_free_elements(struct spu_context *ctx)
+{
+	return in_be32(&ctx->spu->problem->dma_qstatus_R);
+}
+
+static int spu_hw_send_mfc_command(struct spu_context *ctx,
+					struct mfc_dma_command *cmd)
+{
+	u32 status;
+	struct spu_problem *prob = ctx->spu->problem;
+
+	spin_lock_irq(&ctx->spu->register_lock);
+	out_be32(&prob->mfc_lsa_W, cmd->lsa);
+	out_be64(&prob->mfc_ea_W, cmd->ea);
+	out_be32(&prob->mfc_union_W.by32.mfc_size_tag32,
+				cmd->size << 16 | cmd->tag);
+	out_be32(&prob->mfc_union_W.by32.mfc_class_cmd32,
+				cmd->class << 16 | cmd->cmd);
+	status = in_be32(&prob->mfc_union_W.by32.mfc_class_cmd32);
+	spin_unlock_irq(&ctx->spu->register_lock);
+
+	switch (status & 0xffff) {
+	case 0:
+		return 0;
+	case 2:
+		return -EAGAIN;
+	default:
+		return -EINVAL;
+	}
+}
+
 struct spu_context_ops spu_hw_ops = {
 	.mbox_read = spu_hw_mbox_read,
 	.mbox_stat_read = spu_hw_mbox_stat_read,
@@ -252,4 +305,8 @@ struct spu_context_ops spu_hw_ops = {
 	.get_ls = spu_hw_get_ls,
 	.runcntl_write = spu_hw_runcntl_write,
 	.runcntl_stop = spu_hw_runcntl_stop,
+	.set_mfc_query = spu_hw_set_mfc_query,
+	.read_mfc_tagstatus = spu_hw_read_mfc_tagstatus,
+	.get_mfc_free_elements = spu_hw_get_mfc_free_elements,
+	.send_mfc_command = spu_hw_send_mfc_command,
 };

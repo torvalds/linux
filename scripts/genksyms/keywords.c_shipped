@@ -52,9 +52,9 @@ is_reserved_hash (register const char *str, register unsigned int len)
       71, 71, 71, 71, 71, 71, 71, 71, 71, 71,
       71, 71, 71, 71, 71, 71, 71, 71, 71, 71,
       71, 71, 71, 71, 71, 71, 71, 71, 71, 71,
-      71, 71, 71, 71, 71, 71, 71, 71, 71, 15,
-      71, 71, 71, 71, 71, 71, 15, 71, 71, 71,
-      10, 71, 71, 71, 71, 71, 71, 71, 71, 71,
+      71, 71, 71, 71, 71, 71, 71, 71, 71,  0,
+      71, 71, 71, 71, 71, 71, 35, 71, 71, 71,
+       5, 71, 71, 71, 71, 71, 71, 71, 71, 71,
       71, 71, 71, 71, 71,  0, 71,  0, 71,  5,
        5,  0, 10, 20, 71, 25, 71, 71, 20,  0,
       20, 30, 25, 71, 10,  5,  0, 20, 15, 71,
@@ -84,9 +84,9 @@ is_reserved_word (register const char *str, register unsigned int len)
 {
   enum
     {
-      TOTAL_KEYWORDS = 41,
+      TOTAL_KEYWORDS = 42,
       MIN_WORD_LENGTH = 3,
-      MAX_WORD_LENGTH = 17,
+      MAX_WORD_LENGTH = 24,
       MIN_HASH_VALUE = 3,
       MAX_HASH_VALUE = 70
     };
@@ -94,104 +94,105 @@ is_reserved_word (register const char *str, register unsigned int len)
   static const struct resword wordlist[] =
     {
       {""}, {""}, {""},
-#line 24 "scripts/genksyms/keywords.gperf"
+#line 25 "scripts/genksyms/keywords.gperf"
       {"asm", ASM_KEYW},
       {""},
-#line 7 "scripts/genksyms/keywords.gperf"
+#line 8 "scripts/genksyms/keywords.gperf"
       {"__asm", ASM_KEYW},
       {""},
-#line 8 "scripts/genksyms/keywords.gperf"
+#line 9 "scripts/genksyms/keywords.gperf"
       {"__asm__", ASM_KEYW},
       {""},
-#line 21 "scripts/genksyms/keywords.gperf"
+#line 22 "scripts/genksyms/keywords.gperf"
       {"_restrict", RESTRICT_KEYW},
-#line 50 "scripts/genksyms/keywords.gperf"
+#line 51 "scripts/genksyms/keywords.gperf"
       {"__typeof__", TYPEOF_KEYW},
-#line 9 "scripts/genksyms/keywords.gperf"
-      {"__attribute", ATTRIBUTE_KEYW},
-#line 11 "scripts/genksyms/keywords.gperf"
-      {"__const", CONST_KEYW},
 #line 10 "scripts/genksyms/keywords.gperf"
-      {"__attribute__", ATTRIBUTE_KEYW},
+      {"__attribute", ATTRIBUTE_KEYW},
 #line 12 "scripts/genksyms/keywords.gperf"
+      {"__const", CONST_KEYW},
+#line 11 "scripts/genksyms/keywords.gperf"
+      {"__attribute__", ATTRIBUTE_KEYW},
+#line 13 "scripts/genksyms/keywords.gperf"
       {"__const__", CONST_KEYW},
-#line 16 "scripts/genksyms/keywords.gperf"
+#line 17 "scripts/genksyms/keywords.gperf"
       {"__signed__", SIGNED_KEYW},
-#line 42 "scripts/genksyms/keywords.gperf"
+#line 43 "scripts/genksyms/keywords.gperf"
       {"static", STATIC_KEYW},
       {""},
-#line 15 "scripts/genksyms/keywords.gperf"
+#line 16 "scripts/genksyms/keywords.gperf"
       {"__signed", SIGNED_KEYW},
-#line 30 "scripts/genksyms/keywords.gperf"
+#line 31 "scripts/genksyms/keywords.gperf"
       {"char", CHAR_KEYW},
       {""},
-#line 43 "scripts/genksyms/keywords.gperf"
+#line 44 "scripts/genksyms/keywords.gperf"
       {"struct", STRUCT_KEYW},
-#line 22 "scripts/genksyms/keywords.gperf"
-      {"__restrict__", RESTRICT_KEYW},
 #line 23 "scripts/genksyms/keywords.gperf"
+      {"__restrict__", RESTRICT_KEYW},
+#line 24 "scripts/genksyms/keywords.gperf"
       {"restrict", RESTRICT_KEYW},
-#line 33 "scripts/genksyms/keywords.gperf"
-      {"enum", ENUM_KEYW},
-#line 17 "scripts/genksyms/keywords.gperf"
-      {"__volatile", VOLATILE_KEYW},
 #line 34 "scripts/genksyms/keywords.gperf"
-      {"extern", EXTERN_KEYW},
+      {"enum", ENUM_KEYW},
 #line 18 "scripts/genksyms/keywords.gperf"
+      {"__volatile", VOLATILE_KEYW},
+#line 35 "scripts/genksyms/keywords.gperf"
+      {"extern", EXTERN_KEYW},
+#line 19 "scripts/genksyms/keywords.gperf"
       {"__volatile__", VOLATILE_KEYW},
-#line 37 "scripts/genksyms/keywords.gperf"
+#line 38 "scripts/genksyms/keywords.gperf"
       {"int", INT_KEYW},
-      {""},
-#line 31 "scripts/genksyms/keywords.gperf"
-      {"const", CONST_KEYW},
+#line 7 "scripts/genksyms/keywords.gperf"
+      {"EXPORT_SYMBOL_GPL_FUTURE", EXPORT_SYMBOL_KEYW},
 #line 32 "scripts/genksyms/keywords.gperf"
+      {"const", CONST_KEYW},
+#line 33 "scripts/genksyms/keywords.gperf"
       {"double", DOUBLE_KEYW},
       {""},
-#line 13 "scripts/genksyms/keywords.gperf"
-      {"__inline", INLINE_KEYW},
-#line 29 "scripts/genksyms/keywords.gperf"
-      {"auto", AUTO_KEYW},
 #line 14 "scripts/genksyms/keywords.gperf"
+      {"__inline", INLINE_KEYW},
+#line 30 "scripts/genksyms/keywords.gperf"
+      {"auto", AUTO_KEYW},
+#line 15 "scripts/genksyms/keywords.gperf"
       {"__inline__", INLINE_KEYW},
-#line 41 "scripts/genksyms/keywords.gperf"
+#line 42 "scripts/genksyms/keywords.gperf"
       {"signed", SIGNED_KEYW},
       {""},
-#line 46 "scripts/genksyms/keywords.gperf"
+#line 47 "scripts/genksyms/keywords.gperf"
       {"unsigned", UNSIGNED_KEYW},
       {""},
-#line 40 "scripts/genksyms/keywords.gperf"
+#line 41 "scripts/genksyms/keywords.gperf"
       {"short", SHORT_KEYW},
-#line 49 "scripts/genksyms/keywords.gperf"
+#line 50 "scripts/genksyms/keywords.gperf"
       {"typeof", TYPEOF_KEYW},
-#line 44 "scripts/genksyms/keywords.gperf"
+#line 45 "scripts/genksyms/keywords.gperf"
       {"typedef", TYPEDEF_KEYW},
-#line 48 "scripts/genksyms/keywords.gperf"
+#line 49 "scripts/genksyms/keywords.gperf"
       {"volatile", VOLATILE_KEYW},
       {""},
-#line 35 "scripts/genksyms/keywords.gperf"
+#line 36 "scripts/genksyms/keywords.gperf"
       {"float", FLOAT_KEYW},
       {""}, {""},
-#line 39 "scripts/genksyms/keywords.gperf"
+#line 40 "scripts/genksyms/keywords.gperf"
       {"register", REGISTER_KEYW},
-#line 47 "scripts/genksyms/keywords.gperf"
+#line 48 "scripts/genksyms/keywords.gperf"
       {"void", VOID_KEYW},
       {""},
-#line 36 "scripts/genksyms/keywords.gperf"
+#line 37 "scripts/genksyms/keywords.gperf"
       {"inline", INLINE_KEYW},
       {""},
 #line 5 "scripts/genksyms/keywords.gperf"
       {"EXPORT_SYMBOL", EXPORT_SYMBOL_KEYW},
       {""},
-#line 20 "scripts/genksyms/keywords.gperf"
+#line 21 "scripts/genksyms/keywords.gperf"
       {"_Bool", BOOL_KEYW},
       {""},
 #line 6 "scripts/genksyms/keywords.gperf"
       {"EXPORT_SYMBOL_GPL", EXPORT_SYMBOL_KEYW},
       {""}, {""}, {""}, {""}, {""}, {""},
-#line 38 "scripts/genksyms/keywords.gperf"
+#line 39 "scripts/genksyms/keywords.gperf"
       {"long", LONG_KEYW},
       {""}, {""}, {""}, {""}, {""},
-#line 45 "scripts/genksyms/keywords.gperf"
+#line 46 "scripts/genksyms/keywords.gperf"
       {"union", UNION_KEYW}
     };
 

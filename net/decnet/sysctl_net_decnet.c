@@ -86,9 +86,9 @@ static void strip_it(char *str)
  * Simple routine to parse an ascii DECnet address
  * into a network order address.
  */
-static int parse_addr(dn_address *addr, char *str)
+static int parse_addr(__le16 *addr, char *str)
 {
-	dn_address area, node;
+	__u16 area, node;
 
 	while(*str && !ISNUM(*str)) str++;
 
@@ -139,7 +139,7 @@ static int dn_node_address_strategy(ctl_table *table, int __user *name, int nlen
 				void **context)
 {
 	size_t len;
-	dn_address addr;
+	__le16 addr;
 
 	if (oldval && oldlenp) {
 		if (get_user(len, oldlenp))
@@ -147,14 +147,14 @@ static int dn_node_address_strategy(ctl_table *table, int __user *name, int nlen
 		if (len) {
 			if (len != sizeof(unsigned short))
 				return -EINVAL;
-			if (put_user(decnet_address, (unsigned short __user *)oldval))
+			if (put_user(decnet_address, (__le16 __user *)oldval))
 				return -EFAULT;
 		}
 	}
 	if (newval && newlen) {
 		if (newlen != sizeof(unsigned short))
 			return -EINVAL;
-		if (get_user(addr, (unsigned short __user *)newval))
+		if (get_user(addr, (__le16 __user *)newval))
 			return -EFAULT;
 
 		dn_dev_devices_off();
@@ -173,7 +173,7 @@ static int dn_node_address_handler(ctl_table *table, int write,
 {
 	char addr[DN_ASCBUF_LEN];
 	size_t len;
-	dn_address dnaddr;
+	__le16 dnaddr;
 
 	if (!*lenp || (*ppos && !write)) {
 		*lenp = 0;

@@ -751,11 +751,10 @@ int sddr55_transport(struct scsi_cmnd *srb, struct us_data *us)
 	struct sddr55_card_info *info;
 
 	if (!us->extra) {
-		us->extra = kmalloc(
+		us->extra = kzalloc(
 			sizeof(struct sddr55_card_info), GFP_NOIO);
 		if (!us->extra)
 			return USB_STOR_TRANSPORT_ERROR;
-		memset(us->extra, 0, sizeof(struct sddr55_card_info));
 		us->extra_destructor = sddr55_card_info_destructor;
 	}
 

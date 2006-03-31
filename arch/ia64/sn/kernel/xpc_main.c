@@ -52,7 +52,6 @@
 #include <linux/syscalls.h>
 #include <linux/cache.h>
 #include <linux/interrupt.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/reboot.h>
 #include <linux/completion.h>

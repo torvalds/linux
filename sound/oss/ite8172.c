@@ -71,6 +71,8 @@
 #include <linux/smp_lock.h>
 #include <linux/ac97_codec.h>
 #include <linux/interrupt.h>
+#include <linux/mutex.h>
+
 #include <asm/io.h>
 #include <asm/dma.h>
 #include <asm/uaccess.h>
@@ -304,7 +306,7 @@ struct it8172_state {
 	unsigned dacrate, adcrate;
 
 	spinlock_t lock;
-	struct semaphore open_sem;
+	struct mutex open_mutex;
 	mode_t open_mode;
 	wait_queue_head_t open_wait;
 
@@ -1801,21 +1803,21 @@ static int it8172_open(struct inode *inode, struct file *file)
 	}
 	file->private_data = s;
 	/* wait for device to become free */
-	down(&s->open_sem);
+	mutex_lock(&s->open_mutex);
 	while (s->open_mode & file->f_mode) {
 		if (file->f_flags & O_NONBLOCK) {
-			up(&s->open_sem);
+			mutex_unlock(&s->open_mutex);
 			return -EBUSY;
 		}
 		add_wait_queue(&s->open_wait, &wait);
 		__set_current_state(TASK_INTERRUPTIBLE);
-		up(&s->open_sem);
+		mutex_unlock(&s->open_mutex);
 		schedule();
 		remove_wait_queue(&s->open_wait, &wait);
 		set_current_state(TASK_RUNNING);
 		if (signal_pending(current))
 			return -ERESTARTSYS;
-		down(&s->open_sem);
+		mutex_lock(&s->open_mutex);
 	}
 
 	spin_lock_irqsave(&s->lock, flags);
@@ -1850,7 +1852,7 @@ static int it8172_open(struct inode *inode, struct file *file)
 	spin_unlock_irqrestore(&s->lock, flags);
 
 	s->open_mode |= (file->f_mode & (FMODE_READ | FMODE_WRITE));
-	up(&s->open_sem);
+	mutex_unlock(&s->open_mutex);
 	return nonseekable_open(inode, file);
 }
 
@@ -1864,7 +1866,7 @@ static int it8172_release(struct inode *inode, struct file *file)
 	lock_kernel();
 	if (file->f_mode & FMODE_WRITE)
 		drain_dac(s, file->f_flags & O_NONBLOCK);
-	down(&s->open_sem);
+	mutex_lock(&s->open_mutex);
 	if (file->f_mode & FMODE_WRITE) {
 		stop_dac(s);
 		dealloc_dmabuf(s, &s->dma_dac);
@@ -1874,7 +1876,7 @@ static int it8172_release(struct inode *inode, struct file *file)
 		dealloc_dmabuf(s, &s->dma_adc);
 	}
 	s->open_mode &= ((~file->f_mode) & (FMODE_READ|FMODE_WRITE));
-	up(&s->open_sem);
+	mutex_unlock(&s->open_mutex);
 	wake_up(&s->open_wait);
 	unlock_kernel();
 	return 0;
@@ -1966,9 +1968,9 @@ static int i2s_fmt[NR_DEVICE];
 
 static unsigned int devindex;
 
-MODULE_PARM(spdif, "1-" __MODULE_STRING(NR_DEVICE) "i");
+module_param_array(spdif, int, NULL, 0);
 MODULE_PARM_DESC(spdif, "if 1 the S/PDIF digital output is enabled");
-MODULE_PARM(i2s_fmt, "1-" __MODULE_STRING(NR_DEVICE) "i");
+module_param_array(i2s_fmt, int, NULL, 0);
 MODULE_PARM_DESC(i2s_fmt, "the format of I2S");
 
 MODULE_AUTHOR("Monta Vista Software, stevel@mvista.com");
@@ -1997,7 +1999,7 @@ static int __devinit it8172_probe(struct pci_dev *pcidev,
 	init_waitqueue_head(&s->dma_adc.wait);
 	init_waitqueue_head(&s->dma_dac.wait);
 	init_waitqueue_head(&s->open_wait);
-	init_MUTEX(&s->open_sem);
+	mutex_init(&s->open_mutex);
 	spin_lock_init(&s->lock);
 	s->dev = pcidev;
 	s->io = pci_resource_start(pcidev, 0);

@@ -388,7 +388,7 @@ static char *version =
 DRV_NAME " " DRV_VERSION " (Roger C. Pao)";
 #endif
 
-static char *if_names[]={
+static const char *if_names[]={
     "Auto", "10baseT", "BNC",
 };
 

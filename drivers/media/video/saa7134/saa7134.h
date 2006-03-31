@@ -29,11 +29,11 @@
 #include <linux/input.h>
 #include <linux/notifier.h>
 #include <linux/delay.h>
+#include <linux/mutex.h>
 
 #include <asm/io.h>
 
 #include <media/tuner.h>
-#include <media/audiochip.h>
 #include <media/ir-common.h>
 #include <media/ir-kbd-i2c.h>
 #include <media/video-buf.h>
@@ -60,6 +60,7 @@ enum saa7134_tvaudio_mode {
 	TVAUDIO_FM_K_STEREO   = 4,
 	TVAUDIO_NICAM_AM      = 5,
 	TVAUDIO_NICAM_FM      = 6,
+	TVAUDIO_AM_MONO	      = 7
 };
 
 enum saa7134_audio_in {
@@ -210,6 +211,15 @@ struct saa7134_format {
 #define SAA7134_BOARD_MSI_TVATANYWHERE_PLUS  82
 #define SAA7134_BOARD_CINERGY250PCI 83
 #define SAA7134_BOARD_FLYDVB_TRIO 84
+#define SAA7134_BOARD_AVERMEDIA_777 85
+#define SAA7134_BOARD_FLYDVBT_LR301 86
+#define SAA7134_BOARD_ADS_DUO_CARDBUS_PTV331 87
+#define SAA7134_BOARD_TEVION_DVBT_220RF 88
+#define SAA7134_BOARD_ELSA_700TV       89
+#define SAA7134_BOARD_KWORLD_ATSC110   90
+#define SAA7134_BOARD_AVERMEDIA_A169_B 91
+#define SAA7134_BOARD_AVERMEDIA_A169_B1 92
+#define SAA7134_BOARD_MD7134_BRIDGE_2     93
 
 #define SAA7134_MAXBOARDS 8
 #define SAA7134_INPUT_MAX 8
@@ -359,7 +369,7 @@ struct saa7134_fh {
 
 /* dmasound dsp status */
 struct saa7134_dmasound {
-	struct semaphore           lock;
+	struct mutex               lock;
 	int                        minor_mixer;
 	int                        minor_dsp;
 	unsigned int               users_dsp;
@@ -386,7 +396,7 @@ struct saa7134_dmasound {
 	unsigned int               read_offset;
 	unsigned int               read_count;
 	void *			   priv_data;
-	snd_pcm_substream_t 	   *substream;
+	struct snd_pcm_substream   *substream;
 };
 
 /* IR input */
@@ -423,7 +433,7 @@ struct saa7134_mpeg_ops {
 /* global device status */
 struct saa7134_dev {
 	struct list_head           devlist;
-	struct semaphore           lock;
+	struct mutex               lock;
 	spinlock_t                 slock;
 #ifdef VIDIOC_G_PRIORITY
 	struct v4l2_prio_state     prio;
@@ -546,6 +556,7 @@ struct saa7134_dev {
 /* saa7134-core.c                                              */
 
 extern struct list_head  saa7134_devlist;
+extern int saa7134_no_overlay;
 
 void saa7134_track_gpio(struct saa7134_dev *dev, char *msg);
 
@@ -567,7 +578,7 @@ void saa7134_buffer_finish(struct saa7134_dev *dev, struct saa7134_dmaqueue *q,
 			   unsigned int state);
 void saa7134_buffer_next(struct saa7134_dev *dev, struct saa7134_dmaqueue *q);
 void saa7134_buffer_timeout(unsigned long data);
-void saa7134_dma_free(struct saa7134_dev *dev,struct saa7134_buf *buf);
+void saa7134_dma_free(struct videobuf_queue *q,struct saa7134_buf *buf);
 
 int saa7134_set_dmabits(struct saa7134_dev *dev);
 

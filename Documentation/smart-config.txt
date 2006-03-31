@@ -56,10 +56,6 @@ Here is the solution:
     writing one file per option.  It updates only the files for options
     that have changed.
 
-    mkdep.c no longer generates warning messages for missing or unneeded
-    <linux/config.h> lines.  The new top-level target 'make checkconfig'
-    checks for these problems.
-
 Flag Dependencies
 
     Martin Von Loewis contributed another feature to this patch:

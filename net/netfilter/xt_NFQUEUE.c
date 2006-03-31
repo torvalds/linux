@@ -28,6 +28,7 @@ target(struct sk_buff **pskb,
        const struct net_device *in,
        const struct net_device *out,
        unsigned int hooknum,
+       const struct xt_target *target,
        const void *targinfo,
        void *userinfo)
 {
@@ -36,72 +37,58 @@ target(struct sk_buff **pskb,
 	return NF_QUEUE_NR(tinfo->queuenum);
 }
 
-static int
-checkentry(const char *tablename,
-	   const void *entry,
-           void *targinfo,
-           unsigned int targinfosize,
-           unsigned int hook_mask)
-{
-	if (targinfosize != XT_ALIGN(sizeof(struct xt_NFQ_info))) {
-		printk(KERN_WARNING "NFQUEUE: targinfosize %u != %Zu\n",
-		       targinfosize,
-		       XT_ALIGN(sizeof(struct xt_NFQ_info)));
-		return 0;
-	}
-
-	return 1;
-}
-
 static struct xt_target ipt_NFQ_reg = {
 	.name		= "NFQUEUE",
 	.target		= target,
-	.checkentry	= checkentry,
+	.targetsize	= sizeof(struct xt_NFQ_info),
+	.family		= AF_INET,
 	.me		= THIS_MODULE,
 };
 
 static struct xt_target ip6t_NFQ_reg = {
 	.name		= "NFQUEUE",
 	.target		= target,
-	.checkentry	= checkentry,
+	.targetsize	= sizeof(struct xt_NFQ_info),
+	.family		= AF_INET6,
 	.me		= THIS_MODULE,
 };
 
 static struct xt_target arpt_NFQ_reg = {
 	.name		= "NFQUEUE",
 	.target		= target,
-	.checkentry	= checkentry,
+	.targetsize	= sizeof(struct xt_NFQ_info),
+	.family		= NF_ARP,
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init xt_nfqueue_init(void)
 {
 	int ret;
-	ret = xt_register_target(AF_INET, &ipt_NFQ_reg);
+	ret = xt_register_target(&ipt_NFQ_reg);
 	if (ret)
 		return ret;
-	ret = xt_register_target(AF_INET6, &ip6t_NFQ_reg);
+	ret = xt_register_target(&ip6t_NFQ_reg);
 	if (ret)
 		goto out_ip;
-	ret = xt_register_target(NF_ARP, &arpt_NFQ_reg);
+	ret = xt_register_target(&arpt_NFQ_reg);
 	if (ret)
 		goto out_ip6;
 
 	return ret;
 out_ip6:
-	xt_unregister_target(AF_INET6, &ip6t_NFQ_reg);
+	xt_unregister_target(&ip6t_NFQ_reg);
 out_ip:
-	xt_unregister_target(AF_INET, &ipt_NFQ_reg);
+	xt_unregister_target(&ipt_NFQ_reg);
 
 	return ret;
 }
 
-static void __exit fini(void)
+static void __exit xt_nfqueue_fini(void)
 {
-	xt_unregister_target(NF_ARP, &arpt_NFQ_reg);
-	xt_unregister_target(AF_INET6, &ip6t_NFQ_reg);
-	xt_unregister_target(AF_INET, &ipt_NFQ_reg);
+	xt_unregister_target(&arpt_NFQ_reg);
+	xt_unregister_target(&ip6t_NFQ_reg);
+	xt_unregister_target(&ipt_NFQ_reg);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(xt_nfqueue_init);
+module_exit(xt_nfqueue_fini);

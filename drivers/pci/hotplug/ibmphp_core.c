@@ -1141,7 +1141,7 @@ static int enable_slot(struct hotplug_slot *hs)
 		goto error_power;
 	}
 
-	slot_cur->func = kmalloc(sizeof(struct pci_func), GFP_KERNEL);
+	slot_cur->func = kzalloc(sizeof(struct pci_func), GFP_KERNEL);
 	if (!slot_cur->func) {
 		/* We cannot do update_slot_info here, since no memory for
 		 * kmalloc n.e.ways, and update_slot_info allocates some */
@@ -1149,7 +1149,6 @@ static int enable_slot(struct hotplug_slot *hs)
 		rc = -ENOMEM;
 		goto error_power;
 	}
-	memset(slot_cur->func, 0, sizeof(struct pci_func));
 	slot_cur->func->busno = slot_cur->bus;
 	slot_cur->func->device = slot_cur->device;
 	for (i = 0; i < 4; i++)
@@ -1240,9 +1239,9 @@ int ibmphp_do_disable_slot(struct slot *slot_cur)
 	}
 	
 	flag = slot_cur->flag;
-	slot_cur->flag = TRUE;
+	slot_cur->flag = 1;
 
-	if (flag == TRUE) {
+	if (flag == 1) {
 		rc = validate(slot_cur, DISABLE);
 			/* checking if powered off already & valid slot # */
 		if (rc)
@@ -1252,13 +1251,12 @@ int ibmphp_do_disable_slot(struct slot *slot_cur)
 
 	if (slot_cur->func == NULL) {
 		/* We need this for fncs's that were there on bootup */
-		slot_cur->func = kmalloc(sizeof(struct pci_func), GFP_KERNEL);
+		slot_cur->func = kzalloc(sizeof(struct pci_func), GFP_KERNEL);
 		if (!slot_cur->func) {
 			err("out of system memory\n");
 			rc = -ENOMEM;
 			goto error;
 		}
-		memset(slot_cur->func, 0, sizeof(struct pci_func));
 		slot_cur->func->busno = slot_cur->bus;
 		slot_cur->func->device = slot_cur->device;
 	}

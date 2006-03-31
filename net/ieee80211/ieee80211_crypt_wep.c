@@ -76,7 +76,8 @@ static void prism2_wep_deinit(void *priv)
 }
 
 /* Add WEP IV/key info to a frame that has at least 4 bytes of headroom */
-static int prism2_wep_build_iv(struct sk_buff *skb, int hdr_len, void *priv)
+static int prism2_wep_build_iv(struct sk_buff *skb, int hdr_len,
+			       u8 *key, int keylen, void *priv)
 {
 	struct prism2_wep_data *wep = priv;
 	u32 klen, len;
@@ -131,7 +132,7 @@ static int prism2_wep_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		return -1;
 	
 	/* add the IV to the frame */
-	if (prism2_wep_build_iv(skb, hdr_len, priv))
+	if (prism2_wep_build_iv(skb, hdr_len, NULL, 0, priv))
 		return -1;
 	
 	/* Copy the IV into the first 3 bytes of the key */

@@ -286,7 +286,7 @@ void usb_hcd_omap_remove (struct usb_hcd *, struct platform_device *);
 int usb_hcd_omap_probe (const struct hc_driver *driver,
 			  struct platform_device *pdev)
 {
-	int retval;
+	int retval, irq;
 	struct usb_hcd *hcd = 0;
 	struct ohci_hcd *ohci;
 
@@ -329,7 +329,12 @@ int usb_hcd_omap_probe (const struct hc_driver *driver,
 	if (retval < 0)
 		goto err2;
 
-	retval = usb_add_hcd(hcd, platform_get_irq(pdev, 0), SA_INTERRUPT);
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		retval = -ENXIO;
+		goto err2;
+	}
+	retval = usb_add_hcd(hcd, irq, SA_INTERRUPT);
 	if (retval == 0)
 		return retval;
 

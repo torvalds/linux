@@ -11,10 +11,12 @@ obj-y		:= process.o setup.o cpu.o idprom.o \
 		   traps.o devices.o auxio.o una_asm.o \
 		   irq.o ptrace.o time.o sys_sparc.o signal.o \
 		   unaligned.o central.o pci.o starfire.o semaphore.o \
-		   power.o sbus.o iommu_common.o sparc64_ksyms.o chmc.o
+		   power.o sbus.o iommu_common.o sparc64_ksyms.o chmc.o \
+		   visemul.o
 
 obj-$(CONFIG_PCI)	 += ebus.o isa.o pci_common.o pci_iommu.o \
-			    pci_psycho.o pci_sabre.o pci_schizo.o
+			    pci_psycho.o pci_sabre.o pci_schizo.o \
+			    pci_sun4v.o pci_sun4v_asm.o
 obj-$(CONFIG_SMP)	 += smp.o trampoline.o
 obj-$(CONFIG_SPARC32_COMPAT) += sys32.o sys_sparc32.o signal32.o
 obj-$(CONFIG_BINFMT_ELF32) += binfmt_elf32.o
@@ -38,5 +40,5 @@ else
   CMODEL_CFLAG := -m64 -mcmodel=medlow
 endif
 
-head.o: head.S ttable.S itlb_base.S dtlb_base.S dtlb_backend.S dtlb_prot.S \
+head.o: head.S ttable.S itlb_miss.S dtlb_miss.S ktlb.S tsb.S \
 	etrap.S rtrap.S winfixup.S entry.S

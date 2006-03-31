@@ -1,6 +1,4 @@
 /*
- * arch/ppc/syslib/pq2_devices.c
- *
  * PQ2 System descriptions
  *
  * Maintainer: Kumar Gala <galak@kernel.crashing.org>

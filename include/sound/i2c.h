@@ -55,7 +55,7 @@ struct snd_i2c_bus {
 	struct snd_card *card;	/* card which I2C belongs to */
 	char name[32];		/* some useful label */
 
-	struct semaphore lock_mutex;
+	struct mutex lock_mutex;
 
 	struct snd_i2c_bus *master;	/* master bus when SCK/SCL is shared */
 	struct list_head buses;	/* master: slave buses sharing SCK/SCL, slave: link list */
@@ -84,17 +84,17 @@ int snd_i2c_device_free(struct snd_i2c_device *device);
 static inline void snd_i2c_lock(struct snd_i2c_bus *bus)
 {
 	if (bus->master)
-		down(&bus->master->lock_mutex);
+		mutex_lock(&bus->master->lock_mutex);
 	else
-		down(&bus->lock_mutex);
+		mutex_lock(&bus->lock_mutex);
 }
 
 static inline void snd_i2c_unlock(struct snd_i2c_bus *bus)
 {
 	if (bus->master)
-		up(&bus->master->lock_mutex);
+		mutex_unlock(&bus->master->lock_mutex);
 	else
-		up(&bus->lock_mutex);
+		mutex_unlock(&bus->lock_mutex);
 }
 
 int snd_i2c_sendbytes(struct snd_i2c_device *device, unsigned char *bytes, int count);

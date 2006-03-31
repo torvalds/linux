@@ -51,7 +51,7 @@ EXPORT_SYMBOL(pm_power_off);
 /*
  * The idle loop on an m68knommu..
  */
-void default_idle(void)
+static void default_idle(void)
 {
 	local_irq_disable();
  	while (!need_resched()) {

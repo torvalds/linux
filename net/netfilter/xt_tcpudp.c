@@ -74,6 +74,7 @@ static int
 tcp_match(const struct sk_buff *skb,
 	  const struct net_device *in,
 	  const struct net_device *out,
+	  const struct xt_match *match,
 	  const void *matchinfo,
 	  int offset,
 	  unsigned int protoff,
@@ -138,43 +139,22 @@ tcp_match(const struct sk_buff *skb,
 static int
 tcp_checkentry(const char *tablename,
 	       const void *info,
+	       const struct xt_match *match,
 	       void *matchinfo,
 	       unsigned int matchsize,
 	       unsigned int hook_mask)
 {
-	const struct ipt_ip *ip = info;
 	const struct xt_tcp *tcpinfo = matchinfo;
 
-	/* Must specify proto == TCP, and no unknown invflags */
-	return ip->proto == IPPROTO_TCP
-		&& !(ip->invflags & XT_INV_PROTO)
-		&& matchsize == XT_ALIGN(sizeof(struct xt_tcp))
-		&& !(tcpinfo->invflags & ~XT_TCP_INV_MASK);
+	/* Must specify no unknown invflags */
+	return !(tcpinfo->invflags & ~XT_TCP_INV_MASK);
 }
-
-/* Called when user tries to insert an entry of this type. */
-static int
-tcp6_checkentry(const char *tablename,
-	       const void *entry,
-	       void *matchinfo,
-	       unsigned int matchsize,
-	       unsigned int hook_mask)
-{
-	const struct ip6t_ip6 *ipv6 = entry;
-	const struct xt_tcp *tcpinfo = matchinfo;
-
-	/* Must specify proto == TCP, and no unknown invflags */
-	return ipv6->proto == IPPROTO_TCP
-		&& !(ipv6->invflags & XT_INV_PROTO)
-		&& matchsize == XT_ALIGN(sizeof(struct xt_tcp))
-		&& !(tcpinfo->invflags & ~XT_TCP_INV_MASK);
-}
-
 
 static int
 udp_match(const struct sk_buff *skb,
 	  const struct net_device *in,
 	  const struct net_device *out,
+	  const struct xt_match *match,
 	  const void *matchinfo,
 	  int offset,
 	  unsigned int protoff,
@@ -208,127 +188,93 @@ udp_match(const struct sk_buff *skb,
 static int
 udp_checkentry(const char *tablename,
 	       const void *info,
+	       const struct xt_match *match,
 	       void *matchinfo,
-	       unsigned int matchinfosize,
+	       unsigned int matchsize,
 	       unsigned int hook_mask)
 {
-	const struct ipt_ip *ip = info;
-	const struct xt_udp *udpinfo = matchinfo;
+	const struct xt_tcp *udpinfo = matchinfo;
 
-	/* Must specify proto == UDP, and no unknown invflags */
-	if (ip->proto != IPPROTO_UDP || (ip->invflags & XT_INV_PROTO)) {
-		duprintf("ipt_udp: Protocol %u != %u\n", ip->proto,
-			 IPPROTO_UDP);
-		return 0;
-	}
-	if (matchinfosize != XT_ALIGN(sizeof(struct xt_udp))) {
-		duprintf("ipt_udp: matchsize %u != %u\n",
-			 matchinfosize, XT_ALIGN(sizeof(struct xt_udp)));
-		return 0;
-	}
-	if (udpinfo->invflags & ~XT_UDP_INV_MASK) {
-		duprintf("ipt_udp: unknown flags %X\n",
-			 udpinfo->invflags);
-		return 0;
-	}
-
-	return 1;
-}
-
-/* Called when user tries to insert an entry of this type. */
-static int
-udp6_checkentry(const char *tablename,
-	       const void *entry,
-	       void *matchinfo,
-	       unsigned int matchinfosize,
-	       unsigned int hook_mask)
-{
-	const struct ip6t_ip6 *ipv6 = entry;
-	const struct xt_udp *udpinfo = matchinfo;
-
-	/* Must specify proto == UDP, and no unknown invflags */
-	if (ipv6->proto != IPPROTO_UDP || (ipv6->invflags & XT_INV_PROTO)) {
-		duprintf("ip6t_udp: Protocol %u != %u\n", ipv6->proto,
-			 IPPROTO_UDP);
-		return 0;
-	}
-	if (matchinfosize != XT_ALIGN(sizeof(struct xt_udp))) {
-		duprintf("ip6t_udp: matchsize %u != %u\n",
-			 matchinfosize, XT_ALIGN(sizeof(struct xt_udp)));
-		return 0;
-	}
-	if (udpinfo->invflags & ~XT_UDP_INV_MASK) {
-		duprintf("ip6t_udp: unknown flags %X\n",
-			 udpinfo->invflags);
-		return 0;
-	}
-
-	return 1;
+	/* Must specify no unknown invflags */
+	return !(udpinfo->invflags & ~XT_UDP_INV_MASK);
 }
 
 static struct xt_match tcp_matchstruct = {
 	.name		= "tcp",
-	.match		= &tcp_match,
-	.checkentry	= &tcp_checkentry,
+	.match		= tcp_match,
+	.matchsize	= sizeof(struct xt_tcp),
+	.proto		= IPPROTO_TCP,
+	.family		= AF_INET,
+	.checkentry	= tcp_checkentry,
 	.me		= THIS_MODULE,
 };
+
 static struct xt_match tcp6_matchstruct = {
 	.name		= "tcp",
-	.match		= &tcp_match,
-	.checkentry	= &tcp6_checkentry,
+	.match		= tcp_match,
+	.matchsize	= sizeof(struct xt_tcp),
+	.proto		= IPPROTO_TCP,
+	.family		= AF_INET6,
+	.checkentry	= tcp_checkentry,
 	.me		= THIS_MODULE,
 };
 
 static struct xt_match udp_matchstruct = {
 	.name		= "udp",
-	.match		= &udp_match,
-	.checkentry	= &udp_checkentry,
+	.match		= udp_match,
+	.matchsize	= sizeof(struct xt_udp),
+	.proto		= IPPROTO_UDP,
+	.family		= AF_INET,
+	.checkentry	= udp_checkentry,
 	.me		= THIS_MODULE,
 };
 static struct xt_match udp6_matchstruct = {
 	.name		= "udp",
-	.match		= &udp_match,
-	.checkentry	= &udp6_checkentry,
+	.match		= udp_match,
+	.matchsize	= sizeof(struct xt_udp),
+	.proto		= IPPROTO_UDP,
+	.family		= AF_INET6,
+	.checkentry	= udp_checkentry,
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init xt_tcpudp_init(void)
 {
 	int ret;
-	ret = xt_register_match(AF_INET, &tcp_matchstruct);
+	ret = xt_register_match(&tcp_matchstruct);
 	if (ret)
 		return ret;
 
-	ret = xt_register_match(AF_INET6, &tcp6_matchstruct);
+	ret = xt_register_match(&tcp6_matchstruct);
 	if (ret)
 		goto out_unreg_tcp;
 
-	ret = xt_register_match(AF_INET, &udp_matchstruct);
+	ret = xt_register_match(&udp_matchstruct);
 	if (ret)
 		goto out_unreg_tcp6;
 	
-	ret = xt_register_match(AF_INET6, &udp6_matchstruct);
+	ret = xt_register_match(&udp6_matchstruct);
 	if (ret)
 		goto out_unreg_udp;
 
 	return ret;
 
 out_unreg_udp:
-	xt_unregister_match(AF_INET, &tcp_matchstruct);
+	xt_unregister_match(&tcp_matchstruct);
 out_unreg_tcp6:
-	xt_unregister_match(AF_INET6, &tcp6_matchstruct);
+	xt_unregister_match(&tcp6_matchstruct);
 out_unreg_tcp:
-	xt_unregister_match(AF_INET, &tcp_matchstruct);
+	xt_unregister_match(&tcp_matchstruct);
 	return ret;
 }
 
-static void __exit fini(void)
+static void __exit xt_tcpudp_fini(void)
 {
-	xt_unregister_match(AF_INET6, &udp6_matchstruct);
-	xt_unregister_match(AF_INET, &udp_matchstruct);
-	xt_unregister_match(AF_INET6, &tcp6_matchstruct);
-	xt_unregister_match(AF_INET, &tcp_matchstruct);
+	xt_unregister_match(&udp6_matchstruct);
+	xt_unregister_match(&udp_matchstruct);
+	xt_unregister_match(&tcp6_matchstruct);
+	xt_unregister_match(&tcp_matchstruct);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(xt_tcpudp_init);
+module_exit(xt_tcpudp_fini);

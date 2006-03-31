@@ -871,10 +871,10 @@ static int snd_usbmidi_in_endpoint_create(struct snd_usb_midi* umidi,
 
 static unsigned int snd_usbmidi_count_bits(unsigned int x)
 {
-	unsigned int bits = 0;
+	unsigned int bits;
 
-	for (; x; x >>= 1)
-		bits += x & 1;
+	for (bits = 0; x; ++bits)
+		x &= x - 1;
 	return bits;
 }
 
@@ -1082,6 +1082,8 @@ static struct {
 	{ USB_ID(0x0582, 0x004d), 0, "%s MIDI" },
 	{ USB_ID(0x0582, 0x004d), 1, "%s 1" },
 	{ USB_ID(0x0582, 0x004d), 2, "%s 2" },
+	/* Edirol UM-3EX */
+	{ USB_ID(0x0582, 0x009a), 3, "%s Control" },
 	/* M-Audio MidiSport 8x8 */
 	{ USB_ID(0x0763, 0x1031), 8, "%s Control" },
 	{ USB_ID(0x0763, 0x1033), 8, "%s Control" },
@@ -1574,7 +1576,7 @@ int snd_usb_create_midi_interface(struct snd_usb_audio* chip,
 		       sizeof(struct snd_usb_midi_endpoint_info));
 		err = snd_usbmidi_detect_endpoints(umidi, &endpoints[0], 1);
 		break;
-	case QUIRK_MIDI_MIDITECH:
+	case QUIRK_MIDI_CME:
 		err = snd_usbmidi_detect_per_port_endpoints(umidi, endpoints);
 		break;
 	default:

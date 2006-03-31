@@ -118,7 +118,7 @@ befs_fblock2brun(struct super_block *sb, befs_data_stream * data,
  * befs_read_lsmylink - read long symlink from datastream.
  * @sb: Filesystem superblock 
  * @ds: Datastrem to read from
- * @buf: Buffer in wich to place long symlink data
+ * @buf: Buffer in which to place long symlink data
  * @len: Length of the long symlink in bytes
  *
  * Returns the number of bytes read

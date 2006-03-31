@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2005 Topspin Communications.  All rights reserved.
- * Copyright (c) 2005 Cisco Systems.  All rights reserved.
+ * Copyright (c) 2005, 2006 Cisco Systems.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -72,6 +72,11 @@ struct mthca_create_cq {
 
 struct mthca_create_cq_resp {
 	__u32 cqn;
+	__u32 reserved;
+};
+
+struct mthca_resize_cq {
+	__u32 lkey;
 	__u32 reserved;
 };
 

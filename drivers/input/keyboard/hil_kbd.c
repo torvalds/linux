@@ -66,7 +66,7 @@ static unsigned int hil_kbd_set3[HIL_KEYCODES_SET3_TBLSIZE] =
 static char hil_language[][16] = { HIL_LOCALE_MAP };
 
 struct hil_kbd {
-	struct input_dev dev;
+	struct input_dev *dev;
 	struct serio *serio;
 
 	/* Input buffer and index for packets from HIL bus. */
@@ -86,7 +86,7 @@ struct hil_kbd {
 /* Process a complete packet after transfer from the HIL */
 static void hil_kbd_process_record(struct hil_kbd *kbd)
 {
-	struct input_dev *dev = &kbd->dev;
+	struct input_dev *dev = kbd->dev;
 	hil_packet *data = kbd->data;
 	hil_packet p;
 	int idx, i, cnt;
@@ -240,8 +240,8 @@ static void hil_kbd_disconnect(struct serio *serio)
 		return;
 	}
 
-	input_unregister_device(&kbd->dev);
 	serio_close(serio);
+	input_unregister_device(kbd->dev);
 	kfree(kbd);
 }
 
@@ -251,16 +251,18 @@ static int hil_kbd_connect(struct serio *serio, struct serio_driver *drv)
 	uint8_t		did, *idd;
 	int		i;
 	
-	kbd = kmalloc(sizeof(*kbd), GFP_KERNEL);
+	kbd = kzalloc(sizeof(*kbd), GFP_KERNEL);
 	if (!kbd)
 		return -ENOMEM;
-	memset(kbd, 0, sizeof(struct hil_kbd));
+
+	kbd->dev = input_allocate_device();
+	if (!kbd->dev) goto bail1;
+	kbd->dev->private = kbd;
 
 	if (serio_open(serio, drv)) goto bail0;
 
 	serio_set_drvdata(serio, kbd);
 	kbd->serio = serio;
-	kbd->dev.private = kbd;
 
 	init_MUTEX_LOCKED(&(kbd->sem));
 
@@ -302,38 +304,38 @@ static int hil_kbd_connect(struct serio *serio, struct serio_driver *drv)
 			did, hil_language[did & HIL_IDD_DID_TYPE_KB_LANG_MASK]);
 		break;
 	default:
-		goto bail1;
+		goto bail2;
 	}
 
 	if(HIL_IDD_NUM_BUTTONS(idd) || HIL_IDD_NUM_AXES_PER_SET(*idd)) {
 		printk(KERN_INFO PREFIX "keyboards only, no combo devices supported.\n");
-		goto bail1;
+		goto bail2;
 	}
 
 
-	kbd->dev.evbit[0]	= BIT(EV_KEY) | BIT(EV_REP);
-	kbd->dev.ledbit[0]	= BIT(LED_NUML) | BIT(LED_CAPSL) | BIT(LED_SCROLLL);
-	kbd->dev.keycodemax	= HIL_KEYCODES_SET1_TBLSIZE;
-	kbd->dev.keycodesize	= sizeof(hil_kbd_set1[0]);
-	kbd->dev.keycode	= hil_kbd_set1;
-	kbd->dev.name		= strlen(kbd->rnm) ? kbd->rnm : HIL_GENERIC_NAME;
-	kbd->dev.phys		= "hpkbd/input0";	/* XXX */
+	kbd->dev->evbit[0]	= BIT(EV_KEY) | BIT(EV_REP);
+	kbd->dev->ledbit[0]	= BIT(LED_NUML) | BIT(LED_CAPSL) | BIT(LED_SCROLLL);
+	kbd->dev->keycodemax	= HIL_KEYCODES_SET1_TBLSIZE;
+	kbd->dev->keycodesize	= sizeof(hil_kbd_set1[0]);
+	kbd->dev->keycode	= hil_kbd_set1;
+	kbd->dev->name		= strlen(kbd->rnm) ? kbd->rnm : HIL_GENERIC_NAME;
+	kbd->dev->phys		= "hpkbd/input0";	/* XXX */
 
-	kbd->dev.id.bustype	= BUS_HIL;
-	kbd->dev.id.vendor	= PCI_VENDOR_ID_HP;
-	kbd->dev.id.product	= 0x0001; /* TODO: get from kbd->rsc */
-	kbd->dev.id.version	= 0x0100; /* TODO: get from kbd->rsc */
-	kbd->dev.dev		= &serio->dev;
+	kbd->dev->id.bustype	= BUS_HIL;
+	kbd->dev->id.vendor	= PCI_VENDOR_ID_HP;
+	kbd->dev->id.product	= 0x0001; /* TODO: get from kbd->rsc */
+	kbd->dev->id.version	= 0x0100; /* TODO: get from kbd->rsc */
+	kbd->dev->dev		= &serio->dev;
 
 	for (i = 0; i < 128; i++) {
-		set_bit(hil_kbd_set1[i], kbd->dev.keybit);
-		set_bit(hil_kbd_set3[i], kbd->dev.keybit);
+		set_bit(hil_kbd_set1[i], kbd->dev->keybit);
+		set_bit(hil_kbd_set3[i], kbd->dev->keybit);
 	}
-	clear_bit(0, kbd->dev.keybit);
+	clear_bit(0, kbd->dev->keybit);
 
-	input_register_device(&kbd->dev);
+	input_register_device(kbd->dev);
 	printk(KERN_INFO "input: %s, ID: %d\n",
-		kbd->dev.name, did);
+		kbd->dev->name, did);
 
 	serio->write(serio, 0);
 	serio->write(serio, 0);
@@ -343,8 +345,10 @@ static int hil_kbd_connect(struct serio *serio, struct serio_driver *drv)
 	up(&(kbd->sem));
 
 	return 0;
- bail1:
+ bail2:
 	serio_close(serio);
+ bail1:
+	input_free_device(kbd->dev);
  bail0:
 	kfree(kbd);
 	serio_set_drvdata(serio, NULL);

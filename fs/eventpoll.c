@@ -34,6 +34,7 @@
 #include <linux/eventpoll.h>
 #include <linux/mount.h>
 #include <linux/bitops.h>
+#include <linux/mutex.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
 #include <asm/io.h>
@@ -46,7 +47,7 @@
  * LOCKING:
  * There are three level of locking required by epoll :
  *
- * 1) epsem (semaphore)
+ * 1) epmutex (mutex)
  * 2) ep->sem (rw_semaphore)
  * 3) ep->lock (rw_lock)
  *
@@ -67,9 +68,9 @@
  * if a file has been pushed inside an epoll set and it is then
  * close()d without a previous call toepoll_ctl(EPOLL_CTL_DEL).
  * It is possible to drop the "ep->sem" and to use the global
- * semaphore "epsem" (together with "ep->lock") to have it working,
+ * semaphore "epmutex" (together with "ep->lock") to have it working,
  * but having "ep->sem" will make the interface more scalable.
- * Events that require holding "epsem" are very rare, while for
+ * Events that require holding "epmutex" are very rare, while for
  * normal operations the epoll private "ep->sem" will guarantee
  * a greater scalability.
  */
@@ -274,22 +275,22 @@ static struct super_block *eventpollfs_get_sb(struct file_system_type *fs_type,
 /*
  * This semaphore is used to serialize ep_free() and eventpoll_release_file().
  */
-static struct semaphore epsem;
+static struct mutex epmutex;
 
 /* Safe wake up implementation */
 static struct poll_safewake psw;
 
 /* Slab cache used to allocate "struct epitem" */
-static kmem_cache_t *epi_cache;
+static kmem_cache_t *epi_cache __read_mostly;
 
 /* Slab cache used to allocate "struct eppoll_entry" */
-static kmem_cache_t *pwq_cache;
+static kmem_cache_t *pwq_cache __read_mostly;
 
 /* Virtual fs used to allocate inodes for eventpoll files */
-static struct vfsmount *eventpoll_mnt;
+static struct vfsmount *eventpoll_mnt __read_mostly;
 
 /* File callbacks that implement the eventpoll file behaviour */
-static struct file_operations eventpoll_fops = {
+static const struct file_operations eventpoll_fops = {
 	.release	= ep_eventpoll_close,
 	.poll		= ep_eventpoll_poll
 };
@@ -451,15 +452,6 @@ static void ep_poll_safewake(struct poll_safewake *psw, wait_queue_head_t *wq)
 }
 
 
-/* Used to initialize the epoll bits inside the "struct file" */
-void eventpoll_init_file(struct file *file)
-{
-
-	INIT_LIST_HEAD(&file->f_ep_links);
-	spin_lock_init(&file->f_ep_lock);
-}
-
-
 /*
  * This is called from eventpoll_release() to unlink files from the eventpoll
  * interface. We need to have this facility to cleanup correctly files that are
@@ -477,10 +469,10 @@ void eventpoll_release_file(struct file *file)
 	 * cleanup path, and this means that noone is using this file anymore.
 	 * The only hit might come from ep_free() but by holding the semaphore
 	 * will correctly serialize the operation. We do need to acquire
-	 * "ep->sem" after "epsem" because ep_remove() requires it when called
+	 * "ep->sem" after "epmutex" because ep_remove() requires it when called
 	 * from anywhere but ep_free().
 	 */
-	down(&epsem);
+	mutex_lock(&epmutex);
 
 	while (!list_empty(lsthead)) {
 		epi = list_entry(lsthead->next, struct epitem, fllink);
@@ -492,7 +484,7 @@ void eventpoll_release_file(struct file *file)
 		up_write(&ep->sem);
 	}
 
-	up(&epsem);
+	mutex_unlock(&epmutex);
 }
 
 
@@ -607,7 +599,7 @@ sys_epoll_ctl(int epfd, int op, int fd, struct epoll_event __user *event)
 	switch (op) {
 	case EPOLL_CTL_ADD:
 		if (!epi) {
-			epds.events |= POLLERR | POLLHUP;
+			epds.events |= POLLERR | POLLHUP | POLLRDHUP;
 
 			error = ep_insert(ep, &epds, tfile, fd);
 		} else
@@ -621,7 +613,7 @@ sys_epoll_ctl(int epfd, int op, int fd, struct epoll_event __user *event)
 		break;
 	case EPOLL_CTL_MOD:
 		if (epi) {
-			epds.events |= POLLERR | POLLHUP;
+			epds.events |= POLLERR | POLLHUP | POLLRDHUP;
 			error = ep_modify(ep, epi, &epds);
 		} else
 			error = -ENOENT;
@@ -819,9 +811,9 @@ static void ep_free(struct eventpoll *ep)
 	 * We do not need to hold "ep->sem" here because the epoll file
 	 * is on the way to be removed and no one has references to it
 	 * anymore. The only hit might come from eventpoll_release_file() but
-	 * holding "epsem" is sufficent here.
+	 * holding "epmutex" is sufficent here.
 	 */
-	down(&epsem);
+	mutex_lock(&epmutex);
 
 	/*
 	 * Walks through the whole tree by unregistering poll callbacks.
@@ -843,7 +835,7 @@ static void ep_free(struct eventpoll *ep)
 		ep_remove(ep, epi);
 	}
 
-	up(&epsem);
+	mutex_unlock(&epmutex);
 }
 
 
@@ -1615,7 +1607,7 @@ static int __init eventpoll_init(void)
 {
 	int error;
 
-	init_MUTEX(&epsem);
+	mutex_init(&epmutex);
 
 	/* Initialize the structure used to perform safe poll wait head wake ups */
 	ep_poll_safewake_init(&psw);

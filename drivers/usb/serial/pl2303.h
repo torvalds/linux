@@ -75,3 +75,7 @@
 /* Leadtek GPS 9531 (ID 0413:2101) */
 #define LEADTEK_VENDOR_ID	0x0413
 #define LEADTEK_9531_PRODUCT_ID	0x2101
+
+/* USB GSM cable from Speed Dragon Multimedia, Ltd */
+#define SPEEDDRAGON_VENDOR_ID	0x0e55
+#define SPEEDDRAGON_PRODUCT_ID	0x110b

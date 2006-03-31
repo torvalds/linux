@@ -104,6 +104,7 @@ enum pid_directory_inos {
 	PROC_TGID_MAPS,
 	PROC_TGID_NUMA_MAPS,
 	PROC_TGID_MOUNTS,
+	PROC_TGID_MOUNTSTATS,
 	PROC_TGID_WCHAN,
 #ifdef CONFIG_MMU
 	PROC_TGID_SMAPS,
@@ -144,6 +145,7 @@ enum pid_directory_inos {
 	PROC_TID_MAPS,
 	PROC_TID_NUMA_MAPS,
 	PROC_TID_MOUNTS,
+	PROC_TID_MOUNTSTATS,
 	PROC_TID_WCHAN,
 #ifdef CONFIG_MMU
 	PROC_TID_SMAPS,
@@ -201,6 +203,7 @@ static struct pid_entry tgid_base_stuff[] = {
 	E(PROC_TGID_ROOT,      "root",    S_IFLNK|S_IRWXUGO),
 	E(PROC_TGID_EXE,       "exe",     S_IFLNK|S_IRWXUGO),
 	E(PROC_TGID_MOUNTS,    "mounts",  S_IFREG|S_IRUGO),
+	E(PROC_TGID_MOUNTSTATS, "mountstats", S_IFREG|S_IRUSR),
 #ifdef CONFIG_MMU
 	E(PROC_TGID_SMAPS,     "smaps",   S_IFREG|S_IRUGO),
 #endif
@@ -730,6 +733,38 @@ static struct file_operations proc_mounts_operations = {
 	.llseek		= seq_lseek,
 	.release	= mounts_release,
 	.poll		= mounts_poll,
+};
+
+extern struct seq_operations mountstats_op;
+static int mountstats_open(struct inode *inode, struct file *file)
+{
+	struct task_struct *task = proc_task(inode);
+	int ret = seq_open(file, &mountstats_op);
+
+	if (!ret) {
+		struct seq_file *m = file->private_data;
+		struct namespace *namespace;
+		task_lock(task);
+		namespace = task->namespace;
+		if (namespace)
+			get_namespace(namespace);
+		task_unlock(task);
+
+		if (namespace)
+			m->private = namespace;
+		else {
+			seq_release(inode, file);
+			ret = -EINVAL;
+		}
+	}
+	return ret;
+}
+
+static struct file_operations proc_mountstats_operations = {
+	.open		= mountstats_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= mounts_release,
 };
 
 #define PROC_BLOCK_SIZE	(3*1024)		/* 4K page size but our output routines use some slack for overruns */
@@ -1730,6 +1765,10 @@ static struct dentry *proc_pident_lookup(struct inode *dir,
 			inode->i_fop = &proc_smaps_operations;
 			break;
 #endif
+		case PROC_TID_MOUNTSTATS:
+		case PROC_TGID_MOUNTSTATS:
+			inode->i_fop = &proc_mountstats_operations;
+			break;
 #ifdef CONFIG_SECURITY
 		case PROC_TID_ATTR:
 			inode->i_nlink = 2;

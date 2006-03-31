@@ -369,7 +369,7 @@ static struct usb_gadget_driver gs_gadget_driver = {
 #endif /* CONFIG_USB_GADGET_DUALSPEED */
 	.function =		GS_LONG_NAME,
 	.bind =			gs_bind,
-	.unbind =		gs_unbind,
+	.unbind =		__exit_p(gs_unbind),
 	.setup =		gs_setup,
 	.disconnect =		gs_disconnect,
 	.driver = {
@@ -1413,7 +1413,7 @@ requeue:
  * Called on module load.  Allocates and initializes the device
  * structure and a control request.
  */
-static int gs_bind(struct usb_gadget *gadget)
+static int __init gs_bind(struct usb_gadget *gadget)
 {
 	int ret;
 	struct usb_ep *ep;
@@ -1538,7 +1538,7 @@ autoconf_fail:
  * Called on module unload.  Frees the control request and device
  * structure.
  */
-static void gs_unbind(struct usb_gadget *gadget)
+static void __exit gs_unbind(struct usb_gadget *gadget)
 {
 	struct gs_dev *dev = get_gadget_data(gadget);
 
@@ -2178,10 +2178,9 @@ static int gs_alloc_ports(struct gs_dev *dev, gfp_t kmalloc_flags)
 		return -EIO;
 
 	for (i=0; i<GS_NUM_PORTS; i++) {
-		if ((port=(struct gs_port *)kmalloc(sizeof(struct gs_port), kmalloc_flags)) == NULL)
+		if ((port=kzalloc(sizeof(struct gs_port), kmalloc_flags)) == NULL)
 			return -ENOMEM;
 
-		memset(port, 0, sizeof(struct gs_port));
 		port->port_dev = dev;
 		port->port_num = i;
 		port->port_line_coding.dwDTERate = cpu_to_le32(GS_DEFAULT_DTE_RATE);

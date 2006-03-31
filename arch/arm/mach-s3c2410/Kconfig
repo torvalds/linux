@@ -9,6 +9,13 @@ config MACH_ANUBIS
 	  Say Y gere if you are using the Simtec Electronics ANUBIS
 	  development system
 
+config MACH_OSIRIS
+	bool "Simtec IM2440D20 (OSIRIS) module"
+	select CPU_S3C2440
+	help
+	  Say Y here if you are using the Simtec IM2440D20 module, also
+	  known as the Osiris.
+
 config ARCH_BAST
 	bool "Simtec Electronics BAST (EB2410ITX)"
 	select CPU_S3C2410

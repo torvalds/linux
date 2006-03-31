@@ -161,8 +161,8 @@ static struct dentry *ocfs2_lookup(struct inode *dir, struct dentry *dentry,
 		goto bail;
 	}
 
-	mlog(0, "find name %.*s in directory %"MLFu64"\n", dentry->d_name.len,
-	     dentry->d_name.name, OCFS2_I(dir)->ip_blkno);
+	mlog(0, "find name %.*s in directory %llu\n", dentry->d_name.len,
+	     dentry->d_name.name, (unsigned long long)OCFS2_I(dir)->ip_blkno);
 
 	status = ocfs2_meta_lock(dir, NULL, NULL, 0);
 	if (status < 0) {
@@ -180,7 +180,8 @@ static struct dentry *ocfs2_lookup(struct inode *dir, struct dentry *dentry,
 
 	inode = ocfs2_iget(OCFS2_SB(dir->i_sb), blkno);
 	if (IS_ERR(inode)) {
-		mlog(ML_ERROR, "Unable to create inode %"MLFu64"\n", blkno);
+		mlog(ML_ERROR, "Unable to create inode %llu\n",
+		     (unsigned long long)blkno);
 		ret = ERR_PTR(-EACCES);
 		goto bail_unlock;
 	}
@@ -310,8 +311,8 @@ static int ocfs2_mknod(struct inode *dir,
 	osb = OCFS2_SB(dir->i_sb);
 
 	if (S_ISDIR(mode) && (dir->i_nlink >= OCFS2_LINK_MAX)) {
-		mlog(ML_ERROR, "inode %"MLFu64" has i_nlink of %u\n",
-		     OCFS2_I(dir)->ip_blkno, dir->i_nlink);
+		mlog(ML_ERROR, "inode %llu has i_nlink of %u\n",
+		     (unsigned long long)OCFS2_I(dir)->ip_blkno, dir->i_nlink);
 		status = -EMLINK;
 		goto leave;
 	}
@@ -562,9 +563,9 @@ static int ocfs2_mknod_locked(struct ocfs2_super *osb,
 
 	if (ocfs2_populate_inode(inode, fe, 1) < 0) {
 		mlog(ML_ERROR, "populate inode failed! bh->b_blocknr=%llu, "
-		     "i_blkno=%"MLFu64", i_ino=%lu\n",
+		     "i_blkno=%llu, i_ino=%lu\n",
 		     (unsigned long long) (*new_fe_bh)->b_blocknr,
-		     fe->i_blkno, inode->i_ino);
+		     (unsigned long long)fe->i_blkno, inode->i_ino);
 		BUG();
 	}
 
@@ -765,7 +766,7 @@ static int ocfs2_unlink(struct inode *dir,
 
 	BUG_ON(dentry->d_parent->d_inode != dir);
 
-	mlog(0, "ino = %"MLFu64"\n", OCFS2_I(inode)->ip_blkno);
+	mlog(0, "ino = %llu\n", (unsigned long long)OCFS2_I(inode)->ip_blkno);
 
 	if (inode == osb->root_inode) {
 		mlog(0, "Cannot delete the root directory\n");
@@ -799,9 +800,9 @@ static int ocfs2_unlink(struct inode *dir,
 	if (OCFS2_I(inode)->ip_blkno != blkno) {
 		status = -ENOENT;
 
-		mlog(0, "ip_blkno (%"MLFu64") != dirent blkno (%"MLFu64") "
-		     "ip_flags = %x\n", OCFS2_I(inode)->ip_blkno, blkno,
-		     OCFS2_I(inode)->ip_flags);
+		mlog(0, "ip_blkno %llu != dirent blkno %llu ip_flags = %x\n",
+		     (unsigned long long)OCFS2_I(inode)->ip_blkno,
+		     (unsigned long long)blkno, OCFS2_I(inode)->ip_flags);
 		goto leave;
 	}
 
@@ -946,8 +947,9 @@ static int ocfs2_double_lock(struct ocfs2_super *osb,
 	struct buffer_head **tmpbh;
 	struct inode *tmpinode;
 
-	mlog_entry("(inode1 = %"MLFu64", inode2 = %"MLFu64")\n",
-		   oi1->ip_blkno, oi2->ip_blkno);
+	mlog_entry("(inode1 = %llu, inode2 = %llu)\n",
+		   (unsigned long long)oi1->ip_blkno,
+		   (unsigned long long)oi2->ip_blkno);
 
 	BUG_ON(!handle);
 
@@ -1187,9 +1189,9 @@ static int ocfs2_rename(struct inode *old_dir,
 		if (OCFS2_I(new_inode)->ip_blkno != newfe_blkno) {
 			status = -EACCES;
 
-			mlog(0, "Inode blkno (%"MLFu64") and dir (%"MLFu64") "
-			     "disagree. ip_flags = %x\n",
-			     OCFS2_I(new_inode)->ip_blkno, newfe_blkno,
+			mlog(0, "Inode %llu and dir %llu disagree. flags = %x\n",
+			     (unsigned long long)OCFS2_I(new_inode)->ip_blkno,
+			     (unsigned long long)newfe_blkno,
 			     OCFS2_I(new_inode)->ip_flags);
 			goto bail;
 		}
@@ -1215,9 +1217,9 @@ static int ocfs2_rename(struct inode *old_dir,
 
 		newfe = (struct ocfs2_dinode *) newfe_bh->b_data;
 
-		mlog(0, "aha rename over existing... new_de=%p "
-		     "new_blkno=%"MLFu64" newfebh=%p bhblocknr=%llu\n",
-		     new_de, newfe_blkno, newfe_bh, newfe_bh ?
+		mlog(0, "aha rename over existing... new_de=%p new_blkno=%llu "
+		     "newfebh=%p bhblocknr=%llu\n", new_de,
+		     (unsigned long long)newfe_blkno, newfe_bh, newfe_bh ?
 		     (unsigned long long)newfe_bh->b_blocknr : 0ULL);
 
 		if (S_ISDIR(new_inode->i_mode) || (new_inode->i_nlink == 1)) {
@@ -1354,8 +1356,8 @@ static int ocfs2_rename(struct inode *old_dir,
 		if (new_dir_nlink != new_dir->i_nlink) {
 			if (!new_dir_bh) {
 				mlog(ML_ERROR, "need to change nlink for new "
-				     "dir %"MLFu64" from %d to %d but bh is "
-				     "NULL\n", OCFS2_I(new_dir)->ip_blkno,
+				     "dir %llu from %d to %d but bh is NULL\n",
+				     (unsigned long long)OCFS2_I(new_dir)->ip_blkno,
 				     (int)new_dir_nlink, new_dir->i_nlink);
 			} else {
 				struct ocfs2_dinode *fe;
@@ -1372,10 +1374,9 @@ static int ocfs2_rename(struct inode *old_dir,
 	if (old_dir_nlink != old_dir->i_nlink) {
 		if (!old_dir_bh) {
 			mlog(ML_ERROR, "need to change nlink for old dir "
-			     "%"MLFu64" from %d to %d but bh is NULL!\n",
-			     OCFS2_I(old_dir)->ip_blkno,
-			     (int)old_dir_nlink,
-			     old_dir->i_nlink);
+			     "%llu from %d to %d but bh is NULL!\n",
+			     (unsigned long long)OCFS2_I(old_dir)->ip_blkno,
+			     (int)old_dir_nlink, old_dir->i_nlink);
 		} else {
 			struct ocfs2_dinode *fe;
 			status = ocfs2_journal_access(handle, old_dir,
@@ -1443,8 +1444,9 @@ static int ocfs2_create_symlink_data(struct ocfs2_super *osb,
 	 * write i_size + 1 bytes. */
 	blocks = (bytes_left + sb->s_blocksize - 1) >> sb->s_blocksize_bits;
 
-	mlog_entry("i_blocks = %lu, i_size = %llu, blocks = %d\n",
-		       inode->i_blocks, i_size_read(inode), blocks);
+	mlog_entry("i_blocks = %llu, i_size = %llu, blocks = %d\n",
+			(unsigned long long)inode->i_blocks,
+			i_size_read(inode), blocks);
 
 	/* Sanity check -- make sure we're going to fit. */
 	if (bytes_left >
@@ -1634,9 +1636,9 @@ static int ocfs2_symlink(struct inode *dir,
 						    NULL);
 		if (status < 0) {
 			if (status != -ENOSPC && status != -EINTR) {
-				mlog(ML_ERROR, "Failed to extend file to "
-					       "%"MLFu64"\n",
-				     newsize);
+				mlog(ML_ERROR,
+				     "Failed to extend file to %llu\n",
+				     (unsigned long long)newsize);
 				mlog_errno(status);
 				status = -ENOSPC;
 			}
@@ -1716,10 +1718,11 @@ int ocfs2_check_dir_entry(struct inode * dir,
 		error_msg = "directory entry across blocks";
 
 	if (error_msg != NULL)
-		mlog(ML_ERROR, "bad entry in directory #%"MLFu64": %s - "
-		     "offset=%lu, inode=%"MLFu64", rec_len=%d, name_len=%d\n",
-		     OCFS2_I(dir)->ip_blkno, error_msg, offset,
-		     le64_to_cpu(de->inode), rlen, de->name_len);
+		mlog(ML_ERROR, "bad entry in directory #%llu: %s - "
+		     "offset=%lu, inode=%llu, rec_len=%d, name_len=%d\n",
+		     (unsigned long long)OCFS2_I(dir)->ip_blkno, error_msg,
+		     offset, (unsigned long long)le64_to_cpu(de->inode), rlen,
+		     de->name_len);
 	return error_msg == NULL ? 1 : 0;
 }
 
@@ -2021,8 +2024,8 @@ static int ocfs2_blkno_stringify(u64 blkno, char *name)
 
 	mlog_entry_void();
 
-	namelen = snprintf(name, OCFS2_ORPHAN_NAMELEN + 1, "%016"MLFx64,
-			   blkno);
+	namelen = snprintf(name, OCFS2_ORPHAN_NAMELEN + 1, "%016llx",
+			   (long long)blkno);
 	if (namelen <= 0) {
 		if (namelen)
 			status = namelen;
@@ -2167,8 +2170,8 @@ static int ocfs2_orphan_add(struct ocfs2_super *osb,
 	OCFS2_I(inode)->ip_orphaned_slot = osb->slot_num;
 	spin_unlock(&OCFS2_I(inode)->ip_lock);
 
-	mlog(0, "Inode %"MLFu64" orphaned in slot %d\n",
-	     OCFS2_I(inode)->ip_blkno, osb->slot_num);
+	mlog(0, "Inode %llu orphaned in slot %d\n",
+	     (unsigned long long)OCFS2_I(inode)->ip_blkno, osb->slot_num);
 
 leave:
 	if (orphan_dir_inode)
@@ -2202,8 +2205,9 @@ int ocfs2_orphan_del(struct ocfs2_super *osb,
 		goto leave;
 	}
 
-	mlog(0, "removing '%s' from orphan dir %"MLFu64" (namelen=%d)\n",
-	     name, OCFS2_I(orphan_dir_inode)->ip_blkno, OCFS2_ORPHAN_NAMELEN);
+	mlog(0, "removing '%s' from orphan dir %llu (namelen=%d)\n",
+	     name, (unsigned long long)OCFS2_I(orphan_dir_inode)->ip_blkno,
+	     OCFS2_ORPHAN_NAMELEN);
 
 	/* find it's spot in the orphan directory */
 	target_de_bh = ocfs2_find_entry(name, OCFS2_ORPHAN_NAMELEN,

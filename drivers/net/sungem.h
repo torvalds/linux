@@ -980,15 +980,15 @@ struct gem {
 	int			tx_new, tx_old;
 
 	unsigned int has_wol : 1;	/* chip supports wake-on-lan */
-	unsigned int asleep : 1;	/* chip asleep, protected by pm_sem */
+	unsigned int asleep : 1;	/* chip asleep, protected by pm_mutex */
 	unsigned int asleep_wol : 1;	/* was asleep with WOL enabled */
-	unsigned int opened : 1;	/* driver opened, protected by pm_sem */
+	unsigned int opened : 1;	/* driver opened, protected by pm_mutex */
 	unsigned int running : 1;	/* chip running, protected by lock */
 	
 	/* cell enable count, protected by lock */
 	int			cell_enabled;  
 	
-	struct semaphore	pm_sem;
+	struct mutex		pm_mutex;
 
 	u32			msg_enable;
 	u32			status;

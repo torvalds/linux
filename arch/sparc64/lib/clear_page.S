@@ -9,6 +9,7 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/spitfire.h>
+#include <asm/head.h>
 
 	/* What we used to do was lock a TLB entry into a specific
 	 * TLB slot, clear the page with interrupts disabled, then
@@ -21,9 +22,6 @@
 	 * Then we do a normal TLB flush on exit.  We need only
 	 * disable preemption during the clear.
 	 */
-
-#define TTE_BITS_TOP	(_PAGE_VALID | _PAGE_SZBITS)
-#define TTE_BITS_BOTTOM	(_PAGE_CP | _PAGE_CV | _PAGE_P | _PAGE_L | _PAGE_W)
 
 	.text
 
@@ -43,12 +41,11 @@ clear_user_page:	/* %o0=dest, %o1=vaddr */
 	sethi		%hi(PAGE_SIZE), %o4
 
 	sllx		%g2, 32, %g2
-	sethi		%uhi(TTE_BITS_TOP), %g3
+	sethi		%hi(PAGE_KERNEL_LOCKED), %g3
 
-	sllx		%g3, 32, %g3
+	ldx		[%g3 + %lo(PAGE_KERNEL_LOCKED)], %g3
 	sub		%o0, %g2, %g1		! paddr
 
-	or		%g3, TTE_BITS_BOTTOM, %g3
 	and		%o1, %o4, %o0		! vaddr D-cache alias bit
 
 	or		%g1, %g3, %g1		! TTE data
@@ -66,7 +63,8 @@ clear_user_page:	/* %o0=dest, %o1=vaddr */
 	wrpr		%o4, PSTATE_IE, %pstate
 	stxa		%o0, [%g3] ASI_DMMU
 	stxa		%g1, [%g0] ASI_DTLB_DATA_IN
-	flush		%g6
+	sethi		%hi(KERNBASE), %g1
+	flush		%g1
 	wrpr		%o4, 0x0, %pstate
 
 	mov		1, %o4

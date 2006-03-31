@@ -105,7 +105,6 @@
 
 extern void SkGeSirqIsr(SK_AC *pAC, SK_IOC IoC, SK_U32 Istatus);
 extern int  SkGeSirqEvent(SK_AC *pAC, SK_IOC IoC, SK_U32 Event, SK_EVPARA Para);
-extern void SkHWLinkUp(SK_AC *pAC, SK_IOC IoC, int Port);
 extern void SkHWLinkDown(SK_AC *pAC, SK_IOC IoC, int Port);
 
 #endif	/* _INC_SKGESIRQ_H_ */

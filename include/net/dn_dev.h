@@ -7,11 +7,11 @@ struct dn_dev;
 struct dn_ifaddr {
 	struct dn_ifaddr *ifa_next;
 	struct dn_dev    *ifa_dev;
-	dn_address       ifa_local;
-	dn_address       ifa_address;
-	unsigned char    ifa_flags;
-	unsigned char    ifa_scope;
-	char             ifa_label[IFNAMSIZ];
+	__le16            ifa_local;
+	__le16            ifa_address;
+	__u8              ifa_flags;
+	__u8              ifa_scope;
+	char              ifa_label[IFNAMSIZ];
 };
 
 #define DN_DEV_S_RU  0 /* Run - working normally   */
@@ -91,7 +91,7 @@ struct dn_dev {
 	struct timer_list timer;
 	unsigned long t3;
 	struct neigh_parms *neigh_parms;
-	unsigned char addr[ETH_ALEN];
+	__u8 addr[ETH_ALEN];
 	struct neighbour *router; /* Default router on circuit */
 	struct neighbour *peer;   /* Peer on pointopoint links */
 	unsigned long uptime;     /* Time device went up in jiffies */
@@ -99,56 +99,56 @@ struct dn_dev {
 
 struct dn_short_packet
 {
-	unsigned char   msgflg;
-	unsigned short  dstnode;
-	unsigned short  srcnode;
-	unsigned char   forward;
+	__u8    msgflg;
+	__le16 dstnode;
+	__le16 srcnode;
+	__u8   forward;
 } __attribute__((packed));
 
 struct dn_long_packet
 {
-	unsigned char   msgflg;
-	unsigned char   d_area;
-	unsigned char   d_subarea;
-	unsigned char   d_id[6];
-	unsigned char   s_area;
-	unsigned char   s_subarea;
-	unsigned char   s_id[6];
-	unsigned char   nl2;
-	unsigned char   visit_ct;
-	unsigned char   s_class;
-	unsigned char   pt;
+	__u8   msgflg;
+	__u8   d_area;
+	__u8   d_subarea;
+	__u8   d_id[6];
+	__u8   s_area;
+	__u8   s_subarea;
+	__u8   s_id[6];
+	__u8   nl2;
+	__u8   visit_ct;
+	__u8   s_class;
+	__u8   pt;
 } __attribute__((packed));
 
 /*------------------------- DRP - Routing messages ---------------------*/
 
 struct endnode_hello_message
 {
-	unsigned char   msgflg;
-	unsigned char   tiver[3];
-	unsigned char   id[6];
-	unsigned char   iinfo;
-	unsigned short  blksize;
-	unsigned char   area;
-	unsigned char   seed[8];
-	unsigned char   neighbor[6];
-	unsigned short  timer;
-	unsigned char   mpd;
-	unsigned char   datalen;
-	unsigned char   data[2];
+	__u8   msgflg;
+	__u8   tiver[3];
+	__u8   id[6];
+	__u8   iinfo;
+	__le16 blksize;
+	__u8   area;
+	__u8   seed[8];
+	__u8   neighbor[6];
+	__le16 timer;
+	__u8   mpd;
+	__u8   datalen;
+	__u8   data[2];
 } __attribute__((packed));
 
 struct rtnode_hello_message
 {
-	unsigned char   msgflg;
-	unsigned char   tiver[3];
-	unsigned char   id[6];
-	unsigned char   iinfo;
-	unsigned short  blksize;
-	unsigned char   priority;
-	unsigned char   area;
-	unsigned short  timer;
-	unsigned char   mpd;
+	__u8   msgflg;
+	__u8   tiver[3];
+	__u8   id[6];
+	__u8   iinfo;
+	__le16  blksize;
+	__u8   priority;
+	__u8   area;
+	__le16  timer;
+	__u8   mpd;
 } __attribute__((packed));
 
 
@@ -169,12 +169,12 @@ extern void dn_dev_down(struct net_device *);
 
 extern int dn_dev_set_default(struct net_device *dev, int force);
 extern struct net_device *dn_dev_get_default(void);
-extern int dn_dev_bind_default(dn_address *addr);
+extern int dn_dev_bind_default(__le16 *addr);
 
 extern int register_dnaddr_notifier(struct notifier_block *nb);
 extern int unregister_dnaddr_notifier(struct notifier_block *nb);
 
-static inline int dn_dev_islocal(struct net_device *dev, dn_address addr)
+static inline int dn_dev_islocal(struct net_device *dev, __le16 addr)
 {
 	struct dn_dev *dn_db = dev->dn_ptr;
 	struct dn_ifaddr *ifa;

@@ -379,18 +379,18 @@ int __init bridge_probe(nasid_t nasid, int widget_id, int masterwid)
 	bridge = (bridge_t *) RAW_NODE_SWIN_BASE(nasid, widget_id);
 
 	/*
- 	 * Clear all pending interrupts.
- 	 */
+	 * Clear all pending interrupts.
+	 */
 	bridge->b_int_rst_stat = BRIDGE_IRR_ALL_CLR;
 
 	/*
- 	 * Until otherwise set up, assume all interrupts are from slot 0
- 	 */
+	 * Until otherwise set up, assume all interrupts are from slot 0
+	 */
 	bridge->b_int_device = 0x0;
 
 	/*
- 	 * swap pio's to pci mem and io space (big windows)
- 	 */
+	 * swap pio's to pci mem and io space (big windows)
+	 */
 	bridge->b_wid_control |= BRIDGE_CTRL_IO_SWAP |
 	                         BRIDGE_CTRL_MEM_SWAP;
 

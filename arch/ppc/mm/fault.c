@@ -1,6 +1,4 @@
 /*
- *  arch/ppc/mm/fault.c
- *
  *  PowerPC version
  *    Copyright (C) 1995-1996 Gary Thomas (gdt@linuxppc.org)
  *
@@ -204,6 +202,7 @@ good_area:
 	/* an exec  - 4xx/Book-E allows for per-page execute permission */
 	} else if (TRAP(regs) == 0x400) {
 		pte_t *ptep;
+		pmd_t *pmdp;
 
 #if 0
 		/* It would be nice to actually enforce the VM execute
@@ -217,21 +216,24 @@ good_area:
 		/* Since 4xx/Book-E supports per-page execute permission,
 		 * we lazily flush dcache to icache. */
 		ptep = NULL;
-		if (get_pteptr(mm, address, &ptep) && pte_present(*ptep)) {
-			struct page *page = pte_page(*ptep);
+		if (get_pteptr(mm, address, &ptep, &pmdp)) {
+			spinlock_t *ptl = pte_lockptr(mm, pmdp);
+			spin_lock(ptl);
+			if (pte_present(*ptep)) {
+				struct page *page = pte_page(*ptep);
 
-			if (! test_bit(PG_arch_1, &page->flags)) {
-				flush_dcache_icache_page(page);
-				set_bit(PG_arch_1, &page->flags);
+				if (!test_bit(PG_arch_1, &page->flags)) {
+					flush_dcache_icache_page(page);
+					set_bit(PG_arch_1, &page->flags);
+				}
+				pte_update(ptep, 0, _PAGE_HWEXEC);
+				_tlbie(address);
+				pte_unmap_unlock(ptep, ptl);
+				up_read(&mm->mmap_sem);
+				return 0;
 			}
-			pte_update(ptep, 0, _PAGE_HWEXEC);
-			_tlbie(address);
-			pte_unmap(ptep);
-			up_read(&mm->mmap_sem);
-			return 0;
+			pte_unmap_unlock(ptep, ptl);
 		}
-		if (ptep != NULL)
-			pte_unmap(ptep);
 #endif
 	/* a read */
 	} else {

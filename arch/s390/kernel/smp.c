@@ -665,7 +665,9 @@ __cpu_up(unsigned int cpu)
         cpu_lowcore->current_task = (unsigned long) idle;
         cpu_lowcore->cpu_data.cpu_nr = cpu;
 	eieio();
-	signal_processor(cpu,sigp_restart);
+
+	while (signal_processor(cpu,sigp_restart) == sigp_busy)
+		udelay(10);
 
 	while (!cpu_online(cpu))
 		cpu_relax();
@@ -799,9 +801,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
          */
 	print_cpu_info(&S390_lowcore.cpu_data);
 
-        for(i = 0; i < NR_CPUS; i++) {
-		if (!cpu_possible(i))
-			continue;
+        for_each_cpu(i) {
 		lowcore_ptr[i] = (struct _lowcore *)
 			__get_free_pages(GFP_KERNEL|GFP_DMA, 
 					sizeof(void*) == 8 ? 1 : 0);

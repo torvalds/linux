@@ -1318,12 +1318,11 @@ int init_usbat(struct us_data *us)
 	unsigned char subcountL = USBAT_ATA_LBA_ME;
 	unsigned char *status = us->iobuf;
 
-	us->extra = kmalloc(sizeof(struct usbat_info), GFP_NOIO);
+	us->extra = kzalloc(sizeof(struct usbat_info), GFP_NOIO);
 	if (!us->extra) {
 		US_DEBUGP("init_usbat: Gah! Can't allocate storage for usbat info struct!\n");
 		return 1;
 	}
-	memset(us->extra, 0, sizeof(struct usbat_info));
 	info = (struct usbat_info *) (us->extra);
 
 	/* Enable peripheral control signals */

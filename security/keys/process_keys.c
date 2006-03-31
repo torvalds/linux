@@ -16,11 +16,12 @@
 #include <linux/keyctl.h>
 #include <linux/fs.h>
 #include <linux/err.h>
+#include <linux/mutex.h>
 #include <asm/uaccess.h>
 #include "internal.h"
 
 /* session keyring create vs join semaphore */
-static DECLARE_MUTEX(key_session_sem);
+static DEFINE_MUTEX(key_session_mutex);
 
 /* the root user's tracking struct */
 struct key_user root_key_user = {
@@ -711,7 +712,7 @@ long join_session_keyring(const char *name)
 	}
 
 	/* allow the user to join or create a named keyring */
-	down(&key_session_sem);
+	mutex_lock(&key_session_mutex);
 
 	/* look for an existing keyring of this name */
 	keyring = find_keyring_by_name(name, 0);
@@ -737,7 +738,7 @@ long join_session_keyring(const char *name)
 	key_put(keyring);
 
 error2:
-	up(&key_session_sem);
+	mutex_unlock(&key_session_mutex);
 error:
 	return ret;
 

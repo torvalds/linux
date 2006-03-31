@@ -181,7 +181,6 @@ static struct tty_driver	*stli_serial;
  *	is already swapping a shared buffer won't make things any worse.
  */
 static char			*stli_tmpwritebuf;
-static DECLARE_MUTEX(stli_tmpwritesem);
 
 #define	STLI_TXBUFSIZE		4096
 
@@ -379,13 +378,13 @@ MODULE_DESCRIPTION("Stallion Intelligent Multiport Serial Driver");
 MODULE_LICENSE("GPL");
 
 
-MODULE_PARM(board0, "1-3s");
+module_param_array(board0, charp, NULL, 0);
 MODULE_PARM_DESC(board0, "Board 0 config -> name[,ioaddr[,memaddr]");
-MODULE_PARM(board1, "1-3s");
+module_param_array(board1, charp, NULL, 0);
 MODULE_PARM_DESC(board1, "Board 1 config -> name[,ioaddr[,memaddr]");
-MODULE_PARM(board2, "1-3s");
+module_param_array(board2, charp, NULL, 0);
 MODULE_PARM_DESC(board2, "Board 2 config -> name[,ioaddr[,memaddr]");
-MODULE_PARM(board3, "1-3s");
+module_param_array(board3, charp, NULL, 0);
 MODULE_PARM_DESC(board3, "Board 3 config -> name[,ioaddr[,memaddr]");
 
 #endif

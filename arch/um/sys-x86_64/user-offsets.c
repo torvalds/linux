@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <signal.h>
+#include <sys/poll.h>
 #define __FRAME_OFFSETS
 #include <asm/ptrace.h>
 #include <asm/types.h>
@@ -88,4 +89,9 @@ void foo(void)
 	DEFINE_LONGS(HOST_IP, RIP);
 	DEFINE_LONGS(HOST_SP, RSP);
 	DEFINE(UM_FRAME_SIZE, sizeof(struct user_regs_struct));
+
+	/* XXX Duplicated between i386 and x86_64 */
+	DEFINE(UM_POLLIN, POLLIN);
+	DEFINE(UM_POLLPRI, POLLPRI);
+	DEFINE(UM_POLLOUT, POLLOUT);
 }

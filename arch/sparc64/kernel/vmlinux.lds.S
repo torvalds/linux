@@ -70,6 +70,22 @@ SECTIONS
   .con_initcall.init : { *(.con_initcall.init) }
   __con_initcall_end = .;
   SECURITY_INIT
+  . = ALIGN(4);
+  __tsb_ldquad_phys_patch = .;
+  .tsb_ldquad_phys_patch : { *(.tsb_ldquad_phys_patch) }
+  __tsb_ldquad_phys_patch_end = .;
+  __tsb_phys_patch = .;
+  .tsb_phys_patch : { *(.tsb_phys_patch) }
+  __tsb_phys_patch_end = .;
+  __cpuid_patch = .;
+  .cpuid_patch : { *(.cpuid_patch) }
+  __cpuid_patch_end = .;
+  __sun4v_1insn_patch = .;
+  .sun4v_1insn_patch : { *(.sun4v_1insn_patch) }
+  __sun4v_1insn_patch_end = .;
+  __sun4v_2insn_patch = .;
+  .sun4v_2insn_patch : { *(.sun4v_2insn_patch) }
+  __sun4v_2insn_patch_end = .;
   . = ALIGN(8192); 
   __initramfs_start = .;
   .init.ramfs : { *(.init.ramfs) }

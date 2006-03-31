@@ -993,7 +993,7 @@ dgrs_download(struct net_device *dev0)
 	int		is;
 	unsigned long	i;
 
-	static int	iv2is[16] = {
+	static const int iv2is[16] = {
 				0, 0, 0, ES4H_IS_INT3,
 				0, ES4H_IS_INT5, 0, ES4H_IS_INT7,
 				0, 0, ES4H_IS_INT10, ES4H_IS_INT11,
@@ -1551,7 +1551,7 @@ MODULE_PARM_DESC(nicmode, "Digi RightSwitch operating mode (1: switch, 2: multi-
 static int __init dgrs_init_module (void)
 {
 	int	i;
-	int	cardcount = 0;
+	int	err;
 
 	/*
 	 *	Command line variable overrides
@@ -1593,13 +1593,13 @@ static int __init dgrs_init_module (void)
 	 *	Find and configure all the cards
 	 */
 #ifdef CONFIG_EISA
-	cardcount = eisa_driver_register(&dgrs_eisa_driver);
-	if (cardcount < 0)
-		return cardcount;
+	err = eisa_driver_register(&dgrs_eisa_driver);
+	if (err)
+		return err;
 #endif
-	cardcount = pci_register_driver(&dgrs_pci_driver);
-	if (cardcount)
-		return cardcount;
+	err = pci_register_driver(&dgrs_pci_driver);
+	if (err)
+		return err;
 	return 0;
 }
 

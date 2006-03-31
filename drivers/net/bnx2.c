@@ -9,13 +9,54 @@
  * Written by: Michael Chan  (mchan@broadcom.com)
  */
 
+#include <linux/config.h>
+
+#include <linux/module.h>
+#include <linux/moduleparam.h>
+
+#include <linux/kernel.h>
+#include <linux/timer.h>
+#include <linux/errno.h>
+#include <linux/ioport.h>
+#include <linux/slab.h>
+#include <linux/vmalloc.h>
+#include <linux/interrupt.h>
+#include <linux/pci.h>
+#include <linux/init.h>
+#include <linux/netdevice.h>
+#include <linux/etherdevice.h>
+#include <linux/skbuff.h>
+#include <linux/dma-mapping.h>
+#include <asm/bitops.h>
+#include <asm/io.h>
+#include <asm/irq.h>
+#include <linux/delay.h>
+#include <asm/byteorder.h>
+#include <linux/time.h>
+#include <linux/ethtool.h>
+#include <linux/mii.h>
+#ifdef NETIF_F_HW_VLAN_TX
+#include <linux/if_vlan.h>
+#define BCM_VLAN 1
+#endif
+#ifdef NETIF_F_TSO
+#include <net/ip.h>
+#include <net/tcp.h>
+#include <net/checksum.h>
+#define BCM_TSO 1
+#endif
+#include <linux/workqueue.h>
+#include <linux/crc32.h>
+#include <linux/prefetch.h>
+#include <linux/cache.h>
+
 #include "bnx2.h"
 #include "bnx2_fw.h"
 
 #define DRV_MODULE_NAME		"bnx2"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"1.4.31"
-#define DRV_MODULE_RELDATE	"January 19, 2006"
+#define DRV_MODULE_VERSION	"1.4.39"
+#define DRV_MODULE_RELDATE	"March 22, 2006"
 
 #define RUN_AT(x) (jiffies + (x))
 
@@ -46,7 +87,7 @@ typedef enum {
 } board_t;
 
 /* indexed by board_t, above */
-static struct {
+static const struct {
 	char *name;
 } board_info[] __devinitdata = {
 	{ "Broadcom NetXtreme II BCM5706 1000Base-T" },
@@ -313,8 +354,6 @@ bnx2_disable_int(struct bnx2 *bp)
 static void
 bnx2_enable_int(struct bnx2 *bp)
 {
-	u32 val;
-
 	REG_WR(bp, BNX2_PCICFG_INT_ACK_CMD,
 	       BNX2_PCICFG_INT_ACK_CMD_INDEX_VALID |
 	       BNX2_PCICFG_INT_ACK_CMD_MASK_INT | bp->last_status_idx);
@@ -322,8 +361,7 @@ bnx2_enable_int(struct bnx2 *bp)
 	REG_WR(bp, BNX2_PCICFG_INT_ACK_CMD,
 	       BNX2_PCICFG_INT_ACK_CMD_INDEX_VALID | bp->last_status_idx);
 
-	val = REG_RD(bp, BNX2_HC_COMMAND);
-	REG_WR(bp, BNX2_HC_COMMAND, val | BNX2_HC_COMMAND_COAL_NOW);
+	REG_WR(bp, BNX2_HC_COMMAND, bp->hc_cmd | BNX2_HC_COMMAND_COAL_NOW);
 }
 
 static void
@@ -360,15 +398,13 @@ bnx2_netif_start(struct bnx2 *bp)
 static void
 bnx2_free_mem(struct bnx2 *bp)
 {
-	if (bp->stats_blk) {
-		pci_free_consistent(bp->pdev, sizeof(struct statistics_block),
-				    bp->stats_blk, bp->stats_blk_mapping);
-		bp->stats_blk = NULL;
-	}
+	int i;
+
 	if (bp->status_blk) {
-		pci_free_consistent(bp->pdev, sizeof(struct status_block),
+		pci_free_consistent(bp->pdev, bp->status_stats_size,
 				    bp->status_blk, bp->status_blk_mapping);
 		bp->status_blk = NULL;
+		bp->stats_blk = NULL;
 	}
 	if (bp->tx_desc_ring) {
 		pci_free_consistent(bp->pdev,
@@ -378,25 +414,28 @@ bnx2_free_mem(struct bnx2 *bp)
 	}
 	kfree(bp->tx_buf_ring);
 	bp->tx_buf_ring = NULL;
-	if (bp->rx_desc_ring) {
-		pci_free_consistent(bp->pdev,
-				    sizeof(struct rx_bd) * RX_DESC_CNT,
-				    bp->rx_desc_ring, bp->rx_desc_mapping);
-		bp->rx_desc_ring = NULL;
+	for (i = 0; i < bp->rx_max_ring; i++) {
+		if (bp->rx_desc_ring[i])
+			pci_free_consistent(bp->pdev,
+					    sizeof(struct rx_bd) * RX_DESC_CNT,
+					    bp->rx_desc_ring[i],
+					    bp->rx_desc_mapping[i]);
+		bp->rx_desc_ring[i] = NULL;
 	}
-	kfree(bp->rx_buf_ring);
+	vfree(bp->rx_buf_ring);
 	bp->rx_buf_ring = NULL;
 }
 
 static int
 bnx2_alloc_mem(struct bnx2 *bp)
 {
-	bp->tx_buf_ring = kmalloc(sizeof(struct sw_bd) * TX_DESC_CNT,
-				     GFP_KERNEL);
+	int i, status_blk_size;
+
+	bp->tx_buf_ring = kzalloc(sizeof(struct sw_bd) * TX_DESC_CNT,
+				  GFP_KERNEL);
 	if (bp->tx_buf_ring == NULL)
 		return -ENOMEM;
 
-	memset(bp->tx_buf_ring, 0, sizeof(struct sw_bd) * TX_DESC_CNT);
 	bp->tx_desc_ring = pci_alloc_consistent(bp->pdev,
 					        sizeof(struct tx_bd) *
 						TX_DESC_CNT,
@@ -404,34 +443,40 @@ bnx2_alloc_mem(struct bnx2 *bp)
 	if (bp->tx_desc_ring == NULL)
 		goto alloc_mem_err;
 
-	bp->rx_buf_ring = kmalloc(sizeof(struct sw_bd) * RX_DESC_CNT,
-				     GFP_KERNEL);
+	bp->rx_buf_ring = vmalloc(sizeof(struct sw_bd) * RX_DESC_CNT *
+				  bp->rx_max_ring);
 	if (bp->rx_buf_ring == NULL)
 		goto alloc_mem_err;
 
-	memset(bp->rx_buf_ring, 0, sizeof(struct sw_bd) * RX_DESC_CNT);
-	bp->rx_desc_ring = pci_alloc_consistent(bp->pdev,
-					        sizeof(struct rx_bd) *
-						RX_DESC_CNT,
-						&bp->rx_desc_mapping);
-	if (bp->rx_desc_ring == NULL)
-		goto alloc_mem_err;
+	memset(bp->rx_buf_ring, 0, sizeof(struct sw_bd) * RX_DESC_CNT *
+				   bp->rx_max_ring);
 
-	bp->status_blk = pci_alloc_consistent(bp->pdev,
-					      sizeof(struct status_block),
+	for (i = 0; i < bp->rx_max_ring; i++) {
+		bp->rx_desc_ring[i] =
+			pci_alloc_consistent(bp->pdev,
+					     sizeof(struct rx_bd) * RX_DESC_CNT,
+					     &bp->rx_desc_mapping[i]);
+		if (bp->rx_desc_ring[i] == NULL)
+			goto alloc_mem_err;
+
+	}
+
+	/* Combine status and statistics blocks into one allocation. */
+	status_blk_size = L1_CACHE_ALIGN(sizeof(struct status_block));
+	bp->status_stats_size = status_blk_size +
+				sizeof(struct statistics_block);
+
+	bp->status_blk = pci_alloc_consistent(bp->pdev, bp->status_stats_size,
 					      &bp->status_blk_mapping);
 	if (bp->status_blk == NULL)
 		goto alloc_mem_err;
 
-	memset(bp->status_blk, 0, sizeof(struct status_block));
+	memset(bp->status_blk, 0, bp->status_stats_size);
 
-	bp->stats_blk = pci_alloc_consistent(bp->pdev,
-					     sizeof(struct statistics_block),
-					     &bp->stats_blk_mapping);
-	if (bp->stats_blk == NULL)
-		goto alloc_mem_err;
+	bp->stats_blk = (void *) ((unsigned long) bp->status_blk +
+				  status_blk_size);
 
-	memset(bp->stats_blk, 0, sizeof(struct statistics_block));
+	bp->stats_blk_mapping = bp->status_blk_mapping + status_blk_size;
 
 	return 0;
 
@@ -1520,7 +1565,7 @@ bnx2_alloc_rx_skb(struct bnx2 *bp, u16 index)
 	struct sk_buff *skb;
 	struct sw_bd *rx_buf = &bp->rx_buf_ring[index];
 	dma_addr_t mapping;
-	struct rx_bd *rxbd = &bp->rx_desc_ring[index];
+	struct rx_bd *rxbd = &bp->rx_desc_ring[RX_RING(index)][RX_IDX(index)];
 	unsigned long align;
 
 	skb = dev_alloc_skb(bp->rx_buf_size);
@@ -1656,23 +1701,30 @@ static inline void
 bnx2_reuse_rx_skb(struct bnx2 *bp, struct sk_buff *skb,
 	u16 cons, u16 prod)
 {
-	struct sw_bd *cons_rx_buf = &bp->rx_buf_ring[cons];
-	struct sw_bd *prod_rx_buf = &bp->rx_buf_ring[prod];
-	struct rx_bd *cons_bd = &bp->rx_desc_ring[cons];
-	struct rx_bd *prod_bd = &bp->rx_desc_ring[prod];
+	struct sw_bd *cons_rx_buf, *prod_rx_buf;
+	struct rx_bd *cons_bd, *prod_bd;
+
+	cons_rx_buf = &bp->rx_buf_ring[cons];
+	prod_rx_buf = &bp->rx_buf_ring[prod];
 
 	pci_dma_sync_single_for_device(bp->pdev,
 		pci_unmap_addr(cons_rx_buf, mapping),
 		bp->rx_offset + RX_COPY_THRESH, PCI_DMA_FROMDEVICE);
 
-	prod_rx_buf->skb = cons_rx_buf->skb;
+	bp->rx_prod_bseq += bp->rx_buf_use_size;
+
+	prod_rx_buf->skb = skb;
+
+	if (cons == prod)
+		return;
+
 	pci_unmap_addr_set(prod_rx_buf, mapping,
 			pci_unmap_addr(cons_rx_buf, mapping));
 
-	memcpy(prod_bd, cons_bd, 8);
-
-	bp->rx_prod_bseq += bp->rx_buf_use_size;
-
+	cons_bd = &bp->rx_desc_ring[RX_RING(cons)][RX_IDX(cons)];
+	prod_bd = &bp->rx_desc_ring[RX_RING(prod)][RX_IDX(prod)];
+	prod_bd->rx_bd_haddr_hi = cons_bd->rx_bd_haddr_hi;
+	prod_bd->rx_bd_haddr_lo = cons_bd->rx_bd_haddr_lo;
 }
 
 static int
@@ -1699,14 +1751,19 @@ bnx2_rx_int(struct bnx2 *bp, int budget)
 		u32 status;
 		struct sw_bd *rx_buf;
 		struct sk_buff *skb;
+		dma_addr_t dma_addr;
 
 		sw_ring_cons = RX_RING_IDX(sw_cons);
 		sw_ring_prod = RX_RING_IDX(sw_prod);
 
 		rx_buf = &bp->rx_buf_ring[sw_ring_cons];
 		skb = rx_buf->skb;
-		pci_dma_sync_single_for_cpu(bp->pdev,
-			pci_unmap_addr(rx_buf, mapping),
+
+		rx_buf->skb = NULL;
+
+		dma_addr = pci_unmap_addr(rx_buf, mapping);
+
+		pci_dma_sync_single_for_cpu(bp->pdev, dma_addr,
 			bp->rx_offset + RX_COPY_THRESH, PCI_DMA_FROMDEVICE);
 
 		rx_hdr = (struct l2_fhdr *) skb->data;
@@ -1747,8 +1804,7 @@ bnx2_rx_int(struct bnx2 *bp, int budget)
 			skb = new_skb;
 		}
 		else if (bnx2_alloc_rx_skb(bp, sw_ring_prod) == 0) {
-			pci_unmap_single(bp->pdev,
-				pci_unmap_addr(rx_buf, mapping),
+			pci_unmap_single(bp->pdev, dma_addr,
 				bp->rx_buf_use_size, PCI_DMA_FROMDEVICE);
 
 			skb_reserve(skb, bp->rx_offset);
@@ -1794,8 +1850,6 @@ reuse_rx:
 		rx_pkt++;
 
 next_rx:
-		rx_buf->skb = NULL;
-
 		sw_cons = NEXT_RX_BD(sw_cons);
 		sw_prod = NEXT_RX_BD(sw_prod);
 
@@ -1906,6 +1960,13 @@ bnx2_poll(struct net_device *dev, int *budget)
 		spin_lock(&bp->phy_lock);
 		bnx2_phy_int(bp);
 		spin_unlock(&bp->phy_lock);
+
+		/* This is needed to take care of transient status
+		 * during link changes.
+		 */
+		REG_WR(bp, BNX2_HC_COMMAND,
+		       bp->hc_cmd | BNX2_HC_COMMAND_COAL_NOW_WO_INT);
+		REG_RD(bp, BNX2_HC_COMMAND);
 	}
 
 	if (bp->status_blk->status_tx_quick_consumer_index0 != bp->hw_tx_cons)
@@ -3287,6 +3348,8 @@ bnx2_init_chip(struct bnx2 *bp)
 
 	udelay(20);
 
+	bp->hc_cmd = REG_RD(bp, BNX2_HC_COMMAND);
+
 	return rc;
 }
 
@@ -3340,27 +3403,35 @@ bnx2_init_rx_ring(struct bnx2 *bp)
 	bp->hw_rx_cons = 0;
 	bp->rx_prod_bseq = 0;
 		
-	rxbd = &bp->rx_desc_ring[0];
-	for (i = 0; i < MAX_RX_DESC_CNT; i++, rxbd++) {
-		rxbd->rx_bd_len = bp->rx_buf_use_size;
-		rxbd->rx_bd_flags = RX_BD_FLAGS_START | RX_BD_FLAGS_END;
-	}
+	for (i = 0; i < bp->rx_max_ring; i++) {
+		int j;
 
-	rxbd->rx_bd_haddr_hi = (u64) bp->rx_desc_mapping >> 32;
-	rxbd->rx_bd_haddr_lo = (u64) bp->rx_desc_mapping & 0xffffffff;
+		rxbd = &bp->rx_desc_ring[i][0];
+		for (j = 0; j < MAX_RX_DESC_CNT; j++, rxbd++) {
+			rxbd->rx_bd_len = bp->rx_buf_use_size;
+			rxbd->rx_bd_flags = RX_BD_FLAGS_START | RX_BD_FLAGS_END;
+		}
+		if (i == (bp->rx_max_ring - 1))
+			j = 0;
+		else
+			j = i + 1;
+		rxbd->rx_bd_haddr_hi = (u64) bp->rx_desc_mapping[j] >> 32;
+		rxbd->rx_bd_haddr_lo = (u64) bp->rx_desc_mapping[j] &
+				       0xffffffff;
+	}
 
 	val = BNX2_L2CTX_CTX_TYPE_CTX_BD_CHN_TYPE_VALUE;
 	val |= BNX2_L2CTX_CTX_TYPE_SIZE_L2;
 	val |= 0x02 << 8;
 	CTX_WR(bp, GET_CID_ADDR(RX_CID), BNX2_L2CTX_CTX_TYPE, val);
 
-	val = (u64) bp->rx_desc_mapping >> 32;
+	val = (u64) bp->rx_desc_mapping[0] >> 32;
 	CTX_WR(bp, GET_CID_ADDR(RX_CID), BNX2_L2CTX_NX_BDHADDR_HI, val);
 
-	val = (u64) bp->rx_desc_mapping & 0xffffffff;
+	val = (u64) bp->rx_desc_mapping[0] & 0xffffffff;
 	CTX_WR(bp, GET_CID_ADDR(RX_CID), BNX2_L2CTX_NX_BDHADDR_LO, val);
 
-	for ( ;ring_prod < bp->rx_ring_size; ) {
+	for (i = 0; i < bp->rx_ring_size; i++) {
 		if (bnx2_alloc_rx_skb(bp, ring_prod) < 0) {
 			break;
 		}
@@ -3372,6 +3443,29 @@ bnx2_init_rx_ring(struct bnx2 *bp)
 	REG_WR16(bp, MB_RX_CID_ADDR + BNX2_L2CTX_HOST_BDIDX, prod);
 
 	REG_WR(bp, MB_RX_CID_ADDR + BNX2_L2CTX_HOST_BSEQ, bp->rx_prod_bseq);
+}
+
+static void
+bnx2_set_rx_ring_size(struct bnx2 *bp, u32 size)
+{
+	u32 num_rings, max;
+
+	bp->rx_ring_size = size;
+	num_rings = 1;
+	while (size > MAX_RX_DESC_CNT) {
+		size -= MAX_RX_DESC_CNT;
+		num_rings++;
+	}
+	/* round to next power of 2 */
+	max = MAX_RX_RINGS;
+	while ((max & num_rings) == 0)
+		max >>= 1;
+
+	if (num_rings != max)
+		max <<= 1;
+
+	bp->rx_max_ring = max;
+	bp->rx_max_ring_idx = (bp->rx_max_ring * RX_DESC_CNT) - 1;
 }
 
 static void
@@ -3419,7 +3513,7 @@ bnx2_free_rx_skbs(struct bnx2 *bp)
 	if (bp->rx_buf_ring == NULL)
 		return;
 
-	for (i = 0; i < RX_DESC_CNT; i++) {
+	for (i = 0; i < bp->rx_max_ring_idx; i++) {
 		struct sw_bd *rx_buf = &bp->rx_buf_ring[i];
 		struct sk_buff *skb = rx_buf->skb;
 
@@ -3476,7 +3570,7 @@ bnx2_test_registers(struct bnx2 *bp)
 {
 	int ret;
 	int i;
-	static struct {
+	static const struct {
 		u16   offset;
 		u16   flags;
 		u32   rw_mask;
@@ -3506,74 +3600,9 @@ bnx2_test_registers(struct bnx2 *bp)
 		{ 0x0c00, 0, 0x00000000, 0x00000001 },
 		{ 0x0c04, 0, 0x00000000, 0x03ff0001 },
 		{ 0x0c08, 0, 0x0f0ff073, 0x00000000 },
-		{ 0x0c0c, 0, 0x00ffffff, 0x00000000 },
-		{ 0x0c30, 0, 0x00000000, 0xffffffff },
-		{ 0x0c34, 0, 0x00000000, 0xffffffff },
-		{ 0x0c38, 0, 0x00000000, 0xffffffff },
-		{ 0x0c3c, 0, 0x00000000, 0xffffffff },
-		{ 0x0c40, 0, 0x00000000, 0xffffffff },
-		{ 0x0c44, 0, 0x00000000, 0xffffffff },
-		{ 0x0c48, 0, 0x00000000, 0x0007ffff },
-		{ 0x0c4c, 0, 0x00000000, 0xffffffff },
-		{ 0x0c50, 0, 0x00000000, 0xffffffff },
-		{ 0x0c54, 0, 0x00000000, 0xffffffff },
-		{ 0x0c58, 0, 0x00000000, 0xffffffff },
-		{ 0x0c5c, 0, 0x00000000, 0xffffffff },
-		{ 0x0c60, 0, 0x00000000, 0xffffffff },
-		{ 0x0c64, 0, 0x00000000, 0xffffffff },
-		{ 0x0c68, 0, 0x00000000, 0xffffffff },
-		{ 0x0c6c, 0, 0x00000000, 0xffffffff },
-		{ 0x0c70, 0, 0x00000000, 0xffffffff },
-		{ 0x0c74, 0, 0x00000000, 0xffffffff },
-		{ 0x0c78, 0, 0x00000000, 0xffffffff },
-		{ 0x0c7c, 0, 0x00000000, 0xffffffff },
-		{ 0x0c80, 0, 0x00000000, 0xffffffff },
-		{ 0x0c84, 0, 0x00000000, 0xffffffff },
-		{ 0x0c88, 0, 0x00000000, 0xffffffff },
-		{ 0x0c8c, 0, 0x00000000, 0xffffffff },
-		{ 0x0c90, 0, 0x00000000, 0xffffffff },
-		{ 0x0c94, 0, 0x00000000, 0xffffffff },
-		{ 0x0c98, 0, 0x00000000, 0xffffffff },
-		{ 0x0c9c, 0, 0x00000000, 0xffffffff },
-		{ 0x0ca0, 0, 0x00000000, 0xffffffff },
-		{ 0x0ca4, 0, 0x00000000, 0xffffffff },
-		{ 0x0ca8, 0, 0x00000000, 0x0007ffff },
-		{ 0x0cac, 0, 0x00000000, 0xffffffff },
-		{ 0x0cb0, 0, 0x00000000, 0xffffffff },
-		{ 0x0cb4, 0, 0x00000000, 0xffffffff },
-		{ 0x0cb8, 0, 0x00000000, 0xffffffff },
-		{ 0x0cbc, 0, 0x00000000, 0xffffffff },
-		{ 0x0cc0, 0, 0x00000000, 0xffffffff },
-		{ 0x0cc4, 0, 0x00000000, 0xffffffff },
-		{ 0x0cc8, 0, 0x00000000, 0xffffffff },
-		{ 0x0ccc, 0, 0x00000000, 0xffffffff },
-		{ 0x0cd0, 0, 0x00000000, 0xffffffff },
-		{ 0x0cd4, 0, 0x00000000, 0xffffffff },
-		{ 0x0cd8, 0, 0x00000000, 0xffffffff },
-		{ 0x0cdc, 0, 0x00000000, 0xffffffff },
-		{ 0x0ce0, 0, 0x00000000, 0xffffffff },
-		{ 0x0ce4, 0, 0x00000000, 0xffffffff },
-		{ 0x0ce8, 0, 0x00000000, 0xffffffff },
-		{ 0x0cec, 0, 0x00000000, 0xffffffff },
-		{ 0x0cf0, 0, 0x00000000, 0xffffffff },
-		{ 0x0cf4, 0, 0x00000000, 0xffffffff },
-		{ 0x0cf8, 0, 0x00000000, 0xffffffff },
-		{ 0x0cfc, 0, 0x00000000, 0xffffffff },
-		{ 0x0d00, 0, 0x00000000, 0xffffffff },
-		{ 0x0d04, 0, 0x00000000, 0xffffffff },
 
 		{ 0x1000, 0, 0x00000000, 0x00000001 },
 		{ 0x1004, 0, 0x00000000, 0x000f0001 },
-		{ 0x1044, 0, 0x00000000, 0xffc003ff },
-		{ 0x1080, 0, 0x00000000, 0x0001ffff },
-		{ 0x1084, 0, 0x00000000, 0xffffffff },
-		{ 0x1088, 0, 0x00000000, 0xffffffff },
-		{ 0x108c, 0, 0x00000000, 0xffffffff },
-		{ 0x1090, 0, 0x00000000, 0xffffffff },
-		{ 0x1094, 0, 0x00000000, 0xffffffff },
-		{ 0x1098, 0, 0x00000000, 0xffffffff },
-		{ 0x109c, 0, 0x00000000, 0xffffffff },
-		{ 0x10a0, 0, 0x00000000, 0xffffffff },
 
 		{ 0x1408, 0, 0x01c00800, 0x00000000 },
 		{ 0x149c, 0, 0x8000ffff, 0x00000000 },
@@ -3585,111 +3614,9 @@ bnx2_test_registers(struct bnx2 *bp)
 		{ 0x14c4, 0, 0x00003fff, 0x00000000 },
 		{ 0x14cc, 0, 0x00000000, 0x00000001 },
 		{ 0x14d0, 0, 0xffffffff, 0x00000000 },
-		{ 0x1500, 0, 0x00000000, 0xffffffff },
-		{ 0x1504, 0, 0x00000000, 0xffffffff },
-		{ 0x1508, 0, 0x00000000, 0xffffffff },
-		{ 0x150c, 0, 0x00000000, 0xffffffff },
-		{ 0x1510, 0, 0x00000000, 0xffffffff },
-		{ 0x1514, 0, 0x00000000, 0xffffffff },
-		{ 0x1518, 0, 0x00000000, 0xffffffff },
-		{ 0x151c, 0, 0x00000000, 0xffffffff },
-		{ 0x1520, 0, 0x00000000, 0xffffffff },
-		{ 0x1524, 0, 0x00000000, 0xffffffff },
-		{ 0x1528, 0, 0x00000000, 0xffffffff },
-		{ 0x152c, 0, 0x00000000, 0xffffffff },
-		{ 0x1530, 0, 0x00000000, 0xffffffff },
-		{ 0x1534, 0, 0x00000000, 0xffffffff },
-		{ 0x1538, 0, 0x00000000, 0xffffffff },
-		{ 0x153c, 0, 0x00000000, 0xffffffff },
-		{ 0x1540, 0, 0x00000000, 0xffffffff },
-		{ 0x1544, 0, 0x00000000, 0xffffffff },
-		{ 0x1548, 0, 0x00000000, 0xffffffff },
-		{ 0x154c, 0, 0x00000000, 0xffffffff },
-		{ 0x1550, 0, 0x00000000, 0xffffffff },
-		{ 0x1554, 0, 0x00000000, 0xffffffff },
-		{ 0x1558, 0, 0x00000000, 0xffffffff },
-		{ 0x1600, 0, 0x00000000, 0xffffffff },
-		{ 0x1604, 0, 0x00000000, 0xffffffff },
-		{ 0x1608, 0, 0x00000000, 0xffffffff },
-		{ 0x160c, 0, 0x00000000, 0xffffffff },
-		{ 0x1610, 0, 0x00000000, 0xffffffff },
-		{ 0x1614, 0, 0x00000000, 0xffffffff },
-		{ 0x1618, 0, 0x00000000, 0xffffffff },
-		{ 0x161c, 0, 0x00000000, 0xffffffff },
-		{ 0x1620, 0, 0x00000000, 0xffffffff },
-		{ 0x1624, 0, 0x00000000, 0xffffffff },
-		{ 0x1628, 0, 0x00000000, 0xffffffff },
-		{ 0x162c, 0, 0x00000000, 0xffffffff },
-		{ 0x1630, 0, 0x00000000, 0xffffffff },
-		{ 0x1634, 0, 0x00000000, 0xffffffff },
-		{ 0x1638, 0, 0x00000000, 0xffffffff },
-		{ 0x163c, 0, 0x00000000, 0xffffffff },
-		{ 0x1640, 0, 0x00000000, 0xffffffff },
-		{ 0x1644, 0, 0x00000000, 0xffffffff },
-		{ 0x1648, 0, 0x00000000, 0xffffffff },
-		{ 0x164c, 0, 0x00000000, 0xffffffff },
-		{ 0x1650, 0, 0x00000000, 0xffffffff },
-		{ 0x1654, 0, 0x00000000, 0xffffffff },
 
 		{ 0x1800, 0, 0x00000000, 0x00000001 },
 		{ 0x1804, 0, 0x00000000, 0x00000003 },
-		{ 0x1840, 0, 0x00000000, 0xffffffff },
-		{ 0x1844, 0, 0x00000000, 0xffffffff },
-		{ 0x1848, 0, 0x00000000, 0xffffffff },
-		{ 0x184c, 0, 0x00000000, 0xffffffff },
-		{ 0x1850, 0, 0x00000000, 0xffffffff },
-		{ 0x1900, 0, 0x7ffbffff, 0x00000000 },
-		{ 0x1904, 0, 0xffffffff, 0x00000000 },
-		{ 0x190c, 0, 0xffffffff, 0x00000000 },
-		{ 0x1914, 0, 0xffffffff, 0x00000000 },
-		{ 0x191c, 0, 0xffffffff, 0x00000000 },
-		{ 0x1924, 0, 0xffffffff, 0x00000000 },
-		{ 0x192c, 0, 0xffffffff, 0x00000000 },
-		{ 0x1934, 0, 0xffffffff, 0x00000000 },
-		{ 0x193c, 0, 0xffffffff, 0x00000000 },
-		{ 0x1944, 0, 0xffffffff, 0x00000000 },
-		{ 0x194c, 0, 0xffffffff, 0x00000000 },
-		{ 0x1954, 0, 0xffffffff, 0x00000000 },
-		{ 0x195c, 0, 0xffffffff, 0x00000000 },
-		{ 0x1964, 0, 0xffffffff, 0x00000000 },
-		{ 0x196c, 0, 0xffffffff, 0x00000000 },
-		{ 0x1974, 0, 0xffffffff, 0x00000000 },
-		{ 0x197c, 0, 0xffffffff, 0x00000000 },
-		{ 0x1980, 0, 0x0700ffff, 0x00000000 },
-
-		{ 0x1c00, 0, 0x00000000, 0x00000001 },
-		{ 0x1c04, 0, 0x00000000, 0x00000003 },
-		{ 0x1c08, 0, 0x0000000f, 0x00000000 },
-		{ 0x1c40, 0, 0x00000000, 0xffffffff },
-		{ 0x1c44, 0, 0x00000000, 0xffffffff },
-		{ 0x1c48, 0, 0x00000000, 0xffffffff },
-		{ 0x1c4c, 0, 0x00000000, 0xffffffff },
-		{ 0x1c50, 0, 0x00000000, 0xffffffff },
-		{ 0x1d00, 0, 0x7ffbffff, 0x00000000 },
-		{ 0x1d04, 0, 0xffffffff, 0x00000000 },
-		{ 0x1d0c, 0, 0xffffffff, 0x00000000 },
-		{ 0x1d14, 0, 0xffffffff, 0x00000000 },
-		{ 0x1d1c, 0, 0xffffffff, 0x00000000 },
-		{ 0x1d24, 0, 0xffffffff, 0x00000000 },
-		{ 0x1d2c, 0, 0xffffffff, 0x00000000 },
-		{ 0x1d34, 0, 0xffffffff, 0x00000000 },
-		{ 0x1d3c, 0, 0xffffffff, 0x00000000 },
-		{ 0x1d44, 0, 0xffffffff, 0x00000000 },
-		{ 0x1d4c, 0, 0xffffffff, 0x00000000 },
-		{ 0x1d54, 0, 0xffffffff, 0x00000000 },
-		{ 0x1d5c, 0, 0xffffffff, 0x00000000 },
-		{ 0x1d64, 0, 0xffffffff, 0x00000000 },
-		{ 0x1d6c, 0, 0xffffffff, 0x00000000 },
-		{ 0x1d74, 0, 0xffffffff, 0x00000000 },
-		{ 0x1d7c, 0, 0xffffffff, 0x00000000 },
-		{ 0x1d80, 0, 0x0700ffff, 0x00000000 },
-
-		{ 0x2004, 0, 0x00000000, 0x0337000f },
-		{ 0x2008, 0, 0xffffffff, 0x00000000 },
-		{ 0x200c, 0, 0xffffffff, 0x00000000 },
-		{ 0x2010, 0, 0xffffffff, 0x00000000 },
-		{ 0x2014, 0, 0x801fff80, 0x00000000 },
-		{ 0x2018, 0, 0x000003ff, 0x00000000 },
 
 		{ 0x2800, 0, 0x00000000, 0x00000001 },
 		{ 0x2804, 0, 0x00000000, 0x00003f01 },
@@ -3707,16 +3634,6 @@ bnx2_test_registers(struct bnx2 *bp)
 		{ 0x2c00, 0, 0x00000000, 0x00000011 },
 		{ 0x2c04, 0, 0x00000000, 0x00030007 },
 
-		{ 0x3000, 0, 0x00000000, 0x00000001 },
-		{ 0x3004, 0, 0x00000000, 0x007007ff },
-		{ 0x3008, 0, 0x00000003, 0x00000000 },
-		{ 0x300c, 0, 0xffffffff, 0x00000000 },
-		{ 0x3010, 0, 0xffffffff, 0x00000000 },
-		{ 0x3014, 0, 0xffffffff, 0x00000000 },
-		{ 0x3034, 0, 0xffffffff, 0x00000000 },
-		{ 0x3038, 0, 0xffffffff, 0x00000000 },
-		{ 0x3050, 0, 0x00000001, 0x00000000 },
-
 		{ 0x3c00, 0, 0x00000000, 0x00000001 },
 		{ 0x3c04, 0, 0x00000000, 0x00070000 },
 		{ 0x3c08, 0, 0x00007f71, 0x07f00000 },
@@ -3726,87 +3643,10 @@ bnx2_test_registers(struct bnx2 *bp)
 		{ 0x3c18, 0, 0x00000000, 0xffffffff },
 		{ 0x3c1c, 0, 0xfffff000, 0x00000000 },
 		{ 0x3c20, 0, 0xffffff00, 0x00000000 },
-		{ 0x3c24, 0, 0xffffffff, 0x00000000 },
-		{ 0x3c28, 0, 0xffffffff, 0x00000000 },
-		{ 0x3c2c, 0, 0xffffffff, 0x00000000 },
-		{ 0x3c30, 0, 0xffffffff, 0x00000000 },
-		{ 0x3c34, 0, 0xffffffff, 0x00000000 },
-		{ 0x3c38, 0, 0xffffffff, 0x00000000 },
-		{ 0x3c3c, 0, 0xffffffff, 0x00000000 },
-		{ 0x3c40, 0, 0xffffffff, 0x00000000 },
-		{ 0x3c44, 0, 0xffffffff, 0x00000000 },
-		{ 0x3c48, 0, 0xffffffff, 0x00000000 },
-		{ 0x3c4c, 0, 0xffffffff, 0x00000000 },
-		{ 0x3c50, 0, 0xffffffff, 0x00000000 },
-		{ 0x3c54, 0, 0xffffffff, 0x00000000 },
-		{ 0x3c58, 0, 0xffffffff, 0x00000000 },
-		{ 0x3c5c, 0, 0xffffffff, 0x00000000 },
-		{ 0x3c60, 0, 0xffffffff, 0x00000000 },
-		{ 0x3c64, 0, 0xffffffff, 0x00000000 },
-		{ 0x3c68, 0, 0xffffffff, 0x00000000 },
-		{ 0x3c6c, 0, 0xffffffff, 0x00000000 },
-		{ 0x3c70, 0, 0xffffffff, 0x00000000 },
-		{ 0x3c74, 0, 0x0000003f, 0x00000000 },
-		{ 0x3c78, 0, 0x00000000, 0x00000000 },
-		{ 0x3c7c, 0, 0x00000000, 0x00000000 },
-		{ 0x3c80, 0, 0x3fffffff, 0x00000000 },
-		{ 0x3c84, 0, 0x0000003f, 0x00000000 },
-		{ 0x3c88, 0, 0x00000000, 0xffffffff },
-		{ 0x3c8c, 0, 0x00000000, 0xffffffff },
-
-		{ 0x4000, 0, 0x00000000, 0x00000001 },
-		{ 0x4004, 0, 0x00000000, 0x00030000 },
-		{ 0x4008, 0, 0x00000ff0, 0x00000000 },
-		{ 0x400c, 0, 0xffffffff, 0x00000000 },
-		{ 0x4088, 0, 0x00000000, 0x00070303 },
-
-		{ 0x4400, 0, 0x00000000, 0x00000001 },
-		{ 0x4404, 0, 0x00000000, 0x00003f01 },
-		{ 0x4408, 0, 0x7fff00ff, 0x00000000 },
-		{ 0x440c, 0, 0xffffffff, 0x00000000 },
-		{ 0x4410, 0, 0xffff,     0x0000 },
-		{ 0x4414, 0, 0xffff,     0x0000 },
-		{ 0x4418, 0, 0xffff,     0x0000 },
-		{ 0x441c, 0, 0xffff,     0x0000 },
-		{ 0x4428, 0, 0xffffffff, 0x00000000 },
-		{ 0x442c, 0, 0xffffffff, 0x00000000 },
-		{ 0x4430, 0, 0xffffffff, 0x00000000 },
-		{ 0x4434, 0, 0xffffffff, 0x00000000 },
-		{ 0x4438, 0, 0xffffffff, 0x00000000 },
-		{ 0x443c, 0, 0xffffffff, 0x00000000 },
-		{ 0x4440, 0, 0xffffffff, 0x00000000 },
-		{ 0x4444, 0, 0xffffffff, 0x00000000 },
-
-		{ 0x4c00, 0, 0x00000000, 0x00000001 },
-		{ 0x4c04, 0, 0x00000000, 0x0000003f },
-		{ 0x4c08, 0, 0xffffffff, 0x00000000 },
-		{ 0x4c0c, 0, 0x0007fc00, 0x00000000 },
-		{ 0x4c10, 0, 0x80003fe0, 0x00000000 },
-		{ 0x4c14, 0, 0xffffffff, 0x00000000 },
-		{ 0x4c44, 0, 0x00000000, 0x9fff9fff },
-		{ 0x4c48, 0, 0x00000000, 0xb3009fff },
-		{ 0x4c4c, 0, 0x00000000, 0x77f33b30 },
-		{ 0x4c50, 0, 0x00000000, 0xffffffff },
 
 		{ 0x5004, 0, 0x00000000, 0x0000007f },
 		{ 0x5008, 0, 0x0f0007ff, 0x00000000 },
 		{ 0x500c, 0, 0xf800f800, 0x07ff07ff },
-
-		{ 0x5400, 0, 0x00000008, 0x00000001 },
-		{ 0x5404, 0, 0x00000000, 0x0000003f },
-		{ 0x5408, 0, 0x0000001f, 0x00000000 },
-		{ 0x540c, 0, 0xffffffff, 0x00000000 },
-		{ 0x5410, 0, 0xffffffff, 0x00000000 },
-		{ 0x5414, 0, 0x0000ffff, 0x00000000 },
-		{ 0x5418, 0, 0x0000ffff, 0x00000000 },
-		{ 0x541c, 0, 0x0000ffff, 0x00000000 },
-		{ 0x5420, 0, 0x0000ffff, 0x00000000 },
-		{ 0x5428, 0, 0x000000ff, 0x00000000 },
-		{ 0x542c, 0, 0xff00ffff, 0x00000000 },
-		{ 0x5430, 0, 0x001fff80, 0x00000000 },
-		{ 0x5438, 0, 0xffffffff, 0x00000000 },
-		{ 0x543c, 0, 0xffffffff, 0x00000000 },
-		{ 0x5440, 0, 0xf800f800, 0x07ff07ff },
 
 		{ 0x5c00, 0, 0x00000000, 0x00000001 },
 		{ 0x5c04, 0, 0x00000000, 0x0003000f },
@@ -3891,7 +3731,7 @@ reg_test_err:
 static int
 bnx2_do_mem_test(struct bnx2 *bp, u32 start, u32 size)
 {
-	static u32 test_pattern[] = { 0x00000000, 0xffffffff, 0x55555555,
+	static const u32 test_pattern[] = { 0x00000000, 0xffffffff, 0x55555555,
 		0xaaaaaaaa , 0xaa55aa55, 0x55aa55aa };
 	int i;
 
@@ -3916,7 +3756,7 @@ bnx2_test_memory(struct bnx2 *bp)
 {
 	int ret = 0;
 	int i;
-	static struct {
+	static const struct {
 		u32   offset;
 		u32   len;
 	} mem_tbl[] = {
@@ -3949,7 +3789,6 @@ bnx2_run_loopback(struct bnx2 *bp, int loopback_mode)
 	struct sk_buff *skb, *rx_skb;
 	unsigned char *packet;
 	u16 rx_start_idx, rx_idx;
-	u32 val;
 	dma_addr_t map;
 	struct tx_bd *txbd;
 	struct sw_bd *rx_buf;
@@ -3980,8 +3819,9 @@ bnx2_run_loopback(struct bnx2 *bp, int loopback_mode)
 	map = pci_map_single(bp->pdev, skb->data, pkt_size,
 		PCI_DMA_TODEVICE);
 
-	val = REG_RD(bp, BNX2_HC_COMMAND);
-	REG_WR(bp, BNX2_HC_COMMAND, val | BNX2_HC_COMMAND_COAL_NOW_WO_INT);
+	REG_WR(bp, BNX2_HC_COMMAND,
+	       bp->hc_cmd | BNX2_HC_COMMAND_COAL_NOW_WO_INT);
+
 	REG_RD(bp, BNX2_HC_COMMAND);
 
 	udelay(5);
@@ -4005,8 +3845,9 @@ bnx2_run_loopback(struct bnx2 *bp, int loopback_mode)
 
 	udelay(100);
 
-	val = REG_RD(bp, BNX2_HC_COMMAND);
-	REG_WR(bp, BNX2_HC_COMMAND, val | BNX2_HC_COMMAND_COAL_NOW_WO_INT);
+	REG_WR(bp, BNX2_HC_COMMAND,
+	       bp->hc_cmd | BNX2_HC_COMMAND_COAL_NOW_WO_INT);
+
 	REG_RD(bp, BNX2_HC_COMMAND);
 
 	udelay(5);
@@ -4142,7 +3983,6 @@ static int
 bnx2_test_intr(struct bnx2 *bp)
 {
 	int i;
-	u32 val;
 	u16 status_idx;
 
 	if (!netif_running(bp->dev))
@@ -4151,8 +3991,7 @@ bnx2_test_intr(struct bnx2 *bp)
 	status_idx = REG_RD(bp, BNX2_PCICFG_INT_ACK_CMD) & 0xffff;
 
 	/* This register is not touched during run-time. */
-	val = REG_RD(bp, BNX2_HC_COMMAND);
-	REG_WR(bp, BNX2_HC_COMMAND, val | BNX2_HC_COMMAND_COAL_NOW);
+	REG_WR(bp, BNX2_HC_COMMAND, bp->hc_cmd | BNX2_HC_COMMAND_COAL_NOW);
 	REG_RD(bp, BNX2_HC_COMMAND);
 
 	for (i = 0; i < 10; i++) {
@@ -4794,6 +4633,64 @@ bnx2_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 	info->fw_version[5] = 0;
 }
 
+#define BNX2_REGDUMP_LEN		(32 * 1024)
+
+static int
+bnx2_get_regs_len(struct net_device *dev)
+{
+	return BNX2_REGDUMP_LEN;
+}
+
+static void
+bnx2_get_regs(struct net_device *dev, struct ethtool_regs *regs, void *_p)
+{
+	u32 *p = _p, i, offset;
+	u8 *orig_p = _p;
+	struct bnx2 *bp = netdev_priv(dev);
+	u32 reg_boundaries[] = { 0x0000, 0x0098, 0x0400, 0x045c,
+				 0x0800, 0x0880, 0x0c00, 0x0c10,
+				 0x0c30, 0x0d08, 0x1000, 0x101c,
+				 0x1040, 0x1048, 0x1080, 0x10a4,
+				 0x1400, 0x1490, 0x1498, 0x14f0,
+				 0x1500, 0x155c, 0x1580, 0x15dc,
+				 0x1600, 0x1658, 0x1680, 0x16d8,
+				 0x1800, 0x1820, 0x1840, 0x1854,
+				 0x1880, 0x1894, 0x1900, 0x1984,
+				 0x1c00, 0x1c0c, 0x1c40, 0x1c54,
+				 0x1c80, 0x1c94, 0x1d00, 0x1d84,
+				 0x2000, 0x2030, 0x23c0, 0x2400,
+				 0x2800, 0x2820, 0x2830, 0x2850,
+				 0x2b40, 0x2c10, 0x2fc0, 0x3058,
+				 0x3c00, 0x3c94, 0x4000, 0x4010,
+				 0x4080, 0x4090, 0x43c0, 0x4458,
+				 0x4c00, 0x4c18, 0x4c40, 0x4c54,
+				 0x4fc0, 0x5010, 0x53c0, 0x5444,
+				 0x5c00, 0x5c18, 0x5c80, 0x5c90,
+				 0x5fc0, 0x6000, 0x6400, 0x6428,
+				 0x6800, 0x6848, 0x684c, 0x6860,
+				 0x6888, 0x6910, 0x8000 };
+
+	regs->version = 0;
+
+	memset(p, 0, BNX2_REGDUMP_LEN);
+
+	if (!netif_running(bp->dev))
+		return;
+
+	i = 0;
+	offset = reg_boundaries[0];
+	p += offset;
+	while (offset < BNX2_REGDUMP_LEN) {
+		*p++ = REG_RD(bp, offset);
+		offset += 4;
+		if (offset == reg_boundaries[i + 1]) {
+			offset = reg_boundaries[i + 2];
+			p = (u32 *) (orig_p + offset);
+			i += 2;
+		}
+	}
+}
+
 static void
 bnx2_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
@@ -4979,7 +4876,7 @@ bnx2_get_ringparam(struct net_device *dev, struct ethtool_ringparam *ering)
 {
 	struct bnx2 *bp = netdev_priv(dev);
 
-	ering->rx_max_pending = MAX_RX_DESC_CNT;
+	ering->rx_max_pending = MAX_TOTAL_RX_DESC_CNT;
 	ering->rx_mini_max_pending = 0;
 	ering->rx_jumbo_max_pending = 0;
 
@@ -4996,17 +4893,28 @@ bnx2_set_ringparam(struct net_device *dev, struct ethtool_ringparam *ering)
 {
 	struct bnx2 *bp = netdev_priv(dev);
 
-	if ((ering->rx_pending > MAX_RX_DESC_CNT) ||
+	if ((ering->rx_pending > MAX_TOTAL_RX_DESC_CNT) ||
 		(ering->tx_pending > MAX_TX_DESC_CNT) ||
 		(ering->tx_pending <= MAX_SKB_FRAGS)) {
 
 		return -EINVAL;
 	}
-	bp->rx_ring_size = ering->rx_pending;
+	if (netif_running(bp->dev)) {
+		bnx2_netif_stop(bp);
+		bnx2_reset_chip(bp, BNX2_DRV_MSG_CODE_RESET);
+		bnx2_free_skbs(bp);
+		bnx2_free_mem(bp);
+	}
+
+	bnx2_set_rx_ring_size(bp, ering->rx_pending);
 	bp->tx_ring_size = ering->tx_pending;
 
 	if (netif_running(bp->dev)) {
-		bnx2_netif_stop(bp);
+		int rc;
+
+		rc = bnx2_alloc_mem(bp);
+		if (rc)
+			return rc;
 		bnx2_init_nic(bp);
 		bnx2_netif_start(bp);
 	}
@@ -5122,7 +5030,7 @@ static struct {
 
 #define STATS_OFFSET32(offset_name) (offsetof(struct statistics_block, offset_name) / 4)
 
-static unsigned long bnx2_stats_offset_arr[BNX2_NUM_STATS] = {
+static const unsigned long bnx2_stats_offset_arr[BNX2_NUM_STATS] = {
     STATS_OFFSET32(stat_IfHCInOctets_hi),
     STATS_OFFSET32(stat_IfHCInBadOctets_hi),
     STATS_OFFSET32(stat_IfHCOutOctets_hi),
@@ -5360,6 +5268,8 @@ static struct ethtool_ops bnx2_ethtool_ops = {
 	.get_settings		= bnx2_get_settings,
 	.set_settings		= bnx2_set_settings,
 	.get_drvinfo		= bnx2_get_drvinfo,
+	.get_regs_len		= bnx2_get_regs_len,
+	.get_regs		= bnx2_get_regs,
 	.get_wol		= bnx2_get_wol,
 	.set_wol		= bnx2_set_wol,
 	.nway_reset		= bnx2_nway_reset,
@@ -5678,7 +5588,7 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	bp->mac_addr[5] = (u8) reg;
 
 	bp->tx_ring_size = MAX_TX_DESC_CNT;
-	bp->rx_ring_size = 100;
+	bnx2_set_rx_ring_size(bp, 100);
 
 	bp->rx_csum = 1;
 
@@ -5897,6 +5807,7 @@ bnx2_suspend(struct pci_dev *pdev, pm_message_t state)
 	if (!netif_running(dev))
 		return 0;
 
+	flush_scheduled_work();
 	bnx2_netif_stop(bp);
 	netif_device_detach(dev);
 	del_timer_sync(&bp->timer);

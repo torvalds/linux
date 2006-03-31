@@ -5,6 +5,7 @@ extern kmem_cache_t *sysfs_dir_cachep;
 extern struct inode * sysfs_new_inode(mode_t mode, struct sysfs_dirent *);
 extern int sysfs_create(struct dentry *, int mode, int (*init)(struct inode *));
 
+extern int sysfs_dirent_exist(struct sysfs_dirent *, const unsigned char *);
 extern int sysfs_make_dirent(struct sysfs_dirent *, struct dentry *, void *,
 				umode_t, int);
 
@@ -20,9 +21,9 @@ extern int sysfs_setattr(struct dentry *dentry, struct iattr *iattr);
 
 extern struct rw_semaphore sysfs_rename_sem;
 extern struct super_block * sysfs_sb;
-extern struct file_operations sysfs_dir_operations;
-extern struct file_operations sysfs_file_operations;
-extern struct file_operations bin_fops;
+extern const struct file_operations sysfs_dir_operations;
+extern const struct file_operations sysfs_file_operations;
+extern const struct file_operations bin_fops;
 extern struct inode_operations sysfs_dir_inode_operations;
 extern struct inode_operations sysfs_symlink_inode_operations;
 

@@ -48,6 +48,17 @@ struct scsi_transport_template {
 	 * True if the transport wants to use a host-based work-queue
 	 */
 	unsigned int create_work_queue : 1;
+
+	/*
+	 * This is an optional routine that allows the transport to become
+	 * involved when a scsi io timer fires. The return value tells the
+	 * timer routine how to finish the io timeout handling:
+	 * EH_HANDLED:		I fixed the error, please complete the command
+	 * EH_RESET_TIMER:	I need more time, reset the timer and
+	 *			begin counting again
+	 * EH_NOT_HANDLED	Begin normal error recovery
+	 */
+	enum scsi_eh_timer_return (* eh_timed_out)(struct scsi_cmnd *);
 };
 
 #define transport_class_to_shost(tc) \

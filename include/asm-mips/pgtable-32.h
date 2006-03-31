@@ -206,7 +206,7 @@ pfn_pte(unsigned long pfn, pgprot_t prot)
 	/* fixme */
 #define pte_to_pgoff(_pte) (((_pte).pte_high >> 6) + ((_pte).pte_high & 0x3f))
 #define pgoff_to_pte(off) \
- 	((pte_t){(((off) & 0x3f) + ((off) << 6) + _PAGE_FILE)})
+	((pte_t){(((off) & 0x3f) + ((off) << 6) + _PAGE_FILE)})
 
 #else
 #define pte_to_pgoff(_pte) \

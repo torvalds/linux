@@ -65,9 +65,9 @@ static int null_rtc_set_time(unsigned long sec)
 	return 0;
 }
 
-unsigned long (*rtc_get_time)(void) = null_rtc_get_time;
-int (*rtc_set_time)(unsigned long) = null_rtc_set_time;
-int (*rtc_set_mmss)(unsigned long);
+unsigned long (*rtc_mips_get_time)(void) = null_rtc_get_time;
+int (*rtc_mips_set_time)(unsigned long) = null_rtc_set_time;
+int (*rtc_mips_set_mmss)(unsigned long);
 
 
 /* usecs per counter cycle, shifted to left by 32 bits */
@@ -440,14 +440,14 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 	/*
 	 * If we have an externally synchronized Linux clock, then update
-	 * CMOS clock accordingly every ~11 minutes. rtc_set_time() has to be
+	 * CMOS clock accordingly every ~11 minutes. rtc_mips_set_time() has to be
 	 * called as close as possible to 500 ms before the new second starts.
 	 */
 	if (ntp_synced() &&
 	    xtime.tv_sec > last_rtc_update + 660 &&
 	    (xtime.tv_nsec / 1000) >= 500000 - ((unsigned) TICK_SIZE) / 2 &&
 	    (xtime.tv_nsec / 1000) <= 500000 + ((unsigned) TICK_SIZE) / 2) {
-		if (rtc_set_mmss(xtime.tv_sec) == 0) {
+		if (rtc_mips_set_mmss(xtime.tv_sec) == 0) {
 			last_rtc_update = xtime.tv_sec;
 		} else {
 			/* do it again in 60 s */
@@ -565,7 +565,7 @@ asmlinkage void ll_local_timer_interrupt(int irq, struct pt_regs *regs)
  *      b) (optional) calibrate and set the mips_hpt_frequency
  *	    (only needed if you intended to use fixed_rate_gettimeoffset
  *	     or use cpu counter as timer interrupt source)
- * 2) setup xtime based on rtc_get_time().
+ * 2) setup xtime based on rtc_mips_get_time().
  * 3) choose a appropriate gettimeoffset routine.
  * 4) calculate a couple of cached variables for later usage
  * 5) board_timer_setup() -
@@ -633,10 +633,10 @@ void __init time_init(void)
 	if (board_time_init)
 		board_time_init();
 
-	if (!rtc_set_mmss)
-		rtc_set_mmss = rtc_set_time;
+	if (!rtc_mips_set_mmss)
+		rtc_mips_set_mmss = rtc_mips_set_time;
 
-	xtime.tv_sec = rtc_get_time();
+	xtime.tv_sec = rtc_mips_get_time();
 	xtime.tv_nsec = 0;
 
 	set_normalized_timespec(&wall_to_monotonic,
@@ -772,8 +772,8 @@ void to_tm(unsigned long tim, struct rtc_time *tm)
 
 EXPORT_SYMBOL(rtc_lock);
 EXPORT_SYMBOL(to_tm);
-EXPORT_SYMBOL(rtc_set_time);
-EXPORT_SYMBOL(rtc_get_time);
+EXPORT_SYMBOL(rtc_mips_set_time);
+EXPORT_SYMBOL(rtc_mips_get_time);
 
 unsigned long long sched_clock(void)
 {

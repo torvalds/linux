@@ -37,14 +37,12 @@
 #include <linux/proc_fs.h>
 #include <linux/string.h>
 #include <linux/completion.h>
+#include <linux/pm.h>
 #include <linux/kdev_t.h>
 #include <linux/ipmi.h>
 #include <linux/ipmi_smi.h>
 
 #define PFX "IPMI poweroff: "
-
-/* Where to we insert our poweroff function? */
-extern void (*pm_power_off)(void);
 
 /* Definitions for controlling power off (if the system supports it).  It
  * conveniently matches the IPMI chassis control values. */
@@ -466,7 +464,7 @@ static void ipmi_poweroff_function (void)
 
 /* Wait for an IPMI interface to be installed, the first one installed
    will be grabbed by this code and used to perform the powerdown. */
-static void ipmi_po_new_smi(int if_num)
+static void ipmi_po_new_smi(int if_num, struct device *device)
 {
 	struct ipmi_system_interface_addr smi_addr;
 	struct kernel_ipmi_msg            send_msg;

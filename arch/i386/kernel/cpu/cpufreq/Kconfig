@@ -96,7 +96,6 @@ config X86_POWERNOW_K8_ACPI
 
 config X86_GX_SUSPMOD
 	tristate "Cyrix MediaGX/NatSemi Geode Suspend Modulation"
-	depends on PCI
 	help
 	 This add the CPUFreq driver for NatSemi Geode processors which
 	 support suspend modulation.
@@ -115,9 +114,9 @@ config X86_SPEEDSTEP_CENTRINO
 	  you also need to say Y to "Use ACPI tables to decode..." below
 	  [which might imply enabling ACPI] if you want to use this driver
 	  on non-Banias CPUs.
-	  
+
 	  For details, take a look at <file:Documentation/cpu-freq/>.
-	  
+
 	  If in doubt, say N.
 
 config X86_SPEEDSTEP_CENTRINO_ACPI
@@ -148,7 +147,7 @@ config X86_SPEEDSTEP_ICH
 	help
 	  This adds the CPUFreq driver for certain mobile Intel Pentium III
 	  (Coppermine), all mobile Intel Pentium III-M (Tualatin) and all
-	  mobile Intel Pentium 4 P4-M on systems which have an Intel ICH2, 
+	  mobile Intel Pentium 4 P4-M on systems which have an Intel ICH2,
 	  ICH3 or ICH4 southbridge.
 
 	  For details, take a look at <file:Documentation/cpu-freq/>.
@@ -161,7 +160,7 @@ config X86_SPEEDSTEP_SMI
 	depends on EXPERIMENTAL
 	help
 	  This adds the CPUFreq driver for certain mobile Intel Pentium III
-	  (Coppermine), all mobile Intel Pentium III-M (Tualatin)  
+	  (Coppermine), all mobile Intel Pentium III-M (Tualatin)
 	  on systems which have an Intel 440BX/ZX/MX southbridge.
 
 	  For details, take a look at <file:Documentation/cpu-freq/>.
@@ -203,9 +202,10 @@ config X86_LONGRUN
 config X86_LONGHAUL
 	tristate "VIA Cyrix III Longhaul"
 	select CPU_FREQ_TABLE
+	depends on BROKEN
 	help
-	  This adds the CPUFreq driver for VIA Samuel/CyrixIII, 
-	  VIA Cyrix Samuel/C3, VIA Cyrix Ezra and VIA Cyrix Ezra-T 
+	  This adds the CPUFreq driver for VIA Samuel/CyrixIII,
+	  VIA Cyrix Samuel/C3, VIA Cyrix Ezra and VIA Cyrix Ezra-T
 	  processors.
 
 	  For details, take a look at <file:Documentation/cpu-freq/>.
@@ -215,11 +215,11 @@ config X86_LONGHAUL
 comment "shared options"
 
 config X86_ACPI_CPUFREQ_PROC_INTF
-        bool "/proc/acpi/processor/../performance interface (deprecated)"
+	bool "/proc/acpi/processor/../performance interface (deprecated)"
 	depends on PROC_FS
 	depends on X86_ACPI_CPUFREQ || X86_SPEEDSTEP_CENTRINO_ACPI || X86_POWERNOW_K7_ACPI || X86_POWERNOW_K8_ACPI
 	help
-	  This enables the deprecated /proc/acpi/processor/../performance 
+	  This enables the deprecated /proc/acpi/processor/../performance
 	  interface. While it is helpful for debugging, the generic,
 	  cross-architecture cpufreq interfaces should be used.
 
@@ -233,9 +233,9 @@ config X86_SPEEDSTEP_RELAXED_CAP_CHECK
 	bool "Relaxed speedstep capability checks"
 	depends on (X86_SPEEDSTEP_SMI || X86_SPEEDSTEP_ICH)
 	help
-	  Don't perform all checks for a speedstep capable system which would 
-	  normally be done. Some ancient or strange systems, though speedstep 
-	  capable, don't always indicate that they are speedstep capable. This 
+	  Don't perform all checks for a speedstep capable system which would
+	  normally be done. Some ancient or strange systems, though speedstep
+	  capable, don't always indicate that they are speedstep capable. This
 	  option lets the probing code bypass some of those checks if the
 	  parameter "relaxed_check=1" is passed to the module.
 

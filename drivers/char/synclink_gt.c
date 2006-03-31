@@ -1,5 +1,5 @@
 /*
- * $Id: synclink_gt.c,v 4.22 2006/01/09 20:16:06 paulkf Exp $
+ * $Id: synclink_gt.c,v 4.25 2006/02/06 21:20:33 paulkf Exp $
  *
  * Device driver for Microgate SyncLink GT serial adapters.
  *
@@ -92,7 +92,7 @@
  * module identification
  */
 static char *driver_name     = "SyncLink GT";
-static char *driver_version  = "$Revision: 4.22 $";
+static char *driver_version  = "$Revision: 4.25 $";
 static char *tty_driver_name = "synclink_gt";
 static char *tty_dev_prefix  = "ttySLG";
 MODULE_LICENSE("GPL");
@@ -188,6 +188,20 @@ static void hdlcdev_exit(struct slgt_info *info);
 #define SLGT_REG_SIZE  256
 
 /*
+ * conditional wait facility
+ */
+struct cond_wait {
+	struct cond_wait *next;
+	wait_queue_head_t q;
+	wait_queue_t wait;
+	unsigned int data;
+};
+static void init_cond_wait(struct cond_wait *w, unsigned int data);
+static void add_cond_wait(struct cond_wait **head, struct cond_wait *w);
+static void remove_cond_wait(struct cond_wait **head, struct cond_wait *w);
+static void flush_cond_wait(struct cond_wait **head);
+
+/*
  * DMA buffer descriptor and access macros
  */
 struct slgt_desc
@@ -268,6 +282,9 @@ struct slgt_info {
 	wait_queue_head_t	event_wait_q;
 	struct timer_list	tx_timer;
 	struct timer_list	rx_timer;
+
+	unsigned int            gpio_present;
+	struct cond_wait        *gpio_wait_q;
 
 	spinlock_t lock;	/* spinlock for synchronizing with ISR */
 
@@ -379,6 +396,11 @@ static MGSL_PARAMS default_params = {
 #define MASK_OVERRUN BIT4
 
 #define GSR   0x00 /* global status */
+#define JCR   0x04 /* JTAG control */
+#define IODR  0x08 /* GPIO direction */
+#define IOER  0x0c /* GPIO interrupt enable */
+#define IOVR  0x10 /* GPIO value */
+#define IOSR  0x14 /* GPIO interrupt status */
 #define TDR   0x80 /* tx data */
 #define RDR   0x80 /* rx data */
 #define TCR   0x82 /* tx control */
@@ -503,6 +525,9 @@ static int  tiocmset(struct tty_struct *tty, struct file *file,
 static void set_break(struct tty_struct *tty, int break_state);
 static int  get_interface(struct slgt_info *info, int __user *if_mode);
 static int  set_interface(struct slgt_info *info, int if_mode);
+static int  set_gpio(struct slgt_info *info, struct gpio_desc __user *gpio);
+static int  get_gpio(struct slgt_info *info, struct gpio_desc __user *gpio);
+static int  wait_gpio(struct slgt_info *info, struct gpio_desc __user *gpio);
 
 /*
  * driver functions
@@ -1112,6 +1137,12 @@ static int ioctl(struct tty_struct *tty, struct file *file,
 		return get_interface(info, argp);
 	case MGSL_IOCSIF:
 		return set_interface(info,(int)arg);
+	case MGSL_IOCSGPIO:
+		return set_gpio(info, argp);
+	case MGSL_IOCGGPIO:
+		return get_gpio(info, argp);
+	case MGSL_IOCWAITGPIO:
+		return wait_gpio(info, argp);
 	case TIOCGICOUNT:
 		spin_lock_irqsave(&info->lock,flags);
 		cnow = info->icount;
@@ -1365,7 +1396,7 @@ static int hdlcdev_attach(struct net_device *dev, unsigned short encoding,
 	}
 
 	info->params.encoding = new_encoding;
-	info->params.crc_type = new_crctype;;
+	info->params.crc_type = new_crctype;
 
 	/* if network interface up, reprogram hardware */
 	if (info->netcount)
@@ -1762,10 +1793,6 @@ static void rx_async(struct slgt_info *info)
 		DBGDATA(info, p, count, "rx");
 
 		for(i=0 ; i < count; i+=2, p+=2) {
-			if (tty && chars) {
-				tty_flip_buffer_push(tty);
-				chars = 0;
-			}
 			ch = *p;
 			icount->rx++;
 
@@ -2158,6 +2185,24 @@ static void isr_txeom(struct slgt_info *info, unsigned short status)
 	}
 }
 
+static void isr_gpio(struct slgt_info *info, unsigned int changed, unsigned int state)
+{
+	struct cond_wait *w, *prev;
+
+	/* wake processes waiting for specific transitions */
+	for (w = info->gpio_wait_q, prev = NULL ; w != NULL ; w = w->next) {
+		if (w->data & changed) {
+			w->data = state;
+			wake_up_interruptible(&w->q);
+			if (prev != NULL)
+				prev->next = w->next;
+			else
+				info->gpio_wait_q = w->next;
+		} else
+			prev = w;
+	}
+}
+
 /* interrupt service routine
  *
  * 	irq	interrupt number
@@ -2190,6 +2235,22 @@ static irqreturn_t slgt_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 				isr_rdma(info->port_array[i]);
 			if (gsr & (BIT17 << (i*2)))
 				isr_tdma(info->port_array[i]);
+		}
+	}
+
+	if (info->gpio_present) {
+		unsigned int state;
+		unsigned int changed;
+		while ((changed = rd_reg32(info, IOSR)) != 0) {
+			DBGISR(("%s iosr=%08x\n", info->device_name, changed));
+			/* read latched state of GPIO signals */
+			state = rd_reg32(info, IOVR);
+			/* clear pending GPIO interrupt bits */
+			wr_reg32(info, IOSR, changed);
+			for (i=0 ; i < info->port_count ; i++) {
+				if (info->port_array[i] != NULL)
+					isr_gpio(info->port_array[i], changed, state);
+			}
 		}
 	}
 
@@ -2275,6 +2336,8 @@ static void shutdown(struct slgt_info *info)
  		info->signals &= ~(SerialSignal_DTR + SerialSignal_RTS);
 		set_signals(info);
 	}
+
+	flush_cond_wait(&info->gpio_wait_q);
 
 	spin_unlock_irqrestore(&info->lock,flags);
 
@@ -2648,6 +2711,175 @@ static int set_interface(struct slgt_info *info, int if_mode)
 
 	spin_unlock_irqrestore(&info->lock,flags);
 	return 0;
+}
+
+/*
+ * set general purpose IO pin state and direction
+ *
+ * user_gpio fields:
+ * state   each bit indicates a pin state
+ * smask   set bit indicates pin state to set
+ * dir     each bit indicates a pin direction (0=input, 1=output)
+ * dmask   set bit indicates pin direction to set
+ */
+static int set_gpio(struct slgt_info *info, struct gpio_desc __user *user_gpio)
+{
+ 	unsigned long flags;
+	struct gpio_desc gpio;
+	__u32 data;
+
+	if (!info->gpio_present)
+		return -EINVAL;
+	if (copy_from_user(&gpio, user_gpio, sizeof(gpio)))
+		return -EFAULT;
+	DBGINFO(("%s set_gpio state=%08x smask=%08x dir=%08x dmask=%08x\n",
+		 info->device_name, gpio.state, gpio.smask,
+		 gpio.dir, gpio.dmask));
+
+	spin_lock_irqsave(&info->lock,flags);
+	if (gpio.dmask) {
+		data = rd_reg32(info, IODR);
+		data |= gpio.dmask & gpio.dir;
+		data &= ~(gpio.dmask & ~gpio.dir);
+		wr_reg32(info, IODR, data);
+	}
+	if (gpio.smask) {
+		data = rd_reg32(info, IOVR);
+		data |= gpio.smask & gpio.state;
+		data &= ~(gpio.smask & ~gpio.state);
+		wr_reg32(info, IOVR, data);
+	}
+	spin_unlock_irqrestore(&info->lock,flags);
+
+	return 0;
+}
+
+/*
+ * get general purpose IO pin state and direction
+ */
+static int get_gpio(struct slgt_info *info, struct gpio_desc __user *user_gpio)
+{
+	struct gpio_desc gpio;
+	if (!info->gpio_present)
+		return -EINVAL;
+	gpio.state = rd_reg32(info, IOVR);
+	gpio.smask = 0xffffffff;
+	gpio.dir   = rd_reg32(info, IODR);
+	gpio.dmask = 0xffffffff;
+	if (copy_to_user(user_gpio, &gpio, sizeof(gpio)))
+		return -EFAULT;
+	DBGINFO(("%s get_gpio state=%08x dir=%08x\n",
+		 info->device_name, gpio.state, gpio.dir));
+	return 0;
+}
+
+/*
+ * conditional wait facility
+ */
+static void init_cond_wait(struct cond_wait *w, unsigned int data)
+{
+	init_waitqueue_head(&w->q);
+	init_waitqueue_entry(&w->wait, current);
+	w->data = data;
+}
+
+static void add_cond_wait(struct cond_wait **head, struct cond_wait *w)
+{
+	set_current_state(TASK_INTERRUPTIBLE);
+	add_wait_queue(&w->q, &w->wait);
+	w->next = *head;
+	*head = w;
+}
+
+static void remove_cond_wait(struct cond_wait **head, struct cond_wait *cw)
+{
+	struct cond_wait *w, *prev;
+	remove_wait_queue(&cw->q, &cw->wait);
+	set_current_state(TASK_RUNNING);
+	for (w = *head, prev = NULL ; w != NULL ; prev = w, w = w->next) {
+		if (w == cw) {
+			if (prev != NULL)
+				prev->next = w->next;
+			else
+				*head = w->next;
+			break;
+		}
+	}
+}
+
+static void flush_cond_wait(struct cond_wait **head)
+{
+	while (*head != NULL) {
+		wake_up_interruptible(&(*head)->q);
+		*head = (*head)->next;
+	}
+}
+
+/*
+ * wait for general purpose I/O pin(s) to enter specified state
+ *
+ * user_gpio fields:
+ * state - bit indicates target pin state
+ * smask - set bit indicates watched pin
+ *
+ * The wait ends when at least one watched pin enters the specified
+ * state. When 0 (no error) is returned, user_gpio->state is set to the
+ * state of all GPIO pins when the wait ends.
+ *
+ * Note: Each pin may be a dedicated input, dedicated output, or
+ * configurable input/output. The number and configuration of pins
+ * varies with the specific adapter model. Only input pins (dedicated
+ * or configured) can be monitored with this function.
+ */
+static int wait_gpio(struct slgt_info *info, struct gpio_desc __user *user_gpio)
+{
+ 	unsigned long flags;
+	int rc = 0;
+	struct gpio_desc gpio;
+	struct cond_wait wait;
+	u32 state;
+
+	if (!info->gpio_present)
+		return -EINVAL;
+	if (copy_from_user(&gpio, user_gpio, sizeof(gpio)))
+		return -EFAULT;
+	DBGINFO(("%s wait_gpio() state=%08x smask=%08x\n",
+		 info->device_name, gpio.state, gpio.smask));
+	/* ignore output pins identified by set IODR bit */
+	if ((gpio.smask &= ~rd_reg32(info, IODR)) == 0)
+		return -EINVAL;
+	init_cond_wait(&wait, gpio.smask);
+
+	spin_lock_irqsave(&info->lock, flags);
+	/* enable interrupts for watched pins */
+	wr_reg32(info, IOER, rd_reg32(info, IOER) | gpio.smask);
+	/* get current pin states */
+	state = rd_reg32(info, IOVR);
+
+	if (gpio.smask & ~(state ^ gpio.state)) {
+		/* already in target state */
+		gpio.state = state;
+	} else {
+		/* wait for target state */
+		add_cond_wait(&info->gpio_wait_q, &wait);
+		spin_unlock_irqrestore(&info->lock, flags);
+		schedule();
+		if (signal_pending(current))
+			rc = -ERESTARTSYS;
+		else
+			gpio.state = wait.data;
+		spin_lock_irqsave(&info->lock, flags);
+		remove_cond_wait(&info->gpio_wait_q, &wait);
+	}
+
+	/* disable all GPIO interrupts if no waiting processes */
+	if (info->gpio_wait_q == NULL)
+		wr_reg32(info, IOER, 0);
+	spin_unlock_irqrestore(&info->lock,flags);
+
+	if ((rc == 0) && copy_to_user(user_gpio, &gpio, sizeof(gpio)))
+		rc = -EFAULT;
+	return rc;
 }
 
 static int modem_input_wait(struct slgt_info *info,int arg)
@@ -3166,8 +3398,10 @@ static void device_init(int adapter_num, struct pci_dev *pdev)
 		} else {
 			port_array[0]->irq_requested = 1;
 			adapter_test(port_array[0]);
-			for (i=1 ; i < port_count ; i++)
+			for (i=1 ; i < port_count ; i++) {
 				port_array[i]->init_error = port_array[0]->init_error;
+				port_array[i]->gpio_present = port_array[0]->gpio_present;
+			}
 		}
 	}
 }
@@ -4301,7 +4535,7 @@ static int register_test(struct slgt_info *info)
 			break;
 		}
 	}
-
+	info->gpio_present = (rd_reg32(info, JCR) & BIT5) ? 1 : 0;
 	info->init_error = rc ? 0 : DiagStatus_AddressFailure;
 	return rc;
 }

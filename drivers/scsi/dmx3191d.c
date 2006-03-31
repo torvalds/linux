@@ -116,7 +116,7 @@ static int __devinit dmx3191d_probe_one(struct pci_dev *pdev,
  out_free_irq:
 	free_irq(shost->irq, shost);
  out_release_region:
-	release_region(shost->io_port, DMX3191D_REGION_LEN);
+	release_region(io, DMX3191D_REGION_LEN);
  out_disable_device:
 	pci_disable_device(pdev);
  out:

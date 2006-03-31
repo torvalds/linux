@@ -28,8 +28,9 @@
 #define   USBSTS_USBINT		0x0001	/* Interrupt due to IOC */
 #define   USBSTS_ERROR		0x0002	/* Interrupt due to error */
 #define   USBSTS_RD		0x0004	/* Resume Detect */
-#define   USBSTS_HSE		0x0008	/* Host System Error - basically PCI problems */
-#define   USBSTS_HCPE		0x0010	/* Host Controller Process Error - the scripts were buggy */
+#define   USBSTS_HSE		0x0008	/* Host System Error: PCI problems */
+#define   USBSTS_HCPE		0x0010	/* Host Controller Process Error:
+					 * the schedule is buggy */
 #define   USBSTS_HCH		0x0020	/* HC Halted */
 
 /* Interrupt enable register */
@@ -47,7 +48,8 @@
 /* USB port status and control registers */
 #define USBPORTSC1	16
 #define USBPORTSC2	18
-#define   USBPORTSC_CCS		0x0001	/* Current Connect Status ("device present") */
+#define   USBPORTSC_CCS		0x0001	/* Current Connect Status
+					 * ("device present") */
 #define   USBPORTSC_CSC		0x0002	/* Connect Status Change */
 #define   USBPORTSC_PE		0x0004	/* Port Enable */
 #define   USBPORTSC_PEC		0x0008	/* Port Enable Change */
@@ -71,15 +73,16 @@
 #define   USBLEGSUP_RWC		0x8f00	/* the R/WC bits */
 #define   USBLEGSUP_RO		0x5040	/* R/O and reserved bits */
 
-#define UHCI_PTR_BITS		cpu_to_le32(0x000F)
-#define UHCI_PTR_TERM		cpu_to_le32(0x0001)
-#define UHCI_PTR_QH		cpu_to_le32(0x0002)
-#define UHCI_PTR_DEPTH		cpu_to_le32(0x0004)
-#define UHCI_PTR_BREADTH	cpu_to_le32(0x0000)
+#define UHCI_PTR_BITS		__constant_cpu_to_le32(0x000F)
+#define UHCI_PTR_TERM		__constant_cpu_to_le32(0x0001)
+#define UHCI_PTR_QH		__constant_cpu_to_le32(0x0002)
+#define UHCI_PTR_DEPTH		__constant_cpu_to_le32(0x0004)
+#define UHCI_PTR_BREADTH	__constant_cpu_to_le32(0x0000)
 
 #define UHCI_NUMFRAMES		1024	/* in the frame list [array] */
 #define UHCI_MAX_SOF_NUMBER	2047	/* in an SOF packet */
-#define CAN_SCHEDULE_FRAMES	1000	/* how far future frames can be scheduled */
+#define CAN_SCHEDULE_FRAMES	1000	/* how far in the future frames
+					 * can be scheduled */
 
 
 /*
@@ -87,38 +90,59 @@
  */
 
 /*
- * One role of a QH is to hold a queue of TDs for some endpoint.  Each QH is
- * used with one URB, and qh->element (updated by the HC) is either:
- *   - the next unprocessed TD for the URB, or
- *   - UHCI_PTR_TERM (when there's no more traffic for this endpoint), or
- *   - the QH for the next URB queued to the same endpoint.
+ * One role of a QH is to hold a queue of TDs for some endpoint.  One QH goes
+ * with each endpoint, and qh->element (updated by the HC) is either:
+ *   - the next unprocessed TD in the endpoint's queue, or
+ *   - UHCI_PTR_TERM (when there's no more traffic for this endpoint).
  *
  * The other role of a QH is to serve as a "skeleton" framelist entry, so we
  * can easily splice a QH for some endpoint into the schedule at the right
  * place.  Then qh->element is UHCI_PTR_TERM.
  *
- * In the frame list, qh->link maintains a list of QHs seen by the HC:
+ * In the schedule, qh->link maintains a list of QHs seen by the HC:
  *     skel1 --> ep1-qh --> ep2-qh --> ... --> skel2 --> ...
+ *
+ * qh->node is the software equivalent of qh->link.  The differences
+ * are that the software list is doubly-linked and QHs in the UNLINKING
+ * state are on the software list but not the hardware schedule.
+ *
+ * For bookkeeping purposes we maintain QHs even for Isochronous endpoints,
+ * but they never get added to the hardware schedule.
  */
+#define QH_STATE_IDLE		1	/* QH is not being used */
+#define QH_STATE_UNLINKING	2	/* QH has been removed from the
+					 * schedule but the hardware may
+					 * still be using it */
+#define QH_STATE_ACTIVE		3	/* QH is on the schedule */
+
 struct uhci_qh {
 	/* Hardware fields */
-	__le32 link;			/* Next queue */
-	__le32 element;			/* Queue element pointer */
+	__le32 link;			/* Next QH in the schedule */
+	__le32 element;			/* Queue element (TD) pointer */
 
 	/* Software fields */
 	dma_addr_t dma_handle;
 
-	struct urb_priv *urbp;
+	struct list_head node;		/* Node in the list of QHs */
+	struct usb_host_endpoint *hep;	/* Endpoint information */
+	struct usb_device *udev;
+	struct list_head queue;		/* Queue of urbps for this QH */
+	struct uhci_qh *skel;		/* Skeleton for this QH */
+	struct uhci_td *dummy_td;	/* Dummy TD to end the queue */
 
-	struct list_head list;
-	struct list_head remove_list;
+	unsigned int unlink_frame;	/* When the QH was unlinked */
+	int state;			/* QH_STATE_xxx; see above */
+
+	unsigned int initial_toggle:1;	/* Endpoint's current toggle value */
+	unsigned int needs_fixup:1;	/* Must fix the TD toggle values */
+	unsigned int is_stopped:1;	/* Queue was stopped by an error */
 } __attribute__((aligned(16)));
 
 /*
  * We need a special accessor for the element pointer because it is
  * subject to asynchronous updates by the controller.
  */
-static __le32 inline qh_element(struct uhci_qh *qh) {
+static inline __le32 qh_element(struct uhci_qh *qh) {
 	__le32 element = qh->element;
 
 	barrier();
@@ -149,11 +173,13 @@ static __le32 inline qh_element(struct uhci_qh *qh) {
 #define TD_CTRL_ACTLEN_MASK	0x7FF	/* actual length, encoded as n - 1 */
 
 #define TD_CTRL_ANY_ERROR	(TD_CTRL_STALLED | TD_CTRL_DBUFERR | \
-				 TD_CTRL_BABBLE | TD_CTRL_CRCTIME | TD_CTRL_BITSTUFF)
+				 TD_CTRL_BABBLE | TD_CTRL_CRCTIME | \
+				 TD_CTRL_BITSTUFF)
 
 #define uhci_maxerr(err)		((err) << TD_CTRL_C_ERR_SHIFT)
 #define uhci_status_bits(ctrl_sts)	((ctrl_sts) & 0xF60000)
-#define uhci_actual_length(ctrl_sts)	(((ctrl_sts) + 1) & TD_CTRL_ACTLEN_MASK) /* 1-based */
+#define uhci_actual_length(ctrl_sts)	(((ctrl_sts) + 1) & \
+			TD_CTRL_ACTLEN_MASK)	/* 1-based */
 
 /*
  * for TD <info>: (a.k.a. Token)
@@ -163,7 +189,7 @@ static __le32 inline qh_element(struct uhci_qh *qh) {
 #define TD_TOKEN_TOGGLE_SHIFT	19
 #define TD_TOKEN_TOGGLE		(1 << 19)
 #define TD_TOKEN_EXPLEN_SHIFT	21
-#define TD_TOKEN_EXPLEN_MASK	0x7FF		/* expected length, encoded as n - 1 */
+#define TD_TOKEN_EXPLEN_MASK	0x7FF	/* expected length, encoded as n-1 */
 #define TD_TOKEN_PID_MASK	0xFF
 
 #define uhci_explen(len)	((((len) - 1) & TD_TOKEN_EXPLEN_MASK) << \
@@ -187,7 +213,7 @@ static __le32 inline qh_element(struct uhci_qh *qh) {
  * sw space after the TD entry.
  *
  * td->link points to either another TD (not necessarily for the same urb or
- * even the same endpoint), or nothing (PTR_TERM), or a QH (for queued urbs).
+ * even the same endpoint), or nothing (PTR_TERM), or a QH.
  */
 struct uhci_td {
 	/* Hardware fields */
@@ -210,7 +236,7 @@ struct uhci_td {
  * We need a special accessor for the control/status word because it is
  * subject to asynchronous updates by the controller.
  */
-static u32 inline td_status(struct uhci_td *td) {
+static inline u32 td_status(struct uhci_td *td) {
 	__le32 status = td->status;
 
 	barrier();
@@ -223,17 +249,14 @@ static u32 inline td_status(struct uhci_td *td) {
  */
 
 /*
- * The UHCI driver places Interrupt, Control and Bulk into QHs both
- * to group together TDs for one transfer, and also to facilitate queuing
- * of URBs. To make it easy to insert entries into the schedule, we have
- * a skeleton of QHs for each predefined Interrupt latency, low-speed
- * control, full-speed control and terminating QH (see explanation for
- * the terminating QH below).
+ * The UHCI driver uses QHs with Interrupt, Control and Bulk URBs for
+ * automatic queuing. To make it easy to insert entries into the schedule,
+ * we have a skeleton of QHs for each predefined Interrupt latency,
+ * low-speed control, full-speed control, bulk, and terminating QH
+ * (see explanation for the terminating QH below).
  *
  * When we want to add a new QH, we add it to the end of the list for the
- * skeleton QH.
- *
- * For instance, the queue can look like this:
+ * skeleton QH.  For instance, the schedule list can look like this:
  *
  * skel int128 QH
  * dev 1 interrupt QH
@@ -256,26 +279,31 @@ static u32 inline td_status(struct uhci_td *td) {
  * - To loop back to the full-speed control queue for full-speed bandwidth
  *   reclamation.
  *
- * Isochronous transfers are stored before the start of the skeleton
- * schedule and don't use QHs. While the UHCI spec doesn't forbid the
- * use of QHs for Isochronous, it doesn't use them either. And the spec
- * says that queues never advance on an error completion status, which
- * makes them totally unsuitable for Isochronous transfers.
+ * There's a special skeleton QH for Isochronous QHs.  It never appears
+ * on the schedule, and Isochronous TDs go on the schedule before the
+ * the skeleton QHs.  The hardware accesses them directly rather than
+ * through their QH, which is used only for bookkeeping purposes.
+ * While the UHCI spec doesn't forbid the use of QHs for Isochronous,
+ * it doesn't use them either.  And the spec says that queues never
+ * advance on an error completion status, which makes them totally
+ * unsuitable for Isochronous transfers.
  */
 
-#define UHCI_NUM_SKELQH		12
-#define skel_int128_qh		skelqh[0]
-#define skel_int64_qh		skelqh[1]
-#define skel_int32_qh		skelqh[2]
-#define skel_int16_qh		skelqh[3]
-#define skel_int8_qh		skelqh[4]
-#define skel_int4_qh		skelqh[5]
-#define skel_int2_qh		skelqh[6]
-#define skel_int1_qh		skelqh[7]
-#define skel_ls_control_qh	skelqh[8]
-#define skel_fs_control_qh	skelqh[9]
-#define skel_bulk_qh		skelqh[10]
-#define skel_term_qh		skelqh[11]
+#define UHCI_NUM_SKELQH		14
+#define skel_unlink_qh		skelqh[0]
+#define skel_iso_qh		skelqh[1]
+#define skel_int128_qh		skelqh[2]
+#define skel_int64_qh		skelqh[3]
+#define skel_int32_qh		skelqh[4]
+#define skel_int16_qh		skelqh[5]
+#define skel_int8_qh		skelqh[6]
+#define skel_int4_qh		skelqh[7]
+#define skel_int2_qh		skelqh[8]
+#define skel_int1_qh		skelqh[9]
+#define skel_ls_control_qh	skelqh[10]
+#define skel_fs_control_qh	skelqh[11]
+#define skel_bulk_qh		skelqh[12]
+#define skel_term_qh		skelqh[13]
 
 /*
  * Search tree for determining where <interval> fits in the skelqh[]
@@ -293,21 +321,21 @@ static inline int __interval_to_skel(int interval)
 	if (interval < 16) {
 		if (interval < 4) {
 			if (interval < 2)
-				return 7;	/* int1 for 0-1 ms */
-			return 6;		/* int2 for 2-3 ms */
+				return 9;	/* int1 for 0-1 ms */
+			return 8;		/* int2 for 2-3 ms */
 		}
 		if (interval < 8)
-			return 5;		/* int4 for 4-7 ms */
-		return 4;			/* int8 for 8-15 ms */
+			return 7;		/* int4 for 4-7 ms */
+		return 6;			/* int8 for 8-15 ms */
 	}
 	if (interval < 64) {
 		if (interval < 32)
-			return 3;		/* int16 for 16-31 ms */
-		return 2;			/* int32 for 32-63 ms */
+			return 5;		/* int16 for 16-31 ms */
+		return 4;			/* int32 for 32-63 ms */
 	}
 	if (interval < 128)
-		return 1;			/* int64 for 64-127 ms */
-	return 0;				/* int128 for 128-255 ms (Max.) */
+		return 3;			/* int64 for 64-127 ms */
+	return 2;				/* int128 for 128-255 ms (Max.) */
 }
 
 
@@ -360,15 +388,16 @@ struct uhci_hcd {
 
 	struct uhci_td *term_td;	/* Terminating TD, see UHCI bug */
 	struct uhci_qh *skelqh[UHCI_NUM_SKELQH];	/* Skeleton QHs */
+	struct uhci_qh *next_qh;	/* Next QH to scan */
 
 	spinlock_t lock;
 
-	dma_addr_t frame_dma_handle;		/* Hardware frame list */
+	dma_addr_t frame_dma_handle;	/* Hardware frame list */
 	__le32 *frame;
-	void **frame_cpu;			/* CPU's frame list */
+	void **frame_cpu;		/* CPU's frame list */
 
-	int fsbr;				/* Full-speed bandwidth reclamation */
-	unsigned long fsbrtimeout;		/* FSBR delay */
+	int fsbr;			/* Full-speed bandwidth reclamation */
+	unsigned long fsbrtimeout;	/* FSBR delay */
 
 	enum uhci_rh_state rh_state;
 	unsigned long auto_stop_time;		/* When to AUTO_STOP */
@@ -382,6 +411,7 @@ struct uhci_hcd {
 	unsigned int hc_inaccessible:1;		/* HC is suspended or dead */
 	unsigned int working_RD:1;		/* Suspended root hub doesn't
 						   need to be polled */
+	unsigned int is_initialized:1;		/* Data structure is usable */
 
 	/* Support for port suspend/resume/reset */
 	unsigned long port_c_suspend;		/* Bit-arrays of ports */
@@ -389,27 +419,16 @@ struct uhci_hcd {
 	unsigned long resuming_ports;
 	unsigned long ports_timeout;		/* Time to stop signalling */
 
-	/* Main list of URBs currently controlled by this HC */
-	struct list_head urb_list;
-
-	/* List of QHs that are done, but waiting to be unlinked (race) */
-	struct list_head qh_remove_list;
-	unsigned int qh_remove_age;		/* Age in frames */
-
 	/* List of TDs that are done, but waiting to be freed (race) */
 	struct list_head td_remove_list;
 	unsigned int td_remove_age;		/* Age in frames */
 
-	/* List of asynchronously unlinked URBs */
-	struct list_head urb_remove_list;
-	unsigned int urb_remove_age;		/* Age in frames */
-
-	/* List of URBs awaiting completion callback */
-	struct list_head complete_list;
+	struct list_head idle_qh_list;		/* Where the idle QHs live */
 
 	int rh_numports;			/* Number of root-hub ports */
 
 	wait_queue_head_t waitqh;		/* endpoint_disable waiters */
+	int num_waiting;			/* Number of waiters */
 };
 
 /* Convert between a usb_hcd pointer and the corresponding uhci_hcd */
@@ -429,7 +448,7 @@ static inline struct usb_hcd *uhci_to_hcd(struct uhci_hcd *uhci)
  *	Private per-URB data
  */
 struct urb_priv {
-	struct list_head urb_list;
+	struct list_head node;		/* Node in the QH's urbp list */
 
 	struct urb *urb;
 
@@ -437,15 +456,8 @@ struct urb_priv {
 	struct list_head td_list;
 
 	unsigned fsbr : 1;		/* URB turned on FSBR */
-	unsigned fsbr_timeout : 1;	/* URB timed out on FSBR */
-	unsigned queued : 1;		/* QH was queued (not linked in) */
-	unsigned short_control_packet : 1;	/* If we get a short packet during */
-						/*  a control transfer, retrigger */
-						/*  the status phase */
-
-	unsigned long fsbrtime;		/* In jiffies */
-
-	struct list_head queue_list;
+	unsigned short_transfer : 1;	/* URB got a short transfer, no
+					 * need to rescan */
 };
 
 

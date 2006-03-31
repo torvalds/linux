@@ -80,15 +80,13 @@
 #include <linux/kmod.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
 #ifdef CONFIG_ADB_CUDA
 #include <linux/cuda.h>
 #endif
 #ifdef CONFIG_ADB_PMU
 #include <linux/pmu.h>
 #endif
-
-#include <linux/i2c-dev.h>
 
 #include <asm/uaccess.h>
 #include <asm/prom.h>
@@ -130,7 +128,7 @@ static struct resource awacs_rsrc[3];
 static char awacs_name[64];
 static int awacs_revision;
 static int awacs_sleeping;
-static DECLARE_MUTEX(dmasound_sem);
+static DEFINE_MUTEX(dmasound_mutex);
 
 static int sound_device_id;		/* exists after iMac revA */
 static int hw_can_byteswap = 1 ;	/* most pmac sound h/w can */
@@ -312,11 +310,11 @@ extern int daca_enter_sleep(void);
 extern int daca_leave_sleep(void);
 
 #define TRY_LOCK()	\
-	if ((rc = down_interruptible(&dmasound_sem)) != 0)	\
+	if ((rc = mutex_lock_interruptible(&dmasound_mutex)) != 0)	\
 		return rc;
-#define LOCK()		down(&dmasound_sem);
+#define LOCK()		mutex_lock(&dmasound_mutex);
 
-#define UNLOCK()	up(&dmasound_sem);
+#define UNLOCK()	mutex_unlock(&dmasound_mutex);
 
 /* We use different versions that the ones provided in dmasound.h
  * 
@@ -2800,7 +2798,7 @@ __init setup_beep(void)
 			DBDMA_ALIGN(beep_dbdma_cmd_space);
 	/* set up emergency dbdma cmd */
 	emergency_dbdma_cmd = beep_dbdma_cmd+1 ;
-	beep_buf = (short *) kmalloc(BEEP_BUFLEN * 4, GFP_KERNEL);
+	beep_buf = kmalloc(BEEP_BUFLEN * 4, GFP_KERNEL);
 	if (beep_buf == NULL) {
 		printk(KERN_ERR "dmasound_pmac: no memory for beep buffer\n");
 		kfree(beep_dbdma_cmd_space) ;
@@ -2816,7 +2814,7 @@ int __init dmasound_awacs_init(void)
 	struct device_node *io = NULL, *info = NULL;
 	int vol, res;
 
-	if (_machine != _MACH_Pmac)
+	if (!machine_is(powermac))
 		return -ENODEV;
 
 	awacs_subframe = 0;

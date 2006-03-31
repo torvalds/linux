@@ -110,6 +110,7 @@ struct spu {
 	char *name;
 	unsigned long local_store_phys;
 	u8 *local_store;
+	unsigned long problem_phys;
 	struct spu_problem __iomem *problem;
 	struct spu_priv1 __iomem *priv1;
 	struct spu_priv2 __iomem *priv2;
@@ -137,6 +138,7 @@ struct spu {
 	void (* wbox_callback)(struct spu *spu);
 	void (* ibox_callback)(struct spu *spu);
 	void (* stop_callback)(struct spu *spu);
+	void (* mfc_callback)(struct spu *spu);
 
 	char irq_c0[8];
 	char irq_c1[8];
@@ -149,6 +151,14 @@ int spu_irq_class_0_bottom(struct spu *spu);
 int spu_irq_class_1_bottom(struct spu *spu);
 void spu_irq_setaffinity(struct spu *spu, int cpu);
 
+/* system callbacks from the SPU */
+struct spu_syscall_block {
+	u64 nr_ret;
+	u64 parm[6];
+};
+extern long spu_sys_callback(struct spu_syscall_block *s);
+
+/* syscalls implemented in spufs */
 extern struct spufs_calls {
 	asmlinkage long (*create_thread)(const char __user *name,
 					unsigned int flags, mode_t mode);
@@ -398,7 +408,6 @@ struct spu_priv1 {
 #define SPU_GET_VERSION_BITS(vr)	(vr & SPU_VERSION_BITS) >> 16
 #define SPU_GET_REVISION_BITS(vr)	(vr & SPU_REVISION_BITS)
 	u8  pad_0x28_0x100[0x100 - 0x28];			/* 0x28 */
-
 
 	/* Interrupt Area */
 	u64 int_mask_RW[3];					/* 0x100 */

@@ -1118,14 +1118,20 @@ static void radeon_cp_init_ring_buffer(drm_device_t * dev,
 {
 	u32 ring_start, cur_read_ptr;
 	u32 tmp;
-
-	/* Initialize the memory controller */
-	RADEON_WRITE(RADEON_MC_FB_LOCATION,
-		     ((dev_priv->gart_vm_start - 1) & 0xffff0000)
-		     | (dev_priv->fb_location >> 16));
+	
+	/* Initialize the memory controller. With new memory map, the fb location
+	 * is not changed, it should have been properly initialized already. Part
+	 * of the problem is that the code below is bogus, assuming the GART is
+	 * always appended to the fb which is not necessarily the case
+	 */
+	if (!dev_priv->new_memmap)
+		RADEON_WRITE(RADEON_MC_FB_LOCATION,
+			     ((dev_priv->gart_vm_start - 1) & 0xffff0000)
+			     | (dev_priv->fb_location >> 16));
 
 #if __OS_HAS_AGP
 	if (dev_priv->flags & CHIP_IS_AGP) {
+		RADEON_WRITE(RADEON_AGP_BASE, (unsigned int)dev->agp->base);
 		RADEON_WRITE(RADEON_MC_AGP_LOCATION,
 			     (((dev_priv->gart_vm_start - 1 +
 				dev_priv->gart_size) & 0xffff0000) |
@@ -1153,8 +1159,6 @@ static void radeon_cp_init_ring_buffer(drm_device_t * dev,
 
 #if __OS_HAS_AGP
 	if (dev_priv->flags & CHIP_IS_AGP) {
-		/* set RADEON_AGP_BASE here instead of relying on X from user space */
-		RADEON_WRITE(RADEON_AGP_BASE, (unsigned int)dev->agp->base);
 		RADEON_WRITE(RADEON_CP_RB_RPTR_ADDR,
 			     dev_priv->ring_rptr->offset
 			     - dev->agp->base + dev_priv->gart_vm_start);
@@ -1174,6 +1178,17 @@ static void radeon_cp_init_ring_buffer(drm_device_t * dev,
 			  entry->handle + tmp_ofs);
 	}
 
+	/* Set ring buffer size */
+#ifdef __BIG_ENDIAN
+	RADEON_WRITE(RADEON_CP_RB_CNTL,
+		     dev_priv->ring.size_l2qw | RADEON_BUF_SWAP_32BIT);
+#else
+	RADEON_WRITE(RADEON_CP_RB_CNTL, dev_priv->ring.size_l2qw);
+#endif
+
+	/* Start with assuming that writeback doesn't work */
+	dev_priv->writeback_works = 0;
+
 	/* Initialize the scratch register pointer.  This will cause
 	 * the scratch register values to be written out to memory
 	 * whenever they are updated.
@@ -1190,7 +1205,38 @@ static void radeon_cp_init_ring_buffer(drm_device_t * dev,
 
 	RADEON_WRITE(RADEON_SCRATCH_UMSK, 0x7);
 
-	/* Writeback doesn't seem to work everywhere, test it first */
+	/* Turn on bus mastering */
+	tmp = RADEON_READ(RADEON_BUS_CNTL) & ~RADEON_BUS_MASTER_DIS;
+	RADEON_WRITE(RADEON_BUS_CNTL, tmp);
+
+	dev_priv->sarea_priv->last_frame = dev_priv->scratch[0] = 0;
+	RADEON_WRITE(RADEON_LAST_FRAME_REG, dev_priv->sarea_priv->last_frame);
+
+	dev_priv->sarea_priv->last_dispatch = dev_priv->scratch[1] = 0;
+	RADEON_WRITE(RADEON_LAST_DISPATCH_REG,
+		     dev_priv->sarea_priv->last_dispatch);
+
+	dev_priv->sarea_priv->last_clear = dev_priv->scratch[2] = 0;
+	RADEON_WRITE(RADEON_LAST_CLEAR_REG, dev_priv->sarea_priv->last_clear);
+
+	radeon_do_wait_for_idle(dev_priv);
+
+	/* Sync everything up */
+	RADEON_WRITE(RADEON_ISYNC_CNTL,
+		     (RADEON_ISYNC_ANY2D_IDLE3D |
+		      RADEON_ISYNC_ANY3D_IDLE2D |
+		      RADEON_ISYNC_WAIT_IDLEGUI |
+		      RADEON_ISYNC_CPSCRATCH_IDLEGUI));
+
+}
+
+static void radeon_test_writeback(drm_radeon_private_t * dev_priv)
+{
+	u32 tmp;
+
+	/* Writeback doesn't seem to work everywhere, test it here and possibly
+	 * enable it if it appears to work
+	 */
 	DRM_WRITE32(dev_priv->ring_rptr, RADEON_SCRATCHOFF(1), 0);
 	RADEON_WRITE(RADEON_SCRATCH_REG1, 0xdeadbeef);
 
@@ -1203,46 +1249,15 @@ static void radeon_cp_init_ring_buffer(drm_device_t * dev,
 
 	if (tmp < dev_priv->usec_timeout) {
 		dev_priv->writeback_works = 1;
-		DRM_DEBUG("writeback test succeeded, tmp=%d\n", tmp);
+		DRM_INFO("writeback test succeeded in %d usecs\n", tmp);
 	} else {
 		dev_priv->writeback_works = 0;
-		DRM_DEBUG("writeback test failed\n");
+		DRM_INFO("writeback test failed\n");
 	}
 	if (radeon_no_wb == 1) {
 		dev_priv->writeback_works = 0;
-		DRM_DEBUG("writeback forced off\n");
+		DRM_INFO("writeback forced off\n");
 	}
-
-	dev_priv->sarea_priv->last_frame = dev_priv->scratch[0] = 0;
-	RADEON_WRITE(RADEON_LAST_FRAME_REG, dev_priv->sarea_priv->last_frame);
-
-	dev_priv->sarea_priv->last_dispatch = dev_priv->scratch[1] = 0;
-	RADEON_WRITE(RADEON_LAST_DISPATCH_REG,
-		     dev_priv->sarea_priv->last_dispatch);
-
-	dev_priv->sarea_priv->last_clear = dev_priv->scratch[2] = 0;
-	RADEON_WRITE(RADEON_LAST_CLEAR_REG, dev_priv->sarea_priv->last_clear);
-
-	/* Set ring buffer size */
-#ifdef __BIG_ENDIAN
-	RADEON_WRITE(RADEON_CP_RB_CNTL,
-		     dev_priv->ring.size_l2qw | RADEON_BUF_SWAP_32BIT);
-#else
-	RADEON_WRITE(RADEON_CP_RB_CNTL, dev_priv->ring.size_l2qw);
-#endif
-
-	radeon_do_wait_for_idle(dev_priv);
-
-	/* Turn on bus mastering */
-	tmp = RADEON_READ(RADEON_BUS_CNTL) & ~RADEON_BUS_MASTER_DIS;
-	RADEON_WRITE(RADEON_BUS_CNTL, tmp);
-
-	/* Sync everything up */
-	RADEON_WRITE(RADEON_ISYNC_CNTL,
-		     (RADEON_ISYNC_ANY2D_IDLE3D |
-		      RADEON_ISYNC_ANY3D_IDLE2D |
-		      RADEON_ISYNC_WAIT_IDLEGUI |
-		      RADEON_ISYNC_CPSCRATCH_IDLEGUI));
 }
 
 /* Enable or disable PCI-E GART on the chip */
@@ -1316,6 +1331,14 @@ static int radeon_do_init_cp(drm_device_t * dev, drm_radeon_init_t * init)
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 
 	DRM_DEBUG("\n");
+
+	/* if we require new memory map but we don't have it fail */
+	if ((dev_priv->flags & CHIP_NEW_MEMMAP) && !dev_priv->new_memmap)
+	{
+		DRM_ERROR("Cannot initialise DRM on this card\nThis card requires a new X.org DDX\n");
+		radeon_do_cleanup_cp(dev);
+		return DRM_ERR(EINVAL);
+	}
 
 	if (init->is_pci && (dev_priv->flags & CHIP_IS_AGP))
 	{
@@ -1496,6 +1519,9 @@ static int radeon_do_init_cp(drm_device_t * dev, drm_radeon_init_t * init)
 
 	dev_priv->fb_location = (RADEON_READ(RADEON_MC_FB_LOCATION)
 				 & 0xffff) << 16;
+	dev_priv->fb_size = 
+		((RADEON_READ(RADEON_MC_FB_LOCATION) & 0xffff0000u) + 0x10000)
+		- dev_priv->fb_location;
 
 	dev_priv->front_pitch_offset = (((dev_priv->front_pitch / 64) << 22) |
 					((dev_priv->front_offset
@@ -1510,8 +1536,46 @@ static int radeon_do_init_cp(drm_device_t * dev, drm_radeon_init_t * init)
 					  + dev_priv->fb_location) >> 10));
 
 	dev_priv->gart_size = init->gart_size;
-	dev_priv->gart_vm_start = dev_priv->fb_location
-	    + RADEON_READ(RADEON_CONFIG_APER_SIZE);
+
+	/* New let's set the memory map ... */
+	if (dev_priv->new_memmap) {
+		u32 base = 0;
+
+		DRM_INFO("Setting GART location based on new memory map\n");
+
+		/* If using AGP, try to locate the AGP aperture at the same
+		 * location in the card and on the bus, though we have to
+		 * align it down.
+		 */
+#if __OS_HAS_AGP
+		if (dev_priv->flags & CHIP_IS_AGP) {
+			base = dev->agp->base;
+			/* Check if valid */
+			if ((base + dev_priv->gart_size) > dev_priv->fb_location &&
+			    base < (dev_priv->fb_location + dev_priv->fb_size)) {
+				DRM_INFO("Can't use AGP base @0x%08lx, won't fit\n",
+					 dev->agp->base);
+				base = 0;
+			}
+		}
+#endif
+		/* If not or if AGP is at 0 (Macs), try to put it elsewhere */
+		if (base == 0) {
+			base = dev_priv->fb_location + dev_priv->fb_size;
+			if (((base + dev_priv->gart_size) & 0xfffffffful)
+			    < base)
+				base = dev_priv->fb_location
+					- dev_priv->gart_size;
+		}		
+		dev_priv->gart_vm_start = base & 0xffc00000u;
+		if (dev_priv->gart_vm_start != base)
+			DRM_INFO("GART aligned down from 0x%08x to 0x%08x\n",
+				 base, dev_priv->gart_vm_start);
+	} else {
+		DRM_INFO("Setting GART location based on old memory map\n");
+		dev_priv->gart_vm_start = dev_priv->fb_location +
+			RADEON_READ(RADEON_CONFIG_APER_SIZE);
+	}
 
 #if __OS_HAS_AGP
 	if (dev_priv->flags & CHIP_IS_AGP)
@@ -1596,6 +1660,7 @@ static int radeon_do_init_cp(drm_device_t * dev, drm_radeon_init_t * init)
 	dev_priv->last_buf = 0;
 
 	radeon_do_engine_reset(dev);
+	radeon_test_writeback(dev_priv);
 
 	return 0;
 }

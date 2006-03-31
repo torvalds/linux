@@ -37,8 +37,8 @@ config DRM_RADEON
 	help
 	  Choose this option if you have an ATI Radeon graphics card.  There
 	  are both PCI and AGP versions.  You don't need to choose this to
-	  run the Radeon in plain VGA mode.  There is a product page at
-	  <http://www.ati.com/na/pages/products/pc/radeon32/index.html>.
+	  run the Radeon in plain VGA mode.
+	  
 	  If M is selected, the module will be called radeon.
 
 config DRM_I810

@@ -28,7 +28,7 @@
 #include "w1_log.h"
 #include "w1_io.h"
 
-int w1_delay_parm = 1;
+static int w1_delay_parm = 1;
 module_param_named(delay_coef, w1_delay_parm, int, 0);
 
 static u8 w1_crc8_table[] = {

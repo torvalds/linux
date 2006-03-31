@@ -1778,7 +1778,7 @@ static struct pci_driver donauboe_pci_driver = {
 static int __init
 donauboe_init (void)
 {
-  return pci_module_init(&donauboe_pci_driver);
+  return pci_register_driver(&donauboe_pci_driver);
 }
 
 static void __exit

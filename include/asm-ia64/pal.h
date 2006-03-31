@@ -1640,8 +1640,7 @@ ia64_pal_logical_to_phys(u64 proc_number, pal_logical_to_physical_t *mapping)
 
 	if (iprv.status == PAL_STATUS_SUCCESS)
 	{
-		if (proc_number == 0)
-			mapping->overview.overview_data = iprv.v0;
+		mapping->overview.overview_data = iprv.v0;
 		mapping->ppli1.ppli1_data = iprv.v1;
 		mapping->ppli2.ppli2_data = iprv.v2;
 	}

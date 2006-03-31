@@ -48,10 +48,10 @@ struct CmdBlk {
 	struct CmdBlk *NextP;	/* Pointer to next command block */
 	struct PKT Packet;	/* A packet, to copy to the rup */
 	/* The func to call to check if OK */
-	int (*PreFuncP) (int, struct CmdBlk *);
+	int (*PreFuncP) (unsigned long, struct CmdBlk *);
 	int PreArg;		/* The arg for the func */
 	/* The func to call when completed */
-	int (*PostFuncP) (int, struct CmdBlk *);
+	int (*PostFuncP) (unsigned long, struct CmdBlk *);
 	int PostArg;		/* The arg for the func */
 };
 

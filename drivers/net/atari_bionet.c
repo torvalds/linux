@@ -123,7 +123,7 @@ static char version[] =
  * Global variable 'bionet_debug'. Can be set at load time by 'insmod'
  */
 unsigned int bionet_debug = NET_DEBUG;
-MODULE_PARM(bionet_debug, "i");
+module_param(bionet_debug, int, 0);
 MODULE_PARM_DESC(bionet_debug, "bionet debug level (0-2)");
 MODULE_LICENSE("GPL");
 

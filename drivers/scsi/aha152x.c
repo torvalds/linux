@@ -1716,12 +1716,7 @@ static void seldo_run(struct Scsi_Host *shpnt)
 		ADDMSGO(BUS_DEVICE_RESET);
 	} else if (SYNCNEG==0 && SYNCHRONOUS) {
     		CURRENT_SC->SCp.phase |= syncneg;
-		ADDMSGO(EXTENDED_MESSAGE);
-		ADDMSGO(3);
-		ADDMSGO(EXTENDED_SDTR);
-		ADDMSGO(50);		/* 200ns */
-		ADDMSGO(8);		/* 8 byte req/ack offset */
-
+		MSGOLEN += spi_populate_sync_msg(&MSGO(MSGOLEN), 50, 8);
 		SYNCNEG=1;		/* negotiation in progress */
 	}
 

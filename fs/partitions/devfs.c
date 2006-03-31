@@ -6,7 +6,7 @@
 #include <linux/vmalloc.h>
 #include <linux/genhd.h>
 #include <linux/bitops.h>
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
 
 
 struct unique_numspace {
@@ -16,7 +16,7 @@ struct unique_numspace {
 	struct semaphore  mutex;
 };
 
-static DECLARE_MUTEX(numspace_mutex);
+static DEFINE_MUTEX(numspace_mutex);
 
 static int expand_numspace(struct unique_numspace *s)
 {
@@ -48,7 +48,7 @@ static int alloc_unique_number(struct unique_numspace *s)
 {
 	int rval = 0;
 
-	down(&numspace_mutex);
+	mutex_lock(&numspace_mutex);
 	if (s->num_free < 1)
 		rval = expand_numspace(s);
 	if (!rval) {
@@ -56,7 +56,7 @@ static int alloc_unique_number(struct unique_numspace *s)
 		--s->num_free;
 		__set_bit(rval, s->bits);
 	}
-	up(&numspace_mutex);
+	mutex_unlock(&numspace_mutex);
 
 	return rval;
 }
@@ -66,11 +66,11 @@ static void dealloc_unique_number(struct unique_numspace *s, int number)
 	int old_val;
 
 	if (number >= 0) {
-		down(&numspace_mutex);
+		mutex_lock(&numspace_mutex);
 		old_val = __test_and_clear_bit(number, s->bits);
 		if (old_val)
 			++s->num_free;
-		up(&numspace_mutex);
+		mutex_unlock(&numspace_mutex);
 	}
 }
 

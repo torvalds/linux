@@ -95,7 +95,7 @@ static struct neigh_ops dn_phase3_ops = {
 struct neigh_table dn_neigh_table = {
 	.family =			PF_DECnet,
 	.entry_size =			sizeof(struct dn_neigh),
-	.key_len =			sizeof(dn_address),
+	.key_len =			sizeof(__le16),
 	.hash =				dn_neigh_hash,
 	.constructor =			dn_neigh_construct,
 	.id =				"dn_neigh_cache",
@@ -123,7 +123,7 @@ struct neigh_table dn_neigh_table = {
 
 static u32 dn_neigh_hash(const void *pkey, const struct net_device *dev)
 {
-	return jhash_2words(*(dn_address *)pkey, 0, dn_neigh_table.hash_rnd);
+	return jhash_2words(*(__u16 *)pkey, 0, dn_neigh_table.hash_rnd);
 }
 
 static int dn_neigh_construct(struct neighbour *neigh)
@@ -249,14 +249,14 @@ static int dn_long_output(struct sk_buff *skb)
 	data = skb_push(skb, sizeof(struct dn_long_packet) + 3);
 	lp = (struct dn_long_packet *)(data+3);
 
-	*((unsigned short *)data) = dn_htons(skb->len - 2);
+	*((__le16 *)data) = dn_htons(skb->len - 2);
 	*(data + 2) = 1 | DN_RT_F_PF; /* Padding */
 
 	lp->msgflg   = DN_RT_PKT_LONG|(cb->rt_flags&(DN_RT_F_IE|DN_RT_F_RQR|DN_RT_F_RTS));
 	lp->d_area   = lp->d_subarea = 0;
-	dn_dn2eth(lp->d_id, dn_ntohs(cb->dst));
+	dn_dn2eth(lp->d_id, cb->dst);
 	lp->s_area   = lp->s_subarea = 0;
-	dn_dn2eth(lp->s_id, dn_ntohs(cb->src));
+	dn_dn2eth(lp->s_id, cb->src);
 	lp->nl2      = 0;
 	lp->visit_ct = cb->hops & 0x3f;
 	lp->s_class  = 0;
@@ -293,7 +293,7 @@ static int dn_short_output(struct sk_buff *skb)
         }
 
 	data = skb_push(skb, sizeof(struct dn_short_packet) + 2);
-	*((unsigned short *)data) = dn_htons(skb->len - 2);
+	*((__le16 *)data) = dn_htons(skb->len - 2);
 	sp = (struct dn_short_packet *)(data+2);
 
 	sp->msgflg     = DN_RT_PKT_SHORT|(cb->rt_flags&(DN_RT_F_RQR|DN_RT_F_RTS));
@@ -335,7 +335,7 @@ static int dn_phase3_output(struct sk_buff *skb)
 	}
 
 	data = skb_push(skb, sizeof(struct dn_short_packet) + 2);
-	*((unsigned short *)data) = dn_htons(skb->len - 2);
+	*((__le16 *)data) = dn_htons(skb->len - 2);
 	sp = (struct dn_short_packet *)(data + 2);
 
 	sp->msgflg   = DN_RT_PKT_SHORT|(cb->rt_flags&(DN_RT_F_RQR|DN_RT_F_RTS));
@@ -373,9 +373,9 @@ int dn_neigh_router_hello(struct sk_buff *skb)
 	struct neighbour *neigh;
 	struct dn_neigh *dn;
 	struct dn_dev *dn_db;
-	dn_address src;
+	__le16 src;
 
-	src = dn_htons(dn_eth2dn(msg->id));
+	src = dn_eth2dn(msg->id);
 
 	neigh = __neigh_lookup(&dn_neigh_table, &src, skb->dev, 1);
 
@@ -409,7 +409,7 @@ int dn_neigh_router_hello(struct sk_buff *skb)
 		}
 
 		/* Only use routers in our area */
-		if ((dn_ntohs(src)>>10) == dn_ntohs((decnet_address)>>10)) {
+		if ((dn_ntohs(src)>>10) == (dn_ntohs((decnet_address))>>10)) {
 			if (!dn_db->router) {
 				dn_db->router = neigh_clone(neigh);
 			} else {
@@ -433,9 +433,9 @@ int dn_neigh_endnode_hello(struct sk_buff *skb)
 	struct endnode_hello_message *msg = (struct endnode_hello_message *)skb->data;
 	struct neighbour *neigh;
 	struct dn_neigh *dn;
-	dn_address src;
+	__le16 src;
 
-	src = dn_htons(dn_eth2dn(msg->id));
+	src = dn_eth2dn(msg->id);
 
 	neigh = __neigh_lookup(&dn_neigh_table, &src, skb->dev, 1);
 

@@ -285,12 +285,13 @@
 #define __NR_faccessat			1293
 /* 1294, 1295 reserved for pselect/ppoll */
 #define __NR_unshare			1296
+#define __NR_splice			1297
 
 #ifdef __KERNEL__
 
 #include <linux/config.h>
 
-#define NR_syscalls			273 /* length of syscall table */
+#define NR_syscalls			274 /* length of syscall table */
 
 #define __ARCH_WANT_SYS_RT_SIGACTION
 

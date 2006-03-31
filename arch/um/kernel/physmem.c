@@ -9,6 +9,7 @@
 #include "linux/vmalloc.h"
 #include "linux/bootmem.h"
 #include "linux/module.h"
+#include "linux/pfn.h"
 #include "asm/types.h"
 #include "asm/pgtable.h"
 #include "kern_util.h"
@@ -279,7 +280,7 @@ int init_maps(unsigned long physmem, unsigned long iomem, unsigned long highmem)
 
 	for(i = 0; i < total_pages; i++){
 		p = &map[i];
-		set_page_count(p, 0);
+		memset(p, 0, sizeof(struct page));
 		SetPageReserved(p);
 		INIT_LIST_HEAD(&p->lru);
 	}
@@ -315,8 +316,6 @@ void map_memory(unsigned long virt, unsigned long phys, unsigned long len,
 		      "err = %d\n", virt, fd, offset, len, r, w, x, err);
 	}
 }
-
-#define PFN_UP(x) (((x) + PAGE_SIZE-1) >> PAGE_SHIFT)
 
 extern int __syscall_stub_start, __binary_start;
 

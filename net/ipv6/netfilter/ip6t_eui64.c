@@ -22,6 +22,7 @@ static int
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
+      const struct xt_match *match,
       const void *matchinfo,
       int offset,
       unsigned int protoff,
@@ -60,42 +61,24 @@ match(const struct sk_buff *skb,
 	return 0;
 }
 
-static int
-ip6t_eui64_checkentry(const char *tablename,
-		      const void *ip,
-		      void *matchinfo,
-		      unsigned int matchsize,
-		      unsigned int hook_mask)
-{
-	if (hook_mask
-	    & ~((1 << NF_IP6_PRE_ROUTING) | (1 << NF_IP6_LOCAL_IN) |
-		(1 << NF_IP6_FORWARD))) {
-		printk("ip6t_eui64: only valid for PRE_ROUTING, LOCAL_IN or FORWARD.\n");
-		return 0;
-	}
-
-	if (matchsize != IP6T_ALIGN(sizeof(int)))
-		return 0;
-
-	return 1;
-}
-
 static struct ip6t_match eui64_match = {
 	.name		= "eui64",
-	.match		= &match,
-	.checkentry	= &ip6t_eui64_checkentry,
+	.match		= match,
+	.matchsize	= sizeof(int),
+	.hooks		= (1 << NF_IP6_PRE_ROUTING) | (1 << NF_IP6_LOCAL_IN) |
+			  (1 << NF_IP6_FORWARD),
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init ip6t_eui64_init(void)
 {
 	return ip6t_register_match(&eui64_match);
 }
 
-static void __exit fini(void)
+static void __exit ip6t_eui64_fini(void)
 {
 	ip6t_unregister_match(&eui64_match);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ip6t_eui64_init);
+module_exit(ip6t_eui64_fini);

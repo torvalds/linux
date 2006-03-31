@@ -79,7 +79,8 @@ gss_verify_mic_kerberos(struct gss_ctx *gss_ctx,
 	int			signalg;
 	int			sealalg;
 	s32			checksum_type;
-	struct xdr_netobj	md5cksum = {.len = 0, .data = NULL};
+	char			cksumdata[16];
+	struct xdr_netobj	md5cksum = {.len = 0, .data = cksumdata};
 	s32			now;
 	int			direction;
 	s32			seqnum;
@@ -176,6 +177,5 @@ gss_verify_mic_kerberos(struct gss_ctx *gss_ctx,
 
 	ret = GSS_S_COMPLETE;
 out:
-	kfree(md5cksum.data);
 	return ret;
 }

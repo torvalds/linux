@@ -106,9 +106,6 @@ extern unsigned long uml_physmem;
 #define __pa(virt) to_phys((void *) (unsigned long) (virt))
 #define __va(phys) to_virt((unsigned long) (phys))
 
-#define page_to_pfn(page) ((page) - mem_map)
-#define pfn_to_page(pfn) (mem_map + (pfn))
-
 #define phys_to_pfn(p) ((p) >> PAGE_SHIFT)
 #define pfn_to_phys(pfn) ((pfn) << PAGE_SHIFT)
 
@@ -121,6 +118,7 @@ extern struct page *arch_validate(struct page *page, gfp_t mask, int order);
 extern void arch_free_page(struct page *page, int order);
 #define HAVE_ARCH_FREE_PAGE
 
+#include <asm-generic/memory_model.h>
 #include <asm-generic/page.h>
 
 #endif

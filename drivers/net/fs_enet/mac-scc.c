@@ -118,6 +118,8 @@ static int do_pd_setup(struct fs_enet_private *fep)
 
 	/* Fill out IRQ field */
 	fep->interrupt = platform_get_irq_byname(pdev, "interrupt");
+	if (fep->interrupt < 0)
+		return -EINVAL;
 
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "regs");
 	fep->scc.sccp = (void *)r->start;

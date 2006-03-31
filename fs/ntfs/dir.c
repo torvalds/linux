@@ -1136,7 +1136,7 @@ static int ntfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	if (fpos == 1) {
 		ntfs_debug("Calling filldir for .. with len 2, fpos 0x1, "
 				"inode 0x%lx, DT_DIR.",
-				parent_ino(filp->f_dentry));
+				(unsigned long)parent_ino(filp->f_dentry));
 		rc = filldir(dirent, "..", 2, fpos,
 				parent_ino(filp->f_dentry), DT_DIR);
 		if (rc)
@@ -1553,7 +1553,7 @@ static int ntfs_dir_fsync(struct file *filp, struct dentry *dentry,
 
 #endif /* NTFS_RW */
 
-struct file_operations ntfs_dir_ops = {
+const struct file_operations ntfs_dir_ops = {
 	.llseek		= generic_file_llseek,	/* Seek inside directory. */
 	.read		= generic_read_dir,	/* Return -EISDIR. */
 	.readdir	= ntfs_readdir,		/* Read directory contents. */

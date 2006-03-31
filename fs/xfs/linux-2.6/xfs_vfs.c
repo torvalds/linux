@@ -227,7 +227,8 @@ vfs_freeze(
 }
 
 vfs_t *
-vfs_allocate( void )
+vfs_allocate(
+	struct super_block	*sb)
 {
 	struct vfs		*vfsp;
 
@@ -236,7 +237,21 @@ vfs_allocate( void )
 	INIT_LIST_HEAD(&vfsp->vfs_sync_list);
 	spin_lock_init(&vfsp->vfs_sync_lock);
 	init_waitqueue_head(&vfsp->vfs_wait_single_sync_task);
+
+	vfsp->vfs_super = sb;
+	sb->s_fs_info = vfsp;
+
+	if (sb->s_flags & MS_RDONLY)
+		vfsp->vfs_flag |= VFS_RDONLY;
+
 	return vfsp;
+}
+
+vfs_t *
+vfs_from_sb(
+	struct super_block	*sb)
+{
+	return (vfs_t *)sb->s_fs_info;
 }
 
 void
@@ -295,7 +310,7 @@ bhv_remove_all_vfsops(
 	bhv_remove_vfsops(vfsp, VFS_POSITION_DM);
 	if (!freebase)
 		return;
-	mp = XFS_BHVTOM(bhv_lookup(VFS_BHVHEAD(vfsp), &xfs_vfsops));
+	mp = XFS_VFSTOM(vfsp);
 	VFS_REMOVEBHV(vfsp, &mp->m_bhv);
 	xfs_mount_free(mp, 0);
 }

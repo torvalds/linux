@@ -4,17 +4,18 @@
 
 src := $(obj)
 
-.PHONY: __build
+PHONY := __build
 __build:
 
 # Read .config if it exist, otherwise ignore
 -include .config
 
+include scripts/Kbuild.include
+
 # The filename Kbuild has precedence over Makefile
 kbuild-dir := $(if $(filter /%,$(src)),$(src),$(srctree)/$(src))
 include $(if $(wildcard $(kbuild-dir)/Kbuild), $(kbuild-dir)/Kbuild, $(kbuild-dir)/Makefile)
 
-include scripts/Kbuild.include
 include scripts/Makefile.lib
 
 ifdef host-progs
@@ -128,7 +129,7 @@ $(multi-objs-y:.o=.s)   : modname = $(modname-multi)
 $(multi-objs-y:.o=.lst) : modname = $(modname-multi)
 
 quiet_cmd_cc_s_c = CC $(quiet_modtag)  $@
-cmd_cc_s_c       = $(CC) $(c_flags) -S -o $@ $< 
+cmd_cc_s_c       = $(CC) $(c_flags) -fverbose-asm -S -o $@ $<
 
 %.s: %.c FORCE
 	$(call if_changed_dep,cc_s_c)
@@ -165,7 +166,7 @@ cmd_cc_o_c = $(CC) $(c_flags) -c -o $(@D)/.tmp_$(@F) $<
 cmd_modversions =							\
 	if $(OBJDUMP) -h $(@D)/.tmp_$(@F) | grep -q __ksymtab; then	\
 		$(CPP) -D__GENKSYMS__ $(c_flags) $<			\
-		| $(GENKSYMS)						\
+		| $(GENKSYMS) -a $(ARCH)				\
 		> $(@D)/.tmp_$(@F:.o=.ver);				\
 									\
 		$(LD) $(LDFLAGS) -r -o $@ $(@D)/.tmp_$(@F) 		\
@@ -177,12 +178,10 @@ cmd_modversions =							\
 endif
 
 define rule_cc_o_c
-	$(if $($(quiet)cmd_checksrc),echo '  $($(quiet)cmd_checksrc)';)   \
-	$(cmd_checksrc)							  \
-	$(if $($(quiet)cmd_cc_o_c),echo '  $(call escsq,$($(quiet)cmd_cc_o_c))';)  \
-	$(cmd_cc_o_c);							  \
+	$(call echo-cmd,checksrc) $(cmd_checksrc)			  \
+	$(call echo-cmd,cc_o_c) $(cmd_cc_o_c);				  \
 	$(cmd_modversions)						  \
-	scripts/basic/fixdep $(depfile) $@ '$(call escsq,$(cmd_cc_o_c))' > $(@D)/.$(@F).tmp;  \
+	scripts/basic/fixdep $(depfile) $@ '$(call make-cmd,cc_o_c)' > $(@D)/.$(@F).tmp;  \
 	rm -f $(depfile);						  \
 	mv -f $(@D)/.$(@F).tmp $(@D)/.$(@F).cmd
 endef
@@ -309,14 +308,14 @@ targets += $(multi-used-y) $(multi-used-m)
 # Descending
 # ---------------------------------------------------------------------------
 
-.PHONY: $(subdir-ym)
+PHONY += $(subdir-ym)
 $(subdir-ym):
 	$(Q)$(MAKE) $(build)=$@
 
 # Add FORCE to the prequisites of a target to force it to be always rebuilt.
 # ---------------------------------------------------------------------------
 
-.PHONY: FORCE
+PHONY += FORCE
 
 FORCE:
 
@@ -331,3 +330,9 @@ cmd_files := $(wildcard $(foreach f,$(targets),$(dir $(f)).$(notdir $(f)).cmd))
 ifneq ($(cmd_files),)
   include $(cmd_files)
 endif
+
+
+# Declare the contents of the .PHONY variable as phony.  We keep that
+# information in a variable se we can use it in if_changed and friends.
+
+.PHONY: $(PHONY)

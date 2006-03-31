@@ -18,8 +18,10 @@
 #include <linux/random.h>
 
 #include <net/icmp.h>
+#include <net/inet_common.h>
 #include <net/inet_hashtables.h>
 #include <net/inet_sock.h>
+#include <net/protocol.h>
 #include <net/sock.h>
 #include <net/timewait_sock.h>
 #include <net/tcp_states.h>
@@ -28,32 +30,20 @@
 #include "ackvec.h"
 #include "ccid.h"
 #include "dccp.h"
+#include "feat.h"
 
-struct inet_hashinfo __cacheline_aligned dccp_hashinfo = {
-	.lhash_lock	= RW_LOCK_UNLOCKED,
-	.lhash_users	= ATOMIC_INIT(0),
-	.lhash_wait = __WAIT_QUEUE_HEAD_INITIALIZER(dccp_hashinfo.lhash_wait),
-};
-
-EXPORT_SYMBOL_GPL(dccp_hashinfo);
+/*
+ * This is the global socket data structure used for responding to
+ * the Out-of-the-blue (OOTB) packets. A control sock will be created
+ * for this socket at the initialization time.
+ */
+static struct socket *dccp_v4_ctl_socket;
 
 static int dccp_v4_get_port(struct sock *sk, const unsigned short snum)
 {
 	return inet_csk_get_port(&dccp_hashinfo, sk, snum,
 				 inet_csk_bind_conflict);
 }
-
-static void dccp_v4_hash(struct sock *sk)
-{
-	inet_hash(&dccp_hashinfo, sk);
-}
-
-void dccp_unhash(struct sock *sk)
-{
-	inet_unhash(&dccp_hashinfo, sk);
-}
-
-EXPORT_SYMBOL_GPL(dccp_unhash);
 
 int dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 {
@@ -207,11 +197,12 @@ static inline void dccp_do_pmtu_discovery(struct sock *sk,
 	} /* else let the usual retransmit timer handle it */
 }
 
-static void dccp_v4_ctl_send_ack(struct sk_buff *rxskb)
+static void dccp_v4_reqsk_send_ack(struct sk_buff *rxskb,
+				   struct request_sock *req)
 {
 	int err;
 	struct dccp_hdr *rxdh = dccp_hdr(rxskb), *dh;
-	const int dccp_hdr_ack_len = sizeof(struct dccp_hdr) +
+	const u32 dccp_hdr_ack_len = sizeof(struct dccp_hdr) +
 				     sizeof(struct dccp_hdr_ext) +
 				     sizeof(struct dccp_hdr_ack_bits);
 	struct sk_buff *skb;
@@ -219,12 +210,12 @@ static void dccp_v4_ctl_send_ack(struct sk_buff *rxskb)
 	if (((struct rtable *)rxskb->dst)->rt_type != RTN_LOCAL)
 		return;
 
-	skb = alloc_skb(MAX_DCCP_HEADER + 15, GFP_ATOMIC);
+	skb = alloc_skb(dccp_v4_ctl_socket->sk->sk_prot->max_header, GFP_ATOMIC);
 	if (skb == NULL)
 		return;
 
 	/* Reserve space for headers. */
-	skb_reserve(skb, MAX_DCCP_HEADER);
+	skb_reserve(skb, dccp_v4_ctl_socket->sk->sk_prot->max_header);
 
 	skb->dst = dst_clone(rxskb->dst);
 
@@ -243,22 +234,16 @@ static void dccp_v4_ctl_send_ack(struct sk_buff *rxskb)
 	dccp_hdr_set_ack(dccp_hdr_ack_bits(skb),
 			 DCCP_SKB_CB(rxskb)->dccpd_seq);
 
-	bh_lock_sock(dccp_ctl_socket->sk);
-	err = ip_build_and_send_pkt(skb, dccp_ctl_socket->sk,
+	bh_lock_sock(dccp_v4_ctl_socket->sk);
+	err = ip_build_and_send_pkt(skb, dccp_v4_ctl_socket->sk,
 				    rxskb->nh.iph->daddr,
 				    rxskb->nh.iph->saddr, NULL);
-	bh_unlock_sock(dccp_ctl_socket->sk);
+	bh_unlock_sock(dccp_v4_ctl_socket->sk);
 
 	if (err == NET_XMIT_CN || err == 0) {
 		DCCP_INC_STATS_BH(DCCP_MIB_OUTSEGS);
 		DCCP_INC_STATS_BH(DCCP_MIB_OUTRSTS);
 	}
-}
-
-static void dccp_v4_reqsk_send_ack(struct sk_buff *skb,
-				   struct request_sock *req)
-{
-	dccp_v4_ctl_send_ack(skb);
 }
 
 static int dccp_v4_send_response(struct sock *sk, struct request_sock *req,
@@ -275,7 +260,10 @@ static int dccp_v4_send_response(struct sock *sk, struct request_sock *req,
 	skb = dccp_make_response(sk, dst, req);
 	if (skb != NULL) {
 		const struct inet_request_sock *ireq = inet_rsk(req);
+		struct dccp_hdr *dh = dccp_hdr(skb);
 
+		dh->dccph_checksum = dccp_v4_checksum(skb, ireq->loc_addr,
+						      ireq->rmt_addr);
 		memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
 		err = ip_build_and_send_pkt(skb, sk, ireq->loc_addr,
 					    ireq->rmt_addr,
@@ -301,7 +289,7 @@ out:
  * check at all. A more general error queue to queue errors for later handling
  * is probably better.
  */
-void dccp_v4_err(struct sk_buff *skb, u32 info)
+static void dccp_v4_err(struct sk_buff *skb, u32 info)
 {
 	const struct iphdr *iph = (struct iphdr *)skb->data;
 	const struct dccp_hdr *dh = (struct dccp_hdr *)(skb->data +
@@ -456,32 +444,6 @@ void dccp_v4_send_check(struct sock *sk, int len, struct sk_buff *skb)
 
 EXPORT_SYMBOL_GPL(dccp_v4_send_check);
 
-int dccp_v4_send_reset(struct sock *sk, enum dccp_reset_codes code)
-{
-	struct sk_buff *skb;
-	/*
-	 * FIXME: what if rebuild_header fails?
-	 * Should we be doing a rebuild_header here?
-	 */
-	int err = inet_sk_rebuild_header(sk);
-
-	if (err != 0)
-		return err;
-
-	skb = dccp_make_reset(sk, sk->sk_dst_cache, code);
-	if (skb != NULL) {
-		const struct inet_sock *inet = inet_sk(sk);
-
-		memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
-		err = ip_build_and_send_pkt(skb, sk,
-					    inet->saddr, inet->daddr, NULL);
-		if (err == NET_XMIT_CN)
-			err = 0;
-	}
-
-	return err;
-}
-
 static inline u64 dccp_v4_init_sequence(const struct sock *sk,
 					const struct sk_buff *skb)
 {
@@ -497,9 +459,9 @@ int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	struct dccp_sock dp;
 	struct request_sock *req;
 	struct dccp_request_sock *dreq;
-	const __u32 saddr = skb->nh.iph->saddr;
-	const __u32 daddr = skb->nh.iph->daddr;
- 	const __u32 service = dccp_hdr_request(skb)->dccph_req_service;
+	const __be32 saddr = skb->nh.iph->saddr;
+	const __be32 daddr = skb->nh.iph->daddr;
+ 	const __be32 service = dccp_hdr_request(skb)->dccph_req_service;
 	struct dccp_skb_cb *dcb = DCCP_SKB_CB(skb);
 	__u8 reset_code = DCCP_RESET_CODE_TOO_BUSY;
 
@@ -535,7 +497,8 @@ int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	if (req == NULL)
 		goto drop;
 
-	/* FIXME: process options */
+	if (dccp_parse_options(sk, skb))
+		goto drop;
 
 	dccp_openreq_init(req, &dp, skb);
 
@@ -660,8 +623,8 @@ static struct sock *dccp_v4_hnd_req(struct sock *sk, struct sk_buff *skb)
 	return sk;
 }
 
-int dccp_v4_checksum(const struct sk_buff *skb, const u32 saddr,
-		     const u32 daddr)
+int dccp_v4_checksum(const struct sk_buff *skb, const __be32 saddr,
+		     const __be32 daddr)
 {
 	const struct dccp_hdr* dh = dccp_hdr(skb);
 	int checksum_len;
@@ -680,8 +643,10 @@ int dccp_v4_checksum(const struct sk_buff *skb, const u32 saddr,
 				 IPPROTO_DCCP, tmp);
 }
 
+EXPORT_SYMBOL_GPL(dccp_v4_checksum);
+
 static int dccp_v4_verify_checksum(struct sk_buff *skb,
-				   const u32 saddr, const u32 daddr)
+				   const __be32 saddr, const __be32 daddr)
 {
 	struct dccp_hdr *dh = dccp_hdr(skb);
 	int checksum_len;
@@ -741,16 +706,17 @@ static void dccp_v4_ctl_send_reset(struct sk_buff *rxskb)
 	if (((struct rtable *)rxskb->dst)->rt_type != RTN_LOCAL)
 		return;
 
-	dst = dccp_v4_route_skb(dccp_ctl_socket->sk, rxskb);
+	dst = dccp_v4_route_skb(dccp_v4_ctl_socket->sk, rxskb);
 	if (dst == NULL)
 		return;
 
-	skb = alloc_skb(MAX_DCCP_HEADER + 15, GFP_ATOMIC);
+	skb = alloc_skb(dccp_v4_ctl_socket->sk->sk_prot->max_header,
+			GFP_ATOMIC);
 	if (skb == NULL)
 		goto out;
 
 	/* Reserve space for headers. */
-	skb_reserve(skb, MAX_DCCP_HEADER);
+	skb_reserve(skb, dccp_v4_ctl_socket->sk->sk_prot->max_header);
 	skb->dst = dst_clone(dst);
 
 	skb->h.raw = skb_push(skb, dccp_hdr_reset_len);
@@ -778,11 +744,11 @@ static void dccp_v4_ctl_send_reset(struct sk_buff *rxskb)
 	dh->dccph_checksum = dccp_v4_checksum(skb, rxskb->nh.iph->saddr,
 					      rxskb->nh.iph->daddr);
 
-	bh_lock_sock(dccp_ctl_socket->sk);
-	err = ip_build_and_send_pkt(skb, dccp_ctl_socket->sk,
+	bh_lock_sock(dccp_v4_ctl_socket->sk);
+	err = ip_build_and_send_pkt(skb, dccp_v4_ctl_socket->sk,
 				    rxskb->nh.iph->daddr,
 				    rxskb->nh.iph->saddr, NULL);
-	bh_unlock_sock(dccp_ctl_socket->sk);
+	bh_unlock_sock(dccp_v4_ctl_socket->sk);
 
 	if (err == NET_XMIT_CN || err == 0) {
 		DCCP_INC_STATS_BH(DCCP_MIB_OUTSEGS);
@@ -912,7 +878,7 @@ int dccp_invalid_packet(struct sk_buff *skb)
 EXPORT_SYMBOL_GPL(dccp_invalid_packet);
 
 /* this is called when real data arrives */
-int dccp_v4_rcv(struct sk_buff *skb)
+static int dccp_v4_rcv(struct sk_buff *skb)
 {
 	const struct dccp_hdr *dh;
 	struct sock *sk;
@@ -1019,110 +985,36 @@ do_time_wait:
 	goto no_dccp_socket;
 }
 
-struct inet_connection_sock_af_ops dccp_ipv4_af_ops = {
-	.queue_xmit	= ip_queue_xmit,
-	.send_check	= dccp_v4_send_check,
-	.rebuild_header	= inet_sk_rebuild_header,
-	.conn_request	= dccp_v4_conn_request,
-	.syn_recv_sock	= dccp_v4_request_recv_sock,
-	.net_header_len	= sizeof(struct iphdr),
-	.setsockopt	= ip_setsockopt,
-	.getsockopt	= ip_getsockopt,
-	.addr2sockaddr	= inet_csk_addr2sockaddr,
-	.sockaddr_len	= sizeof(struct sockaddr_in),
+static struct inet_connection_sock_af_ops dccp_ipv4_af_ops = {
+	.queue_xmit	   = ip_queue_xmit,
+	.send_check	   = dccp_v4_send_check,
+	.rebuild_header	   = inet_sk_rebuild_header,
+	.conn_request	   = dccp_v4_conn_request,
+	.syn_recv_sock	   = dccp_v4_request_recv_sock,
+	.net_header_len	   = sizeof(struct iphdr),
+	.setsockopt	   = ip_setsockopt,
+	.getsockopt	   = ip_getsockopt,
+	.addr2sockaddr	   = inet_csk_addr2sockaddr,
+	.sockaddr_len	   = sizeof(struct sockaddr_in),
+#ifdef CONFIG_COMPAT
+	.compat_setsockopt = compat_ip_setsockopt,
+	.compat_getsockopt = compat_ip_getsockopt,
+#endif
 };
 
-int dccp_v4_init_sock(struct sock *sk)
+static int dccp_v4_init_sock(struct sock *sk)
 {
-	struct dccp_sock *dp = dccp_sk(sk);
-	struct inet_connection_sock *icsk = inet_csk(sk);
-	static int dccp_ctl_socket_init = 1;
+	static __u8 dccp_v4_ctl_sock_initialized;
+	int err = dccp_init_sock(sk, dccp_v4_ctl_sock_initialized);
 
-	dccp_options_init(&dp->dccps_options);
-	do_gettimeofday(&dp->dccps_epoch);
-
-	if (dp->dccps_options.dccpo_send_ack_vector) {
-		dp->dccps_hc_rx_ackvec = dccp_ackvec_alloc(DCCP_MAX_ACKVEC_LEN,
-							   GFP_KERNEL);
-		if (dp->dccps_hc_rx_ackvec == NULL)
-			return -ENOMEM;
+	if (err == 0) {
+		if (unlikely(!dccp_v4_ctl_sock_initialized))
+			dccp_v4_ctl_sock_initialized = 1;
+		inet_csk(sk)->icsk_af_ops = &dccp_ipv4_af_ops;
 	}
 
-	/*
-	 * FIXME: We're hardcoding the CCID, and doing this at this point makes
-	 * the listening (master) sock get CCID control blocks, which is not
-	 * necessary, but for now, to not mess with the test userspace apps,
-	 * lets leave it here, later the real solution is to do this in a
-	 * setsockopt(CCIDs-I-want/accept). -acme
-	 */
-	if (likely(!dccp_ctl_socket_init)) {
-		dp->dccps_hc_rx_ccid = ccid_init(dp->dccps_options.dccpo_rx_ccid,
-						 sk);
-		dp->dccps_hc_tx_ccid = ccid_init(dp->dccps_options.dccpo_tx_ccid,
-						 sk);
-	    	if (dp->dccps_hc_rx_ccid == NULL ||
-		    dp->dccps_hc_tx_ccid == NULL) {
-			ccid_exit(dp->dccps_hc_rx_ccid, sk);
-			ccid_exit(dp->dccps_hc_tx_ccid, sk);
-			if (dp->dccps_options.dccpo_send_ack_vector) {
-				dccp_ackvec_free(dp->dccps_hc_rx_ackvec);
-				dp->dccps_hc_rx_ackvec = NULL;
-			}
-			dp->dccps_hc_rx_ccid = dp->dccps_hc_tx_ccid = NULL;
-			return -ENOMEM;
-		}
-	} else
-		dccp_ctl_socket_init = 0;
-
-	dccp_init_xmit_timers(sk);
-	icsk->icsk_rto = DCCP_TIMEOUT_INIT;
-	sk->sk_state = DCCP_CLOSED;
-	sk->sk_write_space = dccp_write_space;
-	icsk->icsk_af_ops = &dccp_ipv4_af_ops;
-	icsk->icsk_sync_mss = dccp_sync_mss;
-	dp->dccps_mss_cache = 536;
-	dp->dccps_role = DCCP_ROLE_UNDEFINED;
-	dp->dccps_service = DCCP_SERVICE_INVALID_VALUE;
-
-	return 0;
+	return err;
 }
-
-EXPORT_SYMBOL_GPL(dccp_v4_init_sock);
-
-int dccp_v4_destroy_sock(struct sock *sk)
-{
-	struct dccp_sock *dp = dccp_sk(sk);
-
-	/*
-	 * DCCP doesn't use sk_write_queue, just sk_send_head
-	 * for retransmissions
-	 */
-	if (sk->sk_send_head != NULL) {
-		kfree_skb(sk->sk_send_head);
-		sk->sk_send_head = NULL;
-	}
-
-	/* Clean up a referenced DCCP bind bucket. */
-	if (inet_csk(sk)->icsk_bind_hash != NULL)
-		inet_put_port(&dccp_hashinfo, sk);
-
-	kfree(dp->dccps_service_list);
-	dp->dccps_service_list = NULL;
-
-	ccid_hc_rx_exit(dp->dccps_hc_rx_ccid, sk);
-	ccid_hc_tx_exit(dp->dccps_hc_tx_ccid, sk);
-	if (dp->dccps_options.dccpo_send_ack_vector) {
-		dccp_ackvec_free(dp->dccps_hc_rx_ackvec);
-		dp->dccps_hc_rx_ackvec = NULL;
-	}
-	ccid_exit(dp->dccps_hc_rx_ccid, sk);
-	ccid_exit(dp->dccps_hc_tx_ccid, sk);
-	dp->dccps_hc_rx_ccid = dp->dccps_hc_tx_ccid = NULL;
-
-	return 0;
-}
-
-EXPORT_SYMBOL_GPL(dccp_v4_destroy_sock);
 
 static void dccp_v4_reqsk_destructor(struct request_sock *req)
 {
@@ -1142,7 +1034,7 @@ static struct timewait_sock_ops dccp_timewait_sock_ops = {
 	.twsk_obj_size	= sizeof(struct inet_timewait_sock),
 };
 
-struct proto dccp_prot = {
+static struct proto dccp_v4_prot = {
 	.name			= "DCCP",
 	.owner			= THIS_MODULE,
 	.close			= dccp_close,
@@ -1155,17 +1047,110 @@ struct proto dccp_prot = {
 	.sendmsg		= dccp_sendmsg,
 	.recvmsg		= dccp_recvmsg,
 	.backlog_rcv		= dccp_v4_do_rcv,
-	.hash			= dccp_v4_hash,
+	.hash			= dccp_hash,
 	.unhash			= dccp_unhash,
 	.accept			= inet_csk_accept,
 	.get_port		= dccp_v4_get_port,
 	.shutdown		= dccp_shutdown,
-	.destroy		= dccp_v4_destroy_sock,
+	.destroy		= dccp_destroy_sock,
 	.orphan_count		= &dccp_orphan_count,
 	.max_header		= MAX_DCCP_HEADER,
 	.obj_size		= sizeof(struct dccp_sock),
 	.rsk_prot		= &dccp_request_sock_ops,
 	.twsk_prot		= &dccp_timewait_sock_ops,
+#ifdef CONFIG_COMPAT
+	.compat_setsockopt	= compat_dccp_setsockopt,
+	.compat_getsockopt	= compat_dccp_getsockopt,
+#endif
 };
 
-EXPORT_SYMBOL_GPL(dccp_prot);
+static struct net_protocol dccp_v4_protocol = {
+	.handler	= dccp_v4_rcv,
+	.err_handler	= dccp_v4_err,
+	.no_policy	= 1,
+};
+
+static const struct proto_ops inet_dccp_ops = {
+	.family		   = PF_INET,
+	.owner		   = THIS_MODULE,
+	.release	   = inet_release,
+	.bind		   = inet_bind,
+	.connect	   = inet_stream_connect,
+	.socketpair	   = sock_no_socketpair,
+	.accept		   = inet_accept,
+	.getname	   = inet_getname,
+	/* FIXME: work on tcp_poll to rename it to inet_csk_poll */
+	.poll		   = dccp_poll,
+	.ioctl		   = inet_ioctl,
+	/* FIXME: work on inet_listen to rename it to sock_common_listen */
+	.listen		   = inet_dccp_listen,
+	.shutdown	   = inet_shutdown,
+	.setsockopt	   = sock_common_setsockopt,
+	.getsockopt	   = sock_common_getsockopt,
+	.sendmsg	   = inet_sendmsg,
+	.recvmsg	   = sock_common_recvmsg,
+	.mmap		   = sock_no_mmap,
+	.sendpage	   = sock_no_sendpage,
+#ifdef CONFIG_COMPAT
+	.compat_setsockopt = compat_sock_common_setsockopt,
+	.compat_getsockopt = compat_sock_common_getsockopt,
+#endif
+};
+
+static struct inet_protosw dccp_v4_protosw = {
+	.type		= SOCK_DCCP,
+	.protocol	= IPPROTO_DCCP,
+	.prot		= &dccp_v4_prot,
+	.ops		= &inet_dccp_ops,
+	.capability	= -1,
+	.no_check	= 0,
+	.flags		= INET_PROTOSW_ICSK,
+};
+
+static int __init dccp_v4_init(void)
+{
+	int err = proto_register(&dccp_v4_prot, 1);
+
+	if (err != 0)
+		goto out;
+
+	err = inet_add_protocol(&dccp_v4_protocol, IPPROTO_DCCP);
+	if (err != 0)
+		goto out_proto_unregister;
+
+	inet_register_protosw(&dccp_v4_protosw);
+
+	err = inet_csk_ctl_sock_create(&dccp_v4_ctl_socket, PF_INET,
+				       SOCK_DCCP, IPPROTO_DCCP);
+	if (err)
+		goto out_unregister_protosw;
+out:
+	return err;
+out_unregister_protosw:
+	inet_unregister_protosw(&dccp_v4_protosw);
+	inet_del_protocol(&dccp_v4_protocol, IPPROTO_DCCP);
+out_proto_unregister:
+	proto_unregister(&dccp_v4_prot);
+	goto out;
+}
+
+static void __exit dccp_v4_exit(void)
+{
+	inet_unregister_protosw(&dccp_v4_protosw);
+	inet_del_protocol(&dccp_v4_protocol, IPPROTO_DCCP);
+	proto_unregister(&dccp_v4_prot);
+}
+
+module_init(dccp_v4_init);
+module_exit(dccp_v4_exit);
+
+/*
+ * __stringify doesn't likes enums, so use SOCK_DCCP (6) and IPPROTO_DCCP (33)
+ * values directly, Also cover the case where the protocol is not specified,
+ * i.e. net-pf-PF_INET-proto-0-type-SOCK_DCCP
+ */
+MODULE_ALIAS("net-pf-" __stringify(PF_INET) "-proto-33-type-6");
+MODULE_ALIAS("net-pf-" __stringify(PF_INET) "-proto-0-type-6");
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Arnaldo Carvalho de Melo <acme@mandriva.com>");
+MODULE_DESCRIPTION("DCCP - Datagram Congestion Controlled Protocol");

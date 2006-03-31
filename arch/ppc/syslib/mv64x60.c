@@ -1,6 +1,4 @@
 /*
- * arch/ppc/syslib/mv64x60.c
- *
  * Common routines for the Marvell/Galileo Discovery line of host bridges
  * (gt64260, mv64360, mv64460, ...).
  *

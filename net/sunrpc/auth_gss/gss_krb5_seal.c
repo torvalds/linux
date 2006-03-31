@@ -70,15 +70,19 @@
 # define RPCDBG_FACILITY        RPCDBG_AUTH
 #endif
 
+spinlock_t krb5_seq_lock = SPIN_LOCK_UNLOCKED;
+
 u32
 gss_get_mic_kerberos(struct gss_ctx *gss_ctx, struct xdr_buf *text,
 		struct xdr_netobj *token)
 {
 	struct krb5_ctx		*ctx = gss_ctx->internal_ctx_id;
 	s32			checksum_type;
-	struct xdr_netobj	md5cksum = {.len = 0, .data = NULL};
+	char			cksumdata[16];
+	struct xdr_netobj	md5cksum = {.len = 0, .data = cksumdata};
 	unsigned char		*ptr, *krb5_hdr, *msg_start;
 	s32			now;
+	u32			seq_send;
 
 	dprintk("RPC:     gss_krb5_seal\n");
 
@@ -133,16 +137,15 @@ gss_get_mic_kerberos(struct gss_ctx *gss_ctx, struct xdr_buf *text,
 		BUG();
 	}
 
-	kfree(md5cksum.data);
+	spin_lock(&krb5_seq_lock);
+	seq_send = ctx->seq_send++;
+	spin_unlock(&krb5_seq_lock);
 
 	if ((krb5_make_seq_num(ctx->seq, ctx->initiate ? 0 : 0xff,
-			       ctx->seq_send, krb5_hdr + 16, krb5_hdr + 8)))
+			       seq_send, krb5_hdr + 16, krb5_hdr + 8)))
 		goto out_err;
-
-	ctx->seq_send++;
 
 	return ((ctx->endtime < now) ? GSS_S_CONTEXT_EXPIRED : GSS_S_COMPLETE);
 out_err:
-	kfree(md5cksum.data);
 	return GSS_S_FAILURE;
 }

@@ -19,13 +19,23 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/init.h>
+#include <linux/llc.h>
+#include <net/llc.h>
 
 #include "br_private.h"
 
 int (*br_should_route_hook) (struct sk_buff **pskb) = NULL;
 
+static struct llc_sap *br_stp_sap;
+
 static int __init br_init(void)
 {
+	br_stp_sap = llc_sap_open(LLC_SAP_BSPAN, br_stp_rcv);
+	if (!br_stp_sap) {
+		printk(KERN_ERR "bridge: can't register sap for STP\n");
+		return -EBUSY;
+	}
+
 	br_fdb_init();
 
 #ifdef CONFIG_BRIDGE_NETFILTER
@@ -45,6 +55,8 @@ static int __init br_init(void)
 
 static void __exit br_deinit(void)
 {
+	llc_sap_close(br_stp_sap);
+
 #ifdef CONFIG_BRIDGE_NETFILTER
 	br_netfilter_fini();
 #endif

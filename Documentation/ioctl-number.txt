@@ -78,8 +78,6 @@ Code	Seq#	Include File		Comments
 '#'	00-3F	IEEE 1394 Subsystem	Block for the entire subsystem
 '1'	00-1F	<linux/timepps.h>	PPS kit from Ulrich Windl
 					<ftp://ftp.de.kernel.org/pub/linux/daemons/ntp/PPS/>
-'6'	00-10	<asm-i386/processor.h>	Intel IA32 microcode update driver
-					<mailto:tigran@veritas.com>
 '8'	all				SNP8023 advanced NIC card
 					<mailto:mcr@solidum.com>
 'A'	00-1F	linux/apm_bios.h

@@ -68,10 +68,10 @@ config ARCNET_CAP
           packet is stuffed with an extra 4 byte "cookie" which doesn't
           actually appear on the network. After transmit the driver will send
           back a packet with protocol byte 0 containing the status of the
-          transmition:
+          transmission:
              0=no hardware acknowledge
              1=excessive nak
-             2=transmition accepted by the reciever hardware
+             2=transmission accepted by the receiver hardware
 
           Received packets are also stuffed with the extra 4 bytes but it will
           be random data.

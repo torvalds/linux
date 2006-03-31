@@ -1,6 +1,4 @@
 /*
- * arch/ppc/syslib/mpc52xx_pic.c
- *
  * Programmable Interrupt Controller functions for the Freescale MPC52xx 
  * embedded CPU.
  *

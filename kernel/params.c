@@ -31,7 +31,7 @@
 #define DEBUGP(fmt, a...)
 #endif
 
-static inline int dash2underscore(char c)
+static inline char dash2underscore(char c)
 {
 	if (c == '-')
 		return '_';
@@ -265,12 +265,12 @@ int param_get_invbool(char *buffer, struct kernel_param *kp)
 }
 
 /* We cheat here and temporarily mangle the string. */
-int param_array(const char *name,
-		const char *val,
-		unsigned int min, unsigned int max,
-		void *elem, int elemsize,
-		int (*set)(const char *, struct kernel_param *kp),
-		int *num)
+static int param_array(const char *name,
+		       const char *val,
+		       unsigned int min, unsigned int max,
+		       void *elem, int elemsize,
+		       int (*set)(const char *, struct kernel_param *kp),
+		       int *num)
 {
 	int ret;
 	struct kernel_param kp;
@@ -638,12 +638,7 @@ static ssize_t module_attr_show(struct kobject *kobj,
 	if (!attribute->show)
 		return -EIO;
 
-	if (!try_module_get(mk->mod))
-		return -ENODEV;
-
 	ret = attribute->show(attribute, mk->mod, buf);
-
-	module_put(mk->mod);
 
 	return ret;
 }
@@ -662,12 +657,7 @@ static ssize_t module_attr_store(struct kobject *kobj,
 	if (!attribute->store)
 		return -EIO;
 
-	if (!try_module_get(mk->mod))
-		return -ENODEV;
-
 	ret = attribute->store(attribute, mk->mod, buf, len);
-
-	module_put(mk->mod);
 
 	return ret;
 }

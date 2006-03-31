@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/lopec.c
- *
  * Setup routines for the Motorola LoPEC.
  *
  * Author: Dan Cox

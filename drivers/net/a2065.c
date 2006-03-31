@@ -829,7 +829,7 @@ static void __devexit a2065_remove_one(struct zorro_dev *z)
 
 static int __init a2065_init_module(void)
 {
-	return zorro_module_init(&a2065_driver);
+	return zorro_register_driver(&a2065_driver);
 }
 
 static void __exit a2065_cleanup_module(void)

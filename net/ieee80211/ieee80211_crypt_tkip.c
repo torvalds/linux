@@ -80,10 +80,9 @@ static void *ieee80211_tkip_init(int key_idx)
 {
 	struct ieee80211_tkip_data *priv;
 
-	priv = kmalloc(sizeof(*priv), GFP_ATOMIC);
+	priv = kzalloc(sizeof(*priv), GFP_ATOMIC);
 	if (priv == NULL)
 		goto fail;
-	memset(priv, 0, sizeof(*priv));
 
 	priv->key_idx = key_idx;
 
@@ -271,34 +270,33 @@ static void tkip_mixing_phase2(u8 * WEPSeed, const u8 * TK, const u16 * TTAK,
 #endif
 }
 
-static u8 *ieee80211_tkip_hdr(struct sk_buff *skb, int hdr_len, void *priv)
+static int ieee80211_tkip_hdr(struct sk_buff *skb, int hdr_len,
+			      u8 * rc4key, int keylen, void *priv)
 {
 	struct ieee80211_tkip_data *tkey = priv;
 	int len;
-	u8 *rc4key, *pos, *icv;
+	u8 *pos;
 	struct ieee80211_hdr_4addr *hdr;
-	u32 crc;
 
 	hdr = (struct ieee80211_hdr_4addr *)skb->data;
 
 	if (skb_headroom(skb) < 8 || skb->len < hdr_len)
-		return NULL;
+		return -1;
+
+	if (rc4key == NULL || keylen < 16)
+		return -1;
 
 	if (!tkey->tx_phase1_done) {
 		tkip_mixing_phase1(tkey->tx_ttak, tkey->key, hdr->addr2,
 				   tkey->tx_iv32);
 		tkey->tx_phase1_done = 1;
 	}
-	rc4key = kmalloc(16, GFP_ATOMIC);
-	if (!rc4key)
-		return NULL;
 	tkip_mixing_phase2(rc4key, tkey->key, tkey->tx_ttak, tkey->tx_iv16);
 
 	len = skb->len - hdr_len;
 	pos = skb_push(skb, 8);
 	memmove(pos, pos + 8, hdr_len);
 	pos += hdr_len;
-	icv = skb_put(skb, 4);
 
 	*pos++ = *rc4key;
 	*pos++ = *(rc4key + 1);
@@ -309,28 +307,28 @@ static u8 *ieee80211_tkip_hdr(struct sk_buff *skb, int hdr_len, void *priv)
 	*pos++ = (tkey->tx_iv32 >> 16) & 0xff;
 	*pos++ = (tkey->tx_iv32 >> 24) & 0xff;
 
-	crc = ~crc32_le(~0, pos, len);
-	icv[0] = crc;
-	icv[1] = crc >> 8;
-	icv[2] = crc >> 16;
-	icv[3] = crc >> 24;
+	tkey->tx_iv16++;
+	if (tkey->tx_iv16 == 0) {
+		tkey->tx_phase1_done = 0;
+		tkey->tx_iv32++;
+	}
 
-	return rc4key;
+	return 8;
 }
 
 static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 {
 	struct ieee80211_tkip_data *tkey = priv;
 	int len;
-	const u8 *rc4key;
-	u8 *pos;
+	u8 rc4key[16], *pos, *icv;
+	u32 crc;
 	struct scatterlist sg;
 
 	if (tkey->flags & IEEE80211_CRYPTO_TKIP_COUNTERMEASURES) {
 		if (net_ratelimit()) {
 			struct ieee80211_hdr_4addr *hdr =
 			    (struct ieee80211_hdr_4addr *)skb->data;
-			printk(KERN_DEBUG "TKIP countermeasures: dropped "
+			printk(KERN_DEBUG ": TKIP countermeasures: dropped "
 			       "TX packet to " MAC_FMT "\n",
 			       MAC_ARG(hdr->addr1));
 		}
@@ -343,21 +341,22 @@ static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	len = skb->len - hdr_len;
 	pos = skb->data + hdr_len;
 
-	rc4key = ieee80211_tkip_hdr(skb, hdr_len, priv);
-	if (!rc4key)
+	if ((ieee80211_tkip_hdr(skb, hdr_len, rc4key, 16, priv)) < 0)
 		return -1;
+
+	icv = skb_put(skb, 4);
+
+	crc = ~crc32_le(~0, pos, len);
+	icv[0] = crc;
+	icv[1] = crc >> 8;
+	icv[2] = crc >> 16;
+	icv[3] = crc >> 24;
 
 	crypto_cipher_setkey(tkey->tfm_arc4, rc4key, 16);
 	sg.page = virt_to_page(pos);
 	sg.offset = offset_in_page(pos);
 	sg.length = len + 4;
 	crypto_cipher_encrypt(tkey->tfm_arc4, &sg, &sg, len + 4);
-
-	tkey->tx_iv16++;
-	if (tkey->tx_iv16 == 0) {
-		tkey->tx_phase1_done = 0;
-		tkey->tx_iv32++;
-	}
 
 	return 0;
 }
@@ -379,7 +378,7 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 
 	if (tkey->flags & IEEE80211_CRYPTO_TKIP_COUNTERMEASURES) {
 		if (net_ratelimit()) {
-			printk(KERN_DEBUG "TKIP countermeasures: dropped "
+			printk(KERN_DEBUG ": TKIP countermeasures: dropped "
 			       "received packet from " MAC_FMT "\n",
 			       MAC_ARG(hdr->addr2));
 		}
@@ -695,6 +694,7 @@ static struct ieee80211_crypto_ops ieee80211_crypt_tkip = {
 	.name = "TKIP",
 	.init = ieee80211_tkip_init,
 	.deinit = ieee80211_tkip_deinit,
+	.build_iv = ieee80211_tkip_hdr,
 	.encrypt_mpdu = ieee80211_tkip_encrypt,
 	.decrypt_mpdu = ieee80211_tkip_decrypt,
 	.encrypt_msdu = ieee80211_michael_mic_add,

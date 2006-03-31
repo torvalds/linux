@@ -684,7 +684,7 @@ void __init tx4938_board_setup(void)
 	for (i = 0; i < 8; i++) {
 		if (!(tx4938_ebuscptr->cr[i] & 0x8))
 			continue;	/* disabled */
- 		rbtx4938_ce_base[i] = (unsigned long)TX4938_EBUSC_BA(i);
+		rbtx4938_ce_base[i] = (unsigned long)TX4938_EBUSC_BA(i);
 		txboard_add_phys_region(rbtx4938_ce_base[i], TX4938_EBUSC_SIZE(i));
 	}
 

@@ -24,6 +24,7 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
   */
 
+
 #include <linux/module.h>
 #include <linux/ioctl.h>
 #include <linux/i2c.h>
@@ -34,7 +35,7 @@ static int debug = 0;		/* insmod parameter */
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off device debugging (default:off).");
 #define dprintk(args...) \
-            do { if (debug) { printk("%s: %s()[%d]: ", KBUILD_MODNAME, __FUNCTION__, __LINE__); printk(args); } } while (0)
+	    do { if (debug) { printk("%s: %s()[%d]: ", KBUILD_MODNAME, __FUNCTION__, __LINE__); printk(args); } } while (0)
 
 #define	SWITCH		0x00
 #define	LEVEL_ADJUST	0x02
@@ -42,7 +43,7 @@ MODULE_PARM_DESC(debug, "Turn on/off device debugging (default:off).");
 #define	TEST		0x04
 
 /* addresses to scan, found only at 0x42 (7-Bit) */
-static unsigned short normal_i2c[] = { I2C_TDA9840, I2C_CLIENT_END };
+static unsigned short normal_i2c[] = { I2C_ADDR_TDA9840, I2C_CLIENT_END };
 
 /* magic definition of all other variables and things */
 I2C_CLIENT_INSMOD;
@@ -222,7 +223,7 @@ static int detach(struct i2c_client *client)
 
 static struct i2c_driver driver = {
 	.driver = {
-		.name	= "tda9840",
+		.name = "tda9840",
 	},
 	.id	= I2C_DRIVERID_TDA9840,
 	.attach_adapter	= attach,

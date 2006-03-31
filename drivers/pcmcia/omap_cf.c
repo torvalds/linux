@@ -218,7 +218,7 @@ static int __init omap_cf_probe(struct device *dev)
 
 	/* either CFLASH.IREQ (INT_1610_CF) or some GPIO */
 	irq = platform_get_irq(pdev, 0);
-	if (!irq)
+	if (irq < 0)
 		return -EINVAL;
 
 	cf = kcalloc(1, sizeof *cf, GFP_KERNEL);

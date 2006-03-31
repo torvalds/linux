@@ -310,6 +310,8 @@ static int __devinit snd_card_azt2320_probe(int dev,
 	return 0;
 }
 
+static unsigned int __devinitdata azt2320_devices;
+
 static int __devinit snd_azt2320_pnp_detect(struct pnp_card_link *card,
 					    const struct pnp_card_device_id *id)
 {
@@ -323,6 +325,7 @@ static int __devinit snd_azt2320_pnp_detect(struct pnp_card_link *card,
 		if (res < 0)
 			return res;
 		dev++;
+		azt2320_devices++;
 		return 0;
 	}
         return -ENODEV;
@@ -372,10 +375,13 @@ static struct pnp_card_driver azt2320_pnpc_driver = {
 
 static int __init alsa_card_azt2320_init(void)
 {
-	int cards;
+	int err;
 
-	cards = pnp_register_card_driver(&azt2320_pnpc_driver);
-	if (cards <= 0) {
+	err = pnp_register_card_driver(&azt2320_pnpc_driver);
+	if (err)
+		return err;
+
+	if (!azt2320_devices) {
 		pnp_unregister_card_driver(&azt2320_pnpc_driver);
 #ifdef MODULE
 		snd_printk(KERN_ERR "no AZT2320 based soundcards found\n");

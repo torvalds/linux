@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/pal4_setup.c
- *
  * Board setup routines for the SBS PalomarIV.
  *
  * Author: Dan Cox

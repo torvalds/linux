@@ -236,7 +236,6 @@ extern void htab_initialize_secondary(void);
 extern void hpte_init_native(void);
 extern void hpte_init_lpar(void);
 extern void hpte_init_iSeries(void);
-extern void mm_init_ppc64(void);
 
 extern long pSeries_lpar_hpte_insert(unsigned long hpte_group,
 				     unsigned long va, unsigned long prpn,

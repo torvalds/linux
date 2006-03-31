@@ -341,7 +341,6 @@ void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 	if (hold_time(br) == 0)
 		return;
 
-	rcu_read_lock();
 	fdb = fdb_find(head, addr);
 	if (likely(fdb)) {
 		/* attempt to update an entry for a local interface */
@@ -356,13 +355,12 @@ void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 			fdb->ageing_timer = jiffies;
 		}
 	} else {
-		spin_lock_bh(&br->hash_lock);
+		spin_lock(&br->hash_lock);
 		if (!fdb_find(head, addr))
 			fdb_create(head, source, addr, 0);
 		/* else  we lose race and someone else inserts
 		 * it first, don't bother updating
 		 */
-		spin_unlock_bh(&br->hash_lock);
+		spin_unlock(&br->hash_lock);
 	}
-	rcu_read_unlock();
 }

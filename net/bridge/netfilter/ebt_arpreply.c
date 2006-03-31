@@ -82,16 +82,16 @@ static struct ebt_target reply_target =
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init ebt_arpreply_init(void)
 {
 	return ebt_register_target(&reply_target);
 }
 
-static void __exit fini(void)
+static void __exit ebt_arpreply_fini(void)
 {
 	ebt_unregister_target(&reply_target);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ebt_arpreply_init);
+module_exit(ebt_arpreply_fini);
 MODULE_LICENSE("GPL");

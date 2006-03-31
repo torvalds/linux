@@ -28,6 +28,7 @@
 #include <linux/major.h>
 #include <linux/kdev_t.h>
 #include <linux/device.h>
+#include <linux/mutex.h>
 
 struct class *class3270;
 
@@ -59,7 +60,7 @@ struct raw3270 {
 #define RAW3270_FLAGS_CONSOLE	8	/* Device is the console. */
 
 /* Semaphore to protect global data of raw3270 (devices, views, etc). */
-static DECLARE_MUTEX(raw3270_sem);
+static DEFINE_MUTEX(raw3270_mutex);
 
 /* List of 3270 devices. */
 static struct list_head raw3270_devices = LIST_HEAD_INIT(raw3270_devices);
@@ -115,10 +116,9 @@ raw3270_request_alloc(size_t size)
 	struct raw3270_request *rq;
 
 	/* Allocate request structure */
-	rq = kmalloc(sizeof(struct raw3270_request), GFP_KERNEL | GFP_DMA);
+	rq = kzalloc(sizeof(struct raw3270_request), GFP_KERNEL | GFP_DMA);
 	if (!rq)
 		return ERR_PTR(-ENOMEM);
-	memset(rq, 0, sizeof(struct raw3270_request));
 
 	/* alloc output buffer. */
 	if (size > 0) {
@@ -816,7 +816,7 @@ raw3270_setup_device(struct ccw_device *cdev, struct raw3270 *rp, char *ascebc)
 	 * number for it. Note: there is no device with minor 0,
 	 * see special case for fs3270.c:fs3270_open().
 	 */
-	down(&raw3270_sem);
+	mutex_lock(&raw3270_mutex);
 	/* Keep the list sorted. */
 	minor = RAW3270_FIRSTMINOR;
 	rp->minor = -1;
@@ -833,7 +833,7 @@ raw3270_setup_device(struct ccw_device *cdev, struct raw3270 *rp, char *ascebc)
 		rp->minor = minor;
 		list_add_tail(&rp->list, &raw3270_devices);
 	}
-	up(&raw3270_sem);
+	mutex_unlock(&raw3270_mutex);
 	/* No free minor number? Then give up. */
 	if (rp->minor == -1)
 		return -EUSERS;
@@ -1004,7 +1004,7 @@ raw3270_add_view(struct raw3270_view *view, struct raw3270_fn *fn, int minor)
 
 	if (minor <= 0)
 		return -ENODEV;
-	down(&raw3270_sem);
+	mutex_lock(&raw3270_mutex);
 	rc = -ENODEV;
 	list_for_each_entry(rp, &raw3270_devices, list) {
 		if (rp->minor != minor)
@@ -1025,7 +1025,7 @@ raw3270_add_view(struct raw3270_view *view, struct raw3270_fn *fn, int minor)
 		spin_unlock_irqrestore(get_ccwdev_lock(rp->cdev), flags);
 		break;
 	}
-	up(&raw3270_sem);
+	mutex_unlock(&raw3270_mutex);
 	return rc;
 }
 
@@ -1039,7 +1039,7 @@ raw3270_find_view(struct raw3270_fn *fn, int minor)
 	struct raw3270_view *view, *tmp;
 	unsigned long flags;
 
-	down(&raw3270_sem);
+	mutex_lock(&raw3270_mutex);
 	view = ERR_PTR(-ENODEV);
 	list_for_each_entry(rp, &raw3270_devices, list) {
 		if (rp->minor != minor)
@@ -1058,7 +1058,7 @@ raw3270_find_view(struct raw3270_fn *fn, int minor)
 		spin_unlock_irqrestore(get_ccwdev_lock(rp->cdev), flags);
 		break;
 	}
-	up(&raw3270_sem);
+	mutex_unlock(&raw3270_mutex);
 	return view;
 }
 
@@ -1105,7 +1105,7 @@ raw3270_delete_device(struct raw3270 *rp)
 	struct ccw_device *cdev;
 
 	/* Remove from device chain. */
-	down(&raw3270_sem);
+	mutex_lock(&raw3270_mutex);
 	if (rp->clttydev)
 		class_device_destroy(class3270,
 				     MKDEV(IBM_TTY3270_MAJOR, rp->minor));
@@ -1113,7 +1113,7 @@ raw3270_delete_device(struct raw3270 *rp)
 		class_device_destroy(class3270,
 				     MKDEV(IBM_FS3270_MAJOR, rp->minor));
 	list_del_init(&rp->list);
-	up(&raw3270_sem);
+	mutex_unlock(&raw3270_mutex);
 
 	/* Disconnect from ccw_device. */
 	cdev = rp->cdev;
@@ -1209,13 +1209,13 @@ int raw3270_register_notifier(void (*notifier)(int, int))
 	if (!np)
 		return -ENOMEM;
 	np->notifier = notifier;
-	down(&raw3270_sem);
+	mutex_lock(&raw3270_mutex);
 	list_add_tail(&np->list, &raw3270_notifier);
 	list_for_each_entry(rp, &raw3270_devices, list) {
 		get_device(&rp->cdev->dev);
 		notifier(rp->minor, 1);
 	}
-	up(&raw3270_sem);
+	mutex_unlock(&raw3270_mutex);
 	return 0;
 }
 
@@ -1223,14 +1223,14 @@ void raw3270_unregister_notifier(void (*notifier)(int, int))
 {
 	struct raw3270_notifier *np;
 
-	down(&raw3270_sem);
+	mutex_lock(&raw3270_mutex);
 	list_for_each_entry(np, &raw3270_notifier, list)
 		if (np->notifier == notifier) {
 			list_del(&np->list);
 			kfree(np);
 			break;
 		}
-	up(&raw3270_sem);
+	mutex_unlock(&raw3270_mutex);
 }
 
 /*
@@ -1257,10 +1257,10 @@ raw3270_set_online (struct ccw_device *cdev)
 		goto failure;
 	raw3270_create_attributes(rp);
 	set_bit(RAW3270_FLAGS_READY, &rp->flags);
-	down(&raw3270_sem);
+	mutex_lock(&raw3270_mutex);
 	list_for_each_entry(np, &raw3270_notifier, list)
 		np->notifier(rp->minor, 1);
-	up(&raw3270_sem);
+	mutex_unlock(&raw3270_mutex);
 	return 0;
 
 failure:
@@ -1308,10 +1308,10 @@ raw3270_remove (struct ccw_device *cdev)
 	}
 	spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
 
-	down(&raw3270_sem);
+	mutex_lock(&raw3270_mutex);
 	list_for_each_entry(np, &raw3270_notifier, list)
 		np->notifier(rp->minor, 0);
-	up(&raw3270_sem);
+	mutex_unlock(&raw3270_mutex);
 
 	/* Reset 3270 device. */
 	raw3270_reset_device(rp);
@@ -1371,13 +1371,13 @@ raw3270_init(void)
 	rc = ccw_driver_register(&raw3270_ccw_driver);
 	if (rc == 0) {
 		/* Create attributes for early (= console) device. */
-		down(&raw3270_sem);
+		mutex_lock(&raw3270_mutex);
 		class3270 = class_create(THIS_MODULE, "3270");
 		list_for_each_entry(rp, &raw3270_devices, list) {
 			get_device(&rp->cdev->dev);
 			raw3270_create_attributes(rp);
 		}
-		up(&raw3270_sem);
+		mutex_unlock(&raw3270_mutex);
 	}
 	return rc;
 }

@@ -148,7 +148,6 @@ static struct tty_driver	*stl_serial;
  *	is already swapping a shared buffer won't make things any worse.
  */
 static char			*stl_tmpwritebuf;
-static DECLARE_MUTEX(stl_tmpwritesem);
 
 /*
  *	Define a local default termios struct. All ports will be created

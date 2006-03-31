@@ -36,9 +36,9 @@ struct conf_writedata {
 	int buf_size;		/* actual number of bytes in the buffer */
 	int needed_size;	/* needed size when reading pof */
 	int state;		/* actual interface states from above constants */
-	uchar conf_line[CONF_LINE_LEN];		/* buffered conf line */
-	word channel;		/* active channel number */
-	uchar *pof_buffer;	/* buffer when writing pof */
+	unsigned char conf_line[CONF_LINE_LEN];	/* buffered conf line */
+	unsigned short channel;		/* active channel number */
+	unsigned char *pof_buffer;	/* buffer when writing pof */
 };
 
 /***********************************************************************/
@@ -49,7 +49,7 @@ struct conf_writedata {
 static int
 process_line(struct conf_writedata *cnf)
 {
-	uchar *cp = cnf->conf_line;
+	unsigned char *cp = cnf->conf_line;
 	int i;
 
 	if (cnf->card->debug_flags & LOG_CNF_LINE)
@@ -92,7 +92,7 @@ hysdn_conf_write(struct file *file, const char __user *buf, size_t count, loff_t
 {
 	struct conf_writedata *cnf;
 	int i;
-	uchar ch, *cp;
+	unsigned char ch, *cp;
 
 	if (!count)
 		return (0);	/* nothing to handle */
@@ -390,7 +390,7 @@ int
 hysdn_procconf_init(void)
 {
 	hysdn_card *card;
-	uchar conf_name[20];
+	unsigned char conf_name[20];
 
 	hysdn_proc_entry = proc_mkdir(PROC_SUBDIR_NAME, proc_net);
 	if (!hysdn_proc_entry) {
@@ -423,7 +423,7 @@ void
 hysdn_procconf_release(void)
 {
 	hysdn_card *card;
-	uchar conf_name[20];
+	unsigned char conf_name[20];
 
 	card = card_root;	/* start with first card */
 	while (card) {

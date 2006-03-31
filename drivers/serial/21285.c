@@ -375,23 +375,18 @@ static void serial21285_setup_ports(void)
 }
 
 #ifdef CONFIG_SERIAL_21285_CONSOLE
+static void serial21285_console_putchar(struct uart_port *port, int ch)
+{
+	while (*CSR_UARTFLG & 0x20)
+		barrier();
+	*CSR_UARTDR = ch;
+}
 
 static void
 serial21285_console_write(struct console *co, const char *s,
 			  unsigned int count)
 {
-	int i;
-
-	for (i = 0; i < count; i++) {
-		while (*CSR_UARTFLG & 0x20)
-			barrier();
-		*CSR_UARTDR = s[i];
-		if (s[i] == '\n') {
-			while (*CSR_UARTFLG & 0x20)
-				barrier();
-			*CSR_UARTDR = '\r';
-		}
-	}
+	uart_console_write(&serial21285_port, s, count, serial21285_console_putchar);
 }
 
 static void __init

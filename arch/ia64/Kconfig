@@ -34,11 +34,19 @@ config RWSEM_XCHGADD_ALGORITHM
 	bool
 	default y
 
+config GENERIC_FIND_NEXT_BIT
+	bool
+	default y
+
 config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
 
 config TIME_INTERPOLATION
+	bool
+	default y
+
+config DMI
 	bool
 	default y
 
@@ -252,6 +260,15 @@ config NR_CPUS
 	  than 64 will cause the use of a CPU mask array, causing a small
 	  performance hit.
 
+config IA64_NR_NODES
+	int "Maximum number of NODEs (256-1024)" if (IA64_SGI_SN2 || IA64_GENERIC)
+	range 256 1024
+	depends on IA64_SGI_SN2 || IA64_GENERIC
+	default "256"
+	help
+	  This option specifies the maximum number of nodes in your SSI system.
+	  If in doubt, use the default.
+
 config HOTPLUG_CPU
 	bool "Support for hot-pluggable CPUs (EXPERIMENTAL)"
 	depends on SMP && EXPERIMENTAL
@@ -270,6 +287,25 @@ config SCHED_SMT
 	  Improves the CPU scheduler's decision making when dealing with
 	  Intel IA64 chips with MultiThreading at a cost of slightly increased
 	  overhead in some places. If unsure say N here.
+
+config PERMIT_BSP_REMOVE
+	bool "Support removal of Bootstrap Processor"
+	depends on HOTPLUG_CPU
+	default n
+	---help---
+	Say Y here if your platform SAL will support removal of BSP with HOTPLUG_CPU
+	support. 
+
+config FORCE_CPEI_RETARGET
+	bool "Force assumption that CPEI can be re-targetted"
+	depends on PERMIT_BSP_REMOVE
+	default n
+	---help---
+	Say Y if you need to force the assumption that CPEI can be re-targetted to
+	any cpu in the system. This hint is available via ACPI 3.0 specifications.
+	Tiger4 systems are capable of re-directing CPEI to any CPU other than BSP.
+	This option it useful to enable this feature on older BIOS's as well.
+	You can also enable this by using boot command line option force_cpei=1.
 
 config PREEMPT
 	bool "Preemptible Kernel"

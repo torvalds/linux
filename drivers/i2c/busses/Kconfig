@@ -168,12 +168,14 @@ config I2C_PIIX4
 	help
 	  If you say yes to this option, support will be included for the Intel
 	  PIIX4 family of mainboard I2C interfaces.  Specifically, the following
-	  versions of the chipset are supported:
+	  versions of the chipset are supported (note that Serverworks is part
+	  of Broadcom):
 	    Intel PIIX4
 	    Intel 440MX
 	    Serverworks OSB4
 	    Serverworks CSB5
 	    Serverworks CSB6
+	    Serverworks HT-1000
 	    SMSC Victory66
 
 	  This driver can also be built as a module.  If so, the module
@@ -389,10 +391,11 @@ config SCx200_I2C_SDA
 	  also be specified with a module parameter.
 
 config SCx200_ACB
-	tristate "NatSemi SCx200 ACCESS.bus"
-	depends on I2C && PCI
+	tristate "Geode ACCESS.bus support"
+	depends on X86_32 && I2C && PCI
 	help
-	  Enable the use of the ACCESS.bus controllers of a SCx200 processor.
+	  Enable the use of the ACCESS.bus controllers on the Geode SCx200 and
+	  SC1100 processors and the CS5535 and CS5536 Geode companion devices.
 
 	  If you don't know what to do here, say N.
 

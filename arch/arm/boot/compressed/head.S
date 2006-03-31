@@ -358,7 +358,7 @@ __setup_mmu:	sub	r3, r4, #16384		@ Page directory size
 		str	r1, [r0]
 		mov	pc, lr
 
-__armv4_cache_on:
+__armv4_mmu_cache_on:
 		mov	r12, lr
 		bl	__setup_mmu
 		mov	r0, #0
@@ -367,24 +367,24 @@ __armv4_cache_on:
 		mrc	p15, 0, r0, c1, c0, 0	@ read control reg
 		orr	r0, r0, #0x5000		@ I-cache enable, RR cache replacement
 		orr	r0, r0, #0x0030
-		bl	__common_cache_on
+		bl	__common_mmu_cache_on
 		mov	r0, #0
 		mcr	p15, 0, r0, c8, c7, 0	@ flush I,D TLBs
 		mov	pc, r12
 
-__arm6_cache_on:
+__arm6_mmu_cache_on:
 		mov	r12, lr
 		bl	__setup_mmu
 		mov	r0, #0
 		mcr	p15, 0, r0, c7, c0, 0	@ invalidate whole cache v3
 		mcr	p15, 0, r0, c5, c0, 0	@ invalidate whole TLB v3
 		mov	r0, #0x30
-		bl	__common_cache_on
+		bl	__common_mmu_cache_on
 		mov	r0, #0
 		mcr	p15, 0, r0, c5, c0, 0	@ invalidate whole TLB v3
 		mov	pc, r12
 
-__common_cache_on:
+__common_mmu_cache_on:
 #ifndef DEBUG
 		orr	r0, r0, #0x000d		@ Write buffer, mmu
 #endif
@@ -471,12 +471,12 @@ call_cache_fn:	adr	r12, proc_types
 proc_types:
 		.word	0x41560600		@ ARM6/610
 		.word	0xffffffe0
-		b	__arm6_cache_off	@ works, but slow
-		b	__arm6_cache_off
+		b	__arm6_mmu_cache_off	@ works, but slow
+		b	__arm6_mmu_cache_off
 		mov	pc, lr
-@		b	__arm6_cache_on		@ untested
-@		b	__arm6_cache_off
-@		b	__armv3_cache_flush
+@		b	__arm6_mmu_cache_on		@ untested
+@		b	__arm6_mmu_cache_off
+@		b	__armv3_mmu_cache_flush
 
 		.word	0x00000000		@ old ARM ID
 		.word	0x0000f000
@@ -486,14 +486,14 @@ proc_types:
 
 		.word	0x41007000		@ ARM7/710
 		.word	0xfff8fe00
-		b	__arm7_cache_off
-		b	__arm7_cache_off
+		b	__arm7_mmu_cache_off
+		b	__arm7_mmu_cache_off
 		mov	pc, lr
 
 		.word	0x41807200		@ ARM720T (writethrough)
 		.word	0xffffff00
-		b	__armv4_cache_on
-		b	__armv4_cache_off
+		b	__armv4_mmu_cache_on
+		b	__armv4_mmu_cache_off
 		mov	pc, lr
 
 		.word	0x00007000		@ ARM7 IDs
@@ -506,41 +506,41 @@ proc_types:
 
 		.word	0x4401a100		@ sa110 / sa1100
 		.word	0xffffffe0
-		b	__armv4_cache_on
-		b	__armv4_cache_off
-		b	__armv4_cache_flush
+		b	__armv4_mmu_cache_on
+		b	__armv4_mmu_cache_off
+		b	__armv4_mmu_cache_flush
 
 		.word	0x6901b110		@ sa1110
 		.word	0xfffffff0
-		b	__armv4_cache_on
-		b	__armv4_cache_off
-		b	__armv4_cache_flush
+		b	__armv4_mmu_cache_on
+		b	__armv4_mmu_cache_off
+		b	__armv4_mmu_cache_flush
 
 		@ These match on the architecture ID
 
 		.word	0x00020000		@ ARMv4T
 		.word	0x000f0000
-		b	__armv4_cache_on
-		b	__armv4_cache_off
-		b	__armv4_cache_flush
+		b	__armv4_mmu_cache_on
+		b	__armv4_mmu_cache_off
+		b	__armv4_mmu_cache_flush
 
 		.word	0x00050000		@ ARMv5TE
 		.word	0x000f0000
-		b	__armv4_cache_on
-		b	__armv4_cache_off
-		b	__armv4_cache_flush
+		b	__armv4_mmu_cache_on
+		b	__armv4_mmu_cache_off
+		b	__armv4_mmu_cache_flush
 
 		.word	0x00060000		@ ARMv5TEJ
 		.word	0x000f0000
-		b	__armv4_cache_on
-		b	__armv4_cache_off
-		b	__armv4_cache_flush
+		b	__armv4_mmu_cache_on
+		b	__armv4_mmu_cache_off
+		b	__armv4_mmu_cache_flush
 
 		.word	0x00070000		@ ARMv6
 		.word	0x000f0000
-		b	__armv4_cache_on
-		b	__armv4_cache_off
-		b	__armv6_cache_flush
+		b	__armv4_mmu_cache_on
+		b	__armv4_mmu_cache_off
+		b	__armv6_mmu_cache_flush
 
 		.word	0			@ unrecognised type
 		.word	0
@@ -562,7 +562,7 @@ proc_types:
 cache_off:	mov	r3, #12			@ cache_off function
 		b	call_cache_fn
 
-__armv4_cache_off:
+__armv4_mmu_cache_off:
 		mrc	p15, 0, r0, c1, c0
 		bic	r0, r0, #0x000d
 		mcr	p15, 0, r0, c1, c0	@ turn MMU and cache off
@@ -571,15 +571,15 @@ __armv4_cache_off:
 		mcr	p15, 0, r0, c8, c7	@ invalidate whole TLB v4
 		mov	pc, lr
 
-__arm6_cache_off:
+__arm6_mmu_cache_off:
 		mov	r0, #0x00000030		@ ARM6 control reg.
-		b	__armv3_cache_off
+		b	__armv3_mmu_cache_off
 
-__arm7_cache_off:
+__arm7_mmu_cache_off:
 		mov	r0, #0x00000070		@ ARM7 control reg.
-		b	__armv3_cache_off
+		b	__armv3_mmu_cache_off
 
-__armv3_cache_off:
+__armv3_mmu_cache_off:
 		mcr	p15, 0, r0, c1, c0, 0	@ turn MMU and cache off
 		mov	r0, #0
 		mcr	p15, 0, r0, c7, c0, 0	@ invalidate whole cache v3
@@ -601,7 +601,7 @@ cache_clean_flush:
 		mov	r3, #16
 		b	call_cache_fn
 
-__armv6_cache_flush:
+__armv6_mmu_cache_flush:
 		mov	r1, #0
 		mcr	p15, 0, r1, c7, c14, 0	@ clean+invalidate D
 		mcr	p15, 0, r1, c7, c5, 0	@ invalidate I+BTB
@@ -609,7 +609,7 @@ __armv6_cache_flush:
 		mcr	p15, 0, r1, c7, c10, 4	@ drain WB
 		mov	pc, lr
 
-__armv4_cache_flush:
+__armv4_mmu_cache_flush:
 		mov	r2, #64*1024		@ default: 32K dcache size (*2)
 		mov	r11, #32		@ default: 32 byte line size
 		mrc	p15, 0, r3, c0, c0, 1	@ read cache type
@@ -637,7 +637,7 @@ no_cache_id:
 		mcr	p15, 0, r1, c7, c10, 4	@ drain WB
 		mov	pc, lr
 
-__armv3_cache_flush:
+__armv3_mmu_cache_flush:
 		mov	r1, #0
 		mcr	p15, 0, r0, c7, c0, 0	@ invalidate whole cache v3
 		mov	pc, lr

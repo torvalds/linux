@@ -163,10 +163,8 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	stats->rx_packets++;
 	stats->rx_bytes += skb->len;
 
-	skb_pull(skb, VLAN_HLEN); /* take off the VLAN header (4 bytes currently) */
-
-	/* Need to correct hardware checksum */
-	skb_postpull_rcsum(skb, vhdr, VLAN_HLEN);
+	/* Take off the VLAN header (4 bytes currently) */
+	skb_pull_rcsum(skb, VLAN_HLEN);
 
 	/* Ok, lets check to make sure the device (dev) we
 	 * came in on is what this VLAN is attached to.

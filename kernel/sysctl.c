@@ -742,18 +742,18 @@ static ctl_table vm_table[] = {
 	{
 		.ctl_name	= VM_DIRTY_WB_CS,
 		.procname	= "dirty_writeback_centisecs",
-		.data		= &dirty_writeback_centisecs,
-		.maxlen		= sizeof(dirty_writeback_centisecs),
+		.data		= &dirty_writeback_interval,
+		.maxlen		= sizeof(dirty_writeback_interval),
 		.mode		= 0644,
 		.proc_handler	= &dirty_writeback_centisecs_handler,
 	},
 	{
 		.ctl_name	= VM_DIRTY_EXPIRE_CS,
 		.procname	= "dirty_expire_centisecs",
-		.data		= &dirty_expire_centisecs,
-		.maxlen		= sizeof(dirty_expire_centisecs),
+		.data		= &dirty_expire_interval,
+		.maxlen		= sizeof(dirty_expire_interval),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= &proc_dointvec_userhz_jiffies,
 	},
 	{
 		.ctl_name	= VM_NR_PDFLUSH_THREADS,
@@ -848,9 +848,8 @@ static ctl_table vm_table[] = {
 		.data		= &laptop_mode,
 		.maxlen		= sizeof(laptop_mode),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
-		.strategy	= &sysctl_intvec,
-		.extra1		= &zero,
+		.proc_handler	= &proc_dointvec_jiffies,
+		.strategy	= &sysctl_jiffies,
 	},
 	{
 		.ctl_name	= VM_BLOCK_DUMP,
@@ -2054,6 +2053,8 @@ static int do_proc_dointvec_jiffies_conv(int *negp, unsigned long *lvalp,
 					 int write, void *data)
 {
 	if (write) {
+		if (*lvalp > LONG_MAX / HZ)
+			return 1;
 		*valp = *negp ? -(*lvalp*HZ) : (*lvalp*HZ);
 	} else {
 		int val = *valp;
@@ -2075,6 +2076,8 @@ static int do_proc_dointvec_userhz_jiffies_conv(int *negp, unsigned long *lvalp,
 						int write, void *data)
 {
 	if (write) {
+		if (USER_HZ < HZ && *lvalp > (LONG_MAX / HZ) * USER_HZ)
+			return 1;
 		*valp = clock_t_to_jiffies(*negp ? -*lvalp : *lvalp);
 	} else {
 		int val = *valp;

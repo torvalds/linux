@@ -907,7 +907,7 @@ nfs4_acl_get_whotype(char *p, u32 len)
 {
 	int i;
 
-	for (i=0; i < sizeof(s2t_map) / sizeof(*s2t_map); i++) {
+	for (i = 0; i < ARRAY_SIZE(s2t_map); i++) {
 		if (s2t_map[i].stringlen == len &&
 				0 == memcmp(s2t_map[i].string, p, len))
 			return s2t_map[i].type;
@@ -920,7 +920,7 @@ nfs4_acl_write_who(int who, char *p)
 {
 	int i;
 
-	for (i=0; i < sizeof(s2t_map) / sizeof(*s2t_map); i++) {
+	for (i = 0; i < ARRAY_SIZE(s2t_map); i++) {
 		if (s2t_map[i].type == who) {
 			memcpy(p, s2t_map[i].string, s2t_map[i].stringlen);
 			return s2t_map[i].stringlen;

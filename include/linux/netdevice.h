@@ -230,7 +230,8 @@ enum netdev_state_t
 	__LINK_STATE_SCHED,
 	__LINK_STATE_NOCARRIER,
 	__LINK_STATE_RX_SCHED,
-	__LINK_STATE_LINKWATCH_PENDING
+	__LINK_STATE_LINKWATCH_PENDING,
+	__LINK_STATE_DORMANT,
 };
 
 
@@ -335,10 +336,13 @@ struct net_device
 	 */
 
 
-	unsigned short		flags;	/* interface flags (a la BSD)	*/
+	unsigned int		flags;	/* interface flags (a la BSD)	*/
 	unsigned short		gflags;
         unsigned short          priv_flags; /* Like 'flags' but invisible to userspace. */
 	unsigned short		padded;	/* How much padding added by alloc_netdev() */
+
+	unsigned char		operstate; /* RFC2863 operstate */
+	unsigned char		link_mode; /* mapping policy to operstate */
 
 	unsigned		mtu;	/* interface MTU value		*/
 	unsigned short		type;	/* interface hardware type	*/
@@ -708,12 +712,18 @@ static inline void dev_put(struct net_device *dev)
 	atomic_dec(&dev->refcnt);
 }
 
-#define __dev_put(dev) atomic_dec(&(dev)->refcnt)
-#define dev_hold(dev) atomic_inc(&(dev)->refcnt)
+static inline void dev_hold(struct net_device *dev)
+{
+	atomic_inc(&dev->refcnt);
+}
 
 /* Carrier loss detection, dial on demand. The functions netif_carrier_on
  * and _off may be called from IRQ context, but it is caller
  * who is responsible for serialization of these calls.
+ *
+ * The name carrier is inappropriate, these functions should really be
+ * called netif_lowerlayer_*() because they represent the state of any
+ * kind of lower layer not just hardware media.
  */
 
 extern void linkwatch_fire_event(struct net_device *dev);
@@ -728,6 +738,29 @@ extern void __netdev_watchdog_up(struct net_device *dev);
 extern void netif_carrier_on(struct net_device *dev);
 
 extern void netif_carrier_off(struct net_device *dev);
+
+static inline void netif_dormant_on(struct net_device *dev)
+{
+	if (!test_and_set_bit(__LINK_STATE_DORMANT, &dev->state))
+		linkwatch_fire_event(dev);
+}
+
+static inline void netif_dormant_off(struct net_device *dev)
+{
+	if (test_and_clear_bit(__LINK_STATE_DORMANT, &dev->state))
+		linkwatch_fire_event(dev);
+}
+
+static inline int netif_dormant(const struct net_device *dev)
+{
+	return test_bit(__LINK_STATE_DORMANT, &dev->state);
+}
+
+
+static inline int netif_oper_up(const struct net_device *dev) {
+	return (dev->operstate == IF_OPER_UP ||
+		dev->operstate == IF_OPER_UNKNOWN /* backward compat */);
+}
 
 /* Hot-plugging. */
 static inline int netif_device_present(struct net_device *dev)

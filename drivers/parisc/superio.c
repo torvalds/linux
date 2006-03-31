@@ -12,6 +12,7 @@
  *      (C) Copyright 2001 John Marvin <jsm fc hp com>
  *      (C) Copyright 2003 Grant Grundler <grundler parisc-linux org>
  *	(C) Copyright 2005 Kyle McMartin <kyle@parisc-linux.org>
+ *	(C) Copyright 2006 Helge Deller <deller@gmx.de>
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License as
@@ -157,8 +158,8 @@ superio_init(struct pci_dev *pcidev)
         if (sio->suckyio_irq_enabled)                                       
 		return;
 
-	if (!pdev) BUG();
-	if (!sio->usb_pdev) BUG();
+	BUG_ON(!pdev);
+	BUG_ON(!sio->usb_pdev);
 
 	/* use the IRQ iosapic found for USB INT D... */
 	pdev->irq = sio->usb_pdev->irq;
@@ -388,43 +389,34 @@ int superio_fixup_irq(struct pci_dev *pcidev)
 	return local_irq;
 }
 
-static struct uart_port serial[] = {
-	{
-		.iotype		= UPIO_PORT,
-		.line		= 0,
-		.type		= PORT_16550A,
-		.uartclk	= 115200*16,
-		.fifosize	= 16,
-	},
-	{
-		.iotype		= UPIO_PORT,
-		.line		= 1,
-		.type		= PORT_16550A,
-		.uartclk	= 115200*16,
-		.fifosize	= 16,
-	}
-};
-
 static void __devinit superio_serial_init(void)
 {
 #ifdef CONFIG_SERIAL_8250
 	int retval;
-        
-	serial[0].iobase = sio_dev.sp1_base;
-	serial[0].irq = SP1_IRQ;
-	spin_lock_init(&serial[0].lock);
+	struct uart_port serial_port;
 
-	retval = early_serial_setup(&serial[0]);
+	memset(&serial_port, 0, sizeof(serial_port));
+	serial_port.iotype	= UPIO_PORT;
+	serial_port.type	= PORT_16550A;
+	serial_port.uartclk	= 115200*16;
+	serial_port.fifosize	= 16;
+	spin_lock_init(&serial_port.lock);
+
+	/* serial port #1 */
+	serial_port.iobase	= sio_dev.sp1_base;
+	serial_port.irq		= SP1_IRQ;
+	serial_port.line	= 0;
+	retval = early_serial_setup(&serial_port);
 	if (retval < 0) {
 		printk(KERN_WARNING PFX "Register Serial #0 failed.\n");
 		return;
 	}
 
-	serial[1].iobase = sio_dev.sp2_base;
-	serial[1].irq = SP2_IRQ;
-	spin_lock_init(&serial[1].lock);
-	retval = early_serial_setup(&serial[1]);
-
+	/* serial port #2 */
+	serial_port.iobase	= sio_dev.sp2_base;
+	serial_port.irq		= SP2_IRQ;
+	serial_port.line	= 1;
+	retval = early_serial_setup(&serial_port);
 	if (retval < 0)
 		printk(KERN_WARNING PFX "Register Serial #1 failed.\n");
 #endif /* CONFIG_SERIAL_8250 */
@@ -474,8 +466,7 @@ superio_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		dev->subsystem_vendor, dev->subsystem_device,
 		dev->class);
 
-	if (!sio->suckyio_irq_enabled)
-		BUG(); /* Enabled by PCI_FIXUP_FINAL */
+	BUG_ON(!sio->suckyio_irq_enabled);	/* Enabled by PCI_FIXUP_FINAL */
 
 	if (dev->device == PCI_DEVICE_ID_NS_87560_LIO) {	/* Function 1 */
 		superio_parport_init();

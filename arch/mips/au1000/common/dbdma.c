@@ -214,7 +214,7 @@ au1xxx_ddma_add_device(dbdev_tab_t *dev)
 	if ( NULL != p )
 	{
 		memcpy(p, dev, sizeof(dbdev_tab_t));
- 		p->dev_id = DSCR_DEV2CUSTOM_ID(new_id,dev->dev_id);
+		p->dev_id = DSCR_DEV2CUSTOM_ID(new_id,dev->dev_id);
 		ret = p->dev_id;
 		new_id++;
 #if 0
@@ -260,7 +260,7 @@ au1xxx_dbdma_chan_alloc(u32 srcid, u32 destid,
 	spin_lock_irqsave(&au1xxx_dbdma_spin_lock, flags);
 	if (!(stp->dev_flags & DEV_FLAGS_INUSE) ||
 	     (stp->dev_flags & DEV_FLAGS_ANYUSE)) {
-	     	/* Got source */
+		/* Got source */
 		stp->dev_flags |= DEV_FLAGS_INUSE;
 		if (!(dtp->dev_flags & DEV_FLAGS_INUSE) ||
 		     (dtp->dev_flags & DEV_FLAGS_ANYUSE)) {

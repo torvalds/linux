@@ -17,6 +17,7 @@
 #include <linux/bio.h>
 #include <linux/blkdev.h>
 #include <linux/spinlock.h>
+#include <linux/mutex.h>
 
 /* Possible states of device */
 enum {
@@ -60,7 +61,7 @@ struct loop_device {
 	int			lo_state;
 	struct completion	lo_done;
 	struct completion	lo_bh_done;
-	struct semaphore	lo_ctl_mutex;
+	struct mutex		lo_ctl_mutex;
 	int			lo_pending;
 
 	request_queue_t		*lo_queue;

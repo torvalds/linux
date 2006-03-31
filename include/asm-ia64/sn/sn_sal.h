@@ -159,7 +159,7 @@
 static inline u32
 sn_sal_rev(void)
 {
-	struct ia64_sal_systab *systab = efi.sal_systab;
+	struct ia64_sal_systab *systab = __va(efi.sal_systab);
 
 	return (u32)(systab->sal_b_rev_major << 8 | systab->sal_b_rev_minor);
 }
@@ -907,18 +907,22 @@ ia64_sn_sysctl_tio_clock_reset(nasid_t nasid)
 /*
  * Get the associated ioboard type for a given nasid.
  */
-static inline int
-ia64_sn_sysctl_ioboard_get(nasid_t nasid)
+static inline s64
+ia64_sn_sysctl_ioboard_get(nasid_t nasid, u16 *ioboard)
 {
-        struct ia64_sal_retval rv;
-        SAL_CALL_REENTRANT(rv, SN_SAL_SYSCTL_OP, SAL_SYSCTL_OP_IOBOARD,
-                        nasid, 0, 0, 0, 0, 0);
-        if (rv.v0 != 0)
-                return (int)rv.v0;
-        if (rv.v1 != 0)
-                return (int)rv.v1;
+	struct ia64_sal_retval isrv;
+	SAL_CALL_REENTRANT(isrv, SN_SAL_SYSCTL_OP, SAL_SYSCTL_OP_IOBOARD,
+			   nasid, 0, 0, 0, 0, 0);
+	if (isrv.v0 != 0) {
+		*ioboard = isrv.v0;
+		return isrv.status;
+	}
+	if (isrv.v1 != 0) {
+		*ioboard = isrv.v1;
+		return isrv.status;
+	}
 
-        return 0;
+	return isrv.status;
 }
 
 /**
@@ -1037,7 +1041,7 @@ ia64_sn_get_sn_info(int fc, u8 *shubtype, u16 *nasid_bitmask, u8 *nasid_shift,
 
 /***** BEGIN HACK - temp til old proms no longer supported ********/
 	if (ret_stuff.status == SALRET_NOT_IMPLEMENTED) {
-		int nasid = get_sapicid() & 0xfff;;
+		int nasid = get_sapicid() & 0xfff;
 #define SH_SHUB_ID_NODES_PER_BIT_MASK 0x001f000000000000UL
 #define SH_SHUB_ID_NODES_PER_BIT_SHFT 48
 		if (shubtype) *shubtype = 0;

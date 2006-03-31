@@ -10,6 +10,7 @@
 #include <linux/compiler.h>
 #include <linux/spinlock.h>
 #include <linux/rcupdate.h>
+#include <linux/types.h>
 
 /*
  * The default fd array needs to be at least BITS_PER_LONG,
@@ -17,10 +18,22 @@
  */
 #define NR_OPEN_DEFAULT BITS_PER_LONG
 
+/*
+ * The embedded_fd_set is a small fd_set,
+ * suitable for most tasks (which open <= BITS_PER_LONG files)
+ */
+struct embedded_fd_set {
+	unsigned long fds_bits[1];
+};
+
+/*
+ * More than this number of fds: we use a separately allocated fd_set
+ */
+#define EMBEDDED_FD_SET_SIZE (BITS_PER_BYTE * sizeof(struct embedded_fd_set))
+
 struct fdtable {
 	unsigned int max_fds;
 	int max_fdset;
-	int next_fd;
 	struct file ** fd;      /* current fd array */
 	fd_set *close_on_exec;
 	fd_set *open_fds;
@@ -33,13 +46,20 @@ struct fdtable {
  * Open file table structure
  */
 struct files_struct {
+  /*
+   * read mostly part
+   */
 	atomic_t count;
 	struct fdtable *fdt;
 	struct fdtable fdtab;
-	fd_set close_on_exec_init;
-	fd_set open_fds_init;
+  /*
+   * written part on a separate cache line in SMP
+   */
+	spinlock_t file_lock ____cacheline_aligned_in_smp;
+	int next_fd;
+	struct embedded_fd_set close_on_exec_init;
+	struct embedded_fd_set open_fds_init;
 	struct file * fd_array[NR_OPEN_DEFAULT];
-	spinlock_t file_lock;     /* Protects concurrent writers.  Nests inside tsk->alloc_lock */
 };
 
 #define files_fdtable(files) (rcu_dereference((files)->fdt))

@@ -59,7 +59,7 @@ STATIC xlog_t *  xlog_alloc_log(xfs_mount_t	*mp,
 				int		num_bblks);
 STATIC int	 xlog_space_left(xlog_t *log, int cycle, int bytes);
 STATIC int	 xlog_sync(xlog_t *log, xlog_in_core_t *iclog);
-STATIC void	 xlog_unalloc_log(xlog_t *log);
+STATIC void	 xlog_dealloc_log(xlog_t *log);
 STATIC int	 xlog_write(xfs_mount_t *mp, xfs_log_iovec_t region[],
 			    int nentries, xfs_log_ticket_t tic,
 			    xfs_lsn_t *start_lsn,
@@ -304,7 +304,7 @@ xfs_log_done(xfs_mount_t	*mp,
 	if ((ticket->t_flags & XLOG_TIC_PERM_RESERV) == 0 ||
 	    (flags & XFS_LOG_REL_PERM_RESERV)) {
 		/*
-		 * Release ticket if not permanent reservation or a specifc
+		 * Release ticket if not permanent reservation or a specific
 		 * request has been made to release a permanent reservation.
 		 */
 		xlog_trace_loggrant(log, ticket, "xfs_log_done: (non-permanent)");
@@ -511,7 +511,7 @@ xfs_log_mount(xfs_mount_t	*mp,
 			vfsp->vfs_flag |= VFS_RDONLY;
 		if (error) {
 			cmn_err(CE_WARN, "XFS: log mount/recovery failed: error %d", error);
-			xlog_unalloc_log(mp->m_log);
+			xlog_dealloc_log(mp->m_log);
 			return error;
 		}
 	}
@@ -667,7 +667,7 @@ xfs_log_unmount_write(xfs_mount_t *mp)
 		 *
 		 * Go through the motions of sync'ing and releasing
 		 * the iclog, even though no I/O will actually happen,
-		 * we need to wait for other log I/O's that may already
+		 * we need to wait for other log I/Os that may already
 		 * be in progress.  Do this as a separate section of
 		 * code so we'll know if we ever get stuck here that
 		 * we're in this odd situation of trying to unmount
@@ -704,7 +704,7 @@ xfs_log_unmount_write(xfs_mount_t *mp)
 void
 xfs_log_unmount_dealloc(xfs_mount_t *mp)
 {
-	xlog_unalloc_log(mp->m_log);
+	xlog_dealloc_log(mp->m_log);
 }
 
 /*
@@ -1492,7 +1492,7 @@ xlog_sync(xlog_t		*log,
 		ASSERT(XFS_BUF_ADDR(bp) <= log->l_logBBsize-1);
 		ASSERT(XFS_BUF_ADDR(bp) + BTOBB(count) <= log->l_logBBsize);
 
-		/* account for internal log which does't start at block #0 */
+		/* account for internal log which doesn't start at block #0 */
 		XFS_BUF_SET_ADDR(bp, XFS_BUF_ADDR(bp) + log->l_logBBstart);
 		XFS_BUF_WRITE(bp);
 		if ((error = XFS_bwrite(bp))) {
@@ -1506,10 +1506,10 @@ xlog_sync(xlog_t		*log,
 
 
 /*
- * Unallocate a log structure
+ * Deallocate a log structure
  */
 void
-xlog_unalloc_log(xlog_t *log)
+xlog_dealloc_log(xlog_t *log)
 {
 	xlog_in_core_t	*iclog, *next_iclog;
 	xlog_ticket_t	*tic, *next_tic;
@@ -1539,7 +1539,7 @@ xlog_unalloc_log(xlog_t *log)
 	if ((log->l_ticket_cnt != log->l_ticket_tcnt)  &&
 	    !XLOG_FORCED_SHUTDOWN(log)) {
 		xfs_fs_cmn_err(CE_WARN, log->l_mp,
-			"xlog_unalloc_log: (cnt: %d, total: %d)",
+			"xlog_dealloc_log: (cnt: %d, total: %d)",
 			log->l_ticket_cnt, log->l_ticket_tcnt);
 		/* ASSERT(log->l_ticket_cnt == log->l_ticket_tcnt); */
 
@@ -1562,7 +1562,7 @@ xlog_unalloc_log(xlog_t *log)
 #endif
 	log->l_mp->m_log = NULL;
 	kmem_free(log, sizeof(xlog_t));
-}	/* xlog_unalloc_log */
+}	/* xlog_dealloc_log */
 
 /*
  * Update counters atomically now that memcpy is done.
@@ -2829,7 +2829,7 @@ xlog_state_release_iclog(xlog_t		*log,
 
 	/*
 	 * We let the log lock go, so it's possible that we hit a log I/O
-	 * error or someother SHUTDOWN condition that marks the iclog
+	 * error or some other SHUTDOWN condition that marks the iclog
 	 * as XLOG_STATE_IOERROR before the bwrite. However, we know that
 	 * this iclog has consistent data, so we ignore IOERROR
 	 * flags after this point.

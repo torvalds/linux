@@ -1,6 +1,7 @@
 #ifndef _CSS_H
 #define _CSS_H
 
+#include <linux/mutex.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
 
@@ -150,6 +151,11 @@ struct channel_subsystem {
 	struct channel_path *chps[__MAX_CHPID + 1];
 	struct device device;
 	struct pgid global_pgid;
+	struct mutex mutex;
+	/* channel measurement related */
+	int cm_enabled;
+	void *cub_addr1;
+	void *cub_addr2;
 };
 #define to_css(dev) container_of(dev, struct channel_subsystem, device)
 

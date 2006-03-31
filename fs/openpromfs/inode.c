@@ -581,17 +581,17 @@ int property_release (struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static struct file_operations openpromfs_prop_ops = {
+static const struct file_operations openpromfs_prop_ops = {
 	.read		= property_read,
 	.write		= property_write,
 	.release	= property_release,
 };
 
-static struct file_operations openpromfs_nodenum_ops = {
+static const struct file_operations openpromfs_nodenum_ops = {
 	.read		= nodenum_read,
 };
 
-static struct file_operations openprom_operations = {
+static const struct file_operations openprom_operations = {
 	.read		= generic_read_dir,
 	.readdir	= openpromfs_readdir,
 };

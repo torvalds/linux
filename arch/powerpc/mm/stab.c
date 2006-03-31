@@ -239,7 +239,7 @@ void stabs_alloc(void)
 	if (cpu_has_feature(CPU_FTR_SLB))
 		return;
 
-	for_each_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		unsigned long newstab;
 
 		if (cpu == 0)
@@ -247,10 +247,6 @@ void stabs_alloc(void)
 
 		newstab = lmb_alloc_base(HW_PAGE_SIZE, HW_PAGE_SIZE,
 					 1<<SID_SHIFT);
-		if (! newstab)
-			panic("Unable to allocate segment table for CPU %d.\n",
-			      cpu);
-
 		newstab = (unsigned long)__va(newstab);
 
 		memset((void *)newstab, 0, HW_PAGE_SIZE);

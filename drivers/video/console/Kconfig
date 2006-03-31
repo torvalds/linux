@@ -26,6 +26,30 @@ config VGA_CONSOLE
 #	   fi
 #	fi
 
+config VGACON_SOFT_SCROLLBACK
+       bool "Enable Scrollback Buffer in System RAM"
+       depends on VGA_CONSOLE
+       default n
+       help
+         The scrollback buffer of the standard VGA console is located in
+	 the VGA RAM.  The size of this RAM is fixed and is quite small.
+	 If you require a larger scrollback buffer, this can be placed in
+	 System RAM which is dynamically allocated during intialization.
+	 Placing the scrollback buffer in System RAM will slightly slow
+	 down the console.
+
+	 If you want this feature, say 'Y' here and enter the amount of
+	 RAM to allocate for this buffer.  If unsure, say 'N'.
+
+config VGACON_SOFT_SCROLLBACK_SIZE
+       int "Scrollback Buffer Size (in KB)"
+       depends on VGACON_SOFT_SCROLLBACK
+       default "64"
+       help
+         Enter the amount of System RAM to allocate for the scrollback
+	 buffer.  Each 64KB will give you approximately 16 80x25
+	 screenfuls of scrollback buffer
+
 config VIDEO_SELECT
 	bool "Video mode selection support"
 	depends on  X86 && VGA_CONSOLE

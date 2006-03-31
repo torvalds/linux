@@ -506,6 +506,7 @@ void __init populate_rootfs(void)
 		panic(err);
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (initrd_start) {
+#ifdef CONFIG_BLK_DEV_RAM
 		int fd;
 		printk(KERN_INFO "checking if image is initramfs...");
 		err = unpack_to_rootfs((char *)initrd_start,
@@ -518,13 +519,22 @@ void __init populate_rootfs(void)
 			return;
 		}
 		printk("it isn't (%s); looks like an initrd\n", err);
-		fd = sys_open("/initrd.image", O_WRONLY|O_CREAT, 700);
+		fd = sys_open("/initrd.image", O_WRONLY|O_CREAT, 0700);
 		if (fd >= 0) {
 			sys_write(fd, (char *)initrd_start,
 					initrd_end - initrd_start);
 			sys_close(fd);
 			free_initrd();
 		}
+#else
+		printk(KERN_INFO "Unpacking initramfs...");
+		err = unpack_to_rootfs((char *)initrd_start,
+			initrd_end - initrd_start, 0);
+		if (err)
+			panic(err);
+		printk(" done\n");
+		free_initrd();
+#endif
 	}
 #endif
 }

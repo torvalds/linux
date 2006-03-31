@@ -21,8 +21,9 @@
 use File::Temp qw/ tempdir /;
 use IO::Handle;
 
-@components = ( "sp8870", "sp887x", "tda10045", "tda10046", "av7110", "dec2000t",
-		"dec2540t", "dec3000s", "vp7041", "dibusb", "nxt2002", "nxt2004",
+@components = ( "sp8870", "sp887x", "tda10045", "tda10046",
+		"tda10046lifeview", "av7110", "dec2000t", "dec2540t",
+		"dec3000s", "vp7041", "dibusb", "nxt2002", "nxt2004",
 		"or51211", "or51132_qam", "or51132_vsb", "bluebird");
 
 # Check args
@@ -120,6 +121,24 @@ sub tda10046 {
     wgetfile($sourcefile, $url);
     unzip($sourcefile, $tmpdir);
     extract("$tmpdir/software/OEM/PCI/App/ttlcdacc.dll", 0x3f731, 24478, "$tmpdir/fwtmp");
+    verify("$tmpdir/fwtmp", $hash);
+    copy("$tmpdir/fwtmp", $outfile);
+
+    $outfile;
+}
+
+sub tda10046lifeview {
+    my $sourcefile = "Drv_2.11.02.zip";
+    my $url = "http://www.lifeview.com.tw/drivers/pci_card/FlyDVB-T/$sourcefile";
+    my $hash = "1ea24dee4eea8fe971686981f34fd2e0";
+    my $outfile = "dvb-fe-tda10046.fw";
+    my $tmpdir = tempdir(DIR => "/tmp", CLEANUP => 1);
+
+    checkstandard();
+
+    wgetfile($sourcefile, $url);
+    unzip($sourcefile, $tmpdir);
+    extract("$tmpdir/LVHybrid.sys", 0x8b088, 24602, "$tmpdir/fwtmp");
     verify("$tmpdir/fwtmp", $hash);
     copy("$tmpdir/fwtmp", $outfile);
 
@@ -227,7 +246,7 @@ sub vp7041 {
 }
 
 sub dibusb {
-	my $url = "http://www.linuxtv.org/downloads/firmware/dvb-dibusb-5.0.0.11.fw";
+	my $url = "http://www.linuxtv.org/downloads/firmware/dvb-usb-dibusb-5.0.0.11.fw";
 	my $outfile = "dvb-dibusb-5.0.0.11.fw";
 	my $hash = "fa490295a527360ca16dcdf3224ca243";
 

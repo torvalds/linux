@@ -88,8 +88,8 @@ phys_to_virt (unsigned long address)
 }
 
 #define ARCH_HAS_VALID_PHYS_ADDR_RANGE
-extern int valid_phys_addr_range (unsigned long addr, size_t *count); /* efi.c */
-extern int valid_mmap_phys_addr_range (unsigned long addr, size_t *count);
+extern int valid_phys_addr_range (unsigned long addr, size_t count); /* efi.c */
+extern int valid_mmap_phys_addr_range (unsigned long addr, size_t count);
 
 /*
  * The following two macros are deprecated and scheduled for removal.
@@ -416,24 +416,18 @@ __writeq (unsigned long val, volatile void __iomem *addr)
 # define outl_p		outl
 #endif
 
-/*
- * An "address" in IO memory space is not clearly either an integer or a pointer. We will
- * accept both, thus the casts.
- *
- * On ia-64, we access the physical I/O memory space through the uncached kernel region.
- */
-static inline void __iomem *
-ioremap (unsigned long offset, unsigned long size)
-{
-	return (void __iomem *) (__IA64_UNCACHED_OFFSET | (offset));
-}
+extern void __iomem * ioremap(unsigned long offset, unsigned long size);
+extern void __iomem * ioremap_nocache (unsigned long offset, unsigned long size);
 
 static inline void
 iounmap (volatile void __iomem *addr)
 {
 }
 
-#define ioremap_nocache(o,s)	ioremap(o,s)
+/* Use normal IO mappings for DMI */
+#define dmi_ioremap ioremap
+#define dmi_iounmap(x,l) iounmap(x)
+#define dmi_alloc(l) kmalloc(l, GFP_ATOMIC)
 
 # ifdef __KERNEL__
 

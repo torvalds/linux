@@ -11,7 +11,7 @@ struct videobuf_dvb {
 	struct videobuf_queue      dvbq;
 
 	/* video-buf-dvb state info */
-	struct semaphore           lock;
+	struct mutex               lock;
 	struct task_struct         *thread;
 	int                        nfeeds;
 

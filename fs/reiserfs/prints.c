@@ -143,7 +143,7 @@ static void sprintf_buffer_head(char *buf, struct buffer_head *bh)
 	char b[BDEVNAME_SIZE];
 
 	sprintf(buf,
-		"dev %s, size %d, blocknr %llu, count %d, state 0x%lx, page %p, (%s, %s, %s)",
+		"dev %s, size %zd, blocknr %llu, count %d, state 0x%lx, page %p, (%s, %s, %s)",
 		bdevname(bh->b_bdev, b), bh->b_size,
 		(unsigned long long)bh->b_blocknr, atomic_read(&(bh->b_count)),
 		bh->b_state, bh->b_page,
@@ -601,8 +601,7 @@ void store_print_tb(struct tree_balance *tb)
 		tb->tb_mode, PATH_LAST_POSITION(tb->tb_path),
 		tb->tb_path->pos_in_item);
 
-	for (h = 0; h < sizeof(tb->insert_size) / sizeof(tb->insert_size[0]);
-	     h++) {
+	for (h = 0; h < ARRAY_SIZE(tb->insert_size); h++) {
 		if (PATH_H_PATH_OFFSET(tb->tb_path, h) <=
 		    tb->tb_path->path_length
 		    && PATH_H_PATH_OFFSET(tb->tb_path,
@@ -658,15 +657,13 @@ void store_print_tb(struct tree_balance *tb)
 
 	/* print FEB list (list of buffers in form (bh (b_blocknr, b_count), that will be used for new nodes) */
 	h = 0;
-	for (i = 0; i < sizeof(tb->FEB) / sizeof(tb->FEB[0]); i++)
+	for (i = 0; i < ARRAY_SIZE(tb->FEB); i++)
 		sprintf(print_tb_buf + strlen(print_tb_buf),
 			"%p (%llu %d)%s", tb->FEB[i],
 			tb->FEB[i] ? (unsigned long long)tb->FEB[i]->
 			b_blocknr : 0ULL,
 			tb->FEB[i] ? atomic_read(&(tb->FEB[i]->b_count)) : 0,
-			(i ==
-			 sizeof(tb->FEB) / sizeof(tb->FEB[0]) -
-			 1) ? "\n" : ", ");
+			(i == ARRAY_SIZE(tb->FEB) - 1) ? "\n" : ", ");
 
 	sprintf(print_tb_buf + strlen(print_tb_buf),
 		"======================== the end ====================================\n");
