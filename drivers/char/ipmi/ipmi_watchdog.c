@@ -589,7 +589,7 @@ static void panic_halt_ipmi_heartbeat(void)
 				 1);
 }
 
-static struct watchdog_info ident=
+static struct watchdog_info ident =
 {
 	.options	= 0,	/* WDIOF_SETTIMEOUT, */
 	.firmware_version = 1,
@@ -790,13 +790,13 @@ static int ipmi_fasync(int fd, struct file *file, int on)
 
 static int ipmi_close(struct inode *ino, struct file *filep)
 {
-	if (iminor(ino)==WATCHDOG_MINOR)
-	{
+	if (iminor(ino) == WATCHDOG_MINOR) {
 		if (expect_close == 42) {
 			ipmi_watchdog_state = WDOG_TIMEOUT_NONE;
 			ipmi_set_timeout(IPMI_SET_TIMEOUT_NO_HB);
 		} else {
-			printk(KERN_CRIT PFX "Unexpected close, not stopping watchdog!\n");
+			printk(KERN_CRIT PFX
+			       "Unexpected close, not stopping watchdog!\n");
 			ipmi_heartbeat();
 		}
 		clear_bit(0, &ipmi_wdog_open);

@@ -803,7 +803,7 @@ static int ipmi_thread(void *data)
 	set_user_nice(current, 19);
 	while (!kthread_should_stop()) {
 		spin_lock_irqsave(&(smi_info->si_lock), flags);
-		smi_result=smi_event_handler(smi_info, 0);
+		smi_result = smi_event_handler(smi_info, 0);
 		spin_unlock_irqrestore(&(smi_info->si_lock), flags);
 		if (smi_result == SI_SM_CALL_WITHOUT_DELAY) {
 			/* do nothing */
