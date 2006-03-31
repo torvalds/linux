@@ -508,4 +508,5 @@ sys_call_table:
 	PTR	sys_pselect6
 	PTR	sys_ppoll
 	PTR	sys_unshare
+	PTR	sys_splice
 	.size	sys_call_table,.-sys_call_table
