@@ -725,7 +725,7 @@ out_release:
 	free_fdset (new_fdt->open_fds, new_fdt->max_fdset);
 	free_fd_array(new_fdt->fd, new_fdt->max_fds);
 	kmem_cache_free(files_cachep, newf);
-	goto out;
+	return NULL;
 }
 
 static int copy_files(unsigned long clone_flags, struct task_struct * tsk)
