@@ -839,6 +839,8 @@ source "drivers/misc/Kconfig"
 
 source "drivers/mfd/Kconfig"
 
+source "drivers/leds/Kconfig"
+
 source "drivers/media/Kconfig"
 
 source "drivers/video/Kconfig"

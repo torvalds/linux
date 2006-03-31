@@ -1,0 +1,4 @@
+
+# LED Core
+obj-$(CONFIG_NEW_LEDS)			+= led-core.o
+obj-$(CONFIG_LEDS_CLASS)		+= led-class.o
