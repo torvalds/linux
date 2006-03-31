@@ -24,9 +24,10 @@ reveal their parameters in /sys/module/${modulename}/parameters/. Some of these
 parameters may be changed at runtime by the command
 "echo -n ${value} > /sys/module/${modulename}/parameters/${parm}".
 
-The text in square brackets at the beginning of the description states the
-restrictions on the kernel for the said kernel parameter to be valid. The
-restrictions referred to are that the relevant option is valid if:
+The parameters listed below are only valid if certain kernel build options were
+enabled and if respective hardware is present. The text in square brackets at
+the beginning of each description states the restrictions within which a
+parameter is applicable:
 
 	ACPI	ACPI support is enabled.
 	ALSA	ALSA sound support is enabled.
