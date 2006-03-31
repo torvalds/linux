@@ -391,7 +391,8 @@ acpi_rs_get_list_length(u8 * aml_buffer,
 			 * Ensure a 32-bit boundary for the structure
 			 */
 			extra_struct_bytes =
-			    ACPI_ROUND_UP_to_32_bITS(resource_length);
+			    ACPI_ROUND_UP_to_32_bITS(resource_length) -
+			    resource_length;
 			break;
 
 		case ACPI_RESOURCE_NAME_END_TAG:
@@ -407,7 +408,8 @@ acpi_rs_get_list_length(u8 * aml_buffer,
 			 * Add vendor data and ensure a 32-bit boundary for the structure
 			 */
 			extra_struct_bytes =
-			    ACPI_ROUND_UP_to_32_bITS(resource_length);
+			    ACPI_ROUND_UP_to_32_bITS(resource_length) -
+			    resource_length;
 			break;
 
 		case ACPI_RESOURCE_NAME_ADDRESS32:
