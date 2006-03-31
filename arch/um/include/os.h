@@ -205,6 +205,8 @@ extern int os_map_memory(void *virt, int fd, unsigned long long off,
 extern int os_protect_memory(void *addr, unsigned long len, 
 			     int r, int w, int x);
 extern int os_unmap_memory(void *addr, int len);
+extern int os_drop_memory(void *addr, int length);
+extern int can_drop_memory(void);
 extern void os_flush_stdout(void);
 
 /* tt.c

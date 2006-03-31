@@ -11,6 +11,7 @@
 #include <linux/unistd.h>
 #include <sys/mman.h>
 #include <sys/wait.h>
+#include <sys/mman.h>
 #include "ptrace_user.h"
 #include "os.h"
 #include "user.h"
@@ -20,6 +21,7 @@
 #include "kern_util.h"
 #include "longjmp.h"
 #include "skas_ptrace.h"
+#include "kern_constants.h"
 
 #define ARBITRARY_ADDR -1
 #define FAILURE_PID    -1
@@ -185,6 +187,48 @@ int os_unmap_memory(void *addr, int len)
 	if(err < 0)
 		return(-errno);
         return(0);
+}
+
+#ifndef MADV_REMOVE
+#define MADV_REMOVE	0x5		/* remove these pages & resources */
+#endif
+
+int os_drop_memory(void *addr, int length)
+{
+	int err;
+
+	err = madvise(addr, length, MADV_REMOVE);
+	if(err < 0)
+		err = -errno;
+	return err;
+}
+
+int can_drop_memory(void)
+{
+	void *addr;
+	int fd;
+
+	printk("Checking host MADV_REMOVE support...");
+	fd = create_mem_file(UM_KERN_PAGE_SIZE);
+	if(fd < 0){
+		printk("Creating test memory file failed, err = %d\n", -fd);
+		return 0;
+	}
+
+	addr = mmap64(NULL, UM_KERN_PAGE_SIZE, PROT_READ | PROT_WRITE,
+		      MAP_PRIVATE, fd, 0);
+	if(addr == MAP_FAILED){
+		printk("Mapping test memory file failed, err = %d\n", -errno);
+		return 0;
+	}
+
+	if(madvise(addr, UM_KERN_PAGE_SIZE, MADV_REMOVE) != 0){
+		printk("MADV_REMOVE failed, err = %d\n", -errno);
+		return 0;
+	}
+
+	printk("OK\n");
+	return 1;
 }
 
 void init_new_thread_stack(void *sig_stack, void (*usr1_handler)(int))

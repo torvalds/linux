@@ -470,25 +470,6 @@ int can_do_skas(void)
 }
 #endif
 
-int have_devanon = 0;
-
-/* Runs on boot kernel stack - already safe to use printk. */
-
-void check_devanon(void)
-{
-	int fd;
-
-	printk("Checking for /dev/anon on the host...");
-	fd = open("/dev/anon", O_RDWR);
-	if(fd < 0){
-		printk("Not available (open failed with errno %d)\n", errno);
-		return;
-	}
-
-	printk("OK\n");
-	have_devanon = 1;
-}
-
 int __init parse_iomem(char *str, int *add)
 {
 	struct iomem_region *new;
@@ -664,6 +645,5 @@ void os_check_bugs(void)
 {
 	check_ptrace();
 	check_sigio();
-	check_devanon();
 }
 
