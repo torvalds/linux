@@ -972,10 +972,37 @@ static irqreturn_t si_bt_irq_handler(int irq, void *data, struct pt_regs *regs)
 	return si_irq_handler(irq, data, regs);
 }
 
+static int smi_start_processing(void       *send_info,
+				ipmi_smi_t intf)
+{
+	struct smi_info *new_smi = send_info;
+
+	new_smi->intf = intf;
+
+	/* Set up the timer that drives the interface. */
+	setup_timer(&new_smi->si_timer, smi_timeout, (long)new_smi);
+	new_smi->last_timeout_jiffies = jiffies;
+	mod_timer(&new_smi->si_timer, jiffies + SI_TIMEOUT_JIFFIES);
+
+ 	if (new_smi->si_type != SI_BT) {
+		new_smi->thread = kthread_run(ipmi_thread, new_smi,
+					      "kipmi%d", new_smi->intf_num);
+		if (IS_ERR(new_smi->thread)) {
+			printk(KERN_NOTICE "ipmi_si_intf: Could not start"
+			       " kernel thread due to error %ld, only using"
+			       " timers to drive the interface\n",
+			       PTR_ERR(new_smi->thread));
+			new_smi->thread = NULL;
+		}
+	}
+
+	return 0;
+}
 
 static struct ipmi_smi_handlers handlers =
 {
 	.owner                  = THIS_MODULE,
+	.start_processing       = smi_start_processing,
 	.sender			= sender,
 	.request_events		= request_events,
 	.set_run_to_completion  = set_run_to_completion,
@@ -2162,9 +2189,13 @@ static void setup_xaction_handlers(struct smi_info *smi_info)
 
 static inline void wait_for_timer_and_thread(struct smi_info *smi_info)
 {
-	if (smi_info->thread != NULL && smi_info->thread != ERR_PTR(-ENOMEM))
-		kthread_stop(smi_info->thread);
-	del_timer_sync(&smi_info->si_timer);
+	if (smi_info->intf) {
+		/* The timer and thread are only running if the
+		   interface has been started up and registered. */
+		if (smi_info->thread != NULL)
+			kthread_stop(smi_info->thread);
+		del_timer_sync(&smi_info->si_timer);
+	}
 }
 
 static struct ipmi_default_vals
@@ -2341,21 +2372,6 @@ static int try_smi_init(struct smi_info *new_smi)
 	if (new_smi->irq)
 		new_smi->si_state = SI_CLEARING_FLAGS_THEN_SET_IRQ;
 
-	/* The ipmi_register_smi() code does some operations to
-	   determine the channel information, so we must be ready to
-	   handle operations before it is called.  This means we have
-	   to stop the timer if we get an error after this point. */
-	init_timer(&(new_smi->si_timer));
-	new_smi->si_timer.data = (long) new_smi;
-	new_smi->si_timer.function = smi_timeout;
-	new_smi->last_timeout_jiffies = jiffies;
-	new_smi->si_timer.expires = jiffies + SI_TIMEOUT_JIFFIES;
-
-	add_timer(&(new_smi->si_timer));
- 	if (new_smi->si_type != SI_BT)
-		new_smi->thread = kthread_run(ipmi_thread, new_smi,
-					      "kipmi%d", new_smi->intf_num);
-
 	if (!new_smi->dev) {
 		/* If we don't already have a device from something
 		 * else (like PCI), then register a new one. */
@@ -2365,7 +2381,7 @@ static int try_smi_init(struct smi_info *new_smi)
 			printk(KERN_ERR
 			       "ipmi_si_intf:"
 			       " Unable to allocate platform device\n");
-			goto out_err_stop_timer;
+			goto out_err;
 		}
 		new_smi->dev = &new_smi->pdev->dev;
 		new_smi->dev->driver = &ipmi_driver;
@@ -2377,7 +2393,7 @@ static int try_smi_init(struct smi_info *new_smi)
 			       " Unable to register system interface device:"
 			       " %d\n",
 			       rv);
-			goto out_err_stop_timer;
+			goto out_err;
 		}
 		new_smi->dev_registered = 1;
 	}
@@ -2386,8 +2402,7 @@ static int try_smi_init(struct smi_info *new_smi)
 			       new_smi,
 			       &new_smi->device_id,
 			       new_smi->dev,
-			       new_smi->slave_addr,
-			       &(new_smi->intf));
+			       new_smi->slave_addr);
 	if (rv) {
 		printk(KERN_ERR
 		       "ipmi_si: Unable to register device: error %d\n",

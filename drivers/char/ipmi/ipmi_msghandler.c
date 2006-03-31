@@ -2305,8 +2305,7 @@ int ipmi_register_smi(struct ipmi_smi_handlers *handlers,
 		      void		       *send_info,
 		      struct ipmi_device_id    *device_id,
 		      struct device            *si_dev,
-		      unsigned char            slave_addr,
-		      ipmi_smi_t               *new_intf)
+		      unsigned char            slave_addr)
 {
 	int              i, j;
 	int              rv;
@@ -2388,9 +2387,9 @@ int ipmi_register_smi(struct ipmi_smi_handlers *handlers,
 	if (rv)
 		goto out;
 
-	/* FIXME - this is an ugly kludge, this sets the intf for the
-	   caller before sending any messages with it. */
-	*new_intf = intf;
+	rv = handlers->start_processing(send_info, intf);
+	if (rv)
+		goto out;
 
 	get_guid(intf);
 
