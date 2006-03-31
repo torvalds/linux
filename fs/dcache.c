@@ -1101,6 +1101,32 @@ next:
 }
 
 /**
+ * d_hash_and_lookup - hash the qstr then search for a dentry
+ * @dir: Directory to search in
+ * @name: qstr of name we wish to find
+ *
+ * On hash failure or on lookup failure NULL is returned.
+ */
+struct dentry *d_hash_and_lookup(struct dentry *dir, struct qstr *name)
+{
+	struct dentry *dentry = NULL;
+
+	/*
+	 * Check for a fs-specific hash function. Note that we must
+	 * calculate the standard hash first, as the d_op->d_hash()
+	 * routine may choose to leave the hash value unchanged.
+	 */
+	name->hash = full_name_hash(name->name, name->len);
+	if (dir->d_op && dir->d_op->d_hash) {
+		if (dir->d_op->d_hash(dir, name) < 0)
+			goto out;
+	}
+	dentry = d_lookup(dir, name);
+out:
+	return dentry;
+}
+
+/**
  * d_validate - verify dentry provided from insecure source
  * @dentry: The dentry alleged to be valid child of @dparent
  * @dparent: The parent dentry (known to be valid)
@@ -1616,26 +1642,12 @@ ino_t find_inode_number(struct dentry *dir, struct qstr *name)
 	struct dentry * dentry;
 	ino_t ino = 0;
 
-	/*
-	 * Check for a fs-specific hash function. Note that we must
-	 * calculate the standard hash first, as the d_op->d_hash()
-	 * routine may choose to leave the hash value unchanged.
-	 */
-	name->hash = full_name_hash(name->name, name->len);
-	if (dir->d_op && dir->d_op->d_hash)
-	{
-		if (dir->d_op->d_hash(dir, name) != 0)
-			goto out;
-	}
-
-	dentry = d_lookup(dir, name);
-	if (dentry)
-	{
+	dentry = d_hash_and_lookup(dir, name);
+	if (dentry) {
 		if (dentry->d_inode)
 			ino = dentry->d_inode->i_ino;
 		dput(dentry);
 	}
-out:
 	return ino;
 }
 
