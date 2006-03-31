@@ -52,6 +52,13 @@ config LEDS_IXP4XX
 	  particular board must have LEDs and they must be connected
 	  to the GPIO lines.  If unsure, say Y.
 
+config LEDS_TOSA
+	tristate "LED Support for the Sharp SL-6000 series"
+	depends LEDS_CLASS && PXA_SHARPSL
+	help
+	  This option enables support for the LEDs on Sharp Zaurus
+	  SL-6000 series.
+
 config LEDS_TRIGGER_TIMER
 	tristate "LED Timer Trigger"
 	depends LEDS_TRIGGERS

@@ -251,10 +251,19 @@ static struct platform_device tosakbd_device = {
 	.id		= -1,
 };
 
+/*
+ * Tosa LEDs
+ */
+static struct platform_device tosaled_device = {
+    .name   = "tosa-led",
+    .id     = -1,
+};
+
 static struct platform_device *devices[] __initdata = {
 	&tosascoop_device,
 	&tosascoop_jc_device,
 	&tosakbd_device,
+	&tosaled_device,
 };
 
 static void __init tosa_init(void)
