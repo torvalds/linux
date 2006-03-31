@@ -87,7 +87,7 @@ int randomize_va_space __read_mostly = 1;
 static int __init disable_randmaps(char *s)
 {
 	randomize_va_space = 0;
-	return 0;
+	return 1;
 }
 __setup("norandmaps", disable_randmaps);
 

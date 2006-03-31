@@ -1588,7 +1588,7 @@ static int __init video_setup(char *options)
 		}
 	}
 
-	return 0;
+	return 1;
 }
 __setup("video=", video_setup);
 #endif

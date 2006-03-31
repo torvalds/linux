@@ -752,7 +752,7 @@ static int __init apic_set_verbosity(char *str)
 		printk(KERN_WARNING "APIC Verbosity level %s not recognised"
 				" use apic=verbose or apic=debug\n", str);
 
-	return 0;
+	return 1;
 }
 
 __setup("apic=", apic_set_verbosity);

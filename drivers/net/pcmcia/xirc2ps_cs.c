@@ -1973,7 +1973,7 @@ static int __init setup_xirc2ps_cs(char *str)
 	MAYBE_SET(lockup_hack, 6);
 #undef  MAYBE_SET
 
-	return 0;
+	return 1;
 }
 
 __setup("xirc2ps_cs=", setup_xirc2ps_cs);

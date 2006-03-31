@@ -578,7 +578,7 @@ static int __init audit_enable(char *str)
 	       audit_initialized ? "" : " (after initialization)");
 	if (audit_initialized)
 		audit_enabled = audit_default;
-	return 0;
+	return 1;
 }
 
 __setup("audit=", audit_enable);
