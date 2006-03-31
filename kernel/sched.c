@@ -1273,18 +1273,18 @@ out_activate:
 		 * sleep_avg beyond just interactive state.
 		 */
 		p->sleep_type = SLEEP_NONINTERACTIVE;
-	}
+	} else
 
 	/*
 	 * Tasks that have marked their sleep as noninteractive get
-	 * woken up without updating their sleep average. (i.e. their
-	 * sleep is handled in a priority-neutral manner, no priority
-	 * boost and no penalty.)
+	 * woken up with their sleep average not weighted in an
+	 * interactive way.
 	 */
-	if (old_state & TASK_NONINTERACTIVE)
-		__activate_task(p, rq);
-	else
-		activate_task(p, rq, cpu == this_cpu);
+		if (old_state & TASK_NONINTERACTIVE)
+			p->sleep_type = SLEEP_NONINTERACTIVE;
+
+
+	activate_task(p, rq, cpu == this_cpu);
 	/*
 	 * Sync wakeups (i.e. those types of wakeups where the waker
 	 * has indicated that it will leave the CPU in short order)
