@@ -606,6 +606,9 @@ static inline void run_hrtimer_queue(struct hrtimer_base *base)
 {
 	struct rb_node *node;
 
+	if (!base->first)
+		return;
+
 	if (base->get_softirq_time)
 		base->softirq_time = base->get_softirq_time();
 
