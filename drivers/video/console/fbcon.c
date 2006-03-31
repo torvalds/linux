@@ -1142,6 +1142,7 @@ static void fbcon_init(struct vc_data *vc, int init)
 		set_blitting_type(vc, info);
 	}
 
+	ops->p = &fb_display[fg_console];
 }
 
 static void fbcon_deinit(struct vc_data *vc)
