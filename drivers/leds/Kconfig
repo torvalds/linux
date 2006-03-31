@@ -22,6 +22,20 @@ config LEDS_TRIGGERS
 	  These triggers allow kernel events to drive the LEDs and can
 	  be configured via sysfs. If unsure, say Y.
 
+config LEDS_CORGI
+	tristate "LED Support for the Sharp SL-C7x0 series"
+	depends LEDS_CLASS && PXA_SHARP_C7xx
+	help
+	  This option enables support for the LEDs on Sharp Zaurus
+	  SL-C7x0 series (C700, C750, C760, C860).
+
+config LEDS_SPITZ
+	tristate "LED Support for the Sharp SL-Cxx00 series"
+	depends LEDS_CLASS && PXA_SHARP_Cxx00
+	help
+	  This option enables support for the LEDs on Sharp Zaurus
+	  SL-Cxx00 series (C1000, C3000, C3100).
+
 config LEDS_TRIGGER_TIMER
 	tristate "LED Timer Trigger"
 	depends LEDS_TRIGGERS

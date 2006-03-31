@@ -164,6 +164,14 @@ static struct platform_device corgikbd_device = {
 
 
 /*
+ * Corgi LEDs
+ */
+static struct platform_device corgiled_device = {
+	.name		= "corgi-led",
+	.id		= -1,
+};
+
+/*
  * Corgi Touch Screen Device
  */
 static struct resource corgits_resources[] = {
@@ -297,6 +305,7 @@ static struct platform_device *devices[] __initdata = {
 	&corgikbd_device,
 	&corgibl_device,
 	&corgits_device,
+	&corgiled_device,
 };
 
 static void __init corgi_init(void)

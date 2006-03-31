@@ -242,6 +242,14 @@ static struct platform_device spitzkbd_device = {
 
 
 /*
+ * Spitz LEDs
+ */
+static struct platform_device spitzled_device = {
+	.name		= "spitz-led",
+	.id		= -1,
+};
+
+/*
  * Spitz Touch Screen Device
  */
 static struct resource spitzts_resources[] = {
@@ -418,6 +426,7 @@ static struct platform_device *devices[] __initdata = {
 	&spitzkbd_device,
 	&spitzts_device,
 	&spitzbl_device,
+	&spitzled_device,
 };
 
 static void __init common_init(void)
