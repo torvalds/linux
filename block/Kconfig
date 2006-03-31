@@ -27,10 +27,10 @@ config BLK_DEV_IO_TRACE
 config LSF
 	bool "Support for Large Single Files"
 	depends on X86 || (MIPS && 32BIT) || PPC32 || ARCH_S390_31 || SUPERH || UML
-	default n
 	help
-	  When CONFIG_LBD is disabled, say Y here if you want to
-	  handle large file(bigger than 2TB), otherwise say N.
-	  When CONFIG_LBD is enabled, Y is set automatically.
+	  Say Y here if you want to be able to handle very large files (bigger
+	  than 2TB), otherwise say N.
+
+	  If unsure, say Y.
 
 source block/Kconfig.iosched
