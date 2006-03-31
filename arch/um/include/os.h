@@ -173,6 +173,7 @@ extern int os_fchange_dir(int fd);
 extern void os_early_checks(void);
 extern int can_do_skas(void);
 extern void os_check_bugs(void);
+extern void check_host_supports_tls(int *supports_tls, int *tls_min);
 
 /* Make sure they are clear when running in TT mode. Required by
  * SEGV_MAYBE_FIXABLE */

@@ -8,6 +8,9 @@
 
 #include "sysdep/ptrace.h"
 
+/* Copied from kernel.h */
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+
 #define CATCH_EINTR(expr) while ((errno = 0, ((expr) < 0)) && (errno == EINTR))
 
 extern int mode_tt;

@@ -25,4 +25,8 @@ typedef struct um_dup_user_desc {
 typedef struct user_desc user_desc_t;
 
 # endif /* __KERNEL__ */
+
+#define GDT_ENTRY_TLS_MIN_I386 6
+#define GDT_ENTRY_TLS_MIN_X86_64 12
+
 #endif /* _SYSDEP_TLS_H */

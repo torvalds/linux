@@ -24,6 +24,10 @@
 #include "skas.h"
 #endif
 
+/* If needed we can detect when it's uninitialized. */
+static int host_supports_tls = -1;
+int host_gdt_entry_tls_min = -1;
+
 #ifdef CONFIG_MODE_SKAS
 int do_set_thread_area_skas(struct user_desc *info)
 {
@@ -157,11 +161,20 @@ void clear_flushed_tls(struct task_struct *task)
 	}
 }
 
-/* This in SKAS0 does not need to be used, since we have different host
- * processes. Nor will this need to be used when we'll add support to the host
+/* In SKAS0 mode, currently, multiple guest threads sharing the same ->mm have a
+ * common host process. So this is needed in SKAS0 too.
+ *
+ * However, if each thread had a different host process (and this was discussed
+ * for SMP support) this won't be needed.
+ *
+ * And this will not need be used when (and if) we'll add support to the host
  * SKAS patch. */
+
 int arch_switch_tls_skas(struct task_struct *from, struct task_struct *to)
 {
+	if (!host_supports_tls)
+		return 0;
+
 	/* We have no need whatsoever to switch TLS for kernel threads; beyond
 	 * that, that would also result in us calling os_set_thread_area with
 	 * userspace_pid[cpu] == 0, which gives an error. */
@@ -173,6 +186,9 @@ int arch_switch_tls_skas(struct task_struct *from, struct task_struct *to)
 
 int arch_switch_tls_tt(struct task_struct *from, struct task_struct *to)
 {
+	if (!host_supports_tls)
+		return 0;
+
 	if (needs_TLS_update(to))
 		return load_TLS(0, to);
 
@@ -256,6 +272,9 @@ asmlinkage int sys_set_thread_area(struct user_desc __user *user_desc)
 	struct user_desc info;
 	int idx, ret;
 
+	if (!host_supports_tls)
+		return -ENOSYS;
+
 	if (copy_from_user(&info, user_desc, sizeof(info)))
 		return -EFAULT;
 
@@ -287,6 +306,9 @@ int ptrace_set_thread_area(struct task_struct *child, int idx,
 {
 	struct user_desc info;
 
+	if (!host_supports_tls)
+		return -EIO;
+
 	if (copy_from_user(&info, user_desc, sizeof(info)))
 		return -EFAULT;
 
@@ -297,6 +319,9 @@ asmlinkage int sys_get_thread_area(struct user_desc __user *user_desc)
 {
 	struct user_desc info;
 	int idx, ret;
+
+	if (!host_supports_tls)
+		return -ENOSYS;
 
 	if (get_user(idx, &user_desc->entry_number))
 		return -EFAULT;
@@ -321,6 +346,9 @@ int ptrace_get_thread_area(struct task_struct *child, int idx,
 	struct user_desc info;
 	int ret;
 
+	if (!host_supports_tls)
+		return -EIO;
+
 	ret = get_tls_entry(child, &info, idx);
 	if (ret < 0)
 		goto out;
@@ -331,3 +359,26 @@ out:
 	return ret;
 }
 
+
+/* XXX: This part is probably common to i386 and x86-64. Don't create a common
+ * file for now, do that when implementing x86-64 support.*/
+static int __init __setup_host_supports_tls(void) {
+	check_host_supports_tls(&host_supports_tls, &host_gdt_entry_tls_min);
+	if (host_supports_tls) {
+		printk(KERN_INFO "Host TLS support detected\n");
+		printk(KERN_INFO "Detected host type: ");
+		switch (host_gdt_entry_tls_min) {
+			case GDT_ENTRY_TLS_MIN_I386:
+				printk("i386\n");
+				break;
+			case GDT_ENTRY_TLS_MIN_X86_64:
+				printk("x86_64\n");
+				break;
+		}
+	} else
+		printk(KERN_ERR "  Host TLS support NOT detected! "
+				"TLS support inside UML will not work\n");
+	return 1;
+}
+
+__initcall(__setup_host_supports_tls);

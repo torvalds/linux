@@ -3,7 +3,7 @@
 # Licensed under the GPL
 #
 
-obj-$(CONFIG_MODE_SKAS) = registers.o
+obj-$(CONFIG_MODE_SKAS) = registers.o tls.o
 
 USER_OBJS := $(obj-y)
 
