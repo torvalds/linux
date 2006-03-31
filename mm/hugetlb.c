@@ -697,9 +697,10 @@ int follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		pfn_offset = (vaddr & ~HPAGE_MASK) >> PAGE_SHIFT;
 		page = pte_page(*pte);
 same_page:
-		get_page(page);
-		if (pages)
+		if (pages) {
+			get_page(page);
 			pages[i] = page + pfn_offset;
+		}
 
 		if (vmas)
 			vmas[i] = vma;
