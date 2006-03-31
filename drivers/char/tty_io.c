@@ -376,7 +376,7 @@ int tty_insert_flip_string(struct tty_struct *tty, const unsigned char *chars, s
 	return copied;
 }
 
-EXPORT_SYMBOL_GPL(tty_insert_flip_string);
+EXPORT_SYMBOL(tty_insert_flip_string);
 
 int tty_insert_flip_string_flags(struct tty_struct *tty, const unsigned char *chars, const char *flags, size_t size)
 {
