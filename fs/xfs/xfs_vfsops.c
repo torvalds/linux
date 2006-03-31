@@ -1700,8 +1700,9 @@ xfs_parseargs(
 	int			dsunit, dswidth, vol_dsunit, vol_dswidth;
 	int			iosize;
 
-	args->flags2 |= XFSMNT2_COMPAT_IOSIZE;
 	args->flags |= XFSMNT_IDELETE;
+	args->flags |= XFSMNT_BARRIER;
+	args->flags2 |= XFSMNT2_COMPAT_IOSIZE;
 
 	if (!options)
 		goto done;
@@ -1950,8 +1951,6 @@ xfs_showargs(
 		seq_printf(m, "," MNTOPT_IKEEP);
 	if (!(mp->m_flags & XFS_MOUNT_COMPAT_IOSIZE))
 		seq_printf(m, "," MNTOPT_LARGEIO);
-	if (mp->m_flags & XFS_MOUNT_BARRIER)
-		seq_printf(m, "," MNTOPT_BARRIER);
 
 	if (!(vfsp->vfs_flag & VFS_32BITINODES))
 		seq_printf(m, "," MNTOPT_64BITINODE);
