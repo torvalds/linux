@@ -86,8 +86,8 @@ static char *version =
 
 /*====================================================================*/
 
-static void axnet_config(dev_link_t *link);
-static void axnet_release(dev_link_t *link);
+static void axnet_config(struct pcmcia_device *link);
+static void axnet_release(struct pcmcia_device *link);
 static int axnet_open(struct net_device *dev);
 static int axnet_close(struct net_device *dev);
 static int axnet_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
@@ -142,11 +142,10 @@ static inline axnet_dev_t *PRIV(struct net_device *dev)
 
 ======================================================================*/
 
-static int axnet_attach(struct pcmcia_device *p_dev)
+static int axnet_attach(struct pcmcia_device *link)
 {
     axnet_dev_t *info;
     struct net_device *dev;
-    dev_link_t *link = dev_to_instance(p_dev);
 
     DEBUG(0, "axnet_attach()\n");
 
@@ -157,7 +156,7 @@ static int axnet_attach(struct pcmcia_device *p_dev)
 	return -ENOMEM;
 
     info = PRIV(dev);
-    info->p_dev = p_dev;
+    info->p_dev = link;
     link->priv = dev;
     link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
     link->irq.IRQInfo1 = IRQ_LEVEL_ID;
@@ -184,9 +183,8 @@ static int axnet_attach(struct pcmcia_device *p_dev)
 
 ======================================================================*/
 
-static void axnet_detach(struct pcmcia_device *p_dev)
+static void axnet_detach(struct pcmcia_device *link)
 {
-    dev_link_t *link = dev_to_instance(p_dev);
     struct net_device *dev = link->priv;
 
     DEBUG(0, "axnet_detach(0x%p)\n", link);
@@ -206,7 +204,7 @@ static void axnet_detach(struct pcmcia_device *p_dev)
 
 ======================================================================*/
 
-static int get_prom(dev_link_t *link)
+static int get_prom(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
     kio_addr_t ioaddr = dev->base_addr;
@@ -260,7 +258,7 @@ static int get_prom(dev_link_t *link)
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
-static int try_io_port(dev_link_t *link)
+static int try_io_port(struct pcmcia_device *link)
 {
     int j, ret;
     if (link->io.NumPorts1 == 32) {
@@ -281,18 +279,17 @@ static int try_io_port(dev_link_t *link)
 	for (j = 0; j < 0x400; j += 0x20) {
 	    link->io.BasePort1 = j ^ 0x300;
 	    link->io.BasePort2 = (j ^ 0x300) + 0x10;
-	    ret = pcmcia_request_io(link->handle, &link->io);
+	    ret = pcmcia_request_io(link, &link->io);
 	    if (ret == CS_SUCCESS) return ret;
 	}
 	return ret;
     } else {
-	return pcmcia_request_io(link->handle, &link->io);
+	return pcmcia_request_io(link, &link->io);
     }
 }
 
-static void axnet_config(dev_link_t *link)
+static void axnet_config(struct pcmcia_device *link)
 {
-    client_handle_t handle = link->handle;
     struct net_device *dev = link->priv;
     axnet_dev_t *info = PRIV(dev);
     tuple_t tuple;
@@ -307,9 +304,9 @@ static void axnet_config(dev_link_t *link)
     tuple.TupleDataMax = sizeof(buf);
     tuple.TupleOffset = 0;
     tuple.DesiredTuple = CISTPL_CONFIG;
-    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
-    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(handle, &tuple));
-    CS_CHECK(ParseTuple, pcmcia_parse_tuple(handle, &tuple, &parse));
+    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
+    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
+    CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
     link->conf.ConfigBase = parse.config.base;
     /* don't trust the CIS on this; Linksys got it wrong */
     link->conf.Present = 0x63;
@@ -319,13 +316,13 @@ static void axnet_config(dev_link_t *link)
 
     tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
     tuple.Attributes = 0;
-    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
+    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
     while (last_ret == CS_SUCCESS) {
 	cistpl_cftable_entry_t *cfg = &(parse.cftable_entry);
 	cistpl_io_t *io = &(parse.cftable_entry.io);
 	
-	if (pcmcia_get_tuple_data(handle, &tuple) != 0 ||
-		pcmcia_parse_tuple(handle, &tuple, &parse) != 0 ||
+	if (pcmcia_get_tuple_data(link, &tuple) != 0 ||
+		pcmcia_parse_tuple(link, &tuple, &parse) != 0 ||
 		cfg->index == 0 || cfg->io.nwin == 0)
 	    goto next_entry;
 	
@@ -347,21 +344,21 @@ static void axnet_config(dev_link_t *link)
 	    if (last_ret == CS_SUCCESS) break;
 	}
     next_entry:
-	last_ret = pcmcia_get_next_tuple(handle, &tuple);
+	last_ret = pcmcia_get_next_tuple(link, &tuple);
     }
     if (last_ret != CS_SUCCESS) {
-	cs_error(handle, RequestIO, last_ret);
+	cs_error(link, RequestIO, last_ret);
 	goto failed;
     }
 
-    CS_CHECK(RequestIRQ, pcmcia_request_irq(handle, &link->irq));
+    CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
     
     if (link->io.NumPorts2 == 8) {
 	link->conf.Attributes |= CONF_ENABLE_SPKR;
 	link->conf.Status = CCSR_AUDIO_ENA;
     }
     
-    CS_CHECK(RequestConfiguration, pcmcia_request_configuration(handle, &link->conf));
+    CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
     dev->irq = link->irq.AssignedIRQ;
     dev->base_addr = link->io.BasePort1;
 
@@ -398,7 +395,7 @@ static void axnet_config(dev_link_t *link)
        Bit 2 of CCSR is active low. */ 
     if (i == 32) {
 	conf_reg_t reg = { 0, CS_WRITE, CISREG_CCSR, 0x04 };
- 	pcmcia_access_configuration_register(link->handle, &reg);
+ 	pcmcia_access_configuration_register(link, &reg);
 	for (i = 0; i < 32; i++) {
 	    j = mdio_read(dev->base_addr + AXNET_MII_EEP, i, 1);
 	    if ((j != 0) && (j != 0xffff)) break;
@@ -408,7 +405,7 @@ static void axnet_config(dev_link_t *link)
     info->phy_id = (i < 32) ? i : -1;
     link->dev_node = &info->node;
     link->state &= ~DEV_CONFIG_PENDING;
-    SET_NETDEV_DEV(dev, &handle_to_dev(handle));
+    SET_NETDEV_DEV(dev, &handle_to_dev(link));
 
     if (register_netdev(dev) != 0) {
 	printk(KERN_NOTICE "axnet_cs: register_netdev() failed\n");
@@ -431,7 +428,7 @@ static void axnet_config(dev_link_t *link)
     return;
 
 cs_failed:
-    cs_error(link->handle, last_fn, last_ret);
+    cs_error(link, last_fn, last_ret);
 failed:
     axnet_release(link);
     link->state &= ~DEV_CONFIG_PENDING;
@@ -446,14 +443,13 @@ failed:
 
 ======================================================================*/
 
-static void axnet_release(dev_link_t *link)
+static void axnet_release(struct pcmcia_device *link)
 {
-	pcmcia_disable_device(link->handle);
+	pcmcia_disable_device(link);
 }
 
-static int axnet_suspend(struct pcmcia_device *p_dev)
+static int axnet_suspend(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
 	struct net_device *dev = link->priv;
 
 	if ((link->state & DEV_CONFIG) && (link->open))
@@ -462,9 +458,8 @@ static int axnet_suspend(struct pcmcia_device *p_dev)
 	return 0;
 }
 
-static int axnet_resume(struct pcmcia_device *p_dev)
+static int axnet_resume(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
 	struct net_device *dev = link->priv;
 
 	if ((link->state & DEV_CONFIG) && (link->open)) {
@@ -540,7 +535,7 @@ static void mdio_write(kio_addr_t addr, int phy_id, int loc, int value)
 static int axnet_open(struct net_device *dev)
 {
     axnet_dev_t *info = PRIV(dev);
-    dev_link_t *link = info->p_dev;
+    struct pcmcia_device *link = info->p_dev;
     
     DEBUG(2, "axnet_open('%s')\n", dev->name);
 
@@ -566,7 +561,7 @@ static int axnet_open(struct net_device *dev)
 static int axnet_close(struct net_device *dev)
 {
     axnet_dev_t *info = PRIV(dev);
-    dev_link_t *link = info->p_dev;
+    struct pcmcia_device *link = info->p_dev;
 
     DEBUG(2, "axnet_close('%s')\n", dev->name);
 

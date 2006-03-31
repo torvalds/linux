@@ -1593,11 +1593,10 @@ static int nsp_eh_host_reset(Scsi_Cmnd *SCpnt)
     configure the card at this point -- we wait until we receive a
     card insertion event.
 ======================================================================*/
-static int nsp_cs_attach(struct pcmcia_device *p_dev)
+static int nsp_cs_attach(struct pcmcia_device *link)
 {
 	scsi_info_t  *info;
 	nsp_hw_data  *data = &nsp_data_base;
-	dev_link_t *link = dev_to_instance(p_dev);
 
 	nsp_dbg(NSP_DEBUG_INIT, "in");
 
@@ -1605,7 +1604,7 @@ static int nsp_cs_attach(struct pcmcia_device *p_dev)
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
 	if (info == NULL) { return -ENOMEM; }
 	memset(info, 0, sizeof(*info));
-	info->p_dev = p_dev;
+	info->p_dev = link;
 	link->priv = info;
 	data->ScsiInfo = info;
 
@@ -1644,10 +1643,8 @@ static int nsp_cs_attach(struct pcmcia_device *p_dev)
     structures are freed.  Otherwise, the structures will be freed
     when the device is released.
 ======================================================================*/
-static void nsp_cs_detach(struct pcmcia_device *p_dev)
+static void nsp_cs_detach(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
-
 	nsp_dbg(NSP_DEBUG_INIT, "in, link=0x%p", link);
 
 	if (link->state & DEV_CONFIG) {
@@ -1668,9 +1665,8 @@ static void nsp_cs_detach(struct pcmcia_device *p_dev)
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 /*====================================================================*/
-static void nsp_cs_config(dev_link_t *link)
+static void nsp_cs_config(struct pcmcia_device *link)
 {
-	client_handle_t	  handle = link->handle;
 	scsi_info_t	 *info	 = link->priv;
 	tuple_t		  tuple;
 	cisparse_t	  parse;
@@ -1694,9 +1690,9 @@ static void nsp_cs_config(dev_link_t *link)
 	tuple.TupleData	      = tuple_data;
 	tuple.TupleDataMax    = sizeof(tuple_data);
 	tuple.TupleOffset     = 0;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
-	CS_CHECK(GetTupleData,	pcmcia_get_tuple_data(handle, &tuple));
-	CS_CHECK(ParseTuple,	pcmcia_parse_tuple(handle, &tuple, &parse));
+	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
+	CS_CHECK(GetTupleData,	pcmcia_get_tuple_data(link, &tuple));
+	CS_CHECK(ParseTuple,	pcmcia_parse_tuple(link, &tuple, &parse));
 	link->conf.ConfigBase = parse.config.base;
 	link->conf.Present    = parse.config.rmask[0];
 
@@ -1704,15 +1700,15 @@ static void nsp_cs_config(dev_link_t *link)
 	link->state	      |= DEV_CONFIG;
 
 	/* Look up the current Vcc */
-	CS_CHECK(GetConfigurationInfo, pcmcia_get_configuration_info(handle, &conf));
+	CS_CHECK(GetConfigurationInfo, pcmcia_get_configuration_info(link, &conf));
 
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
+	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
 	while (1) {
 		cistpl_cftable_entry_t *cfg = &(parse.cftable_entry);
 
-		if (pcmcia_get_tuple_data(handle, &tuple) != 0 ||
-				pcmcia_parse_tuple(handle, &tuple, &parse) != 0)
+		if (pcmcia_get_tuple_data(link, &tuple) != 0 ||
+				pcmcia_parse_tuple(link, &tuple, &parse) != 0)
 			goto next_entry;
 
 		if (cfg->flags & CISTPL_CFTABLE_DEFAULT) { dflt = *cfg; }
@@ -1768,7 +1764,7 @@ static void nsp_cs_config(dev_link_t *link)
 				link->io.NumPorts2 = io->win[1].len;
 			}
 			/* This reserves IO space but doesn't actually enable it */
-			if (pcmcia_request_io(link->handle, &link->io) != 0)
+			if (pcmcia_request_io(link, &link->io) != 0)
 				goto next_entry;
 		}
 
@@ -1783,7 +1779,7 @@ static void nsp_cs_config(dev_link_t *link)
 				req.Size = 0x1000;
 			}
 			req.AccessSpeed = 0;
-			if (pcmcia_request_window(&link->handle, &req, &link->win) != 0)
+			if (pcmcia_request_window(&link, &req, &link->win) != 0)
 				goto next_entry;
 			map.Page = 0; map.CardOffset = mem->win[0].card_addr;
 			if (pcmcia_map_mem_page(link->win, &map) != 0)
@@ -1797,14 +1793,14 @@ static void nsp_cs_config(dev_link_t *link)
 
 	next_entry:
 		nsp_dbg(NSP_DEBUG_INIT, "next");
-		pcmcia_disable_device(handle);
-		CS_CHECK(GetNextTuple, pcmcia_get_next_tuple(handle, &tuple));
+		pcmcia_disable_device(link);
+		CS_CHECK(GetNextTuple, pcmcia_get_next_tuple(link, &tuple));
 	}
 
 	if (link->conf.Attributes & CONF_ENABLE_IRQ) {
-		CS_CHECK(RequestIRQ, pcmcia_request_irq(link->handle, &link->irq));
+		CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
 	}
-	CS_CHECK(RequestConfiguration, pcmcia_request_configuration(handle, &link->conf));
+	CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
 
 	if (free_ports) {
 		if (link->io.BasePort1) {
@@ -1925,7 +1921,7 @@ static void nsp_cs_config(dev_link_t *link)
 
  cs_failed:
 	nsp_dbg(NSP_DEBUG_INIT, "config fail");
-	cs_error(link->handle, last_fn, last_ret);
+	cs_error(link, last_fn, last_ret);
 	nsp_cs_release(link);
 
 	return;
@@ -1938,7 +1934,7 @@ static void nsp_cs_config(dev_link_t *link)
     device, and release the PCMCIA configuration.  If the device is
     still open, this will be postponed until it is closed.
 ======================================================================*/
-static void nsp_cs_release(dev_link_t *link)
+static void nsp_cs_release(struct pcmcia_device *link)
 {
 	scsi_info_t *info = link->priv;
 	nsp_hw_data *data = NULL;
@@ -1966,7 +1962,7 @@ static void nsp_cs_release(dev_link_t *link)
 			iounmap((void *)(data->MmioAddress));
 		}
 	}
-	pcmcia_disable_device(link->handle);
+	pcmcia_disable_device(link);
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,2))
 	if (info->host != NULL) {
@@ -1975,9 +1971,8 @@ static void nsp_cs_release(dev_link_t *link)
 #endif
 } /* nsp_cs_release */
 
-static int nsp_cs_suspend(struct pcmcia_device *dev)
+static int nsp_cs_suspend(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(dev);
 	scsi_info_t *info = link->priv;
 	nsp_hw_data *data;
 
@@ -1996,9 +1991,8 @@ static int nsp_cs_suspend(struct pcmcia_device *dev)
 	return 0;
 }
 
-static int nsp_cs_resume(struct pcmcia_device *dev)
+static int nsp_cs_resume(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(dev);
 	scsi_info_t *info = link->priv;
 	nsp_hw_data *data;
 

@@ -103,8 +103,8 @@ module_param(pc_debug, int, 0);
  * release a socket, in response to card insertion and ejection events.  They
  * are invoked from the wl24 event handler.
  */
-static void wl3501_config(dev_link_t *link);
-static void wl3501_release(dev_link_t *link);
+static void wl3501_config(struct pcmcia_device *link);
+static void wl3501_release(struct pcmcia_device *link);
 
 /*
  * The dev_info variable is the "key" that is used to match up this
@@ -1270,7 +1270,7 @@ static int wl3501_close(struct net_device *dev)
 	struct wl3501_card *this = dev->priv;
 	int rc = -ENODEV;
 	unsigned long flags;
-	dev_link_t *link;
+	struct pcmcia_device *link;
 	link = this->p_dev;
 
 	spin_lock_irqsave(&this->lock, flags);
@@ -1383,7 +1383,7 @@ static int wl3501_open(struct net_device *dev)
 	int rc = -ENODEV;
 	struct wl3501_card *this = dev->priv;
 	unsigned long flags;
-	dev_link_t *link;
+	struct pcmcia_device *link;
 	link = this->p_dev;
 
 	spin_lock_irqsave(&this->lock, flags);
@@ -1477,9 +1477,8 @@ static struct ethtool_ops ops = {
  * Services. If it has been released, all local data structures are freed.
  * Otherwise, the structures will be freed when the device is released.
  */
-static void wl3501_detach(struct pcmcia_device *p_dev)
+static void wl3501_detach(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
 	struct net_device *dev = link->priv;
 
 	/* If the device is currently configured and active, we won't actually
@@ -1925,23 +1924,22 @@ static int wl3501_attach(struct pcmcia_device *p_dev)
 {
 	struct net_device *dev;
 	struct wl3501_card *this;
-	dev_link_t *link = dev_to_instance(p_dev);
 
 	/* The io structure describes IO port mapping */
-	link->io.NumPorts1	= 16;
-	link->io.Attributes1	= IO_DATA_PATH_WIDTH_8;
-	link->io.IOAddrLines	= 5;
+	p_dev->io.NumPorts1	= 16;
+	p_dev->io.Attributes1	= IO_DATA_PATH_WIDTH_8;
+	p_dev->io.IOAddrLines	= 5;
 
 	/* Interrupt setup */
-	link->irq.Attributes	= IRQ_TYPE_EXCLUSIVE | IRQ_HANDLE_PRESENT;
-	link->irq.IRQInfo1	= IRQ_LEVEL_ID;
-	link->irq.Handler = wl3501_interrupt;
+	p_dev->irq.Attributes	= IRQ_TYPE_EXCLUSIVE | IRQ_HANDLE_PRESENT;
+	p_dev->irq.IRQInfo1	= IRQ_LEVEL_ID;
+	p_dev->irq.Handler = wl3501_interrupt;
 
 	/* General socket configuration */
-	link->conf.Attributes	= CONF_ENABLE_IRQ;
-	link->conf.IntType	= INT_MEMORY_AND_IO;
-	link->conf.ConfigIndex	= 1;
-	link->conf.Present	= PRESENT_OPTION;
+	p_dev->conf.Attributes	= CONF_ENABLE_IRQ;
+	p_dev->conf.IntType	= INT_MEMORY_AND_IO;
+	p_dev->conf.ConfigIndex	= 1;
+	p_dev->conf.Present	= PRESENT_OPTION;
 
 	dev = alloc_etherdev(sizeof(struct wl3501_card));
 	if (!dev)
@@ -1959,9 +1957,9 @@ static int wl3501_attach(struct pcmcia_device *p_dev)
 	dev->wireless_handlers	= (struct iw_handler_def *)&wl3501_handler_def;
 	SET_ETHTOOL_OPS(dev, &ops);
 	netif_stop_queue(dev);
-	link->priv = link->irq.Instance = dev;
+	p_dev->priv = p_dev->irq.Instance = dev;
 
-	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+	p_dev->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	wl3501_config(p_dev);
 
 	return 0;
@@ -1980,11 +1978,10 @@ do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
  * received, to configure the PCMCIA socket, and to make the ethernet device
  * available to the system.
  */
-static void wl3501_config(dev_link_t *link)
+static void wl3501_config(struct pcmcia_device *link)
 {
 	tuple_t tuple;
 	cisparse_t parse;
-	client_handle_t handle = link->handle;
 	struct net_device *dev = link->priv;
 	int i = 0, j, last_fn, last_ret;
 	unsigned char bf[64];
@@ -1993,12 +1990,12 @@ static void wl3501_config(dev_link_t *link)
 	/* This reads the card's CONFIG tuple to find its config registers. */
 	tuple.Attributes	= 0;
 	tuple.DesiredTuple	= CISTPL_CONFIG;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
+	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
 	tuple.TupleData		= bf;
 	tuple.TupleDataMax	= sizeof(bf);
 	tuple.TupleOffset	= 0;
-	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(handle, &tuple));
-	CS_CHECK(ParseTuple, pcmcia_parse_tuple(handle, &tuple, &parse));
+	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
+	CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
 	link->conf.ConfigBase	= parse.config.base;
 	link->conf.Present	= parse.config.rmask[0];
 
@@ -2014,28 +2011,28 @@ static void wl3501_config(dev_link_t *link)
 		 * 0x200-0x2ff, and so on, because this seems safer */
 		link->io.BasePort1 = j;
 		link->io.BasePort2 = link->io.BasePort1 + 0x10;
-		i = pcmcia_request_io(link->handle, &link->io);
+		i = pcmcia_request_io(link, &link->io);
 		if (i == CS_SUCCESS)
 			break;
 	}
 	if (i != CS_SUCCESS) {
-		cs_error(link->handle, RequestIO, i);
+		cs_error(link, RequestIO, i);
 		goto failed;
 	}
 
 	/* Now allocate an interrupt line. Note that this does not actually
 	 * assign a handler to the interrupt. */
 
-	CS_CHECK(RequestIRQ, pcmcia_request_irq(link->handle, &link->irq));
+	CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
 
 	/* This actually configures the PCMCIA socket -- setting up the I/O
 	 * windows and the interrupt mapping.  */
 
-	CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link->handle, &link->conf));
+	CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
 
 	dev->irq = link->irq.AssignedIRQ;
 	dev->base_addr = link->io.BasePort1;
-	SET_NETDEV_DEV(dev, &handle_to_dev(handle));
+	SET_NETDEV_DEV(dev, &handle_to_dev(link));
 	if (register_netdev(dev)) {
 		printk(KERN_NOTICE "wl3501_cs: register_netdev() failed\n");
 		goto failed;
@@ -2087,7 +2084,7 @@ static void wl3501_config(dev_link_t *link)
 	netif_start_queue(dev);
 	goto out;
 cs_failed:
-	cs_error(link->handle, last_fn, last_ret);
+	cs_error(link, last_fn, last_ret);
 failed:
 	wl3501_release(link);
 out:
@@ -2102,7 +2099,7 @@ out:
  * and release the PCMCIA configuration.  If the device is still open, this
  * will be postponed until it is closed.
  */
-static void wl3501_release(dev_link_t *link)
+static void wl3501_release(struct pcmcia_device *link)
 {
 	struct net_device *dev = link->priv;
 
@@ -2110,12 +2107,11 @@ static void wl3501_release(dev_link_t *link)
 	if (link->dev_node)
 		unregister_netdev(dev);
 
-	pcmcia_disable_device(link->handle);
+	pcmcia_disable_device(link);
 }
 
-static int wl3501_suspend(struct pcmcia_device *p_dev)
+static int wl3501_suspend(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
 	struct net_device *dev = link->priv;
 
 	wl3501_pwr_mgmt(dev->priv, WL3501_SUSPEND);
@@ -2125,9 +2121,8 @@ static int wl3501_suspend(struct pcmcia_device *p_dev)
 	return 0;
 }
 
-static int wl3501_resume(struct pcmcia_device *p_dev)
+static int wl3501_resume(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
 	struct net_device *dev = link->priv;
 
 	wl3501_pwr_mgmt(dev->priv, WL3501_RESUME);

@@ -57,12 +57,12 @@ static struct snd_card *card_list[SNDRV_CARDS];
 /*
  * prototypes
  */
-static void pdacf_config(dev_link_t *link);
+static void pdacf_config(struct pcmcia_device *link);
 static void snd_pdacf_detach(struct pcmcia_device *p_dev);
 
-static void pdacf_release(dev_link_t *link)
+static void pdacf_release(struct pcmcia_device *link)
 {
-	pcmcia_disable_device(link->handle);
+	pcmcia_disable_device(link);
 }
 
 /*
@@ -70,7 +70,7 @@ static void pdacf_release(dev_link_t *link)
  */
 static int snd_pdacf_free(struct snd_pdacf *pdacf)
 {
-	dev_link_t *link = pdacf->p_dev;
+	struct pcmcia_device *link = pdacf->p_dev;
 
 	pdacf_release(link);
 
@@ -90,17 +90,14 @@ static int snd_pdacf_dev_free(struct snd_device *device)
 /*
  * snd_pdacf_attach - attach callback for cs
  */
-static int snd_pdacf_attach(struct pcmcia_device *p_dev)
+static int snd_pdacf_attach(struct pcmcia_device *link)
 {
 	int i;
-	dev_link_t *link;               /* Info for cardmgr */
 	struct snd_pdacf *pdacf;
 	struct snd_card *card;
 	static struct snd_device_ops ops = {
 		.dev_free =	snd_pdacf_dev_free,
 	};
-
-	link = dev_to_instance(p_dev);
 
 	snd_printdd(KERN_DEBUG "pdacf_attach called\n");
 	/* find an empty slot from the card list */
@@ -135,7 +132,7 @@ static int snd_pdacf_attach(struct pcmcia_device *p_dev)
 	pdacf->index = i;
 	card_list[i] = card;
 
-	pdacf->p_dev = p_dev;
+	pdacf->p_dev = link;
 	link->priv = pdacf;
 
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
@@ -201,9 +198,8 @@ static int snd_pdacf_assign_resources(struct snd_pdacf *pdacf, int port, int irq
 /*
  * snd_pdacf_detach - detach callback for cs
  */
-static void snd_pdacf_detach(struct pcmcia_device *p_dev)
+static void snd_pdacf_detach(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
 	struct snd_pdacf *chip = link->priv;
 
 	snd_printdd(KERN_DEBUG "pdacf_detach called\n");
@@ -222,9 +218,8 @@ static void snd_pdacf_detach(struct pcmcia_device *p_dev)
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
-static void pdacf_config(dev_link_t *link)
+static void pdacf_config(struct pcmcia_device *link)
 {
-	client_handle_t handle = link->handle;
 	struct snd_pdacf *pdacf = link->priv;
 	tuple_t tuple;
 	cisparse_t *parse = NULL;
@@ -243,9 +238,9 @@ static void pdacf_config(dev_link_t *link)
 	tuple.TupleDataMax = sizeof(buf);
 	tuple.TupleOffset = 0;
 	tuple.DesiredTuple = CISTPL_CONFIG;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
-	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(handle, &tuple));
-	CS_CHECK(ParseTuple, pcmcia_parse_tuple(handle, &tuple, parse));
+	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
+	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
+	CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, parse));
 	link->conf.ConfigBase = parse->config.base;
 	link->conf.ConfigIndex = 0x5;
 	kfree(parse);
@@ -253,9 +248,9 @@ static void pdacf_config(dev_link_t *link)
 	/* Configure card */
 	link->state |= DEV_CONFIG;
 
-	CS_CHECK(RequestIO, pcmcia_request_io(handle, &link->io));
-	CS_CHECK(RequestIRQ, pcmcia_request_irq(link->handle, &link->irq));
-	CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link->handle, &link->conf));
+	CS_CHECK(RequestIO, pcmcia_request_io(link, &link->io));
+	CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
+	CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
 
 	if (snd_pdacf_assign_resources(pdacf, link->io.BasePort1, link->irq.AssignedIRQ) < 0)
 		goto failed;
@@ -265,16 +260,15 @@ static void pdacf_config(dev_link_t *link)
 	return;
 
 cs_failed:
-	cs_error(link->handle, last_fn, last_ret);
+	cs_error(link, last_fn, last_ret);
 failed:
-	pcmcia_disable_device(link->handle);
+	pcmcia_disable_device(link);
 }
 
 #ifdef CONFIG_PM
 
-static int pdacf_suspend(struct pcmcia_device *dev)
+static int pdacf_suspend(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(dev);
 	struct snd_pdacf *chip = link->priv;
 
 	snd_printdd(KERN_DEBUG "SUSPEND\n");
@@ -286,9 +280,8 @@ static int pdacf_suspend(struct pcmcia_device *dev)
 	return 0;
 }
 
-static int pdacf_resume(struct pcmcia_device *dev)
+static int pdacf_resume(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(dev);
 	struct snd_pdacf *chip = link->priv;
 
 	snd_printdd(KERN_DEBUG "RESUME\n");

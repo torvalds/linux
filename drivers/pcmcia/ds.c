@@ -391,7 +391,6 @@ static int pcmcia_device_probe(struct device * dev)
 	}
 
 	p_dev->p_state &= ~CLIENT_UNBOUND;
-	p_dev->handle = p_dev;
 
 	ret = p_drv->probe(p_dev);
 	if (ret)

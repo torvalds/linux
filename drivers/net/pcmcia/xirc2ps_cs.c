@@ -289,9 +289,9 @@ static void mii_wr(kio_addr_t ioaddr, u_char phyaddr, u_char phyreg,
  * and ejection events.  They are invoked from the event handler.
  */
 
-static int has_ce2_string(dev_link_t * link);
-static void xirc2ps_config(dev_link_t * link);
-static void xirc2ps_release(dev_link_t * link);
+static int has_ce2_string(struct pcmcia_device * link);
+static void xirc2ps_config(struct pcmcia_device * link);
+static void xirc2ps_release(struct pcmcia_device * link);
 
 /****************
  * The attach() and detach() entry points are used to create and destroy
@@ -313,10 +313,10 @@ static irqreturn_t xirc2ps_interrupt(int irq, void *dev_id, struct pt_regs *regs
 /****************
  * A linked list of "instances" of the device.  Each actual
  * PCMCIA card corresponds to one device instance, and is described
- * by one dev_link_t structure (defined in ds.h).
+ * by one struct pcmcia_device structure (defined in ds.h).
  *
  * You may not want to use a linked list for this -- for example, the
- * memory card driver uses an array of dev_link_t pointers, where minor
+ * memory card driver uses an array of struct pcmcia_device pointers, where minor
  * device numbers are used to derive the corresponding array index.
  */
 
@@ -326,7 +326,7 @@ static irqreturn_t xirc2ps_interrupt(int irq, void *dev_id, struct pt_regs *regs
  * example, ethernet cards, modems).  In other cases, there may be
  * many actual or logical devices (SCSI adapters, memory cards with
  * multiple partitions).  The dev_node_t structures need to be kept
- * in a linked list starting at the 'dev' field of a dev_link_t
+ * in a linked list starting at the 'dev' field of a struct pcmcia_device
  * structure.  We allocate them in the card's private data structure,
  * because they generally can't be allocated dynamically.
  */
@@ -355,7 +355,7 @@ static void do_tx_timeout(struct net_device *dev);
 static struct net_device_stats *do_get_stats(struct net_device *dev);
 static void set_addresses(struct net_device *dev);
 static void set_multicast_list(struct net_device *dev);
-static int set_card_type(dev_link_t *link, const void *s);
+static int set_card_type(struct pcmcia_device *link, const void *s);
 static int do_config(struct net_device *dev, struct ifmap *map);
 static int do_open(struct net_device *dev);
 static int do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
@@ -368,7 +368,7 @@ static int do_stop(struct net_device *dev);
 
 /*=============== Helper functions =========================*/
 static int
-first_tuple(client_handle_t handle, tuple_t *tuple, cisparse_t *parse)
+first_tuple(struct pcmcia_device *handle, tuple_t *tuple, cisparse_t *parse)
 {
 	int err;
 
@@ -379,7 +379,7 @@ first_tuple(client_handle_t handle, tuple_t *tuple, cisparse_t *parse)
 }
 
 static int
-next_tuple(client_handle_t handle, tuple_t *tuple, cisparse_t *parse)
+next_tuple(struct pcmcia_device *handle, tuple_t *tuple, cisparse_t *parse)
 {
 	int err;
 
@@ -553,11 +553,10 @@ mii_wr(kio_addr_t ioaddr, u_char phyaddr, u_char phyreg, unsigned data, int len)
  */
 
 static int
-xirc2ps_attach(struct pcmcia_device *p_dev)
+xirc2ps_attach(struct pcmcia_device *link)
 {
     struct net_device *dev;
     local_info_t *local;
-    dev_link_t *link = dev_to_instance(p_dev);
 
     DEBUG(0, "attach()\n");
 
@@ -566,7 +565,7 @@ xirc2ps_attach(struct pcmcia_device *p_dev)
     if (!dev)
 	    return -ENOMEM;
     local = netdev_priv(dev);
-    local->p_dev = p_dev;
+    local->p_dev = link;
     link->priv = dev;
 
     /* General socket configuration */
@@ -606,9 +605,8 @@ xirc2ps_attach(struct pcmcia_device *p_dev)
  */
 
 static void
-xirc2ps_detach(struct pcmcia_device *p_dev)
+xirc2ps_detach(struct pcmcia_device *link)
 {
-    dev_link_t *link = dev_to_instance(p_dev);
     struct net_device *dev = link->priv;
 
     DEBUG(0, "detach(0x%p)\n", link);
@@ -641,7 +639,7 @@ xirc2ps_detach(struct pcmcia_device *p_dev)
  *
  */
 static int
-set_card_type(dev_link_t *link, const void *s)
+set_card_type(struct pcmcia_device *link, const void *s)
 {
     struct net_device *dev = link->priv;
     local_info_t *local = netdev_priv(dev);
@@ -710,9 +708,8 @@ set_card_type(dev_link_t *link, const void *s)
  * Returns: true if this is a CE2
  */
 static int
-has_ce2_string(dev_link_t * link)
+has_ce2_string(struct pcmcia_device * link)
 {
-    client_handle_t handle = link->handle;
     tuple_t tuple;
     cisparse_t parse;
     u_char buf[256];
@@ -722,7 +719,7 @@ has_ce2_string(dev_link_t * link)
     tuple.TupleDataMax = 254;
     tuple.TupleOffset = 0;
     tuple.DesiredTuple = CISTPL_VERS_1;
-    if (!first_tuple(handle, &tuple, &parse) && parse.version_1.ns > 2) {
+    if (!first_tuple(link, &tuple, &parse) && parse.version_1.ns > 2) {
 	if (strstr(parse.version_1.str + parse.version_1.ofs[2], "CE2"))
 	    return 1;
     }
@@ -735,9 +732,8 @@ has_ce2_string(dev_link_t * link)
  * ethernet device available to the system.
  */
 static void
-xirc2ps_config(dev_link_t * link)
+xirc2ps_config(struct pcmcia_device * link)
 {
-    client_handle_t handle = link->handle;
     struct net_device *dev = link->priv;
     local_info_t *local = netdev_priv(dev);
     tuple_t tuple;
@@ -763,7 +759,7 @@ xirc2ps_config(dev_link_t * link)
 
     /* Is this a valid	card */
     tuple.DesiredTuple = CISTPL_MANFID;
-    if ((err=first_tuple(handle, &tuple, &parse))) {
+    if ((err=first_tuple(link, &tuple, &parse))) {
 	printk(KNOT_XIRC "manfid not found in CIS\n");
 	goto failure;
     }
@@ -799,15 +795,15 @@ xirc2ps_config(dev_link_t * link)
 
     /* get configuration stuff */
     tuple.DesiredTuple = CISTPL_CONFIG;
-    if ((err=first_tuple(handle, &tuple, &parse)))
+    if ((err=first_tuple(link, &tuple, &parse)))
 	goto cis_error;
     link->conf.ConfigBase = parse.config.base;
     link->conf.Present =    parse.config.rmask[0];
 
     /* get the ethernet address from the CIS */
     tuple.DesiredTuple = CISTPL_FUNCE;
-    for (err = first_tuple(handle, &tuple, &parse); !err;
-			     err = next_tuple(handle, &tuple, &parse)) {
+    for (err = first_tuple(link, &tuple, &parse); !err;
+			     err = next_tuple(link, &tuple, &parse)) {
 	/* Once I saw two CISTPL_FUNCE_LAN_NODE_ID entries:
 	 * the first one with a length of zero the second correct -
 	 * so I skip all entries with length 0 */
@@ -817,8 +813,8 @@ xirc2ps_config(dev_link_t * link)
     }
     if (err) { /* not found: try to get the node-id from tuple 0x89 */
 	tuple.DesiredTuple = 0x89;  /* data layout looks like tuple 0x22 */
-	if ((err = pcmcia_get_first_tuple(handle, &tuple)) == 0 &&
-		(err = pcmcia_get_tuple_data(handle, &tuple)) == 0) {
+	if ((err = pcmcia_get_first_tuple(link, &tuple)) == 0 &&
+		(err = pcmcia_get_tuple_data(link, &tuple)) == 0) {
 	    if (tuple.TupleDataLen == 8 && *buf == CISTPL_FUNCE_LAN_NODE_ID)
 		memcpy(&parse, buf, 8);
 	    else
@@ -827,8 +823,8 @@ xirc2ps_config(dev_link_t * link)
     }
     if (err) { /* another try	(James Lehmer's CE2 version 4.1)*/
 	tuple.DesiredTuple = CISTPL_FUNCE;
-	for (err = first_tuple(handle, &tuple, &parse); !err;
-				 err = next_tuple(handle, &tuple, &parse)) {
+	for (err = first_tuple(link, &tuple, &parse); !err;
+				 err = next_tuple(link, &tuple, &parse)) {
 	    if (parse.funce.type == 0x02 && parse.funce.data[0] == 1
 		&& parse.funce.data[1] == 6 && tuple.TupleDataLen == 13) {
 		buf[1] = 4;
@@ -871,14 +867,14 @@ xirc2ps_config(dev_link_t * link)
 	     * Ethernet port */
 	    link->io.NumPorts1 = 16; /* no Mako stuff anymore */
 	    tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-	    for (err = first_tuple(handle, &tuple, &parse); !err;
-				 err = next_tuple(handle, &tuple, &parse)) {
+	    for (err = first_tuple(link, &tuple, &parse); !err;
+				 err = next_tuple(link, &tuple, &parse)) {
 		if (cf->io.nwin > 0  &&  (cf->io.win[0].base & 0xf) == 8) {
 		    for (ioaddr = 0x300; ioaddr < 0x400; ioaddr += 0x10) {
 			link->conf.ConfigIndex = cf->index ;
 			link->io.BasePort2 = cf->io.win[0].base;
 			link->io.BasePort1 = ioaddr;
-			if (!(err=pcmcia_request_io(link->handle, &link->io)))
+			if (!(err=pcmcia_request_io(link, &link->io)))
 			    goto port_found;
 		    }
 		}
@@ -892,15 +888,15 @@ xirc2ps_config(dev_link_t * link)
 	     */
 	    for (pass=0; pass < 2; pass++) {
 		tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-		for (err = first_tuple(handle, &tuple, &parse); !err;
-				     err = next_tuple(handle, &tuple, &parse)){
+		for (err = first_tuple(link, &tuple, &parse); !err;
+				     err = next_tuple(link, &tuple, &parse)){
 		    if (cf->io.nwin > 0  &&  (cf->io.win[0].base & 0xf) == 8){
 			link->conf.ConfigIndex = cf->index ;
 			link->io.BasePort2 = cf->io.win[0].base;
 			link->io.BasePort1 = link->io.BasePort2
 				    + (pass ? (cf->index & 0x20 ? -24:8)
 					    : (cf->index & 0x20 ?   8:-24));
-			if (!(err=pcmcia_request_io(link->handle, &link->io)))
+			if (!(err=pcmcia_request_io(link, &link->io)))
 			    goto port_found;
 		    }
 		}
@@ -915,12 +911,12 @@ xirc2ps_config(dev_link_t * link)
 	link->io.NumPorts1 = 16;
 	for (ioaddr = 0x300; ioaddr < 0x400; ioaddr += 0x10) {
 	    link->io.BasePort1 = ioaddr;
-	    if (!(err=pcmcia_request_io(link->handle, &link->io)))
+	    if (!(err=pcmcia_request_io(link, &link->io)))
 		goto port_found;
 	}
 	link->io.BasePort1 = 0; /* let CS decide */
-	if ((err=pcmcia_request_io(link->handle, &link->io))) {
-	    cs_error(link->handle, RequestIO, err);
+	if ((err=pcmcia_request_io(link, &link->io))) {
+	    cs_error(link, RequestIO, err);
 	    goto config_error;
 	}
     }
@@ -932,8 +928,8 @@ xirc2ps_config(dev_link_t * link)
      * Now allocate an interrupt line.	Note that this does not
      * actually assign a handler to the interrupt.
      */
-    if ((err=pcmcia_request_irq(link->handle, &link->irq))) {
-	cs_error(link->handle, RequestIRQ, err);
+    if ((err=pcmcia_request_irq(link, &link->irq))) {
+	cs_error(link, RequestIRQ, err);
 	goto config_error;
     }
 
@@ -941,8 +937,8 @@ xirc2ps_config(dev_link_t * link)
      * This actually configures the PCMCIA socket -- setting up
      * the I/O windows and the interrupt mapping.
      */
-    if ((err=pcmcia_request_configuration(link->handle, &link->conf))) {
-	cs_error(link->handle, RequestConfiguration, err);
+    if ((err=pcmcia_request_configuration(link, &link->conf))) {
+	cs_error(link, RequestConfiguration, err);
 	goto config_error;
     }
 
@@ -959,15 +955,15 @@ xirc2ps_config(dev_link_t * link)
 	reg.Action = CS_WRITE;
 	reg.Offset = CISREG_IOBASE_0;
 	reg.Value = link->io.BasePort2 & 0xff;
-	if ((err = pcmcia_access_configuration_register(link->handle, &reg))) {
-	    cs_error(link->handle, AccessConfigurationRegister, err);
+	if ((err = pcmcia_access_configuration_register(link, &reg))) {
+	    cs_error(link, AccessConfigurationRegister, err);
 	    goto config_error;
 	}
 	reg.Action = CS_WRITE;
 	reg.Offset = CISREG_IOBASE_1;
 	reg.Value = (link->io.BasePort2 >> 8) & 0xff;
-	if ((err = pcmcia_access_configuration_register(link->handle, &reg))) {
-	    cs_error(link->handle, AccessConfigurationRegister, err);
+	if ((err = pcmcia_access_configuration_register(link, &reg))) {
+	    cs_error(link, AccessConfigurationRegister, err);
 	    goto config_error;
 	}
 
@@ -978,15 +974,15 @@ xirc2ps_config(dev_link_t * link)
 	req.Attributes = WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
 	req.Base = req.Size = 0;
 	req.AccessSpeed = 0;
-	if ((err = pcmcia_request_window(&link->handle, &req, &link->win))) {
-	    cs_error(link->handle, RequestWindow, err);
+	if ((err = pcmcia_request_window(&link, &req, &link->win))) {
+	    cs_error(link, RequestWindow, err);
 	    goto config_error;
 	}
 	local->dingo_ccr = ioremap(req.Base,0x1000) + 0x0800;
 	mem.CardOffset = 0x0;
 	mem.Page = 0;
 	if ((err = pcmcia_map_mem_page(link->win, &mem))) {
-	    cs_error(link->handle, MapMemPage, err);
+	    cs_error(link, MapMemPage, err);
 	    goto config_error;
 	}
 
@@ -1048,7 +1044,7 @@ xirc2ps_config(dev_link_t * link)
 
     link->dev_node = &local->node;
     link->state &= ~DEV_CONFIG_PENDING;
-    SET_NETDEV_DEV(dev, &handle_to_dev(handle));
+    SET_NETDEV_DEV(dev, &handle_to_dev(link));
 
     if ((err=register_netdev(dev))) {
 	printk(KNOT_XIRC "register_netdev() failed\n");
@@ -1084,7 +1080,7 @@ xirc2ps_config(dev_link_t * link)
  * still open, this will be postponed until it is closed.
  */
 static void
-xirc2ps_release(dev_link_t *link)
+xirc2ps_release(struct pcmcia_device *link)
 {
 	DEBUG(0, "release(0x%p)\n", link);
 
@@ -1094,15 +1090,14 @@ xirc2ps_release(dev_link_t *link)
 		if (local->dingo)
 			iounmap(local->dingo_ccr - 0x0800);
 	}
-	pcmcia_disable_device(link->handle);
+	pcmcia_disable_device(link);
 } /* xirc2ps_release */
 
 /*====================================================================*/
 
 
-static int xirc2ps_suspend(struct pcmcia_device *p_dev)
+static int xirc2ps_suspend(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
 	struct net_device *dev = link->priv;
 
 	if ((link->state & DEV_CONFIG) && (link->open)) {
@@ -1113,9 +1108,8 @@ static int xirc2ps_suspend(struct pcmcia_device *p_dev)
 	return 0;
 }
 
-static int xirc2ps_resume(struct pcmcia_device *p_dev)
+static int xirc2ps_resume(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
 	struct net_device *dev = link->priv;
 
 	if ((link->state & DEV_CONFIG) && (link->open)) {
@@ -1534,7 +1528,7 @@ static int
 do_open(struct net_device *dev)
 {
     local_info_t *lp = netdev_priv(dev);
-    dev_link_t *link = lp->p_dev;
+    struct pcmcia_device *link = lp->p_dev;
 
     DEBUG(0, "do_open(%p)\n", dev);
 
@@ -1864,7 +1858,7 @@ do_stop(struct net_device *dev)
 {
     kio_addr_t ioaddr = dev->base_addr;
     local_info_t *lp = netdev_priv(dev);
-    dev_link_t *link = lp->p_dev;
+    struct pcmcia_device *link = lp->p_dev;
 
     DEBUG(0, "do_stop(%p)\n", dev);
 

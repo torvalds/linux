@@ -142,8 +142,8 @@ DRV_NAME ".c " DRV_VERSION " 2001/10/13 00:08:50 (David Hinds)";
 
 /*====================================================================*/
 
-static void tc589_config(dev_link_t *link);
-static void tc589_release(dev_link_t *link);
+static void tc589_config(struct pcmcia_device *link);
+static void tc589_release(struct pcmcia_device *link);
 
 static u16 read_eeprom(kio_addr_t ioaddr, int index);
 static void tc589_reset(struct net_device *dev);
@@ -170,11 +170,10 @@ static void tc589_detach(struct pcmcia_device *p_dev);
 
 ======================================================================*/
 
-static int tc589_attach(struct pcmcia_device *p_dev)
+static int tc589_attach(struct pcmcia_device *link)
 {
     struct el3_private *lp;
     struct net_device *dev;
-    dev_link_t *link = dev_to_instance(p_dev);
 
     DEBUG(0, "3c589_attach()\n");
 
@@ -184,7 +183,7 @@ static int tc589_attach(struct pcmcia_device *p_dev)
 	 return -ENOMEM;
     lp = netdev_priv(dev);
     link->priv = dev;
-    lp->p_dev = p_dev;
+    lp->p_dev = link;
 
     spin_lock_init(&lp->lock);
     link->io.NumPorts1 = 16;
@@ -227,9 +226,8 @@ static int tc589_attach(struct pcmcia_device *p_dev)
 
 ======================================================================*/
 
-static void tc589_detach(struct pcmcia_device *p_dev)
+static void tc589_detach(struct pcmcia_device *link)
 {
-    dev_link_t *link = dev_to_instance(p_dev);
     struct net_device *dev = link->priv;
 
     DEBUG(0, "3c589_detach(0x%p)\n", link);
@@ -254,9 +252,8 @@ static void tc589_detach(struct pcmcia_device *p_dev)
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
-static void tc589_config(dev_link_t *link)
+static void tc589_config(struct pcmcia_device *link)
 {
-    client_handle_t handle = link->handle;
     struct net_device *dev = link->priv;
     struct el3_private *lp = netdev_priv(dev);
     tuple_t tuple;
@@ -271,20 +268,20 @@ static void tc589_config(dev_link_t *link)
     phys_addr = (u16 *)dev->dev_addr;
     tuple.Attributes = 0;
     tuple.DesiredTuple = CISTPL_CONFIG;
-    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
+    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
     tuple.TupleData = (cisdata_t *)buf;
     tuple.TupleDataMax = sizeof(buf);
     tuple.TupleOffset = 0;
-    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(handle, &tuple));
-    CS_CHECK(ParseTuple, pcmcia_parse_tuple(handle, &tuple, &parse));
+    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
+    CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
     link->conf.ConfigBase = parse.config.base;
     link->conf.Present = parse.config.rmask[0];
     
     /* Is this a 3c562? */
     tuple.DesiredTuple = CISTPL_MANFID;
     tuple.Attributes = TUPLE_RETURN_COMMON;
-    if ((pcmcia_get_first_tuple(handle, &tuple) == CS_SUCCESS) &&
-	(pcmcia_get_tuple_data(handle, &tuple) == CS_SUCCESS)) {
+    if ((pcmcia_get_first_tuple(link, &tuple) == CS_SUCCESS) &&
+	(pcmcia_get_tuple_data(link, &tuple) == CS_SUCCESS)) {
 	if (le16_to_cpu(buf[0]) != MANFID_3COM)
 	    printk(KERN_INFO "3c589_cs: hmmm, is this really a "
 		   "3Com card??\n");
@@ -299,15 +296,15 @@ static void tc589_config(dev_link_t *link)
     for (i = j = 0; j < 0x400; j += 0x10) {
 	if (multi && (j & 0x80)) continue;
 	link->io.BasePort1 = j ^ 0x300;
-	i = pcmcia_request_io(link->handle, &link->io);
+	i = pcmcia_request_io(link, &link->io);
 	if (i == CS_SUCCESS) break;
     }
     if (i != CS_SUCCESS) {
-	cs_error(link->handle, RequestIO, i);
+	cs_error(link, RequestIO, i);
 	goto failed;
     }
-    CS_CHECK(RequestIRQ, pcmcia_request_irq(link->handle, &link->irq));
-    CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link->handle, &link->conf));
+    CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
+    CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
 	
     dev->irq = link->irq.AssignedIRQ;
     dev->base_addr = link->io.BasePort1;
@@ -317,8 +314,8 @@ static void tc589_config(dev_link_t *link)
     /* The 3c589 has an extra EEPROM for configuration info, including
        the hardware address.  The 3c562 puts the address in the CIS. */
     tuple.DesiredTuple = 0x88;
-    if (pcmcia_get_first_tuple(handle, &tuple) == CS_SUCCESS) {
-	pcmcia_get_tuple_data(handle, &tuple);
+    if (pcmcia_get_first_tuple(link, &tuple) == CS_SUCCESS) {
+	pcmcia_get_tuple_data(link, &tuple);
 	for (i = 0; i < 3; i++)
 	    phys_addr[i] = htons(buf[i]);
     } else {
@@ -344,7 +341,7 @@ static void tc589_config(dev_link_t *link)
     
     link->dev_node = &lp->node;
     link->state &= ~DEV_CONFIG_PENDING;
-    SET_NETDEV_DEV(dev, &handle_to_dev(handle));
+    SET_NETDEV_DEV(dev, &handle_to_dev(link));
 
     if (register_netdev(dev) != 0) {
 	printk(KERN_ERR "3c589_cs: register_netdev() failed\n");
@@ -365,7 +362,7 @@ static void tc589_config(dev_link_t *link)
     return;
 
 cs_failed:
-    cs_error(link->handle, last_fn, last_ret);
+    cs_error(link, last_fn, last_ret);
 failed:
     tc589_release(link);
     return;
@@ -380,14 +377,13 @@ failed:
     
 ======================================================================*/
 
-static void tc589_release(dev_link_t *link)
+static void tc589_release(struct pcmcia_device *link)
 {
-	pcmcia_disable_device(link->handle);
+	pcmcia_disable_device(link);
 }
 
-static int tc589_suspend(struct pcmcia_device *p_dev)
+static int tc589_suspend(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
 	struct net_device *dev = link->priv;
 
 	if ((link->state & DEV_CONFIG) && (link->open))
@@ -396,9 +392,8 @@ static int tc589_suspend(struct pcmcia_device *p_dev)
 	return 0;
 }
 
-static int tc589_resume(struct pcmcia_device *p_dev)
+static int tc589_resume(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
 	struct net_device *dev = link->priv;
 
 	if ((link->state & DEV_CONFIG) && (link->open)) {
@@ -569,7 +564,7 @@ static int el3_config(struct net_device *dev, struct ifmap *map)
 static int el3_open(struct net_device *dev)
 {
     struct el3_private *lp = netdev_priv(dev);
-    dev_link_t *link = lp->p_dev;
+    struct pcmcia_device *link = lp->p_dev;
     
     if (!DEV_OK(link))
 	return -ENODEV;
@@ -830,7 +825,7 @@ static struct net_device_stats *el3_get_stats(struct net_device *dev)
 {
     struct el3_private *lp = netdev_priv(dev);
     unsigned long flags;
-    dev_link_t *link = lp->p_dev;
+    struct pcmcia_device *link = lp->p_dev;
 
     if (DEV_OK(link)) {
     	spin_lock_irqsave(&lp->lock, flags);
@@ -932,7 +927,7 @@ static int el3_rx(struct net_device *dev)
 static void set_multicast_list(struct net_device *dev)
 {
     struct el3_private *lp = netdev_priv(dev);
-    dev_link_t *link = lp->p_dev;
+    struct pcmcia_device *link = lp->p_dev;
     kio_addr_t ioaddr = dev->base_addr;
     u16 opts = SetRxFilter | RxStation | RxBroadcast;
 
@@ -947,7 +942,7 @@ static void set_multicast_list(struct net_device *dev)
 static int el3_close(struct net_device *dev)
 {
     struct el3_private *lp = netdev_priv(dev);
-    dev_link_t *link = lp->p_dev;
+    struct pcmcia_device *link = lp->p_dev;
     kio_addr_t ioaddr = dev->base_addr;
     
     DEBUG(1, "%s: shutting down ethercard.\n", dev->name);

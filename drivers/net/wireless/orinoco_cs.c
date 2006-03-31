@@ -63,8 +63,8 @@ struct orinoco_pccard {
 /* Function prototypes						    */
 /********************************************************************/
 
-static void orinoco_cs_config(dev_link_t *link);
-static void orinoco_cs_release(dev_link_t *link);
+static void orinoco_cs_config(struct pcmcia_device *link);
+static void orinoco_cs_release(struct pcmcia_device *link);
 static void orinoco_cs_detach(struct pcmcia_device *p_dev);
 
 /********************************************************************/
@@ -75,13 +75,13 @@ static int
 orinoco_cs_hard_reset(struct orinoco_private *priv)
 {
 	struct orinoco_pccard *card = priv->card;
-	dev_link_t *link = card->p_dev;
+	struct pcmcia_device *link = card->p_dev;
 	int err;
 
 	/* We need atomic ops here, because we're not holding the lock */
 	set_bit(0, &card->hard_reset_in_progress);
 
-	err = pcmcia_reset_card(link->handle, NULL);
+	err = pcmcia_reset_card(link, NULL);
 	if (err)
 		return err;
 
@@ -104,12 +104,11 @@ orinoco_cs_hard_reset(struct orinoco_private *priv)
  * configure the card at this point -- we wait until we receive a card
  * insertion event.  */
 static int
-orinoco_cs_attach(struct pcmcia_device *p_dev)
+orinoco_cs_attach(struct pcmcia_device *link)
 {
 	struct net_device *dev;
 	struct orinoco_private *priv;
 	struct orinoco_pccard *card;
-	dev_link_t *link = dev_to_instance(p_dev);
 
 	dev = alloc_orinocodev(sizeof(*card), orinoco_cs_hard_reset);
 	if (! dev)
@@ -118,7 +117,7 @@ orinoco_cs_attach(struct pcmcia_device *p_dev)
 	card = priv->card;
 
 	/* Link both structures together */
-	card->p_dev = p_dev;
+	card->p_dev = link;
 	link->priv = dev;
 
 	/* Interrupt setup */
@@ -147,9 +146,8 @@ orinoco_cs_attach(struct pcmcia_device *p_dev)
  * are freed.  Otherwise, the structures will be freed when the device
  * is released.
  */
-static void orinoco_cs_detach(struct pcmcia_device *p_dev)
+static void orinoco_cs_detach(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
 	struct net_device *dev = link->priv;
 
 	if (link->state & DEV_CONFIG)
@@ -175,10 +173,9 @@ static void orinoco_cs_detach(struct pcmcia_device *p_dev)
 	} while (0)
 
 static void
-orinoco_cs_config(dev_link_t *link)
+orinoco_cs_config(struct pcmcia_device *link)
 {
 	struct net_device *dev = link->priv;
-	client_handle_t handle = link->handle;
 	struct orinoco_private *priv = netdev_priv(dev);
 	struct orinoco_pccard *card = priv->card;
 	hermes_t *hw = &priv->hw;
@@ -190,7 +187,7 @@ orinoco_cs_config(dev_link_t *link)
 	cisparse_t parse;
 	void __iomem *mem;
 
-	CS_CHECK(ValidateCIS, pcmcia_validate_cis(handle, &info));
+	CS_CHECK(ValidateCIS, pcmcia_validate_cis(link, &info));
 
 	/*
 	 * This reads the card's CONFIG tuple to find its
@@ -201,9 +198,9 @@ orinoco_cs_config(dev_link_t *link)
 	tuple.TupleData = buf;
 	tuple.TupleDataMax = sizeof(buf);
 	tuple.TupleOffset = 0;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
-	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(handle, &tuple));
-	CS_CHECK(ParseTuple, pcmcia_parse_tuple(handle, &tuple, &parse));
+	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
+	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
+	CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
 	link->conf.ConfigBase = parse.config.base;
 	link->conf.Present = parse.config.rmask[0];
 
@@ -212,7 +209,7 @@ orinoco_cs_config(dev_link_t *link)
 
 	/* Look up the current Vcc */
 	CS_CHECK(GetConfigurationInfo,
-		 pcmcia_get_configuration_info(link->handle, &conf));
+		 pcmcia_get_configuration_info(link, &conf));
 
 	/*
 	 * In this loop, we scan the CIS for configuration table
@@ -229,13 +226,13 @@ orinoco_cs_config(dev_link_t *link)
 	 * implementation-defined details.
 	 */
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
+	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
 	while (1) {
 		cistpl_cftable_entry_t *cfg = &(parse.cftable_entry);
 		cistpl_cftable_entry_t dflt = { .index = 0 };
 
-		if ( (pcmcia_get_tuple_data(handle, &tuple) != 0)
-		    || (pcmcia_parse_tuple(handle, &tuple, &parse) != 0))
+		if ( (pcmcia_get_tuple_data(link, &tuple) != 0)
+		    || (pcmcia_parse_tuple(link, &tuple, &parse) != 0))
 			goto next_entry;
 
 		if (cfg->flags & CISTPL_CFTABLE_DEFAULT)
@@ -300,7 +297,7 @@ orinoco_cs_config(dev_link_t *link)
 			}
 
 			/* This reserves IO space but doesn't actually enable it */
-			if (pcmcia_request_io(link->handle, &link->io) != 0)
+			if (pcmcia_request_io(link, &link->io) != 0)
 				goto next_entry;
 		}
 
@@ -310,8 +307,8 @@ orinoco_cs_config(dev_link_t *link)
 		break;
 		
 	next_entry:
-		pcmcia_disable_device(handle);
-		last_ret = pcmcia_get_next_tuple(handle, &tuple);
+		pcmcia_disable_device(link);
+		last_ret = pcmcia_get_next_tuple(link, &tuple);
 		if (last_ret  == CS_NO_MORE_ITEMS) {
 			printk(KERN_ERR PFX "GetNextTuple(): No matching "
 			       "CIS configuration.  Maybe you need the "
@@ -325,7 +322,7 @@ orinoco_cs_config(dev_link_t *link)
 	 * a handler to the interrupt, unless the 'Handler' member of
 	 * the irq structure is initialized.
 	 */
-	CS_CHECK(RequestIRQ, pcmcia_request_irq(link->handle, &link->irq));
+	CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
 
 	/* We initialize the hermes structure before completing PCMCIA
 	 * configuration just in case the interrupt handler gets
@@ -342,7 +339,7 @@ orinoco_cs_config(dev_link_t *link)
 	 * card and host interface into "Memory and IO" mode.
 	 */
 	CS_CHECK(RequestConfiguration,
-		 pcmcia_request_configuration(link->handle, &link->conf));
+		 pcmcia_request_configuration(link, &link->conf));
 
 	/* Ok, we have the configuration, prepare to register the netdev */
 	dev->base_addr = link->io.BasePort1;
@@ -350,7 +347,7 @@ orinoco_cs_config(dev_link_t *link)
 	SET_MODULE_OWNER(dev);
 	card->node.major = card->node.minor = 0;
 
-	SET_NETDEV_DEV(dev, &handle_to_dev(handle));
+	SET_NETDEV_DEV(dev, &handle_to_dev(link));
 	/* Tell the stack we exist */
 	if (register_netdev(dev) != 0) {
 		printk(KERN_ERR PFX "register_netdev() failed\n");
@@ -383,7 +380,7 @@ orinoco_cs_config(dev_link_t *link)
 	return;
 
  cs_failed:
-	cs_error(link->handle, last_fn, last_ret);
+	cs_error(link, last_fn, last_ret);
 
  failed:
 	orinoco_cs_release(link);
@@ -395,7 +392,7 @@ orinoco_cs_config(dev_link_t *link)
  * still open, this will be postponed until it is closed.
  */
 static void
-orinoco_cs_release(dev_link_t *link)
+orinoco_cs_release(struct pcmcia_device *link)
 {
 	struct net_device *dev = link->priv;
 	struct orinoco_private *priv = netdev_priv(dev);
@@ -407,14 +404,13 @@ orinoco_cs_release(dev_link_t *link)
 	priv->hw_unavailable++;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	pcmcia_disable_device(link->handle);
+	pcmcia_disable_device(link);
 	if (priv->hw.iobase)
 		ioport_unmap(priv->hw.iobase);
 }				/* orinoco_cs_release */
 
-static int orinoco_cs_suspend(struct pcmcia_device *p_dev)
+static int orinoco_cs_suspend(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
 	struct net_device *dev = link->priv;
 	struct orinoco_private *priv = netdev_priv(dev);
 	struct orinoco_pccard *card = priv->card;
@@ -443,9 +439,8 @@ static int orinoco_cs_suspend(struct pcmcia_device *p_dev)
 	return 0;
 }
 
-static int orinoco_cs_resume(struct pcmcia_device *p_dev)
+static int orinoco_cs_resume(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
 	struct net_device *dev = link->priv;
 	struct orinoco_private *priv = netdev_priv(dev);
 	struct orinoco_pccard *card = priv->card;

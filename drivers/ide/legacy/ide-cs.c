@@ -87,8 +87,8 @@ typedef struct ide_info_t {
     int		hd;
 } ide_info_t;
 
-static void ide_release(dev_link_t *);
-static void ide_config(dev_link_t *);
+static void ide_release(struct pcmcia_device *);
+static void ide_config(struct pcmcia_device *);
 
 static void ide_detach(struct pcmcia_device *p_dev);
 
@@ -103,10 +103,9 @@ static void ide_detach(struct pcmcia_device *p_dev);
 
 ======================================================================*/
 
-static int ide_attach(struct pcmcia_device *p_dev)
+static int ide_attach(struct pcmcia_device *link)
 {
     ide_info_t *info;
-    dev_link_t *link = dev_to_instance(p_dev);
 
     DEBUG(0, "ide_attach()\n");
 
@@ -115,7 +114,7 @@ static int ide_attach(struct pcmcia_device *p_dev)
     if (!info)
 	return -ENOMEM;
 
-    info->p_dev = p_dev;
+    info->p_dev = link;
     link->priv = info;
 
     link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
@@ -141,10 +140,8 @@ static int ide_attach(struct pcmcia_device *p_dev)
 
 ======================================================================*/
 
-static void ide_detach(struct pcmcia_device *p_dev)
+static void ide_detach(struct pcmcia_device *link)
 {
-    dev_link_t *link = dev_to_instance(p_dev);
-
     DEBUG(0, "ide_detach(0x%p)\n", link);
 
     if (link->state & DEV_CONFIG)
@@ -175,9 +172,8 @@ static int idecs_register(unsigned long io, unsigned long ctl, unsigned long irq
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
-static void ide_config(dev_link_t *link)
+static void ide_config(struct pcmcia_device *link)
 {
-    client_handle_t handle = link->handle;
     ide_info_t *info = link->priv;
     tuple_t tuple;
     struct {
@@ -201,16 +197,16 @@ static void ide_config(dev_link_t *link)
     tuple.TupleDataMax = 255;
     tuple.Attributes = 0;
     tuple.DesiredTuple = CISTPL_CONFIG;
-    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
-    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(handle, &tuple));
-    CS_CHECK(ParseTuple, pcmcia_parse_tuple(handle, &tuple, &stk->parse));
+    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
+    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
+    CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &stk->parse));
     link->conf.ConfigBase = stk->parse.config.base;
     link->conf.Present = stk->parse.config.rmask[0];
 
     tuple.DesiredTuple = CISTPL_MANFID;
-    if (!pcmcia_get_first_tuple(handle, &tuple) &&
-	!pcmcia_get_tuple_data(handle, &tuple) &&
-	!pcmcia_parse_tuple(handle, &tuple, &stk->parse))
+    if (!pcmcia_get_first_tuple(link, &tuple) &&
+	!pcmcia_get_tuple_data(link, &tuple) &&
+	!pcmcia_parse_tuple(link, &tuple, &stk->parse))
 	is_kme = ((stk->parse.manfid.manf == MANFID_KME) &&
 		  ((stk->parse.manfid.card == PRODID_KME_KXLC005_A) ||
 		   (stk->parse.manfid.card == PRODID_KME_KXLC005_B)));
@@ -219,15 +215,15 @@ static void ide_config(dev_link_t *link)
     link->state |= DEV_CONFIG;
 
     /* Not sure if this is right... look up the current Vcc */
-    CS_CHECK(GetConfigurationInfo, pcmcia_get_configuration_info(handle, &stk->conf));
+    CS_CHECK(GetConfigurationInfo, pcmcia_get_configuration_info(link, &stk->conf));
 
     pass = io_base = ctl_base = 0;
     tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
     tuple.Attributes = 0;
-    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
+    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
     while (1) {
-    	if (pcmcia_get_tuple_data(handle, &tuple) != 0) goto next_entry;
-	if (pcmcia_parse_tuple(handle, &tuple, &stk->parse) != 0) goto next_entry;
+    	if (pcmcia_get_tuple_data(link, &tuple) != 0) goto next_entry;
+	if (pcmcia_parse_tuple(link, &tuple, &stk->parse) != 0) goto next_entry;
 
 	/* Check for matching Vcc, unless we're desperate */
 	if (!pass) {
@@ -258,14 +254,14 @@ static void ide_config(dev_link_t *link)
 		link->io.NumPorts1 = 8;
 		link->io.BasePort2 = io->win[1].base;
 		link->io.NumPorts2 = (is_kme) ? 2 : 1;
-		if (pcmcia_request_io(link->handle, &link->io) != 0)
+		if (pcmcia_request_io(link, &link->io) != 0)
 			goto next_entry;
 		io_base = link->io.BasePort1;
 		ctl_base = link->io.BasePort2;
 	    } else if ((io->nwin == 1) && (io->win[0].len >= 16)) {
 		link->io.NumPorts1 = io->win[0].len;
 		link->io.NumPorts2 = 0;
-		if (pcmcia_request_io(link->handle, &link->io) != 0)
+		if (pcmcia_request_io(link, &link->io) != 0)
 			goto next_entry;
 		io_base = link->io.BasePort1;
 		ctl_base = link->io.BasePort1 + 0x0e;
@@ -278,16 +274,16 @@ static void ide_config(dev_link_t *link)
 	if (cfg->flags & CISTPL_CFTABLE_DEFAULT)
 	    memcpy(&stk->dflt, cfg, sizeof(stk->dflt));
 	if (pass) {
-	    CS_CHECK(GetNextTuple, pcmcia_get_next_tuple(handle, &tuple));
-	} else if (pcmcia_get_next_tuple(handle, &tuple) != 0) {
-	    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
+	    CS_CHECK(GetNextTuple, pcmcia_get_next_tuple(link, &tuple));
+	} else if (pcmcia_get_next_tuple(link, &tuple) != 0) {
+	    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
 	    memset(&stk->dflt, 0, sizeof(stk->dflt));
 	    pass++;
 	}
     }
 
-    CS_CHECK(RequestIRQ, pcmcia_request_irq(handle, &link->irq));
-    CS_CHECK(RequestConfiguration, pcmcia_request_configuration(handle, &link->conf));
+    CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
+    CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
 
     /* disable drive interrupts during IDE probe */
     outb(0x02, ctl_base);
@@ -298,12 +294,12 @@ static void ide_config(dev_link_t *link)
 
     /* retry registration in case device is still spinning up */
     for (hd = -1, i = 0; i < 10; i++) {
-	hd = idecs_register(io_base, ctl_base, link->irq.AssignedIRQ, handle);
+	hd = idecs_register(io_base, ctl_base, link->irq.AssignedIRQ, link);
 	if (hd >= 0) break;
 	if (link->io.NumPorts1 == 0x20) {
 	    outb(0x02, ctl_base + 0x10);
 	    hd = idecs_register(io_base + 0x10, ctl_base + 0x10,
-				link->irq.AssignedIRQ, handle);
+				link->irq.AssignedIRQ, link);
 	    if (hd >= 0) {
 		io_base += 0x10;
 		ctl_base += 0x10;
@@ -338,7 +334,7 @@ err_mem:
     goto failed;
 
 cs_failed:
-    cs_error(link->handle, last_fn, last_ret);
+    cs_error(link, last_fn, last_ret);
 failed:
     kfree(stk);
     ide_release(link);
@@ -353,7 +349,7 @@ failed:
     
 ======================================================================*/
 
-void ide_release(dev_link_t *link)
+void ide_release(struct pcmcia_device *link)
 {
     ide_info_t *info = link->priv;
     
@@ -366,7 +362,7 @@ void ide_release(dev_link_t *link)
     }
     info->ndev = 0;
 
-    pcmcia_disable_device(link->handle);
+    pcmcia_disable_device(link);
 } /* ide_release */
 
 

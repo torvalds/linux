@@ -88,8 +88,8 @@ typedef struct bt3c_info_t {
 } bt3c_info_t;
 
 
-static void bt3c_config(dev_link_t *link);
-static void bt3c_release(dev_link_t *link);
+static void bt3c_config(struct pcmcia_device *link);
+static void bt3c_release(struct pcmcia_device *link);
 
 static void bt3c_detach(struct pcmcia_device *p_dev);
 
@@ -645,17 +645,16 @@ static int bt3c_close(bt3c_info_t *info)
 	return 0;
 }
 
-static int bt3c_attach(struct pcmcia_device *p_dev)
+static int bt3c_attach(struct pcmcia_device *link)
 {
 	bt3c_info_t *info;
-	dev_link_t *link = dev_to_instance(p_dev);
 
 	/* Create new info device */
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
-	info->p_dev = p_dev;
+	info->p_dev = link;
 	link->priv = info;
 
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
@@ -676,9 +675,8 @@ static int bt3c_attach(struct pcmcia_device *p_dev)
 }
 
 
-static void bt3c_detach(struct pcmcia_device *p_dev)
+static void bt3c_detach(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
 	bt3c_info_t *info = link->priv;
 
 	if (link->state & DEV_CONFIG)
@@ -687,7 +685,7 @@ static void bt3c_detach(struct pcmcia_device *p_dev)
 	kfree(info);
 }
 
-static int get_tuple(client_handle_t handle, tuple_t *tuple, cisparse_t *parse)
+static int get_tuple(struct pcmcia_device *handle, tuple_t *tuple, cisparse_t *parse)
 {
 	int i;
 
@@ -698,24 +696,23 @@ static int get_tuple(client_handle_t handle, tuple_t *tuple, cisparse_t *parse)
 	return pcmcia_parse_tuple(handle, tuple, parse);
 }
 
-static int first_tuple(client_handle_t handle, tuple_t *tuple, cisparse_t *parse)
+static int first_tuple(struct pcmcia_device *handle, tuple_t *tuple, cisparse_t *parse)
 {
 	if (pcmcia_get_first_tuple(handle, tuple) != CS_SUCCESS)
 		return CS_NO_MORE_ITEMS;
 	return get_tuple(handle, tuple, parse);
 }
 
-static int next_tuple(client_handle_t handle, tuple_t *tuple, cisparse_t *parse)
+static int next_tuple(struct pcmcia_device *handle, tuple_t *tuple, cisparse_t *parse)
 {
 	if (pcmcia_get_next_tuple(handle, tuple) != CS_SUCCESS)
 		return CS_NO_MORE_ITEMS;
 	return get_tuple(handle, tuple, parse);
 }
 
-static void bt3c_config(dev_link_t *link)
+static void bt3c_config(struct pcmcia_device *link)
 {
 	static kio_addr_t base[5] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8, 0x0 };
-	client_handle_t handle = link->handle;
 	bt3c_info_t *info = link->priv;
 	tuple_t tuple;
 	u_short buf[256];
@@ -730,7 +727,7 @@ static void bt3c_config(dev_link_t *link)
 
 	/* Get configuration register information */
 	tuple.DesiredTuple = CISTPL_CONFIG;
-	last_ret = first_tuple(handle, &tuple, &parse);
+	last_ret = first_tuple(link, &tuple, &parse);
 	if (last_ret != CS_SUCCESS) {
 		last_fn = ParseTuple;
 		goto cs_failed;
@@ -749,7 +746,7 @@ static void bt3c_config(dev_link_t *link)
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
 	/* Two tries: without IO aliases, then with aliases */
 	for (try = 0; try < 2; try++) {
-		i = first_tuple(handle, &tuple, &parse);
+		i = first_tuple(link, &tuple, &parse);
 		while (i != CS_NO_MORE_ITEMS) {
 			if (i != CS_SUCCESS)
 				goto next_entry;
@@ -759,49 +756,49 @@ static void bt3c_config(dev_link_t *link)
 				link->conf.ConfigIndex = cf->index;
 				link->io.BasePort1 = cf->io.win[0].base;
 				link->io.IOAddrLines = (try == 0) ? 16 : cf->io.flags & CISTPL_IO_LINES_MASK;
-				i = pcmcia_request_io(link->handle, &link->io);
+				i = pcmcia_request_io(link, &link->io);
 				if (i == CS_SUCCESS)
 					goto found_port;
 			}
 next_entry:
-			i = next_tuple(handle, &tuple, &parse);
+			i = next_tuple(link, &tuple, &parse);
 		}
 	}
 
 	/* Second pass: try to find an entry that isn't picky about
 	   its base address, then try to grab any standard serial port
 	   address, and finally try to get any free port. */
-	i = first_tuple(handle, &tuple, &parse);
+	i = first_tuple(link, &tuple, &parse);
 	while (i != CS_NO_MORE_ITEMS) {
 		if ((i == CS_SUCCESS) && (cf->io.nwin > 0) && ((cf->io.flags & CISTPL_IO_LINES_MASK) <= 3)) {
 			link->conf.ConfigIndex = cf->index;
 			for (j = 0; j < 5; j++) {
 				link->io.BasePort1 = base[j];
 				link->io.IOAddrLines = base[j] ? 16 : 3;
-				i = pcmcia_request_io(link->handle, &link->io);
+				i = pcmcia_request_io(link, &link->io);
 				if (i == CS_SUCCESS)
 					goto found_port;
 			}
 		}
-		i = next_tuple(handle, &tuple, &parse);
+		i = next_tuple(link, &tuple, &parse);
 	}
 
 found_port:
 	if (i != CS_SUCCESS) {
 		BT_ERR("No usable port range found");
-		cs_error(link->handle, RequestIO, i);
+		cs_error(link, RequestIO, i);
 		goto failed;
 	}
 
-	i = pcmcia_request_irq(link->handle, &link->irq);
+	i = pcmcia_request_irq(link, &link->irq);
 	if (i != CS_SUCCESS) {
-		cs_error(link->handle, RequestIRQ, i);
+		cs_error(link, RequestIRQ, i);
 		link->irq.AssignedIRQ = 0;
 	}
 
-	i = pcmcia_request_configuration(link->handle, &link->conf);
+	i = pcmcia_request_configuration(link, &link->conf);
 	if (i != CS_SUCCESS) {
-		cs_error(link->handle, RequestConfiguration, i);
+		cs_error(link, RequestConfiguration, i);
 		goto failed;
 	}
 
@@ -815,21 +812,21 @@ found_port:
 	return;
 
 cs_failed:
-	cs_error(link->handle, last_fn, last_ret);
+	cs_error(link, last_fn, last_ret);
 
 failed:
 	bt3c_release(link);
 }
 
 
-static void bt3c_release(dev_link_t *link)
+static void bt3c_release(struct pcmcia_device *link)
 {
 	bt3c_info_t *info = link->priv;
 
 	if (link->state & DEV_PRESENT)
 		bt3c_close(info);
 
-	pcmcia_disable_device(link->handle);
+	pcmcia_disable_device(link);
 }
 
 

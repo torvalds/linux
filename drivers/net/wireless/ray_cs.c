@@ -90,8 +90,8 @@ module_param(pc_debug, int, 0);
 #define DEBUG(n, args...)
 #endif
 /** Prototypes based on PCMCIA skeleton driver *******************************/
-static void ray_config(dev_link_t *link);
-static void ray_release(dev_link_t *link);
+static void ray_config(struct pcmcia_device *link);
+static void ray_release(struct pcmcia_device *link);
 static void ray_detach(struct pcmcia_device *p_dev);
 
 /***** Prototypes indicated by device structure ******************************/
@@ -190,10 +190,10 @@ static int bc;
 static char *phy_addr = NULL;
 
 
-/* A dev_link_t structure has fields for most things that are needed
+/* A struct pcmcia_device structure has fields for most things that are needed
    to keep track of a socket, but there will usually be some device
    specific information that also needs to be kept track of.  The
-   'priv' pointer in a dev_link_t structure can be used to point to
+   'priv' pointer in a struct pcmcia_device structure can be used to point to
    a device-specific private data structure, like this.
 */
 static unsigned int ray_mem_speed = 500;
@@ -381,9 +381,8 @@ fail_alloc_dev:
     structures are freed.  Otherwise, the structures will be freed
     when the device is released.
 =============================================================================*/
-static void ray_detach(struct pcmcia_device *p_dev)
+static void ray_detach(struct pcmcia_device *link)
 {
-    dev_link_t *link = dev_to_instance(p_dev);
     struct net_device *dev;
     ray_dev_t *local;
 
@@ -413,9 +412,8 @@ static void ray_detach(struct pcmcia_device *p_dev)
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 #define MAX_TUPLE_SIZE 128
-static void ray_config(dev_link_t *link)
+static void ray_config(struct pcmcia_device *link)
 {
-    client_handle_t handle = link->handle;
     tuple_t tuple;
     cisparse_t parse;
     int last_fn = 0, last_ret = 0;
@@ -430,23 +428,23 @@ static void ray_config(dev_link_t *link)
 
     /* This reads the card's CONFIG tuple to find its configuration regs */
     tuple.DesiredTuple = CISTPL_CONFIG;
-    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
+    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
     tuple.TupleData = buf;
     tuple.TupleDataMax = MAX_TUPLE_SIZE;
     tuple.TupleOffset = 0;
-    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(handle, &tuple));
-    CS_CHECK(ParseTuple, pcmcia_parse_tuple(handle, &tuple, &parse));
+    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
+    CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
     link->conf.ConfigBase = parse.config.base;
     link->conf.Present = parse.config.rmask[0];
 
     /* Determine card type and firmware version */
     buf[0] = buf[MAX_TUPLE_SIZE - 1] = 0;
     tuple.DesiredTuple = CISTPL_VERS_1;
-    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
+    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
     tuple.TupleData = buf;
     tuple.TupleDataMax = MAX_TUPLE_SIZE;
     tuple.TupleOffset = 2;
-    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(handle, &tuple));
+    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
 
     for (i=0; i<tuple.TupleDataLen - 4; i++) 
         if (buf[i] == 0) buf[i] = ' ';
@@ -458,20 +456,20 @@ static void ray_config(dev_link_t *link)
     /* Now allocate an interrupt line.  Note that this does not
        actually assign a handler to the interrupt.
     */
-    CS_CHECK(RequestIRQ, pcmcia_request_irq(link->handle, &link->irq));
+    CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
     dev->irq = link->irq.AssignedIRQ;
     
     /* This actually configures the PCMCIA socket -- setting up
        the I/O windows and the interrupt mapping.
     */
-    CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link->handle, &link->conf));
+    CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
 
 /*** Set up 32k window for shared memory (transmit and control) ************/
     req.Attributes = WIN_DATA_WIDTH_8 | WIN_MEMORY_TYPE_CM | WIN_ENABLE | WIN_USE_WAIT;
     req.Base = 0;
     req.Size = 0x8000;
     req.AccessSpeed = ray_mem_speed;
-    CS_CHECK(RequestWindow, pcmcia_request_window(&link->handle, &req, &link->win));
+    CS_CHECK(RequestWindow, pcmcia_request_window(&link, &req, &link->win));
     mem.CardOffset = 0x0000; mem.Page = 0;
     CS_CHECK(MapMemPage, pcmcia_map_mem_page(link->win, &mem));
     local->sram = ioremap(req.Base,req.Size);
@@ -481,7 +479,7 @@ static void ray_config(dev_link_t *link)
     req.Base = 0;
     req.Size = 0x4000;
     req.AccessSpeed = ray_mem_speed;
-    CS_CHECK(RequestWindow, pcmcia_request_window(&link->handle, &req, &local->rmem_handle));
+    CS_CHECK(RequestWindow, pcmcia_request_window(&link, &req, &local->rmem_handle));
     mem.CardOffset = 0x8000; mem.Page = 0;
     CS_CHECK(MapMemPage, pcmcia_map_mem_page(local->rmem_handle, &mem));
     local->rmem = ioremap(req.Base,req.Size);
@@ -491,7 +489,7 @@ static void ray_config(dev_link_t *link)
     req.Base = 0;
     req.Size = 0x1000;
     req.AccessSpeed = ray_mem_speed;
-    CS_CHECK(RequestWindow, pcmcia_request_window(&link->handle, &req, &local->amem_handle));
+    CS_CHECK(RequestWindow, pcmcia_request_window(&link, &req, &local->amem_handle));
     mem.CardOffset = 0x0000; mem.Page = 0;
     CS_CHECK(MapMemPage, pcmcia_map_mem_page(local->amem_handle, &mem));
     local->amem = ioremap(req.Base,req.Size);
@@ -504,7 +502,7 @@ static void ray_config(dev_link_t *link)
         return;
     }
 
-    SET_NETDEV_DEV(dev, &handle_to_dev(handle));
+    SET_NETDEV_DEV(dev, &handle_to_dev(link));
     i = register_netdev(dev);
     if (i != 0) {
         printk("ray_config register_netdev() failed\n");
@@ -524,7 +522,7 @@ static void ray_config(dev_link_t *link)
     return;
 
 cs_failed:
-    cs_error(link->handle, last_fn, last_ret);
+    cs_error(link, last_fn, last_ret);
 
     ray_release(link);
 } /* ray_config */
@@ -553,7 +551,7 @@ static int ray_init(struct net_device *dev)
     UCHAR *p;
     struct ccs __iomem *pccs;
     ray_dev_t *local = (ray_dev_t *)dev->priv;
-    dev_link_t *link = local->finder;
+    struct pcmcia_device *link = local->finder;
     DEBUG(1, "ray_init(0x%p)\n", dev);
     if (!(link->state & DEV_PRESENT)) {
         DEBUG(0,"ray_init - device not present\n");
@@ -615,7 +613,7 @@ static int dl_startup_params(struct net_device *dev)
     int ccsindex;
     ray_dev_t *local = (ray_dev_t *)dev->priv;
     struct ccs __iomem *pccs;
-    dev_link_t *link = local->finder;
+    struct pcmcia_device *link = local->finder;
 
     DEBUG(1,"dl_startup_params entered\n");
     if (!(link->state & DEV_PRESENT)) {
@@ -722,7 +720,7 @@ static void verify_dl_startup(u_long data)
     ray_dev_t *local = (ray_dev_t *)data;
     struct ccs __iomem *pccs = ccs_base(local) + local->dl_param_ccs;
     UCHAR status;
-    dev_link_t *link = local->finder;
+    struct pcmcia_device *link = local->finder;
 
     if (!(link->state & DEV_PRESENT)) {
         DEBUG(2,"ray_cs verify_dl_startup - device not present\n");
@@ -762,7 +760,7 @@ static void start_net(u_long data)
     ray_dev_t *local = (ray_dev_t *)data;
     struct ccs __iomem *pccs;
     int ccsindex;
-    dev_link_t *link = local->finder;
+    struct pcmcia_device *link = local->finder;
     if (!(link->state & DEV_PRESENT)) {
         DEBUG(2,"ray_cs start_net - device not present\n");
         return;
@@ -789,7 +787,7 @@ static void join_net(u_long data)
 
     struct ccs __iomem *pccs;
     int ccsindex;
-    dev_link_t *link = local->finder;
+    struct pcmcia_device *link = local->finder;
     
     if (!(link->state & DEV_PRESENT)) {
         DEBUG(2,"ray_cs join_net - device not present\n");
@@ -815,7 +813,7 @@ static void join_net(u_long data)
     device, and release the PCMCIA configuration.  If the device is
     still open, this will be postponed until it is closed.
 =============================================================================*/
-static void ray_release(dev_link_t *link)
+static void ray_release(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv; 
     ray_dev_t *local = dev->priv;
@@ -833,14 +831,13 @@ static void ray_release(dev_link_t *link)
     if ( i != CS_SUCCESS ) DEBUG(0,"ReleaseWindow(local->amem) ret = %x\n",i);
     i = pcmcia_release_window(local->rmem_handle);
     if ( i != CS_SUCCESS ) DEBUG(0,"ReleaseWindow(local->rmem) ret = %x\n",i);
-    pcmcia_disable_device(link->handle);
+    pcmcia_disable_device(link);
 
     DEBUG(2,"ray_release ending\n");
 }
 
-static int ray_suspend(struct pcmcia_device *p_dev)
+static int ray_suspend(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
 	struct net_device *dev = link->priv;
 
 	if ((link->state & DEV_CONFIG) && (link->open))
@@ -849,9 +846,8 @@ static int ray_suspend(struct pcmcia_device *p_dev)
 	return 0;
 }
 
-static int ray_resume(struct pcmcia_device *p_dev)
+static int ray_resume(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
 	struct net_device *dev = link->priv;
 
 	if ((link->state & DEV_CONFIG) && (link->open)) {
@@ -869,7 +865,7 @@ int ray_dev_init(struct net_device *dev)
     int i;
 #endif	/* RAY_IMMEDIATE_INIT */
     ray_dev_t *local = dev->priv;
-    dev_link_t *link = local->finder;
+    struct pcmcia_device *link = local->finder;
 
     DEBUG(1,"ray_dev_init(dev=%p)\n",dev);
     if (!(link->state & DEV_PRESENT)) {
@@ -903,7 +899,7 @@ int ray_dev_init(struct net_device *dev)
 static int ray_dev_config(struct net_device *dev, struct ifmap *map)
 {
     ray_dev_t *local = dev->priv;
-    dev_link_t *link = local->finder;
+    struct pcmcia_device *link = local->finder;
     /* Dummy routine to satisfy device structure */
     DEBUG(1,"ray_dev_config(dev=%p,ifmap=%p)\n",dev,map);
     if (!(link->state & DEV_PRESENT)) {
@@ -917,7 +913,7 @@ static int ray_dev_config(struct net_device *dev, struct ifmap *map)
 static int ray_dev_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
     ray_dev_t *local = dev->priv;
-    dev_link_t *link = local->finder;
+    struct pcmcia_device *link = local->finder;
     short length = skb->len;
 
     if (!(link->state & DEV_PRESENT)) {
@@ -1529,7 +1525,7 @@ static int ray_commit(struct net_device *dev,
 static iw_stats * ray_get_wireless_stats(struct net_device *	dev)
 {
   ray_dev_t *	local = (ray_dev_t *) dev->priv;
-  dev_link_t *link = local->finder;
+  struct pcmcia_device *link = local->finder;
   struct status __iomem *p = local->sram + STATUS_BASE;
 
   if(local == (ray_dev_t *) NULL)
@@ -1617,7 +1613,7 @@ static const struct iw_handler_def	ray_handler_def =
 static int ray_open(struct net_device *dev)
 {
     ray_dev_t *local = (ray_dev_t *)dev->priv;
-    dev_link_t *link;
+    struct pcmcia_device *link;
     link = local->finder;
     
     DEBUG(1, "ray_open('%s')\n", dev->name);
@@ -1651,7 +1647,7 @@ static int ray_open(struct net_device *dev)
 static int ray_dev_close(struct net_device *dev)
 {
     ray_dev_t *local = (ray_dev_t *)dev->priv;
-    dev_link_t *link;
+    struct pcmcia_device *link;
     link = local->finder;
 
     DEBUG(1, "ray_dev_close('%s')\n", dev->name);
@@ -1677,7 +1673,7 @@ static void ray_reset(struct net_device *dev) {
 static int interrupt_ecf(ray_dev_t *local, int ccs)
 {
     int i = 50;
-    dev_link_t *link = local->finder;
+    struct pcmcia_device *link = local->finder;
 
     if (!(link->state & DEV_PRESENT)) {
         DEBUG(2,"ray_cs interrupt_ecf - device not present\n");
@@ -1704,7 +1700,7 @@ static int get_free_tx_ccs(ray_dev_t *local)
 {
     int i;
     struct ccs __iomem *pccs = ccs_base(local);
-    dev_link_t *link = local->finder;
+    struct pcmcia_device *link = local->finder;
 
     if (!(link->state & DEV_PRESENT)) {
         DEBUG(2,"ray_cs get_free_tx_ccs - device not present\n");
@@ -1735,7 +1731,7 @@ static int get_free_ccs(ray_dev_t *local)
 {
     int i;
     struct ccs __iomem *pccs = ccs_base(local);
-    dev_link_t *link = local->finder;
+    struct pcmcia_device *link = local->finder;
 
     if (!(link->state & DEV_PRESENT)) {
         DEBUG(2,"ray_cs get_free_ccs - device not present\n");
@@ -1810,7 +1806,7 @@ static int parse_addr(char *in_str, UCHAR *out)
 static struct net_device_stats *ray_get_stats(struct net_device *dev)
 {
     ray_dev_t *local = (ray_dev_t *)dev->priv;
-    dev_link_t *link = local->finder;
+    struct pcmcia_device *link = local->finder;
     struct status __iomem *p = local->sram + STATUS_BASE;
     if (!(link->state & DEV_PRESENT)) {
         DEBUG(2,"ray_cs net_device_stats - device not present\n");
@@ -1840,7 +1836,7 @@ static struct net_device_stats *ray_get_stats(struct net_device *dev)
 static void ray_update_parm(struct net_device *dev, UCHAR objid, UCHAR *value, int len)
 {
     ray_dev_t *local = (ray_dev_t *)dev->priv;
-    dev_link_t *link = local->finder;
+    struct pcmcia_device *link = local->finder;
     int ccsindex;
     int i;
     struct ccs __iomem *pccs;
@@ -1877,7 +1873,7 @@ static void ray_update_multi_list(struct net_device *dev, int all)
     struct ccs __iomem *pccs;
     int i = 0;
     ray_dev_t *local = (ray_dev_t *)dev->priv;
-    dev_link_t *link = local->finder;
+    struct pcmcia_device *link = local->finder;
     void __iomem *p = local->sram + HOST_TO_ECF_BASE;
 
     if (!(link->state & DEV_PRESENT)) {
@@ -1957,7 +1953,7 @@ static void set_multicast_list(struct net_device *dev)
 static irqreturn_t ray_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 {
     struct net_device *dev = (struct net_device *)dev_id;
-    dev_link_t *link;
+    struct pcmcia_device *link;
     ray_dev_t *local;
     struct ccs __iomem *pccs;
     struct rcs __iomem *prcs;
@@ -1972,7 +1968,7 @@ static irqreturn_t ray_interrupt(int irq, void *dev_id, struct pt_regs * regs)
     DEBUG(4,"ray_cs: interrupt for *dev=%p\n",dev);
 
     local = (ray_dev_t *)dev->priv;
-    link = (dev_link_t *)local->finder;
+    link = (struct pcmcia_device *)local->finder;
     if ( ! (link->state & DEV_PRESENT) || link->state & DEV_SUSPEND ) {
         DEBUG(2,"ray_cs interrupt from device not present or suspended.\n");
         return IRQ_NONE;
@@ -2492,7 +2488,7 @@ static void release_frag_chain(ray_dev_t *local, struct rcs __iomem * prcs)
 /*===========================================================================*/
 static void authenticate(ray_dev_t *local)
 {
-    dev_link_t *link = local->finder;
+    struct pcmcia_device *link = local->finder;
     DEBUG(0,"ray_cs Starting authentication.\n");
     if (!(link->state & DEV_PRESENT)) {
         DEBUG(2,"ray_cs authenticate - device not present\n");
@@ -2558,7 +2554,7 @@ static void rx_authenticate(ray_dev_t *local, struct rcs __iomem *prcs,
 static void associate(ray_dev_t *local)
 {
     struct ccs __iomem *pccs;
-    dev_link_t *link = local->finder;
+    struct pcmcia_device *link = local->finder;
     struct net_device *dev = link->priv;
     int ccsindex;
     if (!(link->state & DEV_PRESENT)) {
@@ -2641,7 +2637,7 @@ static int ray_cs_proc_read(char *buf, char **start, off_t offset, int len)
  * eg ifconfig 
  */
     int i;
-    dev_link_t *link;
+    struct pcmcia_device *link;
     struct net_device *dev;
     ray_dev_t *local;
     UCHAR *p;

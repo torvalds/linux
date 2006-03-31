@@ -225,8 +225,8 @@ static char mii_preamble_required = 0;
 
 /* Index of functions. */
 
-static void tc574_config(dev_link_t *link);
-static void tc574_release(dev_link_t *link);
+static void tc574_config(struct pcmcia_device *link);
+static void tc574_release(struct pcmcia_device *link);
 
 static void mdio_sync(kio_addr_t ioaddr, int bits);
 static int mdio_read(kio_addr_t ioaddr, int phy_id, int location);
@@ -256,11 +256,10 @@ static void tc574_detach(struct pcmcia_device *p_dev);
 	with Card Services.
 */
 
-static int tc574_attach(struct pcmcia_device *p_dev)
+static int tc574_attach(struct pcmcia_device *link)
 {
 	struct el3_private *lp;
 	struct net_device *dev;
-	dev_link_t *link = dev_to_instance(p_dev);
 
 	DEBUG(0, "3c574_attach()\n");
 
@@ -270,7 +269,7 @@ static int tc574_attach(struct pcmcia_device *p_dev)
 		return -ENOMEM;
 	lp = netdev_priv(dev);
 	link->priv = dev;
-	lp->p_dev = p_dev;
+	lp->p_dev = link;
 
 	spin_lock_init(&lp->window_lock);
 	link->io.NumPorts1 = 32;
@@ -312,9 +311,8 @@ static int tc574_attach(struct pcmcia_device *p_dev)
 
 */
 
-static void tc574_detach(struct pcmcia_device *p_dev)
+static void tc574_detach(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
 	struct net_device *dev = link->priv;
 
 	DEBUG(0, "3c574_detach(0x%p)\n", link);
@@ -339,9 +337,8 @@ static void tc574_detach(struct pcmcia_device *p_dev)
 
 static const char *ram_split[] = {"5:3", "3:1", "1:1", "3:5"};
 
-static void tc574_config(dev_link_t *link)
+static void tc574_config(struct pcmcia_device *link)
 {
-	client_handle_t handle = link->handle;
 	struct net_device *dev = link->priv;
 	struct el3_private *lp = netdev_priv(dev);
 	tuple_t tuple;
@@ -359,12 +356,12 @@ static void tc574_config(dev_link_t *link)
 
 	tuple.Attributes = 0;
 	tuple.DesiredTuple = CISTPL_CONFIG;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
+	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
 	tuple.TupleData = (cisdata_t *)buf;
 	tuple.TupleDataMax = 64;
 	tuple.TupleOffset = 0;
-	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(handle, &tuple));
-	CS_CHECK(ParseTuple, pcmcia_parse_tuple(handle, &tuple, &parse));
+	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
+	CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
 	link->conf.ConfigBase = parse.config.base;
 	link->conf.Present = parse.config.rmask[0];
 
@@ -374,15 +371,15 @@ static void tc574_config(dev_link_t *link)
 	link->io.IOAddrLines = 16;
 	for (i = j = 0; j < 0x400; j += 0x20) {
 		link->io.BasePort1 = j ^ 0x300;
-		i = pcmcia_request_io(link->handle, &link->io);
+		i = pcmcia_request_io(link, &link->io);
 		if (i == CS_SUCCESS) break;
 	}
 	if (i != CS_SUCCESS) {
-		cs_error(link->handle, RequestIO, i);
+		cs_error(link, RequestIO, i);
 		goto failed;
 	}
-	CS_CHECK(RequestIRQ, pcmcia_request_irq(link->handle, &link->irq));
-	CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link->handle, &link->conf));
+	CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
+	CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
 
 	dev->irq = link->irq.AssignedIRQ;
 	dev->base_addr = link->io.BasePort1;
@@ -393,8 +390,8 @@ static void tc574_config(dev_link_t *link)
 	   the hardware address.  The future products may include a modem chip
 	   and put the address in the CIS. */
 	tuple.DesiredTuple = 0x88;
-	if (pcmcia_get_first_tuple(handle, &tuple) == CS_SUCCESS) {
-		pcmcia_get_tuple_data(handle, &tuple);
+	if (pcmcia_get_first_tuple(link, &tuple) == CS_SUCCESS) {
+		pcmcia_get_tuple_data(link, &tuple);
 		for (i = 0; i < 3; i++)
 			phys_addr[i] = htons(buf[i]);
 	} else {
@@ -408,9 +405,9 @@ static void tc574_config(dev_link_t *link)
 		}
 	}
 	tuple.DesiredTuple = CISTPL_VERS_1;
-	if (pcmcia_get_first_tuple(handle, &tuple) == CS_SUCCESS &&
-		pcmcia_get_tuple_data(handle, &tuple) == CS_SUCCESS &&
-		pcmcia_parse_tuple(handle, &tuple, &parse) == CS_SUCCESS) {
+	if (pcmcia_get_first_tuple(link, &tuple) == CS_SUCCESS &&
+		pcmcia_get_tuple_data(link, &tuple) == CS_SUCCESS &&
+		pcmcia_parse_tuple(link, &tuple, &parse) == CS_SUCCESS) {
 		cardname = parse.version_1.str + parse.version_1.ofs[1];
 	} else
 		cardname = "3Com 3c574";
@@ -471,7 +468,7 @@ static void tc574_config(dev_link_t *link)
 
 	link->state &= ~DEV_CONFIG_PENDING;
 	link->dev_node = &lp->node;
-	SET_NETDEV_DEV(dev, &handle_to_dev(handle));
+	SET_NETDEV_DEV(dev, &handle_to_dev(link));
 
 	if (register_netdev(dev) != 0) {
 		printk(KERN_NOTICE "3c574_cs: register_netdev() failed\n");
@@ -492,7 +489,7 @@ static void tc574_config(dev_link_t *link)
 	return;
 
 cs_failed:
-	cs_error(link->handle, last_fn, last_ret);
+	cs_error(link, last_fn, last_ret);
 failed:
 	tc574_release(link);
 	return;
@@ -505,14 +502,13 @@ failed:
 	still open, this will be postponed until it is closed.
 */
 
-static void tc574_release(dev_link_t *link)
+static void tc574_release(struct pcmcia_device *link)
 {
-	pcmcia_disable_device(link->handle);
+	pcmcia_disable_device(link);
 }
 
-static int tc574_suspend(struct pcmcia_device *p_dev)
+static int tc574_suspend(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
 	struct net_device *dev = link->priv;
 
 	if ((link->state & DEV_CONFIG) && (link->open))
@@ -521,9 +517,8 @@ static int tc574_suspend(struct pcmcia_device *p_dev)
 	return 0;
 }
 
-static int tc574_resume(struct pcmcia_device *p_dev)
+static int tc574_resume(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
 	struct net_device *dev = link->priv;
 
 	if ((link->state & DEV_CONFIG) && (link->open)) {
@@ -739,7 +734,7 @@ static void tc574_reset(struct net_device *dev)
 static int el3_open(struct net_device *dev)
 {
 	struct el3_private *lp = netdev_priv(dev);
-	dev_link_t *link = lp->p_dev;
+	struct pcmcia_device *link = lp->p_dev;
 
 	if (!DEV_OK(link))
 		return -ENODEV;
@@ -1185,7 +1180,7 @@ static int el3_close(struct net_device *dev)
 {
 	kio_addr_t ioaddr = dev->base_addr;
 	struct el3_private *lp = netdev_priv(dev);
-	dev_link_t *link = lp->p_dev;
+	struct pcmcia_device *link = lp->p_dev;
 
 	DEBUG(2, "%s: shutting down ethercard.\n", dev->name);
 	

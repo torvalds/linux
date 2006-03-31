@@ -65,7 +65,7 @@ static char *version =
 /* how often to poll for fifo status change */
 #define POLL_PERIOD 				msecs_to_jiffies(10)
 
-static void reader_release(dev_link_t *link);
+static void reader_release(struct pcmcia_device *link);
 
 static int major;
 static struct class *cmx_class;
@@ -87,7 +87,7 @@ struct reader_dev {
 	struct timer_list 	poll_timer;
 };
 
-static dev_link_t *dev_table[CM_MAX_DEV];
+static struct pcmcia_device *dev_table[CM_MAX_DEV];
 
 #ifndef PCMCIA_DEBUG
 #define	xoutb	outb
@@ -445,7 +445,7 @@ static unsigned int cm4040_poll(struct file *filp, poll_table *wait)
 static int cm4040_open(struct inode *inode, struct file *filp)
 {
 	struct reader_dev *dev;
-	dev_link_t *link;
+	struct pcmcia_device *link;
 	int minor = iminor(inode);
 
 	if (minor >= CM_MAX_DEV)
@@ -478,7 +478,7 @@ static int cm4040_open(struct inode *inode, struct file *filp)
 static int cm4040_close(struct inode *inode, struct file *filp)
 {
 	struct reader_dev *dev = filp->private_data;
-	dev_link_t *link;
+	struct pcmcia_device *link;
 	int minor = iminor(inode);
 
 	DEBUGP(2, dev, "-> cm4040_close(maj/min=%d.%d)\n", imajor(inode),
@@ -500,7 +500,7 @@ static int cm4040_close(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static void cm4040_reader_release(dev_link_t *link)
+static void cm4040_reader_release(struct pcmcia_device *link)
 {
 	struct reader_dev *dev = link->priv;
 
@@ -514,9 +514,8 @@ static void cm4040_reader_release(dev_link_t *link)
 	return;
 }
 
-static void reader_config(dev_link_t *link, int devno)
+static void reader_config(struct pcmcia_device *link, int devno)
 {
-	client_handle_t handle;
 	struct reader_dev *dev;
 	tuple_t tuple;
 	cisparse_t parse;
@@ -524,23 +523,21 @@ static void reader_config(dev_link_t *link, int devno)
 	int fail_fn, fail_rc;
 	int rc;
 
-	handle = link->handle;
-
 	tuple.DesiredTuple = CISTPL_CONFIG;
 	tuple.Attributes = 0;
 	tuple.TupleData = buf;
 	tuple.TupleDataMax = sizeof(buf);
  	tuple.TupleOffset = 0;
 
-	if ((fail_rc = pcmcia_get_first_tuple(handle, &tuple)) != CS_SUCCESS) {
+	if ((fail_rc = pcmcia_get_first_tuple(link, &tuple)) != CS_SUCCESS) {
 		fail_fn = GetFirstTuple;
 		goto cs_failed;
 	}
-	if ((fail_rc = pcmcia_get_tuple_data(handle, &tuple)) != CS_SUCCESS) {
+	if ((fail_rc = pcmcia_get_tuple_data(link, &tuple)) != CS_SUCCESS) {
 		fail_fn = GetTupleData;
 		goto cs_failed;
 	}
-	if ((fail_rc = pcmcia_parse_tuple(handle, &tuple, &parse))
+	if ((fail_rc = pcmcia_parse_tuple(link, &tuple, &parse))
 							!= CS_SUCCESS) {
 		fail_fn = ParseTuple;
 		goto cs_failed;
@@ -554,13 +551,13 @@ static void reader_config(dev_link_t *link, int devno)
 	link->io.NumPorts2 = 0;
 	link->io.Attributes2 = 0;
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-	for (rc = pcmcia_get_first_tuple(handle, &tuple);
+	for (rc = pcmcia_get_first_tuple(link, &tuple);
 	     rc == CS_SUCCESS;
-	     rc = pcmcia_get_next_tuple(handle, &tuple)) {
-		rc = pcmcia_get_tuple_data(handle, &tuple);
+	     rc = pcmcia_get_next_tuple(link, &tuple)) {
+		rc = pcmcia_get_tuple_data(link, &tuple);
 		if (rc != CS_SUCCESS)
 			continue;
-		rc = pcmcia_parse_tuple(handle, &tuple, &parse);
+		rc = pcmcia_parse_tuple(link, &tuple, &parse);
 		if (rc != CS_SUCCESS)
 			continue;
 
@@ -578,13 +575,13 @@ static void reader_config(dev_link_t *link, int devno)
 			link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
 		link->io.IOAddrLines = parse.cftable_entry.io.flags
 						& CISTPL_IO_LINES_MASK;
-		rc = pcmcia_request_io(handle, &link->io);
+		rc = pcmcia_request_io(link, &link->io);
 
-		dev_printk(KERN_INFO, &handle_to_dev(handle), "foo");
+		dev_printk(KERN_INFO, &handle_to_dev(link), "foo");
 		if (rc == CS_SUCCESS)
 			break;
 		else
-			dev_printk(KERN_INFO, &handle_to_dev(handle),
+			dev_printk(KERN_INFO, &handle_to_dev(link),
 				   "pcmcia_request_io failed 0x%x\n", rc);
 	}
 	if (rc != CS_SUCCESS)
@@ -592,10 +589,10 @@ static void reader_config(dev_link_t *link, int devno)
 
 	link->conf.IntType = 00000002;
 
-	if ((fail_rc = pcmcia_request_configuration(handle,&link->conf))
+	if ((fail_rc = pcmcia_request_configuration(link,&link->conf))
 								!=CS_SUCCESS) {
 		fail_fn = RequestConfiguration;
-		dev_printk(KERN_INFO, &handle_to_dev(handle),
+		dev_printk(KERN_INFO, &handle_to_dev(link),
 			   "pcmcia_request_configuration failed 0x%x\n",
 			   fail_rc);
 		goto cs_release;
@@ -616,23 +613,22 @@ static void reader_config(dev_link_t *link, int devno)
 	return;
 
 cs_failed:
-	cs_error(handle, fail_fn, fail_rc);
+	cs_error(link, fail_fn, fail_rc);
 cs_release:
 	reader_release(link);
 	link->state &= ~DEV_CONFIG_PENDING;
 }
 
-static void reader_release(dev_link_t *link)
+static void reader_release(struct pcmcia_device *link)
 {
 	cm4040_reader_release(link->priv);
-	pcmcia_disable_device(link->handle);
+	pcmcia_disable_device(link);
 }
 
-static int reader_attach(struct pcmcia_device *p_dev)
+static int reader_attach(struct pcmcia_device *link)
 {
 	struct reader_dev *dev;
 	int i;
-	dev_link_t *link = dev_to_instance(p_dev);
 
 	for (i = 0; i < CM_MAX_DEV; i++) {
 		if (dev_table[i] == NULL)
@@ -650,7 +646,7 @@ static int reader_attach(struct pcmcia_device *p_dev)
 	dev->buffer_status = 0;
 
 	link->priv = dev;
-	dev->p_dev = p_dev;
+	dev->p_dev = link;
 
 	link->conf.IntType = INT_MEMORY_AND_IO;
 	dev_table[i] = link;
@@ -671,9 +667,8 @@ static int reader_attach(struct pcmcia_device *p_dev)
 	return 0;
 }
 
-static void reader_detach(struct pcmcia_device *p_dev)
+static void reader_detach(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
 	struct reader_dev *dev = link->priv;
 	int devno;
 

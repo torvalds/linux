@@ -484,7 +484,7 @@ static void mgslpc_wait_until_sent(struct tty_struct *tty, int timeout);
 
 /* PCMCIA prototypes */
 
-static void mgslpc_config(dev_link_t *link);
+static void mgslpc_config(struct pcmcia_device *link);
 static void mgslpc_release(u_long arg);
 static void mgslpc_detach(struct pcmcia_device *p_dev);
 
@@ -533,10 +533,9 @@ static void ldisc_receive_buf(struct tty_struct *tty,
 	}
 }
 
-static int mgslpc_attach(struct pcmcia_device *p_dev)
+static int mgslpc_attach(struct pcmcia_device *link)
 {
     MGSLPC_INFO *info;
-    dev_link_t *link = dev_to_instance(p_dev);
 
     if (debug_level >= DEBUG_LEVEL_INFO)
 	    printk("mgslpc_attach\n");
@@ -565,10 +564,10 @@ static int mgslpc_attach(struct pcmcia_device *p_dev)
     info->imrb_value = 0xffff;
     info->pim_value = 0xff;
 
-    info->p_dev = p_dev;
+    info->p_dev = link;
     link->priv = info;
 
-    /* Initialize the dev_link_t structure */
+    /* Initialize the struct pcmcia_device structure */
 
     /* Interrupt setup */
     link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
@@ -592,9 +591,8 @@ static int mgslpc_attach(struct pcmcia_device *p_dev)
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
-static void mgslpc_config(dev_link_t *link)
+static void mgslpc_config(struct pcmcia_device *link)
 {
-    client_handle_t handle = link->handle;
     MGSLPC_INFO *info = link->priv;
     tuple_t tuple;
     cisparse_t parse;
@@ -612,9 +610,9 @@ static void mgslpc_config(dev_link_t *link)
     tuple.TupleData = buf;
     tuple.TupleDataMax = sizeof(buf);
     tuple.TupleOffset = 0;
-    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
-    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(handle, &tuple));
-    CS_CHECK(ParseTuple, pcmcia_parse_tuple(handle, &tuple, &parse));
+    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
+    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
+    CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
     link->conf.ConfigBase = parse.config.base;
     link->conf.Present = parse.config.rmask[0];
     
@@ -624,11 +622,11 @@ static void mgslpc_config(dev_link_t *link)
     /* get CIS configuration entry */
 
     tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
+    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
 
     cfg = &(parse.cftable_entry);
-    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(handle, &tuple));
-    CS_CHECK(ParseTuple, pcmcia_parse_tuple(handle, &tuple, &parse));
+    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
+    CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
 
     if (cfg->flags & CISTPL_CFTABLE_DEFAULT) dflt = *cfg;
     if (cfg->index == 0)
@@ -649,7 +647,7 @@ static void mgslpc_config(dev_link_t *link)
 	    link->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
 	    link->io.BasePort1 = io->win[0].base;
 	    link->io.NumPorts1 = io->win[0].len;
-	    CS_CHECK(RequestIO, pcmcia_request_io(link->handle, &link->io));
+	    CS_CHECK(RequestIO, pcmcia_request_io(link, &link->io));
     }
 
     link->conf.Attributes = CONF_ENABLE_IRQ;
@@ -660,9 +658,9 @@ static void mgslpc_config(dev_link_t *link)
     link->irq.Attributes |= IRQ_HANDLE_PRESENT;
     link->irq.Handler     = mgslpc_isr;
     link->irq.Instance    = info;
-    CS_CHECK(RequestIRQ, pcmcia_request_irq(link->handle, &link->irq));
+    CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
 
-    CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link->handle, &link->conf));
+    CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
 
     info->io_base = link->io.BasePort1;
     info->irq_level = link->irq.AssignedIRQ;
@@ -685,7 +683,7 @@ static void mgslpc_config(dev_link_t *link)
     return;
 
 cs_failed:
-    cs_error(link->handle, last_fn, last_ret);
+    cs_error(link, last_fn, last_ret);
     mgslpc_release((u_long)link);
 }
 
@@ -695,18 +693,16 @@ cs_failed:
  */
 static void mgslpc_release(u_long arg)
 {
-    dev_link_t *link = (dev_link_t *)arg;
+    struct pcmcia_device *link = (struct pcmcia_device *)arg;
 
     if (debug_level >= DEBUG_LEVEL_INFO)
 	    printk("mgslpc_release(0x%p)\n", link);
 
-    pcmcia_disable_device(link->handle);
+    pcmcia_disable_device(link);
 }
 
-static void mgslpc_detach(struct pcmcia_device *p_dev)
+static void mgslpc_detach(struct pcmcia_device *link)
 {
-    dev_link_t *link = dev_to_instance(p_dev);
-
     if (debug_level >= DEBUG_LEVEL_INFO)
 	    printk("mgslpc_detach(0x%p)\n", link);
 
@@ -718,9 +714,8 @@ static void mgslpc_detach(struct pcmcia_device *p_dev)
     mgslpc_remove_device((MGSLPC_INFO *)link->priv);
 }
 
-static int mgslpc_suspend(struct pcmcia_device *dev)
+static int mgslpc_suspend(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(dev);
 	MGSLPC_INFO *info = link->priv;
 
 	info->stop = 1;
@@ -728,9 +723,8 @@ static int mgslpc_suspend(struct pcmcia_device *dev)
 	return 0;
 }
 
-static int mgslpc_resume(struct pcmcia_device *dev)
+static int mgslpc_resume(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(dev);
 	MGSLPC_INFO *info = link->priv;
 
 	info->stop = 0;

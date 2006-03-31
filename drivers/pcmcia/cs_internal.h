@@ -31,7 +31,7 @@ typedef struct region_t {
     u_short		region_magic;
     u_short		state;
     dev_info_t		dev_info;
-    client_handle_t	mtd;
+    struct pcmcia_device	*mtd;
     u_int		MediaID;
     region_info_t	info;
 } region_t;

@@ -118,8 +118,8 @@ MODULE_LICENSE("GPL");
 
 /*====================================================================*/
 
-static void com20020_config(dev_link_t *link);
-static void com20020_release(dev_link_t *link);
+static void com20020_config(struct pcmcia_device *link);
+static void com20020_release(struct pcmcia_device *link);
 
 static void com20020_detach(struct pcmcia_device *p_dev);
 
@@ -198,9 +198,8 @@ fail_alloc_info:
 
 ======================================================================*/
 
-static void com20020_detach(struct pcmcia_device *p_dev)
+static void com20020_detach(struct pcmcia_device *link)
 {
-    dev_link_t *link = dev_to_instance(p_dev);
     struct com20020_dev_t *info = link->priv;
     struct net_device *dev = info->dev;
 
@@ -251,10 +250,9 @@ static void com20020_detach(struct pcmcia_device *p_dev)
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
-static void com20020_config(dev_link_t *link)
+static void com20020_config(struct pcmcia_device *link)
 {
     struct arcnet_local *lp;
-    client_handle_t handle;
     tuple_t tuple;
     cisparse_t parse;
     com20020_dev_t *info;
@@ -263,7 +261,6 @@ static void com20020_config(dev_link_t *link)
     u_char buf[64];
     int ioaddr;
 
-    handle = link->handle;
     info = link->priv;
     dev = info->dev;
 
@@ -276,9 +273,9 @@ static void com20020_config(dev_link_t *link)
     tuple.TupleDataMax = 64;
     tuple.TupleOffset = 0;
     tuple.DesiredTuple = CISTPL_CONFIG;
-    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
-    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(handle, &tuple));
-    CS_CHECK(ParseTuple, pcmcia_parse_tuple(handle, &tuple, &parse));
+    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
+    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
+    CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
     link->conf.ConfigBase = parse.config.base;
 
     /* Configure card */
@@ -291,13 +288,13 @@ static void com20020_config(dev_link_t *link)
 	for (ioaddr = 0x100; ioaddr < 0x400; ioaddr += 0x10)
 	{
 	    link->io.BasePort1 = ioaddr;
-	    i = pcmcia_request_io(link->handle, &link->io);
+	    i = pcmcia_request_io(link, &link->io);
 	    if (i == CS_SUCCESS)
 		break;
 	}
     }
     else
-	i = pcmcia_request_io(link->handle, &link->io);
+	i = pcmcia_request_io(link, &link->io);
     
     if (i != CS_SUCCESS)
     {
@@ -311,7 +308,7 @@ static void com20020_config(dev_link_t *link)
     DEBUG(1,"arcnet: request IRQ %d (%Xh/%Xh)\n",
 	   link->irq.AssignedIRQ,
 	   link->irq.IRQInfo1, link->irq.IRQInfo2);
-    i = pcmcia_request_irq(link->handle, &link->irq);
+    i = pcmcia_request_irq(link, &link->irq);
     if (i != CS_SUCCESS)
     {
 	DEBUG(1,"arcnet: requestIRQ failed totally!\n");
@@ -320,7 +317,7 @@ static void com20020_config(dev_link_t *link)
 
     dev->irq = link->irq.AssignedIRQ;
 
-    CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link->handle, &link->conf));
+    CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
 
     if (com20020_check(dev))
     {
@@ -334,7 +331,7 @@ static void com20020_config(dev_link_t *link)
 
     link->dev_node = &info->node;
     link->state &= ~DEV_CONFIG_PENDING;
-    SET_NETDEV_DEV(dev, &handle_to_dev(handle));
+    SET_NETDEV_DEV(dev, &handle_to_dev(link));
 
     i = com20020_found(dev, 0);	/* calls register_netdev */
     
@@ -351,7 +348,7 @@ static void com20020_config(dev_link_t *link)
     return;
 
 cs_failed:
-    cs_error(link->handle, last_fn, last_ret);
+    cs_error(link, last_fn, last_ret);
 failed:
     DEBUG(1,"com20020_config failed...\n");
     com20020_release(link);
@@ -365,15 +362,14 @@ failed:
 
 ======================================================================*/
 
-static void com20020_release(dev_link_t *link)
+static void com20020_release(struct pcmcia_device *link)
 {
 	DEBUG(0, "com20020_release(0x%p)\n", link);
-	pcmcia_disable_device(link->handle);
+	pcmcia_disable_device(link);
 }
 
-static int com20020_suspend(struct pcmcia_device *p_dev)
+static int com20020_suspend(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
 	com20020_dev_t *info = link->priv;
 	struct net_device *dev = info->dev;
 
@@ -383,9 +379,8 @@ static int com20020_suspend(struct pcmcia_device *p_dev)
 	return 0;
 }
 
-static int com20020_resume(struct pcmcia_device *p_dev)
+static int com20020_resume(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
 	com20020_dev_t *info = link->priv;
 	struct net_device *dev = info->dev;
 

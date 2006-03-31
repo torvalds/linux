@@ -79,14 +79,13 @@ typedef struct scsi_info_t {
 } scsi_info_t;
 
 
-static void fdomain_release(dev_link_t *link);
+static void fdomain_release(struct pcmcia_device *link);
 static void fdomain_detach(struct pcmcia_device *p_dev);
-static void fdomain_config(dev_link_t *link);
+static void fdomain_config(struct pcmcia_device *link);
 
-static int fdomain_attach(struct pcmcia_device *p_dev)
+static int fdomain_attach(struct pcmcia_device *link)
 {
     scsi_info_t *info;
-    dev_link_t *link = dev_to_instance(p_dev);
 
     DEBUG(0, "fdomain_attach()\n");
 
@@ -94,7 +93,7 @@ static int fdomain_attach(struct pcmcia_device *p_dev)
     info = kmalloc(sizeof(*info), GFP_KERNEL);
     if (!info) return -ENOMEM;
     memset(info, 0, sizeof(*info));
-    info->p_dev = p_dev;
+    info->p_dev = link;
     link->priv = info;
     link->io.NumPorts1 = 0x10;
     link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
@@ -113,10 +112,8 @@ static int fdomain_attach(struct pcmcia_device *p_dev)
 
 /*====================================================================*/
 
-static void fdomain_detach(struct pcmcia_device *p_dev)
+static void fdomain_detach(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
-
 	DEBUG(0, "fdomain_detach(0x%p)\n", link);
 
 	if (link->state & DEV_CONFIG)
@@ -130,9 +127,8 @@ static void fdomain_detach(struct pcmcia_device *p_dev)
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
-static void fdomain_config(dev_link_t *link)
+static void fdomain_config(struct pcmcia_device *link)
 {
-    client_handle_t handle = link->handle;
     scsi_info_t *info = link->priv;
     tuple_t tuple;
     cisparse_t parse;
@@ -147,30 +143,30 @@ static void fdomain_config(dev_link_t *link)
     tuple.TupleData = tuple_data;
     tuple.TupleDataMax = 64;
     tuple.TupleOffset = 0;
-    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
-    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(handle, &tuple));
-    CS_CHECK(ParseTuple, pcmcia_parse_tuple(handle, &tuple, &parse));
+    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
+    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
+    CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
     link->conf.ConfigBase = parse.config.base;
 
     /* Configure card */
     link->state |= DEV_CONFIG;
     
     tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
+    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
     while (1) {
-	if (pcmcia_get_tuple_data(handle, &tuple) != 0 ||
-		pcmcia_parse_tuple(handle, &tuple, &parse) != 0)
+	if (pcmcia_get_tuple_data(link, &tuple) != 0 ||
+		pcmcia_parse_tuple(link, &tuple, &parse) != 0)
 	    goto next_entry;
 	link->conf.ConfigIndex = parse.cftable_entry.index;
 	link->io.BasePort1 = parse.cftable_entry.io.win[0].base;
-	i = pcmcia_request_io(handle, &link->io);
+	i = pcmcia_request_io(link, &link->io);
 	if (i == CS_SUCCESS) break;
     next_entry:
-	CS_CHECK(GetNextTuple, pcmcia_get_next_tuple(handle, &tuple));
+	CS_CHECK(GetNextTuple, pcmcia_get_next_tuple(link, &tuple));
     }
 
-    CS_CHECK(RequestIRQ, pcmcia_request_irq(handle, &link->irq));
-    CS_CHECK(RequestConfiguration, pcmcia_request_configuration(handle, &link->conf));
+    CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
+    CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
     
     /* A bad hack... */
     release_region(link->io.BasePort1, link->io.NumPorts1);
@@ -196,7 +192,7 @@ static void fdomain_config(dev_link_t *link)
     return;
     
 cs_failed:
-    cs_error(link->handle, last_fn, last_ret);
+    cs_error(link, last_fn, last_ret);
     fdomain_release(link);
     return;
     
@@ -204,23 +200,21 @@ cs_failed:
 
 /*====================================================================*/
 
-static void fdomain_release(dev_link_t *link)
+static void fdomain_release(struct pcmcia_device *link)
 {
 	scsi_info_t *info = link->priv;
 
 	DEBUG(0, "fdomain_release(0x%p)\n", link);
 
 	scsi_remove_host(info->host);
-	pcmcia_disable_device(link->handle);
+	pcmcia_disable_device(link);
 	scsi_unregister(info->host);
 }
 
 /*====================================================================*/
 
-static int fdomain_resume(struct pcmcia_device *dev)
+static int fdomain_resume(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(dev);
-
 	if (link->state & DEV_CONFIG)
 		fdomain_16x0_bus_reset(NULL);
 

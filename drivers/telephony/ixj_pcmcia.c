@@ -35,8 +35,8 @@ typedef struct ixj_info_t {
 } ixj_info_t;
 
 static void ixj_detach(struct pcmcia_device *p_dev);
-static void ixj_config(dev_link_t * link);
-static void ixj_cs_release(dev_link_t * link);
+static void ixj_config(struct pcmcia_device * link);
+static void ixj_cs_release(struct pcmcia_device * link);
 
 static int ixj_attach(struct pcmcia_device *p_dev)
 {
@@ -58,10 +58,8 @@ static int ixj_attach(struct pcmcia_device *p_dev)
 	return 0;
 }
 
-static void ixj_detach(struct pcmcia_device *p_dev)
+static void ixj_detach(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
-
 	DEBUG(0, "ixj_detach(0x%p)\n", link);
 
 	link->state &= ~DEV_RELEASE_PENDING;
@@ -74,22 +72,20 @@ static void ixj_detach(struct pcmcia_device *p_dev)
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
-static void ixj_get_serial(dev_link_t * link, IXJ * j)
+static void ixj_get_serial(struct pcmcia_device * link, IXJ * j)
 {
-	client_handle_t handle;
 	tuple_t tuple;
 	u_short buf[128];
 	char *str;
 	int last_ret, last_fn, i, place;
-	handle = link->handle;
 	DEBUG(0, "ixj_get_serial(0x%p)\n", link);
 	tuple.TupleData = (cisdata_t *) buf;
 	tuple.TupleOffset = 0;
 	tuple.TupleDataMax = 80;
 	tuple.Attributes = 0;
 	tuple.DesiredTuple = CISTPL_VERS_1;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
-	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(handle, &tuple));
+	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
+	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
 	str = (char *) buf;
 	printk("PCMCIA Version %d.%d\n", str[0], str[1]);
 	str += 2;
@@ -137,10 +133,9 @@ static void ixj_get_serial(dev_link_t * link, IXJ * j)
 	return;
 }
 
-static void ixj_config(dev_link_t * link)
+static void ixj_config(struct pcmcia_device * link)
 {
 	IXJ *j;
-	client_handle_t handle;
 	ixj_info_t *info;
 	tuple_t tuple;
 	u_short buf[128];
@@ -151,7 +146,6 @@ static void ixj_config(dev_link_t * link)
 		0
 	};
 	int last_ret, last_fn;
-	handle = link->handle;
 	info = link->priv;
 	DEBUG(0, "ixj_config(0x%p)\n", link);
 	tuple.TupleData = (cisdata_t *) buf;
@@ -159,18 +153,18 @@ static void ixj_config(dev_link_t * link)
 	tuple.TupleDataMax = 255;
 	tuple.Attributes = 0;
 	tuple.DesiredTuple = CISTPL_CONFIG;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
-	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(handle, &tuple));
-	CS_CHECK(ParseTuple, pcmcia_parse_tuple(handle, &tuple, &parse));
+	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
+	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
+	CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
 	link->conf.ConfigBase = parse.config.base;
 	link->conf.Present = parse.config.rmask[0];
 	link->state |= DEV_CONFIG;
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
 	tuple.Attributes = 0;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
+	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
 	while (1) {
-		if (pcmcia_get_tuple_data(handle, &tuple) != 0 ||
-				pcmcia_parse_tuple(handle, &tuple, &parse) != 0)
+		if (pcmcia_get_tuple_data(link, &tuple) != 0 ||
+				pcmcia_parse_tuple(link, &tuple, &parse) != 0)
 			goto next_entry;
 		if ((cfg->io.nwin > 0) || (dflt.io.nwin > 0)) {
 			cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt.io;
@@ -181,7 +175,7 @@ static void ixj_config(dev_link_t * link)
 				link->io.BasePort2 = io->win[1].base;
 				link->io.NumPorts2 = io->win[1].len;
 			}
-			if (pcmcia_request_io(link->handle, &link->io) != 0)
+			if (pcmcia_request_io(link, &link->io) != 0)
 				goto next_entry;
 			/* If we've got this far, we're done */
 			break;
@@ -189,10 +183,10 @@ static void ixj_config(dev_link_t * link)
 	      next_entry:
 		if (cfg->flags & CISTPL_CFTABLE_DEFAULT)
 			dflt = *cfg;
-		CS_CHECK(GetNextTuple, pcmcia_get_next_tuple(handle, &tuple));
+		CS_CHECK(GetNextTuple, pcmcia_get_next_tuple(link, &tuple));
 	}
 
-	CS_CHECK(RequestConfiguration, pcmcia_request_configuration(handle, &link->conf));
+	CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
 
 	/*
  	 *	Register the card with the core.
@@ -206,16 +200,16 @@ static void ixj_config(dev_link_t * link)
 	link->state &= ~DEV_CONFIG_PENDING;
 	return;
       cs_failed:
-	cs_error(link->handle, last_fn, last_ret);
+	cs_error(link, last_fn, last_ret);
 	ixj_cs_release(link);
 }
 
-static void ixj_cs_release(dev_link_t *link)
+static void ixj_cs_release(struct pcmcia_device *link)
 {
 	ixj_info_t *info = link->priv;
 	DEBUG(0, "ixj_cs_release(0x%p)\n", link);
 	info->ndev = 0;
-	pcmcia_disable_device(link->handle);
+	pcmcia_disable_device(link);
 }
 
 static struct pcmcia_device_id ixj_ids[] = {

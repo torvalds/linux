@@ -71,7 +71,7 @@ typedef struct local_info_t {
 	dev_node_t		node;
 } local_info_t;
 
-static void sl811_cs_release(dev_link_t * link);
+static void sl811_cs_release(struct pcmcia_device * link);
 
 /*====================================================================*/
 
@@ -138,10 +138,8 @@ static int sl811_hc_init(struct device *parent, ioaddr_t base_addr, int irq)
 
 /*====================================================================*/
 
-static void sl811_cs_detach(struct pcmcia_device *p_dev)
+static void sl811_cs_detach(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
-
 	DBG(0, "sl811_cs_detach(0x%p)\n", link);
 
 	link->state &= ~DEV_PRESENT;
@@ -152,18 +150,17 @@ static void sl811_cs_detach(struct pcmcia_device *p_dev)
 	kfree(link->priv);
 }
 
-static void sl811_cs_release(dev_link_t * link)
+static void sl811_cs_release(struct pcmcia_device * link)
 {
 	DBG(0, "sl811_cs_release(0x%p)\n", link);
 
-	pcmcia_disable_device(link->handle);
+	pcmcia_disable_device(link);
 	platform_device_unregister(&platform_dev);
 }
 
-static void sl811_cs_config(dev_link_t *link)
+static void sl811_cs_config(struct pcmcia_device *link)
 {
-	client_handle_t		handle = link->handle;
-	struct device		*parent = &handle_to_dev(handle);
+	struct device		*parent = &handle_to_dev(link);
 	local_info_t		*dev = link->priv;
 	tuple_t			tuple;
 	cisparse_t		parse;
@@ -179,9 +176,9 @@ static void sl811_cs_config(dev_link_t *link)
 	tuple.TupleData = buf;
 	tuple.TupleDataMax = sizeof(buf);
 	tuple.TupleOffset = 0;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
-	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(handle, &tuple));
-	CS_CHECK(ParseTuple, pcmcia_parse_tuple(handle, &tuple, &parse));
+	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
+	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
+	CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
 	link->conf.ConfigBase = parse.config.base;
 	link->conf.Present = parse.config.rmask[0];
 
@@ -190,15 +187,15 @@ static void sl811_cs_config(dev_link_t *link)
 
 	/* Look up the current Vcc */
 	CS_CHECK(GetConfigurationInfo,
-			pcmcia_get_configuration_info(handle, &conf));
+			pcmcia_get_configuration_info(link, &conf));
 
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
+	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
 	while (1) {
 		cistpl_cftable_entry_t	*cfg = &(parse.cftable_entry);
 
-		if (pcmcia_get_tuple_data(handle, &tuple) != 0
-				|| pcmcia_parse_tuple(handle, &tuple, &parse)
+		if (pcmcia_get_tuple_data(link, &tuple) != 0
+				|| pcmcia_parse_tuple(link, &tuple, &parse)
 						!= 0)
 			goto next_entry;
 
@@ -244,14 +241,14 @@ static void sl811_cs_config(dev_link_t *link)
 			link->io.BasePort1 = io->win[0].base;
 			link->io.NumPorts1 = io->win[0].len;
 
-			if (pcmcia_request_io(link->handle, &link->io) != 0)
+			if (pcmcia_request_io(link, &link->io) != 0)
 				goto next_entry;
 		}
 		break;
 
 next_entry:
-		pcmcia_disable_device(handle);
-		last_ret = pcmcia_get_next_tuple(handle, &tuple);
+		pcmcia_disable_device(link);
+		last_ret = pcmcia_get_next_tuple(link, &tuple);
 	}
 
 	/* require an IRQ and two registers */
@@ -259,12 +256,12 @@ next_entry:
 		goto cs_failed;
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
 		CS_CHECK(RequestIRQ,
-			pcmcia_request_irq(link->handle, &link->irq));
+			pcmcia_request_irq(link, &link->irq));
 	else
 		goto cs_failed;
 
 	CS_CHECK(RequestConfiguration,
-		pcmcia_request_configuration(link->handle, &link->conf));
+		pcmcia_request_configuration(link, &link->conf));
 
 	sprintf(dev->node.dev_name, driver_name);
 	dev->node.major = dev->node.minor = 0;
@@ -285,22 +282,21 @@ next_entry:
 			< 0) {
 cs_failed:
 		printk("sl811_cs_config failed\n");
-		cs_error(link->handle, last_fn, last_ret);
+		cs_error(link, last_fn, last_ret);
 		sl811_cs_release(link);
 		link->state &= ~DEV_CONFIG_PENDING;
 	}
 }
 
-static int sl811_cs_attach(struct pcmcia_device *p_dev)
+static int sl811_cs_attach(struct pcmcia_device *link)
 {
 	local_info_t *local;
-	dev_link_t *link = dev_to_instance(p_dev);
 
 	local = kmalloc(sizeof(local_info_t), GFP_KERNEL);
 	if (!local)
 		return -ENOMEM;
 	memset(local, 0, sizeof(local_info_t));
-	local->p_dev = p_dev;
+	local->p_dev = link;
 	link->priv = local;
 
 	/* Initialize */

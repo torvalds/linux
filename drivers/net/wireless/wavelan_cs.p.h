@@ -602,7 +602,7 @@ struct net_local
   dev_node_t 	node;		/* ???? What is this stuff ???? */
   struct net_device *	dev;		/* Reverse link... */
   spinlock_t	spinlock;	/* Serialize access to the hardware (SMP) */
-  dev_link_t *	link;		/* pcmcia structure */
+  struct pcmcia_device *	link;		/* pcmcia structure */
   en_stats	stats;		/* Ethernet interface statistics */
   int		nresets;	/* Number of hw resets */
   u_char	configured;	/* If it is configured */
@@ -733,9 +733,9 @@ static int
 static inline void
 	wv_hw_reset(struct net_device *);	/* Same, + start receiver unit */
 static inline int
-	wv_pcmcia_config(dev_link_t *);	/* Configure the pcmcia interface */
+	wv_pcmcia_config(struct pcmcia_device *);	/* Configure the pcmcia interface */
 static void
-	wv_pcmcia_release(dev_link_t *);/* Remove a device */
+	wv_pcmcia_release(struct pcmcia_device *);/* Remove a device */
 /* ---------------------- INTERRUPT HANDLING ---------------------- */
 static irqreturn_t
 	wavelan_interrupt(int,	/* Interrupt handler */

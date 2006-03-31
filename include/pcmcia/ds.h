@@ -155,7 +155,6 @@ struct pcmcia_device {
 	dev_node_t		*dev_node;
 	u_int			state;
 	u_int			open;
-	struct pcmcia_device	*handle;
 	io_req_t		io;
 	irq_req_t		irq;
 	config_req_t		conf;
@@ -185,18 +184,14 @@ struct pcmcia_device {
 	struct pcmcia_driver *	cardmgr;
 #endif
 };
-typedef struct pcmcia_device dev_link_t;
 
 #define to_pcmcia_dev(n) container_of(n, struct pcmcia_device, dev)
 #define to_pcmcia_drv(n) container_of(n, struct pcmcia_driver, drv)
 
-#define handle_to_pdev(handle) (handle)
 #define handle_to_dev(handle) (handle->dev)
 
-#define dev_to_instance(dev) (dev)
-
 /* error reporting */
-void cs_error(client_handle_t handle, int func, int ret);
+void cs_error(struct pcmcia_device *handle, int func, int ret);
 
 #endif /* __KERNEL__ */
 #endif /* _LINUX_DS_H */

@@ -105,9 +105,9 @@ MODULE_LICENSE("GPL");
 
 /*====================================================================*/
 
-static void ibmtr_config(dev_link_t *link);
+static void ibmtr_config(struct pcmcia_device *link);
 static void ibmtr_hw_setup(struct net_device *dev, u_int mmiobase);
-static void ibmtr_release(dev_link_t *link);
+static void ibmtr_release(struct pcmcia_device *link);
 static void ibmtr_detach(struct pcmcia_device *p_dev);
 
 /*====================================================================*/
@@ -138,12 +138,11 @@ static struct ethtool_ops netdev_ethtool_ops = {
 
 ======================================================================*/
 
-static int ibmtr_attach(struct pcmcia_device *p_dev)
+static int ibmtr_attach(struct pcmcia_device *link)
 {
     ibmtr_dev_t *info;
     struct net_device *dev;
-    dev_link_t *link = dev_to_instance(p_dev);
-    
+
     DEBUG(0, "ibmtr_attach()\n");
 
     /* Create new token-ring device */
@@ -156,7 +155,7 @@ static int ibmtr_attach(struct pcmcia_device *p_dev)
 	return -ENOMEM;
     }
 
-    info->p_dev = p_dev;
+    info->p_dev = link;
     link->priv = info;
     info->ti = netdev_priv(dev);
 
@@ -189,9 +188,8 @@ static int ibmtr_attach(struct pcmcia_device *p_dev)
 
 ======================================================================*/
 
-static void ibmtr_detach(struct pcmcia_device *p_dev)
+static void ibmtr_detach(struct pcmcia_device *link)
 {
-    dev_link_t *link = dev_to_instance(p_dev);
     struct ibmtr_dev_t *info = link->priv;
     struct net_device *dev = info->dev;
 
@@ -222,9 +220,8 @@ static void ibmtr_detach(struct pcmcia_device *p_dev)
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
-static void ibmtr_config(dev_link_t *link)
+static void ibmtr_config(struct pcmcia_device *link)
 {
-    client_handle_t handle = link->handle;
     ibmtr_dev_t *info = link->priv;
     struct net_device *dev = info->dev;
     struct tok_info *ti = netdev_priv(dev);
@@ -242,9 +239,9 @@ static void ibmtr_config(dev_link_t *link)
     tuple.TupleDataMax = 64;
     tuple.TupleOffset = 0;
     tuple.DesiredTuple = CISTPL_CONFIG;
-    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
-    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(handle, &tuple));
-    CS_CHECK(ParseTuple, pcmcia_parse_tuple(handle, &tuple, &parse));
+    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
+    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
+    CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
     link->conf.ConfigBase = parse.config.base;
 
     /* Configure card */
@@ -256,15 +253,15 @@ static void ibmtr_config(dev_link_t *link)
 
     /* Try PRIMARY card at 0xA20-0xA23 */
     link->io.BasePort1 = 0xA20;
-    i = pcmcia_request_io(link->handle, &link->io);
+    i = pcmcia_request_io(link, &link->io);
     if (i != CS_SUCCESS) {
 	/* Couldn't get 0xA20-0xA23.  Try ALTERNATE at 0xA24-0xA27. */
 	link->io.BasePort1 = 0xA24;
-	CS_CHECK(RequestIO, pcmcia_request_io(link->handle, &link->io));
+	CS_CHECK(RequestIO, pcmcia_request_io(link, &link->io));
     }
     dev->base_addr = link->io.BasePort1;
 
-    CS_CHECK(RequestIRQ, pcmcia_request_irq(link->handle, &link->irq));
+    CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
     dev->irq = link->irq.AssignedIRQ;
     ti->irq = link->irq.AssignedIRQ;
     ti->global_int_enable=GLOBAL_INT_ENABLE+((dev->irq==9) ? 2 : dev->irq);
@@ -275,7 +272,7 @@ static void ibmtr_config(dev_link_t *link)
     req.Base = 0; 
     req.Size = 0x2000;
     req.AccessSpeed = 250;
-    CS_CHECK(RequestWindow, pcmcia_request_window(&link->handle, &req, &link->win));
+    CS_CHECK(RequestWindow, pcmcia_request_window(&link, &req, &link->win));
 
     mem.CardOffset = mmiobase;
     mem.Page = 0;
@@ -288,7 +285,7 @@ static void ibmtr_config(dev_link_t *link)
     req.Base = 0;
     req.Size = sramsize * 1024;
     req.AccessSpeed = 250;
-    CS_CHECK(RequestWindow, pcmcia_request_window(&link->handle, &req, &info->sram_win_handle));
+    CS_CHECK(RequestWindow, pcmcia_request_window(&link, &req, &info->sram_win_handle));
 
     mem.CardOffset = srambase;
     mem.Page = 0;
@@ -298,7 +295,7 @@ static void ibmtr_config(dev_link_t *link)
     ti->sram_virt = ioremap(req.Base, req.Size);
     ti->sram_phys = req.Base;
 
-    CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link->handle, &link->conf));
+    CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
 
     /*  Set up the Token-Ring Controller Configuration Register and
         turn on the card.  Check the "Local Area Network Credit Card
@@ -307,7 +304,7 @@ static void ibmtr_config(dev_link_t *link)
 
     link->dev_node = &info->node;
     link->state &= ~DEV_CONFIG_PENDING;
-    SET_NETDEV_DEV(dev, &handle_to_dev(handle));
+    SET_NETDEV_DEV(dev, &handle_to_dev(link));
 
     i = ibmtr_probe_card(dev);
     if (i != 0) {
@@ -329,7 +326,7 @@ static void ibmtr_config(dev_link_t *link)
     return;
 
 cs_failed:
-    cs_error(link->handle, last_fn, last_ret);
+    cs_error(link, last_fn, last_ret);
 failed:
     ibmtr_release(link);
 } /* ibmtr_config */
@@ -342,7 +339,7 @@ failed:
 
 ======================================================================*/
 
-static void ibmtr_release(dev_link_t *link)
+static void ibmtr_release(struct pcmcia_device *link)
 {
 	ibmtr_dev_t *info = link->priv;
 	struct net_device *dev = info->dev;
@@ -354,12 +351,11 @@ static void ibmtr_release(dev_link_t *link)
 		iounmap(ti->mmio);
 		pcmcia_release_window(info->sram_win_handle);
 	}
-	pcmcia_disable_device(link->handle);
+	pcmcia_disable_device(link);
 }
 
-static int ibmtr_suspend(struct pcmcia_device *p_dev)
+static int ibmtr_suspend(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
 	ibmtr_dev_t *info = link->priv;
 	struct net_device *dev = info->dev;
 
@@ -369,9 +365,8 @@ static int ibmtr_suspend(struct pcmcia_device *p_dev)
 	return 0;
 }
 
-static int ibmtr_resume(struct pcmcia_device *p_dev)
+static int ibmtr_resume(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
 	ibmtr_dev_t *info = link->priv;
 	struct net_device *dev = info->dev;
 

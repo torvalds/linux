@@ -88,8 +88,8 @@ typedef struct parport_info_t {
 } parport_info_t;
 
 static void parport_detach(struct pcmcia_device *p_dev);
-static void parport_config(dev_link_t *link);
-static void parport_cs_release(dev_link_t *);
+static void parport_config(struct pcmcia_device *link);
+static void parport_cs_release(struct pcmcia_device *);
 
 /*======================================================================
 
@@ -99,10 +99,9 @@ static void parport_cs_release(dev_link_t *);
 
 ======================================================================*/
 
-static int parport_attach(struct pcmcia_device *p_dev)
+static int parport_attach(struct pcmcia_device *link)
 {
     parport_info_t *info;
-    dev_link_t *link = dev_to_instance(p_dev);
 
     DEBUG(0, "parport_attach()\n");
 
@@ -111,7 +110,7 @@ static int parport_attach(struct pcmcia_device *p_dev)
     if (!info) return -ENOMEM;
     memset(info, 0, sizeof(*info));
     link->priv = info;
-    info->p_dev = p_dev;
+    info->p_dev = link;
 
     link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
     link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
@@ -135,10 +134,8 @@ static int parport_attach(struct pcmcia_device *p_dev)
 
 ======================================================================*/
 
-static void parport_detach(struct pcmcia_device *p_dev)
+static void parport_detach(struct pcmcia_device *link)
 {
-    dev_link_t *link = dev_to_instance(p_dev);
-
     DEBUG(0, "parport_detach(0x%p)\n", link);
 
     if (link->state & DEV_CONFIG)
@@ -158,9 +155,8 @@ static void parport_detach(struct pcmcia_device *p_dev)
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
-void parport_config(dev_link_t *link)
+void parport_config(struct pcmcia_device *link)
 {
-    client_handle_t handle = link->handle;
     parport_info_t *info = link->priv;
     tuple_t tuple;
     u_short buf[128];
@@ -176,9 +172,9 @@ void parport_config(dev_link_t *link)
     tuple.TupleOffset = 0; tuple.TupleDataMax = 255;
     tuple.Attributes = 0;
     tuple.DesiredTuple = CISTPL_CONFIG;
-    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
-    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(handle, &tuple));
-    CS_CHECK(ParseTuple, pcmcia_parse_tuple(handle, &tuple, &parse));
+    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
+    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
+    CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
     link->conf.ConfigBase = parse.config.base;
     link->conf.Present = parse.config.rmask[0];
     
@@ -187,10 +183,10 @@ void parport_config(dev_link_t *link)
 
     tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
     tuple.Attributes = 0;
-    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
+    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
     while (1) {
-	if (pcmcia_get_tuple_data(handle, &tuple) != 0 ||
-		pcmcia_parse_tuple(handle, &tuple, &parse) != 0)
+	if (pcmcia_get_tuple_data(link, &tuple) != 0 ||
+		pcmcia_parse_tuple(link, &tuple, &parse) != 0)
 	    goto next_entry;
 
 	if ((cfg->io.nwin > 0) || (dflt.io.nwin > 0)) {
@@ -205,7 +201,7 @@ void parport_config(dev_link_t *link)
 		link->io.BasePort2 = io->win[1].base;
 		link->io.NumPorts2 = io->win[1].len;
 	    }
-	    if (pcmcia_request_io(link->handle, &link->io) != 0)
+	    if (pcmcia_request_io(link, &link->io) != 0)
 		goto next_entry;
 	    /* If we've got this far, we're done */
 	    break;
@@ -213,11 +209,11 @@ void parport_config(dev_link_t *link)
 	
     next_entry:
 	if (cfg->flags & CISTPL_CFTABLE_DEFAULT) dflt = *cfg;
-	CS_CHECK(GetNextTuple, pcmcia_get_next_tuple(handle, &tuple));
+	CS_CHECK(GetNextTuple, pcmcia_get_next_tuple(link, &tuple));
     }
     
-    CS_CHECK(RequestIRQ, pcmcia_request_irq(handle, &link->irq));
-    CS_CHECK(RequestConfiguration, pcmcia_request_configuration(handle, &link->conf));
+    CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
+    CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
 
     p = parport_pc_probe_port(link->io.BasePort1, link->io.BasePort2,
 			      link->irq.AssignedIRQ, PARPORT_DMA_NONE,
@@ -243,7 +239,7 @@ void parport_config(dev_link_t *link)
     return;
     
 cs_failed:
-    cs_error(link->handle, last_fn, last_ret);
+    cs_error(link, last_fn, last_ret);
 failed:
     parport_cs_release(link);
     link->state &= ~DEV_CONFIG_PENDING;
@@ -258,7 +254,7 @@ failed:
     
 ======================================================================*/
 
-void parport_cs_release(dev_link_t *link)
+void parport_cs_release(struct pcmcia_device *link)
 {
 	parport_info_t *info = link->priv;
 
@@ -270,7 +266,7 @@ void parport_cs_release(dev_link_t *link)
 	}
 	info->ndev = 0;
 
-	pcmcia_disable_device(link->handle);
+	pcmcia_disable_device(link);
 } /* parport_cs_release */
 
 

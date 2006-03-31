@@ -87,8 +87,8 @@ typedef struct dtl1_info_t {
 } dtl1_info_t;
 
 
-static void dtl1_config(dev_link_t *link);
-static void dtl1_release(dev_link_t *link);
+static void dtl1_config(struct pcmcia_device *link);
+static void dtl1_release(struct pcmcia_device *link);
 
 static void dtl1_detach(struct pcmcia_device *p_dev);
 
@@ -555,17 +555,16 @@ static int dtl1_close(dtl1_info_t *info)
 	return 0;
 }
 
-static int dtl1_attach(struct pcmcia_device *p_dev)
+static int dtl1_attach(struct pcmcia_device *link)
 {
 	dtl1_info_t *info;
-	dev_link_t *link = dev_to_instance(p_dev);
 
 	/* Create new info device */
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
-	info->p_dev = p_dev;
+	info->p_dev = link;
 	link->priv = info;
 
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
@@ -586,9 +585,8 @@ static int dtl1_attach(struct pcmcia_device *p_dev)
 }
 
 
-static void dtl1_detach(struct pcmcia_device *p_dev)
+static void dtl1_detach(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
 	dtl1_info_t *info = link->priv;
 
 	if (link->state & DEV_CONFIG)
@@ -597,7 +595,7 @@ static void dtl1_detach(struct pcmcia_device *p_dev)
 	kfree(info);
 }
 
-static int get_tuple(client_handle_t handle, tuple_t *tuple, cisparse_t *parse)
+static int get_tuple(struct pcmcia_device *handle, tuple_t *tuple, cisparse_t *parse)
 {
 	int i;
 
@@ -608,23 +606,22 @@ static int get_tuple(client_handle_t handle, tuple_t *tuple, cisparse_t *parse)
 	return pcmcia_parse_tuple(handle, tuple, parse);
 }
 
-static int first_tuple(client_handle_t handle, tuple_t *tuple, cisparse_t *parse)
+static int first_tuple(struct pcmcia_device *handle, tuple_t *tuple, cisparse_t *parse)
 {
 	if (pcmcia_get_first_tuple(handle, tuple) != CS_SUCCESS)
 		return CS_NO_MORE_ITEMS;
 	return get_tuple(handle, tuple, parse);
 }
 
-static int next_tuple(client_handle_t handle, tuple_t *tuple, cisparse_t *parse)
+static int next_tuple(struct pcmcia_device *handle, tuple_t *tuple, cisparse_t *parse)
 {
 	if (pcmcia_get_next_tuple(handle, tuple) != CS_SUCCESS)
 		return CS_NO_MORE_ITEMS;
 	return get_tuple(handle, tuple, parse);
 }
 
-static void dtl1_config(dev_link_t *link)
+static void dtl1_config(struct pcmcia_device *link)
 {
-	client_handle_t handle = link->handle;
 	dtl1_info_t *info = link->priv;
 	tuple_t tuple;
 	u_short buf[256];
@@ -639,7 +636,7 @@ static void dtl1_config(dev_link_t *link)
 
 	/* Get configuration register information */
 	tuple.DesiredTuple = CISTPL_CONFIG;
-	last_ret = first_tuple(handle, &tuple, &parse);
+	last_ret = first_tuple(link, &tuple, &parse);
 	if (last_ret != CS_SUCCESS) {
 		last_fn = ParseTuple;
 		goto cs_failed;
@@ -658,34 +655,34 @@ static void dtl1_config(dev_link_t *link)
 
 	/* Look for a generic full-sized window */
 	link->io.NumPorts1 = 8;
-	i = first_tuple(handle, &tuple, &parse);
+	i = first_tuple(link, &tuple, &parse);
 	while (i != CS_NO_MORE_ITEMS) {
 		if ((i == CS_SUCCESS) && (cf->io.nwin == 1) && (cf->io.win[0].len > 8)) {
 			link->conf.ConfigIndex = cf->index;
 			link->io.BasePort1 = cf->io.win[0].base;
 			link->io.NumPorts1 = cf->io.win[0].len;	/*yo */
 			link->io.IOAddrLines = cf->io.flags & CISTPL_IO_LINES_MASK;
-			i = pcmcia_request_io(link->handle, &link->io);
+			i = pcmcia_request_io(link, &link->io);
 			if (i == CS_SUCCESS)
 				break;
 		}
-		i = next_tuple(handle, &tuple, &parse);
+		i = next_tuple(link, &tuple, &parse);
 	}
 
 	if (i != CS_SUCCESS) {
-		cs_error(link->handle, RequestIO, i);
+		cs_error(link, RequestIO, i);
 		goto failed;
 	}
 
-	i = pcmcia_request_irq(link->handle, &link->irq);
+	i = pcmcia_request_irq(link, &link->irq);
 	if (i != CS_SUCCESS) {
-		cs_error(link->handle, RequestIRQ, i);
+		cs_error(link, RequestIRQ, i);
 		link->irq.AssignedIRQ = 0;
 	}
 
-	i = pcmcia_request_configuration(link->handle, &link->conf);
+	i = pcmcia_request_configuration(link, &link->conf);
 	if (i != CS_SUCCESS) {
-		cs_error(link->handle, RequestConfiguration, i);
+		cs_error(link, RequestConfiguration, i);
 		goto failed;
 	}
 
@@ -699,21 +696,21 @@ static void dtl1_config(dev_link_t *link)
 	return;
 
 cs_failed:
-	cs_error(link->handle, last_fn, last_ret);
+	cs_error(link, last_fn, last_ret);
 
 failed:
 	dtl1_release(link);
 }
 
 
-static void dtl1_release(dev_link_t *link)
+static void dtl1_release(struct pcmcia_device *link)
 {
 	dtl1_info_t *info = link->priv;
 
 	if (link->state & DEV_PRESENT)
 		dtl1_close(info);
 
-	pcmcia_disable_device(link->handle);
+	pcmcia_disable_device(link);
 }
 
 

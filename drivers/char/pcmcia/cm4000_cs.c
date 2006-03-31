@@ -67,7 +67,7 @@ static char *version = "cm4000_cs.c v2.4.0gm6 - All bugs added by Harald Welte";
 #define	T_100MSEC	msecs_to_jiffies(100)
 #define	T_500MSEC	msecs_to_jiffies(500)
 
-static void cm4000_release(dev_link_t *link);
+static void cm4000_release(struct pcmcia_device *link);
 
 static int major;		/* major number we get from the kernel */
 
@@ -149,14 +149,14 @@ struct cm4000_dev {
 #define	ZERO_DEV(dev)  						\
 	memset(&dev->atr_csum,0,				\
 		sizeof(struct cm4000_dev) - 			\
-		/*link*/ sizeof(dev_link_t) - 			\
+		/*link*/ sizeof(struct pcmcia_device) - 	\
 		/*node*/ sizeof(dev_node_t) - 			\
 		/*atr*/ MAX_ATR*sizeof(char) - 			\
 		/*rbuf*/ 512*sizeof(char) - 			\
 		/*sbuf*/ 512*sizeof(char) - 			\
 		/*queue*/ 4*sizeof(wait_queue_head_t))
 
-static dev_link_t *dev_table[CM4000_MAX_DEV];
+static struct pcmcia_device *dev_table[CM4000_MAX_DEV];
 static struct class *cmm_class;
 
 /* This table doesn't use spaces after the comma between fields and thus
@@ -1441,7 +1441,7 @@ static int cmm_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
 {
 	struct cm4000_dev *dev = filp->private_data;
 	ioaddr_t iobase = dev->p_dev->io.BasePort1;
-	dev_link_t *link;
+	struct pcmcia_device *link;
 	int size;
 	int rc;
 	void __user *argp = (void __user *)arg;
@@ -1660,7 +1660,7 @@ static int cmm_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
 static int cmm_open(struct inode *inode, struct file *filp)
 {
 	struct cm4000_dev *dev;
-	dev_link_t *link;
+	struct pcmcia_device *link;
 	int rc, minor = iminor(inode);
 
 	if (minor >= CM4000_MAX_DEV)
@@ -1709,7 +1709,7 @@ static int cmm_open(struct inode *inode, struct file *filp)
 static int cmm_close(struct inode *inode, struct file *filp)
 {
 	struct cm4000_dev *dev;
-	dev_link_t *link;
+	struct pcmcia_device *link;
 	int minor = iminor(inode);
 
 	if (minor >= CM4000_MAX_DEV)
@@ -1735,7 +1735,7 @@ static int cmm_close(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static void cmm_cm4000_release(dev_link_t * link)
+static void cmm_cm4000_release(struct pcmcia_device * link)
 {
 	struct cm4000_dev *dev = link->priv;
 
@@ -1759,9 +1759,8 @@ static void cmm_cm4000_release(dev_link_t * link)
 
 /*==== Interface to PCMCIA Layer =======================================*/
 
-static void cm4000_config(dev_link_t * link, int devno)
+static void cm4000_config(struct pcmcia_device * link, int devno)
 {
-	client_handle_t handle = link->handle;
 	struct cm4000_dev *dev;
 	tuple_t tuple;
 	cisparse_t parse;
@@ -1776,16 +1775,16 @@ static void cm4000_config(dev_link_t * link, int devno)
 	tuple.TupleDataMax = sizeof(buf);
 	tuple.TupleOffset = 0;
 
-	if ((fail_rc = pcmcia_get_first_tuple(handle, &tuple)) != CS_SUCCESS) {
+	if ((fail_rc = pcmcia_get_first_tuple(link, &tuple)) != CS_SUCCESS) {
 		fail_fn = GetFirstTuple;
 		goto cs_failed;
 	}
-	if ((fail_rc = pcmcia_get_tuple_data(handle, &tuple)) != CS_SUCCESS) {
+	if ((fail_rc = pcmcia_get_tuple_data(link, &tuple)) != CS_SUCCESS) {
 		fail_fn = GetTupleData;
 		goto cs_failed;
 	}
 	if ((fail_rc =
-	     pcmcia_parse_tuple(handle, &tuple, &parse)) != CS_SUCCESS) {
+	     pcmcia_parse_tuple(link, &tuple, &parse)) != CS_SUCCESS) {
 		fail_fn = ParseTuple;
 		goto cs_failed;
 	}
@@ -1798,13 +1797,13 @@ static void cm4000_config(dev_link_t * link, int devno)
 	link->io.NumPorts2 = 0;
 	link->io.Attributes2 = 0;
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-	for (rc = pcmcia_get_first_tuple(handle, &tuple);
-	     rc == CS_SUCCESS; rc = pcmcia_get_next_tuple(handle, &tuple)) {
+	for (rc = pcmcia_get_first_tuple(link, &tuple);
+	     rc == CS_SUCCESS; rc = pcmcia_get_next_tuple(link, &tuple)) {
 
-		rc = pcmcia_get_tuple_data(handle, &tuple);
+		rc = pcmcia_get_tuple_data(link, &tuple);
 		if (rc != CS_SUCCESS)
 			continue;
-		rc = pcmcia_parse_tuple(handle, &tuple, &parse);
+		rc = pcmcia_parse_tuple(link, &tuple, &parse);
 		if (rc != CS_SUCCESS)
 			continue;
 
@@ -1824,7 +1823,7 @@ static void cm4000_config(dev_link_t * link, int devno)
 		link->io.IOAddrLines = parse.cftable_entry.io.flags
 		    & CISTPL_IO_LINES_MASK;
 
-		rc = pcmcia_request_io(handle, &link->io);
+		rc = pcmcia_request_io(link, &link->io);
 		if (rc == CS_SUCCESS)
 			break;	/* we are done */
 	}
@@ -1834,7 +1833,7 @@ static void cm4000_config(dev_link_t * link, int devno)
 	link->conf.IntType = 00000002;
 
 	if ((fail_rc =
-	     pcmcia_request_configuration(handle, &link->conf)) != CS_SUCCESS) {
+	     pcmcia_request_configuration(link, &link->conf)) != CS_SUCCESS) {
 		fail_fn = RequestConfiguration;
 		goto cs_release;
 	}
@@ -1850,16 +1849,15 @@ static void cm4000_config(dev_link_t * link, int devno)
 	return;
 
 cs_failed:
-	cs_error(handle, fail_fn, fail_rc);
+	cs_error(link, fail_fn, fail_rc);
 cs_release:
 	cm4000_release(link);
 
 	link->state &= ~DEV_CONFIG_PENDING;
 }
 
-static int cm4000_suspend(struct pcmcia_device *p_dev)
+static int cm4000_suspend(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
 	struct cm4000_dev *dev;
 
 	dev = link->priv;
@@ -1868,9 +1866,8 @@ static int cm4000_suspend(struct pcmcia_device *p_dev)
 	return 0;
 }
 
-static int cm4000_resume(struct pcmcia_device *p_dev)
+static int cm4000_resume(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
 	struct cm4000_dev *dev;
 
 	dev = link->priv;
@@ -1880,17 +1877,16 @@ static int cm4000_resume(struct pcmcia_device *p_dev)
 	return 0;
 }
 
-static void cm4000_release(dev_link_t *link)
+static void cm4000_release(struct pcmcia_device *link)
 {
 	cmm_cm4000_release(link->priv);	/* delay release until device closed */
-	pcmcia_disable_device(link->handle);
+	pcmcia_disable_device(link);
 }
 
-static int cm4000_attach(struct pcmcia_device *p_dev)
+static int cm4000_attach(struct pcmcia_device *link)
 {
 	struct cm4000_dev *dev;
 	int i;
-	dev_link_t *link = dev_to_instance(p_dev);
 
 	for (i = 0; i < CM4000_MAX_DEV; i++)
 		if (dev_table[i] == NULL)
@@ -1906,7 +1902,7 @@ static int cm4000_attach(struct pcmcia_device *p_dev)
 	if (dev == NULL)
 		return -ENOMEM;
 
-	dev->p_dev = p_dev;
+	dev->p_dev = link;
 	link->priv = dev;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 	dev_table[i] = link;
@@ -1925,9 +1921,8 @@ static int cm4000_attach(struct pcmcia_device *p_dev)
 	return 0;
 }
 
-static void cm4000_detach(struct pcmcia_device *p_dev)
+static void cm4000_detach(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
 	struct cm4000_dev *dev = link->priv;
 	int devno;
 

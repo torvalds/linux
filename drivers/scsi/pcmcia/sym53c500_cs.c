@@ -527,7 +527,7 @@ idle_out:
 }
 
 static void
-SYM53C500_release(dev_link_t *link)
+SYM53C500_release(struct pcmcia_device *link)
 {
 	struct scsi_info_t *info = link->priv;
 	struct Scsi_Host *shost = info->host;
@@ -550,7 +550,7 @@ SYM53C500_release(dev_link_t *link)
 	if (shost->io_port && shost->n_io_port)
 		release_region(shost->io_port, shost->n_io_port);
 
-	pcmcia_disable_device(link->handle);
+	pcmcia_disable_device(link);
 
 	scsi_host_put(shost);
 } /* SYM53C500_release */
@@ -708,9 +708,8 @@ static struct scsi_host_template sym53c500_driver_template = {
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
 static void
-SYM53C500_config(dev_link_t *link)
+SYM53C500_config(struct pcmcia_device *link)
 {
-	client_handle_t handle = link->handle;
 	struct scsi_info_t *info = link->priv;
 	tuple_t tuple;
 	cisparse_t parse;
@@ -727,40 +726,40 @@ SYM53C500_config(dev_link_t *link)
 	tuple.TupleDataMax = 64;
 	tuple.TupleOffset = 0;
 	tuple.DesiredTuple = CISTPL_CONFIG;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
-	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(handle, &tuple));
-	CS_CHECK(ParseTuple, pcmcia_parse_tuple(handle, &tuple, &parse));
+	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
+	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
+	CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
 	link->conf.ConfigBase = parse.config.base;
 
 	tuple.DesiredTuple = CISTPL_MANFID;
-	if ((pcmcia_get_first_tuple(handle, &tuple) == CS_SUCCESS) &&
-	    (pcmcia_get_tuple_data(handle, &tuple) == CS_SUCCESS))
+	if ((pcmcia_get_first_tuple(link, &tuple) == CS_SUCCESS) &&
+	    (pcmcia_get_tuple_data(link, &tuple) == CS_SUCCESS))
 		info->manf_id = le16_to_cpu(tuple.TupleData[0]);
 
 	/* Configure card */
 	link->state |= DEV_CONFIG;
 
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
+	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
 	while (1) {
-		if (pcmcia_get_tuple_data(handle, &tuple) != 0 ||
-		    pcmcia_parse_tuple(handle, &tuple, &parse) != 0)
+		if (pcmcia_get_tuple_data(link, &tuple) != 0 ||
+		    pcmcia_parse_tuple(link, &tuple, &parse) != 0)
 			goto next_entry;
 		link->conf.ConfigIndex = parse.cftable_entry.index;
 		link->io.BasePort1 = parse.cftable_entry.io.win[0].base;
 		link->io.NumPorts1 = parse.cftable_entry.io.win[0].len;
 
 		if (link->io.BasePort1 != 0) {
-			i = pcmcia_request_io(handle, &link->io);
+			i = pcmcia_request_io(link, &link->io);
 			if (i == CS_SUCCESS)
 				break;
 		}
 next_entry:
-		CS_CHECK(GetNextTuple, pcmcia_get_next_tuple(handle, &tuple));
+		CS_CHECK(GetNextTuple, pcmcia_get_next_tuple(link, &tuple));
 	}
 
-	CS_CHECK(RequestIRQ, pcmcia_request_irq(handle, &link->irq));
-	CS_CHECK(RequestConfiguration, pcmcia_request_configuration(handle, &link->conf));
+	CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
+	CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
 
 	/*
 	*  That's the trouble with copying liberally from another driver.
@@ -852,14 +851,13 @@ out:
 	return;
 
 cs_failed:
-	cs_error(link->handle, last_fn, last_ret);
+	cs_error(link, last_fn, last_ret);
 	SYM53C500_release(link);
 	return;
 } /* SYM53C500_config */
 
-static int sym53c500_resume(struct pcmcia_device *dev)
+static int sym53c500_resume(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(dev);
 	struct scsi_info_t *info = link->priv;
 
 	if (link->state & DEV_CONFIG) {
@@ -882,10 +880,8 @@ static int sym53c500_resume(struct pcmcia_device *dev)
 }
 
 static void
-SYM53C500_detach(struct pcmcia_device *p_dev)
+SYM53C500_detach(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
-
 	DEBUG(0, "SYM53C500_detach(0x%p)\n", link);
 
 	if (link->state & DEV_CONFIG)
@@ -896,10 +892,9 @@ SYM53C500_detach(struct pcmcia_device *p_dev)
 } /* SYM53C500_detach */
 
 static int
-SYM53C500_attach(struct pcmcia_device *p_dev)
+SYM53C500_attach(struct pcmcia_device *link)
 {
 	struct scsi_info_t *info;
-	dev_link_t *link = dev_to_instance(p_dev);
 
 	DEBUG(0, "SYM53C500_attach()\n");
 
@@ -908,7 +903,7 @@ SYM53C500_attach(struct pcmcia_device *p_dev)
 	if (!info)
 		return -ENOMEM;
 	memset(info, 0, sizeof(*info));
-	info->p_dev = p_dev;
+	info->p_dev = link;
 	link->priv = info;
 	link->io.NumPorts1 = 16;
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;

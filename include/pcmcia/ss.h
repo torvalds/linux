@@ -161,7 +161,7 @@ typedef struct io_window_t {
 typedef struct window_t {
 	u_short			magic;
 	u_short			index;
-	client_handle_t		handle;
+	struct pcmcia_device	*handle;
 	struct pcmcia_socket 	*sock;
 	pccard_mem_map		ctl;
 } window_t;

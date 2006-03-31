@@ -67,8 +67,8 @@ module_param(isdnprot, int, 0);
    handler.
 */
 
-static void avma1cs_config(dev_link_t *link);
-static void avma1cs_release(dev_link_t *link);
+static void avma1cs_config(struct pcmcia_device *link);
+static void avma1cs_release(struct pcmcia_device *link);
 
 /*
    The attach() and detach() entry points are used to create and destroy
@@ -82,10 +82,10 @@ static void avma1cs_detach(struct pcmcia_device *p_dev);
 /*
    A linked list of "instances" of the skeleton device.  Each actual
    PCMCIA card corresponds to one device instance, and is described
-   by one dev_link_t structure (defined in ds.h).
+   by one struct pcmcia_device structure (defined in ds.h).
 
    You may not want to use a linked list for this -- for example, the
-   memory card driver uses an array of dev_link_t pointers, where minor
+   memory card driver uses an array of struct pcmcia_device pointers, where minor
    device numbers are used to derive the corresponding array index.
 */
 
@@ -95,7 +95,7 @@ static void avma1cs_detach(struct pcmcia_device *p_dev);
    example, ethernet cards, modems).  In other cases, there may be
    many actual or logical devices (SCSI adapters, memory cards with
    multiple partitions).  The dev_node_t structures need to be kept
-   in a linked list starting at the 'dev' field of a dev_link_t
+   in a linked list starting at the 'dev' field of a struct pcmcia_device
    structure.  We allocate them in the card's private data structure,
    because they generally can't be allocated dynamically.
 */
@@ -164,10 +164,8 @@ static int avma1cs_attach(struct pcmcia_device *p_dev)
 
 ======================================================================*/
 
-static void avma1cs_detach(struct pcmcia_device *p_dev)
+static void avma1cs_detach(struct pcmcia_device *link)
 {
-    dev_link_t *link = dev_to_instance(p_dev);
-
     DEBUG(0, "avma1cs_detach(0x%p)\n", link);
 
     if (link->state & DEV_CONFIG)
@@ -184,7 +182,7 @@ static void avma1cs_detach(struct pcmcia_device *p_dev)
     
 ======================================================================*/
 
-static int get_tuple(client_handle_t handle, tuple_t *tuple,
+static int get_tuple(struct pcmcia_device *handle, tuple_t *tuple,
 		     cisparse_t *parse)
 {
     int i = pcmcia_get_tuple_data(handle, tuple);
@@ -192,7 +190,7 @@ static int get_tuple(client_handle_t handle, tuple_t *tuple,
     return pcmcia_parse_tuple(handle, tuple, parse);
 }
 
-static int first_tuple(client_handle_t handle, tuple_t *tuple,
+static int first_tuple(struct pcmcia_device *handle, tuple_t *tuple,
 		     cisparse_t *parse)
 {
     int i = pcmcia_get_first_tuple(handle, tuple);
@@ -200,7 +198,7 @@ static int first_tuple(client_handle_t handle, tuple_t *tuple,
     return get_tuple(handle, tuple, parse);
 }
 
-static int next_tuple(client_handle_t handle, tuple_t *tuple,
+static int next_tuple(struct pcmcia_device *handle, tuple_t *tuple,
 		     cisparse_t *parse)
 {
     int i = pcmcia_get_next_tuple(handle, tuple);
@@ -208,9 +206,8 @@ static int next_tuple(client_handle_t handle, tuple_t *tuple,
     return get_tuple(handle, tuple, parse);
 }
 
-static void avma1cs_config(dev_link_t *link)
+static void avma1cs_config(struct pcmcia_device *link)
 {
-    client_handle_t handle;
     tuple_t tuple;
     cisparse_t parse;
     cistpl_cftable_entry_t *cf = &parse.cftable_entry;
@@ -220,8 +217,7 @@ static void avma1cs_config(dev_link_t *link)
     char devname[128];
     IsdnCard_t	icard;
     int busy = 0;
-    
-    handle = link->handle;
+
     dev = link->priv;
 
     DEBUG(0, "avma1cs_config(0x%p)\n", link);
@@ -232,19 +228,19 @@ static void avma1cs_config(dev_link_t *link)
     */
     do {
 	tuple.DesiredTuple = CISTPL_CONFIG;
-	i = pcmcia_get_first_tuple(handle, &tuple);
+	i = pcmcia_get_first_tuple(link, &tuple);
 	if (i != CS_SUCCESS) break;
 	tuple.TupleData = buf;
 	tuple.TupleDataMax = 64;
 	tuple.TupleOffset = 0;
-	i = pcmcia_get_tuple_data(handle, &tuple);
+	i = pcmcia_get_tuple_data(link, &tuple);
 	if (i != CS_SUCCESS) break;
-	i = pcmcia_parse_tuple(handle, &tuple, &parse);
+	i = pcmcia_parse_tuple(link, &tuple, &parse);
 	if (i != CS_SUCCESS) break;
 	link->conf.ConfigBase = parse.config.base;
     } while (0);
     if (i != CS_SUCCESS) {
-	cs_error(link->handle, ParseTuple, i);
+	cs_error(link, ParseTuple, i);
 	link->state &= ~DEV_CONFIG_PENDING;
 	return;
     }
@@ -261,7 +257,7 @@ static void avma1cs_config(dev_link_t *link)
 	tuple.DesiredTuple = CISTPL_VERS_1;
 
 	devname[0] = 0;
-	if( !first_tuple(handle, &tuple, &parse) && parse.version_1.ns > 1 ) {
+	if( !first_tuple(link, &tuple, &parse) && parse.version_1.ns > 1 ) {
 	    strlcpy(devname,parse.version_1.str + parse.version_1.ofs[1], 
 			sizeof(devname));
 	}
@@ -272,7 +268,7 @@ static void avma1cs_config(dev_link_t *link)
 	tuple.TupleOffset = 0; tuple.TupleDataMax = 255;
 	tuple.Attributes = 0;
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-	i = first_tuple(handle, &tuple, &parse);
+	i = first_tuple(link, &tuple, &parse);
 	while (i == CS_SUCCESS) {
 	    if (cf->io.nwin > 0) {
 		link->conf.ConfigIndex = cf->index;
@@ -282,36 +278,36 @@ static void avma1cs_config(dev_link_t *link)
 		printk(KERN_INFO "avma1_cs: testing i/o %#x-%#x\n",
 			link->io.BasePort1,
 			link->io.BasePort1+link->io.NumPorts1 - 1);
-		i = pcmcia_request_io(link->handle, &link->io);
+		i = pcmcia_request_io(link, &link->io);
 		if (i == CS_SUCCESS) goto found_port;
 	    }
-	    i = next_tuple(handle, &tuple, &parse);
+	    i = next_tuple(link, &tuple, &parse);
 	}
 
 found_port:
 	if (i != CS_SUCCESS) {
-	    cs_error(link->handle, RequestIO, i);
+	    cs_error(link, RequestIO, i);
 	    break;
 	}
 	
 	/*
 	 * allocate an interrupt line
 	 */
-	i = pcmcia_request_irq(link->handle, &link->irq);
+	i = pcmcia_request_irq(link, &link->irq);
 	if (i != CS_SUCCESS) {
-	    cs_error(link->handle, RequestIRQ, i);
+	    cs_error(link, RequestIRQ, i);
 	    /* undo */
-	    pcmcia_disable_device(link->handle);
+	    pcmcia_disable_device(link);
 	    break;
 	}
 
 	/*
 	 * configure the PCMCIA socket
 	 */
-	i = pcmcia_request_configuration(link->handle, &link->conf);
+	i = pcmcia_request_configuration(link, &link->conf);
 	if (i != CS_SUCCESS) {
-	    cs_error(link->handle, RequestConfiguration, i);
-	    pcmcia_disable_device(link->handle);
+	    cs_error(link, RequestConfiguration, i);
+	    pcmcia_disable_device(link);
 	    break;
 	}
 
@@ -358,7 +354,7 @@ found_port:
     
 ======================================================================*/
 
-static void avma1cs_release(dev_link_t *link)
+static void avma1cs_release(struct pcmcia_device *link)
 {
 	local_info_t *local = link->priv;
 
@@ -367,7 +363,7 @@ static void avma1cs_release(dev_link_t *link)
 	/* now unregister function with hisax */
 	HiSax_closecard(local->node.minor);
 
-	pcmcia_disable_device(link->handle);
+	pcmcia_disable_device(link);
 } /* avma1cs_release */
 
 
