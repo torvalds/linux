@@ -72,8 +72,8 @@ extern struct page * find_get_page(struct address_space *mapping,
 				unsigned long index);
 extern struct page * find_lock_page(struct address_space *mapping,
 				unsigned long index);
-extern struct page * find_trylock_page(struct address_space *mapping,
-				unsigned long index);
+extern __deprecated_for_modules struct page * find_trylock_page(
+			struct address_space *mapping, unsigned long index);
 extern struct page * find_or_create_page(struct address_space *mapping,
 				unsigned long index, gfp_t gfp_mask);
 unsigned find_get_pages(struct address_space *mapping, pgoff_t start,

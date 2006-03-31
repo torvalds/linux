@@ -241,3 +241,15 @@ Why:	The USB subsystem has changed a lot over time, and it has been
 Who:	Greg Kroah-Hartman <gregkh@suse.de>
 
 ---------------------------
+
+What:	find_trylock_page
+When:	January 2007
+Why:	The interface no longer has any callers left in the kernel. It
+	is an odd interface (compared with other find_*_page functions), in
+	that it does not take a refcount to the page, only the page lock.
+	It should be replaced with find_get_page or find_lock_page if possible.
+	This feature removal can be reevaluated if users of the interface
+	cannot cleanly use something else.
+Who:	Nick Piggin <npiggin@suse.de>
+
+---------------------------
