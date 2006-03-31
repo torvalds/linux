@@ -1183,11 +1183,11 @@ static int attach_task(struct cpuset *cs, char *pidbuf, char **ppathbuf)
 	mm = get_task_mm(tsk);
 	if (mm) {
 		mpol_rebind_mm(mm, &to);
+		if (is_memory_migrate(cs))
+			do_migrate_pages(mm, &from, &to, MPOL_MF_MOVE_ALL);
 		mmput(mm);
 	}
 
-	if (is_memory_migrate(cs))
-		do_migrate_pages(tsk->mm, &from, &to, MPOL_MF_MOVE_ALL);
 	put_task_struct(tsk);
 	synchronize_rcu();
 	if (atomic_dec_and_test(&oldcs->count))
