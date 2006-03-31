@@ -401,7 +401,7 @@ static int __init topology_init(void)
 {
 	int cpu_id;
 
-	for_each_cpu(cpu_id)
+	for_each_possible_cpu(cpu_id)
 		register_cpu(&cpu[cpu_id], cpu_id, NULL);
 
 	return 0;
