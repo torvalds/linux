@@ -704,7 +704,7 @@ static int recalc_task_prio(task_t *p, unsigned long long now)
 		 * prevent them suddenly becoming cpu hogs and starving
 		 * other processes.
 		 */
-		if (p->mm && p->activated != -1 &&
+		if (p->mm && p->sleep_type != SLEEP_NONINTERACTIVE &&
 			sleep_time > INTERACTIVE_SLEEP(p)) {
 				p->sleep_avg = JIFFIES_TO_NS(MAX_SLEEP_AVG -
 						DEF_TIMESLICE);
@@ -714,7 +714,7 @@ static int recalc_task_prio(task_t *p, unsigned long long now)
 			 * limited in their sleep_avg rise as they
 			 * are likely to be waiting on I/O
 			 */
-			if (p->activated == -1 && p->mm) {
+			if (p->sleep_type == SLEEP_NONINTERACTIVE && p->mm) {
 				if (p->sleep_avg >= INTERACTIVE_SLEEP(p))
 					sleep_time = 0;
 				else if (p->sleep_avg + sleep_time >=
@@ -769,7 +769,7 @@ static void activate_task(task_t *p, runqueue_t *rq, int local)
 	 * This checks to make sure it's not an uninterruptible task
 	 * that is now waking up.
 	 */
-	if (!p->activated) {
+	if (p->sleep_type == SLEEP_NORMAL) {
 		/*
 		 * Tasks which were woken up by interrupts (ie. hw events)
 		 * are most likely of interactive nature. So we give them
@@ -778,13 +778,13 @@ static void activate_task(task_t *p, runqueue_t *rq, int local)
 		 * on a CPU, first time around:
 		 */
 		if (in_interrupt())
-			p->activated = 2;
+			p->sleep_type = SLEEP_INTERRUPTED;
 		else {
 			/*
 			 * Normal first-time wakeups get a credit too for
 			 * on-runqueue time, but it will be weighted down:
 			 */
-			p->activated = 1;
+			p->sleep_type = SLEEP_INTERACTIVE;
 		}
 	}
 	p->timestamp = now;
@@ -1272,7 +1272,7 @@ out_activate:
 		 * Tasks on involuntary sleep don't earn
 		 * sleep_avg beyond just interactive state.
 		 */
-		p->activated = -1;
+		p->sleep_type = SLEEP_NONINTERACTIVE;
 	}
 
 	/*
@@ -2875,6 +2875,12 @@ EXPORT_SYMBOL(sub_preempt_count);
 
 #endif
 
+static inline int interactive_sleep(enum sleep_type sleep_type)
+{
+	return (sleep_type == SLEEP_INTERACTIVE ||
+		sleep_type == SLEEP_INTERRUPTED);
+}
+
 /*
  * schedule() is the main scheduler function.
  */
@@ -2998,12 +3004,12 @@ go_idle:
 	queue = array->queue + idx;
 	next = list_entry(queue->next, task_t, run_list);
 
-	if (!rt_task(next) && next->activated > 0) {
+	if (!rt_task(next) && interactive_sleep(next->sleep_type)) {
 		unsigned long long delta = now - next->timestamp;
 		if (unlikely((long long)(now - next->timestamp) < 0))
 			delta = 0;
 
-		if (next->activated == 1)
+		if (next->sleep_type == SLEEP_INTERACTIVE)
 			delta = delta * (ON_RUNQUEUE_WEIGHT * 128 / 100) / 128;
 
 		array = next->array;
@@ -3016,7 +3022,7 @@ go_idle:
 		} else
 			requeue_task(next, array);
 	}
-	next->activated = 0;
+	next->sleep_type = SLEEP_NORMAL;
 switch_tasks:
 	if (next == rq->idle)
 		schedstat_inc(rq, sched_goidle);
