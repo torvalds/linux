@@ -760,7 +760,7 @@ struct task_struct {
 	struct task_struct *group_leader;	/* threadgroup leader */
 
 	/* PID/PID hash table linkage. */
-	struct pid pids[PIDTYPE_MAX];
+	struct pid_link pids[PIDTYPE_MAX];
 	struct list_head thread_group;
 
 	struct completion *vfork_done;		/* for vfork() */
@@ -899,7 +899,7 @@ static inline pid_t process_group(struct task_struct *tsk)
  */
 static inline int pid_alive(struct task_struct *p)
 {
-	return p->pids[PIDTYPE_PID].nr != 0;
+	return p->pids[PIDTYPE_PID].pid != NULL;
 }
 
 extern void free_task(struct task_struct *tsk);
