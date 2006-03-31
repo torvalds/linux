@@ -904,18 +904,6 @@ config FB_MATROX_MULTIHEAD
 	  There is no need for enabling 'Matrox multihead support' if you have
 	  only one Matrox card in the box.
 
-config FB_RADEON_OLD
-	tristate "ATI Radeon display support (Old driver)"
-	depends on FB && PCI
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
-	select FB_MACMODES if PPC
-	help
-	  Choose this option if you want to use an ATI Radeon graphics card as
-	  a framebuffer device.  There are both PCI and AGP versions.  You
-	  don't need to choose this to run the Radeon in plain VGA mode.
-
 config FB_RADEON
 	tristate "ATI Radeon display support"
 	depends on FB && PCI
