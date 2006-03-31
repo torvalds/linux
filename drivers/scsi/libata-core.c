@@ -2132,9 +2132,11 @@ err_out:
 static int sata_phy_resume(struct ata_port *ap)
 {
 	unsigned long timeout = jiffies + (HZ * 5);
-	u32 sstatus;
+	u32 scontrol, sstatus;
 
-	scr_write_flush(ap, SCR_CONTROL, 0x300);
+	scontrol = scr_read(ap, SCR_CONTROL);
+	scontrol = (scontrol & 0x0f0) | 0x300;
+	scr_write_flush(ap, SCR_CONTROL, scontrol);
 
 	/* Wait for phy to become ready, if necessary. */
 	do {
@@ -2247,10 +2249,14 @@ int ata_std_softreset(struct ata_port *ap, int verbose, unsigned int *classes)
  */
 int sata_std_hardreset(struct ata_port *ap, int verbose, unsigned int *class)
 {
+	u32 scontrol;
+
 	DPRINTK("ENTER\n");
 
 	/* Issue phy wake/reset */
-	scr_write_flush(ap, SCR_CONTROL, 0x301);
+	scontrol = scr_read(ap, SCR_CONTROL);
+	scontrol = (scontrol & 0x0f0) | 0x301;
+	scr_write_flush(ap, SCR_CONTROL, scontrol);
 
 	/*
 	 * Couldn't find anything in SATA I/II specs, but AHCI-1.1
