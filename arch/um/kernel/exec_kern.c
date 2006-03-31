@@ -58,14 +58,14 @@ long um_execve(char *file, char __user *__user *argv, char __user *__user *env)
 	return(err);
 }
 
-long sys_execve(char *file, char __user *__user *argv,
+long sys_execve(char __user *file, char __user *__user *argv,
 		char __user *__user *env)
 {
 	long error;
 	char *filename;
 
 	lock_kernel();
-	filename = getname((char __user *) file);
+	filename = getname(file);
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename)) goto out;
 	error = execve1(filename, argv, env);

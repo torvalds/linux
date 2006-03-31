@@ -407,7 +407,7 @@ static int proc_read_sysemu(char *buf, char **start, off_t offset, int size,int 
 	return strlen(buf);
 }
 
-static int proc_write_sysemu(struct file *file,const char *buf, unsigned long count,void *data)
+static int proc_write_sysemu(struct file *file,const char __user *buf, unsigned long count,void *data)
 {
 	char tmp[2];
 

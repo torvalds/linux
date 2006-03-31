@@ -124,22 +124,22 @@ unsigned long getreg(struct task_struct *child, int regno)
 int peek_user(struct task_struct *child, long addr, long data)
 {
 /* read the word at location addr in the USER area. */
-        unsigned long tmp;
+	unsigned long tmp;
 
-        if ((addr & 3) || addr < 0)
-                return -EIO;
+	if ((addr & 3) || addr < 0)
+		return -EIO;
 
-        tmp = 0;  /* Default return condition */
-        if(addr < MAX_REG_OFFSET){
-                tmp = getreg(child, addr);
-        }
-        else if((addr >= offsetof(struct user, u_debugreg[0])) &&
-                (addr <= offsetof(struct user, u_debugreg[7]))){
-                addr -= offsetof(struct user, u_debugreg[0]);
-                addr = addr >> 2;
-                tmp = child->thread.arch.debugregs[addr];
-        }
-        return put_user(tmp, (unsigned long *) data);
+	tmp = 0;  /* Default return condition */
+	if(addr < MAX_REG_OFFSET){
+		tmp = getreg(child, addr);
+	}
+	else if((addr >= offsetof(struct user, u_debugreg[0])) &&
+		(addr <= offsetof(struct user, u_debugreg[7]))){
+		addr -= offsetof(struct user, u_debugreg[0]);
+		addr = addr >> 2;
+		tmp = child->thread.arch.debugregs[addr];
+	}
+	return put_user(tmp, (unsigned long __user *) data);
 }
 
 struct i387_fxsave_struct {

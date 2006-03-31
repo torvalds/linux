@@ -77,7 +77,7 @@ static int slirp_setup(char *str, char **mac_out, void *data)
 	int i=0;
 
 	*init = ((struct slirp_init)
-		{ argw :		{ { "slirp", NULL  } } });
+		{ .argw = { { "slirp", NULL  } } });
 
 	str = split_if_spec(str, mac_out, NULL);
 

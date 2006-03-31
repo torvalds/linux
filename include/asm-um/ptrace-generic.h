@@ -28,7 +28,7 @@ struct pt_regs {
 	union uml_pt_regs regs;
 };
 
-#define EMPTY_REGS { regs : EMPTY_UML_PT_REGS }
+#define EMPTY_REGS { .regs = EMPTY_UML_PT_REGS }
 
 #define PT_REGS_IP(r) UPT_IP(&(r)->regs)
 #define PT_REGS_SP(r) UPT_SP(&(r)->regs)
