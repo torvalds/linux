@@ -655,7 +655,6 @@ void hrtimer_run_queues(void)
 /*
  * Sleep related functions:
  */
-
 static int hrtimer_wakeup(struct hrtimer *timer)
 {
 	struct hrtimer_sleeper *t =
@@ -675,28 +674,9 @@ void hrtimer_init_sleeper(struct hrtimer_sleeper *sl, task_t *task)
 	sl->task = task;
 }
 
-struct sleep_hrtimer {
-	struct hrtimer timer;
-	struct task_struct *task;
-	int expired;
-};
-
-static int nanosleep_wakeup(struct hrtimer *timer)
+static int __sched do_nanosleep(struct hrtimer_sleeper *t, enum hrtimer_mode mode)
 {
-	struct sleep_hrtimer *t =
-		container_of(timer, struct sleep_hrtimer, timer);
-
-	t->expired = 1;
-	wake_up_process(t->task);
-
-	return HRTIMER_NORESTART;
-}
-
-static int __sched do_nanosleep(struct sleep_hrtimer *t, enum hrtimer_mode mode)
-{
-	t->timer.function = nanosleep_wakeup;
-	t->task = current;
-	t->expired = 0;
+	hrtimer_init_sleeper(t, current);
 
 	do {
 		set_current_state(TASK_INTERRUPTIBLE);
@@ -704,18 +684,17 @@ static int __sched do_nanosleep(struct sleep_hrtimer *t, enum hrtimer_mode mode)
 
 		schedule();
 
-		if (unlikely(!t->expired)) {
-			hrtimer_cancel(&t->timer);
-			mode = HRTIMER_ABS;
-		}
-	} while (!t->expired && !signal_pending(current));
+		hrtimer_cancel(&t->timer);
+		mode = HRTIMER_ABS;
 
-	return t->expired;
+	} while (t->task && !signal_pending(current));
+
+	return t->task == NULL;
 }
 
 static long __sched nanosleep_restart(struct restart_block *restart)
 {
-	struct sleep_hrtimer t;
+	struct hrtimer_sleeper t;
 	struct timespec __user *rmtp;
 	struct timespec tu;
 	ktime_t time;
@@ -748,7 +727,7 @@ long hrtimer_nanosleep(struct timespec *rqtp, struct timespec __user *rmtp,
 		       const enum hrtimer_mode mode, const clockid_t clockid)
 {
 	struct restart_block *restart;
-	struct sleep_hrtimer t;
+	struct hrtimer_sleeper t;
 	struct timespec tu;
 	ktime_t rem;
 
