@@ -66,5 +66,12 @@ config LEDS_TRIGGER_TIMER
 	  This allows LEDs to be controlled by a programmable timer
 	  via sysfs. If unsure, say Y.
 
+config LEDS_TRIGGER_IDE_DISK
+	bool "LED Timer Trigger"
+	depends LEDS_TRIGGERS && BLK_DEV_IDEDISK
+	help
+	  This allows LEDs to be controlled by IDE disk activity.
+	  If unsure, say Y.
+
 endmenu
 

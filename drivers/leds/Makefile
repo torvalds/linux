@@ -13,3 +13,4 @@ obj-$(CONFIG_LEDS_TOSA)			+= leds-tosa.o
 
 # LED Triggers
 obj-$(CONFIG_LEDS_TRIGGER_TIMER)	+= ledtrig-timer.o
+obj-$(CONFIG_LEDS_TRIGGER_IDE_DISK)	+= ledtrig-ide-disk.o
