@@ -989,9 +989,7 @@ ata_exec_internal(struct ata_port *ap, struct ata_device *dev,
 	qc->private_data = &wait;
 	qc->complete_fn = ata_qc_complete_internal;
 
-	qc->err_mask = ata_qc_issue(qc);
-	if (qc->err_mask)
-		ata_qc_complete(qc);
+	ata_qc_issue(qc);
 
 	spin_unlock_irqrestore(&ap->host_set->lock, flags);
 
@@ -3997,12 +3995,8 @@ static inline int ata_should_dma_map(struct ata_queued_cmd *qc)
  *
  *	LOCKING:
  *	spin_lock_irqsave(host_set lock)
- *
- *	RETURNS:
- *	Zero on success, AC_ERR_* mask on failure
  */
-
-unsigned int ata_qc_issue(struct ata_queued_cmd *qc)
+void ata_qc_issue(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 
@@ -4023,13 +4017,17 @@ unsigned int ata_qc_issue(struct ata_queued_cmd *qc)
 
 	ap->ops->qc_prep(qc);
 
-	return ap->ops->qc_issue(qc);
+	qc->err_mask |= ap->ops->qc_issue(qc);
+	if (unlikely(qc->err_mask))
+		goto err;
+	return;
 
 sg_err:
 	qc->flags &= ~ATA_QCFLAG_DMAMAP;
-	return AC_ERR_SYSTEM;
+	qc->err_mask |= AC_ERR_SYSTEM;
+err:
+	ata_qc_complete(qc);
 }
-
 
 /**
  *	ata_qc_issue_prot - issue taskfile to device in proto-dependent manner
