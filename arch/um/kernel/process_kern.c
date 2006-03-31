@@ -185,10 +185,6 @@ void default_idle(void)
 {
 	CHOOSE_MODE(uml_idle_timer(), (void) 0);
 
-	atomic_inc(&init_mm.mm_count);
-	current->mm = &init_mm;
-	current->active_mm = &init_mm;
-
 	while(1){
 		/* endless idle loop with no priority at all */
 
