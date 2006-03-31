@@ -100,6 +100,7 @@ DECLARE_PER_CPU(unsigned long, process_counts);
 extern int nr_processes(void);
 extern unsigned long nr_running(void);
 extern unsigned long nr_uninterruptible(void);
+extern unsigned long nr_active(void);
 extern unsigned long nr_iowait(void);
 
 #include <linux/time.h>
