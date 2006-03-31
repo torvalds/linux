@@ -442,6 +442,9 @@ xfs_mount(
 	p = vfs_bhv_lookup(vfsp, VFS_POSITION_IO);
 	mp->m_io_ops = p ? *(xfs_ioops_t *) vfs_bhv_custom(p) : xfs_iocore_xfs;
 
+	if (args->flags & XFSMNT_QUIET)
+		flags |= XFS_MFSI_QUIET;
+
 	/*
 	 * Open real time and log devices - order is important.
 	 */
@@ -492,7 +495,7 @@ xfs_mount(
 	error = xfs_start_flags(vfsp, args, mp);
 	if (error)
 		goto error1;
-	error = xfs_readsb(mp);
+	error = xfs_readsb(mp, flags);
 	if (error)
 		goto error1;
 	error = xfs_finish_flags(vfsp, args, mp);
