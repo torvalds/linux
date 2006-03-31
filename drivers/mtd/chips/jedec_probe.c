@@ -34,6 +34,7 @@
 #define MANUFACTURER_MACRONIX	0x00C2
 #define MANUFACTURER_NEC	0x0010
 #define MANUFACTURER_PMC	0x009D
+#define MANUFACTURER_SHARP	0x00b0
 #define MANUFACTURER_SST	0x00BF
 #define MANUFACTURER_ST		0x0020
 #define MANUFACTURER_TOSHIBA	0x0098
@@ -123,6 +124,9 @@
 #define PM49FL002	0x006D
 #define PM49FL004	0x006E
 #define PM49FL008	0x006A
+
+/* Sharp */
+#define LH28F640BF	0x00b0
 
 /* ST - www.st.com */
 #define M29W800DT	0x00D7
@@ -1266,6 +1270,19 @@ static const struct amd_flash_info jedec_table[] = {
 		.NumEraseRegions= 1,
 		.regions	= {
 			ERASEINFO( 0x01000, 256 )
+		}
+	}, {
+		.mfr_id		= MANUFACTURER_SHARP,
+		.dev_id		= LH28F640BF,
+		.name		= "LH28F640BF",
+		.uaddr		= {
+			[0] = MTD_UADDR_UNNECESSARY,    /* x8 */
+		},
+		.DevSize	= SIZE_4MiB,
+		.CmdSet         = P_ID_INTEL_STD,
+		.NumEraseRegions= 1,
+		.regions        = {
+			ERASEINFO(0x40000,16),
 		}
         }, {
 		.mfr_id		= MANUFACTURER_SST,
