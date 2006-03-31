@@ -3023,8 +3023,7 @@ go_idle:
 			dequeue_task(next, array);
 			next->prio = new_prio;
 			enqueue_task(next, array);
-		} else
-			requeue_task(next, array);
+		}
 	}
 	next->sleep_type = SLEEP_NORMAL;
 switch_tasks:
