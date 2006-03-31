@@ -107,7 +107,7 @@ struct audit_aux_data_ipcctl {
 	uid_t			uid;
 	gid_t			gid;
 	mode_t			mode;
-	char 			*ctx;
+	u32			osid;
 };
 
 struct audit_aux_data_socketcall {
@@ -432,11 +432,6 @@ static inline void audit_free_aux(struct audit_context *context)
 			dput(axi->dentry);
 			mntput(axi->mnt);
 		}
-		if ( aux->type == AUDIT_IPC ) {
-			struct audit_aux_data_ipcctl *axi = (void *)aux;
-			if (axi->ctx)
-				kfree(axi->ctx);
-		}
 
 		context->aux = aux->next;
 		kfree(aux);
@@ -584,7 +579,7 @@ static void audit_log_task_info(struct audit_buffer *ab, struct task_struct *tsk
 
 static void audit_log_exit(struct audit_context *context, struct task_struct *tsk)
 {
-	int i;
+	int i, call_panic = 0;
 	struct audit_buffer *ab;
 	struct audit_aux_data *aux;
 	const char *tty;
@@ -635,8 +630,20 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 		case AUDIT_IPC: {
 			struct audit_aux_data_ipcctl *axi = (void *)aux;
 			audit_log_format(ab, 
-					 " qbytes=%lx iuid=%u igid=%u mode=%x obj=%s",
-					 axi->qbytes, axi->uid, axi->gid, axi->mode, axi->ctx);
+				 " qbytes=%lx iuid=%u igid=%u mode=%x",
+				 axi->qbytes, axi->uid, axi->gid, axi->mode);
+			if (axi->osid != 0) {
+				char *ctx = NULL;
+				u32 len;
+				if (selinux_ctxid_to_string(
+						axi->osid, &ctx, &len)) {
+					audit_log_format(ab, " obj=%u",
+							axi->osid);
+					call_panic = 1;
+				} else
+					audit_log_format(ab, " obj=%s", ctx);
+				kfree(ctx);
+			}
 			break; }
 
 		case AUDIT_SOCKETCALL: {
@@ -671,7 +678,6 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 		}
 	}
 	for (i = 0; i < context->name_count; i++) {
-		int call_panic = 0;
 		unsigned long ino  = context->names[i].ino;
 		unsigned long pino = context->names[i].pino;
 
@@ -708,16 +714,16 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 				context->names[i].osid, &ctx, &len)) {
 				audit_log_format(ab, " obj=%u",
 						context->names[i].osid);
-				call_panic = 1;
+				call_panic = 2;
 			} else
 				audit_log_format(ab, " obj=%s", ctx);
 			kfree(ctx);
 		}
 
 		audit_log_end(ab);
-		if (call_panic)
-			audit_panic("error converting sid to string");
 	}
+	if (call_panic)
+		audit_panic("error converting sid to string");
 }
 
 /**
@@ -951,7 +957,7 @@ void audit_putname(const char *name)
 #endif
 }
 
-void audit_inode_context(int idx, const struct inode *inode)
+static void audit_inode_context(int idx, const struct inode *inode)
 {
 	struct audit_context *context = current->audit_context;
 
@@ -1141,38 +1147,6 @@ uid_t audit_get_loginuid(struct audit_context *ctx)
 	return ctx ? ctx->loginuid : -1;
 }
 
-static char *audit_ipc_context(struct kern_ipc_perm *ipcp)
-{
-	struct audit_context *context = current->audit_context;
-	char *ctx = NULL;
-	int len = 0;
-
-	if (likely(!context))
-		return NULL;
-
-	len = security_ipc_getsecurity(ipcp, NULL, 0);
-	if (len == -EOPNOTSUPP)
-		goto ret;
-	if (len < 0)
-		goto error_path;
-
-	ctx = kmalloc(len, GFP_ATOMIC);
-	if (!ctx)
-		goto error_path;
-
-	len = security_ipc_getsecurity(ipcp, ctx, len);
-	if (len < 0)
-		goto error_path;
-
-	return ctx;
-
-error_path:
-	kfree(ctx);
-	audit_panic("error in audit_ipc_context");
-ret:
-	return NULL;
-}
-
 /**
  * audit_ipc_perms - record audit data for ipc
  * @qbytes: msgq bytes
@@ -1198,7 +1172,7 @@ int audit_ipc_perms(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode, str
 	ax->uid = uid;
 	ax->gid = gid;
 	ax->mode = mode;
-	ax->ctx = audit_ipc_context(ipcp);
+	selinux_get_ipc_sid(ipcp, &ax->osid);
 
 	ax->d.type = AUDIT_IPC;
 	ax->d.next = context->aux;

@@ -4052,13 +4052,6 @@ static int selinux_ipc_permission(struct kern_ipc_perm *ipcp, short flag)
 	return ipc_has_perm(ipcp, av);
 }
 
-static int selinux_ipc_getsecurity(struct kern_ipc_perm *ipcp, void *buffer, size_t size)
-{
-	struct ipc_security_struct *isec = ipcp->security;
-
-	return selinux_getsecurity(isec->sid, buffer, size);
-}
-
 /* module stacking operations */
 static int selinux_register_security (const char *name, struct security_operations *ops)
 {
@@ -4321,7 +4314,6 @@ static struct security_operations selinux_ops = {
 	.task_to_inode =                selinux_task_to_inode,
 
 	.ipc_permission =		selinux_ipc_permission,
-	.ipc_getsecurity =		selinux_ipc_getsecurity,
 
 	.msg_msg_alloc_security =	selinux_msg_msg_alloc_security,
 	.msg_msg_free_security =	selinux_msg_msg_free_security,

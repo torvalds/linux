@@ -16,6 +16,7 @@
 struct selinux_audit_rule;
 struct audit_context;
 struct inode;
+struct kern_ipc_perm;
 
 #ifdef CONFIG_SECURITY_SELINUX
 
@@ -98,6 +99,15 @@ int selinux_ctxid_to_string(u32 ctxid, char **ctx, u32 *ctxlen);
  */
 void selinux_get_inode_sid(const struct inode *inode, u32 *sid);
 
+/**
+ *     selinux_get_ipc_sid - get the ipc security context ID
+ *     @ipcp: ipc structure to get the sid from.
+ *     @sid: pointer to security context ID to be filled in.
+ *
+ *     Returns nothing
+ */
+void selinux_get_ipc_sid(const struct kern_ipc_perm *ipcp, u32 *sid);
+
 #else
 
 static inline int selinux_audit_rule_init(u32 field, u32 op,
@@ -137,6 +147,11 @@ static inline int selinux_ctxid_to_string(u32 ctxid, char **ctx, u32 *ctxlen)
 }
 
 static inline void selinux_get_inode_sid(const struct inode *inode, u32 *sid)
+{
+	*sid = 0;
+}
+
+static inline void selinux_get_ipc_sid(const struct kern_ipc_perm *ipcp, u32 *sid)
 {
 	*sid = 0;
 }

@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/selinux.h>
 #include <linux/fs.h>
+#include <linux/ipc.h>
 
 #include "security.h"
 #include "objsec.h"
@@ -44,6 +45,16 @@ void selinux_get_inode_sid(const struct inode *inode, u32 *sid)
 {
 	if (selinux_enabled) {
 		struct inode_security_struct *isec = inode->i_security;
+		*sid = isec->sid;
+		return;
+	}
+	*sid = 0;
+}
+
+void selinux_get_ipc_sid(const struct kern_ipc_perm *ipcp, u32 *sid)
+{
+	if (selinux_enabled) {
+		struct ipc_security_struct *isec = ipcp->security;
 		*sid = isec->sid;
 		return;
 	}
