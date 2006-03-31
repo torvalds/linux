@@ -4006,6 +4006,9 @@ unsigned int ata_qc_issue(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 
+	qc->ap->active_tag = qc->tag;
+	qc->flags |= ATA_QCFLAG_ACTIVE;
+
 	if (ata_should_dma_map(qc)) {
 		if (qc->flags & ATA_QCFLAG_SG) {
 			if (ata_sg_setup(qc))
@@ -4019,9 +4022,6 @@ unsigned int ata_qc_issue(struct ata_queued_cmd *qc)
 	}
 
 	ap->ops->qc_prep(qc);
-
-	qc->ap->active_tag = qc->tag;
-	qc->flags |= ATA_QCFLAG_ACTIVE;
 
 	return ap->ops->qc_issue(qc);
 
