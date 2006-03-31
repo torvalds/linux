@@ -20,25 +20,7 @@ define unprofile
 	$(patsubst -pg,,$(patsubst -fprofile-arcs -ftest-coverage,,$(1)))
 endef
 
-
-# cmd_make_link checks to see if the $(foo-dir) variable starts with a /.  If
-# so, it's considered to be a path relative to $(srcdir) rather than
-# $(srcdir)/arch/$(SUBARCH).  This is because x86_64 wants to get ldt.c from
-# arch/um/sys-i386 rather than arch/i386 like the other borrowed files.  So,
-# it sets $(ldt.c-dir) to /arch/um/sys-i386.
-quiet_cmd_make_link = SYMLINK $@
-cmd_make_link       = rm -f $@; ln -sf $(srctree)$(if $(filter-out /%,$($(notdir $@)-dir)),/arch/$(SUBARCH))/$($(notdir $@)-dir)/$(notdir $@) $@
-
-# this needs to be before the foreach, because targets does not accept
-# complete paths like $(obj)/$(f). To make sure this works, use a := assignment
-# or we will get $(obj)/$(f) in the "targets" value.
-# Also, this forces you to use the := syntax when assigning to targets.
-# Otherwise the line below will cause an infinite loop (if you don't know why,
-# just do it).
-
-targets := $(targets) $(SYMLINKS)
-
-SYMLINKS := $(foreach f,$(SYMLINKS),$(obj)/$(f))
-
-$(SYMLINKS): FORCE
-	$(call if_changed,make_link)
+ifdef subarch-obj-y
+obj-y += subarch.o
+subarch-y = $(addprefix ../../$(SUBARCH)/,$(subarch-obj-y))
+endif

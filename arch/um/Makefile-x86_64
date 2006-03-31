@@ -1,7 +1,7 @@
 # Copyright 2003 - 2004 Pathscale, Inc
 # Released under the GPL
 
-libs-y += arch/um/sys-x86_64/
+core-y += arch/um/sys-x86_64/
 START := 0x60000000
 
 #We #undef __x86_64__ for kernelspace, not for userspace where
