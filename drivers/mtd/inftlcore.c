@@ -47,9 +47,6 @@
  */
 #define MAX_LOOPS 10000
 
-extern void INFTL_dumptables(struct INFTLrecord *inftl);
-extern void INFTL_dumpVUchains(struct INFTLrecord *inftl);
-
 static void inftl_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 {
 	struct INFTLrecord *inftl;
@@ -884,8 +881,6 @@ static struct mtd_blktrans_ops inftl_tr = {
 	.remove_dev	= inftl_remove_dev,
 	.owner		= THIS_MODULE,
 };
-
-extern char inftlmountrev[];
 
 static int __init init_inftl(void)
 {
