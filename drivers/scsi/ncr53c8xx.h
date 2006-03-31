@@ -56,8 +56,10 @@
 #include <linux/config.h>
 #include <scsi/scsi_host.h>
 
+#include <linux/config.h>
+
 /*
-**	If you want a driver as small as possible, do not define the 
+**	If you want a driver as small as possible, donnot define the 
 **	following options.
 */
 #define SCSI_NCR_BOOT_COMMAND_LINE_SUPPORT
@@ -1253,39 +1255,6 @@ struct scr_tblsel {
 **
 **-----------------------------------------------------------
 */
-
-/*
-**	Messages
-*/
-
-#define	M_COMPLETE	COMMAND_COMPLETE
-#define	M_EXTENDED	EXTENDED_MESSAGE
-#define	M_SAVE_DP	SAVE_POINTERS
-#define	M_RESTORE_DP	RESTORE_POINTERS
-#define	M_DISCONNECT	DISCONNECT
-#define	M_ID_ERROR	INITIATOR_ERROR
-#define	M_ABORT		ABORT_TASK_SET
-#define	M_REJECT	MESSAGE_REJECT
-#define	M_NOOP		NOP
-#define	M_PARITY	MSG_PARITY_ERROR
-#define	M_LCOMPLETE	LINKED_CMD_COMPLETE
-#define	M_FCOMPLETE	LINKED_FLG_CMD_COMPLETE
-#define	M_RESET		TARGET_RESET
-#define	M_ABORT_TAG	ABORT_TASK
-#define	M_CLEAR_QUEUE	CLEAR_TASK_SET
-#define	M_INIT_REC	INITIATE_RECOVERY
-#define	M_REL_REC	RELEASE_RECOVERY
-#define	M_TERMINATE	(0x11)
-#define	M_SIMPLE_TAG	SIMPLE_QUEUE_TAG
-#define	M_HEAD_TAG	HEAD_OF_QUEUE_TAG
-#define	M_ORDERED_TAG	ORDERED_QUEUE_TAG
-#define	M_IGN_RESIDUE	IGNORE_WIDE_RESIDUE
-#define	M_IDENTIFY   	(0x80)
-
-#define	M_X_MODIFY_DP	EXTENDED_MODIFY_DATA_POINTER
-#define	M_X_SYNC_REQ	EXTENDED_SDTR
-#define	M_X_WIDE_REQ	EXTENDED_WDTR
-#define	M_X_PPR_REQ	EXTENDED_PPR
 
 /*
 **	Status

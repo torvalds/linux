@@ -39,9 +39,7 @@ extern unsigned long saved_context_r12, saved_context_r13, saved_context_r14, sa
 extern unsigned long saved_context_eflags;
 
 #define loaddebug(thread,register) \
-               __asm__("movq %0,%%db" #register  \
-                       : /* no output */ \
-                       :"r" ((thread)->debugreg##register))
+	set_debugreg((thread)->debugreg##register, register)
 
 extern void fix_processor_context(void);
 

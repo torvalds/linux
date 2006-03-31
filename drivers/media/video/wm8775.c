@@ -79,32 +79,32 @@ static int wm8775_command(struct i2c_client *client, unsigned int cmd,
 			  void *arg)
 {
 	struct wm8775_state *state = i2c_get_clientdata(client);
-	struct v4l2_audio *input = arg;
+	struct v4l2_routing *route = arg;
 	struct v4l2_control *ctrl = arg;
 
 	switch (cmd) {
-	case VIDIOC_S_AUDIO:
+	case VIDIOC_INT_G_AUDIO_ROUTING:
+		route->input = state->input;
+		route->output = 0;
+		break;
+
+	case VIDIOC_INT_S_AUDIO_ROUTING:
 		/* There are 4 inputs and one output. Zero or more inputs
 		   are multiplexed together to the output. Hence there are
 		   16 combinations.
 		   If only one input is active (the normal case) then the
 		   input values 1, 2, 4 or 8 should be used. */
-		if (input->index > 15) {
-			v4l_err(client, "Invalid input %d.\n", input->index);
+		if (route->input > 15) {
+			v4l_err(client, "Invalid input %d.\n", route->input);
 			return -EINVAL;
 		}
-		state->input = input->index;
+		state->input = route->input;
 		if (state->muted)
 			break;
 		wm8775_write(client, R21, 0x0c0);
 		wm8775_write(client, R14, 0x1d4);
 		wm8775_write(client, R15, 0x1d4);
 		wm8775_write(client, R21, 0x100 + state->input);
-		break;
-
-	case VIDIOC_G_AUDIO:
-		memset(input, 0, sizeof(*input));
-		input->index = state->input;
 		break;
 
 	case VIDIOC_G_CTRL:

@@ -369,7 +369,7 @@ static struct snd_card *snd_sb16_card_new(int dev)
 	return card;
 }
 
-static int __init snd_sb16_probe(struct snd_card *card, int dev)
+static int __devinit snd_sb16_probe(struct snd_card *card, int dev)
 {
 	int xirq, xdma8, xdma16;
 	struct snd_sb *chip;
@@ -518,7 +518,7 @@ static int snd_sb16_resume(struct snd_card *card)
 }
 #endif
 
-static int __init snd_sb16_nonpnp_probe1(int dev, struct platform_device *devptr)
+static int __devinit snd_sb16_nonpnp_probe1(int dev, struct platform_device *devptr)
 {
 	struct snd_card_sb16 *acard;
 	struct snd_card *card;
@@ -548,7 +548,7 @@ static int __init snd_sb16_nonpnp_probe1(int dev, struct platform_device *devptr
 }
 
 
-static int __init snd_sb16_nonpnp_probe(struct platform_device *pdev)
+static int __devinit snd_sb16_nonpnp_probe(struct platform_device *pdev)
 {
 	int dev = pdev->id;
 	int err;
@@ -629,6 +629,7 @@ static struct platform_driver snd_sb16_nonpnp_driver = {
 
 
 #ifdef CONFIG_PNP
+static unsigned int __devinitdata sb16_pnp_devices;
 
 static int __devinit snd_sb16_pnp_detect(struct pnp_card_link *pcard,
 					 const struct pnp_card_device_id *pid)
@@ -651,6 +652,7 @@ static int __devinit snd_sb16_pnp_detect(struct pnp_card_link *pcard,
 		}
 		pnp_set_card_drvdata(pcard, card);
 		dev++;
+		sb16_pnp_devices++;
 		return 0;
 	}
 
@@ -712,9 +714,9 @@ static int __init alsa_card_sb16_init(void)
 	if ((err = platform_driver_register(&snd_sb16_nonpnp_driver)) < 0)
 		return err;
 
-	for (i = 0; i < SNDRV_CARDS && enable[i]; i++) {
+	for (i = 0; i < SNDRV_CARDS; i++) {
 		struct platform_device *device;
-		if (is_isapnp_selected(i))
+		if (! enable[i] || is_isapnp_selected(i))
 			continue;
 		device = platform_device_register_simple(SND_SB16_DRIVER,
 							 i, NULL, 0);
@@ -727,10 +729,10 @@ static int __init alsa_card_sb16_init(void)
 	}
 #ifdef CONFIG_PNP
 	/* PnP cards at last */
-	i = pnp_register_card_driver(&sb16_pnpc_driver);
-	if (i >= 0) {
+	err = pnp_register_card_driver(&sb16_pnpc_driver);
+	if (!err) {
 		pnp_registered = 1;
-		cards += i;
+		cards += sb16_pnp_devices;
 	}
 #endif
 

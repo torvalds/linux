@@ -62,7 +62,7 @@ extern void flush_dcache_page(struct page *page);
 #define flush_dcache_mmap_unlock(mapping) \
 	write_unlock_irq(&(mapping)->tree_lock)
 
-#define flush_icache_page(vma,page)	do { flush_kernel_dcache_page(page_address(page)); flush_kernel_icache_page(page_address(page)); } while (0)
+#define flush_icache_page(vma,page)	do { flush_kernel_dcache_page(page); flush_kernel_icache_page(page_address(page)); } while (0)
 
 #define flush_icache_range(s,e)		do { flush_kernel_dcache_range_asm(s,e); flush_kernel_icache_range_asm(s,e); } while (0)
 
@@ -183,6 +183,21 @@ flush_cache_page(struct vm_area_struct *vma, unsigned long vmaddr, unsigned long
 		__flush_cache_page(vma, vmaddr);
 
 }
+
+static inline void
+flush_anon_page(struct page *page, unsigned long vmaddr)
+{
+	if (PageAnon(page))
+		flush_user_dcache_page(vmaddr);
+}
+#define ARCH_HAS_FLUSH_ANON_PAGE
+
+static inline void
+flush_kernel_dcache_page(struct page *page)
+{
+	flush_kernel_dcache_page_asm(page_address(page));
+}
+#define ARCH_HAS_FLUSH_KERNEL_DCACHE_PAGE
 
 #ifdef CONFIG_DEBUG_RODATA
 void mark_rodata_ro(void);

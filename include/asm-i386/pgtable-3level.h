@@ -152,4 +152,6 @@ static inline pmd_t pfn_pmd(unsigned long page_nr, pgprot_t pgprot)
 
 #define __pmd_free_tlb(tlb, x)		do { } while (0)
 
+#define vmalloc_sync_all() ((void)0)
+
 #endif /* _I386_PGTABLE_3LEVEL_H */

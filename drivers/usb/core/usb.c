@@ -33,6 +33,7 @@
 #include <linux/errno.h>
 #include <linux/smp_lock.h>
 #include <linux/usb.h>
+#include <linux/mutex.h>
 
 #include <asm/io.h>
 #include <asm/scatterlist.h>
@@ -639,7 +640,7 @@ struct usb_device *usb_find_device(u16 vendor_id, u16 product_id)
 	struct usb_bus *bus;
 	struct usb_device *dev = NULL;
 	
-	down(&usb_bus_list_lock);
+	mutex_lock(&usb_bus_list_lock);
 	for (buslist = usb_bus_list.next;
 	     buslist != &usb_bus_list; 
 	     buslist = buslist->next) {
@@ -653,7 +654,7 @@ struct usb_device *usb_find_device(u16 vendor_id, u16 product_id)
 			goto exit;
 	}
 exit:
-	up(&usb_bus_list_lock);
+	mutex_unlock(&usb_bus_list_lock);
 	return dev;
 }
 

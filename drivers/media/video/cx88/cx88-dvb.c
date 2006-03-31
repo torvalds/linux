@@ -40,6 +40,9 @@
 #  include "cx88-vp3054-i2c.h"
 # endif
 #endif
+#ifdef HAVE_ZL10353
+# include "zl10353.h"
+#endif
 #ifdef HAVE_CX22702
 # include "cx22702.h"
 #endif
@@ -87,7 +90,7 @@ static int dvb_buf_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 			   enum v4l2_field field)
 {
 	struct cx8802_dev *dev = q->priv_data;
-	return cx8802_buf_prepare(dev, (struct cx88_buffer*)vb,field);
+	return cx8802_buf_prepare(q, dev, (struct cx88_buffer*)vb,field);
 }
 
 static void dvb_buf_queue(struct videobuf_queue *q, struct videobuf_buffer *vb)
@@ -98,8 +101,7 @@ static void dvb_buf_queue(struct videobuf_queue *q, struct videobuf_buffer *vb)
 
 static void dvb_buf_release(struct videobuf_queue *q, struct videobuf_buffer *vb)
 {
-	struct cx8802_dev *dev = q->priv_data;
-	cx88_free_buffer(dev->pci, (struct cx88_buffer*)vb);
+	cx88_free_buffer(q, (struct cx88_buffer*)vb);
 }
 
 static struct videobuf_queue_ops dvb_qops = {
@@ -110,6 +112,21 @@ static struct videobuf_queue_ops dvb_qops = {
 };
 
 /* ------------------------------------------------------------------ */
+
+#if defined(HAVE_MT352) || defined(HAVE_ZL10353)
+static int zarlink_pll_set(struct dvb_frontend *fe,
+			      struct dvb_frontend_parameters *params,
+			      u8 *pllbuf)
+{
+	struct cx8802_dev *dev = fe->dvb->priv;
+
+	pllbuf[0] = dev->core->pll_addr << 1;
+	dvb_pll_configure(dev->core->pll_desc, pllbuf + 1,
+			  params->frequency,
+			  params->u.ofdm.bandwidth);
+	return 0;
+}
+#endif
 
 #ifdef HAVE_MT352
 static int dvico_fusionhdtv_demod_init(struct dvb_frontend* fe)
@@ -176,35 +193,22 @@ static int dntv_live_dvbt_demod_init(struct dvb_frontend* fe)
 	return 0;
 }
 
-static int mt352_pll_set(struct dvb_frontend* fe,
-			 struct dvb_frontend_parameters* params,
-			 u8* pllbuf)
-{
-	struct cx8802_dev *dev= fe->dvb->priv;
-
-	pllbuf[0] = dev->core->pll_addr << 1;
-	dvb_pll_configure(dev->core->pll_desc, pllbuf+1,
-			  params->frequency,
-			  params->u.ofdm.bandwidth);
-	return 0;
-}
-
 static struct mt352_config dvico_fusionhdtv = {
 	.demod_address = 0x0F,
 	.demod_init    = dvico_fusionhdtv_demod_init,
-	.pll_set       = mt352_pll_set,
+	.pll_set       = zarlink_pll_set,
 };
 
 static struct mt352_config dntv_live_dvbt_config = {
 	.demod_address = 0x0f,
 	.demod_init    = dntv_live_dvbt_demod_init,
-	.pll_set       = mt352_pll_set,
+	.pll_set       = zarlink_pll_set,
 };
 
 static struct mt352_config dvico_fusionhdtv_dual = {
 	.demod_address = 0x0F,
 	.demod_init    = dvico_dual_demod_init,
-	.pll_set       = mt352_pll_set,
+	.pll_set       = zarlink_pll_set,
 };
 
 #ifdef HAVE_VP3054_I2C
@@ -292,6 +296,46 @@ static struct mt352_config dntv_live_dvbt_pro_config = {
 	.pll_set       = dntv_live_dvbt_pro_pll_set,
 };
 #endif
+#endif
+
+#ifdef HAVE_ZL10353
+static int dvico_hybrid_tune_pll(struct dvb_frontend *fe,
+				 struct dvb_frontend_parameters *params,
+				 u8 *pllbuf)
+{
+	struct cx8802_dev *dev= fe->dvb->priv;
+	struct i2c_msg msg =
+		{ .addr = dev->core->pll_addr, .flags = 0,
+		  .buf = pllbuf + 1, .len = 4 };
+	int err;
+
+	pllbuf[0] = dev->core->pll_addr << 1;
+	dvb_pll_configure(dev->core->pll_desc, pllbuf + 1,
+			  params->frequency,
+			  params->u.ofdm.bandwidth);
+
+	if ((err = i2c_transfer(&dev->core->i2c_adap, &msg, 1)) != 1) {
+		printk(KERN_WARNING "cx88-dvb: %s error "
+			   "(addr %02x <- %02x, err = %i)\n",
+			   __FUNCTION__, pllbuf[0], pllbuf[1], err);
+		if (err < 0)
+			return err;
+		else
+			return -EREMOTEIO;
+	}
+
+	return 0;
+}
+
+static struct zl10353_config dvico_fusionhdtv_hybrid = {
+	.demod_address = 0x0F,
+	.pll_set       = dvico_hybrid_tune_pll,
+};
+
+static struct zl10353_config dvico_fusionhdtv_plus_v1_1 = {
+	.demod_address = 0x0F,
+	.pll_set       = zarlink_pll_set,
+};
 #endif
 
 #ifdef HAVE_CX22702
@@ -500,16 +544,27 @@ static int dvb_register(struct cx8802_dev *dev)
 						   &dev->core->i2c_adap);
 		break;
 #endif
+#if defined(HAVE_MT352) || defined(HAVE_ZL10353)
+	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PLUS:
+		dev->core->pll_addr = 0x60;
+		dev->core->pll_desc = &dvb_pll_thomson_dtt7579;
+#ifdef HAVE_MT352
+		dev->dvb.frontend = mt352_attach(&dvico_fusionhdtv,
+						 &dev->core->i2c_adap);
+		if (dev->dvb.frontend != NULL)
+			break;
+#endif
+#ifdef HAVE_ZL10353
+		/* ZL10353 replaces MT352 on later cards */
+		dev->dvb.frontend = zl10353_attach(&dvico_fusionhdtv_plus_v1_1,
+						   &dev->core->i2c_adap);
+#endif
+		break;
+#endif /* HAVE_MT352 || HAVE_ZL10353 */
 #ifdef HAVE_MT352
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T1:
 		dev->core->pll_addr = 0x61;
 		dev->core->pll_desc = &dvb_pll_lg_z201;
-		dev->dvb.frontend = mt352_attach(&dvico_fusionhdtv,
-						 &dev->core->i2c_adap);
-		break;
-	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PLUS:
-		dev->core->pll_addr = 0x60;
-		dev->core->pll_desc = &dvb_pll_thomson_dtt7579;
 		dev->dvb.frontend = mt352_attach(&dvico_fusionhdtv,
 						 &dev->core->i2c_adap);
 		break;
@@ -538,6 +593,14 @@ static int dvb_register(struct cx8802_dev *dev)
 		dev->core->pll_desc = &dvb_pll_thomson_dtt7579;
 		dev->dvb.frontend = mt352_attach(&dvico_fusionhdtv_dual,
 						 &dev->core->i2c_adap);
+		break;
+#endif
+#ifdef HAVE_ZL10353
+	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_HYBRID:
+		dev->core->pll_addr = 0x61;
+		dev->core->pll_desc = &dvb_pll_thomson_fe6600;
+		dev->dvb.frontend = zl10353_attach(&dvico_fusionhdtv_hybrid,
+						   &dev->core->i2c_adap);
 		break;
 #endif
 #ifdef HAVE_OR51132

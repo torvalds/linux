@@ -35,6 +35,7 @@
 #include <linux/spinlock.h>
 #include <linux/sysctl.h>
 #include <linux/proc_fs.h>
+#include <linux/mutex.h>
 #include <net/sock.h>
 #include <net/ipv6.h>
 #include <net/ip6_route.h>
@@ -65,7 +66,7 @@ static unsigned int queue_dropped = 0;
 static unsigned int queue_user_dropped = 0;
 static struct sock *ipqnl;
 static LIST_HEAD(queue_list);
-static DECLARE_MUTEX(ipqnl_sem);
+static DEFINE_MUTEX(ipqnl_mutex);
 
 static void
 ipq_issue_verdict(struct ipq_queue_entry *entry, int verdict)
@@ -537,7 +538,7 @@ ipq_rcv_sk(struct sock *sk, int len)
 	struct sk_buff *skb;
 	unsigned int qlen;
 
-	down(&ipqnl_sem);
+	mutex_lock(&ipqnl_mutex);
 			
 	for (qlen = skb_queue_len(&sk->sk_receive_queue); qlen; qlen--) {
 		skb = skb_dequeue(&sk->sk_receive_queue);
@@ -545,7 +546,7 @@ ipq_rcv_sk(struct sock *sk, int len)
 		kfree_skb(skb);
 	}
 		
-	up(&ipqnl_sem);
+	mutex_unlock(&ipqnl_mutex);
 }
 
 static int
@@ -704,21 +705,21 @@ cleanup_sysctl:
 	
 cleanup_ipqnl:
 	sock_release(ipqnl->sk_socket);
-	down(&ipqnl_sem);
-	up(&ipqnl_sem);
+	mutex_lock(&ipqnl_mutex);
+	mutex_unlock(&ipqnl_mutex);
 	
 cleanup_netlink_notifier:
 	netlink_unregister_notifier(&ipq_nl_notifier);
 	return status;
 }
 
-static int __init init(void)
+static int __init ip6_queue_init(void)
 {
 	
 	return init_or_cleanup(1);
 }
 
-static void __exit fini(void)
+static void __exit ip6_queue_fini(void)
 {
 	init_or_cleanup(0);
 }
@@ -726,5 +727,5 @@ static void __exit fini(void)
 MODULE_DESCRIPTION("IPv6 packet queue handler");
 MODULE_LICENSE("GPL");
 
-module_init(init);
-module_exit(fini);
+module_init(ip6_queue_init);
+module_exit(ip6_queue_fini);

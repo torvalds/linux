@@ -21,7 +21,7 @@ within the computer system. In the initial release, memory Correctable Errors
 
 Detecting CE events, then harvesting those events and reporting them,
 CAN be a predictor of future UE events.  With CE events, the system can
-continue to operate, but with less safety. Preventive maintainence and
+continue to operate, but with less safety. Preventive maintenance and
 proactive part replacement of memory DIMMs exhibiting CEs can reduce
 the likelihood of the dreaded UE events and system 'panics'.
 
@@ -29,13 +29,13 @@ the likelihood of the dreaded UE events and system 'panics'.
 In addition, PCI Bus Parity and SERR Errors are scanned for on PCI devices
 in order to determine if errors are occurring on data transfers.
 The presence of PCI Parity errors must be examined with a grain of salt.
-There are several addin adapters that do NOT follow the PCI specification
+There are several add-in adapters that do NOT follow the PCI specification
 with regards to Parity generation and reporting. The specification says
 the vendor should tie the parity status bits to 0 if they do not intend
 to generate parity.  Some vendors do not do this, and thus the parity bit
 can "float" giving false positives.
 
-The PCI Parity EDAC device has the ability to "skip" known flakey
+The PCI Parity EDAC device has the ability to "skip" known flaky
 cards during the parity scan. These are set by the parity "blacklist"
 interface in the sysfs for PCI Parity. (See the PCI section in the sysfs
 section below.) There is also a parity "whitelist" which is used as
@@ -101,7 +101,7 @@ Memory Controller (mc) Model
 
 First a background on the memory controller's model abstracted in EDAC.
 Each mc device controls a set of DIMM memory modules. These modules are
-layed out in a Chip-Select Row (csrowX) and Channel table (chX). There can
+laid out in a Chip-Select Row (csrowX) and Channel table (chX). There can
 be multiple csrows and two channels.
 
 Memory controllers allow for several csrows, with 8 csrows being a typical value.
@@ -131,7 +131,7 @@ for memory DIMMs:
 	DIMM_B1
 
 Labels for these slots are usually silk screened on the motherboard. Slots
-labeled 'A' are channel 0 in this example. Slots labled 'B'
+labeled 'A' are channel 0 in this example. Slots labeled 'B'
 are channel 1. Notice that there are two csrows possible on a
 physical DIMM. These csrows are allocated their csrow assignment
 based on the slot into which the memory DIMM is placed. Thus, when 1 DIMM
@@ -140,7 +140,7 @@ is placed in each Channel, the csrows cross both DIMMs.
 Memory DIMMs come single or dual "ranked". A rank is a populated csrow.
 Thus, 2 single ranked DIMMs, placed in slots DIMM_A0 and DIMM_B0 above
 will have 1 csrow, csrow0. csrow1 will be empty. On the other hand,
-when 2 dual ranked DIMMs are similiaryly placed, then both csrow0 and
+when 2 dual ranked DIMMs are similarly placed, then both csrow0 and
 csrow1 will be populated. The pattern repeats itself for csrow2 and
 csrow3.
 
@@ -246,7 +246,7 @@ Module Version read-only attribute file:
 
 	'mc_version'
 
-	The EDAC CORE modules's version and compile date are shown here to
+	The EDAC CORE module's version and compile date are shown here to
 	indicate what EDAC is running.
 
 
@@ -423,7 +423,7 @@ Total memory managed by this csrow attribute file:
 	'size_mb'
 
 	This attribute file displays, in count of megabytes, of memory
-	that this csrow contatins.
+	that this csrow contains.
 
 
 Memory Type attribute file:
@@ -557,7 +557,7 @@ On Header Type 00 devices the primary status is looked at
 for any parity error regardless of whether Parity is enabled on the
 device.  (The spec indicates parity is generated in some cases).
 On Header Type 01 bridges, the secondary status register is also
-looked at to see if parity ocurred on the bus on the other side of
+looked at to see if parity occurred on the bus on the other side of
 the bridge.
 
 
@@ -588,7 +588,7 @@ Panic on PCI PARITY Error:
 	'panic_on_pci_parity'
 
 
-	This control files enables or disables panic'ing when a parity
+	This control files enables or disables panicking when a parity
 	error has been detected.
 
 
@@ -616,12 +616,12 @@ PCI Device Whitelist:
 
 	This control file allows for an explicit list of PCI devices to be
 	scanned for parity errors. Only devices found on this list will
-	be examined.  The list is a line of hexadecimel VENDOR and DEVICE
+	be examined.  The list is a line of hexadecimal VENDOR and DEVICE
 	ID tuples:
 
 	1022:7450,1434:16a6
 
-	One or more can be inserted, seperated by a comma.
+	One or more can be inserted, separated by a comma.
 
 	To write the above list doing the following as one command line:
 
@@ -639,11 +639,11 @@ PCI Device Blacklist:
 
 	This control file allows for a list of PCI devices to be
 	skipped for scanning.
-	The list is a line of hexadecimel VENDOR and DEVICE ID tuples:
+	The list is a line of hexadecimal VENDOR and DEVICE ID tuples:
 
 	1022:7450,1434:16a6
 
-	One or more can be inserted, seperated by a comma.
+	One or more can be inserted, separated by a comma.
 
 	To write the above list doing the following as one command line:
 
@@ -651,14 +651,14 @@ PCI Device Blacklist:
 		> /sys/devices/system/edac/pci/pci_parity_blacklist
 
 
-	To display what the whitelist current contatins,
+	To display what the whitelist currently contains,
 	simply 'cat' the same file.
 
 =======================================================================
 
 PCI Vendor and Devices IDs can be obtained with the lspci command. Using
 the -n option lspci will display the vendor and device IDs. The system
-adminstrator will have to determine which devices should be scanned or
+administrator will have to determine which devices should be scanned or
 skipped.
 
 
@@ -669,5 +669,5 @@ Turn OFF a whitelist by an empty echo command:
 
 	echo > /sys/devices/system/edac/pci/pci_parity_whitelist
 
-and any previous blacklist will be utililzed.
+and any previous blacklist will be utilized.
 

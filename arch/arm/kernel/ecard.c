@@ -807,13 +807,11 @@ static struct expansion_card *__init ecard_alloc_card(int type, int slot)
 	unsigned long base;
 	int i;
 
-	ec = kmalloc(sizeof(ecard_t), GFP_KERNEL);
+	ec = kzalloc(sizeof(ecard_t), GFP_KERNEL);
 	if (!ec) {
 		ec = ERR_PTR(-ENOMEM);
 		goto nomem;
 	}
-
-	memset(ec, 0, sizeof(ecard_t));
 
 	ec->slot_no = slot;
 	ec->type = type;

@@ -1,6 +1,6 @@
 /*
     dpc7146.c - v4l2 driver for the dpc7146 demonstration board
-    
+
     Copyright (C) 2000-2003 Michael Hunold <michael@mihu.de>
 
     This program is free software; you can redistribute it and/or modify
@@ -52,7 +52,7 @@
 #define SAA711X_DECODED_BYTES_OF_TS_2   0x1C
 #define SAA711X_STATUS_BYTE             0x1F
 
-#define DPC_BOARD_CAN_DO_VBI(dev)   (dev->revision != 0) 
+#define DPC_BOARD_CAN_DO_VBI(dev)   (dev->revision != 0)
 
 static int debug = 0;
 module_param(debug, int, 0);
@@ -81,16 +81,16 @@ struct dpc
 	struct video_device	*video_dev;
 	struct video_device	*vbi_dev;
 
-	struct i2c_adapter	i2c_adapter;	
+	struct i2c_adapter	i2c_adapter;
 	struct i2c_client	*saa7111a;
-	
+
 	int cur_input;	/* current input */
 };
 
 /* fixme: add vbi stuff here */
 static int dpc_probe(struct saa7146_dev* dev)
 {
-	struct dpc* dpc = NULL;	
+	struct dpc* dpc = NULL;
 	struct i2c_client *client;
 	struct list_head *item;
 
@@ -118,20 +118,20 @@ static int dpc_probe(struct saa7146_dev* dev)
 	/* loop through all i2c-devices on the bus and look who is there */
 	list_for_each(item,&dpc->i2c_adapter.clients) {
 		client = list_entry(item, struct i2c_client, list);
-		if( I2C_SAA7111A == client->addr ) 
+		if( I2C_SAA7111A == client->addr )
 			dpc->saa7111a = client;
 	}
 
 	/* check if all devices are present */
 	if( 0 == dpc->saa7111a ) {
-		DEB_D(("dpc_v4l2.o: dpc_attach failed for this device.\n"));	
+		DEB_D(("dpc_v4l2.o: dpc_attach failed for this device.\n"));
 		i2c_del_adapter(&dpc->i2c_adapter);
 		kfree(dpc);
 		return -ENODEV;
 	}
-	
-	/* all devices are present, probe was successful */	
-	DEB_D(("dpc_v4l2.o: dpc_probe succeeded for this device.\n"));	
+
+	/* all devices are present, probe was successful */
+	DEB_D(("dpc_v4l2.o: dpc_probe succeeded for this device.\n"));
 
 	/* we store the pointer in our private data field */
 	dev->ext_priv = dpc;
@@ -182,7 +182,7 @@ static struct saa7146_ext_vv vv_data;
 static int dpc_attach(struct saa7146_dev* dev, struct saa7146_pci_extension_data *info)
 {
 	struct dpc* dpc = (struct dpc*)dev->ext_priv;
-	
+
 	DEB_D(("dpc_v4l2.o: dpc_attach called.\n"));
 
 	/* checking for i2c-devices can be omitted here, because we
@@ -193,7 +193,7 @@ static int dpc_attach(struct saa7146_dev* dev, struct saa7146_pci_extension_data
 		ERR(("cannot register capture v4l2 device. skipping.\n"));
 		return -1;
 	}
-	
+
 	/* initialization stuff (vbi) (only for revision > 0 and for extensions which want it)*/
 	if( 0 != DPC_BOARD_CAN_DO_VBI(dev)) {
 		if( 0 != saa7146_register_device(&dpc->vbi_dev, dev, "dpc", VFL_TYPE_VBI)) {
@@ -205,18 +205,18 @@ static int dpc_attach(struct saa7146_dev* dev, struct saa7146_pci_extension_data
 
 	printk("dpc: found 'dpc7146 demonstration board'-%d.\n",dpc_num);
 	dpc_num++;
-	
+
 	/* the rest */
 	dpc->cur_input = 0;
 	dpc_init_done(dev);
-	
+
 	return 0;
 }
 
 static int dpc_detach(struct saa7146_dev* dev)
 {
 	struct dpc* dpc = (struct dpc*)dev->ext_priv;
-	
+
 	DEB_EE(("dev:%p\n",dev));
 
 	i2c_release_client(dpc->saa7111a);
@@ -238,25 +238,25 @@ static int dpc_detach(struct saa7146_dev* dev)
 int dpc_vbi_bypass(struct saa7146_dev* dev)
 {
 	struct dpc* dpc = (struct dpc*)dev->ext_priv;
-	
+
 	int i = 1;
 
 	/* switch bypass in saa7111a */
 	if ( 0 != dpc->saa7111a->driver->command(dpc->saa7111a,SAA711X_VBI_BYPASS, &i)) {
 		printk("dpc_v4l2.o: VBI_BYPASS: could not address saa7111a.\n");
 		return -1;
-	}			
+	}
 
 	return 0;
 }
 #endif
 
-static int dpc_ioctl(struct saa7146_fh *fh, unsigned int cmd, void *arg) 
+static int dpc_ioctl(struct saa7146_fh *fh, unsigned int cmd, void *arg)
 {
 	struct saa7146_dev *dev = fh->dev;
 	struct dpc* dpc = (struct dpc*)dev->ext_priv;
 /*
-	struct saa7146_vv *vv = dev->vv_data; 
+	struct saa7146_vv *vv = dev->vv_data;
 */
 	switch(cmd)
 	{
@@ -264,11 +264,11 @@ static int dpc_ioctl(struct saa7146_fh *fh, unsigned int cmd, void *arg)
 	{
 		struct v4l2_input *i = arg;
 		DEB_EE(("VIDIOC_ENUMINPUT %d.\n",i->index));
-		
+
 		if( i->index < 0 || i->index >= DPC_INPUTS) {
 			return -EINVAL;
 		}
-		
+
 		memcpy(i, &dpc_inputs[i->index], sizeof(struct v4l2_input));
 
 		DEB_D(("dpc_v4l2.o: v4l2_ioctl: VIDIOC_ENUMINPUT %d.\n",i->index));
@@ -289,13 +289,13 @@ static int dpc_ioctl(struct saa7146_fh *fh, unsigned int cmd, void *arg)
 		if (input < 0 || input >= DPC_INPUTS) {
 			return -EINVAL;
 		}
-	
+
 		dpc->cur_input = input;
 
 		/* fixme: switch input here, switch audio, too! */
 //		saa7146_set_hps_source_and_sync(dev, input_port_selection[input].hps_source, input_port_selection[input].hps_sync);
 		printk("dpc_v4l2.o: VIDIOC_S_INPUT: fixme switch input.\n");
-		
+
 		return 0;
 	}
 	default:
@@ -334,8 +334,8 @@ static struct saa7146_standard standard[] = {
 static struct saa7146_extension extension;
 
 static struct saa7146_pci_extension_data dpc = {
-        .ext_priv = "Multimedia eXtension Board",
-        .ext = &extension,
+	.ext_priv = "Multimedia eXtension Board",
+	.ext = &extension,
 };
 
 static struct pci_device_id pci_tbl[] = {
@@ -357,7 +357,7 @@ static struct saa7146_ext_vv vv_data = {
 	.capabilities	= V4L2_CAP_VBI_CAPTURE,
 	.stds		= &standard[0],
 	.num_stds	= sizeof(standard)/sizeof(struct saa7146_standard),
-	.std_callback	= &std_callback, 
+	.std_callback	= &std_callback,
 	.ioctls		= &ioctls[0],
 	.ioctl		= dpc_ioctl,
 };
@@ -365,7 +365,7 @@ static struct saa7146_ext_vv vv_data = {
 static struct saa7146_extension extension = {
 	.name		= "dpc7146 demonstration board",
 	.flags		= SAA7146_USE_I2C_IRQ,
-	
+
 	.pci_tbl	= &pci_tbl[0],
 	.module		= THIS_MODULE,
 
@@ -375,7 +375,7 @@ static struct saa7146_extension extension = {
 
 	.irq_mask	= 0,
 	.irq_func	= NULL,
-};	
+};
 
 static int __init dpc_init_module(void)
 {
@@ -383,7 +383,7 @@ static int __init dpc_init_module(void)
 		DEB_S(("failed to register extension.\n"));
 		return -ENODEV;
 	}
-	
+
 	return 0;
 }
 

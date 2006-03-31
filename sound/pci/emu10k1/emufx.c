@@ -32,6 +32,8 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/init.h>
+#include <linux/mutex.h>
+
 #include <sound/core.h>
 #include <sound/emu10k1.h>
 
@@ -874,7 +876,7 @@ static int snd_emu10k1_icode_poke(struct snd_emu10k1 *emu,
 {
 	int err = 0;
 
-	down(&emu->fx8010.lock);
+	mutex_lock(&emu->fx8010.lock);
 	if ((err = snd_emu10k1_verify_controls(emu, icode)) < 0)
 		goto __error;
 	strlcpy(emu->fx8010.name, icode->name, sizeof(emu->fx8010.name));
@@ -897,7 +899,7 @@ static int snd_emu10k1_icode_poke(struct snd_emu10k1 *emu,
 	else
 		snd_emu10k1_ptr_write(emu, DBG, 0, emu->fx8010.dbg);
       __error:
-	up(&emu->fx8010.lock);
+	mutex_unlock(&emu->fx8010.lock);
 	return err;
 }
 
@@ -906,7 +908,7 @@ static int snd_emu10k1_icode_peek(struct snd_emu10k1 *emu,
 {
 	int err;
 
-	down(&emu->fx8010.lock);
+	mutex_lock(&emu->fx8010.lock);
 	strlcpy(icode->name, emu->fx8010.name, sizeof(icode->name));
 	/* ok, do the main job */
 	err = snd_emu10k1_gpr_peek(emu, icode);
@@ -916,7 +918,7 @@ static int snd_emu10k1_icode_peek(struct snd_emu10k1 *emu,
 		err = snd_emu10k1_code_peek(emu, icode);
 	if (err >= 0)
 		err = snd_emu10k1_list_controls(emu, icode);
-	up(&emu->fx8010.lock);
+	mutex_unlock(&emu->fx8010.lock);
 	return err;
 }
 
@@ -932,7 +934,7 @@ static int snd_emu10k1_ipcm_poke(struct snd_emu10k1 *emu,
 	if (ipcm->channels > 32)
 		return -EINVAL;
 	pcm = &emu->fx8010.pcm[ipcm->substream];
-	down(&emu->fx8010.lock);
+	mutex_lock(&emu->fx8010.lock);
 	spin_lock_irq(&emu->reg_lock);
 	if (pcm->opened) {
 		err = -EBUSY;
@@ -962,7 +964,7 @@ static int snd_emu10k1_ipcm_poke(struct snd_emu10k1 *emu,
 	}
       __error:
 	spin_unlock_irq(&emu->reg_lock);
-	up(&emu->fx8010.lock);
+	mutex_unlock(&emu->fx8010.lock);
 	return err;
 }
 
@@ -976,7 +978,7 @@ static int snd_emu10k1_ipcm_peek(struct snd_emu10k1 *emu,
 	if (ipcm->substream >= EMU10K1_FX8010_PCM_COUNT)
 		return -EINVAL;
 	pcm = &emu->fx8010.pcm[ipcm->substream];
-	down(&emu->fx8010.lock);
+	mutex_lock(&emu->fx8010.lock);
 	spin_lock_irq(&emu->reg_lock);
 	ipcm->channels = pcm->channels;
 	ipcm->tram_start = pcm->tram_start;
@@ -992,7 +994,7 @@ static int snd_emu10k1_ipcm_peek(struct snd_emu10k1 *emu,
 	ipcm->res1 = ipcm->res2 = 0;
 	ipcm->pad = 0;
 	spin_unlock_irq(&emu->reg_lock);
-	up(&emu->fx8010.lock);
+	mutex_unlock(&emu->fx8010.lock);
 	return err;
 }
 
@@ -2308,9 +2310,9 @@ static int snd_emu10k1_fx8010_ioctl(struct snd_hwdep * hw, struct file *file, un
 			return -EPERM;
 		if (get_user(addr, (unsigned int __user *)argp))
 			return -EFAULT;
-		down(&emu->fx8010.lock);
+		mutex_lock(&emu->fx8010.lock);
 		res = snd_emu10k1_fx8010_tram_setup(emu, addr);
-		up(&emu->fx8010.lock);
+		mutex_unlock(&emu->fx8010.lock);
 		return res;
 	case SNDRV_EMU10K1_IOCTL_STOP:
 		if (!capable(CAP_SYS_ADMIN))

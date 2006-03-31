@@ -112,28 +112,20 @@ unsigned char prom_get_idprom(char *idbuf, int num_bytes)
 	return 0xff;
 }
 
-/* Get the major prom version number. */
-int prom_version(void)
-{
-	return PROM_P1275;
-}
-
-/* Get the prom plugin-revision. */
-int prom_getrev(void)
-{
-	return prom_rev;
-}
-
-/* Get the prom firmware print revision. */
-int prom_getprev(void)
-{
-	return prom_prev;
-}
-
 /* Install Linux trap table so PROM uses that instead of its own. */
 void prom_set_trap_table(unsigned long tba)
 {
-	p1275_cmd("SUNW,set-trap-table", P1275_INOUT(1, 0), tba);
+	p1275_cmd("SUNW,set-trap-table",
+		  (P1275_ARG(0, P1275_ARG_IN_64B) |
+		   P1275_INOUT(1, 0)), tba);
+}
+
+void prom_set_trap_table_sun4v(unsigned long tba, unsigned long mmfsa)
+{
+	p1275_cmd("SUNW,set-trap-table",
+		  (P1275_ARG(0, P1275_ARG_IN_64B) |
+		   P1275_ARG(1, P1275_ARG_IN_64B) |
+		   P1275_INOUT(2, 0)), tba, mmfsa);
 }
 
 int prom_get_mmu_ihandle(void)
@@ -303,9 +295,21 @@ int prom_wakeupsystem(void)
 }
 
 #ifdef CONFIG_SMP
-void prom_startcpu(int cpunode, unsigned long pc, unsigned long o0)
+void prom_startcpu(int cpunode, unsigned long pc, unsigned long arg)
 {
-	p1275_cmd("SUNW,start-cpu", P1275_INOUT(3, 0), cpunode, pc, o0);
+	p1275_cmd("SUNW,start-cpu", P1275_INOUT(3, 0), cpunode, pc, arg);
+}
+
+void prom_startcpu_cpuid(int cpuid, unsigned long pc, unsigned long arg)
+{
+	p1275_cmd("SUNW,start-cpu-by-cpuid", P1275_INOUT(3, 0),
+		  cpuid, pc, arg);
+}
+
+void prom_stopcpu_cpuid(int cpuid)
+{
+	p1275_cmd("SUNW,stop-cpu-by-cpuid", P1275_INOUT(1, 0),
+		  cpuid);
 }
 
 void prom_stopself(void)

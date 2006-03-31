@@ -1406,7 +1406,7 @@ void gdbstub(int sigval)
 			__debug_frame->psr |= PSR_S;
 		__debug_regs->brr = (__debug_frame->tbr & TBR_TT) << 12;
 		__debug_regs->brr |= BRR_EB;
-		sigval = SIGXCPU;;
+		sigval = SIGXCPU;
 	}
 
 	LEDS(0x5002);

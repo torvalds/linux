@@ -64,7 +64,7 @@ static int serverworks_create_page_map(struct serverworks_page_map *page_map)
 	}
 	global_cache_flush();
 
-	for(i = 0; i < PAGE_SIZE / sizeof(unsigned long); i++)
+	for (i = 0; i < PAGE_SIZE / sizeof(unsigned long); i++)
 		writel(agp_bridge->scratch_page, page_map->remapped+i);
 
 	return 0;
@@ -84,7 +84,7 @@ static void serverworks_free_gatt_pages(void)
 	struct serverworks_page_map *entry;
 
 	tables = serverworks_private.gatt_pages;
-	for(i = 0; i < serverworks_private.num_tables; i++) {
+	for (i = 0; i < serverworks_private.num_tables; i++) {
 		entry = tables[i];
 		if (entry != NULL) {
 			if (entry->real != NULL) {
@@ -103,7 +103,7 @@ static int serverworks_create_gatt_pages(int nr_tables)
 	int retval = 0;
 	int i;
 
-	tables = kzalloc((nr_tables + 1) * sizeof(struct serverworks_page_map *), 
+	tables = kzalloc((nr_tables + 1) * sizeof(struct serverworks_page_map *),
 			 GFP_KERNEL);
 	if (tables == NULL)
 		return -ENOMEM;
@@ -161,7 +161,7 @@ static int serverworks_create_gatt_table(struct agp_bridge_data *bridge)
 		return retval;
 	}
 	/* Create a fake scratch directory */
-	for(i = 0; i < 1024; i++) {
+	for (i = 0; i < 1024; i++) {
 		writel(agp_bridge->scratch_page, serverworks_private.scratch_dir.remapped+i);
 		writel(virt_to_gart(serverworks_private.scratch_dir.real) | 1, page_dir.remapped+i);
 	}
@@ -185,9 +185,8 @@ static int serverworks_create_gatt_table(struct agp_bridge_data *bridge)
 	pci_read_config_dword(agp_bridge->dev,serverworks_private.gart_addr_ofs,&temp);
 	agp_bridge->gart_bus_addr = (temp & PCI_BASE_ADDRESS_MEM_MASK);
 
-	/* Calculate the agp offset */	
-
-	for(i = 0; i < value->num_entries / 1024; i++)
+	/* Calculate the agp offset */
+	for (i = 0; i < value->num_entries / 1024; i++)
 		writel(virt_to_gart(serverworks_private.gatt_pages[i]->real)|1, page_dir.remapped+i);
 
 	return 0;
@@ -196,7 +195,7 @@ static int serverworks_create_gatt_table(struct agp_bridge_data *bridge)
 static int serverworks_free_gatt_table(struct agp_bridge_data *bridge)
 {
 	struct serverworks_page_map page_dir;
-   
+
 	page_dir.real = (unsigned long *)agp_bridge->gatt_table_real;
 	page_dir.remapped = (unsigned long __iomem *)agp_bridge->gatt_table;
 

@@ -1,6 +1,4 @@
 /*
- * arch/ppc/boot/simple/misc-katana.c
- *
  * Set up MPSC values to bootwrapper can prompt user.
  *
  * Author: Mark A. Greer <source@mvista.com>

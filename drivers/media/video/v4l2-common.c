@@ -97,7 +97,7 @@ int v4l2_video_std_construct(struct v4l2_standard *vs,
 	memset(vs, 0, sizeof(struct v4l2_standard));
 	vs->index = index;
 	vs->id    = id;
-	if (id & (V4L2_STD_NTSC | V4L2_STD_PAL_M)) {
+	if (id & V4L2_STD_525_60) {
 		vs->frameperiod.numerator = 1001;
 		vs->frameperiod.denominator = 30000;
 		vs->framelines = 525;
@@ -109,7 +109,6 @@ int v4l2_video_std_construct(struct v4l2_standard *vs,
 	strlcpy(vs->name,name,sizeof(vs->name));
 	return 0;
 }
-
 
 /* ----------------------------------------------------------------- */
 /* priority handling                                                 */
@@ -171,7 +170,7 @@ int v4l2_prio_check(struct v4l2_prio_state *global, enum v4l2_priority *local)
 
 
 /* ----------------------------------------------------------------- */
-/* some arrays for pretty-printing debug messages                    */
+/* some arrays for pretty-printing debug messages of enum types      */
 
 char *v4l2_field_names[] = {
 	[V4L2_FIELD_ANY]        = "any",
@@ -191,6 +190,14 @@ char *v4l2_type_names[] = {
 	[V4L2_BUF_TYPE_VBI_CAPTURE]   = "vbi-cap",
 	[V4L2_BUF_TYPE_VBI_OUTPUT]    = "vbi-out",
 };
+
+static char *v4l2_memory_names[] = {
+	[V4L2_MEMORY_MMAP]    = "mmap",
+	[V4L2_MEMORY_USERPTR] = "userptr",
+	[V4L2_MEMORY_OVERLAY] = "overlay",
+};
+
+#define prt_names(a,arr) (((a)>=0)&&((a)<ARRAY_SIZE(arr)))?arr[a]:"unknown"
 
 /* ------------------------------------------------------------------ */
 /* debug help functions                                               */
@@ -305,8 +312,6 @@ static const char *v4l2_int_ioctls[] = {
 	[_IOC_NR(DECODER_DUMP)]                = "DECODER_DUMP",
 #endif
 	[_IOC_NR(AUDC_SET_RADIO)]              = "AUDC_SET_RADIO",
-	[_IOC_NR(AUDC_SET_INPUT)]              = "AUDC_SET_INPUT",
-	[_IOC_NR(MSP_SET_MATRIX)]              = "MSP_SET_MATRIX",
 
 	[_IOC_NR(TUNER_SET_TYPE_ADDR)]         = "TUNER_SET_TYPE_ADDR",
 	[_IOC_NR(TUNER_SET_STANDBY)]           = "TUNER_SET_STANDBY",
@@ -323,6 +328,15 @@ static const char *v4l2_int_ioctls[] = {
 	[_IOC_NR(VIDIOC_INT_I2S_CLOCK_FREQ)]   = "VIDIOC_INT_I2S_CLOCK_FREQ"
 };
 #define V4L2_INT_IOCTLS ARRAY_SIZE(v4l2_int_ioctls)
+
+static void v4l_print_pix_fmt (char *s, struct v4l2_pix_format *fmt)
+{
+	printk ("%s: width=%d, height=%d, format=%d, field=%s, "
+		"bytesperline=%d sizeimage=%d, colorspace=%d\n", s,
+		fmt->width,fmt->height,fmt->pixelformat,
+		prt_names(fmt->field,v4l2_field_names),
+		fmt->bytesperline,fmt->sizeimage,fmt->colorspace);
+};
 
 /* Common ioctl debug function. This function can be used by
    external ioctl messages as well as internal V4L ioctl */
@@ -362,6 +376,537 @@ void v4l_printk_ioctl(unsigned int cmd)
 	}
 }
 
+/* Common ioctl debug function. This function can be used by
+   external ioctl messages as well as internal V4L ioctl and its
+   arguments */
+void v4l_printk_ioctl_arg(char *s,unsigned int cmd, void *arg)
+{
+	printk(s);
+	printk(": ");
+	v4l_printk_ioctl(cmd);
+	switch (cmd) {
+	case VIDIOC_INT_G_CHIP_IDENT:
+	{
+		enum v4l2_chip_ident  *p=arg;
+		printk ("%s: chip ident=%d\n", s, *p);
+		break;
+	}
+	case VIDIOC_G_PRIORITY:
+	case VIDIOC_S_PRIORITY:
+	{
+		enum v4l2_priority *p=arg;
+		printk ("%s: priority=%d\n", s, *p);
+		break;
+	}
+	case VIDIOC_INT_S_TUNER_MODE:
+	{
+		enum v4l2_tuner_type *p=arg;
+		printk ("%s: tuner type=%d\n", s, *p);
+		break;
+	}
+	case DECODER_SET_VBI_BYPASS:
+	case DECODER_ENABLE_OUTPUT:
+	case DECODER_GET_STATUS:
+	case DECODER_SET_OUTPUT:
+	case DECODER_SET_INPUT:
+	case DECODER_SET_GPIO:
+	case DECODER_SET_NORM:
+	case VIDIOCCAPTURE:
+	case VIDIOCSYNC:
+	case VIDIOCSWRITEMODE:
+	case TUNER_SET_TYPE_ADDR:
+	case TUNER_SET_STANDBY:
+	case TDA9887_SET_CONFIG:
+	case VIDIOC_OVERLAY_OLD:
+	case VIDIOC_STREAMOFF:
+	case VIDIOC_G_OUTPUT:
+	case VIDIOC_S_OUTPUT:
+	case VIDIOC_STREAMON:
+	case VIDIOC_G_INPUT:
+	case VIDIOC_OVERLAY:
+	case VIDIOC_S_INPUT:
+	{
+		int *p=arg;
+		printk ("%s: value=%d\n", s, *p);
+		break;
+	}
+	case VIDIOC_G_AUDIO:
+	case VIDIOC_S_AUDIO:
+	case VIDIOC_ENUMAUDIO:
+	case VIDIOC_G_AUDIO_OLD:
+	{
+		struct v4l2_audio *p=arg;
+
+		printk ("%s: index=%d, name=%s, capability=%d, mode=%d\n",
+			s,p->index, p->name,p->capability, p->mode);
+		break;
+	}
+	case VIDIOC_G_AUDOUT:
+	case VIDIOC_S_AUDOUT:
+	case VIDIOC_ENUMAUDOUT:
+	case VIDIOC_G_AUDOUT_OLD:
+	{
+		struct v4l2_audioout *p=arg;
+		printk ("%s: index=%d, name=%s, capability=%d, mode=%d\n", s,
+				p->index, p->name, p->capability,p->mode);
+		break;
+	}
+	case VIDIOC_QBUF:
+	case VIDIOC_DQBUF:
+	case VIDIOC_QUERYBUF:
+	{
+		struct v4l2_buffer *p=arg;
+		struct v4l2_timecode *tc=&p->timecode;
+		printk ("%s: %02ld:%02d:%02d.%08ld index=%d, type=%s, "
+			"bytesused=%d, flags=0x%08x, "
+			"field=%0d, sequence=%d, memory=%s, offset/userptr=0x%08lx\n",
+				s,
+				(p->timestamp.tv_sec/3600),
+				(int)(p->timestamp.tv_sec/60)%60,
+				(int)(p->timestamp.tv_sec%60),
+				p->timestamp.tv_usec,
+				p->index,
+				prt_names(p->type,v4l2_type_names),
+				p->bytesused,p->flags,
+				p->field,p->sequence,
+				prt_names(p->memory,v4l2_memory_names),
+				p->m.userptr);
+		printk ("%s: timecode= %02d:%02d:%02d type=%d, "
+			"flags=0x%08x, frames=%d, userbits=0x%p\n",
+				s,tc->hours,tc->minutes,tc->seconds,
+				tc->type, tc->flags, tc->frames, tc->userbits);
+		break;
+	}
+	case VIDIOC_QUERYCAP:
+	{
+		struct v4l2_capability *p=arg;
+		printk ("%s: driver=%s, card=%s, bus=%s, version=0x%08x, "
+			"capabilities=0x%08x\n", s,
+				p->driver,p->card,p->bus_info,
+				p->version,
+				p->capabilities);
+		break;
+	}
+	case VIDIOC_G_CTRL:
+	case VIDIOC_S_CTRL:
+	case VIDIOC_S_CTRL_OLD:
+	{
+		struct v4l2_control *p=arg;
+		printk ("%s: id=%d, value=%d\n", s, p->id, p->value);
+		break;
+	}
+	case VIDIOC_G_CROP:
+	case VIDIOC_S_CROP:
+	{
+		struct v4l2_crop *p=arg;
+		/*FIXME: Should also show rect structs */
+		printk ("%s: type=%d\n", s, p->type);
+		break;
+	}
+	case VIDIOC_CROPCAP:
+	case VIDIOC_CROPCAP_OLD:
+	{
+		struct v4l2_cropcap *p=arg;
+		/*FIXME: Should also show rect structs */
+		printk ("%s: type=%d\n", s, p->type);
+		break;
+	}
+	case VIDIOC_INT_DECODE_VBI_LINE:
+	{
+		struct v4l2_decode_vbi_line *p=arg;
+		printk ("%s: is_second_field=%d, ptr=0x%08lx, line=%d, "
+			"type=%d\n", s,
+				p->is_second_field,(unsigned long)p->p,p->line,p->type);
+		break;
+	}
+	case VIDIOC_ENUM_FMT:
+	{
+		struct v4l2_fmtdesc *p=arg;
+		printk ("%s: index=%d, type=%d, flags=%d, description=%s,"
+			" pixelformat=%d\n", s,
+				p->index, p->type, p->flags,p->description,
+				p->pixelformat);
+
+		break;
+	}
+	case VIDIOC_G_FMT:
+	case VIDIOC_S_FMT:
+	case VIDIOC_TRY_FMT:
+	{
+		struct v4l2_format *p=arg;
+		printk ("%s: type=%s\n", s,
+				prt_names(p->type,v4l2_type_names));
+		switch (p->type) {
+		case V4L2_BUF_TYPE_VIDEO_CAPTURE:
+			v4l_print_pix_fmt (s, &p->fmt.pix);
+			break;
+		default:
+			break;
+		}
+	}
+	case VIDIOC_G_FBUF:
+	case VIDIOC_S_FBUF:
+	{
+		struct v4l2_framebuffer *p=arg;
+		printk ("%s: capability=%d, flags=%d, base=0x%08lx\n", s,
+				p->capability,p->flags, (unsigned long)p->base);
+		v4l_print_pix_fmt (s, &p->fmt);
+		break;
+	}
+	case VIDIOC_G_FREQUENCY:
+	case VIDIOC_S_FREQUENCY:
+	{
+		struct v4l2_frequency *p=arg;
+		printk ("%s: tuner=%d, type=%d, frequency=%d\n", s,
+				p->tuner,p->type,p->frequency);
+		break;
+	}
+	case VIDIOC_ENUMINPUT:
+	{
+		struct v4l2_input *p=arg;
+		printk ("%s: index=%d, name=%s, type=%d, audioset=%d, "
+			"tuner=%d, std=%Ld, status=%d\n", s,
+				p->index,p->name,p->type,p->audioset,
+				p->tuner,
+				(unsigned long long)p->std,
+				p->status);
+		break;
+	}
+	case VIDIOC_G_JPEGCOMP:
+	case VIDIOC_S_JPEGCOMP:
+	{
+		struct v4l2_jpegcompression *p=arg;
+		printk ("%s: quality=%d, APPn=%d, APP_len=%d, COM_len=%d,"
+			" jpeg_markers=%d\n", s,
+				p->quality,p->APPn,p->APP_len,
+				p->COM_len,p->jpeg_markers);
+		break;
+	}
+	case VIDIOC_G_MODULATOR:
+	case VIDIOC_S_MODULATOR:
+	{
+		struct v4l2_modulator *p=arg;
+		printk ("%s: index=%d, name=%s, capability=%d, rangelow=%d,"
+			" rangehigh=%d, txsubchans=%d\n", s,
+				p->index, p->name,p->capability,p->rangelow,
+				p->rangehigh,p->txsubchans);
+		break;
+	}
+	case VIDIOC_G_MPEGCOMP:
+	case VIDIOC_S_MPEGCOMP:
+	{
+		struct v4l2_mpeg_compression *p=arg;
+		/*FIXME: Several fields not shown */
+		printk ("%s: ts_pid_pmt=%d, ts_pid_audio=%d, ts_pid_video=%d, "
+			"ts_pid_pcr=%d, ps_size=%d, au_sample_rate=%d, "
+			"au_pesid=%c, vi_frame_rate=%d, vi_frames_per_gop=%d, "
+			"vi_bframes_count=%d, vi_pesid=%c\n", s,
+				p->ts_pid_pmt,p->ts_pid_audio, p->ts_pid_video,
+				p->ts_pid_pcr, p->ps_size, p->au_sample_rate,
+				p->au_pesid, p->vi_frame_rate,
+				p->vi_frames_per_gop, p->vi_bframes_count,
+				p->vi_pesid);
+		break;
+	}
+	case VIDIOC_ENUMOUTPUT:
+	{
+		struct v4l2_output *p=arg;
+		printk ("%s: index=%d, name=%s,type=%d, audioset=%d, "
+			"modulator=%d, std=%Ld\n",
+				s,p->index,p->name,p->type,p->audioset,
+				p->modulator,
+				(unsigned long long)p->std);
+		break;
+	}
+	case VIDIOC_QUERYCTRL:
+	{
+		struct v4l2_queryctrl *p=arg;
+		printk ("%s: id=%d, type=%d, name=%s, min/max=%d/%d,"
+			" step=%d, default=%d, flags=0x%08x\n", s,
+				p->id,p->type,p->name,p->minimum,p->maximum,
+				p->step,p->default_value,p->flags);
+		break;
+	}
+	case VIDIOC_QUERYMENU:
+	{
+		struct v4l2_querymenu *p=arg;
+		printk ("%s: id=%d, index=%d, name=%s\n", s,
+				p->id,p->index,p->name);
+		break;
+	}
+	case VIDIOC_INT_G_REGISTER:
+	case VIDIOC_INT_S_REGISTER:
+	{
+		struct v4l2_register *p=arg;
+		printk ("%s: i2c_id=%d, reg=%lu, val=%d\n", s,
+				p->i2c_id,p->reg,p->val);
+
+		break;
+	}
+	case VIDIOC_REQBUFS:
+	{
+		struct v4l2_requestbuffers *p=arg;
+		printk ("%s: count=%d, type=%s, memory=%s\n", s,
+				p->count,
+				prt_names(p->type,v4l2_type_names),
+				prt_names(p->memory,v4l2_memory_names));
+		break;
+	}
+	case VIDIOC_INT_S_AUDIO_ROUTING:
+	case VIDIOC_INT_S_VIDEO_ROUTING:
+	case VIDIOC_INT_G_AUDIO_ROUTING:
+	case VIDIOC_INT_G_VIDEO_ROUTING:
+	{
+		struct v4l2_routing  *p=arg;
+		printk ("%s: input=0x%x, output=0x%x\n", s, p->input, p->output);
+		break;
+	}
+	case VIDIOC_G_SLICED_VBI_CAP:
+	{
+		struct v4l2_sliced_vbi_cap *p=arg;
+		printk ("%s: service_set=%d\n", s,
+				p->service_set);
+		break;
+	}
+	case VIDIOC_INT_S_VBI_DATA:
+	case VIDIOC_INT_G_VBI_DATA:
+	{
+		struct v4l2_sliced_vbi_data  *p=arg;
+		printk ("%s: id=%d, field=%d, line=%d\n", s,
+				p->id, p->field, p->line);
+		break;
+	}
+	case VIDIOC_ENUMSTD:
+	{
+		struct v4l2_standard *p=arg;
+		printk ("%s: index=%d, id=%Ld, name=%s, fps=%d/%d, "
+			"framelines=%d\n", s, p->index,
+				(unsigned long long)p->id, p->name,
+				p->frameperiod.numerator,
+				p->frameperiod.denominator,
+				p->framelines);
+
+		break;
+	}
+	case VIDIOC_G_PARM:
+	case VIDIOC_S_PARM:
+	case VIDIOC_S_PARM_OLD:
+	{
+		struct v4l2_streamparm *p=arg;
+		printk ("%s: type=%d\n", s, p->type);
+
+		break;
+	}
+	case VIDIOC_G_TUNER:
+	case VIDIOC_S_TUNER:
+	{
+		struct v4l2_tuner *p=arg;
+		printk ("%s: index=%d, name=%s, type=%d, capability=%d, "
+			"rangelow=%d, rangehigh=%d, signal=%d, afc=%d, "
+			"rxsubchans=%d, audmode=%d\n", s,
+				p->index, p->name, p->type,
+				p->capability, p->rangelow,p->rangehigh,
+				p->rxsubchans, p->audmode, p->signal,
+				p->afc);
+		break;
+	}
+	case VIDIOCGVBIFMT:
+	case VIDIOCSVBIFMT:
+	{
+		struct vbi_format *p=arg;
+		printk ("%s: sampling_rate=%d, samples_per_line=%d, "
+			"sample_format=%d, start=%d/%d, count=%d/%d, flags=%d\n", s,
+				p->sampling_rate,p->samples_per_line,
+				p->sample_format,p->start[0],p->start[1],
+				p->count[0],p->count[1],p->flags);
+		break;
+	}
+	case VIDIOCGAUDIO:
+	case VIDIOCSAUDIO:
+	{
+		struct video_audio *p=arg;
+		printk ("%s: audio=%d, volume=%d, bass=%d, treble=%d, "
+			"flags=%d, name=%s, mode=%d, balance=%d, step=%d\n",
+				s,p->audio,p->volume,p->bass, p->treble,
+				p->flags,p->name,p->mode,p->balance,p->step);
+		break;
+	}
+	case VIDIOCGFBUF:
+	case VIDIOCSFBUF:
+	{
+		struct video_buffer *p=arg;
+		printk ("%s: base=%08lx, height=%d, width=%d, depth=%d, "
+			"bytesperline=%d\n", s,
+				(unsigned long) p->base, p->height, p->width,
+				p->depth,p->bytesperline);
+		break;
+	}
+	case VIDIOCGCAP:
+	{
+		struct video_capability *p=arg;
+		printk ("%s: name=%s, type=%d, channels=%d, audios=%d, "
+			"maxwidth=%d, maxheight=%d, minwidth=%d, minheight=%d\n",
+				s,p->name,p->type,p->channels,p->audios,
+				p->maxwidth,p->maxheight,p->minwidth,
+				p->minheight);
+
+		break;
+	}
+	case VIDIOCGCAPTURE:
+	case VIDIOCSCAPTURE:
+	{
+		struct video_capture *p=arg;
+		printk ("%s: x=%d, y=%d, width=%d, height=%d, decimation=%d,"
+			" flags=%d\n", s,
+				p->x, p->y,p->width, p->height,
+				p->decimation,p->flags);
+		break;
+	}
+	case VIDIOCGCHAN:
+	case VIDIOCSCHAN:
+	{
+		struct video_channel *p=arg;
+		printk ("%s: channel=%d, name=%s, tuners=%d, flags=%d, "
+			"type=%d, norm=%d\n", s,
+				p->channel,p->name,p->tuners,
+				p->flags,p->type,p->norm);
+
+		break;
+	}
+	case VIDIOCSMICROCODE:
+	{
+		struct video_code *p=arg;
+		printk ("%s: loadwhat=%s, datasize=%d\n", s,
+				p->loadwhat,p->datasize);
+		break;
+	}
+	case DECODER_GET_CAPABILITIES:
+	{
+		struct video_decoder_capability *p=arg;
+		printk ("%s: flags=%d, inputs=%d, outputs=%d\n", s,
+				p->flags,p->inputs,p->outputs);
+		break;
+	}
+	case DECODER_INIT:
+	{
+		struct video_decoder_init *p=arg;
+		printk ("%s: len=%c\n", s, p->len);
+		break;
+	}
+	case VIDIOCGPLAYINFO:
+	{
+		struct video_info *p=arg;
+		printk ("%s: frame_count=%d, h_size=%d, v_size=%d, "
+			"smpte_timecode=%d, picture_type=%d, "
+			"temporal_reference=%d, user_data=%s\n", s,
+				p->frame_count, p->h_size,
+				p->v_size, p->smpte_timecode,
+				p->picture_type, p->temporal_reference,
+				p->user_data);
+		break;
+	}
+	case VIDIOCKEY:
+	{
+		struct video_key *p=arg;
+		printk ("%s: key=%s, flags=%d\n", s,
+				p->key, p->flags);
+		break;
+	}
+	case VIDIOCGMBUF:
+	{
+		struct video_mbuf *p=arg;
+		printk ("%s: size=%d, frames=%d, offsets=0x%08lx\n", s,
+				p->size,
+				p->frames,
+				(unsigned long)p->offsets);
+		break;
+	}
+	case VIDIOCMCAPTURE:
+	{
+		struct video_mmap *p=arg;
+		printk ("%s: frame=%d, height=%d, width=%d, format=%d\n", s,
+				p->frame,
+				p->height, p->width,
+				p->format);
+		break;
+	}
+	case VIDIOCGPICT:
+	case VIDIOCSPICT:
+	case DECODER_SET_PICTURE:
+	{
+		struct video_picture *p=arg;
+
+		printk ("%s: brightness=%d, hue=%d, colour=%d, contrast=%d,"
+			" whiteness=%d, depth=%d, palette=%d\n", s,
+				p->brightness, p->hue, p->colour,
+				p->contrast, p->whiteness, p->depth,
+				p->palette);
+		break;
+	}
+	case VIDIOCSPLAYMODE:
+	{
+		struct video_play_mode *p=arg;
+		printk ("%s: mode=%d, p1=%d, p2=%d\n", s,
+				p->mode,p->p1,p->p2);
+		break;
+	}
+	case VIDIOCGTUNER:
+	case VIDIOCSTUNER:
+	{
+		struct video_tuner *p=arg;
+		printk ("%s: tuner=%d, name=%s, rangelow=%ld, rangehigh=%ld, "
+			"flags=%d, mode=%d, signal=%d\n", s,
+				p->tuner, p->name,p->rangelow, p->rangehigh,
+				p->flags,p->mode, p->signal);
+		break;
+	}
+	case VIDIOCGUNIT:
+	{
+		struct video_unit *p=arg;
+		printk ("%s: video=%d, vbi=%d, radio=%d, audio=%d, "
+			"teletext=%d\n", s,
+				p->video,p->vbi,p->radio,p->audio,p->teletext);
+		break;
+	}
+	case VIDIOCGWIN:
+	case VIDIOCSWIN:
+	{
+		struct video_window *p=arg;
+		printk ("%s: x=%d, y=%d, width=%d, height=%d, chromakey=%d,"
+			" flags=%d, clipcount=%d\n", s,
+				p->x, p->y,p->width, p->height,
+				p->chromakey,p->flags,
+				p->clipcount);
+		break;
+	}
+	case VIDIOC_INT_AUDIO_CLOCK_FREQ:
+	case VIDIOC_INT_I2S_CLOCK_FREQ:
+	case VIDIOC_INT_S_STANDBY:
+	{
+		u32 *p=arg;
+
+		printk ("%s: value=%d\n", s, *p);
+		break;
+	}
+	case VIDIOCGFREQ:
+	case VIDIOCSFREQ:
+	{
+		unsigned long *p=arg;
+		printk ("%s: value=%lu\n", s, *p);
+		break;
+	}
+	case VIDIOC_G_STD:
+	case VIDIOC_S_STD:
+	case VIDIOC_QUERYSTD:
+	{
+		v4l2_std_id *p=arg;
+
+		printk ("%s: value=%Lu\n", s, (unsigned long long)*p);
+		break;
+	}
+	}
+}
+
 /* ----------------------------------------------------------------- */
 
 EXPORT_SYMBOL(v4l2_video_std_construct);
@@ -376,6 +921,7 @@ EXPORT_SYMBOL(v4l2_prio_check);
 EXPORT_SYMBOL(v4l2_field_names);
 EXPORT_SYMBOL(v4l2_type_names);
 EXPORT_SYMBOL(v4l_printk_ioctl);
+EXPORT_SYMBOL(v4l_printk_ioctl_arg);
 
 /*
  * Local variables:

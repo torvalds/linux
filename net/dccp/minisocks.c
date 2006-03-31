@@ -22,6 +22,7 @@
 #include "ackvec.h"
 #include "ccid.h"
 #include "dccp.h"
+#include "feat.h"
 
 struct inet_timewait_death_row dccp_death_row = {
 	.sysctl_max_tw_buckets = NR_FILE * 2,
@@ -106,6 +107,7 @@ struct sock *dccp_create_openreq_child(struct sock *sk,
 		const struct dccp_request_sock *dreq = dccp_rsk(req);
 		struct inet_connection_sock *newicsk = inet_csk(sk);
 		struct dccp_sock *newdp = dccp_sk(newsk);
+		struct dccp_minisock *newdmsk = dccp_msk(newsk);
 
 		newdp->dccps_role	   = DCCP_ROLE_SERVER;
 		newdp->dccps_hc_rx_ackvec  = NULL;
@@ -114,27 +116,27 @@ struct sock *dccp_create_openreq_child(struct sock *sk,
 		newicsk->icsk_rto	   = DCCP_TIMEOUT_INIT;
 		do_gettimeofday(&newdp->dccps_epoch);
 
-		if (newdp->dccps_options.dccpo_send_ack_vector) {
+		if (dccp_feat_clone(sk, newsk))
+			goto out_free;
+
+		if (newdmsk->dccpms_send_ack_vector) {
 			newdp->dccps_hc_rx_ackvec =
-				dccp_ackvec_alloc(DCCP_MAX_ACKVEC_LEN,
-						  GFP_ATOMIC);
-			/*
-			 * XXX: We're using the same CCIDs set on the parent,
-			 * i.e. sk_clone copied the master sock and left the
-			 * CCID pointers for this child, that is why we do the
-			 * __ccid_get calls.
-			 */
+						dccp_ackvec_alloc(GFP_ATOMIC);
 			if (unlikely(newdp->dccps_hc_rx_ackvec == NULL))
 				goto out_free;
 		}
 
-		if (unlikely(ccid_hc_rx_init(newdp->dccps_hc_rx_ccid,
-					     newsk) != 0 ||
-			     ccid_hc_tx_init(newdp->dccps_hc_tx_ccid,
-				     	     newsk) != 0)) {
+		newdp->dccps_hc_rx_ccid =
+			    ccid_hc_rx_new(newdmsk->dccpms_rx_ccid,
+					   newsk, GFP_ATOMIC);
+		newdp->dccps_hc_tx_ccid =
+			    ccid_hc_tx_new(newdmsk->dccpms_tx_ccid,
+					   newsk, GFP_ATOMIC);
+		if (unlikely(newdp->dccps_hc_rx_ccid == NULL ||
+			     newdp->dccps_hc_tx_ccid == NULL)) {
 			dccp_ackvec_free(newdp->dccps_hc_rx_ackvec);
-			ccid_hc_rx_exit(newdp->dccps_hc_rx_ccid, newsk);
-			ccid_hc_tx_exit(newdp->dccps_hc_tx_ccid, newsk);
+			ccid_hc_rx_delete(newdp->dccps_hc_rx_ccid, newsk);
+			ccid_hc_tx_delete(newdp->dccps_hc_tx_ccid, newsk);
 out_free:
 			/* It is still raw copy of parent, so invalidate
 			 * destructor and make plain sk_free() */
@@ -142,9 +144,6 @@ out_free:
 			sk_free(newsk);
 			return NULL;
 		}
-
-		__ccid_get(newdp->dccps_hc_rx_ccid);
-		__ccid_get(newdp->dccps_hc_tx_ccid);
 
 		/*
 		 * Step 3: Process LISTEN state
@@ -155,7 +154,7 @@ out_free:
 		 */
 
 		/* See dccp_v4_conn_request */
-		newdp->dccps_options.dccpo_sequence_window = req->rcv_wnd;
+		newdmsk->dccpms_sequence_window = req->rcv_wnd;
 
 		newdp->dccps_gar = newdp->dccps_isr = dreq->dreq_isr;
 		dccp_update_gsr(newsk, dreq->dreq_isr);

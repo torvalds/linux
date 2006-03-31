@@ -384,7 +384,7 @@ int hostfs_fsync(struct file *file, struct dentry *dentry, int datasync)
 	return fsync_file(HOSTFS_I(dentry->d_inode)->fd, datasync);
 }
 
-static struct file_operations hostfs_file_fops = {
+static const struct file_operations hostfs_file_fops = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_file_read,
 	.sendfile	= generic_file_sendfile,
@@ -399,7 +399,7 @@ static struct file_operations hostfs_file_fops = {
 	.fsync		= hostfs_fsync,
 };
 
-static struct file_operations hostfs_dir_fops = {
+static const struct file_operations hostfs_dir_fops = {
 	.llseek		= generic_file_llseek,
 	.readdir	= hostfs_readdir,
 	.read		= generic_read_dir,

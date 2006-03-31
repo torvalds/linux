@@ -511,7 +511,7 @@ STATIC void
 xfs_alloc_trace_busy(
 	char		*name,		/* function tag string */
 	char		*str,		/* additional string */
-	xfs_mount_t	*mp,		/* file system mount poing */
+	xfs_mount_t	*mp,		/* file system mount point */
 	xfs_agnumber_t	agno,		/* allocation group number */
 	xfs_agblock_t	agbno,		/* a.g. relative block number */
 	xfs_extlen_t	len,		/* length of extent */
@@ -1843,7 +1843,7 @@ xfs_alloc_fix_freelist(
 	} else
 		agbp = NULL;
 
-	/* If this is a metadata prefered pag and we are user data
+	/* If this is a metadata preferred pag and we are user data
 	 * then try somewhere else if we are not being asked to
 	 * try harder at this point
 	 */
@@ -2458,7 +2458,7 @@ error0:
 /*
  * AG Busy list management
  * The busy list contains block ranges that have been freed but whose
- * transacations have not yet hit disk.  If any block listed in a busy
+ * transactions have not yet hit disk.  If any block listed in a busy
  * list is reused, the transaction that freed it must be forced to disk
  * before continuing to use the block.
  *

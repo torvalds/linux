@@ -63,7 +63,6 @@
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <asm/io.h>
-#include <asm/semaphore.h>
 
 
 /* ALI1535 SMBus address offsets */
@@ -136,7 +135,6 @@
 
 static struct pci_driver ali1535_driver;
 static unsigned short ali1535_smba;
-static DECLARE_MUTEX(i2c_ali1535_sem);
 
 /* Detect whether a ALI1535 can be found, and initialize it, where necessary.
    Note the differences between kernels with the old PCI BIOS interface and
@@ -345,7 +343,6 @@ static s32 ali1535_access(struct i2c_adapter *adap, u16 addr,
 	int timeout;
 	s32 result = 0;
 
-	down(&i2c_ali1535_sem);
 	/* make sure SMBus is idle */
 	temp = inb_p(SMBHSTSTS);
 	for (timeout = 0;
@@ -460,7 +457,6 @@ static s32 ali1535_access(struct i2c_adapter *adap, u16 addr,
 		break;
 	}
 EXIT:
-	up(&i2c_ali1535_sem);
 	return result;
 }
 

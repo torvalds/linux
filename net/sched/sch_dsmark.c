@@ -438,6 +438,7 @@ static int dsmark_dump_class(struct Qdisc *sch, unsigned long cl,
 		return -EINVAL;
 
 	tcm->tcm_handle = TC_H_MAKE(TC_H_MAJ(sch->handle), cl-1);
+	tcm->tcm_info = p->q->handle;
 
 	opts = RTA_NEST(skb, TCA_OPTIONS);
 	RTA_PUT_U8(skb,TCA_DSMARK_MASK, p->mask[cl-1]);

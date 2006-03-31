@@ -17,11 +17,8 @@
 #define VGABASE		((void __iomem *)0xffffffff800b8000UL)
 #endif
 
-#define MAX_YPOS	max_ypos
-#define MAX_XPOS	max_xpos
-
 static int max_ypos = 25, max_xpos = 80;
-static int current_ypos = 1, current_xpos = 0; 
+static int current_ypos = 25, current_xpos = 0;
 
 static void early_vga_write(struct console *con, const char *str, unsigned n)
 {
@@ -29,26 +26,26 @@ static void early_vga_write(struct console *con, const char *str, unsigned n)
 	int  i, k, j;
 
 	while ((c = *str++) != '\0' && n-- > 0) {
-		if (current_ypos >= MAX_YPOS) {
+		if (current_ypos >= max_ypos) {
 			/* scroll 1 line up */
-			for (k = 1, j = 0; k < MAX_YPOS; k++, j++) {
-				for (i = 0; i < MAX_XPOS; i++) {
-					writew(readw(VGABASE + 2*(MAX_XPOS*k + i)),
-					       VGABASE + 2*(MAX_XPOS*j + i));
+			for (k = 1, j = 0; k < max_ypos; k++, j++) {
+				for (i = 0; i < max_xpos; i++) {
+					writew(readw(VGABASE+2*(max_xpos*k+i)),
+					       VGABASE + 2*(max_xpos*j + i));
 				}
 			}
-			for (i = 0; i < MAX_XPOS; i++)
-				writew(0x720, VGABASE + 2*(MAX_XPOS*j + i));
-			current_ypos = MAX_YPOS-1;
+			for (i = 0; i < max_xpos; i++)
+				writew(0x720, VGABASE + 2*(max_xpos*j + i));
+			current_ypos = max_ypos-1;
 		}
 		if (c == '\n') {
 			current_xpos = 0;
 			current_ypos++;
 		} else if (c != '\r')  {
 			writew(((0x7 << 8) | (unsigned short) c),
-			       VGABASE + 2*(MAX_XPOS*current_ypos +
+			       VGABASE + 2*(max_xpos*current_ypos +
 						current_xpos++));
-			if (current_xpos >= MAX_XPOS) {
+			if (current_xpos >= max_xpos) {
 				current_xpos = 0;
 				current_ypos++;
 			}
@@ -63,7 +60,7 @@ static struct console early_vga_console = {
 	.index =	-1,
 };
 
-/* Serial functions loosely based on a similar package from Klaus P. Gerlicher */ 
+/* Serial functions loosely based on a similar package from Klaus P. Gerlicher */
 
 static int early_serial_base = 0x3f8;  /* ttyS0 */
 
@@ -83,30 +80,30 @@ static int early_serial_base = 0x3f8;  /* ttyS0 */
 #define DLL             0       /*  Divisor Latch Low         */
 #define DLH             1       /*  Divisor latch High        */
 
-static int early_serial_putc(unsigned char ch) 
-{ 
-	unsigned timeout = 0xffff; 
-	while ((inb(early_serial_base + LSR) & XMTRDY) == 0 && --timeout) 
+static int early_serial_putc(unsigned char ch)
+{
+	unsigned timeout = 0xffff;
+	while ((inb(early_serial_base + LSR) & XMTRDY) == 0 && --timeout)
 		cpu_relax();
 	outb(ch, early_serial_base + TXR);
 	return timeout ? 0 : -1;
-} 
+}
 
 static void early_serial_write(struct console *con, const char *s, unsigned n)
 {
-	while (*s && n-- > 0) { 
-		early_serial_putc(*s); 
-		if (*s == '\n') 
-			early_serial_putc('\r'); 
-		s++; 
-	} 
-} 
+	while (*s && n-- > 0) {
+		early_serial_putc(*s);
+		if (*s == '\n')
+			early_serial_putc('\r');
+		s++;
+	}
+}
 
 #define DEFAULT_BAUD 9600
 
 static __init void early_serial_init(char *s)
 {
-	unsigned char c; 
+	unsigned char c;
 	unsigned divisor;
 	unsigned baud = DEFAULT_BAUD;
 	char *e;
@@ -115,7 +112,7 @@ static __init void early_serial_init(char *s)
 		++s;
 
 	if (*s) {
-		unsigned port; 
+		unsigned port;
 		if (!strncmp(s,"0x",2)) {
 			early_serial_base = simple_strtoul(s, &e, 16);
 		} else {
@@ -139,16 +136,16 @@ static __init void early_serial_init(char *s)
 	outb(0x3, early_serial_base + MCR);	/* DTR + RTS */
 
 	if (*s) {
-		baud = simple_strtoul(s, &e, 0); 
-		if (baud == 0 || s == e) 
+		baud = simple_strtoul(s, &e, 0);
+		if (baud == 0 || s == e)
 			baud = DEFAULT_BAUD;
-	} 
-	
-	divisor = 115200 / baud; 
-	c = inb(early_serial_base + LCR); 
-	outb(c | DLAB, early_serial_base + LCR); 
-	outb(divisor & 0xff, early_serial_base + DLL); 
-	outb((divisor >> 8) & 0xff, early_serial_base + DLH); 
+	}
+
+	divisor = 115200 / baud;
+	c = inb(early_serial_base + LCR);
+	outb(c | DLAB, early_serial_base + LCR);
+	outb(divisor & 0xff, early_serial_base + DLL);
+	outb((divisor >> 8) & 0xff, early_serial_base + DLH);
 	outb(c & ~DLAB, early_serial_base + LCR);
 }
 
@@ -205,67 +202,68 @@ struct console *early_console = &early_vga_console;
 static int early_console_initialized = 0;
 
 void early_printk(const char *fmt, ...)
-{ 
-	char buf[512]; 
-	int n; 
+{
+	char buf[512];
+	int n;
 	va_list ap;
 
-	va_start(ap,fmt); 
+	va_start(ap,fmt);
 	n = vscnprintf(buf,512,fmt,ap);
 	early_console->write(early_console,buf,n);
-	va_end(ap); 
-} 
+	va_end(ap);
+}
 
 static int __initdata keep_early;
 
-int __init setup_early_printk(char *opt) 
-{  
+int __init setup_early_printk(char *opt)
+{
 	char *space;
-	char buf[256]; 
+	char buf[256];
 
 	if (early_console_initialized)
 		return -1;
 
-	strlcpy(buf,opt,sizeof(buf)); 
-	space = strchr(buf, ' '); 
+	strlcpy(buf,opt,sizeof(buf));
+	space = strchr(buf, ' ');
 	if (space)
-		*space = 0; 
+		*space = 0;
 
 	if (strstr(buf,"keep"))
-		keep_early = 1; 
+		keep_early = 1;
 
-	if (!strncmp(buf, "serial", 6)) { 
+	if (!strncmp(buf, "serial", 6)) {
 		early_serial_init(buf + 6);
 		early_console = &early_serial_console;
-	} else if (!strncmp(buf, "ttyS", 4)) { 
+	} else if (!strncmp(buf, "ttyS", 4)) {
 		early_serial_init(buf);
-		early_console = &early_serial_console;		
+		early_console = &early_serial_console;
 	} else if (!strncmp(buf, "vga", 3)
 	           && SCREEN_INFO.orig_video_isVGA == 1) {
 		max_xpos = SCREEN_INFO.orig_video_cols;
 		max_ypos = SCREEN_INFO.orig_video_lines;
-		early_console = &early_vga_console; 
+		current_ypos = SCREEN_INFO.orig_y;
+		early_console = &early_vga_console;
  	} else if (!strncmp(buf, "simnow", 6)) {
  		simnow_init(buf + 6);
  		early_console = &simnow_console;
  		keep_early = 1;
 	}
 	early_console_initialized = 1;
-	register_console(early_console);       
+	register_console(early_console);
 	return 0;
 }
 
 void __init disable_early_printk(void)
-{ 
+{
 	if (!early_console_initialized || !early_console)
 		return;
 	if (!keep_early) {
 		printk("disabling early console\n");
 		unregister_console(early_console);
 		early_console_initialized = 0;
-	} else { 
+	} else {
 		printk("keeping early console\n");
 	}
-} 
+}
 
 __setup("earlyprintk=", setup_early_printk);

@@ -16,6 +16,8 @@
 #include <asm/processor.h>
 #include <asm/thread_info.h>
 #include <asm/mmu.h>
+#include <asm/hypervisor.h>
+#include <asm/cpudata.h>
 
 	.data
 	.align	8
@@ -28,14 +30,19 @@ itlb_load:
 dtlb_load:
 	.asciz	"SUNW,dtlb-load"
 
+	/* XXX __cpuinit this thing XXX */
+#define TRAMP_STACK_SIZE	1024
+	.align	16
+tramp_stack:
+	.skip	TRAMP_STACK_SIZE
+
 	.text
 	.align		8
 	.globl		sparc64_cpu_startup, sparc64_cpu_startup_end
 sparc64_cpu_startup:
-	flushw
-
-	BRANCH_IF_CHEETAH_BASE(g1,g5,cheetah_startup)
-	BRANCH_IF_CHEETAH_PLUS_OR_FOLLOWON(g1,g5,cheetah_plus_startup)
+	BRANCH_IF_SUN4V(g1, niagara_startup)
+	BRANCH_IF_CHEETAH_BASE(g1, g5, cheetah_startup)
+	BRANCH_IF_CHEETAH_PLUS_OR_FOLLOWON(g1, g5, cheetah_plus_startup)
 
 	ba,pt	%xcc, spitfire_startup
 	 nop
@@ -55,6 +62,7 @@ cheetah_startup:
 	or	%g5, DCU_DM | DCU_IM | DCU_DC | DCU_IC, %g5
 	stxa	%g5, [%g0] ASI_DCU_CONTROL_REG
 	membar	#Sync
+	/* fallthru */
 
 cheetah_generic_startup:
 	mov	TSB_EXTENSION_P, %g3
@@ -70,7 +78,9 @@ cheetah_generic_startup:
 	stxa	%g0, [%g3] ASI_DMMU
 	stxa	%g0, [%g3] ASI_IMMU
 	membar	#Sync
+	/* fallthru */
 
+niagara_startup:
 	/* Disable STICK_INT interrupts. */
 	sethi		%hi(0x80000000), %g5
 	sllx		%g5, 32, %g5
@@ -85,17 +95,17 @@ spitfire_startup:
 	membar		#Sync
 
 startup_continue:
-	wrpr		%g0, 15, %pil
-
 	sethi		%hi(0x80000000), %g2
 	sllx		%g2, 32, %g2
 	wr		%g2, 0, %tick_cmpr
 
+	mov		%o0, %l0
+
+	BRANCH_IF_SUN4V(g1, niagara_lock_tlb)
+
 	/* Call OBP by hand to lock KERNBASE into i/d tlbs.
 	 * We lock 2 consequetive entries if we are 'bigkernel'.
 	 */
-	mov		%o0, %l0
-
 	sethi		%hi(prom_entry_lock), %g2
 1:	ldstub		[%g2 + %lo(prom_entry_lock)], %g1
 	membar		#StoreLoad | #StoreStore
@@ -105,7 +115,6 @@ startup_continue:
 	sethi		%hi(p1275buf), %g2
 	or		%g2, %lo(p1275buf), %g2
 	ldx		[%g2 + 0x10], %l2
-	mov		%sp, %l1
 	add		%l2, -(192 + 128), %sp
 	flushw
 
@@ -142,8 +151,7 @@ startup_continue:
 
 	sethi		%hi(bigkernel), %g2
 	lduw		[%g2 + %lo(bigkernel)], %g2
-	cmp		%g2, 0
-	be,pt		%icc, do_dtlb
+	brz,pt		%g2, do_dtlb
 	 nop
 
 	sethi		%hi(call_method), %g2
@@ -214,8 +222,7 @@ do_dtlb:
 
 	sethi		%hi(bigkernel), %g2
 	lduw		[%g2 + %lo(bigkernel)], %g2
-	cmp		%g2, 0
-	be,pt		%icc, do_unlock
+	brz,pt		%g2, do_unlock
 	 nop
 
 	sethi		%hi(call_method), %g2
@@ -257,26 +264,169 @@ do_unlock:
 	stb		%g0, [%g2 + %lo(prom_entry_lock)]
 	membar		#StoreStore | #StoreLoad
 
-	mov		%l1, %sp
-	flushw
+	ba,pt		%xcc, after_lock_tlb
+	 nop
 
-	mov		%l0, %o0
+niagara_lock_tlb:
+	mov		HV_FAST_MMU_MAP_PERM_ADDR, %o5
+	sethi		%hi(KERNBASE), %o0
+	clr		%o1
+	sethi		%hi(kern_locked_tte_data), %o2
+	ldx		[%o2 + %lo(kern_locked_tte_data)], %o2
+	mov		HV_MMU_IMMU, %o3
+	ta		HV_FAST_TRAP
 
+	mov		HV_FAST_MMU_MAP_PERM_ADDR, %o5
+	sethi		%hi(KERNBASE), %o0
+	clr		%o1
+	sethi		%hi(kern_locked_tte_data), %o2
+	ldx		[%o2 + %lo(kern_locked_tte_data)], %o2
+	mov		HV_MMU_DMMU, %o3
+	ta		HV_FAST_TRAP
+
+	sethi		%hi(bigkernel), %g2
+	lduw		[%g2 + %lo(bigkernel)], %g2
+	brz,pt		%g2, after_lock_tlb
+	 nop
+
+	mov		HV_FAST_MMU_MAP_PERM_ADDR, %o5
+	sethi		%hi(KERNBASE + 0x400000), %o0
+	clr		%o1
+	sethi		%hi(kern_locked_tte_data), %o2
+	ldx		[%o2 + %lo(kern_locked_tte_data)], %o2
+	sethi		%hi(0x400000), %o3
+	add		%o2, %o3, %o2
+	mov		HV_MMU_IMMU, %o3
+	ta		HV_FAST_TRAP
+
+	mov		HV_FAST_MMU_MAP_PERM_ADDR, %o5
+	sethi		%hi(KERNBASE + 0x400000), %o0
+	clr		%o1
+	sethi		%hi(kern_locked_tte_data), %o2
+	ldx		[%o2 + %lo(kern_locked_tte_data)], %o2
+	sethi		%hi(0x400000), %o3
+	add		%o2, %o3, %o2
+	mov		HV_MMU_DMMU, %o3
+	ta		HV_FAST_TRAP
+
+after_lock_tlb:
 	wrpr		%g0, (PSTATE_PRIV | PSTATE_PEF), %pstate
 	wr		%g0, 0, %fprs
-
-	/* XXX Buggy PROM... */
-	srl		%o0, 0, %o0
-	ldx		[%o0], %g6
 
 	wr		%g0, ASI_P, %asi
 
 	mov		PRIMARY_CONTEXT, %g7
-	stxa		%g0, [%g7] ASI_DMMU
+
+661:	stxa		%g0, [%g7] ASI_DMMU
+	.section	.sun4v_1insn_patch, "ax"
+	.word		661b
+	stxa		%g0, [%g7] ASI_MMU
+	.previous
+
 	membar		#Sync
 	mov		SECONDARY_CONTEXT, %g7
-	stxa		%g0, [%g7] ASI_DMMU
+
+661:	stxa		%g0, [%g7] ASI_DMMU
+	.section	.sun4v_1insn_patch, "ax"
+	.word		661b
+	stxa		%g0, [%g7] ASI_MMU
+	.previous
+
 	membar		#Sync
+
+	/* Everything we do here, until we properly take over the
+	 * trap table, must be done with extreme care.  We cannot
+	 * make any references to %g6 (current thread pointer),
+	 * %g4 (current task pointer), or %g5 (base of current cpu's
+	 * per-cpu area) until we properly take over the trap table
+	 * from the firmware and hypervisor.
+	 *
+	 * Get onto temporary stack which is in the locked kernel image.
+	 */
+	sethi		%hi(tramp_stack), %g1
+	or		%g1, %lo(tramp_stack), %g1
+	add		%g1, TRAMP_STACK_SIZE, %g1
+	sub		%g1, STACKFRAME_SZ + STACK_BIAS, %sp
+	mov		0, %fp
+
+	/* Put garbage in these registers to trap any access to them.  */
+	set		0xdeadbeef, %g4
+	set		0xdeadbeef, %g5
+	set		0xdeadbeef, %g6
+
+	call		init_irqwork_curcpu
+	 nop
+
+	sethi		%hi(tlb_type), %g3
+	lduw		[%g3 + %lo(tlb_type)], %g2
+	cmp		%g2, 3
+	bne,pt		%icc, 1f
+	 nop
+
+	call		hard_smp_processor_id
+	 nop
+	
+	mov		%o0, %o1
+	mov		0, %o0
+	mov		0, %o2
+	call		sun4v_init_mondo_queues
+	 mov		1, %o3
+
+1:	call		init_cur_cpu_trap
+	 ldx		[%l0], %o0
+
+	/* Start using proper page size encodings in ctx register.  */
+	sethi		%hi(sparc64_kern_pri_context), %g3
+	ldx		[%g3 + %lo(sparc64_kern_pri_context)], %g2
+	mov		PRIMARY_CONTEXT, %g1
+
+661:	stxa		%g2, [%g1] ASI_DMMU
+	.section	.sun4v_1insn_patch, "ax"
+	.word		661b
+	stxa		%g2, [%g1] ASI_MMU
+	.previous
+
+	membar		#Sync
+
+	wrpr		%g0, 0, %wstate
+
+	/* As a hack, put &init_thread_union into %g6.
+	 * prom_world() loads from here to restore the %asi
+	 * register.
+	 */
+	sethi		%hi(init_thread_union), %g6
+	or		%g6, %lo(init_thread_union), %g6
+
+	sethi		%hi(is_sun4v), %o0
+	lduw		[%o0 + %lo(is_sun4v)], %o0
+	brz,pt		%o0, 1f
+	 nop
+
+	TRAP_LOAD_TRAP_BLOCK(%g2, %g3)
+	add		%g2, TRAP_PER_CPU_FAULT_INFO, %g2
+	stxa		%g2, [%g0] ASI_SCRATCHPAD
+
+	/* Compute physical address:
+	 *
+	 * paddr = kern_base + (mmfsa_vaddr - KERNBASE)
+	 */
+	sethi		%hi(KERNBASE), %g3
+	sub		%g2, %g3, %g2
+	sethi		%hi(kern_base), %g3
+	ldx		[%g3 + %lo(kern_base)], %g3
+	add		%g2, %g3, %o1
+
+	call		prom_set_trap_table_sun4v
+	 sethi		%hi(sparc64_ttable_tl0), %o0
+
+	ba,pt		%xcc, 2f
+	 nop
+
+1:	call		prom_set_trap_table
+	 sethi		%hi(sparc64_ttable_tl0), %o0
+
+2:	ldx		[%l0], %g6
+	ldx		[%g6 + TI_TASK], %g4
 
 	mov		1, %g5
 	sllx		%g5, THREAD_SHIFT, %g5
@@ -284,71 +434,9 @@ do_unlock:
 	add		%g6, %g5, %sp
 	mov		0, %fp
 
-	wrpr		%g0, 0, %wstate
-	wrpr		%g0, 0, %tl
-
-	/* Setup the trap globals, then we can resurface. */
-	rdpr		%pstate, %o1
-	mov		%g6, %o2
-	wrpr		%o1, PSTATE_AG, %pstate
-	sethi		%hi(sparc64_ttable_tl0), %g5
-	wrpr		%g5, %tba
-	mov		%o2, %g6
-
-	wrpr		%o1, PSTATE_MG, %pstate
-#define KERN_HIGHBITS		((_PAGE_VALID|_PAGE_SZ4MB)^0xfffff80000000000)
-#define KERN_LOWBITS		(_PAGE_CP | _PAGE_CV | _PAGE_P | _PAGE_W)
-
-	mov		TSB_REG, %g1
-	stxa		%g0, [%g1] ASI_DMMU
-	membar		#Sync
-	mov		TLB_SFSR, %g1
-	sethi		%uhi(KERN_HIGHBITS), %g2
-	or		%g2, %ulo(KERN_HIGHBITS), %g2
-	sllx		%g2, 32, %g2
-	or		%g2, KERN_LOWBITS, %g2
-
-	BRANCH_IF_ANY_CHEETAH(g3,g7,9f)
-
-	ba,pt		%xcc, 1f
-	 nop
-
-9:
-	sethi		%uhi(VPTE_BASE_CHEETAH), %g3
-	or		%g3, %ulo(VPTE_BASE_CHEETAH), %g3
-	ba,pt		%xcc, 2f
-	 sllx		%g3, 32, %g3
-1:
-	sethi		%uhi(VPTE_BASE_SPITFIRE), %g3
-	or		%g3, %ulo(VPTE_BASE_SPITFIRE), %g3
-	sllx		%g3, 32, %g3
-
-2:
-	clr	%g7
-#undef KERN_HIGHBITS
-#undef KERN_LOWBITS
-
-	wrpr		%o1, 0x0, %pstate
-	ldx		[%g6 + TI_TASK], %g4
-
-	wrpr		%g0, 0, %wstate
-
-	call		init_irqwork_curcpu
-	 nop
-
-	/* Start using proper page size encodings in ctx register.  */
-	sethi	%hi(sparc64_kern_pri_context), %g3
-	ldx	[%g3 + %lo(sparc64_kern_pri_context)], %g2
-	mov	PRIMARY_CONTEXT, %g1
-	stxa	%g2, [%g1] ASI_DMMU
-	membar	#Sync
-
 	rdpr		%pstate, %o1
 	or		%o1, PSTATE_IE, %o1
 	wrpr		%o1, 0, %pstate
-
-	call		prom_set_trap_table
-	 sethi		%hi(sparc64_ttable_tl0), %o0
 
 	call		smp_callin
 	 nop

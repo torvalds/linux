@@ -34,15 +34,7 @@ enum hrtimer_restart {
 	HRTIMER_RESTART,
 };
 
-/*
- * Timer states:
- */
-enum hrtimer_state {
-	HRTIMER_INACTIVE,	/* Timer is inactive */
-	HRTIMER_EXPIRED,		/* Timer is expired */
-	HRTIMER_RUNNING,		/* Timer is running the callback function */
-	HRTIMER_PENDING,		/* Timer is pending */
-};
+#define HRTIMER_INACTIVE	((void *)1UL)
 
 struct hrtimer_base;
 
@@ -53,9 +45,7 @@ struct hrtimer_base;
  * @expires:	the absolute expiry time in the hrtimers internal
  *		representation. The time is related to the clock on
  *		which the timer is based.
- * @state:	state of the timer
  * @function:	timer expiry callback function
- * @data:	argument for the callback function
  * @base:	pointer to the timer base (per cpu and per clock)
  *
  * The hrtimer structure must be initialized by init_hrtimer_#CLOCKTYPE()
@@ -63,23 +53,23 @@ struct hrtimer_base;
 struct hrtimer {
 	struct rb_node		node;
 	ktime_t			expires;
-	enum hrtimer_state	state;
-	int			(*function)(void *);
-	void			*data;
+	int			(*function)(struct hrtimer *);
 	struct hrtimer_base	*base;
 };
 
 /**
  * struct hrtimer_base - the timer base for a specific clock
  *
- * @index:	clock type index for per_cpu support when moving a timer
- *		to a base on another cpu.
- * @lock:	lock protecting the base and associated timers
- * @active:	red black tree root node for the active timers
- * @first:	pointer to the timer node which expires first
- * @resolution:	the resolution of the clock, in nanoseconds
- * @get_time:	function to retrieve the current time of the clock
- * @curr_timer:	the timer which is executing a callback right now
+ * @index:		clock type index for per_cpu support when moving a timer
+ *			to a base on another cpu.
+ * @lock:		lock protecting the base and associated timers
+ * @active:		red black tree root node for the active timers
+ * @first:		pointer to the timer node which expires first
+ * @resolution:		the resolution of the clock, in nanoseconds
+ * @get_time:		function to retrieve the current time of the clock
+ * @get_sofirq_time:	function to retrieve the current time from the softirq
+ * @curr_timer:		the timer which is executing a callback right now
+ * @softirq_time:	the time when running the hrtimer queue in the softirq
  */
 struct hrtimer_base {
 	clockid_t		index;
@@ -88,7 +78,9 @@ struct hrtimer_base {
 	struct rb_node		*first;
 	ktime_t			resolution;
 	ktime_t			(*get_time)(void);
+	ktime_t			(*get_softirq_time)(void);
 	struct hrtimer		*curr_timer;
+	ktime_t			softirq_time;
 };
 
 /*
@@ -122,11 +114,12 @@ extern ktime_t hrtimer_get_next_event(void);
 
 static inline int hrtimer_active(const struct hrtimer *timer)
 {
-	return timer->state == HRTIMER_PENDING;
+	return timer->node.rb_parent != HRTIMER_INACTIVE;
 }
 
 /* Forward a hrtimer so it expires after now: */
-extern unsigned long hrtimer_forward(struct hrtimer *timer, ktime_t interval);
+extern unsigned long
+hrtimer_forward(struct hrtimer *timer, ktime_t now, ktime_t interval);
 
 /* Precise sleep: */
 extern long hrtimer_nanosleep(struct timespec *rqtp,

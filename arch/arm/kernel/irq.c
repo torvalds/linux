@@ -305,14 +305,19 @@ report_bad_irq(unsigned int irq, struct pt_regs *regs, struct irqdesc *desc, int
 	static int count = 100;
 	struct irqaction *action;
 
-	if (!count || noirqdebug)
+	if (noirqdebug)
 		return;
 
-	count--;
-
 	if (ret != IRQ_HANDLED && ret != IRQ_NONE) {
+		if (!count)
+			return;
+		count--;
 		printk("irq%u: bogus retval mask %x\n", irq, ret);
 	} else {
+		desc->irqs_unhandled++;
+		if (desc->irqs_unhandled <= 99900)
+			return;
+		desc->irqs_unhandled = 0;
 		printk("irq%u: nobody cared\n", irq);
 	}
 	show_regs(regs);

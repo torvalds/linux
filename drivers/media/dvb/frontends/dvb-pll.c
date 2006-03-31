@@ -362,6 +362,63 @@ struct dvb_pll_desc dvb_pll_philips_sd1878_tda8261 = {
 };
 EXPORT_SYMBOL(dvb_pll_philips_sd1878_tda8261);
 
+/*
+ * Philips TD1316 Tuner.
+ */
+static void td1316_bw(u8 *buf, u32 freq, int bandwidth)
+{
+	u8 band;
+
+	/* determine band */
+	if (freq < 161000000)
+		band = 1;
+	else if (freq < 444000000)
+		band = 2;
+	else
+		band = 4;
+
+	buf[3] |= band;
+
+	/* setup PLL filter */
+	if (bandwidth == BANDWIDTH_8_MHZ)
+		buf[3] |= 1 << 3;
+}
+
+struct dvb_pll_desc dvb_pll_philips_td1316 = {
+	.name  = "Philips TD1316",
+	.min   =  87000000,
+	.max   = 895000000,
+	.setbw = td1316_bw,
+	.count = 9,
+	.entries = {
+		{  93834000, 36166000, 166666, 0xca, 0x60},
+		{ 123834000, 36166000, 166666, 0xca, 0xa0},
+		{ 163834000, 36166000, 166666, 0xca, 0xc0},
+		{ 253834000, 36166000, 166666, 0xca, 0x60},
+		{ 383834000, 36166000, 166666, 0xca, 0xa0},
+		{ 443834000, 36166000, 166666, 0xca, 0xc0},
+		{ 583834000, 36166000, 166666, 0xca, 0x60},
+		{ 793834000, 36166000, 166666, 0xca, 0xa0},
+		{ 858834000, 36166000, 166666, 0xca, 0xe0},
+	},
+};
+EXPORT_SYMBOL(dvb_pll_philips_td1316);
+
+/* FE6600 used on DViCO Hybrid */
+struct dvb_pll_desc dvb_pll_thomson_fe6600 = {
+	.name = "Thomson FE6600",
+	.min =  44250000,
+	.max = 858000000,
+	.count = 4,
+	.entries = {
+		{ 250000000, 36213333, 166667, 0xb4, 0x12 },
+		{ 455000000, 36213333, 166667, 0xfe, 0x11 },
+		{ 775500000, 36213333, 166667, 0xbc, 0x18 },
+		{ 999999999, 36213333, 166667, 0xf4, 0x18 },
+	}
+};
+EXPORT_SYMBOL(dvb_pll_thomson_fe6600);
+
 /* ----------------------------------------------------------- */
 /* code                                                        */
 
@@ -391,8 +448,8 @@ int dvb_pll_configure(struct dvb_pll_desc *desc, u8 *buf,
 	div = (freq + desc->entries[i].offset) / desc->entries[i].stepsize;
 	buf[0] = div >> 8;
 	buf[1] = div & 0xff;
-	buf[2] = desc->entries[i].cb1;
-	buf[3] = desc->entries[i].cb2;
+	buf[2] = desc->entries[i].config;
+	buf[3] = desc->entries[i].cb;
 
 	if (desc->setbw)
 		desc->setbw(buf, freq, bandwidth);

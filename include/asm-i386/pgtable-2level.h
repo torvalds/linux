@@ -61,4 +61,6 @@ static inline int pte_exec_kernel(pte_t pte)
 #define __pte_to_swp_entry(pte)		((swp_entry_t) { (pte).pte_low })
 #define __swp_entry_to_pte(x)		((pte_t) { (x).val })
 
+void vmalloc_sync_all(void);
+
 #endif /* _I386_PGTABLE_2LEVEL_H */

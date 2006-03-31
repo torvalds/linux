@@ -332,7 +332,7 @@ mgt_le_to_cpu(int type, void *data)
 	case OID_TYPE_ATTACH:{
 			struct obj_attachment *attach = data;
 			attach->id = le16_to_cpu(attach->id);
-			attach->size = le16_to_cpu(attach->size);; 
+			attach->size = le16_to_cpu(attach->size);
 			break;
 	}
 	case OID_TYPE_SSID:
@@ -401,7 +401,7 @@ mgt_cpu_to_le(int type, void *data)
 	case OID_TYPE_ATTACH:{
 			struct obj_attachment *attach = data;
 			attach->id = cpu_to_le16(attach->id);
-			attach->size = cpu_to_le16(attach->size);; 
+			attach->size = cpu_to_le16(attach->size);
 			break;
 	}
 	case OID_TYPE_SSID:

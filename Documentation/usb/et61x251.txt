@@ -176,6 +176,14 @@ Description:    Force the application to unmap previously mapped buffer memory
                 1 = force memory unmapping (save memory)
 Default:        0
 -------------------------------------------------------------------------------
+Name:           frame_timeout
+Type:           uint array (min = 0, max = 64)
+Syntax:         <n[,...]>
+Description:    Timeout for a video frame in seconds. This parameter is
+                specific for each detected camera. This parameter can be
+                changed at runtime thanks to the /sys filesystem interface.
+Default:        2
+-------------------------------------------------------------------------------
 Name:           debug
 Type:           ushort
 Syntax:         <n>
@@ -266,7 +274,7 @@ the V4L2 interface.
 
 
 10. Notes for V4L2 application developers
-========================================
+=========================================
 This driver follows the V4L2 API specifications. In particular, it enforces two
 rules:
 

@@ -271,39 +271,6 @@ static inline void zorro_set_drvdata (struct zorro_dev *z, void *data)
 }
 
 
-/*
- * A helper function which helps ensure correct zorro_driver
- * setup and cleanup for commonly-encountered hotplug/modular cases
- *
- * This MUST stay in a header, as it checks for -DMODULE
- */
-static inline int zorro_module_init(struct zorro_driver *drv)
-{
-	int rc = zorro_register_driver(drv);
-
-	if (rc > 0)
-		return 0;
-
-	/* iff CONFIG_HOTPLUG and built into kernel, we should
-	 * leave the driver around for future hotplug events.
-	 * For the module case, a hotplug daemon of some sort
-	 * should load a module in response to an insert event. */
-#if defined(CONFIG_HOTPLUG) && !defined(MODULE)
-	if (rc == 0)
-		return 0;
-#else
-	if (rc == 0)
-		rc = -ENODEV;
-#endif
-
-	/* if we get here, we need to clean up Zorro driver instance
-	 * and return some sort of error */
-	zorro_unregister_driver(drv);
-
-	return rc;
-}
-
-
     /*
      *  Bitmask indicating portions of available Zorro II RAM that are unused
      *  by the system. Every bit represents a 64K chunk, for a maximum of 8MB

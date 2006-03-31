@@ -105,9 +105,7 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 
 /* PFN start number, because of __MEMORY_START */
 #define PFN_START		(__MEMORY_START >> PAGE_SHIFT)
-
-#define pfn_to_page(pfn)	(mem_map + (pfn) - PFN_START)
-#define page_to_pfn(page)	((unsigned long)((page) - mem_map) + PFN_START)
+#define ARCH_PFN_OFFSET		(FPN_START)
 #define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)
 #define pfn_valid(pfn)		(((pfn) - PFN_START) < max_mapnr)
 #define virt_addr_valid(kaddr)	pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
@@ -117,6 +115,7 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 
 #endif /* __KERNEL__ */
 
+#include <asm-generic/memory_model.h>
 #include <asm-generic/page.h>
 
 #endif /* __ASM_SH_PAGE_H */

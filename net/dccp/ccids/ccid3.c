@@ -46,7 +46,7 @@
  * Reason for maths here is to avoid 32 bit overflow when a is big.
  * With this we get close to the limit.
  */
-static inline u32 usecs_div(const u32 a, const u32 b)
+static u32 usecs_div(const u32 a, const u32 b)
 {
 	const u32 div = a < (UINT_MAX / (USEC_PER_SEC /    10)) ?    10 :
 			a < (UINT_MAX / (USEC_PER_SEC /    50)) ?    50 :
@@ -76,15 +76,6 @@ static struct dccp_tx_hist *ccid3_tx_hist;
 static struct dccp_rx_hist *ccid3_rx_hist;
 static struct dccp_li_hist *ccid3_li_hist;
 
-static int ccid3_init(struct sock *sk)
-{
-	return 0;
-}
-
-static void ccid3_exit(struct sock *sk)
-{
-}
-
 /* TFRC sender states */
 enum ccid3_hc_tx_states {
        	TFRC_SSTATE_NO_SENT = 1,
@@ -107,8 +98,8 @@ static const char *ccid3_tx_state_name(enum ccid3_hc_tx_states state)
 }
 #endif
 
-static inline void ccid3_hc_tx_set_state(struct sock *sk,
-					 enum ccid3_hc_tx_states state)
+static void ccid3_hc_tx_set_state(struct sock *sk,
+				  enum ccid3_hc_tx_states state)
 {
 	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 	enum ccid3_hc_tx_states oldstate = hctx->ccid3hctx_state;
@@ -316,8 +307,6 @@ static int ccid3_hc_tx_send_packet(struct sock *sk,
 
 	switch (hctx->ccid3hctx_state) {
 	case TFRC_SSTATE_NO_SENT:
-		hctx->ccid3hctx_no_feedback_timer.function = ccid3_hc_tx_no_feedback_timer;
-		hctx->ccid3hctx_no_feedback_timer.data     = (unsigned long)sk;
 		sk_reset_timer(sk, &hctx->ccid3hctx_no_feedback_timer,
 			       jiffies + usecs_to_jiffies(TFRC_INITIAL_TIMEOUT));
 		hctx->ccid3hctx_last_win_count	 = 0;
@@ -585,16 +574,15 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	}
 }
 
-static void ccid3_hc_tx_insert_options(struct sock *sk, struct sk_buff *skb)
+static int ccid3_hc_tx_insert_options(struct sock *sk, struct sk_buff *skb)
 {
 	const struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 
 	BUG_ON(hctx == NULL);
 
-	if (!(sk->sk_state == DCCP_OPEN || sk->sk_state == DCCP_PARTOPEN))
-		return;
-
-	 DCCP_SKB_CB(skb)->dccpd_ccval = hctx->ccid3hctx_last_win_count;
+	if (sk->sk_state == DCCP_OPEN || sk->sk_state == DCCP_PARTOPEN)
+		DCCP_SKB_CB(skb)->dccpd_ccval = hctx->ccid3hctx_last_win_count;
+	return 0;
 }
 
 static int ccid3_hc_tx_parse_options(struct sock *sk, unsigned char option,
@@ -626,7 +614,7 @@ static int ccid3_hc_tx_parse_options(struct sock *sk, unsigned char option,
 				       __FUNCTION__, dccp_role(sk), sk);
 			rc = -EINVAL;
 		} else {
-			opt_recv->ccid3or_loss_event_rate = ntohl(*(u32 *)value);
+			opt_recv->ccid3or_loss_event_rate = ntohl(*(__be32 *)value);
 			ccid3_pr_debug("%s, sk=%p, LOSS_EVENT_RATE=%u\n",
 				       dccp_role(sk), sk,
 				       opt_recv->ccid3or_loss_event_rate);
@@ -647,7 +635,7 @@ static int ccid3_hc_tx_parse_options(struct sock *sk, unsigned char option,
 				       __FUNCTION__, dccp_role(sk), sk);
 			rc = -EINVAL;
 		} else {
-			opt_recv->ccid3or_receive_rate = ntohl(*(u32 *)value);
+			opt_recv->ccid3or_receive_rate = ntohl(*(__be32 *)value);
 			ccid3_pr_debug("%s, sk=%p, RECEIVE_RATE=%u\n",
 				       dccp_role(sk), sk,
 				       opt_recv->ccid3or_receive_rate);
@@ -658,17 +646,10 @@ static int ccid3_hc_tx_parse_options(struct sock *sk, unsigned char option,
 	return rc;
 }
 
-static int ccid3_hc_tx_init(struct sock *sk)
+static int ccid3_hc_tx_init(struct ccid *ccid, struct sock *sk)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
-	struct ccid3_hc_tx_sock *hctx;
-
-	dp->dccps_hc_tx_ccid_private = kmalloc(sizeof(*hctx), gfp_any());
-	if (dp->dccps_hc_tx_ccid_private == NULL)
-		return -ENOMEM;
-
-	hctx = ccid3_hc_tx_sk(sk);
-	memset(hctx, 0, sizeof(*hctx));
+	struct ccid3_hc_tx_sock *hctx = ccid_priv(ccid);
 
 	if (dp->dccps_packet_size >= TFRC_MIN_PACKET_SIZE &&
 	    dp->dccps_packet_size <= TFRC_MAX_PACKET_SIZE)
@@ -681,6 +662,9 @@ static int ccid3_hc_tx_init(struct sock *sk)
 	hctx->ccid3hctx_t_rto = USEC_PER_SEC;
 	hctx->ccid3hctx_state = TFRC_SSTATE_NO_SENT;
 	INIT_LIST_HEAD(&hctx->ccid3hctx_hist);
+
+	hctx->ccid3hctx_no_feedback_timer.function = ccid3_hc_tx_no_feedback_timer;
+	hctx->ccid3hctx_no_feedback_timer.data     = (unsigned long)sk;
 	init_timer(&hctx->ccid3hctx_no_feedback_timer);
 
 	return 0;
@@ -688,7 +672,6 @@ static int ccid3_hc_tx_init(struct sock *sk)
 
 static void ccid3_hc_tx_exit(struct sock *sk)
 {
-	struct dccp_sock *dp = dccp_sk(sk);
 	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 
 	BUG_ON(hctx == NULL);
@@ -698,9 +681,6 @@ static void ccid3_hc_tx_exit(struct sock *sk)
 
 	/* Empty packet history */
 	dccp_tx_hist_purge(ccid3_tx_hist, &hctx->ccid3hctx_hist);
-
-	kfree(dp->dccps_hc_tx_ccid_private);
-	dp->dccps_hc_tx_ccid_private = NULL;
 }
 
 /*
@@ -727,8 +707,8 @@ static const char *ccid3_rx_state_name(enum ccid3_hc_rx_states state)
 }
 #endif
 
-static inline void ccid3_hc_rx_set_state(struct sock *sk,
-					 enum ccid3_hc_rx_states state)
+static void ccid3_hc_rx_set_state(struct sock *sk,
+				  enum ccid3_hc_rx_states state)
 {
 	struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
 	enum ccid3_hc_rx_states oldstate = hcrx->ccid3hcrx_state;
@@ -793,31 +773,35 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk)
 	dccp_send_ack(sk);
 }
 
-static void ccid3_hc_rx_insert_options(struct sock *sk, struct sk_buff *skb)
+static int ccid3_hc_rx_insert_options(struct sock *sk, struct sk_buff *skb)
 {
 	const struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
-	u32 x_recv, pinv;
+	__be32 x_recv, pinv;
 
 	BUG_ON(hcrx == NULL);
 
 	if (!(sk->sk_state == DCCP_OPEN || sk->sk_state == DCCP_PARTOPEN))
-		return;
+		return 0;
 
 	DCCP_SKB_CB(skb)->dccpd_ccval = hcrx->ccid3hcrx_last_counter;
 
 	if (dccp_packet_without_ack(skb))
-		return;
-		
-	if (hcrx->ccid3hcrx_elapsed_time != 0)
-		dccp_insert_option_elapsed_time(sk, skb,
-						hcrx->ccid3hcrx_elapsed_time);
-	dccp_insert_option_timestamp(sk, skb);
+		return 0;
+
 	x_recv = htonl(hcrx->ccid3hcrx_x_recv);
 	pinv   = htonl(hcrx->ccid3hcrx_pinv);
-	dccp_insert_option(sk, skb, TFRC_OPT_LOSS_EVENT_RATE,
-			   &pinv, sizeof(pinv));
-	dccp_insert_option(sk, skb, TFRC_OPT_RECEIVE_RATE,
-			   &x_recv, sizeof(x_recv));
+
+	if ((hcrx->ccid3hcrx_elapsed_time != 0 &&
+	     dccp_insert_option_elapsed_time(sk, skb,
+					     hcrx->ccid3hcrx_elapsed_time)) ||
+	    dccp_insert_option_timestamp(sk, skb) ||
+	    dccp_insert_option(sk, skb, TFRC_OPT_LOSS_EVENT_RATE,
+		    	       &pinv, sizeof(pinv)) ||
+	    dccp_insert_option(sk, skb, TFRC_OPT_RECEIVE_RATE,
+		    	       &x_recv, sizeof(x_recv)))
+		return -1;
+
+	return 0;
 }
 
 /* calculate first loss interval
@@ -1047,19 +1031,12 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	}
 }
 
-static int ccid3_hc_rx_init(struct sock *sk)
+static int ccid3_hc_rx_init(struct ccid *ccid, struct sock *sk)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
-	struct ccid3_hc_rx_sock *hcrx;
+	struct ccid3_hc_rx_sock *hcrx = ccid_priv(ccid);
 
 	ccid3_pr_debug("%s, sk=%p\n", dccp_role(sk), sk);
-
-	dp->dccps_hc_rx_ccid_private = kmalloc(sizeof(*hcrx), gfp_any());
-	if (dp->dccps_hc_rx_ccid_private == NULL)
-		return -ENOMEM;
-
-	hcrx = ccid3_hc_rx_sk(sk);
-	memset(hcrx, 0, sizeof(*hcrx));
 
 	if (dp->dccps_packet_size >= TFRC_MIN_PACKET_SIZE &&
 	    dp->dccps_packet_size <= TFRC_MAX_PACKET_SIZE)
@@ -1079,7 +1056,6 @@ static int ccid3_hc_rx_init(struct sock *sk)
 static void ccid3_hc_rx_exit(struct sock *sk)
 {
 	struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
-	struct dccp_sock *dp = dccp_sk(sk);
 
 	BUG_ON(hcrx == NULL);
 
@@ -1090,9 +1066,6 @@ static void ccid3_hc_rx_exit(struct sock *sk)
 
 	/* Empty loss interval history */
 	dccp_li_hist_purge(ccid3_li_hist, &hcrx->ccid3hcrx_li_hist);
-
-	kfree(dp->dccps_hc_rx_ccid_private);
-	dp->dccps_hc_rx_ccid_private = NULL;
 }
 
 static void ccid3_hc_rx_get_info(struct sock *sk, struct tcp_info *info)
@@ -1178,12 +1151,11 @@ static int ccid3_hc_tx_getsockopt(struct sock *sk, const int optname, int len,
 	return 0;
 }
 
-static struct ccid ccid3 = {
+static struct ccid_operations ccid3 = {
 	.ccid_id		   = 3,
 	.ccid_name		   = "ccid3",
 	.ccid_owner		   = THIS_MODULE,
-	.ccid_init		   = ccid3_init,
-	.ccid_exit		   = ccid3_exit,
+	.ccid_hc_tx_obj_size	   = sizeof(struct ccid3_hc_tx_sock),
 	.ccid_hc_tx_init	   = ccid3_hc_tx_init,
 	.ccid_hc_tx_exit	   = ccid3_hc_tx_exit,
 	.ccid_hc_tx_send_packet	   = ccid3_hc_tx_send_packet,
@@ -1191,6 +1163,7 @@ static struct ccid ccid3 = {
 	.ccid_hc_tx_packet_recv	   = ccid3_hc_tx_packet_recv,
 	.ccid_hc_tx_insert_options = ccid3_hc_tx_insert_options,
 	.ccid_hc_tx_parse_options  = ccid3_hc_tx_parse_options,
+	.ccid_hc_rx_obj_size	   = sizeof(struct ccid3_hc_rx_sock),
 	.ccid_hc_rx_init	   = ccid3_hc_rx_init,
 	.ccid_hc_rx_exit	   = ccid3_hc_rx_exit,
 	.ccid_hc_rx_insert_options = ccid3_hc_rx_insert_options,
@@ -1241,15 +1214,6 @@ module_init(ccid3_module_init);
 
 static __exit void ccid3_module_exit(void)
 {
-#ifdef CONFIG_IP_DCCP_UNLOAD_HACK
-	/*
-	 * Hack to use while developing, so that we get rid of the control
-	 * sock, that is what keeps a refcount on dccp.ko -acme
-	 */
-	extern void dccp_ctl_sock_exit(void);
-
-	dccp_ctl_sock_exit();
-#endif
 	ccid_unregister(&ccid3);
 
 	if (ccid3_tx_hist != NULL) {

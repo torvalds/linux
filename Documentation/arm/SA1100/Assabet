@@ -26,7 +26,7 @@ Installing a bootloader
 
 A couple of bootloaders able to boot Linux on Assabet are available:
 
-BLOB (http://www.lart.tudelft.nl/lartware/blob/)
+BLOB (http://www.lartmaker.nl/lartware/blob/)
 
    BLOB is a bootloader used within the LART project.  Some contributed
    patches were merged into BLOB to add support for Assabet.

@@ -347,10 +347,8 @@ static unsigned int __devinit init_chipset_amd74xx(struct pci_dev *dev, const ch
 			break;
 
 		case AMD_UDMA_66:
-			pci_read_config_dword(dev, AMD_UDMA_TIMING, &u);
-			for (i = 24; i >= 0; i -= 8)
-				if ((u >> i) & 4)
-					amd_80w |= (1 << (1 - (i >> 4)));
+			/* no host side cable detection */
+			amd_80w = 0x03;
 			break;
 	}
 
@@ -386,8 +384,6 @@ static unsigned int __devinit init_chipset_amd74xx(struct pci_dev *dev, const ch
 	if (amd_clock < 20000 || amd_clock > 50000) {
 		printk(KERN_WARNING "%s: User given PCI clock speed impossible (%d), using 33 MHz instead.\n",
 			amd_chipset->name, amd_clock);
-		printk(KERN_WARNING "%s: Use ide0=ata66 if you want to assume 80-wire cable\n",
-			amd_chipset->name);
 		amd_clock = 33333;
 	}
 

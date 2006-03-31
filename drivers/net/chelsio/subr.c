@@ -686,7 +686,7 @@ int t1_init_hw_modules(adapter_t *adapter)
  */
 static void __devinit get_pci_mode(adapter_t *adapter, struct chelsio_pci_params *p)
 {
-	static unsigned short speed_map[] = { 33, 66, 100, 133 };
+	static const unsigned short speed_map[] = { 33, 66, 100, 133 };
 	u32 pci_mode;
 
 	pci_read_config_dword(adapter->pdev, A_PCICFG_MODE, &pci_mode);

@@ -79,7 +79,7 @@ static inline void mrdemote(mrlock_t *mrp)
  * Debug-only routine, without some platform-specific asm code, we can
  * now only answer requests regarding whether we hold the lock for write
  * (reader state is outside our visibility, we only track writer state).
- * Note: means !ismrlocked would give false positivies, so don't do that.
+ * Note: means !ismrlocked would give false positives, so don't do that.
  */
 static inline int ismrlocked(mrlock_t *mrp, int type)
 {

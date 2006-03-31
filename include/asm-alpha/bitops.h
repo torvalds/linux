@@ -261,7 +261,7 @@ static inline unsigned long ffz_b(unsigned long x)
 
 static inline unsigned long ffz(unsigned long word)
 {
-#if defined(__alpha_cix__) && defined(__alpha_fix__)
+#if defined(CONFIG_ALPHA_EV6) && defined(CONFIG_ALPHA_EV67)
 	/* Whee.  EV67 can calculate it directly.  */
 	return __kernel_cttz(~word);
 #else
@@ -281,7 +281,7 @@ static inline unsigned long ffz(unsigned long word)
  */
 static inline unsigned long __ffs(unsigned long word)
 {
-#if defined(__alpha_cix__) && defined(__alpha_fix__)
+#if defined(CONFIG_ALPHA_EV6) && defined(CONFIG_ALPHA_EV67)
 	/* Whee.  EV67 can calculate it directly.  */
 	return __kernel_cttz(word);
 #else
@@ -313,20 +313,20 @@ static inline int ffs(int word)
 /*
  * fls: find last bit set.
  */
-#if defined(__alpha_cix__) && defined(__alpha_fix__)
+#if defined(CONFIG_ALPHA_EV6) && defined(CONFIG_ALPHA_EV67)
 static inline int fls(int word)
 {
 	return 64 - __kernel_ctlz(word & 0xffffffff);
 }
 #else
-#define fls	generic_fls
+#include <asm-generic/bitops/fls.h>
 #endif
-#define fls64   generic_fls64
+#include <asm-generic/bitops/fls64.h>
 
 /* Compute powers of two for the given integer.  */
 static inline long floor_log2(unsigned long word)
 {
-#if defined(__alpha_cix__) && defined(__alpha_fix__)
+#if defined(CONFIG_ALPHA_EV6) && defined(CONFIG_ALPHA_EV67)
 	return 63 - __kernel_ctlz(word);
 #else
 	long bit;
@@ -347,7 +347,7 @@ static inline long ceil_log2(unsigned long word)
  * of bits set) of a N-bit word
  */
 
-#if defined(__alpha_cix__) && defined(__alpha_fix__)
+#if defined(CONFIG_ALPHA_EV6) && defined(CONFIG_ALPHA_EV67)
 /* Whee.  EV67 can calculate it directly.  */
 static inline unsigned long hweight64(unsigned long w)
 {
@@ -358,112 +358,12 @@ static inline unsigned long hweight64(unsigned long w)
 #define hweight16(x)	(unsigned int) hweight64((x) & 0xfffful)
 #define hweight8(x)	(unsigned int) hweight64((x) & 0xfful)
 #else
-static inline unsigned long hweight64(unsigned long w)
-{
-	unsigned long result;
-	for (result = 0; w ; w >>= 1)
-		result += (w & 1);
-	return result;
-}
-
-#define hweight32(x) generic_hweight32(x)
-#define hweight16(x) generic_hweight16(x)
-#define hweight8(x)  generic_hweight8(x)
+#include <asm-generic/bitops/hweight.h>
 #endif
 
 #endif /* __KERNEL__ */
 
-/*
- * Find next zero bit in a bitmap reasonably efficiently..
- */
-static inline unsigned long
-find_next_zero_bit(const void *addr, unsigned long size, unsigned long offset)
-{
-	const unsigned long *p = addr;
-	unsigned long result = offset & ~63UL;
-	unsigned long tmp;
-
-	p += offset >> 6;
-	if (offset >= size)
-		return size;
-	size -= result;
-	offset &= 63UL;
-	if (offset) {
-		tmp = *(p++);
-		tmp |= ~0UL >> (64-offset);
-		if (size < 64)
-			goto found_first;
-		if (~tmp)
-			goto found_middle;
-		size -= 64;
-		result += 64;
-	}
-	while (size & ~63UL) {
-		if (~(tmp = *(p++)))
-			goto found_middle;
-		result += 64;
-		size -= 64;
-	}
-	if (!size)
-		return result;
-	tmp = *p;
- found_first:
-	tmp |= ~0UL << size;
-	if (tmp == ~0UL)        /* Are any bits zero? */
-		return result + size; /* Nope. */
- found_middle:
-	return result + ffz(tmp);
-}
-
-/*
- * Find next one bit in a bitmap reasonably efficiently.
- */
-static inline unsigned long
-find_next_bit(const void * addr, unsigned long size, unsigned long offset)
-{
-	const unsigned long *p = addr;
-	unsigned long result = offset & ~63UL;
-	unsigned long tmp;
-
-	p += offset >> 6;
-	if (offset >= size)
-		return size;
-	size -= result;
-	offset &= 63UL;
-	if (offset) {
-		tmp = *(p++);
-		tmp &= ~0UL << offset;
-		if (size < 64)
-			goto found_first;
-		if (tmp)
-			goto found_middle;
-		size -= 64;
-		result += 64;
-	}
-	while (size & ~63UL) {
-		if ((tmp = *(p++)))
-			goto found_middle;
-		result += 64;
-		size -= 64;
-	}
-	if (!size)
-		return result;
-	tmp = *p;
- found_first:
-	tmp &= ~0UL >> (64 - size);
-	if (!tmp)
-		return result + size;
- found_middle:
-	return result + __ffs(tmp);
-}
-
-/*
- * The optimizer actually does good code for this case.
- */
-#define find_first_zero_bit(addr, size) \
-	find_next_zero_bit((addr), (size), 0)
-#define find_first_bit(addr, size) \
-	find_next_bit((addr), (size), 0)
+#include <asm-generic/bitops/find.h>
 
 #ifdef __KERNEL__
 
@@ -487,21 +387,12 @@ sched_find_first_bit(unsigned long b[3])
 	return __ffs(b0) + ofs;
 }
 
+#include <asm-generic/bitops/ext2-non-atomic.h>
 
-#define ext2_set_bit                 __test_and_set_bit
 #define ext2_set_bit_atomic(l,n,a)   test_and_set_bit(n,a)
-#define ext2_clear_bit               __test_and_clear_bit
 #define ext2_clear_bit_atomic(l,n,a) test_and_clear_bit(n,a)
-#define ext2_test_bit                test_bit
-#define ext2_find_first_zero_bit     find_first_zero_bit
-#define ext2_find_next_zero_bit      find_next_zero_bit
 
-/* Bitmap functions for the minix filesystem.  */
-#define minix_test_and_set_bit(nr,addr) __test_and_set_bit(nr,addr)
-#define minix_set_bit(nr,addr) __set_bit(nr,addr)
-#define minix_test_and_clear_bit(nr,addr) __test_and_clear_bit(nr,addr)
-#define minix_test_bit(nr,addr) test_bit(nr,addr)
-#define minix_find_first_zero_bit(addr,size) find_first_zero_bit(addr,size)
+#include <asm-generic/bitops/minix.h>
 
 #endif /* __KERNEL__ */
 

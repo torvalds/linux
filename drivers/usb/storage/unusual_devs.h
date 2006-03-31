@@ -62,6 +62,13 @@ UNUSUAL_DEV(  0x03ee, 0x6901, 0x0000, 0x0100,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_SINGLE_LUN ),
 
+/* Reported by Rodolfo Quesada <rquesada@roqz.net> */
+UNUSUAL_DEV(  0x03ee, 0x6906, 0x0003, 0x0003,
+		"VIA Technologies Inc.",
+		"Mitsumi multi cardreader",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_IGNORE_RESIDUE ),
+
 UNUSUAL_DEV(  0x03f0, 0x0107, 0x0200, 0x0200, 
 		"HP",
 		"CD-Writer+",
@@ -117,6 +124,12 @@ UNUSUAL_DEV(  0x0419, 0xaaf5, 0x0100, 0x0100,
 UNUSUAL_DEV(  0x0419, 0xaaf6, 0x0100, 0x0100,
 		"TrekStor",
 		"i.Beat Joy 2.0",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_IGNORE_RESIDUE ),
+
+/* Reported by Pete Zaitcev <zaitcev@redhat.com>, bz#176584 */
+UNUSUAL_DEV(  0x0420, 0x0001, 0x0100, 0x0100,
+		"GENERIC", "MP3 PLAYER", /* MyMusix PD-205 on the outside. */
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_IGNORE_RESIDUE ),
 
@@ -760,11 +773,18 @@ UNUSUAL_DEV(  0x069b, 0x3004, 0x0001, 0x0001,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY ),
 
-UNUSUAL_DEV(  0x0781, 0x0001, 0x0200, 0x0200, 
+/* Submitted by Roman Hodek <roman@hodek.net> */
+UNUSUAL_DEV(  0x0781, 0x0001, 0x0200, 0x0200,
 		"Sandisk",
 		"ImageMate SDDR-05a",
 		US_SC_SCSI, US_PR_CB, NULL,
 		US_FL_SINGLE_LUN ),
+
+UNUSUAL_DEV(  0x0781, 0x0002, 0x0009, 0x0009,
+		"SanDisk Corporation",
+		"ImageMate CompactFlash USB",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY ),
 
 #ifdef CONFIG_USB_STORAGE_USBAT
 UNUSUAL_DEV(  0x0781, 0x0005, 0x0005, 0x0005,
@@ -1072,6 +1092,16 @@ UNUSUAL_DEV( 0x0c0b, 0xa109, 0x0000, 0xffff,
 			US_SC_DEVICE, US_PR_DEVICE, onetouch_connect_input,
 			0),
 #endif
+
+/*
+ * Pete Zaitcev <zaitcev@yahoo.com>, bz#164688.
+ * The device blatantly ignores LUN and returns 1 in GetMaxLUN.
+ */
+UNUSUAL_DEV( 0x0c45, 0x1060, 0x0100, 0x0100,
+		"Unknown",
+		"Unknown",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_SINGLE_LUN ),
 
 /* Submitted by Joris Struyve <joris@struyve.be> */
 UNUSUAL_DEV( 0x0d96, 0x410a, 0x0001, 0xffff,

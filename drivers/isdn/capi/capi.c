@@ -1485,6 +1485,7 @@ static int __init capi_init(void)
 {
 	char *p;
 	char *compileinfo;
+	int major_ret;
 
 	if ((p = strchr(revision, ':')) != 0 && p[1]) {
 		strlcpy(rev, p + 2, sizeof(rev));
@@ -1493,11 +1494,12 @@ static int __init capi_init(void)
 	} else
 		strcpy(rev, "1.0");
 
-	if (register_chrdev(capi_major, "capi20", &capi_fops)) {
+	major_ret = register_chrdev(capi_major, "capi20", &capi_fops);
+	if (major_ret < 0) {
 		printk(KERN_ERR "capi20: unable to get major %d\n", capi_major);
-		return -EIO;
+		return major_ret;
 	}
-
+	capi_major = major_ret;
 	capi_class = class_create(THIS_MODULE, "capi");
 	if (IS_ERR(capi_class)) {
 		unregister_chrdev(capi_major, "capi20");

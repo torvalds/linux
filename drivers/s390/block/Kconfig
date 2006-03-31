@@ -49,20 +49,18 @@ config DASD_FBA
 
 config DASD_DIAG
 	tristate "Support for DIAG access to Disks"
-	depends on DASD && ( 64BIT = 'n' || EXPERIMENTAL)
+	depends on DASD
 	help
 	  Select this option if you want to use Diagnose250 command to access
 	  Disks under VM.  If you are not running under VM or unsure what it is,
 	  say "N".
 
-config DASD_CMB
-	tristate "Compatibility interface for DASD channel measurement blocks"
+config DASD_EER
+	bool "Extended error reporting (EER)"
 	depends on DASD
 	help
-	  This driver provides an additional interface to the channel measurement
-	  facility, which is normally accessed though sysfs, with a set of
-	  ioctl functions specific to the dasd driver.
-	  This is only needed if you want to use applications written for
-	  linux-2.4 dasd channel measurement facility interface.
+	  This driver provides a character device interface to the
+	  DASD extended error reporting. This is only needed if you want to
+	  use applications written for the EER facility.
 
 endif

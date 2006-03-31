@@ -1,6 +1,4 @@
 /*
- *  arch/ppc/platforms/pmac_cpufreq.c
- *
  *  Copyright (C) 2002 - 2005 Benjamin Herrenschmidt <benh@kernel.crashing.org>
  *  Copyright (C) 2004        John Steele Scott <toojays@toojays.net>
  *

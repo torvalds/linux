@@ -23,7 +23,7 @@ struct ip_nat_seq {
 	 * modification (if any) */
 	u_int32_t correction_pos;
 	/* sequence number offset before and after last modification */
-	int32_t offset_before, offset_after;
+	int16_t offset_before, offset_after;
 };
 
 /* Single range specification. */

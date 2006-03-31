@@ -524,6 +524,7 @@ static int enable_net_traffic(struct net_device *dev, struct usb_device *usb)
 	ret = set_registers(pegasus, EthCtrl0, 3, data);
 
 	if (usb_dev_id[pegasus->dev_index].vendor == VENDOR_LINKSYS ||
+	    usb_dev_id[pegasus->dev_index].vendor == VENDOR_LINKSYS2 ||
 	    usb_dev_id[pegasus->dev_index].vendor == VENDOR_DLINK) {
 		u16 auxmode;
 		read_mii_word(pegasus, 0, 0x1b, &auxmode);

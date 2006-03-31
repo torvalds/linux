@@ -58,7 +58,7 @@ MODULE_PARM_DESC(disable_nodemgr, "Disable nodemgr functionality.");
 
 /* Disable Isochronous Resource Manager functionality */
 int hpsb_disable_irm = 0;
-module_param_named(disable_irm, hpsb_disable_irm, bool, 0);
+module_param_named(disable_irm, hpsb_disable_irm, bool, 0444);
 MODULE_PARM_DESC(disable_irm,
 		 "Disable Isochronous Resource Manager functionality.");
 
@@ -1078,17 +1078,10 @@ static int __init ieee1394_init(void)
 		goto exit_release_kernel_thread;
 	}
 
-	/* actually this is a non-fatal error */
-	ret = devfs_mk_dir("ieee1394");
-	if (ret < 0) {
-		HPSB_ERR("unable to make devfs dir for device major %d!\n", IEEE1394_MAJOR);
-		goto release_chrdev;
-	}
-
 	ret = bus_register(&ieee1394_bus_type);
 	if (ret < 0) {
 		HPSB_INFO("bus register failed");
-		goto release_devfs;
+		goto release_chrdev;
 	}
 
 	for (i = 0; fw_bus_attrs[i]; i++) {
@@ -1099,7 +1092,7 @@ static int __init ieee1394_init(void)
 						fw_bus_attrs[i--]);
 			}
 			bus_unregister(&ieee1394_bus_type);
-			goto release_devfs;
+			goto release_chrdev;
 		}
 	}
 
@@ -1152,8 +1145,6 @@ release_all_bus:
 	for (i = 0; fw_bus_attrs[i]; i++)
 		bus_remove_file(&ieee1394_bus_type, fw_bus_attrs[i]);
 	bus_unregister(&ieee1394_bus_type);
-release_devfs:
-	devfs_remove("ieee1394");
 release_chrdev:
 	unregister_chrdev_region(IEEE1394_CORE_DEV, 256);
 exit_release_kernel_thread:
@@ -1191,7 +1182,6 @@ static void __exit ieee1394_cleanup(void)
 	hpsb_cleanup_config_roms();
 
 	unregister_chrdev_region(IEEE1394_CORE_DEV, 256);
-	devfs_remove("ieee1394");
 }
 
 module_init(ieee1394_init);

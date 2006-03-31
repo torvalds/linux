@@ -15,6 +15,48 @@
 #define SZL			(BITS_PER_LONG/8)
 
 /*
+ * Stuff for accurate CPU time accounting.
+ * These macros handle transitions between user and system state
+ * in exception entry and exit and accumulate time to the
+ * user_time and system_time fields in the paca.
+ */
+
+#ifndef CONFIG_VIRT_CPU_ACCOUNTING
+#define ACCOUNT_CPU_USER_ENTRY(ra, rb)
+#define ACCOUNT_CPU_USER_EXIT(ra, rb)
+#else
+#define ACCOUNT_CPU_USER_ENTRY(ra, rb)					\
+	beq	2f;			/* if from kernel mode */	\
+BEGIN_FTR_SECTION;							\
+	mfspr	ra,SPRN_PURR;		/* get processor util. reg */	\
+END_FTR_SECTION_IFSET(CPU_FTR_PURR);					\
+BEGIN_FTR_SECTION;							\
+	mftb	ra;			/* or get TB if no PURR */	\
+END_FTR_SECTION_IFCLR(CPU_FTR_PURR);					\
+	ld	rb,PACA_STARTPURR(r13);				\
+	std	ra,PACA_STARTPURR(r13);					\
+	subf	rb,rb,ra;		/* subtract start value */	\
+	ld	ra,PACA_USER_TIME(r13);					\
+	add	ra,ra,rb;		/* add on to user time */	\
+	std	ra,PACA_USER_TIME(r13);					\
+2:
+
+#define ACCOUNT_CPU_USER_EXIT(ra, rb)					\
+BEGIN_FTR_SECTION;							\
+	mfspr	ra,SPRN_PURR;		/* get processor util. reg */	\
+END_FTR_SECTION_IFSET(CPU_FTR_PURR);					\
+BEGIN_FTR_SECTION;							\
+	mftb	ra;			/* or get TB if no PURR */	\
+END_FTR_SECTION_IFCLR(CPU_FTR_PURR);					\
+	ld	rb,PACA_STARTPURR(r13);				\
+	std	ra,PACA_STARTPURR(r13);					\
+	subf	rb,rb,ra;		/* subtract start value */	\
+	ld	ra,PACA_SYSTEM_TIME(r13);				\
+	add	ra,ra,rb;		/* add on to user time */	\
+	std	ra,PACA_SYSTEM_TIME(r13);
+#endif
+
+/*
  * Macros for storing registers into and loading registers from
  * exception frames.
  */

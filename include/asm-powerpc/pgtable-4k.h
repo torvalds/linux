@@ -62,9 +62,14 @@
 /* shift to put page number into pte */
 #define PTE_RPN_SHIFT	(17)
 
-#define __real_pte(e,p)		((real_pte_t)(e))
-#define __rpte_to_pte(r)	(r)
-#define __rpte_to_hidx(r,index)	(pte_val((r)) >> 12)
+#ifdef STRICT_MM_TYPECHECKS
+#define __real_pte(e,p)		((real_pte_t){(e)})
+#define __rpte_to_pte(r)	((r).pte)
+#else
+#define __real_pte(e,p)		(e)
+#define __rpte_to_pte(r)	(__pte(r))
+#endif
+#define __rpte_to_hidx(r,index)	(pte_val(__rpte_to_pte(r)) >> 12)
 
 #define pte_iterate_hashed_subpages(rpte, psize, va, index, shift)       \
 	do {							         \

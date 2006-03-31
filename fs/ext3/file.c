@@ -37,9 +37,9 @@ static int ext3_release_file (struct inode * inode, struct file * filp)
 	if ((filp->f_mode & FMODE_WRITE) &&
 			(atomic_read(&inode->i_writecount) == 1))
 	{
-		down(&EXT3_I(inode)->truncate_sem);
+		mutex_lock(&EXT3_I(inode)->truncate_mutex);
 		ext3_discard_reservation(inode);
-		up(&EXT3_I(inode)->truncate_sem);
+		mutex_unlock(&EXT3_I(inode)->truncate_mutex);
 	}
 	if (is_dx(inode) && filp->private_data)
 		ext3_htree_free_dir_info(filp->private_data);
@@ -105,7 +105,7 @@ force_commit:
 	return ret;
 }
 
-struct file_operations ext3_file_operations = {
+const struct file_operations ext3_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= do_sync_read,
 	.write		= do_sync_write,
@@ -119,6 +119,8 @@ struct file_operations ext3_file_operations = {
 	.release	= ext3_release_file,
 	.fsync		= ext3_sync_file,
 	.sendfile	= generic_file_sendfile,
+	.splice_read	= generic_file_splice_read,
+	.splice_write	= generic_file_splice_write,
 };
 
 struct inode_operations ext3_file_inode_operations = {

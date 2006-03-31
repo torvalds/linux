@@ -131,7 +131,7 @@ MODULE_PARM_DESC(arp_ip_target, "arp targets in n.n.n.n form");
 
 /*----------------------------- Global variables ----------------------------*/
 
-static const char *version =
+static const char * const version =
 	DRV_DESCRIPTION ": v" DRV_VERSION " (" DRV_RELDATE ")\n";
 
 LIST_HEAD(bond_dev_list);
@@ -557,6 +557,42 @@ out:
 }
 
 /*------------------------------- Link status -------------------------------*/
+
+/*
+ * Set the carrier state for the master according to the state of its
+ * slaves.  If any slaves are up, the master is up.  In 802.3ad mode,
+ * do special 802.3ad magic.
+ *
+ * Returns zero if carrier state does not change, nonzero if it does.
+ */
+static int bond_set_carrier(struct bonding *bond)
+{
+	struct slave *slave;
+	int i;
+
+	if (bond->slave_cnt == 0)
+		goto down;
+
+	if (bond->params.mode == BOND_MODE_8023AD)
+		return bond_3ad_set_carrier(bond);
+
+	bond_for_each_slave(bond, slave, i) {
+		if (slave->link == BOND_LINK_UP) {
+			if (!netif_carrier_ok(bond->dev)) {
+				netif_carrier_on(bond->dev);
+				return 1;
+			}
+			return 0;
+		}
+	}
+
+down:
+	if (netif_carrier_ok(bond->dev)) {
+		netif_carrier_off(bond->dev);
+		return 1;
+	}
+	return 0;
+}
 
 /*
  * Get link speed and duplex from the slave's base driver
@@ -1040,6 +1076,10 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 	if ((bond->params.mode == BOND_MODE_TLB) ||
 	    (bond->params.mode == BOND_MODE_ALB)) {
 		bond_alb_handle_active_change(bond, new_active);
+		if (old_active)
+			bond_set_slave_inactive_flags(old_active);
+		if (new_active)
+			bond_set_slave_active_flags(new_active);
 	} else {
 		bond->curr_active_slave = new_active;
 	}
@@ -1070,10 +1110,24 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 void bond_select_active_slave(struct bonding *bond)
 {
 	struct slave *best_slave;
+	int rv;
 
 	best_slave = bond_find_best_slave(bond);
 	if (best_slave != bond->curr_active_slave) {
 		bond_change_active_slave(bond, best_slave);
+		rv = bond_set_carrier(bond);
+		if (!rv)
+			return;
+
+		if (netif_carrier_ok(bond->dev)) {
+			printk(KERN_INFO DRV_NAME
+			       ": %s: first active interface up!\n",
+			       bond->dev->name);
+		} else {
+			printk(KERN_INFO DRV_NAME ": %s: "
+			       "now running without any active interface !\n",
+			       bond->dev->name);
+		}
 	}
 }
 
@@ -1443,20 +1497,25 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 
 	switch (bond->params.mode) {
 	case BOND_MODE_ACTIVEBACKUP:
-		/* if we're in active-backup mode, we need one and only one active
-		 * interface. The backup interfaces will have their NOARP flag set
-		 * because we need them to be completely deaf and not to respond to
-		 * any ARP request on the network to avoid fooling a switch. Thus,
-		 * since we guarantee that curr_active_slave always point to the last
-		 * usable interface, we just have to verify this interface's flag.
+		/* if we're in active-backup mode, we need one and
+		 * only one active interface. The backup interfaces
+		 * will have their SLAVE_INACTIVE flag set because we
+		 * need them to be drop all packets. Thus, since we
+		 * guarantee that curr_active_slave always point to
+		 * the last usable interface, we just have to verify
+		 * this interface's flag.
 		 */
 		if (((!bond->curr_active_slave) ||
-		     (bond->curr_active_slave->dev->flags & IFF_NOARP)) &&
+		     (bond->curr_active_slave->dev->priv_flags & IFF_SLAVE_INACTIVE)) &&
 		    (new_slave->link != BOND_LINK_DOWN)) {
-			dprintk("This is the first active slave\n");
 			/* first slave or no active slave yet, and this link
 			   is OK, so make this interface the active one */
 			bond_change_active_slave(bond, new_slave);
+			printk(KERN_INFO DRV_NAME
+			       ": %s: first active interface up!\n",
+			       bond->dev->name);
+			netif_carrier_on(bond->dev);
+
 		} else {
 			dprintk("This is just a backup slave\n");
 			bond_set_slave_inactive_flags(new_slave);
@@ -1492,6 +1551,8 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 			 * is OK, so make this interface the active one
 			 */
 			bond_change_active_slave(bond, new_slave);
+		} else {
+			bond_set_slave_inactive_flags(new_slave);
 		}
 		break;
 	default:
@@ -1509,6 +1570,8 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		}
 		break;
 	} /* switch(bond_mode) */
+
+	bond_set_carrier(bond);
 
 	write_unlock_bh(&bond->lock);
 
@@ -1649,18 +1712,12 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 		bond_alb_deinit_slave(bond, slave);
 	}
 
-	if (oldcurrent == slave) {
+	if (oldcurrent == slave)
 		bond_select_active_slave(bond);
 
-		if (!bond->curr_active_slave) {
-			printk(KERN_INFO DRV_NAME
-			       ": %s: now running without any active "
-			       "interface !\n",
-			       bond_dev->name);
-		}
-	}
-
 	if (bond->slave_cnt == 0) {
+		bond_set_carrier(bond);
+
 		/* if the last slave was removed, zero the mac address
 		 * of the master so it will be set by the application
 		 * to the mac address of the first slave
@@ -1724,13 +1781,8 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 	addr.sa_family = slave_dev->type;
 	dev_set_mac_address(slave_dev, &addr);
 
-	/* restore the original state of the
-	 * IFF_NOARP flag that might have been
-	 * set by bond_set_slave_inactive_flags()
-	 */
-	if ((slave->original_flags & IFF_NOARP) == 0) {
-		slave_dev->flags &= ~IFF_NOARP;
-	}
+	slave_dev->priv_flags &= ~(IFF_MASTER_8023AD | IFF_MASTER_ALB |
+				   IFF_SLAVE_INACTIVE);
 
 	kfree(slave);
 
@@ -1748,6 +1800,8 @@ static int bond_release_all(struct net_device *bond_dev)
 	struct sockaddr addr;
 
 	write_lock_bh(&bond->lock);
+
+	netif_carrier_off(bond_dev);
 
 	if (bond->slave_cnt == 0) {
 		goto out;
@@ -1816,12 +1870,8 @@ static int bond_release_all(struct net_device *bond_dev)
 		addr.sa_family = slave_dev->type;
 		dev_set_mac_address(slave_dev, &addr);
 
-		/* restore the original state of the IFF_NOARP flag that might have
-		 * been set by bond_set_slave_inactive_flags()
-		 */
-		if ((slave->original_flags & IFF_NOARP) == 0) {
-			slave_dev->flags &= ~IFF_NOARP;
-		}
+		slave_dev->priv_flags &= ~(IFF_MASTER_8023AD | IFF_MASTER_ALB |
+					   IFF_SLAVE_INACTIVE);
 
 		kfree(slave);
 
@@ -2189,15 +2239,9 @@ void bond_mii_monitor(struct net_device *bond_dev)
 
 		bond_select_active_slave(bond);
 
-		if (oldcurrent && !bond->curr_active_slave) {
-			printk(KERN_INFO DRV_NAME
-			       ": %s: now running without any active "
-			       "interface !\n",
-			       bond_dev->name);
-		}
-
 		write_unlock(&bond->curr_slave_lock);
-	}
+	} else
+		bond_set_carrier(bond);
 
 re_arm:
 	if (bond->params.miimon) {
@@ -2501,13 +2545,6 @@ void bond_loadbalance_arp_mon(struct net_device *bond_dev)
 
 		bond_select_active_slave(bond);
 
-		if (oldcurrent && !bond->curr_active_slave) {
-			printk(KERN_INFO DRV_NAME
-			       ": %s: now running without any active "
-			       "interface !\n",
-			       bond_dev->name);
-		}
-
 		write_unlock(&bond->curr_slave_lock);
 	}
 
@@ -2581,12 +2618,15 @@ void bond_activebackup_arp_mon(struct net_device *bond_dev)
 					bond->current_arp_slave = NULL;
 				}
 
+				bond_set_carrier(bond);
+
 				if (slave == bond->curr_active_slave) {
 					printk(KERN_INFO DRV_NAME
 					       ": %s: %s is up and now the "
 					       "active interface\n",
 					       bond_dev->name,
 					       slave->dev->name);
+					netif_carrier_on(bond->dev);
 				} else {
 					printk(KERN_INFO DRV_NAME
 					       ": %s: backup interface %s is "
@@ -2846,7 +2886,8 @@ static void bond_info_show_master(struct seq_file *seq)
 			   (curr) ? curr->dev->name : "None");
 	}
 
-	seq_printf(seq, "MII Status: %s\n", (curr) ? "up" : "down");
+	seq_printf(seq, "MII Status: %s\n", netif_carrier_ok(bond->dev) ?
+		   "up" : "down");
 	seq_printf(seq, "MII Polling Interval (ms): %d\n", bond->params.miimon);
 	seq_printf(seq, "Up Delay (ms): %d\n",
 		   bond->params.updelay * bond->params.miimon);
@@ -3161,7 +3202,7 @@ static int bond_slave_netdev_event(unsigned long event, struct net_device *slave
  * bond_netdev_event: handle netdev notifier chain events.
  *
  * This function receives events for the netdev chain.  The caller (an
- * ioctl handler calling notifier_call_chain) holds the necessary
+ * ioctl handler calling blocking_notifier_call_chain) holds the necessary
  * locks for us to safely manipulate the slave devices (RTNL lock,
  * dev_probe_lock).
  */
@@ -4061,14 +4102,17 @@ void bond_set_mode_ops(struct bonding *bond, int mode)
 		bond_dev->hard_start_xmit = bond_xmit_broadcast;
 		break;
 	case BOND_MODE_8023AD:
+		bond_set_master_3ad_flags(bond);
 		bond_dev->hard_start_xmit = bond_3ad_xmit_xor;
 		if (bond->params.xmit_policy == BOND_XMIT_POLICY_LAYER34)
 			bond->xmit_hash_policy = bond_xmit_hash_policy_l34;
 		else
 			bond->xmit_hash_policy = bond_xmit_hash_policy_l2;
 		break;
-	case BOND_MODE_TLB:
 	case BOND_MODE_ALB:
+		bond_set_master_alb_flags(bond);
+		/* FALLTHRU */
+	case BOND_MODE_TLB:
 		bond_dev->hard_start_xmit = bond_alb_xmit;
 		bond_dev->set_mac_address = bond_alb_set_mac_address;
 		break;
@@ -4529,6 +4573,8 @@ int bond_create(char *name, struct bond_params *params, struct bonding **newbond
 	}
 	if (newbond)
 		*newbond = bond_dev->priv;
+
+	netif_carrier_off(bond_dev);
 
 	rtnl_unlock(); /* allows sysfs registration of net device */
 	res = bond_create_sysfs_entry(bond_dev->priv);

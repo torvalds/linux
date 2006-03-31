@@ -1,7 +1,8 @@
 /*
  * Copyright (c) 2005 Topspin Communications.  All rights reserved.
- * Copyright (c) 2005 Cisco Systems.  All rights reserved.
+ * Copyright (c) 2005, 2006 Cisco Systems.  All rights reserved.
  * Copyright (c) 2005 PathScale, Inc.  All rights reserved.
+ * Copyright (c) 2006 Mellanox Technologies.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -43,7 +44,7 @@
  * Increment this value if any changes that break userspace ABI
  * compatibility are made.
  */
-#define IB_USER_VERBS_ABI_VERSION	4
+#define IB_USER_VERBS_ABI_VERSION	6
 
 enum {
 	IB_USER_VERBS_CMD_GET_CONTEXT,
@@ -265,6 +266,17 @@ struct ib_uverbs_create_cq_resp {
 	__u32 cqe;
 };
 
+struct ib_uverbs_resize_cq {
+	__u64 response;
+	__u32 cq_handle;
+	__u32 cqe;
+	__u64 driver_data[0];
+};
+
+struct ib_uverbs_resize_cq_resp {
+	__u32 cqe;
+};
+
 struct ib_uverbs_poll_cq {
 	__u64 response;
 	__u32 cq_handle;
@@ -338,6 +350,7 @@ struct ib_uverbs_create_qp_resp {
 	__u32 max_send_sge;
 	__u32 max_recv_sge;
 	__u32 max_inline_data;
+	__u32 reserved;
 };
 
 /*
@@ -357,6 +370,47 @@ struct ib_uverbs_qp_dest {
 	__u8  static_rate;
 	__u8  is_global;
 	__u8  port_num;
+};
+
+struct ib_uverbs_query_qp {
+	__u64 response;
+	__u32 qp_handle;
+	__u32 attr_mask;
+	__u64 driver_data[0];
+};
+
+struct ib_uverbs_query_qp_resp {
+	struct ib_uverbs_qp_dest dest;
+	struct ib_uverbs_qp_dest alt_dest;
+	__u32 max_send_wr;
+	__u32 max_recv_wr;
+	__u32 max_send_sge;
+	__u32 max_recv_sge;
+	__u32 max_inline_data;
+	__u32 qkey;
+	__u32 rq_psn;
+	__u32 sq_psn;
+	__u32 dest_qp_num;
+	__u32 qp_access_flags;
+	__u16 pkey_index;
+	__u16 alt_pkey_index;
+	__u8  qp_state;
+	__u8  cur_qp_state;
+	__u8  path_mtu;
+	__u8  path_mig_state;
+	__u8  en_sqd_async_notify;
+	__u8  max_rd_atomic;
+	__u8  max_dest_rd_atomic;
+	__u8  min_rnr_timer;
+	__u8  port_num;
+	__u8  timeout;
+	__u8  retry_cnt;
+	__u8  rnr_retry;
+	__u8  alt_port_num;
+	__u8  alt_timeout;
+	__u8  sq_sig_all;
+	__u8  reserved[5];
+	__u64 driver_data[0];
 };
 
 struct ib_uverbs_modify_qp {
@@ -415,7 +469,7 @@ struct ib_uverbs_sge {
 };
 
 struct ib_uverbs_send_wr {
-	__u64 wr_id; 
+	__u64 wr_id;
 	__u32 num_sge;
 	__u32 opcode;
 	__u32 send_flags;
@@ -489,7 +543,7 @@ struct ib_uverbs_post_srq_recv_resp {
 
 struct ib_uverbs_global_route {
 	__u8  dgid[16];
-	__u32 flow_label;    
+	__u32 flow_label;
 	__u8  sgid_index;
 	__u8  hop_limit;
 	__u8  traffic_class;
@@ -551,6 +605,9 @@ struct ib_uverbs_create_srq {
 
 struct ib_uverbs_create_srq_resp {
 	__u32 srq_handle;
+	__u32 max_wr;
+	__u32 max_sge;
+	__u32 reserved;
 };
 
 struct ib_uverbs_modify_srq {
@@ -559,6 +616,20 @@ struct ib_uverbs_modify_srq {
 	__u32 max_wr;
 	__u32 srq_limit;
 	__u64 driver_data[0];
+};
+
+struct ib_uverbs_query_srq {
+	__u64 response;
+	__u32 srq_handle;
+	__u32 reserved;
+	__u64 driver_data[0];
+};
+
+struct ib_uverbs_query_srq_resp {
+	__u32 max_wr;
+	__u32 max_sge;
+	__u32 srq_limit;
+	__u32 reserved;
 };
 
 struct ib_uverbs_destroy_srq {

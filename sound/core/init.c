@@ -145,7 +145,7 @@ struct snd_card *snd_card_new(int idx, const char *xid,
 	init_waitqueue_head(&card->shutdown_sleep);
 	INIT_WORK(&card->free_workq, snd_card_free_thread, card);
 #ifdef CONFIG_PM
-	init_MUTEX(&card->power_lock);
+	mutex_init(&card->power_lock);
 	init_waitqueue_head(&card->power_sleep);
 #endif
 	/* the control interface cannot be accessed from the user space until */
@@ -169,9 +169,42 @@ struct snd_card *snd_card_new(int idx, const char *xid,
       	return NULL;
 }
 
+static loff_t snd_disconnect_llseek(struct file *file, loff_t offset, int orig)
+{
+	return -ENODEV;
+}
+
+static ssize_t snd_disconnect_read(struct file *file, char __user *buf,
+				   size_t count, loff_t *offset)
+{
+	return -ENODEV;
+}
+
+static ssize_t snd_disconnect_write(struct file *file, const char __user *buf,
+				    size_t count, loff_t *offset)
+{
+	return -ENODEV;
+}
+
 static unsigned int snd_disconnect_poll(struct file * file, poll_table * wait)
 {
 	return POLLERR | POLLNVAL;
+}
+
+static long snd_disconnect_ioctl(struct file *file,
+				 unsigned int cmd, unsigned long arg)
+{
+	return -ENODEV;
+}
+
+static int snd_disconnect_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	return -ENODEV;
+}
+
+static int snd_disconnect_fasync(int fd, struct file *file, int on)
+{
+	return -ENODEV;
 }
 
 /**
@@ -190,7 +223,8 @@ int snd_card_disconnect(struct snd_card *card)
 	struct snd_monitor_file *mfile;
 	struct file *file;
 	struct snd_shutdown_f_ops *s_f_ops;
-	struct file_operations *f_ops, *old_f_ops;
+	struct file_operations *f_ops;
+	const struct file_operations *old_f_ops;
 	int err;
 
 	spin_lock(&card->files_lock);
@@ -224,7 +258,16 @@ int snd_card_disconnect(struct snd_card *card)
 		memset(f_ops, 0, sizeof(*f_ops));
 		f_ops->owner = file->f_op->owner;
 		f_ops->release = file->f_op->release;
+		f_ops->llseek = snd_disconnect_llseek;
+		f_ops->read = snd_disconnect_read;
+		f_ops->write = snd_disconnect_write;
 		f_ops->poll = snd_disconnect_poll;
+		f_ops->unlocked_ioctl = snd_disconnect_ioctl;
+#ifdef CONFIG_COMPAT
+		f_ops->compat_ioctl = snd_disconnect_ioctl;
+#endif
+		f_ops->mmap = snd_disconnect_mmap;
+		f_ops->fasync = snd_disconnect_fasync;
 
 		s_f_ops->next = card->s_f_ops;
 		card->s_f_ops = s_f_ops;

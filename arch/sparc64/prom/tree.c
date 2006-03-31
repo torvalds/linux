@@ -51,7 +51,7 @@ prom_getparent(int node)
 __inline__ int
 __prom_getsibling(int node)
 {
-	return p1275_cmd ("peer", P1275_INOUT(1, 1), node);
+	return p1275_cmd(prom_peer_name, P1275_INOUT(1, 1), node);
 }
 
 __inline__ int
@@ -59,9 +59,12 @@ prom_getsibling(int node)
 {
 	int sibnode;
 
-	if(node == -1) return 0;
+	if (node == -1)
+		return 0;
 	sibnode = __prom_getsibling(node);
-	if(sibnode == -1) return 0;
+	if (sibnode == -1)
+		return 0;
+
 	return sibnode;
 }
 

@@ -282,6 +282,18 @@ static inline int ipv6_addr_cmp(const struct in6_addr *a1, const struct in6_addr
 	return memcmp((const void *) a1, (const void *) a2, sizeof(struct in6_addr));
 }
 
+static inline int
+ipv6_masked_addr_cmp(const struct in6_addr *a1, const struct in6_addr *m,
+		     const struct in6_addr *a2)
+{
+	unsigned int i;
+
+	for (i = 0; i < 4; i++)
+		if ((a1->s6_addr32[i] ^ a2->s6_addr32[i]) & m->s6_addr32[i])
+			return 1;
+	return 0;
+}
+
 static inline void ipv6_addr_copy(struct in6_addr *a1, const struct in6_addr *a2)
 {
 	memcpy((void *) a1, (const void *) a2, sizeof(struct in6_addr));
@@ -507,6 +519,16 @@ extern int			ipv6_setsockopt(struct sock *sk, int level,
 extern int			ipv6_getsockopt(struct sock *sk, int level, 
 						int optname,
 						char __user *optval, 
+						int __user *optlen);
+extern int			compat_ipv6_setsockopt(struct sock *sk,
+						int level,
+						int optname,
+						char __user *optval,
+						int optlen);
+extern int			compat_ipv6_getsockopt(struct sock *sk,
+						int level,
+						int optname,
+						char __user *optval,
 						int __user *optlen);
 
 extern void			ipv6_packet_init(void);

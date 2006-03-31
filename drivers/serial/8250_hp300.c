@@ -55,6 +55,8 @@ static struct dio_driver hpdca_driver = {
 
 #endif
 
+static unsigned int num_ports;
+
 extern int hp300_uart_scode;
 
 /* Offset to UART registers from base of DCA */
@@ -199,6 +201,8 @@ static int __devinit hpdca_init_one(struct dio_dev *d,
 	out_8(d->resource.start + DIO_VIRADDRBASE + DCA_ID, 0xff);
 	udelay(100);
 
+	num_ports++;
+
 	return 0;
 }
 #endif
@@ -206,7 +210,6 @@ static int __devinit hpdca_init_one(struct dio_dev *d,
 static int __init hp300_8250_init(void)
 {
 	static int called = 0;
-	int num_ports;
 #ifdef CONFIG_HPAPCI
 	int line;
 	unsigned long base;
@@ -221,11 +224,8 @@ static int __init hp300_8250_init(void)
 	if (!MACH_IS_HP300)
 		return -ENODEV;
 
-	num_ports = 0;
-
 #ifdef CONFIG_HPDCA
-	if (dio_module_init(&hpdca_driver) == 0)
-		num_ports++;
+	dio_register_driver(&hpdca_driver);
 #endif
 #ifdef CONFIG_HPAPCI
 	if (hp300_model < HP_400) {

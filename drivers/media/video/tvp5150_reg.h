@@ -1,3 +1,10 @@
+/*
+ * tvp5150 - Texas Instruments TVP5150A/AM1 video decoder registers
+ *
+ * Copyright (c) 2005,2006 Mauro Carvalho Chehab (mchehab@infradead.org)
+ * This code is placed under the terms of the GNU General Public License v2
+ */
+
 #define TVP5150_VD_IN_SRC_SEL_1      0x00 /* Video input source selection #1 */
 #define TVP5150_ANAL_CHL_CTL         0x01 /* Analog channel controls */
 #define TVP5150_OP_MODE_CTL          0x02 /* Operation mode controls */
@@ -64,49 +71,32 @@
 #define TVP5150_STATUS_REG_4        0x8b /* Status register #4 */
 #define TVP5150_STATUS_REG_5        0x8c /* Status register #5 */
 /* Reserved	8Dh-8Fh */
-#define TVP5150_CC_DATA_REG1        0x90 /* Closed caption data registers */
-#define TVP5150_CC_DATA_REG2        0x91 /* Closed caption data registers */
-#define TVP5150_CC_DATA_REG3        0x92 /* Closed caption data registers */
-#define TVP5150_CC_DATA_REG4        0x93 /* Closed caption data registers */
-#define TVP5150_WSS_DATA_REG1       0X94 /* WSS data registers */
-#define TVP5150_WSS_DATA_REG2       0X95 /* WSS data registers */
-#define TVP5150_WSS_DATA_REG3       0X96 /* WSS data registers */
-#define TVP5150_WSS_DATA_REG4       0X97 /* WSS data registers */
-#define TVP5150_WSS_DATA_REG5       0X98 /* WSS data registers */
-#define TVP5150_WSS_DATA_REG6       0X99 /* WSS data registers */
-#define TVP5150_VPS_DATA_REG1       0x9a /* VPS data registers */
-#define TVP5150_VPS_DATA_REG2       0x9b /* VPS data registers */
-#define TVP5150_VPS_DATA_REG3       0x9c /* VPS data registers */
-#define TVP5150_VPS_DATA_REG4       0x9d /* VPS data registers */
-#define TVP5150_VPS_DATA_REG5       0x9e /* VPS data registers */
-#define TVP5150_VPS_DATA_REG6       0x9f /* VPS data registers */
-#define TVP5150_VPS_DATA_REG7       0xa0 /* VPS data registers */
-#define TVP5150_VPS_DATA_REG8       0xa1 /* VPS data registers */
-#define TVP5150_VPS_DATA_REG9       0xa2 /* VPS data registers */
-#define TVP5150_VPS_DATA_REG10      0xa3 /* VPS data registers */
-#define TVP5150_VPS_DATA_REG11      0xa4 /* VPS data registers */
-#define TVP5150_VPS_DATA_REG12      0xa5 /* VPS data registers */
-#define TVP5150_VPS_DATA_REG13      0xa6 /* VPS data registers */
-#define TVP5150_VITC_DATA_REG1      0xa7 /* VITC data registers */
-#define TVP5150_VITC_DATA_REG2      0xa8 /* VITC data registers */
-#define TVP5150_VITC_DATA_REG3      0xa9 /* VITC data registers */
-#define TVP5150_VITC_DATA_REG4      0xaa /* VITC data registers */
-#define TVP5150_VITC_DATA_REG5      0xab /* VITC data registers */
-#define TVP5150_VITC_DATA_REG6      0xac /* VITC data registers */
-#define TVP5150_VITC_DATA_REG7      0xad /* VITC data registers */
-#define TVP5150_VITC_DATA_REG8      0xae /* VITC data registers */
-#define TVP5150_VITC_DATA_REG9      0xaf /* VITC data registers */
+ /* Closed caption data registers */
+#define TVP5150_CC_DATA_INI         0x90
+#define TVP5150_CC_DATA_END         0x93
+
+ /* WSS data registers */
+#define TVP5150_WSS_DATA_INI        0x94
+#define TVP5150_WSS_DATA_END        0x99
+
+/* VPS data registers */
+#define TVP5150_VPS_DATA_INI        0x9a
+#define TVP5150_VPS_DATA_END        0xa6
+
+/* VITC data registers */
+#define TVP5150_VITC_DATA_INI       0xa7
+#define TVP5150_VITC_DATA_END       0xaf
+
 #define TVP5150_VBI_FIFO_READ_DATA  0xb0 /* VBI FIFO read data */
-#define TVP5150_TELETEXT_FIL_1_1    0xb1 /* Teletext filter 1 */
-#define TVP5150_TELETEXT_FIL_1_2    0xb2 /* Teletext filter 1 */
-#define TVP5150_TELETEXT_FIL_1_3    0xb3 /* Teletext filter 1 */
-#define TVP5150_TELETEXT_FIL_1_4    0xb4 /* Teletext filter 1 */
-#define TVP5150_TELETEXT_FIL_1_5    0xb5 /* Teletext filter 1 */
-#define TVP5150_TELETEXT_FIL_2_1    0xb6 /* Teletext filter 2 */
-#define TVP5150_TELETEXT_FIL_2_2    0xb7 /* Teletext filter 2 */
-#define TVP5150_TELETEXT_FIL_2_3    0xb8 /* Teletext filter 2 */
-#define TVP5150_TELETEXT_FIL_2_4    0xb9 /* Teletext filter 2 */
-#define TVP5150_TELETEXT_FIL_2_5    0xba /* Teletext filter 2 */
+
+/* Teletext filter 1 */
+#define TVP5150_TELETEXT_FIL1_INI  0xb1
+#define TVP5150_TELETEXT_FIL1_END  0xb5
+
+/* Teletext filter 2 */
+#define TVP5150_TELETEXT_FIL2_INI  0xb6
+#define TVP5150_TELETEXT_FIL2_END  0xba
+
 #define TVP5150_TELETEXT_FIL_ENA    0xbb /* Teletext filter enable */
 /* Reserved	BCh-BFh */
 #define TVP5150_INT_STATUS_REG_A    0xc0 /* Interrupt status register A */
@@ -124,50 +114,11 @@
 #define TVP5150_PIX_ALIGN_REG_HIGH  0xcc /* Pixel alignment register high byte */
 #define TVP5150_FIFO_OUT_CTRL       0xcd /* FIFO output control */
 /* Reserved	CEh */
-#define TVP5150_FULL_FIELD_ENA_1    0xcf /* Full field enable 1 */
-#define TVP5150_FULL_FIELD_ENA_2    0xd0 /* Full field enable 2 */
-#define TVP5150_LINE_MODE_REG_1     0xd1 /* Line mode registers */
-#define TVP5150_LINE_MODE_REG_2     0xd2 /* Line mode registers */
-#define TVP5150_LINE_MODE_REG_3     0xd3 /* Line mode registers */
-#define TVP5150_LINE_MODE_REG_4     0xd4 /* Line mode registers */
-#define TVP5150_LINE_MODE_REG_5     0xd5 /* Line mode registers */
-#define TVP5150_LINE_MODE_REG_6     0xd6 /* Line mode registers */
-#define TVP5150_LINE_MODE_REG_7     0xd7 /* Line mode registers */
-#define TVP5150_LINE_MODE_REG_8     0xd8 /* Line mode registers */
-#define TVP5150_LINE_MODE_REG_9     0xd9 /* Line mode registers */
-#define TVP5150_LINE_MODE_REG_10    0xda /* Line mode registers */
-#define TVP5150_LINE_MODE_REG_11    0xdb /* Line mode registers */
-#define TVP5150_LINE_MODE_REG_12    0xdc /* Line mode registers */
-#define TVP5150_LINE_MODE_REG_13    0xdd /* Line mode registers */
-#define TVP5150_LINE_MODE_REG_14    0xde /* Line mode registers */
-#define TVP5150_LINE_MODE_REG_15    0xdf /* Line mode registers */
-#define TVP5150_LINE_MODE_REG_16    0xe0 /* Line mode registers */
-#define TVP5150_LINE_MODE_REG_17    0xe1 /* Line mode registers */
-#define TVP5150_LINE_MODE_REG_18    0xe2 /* Line mode registers */
-#define TVP5150_LINE_MODE_REG_19    0xe3 /* Line mode registers */
-#define TVP5150_LINE_MODE_REG_20    0xe4 /* Line mode registers */
-#define TVP5150_LINE_MODE_REG_21    0xe5 /* Line mode registers */
-#define TVP5150_LINE_MODE_REG_22    0xe6 /* Line mode registers */
-#define TVP5150_LINE_MODE_REG_23    0xe7 /* Line mode registers */
-#define TVP5150_LINE_MODE_REG_24    0xe8 /* Line mode registers */
-#define TVP5150_LINE_MODE_REG_25    0xe9 /* Line mode registers */
-#define TVP5150_LINE_MODE_REG_27    0xea /* Line mode registers */
-#define TVP5150_LINE_MODE_REG_28    0xeb /* Line mode registers */
-#define TVP5150_LINE_MODE_REG_29    0xec /* Line mode registers */
-#define TVP5150_LINE_MODE_REG_30    0xed /* Line mode registers */
-#define TVP5150_LINE_MODE_REG_31    0xee /* Line mode registers */
-#define TVP5150_LINE_MODE_REG_32    0xef /* Line mode registers */
-#define TVP5150_LINE_MODE_REG_33    0xf0 /* Line mode registers */
-#define TVP5150_LINE_MODE_REG_34    0xf1 /* Line mode registers */
-#define TVP5150_LINE_MODE_REG_35    0xf2 /* Line mode registers */
-#define TVP5150_LINE_MODE_REG_36    0xf3 /* Line mode registers */
-#define TVP5150_LINE_MODE_REG_37    0xf4 /* Line mode registers */
-#define TVP5150_LINE_MODE_REG_38    0xf5 /* Line mode registers */
-#define TVP5150_LINE_MODE_REG_39    0xf6 /* Line mode registers */
-#define TVP5150_LINE_MODE_REG_40    0xf7 /* Line mode registers */
-#define TVP5150_LINE_MODE_REG_41    0xf8 /* Line mode registers */
-#define TVP5150_LINE_MODE_REG_42    0xf9 /* Line mode registers */
-#define TVP5150_LINE_MODE_REG_43    0xfa /* Line mode registers */
-#define TVP5150_LINE_MODE_REG_44    0xfb /* Line mode registers */
+#define TVP5150_FULL_FIELD_ENA      0xcf /* Full field enable 1 */
+
+/* Line mode registers */
+#define TVP5150_LINE_MODE_INI       0xd0
+#define TVP5150_LINE_MODE_END       0xfb
+
 #define TVP5150_FULL_FIELD_MODE_REG 0xfc /* Full field mode register */
 /* Reserved	FDh-FFh */

@@ -102,7 +102,7 @@ static struct usb_driver option_driver = {
 	.no_dynamic_id = 	1,
 };
 
-/* The card has three separate interfaces, wich the serial driver
+/* The card has three separate interfaces, which the serial driver
  * recognizes separately, thus num_port=1.
  */
 static struct usb_serial_driver option_3port_device = {
@@ -631,13 +631,12 @@ static int option_startup(struct usb_serial *serial)
 	/* Now setup per port private data */
 	for (i = 0; i < serial->num_ports; i++) {
 		port = serial->port[i];
-		portdata = kmalloc(sizeof(*portdata), GFP_KERNEL);
+		portdata = kzalloc(sizeof(*portdata), GFP_KERNEL);
 		if (!portdata) {
 			dbg("%s: kmalloc for option_port_private (%d) failed!.",
 					__FUNCTION__, i);
 			return (1);
 		}
-		memset(portdata, 0, sizeof(struct option_port_private));
 
 		usb_set_serial_port_data(port, portdata);
 

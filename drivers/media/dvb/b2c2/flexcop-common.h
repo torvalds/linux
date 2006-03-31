@@ -10,6 +10,7 @@
 
 #include <linux/config.h>
 #include <linux/pci.h>
+#include <linux/mutex.h>
 
 #include "flexcop-reg.h"
 
@@ -73,8 +74,7 @@ struct flexcop_device {
 	int (*fe_sleep) (struct dvb_frontend *);
 
 	struct i2c_adapter i2c_adap;
-	struct semaphore i2c_sem;
-
+	struct mutex i2c_mutex;
 	struct module *owner;
 
 	/* options and status */

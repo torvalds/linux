@@ -583,7 +583,7 @@ xlog_find_head(
 		 *        x | x ... | x - 1 | x
 		 * Another case that fits this picture would be
 		 *        x | x + 1 | x ... | x
-		 * In this case the head really is somwhere at the end of the
+		 * In this case the head really is somewhere at the end of the
 		 * log, as one of the latest writes at the beginning was
 		 * incomplete.
 		 * One more case is
@@ -2799,7 +2799,7 @@ xlog_recover_do_trans(
 		 * we don't need to worry about the block number being
 		 * truncated in > 1 TB buffers because in user-land,
 		 * we're now n32 or 64-bit so xfs_daddr_t is 64-bits so
-		 * the blkno's will get through the user-mode buffer
+		 * the blknos will get through the user-mode buffer
 		 * cache properly.  The only bad case is o32 kernels
 		 * where xfs_daddr_t is 32-bits but mount will warn us
 		 * off a > 1 TB filesystem before we get here.
@@ -3249,7 +3249,7 @@ xlog_recover_process_iunlinks(
 					 * next inode in the bucket.
 					 */
 					error = xfs_itobp(mp, NULL, ip, &dip,
-							&ibp, 0);
+							&ibp, 0, 0);
 					ASSERT(error || (dip != NULL));
 				}
 

@@ -64,10 +64,12 @@
 #include <linux/interrupt.h>
 #include <linux/smp_lock.h>
 #include <linux/completion.h>
+#include <linux/kthread.h>
 #include <linux/buffer_head.h>		/* for sync_blockdev() */
 #include <linux/bio.h>
 #include <linux/suspend.h>
 #include <linux/delay.h>
+#include <linux/mutex.h>
 #include "jfs_incore.h"
 #include "jfs_filsys.h"
 #include "jfs_metapage.h"
@@ -81,15 +83,14 @@
  */
 static struct lbuf *log_redrive_list;
 static DEFINE_SPINLOCK(log_redrive_lock);
-DECLARE_WAIT_QUEUE_HEAD(jfs_IO_thread_wait);
 
 
 /*
  *	log read/write serialization (per log)
  */
-#define LOG_LOCK_INIT(log)	init_MUTEX(&(log)->loglock)
-#define LOG_LOCK(log)		down(&((log)->loglock))
-#define LOG_UNLOCK(log)		up(&((log)->loglock))
+#define LOG_LOCK_INIT(log)	mutex_init(&(log)->loglock)
+#define LOG_LOCK(log)		mutex_lock(&((log)->loglock))
+#define LOG_UNLOCK(log)		mutex_unlock(&((log)->loglock))
 
 
 /*
@@ -165,7 +166,7 @@ do {						\
  */
 static LIST_HEAD(jfs_external_logs);
 static struct jfs_log *dummy_log = NULL;
-static DECLARE_MUTEX(jfs_log_sem);
+static DEFINE_MUTEX(jfs_log_mutex);
 
 /*
  * forward references
@@ -1085,31 +1086,30 @@ int lmLogOpen(struct super_block *sb)
 	if (sbi->mntflag & JFS_INLINELOG)
 		return open_inline_log(sb);
 
-	down(&jfs_log_sem);
+	mutex_lock(&jfs_log_mutex);
 	list_for_each_entry(log, &jfs_external_logs, journal_list) {
 		if (log->bdev->bd_dev == sbi->logdev) {
 			if (memcmp(log->uuid, sbi->loguuid,
 				   sizeof(log->uuid))) {
 				jfs_warn("wrong uuid on JFS journal\n");
-				up(&jfs_log_sem);
+				mutex_unlock(&jfs_log_mutex);
 				return -EINVAL;
 			}
 			/*
 			 * add file system to log active file system list
 			 */
 			if ((rc = lmLogFileSystem(log, sbi, 1))) {
-				up(&jfs_log_sem);
+				mutex_unlock(&jfs_log_mutex);
 				return rc;
 			}
 			goto journal_found;
 		}
 	}
 
-	if (!(log = kmalloc(sizeof(struct jfs_log), GFP_KERNEL))) {
-		up(&jfs_log_sem);
+	if (!(log = kzalloc(sizeof(struct jfs_log), GFP_KERNEL))) {
+		mutex_unlock(&jfs_log_mutex);
 		return -ENOMEM;
 	}
-	memset(log, 0, sizeof(struct jfs_log));
 	INIT_LIST_HEAD(&log->sb_list);
 	init_waitqueue_head(&log->syncwait);
 
@@ -1152,7 +1152,7 @@ journal_found:
 	sbi->log = log;
 	LOG_UNLOCK(log);
 
-	up(&jfs_log_sem);
+	mutex_unlock(&jfs_log_mutex);
 	return 0;
 
 	/*
@@ -1169,7 +1169,7 @@ journal_found:
 	blkdev_put(bdev);
 
       free:		/* free log descriptor */
-	up(&jfs_log_sem);
+	mutex_unlock(&jfs_log_mutex);
 	kfree(log);
 
 	jfs_warn("lmLogOpen: exit(%d)", rc);
@@ -1181,9 +1181,8 @@ static int open_inline_log(struct super_block *sb)
 	struct jfs_log *log;
 	int rc;
 
-	if (!(log = kmalloc(sizeof(struct jfs_log), GFP_KERNEL)))
+	if (!(log = kzalloc(sizeof(struct jfs_log), GFP_KERNEL)))
 		return -ENOMEM;
-	memset(log, 0, sizeof(struct jfs_log));
 	INIT_LIST_HEAD(&log->sb_list);
 	init_waitqueue_head(&log->syncwait);
 
@@ -1214,14 +1213,13 @@ static int open_dummy_log(struct super_block *sb)
 {
 	int rc;
 
-	down(&jfs_log_sem);
+	mutex_lock(&jfs_log_mutex);
 	if (!dummy_log) {
-		dummy_log = kmalloc(sizeof(struct jfs_log), GFP_KERNEL);
+		dummy_log = kzalloc(sizeof(struct jfs_log), GFP_KERNEL);
 		if (!dummy_log) {
-			up(&jfs_log_sem);
+			mutex_unlock(&jfs_log_mutex);
 			return -ENOMEM;
 		}
-		memset(dummy_log, 0, sizeof(struct jfs_log));
 		INIT_LIST_HEAD(&dummy_log->sb_list);
 		init_waitqueue_head(&dummy_log->syncwait);
 		dummy_log->no_integrity = 1;
@@ -1232,7 +1230,7 @@ static int open_dummy_log(struct super_block *sb)
 		if (rc) {
 			kfree(dummy_log);
 			dummy_log = NULL;
-			up(&jfs_log_sem);
+			mutex_unlock(&jfs_log_mutex);
 			return rc;
 		}
 	}
@@ -1241,7 +1239,7 @@ static int open_dummy_log(struct super_block *sb)
 	list_add(&JFS_SBI(sb)->log_list, &dummy_log->sb_list);
 	JFS_SBI(sb)->log = dummy_log;
 	LOG_UNLOCK(dummy_log);
-	up(&jfs_log_sem);
+	mutex_unlock(&jfs_log_mutex);
 
 	return 0;
 }
@@ -1469,7 +1467,7 @@ int lmLogClose(struct super_block *sb)
 
 	jfs_info("lmLogClose: log:0x%p", log);
 
-	down(&jfs_log_sem);
+	mutex_lock(&jfs_log_mutex);
 	LOG_LOCK(log);
 	list_del(&sbi->log_list);
 	LOG_UNLOCK(log);
@@ -1519,7 +1517,7 @@ int lmLogClose(struct super_block *sb)
 	kfree(log);
 
       out:
-	up(&jfs_log_sem);
+	mutex_unlock(&jfs_log_mutex);
 	jfs_info("lmLogClose: exit(%d)", rc);
 	return rc;
 }
@@ -1980,7 +1978,7 @@ static inline void lbmRedrive(struct lbuf *bp)
 	log_redrive_list = bp;
 	spin_unlock_irqrestore(&log_redrive_lock, flags);
 
-	wake_up(&jfs_IO_thread_wait);
+	wake_up_process(jfsIOthread);
 }
 
 
@@ -2347,13 +2345,7 @@ int jfsIOWait(void *arg)
 {
 	struct lbuf *bp;
 
-	daemonize("jfsIO");
-
-	complete(&jfsIOwait);
-
 	do {
-		DECLARE_WAITQUEUE(wq, current);
-
 		spin_lock_irq(&log_redrive_lock);
 		while ((bp = log_redrive_list) != 0) {
 			log_redrive_list = bp->l_redrive_next;
@@ -2362,21 +2354,19 @@ int jfsIOWait(void *arg)
 			lbmStartIO(bp);
 			spin_lock_irq(&log_redrive_lock);
 		}
+		spin_unlock_irq(&log_redrive_lock);
+
 		if (freezing(current)) {
-			spin_unlock_irq(&log_redrive_lock);
 			refrigerator();
 		} else {
-			add_wait_queue(&jfs_IO_thread_wait, &wq);
 			set_current_state(TASK_INTERRUPTIBLE);
-			spin_unlock_irq(&log_redrive_lock);
 			schedule();
 			current->state = TASK_RUNNING;
-			remove_wait_queue(&jfs_IO_thread_wait, &wq);
 		}
-	} while (!jfs_stop_threads);
+	} while (!kthread_should_stop());
 
 	jfs_info("jfsIOWait being killed!");
-	complete_and_exit(&jfsIOwait, 0);
+	return 0;
 }
 
 /*

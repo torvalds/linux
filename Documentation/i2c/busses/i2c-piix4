@@ -4,7 +4,7 @@ Supported adapters:
   * Intel 82371AB PIIX4 and PIIX4E
   * Intel 82443MX (440MX)
     Datasheet: Publicly available at the Intel website
-  * ServerWorks OSB4, CSB5 and CSB6 southbridges
+  * ServerWorks OSB4, CSB5, CSB6 and HT-1000 southbridges
     Datasheet: Only available via NDA from ServerWorks
   * Standard Microsystems (SMSC) SLC90E66 (Victory66) southbridge
     Datasheet: Publicly available at the SMSC website http://www.smsc.com

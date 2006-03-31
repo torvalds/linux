@@ -88,7 +88,12 @@ struct ehci_hcd {			/* one per controller */
 	unsigned long		next_statechange;
 	u32			command;
 
+	/* SILICON QUIRKS */
 	unsigned		is_tdi_rh_tt:1;	/* TDI roothub with TT */
+	unsigned		no_selective_suspend:1;
+	unsigned		has_fsl_port_bug:1; /* FreeScale */
+
+	u8			sbrn;		/* packed release number */
 
 	/* irq statistics */
 #ifdef EHCI_STATS
@@ -97,7 +102,6 @@ struct ehci_hcd {			/* one per controller */
 #else
 #	define COUNT(x) do {} while (0)
 #endif
-	u8			sbrn;		/* packed release number */
 };
 
 /* convert between an HCD pointer and the corresponding EHCI_HCD */ 
@@ -635,6 +639,18 @@ ehci_port_speed(struct ehci_hcd *ehci, unsigned int portsc)
 
 #define	ehci_port_speed(ehci, portsc)	(1<<USB_PORT_FEAT_HIGHSPEED)
 #endif
+
+/*-------------------------------------------------------------------------*/
+
+#ifdef CONFIG_PPC_83xx
+/* Some Freescale processors have an erratum in which the TT
+ * port number in the queue head was 0..N-1 instead of 1..N.
+ */
+#define	ehci_has_fsl_portno_bug(e)		((e)->has_fsl_port_bug)
+#else
+#define	ehci_has_fsl_portno_bug(e)		(0)
+#endif
+
 
 /*-------------------------------------------------------------------------*/
 

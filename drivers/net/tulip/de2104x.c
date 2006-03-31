@@ -402,8 +402,7 @@ static void de_rx (struct de_private *de)
 		unsigned copying_skb, buflen;
 
 		skb = de->rx_skb[rx_tail].skb;
-		if (!skb)
-			BUG();
+		BUG_ON(!skb);
 		rmb();
 		status = le32_to_cpu(de->rx_ring[rx_tail].opts1);
 		if (status & DescOwn)
@@ -545,8 +544,7 @@ static void de_tx (struct de_private *de)
 			break;
 
 		skb = de->tx_skb[tx_tail].skb;
-		if (!skb)
-			BUG();
+		BUG_ON(!skb);
 		if (unlikely(skb == DE_DUMMY_SKB))
 			goto next;
 
@@ -789,8 +787,7 @@ static void __de_set_rx_mode (struct net_device *dev)
 
 	de->tx_head = NEXT_TX(entry);
 
-	if (TX_BUFFS_AVAIL(de) < 0)
-		BUG();
+	BUG_ON(TX_BUFFS_AVAIL(de) < 0);
 	if (TX_BUFFS_AVAIL(de) == 0)
 		netif_stop_queue(dev);
 
@@ -916,8 +913,7 @@ static void de_set_media (struct de_private *de)
 	unsigned media = de->media_type;
 	u32 macmode = dr32(MacMode);
 
-	if (de_is_running(de))
-		BUG();
+	BUG_ON(de_is_running(de));
 
 	if (de->de21040)
 		dw32(CSR11, FULL_DUPLEX_MAGIC);
@@ -1153,8 +1149,7 @@ static void de_media_interrupt (struct de_private *de, u32 status)
 		return;
 	}
 	
-	if (!(status & LinkFail))
-		BUG();
+	BUG_ON(!(status & LinkFail));
 
 	if (netif_carrier_ok(de->dev)) {
 		de_link_down(de);
@@ -1332,11 +1327,11 @@ static void de_clean_rings (struct de_private *de)
 		struct sk_buff *skb = de->tx_skb[i].skb;
 		if ((skb) && (skb != DE_DUMMY_SKB)) {
 			if (skb != DE_SETUP_SKB) {
-				dev_kfree_skb(skb);
 				de->net_stats.tx_dropped++;
 				pci_unmap_single(de->pdev,
 					de->tx_skb[i].mapping,
 					skb->len, PCI_DMA_TODEVICE);
+				dev_kfree_skb(skb);
 			} else {
 				pci_unmap_single(de->pdev,
 					de->tx_skb[i].mapping,
@@ -2092,8 +2087,7 @@ static void __exit de_remove_one (struct pci_dev *pdev)
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct de_private *de = dev->priv;
 
-	if (!dev)
-		BUG();
+	BUG_ON(!dev);
 	unregister_netdev(dev);
 	kfree(de->ee_data);
 	iounmap(de->regs);

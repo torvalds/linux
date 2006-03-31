@@ -26,6 +26,11 @@ extern int sysctl_core_destroy_delay;
 extern char sysctl_divert_version[];
 #endif /* CONFIG_NET_DIVERT */
 
+#ifdef CONFIG_XFRM
+extern u32 sysctl_xfrm_aevent_etime;
+extern u32 sysctl_xfrm_aevent_rseqth;
+#endif
+
 ctl_table core_table[] = {
 #ifdef CONFIG_NET
 	{
@@ -111,6 +116,24 @@ ctl_table core_table[] = {
 		.proc_handler	= &proc_dostring
 	},
 #endif /* CONFIG_NET_DIVERT */
+#ifdef CONFIG_XFRM
+	{
+		.ctl_name	= NET_CORE_AEVENT_ETIME,
+		.procname	= "xfrm_aevent_etime",
+		.data		= &sysctl_xfrm_aevent_etime,
+		.maxlen		= sizeof(u32),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec
+	},
+	{
+		.ctl_name	= NET_CORE_AEVENT_RSEQTH,
+		.procname	= "xfrm_aevent_rseqth",
+		.data		= &sysctl_xfrm_aevent_rseqth,
+		.maxlen		= sizeof(u32),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec
+	},
+#endif /* CONFIG_XFRM */
 #endif /* CONFIG_NET */
 	{
 		.ctl_name	= NET_CORE_SOMAXCONN,

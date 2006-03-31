@@ -174,7 +174,7 @@ int request_au1000_dma(int dev_id, const char *dev_str,
 		return -EINVAL;
 #else
  	if (dev_id < 0 || dev_id >= DMA_NUM_DEV)
- 		return -EINVAL;
+		return -EINVAL;
 #endif
 
 	for (i = 0; i < NUM_AU1000_DMA_CHANNELS; i++) {

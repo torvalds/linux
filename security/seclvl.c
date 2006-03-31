@@ -8,6 +8,7 @@
  * Copyright (c) 2001 WireX Communications, Inc <chris@wirex.com>
  * Copyright (c) 2001 Greg Kroah-Hartman <greg@kroah.com>
  * Copyright (c) 2002 International Business Machines <robb@austin.ibm.com>
+ * Copyright (c) 2006 Davi E. M. Arnaut <davi.arnaut@gmail.com>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -31,6 +32,7 @@
 #include <linux/kobject.h>
 #include <linux/crypto.h>
 #include <asm/scatterlist.h>
+#include <linux/scatterlist.h>
 #include <linux/gfp.h>
 #include <linux/sysfs.h>
 
@@ -194,35 +196,27 @@ static unsigned char hashedPassword[SHA1_DIGEST_SIZE];
  * people...
  */
 static int
-plaintext_to_sha1(unsigned char *hash, const char *plaintext, int len)
+plaintext_to_sha1(unsigned char *hash, const char *plaintext, unsigned int len)
 {
-	char *pgVirtAddr;
 	struct crypto_tfm *tfm;
-	struct scatterlist sg[1];
+	struct scatterlist sg;
 	if (len > PAGE_SIZE) {
 		seclvl_printk(0, KERN_ERR, "Plaintext password too large (%d "
 			      "characters).  Largest possible is %lu "
 			      "bytes.\n", len, PAGE_SIZE);
-		return -ENOMEM;
+		return -EINVAL;
 	}
 	tfm = crypto_alloc_tfm("sha1", CRYPTO_TFM_REQ_MAY_SLEEP);
 	if (tfm == NULL) {
 		seclvl_printk(0, KERN_ERR,
 			      "Failed to load transform for SHA1\n");
-		return -ENOSYS;
+		return -EINVAL;
 	}
-	// Just get a new page; don't play around with page boundaries
-	// and scatterlists.
-	pgVirtAddr = (char *)__get_free_page(GFP_KERNEL);
-	sg[0].page = virt_to_page(pgVirtAddr);
-	sg[0].offset = 0;
-	sg[0].length = len;
-	strncpy(pgVirtAddr, plaintext, len);
+	sg_init_one(&sg, (u8 *)plaintext, len);
 	crypto_digest_init(tfm);
-	crypto_digest_update(tfm, sg, 1);
+	crypto_digest_update(tfm, &sg, 1);
 	crypto_digest_final(tfm, hash);
 	crypto_free_tfm(tfm);
-	free_page((unsigned long)pgVirtAddr);
 	return 0;
 }
 
@@ -234,11 +228,9 @@ static ssize_t
 passwd_write_file(struct file * file, const char __user * buf,
 				size_t count, loff_t *ppos)
 {
-	int i;
-	unsigned char tmp[SHA1_DIGEST_SIZE];
-	char *page;
-	int rc;
+	char *p;
 	int len;
+	unsigned char tmp[SHA1_DIGEST_SIZE];
 
 	if (!*passwd && !*sha1_passwd) {
 		seclvl_printk(0, KERN_ERR, "Attempt to password-unlock the "
@@ -251,38 +243,39 @@ passwd_write_file(struct file * file, const char __user * buf,
 		return -EINVAL;
 	}
 
-	if (count < 0 || count >= PAGE_SIZE)
+	if (count >= PAGE_SIZE)
 		return -EINVAL;
 	if (*ppos != 0)
 		return -EINVAL;
-	page = (char *)get_zeroed_page(GFP_KERNEL);
-	if (!page)
+	p = kmalloc(count, GFP_KERNEL);
+	if (!p)
 		return -ENOMEM;
 	len = -EFAULT;
-	if (copy_from_user(page, buf, count))
+	if (copy_from_user(p, buf, count))
 		goto out;
 	
-	len = strlen(page);
+	len = count;
 	/* ``echo "secret" > seclvl/passwd'' includes a newline */
-	if (page[len - 1] == '\n')
+	if (p[len - 1] == '\n')
 		len--;
 	/* Hash the password, then compare the hashed values */
-	if ((rc = plaintext_to_sha1(tmp, page, len))) {
+	if ((len = plaintext_to_sha1(tmp, p, len))) {
 		seclvl_printk(0, KERN_ERR, "Error hashing password: rc = "
-			      "[%d]\n", rc);
-		return rc;
+			      "[%d]\n", len);
+		goto out;
 	}
-	for (i = 0; i < SHA1_DIGEST_SIZE; i++) {
-		if (hashedPassword[i] != tmp[i])
-			return -EPERM;
-	}
+
+	len = -EPERM;
+	if (memcmp(hashedPassword, tmp, SHA1_DIGEST_SIZE))
+		goto out;
+
 	seclvl_printk(0, KERN_INFO,
 		      "Password accepted; seclvl reduced to 0.\n");
 	seclvl = 0;
 	len = count;
 
 out:
-	free_page((unsigned long)page);
+	kfree (p);
 	return len;
 }
 
@@ -295,13 +288,11 @@ static struct file_operations passwd_file_ops = {
  */
 static int seclvl_ptrace(struct task_struct *parent, struct task_struct *child)
 {
-	if (seclvl >= 0) {
-		if (child->pid == 1) {
-			seclvl_printk(1, KERN_WARNING, "Attempt to ptrace "
-				      "the init process dissallowed in "
-				      "secure level %d\n", seclvl);
-			return -EPERM;
-		}
+	if (seclvl >= 0 && child->pid == 1) {
+		seclvl_printk(1, KERN_WARNING, "Attempt to ptrace "
+			      "the init process dissallowed in "
+			      "secure level %d\n", seclvl);
+		return -EPERM;
 	}
 	return 0;
 }
@@ -312,55 +303,54 @@ static int seclvl_ptrace(struct task_struct *parent, struct task_struct *child)
  */
 static int seclvl_capable(struct task_struct *tsk, int cap)
 {
+	int rc = 0;
+
 	/* init can do anything it wants */
 	if (tsk->pid == 1)
 		return 0;
 
-	switch (seclvl) {
-	case 2:
-		/* fall through */
-	case 1:
-		if (cap == CAP_LINUX_IMMUTABLE) {
+	if (seclvl > 0) {
+		rc = -EPERM;
+
+		if (cap == CAP_LINUX_IMMUTABLE)
 			seclvl_printk(1, KERN_WARNING, "Attempt to modify "
 				      "the IMMUTABLE and/or APPEND extended "
 				      "attribute on a file with the IMMUTABLE "
 				      "and/or APPEND extended attribute set "
 				      "denied in seclvl [%d]\n", seclvl);
-			return -EPERM;
-		} else if (cap == CAP_SYS_RAWIO) {	// Somewhat broad...
+		else if (cap == CAP_SYS_RAWIO)
 			seclvl_printk(1, KERN_WARNING, "Attempt to perform "
 				      "raw I/O while in secure level [%d] "
 				      "denied\n", seclvl);
-			return -EPERM;
-		} else if (cap == CAP_NET_ADMIN) {
+		else if (cap == CAP_NET_ADMIN)
 			seclvl_printk(1, KERN_WARNING, "Attempt to perform "
 				      "network administrative task while "
 				      "in secure level [%d] denied\n", seclvl);
-			return -EPERM;
-		} else if (cap == CAP_SETUID) {
+		else if (cap == CAP_SETUID)
 			seclvl_printk(1, KERN_WARNING, "Attempt to setuid "
 				      "while in secure level [%d] denied\n",
 				      seclvl);
-			return -EPERM;
-		} else if (cap == CAP_SETGID) {
+		else if (cap == CAP_SETGID)
 			seclvl_printk(1, KERN_WARNING, "Attempt to setgid "
 				      "while in secure level [%d] denied\n",
 				      seclvl);
-		} else if (cap == CAP_SYS_MODULE) {
+		else if (cap == CAP_SYS_MODULE)
 			seclvl_printk(1, KERN_WARNING, "Attempt to perform "
 				      "a module operation while in secure "
 				      "level [%d] denied\n", seclvl);
-			return -EPERM;
-		}
-		break;
-	default:
-		break;
+		else
+			rc = 0;
 	}
-	/* from dummy.c */
-	if (cap_is_fs_cap(cap) ? tsk->fsuid == 0 : tsk->euid == 0)
-		return 0;	/* capability granted */
-	seclvl_printk(1, KERN_WARNING, "Capability denied\n");
-	return -EPERM;		/* capability denied */
+
+	if (!rc) {
+		if (!(cap_is_fs_cap(cap) ? tsk->fsuid == 0 : tsk->euid == 0))
+			rc = -EPERM;
+	}
+
+	if (rc)
+		seclvl_printk(1, KERN_WARNING, "Capability denied\n");
+
+	return rc;
 }
 
 /**
@@ -466,12 +456,9 @@ static int seclvl_inode_setattr(struct dentry *dentry, struct iattr *iattr)
 static void seclvl_file_free_security(struct file *filp)
 {
 	struct dentry *dentry = filp->f_dentry;
-	struct inode *inode = NULL;
 
-	if (dentry) {
-		inode = dentry->d_inode;
-		seclvl_bd_release(inode);
-	}
+	if (dentry)
+		seclvl_bd_release(dentry->d_inode);
 }
 
 /**
@@ -479,9 +466,7 @@ static void seclvl_file_free_security(struct file *filp)
  */
 static int seclvl_umount(struct vfsmount *mnt, int flags)
 {
-	if (current->pid == 1)
-		return 0;
-	if (seclvl == 2) {
+	if (current->pid != 1 && seclvl == 2) {
 		seclvl_printk(1, KERN_WARNING, "Attempt to unmount in secure "
 			      "level %d\n", seclvl);
 		return -EPERM;
@@ -505,8 +490,9 @@ static struct security_operations seclvl_ops = {
 static int processPassword(void)
 {
 	int rc = 0;
-	hashedPassword[0] = '\0';
 	if (*passwd) {
+		char *p;
+
 		if (*sha1_passwd) {
 			seclvl_printk(0, KERN_ERR, "Error: Both "
 				      "passwd and sha1_passwd "
@@ -514,12 +500,16 @@ static int processPassword(void)
 				      "exclusive.\n");
 			return -EINVAL;
 		}
-		if ((rc = plaintext_to_sha1(hashedPassword, passwd,
-					    strlen(passwd)))) {
+
+		p = kstrdup(passwd, GFP_KERNEL);
+		if (p == NULL)
+			return -ENOMEM;
+
+		if ((rc = plaintext_to_sha1(hashedPassword, p, strlen(p))))
 			seclvl_printk(0, KERN_ERR, "Error: SHA1 support not "
 				      "in kernel\n");
-			return rc;
-		}
+
+		kfree (p);
 		/* All static data goes to the BSS, which zero's the
 		 * plaintext password out for us. */
 	} else if (*sha1_passwd) {	// Base 16
@@ -542,7 +532,7 @@ static int processPassword(void)
 			sha1_passwd[i + 2] = tmp;
 		}
 	}
-	return 0;
+	return rc;
 }
 
 /**
@@ -552,28 +542,46 @@ struct dentry *dir_ino, *seclvl_ino, *passwd_ino;
 
 static int seclvlfs_register(void)
 {
+	int rc = 0;
+
 	dir_ino = securityfs_create_dir("seclvl", NULL);
-	if (!dir_ino)
-		return -EFAULT;
+
+	if (IS_ERR(dir_ino))
+		return PTR_ERR(dir_ino);
 
 	seclvl_ino = securityfs_create_file("seclvl", S_IRUGO | S_IWUSR,
 				dir_ino, &seclvl, &seclvl_file_ops);
-	if (!seclvl_ino)
+	if (IS_ERR(seclvl_ino)) {
+		rc = PTR_ERR(seclvl_ino);
 		goto out_deldir;
+	}
 	if (*passwd || *sha1_passwd) {
 		passwd_ino = securityfs_create_file("passwd", S_IRUGO | S_IWUSR,
 				dir_ino, NULL, &passwd_file_ops);
-		if (!passwd_ino)
+		if (IS_ERR(passwd_ino)) {
+			rc = PTR_ERR(passwd_ino);
 			goto out_delf;
+		}
 	}
-	return 0;
+	return rc;
 
-out_deldir:
-	securityfs_remove(dir_ino);
 out_delf:
 	securityfs_remove(seclvl_ino);
 
-	return -EFAULT;
+out_deldir:
+	securityfs_remove(dir_ino);
+
+	return rc;
+}
+
+static void seclvlfs_unregister(void)
+{
+	securityfs_remove(seclvl_ino);
+
+	if (*passwd || *sha1_passwd)
+		securityfs_remove(passwd_ino);
+
+	securityfs_remove(dir_ino);
 }
 
 /**
@@ -582,6 +590,8 @@ out_delf:
 static int __init seclvl_init(void)
 {
 	int rc = 0;
+	static char once;
+
 	if (verbosity < 0 || verbosity > 1) {
 		printk(KERN_ERR "Error: bad verbosity [%d]; only 0 or 1 "
 		       "are valid values\n", verbosity);
@@ -600,6 +610,11 @@ static int __init seclvl_init(void)
 			      "module parameter(s): rc = [%d]\n", rc);
 		goto exit;
 	}
+
+	if ((rc = seclvlfs_register())) {
+		seclvl_printk(0, KERN_ERR, "Error registering with sysfs\n");
+		goto exit;
+	}
 	/* register ourselves with the security framework */
 	if (register_security(&seclvl_ops)) {
 		seclvl_printk(0, KERN_ERR,
@@ -611,20 +626,24 @@ static int __init seclvl_init(void)
 			seclvl_printk(0, KERN_ERR, "seclvl: Failure "
 				      "registering with primary security "
 				      "module.\n");
+			seclvlfs_unregister();
 			goto exit;
 		}		/* if primary module registered */
 		secondary = 1;
 	}			/* if we registered ourselves with the security framework */
-	if ((rc = seclvlfs_register())) {
-		seclvl_printk(0, KERN_ERR, "Error registering with sysfs\n");
-		goto exit;
-	}
+
 	seclvl_printk(0, KERN_INFO, "seclvl: Successfully initialized.\n");
+
+	if (once) {
+		once = 1;
+		seclvl_printk(0, KERN_INFO, "seclvl is going away. It has been "
+				"buggy for ages. Also, be warned that "
+				"Securelevels are useless.");
+	}
  exit:
-	if (rc) {
+	if (rc)
 		printk(KERN_ERR "seclvl: Error during initialization: rc = "
 		       "[%d]\n", rc);
-	}
 	return rc;
 }
 
@@ -633,17 +652,14 @@ static int __init seclvl_init(void)
  */
 static void __exit seclvl_exit(void)
 {
-	securityfs_remove(seclvl_ino);
-	if (*passwd || *sha1_passwd)
-		securityfs_remove(passwd_ino);
-	securityfs_remove(dir_ino);
-	if (secondary == 1) {
+	seclvlfs_unregister();
+
+	if (secondary)
 		mod_unreg_security(MY_NAME, &seclvl_ops);
-	} else if (unregister_security(&seclvl_ops)) {
+	else if (unregister_security(&seclvl_ops))
 		seclvl_printk(0, KERN_INFO,
 			      "seclvl: Failure unregistering with the "
 			      "kernel\n");
-	}
 }
 
 module_init(seclvl_init);

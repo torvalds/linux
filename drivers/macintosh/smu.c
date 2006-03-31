@@ -35,6 +35,7 @@
 #include <linux/delay.h>
 #include <linux/sysdev.h>
 #include <linux/poll.h>
+#include <linux/mutex.h>
 
 #include <asm/byteorder.h>
 #include <asm/io.h>
@@ -92,7 +93,7 @@ struct smu_device {
  * for now, just hard code that
  */
 static struct smu_device	*smu;
-static DECLARE_MUTEX(smu_part_access);
+static DEFINE_MUTEX(smu_part_access);
 
 static void smu_i2c_retry(unsigned long data);
 
@@ -629,8 +630,6 @@ static struct of_platform_driver smu_of_platform_driver =
 
 static int __init smu_init_sysfs(void)
 {
-	int rc;
-
 	/*
 	 * Due to sysfs bogosity, a sysdev is not a real device, so
 	 * we should in fact create both if we want sysdev semantics
@@ -639,7 +638,7 @@ static int __init smu_init_sysfs(void)
 	 * I'm a bit too far from figuring out how that works with those
 	 * new chipsets, but that will come back and bite us
 	 */
-	rc = of_register_driver(&smu_of_platform_driver);
+	of_register_driver(&smu_of_platform_driver);
 	return 0;
 }
 
@@ -978,11 +977,11 @@ struct smu_sdbp_header *__smu_get_sdb_partition(int id, unsigned int *size,
 
 	if (interruptible) {
 		int rc;
-		rc = down_interruptible(&smu_part_access);
+		rc = mutex_lock_interruptible(&smu_part_access);
 		if (rc)
 			return ERR_PTR(rc);
 	} else
-		down(&smu_part_access);
+		mutex_lock(&smu_part_access);
 
 	part = (struct smu_sdbp_header *)get_property(smu->of_node,
 						      pname, size);
@@ -992,7 +991,7 @@ struct smu_sdbp_header *__smu_get_sdb_partition(int id, unsigned int *size,
 		if (part != NULL && size)
 			*size = part->len << 2;
 	}
-	up(&smu_part_access);
+	mutex_unlock(&smu_part_access);
 	return part;
 }
 

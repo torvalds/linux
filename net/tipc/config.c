@@ -683,11 +683,11 @@ int tipc_cfg_init(void)
 	memset(&mng, 0, sizeof(mng));
 	INIT_LIST_HEAD(&mng.link_subscribers);
 
-	res = tipc_attach(&mng.user_ref, 0, 0);
+	res = tipc_attach(&mng.user_ref, NULL, NULL);
 	if (res)
 		goto failed;
 
-	res = tipc_createport(mng.user_ref, 0, TIPC_CRITICAL_IMPORTANCE,
+	res = tipc_createport(mng.user_ref, NULL, TIPC_CRITICAL_IMPORTANCE,
 			      NULL, NULL, NULL,
 			      NULL, cfg_named_msg_event, NULL,
 			      NULL, &mng.port_ref);

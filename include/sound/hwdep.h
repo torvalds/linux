@@ -60,7 +60,7 @@ struct snd_hwdep {
 	void *private_data;
 	void (*private_free) (struct snd_hwdep *hwdep);
 
-	struct semaphore open_mutex;
+	struct mutex open_mutex;
 	int used;
 	unsigned int dsp_loaded;
 	unsigned int exclusive: 1;

@@ -98,12 +98,12 @@ xfs_buf_item_flush_log_debug(
 }
 
 /*
- * This function is called to verify that our caller's have logged
+ * This function is called to verify that our callers have logged
  * all the bytes that they changed.
  *
  * It does this by comparing the original copy of the buffer stored in
  * the buf log item's bli_orig array to the current copy of the buffer
- * and ensuring that all bytes which miscompare are set in the bli_logged
+ * and ensuring that all bytes which mismatch are set in the bli_logged
  * array of the buf log item.
  */
 STATIC void

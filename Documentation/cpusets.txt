@@ -18,7 +18,8 @@ CONTENTS:
   1.4 What are exclusive cpusets ?
   1.5 What does notify_on_release do ?
   1.6 What is memory_pressure ?
-  1.7 How do I use cpusets ?
+  1.7 What is memory spread ?
+  1.8 How do I use cpusets ?
 2. Usage Examples and Syntax
   2.1 Basic Usage
   2.2 Adding/removing cpus
@@ -317,7 +318,78 @@ the tasks in the cpuset, in units of reclaims attempted per second,
 times 1000.
 
 
-1.7 How do I use cpusets ?
+1.7 What is memory spread ?
+---------------------------
+There are two boolean flag files per cpuset that control where the
+kernel allocates pages for the file system buffers and related in
+kernel data structures.  They are called 'memory_spread_page' and
+'memory_spread_slab'.
+
+If the per-cpuset boolean flag file 'memory_spread_page' is set, then
+the kernel will spread the file system buffers (page cache) evenly
+over all the nodes that the faulting task is allowed to use, instead
+of preferring to put those pages on the node where the task is running.
+
+If the per-cpuset boolean flag file 'memory_spread_slab' is set,
+then the kernel will spread some file system related slab caches,
+such as for inodes and dentries evenly over all the nodes that the
+faulting task is allowed to use, instead of preferring to put those
+pages on the node where the task is running.
+
+The setting of these flags does not affect anonymous data segment or
+stack segment pages of a task.
+
+By default, both kinds of memory spreading are off, and memory
+pages are allocated on the node local to where the task is running,
+except perhaps as modified by the tasks NUMA mempolicy or cpuset
+configuration, so long as sufficient free memory pages are available.
+
+When new cpusets are created, they inherit the memory spread settings
+of their parent.
+
+Setting memory spreading causes allocations for the affected page
+or slab caches to ignore the tasks NUMA mempolicy and be spread
+instead.    Tasks using mbind() or set_mempolicy() calls to set NUMA
+mempolicies will not notice any change in these calls as a result of
+their containing tasks memory spread settings.  If memory spreading
+is turned off, then the currently specified NUMA mempolicy once again
+applies to memory page allocations.
+
+Both 'memory_spread_page' and 'memory_spread_slab' are boolean flag
+files.  By default they contain "0", meaning that the feature is off
+for that cpuset.  If a "1" is written to that file, then that turns
+the named feature on.
+
+The implementation is simple.
+
+Setting the flag 'memory_spread_page' turns on a per-process flag
+PF_SPREAD_PAGE for each task that is in that cpuset or subsequently
+joins that cpuset.  The page allocation calls for the page cache
+is modified to perform an inline check for this PF_SPREAD_PAGE task
+flag, and if set, a call to a new routine cpuset_mem_spread_node()
+returns the node to prefer for the allocation.
+
+Similarly, setting 'memory_spread_cache' turns on the flag
+PF_SPREAD_SLAB, and appropriately marked slab caches will allocate
+pages from the node returned by cpuset_mem_spread_node().
+
+The cpuset_mem_spread_node() routine is also simple.  It uses the
+value of a per-task rotor cpuset_mem_spread_rotor to select the next
+node in the current tasks mems_allowed to prefer for the allocation.
+
+This memory placement policy is also known (in other contexts) as
+round-robin or interleave.
+
+This policy can provide substantial improvements for jobs that need
+to place thread local data on the corresponding node, but that need
+to access large file system data sets that need to be spread across
+the several nodes in the jobs cpuset in order to fit.  Without this
+policy, especially for jobs that might have one thread reading in the
+data set, the memory allocation across the nodes in the jobs cpuset
+can become very uneven.
+
+
+1.8 How do I use cpusets ?
 --------------------------
 
 In order to minimize the impact of cpusets on critical kernel

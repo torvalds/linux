@@ -33,7 +33,6 @@
 #include <asm/mach/irq.h>
 
 #include <asm/arch/pxa-regs.h>
-#include <asm/arch/irq.h>
 #include <asm/arch/irda.h>
 #include <asm/arch/mmc.h>
 #include <asm/arch/ohci.h>
@@ -467,6 +466,8 @@ struct platform_device akitaioexp_device = {
 	.name		= "akita-ioexp",
 	.id		= -1,
 };
+
+EXPORT_SYMBOL_GPL(akitaioexp_device);
 
 static void __init akita_init(void)
 {

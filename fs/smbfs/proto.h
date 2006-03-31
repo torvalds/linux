@@ -35,7 +35,7 @@ extern int smb_proc_symlink(struct smb_sb_info *server, struct dentry *d, const 
 extern int smb_proc_link(struct smb_sb_info *server, struct dentry *dentry, struct dentry *new_dentry);
 extern void smb_install_null_ops(struct smb_ops *ops);
 /* dir.c */
-extern struct file_operations smb_dir_operations;
+extern const struct file_operations smb_dir_operations;
 extern struct inode_operations smb_dir_inode_operations;
 extern struct inode_operations smb_dir_inode_operations_unix;
 extern void smb_new_dentry(struct dentry *dentry);
@@ -64,7 +64,7 @@ extern int smb_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat
 extern int smb_notify_change(struct dentry *dentry, struct iattr *attr);
 /* file.c */
 extern struct address_space_operations smb_file_aops;
-extern struct file_operations smb_file_operations;
+extern const struct file_operations smb_file_operations;
 extern struct inode_operations smb_file_inode_operations;
 /* ioctl.c */
 extern int smb_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg);

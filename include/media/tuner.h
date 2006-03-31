@@ -110,12 +110,15 @@
 
 #define TUNER_LG_TDVS_H062F		64	/* DViCO FusionHDTV 5 */
 #define TUNER_YMEC_TVF66T5_B_DFF	65	/* Acorp Y878F */
-#define TUNER_LG_NTSC_TALN_MINI		66
+#define TUNER_LG_TALN			66
 #define TUNER_PHILIPS_TD1316		67
 
 #define TUNER_PHILIPS_TUV1236D		68	/* ATI HDTV Wonder */
 #define TUNER_TNF_5335MF                69	/* Sabrent Bt848   */
 #define TUNER_SAMSUNG_TCPN_2121P30A     70 	/* Hauppauge PVR-500MCE NTSC */
+#define TUNER_XCEIVE_XC3028		71
+
+#define TUNER_THOMSON_FE6600		72	/* DViCO FusionHDTV DVB-T Hybrid */
 
 /* tv card specific */
 #define TDA9887_PRESENT 		(1<<0)
@@ -209,6 +212,7 @@ struct tuner {
 extern unsigned const int tuner_count;
 
 extern int microtune_init(struct i2c_client *c);
+extern int xc3028_init(struct i2c_client *c);
 extern int tda8290_init(struct i2c_client *c);
 extern int tda8290_probe(struct i2c_client *c);
 extern int tea5767_tuner_init(struct i2c_client *c);

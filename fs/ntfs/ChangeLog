@@ -16,8 +16,34 @@ ToDo/Notes:
 	  inode having been discarded already.  Whether this can actually ever
 	  happen is unclear however so it is worth waiting until someone hits
 	  the problem.
-	- Enable the code for setting the NT4 compatibility flag when we start
-	  making NTFS 1.2 specific modifications.
+
+2.1.27 - Various bug fixes and cleanups.
+
+	- Fix two compiler warnings on Alpha.  Thanks to Andrew Morton for
+	  reporting them.
+	- Fix an (innocent) off-by-one error in the runlist code.
+	- Fix a buggette in an "should be impossible" case handling where we
+	  continued the attribute lookup loop instead of aborting it.
+	- Use buffer_migrate_page() for the ->migratepage function of all ntfs
+	  address space operations.
+	- Fix comparison of $MFT and $MFTMirr to not bail out when there are
+	  unused, invalid mft records which are the same in both $MFT and
+	  $MFTMirr.
+	- Add support for sparse files which have a compression unit of 0.
+	- Remove all the make_bad_inode() calls.  This should only be called
+	  from read inode and new inode code paths.
+	- Limit name length in fs/ntfs/unistr.c::ntfs_nlstoucs() to maximum
+	  allowed by NTFS, i.e. 255 Unicode characters, not including the
+	  terminating NULL (which is not stored on disk).
+	- Improve comments on file attribute flags in fs/ntfs/layout.h.
+	- Fix a bug in fs/ntfs/inode.c::ntfs_read_locked_index_inode() where we
+	  forgot to update a temporary variable so loading index inodes which
+	  have an index allocation attribute failed.
+	- Add a missing call to flush_dcache_mft_record_page() in
+	  fs/ntfs/inode.c::ntfs_write_inode().
+	- Handle the recently introduced -ENAMETOOLONG return value from
+	  fs/ntfs/unistr.c::ntfs_nlstoucs() in fs/ntfs/namei.c::ntfs_lookup().
+	- Semaphore to mutex conversion.  (Ingo Molnar)
 
 2.1.26 - Minor bug fixes and updates.
 

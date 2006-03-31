@@ -1,6 +1,4 @@
 /*
- * arch/ppc/boot/common/misc-common.c
- *
  * Misc. bootloader code (almost) all platforms can use
  *
  * Author: Johnnie Peters <jpeters@mvista.com>

@@ -146,6 +146,13 @@
 #define KOBIL_CONV_KAAN_PID	0x2021	/* KOBIL_Konverter for KAAN */
 
 /*
+ * Icom ID-1 digital transceiver
+ */
+
+#define ICOM_ID1_VID            0x0C26
+#define ICOM_ID1_PID            0x0004
+
+/*
  * DSS-20 Sync Station for Sony Ericsson P800
  */
  

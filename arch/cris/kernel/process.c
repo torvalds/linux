@@ -116,6 +116,7 @@
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
 #include <asm/irq.h>
+#include <asm/system.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/fs_struct.h>
@@ -193,8 +194,6 @@ EXPORT_SYMBOL(enable_hlt);
  * The following aren't currently used.
  */
 void (*pm_idle)(void);
-
-extern void default_idle(void);
 
 /*
  * The idle thread. There's no useful work to be

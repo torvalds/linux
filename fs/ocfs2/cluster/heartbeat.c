@@ -449,11 +449,11 @@ static u32 o2hb_compute_block_crc_le(struct o2hb_region *reg,
 
 static void o2hb_dump_slot(struct o2hb_disk_heartbeat_block *hb_block)
 {
-	mlog(ML_ERROR, "Dump slot information: seq = 0x%"MLFx64", node = %u, "
-	     "cksum = 0x%x, generation 0x%"MLFx64"\n",
-	     le64_to_cpu(hb_block->hb_seq), hb_block->hb_node,
-	     le32_to_cpu(hb_block->hb_cksum),
-	     le64_to_cpu(hb_block->hb_generation));
+	mlog(ML_ERROR, "Dump slot information: seq = 0x%llx, node = %u, "
+	     "cksum = 0x%x, generation 0x%llx\n",
+	     (long long)le64_to_cpu(hb_block->hb_seq),
+	     hb_block->hb_node, le32_to_cpu(hb_block->hb_cksum),
+	     (long long)le64_to_cpu(hb_block->hb_generation));
 }
 
 static int o2hb_verify_crc(struct o2hb_region *reg,
@@ -516,8 +516,9 @@ static inline void o2hb_prepare_block(struct o2hb_region *reg,
 	hb_block->hb_cksum = cpu_to_le32(o2hb_compute_block_crc_le(reg,
 								   hb_block));
 
-	mlog(ML_HB_BIO, "our node generation = 0x%"MLFx64", cksum = 0x%x\n",
-	     cpu_to_le64(generation), le32_to_cpu(hb_block->hb_cksum));
+	mlog(ML_HB_BIO, "our node generation = 0x%llx, cksum = 0x%x\n",
+	     (long long)cpu_to_le64(generation),
+	     le32_to_cpu(hb_block->hb_cksum));
 }
 
 static void o2hb_fire_callbacks(struct o2hb_callback *hbcall,
@@ -686,19 +687,20 @@ static int o2hb_check_slot(struct o2hb_region *reg,
 	if (slot->ds_last_generation != le64_to_cpu(hb_block->hb_generation)) {
 		gen_changed = 1;
 		slot->ds_equal_samples = 0;
-		mlog(ML_HEARTBEAT, "Node %d changed generation (0x%"MLFx64" "
-		     "to 0x%"MLFx64")\n", slot->ds_node_num,
-		     slot->ds_last_generation,
-		     le64_to_cpu(hb_block->hb_generation));
+		mlog(ML_HEARTBEAT, "Node %d changed generation (0x%llx "
+		     "to 0x%llx)\n", slot->ds_node_num,
+		     (long long)slot->ds_last_generation,
+		     (long long)le64_to_cpu(hb_block->hb_generation));
 	}
 
 	slot->ds_last_generation = le64_to_cpu(hb_block->hb_generation);
 
-	mlog(ML_HEARTBEAT, "Slot %d gen 0x%"MLFx64" cksum 0x%x "
-	     "seq %"MLFu64" last %"MLFu64" changed %u equal %u\n",
-	     slot->ds_node_num, slot->ds_last_generation,
-	     le32_to_cpu(hb_block->hb_cksum), le64_to_cpu(hb_block->hb_seq), 
-	     slot->ds_last_time, slot->ds_changed_samples,
+	mlog(ML_HEARTBEAT, "Slot %d gen 0x%llx cksum 0x%x "
+	     "seq %llu last %llu changed %u equal %u\n",
+	     slot->ds_node_num, (long long)slot->ds_last_generation,
+	     le32_to_cpu(hb_block->hb_cksum),
+	     (unsigned long long)le64_to_cpu(hb_block->hb_seq), 
+	     (unsigned long long)slot->ds_last_time, slot->ds_changed_samples,
 	     slot->ds_equal_samples);
 
 	spin_lock(&o2hb_live_lock);
@@ -708,8 +710,8 @@ fire_callbacks:
 	 * changes at any time during their dead time */
 	if (list_empty(&slot->ds_live_item) &&
 	    slot->ds_changed_samples >= O2HB_LIVE_THRESHOLD) {
-		mlog(ML_HEARTBEAT, "Node %d (id 0x%"MLFx64") joined my "
-		     "region\n", slot->ds_node_num, slot->ds_last_generation);
+		mlog(ML_HEARTBEAT, "Node %d (id 0x%llx) joined my region\n",
+		     slot->ds_node_num, (long long)slot->ds_last_generation);
 
 		/* first on the list generates a callback */
 		if (list_empty(&o2hb_live_slots[slot->ds_node_num])) {

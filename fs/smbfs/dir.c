@@ -34,7 +34,7 @@ static int smb_rename(struct inode *, struct dentry *,
 static int smb_make_node(struct inode *,struct dentry *,int,dev_t);
 static int smb_link(struct dentry *, struct inode *, struct dentry *);
 
-struct file_operations smb_dir_operations =
+const struct file_operations smb_dir_operations =
 {
 	.read		= generic_read_dir,
 	.readdir	= smb_readdir,

@@ -20,7 +20,7 @@
 static struct resource au1xxx_usb_ohci_resources[] = {
 	[0] = {
 		.start		= USB_OHCI_BASE,
-		.end		= USB_OHCI_BASE + USB_OHCI_LEN,
+		.end		= USB_OHCI_BASE + USB_OHCI_LEN - 1,
 		.flags		= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -264,7 +264,7 @@ static struct resource smc91x_resources[] = {
 
 static struct platform_device smc91x_device = {
 	.name		= "smc91x",
- 	.id		= -1,
+	.id		= -1,
 	.num_resources	= ARRAY_SIZE(smc91x_resources),
 	.resource	= smc91x_resources,
 };
@@ -278,9 +278,7 @@ static struct platform_device *au1xxx_platform_devices[] __initdata = {
 	&au1100_lcd_device,
 #endif
 #ifdef CONFIG_SOC_AU1200
-#if 0	/* fixme */
 	&au1xxx_usb_ehci_device,
-#endif
 	&au1xxx_usb_gdt_device,
 	&au1xxx_usb_otg_device,
 	&au1200_lcd_device,
@@ -288,7 +286,7 @@ static struct platform_device *au1xxx_platform_devices[] __initdata = {
 	&au1xxx_mmc_device,
 #endif
 #ifdef CONFIG_MIPS_DB1200
- 	&smc91x_device,
+	&smc91x_device,
 #endif
 };
 

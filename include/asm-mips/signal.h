@@ -147,15 +147,33 @@ struct k_sigaction {
 
 /* IRIX compatible stack_t  */
 typedef struct sigaltstack {
-	void *ss_sp;
+	void __user *ss_sp;
 	size_t ss_size;
 	int ss_flags;
 } stack_t;
 
 #ifdef __KERNEL__
 #include <asm/sigcontext.h>
+#include <asm/siginfo.h>
 
 #define ptrace_signal_deliver(regs, cookie) do { } while (0)
+
+struct pt_regs;
+extern void do_signal(struct pt_regs *regs);
+extern void do_signal32(struct pt_regs *regs);
+
+extern int setup_frame(struct k_sigaction * ka, struct pt_regs *regs,
+        int signr, sigset_t *set);
+extern int setup_rt_frame(struct k_sigaction * ka, struct pt_regs *regs,
+        int signr, sigset_t *set, siginfo_t *info);
+
+extern int setup_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
+        int signr, sigset_t *set);
+extern int setup_rt_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
+        int signr, sigset_t *set, siginfo_t *info);
+
+extern int setup_rt_frame_n32(struct k_sigaction * ka, struct pt_regs *regs,
+        int signr, sigset_t *set, siginfo_t *info);
 
 #endif /* __KERNEL__ */
 

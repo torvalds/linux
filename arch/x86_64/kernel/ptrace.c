@@ -420,9 +420,9 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		case offsetof(struct user, u_debugreg[7]):
 			/* See arch/i386/kernel/ptrace.c for an explanation of
 			 * this awkward check.*/
-				  data &= ~DR_CONTROL_RESERVED;
-				  for(i=0; i<4; i++)
-					  if ((0x5454 >> ((data >> (16 + 4*i)) & 0xf)) & 1)
+			data &= ~DR_CONTROL_RESERVED;
+			for(i=0; i<4; i++)
+				if ((0x5554 >> ((data >> (16 + 4*i)) & 0xf)) & 1)
 					break;
 			if (i == 4) {
 				child->thread.debugreg7 = data;

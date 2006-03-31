@@ -96,7 +96,7 @@
 	 andi	a0, s0, CAUSEF_IP3	# delay slot, check hw1 interrupt
 #else
 	beq	a0, zero, 1f		# delay slot, check hw3 interrupt
- 	 andi	a0, s0, CAUSEF_IP5
+	 andi	a0, s0, CAUSEF_IP5
 #endif
 
 	/* Wheee, combined hardware level zero interrupt. */

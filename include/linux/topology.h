@@ -164,6 +164,15 @@
 	.nr_balance_failed	= 0,			\
 }
 
+#ifdef CONFIG_SCHED_MC
+#ifndef SD_MC_INIT
+/* for now its same as SD_CPU_INIT.
+ * TBD: Tune Domain parameters!
+ */
+#define SD_MC_INIT   SD_CPU_INIT
+#endif
+#endif
+
 #ifdef CONFIG_NUMA
 #ifndef SD_NODE_INIT
 #error Please define an appropriate SD_NODE_INIT in include/asm/topology.h!!!

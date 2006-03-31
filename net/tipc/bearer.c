@@ -45,10 +45,10 @@
 
 #define MAX_ADDR_STR 32
 
-static struct media *media_list = 0;
+static struct media *media_list = NULL;
 static u32 media_count = 0;
 
-struct bearer *tipc_bearers = 0;
+struct bearer *tipc_bearers = NULL;
 
 /**
  * media_name_valid - validate media name
@@ -79,7 +79,7 @@ static struct media *media_find(const char *name)
 		if (!strcmp(m_ptr->name, name))
 			return m_ptr;
 	}
-	return 0;
+	return NULL;
 }
 
 /**
@@ -287,7 +287,7 @@ static struct bearer *bearer_find(const char *name)
 		if (b_ptr->active && (!strcmp(b_ptr->publ.name, name)))
 			return b_ptr;
 	}
-	return 0;
+	return NULL;
 }
 
 /**
@@ -307,7 +307,7 @@ struct bearer *tipc_bearer_find_interface(const char *if_name)
 		if (!strcmp(b_if_name, if_name))
 			return b_ptr;
 	}
-	return 0;
+	return NULL;
 }
 
 /**
@@ -569,7 +569,7 @@ failed:
 
 int tipc_block_bearer(const char *name)
 {
-	struct bearer *b_ptr = 0;
+	struct bearer *b_ptr = NULL;
 	struct link *l_ptr;
 	struct link *temp_l_ptr;
 
@@ -666,8 +666,8 @@ int tipc_bearer_init(void)
 	} else {
 		kfree(tipc_bearers);
 		kfree(media_list);
-		tipc_bearers = 0;
-		media_list = 0;
+		tipc_bearers = NULL;
+		media_list = NULL;
 		res = -ENOMEM;
 	}
 	write_unlock_bh(&tipc_net_lock);
@@ -691,8 +691,8 @@ void tipc_bearer_stop(void)
 	}
 	kfree(tipc_bearers);
 	kfree(media_list);
-	tipc_bearers = 0;
-	media_list = 0;
+	tipc_bearers = NULL;
+	media_list = NULL;
 	media_count = 0;
 }
 

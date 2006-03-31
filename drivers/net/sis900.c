@@ -100,7 +100,7 @@ enum {
 	SIS_900 = 0,
 	SIS_7016
 };
-static char * card_names[] = {
+static const char * card_names[] = {
 	"SiS 900 PCI Fast Ethernet",
 	"SiS 7016 PCI Fast Ethernet"
 };
@@ -115,7 +115,7 @@ MODULE_DEVICE_TABLE (pci, sis900_pci_tbl);
 
 static void sis900_read_mode(struct net_device *net_dev, int *speed, int *duplex);
 
-static struct mii_chip_info {
+static const struct mii_chip_info {
 	const char * name;
 	u16 phy_id0;
 	u16 phy_id1;
@@ -128,6 +128,7 @@ static struct mii_chip_info {
 	{ "SiS 900 Internal MII PHY", 		0x001d, 0x8000, LAN },
 	{ "SiS 7014 Physical Layer Solution", 	0x0016, 0xf830, LAN },
 	{ "Altimata AC101LF PHY",               0x0022, 0x5520, LAN },
+	{ "ADM 7001 LAN PHY",			0x002e, 0xcc60, LAN },
 	{ "AMD 79C901 10BASE-T PHY",  		0x0000, 0x6B70, LAN },
 	{ "AMD 79C901 HomePNA PHY",		0x0000, 0x6B90, HOME},
 	{ "ICS LAN PHY",			0x0015, 0xF440, LAN },
@@ -400,7 +401,7 @@ static int __devinit sis900_probe(struct pci_dev *pci_dev,
 	void *ring_space;
 	long ioaddr;
 	int i, ret;
-	char *card_name = card_names[pci_id->driver_data];
+	const char *card_name = card_names[pci_id->driver_data];
 	const char *dev_name = pci_name(pci_dev);
 
 /* when built into the kernel, we only print version if device is found */
@@ -1275,7 +1276,7 @@ static void sis900_timer(unsigned long data)
 	struct net_device *net_dev = (struct net_device *)data;
 	struct sis900_private *sis_priv = net_dev->priv;
 	struct mii_phy *mii_phy = sis_priv->mii;
-	static int next_tick = 5*HZ;
+	static const int next_tick = 5*HZ;
 	u16 status;
 
 	if (!sis_priv->autong_complete){
@@ -1692,7 +1693,7 @@ static irqreturn_t sis900_interrupt(int irq, void *dev_instance, struct pt_regs 
  *
  *	Process receive interrupt events, 
  *	put buffer to higher layer and refill buffer pool
- *	Note: This fucntion is called by interrupt handler, 
+ *	Note: This function is called by interrupt handler,
  *	don't do "too much" work here
  */
 
@@ -1839,7 +1840,7 @@ static int sis900_rx(struct net_device *net_dev)
  *
  *	Check for error condition and free socket buffer etc 
  *	schedule for more transmission as needed
- *	Note: This fucntion is called by interrupt handler, 
+ *	Note: This function is called by interrupt handler,
  *	don't do "too much" work here
  */
 
@@ -2282,7 +2283,7 @@ static void set_rx_mode(struct net_device *net_dev)
 	int i, table_entries;
 	u32 rx_mode;
 
-	/* 635 Hash Table entires = 256(2^16) */
+	/* 635 Hash Table entries = 256(2^16) */
 	if((sis_priv->chipset_rev >= SIS635A_900_REV) ||
 			(sis_priv->chipset_rev == SIS900B_900_REV))
 		table_entries = 16;

@@ -1,4 +1,4 @@
-/* 
+/*
  * bt856 - BT856A Digital Video Encoder (Rockwell Part)
  *
  * Copyright (C) 1999 Mike Bernson <mike@mlb.org>
@@ -53,7 +53,6 @@ MODULE_AUTHOR("Mike Bernson & Dave Perks");
 MODULE_LICENSE("GPL");
 
 #include <linux/i2c.h>
-#include <linux/i2c-dev.h>
 
 #define I2C_NAME(s) (s)->name
 
@@ -71,17 +70,14 @@ MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
 /* ----------------------------------------------------------------------- */
 
-#define REG_OFFSET  0xCE
+#define REG_OFFSET	0xDA
+#define BT856_NR_REG	6
 
 struct bt856 {
-	unsigned char reg[32];
+	unsigned char reg[BT856_NR_REG];
 
 	int norm;
 	int enable;
-	int bright;
-	int contrast;
-	int hue;
-	int sat;
 };
 
 #define   I2C_BT856        0x88
@@ -120,8 +116,8 @@ bt856_dump (struct i2c_client *client)
 	struct bt856 *encoder = i2c_get_clientdata(client);
 
 	printk(KERN_INFO "%s: register dump:", I2C_NAME(client));
-	for (i = 0xd6; i <= 0xde; i += 2)
-		printk(" %02x", encoder->reg[i - REG_OFFSET]);
+	for (i = 0; i < BT856_NR_REG; i += 2)
+		printk(" %02x", encoder->reg[i]);
 	printk("\n");
 }
 
@@ -289,7 +285,7 @@ bt856_command (struct i2c_client *client,
 static unsigned short normal_i2c[] = { I2C_BT856 >> 1, I2C_CLIENT_END };
 
 static unsigned short ignore = I2C_CLIENT_END;
-                                                                                
+
 static struct i2c_client_address_data addr_data = {
 	.normal_i2c		= normal_i2c,
 	.probe			= &ignore,

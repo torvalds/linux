@@ -1,7 +1,6 @@
 #ifndef __MATROXFB_DAC1064_H__
 #define __MATROXFB_DAC1064_H__
 
-/* make checkconfig does not walk through include tree */
 #include <linux/config.h>
 
 #include "matroxfb_base.h"

@@ -12,11 +12,12 @@
 #include <linux/interrupt.h>
 #include <linux/suspend.h>
 #include <linux/module.h>
+#include <linux/syscalls.h>
 
 /* 
  * Timeout for stopping processes
  */
-#define TIMEOUT	(6 * HZ)
+#define TIMEOUT	(20 * HZ)
 
 
 static inline int freezeable(struct task_struct * p)
@@ -54,38 +55,62 @@ void refrigerator(void)
 	current->state = save;
 }
 
+static inline void freeze_process(struct task_struct *p)
+{
+	unsigned long flags;
+
+	if (!freezing(p)) {
+		freeze(p);
+		spin_lock_irqsave(&p->sighand->siglock, flags);
+		signal_wake_up(p, 0);
+		spin_unlock_irqrestore(&p->sighand->siglock, flags);
+	}
+}
+
 /* 0 = success, else # of processes that we failed to stop */
 int freeze_processes(void)
 {
-	int todo;
+	int todo, nr_user, user_frozen;
 	unsigned long start_time;
 	struct task_struct *g, *p;
 	unsigned long flags;
 
 	printk( "Stopping tasks: " );
 	start_time = jiffies;
+	user_frozen = 0;
 	do {
-		todo = 0;
+		nr_user = todo = 0;
 		read_lock(&tasklist_lock);
 		do_each_thread(g, p) {
 			if (!freezeable(p))
 				continue;
 			if (frozen(p))
 				continue;
-
-			freeze(p);
-			spin_lock_irqsave(&p->sighand->siglock, flags);
-			signal_wake_up(p, 0);
-			spin_unlock_irqrestore(&p->sighand->siglock, flags);
-			todo++;
+			if (p->mm && !(p->flags & PF_BORROWED_MM)) {
+				/* The task is a user-space one.
+				 * Freeze it unless there's a vfork completion
+				 * pending
+				 */
+				if (!p->vfork_done)
+					freeze_process(p);
+				nr_user++;
+			} else {
+				/* Freeze only if the user space is frozen */
+				if (user_frozen)
+					freeze_process(p);
+				todo++;
+			}
 		} while_each_thread(g, p);
 		read_unlock(&tasklist_lock);
-		yield();			/* Yield is okay here */
-		if (todo && time_after(jiffies, start_time + TIMEOUT)) {
-			printk( "\n" );
-			printk(KERN_ERR " stopping tasks failed (%d tasks remaining)\n", todo );
-			break;
+		todo += nr_user;
+		if (!user_frozen && !nr_user) {
+			sys_sync();
+			start_time = jiffies;
 		}
+		user_frozen = !nr_user;
+		yield();			/* Yield is okay here */
+		if (todo && time_after(jiffies, start_time + TIMEOUT))
+			break;
 	} while(todo);
 
 	/* This does not unfreeze processes that are already frozen
@@ -94,8 +119,14 @@ int freeze_processes(void)
 	 * but it cleans up leftover PF_FREEZE requests.
 	 */
 	if (todo) {
+		printk( "\n" );
+		printk(KERN_ERR " stopping tasks timed out "
+			"after %d seconds (%d tasks remaining):\n",
+			TIMEOUT / HZ, todo);
 		read_lock(&tasklist_lock);
-		do_each_thread(g, p)
+		do_each_thread(g, p) {
+			if (freezeable(p) && !frozen(p))
+				printk(KERN_ERR "  %s\n", p->comm);
 			if (freezing(p)) {
 				pr_debug("  clean up: %s\n", p->comm);
 				p->flags &= ~PF_FREEZE;
@@ -103,7 +134,7 @@ int freeze_processes(void)
 				recalc_sigpending_tsk(p);
 				spin_unlock_irqrestore(&p->sighand->siglock, flags);
 			}
-		while_each_thread(g, p);
+		} while_each_thread(g, p);
 		read_unlock(&tasklist_lock);
 		return todo;
 	}

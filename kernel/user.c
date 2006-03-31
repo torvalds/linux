@@ -105,15 +105,19 @@ void free_uid(struct user_struct *up)
 {
 	unsigned long flags;
 
+	if (!up)
+		return;
+
 	local_irq_save(flags);
-	if (up && atomic_dec_and_lock(&up->__count, &uidhash_lock)) {
+	if (atomic_dec_and_lock(&up->__count, &uidhash_lock)) {
 		uid_hash_remove(up);
+		spin_unlock_irqrestore(&uidhash_lock, flags);
 		key_put(up->uid_keyring);
 		key_put(up->session_keyring);
 		kmem_cache_free(uid_cachep, up);
-		spin_unlock(&uidhash_lock);
+	} else {
+		local_irq_restore(flags);
 	}
-	local_irq_restore(flags);
 }
 
 struct user_struct * alloc_uid(uid_t uid)

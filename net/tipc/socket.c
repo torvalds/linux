@@ -88,7 +88,7 @@ static atomic_t tipc_queue_size = ATOMIC_INIT(0);
  * with non-socket interfaces.
  * See net.c for description of locking policy.
  */
-static inline void sock_lock(struct tipc_sock* tsock)
+static void sock_lock(struct tipc_sock* tsock)
 {
         spin_lock_bh(tsock->p->lock);       
 }
@@ -96,7 +96,7 @@ static inline void sock_lock(struct tipc_sock* tsock)
 /* 
  * sock_unlock(): Unlock a port/socket pair
  */
-static inline void sock_unlock(struct tipc_sock* tsock)
+static void sock_unlock(struct tipc_sock* tsock)
 {
         spin_unlock_bh(tsock->p->lock);
 }
@@ -119,7 +119,7 @@ static inline void sock_unlock(struct tipc_sock* tsock)
  * Returns pollmask value
  */
 
-static inline u32 pollmask(struct socket *sock)
+static u32 pollmask(struct socket *sock)
 {
 	u32 mask;
 
@@ -144,7 +144,7 @@ static inline u32 pollmask(struct socket *sock)
  * @tsock: TIPC socket
  */
 
-static inline void advance_queue(struct tipc_sock *tsock)
+static void advance_queue(struct tipc_sock *tsock)
 {
         sock_lock(tsock);
 	buf_discard(skb_dequeue(&tsock->sk.sk_receive_queue));
@@ -178,7 +178,7 @@ static int tipc_create(struct socket *sock, int protocol)
 	if (unlikely(protocol != 0))
 		return -EPROTONOSUPPORT;
 
-	ref = tipc_createport_raw(0, &dispatch, &wakeupdispatch, TIPC_LOW_IMPORTANCE);
+	ref = tipc_createport_raw(NULL, &dispatch, &wakeupdispatch, TIPC_LOW_IMPORTANCE);
 	if (unlikely(!ref))
 		return -ENOMEM;
 
@@ -265,7 +265,7 @@ static int release(struct socket *sock)
 		sock_lock(tsock);
 		buf = skb_dequeue(&sk->sk_receive_queue);
 		if (!buf)
-			tsock->p->usr_handle = 0;
+			tsock->p->usr_handle = NULL;
 		sock_unlock(tsock);
 		if (!buf)
 			break;
@@ -319,7 +319,7 @@ static int bind(struct socket *sock, struct sockaddr *uaddr, int uaddr_len)
 		return -ERESTARTSYS;
 	
 	if (unlikely(!uaddr_len)) {
-		res = tipc_withdraw(tsock->p->ref, 0, 0);
+		res = tipc_withdraw(tsock->p->ref, 0, NULL);
 		goto exit;
 	}
 
@@ -412,7 +412,7 @@ static unsigned int poll(struct file *file, struct socket *sock,
  * Returns 0 if permission is granted, otherwise errno
  */
 
-static inline int dest_name_check(struct sockaddr_tipc *dest, struct msghdr *m)
+static int dest_name_check(struct sockaddr_tipc *dest, struct msghdr *m)
 {
 	struct tipc_cfg_msg_hdr hdr;
 
@@ -695,7 +695,7 @@ static int auto_connect(struct socket *sock, struct tipc_sock *tsock,
  * Note: Address is not captured if not requested by receiver.
  */
 
-static inline void set_orig_addr(struct msghdr *m, struct tipc_msg *msg)
+static void set_orig_addr(struct msghdr *m, struct tipc_msg *msg)
 {
         struct sockaddr_tipc *addr = (struct sockaddr_tipc *)m->msg_name;
 
@@ -721,7 +721,7 @@ static inline void set_orig_addr(struct msghdr *m, struct tipc_msg *msg)
  * Returns 0 if successful, otherwise errno
  */
 
-static inline int anc_data_recv(struct msghdr *m, struct tipc_msg *msg, 
+static int anc_data_recv(struct msghdr *m, struct tipc_msg *msg,
 				struct tipc_port *tport)
 {
 	u32 anc_data[3];
@@ -1226,7 +1226,7 @@ static int connect(struct socket *sock, struct sockaddr *dest, int destlen,
 {
    struct tipc_sock *tsock = tipc_sk(sock->sk);
    struct sockaddr_tipc *dst = (struct sockaddr_tipc *)dest;
-   struct msghdr m = {0,};
+   struct msghdr m = {NULL,};
    struct sk_buff *buf;
    struct tipc_msg *msg;
    int res;
@@ -1251,7 +1251,7 @@ static int connect(struct socket *sock, struct sockaddr *dest, int destlen,
    /* Send a 'SYN-' to destination */
 
    m.msg_name = dest;
-   if ((res = send_msg(0, sock, &m, 0)) < 0) {
+   if ((res = send_msg(NULL, sock, &m, 0)) < 0) {
 	   sock->state = SS_DISCONNECTING;
 	   return res;
    }
@@ -1367,9 +1367,9 @@ static int accept(struct socket *sock, struct socket *newsock, int flags)
 
 		msg_dbg(msg,"<ACC<: ");
                 if (!msg_data_sz(msg)) {
-                        struct msghdr m = {0,};
+                        struct msghdr m = {NULL,};
 
-                        send_packet(0, newsock, &m, 0);      
+                        send_packet(NULL, newsock, &m, 0);
                         advance_queue(tsock);
                 } else {
 			sock_lock(tsock);

@@ -110,7 +110,7 @@ static int sis_fb_alloc(DRM_IOCTL_ARGS)
 
 	DRM_COPY_TO_USER_IOCTL(argp, fb, sizeof(fb));
 
-	DRM_DEBUG("alloc fb, size = %d, offset = %ld\n", fb.size, req.offset);
+	DRM_DEBUG("alloc fb, size = %d, offset = %d\n", fb.size, req.offset);
 
 	return retval;
 }

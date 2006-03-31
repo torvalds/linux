@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/ev64260.c
- *
  * Board setup routines for the Marvell/Galileo EV-64260-BP Evaluation Board.
  *
  * Author: Mark A. Greer <mgreer@mvista.com>
@@ -416,7 +414,7 @@ ev64260_fixup_mpsc_pdata(struct platform_device *pdev)
 	return;
 }
 
-static int __init
+static int
 ev64260_platform_notify(struct device *dev)
 {
 	static struct {

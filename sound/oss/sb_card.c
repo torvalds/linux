@@ -52,6 +52,7 @@ static int __initdata sm_games 	= 0; /* Logitech soundman games? */
 static struct sb_card_config *legacy = NULL;
 
 #ifdef CONFIG_PNP
+static int pnp_registered;
 static int __initdata pnp       = 1;
 /*
 static int __initdata uart401	= 0;
@@ -133,7 +134,7 @@ static void sb_unload(struct sb_card_config *scc)
 }
 
 /* Register legacy card with OSS subsystem */
-static int sb_init_legacy(void)
+static int __init sb_init_legacy(void)
 {
 	struct sb_module_options sbmo = {0};
 
@@ -234,6 +235,8 @@ static void sb_dev2cfg(struct pnp_dev *dev, struct sb_card_config *scc)
 	}
 }
 
+static unsigned int sb_pnp_devices;
+
 /* Probe callback function for the PnP API */
 static int sb_pnp_probe(struct pnp_card_link *card, const struct pnp_card_device_id *card_id)
 {
@@ -264,6 +267,7 @@ static int sb_pnp_probe(struct pnp_card_link *card, const struct pnp_card_device
 	       scc->conf.dma, scc->conf.dma2);
 
 	pnp_set_card_drvdata(card, scc);
+	sb_pnp_devices++;
 
 	return sb_register_oss(scc, &sbmo);
 }
@@ -289,6 +293,14 @@ static struct pnp_card_driver sb_pnp_driver = {
 MODULE_DEVICE_TABLE(pnp_card, sb_pnp_card_table);
 #endif /* CONFIG_PNP */
 
+static void __init_or_module sb_unregister_all(void)
+{
+#ifdef CONFIG_PNP
+	if (pnp_registered)
+		pnp_unregister_card_driver(&sb_pnp_driver);
+#endif
+}
+
 static int __init sb_init(void)
 {
 	int lres = 0;
@@ -307,17 +319,18 @@ static int __init sb_init(void)
 
 #ifdef CONFIG_PNP
 	if(pnp) {
-		pres = pnp_register_card_driver(&sb_pnp_driver);
+		int err = pnp_register_card_driver(&sb_pnp_driver);
+		if (!err)
+			pnp_registered = 1;
+		pres = sb_pnp_devices;
 	}
 #endif
 	printk(KERN_INFO "sb: Init: Done\n");
 
 	/* If either PnP or Legacy registered a card then return
 	 * success */
-	if (pres <= 0 && lres <= 0) {
-#ifdef CONFIG_PNP
-		pnp_unregister_card_driver(&sb_pnp_driver);
-#endif
+	if (pres == 0 && lres <= 0) {
+		sb_unregister_all();
 		return -ENODEV;
 	}
 	return 0;
@@ -333,14 +346,10 @@ static void __exit sb_exit(void)
 		sb_unload(legacy);
 	}
 
-#ifdef CONFIG_PNP
-	pnp_unregister_card_driver(&sb_pnp_driver);
-#endif
+	sb_unregister_all();
 
-	if (smw_free) {
-		vfree(smw_free);
-		smw_free = NULL;
-	}
+	vfree(smw_free);
+	smw_free = NULL;
 }
 
 module_init(sb_init);

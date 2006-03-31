@@ -359,6 +359,8 @@ static int ehci_hub_control (
 		case USB_PORT_FEAT_SUSPEND:
 			if (temp & PORT_RESET)
 				goto error;
+			if (ehci->no_selective_suspend)
+				break;
 			if (temp & PORT_SUSPEND) {
 				if ((temp & PORT_PE) == 0)
 					goto error;
@@ -514,6 +516,8 @@ static int ehci_hub_control (
 		temp &= ~PORT_RWC_BITS;
 		switch (wValue) {
 		case USB_PORT_FEAT_SUSPEND:
+			if (ehci->no_selective_suspend)
+				break;
 			if ((temp & PORT_PE) == 0
 					|| (temp & PORT_RESET) != 0)
 				goto error;

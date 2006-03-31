@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/mpc8260_pci9.c
- *
  * Workaround for device erratum PCI 9.
  * See Motorola's "XPC826xA Family Device Errata Reference."
  * The erratum applies to all 8260 family Hip4 processors.  It is scheduled 

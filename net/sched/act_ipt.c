@@ -70,7 +70,8 @@ ipt_init_target(struct ipt_entry_target *t, char *table, unsigned int hook)
 	t->u.kernel.target = target;
 
 	if (t->u.kernel.target->checkentry
-	    && !t->u.kernel.target->checkentry(table, NULL, t->data,
+	    && !t->u.kernel.target->checkentry(table, NULL,
+		    			       t->u.kernel.target, t->data,
 					       t->u.target_size - sizeof(*t),
 					       hook)) {
 		DPRINTK("ipt_init_target: check failed for `%s'.\n",
@@ -86,7 +87,7 @@ static void
 ipt_destroy_target(struct ipt_entry_target *t)
 {
 	if (t->u.kernel.target->destroy)
-		t->u.kernel.target->destroy(t->data,
+		t->u.kernel.target->destroy(t->u.kernel.target, t->data,
 		                            t->u.target_size - sizeof(*t));
         module_put(t->u.kernel.target->me);
 }
@@ -224,8 +225,9 @@ tcf_ipt(struct sk_buff *skb, struct tc_action *a, struct tcf_result *res)
 	/* iptables targets take a double skb pointer in case the skb
 	 * needs to be replaced. We don't own the skb, so this must not
 	 * happen. The pskb_expand_head above should make sure of this */
-	ret = p->t->u.kernel.target->target(&skb, skb->dev, NULL,
-					    p->hook, p->t->data, NULL);
+	ret = p->t->u.kernel.target->target(&skb, skb->dev, NULL, p->hook,
+					    p->t->u.kernel.target, p->t->data,
+					    NULL);
 	switch (ret) {
 	case NF_ACCEPT:
 		result = TC_ACT_OK;

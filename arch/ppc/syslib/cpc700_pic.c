@@ -1,6 +1,4 @@
 /*
- * arch/ppc/syslib/cpc700_pic.c
- *
  * Interrupt controller support for IBM Spruce
  *
  * Authors: Mark Greer, Matt Porter, and Johnnie Peters

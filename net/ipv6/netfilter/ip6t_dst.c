@@ -55,6 +55,7 @@ static int
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
+      const struct xt_match *match,
       const void *matchinfo,
       int offset,
       unsigned int protoff,
@@ -179,22 +180,17 @@ match(const struct sk_buff *skb,
 static int
 checkentry(const char *tablename,
 	   const void *info,
+	   const struct xt_match *match,
 	   void *matchinfo,
 	   unsigned int matchinfosize,
 	   unsigned int hook_mask)
 {
 	const struct ip6t_opts *optsinfo = matchinfo;
 
-	if (matchinfosize != IP6T_ALIGN(sizeof(struct ip6t_opts))) {
-		DEBUGP("ip6t_opts: matchsize %u != %u\n",
-		       matchinfosize, IP6T_ALIGN(sizeof(struct ip6t_opts)));
-		return 0;
-	}
 	if (optsinfo->invflags & ~IP6T_OPTS_INV_MASK) {
 		DEBUGP("ip6t_opts: unknown flags %X\n", optsinfo->invflags);
 		return 0;
 	}
-
 	return 1;
 }
 
@@ -204,20 +200,21 @@ static struct ip6t_match opts_match = {
 #else
 	.name		= "dst",
 #endif
-	.match		= &match,
-	.checkentry	= &checkentry,
+	.match		= match,
+	.matchsize	= sizeof(struct ip6t_opts),
+	.checkentry	= checkentry,
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init ip6t_dst_init(void)
 {
 	return ip6t_register_match(&opts_match);
 }
 
-static void __exit cleanup(void)
+static void __exit ip6t_dst_fini(void)
 {
 	ip6t_unregister_match(&opts_match);
 }
 
-module_init(init);
-module_exit(cleanup);
+module_init(ip6t_dst_init);
+module_exit(ip6t_dst_fini);

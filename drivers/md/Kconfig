@@ -127,6 +127,32 @@ config MD_RAID5
 
 	  If unsure, say Y.
 
+config MD_RAID5_RESHAPE
+	bool "Support adding drives to a raid-5 array (experimental)"
+	depends on MD_RAID5 && EXPERIMENTAL
+	---help---
+	  A RAID-5 set can be expanded by adding extra drives. This
+	  requires "restriping" the array which means (almost) every
+	  block must be written to a different place.
+
+          This option allows such restriping to be done while the array
+	  is online.  However it is still EXPERIMENTAL code.  It should
+	  work, but please be sure that you have backups.
+
+	  You will need a version of mdadm newer than 2.3.1.   During the
+	  early stage of reshape there is a critical section where live data
+	  is being over-written.  A crash during this time needs extra care
+	  for recovery.  The newer mdadm takes a copy of the data in the
+	  critical section and will restore it, if necessary, after a crash.
+
+	  The mdadm usage is e.g.
+	       mdadm --grow /dev/md1 --raid-disks=6
+	  to grow '/dev/md1' to having 6 disks.
+
+	  Note: The array can only be expanded, not contracted.
+	  There should be enough spares already present to make the new
+	  array workable.
+
 config MD_RAID6
 	tristate "RAID-6 mode"
 	depends on BLK_DEV_MD

@@ -130,7 +130,7 @@ static struct vfsmount *get_source(struct vfsmount *dest,
 {
 	struct vfsmount *p_last_src = NULL;
 	struct vfsmount *p_last_dest = NULL;
-	*type = CL_PROPAGATION;;
+	*type = CL_PROPAGATION;
 
 	if (IS_MNT_SHARED(dest))
 		*type |= CL_MAKE_SHARED;

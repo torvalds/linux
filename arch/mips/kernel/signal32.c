@@ -163,7 +163,7 @@ static inline int put_sigset(const sigset_t *kbuf, compat_sigset_t __user *ubuf)
 	return err;
 }
 
-static inline int get_sigset(sigset_t *kbuf, const compat_sigset_t *ubuf)
+static inline int get_sigset(sigset_t *kbuf, const compat_sigset_t __user *ubuf)
 {
 	int err = 0;
 	unsigned long sig[4];
@@ -195,10 +195,10 @@ save_static_function(sys32_sigsuspend);
 __attribute_used__ noinline static int
 _sys32_sigsuspend(nabi_no_regargs struct pt_regs regs)
 {
-	compat_sigset_t *uset;
+	compat_sigset_t __user *uset;
 	sigset_t newset;
 
-	uset = (compat_sigset_t *) regs.regs[4];
+	uset = (compat_sigset_t __user *) regs.regs[4];
 	if (get_sigset(&newset, uset))
 		return -EFAULT;
 	sigdelsetmask(&newset, ~_BLOCKABLE);
@@ -219,7 +219,7 @@ save_static_function(sys32_rt_sigsuspend);
 __attribute_used__ noinline static int
 _sys32_rt_sigsuspend(nabi_no_regargs struct pt_regs regs)
 {
-	compat_sigset_t *uset;
+	compat_sigset_t __user *uset;
 	sigset_t newset;
 	size_t sigsetsize;
 
@@ -228,7 +228,7 @@ _sys32_rt_sigsuspend(nabi_no_regargs struct pt_regs regs)
 	if (sigsetsize != sizeof(compat_sigset_t))
 		return -EINVAL;
 
-	uset = (compat_sigset_t *) regs.regs[4];
+	uset = (compat_sigset_t __user *) regs.regs[4];
 	if (get_sigset(&newset, uset))
 		return -EFAULT;
 	sigdelsetmask(&newset, ~_BLOCKABLE);
@@ -236,7 +236,7 @@ _sys32_rt_sigsuspend(nabi_no_regargs struct pt_regs regs)
 	spin_lock_irq(&current->sighand->siglock);
 	current->saved_sigmask = current->blocked;
 	current->blocked = newset;
-        recalc_sigpending();
+	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 
 	current->state = TASK_INTERRUPTIBLE;
@@ -245,8 +245,8 @@ _sys32_rt_sigsuspend(nabi_no_regargs struct pt_regs regs)
 	return -ERESTARTNOHAND;
 }
 
-asmlinkage int sys32_sigaction(int sig, const struct sigaction32 *act,
-                               struct sigaction32 *oact)
+asmlinkage int sys32_sigaction(int sig, const struct sigaction32 __user *act,
+                               struct sigaction32 __user *oact)
 {
 	struct k_sigaction new_ka, old_ka;
 	int ret;
@@ -272,15 +272,15 @@ asmlinkage int sys32_sigaction(int sig, const struct sigaction32 *act,
 
 	if (!ret && oact) {
 		if (!access_ok(VERIFY_WRITE, oact, sizeof(*oact)))
-                        return -EFAULT;
+			return -EFAULT;
 		err |= __put_user(old_ka.sa.sa_flags, &oact->sa_flags);
 		err |= __put_user((u32)(u64)old_ka.sa.sa_handler,
 		                  &oact->sa_handler);
 		err |= __put_user(old_ka.sa.sa_mask.sig[0], oact->sa_mask.sig);
-                err |= __put_user(0, &oact->sa_mask.sig[1]);
-                err |= __put_user(0, &oact->sa_mask.sig[2]);
-                err |= __put_user(0, &oact->sa_mask.sig[3]);
-                if (err)
+		err |= __put_user(0, &oact->sa_mask.sig[1]);
+		err |= __put_user(0, &oact->sa_mask.sig[2]);
+		err |= __put_user(0, &oact->sa_mask.sig[3]);
+		if (err)
 			return -EFAULT;
 	}
 
@@ -301,7 +301,7 @@ asmlinkage int sys32_sigaltstack(nabi_no_regargs struct pt_regs regs)
 		if (!access_ok(VERIFY_READ, uss, sizeof(*uss)))
 			return -EFAULT;
 		err |= __get_user(sp, &uss->ss_sp);
-		kss.ss_sp = (void *) (long) sp;
+		kss.ss_sp = (void __user *) (long) sp;
 		err |= __get_user(kss.ss_size, &uss->ss_size);
 		err |= __get_user(kss.ss_flags, &uss->ss_flags);
 		if (err)
@@ -316,7 +316,7 @@ asmlinkage int sys32_sigaltstack(nabi_no_regargs struct pt_regs regs)
 	if (!ret && uoss) {
 		if (!access_ok(VERIFY_WRITE, uoss, sizeof(*uoss)))
 			return -EFAULT;
-		sp = (int) (long) koss.ss_sp;
+		sp = (int) (unsigned long) koss.ss_sp;
 		err |= __put_user(sp, &uoss->ss_sp);
 		err |= __put_user(koss.ss_size, &uoss->ss_size);
 		err |= __put_user(koss.ss_flags, &uoss->ss_flags);
@@ -527,7 +527,7 @@ _sys32_rt_sigreturn(nabi_no_regargs struct pt_regs regs)
 	/* The ucontext contains a stack32_t, so we must convert!  */
 	if (__get_user(sp, &frame->rs_uc.uc_stack.ss_sp))
 		goto badframe;
-	st.ss_sp = (void *)(long) sp;
+	st.ss_sp = (void __user *)(long) sp;
 	if (__get_user(st.ss_size, &frame->rs_uc.uc_stack.ss_size))
 		goto badframe;
 	if (__get_user(st.ss_flags, &frame->rs_uc.uc_stack.ss_flags))
@@ -624,11 +624,11 @@ static inline void __user *get_sigframe(struct k_sigaction *ka,
 	sp = regs->regs[29];
 
 	/*
- 	 * FPU emulator may have it's own trampoline active just
- 	 * above the user stack, 16-bytes before the next lowest
- 	 * 16 byte boundary.  Try to avoid trashing it.
- 	 */
- 	sp -= 32;
+	 * FPU emulator may have it's own trampoline active just
+	 * above the user stack, 16-bytes before the next lowest
+	 * 16 byte boundary.  Try to avoid trashing it.
+	 */
+	sp -= 32;
 
 	/* This is the X/Open sanctioned signal stack switching.  */
 	if ((ka->sa.sa_flags & SA_ONSTACK) && (sas_ss_flags (sp) == 0))
@@ -868,7 +868,7 @@ no_signal:
 	}
 }
 
-asmlinkage int sys32_rt_sigaction(int sig, const struct sigaction32 *act,
+asmlinkage int sys32_rt_sigaction(int sig, const struct sigaction32 __user *act,
 				  struct sigaction32 __user *oact,
 				  unsigned int sigsetsize)
 {
@@ -912,7 +912,7 @@ out:
 	return ret;
 }
 
-asmlinkage int sys32_rt_sigprocmask(int how, compat_sigset_t *set,
+asmlinkage int sys32_rt_sigprocmask(int how, compat_sigset_t __user *set,
 	compat_sigset_t __user *oset, unsigned int sigsetsize)
 {
 	sigset_t old_set, new_set;

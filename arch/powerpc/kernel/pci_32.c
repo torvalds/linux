@@ -787,7 +787,7 @@ pci_busdev_to_OF_node(struct pci_bus *bus, int devfn)
 	 * fix has to be done by making the remapping per-host and always
 	 * filling the pci_to_OF map. --BenH
 	 */
-	if (_machine == _MACH_Pmac && busnr >= 0xf0)
+	if (machine_is(powermac) && busnr >= 0xf0)
 		busnr -= 0xf0;
 	else
 #endif
@@ -1728,7 +1728,7 @@ long sys_pciconfig_iobase(long which, unsigned long bus, unsigned long devfn)
 	 * (bus 0 is HT root), we return the AGP one instead.
 	 */
 #ifdef CONFIG_PPC_PMAC
-	if (_machine == _MACH_Pmac && machine_is_compatible("MacRISC4"))
+	if (machine_is(powermac) && machine_is_compatible("MacRISC4"))
 		if (bus == 0)
 			bus = 0xf0;
 #endif /* CONFIG_PPC_PMAC */

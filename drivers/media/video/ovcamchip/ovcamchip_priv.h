@@ -82,6 +82,6 @@ extern int ov_write_regvals(struct i2c_client *c,
 			    struct ovcamchip_regvals *rvals);
 
 extern int ov_write_mask(struct i2c_client *c, unsigned char reg,
-	      		 unsigned char value, unsigned char mask);
+			 unsigned char value, unsigned char mask);
 
 #endif

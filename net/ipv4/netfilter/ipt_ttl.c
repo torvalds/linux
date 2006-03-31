@@ -19,8 +19,9 @@ MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
 MODULE_DESCRIPTION("IP tables TTL matching module");
 MODULE_LICENSE("GPL");
 
-static int match(const struct sk_buff *skb, const struct net_device *in,
-		 const struct net_device *out, const void *matchinfo,
+static int match(const struct sk_buff *skb,
+		 const struct net_device *in, const struct net_device *out,
+		 const struct xt_match *match, const void *matchinfo,
 		 int offset, unsigned int protoff, int *hotdrop)
 {
 	const struct ipt_ttl_info *info = matchinfo;
@@ -47,33 +48,23 @@ static int match(const struct sk_buff *skb, const struct net_device *in,
 	return 0;
 }
 
-static int checkentry(const char *tablename, const void  *ip,
-		      void *matchinfo, unsigned int matchsize,
-		      unsigned int hook_mask)
-{
-	if (matchsize != IPT_ALIGN(sizeof(struct ipt_ttl_info)))
-		return 0;
-
-	return 1;
-}
-
 static struct ipt_match ttl_match = {
 	.name		= "ttl",
-	.match		= &match,
-	.checkentry	= &checkentry,
+	.match		= match,
+	.matchsize	= sizeof(struct ipt_ttl_info),
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init ipt_ttl_init(void)
 {
 	return ipt_register_match(&ttl_match);
 }
 
-static void __exit fini(void)
+static void __exit ipt_ttl_fini(void)
 {
 	ipt_unregister_match(&ttl_match);
 
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ipt_ttl_init);
+module_exit(ipt_ttl_fini);

@@ -264,14 +264,19 @@ int usb_hcd_pci_suspend (struct pci_dev *dev, pm_message_t message)
 		 */
 		retval = pci_set_power_state (dev, PCI_D3hot);
 		if (retval == 0) {
-			dev_dbg (hcd->self.controller, "--> PCI D3\n");
+			int wake = device_can_wakeup(&hcd->self.root_hub->dev);
+
+			wake = wake && device_may_wakeup(hcd->self.controller);
+
+			dev_dbg (hcd->self.controller, "--> PCI D3%s\n",
+					wake ? "/wakeup" : "");
 
 			/* Ignore these return values.  We rely on pci code to
 			 * reject requests the hardware can't implement, rather
 			 * than coding the same thing.
 			 */
-			(void) pci_enable_wake (dev, PCI_D3hot, hcd->remote_wakeup);
-			(void) pci_enable_wake (dev, PCI_D3cold, hcd->remote_wakeup);
+			(void) pci_enable_wake (dev, PCI_D3hot, wake);
+			(void) pci_enable_wake (dev, PCI_D3cold, wake);
 		} else {
 			dev_dbg (&dev->dev, "PCI D3 suspend fail, %d\n",
 					retval);
@@ -291,7 +296,7 @@ done:
 
 #ifdef CONFIG_PPC_PMAC
 		/* Disable ASIC clocks for USB */
-		if (_machine == _MACH_Pmac) {
+		if (machine_is(powermac)) {
 			struct device_node	*of_node;
 
 			of_node = pci_device_to_OF_node (dev);
@@ -326,7 +331,7 @@ int usb_hcd_pci_resume (struct pci_dev *dev)
 
 #ifdef CONFIG_PPC_PMAC
 	/* Reenable ASIC clocks for USB */
-	if (_machine == _MACH_Pmac) {
+	if (machine_is(powermac)) {
 		struct device_node *of_node;
 
 		of_node = pci_device_to_OF_node (dev);

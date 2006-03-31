@@ -358,7 +358,7 @@ int snd_opl3_new(struct snd_card *card,
 	opl3->hardware = hardware;
 	spin_lock_init(&opl3->reg_lock);
 	spin_lock_init(&opl3->timer_lock);
-	init_MUTEX(&opl3->access_mutex);
+	mutex_init(&opl3->access_mutex);
 
 	if ((err = snd_device_new(card, SNDRV_DEV_CODEC, opl3, &ops)) < 0) {
 		snd_opl3_free(opl3);

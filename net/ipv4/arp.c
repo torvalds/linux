@@ -879,16 +879,16 @@ static int arp_process(struct sk_buff *skb)
 
 	n = __neigh_lookup(&arp_tbl, &sip, dev, 0);
 
-#ifdef CONFIG_IP_ACCEPT_UNSOLICITED_ARP
-	/* Unsolicited ARP is not accepted by default.
-	   It is possible, that this option should be enabled for some
-	   devices (strip is candidate)
-	 */
-	if (n == NULL &&
-	    arp->ar_op == htons(ARPOP_REPLY) &&
-	    inet_addr_type(sip) == RTN_UNICAST)
-		n = __neigh_lookup(&arp_tbl, &sip, dev, -1);
-#endif
+	if (ipv4_devconf.arp_accept) {
+		/* Unsolicited ARP is not accepted by default.
+		   It is possible, that this option should be enabled for some
+		   devices (strip is candidate)
+		 */
+		if (n == NULL &&
+		    arp->ar_op == htons(ARPOP_REPLY) &&
+		    inet_addr_type(sip) == RTN_UNICAST)
+			n = __neigh_lookup(&arp_tbl, &sip, dev, -1);
+	}
 
 	if (n) {
 		int state = NUD_REACHABLE;

@@ -74,7 +74,7 @@ INSTALLING the kernel:
    whatever the kernel-du-jour happens to be.
 
  - You can also upgrade between 2.6.xx releases by patching.  Patches are
-   distributed in the traditional gzip and the new bzip2 format.  To
+   distributed in the traditional gzip and the newer bzip2 format.  To
    install by patching, get all the newer patch files, enter the
    top level directory of the kernel source (linux-2.6.xx) and execute:
 

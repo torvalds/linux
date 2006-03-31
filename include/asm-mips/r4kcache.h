@@ -303,5 +303,6 @@ __BUILD_BLAST_CACHE_RANGE(d, dcache, Hit_Writeback_Inv_D, )
 __BUILD_BLAST_CACHE_RANGE(s, scache, Hit_Writeback_Inv_SD, )
 /* blast_inv_dcache_range */
 __BUILD_BLAST_CACHE_RANGE(inv_d, dcache, Hit_Invalidate_D, )
+__BUILD_BLAST_CACHE_RANGE(inv_s, scache, Hit_Invalidate_SD, )
 
 #endif /* _ASM_R4KCACHE_H */

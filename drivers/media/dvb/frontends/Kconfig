@@ -116,6 +116,12 @@ config DVB_MT352
 	help
 	  A DVB-T tuner module. Say Y when you want to support this frontend.
 
+config DVB_ZL10353
+	tristate "Zarlink ZL10353 based"
+	depends on DVB_CORE
+	help
+	  A DVB-T tuner module. Say Y when you want to support this frontend.
+
 config DVB_DIB3000MB
 	tristate "DiBcom 3000M-B"
 	depends on DVB_CORE
@@ -155,7 +161,7 @@ comment "ATSC (North American/Korean Terresterial DTV) frontends"
 	depends on DVB_CORE
 
 config DVB_NXT200X
-	tristate "Nextwave NXT2002/NXT2004 based"
+	tristate "NxtWave Communications NXT2002/NXT2004 based"
 	depends on DVB_CORE
 	select FW_LOADER
 	help
@@ -169,14 +175,14 @@ config DVB_NXT200X
 	  or /lib/firmware (depending on configuration of firmware hotplug).
 
 config DVB_OR51211
-	tristate "or51211 based (pcHDTV HD2000 card)"
+	tristate "Oren OR51211 based"
 	depends on DVB_CORE
 	select FW_LOADER
 	help
 	  An ATSC 8VSB tuner module. Say Y when you want to support this frontend.
 
 config DVB_OR51132
-	tristate "OR51132 based (pcHDTV HD3000 card)"
+	tristate "Oren OR51132 based"
 	depends on DVB_CORE
 	select FW_LOADER
 	help

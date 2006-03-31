@@ -8,6 +8,7 @@
 #include <linux/pci.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
+#include <linux/dmi.h>
 
 #include <asm/acpi.h>
 #include <asm/segment.h>
@@ -120,10 +121,41 @@ void __devinit  pcibios_fixup_bus(struct pci_bus *b)
 	pci_read_bridge_bases(b);
 }
 
+/*
+ * Enable renumbering of PCI bus# ranges to reach all PCI busses (Cardbus)
+ */
+#ifdef __i386__
+static int __devinit assign_all_busses(struct dmi_system_id *d)
+{
+	pci_probe |= PCI_ASSIGN_ALL_BUSSES;
+	printk(KERN_INFO "%s detected: enabling PCI bus# renumbering"
+			" (pci=assign-busses)\n", d->ident);
+	return 0;
+}
+#endif
+
+/*
+ * Laptops which need pci=assign-busses to see Cardbus cards
+ */
+static struct dmi_system_id __devinitdata pciprobe_dmi_table[] = {
+#ifdef __i386__
+	{
+		.callback = assign_all_busses,
+		.ident = "Samsung X20 Laptop",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Samsung Electronics"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "SX20S"),
+		},
+	},
+#endif		/* __i386__ */
+	{}
+};
 
 struct pci_bus * __devinit pcibios_scan_root(int busnum)
 {
 	struct pci_bus *bus = NULL;
+
+	dmi_check_system(pciprobe_dmi_table);
 
 	while ((bus = pci_find_next_bus(bus)) != NULL) {
 		if (bus->number == busnum) {

@@ -20,6 +20,12 @@ SECTIONS
   phys_startup_64 = startup_64 - LOAD_OFFSET;
   _text = .;			/* Text and read-only data */
   .text :  AT(ADDR(.text) - LOAD_OFFSET) {
+	/* First the code that has to be first for bootstrapping */
+	*(.bootstrap.text)
+	/* Then all the functions that are "hot" in profiles, to group them
+           onto the same hugetlb entry */
+	#include "functionlist"
+	/* Then the rest */
 	*(.text)
 	SCHED_TEXT
 	LOCK_TEXT

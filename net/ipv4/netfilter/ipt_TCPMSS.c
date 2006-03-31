@@ -48,6 +48,7 @@ ipt_tcpmss_target(struct sk_buff **pskb,
 		  const struct net_device *in,
 		  const struct net_device *out,
 		  unsigned int hooknum,
+		  const struct xt_target *target,
 		  const void *targinfo,
 		  void *userinfo)
 {
@@ -211,19 +212,13 @@ static inline int find_syn_match(const struct ipt_entry_match *m)
 static int
 ipt_tcpmss_checkentry(const char *tablename,
 		      const void *e_void,
+		      const struct xt_target *target,
 		      void *targinfo,
 		      unsigned int targinfosize,
 		      unsigned int hook_mask)
 {
 	const struct ipt_tcpmss_info *tcpmssinfo = targinfo;
 	const struct ipt_entry *e = e_void;
-
-	if (targinfosize != IPT_ALIGN(sizeof(struct ipt_tcpmss_info))) {
-		DEBUGP("ipt_tcpmss_checkentry: targinfosize %u != %u\n",
-		       targinfosize, IPT_ALIGN(sizeof(struct ipt_tcpmss_info)));
-		return 0;
-	}
-
 
 	if((tcpmssinfo->mss == IPT_TCPMSS_CLAMP_PMTU) && 
 			((hook_mask & ~((1 << NF_IP_FORWARD)
@@ -233,11 +228,8 @@ ipt_tcpmss_checkentry(const char *tablename,
 		return 0;
 	}
 
-	if (e->ip.proto == IPPROTO_TCP
-	    && !(e->ip.invflags & IPT_INV_PROTO)
-	    && IPT_MATCH_ITERATE(e, find_syn_match))
+	if (IPT_MATCH_ITERATE(e, find_syn_match))
 		return 1;
-
 	printk("TCPMSS: Only works on TCP SYN packets\n");
 	return 0;
 }
@@ -245,19 +237,21 @@ ipt_tcpmss_checkentry(const char *tablename,
 static struct ipt_target ipt_tcpmss_reg = {
 	.name		= "TCPMSS",
 	.target		= ipt_tcpmss_target,
+	.targetsize	= sizeof(struct ipt_tcpmss_info),
+	.proto		= IPPROTO_TCP,
 	.checkentry	= ipt_tcpmss_checkentry,
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init ipt_tcpmss_init(void)
 {
 	return ipt_register_target(&ipt_tcpmss_reg);
 }
 
-static void __exit fini(void)
+static void __exit ipt_tcpmss_fini(void)
 {
 	ipt_unregister_target(&ipt_tcpmss_reg);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ipt_tcpmss_init);
+module_exit(ipt_tcpmss_fini);

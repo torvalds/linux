@@ -24,6 +24,7 @@
 #include <linux/list.h>
 #include <linux/vmalloc.h>
 #include <linux/rtnetlink.h>
+#include <linux/mutex.h>
 #include <net/ip.h>
 #include <net/xfrm.h>
 #include <net/icmp.h>
@@ -36,7 +37,7 @@ struct ipcomp_tfms {
 	int users;
 };
 
-static DECLARE_MUTEX(ipcomp_resource_sem);
+static DEFINE_MUTEX(ipcomp_resource_mutex);
 static void **ipcomp_scratches;
 static int ipcomp_scratch_users;
 static LIST_HEAD(ipcomp_tfms_list);
@@ -253,7 +254,7 @@ error:
 }
 
 /*
- * Must be protected by xfrm_cfg_sem.  State and tunnel user references are
+ * Must be protected by xfrm_cfg_mutex.  State and tunnel user references are
  * always incremented on success.
  */
 static int ipcomp_tunnel_attach(struct xfrm_state *x)
@@ -411,9 +412,9 @@ static void ipcomp_destroy(struct xfrm_state *x)
 	if (!ipcd)
 		return;
 	xfrm_state_delete_tunnel(x);
-	down(&ipcomp_resource_sem);
+	mutex_lock(&ipcomp_resource_mutex);
 	ipcomp_free_data(ipcd);
-	up(&ipcomp_resource_sem);
+	mutex_unlock(&ipcomp_resource_mutex);
 	kfree(ipcd);
 }
 
@@ -440,14 +441,14 @@ static int ipcomp_init_state(struct xfrm_state *x)
 	if (x->props.mode)
 		x->props.header_len += sizeof(struct iphdr);
 
-	down(&ipcomp_resource_sem);
+	mutex_lock(&ipcomp_resource_mutex);
 	if (!ipcomp_alloc_scratches())
 		goto error;
 
 	ipcd->tfms = ipcomp_alloc_tfms(x->calg->alg_name);
 	if (!ipcd->tfms)
 		goto error;
-	up(&ipcomp_resource_sem);
+	mutex_unlock(&ipcomp_resource_mutex);
 
 	if (x->props.mode) {
 		err = ipcomp_tunnel_attach(x);
@@ -464,10 +465,10 @@ out:
 	return err;
 
 error_tunnel:
-	down(&ipcomp_resource_sem);
+	mutex_lock(&ipcomp_resource_mutex);
 error:
 	ipcomp_free_data(ipcd);
-	up(&ipcomp_resource_sem);
+	mutex_unlock(&ipcomp_resource_mutex);
 	kfree(ipcd);
 	goto out;
 }

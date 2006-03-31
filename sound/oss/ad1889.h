@@ -100,7 +100,7 @@ typedef struct ad1889_state {
 		unsigned int subdivision;
 	} dmabuf;
 
-	struct semaphore sem;
+	struct mutex mutex;
 } ad1889_state_t;
 
 typedef struct ad1889_dev {

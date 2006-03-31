@@ -34,6 +34,7 @@
 #include <linux/highmem.h>
 #include <linux/console.h>
 #include <linux/mmzone.h>
+#include <linux/pfn.h>
 
 #include <asm/addrspace.h>
 #include <asm/bootinfo.h>
@@ -257,10 +258,6 @@ static inline int parse_rd_cmdline(unsigned long* rd_start, unsigned long* rd_en
 	return 0;
 }
 
-#define PFN_UP(x)	(((x) + PAGE_SIZE - 1) >> PAGE_SHIFT)
-#define PFN_DOWN(x)	((x) >> PAGE_SHIFT)
-#define PFN_PHYS(x)	((x) << PAGE_SHIFT)
-
 #define MAXMEM		HIGHMEM_START
 #define MAXMEM_PFN	PFN_DOWN(MAXMEM)
 
@@ -447,21 +444,10 @@ static inline void resource_init(void)
 {
 	int i;
 
-#if defined(CONFIG_64BIT) && !defined(CONFIG_BUILD_ELF64)
-	/*
-	 * The 64bit code in 32bit object format trick can't represent
-	 * 64bit wide relocations for linker script symbols.
-	 */
-	code_resource.start = CPHYSADDR(&_text);
-	code_resource.end = CPHYSADDR(&_etext) - 1;
-	data_resource.start = CPHYSADDR(&_etext);
-	data_resource.end = CPHYSADDR(&_edata) - 1;
-#else
 	code_resource.start = virt_to_phys(&_text);
 	code_resource.end = virt_to_phys(&_etext) - 1;
 	data_resource.start = virt_to_phys(&_etext);
 	data_resource.end = virt_to_phys(&_edata) - 1;
-#endif
 
 	/*
 	 * Request address space for all standard RAM.
@@ -503,10 +489,6 @@ static inline void resource_init(void)
 		request_resource(res, &data_resource);
 	}
 }
-
-#undef PFN_UP
-#undef PFN_DOWN
-#undef PFN_PHYS
 
 #undef MAXMEM
 #undef MAXMEM_PFN

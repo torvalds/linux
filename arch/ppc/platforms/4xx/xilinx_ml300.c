@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/4xx/xilinx_ml300.c
- *
  * Xilinx ML300 evaluation board initialization
  *
  * Author: MontaVista Software, Inc.
@@ -17,12 +15,14 @@
 #include <linux/tty.h>
 #include <linux/serial.h>
 #include <linux/serial_core.h>
+#include <linux/serial_8250.h>
 #include <linux/serialP.h>
 #include <asm/io.h>
 #include <asm/machdep.h>
-#include <asm/ocp.h>
+#include <asm/ppc_sys.h>
 
-#include <platforms/4xx/virtex-ii_pro.h>	/* for NR_SER_PORTS */
+#include <syslib/gen550.h>
+#include <platforms/4xx/xparameters/xparameters.h>
 
 /*
  * As an overview of how the following functions (platform_init,
@@ -54,6 +54,22 @@
  *          ppc4xx_pic_init			arch/ppc/syslib/xilinx_pic.c
  */
 
+/* Board specifications structures */
+struct ppc_sys_spec *cur_ppc_sys_spec;
+struct ppc_sys_spec ppc_sys_specs[] = {
+	{
+		/* Only one entry, always assume the same design */
+		.ppc_sys_name	= "Xilinx ML300 Reference Design",
+		.mask 		= 0x00000000,
+		.value 		= 0x00000000,
+		.num_devices	= 1,
+		.device_list	= (enum ppc_sys_devices[])
+		{
+			VIRTEX_UART,
+		},
+	},
+};
+
 #if defined(XPAR_POWER_0_POWERDOWN_BASEADDR)
 
 static volatile unsigned *powerdown_base =
@@ -80,28 +96,39 @@ ml300_map_io(void)
 #endif
 }
 
+/* Early serial support functions */
 static void __init
+ml300_early_serial_init(int num, struct plat_serial8250_port *pdata)
+{
+#if defined(CONFIG_SERIAL_TEXT_DEBUG) || defined(CONFIG_KGDB)
+	struct uart_port serial_req;
+
+	memset(&serial_req, 0, sizeof(serial_req));
+	serial_req.mapbase	= pdata->mapbase;
+	serial_req.membase	= pdata->membase;
+	serial_req.irq		= pdata->irq;
+	serial_req.uartclk	= pdata->uartclk;
+	serial_req.regshift	= pdata->regshift;
+	serial_req.iotype	= pdata->iotype;
+	serial_req.flags	= pdata->flags;
+	gen550_init(num, &serial_req);
+#endif
+}
+
+void __init
 ml300_early_serial_map(void)
 {
 #ifdef CONFIG_SERIAL_8250
-	struct serial_state old_ports[] = { SERIAL_PORT_DFNS };
-	struct uart_port port;
-	int i;
+	struct plat_serial8250_port *pdata;
+	int i = 0;
 
-	/* Setup ioremapped serial port access */
-	for (i = 0; i < ARRAY_SIZE(old_ports); i++ ) {
-		memset(&port, 0, sizeof(port));
-		port.membase = ioremap((phys_addr_t)(old_ports[i].iomem_base), 16);
-		port.irq = old_ports[i].irq;
-		port.uartclk = old_ports[i].baud_base * 16;
-		port.regshift = old_ports[i].iomem_reg_shift;
-		port.iotype = UPIO_MEM;
-		port.flags = UPF_BOOT_AUTOCONF | UPF_SKIP_TEST;
-		port.line = i;
-
-		if (early_serial_setup(&port) != 0) {
-			printk("Early serial init of port %d failed\n", i);
-		}
+	pdata = (struct plat_serial8250_port *) ppc_sys_get_pdata(VIRTEX_UART);
+	while(pdata && pdata->flags)
+	{
+		pdata->membase = ioremap(pdata->mapbase, 0x100);
+		ml300_early_serial_init(i, pdata);
+		pdata++;
+		i++;
 	}
 #endif /* CONFIG_SERIAL_8250 */
 }
@@ -109,9 +136,8 @@ ml300_early_serial_map(void)
 void __init
 ml300_setup_arch(void)
 {
-	ppc4xx_setup_arch();	/* calls ppc4xx_find_bridges() */
-
 	ml300_early_serial_map();
+	ppc4xx_setup_arch();	/* calls ppc4xx_find_bridges() */
 
 	/* Identify the system */
 	printk(KERN_INFO "Xilinx Virtex-II Pro port\n");
@@ -130,6 +156,8 @@ platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 	      unsigned long r6, unsigned long r7)
 {
 	ppc4xx_init(r3, r4, r5, r6, r7);
+
+	identify_ppc_sys_by_id(mfspr(SPRN_PVR));
 
 	ppc_md.setup_arch = ml300_setup_arch;
 	ppc_md.setup_io_mappings = ml300_map_io;

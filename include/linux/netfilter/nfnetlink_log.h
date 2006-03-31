@@ -47,6 +47,8 @@ enum nfulnl_attr_type {
 	NFULA_PAYLOAD,			/* opaque data payload */
 	NFULA_PREFIX,			/* string prefix */
 	NFULA_UID,			/* user id of socket */
+	NFULA_SEQ,			/* instance-local sequence number */
+	NFULA_SEQ_GLOBAL,		/* global sequence number */
 
 	__NFULA_MAX
 };
@@ -77,6 +79,7 @@ enum nfulnl_attr_config {
 	NFULA_CFG_NLBUFSIZ,		/* u_int32_t buffer size */
 	NFULA_CFG_TIMEOUT,		/* u_int32_t in 1/100 s */
 	NFULA_CFG_QTHRESH,		/* u_int32_t */
+	NFULA_CFG_FLAGS,		/* u_int16_t */
 	__NFULA_CFG_MAX
 };
 #define NFULA_CFG_MAX (__NFULA_CFG_MAX -1)
@@ -84,5 +87,8 @@ enum nfulnl_attr_config {
 #define NFULNL_COPY_NONE	0x00
 #define NFULNL_COPY_META	0x01
 #define NFULNL_COPY_PACKET	0x02
+
+#define NFULNL_CFG_F_SEQ	0x0001
+#define NFULNL_CFG_F_SEQ_GLOBAL	0x0002
 
 #endif /* _NFNETLINK_LOG_H */

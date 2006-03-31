@@ -51,6 +51,13 @@ static struct page *split_large_page(unsigned long address, pgprot_t prot,
 	if (!base) 
 		return NULL;
 
+	/*
+	 * page_private is used to track the number of entries in
+	 * the page table page that have non standard attributes.
+	 */
+	SetPagePrivate(base);
+	page_private(base) = 0;
+
 	address = __pa(address);
 	addr = address & LARGE_PAGE_MASK; 
 	pbase = (pte_t *)page_address(base);
@@ -143,11 +150,12 @@ __change_page_attr(struct page *page, pgprot_t prot)
 				return -ENOMEM;
 			set_pmd_pte(kpte,address,mk_pte(split, ref_prot));
 			kpte_page = split;
-		}	
-		get_page(kpte_page);
+		}
+		page_private(kpte_page)++;
 	} else if ((pte_val(*kpte) & _PAGE_PSE) == 0) { 
 		set_pte_atomic(kpte, mk_pte(page, PAGE_KERNEL));
-		__put_page(kpte_page);
+		BUG_ON(page_private(kpte_page) == 0);
+		page_private(kpte_page)--;
 	} else
 		BUG();
 
@@ -157,10 +165,8 @@ __change_page_attr(struct page *page, pgprot_t prot)
 	 * replace it with a largepage.
 	 */
 	if (!PageReserved(kpte_page)) {
-		/* memleak and potential failed 2M page regeneration */
-		BUG_ON(!page_count(kpte_page));
-
-		if (cpu_has_pse && (page_count(kpte_page) == 1)) {
+		if (cpu_has_pse && (page_private(kpte_page) == 0)) {
+			ClearPagePrivate(kpte_page);
 			list_add(&kpte_page->lru, &df_list);
 			revert_page(kpte_page, address);
 		}

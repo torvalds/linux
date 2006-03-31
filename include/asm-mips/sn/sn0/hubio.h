@@ -229,7 +229,7 @@ typedef union hubii_ilcsr_u {
                         icsr_llp_en:	 1,	/* LLP enable bit */
                  	icsr_rsvd2:	 1,     /* reserver */
                         icsr_wrm_reset:	 1,	/* Warm reset bit */
-    			icsr_rsvd1:	 2,	/* Data ready offset */
+			icsr_rsvd1:	 2,	/* Data ready offset */
                         icsr_null_to:	 6;	/* Null timeout   */
 
         } icsr_fields_s;
@@ -274,9 +274,9 @@ typedef union io_perf_sel {
 	u64 perf_sel_reg;
 	struct {
 		u64 	perf_rsvd  : 48,
-		        perf_icct  :  8,
-		        perf_ippr1 :  4,
-  		        perf_ippr0 :  4;
+			perf_icct  :  8,
+		 	perf_ippr1 :  4,
+			perf_ippr0 :  4;
 	} perf_sel_bits;
 } io_perf_sel_t;
 
@@ -287,8 +287,8 @@ typedef union io_perf_cnt {
 	u64	perf_cnt;
 	struct {
 		u64	perf_rsvd1 : 32,
-  			        perf_rsvd2 : 12,
-  			        perf_cnt   : 20;
+			perf_rsvd2 : 12,
+			perf_cnt   : 20;
 	} perf_cnt_bits;
 } io_perf_cnt_t;
 

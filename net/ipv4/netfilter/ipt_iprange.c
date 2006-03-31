@@ -27,6 +27,7 @@ static int
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
+      const struct xt_match *match,
       const void *matchinfo,
       int offset, unsigned int protoff, int *hotdrop)
 {
@@ -62,38 +63,23 @@ match(const struct sk_buff *skb,
 	return 1;
 }
 
-static int check(const char *tablename,
-		 const void *inf,
-		 void *matchinfo,
-		 unsigned int matchsize,
-		 unsigned int hook_mask)
-{
-	/* verify size */
-	if (matchsize != IPT_ALIGN(sizeof(struct ipt_iprange_info)))
-		return 0;
-
-	return 1;
-}
-
-static struct ipt_match iprange_match = 
-{ 
-	.list = { NULL, NULL }, 
-	.name = "iprange", 
-	.match = &match, 
-	.checkentry = &check, 
-	.destroy = NULL, 
-	.me = THIS_MODULE
+static struct ipt_match iprange_match = {
+	.name		= "iprange",
+	.match		= match,
+	.matchsize	= sizeof(struct ipt_iprange_info),
+	.destroy	= NULL,
+	.me		= THIS_MODULE
 };
 
-static int __init init(void)
+static int __init ipt_iprange_init(void)
 {
 	return ipt_register_match(&iprange_match);
 }
 
-static void __exit fini(void)
+static void __exit ipt_iprange_fini(void)
 {
 	ipt_unregister_match(&iprange_match);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ipt_iprange_init);
+module_exit(ipt_iprange_fini);

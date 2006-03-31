@@ -109,6 +109,19 @@ static void smp_snoop(struct ib_device *ibdev,
 	}
 }
 
+static void node_desc_override(struct ib_device *dev,
+			       struct ib_mad *mad)
+{
+	if ((mad->mad_hdr.mgmt_class == IB_MGMT_CLASS_SUBN_LID_ROUTED ||
+	     mad->mad_hdr.mgmt_class == IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE) &&
+	    mad->mad_hdr.method == IB_MGMT_METHOD_GET_RESP &&
+	    mad->mad_hdr.attr_id == IB_SMP_ATTR_NODE_DESC) {
+		mutex_lock(&to_mdev(dev)->cap_mask_mutex);
+		memcpy(((struct ib_smp *) mad)->data, dev->node_desc, 64);
+		mutex_unlock(&to_mdev(dev)->cap_mask_mutex);
+	}
+}
+
 static void forward_trap(struct mthca_dev *dev,
 			 u8 port_num,
 			 struct ib_mad *mad)
@@ -207,8 +220,10 @@ int mthca_process_mad(struct ib_device *ibdev,
 		return IB_MAD_RESULT_FAILURE;
 	}
 
-	if (!out_mad->mad_hdr.status)
+	if (!out_mad->mad_hdr.status) {
 		smp_snoop(ibdev, port_num, in_mad);
+		node_desc_override(ibdev, out_mad);
+	}
 
 	/* set return bit in status of directed route responses */
 	if (in_mad->mad_hdr.mgmt_class == IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE)
@@ -256,7 +271,7 @@ err:
 	return PTR_ERR(agent);
 }
 
-void mthca_free_agents(struct mthca_dev *dev)
+void __devexit mthca_free_agents(struct mthca_dev *dev)
 {
 	struct ib_mad_agent *agent;
 	int p, q;

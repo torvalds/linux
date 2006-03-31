@@ -1,4 +1,4 @@
-/* 
+/*
  * saa7114 - Philips SAA7114H video decoder driver version 0.0.1
  *
  * Copyright (C) 2002 Maxim Yevtyushkin <max@linuxmedialabs.com>
@@ -55,7 +55,6 @@ MODULE_AUTHOR("Maxim Yevtyushkin");
 MODULE_LICENSE("GPL");
 
 #include <linux/i2c.h>
-#include <linux/i2c-dev.h>
 
 #define I2C_NAME(x) (x)->name
 
@@ -139,9 +138,6 @@ saa7114_write (struct i2c_client *client,
 	       u8                 reg,
 	       u8                 value)
 {
-	/*struct saa7114 *decoder = i2c_get_clientdata(client);*/
-
-	/*decoder->reg[reg] = value;*/
 	return i2c_smbus_write_byte_data(client, reg, value);
 }
 
@@ -157,25 +153,21 @@ saa7114_write_block (struct i2c_client *client,
 	 * the adapter understands raw I2C */
 	if (i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		/* do raw I2C, not smbus compatible */
-		/*struct saa7114 *decoder = i2c_get_clientdata(client);*/
-		struct i2c_msg msg;
 		u8 block_data[32];
+		int block_len;
 
-		msg.addr = client->addr;
-		msg.flags = 0;
 		while (len >= 2) {
-			msg.buf = (char *) block_data;
-			msg.len = 0;
-			block_data[msg.len++] = reg = data[0];
+			block_len = 0;
+			block_data[block_len++] = reg = data[0];
 			do {
-				block_data[msg.len++] =
-				    /*decoder->reg[reg++] =*/ data[1];
+				block_data[block_len++] = data[1];
+				reg++;
 				len -= 2;
 				data += 2;
 			} while (len >= 2 && data[0] == reg &&
-				 msg.len < 32);
-			if ((ret = i2c_transfer(client->adapter,
-						&msg, 1)) < 0)
+				 block_len < 32);
+			if ((ret = i2c_master_send(client, block_data,
+						   block_len)) < 0)
 				break;
 		}
 	} else {
@@ -308,7 +300,7 @@ static const unsigned char init[] = {
 	0x55, 0xff,
 	0x56, 0xff,
 	0x57, 0xff,
-	0x58, 0x40,		// framing code 
+	0x58, 0x40,		// framing code
 	0x59, 0x47,		// horizontal offset
 	0x5a, 0x06,		// vertical offset
 	0x5b, 0x83,		// field offset
@@ -353,7 +345,7 @@ static const unsigned char init[] = {
 	0x82, 0x00,
 	0x83, 0x00,
 	0x84, 0xc5,
-	0x85, 0x0d,		// hsync and vsync ? 
+	0x85, 0x0d,		// hsync and vsync ?
 	0x86, 0x40,
 	0x87, 0x01,
 	0x88, 0x00,
@@ -442,7 +434,7 @@ static const unsigned char init[] = {
 	0xd9, 0x04,
 	0xda, 0x00,		// horizontal luminance phase offset
 	0xdb, 0x00,
-	0xdc, 0x00,		// horizontal chrominance scaling increment 
+	0xdc, 0x00,		// horizontal chrominance scaling increment
 	0xdd, 0x02,
 	0xde, 0x00,		// horizontal chrominance phase offset
 	0xdf, 0x00,
@@ -762,7 +754,7 @@ saa7114_command (struct i2c_client *client,
 			saa7114_write(client, 0x87,
 				      decoder->reg[REG_ADDR(0x87)]);
 			saa7114_write(client, 0x88, 0xd8);	// sw reset scaler
-			saa7114_write(client, 0x88, 0xf8);	// sw reset scaler release            
+			saa7114_write(client, 0x88, 0xf8);	// sw reset scaler release
 			saa7114_write(client, 0x80, 0x36);
 
 		}
@@ -821,7 +813,7 @@ static unsigned short normal_i2c[] =
     { I2C_SAA7114 >> 1, I2C_SAA7114A >> 1, I2C_CLIENT_END };
 
 static unsigned short ignore = I2C_CLIENT_END;
-                                                                                
+
 static struct i2c_client_address_data addr_data = {
 	.normal_i2c		= normal_i2c,
 	.probe			= &ignore,

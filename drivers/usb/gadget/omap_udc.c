@@ -273,9 +273,8 @@ omap_alloc_request(struct usb_ep *ep, gfp_t gfp_flags)
 {
 	struct omap_req	*req;
 
-	req = kmalloc(sizeof *req, gfp_flags);
+	req = kzalloc(sizeof(*req), gfp_flags);
 	if (req) {
-		memset (req, 0, sizeof *req);
 		req->req.dma = DMA_ADDR_INVALID;
 		INIT_LIST_HEAD (&req->queue);
 	}
@@ -2586,11 +2585,10 @@ omap_udc_setup(struct platform_device *odev, struct otg_transceiver *xceiv)
 	/* UDC_PULLUP_EN gates the chip clock */
 	// OTG_SYSCON_1_REG |= DEV_IDLE_EN;
 
-	udc = kmalloc (sizeof *udc, SLAB_KERNEL);
+	udc = kzalloc(sizeof(*udc), SLAB_KERNEL);
 	if (!udc)
 		return -ENOMEM;
 
-	memset(udc, 0, sizeof *udc);
 	spin_lock_init (&udc->lock);
 
 	udc->gadget.ops = &omap_gadget_ops;

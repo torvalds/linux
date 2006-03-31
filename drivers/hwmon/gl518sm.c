@@ -43,6 +43,7 @@
 #include <linux/i2c.h>
 #include <linux/hwmon.h>
 #include <linux/err.h>
+#include <linux/mutex.h>
 
 /* Addresses to scan */
 static unsigned short normal_i2c[] = { 0x2c, 0x2d, I2C_CLIENT_END };
@@ -120,7 +121,7 @@ struct gl518_data {
 	struct class_device *class_dev;
 	enum chips type;
 
-	struct semaphore update_lock;
+	struct mutex update_lock;
 	char valid;		/* !=0 if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
 
@@ -212,10 +213,10 @@ static ssize_t set_##suffix(struct device *dev, struct device_attribute *attr, c
 	struct gl518_data *data = i2c_get_clientdata(client);		\
 	long val = simple_strtol(buf, NULL, 10);			\
 									\
-	down(&data->update_lock);					\
+	mutex_lock(&data->update_lock);					\
 	data->value = type##_TO_REG(val);				\
 	gl518_write_value(client, reg, data->value);			\
-	up(&data->update_lock);						\
+	mutex_unlock(&data->update_lock);				\
 	return count;							\
 }
 
@@ -228,12 +229,12 @@ static ssize_t set_##suffix(struct device *dev, struct device_attribute *attr, c
 	int regvalue;							\
 	unsigned long val = simple_strtoul(buf, NULL, 10);		\
 									\
-	down(&data->update_lock);					\
+	mutex_lock(&data->update_lock);					\
 	regvalue = gl518_read_value(client, reg);			\
 	data->value = type##_TO_REG(val);				\
 	regvalue = (regvalue & ~mask) | (data->value << shift);		\
 	gl518_write_value(client, reg, regvalue);			\
-	up(&data->update_lock);						\
+	mutex_unlock(&data->update_lock);				\
 	return count;							\
 }
 
@@ -265,7 +266,7 @@ static ssize_t set_fan_min1(struct device *dev, struct device_attribute *attr, c
 	int regvalue;
 	unsigned long val = simple_strtoul(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	regvalue = gl518_read_value(client, GL518_REG_FAN_LIMIT);
 	data->fan_min[0] = FAN_TO_REG(val,
 		DIV_FROM_REG(data->fan_div[0]));
@@ -280,7 +281,7 @@ static ssize_t set_fan_min1(struct device *dev, struct device_attribute *attr, c
 	data->beep_mask &= data->alarm_mask;
 	gl518_write_value(client, GL518_REG_ALARM, data->beep_mask);
 
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -291,7 +292,7 @@ static ssize_t set_fan_min2(struct device *dev, struct device_attribute *attr, c
 	int regvalue;
 	unsigned long val = simple_strtoul(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	regvalue = gl518_read_value(client, GL518_REG_FAN_LIMIT);
 	data->fan_min[1] = FAN_TO_REG(val,
 		DIV_FROM_REG(data->fan_div[1]));
@@ -306,7 +307,7 @@ static ssize_t set_fan_min2(struct device *dev, struct device_attribute *attr, c
 	data->beep_mask &= data->alarm_mask;
 	gl518_write_value(client, GL518_REG_ALARM, data->beep_mask);
 
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -407,7 +408,7 @@ static int gl518_detect(struct i2c_adapter *adapter, int address, int kind)
 	strlcpy(new_client->name, "gl518sm", I2C_NAME_SIZE);
 	data->type = kind;
 	data->valid = 0;
-	init_MUTEX(&data->update_lock);
+	mutex_init(&data->update_lock);
 
 	/* Tell the I2C layer a new client has arrived */
 	if ((err = i2c_attach_client(new_client)))
@@ -525,7 +526,7 @@ static struct gl518_data *gl518_update_device(struct device *dev)
 	struct gl518_data *data = i2c_get_clientdata(client);
 	int val;
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 
 	if (time_after(jiffies, data->last_updated + HZ + HZ / 2)
 	    || !data->valid) {
@@ -586,7 +587,7 @@ static struct gl518_data *gl518_update_device(struct device *dev)
 		data->valid = 1;
 	}
 
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 
 	return data;
 }

@@ -289,7 +289,7 @@ xfs_qm_rele_quotafs_ref(
 
 /*
  * This is called at mount time from xfs_mountfs to initialize the quotainfo
- * structure and start the global quotamanager (xfs_Gqm) if it hasn't done
+ * structure and start the global quota manager (xfs_Gqm) if it hasn't done
  * so already.	Note that the superblock has not been read in yet.
  */
 void
@@ -807,7 +807,7 @@ xfs_qm_dqattach_one(
  * Given a udquot and gdquot, attach a ptr to the group dquot in the
  * udquot as a hint for future lookups. The idea sounds simple, but the
  * execution isn't, because the udquot might have a group dquot attached
- * already and getting rid of that gets us into lock ordering contraints.
+ * already and getting rid of that gets us into lock ordering constraints.
  * The process is complicated more by the fact that the dquots may or may not
  * be locked on entry.
  */
@@ -1094,10 +1094,10 @@ xfs_qm_sync(
 			}
 			/*
 			 * If we can't grab the flush lock then if the caller
-			 * really wanted us to give this our best shot,
+			 * really wanted us to give this our best shot, so
 			 * see if we can give a push to the buffer before we wait
 			 * on the flush lock. At this point, we know that
-			 * eventhough the dquot is being flushed,
+			 * even though the dquot is being flushed,
 			 * it has (new) dirty data.
 			 */
 			xfs_qm_dqflock_pushbuf_wait(dqp);
@@ -1491,7 +1491,7 @@ xfs_qm_reset_dqcounts(
 		/*
 		 * Do a sanity check, and if needed, repair the dqblk. Don't
 		 * output any warnings because it's perfectly possible to
-		 * find unitialized dquot blks. See comment in xfs_qm_dqcheck.
+		 * find uninitialised dquot blks. See comment in xfs_qm_dqcheck.
 		 */
 		(void) xfs_qm_dqcheck(ddq, id+j, type, XFS_QMOPT_DQREPAIR,
 				      "xfs_quotacheck");
@@ -1580,7 +1580,7 @@ xfs_qm_dqiterate(
 
 	error = 0;
 	/*
-	 * This looks racey, but we can't keep an inode lock across a
+	 * This looks racy, but we can't keep an inode lock across a
 	 * trans_reserve. But, this gets called during quotacheck, and that
 	 * happens only at mount time which is single threaded.
 	 */
@@ -1704,9 +1704,9 @@ xfs_qm_get_rtblks(
 	xfs_qcnt_t	*O_rtblks)
 {
 	xfs_filblks_t	rtblks;			/* total rt blks */
+	xfs_extnum_t	idx;			/* extent record index */
 	xfs_ifork_t	*ifp;			/* inode fork pointer */
 	xfs_extnum_t	nextents;		/* number of extent entries */
-	xfs_bmbt_rec_t	*base;			/* base of extent array */
 	xfs_bmbt_rec_t	*ep;			/* pointer to an extent entry */
 	int		error;
 
@@ -1717,10 +1717,11 @@ xfs_qm_get_rtblks(
 			return error;
 	}
 	rtblks = 0;
-	nextents = ifp->if_bytes / sizeof(xfs_bmbt_rec_t);
-	base = &ifp->if_u1.if_extents[0];
-	for (ep = base; ep < &base[nextents]; ep++)
+	nextents = ifp->if_bytes / (uint)sizeof(xfs_bmbt_rec_t);
+	for (idx = 0; idx < nextents; idx++) {
+		ep = xfs_iext_get_ext(ifp, idx);
 		rtblks += xfs_bmbt_get_blockcount(ep);
+	}
 	*O_rtblks = (xfs_qcnt_t)rtblks;
 	return 0;
 }
@@ -1823,7 +1824,7 @@ xfs_qm_dqusage_adjust(
 	 * we have to start from the beginning anyway.
 	 * Once we're done, we'll log all the dquot bufs.
 	 *
-	 * The *QUOTA_ON checks below may look pretty racey, but quotachecks
+	 * The *QUOTA_ON checks below may look pretty racy, but quotachecks
 	 * and quotaoffs don't race. (Quotachecks happen at mount time only).
 	 */
 	if (XFS_IS_UQUOTA_ON(mp)) {
@@ -2788,9 +2789,7 @@ xfs_qm_freelist_destroy(xfs_frlist_t *ql)
 		xfs_qm_dqdestroy(dqp);
 		dqp = nextdqp;
 	}
-	/*
-	 * Don't bother about unlocking.
-	 */
+	mutex_unlock(&ql->qh_lock);
 	mutex_destroy(&ql->qh_lock);
 
 	ASSERT(ql->qh_nelems == 0);

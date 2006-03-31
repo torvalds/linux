@@ -9,15 +9,7 @@
 
 #include <linux/types.h>
 
-/* Offset into the EEPROM where the id PROM is located on the 4c */
-#define IDPROM_OFFSET  0x7d8
-
-/* On sun4m; physical. */
-/* MicroSPARC(-II) does not decode 31rd bit, but it works. */
-#define IDPROM_OFFSET_M  0xfd8
-
-struct idprom
-{
+struct idprom {
 	u8		id_format;	/* Format identifier (always 0x01) */
 	u8		id_machtype;	/* Machine type */
 	u8		id_ethaddr[6];	/* Hardware ethernet address */
@@ -29,7 +21,5 @@ struct idprom
 
 extern struct idprom *idprom;
 extern void idprom_init(void);
-
-#define IDPROM_SIZE  (sizeof(struct idprom))
 
 #endif /* !(_SPARC_IDPROM_H) */

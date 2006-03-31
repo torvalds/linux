@@ -103,7 +103,7 @@ static struct plat_serial8250_port iop33x_uart1_data[] = {
 
 static struct platform_device iop33x_uart0 = {
        .name = "serial8250",
-       .id = 0,
+       .id = PLAT8250_DEV_PLATFORM,
        .dev.platform_data = iop33x_uart0_data,
        .num_resources = 2,
        .resource = iop33x_uart0_resources,
@@ -111,7 +111,7 @@ static struct platform_device iop33x_uart0 = {
 
 static struct platform_device iop33x_uart1 = {
        .name = "serial8250",
-       .id = 1,
+       .id = PLAT8250_DEV_PLATFORM1,
        .dev.platform_data = iop33x_uart1_data,
        .num_resources = 2,
        .resource = iop33x_uart1_resources,

@@ -5,7 +5,7 @@
  *  limited DMA windows. These functions utilize bounce buffers to
  *  copy data to/from buffers located outside the DMA region. This
  *  only works for systems in which DMA memory is at the bottom of
- *  RAM and the remainder of memory is at the top an the DMA memory
+ *  RAM, the remainder of memory is at the top and the DMA memory
  *  can be marked as ZONE_DMA. Anything beyond that such as discontigous
  *  DMA windows will require custom implementations that reserve memory
  *  areas at early bootup.

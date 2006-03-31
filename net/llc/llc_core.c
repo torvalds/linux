@@ -127,7 +127,6 @@ struct llc_sap *llc_sap_open(unsigned char lsap,
 		goto out;
 	sap->laddr.lsap = lsap;
 	sap->rcv_func	= func;
-	llc_sap_hold(sap);
 	llc_add_sap(sap);
 out:
 	write_unlock_bh(&llc_sap_list_lock);

@@ -416,12 +416,11 @@ static int ti_startup(struct usb_serial *serial)
 	    dev->actconfig->desc.bConfigurationValue);
 
 	/* create device structure */
-	tdev = kmalloc(sizeof(struct ti_device), GFP_KERNEL);
+	tdev = kzalloc(sizeof(struct ti_device), GFP_KERNEL);
 	if (tdev == NULL) {
 		dev_err(&dev->dev, "%s - out of memory\n", __FUNCTION__);
 		return -ENOMEM;
 	}
-	memset(tdev, 0, sizeof(struct ti_device));
 	sema_init(&tdev->td_open_close_sem, 1);
 	tdev->td_serial = serial;
 	usb_set_serial_data(serial, tdev);

@@ -119,7 +119,7 @@ static inline void serio_cleanup(struct serio *serio)
 }
 
 /*
- * Use the following fucntions to manipulate serio's per-port
+ * Use the following functions to manipulate serio's per-port
  * driver-specific data.
  */
 static inline void *serio_get_drvdata(struct serio *serio)
@@ -133,7 +133,7 @@ static inline void serio_set_drvdata(struct serio *serio, void *data)
 }
 
 /*
- * Use the following fucntions to protect critical sections in
+ * Use the following functions to protect critical sections in
  * driver code from port's interrupt handler
  */
 static inline void serio_pause_rx(struct serio *serio)
@@ -147,7 +147,7 @@ static inline void serio_continue_rx(struct serio *serio)
 }
 
 /*
- * Use the following fucntions to pin serio's driver in process context
+ * Use the following functions to pin serio's driver in process context
  */
 static inline int serio_pin_driver(struct serio *serio)
 {

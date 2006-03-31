@@ -11,7 +11,7 @@
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Sam Hopkins <sah@coraid.com>");
-MODULE_DESCRIPTION("AoE block/char driver for 2.6.[0-9]+");
+MODULE_DESCRIPTION("AoE block/char driver for 2.6.2 and newer 2.6 kernels");
 MODULE_VERSION(VERSION);
 
 enum { TINIT, TRUN, TKILL };
@@ -89,7 +89,7 @@ aoe_init(void)
 	}
 
 	printk(KERN_INFO
-	       "aoe: aoe_init: AoE v2.6-%s initialised.\n",
+	       "aoe: aoe_init: AoE v%s initialised.\n",
 	       VERSION);
 	discover_timer(TINIT);
 	return 0;

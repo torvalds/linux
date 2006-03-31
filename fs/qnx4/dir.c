@@ -81,7 +81,7 @@ out:
 	return 0;
 }
 
-struct file_operations qnx4_dir_operations =
+const struct file_operations qnx4_dir_operations =
 {
 	.read		= generic_read_dir,
 	.readdir	= qnx4_readdir,

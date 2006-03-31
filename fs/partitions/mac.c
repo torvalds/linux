@@ -12,6 +12,7 @@
 #include "mac.h"
 
 #ifdef CONFIG_PPC_PMAC
+#include <asm/machdep.h>
 extern void note_bootable_part(dev_t dev, int part, int goodness);
 #endif
 
@@ -79,7 +80,7 @@ int mac_partition(struct parsed_partitions *state, struct block_device *bdev)
 		 * If this is the first bootable partition, tell the
 		 * setup code, in case it wants to make this the root.
 		 */
-		if (_machine == _MACH_Pmac) {
+		if (machine_is(powermac)) {
 			int goodness = 0;
 
 			mac_fix_string(part->processor, 16);

@@ -184,10 +184,9 @@ static struct irda_class_desc *irda_usb_find_class_desc(struct usb_device *dev, 
 	struct irda_class_desc *desc;
 	int ret;
 		
-	desc = kmalloc(sizeof (struct irda_class_desc), GFP_KERNEL);
+	desc = kzalloc(sizeof (struct irda_class_desc), GFP_KERNEL);
 	if (desc == NULL) 
 		return NULL;
-	memset(desc, 0, sizeof(struct irda_class_desc));
 	
 	ret = usb_control_msg(dev, usb_rcvctrlpipe(dev,0),
 			IU_REQ_GET_CLASS_DESC,

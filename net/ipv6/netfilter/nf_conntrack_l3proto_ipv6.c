@@ -179,31 +179,36 @@ static unsigned int ipv6_confirm(unsigned int hooknum,
 				 int (*okfn)(struct sk_buff *))
 {
 	struct nf_conn *ct;
+	struct nf_conn_help *help;
 	enum ip_conntrack_info ctinfo;
+	unsigned int ret, protoff;
+	unsigned int extoff = (u8*)((*pskb)->nh.ipv6h + 1)
+			      - (*pskb)->data;
+	unsigned char pnum = (*pskb)->nh.ipv6h->nexthdr;
+
 
 	/* This is where we call the helper: as the packet goes out. */
 	ct = nf_ct_get(*pskb, &ctinfo);
-	if (ct && ct->helper) {
-		unsigned int ret, protoff;
-		unsigned int extoff = (u8*)((*pskb)->nh.ipv6h + 1)
-				      - (*pskb)->data;
-		unsigned char pnum = (*pskb)->nh.ipv6h->nexthdr;
+	if (!ct)
+		goto out;
 
-		protoff = nf_ct_ipv6_skip_exthdr(*pskb, extoff, &pnum,
-						 (*pskb)->len - extoff);
-		if (protoff < 0 || protoff > (*pskb)->len ||
-		    pnum == NEXTHDR_FRAGMENT) {
-			DEBUGP("proto header not found\n");
-			return NF_ACCEPT;
-		}
+	help = nfct_help(ct);
+	if (!help || !help->helper)
+		goto out;
 
-		ret = ct->helper->help(pskb, protoff, ct, ctinfo);
-		if (ret != NF_ACCEPT)
-			return ret;
+	protoff = nf_ct_ipv6_skip_exthdr(*pskb, extoff, &pnum,
+					 (*pskb)->len - extoff);
+	if (protoff < 0 || protoff > (*pskb)->len ||
+	    pnum == NEXTHDR_FRAGMENT) {
+		DEBUGP("proto header not found\n");
+		return NF_ACCEPT;
 	}
 
+	ret = help->helper->help(pskb, protoff, ct, ctinfo);
+	if (ret != NF_ACCEPT)
+		return ret;
+out:
 	/* We've seen it coming out the other side: confirm it */
-
 	return nf_conntrack_confirm(pskb);
 }
 
@@ -579,19 +584,20 @@ static int init_or_cleanup(int init)
 	return ret;
 }
 
+MODULE_ALIAS("nf_conntrack-" __stringify(AF_INET6));
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Yasuyuki KOZAKAI @USAGI <yasuyuki.kozakai@toshiba.co.jp>");
 
-static int __init init(void)
+static int __init nf_conntrack_l3proto_ipv6_init(void)
 {
 	need_conntrack();
 	return init_or_cleanup(1);
 }
 
-static void __exit fini(void)
+static void __exit nf_conntrack_l3proto_ipv6_fini(void)
 {
 	init_or_cleanup(0);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(nf_conntrack_l3proto_ipv6_init);
+module_exit(nf_conntrack_l3proto_ipv6_fini);

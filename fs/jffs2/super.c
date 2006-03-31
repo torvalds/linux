@@ -152,7 +152,7 @@ static struct super_block *jffs2_get_sb_mtd(struct file_system_type *fs_type,
 	sb->s_op = &jffs2_super_operations;
 	sb->s_flags = flags | MS_NOATIME;
 
-	ret = jffs2_do_fill_super(sb, data, (flags&MS_VERBOSE)?1:0);
+	ret = jffs2_do_fill_super(sb, data, flags & MS_SILENT ? 1 : 0);
 
 	if (ret) {
 		/* Failure case... */
@@ -257,7 +257,7 @@ static struct super_block *jffs2_get_sb(struct file_system_type *fs_type,
 	}
 
 	if (imajor(nd.dentry->d_inode) != MTD_BLOCK_MAJOR) {
-		if (!(flags & MS_VERBOSE)) /* Yes I mean this. Strangely */
+		if (!(flags & MS_SILENT))
 			printk(KERN_NOTICE "Attempt to mount non-MTD device \"%s\" as JFFS2\n",
 			       dev_name);
 		goto out;
@@ -331,7 +331,8 @@ static int __init init_jffs2_fs(void)
 
 	jffs2_inode_cachep = kmem_cache_create("jffs2_i",
 					     sizeof(struct jffs2_inode_info),
-					     0, SLAB_RECLAIM_ACCOUNT,
+					     0, (SLAB_RECLAIM_ACCOUNT|
+						SLAB_MEM_SPREAD),
 					     jffs2_i_init_once, NULL);
 	if (!jffs2_inode_cachep) {
 		printk(KERN_ERR "JFFS2 error: Failed to initialise inode cache\n");

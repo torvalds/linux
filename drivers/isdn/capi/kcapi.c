@@ -32,6 +32,7 @@
 #ifdef CONFIG_AVMB1_COMPAT
 #include <linux/b1lli.h>
 #endif
+#include <linux/mutex.h>
 
 static char *revision = "$Revision: 1.1.2.8 $";
 
@@ -66,7 +67,7 @@ LIST_HEAD(capi_drivers);
 DEFINE_RWLOCK(capi_drivers_list_lock);
 
 static DEFINE_RWLOCK(application_lock);
-static DECLARE_MUTEX(controller_sem);
+static DEFINE_MUTEX(controller_mutex);
 
 struct capi20_appl *capi_applications[CAPI_MAXAPPL];
 struct capi_ctr *capi_cards[CAPI_MAXCONTR];
@@ -395,20 +396,20 @@ attach_capi_ctr(struct capi_ctr *card)
 {
 	int i;
 
-	down(&controller_sem);
+	mutex_lock(&controller_mutex);
 
 	for (i = 0; i < CAPI_MAXCONTR; i++) {
 		if (capi_cards[i] == NULL)
 			break;
 	}
 	if (i == CAPI_MAXCONTR) {
-		up(&controller_sem);
+		mutex_unlock(&controller_mutex);
 		printk(KERN_ERR "kcapi: out of controller slots\n");
 	   	return -EBUSY;
 	}
 	capi_cards[i] = card;
 
-	up(&controller_sem);
+	mutex_unlock(&controller_mutex);
 
 	card->nrecvctlpkt = 0;
 	card->nrecvdatapkt = 0;
@@ -531,13 +532,13 @@ u16 capi20_register(struct capi20_appl *ap)
 
 	write_unlock_irqrestore(&application_lock, flags);
 	
-	down(&controller_sem);
+	mutex_lock(&controller_mutex);
 	for (i = 0; i < CAPI_MAXCONTR; i++) {
 		if (!capi_cards[i] || capi_cards[i]->cardstate != CARD_RUNNING)
 			continue;
 		register_appl(capi_cards[i], applid, &ap->rparam);
 	}
-	up(&controller_sem);
+	mutex_unlock(&controller_mutex);
 
 	if (showcapimsgs & 1) {
 		printk(KERN_DEBUG "kcapi: appl %d up\n", applid);
@@ -560,13 +561,13 @@ u16 capi20_release(struct capi20_appl *ap)
 	capi_applications[ap->applid - 1] = NULL;
 	write_unlock_irqrestore(&application_lock, flags);
 
-	down(&controller_sem);
+	mutex_lock(&controller_mutex);
 	for (i = 0; i < CAPI_MAXCONTR; i++) {
 		if (!capi_cards[i] || capi_cards[i]->cardstate != CARD_RUNNING)
 			continue;
 		release_appl(capi_cards[i], ap->applid);
 	}
-	up(&controller_sem);
+	mutex_unlock(&controller_mutex);
 
 	flush_scheduled_work();
 	skb_queue_purge(&ap->recv_queue);

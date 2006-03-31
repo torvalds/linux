@@ -64,9 +64,9 @@
  *	to the persistent bitmaps in dmaps) is guarded by (busy) buffers.
  */
 
-#define BMAP_LOCK_INIT(bmp)	init_MUTEX(&bmp->db_bmaplock)
-#define BMAP_LOCK(bmp)		down(&bmp->db_bmaplock)
-#define BMAP_UNLOCK(bmp)	up(&bmp->db_bmaplock)
+#define BMAP_LOCK_INIT(bmp)	mutex_init(&bmp->db_bmaplock)
+#define BMAP_LOCK(bmp)		mutex_lock(&bmp->db_bmaplock)
+#define BMAP_UNLOCK(bmp)	mutex_unlock(&bmp->db_bmaplock)
 
 /*
  * forward references
@@ -125,7 +125,7 @@ static int dbGetL2AGSize(s64 nblocks);
  * into the table, with the table elements yielding the maximum
  * binary buddy of free bits within the character.
  */
-static s8 budtab[256] = {
+static const s8 budtab[256] = {
 	3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
 	2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 	2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,

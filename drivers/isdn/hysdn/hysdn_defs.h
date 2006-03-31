@@ -20,14 +20,6 @@
 #include <linux/workqueue.h>
 #include <linux/skbuff.h>
 
-/****************************/
-/* storage type definitions */
-/****************************/
-#define uchar unsigned char
-#define uint unsigned int
-#define ulong unsigned long
-#define word unsigned short
-
 #include "ince1pc.h"
 
 #ifdef CONFIG_HYSDN_CAPI
@@ -147,18 +139,18 @@ typedef struct HYSDN_CARD {
 
 	/* general variables for the cards */
 	int myid;		/* own driver card id */
-	uchar bus;		/* pci bus the card is connected to */
-	uchar devfn;		/* slot+function bit encoded */
-	word subsysid;		/* PCI subsystem id */
-	uchar brdtype;		/* type of card */
-	uint bchans;		/* number of available B-channels */
-	uint faxchans;		/* number of available fax-channels */
-	uchar mac_addr[6];	/* MAC Address read from card */
-	uint irq;		/* interrupt number */
-	uint iobase;		/* IO-port base address */
-	ulong plxbase;		/* PLX memory base */
-	ulong membase;		/* DPRAM memory base */
-	ulong memend;		/* DPRAM memory end */
+	unsigned char bus;	/* pci bus the card is connected to */
+	unsigned char devfn;	/* slot+function bit encoded */
+	unsigned short subsysid;/* PCI subsystem id */
+	unsigned char brdtype;	/* type of card */
+	unsigned int bchans;	/* number of available B-channels */
+	unsigned int faxchans;	/* number of available fax-channels */
+	unsigned char mac_addr[6];/* MAC Address read from card */
+	unsigned int irq;	/* interrupt number */
+	unsigned int iobase;	/* IO-port base address */
+	unsigned long plxbase;	/* PLX memory base */
+	unsigned long membase;	/* DPRAM memory base */
+	unsigned long memend;	/* DPRAM memory end */
 	void *dpram;		/* mapped dpram */
 	int state;		/* actual state of card -> CARD_STATE_** */
 	struct HYSDN_CARD *next;	/* pointer to next card */
@@ -168,26 +160,26 @@ typedef struct HYSDN_CARD {
 	void *procconf;		/* pointer to procconf filesystem specific data */
 
 	/* debugging and logging */
-	uchar err_log_state;	/* actual error log state of the card */
-	ulong debug_flags;	/* tells what should be debugged and where */
+	unsigned char err_log_state;/* actual error log state of the card */
+	unsigned long debug_flags;/* tells what should be debugged and where */
 	void (*set_errlog_state) (struct HYSDN_CARD *, int);
 
 	/* interrupt handler + interrupt synchronisation */
 	struct work_struct irq_queue;	/* interrupt task queue */
-	uchar volatile irq_enabled;	/* interrupt enabled if != 0 */
-	uchar volatile hw_lock;	/* hardware is currently locked -> no access */
+	unsigned char volatile irq_enabled;/* interrupt enabled if != 0 */
+	unsigned char volatile hw_lock;/* hardware is currently locked -> no access */
 
 	/* boot process */
 	void *boot;		/* pointer to boot private data */
-	int (*writebootimg) (struct HYSDN_CARD *, uchar *, ulong);
-	int (*writebootseq) (struct HYSDN_CARD *, uchar *, int);
+	int (*writebootimg) (struct HYSDN_CARD *, unsigned char *, unsigned long);
+	int (*writebootseq) (struct HYSDN_CARD *, unsigned char *, int);
 	int (*waitpofready) (struct HYSDN_CARD *);
 	int (*testram) (struct HYSDN_CARD *);
 
 	/* scheduler for data transfer (only async parts) */
-	uchar async_data[256];	/* async data to be sent (normally for config) */
-	word volatile async_len;	/* length of data to sent */
-	word volatile async_channel;	/* channel number for async transfer */
+	unsigned char async_data[256];/* async data to be sent (normally for config) */
+	unsigned short volatile async_len;/* length of data to sent */
+	unsigned short volatile async_channel;/* channel number for async transfer */
 	int volatile async_busy;	/* flag != 0 sending in progress */
 	int volatile net_tx_busy;	/* a network packet tx is in progress */
 
@@ -251,15 +243,18 @@ extern int ergo_inithardware(hysdn_card * card);	/* get hardware -> module init 
 
 /* hysdn_boot.c */
 extern int pof_write_close(hysdn_card *);	/* close proc file after writing pof */
-extern int pof_write_open(hysdn_card *, uchar **);	/* open proc file for writing pof */
+extern int pof_write_open(hysdn_card *, unsigned char **);	/* open proc file for writing pof */
 extern int pof_write_buffer(hysdn_card *, int);		/* write boot data to card */
-extern int EvalSysrTokData(hysdn_card *, uchar *, int);		/* Check Sysready Token Data */
+extern int EvalSysrTokData(hysdn_card *, unsigned char *, int);		/* Check Sysready Token Data */
 
 /* hysdn_sched.c */
-extern int hysdn_sched_tx(hysdn_card *, uchar *, word volatile *, word volatile *,
-			  word);
-extern int hysdn_sched_rx(hysdn_card *, uchar *, word, word);
-extern int hysdn_tx_cfgline(hysdn_card *, uchar *, word);	/* send one cfg line */
+extern int hysdn_sched_tx(hysdn_card *, unsigned char *,
+			unsigned short volatile *, unsigned short volatile *,
+			unsigned short);
+extern int hysdn_sched_rx(hysdn_card *, unsigned char *, unsigned short,
+			unsigned short);
+extern int hysdn_tx_cfgline(hysdn_card *, unsigned char *,
+			unsigned short);	/* send one cfg line */
 
 /* hysdn_net.c */
 extern unsigned int hynet_enable; 
@@ -269,14 +264,16 @@ extern int hysdn_net_release(hysdn_card *);	/* delete the device */
 extern char *hysdn_net_getname(hysdn_card *);	/* get name of net interface */
 extern void hysdn_tx_netack(hysdn_card *);	/* acknowledge a packet tx */
 extern struct sk_buff *hysdn_tx_netget(hysdn_card *);	/* get next network packet */
-extern void hysdn_rx_netpkt(hysdn_card *, uchar *, word);	/* rxed packet from network */
+extern void hysdn_rx_netpkt(hysdn_card *, unsigned char *,
+			unsigned short);	/* rxed packet from network */
 
 #ifdef CONFIG_HYSDN_CAPI
 extern unsigned int hycapi_enable; 
 extern int hycapi_capi_create(hysdn_card *);	/* create a new capi device */
 extern int hycapi_capi_release(hysdn_card *);	/* delete the device */
 extern int hycapi_capi_stop(hysdn_card *card);   /* suspend */
-extern void hycapi_rx_capipkt(hysdn_card * card, uchar * buf, word len);
+extern void hycapi_rx_capipkt(hysdn_card * card, unsigned char * buf,
+				unsigned short len);
 extern void hycapi_tx_capiack(hysdn_card * card);
 extern struct sk_buff *hycapi_tx_capiget(hysdn_card *card);
 extern int hycapi_init(void);

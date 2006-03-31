@@ -202,11 +202,6 @@ struct clk realview_clcd_clk = {
 /*
  * CLCD support.
  */
-#define SYS_CLCD_MODE_MASK	(3 << 0)
-#define SYS_CLCD_MODE_888	(0 << 0)
-#define SYS_CLCD_MODE_5551	(1 << 0)
-#define SYS_CLCD_MODE_565_RLSB	(2 << 0)
-#define SYS_CLCD_MODE_565_BLSB	(3 << 0)
 #define SYS_CLCD_NLCDIOON	(1 << 2)
 #define SYS_CLCD_VDDPOSSWITCH	(1 << 3)
 #define SYS_CLCD_PWR3V5SWITCH	(1 << 4)
@@ -360,29 +355,10 @@ static void realview_clcd_enable(struct clcd_fb *fb)
 	void __iomem *sys_clcd = __io_address(REALVIEW_SYS_BASE) + REALVIEW_SYS_CLCD_OFFSET;
 	u32 val;
 
+	/*
+	 * Enable the PSUs
+	 */
 	val = readl(sys_clcd);
-	val &= ~SYS_CLCD_MODE_MASK;
-
-	switch (fb->fb.var.green.length) {
-	case 5:
-		val |= SYS_CLCD_MODE_5551;
-		break;
-	case 6:
-		val |= SYS_CLCD_MODE_565_RLSB;
-		break;
-	case 8:
-		val |= SYS_CLCD_MODE_888;
-		break;
-	}
-
-	/*
-	 * Set the MUX
-	 */
-	writel(val, sys_clcd);
-
-	/*
-	 * And now enable the PSUs
-	 */
 	val |= SYS_CLCD_NLCDIOON | SYS_CLCD_PWR3V5SWITCH;
 	writel(val, sys_clcd);
 }

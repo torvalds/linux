@@ -8,6 +8,7 @@
 #include <linux/delay.h>
 #include <linux/tty.h>
 #include <linux/init.h>
+#include <linux/spinlock.h>
 
 #include <net/irda/irda.h>
 #include <net/irda/irda_device.h>
@@ -23,6 +24,8 @@ static void ep7211_ir_close(dongle_t *self);
 static int  ep7211_ir_change_speed(struct irda_task *task);
 static int  ep7211_ir_reset(struct irda_task *task);
 
+static DEFINE_SPINLOCK(ep7211_lock);
+
 static struct dongle_reg dongle = {
 	.type = IRDA_EP7211_IR,
 	.open = ep7211_ir_open,
@@ -36,7 +39,7 @@ static void ep7211_ir_open(dongle_t *self, struct qos_info *qos)
 {
 	unsigned int syscon1, flags;
 
-	save_flags(flags); cli();
+	spin_lock_irqsave(&ep7211_lock, flags);
 
 	/* Turn on the SIR encoder. */
 	syscon1 = clps_readl(SYSCON1);
@@ -46,14 +49,14 @@ static void ep7211_ir_open(dongle_t *self, struct qos_info *qos)
 	/* XXX: We should disable modem status interrupts on the first
 		UART (interrupt #14). */
 
-	restore_flags(flags);
+	spin_unlock_irqrestore(&ep7211_lock, flags);
 }
 
 static void ep7211_ir_close(dongle_t *self)
 {
 	unsigned int syscon1, flags;
 
-	save_flags(flags); cli();
+	spin_lock_irqsave(&ep7211_lock, flags);
 
 	/* Turn off the SIR encoder. */
 	syscon1 = clps_readl(SYSCON1);
@@ -63,7 +66,7 @@ static void ep7211_ir_close(dongle_t *self)
 	/* XXX: If we've disabled the modem status interrupts, we should
 		reset them back to their original state. */
 
-	restore_flags(flags);
+	spin_unlock_irqrestore(&ep7211_lock, flags);
 }
 
 /*

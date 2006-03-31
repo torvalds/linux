@@ -10,6 +10,8 @@
 #include "dvb_net.h"
 
 #include <linux/module.h>
+#include <linux/mutex.h>
+
 #include <media/saa7146.h>
 
 extern int budget_debug;
@@ -51,7 +53,7 @@ struct budget {
 	struct dmx_frontend mem_frontend;
 
 	int fe_synced;
-	struct semaphore pid_mutex;
+	struct mutex pid_mutex;
 
 	int ci_present;
 	int video_port;

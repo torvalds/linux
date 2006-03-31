@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/chestnut.h
- *
  * Definitions for IBM 750FXGX Eval (Chestnut)
  *
  * Author: <source@mvista.com>

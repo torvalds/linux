@@ -766,8 +766,8 @@ static void ni5010_show_registers(struct net_device *dev)
 #ifdef MODULE
 static struct net_device *dev_ni5010;
 
-MODULE_PARM(io, "i");
-MODULE_PARM(irq, "i");
+module_param(io, int, 0);
+module_param(irq, int, 0);
 MODULE_PARM_DESC(io, "ni5010 I/O base address");
 MODULE_PARM_DESC(irq, "ni5010 IRQ number");
 

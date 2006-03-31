@@ -23,11 +23,7 @@
 #include <linux/config.h>
 #include <asm/addrspace.h>
 
-#ifdef CONFIG_BUILD_ELF64
 #define REP_BASE	CAC_BASE
-#else
-#define REP_BASE	CKSEG0
-#endif
 
 #ifdef CONFIG_MAPPED_KERNEL
 

@@ -251,7 +251,7 @@ void __init arch_init_irq(void)
 		if (gic_int_line == (PNX8550_INT_GPIO0 - PNX8550_INT_GIC_MIN)) {
 			/* PCI INT through gpio 8, which is setup in
 			 * pnx8550_setup.c and routed to GPIO
- 			 * Interrupt Level 0 (GPIO Connection 58).
+			 * Interrupt Level 0 (GPIO Connection 58).
 			 * Set it active low. */
 
 			PNX8550_GIC_REQ(gic_int_line) = 0x1E020000;

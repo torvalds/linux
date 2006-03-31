@@ -337,8 +337,7 @@ static int pppoe_rcv_core(struct sock *sk, struct sk_buff *skb)
 	if (sk->sk_state & PPPOX_BOUND) {
 		struct pppoe_hdr *ph = (struct pppoe_hdr *) skb->nh.raw;
 		int len = ntohs(ph->length);
-		skb_pull(skb, sizeof(struct pppoe_hdr));
-		skb_postpull_rcsum(skb, ph, sizeof(*ph));
+		skb_pull_rcsum(skb, sizeof(struct pppoe_hdr));
 		if (pskb_trim_rcsum(skb, len))
 			goto abort_kfree;
 

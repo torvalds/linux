@@ -71,6 +71,14 @@
 # endif
 #endif
 
+#if defined(CONFIG_CPU_XSC3)
+# ifdef _CACHE
+#  define MULTI_CACHE 1
+# else
+#  define _CACHE xsc3
+# endif
+#endif
+
 #if defined(CONFIG_CPU_V6)
 //# ifdef _CACHE
 #  define MULTI_CACHE 1

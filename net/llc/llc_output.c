@@ -30,7 +30,8 @@
  *	Fills MAC header fields, depending on MAC type. Returns 0, If MAC type
  *	is a valid type and initialization completes correctly 1, otherwise.
  */
-int llc_mac_hdr_init(struct sk_buff *skb, unsigned char *sa, unsigned char *da)
+int llc_mac_hdr_init(struct sk_buff *skb,
+		     const unsigned char *sa, const unsigned char *da)
 {
 	int rc = 0;
 

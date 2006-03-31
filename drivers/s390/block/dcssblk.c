@@ -273,7 +273,7 @@ removeseg:
 	list_del(&dev_info->lh);
 
 	del_gendisk(dev_info->gd);
-	blk_put_queue(dev_info->dcssblk_queue);
+	blk_cleanup_queue(dev_info->dcssblk_queue);
 	dev_info->gd->queue = NULL;
 	put_disk(dev_info->gd);
 	device_unregister(dev);
@@ -388,12 +388,11 @@ dcssblk_add_store(struct device *dev, struct device_attribute *attr, const char 
 	/*
 	 * get a struct dcssblk_dev_info
 	 */
-	dev_info = kmalloc(sizeof(struct dcssblk_dev_info), GFP_KERNEL);
+	dev_info = kzalloc(sizeof(struct dcssblk_dev_info), GFP_KERNEL);
 	if (dev_info == NULL) {
 		rc = -ENOMEM;
 		goto out;
 	}
-	memset(dev_info, 0, sizeof(struct dcssblk_dev_info));
 
 	strcpy(dev_info->segment_name, local_buf);
 	strlcpy(dev_info->dev.bus_id, local_buf, BUS_ID_SIZE);
@@ -491,7 +490,7 @@ dcssblk_add_store(struct device *dev, struct device_attribute *attr, const char 
 unregister_dev:
 	PRINT_ERR("device_create_file() failed!\n");
 	list_del(&dev_info->lh);
-	blk_put_queue(dev_info->dcssblk_queue);
+	blk_cleanup_queue(dev_info->dcssblk_queue);
 	dev_info->gd->queue = NULL;
 	put_disk(dev_info->gd);
 	device_unregister(&dev_info->dev);
@@ -505,7 +504,7 @@ list_del:
 unload_seg:
 	segment_unload(local_buf);
 dealloc_gendisk:
-	blk_put_queue(dev_info->dcssblk_queue);
+	blk_cleanup_queue(dev_info->dcssblk_queue);
 	dev_info->gd->queue = NULL;
 	put_disk(dev_info->gd);
 free_dev_info:
@@ -562,7 +561,7 @@ dcssblk_remove_store(struct device *dev, struct device_attribute *attr, const ch
 	list_del(&dev_info->lh);
 
 	del_gendisk(dev_info->gd);
-	blk_put_queue(dev_info->dcssblk_queue);
+	blk_cleanup_queue(dev_info->dcssblk_queue);
 	dev_info->gd->queue = NULL;
 	put_disk(dev_info->gd);
 	device_unregister(&dev_info->dev);

@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/85xx/tqm85xx.c
- *
  * TQM85xx (40/41/55/60) board specific routines
  *
  * Copyright (c) 2005 DENX Software Engineering

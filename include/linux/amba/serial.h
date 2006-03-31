@@ -158,4 +158,10 @@
 #define UART01x_RSR_ANY		(UART01x_RSR_OE|UART01x_RSR_BE|UART01x_RSR_PE|UART01x_RSR_FE)
 #define UART01x_FR_MODEM_ANY	(UART01x_FR_DCD|UART01x_FR_DSR|UART01x_FR_CTS)
 
+#ifndef __ASSEMBLY__
+struct amba_pl010_data {
+	void (*set_mctrl)(struct amba_device *dev, void __iomem *base, unsigned int mctrl);
+};
+#endif
+
 #endif

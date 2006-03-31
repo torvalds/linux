@@ -60,6 +60,7 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/jiffies.h>
+#include <linux/mutex.h>
 #include <asm/io.h>
 
 
@@ -167,9 +168,9 @@ static inline u8 DIV_TO_REG(int val)
 struct sis5595_data {
 	struct i2c_client client;
 	struct class_device *class_dev;
-	struct semaphore lock;
+	struct mutex lock;
 
-	struct semaphore update_lock;
+	struct mutex update_lock;
 	char valid;		/* !=0 if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
 	char maxins;		/* == 3 if temp enabled, otherwise == 4 */
@@ -192,8 +193,8 @@ static struct pci_dev *s_bridge;	/* pointer to the (only) sis5595 */
 static int sis5595_detect(struct i2c_adapter *adapter);
 static int sis5595_detach_client(struct i2c_client *client);
 
-static int sis5595_read_value(struct i2c_client *client, u8 register);
-static int sis5595_write_value(struct i2c_client *client, u8 register, u8 value);
+static int sis5595_read_value(struct i2c_client *client, u8 reg);
+static int sis5595_write_value(struct i2c_client *client, u8 reg, u8 value);
 static struct sis5595_data *sis5595_update_device(struct device *dev);
 static void sis5595_init_client(struct i2c_client *client);
 
@@ -231,10 +232,10 @@ static ssize_t set_in_min(struct device *dev, const char *buf,
 	struct sis5595_data *data = i2c_get_clientdata(client);
 	unsigned long val = simple_strtoul(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	data->in_min[nr] = IN_TO_REG(val);
 	sis5595_write_value(client, SIS5595_REG_IN_MIN(nr), data->in_min[nr]);
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -245,10 +246,10 @@ static ssize_t set_in_max(struct device *dev, const char *buf,
 	struct sis5595_data *data = i2c_get_clientdata(client);
 	unsigned long val = simple_strtoul(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	data->in_max[nr] = IN_TO_REG(val);
 	sis5595_write_value(client, SIS5595_REG_IN_MAX(nr), data->in_max[nr]);
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -310,10 +311,10 @@ static ssize_t set_temp_over(struct device *dev, struct device_attribute *attr, 
 	struct sis5595_data *data = i2c_get_clientdata(client);
 	long val = simple_strtol(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	data->temp_over = TEMP_TO_REG(val);
 	sis5595_write_value(client, SIS5595_REG_TEMP_OVER, data->temp_over);
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -329,10 +330,10 @@ static ssize_t set_temp_hyst(struct device *dev, struct device_attribute *attr, 
 	struct sis5595_data *data = i2c_get_clientdata(client);
 	long val = simple_strtol(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	data->temp_hyst = TEMP_TO_REG(val);
 	sis5595_write_value(client, SIS5595_REG_TEMP_HYST, data->temp_hyst);
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -364,10 +365,10 @@ static ssize_t set_fan_min(struct device *dev, const char *buf,
 	struct sis5595_data *data = i2c_get_clientdata(client);
 	unsigned long val = simple_strtoul(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	data->fan_min[nr] = FAN_TO_REG(val, DIV_FROM_REG(data->fan_div[nr]));
 	sis5595_write_value(client, SIS5595_REG_FAN_MIN(nr), data->fan_min[nr]);
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -390,7 +391,7 @@ static ssize_t set_fan_div(struct device *dev, const char *buf,
 	unsigned long val = simple_strtoul(buf, NULL, 10);
 	int reg;
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	min = FAN_FROM_REG(data->fan_min[nr],
 			DIV_FROM_REG(data->fan_div[nr]));
 	reg = sis5595_read_value(client, SIS5595_REG_FANDIV);
@@ -403,7 +404,7 @@ static ssize_t set_fan_div(struct device *dev, const char *buf,
 	default:
 		dev_err(&client->dev, "fan_div value %ld not "
 			"supported. Choose one of 1, 2, 4 or 8!\n", val);
-		up(&data->update_lock);
+		mutex_unlock(&data->update_lock);
 		return -EINVAL;
 	}
 	
@@ -419,7 +420,7 @@ static ssize_t set_fan_div(struct device *dev, const char *buf,
 	data->fan_min[nr] =
 		FAN_TO_REG(min, DIV_FROM_REG(data->fan_div[nr]));
 	sis5595_write_value(client, SIS5595_REG_FAN_MIN(nr), data->fan_min[nr]);
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -527,7 +528,7 @@ static int sis5595_detect(struct i2c_adapter *adapter)
 
 	new_client = &data->client;
 	new_client->addr = address;
-	init_MUTEX(&data->lock);
+	mutex_init(&data->lock);
 	i2c_set_clientdata(new_client, data);
 	new_client->adapter = adapter;
 	new_client->driver = &sis5595_driver;
@@ -548,7 +549,7 @@ static int sis5595_detect(struct i2c_adapter *adapter)
 	strlcpy(new_client->name, "sis5595", I2C_NAME_SIZE);
 
 	data->valid = 0;
-	init_MUTEX(&data->update_lock);
+	mutex_init(&data->update_lock);
 
 	/* Tell the I2C layer a new client has arrived */
 	if ((err = i2c_attach_client(new_client)))
@@ -635,20 +636,20 @@ static int sis5595_read_value(struct i2c_client *client, u8 reg)
 	int res;
 
 	struct sis5595_data *data = i2c_get_clientdata(client);
-	down(&data->lock);
+	mutex_lock(&data->lock);
 	outb_p(reg, client->addr + SIS5595_ADDR_REG_OFFSET);
 	res = inb_p(client->addr + SIS5595_DATA_REG_OFFSET);
-	up(&data->lock);
+	mutex_unlock(&data->lock);
 	return res;
 }
 
 static int sis5595_write_value(struct i2c_client *client, u8 reg, u8 value)
 {
 	struct sis5595_data *data = i2c_get_clientdata(client);
-	down(&data->lock);
+	mutex_lock(&data->lock);
 	outb_p(reg, client->addr + SIS5595_ADDR_REG_OFFSET);
 	outb_p(value, client->addr + SIS5595_DATA_REG_OFFSET);
-	up(&data->lock);
+	mutex_unlock(&data->lock);
 	return 0;
 }
 
@@ -667,7 +668,7 @@ static struct sis5595_data *sis5595_update_device(struct device *dev)
 	struct sis5595_data *data = i2c_get_clientdata(client);
 	int i;
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 
 	if (time_after(jiffies, data->last_updated + HZ + HZ / 2)
 	    || !data->valid) {
@@ -707,7 +708,7 @@ static struct sis5595_data *sis5595_update_device(struct device *dev)
 		data->valid = 1;
 	}
 
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 
 	return data;
 }

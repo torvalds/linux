@@ -1924,6 +1924,7 @@ skip10:	movb	%ah, %al
 	ret
 
 store_edid:
+#ifdef CONFIG_FB_FIRMWARE_EDID
 	pushw	%es				# just save all registers
 	pushw	%ax
 	pushw	%bx
@@ -1954,6 +1955,7 @@ store_edid:
 	popw	%bx
 	popw	%ax
 	popw	%es
+#endif
 	ret
 
 # VIDEO_SELECT-only variables

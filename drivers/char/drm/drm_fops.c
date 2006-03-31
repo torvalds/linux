@@ -175,7 +175,7 @@ int drm_stub_open(struct inode *inode, struct file *filp)
 	drm_device_t *dev = NULL;
 	int minor = iminor(inode);
 	int err = -ENODEV;
-	struct file_operations *old_fops;
+	const struct file_operations *old_fops;
 
 	DRM_DEBUG("\n");
 

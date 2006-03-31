@@ -767,6 +767,7 @@ static int __init tlclk_init(void)
 		printk(KERN_ERR "tlclk: can't get major %d.\n", tlclk_major);
 		return ret;
 	}
+	tlclk_major = ret;
 	alarm_events = kzalloc( sizeof(struct tlclk_alarms), GFP_KERNEL);
 	if (!alarm_events)
 		goto out1;

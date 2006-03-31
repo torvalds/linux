@@ -66,16 +66,16 @@ static struct ebt_target redirect_target =
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init ebt_redirect_init(void)
 {
 	return ebt_register_target(&redirect_target);
 }
 
-static void __exit fini(void)
+static void __exit ebt_redirect_fini(void)
 {
 	ebt_unregister_target(&redirect_target);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ebt_redirect_init);
+module_exit(ebt_redirect_fini);
 MODULE_LICENSE("GPL");

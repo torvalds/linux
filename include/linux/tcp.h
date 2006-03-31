@@ -343,6 +343,12 @@ struct tcp_sock {
 		__u32	seq;
 		__u32	time;
 	} rcvq_space;
+
+/* TCP-specific MTU probe information. */
+	struct {
+		__u32		  probe_seq_start;
+		__u32		  probe_seq_end;
+	} mtu_probe;
 };
 
 static inline struct tcp_sock *tcp_sk(const struct sock *sk)

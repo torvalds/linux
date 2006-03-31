@@ -181,7 +181,7 @@ struct emu10k1_card
 	struct emu10k1_mpuout	*mpuout;
 	struct emu10k1_mpuin	*mpuin;
 
-	struct semaphore	open_sem;
+	struct mutex		open_sem;
 	mode_t			open_mode;
 	wait_queue_head_t	open_wait;
 

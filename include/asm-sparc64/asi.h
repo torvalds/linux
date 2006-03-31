@@ -25,14 +25,27 @@
 
 /* SpitFire and later extended ASIs.  The "(III)" marker designates
  * UltraSparc-III and later specific ASIs.  The "(CMT)" marker designates
- * Chip Multi Threading specific ASIs.
+ * Chip Multi Threading specific ASIs.  "(NG)" designates Niagara specific
+ * ASIs, "(4V)" designates SUN4V specific ASIs.
  */
 #define ASI_PHYS_USE_EC		0x14 /* PADDR, E-cachable		*/
 #define ASI_PHYS_BYPASS_EC_E	0x15 /* PADDR, E-bit			*/
+#define ASI_BLK_AIUP_4V		0x16 /* (4V) Prim, user, block ld/st	*/
+#define ASI_BLK_AIUS_4V		0x17 /* (4V) Sec, user, block ld/st	*/
 #define ASI_PHYS_USE_EC_L	0x1c /* PADDR, E-cachable, little endian*/
 #define ASI_PHYS_BYPASS_EC_E_L	0x1d /* PADDR, E-bit, little endian	*/
+#define ASI_BLK_AIUP_L_4V	0x1e /* (4V) Prim, user, block, l-endian*/
+#define ASI_BLK_AIUS_L_4V	0x1f /* (4V) Sec, user, block, l-endian	*/
+#define ASI_SCRATCHPAD		0x20 /* (4V) Scratch Pad Registers	*/
+#define ASI_MMU			0x21 /* (4V) MMU Context Registers	*/
+#define ASI_BLK_INIT_QUAD_LDD_AIUS 0x23 /* (NG) init-store, twin load,
+					 * secondary, user
+					 */
 #define ASI_NUCLEUS_QUAD_LDD	0x24 /* Cachable, qword load		*/
+#define ASI_QUEUE		0x25 /* (4V) Interrupt Queue Registers	*/
+#define ASI_QUAD_LDD_PHYS_4V	0x26 /* (4V) Physical, qword load	*/
 #define ASI_NUCLEUS_QUAD_LDD_L	0x2c /* Cachable, qword load, l-endian 	*/
+#define ASI_QUAD_LDD_PHYS_L_4V	0x2e /* (4V) Phys, qword load, l-endian	*/
 #define ASI_PCACHE_DATA_STATUS	0x30 /* (III) PCache data stat RAM diag	*/
 #define ASI_PCACHE_DATA		0x31 /* (III) PCache data RAM diag	*/
 #define ASI_PCACHE_TAG		0x32 /* (III) PCache tag RAM diag	*/
@@ -137,6 +150,9 @@
 #define ASI_FL16_SL		0xdb /* Secondary, 1 16-bit, fpu ld/st,L*/
 #define ASI_BLK_COMMIT_P	0xe0 /* Primary, blk store commit	*/
 #define ASI_BLK_COMMIT_S	0xe1 /* Secondary, blk store commit	*/
+#define ASI_BLK_INIT_QUAD_LDD_P	0xe2 /* (NG) init-store, twin load,
+				      * primary, implicit
+				      */
 #define ASI_BLK_P		0xf0 /* Primary, blk ld/st		*/
 #define ASI_BLK_S		0xf1 /* Secondary, blk ld/st		*/
 #define ASI_BLK_PL		0xf8 /* Primary, blk ld/st, little	*/

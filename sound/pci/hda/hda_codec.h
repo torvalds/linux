@@ -438,7 +438,7 @@ struct hda_bus {
 	struct list_head codec_list;
 	struct hda_codec *caddr_tbl[HDA_MAX_CODEC_ADDRESS + 1]; /* caddr -> codec */
 
-	struct semaphore cmd_mutex;
+	struct mutex cmd_mutex;
 
 	/* unsolicited event queue */
 	struct hda_bus_unsolicited *unsol;
@@ -559,7 +559,7 @@ struct hda_codec {
 	int amp_info_size;
 	struct hda_amp_info *amp_info;
 
-	struct semaphore spdif_mutex;
+	struct mutex spdif_mutex;
 	unsigned int spdif_status;	/* IEC958 status bits */
 	unsigned short spdif_ctls;	/* SPDIF control bits */
 	unsigned int spdif_in_enable;	/* SPDIF input enable? */

@@ -65,8 +65,8 @@ struct xfs_trans;
  * The freespace will be formatted as a xfs_dir2_data_unused_t.
  */
 typedef struct xfs_dir2_data_free {
-	xfs_dir2_data_off_t	offset;		/* start of freespace */
-	xfs_dir2_data_off_t	length;		/* length of freespace */
+	__be16			offset;		/* start of freespace */
+	__be16			length;		/* length of freespace */
 } xfs_dir2_data_free_t;
 
 /*
@@ -75,7 +75,7 @@ typedef struct xfs_dir2_data_free {
  * The code knows that XFS_DIR2_DATA_FD_COUNT is 3.
  */
 typedef struct xfs_dir2_data_hdr {
-	__uint32_t		magic;		/* XFS_DIR2_DATA_MAGIC */
+	__be32			magic;		/* XFS_DIR2_DATA_MAGIC */
 						/* or XFS_DIR2_BLOCK_MAGIC */
 	xfs_dir2_data_free_t	bestfree[XFS_DIR2_DATA_FD_COUNT];
 } xfs_dir2_data_hdr_t;
@@ -97,10 +97,10 @@ typedef struct xfs_dir2_data_entry {
  * Tag appears as the last 2 bytes.
  */
 typedef struct xfs_dir2_data_unused {
-	__uint16_t		freetag;	/* XFS_DIR2_DATA_FREE_TAG */
-	xfs_dir2_data_off_t	length;		/* total free length */
+	__be16			freetag;	/* XFS_DIR2_DATA_FREE_TAG */
+	__be16			length;		/* total free length */
 						/* variable offset */
-	xfs_dir2_data_off_t	tag;		/* starting offset of us */
+	__be16			tag;		/* starting offset of us */
 } xfs_dir2_data_unused_t;
 
 typedef union {
@@ -134,12 +134,11 @@ static inline int xfs_dir2_data_entsize(int n)
  * Pointer to an entry's tag word.
  */
 #define	XFS_DIR2_DATA_ENTRY_TAG_P(dep)	xfs_dir2_data_entry_tag_p(dep)
-static inline xfs_dir2_data_off_t *
+static inline __be16 *
 xfs_dir2_data_entry_tag_p(xfs_dir2_data_entry_t *dep)
 {
-	return (xfs_dir2_data_off_t *) \
-		 ((char *)(dep) + XFS_DIR2_DATA_ENTSIZE((dep)->namelen) - \
-		  (uint)sizeof(xfs_dir2_data_off_t));
+	return (__be16 *)((char *)dep +
+		XFS_DIR2_DATA_ENTSIZE(dep->namelen) - sizeof(__be16));
 }
 
 /*
@@ -147,12 +146,11 @@ xfs_dir2_data_entry_tag_p(xfs_dir2_data_entry_t *dep)
  */
 #define	XFS_DIR2_DATA_UNUSED_TAG_P(dup) \
 	xfs_dir2_data_unused_tag_p(dup)
-static inline xfs_dir2_data_off_t *
+static inline __be16 *
 xfs_dir2_data_unused_tag_p(xfs_dir2_data_unused_t *dup)
 {
-	return (xfs_dir2_data_off_t *) \
-		 ((char *)(dup) + INT_GET((dup)->length, ARCH_CONVERT) \
-				- (uint)sizeof(xfs_dir2_data_off_t));
+	return (__be16 *)((char *)dup +
+			be16_to_cpu(dup->length) - sizeof(__be16));
 }
 
 /*

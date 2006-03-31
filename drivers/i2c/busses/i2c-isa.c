@@ -125,7 +125,7 @@ int i2c_isa_del_driver(struct i2c_driver *driver)
 
 static int __init i2c_isa_init(void)
 {
-	init_MUTEX(&isa_adapter.clist_lock);
+	mutex_init(&isa_adapter.clist_lock);
 	INIT_LIST_HEAD(&isa_adapter.clients);
 
 	isa_adapter.nr = ANY_I2C_ISA_BUS;

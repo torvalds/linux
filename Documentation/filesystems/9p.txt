@@ -1,0 +1,100 @@
+	  	    v9fs: Plan 9 Resource Sharing for Linux
+		    =======================================
+
+ABOUT
+=====
+
+v9fs is a Unix implementation of the Plan 9 9p remote filesystem protocol.
+
+This software was originally developed by Ron Minnich <rminnich@lanl.gov>
+and Maya Gokhale <maya@lanl.gov>.  Additional development by Greg Watson
+<gwatson@lanl.gov> and most recently Eric Van Hensbergen
+<ericvh@gmail.com>, Latchesar Ionkov <lucho@ionkov.net> and Russ Cox
+<rsc@swtch.com>.
+
+USAGE
+=====
+
+For remote file server:
+
+	mount -t 9p 10.10.1.2 /mnt/9
+
+For Plan 9 From User Space applications (http://swtch.com/plan9)
+
+	mount -t 9p `namespace`/acme /mnt/9 -o proto=unix,uname=$USER
+
+OPTIONS
+=======
+
+  proto=name	select an alternative transport.  Valid options are
+  		currently:
+ 			unix - specifying a named pipe mount point
+ 			tcp  - specifying a normal TCP/IP connection
+ 			fd   - used passed file descriptors for connection
+                                (see rfdno and wfdno)
+
+  uname=name	user name to attempt mount as on the remote server.  The
+  		server may override or ignore this value.  Certain user
+		names may require authentication.
+
+  aname=name	aname specifies the file tree to access when the server is
+  		offering several exported file systems.
+
+  debug=n	specifies debug level.  The debug level is a bitmask.
+  			0x01 = display verbose error messages
+			0x02 = developer debug (DEBUG_CURRENT)
+			0x04 = display 9p trace
+			0x08 = display VFS trace
+			0x10 = display Marshalling debug
+			0x20 = display RPC debug
+			0x40 = display transport debug
+			0x80 = display allocation debug
+
+  rfdno=n	the file descriptor for reading with proto=fd
+
+  wfdno=n	the file descriptor for writing with proto=fd
+
+  maxdata=n	the number of bytes to use for 9p packet payload (msize)
+
+  port=n	port to connect to on the remote server
+
+  noextend	force legacy mode (no 9p2000.u semantics)
+
+  uid		attempt to mount as a particular uid
+
+  gid		attempt to mount with a particular gid
+
+  afid		security channel - used by Plan 9 authentication protocols
+
+  nodevmap	do not map special files - represent them as normal files.
+  		This can be used to share devices/named pipes/sockets between
+		hosts.  This functionality will be expanded in later versions.
+
+RESOURCES
+=========
+
+The Linux version of the 9p server is now maintained under the npfs project
+on sourceforge (http://sourceforge.net/projects/npfs).
+
+There are user and developer mailing lists available through the v9fs project
+on sourceforge (http://sourceforge.net/projects/v9fs).
+
+News and other information is maintained on SWiK (http://swik.net/v9fs).
+
+Bug reports may be issued through the kernel.org bugzilla 
+(http://bugzilla.kernel.org)
+
+For more information on the Plan 9 Operating System check out
+http://plan9.bell-labs.com/plan9
+
+For information on Plan 9 from User Space (Plan 9 applications and libraries
+ported to Linux/BSD/OSX/etc) check out http://swtch.com/plan9
+
+
+STATUS
+======
+
+The 2.6 kernel support is working on PPC and x86.
+
+PLEASE USE THE SOURCEFORGE BUG-TRACKER TO REPORT PROBLEMS.
+

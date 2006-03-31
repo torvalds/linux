@@ -22,8 +22,8 @@ struct x8664_pda {
 	int nodenumber;		    /* number of current node */
 	unsigned int __softirq_pending;
 	unsigned int __nmi_count;	/* number of NMI on this CPUs */
-	struct mm_struct *active_mm;
 	int mmu_state;     
+	struct mm_struct *active_mm;
 	unsigned apic_timer_irqs;
 } ____cacheline_aligned_in_smp;
 

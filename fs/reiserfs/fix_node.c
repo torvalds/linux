@@ -191,9 +191,7 @@ static void create_virtual_node(struct tree_balance *tb, int h)
 					       "vs-8045: create_virtual_node: rdkey %k, affected item==%d (mode==%c) Must be %c",
 					       key, vn->vn_affected_item_num,
 					       vn->vn_mode, M_DELETE);
-			} else
-				/* we can delete directory item, that has only one directory entry in it */
-				;
+			}
 		}
 #endif
 

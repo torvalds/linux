@@ -192,6 +192,7 @@ boot-$(CONFIG_8xx)		+= embed_config.o
 boot-$(CONFIG_8260)		+= embed_config.o
 boot-$(CONFIG_EP405)		+= embed_config.o
 boot-$(CONFIG_XILINX_ML300)	+= embed_config.o
+boot-$(CONFIG_XILINX_ML403)	+= embed_config.o
 boot-$(CONFIG_BSEIP)		+= iic.o
 boot-$(CONFIG_MBX)		+= iic.o pci.o qspan_pci.o
 boot-$(CONFIG_MV64X60)		+= misc-mv64x60.o

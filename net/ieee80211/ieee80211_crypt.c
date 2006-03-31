@@ -18,7 +18,6 @@
 #include <linux/string.h>
 #include <net/ieee80211.h>
 
-
 MODULE_AUTHOR("Jouni Malinen");
 MODULE_DESCRIPTION("HostAP crypto");
 MODULE_LICENSE("GPL");
@@ -33,11 +32,11 @@ static DEFINE_SPINLOCK(ieee80211_crypto_lock);
 
 void ieee80211_crypt_deinit_entries(struct ieee80211_device *ieee, int force)
 {
- 	struct ieee80211_crypt_data *entry, *next;
+	struct ieee80211_crypt_data *entry, *next;
 	unsigned long flags;
 
 	spin_lock_irqsave(&ieee->lock, flags);
- 	list_for_each_entry_safe(entry, next, &ieee->crypt_deinit_list, list) {
+	list_for_each_entry_safe(entry, next, &ieee->crypt_deinit_list, list) {
 		if (atomic_read(&entry->refcnt) != 0 && !force)
 			continue;
 
@@ -141,9 +140,9 @@ int ieee80211_unregister_crypto_ops(struct ieee80211_crypto_ops *ops)
 	spin_unlock_irqrestore(&ieee80211_crypto_lock, flags);
 	return -EINVAL;
 
- found:
+      found:
 	printk(KERN_DEBUG "ieee80211_crypt: unregistered algorithm "
-			  "'%s'\n", ops->name);
+	       "'%s'\n", ops->name);
 	list_del(&alg->list);
 	spin_unlock_irqrestore(&ieee80211_crypto_lock, flags);
 	kfree(alg);
@@ -163,7 +162,7 @@ struct ieee80211_crypto_ops *ieee80211_get_crypto_ops(const char *name)
 	spin_unlock_irqrestore(&ieee80211_crypto_lock, flags);
 	return NULL;
 
- found:
+      found:
 	spin_unlock_irqrestore(&ieee80211_crypto_lock, flags);
 	return alg->ops;
 }

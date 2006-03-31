@@ -44,11 +44,10 @@ struct tape_class_device *register_tape_dev(
 	int		rc;
 	char *		s;
 
-	tcd = kmalloc(sizeof(struct tape_class_device), GFP_KERNEL);
+	tcd = kzalloc(sizeof(struct tape_class_device), GFP_KERNEL);
 	if (!tcd)
 		return ERR_PTR(-ENOMEM);
 
-	memset(tcd, 0, sizeof(struct tape_class_device));
 	strncpy(tcd->device_name, device_name, TAPECLASS_NAME_LEN);
 	for (s = strchr(tcd->device_name, '/'); s; s = strchr(s, '/'))
 		*s = '!';

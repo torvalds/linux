@@ -50,6 +50,12 @@ struct inet_connection_sock_af_ops {
 				  char __user *optval, int optlen);
 	int	    (*getsockopt)(struct sock *sk, int level, int optname, 
 				  char __user *optval, int __user *optlen);
+	int	    (*compat_setsockopt)(struct sock *sk,
+				int level, int optname,
+				char __user *optval, int optlen);
+	int	    (*compat_getsockopt)(struct sock *sk,
+				int level, int optname,
+				char __user *optval, int __user *optlen);
 	void	    (*addr2sockaddr)(struct sock *sk, struct sockaddr *);
 	int sockaddr_len;
 };
@@ -72,6 +78,7 @@ struct inet_connection_sock_af_ops {
  * @icsk_probes_out:	   unanswered 0 window probes
  * @icsk_ext_hdr_len:	   Network protocol overhead (IP/IPv6 options)
  * @icsk_ack:		   Delayed ACK control data
+ * @icsk_mtup;		   MTU probing control data
  */
 struct inet_connection_sock {
 	/* inet_sock has to be the first member! */
@@ -104,6 +111,16 @@ struct inet_connection_sock {
 		__u16		  last_seg_size; /* Size of last incoming segment	   */
 		__u16		  rcv_mss;	 /* MSS used for delayed ACK decisions	   */ 
 	} icsk_ack;
+	struct {
+		int		  enabled;
+
+		/* Range of MTUs to search */
+		int		  search_high;
+		int		  search_low;
+
+		/* Information on the current probe. */
+		int		  probe_size;
+	} icsk_mtup;
 	u32			  icsk_ca_priv[16];
 #define ICSK_CA_PRIV_SIZE	(16 * sizeof(u32))
 };
@@ -310,4 +327,13 @@ extern void inet_csk_listen_stop(struct sock *sk);
 
 extern void inet_csk_addr2sockaddr(struct sock *sk, struct sockaddr *uaddr);
 
+extern int inet_csk_ctl_sock_create(struct socket **sock,
+				    unsigned short family,
+				    unsigned short type,
+				    unsigned char protocol);
+
+extern int inet_csk_compat_getsockopt(struct sock *sk, int level, int optname,
+				      char __user *optval, int __user *optlen);
+extern int inet_csk_compat_setsockopt(struct sock *sk, int level, int optname,
+				      char __user *optval, int optlen);
 #endif /* _INET_CONNECTION_SOCK_H */

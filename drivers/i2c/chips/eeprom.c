@@ -33,6 +33,7 @@
 #include <linux/sched.h>
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
+#include <linux/mutex.h>
 
 /* Addresses to scan */
 static unsigned short normal_i2c[] = { 0x50, 0x51, 0x52, 0x53, 0x54,
@@ -54,7 +55,7 @@ enum eeprom_nature {
 /* Each client has this additional data */
 struct eeprom_data {
 	struct i2c_client client;
-	struct semaphore update_lock;
+	struct mutex update_lock;
 	u8 valid;			/* bitfield, bit!=0 if slice is valid */
 	unsigned long last_updated[8];	/* In jiffies, 8 slices */
 	u8 data[EEPROM_SIZE];		/* Register values */
@@ -81,7 +82,7 @@ static void eeprom_update_client(struct i2c_client *client, u8 slice)
 	struct eeprom_data *data = i2c_get_clientdata(client);
 	int i, j;
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 
 	if (!(data->valid & (1 << slice)) ||
 	    time_after(jiffies, data->last_updated[slice] + 300 * HZ)) {
@@ -107,7 +108,7 @@ static void eeprom_update_client(struct i2c_client *client, u8 slice)
 		data->valid |= (1 << slice);
 	}
 exit:
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 }
 
 static ssize_t eeprom_read(struct kobject *kobj, char *buf, loff_t off, size_t count)
@@ -187,7 +188,7 @@ static int eeprom_detect(struct i2c_adapter *adapter, int address, int kind)
 	/* Fill in the remaining client fields */
 	strlcpy(new_client->name, "eeprom", I2C_NAME_SIZE);
 	data->valid = 0;
-	init_MUTEX(&data->update_lock);
+	mutex_init(&data->update_lock);
 	data->nature = UNKNOWN;
 
 	/* Tell the I2C layer a new client has arrived */

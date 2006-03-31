@@ -25,34 +25,10 @@ extern unsigned long parisc_vmerge_max_size;
  *   eg dev->hpa or 0xfee00000.
  */
 
-#ifdef CONFIG_DEBUG_IOREMAP
-#ifdef CONFIG_64BIT
-#define NYBBLE_SHIFT 60
-#else
-#define NYBBLE_SHIFT 28
-#endif
-extern void gsc_bad_addr(unsigned long addr);
-extern void __raw_bad_addr(const volatile void __iomem *addr);
-#define gsc_check_addr(addr)					\
-	if ((addr >> NYBBLE_SHIFT) != 0xf) {			\
-		gsc_bad_addr(addr);				\
-		addr |= 0xfUL << NYBBLE_SHIFT;			\
-	}
-#define __raw_check_addr(addr)					\
-	if (((unsigned long)addr >> NYBBLE_SHIFT) != 0xe)	\
-		__raw_bad_addr(addr);			\
-	addr = (void __iomem *)((unsigned long)addr | (0xfUL << NYBBLE_SHIFT));
-#else
-#define gsc_check_addr(addr)
-#define __raw_check_addr(addr)
-#endif
-
 static inline unsigned char gsc_readb(unsigned long addr)
 {
 	long flags;
 	unsigned char ret;
-
-	gsc_check_addr(addr);
 
 	__asm__ __volatile__(
 	"	rsm	2,%0\n"
@@ -68,8 +44,6 @@ static inline unsigned short gsc_readw(unsigned long addr)
 	long flags;
 	unsigned short ret;
 
-	gsc_check_addr(addr);
-
 	__asm__ __volatile__(
 	"	rsm	2,%0\n"
 	"	ldhx	0(%2),%1\n"
@@ -83,8 +57,6 @@ static inline unsigned int gsc_readl(unsigned long addr)
 {
 	u32 ret;
 
-	gsc_check_addr(addr);
-
 	__asm__ __volatile__(
 	"	ldwax	0(%1),%0\n"
 	: "=r" (ret) : "r" (addr) );
@@ -95,7 +67,6 @@ static inline unsigned int gsc_readl(unsigned long addr)
 static inline unsigned long long gsc_readq(unsigned long addr)
 {
 	unsigned long long ret;
-	gsc_check_addr(addr);
 
 #ifdef __LP64__
 	__asm__ __volatile__(
@@ -112,8 +83,6 @@ static inline unsigned long long gsc_readq(unsigned long addr)
 static inline void gsc_writeb(unsigned char val, unsigned long addr)
 {
 	long flags;
-	gsc_check_addr(addr);
-
 	__asm__ __volatile__(
 	"	rsm	2,%0\n"
 	"	stbs	%1,0(%2)\n"
@@ -124,8 +93,6 @@ static inline void gsc_writeb(unsigned char val, unsigned long addr)
 static inline void gsc_writew(unsigned short val, unsigned long addr)
 {
 	long flags;
-	gsc_check_addr(addr);
-
 	__asm__ __volatile__(
 	"	rsm	2,%0\n"
 	"	sths	%1,0(%2)\n"
@@ -135,8 +102,6 @@ static inline void gsc_writew(unsigned short val, unsigned long addr)
 
 static inline void gsc_writel(unsigned int val, unsigned long addr)
 {
-	gsc_check_addr(addr);
-
 	__asm__ __volatile__(
 	"	stwas	%0,0(%1)\n"
 	: :  "r" (val), "r" (addr) );
@@ -144,8 +109,6 @@ static inline void gsc_writel(unsigned int val, unsigned long addr)
 
 static inline void gsc_writeq(unsigned long long val, unsigned long addr)
 {
-	gsc_check_addr(addr);
-
 #ifdef __LP64__
 	__asm__ __volatile__(
 	"	stda	%0,0(%1)\n"
@@ -180,14 +143,7 @@ extern inline void * ioremap_nocache(unsigned long offset, unsigned long size)
 
 extern void iounmap(void __iomem *addr);
 
-/*
- * USE_HPPA_IOREMAP is the magic flag to enable or disable real ioremap()
- * functionality.  It's currently disabled because it may not work on some
- * machines.
- */
-#define USE_HPPA_IOREMAP 0
 
-#if USE_HPPA_IOREMAP
 static inline unsigned char __raw_readb(const volatile void __iomem *addr)
 {
 	return (*(volatile unsigned char __force *) (addr));
@@ -221,57 +177,6 @@ static inline void __raw_writeq(unsigned long long b, volatile void __iomem *add
 {
 	*(volatile unsigned long long __force *) addr = b;
 }
-#else /* !USE_HPPA_IOREMAP */
-static inline unsigned char __raw_readb(const volatile void __iomem *addr)
-{
-	__raw_check_addr(addr);
-
-	return gsc_readb((unsigned long) addr);
-}
-static inline unsigned short __raw_readw(const volatile void __iomem *addr)
-{
-	__raw_check_addr(addr);
-
-	return gsc_readw((unsigned long) addr);
-}
-static inline unsigned int __raw_readl(const volatile void __iomem *addr)
-{
-	__raw_check_addr(addr);
-
-	return gsc_readl((unsigned long) addr);
-}
-static inline unsigned long long __raw_readq(const volatile void __iomem *addr)
-{
-	__raw_check_addr(addr);
-
-	return gsc_readq((unsigned long) addr);
-}
-
-static inline void __raw_writeb(unsigned char b, volatile void __iomem *addr)
-{
-	__raw_check_addr(addr);
-
-	gsc_writeb(b, (unsigned long) addr);
-}
-static inline void __raw_writew(unsigned short b, volatile void __iomem *addr)
-{
-	__raw_check_addr(addr);
-
-	gsc_writew(b, (unsigned long) addr);
-}
-static inline void __raw_writel(unsigned int b, volatile void __iomem *addr)
-{
-	__raw_check_addr(addr);
-
-	gsc_writel(b, (unsigned long) addr);
-}
-static inline void __raw_writeq(unsigned long long b, volatile void __iomem *addr)
-{
-	__raw_check_addr(addr);
-
-	gsc_writeq(b, (unsigned long) addr);
-}
-#endif /* !USE_HPPA_IOREMAP */
 
 /* readb can never be const, so use __fswab instead of le*_to_cpu */
 #define readb(addr) __raw_readb(addr)
@@ -294,22 +199,6 @@ void memset_io(volatile void __iomem *addr, unsigned char val, int count);
 void memcpy_fromio(void *dst, const volatile void __iomem *src, int count);
 void memcpy_toio(volatile void __iomem *dst, const void *src, int count);
 
-/* Support old drivers which don't ioremap.
- * NB this interface is scheduled to disappear in 2.5
- */
-
-#define __isa_addr(x) (void __iomem *)(F_EXTEND(0xfc000000) | (x))
-#define isa_readb(a) readb(__isa_addr(a))
-#define isa_readw(a) readw(__isa_addr(a))
-#define isa_readl(a) readl(__isa_addr(a))
-#define isa_writeb(b,a) writeb((b), __isa_addr(a))
-#define isa_writew(b,a) writew((b), __isa_addr(a))
-#define isa_writel(b,a) writel((b), __isa_addr(a))
-#define isa_memset_io(a,b,c) memset_io(__isa_addr(a), (b), (c))
-#define isa_memcpy_fromio(a,b,c) memcpy_fromio((a), __isa_addr(b), (c))
-#define isa_memcpy_toio(a,b,c) memcpy_toio(__isa_addr(a), (b), (c))
-
-
 /*
  * XXX - We don't have csum_partial_copy_fromio() yet, so we cheat here and 
  * just copy it. The net code will then do the checksum later. Presently 
@@ -318,8 +207,6 @@ void memcpy_toio(volatile void __iomem *dst, const void *src, int count);
 
 #define eth_io_copy_and_sum(skb,src,len,unused) \
   memcpy_fromio((skb)->data,(src),(len))
-#define isa_eth_io_copy_and_sum(skb,src,len,unused) \
-  isa_memcpy_fromio((skb)->data,(src),(len))
 
 /* Port-space IO */
 

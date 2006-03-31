@@ -25,7 +25,7 @@
 #include <sound/initval.h>
 
 #include <asm/irq.h>
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
 #include <asm/hardware.h>
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/audio.h>
@@ -33,7 +33,7 @@
 #include "pxa2xx-pcm.h"
 
 
-static DECLARE_MUTEX(car_mutex);
+static DEFINE_MUTEX(car_mutex);
 static DECLARE_WAIT_QUEUE_HEAD(gsr_wq);
 static volatile long gsr_bits;
 
@@ -52,7 +52,7 @@ static unsigned short pxa2xx_ac97_read(struct snd_ac97 *ac97, unsigned short reg
 	unsigned short val = -1;
 	volatile u32 *reg_addr;
 
-	down(&car_mutex);
+	mutex_lock(&car_mutex);
 
 	/* set up primary or secondary codec space */
 	reg_addr = (ac97->num & 1) ? &SAC_REG_BASE : &PAC_REG_BASE;
@@ -79,7 +79,7 @@ static unsigned short pxa2xx_ac97_read(struct snd_ac97 *ac97, unsigned short reg
 	/* but we've just started another cycle... */
 	wait_event_timeout(gsr_wq, (GSR | gsr_bits) & GSR_SDONE, 1);
 
-out:	up(&car_mutex);
+out:	mutex_unlock(&car_mutex);
 	return val;
 }
 
@@ -87,7 +87,7 @@ static void pxa2xx_ac97_write(struct snd_ac97 *ac97, unsigned short reg, unsigne
 {
 	volatile u32 *reg_addr;
 
-	down(&car_mutex);
+	mutex_lock(&car_mutex);
 
 	/* set up primary or secondary codec space */
 	reg_addr = (ac97->num & 1) ? &SAC_REG_BASE : &PAC_REG_BASE;
@@ -101,7 +101,7 @@ static void pxa2xx_ac97_write(struct snd_ac97 *ac97, unsigned short reg, unsigne
 		printk(KERN_ERR "%s: write error (ac97_reg=%d GSR=%#lx)\n",
 				__FUNCTION__, reg, GSR | gsr_bits);
 
-	up(&car_mutex);
+	mutex_unlock(&car_mutex);
 }
 
 static void pxa2xx_ac97_reset(struct snd_ac97 *ac97)

@@ -88,11 +88,8 @@ static inline int find_level(cpuid_t *cpunum, int irq)
 {
 	int cpu, i;
 
-	for (cpu = 0; cpu <= NR_CPUS; cpu++) {
+	for_each_online_cpu(cpu) {
 		struct slice_data *si = cpu_data[cpu].data;
-
-		if (!cpu_online(cpu))
-			continue;
 
 		for (i = BASE_PCI_IRQ; i < LEVELS_PER_SLICE; i++)
 			if (si->level_to_irq[i] == irq) {

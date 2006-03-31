@@ -2250,12 +2250,11 @@ static int keyspan_startup (struct usb_serial *serial)
 	}
 
 	/* Setup private data for serial driver */
-	s_priv = kmalloc(sizeof(struct keyspan_serial_private), GFP_KERNEL);
+	s_priv = kzalloc(sizeof(struct keyspan_serial_private), GFP_KERNEL);
 	if (!s_priv) {
 		dbg("%s - kmalloc for keyspan_serial_private failed.", __FUNCTION__);
 		return -ENOMEM;
 	}
-	memset(s_priv, 0, sizeof(struct keyspan_serial_private));
 
 	s_priv->device_details = d_details;
 	usb_set_serial_data(serial, s_priv);
@@ -2263,12 +2262,11 @@ static int keyspan_startup (struct usb_serial *serial)
 	/* Now setup per port private data */
 	for (i = 0; i < serial->num_ports; i++) {
 		port = serial->port[i];
-		p_priv = kmalloc(sizeof(struct keyspan_port_private), GFP_KERNEL);
+		p_priv = kzalloc(sizeof(struct keyspan_port_private), GFP_KERNEL);
 		if (!p_priv) {
 			dbg("%s - kmalloc for keyspan_port_private (%d) failed!.", __FUNCTION__, i);
 			return (1);
 		}
-		memset(p_priv, 0, sizeof(struct keyspan_port_private));
 		p_priv->device_details = d_details;
 		usb_set_serial_port_data(port, p_priv);
 	}

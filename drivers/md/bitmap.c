@@ -89,16 +89,6 @@ int bitmap_active(struct bitmap *bitmap)
 }
 
 #define WRITE_POOL_SIZE 256
-/* mempool for queueing pending writes on the bitmap file */
-static void *write_pool_alloc(gfp_t gfp_flags, void *data)
-{
-	return kmalloc(sizeof(struct page_list), gfp_flags);
-}
-
-static void write_pool_free(void *ptr, void *data)
-{
-	kfree(ptr);
-}
 
 /*
  * just a placeholder - calls kmalloc for bitmap pages
@@ -556,7 +546,7 @@ static void bitmap_mask_state(struct bitmap *bitmap, enum bitmap_state bits,
 	unsigned long flags;
 
 	spin_lock_irqsave(&bitmap->lock, flags);
-	if (!bitmap || !bitmap->sb_page) { /* can't set the state */
+	if (!bitmap->sb_page) { /* can't set the state */
 		spin_unlock_irqrestore(&bitmap->lock, flags);
 		return;
 	}
@@ -1309,7 +1299,7 @@ int bitmap_startwrite(struct bitmap *bitmap, sector_t offset, unsigned long sect
 		case 1:
 			*bmc = 2;
 		}
-		if ((*bmc & COUNTER_MAX) == COUNTER_MAX) BUG();
+		BUG_ON((*bmc & COUNTER_MAX) == COUNTER_MAX);
 		(*bmc)++;
 
 		spin_unlock_irq(&bitmap->lock);
@@ -1564,8 +1554,8 @@ int bitmap_create(mddev_t *mddev)
 	spin_lock_init(&bitmap->write_lock);
 	INIT_LIST_HEAD(&bitmap->complete_pages);
 	init_waitqueue_head(&bitmap->write_wait);
-	bitmap->write_pool = mempool_create(WRITE_POOL_SIZE, write_pool_alloc,
-				write_pool_free, NULL);
+	bitmap->write_pool = mempool_create_kmalloc_pool(WRITE_POOL_SIZE,
+						sizeof(struct page_list));
 	err = -ENOMEM;
 	if (!bitmap->write_pool)
 		goto error;

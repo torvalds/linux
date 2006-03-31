@@ -2797,7 +2797,7 @@ mbox_post_sync_cmd(adapter_t *adapter, uint8_t raw_mbox[])
 	// available within 1 second, assume FW is initializing and wait
 	// for an extended amount of time
 	if (mbox->numstatus == 0xFF) {	// status not yet available
-		udelay(25);;
+		udelay(25);
 
 		for (i = 0; mbox->numstatus == 0xFF && i < 1000; i++) {
 			rmb();

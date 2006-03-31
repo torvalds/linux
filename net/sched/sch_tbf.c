@@ -177,9 +177,9 @@ static int tbf_requeue(struct sk_buff *skb, struct Qdisc* sch)
 static unsigned int tbf_drop(struct Qdisc* sch)
 {
 	struct tbf_sched_data *q = qdisc_priv(sch);
-	unsigned int len;
+	unsigned int len = 0;
 
-	if ((len = q->qdisc->ops->drop(q->qdisc)) != 0) {
+	if (q->qdisc->ops->drop && (len = q->qdisc->ops->drop(q->qdisc)) != 0) {
 		sch->q.qlen--;
 		sch->qstats.drops++;
 	}
@@ -341,13 +341,14 @@ static int tbf_change(struct Qdisc* sch, struct rtattr *opt)
 	if (max_size < 0)
 		goto done;
 
-	if (q->qdisc == &noop_qdisc) {
+	if (qopt->limit > 0) {
 		if ((child = tbf_create_dflt_qdisc(sch->dev, qopt->limit)) == NULL)
 			goto done;
 	}
 
 	sch_tree_lock(sch);
-	if (child) q->qdisc = child;
+	if (child)
+		qdisc_destroy(xchg(&q->qdisc, child));
 	q->limit = qopt->limit;
 	q->mtu = qopt->mtu;
 	q->max_size = max_size;

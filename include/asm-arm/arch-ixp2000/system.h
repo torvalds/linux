@@ -37,7 +37,7 @@ static inline void arch_reset(char mode)
 	 * to cause a complete reset of the CPU and all external devices
 	 * and move the flash bank register back to 0.
 	 */
-	if (machine_is_ixdp2801()) {
+	if (machine_is_ixdp2801() || machine_is_ixdp28x5()) {
 		unsigned long reset_reg = *IXDP2X01_CPLD_RESET_REG;
 
 		reset_reg = 0x55AA0000 | (reset_reg & 0x0000FFFF);

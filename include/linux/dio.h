@@ -276,37 +276,5 @@ static inline void dio_set_drvdata (struct dio_dev *d, void *data)
 	dev_set_drvdata(&d->dev, data);
 }
 
-/*
- * A helper function which helps ensure correct dio_driver
- * setup and cleanup for commonly-encountered hotplug/modular cases
- *
- * This MUST stay in a header, as it checks for -DMODULE
- */
-static inline int dio_module_init(struct dio_driver *drv)
-{
-	int rc = dio_register_driver(drv);
-
-	if (rc > 0)
-		return 0;
-
-	/* iff CONFIG_HOTPLUG and built into kernel, we should
-	 * leave the driver around for future hotplug events.
-	 * For the module case, a hotplug daemon of some sort
-	 * should load a module in response to an insert event. */
-#if defined(CONFIG_HOTPLUG) && !defined(MODULE)
-	if (rc == 0)
-		return 0;
-#else
-	if (rc == 0)
-		rc = -ENODEV;
-#endif
-
-	/* if we get here, we need to clean up DIO driver instance
-	 * and return some sort of error */
-	dio_unregister_driver(drv);
-
-	return rc;
-}
-
 #endif /* __KERNEL__ */
 #endif /* ndef _LINUX_DIO_H */

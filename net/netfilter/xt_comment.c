@@ -19,6 +19,7 @@ static int
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
+      const struct xt_match *match,
       const void *matchinfo,
       int offset,
       unsigned int protooff,
@@ -28,53 +29,42 @@ match(const struct sk_buff *skb,
 	return 1;
 }
 
-static int
-checkentry(const char *tablename,
-           const void *ip,
-           void *matchinfo,
-           unsigned int matchsize,
-           unsigned int hook_mask)
-{
-	/* Check the size */
-	if (matchsize != XT_ALIGN(sizeof(struct xt_comment_info)))
-		return 0;
-	return 1;
-}
-
 static struct xt_match comment_match = {
 	.name		= "comment",
 	.match		= match,
-	.checkentry	= checkentry,
+	.matchsize	= sizeof(struct xt_comment_info),
+	.family		= AF_INET,
 	.me		= THIS_MODULE
 };
 
 static struct xt_match comment6_match = {
 	.name		= "comment",
 	.match		= match,
-	.checkentry	= checkentry,
+	.matchsize	= sizeof(struct xt_comment_info),
+	.family		= AF_INET6,
 	.me		= THIS_MODULE
 };
 
-static int __init init(void)
+static int __init xt_comment_init(void)
 {
 	int ret;
 
-	ret = xt_register_match(AF_INET, &comment_match);
+	ret = xt_register_match(&comment_match);
 	if (ret)
 		return ret;
 
-	ret = xt_register_match(AF_INET6, &comment6_match);
+	ret = xt_register_match(&comment6_match);
 	if (ret)
-		xt_unregister_match(AF_INET, &comment_match);
+		xt_unregister_match(&comment_match);
 
 	return ret;
 }
 
-static void __exit fini(void)
+static void __exit xt_comment_fini(void)
 {
-	xt_unregister_match(AF_INET, &comment_match);
-	xt_unregister_match(AF_INET6, &comment6_match);
+	xt_unregister_match(&comment_match);
+	xt_unregister_match(&comment6_match);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(xt_comment_init);
+module_exit(xt_comment_fini);

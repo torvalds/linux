@@ -1302,7 +1302,12 @@ void __init srmmu_paging_init(void)
 
 	flush_cache_all();
 	srmmu_set_ctable_ptr((unsigned long)srmmu_ctx_table_phys);
+#ifdef CONFIG_SMP
+	/* Stop from hanging here... */
+	local_flush_tlb_all();
+#else
 	flush_tlb_all();
+#endif
 	poke_srmmu();
 
 #ifdef CONFIG_SUN_IO
@@ -1419,6 +1424,7 @@ static void __init init_vac_layout(void)
 				max_size = vac_cache_size;
 			if(vac_line_size < min_line_size)
 				min_line_size = vac_line_size;
+			//FIXME: cpus not contiguous!!
 			cpu++;
 			if (cpu >= NR_CPUS || !cpu_online(cpu))
 				break;
@@ -2130,6 +2136,13 @@ static unsigned long srmmu_pte_to_pgoff(pte_t pte)
 	return pte_val(pte) >> SRMMU_PTE_FILE_SHIFT;
 }
 
+static pgprot_t srmmu_pgprot_noncached(pgprot_t prot)
+{
+	prot &= ~__pgprot(SRMMU_CACHE);
+
+	return prot;
+}
+
 /* Load up routines and constants for sun4m and sun4d mmu */
 void __init ld_mmu_srmmu(void)
 {
@@ -2150,9 +2163,9 @@ void __init ld_mmu_srmmu(void)
 	BTFIXUPSET_INT(page_readonly, pgprot_val(SRMMU_PAGE_RDONLY));
 	BTFIXUPSET_INT(page_kernel, pgprot_val(SRMMU_PAGE_KERNEL));
 	page_kernel = pgprot_val(SRMMU_PAGE_KERNEL);
-	pg_iobits = SRMMU_VALID | SRMMU_WRITE | SRMMU_REF;
 
 	/* Functions */
+	BTFIXUPSET_CALL(pgprot_noncached, srmmu_pgprot_noncached, BTFIXUPCALL_NORM);
 #ifndef CONFIG_SMP	
 	BTFIXUPSET_CALL(___xchg32, ___xchg32_sun4md, BTFIXUPCALL_SWAPG1G2);
 #endif

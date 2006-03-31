@@ -257,9 +257,8 @@ static int hiddev_open(struct inode * inode, struct file * file) {
 	if (i >= HIDDEV_MINORS || !hiddev_table[i])
 		return -ENODEV;
 
-	if (!(list = kmalloc(sizeof(struct hiddev_list), GFP_KERNEL)))
+	if (!(list = kzalloc(sizeof(struct hiddev_list), GFP_KERNEL)))
 		return -ENOMEM;
-	memset(list, 0, sizeof(struct hiddev_list));
 
 	list->hiddev = hiddev_table[i];
 	list->next = hiddev_table[i]->list;
@@ -754,9 +753,8 @@ int hiddev_connect(struct hid_device *hid)
 	if (i == hid->maxcollection && (hid->quirks & HID_QUIRK_HIDDEV) == 0)
 		return -1;
 
-	if (!(hiddev = kmalloc(sizeof(struct hiddev), GFP_KERNEL)))
+	if (!(hiddev = kzalloc(sizeof(struct hiddev), GFP_KERNEL)))
 		return -1;
-	memset(hiddev, 0, sizeof(struct hiddev));
 
 	retval = usb_register_dev(hid->intf, &hiddev_class);
 	if (retval) {

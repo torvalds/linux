@@ -6,6 +6,8 @@
 #ifndef __ASM_ARM_DELAY_H
 #define __ASM_ARM_DELAY_H
 
+#include <asm/param.h>	/* HZ */
+
 extern void __delay(int loops);
 
 /*
@@ -13,7 +15,7 @@ extern void __delay(int loops);
  * it, it means that you're calling udelay() with an out of range value.
  *
  * With currently imposed limits, this means that we support a max delay
- * of 2000us and 671 bogomips
+ * of 2000us. Further limits: HZ<=1000 and bogomips<=3355
  */
 extern void __bad_udelay(void);
 
@@ -32,10 +34,10 @@ extern void __const_udelay(unsigned long);
 
 #define MAX_UDELAY_MS 2
 
-#define udelay(n)						\
-	(__builtin_constant_p(n) ?				\
-	  ((n) > (MAX_UDELAY_MS * 1000) ? __bad_udelay() :	\
-			__const_udelay((n) * 0x68dbul)) :	\
+#define udelay(n)							\
+	(__builtin_constant_p(n) ?					\
+	  ((n) > (MAX_UDELAY_MS * 1000) ? __bad_udelay() :		\
+			__const_udelay((n) * ((2199023U*HZ)>>11))) :	\
 	  __udelay(n))
 
 #endif /* defined(_ARM_DELAY_H) */

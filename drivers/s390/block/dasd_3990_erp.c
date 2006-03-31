@@ -1108,6 +1108,9 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 		case 0x0B:
 			DEV_MESSAGE(KERN_WARNING, device, "%s",
 				    "FORMAT F - Volume is suspended duplex");
+			/* call extended error reporting (EER) */
+			dasd_eer_write(device, erp->refers,
+				       DASD_EER_PPRCSUSPEND);
 			break;
 		case 0x0C:
 			DEV_MESSAGE(KERN_WARNING, device, "%s",

@@ -32,6 +32,9 @@
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
+#ifdef CONFIG_NET_POLL_CONTROLLER
+#include <asm/irq.h>
+#endif
 
 #ifdef DEBUG
 #define enter(x)   printk("Enter: %s, %s line %i\n",x,__FILE__,__LINE__)
@@ -598,10 +601,8 @@ static void setup_descriptors(struct xircom_private *card)
 	enter("setup_descriptors");
 
 
-	if (card->rx_buffer == NULL)
-		BUG();
-	if (card->tx_buffer == NULL)
-		BUG();
+	BUG_ON(card->rx_buffer == NULL);
+	BUG_ON(card->tx_buffer == NULL);
 
 	/* Receive descriptors */
 	memset(card->rx_buffer, 0, 128);	/* clear the descriptors */

@@ -26,6 +26,7 @@ struct linear_c {
 static int linear_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 {
 	struct linear_c *lc;
+	unsigned long long tmp;
 
 	if (argc != 2) {
 		ti->error = "dm-linear: Invalid argument count";
@@ -38,10 +39,11 @@ static int linear_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		return -ENOMEM;
 	}
 
-	if (sscanf(argv[1], SECTOR_FORMAT, &lc->start) != 1) {
+	if (sscanf(argv[1], "%llu", &tmp) != 1) {
 		ti->error = "dm-linear: Invalid device sector";
 		goto bad;
 	}
+	lc->start = tmp;
 
 	if (dm_get_device(ti, argv[0], lc->start, ti->len,
 			  dm_table_get_mode(ti->table), &lc->dev)) {
@@ -87,8 +89,8 @@ static int linear_status(struct dm_target *ti, status_type_t type,
 		break;
 
 	case STATUSTYPE_TABLE:
-		snprintf(result, maxlen, "%s " SECTOR_FORMAT, lc->dev->name,
-			 lc->start);
+		snprintf(result, maxlen, "%s %llu", lc->dev->name,
+				(unsigned long long)lc->start);
 		break;
 	}
 	return 0;

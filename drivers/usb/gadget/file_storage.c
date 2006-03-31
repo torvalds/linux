@@ -3678,7 +3678,7 @@ static void lun_release(struct device *dev)
 	kref_put(&fsg->ref, fsg_release);
 }
 
-static void fsg_unbind(struct usb_gadget *gadget)
+static void __exit fsg_unbind(struct usb_gadget *gadget)
 {
 	struct fsg_dev		*fsg = get_gadget_data(gadget);
 	int			i;
@@ -4064,7 +4064,7 @@ static struct usb_gadget_driver		fsg_driver = {
 #endif
 	.function	= (char *) longname,
 	.bind		= fsg_bind,
-	.unbind		= fsg_unbind,
+	.unbind		= __exit_p(fsg_unbind),
 	.disconnect	= fsg_disconnect,
 	.setup		= fsg_setup,
 	.suspend	= fsg_suspend,

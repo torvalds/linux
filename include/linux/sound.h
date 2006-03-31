@@ -30,12 +30,12 @@
  */
  
 struct device;
-extern int register_sound_special(struct file_operations *fops, int unit);
-extern int register_sound_special_device(struct file_operations *fops, int unit, struct device *dev);
-extern int register_sound_mixer(struct file_operations *fops, int dev);
-extern int register_sound_midi(struct file_operations *fops, int dev);
-extern int register_sound_dsp(struct file_operations *fops, int dev);
-extern int register_sound_synth(struct file_operations *fops, int dev);
+extern int register_sound_special(const struct file_operations *fops, int unit);
+extern int register_sound_special_device(const struct file_operations *fops, int unit, struct device *dev);
+extern int register_sound_mixer(const struct file_operations *fops, int dev);
+extern int register_sound_midi(const struct file_operations *fops, int dev);
+extern int register_sound_dsp(const struct file_operations *fops, int dev);
+extern int register_sound_synth(const struct file_operations *fops, int dev);
 
 extern void unregister_sound_special(int unit);
 extern void unregister_sound_mixer(int unit);

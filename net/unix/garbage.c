@@ -76,6 +76,7 @@
 #include <linux/netdevice.h>
 #include <linux/file.h>
 #include <linux/proc_fs.h>
+#include <linux/mutex.h>
 
 #include <net/sock.h>
 #include <net/af_unix.h>
@@ -169,7 +170,7 @@ static void maybe_unmark_and_push(struct sock *x)
 
 void unix_gc(void)
 {
-	static DECLARE_MUTEX(unix_gc_sem);
+	static DEFINE_MUTEX(unix_gc_sem);
 	int i;
 	struct sock *s;
 	struct sk_buff_head hitlist;
@@ -179,7 +180,7 @@ void unix_gc(void)
 	 *	Avoid a recursive GC.
 	 */
 
-	if (down_trylock(&unix_gc_sem))
+	if (!mutex_trylock(&unix_gc_sem))
 		return;
 
 	spin_lock(&unix_table_lock);
@@ -308,5 +309,5 @@ void unix_gc(void)
 	 */
 
 	__skb_queue_purge(&hitlist);
-	up(&unix_gc_sem);
+	mutex_unlock(&unix_gc_sem);
 }

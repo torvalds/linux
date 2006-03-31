@@ -1,10 +1,10 @@
 /*
  * This file define a set of standard wireless extensions
  *
- * Version :	19	18.3.05
+ * Version :	20	17.2.06
  *
  * Authors :	Jean Tourrilhes - HPL - <jt@hpl.hp.com>
- * Copyright (c) 1997-2005 Jean Tourrilhes, All Rights Reserved.
+ * Copyright (c) 1997-2006 Jean Tourrilhes, All Rights Reserved.
  */
 
 #ifndef _LINUX_WIRELESS_H
@@ -80,7 +80,7 @@
  * (there is some stuff that will be added in the future...)
  * I just plan to increment with each new version.
  */
-#define WIRELESS_EXT	19
+#define WIRELESS_EXT	20
 
 /*
  * Changes :
@@ -204,6 +204,10 @@
  *	- Add IW_QUAL_ALL_UPDATED and IW_QUAL_ALL_INVALID macros
  *	- Add explicit flag to tell stats are in dBm : IW_QUAL_DBM
  *	- Add IW_IOCTL_IDX() and IW_EVENT_IDX() macros
+ *
+ * V19 to V20
+ * ----------
+ *	- RtNetlink requests support (SET/GET)
  */
 
 /**************************** CONSTANTS ****************************/

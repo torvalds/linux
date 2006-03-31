@@ -1,6 +1,4 @@
 /*
- *  arch/ppc/amiga/bootinfo.c
- *
  *  Extracted from arch/m68k/kernel/setup.c.
  *  Should be properly generalized and put somewhere else.
  *                              Jesper

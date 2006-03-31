@@ -543,6 +543,12 @@ static struct uart_port_lh7a40x lh7a40x_ports[DEV_NR] = {
 #else
 # define LH7A40X_CONSOLE &lh7a40x_console
 
+static void lh7a40xuart_console_putchar(struct uart_port *port, int ch)
+{
+	while (UR(port, UART_R_STATUS) & nTxRdy)
+		;
+	UR(port, UART_R_DATA) = ch;
+}
 
 static void lh7a40xuart_console_write (struct console* co,
 				       const char* s,
@@ -556,16 +562,7 @@ static void lh7a40xuart_console_write (struct console* co,
 	UR (port, UART_R_INTEN) = 0;		/* Disable all interrupts */
 	BIT_SET (port, UART_R_CON, UARTEN | SIRDIS); /* Enable UART */
 
-	for (; count-- > 0; ++s) {
-		while (UR (port, UART_R_STATUS) & nTxRdy)
-			;
-		UR (port, UART_R_DATA) = *s;
-		if (*s == '\n') {
-			while ((UR (port, UART_R_STATUS) & TxBusy))
-				;
-			UR (port, UART_R_DATA) = '\r';
-		}
-	}
+	uart_console_write(port, s, count, lh7a40xuart_console_putchar);
 
 				/* Wait until all characters are sent */
 	while (UR (port, UART_R_STATUS) & TxBusy)

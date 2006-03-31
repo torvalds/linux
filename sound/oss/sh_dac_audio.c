@@ -289,7 +289,7 @@ static int __init dac_audio_init(void)
 
 	in_use = 0;
 
-	data_buffer = (char *)kmalloc(BUFFER_SIZE, GFP_KERNEL);
+	data_buffer = kmalloc(BUFFER_SIZE, GFP_KERNEL);
 	if (data_buffer == NULL)
 		return -ENOMEM;
 

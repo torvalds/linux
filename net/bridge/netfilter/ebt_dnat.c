@@ -61,16 +61,16 @@ static struct ebt_target dnat =
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init ebt_dnat_init(void)
 {
 	return ebt_register_target(&dnat);
 }
 
-static void __exit fini(void)
+static void __exit ebt_dnat_fini(void)
 {
 	ebt_unregister_target(&dnat);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ebt_dnat_init);
+module_exit(ebt_dnat_fini);
 MODULE_LICENSE("GPL");

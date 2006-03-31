@@ -154,7 +154,7 @@ MODULE_DEVICE_TABLE(pci, mptfc_pci_table);
 
 static struct scsi_transport_template *mptfc_transport_template = NULL;
 
-struct fc_function_template mptfc_transport_functions = {
+static struct fc_function_template mptfc_transport_functions = {
 	.dd_fcrport_size = 8,
 	.show_host_node_name = 1,
 	.show_host_port_name = 1,
@@ -349,24 +349,6 @@ mptfc_generate_rport_ids(FCDevicePage0_t *pg0, struct fc_rport_identifiers *rid)
 }
 
 static void
-mptfc_remap_sdev(struct scsi_device *sdev, void *arg)
-{
-	VirtDevice		*vdev;
-	VirtTarget		*vtarget;
-	struct scsi_target	*starget;
-
-	starget = scsi_target(sdev);
-	if (starget->hostdata == arg) {
-		vtarget = arg;
-		vdev = sdev->hostdata;
-		if (vdev) {
-			vdev->bus_id = vtarget->bus_id;
-			vdev->target_id = vtarget->target_id;
-		}
-	}
-}
-
-static void
 mptfc_register_dev(MPT_ADAPTER *ioc, int channel, FCDevicePage0_t *pg0)
 {
 	struct fc_rport_identifiers rport_ids;
@@ -423,8 +405,6 @@ mptfc_register_dev(MPT_ADAPTER *ioc, int channel, FCDevicePage0_t *pg0)
 				if (vtarget) {
 					vtarget->target_id = pg0->CurrentTargetID;
 					vtarget->bus_id = pg0->CurrentBus;
-					starget_for_each_device(ri->starget,
-						vtarget,mptfc_remap_sdev);
 				}
 				ri->remap_needed = 0;
 			}
@@ -432,7 +412,7 @@ mptfc_register_dev(MPT_ADAPTER *ioc, int channel, FCDevicePage0_t *pg0)
 				"mptfc_reg_dev.%d: %x, %llx / %llx, tid %d, "
 				"rport tid %d, tmo %d\n",
 					ioc->name,
-					oc->sh->host_no,
+					ioc->sh->host_no,
 					pg0->PortIdentifier,
 					pg0->WWNN,
 					pg0->WWPN,
@@ -514,7 +494,7 @@ mptfc_target_alloc(struct scsi_target *starget)
  *	Return non-zero if allocation fails.
  *	Init memory once per LUN.
  */
-int
+static int
 mptfc_slave_alloc(struct scsi_device *sdev)
 {
 	MPT_SCSI_HOST		*hd;
@@ -553,23 +533,26 @@ mptfc_slave_alloc(struct scsi_device *sdev)
 	}
 
 	vdev->vtarget = vtarget;
-	vdev->ioc_id = hd->ioc->id;
 	vdev->lun = sdev->lun;
-	vdev->target_id = vtarget->target_id;
-	vdev->bus_id = vtarget->bus_id;
 
 	spin_unlock_irqrestore(&hd->ioc->fc_rport_lock,flags);
 
 	vtarget->num_luns++;
 
+#ifdef DMPT_DEBUG_FC
+	 {
+	struct mptfc_rport_info *ri;
+	ri = *((struct mptfc_rport_info **)rport->dd_data);
 	dfcprintk ((MYIOC_s_INFO_FMT
 		"mptfc_slv_alloc.%d: num_luns %d, sdev.id %d, "
 	        "CurrentTargetID %d, %x %llx %llx\n",
-		ioc->name,
+		hd->ioc->name,
 		sdev->host->host_no,
 		vtarget->num_luns,
 		sdev->id, ri->pg0.CurrentTargetID,
 		ri->pg0.PortIdentifier, ri->pg0.WWPN, ri->pg0.WWNN));
+	}
+#endif
 
 	return 0;
 }
@@ -941,7 +924,7 @@ mptfc_init(void)
 	mptfcInternalCtx = mpt_register(mptscsih_scandv_complete, MPTFC_DRIVER);
 
 	if (mpt_event_register(mptfcDoneCtx, mptscsih_event_process) == 0) {
-		devtprintk((KERN_INFO MYNAM
+		devtverboseprintk((KERN_INFO MYNAM
 		  ": Registered for IOC event notifications\n"));
 	}
 

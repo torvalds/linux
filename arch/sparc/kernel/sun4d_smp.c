@@ -46,14 +46,16 @@ extern volatile int smp_processors_ready;
 extern int smp_num_cpus;
 static int smp_highest_cpu;
 extern volatile unsigned long cpu_callin_map[NR_CPUS];
-extern struct cpuinfo_sparc cpu_data[NR_CPUS];
+extern cpuinfo_sparc cpu_data[NR_CPUS];
 extern unsigned char boot_cpu_id;
 extern int smp_activated;
 extern volatile int __cpu_number_map[NR_CPUS];
 extern volatile int __cpu_logical_map[NR_CPUS];
 extern volatile unsigned long ipi_count;
 extern volatile int smp_process_available;
-extern volatile int smp_commenced;
+
+extern cpumask_t smp_commenced_mask;
+
 extern int __smp4d_processor_id(void);
 
 /* #define SMP_DEBUG */
@@ -136,7 +138,7 @@ void __init smp4d_callin(void)
 	
 	local_irq_enable();	/* We don't allow PIL 14 yet */
 	
-	while(!smp_commenced)
+	while (!cpu_isset(cpuid, smp_commenced_mask))
 		barrier();
 
 	spin_lock_irqsave(&sun4d_imsk_lock, flags);
@@ -249,11 +251,9 @@ void __init smp4d_boot_cpus(void)
 	} else {
 		unsigned long bogosum = 0;
 		
-		for(i = 0; i < NR_CPUS; i++) {
-			if (cpu_isset(i, cpu_present_map)) {
-				bogosum += cpu_data(i).udelay_val;
-				smp_highest_cpu = i;
-			}
+		for_each_present_cpu(i) {
+			bogosum += cpu_data(i).udelay_val;
+			smp_highest_cpu = i;
 		}
 		SMP_PRINTK(("Total of %d Processors activated (%lu.%02lu BogoMIPS).\n", cpucount + 1, bogosum/(500000/HZ), (bogosum/(5000/HZ))%100));
 		printk("Total of %d Processors activated (%lu.%02lu BogoMIPS).\n",
@@ -266,19 +266,19 @@ void __init smp4d_boot_cpus(void)
 
 	/* Free unneeded trap tables */
 	ClearPageReserved(virt_to_page(trapbase_cpu1));
-	set_page_count(virt_to_page(trapbase_cpu1), 1);
+	init_page_count(virt_to_page(trapbase_cpu1));
 	free_page((unsigned long)trapbase_cpu1);
 	totalram_pages++;
 	num_physpages++;
 
 	ClearPageReserved(virt_to_page(trapbase_cpu2));
-	set_page_count(virt_to_page(trapbase_cpu2), 1);
+	init_page_count(virt_to_page(trapbase_cpu2));
 	free_page((unsigned long)trapbase_cpu2);
 	totalram_pages++;
 	num_physpages++;
 
 	ClearPageReserved(virt_to_page(trapbase_cpu3));
-	set_page_count(virt_to_page(trapbase_cpu3), 1);
+	init_page_count(virt_to_page(trapbase_cpu3));
 	free_page((unsigned long)trapbase_cpu3);
 	totalram_pages++;
 	num_physpages++;

@@ -40,6 +40,7 @@
 #include <asm/hardware/scoop.h>
 #include <asm/mach/sharpsl_param.h>
 #include <asm/hardware/locomo.h>
+#include <asm/arch/mcp.h>
 
 #include "generic.h"
 
@@ -64,6 +65,32 @@ struct platform_device colliescoop_device = {
 	},
 	.num_resources	= ARRAY_SIZE(collie_scoop_resources),
 	.resource	= collie_scoop_resources,
+};
+
+static struct scoop_pcmcia_dev collie_pcmcia_scoop[] = {
+{
+       .dev        = &colliescoop_device.dev,
+       .irq        = COLLIE_IRQ_GPIO_CF_IRQ,
+       .cd_irq     = COLLIE_IRQ_GPIO_CF_CD,
+       .cd_irq_str = "PCMCIA0 CD",
+},
+};
+
+static struct scoop_pcmcia_config collie_pcmcia_config = {
+	.devs         = &collie_pcmcia_scoop[0],
+	.num_devs     = 1,
+};
+
+
+static struct mcp_plat_data collie_mcp_data = {
+	.mccr0          = MCCR0_ADM,
+	.sclk_rate      = 11981000,
+};
+
+
+static struct sa1100_port_fns collie_port_fns __initdata = {
+	.set_mctrl	= collie_uart_set_mctrl,
+	.get_mctrl	= collie_uart_get_mctrl,
 };
 
 
@@ -159,6 +186,8 @@ static void __init collie_init(void)
 	GPDR |= GPIO_32_768kHz;
 	TUCR  = TUCR_32_768kHz;
 
+	platform_scoop_config = &collie_pcmcia_config;
+
 	ret = platform_add_devices(devices, ARRAY_SIZE(devices));
 	if (ret) {
 		printk(KERN_WARNING "collie: Unable to register LoCoMo device\n");
@@ -166,6 +195,7 @@ static void __init collie_init(void)
 
 	sa11x0_set_flash_data(&collie_flash_data, collie_flash_resources,
 			      ARRAY_SIZE(collie_flash_resources));
+	sa11x0_set_mcp_data(&collie_mcp_data);
 
 	sharpsl_save_param();
 }

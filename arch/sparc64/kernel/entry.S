@@ -50,7 +50,8 @@ do_fpdis:
 	add		%g0, %g0, %g0
 	ba,a,pt		%xcc, rtrap_clr_l6
 
-1:	ldub		[%g6 + TI_FPSAVED], %g5
+1:	TRAP_LOAD_THREAD_REG(%g6, %g1)
+	ldub		[%g6 + TI_FPSAVED], %g5
 	wr		%g0, FPRS_FEF, %fprs
 	andcc		%g5, FPRS_FEF, %g0
 	be,a,pt		%icc, 1f
@@ -96,10 +97,22 @@ do_fpdis:
 	add		%g6, TI_FPREGS + 0x80, %g1
 	faddd		%f0, %f2, %f4
 	fmuld		%f0, %f2, %f6
-	ldxa		[%g3] ASI_DMMU, %g5
+
+661:	ldxa		[%g3] ASI_DMMU, %g5
+	.section	.sun4v_1insn_patch, "ax"
+	.word		661b
+	ldxa		[%g3] ASI_MMU, %g5
+	.previous
+
 	sethi		%hi(sparc64_kern_sec_context), %g2
 	ldx		[%g2 + %lo(sparc64_kern_sec_context)], %g2
-	stxa		%g2, [%g3] ASI_DMMU
+
+661:	stxa		%g2, [%g3] ASI_DMMU
+	.section	.sun4v_1insn_patch, "ax"
+	.word		661b
+	stxa		%g2, [%g3] ASI_MMU
+	.previous
+
 	membar		#Sync
 	add		%g6, TI_FPREGS + 0xc0, %g2
 	faddd		%f0, %f2, %f8
@@ -125,11 +138,23 @@ do_fpdis:
 	 fzero		%f32
 	mov		SECONDARY_CONTEXT, %g3
 	fzero		%f34
-	ldxa		[%g3] ASI_DMMU, %g5
+
+661:	ldxa		[%g3] ASI_DMMU, %g5
+	.section	.sun4v_1insn_patch, "ax"
+	.word		661b
+	ldxa		[%g3] ASI_MMU, %g5
+	.previous
+
 	add		%g6, TI_FPREGS, %g1
 	sethi		%hi(sparc64_kern_sec_context), %g2
 	ldx		[%g2 + %lo(sparc64_kern_sec_context)], %g2
-	stxa		%g2, [%g3] ASI_DMMU
+
+661:	stxa		%g2, [%g3] ASI_DMMU
+	.section	.sun4v_1insn_patch, "ax"
+	.word		661b
+	stxa		%g2, [%g3] ASI_MMU
+	.previous
+
 	membar		#Sync
 	add		%g6, TI_FPREGS + 0x40, %g2
 	faddd		%f32, %f34, %f36
@@ -154,10 +179,22 @@ do_fpdis:
 	 nop
 3:	mov		SECONDARY_CONTEXT, %g3
 	add		%g6, TI_FPREGS, %g1
-	ldxa		[%g3] ASI_DMMU, %g5
+
+661:	ldxa		[%g3] ASI_DMMU, %g5
+	.section	.sun4v_1insn_patch, "ax"
+	.word		661b
+	ldxa		[%g3] ASI_MMU, %g5
+	.previous
+
 	sethi		%hi(sparc64_kern_sec_context), %g2
 	ldx		[%g2 + %lo(sparc64_kern_sec_context)], %g2
-	stxa		%g2, [%g3] ASI_DMMU
+
+661:	stxa		%g2, [%g3] ASI_DMMU
+	.section	.sun4v_1insn_patch, "ax"
+	.word		661b
+	stxa		%g2, [%g3] ASI_MMU
+	.previous
+
 	membar		#Sync
 	mov		0x40, %g2
 	membar		#Sync
@@ -168,7 +205,13 @@ do_fpdis:
 	ldda		[%g1 + %g2] ASI_BLK_S, %f48
 	membar		#Sync
 fpdis_exit:
-	stxa		%g5, [%g3] ASI_DMMU
+
+661:	stxa		%g5, [%g3] ASI_DMMU
+	.section	.sun4v_1insn_patch, "ax"
+	.word		661b
+	stxa		%g5, [%g3] ASI_MMU
+	.previous
+
 	membar		#Sync
 fpdis_exit2:
 	wr		%g7, 0, %gsr
@@ -189,6 +232,7 @@ fp_other_bounce:
 	.globl		do_fpother_check_fitos
 	.align		32
 do_fpother_check_fitos:
+	TRAP_LOAD_THREAD_REG(%g6, %g1)
 	sethi		%hi(fp_other_bounce - 4), %g7
 	or		%g7, %lo(fp_other_bounce - 4), %g7
 
@@ -312,6 +356,7 @@ fitos_emul_fini:
 	.globl		do_fptrap
 	.align		32
 do_fptrap:
+	TRAP_LOAD_THREAD_REG(%g6, %g1)
 	stx		%fsr, [%g6 + TI_XFSR]
 do_fptrap_after_fsr:
 	ldub		[%g6 + TI_FPSAVED], %g3
@@ -321,10 +366,22 @@ do_fptrap_after_fsr:
 	rd		%gsr, %g3
 	stx		%g3, [%g6 + TI_GSR]
 	mov		SECONDARY_CONTEXT, %g3
-	ldxa		[%g3] ASI_DMMU, %g5
+
+661:	ldxa		[%g3] ASI_DMMU, %g5
+	.section	.sun4v_1insn_patch, "ax"
+	.word		661b
+	ldxa		[%g3] ASI_MMU, %g5
+	.previous
+
 	sethi		%hi(sparc64_kern_sec_context), %g2
 	ldx		[%g2 + %lo(sparc64_kern_sec_context)], %g2
-	stxa		%g2, [%g3] ASI_DMMU
+
+661:	stxa		%g2, [%g3] ASI_DMMU
+	.section	.sun4v_1insn_patch, "ax"
+	.word		661b
+	stxa		%g2, [%g3] ASI_MMU
+	.previous
+
 	membar		#Sync
 	add		%g6, TI_FPREGS, %g2
 	andcc		%g1, FPRS_DL, %g0
@@ -339,7 +396,13 @@ do_fptrap_after_fsr:
 	stda		%f48, [%g2 + %g3] ASI_BLK_S
 5:	mov		SECONDARY_CONTEXT, %g1
 	membar		#Sync
-	stxa		%g5, [%g1] ASI_DMMU
+
+661:	stxa		%g5, [%g1] ASI_DMMU
+	.section	.sun4v_1insn_patch, "ax"
+	.word		661b
+	stxa		%g5, [%g1] ASI_MMU
+	.previous
+
 	membar		#Sync
 	ba,pt		%xcc, etrap
 	 wr		%g0, 0, %fprs
@@ -353,8 +416,6 @@ do_fptrap_after_fsr:
 	 *
 	 * With this method we can do most of the cross-call tlb/cache
 	 * flushing very quickly.
-	 *
-	 * Current CPU's IRQ worklist table is locked into %g6, don't touch.
 	 */
 	.text
 	.align		32
@@ -378,6 +439,8 @@ do_ivec:
 	sllx		%g2, %g4, %g2
 	sllx		%g4, 2, %g4
 
+	TRAP_LOAD_IRQ_WORK(%g6, %g1)
+
 	lduw		[%g6 + %g4], %g5	/* g5 = irq_work(cpu, pil) */
 	stw		%g5, [%g3 + 0x00]	/* bucket->irq_chain = g5 */
 	stw		%g3, [%g6 + %g4]	/* irq_work(cpu, pil) = bucket */
@@ -399,76 +462,6 @@ do_ivec_xcall:
 1:	jmpl		%g3, %g0
 	 nop
 
-	.globl		save_alternate_globals
-save_alternate_globals: /* %o0 = save_area */
-	rdpr		%pstate, %o5
-	andn		%o5, PSTATE_IE, %o1
-	wrpr		%o1, PSTATE_AG, %pstate
-	stx		%g0, [%o0 + 0x00]
-	stx		%g1, [%o0 + 0x08]
-	stx		%g2, [%o0 + 0x10]
-	stx		%g3, [%o0 + 0x18]
-	stx		%g4, [%o0 + 0x20]
-	stx		%g5, [%o0 + 0x28]
-	stx		%g6, [%o0 + 0x30]
-	stx		%g7, [%o0 + 0x38]
-	wrpr		%o1, PSTATE_IG, %pstate
-	stx		%g0, [%o0 + 0x40]
-	stx		%g1, [%o0 + 0x48]
-	stx		%g2, [%o0 + 0x50]
-	stx		%g3, [%o0 + 0x58]
-	stx		%g4, [%o0 + 0x60]
-	stx		%g5, [%o0 + 0x68]
-	stx		%g6, [%o0 + 0x70]
-	stx		%g7, [%o0 + 0x78]
-	wrpr		%o1, PSTATE_MG, %pstate
-	stx		%g0, [%o0 + 0x80]
-	stx		%g1, [%o0 + 0x88]
-	stx		%g2, [%o0 + 0x90]
-	stx		%g3, [%o0 + 0x98]
-	stx		%g4, [%o0 + 0xa0]
-	stx		%g5, [%o0 + 0xa8]
-	stx		%g6, [%o0 + 0xb0]
-	stx		%g7, [%o0 + 0xb8]
-	wrpr		%o5, 0x0, %pstate
-	retl
-	 nop
-
-	.globl		restore_alternate_globals
-restore_alternate_globals: /* %o0 = save_area */
-	rdpr		%pstate, %o5
-	andn		%o5, PSTATE_IE, %o1
-	wrpr		%o1, PSTATE_AG, %pstate
-	ldx		[%o0 + 0x00], %g0
-	ldx		[%o0 + 0x08], %g1
-	ldx		[%o0 + 0x10], %g2
-	ldx		[%o0 + 0x18], %g3
-	ldx		[%o0 + 0x20], %g4
-	ldx		[%o0 + 0x28], %g5
-	ldx		[%o0 + 0x30], %g6
-	ldx		[%o0 + 0x38], %g7
-	wrpr		%o1, PSTATE_IG, %pstate
-	ldx		[%o0 + 0x40], %g0
-	ldx		[%o0 + 0x48], %g1
-	ldx		[%o0 + 0x50], %g2
-	ldx		[%o0 + 0x58], %g3
-	ldx		[%o0 + 0x60], %g4
-	ldx		[%o0 + 0x68], %g5
-	ldx		[%o0 + 0x70], %g6
-	ldx		[%o0 + 0x78], %g7
-	wrpr		%o1, PSTATE_MG, %pstate
-	ldx		[%o0 + 0x80], %g0
-	ldx		[%o0 + 0x88], %g1
-	ldx		[%o0 + 0x90], %g2
-	ldx		[%o0 + 0x98], %g3
-	ldx		[%o0 + 0xa0], %g4
-	ldx		[%o0 + 0xa8], %g5
-	ldx		[%o0 + 0xb0], %g6
-	ldx		[%o0 + 0xb8], %g7
-	wrpr		%o5, 0x0, %pstate
-	retl
-	 nop
-
 	.globl		getcc, setcc
 getcc:
 	ldx		[%o0 + PT_V9_TSTATE], %o1
@@ -488,9 +481,24 @@ setcc:
 	retl
 	 stx		%o1, [%o0 + PT_V9_TSTATE]
 
-	.globl		utrap, utrap_ill
-utrap:	brz,pn		%g1, etrap
+	.globl		utrap_trap
+utrap_trap:		/* %g3=handler,%g4=level */
+	TRAP_LOAD_THREAD_REG(%g6, %g1)
+	ldx		[%g6 + TI_UTRAPS], %g1
+	brnz,pt		%g1, invoke_utrap
 	 nop
+
+	ba,pt		%xcc, etrap
+	 rd		%pc, %g7
+	mov		%l4, %o1
+        call		bad_trap
+	 add		%sp, PTREGS_OFF, %o0
+	ba,pt		%xcc, rtrap
+	 clr		%l6
+
+invoke_utrap:
+	sllx		%g3, 3, %g3
+	ldx		[%g1 + %g3], %g1
 	save		%sp, -128, %sp
 	rdpr		%tstate, %l6
 	rdpr		%cwp, %l7
@@ -500,17 +508,6 @@ utrap:	brz,pn		%g1, etrap
 	rdpr		%tnpc, %l7
 	wrpr		%g1, 0, %tnpc
 	done
-utrap_ill:
-        call		bad_trap
-	 add		%sp, PTREGS_OFF, %o0
-	ba,pt		%xcc, rtrap
-	 clr		%l6
-
-	/* XXX Here is stuff we still need to write... -DaveM XXX */
-	.globl		netbsd_syscall
-netbsd_syscall:
-	retl
-	 nop
 
 	/* We need to carefully read the error status, ACK
 	 * the errors, prevent recursive traps, and pass the
@@ -1001,7 +998,7 @@ dcpe_icpe_tl1_common:
 	 * %g3:		scratch
 	 * %g4:		AFSR
 	 * %g5:		AFAR
-	 * %g6:		current thread ptr
+	 * %g6:		unused, will have current thread ptr after etrap
 	 * %g7:		scratch
 	 */
 __cheetah_log_error:
@@ -1539,13 +1536,14 @@ ret_from_syscall:
 
 1:		b,pt		%xcc, ret_sys_call
 		 ldx		[%sp + PTREGS_OFF + PT_V9_I0], %o0
-sparc_exit:	wrpr		%g0, (PSTATE_RMO | PSTATE_PEF | PSTATE_PRIV), %pstate
+sparc_exit:	rdpr		%pstate, %g2
+		wrpr		%g2, PSTATE_IE, %pstate
 		rdpr		%otherwin, %g1
 		rdpr		%cansave, %g3
 		add		%g3, %g1, %g3
 		wrpr		%g3, 0x0, %cansave
 		wrpr		%g0, 0x0, %otherwin
-		wrpr		%g0, (PSTATE_RMO | PSTATE_PEF | PSTATE_PRIV | PSTATE_IE), %pstate
+		wrpr		%g2, 0x0, %pstate
 		ba,pt		%xcc, sys_exit
 		 stb		%g0, [%g6 + TI_WSAVED]
 
@@ -1689,4 +1687,139 @@ __flushw_user:
 	brnz,pt		%g2, 1b
 	 restore	%g0, %g0, %g0
 2:	retl
+	 nop
+
+#ifdef CONFIG_SMP
+	.globl		hard_smp_processor_id
+hard_smp_processor_id:
+#endif
+	.globl		real_hard_smp_processor_id
+real_hard_smp_processor_id:
+	__GET_CPUID(%o0)
+	retl
+	 nop
+
+	/* %o0: devhandle
+	 * %o1:	devino
+	 *
+	 * returns %o0: sysino
+	 */
+	.globl	sun4v_devino_to_sysino
+sun4v_devino_to_sysino:
+	mov	HV_FAST_INTR_DEVINO2SYSINO, %o5
+	ta	HV_FAST_TRAP
+	retl
+	 mov	%o1, %o0
+
+	/* %o0: sysino
+	 *
+	 * returns %o0: intr_enabled (HV_INTR_{DISABLED,ENABLED})
+	 */
+	.globl	sun4v_intr_getenabled
+sun4v_intr_getenabled:
+	mov	HV_FAST_INTR_GETENABLED, %o5
+	ta	HV_FAST_TRAP
+	retl
+	 mov	%o1, %o0
+
+	/* %o0: sysino
+	 * %o1: intr_enabled (HV_INTR_{DISABLED,ENABLED})
+	 */
+	.globl	sun4v_intr_setenabled
+sun4v_intr_setenabled:
+	mov	HV_FAST_INTR_SETENABLED, %o5
+	ta	HV_FAST_TRAP
+	retl
+	 nop
+
+	/* %o0: sysino
+	 *
+	 * returns %o0: intr_state (HV_INTR_STATE_*)
+	 */
+	.globl	sun4v_intr_getstate
+sun4v_intr_getstate:
+	mov	HV_FAST_INTR_GETSTATE, %o5
+	ta	HV_FAST_TRAP
+	retl
+	 mov	%o1, %o0
+
+	/* %o0: sysino
+	 * %o1: intr_state (HV_INTR_STATE_*)
+	 */
+	.globl	sun4v_intr_setstate
+sun4v_intr_setstate:
+	mov	HV_FAST_INTR_SETSTATE, %o5
+	ta	HV_FAST_TRAP
+	retl
+	 nop
+
+	/* %o0: sysino
+	 *
+	 * returns %o0: cpuid
+	 */
+	.globl	sun4v_intr_gettarget
+sun4v_intr_gettarget:
+	mov	HV_FAST_INTR_GETTARGET, %o5
+	ta	HV_FAST_TRAP
+	retl
+	 mov	%o1, %o0
+
+	/* %o0: sysino
+	 * %o1: cpuid
+	 */
+	.globl	sun4v_intr_settarget
+sun4v_intr_settarget:
+	mov	HV_FAST_INTR_SETTARGET, %o5
+	ta	HV_FAST_TRAP
+	retl
+	 nop
+
+	/* %o0:	type
+	 * %o1:	queue paddr
+	 * %o2:	num queue entries
+	 *
+	 * returns %o0:	status
+	 */
+	.globl	sun4v_cpu_qconf
+sun4v_cpu_qconf:
+	mov	HV_FAST_CPU_QCONF, %o5
+	ta	HV_FAST_TRAP
+	retl
+	 nop
+
+	/* returns %o0:	status
+	 */
+	.globl	sun4v_cpu_yield
+sun4v_cpu_yield:
+	mov	HV_FAST_CPU_YIELD, %o5
+	ta	HV_FAST_TRAP
+	retl
+	 nop
+
+	/* %o0:	num cpus in cpu list
+	 * %o1:	cpu list paddr
+	 * %o2:	mondo block paddr
+	 *
+	 * returns %o0: status
+	 */
+	.globl	sun4v_cpu_mondo_send
+sun4v_cpu_mondo_send:
+	mov	HV_FAST_CPU_MONDO_SEND, %o5
+	ta	HV_FAST_TRAP
+	retl
+	 nop
+
+	/* %o0:	CPU ID
+	 *
+	 * returns %o0:	-status if status non-zero, else
+	 *         %o0:	cpu state as HV_CPU_STATE_*
+	 */
+	.globl	sun4v_cpu_state
+sun4v_cpu_state:
+	mov	HV_FAST_CPU_STATE, %o5
+	ta	HV_FAST_TRAP
+	brnz,pn	%o0, 1f
+	 sub	%g0, %o0, %o0
+	mov	%o1, %o0
+1:	retl
 	 nop

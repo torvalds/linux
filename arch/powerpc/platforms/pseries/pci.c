@@ -1,6 +1,4 @@
 /*
- * arch/ppc64/kernel/pSeries_pci.c
- *
  * Copyright (C) 2001 Dave Engebretsen, IBM Corporation
  * Copyright (C) 2003 Anton Blanchard <anton@au.ibm.com>, IBM
  *
@@ -122,7 +120,7 @@ static void fixup_winbond_82c105(struct pci_dev* dev)
 	int i;
 	unsigned int reg;
 
-	if (!platform_is_pseries())
+	if (!machine_is(pseries))
 		return;
 
 	printk("Using INTC for W82c105 IDE controller.\n");

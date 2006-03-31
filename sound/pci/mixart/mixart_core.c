@@ -22,6 +22,8 @@
 
 #include <sound/driver.h>
 #include <linux/interrupt.h>
+#include <linux/mutex.h>
+
 #include <asm/io.h>
 #include <sound/core.h>
 #include "mixart.h"
@@ -239,7 +241,7 @@ int snd_mixart_send_msg(struct mixart_mgr *mgr, struct mixart_msg *request, int 
 	wait_queue_t wait;
 	long timeout;
 
-	down(&mgr->msg_mutex);
+	mutex_lock(&mgr->msg_mutex);
 
 	init_waitqueue_entry(&wait, current);
 
@@ -248,7 +250,7 @@ int snd_mixart_send_msg(struct mixart_mgr *mgr, struct mixart_msg *request, int 
 	err = send_msg(mgr, request, max_resp_size, 1, &msg_frame);  /* send and mark the answer pending */
 	if (err) {
 		spin_unlock_irq(&mgr->msg_lock);
-		up(&mgr->msg_mutex);
+		mutex_unlock(&mgr->msg_mutex);
 		return err;
 	}
 
@@ -260,7 +262,7 @@ int snd_mixart_send_msg(struct mixart_mgr *mgr, struct mixart_msg *request, int 
 
 	if (! timeout) {
 		/* error - no ack */
-		up(&mgr->msg_mutex);
+		mutex_unlock(&mgr->msg_mutex);
 		snd_printk(KERN_ERR "error: no reponse on msg %x\n", msg_frame);
 		return -EIO;
 	}
@@ -276,7 +278,7 @@ int snd_mixart_send_msg(struct mixart_mgr *mgr, struct mixart_msg *request, int 
 	if( request->message_id != resp.message_id )
 		snd_printk(KERN_ERR "REPONSE ERROR!\n");
 
-	up(&mgr->msg_mutex);
+	mutex_unlock(&mgr->msg_mutex);
 	return err;
 }
 
@@ -292,7 +294,7 @@ int snd_mixart_send_msg_wait_notif(struct mixart_mgr *mgr,
 	snd_assert((notif_event & MSG_TYPE_MASK) == MSG_TYPE_NOTIFY, return -EINVAL);
 	snd_assert((notif_event & MSG_CANCEL_NOTIFY_MASK) == 0, return -EINVAL);
 
-	down(&mgr->msg_mutex);
+	mutex_lock(&mgr->msg_mutex);
 
 	init_waitqueue_entry(&wait, current);
 
@@ -301,7 +303,7 @@ int snd_mixart_send_msg_wait_notif(struct mixart_mgr *mgr,
 	err = send_msg(mgr, request, MSG_DEFAULT_SIZE, 1, &notif_event);  /* send and mark the notification event pending */
 	if(err) {
 		spin_unlock_irq(&mgr->msg_lock);
-		up(&mgr->msg_mutex);
+		mutex_unlock(&mgr->msg_mutex);
 		return err;
 	}
 
@@ -313,12 +315,12 @@ int snd_mixart_send_msg_wait_notif(struct mixart_mgr *mgr,
 
 	if (! timeout) {
 		/* error - no ack */
-		up(&mgr->msg_mutex);
+		mutex_unlock(&mgr->msg_mutex);
 		snd_printk(KERN_ERR "error: notification %x not received\n", notif_event);
 		return -EIO;
 	}
 
-	up(&mgr->msg_mutex);
+	mutex_unlock(&mgr->msg_mutex);
 	return 0;
 }
 

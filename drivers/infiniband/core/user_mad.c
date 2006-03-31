@@ -31,7 +31,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * $Id: user_mad.c 4010 2005-11-09 23:11:56Z roland $
+ * $Id: user_mad.c 5596 2006-03-03 01:00:07Z sean.hefty $
  */
 
 #include <linux/module.h>
@@ -121,6 +121,7 @@ struct ib_umad_file {
 
 struct ib_umad_packet {
 	struct ib_mad_send_buf *msg;
+	struct ib_mad_recv_wc  *recv_wc;
 	struct list_head   list;
 	int		   length;
 	struct ib_user_mad mad;
@@ -180,27 +181,17 @@ static void send_handler(struct ib_mad_agent *agent,
 			 struct ib_mad_send_wc *send_wc)
 {
 	struct ib_umad_file *file = agent->context;
-	struct ib_umad_packet *timeout;
 	struct ib_umad_packet *packet = send_wc->send_buf->context[0];
 
 	ib_destroy_ah(packet->msg->ah);
 	ib_free_send_mad(packet->msg);
 
 	if (send_wc->status == IB_WC_RESP_TIMEOUT_ERR) {
-		timeout = kzalloc(sizeof *timeout + IB_MGMT_MAD_HDR, GFP_KERNEL);
-		if (!timeout)
-			goto out;
-
-		timeout->length 	= IB_MGMT_MAD_HDR;
-		timeout->mad.hdr.id 	= packet->mad.hdr.id;
-		timeout->mad.hdr.status = ETIMEDOUT;
-		memcpy(timeout->mad.data, packet->mad.data,
-		       sizeof (struct ib_mad_hdr));
-
-		if (queue_packet(file, agent, timeout))
-			kfree(timeout);
+		packet->length = IB_MGMT_MAD_HDR;
+		packet->mad.hdr.status = ETIMEDOUT;
+		if (!queue_packet(file, agent, packet))
+			return;
 	}
-out:
 	kfree(packet);
 }
 
@@ -209,22 +200,20 @@ static void recv_handler(struct ib_mad_agent *agent,
 {
 	struct ib_umad_file *file = agent->context;
 	struct ib_umad_packet *packet;
-	int length;
 
 	if (mad_recv_wc->wc->status != IB_WC_SUCCESS)
-		goto out;
+		goto err1;
 
-	length = mad_recv_wc->mad_len;
-	packet = kzalloc(sizeof *packet + length, GFP_KERNEL);
+	packet = kzalloc(sizeof *packet, GFP_KERNEL);
 	if (!packet)
-		goto out;
+		goto err1;
 
-	packet->length = length;
-
-	ib_coalesce_recv_mad(mad_recv_wc, packet->mad.data);
+	packet->length = mad_recv_wc->mad_len;
+	packet->recv_wc = mad_recv_wc;
 
 	packet->mad.hdr.status    = 0;
-	packet->mad.hdr.length    = length + sizeof (struct ib_user_mad);
+	packet->mad.hdr.length    = sizeof (struct ib_user_mad) +
+				    mad_recv_wc->mad_len;
 	packet->mad.hdr.qpn 	  = cpu_to_be32(mad_recv_wc->wc->src_qp);
 	packet->mad.hdr.lid 	  = cpu_to_be16(mad_recv_wc->wc->slid);
 	packet->mad.hdr.sl  	  = mad_recv_wc->wc->sl;
@@ -240,10 +229,77 @@ static void recv_handler(struct ib_mad_agent *agent,
 	}
 
 	if (queue_packet(file, agent, packet))
-		kfree(packet);
+		goto err2;
+	return;
 
-out:
+err2:
+	kfree(packet);
+err1:
 	ib_free_recv_mad(mad_recv_wc);
+}
+
+static ssize_t copy_recv_mad(char __user *buf, struct ib_umad_packet *packet,
+			     size_t count)
+{
+	struct ib_mad_recv_buf *recv_buf;
+	int left, seg_payload, offset, max_seg_payload;
+
+	/* We need enough room to copy the first (or only) MAD segment. */
+	recv_buf = &packet->recv_wc->recv_buf;
+	if ((packet->length <= sizeof (*recv_buf->mad) &&
+	     count < sizeof (packet->mad) + packet->length) ||
+	    (packet->length > sizeof (*recv_buf->mad) &&
+	     count < sizeof (packet->mad) + sizeof (*recv_buf->mad)))
+		return -EINVAL;
+
+	if (copy_to_user(buf, &packet->mad, sizeof (packet->mad)))
+		return -EFAULT;
+
+	buf += sizeof (packet->mad);
+	seg_payload = min_t(int, packet->length, sizeof (*recv_buf->mad));
+	if (copy_to_user(buf, recv_buf->mad, seg_payload))
+		return -EFAULT;
+
+	if (seg_payload < packet->length) {
+		/*
+		 * Multipacket RMPP MAD message. Copy remainder of message.
+		 * Note that last segment may have a shorter payload.
+		 */
+		if (count < sizeof (packet->mad) + packet->length) {
+			/*
+			 * The buffer is too small, return the first RMPP segment,
+			 * which includes the RMPP message length.
+			 */
+			return -ENOSPC;
+		}
+		offset = ib_get_mad_data_offset(recv_buf->mad->mad_hdr.mgmt_class);
+		max_seg_payload = sizeof (struct ib_mad) - offset;
+
+		for (left = packet->length - seg_payload, buf += seg_payload;
+		     left; left -= seg_payload, buf += seg_payload) {
+			recv_buf = container_of(recv_buf->list.next,
+						struct ib_mad_recv_buf, list);
+			seg_payload = min(left, max_seg_payload);
+			if (copy_to_user(buf, ((void *) recv_buf->mad) + offset,
+					 seg_payload))
+				return -EFAULT;
+		}
+	}
+	return sizeof (packet->mad) + packet->length;
+}
+
+static ssize_t copy_send_mad(char __user *buf, struct ib_umad_packet *packet,
+			     size_t count)
+{
+	ssize_t size = sizeof (packet->mad) + packet->length;
+
+	if (count < size)
+		return -EINVAL;
+
+	if (copy_to_user(buf, &packet->mad, size))
+		return -EFAULT;
+
+	return size;
 }
 
 static ssize_t ib_umad_read(struct file *filp, char __user *buf,
@@ -253,7 +309,7 @@ static ssize_t ib_umad_read(struct file *filp, char __user *buf,
 	struct ib_umad_packet *packet;
 	ssize_t ret;
 
-	if (count < sizeof (struct ib_user_mad) + sizeof (struct ib_mad))
+	if (count < sizeof (struct ib_user_mad))
 		return -EINVAL;
 
 	spin_lock_irq(&file->recv_lock);
@@ -276,26 +332,42 @@ static ssize_t ib_umad_read(struct file *filp, char __user *buf,
 
 	spin_unlock_irq(&file->recv_lock);
 
-	if (count < packet->length + sizeof (struct ib_user_mad)) {
-		/* Return length needed (and first RMPP segment) if too small */
-		if (copy_to_user(buf, &packet->mad,
-				 sizeof (struct ib_user_mad) + sizeof (struct ib_mad)))
-			ret = -EFAULT;
-		else
-			ret = -ENOSPC;
-	} else if (copy_to_user(buf, &packet->mad,
-				packet->length + sizeof (struct ib_user_mad)))
-		ret = -EFAULT;
+	if (packet->recv_wc)
+		ret = copy_recv_mad(buf, packet, count);
 	else
-		ret = packet->length + sizeof (struct ib_user_mad);
+		ret = copy_send_mad(buf, packet, count);
+
 	if (ret < 0) {
 		/* Requeue packet */
 		spin_lock_irq(&file->recv_lock);
 		list_add(&packet->list, &file->recv_list);
 		spin_unlock_irq(&file->recv_lock);
-	} else
+	} else {
+		if (packet->recv_wc)
+			ib_free_recv_mad(packet->recv_wc);
 		kfree(packet);
+	}
 	return ret;
+}
+
+static int copy_rmpp_mad(struct ib_mad_send_buf *msg, const char __user *buf)
+{
+	int left, seg;
+
+	/* Copy class specific header */
+	if ((msg->hdr_len > IB_MGMT_RMPP_HDR) &&
+	    copy_from_user(msg->mad + IB_MGMT_RMPP_HDR, buf + IB_MGMT_RMPP_HDR,
+			   msg->hdr_len - IB_MGMT_RMPP_HDR))
+		return -EFAULT;
+
+	/* All headers are in place.  Copy data segments. */
+	for (seg = 1, left = msg->data_len, buf += msg->hdr_len; left > 0;
+	     seg++, left -= msg->seg_size, buf += msg->seg_size) {
+		if (copy_from_user(ib_get_rmpp_segment(msg, seg), buf,
+				   min(left, msg->seg_size)))
+			return -EFAULT;
+	}
+	return 0;
 }
 
 static ssize_t ib_umad_write(struct file *filp, const char __user *buf,
@@ -309,14 +381,12 @@ static ssize_t ib_umad_write(struct file *filp, const char __user *buf,
 	struct ib_rmpp_mad *rmpp_mad;
 	u8 method;
 	__be64 *tid;
-	int ret, length, hdr_len, copy_offset;
-	int rmpp_active, has_rmpp_header;
+	int ret, data_len, hdr_len, copy_offset, rmpp_active;
 
 	if (count < sizeof (struct ib_user_mad) + IB_MGMT_RMPP_HDR)
 		return -EINVAL;
 
-	length = count - sizeof (struct ib_user_mad);
-	packet = kmalloc(sizeof *packet + IB_MGMT_RMPP_HDR, GFP_KERNEL);
+	packet = kzalloc(sizeof *packet + IB_MGMT_RMPP_HDR, GFP_KERNEL);
 	if (!packet)
 		return -ENOMEM;
 
@@ -360,38 +430,21 @@ static ssize_t ib_umad_write(struct file *filp, const char __user *buf,
 	}
 
 	rmpp_mad = (struct ib_rmpp_mad *) packet->mad.data;
-	if (rmpp_mad->mad_hdr.mgmt_class == IB_MGMT_CLASS_SUBN_ADM) {
-		hdr_len = IB_MGMT_SA_HDR;
-		copy_offset = IB_MGMT_RMPP_HDR;
-		has_rmpp_header = 1;
-	} else if (rmpp_mad->mad_hdr.mgmt_class >= IB_MGMT_CLASS_VENDOR_RANGE2_START &&
-		   rmpp_mad->mad_hdr.mgmt_class <= IB_MGMT_CLASS_VENDOR_RANGE2_END) {
-			hdr_len = IB_MGMT_VENDOR_HDR;
-			copy_offset = IB_MGMT_RMPP_HDR;
-			has_rmpp_header = 1;
-	} else {
-		hdr_len = IB_MGMT_MAD_HDR;
+	hdr_len = ib_get_mad_data_offset(rmpp_mad->mad_hdr.mgmt_class);
+	if (!ib_is_mad_class_rmpp(rmpp_mad->mad_hdr.mgmt_class)) {
 		copy_offset = IB_MGMT_MAD_HDR;
-		has_rmpp_header = 0;
-	}
-
-	if (has_rmpp_header)
+		rmpp_active = 0;
+	} else {
+		copy_offset = IB_MGMT_RMPP_HDR;
 		rmpp_active = ib_get_rmpp_flags(&rmpp_mad->rmpp_hdr) &
 			      IB_MGMT_RMPP_FLAG_ACTIVE;
-	else
-		rmpp_active = 0;
-
-	/* Validate that the management class can support RMPP */
-	if (rmpp_active && !agent->rmpp_version) {
-		ret = -EINVAL;
-		goto err_ah;
 	}
 
+	data_len = count - sizeof (struct ib_user_mad) - hdr_len;
 	packet->msg = ib_create_send_mad(agent,
 					 be32_to_cpu(packet->mad.hdr.qpn),
-					 0, rmpp_active,
-					 hdr_len, length - hdr_len,
-					 GFP_KERNEL);
+					 0, rmpp_active, hdr_len,
+					 data_len, GFP_KERNEL);
 	if (IS_ERR(packet->msg)) {
 		ret = PTR_ERR(packet->msg);
 		goto err_ah;
@@ -402,14 +455,21 @@ static ssize_t ib_umad_write(struct file *filp, const char __user *buf,
 	packet->msg->retries 	= packet->mad.hdr.retries;
 	packet->msg->context[0] = packet;
 
-	/* Copy MAD headers (RMPP header in place) */
+	/* Copy MAD header.  Any RMPP header is already in place. */
 	memcpy(packet->msg->mad, packet->mad.data, IB_MGMT_MAD_HDR);
-	/* Now, copy rest of message from user into send buffer */
-	if (copy_from_user(packet->msg->mad + copy_offset,
-			   buf + sizeof (struct ib_user_mad) + copy_offset,
-			   length - copy_offset)) {
-		ret = -EFAULT;
-		goto err_msg;
+	buf += sizeof (struct ib_user_mad);
+
+	if (!rmpp_active) {
+		if (copy_from_user(packet->msg->mad + copy_offset,
+				   buf + copy_offset,
+				   hdr_len + data_len - copy_offset)) {
+			ret = -EFAULT;
+			goto err_msg;
+		}
+	} else {
+		ret = copy_rmpp_mad(packet->msg, buf);
+		if (ret)
+			goto err_msg;
 	}
 
 	/*
@@ -433,18 +493,14 @@ static ssize_t ib_umad_write(struct file *filp, const char __user *buf,
 		goto err_msg;
 
 	up_read(&file->port->mutex);
-
 	return count;
 
 err_msg:
 	ib_free_send_mad(packet->msg);
-
 err_ah:
 	ib_destroy_ah(ah);
-
 err_up:
 	up_read(&file->port->mutex);
-
 err:
 	kfree(packet);
 	return ret;
@@ -627,8 +683,11 @@ static int ib_umad_close(struct inode *inode, struct file *filp)
 	already_dead = file->agents_dead;
 	file->agents_dead = 1;
 
-	list_for_each_entry_safe(packet, tmp, &file->recv_list, list)
+	list_for_each_entry_safe(packet, tmp, &file->recv_list, list) {
+		if (packet->recv_wc)
+			ib_free_recv_mad(packet->recv_wc);
 		kfree(packet);
+	}
 
 	list_del(&file->port_list);
 

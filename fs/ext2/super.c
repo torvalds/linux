@@ -175,7 +175,8 @@ static int init_inodecache(void)
 {
 	ext2_inode_cachep = kmem_cache_create("ext2_inode_cache",
 					     sizeof(struct ext2_inode_info),
-					     0, SLAB_RECLAIM_ACCOUNT,
+					     0, (SLAB_RECLAIM_ACCOUNT|
+						SLAB_MEM_SPREAD),
 					     init_once, NULL);
 	if (ext2_inode_cachep == NULL)
 		return -ENOMEM;
@@ -210,8 +211,6 @@ static int ext2_show_options(struct seq_file *seq, struct vfsmount *vfs)
 
 	if (sbi->s_mount_opt & EXT2_MOUNT_GRPID)
 		seq_puts(seq, ",grpid");
-	else
-		seq_puts(seq, ",nogrpid");
 
 #if defined(CONFIG_QUOTA)
 	if (sbi->s_mount_opt & EXT2_MOUNT_USRQUOTA)
@@ -258,7 +257,6 @@ static struct super_operations ext2_sops = {
  * systems, but can be improved upon.
  * Currently only get_parent is required.
  */
-struct dentry *ext2_get_parent(struct dentry *child);
 static struct export_operations ext2_export_ops = {
 	.get_parent = ext2_get_parent,
 };

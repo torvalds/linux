@@ -186,8 +186,6 @@ static struct tty_driver *serial_driver;
 #define RS_STROBE_TIME 10
 #define RS_ISR_PASS_LIMIT 256
 
-#define _INLINE_ inline
-
 static void probe_sccs(void);
 static void change_speed(struct dec_serial *info);
 static void rs_wait_until_sent(struct tty_struct *tty, int timeout);
@@ -344,14 +342,13 @@ static inline void rs_recv_clear(struct dec_zschannel *zsc)
  * This routine is used by the interrupt handler to schedule
  * processing in the software interrupt portion of the driver.
  */
-static _INLINE_ void rs_sched_event(struct dec_serial *info, int event)
+static void rs_sched_event(struct dec_serial *info, int event)
 {
 	info->event |= 1 << event;
 	tasklet_schedule(&info->tlet);
 }
 
-static _INLINE_ void receive_chars(struct dec_serial *info,
-				   struct pt_regs *regs)
+static void receive_chars(struct dec_serial *info, struct pt_regs *regs)
 {
 	struct tty_struct *tty = info->tty;
 	unsigned char ch, stat, flag;
@@ -441,7 +438,7 @@ static void transmit_chars(struct dec_serial *info)
 		rs_sched_event(info, RS_EVENT_WRITE_WAKEUP);
 }
 
-static _INLINE_ void status_handle(struct dec_serial *info)
+static void status_handle(struct dec_serial *info)
 {
 	unsigned char stat;
 

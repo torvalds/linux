@@ -1642,9 +1642,9 @@ sba_ioc_init(struct parisc_device *sba, struct ioc *ioc, int ioc_num)
 **
 **************************************************************************/
 
-static void __iomem *ioc_remap(struct sba_device *sba_dev, int offset)
+static void __iomem *ioc_remap(struct sba_device *sba_dev, unsigned int offset)
 {
-	return ioremap(sba_dev->dev->hpa.start + offset, SBA_FUNC_SIZE);
+	return ioremap_nocache(sba_dev->dev->hpa.start + offset, SBA_FUNC_SIZE);
 }
 
 static void sba_hw_init(struct sba_device *sba_dev)
@@ -1724,9 +1724,7 @@ printk("sba_hw_init(): mem_boot 0x%x 0x%x 0x%x 0x%x\n", PAGE0->mem_boot.hpa,
 		sba_dev->chip_resv.start = PCI_F_EXTEND | 0xfef00000UL;
 		sba_dev->chip_resv.end   = PCI_F_EXTEND | (0xff000000UL - 1) ;
 		err = request_resource(&iomem_resource, &(sba_dev->chip_resv));
-		if (err < 0) {
-			BUG();
-		}
+		BUG_ON(err < 0);
 
 	} else if (IS_PLUTO(sba_dev->iodc)) {
 		int err;
@@ -2042,7 +2040,7 @@ sba_driver_callback(struct parisc_device *dev)
 	u32 func_class;
 	int i;
 	char *version;
-	void __iomem *sba_addr = ioremap(dev->hpa.start, SBA_FUNC_SIZE);
+	void __iomem *sba_addr = ioremap_nocache(dev->hpa.start, SBA_FUNC_SIZE);
 	struct proc_dir_entry *info_entry, *bitmap_entry, *root;
 
 	sba_dump_ranges(sba_addr);
@@ -2185,8 +2183,7 @@ void sba_directed_lmmio(struct parisc_device *pci_hba, struct resource *r)
 	int i;
 	int rope = (pci_hba->hw_path & (ROPES_PER_IOC-1));  /* rope # */
 
-	if ((t!=HPHW_IOA) && (t!=HPHW_BCPORT))
-		BUG();
+	BUG_ON((t!=HPHW_IOA) && (t!=HPHW_BCPORT));
 
 	r->start = r->end = 0;
 
@@ -2228,8 +2225,7 @@ void sba_distributed_lmmio(struct parisc_device *pci_hba, struct resource *r )
 	int base, size;
 	int rope = (pci_hba->hw_path & (ROPES_PER_IOC-1));  /* rope # */
 
-	if ((t!=HPHW_IOA) && (t!=HPHW_BCPORT))
-		BUG();
+	BUG_ON((t!=HPHW_IOA) && (t!=HPHW_BCPORT));
 
 	r->start = r->end = 0;
 

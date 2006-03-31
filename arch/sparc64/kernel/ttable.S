@@ -1,7 +1,6 @@
-/* $Id: ttable.S,v 1.38 2002/02/09 19:49:30 davem Exp $
- * ttable.S: Sparc V9 Trap Table(s) with SpitFire/Cheetah extensions.
+/* ttable.S: Sparc V9 Trap Table(s) with SpitFire/Cheetah/SUN4V extensions.
  *
- * Copyright (C) 1996, 2001 David S. Miller (davem@caip.rutgers.edu)
+ * Copyright (C) 1996, 2001, 2006 David S. Miller (davem@davemloft.net)
  */
 
 #include <linux/config.h>
@@ -19,7 +18,7 @@ tl0_resv000:	BOOT_KERNEL BTRAP(0x1) BTRAP(0x2) BTRAP(0x3)
 tl0_resv004:	BTRAP(0x4)  BTRAP(0x5) BTRAP(0x6) BTRAP(0x7)
 tl0_iax:	membar #Sync
 		TRAP_NOSAVE_7INSNS(__spitfire_insn_access_exception)
-tl0_resv009:	BTRAP(0x9)
+tl0_itsb_4v:	SUN4V_ITSB_MISS
 tl0_iae:	membar #Sync
 		TRAP_NOSAVE_7INSNS(__spitfire_access_error)
 tl0_resv00b:	BTRAP(0xb) BTRAP(0xc) BTRAP(0xd) BTRAP(0xe) BTRAP(0xf)
@@ -38,7 +37,7 @@ tl0_div0:	TRAP(do_div0)
 tl0_resv029:	BTRAP(0x29) BTRAP(0x2a) BTRAP(0x2b) BTRAP(0x2c) BTRAP(0x2d) BTRAP(0x2e)
 tl0_resv02f:	BTRAP(0x2f)
 tl0_dax:	TRAP_NOSAVE(__spitfire_data_access_exception)
-tl0_resv031:	BTRAP(0x31)
+tl0_dtsb_4v:	SUN4V_DTSB_MISS
 tl0_dae:	membar #Sync
 		TRAP_NOSAVE_7INSNS(__spitfire_access_error)
 tl0_resv033:	BTRAP(0x33)
@@ -52,12 +51,13 @@ tl0_resv03e:	BTRAP(0x3e) BTRAP(0x3f) BTRAP(0x40)
 tl0_irq1:	TRAP_IRQ(smp_call_function_client, 1)
 tl0_irq2:	TRAP_IRQ(smp_receive_signal_client, 2)
 tl0_irq3:	TRAP_IRQ(smp_penguin_jailcell, 3)
+tl0_irq4:	TRAP_IRQ(smp_new_mmu_context_version_client, 4)
 #else
 tl0_irq1:	BTRAP(0x41)
 tl0_irq2:	BTRAP(0x42)
 tl0_irq3:	BTRAP(0x43)
+tl0_irq4:	BTRAP(0x44)
 #endif
-tl0_irq4:	TRAP_IRQ(handler_irq, 4)
 tl0_irq5:	TRAP_IRQ(handler_irq, 5)  TRAP_IRQ(handler_irq, 6)
 tl0_irq7:	TRAP_IRQ(handler_irq, 7)  TRAP_IRQ(handler_irq, 8)
 tl0_irq9:	TRAP_IRQ(handler_irq, 9)  TRAP_IRQ(handler_irq, 10)
@@ -78,9 +78,9 @@ tl0_vaw:	TRAP(do_vaw)
 tl0_cee:	membar #Sync
 		TRAP_NOSAVE_7INSNS(__spitfire_cee_trap)
 tl0_iamiss:
-#include	"itlb_base.S"
+#include	"itlb_miss.S"
 tl0_damiss:
-#include	"dtlb_base.S"
+#include	"dtlb_miss.S"
 tl0_daprot:
 #include	"dtlb_prot.S"
 tl0_fecc:	BTRAP(0x70)	/* Fast-ECC on Cheetah */
@@ -88,15 +88,18 @@ tl0_dcpe:	BTRAP(0x71)	/* D-cache Parity Error on Cheetah+ */
 tl0_icpe:	BTRAP(0x72)	/* I-cache Parity Error on Cheetah+ */
 tl0_resv073:	BTRAP(0x73) BTRAP(0x74) BTRAP(0x75)
 tl0_resv076:	BTRAP(0x76) BTRAP(0x77) BTRAP(0x78) BTRAP(0x79) BTRAP(0x7a) BTRAP(0x7b)
-tl0_resv07c:	BTRAP(0x7c) BTRAP(0x7d) BTRAP(0x7e) BTRAP(0x7f)
+tl0_cpu_mondo:	TRAP_NOSAVE(sun4v_cpu_mondo)
+tl0_dev_mondo:	TRAP_NOSAVE(sun4v_dev_mondo)
+tl0_res_mondo:	TRAP_NOSAVE(sun4v_res_mondo)
+tl0_nres_mondo:	TRAP_NOSAVE(sun4v_nonres_mondo)
 tl0_s0n:	SPILL_0_NORMAL
 tl0_s1n:	SPILL_1_NORMAL
 tl0_s2n:	SPILL_2_NORMAL
-tl0_s3n:	SPILL_3_NORMAL
-tl0_s4n:	SPILL_4_NORMAL
-tl0_s5n:	SPILL_5_NORMAL
-tl0_s6n:	SPILL_6_NORMAL
-tl0_s7n:	SPILL_7_NORMAL
+tl0_s3n:	SPILL_0_NORMAL_ETRAP
+tl0_s4n:	SPILL_1_GENERIC_ETRAP
+tl0_s5n:	SPILL_1_GENERIC_ETRAP_FIXUP
+tl0_s6n:	SPILL_2_GENERIC_ETRAP
+tl0_s7n:	SPILL_2_GENERIC_ETRAP_FIXUP
 tl0_s0o:	SPILL_0_OTHER
 tl0_s1o:	SPILL_1_OTHER
 tl0_s2o:	SPILL_2_OTHER
@@ -110,9 +113,9 @@ tl0_f1n:	FILL_1_NORMAL
 tl0_f2n:	FILL_2_NORMAL
 tl0_f3n:	FILL_3_NORMAL
 tl0_f4n:	FILL_4_NORMAL
-tl0_f5n:	FILL_5_NORMAL
-tl0_f6n:	FILL_6_NORMAL
-tl0_f7n:	FILL_7_NORMAL
+tl0_f5n:	FILL_0_NORMAL_RTRAP
+tl0_f6n:	FILL_1_GENERIC_RTRAP
+tl0_f7n:	FILL_2_GENERIC_RTRAP
 tl0_f0o:	FILL_0_OTHER
 tl0_f1o:	FILL_1_OTHER
 tl0_f2o:	FILL_2_OTHER
@@ -128,7 +131,7 @@ tl0_flushw:	FLUSH_WINDOW_TRAP
 tl0_resv104:	BTRAP(0x104) BTRAP(0x105) BTRAP(0x106) BTRAP(0x107)
 		.globl tl0_solaris
 tl0_solaris:	SOLARIS_SYSCALL_TRAP
-tl0_netbsd:	NETBSD_SYSCALL_TRAP
+tl0_resv109:	BTRAP(0x109)
 tl0_resv10a:	BTRAP(0x10a) BTRAP(0x10b) BTRAP(0x10c) BTRAP(0x10d) BTRAP(0x10e)
 tl0_resv10f:	BTRAP(0x10f)
 tl0_linux32:	LINUX_32BIT_SYSCALL_TRAP
@@ -179,7 +182,7 @@ sparc64_ttable_tl1:
 tl1_resv000:	BOOT_KERNEL    BTRAPTL1(0x1) BTRAPTL1(0x2) BTRAPTL1(0x3)
 tl1_resv004:	BTRAPTL1(0x4)  BTRAPTL1(0x5) BTRAPTL1(0x6) BTRAPTL1(0x7)
 tl1_iax:	TRAP_NOSAVE(__spitfire_insn_access_exception_tl1)
-tl1_resv009:	BTRAPTL1(0x9)
+tl1_itsb_4v:	SUN4V_ITSB_MISS
 tl1_iae:	membar #Sync
 		TRAP_NOSAVE_7INSNS(__spitfire_access_error)
 tl1_resv00b:	BTRAPTL1(0xb) BTRAPTL1(0xc) BTRAPTL1(0xd) BTRAPTL1(0xe) BTRAPTL1(0xf)
@@ -198,7 +201,7 @@ tl1_div0:	TRAPTL1(do_div0_tl1)
 tl1_resv029:	BTRAPTL1(0x29) BTRAPTL1(0x2a) BTRAPTL1(0x2b) BTRAPTL1(0x2c)
 tl1_resv02d:	BTRAPTL1(0x2d) BTRAPTL1(0x2e) BTRAPTL1(0x2f)
 tl1_dax:	TRAP_NOSAVE(__spitfire_data_access_exception_tl1)
-tl1_resv031:	BTRAPTL1(0x31)
+tl1_dtsb_4v:	SUN4V_DTSB_MISS
 tl1_dae:	membar #Sync
 		TRAP_NOSAVE_7INSNS(__spitfire_access_error)
 tl1_resv033:	BTRAPTL1(0x33)
@@ -222,26 +225,10 @@ tl1_resv05c:	BTRAPTL1(0x5c) BTRAPTL1(0x5d) BTRAPTL1(0x5e) BTRAPTL1(0x5f)
 tl1_ivec:	TRAP_IVEC
 tl1_paw:	TRAPTL1(do_paw_tl1)
 tl1_vaw:	TRAPTL1(do_vaw_tl1)
-
-		/* The grotty trick to save %g1 into current->thread.cee_stuff
-		 * is because when we take this trap we could be interrupting
-		 * trap code already using the trap alternate global registers.
-		 *
-		 * We cross our fingers and pray that this store/load does
-		 * not cause yet another CEE trap.
-		 */
-tl1_cee:	membar	#Sync
-		stx	%g1, [%g6 + TI_CEE_STUFF]
-		ldxa	[%g0] ASI_AFSR, %g1
-		membar	#Sync
-		stxa	%g1, [%g0] ASI_AFSR
-		membar	#Sync
-		ldx	[%g6 + TI_CEE_STUFF], %g1
-		retry
-
+tl1_cee:	BTRAPTL1(0x63)
 tl1_iamiss:	BTRAPTL1(0x64) BTRAPTL1(0x65) BTRAPTL1(0x66) BTRAPTL1(0x67)
 tl1_damiss:
-#include	"dtlb_backend.S"
+#include	"dtlb_miss.S"
 tl1_daprot:
 #include	"dtlb_prot.S"
 tl1_fecc:	BTRAPTL1(0x70)	/* Fast-ECC on Cheetah */

@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/init.h>
+#include <linux/pci.h>
 #include <asm/types.h>
 #include <asm/timer.h>
 #include <asm/smp.h>
@@ -45,24 +46,31 @@ static seqlock_t monotonic_lock = SEQLOCK_UNLOCKED;
 
 #define ACPI_PM_MASK 0xFFFFFF /* limit it to 24 bits */
 
+static int pmtmr_need_workaround __read_mostly = 1;
+
 /*helper function to safely read acpi pm timesource*/
 static inline u32 read_pmtmr(void)
 {
-	u32 v1=0,v2=0,v3=0;
-	/* It has been reported that because of various broken
-	 * chipsets (ICH4, PIIX4 and PIIX4E) where the ACPI PM time
-	 * source is not latched, so you must read it multiple
-	 * times to insure a safe value is read.
-	 */
-	do {
-		v1 = inl(pmtmr_ioport);
-		v2 = inl(pmtmr_ioport);
-		v3 = inl(pmtmr_ioport);
-	} while ((v1 > v2 && v1 < v3) || (v2 > v3 && v2 < v1)
-			|| (v3 > v1 && v3 < v2));
+	if (pmtmr_need_workaround) {
+		u32 v1, v2, v3;
 
-	/* mask the output to 24 bits */
-	return v2 & ACPI_PM_MASK;
+		/* It has been reported that because of various broken
+		 * chipsets (ICH4, PIIX4 and PIIX4E) where the ACPI PM time
+		 * source is not latched, so you must read it multiple
+		 * times to insure a safe value is read.
+		 */
+		do {
+			v1 = inl(pmtmr_ioport);
+			v2 = inl(pmtmr_ioport);
+			v3 = inl(pmtmr_ioport);
+		} while ((v1 > v2 && v1 < v3) || (v2 > v3 && v2 < v1)
+			 || (v3 > v1 && v3 < v2));
+
+		/* mask the output to 24 bits */
+		return v2 & ACPI_PM_MASK;
+	}
+
+	return inl(pmtmr_ioport) & ACPI_PM_MASK;
 }
 
 
@@ -262,6 +270,72 @@ struct init_timer_opts __initdata timer_pmtmr_init = {
 	.init = init_pmtmr,
 	.opts = &timer_pmtmr,
 };
+
+#ifdef CONFIG_PCI
+/*
+ * PIIX4 Errata:
+ *
+ * The power management timer may return improper results when read.
+ * Although the timer value settles properly after incrementing,
+ * while incrementing there is a 3 ns window every 69.8 ns where the
+ * timer value is indeterminate (a 4.2% chance that the data will be
+ * incorrect when read). As a result, the ACPI free running count up
+ * timer specification is violated due to erroneous reads.
+ */
+static int __init pmtmr_bug_check(void)
+{
+	static struct pci_device_id gray_list[] __initdata = {
+		/* these chipsets may have bug. */
+		{ PCI_DEVICE(PCI_VENDOR_ID_INTEL,
+				PCI_DEVICE_ID_INTEL_82801DB_0) },
+		{ },
+	};
+	struct pci_dev *dev;
+	int pmtmr_has_bug = 0;
+	u8 rev;
+
+	if (cur_timer != &timer_pmtmr || !pmtmr_need_workaround)
+		return 0;
+
+	dev = pci_get_device(PCI_VENDOR_ID_INTEL,
+			     PCI_DEVICE_ID_INTEL_82371AB_3, NULL);
+	if (dev) {
+		pci_read_config_byte(dev, PCI_REVISION_ID, &rev);
+		/* the bug has been fixed in PIIX4M */
+		if (rev < 3) {
+			printk(KERN_WARNING "* Found PM-Timer Bug on this "
+				"chipset. Due to workarounds for a bug,\n"
+				"* this time source is slow.  Consider trying "
+				"other time sources (clock=)\n");
+			pmtmr_has_bug = 1;
+		}
+		pci_dev_put(dev);
+	}
+
+	if (pci_dev_present(gray_list)) {
+		printk(KERN_WARNING "* This chipset may have PM-Timer Bug.  Due"
+			" to workarounds for a bug,\n"
+			"* this time source is slow. If you are sure your timer"
+			" does not have\n"
+			"* this bug, please use \"pmtmr_good\" to disable the "
+			"workaround\n");
+		pmtmr_has_bug = 1;
+	}
+
+	if (!pmtmr_has_bug)
+		pmtmr_need_workaround = 0;
+
+	return 0;
+}
+device_initcall(pmtmr_bug_check);
+#endif
+
+static int __init pmtr_good_setup(char *__str)
+{
+	pmtmr_need_workaround = 0;
+	return 1;
+}
+__setup("pmtmr_good", pmtr_good_setup);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Dominik Brodowski <linux@brodo.de>");

@@ -2345,12 +2345,15 @@ isdn_tty_at_cout(char *msg, modem_info * info)
 	u_long flags;
 	struct sk_buff *skb = NULL;
 	char *sp = NULL;
-	int l = strlen(msg);
+	int l;
 
 	if (!msg) {
 		printk(KERN_WARNING "isdn_tty: Null-Message in isdn_tty_at_cout\n");
 		return;
 	}
+
+	l = strlen(msg);
+
 	spin_lock_irqsave(&info->readlock, flags);
 	tty = info->tty;
 	if ((info->flags & ISDN_ASYNC_CLOSING) || (!tty)) {

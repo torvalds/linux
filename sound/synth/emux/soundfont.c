@@ -79,7 +79,7 @@ static void
 lock_preset(struct snd_sf_list *sflist)
 {
 	unsigned long flags;
-	down(&sflist->presets_mutex);
+	mutex_lock(&sflist->presets_mutex);
 	spin_lock_irqsave(&sflist->lock, flags);
 	sflist->presets_locked = 1;
 	spin_unlock_irqrestore(&sflist->lock, flags);
@@ -96,7 +96,7 @@ unlock_preset(struct snd_sf_list *sflist)
 	spin_lock_irqsave(&sflist->lock, flags);
 	sflist->presets_locked = 0;
 	spin_unlock_irqrestore(&sflist->lock, flags);
-	up(&sflist->presets_mutex);
+	mutex_unlock(&sflist->presets_mutex);
 }
 
 
@@ -1390,7 +1390,7 @@ snd_sf_new(struct snd_sf_callback *callback, struct snd_util_memhdr *hdr)
 	if ((sflist = kzalloc(sizeof(*sflist), GFP_KERNEL)) == NULL)
 		return NULL;
 
-	init_MUTEX(&sflist->presets_mutex);
+	mutex_init(&sflist->presets_mutex);
 	spin_lock_init(&sflist->lock);
 	sflist->memhdr = hdr;
 

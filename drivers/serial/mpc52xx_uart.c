@@ -40,7 +40,7 @@
  * and so on). So the PSC1 is mapped to /dev/ttyPSC0, PSC2 to /dev/ttyPSC1 and
  * so on. But be warned, it's an ABSOLUTE REQUIREMENT ! This is needed mainly
  * fpr the console code : without this 1:1 mapping, at early boot time, when we
- * are parsing the kernel args console=ttyPSC?, we wouldn't know wich PSC it
+ * are parsing the kernel args console=ttyPSC?, we wouldn't know which PSC it
  * will be mapped to.
  */
 
@@ -603,15 +603,14 @@ mpc52xx_console_write(struct console *co, const char *s, unsigned int count)
 		udelay(1);
 
 	/* Write all the chars */
-	for ( i=0 ; i<count ; i++ ) {
-	
+	for (i = 0; i < count; i++, s++) {
+		/* Line return handling */
+		if (*s == '\n')
+			out_8(&psc->mpc52xx_psc_buffer_8, '\r');
+		
 		/* Send the char */
 		out_8(&psc->mpc52xx_psc_buffer_8, *s);
 
-		/* Line return handling */
-		if ( *s++ == '\n' )
-			out_8(&psc->mpc52xx_psc_buffer_8, '\r');
-		
 		/* Wait the TX buffer to be empty */
 		j = 20000;	/* Maximum wait */	
 		while (!(in_be16(&psc->mpc52xx_psc_status) & 

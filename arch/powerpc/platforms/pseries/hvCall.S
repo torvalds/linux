@@ -1,6 +1,4 @@
 /*
- * arch/ppc64/kernel/pSeries_hvCall.S
- *
  * This file contains the generic code to perform a call to the
  * pSeries LPAR hypervisor.
  * NOTE: this file will go away when we move to inline this work.

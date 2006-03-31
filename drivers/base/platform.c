@@ -61,7 +61,7 @@ int platform_get_irq(struct platform_device *dev, unsigned int num)
 {
 	struct resource *r = platform_get_resource(dev, IORESOURCE_IRQ, num);
 
-	return r ? r->start : 0;
+	return r ? r->start : -ENXIO;
 }
 EXPORT_SYMBOL_GPL(platform_get_irq);
 
@@ -98,7 +98,7 @@ int platform_get_irq_byname(struct platform_device *dev, char *name)
 {
 	struct resource *r = platform_get_resource_byname(dev, IORESOURCE_IRQ, name);
 
-	return r ? r->start : 0;
+	return r ? r->start : -ENXIO;
 }
 EXPORT_SYMBOL_GPL(platform_get_irq_byname);
 
@@ -326,7 +326,7 @@ EXPORT_SYMBOL_GPL(platform_device_register);
  *	platform_device_unregister - unregister a platform-level device
  *	@pdev:	platform device we're unregistering
  *
- *	Unregistration is done in 2 steps. Fisrt we release all resources
+ *	Unregistration is done in 2 steps. First we release all resources
  *	and remove it from the subsystem, then we drop reference count by
  *	calling platform_device_put().
  */

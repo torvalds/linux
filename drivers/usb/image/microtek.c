@@ -360,7 +360,7 @@ static int mts_scsi_host_reset (Scsi_Cmnd *srb)
 	rc = usb_lock_device_for_reset(desc->usb_dev, desc->usb_intf);
 	if (rc < 0)
 		return FAILED;
-	result = usb_reset_device(desc->usb_dev);;
+	result = usb_reset_device(desc->usb_dev);
 	if (rc)
 		usb_unlock_device(desc->usb_dev);
 	return result ? FAILED : SUCCESS;

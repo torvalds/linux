@@ -26,6 +26,8 @@
 #define NUM_ENVP	32	/* number of env pointers */
 
 #if defined(CONFIG_HOTPLUG) && defined(CONFIG_NET)
+u64 uevent_seqnum;
+char uevent_helper[UEVENT_HELPER_PATH_LEN] = "/sbin/hotplug";
 static DEFINE_SPINLOCK(sequence_lock);
 static struct sock *uevent_sock;
 

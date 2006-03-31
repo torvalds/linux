@@ -25,6 +25,7 @@
 #include <linux/vfs.h>
 #include <linux/mount.h>
 #include <linux/moduleparam.h>
+#include <linux/kthread.h>
 #include <linux/posix_acl.h>
 #include <asm/uaccess.h>
 #include <linux/seq_file.h>
@@ -54,11 +55,9 @@ static int commit_threads = 0;
 module_param(commit_threads, int, 0);
 MODULE_PARM_DESC(commit_threads, "Number of commit threads");
 
-int jfs_stop_threads;
-static pid_t jfsIOthread;
-static pid_t jfsCommitThread[MAX_COMMIT_THREADS];
-static pid_t jfsSyncThread;
-DECLARE_COMPLETION(jfsIOwait);
+static struct task_struct *jfsCommitThread[MAX_COMMIT_THREADS];
+struct task_struct *jfsIOthread;
+struct task_struct *jfsSyncThread;
 
 #ifdef CONFIG_JFS_DEBUG
 int jfsloglevel = JFS_LOGLEVEL_WARN;
@@ -195,7 +194,7 @@ static void jfs_put_super(struct super_block *sb)
 enum {
 	Opt_integrity, Opt_nointegrity, Opt_iocharset, Opt_resize,
 	Opt_resize_nosize, Opt_errors, Opt_ignore, Opt_err, Opt_quota,
-	Opt_usrquota, Opt_grpquota
+	Opt_usrquota, Opt_grpquota, Opt_uid, Opt_gid, Opt_umask
 };
 
 static match_table_t tokens = {
@@ -209,6 +208,9 @@ static match_table_t tokens = {
 	{Opt_ignore, "quota"},
 	{Opt_usrquota, "usrquota"},
 	{Opt_grpquota, "grpquota"},
+	{Opt_uid, "uid=%u"},
+	{Opt_gid, "gid=%u"},
+	{Opt_umask, "umask=%u"},
 	{Opt_err, NULL}
 };
 
@@ -313,7 +315,29 @@ static int parse_options(char *options, struct super_block *sb, s64 *newLVSize,
 			       "JFS: quota operations not supported\n");
 			break;
 #endif
-
+		case Opt_uid:
+		{
+			char *uid = args[0].from;
+			sbi->uid = simple_strtoul(uid, &uid, 0);
+			break;
+		}
+		case Opt_gid:
+		{
+			char *gid = args[0].from;
+			sbi->gid = simple_strtoul(gid, &gid, 0);
+			break;
+		}
+		case Opt_umask:
+		{
+			char *umask = args[0].from;
+			sbi->umask = simple_strtoul(umask, &umask, 8);
+			if (sbi->umask & ~0777) {
+				printk(KERN_ERR
+				       "JFS: Invalid value of umask\n");
+				goto cleanup;
+			}
+			break;
+		}
 		default:
 			printk("jfs: Unrecognized mount option \"%s\" "
 					" or missing value\n", p);
@@ -396,12 +420,12 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
 	if (!new_valid_dev(sb->s_bdev->bd_dev))
 		return -EOVERFLOW;
 
-	sbi = kmalloc(sizeof (struct jfs_sb_info), GFP_KERNEL);
+	sbi = kzalloc(sizeof (struct jfs_sb_info), GFP_KERNEL);
 	if (!sbi)
 		return -ENOSPC;
-	memset(sbi, 0, sizeof (struct jfs_sb_info));
 	sb->s_fs_info = sbi;
 	sbi->sb = sb;
+	sbi->uid = sbi->gid = sbi->umask = -1;
 
 	/* initialize the mount flag and determine the default error handler */
 	flag = JFS_ERR_REMOUNT_RO;
@@ -564,10 +588,14 @@ static int jfs_show_options(struct seq_file *seq, struct vfsmount *vfs)
 {
 	struct jfs_sb_info *sbi = JFS_SBI(vfs->mnt_sb);
 
+	if (sbi->uid != -1)
+		seq_printf(seq, ",uid=%d", sbi->uid);
+	if (sbi->gid != -1)
+		seq_printf(seq, ",gid=%d", sbi->gid);
+	if (sbi->umask != -1)
+		seq_printf(seq, ",umask=%03o", sbi->umask);
 	if (sbi->flag & JFS_NOINTEGRITY)
 		seq_puts(seq, ",nointegrity");
-	else
-		seq_puts(seq, ",integrity");
 
 #if defined(CONFIG_QUOTA)
 	if (sbi->flag & JFS_USRQUOTA)
@@ -617,7 +645,7 @@ static void init_once(void *foo, kmem_cache_t * cachep, unsigned long flags)
 		memset(jfs_ip, 0, sizeof(struct jfs_inode_info));
 		INIT_LIST_HEAD(&jfs_ip->anon_inode_list);
 		init_rwsem(&jfs_ip->rdwrlock);
-		init_MUTEX(&jfs_ip->commit_sem);
+		mutex_init(&jfs_ip->commit_mutex);
 		init_rwsem(&jfs_ip->xattr_sem);
 		spin_lock_init(&jfs_ip->ag_lock);
 		jfs_ip->active_ag = -1;
@@ -636,7 +664,8 @@ static int __init init_jfs_fs(void)
 
 	jfs_inode_cachep =
 	    kmem_cache_create("jfs_ip", sizeof(struct jfs_inode_info), 0, 
-			    SLAB_RECLAIM_ACCOUNT, init_once, NULL);
+			    SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD,
+			    init_once, NULL);
 	if (jfs_inode_cachep == NULL)
 		return -ENOMEM;
 
@@ -661,12 +690,12 @@ static int __init init_jfs_fs(void)
 	/*
 	 * I/O completion thread (endio)
 	 */
-	jfsIOthread = kernel_thread(jfsIOWait, NULL, CLONE_KERNEL);
-	if (jfsIOthread < 0) {
-		jfs_err("init_jfs_fs: fork failed w/rc = %d", jfsIOthread);
+	jfsIOthread = kthread_run(jfsIOWait, NULL, "jfsIO");
+	if (IS_ERR(jfsIOthread)) {
+		rc = PTR_ERR(jfsIOthread);
+		jfs_err("init_jfs_fs: fork failed w/rc = %d", rc);
 		goto end_txmngr;
 	}
-	wait_for_completion(&jfsIOwait);	/* Wait until thread starts */
 
 	if (commit_threads < 1)
 		commit_threads = num_online_cpus();
@@ -674,24 +703,21 @@ static int __init init_jfs_fs(void)
 		commit_threads = MAX_COMMIT_THREADS;
 
 	for (i = 0; i < commit_threads; i++) {
-		jfsCommitThread[i] = kernel_thread(jfs_lazycommit, NULL,
-						   CLONE_KERNEL);
-		if (jfsCommitThread[i] < 0) {
-			jfs_err("init_jfs_fs: fork failed w/rc = %d",
-				jfsCommitThread[i]);
+		jfsCommitThread[i] = kthread_run(jfs_lazycommit, NULL, "jfsCommit");
+		if (IS_ERR(jfsCommitThread[i])) {
+			rc = PTR_ERR(jfsCommitThread[i]);
+			jfs_err("init_jfs_fs: fork failed w/rc = %d", rc);
 			commit_threads = i;
 			goto kill_committask;
 		}
-		/* Wait until thread starts */
-		wait_for_completion(&jfsIOwait);
 	}
 
-	jfsSyncThread = kernel_thread(jfs_sync, NULL, CLONE_KERNEL);
-	if (jfsSyncThread < 0) {
-		jfs_err("init_jfs_fs: fork failed w/rc = %d", jfsSyncThread);
+	jfsSyncThread = kthread_run(jfs_sync, NULL, "jfsSync");
+	if (IS_ERR(jfsSyncThread)) {
+		rc = PTR_ERR(jfsSyncThread);
+		jfs_err("init_jfs_fs: fork failed w/rc = %d", rc);
 		goto kill_committask;
 	}
-	wait_for_completion(&jfsIOwait);	/* Wait until thread starts */
 
 #ifdef PROC_FS_JFS
 	jfs_proc_init();
@@ -700,13 +726,9 @@ static int __init init_jfs_fs(void)
 	return register_filesystem(&jfs_fs_type);
 
 kill_committask:
-	jfs_stop_threads = 1;
-	wake_up_all(&jfs_commit_thread_wait);
 	for (i = 0; i < commit_threads; i++)
-		wait_for_completion(&jfsIOwait);
-
-	wake_up(&jfs_IO_thread_wait);
-	wait_for_completion(&jfsIOwait);	/* Wait for thread exit */
+		kthread_stop(jfsCommitThread[i]);
+	kthread_stop(jfsIOthread);
 end_txmngr:
 	txExit();
 free_metapage:
@@ -722,16 +744,13 @@ static void __exit exit_jfs_fs(void)
 
 	jfs_info("exit_jfs_fs called");
 
-	jfs_stop_threads = 1;
 	txExit();
 	metapage_exit();
-	wake_up(&jfs_IO_thread_wait);
-	wait_for_completion(&jfsIOwait);	/* Wait until IO thread exits */
-	wake_up_all(&jfs_commit_thread_wait);
+
+	kthread_stop(jfsIOthread);
 	for (i = 0; i < commit_threads; i++)
-		wait_for_completion(&jfsIOwait);
-	wake_up(&jfs_sync_thread_wait);
-	wait_for_completion(&jfsIOwait);	/* Wait until Sync thread exits */
+		kthread_stop(jfsCommitThread[i]);
+	kthread_stop(jfsSyncThread);
 #ifdef PROC_FS_JFS
 	jfs_proc_clean();
 #endif

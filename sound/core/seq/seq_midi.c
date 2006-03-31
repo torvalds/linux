@@ -32,7 +32,7 @@ Possible options for midisynth module:
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/moduleparam.h>
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
 #include <sound/core.h>
 #include <sound/rawmidi.h>
 #include <sound/seq_kernel.h>
@@ -70,7 +70,7 @@ struct seq_midisynth_client {
 };
 
 static struct seq_midisynth_client *synths[SNDRV_CARDS];
-static DECLARE_MUTEX(register_mutex);
+static DEFINE_MUTEX(register_mutex);
 
 /* handle rawmidi input event (MIDI v1.0 stream) */
 static void snd_midi_input_event(struct snd_rawmidi_substream *substream)
@@ -308,13 +308,13 @@ snd_seq_midisynth_register_port(struct snd_seq_device *dev)
 	if (ports > (256 / SNDRV_RAWMIDI_DEVICES))
 		ports = 256 / SNDRV_RAWMIDI_DEVICES;
 
-	down(&register_mutex);
+	mutex_lock(&register_mutex);
 	client = synths[card->number];
 	if (client == NULL) {
 		newclient = 1;
 		client = kzalloc(sizeof(*client), GFP_KERNEL);
 		if (client == NULL) {
-			up(&register_mutex);
+			mutex_unlock(&register_mutex);
 			kfree(info);
 			return -ENOMEM;
 		}
@@ -324,7 +324,7 @@ snd_seq_midisynth_register_port(struct snd_seq_device *dev)
 				(const char *)info->name : "External MIDI");
 		if (client->seq_client < 0) {
 			kfree(client);
-			up(&register_mutex);
+			mutex_unlock(&register_mutex);
 			kfree(info);
 			return -ENOMEM;
 		}
@@ -397,7 +397,7 @@ snd_seq_midisynth_register_port(struct snd_seq_device *dev)
 	client->num_ports++;
 	if (newclient)
 		synths[card->number] = client;
-	up(&register_mutex);
+	mutex_unlock(&register_mutex);
 	kfree(info);
 	kfree(port);
 	return 0;	/* success */
@@ -414,7 +414,7 @@ snd_seq_midisynth_register_port(struct snd_seq_device *dev)
 	}
 	kfree(info);
 	kfree(port);
-	up(&register_mutex);
+	mutex_unlock(&register_mutex);
 	return -ENOMEM;
 }
 
@@ -427,10 +427,10 @@ snd_seq_midisynth_unregister_port(struct snd_seq_device *dev)
 	struct snd_card *card = dev->card;
 	int device = dev->device, p, ports;
 	
-	down(&register_mutex);
+	mutex_lock(&register_mutex);
 	client = synths[card->number];
 	if (client == NULL || client->ports[device] == NULL) {
-		up(&register_mutex);
+		mutex_unlock(&register_mutex);
 		return -ENODEV;
 	}
 	ports = client->ports_per_device[device];
@@ -446,7 +446,7 @@ snd_seq_midisynth_unregister_port(struct snd_seq_device *dev)
 		synths[card->number] = NULL;
 		kfree(client);
 	}
-	up(&register_mutex);
+	mutex_unlock(&register_mutex);
 	return 0;
 }
 

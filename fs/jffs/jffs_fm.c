@@ -139,7 +139,7 @@ jffs_build_begin(struct jffs_control *c, int unit)
 	fmc->tail = NULL;
 	fmc->head_extra = NULL;
 	fmc->tail_extra = NULL;
-	init_MUTEX(&fmc->biglock);
+	mutex_init(&fmc->biglock);
 	return fmc;
 }
 

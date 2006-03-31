@@ -73,6 +73,15 @@ config SND_PCM_OSS
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-pcm-oss.
 
+config SND_PCM_OSS_PLUGINS
+	bool "OSS PCM (digital audio) API - Include plugin system"
+	depends on SND_PCM_OSS
+        default y
+	help
+          If you disable this option, the ALSA's OSS PCM API will not
+          support conversion of channels, formats and rates. It will
+          behave like most of new OSS/Free drivers in 2.4/2.6 kernels.
+
 config SND_SEQUENCER_OSS
 	bool "OSS Sequencer API"
 	depends on SND && SND_SEQUENCER
@@ -129,6 +138,15 @@ config SND_SUPPORT_OLD_API
 	help
 	  Say Y here to support the obsolete ALSA PCM API (ver.0.9.0 rc3
 	  or older).
+
+config SND_VERBOSE_PROCFS
+	bool "Verbose procfs contents"
+	depends on SND
+	default y
+	help
+	  Say Y here to include code for verbose procfs contents (provides
+          usefull information to developers when a problem occurs). On the
+          other side, it makes the ALSA subsystem larger.
 
 config SND_VERBOSE_PRINTK
 	bool "Verbose printk"

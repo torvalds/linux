@@ -188,6 +188,7 @@ extern void psycho_init(int, char *);
 extern void schizo_init(int, char *);
 extern void schizo_plus_init(int, char *);
 extern void tomatillo_init(int, char *);
+extern void sun4v_pci_init(int, char *);
 
 static struct {
 	char *model_name;
@@ -204,6 +205,7 @@ static struct {
 	{ "pci108e,8002", schizo_plus_init },
 	{ "SUNW,tomatillo", tomatillo_init },
 	{ "pci108e,a801", tomatillo_init },
+	{ "SUNW,sun4v-pci", sun4v_pci_init },
 };
 #define PCI_NUM_CONTROLLER_TYPES (sizeof(pci_controller_table) / \
 				  sizeof(pci_controller_table[0]))
@@ -283,6 +285,12 @@ int __init pcic_present(void)
 	return pci_controller_scan(pci_is_controller);
 }
 
+struct pci_iommu_ops *pci_iommu_ops;
+EXPORT_SYMBOL(pci_iommu_ops);
+
+extern struct pci_iommu_ops pci_sun4u_iommu_ops,
+	pci_sun4v_iommu_ops;
+
 /* Find each controller in the system, attach and initialize
  * software state structure for each and link into the
  * pci_controller_root.  Setup the controller enough such
@@ -290,6 +298,11 @@ int __init pcic_present(void)
  */
 static void __init pci_controller_probe(void)
 {
+	if (tlb_type == hypervisor)
+		pci_iommu_ops = &pci_sun4v_iommu_ops;
+	else
+		pci_iommu_ops = &pci_sun4u_iommu_ops;
+
 	printk("PCI: Probing for controllers.\n");
 
 	pci_controller_scan(pci_controller_init);
@@ -643,6 +656,7 @@ int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 	__pci_mmap_set_flags(dev, vma, mmap_state);
 	__pci_mmap_set_pgprot(dev, vma, mmap_state);
 
+	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 	ret = io_remap_pfn_range(vma, vma->vm_start,
 				 vma->vm_pgoff,
 				 vma->vm_end - vma->vm_start,
@@ -650,7 +664,6 @@ int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 	if (ret)
 		return ret;
 
-	vma->vm_flags |= VM_IO;
 	return 0;
 }
 

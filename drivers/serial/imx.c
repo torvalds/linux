@@ -743,6 +743,13 @@ static void __init imx_init_ports(void)
 }
 
 #ifdef CONFIG_SERIAL_IMX_CONSOLE
+static void imx_console_putchar(struct uart_port *port, int ch)
+{
+	struct imx_port *sport = (struct imx_port *)port;
+	while ((UTS((u32)sport->port.membase) & UTS_TXFULL))
+		barrier();
+	URTX0((u32)sport->port.membase) = ch;
+}
 
 /*
  * Interrupts are disabled on entering
@@ -751,7 +758,7 @@ static void
 imx_console_write(struct console *co, const char *s, unsigned int count)
 {
 	struct imx_port *sport = &imx_ports[co->index];
-	unsigned int old_ucr1, old_ucr2, i;
+	unsigned int old_ucr1, old_ucr2;
 
 	/*
 	 *	First, save UCR1/2 and then disable interrupts
@@ -764,22 +771,7 @@ imx_console_write(struct console *co, const char *s, unsigned int count)
 	                   & ~(UCR1_TXMPTYEN | UCR1_RRDYEN | UCR1_RTSDEN);
 	UCR2((u32)sport->port.membase) = old_ucr2 | UCR2_TXEN;
 
-	/*
-	 *	Now, do each character
-	 */
-	for (i = 0; i < count; i++) {
-
-		while ((UTS((u32)sport->port.membase) & UTS_TXFULL))
-			barrier();
-
-		URTX0((u32)sport->port.membase) = s[i];
-
-		if (s[i] == '\n') {
-			while ((UTS((u32)sport->port.membase) & UTS_TXFULL))
-				barrier();
-			URTX0((u32)sport->port.membase) = '\r';
-		}
-	}
+	uart_console_write(&sport->port, s, count, imx_console_putchar);
 
 	/*
 	 *	Finally, wait for transmitter to become empty

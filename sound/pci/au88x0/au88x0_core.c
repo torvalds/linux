@@ -376,7 +376,7 @@ vortex_mixer_delWTD(vortex_t * vortex, unsigned char mix, unsigned char ch)
 
 static void vortex_mixer_init(vortex_t * vortex)
 {
-	unsigned long addr;
+	u32 addr;
 	int x;
 
 	// FIXME: get rid of this crap.
@@ -639,7 +639,7 @@ static void vortex_src_setupchannel(vortex_t * card, unsigned char src,
 
 static void vortex_srcblock_init(vortex_t * vortex)
 {
-	unsigned long addr;
+	u32 addr;
 	int x;
 	hwwrite(vortex->mmio, VORTEX_SRC_SOURCESIZE, 0x1ff);
 	/*
@@ -1035,7 +1035,7 @@ vortex_fifo_setwtctrl(vortex_t * vortex, int fifo, int ctrl, int priority,
 static void vortex_fifo_init(vortex_t * vortex)
 {
 	int x;
-	unsigned long addr;
+	u32 addr;
 
 	/* ADB DMA channels fifos. */
 	addr = VORTEX_FIFO_ADBCTRL + ((NR_ADB - 1) * 4);
@@ -1054,7 +1054,7 @@ static void vortex_fifo_init(vortex_t * vortex)
 		hwwrite(vortex->mmio, addr, FIFO_U0);
 		if (hwread(vortex->mmio, addr) != FIFO_U0)
 			printk(KERN_ERR
-			       "bad wt fifo reset (0x%08lx, 0x%08x)!\n",
+			       "bad wt fifo reset (0x%08x, 0x%08x)!\n",
 			       addr, hwread(vortex->mmio, addr));
 		vortex_fifo_clearwtdata(vortex, x, FIFO_SIZE);
 		addr -= 4;
@@ -1152,7 +1152,7 @@ vortex_adbdma_setbuffers(vortex_t * vortex, int adbdma,
 
 static void
 vortex_adbdma_setmode(vortex_t * vortex, int adbdma, int ie, int dir,
-		      int fmt, int d, unsigned long offset)
+		      int fmt, int d, u32 offset)
 {
 	stream_t *dma = &vortex->dma_adb[adbdma];
 
@@ -1411,7 +1411,7 @@ vortex_wtdma_setbuffers(vortex_t * vortex, int wtdma,
 
 static void
 vortex_wtdma_setmode(vortex_t * vortex, int wtdma, int ie, int fmt, int d,
-		     /*int e, */ unsigned long offset)
+		     /*int e, */ u32 offset)
 {
 	stream_t *dma = &vortex->dma_wt[wtdma];
 

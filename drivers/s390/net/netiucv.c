@@ -1728,14 +1728,13 @@ static int
 netiucv_register_device(struct net_device *ndev)
 {
 	struct netiucv_priv *priv = ndev->priv;
-	struct device *dev = kmalloc(sizeof(struct device), GFP_KERNEL);
+	struct device *dev = kzalloc(sizeof(struct device), GFP_KERNEL);
 	int ret;
 
 
 	IUCV_DBF_TEXT(trace, 3, __FUNCTION__);
 
 	if (dev) {
-		memset(dev, 0, sizeof(struct device));
 		snprintf(dev->bus_id, BUS_ID_SIZE, "net%s", ndev->name);
 		dev->bus = &iucv_bus;
 		dev->parent = iucv_root;
@@ -1784,11 +1783,9 @@ netiucv_new_connection(struct net_device *dev, char *username)
 {
 	struct iucv_connection **clist = &iucv_connections;
 	struct iucv_connection *conn =
-		(struct iucv_connection *)
-		kmalloc(sizeof(struct iucv_connection), GFP_KERNEL);
+		kzalloc(sizeof(struct iucv_connection), GFP_KERNEL);
 
 	if (conn) {
-		memset(conn, 0, sizeof(struct iucv_connection));
 		skb_queue_head_init(&conn->collect_queue);
 		skb_queue_head_init(&conn->commit_queue);
 		conn->max_buffsize = NETIUCV_BUFSIZE_DEFAULT;

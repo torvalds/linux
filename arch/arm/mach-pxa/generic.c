@@ -319,6 +319,11 @@ void __init pxa_set_ficp_info(struct pxaficp_platform_data *info)
 	pxaficp_device.dev.platform_data = info;
 }
 
+static struct platform_device pxartc_device = {
+	.name		= "sa1100-rtc",
+	.id		= -1,
+};
+
 static struct platform_device *devices[] __initdata = {
 	&pxamci_device,
 	&udc_device,
@@ -329,6 +334,7 @@ static struct platform_device *devices[] __initdata = {
 	&pxaficp_device,
 	&i2c_device,
 	&i2s_device,
+	&pxartc_device,
 };
 
 static int __init pxa_init(void)

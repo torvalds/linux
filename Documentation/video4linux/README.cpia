@@ -87,7 +87,7 @@ hardware configuration of the parport. You can give the boot-parameter
 at the LILO-prompt or specify it in lilo.conf. I use the following
 append-line in lilo.conf:
 
-        append="parport=0x378,7,3"
+	append="parport=0x378,7,3"
 
 See Documentation/parport.txt for more information about the
 configuration of the parport and the values given above. Do not simply
@@ -175,7 +175,7 @@ THANKS (in no particular order):
 - Manuel J. Petit de Gabriel <mpetit@dit.upm.es> for providing help
   with Isabel (http://isabel.dit.upm.es/)
 - Bas Huisman <bhuism@cs.utwente.nl> for writing the initial parport code
-- Jarl Totland <Jarl.Totland@bdc.no> for setting up the mailing list 
+- Jarl Totland <Jarl.Totland@bdc.no> for setting up the mailing list
   and maintaining the web-server[3]
 - Chris Whiteford <Chris@informinteractive.com> for fixes related to the
   1.02 firmware

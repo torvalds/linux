@@ -283,7 +283,7 @@ static void tb0219_pci_irq_init(void)
 	vr41xx_set_irq_level(TB0219_PCI_SLOT3_PIN, IRQ_LEVEL_LOW);
 }
 
-static int tb0219_probe(struct platform_device *dev)
+static int __devinit tb0219_probe(struct platform_device *dev)
 {
 	int retval;
 
@@ -319,7 +319,7 @@ static int tb0219_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int tb0219_remove(struct platform_device *dev)
+static int __devexit tb0219_remove(struct platform_device *dev)
 {
 	_machine_restart = old_machine_restart;
 
@@ -335,19 +335,26 @@ static struct platform_device *tb0219_platform_device;
 
 static struct platform_driver tb0219_device_driver = {
 	.probe		= tb0219_probe,
-	.remove		= tb0219_remove,
+	.remove		= __devexit_p(tb0219_remove),
 	.driver		= {
 		.name	= "TB0219",
+		.owner	= THIS_MODULE,
 	},
 };
 
-static int __devinit tanbac_tb0219_init(void)
+static int __init tanbac_tb0219_init(void)
 {
 	int retval;
 
-	tb0219_platform_device = platform_device_register_simple("TB0219", -1, NULL, 0);
-	if (IS_ERR(tb0219_platform_device))
-		return PTR_ERR(tb0219_platform_device);
+	tb0219_platform_device = platform_device_alloc("TB0219", -1);
+	if (!tb0219_platform_device)
+		return -ENOMEM;
+
+	retval = platform_device_add(tb0219_platform_device);
+	if (retval < 0) {
+		platform_device_put(tb0219_platform_device);
+		return retval;
+	}
 
 	retval = platform_driver_register(&tb0219_device_driver);
 	if (retval < 0)
@@ -356,10 +363,9 @@ static int __devinit tanbac_tb0219_init(void)
 	return retval;
 }
 
-static void __devexit tanbac_tb0219_exit(void)
+static void __exit tanbac_tb0219_exit(void)
 {
 	platform_driver_unregister(&tb0219_device_driver);
-
 	platform_device_unregister(tb0219_platform_device);
 }
 

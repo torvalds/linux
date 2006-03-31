@@ -28,16 +28,16 @@ iocharset=name -- Character set to use for converting between the
 		 know how to deal with Unicode.
 		 By default, FAT_DEFAULT_IOCHARSET setting is used.
 
-		 There is also an option of doing UTF8 translations
+		 There is also an option of doing UTF-8 translations
 		 with the utf8 option.
 
 		 NOTE: "iocharset=utf8" is not recommended. If unsure,
 		 you should consider the following option instead.
 
-utf8=<bool>   -- UTF8 is the filesystem safe version of Unicode that
+utf8=<bool>   -- UTF-8 is the filesystem safe version of Unicode that
 		 is used by the console.  It can be be enabled for the
 		 filesystem with this option. If 'uni_xlate' gets set,
-		 UTF8 gets disabled.
+		 UTF-8 gets disabled.
 
 uni_xlate=<bool> -- Translate unhandled Unicode characters to special
 		 escaped sequences.  This would let you backup and

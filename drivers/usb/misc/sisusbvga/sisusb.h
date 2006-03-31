@@ -37,23 +37,15 @@
 #ifndef _SISUSB_H_
 #define _SISUSB_H_
 
-#include <linux/version.h>
 #ifdef CONFIG_COMPAT
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,10)
-#include <linux/ioctl32.h>
-#define SISUSB_OLD_CONFIG_COMPAT
-#else
 #define SISUSB_NEW_CONFIG_COMPAT
-#endif
 #endif
 
 /* For older kernels, support for text consoles is by default
  * off. To ensable text console support, change the following:
  */
 #if 0
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,13)
 #define CONFIG_USB_SISUSBVGA_CON
-#endif
 #endif
 
 /* Version Information */

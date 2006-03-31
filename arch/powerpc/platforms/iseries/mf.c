@@ -46,6 +46,7 @@
 #include "setup.h"
 
 extern int piranha_simulator;
+static int mf_initialized;
 
 /*
  * This is the structure layout for the Machine Facilites LPAR event
@@ -143,7 +144,8 @@ static spinlock_t pending_event_spinlock;
 static struct pending_event *pending_event_head;
 static struct pending_event *pending_event_tail;
 static struct pending_event *pending_event_avail;
-static struct pending_event pending_event_prealloc[16];
+#define PENDING_EVENT_PREALLOC_LEN 16
+static struct pending_event pending_event_prealloc[PENDING_EVENT_PREALLOC_LEN];
 
 /*
  * Put a pending event onto the available queue, so it can get reused.
@@ -597,7 +599,7 @@ void mf_power_off(void)
  * Global kernel interface to tell the VSP object in the primary
  * partition to reboot this partition.
  */
-void mf_reboot(void)
+void mf_reboot(char *cmd)
 {
 	printk(KERN_INFO "mf.c: Preparing to bounce...\n");
 	signal_ce_msg_simple(0x4e, NULL);
@@ -625,7 +627,7 @@ void mf_display_src(u32 word)
 /*
  * Display a single word SRC of the form "PROGXXXX" on the VSP control panel.
  */
-void mf_display_progress(u16 value)
+static __init void mf_display_progress_src(u16 value)
 {
 	u8 ce[12];
 	u8 src[72];
@@ -649,30 +651,42 @@ void mf_display_progress(u16 value)
  * Clear the VSP control panel.  Used to "erase" an SRC that was
  * previously displayed.
  */
-void mf_clear_src(void)
+static void mf_clear_src(void)
 {
 	signal_ce_msg_simple(0x4b, NULL);
+}
+
+void __init mf_display_progress(u16 value)
+{
+	if (piranha_simulator || !mf_initialized)
+		return;
+
+	if (0xFFFF == value)
+		mf_clear_src();
+	else
+		mf_display_progress_src(value);
 }
 
 /*
  * Initialization code here.
  */
-void mf_init(void)
+void __init mf_init(void)
 {
 	int i;
 
-	/* initialize */
 	spin_lock_init(&pending_event_spinlock);
-	for (i = 0;
-	     i < sizeof(pending_event_prealloc) / sizeof(*pending_event_prealloc);
-	     ++i)
+
+	for (i = 0; i < PENDING_EVENT_PREALLOC_LEN; i++)
 		free_pending_event(&pending_event_prealloc[i]);
+
 	HvLpEvent_registerHandler(HvLpEvent_Type_MachineFac, &hv_handler);
 
 	/* virtual continue ack */
 	signal_ce_msg_simple(0x57, NULL);
 
-	/* initialization complete */
+	mf_initialized = 1;
+	mb();
+
 	printk(KERN_NOTICE "mf.c: iSeries Linux LPAR Machine Facilities "
 			"initialized\n");
 }
@@ -690,6 +704,43 @@ static void get_rtc_time_complete(void *token, struct ce_msg_data *ce_msg)
 	memcpy(&rtc->ce_msg, ce_msg, sizeof(rtc->ce_msg));
 	rtc->rc = 0;
 	complete(&rtc->com);
+}
+
+static int mf_set_rtc(struct rtc_time *tm)
+{
+	char ce_time[12];
+	u8 day, mon, hour, min, sec, y1, y2;
+	unsigned year;
+
+	year = 1900 + tm->tm_year;
+	y1 = year / 100;
+	y2 = year % 100;
+
+	sec = tm->tm_sec;
+	min = tm->tm_min;
+	hour = tm->tm_hour;
+	day = tm->tm_mday;
+	mon = tm->tm_mon + 1;
+
+	BIN_TO_BCD(sec);
+	BIN_TO_BCD(min);
+	BIN_TO_BCD(hour);
+	BIN_TO_BCD(mon);
+	BIN_TO_BCD(day);
+	BIN_TO_BCD(y1);
+	BIN_TO_BCD(y2);
+
+	memset(ce_time, 0, sizeof(ce_time));
+	ce_time[3] = 0x41;
+	ce_time[4] = y1;
+	ce_time[5] = y2;
+	ce_time[6] = sec;
+	ce_time[7] = min;
+	ce_time[8] = hour;
+	ce_time[10] = day;
+	ce_time[11] = mon;
+
+	return signal_ce_msg(ce_time, NULL);
 }
 
 static int rtc_set_tm(int rc, u8 *ce_msg, struct rtc_time *tm)
@@ -747,7 +798,7 @@ static int rtc_set_tm(int rc, u8 *ce_msg, struct rtc_time *tm)
 	return 0;
 }
 
-int mf_get_rtc(struct rtc_time *tm)
+static int mf_get_rtc(struct rtc_time *tm)
 {
 	struct ce_msg_comp_data ce_complete;
 	struct rtc_time_data rtc_data;
@@ -780,7 +831,7 @@ static void get_boot_rtc_time_complete(void *token, struct ce_msg_data *ce_msg)
 	rtc->busy = 0;
 }
 
-int mf_get_boot_rtc(struct rtc_time *tm)
+static int mf_get_boot_rtc(struct rtc_time *tm)
 {
 	struct ce_msg_comp_data ce_complete;
 	struct boot_rtc_time_data rtc_data;
@@ -800,43 +851,6 @@ int mf_get_boot_rtc(struct rtc_time *tm)
 			process_hvlpevents(NULL);
 	}
 	return rtc_set_tm(rtc_data.rc, rtc_data.ce_msg.ce_msg, tm);
-}
-
-int mf_set_rtc(struct rtc_time *tm)
-{
-	char ce_time[12];
-	u8 day, mon, hour, min, sec, y1, y2;
-	unsigned year;
-
-	year = 1900 + tm->tm_year;
-	y1 = year / 100;
-	y2 = year % 100;
-
-	sec = tm->tm_sec;
-	min = tm->tm_min;
-	hour = tm->tm_hour;
-	day = tm->tm_mday;
-	mon = tm->tm_mon + 1;
-
-	BIN_TO_BCD(sec);
-	BIN_TO_BCD(min);
-	BIN_TO_BCD(hour);
-	BIN_TO_BCD(mon);
-	BIN_TO_BCD(day);
-	BIN_TO_BCD(y1);
-	BIN_TO_BCD(y2);
-
-	memset(ce_time, 0, sizeof(ce_time));
-	ce_time[3] = 0x41;
-	ce_time[4] = y1;
-	ce_time[5] = y2;
-	ce_time[6] = sec;
-	ce_time[7] = min;
-	ce_time[8] = hour;
-	ce_time[10] = day;
-	ce_time[11] = mon;
-
-	return signal_ce_msg(ce_time, NULL);
 }
 
 #ifdef CONFIG_PROC_FS

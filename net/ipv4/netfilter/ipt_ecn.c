@@ -65,8 +65,9 @@ static inline int match_tcp(const struct sk_buff *skb,
 	return 1;
 }
 
-static int match(const struct sk_buff *skb, const struct net_device *in,
-		 const struct net_device *out, const void *matchinfo,
+static int match(const struct sk_buff *skb,
+		 const struct net_device *in, const struct net_device *out,
+		 const struct xt_match *match, const void *matchinfo,
 		 int offset, unsigned int protoff, int *hotdrop)
 {
 	const struct ipt_ecn_info *info = matchinfo;
@@ -86,14 +87,12 @@ static int match(const struct sk_buff *skb, const struct net_device *in,
 }
 
 static int checkentry(const char *tablename, const void *ip_void,
+		      const struct xt_match *match,
 		      void *matchinfo, unsigned int matchsize,
 		      unsigned int hook_mask)
 {
 	const struct ipt_ecn_info *info = matchinfo;
 	const struct ipt_ip *ip = ip_void;
-
-	if (matchsize != IPT_ALIGN(sizeof(struct ipt_ecn_info)))
-		return 0;
 
 	if (info->operation & IPT_ECN_OP_MATCH_MASK)
 		return 0;
@@ -113,20 +112,21 @@ static int checkentry(const char *tablename, const void *ip_void,
 
 static struct ipt_match ecn_match = {
 	.name		= "ecn",
-	.match		= &match,
-	.checkentry	= &checkentry,
+	.match		= match,
+	.matchsize	= sizeof(struct ipt_ecn_info),
+	.checkentry	= checkentry,
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init ipt_ecn_init(void)
 {
 	return ipt_register_match(&ecn_match);
 }
 
-static void __exit fini(void)
+static void __exit ipt_ecn_fini(void)
 {
 	ipt_unregister_match(&ecn_match);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ipt_ecn_init);
+module_exit(ipt_ecn_fini);

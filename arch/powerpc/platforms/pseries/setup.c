@@ -60,7 +60,6 @@
 #include <asm/time.h>
 #include <asm/nvram.h>
 #include "xics.h"
-#include <asm/firmware.h>
 #include <asm/pmc.h>
 #include <asm/mpic.h>
 #include <asm/ppc-pci.h>
@@ -70,6 +69,7 @@
 
 #include "plpar_wrappers.h"
 #include "ras.h"
+#include "firmware.h"
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -81,8 +81,8 @@ extern void find_udbg_vterm(void);
 
 int fwnmi_active;  /* TRUE if an FWNMI handler is present */
 
-static void pseries_shared_idle(void);
-static void pseries_dedicated_idle(void);
+static void pseries_shared_idle_sleep(void);
+static void pseries_dedicated_idle_sleep(void);
 
 struct mpic *pSeries_mpic;
 
@@ -236,17 +236,16 @@ static void __init pSeries_setup_arch(void)
 		vpa_init(boot_cpuid);
 		if (get_lppaca()->shared_proc) {
 			printk(KERN_INFO "Using shared processor idle loop\n");
-			ppc_md.idle_loop = pseries_shared_idle;
+			ppc_md.power_save = pseries_shared_idle_sleep;
 		} else {
 			printk(KERN_INFO "Using dedicated idle loop\n");
-			ppc_md.idle_loop = pseries_dedicated_idle;
+			ppc_md.power_save = pseries_dedicated_idle_sleep;
 		}
 	} else {
 		printk(KERN_INFO "Using default idle loop\n");
-		ppc_md.idle_loop = default_idle;
 	}
 
-	if (platform_is_lpar())
+	if (firmware_has_feature(FW_FEATURE_LPAR))
 		ppc_md.enable_pmcs = pseries_lpar_enable_pmcs;
 	else
 		ppc_md.enable_pmcs = power4_enable_pmcs;
@@ -261,53 +260,6 @@ static int __init pSeries_init_panel(void)
 	return 0;
 }
 arch_initcall(pSeries_init_panel);
-
-
-/* Build up the ppc64_firmware_features bitmask field
- * using contents of device-tree/ibm,hypertas-functions.
- * Ultimately this functionality may be moved into prom.c prom_init().
- */
-static void __init fw_feature_init(void)
-{
-	struct device_node * dn;
-	char * hypertas;
-	unsigned int len;
-
-	DBG(" -> fw_feature_init()\n");
-
-	ppc64_firmware_features = 0;
-	dn = of_find_node_by_path("/rtas");
-	if (dn == NULL) {
-		printk(KERN_ERR "WARNING ! Cannot find RTAS in device-tree !\n");
-		goto no_rtas;
-	}
-
-	hypertas = get_property(dn, "ibm,hypertas-functions", &len);
-	if (hypertas) {
-		while (len > 0){
-			int i, hypertas_len;
-			/* check value against table of strings */
-			for(i=0; i < FIRMWARE_MAX_FEATURES ;i++) {
-				if ((firmware_features_table[i].name) &&
-				    (strcmp(firmware_features_table[i].name,hypertas))==0) {
-					/* we have a match */
-					ppc64_firmware_features |= 
-						(firmware_features_table[i].val);
-					break;
-				} 
-			}
-			hypertas_len = strlen(hypertas);
-			len -= hypertas_len +1;
-			hypertas+= hypertas_len +1;
-		}
-	}
-
-	of_node_put(dn);
-no_rtas:
-
-	DBG(" <- fw_feature_init()\n");
-}
-
 
 static  void __init pSeries_discover_pic(void)
 {
@@ -367,21 +319,16 @@ static int pseries_set_xdabr(unsigned long dabr)
  */
 static void __init pSeries_init_early(void)
 {
-	int iommu_off = 0;
-
 	DBG(" -> pSeries_init_early()\n");
 
 	fw_feature_init();
 	
-	if (platform_is_lpar())
+	if (firmware_has_feature(FW_FEATURE_LPAR))
 		hpte_init_lpar();
-	else {
+	else
 		hpte_init_native();
-		iommu_off = (of_chosen &&
-			     get_property(of_chosen, "linux,iommu-off", NULL));
-	}
 
-	if (platform_is_lpar())
+	if (firmware_has_feature(FW_FEATURE_LPAR))
 		find_udbg_vterm();
 
 	if (firmware_has_feature(FW_FEATURE_DABR))
@@ -425,158 +372,128 @@ static int pSeries_check_legacy_ioport(unsigned int baseport)
 /*
  * Called very early, MMU is off, device-tree isn't unflattened
  */
-extern struct machdep_calls pSeries_md;
 
-static int __init pSeries_probe(int platform)
+static int __init pSeries_probe_hypertas(unsigned long node,
+					 const char *uname, int depth,
+					 void *data)
 {
-	if (platform != PLATFORM_PSERIES &&
-	    platform != PLATFORM_PSERIES_LPAR)
+	if (depth != 1 ||
+	    (strcmp(uname, "rtas") != 0 && strcmp(uname, "rtas@0") != 0))
+ 		return 0;
+
+	if (of_get_flat_dt_prop(node, "ibm,hypertas-functions", NULL) != NULL)
+ 		powerpc_firmware_features |= FW_FEATURE_LPAR;
+
+ 	return 1;
+}
+
+static int __init pSeries_probe(void)
+{
+ 	char *dtype = of_get_flat_dt_prop(of_get_flat_dt_root(),
+ 					  "device_type", NULL);
+ 	if (dtype == NULL)
+ 		return 0;
+ 	if (strcmp(dtype, "chrp"))
 		return 0;
 
-	/* if we have some ppc_md fixups for LPAR to do, do
-	 * it here ...
-	 */
+	DBG("pSeries detected, looking for LPAR capability...\n");
+
+	/* Now try to figure out if we are running on LPAR */
+	of_scan_flat_dt(pSeries_probe_hypertas, NULL);
+
+	DBG("Machine is%s LPAR !\n",
+	    (powerpc_firmware_features & FW_FEATURE_LPAR) ? "" : " not");
 
 	return 1;
 }
 
+
 DECLARE_PER_CPU(unsigned long, smt_snooze_delay);
 
-static inline void dedicated_idle_sleep(unsigned int cpu)
-{
-	struct lppaca *plppaca = &lppaca[cpu ^ 1];
-
-	/* Only sleep if the other thread is not idle */
-	if (!(plppaca->idle)) {
-		local_irq_disable();
-
-		/*
-		 * We are about to sleep the thread and so wont be polling any
-		 * more.
-		 */
-		clear_thread_flag(TIF_POLLING_NRFLAG);
-		smp_mb__after_clear_bit();
-
-		/*
-		 * SMT dynamic mode. Cede will result in this thread going
-		 * dormant, if the partner thread is still doing work.  Thread
-		 * wakes up if partner goes idle, an interrupt is presented, or
-		 * a prod occurs.  Returning from the cede enables external
-		 * interrupts.
-		 */
-		if (!need_resched())
-			cede_processor();
-		else
-			local_irq_enable();
-		set_thread_flag(TIF_POLLING_NRFLAG);
-	} else {
-		/*
-		 * Give the HV an opportunity at the processor, since we are
-		 * not doing any work.
-		 */
-		poll_pending();
-	}
-}
-
-static void pseries_dedicated_idle(void)
+static void pseries_dedicated_idle_sleep(void)
 { 
 	unsigned int cpu = smp_processor_id();
 	unsigned long start_snooze;
 	unsigned long *smt_snooze_delay = &__get_cpu_var(smt_snooze_delay);
-	set_thread_flag(TIF_POLLING_NRFLAG);
 
-	while (1) {
-		/*
-		 * Indicate to the HV that we are idle. Now would be
-		 * a good time to find other work to dispatch.
-		 */
-		get_lppaca()->idle = 1;
+	/*
+	 * Indicate to the HV that we are idle. Now would be
+	 * a good time to find other work to dispatch.
+	 */
+	get_lppaca()->idle = 1;
 
-		if (!need_resched()) {
-			start_snooze = get_tb() +
-				*smt_snooze_delay * tb_ticks_per_usec;
+	/*
+	 * We come in with interrupts disabled, and need_resched()
+	 * has been checked recently.  If we should poll for a little
+	 * while, do so.
+	 */
+	if (*smt_snooze_delay) {
+		start_snooze = get_tb() +
+			*smt_snooze_delay * tb_ticks_per_usec;
+		local_irq_enable();
+		set_thread_flag(TIF_POLLING_NRFLAG);
 
-			while (!need_resched() && !cpu_is_offline(cpu)) {
-				ppc64_runlatch_off();
-
-				/*
-				 * Go into low thread priority and possibly
-				 * low power mode.
-				 */
-				HMT_low();
-				HMT_very_low();
-
-				if (*smt_snooze_delay != 0 &&
-				    get_tb() > start_snooze) {
-					HMT_medium();
-					dedicated_idle_sleep(cpu);
-				}
-
-			}
-
-			HMT_medium();
+		while (get_tb() < start_snooze) {
+			if (need_resched() || cpu_is_offline(cpu))
+				goto out;
+			ppc64_runlatch_off();
+			HMT_low();
+			HMT_very_low();
 		}
 
-		get_lppaca()->idle = 0;
-		ppc64_runlatch_on();
-
-		preempt_enable_no_resched();
-		schedule();
-		preempt_disable();
-
-		if (cpu_is_offline(cpu) && system_state == SYSTEM_RUNNING)
-			cpu_die();
+		HMT_medium();
+		clear_thread_flag(TIF_POLLING_NRFLAG);
+		smp_mb();
+		local_irq_disable();
+		if (need_resched() || cpu_is_offline(cpu))
+			goto out;
 	}
+
+	/*
+	 * Cede if the other thread is not idle, so that it can
+	 * go single-threaded.  If the other thread is idle,
+	 * we ask the hypervisor if it has pending work it
+	 * wants to do and cede if it does.  Otherwise we keep
+	 * polling in order to reduce interrupt latency.
+	 *
+	 * Doing the cede when the other thread is active will
+	 * result in this thread going dormant, meaning the other
+	 * thread gets to run in single-threaded (ST) mode, which
+	 * is slightly faster than SMT mode with this thread at
+	 * very low priority.  The cede enables interrupts, which
+	 * doesn't matter here.
+	 */
+	if (!lppaca[cpu ^ 1].idle || poll_pending() == H_Pending)
+		cede_processor();
+
+out:
+	HMT_medium();
+	get_lppaca()->idle = 0;
 }
 
-static void pseries_shared_idle(void)
+static void pseries_shared_idle_sleep(void)
 {
-	unsigned int cpu = smp_processor_id();
+	/*
+	 * Indicate to the HV that we are idle. Now would be
+	 * a good time to find other work to dispatch.
+	 */
+	get_lppaca()->idle = 1;
 
-	while (1) {
-		/*
-		 * Indicate to the HV that we are idle. Now would be
-		 * a good time to find other work to dispatch.
-		 */
-		get_lppaca()->idle = 1;
+	/*
+	 * Yield the processor to the hypervisor.  We return if
+	 * an external interrupt occurs (which are driven prior
+	 * to returning here) or if a prod occurs from another
+	 * processor. When returning here, external interrupts
+	 * are enabled.
+	 */
+	cede_processor();
 
-		while (!need_resched() && !cpu_is_offline(cpu)) {
-			local_irq_disable();
-			ppc64_runlatch_off();
-
-			/*
-			 * Yield the processor to the hypervisor.  We return if
-			 * an external interrupt occurs (which are driven prior
-			 * to returning here) or if a prod occurs from another
-			 * processor. When returning here, external interrupts
-			 * are enabled.
-			 *
-			 * Check need_resched() again with interrupts disabled
-			 * to avoid a race.
-			 */
-			if (!need_resched())
-				cede_processor();
-			else
-				local_irq_enable();
-
-			HMT_medium();
-		}
-
-		get_lppaca()->idle = 0;
-		ppc64_runlatch_on();
-
-		preempt_enable_no_resched();
-		schedule();
-		preempt_disable();
-
-		if (cpu_is_offline(cpu) && system_state == SYSTEM_RUNNING)
-			cpu_die();
-	}
+	get_lppaca()->idle = 0;
 }
 
 static int pSeries_pci_probe_mode(struct pci_bus *bus)
 {
-	if (platform_is_lpar())
+	if (firmware_has_feature(FW_FEATURE_LPAR))
 		return PCI_PROBE_DEVTREE;
 	return PCI_PROBE_NORMAL;
 }
@@ -602,7 +519,8 @@ static void pseries_kexec_cpu_down(int crash_shutdown, int secondary)
 }
 #endif
 
-struct machdep_calls __initdata pSeries_md = {
+define_machine(pseries) {
+	.name			= "pSeries",
 	.probe			= pSeries_probe,
 	.setup_arch		= pSeries_setup_arch,
 	.init_early		= pSeries_init_early,

@@ -27,7 +27,7 @@ extern void enable_irq(unsigned int);
 
 /*
  * These correspond with the SA_TRIGGER_* defines, and therefore the
- * IRQRESOURCE_IRQ_* defines.
+ * IORESOURCE_IRQ_* defines.
  */
 #define __IRQT_RISEDGE	(1 << 0)
 #define __IRQT_FALEDGE	(1 << 1)

@@ -8,6 +8,10 @@
  *  Removed page pinning, fix privately mapped COW pages and other cleanups
  *  (C) Copyright 2003, 2004 Jamie Lokier
  *
+ *  Robust futex support started by Ingo Molnar
+ *  (C) Copyright 2006 Red Hat Inc, All Rights Reserved
+ *  Thanks to Thomas Gleixner for suggestions, analysis and fixes.
+ *
  *  Thanks to Ben LaHaise for yelling "hashed waitqueues" loudly
  *  enough at me, Linus for the original (flawed) idea, Matthew
  *  Kirkwood for proof-of-concept implementation.
@@ -827,6 +831,172 @@ error:
 	put_filp(filp);
 	ret = err;
 	goto out;
+}
+
+/*
+ * Support for robust futexes: the kernel cleans up held futexes at
+ * thread exit time.
+ *
+ * Implementation: user-space maintains a per-thread list of locks it
+ * is holding. Upon do_exit(), the kernel carefully walks this list,
+ * and marks all locks that are owned by this thread with the
+ * FUTEX_OWNER_DEAD bit, and wakes up a waiter (if any). The list is
+ * always manipulated with the lock held, so the list is private and
+ * per-thread. Userspace also maintains a per-thread 'list_op_pending'
+ * field, to allow the kernel to clean up if the thread dies after
+ * acquiring the lock, but just before it could have added itself to
+ * the list. There can only be one such pending lock.
+ */
+
+/**
+ * sys_set_robust_list - set the robust-futex list head of a task
+ * @head: pointer to the list-head
+ * @len: length of the list-head, as userspace expects
+ */
+asmlinkage long
+sys_set_robust_list(struct robust_list_head __user *head,
+		    size_t len)
+{
+	/*
+	 * The kernel knows only one size for now:
+	 */
+	if (unlikely(len != sizeof(*head)))
+		return -EINVAL;
+
+	current->robust_list = head;
+
+	return 0;
+}
+
+/**
+ * sys_get_robust_list - get the robust-futex list head of a task
+ * @pid: pid of the process [zero for current task]
+ * @head_ptr: pointer to a list-head pointer, the kernel fills it in
+ * @len_ptr: pointer to a length field, the kernel fills in the header size
+ */
+asmlinkage long
+sys_get_robust_list(int pid, struct robust_list_head __user **head_ptr,
+		    size_t __user *len_ptr)
+{
+	struct robust_list_head *head;
+	unsigned long ret;
+
+	if (!pid)
+		head = current->robust_list;
+	else {
+		struct task_struct *p;
+
+		ret = -ESRCH;
+		read_lock(&tasklist_lock);
+		p = find_task_by_pid(pid);
+		if (!p)
+			goto err_unlock;
+		ret = -EPERM;
+		if ((current->euid != p->euid) && (current->euid != p->uid) &&
+				!capable(CAP_SYS_PTRACE))
+			goto err_unlock;
+		head = p->robust_list;
+		read_unlock(&tasklist_lock);
+	}
+
+	if (put_user(sizeof(*head), len_ptr))
+		return -EFAULT;
+	return put_user(head, head_ptr);
+
+err_unlock:
+	read_unlock(&tasklist_lock);
+
+	return ret;
+}
+
+/*
+ * Process a futex-list entry, check whether it's owned by the
+ * dying task, and do notification if so:
+ */
+int handle_futex_death(u32 __user *uaddr, struct task_struct *curr)
+{
+	u32 uval;
+
+retry:
+	if (get_user(uval, uaddr))
+		return -1;
+
+	if ((uval & FUTEX_TID_MASK) == curr->pid) {
+		/*
+		 * Ok, this dying thread is truly holding a futex
+		 * of interest. Set the OWNER_DIED bit atomically
+		 * via cmpxchg, and if the value had FUTEX_WAITERS
+		 * set, wake up a waiter (if any). (We have to do a
+		 * futex_wake() even if OWNER_DIED is already set -
+		 * to handle the rare but possible case of recursive
+		 * thread-death.) The rest of the cleanup is done in
+		 * userspace.
+		 */
+		if (futex_atomic_cmpxchg_inatomic(uaddr, uval,
+					 uval | FUTEX_OWNER_DIED) != uval)
+			goto retry;
+
+		if (uval & FUTEX_WAITERS)
+			futex_wake((unsigned long)uaddr, 1);
+	}
+	return 0;
+}
+
+/*
+ * Walk curr->robust_list (very carefully, it's a userspace list!)
+ * and mark any locks found there dead, and notify any waiters.
+ *
+ * We silently return on any sign of list-walking problem.
+ */
+void exit_robust_list(struct task_struct *curr)
+{
+	struct robust_list_head __user *head = curr->robust_list;
+	struct robust_list __user *entry, *pending;
+	unsigned int limit = ROBUST_LIST_LIMIT;
+	unsigned long futex_offset;
+
+	/*
+	 * Fetch the list head (which was registered earlier, via
+	 * sys_set_robust_list()):
+	 */
+	if (get_user(entry, &head->list.next))
+		return;
+	/*
+	 * Fetch the relative futex offset:
+	 */
+	if (get_user(futex_offset, &head->futex_offset))
+		return;
+	/*
+	 * Fetch any possibly pending lock-add first, and handle it
+	 * if it exists:
+	 */
+	if (get_user(pending, &head->list_op_pending))
+		return;
+	if (pending)
+		handle_futex_death((void *)pending + futex_offset, curr);
+
+	while (entry != &head->list) {
+		/*
+		 * A pending lock might already be on the list, so
+		 * dont process it twice:
+		 */
+		if (entry != pending)
+			if (handle_futex_death((void *)entry + futex_offset,
+						curr))
+				return;
+		/*
+		 * Fetch the next entry in the list:
+		 */
+		if (get_user(entry, &entry->next))
+			return;
+		/*
+		 * Avoid excessively long or circular lists:
+		 */
+		if (!--limit)
+			break;
+
+		cond_resched();
+	}
 }
 
 long do_futex(unsigned long uaddr, int op, int val, unsigned long timeout,

@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/4xx/bubinga.h
- *
  * Bubinga board definitions
  *
  * Copyright (c) 2005 DENX Software Engineering

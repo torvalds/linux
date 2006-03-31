@@ -97,13 +97,13 @@ at which time hotplug is disabled.
 
 You really dont need to manipulate any of the system cpu maps. They should
 be read-only for most use. When setting up per-cpu resources almost always use
-cpu_possible_map/for_each_cpu() to iterate.
+cpu_possible_map/for_each_possible_cpu() to iterate.
 
 Never use anything other than cpumask_t to represent bitmap of CPUs.
 
 #include <linux/cpumask.h>
 
-for_each_cpu              - Iterate over cpu_possible_map
+for_each_possible_cpu     - Iterate over cpu_possible_map
 for_each_online_cpu       - Iterate over cpu_online_map
 for_each_present_cpu      - Iterate over cpu_present_map
 for_each_cpu_mask(x,mask) - Iterate over some random collection of cpu mask.

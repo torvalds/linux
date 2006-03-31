@@ -246,9 +246,9 @@ pci_get_subsys(unsigned int vendor, unsigned int device,
 	}
 	dev = NULL;
 exit:
-	pci_dev_put(from);
 	dev = pci_dev_get(dev);
 	spin_unlock(&pci_bus_lock);
+	pci_dev_put(from);
 	return dev;
 }
 
@@ -339,9 +339,9 @@ struct pci_dev *pci_get_class(unsigned int class, struct pci_dev *from)
 	}
 	dev = NULL;
 exit:
-	pci_dev_put(from);
 	dev = pci_dev_get(dev);
 	spin_unlock(&pci_bus_lock);
+	pci_dev_put(from);
 	return dev;
 }
 

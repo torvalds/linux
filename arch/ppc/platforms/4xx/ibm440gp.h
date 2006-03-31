@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/4xx/ibm440gp.h
- *
  * PPC440GP definitions
  *
  * Roland Dreier <roland@digitalvampire.org>

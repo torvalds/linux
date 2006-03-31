@@ -92,8 +92,6 @@ routing.txt
 	- the new routing mechanism
 shaper.txt
 	- info on the module that can shape/limit transmitted traffic.
-sis900.txt
-	- SiS 900/7016 Fast Ethernet device driver info.
 sk98lin.txt
 	- Marvell Yukon Chipset / SysKonnect SK-98xx compliant Gigabit
 	  Ethernet Adapter family driver info

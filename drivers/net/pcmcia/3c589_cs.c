@@ -39,6 +39,7 @@
 #include <linux/if_arp.h>
 #include <linux/ioport.h>
 #include <linux/bitops.h>
+#include <linux/jiffies.h>
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
@@ -115,7 +116,7 @@ struct el3_private {
     spinlock_t		lock;
 };
 
-static char *if_names[] = { "auto", "10baseT", "10base2", "AUI" };
+static const char *if_names[] = { "auto", "10baseT", "10base2", "AUI" };
 
 /*====================================================================*/
 
@@ -796,7 +797,7 @@ static void media_check(unsigned long arg)
     media = inw(ioaddr+WN4_MEDIA) & 0xc810;
 
     /* Ignore collisions unless we've had no irq's recently */
-    if (jiffies - lp->last_irq < HZ) {
+    if (time_before(jiffies, lp->last_irq + HZ)) {
 	media &= ~0x0010;
     } else {
 	/* Try harder to detect carrier errors */

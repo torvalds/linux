@@ -48,9 +48,8 @@
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 
-#include "bttv.h"
-#include <media/audiochip.h>
 #include <media/v4l2-common.h>
+#include <media/i2c-addr.h>
 
 #ifndef VIDEO_AUDIO_BALANCE
 # define VIDEO_AUDIO_BALANCE 32
@@ -71,7 +70,7 @@ module_param(maxvol, int, S_IRUGO | S_IWUSR);
 
 /* Address to scan (I2C address of this chip) */
 static unsigned short normal_i2c[] = {
-	I2C_TDA7432 >> 1,
+	I2C_ADDR_TDA7432 >> 1,
 	I2C_CLIENT_END,
 };
 I2C_CLIENT_INSMOD;

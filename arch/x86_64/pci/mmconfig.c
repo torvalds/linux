@@ -55,7 +55,7 @@ static char __iomem *get_virt(unsigned int seg, unsigned bus)
 static char __iomem *pci_dev_base(unsigned int seg, unsigned int bus, unsigned int devfn)
 {
 	char __iomem *addr;
-	if (seg == 0 && bus == 0 && test_bit(PCI_SLOT(devfn), &fallback_slots))
+	if (seg == 0 && bus == 0 && test_bit(PCI_SLOT(devfn), fallback_slots))
 		return NULL;
 	addr = get_virt(seg, bus);
 	if (!addr)
@@ -143,29 +143,29 @@ static __init void unreachable_devices(void)
 			continue;
 		addr = pci_dev_base(0, 0, PCI_DEVFN(i, 0));
 		if (addr == NULL|| readl(addr) != val1) {
-			set_bit(i, &fallback_slots);
+			set_bit(i, fallback_slots);
 		}
 	}
 }
 
-static int __init pci_mmcfg_init(void)
+void __init pci_mmcfg_init(void)
 {
 	int i;
 
 	if ((pci_probe & PCI_PROBE_MMCONF) == 0)
-		return 0;
+		return;
 
 	acpi_table_parse(ACPI_MCFG, acpi_parse_mcfg);
 	if ((pci_mmcfg_config_num == 0) ||
 	    (pci_mmcfg_config == NULL) ||
 	    (pci_mmcfg_config[0].base_address == 0))
-		return 0;
+		return;
 
 	/* RED-PEN i386 doesn't do _nocache right now */
 	pci_mmcfg_virt = kmalloc(sizeof(*pci_mmcfg_virt) * pci_mmcfg_config_num, GFP_KERNEL);
 	if (pci_mmcfg_virt == NULL) {
 		printk("PCI: Can not allocate memory for mmconfig structures\n");
-		return 0;
+		return;
 	}
 	for (i = 0; i < pci_mmcfg_config_num; ++i) {
 		pci_mmcfg_virt[i].cfg = &pci_mmcfg_config[i];
@@ -173,7 +173,7 @@ static int __init pci_mmcfg_init(void)
 		if (!pci_mmcfg_virt[i].virt) {
 			printk("PCI: Cannot map mmconfig aperture for segment %d\n",
 			       pci_mmcfg_config[i].pci_segment_group_number);
-			return 0;
+			return;
 		}
 		printk(KERN_INFO "PCI: Using MMCONFIG at %x\n", pci_mmcfg_config[i].base_address);
 	}
@@ -182,8 +182,4 @@ static int __init pci_mmcfg_init(void)
 
 	raw_pci_ops = &pci_mmcfg;
 	pci_probe = (pci_probe & ~PCI_PROBE_MASK) | PCI_PROBE_MMCONF;
-
-	return 0;
 }
-
-arch_initcall(pci_mmcfg_init);

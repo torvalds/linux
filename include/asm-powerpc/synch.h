@@ -15,7 +15,7 @@
 #endif
 
 #ifdef CONFIG_SMP
-#define ISYNC_ON_SMP	"\n\tisync"
+#define ISYNC_ON_SMP	"\n\tisync\n"
 #define LWSYNC_ON_SMP	__stringify(LWSYNC) "\n"
 #else
 #define ISYNC_ON_SMP

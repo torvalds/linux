@@ -246,7 +246,7 @@ static int acpi_processor_errata(struct acpi_processor *pr)
 }
 
 /* --------------------------------------------------------------------------
-                              Common ACPI processor fucntions
+                              Common ACPI processor functions
    -------------------------------------------------------------------------- */
 
 /*

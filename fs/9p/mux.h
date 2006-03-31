@@ -7,9 +7,8 @@
  *  Copyright (C) 2004 by Eric Van Hensbergen <ericvh@gmail.com>
  *
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ *  it under the terms of the GNU General Public License version 2
+ *  as published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -50,8 +49,6 @@ void v9fs_mux_destroy(struct v9fs_mux_data *);
 int v9fs_mux_send(struct v9fs_mux_data *m, struct v9fs_fcall *tc);
 struct v9fs_fcall *v9fs_mux_recv(struct v9fs_mux_data *m);
 int v9fs_mux_rpc(struct v9fs_mux_data *m, struct v9fs_fcall *tc, struct v9fs_fcall **rc);
-int v9fs_mux_rpcnb(struct v9fs_mux_data *m, struct v9fs_fcall *tc,
-	v9fs_mux_req_callback cb, void *a);
 
 void v9fs_mux_flush(struct v9fs_mux_data *m, int sendflush);
 void v9fs_mux_cancel(struct v9fs_mux_data *m, int err);

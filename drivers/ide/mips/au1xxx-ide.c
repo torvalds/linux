@@ -674,6 +674,11 @@ static int au_ide_probe(struct device *dev)
 		ret = -ENODEV;
 		goto out;
 	}
+	if (ahwif->irq < 0) {
+		pr_debug("%s %d: no IRQ\n", DRV_NAME, pdev->id);
+		ret = -ENODEV;
+		goto out;
+	}
 
 	if (!request_mem_region (res->start, res->end-res->start, pdev->name)) {
 		pr_debug("%s: request_mem_region failed\n", DRV_NAME);

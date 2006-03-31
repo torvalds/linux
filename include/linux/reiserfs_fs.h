@@ -1704,6 +1704,11 @@ static inline int reiserfs_transaction_running(struct super_block *s)
 	return 0;
 }
 
+static inline int reiserfs_transaction_free_space(struct reiserfs_transaction_handle *th)
+{
+	return th->t_blocks_allocated - th->t_blocks_logged;
+}
+
 int reiserfs_async_progress_wait(struct super_block *s);
 
 struct reiserfs_transaction_handle *reiserfs_persistent_transaction(struct
@@ -1955,7 +1960,7 @@ int reiserfs_global_version_in_proc(char *buffer, char **start, off_t offset,
 extern struct inode_operations reiserfs_dir_inode_operations;
 extern struct inode_operations reiserfs_symlink_inode_operations;
 extern struct inode_operations reiserfs_special_inode_operations;
-extern struct file_operations reiserfs_dir_operations;
+extern const struct file_operations reiserfs_dir_operations;
 
 /* tail_conversion.c */
 int direct2indirect(struct reiserfs_transaction_handle *, struct inode *,
@@ -1967,7 +1972,7 @@ void reiserfs_unmap_buffer(struct buffer_head *);
 
 /* file.c */
 extern struct inode_operations reiserfs_file_inode_operations;
-extern struct file_operations reiserfs_file_operations;
+extern const struct file_operations reiserfs_file_operations;
 extern struct address_space_operations reiserfs_address_space_operations;
 
 /* fix_nodes.c */

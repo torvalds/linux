@@ -37,6 +37,7 @@
 
 #include <linux/acpi.h>
 #include <linux/kobject.h>	/* for KOBJ_NAME_LEN */
+#include <linux/mutex.h>
 #include "pci_hotplug.h"
 
 #define dbg(format, arg...)					\
@@ -59,26 +60,10 @@ struct acpiphp_slot;
  * struct slot - slot information for each *physical* slot
  */
 struct slot {
-	u8 number;
 	struct hotplug_slot	*hotplug_slot;
-	struct list_head	slot_list;
-
 	struct acpiphp_slot	*acpi_slot;
 };
 
-/**
- * struct hpp_param - ACPI 2.0 _HPP Hot Plug Parameters
- * @cache_line_size in DWORD
- * @latency_timer in PCI clock
- * @enable_SERR 0 or 1
- * @enable_PERR 0 or 1
- */
-struct hpp_param {
-	u8 cache_line_size;
-	u8 latency_timer;
-	u8 enable_SERR;
-	u8 enable_PERR;
-};
 
 
 /**
@@ -102,7 +87,7 @@ struct acpiphp_bridge {
 	struct pci_dev *pci_dev;
 
 	/* ACPI 2.0 _HPP parameters */
-	struct hpp_param hpp;
+	struct hotplug_params hpp;
 
 	spinlock_t res_lock;
 };
@@ -118,9 +103,9 @@ struct acpiphp_slot {
 	struct acpiphp_bridge *bridge;	/* parent */
 	struct list_head funcs;		/* one slot may have different
 					   objects (i.e. for each function) */
-	struct semaphore crit_sect;
+	struct slot *slot;
+	struct mutex crit_sect;
 
-	u32		id;		/* slot id (serial #) for hotplug core */
 	u8		device;		/* pci device# */
 
 	u32		sun;		/* ACPI _SUN (slot unique number) */
@@ -160,6 +145,25 @@ struct acpiphp_attention_info
 	struct module *owner;
 };
 
+
+struct dependent_device {
+	struct list_head device_list;
+	struct list_head pci_list;
+	acpi_handle handle;
+	struct acpiphp_func *func;
+};
+
+
+struct acpiphp_dock_station {
+	acpi_handle handle;
+	u32 last_dock_time;
+	u32 flags;
+	struct acpiphp_func *dock_bridge;
+	struct list_head dependent_devices;
+	struct list_head pci_dependent_devices;
+};
+
+
 /* PCI bus bridge HID */
 #define ACPI_PCI_HOST_HID		"PNP0A03"
 
@@ -197,19 +201,27 @@ struct acpiphp_attention_info
 #define FUNC_HAS_PS1		(0x00000020)
 #define FUNC_HAS_PS2		(0x00000040)
 #define FUNC_HAS_PS3		(0x00000080)
+#define FUNC_HAS_DCK            (0x00000100)
+#define FUNC_IS_DD              (0x00000200)
+
+/* dock station flags */
+#define DOCK_DOCKING            (0x00000001)
+#define DOCK_HAS_BRIDGE         (0x00000002)
 
 /* function prototypes */
 
 /* acpiphp_core.c */
 extern int acpiphp_register_attention(struct acpiphp_attention_info*info);
 extern int acpiphp_unregister_attention(struct acpiphp_attention_info *info);
+extern int acpiphp_register_hotplug_slot(struct acpiphp_slot *slot);
+extern void acpiphp_unregister_hotplug_slot(struct acpiphp_slot *slot);
 
 /* acpiphp_glue.c */
 extern int acpiphp_glue_init (void);
 extern void acpiphp_glue_exit (void);
 extern int acpiphp_get_num_slots (void);
-extern struct acpiphp_slot *get_slot_from_id (int id);
 typedef int (*acpiphp_callback)(struct acpiphp_slot *slot, void *data);
+void handle_hotplug_event_func(acpi_handle, u32, void*);
 
 extern int acpiphp_enable_slot (struct acpiphp_slot *slot);
 extern int acpiphp_disable_slot (struct acpiphp_slot *slot);
@@ -218,6 +230,16 @@ extern u8 acpiphp_get_attention_status (struct acpiphp_slot *slot);
 extern u8 acpiphp_get_latch_status (struct acpiphp_slot *slot);
 extern u8 acpiphp_get_adapter_status (struct acpiphp_slot *slot);
 extern u32 acpiphp_get_address (struct acpiphp_slot *slot);
+
+/* acpiphp_dock.c */
+extern int find_dock_station(void);
+extern void remove_dock_station(void);
+extern void add_dependent_device(struct dependent_device *new_dd);
+extern void add_pci_dependent_device(struct dependent_device *new_dd);
+extern struct dependent_device *get_dependent_device(acpi_handle handle);
+extern int is_dependent_device(acpi_handle handle);
+extern int detect_dependent_devices(acpi_handle *bridge_handle);
+extern struct dependent_device *alloc_dependent_device(acpi_handle handle);
 
 /* variables */
 extern int acpiphp_debug;

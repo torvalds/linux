@@ -1,6 +1,4 @@
 /*
- *  linux/arch/ppc64/mm/mmap.c
- *
  *  flexible mmap layout support
  *
  * Copyright 2003-2004 Red Hat Inc., Durham, North Carolina.

@@ -239,6 +239,8 @@ static void dlm_remove_nonlocal_locks(struct dlm_ctxt *dlm,
 static int dlm_mark_lockres_migrating(struct dlm_ctxt *dlm,
 				       struct dlm_lock_resource *res,
 				       u8 target);
+static int dlm_pre_master_reco_lockres(struct dlm_ctxt *dlm,
+				       struct dlm_lock_resource *res);
 
 
 int dlm_is_host_down(int errno)
@@ -677,6 +679,7 @@ struct dlm_lock_resource * dlm_get_lock_resource(struct dlm_ctxt *dlm,
 	struct dlm_node_iter iter;
 	unsigned int namelen;
 	int tries = 0;
+	int bit, wait_on_recovery = 0;
 
 	BUG_ON(!lockid);
 
@@ -762,6 +765,18 @@ lookup:
 		dlm_init_mle(mle, DLM_MLE_MASTER, dlm, res, NULL, 0);
 		set_bit(dlm->node_num, mle->maybe_map);
 		list_add(&mle->list, &dlm->master_list);
+
+		/* still holding the dlm spinlock, check the recovery map
+		 * to see if there are any nodes that still need to be 
+		 * considered.  these will not appear in the mle nodemap
+		 * but they might own this lockres.  wait on them. */
+		bit = find_next_bit(dlm->recovery_map, O2NM_MAX_NODES, 0);
+		if (bit < O2NM_MAX_NODES) {
+			mlog(ML_NOTICE, "%s:%.*s: at least one node (%d) to"
+			     "recover before lock mastery can begin\n",
+			     dlm->name, namelen, (char *)lockid, bit);
+			wait_on_recovery = 1;
+		}
 	}
 
 	/* at this point there is either a DLM_MLE_BLOCK or a
@@ -779,6 +794,39 @@ lookup:
 	spin_unlock(&dlm->master_lock);
 	spin_unlock(&dlm->spinlock);
 
+	while (wait_on_recovery) {
+		/* any cluster changes that occurred after dropping the
+		 * dlm spinlock would be detectable be a change on the mle,
+		 * so we only need to clear out the recovery map once. */
+		if (dlm_is_recovery_lock(lockid, namelen)) {
+			mlog(ML_NOTICE, "%s: recovery map is not empty, but "
+			     "must master $RECOVERY lock now\n", dlm->name);
+			if (!dlm_pre_master_reco_lockres(dlm, res))
+				wait_on_recovery = 0;
+			else {
+				mlog(0, "%s: waiting 500ms for heartbeat state "
+				    "change\n", dlm->name);
+				msleep(500);
+			}
+			continue;
+		} 
+
+		dlm_kick_recovery_thread(dlm);
+		msleep(100);
+		dlm_wait_for_recovery(dlm);
+
+		spin_lock(&dlm->spinlock);
+		bit = find_next_bit(dlm->recovery_map, O2NM_MAX_NODES, 0);
+		if (bit < O2NM_MAX_NODES) {
+			mlog(ML_NOTICE, "%s:%.*s: at least one node (%d) to"
+			     "recover before lock mastery can begin\n",
+			     dlm->name, namelen, (char *)lockid, bit);
+			wait_on_recovery = 1;
+		} else
+			wait_on_recovery = 0;
+		spin_unlock(&dlm->spinlock);
+	}
+
 	/* must wait for lock to be mastered elsewhere */
 	if (blocked)
 		goto wait;
@@ -792,7 +840,15 @@ redo_request:
 			mlog_errno(ret);
 		if (mle->master != O2NM_MAX_NODES) {
 			/* found a master ! */
-			break;
+			if (mle->master <= nodenum)
+				break;
+			/* if our master request has not reached the master
+			 * yet, keep going until it does.  this is how the
+			 * master will know that asserts are needed back to
+			 * the lower nodes. */
+			mlog(0, "%s:%.*s: requests only up to %u but master "
+			     "is %u, keep going\n", dlm->name, namelen,
+			     lockid, nodenum, mle->master);
 		}
 	}
 
@@ -860,7 +916,19 @@ recheck:
 	/* check if another node has already become the owner */
 	spin_lock(&res->spinlock);
 	if (res->owner != DLM_LOCK_RES_OWNER_UNKNOWN) {
+		mlog(0, "%s:%.*s: owner is suddenly %u\n", dlm->name,
+		     res->lockname.len, res->lockname.name, res->owner);
 		spin_unlock(&res->spinlock);
+		/* this will cause the master to re-assert across
+		 * the whole cluster, freeing up mles */
+		ret = dlm_do_master_request(mle, res->owner);
+		if (ret < 0) {
+			/* give recovery a chance to run */
+			mlog(ML_ERROR, "link to %u went down?: %d\n", res->owner, ret);
+			msleep(500);
+			goto recheck;
+		}
+		ret = 0;
 		goto leave;
 	}
 	spin_unlock(&res->spinlock);
@@ -1244,13 +1312,14 @@ int dlm_master_request_handler(struct o2net_msg *msg, u32 len, void *data)
 {
 	u8 response = DLM_MASTER_RESP_MAYBE;
 	struct dlm_ctxt *dlm = data;
-	struct dlm_lock_resource *res;
+	struct dlm_lock_resource *res = NULL;
 	struct dlm_master_request *request = (struct dlm_master_request *) msg->buf;
 	struct dlm_master_list_entry *mle = NULL, *tmpmle = NULL;
 	char *name;
 	unsigned int namelen;
 	int found, ret;
 	int set_maybe;
+	int dispatch_assert = 0;
 
 	if (!dlm_grab(dlm))
 		return DLM_MASTER_RESP_NO;
@@ -1287,7 +1356,6 @@ way_up_top:
 		}
 
 		if (res->owner == dlm->node_num) {
-			u32 flags = DLM_ASSERT_MASTER_MLE_CLEANUP;
 			spin_unlock(&res->spinlock);
 			// mlog(0, "this node is the master\n");
 			response = DLM_MASTER_RESP_YES;
@@ -1300,16 +1368,7 @@ way_up_top:
 			 * caused all nodes up to this one to
 			 * create mles.  this node now needs to
 			 * go back and clean those up. */
-			mlog(0, "%u is the owner of %.*s, cleaning everyone else\n",
-			     dlm->node_num, res->lockname.len, res->lockname.name);
-			ret = dlm_dispatch_assert_master(dlm, res, 1,
-							 request->node_idx,
-							 flags);
-			if (ret < 0) {
-				mlog(ML_ERROR, "failed to dispatch assert "
-				     "master work\n");
-				response = DLM_MASTER_RESP_ERROR;
-			}
+			dispatch_assert = 1;
 			goto send_response;
 		} else if (res->owner != DLM_LOCK_RES_OWNER_UNKNOWN) {
 			spin_unlock(&res->spinlock);
@@ -1357,9 +1416,13 @@ way_up_top:
 			}
 		} else if (tmpmle->master != DLM_LOCK_RES_OWNER_UNKNOWN) {
 			set_maybe = 0;
-			if (tmpmle->master == dlm->node_num)
+			if (tmpmle->master == dlm->node_num) {
 				response = DLM_MASTER_RESP_YES;
-			else
+				/* this node will be the owner.
+				 * go back and clean the mles on any
+				 * other nodes */
+				dispatch_assert = 1;
+			} else
 				response = DLM_MASTER_RESP_NO;
 		} else {
 			// mlog(0, "this node is attempting to "
@@ -1398,8 +1461,8 @@ way_up_top:
 			mle = (struct dlm_master_list_entry *)
 				kmem_cache_alloc(dlm_mle_cache, GFP_KERNEL);
 			if (!mle) {
-				// bad bad bad... this sucks.
 				response = DLM_MASTER_RESP_ERROR;
+				mlog_errno(-ENOMEM);
 				goto send_response;
 			}
 			spin_lock(&dlm->spinlock);
@@ -1418,25 +1481,19 @@ way_up_top:
 		// mlog(0, "mle was found\n");
 		set_maybe = 1;
 		spin_lock(&tmpmle->spinlock);
+		if (tmpmle->master == dlm->node_num) {
+			mlog(ML_ERROR, "no lockres, but an mle with this node as master!\n");
+			BUG();
+		}
 		if (tmpmle->type == DLM_MLE_BLOCK)
 			response = DLM_MASTER_RESP_NO;
 		else if (tmpmle->type == DLM_MLE_MIGRATION) {
 			mlog(0, "migration mle was found (%u->%u)\n",
 			     tmpmle->master, tmpmle->new_master);
-			if (tmpmle->master == dlm->node_num) {
-				mlog(ML_ERROR, "no lockres, but migration mle "
-				     "says that this node is master!\n");
-				BUG();
-			}
 			/* real master can respond on its own */
 			response = DLM_MASTER_RESP_NO;
-		} else {
-			if (tmpmle->master == dlm->node_num) {
-				response = DLM_MASTER_RESP_YES;
-				set_maybe = 0;
-			} else
-				response = DLM_MASTER_RESP_MAYBE;
-		}
+		} else
+			response = DLM_MASTER_RESP_MAYBE;
 		if (set_maybe)
 			set_bit(request->node_idx, tmpmle->maybe_map);
 		spin_unlock(&tmpmle->spinlock);
@@ -1449,6 +1506,24 @@ way_up_top:
 		dlm_put_mle(tmpmle);
 	}
 send_response:
+
+	if (dispatch_assert) {
+		if (response != DLM_MASTER_RESP_YES)
+			mlog(ML_ERROR, "invalid response %d\n", response);
+		if (!res) {
+			mlog(ML_ERROR, "bad lockres while trying to assert!\n");
+			BUG();
+		}
+		mlog(0, "%u is the owner of %.*s, cleaning everyone else\n",
+			     dlm->node_num, res->lockname.len, res->lockname.name);
+		ret = dlm_dispatch_assert_master(dlm, res, 0, request->node_idx, 
+						 DLM_ASSERT_MASTER_MLE_CLEANUP);
+		if (ret < 0) {
+			mlog(ML_ERROR, "failed to dispatch assert master work\n");
+			response = DLM_MASTER_RESP_ERROR;
+		}
+	}
+
 	dlm_put(dlm);
 	return response;
 }
@@ -1471,8 +1546,11 @@ static int dlm_do_assert_master(struct dlm_ctxt *dlm, const char *lockname,
 	int to, tmpret;
 	struct dlm_node_iter iter;
 	int ret = 0;
+	int reassert;
 
 	BUG_ON(namelen > O2NM_MAX_NAME_LEN);
+again:
+	reassert = 0;
 
 	/* note that if this nodemap is empty, it returns 0 */
 	dlm_node_iter_init(nodemap, &iter);
@@ -1504,8 +1582,16 @@ static int dlm_do_assert_master(struct dlm_ctxt *dlm, const char *lockname,
 			     "got %d.\n", namelen, lockname, to, r);
 			dlm_dump_lock_resources(dlm);
 			BUG();
+		} else if (r == EAGAIN) {
+			mlog(0, "%.*s: node %u create mles on other "
+			     "nodes and requests a re-assert\n", 
+			     namelen, lockname, to);
+			reassert = 1;
 		}
 	}
+
+	if (reassert)
+		goto again;
 
 	return ret;
 }
@@ -1528,6 +1614,8 @@ int dlm_assert_master_handler(struct o2net_msg *msg, u32 len, void *data)
 	char *name;
 	unsigned int namelen;
 	u32 flags;
+	int master_request = 0;
+	int ret = 0;
 
 	if (!dlm_grab(dlm))
 		return 0;
@@ -1642,11 +1730,22 @@ ok:
 	// mlog(0, "woo!  got an assert_master from node %u!\n",
 	// 	     assert->node_idx);
 	if (mle) {
-		int extra_ref;
+		int extra_ref = 0;
+		int nn = -1;
 		
 		spin_lock(&mle->spinlock);
-		extra_ref = !!(mle->type == DLM_MLE_BLOCK
-			       || mle->type == DLM_MLE_MIGRATION);
+		if (mle->type == DLM_MLE_BLOCK || mle->type == DLM_MLE_MIGRATION)
+			extra_ref = 1;
+		else {
+			/* MASTER mle: if any bits set in the response map
+			 * then the calling node needs to re-assert to clear
+			 * up nodes that this node contacted */
+			while ((nn = find_next_bit (mle->response_map, O2NM_MAX_NODES, 
+						    nn+1)) < O2NM_MAX_NODES) {
+				if (nn != dlm->node_num && nn != assert->node_idx)
+					master_request = 1;
+			}
+		}
 		mle->master = assert->node_idx;
 		atomic_set(&mle->woken, 1);
 		wake_up(&mle->wq);
@@ -1677,10 +1776,15 @@ ok:
 	}
 
 done:
+	ret = 0;
 	if (res)
 		dlm_lockres_put(res);
 	dlm_put(dlm);
-	return 0;
+	if (master_request) {
+		mlog(0, "need to tell master to reassert\n");
+		ret = EAGAIN;  // positive. negative would shoot down the node.
+	}
+	return ret;
 
 kill:
 	/* kill the caller! */
@@ -1713,6 +1817,10 @@ int dlm_dispatch_assert_master(struct dlm_ctxt *dlm,
 	item->u.am.request_from = request_from;
 	item->u.am.flags = flags;
 
+	if (ignore_higher) 
+		mlog(0, "IGNORE HIGHER: %.*s\n", res->lockname.len, 
+		     res->lockname.name);
+		
 	spin_lock(&dlm->work_lock);
 	list_add_tail(&item->list, &dlm->work_list);
 	spin_unlock(&dlm->work_lock);
@@ -1773,6 +1881,61 @@ static void dlm_assert_master_worker(struct dlm_work_item *item, void *data)
 	dlm_lockres_put(res);
 
 	mlog(0, "finished with dlm_assert_master_worker\n");
+}
+
+/* SPECIAL CASE for the $RECOVERY lock used by the recovery thread.
+ * We cannot wait for node recovery to complete to begin mastering this
+ * lockres because this lockres is used to kick off recovery! ;-)
+ * So, do a pre-check on all living nodes to see if any of those nodes
+ * think that $RECOVERY is currently mastered by a dead node.  If so,
+ * we wait a short time to allow that node to get notified by its own
+ * heartbeat stack, then check again.  All $RECOVERY lock resources
+ * mastered by dead nodes are purged when the hearbeat callback is 
+ * fired, so we can know for sure that it is safe to continue once
+ * the node returns a live node or no node.  */
+static int dlm_pre_master_reco_lockres(struct dlm_ctxt *dlm,
+				       struct dlm_lock_resource *res)
+{
+	struct dlm_node_iter iter;
+	int nodenum;
+	int ret = 0;
+	u8 master = DLM_LOCK_RES_OWNER_UNKNOWN;
+
+	spin_lock(&dlm->spinlock);
+	dlm_node_iter_init(dlm->domain_map, &iter);
+	spin_unlock(&dlm->spinlock);
+
+	while ((nodenum = dlm_node_iter_next(&iter)) >= 0) {
+		/* do not send to self */
+		if (nodenum == dlm->node_num)
+			continue;
+		ret = dlm_do_master_requery(dlm, res, nodenum, &master);
+		if (ret < 0) {
+			mlog_errno(ret);
+			if (!dlm_is_host_down(ret))
+				BUG();
+			/* host is down, so answer for that node would be
+			 * DLM_LOCK_RES_OWNER_UNKNOWN.  continue. */
+		}
+
+		if (master != DLM_LOCK_RES_OWNER_UNKNOWN) {
+			/* check to see if this master is in the recovery map */
+			spin_lock(&dlm->spinlock);
+			if (test_bit(master, dlm->recovery_map)) {
+				mlog(ML_NOTICE, "%s: node %u has not seen "
+				     "node %u go down yet, and thinks the "
+				     "dead node is mastering the recovery "
+				     "lock.  must wait.\n", dlm->name,
+				     nodenum, master);
+				ret = -EAGAIN;
+			}
+			spin_unlock(&dlm->spinlock);
+			mlog(0, "%s: reco lock master is %u\n", dlm->name, 
+			     master);
+			break;
+		}
+	}
+	return ret;
 }
 
 

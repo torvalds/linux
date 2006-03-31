@@ -284,19 +284,24 @@ acpi_parse_plat_int_src(acpi_table_entry_header * header,
 	return 0;
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
 unsigned int can_cpei_retarget(void)
 {
 	extern int cpe_vector;
+	extern unsigned int force_cpei_retarget;
 
 	/*
 	 * Only if CPEI is supported and the override flag
 	 * is present, otherwise return that its re-targettable
 	 * if we are in polling mode.
 	 */
-	if (cpe_vector > 0 && !acpi_cpei_override)
-		return 0;
-	else
-		return 1;
+	if (cpe_vector > 0) {
+		if (acpi_cpei_override || force_cpei_retarget)
+			return 1;
+		else
+			return 0;
+	}
+	return 1;
 }
 
 unsigned int is_cpu_cpei_target(unsigned int cpu)
@@ -315,6 +320,7 @@ void set_cpei_target_cpu(unsigned int cpu)
 {
 	acpi_cpei_phys_cpuid = cpu_physical_id(cpu);
 }
+#endif
 
 unsigned int get_cpei_target_cpu(void)
 {
@@ -414,6 +420,26 @@ int __devinitdata pxm_to_nid_map[MAX_PXM_DOMAINS];
 int __initdata nid_to_pxm_map[MAX_NUMNODES];
 static struct acpi_table_slit __initdata *slit_table;
 
+static int get_processor_proximity_domain(struct acpi_table_processor_affinity *pa)
+{
+	int pxm;
+
+	pxm = pa->proximity_domain;
+	if (ia64_platform_is("sn2"))
+		pxm += pa->reserved[0] << 8;
+	return pxm;
+}
+
+static int get_memory_proximity_domain(struct acpi_table_memory_affinity *ma)
+{
+	int pxm;
+
+	pxm = ma->proximity_domain;
+	if (ia64_platform_is("sn2"))
+		pxm += ma->reserved1[0] << 8;
+	return pxm;
+}
+
 /*
  * ACPI 2.0 SLIT (System Locality Information Table)
  * http://devresource.hp.com/devresource/Docs/TechPapers/IA64/slit.pdf
@@ -437,13 +463,20 @@ void __init acpi_numa_slit_init(struct acpi_table_slit *slit)
 void __init
 acpi_numa_processor_affinity_init(struct acpi_table_processor_affinity *pa)
 {
+	int pxm;
+
+	if (!pa->flags.enabled)
+		return;
+
+	pxm = get_processor_proximity_domain(pa);
+
 	/* record this node in proximity bitmap */
-	pxm_bit_set(pa->proximity_domain);
+	pxm_bit_set(pxm);
 
 	node_cpuid[srat_num_cpus].phys_id =
 	    (pa->apic_id << 8) | (pa->lsapic_eid);
 	/* nid should be overridden as logical node id later */
-	node_cpuid[srat_num_cpus].nid = pa->proximity_domain;
+	node_cpuid[srat_num_cpus].nid = pxm;
 	srat_num_cpus++;
 }
 
@@ -451,10 +484,10 @@ void __init
 acpi_numa_memory_affinity_init(struct acpi_table_memory_affinity *ma)
 {
 	unsigned long paddr, size;
-	u8 pxm;
+	int pxm;
 	struct node_memblk_s *p, *q, *pend;
 
-	pxm = ma->proximity_domain;
+	pxm = get_memory_proximity_domain(ma);
 
 	/* fill node memory chunk structure */
 	paddr = ma->base_addr_hi;
@@ -618,9 +651,9 @@ unsigned long __init acpi_find_rsdp(void)
 {
 	unsigned long rsdp_phys = 0;
 
-	if (efi.acpi20)
-		rsdp_phys = __pa(efi.acpi20);
-	else if (efi.acpi)
+	if (efi.acpi20 != EFI_INVALID_TABLE_ADDR)
+		rsdp_phys = efi.acpi20;
+	else if (efi.acpi != EFI_INVALID_TABLE_ADDR)
 		printk(KERN_WARNING PREFIX
 		       "v1.0/r0.71 tables no longer supported\n");
 	return rsdp_phys;

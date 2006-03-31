@@ -1382,7 +1382,7 @@ static struct in_device * ip_mc_find_dev(struct ip_mreqn *imr)
 		dev = ip_dev_find(imr->imr_address.s_addr);
 		if (!dev)
 			return NULL;
-		__dev_put(dev);
+		dev_put(dev);
 	}
 
 	if (!dev && !ip_route_output_key(&rt, &fl)) {
@@ -1730,7 +1730,7 @@ int ip_mc_join_group(struct sock *sk , struct ip_mreqn *imr)
 	if (!MULTICAST(addr))
 		return -EINVAL;
 
-	rtnl_shlock();
+	rtnl_lock();
 
 	in_dev = ip_mc_find_dev(imr);
 
@@ -1763,7 +1763,7 @@ int ip_mc_join_group(struct sock *sk , struct ip_mreqn *imr)
 	ip_mc_inc_group(in_dev, addr);
 	err = 0;
 done:
-	rtnl_shunlock();
+	rtnl_unlock();
 	return err;
 }
 
@@ -1837,7 +1837,7 @@ int ip_mc_source(int add, int omode, struct sock *sk, struct
 	if (!MULTICAST(addr))
 		return -EINVAL;
 
-	rtnl_shlock();
+	rtnl_lock();
 
 	imr.imr_multiaddr.s_addr = mreqs->imr_multiaddr;
 	imr.imr_address.s_addr = mreqs->imr_interface;
@@ -1947,7 +1947,7 @@ int ip_mc_source(int add, int omode, struct sock *sk, struct
 	ip_mc_add_src(in_dev, &mreqs->imr_multiaddr, omode, 1, 
 		&mreqs->imr_sourceaddr, 1);
 done:
-	rtnl_shunlock();
+	rtnl_unlock();
 	if (leavegroup)
 		return ip_mc_leave_group(sk, &imr);
 	return err;
@@ -1970,7 +1970,7 @@ int ip_mc_msfilter(struct sock *sk, struct ip_msfilter *msf, int ifindex)
 	    msf->imsf_fmode != MCAST_EXCLUDE)
 		return -EINVAL;
 
-	rtnl_shlock();
+	rtnl_lock();
 
 	imr.imr_multiaddr.s_addr = msf->imsf_multiaddr;
 	imr.imr_address.s_addr = msf->imsf_interface;
@@ -2030,7 +2030,7 @@ int ip_mc_msfilter(struct sock *sk, struct ip_msfilter *msf, int ifindex)
 	pmc->sfmode = msf->imsf_fmode;
 	err = 0;
 done:
-	rtnl_shunlock();
+	rtnl_unlock();
 	if (leavegroup)
 		err = ip_mc_leave_group(sk, &imr);
 	return err;
@@ -2050,7 +2050,7 @@ int ip_mc_msfget(struct sock *sk, struct ip_msfilter *msf,
 	if (!MULTICAST(addr))
 		return -EINVAL;
 
-	rtnl_shlock();
+	rtnl_lock();
 
 	imr.imr_multiaddr.s_addr = msf->imsf_multiaddr;
 	imr.imr_address.s_addr = msf->imsf_interface;
@@ -2072,7 +2072,7 @@ int ip_mc_msfget(struct sock *sk, struct ip_msfilter *msf,
 		goto done;
 	msf->imsf_fmode = pmc->sfmode;
 	psl = pmc->sflist;
-	rtnl_shunlock();
+	rtnl_unlock();
 	if (!psl) {
 		len = 0;
 		count = 0;
@@ -2091,7 +2091,7 @@ int ip_mc_msfget(struct sock *sk, struct ip_msfilter *msf,
 		return -EFAULT;
 	return 0;
 done:
-	rtnl_shunlock();
+	rtnl_unlock();
 	return err;
 }
 
@@ -2112,7 +2112,7 @@ int ip_mc_gsfget(struct sock *sk, struct group_filter *gsf,
 	if (!MULTICAST(addr))
 		return -EINVAL;
 
-	rtnl_shlock();
+	rtnl_lock();
 
 	err = -EADDRNOTAVAIL;
 
@@ -2125,7 +2125,7 @@ int ip_mc_gsfget(struct sock *sk, struct group_filter *gsf,
 		goto done;
 	gsf->gf_fmode = pmc->sfmode;
 	psl = pmc->sflist;
-	rtnl_shunlock();
+	rtnl_unlock();
 	count = psl ? psl->sl_count : 0;
 	copycount = count < gsf->gf_numsrc ? count : gsf->gf_numsrc;
 	gsf->gf_numsrc = count;
@@ -2146,7 +2146,7 @@ int ip_mc_gsfget(struct sock *sk, struct group_filter *gsf,
 	}
 	return 0;
 done:
-	rtnl_shunlock();
+	rtnl_unlock();
 	return err;
 }
 

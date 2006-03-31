@@ -307,7 +307,7 @@ static int prism2_pci_probe(struct pci_dev *pdev,
 	memset(hw_priv, 0, sizeof(*hw_priv));
 
 	if (pci_enable_device(pdev))
-		return -EIO;
+		goto err_out_free;
 
 	phymem = pci_resource_start(pdev, 0);
 
@@ -368,6 +368,8 @@ static int prism2_pci_probe(struct pci_dev *pdev,
  err_out_disable:
 	pci_disable_device(pdev);
 	prism2_free_local_data(dev);
+
+ err_out_free:
 	kfree(hw_priv);
 
 	return -ENODEV;

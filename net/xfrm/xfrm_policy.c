@@ -26,8 +26,8 @@
 #include <net/xfrm.h>
 #include <net/ip.h>
 
-DECLARE_MUTEX(xfrm_cfg_sem);
-EXPORT_SYMBOL(xfrm_cfg_sem);
+DEFINE_MUTEX(xfrm_cfg_mutex);
+EXPORT_SYMBOL(xfrm_cfg_mutex);
 
 static DEFINE_RWLOCK(xfrm_policy_lock);
 
@@ -203,7 +203,7 @@ static void xfrm_policy_timer(unsigned long data)
 	}
 
 	if (warn)
-		km_policy_expired(xp, dir, 0);
+		km_policy_expired(xp, dir, 0, 0);
 	if (next != LONG_MAX &&
 	    !mod_timer(&xp->timer, jiffies + make_jiffies(next)))
 		xfrm_pol_hold(xp);
@@ -216,7 +216,7 @@ out:
 expired:
 	read_unlock(&xp->lock);
 	if (!xfrm_policy_delete(xp, dir))
-		km_policy_expired(xp, dir, 1);
+		km_policy_expired(xp, dir, 1, 0);
 	xfrm_pol_put(xp);
 }
 
@@ -621,6 +621,7 @@ int xfrm_policy_delete(struct xfrm_policy *pol, int dir)
 	}
 	return -ENOENT;
 }
+EXPORT_SYMBOL(xfrm_policy_delete);
 
 int xfrm_sk_policy_insert(struct sock *sk, int dir, struct xfrm_policy *pol)
 {

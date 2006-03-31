@@ -40,6 +40,7 @@ static int
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
+      const struct xt_match *match,
       const void *matchinfo,
       int offset,
       unsigned int protoff,
@@ -72,49 +73,39 @@ match(const struct sk_buff *skb,
 static int
 checkentry(const char *tablename,
 	   const void *ip_void,
+	   const struct xt_match *match,
 	   void *matchinfo,
 	   unsigned int matchinfosize,
 	   unsigned int hook_mask)
 {
 	const struct ipt_esp *espinfo = matchinfo;
-	const struct ipt_ip *ip = ip_void;
 
-	/* Must specify proto == ESP, and no unknown invflags */
-	if (ip->proto != IPPROTO_ESP || (ip->invflags & IPT_INV_PROTO)) {
-		duprintf("ipt_esp: Protocol %u != %u\n", ip->proto,
-			 IPPROTO_ESP);
-		return 0;
-	}
-	if (matchinfosize != IPT_ALIGN(sizeof(struct ipt_esp))) {
-		duprintf("ipt_esp: matchsize %u != %u\n",
-			 matchinfosize, IPT_ALIGN(sizeof(struct ipt_esp)));
-		return 0;
-	}
+	/* Must specify no unknown invflags */
 	if (espinfo->invflags & ~IPT_ESP_INV_MASK) {
-		duprintf("ipt_esp: unknown flags %X\n",
-			 espinfo->invflags);
+		duprintf("ipt_esp: unknown flags %X\n", espinfo->invflags);
 		return 0;
 	}
-
 	return 1;
 }
 
 static struct ipt_match esp_match = {
 	.name		= "esp",
-	.match		= &match,
-	.checkentry	= &checkentry,
+	.match		= match,
+	.matchsize	= sizeof(struct ipt_esp),
+	.proto		= IPPROTO_ESP,
+	.checkentry	= checkentry,
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init ipt_esp_init(void)
 {
 	return ipt_register_match(&esp_match);
 }
 
-static void __exit cleanup(void)
+static void __exit ipt_esp_fini(void)
 {
 	ipt_unregister_match(&esp_match);
 }
 
-module_init(init);
-module_exit(cleanup);
+module_init(ipt_esp_init);
+module_exit(ipt_esp_fini);

@@ -11,6 +11,10 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
+ * 2006-01-26 Harald Welte <laforge@netfilter.org>
+ * 	- Add optional local and global sequence number to detect lost
+ * 	  events from userspace
+ *
  */
 #include <linux/module.h>
 #include <linux/skbuff.h>
@@ -68,11 +72,14 @@ struct nfulnl_instance {
 	unsigned int nlbufsiz;		/* netlink buffer allocation size */
 	unsigned int qthreshold;	/* threshold of the queue */
 	u_int32_t copy_range;
+	u_int32_t seq;			/* instance-local sequential counter */
 	u_int16_t group_num;		/* number of this queue */
+	u_int16_t flags;
 	u_int8_t copy_mode;	
 };
 
 static DEFINE_RWLOCK(instances_lock);
+static atomic_t global_seq;
 
 #define INSTANCE_BUCKETS	16
 static struct hlist_head instance_table[INSTANCE_BUCKETS];
@@ -310,6 +317,16 @@ nfulnl_set_qthresh(struct nfulnl_instance *inst, u_int32_t qthresh)
 	return 0;
 }
 
+static int
+nfulnl_set_flags(struct nfulnl_instance *inst, u_int16_t flags)
+{
+	spin_lock_bh(&inst->lock);
+	inst->flags = ntohs(flags);
+	spin_unlock_bh(&inst->lock);
+
+	return 0;
+}
+
 static struct sk_buff *nfulnl_alloc_skb(unsigned int inst_size, 
 					unsigned int pkt_size)
 {
@@ -377,6 +394,8 @@ static void nfulnl_timer(unsigned long data)
 	spin_unlock_bh(&inst->lock);
 }
 
+/* This is an inline function, we don't really care about a long
+ * list of arguments */
 static inline int 
 __build_packet_message(struct nfulnl_instance *inst,
 			const struct sk_buff *skb, 
@@ -515,6 +534,17 @@ __build_packet_message(struct nfulnl_instance *inst,
 			read_unlock_bh(&skb->sk->sk_callback_lock);
 	}
 
+	/* local sequence number */
+	if (inst->flags & NFULNL_CFG_F_SEQ) {
+		tmp_uint = htonl(inst->seq++);
+		NFA_PUT(inst->skb, NFULA_SEQ, sizeof(tmp_uint), &tmp_uint);
+	}
+	/* global sequence number */
+	if (inst->flags & NFULNL_CFG_F_SEQ_GLOBAL) {
+		tmp_uint = atomic_inc_return(&global_seq);
+		NFA_PUT(inst->skb, NFULA_SEQ_GLOBAL, sizeof(tmp_uint), &tmp_uint);
+	}
+
 	if (data_len) {
 		struct nfattr *nfa;
 		int size = NFA_LENGTH(data_len);
@@ -606,6 +636,11 @@ nfulnl_log_packet(unsigned int pf,
 	UDEBUG("initial size=%u\n", size);
 
 	spin_lock_bh(&inst->lock);
+
+	if (inst->flags & NFULNL_CFG_F_SEQ)
+		size += NFA_SPACE(sizeof(u_int32_t));
+	if (inst->flags & NFULNL_CFG_F_SEQ_GLOBAL)
+		size += NFA_SPACE(sizeof(u_int32_t));
 
 	qthreshold = inst->qthreshold;
 	/* per-rule qthreshold overrides per-instance */
@@ -736,10 +771,14 @@ static const int nfula_min[NFULA_MAX] = {
 	[NFULA_TIMESTAMP-1]	= sizeof(struct nfulnl_msg_packet_timestamp),
 	[NFULA_IFINDEX_INDEV-1]	= sizeof(u_int32_t),
 	[NFULA_IFINDEX_OUTDEV-1]= sizeof(u_int32_t),
+	[NFULA_IFINDEX_PHYSINDEV-1]	= sizeof(u_int32_t),
+	[NFULA_IFINDEX_PHYSOUTDEV-1]	= sizeof(u_int32_t),
 	[NFULA_HWADDR-1]	= sizeof(struct nfulnl_msg_packet_hw),
 	[NFULA_PAYLOAD-1]	= 0,
 	[NFULA_PREFIX-1]	= 0,
 	[NFULA_UID-1]		= sizeof(u_int32_t),
+	[NFULA_SEQ-1]		= sizeof(u_int32_t),
+	[NFULA_SEQ_GLOBAL-1]	= sizeof(u_int32_t),
 };
 
 static const int nfula_cfg_min[NFULA_CFG_MAX] = {
@@ -748,6 +787,7 @@ static const int nfula_cfg_min[NFULA_CFG_MAX] = {
 	[NFULA_CFG_TIMEOUT-1]	= sizeof(u_int32_t),
 	[NFULA_CFG_QTHRESH-1]	= sizeof(u_int32_t),
 	[NFULA_CFG_NLBUFSIZ-1]	= sizeof(u_int32_t),
+	[NFULA_CFG_FLAGS-1]	= sizeof(u_int16_t),
 };
 
 static int
@@ -857,6 +897,12 @@ nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 			*(u_int16_t *)NFA_DATA(nfula[NFULA_CFG_QTHRESH-1]);
 
 		nfulnl_set_qthresh(inst, ntohl(qthresh));
+	}
+
+	if (nfula[NFULA_CFG_FLAGS-1]) {
+		u_int16_t flags =
+			*(u_int16_t *)NFA_DATA(nfula[NFULA_CFG_FLAGS-1]);
+		nfulnl_set_flags(inst, ntohl(flags));
 	}
 
 out_put:
@@ -1035,13 +1081,13 @@ cleanup_netlink_notifier:
 	return status;
 }
 
-static int __init init(void)
+static int __init nfnetlink_log_init(void)
 {
 	
 	return init_or_cleanup(1);
 }
 
-static void __exit fini(void)
+static void __exit nfnetlink_log_fini(void)
 {
 	init_or_cleanup(0);
 }
@@ -1051,5 +1097,5 @@ MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_NFNL_SUBSYS(NFNL_SUBSYS_ULOG);
 
-module_init(init);
-module_exit(fini);
+module_init(nfnetlink_log_init);
+module_exit(nfnetlink_log_fini);

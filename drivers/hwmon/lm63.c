@@ -45,6 +45,7 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/hwmon.h>
 #include <linux/err.h>
+#include <linux/mutex.h>
 
 /*
  * Addresses to scan
@@ -153,7 +154,7 @@ static struct i2c_driver lm63_driver = {
 struct lm63_data {
 	struct i2c_client client;
 	struct class_device *class_dev;
-	struct semaphore update_lock;
+	struct mutex update_lock;
 	char valid; /* zero until following fields are valid */
 	unsigned long last_updated; /* in jiffies */
 
@@ -192,13 +193,13 @@ static ssize_t set_fan(struct device *dev, struct device_attribute *dummy,
 	struct lm63_data *data = i2c_get_clientdata(client);
 	unsigned long val = simple_strtoul(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	data->fan[1] = FAN_TO_REG(val);
 	i2c_smbus_write_byte_data(client, LM63_REG_TACH_LIMIT_LSB,
 				  data->fan[1] & 0xFF);
 	i2c_smbus_write_byte_data(client, LM63_REG_TACH_LIMIT_MSB,
 				  data->fan[1] >> 8);
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -222,12 +223,12 @@ static ssize_t set_pwm1(struct device *dev, struct device_attribute *dummy,
 		return -EPERM;
 
 	val = simple_strtoul(buf, NULL, 10);
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	data->pwm1_value = val <= 0 ? 0 :
 			   val >= 255 ? 2 * data->pwm1_freq :
 			   (val * data->pwm1_freq * 2 + 127) / 255;
 	i2c_smbus_write_byte_data(client, LM63_REG_PWM_VALUE, data->pwm1_value);
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -253,10 +254,10 @@ static ssize_t set_temp8(struct device *dev, struct device_attribute *dummy,
 	struct lm63_data *data = i2c_get_clientdata(client);
 	long val = simple_strtol(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	data->temp8[1] = TEMP8_TO_REG(val);
 	i2c_smbus_write_byte_data(client, LM63_REG_LOCAL_HIGH, data->temp8[1]);
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -284,13 +285,13 @@ static ssize_t set_temp11(struct device *dev, struct device_attribute *devattr,
 	long val = simple_strtol(buf, NULL, 10);
 	int nr = attr->index;
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	data->temp11[nr] = TEMP11_TO_REG(val);
 	i2c_smbus_write_byte_data(client, reg[(nr - 1) * 2],
 				  data->temp11[nr] >> 8);
 	i2c_smbus_write_byte_data(client, reg[(nr - 1) * 2 + 1],
 				  data->temp11[nr] & 0xff);
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -314,11 +315,11 @@ static ssize_t set_temp2_crit_hyst(struct device *dev, struct device_attribute *
 	long val = simple_strtol(buf, NULL, 10);
 	long hyst;
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	hyst = TEMP8_FROM_REG(data->temp8[2]) - val;
 	i2c_smbus_write_byte_data(client, LM63_REG_REMOTE_TCRIT_HYST,
 				  HYST_TO_REG(hyst));
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -427,7 +428,7 @@ static int lm63_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	strlcpy(new_client->name, "lm63", I2C_NAME_SIZE);
 	data->valid = 0;
-	init_MUTEX(&data->update_lock);
+	mutex_init(&data->update_lock);
 
 	/* Tell the I2C layer a new client has arrived */
 	if ((err = i2c_attach_client(new_client)))
@@ -530,7 +531,7 @@ static struct lm63_data *lm63_update_device(struct device *dev)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct lm63_data *data = i2c_get_clientdata(client);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 
 	if (time_after(jiffies, data->last_updated + HZ) || !data->valid) {
 		if (data->config & 0x04) { /* tachometer enabled  */
@@ -582,7 +583,7 @@ static struct lm63_data *lm63_update_device(struct device *dev)
 		data->valid = 1;
 	}
 
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 
 	return data;
 }

@@ -223,7 +223,7 @@ void tcp_reno_cong_avoid(struct sock *sk, u32 ack, u32 rtt, u32 in_flight,
 
  	/* In dangerous area, increase slowly. */
 	else if (sysctl_tcp_abc) {
- 		/* RFC3465: Apppriate Byte Count
+ 		/* RFC3465: Appropriate Byte Count
  		 * increase once for each full cwnd acked
  		 */
  		if (tp->bytes_acked >= tp->snd_cwnd*tp->mss_cache) {

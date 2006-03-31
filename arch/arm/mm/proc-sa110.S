@@ -18,6 +18,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/procinfo.h>
 #include <asm/hardware.h>
+#include <asm/pgtable-hwdef.h>
 #include <asm/pgtable.h>
 #include <asm/ptrace.h>
 

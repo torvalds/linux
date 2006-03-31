@@ -519,9 +519,9 @@ static int io[MAX_CARDS];
 static int irq[MAX_CARDS];
 static int cardnr[MAX_CARDS];
 
-MODULE_PARM(io, "1-" __MODULE_STRING(MAX_CARDS) "i");
-MODULE_PARM(irq, "1-" __MODULE_STRING(MAX_CARDS) "i");
-MODULE_PARM(cardnr, "1-" __MODULE_STRING(MAX_CARDS) "i");
+module_param_array(io, int, NULL, 0);
+module_param_array(irq, int, NULL, 0);
+module_param_array(cardnr, int, NULL, 0);
 MODULE_PARM_DESC(io, "I/O base address(es)");
 MODULE_PARM_DESC(irq, "IRQ number(s) (assigned)");
 MODULE_PARM_DESC(cardnr, "Card number(s) (as jumpered)");

@@ -128,17 +128,22 @@ typedef u32		compat_sigset_word;
  */
 typedef u32		compat_uptr_t;
 
-static inline void *compat_ptr(compat_uptr_t uptr)
+static inline void __user *compat_ptr(compat_uptr_t uptr)
 {
-	return (void *)(long)uptr;
+	return (void __user *)(long)uptr;
 }
 
-static inline void *compat_alloc_user_space(long len)
+static inline compat_uptr_t ptr_to_compat(void __user *uptr)
+{
+	return (u32)(unsigned long)uptr;
+}
+
+static inline void __user *compat_alloc_user_space(long len)
 {
 	struct pt_regs *regs = (struct pt_regs *)
 		((unsigned long) current_thread_info() + THREAD_SIZE - 32) - 1;
 
-	return (void *) (regs->regs[29] - len);
+	return (void __user *) (regs->regs[29] - len);
 }
 #if defined (__MIPSEL__)
 #define __COMPAT_ENDIAN_SWAP__ 	1

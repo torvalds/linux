@@ -27,6 +27,7 @@
 #include <linux/rwsem.h>
 #include <linux/init.h>
 #include <linux/smp_lock.h>
+#include <linux/mutex.h>
 
 #include <asm/hardware/dec21285.h>
 #include <asm/io.h>
@@ -56,7 +57,7 @@ static int gbWriteEnable;
 static int gbWriteBase64Enable;
 static volatile unsigned char *FLASH_BASE;
 static int gbFlashSize = KFLASH_SIZE;
-static DECLARE_MUTEX(nwflash_sem);
+static DEFINE_MUTEX(nwflash_mutex);
 
 extern spinlock_t gpio_lock;
 
@@ -140,7 +141,7 @@ static ssize_t flash_read(struct file *file, char __user *buf, size_t size,
 		/*
 		 * We now lock against reads and writes. --rmk
 		 */
-		if (down_interruptible(&nwflash_sem))
+		if (mutex_lock_interruptible(&nwflash_mutex))
 			return -ERESTARTSYS;
 
 		ret = copy_to_user(buf, (void *)(FLASH_BASE + p), count);
@@ -149,7 +150,7 @@ static ssize_t flash_read(struct file *file, char __user *buf, size_t size,
 			*ppos += count;
 		} else
 			ret = -EFAULT;
-		up(&nwflash_sem);
+		mutex_unlock(&nwflash_mutex);
 	}
 	return ret;
 }
@@ -188,7 +189,7 @@ static ssize_t flash_write(struct file *file, const char __user *buf,
 	/*
 	 * We now lock against reads and writes. --rmk
 	 */
-	if (down_interruptible(&nwflash_sem))
+	if (mutex_lock_interruptible(&nwflash_mutex))
 		return -ERESTARTSYS;
 
 	written = 0;
@@ -277,7 +278,7 @@ static ssize_t flash_write(struct file *file, const char __user *buf,
 	 */
 	leds_event(led_release);
 
-	up(&nwflash_sem);
+	mutex_unlock(&nwflash_mutex);
 
 	return written;
 }

@@ -1,6 +1,4 @@
 /*
- * arch/ppc/syslib/ibm440sp_common.c
- *
  * PPC440SP/PPC440SPe system library
  *
  * Matt Porter <mporter@kernel.crashing.org>

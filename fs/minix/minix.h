@@ -81,8 +81,8 @@ extern int minix_sync_file(struct file *, struct dentry *, int);
 
 extern struct inode_operations minix_file_inode_operations;
 extern struct inode_operations minix_dir_inode_operations;
-extern struct file_operations minix_file_operations;
-extern struct file_operations minix_dir_operations;
+extern const struct file_operations minix_file_operations;
+extern const struct file_operations minix_dir_operations;
 extern struct dentry_operations minix_dentry_operations;
 
 static inline struct minix_sb_info *minix_sb(struct super_block *sb)

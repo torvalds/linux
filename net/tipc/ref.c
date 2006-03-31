@@ -61,7 +61,7 @@
  * because entry 0's reference field has the form XXXX|1--1.
  */
 
-struct ref_table tipc_ref_table = { 0 };
+struct ref_table tipc_ref_table = { NULL };
 
 static rwlock_t ref_table_lock = RW_LOCK_UNLOCKED;
 
@@ -86,7 +86,7 @@ int tipc_ref_table_init(u32 requested_size, u32 start)
 	write_lock_bh(&ref_table_lock);
 	index_mask = sz - 1;
 	for (i = sz - 1; i >= 0; i--) {
-		table[i].object = 0;
+		table[i].object = NULL;
 		table[i].lock = SPIN_LOCK_UNLOCKED;
 		table[i].data.next_plus_upper = (start & ~index_mask) + i - 1;
 	}
@@ -108,7 +108,7 @@ void tipc_ref_table_stop(void)
 		return;
 
 	vfree(tipc_ref_table.entries);
-	tipc_ref_table.entries = 0;
+	tipc_ref_table.entries = NULL;
 }
 
 /**
@@ -173,7 +173,7 @@ void tipc_ref_discard(u32 ref)
 	assert(entry->data.reference == ref);
 
 	/* mark entry as unused */
-	entry->object = 0;
+	entry->object = NULL;
 	if (tipc_ref_table.first_free == 0)
 		tipc_ref_table.first_free = index;
 	else

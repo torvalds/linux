@@ -1650,7 +1650,7 @@ static int hdlcdev_attach(struct net_device *dev, unsigned short encoding,
 	}
 
 	info->params.encoding = new_encoding;
-	info->params.crc_type = new_crctype;;
+	info->params.crc_type = new_crctype;
 
 	/* if network interface up, reprogram hardware */
 	if (info->netcount)

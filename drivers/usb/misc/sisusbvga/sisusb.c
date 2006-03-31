@@ -3188,7 +3188,7 @@ sisusb_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 			break;
 
 		default:
-			retval = -EINVAL;
+			retval = -ENOTTY;
 			break;
 	}
 
@@ -3251,12 +3251,11 @@ static int sisusb_probe(struct usb_interface *intf,
 		dev->devnum);
 
 	/* Allocate memory for our private */
-	if (!(sisusb = kmalloc(sizeof(*sisusb), GFP_KERNEL))) {
+	if (!(sisusb = kzalloc(sizeof(*sisusb), GFP_KERNEL))) {
 		printk(KERN_ERR
 			"sisusb: Failed to allocate memory for private data\n");
 		return -ENOMEM;
 	}
-	memset(sisusb, 0, sizeof(*sisusb));
 	kref_init(&sisusb->kref);
 
 	init_MUTEX(&(sisusb->lock));

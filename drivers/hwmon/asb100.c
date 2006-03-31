@@ -44,6 +44,7 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/jiffies.h>
+#include <linux/mutex.h>
 #include "lm75.h"
 
 /*
@@ -182,10 +183,10 @@ static u8 DIV_TO_REG(long val)
 struct asb100_data {
 	struct i2c_client client;
 	struct class_device *class_dev;
-	struct semaphore lock;
+	struct mutex lock;
 	enum chips type;
 
-	struct semaphore update_lock;
+	struct mutex update_lock;
 	unsigned long last_updated;	/* In jiffies */
 
 	/* array of 2 pointers to subclients */
@@ -245,11 +246,11 @@ static ssize_t set_in_##reg(struct device *dev, const char *buf, \
 	struct asb100_data *data = i2c_get_clientdata(client); \
 	unsigned long val = simple_strtoul(buf, NULL, 10); \
  \
-	down(&data->update_lock); \
+	mutex_lock(&data->update_lock); \
 	data->in_##reg[nr] = IN_TO_REG(val); \
 	asb100_write_value(client, ASB100_REG_IN_##REG(nr), \
 		data->in_##reg[nr]); \
-	up(&data->update_lock); \
+	mutex_unlock(&data->update_lock); \
 	return count; \
 }
 
@@ -331,10 +332,10 @@ static ssize_t set_fan_min(struct device *dev, const char *buf,
 	struct asb100_data *data = i2c_get_clientdata(client);
 	u32 val = simple_strtoul(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	data->fan_min[nr] = FAN_TO_REG(val, DIV_FROM_REG(data->fan_div[nr]));
 	asb100_write_value(client, ASB100_REG_FAN_MIN(nr), data->fan_min[nr]);
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -351,7 +352,7 @@ static ssize_t set_fan_div(struct device *dev, const char *buf,
 	unsigned long val = simple_strtoul(buf, NULL, 10);
 	int reg;
 	
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 
 	min = FAN_FROM_REG(data->fan_min[nr],
 			DIV_FROM_REG(data->fan_div[nr]));
@@ -381,7 +382,7 @@ static ssize_t set_fan_div(struct device *dev, const char *buf,
 		FAN_TO_REG(min, DIV_FROM_REG(data->fan_div[nr]));
 	asb100_write_value(client, ASB100_REG_FAN_MIN(nr), data->fan_min[nr]);
 
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 
 	return count;
 }
@@ -461,7 +462,7 @@ static ssize_t set_##reg(struct device *dev, const char *buf, \
 	struct asb100_data *data = i2c_get_clientdata(client); \
 	unsigned long val = simple_strtoul(buf, NULL, 10); \
  \
-	down(&data->update_lock); \
+	mutex_lock(&data->update_lock); \
 	switch (nr) { \
 	case 1: case 2: \
 		data->reg[nr] = LM75_TEMP_TO_REG(val); \
@@ -472,7 +473,7 @@ static ssize_t set_##reg(struct device *dev, const char *buf, \
 	} \
 	asb100_write_value(client, ASB100_REG_TEMP_##REG(nr+1), \
 			data->reg[nr]); \
-	up(&data->update_lock); \
+	mutex_unlock(&data->update_lock); \
 	return count; \
 }
 
@@ -574,11 +575,11 @@ static ssize_t set_pwm1(struct device *dev, struct device_attribute *attr, const
 	struct asb100_data *data = i2c_get_clientdata(client);
 	unsigned long val = simple_strtoul(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	data->pwm &= 0x80; /* keep the enable bit */
 	data->pwm |= (0x0f & ASB100_PWM_TO_REG(val));
 	asb100_write_value(client, ASB100_REG_PWM1, data->pwm);
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -595,11 +596,11 @@ static ssize_t set_pwm_enable1(struct device *dev, struct device_attribute *attr
 	struct asb100_data *data = i2c_get_clientdata(client);
 	unsigned long val = simple_strtoul(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	data->pwm &= 0x0f; /* keep the duty cycle bits */
 	data->pwm |= (val ? 0x80 : 0x00);
 	asb100_write_value(client, ASB100_REG_PWM1, data->pwm);
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -729,7 +730,7 @@ static int asb100_detect(struct i2c_adapter *adapter, int address, int kind)
 	}
 
 	new_client = &data->client;
-	init_MUTEX(&data->lock);
+	mutex_init(&data->lock);
 	i2c_set_clientdata(new_client, data);
 	new_client->addr = address;
 	new_client->adapter = adapter;
@@ -789,7 +790,7 @@ static int asb100_detect(struct i2c_adapter *adapter, int address, int kind)
 	data->type = kind;
 
 	data->valid = 0;
-	init_MUTEX(&data->update_lock);
+	mutex_init(&data->update_lock);
 
 	/* Tell the I2C layer a new client has arrived */
 	if ((err = i2c_attach_client(new_client)))
@@ -885,7 +886,7 @@ static int asb100_read_value(struct i2c_client *client, u16 reg)
 	struct i2c_client *cl;
 	int res, bank;
 
-	down(&data->lock);
+	mutex_lock(&data->lock);
 
 	bank = (reg >> 8) & 0x0f;
 	if (bank > 2)
@@ -919,7 +920,7 @@ static int asb100_read_value(struct i2c_client *client, u16 reg)
 	if (bank > 2)
 		i2c_smbus_write_byte_data(client, ASB100_REG_BANK, 0);
 
-	up(&data->lock);
+	mutex_unlock(&data->lock);
 
 	return res;
 }
@@ -930,7 +931,7 @@ static void asb100_write_value(struct i2c_client *client, u16 reg, u16 value)
 	struct i2c_client *cl;
 	int bank;
 
-	down(&data->lock);
+	mutex_lock(&data->lock);
 
 	bank = (reg >> 8) & 0x0f;
 	if (bank > 2)
@@ -960,7 +961,7 @@ static void asb100_write_value(struct i2c_client *client, u16 reg, u16 value)
 	if (bank > 2)
 		i2c_smbus_write_byte_data(client, ASB100_REG_BANK, 0);
 
-	up(&data->lock);
+	mutex_unlock(&data->lock);
 }
 
 static void asb100_init_client(struct i2c_client *client)
@@ -984,7 +985,7 @@ static struct asb100_data *asb100_update_device(struct device *dev)
 	struct asb100_data *data = i2c_get_clientdata(client);
 	int i;
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 
 	if (time_after(jiffies, data->last_updated + HZ + HZ / 2)
 		|| !data->valid) {
@@ -1042,7 +1043,7 @@ static struct asb100_data *asb100_update_device(struct device *dev)
 		dev_dbg(&client->dev, "... device update complete\n");
 	}
 
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 
 	return data;
 }

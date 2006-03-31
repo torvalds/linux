@@ -46,3 +46,8 @@ config ARCH_REUSE_HOST_VSYSCALL_AREA
 config SMP_BROKEN
 	bool
 	default y
+
+config GENERIC_HWEIGHT
+	bool
+	default y
+

@@ -871,13 +871,6 @@ PNMI_STATIC const SK_PNMI_TAB_ENTRY IdTable[] = {
 		sizeof(SK_PNMI_CONF),
 		SK_PNMI_OFF(Conf) + SK_PNMI_CNF_OFF(ConfPhyType),
 		SK_PNMI_RO, MacPrivateConf, 0},
-#ifdef SK_PHY_LP_MODE
-		{OID_SKGE_PHY_LP_MODE,
-		SK_PNMI_MAC_ENTRIES,
-		sizeof(SK_PNMI_CONF),
-		SK_PNMI_OFF(Conf) + SK_PNMI_CNF_OFF(ConfPhyMode),
-		SK_PNMI_RW, MacPrivateConf, 0},
-#endif	
 	{OID_SKGE_LINK_CAP,
 		SK_PNMI_MAC_ENTRIES,
 		sizeof(SK_PNMI_CONF),

@@ -120,7 +120,7 @@ static void qs_host_stop(struct ata_host_set *host_set);
 static void qs_port_stop(struct ata_port *ap);
 static void qs_phy_reset(struct ata_port *ap);
 static void qs_qc_prep(struct ata_queued_cmd *qc);
-static int qs_qc_issue(struct ata_queued_cmd *qc);
+static unsigned int qs_qc_issue(struct ata_queued_cmd *qc);
 static int qs_check_atapi_dma(struct ata_queued_cmd *qc);
 static void qs_bmdma_stop(struct ata_queued_cmd *qc);
 static u8 qs_bmdma_status(struct ata_port *ap);
@@ -136,7 +136,6 @@ static struct scsi_host_template qs_ata_sht = {
 	.can_queue		= ATA_DEF_QUEUE,
 	.this_id		= ATA_SHT_THIS_ID,
 	.sg_tablesize		= QS_MAX_PRD,
-	.max_sectors		= ATA_MAX_SECTORS,
 	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
 	.emulated		= ATA_SHT_EMULATED,
 	//FIXME .use_clustering		= ATA_SHT_USE_CLUSTERING,
@@ -276,8 +275,8 @@ static unsigned int qs_fill_sg(struct ata_queued_cmd *qc)
 	unsigned int nelem;
 	u8 *prd = pp->pkt + QS_CPB_BYTES;
 
-	assert(qc->__sg != NULL);
-	assert(qc->n_elem > 0 || qc->pad_len > 0);
+	WARN_ON(qc->__sg == NULL);
+	WARN_ON(qc->n_elem == 0 && qc->pad_len == 0);
 
 	nelem = 0;
 	ata_for_each_sg(sg, qc) {
@@ -352,7 +351,7 @@ static inline void qs_packet_start(struct ata_queued_cmd *qc)
 	readl(chan + QS_CCT_CFF);          /* flush */
 }
 
-static int qs_qc_issue(struct ata_queued_cmd *qc)
+static unsigned int qs_qc_issue(struct ata_queued_cmd *qc)
 {
 	struct qs_port_priv *pp = qc->ap->private_data;
 

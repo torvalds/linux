@@ -80,4 +80,7 @@ extern int pci_conf1_write(unsigned int seg, unsigned int bus,
 extern int pci_conf1_read(unsigned int seg, unsigned int bus,
 			  unsigned int devfn, int reg, int len, u32 *value);
 
+extern void pci_direct_init(void);
+extern void pci_pcbios_init(void);
+extern void pci_mmcfg_init(void);
 

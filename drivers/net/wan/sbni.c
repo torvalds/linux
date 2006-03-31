@@ -1495,8 +1495,7 @@ module_param(skip_pci_probe, bool, 0);
 MODULE_LICENSE("GPL");
 
 
-int
-init_module( void )
+int __init init_module( void )
 {
 	struct net_device  *dev;
 	int err;
