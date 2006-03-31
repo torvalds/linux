@@ -941,6 +941,25 @@ static inline void skb_reserve(struct sk_buff *skb, int len)
 #define NET_IP_ALIGN	2
 #endif
 
+/*
+ * The networking layer reserves some headroom in skb data (via
+ * dev_alloc_skb). This is used to avoid having to reallocate skb data when
+ * the header has to grow. In the default case, if the header has to grow
+ * 16 bytes or less we avoid the reallocation.
+ *
+ * Unfortunately this headroom changes the DMA alignment of the resulting
+ * network packet. As for NET_IP_ALIGN, this unaligned DMA is expensive
+ * on some architectures. An architecture can override this value,
+ * perhaps setting it to a cacheline in size (since that will maintain
+ * cacheline alignment of the DMA). It must be a power of 2.
+ *
+ * Various parts of the networking layer expect at least 16 bytes of
+ * headroom, you should not reduce this.
+ */
+#ifndef NET_SKB_PAD
+#define NET_SKB_PAD	16
+#endif
+
 extern int ___pskb_trim(struct sk_buff *skb, unsigned int len, int realloc);
 
 static inline void __skb_trim(struct sk_buff *skb, unsigned int len)
@@ -1030,9 +1049,9 @@ static inline void __skb_queue_purge(struct sk_buff_head *list)
 static inline struct sk_buff *__dev_alloc_skb(unsigned int length,
 					      gfp_t gfp_mask)
 {
-	struct sk_buff *skb = alloc_skb(length + 16, gfp_mask);
+	struct sk_buff *skb = alloc_skb(length + NET_SKB_PAD, gfp_mask);
 	if (likely(skb))
-		skb_reserve(skb, 16);
+		skb_reserve(skb, NET_SKB_PAD);
 	return skb;
 }
 #else
@@ -1070,13 +1089,15 @@ static inline struct sk_buff *dev_alloc_skb(unsigned int length)
  */
 static inline int skb_cow(struct sk_buff *skb, unsigned int headroom)
 {
-	int delta = (headroom > 16 ? headroom : 16) - skb_headroom(skb);
+	int delta = (headroom > NET_SKB_PAD ? headroom : NET_SKB_PAD) -
+			skb_headroom(skb);
 
 	if (delta < 0)
 		delta = 0;
 
 	if (delta || skb_cloned(skb))
-		return pskb_expand_head(skb, (delta + 15) & ~15, 0, GFP_ATOMIC);
+		return pskb_expand_head(skb, (delta + (NET_SKB_PAD-1)) &
+				~(NET_SKB_PAD-1), 0, GFP_ATOMIC);
 	return 0;
 }
 
