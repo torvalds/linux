@@ -141,6 +141,8 @@ struct corgissp_machinfo corgi_ssp_machinfo = {
  */
 static struct corgibl_machinfo corgi_bl_machinfo = {
 	.max_intensity = 0x2f,
+	.default_intensity = 0x1f,
+	.limit_mask = 0x0b,
 	.set_bl_intensity = corgi_bl_set_intensity,
 };
 

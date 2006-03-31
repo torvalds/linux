@@ -220,6 +220,8 @@ struct corgissp_machinfo spitz_ssp_machinfo = {
  * Spitz Backlight Device
  */
 static struct corgibl_machinfo spitz_bl_machinfo = {
+	.default_intensity = 0x1f,
+	.limit_mask = 0x0b,
 	.max_intensity = 0x2f,
 };
 

@@ -1,7 +1,7 @@
 /*
- *  Backlight Driver for Sharp Corgi
+ *  Backlight Driver for Sharp Zaurus Handhelds (various models)
  *
- *  Copyright (c) 2004-2005 Richard Purdie
+ *  Copyright (c) 2004-2006 Richard Purdie
  *
  *  Based on Sharp's 2.4 Backlight Driver
  *
@@ -15,21 +15,17 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/spinlock.h>
+#include <linux/mutex.h>
 #include <linux/fb.h>
 #include <linux/backlight.h>
-
 #include <asm/arch/sharpsl.h>
 #include <asm/hardware/sharpsl_pm.h>
 
-#define CORGI_DEFAULT_INTENSITY		0x1f
-#define CORGI_LIMIT_MASK		0x0b
-
 static int corgibl_intensity;
-static void (*corgibl_mach_set_intensity)(int intensity);
-static spinlock_t bl_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_MUTEX(bl_mutex);
 static struct backlight_properties corgibl_data;
 static struct backlight_device *corgi_backlight_device;
+static struct corgibl_machinfo *bl_machinfo;
 
 static unsigned long corgibl_flags;
 #define CORGIBL_SUSPENDED     0x01
@@ -37,7 +33,6 @@ static unsigned long corgibl_flags;
 
 static int corgibl_send_intensity(struct backlight_device *bd)
 {
-	unsigned long flags;
 	void (*corgi_kick_batt)(void);
 	int intensity = bd->props->brightness;
 
@@ -48,13 +43,11 @@ static int corgibl_send_intensity(struct backlight_device *bd)
 	if (corgibl_flags & CORGIBL_SUSPENDED)
 		intensity = 0;
 	if (corgibl_flags & CORGIBL_BATTLOW)
-		intensity &= CORGI_LIMIT_MASK;
+		intensity &= bl_machinfo->limit_mask;
 
-	spin_lock_irqsave(&bl_lock, flags);
-
-	corgibl_mach_set_intensity(intensity);
-
-	spin_unlock_irqrestore(&bl_lock, flags);
+ 	mutex_lock(&bl_mutex);
+	bl_machinfo->set_bl_intensity(intensity);
+	mutex_unlock(&bl_mutex);
 
 	corgibl_intensity = intensity;
 
@@ -122,8 +115,10 @@ static int __init corgibl_probe(struct platform_device *pdev)
 {
 	struct corgibl_machinfo *machinfo = pdev->dev.platform_data;
 
+	bl_machinfo = machinfo;
 	corgibl_data.max_brightness = machinfo->max_intensity;
-	corgibl_mach_set_intensity = machinfo->set_bl_intensity;
+	if (!machinfo->limit_mask)
+		machinfo->limit_mask = -1;
 
 	corgi_backlight_device = backlight_device_register ("corgi-bl",
 		NULL, &corgibl_data);
@@ -131,7 +126,7 @@ static int __init corgibl_probe(struct platform_device *pdev)
 		return PTR_ERR (corgi_backlight_device);
 
 	corgibl_data.power = FB_BLANK_UNBLANK;
-	corgibl_data.brightness = CORGI_DEFAULT_INTENSITY;
+	corgibl_data.brightness = machinfo->default_intensity;
 	corgibl_send_intensity(corgi_backlight_device);
 
 	printk("Corgi Backlight Driver Initialized.\n");
