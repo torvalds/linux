@@ -15,9 +15,6 @@ USER_OBJS := $(user-objs-y) aio.o elf_aux.o file.o helper.o irq.o main.o mem.o \
 	process.o sigio.o signal.o start_up.o time.o trap.o tt.o tty.o \
 	uaccess.o umid.o util.o
 
-elf_aux.o: $(ARCH_DIR)/kernel-offsets.h
-CFLAGS_elf_aux.o += -I$(objtree)/arch/um
-
 CFLAGS_user_syms.o += -DSUBARCH_$(SUBARCH)
 
 HAVE_AIO_ABI := $(shell [ -r /usr/include/linux/aio_abi.h ] && \
