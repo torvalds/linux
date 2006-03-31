@@ -616,12 +616,10 @@ static void guarantee_online_mems(const struct cpuset *cs, nodemask_t *pmask)
  * current->cpuset if a task has its memory placement changed.
  * Do not call this routine if in_interrupt().
  *
- * Call without callback_mutex or task_lock() held.  May be called
- * with or without manage_mutex held.  Doesn't need task_lock to guard
- * against another task changing a non-NULL cpuset pointer to NULL,
- * as that is only done by a task on itself, and if the current task
- * is here, it is not simultaneously in the exit code NULL'ing its
- * cpuset pointer.  This routine also might acquire callback_mutex and
+ * Call without callback_mutex or task_lock() held.  May be
+ * called with or without manage_mutex held.  Thanks in part to
+ * 'the_top_cpuset_hack', the tasks cpuset pointer will never
+ * be NULL.  This routine also might acquire callback_mutex and
  * current->mm->mmap_sem during call.
  *
  * Reading current->cpuset->mems_generation doesn't need task_lock
