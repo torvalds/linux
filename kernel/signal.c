@@ -1560,6 +1560,7 @@ static void ptrace_stop(int exit_code, int nostop_code, siginfo_t *info)
 	/* Let the debugger run.  */
 	set_current_state(TASK_TRACED);
 	spin_unlock_irq(&current->sighand->siglock);
+	try_to_freeze();
 	read_lock(&tasklist_lock);
 	if (likely(current->ptrace & PT_PTRACED) &&
 	    likely(current->parent != current->real_parent ||
