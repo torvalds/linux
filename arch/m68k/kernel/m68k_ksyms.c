@@ -79,4 +79,3 @@ EXPORT_SYMBOL(__down_failed_interruptible);
 EXPORT_SYMBOL(__down_failed_trylock);
 EXPORT_SYMBOL(__up_wakeup);
 
-EXPORT_SYMBOL(get_wchan);
