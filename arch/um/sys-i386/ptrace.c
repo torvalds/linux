@@ -18,10 +18,12 @@
 void arch_switch_to_tt(struct task_struct *from, struct task_struct *to)
 {
 	update_debugregs(to->thread.arch.debugregs_seq);
+	arch_switch_tls_tt(from, to);
 }
 
 void arch_switch_to_skas(struct task_struct *from, struct task_struct *to)
 {
+	arch_switch_tls_skas(from, to);
 }
 
 int is_syscall(unsigned long addr)

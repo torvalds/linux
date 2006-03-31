@@ -28,6 +28,15 @@ extern inline void rep_nop(void)
                            .debugregs_seq	= 0, \
                            .faultinfo		= { 0, 0, 0 } }
 
+static inline void arch_flush_thread(struct arch_thread *thread)
+{
+}
+
+static inline void arch_copy_thread(struct arch_thread *from,
+                                    struct arch_thread *to)
+{
+}
+
 #include "asm/arch/user.h"
 
 #define current_text_addr() \

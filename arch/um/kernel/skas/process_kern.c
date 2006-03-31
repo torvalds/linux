@@ -111,6 +111,8 @@ int copy_thread_skas(int nr, unsigned long clone_flags, unsigned long sp,
 		if(sp != 0) REGS_SP(p->thread.regs.regs.skas.regs) = sp;
 
 		handler = fork_handler;
+
+		arch_copy_thread(&current->thread.arch, &p->thread.arch);
 	}
 	else {
 		init_thread_registers(&p->thread.regs.regs);

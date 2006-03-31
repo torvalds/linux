@@ -236,6 +236,10 @@ extern int run_helper_thread(int (*proc)(void *), void *arg,
 			     int stack_order);
 extern int helper_wait(int pid);
 
+
+/* tls.c */
+extern int os_set_thread_area(void *data, int pid);
+extern int os_get_thread_area(void *data, int pid);
 /* umid.c */
 
 extern int umid_file_name(char *name, char *buf, int len);

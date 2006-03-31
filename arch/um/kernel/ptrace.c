@@ -185,6 +185,16 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		ret = set_fpxregs(data, child);
 		break;
 #endif
+	case PTRACE_GET_THREAD_AREA:
+		ret = ptrace_get_thread_area(child, addr,
+					     (struct user_desc __user *) data);
+		break;
+
+	case PTRACE_SET_THREAD_AREA:
+		ret = ptrace_set_thread_area(child, addr,
+					     (struct user_desc __user *) data);
+		break;
+
 	case PTRACE_FAULTINFO: {
 		/* Take the info from thread->arch->faultinfo,
 		 * but transfer max. sizeof(struct ptrace_faultinfo).

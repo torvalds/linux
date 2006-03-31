@@ -6,8 +6,6 @@
 
 #define sys_vm86old sys_ni_syscall
 #define sys_vm86 sys_ni_syscall
-#define sys_set_thread_area sys_ni_syscall
-#define sys_get_thread_area sys_ni_syscall
 
 #define sys_stime um_stime
 #define sys_time um_time

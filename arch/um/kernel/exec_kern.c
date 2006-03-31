@@ -22,6 +22,7 @@
 
 void flush_thread(void)
 {
+	arch_flush_thread(&current->thread.arch);
 	CHOOSE_MODE(flush_thread_tt(), flush_thread_skas());
 }
 
@@ -74,14 +75,3 @@ long sys_execve(char __user *file, char __user *__user *argv,
 	unlock_kernel();
 	return(error);
 }
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */
