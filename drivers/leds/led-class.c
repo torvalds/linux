@@ -54,6 +54,9 @@ static ssize_t led_brightness_store(struct class_device *dev,
 
 static CLASS_DEVICE_ATTR(brightness, 0644, led_brightness_show,
 			led_brightness_store);
+#ifdef CONFIG_LEDS_TRIGGERS
+static CLASS_DEVICE_ATTR(trigger, 0644, led_trigger_show, led_trigger_store);
+#endif
 
 /**
  * led_classdev_suspend - suspend an led_classdev.
@@ -100,6 +103,15 @@ int led_classdev_register(struct device *parent, struct led_classdev *led_cdev)
 	list_add_tail(&led_cdev->node, &leds_list);
 	write_unlock(&leds_list_lock);
 
+#ifdef CONFIG_LEDS_TRIGGERS
+	rwlock_init(&led_cdev->trigger_lock);
+
+	led_trigger_set_default(led_cdev);
+
+	class_device_create_file(led_cdev->class_dev,
+				&class_device_attr_trigger);
+#endif
+
 	printk(KERN_INFO "Registered led device: %s\n",
 			led_cdev->class_dev->class_id);
 
@@ -117,6 +129,14 @@ void led_classdev_unregister(struct led_classdev *led_cdev)
 {
 	class_device_remove_file(led_cdev->class_dev,
 				&class_device_attr_brightness);
+#ifdef CONFIG_LEDS_TRIGGERS
+	class_device_remove_file(led_cdev->class_dev,
+				&class_device_attr_trigger);
+	write_lock(&led_cdev->trigger_lock);
+	if (led_cdev->trigger)
+		led_trigger_set(led_cdev, NULL);
+	write_unlock(&led_cdev->trigger_lock);
+#endif
 
 	class_device_unregister(led_cdev->class_dev);
 

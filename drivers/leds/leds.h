@@ -28,4 +28,17 @@ static inline void led_set_brightness(struct led_classdev *led_cdev,
 extern rwlock_t leds_list_lock;
 extern struct list_head leds_list;
 
+#ifdef CONFIG_LEDS_TRIGGERS
+void led_trigger_set_default(struct led_classdev *led_cdev);
+void led_trigger_set(struct led_classdev *led_cdev,
+			struct led_trigger *trigger);
+#else
+#define led_trigger_set_default(x) do {} while(0)
+#define led_trigger_set(x, y) do {} while(0)
+#endif
+
+ssize_t led_trigger_store(struct class_device *dev, const char *buf,
+			size_t count);
+ssize_t led_trigger_show(struct class_device *dev, char *buf);
+
 #endif	/* __LEDS_H_INCLUDED */
