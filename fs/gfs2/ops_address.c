@@ -96,59 +96,6 @@ static int get_block_noalloc(struct inode *inode, sector_t lblock,
 	return error;
 }
 
-static int get_blocks(struct inode *inode, sector_t lblock,
-		      unsigned long max_blocks, struct buffer_head *bh_result,
-		      int create)
-{
-	struct gfs2_inode *ip = inode->u.generic_ip;
-	int new = create;
-	uint64_t dblock;
-	uint32_t extlen;
-	int error;
-
-	error = gfs2_block_map(ip, lblock, &new, &dblock, &extlen);
-	if (error)
-		return error;
-
-	if (!dblock)
-		return 0;
-
-	map_bh(bh_result, inode->i_sb, dblock);
-	if (new)
-		set_buffer_new(bh_result);
-
-	if (extlen > max_blocks)
-		extlen = max_blocks;
-	bh_result->b_size = extlen << inode->i_blkbits;
-
-	return 0;
-}
-
-static int get_blocks_noalloc(struct inode *inode, sector_t lblock,
-			      unsigned long max_blocks,
-			      struct buffer_head *bh_result, int create)
-{
-	struct gfs2_inode *ip = inode->u.generic_ip;
-	int new = 0;
-	uint64_t dblock;
-	uint32_t extlen;
-	int error;
-
-	error = gfs2_block_map(ip, lblock, &new, &dblock, &extlen);
-	if (error)
-		return error;
-
-	if (dblock) {
-		map_bh(bh_result, inode->i_sb, dblock);
-		if (extlen > max_blocks)
-			extlen = max_blocks;
-		bh_result->b_size = extlen << inode->i_blkbits;
-	} else if (gfs2_assert_withdraw(ip->i_sbd, !create))
-		error = -EIO;
-
-	return error;
-}
-
 /**
  * gfs2_writepage - Write complete page
  * @page: Page to write
@@ -527,16 +474,15 @@ static void discard_buffer(struct gfs2_sbd *sdp, struct buffer_head *bh)
 	unlock_buffer(bh);
 }
 
-static int gfs2_invalidatepage(struct page *page, unsigned long offset)
+static void gfs2_invalidatepage(struct page *page, unsigned long offset)
 {
 	struct gfs2_sbd *sdp = page->mapping->host->i_sb->s_fs_info;
 	struct buffer_head *head, *bh, *next;
 	unsigned int curr_off = 0;
-	int ret = 1;
 
 	BUG_ON(!PageLocked(page));
 	if (!page_has_buffers(page))
-		return 1;
+		return;
 
 	bh = head = page_buffers(page);
 	do {
@@ -551,9 +497,9 @@ static int gfs2_invalidatepage(struct page *page, unsigned long offset)
 	} while (bh != head);
 
 	if (!offset)
-		ret = try_to_release_page(page, 0);
+		try_to_release_page(page, 0);
 
-	return ret;
+	return;
 }
 
 static ssize_t gfs2_direct_IO_write(struct kiocb *iocb, const struct iovec *iov,
@@ -587,7 +533,7 @@ static ssize_t gfs2_direct_IO_write(struct kiocb *iocb, const struct iovec *iov,
 		goto out;
 
 	rv = __blockdev_direct_IO(WRITE, iocb, inode, inode->i_sb->s_bdev,
-				  iov, offset, nr_segs, get_blocks_noalloc,
+				  iov, offset, nr_segs, gfs2_get_block,
 				  NULL, DIO_OWN_LOCKING);
 out:
 	gfs2_glock_dq_m(1, &gh);
@@ -619,7 +565,7 @@ static ssize_t gfs2_direct_IO(int rw, struct kiocb *iocb,
 		return -EINVAL;
 
 	return __blockdev_direct_IO(READ, iocb, inode, inode->i_sb->s_bdev, iov,
-			 	    offset, nr_segs, get_blocks, NULL,
+			 	    offset, nr_segs, gfs2_get_block, NULL,
 				    DIO_OWN_LOCKING);
 }
 

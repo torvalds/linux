@@ -833,20 +833,15 @@ static int gfs2_lock(struct file *file, int cmd, struct file_lock *fl)
 
 	if (sdp->sd_args.ar_localflocks) {
 		if (IS_GETLK(cmd)) {
-			struct file_lock *tmp;
-			lock_kernel();
-			tmp = posix_test_lock(file, fl);
+			struct file_lock tmp;
+			int ret;
+			ret = posix_test_lock(file, fl, &tmp);
 			fl->fl_type = F_UNLCK;
-			if (tmp)
-				memcpy(fl, tmp, sizeof(struct file_lock));
-			unlock_kernel();
+			if (ret)
+				memcpy(fl, &tmp, sizeof(struct file_lock));
 			return 0;
 		} else {
-			int error;
-			lock_kernel();
-			error = posix_lock_file_wait(file, fl);
-			unlock_kernel();
-			return error;
+			return posix_lock_file_wait(file, fl);
 		}
 	}
 
@@ -983,6 +978,8 @@ struct file_operations gfs2_file_fops = {
 	.lock = gfs2_lock,
 	.sendfile = gfs2_sendfile,
 	.flock = gfs2_flock,
+	.splice_read = generic_file_splice_read,
+	.splice_write = generic_file_splice_write,
 };
 
 struct file_operations gfs2_dir_fops = {
