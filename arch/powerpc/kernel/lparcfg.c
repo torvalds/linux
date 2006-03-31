@@ -37,7 +37,7 @@
 #include <asm/prom.h>
 #include <asm/vdso_datapage.h>
 
-#define MODULE_VERS "1.6"
+#define MODULE_VERS "1.7"
 #define MODULE_NAME "lparcfg"
 
 /* #define LPARCFG_DEBUG */
@@ -242,7 +242,7 @@ static void parse_system_parameter_string(struct seq_file *m)
 {
 	int call_status;
 
-	char *local_buffer = kmalloc(SPLPAR_MAXLENGTH, GFP_KERNEL);
+	unsigned char *local_buffer = kmalloc(SPLPAR_MAXLENGTH, GFP_KERNEL);
 	if (!local_buffer) {
 		printk(KERN_ERR "%s %s kmalloc failure at line %d \n",
 		       __FILE__, __FUNCTION__, __LINE__);
@@ -254,7 +254,8 @@ static void parse_system_parameter_string(struct seq_file *m)
 	call_status = rtas_call(rtas_token("ibm,get-system-parameter"), 3, 1,
 				NULL,
 				SPLPAR_CHARACTERISTICS_TOKEN,
-				__pa(rtas_data_buf));
+				__pa(rtas_data_buf),
+				RTAS_DATA_BUF_SIZE);
 	memcpy(local_buffer, rtas_data_buf, SPLPAR_MAXLENGTH);
 	spin_unlock(&rtas_data_buf_lock);
 
@@ -275,7 +276,7 @@ static void parse_system_parameter_string(struct seq_file *m)
 #ifdef LPARCFG_DEBUG
 		printk(KERN_INFO "success calling get-system-parameter \n");
 #endif
-		splpar_strlen = local_buffer[0] * 16 + local_buffer[1];
+		splpar_strlen = local_buffer[0] * 256 + local_buffer[1];
 		local_buffer += 2;	/* step over strlen value */
 
 		memset(workbuffer, 0, SPLPAR_MAXLENGTH);
