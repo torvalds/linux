@@ -35,6 +35,8 @@ void switch_to_skas(void *prev, void *next)
 	switch_threads(&from->thread.mode.skas.switch_buf,
 		       to->thread.mode.skas.switch_buf);
 
+	arch_switch_to_skas(current->thread.prev_sched, current);
+
 	if(current->pid == 0)
 		switch_timers(1);
 }

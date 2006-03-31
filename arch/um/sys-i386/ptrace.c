@@ -15,9 +15,13 @@
 #include "sysdep/sigcontext.h"
 #include "sysdep/sc.h"
 
-void arch_switch(void)
+void arch_switch_to_tt(struct task_struct *from, struct task_struct *to)
 {
-	update_debugregs(current->thread.arch.debugregs_seq);
+	update_debugregs(to->thread.arch.debugregs_seq);
+}
+
+void arch_switch_to_skas(struct task_struct *from, struct task_struct *to)
+{
 }
 
 int is_syscall(unsigned long addr)
