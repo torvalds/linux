@@ -705,8 +705,7 @@ static int recalc_task_prio(task_t *p, unsigned long long now)
 		 * active yet prevent them suddenly becoming cpu hogs and
 		 * starving other processes.
 		 */
-		if (p->mm && p->sleep_type != SLEEP_NONINTERACTIVE &&
-			sleep_time > INTERACTIVE_SLEEP(p)) {
+		if (p->mm && sleep_time > INTERACTIVE_SLEEP(p)) {
 				unsigned long ceiling;
 
 				ceiling = JIFFIES_TO_NS(MAX_SLEEP_AVG -
