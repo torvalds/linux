@@ -1856,7 +1856,8 @@ static void ata_set_mode(struct ata_port *ap)
 		if (!ata_dev_present(dev))
 			continue;
 
-		if (ata_dev_set_mode(ap, dev))
+		rc = ata_dev_set_mode(ap, dev);
+		if (rc)
 			goto err_out;
 	}
 
