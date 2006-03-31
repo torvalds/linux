@@ -2328,6 +2328,10 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 		case TIOCL_SETVESABLANK:
 			set_vesa_blanking(p);
 			break;
+		case TIOCL_GETKMSGREDIRECT:
+			data = kmsg_redirect;
+			ret = __put_user(data, p);
+			break;
 		case TIOCL_SETKMSGREDIRECT:
 			if (!capable(CAP_SYS_ADMIN)) {
 				ret = -EPERM;
