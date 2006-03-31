@@ -565,14 +565,14 @@ int cifs_unlink(struct inode *inode, struct dentry *direntry)
 	struct cifsInodeInfo *cifsInode;
 	FILE_BASIC_INFO *pinfo_buf;
 
-	cFYI(1, ("cifs_unlink, inode = 0x%p with ", inode));
+	cFYI(1, ("cifs_unlink, inode = 0x%p", inode));
 
 	xid = GetXid();
 
 	if(inode)
 		cifs_sb = CIFS_SB(inode->i_sb);
 	else
-		cifs_sb = CIFS_SB(dentry->d_sb);
+		cifs_sb = CIFS_SB(direntry->d_sb);
 	pTcon = cifs_sb->tcon;
 
 	/* Unlink can be called from rename so we can not grab the sem here
@@ -695,9 +695,11 @@ int cifs_unlink(struct inode *inode, struct dentry *direntry)
 					   when needed */
 		direntry->d_inode->i_ctime = current_fs_time(inode->i_sb);
 	}
-	inode->i_ctime = inode->i_mtime = current_fs_time(inode->i_sb);
-	cifsInode = CIFS_I(inode);
-	cifsInode->time = 0;	/* force revalidate of dir as well */
+	if(inode) {
+		inode->i_ctime = inode->i_mtime = current_fs_time(inode->i_sb);
+		cifsInode = CIFS_I(inode);
+		cifsInode->time = 0;	/* force revalidate of dir as well */
+	}
 
 	kfree(full_path);
 	FreeXid(xid);
