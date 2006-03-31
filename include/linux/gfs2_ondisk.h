@@ -197,6 +197,22 @@ struct gfs2_quota {
 #define DT2IF(dt) (((dt) << 12) & S_IFMT)
 #define IF2DT(sif) (((sif) & S_IFMT) >> 12)
 
+enum {
+	gfs2fl_Jdata		= 0,
+	gfs2fl_ExHash		= 1,
+	gfs2fl_Unused		= 2,
+	gfs2fl_EaIndirect	= 3,
+	gfs2fl_Directio		= 4,
+	gfs2fl_Immutable	= 5,
+	gfs2fl_AppendOnly	= 6,
+	gfs2fl_NoAtime		= 7,
+	gfs2fl_Sync		= 8,
+	gfs2fl_System		= 9,
+	gfs2fl_TruncInProg	= 29,
+	gfs2fl_InheritDirectio	= 30,
+	gfs2fl_InheritJdata	= 31,
+};
+
 /* Dinode flags */
 #define GFS2_DIF_JDATA			0x00000001
 #define GFS2_DIF_EXHASH			0x00000002
