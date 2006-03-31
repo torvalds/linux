@@ -911,7 +911,7 @@ extern void __put_task_struct(struct task_struct *t);
 static inline void put_task_struct(struct task_struct *t)
 {
 	if (atomic_dec_and_test(&t->usage))
-		call_rcu(&t->rcu, __put_task_struct_cb);
+		__put_task_struct(t);
 }
 
 /*

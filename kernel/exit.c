@@ -127,6 +127,11 @@ static void __exit_signal(struct task_struct *tsk)
 	}
 }
 
+static void delayed_put_task_struct(struct rcu_head *rhp)
+{
+	put_task_struct(container_of(rhp, struct task_struct, rcu));
+}
+
 void release_task(struct task_struct * p)
 {
 	int zap_leader;
@@ -168,7 +173,7 @@ repeat:
 	spin_unlock(&p->proc_lock);
 	proc_pid_flush(proc_dentry);
 	release_thread(p);
-	put_task_struct(p);
+	call_rcu(&p->rcu, delayed_put_task_struct);
 
 	p = leader;
 	if (unlikely(zap_leader))
