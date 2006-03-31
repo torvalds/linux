@@ -1771,47 +1771,6 @@ static int ata_dev_set_mode(struct ata_port *ap, struct ata_device *dev)
 	return 0;
 }
 
-static int ata_host_set_pio(struct ata_port *ap)
-{
-	int i;
-
-	for (i = 0; i < ATA_MAX_DEVICES; i++) {
-		struct ata_device *dev = &ap->device[i];
-
-		if (!ata_dev_enabled(dev))
-			continue;
-
-		if (!dev->pio_mode) {
-			printk(KERN_WARNING "ata%u: no PIO support for device %d.\n", ap->id, i);
-			return -1;
-		}
-
-		dev->xfer_mode = dev->pio_mode;
-		dev->xfer_shift = ATA_SHIFT_PIO;
-		if (ap->ops->set_piomode)
-			ap->ops->set_piomode(ap, dev);
-	}
-
-	return 0;
-}
-
-static void ata_host_set_dma(struct ata_port *ap)
-{
-	int i;
-
-	for (i = 0; i < ATA_MAX_DEVICES; i++) {
-		struct ata_device *dev = &ap->device[i];
-
-		if (!ata_dev_enabled(dev) || !dev->dma_mode)
-			continue;
-
-		dev->xfer_mode = dev->dma_mode;
-		dev->xfer_shift = ata_xfer_mode2shift(dev->dma_mode);
-		if (ap->ops->set_dmamode)
-			ap->ops->set_dmamode(ap, dev);
-	}
-}
-
 /**
  *	ata_set_mode - Program timings and issue SET FEATURES - XFER
  *	@ap: port on which timings will be programmed
@@ -1823,19 +1782,19 @@ static void ata_host_set_dma(struct ata_port *ap)
  */
 static void ata_set_mode(struct ata_port *ap)
 {
+	struct ata_device *dev;
 	int i, rc, used_dma = 0, found = 0;
 
 	/* step 1: calculate xfer_mask */
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
-		struct ata_device *dev = &ap->device[i];
 		unsigned int pio_mask, dma_mask;
+
+		dev = &ap->device[i];
 
 		if (!ata_dev_enabled(dev))
 			continue;
 
 		ata_dev_xfermask(ap, dev);
-
-		/* TODO: let LLDD filter dev->*_mask here */
 
 		pio_mask = ata_pack_xfermask(dev->pio_mask, 0, 0);
 		dma_mask = ata_pack_xfermask(0, dev->mwdma_mask, dev->udma_mask);
@@ -1850,16 +1809,40 @@ static void ata_set_mode(struct ata_port *ap)
 		return;
 
 	/* step 2: always set host PIO timings */
-	rc = ata_host_set_pio(ap);
-	if (rc)
-		goto err_out;
+	for (i = 0; i < ATA_MAX_DEVICES; i++) {
+		dev = &ap->device[i];
+		if (!ata_dev_enabled(dev))
+			continue;
+
+		if (!dev->pio_mode) {
+			printk(KERN_WARNING "ata%u: dev %u no PIO support\n",
+			       ap->id, dev->devno);
+			rc = -EINVAL;
+			goto err_out;
+		}
+
+		dev->xfer_mode = dev->pio_mode;
+		dev->xfer_shift = ATA_SHIFT_PIO;
+		if (ap->ops->set_piomode)
+			ap->ops->set_piomode(ap, dev);
+	}
 
 	/* step 3: set host DMA timings */
-	ata_host_set_dma(ap);
+	for (i = 0; i < ATA_MAX_DEVICES; i++) {
+		dev = &ap->device[i];
+
+		if (!ata_dev_enabled(dev) || !dev->dma_mode)
+			continue;
+
+		dev->xfer_mode = dev->dma_mode;
+		dev->xfer_shift = ata_xfer_mode2shift(dev->dma_mode);
+		if (ap->ops->set_dmamode)
+			ap->ops->set_dmamode(ap, dev);
+	}
 
 	/* step 4: update devices' xfer mode */
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
-		struct ata_device *dev = &ap->device[i];
+		dev = &ap->device[i];
 
 		if (!ata_dev_enabled(dev))
 			continue;
@@ -1869,17 +1852,13 @@ static void ata_set_mode(struct ata_port *ap)
 			goto err_out;
 	}
 
-	/*
-	 *	Record simplex status. If we selected DMA then the other
-	 *	host channels are not permitted to do so.
+	/* Record simplex status. If we selected DMA then the other
+	 * host channels are not permitted to do so.
 	 */
-
 	if (used_dma && (ap->host_set->flags & ATA_HOST_SIMPLEX))
 		ap->host_set->simplex_claimed = 1;
 
-	/*
-	 *	Chip specific finalisation
-	 */
+	/* step5: chip specific finalisation */
 	if (ap->ops->post_set_mode)
 		ap->ops->post_set_mode(ap);
 
