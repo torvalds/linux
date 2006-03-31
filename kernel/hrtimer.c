@@ -656,6 +656,25 @@ void hrtimer_run_queues(void)
  * Sleep related functions:
  */
 
+static int hrtimer_wakeup(struct hrtimer *timer)
+{
+	struct hrtimer_sleeper *t =
+		container_of(timer, struct hrtimer_sleeper, timer);
+	struct task_struct *task = t->task;
+
+	t->task = NULL;
+	if (task)
+		wake_up_process(task);
+
+	return HRTIMER_NORESTART;
+}
+
+void hrtimer_init_sleeper(struct hrtimer_sleeper *sl, task_t *task)
+{
+	sl->timer.function = hrtimer_wakeup;
+	sl->task = task;
+}
+
 struct sleep_hrtimer {
 	struct hrtimer timer;
 	struct task_struct *task;
