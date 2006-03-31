@@ -20,6 +20,7 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/bitops.h>
+#include <linux/mutex.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
@@ -975,13 +976,13 @@ static int doc_writev_ecc(struct mtd_info *mtd, const struct kvec *vecs,
 			  u_char *eccbuf, struct nand_oobinfo *oobsel)
 {
 	static char static_buf[512];
-	static DECLARE_MUTEX(writev_buf_sem);
+	static DEFINE_MUTEX(writev_buf_mutex);
 
 	size_t totretlen = 0;
 	size_t thisvecofs = 0;
 	int ret= 0;
 
-	down(&writev_buf_sem);
+	mutex_lock(&writev_buf_mutex);
 
 	while(count) {
 		size_t thislen, thisretlen;
@@ -1024,7 +1025,7 @@ static int doc_writev_ecc(struct mtd_info *mtd, const struct kvec *vecs,
 		to += thislen;
 	}
 
-	up(&writev_buf_sem);
+	mutex_unlock(&writev_buf_mutex);
 	*retlen = totretlen;
 	return ret;
 }
