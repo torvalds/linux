@@ -2371,16 +2371,16 @@ int ata_std_probe_reset(struct ata_port *ap, unsigned int *classes)
 				     ata_std_postreset, classes);
 }
 
-static int do_probe_reset(struct ata_port *ap, ata_reset_fn_t reset,
-			  ata_postreset_fn_t postreset,
-			  unsigned int *classes)
+static int ata_do_reset(struct ata_port *ap,
+			ata_reset_fn_t reset, ata_postreset_fn_t postreset,
+			int verbose, unsigned int *classes)
 {
 	int i, rc;
 
 	for (i = 0; i < ATA_MAX_DEVICES; i++)
 		classes[i] = ATA_DEV_UNKNOWN;
 
-	rc = reset(ap, 0, classes);
+	rc = reset(ap, verbose, classes);
 	if (rc)
 		return rc;
 
@@ -2400,7 +2400,7 @@ static int do_probe_reset(struct ata_port *ap, ata_reset_fn_t reset,
 	if (postreset)
 		postreset(ap, classes);
 
-	return classes[0] != ATA_DEV_UNKNOWN ? 0 : -ENODEV;
+	return 0;
 }
 
 /**
@@ -2445,21 +2445,24 @@ int ata_drive_probe_reset(struct ata_port *ap, ata_probeinit_fn_t probeinit,
 		probeinit(ap);
 
 	if (softreset) {
-		rc = do_probe_reset(ap, softreset, postreset, classes);
-		if (rc == 0)
-			return 0;
+		rc = ata_do_reset(ap, softreset, postreset, 0, classes);
+		if (rc == 0 && classes[0] != ATA_DEV_UNKNOWN)
+			goto done;
 	}
 
 	if (!hardreset)
-		return rc;
+		goto done;
 
-	rc = do_probe_reset(ap, hardreset, postreset, classes);
-	if (rc == 0 || rc != -ENODEV)
-		return rc;
+	rc = ata_do_reset(ap, hardreset, postreset, 0, classes);
+	if (rc || classes[0] != ATA_DEV_UNKNOWN)
+		goto done;
 
 	if (softreset)
-		rc = do_probe_reset(ap, softreset, postreset, classes);
+		rc = ata_do_reset(ap, softreset, postreset, 0, classes);
 
+ done:
+	if (rc == 0 && classes[0] == ATA_DEV_UNKNOWN)
+		rc = -ENODEV;
 	return rc;
 }
 
