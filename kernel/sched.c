@@ -667,9 +667,13 @@ static int effective_prio(task_t *p)
 /*
  * __activate_task - move a task to the runqueue.
  */
-static inline void __activate_task(task_t *p, runqueue_t *rq)
+static void __activate_task(task_t *p, runqueue_t *rq)
 {
-	enqueue_task(p, rq->active);
+	prio_array_t *target = rq->active;
+
+	if (batch_task(p))
+		target = rq->expired;
+	enqueue_task(p, target);
 	rq->nr_running++;
 }
 
@@ -688,7 +692,7 @@ static int recalc_task_prio(task_t *p, unsigned long long now)
 	unsigned long long __sleep_time = now - p->timestamp;
 	unsigned long sleep_time;
 
-	if (unlikely(p->policy == SCHED_BATCH))
+	if (batch_task(p))
 		sleep_time = 0;
 	else {
 		if (__sleep_time > NS_MAX_SLEEP_AVG)

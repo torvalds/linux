@@ -484,6 +484,7 @@ struct signal_struct {
 #define MAX_PRIO		(MAX_RT_PRIO + 40)
 
 #define rt_task(p)		(unlikely((p)->prio < MAX_RT_PRIO))
+#define batch_task(p)		(unlikely((p)->policy == SCHED_BATCH))
 
 /*
  * Some day this will be a full-fledged user tracking system..
