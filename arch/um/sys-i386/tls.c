@@ -70,8 +70,6 @@ static int get_free_idx(struct task_struct* task)
 	return -ESRCH;
 }
 
-#define O_FORCE 1
-
 static inline void clear_user_desc(struct user_desc* info)
 {
 	/* Postcondition: LDT_empty(info) returns true. */
@@ -83,6 +81,8 @@ static inline void clear_user_desc(struct user_desc* info)
 	info->read_exec_only = 1;
 	info->seg_not_present = 1;
 }
+
+#define O_FORCE 1
 
 static int load_TLS(int flags, struct task_struct *to)
 {
@@ -162,7 +162,13 @@ void clear_flushed_tls(struct task_struct *task)
  * SKAS patch. */
 int arch_switch_tls_skas(struct task_struct *from, struct task_struct *to)
 {
-	return load_TLS(O_FORCE, to);
+	/* We have no need whatsoever to switch TLS for kernel threads; beyond
+	 * that, that would also result in us calling os_set_thread_area with
+	 * userspace_pid[cpu] == 0, which gives an error. */
+	if (likely(to->mm))
+		return load_TLS(O_FORCE, to);
+
+	return 0;
 }
 
 int arch_switch_tls_tt(struct task_struct *from, struct task_struct *to)
@@ -324,3 +330,4 @@ int ptrace_get_thread_area(struct task_struct *child, int idx,
 out:
 	return ret;
 }
+

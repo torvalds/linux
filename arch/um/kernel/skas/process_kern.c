@@ -91,10 +91,17 @@ void fork_handler(int sig)
 		panic("blech");
 
 	schedule_tail(current->thread.prev_sched);
+
+	/* XXX: if interrupt_end() calls schedule, this call to
+	 * arch_switch_to_skas isn't needed. We could want to apply this to
+	 * improve performance. -bb */
+	arch_switch_to_skas(current->thread.prev_sched, current);
+
 	current->thread.prev_sched = NULL;
 
 /* Handle any immediate reschedules or signals */
 	interrupt_end();
+
 	userspace(&current->thread.regs.regs);
 }
 

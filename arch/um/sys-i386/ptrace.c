@@ -23,7 +23,14 @@ void arch_switch_to_tt(struct task_struct *from, struct task_struct *to)
 
 void arch_switch_to_skas(struct task_struct *from, struct task_struct *to)
 {
-	arch_switch_tls_skas(from, to);
+	int err = arch_switch_tls_skas(from, to);
+	if (!err)
+		return;
+
+	if (err != -EINVAL)
+		printk(KERN_WARNING "arch_switch_tls_skas failed, errno %d, not EINVAL\n", -err);
+	else
+		printk(KERN_WARNING "arch_switch_tls_skas failed, errno = EINVAL\n");
 }
 
 int is_syscall(unsigned long addr)
