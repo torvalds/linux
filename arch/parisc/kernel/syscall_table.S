@@ -287,7 +287,7 @@
 	ENTRY_SAME(chown)		/* 180 */
 	/* setsockopt() used by iptables: SO_SET_REPLACE/SO_SET_ADD_COUNTERS */
 	ENTRY_COMP(setsockopt)
-	ENTRY_SAME(getsockopt)
+	ENTRY_COMP(getsockopt)
 	ENTRY_COMP(sendmsg)
 	ENTRY_COMP(recvmsg)
 	ENTRY_SAME(semop)		/* 185 */

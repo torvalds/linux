@@ -1167,8 +1167,8 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 	 * station address PROM at the base address and programmed into the
 	 * "Physical Address Registers" CSR12-14.
 	 * As a precautionary measure, we read the PROM values and complain if
-	 * they disagree with the CSRs.  Either way, we use the CSR values, and
-	 * double check that they are valid.
+	 * they disagree with the CSRs.  If they miscompare, and the PROM addr
+	 * is valid, then the PROM addr is used.
 	 */
 	for (i = 0; i < 3; i++) {
 		unsigned int val;

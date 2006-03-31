@@ -42,7 +42,7 @@ static const char *ieee80211_modes[] = {
 };
 
 #define MAX_CUSTOM_LEN 64
-static char *ipw2100_translate_scan(struct ieee80211_device *ieee,
+static char *ieee80211_translate_scan(struct ieee80211_device *ieee,
 					   char *start, char *stop,
 					   struct ieee80211_network *network)
 {
@@ -274,7 +274,7 @@ int ieee80211_wx_get_scan(struct ieee80211_device *ieee,
 
 		if (ieee->scan_age == 0 ||
 		    time_after(network->last_scanned + ieee->scan_age, jiffies))
-			ev = ipw2100_translate_scan(ieee, ev, stop, network);
+			ev = ieee80211_translate_scan(ieee, ev, stop, network);
 		else
 			IEEE80211_DEBUG_SCAN("Not showing network '%s ("
 					     MAC_FMT ")' due to age (%dms).\n",

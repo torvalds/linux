@@ -1085,6 +1085,25 @@ static void rhine_check_media(struct net_device *dev, unsigned int init_media)
 	else
 	    iowrite8(ioread8(ioaddr + ChipCmd1) & ~Cmd1FDuplex,
 		   ioaddr + ChipCmd1);
+	if (debug > 1)
+		printk(KERN_INFO "%s: force_media %d, carrier %d\n", dev->name,
+			rp->mii_if.force_media, netif_carrier_ok(dev));
+}
+
+/* Called after status of force_media possibly changed */
+void rhine_set_carrier(struct mii_if_info *mii)
+{
+	if (mii->force_media) {
+		/* autoneg is off: Link is always assumed to be up */
+		if (!netif_carrier_ok(mii->dev))
+			netif_carrier_on(mii->dev);
+	}
+	else	/* Let MMI library update carrier status */
+		rhine_check_media(mii->dev, 0);
+	if (debug > 1)
+		printk(KERN_INFO "%s: force_media %d, carrier %d\n",
+		       mii->dev->name, mii->force_media,
+		       netif_carrier_ok(mii->dev));
 }
 
 static void rhine_check_media_task(struct net_device *dev)
@@ -1782,6 +1801,7 @@ static int netdev_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	spin_lock_irq(&rp->lock);
 	rc = mii_ethtool_sset(&rp->mii_if, cmd);
 	spin_unlock_irq(&rp->lock);
+	rhine_set_carrier(&rp->mii_if);
 
 	return rc;
 }
@@ -1869,6 +1889,7 @@ static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	spin_lock_irq(&rp->lock);
 	rc = generic_mii_ioctl(&rp->mii_if, if_mii(rq), cmd, NULL);
 	spin_unlock_irq(&rp->lock);
+	rhine_set_carrier(&rp->mii_if);
 
 	return rc;
 }

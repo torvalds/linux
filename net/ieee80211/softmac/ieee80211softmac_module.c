@@ -183,15 +183,20 @@ void ieee80211softmac_start(struct net_device *dev)
 	 */
 	if (mac->txrates_change)
 		oldrates = mac->txrates;
-	if (ieee->modulation & IEEE80211_OFDM_MODULATION) {
-		mac->txrates.default_rate = IEEE80211_OFDM_RATE_54MB;
-		change |= IEEE80211SOFTMAC_TXRATECHG_DEFAULT;
-		mac->txrates.default_fallback = IEEE80211_OFDM_RATE_24MB;
-		change |= IEEE80211SOFTMAC_TXRATECHG_DEFAULT_FBACK;
-	} else if (ieee->modulation & IEEE80211_CCK_MODULATION) {
+	/* FIXME: We don't correctly handle backing down to lower
+	   rates, so 801.11g devices start off at 11M for now. People
+	   can manually change it if they really need to, but 11M is
+	   more reliable. Note similar logic in
+	   ieee80211softmac_wx_set_rate() */	 
+	if (ieee->modulation & IEEE80211_CCK_MODULATION) {
 		mac->txrates.default_rate = IEEE80211_CCK_RATE_11MB;
 		change |= IEEE80211SOFTMAC_TXRATECHG_DEFAULT;
 		mac->txrates.default_fallback = IEEE80211_CCK_RATE_5MB;
+		change |= IEEE80211SOFTMAC_TXRATECHG_DEFAULT_FBACK;
+	} else if (ieee->modulation & IEEE80211_OFDM_MODULATION) {
+		mac->txrates.default_rate = IEEE80211_OFDM_RATE_54MB;
+		change |= IEEE80211SOFTMAC_TXRATECHG_DEFAULT;
+		mac->txrates.default_fallback = IEEE80211_OFDM_RATE_24MB;
 		change |= IEEE80211SOFTMAC_TXRATECHG_DEFAULT_FBACK;
 	} else
 		assert(0);

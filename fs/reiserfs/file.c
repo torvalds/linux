@@ -1576,6 +1576,8 @@ const struct file_operations reiserfs_file_operations = {
 	.sendfile = generic_file_sendfile,
 	.aio_read = generic_file_aio_read,
 	.aio_write = reiserfs_aio_write,
+	.splice_read = generic_file_splice_read,
+	.splice_write = generic_file_splice_write,
 };
 
 struct inode_operations reiserfs_file_inode_operations = {

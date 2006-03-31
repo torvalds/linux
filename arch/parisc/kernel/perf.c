@@ -805,7 +805,7 @@ static int perf_write_image(uint64_t *memaddr)
 		return -1;
 	}
 
-	runway = ioremap(cpu_device->hpa.start, 4096);
+	runway = ioremap_nocache(cpu_device->hpa.start, 4096);
 
 	/* Merge intrigue bits into Runway STATUS 0 */
 	tmp64 = __raw_readq(runway + RUNWAY_STATUS) & 0xffecfffffffffffful;

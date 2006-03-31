@@ -765,7 +765,7 @@ static int __devinit mthca_map_eq_regs(struct mthca_dev *dev)
 
 }
 
-static void __devexit mthca_unmap_eq_regs(struct mthca_dev *dev)
+static void mthca_unmap_eq_regs(struct mthca_dev *dev)
 {
 	if (mthca_is_memfree(dev)) {
 		mthca_unmap_reg(dev, (pci_resource_len(dev->pdev, 0) - 1) &
@@ -821,7 +821,7 @@ int __devinit mthca_map_eq_icm(struct mthca_dev *dev, u64 icm_virt)
 	return ret;
 }
 
-void __devexit mthca_unmap_eq_icm(struct mthca_dev *dev)
+void mthca_unmap_eq_icm(struct mthca_dev *dev)
 {
 	u8 status;
 
@@ -954,7 +954,7 @@ err_out_free:
 	return err;
 }
 
-void __devexit mthca_cleanup_eq_table(struct mthca_dev *dev)
+void mthca_cleanup_eq_table(struct mthca_dev *dev)
 {
 	u8 status;
 	int i;
