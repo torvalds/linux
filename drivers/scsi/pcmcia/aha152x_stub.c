@@ -96,11 +96,11 @@ typedef struct scsi_info_t {
 
 static void aha152x_release_cs(struct pcmcia_device *link);
 static void aha152x_detach(struct pcmcia_device *p_dev);
-static void aha152x_config_cs(struct pcmcia_device *link);
+static int aha152x_config_cs(struct pcmcia_device *link);
 
 static struct pcmcia_device *dev_list;
 
-static int aha152x_attach(struct pcmcia_device *link)
+static int aha152x_probe(struct pcmcia_device *link)
 {
     scsi_info_t *info;
 
@@ -123,9 +123,7 @@ static int aha152x_attach(struct pcmcia_device *link)
     link->conf.Present = PRESENT_OPTION;
 
     link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-    aha152x_config_cs(link);
-
-    return 0;
+    return aha152x_config_cs(link);
 } /* aha152x_attach */
 
 /*====================================================================*/
@@ -146,7 +144,7 @@ static void aha152x_detach(struct pcmcia_device *link)
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
-static void aha152x_config_cs(struct pcmcia_device *link)
+static int aha152x_config_cs(struct pcmcia_device *link)
 {
     scsi_info_t *info = link->priv;
     struct aha152x_setup s;
@@ -219,12 +217,12 @@ static void aha152x_config_cs(struct pcmcia_device *link)
     info->host = host;
 
     link->state &= ~DEV_CONFIG_PENDING;
-    return;
-    
+    return 0;
+
 cs_failed:
     cs_error(link, last_fn, last_ret);
     aha152x_release_cs(link);
-    return;
+    return -ENODEV;
 }
 
 static void aha152x_release_cs(struct pcmcia_device *link)
@@ -259,7 +257,7 @@ static struct pcmcia_driver aha152x_cs_driver = {
 	.drv		= {
 		.name	= "aha152x_cs",
 	},
-	.probe		= aha152x_attach,
+	.probe		= aha152x_probe,
 	.remove		= aha152x_detach,
 	.id_table       = aha152x_ids,
 	.resume		= aha152x_resume,
@@ -278,4 +276,3 @@ static void __exit exit_aha152x_cs(void)
 
 module_init(init_aha152x_cs);
 module_exit(exit_aha152x_cs);
- 

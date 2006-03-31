@@ -88,7 +88,7 @@ typedef struct ide_info_t {
 } ide_info_t;
 
 static void ide_release(struct pcmcia_device *);
-static void ide_config(struct pcmcia_device *);
+static int ide_config(struct pcmcia_device *);
 
 static void ide_detach(struct pcmcia_device *p_dev);
 
@@ -103,7 +103,7 @@ static void ide_detach(struct pcmcia_device *p_dev);
 
 ======================================================================*/
 
-static int ide_attach(struct pcmcia_device *link)
+static int ide_probe(struct pcmcia_device *link)
 {
     ide_info_t *info;
 
@@ -126,9 +126,7 @@ static int ide_attach(struct pcmcia_device *link)
     link->conf.IntType = INT_MEMORY_AND_IO;
 
     link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-    ide_config(link);
-
-    return 0;
+    return ide_config(link);
 } /* ide_attach */
 
 /*======================================================================
@@ -172,7 +170,7 @@ static int idecs_register(unsigned long io, unsigned long ctl, unsigned long irq
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
-static void ide_config(struct pcmcia_device *link)
+static int ide_config(struct pcmcia_device *link)
 {
     ide_info_t *info = link->priv;
     tuple_t tuple;
@@ -327,7 +325,7 @@ static void ide_config(struct pcmcia_device *link)
 
     link->state &= ~DEV_CONFIG_PENDING;
     kfree(stk);
-    return;
+    return 0;
 
 err_mem:
     printk(KERN_NOTICE "ide-cs: ide_config failed memory allocation\n");
@@ -339,6 +337,7 @@ failed:
     kfree(stk);
     ide_release(link);
     link->state &= ~DEV_CONFIG_PENDING;
+    return -ENODEV;
 } /* ide_config */
 
 /*======================================================================
@@ -424,7 +423,7 @@ static struct pcmcia_driver ide_cs_driver = {
 	.drv		= {
 		.name	= "ide-cs",
 	},
-	.probe		= ide_attach,
+	.probe		= ide_probe,
 	.remove		= ide_detach,
 	.id_table       = ide_ids,
 };

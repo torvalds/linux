@@ -84,7 +84,7 @@ static char *version = DRV_NAME ".c " DRV_VERSION " 2002/03/23";
 /*
     PCMCIA event handlers
  */
-static void fmvj18x_config(struct pcmcia_device *link);
+static int fmvj18x_config(struct pcmcia_device *link);
 static int fmvj18x_get_hwinfo(struct pcmcia_device *link, u_char *node_id);
 static int fmvj18x_setup_mfc(struct pcmcia_device *link);
 static void fmvj18x_release(struct pcmcia_device *link);
@@ -228,7 +228,7 @@ typedef struct local_info_t {
 #define BANK_1U              0x24 /* bank 1 (CONFIG_1) */
 #define BANK_2U              0x28 /* bank 2 (CONFIG_1) */
 
-static int fmvj18x_attach(struct pcmcia_device *link)
+static int fmvj18x_probe(struct pcmcia_device *link)
 {
     local_info_t *lp;
     struct net_device *dev;
@@ -273,9 +273,7 @@ static int fmvj18x_attach(struct pcmcia_device *link)
     SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
 
     link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-    fmvj18x_config(link);
-
-    return 0;
+    return fmvj18x_config(link);
 } /* fmvj18x_attach */
 
 /*====================================================================*/
@@ -339,7 +337,7 @@ static int ungermann_try_io_port(struct pcmcia_device *link)
     return ret;	/* RequestIO failed */
 }
 
-static void fmvj18x_config(struct pcmcia_device *link)
+static int fmvj18x_config(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
     local_info_t *lp = netdev_priv(dev);
@@ -552,7 +550,7 @@ static void fmvj18x_config(struct pcmcia_device *link)
     for (i = 0; i < 6; i++)
 	printk("%02X%s", dev->dev_addr[i], ((i<5) ? ":" : "\n"));
 
-    return;
+    return 0;
     
 cs_failed:
     /* All Card Services errors end up here */
@@ -560,7 +558,7 @@ cs_failed:
 failed:
     fmvj18x_release(link);
     link->state &= ~DEV_CONFIG_PENDING;
-
+    return -ENODEV;
 } /* fmvj18x_config */
 /*====================================================================*/
 
@@ -720,7 +718,7 @@ static struct pcmcia_driver fmvj18x_cs_driver = {
 	.drv		= {
 		.name	= "fmvj18x_cs",
 	},
-	.probe		= fmvj18x_attach,
+	.probe		= fmvj18x_probe,
 	.remove		= fmvj18x_detach,
 	.id_table       = fmvj18x_ids,
 	.suspend	= fmvj18x_suspend,

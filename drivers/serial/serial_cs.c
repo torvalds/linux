@@ -113,7 +113,7 @@ struct serial_cfg_mem {
 };
 
 
-static void serial_config(struct pcmcia_device * link);
+static int serial_config(struct pcmcia_device * link);
 
 
 /*======================================================================
@@ -211,9 +211,7 @@ static int serial_probe(struct pcmcia_device *link)
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	serial_config(link);
-
-	return 0;
+	return serial_config(link);
 }
 
 /*======================================================================
@@ -553,7 +551,7 @@ free_cfg_mem:
 
 ======================================================================*/
 
-void serial_config(struct pcmcia_device * link)
+static int serial_config(struct pcmcia_device * link)
 {
 	struct serial_info *info = link->priv;
 	struct serial_cfg_mem *cfg_mem;
@@ -652,7 +650,7 @@ void serial_config(struct pcmcia_device * link)
 	link->dev_node = &info->node[0];
 	link->state &= ~DEV_CONFIG_PENDING;
 	kfree(cfg_mem);
-	return;
+	return 0;
 
  cs_failed:
 	cs_error(link, last_fn, last_ret);
@@ -660,6 +658,7 @@ void serial_config(struct pcmcia_device * link)
 	serial_remove(link);
 	link->state &= ~DEV_CONFIG_PENDING;
 	kfree(cfg_mem);
+	return -ENODEV;
 }
 
 static struct pcmcia_device_id serial_ids[] = {

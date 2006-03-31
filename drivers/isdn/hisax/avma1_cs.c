@@ -67,7 +67,7 @@ module_param(isdnprot, int, 0);
    handler.
 */
 
-static void avma1cs_config(struct pcmcia_device *link);
+static int avma1cs_config(struct pcmcia_device *link);
 static void avma1cs_release(struct pcmcia_device *link);
 
 /*
@@ -116,7 +116,7 @@ typedef struct local_info_t {
     
 ======================================================================*/
 
-static int avma1cs_attach(struct pcmcia_device *p_dev)
+static int avma1cs_probe(struct pcmcia_device *p_dev)
 {
     local_info_t *local;
 
@@ -150,9 +150,7 @@ static int avma1cs_attach(struct pcmcia_device *p_dev)
     p_dev->conf.Present = PRESENT_OPTION;
 
     p_dev->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-    avma1cs_config(p_dev);
-
-    return 0;
+    return avma1cs_config(p_dev);
 } /* avma1cs_attach */
 
 /*======================================================================
@@ -206,7 +204,7 @@ static int next_tuple(struct pcmcia_device *handle, tuple_t *tuple,
     return get_tuple(handle, tuple, parse);
 }
 
-static void avma1cs_config(struct pcmcia_device *link)
+static int avma1cs_config(struct pcmcia_device *link)
 {
     tuple_t tuple;
     cisparse_t parse;
@@ -242,7 +240,7 @@ static void avma1cs_config(struct pcmcia_device *link)
     if (i != CS_SUCCESS) {
 	cs_error(link, ParseTuple, i);
 	link->state &= ~DEV_CONFIG_PENDING;
-	return;
+	return -ENODEV;
     }
     
     /* Configure card */
@@ -325,7 +323,7 @@ found_port:
     /* If any step failed, release any partially configured state */
     if (i != 0) {
 	avma1cs_release(link);
-	return;
+	return -ENODEV;
     }
 
     printk(KERN_NOTICE "avma1_cs: checking at i/o %#x, irq %d\n",
@@ -340,10 +338,11 @@ found_port:
     if (i < 0) {
     	printk(KERN_ERR "avma1_cs: failed to initialize AVM A1 PCMCIA %d at i/o %#x\n", i, link->io.BasePort1);
 	avma1cs_release(link);
-	return;
+	return -ENODEV;
     }
     dev->node.minor = i;
 
+    return 0;
 } /* avma1cs_config */
 
 /*======================================================================
@@ -379,7 +378,7 @@ static struct pcmcia_driver avma1cs_driver = {
 	.drv		= {
 		.name	= "avma1_cs",
 	},
-	.probe		= avma1cs_attach,
+	.probe		= avma1cs_probe,
 	.remove		= avma1cs_detach,
 	.id_table	= avma1cs_ids,
 };

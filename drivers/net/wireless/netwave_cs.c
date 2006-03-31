@@ -191,7 +191,7 @@ module_param(mem_speed, int, 0);
 
 /* PCMCIA (Card Services) related functions */
 static void netwave_release(struct pcmcia_device *link);     /* Card removal */
-static void netwave_pcmcia_config(struct pcmcia_device *arg); /* Runs after card
+static int netwave_pcmcia_config(struct pcmcia_device *arg); /* Runs after card
 													   insertion */
 static void netwave_detach(struct pcmcia_device *p_dev);    /* Destroy instance */
 
@@ -376,7 +376,7 @@ static struct iw_statistics *netwave_get_wireless_stats(struct net_device *dev)
  *     configure the card at this point -- we wait until we receive a
  *     card insertion event.
  */
-static int netwave_attach(struct pcmcia_device *link)
+static int netwave_probe(struct pcmcia_device *link)
 {
     struct net_device *dev;
     netwave_private *priv;
@@ -429,9 +429,7 @@ static int netwave_attach(struct pcmcia_device *link)
     link->irq.Instance = dev;
 
     link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-    netwave_pcmcia_config( link);
-
-    return 0;
+    return netwave_pcmcia_config( link);
 } /* netwave_attach */
 
 /*
@@ -737,7 +735,7 @@ static const struct iw_handler_def	netwave_handler_def =
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
-static void netwave_pcmcia_config(struct pcmcia_device *link) {
+static int netwave_pcmcia_config(struct pcmcia_device *link) {
     struct net_device *dev = link->priv;
     netwave_private *priv = netdev_priv(dev);
     tuple_t tuple;
@@ -845,12 +843,13 @@ static void netwave_pcmcia_config(struct pcmcia_device *link) {
     printk(KERN_DEBUG "Netwave_reset: revision %04x %04x\n", 
 	   get_uint16(ramBase + NETWAVE_EREG_ARW),
 	   get_uint16(ramBase + NETWAVE_EREG_ARW+2));
-    return;
+    return 0;
 
 cs_failed:
     cs_error(link, last_fn, last_ret);
 failed:
     netwave_release(link);
+    return -ENODEV;
 } /* netwave_pcmcia_config */
 
 /*
@@ -1387,7 +1386,7 @@ static struct pcmcia_driver netwave_driver = {
 	.drv		= {
 		.name	= "netwave_cs",
 	},
-	.probe		= netwave_attach,
+	.probe		= netwave_probe,
 	.remove		= netwave_detach,
 	.id_table       = netwave_ids,
 	.suspend	= netwave_suspend,

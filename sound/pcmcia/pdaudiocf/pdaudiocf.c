@@ -57,7 +57,7 @@ static struct snd_card *card_list[SNDRV_CARDS];
 /*
  * prototypes
  */
-static void pdacf_config(struct pcmcia_device *link);
+static int pdacf_config(struct pcmcia_device *link);
 static void snd_pdacf_detach(struct pcmcia_device *p_dev);
 
 static void pdacf_release(struct pcmcia_device *link)
@@ -90,7 +90,7 @@ static int snd_pdacf_dev_free(struct snd_device *device)
 /*
  * snd_pdacf_attach - attach callback for cs
  */
-static int snd_pdacf_attach(struct pcmcia_device *link)
+static int snd_pdacf_probe(struct pcmcia_device *link)
 {
 	int i;
 	struct snd_pdacf *pdacf;
@@ -149,9 +149,7 @@ static int snd_pdacf_attach(struct pcmcia_device *link)
 	link->conf.ConfigIndex = 1;
 	link->conf.Present = PRESENT_OPTION;
 
-	pdacf_config(link);
-
-	return 0;
+	return pdacf_config(link);
 }
 
 
@@ -218,7 +216,7 @@ static void snd_pdacf_detach(struct pcmcia_device *link)
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
-static void pdacf_config(struct pcmcia_device *link)
+static int pdacf_config(struct pcmcia_device *link)
 {
 	struct snd_pdacf *pdacf = link->priv;
 	tuple_t tuple;
@@ -230,7 +228,7 @@ static void pdacf_config(struct pcmcia_device *link)
 	parse = kmalloc(sizeof(*parse), GFP_KERNEL);
 	if (! parse) {
 		snd_printk(KERN_ERR "pdacf_config: cannot allocate\n");
-		return;
+		return -ENOMEM;
 	}
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
 	tuple.Attributes = 0;
@@ -257,12 +255,13 @@ static void pdacf_config(struct pcmcia_device *link)
 
 	link->dev_node = &pdacf->node;
 	link->state &= ~DEV_CONFIG_PENDING;
-	return;
+	return 0;
 
 cs_failed:
 	cs_error(link, last_fn, last_ret);
 failed:
 	pcmcia_disable_device(link);
+	return -ENODEV;
 }
 
 #ifdef CONFIG_PM
@@ -312,7 +311,7 @@ static struct pcmcia_driver pdacf_cs_driver = {
 	.drv		= {
 		.name	= "snd-pdaudiocf",
 	},
-	.probe		= snd_pdacf_attach,
+	.probe		= snd_pdacf_probe,
 	.remove		= snd_pdacf_detach,
 	.id_table	= snd_pdacf_ids,
 #ifdef CONFIG_PM

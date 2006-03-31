@@ -85,7 +85,7 @@ typedef struct bluecard_info_t {
 } bluecard_info_t;
 
 
-static void bluecard_config(struct pcmcia_device *link);
+static int bluecard_config(struct pcmcia_device *link);
 static void bluecard_release(struct pcmcia_device *link);
 
 static void bluecard_detach(struct pcmcia_device *p_dev);
@@ -856,7 +856,7 @@ static int bluecard_close(bluecard_info_t *info)
 	return 0;
 }
 
-static int bluecard_attach(struct pcmcia_device *link)
+static int bluecard_probe(struct pcmcia_device *link)
 {
 	bluecard_info_t *info;
 
@@ -880,9 +880,7 @@ static int bluecard_attach(struct pcmcia_device *link)
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	bluecard_config(link);
-
-	return 0;
+	return bluecard_config(link);
 }
 
 
@@ -912,7 +910,7 @@ static int first_tuple(struct pcmcia_device *handle, tuple_t *tuple, cisparse_t 
 	return pcmcia_parse_tuple(handle, tuple, parse);
 }
 
-static void bluecard_config(struct pcmcia_device *link)
+static int bluecard_config(struct pcmcia_device *link)
 {
 	bluecard_info_t *info = link->priv;
 	tuple_t tuple;
@@ -973,13 +971,14 @@ static void bluecard_config(struct pcmcia_device *link)
 	link->dev_node = &info->node;
 	link->state &= ~DEV_CONFIG_PENDING;
 
-	return;
+	return 0;
 
 cs_failed:
 	cs_error(link, last_fn, last_ret);
 
 failed:
 	bluecard_release(link);
+	return -ENODEV;
 }
 
 
@@ -1008,7 +1007,7 @@ static struct pcmcia_driver bluecard_driver = {
 	.drv		= {
 		.name	= "bluecard_cs",
 	},
-	.probe		= bluecard_attach,
+	.probe		= bluecard_probe,
 	.remove		= bluecard_detach,
 	.id_table	= bluecard_ids,
 };

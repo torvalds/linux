@@ -91,7 +91,7 @@ MODULE_SUPPORTED_DEVICE("Atmel at76c50x PCMCIA cards");
    event handler. 
 */
 
-static void atmel_config(struct pcmcia_device *link);
+static int atmel_config(struct pcmcia_device *link);
 static void atmel_release(struct pcmcia_device *link);
 
 /*
@@ -152,7 +152,7 @@ typedef struct local_info_t {
   
   ======================================================================*/
 
-static int atmel_attach(struct pcmcia_device *p_dev)
+static int atmel_probe(struct pcmcia_device *p_dev)
 {
 	local_info_t *local;
 
@@ -182,9 +182,7 @@ static int atmel_attach(struct pcmcia_device *p_dev)
 	p_dev->priv = local;
 
 	p_dev->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	atmel_config(p_dev);
-
-	return 0;
+	return atmel_config(p_dev);
 } /* atmel_attach */
 
 /*======================================================================
@@ -230,7 +228,7 @@ static int card_present(void *arg)
 	return 0;
 }
 
-static void atmel_config(struct pcmcia_device *link)
+static int atmel_config(struct pcmcia_device *link)
 {
 	tuple_t tuple;
 	cisparse_t parse;
@@ -377,11 +375,12 @@ static void atmel_config(struct pcmcia_device *link)
 	link->dev_node = &dev->node;
 			
 	link->state &= ~DEV_CONFIG_PENDING;
-	return;
+	return 0;
 	
  cs_failed:
 	cs_error(link, last_fn, last_ret);
 	atmel_release(link);
+	return -ENODEV;
 }
 
 /*======================================================================
@@ -476,7 +475,7 @@ static struct pcmcia_driver atmel_driver = {
 	.drv		= {
 		.name	= "atmel_cs",
         },
-	.probe          = atmel_attach,
+	.probe          = atmel_probe,
 	.remove		= atmel_detach,
 	.id_table	= atmel_ids,
 	.suspend	= atmel_suspend,

@@ -118,7 +118,7 @@ MODULE_LICENSE("GPL");
 
 /*====================================================================*/
 
-static void com20020_config(struct pcmcia_device *link);
+static int com20020_config(struct pcmcia_device *link);
 static void com20020_release(struct pcmcia_device *link);
 
 static void com20020_detach(struct pcmcia_device *p_dev);
@@ -138,7 +138,7 @@ typedef struct com20020_dev_t {
 
 ======================================================================*/
 
-static int com20020_attach(struct pcmcia_device *p_dev)
+static int com20020_probe(struct pcmcia_device *p_dev)
 {
     com20020_dev_t *info;
     struct net_device *dev;
@@ -179,9 +179,7 @@ static int com20020_attach(struct pcmcia_device *p_dev)
     p_dev->priv = info;
 
     p_dev->state |= DEV_PRESENT;
-    com20020_config(p_dev);
-
-    return 0;
+    return com20020_config(p_dev);
 
 fail_alloc_dev:
     kfree(info);
@@ -250,7 +248,7 @@ static void com20020_detach(struct pcmcia_device *link)
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
-static void com20020_config(struct pcmcia_device *link)
+static int com20020_config(struct pcmcia_device *link)
 {
     struct arcnet_local *lp;
     tuple_t tuple;
@@ -345,13 +343,14 @@ static void com20020_config(struct pcmcia_device *link)
 
     DEBUG(1,KERN_INFO "%s: port %#3lx, irq %d\n",
            dev->name, dev->base_addr, dev->irq);
-    return;
+    return 0;
 
 cs_failed:
     cs_error(link, last_fn, last_ret);
 failed:
     DEBUG(1,"com20020_config failed...\n");
     com20020_release(link);
+    return -ENODEV;
 } /* com20020_config */
 
 /*======================================================================
@@ -404,7 +403,7 @@ static struct pcmcia_driver com20020_cs_driver = {
 	.drv		= {
 		.name	= "com20020_cs",
 	},
-	.probe		= com20020_attach,
+	.probe		= com20020_probe,
 	.remove		= com20020_detach,
 	.id_table	= com20020_ids,
 	.suspend	= com20020_suspend,

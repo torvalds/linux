@@ -94,7 +94,7 @@ module_param(protocol, int, 0);
    handler.
 */
 
-static void elsa_cs_config(struct pcmcia_device *link);
+static int elsa_cs_config(struct pcmcia_device *link);
 static void elsa_cs_release(struct pcmcia_device *link);
 
 /*
@@ -139,7 +139,7 @@ typedef struct local_info_t {
 
 ======================================================================*/
 
-static int elsa_cs_attach(struct pcmcia_device *link)
+static int elsa_cs_probe(struct pcmcia_device *link)
 {
     local_info_t *local;
 
@@ -175,9 +175,7 @@ static int elsa_cs_attach(struct pcmcia_device *link)
     link->conf.IntType = INT_MEMORY_AND_IO;
 
     link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-    elsa_cs_config(link);
-
-    return 0;
+    return elsa_cs_config(link);
 } /* elsa_cs_attach */
 
 /*======================================================================
@@ -235,7 +233,7 @@ static int next_tuple(struct pcmcia_device *handle, tuple_t *tuple,
     return get_tuple(handle, tuple, parse);
 }
 
-static void elsa_cs_config(struct pcmcia_device *link)
+static int elsa_cs_config(struct pcmcia_device *link)
 {
     tuple_t tuple;
     cisparse_t parse;
@@ -346,10 +344,11 @@ static void elsa_cs_config(struct pcmcia_device *link)
     } else
     	((local_info_t*)link->priv)->cardnr = i;
 
-    return;
+    return 0;
 cs_failed:
     cs_error(link, last_fn, i);
     elsa_cs_release(link);
+    return -ENODEV;
 } /* elsa_cs_config */
 
 /*======================================================================
@@ -406,7 +405,7 @@ static struct pcmcia_driver elsa_cs_driver = {
 	.drv		= {
 		.name	= "elsa_cs",
 	},
-	.probe		= elsa_cs_attach,
+	.probe		= elsa_cs_probe,
 	.remove		= elsa_cs_detach,
 	.id_table	= elsa_ids,
 	.suspend	= elsa_suspend,

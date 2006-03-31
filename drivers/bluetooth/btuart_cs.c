@@ -84,7 +84,7 @@ typedef struct btuart_info_t {
 } btuart_info_t;
 
 
-static void btuart_config(struct pcmcia_device *link);
+static int btuart_config(struct pcmcia_device *link);
 static void btuart_release(struct pcmcia_device *link);
 
 static void btuart_detach(struct pcmcia_device *p_dev);
@@ -576,7 +576,7 @@ static int btuart_close(btuart_info_t *info)
 	return 0;
 }
 
-static int btuart_attach(struct pcmcia_device *link)
+static int btuart_probe(struct pcmcia_device *link)
 {
 	btuart_info_t *info;
 
@@ -600,9 +600,7 @@ static int btuart_attach(struct pcmcia_device *link)
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	btuart_config(link);
-
-	return 0;
+	return btuart_config(link);
 }
 
 
@@ -641,7 +639,7 @@ static int next_tuple(struct pcmcia_device *handle, tuple_t *tuple, cisparse_t *
 	return get_tuple(handle, tuple, parse);
 }
 
-static void btuart_config(struct pcmcia_device *link)
+static int btuart_config(struct pcmcia_device *link)
 {
 	static kio_addr_t base[5] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8, 0x0 };
 	btuart_info_t *info = link->priv;
@@ -741,13 +739,14 @@ found_port:
 	link->dev_node = &info->node;
 	link->state &= ~DEV_CONFIG_PENDING;
 
-	return;
+	return 0;
 
 cs_failed:
 	cs_error(link, last_fn, last_ret);
 
 failed:
 	btuart_release(link);
+	return -ENODEV;
 }
 
 
@@ -772,7 +771,7 @@ static struct pcmcia_driver btuart_driver = {
 	.drv		= {
 		.name	= "btuart_cs",
 	},
-	.probe		= btuart_attach,
+	.probe		= btuart_probe,
 	.remove		= btuart_detach,
 	.id_table	= btuart_ids,
 };

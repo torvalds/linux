@@ -105,7 +105,7 @@ MODULE_LICENSE("GPL");
 
 /*====================================================================*/
 
-static void ibmtr_config(struct pcmcia_device *link);
+static int ibmtr_config(struct pcmcia_device *link);
 static void ibmtr_hw_setup(struct net_device *dev, u_int mmiobase);
 static void ibmtr_release(struct pcmcia_device *link);
 static void ibmtr_detach(struct pcmcia_device *p_dev);
@@ -174,9 +174,7 @@ static int ibmtr_attach(struct pcmcia_device *link)
     SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
 
     link->state |= DEV_PRESENT;
-    ibmtr_config(link);
-
-    return 0;
+    return ibmtr_config(link);
 } /* ibmtr_attach */
 
 /*======================================================================
@@ -220,7 +218,7 @@ static void ibmtr_detach(struct pcmcia_device *link)
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
-static void ibmtr_config(struct pcmcia_device *link)
+static int ibmtr_config(struct pcmcia_device *link)
 {
     ibmtr_dev_t *info = link->priv;
     struct net_device *dev = info->dev;
@@ -323,12 +321,13 @@ static void ibmtr_config(struct pcmcia_device *link)
     for (i = 0; i < TR_ALEN; i++)
         printk("%02X", dev->dev_addr[i]);
     printk("\n");
-    return;
+    return 0;
 
 cs_failed:
     cs_error(link, last_fn, last_ret);
 failed:
     ibmtr_release(link);
+    return -ENODEV;
 } /* ibmtr_config */
 
 /*======================================================================

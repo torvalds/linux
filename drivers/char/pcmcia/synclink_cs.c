@@ -484,7 +484,7 @@ static void mgslpc_wait_until_sent(struct tty_struct *tty, int timeout);
 
 /* PCMCIA prototypes */
 
-static void mgslpc_config(struct pcmcia_device *link);
+static int mgslpc_config(struct pcmcia_device *link);
 static void mgslpc_release(u_long arg);
 static void mgslpc_detach(struct pcmcia_device *p_dev);
 
@@ -533,9 +533,10 @@ static void ldisc_receive_buf(struct tty_struct *tty,
 	}
 }
 
-static int mgslpc_attach(struct pcmcia_device *link)
+static int mgslpc_probe(struct pcmcia_device *link)
 {
     MGSLPC_INFO *info;
+    int ret;
 
     if (debug_level >= DEBUG_LEVEL_INFO)
 	    printk("mgslpc_attach\n");
@@ -578,7 +579,9 @@ static int mgslpc_attach(struct pcmcia_device *link)
     link->conf.IntType = INT_MEMORY_AND_IO;
 
     link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-    mgslpc_config(link);
+    ret = mgslpc_config(link);
+    if (ret)
+	    return ret;
 
     mgslpc_add_device(info);
 
@@ -591,7 +594,7 @@ static int mgslpc_attach(struct pcmcia_device *link)
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
-static void mgslpc_config(struct pcmcia_device *link)
+static int mgslpc_config(struct pcmcia_device *link)
 {
     MGSLPC_INFO *info = link->priv;
     tuple_t tuple;
@@ -680,11 +683,12 @@ static void mgslpc_config(struct pcmcia_device *link)
     printk("\n");
     
     link->state &= ~DEV_CONFIG_PENDING;
-    return;
+    return 0;
 
 cs_failed:
     cs_error(link, last_fn, last_ret);
     mgslpc_release((u_long)link);
+    return -ENODEV;
 }
 
 /* Card has been removed.
@@ -3003,7 +3007,7 @@ static struct pcmcia_driver mgslpc_driver = {
 	.drv		= {
 		.name	= "synclink_cs",
 	},
-	.probe		= mgslpc_attach,
+	.probe		= mgslpc_probe,
 	.remove		= mgslpc_detach,
 	.id_table	= mgslpc_ids,
 	.suspend	= mgslpc_suspend,

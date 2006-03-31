@@ -80,7 +80,7 @@ MODULE_SUPPORTED_DEVICE("Aironet 4500, 4800 and Cisco 340 PCMCIA cards");
    event handler. 
 */
 
-static void airo_config(struct pcmcia_device *link);
+static int airo_config(struct pcmcia_device *link);
 static void airo_release(struct pcmcia_device *link);
 
 /*
@@ -141,7 +141,7 @@ typedef struct local_info_t {
   
   ======================================================================*/
 
-static int airo_attach(struct pcmcia_device *p_dev)
+static int airo_probe(struct pcmcia_device *p_dev)
 {
 	local_info_t *local;
 
@@ -171,9 +171,7 @@ static int airo_attach(struct pcmcia_device *p_dev)
 	p_dev->priv = local;
 
 	p_dev->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	airo_config(p_dev);
-
-	return 0;
+	return airo_config(p_dev);
 } /* airo_attach */
 
 /*======================================================================
@@ -211,7 +209,7 @@ static void airo_detach(struct pcmcia_device *link)
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
-static void airo_config(struct pcmcia_device *link)
+static int airo_config(struct pcmcia_device *link)
 {
 	tuple_t tuple;
 	cisparse_t parse;
@@ -386,12 +384,12 @@ static void airo_config(struct pcmcia_device *link)
 	printk("\n");
 	
 	link->state &= ~DEV_CONFIG_PENDING;
-	return;
-	
+	return 0;
+
  cs_failed:
 	cs_error(link, last_fn, last_ret);
 	airo_release(link);
-	
+	return -ENODEV;
 } /* airo_config */
 
 /*======================================================================
@@ -444,7 +442,7 @@ static struct pcmcia_driver airo_driver = {
 	.drv		= {
 		.name	= "airo_cs",
 	},
-	.probe		= airo_attach,
+	.probe		= airo_probe,
 	.remove		= airo_detach,
 	.id_table       = airo_ids,
 	.suspend	= airo_suspend,

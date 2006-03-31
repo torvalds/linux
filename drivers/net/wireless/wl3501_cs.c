@@ -103,7 +103,7 @@ module_param(pc_debug, int, 0);
  * release a socket, in response to card insertion and ejection events.  They
  * are invoked from the wl24 event handler.
  */
-static void wl3501_config(struct pcmcia_device *link);
+static int wl3501_config(struct pcmcia_device *link);
 static void wl3501_release(struct pcmcia_device *link);
 
 /*
@@ -1920,7 +1920,7 @@ static const struct iw_handler_def wl3501_handler_def = {
  * The dev_link structure is initialized, but we don't actually configure the
  * card at this point -- we wait until we receive a card insertion event.
  */
-static int wl3501_attach(struct pcmcia_device *p_dev)
+static int wl3501_probe(struct pcmcia_device *p_dev)
 {
 	struct net_device *dev;
 	struct wl3501_card *this;
@@ -1960,9 +1960,7 @@ static int wl3501_attach(struct pcmcia_device *p_dev)
 	p_dev->priv = p_dev->irq.Instance = dev;
 
 	p_dev->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	wl3501_config(p_dev);
-
-	return 0;
+	return wl3501_config(p_dev);
 out_link:
 	return -ENOMEM;
 }
@@ -1978,7 +1976,7 @@ do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
  * received, to configure the PCMCIA socket, and to make the ethernet device
  * available to the system.
  */
-static void wl3501_config(struct pcmcia_device *link)
+static int wl3501_config(struct pcmcia_device *link)
 {
 	tuple_t tuple;
 	cisparse_t parse;
@@ -2082,13 +2080,13 @@ static void wl3501_config(struct pcmcia_device *link)
 	spin_lock_init(&this->lock);
 	init_waitqueue_head(&this->wait);
 	netif_start_queue(dev);
-	goto out;
+	return 0;
+
 cs_failed:
 	cs_error(link, last_fn, last_ret);
 failed:
 	wl3501_release(link);
-out:
-	return;
+	return -ENODEV;
 }
 
 /**
@@ -2146,7 +2144,7 @@ static struct pcmcia_driver wl3501_driver = {
 	.drv		= {
 		.name	= "wl3501_cs",
 	},
-	.probe		= wl3501_attach,
+	.probe		= wl3501_probe,
 	.remove		= wl3501_detach,
 	.id_table	= wl3501_ids,
 	.suspend	= wl3501_suspend,

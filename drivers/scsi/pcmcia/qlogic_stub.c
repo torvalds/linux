@@ -99,7 +99,7 @@ typedef struct scsi_info_t {
 
 static void qlogic_release(struct pcmcia_device *link);
 static void qlogic_detach(struct pcmcia_device *p_dev);
-static void qlogic_config(struct pcmcia_device * link);
+static int qlogic_config(struct pcmcia_device * link);
 
 static struct Scsi_Host *qlogic_detect(struct scsi_host_template *host,
 				struct pcmcia_device *link, int qbase, int qlirq)
@@ -156,7 +156,7 @@ free_scsi_host:
 err:
 	return NULL;
 }
-static int qlogic_attach(struct pcmcia_device *link)
+static int qlogic_probe(struct pcmcia_device *link)
 {
 	scsi_info_t *info;
 
@@ -179,9 +179,7 @@ static int qlogic_attach(struct pcmcia_device *link)
 	link->conf.Present = PRESENT_OPTION;
 
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	qlogic_config(link);
-
-	return 0;
+	return qlogic_config(link);
 }				/* qlogic_attach */
 
 /*====================================================================*/
@@ -202,7 +200,7 @@ static void qlogic_detach(struct pcmcia_device *link)
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
-static void qlogic_config(struct pcmcia_device * link)
+static int qlogic_config(struct pcmcia_device * link)
 {
 	scsi_info_t *info = link->priv;
 	tuple_t tuple;
@@ -267,21 +265,20 @@ static void qlogic_config(struct pcmcia_device * link)
 	
 	if (!host) {
 		printk(KERN_INFO "%s: no SCSI devices found\n", qlogic_name);
-		goto out;
+		goto cs_failed;
 	}
 
 	sprintf(info->node.dev_name, "scsi%d", host->host_no);
 	link->dev_node = &info->node;
 	info->host = host;
 
-out:
 	link->state &= ~DEV_CONFIG_PENDING;
-	return;
+	return 0;
 
 cs_failed:
 	cs_error(link, last_fn, last_ret);
 	pcmcia_disable_device(link);
-	return;
+	return -ENODEV;
 
 }				/* qlogic_config */
 
@@ -350,7 +347,7 @@ static struct pcmcia_driver qlogic_cs_driver = {
 	.drv		= {
 	.name		= "qlogic_cs",
 	},
-	.probe		= qlogic_attach,
+	.probe		= qlogic_probe,
 	.remove		= qlogic_detach,
 	.id_table       = qlogic_ids,
 	.resume		= qlogic_resume,

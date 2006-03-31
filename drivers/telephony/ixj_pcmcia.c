@@ -35,10 +35,10 @@ typedef struct ixj_info_t {
 } ixj_info_t;
 
 static void ixj_detach(struct pcmcia_device *p_dev);
-static void ixj_config(struct pcmcia_device * link);
+static int ixj_config(struct pcmcia_device * link);
 static void ixj_cs_release(struct pcmcia_device * link);
 
-static int ixj_attach(struct pcmcia_device *p_dev)
+static int ixj_probe(struct pcmcia_device *p_dev)
 {
 	DEBUG(0, "ixj_attach()\n");
 	/* Create new ixj device */
@@ -53,9 +53,7 @@ static int ixj_attach(struct pcmcia_device *p_dev)
 	memset(p_dev->priv, 0, sizeof(struct ixj_info_t));
 
 	p_dev->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	ixj_config(p_dev);
-
-	return 0;
+	return ixj_config(p_dev);
 }
 
 static void ixj_detach(struct pcmcia_device *link)
@@ -133,7 +131,7 @@ static void ixj_get_serial(struct pcmcia_device * link, IXJ * j)
 	return;
 }
 
-static void ixj_config(struct pcmcia_device * link)
+static int ixj_config(struct pcmcia_device * link)
 {
 	IXJ *j;
 	ixj_info_t *info;
@@ -198,10 +196,11 @@ static void ixj_config(struct pcmcia_device * link)
 	link->dev_node = &info->node;
 	ixj_get_serial(link, j);
 	link->state &= ~DEV_CONFIG_PENDING;
-	return;
+	return 0;
       cs_failed:
 	cs_error(link, last_fn, last_ret);
 	ixj_cs_release(link);
+	return -ENODEV;
 }
 
 static void ixj_cs_release(struct pcmcia_device *link)
@@ -223,7 +222,7 @@ static struct pcmcia_driver ixj_driver = {
 	.drv		= {
 		.name	= "ixj_cs",
 	},
-	.probe		= ixj_attach,
+	.probe		= ixj_probe,
 	.remove		= ixj_detach,
 	.id_table	= ixj_ids,
 };

@@ -86,7 +86,7 @@ static char *version =
 
 /*====================================================================*/
 
-static void axnet_config(struct pcmcia_device *link);
+static int axnet_config(struct pcmcia_device *link);
 static void axnet_release(struct pcmcia_device *link);
 static int axnet_open(struct net_device *dev);
 static int axnet_close(struct net_device *dev);
@@ -142,7 +142,7 @@ static inline axnet_dev_t *PRIV(struct net_device *dev)
 
 ======================================================================*/
 
-static int axnet_attach(struct pcmcia_device *link)
+static int axnet_probe(struct pcmcia_device *link)
 {
     axnet_dev_t *info;
     struct net_device *dev;
@@ -169,9 +169,7 @@ static int axnet_attach(struct pcmcia_device *link)
     SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
 
     link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-    axnet_config(link);
-
-    return 0;
+    return axnet_config(link);
 } /* axnet_attach */
 
 /*======================================================================
@@ -288,7 +286,7 @@ static int try_io_port(struct pcmcia_device *link)
     }
 }
 
-static void axnet_config(struct pcmcia_device *link)
+static int axnet_config(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
     axnet_dev_t *info = PRIV(dev);
@@ -425,14 +423,14 @@ static void axnet_config(struct pcmcia_device *link)
     } else {
 	printk(KERN_NOTICE "  No MII transceivers found!\n");
     }
-    return;
+    return 0;
 
 cs_failed:
     cs_error(link, last_fn, last_ret);
 failed:
     axnet_release(link);
     link->state &= ~DEV_CONFIG_PENDING;
-    return;
+    return -ENODEV;
 } /* axnet_config */
 
 /*======================================================================
@@ -806,7 +804,7 @@ static struct pcmcia_driver axnet_cs_driver = {
 	.drv		= {
 		.name	= "axnet_cs",
 	},
-	.probe		= axnet_attach,
+	.probe		= axnet_probe,
 	.remove		= axnet_detach,
 	.id_table       = axnet_ids,
 	.suspend	= axnet_suspend,

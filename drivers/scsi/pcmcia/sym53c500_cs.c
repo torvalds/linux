@@ -707,7 +707,7 @@ static struct scsi_host_template sym53c500_driver_template = {
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
-static void
+static int
 SYM53C500_config(struct pcmcia_device *link)
 {
 	struct scsi_info_t *info = link->priv;
@@ -836,7 +836,8 @@ next_entry:
 
 	scsi_scan_host(host);
 
-	goto out;	/* SUCCESS */
+	link->state &= ~DEV_CONFIG_PENDING;
+	return 0;
 
 err_free_irq:
 	free_irq(irq_level, host);
@@ -845,15 +846,13 @@ err_free_scsi:
 err_release:
 	release_region(port_base, 0x10);
 	printk(KERN_INFO "sym53c500_cs: no SCSI devices found\n");
-
-out:
 	link->state &= ~DEV_CONFIG_PENDING;
-	return;
+	return -ENODEV;
 
 cs_failed:
 	cs_error(link, last_fn, last_ret);
 	SYM53C500_release(link);
-	return;
+	return -ENODEV;
 } /* SYM53C500_config */
 
 static int sym53c500_resume(struct pcmcia_device *link)
@@ -892,7 +891,7 @@ SYM53C500_detach(struct pcmcia_device *link)
 } /* SYM53C500_detach */
 
 static int
-SYM53C500_attach(struct pcmcia_device *link)
+SYM53C500_probe(struct pcmcia_device *link)
 {
 	struct scsi_info_t *info;
 
@@ -915,9 +914,7 @@ SYM53C500_attach(struct pcmcia_device *link)
 	link->conf.Present = PRESENT_OPTION;
 
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	SYM53C500_config(link);
-
-	return 0;
+	return SYM53C500_config(link);
 } /* SYM53C500_attach */
 
 MODULE_AUTHOR("Bob Tracy <rct@frus.com>");
@@ -937,7 +934,7 @@ static struct pcmcia_driver sym53c500_cs_driver = {
 	.drv		= {
 		.name	= "sym53c500_cs",
 	},
-	.probe		= SYM53C500_attach,
+	.probe		= SYM53C500_probe,
 	.remove		= SYM53C500_detach,
 	.id_table       = sym53c500_ids,
 	.resume		= sym53c500_resume,

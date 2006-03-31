@@ -81,33 +81,32 @@ typedef struct scsi_info_t {
 
 static void fdomain_release(struct pcmcia_device *link);
 static void fdomain_detach(struct pcmcia_device *p_dev);
-static void fdomain_config(struct pcmcia_device *link);
+static int fdomain_config(struct pcmcia_device *link);
 
-static int fdomain_attach(struct pcmcia_device *link)
+static int fdomain_probe(struct pcmcia_device *link)
 {
-    scsi_info_t *info;
+	scsi_info_t *info;
 
-    DEBUG(0, "fdomain_attach()\n");
+	DEBUG(0, "fdomain_attach()\n");
 
-    /* Create new SCSI device */
-    info = kmalloc(sizeof(*info), GFP_KERNEL);
-    if (!info) return -ENOMEM;
-    memset(info, 0, sizeof(*info));
-    info->p_dev = link;
-    link->priv = info;
-    link->io.NumPorts1 = 0x10;
-    link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-    link->io.IOAddrLines = 10;
-    link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
-    link->irq.IRQInfo1 = IRQ_LEVEL_ID;
-    link->conf.Attributes = CONF_ENABLE_IRQ;
-    link->conf.IntType = INT_MEMORY_AND_IO;
-    link->conf.Present = PRESENT_OPTION;
+	/* Create new SCSI device */
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	if (!info)
+		return -ENOMEM;
 
-    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-    fdomain_config(link);
+	info->p_dev = link;
+	link->priv = info;
+	link->io.NumPorts1 = 0x10;
+	link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
+	link->io.IOAddrLines = 10;
+	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
+	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
+	link->conf.Attributes = CONF_ENABLE_IRQ;
+	link->conf.IntType = INT_MEMORY_AND_IO;
+	link->conf.Present = PRESENT_OPTION;
 
-    return 0;
+	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+	return fdomain_config(link);
 } /* fdomain_attach */
 
 /*====================================================================*/
@@ -127,7 +126,7 @@ static void fdomain_detach(struct pcmcia_device *link)
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
-static void fdomain_config(struct pcmcia_device *link)
+static int fdomain_config(struct pcmcia_device *link)
 {
     scsi_info_t *info = link->priv;
     tuple_t tuple;
@@ -150,7 +149,7 @@ static void fdomain_config(struct pcmcia_device *link)
 
     /* Configure card */
     link->state |= DEV_CONFIG;
-    
+
     tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
     CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
     while (1) {
@@ -167,35 +166,35 @@ static void fdomain_config(struct pcmcia_device *link)
 
     CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
     CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
-    
+
     /* A bad hack... */
     release_region(link->io.BasePort1, link->io.NumPorts1);
 
     /* Set configuration options for the fdomain driver */
     sprintf(str, "%d,%d", link->io.BasePort1, link->irq.AssignedIRQ);
     fdomain_setup(str);
-    
+
     host = __fdomain_16x0_detect(&fdomain_driver_template);
     if (!host) {
         printk(KERN_INFO "fdomain_cs: no SCSI devices found\n");
 	goto cs_failed;
     }
- 
-    scsi_add_host(host, NULL); /* XXX handle failure */
+
+    if (scsi_add_host(host, NULL))
+	    goto cs_failed;
     scsi_scan_host(host);
 
     sprintf(info->node.dev_name, "scsi%d", host->host_no);
     link->dev_node = &info->node;
     info->host = host;
-    
+
     link->state &= ~DEV_CONFIG_PENDING;
-    return;
-    
+    return 0;
+
 cs_failed:
     cs_error(link, last_fn, last_ret);
     fdomain_release(link);
-    return;
-    
+    return -ENODEV;
 } /* fdomain_config */
 
 /*====================================================================*/
@@ -234,7 +233,7 @@ static struct pcmcia_driver fdomain_cs_driver = {
 	.drv		= {
 		.name	= "fdomain_cs",
 	},
-	.probe		= fdomain_attach,
+	.probe		= fdomain_probe,
 	.remove		= fdomain_detach,
 	.id_table       = fdomain_ids,
 	.resume		= fdomain_resume,

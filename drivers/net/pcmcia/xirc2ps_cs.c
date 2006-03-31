@@ -290,7 +290,7 @@ static void mii_wr(kio_addr_t ioaddr, u_char phyaddr, u_char phyreg,
  */
 
 static int has_ce2_string(struct pcmcia_device * link);
-static void xirc2ps_config(struct pcmcia_device * link);
+static int xirc2ps_config(struct pcmcia_device * link);
 static void xirc2ps_release(struct pcmcia_device * link);
 
 /****************
@@ -553,7 +553,7 @@ mii_wr(kio_addr_t ioaddr, u_char phyaddr, u_char phyreg, unsigned data, int len)
  */
 
 static int
-xirc2ps_attach(struct pcmcia_device *link)
+xirc2ps_probe(struct pcmcia_device *link)
 {
     struct net_device *dev;
     local_info_t *local;
@@ -592,9 +592,7 @@ xirc2ps_attach(struct pcmcia_device *link)
 #endif
 
     link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-    xirc2ps_config(link);
-
-    return 0;
+    return xirc2ps_config(link);
 } /* xirc2ps_attach */
 
 /****************
@@ -731,7 +729,7 @@ has_ce2_string(struct pcmcia_device * link)
  * is received, to configure the PCMCIA socket, and to make the
  * ethernet device available to the system.
  */
-static void
+static int
 xirc2ps_config(struct pcmcia_device * link)
 {
     struct net_device *dev = link->priv;
@@ -1061,17 +1059,18 @@ xirc2ps_config(struct pcmcia_device * link)
 	printk("%c%02X", i?':':' ', dev->dev_addr[i]);
     printk("\n");
 
-    return;
+    return 0;
 
   config_error:
     link->state &= ~DEV_CONFIG_PENDING;
     xirc2ps_release(link);
-    return;
+    return -ENODEV;
 
   cis_error:
     printk(KNOT_XIRC "unable to parse CIS\n");
   failure:
     link->state &= ~DEV_CONFIG_PENDING;
+    return -ENODEV;
 } /* xirc2ps_config */
 
 /****************
@@ -1911,7 +1910,7 @@ static struct pcmcia_driver xirc2ps_cs_driver = {
 	.drv		= {
 		.name	= "xirc2ps_cs",
 	},
-	.probe		= xirc2ps_attach,
+	.probe		= xirc2ps_probe,
 	.remove		= xirc2ps_detach,
 	.id_table       = xirc2ps_ids,
 	.suspend	= xirc2ps_suspend,

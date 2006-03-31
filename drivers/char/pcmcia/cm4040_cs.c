@@ -514,7 +514,7 @@ static void cm4040_reader_release(struct pcmcia_device *link)
 	return;
 }
 
-static void reader_config(struct pcmcia_device *link, int devno)
+static int reader_config(struct pcmcia_device *link, int devno)
 {
 	struct reader_dev *dev;
 	tuple_t tuple;
@@ -610,13 +610,14 @@ static void reader_config(struct pcmcia_device *link, int devno)
 	      link->io.BasePort1, link->io.BasePort1+link->io.NumPorts1);
 	DEBUGP(2, dev, "<- reader_config (succ)\n");
 
-	return;
+	return 0;
 
 cs_failed:
 	cs_error(link, fail_fn, fail_rc);
 cs_release:
 	reader_release(link);
 	link->state &= ~DEV_CONFIG_PENDING;
+	return -ENODEV;
 }
 
 static void reader_release(struct pcmcia_device *link)
@@ -625,10 +626,10 @@ static void reader_release(struct pcmcia_device *link)
 	pcmcia_disable_device(link);
 }
 
-static int reader_attach(struct pcmcia_device *link)
+static int reader_probe(struct pcmcia_device *link)
 {
 	struct reader_dev *dev;
-	int i;
+	int i, ret;
 
 	for (i = 0; i < CM_MAX_DEV; i++) {
 		if (dev_table[i] == NULL)
@@ -659,7 +660,9 @@ static int reader_attach(struct pcmcia_device *link)
 	dev->poll_timer.function = &cm4040_do_poll;
 
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	reader_config(link, i);
+	ret = reader_config(link, i);
+	if (ret)
+		return ret;
 
 	class_device_create(cmx_class, NULL, MKDEV(major, i), NULL,
 			    "cmx%d", i);
@@ -715,7 +718,7 @@ static struct pcmcia_driver reader_driver = {
   	.drv		= {
 		.name	= "cm4040_cs",
 	},
-	.probe		= reader_attach,
+	.probe		= reader_probe,
 	.remove		= reader_detach,
 	.id_table	= cm4040_ids,
 };

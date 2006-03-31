@@ -75,7 +75,7 @@ module_param(protocol, int, 0);
    handler.
 */
 
-static void teles_cs_config(struct pcmcia_device *link);
+static int teles_cs_config(struct pcmcia_device *link);
 static void teles_cs_release(struct pcmcia_device *link);
 
 /*
@@ -130,7 +130,7 @@ typedef struct local_info_t {
 
 ======================================================================*/
 
-static int teles_attach(struct pcmcia_device *link)
+static int teles_probe(struct pcmcia_device *link)
 {
     local_info_t *local;
 
@@ -165,9 +165,7 @@ static int teles_attach(struct pcmcia_device *link)
     link->conf.IntType = INT_MEMORY_AND_IO;
 
     link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-    teles_cs_config(link);
-
-    return 0;
+    return teles_cs_config(link);
 } /* teles_attach */
 
 /*======================================================================
@@ -225,7 +223,7 @@ static int next_tuple(struct pcmcia_device *handle, tuple_t *tuple,
     return get_tuple(handle, tuple, parse);
 }
 
-static void teles_cs_config(struct pcmcia_device *link)
+static int teles_cs_config(struct pcmcia_device *link)
 {
     tuple_t tuple;
     cisparse_t parse;
@@ -333,13 +331,16 @@ static void teles_cs_config(struct pcmcia_device *link)
     	printk(KERN_ERR "teles_cs: failed to initialize Teles PCMCIA %d at i/o %#x\n",
     		i, link->io.BasePort1);
     	teles_cs_release(link);
-    } else
-    	((local_info_t*)link->priv)->cardnr = i;
+	return -ENODEV;
+    }
 
-    return;
+    ((local_info_t*)link->priv)->cardnr = i;
+    return 0;
+
 cs_failed:
     cs_error(link, last_fn, i);
     teles_cs_release(link);
+    return -ENODEV;
 } /* teles_cs_config */
 
 /*======================================================================
@@ -396,7 +397,7 @@ static struct pcmcia_driver teles_cs_driver = {
 	.drv		= {
 		.name	= "teles_cs",
 	},
-	.probe		= teles_attach,
+	.probe		= teles_probe,
 	.remove		= teles_detach,
 	.id_table       = teles_ids,
 	.suspend	= teles_suspend,

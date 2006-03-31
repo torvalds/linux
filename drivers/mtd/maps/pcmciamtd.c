@@ -487,7 +487,7 @@ static void card_settings(struct pcmciamtd_dev *dev, struct pcmcia_device *link,
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
-static void pcmciamtd_config(struct pcmcia_device *link)
+static int pcmciamtd_config(struct pcmcia_device *link)
 {
 	struct pcmciamtd_dev *dev = link->priv;
 	struct mtd_info *mtd = NULL;
@@ -561,7 +561,7 @@ static void pcmciamtd_config(struct pcmcia_device *link)
 	if(!dev->win_size) {
 		err("Cant allocate memory window");
 		pcmciamtd_release(link);
-		return;
+		return -ENODEV;
 	}
 	DEBUG(1, "Allocated a window of %dKiB", dev->win_size >> 10);
 
@@ -573,7 +573,7 @@ static void pcmciamtd_config(struct pcmcia_device *link)
 	if(!dev->win_base) {
 		err("ioremap(%lu, %u) failed", req.Base, req.Size);
 		pcmciamtd_release(link);
-		return;
+		return -ENODEV;
 	}
 	DEBUG(1, "mapped window dev = %p req.base = 0x%lx base = %p size = 0x%x",
 	      dev, req.Base, dev->win_base, req.Size);
@@ -605,6 +605,7 @@ static void pcmciamtd_config(struct pcmcia_device *link)
 	ret = pcmcia_request_configuration(link, &link->conf);
 	if(ret != CS_SUCCESS) {
 		cs_error(link, RequestConfiguration, ret);
+		return -ENODEV;
 	}
 
 	if(mem_type == 1) {
@@ -625,7 +626,7 @@ static void pcmciamtd_config(struct pcmcia_device *link)
 	if(!mtd) {
 		DEBUG(1, "Cant find an MTD");
 		pcmciamtd_release(link);
-		return;
+		return -ENODEV;
 	}
 
 	dev->mtd_info = mtd;
@@ -668,19 +669,19 @@ static void pcmciamtd_config(struct pcmcia_device *link)
 		dev->mtd_info = NULL;
 		err("Couldnt register MTD device");
 		pcmciamtd_release(link);
-		return;
+		return -ENODEV;
 	}
 	snprintf(dev->node.dev_name, sizeof(dev->node.dev_name), "mtd%d", mtd->index);
 	info("mtd%d: %s", mtd->index, mtd->name);
 	link->state &= ~DEV_CONFIG_PENDING;
 	link->dev_node = &dev->node;
-	return;
+	return 0;
 
  cs_failed:
 	cs_error(link, last_fn, last_ret);
 	err("CS Error, exiting");
 	pcmciamtd_release(link);
-	return;
+	return -ENODEV;
 }
 
 
@@ -730,7 +731,7 @@ static void pcmciamtd_detach(struct pcmcia_device *link)
  * with Card Services.
  */
 
-static int pcmciamtd_attach(struct pcmcia_device *link)
+static int pcmciamtd_probe(struct pcmcia_device *link)
 {
 	struct pcmciamtd_dev *dev;
 
@@ -747,9 +748,7 @@ static int pcmciamtd_attach(struct pcmcia_device *link)
 	link->conf.IntType = INT_MEMORY;
 
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	pcmciamtd_config(link);
-
-	return 0;
+	return pcmciamtd_config(link);
 }
 
 static struct pcmcia_device_id pcmciamtd_ids[] = {
@@ -783,7 +782,7 @@ static struct pcmcia_driver pcmciamtd_driver = {
 	.drv		= {
 		.name	= "pcmciamtd"
 	},
-	.probe		= pcmciamtd_attach,
+	.probe		= pcmciamtd_probe,
 	.remove		= pcmciamtd_detach,
 	.owner		= THIS_MODULE,
 	.id_table	= pcmciamtd_ids,

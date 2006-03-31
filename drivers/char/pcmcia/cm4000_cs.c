@@ -1759,7 +1759,7 @@ static void cmm_cm4000_release(struct pcmcia_device * link)
 
 /*==== Interface to PCMCIA Layer =======================================*/
 
-static void cm4000_config(struct pcmcia_device * link, int devno)
+static int cm4000_config(struct pcmcia_device * link, int devno)
 {
 	struct cm4000_dev *dev;
 	tuple_t tuple;
@@ -1846,7 +1846,7 @@ static void cm4000_config(struct pcmcia_device * link, int devno)
 	link->dev_node = &dev->node;
 	link->state &= ~DEV_CONFIG_PENDING;
 
-	return;
+	return 0;
 
 cs_failed:
 	cs_error(link, fail_fn, fail_rc);
@@ -1854,6 +1854,7 @@ cs_release:
 	cm4000_release(link);
 
 	link->state &= ~DEV_CONFIG_PENDING;
+	return -ENODEV;
 }
 
 static int cm4000_suspend(struct pcmcia_device *link)
@@ -1883,10 +1884,10 @@ static void cm4000_release(struct pcmcia_device *link)
 	pcmcia_disable_device(link);
 }
 
-static int cm4000_attach(struct pcmcia_device *link)
+static int cm4000_probe(struct pcmcia_device *link)
 {
 	struct cm4000_dev *dev;
-	int i;
+	int i, ret;
 
 	for (i = 0; i < CM4000_MAX_DEV; i++)
 		if (dev_table[i] == NULL)
@@ -1913,7 +1914,9 @@ static int cm4000_attach(struct pcmcia_device *link)
 	init_waitqueue_head(&dev->readq);
 
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	cm4000_config(link, i);
+	ret = cm4000_config(link, i);
+	if (ret)
+		return ret;
 
 	class_device_create(cmm_class, NULL, MKDEV(major, i), NULL,
 			    "cmm%d", i);
@@ -1968,7 +1971,7 @@ static struct pcmcia_driver cm4000_driver = {
 	.drv	  = {
 		.name = "cm4000_cs",
 		},
-	.probe    = cm4000_attach,
+	.probe    = cm4000_probe,
 	.remove   = cm4000_detach,
 	.suspend  = cm4000_suspend,
 	.resume   = cm4000_resume,

@@ -103,7 +103,7 @@ module_param_array(hw_addr, int, NULL, 0);
 /*====================================================================*/
 
 static void mii_phy_probe(struct net_device *dev);
-static void pcnet_config(struct pcmcia_device *link);
+static int pcnet_config(struct pcmcia_device *link);
 static void pcnet_release(struct pcmcia_device *link);
 static int pcnet_open(struct net_device *dev);
 static int pcnet_close(struct net_device *dev);
@@ -265,9 +265,7 @@ static int pcnet_probe(struct pcmcia_device *link)
     dev->set_config = &set_config;
 
     link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-    pcnet_config(link);
-
-    return 0;
+    return pcnet_config(link);
 } /* pcnet_attach */
 
 /*======================================================================
@@ -516,7 +514,7 @@ static int try_io_port(struct pcmcia_device *link)
     }
 }
 
-static void pcnet_config(struct pcmcia_device *link)
+static int pcnet_config(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
     pcnet_dev_t *info = PRIV(dev);
@@ -701,14 +699,14 @@ static void pcnet_config(struct pcmcia_device *link)
     printk(" hw_addr ");
     for (i = 0; i < 6; i++)
 	printk("%02X%s", dev->dev_addr[i], ((i<5) ? ":" : "\n"));
-    return;
+    return 0;
 
 cs_failed:
     cs_error(link, last_fn, last_ret);
 failed:
     pcnet_release(link);
     link->state &= ~DEV_CONFIG_PENDING;
-    return;
+    return -ENODEV;
 } /* pcnet_config */
 
 /*======================================================================

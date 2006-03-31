@@ -51,7 +51,7 @@ MODULE_LICENSE("GPL");
    handler.
 */
 
-static void avmcs_config(struct pcmcia_device *link);
+static int avmcs_config(struct pcmcia_device *link);
 static void avmcs_release(struct pcmcia_device *link);
 
 /*
@@ -99,7 +99,7 @@ typedef struct local_info_t {
     
 ======================================================================*/
 
-static int avmcs_attach(struct pcmcia_device *p_dev)
+static int avmcs_probe(struct pcmcia_device *p_dev)
 {
     local_info_t *local;
 
@@ -128,12 +128,10 @@ static int avmcs_attach(struct pcmcia_device *p_dev)
     p_dev->priv = local;
 
     p_dev->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-    avmcs_config(p_dev);
-
-    return 0;
+    return avmcs_config(p_dev);
 
  err:
-    return -EINVAL;
+    return -ENOMEM;
 } /* avmcs_attach */
 
 /*======================================================================
@@ -185,7 +183,7 @@ static int next_tuple(struct pcmcia_device *handle, tuple_t *tuple,
     return get_tuple(handle, tuple, parse);
 }
 
-static void avmcs_config(struct pcmcia_device *link)
+static int avmcs_config(struct pcmcia_device *link)
 {
     tuple_t tuple;
     cisparse_t parse;
@@ -219,7 +217,7 @@ static void avmcs_config(struct pcmcia_device *link)
     if (i != CS_SUCCESS) {
 	cs_error(link, ParseTuple, i);
 	link->state &= ~DEV_CONFIG_PENDING;
-	return;
+	return -ENODEV;
     }
     
     /* Configure card */
@@ -319,7 +317,7 @@ found_port:
     /* If any step failed, release any partially configured state */
     if (i != 0) {
 	avmcs_release(link);
-	return;
+	return -ENODEV;
     }
 
 
@@ -333,9 +331,10 @@ found_port:
         printk(KERN_ERR "avm_cs: failed to add AVM-%s-Controller at i/o %#x, irq %d\n",
 		dev->node.dev_name, link->io.BasePort1, link->irq.AssignedIRQ);
 	avmcs_release(link);
-	return;
+	return -ENODEV;
     }
     dev->node.minor = i;
+    return 0;
 
 } /* avmcs_config */
 
@@ -367,7 +366,7 @@ static struct pcmcia_driver avmcs_driver = {
 	.drv	= {
 		.name	= "avm_cs",
 	},
-	.probe = avmcs_attach,
+	.probe = avmcs_probe,
 	.remove	= avmcs_detach,
 	.id_table = avmcs_ids,
 };

@@ -1593,10 +1593,11 @@ static int nsp_eh_host_reset(Scsi_Cmnd *SCpnt)
     configure the card at this point -- we wait until we receive a
     card insertion event.
 ======================================================================*/
-static int nsp_cs_attach(struct pcmcia_device *link)
+static int nsp_cs_probe(struct pcmcia_device *link)
 {
 	scsi_info_t  *info;
 	nsp_hw_data  *data = &nsp_data_base;
+	int ret;
 
 	nsp_dbg(NSP_DEBUG_INIT, "in");
 
@@ -1630,10 +1631,10 @@ static int nsp_cs_attach(struct pcmcia_device *link)
 	link->conf.Present	 = PRESENT_OPTION;
 
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	nsp_cs_config(link);
+	ret = nsp_cs_config(link);
 
 	nsp_dbg(NSP_DEBUG_INIT, "link=0x%p", link);
-	return 0;
+	return ret;
 } /* nsp_cs_attach */
 
 
@@ -1665,8 +1666,9 @@ static void nsp_cs_detach(struct pcmcia_device *link)
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 /*====================================================================*/
-static void nsp_cs_config(struct pcmcia_device *link)
+static int nsp_cs_config(struct pcmcia_device *link)
 {
+	int		  ret;
 	scsi_info_t	 *info	 = link->priv;
 	tuple_t		  tuple;
 	cisparse_t	  parse;
@@ -1842,7 +1844,10 @@ static void nsp_cs_config(struct pcmcia_device *link)
 
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,74))
-	scsi_add_host (host, NULL);
+	ret = scsi_add_host (host, NULL);
+	if (ret)
+		goto cs_failed;
+
 	scsi_scan_host(host);
 
 	snprintf(info->node.dev_name, sizeof(info->node.dev_name), "scsi%d", host->host_no);
@@ -1917,14 +1922,14 @@ static void nsp_cs_config(struct pcmcia_device *link)
 	printk("\n");
 
 	link->state &= ~DEV_CONFIG_PENDING;
-	return;
+	return 0;
 
  cs_failed:
 	nsp_dbg(NSP_DEBUG_INIT, "config fail");
 	cs_error(link, last_fn, last_ret);
 	nsp_cs_release(link);
 
-	return;
+	return -ENODEV;
 } /* nsp_cs_config */
 #undef CS_CHECK
 
@@ -2033,7 +2038,7 @@ static struct pcmcia_driver nsp_driver = {
 	.drv		= {
 		.name	= "nsp_cs",
 	},
-	.probe		= nsp_cs_attach,
+	.probe		= nsp_cs_probe,
 	.remove		= nsp_cs_detach,
 	.id_table	= nsp_cs_ids,
 	.suspend	= nsp_cs_suspend,

@@ -90,7 +90,7 @@ module_param(pc_debug, int, 0);
 #define DEBUG(n, args...)
 #endif
 /** Prototypes based on PCMCIA skeleton driver *******************************/
-static void ray_config(struct pcmcia_device *link);
+static int ray_config(struct pcmcia_device *link);
 static void ray_release(struct pcmcia_device *link);
 static void ray_detach(struct pcmcia_device *p_dev);
 
@@ -303,7 +303,7 @@ static char rcsid[] = "Raylink/WebGear wireless LAN - Corey <Thomas corey@world.
     configure the card at this point -- we wait until we receive a
     card insertion event.
 =============================================================================*/
-static int ray_attach(struct pcmcia_device *p_dev)
+static int ray_probe(struct pcmcia_device *p_dev)
 {
     ray_dev_t *local;
     struct net_device *dev;
@@ -368,9 +368,7 @@ static int ray_attach(struct pcmcia_device *p_dev)
 
     p_dev->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
     this_device = p_dev;
-    ray_config(p_dev);
-
-    return 0;
+    return ray_config(p_dev);
 
 fail_alloc_dev:
     return -ENOMEM;
@@ -412,7 +410,7 @@ static void ray_detach(struct pcmcia_device *link)
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 #define MAX_TUPLE_SIZE 128
-static void ray_config(struct pcmcia_device *link)
+static int ray_config(struct pcmcia_device *link)
 {
     tuple_t tuple;
     cisparse_t parse;
@@ -499,7 +497,7 @@ static void ray_config(struct pcmcia_device *link)
     DEBUG(3,"ray_config amem=%p\n",local->amem);
     if (ray_init(dev) < 0) {
         ray_release(link);
-        return;
+        return -ENODEV;
     }
 
     SET_NETDEV_DEV(dev, &handle_to_dev(link));
@@ -507,7 +505,7 @@ static void ray_config(struct pcmcia_device *link)
     if (i != 0) {
         printk("ray_config register_netdev() failed\n");
         ray_release(link);
-        return;
+        return i;
     }
 
     strcpy(local->node.dev_name, dev->name);
@@ -519,12 +517,13 @@ static void ray_config(struct pcmcia_device *link)
     for (i = 0; i < 6; i++)
     printk("%02X%s", dev->dev_addr[i], ((i<5) ? ":" : "\n"));
 
-    return;
+    return 0;
 
 cs_failed:
     cs_error(link, last_fn, last_ret);
 
     ray_release(link);
+    return -ENODEV;
 } /* ray_config */
 
 static inline struct ccs __iomem *ccs_base(ray_dev_t *dev)
@@ -2846,7 +2845,7 @@ static struct pcmcia_driver ray_driver = {
 	.drv		= {
 		.name	= "ray_cs",
 	},
-	.probe		= ray_attach,
+	.probe		= ray_probe,
 	.remove		= ray_detach,
 	.id_table       = ray_ids,
 	.suspend	= ray_suspend,

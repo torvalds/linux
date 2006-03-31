@@ -4580,10 +4580,11 @@ wavelan_close(struct net_device *	dev)
  * card insertion event.
  */
 static int
-wavelan_attach(struct pcmcia_device *p_dev)
+wavelan_probe(struct pcmcia_device *p_dev)
 {
   struct net_device *	dev;		/* Interface generic data */
   net_local *	lp;		/* Interface specific data */
+  int ret;
 
 #ifdef DEBUG_CALLBACK_TRACE
   printk(KERN_DEBUG "-> wavelan_attach()\n");
@@ -4651,11 +4652,18 @@ wavelan_attach(struct pcmcia_device *p_dev)
   dev->mtu = WAVELAN_MTU;
 
   p_dev->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-  if(wv_pcmcia_config(p_dev) &&
-     wv_hw_config(dev))
-	  wv_init_info(dev);
-  else
+  ret = wv_pcmcia_config(p_dev);
+  if (ret)
+	  return ret;
+
+  ret = wv_hw_config(dev);
+  if (ret) {
 	  dev->irq = 0;
+	  pcmcia_disable_device(p_dev);
+	  return ret;
+  }
+
+  wv_init_info(dev);
 
 #ifdef DEBUG_CALLBACK_TRACE
   printk(KERN_DEBUG "<- wavelan_attach()\n");
@@ -4760,7 +4768,7 @@ static struct pcmcia_driver wavelan_driver = {
 	.drv		= {
 		.name	= "wavelan_cs",
 	},
-	.probe		= wavelan_attach,
+	.probe		= wavelan_probe,
 	.remove		= wavelan_detach,
 	.id_table       = wavelan_ids,
 	.suspend	= wavelan_suspend,

@@ -501,16 +501,20 @@ static struct prism2_helper_functions prism2_pccard_funcs =
 
 /* allocate local data and register with CardServices
  * initialize dev_link structure, but do not configure the card yet */
-static int prism2_attach(struct pcmcia_device *p_dev)
+static int hostap_cs_probe(struct pcmcia_device *p_dev)
 {
+	int ret;
+
 	PDEBUG(DEBUG_HW, "%s: setting Vcc=33 (constant)\n", dev_info);
 	p_dev->conf.IntType = INT_MEMORY_AND_IO;
 
 	p_dev->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	if (prism2_config(p_dev))
+	ret = prism2_config(p_dev);
+	if (ret) {
 		PDEBUG(DEBUG_EXTRA, "prism2_config() failed\n");
+	}
 
-	return 0;
+	return ret;
 }
 
 
@@ -894,7 +898,7 @@ static struct pcmcia_driver hostap_driver = {
 	.drv		= {
 		.name	= "hostap_cs",
 	},
-	.probe		= prism2_attach,
+	.probe		= hostap_cs_probe,
 	.remove		= prism2_detach,
 	.owner		= THIS_MODULE,
 	.id_table	= hostap_cs_ids,

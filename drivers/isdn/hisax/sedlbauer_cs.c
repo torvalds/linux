@@ -95,7 +95,7 @@ module_param(protocol, int, 0);
    event handler. 
 */
 
-static void sedlbauer_config(struct pcmcia_device *link);
+static int sedlbauer_config(struct pcmcia_device *link);
 static void sedlbauer_release(struct pcmcia_device *link);
 
 /*
@@ -148,7 +148,7 @@ typedef struct local_info_t {
     
 ======================================================================*/
 
-static int sedlbauer_attach(struct pcmcia_device *link)
+static int sedlbauer_probe(struct pcmcia_device *link)
 {
     local_info_t *local;
 
@@ -187,9 +187,7 @@ static int sedlbauer_attach(struct pcmcia_device *link)
     link->conf.IntType = INT_MEMORY_AND_IO;
 
     link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-    sedlbauer_config(link);
-
-    return 0;
+    return sedlbauer_config(link);
 } /* sedlbauer_attach */
 
 /*======================================================================
@@ -224,7 +222,7 @@ static void sedlbauer_detach(struct pcmcia_device *link)
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
-static void sedlbauer_config(struct pcmcia_device *link)
+static int sedlbauer_config(struct pcmcia_device *link)
 {
     local_info_t *dev = link->priv;
     tuple_t tuple;
@@ -423,14 +421,16 @@ static void sedlbauer_config(struct pcmcia_device *link)
     	printk(KERN_ERR "sedlbauer_cs: failed to initialize SEDLBAUER PCMCIA %d at i/o %#x\n",
     		last_ret, link->io.BasePort1);
     	sedlbauer_release(link);
+	return -ENODEV;
     } else
     	((local_info_t*)link->priv)->cardnr = last_ret;
 
-    return;
+    return 0;
 
 cs_failed:
     cs_error(link, last_fn, last_ret);
     sedlbauer_release(link);
+    return -ENODEV;
 
 } /* sedlbauer_config */
 
@@ -493,7 +493,7 @@ static struct pcmcia_driver sedlbauer_driver = {
 	.drv		= {
 		.name	= "sedlbauer_cs",
 	},
-	.probe		= sedlbauer_attach,
+	.probe		= sedlbauer_probe,
 	.remove		= sedlbauer_detach,
 	.id_table	= sedlbauer_ids,
 	.suspend	= sedlbauer_suspend,

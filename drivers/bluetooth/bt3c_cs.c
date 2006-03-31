@@ -88,7 +88,7 @@ typedef struct bt3c_info_t {
 } bt3c_info_t;
 
 
-static void bt3c_config(struct pcmcia_device *link);
+static int bt3c_config(struct pcmcia_device *link);
 static void bt3c_release(struct pcmcia_device *link);
 
 static void bt3c_detach(struct pcmcia_device *p_dev);
@@ -645,7 +645,7 @@ static int bt3c_close(bt3c_info_t *info)
 	return 0;
 }
 
-static int bt3c_attach(struct pcmcia_device *link)
+static int bt3c_probe(struct pcmcia_device *link)
 {
 	bt3c_info_t *info;
 
@@ -669,9 +669,7 @@ static int bt3c_attach(struct pcmcia_device *link)
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	bt3c_config(link);
-
-	return 0;
+	return bt3c_config(link);
 }
 
 
@@ -710,7 +708,7 @@ static int next_tuple(struct pcmcia_device *handle, tuple_t *tuple, cisparse_t *
 	return get_tuple(handle, tuple, parse);
 }
 
-static void bt3c_config(struct pcmcia_device *link)
+static int bt3c_config(struct pcmcia_device *link)
 {
 	static kio_addr_t base[5] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8, 0x0 };
 	bt3c_info_t *info = link->priv;
@@ -809,13 +807,14 @@ found_port:
 	link->dev_node = &info->node;
 	link->state &= ~DEV_CONFIG_PENDING;
 
-	return;
+	return 0;
 
 cs_failed:
 	cs_error(link, last_fn, last_ret);
 
 failed:
 	bt3c_release(link);
+	return -ENODEV;
 }
 
 
@@ -841,7 +840,7 @@ static struct pcmcia_driver bt3c_driver = {
 	.drv		= {
 		.name	= "bt3c_cs",
 	},
-	.probe		= bt3c_attach,
+	.probe		= bt3c_probe,
 	.remove		= bt3c_detach,
 	.id_table	= bt3c_ids,
 };

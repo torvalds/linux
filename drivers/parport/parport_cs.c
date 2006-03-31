@@ -88,7 +88,7 @@ typedef struct parport_info_t {
 } parport_info_t;
 
 static void parport_detach(struct pcmcia_device *p_dev);
-static void parport_config(struct pcmcia_device *link);
+static int parport_config(struct pcmcia_device *link);
 static void parport_cs_release(struct pcmcia_device *);
 
 /*======================================================================
@@ -99,7 +99,7 @@ static void parport_cs_release(struct pcmcia_device *);
 
 ======================================================================*/
 
-static int parport_attach(struct pcmcia_device *link)
+static int parport_probe(struct pcmcia_device *link)
 {
     parport_info_t *info;
 
@@ -120,9 +120,7 @@ static int parport_attach(struct pcmcia_device *link)
     link->conf.IntType = INT_MEMORY_AND_IO;
 
     link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-    parport_config(link);
-
-    return 0;
+    return parport_config(link);
 } /* parport_attach */
 
 /*======================================================================
@@ -155,7 +153,7 @@ static void parport_detach(struct pcmcia_device *link)
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
-void parport_config(struct pcmcia_device *link)
+static int parport_config(struct pcmcia_device *link)
 {
     parport_info_t *info = link->priv;
     tuple_t tuple;
@@ -236,14 +234,14 @@ void parport_config(struct pcmcia_device *link)
     link->dev_node = &info->node;
 
     link->state &= ~DEV_CONFIG_PENDING;
-    return;
-    
+    return 0;
+
 cs_failed:
     cs_error(link, last_fn, last_ret);
 failed:
     parport_cs_release(link);
     link->state &= ~DEV_CONFIG_PENDING;
-
+    return -ENODEV;
 } /* parport_config */
 
 /*======================================================================
@@ -282,7 +280,7 @@ static struct pcmcia_driver parport_cs_driver = {
 	.drv		= {
 		.name	= "parport_cs",
 	},
-	.probe		= parport_attach,
+	.probe		= parport_probe,
 	.remove		= parport_detach,
 	.id_table	= parport_ids,
 };

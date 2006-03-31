@@ -225,7 +225,7 @@ static char mii_preamble_required = 0;
 
 /* Index of functions. */
 
-static void tc574_config(struct pcmcia_device *link);
+static int tc574_config(struct pcmcia_device *link);
 static void tc574_release(struct pcmcia_device *link);
 
 static void mdio_sync(kio_addr_t ioaddr, int bits);
@@ -256,7 +256,7 @@ static void tc574_detach(struct pcmcia_device *p_dev);
 	with Card Services.
 */
 
-static int tc574_attach(struct pcmcia_device *link)
+static int tc574_probe(struct pcmcia_device *link)
 {
 	struct el3_private *lp;
 	struct net_device *dev;
@@ -297,9 +297,7 @@ static int tc574_attach(struct pcmcia_device *link)
 #endif
 
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	tc574_config(link);
-
-	return 0;
+	return tc574_config(link);
 } /* tc574_attach */
 
 /*
@@ -337,7 +335,7 @@ static void tc574_detach(struct pcmcia_device *link)
 
 static const char *ram_split[] = {"5:3", "3:1", "1:1", "3:5"};
 
-static void tc574_config(struct pcmcia_device *link)
+static int tc574_config(struct pcmcia_device *link)
 {
 	struct net_device *dev = link->priv;
 	struct el3_private *lp = netdev_priv(dev);
@@ -486,13 +484,13 @@ static void tc574_config(struct pcmcia_device *link)
 		   8 << config.u.ram_size, ram_split[config.u.ram_split],
 		   config.u.autoselect ? "autoselect " : "");
 
-	return;
+	return 0;
 
 cs_failed:
 	cs_error(link, last_fn, last_ret);
 failed:
 	tc574_release(link);
-	return;
+	return -ENODEV;
 
 } /* tc574_config */
 
@@ -1223,7 +1221,7 @@ static struct pcmcia_driver tc574_driver = {
 	.drv		= {
 		.name	= "3c574_cs",
 	},
-	.probe		= tc574_attach,
+	.probe		= tc574_probe,
 	.remove		= tc574_detach,
 	.id_table       = tc574_ids,
 	.suspend	= tc574_suspend,

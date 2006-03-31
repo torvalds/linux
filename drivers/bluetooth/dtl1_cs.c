@@ -87,7 +87,7 @@ typedef struct dtl1_info_t {
 } dtl1_info_t;
 
 
-static void dtl1_config(struct pcmcia_device *link);
+static int dtl1_config(struct pcmcia_device *link);
 static void dtl1_release(struct pcmcia_device *link);
 
 static void dtl1_detach(struct pcmcia_device *p_dev);
@@ -555,7 +555,7 @@ static int dtl1_close(dtl1_info_t *info)
 	return 0;
 }
 
-static int dtl1_attach(struct pcmcia_device *link)
+static int dtl1_probe(struct pcmcia_device *link)
 {
 	dtl1_info_t *info;
 
@@ -579,9 +579,7 @@ static int dtl1_attach(struct pcmcia_device *link)
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	dtl1_config(link);
-
-	return 0;
+	return dtl1_config(link);
 }
 
 
@@ -620,7 +618,7 @@ static int next_tuple(struct pcmcia_device *handle, tuple_t *tuple, cisparse_t *
 	return get_tuple(handle, tuple, parse);
 }
 
-static void dtl1_config(struct pcmcia_device *link)
+static int dtl1_config(struct pcmcia_device *link)
 {
 	dtl1_info_t *info = link->priv;
 	tuple_t tuple;
@@ -693,13 +691,14 @@ static void dtl1_config(struct pcmcia_device *link)
 	link->dev_node = &info->node;
 	link->state &= ~DEV_CONFIG_PENDING;
 
-	return;
+	return 0;
 
 cs_failed:
 	cs_error(link, last_fn, last_ret);
 
 failed:
 	dtl1_release(link);
+	return -ENODEV;
 }
 
 
@@ -727,7 +726,7 @@ static struct pcmcia_driver dtl1_driver = {
 	.drv		= {
 		.name	= "dtl1_cs",
 	},
-	.probe		= dtl1_attach,
+	.probe		= dtl1_probe,
 	.remove		= dtl1_detach,
 	.id_table	= dtl1_ids,
 };

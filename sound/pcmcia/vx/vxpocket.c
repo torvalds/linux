@@ -208,7 +208,7 @@ static int snd_vxpocket_assign_resources(struct vx_core *chip, int port, int irq
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
-static void vxpocket_config(struct pcmcia_device *link)
+static int vxpocket_config(struct pcmcia_device *link)
 {
 	struct vx_core *chip = link->priv;
 	struct snd_vxpocket *vxp = (struct snd_vxpocket *)chip;
@@ -221,7 +221,7 @@ static void vxpocket_config(struct pcmcia_device *link)
 	parse = kmalloc(sizeof(*parse), GFP_KERNEL);
 	if (! parse) {
 		snd_printk(KERN_ERR "vx: cannot allocate\n");
-		return;
+		return -ENOMEM;
 	}
 	tuple.Attributes = 0;
 	tuple.TupleData = (cisdata_t *)buf;
@@ -265,13 +265,14 @@ static void vxpocket_config(struct pcmcia_device *link)
 	link->dev_node = &vxp->node;
 	link->state &= ~DEV_CONFIG_PENDING;
 	kfree(parse);
-	return;
+	return 9;
 
 cs_failed:
 	cs_error(link, last_fn, last_ret);
 failed:
 	pcmcia_disable_device(link);
 	kfree(parse);
+	return -ENODEV;
 }
 
 #ifdef CONFIG_PM
@@ -311,7 +312,7 @@ static int vxp_resume(struct pcmcia_device *link)
 
 /*
  */
-static int vxpocket_attach(struct pcmcia_device *p_dev)
+static int vxpocket_probe(struct pcmcia_device *p_dev)
 {
 	struct snd_card *card;
 	struct snd_vxpocket *vxp;
@@ -349,9 +350,7 @@ static int vxpocket_attach(struct pcmcia_device *p_dev)
 	vxp->p_dev = p_dev;
 	vxp->p_dev->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 
-	vxpocket_config(p_dev);
-
-	return 0;
+	return vxpocket_config(p_dev);
 }
 
 static void vxpocket_detach(struct pcmcia_device *link)
@@ -387,7 +386,7 @@ static struct pcmcia_driver vxp_cs_driver = {
 	.drv		= {
 		.name	= "snd-vxpocket",
 	},
-	.probe		= vxpocket_attach,
+	.probe		= vxpocket_probe,
 	.remove		= vxpocket_detach,
 	.id_table	= vxp_ids,
 #ifdef CONFIG_PM

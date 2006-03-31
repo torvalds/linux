@@ -279,7 +279,7 @@ enum RxCfg { RxAllMulti = 0x0004, RxPromisc = 0x0002,
 /*====================================================================*/
 
 static void smc91c92_detach(struct pcmcia_device *p_dev);
-static void smc91c92_config(struct pcmcia_device *link);
+static int smc91c92_config(struct pcmcia_device *link);
 static void smc91c92_release(struct pcmcia_device *link);
 
 static int smc_open(struct net_device *dev);
@@ -309,7 +309,7 @@ static struct ethtool_ops ethtool_ops;
 
 ======================================================================*/
 
-static int smc91c92_attach(struct pcmcia_device *link)
+static int smc91c92_probe(struct pcmcia_device *link)
 {
     struct smc_private *smc;
     struct net_device *dev;
@@ -357,9 +357,7 @@ static int smc91c92_attach(struct pcmcia_device *link)
     smc->mii_if.reg_num_mask = 0x1f;
 
     link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-    smc91c92_config(link);
-
-    return 0;
+    return smc91c92_config(link);
 } /* smc91c92_attach */
 
 /*======================================================================
@@ -972,7 +970,7 @@ static int check_sig(struct pcmcia_device *link)
 #define CS_EXIT_TEST(ret, svc, label) \
 if (ret != CS_SUCCESS) { cs_error(link, svc, ret); goto label; }
 
-static void smc91c92_config(struct pcmcia_device *link)
+static int smc91c92_config(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
     struct smc_private *smc = netdev_priv(dev);
@@ -1145,7 +1143,7 @@ static void smc91c92_config(struct pcmcia_device *link)
 	}
     }
     kfree(cfg_mem);
-    return;
+    return 0;
 
 config_undo:
     unregister_netdev(dev);
@@ -1153,7 +1151,7 @@ config_failed:			/* CS_EXIT_TEST() calls jump to here... */
     smc91c92_release(link);
     link->state &= ~DEV_CONFIG_PENDING;
     kfree(cfg_mem);
-
+    return -ENODEV;
 } /* smc91c92_config */
 
 /*======================================================================
@@ -2289,7 +2287,7 @@ static struct pcmcia_driver smc91c92_cs_driver = {
 	.drv		= {
 		.name	= "smc91c92_cs",
 	},
-	.probe		= smc91c92_attach,
+	.probe		= smc91c92_probe,
 	.remove		= smc91c92_detach,
 	.id_table       = smc91c92_ids,
 	.suspend	= smc91c92_suspend,

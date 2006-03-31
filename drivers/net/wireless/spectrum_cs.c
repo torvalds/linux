@@ -71,7 +71,7 @@ struct orinoco_pccard {
 /* Function prototypes						    */
 /********************************************************************/
 
-static void spectrum_cs_config(struct pcmcia_device *link);
+static int spectrum_cs_config(struct pcmcia_device *link);
 static void spectrum_cs_release(struct pcmcia_device *link);
 
 /********************************************************************/
@@ -583,7 +583,7 @@ spectrum_cs_hard_reset(struct orinoco_private *priv)
  * configure the card at this point -- we wait until we receive a card
  * insertion event.  */
 static int
-spectrum_cs_attach(struct pcmcia_device *link)
+spectrum_cs_probe(struct pcmcia_device *link)
 {
 	struct net_device *dev;
 	struct orinoco_private *priv;
@@ -614,9 +614,7 @@ spectrum_cs_attach(struct pcmcia_device *link)
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	spectrum_cs_config(link);
-
-	return 0;
+	return spectrum_cs_config(link);
 }				/* spectrum_cs_attach */
 
 /*
@@ -647,7 +645,7 @@ static void spectrum_cs_detach(struct pcmcia_device *link)
  * device available to the system.
  */
 
-static void
+static int
 spectrum_cs_config(struct pcmcia_device *link)
 {
 	struct net_device *dev = link->priv;
@@ -857,13 +855,14 @@ spectrum_cs_config(struct pcmcia_device *link)
 		       link->io.BasePort2 + link->io.NumPorts2 - 1);
 	printk("\n");
 
-	return;
+	return 0;
 
  cs_failed:
 	cs_error(link, last_fn, last_ret);
 
  failed:
 	spectrum_cs_release(link);
+	return -ENODEV;
 }				/* spectrum_cs_config */
 
 /*
@@ -954,7 +953,7 @@ static struct pcmcia_driver orinoco_driver = {
 	.drv		= {
 		.name	= DRIVER_NAME,
 	},
-	.probe		= spectrum_cs_attach,
+	.probe		= spectrum_cs_probe,
 	.remove		= spectrum_cs_detach,
 	.suspend	= spectrum_cs_suspend,
 	.resume		= spectrum_cs_resume,

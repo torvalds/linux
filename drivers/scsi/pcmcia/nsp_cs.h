@@ -298,7 +298,7 @@ typedef struct _nsp_hw_data {
 /* Card service functions */
 static void        nsp_cs_detach (struct pcmcia_device *p_dev);
 static void        nsp_cs_release(struct pcmcia_device *link);
-static void        nsp_cs_config (struct pcmcia_device *link);
+static int        nsp_cs_config (struct pcmcia_device *link);
 
 /* Linux SCSI subsystem specific functions */
 static struct Scsi_Host *nsp_detect     (struct scsi_host_template *sht);

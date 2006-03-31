@@ -417,7 +417,7 @@ INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 Function Prototypes
 ---------------------------------------------------------------------------- */
 
-static void nmclan_config(struct pcmcia_device *link);
+static int nmclan_config(struct pcmcia_device *link);
 static void nmclan_release(struct pcmcia_device *link);
 
 static void nmclan_reset(struct net_device *dev);
@@ -443,7 +443,7 @@ nmclan_attach
 	Services.
 ---------------------------------------------------------------------------- */
 
-static int nmclan_attach(struct pcmcia_device *link)
+static int nmclan_probe(struct pcmcia_device *link)
 {
     mace_private *lp;
     struct net_device *dev;
@@ -488,9 +488,7 @@ static int nmclan_attach(struct pcmcia_device *link)
 #endif
 
     link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-    nmclan_config(link);
-
-    return 0;
+    return nmclan_config(link);
 } /* nmclan_attach */
 
 /* ----------------------------------------------------------------------------
@@ -655,7 +653,7 @@ nmclan_config
 #define CS_CHECK(fn, ret) \
   do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
-static void nmclan_config(struct pcmcia_device *link)
+static int nmclan_config(struct pcmcia_device *link)
 {
   struct net_device *dev = link->priv;
   mace_private *lp = netdev_priv(dev);
@@ -710,7 +708,7 @@ static void nmclan_config(struct pcmcia_device *link)
       printk(KERN_NOTICE "nmclan_cs: mace id not found: %x %x should"
 	     " be 0x40 0x?9\n", sig[0], sig[1]);
       link->state &= ~DEV_CONFIG_PENDING;
-      return;
+      return -ENODEV;
     }
   }
 
@@ -740,14 +738,13 @@ static void nmclan_config(struct pcmcia_device *link)
 	 dev->name, dev->base_addr, dev->irq, if_names[dev->if_port]);
   for (i = 0; i < 6; i++)
       printk("%02X%s", dev->dev_addr[i], ((i<5) ? ":" : "\n"));
-  return;
+  return 0;
 
 cs_failed:
-    cs_error(link, last_fn, last_ret);
+	cs_error(link, last_fn, last_ret);
 failed:
-    nmclan_release(link);
-    return;
-
+	nmclan_release(link);
+	return -ENODEV;
 } /* nmclan_config */
 
 /* ----------------------------------------------------------------------------
@@ -1611,7 +1608,7 @@ static struct pcmcia_driver nmclan_cs_driver = {
 	.drv		= {
 		.name	= "nmclan_cs",
 	},
-	.probe		= nmclan_attach,
+	.probe		= nmclan_probe,
 	.remove		= nmclan_detach,
 	.id_table       = nmclan_ids,
 	.suspend	= nmclan_suspend,

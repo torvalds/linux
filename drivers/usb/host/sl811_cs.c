@@ -158,7 +158,7 @@ static void sl811_cs_release(struct pcmcia_device * link)
 	platform_device_unregister(&platform_dev);
 }
 
-static void sl811_cs_config(struct pcmcia_device *link)
+static int sl811_cs_config(struct pcmcia_device *link)
 {
 	struct device		*parent = &handle_to_dev(link);
 	local_info_t		*dev = link->priv;
@@ -285,10 +285,12 @@ cs_failed:
 		cs_error(link, last_fn, last_ret);
 		sl811_cs_release(link);
 		link->state &= ~DEV_CONFIG_PENDING;
+		return  -ENODEV;
 	}
+	return 0;
 }
 
-static int sl811_cs_attach(struct pcmcia_device *link)
+static int sl811_cs_probe(struct pcmcia_device *link)
 {
 	local_info_t *local;
 
@@ -308,9 +310,7 @@ static int sl811_cs_attach(struct pcmcia_device *link)
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	sl811_cs_config(link);
-
-	return 0;
+	return sl811_cs_config(link);
 }
 
 static struct pcmcia_device_id sl811_ids[] = {
@@ -324,7 +324,7 @@ static struct pcmcia_driver sl811_cs_driver = {
 	.drv		= {
 		.name	= (char *)driver_name,
 	},
-	.probe		= sl811_cs_attach,
+	.probe		= sl811_cs_probe,
 	.remove		= sl811_cs_detach,
 	.id_table	= sl811_ids,
 };

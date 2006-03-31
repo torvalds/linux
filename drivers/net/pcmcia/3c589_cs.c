@@ -142,7 +142,7 @@ DRV_NAME ".c " DRV_VERSION " 2001/10/13 00:08:50 (David Hinds)";
 
 /*====================================================================*/
 
-static void tc589_config(struct pcmcia_device *link);
+static int tc589_config(struct pcmcia_device *link);
 static void tc589_release(struct pcmcia_device *link);
 
 static u16 read_eeprom(kio_addr_t ioaddr, int index);
@@ -170,7 +170,7 @@ static void tc589_detach(struct pcmcia_device *p_dev);
 
 ======================================================================*/
 
-static int tc589_attach(struct pcmcia_device *link)
+static int tc589_probe(struct pcmcia_device *link)
 {
     struct el3_private *lp;
     struct net_device *dev;
@@ -212,9 +212,7 @@ static int tc589_attach(struct pcmcia_device *link)
     SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
 
     link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-    tc589_config(link);
-
-    return 0;
+    return tc589_config(link);
 } /* tc589_attach */
 
 /*======================================================================
@@ -252,7 +250,7 @@ static void tc589_detach(struct pcmcia_device *link)
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
-static void tc589_config(struct pcmcia_device *link)
+static int tc589_config(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
     struct el3_private *lp = netdev_priv(dev);
@@ -359,14 +357,13 @@ static void tc589_config(struct pcmcia_device *link)
     printk(KERN_INFO "  %dK FIFO split %s Rx:Tx, %s xcvr\n",
 	   (fifo & 7) ? 32 : 8, ram_split[(fifo >> 16) & 3],
 	   if_names[dev->if_port]);
-    return;
+    return 0;
 
 cs_failed:
     cs_error(link, last_fn, last_ret);
 failed:
     tc589_release(link);
-    return;
-    
+    return -ENODEV;
 } /* tc589_config */
 
 /*======================================================================
@@ -997,7 +994,7 @@ static struct pcmcia_driver tc589_driver = {
 	.drv		= {
 		.name	= "3c589_cs",
 	},
-	.probe		= tc589_attach,
+	.probe		= tc589_probe,
 	.remove		= tc589_detach,
         .id_table       = tc589_ids,
 	.suspend	= tc589_suspend,
