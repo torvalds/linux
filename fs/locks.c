@@ -168,18 +168,9 @@ static void locks_release_private(struct file_lock *fl)
 /* Free a lock which is not in use. */
 static void locks_free_lock(struct file_lock *fl)
 {
-	if (fl == NULL) {
-		BUG();
-		return;
-	}
-	if (waitqueue_active(&fl->fl_wait))
-		panic("Attempting to free lock with active wait queue");
-
-	if (!list_empty(&fl->fl_block))
-		panic("Attempting to free lock with active block list");
-
-	if (!list_empty(&fl->fl_link))
-		panic("Attempting to free lock on active lock list");
+	BUG_ON(waitqueue_active(&fl->fl_wait));
+	BUG_ON(!list_empty(&fl->fl_block));
+	BUG_ON(!list_empty(&fl->fl_link));
 
 	locks_release_private(fl);
 	kmem_cache_free(filelock_cache, fl);
