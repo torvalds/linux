@@ -127,13 +127,6 @@ Who:	Christoph Hellwig <hch@lst.de>
 
 ---------------------------
 
-What:	EXPORT_SYMBOL(lookup_hash)
-When:	January 2006
-Why:	Too low-level interface.  Use lookup_one_len or lookup_create instead.
-Who:	Christoph Hellwig <hch@lst.de>
-
----------------------------
-
 What:	CONFIG_FORCED_INLINING
 When:	June 2006
 Why:	Config option is there to see if gcc is good enough. (in january
