@@ -1823,7 +1823,7 @@ static void ata_host_set_dma(struct ata_port *ap)
  */
 static void ata_set_mode(struct ata_port *ap)
 {
-	int i, rc, used_dma = 0;
+	int i, rc, used_dma = 0, found = 0;
 
 	/* step 1: calculate xfer_mask */
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
@@ -1842,9 +1842,12 @@ static void ata_set_mode(struct ata_port *ap)
 		dev->pio_mode = ata_xfer_mask2mode(pio_mask);
 		dev->dma_mode = ata_xfer_mask2mode(dma_mask);
 
+		found = 1;
 		if (dev->dma_mode)
 			used_dma = 1;
 	}
+	if (!found)
+		return;
 
 	/* step 2: always set host PIO timings */
 	rc = ata_host_set_pio(ap);
