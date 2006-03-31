@@ -204,6 +204,9 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 		}
 
 		if (!acpi_ut_valid_acpi_name(this_node->name.integer)) {
+			this_node->name.integer =
+			    acpi_ut_repair_name(this_node->name.integer);
+
 			ACPI_WARNING((AE_INFO, "Invalid ACPI Name %08X",
 				      this_node->name.integer));
 		}

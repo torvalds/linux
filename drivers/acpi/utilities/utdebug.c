@@ -517,19 +517,12 @@ acpi_ut_ptr_exit(u32 line_number,
  *
  ******************************************************************************/
 
-void acpi_ut_dump_buffer(u8 * buffer, u32 count, u32 display, u32 component_id)
+void acpi_ut_dump_buffer2(u8 * buffer, u32 count, u32 display)
 {
 	acpi_native_uint i = 0;
 	acpi_native_uint j;
 	u32 temp32;
 	u8 buf_char;
-
-	/* Only dump the buffer if tracing is enabled */
-
-	if (!((ACPI_LV_TABLES & acpi_dbg_level) &&
-	      (component_id & acpi_dbg_layer))) {
-		return;
-	}
 
 	if ((count < 4) || (count & 0x01)) {
 		display = DB_BYTE_DISPLAY;
@@ -556,6 +549,7 @@ void acpi_ut_dump_buffer(u8 * buffer, u32 count, u32 display, u32 component_id)
 			}
 
 			switch (display) {
+			case DB_BYTE_DISPLAY:
 			default:	/* Default is BYTE display */
 
 				acpi_os_printf("%02X ", buffer[i + j]);
@@ -612,4 +606,32 @@ void acpi_ut_dump_buffer(u8 * buffer, u32 count, u32 display, u32 component_id)
 	}
 
 	return;
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ut_dump_buffer
+ *
+ * PARAMETERS:  Buffer              - Buffer to dump
+ *              Count               - Amount to dump, in bytes
+ *              Display             - BYTE, WORD, DWORD, or QWORD display
+ *              component_iD        - Caller's component ID
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Generic dump buffer in both hex and ascii.
+ *
+ ******************************************************************************/
+
+void acpi_ut_dump_buffer(u8 * buffer, u32 count, u32 display, u32 component_id)
+{
+
+	/* Only dump the buffer if tracing is enabled */
+
+	if (!((ACPI_LV_TABLES & acpi_dbg_level) &&
+	      (component_id & acpi_dbg_layer))) {
+		return;
+	}
+
+	acpi_ut_dump_buffer2(buffer, count, display);
 }

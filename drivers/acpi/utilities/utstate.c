@@ -321,8 +321,8 @@ union acpi_generic_state *acpi_ut_create_control_state(void)
  *
  * RETURN:      None
  *
- * DESCRIPTION: Put a state object back into the global state cache.  The object
- *              is not actually freed at this time.
+ * DESCRIPTION: Release a state object to the state cache. NULL state objects
+ *              are ignored.
  *
  ******************************************************************************/
 
@@ -330,6 +330,10 @@ void acpi_ut_delete_generic_state(union acpi_generic_state *state)
 {
 	ACPI_FUNCTION_TRACE("ut_delete_generic_state");
 
-	(void)acpi_os_release_object(acpi_gbl_state_cache, state);
+	/* Ignore null state */
+
+	if (state) {
+		(void)acpi_os_release_object(acpi_gbl_state_cache, state);
+	}
 	return_VOID;
 }

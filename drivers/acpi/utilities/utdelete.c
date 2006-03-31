@@ -202,8 +202,20 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 			if (handler_desc) {
 				if (handler_desc->address_space.handler_flags &
 				    ACPI_ADDR_HANDLER_DEFAULT_INSTALLED) {
-					obj_pointer =
-					    second_desc->extra.region_context;
+
+					/* Deactivate region and free region context */
+
+					if (handler_desc->address_space.setup) {
+						(void)handler_desc->
+						    address_space.setup(object,
+									ACPI_REGION_DEACTIVATE,
+									handler_desc->
+									address_space.
+									context,
+									&second_desc->
+									extra.
+									region_context);
+					}
 				}
 
 				acpi_ut_remove_reference(handler_desc);

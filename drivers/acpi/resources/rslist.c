@@ -64,10 +64,11 @@ ACPI_MODULE_NAME("rslist")
 acpi_status
 acpi_rs_convert_aml_to_resources(u8 * aml,
 				 u32 length,
-				 u32 offset,
-				 u8 resource_index, void **resource_ptr)
+				 u32 offset, u8 resource_index, void **context)
 {
-	struct acpi_resource *resource = *resource_ptr;
+	struct acpi_resource **resource_ptr =
+	    ACPI_CAST_INDIRECT_PTR(struct acpi_resource, context);
+	struct acpi_resource *resource;
 	acpi_status status;
 
 	ACPI_FUNCTION_TRACE("rs_convert_aml_to_resources");
@@ -76,6 +77,7 @@ acpi_rs_convert_aml_to_resources(u8 * aml,
 	 * Check that the input buffer and all subsequent pointers into it
 	 * are aligned on a native word boundary. Most important on IA64
 	 */
+	resource = *resource_ptr;
 	if (ACPI_IS_MISALIGNED(resource)) {
 		ACPI_WARNING((AE_INFO,
 			      "Misaligned resource pointer %p", resource));

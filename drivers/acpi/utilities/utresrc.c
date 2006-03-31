@@ -258,7 +258,7 @@ static const u8 acpi_gbl_resource_types[] = {
 acpi_status
 acpi_ut_walk_aml_resources(u8 * aml,
 			   acpi_size aml_length,
-			   acpi_walk_aml_callback user_function, void *context)
+			   acpi_walk_aml_callback user_function, void **context)
 {
 	acpi_status status;
 	u8 *end_aml;
@@ -319,7 +319,7 @@ acpi_ut_walk_aml_resources(u8 * aml,
 			/* Return the pointer to the end_tag if requested */
 
 			if (!user_function) {
-				*(void **)context = aml;
+				*context = aml;
 			}
 
 			/* Normal exit */
@@ -610,7 +610,7 @@ acpi_ut_get_resource_end_tag(union acpi_operand_object * obj_desc,
 
 	status = acpi_ut_walk_aml_resources(obj_desc->buffer.pointer,
 					    obj_desc->buffer.length, NULL,
-					    end_tag);
+					    (void **)end_tag);
 
 	return_ACPI_STATUS(status);
 }

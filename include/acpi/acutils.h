@@ -283,6 +283,8 @@ acpi_ut_ptr_exit(u32 line_number,
 
 void acpi_ut_dump_buffer(u8 * buffer, u32 count, u32 display, u32 component_id);
 
+void acpi_ut_dump_buffer2(u8 * buffer, u32 count, u32 display);
+
 void acpi_ut_report_error(char *module_name, u32 line_number);
 
 void acpi_ut_report_info(char *module_name, u32 line_number);
@@ -451,6 +453,8 @@ acpi_ut_short_divide(acpi_integer in_dividend,
 /*
  * utmisc
  */
+u8 acpi_ut_is_aml_table(struct acpi_table_header *table);
+
 acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id);
 
 void acpi_ut_release_owner_id(acpi_owner_id * owner_id);
@@ -466,7 +470,9 @@ void acpi_ut_print_string(char *string, u8 max_length);
 
 u8 acpi_ut_valid_acpi_name(u32 name);
 
-u8 acpi_ut_valid_acpi_character(char character);
+acpi_name acpi_ut_repair_name(acpi_name name);
+
+u8 acpi_ut_valid_acpi_char(char character, acpi_native_uint position);
 
 acpi_status
 acpi_ut_strtoul64(char *string, u32 base, acpi_integer * ret_integer);
@@ -492,7 +498,7 @@ acpi_ut_display_init_pathname(u8 type,
 acpi_status
 acpi_ut_walk_aml_resources(u8 * aml,
 			   acpi_size aml_length,
-			   acpi_walk_aml_callback user_function, void *context);
+			   acpi_walk_aml_callback user_function, void **context);
 
 acpi_status acpi_ut_validate_resource(void *aml, u8 * return_index);
 

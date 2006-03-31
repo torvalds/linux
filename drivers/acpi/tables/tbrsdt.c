@@ -280,7 +280,8 @@ acpi_status acpi_tb_get_table_rsdt(void)
 		return_ACPI_STATUS(status);
 	}
 
-	acpi_gbl_XSDT = ACPI_CAST_PTR(XSDT_DESCRIPTOR, table_info.pointer);
+	acpi_gbl_XSDT =
+	    ACPI_CAST_PTR(struct xsdt_descriptor, table_info.pointer);
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "XSDT located at %p\n", acpi_gbl_XSDT));
 	return_ACPI_STATUS(status);

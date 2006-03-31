@@ -39,7 +39,7 @@ ACPI_MODULE_NAME("acpi_system")
 #define ACPI_SYSTEM_FILE_EVENT		"event"
 #define ACPI_SYSTEM_FILE_DSDT		"dsdt"
 #define ACPI_SYSTEM_FILE_FADT		"fadt"
-extern FADT_DESCRIPTOR acpi_fadt;
+extern struct fadt_descriptor acpi_fadt;
 
 /* --------------------------------------------------------------------------
                               FS Interface (/proc)

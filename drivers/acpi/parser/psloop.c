@@ -747,7 +747,19 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 					if (ACPI_FAILURE(status2)) {
 						return_ACPI_STATUS(status2);
 					}
+
+					status2 =
+					    acpi_ds_result_stack_pop
+					    (walk_state);
+					if (ACPI_FAILURE(status2)) {
+						return_ACPI_STATUS(status2);
+					}
+
+					acpi_ut_delete_generic_state
+					    (acpi_ut_pop_generic_state
+					     (&walk_state->control_state));
 				}
+
 				acpi_ps_pop_scope(parser_state, &op,
 						  &walk_state->arg_types,
 						  &walk_state->arg_count);

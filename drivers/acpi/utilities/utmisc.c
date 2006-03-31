@@ -49,6 +49,33 @@ ACPI_MODULE_NAME("utmisc")
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_ut_is_aml_table
+ *
+ * PARAMETERS:  Table               - An ACPI table
+ *
+ * RETURN:      TRUE if table contains executable AML; FALSE otherwise
+ *
+ * DESCRIPTION: Check ACPI Signature for a table that contains AML code.
+ *              Currently, these are DSDT,SSDT,PSDT. All other table types are
+ *              data tables that do not contain AML code.
+ *
+ ******************************************************************************/
+u8 acpi_ut_is_aml_table(struct acpi_table_header *table)
+{
+
+	/* Ignore tables that contain AML */
+
+	if (ACPI_COMPARE_NAME(table->signature, DSDT_SIG) ||
+	    ACPI_COMPARE_NAME(table->signature, PSDT_SIG) ||
+	    ACPI_COMPARE_NAME(table->signature, SSDT_SIG)) {
+		return (TRUE);
+	}
+
+	return (FALSE);
+}
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_ut_allocate_owner_id
  *
  * PARAMETERS:  owner_id        - Where the new owner ID is returned
@@ -60,6 +87,7 @@ ACPI_MODULE_NAME("utmisc")
  *              when the method exits or the table is unloaded.
  *
  ******************************************************************************/
+
 acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id)
 {
 	acpi_native_uint i;
@@ -469,6 +497,41 @@ acpi_ut_display_init_pathname(u8 type,
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_ut_valid_acpi_char
+ *
+ * PARAMETERS:  Char            - The character to be examined
+ *
+ * RETURN:      TRUE if the character is valid, FALSE otherwise
+ *
+ * DESCRIPTION: Check for a valid ACPI character. Must be one of:
+ *              1) Upper case alpha
+ *              2) numeric
+ *              3) underscore
+ *
+ *              We allow a '!' as the last character because of the ASF! table
+ *
+ ******************************************************************************/
+
+u8 acpi_ut_valid_acpi_char(char character, acpi_native_uint position)
+{
+
+	if (!((character >= 'A' && character <= 'Z') ||
+	      (character >= '0' && character <= '9') || (character == '_'))) {
+
+		/* Allow a '!' in the last position */
+
+		if (character == '!' && position == 3) {
+			return (TRUE);
+		}
+
+		return (FALSE);
+	}
+
+	return (TRUE);
+}
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_ut_valid_acpi_name
  *
  * PARAMETERS:  Name            - The name to be examined
@@ -484,19 +547,13 @@ acpi_ut_display_init_pathname(u8 type,
 
 u8 acpi_ut_valid_acpi_name(u32 name)
 {
-	char *name_ptr = (char *)&name;
-	char character;
 	acpi_native_uint i;
 
 	ACPI_FUNCTION_ENTRY();
 
 	for (i = 0; i < ACPI_NAME_SIZE; i++) {
-		character = *name_ptr;
-		name_ptr++;
-
-		if (!((character == '_') ||
-		      (character >= 'A' && character <= 'Z') ||
-		      (character >= '0' && character <= '9'))) {
+		if (!acpi_ut_valid_acpi_char
+		    ((ACPI_CAST_PTR(char, &name))[i], i)) {
 			return (FALSE);
 		}
 	}
@@ -506,24 +563,37 @@ u8 acpi_ut_valid_acpi_name(u32 name)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ut_valid_acpi_character
+ * FUNCTION:    acpi_ut_repair_name
  *
- * PARAMETERS:  Character           - The character to be examined
+ * PARAMETERS:  Name            - The ACPI name to be repaired
  *
- * RETURN:      1 if Character may appear in a name, else 0
+ * RETURN:      Repaired version of the name
  *
- * DESCRIPTION: Check for a printable character
+ * DESCRIPTION: Repair an ACPI name: Change invalid characters to '*' and
+ *              return the new name.
  *
  ******************************************************************************/
 
-u8 acpi_ut_valid_acpi_character(char character)
+acpi_name acpi_ut_repair_name(acpi_name name)
 {
+	char *name_ptr = ACPI_CAST_PTR(char, &name);
+	char new_name[ACPI_NAME_SIZE];
+	acpi_native_uint i;
 
-	ACPI_FUNCTION_ENTRY();
+	for (i = 0; i < ACPI_NAME_SIZE; i++) {
+		new_name[i] = name_ptr[i];
 
-	return ((u8) ((character == '_') ||
-		      (character >= 'A' && character <= 'Z') ||
-		      (character >= '0' && character <= '9')));
+		/*
+		 * Replace a bad character with something printable, yet technically
+		 * still invalid. This prevents any collisions with existing "good"
+		 * names in the namespace.
+		 */
+		if (!acpi_ut_valid_acpi_char(name_ptr[i], i)) {
+			new_name[i] = '*';
+		}
+	}
+
+	return (*ACPI_CAST_PTR(u32, new_name));
 }
 
 /*******************************************************************************

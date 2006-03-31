@@ -50,7 +50,7 @@ ACPI_MODULE_NAME("utinit")
 
 /* Local prototypes */
 static void
-acpi_ut_fadt_register_error(char *register_name, u32 value, acpi_size offset);
+acpi_ut_fadt_register_error(char *register_name, u32 value, u8 offset);
 
 static void acpi_ut_terminate(void);
 
@@ -69,12 +69,12 @@ static void acpi_ut_terminate(void);
  ******************************************************************************/
 
 static void
-acpi_ut_fadt_register_error(char *register_name, u32 value, acpi_size offset)
+acpi_ut_fadt_register_error(char *register_name, u32 value, u8 offset)
 {
 
 	ACPI_WARNING((AE_INFO,
 		      "Invalid FADT value %s=%X at offset %X FADT=%p",
-		      register_name, value, (u32) offset, acpi_gbl_FADT));
+		      register_name, value, offset, acpi_gbl_FADT));
 }
 
 /******************************************************************************

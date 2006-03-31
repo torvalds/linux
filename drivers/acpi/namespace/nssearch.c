@@ -128,9 +128,8 @@ acpi_ns_search_node(u32 target_name,
 						  next_node->object);
 			}
 
-			/*
-			 * Found matching entry.
-			 */
+			/* Found matching entry */
+
 			ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
 					  "Name [%4.4s] (%s) %p found in scope [%4.4s] %p\n",
 					  ACPI_CAST_PTR(char, &target_name),
@@ -248,10 +247,8 @@ acpi_ns_search_parent_tree(u32 target_name,
 			return_ACPI_STATUS(status);
 		}
 
-		/*
-		 * Not found here, go up another level
-		 * (until we reach the root)
-		 */
+		/* Not found here, go up another level (until we reach the root) */
+
 		parent_node = acpi_ns_get_parent_node(parent_node);
 	}
 
@@ -307,12 +304,29 @@ acpi_ns_search_and_enter(u32 target_name,
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	/* Name must consist of printable characters */
-
+	/*
+	 * Name must consist of valid ACPI characters. We will repair the name if
+	 * necessary because we don't want to abort because of this, but we want
+	 * all namespace names to be printable. A warning message is appropriate.
+	 *
+	 * This issue came up because there are in fact machines that exhibit
+	 * this problem, and we want to be able to enable ACPI support for them,
+	 * even though there are a few bad names.
+	 */
 	if (!acpi_ut_valid_acpi_name(target_name)) {
-		ACPI_ERROR((AE_INFO, "Bad character in ACPI Name: %X",
-			    target_name));
-		return_ACPI_STATUS(AE_BAD_CHARACTER);
+		target_name = acpi_ut_repair_name(target_name);
+
+		/* Report warning only if in strict mode or debug mode */
+
+		if (!acpi_gbl_enable_interpreter_slack) {
+			ACPI_WARNING((AE_INFO,
+				      "Found bad character(s) in name, repaired: [%4.4s]\n",
+				      ACPI_CAST_PTR(char, &target_name)));
+		} else {
+			ACPI_DEBUG_PRINT((ACPI_DB_WARN,
+					  "Found bad character(s) in name, repaired: [%4.4s]\n",
+					  ACPI_CAST_PTR(char, &target_name)));
+		}
 	}
 
 	/* Try to find the name in the namespace level specified by the caller */
@@ -328,10 +342,8 @@ acpi_ns_search_and_enter(u32 target_name,
 			status = AE_ALREADY_EXISTS;
 		}
 
-		/*
-		 * Either found it or there was an error
-		 * -- finished either way
-		 */
+		/* Either found it or there was an error: finished either way */
+
 		return_ACPI_STATUS(status);
 	}
 
@@ -357,9 +369,8 @@ acpi_ns_search_and_enter(u32 target_name,
 		}
 	}
 
-	/*
-	 * In execute mode, just search, never add names.  Exit now.
-	 */
+	/* In execute mode, just search, never add names. Exit now */
+
 	if (interpreter_mode == ACPI_IMODE_EXECUTE) {
 		ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
 				  "%4.4s Not found in %p [Not adding]\n",
@@ -379,6 +390,5 @@ acpi_ns_search_and_enter(u32 target_name,
 
 	acpi_ns_install_node(walk_state, node, new_node, type);
 	*return_node = new_node;
-
 	return_ACPI_STATUS(AE_OK);
 }

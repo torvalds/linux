@@ -169,8 +169,6 @@ acpi_os_queue_for_execution(u32 priority,
 
 void acpi_os_wait_events_complete(void *context);
 
-void acpi_os_wait_events_complete(void *context);
-
 void acpi_os_sleep(acpi_integer milliseconds);
 
 void acpi_os_stall(u32 microseconds);

@@ -174,22 +174,28 @@ union acpi_name_union {
  *
  * The node is optimized for both 32-bit and 64-bit platforms:
  * 20 bytes for the 32-bit case, 32 bytes for the 64-bit case.
+ *
+ * Note: The descriptor_type and Type fields must appear in the identical
+ * position in both the struct acpi_namespace_node and union acpi_operand_object
+ * structures.
  */
 struct acpi_namespace_node {
 	union acpi_operand_object *object;	/* Interpreter object */
 	u8 descriptor_type;	/* Differentiate object descriptor types */
+	u8 type;		/* ACPI Type associated with this name */
 	u8 flags;		/* Miscellaneous flags */
 	acpi_owner_id owner_id;	/* Node creator */
-	u8 type;		/* ACPI Type associated with this name */
 	union acpi_name_union name;	/* ACPI Name, always 4 chars per ACPI spec */
 	struct acpi_namespace_node *child;	/* First child */
 	struct acpi_namespace_node *peer;	/* Peer. Parent if ANOBJ_END_OF_PEER_LIST set */
 
-	/* Fields used by the ASL compiler and disassembler only: */
-
+	/*
+	 * The following fields are used by the ASL compiler and disassembler only
+	 */
 #ifdef ACPI_LARGE_NAMESPACE_NODE
 	union acpi_parse_object *op;
 	u32 value;
+	u32 length;
 #endif
 };
 
@@ -470,7 +476,7 @@ struct acpi_scope_state {
 };
 
 struct acpi_pscope_state {
-	ACPI_STATE_COMMON u8 arg_count;	/* Number of fixed arguments */
+	ACPI_STATE_COMMON u32 arg_count;	/* Number of fixed arguments */
 	union acpi_parse_object *op;	/* Current op being parsed */
 	u8 *arg_end;		/* Current argument end */
 	u8 *pkg_end;		/* Current package end */

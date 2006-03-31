@@ -65,6 +65,10 @@
  *
  * descriptor_type is used to differentiate between internal descriptors, and
  * must be in the same place across all descriptors
+ *
+ * Note: The descriptor_type and Type fields must appear in the identical
+ * position in both the struct acpi_namespace_node and union acpi_operand_object
+ * structures.
  */
 #define ACPI_OBJECT_COMMON_HEADER \
 	union acpi_operand_object       *next_object;       /* Objects linked to parent NS node */\

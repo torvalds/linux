@@ -43,7 +43,7 @@ ACPI_MODULE_NAME("acpi_bus")
 extern void __init acpi_pic_sci_set_trigger(unsigned int irq, u16 trigger);
 #endif
 
-FADT_DESCRIPTOR acpi_fadt;
+struct fadt_descriptor acpi_fadt;
 EXPORT_SYMBOL(acpi_fadt);
 
 struct acpi_device *acpi_root;

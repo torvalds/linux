@@ -81,15 +81,14 @@ acpi_status acpi_tb_validate_rsdp(struct rsdp_descriptor *rsdp)
 
 	/* Check the standard checksum */
 
-	if (acpi_tb_generate_checksum(rsdp, ACPI_RSDP_CHECKSUM_LENGTH) != 0) {
+	if (acpi_tb_sum_table(rsdp, ACPI_RSDP_CHECKSUM_LENGTH) != 0) {
 		return (AE_BAD_CHECKSUM);
 	}
 
 	/* Check extended checksum if table version >= 2 */
 
 	if ((rsdp->revision >= 2) &&
-	    (acpi_tb_generate_checksum(rsdp, ACPI_RSDP_XCHECKSUM_LENGTH) !=
-	     0)) {
+	    (acpi_tb_sum_table(rsdp, ACPI_RSDP_XCHECKSUM_LENGTH) != 0)) {
 		return (AE_BAD_CHECKSUM);
 	}
 
@@ -308,12 +307,12 @@ acpi_get_firmware_table(acpi_string signature,
 		if (acpi_gbl_root_table_type == ACPI_TABLE_TYPE_RSDT) {
 			address.pointer.value =
 			    (ACPI_CAST_PTR
-			     (RSDT_DESCRIPTOR,
+			     (struct rsdt_descriptor,
 			      rsdt_info->pointer))->table_offset_entry[i];
 		} else {
 			address.pointer.value =
 			    (ACPI_CAST_PTR
-			     (XSDT_DESCRIPTOR,
+			     (struct xsdt_descriptor,
 			      rsdt_info->pointer))->table_offset_entry[i];
 		}
 

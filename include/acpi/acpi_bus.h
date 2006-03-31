@@ -59,7 +59,7 @@ acpi_evaluate_reference(acpi_handle handle,
 
 #define ACPI_BUS_FILE_ROOT	"acpi"
 extern struct proc_dir_entry *acpi_root_dir;
-extern FADT_DESCRIPTOR acpi_fadt;
+extern struct fadt_descriptor acpi_fadt;
 
 enum acpi_bus_removal_type {
 	ACPI_BUS_REMOVAL_NORMAL = 0,

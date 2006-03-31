@@ -54,12 +54,12 @@ acpi_tb_init_generic_address(struct acpi_generic_address *new_gas_struct,
 			     acpi_physical_address address);
 
 static void
-acpi_tb_convert_fadt1(struct fadt_descriptor_rev2 *local_fadt,
+acpi_tb_convert_fadt1(struct fadt_descriptor *local_fadt,
 		      struct fadt_descriptor_rev1 *original_fadt);
 
 static void
-acpi_tb_convert_fadt2(struct fadt_descriptor_rev2 *local_fadt,
-		      struct fadt_descriptor_rev2 *original_fadt);
+acpi_tb_convert_fadt2(struct fadt_descriptor *local_fadt,
+		      struct fadt_descriptor *original_fadt);
 
 u8 acpi_fadt_is_v1;
 ACPI_EXPORT_SYMBOL(acpi_fadt_is_v1)
@@ -120,7 +120,7 @@ acpi_status acpi_tb_convert_to_xsdt(struct acpi_table_desc *table_info)
 {
 	acpi_size table_size;
 	u32 i;
-	XSDT_DESCRIPTOR *new_table;
+	struct xsdt_descriptor *new_table;
 
 	ACPI_FUNCTION_ENTRY();
 
@@ -151,12 +151,12 @@ acpi_status acpi_tb_convert_to_xsdt(struct acpi_table_desc *table_info)
 		if (acpi_gbl_root_table_type == ACPI_TABLE_TYPE_RSDT) {
 			ACPI_STORE_ADDRESS(new_table->table_offset_entry[i],
 					   (ACPI_CAST_PTR
-					    (struct rsdt_descriptor_rev1,
+					    (struct rsdt_descriptor,
 					     table_info->pointer))->
 					   table_offset_entry[i]);
 		} else {
 			new_table->table_offset_entry[i] =
-			    (ACPI_CAST_PTR(XSDT_DESCRIPTOR,
+			    (ACPI_CAST_PTR(struct xsdt_descriptor,
 					   table_info->pointer))->
 			    table_offset_entry[i];
 		}
@@ -218,7 +218,7 @@ acpi_tb_init_generic_address(struct acpi_generic_address *new_gas_struct,
  ******************************************************************************/
 
 static void
-acpi_tb_convert_fadt1(struct fadt_descriptor_rev2 *local_fadt,
+acpi_tb_convert_fadt1(struct fadt_descriptor *local_fadt,
 		      struct fadt_descriptor_rev1 *original_fadt)
 {
 
@@ -364,14 +364,13 @@ acpi_tb_convert_fadt1(struct fadt_descriptor_rev2 *local_fadt,
  ******************************************************************************/
 
 static void
-acpi_tb_convert_fadt2(struct fadt_descriptor_rev2 *local_fadt,
-		      struct fadt_descriptor_rev2 *original_fadt)
+acpi_tb_convert_fadt2(struct fadt_descriptor *local_fadt,
+		      struct fadt_descriptor *original_fadt)
 {
 
 	/* We have an ACPI 2.0 FADT but we must copy it to our local buffer */
 
-	ACPI_MEMCPY(local_fadt, original_fadt,
-		    sizeof(struct fadt_descriptor_rev2));
+	ACPI_MEMCPY(local_fadt, original_fadt, sizeof(struct fadt_descriptor));
 
 	/*
 	 * "X" fields are optional extensions to the original V1.0 fields, so
@@ -490,7 +489,7 @@ acpi_tb_convert_fadt2(struct fadt_descriptor_rev2 *local_fadt,
 
 acpi_status acpi_tb_convert_table_fadt(void)
 {
-	struct fadt_descriptor_rev2 *local_fadt;
+	struct fadt_descriptor *local_fadt;
 	struct acpi_table_desc *table_desc;
 
 	ACPI_FUNCTION_TRACE("tb_convert_table_fadt");
@@ -507,13 +506,13 @@ acpi_status acpi_tb_convert_table_fadt(void)
 
 	/* Allocate buffer for the ACPI 2.0(+) FADT */
 
-	local_fadt = ACPI_ALLOCATE_ZEROED(sizeof(struct fadt_descriptor_rev2));
+	local_fadt = ACPI_ALLOCATE_ZEROED(sizeof(struct fadt_descriptor));
 	if (!local_fadt) {
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
 	if (acpi_gbl_FADT->revision >= FADT2_REVISION_ID) {
-		if (acpi_gbl_FADT->length < sizeof(struct fadt_descriptor_rev2)) {
+		if (acpi_gbl_FADT->length < sizeof(struct fadt_descriptor)) {
 
 			/* Length is too short to be a V2.0 table */
 
@@ -538,7 +537,7 @@ acpi_status acpi_tb_convert_table_fadt(void)
 	/* Global FADT pointer will point to the new common V2.0 FADT */
 
 	acpi_gbl_FADT = local_fadt;
-	acpi_gbl_FADT->length = sizeof(FADT_DESCRIPTOR);
+	acpi_gbl_FADT->length = sizeof(struct fadt_descriptor);
 
 	/* Free the original table */
 
@@ -550,7 +549,7 @@ acpi_status acpi_tb_convert_table_fadt(void)
 	table_desc->pointer =
 	    ACPI_CAST_PTR(struct acpi_table_header, acpi_gbl_FADT);
 	table_desc->allocation = ACPI_MEM_ALLOCATED;
-	table_desc->length = sizeof(struct fadt_descriptor_rev2);
+	table_desc->length = sizeof(struct fadt_descriptor);
 
 	/* Dump the entire FADT */
 

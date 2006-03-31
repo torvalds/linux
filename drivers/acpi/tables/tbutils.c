@@ -193,73 +193,119 @@ acpi_tb_validate_table_header(struct acpi_table_header *table_header)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_tb_verify_table_checksum
+ * FUNCTION:    acpi_tb_sum_table
  *
- * PARAMETERS:  *table_header           - ACPI table to verify
+ * PARAMETERS:  Buffer              - Buffer to sum
+ *              Length              - Size of the buffer
  *
- * RETURN:      8 bit checksum of table
+ * RETURN:      8 bit sum of buffer
  *
- * DESCRIPTION: Does an 8 bit checksum of table and returns status.  A correct
- *              table should have a checksum of 0.
+ * DESCRIPTION: Computes an 8 bit sum of the buffer(length) and returns it.
  *
  ******************************************************************************/
 
-acpi_status
-acpi_tb_verify_table_checksum(struct acpi_table_header * table_header)
+u8 acpi_tb_sum_table(void *buffer, u32 length)
 {
-	u8 checksum;
-	acpi_status status = AE_OK;
+	acpi_native_uint i;
+	u8 sum = 0;
 
-	ACPI_FUNCTION_TRACE("tb_verify_table_checksum");
-
-	/* Compute the checksum on the table */
-
-	checksum =
-	    acpi_tb_generate_checksum(table_header, table_header->length);
-
-	/* Return the appropriate exception */
-
-	if (checksum) {
-		ACPI_WARNING((AE_INFO,
-			      "Invalid checksum in table [%4.4s] (%02X, sum %02X is not zero)",
-			      table_header->signature,
-			      (u32) table_header->checksum, (u32) checksum));
-
-		status = AE_BAD_CHECKSUM;
+	if (!buffer || !length) {
+		return (0);
 	}
-	return_ACPI_STATUS(status);
+
+	for (i = 0; i < length; i++) {
+		sum = (u8) (sum + ((u8 *) buffer)[i]);
+	}
+	return (sum);
 }
 
 /*******************************************************************************
  *
  * FUNCTION:    acpi_tb_generate_checksum
  *
- * PARAMETERS:  Buffer              - Buffer to checksum
- *              Length              - Size of the buffer
+ * PARAMETERS:  Table               - Pointer to a valid ACPI table (with a
+ *                                    standard ACPI header)
  *
  * RETURN:      8 bit checksum of buffer
  *
- * DESCRIPTION: Computes an 8 bit checksum of the buffer(length) and returns it.
+ * DESCRIPTION: Computes an 8 bit checksum of the table.
  *
  ******************************************************************************/
 
-u8 acpi_tb_generate_checksum(void *buffer, u32 length)
+u8 acpi_tb_generate_checksum(struct acpi_table_header * table)
 {
-	u8 *end_buffer;
-	u8 *rover;
-	u8 sum = 0;
+	u8 checksum;
 
-	if (buffer && length) {
+	/* Sum the entire table as-is */
 
-		/*  Buffer and Length are valid   */
+	checksum = acpi_tb_sum_table(table, table->length);
 
-		end_buffer = ACPI_ADD_PTR(u8, buffer, length);
+	/* Subtract off the existing checksum value in the table */
 
-		for (rover = buffer; rover < end_buffer; rover++) {
-			sum = (u8) (sum + *rover);
-		}
+	checksum = (u8) (checksum - table->checksum);
+
+	/* Compute the final checksum */
+
+	checksum = (u8) (0 - checksum);
+	return (checksum);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_tb_set_checksum
+ *
+ * PARAMETERS:  Table               - Pointer to a valid ACPI table (with a
+ *                                    standard ACPI header)
+ *
+ * RETURN:      None. Sets the table checksum field
+ *
+ * DESCRIPTION: Computes an 8 bit checksum of the table and inserts the
+ *              checksum into the table header.
+ *
+ ******************************************************************************/
+
+void acpi_tb_set_checksum(struct acpi_table_header *table)
+{
+
+	table->checksum = acpi_tb_generate_checksum(table);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_tb_verify_table_checksum
+ *
+ * PARAMETERS:  *table_header           - ACPI table to verify
+ *
+ * RETURN:      8 bit checksum of table
+ *
+ * DESCRIPTION: Generates an 8 bit checksum of table and returns and compares
+ *              it to the existing checksum value.
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_tb_verify_table_checksum(struct acpi_table_header *table_header)
+{
+	u8 checksum;
+
+	ACPI_FUNCTION_TRACE("tb_verify_table_checksum");
+
+	/* Compute the checksum on the table */
+
+	checksum = acpi_tb_generate_checksum(table_header);
+
+	/* Checksum ok? */
+
+	if (checksum == table_header->checksum) {
+		return_ACPI_STATUS(AE_OK);
 	}
-	return (sum);
+
+	ACPI_WARNING((AE_INFO,
+		      "Incorrect checksum in table [%4.4s] - is %2.2X, should be %2.2X",
+		      table_header->signature, table_header->checksum,
+		      checksum));
+
+	return_ACPI_STATUS(AE_BAD_CHECKSUM);
 }
 
 #ifdef ACPI_OBSOLETE_FUNCTIONS
@@ -278,7 +324,7 @@ u8 acpi_tb_generate_checksum(void *buffer, u32 length)
 
 acpi_status
 acpi_tb_handle_to_object(u16 table_id,
-			 struct acpi_table_desc ** return_table_desc)
+			 struct acpi_table_desc **return_table_desc)
 {
 	u32 i;
 	struct acpi_table_desc *table_desc;

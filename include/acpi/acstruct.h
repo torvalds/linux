@@ -86,7 +86,7 @@ struct acpi_walk_state {
 
 	struct acpi_parse_state parser_state;	/* Current state of parser */
 	u32 prev_arg_types;
-	u8 arg_count;		/* push for fixed or var args */
+	u32 arg_count;		/* push for fixed or var args */
 
 	struct acpi_namespace_node arguments[ACPI_METHOD_NUM_ARGS];	/* Control method arguments */
 	struct acpi_namespace_node local_variables[ACPI_METHOD_NUM_LOCALS];	/* Control method locals */

@@ -143,7 +143,7 @@ acpi_ps_init_scope(struct acpi_parse_state * parser_state,
 acpi_status
 acpi_ps_push_scope(struct acpi_parse_state *parser_state,
 		   union acpi_parse_object *op,
-		   u32 remaining_args, u8 arg_count)
+		   u32 remaining_args, u32 arg_count)
 {
 	union acpi_generic_state *scope;
 
@@ -196,7 +196,7 @@ acpi_ps_push_scope(struct acpi_parse_state *parser_state,
 
 void
 acpi_ps_pop_scope(struct acpi_parse_state *parser_state,
-		  union acpi_parse_object **op, u32 * arg_list, u8 * arg_count)
+		  union acpi_parse_object **op, u32 * arg_list, u32 * arg_count)
 {
 	union acpi_generic_state *scope = parser_state->scope;
 

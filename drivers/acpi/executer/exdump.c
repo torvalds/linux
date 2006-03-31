@@ -61,6 +61,10 @@ static void acpi_ex_out_pointer(char *title, void *value);
 
 static void acpi_ex_out_address(char *title, acpi_physical_address value);
 
+static void
+acpi_ex_dump_object(union acpi_operand_object *obj_desc,
+		    struct acpi_exdump_info *info);
+
 static void acpi_ex_dump_reference_obj(union acpi_operand_object *obj_desc);
 
 static void
@@ -263,7 +267,7 @@ static struct acpi_exdump_info acpi_ex_dump_field_common[7] = {
 	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(common_field.node), "Parent Node"}
 };
 
-static struct acpi_exdump_info acpi_ex_dump_node[6] = {
+static struct acpi_exdump_info acpi_ex_dump_node[5] = {
 	{ACPI_EXD_INIT, ACPI_EXD_TABLE_SIZE(acpi_ex_dump_node), NULL},
 	{ACPI_EXD_UINT8, ACPI_EXD_NSOFFSET(flags), "Flags"},
 	{ACPI_EXD_UINT8, ACPI_EXD_NSOFFSET(owner_id), "Owner Id"},

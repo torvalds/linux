@@ -502,7 +502,7 @@ void acpi_ds_terminate_control_method(struct acpi_walk_state *walk_state)
 	 * Delete any namespace entries created immediately underneath
 	 * the method
 	 */
-	if (method_node->child) {
+	if (method_node && method_node->child) {
 		acpi_ns_delete_namespace_subtree(method_node);
 	}
 

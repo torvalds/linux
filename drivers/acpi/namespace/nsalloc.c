@@ -211,6 +211,8 @@ void acpi_ns_install_node(struct acpi_walk_state *walk_state, struct acpi_namesp
 			  acpi_ut_get_node_name(parent_node),
 			  acpi_ut_get_type_name(parent_node->type),
 			  parent_node));
+
+	return_VOID;
 }
 
 /*******************************************************************************

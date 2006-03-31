@@ -107,6 +107,7 @@ ACPI_EXTERN u32 acpi_gbl_trace_flags;
  * 3) Allow access to uninitialized locals/args (auto-init to integer 0)
  * 4) Allow ANY object type to be a source operand for the Store() operator
  * 5) Allow unresolved references (invalid target name) in package objects
+ * 6) Enable warning messages for behavior that is not ACPI spec compliant
  */
 ACPI_EXTERN u8 ACPI_INIT_GLOBAL(acpi_gbl_enable_interpreter_slack, FALSE);
 
@@ -149,10 +150,10 @@ ACPI_EXTERN u8 ACPI_INIT_GLOBAL(acpi_gbl_leave_wake_gpes_disabled, TRUE);
 ACPI_EXTERN u32 acpi_gbl_table_flags;
 ACPI_EXTERN u32 acpi_gbl_rsdt_table_count;
 ACPI_EXTERN struct rsdp_descriptor *acpi_gbl_RSDP;
-ACPI_EXTERN XSDT_DESCRIPTOR *acpi_gbl_XSDT;
-ACPI_EXTERN FADT_DESCRIPTOR *acpi_gbl_FADT;
+ACPI_EXTERN struct xsdt_descriptor *acpi_gbl_XSDT;
+ACPI_EXTERN struct fadt_descriptor *acpi_gbl_FADT;
 ACPI_EXTERN struct acpi_table_header *acpi_gbl_DSDT;
-ACPI_EXTERN FACS_DESCRIPTOR *acpi_gbl_FACS;
+ACPI_EXTERN struct facs_descriptor *acpi_gbl_FACS;
 ACPI_EXTERN struct acpi_common_facs acpi_gbl_common_fACS;
 /*
  * Since there may be multiple SSDTs and PSDTs, a single pointer is not
