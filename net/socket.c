@@ -1418,7 +1418,8 @@ asmlinkage long sys_accept(int fd, struct sockaddr __user *upeer_sockaddr, int _
 	newfd = sock_alloc_fd(&newfile);
 	if (unlikely(newfd < 0)) {
 		err = newfd;
-		goto out_release;
+		sock_release(newsock);
+		goto out_put;
 	}
 
 	err = sock_attach_fd(newsock, newfile);
@@ -1457,8 +1458,6 @@ out:
 out_fd:
 	fput(newfile);
 	put_unused_fd(newfd);
-out_release:
-	sock_release(newsock);
 	goto out_put;
 }
 
