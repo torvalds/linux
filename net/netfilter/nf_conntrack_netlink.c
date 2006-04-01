@@ -1022,7 +1022,7 @@ ctnetlink_change_conntrack(struct nf_conn *ct, struct nfattr *cda[])
 			return err;
 	}
 
-#if defined(CONFIG_IP_NF_CONNTRACK_MARK)
+#if defined(CONFIG_NF_CONNTRACK_MARK)
 	if (cda[CTA_MARK-1])
 		ct->mark = ntohl(*(u_int32_t *)NFA_DATA(cda[CTA_MARK-1]));
 #endif
@@ -1062,7 +1062,7 @@ ctnetlink_create_conntrack(struct nfattr *cda[],
 			return err;
 	}
 
-#if defined(CONFIG_IP_NF_CONNTRACK_MARK)
+#if defined(CONFIG_NF_CONNTRACK_MARK)
 	if (cda[CTA_MARK-1])
 		ct->mark = ntohl(*(u_int32_t *)NFA_DATA(cda[CTA_MARK-1]));
 #endif
