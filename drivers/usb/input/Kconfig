@@ -236,46 +236,6 @@ config USB_TOUCHSCREEN_ITM
 	bool "ITM device support" if EMBEDDED
 	depends on USB_TOUCHSCREEN
 
-config USB_MTOUCH
-	tristate "MicroTouch USB Touchscreen Driver"
-	depends on USB && INPUT && !USB_TOUCHSCREEN_3M
-	---help---
-	  Say Y here if you want to use a MicroTouch (Now 3M) USB 
-	  Touchscreen controller.
-
-	  See <file:Documentation/usb/mtouch.txt> for additional information.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called mtouchusb.
-
-config USB_ITMTOUCH
-	tristate "ITM Touch USB Touchscreen Driver"
-	depends on USB && INPUT && !USB_TOUCHSCREEN_ITM
-	---help---
-	  Say Y here if you want to use a ITM Touch USB
-	  Touchscreen controller.
-
-	  This touchscreen is used in LG 1510SF monitors.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called itmtouch.
-
-config USB_EGALAX
-	tristate "eGalax TouchKit USB Touchscreen Driver"
-	depends on USB && INPUT && !USB_TOUCHSCREEN_EGALAX
-	---help---
-	  Say Y here if you want to use a eGalax TouchKit USB
-	  Touchscreen controller.
-
-	  The driver has been tested on a Xenarc 700TSV monitor
-	  with eGalax touchscreen.
-
-	  Have a look at <http://linux.chapter7.ch/touchkit/> for
-	  a usage description and the required user-space stuff.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called touchkitusb.
-
 config USB_YEALINK
 	tristate "Yealink usb-p1k voip phone"
 	depends on USB && INPUT && EXPERIMENTAL
