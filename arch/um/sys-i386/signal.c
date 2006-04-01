@@ -19,7 +19,7 @@
 #include "skas.h"
 
 static int copy_sc_from_user_skas(struct pt_regs *regs,
-				  struct sigcontext *from)
+				  struct sigcontext __user *from)
 {
   	struct sigcontext sc;
 	unsigned long fpregs[HOST_FP_SIZE];
@@ -57,7 +57,7 @@ static int copy_sc_from_user_skas(struct pt_regs *regs,
 	return(0);
 }
 
-int copy_sc_to_user_skas(struct sigcontext *to, struct _fpstate *to_fp,
+int copy_sc_to_user_skas(struct sigcontext *to, struct _fpstate __user *to_fp,
                          struct pt_regs *regs, unsigned long sp)
 {
   	struct sigcontext sc;
@@ -92,7 +92,7 @@ int copy_sc_to_user_skas(struct sigcontext *to, struct _fpstate *to_fp,
 		       "errno = %d\n", err);
 		return(1);
 	}
-	to_fp = (to_fp ? to_fp : (struct _fpstate *) (to + 1));
+	to_fp = (to_fp ? to_fp : (struct _fpstate __user *) (to + 1));
 	sc.fpstate = to_fp;
 
 	if(err)
@@ -113,10 +113,11 @@ int copy_sc_to_user_skas(struct sigcontext *to, struct _fpstate *to_fp,
  * saved pointer is in the kernel, but the sigcontext is in userspace, so we
  * copy_to_user it.
  */
-int copy_sc_from_user_tt(struct sigcontext *to, struct sigcontext *from,
+int copy_sc_from_user_tt(struct sigcontext *to, struct sigcontext __user *from,
 			 int fpsize)
 {
-	struct _fpstate *to_fp, *from_fp;
+	struct _fpstate *to_fp;
+	struct _fpstate __user *from_fp;
 	unsigned long sigs;
 	int err;
 
@@ -131,13 +132,14 @@ int copy_sc_from_user_tt(struct sigcontext *to, struct sigcontext *from,
 	return(err);
 }
 
-int copy_sc_to_user_tt(struct sigcontext *to, struct _fpstate *fp,
+int copy_sc_to_user_tt(struct sigcontext *to, struct _fpstate __user *fp,
 		       struct sigcontext *from, int fpsize, unsigned long sp)
 {
-	struct _fpstate *to_fp, *from_fp;
+	struct _fpstate __user *to_fp;
+	struct _fpstate *from_fp;
 	int err;
 
-	to_fp =	(fp ? fp : (struct _fpstate *) (to + 1));
+	to_fp =	(fp ? fp : (struct _fpstate __user *) (to + 1));
 	from_fp = from->fpstate;
 	err = copy_to_user(to, from, sizeof(*to));
 
@@ -165,7 +167,7 @@ static int copy_sc_from_user(struct pt_regs *to, void __user *from)
 	return(ret);
 }
 
-static int copy_sc_to_user(struct sigcontext *to, struct _fpstate *fp,
+static int copy_sc_to_user(struct sigcontext *to, struct _fpstate __user *fp,
 			   struct pt_regs *from, unsigned long sp)
 {
 	return(CHOOSE_MODE(copy_sc_to_user_tt(to, fp, UPT_SC(&from->regs),
@@ -173,7 +175,7 @@ static int copy_sc_to_user(struct sigcontext *to, struct _fpstate *fp,
                            copy_sc_to_user_skas(to, fp, from, sp)));
 }
 
-static int copy_ucontext_to_user(struct ucontext *uc, struct _fpstate *fp,
+static int copy_ucontext_to_user(struct ucontext __user *uc, struct _fpstate __user *fp,
 				 sigset_t *set, unsigned long sp)
 {
 	int err = 0;
@@ -188,7 +190,7 @@ static int copy_ucontext_to_user(struct ucontext *uc, struct _fpstate *fp,
 
 struct sigframe
 {
-	char *pretcode;
+	char __user *pretcode;
 	int sig;
 	struct sigcontext sc;
 	struct _fpstate fpstate;
@@ -198,10 +200,10 @@ struct sigframe
 
 struct rt_sigframe
 {
-	char *pretcode;
+	char __user *pretcode;
 	int sig;
-	struct siginfo *pinfo;
-	void *puc;
+	struct siginfo __user *pinfo;
+	void __user *puc;
 	struct siginfo info;
 	struct ucontext uc;
 	struct _fpstate fpstate;
@@ -213,16 +215,16 @@ int setup_signal_stack_sc(unsigned long stack_top, int sig,
 			  sigset_t *mask)
 {
 	struct sigframe __user *frame;
-	void *restorer;
+	void __user *restorer;
 	unsigned long save_sp = PT_REGS_SP(regs);
 	int err = 0;
 
 	stack_top &= -8UL;
-	frame = (struct sigframe *) stack_top - 1;
+	frame = (struct sigframe __user *) stack_top - 1;
 	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
 		return 1;
 
-	restorer = (void *) frame->retcode;
+	restorer = frame->retcode;
 	if(ka->sa.sa_flags & SA_RESTORER)
 		restorer = ka->sa.sa_restorer;
 
@@ -278,16 +280,16 @@ int setup_signal_stack_si(unsigned long stack_top, int sig,
 			  siginfo_t *info, sigset_t *mask)
 {
 	struct rt_sigframe __user *frame;
-	void *restorer;
+	void __user *restorer;
 	unsigned long save_sp = PT_REGS_SP(regs);
 	int err = 0;
 
 	stack_top &= -8UL;
-	frame = (struct rt_sigframe *) stack_top - 1;
+	frame = (struct rt_sigframe __user *) stack_top - 1;
 	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
 		return 1;
 
-	restorer = (void *) frame->retcode;
+	restorer = frame->retcode;
 	if(ka->sa.sa_flags & SA_RESTORER)
 		restorer = ka->sa.sa_restorer;
 
@@ -333,7 +335,7 @@ err:
 long sys_sigreturn(struct pt_regs regs)
 {
 	unsigned long sp = PT_REGS_SP(&current->thread.regs);
-	struct sigframe __user *frame = (struct sigframe *)(sp - 8);
+	struct sigframe __user *frame = (struct sigframe __user *)(sp - 8);
 	sigset_t set;
 	struct sigcontext __user *sc = &frame->sc;
 	unsigned long __user *oldmask = &sc->oldmask;
@@ -365,8 +367,8 @@ long sys_sigreturn(struct pt_regs regs)
 
 long sys_rt_sigreturn(struct pt_regs regs)
 {
-	unsigned long __user sp = PT_REGS_SP(&current->thread.regs);
-	struct rt_sigframe __user *frame = (struct rt_sigframe *) (sp - 4);
+	unsigned long sp = PT_REGS_SP(&current->thread.regs);
+	struct rt_sigframe __user *frame = (struct rt_sigframe __user *) (sp - 4);
 	sigset_t set;
 	struct ucontext __user *uc = &frame->uc;
 	int sig_size = _NSIG_WORDS * sizeof(unsigned long);

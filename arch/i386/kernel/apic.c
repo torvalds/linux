@@ -415,6 +415,7 @@ void __init init_bsp_APIC(void)
 void __devinit setup_local_APIC(void)
 {
 	unsigned long oldvalue, value, ver, maxlvt;
+	int i, j;
 
 	/* Pound the ESR really hard over the head with a big hammer - mbligh */
 	if (esr_disable) {
@@ -450,6 +451,25 @@ void __devinit setup_local_APIC(void)
 	value = apic_read(APIC_TASKPRI);
 	value &= ~APIC_TPRI_MASK;
 	apic_write_around(APIC_TASKPRI, value);
+
+	/*
+	 * After a crash, we no longer service the interrupts and a pending
+	 * interrupt from previous kernel might still have ISR bit set.
+	 *
+	 * Most probably by now CPU has serviced that pending interrupt and
+	 * it might not have done the ack_APIC_irq() because it thought,
+	 * interrupt came from i8259 as ExtInt. LAPIC did not get EOI so it
+	 * does not clear the ISR bit and cpu thinks it has already serivced
+	 * the interrupt. Hence a vector might get locked. It was noticed
+	 * for timer irq (vector 0x31). Issue an extra EOI to clear ISR.
+	 */
+	for (i = APIC_ISR_NR - 1; i >= 0; i--) {
+		value = apic_read(APIC_ISR + i*0x10);
+		for (j = 31; j >= 0; j--) {
+			if (value & (1<<j))
+				ack_APIC_irq();
+		}
+	}
 
 	/*
 	 * Now that we are all set up, enable the APIC
@@ -732,7 +752,7 @@ static int __init apic_set_verbosity(char *str)
 		printk(KERN_WARNING "APIC Verbosity level %s not recognised"
 				" use apic=verbose or apic=debug\n", str);
 
-	return 0;
+	return 1;
 }
 
 __setup("apic=", apic_set_verbosity);

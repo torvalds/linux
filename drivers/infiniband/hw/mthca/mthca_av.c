@@ -265,7 +265,7 @@ int __devinit mthca_init_av_table(struct mthca_dev *dev)
 	return -ENOMEM;
 }
 
-void __devexit mthca_cleanup_av_table(struct mthca_dev *dev)
+void mthca_cleanup_av_table(struct mthca_dev *dev)
 {
 	if (mthca_is_memfree(dev))
 		return;

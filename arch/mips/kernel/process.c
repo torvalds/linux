@@ -419,4 +419,3 @@ unsigned long get_wchan(struct task_struct *p)
 	return pc;
 }
 
-EXPORT_SYMBOL(get_wchan);

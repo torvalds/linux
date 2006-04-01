@@ -100,6 +100,7 @@ DECLARE_PER_CPU(unsigned long, process_counts);
 extern int nr_processes(void);
 extern unsigned long nr_running(void);
 extern unsigned long nr_uninterruptible(void);
+extern unsigned long nr_active(void);
 extern unsigned long nr_iowait(void);
 
 #include <linux/time.h>
@@ -483,6 +484,7 @@ struct signal_struct {
 #define MAX_PRIO		(MAX_RT_PRIO + 40)
 
 #define rt_task(p)		(unlikely((p)->prio < MAX_RT_PRIO))
+#define batch_task(p)		(unlikely((p)->policy == SCHED_BATCH))
 
 /*
  * Some day this will be a full-fledged user tracking system..
@@ -683,6 +685,13 @@ static inline void prefetch_stack(struct task_struct *t) { }
 struct audit_context;		/* See audit.c */
 struct mempolicy;
 
+enum sleep_type {
+	SLEEP_NORMAL,
+	SLEEP_NONINTERACTIVE,
+	SLEEP_INTERACTIVE,
+	SLEEP_INTERRUPTED,
+};
+
 struct task_struct {
 	volatile long state;	/* -1 unrunnable, 0 runnable, >0 stopped */
 	struct thread_info *thread_info;
@@ -705,7 +714,7 @@ struct task_struct {
 	unsigned long sleep_avg;
 	unsigned long long timestamp, last_ran;
 	unsigned long long sched_time; /* sched_clock time spent running */
-	int activated;
+	enum sleep_type sleep_type;
 
 	unsigned long policy;
 	cpumask_t cpus_allowed;
@@ -751,7 +760,7 @@ struct task_struct {
 	struct task_struct *group_leader;	/* threadgroup leader */
 
 	/* PID/PID hash table linkage. */
-	struct pid pids[PIDTYPE_MAX];
+	struct pid_link pids[PIDTYPE_MAX];
 	struct list_head thread_group;
 
 	struct completion *vfork_done;		/* for vfork() */
@@ -890,18 +899,19 @@ static inline pid_t process_group(struct task_struct *tsk)
  */
 static inline int pid_alive(struct task_struct *p)
 {
-	return p->pids[PIDTYPE_PID].nr != 0;
+	return p->pids[PIDTYPE_PID].pid != NULL;
 }
 
 extern void free_task(struct task_struct *tsk);
 #define get_task_struct(tsk) do { atomic_inc(&(tsk)->usage); } while(0)
 
 extern void __put_task_struct_cb(struct rcu_head *rhp);
+extern void __put_task_struct(struct task_struct *t);
 
 static inline void put_task_struct(struct task_struct *t)
 {
 	if (atomic_dec_and_test(&t->usage))
-		call_rcu(&t->rcu, __put_task_struct_cb);
+		__put_task_struct(t);
 }
 
 /*

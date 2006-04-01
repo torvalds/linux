@@ -2151,6 +2151,8 @@ static int run(mddev_t *mddev)
 	}
 
 	/* Ok, everything is just fine now */
+	sysfs_create_group(&mddev->kobj, &raid6_attrs_group);
+
 	mddev->array_size =  mddev->size * (mddev->raid_disks - 2);
 
 	mddev->queue->unplug_fn = raid6_unplug_device;

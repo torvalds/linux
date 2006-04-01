@@ -623,6 +623,6 @@ void vmalloc_sync_all(void)
 static int __init enable_pagefaulttrace(char *str)
 {
 	page_fault_trace = 1;
-	return 0;
+	return 1;
 }
 __setup("pagefaulttrace", enable_pagefaulttrace);

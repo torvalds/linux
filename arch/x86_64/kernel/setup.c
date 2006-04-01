@@ -540,7 +540,7 @@ void __init alternative_instructions(void)
 static int __init noreplacement_setup(char *s)
 { 
      no_replacement = 1; 
-     return 0; 
+     return 1;
 } 
 
 __setup("noreplacement", noreplacement_setup); 

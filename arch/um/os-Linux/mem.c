@@ -121,36 +121,11 @@ int create_tmp_file(unsigned long long len)
 	return(fd);
 }
 
-static int create_anon_file(unsigned long long len)
-{
-	void *addr;
-	int fd;
-
-	fd = open("/dev/anon", O_RDWR);
-	if(fd < 0) {
-		perror("opening /dev/anon");
-		exit(1);
-	}
-
-	addr = mmap(NULL, len, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
-	if(addr == MAP_FAILED){
-		perror("mapping physmem file");
-		exit(1);
-	}
-	munmap(addr, len);
-
-	return(fd);
-}
-
-extern int have_devanon;
-
 int create_mem_file(unsigned long long len)
 {
 	int err, fd;
 
-	if(have_devanon)
-		fd = create_anon_file(len);
-	else fd = create_tmp_file(len);
+	fd = create_tmp_file(len);
 
 	err = os_set_exec_close(fd, 1);
 	if(err < 0){

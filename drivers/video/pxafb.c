@@ -232,9 +232,9 @@ static int pxafb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	if (var->yres < MIN_YRES)
 		var->yres = MIN_YRES;
 	if (var->xres > fbi->max_xres)
-		var->xres = fbi->max_xres;
+		return -EINVAL;
 	if (var->yres > fbi->max_yres)
-		var->yres = fbi->max_yres;
+		return -EINVAL;
 	var->xres_virtual =
 		max(var->xres_virtual, var->xres);
 	var->yres_virtual =
@@ -781,7 +781,7 @@ static void pxafb_disable_controller(struct pxafb_info *fbi)
 	LCCR0 &= ~LCCR0_LDM;	/* Enable LCD Disable Done Interrupt */
 	LCCR0 |= LCCR0_DIS;	/* Disable LCD Controller */
 
-	schedule_timeout(20 * HZ / 1000);
+	schedule_timeout(200 * HZ / 1000);
 	remove_wait_queue(&fbi->ctrlr_wait, &wait);
 
 	/* disable LCD controller clock */
@@ -1274,7 +1274,7 @@ int __init pxafb_probe(struct platform_device *dev)
 	struct pxafb_mach_info *inf;
 	int ret;
 
-	dev_dbg(dev, "pxafb_probe\n");
+	dev_dbg(&dev->dev, "pxafb_probe\n");
 
 	inf = dev->dev.platform_data;
 	ret = -ENOMEM;

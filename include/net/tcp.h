@@ -405,9 +405,6 @@ extern int			tcp_disconnect(struct sock *sk, int flags);
 
 extern void			tcp_unhash(struct sock *sk);
 
-extern int			tcp_v4_hash_connecting(struct sock *sk);
-
-
 /* From syncookies.c */
 extern struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb, 
 				    struct ip_options *opt);

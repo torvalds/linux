@@ -76,7 +76,7 @@ static struct mtd_partition partition_info[]={
 	    .size = 0x80000
     },
 };
-#define NUM_PARTITIONS (sizeof(partition_info)/sizeof(partition_info[0]))
+#define NUM_PARTITIONS ARRAY_SIZE(partition_info)
 
 #define WINDOW_SIZE	0x00100000
 #define WINDOW_ADDR	0x00200000
@@ -88,7 +88,7 @@ static struct map_info netsc520_map = {
 	.phys = WINDOW_ADDR,
 };
 
-#define NUM_FLASH_BANKS	(sizeof(netsc520_map)/sizeof(struct map_info))
+#define NUM_FLASH_BANKS	ARRAY_SIZE(netsc520_map)
 
 static struct mtd_info *mymtd;
 

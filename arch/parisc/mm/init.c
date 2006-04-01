@@ -1013,9 +1013,9 @@ void flush_tlb_all(void)
 #ifdef CONFIG_BLK_DEV_INITRD
 void free_initrd_mem(unsigned long start, unsigned long end)
 {
-#if 0
-	if (start < end)
-		printk(KERN_INFO "Freeing initrd memory: %ldk freed\n", (end - start) >> 10);
+	if (start >= end)
+		return;
+	printk(KERN_INFO "Freeing initrd memory: %ldk freed\n", (end - start) >> 10);
 	for (; start < end; start += PAGE_SIZE) {
 		ClearPageReserved(virt_to_page(start));
 		init_page_count(virt_to_page(start));
@@ -1023,6 +1023,5 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 		num_physpages++;
 		totalram_pages++;
 	}
-#endif
 }
 #endif

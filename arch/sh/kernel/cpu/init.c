@@ -30,7 +30,7 @@ static int x##_disabled __initdata = 0;		\
 static int __init x##_setup(char *opts)		\
 {						\
 	x##_disabled = 1;			\
-	return 0;				\
+	return 1;				\
 }						\
 __setup("no" __stringify(x), x##_setup);
 

@@ -334,6 +334,7 @@ static unsigned long set_max_huge_pages(unsigned long count)
 		return nr_huge_pages;
 
 	spin_lock(&hugetlb_lock);
+	count = max(count, reserved_huge_pages);
 	try_to_free_low(count);
 	while (count < nr_huge_pages) {
 		struct page *page = dequeue_huge_page(NULL, 0);
@@ -697,9 +698,10 @@ int follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		pfn_offset = (vaddr & ~HPAGE_MASK) >> PAGE_SHIFT;
 		page = pte_page(*pte);
 same_page:
-		get_page(page);
-		if (pages)
+		if (pages) {
+			get_page(page);
 			pages[i] = page + pfn_offset;
+		}
 
 		if (vmas)
 			vmas[i] = vma;

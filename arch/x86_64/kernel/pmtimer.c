@@ -121,7 +121,7 @@ unsigned int do_gettimeoffset_pm(void)
 static int __init nopmtimer_setup(char *s)
 {
 	pmtmr_ioport = 0;
-	return 0;
+	return 1;
 }
 
 __setup("nopmtimer", nopmtimer_setup);

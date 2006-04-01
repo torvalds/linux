@@ -1039,9 +1039,11 @@ asmlinkage long sys_futex(u32 __user *uaddr, int op, int val,
 	unsigned long timeout = MAX_SCHEDULE_TIMEOUT;
 	int val2 = 0;
 
-	if ((op == FUTEX_WAIT) && utime) {
+	if (utime && (op == FUTEX_WAIT)) {
 		if (copy_from_user(&t, utime, sizeof(t)) != 0)
 			return -EFAULT;
+		if (!timespec_valid(&t))
+			return -EINVAL;
 		timeout = timespec_to_jiffies(&t) + 1;
 	}
 	/*

@@ -616,12 +616,10 @@ static void guarantee_online_mems(const struct cpuset *cs, nodemask_t *pmask)
  * current->cpuset if a task has its memory placement changed.
  * Do not call this routine if in_interrupt().
  *
- * Call without callback_mutex or task_lock() held.  May be called
- * with or without manage_mutex held.  Doesn't need task_lock to guard
- * against another task changing a non-NULL cpuset pointer to NULL,
- * as that is only done by a task on itself, and if the current task
- * is here, it is not simultaneously in the exit code NULL'ing its
- * cpuset pointer.  This routine also might acquire callback_mutex and
+ * Call without callback_mutex or task_lock() held.  May be
+ * called with or without manage_mutex held.  Thanks in part to
+ * 'the_top_cpuset_hack', the tasks cpuset pointer will never
+ * be NULL.  This routine also might acquire callback_mutex and
  * current->mm->mmap_sem during call.
  *
  * Reading current->cpuset->mems_generation doesn't need task_lock
@@ -836,6 +834,55 @@ static int update_cpumask(struct cpuset *cs, char *buf)
 }
 
 /*
+ * cpuset_migrate_mm
+ *
+ *    Migrate memory region from one set of nodes to another.
+ *
+ *    Temporarilly set tasks mems_allowed to target nodes of migration,
+ *    so that the migration code can allocate pages on these nodes.
+ *
+ *    Call holding manage_mutex, so our current->cpuset won't change
+ *    during this call, as manage_mutex holds off any attach_task()
+ *    calls.  Therefore we don't need to take task_lock around the
+ *    call to guarantee_online_mems(), as we know no one is changing
+ *    our tasks cpuset.
+ *
+ *    Hold callback_mutex around the two modifications of our tasks
+ *    mems_allowed to synchronize with cpuset_mems_allowed().
+ *
+ *    While the mm_struct we are migrating is typically from some
+ *    other task, the task_struct mems_allowed that we are hacking
+ *    is for our current task, which must allocate new pages for that
+ *    migrating memory region.
+ *
+ *    We call cpuset_update_task_memory_state() before hacking
+ *    our tasks mems_allowed, so that we are assured of being in
+ *    sync with our tasks cpuset, and in particular, callbacks to
+ *    cpuset_update_task_memory_state() from nested page allocations
+ *    won't see any mismatch of our cpuset and task mems_generation
+ *    values, so won't overwrite our hacked tasks mems_allowed
+ *    nodemask.
+ */
+
+static void cpuset_migrate_mm(struct mm_struct *mm, const nodemask_t *from,
+							const nodemask_t *to)
+{
+	struct task_struct *tsk = current;
+
+	cpuset_update_task_memory_state();
+
+	mutex_lock(&callback_mutex);
+	tsk->mems_allowed = *to;
+	mutex_unlock(&callback_mutex);
+
+	do_migrate_pages(mm, from, to, MPOL_MF_MOVE_ALL);
+
+	mutex_lock(&callback_mutex);
+	guarantee_online_mems(tsk->cpuset, &tsk->mems_allowed);
+	mutex_unlock(&callback_mutex);
+}
+
+/*
  * Handle user request to change the 'mems' memory placement
  * of a cpuset.  Needs to validate the request, update the
  * cpusets mems_allowed and mems_generation, and for each
@@ -947,10 +994,8 @@ static int update_nodemask(struct cpuset *cs, char *buf)
 		struct mm_struct *mm = mmarray[i];
 
 		mpol_rebind_mm(mm, &cs->mems_allowed);
-		if (migrate) {
-			do_migrate_pages(mm, &oldmem, &cs->mems_allowed,
-							MPOL_MF_MOVE_ALL);
-		}
+		if (migrate)
+			cpuset_migrate_mm(mm, &oldmem, &cs->mems_allowed);
 		mmput(mm);
 	}
 
@@ -1185,11 +1230,11 @@ static int attach_task(struct cpuset *cs, char *pidbuf, char **ppathbuf)
 	mm = get_task_mm(tsk);
 	if (mm) {
 		mpol_rebind_mm(mm, &to);
+		if (is_memory_migrate(cs))
+			cpuset_migrate_mm(mm, &from, &to);
 		mmput(mm);
 	}
 
-	if (is_memory_migrate(cs))
-		do_migrate_pages(tsk->mm, &from, &to, MPOL_MF_MOVE_ALL);
 	put_task_struct(tsk);
 	synchronize_rcu();
 	if (atomic_dec_and_test(&oldcs->count))

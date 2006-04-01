@@ -264,7 +264,7 @@ static void sil_post_set_mode (struct ata_port *ap)
 
 	for (i = 0; i < 2; i++) {
 		dev = &ap->device[i];
-		if (!ata_dev_present(dev))
+		if (!ata_dev_enabled(dev))
 			dev_mode[i] = 0;	/* PIO0/1/2 */
 		else if (dev->flags & ATA_DFLAG_PIO)
 			dev_mode[i] = 1;	/* PIO3/4 */

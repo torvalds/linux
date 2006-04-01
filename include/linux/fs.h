@@ -757,6 +757,13 @@ extern void send_sigio(struct fown_struct *fown, int fd, int band);
 extern int fcntl_setlease(unsigned int fd, struct file *filp, long arg);
 extern int fcntl_getlease(struct file *filp);
 
+/* fs/sync.c */
+#define SYNC_FILE_RANGE_WAIT_BEFORE	1
+#define SYNC_FILE_RANGE_WRITE		2
+#define SYNC_FILE_RANGE_WAIT_AFTER	4
+extern int do_sync_file_range(struct file *file, loff_t offset, loff_t endbyte,
+			int flags);
+
 /* fs/locks.c */
 extern void locks_init_lock(struct file_lock *);
 extern void locks_copy_lock(struct file_lock *, struct file_lock *);
@@ -1032,6 +1039,8 @@ struct file_operations {
 	int (*check_flags)(int);
 	int (*dir_notify)(struct file *filp, unsigned long arg);
 	int (*flock) (struct file *, int, struct file_lock *);
+	ssize_t (*splice_write)(struct inode *, struct file *, size_t, unsigned int);
+	ssize_t (*splice_read)(struct file *, struct inode *, size_t, unsigned int);
 };
 
 struct inode_operations {
@@ -1411,6 +1420,7 @@ extern void bd_release_from_disk(struct block_device *, struct gendisk *);
 #endif
 
 /* fs/char_dev.c */
+#define CHRDEV_MAJOR_HASH_SIZE	255
 extern int alloc_chrdev_region(dev_t *, unsigned, unsigned, const char *);
 extern int register_chrdev_region(dev_t, unsigned, const char *);
 extern int register_chrdev(unsigned int, const char *,
@@ -1418,25 +1428,17 @@ extern int register_chrdev(unsigned int, const char *,
 extern int unregister_chrdev(unsigned int, const char *);
 extern void unregister_chrdev_region(dev_t, unsigned);
 extern int chrdev_open(struct inode *, struct file *);
-extern int get_chrdev_list(char *);
-extern void *acquire_chrdev_list(void);
-extern int count_chrdev_list(void);
-extern void *get_next_chrdev(void *);
-extern int get_chrdev_info(void *, int *, char **);
-extern void release_chrdev_list(void *);
+extern void chrdev_show(struct seq_file *,off_t);
 
 /* fs/block_dev.c */
+#define BLKDEV_MAJOR_HASH_SIZE	255
 #define BDEVNAME_SIZE	32	/* Largest string for a blockdev identifier */
 extern const char *__bdevname(dev_t, char *buffer);
 extern const char *bdevname(struct block_device *bdev, char *buffer);
 extern struct block_device *lookup_bdev(const char *);
 extern struct block_device *open_bdev_excl(const char *, int, void *);
 extern void close_bdev_excl(struct block_device *);
-extern void *acquire_blkdev_list(void);
-extern int count_blkdev_list(void);
-extern void *get_next_blkdev(void *);
-extern int get_blkdev_info(void *, int *, char **);
-extern void release_blkdev_list(void *);
+extern void blkdev_show(struct seq_file *,off_t);
 
 extern void init_special_inode(struct inode *, umode_t, dev_t);
 
@@ -1609,6 +1611,8 @@ extern ssize_t generic_file_sendfile(struct file *, loff_t *, size_t, read_actor
 extern void do_generic_mapping_read(struct address_space *mapping,
 				    struct file_ra_state *, struct file *,
 				    loff_t *, read_descriptor_t *, read_actor_t);
+extern ssize_t generic_file_splice_read(struct file *, struct inode *, size_t, unsigned int);
+extern ssize_t generic_file_splice_write(struct inode *, struct file *, size_t, unsigned int);
 extern void
 file_ra_state_init(struct file_ra_state *ra, struct address_space *mapping);
 extern ssize_t generic_file_readv(struct file *filp, const struct iovec *iov, 

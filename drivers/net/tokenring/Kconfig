@@ -3,7 +3,7 @@
 #
 
 menu "Token Ring devices"
-	depends on NETDEVICES
+	depends on NETDEVICES && !UML
 
 # So far, we only have PCI, ISA, and MCA token ring devices
 config TR

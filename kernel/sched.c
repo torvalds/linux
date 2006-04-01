@@ -667,9 +667,13 @@ static int effective_prio(task_t *p)
 /*
  * __activate_task - move a task to the runqueue.
  */
-static inline void __activate_task(task_t *p, runqueue_t *rq)
+static void __activate_task(task_t *p, runqueue_t *rq)
 {
-	enqueue_task(p, rq->active);
+	prio_array_t *target = rq->active;
+
+	if (batch_task(p))
+		target = rq->expired;
+	enqueue_task(p, target);
 	rq->nr_running++;
 }
 
@@ -688,7 +692,7 @@ static int recalc_task_prio(task_t *p, unsigned long long now)
 	unsigned long long __sleep_time = now - p->timestamp;
 	unsigned long sleep_time;
 
-	if (unlikely(p->policy == SCHED_BATCH))
+	if (batch_task(p))
 		sleep_time = 0;
 	else {
 		if (__sleep_time > NS_MAX_SLEEP_AVG)
@@ -700,21 +704,25 @@ static int recalc_task_prio(task_t *p, unsigned long long now)
 	if (likely(sleep_time > 0)) {
 		/*
 		 * User tasks that sleep a long time are categorised as
-		 * idle and will get just interactive status to stay active &
-		 * prevent them suddenly becoming cpu hogs and starving
-		 * other processes.
+		 * idle. They will only have their sleep_avg increased to a
+		 * level that makes them just interactive priority to stay
+		 * active yet prevent them suddenly becoming cpu hogs and
+		 * starving other processes.
 		 */
-		if (p->mm && p->activated != -1 &&
-			sleep_time > INTERACTIVE_SLEEP(p)) {
-				p->sleep_avg = JIFFIES_TO_NS(MAX_SLEEP_AVG -
-						DEF_TIMESLICE);
+		if (p->mm && sleep_time > INTERACTIVE_SLEEP(p)) {
+				unsigned long ceiling;
+
+				ceiling = JIFFIES_TO_NS(MAX_SLEEP_AVG -
+					DEF_TIMESLICE);
+				if (p->sleep_avg < ceiling)
+					p->sleep_avg = ceiling;
 		} else {
 			/*
 			 * Tasks waking from uninterruptible sleep are
 			 * limited in their sleep_avg rise as they
 			 * are likely to be waiting on I/O
 			 */
-			if (p->activated == -1 && p->mm) {
+			if (p->sleep_type == SLEEP_NONINTERACTIVE && p->mm) {
 				if (p->sleep_avg >= INTERACTIVE_SLEEP(p))
 					sleep_time = 0;
 				else if (p->sleep_avg + sleep_time >=
@@ -769,7 +777,7 @@ static void activate_task(task_t *p, runqueue_t *rq, int local)
 	 * This checks to make sure it's not an uninterruptible task
 	 * that is now waking up.
 	 */
-	if (!p->activated) {
+	if (p->sleep_type == SLEEP_NORMAL) {
 		/*
 		 * Tasks which were woken up by interrupts (ie. hw events)
 		 * are most likely of interactive nature. So we give them
@@ -778,13 +786,13 @@ static void activate_task(task_t *p, runqueue_t *rq, int local)
 		 * on a CPU, first time around:
 		 */
 		if (in_interrupt())
-			p->activated = 2;
+			p->sleep_type = SLEEP_INTERRUPTED;
 		else {
 			/*
 			 * Normal first-time wakeups get a credit too for
 			 * on-runqueue time, but it will be weighted down:
 			 */
-			p->activated = 1;
+			p->sleep_type = SLEEP_INTERACTIVE;
 		}
 	}
 	p->timestamp = now;
@@ -1272,19 +1280,19 @@ out_activate:
 		 * Tasks on involuntary sleep don't earn
 		 * sleep_avg beyond just interactive state.
 		 */
-		p->activated = -1;
-	}
+		p->sleep_type = SLEEP_NONINTERACTIVE;
+	} else
 
 	/*
 	 * Tasks that have marked their sleep as noninteractive get
-	 * woken up without updating their sleep average. (i.e. their
-	 * sleep is handled in a priority-neutral manner, no priority
-	 * boost and no penalty.)
+	 * woken up with their sleep average not weighted in an
+	 * interactive way.
 	 */
-	if (old_state & TASK_NONINTERACTIVE)
-		__activate_task(p, rq);
-	else
-		activate_task(p, rq, cpu == this_cpu);
+		if (old_state & TASK_NONINTERACTIVE)
+			p->sleep_type = SLEEP_NONINTERACTIVE;
+
+
+	activate_task(p, rq, cpu == this_cpu);
 	/*
 	 * Sync wakeups (i.e. those types of wakeups where the waker
 	 * has indicated that it will leave the CPU in short order)
@@ -1656,6 +1664,21 @@ unsigned long nr_iowait(void)
 		sum += atomic_read(&cpu_rq(i)->nr_iowait);
 
 	return sum;
+}
+
+unsigned long nr_active(void)
+{
+	unsigned long i, running = 0, uninterruptible = 0;
+
+	for_each_online_cpu(i) {
+		running += cpu_rq(i)->nr_running;
+		uninterruptible += cpu_rq(i)->nr_uninterruptible;
+	}
+
+	if (unlikely((long)uninterruptible < 0))
+		uninterruptible = 0;
+
+	return running + uninterruptible;
 }
 
 #ifdef CONFIG_SMP
@@ -2860,6 +2883,12 @@ EXPORT_SYMBOL(sub_preempt_count);
 
 #endif
 
+static inline int interactive_sleep(enum sleep_type sleep_type)
+{
+	return (sleep_type == SLEEP_INTERACTIVE ||
+		sleep_type == SLEEP_INTERRUPTED);
+}
+
 /*
  * schedule() is the main scheduler function.
  */
@@ -2983,12 +3012,12 @@ go_idle:
 	queue = array->queue + idx;
 	next = list_entry(queue->next, task_t, run_list);
 
-	if (!rt_task(next) && next->activated > 0) {
+	if (!rt_task(next) && interactive_sleep(next->sleep_type)) {
 		unsigned long long delta = now - next->timestamp;
 		if (unlikely((long long)(now - next->timestamp) < 0))
 			delta = 0;
 
-		if (next->activated == 1)
+		if (next->sleep_type == SLEEP_INTERACTIVE)
 			delta = delta * (ON_RUNQUEUE_WEIGHT * 128 / 100) / 128;
 
 		array = next->array;
@@ -2998,10 +3027,9 @@ go_idle:
 			dequeue_task(next, array);
 			next->prio = new_prio;
 			enqueue_task(next, array);
-		} else
-			requeue_task(next, array);
+		}
 	}
-	next->activated = 0;
+	next->sleep_type = SLEEP_NORMAL;
 switch_tasks:
 	if (next == rq->idle)
 		schedstat_inc(rq, sched_goidle);

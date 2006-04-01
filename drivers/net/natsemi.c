@@ -226,7 +226,7 @@ static int full_duplex[MAX_UNITS];
 				 NATSEMI_PG1_NREGS)
 #define NATSEMI_REGS_VER	1 /* v1 added RFDR registers */
 #define NATSEMI_REGS_SIZE	(NATSEMI_NREGS * sizeof(u32))
-#define NATSEMI_EEPROM_SIZE	24 /* 12 16-bit values */
+#define NATSEMI_DEF_EEPROM_SIZE	24 /* 12 16-bit values */
 
 /* Buffer sizes:
  * The nic writes 32-bit values, even if the upper bytes of
@@ -714,6 +714,8 @@ struct netdev_private {
 	unsigned int iosize;
 	spinlock_t lock;
 	u32 msg_enable;
+	/* EEPROM data */
+	int eeprom_size;
 };
 
 static void move_int_phy(struct net_device *dev, int addr);
@@ -890,6 +892,7 @@ static int __devinit natsemi_probe1 (struct pci_dev *pdev,
 	np->msg_enable = (debug >= 0) ? (1<<debug)-1 : NATSEMI_DEF_MSG;
 	np->hands_off = 0;
 	np->intr_status = 0;
+	np->eeprom_size = NATSEMI_DEF_EEPROM_SIZE;
 
 	/* Initial port:
 	 * - If the nic was configured to use an external phy and if find_mii
@@ -2582,7 +2585,8 @@ static int get_regs_len(struct net_device *dev)
 
 static int get_eeprom_len(struct net_device *dev)
 {
-	return NATSEMI_EEPROM_SIZE;
+	struct netdev_private *np = netdev_priv(dev);
+	return np->eeprom_size;
 }
 
 static int get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
@@ -2669,8 +2673,12 @@ static u32 get_link(struct net_device *dev)
 static int get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom, u8 *data)
 {
 	struct netdev_private *np = netdev_priv(dev);
-	u8 eebuf[NATSEMI_EEPROM_SIZE];
+	u8 *eebuf;
 	int res;
+
+	eebuf = kmalloc(np->eeprom_size, GFP_KERNEL);
+	if (!eebuf)
+		return -ENOMEM;
 
 	eeprom->magic = PCI_VENDOR_ID_NS | (PCI_DEVICE_ID_NS_83815<<16);
 	spin_lock_irq(&np->lock);
@@ -2678,6 +2686,7 @@ static int get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom, u8 
 	spin_unlock_irq(&np->lock);
 	if (!res)
 		memcpy(data, eebuf+eeprom->offset, eeprom->len);
+	kfree(eebuf);
 	return res;
 }
 
@@ -3033,9 +3042,10 @@ static int netdev_get_eeprom(struct net_device *dev, u8 *buf)
 	int i;
 	u16 *ebuf = (u16 *)buf;
 	void __iomem * ioaddr = ns_ioaddr(dev);
+	struct netdev_private *np = netdev_priv(dev);
 
 	/* eeprom_read reads 16 bits, and indexes by 16 bits */
-	for (i = 0; i < NATSEMI_EEPROM_SIZE/2; i++) {
+	for (i = 0; i < np->eeprom_size/2; i++) {
 		ebuf[i] = eeprom_read(ioaddr, i);
 		/* The EEPROM itself stores data bit-swapped, but eeprom_read
 		 * reads it back "sanely". So we swap it back here in order to

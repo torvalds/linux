@@ -102,8 +102,6 @@ EXPORT_SYMBOL(cpu_callout_map);
 EXPORT_SYMBOL(screen_info);
 #endif
 
-EXPORT_SYMBOL(get_wchan);
-
 EXPORT_SYMBOL(rtc_lock);
 
 EXPORT_SYMBOL_GPL(set_nmi_callback);

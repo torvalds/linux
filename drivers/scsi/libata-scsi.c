@@ -1431,9 +1431,7 @@ static void ata_scsi_translate(struct ata_port *ap, struct ata_device *dev,
 		goto early_finish;
 
 	/* select device, send command to hardware */
-	qc->err_mask = ata_qc_issue(qc);
-	if (qc->err_mask)
-		ata_qc_complete(qc);
+	ata_qc_issue(qc);
 
 	VPRINTK("EXIT\n");
 	return;
@@ -2199,9 +2197,7 @@ static void atapi_request_sense(struct ata_queued_cmd *qc)
 
 	qc->complete_fn = atapi_sense_complete;
 
-	qc->err_mask = ata_qc_issue(qc);
-	if (qc->err_mask)
-		ata_qc_complete(qc);
+	ata_qc_issue(qc);
 
 	DPRINTK("EXIT\n");
 }
@@ -2353,7 +2349,7 @@ ata_scsi_find_dev(struct ata_port *ap, const struct scsi_device *scsidev)
 		     (scsidev->lun != 0)))
 		return NULL;
 
-	if (unlikely(!ata_dev_present(dev)))
+	if (unlikely(!ata_dev_enabled(dev)))
 		return NULL;
 
 	if (!atapi_enabled || (ap->flags & ATA_FLAG_NO_ATAPI)) {
@@ -2747,7 +2743,7 @@ void ata_scsi_scan_host(struct ata_port *ap)
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
 		dev = &ap->device[i];
 
-		if (ata_dev_present(dev))
+		if (ata_dev_enabled(dev))
 			scsi_scan_target(&ap->host->shost_gendev, 0, i, 0, 0);
 	}
 }

@@ -94,7 +94,7 @@ static struct console netconsole = {
 static int option_setup(char *opt)
 {
 	configured = !netpoll_parse_options(&np, opt);
-	return 0;
+	return 1;
 }
 
 __setup("netconsole=", option_setup);

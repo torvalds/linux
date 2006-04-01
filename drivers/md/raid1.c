@@ -1135,8 +1135,19 @@ static int end_sync_write(struct bio *bio, unsigned int bytes_done, int error)
 			mirror = i;
 			break;
 		}
-	if (!uptodate)
+	if (!uptodate) {
+		int sync_blocks = 0;
+		sector_t s = r1_bio->sector;
+		long sectors_to_go = r1_bio->sectors;
+		/* make sure these bits doesn't get cleared. */
+		do {
+			bitmap_end_sync(mddev->bitmap, r1_bio->sector,
+					&sync_blocks, 1);
+			s += sync_blocks;
+			sectors_to_go -= sync_blocks;
+		} while (sectors_to_go > 0);
 		md_error(mddev, conf->mirrors[mirror].rdev);
+	}
 
 	update_head_pos(mirror, r1_bio);
 

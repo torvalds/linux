@@ -2204,7 +2204,7 @@ int __devinit mthca_init_qp_table(struct mthca_dev *dev)
 	return err;
 }
 
-void __devexit mthca_cleanup_qp_table(struct mthca_dev *dev)
+void mthca_cleanup_qp_table(struct mthca_dev *dev)
 {
 	int i;
 	u8 status;

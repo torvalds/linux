@@ -210,6 +210,8 @@ static __inline__ int atomic_read(const atomic_t *v)
 
 #define atomic_dec_and_test(v)	(atomic_dec_return(v) == 0)
 
+#define atomic_sub_and_test(i,v)	(atomic_sub_return((i),(v)) == 0)
+
 #define ATOMIC_INIT(i)	((atomic_t) { (i) })
 
 #define smp_mb__before_atomic_dec()	smp_mb()
@@ -267,6 +269,7 @@ atomic64_read(const atomic64_t *v)
 
 #define atomic64_inc_and_test(v) 	(atomic64_inc_return(v) == 0)
 #define atomic64_dec_and_test(v)	(atomic64_dec_return(v) == 0)
+#define atomic64_sub_and_test(i,v)	(atomic64_sub_return((i),(v)) == 0)
 
 #endif /* __LP64__ */
 

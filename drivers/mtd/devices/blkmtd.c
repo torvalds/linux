@@ -28,8 +28,9 @@
 #include <linux/pagemap.h>
 #include <linux/list.h>
 #include <linux/init.h>
+#include <linux/mount.h>
 #include <linux/mtd/mtd.h>
-
+#include <linux/mutex.h>
 
 #define err(format, arg...) printk(KERN_ERR "blkmtd: " format "\n" , ## arg)
 #define info(format, arg...) printk(KERN_INFO "blkmtd: " format "\n" , ## arg)
@@ -46,7 +47,7 @@ struct blkmtd_dev {
 	struct list_head list;
 	struct block_device *blkdev;
 	struct mtd_info mtd_info;
-	struct semaphore wrbuf_mutex;
+	struct mutex wrbuf_mutex;
 };
 
 
@@ -268,7 +269,7 @@ static int write_pages(struct blkmtd_dev *dev, const u_char *buf, loff_t to,
 	if(end_len)
 		pagecnt++;
 
-	down(&dev->wrbuf_mutex);
+	mutex_lock(&dev->wrbuf_mutex);
 
 	DEBUG(3, "blkmtd: write: start_len = %zd len = %zd end_len = %zd pagecnt = %d\n",
 	      start_len, len, end_len, pagecnt);
@@ -376,7 +377,7 @@ static int write_pages(struct blkmtd_dev *dev, const u_char *buf, loff_t to,
 		blkmtd_write_out(bio);
 
 	DEBUG(2, "blkmtd: write: end, retlen = %zd, err = %d\n", *retlen, err);
-	up(&dev->wrbuf_mutex);
+	mutex_unlock(&dev->wrbuf_mutex);
 
 	if(retlen)
 		*retlen = thislen;
@@ -614,8 +615,6 @@ static struct mtd_erase_region_info *calc_erase_regions(
 }
 
 
-extern dev_t __init name_to_dev_t(const char *line);
-
 static struct blkmtd_dev *add_device(char *devname, int readonly, int erase_size)
 {
 	struct block_device *bdev;
@@ -659,7 +658,7 @@ static struct blkmtd_dev *add_device(char *devname, int readonly, int erase_size
 	memset(dev, 0, sizeof(struct blkmtd_dev));
 	dev->blkdev = bdev;
 	if(!readonly) {
-		init_MUTEX(&dev->wrbuf_mutex);
+		mutex_init(&dev->wrbuf_mutex);
 	}
 
 	dev->mtd_info.size = dev->blkdev->bd_inode->i_size & PAGE_MASK;

@@ -227,7 +227,7 @@ static inline int check_ibf(struct si_sm_data *kcs, unsigned char status,
 static inline int check_obf(struct si_sm_data *kcs, unsigned char status,
 			    long time)
 {
-	if (! GET_STATUS_OBF(status)) {
+	if (!GET_STATUS_OBF(status)) {
 		kcs->obf_timeout -= time;
 		if (kcs->obf_timeout < 0) {
 		    start_error_recovery(kcs, "OBF not ready in time");
@@ -407,7 +407,7 @@ static enum si_sm_result kcs_event(struct si_sm_data *kcs, long time)
 		}
 
 		if (state == KCS_READ_STATE) {
-			if (! check_obf(kcs, status, time))
+			if (!check_obf(kcs, status, time))
 				return SI_SM_CALL_WITH_DELAY;
 			read_next_byte(kcs);
 		} else {
@@ -447,7 +447,7 @@ static enum si_sm_result kcs_event(struct si_sm_data *kcs, long time)
 					     "Not in read state for error2");
 			break;
 		}
-		if (! check_obf(kcs, status, time))
+		if (!check_obf(kcs, status, time))
 			return SI_SM_CALL_WITH_DELAY;
 
 		clear_obf(kcs, status);
@@ -462,7 +462,7 @@ static enum si_sm_result kcs_event(struct si_sm_data *kcs, long time)
 			break;
 		}
 
-		if (! check_obf(kcs, status, time))
+		if (!check_obf(kcs, status, time))
 			return SI_SM_CALL_WITH_DELAY;
 
 		clear_obf(kcs, status);

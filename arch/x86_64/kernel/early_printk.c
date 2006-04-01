@@ -221,7 +221,7 @@ int __init setup_early_printk(char *opt)
 	char buf[256];
 
 	if (early_console_initialized)
-		return -1;
+		return 1;
 
 	strlcpy(buf,opt,sizeof(buf));
 	space = strchr(buf, ' ');

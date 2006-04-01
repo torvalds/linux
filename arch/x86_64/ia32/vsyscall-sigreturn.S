@@ -32,9 +32,28 @@ __kernel_rt_sigreturn:
 	.size __kernel_rt_sigreturn,.-.LSTART_rt_sigreturn
 
 	.section .eh_frame,"a",@progbits
+.LSTARTFRAMES:
+        .long .LENDCIES-.LSTARTCIES
+.LSTARTCIES:
+	.long 0			/* CIE ID */
+	.byte 1			/* Version number */
+	.string "zRS"		/* NUL-terminated augmentation string */
+	.uleb128 1		/* Code alignment factor */
+	.sleb128 -4		/* Data alignment factor */
+	.byte 8			/* Return address register column */
+	.uleb128 1		/* Augmentation value length */
+	.byte 0x1b		/* DW_EH_PE_pcrel|DW_EH_PE_sdata4. */
+	.byte 0x0c		/* DW_CFA_def_cfa */
+	.uleb128 4
+	.uleb128 4
+	.byte 0x88		/* DW_CFA_offset, column 0x8 */
+	.uleb128 1
+	.align 4
+.LENDCIES:
+
 	.long .LENDFDE2-.LSTARTFDE2	/* Length FDE */
 .LSTARTFDE2:
-	.long .LSTARTFDE2-.LSTARTFRAME	/* CIE pointer */
+	.long .LSTARTFDE2-.LSTARTFRAMES	/* CIE pointer */
 	/* HACK: The dwarf2 unwind routines will subtract 1 from the
 	   return address to get an address in the middle of the
 	   presumed call instruction.  Since we didn't get here via
@@ -97,7 +116,7 @@ __kernel_rt_sigreturn:
 
 	.long .LENDFDE3-.LSTARTFDE3	/* Length FDE */
 .LSTARTFDE3:
-	.long .LSTARTFDE3-.LSTARTFRAME	/* CIE pointer */
+	.long .LSTARTFDE3-.LSTARTFRAMES	/* CIE pointer */
 	/* HACK: See above wrt unwind library assumptions.  */
 	.long .LSTART_rt_sigreturn-1-.	/* PC-relative start address */
 	.long .LEND_rt_sigreturn-.LSTART_rt_sigreturn+1

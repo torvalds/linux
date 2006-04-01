@@ -666,7 +666,7 @@ __kuser_helper_start:
  *
  * #define __kernel_dmb() \
  *         asm volatile ( "mov r0, #0xffff0fff; mov lr, pc; sub pc, r0, #95" \
- *	        : : : "lr","cc" )
+ *	        : : : "r0", "lr","cc" )
  */
 
 __kuser_memory_barrier:				@ 0xffff0fa0

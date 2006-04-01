@@ -61,6 +61,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
+#include <linux/leds.h>
 
 #define _IDE_DISK
 
@@ -316,6 +317,8 @@ static ide_startstop_t ide_do_rw_disk (ide_drive_t *drive, struct request *rq, s
 		ide_end_request(drive, 0, 0);
 		return ide_stopped;
 	}
+
+	ledtrig_ide_activity();
 
 	pr_debug("%s: %sing: block=%llu, sectors=%lu, buffer=0x%08lx\n",
 		 drive->name, rq_data_dir(rq) == READ ? "read" : "writ",

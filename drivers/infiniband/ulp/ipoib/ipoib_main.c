@@ -723,7 +723,7 @@ static int ipoib_hard_header(struct sk_buff *skb,
 	 * destination address onto the front of the skb so we can
 	 * figure out where to send the packet later.
 	 */
-	if (!skb->dst || !skb->dst->neighbour) {
+	if ((!skb->dst || !skb->dst->neighbour) && daddr) {
 		struct ipoib_pseudoheader *phdr =
 			(struct ipoib_pseudoheader *) skb_push(skb, sizeof *phdr);
 		memcpy(phdr->hwaddr, daddr, INFINIBAND_ALEN);

@@ -1306,7 +1306,7 @@ irqreturn_t hpet_rtc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 static int __init nohpet_setup(char *s) 
 { 
 	nohpet = 1;
-	return 0;
+	return 1;
 } 
 
 __setup("nohpet", nohpet_setup);
@@ -1314,7 +1314,7 @@ __setup("nohpet", nohpet_setup);
 int __init notsc_setup(char *s)
 {
 	notsc = 1;
-	return 0;
+	return 1;
 }
 
 __setup("notsc", notsc_setup);

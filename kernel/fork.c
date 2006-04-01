@@ -108,10 +108,8 @@ void free_task(struct task_struct *tsk)
 }
 EXPORT_SYMBOL(free_task);
 
-void __put_task_struct_cb(struct rcu_head *rhp)
+void __put_task_struct(struct task_struct *tsk)
 {
-	struct task_struct *tsk = container_of(rhp, struct task_struct, rcu);
-
 	WARN_ON(!(tsk->exit_state & (EXIT_DEAD | EXIT_ZOMBIE)));
 	WARN_ON(atomic_read(&tsk->usage));
 	WARN_ON(tsk == current);
@@ -124,6 +122,12 @@ void __put_task_struct_cb(struct rcu_head *rhp)
 
 	if (!profile_handoff_task(tsk))
 		free_task(tsk);
+}
+
+void __put_task_struct_cb(struct rcu_head *rhp)
+{
+	struct task_struct *tsk = container_of(rhp, struct task_struct, rcu);
+	__put_task_struct(tsk);
 }
 
 void __init fork_init(unsigned long mempages)
@@ -721,7 +725,7 @@ out_release:
 	free_fdset (new_fdt->open_fds, new_fdt->max_fdset);
 	free_fd_array(new_fdt->fd, new_fdt->max_fds);
 	kmem_cache_free(files_cachep, newf);
-	goto out;
+	return NULL;
 }
 
 static int copy_files(unsigned long clone_flags, struct task_struct * tsk)
@@ -1311,17 +1315,19 @@ long do_fork(unsigned long clone_flags,
 {
 	struct task_struct *p;
 	int trace = 0;
-	long pid = alloc_pidmap();
+	struct pid *pid = alloc_pid();
+	long nr;
 
-	if (pid < 0)
+	if (!pid)
 		return -EAGAIN;
+	nr = pid->nr;
 	if (unlikely(current->ptrace)) {
 		trace = fork_traceflag (clone_flags);
 		if (trace)
 			clone_flags |= CLONE_PTRACE;
 	}
 
-	p = copy_process(clone_flags, stack_start, regs, stack_size, parent_tidptr, child_tidptr, pid);
+	p = copy_process(clone_flags, stack_start, regs, stack_size, parent_tidptr, child_tidptr, nr);
 	/*
 	 * Do this prior waking up the new thread - the thread pointer
 	 * might get invalid after that point, if the thread exits quickly.
@@ -1348,7 +1354,7 @@ long do_fork(unsigned long clone_flags,
 			p->state = TASK_STOPPED;
 
 		if (unlikely (trace)) {
-			current->ptrace_message = pid;
+			current->ptrace_message = nr;
 			ptrace_notify ((trace << 8) | SIGTRAP);
 		}
 
@@ -1358,10 +1364,10 @@ long do_fork(unsigned long clone_flags,
 				ptrace_notify ((PTRACE_EVENT_VFORK_DONE << 8) | SIGTRAP);
 		}
 	} else {
-		free_pidmap(pid);
-		pid = PTR_ERR(p);
+		free_pid(pid);
+		nr = PTR_ERR(p);
 	}
-	return pid;
+	return nr;
 }
 
 #ifndef ARCH_MIN_MMSTRUCT_ALIGN

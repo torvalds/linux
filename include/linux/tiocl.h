@@ -34,5 +34,6 @@ struct tiocl_selection {
 #define TIOCL_SCROLLCONSOLE	13	/* scroll console */
 #define TIOCL_BLANKSCREEN	14	/* keep screen blank even if a key is pressed */
 #define TIOCL_BLANKEDSCREEN	15	/* return which vt was blanked */
+#define TIOCL_GETKMSGREDIRECT	17	/* get the vt the kernel messages are restricted to */
 
 #endif /* _LINUX_TIOCL_H */

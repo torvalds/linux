@@ -891,7 +891,7 @@ int ubd_driver_init(void){
 			     SA_INTERRUPT, "ubd", ubd_dev);
 	if(err != 0)
 		printk(KERN_ERR "um_request_irq failed - errno = %d\n", -err);
-	return(err);
+	return 0;
 }
 
 device_initcall(ubd_driver_init);

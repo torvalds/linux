@@ -64,13 +64,13 @@ void mcheck_init(struct cpuinfo_x86 *c)
 static int __init mcheck_disable(char *str)
 {
 	mce_disabled = 1;
-	return 0;
+	return 1;
 }
 
 static int __init mcheck_enable(char *str)
 {
 	mce_disabled = -1;
-	return 0;
+	return 1;
 }
 
 __setup("nomce", mcheck_disable);
