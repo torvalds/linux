@@ -201,7 +201,7 @@ int clear_master_aborts(void)
 	return 0;
 }
 
-void __init ixp23xx_pci_preinit(void)
+static void __init ixp23xx_pci_common_init(void)
 {
 #ifdef __ARMEB__
 	*IXP23XX_PCI_CONTROL |= 0x20000;	/* set I/O swapping */
@@ -220,6 +220,11 @@ void __init ixp23xx_pci_preinit(void)
 	} else {
 		*IXP23XX_PCI_CPP_ADDR_BITS |= (1 << 1);
 	}
+}
+
+void __init ixp23xx_pci_preinit(void)
+{
+	ixp23xx_pci_common_init();
 
 	hook_fault_code(16+6, ixp23xx_pci_abort_handler, SIGBUS,
 			"PCI config cycle to non-existent device");
@@ -272,4 +277,9 @@ int ixp23xx_pci_setup(int nr, struct pci_sys_data *sys)
 	sys->resource[2] = NULL;
 
 	return 1;
+}
+
+void ixp23xx_pci_slave_init(void)
+{
+	ixp23xx_pci_common_init();
 }
