@@ -219,6 +219,12 @@ static void __init ixp23xx_pci_common_init(void)
 		*IXP23XX_PCI_CPP_ADDR_BITS &= ~(1 << 1);
 	} else {
 		*IXP23XX_PCI_CPP_ADDR_BITS |= (1 << 1);
+
+		/*
+		 * Enable coherency on A2 silicon.
+		 */
+		if (arch_is_coherent())
+			*IXP23XX_CPP2XSI_CURR_XFER_REG3 &= ~IXP23XX_CPP2XSI_COH_OFF;
 	}
 }
 
