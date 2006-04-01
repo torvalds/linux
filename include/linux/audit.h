@@ -371,7 +371,7 @@ extern void		    audit_log_d_path(struct audit_buffer *ab,
 extern int audit_filter_user(struct netlink_skb_parms *cb, int type);
 extern int audit_filter_type(int type);
 extern int  audit_receive_filter(int type, int pid, int uid, int seq,
-				 void *data, size_t datasz, uid_t loginuid);
+			 void *data, size_t datasz, uid_t loginuid, u32 sid);
 #else
 #define audit_log(c,g,t,f,...) do { ; } while (0)
 #define audit_log_start(c,g,t) ({ NULL; })

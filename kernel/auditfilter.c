@@ -586,9 +586,10 @@ static int audit_list_rules(void *_dest)
  * @data: payload data
  * @datasz: size of payload data
  * @loginuid: loginuid of sender
+ * @sid: SE Linux Security ID of sender
  */
 int audit_receive_filter(int type, int pid, int uid, int seq, void *data,
-			 size_t datasz, uid_t loginuid)
+			 size_t datasz, uid_t loginuid, u32 sid)
 {
 	struct task_struct *tsk;
 	int *dest;
@@ -631,9 +632,23 @@ int audit_receive_filter(int type, int pid, int uid, int seq, void *data,
 
 		err = audit_add_rule(entry,
 				     &audit_filter_list[entry->rule.listnr]);
-		audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
-			"auid=%u add rule to list=%d res=%d\n",
-			loginuid, entry->rule.listnr, !err);
+		if (sid) {
+			char *ctx = NULL;
+			u32 len;
+			if (selinux_ctxid_to_string(sid, &ctx, &len)) {
+				/* Maybe call audit_panic? */
+				audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
+				 "auid=%u ssid=%u add rule to list=%d res=%d",
+				 loginuid, sid, entry->rule.listnr, !err);
+			} else
+				audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
+				 "auid=%u subj=%s add rule to list=%d res=%d",
+				 loginuid, ctx, entry->rule.listnr, !err);
+			kfree(ctx);
+		} else
+			audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
+				"auid=%u add rule to list=%d res=%d",
+				loginuid, entry->rule.listnr, !err);
 
 		if (err)
 			audit_free_rule(entry);
@@ -649,9 +664,24 @@ int audit_receive_filter(int type, int pid, int uid, int seq, void *data,
 
 		err = audit_del_rule(entry,
 				     &audit_filter_list[entry->rule.listnr]);
-		audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
-			"auid=%u remove rule from list=%d res=%d\n",
-			loginuid, entry->rule.listnr, !err);
+
+		if (sid) {
+			char *ctx = NULL;
+			u32 len;
+			if (selinux_ctxid_to_string(sid, &ctx, &len)) {
+				/* Maybe call audit_panic? */
+				audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
+					"auid=%u ssid=%u remove rule from list=%d res=%d",
+					 loginuid, sid, entry->rule.listnr, !err);
+			} else
+				audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
+					"auid=%u subj=%s remove rule from list=%d res=%d",
+					 loginuid, ctx, entry->rule.listnr, !err);
+			kfree(ctx);
+		} else
+			audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
+				"auid=%u remove rule from list=%d res=%d",
+				loginuid, entry->rule.listnr, !err);
 
 		audit_free_rule(entry);
 		break;

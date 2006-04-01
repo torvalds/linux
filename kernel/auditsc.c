@@ -637,7 +637,7 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 				u32 len;
 				if (selinux_ctxid_to_string(
 						axi->osid, &ctx, &len)) {
-					audit_log_format(ab, " obj=%u",
+					audit_log_format(ab, " osid=%u",
 							axi->osid);
 					call_panic = 1;
 				} else
@@ -712,7 +712,7 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 			u32 len;
 			if (selinux_ctxid_to_string(
 				context->names[i].osid, &ctx, &len)) {
-				audit_log_format(ab, " obj=%u",
+				audit_log_format(ab, " osid=%u",
 						context->names[i].osid);
 				call_panic = 2;
 			} else
