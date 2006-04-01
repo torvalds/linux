@@ -298,6 +298,16 @@ config NETFILTER_XT_MATCH_POLICY
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config NETFILTER_XT_MATCH_MULTIPORT
+	tristate "Multiple port match support"
+	depends on NETFILTER_XTABLES
+	help
+	  Multiport matching allows you to match TCP or UDP packets based on
+	  a series of source or destination ports: normally a rule can only
+	  match a single range of ports.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 config NETFILTER_XT_MATCH_PHYSDEV
 	tristate '"physdev" match support'
 	depends on NETFILTER_XTABLES && BRIDGE_NETFILTER

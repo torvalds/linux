@@ -221,16 +221,6 @@ config IP_NF_MATCH_IPRANGE
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
-config IP_NF_MATCH_MULTIPORT
-	tristate "Multiple port match support"
-	depends on IP_NF_IPTABLES
-	help
-	  Multiport matching allows you to match TCP or UDP packets based on
-	  a series of source or destination ports: normally a rule can only
-	  match a single range of ports.
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
 config IP_NF_MATCH_TOS
 	tristate "TOS match support"
 	depends on IP_NF_IPTABLES

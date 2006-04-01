@@ -1,21 +1,14 @@
 #ifndef _IP6T_MULTIPORT_H
 #define _IP6T_MULTIPORT_H
-#include <linux/netfilter_ipv6/ip6_tables.h>
 
-enum ip6t_multiport_flags
-{
-	IP6T_MULTIPORT_SOURCE,
-	IP6T_MULTIPORT_DESTINATION,
-	IP6T_MULTIPORT_EITHER
-};
+#include <linux/netfilter/xt_multiport.h>
 
-#define IP6T_MULTI_PORTS	15
+#define IP6T_MULTIPORT_SOURCE		XT_MULTIPORT_SOURCE
+#define IP6T_MULTIPORT_DESTINATION	XT_MULTIPORT_DESTINATION
+#define IP6T_MULTIPORT_EITHER		XT_MULTIPORT_EITHER
 
-/* Must fit inside union ip6t_matchinfo: 16 bytes */
-struct ip6t_multiport
-{
-	u_int8_t flags;				/* Type of comparison */
-	u_int8_t count;				/* Number of ports */
-	u_int16_t ports[IP6T_MULTI_PORTS];	/* Ports */
-};
-#endif /*_IPT_MULTIPORT_H*/
+#define IP6T_MULTI_PORTS		XT_MULTI_PORTS
+
+#define ip6t_multiport			xt_multiport
+
+#endif /*_IP6T_MULTIPORT_H*/
