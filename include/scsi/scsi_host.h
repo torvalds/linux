@@ -140,7 +140,6 @@ struct scsi_host_template {
 	 *
 	 * Status: REQUIRED	(at least one of them)
 	 */
-	int (* eh_strategy_handler)(struct Scsi_Host *);
 	int (* eh_abort_handler)(struct scsi_cmnd *);
 	int (* eh_device_reset_handler)(struct scsi_cmnd *);
 	int (* eh_bus_reset_handler)(struct scsi_cmnd *);

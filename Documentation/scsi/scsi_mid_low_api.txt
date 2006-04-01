@@ -804,7 +804,6 @@ Summary:
    eh_bus_reset_handler - issue SCSI bus reset
    eh_device_reset_handler - issue SCSI device reset
    eh_host_reset_handler - reset host (host bus adapter)
-   eh_strategy_handler - driver supplied alternate to scsi_unjam_host()
    info - supply information about given host
    ioctl - driver can respond to ioctls
    proc_info - supports /proc/scsi/{driver_name}/{host_no}
@@ -967,24 +966,6 @@ Details:
  *      Optionally defined in: LLD
  **/
      int eh_host_reset_handler(struct scsi_cmnd * scp)
-
-
-/**
- *      eh_strategy_handler - driver supplied alternate to scsi_unjam_host()
- *      @shp: host on which error has occurred
- *
- *      Returns TRUE if host unjammed, else FALSE.
- *
- *      Locks: none
- *
- *      Calling context: kernel thread
- *
- *      Notes: Invoked from scsi_eh thread. LLD supplied alternate to 
- *      scsi_unjam_host() found in scsi_error.c
- *
- *      Optionally defined in: LLD
- **/
-     int eh_strategy_handler(struct Scsi_Host * shp)
 
 
 /**
