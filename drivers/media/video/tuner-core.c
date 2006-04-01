@@ -558,10 +558,10 @@ static inline int set_mode(struct i2c_client *client, struct tuner *t, int mode,
 
 static inline int check_v4l2(struct tuner *t)
 {
-	if (t->using_v4l2) {
-		tuner_dbg ("ignore v4l1 call\n");
-		return EINVAL;
-	}
+	/* bttv still uses both v4l1 and v4l2 calls to the tuner (v4l2 for
+	   TV, v4l1 for radio), until that is fixed this code is disabled.
+	   Otherwise the radio (v4l1) wouldn't tune after using the TV (v4l2)
+	   first. */
 	return 0;
 }
 

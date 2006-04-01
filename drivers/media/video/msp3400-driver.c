@@ -288,17 +288,19 @@ void msp_set_audio(struct i2c_client *client)
 	struct msp_state *state = i2c_get_clientdata(client);
 	int bal = 0, bass, treble, loudness;
 	int val = 0;
+	int reallymuted = state->muted | state->scan_in_progress;
 
-	if (!state->muted)
+	if (!reallymuted)
 		val = (state->volume * 0x7f / 65535) << 8;
 
-	v4l_dbg(1, msp_debug, client, "mute=%s volume=%d\n",
-		state->muted ? "on" : "off", state->volume);
+	v4l_dbg(1, msp_debug, client, "mute=%s scanning=%s volume=%d\n",
+		state->muted ? "on" : "off", state->scan_in_progress ? "yes" : "no",
+		state->volume);
 
 	msp_write_dsp(client, 0x0000, val);
-	msp_write_dsp(client, 0x0007, state->muted ? 0x1 : (val | 0x1));
+	msp_write_dsp(client, 0x0007, reallymuted ? 0x1 : (val | 0x1));
 	if (state->has_scart2_out_volume)
-		msp_write_dsp(client, 0x0040, state->muted ? 0x1 : (val | 0x1));
+		msp_write_dsp(client, 0x0040, reallymuted ? 0x1 : (val | 0x1));
 	if (state->has_headphones)
 		msp_write_dsp(client, 0x0006, val);
 	if (!state->has_sound_processing)
@@ -671,21 +673,23 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		int sc_in = rt->input & 0x7;
 		int sc1_out = rt->output & 0xf;
 		int sc2_out = (rt->output >> 4) & 0xf;
-		u16 val;
+		u16 val, reg;
 
+		if (state->routing.input == rt->input &&
+		    state->routing.output == rt->output)
+			break;
 		state->routing = *rt;
-		if (state->opmode == OPMODE_AUTOSELECT) {
-			val = msp_read_dem(client, 0x30) & ~0x100;
-			msp_write_dem(client, 0x30, val | (tuner ? 0x100 : 0));
-		} else {
-			val = msp_read_dem(client, 0xbb) & ~0x100;
-			msp_write_dem(client, 0xbb, val | (tuner ? 0x100 : 0));
-		}
 		msp_set_scart(client, sc_in, 0);
 		msp_set_scart(client, sc1_out, 1);
 		msp_set_scart(client, sc2_out, 2);
 		msp_set_audmode(client);
-		msp_wake_thread(client);
+		reg = (state->opmode == OPMODE_AUTOSELECT) ? 0x30 : 0xbb;
+		val = msp_read_dem(client, reg);
+		if (tuner != ((val >> 8) & 1)) {
+			msp_write_dem(client, reg, (val & ~0x100) | (tuner << 8));
+			/* wake thread when a new tuner input is chosen */
+			msp_wake_thread(client);
+		}
 		break;
 	}
 

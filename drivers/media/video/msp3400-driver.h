@@ -85,6 +85,7 @@ struct msp_state {
 	int volume, muted;
 	int balance, loudness;
 	int bass, treble;
+	int scan_in_progress;
 
 	/* thread */
 	struct task_struct   *kthread;

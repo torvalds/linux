@@ -1025,7 +1025,6 @@ i2c_vidiocschan(struct bttv *btv)
 {
 	v4l2_std_id std = bttv_tvnorms[btv->tvnorm].v4l2_id;
 
-	bttv_call_i2c_clients(btv, VIDIOC_S_INPUT, &btv->input);
 	bttv_call_i2c_clients(btv, VIDIOC_S_STD, &std);
 	if (btv->c.type == BTTV_BOARD_VOODOOTV_FM)
 		bttv_tda9880_setnorm(btv,btv->tvnorm);
@@ -1603,12 +1602,16 @@ static int bttv_common_ioctls(struct bttv *btv, unsigned int cmd, void *arg)
 	}
 	case VIDIOCSFREQ:
 	{
-		unsigned long *freq = arg;
+		struct v4l2_frequency freq;
+
+		memset(&freq, 0, sizeof(freq));
+		freq.frequency = *(unsigned long *)arg;
 		mutex_lock(&btv->lock);
-		btv->freq=*freq;
-		bttv_call_i2c_clients(btv,VIDIOCSFREQ,freq);
+		freq.type = btv->radio_user ? V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV;
+		btv->freq = *(unsigned long *)arg;
+		bttv_call_i2c_clients(btv,VIDIOC_S_FREQUENCY,&freq);
 		if (btv->has_matchbox && btv->radio_user)
-			tea5757_set_freq(btv,*freq);
+			tea5757_set_freq(btv,*(unsigned long *)arg);
 		mutex_unlock(&btv->lock);
 		return 0;
 	}
