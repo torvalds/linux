@@ -497,20 +497,21 @@ static void tg3_write_mem(struct tg3 *tp, u32 off, u32 val)
 	unsigned long flags;
 
 	spin_lock_irqsave(&tp->indirect_lock, flags);
-	if (tp->write32 != tg3_write_indirect_reg32) {
-		tw32_f(TG3PCI_MEM_WIN_BASE_ADDR, off);
-		tw32_f(TG3PCI_MEM_WIN_DATA, val);
+	pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_BASE_ADDR, off);
+	pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_DATA, val);
 
-		/* Always leave this as zero. */
-		tw32_f(TG3PCI_MEM_WIN_BASE_ADDR, 0);
-	} else {
-		pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_BASE_ADDR, off);
-		pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_DATA, val);
-
-		/* Always leave this as zero. */
-		pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_BASE_ADDR, 0);
-	}
+	/* Always leave this as zero. */
+	pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_BASE_ADDR, 0);
 	spin_unlock_irqrestore(&tp->indirect_lock, flags);
+}
+
+static void tg3_write_mem_fast(struct tg3 *tp, u32 off, u32 val)
+{
+	/* If no workaround is needed, write to mem space directly */
+	if (tp->write32 != tg3_write_indirect_reg32)
+		tw32(NIC_SRAM_WIN_BASE + off, val);
+	else
+		tg3_write_mem(tp, off, val);
 }
 
 static void tg3_read_mem(struct tg3 *tp, u32 off, u32 *val)
@@ -518,19 +519,11 @@ static void tg3_read_mem(struct tg3 *tp, u32 off, u32 *val)
 	unsigned long flags;
 
 	spin_lock_irqsave(&tp->indirect_lock, flags);
-	if (tp->write32 != tg3_write_indirect_reg32) {
-		tw32_f(TG3PCI_MEM_WIN_BASE_ADDR, off);
-		*val = tr32(TG3PCI_MEM_WIN_DATA);
+	pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_BASE_ADDR, off);
+	pci_read_config_dword(tp->pdev, TG3PCI_MEM_WIN_DATA, val);
 
-		/* Always leave this as zero. */
-		tw32_f(TG3PCI_MEM_WIN_BASE_ADDR, 0);
-	} else {
-		pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_BASE_ADDR, off);
-		pci_read_config_dword(tp->pdev, TG3PCI_MEM_WIN_DATA, val);
-
-		/* Always leave this as zero. */
-		pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_BASE_ADDR, 0);
-	}
+	/* Always leave this as zero. */
+	pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_BASE_ADDR, 0);
 	spin_unlock_irqrestore(&tp->indirect_lock, flags);
 }
 
@@ -1374,11 +1367,11 @@ static int tg3_set_power_state(struct tg3 *tp, pci_power_t state)
 		}
 	}
 
-	tg3_write_sig_post_reset(tp, RESET_KIND_SHUTDOWN);
-
 	/* Finally, set the new power state. */
 	pci_write_config_word(tp->pdev, pm + PCI_PM_CTRL, power_control);
 	udelay(100);	/* Delay after power state change */
+
+	tg3_write_sig_post_reset(tp, RESET_KIND_SHUTDOWN);
 
 	return 0;
 }
@@ -6547,11 +6540,11 @@ static void tg3_timer(unsigned long __opaque)
 		if (tp->tg3_flags & TG3_FLAG_ENABLE_ASF) {
 			u32 val;
 
-			tg3_write_mem(tp, NIC_SRAM_FW_CMD_MBOX,
-				      FWCMD_NICDRV_ALIVE2);
-			tg3_write_mem(tp, NIC_SRAM_FW_CMD_LEN_MBOX, 4);
+			tg3_write_mem_fast(tp, NIC_SRAM_FW_CMD_MBOX,
+					   FWCMD_NICDRV_ALIVE2);
+			tg3_write_mem_fast(tp, NIC_SRAM_FW_CMD_LEN_MBOX, 4);
 			/* 5 seconds timeout */
-			tg3_write_mem(tp, NIC_SRAM_FW_CMD_DATA_MBOX, 5);
+			tg3_write_mem_fast(tp, NIC_SRAM_FW_CMD_DATA_MBOX, 5);
 			val = tr32(GRC_RX_CPU_EVENT);
 			val |= (1 << 14);
 			tw32(GRC_RX_CPU_EVENT, val);
