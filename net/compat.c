@@ -476,8 +476,7 @@ asmlinkage long compat_sys_setsockopt(int fd, int level, int optname,
 	int err;
 	struct socket *sock;
 
-	/* SO_SET_REPLACE seems to be the same in all levels */
-	if (optname == IPT_SO_SET_REPLACE)
+	if (level == SOL_IPV6 && optname == IPT_SO_SET_REPLACE)
 		return do_netfilter_replace(fd, level, optname,
 					    optval, optlen);
 
