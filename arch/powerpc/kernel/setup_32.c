@@ -50,7 +50,6 @@
 #include <asm/kgdb.h>
 #endif
 
-extern void platform_init(void);
 extern void bootx_init(unsigned long r4, unsigned long phys);
 
 boot_infos_t *boot_infos;
@@ -138,12 +137,7 @@ void __init machine_init(unsigned long dt_ptr, unsigned long phys)
 		strlcpy(cmd_line, CONFIG_CMDLINE, sizeof(cmd_line));
 #endif /* CONFIG_CMDLINE */
 
-#ifdef CONFIG_PPC_MULTIPLATFORM
 	probe_machine();
-#else
-	/* Base init based on machine type. Obsoloete, please kill ! */
-	platform_init();
-#endif
 
 #ifdef CONFIG_6xx
 	if (cpu_has_feature(CPU_FTR_CAN_DOZE) ||
