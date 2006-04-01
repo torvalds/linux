@@ -65,7 +65,7 @@ int xfrm6_rcv_spi(struct sk_buff *skb, u32 spi)
 		if (xfrm_state_check_expire(x))
 			goto drop_unlock;
 
-		nexthdr = x->type->input(x, &(xfrm_vec[xfrm_nr].decap), skb);
+		nexthdr = x->type->input(x, skb);
 		if (nexthdr <= 0)
 			goto drop_unlock;
 

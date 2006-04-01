@@ -90,6 +90,9 @@ int xfrm4_rcv_encap(struct sk_buff *skb, __u16 encap_type)
 		if (unlikely(x->km.state != XFRM_STATE_VALID))
 			goto drop_unlock;
 
+		if (x->encap->encap_type != encap_type)
+			goto drop_unlock;
+
 		if (x->props.replay_window && xfrm_replay_check(x, seq))
 			goto drop_unlock;
 
@@ -97,7 +100,7 @@ int xfrm4_rcv_encap(struct sk_buff *skb, __u16 encap_type)
 			goto drop_unlock;
 
 		xfrm_vec[xfrm_nr].decap.decap_type = encap_type;
-		if (x->type->input(x, &(xfrm_vec[xfrm_nr].decap), skb))
+		if (x->type->input(x, skb))
 			goto drop_unlock;
 
 		/* only the first xfrm gets the encap type */

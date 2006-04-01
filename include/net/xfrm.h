@@ -251,7 +251,7 @@ struct xfrm_type
 
 	int			(*init_state)(struct xfrm_state *x);
 	void			(*destructor)(struct xfrm_state *);
-	int			(*input)(struct xfrm_state *, struct xfrm_decap_state *, struct sk_buff *skb);
+	int			(*input)(struct xfrm_state *, struct sk_buff *skb);
 	int			(*output)(struct xfrm_state *, struct sk_buff *pskb);
 	/* Estimate maximal size of result of transformation of a dgram */
 	u32			(*get_max_size)(struct xfrm_state *, int size);

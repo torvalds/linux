@@ -229,7 +229,7 @@ error:
 	return err;
 }
 
-static int ah6_input(struct xfrm_state *x, struct xfrm_decap_state *decap, struct sk_buff *skb)
+static int ah6_input(struct xfrm_state *x, struct sk_buff *skb)
 {
 	/*
 	 * Before process AH
