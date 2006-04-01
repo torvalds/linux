@@ -635,6 +635,7 @@ einval:	li	v0, -EINVAL
 	sys	sys_ppoll		5
 	sys	sys_unshare		1
 	sys	sys_splice		4
+	sys	sys_sync_file_range	7	/* 4305 */
 	.endm
 
 	/* We pre-compute the number of _instruction_ bytes needed to

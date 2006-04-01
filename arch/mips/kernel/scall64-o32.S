@@ -509,4 +509,5 @@ sys_call_table:
 	PTR	sys_ppoll
 	PTR	sys_unshare
 	PTR	sys_splice
+	PTR	sys32_sync_file_range		/* 4305 */
 	.size	sys_call_table,.-sys_call_table
