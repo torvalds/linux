@@ -1455,7 +1455,7 @@ out_put:
 out:
 	return err;
 out_fd:
-	put_filp(newfile);
+	fput(newfile);
 	put_unused_fd(newfd);
 out_release:
 	sock_release(newsock);
