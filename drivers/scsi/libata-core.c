@@ -65,7 +65,7 @@ static unsigned int ata_dev_init_params(struct ata_port *ap,
 					struct ata_device *dev,
 					u16 heads,
 					u16 sectors);
-static void ata_set_mode(struct ata_port *ap);
+static int ata_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev);
 static unsigned int ata_dev_set_xfermode(struct ata_port *ap,
 					 struct ata_device *dev);
 static void ata_dev_xfermask(struct ata_port *ap, struct ata_device *dev);
@@ -1382,6 +1382,7 @@ static int ata_bus_probe(struct ata_port *ap)
 {
 	unsigned int classes[ATA_MAX_DEVICES];
 	int i, rc, found = 0;
+	struct ata_device *dev;
 
 	ata_port_probe(ap);
 
@@ -1411,8 +1412,7 @@ static int ata_bus_probe(struct ata_port *ap)
 
 	/* read IDENTIFY page and configure devices */
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
-		struct ata_device *dev = &ap->device[i];
-
+		dev = &ap->device[i];
 		dev->class = classes[i];
 
 		if (!ata_dev_enabled(dev))
@@ -1432,20 +1432,26 @@ static int ata_bus_probe(struct ata_port *ap)
 		found = 1;
 	}
 
-	if (!found)
-		goto err_out_disable;
+	/* configure transfer mode */
+	if (ap->ops->set_mode) {
+		/* FIXME: make ->set_mode handle no device case and
+		 * return error code and failing device on failure as
+		 * ata_set_mode() does.
+		 */
+		if (found)
+			ap->ops->set_mode(ap);
+		rc = 0;
+	} else {
+		while (ata_set_mode(ap, &dev))
+			ata_dev_disable(ap, dev);
+	}
 
-	if (ap->ops->set_mode)
-		ap->ops->set_mode(ap);
-	else
-		ata_set_mode(ap);
+	for (i = 0; i < ATA_MAX_DEVICES; i++)
+		if (ata_dev_enabled(&ap->device[i]))
+			return 0;
 
-	if (ap->flags & ATA_FLAG_PORT_DISABLED)
-		goto err_out_disable;
-
-	return 0;
-
-err_out_disable:
+	/* no device present, disable port */
+	ata_port_disable(ap);
 	ap->ops->port_disable(ap);
 	return -ENODEV;
 }
@@ -1788,16 +1794,22 @@ static int ata_dev_set_mode(struct ata_port *ap, struct ata_device *dev)
 /**
  *	ata_set_mode - Program timings and issue SET FEATURES - XFER
  *	@ap: port on which timings will be programmed
+ *	@r_failed_dev: out paramter for failed device
  *
- *	Set ATA device disk transfer mode (PIO3, UDMA6, etc.).
+ *	Set ATA device disk transfer mode (PIO3, UDMA6, etc.).  If
+ *	ata_set_mode() fails, pointer to the failing device is
+ *	returned in @r_failed_dev.
  *
  *	LOCKING:
  *	PCI/etc. bus probe sem.
+ *
+ *	RETURNS:
+ *	0 on success, negative errno otherwise
  */
-static void ata_set_mode(struct ata_port *ap)
+static int ata_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev)
 {
 	struct ata_device *dev;
-	int i, rc, used_dma = 0, found = 0;
+	int i, rc = 0, used_dma = 0, found = 0;
 
 	/* step 1: calculate xfer_mask */
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
@@ -1820,7 +1832,7 @@ static void ata_set_mode(struct ata_port *ap)
 			used_dma = 1;
 	}
 	if (!found)
-		return;
+		goto out;
 
 	/* step 2: always set host PIO timings */
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
@@ -1832,7 +1844,7 @@ static void ata_set_mode(struct ata_port *ap)
 			printk(KERN_WARNING "ata%u: dev %u no PIO support\n",
 			       ap->id, dev->devno);
 			rc = -EINVAL;
-			goto err_out;
+			goto out;
 		}
 
 		dev->xfer_mode = dev->pio_mode;
@@ -1863,7 +1875,7 @@ static void ata_set_mode(struct ata_port *ap)
 
 		rc = ata_dev_set_mode(ap, dev);
 		if (rc)
-			goto err_out;
+			goto out;
 	}
 
 	/* Record simplex status. If we selected DMA then the other
@@ -1876,10 +1888,10 @@ static void ata_set_mode(struct ata_port *ap)
 	if (ap->ops->post_set_mode)
 		ap->ops->post_set_mode(ap);
 
-	return;
-
-err_out:
-	ata_port_disable(ap);
+ out:
+	if (rc)
+		*r_failed_dev = dev;
+	return rc;
 }
 
 /**
@@ -2134,9 +2146,11 @@ err_out:
 static int sata_phy_resume(struct ata_port *ap)
 {
 	unsigned long timeout = jiffies + (HZ * 5);
-	u32 sstatus;
+	u32 scontrol, sstatus;
 
-	scr_write_flush(ap, SCR_CONTROL, 0x300);
+	scontrol = scr_read(ap, SCR_CONTROL);
+	scontrol = (scontrol & 0x0f0) | 0x300;
+	scr_write_flush(ap, SCR_CONTROL, scontrol);
 
 	/* Wait for phy to become ready, if necessary. */
 	do {
@@ -2249,10 +2263,14 @@ int ata_std_softreset(struct ata_port *ap, int verbose, unsigned int *classes)
  */
 int sata_std_hardreset(struct ata_port *ap, int verbose, unsigned int *class)
 {
+	u32 scontrol;
+
 	DPRINTK("ENTER\n");
 
 	/* Issue phy wake/reset */
-	scr_write_flush(ap, SCR_CONTROL, 0x301);
+	scontrol = scr_read(ap, SCR_CONTROL);
+	scontrol = (scontrol & 0x0f0) | 0x301;
+	scr_write_flush(ap, SCR_CONTROL, scontrol);
 
 	/*
 	 * Couldn't find anything in SATA I/II specs, but AHCI-1.1
@@ -4452,8 +4470,10 @@ static int ata_start_drive(struct ata_port *ap, struct ata_device *dev)
 int ata_device_resume(struct ata_port *ap, struct ata_device *dev)
 {
 	if (ap->flags & ATA_FLAG_SUSPENDED) {
+		struct ata_device *failed_dev;
 		ap->flags &= ~ATA_FLAG_SUSPENDED;
-		ata_set_mode(ap);
+		while (ata_set_mode(ap, &failed_dev))
+			ata_dev_disable(ap, failed_dev);
 	}
 	if (!ata_dev_enabled(dev))
 		return 0;
