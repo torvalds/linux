@@ -222,7 +222,7 @@ static void video_mux(struct em28xx *dev, int index)
 		if (dev->i2s_speed)
 			em28xx_i2c_call_clients(dev, VIDIOC_INT_I2S_CLOCK_FREQ, &dev->i2s_speed);
 		route.input = dev->ctl_ainput;
-		route.output = MSP_OUTPUT(MSP_OUT_SCART1_DA);
+		route.output = MSP_OUTPUT(MSP_SC_IN_DSP_SCART1);
 		/* Note: this is msp3400 specific */
 		em28xx_i2c_call_clients(dev, VIDIOC_INT_S_AUDIO_ROUTING, &route);
 		ainput = EM28XX_AUDIO_SRC_TUNER;

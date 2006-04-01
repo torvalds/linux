@@ -973,12 +973,12 @@ audio_mux(struct bttv *btv, int input, int mute)
 		   For now this is sufficient. */
 		switch (input) {
 		case TVAUDIO_INPUT_RADIO:
-			route.input = MSP_INPUT(MSP_IN_SCART_2, MSP_IN_TUNER_1,
-				    MSP_DSP_OUT_SCART, MSP_DSP_OUT_SCART);
+			route.input = MSP_INPUT(MSP_IN_SCART2, MSP_IN_TUNER1,
+				    MSP_DSP_IN_SCART, MSP_DSP_IN_SCART);
 			break;
 		case TVAUDIO_INPUT_EXTERN:
-			route.input = MSP_INPUT(MSP_IN_SCART_1, MSP_IN_TUNER_1,
-				    MSP_DSP_OUT_SCART, MSP_DSP_OUT_SCART);
+			route.input = MSP_INPUT(MSP_IN_SCART1, MSP_IN_TUNER1,
+				    MSP_DSP_IN_SCART, MSP_DSP_IN_SCART);
 			break;
 		case TVAUDIO_INPUT_INTERN:
 			/* Yes, this is the same input as for RADIO. I doubt
@@ -986,8 +986,8 @@ audio_mux(struct bttv *btv, int input, int mute)
 			   input is the BTTV_BOARD_AVERMEDIA98. I wonder how
 			   that was tested. My guess is that the whole INTERN
 			   input does not work. */
-			route.input = MSP_INPUT(MSP_IN_SCART_2, MSP_IN_TUNER_1,
-				    MSP_DSP_OUT_SCART, MSP_DSP_OUT_SCART);
+			route.input = MSP_INPUT(MSP_IN_SCART2, MSP_IN_TUNER1,
+				    MSP_DSP_IN_SCART, MSP_DSP_IN_SCART);
 			break;
 		case TVAUDIO_INPUT_TUNER:
 		default:

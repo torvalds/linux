@@ -856,11 +856,11 @@ static void msp34xxg_set_source(struct i2c_client *client, u16 reg, int in)
 		break;
 	}
 
-	if (in == MSP_DSP_OUT_TUNER)
+	if (in == MSP_DSP_IN_TUNER)
 		source = (source << 8) | 0x20;
 	/* the msp34x2g puts the MAIN_AVC, MAIN and AUX sources in 12, 13, 14
 	   instead of 11, 12, 13. So we add one for that msp version. */
-	else if (in >= MSP_DSP_OUT_MAIN_AVC && state->has_dolby_pro_logic)
+	else if (in >= MSP_DSP_IN_MAIN_AVC && state->has_dolby_pro_logic)
 		source = ((in + 1) << 8) | matrix;
 	else
 		source = (in << 8) | matrix;
