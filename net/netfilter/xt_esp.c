@@ -9,16 +9,22 @@
 
 #include <linux/module.h>
 #include <linux/skbuff.h>
+#include <linux/in.h>
 #include <linux/ip.h>
 
-#include <linux/netfilter_ipv4/ipt_esp.h>
+#include <linux/netfilter/xt_esp.h>
+#include <linux/netfilter/x_tables.h>
+
 #include <linux/netfilter_ipv4/ip_tables.h>
+#include <linux/netfilter_ipv6/ip6_tables.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Yon Uriarte <yon@astaro.de>");
-MODULE_DESCRIPTION("iptables ESP SPI match module");
+MODULE_DESCRIPTION("x_tables ESP SPI match module");
+MODULE_ALIAS("ipt_esp");
+MODULE_ALIAS("ip6t_esp");
 
-#ifdef DEBUG_CONNTRACK
+#if 0
 #define duprintf(format, args...) printk(format , ## args)
 #else
 #define duprintf(format, args...)
@@ -28,11 +34,11 @@ MODULE_DESCRIPTION("iptables ESP SPI match module");
 static inline int
 spi_match(u_int32_t min, u_int32_t max, u_int32_t spi, int invert)
 {
-	int r=0;
-        duprintf("esp spi_match:%c 0x%x <= 0x%x <= 0x%x",invert? '!':' ',
-        	min,spi,max);
-	r=(spi >= min && spi <= max) ^ invert;
-	duprintf(" result %s\n",r? "PASS" : "FAILED");
+	int r = 0;
+	duprintf("esp spi_match:%c 0x%x <= 0x%x <= 0x%x", invert ? '!' : ' ',
+		 min, spi, max);
+	r = (spi >= min && spi <= max) ^ invert;
+	duprintf(" result %s\n", r ? "PASS" : "FAILED");
 	return r;
 }
 
@@ -47,14 +53,13 @@ match(const struct sk_buff *skb,
       int *hotdrop)
 {
 	struct ip_esp_hdr _esp, *eh;
-	const struct ipt_esp *espinfo = matchinfo;
+	const struct xt_esp *espinfo = matchinfo;
 
 	/* Must not be a fragment. */
 	if (offset)
 		return 0;
 
-	eh = skb_header_pointer(skb, protoff,
-				sizeof(_esp), &_esp);
+	eh = skb_header_pointer(skb, protoff, sizeof(_esp), &_esp);
 	if (eh == NULL) {
 		/* We've been asked to examine this packet, and we
 		 * can't.  Hence, no choice but to drop.
@@ -64,9 +69,8 @@ match(const struct sk_buff *skb,
 		return 0;
 	}
 
-	return spi_match(espinfo->spis[0], espinfo->spis[1],
-			 ntohl(eh->spi),
-			 !!(espinfo->invflags & IPT_ESP_INV_SPI));
+	return spi_match(espinfo->spis[0], espinfo->spis[1], ntohl(eh->spi),
+			 !!(espinfo->invflags & XT_ESP_INV_SPI));
 }
 
 /* Called when user tries to insert an entry of this type. */
@@ -78,34 +82,55 @@ checkentry(const char *tablename,
 	   unsigned int matchinfosize,
 	   unsigned int hook_mask)
 {
-	const struct ipt_esp *espinfo = matchinfo;
+	const struct xt_esp *espinfo = matchinfo;
 
-	/* Must specify no unknown invflags */
-	if (espinfo->invflags & ~IPT_ESP_INV_MASK) {
-		duprintf("ipt_esp: unknown flags %X\n", espinfo->invflags);
+	if (espinfo->invflags & ~XT_ESP_INV_MASK) {
+		duprintf("xt_esp: unknown flags %X\n", espinfo->invflags);
 		return 0;
 	}
+
 	return 1;
 }
 
-static struct ipt_match esp_match = {
+static struct xt_match esp_match = {
 	.name		= "esp",
-	.match		= match,
-	.matchsize	= sizeof(struct ipt_esp),
+	.family		= AF_INET,
 	.proto		= IPPROTO_ESP,
-	.checkentry	= checkentry,
+	.match		= &match,
+	.matchsize	= sizeof(struct xt_esp),
+	.checkentry	= &checkentry,
 	.me		= THIS_MODULE,
 };
 
-static int __init ipt_esp_init(void)
+static struct xt_match esp6_match = {
+	.name		= "esp",
+	.family		= AF_INET6,
+	.proto		= IPPROTO_ESP,
+	.match		= &match,
+	.matchsize	= sizeof(struct xt_esp),
+	.checkentry	= &checkentry,
+	.me		= THIS_MODULE,
+};
+
+static int __init xt_esp_init(void)
 {
-	return ipt_register_match(&esp_match);
+	int ret;
+	ret = xt_register_match(&esp_match);
+	if (ret)
+		return ret;
+
+	ret = xt_register_match(&esp6_match);
+	if (ret)
+		xt_unregister_match(&esp_match);
+
+	return ret;
 }
 
-static void __exit ipt_esp_fini(void)
+static void __exit xt_esp_cleanup(void)
 {
-	ipt_unregister_match(&esp_match);
+	xt_unregister_match(&esp_match);
+	xt_unregister_match(&esp6_match);
 }
 
-module_init(ipt_esp_init);
-module_exit(ipt_esp_fini);
+module_init(xt_esp_init);
+module_exit(xt_esp_cleanup);
