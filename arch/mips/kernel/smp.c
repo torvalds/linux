@@ -446,5 +446,3 @@ subsys_initcall(topology_init);
 
 EXPORT_SYMBOL(flush_tlb_page);
 EXPORT_SYMBOL(flush_tlb_one);
-EXPORT_SYMBOL(cpu_data);
-EXPORT_SYMBOL(synchronize_irq);
