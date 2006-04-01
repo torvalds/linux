@@ -896,14 +896,6 @@ u8 acpi_os_writable(void *ptr, acpi_size len)
 }
 #endif
 
-u32 acpi_os_get_thread_id(void)
-{
-	if (!in_atomic())
-		return current->pid;
-
-	return 0;
-}
-
 acpi_status acpi_os_signal(u32 function, void *info)
 {
 	switch (function) {

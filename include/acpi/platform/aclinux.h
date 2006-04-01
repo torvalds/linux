@@ -99,4 +99,8 @@
 
 #define acpi_cpu_flags unsigned long
 
+#define acpi_thread_id u32
+
+static inline acpi_thread_id acpi_os_get_thread_id(void) { return 0; }
+
 #endif				/* __ACLINUX_H__ */
