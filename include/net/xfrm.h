@@ -242,7 +242,6 @@ extern int xfrm_state_unregister_afinfo(struct xfrm_state_afinfo *afinfo);
 
 extern void xfrm_state_delete_tunnel(struct xfrm_state *x);
 
-struct xfrm_decap_state;
 struct xfrm_type
 {
 	char			*description;
@@ -606,25 +605,11 @@ static inline void xfrm_dst_destroy(struct xfrm_dst *xdst)
 
 extern void xfrm_dst_ifdown(struct dst_entry *dst, struct net_device *dev);
 
-/* Decapsulation state, used by the input to store data during
- * decapsulation procedure, to be used later (during the policy
- * check
- */
-struct xfrm_decap_state {
-	char	decap_data[20];
-	__u16	decap_type;
-};   
-
-struct sec_decap_state {
-	struct xfrm_state	*xvec;
-	struct xfrm_decap_state decap;
-};
-
 struct sec_path
 {
 	atomic_t		refcnt;
 	int			len;
-	struct sec_decap_state	x[XFRM_MAX_DEPTH];
+	struct xfrm_state	*xvec[XFRM_MAX_DEPTH];
 };
 
 static inline struct sec_path *

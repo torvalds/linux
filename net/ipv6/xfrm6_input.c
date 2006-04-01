@@ -32,7 +32,7 @@ int xfrm6_rcv_spi(struct sk_buff *skb, u32 spi)
 {
 	int err;
 	u32 seq;
-	struct sec_decap_state xfrm_vec[XFRM_MAX_DEPTH];
+	struct xfrm_state *xfrm_vec[XFRM_MAX_DEPTH];
 	struct xfrm_state *x;
 	int xfrm_nr = 0;
 	int decaps = 0;
@@ -79,7 +79,7 @@ int xfrm6_rcv_spi(struct sk_buff *skb, u32 spi)
 
 		spin_unlock(&x->lock);
 
-		xfrm_vec[xfrm_nr++].xvec = x;
+		xfrm_vec[xfrm_nr++] = x;
 
 		if (x->props.mode) { /* XXX */
 			if (nexthdr != IPPROTO_IPV6)
@@ -118,7 +118,8 @@ int xfrm6_rcv_spi(struct sk_buff *skb, u32 spi)
 	if (xfrm_nr + skb->sp->len > XFRM_MAX_DEPTH)
 		goto drop;
 
-	memcpy(skb->sp->x+skb->sp->len, xfrm_vec, xfrm_nr*sizeof(struct sec_decap_state));
+	memcpy(skb->sp->xvec + skb->sp->len, xfrm_vec,
+	       xfrm_nr * sizeof(xfrm_vec[0]));
 	skb->sp->len += xfrm_nr;
 	skb->ip_summed = CHECKSUM_NONE;
 
@@ -149,7 +150,7 @@ drop_unlock:
 	xfrm_state_put(x);
 drop:
 	while (--xfrm_nr >= 0)
-		xfrm_state_put(xfrm_vec[xfrm_nr].xvec);
+		xfrm_state_put(xfrm_vec[xfrm_nr]);
 	kfree_skb(skb);
 	return -1;
 }
