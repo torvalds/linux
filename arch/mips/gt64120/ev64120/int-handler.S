@@ -39,8 +39,9 @@
 		nop
 
     /* wrong alarm or masked ... */
-		j	spurious_interrupt
+		jal	spurious_interrupt
 		nop
+		j	ret_from_irq
 		END(galileo_handle_int)
 
 

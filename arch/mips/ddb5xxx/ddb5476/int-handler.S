@@ -54,7 +54,8 @@
 	.set	reorder
 
 	/* wrong alarm or masked ... */
-	// j	spurious_interrupt
+	// jal	spurious_interrupt
+	// j	ret_from_irq
 	move 	a0, sp
 	jal	vrc5476_irq_dispatch
 	j	ret_from_irq

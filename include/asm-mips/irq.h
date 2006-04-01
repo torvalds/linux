@@ -46,5 +46,6 @@ do {									\
 #endif
 
 extern void arch_init_irq(void);
+extern void spurious_interrupt(struct pt_regs *regs);
 
 #endif /* _ASM_IRQ_H */

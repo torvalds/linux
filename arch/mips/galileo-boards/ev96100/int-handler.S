@@ -29,5 +29,6 @@ NESTED(ev96100IRQ, PT_SIZE, sp)
 	jal	ev96100_cpu_irq
 	j	ret_from_irq
 
-3:	j	spurious_interrupt
+3:	jal	spurious_interrupt
+	j	ret_from_irq
 	END(ev96100IRQ)

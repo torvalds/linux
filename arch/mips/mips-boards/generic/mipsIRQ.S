@@ -150,6 +150,8 @@
 
 
 spurious:
-	j	spurious_interrupt
+	jal	spurious_interrupt
+	 nop
+	j	ret_from_irq
 	 nop
 	END(mipsIRQ)

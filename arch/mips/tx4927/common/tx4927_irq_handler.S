@@ -63,8 +63,9 @@
 		.set	reorder
 
 		/* wrong alarm or masked ... */
-		j	spurious_interrupt
+		jal	spurious_interrupt
 		nop
+		j	ret_from_irq
 		END(tx4927_irq_handler)
 
 		.align	5

@@ -64,5 +64,6 @@ NESTED(au1000_IRQ, PT_SIZE, sp)
 
 5:
 	move	a0, sp
-	j	spurious_interrupt
+	jal	spurious_interrupt
+	j	ret_from_irq
 END(au1000_IRQ)

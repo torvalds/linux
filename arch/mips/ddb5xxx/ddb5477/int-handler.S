@@ -44,8 +44,8 @@
 	.set	reorder
 
 	/* wrong alarm or masked ... */
-	j	spurious_interrupt
-	nop
+	jal	spurious_interrupt
+	j	ret_from_irq
 	END(ddb5477_handle_int)
 
 	.align	5

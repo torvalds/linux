@@ -119,29 +119,3 @@ syscall_exit_work:
 	li	a1, 1
 	jal	do_syscall_trace
 	b	resume_userspace
-
-/*
- * Common spurious interrupt handler.
- */
-LEAF(spurious_interrupt)
-	/*
-	 * Someone tried to fool us by sending an interrupt but we
-	 * couldn't find a cause for it.
-	 */
-	PTR_LA	t1, irq_err_count
-#ifdef CONFIG_SMP
-1:	ll      t0, (t1)
-	addiu   t0, 1
-	sc      t0, (t1)
-#if R10000_LLSC_WAR
-	beqzl	t0, 1b
-#else
-	beqz	t0, 1b
-#endif
-#else
-	lw      t0, (t1)
-	addiu   t0, 1
-	sw      t0, (t1)
-#endif
-	j	ret_from_irq
-	END(spurious_interrupt)

@@ -52,8 +52,9 @@
 		.set	reorder
 
 		/* wrong alarm or masked ... */
-		j	spurious_interrupt
+		jal	spurious_interrupt
 		nop
+		j	ret_from_irq
 		END(ocelot_handle_int)
 
 		.align	5

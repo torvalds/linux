@@ -98,8 +98,10 @@
 		bnez	t1, handle_irq
 		li	a0, 1
 
-		j	spurious_interrupt
+		jal	spurious_interrupt
 		nop
+		j	ret_from_irq
+		 nop
 
 handle_int:
 		jal	irq_dispatch

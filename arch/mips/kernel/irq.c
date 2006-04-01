@@ -101,6 +101,11 @@ skip:
 	return 0;
 }
 
+asmlinkage void spurious_interrupt(struct pt_regs *regs)
+{
+	atomic_inc(&irq_err_count);
+}
+
 #ifdef CONFIG_KGDB
 extern void breakpoint(void);
 extern void set_debug_traps(void);
