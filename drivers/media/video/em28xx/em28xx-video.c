@@ -1141,26 +1141,16 @@ static int em28xx_do_ioctl(struct inode *inode, struct file *filp,
 	case VIDIOC_G_TUNER:
 	{
 		struct v4l2_tuner *t = arg;
-		int status = 0;
 
 		if (0 != t->index)
 			return -EINVAL;
 
 		memset(t, 0, sizeof(*t));
 		strcpy(t->name, "Tuner");
-		t->type = V4L2_TUNER_ANALOG_TV;
-		t->capability = V4L2_TUNER_CAP_NORM;
-		t->rangehigh = 0xffffffffUL;	/* FIXME: set correct range */
-/*		t->signal = 0xffff;*/
-/*		em28xx_i2c_call_clients(dev,VIDIOC_G_TUNER,t);*/
-		/* No way to get signal strength? */
 		mutex_lock(&dev->lock);
-		em28xx_i2c_call_clients(dev, DECODER_GET_STATUS,
-					&status);
+		/* let clients fill in the remainder of this struct */
+		em28xx_i2c_call_clients(dev, cmd, t);
 		mutex_unlock(&dev->lock);
-		t->signal =
-			(status & DECODER_STATUS_GOOD) != 0 ? 0xffff : 0;
-
 		em28xx_videodbg("VIDIO_G_TUNER: signal=%x, afc=%x\n", t->signal,
 				t->afc);
 		return 0;
@@ -1168,26 +1158,13 @@ static int em28xx_do_ioctl(struct inode *inode, struct file *filp,
 	case VIDIOC_S_TUNER:
 	{
 		struct v4l2_tuner *t = arg;
-		int status = 0;
 
 		if (0 != t->index)
 			return -EINVAL;
-		memset(t, 0, sizeof(*t));
-		strcpy(t->name, "Tuner");
-		t->type = V4L2_TUNER_ANALOG_TV;
-		t->capability = V4L2_TUNER_CAP_NORM;
-		t->rangehigh = 0xffffffffUL;	/* FIXME: set correct range */
-/*		t->signal = 0xffff; */
-		/* No way to get signal strength? */
 		mutex_lock(&dev->lock);
-		em28xx_i2c_call_clients(dev, DECODER_GET_STATUS,
-					&status);
+		/* let clients handle this */
+		em28xx_i2c_call_clients(dev, cmd, t);
 		mutex_unlock(&dev->lock);
-		t->signal =
-			(status & DECODER_STATUS_GOOD) != 0 ? 0xffff : 0;
-
-		em28xx_videodbg("VIDIO_S_TUNER: signal=%x, afc=%x\n",
-				t->signal, t->afc);
 		return 0;
 	}
 	case VIDIOC_G_FREQUENCY:

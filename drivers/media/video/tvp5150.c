@@ -858,7 +858,6 @@ static int tvp5150_command(struct i2c_client *c,
 
 	case 0:
 	case VIDIOC_INT_RESET:
-	case DECODER_INIT:
 		tvp5150_reset(c);
 		break;
 	case VIDIOC_S_STD:
@@ -957,99 +956,15 @@ static int tvp5150_command(struct i2c_client *c,
 #endif
 
 	case VIDIOC_LOG_STATUS:
-	case DECODER_DUMP:
 		dump_reg(c);
 		break;
 
-	case DECODER_GET_CAPABILITIES:
+	case VIDIOC_G_TUNER:
 		{
-			struct video_decoder_capability *cap = arg;
+			struct v4l2_tuner *vt = arg;
+			int status = tvp5150_read(c, 0x88);
 
-			cap->flags = VIDEO_DECODER_PAL |
-			    VIDEO_DECODER_NTSC |
-			    VIDEO_DECODER_SECAM |
-			    VIDEO_DECODER_AUTO | VIDEO_DECODER_CCIR;
-			cap->inputs = 3;
-			cap->outputs = 1;
-			break;
-		}
-	case DECODER_GET_STATUS:
-		{
-			int *iarg = arg;
-			int status;
-			int res=0;
-			status = tvp5150_read(c, 0x88);
-			if(status&0x08){
-				res |= DECODER_STATUS_COLOR;
-			}
-			if(status&0x04 && status&0x02){
-				res |= DECODER_STATUS_GOOD;
-			}
-			*iarg=res;
-			break;
-		}
-
-	case DECODER_SET_GPIO:
-		break;
-
-	case DECODER_SET_VBI_BYPASS:
-		break;
-
-	case DECODER_SET_NORM:
-		{
-			int *iarg = arg;
-
-			switch (*iarg) {
-
-			case VIDEO_MODE_NTSC:
-				break;
-
-			case VIDEO_MODE_PAL:
-				break;
-
-			case VIDEO_MODE_SECAM:
-				break;
-
-			case VIDEO_MODE_AUTO:
-				break;
-
-			default:
-				return -EINVAL;
-
-			}
-			decoder->norm = *iarg;
-			break;
-		}
-	case DECODER_SET_INPUT:
-		{
-			int *iarg = arg;
-			if (*iarg < 0 || *iarg > 3) {
-				return -EINVAL;
-			}
-
-			decoder->input = *iarg;
-			tvp5150_selmux(c, decoder->input);
-
-			break;
-		}
-	case DECODER_SET_OUTPUT:
-		{
-			int *iarg = arg;
-
-			/* not much choice of outputs */
-			if (*iarg != 0) {
-				return -EINVAL;
-			}
-			break;
-		}
-	case DECODER_ENABLE_OUTPUT:
-		{
-			int *iarg = arg;
-
-			decoder->enable = (*iarg != 0);
-
-			tvp5150_selmux(c, decoder->input);
-
+			vt->signal = ((status & 0x04) && (status & 0x02)) ? 0xffff : 0x0;
 			break;
 		}
 	case VIDIOC_QUERYCTRL:
@@ -1095,35 +1010,6 @@ static int tvp5150_command(struct i2c_client *c,
 			return -EINVAL;
 		}
 
-	case DECODER_SET_PICTURE:
-		{
-			struct video_picture *pic = arg;
-			if (decoder->bright != pic->brightness) {
-				/* We want 0 to 255 we get 0-65535 */
-				decoder->bright = pic->brightness;
-				tvp5150_write(c, TVP5150_BRIGHT_CTL,
-					      decoder->bright >> 8);
-			}
-			if (decoder->contrast != pic->contrast) {
-				/* We want 0 to 255 we get 0-65535 */
-				decoder->contrast = pic->contrast;
-				tvp5150_write(c, TVP5150_CONTRAST_CTL,
-					      decoder->contrast >> 8);
-			}
-			if (decoder->sat != pic->colour) {
-				/* We want 0 to 255 we get 0-65535 */
-				decoder->sat = pic->colour;
-				tvp5150_write(c, TVP5150_SATURATION_CTL,
-					      decoder->contrast >> 8);
-			}
-			if (decoder->hue != pic->hue) {
-				/* We want -128 to 127 we get 0-65535 */
-				decoder->hue = pic->hue;
-				tvp5150_write(c, TVP5150_HUE_CTL,
-					      (decoder->hue - 32768) >> 8);
-			}
-			break;
-		}
 	default:
 		return -EINVAL;
 	}

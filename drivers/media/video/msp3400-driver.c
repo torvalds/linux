@@ -703,7 +703,7 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			msp_detect_stereo(client);
 		vt->audmode    = state->audmode;
 		vt->rxsubchans = state->rxsubchans;
-		vt->capability = V4L2_TUNER_CAP_STEREO |
+		vt->capability |= V4L2_TUNER_CAP_STEREO |
 			V4L2_TUNER_CAP_LANG1 | V4L2_TUNER_CAP_LANG2;
 		break;
 	}

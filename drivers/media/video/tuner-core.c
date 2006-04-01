@@ -744,6 +744,8 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			switch_v4l2();
 
 			tuner->type = t->mode;
+			if (t->mode == V4L2_TUNER_ANALOG_TV)
+				tuner->capability |= V4L2_TUNER_CAP_NORM;
 			if (t->mode != V4L2_TUNER_RADIO) {
 				tuner->rangelow = tv_range[0] * 16;
 				tuner->rangehigh = tv_range[1] * 16;
