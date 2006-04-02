@@ -831,11 +831,14 @@ void ata_eh_qc_complete(struct ata_queued_cmd *qc)
  *	should be retried.  To be used from EH.
  *
  *	SCSI midlayer limits the number of retries to scmd->allowed.
- *	This function might need to adjust scmd->retries for commands
- *	which get retried due to unrelated NCQ failures.
+ *	scmd->retries is decremented for commands which get retried
+ *	due to unrelated failures (qc->err_mask is zero).
  */
 void ata_eh_qc_retry(struct ata_queued_cmd *qc)
 {
+	struct scsi_cmnd *scmd = qc->scsicmd;
+	if (!qc->err_mask && scmd->retries)
+		scmd->retries--;
 	__ata_eh_qc_complete(qc);
 }
 
