@@ -152,4 +152,8 @@ extern void scsi_put_command(struct scsi_cmnd *);
 extern void scsi_io_completion(struct scsi_cmnd *, unsigned int, unsigned int);
 extern void scsi_finish_command(struct scsi_cmnd *cmd);
 
+extern void *scsi_kmap_atomic_sg(struct scatterlist *sg, int sg_count,
+				 size_t *offset, size_t *len);
+extern void scsi_kunmap_atomic_sg(void *virt);
+
 #endif /* _SCSI_SCSI_CMND_H */
