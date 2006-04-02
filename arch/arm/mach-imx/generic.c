@@ -33,6 +33,7 @@
 #include <asm/arch/imx-regs.h>
 
 #include <asm/mach/map.h>
+#include <asm/arch/mmc.h>
 
 void imx_gpio_mode(int gpio_mode)
 {
@@ -175,12 +176,24 @@ static struct resource imx_mmc_resources[] = {
 	},
 };
 
+static u64 imxmmmc_dmamask = 0xffffffffUL;
+
 static struct platform_device imx_mmc_device = {
 	.name		= "imx-mmc",
 	.id		= 0,
+	.dev		= {
+		.dma_mask = &imxmmmc_dmamask,
+		.coherent_dma_mask = 0xffffffff,
+	},
 	.num_resources	= ARRAY_SIZE(imx_mmc_resources),
 	.resource	= imx_mmc_resources,
 };
+
+void __init imx_set_mmc_info(struct imxmmc_platform_data *info)
+{
+	imx_mmc_device.dev.platform_data = info;
+}
+EXPORT_SYMBOL(imx_set_mmc_info);
 
 static struct resource imx_uart1_resources[] = {
 	[0] = {
