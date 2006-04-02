@@ -354,6 +354,7 @@ static int pipe_to_sendpage(struct pipe_inode_info *info,
 	unsigned int offset;
 	ssize_t ret;
 	void *ptr;
+	int more;
 
 	/*
 	 * sub-optimal, but we are limited by the pipe ->map. we don't
@@ -366,9 +367,9 @@ static int pipe_to_sendpage(struct pipe_inode_info *info,
 		return PTR_ERR(ptr);
 
 	offset = pos & ~PAGE_CACHE_MASK;
+	more = (sd->flags & SPLICE_F_MORE) || sd->len < sd->total_len;
 
-	ret = file->f_op->sendpage(file, buf->page, offset, sd->len, &pos,
-					sd->len < sd->total_len);
+	ret = file->f_op->sendpage(file, buf->page, offset, sd->len, &pos,more);
 
 	buf->ops->unmap(info, buf);
 	if (ret == sd->len)

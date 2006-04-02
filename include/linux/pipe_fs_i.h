@@ -62,5 +62,6 @@ void free_pipe_info(struct inode* inode);
 #define SPLICE_F_NONBLOCK (0x02) /* don't block on the pipe splicing (but */
 				 /* we may still block on the fd we splice */
 				 /* from/to, of course */
+#define SPLICE_F_MORE	(0x04)	/* expect more data */
 
 #endif
