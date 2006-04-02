@@ -646,6 +646,25 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 			}
 			break; }
 
+		case AUDIT_IPC_SET_PERM: {
+			struct audit_aux_data_ipcctl *axi = (void *)aux;
+			audit_log_format(ab,
+				" new qbytes=%lx new iuid=%u new igid=%u new mode=%x",
+				axi->qbytes, axi->uid, axi->gid, axi->mode);
+			if (axi->osid != 0) {
+				char *ctx = NULL;
+				u32 len;
+				if (selinux_ctxid_to_string(
+						axi->osid, &ctx, &len)) {
+					audit_log_format(ab, " osid=%u",
+							axi->osid);
+					call_panic = 1;
+				} else
+					audit_log_format(ab, " obj=%s", ctx);
+				kfree(ctx);
+			}
+			break; }
+
 		case AUDIT_SOCKETCALL: {
 			int i;
 			struct audit_aux_data_socketcall *axs = (void *)aux;
@@ -1148,7 +1167,36 @@ uid_t audit_get_loginuid(struct audit_context *ctx)
 }
 
 /**
- * audit_ipc_perms - record audit data for ipc
+ * audit_ipc_obj - record audit data for ipc object
+ * @ipcp: ipc permissions
+ *
+ * Returns 0 for success or NULL context or < 0 on error.
+ */
+int audit_ipc_obj(struct kern_ipc_perm *ipcp)
+{
+	struct audit_aux_data_ipcctl *ax;
+	struct audit_context *context = current->audit_context;
+
+	if (likely(!context))
+		return 0;
+
+	ax = kmalloc(sizeof(*ax), GFP_ATOMIC);
+	if (!ax)
+		return -ENOMEM;
+
+	ax->uid = ipcp->uid;
+	ax->gid = ipcp->gid;
+	ax->mode = ipcp->mode;
+	selinux_get_ipc_sid(ipcp, &ax->osid);
+
+	ax->d.type = AUDIT_IPC;
+	ax->d.next = context->aux;
+	context->aux = (void *)ax;
+	return 0;
+}
+
+/**
+ * audit_ipc_set_perm - record audit data for new ipc permissions
  * @qbytes: msgq bytes
  * @uid: msgq user id
  * @gid: msgq group id
@@ -1156,7 +1204,7 @@ uid_t audit_get_loginuid(struct audit_context *ctx)
  *
  * Returns 0 for success or NULL context or < 0 on error.
  */
-int audit_ipc_perms(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode, struct kern_ipc_perm *ipcp)
+int audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode, struct kern_ipc_perm *ipcp)
 {
 	struct audit_aux_data_ipcctl *ax;
 	struct audit_context *context = current->audit_context;
@@ -1174,7 +1222,7 @@ int audit_ipc_perms(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode, str
 	ax->mode = mode;
 	selinux_get_ipc_sid(ipcp, &ax->osid);
 
-	ax->d.type = AUDIT_IPC;
+	ax->d.type = AUDIT_IPC_SET_PERM;
 	ax->d.next = context->aux;
 	context->aux = (void *)ax;
 	return 0;
