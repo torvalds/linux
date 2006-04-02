@@ -2578,7 +2578,7 @@ int ata_drive_probe_reset(struct ata_port *ap, ata_probeinit_fn_t probeinit,
 	if (probeinit)
 		probeinit(ap);
 
-	if (softreset) {
+	if (softreset && !ata_set_sata_spd_needed(ap)) {
 		rc = ata_do_reset(ap, softreset, postreset, 0, classes);
 		if (rc == 0 && classes[0] != ATA_DEV_UNKNOWN)
 			goto done;
@@ -2587,9 +2587,17 @@ int ata_drive_probe_reset(struct ata_port *ap, ata_probeinit_fn_t probeinit,
 	if (!hardreset)
 		goto done;
 
-	rc = ata_do_reset(ap, hardreset, postreset, 0, classes);
-	if (rc || classes[0] != ATA_DEV_UNKNOWN)
-		goto done;
+	while (1) {
+		rc = ata_do_reset(ap, hardreset, postreset, 0, classes);
+		if (rc == 0) {
+			if (classes[0] != ATA_DEV_UNKNOWN)
+				goto done;
+			break;
+		}
+
+		if (ata_down_sata_spd_limit(ap))
+			goto done;
+	}
 
 	if (softreset)
 		rc = ata_do_reset(ap, softreset, postreset, 0, classes);
