@@ -779,30 +779,21 @@ enum scsi_eh_timer_return ata_scsi_timed_out(struct scsi_cmnd *cmd)
 
 int ata_scsi_error(struct Scsi_Host *host)
 {
-	struct ata_port *ap;
-	unsigned long flags;
+	struct ata_port *ap = (struct ata_port *)&host->hostdata[0];
 
 	DPRINTK("ENTER\n");
 
-	ap = (struct ata_port *) &host->hostdata[0];
-
-	spin_lock_irqsave(&ap->host_set->lock, flags);
-	WARN_ON(ap->flags & ATA_FLAG_IN_EH);
-	ap->flags |= ATA_FLAG_IN_EH;
-	WARN_ON(ata_qc_from_tag(ap, ap->active_tag) == NULL);
-	spin_unlock_irqrestore(&ap->host_set->lock, flags);
-
+	/* synchronize with IRQ handler and port task */
+	spin_unlock_wait(&ap->host_set->lock);
 	ata_port_flush_task(ap);
+
+	WARN_ON(ata_qc_from_tag(ap, ap->active_tag) == NULL);
 
 	ap->ops->eng_timeout(ap);
 
 	WARN_ON(host->host_failed || !list_empty(&host->eh_cmd_q));
 
 	scsi_eh_flush_done_q(&ap->eh_done_q);
-
-	spin_lock_irqsave(&ap->host_set->lock, flags);
-	ap->flags &= ~ATA_FLAG_IN_EH;
-	spin_unlock_irqrestore(&ap->host_set->lock, flags);
 
 	DPRINTK("EXIT\n");
 	return 0;
