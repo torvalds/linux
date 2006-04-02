@@ -150,7 +150,7 @@ enum {
 	ATA_FLAG_DEBUGMSG	= (1 << 17),
 	ATA_FLAG_FLUSH_PORT_TASK = (1 << 18), /* flush port task */
 
-	ATA_FLAG_PORT_DISABLED	= (1 << 19), /* port is disabled, ignore it */
+	ATA_FLAG_DISABLED	= (1 << 19), /* port is disabled, ignore it */
 	ATA_FLAG_SUSPENDED	= (1 << 20), /* port is suspended */
 
 	/* bits 24:31 of ap->flags are reserved for LLDD specific flags */

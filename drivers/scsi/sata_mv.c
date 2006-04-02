@@ -1397,7 +1397,7 @@ static void mv_host_intr(struct ata_host_set *host_set, u32 relevant,
 			}
 		}
 
-		if (ap->flags & (ATA_FLAG_PORT_DISABLED | ATA_FLAG_NOINTR))
+		if (ap->flags & (ATA_FLAG_DISABLED | ATA_FLAG_NOINTR))
 			continue;
 
 		err_mask = ac_err_mask(ata_status);
