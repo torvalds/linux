@@ -62,9 +62,6 @@
 
 #define ALLINTS_NOTIMER (IE_IRQ0 | IE_IRQ1 | IE_IRQ2 | IE_IRQ3 | IE_IRQ4)
 
-void disable_it8172_irq(unsigned int irq_nr);
-void enable_it8172_irq(unsigned int irq_nr);
-
 extern void set_debug_traps(void);
 extern void mips_timer_interrupt(int irq, struct pt_regs *regs);
 extern asmlinkage void it8172_IRQ(void);
