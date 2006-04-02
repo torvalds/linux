@@ -120,9 +120,10 @@ enum {
 	ATA_SHT_USE_CLUSTERING	= 1,
 
 	/* struct ata_device stuff */
-	ATA_DFLAG_LBA48		= (1 << 0), /* device supports LBA48 */
-	ATA_DFLAG_PIO		= (1 << 1), /* device currently in PIO mode */
-	ATA_DFLAG_LBA		= (1 << 2), /* device supports LBA */
+	ATA_DFLAG_LBA		= (1 << 0), /* device supports LBA */
+	ATA_DFLAG_LBA48		= (1 << 1), /* device supports LBA48 */
+
+	ATA_DFLAG_PIO		= (1 << 8), /* device currently in PIO mode */
 
 	ATA_DEV_UNKNOWN		= 0,	/* unknown device */
 	ATA_DEV_ATA		= 1,	/* ATA device */
@@ -132,32 +133,34 @@ enum {
 	ATA_DEV_NONE		= 5,	/* no device */
 
 	/* struct ata_port flags */
-	ATA_FLAG_SLAVE_POSS	= (1 << 1), /* host supports slave dev */
+	ATA_FLAG_SLAVE_POSS	= (1 << 0), /* host supports slave dev */
 					    /* (doesn't imply presence) */
-	ATA_FLAG_PORT_DISABLED	= (1 << 2), /* port is disabled, ignore it */
-	ATA_FLAG_SATA		= (1 << 3),
-	ATA_FLAG_NO_LEGACY	= (1 << 4), /* no legacy mode check */
-	ATA_FLAG_SRST		= (1 << 5), /* (obsolete) use ATA SRST, not E.D.D. */
-	ATA_FLAG_MMIO		= (1 << 6), /* use MMIO, not PIO */
-	ATA_FLAG_SATA_RESET	= (1 << 7), /* (obsolete) use COMRESET */
-	ATA_FLAG_PIO_DMA	= (1 << 8), /* PIO cmds via DMA */
-	ATA_FLAG_NOINTR		= (1 << 9), /* FIXME: Remove this once
-					     * proper HSM is in place. */
-	ATA_FLAG_DEBUGMSG	= (1 << 10),
-	ATA_FLAG_NO_ATAPI	= (1 << 11), /* No ATAPI support */
+	ATA_FLAG_SATA		= (1 << 1),
+	ATA_FLAG_NO_LEGACY	= (1 << 2), /* no legacy mode check */
+	ATA_FLAG_MMIO		= (1 << 3), /* use MMIO, not PIO */
+	ATA_FLAG_SRST		= (1 << 4), /* (obsolete) use ATA SRST, not E.D.D. */
+	ATA_FLAG_SATA_RESET	= (1 << 5), /* (obsolete) use COMRESET */
+	ATA_FLAG_NO_ATAPI	= (1 << 6), /* No ATAPI support */
+	ATA_FLAG_PIO_DMA	= (1 << 7), /* PIO cmds via DMA */
+	ATA_FLAG_PIO_LBA48	= (1 << 8), /* Host DMA engine is LBA28 only */
+	ATA_FLAG_IRQ_MASK	= (1 << 9), /* Mask IRQ in PIO xfers */
 
-	ATA_FLAG_SUSPENDED	= (1 << 12), /* port is suspended */
+	ATA_FLAG_NOINTR		= (1 << 16), /* FIXME: Remove this once
+					      * proper HSM is in place. */
+	ATA_FLAG_DEBUGMSG	= (1 << 17),
+	ATA_FLAG_FLUSH_PORT_TASK = (1 << 18), /* flush port task */
 
-	ATA_FLAG_PIO_LBA48	= (1 << 13), /* Host DMA engine is LBA28 only */
-	ATA_FLAG_IRQ_MASK	= (1 << 14), /* Mask IRQ in PIO xfers */
+	ATA_FLAG_PORT_DISABLED	= (1 << 19), /* port is disabled, ignore it */
+	ATA_FLAG_SUSPENDED	= (1 << 20), /* port is suspended */
 
-	ATA_FLAG_FLUSH_PORT_TASK = (1 << 15), /* Flush port task */
+	/* bits 24:31 of ap->flags are reserved for LLDD specific flags */
 
-	ATA_QCFLAG_ACTIVE	= (1 << 1), /* cmd not yet ack'd to scsi lyer */
-	ATA_QCFLAG_SG		= (1 << 3), /* have s/g table? */
-	ATA_QCFLAG_SINGLE	= (1 << 4), /* no s/g, just a single buffer */
+	/* struct ata_queued_cmd flags */
+	ATA_QCFLAG_ACTIVE	= (1 << 0), /* cmd not yet ack'd to scsi lyer */
+	ATA_QCFLAG_SG		= (1 << 1), /* have s/g table? */
+	ATA_QCFLAG_SINGLE	= (1 << 2), /* no s/g, just a single buffer */
 	ATA_QCFLAG_DMAMAP	= ATA_QCFLAG_SG | ATA_QCFLAG_SINGLE,
-	ATA_QCFLAG_EH_SCHEDULED = (1 << 5), /* EH scheduled */
+	ATA_QCFLAG_EH_SCHEDULED = (1 << 3), /* EH scheduled */
 
 	/* host set flags */
 	ATA_HOST_SIMPLEX	= (1 << 0),	/* Host is simplex, one DMA channel per host_set only */
@@ -206,8 +209,8 @@ enum {
 	/* size of buffer to pad xfers ending on unaligned boundaries */
 	ATA_DMA_PAD_SZ		= 4,
 	ATA_DMA_PAD_BUF_SZ	= ATA_DMA_PAD_SZ * ATA_MAX_QUEUE,
-	
-	/* Masks for port functions */
+
+	/* masks for port functions */
 	ATA_PORT_PRIMARY	= (1 << 0),
 	ATA_PORT_SECONDARY	= (1 << 1),
 
