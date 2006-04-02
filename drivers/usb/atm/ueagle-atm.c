@@ -243,7 +243,7 @@ enum {
 #define BULK_TIMEOUT 300
 #define CTRL_TIMEOUT 1000
 
-#define ACK_TIMEOUT msecs_to_jiffies(1500)
+#define ACK_TIMEOUT msecs_to_jiffies(3000)
 
 #define UEA_INTR_IFACE_NO 	0
 #define UEA_US_IFACE_NO		1
@@ -1079,7 +1079,13 @@ static int uea_start_reset(struct uea_softc *sc)
 	uea_enters(INS_TO_USBDEV(sc));
 	uea_info(INS_TO_USBDEV(sc), "(re)booting started\n");
 
+	/* mask interrupt */
 	sc->booting = 1;
+	/* We need to set this here because, a ack timeout could have occured,
+	 * but before we start the reboot, the ack occurs and set this to 1.
+	 * So we will failed to wait Ready CMV.
+	 */
+	sc->cmv_ack = 0;
 	UPDATE_ATM_STAT(signal, ATM_PHY_SIG_LOST);
 
 	/* reset statistics */
@@ -1105,6 +1111,7 @@ static int uea_start_reset(struct uea_softc *sc)
 
 	msleep(1000);
 	sc->cmv_function = MAKEFUNCTION(ADSLDIRECTIVE, MODEMREADY);
+	/* demask interrupt */
 	sc->booting = 0;
 
 	/* start loading DSP */
