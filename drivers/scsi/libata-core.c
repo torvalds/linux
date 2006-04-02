@@ -1370,10 +1370,17 @@ err_out_nosup:
 static int ata_bus_probe(struct ata_port *ap)
 {
 	unsigned int classes[ATA_MAX_DEVICES];
-	int i, rc, found = 0;
+	int tries[ATA_MAX_DEVICES];
+	int i, rc, down_xfermask;
 	struct ata_device *dev;
 
 	ata_port_probe(ap);
+
+	for (i = 0; i < ATA_MAX_DEVICES; i++)
+		tries[i] = ATA_PROBE_MAX_TRIES;
+
+ retry:
+	down_xfermask = 0;
 
 	/* reset and determine device classes */
 	for (i = 0; i < ATA_MAX_DEVICES; i++)
@@ -1404,21 +1411,23 @@ static int ata_bus_probe(struct ata_port *ap)
 		dev = &ap->device[i];
 		dev->class = classes[i];
 
+		if (!tries[i]) {
+			ata_down_xfermask_limit(ap, dev, 1);
+			ata_dev_disable(ap, dev);
+		}
+
 		if (!ata_dev_enabled(dev))
 			continue;
 
-		WARN_ON(dev->id != NULL);
-		if (ata_dev_read_id(ap, dev, &dev->class, 1, &dev->id)) {
-			dev->class = ATA_DEV_NONE;
-			continue;
-		}
+		kfree(dev->id);
+		dev->id = NULL;
+		rc = ata_dev_read_id(ap, dev, &dev->class, 1, &dev->id);
+		if (rc)
+			goto fail;
 
-		if (ata_dev_configure(ap, dev, 1)) {
-			ata_dev_disable(ap, dev);
-			continue;
-		}
-
-		found = 1;
+		rc = ata_dev_configure(ap, dev, 1);
+		if (rc)
+			goto fail;
 	}
 
 	/* configure transfer mode */
@@ -1427,12 +1436,18 @@ static int ata_bus_probe(struct ata_port *ap)
 		 * return error code and failing device on failure as
 		 * ata_set_mode() does.
 		 */
-		if (found)
-			ap->ops->set_mode(ap);
+		for (i = 0; i < ATA_MAX_DEVICES; i++)
+			if (ata_dev_enabled(&ap->device[i])) {
+				ap->ops->set_mode(ap);
+				break;
+			}
 		rc = 0;
 	} else {
-		while (ata_set_mode(ap, &dev))
-			ata_dev_disable(ap, dev);
+		rc = ata_set_mode(ap, &dev);
+		if (rc) {
+			down_xfermask = 1;
+			goto fail;
+		}
 	}
 
 	for (i = 0; i < ATA_MAX_DEVICES; i++)
@@ -1443,6 +1458,24 @@ static int ata_bus_probe(struct ata_port *ap)
 	ata_port_disable(ap);
 	ap->ops->port_disable(ap);
 	return -ENODEV;
+
+ fail:
+	switch (rc) {
+	case -EINVAL:
+	case -ENODEV:
+		tries[dev->devno] = 0;
+		break;
+	case -EIO:
+		ata_down_sata_spd_limit(ap);
+		/* fall through */
+	default:
+		tries[dev->devno]--;
+		if (down_xfermask &&
+		    ata_down_xfermask_limit(ap, dev, tries[dev->devno] == 1))
+			tries[dev->devno] = 0;
+	}
+
+	goto retry;
 }
 
 /**

@@ -211,6 +211,9 @@ enum {
 	/* Masks for port functions */
 	ATA_PORT_PRIMARY	= (1 << 0),
 	ATA_PORT_SECONDARY	= (1 << 1),
+
+	/* how hard are we gonna try to probe/recover devices */
+	ATA_PROBE_MAX_TRIES	= 3,
 };
 
 enum hsm_task_states {
