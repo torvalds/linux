@@ -355,8 +355,21 @@ struct mthca_dev {
 	spinlock_t            sm_lock;
 };
 
-#define mthca_dbg(mdev, format, arg...) \
-	dev_dbg(&mdev->pdev->dev, format, ## arg)
+#ifdef CONFIG_INFINIBAND_MTHCA_DEBUG
+extern int mthca_debug_level;
+
+#define mthca_dbg(mdev, format, arg...)					\
+	do {								\
+		if (mthca_debug_level)					\
+			dev_printk(KERN_DEBUG, &mdev->pdev->dev, format, ## arg); \
+	} while (0)
+
+#else /* CONFIG_INFINIBAND_MTHCA_DEBUG */
+
+#define mthca_dbg(mdev, format, arg...) do { (void) mdev; } while (0)
+
+#endif /* CONFIG_INFINIBAND_MTHCA_DEBUG */
+
 #define mthca_err(mdev, format, arg...) \
 	dev_err(&mdev->pdev->dev, format, ## arg)
 #define mthca_info(mdev, format, arg...) \

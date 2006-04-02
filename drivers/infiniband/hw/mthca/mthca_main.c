@@ -52,6 +52,14 @@ MODULE_DESCRIPTION("Mellanox InfiniBand HCA low-level driver");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(DRV_VERSION);
 
+#ifdef CONFIG_INFINIBAND_MTHCA_DEBUG
+
+int mthca_debug_level = 0;
+module_param_named(debug_level, mthca_debug_level, int, 0644);
+MODULE_PARM_DESC(debug_level, "Enable debug tracing if > 0");
+
+#endif /* CONFIG_INFINIBAND_MTHCA_DEBUG */
+
 #ifdef CONFIG_PCI_MSI
 
 static int msi_x = 0;
