@@ -1117,8 +1117,7 @@ static int end_sync_read(struct bio *bio, unsigned int bytes_done, int error)
 	for (i=0; i<conf->copies; i++)
 		if (r10_bio->devs[i].bio == bio)
 			break;
-	if (i == conf->copies)
-		BUG();
+	BUG_ON(i == conf->copies);
 	update_head_pos(i, r10_bio);
 	d = r10_bio->devs[i].devnum;
 
@@ -1518,8 +1517,7 @@ static int init_resync(conf_t *conf)
 	int buffs;
 
 	buffs = RESYNC_WINDOW / RESYNC_BLOCK_SIZE;
-	if (conf->r10buf_pool)
-		BUG();
+	BUG_ON(conf->r10buf_pool);
 	conf->r10buf_pool = mempool_create(buffs, r10buf_pool_alloc, r10buf_pool_free, conf);
 	if (!conf->r10buf_pool)
 		return -ENOMEM;
