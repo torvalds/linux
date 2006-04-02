@@ -91,4 +91,12 @@ config MMC_AU1X
 
 	  If unsure, say N.
 
+config MMC_AT91RM9200
+	tristate "AT91RM9200 SD/MMC Card Interface support"
+	depends on ARCH_AT91RM9200 && MMC
+	help
+	  This selects the AT91RM9200 MCI controller.
+
+	  If unsure, say N.
+
 endmenu
