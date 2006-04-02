@@ -456,7 +456,7 @@ int cpia2_init_camera(struct camera_data *cam);
 int cpia2_allocate_buffers(struct camera_data *cam);
 void cpia2_free_buffers(struct camera_data *cam);
 long cpia2_read(struct camera_data *cam,
-		char *buf, unsigned long count, int noblock);
+		char __user *buf, unsigned long count, int noblock);
 unsigned int cpia2_poll(struct camera_data *cam,
 			struct file *filp, poll_table *wait);
 int cpia2_remap_buffer(struct camera_data *cam, struct vm_area_struct *vma);

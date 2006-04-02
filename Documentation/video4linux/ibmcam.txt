@@ -122,7 +122,7 @@ WHAT YOU NEED:
 - A Linux box with USB support (2.3/2.4; 2.2 w/backport may work)
 
 - A Video4Linux compatible frame grabber program such as xawtv.
-  
+
 HOW TO COMPILE THE DRIVER:
 
 You need to compile the driver only if you are a developer

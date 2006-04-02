@@ -1,5 +1,5 @@
 
-                   W996[87]CF JPEG USB Dual Mode Camera Chip 
+                   W996[87]CF JPEG USB Dual Mode Camera Chip
                      Driver for Linux 2.6 (basic version)
                    =========================================
 
@@ -115,7 +115,7 @@ additional testing and full support, would be much appreciated.
 ======================
 For it to work properly, the driver needs kernel support for Video4Linux, USB
 and I2C, and the "ovcamchip" module for the image sensor. Make sure you are not
-actually using any external "ovcamchip" module, given that the W996[87]CF 
+actually using any external "ovcamchip" module, given that the W996[87]CF
 driver depends on the version of the module present in the official kernels.
 
 The following options of the kernel configuration file must be enabled and
@@ -197,16 +197,16 @@ Note:            The kernel must be compiled with the CONFIG_KMOD option
                  enabled for the 'ovcamchip' module to be loaded and for
                  this parameter to be present.
 -------------------------------------------------------------------------------
-Name:           simcams 
-Type:           int 
-Syntax:         <n> 
+Name:           simcams
+Type:           int
+Syntax:         <n>
 Description:    Number of cameras allowed to stream simultaneously.
                 n may vary from 0 to 32.
 Default:        32
 -------------------------------------------------------------------------------
 Name:           video_nr
 Type:           int array (min = 0, max = 32)
-Syntax:         <-1|n[,...]> 
+Syntax:         <-1|n[,...]>
 Description:    Specify V4L minor mode number.
                 -1 = use next available
                  n = use minor number n
@@ -219,7 +219,7 @@ Default:        -1
 -------------------------------------------------------------------------------
 Name:           packet_size
 Type:           int array (min = 0, max = 32)
-Syntax:         <n[,...]> 
+Syntax:         <n[,...]>
 Description:    Specify the maximum data payload size in bytes for alternate
                 settings, for each device. n is scaled between 63 and 1023.
 Default:        1023
@@ -234,7 +234,7 @@ Default:        2
 -------------------------------------------------------------------------------
 Name:           double_buffer
 Type:           bool array (min = 0, max = 32)
-Syntax:         <0|1[,...]> 
+Syntax:         <0|1[,...]>
 Description:    Hardware double buffering: 0 disabled, 1 enabled.
                 It should be enabled if you want smooth video output: if you
                 obtain out of sync. video, disable it, or try to
@@ -243,13 +243,13 @@ Default:        1 for every device.
 -------------------------------------------------------------------------------
 Name:           clamping
 Type:           bool array (min = 0, max = 32)
-Syntax:         <0|1[,...]> 
+Syntax:         <0|1[,...]>
 Description:    Video data clamping: 0 disabled, 1 enabled.
 Default:        0 for every device.
 -------------------------------------------------------------------------------
 Name:           filter_type
 Type:           int array (min = 0, max = 32)
-Syntax:         <0|1|2[,...]> 
+Syntax:         <0|1|2[,...]>
 Description:    Video filter type.
                 0 none, 1 (1-2-1) 3-tap filter, 2 (2-3-6-3-2) 5-tap filter.
                 The filter is used to reduce noise and aliasing artifacts
@@ -258,13 +258,13 @@ Default:        0 for every device.
 -------------------------------------------------------------------------------
 Name:           largeview
 Type:           bool array (min = 0, max = 32)
-Syntax:         <0|1[,...]> 
+Syntax:         <0|1[,...]>
 Description:    Large view: 0 disabled, 1 enabled.
 Default:        1 for every device.
 -------------------------------------------------------------------------------
 Name:           upscaling
 Type:           bool array (min = 0, max = 32)
-Syntax:         <0|1[,...]> 
+Syntax:         <0|1[,...]>
 Description:    Software scaling (for non-compressed video only):
                 0 disabled, 1 enabled.
                 Disable it if you have a slow CPU or you don't have enough
@@ -341,8 +341,8 @@ Default:        50 for every device.
 -------------------------------------------------------------------------------
 Name:           bandingfilter
 Type:           bool array (min = 0, max = 32)
-Syntax:         <0|1[,...]> 
-Description:    Banding filter to reduce effects of fluorescent 
+Syntax:         <0|1[,...]>
+Description:    Banding filter to reduce effects of fluorescent
                 lighting:
                 0 disabled, 1 enabled.
                 This filter tries to reduce the pattern of horizontal
@@ -374,7 +374,7 @@ Default:        0 for every device.
 -------------------------------------------------------------------------------
 Name:           monochrome
 Type:           bool array (min = 0, max = 32)
-Syntax:         <0|1[,...]> 
+Syntax:         <0|1[,...]>
 Description:    The image sensor is monochrome:
                 0 = no, 1 = yes
 Default:        0 for every device.
@@ -400,19 +400,19 @@ Default:        32768 for every device.
 -------------------------------------------------------------------------------
 Name:           contrast
 Type:           long array (min = 0, max = 32)
-Syntax:         <n[,...]> 
+Syntax:         <n[,...]>
 Description:    Set picture contrast (0-65535).
 Default:        50000 for every device.
 -------------------------------------------------------------------------------
 Name:           whiteness
 Type:           long array (min = 0, max = 32)
-Syntax:         <n[,...]> 
+Syntax:         <n[,...]>
 Description:    Set picture whiteness (0-65535).
 Default:        32768 for every device.
 -------------------------------------------------------------------------------
 Name:           debug
 Type:           int
-Syntax:         <n> 
+Syntax:         <n>
 Description:    Debugging information level, from 0 to 6:
                 0 = none (use carefully)
                 1 = critical errors

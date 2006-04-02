@@ -147,8 +147,9 @@ static int vp702x_fe_set_frontend(struct dvb_frontend* fe,
 	cmd[4] = (sr >> 4)  & 0xff;
 	cmd[5] = (sr << 4)  & 0xf0;
 
-	deb_fe("setting frontend to: %u -> %u (%x) LNB-based GHz, symbolrate: %d -> %Lu (%Lx)\n",
-			fep->frequency,freq,freq, fep->u.qpsk.symbol_rate, sr, sr);
+	deb_fe("setting frontend to: %u -> %u (%x) LNB-based GHz, symbolrate: %d -> %lu (%lx)\n",
+			fep->frequency,freq,freq, fep->u.qpsk.symbol_rate,
+			(unsigned long) sr, (unsigned long) sr);
 
 /*	if (fep->inversion == INVERSION_ON)
 		cmd[6] |= 0x80; */
