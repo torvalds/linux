@@ -138,8 +138,7 @@ static unsigned bitbang_txrx_32(
 	return t->len - count;
 }
 
-static int
-bitbang_transfer_setup(struct spi_device *spi, struct spi_transfer *t)
+int spi_bitbang_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 {
 	struct spi_bitbang_cs	*cs = spi->controller_state;
 	u8			bits_per_word;
@@ -174,6 +173,7 @@ bitbang_transfer_setup(struct spi_device *spi, struct spi_transfer *t)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(spi_bitbang_setup_transfer);
 
 /**
  * spi_bitbang_setup - default setup for per-word I/O loops
@@ -203,7 +203,7 @@ int spi_bitbang_setup(struct spi_device *spi)
 	if (!cs->txrx_word)
 		return -EINVAL;
 
-	retval = bitbang_transfer_setup(spi, NULL);
+	retval = spi_bitbang_setup_transfer(spi, NULL);
 	if (retval < 0)
 		return retval;
 
@@ -454,7 +454,9 @@ int spi_bitbang_start(struct spi_bitbang *bitbang)
 		bitbang->use_dma = 0;
 		bitbang->txrx_bufs = spi_bitbang_bufs;
 		if (!bitbang->master->setup) {
-			bitbang->setup_transfer = bitbang_transfer_setup;
+			if (!bitbang->setup_transfer)
+				bitbang->setup_transfer =
+					 spi_bitbang_setup_transfer;
 			bitbang->master->setup = spi_bitbang_setup;
 			bitbang->master->cleanup = spi_bitbang_cleanup;
 		}
