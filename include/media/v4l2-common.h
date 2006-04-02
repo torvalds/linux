@@ -211,4 +211,15 @@ struct v4l2_routing {
 #define	VIDIOC_INT_S_VIDEO_ROUTING	_IOW ('d', 111, struct v4l2_routing)
 #define	VIDIOC_INT_G_VIDEO_ROUTING	_IOR ('d', 112, struct v4l2_routing)
 
+struct v4l2_crystal_freq {
+	u32 freq;	/* frequency in Hz of the crystal */
+	u32 flags; 	/* device specific flags */
+};
+
+/* Sets the frequency of the crystal used to generate the clocks.
+   An extra flags field allows device specific configuration regarding
+   clock frequency dividers, etc. If not used, then set flags to 0.
+   If the frequency is not supported, then -EINVAL is returned. */
+#define VIDIOC_INT_S_CRYSTAL_FREQ 	_IOW ('d', 113, struct v4l2_crystal_freq)
+
 #endif /* V4L2_COMMON_H_ */

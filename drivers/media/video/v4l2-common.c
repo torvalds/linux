@@ -331,7 +331,8 @@ static const char *v4l2_int_ioctls[] = {
 	[_IOC_NR(VIDIOC_INT_S_AUDIO_ROUTING)]  = "VIDIOC_INT_S_AUDIO_ROUTING",
 	[_IOC_NR(VIDIOC_INT_G_AUDIO_ROUTING)]  = "VIDIOC_INT_G_AUDIO_ROUTING",
 	[_IOC_NR(VIDIOC_INT_S_VIDEO_ROUTING)]  = "VIDIOC_INT_S_VIDEO_ROUTING",
-	[_IOC_NR(VIDIOC_INT_G_VIDEO_ROUTING)]  = "VIDIOC_INT_G_VIDEO_ROUTING"
+	[_IOC_NR(VIDIOC_INT_G_VIDEO_ROUTING)]  = "VIDIOC_INT_G_VIDEO_ROUTING",
+	[_IOC_NR(VIDIOC_INT_S_CRYSTAL_FREQ)]   = "VIDIOC_INT_S_CRYSTAL_FREQ"
 };
 #define V4L2_INT_IOCTLS ARRAY_SIZE(v4l2_int_ioctls)
 
@@ -665,6 +666,12 @@ void v4l_printk_ioctl_arg(char *s,unsigned int cmd, void *arg)
 	{
 		struct v4l2_routing  *p=arg;
 		printk ("%s: input=0x%x, output=0x%x\n", s, p->input, p->output);
+		break;
+	}
+	case VIDIOC_INT_S_CRYSTAL_FREQ:
+	{
+		struct v4l2_crystal_freq *p=arg;
+		printk ("%s: freq=%u, flags=0x%x\n", s, p->freq, p->flags);
 		break;
 	}
 	case VIDIOC_G_SLICED_VBI_CAP:
