@@ -628,7 +628,7 @@ struct pcmcia_device * pcmcia_device_add(struct pcmcia_socket *s, unsigned int f
 		}
 
 	/* Add to the list in pcmcia_bus_socket */
-	list_add_tail(&p_dev->socket_device_list, &s->devices_list);
+	list_add(&p_dev->socket_device_list, &s->devices_list);
 
 	spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
 
