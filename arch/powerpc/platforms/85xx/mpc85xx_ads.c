@@ -220,25 +220,25 @@ void mpc85xx_ads_show_cpuinfo(struct seq_file *m)
 	seq_printf(m, "Memory\t\t: %d MB\n", memsize / (1024 * 1024));
 }
 
-void __init platform_init(void)
+/*
+ * Called very early, device-tree isn't unflattened
+ */
+static int __init mpc85xx_ads_probe(void)
 {
-	ppc_md.setup_arch = mpc85xx_ads_setup_arch;
-	ppc_md.show_cpuinfo = mpc85xx_ads_show_cpuinfo;
-
-	ppc_md.init_IRQ = mpc85xx_ads_pic_init;
-	ppc_md.get_irq = mpic_get_irq;
-
-	ppc_md.restart = mpc85xx_restart;
-	ppc_md.power_off = NULL;
-	ppc_md.halt = NULL;
-
-	ppc_md.time_init = NULL;
-	ppc_md.set_rtc_time = NULL;
-	ppc_md.get_rtc_time = NULL;
-	ppc_md.calibrate_decr = generic_calibrate_decr;
-
-	ppc_md.progress = udbg_progress;
-
-	if (ppc_md.progress)
-		ppc_md.progress("mpc85xx_ads platform_init(): exit", 0);
+	/* We always match for now, eventually we should look at the flat
+	   dev tree to ensure this is the board we are suppose to run on
+	*/
+	return 1;
 }
+
+define_machine(mpc85xx_ads) {
+	.name			= "MPC85xx ADS",
+	.probe			= mpc85xx_ads_probe,
+	.setup_arch		= mpc85xx_ads_setup_arch,
+	.init_IRQ		= mpc85xx_ads_pic_init,
+	.show_cpuinfo		= mpc85xx_ads_show_cpuinfo,
+	.get_irq		= mpic_get_irq,
+	.restart		= mpc85xx_restart,
+	.calibrate_decr		= generic_calibrate_decr,
+	.progress		= udbg_progress,
+};
