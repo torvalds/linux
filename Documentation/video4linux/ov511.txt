@@ -9,7 +9,7 @@ INTRODUCTION:
 
 This is a driver for the OV511, a USB-only chip used in many "webcam" devices.
 Any camera using the OV511/OV511+ and the OV6620/OV7610/20/20AE should work.
-Video capture devices that use the Philips SAA7111A decoder also work. It 
+Video capture devices that use the Philips SAA7111A decoder also work. It
 supports streaming and capture of color or monochrome video via the Video4Linux
 API. Most V4L apps are compatible with it. Most resolutions with a width and
 height that are a multiple of 8 are supported.
@@ -52,15 +52,15 @@ from it:
 
 	chmod 666 /dev/video
 	chmod 666 /dev/video0 (if necessary)
-	
+
 Now you are ready to run a video app! Both vidcat and xawtv work well for me
 at 640x480.
-	
+
 [Using vidcat:]
 
 	vidcat -s 640x480 -p c > test.jpg
 	xview test.jpg
-	
+
 [Using xawtv:]
 
 From the main xawtv directory:
@@ -70,7 +70,7 @@ From the main xawtv directory:
 	make
 	make install
 
-Now you should be able to run xawtv. Right click for the options dialog. 
+Now you should be able to run xawtv. Right click for the options dialog.
 
 MODULE PARAMETERS:
 
@@ -286,4 +286,3 @@ Randy Dunlap, and others. Big thanks to them for their pioneering work on that
 and the USB stack. Thanks to Bret Wallach for getting camera reg IO, ISOC, and
 image capture working. Thanks to Orion Sky Lawlor, Kevin Moore, and Claudio
 Matsuoka for their work as well.
-

@@ -17,15 +17,14 @@ config USB_IBMCAM
 	select VIDEO_USBVIDEO
 	---help---
 	  Say Y here if you want to connect a IBM "C-It" camera, also known as
-	  "Xirlink PC Camera" to your computer's USB port.  For more
-	  information, read <file:Documentation/usb/ibmcam.txt>.
+	  "Xirlink PC Camera" to your computer's USB port.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ibmcam.
 
 	  This camera has several configuration options which
 	  can be specified when you load the module. Read
-	  <file:Documentation/usb/ibmcam.txt> to learn more.
+	  <file:Documentation/video4linux/ibmcam.txt> to learn more.
 
 config USB_KONICAWC
 	tristate "USB Konica Webcam support"

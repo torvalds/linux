@@ -174,7 +174,7 @@ Module parameters are listed below:
 -------------------------------------------------------------------------------
 Name:           video_nr
 Type:           short array (min = 0, max = 64)
-Syntax:         <-1|n[,...]> 
+Syntax:         <-1|n[,...]>
 Description:    Specify V4L2 minor mode number:
                 -1 = use next available
                  n = use minor number n
@@ -187,7 +187,7 @@ Default:        -1
 -------------------------------------------------------------------------------
 Name:           force_munmap
 Type:           bool array (min = 0, max = 64)
-Syntax:         <0|1[,...]> 
+Syntax:         <0|1[,...]>
 Description:    Force the application to unmap previously mapped buffer memory
                 before calling any VIDIOC_S_CROP or VIDIOC_S_FMT ioctl's. Not
                 all the applications support this feature. This parameter is
@@ -206,7 +206,7 @@ Default:        2
 -------------------------------------------------------------------------------
 Name:           debug
 Type:           ushort
-Syntax:         <n> 
+Syntax:         <n>
 Description:    Debugging information level, from 0 to 3:
                 0 = none (use carefully)
                 1 = critical errors
@@ -267,7 +267,7 @@ The sysfs interface also provides the "frame_header" entry, which exports the
 frame header of the most recent requested and captured video frame. The header
 is always 18-bytes long and is appended to every video frame by the SN9C10x
 controllers. As an example, this additional information can be used by the user
-application for implementing auto-exposure features via software. 
+application for implementing auto-exposure features via software.
 
 The following table describes the frame header:
 
@@ -441,7 +441,7 @@ blue pixels in one video frame. Each pixel is associated with a 8-bit long
 value and is disposed in memory according to the pattern shown below:
 
 B[0]   G[1]    B[2]    G[3]    ...   B[m-2]         G[m-1]
-G[m]   R[m+1]  G[m+2]  R[m+2]  ...   G[2m-2]        R[2m-1] 
+G[m]   R[m+1]  G[m+2]  R[m+2]  ...   G[2m-2]        R[2m-1]
 ...
 ...                                  B[(n-1)(m-2)]  G[(n-1)(m-1)]
 ...                                  G[n(m-2)]      R[n(m-1)]
@@ -472,12 +472,12 @@ The pixel reference value is calculated as follows:
 The algorithm purely describes the conversion from compressed Bayer code used
 in the SN9C10x chips to uncompressed Bayer. Additional steps are required to
 convert this to a color image (i.e. a color interpolation algorithm).
- 
+
 The following Huffman codes have been found:
-0: +0 (relative to reference pixel value) 
+0: +0 (relative to reference pixel value)
 100: +4
 101: -4?
-1110xxxx: set absolute value to xxxx.0000 
+1110xxxx: set absolute value to xxxx.0000
 1101: +11
 1111: -11
 11001: +20

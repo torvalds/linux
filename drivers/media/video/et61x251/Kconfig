@@ -5,7 +5,7 @@ config USB_ET61X251
 	  Say Y here if you want support for cameras based on Etoms ET61X151
 	  or ET61X251 PC Camera Controllers.
 
-	  See <file:Documentation/usb/et61x251.txt> for more informations.
+	  See <file:Documentation/video4linux/et61x251.txt> for more info.
 
 	  This driver uses the Video For Linux API. You must say Y or M to
 	  "Video For Linux" to use this driver.

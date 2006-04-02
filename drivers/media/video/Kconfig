@@ -437,8 +437,8 @@ config USB_OV511
 	depends on USB && VIDEO_DEV
 	---help---
 	  Say Y here if you want to connect this type of camera to your
-	  computer's USB port. See <file:Documentation/usb/ov511.txt> for more
-	  information and for a list of supported cameras.
+	  computer's USB port. See <file:Documentation/video4linux/ov511.txt>
+	  for more information and for a list of supported cameras.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ov511.
@@ -448,8 +448,8 @@ config USB_SE401
 	depends on USB && VIDEO_DEV
 	---help---
 	  Say Y here if you want to connect this type of camera to your
-	  computer's USB port. See <file:Documentation/usb/se401.txt> for more
-	  information and for a list of supported cameras.
+	  computer's USB port. See <file:Documentation/video4linux/se401.txt>
+	  for more information and for a list of supported cameras.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called se401.
@@ -462,8 +462,8 @@ config USB_STV680
 	---help---
 	  Say Y here if you want to connect this type of camera to your
 	  computer's USB port. This includes the Pencam line of cameras.
-	  See <file:Documentation/usb/stv680.txt> for more information and for
-	  a list of supported cameras.
+	  See <file:Documentation/video4linux/stv680.txt> for more information
+	  and for a list of supported cameras.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called stv680.
@@ -481,7 +481,7 @@ config USB_W9968CF
 	  resolutions and framerates, but cannot be included in the official
 	  Linux kernel for performance purposes.
 
-	  See <file:Documentation/usb/w9968cf.txt> for more informations.
+	  See <file:Documentation/video4linux/w9968cf.txt> for more info.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called w9968cf.
