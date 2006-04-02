@@ -2241,7 +2241,8 @@ static void handle_ep_small (struct net2280_ep *ep)
 			if (likely (req)) {
 				req->td->dmacount = 0;
 				t = readl (&ep->regs->ep_avail);
-				dma_done (ep, req, count, t);
+				dma_done (ep, req, count,
+					(ep->out_overflow || t) ? -EOVERFLOW : 0);
 			}
 
 			/* also flush to prevent erratum 0106 trouble */
