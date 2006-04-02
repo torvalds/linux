@@ -233,6 +233,7 @@ config MACH_JAZZ
 	select ARC32
 	select ARCH_MAY_HAVE_PC_FDC
 	select GENERIC_ISA_DMA
+	select I8253
 	select I8259
 	select ISA
 	select SYS_HAS_CPU_R4X00
@@ -530,6 +531,7 @@ config QEMU
 	select DMA_COHERENT
 	select GENERIC_ISA_DMA
 	select HAVE_STD_PC_SERIAL_PORT
+	select I8253
 	select I8259
 	select ISA
 	select SWAP_IO_SPACE
@@ -714,6 +716,7 @@ config SNI_RM200_PCI
 	select HAVE_STD_PC_SERIAL_PORT
 	select HW_HAS_EISA
 	select HW_HAS_PCI
+	select I8253
 	select I8259
 	select ISA
 	select SYS_HAS_CPU_R4X00
@@ -1720,6 +1723,9 @@ config TC
 config MMU
 	bool
 	default y
+
+config I8253
+	bool
 
 source "drivers/pcmcia/Kconfig"
 
