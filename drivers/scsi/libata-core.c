@@ -65,6 +65,8 @@ static unsigned int ata_dev_init_params(struct ata_port *ap,
 					struct ata_device *dev,
 					u16 heads,
 					u16 sectors);
+static int ata_down_xfermask_limit(struct ata_port *ap, struct ata_device *dev,
+				   int force_pio0);
 static int ata_down_sata_spd_limit(struct ata_port *ap);
 static int ata_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev);
 static unsigned int ata_dev_set_xfermode(struct ata_port *ap,
@@ -1857,6 +1859,56 @@ int ata_timing_compute(struct ata_device *adev, unsigned short speed,
 	}
 
 	return 0;
+}
+
+/**
+ *	ata_down_xfermask_limit - adjust dev xfer masks downward
+ *	@ap: Port associated with device @dev
+ *	@dev: Device to adjust xfer masks
+ *	@force_pio0: Force PIO0
+ *
+ *	Adjust xfer masks of @dev downward.  Note that this function
+ *	does not apply the change.  Invoking ata_set_mode() afterwards
+ *	will apply the limit.
+ *
+ *	LOCKING:
+ *	Inherited from caller.
+ *
+ *	RETURNS:
+ *	0 on success, negative errno on failure
+ */
+static int ata_down_xfermask_limit(struct ata_port *ap, struct ata_device *dev,
+				   int force_pio0)
+{
+	unsigned long xfer_mask;
+	int highbit;
+
+	xfer_mask = ata_pack_xfermask(dev->pio_mask, dev->mwdma_mask,
+				      dev->udma_mask);
+
+	if (!xfer_mask)
+		goto fail;
+	/* don't gear down to MWDMA from UDMA, go directly to PIO */
+	if (xfer_mask & ATA_MASK_UDMA)
+		xfer_mask &= ~ATA_MASK_MWDMA;
+
+	highbit = fls(xfer_mask) - 1;
+	xfer_mask &= ~(1 << highbit);
+	if (force_pio0)
+		xfer_mask &= 1 << ATA_SHIFT_PIO;
+	if (!xfer_mask)
+		goto fail;
+
+	ata_unpack_xfermask(xfer_mask, &dev->pio_mask, &dev->mwdma_mask,
+			    &dev->udma_mask);
+
+	printk(KERN_WARNING "ata%u: dev %u limiting speed to %s\n",
+	       ap->id, dev->devno, ata_mode_string(xfer_mask));
+
+	return 0;
+
+ fail:
+	return -EINVAL;
 }
 
 static int ata_dev_set_mode(struct ata_port *ap, struct ata_device *dev)
