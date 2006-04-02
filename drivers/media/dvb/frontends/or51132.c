@@ -106,9 +106,8 @@ static int or51132_load_firmware (struct dvb_frontend* fe, const struct firmware
 {
 	struct or51132_state* state = fe->demodulator_priv;
 	static u8 run_buf[] = {0x7F,0x01};
-	static u8 get_ver_buf[] = {0x04,0x00,0x30,0x00,0x00};
-	u8 rec_buf[14];
-	u8 cmd_buf[14];
+	u8 rec_buf[8];
+	u8 cmd_buf[3];
 	u32 firmwareAsize, firmwareBsize;
 	int i,ret;
 
@@ -157,7 +156,6 @@ static int or51132_load_firmware (struct dvb_frontend* fe, const struct firmware
 	cmd_buf[0] = 0x10;
 	cmd_buf[1] = 0x10;
 	cmd_buf[2] = 0x00;
-	cmd_buf[3] = 0x00;
 	msleep(20); /* 20ms */
 	if ((ret = i2c_writebytes(state,state->config->demod_address,
 				 cmd_buf,3))) {
@@ -167,8 +165,6 @@ static int or51132_load_firmware (struct dvb_frontend* fe, const struct firmware
 
 	cmd_buf[0] = 0x04;
 	cmd_buf[1] = 0x17;
-	cmd_buf[2] = 0x00;
-	cmd_buf[3] = 0x00;
 	msleep(20); /* 20ms */
 	if ((ret = i2c_writebytes(state,state->config->demod_address,
 				 cmd_buf,2))) {
@@ -178,8 +174,6 @@ static int or51132_load_firmware (struct dvb_frontend* fe, const struct firmware
 
 	cmd_buf[0] = 0x00;
 	cmd_buf[1] = 0x00;
-	cmd_buf[2] = 0x00;
-	cmd_buf[3] = 0x00;
 	msleep(20); /* 20ms */
 	if ((ret = i2c_writebytes(state,state->config->demod_address,
 				 cmd_buf,2))) {
@@ -189,7 +183,11 @@ static int or51132_load_firmware (struct dvb_frontend* fe, const struct firmware
 
 	for(i=0;i<4;i++) {
 		msleep(20); /* 20ms */
-		get_ver_buf[4] = i+1;
+		/* One apon a time, this command might have had something
+		   to do with getting the firmware version, but it's
+		   not used anymore:
+		   {0x04,0x00,0x30,0x00,i+1} */
+		/* Read 8 bytes, two bytes at a time */
 		if ((ret = i2c_readbytes(state,state->config->demod_address,
 					&rec_buf[i*2],2))) {
 			printk(KERN_WARNING
@@ -208,7 +206,6 @@ static int or51132_load_firmware (struct dvb_frontend* fe, const struct firmware
 	cmd_buf[0] = 0x10;
 	cmd_buf[1] = 0x00;
 	cmd_buf[2] = 0x00;
-	cmd_buf[3] = 0x00;
 	msleep(20); /* 20ms */
 	if ((ret = i2c_writebytes(state,state->config->demod_address,
 				 cmd_buf,3))) {
