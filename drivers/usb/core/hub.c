@@ -836,6 +836,13 @@ static int hub_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	desc = intf->cur_altsetting;
 	hdev = interface_to_usbdev(intf);
 
+#ifdef	CONFIG_USB_OTG_BLACKLIST_HUB
+	if (hdev->parent) {
+		dev_warn(&intf->dev, "ignoring external hub\n");
+		return -ENODEV;
+	}
+#endif
+
 	/* Some hubs have a subclass of 1, which AFAICT according to the */
 	/*  specs is not defined, but it works */
 	if ((desc->desc.bInterfaceSubClass != 0) &&
