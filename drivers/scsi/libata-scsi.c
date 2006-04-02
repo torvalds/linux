@@ -546,12 +546,6 @@ void ata_gen_ata_desc_sense(struct ata_queued_cmd *qc)
 	cmd->result = (DRIVER_SENSE << 24) | SAM_STAT_CHECK_CONDITION;
 
 	/*
-	 * Read the controller registers.
-	 */
-	WARN_ON(qc->ap->ops->tf_read == NULL);
-	qc->ap->ops->tf_read(qc->ap, tf);
-
-	/*
 	 * Use ata_to_sense_error() to map status register bits
 	 * onto sense key, asc & ascq.
 	 */
@@ -620,12 +614,6 @@ void ata_gen_fixed_sense(struct ata_queued_cmd *qc)
 	memset(sb, 0, SCSI_SENSE_BUFFERSIZE);
 
 	cmd->result = (DRIVER_SENSE << 24) | SAM_STAT_CHECK_CONDITION;
-
-	/*
-	 * Read the controller registers.
-	 */
-	WARN_ON(qc->ap->ops->tf_read == NULL);
-	qc->ap->ops->tf_read(qc->ap, tf);
 
 	/*
 	 * Use ata_to_sense_error() to map status register bits
@@ -1337,11 +1325,14 @@ static void ata_scsi_qc_complete(struct ata_queued_cmd *qc)
 	 */
 	if (((cdb[0] == ATA_16) || (cdb[0] == ATA_12)) &&
  	    ((cdb[2] & 0x20) || need_sense)) {
+		qc->ap->ops->tf_read(qc->ap, &qc->tf);
  		ata_gen_ata_desc_sense(qc);
 	} else {
 		if (!need_sense) {
 			cmd->result = SAM_STAT_GOOD;
 		} else {
+			qc->ap->ops->tf_read(qc->ap, &qc->tf);
+
 			/* TODO: decide which descriptor format to use
 			 * for 48b LBA devices and call that here
 			 * instead of the fixed desc, which is only
@@ -2133,13 +2124,15 @@ void ata_scsi_badcmd(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *), u8
 
 static void atapi_sense_complete(struct ata_queued_cmd *qc)
 {
-	if (qc->err_mask && ((qc->err_mask & AC_ERR_DEV) == 0))
+	if (qc->err_mask && ((qc->err_mask & AC_ERR_DEV) == 0)) {
 		/* FIXME: not quite right; we don't want the
 		 * translation of taskfile registers into
 		 * a sense descriptors, since that's only
 		 * correct for ATA, not ATAPI
 		 */
+		qc->ap->ops->tf_read(qc->ap, &qc->tf);
 		ata_gen_ata_desc_sense(qc);
+	}
 
 	qc->scsidone(qc->scsicmd);
 	ata_qc_free(qc);
@@ -2207,17 +2200,15 @@ static void atapi_qc_complete(struct ata_queued_cmd *qc)
 		cmd->result = SAM_STAT_CHECK_CONDITION;
 		atapi_request_sense(qc);
 		return;
-	}
-
-	else if (unlikely(err_mask))
+	} else if (unlikely(err_mask)) {
 		/* FIXME: not quite right; we don't want the
 		 * translation of taskfile registers into
 		 * a sense descriptors, since that's only
 		 * correct for ATA, not ATAPI
 		 */
+		qc->ap->ops->tf_read(qc->ap, &qc->tf);
 		ata_gen_ata_desc_sense(qc);
-
-	else {
+	} else {
 		u8 *scsicmd = cmd->cmnd;
 
 		if ((scsicmd[0] == INQUIRY) && ((scsicmd[1] & 0x03) == 0)) {
