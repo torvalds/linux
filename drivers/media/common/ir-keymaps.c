@@ -1412,4 +1412,3 @@ IR_KEYTAB_TYPE ir_codes_hauppauge_new[IR_KEYTAB_SIZE] = {
 };
 
 EXPORT_SYMBOL_GPL(ir_codes_hauppauge_new);
-
