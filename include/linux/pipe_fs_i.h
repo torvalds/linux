@@ -5,10 +5,14 @@
 
 #define PIPE_BUFFERS (16)
 
+#define PIPE_BUF_FLAG_STOLEN	0x01
+#define PIPE_BUF_FLAG_LRU	0x02
+
 struct pipe_buffer {
 	struct page *page;
 	unsigned int offset, len;
 	struct pipe_buf_operations *ops;
+	unsigned int flags;
 };
 
 struct pipe_buf_operations {

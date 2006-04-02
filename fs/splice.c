@@ -67,16 +67,7 @@ static int page_cache_pipe_buf_steal(struct pipe_inode_info *info,
 	if (!remove_mapping(mapping, page))
 		return 1;
 
-	if (PageLRU(page)) {
-		struct zone *zone = page_zone(page);
-
-		spin_lock_irq(&zone->lru_lock);
-		BUG_ON(!PageLRU(page));
-		__ClearPageLRU(page);
-		del_page_from_lru(zone, page);
-		spin_unlock_irq(&zone->lru_lock);
-	}
-
+	buf->flags |= PIPE_BUF_FLAG_STOLEN | PIPE_BUF_FLAG_LRU;
 	return 0;
 }
 
@@ -85,6 +76,7 @@ static void page_cache_pipe_buf_release(struct pipe_inode_info *info,
 {
 	page_cache_release(buf->page);
 	buf->page = NULL;
+	buf->flags &= ~(PIPE_BUF_FLAG_STOLEN | PIPE_BUF_FLAG_LRU);
 }
 
 static void *page_cache_pipe_buf_map(struct file *file,
@@ -414,11 +406,12 @@ static int pipe_to_file(struct pipe_inode_info *info, struct pipe_buffer *buf,
 {
 	struct file *file = sd->file;
 	struct address_space *mapping = file->f_mapping;
+	gfp_t gfp_mask = mapping_gfp_mask(mapping);
 	unsigned int offset;
 	struct page *page;
 	pgoff_t index;
 	char *src;
-	int ret, stolen;
+	int ret;
 
 	/*
 	 * after this, page will be locked and unmapped
@@ -429,7 +422,6 @@ static int pipe_to_file(struct pipe_inode_info *info, struct pipe_buffer *buf,
 
 	index = sd->pos >> PAGE_CACHE_SHIFT;
 	offset = sd->pos & ~PAGE_CACHE_MASK;
-	stolen = 0;
 
 	/*
 	 * reuse buf page, if SPLICE_F_MOVE is set
@@ -443,15 +435,15 @@ static int pipe_to_file(struct pipe_inode_info *info, struct pipe_buffer *buf,
 			goto find_page;
 
 		page = buf->page;
-		stolen = 1;
-		if (add_to_page_cache_lru(page, mapping, index,
-						mapping_gfp_mask(mapping)))
+		if (add_to_page_cache(page, mapping, index, gfp_mask))
 			goto find_page;
+
+		if (!(buf->flags & PIPE_BUF_FLAG_LRU))
+			lru_cache_add(page);
 	} else {
 find_page:
 		ret = -ENOMEM;
-		page = find_or_create_page(mapping, index,
-						mapping_gfp_mask(mapping));
+		page = find_or_create_page(mapping, index, gfp_mask);
 		if (!page)
 			goto out;
 
@@ -494,7 +486,7 @@ find_page:
 	} else if (ret)
 		goto out;
 
-	if (!stolen) {
+	if (!(buf->flags & PIPE_BUF_FLAG_STOLEN)) {
 		char *dst = kmap_atomic(page, KM_USER0);
 
 		memcpy(dst + offset, src + buf->offset, sd->len);
@@ -511,7 +503,7 @@ find_page:
 
 	balance_dirty_pages_ratelimited(mapping);
 out:
-	if (!stolen) {
+	if (!(buf->flags & PIPE_BUF_FLAG_STOLEN)) {
 		page_cache_release(page);
 		unlock_page(page);
 	}
