@@ -237,9 +237,9 @@ static int __generic_file_splice_read(struct file *in, struct inode *pipe,
 	 * fill shadow[] with pages at the right locations, so we only
 	 * have to fill holes
 	 */
-	memset(shadow, 0, i * sizeof(struct page *));
-	for (j = 0, pidx = index; j < i; pidx++, j++)
-		shadow[pages[j]->index - pidx] = pages[j];
+	memset(shadow, 0, nr_pages * sizeof(struct page *));
+	for (j = 0; j < i; j++)
+		shadow[pages[j]->index - index] = pages[j];
 
 	/*
 	 * now fill in the holes
