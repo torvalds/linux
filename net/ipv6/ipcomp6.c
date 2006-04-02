@@ -63,7 +63,7 @@ static void **ipcomp6_scratches;
 static int ipcomp6_scratch_users;
 static LIST_HEAD(ipcomp6_tfms_list);
 
-static int ipcomp6_input(struct xfrm_state *x, struct xfrm_decap_state *decap, struct sk_buff *skb)
+static int ipcomp6_input(struct xfrm_state *x, struct sk_buff *skb)
 {
 	int err = 0;
 	u8 nexthdr = 0;

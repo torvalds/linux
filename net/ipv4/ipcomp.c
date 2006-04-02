@@ -81,8 +81,7 @@ out:
 	return err;
 }
 
-static int ipcomp_input(struct xfrm_state *x,
-                        struct xfrm_decap_state *decap, struct sk_buff *skb)
+static int ipcomp_input(struct xfrm_state *x, struct sk_buff *skb)
 {
 	u8 nexthdr;
 	int err = 0;

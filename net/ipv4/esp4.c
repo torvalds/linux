@@ -133,7 +133,7 @@ error:
  * expensive, so we only support truncated data, which is the recommended
  * and common case.
  */
-static int esp_input(struct xfrm_state *x, struct xfrm_decap_state *decap, struct sk_buff *skb)
+static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 {
 	struct iphdr *iph;
 	struct ip_esp_hdr *esph;
@@ -207,9 +207,6 @@ static int esp_input(struct xfrm_state *x, struct xfrm_decap_state *decap, struc
 	if (x->encap) {
 		struct xfrm_encap_tmpl *encap = x->encap;
 		struct udphdr *uh;
-
-		if (encap->encap_type != decap->decap_type)
-			goto out;
 
 		uh = (struct udphdr *)(iph + 1);
 		encap_len = (void*)esph - (void*)uh;

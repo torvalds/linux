@@ -116,7 +116,7 @@ error:
 	return err;
 }
 
-static int ah_input(struct xfrm_state *x, struct xfrm_decap_state *decap, struct sk_buff *skb)
+static int ah_input(struct xfrm_state *x, struct sk_buff *skb)
 {
 	int ah_hlen;
 	struct iphdr *iph;
