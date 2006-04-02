@@ -114,9 +114,14 @@ static void __init ek_board_init(void)
 	at91_add_device_usbh(&ek_usbh_data);
 	/* USB Device */
 	at91_add_device_udc(&ek_udc_data);
+#ifdef CONFIG_MTD_AT91_DATAFLASH_CARD
+	/* DataFlash card */
+	at91_set_gpio_output(AT91_PIN_PB22, 0);
+#else
 	/* MMC */
-	at91_set_gpio_output(AT91_PIN_PB22, 1);	/* this MMC card slot can optionally use SPI signaling (CS3). default: MMC */
+	at91_set_gpio_output(AT91_PIN_PB22, 1);	/* this MMC card slot can optionally use SPI signaling (CS3). */
 	at91_add_device_mmc(&ek_mmc_data);
+#endif
 	/* VGA */
 //	ek_add_device_video();
 }

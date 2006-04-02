@@ -121,9 +121,14 @@ static void __init dk_board_init(void)
 	at91_add_device_udc(&dk_udc_data);
 	/* Compact Flash */
 	at91_add_device_cf(&dk_cf_data);
+#ifdef CONFIG_MTD_AT91_DATAFLASH_CARD
+	/* DataFlash card */
+	at91_set_gpio_output(AT91_PIN_PB7, 0);
+#else
 	/* MMC */
-	at91_set_gpio_output(AT91_PIN_PB7, 1);	/* this MMC card slot can optionally use SPI signaling (CS3). default: MMC */
+	at91_set_gpio_output(AT91_PIN_PB7, 1);	/* this MMC card slot can optionally use SPI signaling (CS3). */
 	at91_add_device_mmc(&dk_mmc_data);
+#endif
 	/* VGA */
 //	dk_add_device_video();
 }
