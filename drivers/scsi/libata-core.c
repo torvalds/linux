@@ -65,10 +65,6 @@ static unsigned int ata_dev_init_params(struct ata_port *ap,
 					struct ata_device *dev,
 					u16 heads,
 					u16 sectors);
-static int ata_down_xfermask_limit(struct ata_port *ap, struct ata_device *dev,
-				   int force_pio0);
-static int ata_down_sata_spd_limit(struct ata_port *ap);
-static int ata_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev);
 static unsigned int ata_dev_set_xfermode(struct ata_port *ap,
 					 struct ata_device *dev);
 static void ata_dev_xfermask(struct ata_port *ap, struct ata_device *dev);
@@ -412,7 +408,7 @@ static const char *sata_spd_string(unsigned int spd)
 	return spd_str[spd - 1];
 }
 
-static void ata_dev_disable(struct ata_port *ap, struct ata_device *dev)
+void ata_dev_disable(struct ata_port *ap, struct ata_device *dev)
 {
 	if (ata_dev_enabled(dev)) {
 		printk(KERN_WARNING "ata%u: dev %u disabled\n",
@@ -979,10 +975,9 @@ void ata_qc_complete_internal(struct ata_queued_cmd *qc)
  *	None.  Should be called with kernel context, might sleep.
  */
 
-static unsigned
-ata_exec_internal(struct ata_port *ap, struct ata_device *dev,
-		  struct ata_taskfile *tf, const u8 *cdb,
-		  int dma_dir, void *buf, unsigned int buflen)
+unsigned ata_exec_internal(struct ata_port *ap, struct ata_device *dev,
+			   struct ata_taskfile *tf, const u8 *cdb,
+			   int dma_dir, void *buf, unsigned int buflen)
 {
 	u8 command = tf->command;
 	struct ata_queued_cmd *qc;
@@ -1649,7 +1644,7 @@ void ata_port_disable(struct ata_port *ap)
  *	RETURNS:
  *	0 on success, negative errno on failure
  */
-static int ata_down_sata_spd_limit(struct ata_port *ap)
+int ata_down_sata_spd_limit(struct ata_port *ap)
 {
 	u32 spd, mask;
 	int highbit;
@@ -1709,7 +1704,7 @@ static int __ata_set_sata_spd_needed(struct ata_port *ap, u32 *scontrol)
  *	RETURNS:
  *	1 if SATA spd configuration is needed, 0 otherwise.
  */
-static int ata_set_sata_spd_needed(struct ata_port *ap)
+int ata_set_sata_spd_needed(struct ata_port *ap)
 {
 	u32 scontrol;
 
@@ -1913,8 +1908,8 @@ int ata_timing_compute(struct ata_device *adev, unsigned short speed,
  *	RETURNS:
  *	0 on success, negative errno on failure
  */
-static int ata_down_xfermask_limit(struct ata_port *ap, struct ata_device *dev,
-				   int force_pio0)
+int ata_down_xfermask_limit(struct ata_port *ap, struct ata_device *dev,
+			    int force_pio0)
 {
 	unsigned long xfer_mask;
 	int highbit;
@@ -1992,7 +1987,7 @@ static int ata_dev_set_mode(struct ata_port *ap, struct ata_device *dev)
  *	RETURNS:
  *	0 on success, negative errno otherwise
  */
-static int ata_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev)
+int ata_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev)
 {
 	struct ata_device *dev;
 	int i, rc = 0, used_dma = 0, found = 0;
@@ -2590,9 +2585,9 @@ int ata_std_probe_reset(struct ata_port *ap, unsigned int *classes)
 				     ata_std_postreset, classes);
 }
 
-static int ata_do_reset(struct ata_port *ap,
-			ata_reset_fn_t reset, ata_postreset_fn_t postreset,
-			int verbose, unsigned int *classes)
+int ata_do_reset(struct ata_port *ap,
+		 ata_reset_fn_t reset, ata_postreset_fn_t postreset,
+		 int verbose, unsigned int *classes)
 {
 	int i, rc;
 

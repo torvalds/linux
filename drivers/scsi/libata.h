@@ -45,7 +45,20 @@ extern int libata_fua;
 extern struct ata_queued_cmd *ata_qc_new_init(struct ata_port *ap,
 				      struct ata_device *dev);
 extern int ata_rwcmd_protocol(struct ata_queued_cmd *qc);
+extern void ata_dev_disable(struct ata_port *ap, struct ata_device *dev);
 extern void ata_port_flush_task(struct ata_port *ap);
+extern unsigned ata_exec_internal(struct ata_port *ap, struct ata_device *dev,
+				  struct ata_taskfile *tf, const u8 *cdb,
+				  int dma_dir, void *buf, unsigned int buflen);
+extern int ata_down_sata_spd_limit(struct ata_port *ap);
+extern int ata_set_sata_spd_needed(struct ata_port *ap);
+extern int ata_down_xfermask_limit(struct ata_port *ap, struct ata_device *dev,
+				   int force_pio0);
+extern int ata_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev);
+extern int ata_do_reset(struct ata_port *ap,
+			ata_reset_fn_t reset,
+			ata_postreset_fn_t postreset,
+			int verbose, unsigned int *classes);
 extern void ata_qc_free(struct ata_queued_cmd *qc);
 extern void ata_qc_issue(struct ata_queued_cmd *qc);
 extern int ata_check_atapi_dma(struct ata_queued_cmd *qc);
