@@ -124,7 +124,6 @@ static void anon_pipe_buf_unmap(struct pipe_inode_info *info, struct pipe_buffer
 static int anon_pipe_buf_steal(struct pipe_inode_info *info,
 			       struct pipe_buffer *buf)
 {
-	buf->stolen = 1;
 	return 0;
 }
 

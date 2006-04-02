@@ -22,7 +22,10 @@
 #include <linux/pipe_fs_i.h>
 #include <linux/mm_inline.h>
 #include <linux/swap.h>
+#include <linux/writeback.h>
+#include <linux/buffer_head.h>
 #include <linux/module.h>
+#include <linux/syscalls.h>
 
 /*
  * Passed to the actors
@@ -38,11 +41,15 @@ static int page_cache_pipe_buf_steal(struct pipe_inode_info *info,
 				     struct pipe_buffer *buf)
 {
 	struct page *page = buf->page;
+	struct address_space *mapping = page_mapping(page);
 
 	WARN_ON(!PageLocked(page));
 	WARN_ON(!PageUptodate(page));
 
-	if (!remove_mapping(page_mapping(page), page))
+	if (PagePrivate(page))
+		try_to_release_page(page, mapping_gfp_mask(mapping));
+
+	if (!remove_mapping(mapping, page))
 		return 1;
 
 	if (PageLRU(page)) {
@@ -55,7 +62,6 @@ static int page_cache_pipe_buf_steal(struct pipe_inode_info *info,
 		spin_unlock_irq(&zone->lru_lock);
 	}
 
-	buf->stolen = 1;
 	return 0;
 }
 
@@ -64,7 +70,6 @@ static void page_cache_pipe_buf_release(struct pipe_inode_info *info,
 {
 	page_cache_release(buf->page);
 	buf->page = NULL;
-	buf->stolen = 0;
 }
 
 static void *page_cache_pipe_buf_map(struct file *file,
@@ -91,8 +96,7 @@ static void *page_cache_pipe_buf_map(struct file *file,
 static void page_cache_pipe_buf_unmap(struct pipe_inode_info *info,
 				      struct pipe_buffer *buf)
 {
-	if (!buf->stolen)
-		unlock_page(buf->page);
+	unlock_page(buf->page);
 	kunmap(buf->page);
 }
 
@@ -319,7 +323,8 @@ ssize_t generic_file_splice_read(struct file *in, struct inode *pipe,
 }
 
 /*
- * Send 'len' bytes to socket from 'file' at position 'pos' using sendpage().
+ * Send 'sd->len' bytes to socket from 'sd->file' at position 'sd->pos'
+ * using sendpage().
  */
 static int pipe_to_sendpage(struct pipe_inode_info *info,
 			    struct pipe_buffer *buf, struct splice_desc *sd)
@@ -379,7 +384,7 @@ static int pipe_to_file(struct pipe_inode_info *info, struct pipe_buffer *buf,
 	struct page *page;
 	pgoff_t index;
 	char *src;
-	int ret;
+	int ret, stolen;
 
 	/*
 	 * after this, page will be locked and unmapped
@@ -390,6 +395,7 @@ static int pipe_to_file(struct pipe_inode_info *info, struct pipe_buffer *buf,
 
 	index = sd->pos >> PAGE_CACHE_SHIFT;
 	offset = sd->pos & ~PAGE_CACHE_MASK;
+	stolen = 0;
 
 	/*
 	 * reuse buf page, if SPLICE_F_MOVE is set
@@ -399,6 +405,7 @@ static int pipe_to_file(struct pipe_inode_info *info, struct pipe_buffer *buf,
 			goto find_page;
 
 		page = buf->page;
+		stolen = 1;
 		if (add_to_page_cache_lru(page, mapping, index,
 						mapping_gfp_mask(mapping)))
 			goto find_page;
@@ -443,10 +450,13 @@ find_page:
 	}
 
 	ret = mapping->a_ops->prepare_write(file, page, 0, sd->len);
-	if (ret)
+	if (ret == AOP_TRUNCATED_PAGE) {
+		page_cache_release(page);
+		goto find_page;
+	} else if (ret)
 		goto out;
 
-	if (!buf->stolen) {
+	if (!stolen) {
 		char *dst = kmap_atomic(page, KM_USER0);
 
 		memcpy(dst + offset, src + buf->offset, sd->len);
@@ -455,16 +465,18 @@ find_page:
 	}
 
 	ret = mapping->a_ops->commit_write(file, page, 0, sd->len);
-	if (ret < 0)
+	if (ret == AOP_TRUNCATED_PAGE) {
+		page_cache_release(page);
+		goto find_page;
+	} else if (ret)
 		goto out;
 
-	set_page_dirty(page);
-	ret = write_one_page(page, 0);
+	balance_dirty_pages_ratelimited(mapping);
 out:
-	if (ret < 0)
-		unlock_page(page);
-	if (!buf->stolen)
+	if (!stolen) {
 		page_cache_release(page);
+		unlock_page(page);
+	}
 	buf->ops->unmap(info, buf);
 	return ret;
 }
@@ -576,7 +588,27 @@ static ssize_t move_from_pipe(struct inode *inode, struct file *out,
 ssize_t generic_file_splice_write(struct inode *inode, struct file *out,
 				  size_t len, unsigned int flags)
 {
-	return move_from_pipe(inode, out, len, flags, pipe_to_file);
+	struct address_space *mapping = out->f_mapping;
+	ssize_t ret = move_from_pipe(inode, out, len, flags, pipe_to_file);
+
+	/*
+	 * if file or inode is SYNC and we actually wrote some data, sync it
+	 */
+	if (unlikely((out->f_flags & O_SYNC) || IS_SYNC(mapping->host))
+	    && ret > 0) {
+		struct inode *inode = mapping->host;
+		int err;
+
+		mutex_lock(&inode->i_mutex);
+		err = generic_osync_inode(mapping->host, mapping,
+						OSYNC_METADATA|OSYNC_DATA);
+		mutex_unlock(&inode->i_mutex);
+
+		if (err)
+			ret = err;
+	}
+
+	return ret;
 }
 
 ssize_t generic_splice_sendpage(struct inode *inode, struct file *out,

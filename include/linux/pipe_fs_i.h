@@ -9,7 +9,6 @@ struct pipe_buffer {
 	struct page *page;
 	unsigned int offset, len;
 	struct pipe_buf_operations *ops;
-	unsigned int stolen;
 };
 
 struct pipe_buf_operations {
