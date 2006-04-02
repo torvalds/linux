@@ -244,6 +244,13 @@ asmlinkage void do_ptrace(struct pt_regs *regs)
 	}
 
 	switch(request) {
+	case PTRACE_PEEKUSR:
+		if (addr != 0)
+			pt_error_return(regs, EIO);
+		else
+			pt_succ_return(regs, 0);
+		goto out_tsk;
+
 	case PTRACE_PEEKTEXT: /* read word at location addr. */ 
 	case PTRACE_PEEKDATA: {
 		unsigned long tmp64;
