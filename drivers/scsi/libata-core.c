@@ -1949,6 +1949,7 @@ static int ata_dev_set_mode(struct ata_port *ap, struct ata_device *dev)
 	unsigned int err_mask;
 	int rc;
 
+	dev->flags &= ~ATA_DFLAG_PIO;
 	if (dev->xfer_shift == ATA_SHIFT_PIO)
 		dev->flags |= ATA_DFLAG_PIO;
 
