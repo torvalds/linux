@@ -964,6 +964,7 @@ void ata_qc_complete_internal(struct ata_queued_cmd *qc)
  *	@ap: Port to which the command is sent
  *	@dev: Device to which the command is sent
  *	@tf: Taskfile registers for the command and the result
+ *	@cdb: CDB for packet command
  *	@dma_dir: Data tranfer direction of the command
  *	@buf: Data buffer of the command
  *	@buflen: Length of data buffer
@@ -980,7 +981,7 @@ void ata_qc_complete_internal(struct ata_queued_cmd *qc)
 
 static unsigned
 ata_exec_internal(struct ata_port *ap, struct ata_device *dev,
-		  struct ata_taskfile *tf,
+		  struct ata_taskfile *tf, const u8 *cdb,
 		  int dma_dir, void *buf, unsigned int buflen)
 {
 	u8 command = tf->command;
@@ -995,6 +996,8 @@ ata_exec_internal(struct ata_port *ap, struct ata_device *dev,
 	BUG_ON(qc == NULL);
 
 	qc->tf = *tf;
+	if (cdb)
+		memcpy(qc->cdb, cdb, ATAPI_CDB_LEN);
 	qc->dma_dir = dma_dir;
 	if (dma_dir != DMA_NONE) {
 		ata_sg_init_one(qc, buf, buflen);
@@ -1144,7 +1147,7 @@ static int ata_dev_read_id(struct ata_port *ap, struct ata_device *dev,
 
 	tf.protocol = ATA_PROT_PIO;
 
-	err_mask = ata_exec_internal(ap, dev, &tf, DMA_FROM_DEVICE,
+	err_mask = ata_exec_internal(ap, dev, &tf, NULL, DMA_FROM_DEVICE,
 				     id, sizeof(id[0]) * ATA_ID_WORDS);
 	if (err_mask) {
 		rc = -EIO;
@@ -2988,7 +2991,7 @@ static unsigned int ata_dev_set_xfermode(struct ata_port *ap,
 	tf.protocol = ATA_PROT_NODATA;
 	tf.nsect = dev->xfer_mode;
 
-	err_mask = ata_exec_internal(ap, dev, &tf, DMA_NONE, NULL, 0);
+	err_mask = ata_exec_internal(ap, dev, &tf, NULL, DMA_NONE, NULL, 0);
 
 	DPRINTK("EXIT, err_mask=%x\n", err_mask);
 	return err_mask;
@@ -3028,7 +3031,7 @@ static unsigned int ata_dev_init_params(struct ata_port *ap,
 	tf.nsect = sectors;
 	tf.device |= (heads - 1) & 0x0f; /* max head = num. of heads - 1 */
 
-	err_mask = ata_exec_internal(ap, dev, &tf, DMA_NONE, NULL, 0);
+	err_mask = ata_exec_internal(ap, dev, &tf, NULL, DMA_NONE, NULL, 0);
 
 	DPRINTK("EXIT, err_mask=%x\n", err_mask);
 	return err_mask;
@@ -4482,7 +4485,7 @@ static int ata_do_simple_cmd(struct ata_port *ap, struct ata_device *dev,
 	tf.flags |= ATA_TFLAG_DEVICE;
 	tf.protocol = ATA_PROT_NODATA;
 
-	err = ata_exec_internal(ap, dev, &tf, DMA_NONE, NULL, 0);
+	err = ata_exec_internal(ap, dev, &tf, NULL, DMA_NONE, NULL, 0);
 	if (err)
 		printk(KERN_ERR "%s: ata command failed: %d\n",
 				__FUNCTION__, err);
