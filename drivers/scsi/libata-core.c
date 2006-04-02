@@ -3416,7 +3416,7 @@ void ata_poll_qc_complete(struct ata_queued_cmd *qc)
 
 /**
  *	ata_pio_poll - poll using PIO, depending on current state
- *	@ap: the target ata_port
+ *	@qc: qc in progress
  *
  *	LOCKING:
  *	None.  (executing in kernel thread context)
@@ -3424,16 +3424,12 @@ void ata_poll_qc_complete(struct ata_queued_cmd *qc)
  *	RETURNS:
  *	timeout value to use
  */
-
-static unsigned long ata_pio_poll(struct ata_port *ap)
+static unsigned long ata_pio_poll(struct ata_queued_cmd *qc)
 {
-	struct ata_queued_cmd *qc;
+	struct ata_port *ap = qc->ap;
 	u8 status;
 	unsigned int poll_state = HSM_ST_UNKNOWN;
 	unsigned int reg_state = HSM_ST_UNKNOWN;
-
-	qc = ata_qc_from_tag(ap, ap->active_tag);
-	WARN_ON(qc == NULL);
 
 	switch (ap->hsm_task_state) {
 	case HSM_ST:
@@ -3468,7 +3464,7 @@ static unsigned long ata_pio_poll(struct ata_port *ap)
 
 /**
  *	ata_pio_complete - check if drive is busy or idle
- *	@ap: the target ata_port
+ *	@qc: qc to complete
  *
  *	LOCKING:
  *	None.  (executing in kernel thread context)
@@ -3476,10 +3472,9 @@ static unsigned long ata_pio_poll(struct ata_port *ap)
  *	RETURNS:
  *	Non-zero if qc completed, zero otherwise.
  */
-
-static int ata_pio_complete (struct ata_port *ap)
+static int ata_pio_complete(struct ata_queued_cmd *qc)
 {
-	struct ata_queued_cmd *qc;
+	struct ata_port *ap = qc->ap;
 	u8 drv_stat;
 
 	/*
@@ -3499,9 +3494,6 @@ static int ata_pio_complete (struct ata_port *ap)
 			return 0;
 		}
 	}
-
-	qc = ata_qc_from_tag(ap, ap->active_tag);
-	WARN_ON(qc == NULL);
 
 	drv_stat = ata_wait_idle(ap);
 	if (!ata_ok(drv_stat)) {
@@ -3838,15 +3830,14 @@ err_out:
 
 /**
  *	ata_pio_block - start PIO on a block
- *	@ap: the target ata_port
+ *	@qc: qc to transfer block for
  *
  *	LOCKING:
  *	None.  (executing in kernel thread context)
  */
-
-static void ata_pio_block(struct ata_port *ap)
+static void ata_pio_block(struct ata_queued_cmd *qc)
 {
-	struct ata_queued_cmd *qc;
+	struct ata_port *ap = qc->ap;
 	u8 status;
 
 	/*
@@ -3867,9 +3858,6 @@ static void ata_pio_block(struct ata_port *ap)
 			return;
 		}
 	}
-
-	qc = ata_qc_from_tag(ap, ap->active_tag);
-	WARN_ON(qc == NULL);
 
 	/* check error */
 	if (status & (ATA_ERR | ATA_DF)) {
@@ -3899,12 +3887,9 @@ static void ata_pio_block(struct ata_port *ap)
 	}
 }
 
-static void ata_pio_error(struct ata_port *ap)
+static void ata_pio_error(struct ata_queued_cmd *qc)
 {
-	struct ata_queued_cmd *qc;
-
-	qc = ata_qc_from_tag(ap, ap->active_tag);
-	WARN_ON(qc == NULL);
+	struct ata_port *ap = qc->ap;
 
 	if (qc->tf.command != ATA_CMD_PACKET)
 		printk(KERN_WARNING "ata%u: dev %u PIO error\n",
@@ -3922,7 +3907,8 @@ static void ata_pio_error(struct ata_port *ap)
 
 static void ata_pio_task(void *_data)
 {
-	struct ata_port *ap = _data;
+	struct ata_queued_cmd *qc = _data;
+	struct ata_port *ap = qc->ap;
 	unsigned long timeout;
 	int qc_completed;
 
@@ -3935,33 +3921,33 @@ fsm_start:
 		return;
 
 	case HSM_ST:
-		ata_pio_block(ap);
+		ata_pio_block(qc);
 		break;
 
 	case HSM_ST_LAST:
-		qc_completed = ata_pio_complete(ap);
+		qc_completed = ata_pio_complete(qc);
 		break;
 
 	case HSM_ST_POLL:
 	case HSM_ST_LAST_POLL:
-		timeout = ata_pio_poll(ap);
+		timeout = ata_pio_poll(qc);
 		break;
 
 	case HSM_ST_TMOUT:
 	case HSM_ST_ERR:
-		ata_pio_error(ap);
+		ata_pio_error(qc);
 		return;
 	}
 
 	if (timeout)
-		ata_port_queue_task(ap, ata_pio_task, ap, timeout);
+		ata_port_queue_task(ap, ata_pio_task, qc, timeout);
 	else if (!qc_completed)
 		goto fsm_start;
 }
 
 /**
  *	atapi_packet_task - Write CDB bytes to hardware
- *	@_data: Port to which ATAPI device is attached.
+ *	@_data: qc in progress
  *
  *	When device has indicated its readiness to accept
  *	a CDB, this function is called.  Send the CDB.
@@ -3972,16 +3958,11 @@ fsm_start:
  *	LOCKING:
  *	Kernel thread context (may sleep)
  */
-
 static void atapi_packet_task(void *_data)
 {
-	struct ata_port *ap = _data;
-	struct ata_queued_cmd *qc;
+	struct ata_queued_cmd *qc = _data;
+	struct ata_port *ap = qc->ap;
 	u8 status;
-
-	qc = ata_qc_from_tag(ap, ap->active_tag);
-	WARN_ON(qc == NULL);
-	WARN_ON(!(qc->flags & ATA_QCFLAG_ACTIVE));
 
 	/* sleep-wait for BSY to clear */
 	DPRINTK("busy wait\n");
@@ -4022,7 +4003,7 @@ static void atapi_packet_task(void *_data)
 
 		/* PIO commands are handled by polling */
 		ap->hsm_task_state = HSM_ST;
-		ata_port_queue_task(ap, ata_pio_task, ap, 0);
+		ata_port_queue_task(ap, ata_pio_task, qc, 0);
 	}
 
 	return;
@@ -4328,26 +4309,26 @@ unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 		ata_qc_set_polling(qc);
 		ata_tf_to_host(ap, &qc->tf);
 		ap->hsm_task_state = HSM_ST;
-		ata_port_queue_task(ap, ata_pio_task, ap, 0);
+		ata_port_queue_task(ap, ata_pio_task, qc, 0);
 		break;
 
 	case ATA_PROT_ATAPI:
 		ata_qc_set_polling(qc);
 		ata_tf_to_host(ap, &qc->tf);
-		ata_port_queue_task(ap, atapi_packet_task, ap, 0);
+		ata_port_queue_task(ap, atapi_packet_task, qc, 0);
 		break;
 
 	case ATA_PROT_ATAPI_NODATA:
 		ap->flags |= ATA_FLAG_NOINTR;
 		ata_tf_to_host(ap, &qc->tf);
-		ata_port_queue_task(ap, atapi_packet_task, ap, 0);
+		ata_port_queue_task(ap, atapi_packet_task, qc, 0);
 		break;
 
 	case ATA_PROT_ATAPI_DMA:
 		ap->flags |= ATA_FLAG_NOINTR;
 		ap->ops->tf_load(ap, &qc->tf);	 /* load tf registers */
 		ap->ops->bmdma_setup(qc);	    /* set up bmdma */
-		ata_port_queue_task(ap, atapi_packet_task, ap, 0);
+		ata_port_queue_task(ap, atapi_packet_task, qc, 0);
 		break;
 
 	default:
