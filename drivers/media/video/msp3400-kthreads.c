@@ -244,19 +244,21 @@ static void msp3400c_set_audmode(struct i2c_client *client)
 	   the hardware does not support SAP. So the rxsubchans combination
 	   of STEREO | LANG2 does not occur. */
 
-	/* switch to mono if only mono is available */
-	if (state->rxsubchans == V4L2_TUNER_SUB_MONO)
-		audmode = V4L2_TUNER_MODE_MONO;
-	/* if bilingual */
-	else if (state->rxsubchans & V4L2_TUNER_SUB_LANG2) {
-		/* and mono or stereo, then fallback to lang1 */
-		if (audmode == V4L2_TUNER_MODE_MONO ||
-		    audmode == V4L2_TUNER_MODE_STEREO)
-			audmode = V4L2_TUNER_MODE_LANG1;
+	if (state->mode != MSP_MODE_EXTERN) {
+		/* switch to mono if only mono is available */
+		if (state->rxsubchans == V4L2_TUNER_SUB_MONO)
+			audmode = V4L2_TUNER_MODE_MONO;
+		/* if bilingual */
+		else if (state->rxsubchans & V4L2_TUNER_SUB_LANG2) {
+			/* and mono or stereo, then fallback to lang1 */
+			if (audmode == V4L2_TUNER_MODE_MONO ||
+			    audmode == V4L2_TUNER_MODE_STEREO)
+				audmode = V4L2_TUNER_MODE_LANG1;
+		}
+		/* if stereo, and audmode is not mono, then switch to stereo */
+		else if (audmode != V4L2_TUNER_MODE_MONO)
+			audmode = V4L2_TUNER_MODE_STEREO;
 	}
-	/* if stereo, and audmode is not mono, then switch to stereo */
-	else if (audmode != V4L2_TUNER_MODE_MONO)
-		audmode = V4L2_TUNER_MODE_STEREO;
 
 	/* switch demodulator */
 	switch (state->mode) {
@@ -481,6 +483,7 @@ int msp3400c_thread(void *data)
 			/* no carrier scan, just unmute */
 			v4l_dbg(1, msp_debug, client, "thread: no carrier scan\n");
 			state->scan_in_progress = 0;
+			state->rxsubchans = V4L2_TUNER_SUB_STEREO;
 			msp_set_audio(client);
 			continue;
 		}
@@ -947,6 +950,14 @@ int msp34xxg_thread(void *data)
 		if (kthread_should_stop())
 			break;
 
+		if (state->mode == MSP_MODE_EXTERN) {
+			/* no carrier scan needed, just unmute */
+			v4l_dbg(1, msp_debug, client, "thread: no carrier scan\n");
+			state->scan_in_progress = 0;
+			msp_set_audio(client);
+			continue;
+		}
+
 		/* setup the chip*/
 		msp34xxg_reset(client);
 		state->std = state->radio ? 0x40 : msp_standard;
@@ -977,6 +988,11 @@ int msp34xxg_thread(void *data)
 	unmute:
 		v4l_dbg(1, msp_debug, client, "detected standard: %s (0x%04x)\n",
 			msp_standard_std_name(state->std), state->std);
+
+		if (state->std == 9) {
+			/* AM NICAM mode */
+			msp_write_dsp(client, 0x0e, 0x7c00);
+		}
 
 		/* unmute: dispatch sound to scart output, set scart volume */
 		msp_set_audio(client);

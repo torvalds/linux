@@ -674,22 +674,31 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		int sc1_out = rt->output & 0xf;
 		int sc2_out = (rt->output >> 4) & 0xf;
 		u16 val, reg;
+		int i;
+		int extern_input = 1;
 
 		if (state->routing.input == rt->input &&
 		    state->routing.output == rt->output)
 			break;
 		state->routing = *rt;
+		/* check if the tuner input is used */
+		for (i = 0; i < 5; i++) {
+			if (((rt->input >> (4 + i * 4)) & 0xf) == 0)
+				extern_input = 0;
+		}
+		if (extern_input)
+			state->mode = MSP_MODE_EXTERN;
+		else
+			state->mode = MSP_MODE_AM_DETECT;
 		msp_set_scart(client, sc_in, 0);
 		msp_set_scart(client, sc1_out, 1);
 		msp_set_scart(client, sc2_out, 2);
 		msp_set_audmode(client);
 		reg = (state->opmode == OPMODE_AUTOSELECT) ? 0x30 : 0xbb;
 		val = msp_read_dem(client, reg);
-		if (tuner != ((val >> 8) & 1)) {
-			msp_write_dem(client, reg, (val & ~0x100) | (tuner << 8));
-			/* wake thread when a new tuner input is chosen */
-			msp_wake_thread(client);
-		}
+		msp_write_dem(client, reg, (val & ~0x100) | (tuner << 8));
+		/* wake thread when a new input is chosen */
+		msp_wake_thread(client);
 		break;
 	}
 
@@ -794,7 +803,9 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		case MSP_MODE_EXTERN: p = "External input"; break;
 		default: p = "unknown"; break;
 		}
-		if (state->opmode == OPMODE_MANUAL) {
+		if (state->mode == MSP_MODE_EXTERN) {
+			v4l_info(client, "Mode:     %s\n", p);
+		} else if (state->opmode == OPMODE_MANUAL) {
 			v4l_info(client, "Mode:     %s (%s%s)\n", p,
 				(state->rxsubchans & V4L2_TUNER_SUB_STEREO) ? "stereo" : "mono",
 				(state->rxsubchans & V4L2_TUNER_SUB_LANG2) ? ", dual" : "");
