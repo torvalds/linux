@@ -72,10 +72,9 @@ sesInfoAlloc(void)
 	struct cifsSesInfo *ret_buf;
 
 	ret_buf =
-	    (struct cifsSesInfo *) kmalloc(sizeof (struct cifsSesInfo),
+	    (struct cifsSesInfo *) kzalloc(sizeof (struct cifsSesInfo),
 					   GFP_KERNEL);
 	if (ret_buf) {
-		memset(ret_buf, 0, sizeof (struct cifsSesInfo));
 		write_lock(&GlobalSMBSeslock);
 		atomic_inc(&sesInfoAllocCount);
 		ret_buf->status = CifsNew;
@@ -110,10 +109,9 @@ tconInfoAlloc(void)
 {
 	struct cifsTconInfo *ret_buf;
 	ret_buf =
-	    (struct cifsTconInfo *) kmalloc(sizeof (struct cifsTconInfo),
+	    (struct cifsTconInfo *) kzalloc(sizeof (struct cifsTconInfo),
 					    GFP_KERNEL);
 	if (ret_buf) {
-		memset(ret_buf, 0, sizeof (struct cifsTconInfo));
 		write_lock(&GlobalSMBSeslock);
 		atomic_inc(&tconInfoAllocCount);
 		list_add(&ret_buf->cifsConnectionList,
@@ -423,9 +421,7 @@ checkSMB(struct smb_hdr *smb, __u16 mid, int length)
 {
 	__u32 len = smb->smb_buf_length;
 	__u32 clc_len;  /* calculated length */
-	cFYI(0,
-	     ("Entering checkSMB with Length: %x, smb_buf_length: %x",
-	      length, len));
+	cFYI(0, ("checkSMB Length: 0x%x, smb_buf_length: 0x%x", length, len));
 	if (((unsigned int)length < 2 + sizeof (struct smb_hdr)) ||
 	    (len > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE - 4)) {
 		if ((unsigned int)length < 2 + sizeof (struct smb_hdr)) {
@@ -433,29 +429,36 @@ checkSMB(struct smb_hdr *smb, __u16 mid, int length)
 				sizeof (struct smb_hdr) - 1)
 			    && (smb->Status.CifsError != 0)) {
 				smb->WordCount = 0;
-				return 0;	/* some error cases do not return wct and bcc */
+				/* some error cases do not return wct and bcc */
+				return 0;
 			} else {
 				cERROR(1, ("Length less than smb header size"));
 			}
-
 		}
 		if (len > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE - 4)
-			cERROR(1,
-			       ("smb_buf_length greater than MaxBufSize"));
-		cERROR(1,
-		       ("bad smb detected. Illegal length. mid=%d",
-			smb->Mid));
+			cERROR(1, ("smb length greater than MaxBufSize, mid=%d",
+				   smb->Mid));
 		return 1;
 	}
 
 	if (checkSMBhdr(smb, mid))
 		return 1;
 	clc_len = smbCalcSize_LE(smb);
-	if ((4 + len != clc_len)
-	    || (4 + len != (unsigned int)length)) {
-		cERROR(1, ("Calculated size 0x%x vs actual length 0x%x",
-				clc_len, 4 + len));
-		cERROR(1, ("bad smb size detected for Mid=%d", smb->Mid));
+
+	if(4 + len != (unsigned int)length) {
+		cERROR(1, ("Length read does not match RFC1001 length %d",len));
+		return 1;
+	}
+
+	if (4 + len != clc_len) {
+		/* check if bcc wrapped around for large read responses */
+		if((len > 64 * 1024) && (len > clc_len)) {
+			/* check if lengths match mod 64K */
+			if(((4 + len) & 0xFFFF) == (clc_len & 0xFFFF))
+				return 0; /* bcc wrapped */			
+		}
+		cFYI(1, ("Calculated size %d vs length %d mismatch for mid %d",
+				clc_len, 4 + len, smb->Mid));
 		/* Windows XP can return a few bytes too much, presumably
 		an illegal pad, at the end of byte range lock responses 
 		so we allow for that three byte pad, as long as actual
@@ -469,8 +472,11 @@ checkSMB(struct smb_hdr *smb, __u16 mid, int length)
 		wct and bcc to minimum size and drop the t2 parms and data */
 		if((4+len > clc_len) && (len <= clc_len + 512))
 			return 0;
-		else
+		else {
+			cERROR(1, ("RFC1001 size %d bigger than SMB for Mid=%d",
+					len, smb->Mid));
 			return 1;
+		}
 	}
 	return 0;
 }

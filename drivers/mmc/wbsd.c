@@ -44,15 +44,10 @@
 #define DRIVER_NAME "wbsd"
 #define DRIVER_VERSION "1.5"
 
-#ifdef CONFIG_MMC_DEBUG
 #define DBG(x...) \
-	printk(KERN_DEBUG DRIVER_NAME ": " x)
+	pr_debug(DRIVER_NAME ": " x)
 #define DBGF(f, x...) \
-	printk(KERN_DEBUG DRIVER_NAME " [%s()]: " f, __func__ , ##x)
-#else
-#define DBG(x...)	do { } while (0)
-#define DBGF(x...)	do { } while (0)
-#endif
+	pr_debug(DRIVER_NAME " [%s()]: " f, __func__ , ##x)
 
 /*
  * Device resources

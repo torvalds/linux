@@ -240,7 +240,7 @@ cache_info(char *page)
 			}
 			p += sprintf(p,
 				     "%s Cache level %lu:\n"
-				     "\tSize           : %lu bytes\n"
+				     "\tSize           : %u bytes\n"
 				     "\tAttributes     : ",
 				     cache_types[j+cci.pcci_unified], i+1,
 				     cci.pcci_cache_size);
@@ -648,9 +648,9 @@ frequency_info(char *page)
 	if (ia64_pal_freq_ratios(&proc, &bus, &itc) != 0) return 0;
 
 	p += sprintf(p,
-		     "Processor/Clock ratio   : %ld/%ld\n"
-		     "Bus/Clock ratio         : %ld/%ld\n"
-		     "ITC/Clock ratio         : %ld/%ld\n",
+		     "Processor/Clock ratio   : %d/%d\n"
+		     "Bus/Clock ratio         : %d/%d\n"
+		     "ITC/Clock ratio         : %d/%d\n",
 		     proc.num, proc.den, bus.num, bus.den, itc.num, itc.den);
 
 	return p - page;

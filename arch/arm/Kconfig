@@ -77,6 +77,14 @@ config FIQ
 config ARCH_MTD_XIP
 	bool
 
+config VECTORS_BASE
+	hex
+	default 0xffff0000 if MMU
+	default DRAM_BASE if REMAP_VECTORS_TO_RAM
+	default 0x00000000
+	help
+	  The base address of exception vectors.
+
 source "init/Kconfig"
 
 menu "System Type"
