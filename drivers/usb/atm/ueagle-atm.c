@@ -1673,7 +1673,7 @@ static int uea_bind(struct usbatm_data *usbatm, struct usb_interface *intf,
 
 	sc = kzalloc(sizeof(struct uea_softc), GFP_KERNEL);
 	if (!sc) {
-		uea_err(INS_TO_USBDEV(sc), "uea_init: not enough memory !\n");
+		uea_err(usb, "uea_init: not enough memory !\n");
 		return -ENOMEM;
 	}
 
