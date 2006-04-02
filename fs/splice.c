@@ -52,6 +52,15 @@ static int page_cache_pipe_buf_steal(struct pipe_inode_info *info,
 	WARN_ON(!PageLocked(page));
 	WARN_ON(!PageUptodate(page));
 
+	/*
+	 * At least for ext2 with nobh option, we need to wait on writeback
+	 * completing on this page, since we'll remove it from the pagecache.
+	 * Otherwise truncate wont wait on the page, allowing the disk
+	 * blocks to be reused by someone else before we actually wrote our
+	 * data to them. fs corruption ensues.
+	 */
+	wait_on_page_writeback(page);
+
 	if (PagePrivate(page))
 		try_to_release_page(page, mapping_gfp_mask(mapping));
 
