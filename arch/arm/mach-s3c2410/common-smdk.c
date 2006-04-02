@@ -42,10 +42,10 @@ void __init smdk_machine_init(void)
 	s3c2410_gpio_cfgpin(S3C2410_GPF6, S3C2410_GPF6_OUTP);
 	s3c2410_gpio_cfgpin(S3C2410_GPF7, S3C2410_GPF7_OUTP);
 
-	s3c2410_gpio_setpin(S3C2410_GPF4, 0);
-	s3c2410_gpio_setpin(S3C2410_GPF5, 0);
-	s3c2410_gpio_setpin(S3C2410_GPF6, 0);
-	s3c2410_gpio_setpin(S3C2410_GPF7, 0);
+	s3c2410_gpio_setpin(S3C2410_GPF4, 1);
+	s3c2410_gpio_setpin(S3C2410_GPF5, 1);
+	s3c2410_gpio_setpin(S3C2410_GPF6, 1);
+	s3c2410_gpio_setpin(S3C2410_GPF7, 1);
 
 	s3c2410_pm_init();
 }
