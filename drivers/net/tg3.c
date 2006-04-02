@@ -2959,9 +2959,7 @@ static void tg3_tx(struct tg3 *tp)
 		struct sk_buff *skb = ri->skb;
 		int i;
 
-		if (unlikely(skb == NULL))
-			BUG();
-
+		BUG_ON(skb == NULL);
 		pci_unmap_single(tp->pdev,
 				 pci_unmap_addr(ri, mapping),
 				 skb_headlen(skb),
@@ -2972,12 +2970,10 @@ static void tg3_tx(struct tg3 *tp)
 		sw_idx = NEXT_TX(sw_idx);
 
 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-			if (unlikely(sw_idx == hw_idx))
-				BUG();
+			BUG_ON(sw_idx == hw_idx);
 
 			ri = &tp->tx_buffers[sw_idx];
-			if (unlikely(ri->skb != NULL))
-				BUG();
+			BUG_ON(ri->skb != NULL);
 
 			pci_unmap_page(tp->pdev,
 				       pci_unmap_addr(ri, mapping),
@@ -4928,9 +4924,8 @@ static int tg3_halt_cpu(struct tg3 *tp, u32 offset)
 {
 	int i;
 
-	if (offset == TX_CPU_BASE &&
-	    (tp->tg3_flags2 & TG3_FLG2_5705_PLUS))
-		BUG();
+	BUG_ON(offset == TX_CPU_BASE &&
+	    (tp->tg3_flags2 & TG3_FLG2_5705_PLUS));
 
 	if (offset == RX_CPU_BASE) {
 		for (i = 0; i < 10000; i++) {

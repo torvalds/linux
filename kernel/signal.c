@@ -769,8 +769,7 @@ specific_send_sig_info(int sig, struct siginfo *info, struct task_struct *t)
 {
 	int ret = 0;
 
-	if (!irqs_disabled())
-		BUG();
+	BUG_ON(!irqs_disabled());
 	assert_spin_locked(&t->sighand->siglock);
 
 	/* Short-circuit ignored signals.  */
@@ -1384,8 +1383,7 @@ send_group_sigqueue(int sig, struct sigqueue *q, struct task_struct *p)
 		 * the overrun count.  Other uses should not try to
 		 * send the signal multiple times.
 		 */
-		if (q->info.si_code != SI_TIMER)
-			BUG();
+		BUG_ON(q->info.si_code != SI_TIMER);
 		q->info.si_overrun++;
 		goto out;
 	} 

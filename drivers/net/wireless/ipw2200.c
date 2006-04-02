@@ -5573,8 +5573,7 @@ static void ipw_adhoc_create(struct ipw_priv *priv,
 	case IEEE80211_52GHZ_BAND:
 		network->mode = IEEE_A;
 		i = ieee80211_channel_to_index(priv->ieee, priv->channel);
-		if (i == -1)
-			BUG();
+		BUG_ON(i == -1);
 		if (geo->a[i].flags & IEEE80211_CH_PASSIVE_ONLY) {
 			IPW_WARNING("Overriding invalid channel\n");
 			priv->channel = geo->a[0].channel;
@@ -5587,8 +5586,7 @@ static void ipw_adhoc_create(struct ipw_priv *priv,
 		else
 			network->mode = IEEE_B;
 		i = ieee80211_channel_to_index(priv->ieee, priv->channel);
-		if (i == -1)
-			BUG();
+		BUG_ON(i == -1);
 		if (geo->bg[i].flags & IEEE80211_CH_PASSIVE_ONLY) {
 			IPW_WARNING("Overriding invalid channel\n");
 			priv->channel = geo->bg[0].channel;
@@ -6715,8 +6713,7 @@ static int ipw_qos_association(struct ipw_priv *priv,
 
 	switch (priv->ieee->iw_mode) {
 	case IW_MODE_ADHOC:
-		if (!(network->capability & WLAN_CAPABILITY_IBSS))
-			BUG();
+		BUG_ON(!(network->capability & WLAN_CAPABILITY_IBSS));
 
 		qos_data = &ibss_data;
 		break;

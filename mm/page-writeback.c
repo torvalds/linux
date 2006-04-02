@@ -258,7 +258,7 @@ static void balance_dirty_pages(struct address_space *mapping)
 /**
  * balance_dirty_pages_ratelimited_nr - balance dirty memory state
  * @mapping: address_space which was dirtied
- * @nr_pages: number of pages which the caller has just dirtied
+ * @nr_pages_dirtied: number of pages which the caller has just dirtied
  *
  * Processes which are dirtying memory should call in here once for each page
  * which was newly dirtied.  The function will periodically check the system's
