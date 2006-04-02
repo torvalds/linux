@@ -229,7 +229,7 @@ static irqreturn_t vsc_sata_interrupt (int irq, void *dev_instance,
 				handled++;
 			}
 
-			if (ap && !(ap->flags & ATA_FLAG_PORT_DISABLED)) {
+			if (ap && !(ap->flags & ATA_FLAG_DISABLED)) {
 				struct ata_queued_cmd *qc;
 
 				qc = ata_qc_from_tag(ap, ap->active_tag);

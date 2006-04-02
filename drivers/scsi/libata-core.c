@@ -65,7 +65,6 @@ static unsigned int ata_dev_init_params(struct ata_port *ap,
 					struct ata_device *dev,
 					u16 heads,
 					u16 sectors);
-static int ata_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev);
 static unsigned int ata_dev_set_xfermode(struct ata_port *ap,
 					 struct ata_device *dev);
 static void ata_dev_xfermask(struct ata_port *ap, struct ata_device *dev);
@@ -409,7 +408,7 @@ static const char *sata_spd_string(unsigned int spd)
 	return spd_str[spd - 1];
 }
 
-static void ata_dev_disable(struct ata_port *ap, struct ata_device *dev)
+void ata_dev_disable(struct ata_port *ap, struct ata_device *dev)
 {
 	if (ata_dev_enabled(dev)) {
 		printk(KERN_WARNING "ata%u: dev %u disabled\n",
@@ -961,6 +960,7 @@ void ata_qc_complete_internal(struct ata_queued_cmd *qc)
  *	@ap: Port to which the command is sent
  *	@dev: Device to which the command is sent
  *	@tf: Taskfile registers for the command and the result
+ *	@cdb: CDB for packet command
  *	@dma_dir: Data tranfer direction of the command
  *	@buf: Data buffer of the command
  *	@buflen: Length of data buffer
@@ -975,10 +975,9 @@ void ata_qc_complete_internal(struct ata_queued_cmd *qc)
  *	None.  Should be called with kernel context, might sleep.
  */
 
-static unsigned
-ata_exec_internal(struct ata_port *ap, struct ata_device *dev,
-		  struct ata_taskfile *tf,
-		  int dma_dir, void *buf, unsigned int buflen)
+unsigned ata_exec_internal(struct ata_port *ap, struct ata_device *dev,
+			   struct ata_taskfile *tf, const u8 *cdb,
+			   int dma_dir, void *buf, unsigned int buflen)
 {
 	u8 command = tf->command;
 	struct ata_queued_cmd *qc;
@@ -992,6 +991,8 @@ ata_exec_internal(struct ata_port *ap, struct ata_device *dev,
 	BUG_ON(qc == NULL);
 
 	qc->tf = *tf;
+	if (cdb)
+		memcpy(qc->cdb, cdb, ATAPI_CDB_LEN);
 	qc->dma_dir = dma_dir;
 	if (dma_dir != DMA_NONE) {
 		ata_sg_init_one(qc, buf, buflen);
@@ -1042,7 +1043,7 @@ ata_exec_internal(struct ata_port *ap, struct ata_device *dev,
 	 *
 	 * Kill the following code as soon as those drivers are fixed.
 	 */
-	if (ap->flags & ATA_FLAG_PORT_DISABLED) {
+	if (ap->flags & ATA_FLAG_DISABLED) {
 		err_mask |= AC_ERR_SYSTEM;
 		ata_port_probe(ap);
 	}
@@ -1141,7 +1142,7 @@ static int ata_dev_read_id(struct ata_port *ap, struct ata_device *dev,
 
 	tf.protocol = ATA_PROT_PIO;
 
-	err_mask = ata_exec_internal(ap, dev, &tf, DMA_FROM_DEVICE,
+	err_mask = ata_exec_internal(ap, dev, &tf, NULL, DMA_FROM_DEVICE,
 				     id, sizeof(id[0]) * ATA_ID_WORDS);
 	if (err_mask) {
 		rc = -EIO;
@@ -1238,7 +1239,7 @@ static int ata_dev_configure(struct ata_port *ap, struct ata_device *dev,
 		       id[84], id[85], id[86], id[87], id[88]);
 
 	/* initialize to-be-configured parameters */
-	dev->flags = 0;
+	dev->flags &= ~ATA_DFLAG_CFG_MASK;
 	dev->max_sectors = 0;
 	dev->cdb_len = 0;
 	dev->n_sectors = 0;
@@ -1381,10 +1382,17 @@ err_out_nosup:
 static int ata_bus_probe(struct ata_port *ap)
 {
 	unsigned int classes[ATA_MAX_DEVICES];
-	int i, rc, found = 0;
+	int tries[ATA_MAX_DEVICES];
+	int i, rc, down_xfermask;
 	struct ata_device *dev;
 
 	ata_port_probe(ap);
+
+	for (i = 0; i < ATA_MAX_DEVICES; i++)
+		tries[i] = ATA_PROBE_MAX_TRIES;
+
+ retry:
+	down_xfermask = 0;
 
 	/* reset and determine device classes */
 	for (i = 0; i < ATA_MAX_DEVICES; i++)
@@ -1399,7 +1407,7 @@ static int ata_bus_probe(struct ata_port *ap)
 	} else {
 		ap->ops->phy_reset(ap);
 
-		if (!(ap->flags & ATA_FLAG_PORT_DISABLED))
+		if (!(ap->flags & ATA_FLAG_DISABLED))
 			for (i = 0; i < ATA_MAX_DEVICES; i++)
 				classes[i] = ap->device[i].class;
 
@@ -1415,21 +1423,23 @@ static int ata_bus_probe(struct ata_port *ap)
 		dev = &ap->device[i];
 		dev->class = classes[i];
 
+		if (!tries[i]) {
+			ata_down_xfermask_limit(ap, dev, 1);
+			ata_dev_disable(ap, dev);
+		}
+
 		if (!ata_dev_enabled(dev))
 			continue;
 
-		WARN_ON(dev->id != NULL);
-		if (ata_dev_read_id(ap, dev, &dev->class, 1, &dev->id)) {
-			dev->class = ATA_DEV_NONE;
-			continue;
-		}
+		kfree(dev->id);
+		dev->id = NULL;
+		rc = ata_dev_read_id(ap, dev, &dev->class, 1, &dev->id);
+		if (rc)
+			goto fail;
 
-		if (ata_dev_configure(ap, dev, 1)) {
-			ata_dev_disable(ap, dev);
-			continue;
-		}
-
-		found = 1;
+		rc = ata_dev_configure(ap, dev, 1);
+		if (rc)
+			goto fail;
 	}
 
 	/* configure transfer mode */
@@ -1438,12 +1448,18 @@ static int ata_bus_probe(struct ata_port *ap)
 		 * return error code and failing device on failure as
 		 * ata_set_mode() does.
 		 */
-		if (found)
-			ap->ops->set_mode(ap);
+		for (i = 0; i < ATA_MAX_DEVICES; i++)
+			if (ata_dev_enabled(&ap->device[i])) {
+				ap->ops->set_mode(ap);
+				break;
+			}
 		rc = 0;
 	} else {
-		while (ata_set_mode(ap, &dev))
-			ata_dev_disable(ap, dev);
+		rc = ata_set_mode(ap, &dev);
+		if (rc) {
+			down_xfermask = 1;
+			goto fail;
+		}
 	}
 
 	for (i = 0; i < ATA_MAX_DEVICES; i++)
@@ -1454,6 +1470,24 @@ static int ata_bus_probe(struct ata_port *ap)
 	ata_port_disable(ap);
 	ap->ops->port_disable(ap);
 	return -ENODEV;
+
+ fail:
+	switch (rc) {
+	case -EINVAL:
+	case -ENODEV:
+		tries[dev->devno] = 0;
+		break;
+	case -EIO:
+		ata_down_sata_spd_limit(ap);
+		/* fall through */
+	default:
+		tries[dev->devno]--;
+		if (down_xfermask &&
+		    ata_down_xfermask_limit(ap, dev, tries[dev->devno] == 1))
+			tries[dev->devno] = 0;
+	}
+
+	goto retry;
 }
 
 /**
@@ -1469,7 +1503,7 @@ static int ata_bus_probe(struct ata_port *ap)
 
 void ata_port_probe(struct ata_port *ap)
 {
-	ap->flags &= ~ATA_FLAG_PORT_DISABLED;
+	ap->flags &= ~ATA_FLAG_DISABLED;
 }
 
 /**
@@ -1543,7 +1577,7 @@ void __sata_phy_reset(struct ata_port *ap)
 	else
 		ata_port_disable(ap);
 
-	if (ap->flags & ATA_FLAG_PORT_DISABLED)
+	if (ap->flags & ATA_FLAG_DISABLED)
 		return;
 
 	if (ata_busy_sleep(ap, ATA_TMOUT_BOOT_QUICK, ATA_TMOUT_BOOT)) {
@@ -1568,7 +1602,7 @@ void __sata_phy_reset(struct ata_port *ap)
 void sata_phy_reset(struct ata_port *ap)
 {
 	__sata_phy_reset(ap);
-	if (ap->flags & ATA_FLAG_PORT_DISABLED)
+	if (ap->flags & ATA_FLAG_DISABLED)
 		return;
 	ata_bus_reset(ap);
 }
@@ -1607,7 +1641,121 @@ void ata_port_disable(struct ata_port *ap)
 {
 	ap->device[0].class = ATA_DEV_NONE;
 	ap->device[1].class = ATA_DEV_NONE;
-	ap->flags |= ATA_FLAG_PORT_DISABLED;
+	ap->flags |= ATA_FLAG_DISABLED;
+}
+
+/**
+ *	ata_down_sata_spd_limit - adjust SATA spd limit downward
+ *	@ap: Port to adjust SATA spd limit for
+ *
+ *	Adjust SATA spd limit of @ap downward.  Note that this
+ *	function only adjusts the limit.  The change must be applied
+ *	using ata_set_sata_spd().
+ *
+ *	LOCKING:
+ *	Inherited from caller.
+ *
+ *	RETURNS:
+ *	0 on success, negative errno on failure
+ */
+int ata_down_sata_spd_limit(struct ata_port *ap)
+{
+	u32 spd, mask;
+	int highbit;
+
+	if (ap->cbl != ATA_CBL_SATA || !ap->ops->scr_read)
+		return -EOPNOTSUPP;
+
+	mask = ap->sata_spd_limit;
+	if (mask <= 1)
+		return -EINVAL;
+	highbit = fls(mask) - 1;
+	mask &= ~(1 << highbit);
+
+	spd = (scr_read(ap, SCR_STATUS) >> 4) & 0xf;
+	if (spd <= 1)
+		return -EINVAL;
+	spd--;
+	mask &= (1 << spd) - 1;
+	if (!mask)
+		return -EINVAL;
+
+	ap->sata_spd_limit = mask;
+
+	printk(KERN_WARNING "ata%u: limiting SATA link speed to %s\n",
+	       ap->id, sata_spd_string(fls(mask)));
+
+	return 0;
+}
+
+static int __ata_set_sata_spd_needed(struct ata_port *ap, u32 *scontrol)
+{
+	u32 spd, limit;
+
+	if (ap->sata_spd_limit == UINT_MAX)
+		limit = 0;
+	else
+		limit = fls(ap->sata_spd_limit);
+
+	spd = (*scontrol >> 4) & 0xf;
+	*scontrol = (*scontrol & ~0xf0) | ((limit & 0xf) << 4);
+
+	return spd != limit;
+}
+
+/**
+ *	ata_set_sata_spd_needed - is SATA spd configuration needed
+ *	@ap: Port in question
+ *
+ *	Test whether the spd limit in SControl matches
+ *	@ap->sata_spd_limit.  This function is used to determine
+ *	whether hardreset is necessary to apply SATA spd
+ *	configuration.
+ *
+ *	LOCKING:
+ *	Inherited from caller.
+ *
+ *	RETURNS:
+ *	1 if SATA spd configuration is needed, 0 otherwise.
+ */
+int ata_set_sata_spd_needed(struct ata_port *ap)
+{
+	u32 scontrol;
+
+	if (ap->cbl != ATA_CBL_SATA || !ap->ops->scr_read)
+		return 0;
+
+	scontrol = scr_read(ap, SCR_CONTROL);
+
+	return __ata_set_sata_spd_needed(ap, &scontrol);
+}
+
+/**
+ *	ata_set_sata_spd - set SATA spd according to spd limit
+ *	@ap: Port to set SATA spd for
+ *
+ *	Set SATA spd of @ap according to sata_spd_limit.
+ *
+ *	LOCKING:
+ *	Inherited from caller.
+ *
+ *	RETURNS:
+ *	0 if spd doesn't need to be changed, 1 if spd has been
+ *	changed.  -EOPNOTSUPP if SCR registers are inaccessible.
+ */
+static int ata_set_sata_spd(struct ata_port *ap)
+{
+	u32 scontrol;
+
+	if (ap->cbl != ATA_CBL_SATA || !ap->ops->scr_read)
+		return -EOPNOTSUPP;
+
+	scontrol = scr_read(ap, SCR_CONTROL);
+	if (!__ata_set_sata_spd_needed(ap, &scontrol))
+		return 0;
+
+	scr_write(ap, SCR_CONTROL, scontrol);
+	return 1;
 }
 
 /*
@@ -1758,11 +1906,62 @@ int ata_timing_compute(struct ata_device *adev, unsigned short speed,
 	return 0;
 }
 
+/**
+ *	ata_down_xfermask_limit - adjust dev xfer masks downward
+ *	@ap: Port associated with device @dev
+ *	@dev: Device to adjust xfer masks
+ *	@force_pio0: Force PIO0
+ *
+ *	Adjust xfer masks of @dev downward.  Note that this function
+ *	does not apply the change.  Invoking ata_set_mode() afterwards
+ *	will apply the limit.
+ *
+ *	LOCKING:
+ *	Inherited from caller.
+ *
+ *	RETURNS:
+ *	0 on success, negative errno on failure
+ */
+int ata_down_xfermask_limit(struct ata_port *ap, struct ata_device *dev,
+			    int force_pio0)
+{
+	unsigned long xfer_mask;
+	int highbit;
+
+	xfer_mask = ata_pack_xfermask(dev->pio_mask, dev->mwdma_mask,
+				      dev->udma_mask);
+
+	if (!xfer_mask)
+		goto fail;
+	/* don't gear down to MWDMA from UDMA, go directly to PIO */
+	if (xfer_mask & ATA_MASK_UDMA)
+		xfer_mask &= ~ATA_MASK_MWDMA;
+
+	highbit = fls(xfer_mask) - 1;
+	xfer_mask &= ~(1 << highbit);
+	if (force_pio0)
+		xfer_mask &= 1 << ATA_SHIFT_PIO;
+	if (!xfer_mask)
+		goto fail;
+
+	ata_unpack_xfermask(xfer_mask, &dev->pio_mask, &dev->mwdma_mask,
+			    &dev->udma_mask);
+
+	printk(KERN_WARNING "ata%u: dev %u limiting speed to %s\n",
+	       ap->id, dev->devno, ata_mode_string(xfer_mask));
+
+	return 0;
+
+ fail:
+	return -EINVAL;
+}
+
 static int ata_dev_set_mode(struct ata_port *ap, struct ata_device *dev)
 {
 	unsigned int err_mask;
 	int rc;
 
+	dev->flags &= ~ATA_DFLAG_PIO;
 	if (dev->xfer_shift == ATA_SHIFT_PIO)
 		dev->flags |= ATA_DFLAG_PIO;
 
@@ -1775,12 +1974,8 @@ static int ata_dev_set_mode(struct ata_port *ap, struct ata_device *dev)
 	}
 
 	rc = ata_dev_revalidate(ap, dev, 0);
-	if (rc) {
-		printk(KERN_ERR
-		       "ata%u: failed to revalidate after set xfermode\n",
-		       ap->id);
+	if (rc)
 		return rc;
-	}
 
 	DPRINTK("xfer_shift=%u, xfer_mode=0x%x\n",
 		dev->xfer_shift, (int)dev->xfer_mode);
@@ -1806,7 +2001,7 @@ static int ata_dev_set_mode(struct ata_port *ap, struct ata_device *dev)
  *	RETURNS:
  *	0 on success, negative errno otherwise
  */
-static int ata_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev)
+int ata_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev)
 {
 	struct ata_device *dev;
 	int i, rc = 0, used_dma = 0, found = 0;
@@ -2069,7 +2264,7 @@ static unsigned int ata_bus_softreset(struct ata_port *ap,
  *	Obtains host_set lock.
  *
  *	SIDE EFFECTS:
- *	Sets ATA_FLAG_PORT_DISABLED if bus reset fails.
+ *	Sets ATA_FLAG_DISABLED if bus reset fails.
  */
 
 void ata_bus_reset(struct ata_port *ap)
@@ -2179,7 +2374,14 @@ static int sata_phy_resume(struct ata_port *ap)
 void ata_std_probeinit(struct ata_port *ap)
 {
 	if ((ap->flags & ATA_FLAG_SATA) && ap->ops->scr_read) {
+		u32 spd;
+
 		sata_phy_resume(ap);
+
+		spd = (scr_read(ap, SCR_CONTROL) & 0xf0) >> 4;
+		if (spd)
+			ap->sata_spd_limit &= (1 << spd) - 1;
+
 		if (sata_dev_present(ap))
 			ata_busy_sleep(ap, ATA_TMOUT_BOOT_QUICK, ATA_TMOUT_BOOT);
 	}
@@ -2267,18 +2469,30 @@ int sata_std_hardreset(struct ata_port *ap, int verbose, unsigned int *class)
 
 	DPRINTK("ENTER\n");
 
-	/* Issue phy wake/reset */
+	if (ata_set_sata_spd_needed(ap)) {
+		/* SATA spec says nothing about how to reconfigure
+		 * spd.  To be on the safe side, turn off phy during
+		 * reconfiguration.  This works for at least ICH7 AHCI
+		 * and Sil3124.
+		 */
+		scontrol = scr_read(ap, SCR_CONTROL);
+		scontrol = (scontrol & 0x0f0) | 0x302;
+		scr_write_flush(ap, SCR_CONTROL, scontrol);
+
+		ata_set_sata_spd(ap);
+	}
+
+	/* issue phy wake/reset */
 	scontrol = scr_read(ap, SCR_CONTROL);
 	scontrol = (scontrol & 0x0f0) | 0x301;
 	scr_write_flush(ap, SCR_CONTROL, scontrol);
 
-	/*
-	 * Couldn't find anything in SATA I/II specs, but AHCI-1.1
+	/* Couldn't find anything in SATA I/II specs, but AHCI-1.1
 	 * 10.4.2 says at least 1 ms.
 	 */
 	msleep(1);
 
-	/* Bring phy back */
+	/* bring phy back */
 	sata_phy_resume(ap);
 
 	/* TODO: phy layer with polling, timeouts, etc. */
@@ -2385,9 +2599,9 @@ int ata_std_probe_reset(struct ata_port *ap, unsigned int *classes)
 				     ata_std_postreset, classes);
 }
 
-static int ata_do_reset(struct ata_port *ap,
-			ata_reset_fn_t reset, ata_postreset_fn_t postreset,
-			int verbose, unsigned int *classes)
+int ata_do_reset(struct ata_port *ap,
+		 ata_reset_fn_t reset, ata_postreset_fn_t postreset,
+		 int verbose, unsigned int *classes)
 {
 	int i, rc;
 
@@ -2458,21 +2672,42 @@ int ata_drive_probe_reset(struct ata_port *ap, ata_probeinit_fn_t probeinit,
 	if (probeinit)
 		probeinit(ap);
 
-	if (softreset) {
+	if (softreset && !ata_set_sata_spd_needed(ap)) {
 		rc = ata_do_reset(ap, softreset, postreset, 0, classes);
 		if (rc == 0 && classes[0] != ATA_DEV_UNKNOWN)
 			goto done;
+		printk(KERN_INFO "ata%u: softreset failed, will try "
+		       "hardreset in 5 secs\n", ap->id);
+		ssleep(5);
 	}
 
 	if (!hardreset)
 		goto done;
 
-	rc = ata_do_reset(ap, hardreset, postreset, 0, classes);
-	if (rc || classes[0] != ATA_DEV_UNKNOWN)
-		goto done;
+	while (1) {
+		rc = ata_do_reset(ap, hardreset, postreset, 0, classes);
+		if (rc == 0) {
+			if (classes[0] != ATA_DEV_UNKNOWN)
+				goto done;
+			break;
+		}
 
-	if (softreset)
+		if (ata_down_sata_spd_limit(ap))
+			goto done;
+
+		printk(KERN_INFO "ata%u: hardreset failed, will retry "
+		       "in 5 secs\n", ap->id);
+		ssleep(5);
+	}
+
+	if (softreset) {
+		printk(KERN_INFO "ata%u: hardreset succeeded without "
+		       "classification, will retry softreset in 5 secs\n",
+		       ap->id);
+		ssleep(5);
+
 		rc = ata_do_reset(ap, softreset, postreset, 0, classes);
+	}
 
  done:
 	if (rc == 0 && classes[0] == ATA_DEV_UNKNOWN)
@@ -2560,15 +2795,14 @@ static int ata_dev_same_device(struct ata_port *ap, struct ata_device *dev,
 int ata_dev_revalidate(struct ata_port *ap, struct ata_device *dev,
 		       int post_reset)
 {
-	unsigned int class;
-	u16 *id;
+	unsigned int class = dev->class;
+	u16 *id = NULL;
 	int rc;
 
-	if (!ata_dev_enabled(dev))
-		return -ENODEV;
-
-	class = dev->class;
-	id = NULL;
+	if (!ata_dev_enabled(dev)) {
+		rc = -ENODEV;
+		goto fail;
+	}
 
 	/* allocate & read ID data */
 	rc = ata_dev_read_id(ap, dev, &class, post_reset, &id);
@@ -2585,7 +2819,9 @@ int ata_dev_revalidate(struct ata_port *ap, struct ata_device *dev,
 	dev->id = id;
 
 	/* configure device according to the new ID */
-	return ata_dev_configure(ap, dev, 0);
+	rc = ata_dev_configure(ap, dev, 0);
+	if (rc == 0)
+		return 0;
 
  fail:
 	printk(KERN_ERR "ata%u: dev %u revalidation failed (errno=%d)\n",
@@ -2687,23 +2923,34 @@ static void ata_dev_xfermask(struct ata_port *ap, struct ata_device *dev)
 	unsigned long xfer_mask;
 	int i;
 
-	xfer_mask = ata_pack_xfermask(ap->pio_mask, ap->mwdma_mask,
-				      ap->udma_mask);
+	xfer_mask = ata_pack_xfermask(ap->pio_mask,
+				      ap->mwdma_mask, ap->udma_mask);
+
+	/* Apply cable rule here.  Don't apply it early because when
+	 * we handle hot plug the cable type can itself change.
+	 */
+	if (ap->cbl == ATA_CBL_PATA40)
+		xfer_mask &= ~(0xF8 << ATA_SHIFT_UDMA);
 
 	/* FIXME: Use port-wide xfermask for now */
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
 		struct ata_device *d = &ap->device[i];
-		if (!ata_dev_enabled(d))
+
+		if (ata_dev_absent(d))
 			continue;
-		xfer_mask &= ata_pack_xfermask(d->pio_mask, d->mwdma_mask,
-					       d->udma_mask);
+
+		if (ata_dev_disabled(d)) {
+			/* to avoid violating device selection timing */
+			xfer_mask &= ata_pack_xfermask(d->pio_mask,
+						       UINT_MAX, UINT_MAX);
+			continue;
+		}
+
+		xfer_mask &= ata_pack_xfermask(d->pio_mask,
+					       d->mwdma_mask, d->udma_mask);
 		xfer_mask &= ata_id_xfermask(d->id);
 		if (ata_dma_blacklisted(d))
 			xfer_mask &= ~(ATA_MASK_MWDMA | ATA_MASK_UDMA);
-		/* Apply cable rule here. Don't apply it early because when
-		   we handle hot plug the cable type can itself change */
-		if (ap->cbl == ATA_CBL_PATA40)
-			xfer_mask &= ~(0xF8 << ATA_SHIFT_UDMA);
 	}
 
 	if (ata_dma_blacklisted(dev))
@@ -2714,11 +2961,12 @@ static void ata_dev_xfermask(struct ata_port *ap, struct ata_device *dev)
 		if (hs->simplex_claimed)
 			xfer_mask &= ~(ATA_MASK_MWDMA | ATA_MASK_UDMA);
 	}
+
 	if (ap->ops->mode_filter)
 		xfer_mask = ap->ops->mode_filter(ap, dev, xfer_mask);
 
-	ata_unpack_xfermask(xfer_mask, &dev->pio_mask, &dev->mwdma_mask,
-			    &dev->udma_mask);
+	ata_unpack_xfermask(xfer_mask, &dev->pio_mask,
+			    &dev->mwdma_mask, &dev->udma_mask);
 }
 
 /**
@@ -2752,7 +3000,7 @@ static unsigned int ata_dev_set_xfermode(struct ata_port *ap,
 	tf.protocol = ATA_PROT_NODATA;
 	tf.nsect = dev->xfer_mode;
 
-	err_mask = ata_exec_internal(ap, dev, &tf, DMA_NONE, NULL, 0);
+	err_mask = ata_exec_internal(ap, dev, &tf, NULL, DMA_NONE, NULL, 0);
 
 	DPRINTK("EXIT, err_mask=%x\n", err_mask);
 	return err_mask;
@@ -2792,7 +3040,7 @@ static unsigned int ata_dev_init_params(struct ata_port *ap,
 	tf.nsect = sectors;
 	tf.device |= (heads - 1) & 0x0f; /* max head = num. of heads - 1 */
 
-	err_mask = ata_exec_internal(ap, dev, &tf, DMA_NONE, NULL, 0);
+	err_mask = ata_exec_internal(ap, dev, &tf, NULL, DMA_NONE, NULL, 0);
 
 	DPRINTK("EXIT, err_mask=%x\n", err_mask);
 	return err_mask;
@@ -3838,8 +4086,8 @@ fsm_start:
 
 static void ata_pio_task(void *_data)
 {
-	struct ata_port *ap = _data;
-	struct ata_queued_cmd *qc;
+	struct ata_queued_cmd *qc = _data;
+	struct ata_port *ap = qc->ap;
 	u8 status;
 	int poll_next;
 
@@ -4392,7 +4640,7 @@ irqreturn_t ata_interrupt (int irq, void *dev_instance, struct pt_regs *regs)
 
 		ap = host_set->ports[i];
 		if (ap &&
-		    !(ap->flags & ATA_FLAG_PORT_DISABLED)) {
+		    !(ap->flags & ATA_FLAG_DISABLED)) {
 			struct ata_queued_cmd *qc;
 
 			qc = ata_qc_from_tag(ap, ap->active_tag);
@@ -4424,7 +4672,7 @@ static int ata_do_simple_cmd(struct ata_port *ap, struct ata_device *dev,
 	tf.flags |= ATA_TFLAG_DEVICE;
 	tf.protocol = ATA_PROT_NODATA;
 
-	err = ata_exec_internal(ap, dev, &tf, DMA_NONE, NULL, 0);
+	err = ata_exec_internal(ap, dev, &tf, NULL, DMA_NONE, NULL, 0);
 	if (err)
 		printk(KERN_ERR "%s: ata command failed: %d\n",
 				__FUNCTION__, err);
@@ -4613,7 +4861,7 @@ static void ata_host_init(struct ata_port *ap, struct Scsi_Host *host,
 	host->unique_id = ata_unique_id++;
 	host->max_cmd_len = 12;
 
-	ap->flags = ATA_FLAG_PORT_DISABLED;
+	ap->flags = ATA_FLAG_DISABLED;
 	ap->id = host->unique_id;
 	ap->host = host;
 	ap->ctl = ATA_DEVCTL_OBS;
@@ -4628,6 +4876,7 @@ static void ata_host_init(struct ata_port *ap, struct Scsi_Host *host,
 	ap->flags |= ent->host_flags;
 	ap->ops = ent->port_ops;
 	ap->cbl = ATA_CBL_NONE;
+	ap->sata_spd_limit = UINT_MAX;
 	ap->active_tag = ATA_TAG_POISON;
 	ap->last_ctl = 0xFF;
 
@@ -5083,7 +5332,6 @@ EXPORT_SYMBOL_GPL(ata_sg_init);
 EXPORT_SYMBOL_GPL(ata_sg_init_one);
 EXPORT_SYMBOL_GPL(__ata_qc_complete);
 EXPORT_SYMBOL_GPL(ata_qc_issue_prot);
-EXPORT_SYMBOL_GPL(ata_eng_timeout);
 EXPORT_SYMBOL_GPL(ata_tf_load);
 EXPORT_SYMBOL_GPL(ata_tf_read);
 EXPORT_SYMBOL_GPL(ata_noop_dev_select);
@@ -5123,15 +5371,12 @@ EXPORT_SYMBOL_GPL(ata_busy_sleep);
 EXPORT_SYMBOL_GPL(ata_port_queue_task);
 EXPORT_SYMBOL_GPL(ata_scsi_ioctl);
 EXPORT_SYMBOL_GPL(ata_scsi_queuecmd);
-EXPORT_SYMBOL_GPL(ata_scsi_error);
 EXPORT_SYMBOL_GPL(ata_scsi_slave_config);
 EXPORT_SYMBOL_GPL(ata_scsi_release);
 EXPORT_SYMBOL_GPL(ata_host_intr);
 EXPORT_SYMBOL_GPL(ata_id_string);
 EXPORT_SYMBOL_GPL(ata_id_c_string);
 EXPORT_SYMBOL_GPL(ata_scsi_simulate);
-EXPORT_SYMBOL_GPL(ata_eh_qc_complete);
-EXPORT_SYMBOL_GPL(ata_eh_qc_retry);
 
 EXPORT_SYMBOL_GPL(ata_pio_need_iordy);
 EXPORT_SYMBOL_GPL(ata_timing_compute);
@@ -5153,3 +5398,8 @@ EXPORT_SYMBOL_GPL(ata_device_suspend);
 EXPORT_SYMBOL_GPL(ata_device_resume);
 EXPORT_SYMBOL_GPL(ata_scsi_device_suspend);
 EXPORT_SYMBOL_GPL(ata_scsi_device_resume);
+
+EXPORT_SYMBOL_GPL(ata_scsi_error);
+EXPORT_SYMBOL_GPL(ata_eng_timeout);
+EXPORT_SYMBOL_GPL(ata_eh_qc_complete);
+EXPORT_SYMBOL_GPL(ata_eh_qc_retry);
