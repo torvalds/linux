@@ -2913,23 +2913,34 @@ static void ata_dev_xfermask(struct ata_port *ap, struct ata_device *dev)
 	unsigned long xfer_mask;
 	int i;
 
-	xfer_mask = ata_pack_xfermask(ap->pio_mask, ap->mwdma_mask,
-				      ap->udma_mask);
+	xfer_mask = ata_pack_xfermask(ap->pio_mask,
+				      ap->mwdma_mask, ap->udma_mask);
+
+	/* Apply cable rule here.  Don't apply it early because when
+	 * we handle hot plug the cable type can itself change.
+	 */
+	if (ap->cbl == ATA_CBL_PATA40)
+		xfer_mask &= ~(0xF8 << ATA_SHIFT_UDMA);
 
 	/* FIXME: Use port-wide xfermask for now */
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
 		struct ata_device *d = &ap->device[i];
-		if (!ata_dev_enabled(d))
+
+		if (ata_dev_absent(d))
 			continue;
-		xfer_mask &= ata_pack_xfermask(d->pio_mask, d->mwdma_mask,
-					       d->udma_mask);
+
+		if (ata_dev_disabled(d)) {
+			/* to avoid violating device selection timing */
+			xfer_mask &= ata_pack_xfermask(d->pio_mask,
+						       UINT_MAX, UINT_MAX);
+			continue;
+		}
+
+		xfer_mask &= ata_pack_xfermask(d->pio_mask,
+					       d->mwdma_mask, d->udma_mask);
 		xfer_mask &= ata_id_xfermask(d->id);
 		if (ata_dma_blacklisted(d))
 			xfer_mask &= ~(ATA_MASK_MWDMA | ATA_MASK_UDMA);
-		/* Apply cable rule here. Don't apply it early because when
-		   we handle hot plug the cable type can itself change */
-		if (ap->cbl == ATA_CBL_PATA40)
-			xfer_mask &= ~(0xF8 << ATA_SHIFT_UDMA);
 	}
 
 	if (ata_dma_blacklisted(dev))
@@ -2940,11 +2951,12 @@ static void ata_dev_xfermask(struct ata_port *ap, struct ata_device *dev)
 		if (hs->simplex_claimed)
 			xfer_mask &= ~(ATA_MASK_MWDMA | ATA_MASK_UDMA);
 	}
+
 	if (ap->ops->mode_filter)
 		xfer_mask = ap->ops->mode_filter(ap, dev, xfer_mask);
 
-	ata_unpack_xfermask(xfer_mask, &dev->pio_mask, &dev->mwdma_mask,
-			    &dev->udma_mask);
+	ata_unpack_xfermask(xfer_mask, &dev->pio_mask,
+			    &dev->mwdma_mask, &dev->udma_mask);
 }
 
 /**
