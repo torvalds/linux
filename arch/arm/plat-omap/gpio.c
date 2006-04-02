@@ -174,7 +174,7 @@ static int gpio_bank_count;
 static inline struct gpio_bank *get_gpio_bank(int gpio)
 {
 #ifdef CONFIG_ARCH_OMAP15XX
-	if (cpu_is_omap1510()) {
+	if (cpu_is_omap15xx()) {
 		if (OMAP_GPIO_IS_MPUIO(gpio))
 			return &gpio_bank[0];
 		return &gpio_bank[1];
@@ -223,7 +223,7 @@ static inline int gpio_valid(int gpio)
 		return 0;
 	}
 #ifdef CONFIG_ARCH_OMAP15XX
-	if (cpu_is_omap1510() && gpio < 16)
+	if (cpu_is_omap15xx() && gpio < 16)
 		return 0;
 #endif
 #if defined(CONFIG_ARCH_OMAP16XX)
@@ -402,13 +402,13 @@ static inline void set_24xx_gpio_triggering(void __iomem *base, int gpio, int tr
 	u32 gpio_bit = 1 << gpio;
 
 	MOD_REG_BIT(OMAP24XX_GPIO_LEVELDETECT0, gpio_bit,
-		trigger & IRQT_LOW);
+		trigger & __IRQT_LOWLVL);
 	MOD_REG_BIT(OMAP24XX_GPIO_LEVELDETECT1, gpio_bit,
-		trigger & IRQT_HIGH);
+		trigger & __IRQT_HIGHLVL);
 	MOD_REG_BIT(OMAP24XX_GPIO_RISINGDETECT, gpio_bit,
-		trigger & IRQT_RISING);
+		trigger & __IRQT_RISEDGE);
 	MOD_REG_BIT(OMAP24XX_GPIO_FALLINGDETECT, gpio_bit,
-		trigger & IRQT_FALLING);
+		trigger & __IRQT_FALEDGE);
 	/* FIXME: Possibly do 'set_irq_handler(j, do_level_IRQ)' if only level
 	 * triggering requested. */
 }
@@ -422,9 +422,9 @@ static int _set_gpio_triggering(struct gpio_bank *bank, int gpio, int trigger)
 	case METHOD_MPUIO:
 		reg += OMAP_MPUIO_GPIO_INT_EDGE;
 		l = __raw_readl(reg);
-		if (trigger == IRQT_RISING)
+		if (trigger & __IRQT_RISEDGE)
 			l |= 1 << gpio;
-		else if (trigger == IRQT_FALLING)
+		else if (trigger & __IRQT_FALEDGE)
 			l &= ~(1 << gpio);
 		else
 			goto bad;
@@ -432,9 +432,9 @@ static int _set_gpio_triggering(struct gpio_bank *bank, int gpio, int trigger)
 	case METHOD_GPIO_1510:
 		reg += OMAP1510_GPIO_INT_CONTROL;
 		l = __raw_readl(reg);
-		if (trigger == IRQT_RISING)
+		if (trigger & __IRQT_RISEDGE)
 			l |= 1 << gpio;
-		else if (trigger == IRQT_FALLING)
+		else if (trigger & __IRQT_FALEDGE)
 			l &= ~(1 << gpio);
 		else
 			goto bad;
@@ -446,20 +446,21 @@ static int _set_gpio_triggering(struct gpio_bank *bank, int gpio, int trigger)
 			reg += OMAP1610_GPIO_EDGE_CTRL1;
 		gpio &= 0x07;
 		/* We allow only edge triggering, i.e. two lowest bits */
-		if (trigger & ~IRQT_BOTHEDGE)
+		if (trigger & (__IRQT_LOWLVL | __IRQT_HIGHLVL))
 			BUG();
-		/* NOTE: knows __IRQT_{FAL,RIS}EDGE match OMAP hardware */
-		trigger &= 0x03;
 		l = __raw_readl(reg);
 		l &= ~(3 << (gpio << 1));
-		l |= trigger << (gpio << 1);
+		if (trigger & __IRQT_RISEDGE)
+			l |= 2 << (gpio << 1);
+		if (trigger & __IRQT_FALEDGE)
+			l |= 1 << (gpio << 1);
 		break;
 	case METHOD_GPIO_730:
 		reg += OMAP730_GPIO_INT_CONTROL;
 		l = __raw_readl(reg);
-		if (trigger == IRQT_RISING)
+		if (trigger & __IRQT_RISEDGE)
 			l |= 1 << gpio;
-		else if (trigger == IRQT_FALLING)
+		else if (trigger & __IRQT_FALEDGE)
 			l &= ~(1 << gpio);
 		else
 			goto bad;
@@ -491,7 +492,9 @@ static int gpio_irq_type(unsigned irq, unsigned type)
 	if (check_gpio(gpio) < 0)
 		return -EINVAL;
 
-	if (type & (__IRQT_LOWLVL|__IRQT_HIGHLVL|IRQT_PROBE))
+	if (type & IRQT_PROBE)
+		return -EINVAL;
+	if (!cpu_is_omap24xx() && (type & (__IRQT_LOWLVL|__IRQT_HIGHLVL)))
 		return -EINVAL;
 
 	bank = get_gpio_bank(gpio);
@@ -755,13 +758,32 @@ static void gpio_irq_handler(unsigned int irq, struct irqdesc *desc,
 	if (bank->method == METHOD_GPIO_24XX)
 		isr_reg = bank->base + OMAP24XX_GPIO_IRQSTATUS1;
 #endif
-
 	while(1) {
-		isr = __raw_readl(isr_reg);
-		_enable_gpio_irqbank(bank, isr, 0);
-		_clear_gpio_irqbank(bank, isr);
-		_enable_gpio_irqbank(bank, isr, 1);
-		desc->chip->unmask(irq);
+		u32 isr_saved, level_mask = 0;
+
+		isr_saved = isr = __raw_readl(isr_reg);
+
+		if (cpu_is_omap15xx() && (bank->method == METHOD_MPUIO))
+			isr &= 0x0000ffff;
+
+		if (cpu_is_omap24xx())
+			level_mask =
+				__raw_readl(bank->base +
+					OMAP24XX_GPIO_LEVELDETECT0) |
+				__raw_readl(bank->base +
+					OMAP24XX_GPIO_LEVELDETECT1);
+
+		/* clear edge sensitive interrupts before handler(s) are
+		called so that we don't miss any interrupt occurred while
+		executing them */
+		_enable_gpio_irqbank(bank, isr_saved & ~level_mask, 0);
+		_clear_gpio_irqbank(bank, isr_saved & ~level_mask);
+		_enable_gpio_irqbank(bank, isr_saved & ~level_mask, 1);
+
+		/* if there is only edge sensitive GPIO pin interrupts
+		configured, we could unmask GPIO bank interrupt immediately */
+		if (!level_mask)
+			desc->chip->unmask(irq);
 
 		if (!isr)
 			break;
@@ -774,6 +796,20 @@ static void gpio_irq_handler(unsigned int irq, struct irqdesc *desc,
 			d = irq_desc + gpio_irq;
 			desc_handle_irq(gpio_irq, d, regs);
 		}
+
+		if (cpu_is_omap24xx()) {
+			/* clear level sensitive interrupts after handler(s) */
+			_enable_gpio_irqbank(bank, isr_saved & level_mask, 0);
+			_clear_gpio_irqbank(bank, isr_saved & level_mask);
+			_enable_gpio_irqbank(bank, isr_saved & level_mask, 1);
+		}
+
+		/* if bank has any level sensitive GPIO pin interrupt
+		configured, we must unmask the bank interrupt only after
+		handler(s) are executed in order to avoid spurious bank
+		interrupt */
+		if (level_mask)
+			desc->chip->unmask(irq);
 	}
 }
 
@@ -848,7 +884,7 @@ static int __init _omap_gpio_init(void)
 
 	initialized = 1;
 
-	if (cpu_is_omap1510()) {
+	if (cpu_is_omap15xx()) {
 		gpio_ick = clk_get(NULL, "arm_gpio_ck");
 		if (IS_ERR(gpio_ick))
 			printk("Could not get arm_gpio_ck\n");
@@ -869,7 +905,7 @@ static int __init _omap_gpio_init(void)
 	}
 
 #ifdef CONFIG_ARCH_OMAP15XX
-	if (cpu_is_omap1510()) {
+	if (cpu_is_omap15xx()) {
 		printk(KERN_INFO "OMAP1510 GPIO hardware\n");
 		gpio_bank_count = 2;
 		gpio_bank = gpio_bank_1510;

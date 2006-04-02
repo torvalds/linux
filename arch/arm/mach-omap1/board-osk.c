@@ -33,6 +33,7 @@
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
+#include <linux/input.h>
 
 #include <asm/hardware.h>
 #include <asm/mach-types.h>
@@ -44,7 +45,24 @@
 #include <asm/arch/usb.h>
 #include <asm/arch/mux.h>
 #include <asm/arch/tc.h>
+#include <asm/arch/keypad.h>
 #include <asm/arch/common.h>
+#include <asm/arch/mcbsp.h>
+#include <asm/arch/omap-alsa.h>
+
+static int osk_keymap[] = {
+	KEY(0, 0, KEY_F1),
+	KEY(0, 3, KEY_UP),
+	KEY(1, 1, KEY_LEFTCTRL),
+	KEY(1, 2, KEY_LEFT),
+	KEY(2, 0, KEY_SPACE),
+	KEY(2, 1, KEY_ESC),
+	KEY(2, 2, KEY_DOWN),
+	KEY(3, 2, KEY_ENTER),
+	KEY(3, 3, KEY_RIGHT),
+	0
+};
+
 
 static struct mtd_partition osk_partitions[] = {
 	/* bootloader (U-Boot, etc) in first sector */
@@ -133,9 +151,69 @@ static struct platform_device osk5912_cf_device = {
 	.resource	= osk5912_cf_resources,
 };
 
+#define DEFAULT_BITPERSAMPLE 16
+
+static struct omap_mcbsp_reg_cfg mcbsp_regs = {
+	.spcr2 = FREE | FRST | GRST | XRST | XINTM(3),
+	.spcr1 = RINTM(3) | RRST,
+	.rcr2 = RPHASE | RFRLEN2(OMAP_MCBSP_WORD_8) |
+	    RWDLEN2(OMAP_MCBSP_WORD_16) | RDATDLY(0),
+	.rcr1 = RFRLEN1(OMAP_MCBSP_WORD_8) | RWDLEN1(OMAP_MCBSP_WORD_16),
+	.xcr2 = XPHASE | XFRLEN2(OMAP_MCBSP_WORD_8) |
+	    XWDLEN2(OMAP_MCBSP_WORD_16) | XDATDLY(0) | XFIG,
+	.xcr1 = XFRLEN1(OMAP_MCBSP_WORD_8) | XWDLEN1(OMAP_MCBSP_WORD_16),
+	.srgr1 = FWID(DEFAULT_BITPERSAMPLE - 1),
+	.srgr2 = GSYNC | CLKSP | FSGM | FPER(DEFAULT_BITPERSAMPLE * 2 - 1),
+	/*.pcr0 = FSXM | FSRM | CLKXM | CLKRM | CLKXP | CLKRP,*/ /* mcbsp: master */
+	.pcr0 = CLKXP | CLKRP,  /* mcbsp: slave */
+};
+
+static struct omap_alsa_codec_config alsa_config = {
+	.name			= "OSK AIC23",
+	.mcbsp_regs_alsa	= &mcbsp_regs,
+	.codec_configure_dev	= NULL, // aic23_configure,
+	.codec_set_samplerate	= NULL, // aic23_set_samplerate,
+	.codec_clock_setup	= NULL, // aic23_clock_setup,
+	.codec_clock_on		= NULL, // aic23_clock_on,
+	.codec_clock_off	= NULL, // aic23_clock_off,
+	.get_default_samplerate	= NULL, // aic23_get_default_samplerate,
+};
+
 static struct platform_device osk5912_mcbsp1_device = {
-	.name		= "omap_mcbsp",
-	.id		= 1,
+	.name	= "omap_alsa_mcbsp",
+ 	.id	= 1,
+	.dev = {
+		.platform_data	= &alsa_config,
+	},
+};
+
+static struct resource osk5912_kp_resources[] = {
+	[0] = {
+		.start	= INT_KEYBOARD,
+		.end	= INT_KEYBOARD,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct omap_kp_platform_data osk_kp_data = {
+	.rows	= 8,
+	.cols	= 8,
+	.keymap = osk_keymap,
+};
+
+static struct platform_device osk5912_kp_device = {
+	.name		= "omap-keypad",
+	.id		= -1,
+	.dev		= {
+		.platform_data = &osk_kp_data,
+	},
+	.num_resources	= ARRAY_SIZE(osk5912_kp_resources),
+	.resource	= osk5912_kp_resources,
+};
+
+static struct platform_device osk5912_lcd_device = {
+	.name		= "lcd_osk",
+	.id		= -1,
 };
 
 static struct platform_device *osk5912_devices[] __initdata = {
@@ -143,6 +221,8 @@ static struct platform_device *osk5912_devices[] __initdata = {
 	&osk5912_smc91x_device,
 	&osk5912_cf_device,
 	&osk5912_mcbsp1_device,
+	&osk5912_kp_device,
+	&osk5912_lcd_device,
 };
 
 static void __init osk_init_smc91x(void)
@@ -197,7 +277,6 @@ static struct omap_uart_config osk_uart_config __initdata = {
 };
 
 static struct omap_lcd_config osk_lcd_config __initdata = {
-	.panel_name	= "osk",
 	.ctrl_name	= "internal",
 };
 
@@ -255,8 +334,18 @@ static void __init osk_mistral_init(void)
 static void __init osk_mistral_init(void) { }
 #endif
 
+#define EMIFS_CS3_VAL	(0x88013141)
+
 static void __init osk_init(void)
 {
+	/* Workaround for wrong CS3 (NOR flash) timing
+	 * There are some U-Boot versions out there which configure
+	 * wrong CS3 memory timings. This mainly leads to CRC
+	 * or similiar errors if you use NOR flash (e.g. with JFFS2)
+	 */
+	if (EMIFS_CCS(3) != EMIFS_CS3_VAL)
+		EMIFS_CCS(3) = EMIFS_CS3_VAL;
+
 	osk_flash_resource.end = osk_flash_resource.start = omap_cs3_phys();
 	osk_flash_resource.end += SZ_32M - 1;
 	platform_add_devices(osk5912_devices, ARRAY_SIZE(osk5912_devices));

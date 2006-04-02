@@ -424,6 +424,14 @@ static struct amba_device uart3_device = {
 	.periphid	= 0x00041010,
 };
 
+
+static struct platform_device ep93xx_rtc_device = {
+       .name           = "ep93xx-rtc",
+       .id             = -1,
+       .num_resources  = 0,
+};
+
+
 void __init ep93xx_init_devices(void)
 {
 	unsigned int v;
@@ -439,4 +447,6 @@ void __init ep93xx_init_devices(void)
 	amba_device_register(&uart1_device, &iomem_resource);
 	amba_device_register(&uart2_device, &iomem_resource);
 	amba_device_register(&uart3_device, &iomem_resource);
+
+	platform_device_register(&ep93xx_rtc_device);
 }
