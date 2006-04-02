@@ -16,7 +16,9 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/mtd/mtd.h>
+#include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
+#include <linux/input.h>
 
 #include <asm/hardware.h>
 #include <asm/mach-types.h>
@@ -28,8 +30,43 @@
 #include <asm/arch/gpio.h>
 #include <asm/arch/mux.h>
 #include <asm/arch/fpga.h>
+#include <asm/arch/keypad.h>
 #include <asm/arch/common.h>
 #include <asm/arch/board.h>
+
+static int p2_keymap[] = {
+	KEY(0,0,KEY_UP),
+	KEY(0,1,KEY_RIGHT),
+	KEY(0,2,KEY_LEFT),
+	KEY(0,3,KEY_DOWN),
+	KEY(0,4,KEY_CENTER),
+	KEY(0,5,KEY_0_5),
+	KEY(1,0,KEY_SOFT2),
+	KEY(1,1,KEY_SEND),
+	KEY(1,2,KEY_END),
+	KEY(1,3,KEY_VOLUMEDOWN),
+	KEY(1,4,KEY_VOLUMEUP),
+	KEY(1,5,KEY_RECORD),
+	KEY(2,0,KEY_SOFT1),
+	KEY(2,1,KEY_3),
+	KEY(2,2,KEY_6),
+	KEY(2,3,KEY_9),
+	KEY(2,4,KEY_SHARP),
+	KEY(2,5,KEY_2_5),
+	KEY(3,0,KEY_BACK),
+	KEY(3,1,KEY_2),
+	KEY(3,2,KEY_5),
+	KEY(3,3,KEY_8),
+	KEY(3,4,KEY_0),
+	KEY(3,5,KEY_HEADSETHOOK),
+	KEY(4,0,KEY_HOME),
+	KEY(4,1,KEY_1),
+	KEY(4,2,KEY_4),
+	KEY(4,3,KEY_7),
+	KEY(4,4,KEY_STAR),
+	KEY(4,5,KEY_POWER),
+	0
+};
 
 static struct resource smc91x_resources[] = {
 	[0] = {
@@ -44,7 +81,7 @@ static struct resource smc91x_resources[] = {
 	},
 };
 
-static struct mtd_partition p2_partitions[] = {
+static struct mtd_partition nor_partitions[] = {
 	/* bootloader (U-Boot, etc) in first sector */
 	{
 	      .name		= "bootloader",
@@ -75,27 +112,47 @@ static struct mtd_partition p2_partitions[] = {
 	},
 };
 
-static struct flash_platform_data p2_flash_data = {
+static struct flash_platform_data nor_data = {
 	.map_name	= "cfi_probe",
 	.width		= 2,
-	.parts		= p2_partitions,
-	.nr_parts	= ARRAY_SIZE(p2_partitions),
+	.parts		= nor_partitions,
+	.nr_parts	= ARRAY_SIZE(nor_partitions),
 };
 
-static struct resource p2_flash_resource = {
+static struct resource nor_resource = {
 	.start		= OMAP_CS0_PHYS,
 	.end		= OMAP_CS0_PHYS + SZ_32M - 1,
 	.flags		= IORESOURCE_MEM,
 };
 
-static struct platform_device p2_flash_device = {
+static struct platform_device nor_device = {
 	.name		= "omapflash",
 	.id		= 0,
 	.dev		= {
-		.platform_data	= &p2_flash_data,
+		.platform_data	= &nor_data,
 	},
 	.num_resources	= 1,
-	.resource	= &p2_flash_resource,
+	.resource	= &nor_resource,
+};
+
+static struct nand_platform_data nand_data = {
+	.options	= NAND_SAMSUNG_LP_OPTIONS,
+};
+
+static struct resource nand_resource = {
+	.start		= OMAP_CS3_PHYS,
+	.end		= OMAP_CS3_PHYS + SZ_4K - 1,
+	.flags		= IORESOURCE_MEM,
+};
+
+static struct platform_device nand_device = {
+	.name		= "omapnand",
+	.id		= 0,
+	.dev		= {
+		.platform_data	= &nand_data,
+	},
+	.num_resources	= 1,
+	.resource	= &nand_resource,
 };
 
 static struct platform_device smc91x_device = {
@@ -105,17 +162,55 @@ static struct platform_device smc91x_device = {
 	.resource	= smc91x_resources,
 };
 
-static struct platform_device *devices[] __initdata = {
-	&p2_flash_device,
-	&smc91x_device,
+static struct resource kp_resources[] = {
+	[0] = {
+		.start	= INT_730_MPUIO_KEYPAD,
+		.end	= INT_730_MPUIO_KEYPAD,
+		.flags	= IORESOURCE_IRQ,
+	},
 };
+
+static struct omap_kp_platform_data kp_data = {
+	.rows	= 8,
+	.cols	= 8,
+	.keymap = p2_keymap,
+};
+
+static struct platform_device kp_device = {
+	.name		= "omap-keypad",
+	.id		= -1,
+	.dev		= {
+		.platform_data = &kp_data,
+	},
+	.num_resources	= ARRAY_SIZE(kp_resources),
+	.resource	= kp_resources,
+};
+
+static struct platform_device lcd_device = {
+	.name		= "lcd_p2",
+	.id		= -1,
+};
+
+static struct platform_device *devices[] __initdata = {
+	&nor_device,
+	&nand_device,
+	&smc91x_device,
+	&kp_device,
+	&lcd_device,
+};
+
+#define P2_NAND_RB_GPIO_PIN	62
+
+static int nand_dev_ready(struct nand_platform_data *data)
+{
+	return omap_get_gpio_datain(P2_NAND_RB_GPIO_PIN);
+}
 
 static struct omap_uart_config perseus2_uart_config __initdata = {
 	.enabled_uarts = ((1 << 0) | (1 << 1)),
 };
 
 static struct omap_lcd_config perseus2_lcd_config __initdata = {
-	.panel_name	= "p2",
 	.ctrl_name	= "internal",
 };
 
@@ -126,7 +221,13 @@ static struct omap_board_config_kernel perseus2_config[] = {
 
 static void __init omap_perseus2_init(void)
 {
-	(void) platform_add_devices(devices, ARRAY_SIZE(devices));
+	if (!(omap_request_gpio(P2_NAND_RB_GPIO_PIN)))
+		nand_data.dev_ready = nand_dev_ready;
+
+	omap_cfg_reg(L3_1610_FLASH_CS2B_OE);
+	omap_cfg_reg(M8_1610_FLASH_CS2B_WE);
+
+	platform_add_devices(devices, ARRAY_SIZE(devices));
 
 	omap_board_config = perseus2_config;
 	omap_board_config_size = ARRAY_SIZE(perseus2_config);

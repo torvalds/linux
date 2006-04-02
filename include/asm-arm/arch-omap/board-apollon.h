@@ -1,8 +1,9 @@
 /*
- * linux/include/asm-arm/arch-omap/board-h3.h
+ * linux/include/asm-arm/arch-omap/board-apollon.h
  *
- * Copyright (C) 2001 RidgeRun, Inc.
- * Copyright (C) 2004 Texas Instruments, Inc.
+ * Hardware definitions for Samsung OMAP24XX Apollon board.
+ *
+ * Initial creation by Kyungmin Park <kyungmin.park@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -20,21 +21,25 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * You should have received a copy of the  GNU General Public License along
- * with this program; if not, write  to the Free Software Foundation, Inc.,
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
-#ifndef __ASM_ARCH_OMAP_H3_H
-#define __ASM_ARCH_OMAP_H3_H
 
-/* In OMAP1710 H3 the Ethernet is directly connected to CS1 */
-#define OMAP1710_ETHR_START		0x04000300
+#ifndef __ASM_ARCH_OMAP_APOLLON_H
+#define __ASM_ARCH_OMAP_APOLLON_H
 
-#define MAXIRQNUM			(IH_BOARD_BASE)
-#define MAXFIQNUM			MAXIRQNUM
-#define MAXSWINUM			MAXIRQNUM
+/* Placeholder for APOLLON specific defines */
+/* GPMC CS0 */
+#define APOLLON_CS0_BASE		0x00000000
+/* GPMC CS1 */
+#define APOLLON_CS1_BASE		0x08000000
+#define APOLLON_ETHR_START		(APOLLON_CS1_BASE + 0x300)
+#define APOLLON_ETHR_GPIO_IRQ		74
+/* GPMC CS2 - reserved for OneNAND */
+#define APOLLON_CS2_BASE		0x10000000
+/* GPMC CS3 - reserved for NOR or NAND */
+#define APOLLON_CS3_BASE		0x18000000
 
-#define NR_IRQS				(MAXIRQNUM + 1)
+#endif /*  __ASM_ARCH_OMAP_APOLLON_H */
 
-
-#endif /*  __ASM_ARCH_OMAP_H3_H */

@@ -74,6 +74,47 @@ static void omap_init_i2c(void) {}
 
 #endif
 
+#if defined(CONFIG_OMAP_STI)
+
+#define OMAP2_STI_BASE		IO_ADDRESS(0x48068000)
+#define OMAP2_STI_CHANNEL_BASE	0x54000000
+#define OMAP2_STI_IRQ		4
+
+static struct resource sti_resources[] = {
+	{
+		.start		= OMAP2_STI_BASE,
+		.end		= OMAP2_STI_BASE + 0x7ff,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		.start		= OMAP2_STI_CHANNEL_BASE,
+		.end		= OMAP2_STI_CHANNEL_BASE + SZ_64K - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		.start		= OMAP2_STI_IRQ,
+		.flags		= IORESOURCE_IRQ,
+	}
+};
+
+static struct platform_device sti_device = {
+	.name		= "sti",
+	.id		= -1,
+	.dev = {
+		.release	= omap_nop_release,
+	},
+	.num_resources	= ARRAY_SIZE(sti_resources),
+	.resource	= sti_resources,
+};
+
+static inline void omap_init_sti(void)
+{
+	platform_device_register(&sti_device);
+}
+#else
+static inline void omap_init_sti(void) {}
+#endif
+
 /*-------------------------------------------------------------------------*/
 
 static int __init omap2_init_devices(void)
@@ -82,6 +123,7 @@ static int __init omap2_init_devices(void)
 	 * in alphabetical order so they're easier to sort through.
 	 */
 	omap_init_i2c();
+	omap_init_sti();
 
 	return 0;
 }
