@@ -1376,7 +1376,7 @@ static int uea_boot(struct uea_softc *sc)
 	if (ret < 0) {
 		uea_err(INS_TO_USBDEV(sc),
 		       "urb submition failed with error %d\n", ret);
-		goto err1;
+		goto err;
 	}
 
 	sc->kthread = kthread_run(uea_kthread, sc, "ueagle-atm");
@@ -1390,10 +1390,10 @@ static int uea_boot(struct uea_softc *sc)
 
 err2:
 	usb_kill_urb(sc->urb_int);
-err1:
-	kfree(intr);
 err:
 	usb_free_urb(sc->urb_int);
+	sc->urb_int = NULL;
+	kfree(intr);
 	uea_leaves(INS_TO_USBDEV(sc));
 	return -ENOMEM;
 }
