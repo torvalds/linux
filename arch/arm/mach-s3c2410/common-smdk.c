@@ -20,6 +20,11 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 
+#include <linux/mtd/mtd.h>
+#include <linux/mtd/nand.h>
+#include <linux/mtd/nand_ecc.h>
+#include <linux/mtd/partitions.h>
+
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
@@ -27,11 +32,85 @@
 #include <asm/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/mach-types.h>
 
 #include <asm/arch/regs-gpio.h>
 
+#include <asm/arch/nand.h>
+
+#include "devs.h"
 #include "pm.h"
+
+/* NAND parititon from 2.4.18-swl5 */
+
+static struct mtd_partition smdk_default_nand_part[] = {
+	[0] = {
+		.name	= "Boot Agent",
+		.size	= SZ_16K,
+		.offset	= 0,
+	},
+	[1] = {
+		.name	= "S3C2410 flash parition 1",
+		.offset = 0,
+		.size	= SZ_2M,
+	},
+	[2] = {
+		.name	= "S3C2410 flash partition 2",
+		.offset = SZ_4M,
+		.size	= SZ_4M,
+	},
+	[3] = {
+		.name	= "S3C2410 flash partition 3",
+		.offset	= SZ_8M,
+		.size	= SZ_2M,
+	},
+	[4] = {
+		.name	= "S3C2410 flash partition 4",
+		.offset = SZ_1M * 10,
+		.size	= SZ_4M,
+	},
+	[5] = {
+		.name	= "S3C2410 flash partition 5",
+		.offset	= SZ_1M * 14,
+		.size	= SZ_1M * 10,
+	},
+	[6] = {
+		.name	= "S3C2410 flash partition 6",
+		.offset	= SZ_1M * 24,
+		.size	= SZ_1M * 24,
+	},
+	[7] = {
+		.name	= "S3C2410 flash partition 7",
+		.offset = SZ_1M * 48,
+		.size	= SZ_16M,
+	}
+};
+
+static struct s3c2410_nand_set smdk_nand_sets[] = {
+	[0] = {
+		.name		= "NAND",
+		.nr_chips	= 1,
+		.nr_partitions	= ARRAY_SIZE(smdk_default_nand_part),
+		.partitions	= smdk_default_nand_part,
+	},
+};
+
+/* choose a set of timings which should suit most 512Mbit
+ * chips and beyond.
+*/
+
+static struct s3c2410_platform_nand smdk_nand_info = {
+	.tacls		= 20,
+	.twrph0		= 60,
+	.twrph1		= 20,
+	.nr_sets	= ARRAY_SIZE(smdk_nand_sets),
+	.sets		= smdk_nand_sets,
+};
+
+/* devices we initialise */
+
+static struct platform_device __initdata *smdk_devs[] = {
+	&s3c_device_nand,
+};
 
 void __init smdk_machine_init(void)
 {
@@ -46,6 +125,10 @@ void __init smdk_machine_init(void)
 	s3c2410_gpio_setpin(S3C2410_GPF5, 1);
 	s3c2410_gpio_setpin(S3C2410_GPF6, 1);
 	s3c2410_gpio_setpin(S3C2410_GPF7, 1);
+
+	s3c_device_nand.dev.platform_data = &smdk_nand_info;
+
+	platform_add_devices(smdk_devs, ARRAY_SIZE(smdk_devs));
 
 	s3c2410_pm_init();
 }
