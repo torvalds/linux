@@ -137,6 +137,7 @@ int ata_scsi_error(struct Scsi_Host *host)
  *	LOCKING:
  *	Inherited from SCSI layer (none, can sleep)
  */
+
 static void ata_qc_timeout(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
@@ -171,8 +172,10 @@ static void ata_qc_timeout(struct ata_queued_cmd *qc)
 		printk(KERN_ERR "ata%u: command 0x%x timeout, stat 0x%x host_stat 0x%x\n",
 		       ap->id, qc->tf.command, drv_stat, host_stat);
 
+		ap->hsm_task_state = HSM_ST_IDLE;
+
 		/* complete taskfile transaction */
-		qc->err_mask |= ac_err_mask(drv_stat);
+		qc->err_mask |= AC_ERR_TIMEOUT;
 		break;
 	}
 
