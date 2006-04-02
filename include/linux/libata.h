@@ -161,7 +161,8 @@ enum {
 	ATA_QCFLAG_SG		= (1 << 1), /* have s/g table? */
 	ATA_QCFLAG_SINGLE	= (1 << 2), /* no s/g, just a single buffer */
 	ATA_QCFLAG_DMAMAP	= ATA_QCFLAG_SG | ATA_QCFLAG_SINGLE,
-	ATA_QCFLAG_EH_SCHEDULED = (1 << 3), /* EH scheduled */
+	ATA_QCFLAG_IO		= (1 << 3), /* standard IO command */
+	ATA_QCFLAG_EH_SCHEDULED = (1 << 4), /* EH scheduled */
 
 	/* host set flags */
 	ATA_HOST_SIMPLEX	= (1 << 0),	/* Host is simplex, one DMA channel per host_set only */
