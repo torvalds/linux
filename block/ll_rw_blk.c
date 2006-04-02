@@ -1740,7 +1740,7 @@ EXPORT_SYMBOL(blk_run_queue);
 
 /**
  * blk_cleanup_queue: - release a &request_queue_t when it is no longer needed
- * @q:    the request queue to be released
+ * @kobj:    the kobj belonging of the request queue to be released
  *
  * Description:
  *     blk_cleanup_queue is the pair to blk_init_queue() or
