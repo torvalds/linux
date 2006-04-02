@@ -3909,7 +3909,8 @@ static void ata_pio_error(struct ata_port *ap)
 	WARN_ON(qc == NULL);
 
 	if (qc->tf.command != ATA_CMD_PACKET)
-		printk(KERN_WARNING "ata%u: PIO error\n", ap->id);
+		printk(KERN_WARNING "ata%u: dev %u PIO error\n",
+		       ap->id, qc->dev->devno);
 
 	/* make sure qc->err_mask is available to
 	 * know what's wrong and recover
