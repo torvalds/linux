@@ -290,4 +290,23 @@ void __init at91_add_device_mmc(struct at91_mmc_data *data)
 void __init at91_add_device_mmc(struct at91_mmc_data *data) {}
 #endif
 
+/* --------------------------------------------------------------------
+ *  LEDs
+ * -------------------------------------------------------------------- */
+
+#if defined(CONFIG_LEDS)
+u8 at91_leds_cpu;
+u8 at91_leds_timer;
+
+void __init at91_init_leds(u8 cpu_led, u8 timer_led)
+{
+	at91_leds_cpu   = cpu_led;
+	at91_leds_timer = timer_led;
+}
+
+#else
+void __init at91_init_leds(u8 cpu_led, u8 timer_led) {}
+#endif
+
+
 /* -------------------------------------------------------------------- */

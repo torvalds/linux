@@ -77,4 +77,9 @@ struct at91_usbh_data {
 };
 extern void __init at91_add_device_usbh(struct at91_usbh_data *data);
 
+ /* LEDs */
+extern u8 at91_leds_cpu;
+extern u8 at91_leds_timer;
+extern void __init at91_init_leds(u8 cpu_led, u8 timer_led);
+
 #endif

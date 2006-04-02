@@ -70,6 +70,9 @@ static void __init dk_map_io(void)
 	/* Initialize clocks: 18.432 MHz crystal */
 	at91_clock_init(18432000);
 
+	/* Setup the LEDs */
+	at91_init_leds(AT91_PIN_PB2, AT91_PIN_PB2);
+
 #ifdef CONFIG_SERIAL_AT91
 	at91_console_port = DK_SERIAL_CONSOLE;
 	memcpy(at91_serial_map, serial, sizeof(serial));
