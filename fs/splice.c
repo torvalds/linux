@@ -342,6 +342,8 @@ ssize_t generic_file_splice_read(struct file *in, struct inode *pipe,
 	return ret;
 }
 
+EXPORT_SYMBOL(generic_file_splice_read);
+
 /*
  * Send 'sd->len' bytes to socket from 'sd->file' at position 'sd->pos'
  * using sendpage().
@@ -654,6 +656,8 @@ ssize_t generic_file_splice_write(struct inode *inode, struct file *out,
 	return ret;
 }
 
+EXPORT_SYMBOL(generic_file_splice_write);
+
 /**
  * generic_splice_sendpage - splice data from a pipe to a socket
  * @inode:	pipe inode
@@ -671,8 +675,7 @@ ssize_t generic_splice_sendpage(struct inode *inode, struct file *out,
 	return move_from_pipe(inode, out, len, flags, pipe_to_sendpage);
 }
 
-EXPORT_SYMBOL(generic_file_splice_write);
-EXPORT_SYMBOL(generic_file_splice_read);
+EXPORT_SYMBOL(generic_splice_sendpage);
 
 /*
  * Attempt to initiate a splice from pipe to file.
