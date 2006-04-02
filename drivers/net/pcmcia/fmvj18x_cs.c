@@ -84,10 +84,10 @@ static char *version = DRV_NAME ".c " DRV_VERSION " 2002/03/23";
 /*
     PCMCIA event handlers
  */
-static void fmvj18x_config(dev_link_t *link);
-static int fmvj18x_get_hwinfo(dev_link_t *link, u_char *node_id);
-static int fmvj18x_setup_mfc(dev_link_t *link);
-static void fmvj18x_release(dev_link_t *link);
+static int fmvj18x_config(struct pcmcia_device *link);
+static int fmvj18x_get_hwinfo(struct pcmcia_device *link, u_char *node_id);
+static int fmvj18x_setup_mfc(struct pcmcia_device *link);
+static void fmvj18x_release(struct pcmcia_device *link);
 static void fmvj18x_detach(struct pcmcia_device *p_dev);
 
 /*
@@ -116,7 +116,7 @@ typedef enum { MBH10302, MBH10304, TDK, CONTEC, LA501, UNGERMANN,
     driver specific data structure
 */
 typedef struct local_info_t {
-    dev_link_t link;
+	struct pcmcia_device	*p_dev;
     dev_node_t node;
     struct net_device_stats stats;
     long open_time;
@@ -228,10 +228,9 @@ typedef struct local_info_t {
 #define BANK_1U              0x24 /* bank 1 (CONFIG_1) */
 #define BANK_2U              0x28 /* bank 2 (CONFIG_1) */
 
-static int fmvj18x_attach(struct pcmcia_device *p_dev)
+static int fmvj18x_probe(struct pcmcia_device *link)
 {
     local_info_t *lp;
-    dev_link_t *link;
     struct net_device *dev;
 
     DEBUG(0, "fmvj18x_attach()\n");
@@ -241,8 +240,8 @@ static int fmvj18x_attach(struct pcmcia_device *p_dev)
     if (!dev)
 	return -ENOMEM;
     lp = netdev_priv(dev);
-    link = &lp->link;
     link->priv = dev;
+    lp->p_dev = link;
 
     /* The io structure describes IO port mapping */
     link->io.NumPorts1 = 32;
@@ -257,7 +256,6 @@ static int fmvj18x_attach(struct pcmcia_device *p_dev)
 
     /* General socket configuration */
     link->conf.Attributes = CONF_ENABLE_IRQ;
-    link->conf.Vcc = 50;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
     /* The FMVJ18x specific entries in the device structure. */
@@ -274,29 +272,21 @@ static int fmvj18x_attach(struct pcmcia_device *p_dev)
 #endif
     SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
 
-    link->handle = p_dev;
-    p_dev->instance = link;
-
-    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-    fmvj18x_config(link);
-
-    return 0;
+    return fmvj18x_config(link);
 } /* fmvj18x_attach */
 
 /*====================================================================*/
 
-static void fmvj18x_detach(struct pcmcia_device *p_dev)
+static void fmvj18x_detach(struct pcmcia_device *link)
 {
-    dev_link_t *link = dev_to_instance(p_dev);
     struct net_device *dev = link->priv;
 
     DEBUG(0, "fmvj18x_detach(0x%p)\n", link);
 
-    if (link->dev)
+    if (link->dev_node)
 	unregister_netdev(dev);
 
-    if (link->state & DEV_CONFIG)
-	fmvj18x_release(link);
+    fmvj18x_release(link);
 
     free_netdev(dev);
 } /* fmvj18x_detach */
@@ -306,7 +296,7 @@ static void fmvj18x_detach(struct pcmcia_device *p_dev)
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
-static int mfc_try_io_port(dev_link_t *link)
+static int mfc_try_io_port(struct pcmcia_device *link)
 {
     int i, ret;
     static const kio_addr_t serial_base[5] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8, 0x0 };
@@ -318,13 +308,13 @@ static int mfc_try_io_port(dev_link_t *link)
 	    link->io.NumPorts2 = 0;
 	    printk(KERN_NOTICE "fmvj18x_cs: out of resource for serial\n");
 	}
-	ret = pcmcia_request_io(link->handle, &link->io);
+	ret = pcmcia_request_io(link, &link->io);
 	if (ret == CS_SUCCESS) return ret;
     }
     return ret;
 }
 
-static int ungermann_try_io_port(dev_link_t *link)
+static int ungermann_try_io_port(struct pcmcia_device *link)
 {
     int ret;
     kio_addr_t ioaddr;
@@ -334,7 +324,7 @@ static int ungermann_try_io_port(dev_link_t *link)
     */
     for (ioaddr = 0x300; ioaddr < 0x3e0; ioaddr += 0x20) {
 	link->io.BasePort1 = ioaddr;
-	ret = pcmcia_request_io(link->handle, &link->io);
+	ret = pcmcia_request_io(link, &link->io);
 	if (ret == CS_SUCCESS) {
 	    /* calculate ConfigIndex value */
 	    link->conf.ConfigIndex = 
@@ -345,9 +335,8 @@ static int ungermann_try_io_port(dev_link_t *link)
     return ret;	/* RequestIO failed */
 }
 
-static void fmvj18x_config(dev_link_t *link)
+static int fmvj18x_config(struct pcmcia_device *link)
 {
-    client_handle_t handle = link->handle;
     struct net_device *dev = link->priv;
     local_info_t *lp = netdev_priv(dev);
     tuple_t tuple;
@@ -366,42 +355,34 @@ static void fmvj18x_config(dev_link_t *link)
        registers.
     */
     tuple.DesiredTuple = CISTPL_CONFIG;
-    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
+    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
     tuple.TupleData = (u_char *)buf;
     tuple.TupleDataMax = 64;
     tuple.TupleOffset = 0;
-    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(handle, &tuple));
-    CS_CHECK(ParseTuple, pcmcia_parse_tuple(handle, &tuple, &parse));
-    
-    /* Configure card */
-    link->state |= DEV_CONFIG;
+    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
+    CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
 
     link->conf.ConfigBase = parse.config.base; 
     link->conf.Present = parse.config.rmask[0];
 
     tuple.DesiredTuple = CISTPL_FUNCE;
     tuple.TupleOffset = 0;
-    if (pcmcia_get_first_tuple(handle, &tuple) == CS_SUCCESS) {
+    if (pcmcia_get_first_tuple(link, &tuple) == CS_SUCCESS) {
 	/* Yes, I have CISTPL_FUNCE. Let's check CISTPL_MANFID */
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
-	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(handle, &tuple));
-	CS_CHECK(ParseTuple, pcmcia_parse_tuple(handle, &tuple, &parse));
+	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
+	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
+	CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
 	link->conf.ConfigIndex = parse.cftable_entry.index;
 	tuple.DesiredTuple = CISTPL_MANFID;
-	if (pcmcia_get_first_tuple(handle, &tuple) == CS_SUCCESS)
-	    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(handle, &tuple));
+	if (pcmcia_get_first_tuple(link, &tuple) == CS_SUCCESS)
+	    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
 	else
 	    buf[0] = 0xffff;
 	switch (le16_to_cpu(buf[0])) {
 	case MANFID_TDK:
 	    cardtype = TDK;
-	    if (le16_to_cpu(buf[1]) == PRODID_TDK_CF010) {
-		cs_status_t status;
-		pcmcia_get_status(handle, &status);
-		if (status.CardState & CS_EVENT_3VCARD)
-		    link->conf.Vcc = 33; /* inserted in 3.3V slot */
-	    } else if (le16_to_cpu(buf[1]) == PRODID_TDK_GN3410
+	    if (le16_to_cpu(buf[1]) == PRODID_TDK_GN3410
 			|| le16_to_cpu(buf[1]) == PRODID_TDK_NP9610
 			|| le16_to_cpu(buf[1]) == PRODID_TDK_MN3200) {
 		/* MultiFunction Card */
@@ -429,8 +410,8 @@ static void fmvj18x_config(dev_link_t *link)
     } else {
 	/* old type card */
 	tuple.DesiredTuple = CISTPL_MANFID;
-	if (pcmcia_get_first_tuple(handle, &tuple) == CS_SUCCESS)
-	    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(handle, &tuple));
+	if (pcmcia_get_first_tuple(link, &tuple) == CS_SUCCESS)
+	    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
 	else
 	    buf[0] = 0xffff;
 	switch (le16_to_cpu(buf[0])) {
@@ -461,10 +442,10 @@ static void fmvj18x_config(dev_link_t *link)
 	ret = ungermann_try_io_port(link);
 	if (ret != CS_SUCCESS) goto cs_failed;
     } else { 
-	CS_CHECK(RequestIO, pcmcia_request_io(link->handle, &link->io));
+	CS_CHECK(RequestIO, pcmcia_request_io(link, &link->io));
     }
-    CS_CHECK(RequestIRQ, pcmcia_request_irq(link->handle, &link->irq));
-    CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link->handle, &link->conf));
+    CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
+    CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
     dev->irq = link->irq.AssignedIRQ;
     dev->base_addr = link->io.BasePort1;
 
@@ -493,17 +474,17 @@ static void fmvj18x_config(dev_link_t *link)
     case CONTEC:
 	tuple.DesiredTuple = CISTPL_FUNCE;
 	tuple.TupleOffset = 0;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
+	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
 	tuple.TupleOffset = 0;
-	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(handle, &tuple));
+	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
 	if (cardtype == MBH10304) {
 	    /* MBH10304's CIS_FUNCE is corrupted */
 	    node_id = &(tuple.TupleData[5]);
 	    card_name = "FMV-J182";
 	} else {
 	    while (tuple.TupleData[0] != CISTPL_FUNCE_LAN_NODE_ID ) {
-		CS_CHECK(GetNextTuple, pcmcia_get_next_tuple(handle, &tuple));
-		CS_CHECK(GetTupleData, pcmcia_get_tuple_data(handle, &tuple));
+		CS_CHECK(GetNextTuple, pcmcia_get_next_tuple(link, &tuple));
+		CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
 	    }
 	    node_id = &(tuple.TupleData[2]);
 	    if( cardtype == TDK ) {
@@ -545,13 +526,12 @@ static void fmvj18x_config(dev_link_t *link)
     }
 
     lp->cardtype = cardtype;
-    link->dev = &lp->node;
-    link->state &= ~DEV_CONFIG_PENDING;
-    SET_NETDEV_DEV(dev, &handle_to_dev(handle));
+    link->dev_node = &lp->node;
+    SET_NETDEV_DEV(dev, &handle_to_dev(link));
 
     if (register_netdev(dev) != 0) {
 	printk(KERN_NOTICE "fmvj18x_cs: register_netdev() failed\n");
-	link->dev = NULL;
+	link->dev_node = NULL;
 	goto failed;
     }
 
@@ -564,19 +544,18 @@ static void fmvj18x_config(dev_link_t *link)
     for (i = 0; i < 6; i++)
 	printk("%02X%s", dev->dev_addr[i], ((i<5) ? ":" : "\n"));
 
-    return;
+    return 0;
     
 cs_failed:
     /* All Card Services errors end up here */
-    cs_error(link->handle, last_fn, last_ret);
+    cs_error(link, last_fn, last_ret);
 failed:
     fmvj18x_release(link);
-    link->state &= ~DEV_CONFIG_PENDING;
-
+    return -ENODEV;
 } /* fmvj18x_config */
 /*====================================================================*/
 
-static int fmvj18x_get_hwinfo(dev_link_t *link, u_char *node_id)
+static int fmvj18x_get_hwinfo(struct pcmcia_device *link, u_char *node_id)
 {
     win_req_t req;
     memreq_t mem;
@@ -587,9 +566,9 @@ static int fmvj18x_get_hwinfo(dev_link_t *link, u_char *node_id)
     req.Attributes = WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
     req.Base = 0; req.Size = 0;
     req.AccessSpeed = 0;
-    i = pcmcia_request_window(&link->handle, &req, &link->win);
+    i = pcmcia_request_window(&link, &req, &link->win);
     if (i != CS_SUCCESS) {
-	cs_error(link->handle, RequestWindow, i);
+	cs_error(link, RequestWindow, i);
 	return -1;
     }
 
@@ -623,13 +602,13 @@ static int fmvj18x_get_hwinfo(dev_link_t *link, u_char *node_id)
     iounmap(base);
     j = pcmcia_release_window(link->win);
     if (j != CS_SUCCESS)
-	cs_error(link->handle, ReleaseWindow, j);
+	cs_error(link, ReleaseWindow, j);
     return (i != 0x200) ? 0 : -1;
 
 } /* fmvj18x_get_hwinfo */
 /*====================================================================*/
 
-static int fmvj18x_setup_mfc(dev_link_t *link)
+static int fmvj18x_setup_mfc(struct pcmcia_device *link)
 {
     win_req_t req;
     memreq_t mem;
@@ -642,9 +621,9 @@ static int fmvj18x_setup_mfc(dev_link_t *link)
     req.Attributes = WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
     req.Base = 0; req.Size = 0;
     req.AccessSpeed = 0;
-    i = pcmcia_request_window(&link->handle, &req, &link->win);
+    i = pcmcia_request_window(&link, &req, &link->win);
     if (i != CS_SUCCESS) {
-	cs_error(link->handle, RequestWindow, i);
+	cs_error(link, RequestWindow, i);
 	return -1;
     }
 
@@ -666,54 +645,35 @@ static int fmvj18x_setup_mfc(dev_link_t *link)
     iounmap(base);
     j = pcmcia_release_window(link->win);
     if (j != CS_SUCCESS)
-	cs_error(link->handle, ReleaseWindow, j);
+	cs_error(link, ReleaseWindow, j);
     return 0;
 
 }
 /*====================================================================*/
 
-static void fmvj18x_release(dev_link_t *link)
+static void fmvj18x_release(struct pcmcia_device *link)
 {
-
-    DEBUG(0, "fmvj18x_release(0x%p)\n", link);
-
-    /* Don't bother checking to see if these succeed or not */
-    pcmcia_release_window(link->win);
-    pcmcia_release_configuration(link->handle);
-    pcmcia_release_io(link->handle, &link->io);
-    pcmcia_release_irq(link->handle, &link->irq);
-    
-    link->state &= ~DEV_CONFIG;
+	DEBUG(0, "fmvj18x_release(0x%p)\n", link);
+	pcmcia_disable_device(link);
 }
 
-static int fmvj18x_suspend(struct pcmcia_device *p_dev)
+static int fmvj18x_suspend(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
 	struct net_device *dev = link->priv;
 
-	link->state |= DEV_SUSPEND;
-	if (link->state & DEV_CONFIG) {
-		if (link->open)
-			netif_device_detach(dev);
-		pcmcia_release_configuration(link->handle);
-	}
-
+	if (link->open)
+		netif_device_detach(dev);
 
 	return 0;
 }
 
-static int fmvj18x_resume(struct pcmcia_device *p_dev)
+static int fmvj18x_resume(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
 	struct net_device *dev = link->priv;
 
-	link->state &= ~DEV_SUSPEND;
-	if (link->state & DEV_CONFIG) {
-		pcmcia_request_configuration(link->handle, &link->conf);
-		if (link->open) {
-			fjn_reset(dev);
-			netif_device_attach(dev);
-		}
+	if (link->open) {
+		fjn_reset(dev);
+		netif_device_attach(dev);
 	}
 
 	return 0;
@@ -751,7 +711,7 @@ static struct pcmcia_driver fmvj18x_cs_driver = {
 	.drv		= {
 		.name	= "fmvj18x_cs",
 	},
-	.probe		= fmvj18x_attach,
+	.probe		= fmvj18x_probe,
 	.remove		= fmvj18x_detach,
 	.id_table       = fmvj18x_ids,
 	.suspend	= fmvj18x_suspend,
@@ -1148,11 +1108,11 @@ static int fjn_config(struct net_device *dev, struct ifmap *map){
 static int fjn_open(struct net_device *dev)
 {
     struct local_info_t *lp = netdev_priv(dev);
-    dev_link_t *link = &lp->link;
+    struct pcmcia_device *link = lp->p_dev;
 
     DEBUG(4, "fjn_open('%s').\n", dev->name);
 
-    if (!DEV_OK(link))
+    if (!pcmcia_dev_present(link))
 	return -ENODEV;
     
     link->open++;
@@ -1173,7 +1133,7 @@ static int fjn_open(struct net_device *dev)
 static int fjn_close(struct net_device *dev)
 {
     struct local_info_t *lp = netdev_priv(dev);
-    dev_link_t *link = &lp->link;
+    struct pcmcia_device *link = lp->p_dev;
     kio_addr_t ioaddr = dev->base_addr;
 
     DEBUG(4, "fjn_close('%s').\n", dev->name);

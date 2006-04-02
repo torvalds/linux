@@ -35,7 +35,7 @@ typedef struct region_info_t {
 #define REGION_BAR_MASK		0xe000
 #define REGION_BAR_SHIFT	13
 
-int pcmcia_get_first_region(client_handle_t handle, region_info_t *rgn);
-int pcmcia_get_next_region(client_handle_t handle, region_info_t *rgn);
+int pcmcia_get_first_region(struct pcmcia_device *handle, region_info_t *rgn);
+int pcmcia_get_next_region(struct pcmcia_device *handle, region_info_t *rgn);
 
 #endif /* _LINUX_BULKMEM_H */

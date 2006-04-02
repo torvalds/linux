@@ -118,8 +118,8 @@ MODULE_LICENSE("GPL");
 
 /*====================================================================*/
 
-static void com20020_config(dev_link_t *link);
-static void com20020_release(dev_link_t *link);
+static int com20020_config(struct pcmcia_device *link);
+static void com20020_release(struct pcmcia_device *link);
 
 static void com20020_detach(struct pcmcia_device *p_dev);
 
@@ -138,9 +138,8 @@ typedef struct com20020_dev_t {
 
 ======================================================================*/
 
-static int com20020_attach(struct pcmcia_device *p_dev)
+static int com20020_probe(struct pcmcia_device *p_dev)
 {
-    dev_link_t *link;
     com20020_dev_t *info;
     struct net_device *dev;
     struct arcnet_local *lp;
@@ -148,10 +147,6 @@ static int com20020_attach(struct pcmcia_device *p_dev)
     DEBUG(0, "com20020_attach()\n");
 
     /* Create new network device */
-    link = kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
-    if (!link)
-	return -ENOMEM;
-
     info = kmalloc(sizeof(struct com20020_dev_t), GFP_KERNEL);
     if (!info)
 	goto fail_alloc_info;
@@ -161,7 +156,6 @@ static int com20020_attach(struct pcmcia_device *p_dev)
 	goto fail_alloc_dev;
 
     memset(info, 0, sizeof(struct com20020_dev_t));
-    memset(link, 0, sizeof(struct dev_link_t));
     lp = dev->priv;
     lp->timeout = timeout;
     lp->backplane = backplane;
@@ -172,28 +166,23 @@ static int com20020_attach(struct pcmcia_device *p_dev)
     /* fill in our module parameters as defaults */
     dev->dev_addr[0] = node;
 
-    link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-    link->io.NumPorts1 = 16;
-    link->io.IOAddrLines = 16;
-    link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
-    link->irq.IRQInfo1 = IRQ_LEVEL_ID;
-    link->conf.Attributes = CONF_ENABLE_IRQ;
-    link->conf.Vcc = 50;
-    link->conf.IntType = INT_MEMORY_AND_IO;
-    link->conf.Present = PRESENT_OPTION;
+    p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
+    p_dev->io.NumPorts1 = 16;
+    p_dev->io.IOAddrLines = 16;
+    p_dev->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
+    p_dev->irq.IRQInfo1 = IRQ_LEVEL_ID;
+    p_dev->conf.Attributes = CONF_ENABLE_IRQ;
+    p_dev->conf.IntType = INT_MEMORY_AND_IO;
+    p_dev->conf.Present = PRESENT_OPTION;
 
-    link->irq.Instance = info->dev = dev;
-    link->priv = info;
+    p_dev->irq.Instance = info->dev = dev;
+    p_dev->priv = info;
 
-    link->state |= DEV_PRESENT;
-    com20020_config(link);
-
-    return 0;
+    return com20020_config(p_dev);
 
 fail_alloc_dev:
     kfree(info);
 fail_alloc_info:
-    kfree(link);
     return -ENOMEM;
 } /* com20020_attach */
 
@@ -206,9 +195,8 @@ fail_alloc_info:
 
 ======================================================================*/
 
-static void com20020_detach(struct pcmcia_device *p_dev)
+static void com20020_detach(struct pcmcia_device *link)
 {
-    dev_link_t *link = dev_to_instance(p_dev);
     struct com20020_dev_t *info = link->priv;
     struct net_device *dev = info->dev;
 
@@ -216,7 +204,7 @@ static void com20020_detach(struct pcmcia_device *p_dev)
 
     DEBUG(0, "com20020_detach(0x%p)\n", link);
 
-    if (link->dev) {
+    if (link->dev_node) {
 	DEBUG(1,"unregister...\n");
 
 	unregister_netdev(dev);
@@ -229,8 +217,7 @@ static void com20020_detach(struct pcmcia_device *p_dev)
 	    free_irq(dev->irq, dev);
     }
 
-    if (link->state & DEV_CONFIG)
-        com20020_release(link);
+    com20020_release(link);
 
     /* Unlink device structure, free bits */
     DEBUG(1,"unlinking...\n");
@@ -245,8 +232,6 @@ static void com20020_detach(struct pcmcia_device *p_dev)
 	DEBUG(1,"kfree2...\n");
 	kfree(info);
     }
-    DEBUG(1,"kfree3...\n");
-    kfree(link);
 
 } /* com20020_detach */
 
@@ -261,10 +246,9 @@ static void com20020_detach(struct pcmcia_device *p_dev)
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
-static void com20020_config(dev_link_t *link)
+static int com20020_config(struct pcmcia_device *link)
 {
     struct arcnet_local *lp;
-    client_handle_t handle;
     tuple_t tuple;
     cisparse_t parse;
     com20020_dev_t *info;
@@ -273,7 +257,6 @@ static void com20020_config(dev_link_t *link)
     u_char buf[64];
     int ioaddr;
 
-    handle = link->handle;
     info = link->priv;
     dev = info->dev;
 
@@ -286,13 +269,10 @@ static void com20020_config(dev_link_t *link)
     tuple.TupleDataMax = 64;
     tuple.TupleOffset = 0;
     tuple.DesiredTuple = CISTPL_CONFIG;
-    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
-    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(handle, &tuple));
-    CS_CHECK(ParseTuple, pcmcia_parse_tuple(handle, &tuple, &parse));
+    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
+    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
+    CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
     link->conf.ConfigBase = parse.config.base;
-
-    /* Configure card */
-    link->state |= DEV_CONFIG;
 
     DEBUG(1,"arcnet: baseport1 is %Xh\n", link->io.BasePort1);
     i = !CS_SUCCESS;
@@ -301,13 +281,13 @@ static void com20020_config(dev_link_t *link)
 	for (ioaddr = 0x100; ioaddr < 0x400; ioaddr += 0x10)
 	{
 	    link->io.BasePort1 = ioaddr;
-	    i = pcmcia_request_io(link->handle, &link->io);
+	    i = pcmcia_request_io(link, &link->io);
 	    if (i == CS_SUCCESS)
 		break;
 	}
     }
     else
-	i = pcmcia_request_io(link->handle, &link->io);
+	i = pcmcia_request_io(link, &link->io);
     
     if (i != CS_SUCCESS)
     {
@@ -321,7 +301,7 @@ static void com20020_config(dev_link_t *link)
     DEBUG(1,"arcnet: request IRQ %d (%Xh/%Xh)\n",
 	   link->irq.AssignedIRQ,
 	   link->irq.IRQInfo1, link->irq.IRQInfo2);
-    i = pcmcia_request_irq(link->handle, &link->irq);
+    i = pcmcia_request_irq(link, &link->irq);
     if (i != CS_SUCCESS)
     {
 	DEBUG(1,"arcnet: requestIRQ failed totally!\n");
@@ -330,7 +310,7 @@ static void com20020_config(dev_link_t *link)
 
     dev->irq = link->irq.AssignedIRQ;
 
-    CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link->handle, &link->conf));
+    CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
 
     if (com20020_check(dev))
     {
@@ -342,15 +322,14 @@ static void com20020_config(dev_link_t *link)
     lp->card_name = "PCMCIA COM20020";
     lp->card_flags = ARC_CAN_10MBIT; /* pretend all of them can 10Mbit */
 
-    link->dev = &info->node;
-    link->state &= ~DEV_CONFIG_PENDING;
-    SET_NETDEV_DEV(dev, &handle_to_dev(handle));
+    link->dev_node = &info->node;
+    SET_NETDEV_DEV(dev, &handle_to_dev(link));
 
     i = com20020_found(dev, 0);	/* calls register_netdev */
     
     if (i != 0) {
 	DEBUG(1,KERN_NOTICE "com20020_cs: com20020_found() failed\n");
-	link->dev = NULL;
+	link->dev_node = NULL;
 	goto failed;
     }
 
@@ -358,13 +337,14 @@ static void com20020_config(dev_link_t *link)
 
     DEBUG(1,KERN_INFO "%s: port %#3lx, irq %d\n",
            dev->name, dev->base_addr, dev->irq);
-    return;
+    return 0;
 
 cs_failed:
-    cs_error(link->handle, last_fn, last_ret);
+    cs_error(link, last_fn, last_ret);
 failed:
     DEBUG(1,"com20020_config failed...\n");
     com20020_release(link);
+    return -ENODEV;
 } /* com20020_config */
 
 /*======================================================================
@@ -375,52 +355,33 @@ failed:
 
 ======================================================================*/
 
-static void com20020_release(dev_link_t *link)
+static void com20020_release(struct pcmcia_device *link)
 {
-
-    DEBUG(1,"release...\n");
-
-    DEBUG(0, "com20020_release(0x%p)\n", link);
-
-    pcmcia_release_configuration(link->handle);
-    pcmcia_release_io(link->handle, &link->io);
-    pcmcia_release_irq(link->handle, &link->irq);
-
-    link->state &= ~(DEV_CONFIG | DEV_RELEASE_PENDING);
+	DEBUG(0, "com20020_release(0x%p)\n", link);
+	pcmcia_disable_device(link);
 }
 
-static int com20020_suspend(struct pcmcia_device *p_dev)
+static int com20020_suspend(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
 	com20020_dev_t *info = link->priv;
 	struct net_device *dev = info->dev;
 
-	link->state |= DEV_SUSPEND;
-        if (link->state & DEV_CONFIG) {
-		if (link->open) {
-			netif_device_detach(dev);
-		}
-		pcmcia_release_configuration(link->handle);
-        }
+	if (link->open)
+		netif_device_detach(dev);
 
 	return 0;
 }
 
-static int com20020_resume(struct pcmcia_device *p_dev)
+static int com20020_resume(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
 	com20020_dev_t *info = link->priv;
 	struct net_device *dev = info->dev;
 
-	link->state &= ~DEV_SUSPEND;
-        if (link->state & DEV_CONFIG) {
-		pcmcia_request_configuration(link->handle, &link->conf);
-		if (link->open) {
-			int ioaddr = dev->base_addr;
-			struct arcnet_local *lp = dev->priv;
-			ARCRESET;
-		}
-        }
+	if (link->open) {
+		int ioaddr = dev->base_addr;
+		struct arcnet_local *lp = dev->priv;
+		ARCRESET;
+	}
 
 	return 0;
 }
@@ -436,7 +397,7 @@ static struct pcmcia_driver com20020_cs_driver = {
 	.drv		= {
 		.name	= "com20020_cs",
 	},
-	.probe		= com20020_attach,
+	.probe		= com20020_probe,
 	.remove		= com20020_detach,
 	.id_table	= com20020_ids,
 	.suspend	= com20020_suspend,

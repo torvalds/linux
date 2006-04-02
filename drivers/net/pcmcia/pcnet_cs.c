@@ -103,8 +103,8 @@ module_param_array(hw_addr, int, NULL, 0);
 /*====================================================================*/
 
 static void mii_phy_probe(struct net_device *dev);
-static void pcnet_config(dev_link_t *link);
-static void pcnet_release(dev_link_t *link);
+static int pcnet_config(struct pcmcia_device *link);
+static void pcnet_release(struct pcmcia_device *link);
 static int pcnet_open(struct net_device *dev);
 static int pcnet_close(struct net_device *dev);
 static int ei_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
@@ -113,9 +113,9 @@ static irqreturn_t ei_irq_wrapper(int irq, void *dev_id, struct pt_regs *regs);
 static void ei_watchdog(u_long arg);
 static void pcnet_reset_8390(struct net_device *dev);
 static int set_config(struct net_device *dev, struct ifmap *map);
-static int setup_shmem_window(dev_link_t *link, int start_pg,
+static int setup_shmem_window(struct pcmcia_device *link, int start_pg,
 			      int stop_pg, int cm_offset);
-static int setup_dma_config(dev_link_t *link, int start_pg,
+static int setup_dma_config(struct pcmcia_device *link, int start_pg,
 			    int stop_pg);
 
 static void pcnet_detach(struct pcmcia_device *p_dev);
@@ -214,7 +214,7 @@ static hw_info_t dl10019_info = { 0, 0, 0, 0, IS_DL10019|HAS_MII };
 static hw_info_t dl10022_info = { 0, 0, 0, 0, IS_DL10022|HAS_MII };
 
 typedef struct pcnet_dev_t {
-    dev_link_t		link;
+	struct pcmcia_device	*p_dev;
     dev_node_t		node;
     u_int		flags;
     void		__iomem *base;
@@ -240,10 +240,9 @@ static inline pcnet_dev_t *PRIV(struct net_device *dev)
 
 ======================================================================*/
 
-static int pcnet_probe(struct pcmcia_device *p_dev)
+static int pcnet_probe(struct pcmcia_device *link)
 {
     pcnet_dev_t *info;
-    dev_link_t *link;
     struct net_device *dev;
 
     DEBUG(0, "pcnet_attach()\n");
@@ -252,7 +251,7 @@ static int pcnet_probe(struct pcmcia_device *p_dev)
     dev = __alloc_ei_netdev(sizeof(pcnet_dev_t));
     if (!dev) return -ENOMEM;
     info = PRIV(dev);
-    link = &info->link;
+    info->p_dev = link;
     link->priv = dev;
 
     link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
@@ -265,13 +264,7 @@ static int pcnet_probe(struct pcmcia_device *p_dev)
     dev->stop = &pcnet_close;
     dev->set_config = &set_config;
 
-    link->handle = p_dev;
-    p_dev->instance = link;
-
-    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-    pcnet_config(link);
-
-    return 0;
+    return pcnet_config(link);
 } /* pcnet_attach */
 
 /*======================================================================
@@ -283,18 +276,16 @@ static int pcnet_probe(struct pcmcia_device *p_dev)
 
 ======================================================================*/
 
-static void pcnet_detach(struct pcmcia_device *p_dev)
+static void pcnet_detach(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
 	struct net_device *dev = link->priv;
 
 	DEBUG(0, "pcnet_detach(0x%p)\n", link);
 
-	if (link->dev)
+	if (link->dev_node)
 		unregister_netdev(dev);
 
-	if (link->state & DEV_CONFIG)
-		pcnet_release(link);
+	pcnet_release(link);
 
 	free_netdev(dev);
 } /* pcnet_detach */
@@ -306,7 +297,7 @@ static void pcnet_detach(struct pcmcia_device *p_dev)
 
 ======================================================================*/
 
-static hw_info_t *get_hwinfo(dev_link_t *link)
+static hw_info_t *get_hwinfo(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
     win_req_t req;
@@ -318,9 +309,9 @@ static hw_info_t *get_hwinfo(dev_link_t *link)
     req.Attributes = WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
     req.Base = 0; req.Size = 0;
     req.AccessSpeed = 0;
-    i = pcmcia_request_window(&link->handle, &req, &link->win);
+    i = pcmcia_request_window(&link, &req, &link->win);
     if (i != CS_SUCCESS) {
-	cs_error(link->handle, RequestWindow, i);
+	cs_error(link, RequestWindow, i);
 	return NULL;
     }
 
@@ -343,7 +334,7 @@ static hw_info_t *get_hwinfo(dev_link_t *link)
     iounmap(virt);
     j = pcmcia_release_window(link->win);
     if (j != CS_SUCCESS)
-	cs_error(link->handle, ReleaseWindow, j);
+	cs_error(link, ReleaseWindow, j);
     return (i < NR_INFO) ? hw_info+i : NULL;
 } /* get_hwinfo */
 
@@ -355,7 +346,7 @@ static hw_info_t *get_hwinfo(dev_link_t *link)
 
 ======================================================================*/
 
-static hw_info_t *get_prom(dev_link_t *link)
+static hw_info_t *get_prom(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
     kio_addr_t ioaddr = dev->base_addr;
@@ -409,7 +400,7 @@ static hw_info_t *get_prom(dev_link_t *link)
 
 ======================================================================*/
 
-static hw_info_t *get_dl10019(dev_link_t *link)
+static hw_info_t *get_dl10019(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
     int i;
@@ -431,7 +422,7 @@ static hw_info_t *get_dl10019(dev_link_t *link)
 
 ======================================================================*/
 
-static hw_info_t *get_ax88190(dev_link_t *link)
+static hw_info_t *get_ax88190(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
     kio_addr_t ioaddr = dev->base_addr;
@@ -464,7 +455,7 @@ static hw_info_t *get_ax88190(dev_link_t *link)
 
 ======================================================================*/
 
-static hw_info_t *get_hwired(dev_link_t *link)
+static hw_info_t *get_hwired(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
     int i;
@@ -491,7 +482,7 @@ static hw_info_t *get_hwired(dev_link_t *link)
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
-static int try_io_port(dev_link_t *link)
+static int try_io_port(struct pcmcia_device *link)
 {
     int j, ret;
     if (link->io.NumPorts1 == 32) {
@@ -512,18 +503,17 @@ static int try_io_port(dev_link_t *link)
 	for (j = 0; j < 0x400; j += 0x20) {
 	    link->io.BasePort1 = j ^ 0x300;
 	    link->io.BasePort2 = (j ^ 0x300) + 0x10;
-	    ret = pcmcia_request_io(link->handle, &link->io);
+	    ret = pcmcia_request_io(link, &link->io);
 	    if (ret == CS_SUCCESS) return ret;
 	}
 	return ret;
     } else {
-	return pcmcia_request_io(link->handle, &link->io);
+	return pcmcia_request_io(link, &link->io);
     }
 }
 
-static void pcnet_config(dev_link_t *link)
+static int pcnet_config(struct pcmcia_device *link)
 {
-    client_handle_t handle = link->handle;
     struct net_device *dev = link->priv;
     pcnet_dev_t *info = PRIV(dev);
     tuple_t tuple;
@@ -531,7 +521,6 @@ static void pcnet_config(dev_link_t *link)
     int i, last_ret, last_fn, start_pg, stop_pg, cm_offset;
     int manfid = 0, prodid = 0, has_shmem = 0;
     u_short buf[64];
-    config_info_t conf;
     hw_info_t *hw_info;
 
     DEBUG(0, "pcnet_config(0x%p)\n", link);
@@ -541,36 +530,29 @@ static void pcnet_config(dev_link_t *link)
     tuple.TupleDataMax = sizeof(buf);
     tuple.TupleOffset = 0;
     tuple.DesiredTuple = CISTPL_CONFIG;
-    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
-    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(handle, &tuple));
-    CS_CHECK(ParseTuple, pcmcia_parse_tuple(handle, &tuple, &parse));
+    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
+    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
+    CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
     link->conf.ConfigBase = parse.config.base;
     link->conf.Present = parse.config.rmask[0];
 
-    /* Configure card */
-    link->state |= DEV_CONFIG;
-
-    /* Look up current Vcc */
-    CS_CHECK(GetConfigurationInfo, pcmcia_get_configuration_info(handle, &conf));
-    link->conf.Vcc = conf.Vcc;
-
     tuple.DesiredTuple = CISTPL_MANFID;
     tuple.Attributes = TUPLE_RETURN_COMMON;
-    if ((pcmcia_get_first_tuple(handle, &tuple) == CS_SUCCESS) &&
- 	(pcmcia_get_tuple_data(handle, &tuple) == CS_SUCCESS)) {
+    if ((pcmcia_get_first_tuple(link, &tuple) == CS_SUCCESS) &&
+ 	(pcmcia_get_tuple_data(link, &tuple) == CS_SUCCESS)) {
 	manfid = le16_to_cpu(buf[0]);
 	prodid = le16_to_cpu(buf[1]);
     }
     
     tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
     tuple.Attributes = 0;
-    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
+    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
     while (last_ret == CS_SUCCESS) {
 	cistpl_cftable_entry_t *cfg = &(parse.cftable_entry);
 	cistpl_io_t *io = &(parse.cftable_entry.io);
 	
-	if (pcmcia_get_tuple_data(handle, &tuple) != 0 ||
-			pcmcia_parse_tuple(handle, &tuple, &parse) != 0 ||
+	if (pcmcia_get_tuple_data(link, &tuple) != 0 ||
+			pcmcia_parse_tuple(link, &tuple, &parse) != 0 ||
 			cfg->index == 0 || cfg->io.nwin == 0)
 		goto next_entry;
 	
@@ -594,14 +576,14 @@ static void pcnet_config(dev_link_t *link)
 	    if (last_ret == CS_SUCCESS) break;
 	}
     next_entry:
-	last_ret = pcmcia_get_next_tuple(handle, &tuple);
+	last_ret = pcmcia_get_next_tuple(link, &tuple);
     }
     if (last_ret != CS_SUCCESS) {
-	cs_error(handle, RequestIO, last_ret);
+	cs_error(link, RequestIO, last_ret);
 	goto failed;
     }
 
-    CS_CHECK(RequestIRQ, pcmcia_request_irq(handle, &link->irq));
+    CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
     
     if (link->io.NumPorts2 == 8) {
 	link->conf.Attributes |= CONF_ENABLE_SPKR;
@@ -611,7 +593,7 @@ static void pcnet_config(dev_link_t *link)
 	(prodid == PRODID_IBM_HOME_AND_AWAY))
 	link->conf.ConfigIndex |= 0x10;
     
-    CS_CHECK(RequestConfiguration, pcmcia_request_configuration(handle, &link->conf));
+    CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
     dev->irq = link->irq.AssignedIRQ;
     dev->base_addr = link->io.BasePort1;
     if (info->flags & HAS_MISC_REG) {
@@ -679,9 +661,8 @@ static void pcnet_config(dev_link_t *link)
 	    info->eth_phy = 0;
     }
 
-    link->dev = &info->node;
-    link->state &= ~DEV_CONFIG_PENDING;
-    SET_NETDEV_DEV(dev, &handle_to_dev(handle));
+    link->dev_node = &info->node;
+    SET_NETDEV_DEV(dev, &handle_to_dev(link));
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
     dev->poll_controller = ei_poll;
@@ -689,7 +670,7 @@ static void pcnet_config(dev_link_t *link)
 
     if (register_netdev(dev) != 0) {
 	printk(KERN_NOTICE "pcnet_cs: register_netdev() failed\n");
-	link->dev = NULL;
+	link->dev_node = NULL;
 	goto failed;
     }
 
@@ -712,14 +693,13 @@ static void pcnet_config(dev_link_t *link)
     printk(" hw_addr ");
     for (i = 0; i < 6; i++)
 	printk("%02X%s", dev->dev_addr[i], ((i<5) ? ":" : "\n"));
-    return;
+    return 0;
 
 cs_failed:
-    cs_error(link->handle, last_fn, last_ret);
+    cs_error(link, last_fn, last_ret);
 failed:
     pcnet_release(link);
-    link->state &= ~DEV_CONFIG_PENDING;
-    return;
+    return -ENODEV;
 } /* pcnet_config */
 
 /*======================================================================
@@ -730,21 +710,16 @@ failed:
 
 ======================================================================*/
 
-static void pcnet_release(dev_link_t *link)
+static void pcnet_release(struct pcmcia_device *link)
 {
-    pcnet_dev_t *info = PRIV(link->priv);
+	pcnet_dev_t *info = PRIV(link->priv);
 
-    DEBUG(0, "pcnet_release(0x%p)\n", link);
+	DEBUG(0, "pcnet_release(0x%p)\n", link);
 
-    if (info->flags & USE_SHMEM) {
-	iounmap(info->base);
-	pcmcia_release_window(link->win);
-    }
-    pcmcia_release_configuration(link->handle);
-    pcmcia_release_io(link->handle, &link->io);
-    pcmcia_release_irq(link->handle, &link->irq);
+	if (info->flags & USE_SHMEM)
+		iounmap(info->base);
 
-    link->state &= ~DEV_CONFIG;
+	pcmcia_disable_device(link);
 }
 
 /*======================================================================
@@ -756,34 +731,24 @@ static void pcnet_release(dev_link_t *link)
 
 ======================================================================*/
 
-static int pcnet_suspend(struct pcmcia_device *p_dev)
+static int pcnet_suspend(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
 	struct net_device *dev = link->priv;
 
-	link->state |= DEV_SUSPEND;
-	if (link->state & DEV_CONFIG) {
-		if (link->open)
-			netif_device_detach(dev);
-		pcmcia_release_configuration(link->handle);
-	}
+	if (link->open)
+		netif_device_detach(dev);
 
 	return 0;
 }
 
-static int pcnet_resume(struct pcmcia_device *p_dev)
+static int pcnet_resume(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
 	struct net_device *dev = link->priv;
 
-	link->state &= ~DEV_SUSPEND;
-	if (link->state & DEV_CONFIG) {
-		pcmcia_request_configuration(link->handle, &link->conf);
-		if (link->open) {
-			pcnet_reset_8390(dev);
-			NS8390_init(dev, 1);
-			netif_device_attach(dev);
-		}
+	if (link->open) {
+		pcnet_reset_8390(dev);
+		NS8390_init(dev, 1);
+		netif_device_attach(dev);
 	}
 
 	return 0;
@@ -1023,11 +988,11 @@ static void mii_phy_probe(struct net_device *dev)
 static int pcnet_open(struct net_device *dev)
 {
     pcnet_dev_t *info = PRIV(dev);
-    dev_link_t *link = &info->link;
-    
+    struct pcmcia_device *link = info->p_dev;
+
     DEBUG(2, "pcnet_open('%s')\n", dev->name);
 
-    if (!DEV_OK(link))
+    if (!pcmcia_dev_present(link))
 	return -ENODEV;
 
     link->open++;
@@ -1051,7 +1016,7 @@ static int pcnet_open(struct net_device *dev)
 static int pcnet_close(struct net_device *dev)
 {
     pcnet_dev_t *info = PRIV(dev);
-    dev_link_t *link = &info->link;
+    struct pcmcia_device *link = info->p_dev;
 
     DEBUG(2, "pcnet_close('%s')\n", dev->name);
 
@@ -1429,7 +1394,7 @@ static void dma_block_output(struct net_device *dev, int count,
 
 /*====================================================================*/
 
-static int setup_dma_config(dev_link_t *link, int start_pg,
+static int setup_dma_config(struct pcmcia_device *link, int start_pg,
 			    int stop_pg)
 {
     struct net_device *dev = link->priv;
@@ -1532,7 +1497,7 @@ static void shmem_block_output(struct net_device *dev, int count,
 
 /*====================================================================*/
 
-static int setup_shmem_window(dev_link_t *link, int start_pg,
+static int setup_shmem_window(struct pcmcia_device *link, int start_pg,
 			      int stop_pg, int cm_offset)
 {
     struct net_device *dev = link->priv;
@@ -1554,7 +1519,7 @@ static int setup_shmem_window(dev_link_t *link, int start_pg,
     req.Attributes |= WIN_USE_WAIT;
     req.Base = 0; req.Size = window_size;
     req.AccessSpeed = mem_speed;
-    CS_CHECK(RequestWindow, pcmcia_request_window(&link->handle, &req, &link->win));
+    CS_CHECK(RequestWindow, pcmcia_request_window(&link, &req, &link->win));
 
     mem.CardOffset = (start_pg << 8) + cm_offset;
     offset = mem.CardOffset % window_size;
@@ -1595,7 +1560,7 @@ static int setup_shmem_window(dev_link_t *link, int start_pg,
     return 0;
 
 cs_failed:
-    cs_error(link->handle, last_fn, last_ret);
+    cs_error(link, last_fn, last_ret);
 failed:
     return 1;
 }
