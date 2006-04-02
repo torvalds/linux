@@ -29,6 +29,8 @@
 #include <linux/usb.h>
 #include <media/tuner.h>
 #include <media/msp3400.h>
+#include <media/saa7115.h>
+#include <media/tvp5150.h>
 #include <media/tveeprom.h>
 #include <media/audiochip.h>
 #include <media/v4l2-common.h>
@@ -46,11 +48,11 @@ struct em28xx_board em28xx_boards[] = {
 		.decoder      = EM28XX_SAA7113,
 		.input           = {{
 			.type     = EM28XX_VMUX_COMPOSITE1,
-			.vmux     = 0,
+			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = 1,
 		},{
 			.type     = EM28XX_VMUX_SVIDEO,
-			.vmux     = 9,
+			.vmux     = SAA7115_SVIDEO3,
 			.amux     = 1,
 		}},
 	},
@@ -64,11 +66,11 @@ struct em28xx_board em28xx_boards[] = {
 		.decoder      = EM28XX_SAA7113,
 		.input           = {{
 			.type     = EM28XX_VMUX_COMPOSITE1,
-			.vmux     = 0,
+			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = 1,
 		},{
 			.type     = EM28XX_VMUX_SVIDEO,
-			.vmux     = 9,
+			.vmux     = SAA7115_SVIDEO3,
 			.amux     = 1,
 		}},
 	},
@@ -82,11 +84,11 @@ struct em28xx_board em28xx_boards[] = {
 		.decoder      = EM28XX_SAA7113,
 		.input           = {{
 			.type     = EM28XX_VMUX_COMPOSITE1,
-			.vmux     = 0,
+			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = 1,
 		},{
 			.type     = EM28XX_VMUX_SVIDEO,
-			.vmux     = 9,
+			.vmux     = SAA7115_SVIDEO3,
 			.amux     = 1,
 		}},
 	},
@@ -100,15 +102,15 @@ struct em28xx_board em28xx_boards[] = {
 		.decoder      = EM28XX_SAA7113,
 		.input          = {{
 			.type     = EM28XX_VMUX_TELEVISION,
-			.vmux     = 2,
+			.vmux     = SAA7115_COMPOSITE2,
 			.amux     = 1,
 		},{
 			.type     = EM28XX_VMUX_COMPOSITE1,
-			.vmux     = 0,
+			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = 1,
 		},{
 			.type     = EM28XX_VMUX_SVIDEO,
-			.vmux     = 9,
+			.vmux     = SAA7115_SVIDEO3,
 			.amux     = 1,
 		}},
 	},
@@ -122,15 +124,15 @@ struct em28xx_board em28xx_boards[] = {
 		.decoder      = EM28XX_SAA7113,
 		.input          = {{
 			.type     = EM28XX_VMUX_TELEVISION,
-			.vmux     = 2,
+			.vmux     = SAA7115_COMPOSITE2,
 			.amux     = 0,
 		},{
 			.type     = EM28XX_VMUX_COMPOSITE1,
-			.vmux     = 0,
+			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = 1,
 		},{
 			.type     = EM28XX_VMUX_SVIDEO,
-			.vmux     = 9,
+			.vmux     = SAA7115_SVIDEO3,
 			.amux     = 1,
 		}},
 	},
@@ -146,11 +148,11 @@ struct em28xx_board em28xx_boards[] = {
 		/*FIXME: S-Video not tested */
 		.input          = {{
 			.type     = EM28XX_VMUX_TELEVISION,
-			.vmux     = 0,
+			.vmux     = TVP5150_COMPOSITE0,
 			.amux     = MSP_INPUT_DEFAULT,
 		},{
 			.type     = EM28XX_VMUX_SVIDEO,
-			.vmux     = 2,
+			.vmux     = TVP5150_SVIDEO,
 			.amux     = MSP_INPUT(MSP_IN_SCART1, MSP_IN_TUNER1,
 					MSP_DSP_IN_SCART, MSP_DSP_IN_SCART),
 		}},
@@ -165,15 +167,15 @@ struct em28xx_board em28xx_boards[] = {
 		.decoder        = EM28XX_SAA7114,
 		.input          = {{
 			.type     = EM28XX_VMUX_TELEVISION,
-			.vmux     = 4,
+			.vmux     = SAA7115_COMPOSITE4,
 			.amux     = 0,
 		},{
 			.type     = EM28XX_VMUX_COMPOSITE1,
-			.vmux     = 0,
+			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = 1,
 		},{
 			.type     = EM28XX_VMUX_SVIDEO,
-			.vmux     = 9,
+			.vmux     = SAA7115_SVIDEO3,
 			.amux     = 1,
 		}},
 	},
@@ -188,15 +190,15 @@ struct em28xx_board em28xx_boards[] = {
 		.decoder      = EM28XX_SAA7113,
 		.input          = {{
 			.type     = EM28XX_VMUX_TELEVISION,
-			.vmux     = 2,
+			.vmux     = SAA7115_COMPOSITE2,
 			.amux     = 0,
 		},{
 			.type     = EM28XX_VMUX_COMPOSITE1,
-			.vmux     = 0,
+			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = 1,
 		},{
 			.type     = EM28XX_VMUX_SVIDEO,
-			.vmux     = 9,
+			.vmux     = SAA7115_SVIDEO3,
 			.amux     = 1,
 		}},
 	},
@@ -211,15 +213,15 @@ struct em28xx_board em28xx_boards[] = {
 		.decoder      = EM28XX_SAA7113,
 		.input          = {{
 			.type     = EM28XX_VMUX_TELEVISION,
-			.vmux     = 2,
+			.vmux     = SAA7115_COMPOSITE2,
 			.amux     = 0,
 		},{
 			.type     = EM28XX_VMUX_COMPOSITE1,
-			.vmux     = 0,
+			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = 1,
 		},{
 			.type     = EM28XX_VMUX_SVIDEO,
-			.vmux     = 9,
+			.vmux     = SAA7115_SVIDEO3,
 			.amux     = 1,
 		}},
 	},
@@ -234,15 +236,15 @@ struct em28xx_board em28xx_boards[] = {
 		.decoder      = EM28XX_SAA7113,
 		.input          = {{
 			.type     = EM28XX_VMUX_TELEVISION,
-			.vmux     = 2,
+			.vmux     = SAA7115_COMPOSITE2,
 			.amux     = 0,
 		},{
 			.type     = EM28XX_VMUX_COMPOSITE1,
-			.vmux     = 0,
+			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = 1,
 		},{
 			.type     = EM28XX_VMUX_SVIDEO,
-			.vmux     = 9,
+			.vmux     = SAA7115_SVIDEO3,
 			.amux     = 1,
 		}},
 	},
@@ -254,11 +256,11 @@ struct em28xx_board em28xx_boards[] = {
 		.decoder      = EM28XX_SAA7113,
 		.input          = {{
 			.type     = EM28XX_VMUX_COMPOSITE1,
-			.vmux     = 0,
+			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = 1,
 		},{
 			.type     = EM28XX_VMUX_SVIDEO,
-			.vmux     = 9,
+			.vmux     = SAA7115_SVIDEO3,
 			.amux     = 1,
 		}},
 	},

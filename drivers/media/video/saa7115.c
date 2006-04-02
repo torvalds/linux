@@ -1238,34 +1238,6 @@ static int saa7115_command(struct i2c_client *client, unsigned int cmd, void *ar
 		break;
 	}
 
-	case VIDIOC_G_INPUT:
-		*(int *)arg = state->input;
-		break;
-
-	case VIDIOC_S_INPUT:
-		v4l_dbg(1, debug, client, "decoder set input %d\n", *iarg);
-		/* inputs from 0-9 are available */
-		if (*iarg < 0 || *iarg > 9) {
-			return -EINVAL;
-		}
-
-		if (state->input == *iarg)
-			break;
-		v4l_dbg(1, debug, client, "now setting %s input\n",
-			*iarg >= 6 ? "S-Video" : "Composite");
-		state->input = *iarg;
-
-		/* select mode */
-		saa7115_write(client, 0x02,
-			      (saa7115_read(client, 0x02) & 0xf0) |
-			       state->input);
-
-		/* bypass chrominance trap for modes 6..9 */
-		saa7115_write(client, 0x09,
-			      (saa7115_read(client, 0x09) & 0x7f) |
-			       (state->input < 6 ? 0x0 : 0x80));
-		break;
-
 	case VIDIOC_STREAMON:
 	case VIDIOC_STREAMOFF:
 		v4l_dbg(1, debug, client, "%s output\n",
