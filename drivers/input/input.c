@@ -18,6 +18,7 @@
 #include <linux/random.h>
 #include <linux/major.h>
 #include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 #include <linux/interrupt.h>
 #include <linux/poll.h>
 #include <linux/device.h>
@@ -316,26 +317,6 @@ static struct input_device_id *input_match_device(struct input_device_id *id, st
 	return NULL;
 }
 
-static int input_print_bitmap(char *buf, int buf_size, unsigned long *bitmap,
-			      int max, int add_cr)
-{
-	int i;
-	int len = 0;
-
-	for (i = NBITS(max) - 1; i > 0; i--)
-		if (bitmap[i])
-			break;
-
-	for (; i >= 0; i--)
-		len += snprintf(buf + len, max(buf_size - len, 0),
-				"%lx%s", bitmap[i], i > 0 ? " " : "");
-
-	if (add_cr)
-		len += snprintf(buf + len, max(buf_size - len, 0), "\n");
-
-	return len;
-}
-
 #ifdef CONFIG_PROC_FS
 
 static struct proc_dir_entry *proc_bus_input_dir;
@@ -348,7 +329,7 @@ static inline void input_wakeup_procfs_readers(void)
 	wake_up(&input_devices_poll_wait);
 }
 
-static unsigned int input_devices_poll(struct file *file, poll_table *wait)
+static unsigned int input_proc_devices_poll(struct file *file, poll_table *wait)
 {
 	int state = input_devices_state;
 	poll_wait(file, &input_devices_poll_wait, wait);
@@ -357,114 +338,171 @@ static unsigned int input_devices_poll(struct file *file, poll_table *wait)
 	return 0;
 }
 
-#define SPRINTF_BIT(ev, bm)						\
-	do {								\
-		len += sprintf(buf + len, "B: %s=", #ev);		\
-		len += input_print_bitmap(buf + len, INT_MAX,		\
-					dev->bm##bit, ev##_MAX, 1);	\
-	} while (0)
-
-#define TEST_AND_SPRINTF_BIT(ev, bm)					\
-	do {								\
-		if (test_bit(EV_##ev, dev->evbit))			\
-			SPRINTF_BIT(ev, bm);				\
-	} while (0)
-
-static int input_devices_read(char *buf, char **start, off_t pos, int count, int *eof, void *data)
+static struct list_head *list_get_nth_element(struct list_head *list, loff_t *pos)
 {
-	struct input_dev *dev;
+	struct list_head *node;
+	loff_t i = 0;
+
+	list_for_each(node, list)
+		if (i++ == *pos)
+			return node;
+
+	return NULL;
+}
+
+static struct list_head *list_get_next_element(struct list_head *list, struct list_head *element, loff_t *pos)
+{
+	if (element->next == list)
+		return NULL;
+
+	++(*pos);
+	return element->next;
+}
+
+static void *input_devices_seq_start(struct seq_file *seq, loff_t *pos)
+{
+	/* acquire lock here ... Yes, we do need locking, I knowi, I know... */
+
+	return list_get_nth_element(&input_dev_list, pos);
+}
+
+static void *input_devices_seq_next(struct seq_file *seq, void *v, loff_t *pos)
+{
+	return list_get_next_element(&input_dev_list, v, pos);
+}
+
+static void input_devices_seq_stop(struct seq_file *seq, void *v)
+{
+	/* release lock here */
+}
+
+static void input_seq_print_bitmap(struct seq_file *seq, const char *name,
+				   unsigned long *bitmap, int max)
+{
+	int i;
+
+	for (i = NBITS(max) - 1; i > 0; i--)
+		if (bitmap[i])
+			break;
+
+	seq_printf(seq, "B: %s=", name);
+	for (; i >= 0; i--)
+		seq_printf(seq, "%lx%s", bitmap[i], i > 0 ? " " : "");
+	seq_putc(seq, '\n');
+}
+
+static int input_devices_seq_show(struct seq_file *seq, void *v)
+{
+	struct input_dev *dev = container_of(v, struct input_dev, node);
+	const char *path = kobject_get_path(&dev->cdev.kobj, GFP_KERNEL);
 	struct input_handle *handle;
-	const char *path;
 
-	off_t at = 0;
-	int len, cnt = 0;
+	seq_printf(seq, "I: Bus=%04x Vendor=%04x Product=%04x Version=%04x\n",
+		   dev->id.bustype, dev->id.vendor, dev->id.product, dev->id.version);
 
-	list_for_each_entry(dev, &input_dev_list, node) {
+	seq_printf(seq, "N: Name=\"%s\"\n", dev->name ? dev->name : "");
+	seq_printf(seq, "P: Phys=%s\n", dev->phys ? dev->phys : "");
+	seq_printf(seq, "S: Sysfs=%s\n", path ? path : "");
+	seq_printf(seq, "H: Handlers=");
 
-		path = kobject_get_path(&dev->cdev.kobj, GFP_KERNEL);
+	list_for_each_entry(handle, &dev->h_list, d_node)
+		seq_printf(seq, "%s ", handle->name);
+	seq_putc(seq, '\n');
 
-		len = sprintf(buf, "I: Bus=%04x Vendor=%04x Product=%04x Version=%04x\n",
-			dev->id.bustype, dev->id.vendor, dev->id.product, dev->id.version);
+	input_seq_print_bitmap(seq, "EV", dev->evbit, EV_MAX);
+	if (test_bit(EV_KEY, dev->evbit))
+		input_seq_print_bitmap(seq, "KEY", dev->keybit, KEY_MAX);
+	if (test_bit(EV_REL, dev->evbit))
+		input_seq_print_bitmap(seq, "REL", dev->relbit, REL_MAX);
+	if (test_bit(EV_ABS, dev->evbit))
+		input_seq_print_bitmap(seq, "ABS", dev->absbit, ABS_MAX);
+	if (test_bit(EV_MSC, dev->evbit))
+		input_seq_print_bitmap(seq, "MSC", dev->mscbit, MSC_MAX);
+	if (test_bit(EV_LED, dev->evbit))
+		input_seq_print_bitmap(seq, "LED", dev->ledbit, LED_MAX);
+	if (test_bit(EV_SND, dev->evbit))
+		input_seq_print_bitmap(seq, "SND", dev->sndbit, SND_MAX);
+	if (test_bit(EV_FF, dev->evbit))
+		input_seq_print_bitmap(seq, "FF", dev->ffbit, FF_MAX);
+	if (test_bit(EV_SW, dev->evbit))
+		input_seq_print_bitmap(seq, "SW", dev->swbit, SW_MAX);
 
-		len += sprintf(buf + len, "N: Name=\"%s\"\n", dev->name ? dev->name : "");
-		len += sprintf(buf + len, "P: Phys=%s\n", dev->phys ? dev->phys : "");
-		len += sprintf(buf + len, "S: Sysfs=%s\n", path ? path : "");
-		len += sprintf(buf + len, "H: Handlers=");
+	seq_putc(seq, '\n');
 
-		list_for_each_entry(handle, &dev->h_list, d_node)
-			len += sprintf(buf + len, "%s ", handle->name);
-
-		len += sprintf(buf + len, "\n");
-
-		SPRINTF_BIT(EV, ev);
-		TEST_AND_SPRINTF_BIT(KEY, key);
-		TEST_AND_SPRINTF_BIT(REL, rel);
-		TEST_AND_SPRINTF_BIT(ABS, abs);
-		TEST_AND_SPRINTF_BIT(MSC, msc);
-		TEST_AND_SPRINTF_BIT(LED, led);
-		TEST_AND_SPRINTF_BIT(SND, snd);
-		TEST_AND_SPRINTF_BIT(FF, ff);
-		TEST_AND_SPRINTF_BIT(SW, sw);
-
-		len += sprintf(buf + len, "\n");
-
-		at += len;
-
-		if (at >= pos) {
-			if (!*start) {
-				*start = buf + (pos - (at - len));
-				cnt = at - pos;
-			} else  cnt += len;
-			buf += len;
-			if (cnt >= count)
-				break;
-		}
-
-		kfree(path);
-	}
-
-	if (&dev->node == &input_dev_list)
-		*eof = 1;
-
-	return (count > cnt) ? cnt : count;
+	kfree(path);
+	return 0;
 }
 
-static int input_handlers_read(char *buf, char **start, off_t pos, int count, int *eof, void *data)
+static struct seq_operations input_devices_seq_ops = {
+	.start	= input_devices_seq_start,
+	.next	= input_devices_seq_next,
+	.stop	= input_devices_seq_stop,
+	.show	= input_devices_seq_show,
+};
+
+static int input_proc_devices_open(struct inode *inode, struct file *file)
 {
-	struct input_handler *handler;
-
-	off_t at = 0;
-	int len = 0, cnt = 0;
-	int i = 0;
-
-	list_for_each_entry(handler, &input_handler_list, node) {
-
-		if (handler->fops)
-			len = sprintf(buf, "N: Number=%d Name=%s Minor=%d\n",
-				i++, handler->name, handler->minor);
-		else
-			len = sprintf(buf, "N: Number=%d Name=%s\n",
-				i++, handler->name);
-
-		at += len;
-
-		if (at >= pos) {
-			if (!*start) {
-				*start = buf + (pos - (at - len));
-				cnt = at - pos;
-			} else  cnt += len;
-			buf += len;
-			if (cnt >= count)
-				break;
-		}
-	}
-	if (&handler->node == &input_handler_list)
-		*eof = 1;
-
-	return (count > cnt) ? cnt : count;
+	return seq_open(file, &input_devices_seq_ops);
 }
 
-static struct file_operations input_fileops;
+static struct file_operations input_devices_fileops = {
+	.owner		= THIS_MODULE,
+	.open		= input_proc_devices_open,
+	.poll		= input_proc_devices_poll,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+};
+
+static void *input_handlers_seq_start(struct seq_file *seq, loff_t *pos)
+{
+	/* acquire lock here ... Yes, we do need locking, I knowi, I know... */
+	seq->private = (void *)(unsigned long)*pos;
+	return list_get_nth_element(&input_handler_list, pos);
+}
+
+static void *input_handlers_seq_next(struct seq_file *seq, void *v, loff_t *pos)
+{
+	seq->private = (void *)(unsigned long)(*pos + 1);
+	return list_get_next_element(&input_handler_list, v, pos);
+}
+
+static void input_handlers_seq_stop(struct seq_file *seq, void *v)
+{
+	/* release lock here */
+}
+
+static int input_handlers_seq_show(struct seq_file *seq, void *v)
+{
+	struct input_handler *handler = container_of(v, struct input_handler, node);
+
+	seq_printf(seq, "N: Number=%ld Name=%s",
+		   (unsigned long)seq->private, handler->name);
+	if (handler->fops)
+		seq_printf(seq, " Minor=%d", handler->minor);
+	seq_putc(seq, '\n');
+
+	return 0;
+}
+static struct seq_operations input_handlers_seq_ops = {
+	.start	= input_handlers_seq_start,
+	.next	= input_handlers_seq_next,
+	.stop	= input_handlers_seq_stop,
+	.show	= input_handlers_seq_show,
+};
+
+static int input_proc_handlers_open(struct inode *inode, struct file *file)
+{
+	return seq_open(file, &input_handlers_seq_ops);
+}
+
+static struct file_operations input_handlers_fileops = {
+	.owner		= THIS_MODULE,
+	.open		= input_proc_handlers_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+};
 
 static int __init input_proc_init(void)
 {
@@ -476,20 +514,19 @@ static int __init input_proc_init(void)
 
 	proc_bus_input_dir->owner = THIS_MODULE;
 
-	entry = create_proc_read_entry("devices", 0, proc_bus_input_dir, input_devices_read, NULL);
+	entry = create_proc_entry("devices", 0, proc_bus_input_dir);
 	if (!entry)
 		goto fail1;
 
 	entry->owner = THIS_MODULE;
-	input_fileops = *entry->proc_fops;
-	input_fileops.poll = input_devices_poll;
-	entry->proc_fops = &input_fileops;
+	entry->proc_fops = &input_devices_fileops;
 
-	entry = create_proc_read_entry("handlers", 0, proc_bus_input_dir, input_handlers_read, NULL);
+	entry = create_proc_entry("handlers", 0, proc_bus_input_dir);
 	if (!entry)
 		goto fail2;
 
 	entry->owner = THIS_MODULE;
+	entry->proc_fops = &input_handlers_fileops;
 
 	return 0;
 
@@ -630,6 +667,26 @@ static struct attribute_group input_dev_id_attr_group = {
 	.name	= "id",
 	.attrs	= input_dev_id_attrs,
 };
+
+static int input_print_bitmap(char *buf, int buf_size, unsigned long *bitmap,
+			      int max, int add_cr)
+{
+	int i;
+	int len = 0;
+
+	for (i = NBITS(max) - 1; i > 0; i--)
+		if (bitmap[i])
+			break;
+
+	for (; i >= 0; i--)
+		len += snprintf(buf + len, max(buf_size - len, 0),
+				"%lx%s", bitmap[i], i > 0 ? " " : "");
+
+	if (add_cr)
+		len += snprintf(buf + len, max(buf_size - len, 0), "\n");
+
+	return len;
+}
 
 #define INPUT_DEV_CAP_ATTR(ev, bm)						\
 static ssize_t input_dev_show_cap_##bm(struct class_device *dev, char *buf)	\
