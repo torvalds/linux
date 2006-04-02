@@ -170,7 +170,7 @@ static inline void snd_power_change_state(struct snd_card *card, unsigned int st
 }
 
 /* init.c */
-int snd_power_wait(struct snd_card *card, unsigned int power_state, struct file *file);
+int snd_power_wait(struct snd_card *card, unsigned int power_state);
 
 #else /* ! CONFIG_PM */
 
