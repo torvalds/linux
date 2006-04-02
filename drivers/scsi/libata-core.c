@@ -1503,20 +1503,23 @@ void ata_port_probe(struct ata_port *ap)
  */
 static void sata_print_link_status(struct ata_port *ap)
 {
-	u32 sstatus, tmp;
+	u32 sstatus, scontrol, tmp;
 
 	if (!ap->ops->scr_read)
 		return;
 
 	sstatus = scr_read(ap, SCR_STATUS);
+	scontrol = scr_read(ap, SCR_CONTROL);
 
 	if (sata_dev_present(ap)) {
 		tmp = (sstatus >> 4) & 0xf;
-		printk(KERN_INFO "ata%u: SATA link up %s (SStatus %X)\n",
-		       ap->id, sata_spd_string(tmp), sstatus);
+		printk(KERN_INFO
+		       "ata%u: SATA link up %s (SStatus %X SControl %X)\n",
+		       ap->id, sata_spd_string(tmp), sstatus, scontrol);
 	} else {
-		printk(KERN_INFO "ata%u: SATA link down (SStatus %X)\n",
-		       ap->id, sstatus);
+		printk(KERN_INFO
+		       "ata%u: SATA link down (SStatus %X SControl %X)\n",
+		       ap->id, sstatus, scontrol);
 	}
 }
 
