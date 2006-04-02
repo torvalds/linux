@@ -2582,6 +2582,9 @@ int ata_drive_probe_reset(struct ata_port *ap, ata_probeinit_fn_t probeinit,
 		rc = ata_do_reset(ap, softreset, postreset, 0, classes);
 		if (rc == 0 && classes[0] != ATA_DEV_UNKNOWN)
 			goto done;
+		printk(KERN_INFO "ata%u: softreset failed, will try "
+		       "hardreset in 5 secs\n", ap->id);
+		ssleep(5);
 	}
 
 	if (!hardreset)
@@ -2597,10 +2600,20 @@ int ata_drive_probe_reset(struct ata_port *ap, ata_probeinit_fn_t probeinit,
 
 		if (ata_down_sata_spd_limit(ap))
 			goto done;
+
+		printk(KERN_INFO "ata%u: hardreset failed, will retry "
+		       "in 5 secs\n", ap->id);
+		ssleep(5);
 	}
 
-	if (softreset)
+	if (softreset) {
+		printk(KERN_INFO "ata%u: hardreset succeeded without "
+		       "classification, will retry softreset in 5 secs\n",
+		       ap->id);
+		ssleep(5);
+
 		rc = ata_do_reset(ap, softreset, postreset, 0, classes);
+	}
 
  done:
 	if (rc == 0 && classes[0] == ATA_DEV_UNKNOWN)
