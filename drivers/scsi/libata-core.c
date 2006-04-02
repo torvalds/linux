@@ -1961,12 +1961,8 @@ static int ata_dev_set_mode(struct ata_port *ap, struct ata_device *dev)
 	}
 
 	rc = ata_dev_revalidate(ap, dev, 0);
-	if (rc) {
-		printk(KERN_ERR
-		       "ata%u: failed to revalidate after set xfermode\n",
-		       ap->id);
+	if (rc)
 		return rc;
-	}
 
 	DPRINTK("xfer_shift=%u, xfer_mode=0x%x\n",
 		dev->xfer_shift, (int)dev->xfer_mode);
@@ -2786,15 +2782,14 @@ static int ata_dev_same_device(struct ata_port *ap, struct ata_device *dev,
 int ata_dev_revalidate(struct ata_port *ap, struct ata_device *dev,
 		       int post_reset)
 {
-	unsigned int class;
-	u16 *id;
+	unsigned int class = dev->class;
+	u16 *id = NULL;
 	int rc;
 
-	if (!ata_dev_enabled(dev))
-		return -ENODEV;
-
-	class = dev->class;
-	id = NULL;
+	if (!ata_dev_enabled(dev)) {
+		rc = -ENODEV;
+		goto fail;
+	}
 
 	/* allocate & read ID data */
 	rc = ata_dev_read_id(ap, dev, &class, post_reset, &id);
@@ -2811,7 +2806,9 @@ int ata_dev_revalidate(struct ata_port *ap, struct ata_device *dev,
 	dev->id = id;
 
 	/* configure device according to the new ID */
-	return ata_dev_configure(ap, dev, 0);
+	rc = ata_dev_configure(ap, dev, 0);
+	if (rc == 0)
+		return 0;
 
  fail:
 	printk(KERN_ERR "ata%u: dev %u revalidation failed (errno=%d)\n",
