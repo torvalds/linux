@@ -512,6 +512,15 @@ struct input_absinfo {
 #define KEY_FN_S		0x1e3
 #define KEY_FN_B		0x1e4
 
+#define KEY_BRL_DOT1		0x1f1
+#define KEY_BRL_DOT2		0x1f2
+#define KEY_BRL_DOT3		0x1f3
+#define KEY_BRL_DOT4		0x1f4
+#define KEY_BRL_DOT5		0x1f5
+#define KEY_BRL_DOT6		0x1f6
+#define KEY_BRL_DOT7		0x1f7
+#define KEY_BRL_DOT8		0x1f8
+
 /* We avoid low common keys in module aliases so they don't get huge. */
 #define KEY_MIN_INTERESTING	KEY_MUTE
 #define KEY_MAX			0x1ff
