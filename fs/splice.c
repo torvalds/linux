@@ -106,7 +106,7 @@ static struct pipe_buf_operations page_cache_pipe_buf_ops = {
 
 static ssize_t move_to_pipe(struct inode *inode, struct page **pages,
 			    int nr_pages, unsigned long offset,
-			    unsigned long len)
+			    unsigned long len, unsigned int flags)
 {
 	struct pipe_inode_info *info;
 	int ret, do_wakeup, i;
@@ -159,6 +159,12 @@ static ssize_t move_to_pipe(struct inode *inode, struct page **pages,
 			break;
 		}
 
+		if (flags & SPLICE_F_NONBLOCK) {
+			if (!ret)
+				ret = -EAGAIN;
+			break;
+		}
+
 		if (signal_pending(current)) {
 			if (!ret)
 				ret = -ERESTARTSYS;
@@ -191,7 +197,7 @@ static ssize_t move_to_pipe(struct inode *inode, struct page **pages,
 }
 
 static int __generic_file_splice_read(struct file *in, struct inode *pipe,
-				      size_t len)
+				      size_t len, unsigned int flags)
 {
 	struct address_space *mapping = in->f_mapping;
 	unsigned int offset, nr_pages;
@@ -279,7 +285,7 @@ static int __generic_file_splice_read(struct file *in, struct inode *pipe,
 	 * Now we splice them into the pipe..
 	 */
 splice_them:
-	return move_to_pipe(pipe, pages, i, offset, len);
+	return move_to_pipe(pipe, pages, i, offset, len, flags);
 }
 
 ssize_t generic_file_splice_read(struct file *in, struct inode *pipe,
@@ -291,7 +297,7 @@ ssize_t generic_file_splice_read(struct file *in, struct inode *pipe,
 	ret = 0;
 	spliced = 0;
 	while (len) {
-		ret = __generic_file_splice_read(in, pipe, len);
+		ret = __generic_file_splice_read(in, pipe, len, flags);
 
 		if (ret <= 0)
 			break;
@@ -299,6 +305,11 @@ ssize_t generic_file_splice_read(struct file *in, struct inode *pipe,
 		in->f_pos += ret;
 		len -= ret;
 		spliced += ret;
+
+		if (!(flags & SPLICE_F_NONBLOCK))
+			continue;
+		ret = -EAGAIN;
+		break;
 	}
 
 	if (spliced)
@@ -525,6 +536,12 @@ static ssize_t move_from_pipe(struct inode *inode, struct file *out,
 		if (!PIPE_WAITING_WRITERS(*inode)) {
 			if (ret)
 				break;
+		}
+
+		if (flags & SPLICE_F_NONBLOCK) {
+			if (!ret)
+				ret = -EAGAIN;
+			break;
 		}
 
 		if (signal_pending(current)) {

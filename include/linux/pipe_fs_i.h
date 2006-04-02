@@ -60,5 +60,8 @@ void free_pipe_info(struct inode* inode);
  * add the splice flags here.
  */
 #define SPLICE_F_MOVE	(0x01)	/* move pages instead of copying */
+#define SPLICE_F_NONBLOCK (0x02) /* don't block on the pipe splicing (but */
+				 /* we may still block on the fd we splice */
+				 /* from/to, of course */
 
 #endif
