@@ -442,6 +442,9 @@ xfs_mount(
 	p = vfs_bhv_lookup(vfsp, VFS_POSITION_IO);
 	mp->m_io_ops = p ? *(xfs_ioops_t *) vfs_bhv_custom(p) : xfs_iocore_xfs;
 
+	if (args->flags & XFSMNT_QUIET)
+		flags |= XFS_MFSI_QUIET;
+
 	/*
 	 * Open real time and log devices - order is important.
 	 */
@@ -492,7 +495,7 @@ xfs_mount(
 	error = xfs_start_flags(vfsp, args, mp);
 	if (error)
 		goto error1;
-	error = xfs_readsb(mp);
+	error = xfs_readsb(mp, flags);
 	if (error)
 		goto error1;
 	error = xfs_finish_flags(vfsp, args, mp);
@@ -1697,8 +1700,9 @@ xfs_parseargs(
 	int			dsunit, dswidth, vol_dsunit, vol_dswidth;
 	int			iosize;
 
-	args->flags2 |= XFSMNT2_COMPAT_IOSIZE;
 	args->flags |= XFSMNT_IDELETE;
+	args->flags |= XFSMNT_BARRIER;
+	args->flags2 |= XFSMNT2_COMPAT_IOSIZE;
 
 	if (!options)
 		goto done;
@@ -1947,8 +1951,6 @@ xfs_showargs(
 		seq_printf(m, "," MNTOPT_IKEEP);
 	if (!(mp->m_flags & XFS_MOUNT_COMPAT_IOSIZE))
 		seq_printf(m, "," MNTOPT_LARGEIO);
-	if (mp->m_flags & XFS_MOUNT_BARRIER)
-		seq_printf(m, "," MNTOPT_BARRIER);
 
 	if (!(vfsp->vfs_flag & VFS_32BITINODES))
 		seq_printf(m, "," MNTOPT_64BITINODE);

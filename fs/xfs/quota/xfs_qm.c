@@ -2624,7 +2624,7 @@ xfs_qm_vop_chown_reserve(
 {
 	int		error;
 	xfs_mount_t	*mp;
-	uint		delblks, blkflags;
+	uint		delblks, blkflags, prjflags = 0;
 	xfs_dquot_t	*unresudq, *unresgdq, *delblksudq, *delblksgdq;
 
 	ASSERT(XFS_ISLOCKED_INODE(ip));
@@ -2650,10 +2650,13 @@ xfs_qm_vop_chown_reserve(
 		}
 	}
 	if (XFS_IS_OQUOTA_ON(ip->i_mount) && gdqp) {
-		if ((XFS_IS_GQUOTA_ON(ip->i_mount) &&
-		     ip->i_d.di_gid != be32_to_cpu(gdqp->q_core.d_id)) ||
-		    (XFS_IS_PQUOTA_ON(ip->i_mount) &&
-		     ip->i_d.di_projid != be32_to_cpu(gdqp->q_core.d_id))) {
+		if (XFS_IS_PQUOTA_ON(ip->i_mount) &&
+		     ip->i_d.di_projid != be32_to_cpu(gdqp->q_core.d_id))
+			prjflags = XFS_QMOPT_ENOSPC;
+
+		if (prjflags ||
+		    (XFS_IS_GQUOTA_ON(ip->i_mount) &&
+		     ip->i_d.di_gid != be32_to_cpu(gdqp->q_core.d_id))) {
 			delblksgdq = gdqp;
 			if (delblks) {
 				ASSERT(ip->i_gdquot);
@@ -2664,7 +2667,7 @@ xfs_qm_vop_chown_reserve(
 
 	if ((error = xfs_trans_reserve_quota_bydquots(tp, ip->i_mount,
 				delblksudq, delblksgdq, ip->i_d.di_nblocks, 1,
-				flags | blkflags)))
+				flags | blkflags | prjflags)))
 		return (error);
 
 	/*
@@ -2681,7 +2684,7 @@ xfs_qm_vop_chown_reserve(
 		ASSERT(unresudq || unresgdq);
 		if ((error = xfs_trans_reserve_quota_bydquots(NULL, ip->i_mount,
 				delblksudq, delblksgdq, (xfs_qcnt_t)delblks, 0,
-				flags | blkflags)))
+				flags | blkflags | prjflags)))
 			return (error);
 		xfs_trans_reserve_quota_bydquots(NULL, ip->i_mount,
 				unresudq, unresgdq, -((xfs_qcnt_t)delblks), 0,

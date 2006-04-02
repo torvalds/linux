@@ -4719,18 +4719,17 @@ xfs_bmapi(
 				/*
 				 * Make a transaction-less quota reservation for
 				 * delayed allocation blocks. This number gets
-				 * adjusted later.
-				 * We return EDQUOT if we haven't allocated
-				 * blks already inside this loop;
+				 * adjusted later.  We return if we haven't
+				 * allocated blocks already inside this loop.
 				 */
-				if (XFS_TRANS_RESERVE_QUOTA_NBLKS(
+				if ((error = XFS_TRANS_RESERVE_QUOTA_NBLKS(
 						mp, NULL, ip, (long)alen, 0,
 						rt ? XFS_QMOPT_RES_RTBLKS :
-						     XFS_QMOPT_RES_REGBLKS)) {
+						     XFS_QMOPT_RES_REGBLKS))) {
 					if (n == 0) {
 						*nmap = 0;
 						ASSERT(cur == NULL);
-						return XFS_ERROR(EDQUOT);
+						return error;
 					}
 					break;
 				}

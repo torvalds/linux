@@ -103,6 +103,7 @@
  */
 #undef  HAVE_REFCACHE	/* reference cache not needed for NFS in 2.6 */
 #define HAVE_SENDFILE	/* sendfile(2) exists in 2.6, but not in 2.4 */
+#define HAVE_SPLICE	/* a splice(2) exists in 2.6, but not in 2.4 */
 #ifdef CONFIG_SMP
 #define HAVE_PERCPU_SB	/* per cpu superblock counters are a 2.6 feature */
 #else
