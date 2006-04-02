@@ -316,7 +316,8 @@ static struct input_device_id *input_match_device(struct input_device_id *id, st
 	return NULL;
 }
 
-static int input_print_bitmap(char *buf, int buf_size, unsigned long *bitmap, int max)
+static int input_print_bitmap(char *buf, int buf_size, unsigned long *bitmap,
+			      int max, int add_cr)
 {
 	int i;
 	int len = 0;
@@ -328,6 +329,10 @@ static int input_print_bitmap(char *buf, int buf_size, unsigned long *bitmap, in
 	for (; i >= 0; i--)
 		len += snprintf(buf + len, max(buf_size - len, 0),
 				"%lx%s", bitmap[i], i > 0 ? " " : "");
+
+	if (add_cr)
+		len += snprintf(buf + len, max(buf_size - len, 0), "\n");
+
 	return len;
 }
 
@@ -356,8 +361,7 @@ static unsigned int input_devices_poll(struct file *file, poll_table *wait)
 	do {								\
 		len += sprintf(buf + len, "B: %s=", #ev);		\
 		len += input_print_bitmap(buf + len, INT_MAX,		\
-					dev->bm##bit, ev##_MAX);	\
-		len += sprintf(buf + len, "\n");			\
+					dev->bm##bit, ev##_MAX, 1);	\
 	} while (0)
 
 #define TEST_AND_SPRINTF_BIT(ev, bm)					\
@@ -517,7 +521,8 @@ static ssize_t input_dev_show_##name(struct class_device *dev, char *buf)	\
 	if (retval)								\
 		return retval;							\
 										\
-	retval = sprintf(buf, "%s\n", input_dev->name ? input_dev->name : "");	\
+	retval = scnprintf(buf, PAGE_SIZE,					\
+			   "%s\n", input_dev->name ? input_dev->name : "");	\
 										\
 	mutex_unlock(&input_dev->mutex);					\
 										\
@@ -541,7 +546,8 @@ static int print_modalias_bits(char *buf, int size, char prefix, unsigned long *
 	return len;
 }
 
-static int print_modalias(char *buf, int size, struct input_dev *id)
+static int input_print_modalias(char *buf, int size, struct input_dev *id,
+				int add_cr)
 {
 	int len;
 
@@ -569,6 +575,10 @@ static int print_modalias(char *buf, int size, struct input_dev *id)
 				   0, FF_MAX);
 	len += print_modalias_bits(buf + len, size - len, 'w', id->swbit,
 				   0, SW_MAX);
+
+	if (add_cr)
+		len += snprintf(buf + len, size - len, "\n");
+
 	return len;
 }
 
@@ -577,9 +587,9 @@ static ssize_t input_dev_show_modalias(struct class_device *dev, char *buf)
 	struct input_dev *id = to_input_dev(dev);
 	ssize_t len;
 
-	len = print_modalias(buf, PAGE_SIZE, id);
-	len += snprintf(buf + len, PAGE_SIZE-len, "\n");
-	return len;
+	len = input_print_modalias(buf, PAGE_SIZE, id, 1);
+
+	return max_t(int, len, PAGE_SIZE);
 }
 static CLASS_DEVICE_ATTR(modalias, S_IRUGO, input_dev_show_modalias, NULL);
 
@@ -599,7 +609,7 @@ static struct attribute_group input_dev_attr_group = {
 static ssize_t input_dev_show_id_##name(struct class_device *dev, char *buf)	\
 {										\
 	struct input_dev *input_dev = to_input_dev(dev);			\
-	return sprintf(buf, "%04x\n", input_dev->id.name);			\
+	return scnprintf(buf, PAGE_SIZE, "%04x\n", input_dev->id.name);		\
 }										\
 static CLASS_DEVICE_ATTR(name, S_IRUGO, input_dev_show_id_##name, NULL);
 
@@ -625,7 +635,9 @@ static struct attribute_group input_dev_id_attr_group = {
 static ssize_t input_dev_show_cap_##bm(struct class_device *dev, char *buf)	\
 {										\
 	struct input_dev *input_dev = to_input_dev(dev);			\
-	return input_print_bitmap(buf, PAGE_SIZE, input_dev->bm##bit, ev##_MAX);\
+	int len = input_print_bitmap(buf, PAGE_SIZE,				\
+				     input_dev->bm##bit, ev##_MAX, 1);		\
+	return min_t(int, len, PAGE_SIZE);					\
 }										\
 static CLASS_DEVICE_ATTR(bm, S_IRUGO, input_dev_show_cap_##bm, NULL);
 
@@ -684,7 +696,7 @@ static int input_add_uevent_bm_var(char **envp, int num_envp, int *cur_index,
 
 	*cur_len += input_print_bitmap(buffer + *cur_len,
 					max(buffer_size - *cur_len, 0),
-					bitmap, max) + 1;
+					bitmap, max, 0) + 1;
 	if (*cur_len > buffer_size)
 		return -ENOMEM;
 
@@ -747,7 +759,7 @@ static int input_dev_uevent(struct class_device *cdev, char **envp,
 
 	envp[i++] = buffer + len;
 	len += snprintf(buffer + len, buffer_size - len, "MODALIAS=");
-	len += print_modalias(buffer + len, buffer_size - len, dev) + 1;
+	len += input_print_modalias(buffer + len, buffer_size - len, dev, 0) + 1;
 
 	envp[i] = NULL;
 	return 0;
