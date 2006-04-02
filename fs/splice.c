@@ -22,7 +22,10 @@
 #include <linux/pipe_fs_i.h>
 #include <linux/mm_inline.h>
 #include <linux/swap.h>
+#include <linux/writeback.h>
+#include <linux/buffer_head.h>
 #include <linux/module.h>
+#include <linux/syscalls.h>
 
 /*
  * Passed to the actors
@@ -34,28 +37,37 @@ struct splice_desc {
 	loff_t pos;			/* file position */
 };
 
+/*
+ * Attempt to steal a page from a pipe buffer. This should perhaps go into
+ * a vm helper function, it's already simplified quite a bit by the
+ * addition of remove_mapping(). If success is returned, the caller may
+ * attempt to reuse this page for another destination.
+ */
 static int page_cache_pipe_buf_steal(struct pipe_inode_info *info,
 				     struct pipe_buffer *buf)
 {
 	struct page *page = buf->page;
+	struct address_space *mapping = page_mapping(page);
 
 	WARN_ON(!PageLocked(page));
 	WARN_ON(!PageUptodate(page));
 
-	if (!remove_mapping(page_mapping(page), page))
+	/*
+	 * At least for ext2 with nobh option, we need to wait on writeback
+	 * completing on this page, since we'll remove it from the pagecache.
+	 * Otherwise truncate wont wait on the page, allowing the disk
+	 * blocks to be reused by someone else before we actually wrote our
+	 * data to them. fs corruption ensues.
+	 */
+	wait_on_page_writeback(page);
+
+	if (PagePrivate(page))
+		try_to_release_page(page, mapping_gfp_mask(mapping));
+
+	if (!remove_mapping(mapping, page))
 		return 1;
 
-	if (PageLRU(page)) {
-		struct zone *zone = page_zone(page);
-
-		spin_lock_irq(&zone->lru_lock);
-		BUG_ON(!PageLRU(page));
-		__ClearPageLRU(page);
-		del_page_from_lru(zone, page);
-		spin_unlock_irq(&zone->lru_lock);
-	}
-
-	buf->stolen = 1;
+	buf->flags |= PIPE_BUF_FLAG_STOLEN | PIPE_BUF_FLAG_LRU;
 	return 0;
 }
 
@@ -64,7 +76,7 @@ static void page_cache_pipe_buf_release(struct pipe_inode_info *info,
 {
 	page_cache_release(buf->page);
 	buf->page = NULL;
-	buf->stolen = 0;
+	buf->flags &= ~(PIPE_BUF_FLAG_STOLEN | PIPE_BUF_FLAG_LRU);
 }
 
 static void *page_cache_pipe_buf_map(struct file *file,
@@ -91,8 +103,7 @@ static void *page_cache_pipe_buf_map(struct file *file,
 static void page_cache_pipe_buf_unmap(struct pipe_inode_info *info,
 				      struct pipe_buffer *buf)
 {
-	if (!buf->stolen)
-		unlock_page(buf->page);
+	unlock_page(buf->page);
 	kunmap(buf->page);
 }
 
@@ -104,6 +115,10 @@ static struct pipe_buf_operations page_cache_pipe_buf_ops = {
 	.steal = page_cache_pipe_buf_steal,
 };
 
+/*
+ * Pipe output worker. This sets up our pipe format with the page cache
+ * pipe buffer operations. Otherwise very similar to the regular pipe_writev().
+ */
 static ssize_t move_to_pipe(struct inode *inode, struct page **pages,
 			    int nr_pages, unsigned long offset,
 			    unsigned long len, unsigned int flags)
@@ -237,9 +252,9 @@ static int __generic_file_splice_read(struct file *in, struct inode *pipe,
 	 * fill shadow[] with pages at the right locations, so we only
 	 * have to fill holes
 	 */
-	memset(shadow, 0, i * sizeof(struct page *));
-	for (j = 0, pidx = index; j < i; pidx++, j++)
-		shadow[pages[j]->index - pidx] = pages[j];
+	memset(shadow, 0, nr_pages * sizeof(struct page *));
+	for (j = 0; j < i; j++)
+		shadow[pages[j]->index - index] = pages[j];
 
 	/*
 	 * now fill in the holes
@@ -288,6 +303,16 @@ splice_them:
 	return move_to_pipe(pipe, pages, i, offset, len, flags);
 }
 
+/**
+ * generic_file_splice_read - splice data from file to a pipe
+ * @in:		file to splice from
+ * @pipe:	pipe to splice to
+ * @len:	number of bytes to splice
+ * @flags:	splice modifier flags
+ *
+ * Will read pages from given file and fill them into a pipe.
+ *
+ */
 ssize_t generic_file_splice_read(struct file *in, struct inode *pipe,
 				 size_t len, unsigned int flags)
 {
@@ -318,8 +343,11 @@ ssize_t generic_file_splice_read(struct file *in, struct inode *pipe,
 	return ret;
 }
 
+EXPORT_SYMBOL(generic_file_splice_read);
+
 /*
- * Send 'len' bytes to socket from 'file' at position 'pos' using sendpage().
+ * Send 'sd->len' bytes to socket from 'sd->file' at position 'sd->pos'
+ * using sendpage().
  */
 static int pipe_to_sendpage(struct pipe_inode_info *info,
 			    struct pipe_buffer *buf, struct splice_desc *sd)
@@ -329,6 +357,7 @@ static int pipe_to_sendpage(struct pipe_inode_info *info,
 	unsigned int offset;
 	ssize_t ret;
 	void *ptr;
+	int more;
 
 	/*
 	 * sub-optimal, but we are limited by the pipe ->map. we don't
@@ -341,9 +370,9 @@ static int pipe_to_sendpage(struct pipe_inode_info *info,
 		return PTR_ERR(ptr);
 
 	offset = pos & ~PAGE_CACHE_MASK;
+	more = (sd->flags & SPLICE_F_MORE) || sd->len < sd->total_len;
 
-	ret = file->f_op->sendpage(file, buf->page, offset, sd->len, &pos,
-					sd->len < sd->total_len);
+	ret = file->f_op->sendpage(file, buf->page, offset, sd->len, &pos,more);
 
 	buf->ops->unmap(info, buf);
 	if (ret == sd->len)
@@ -365,16 +394,19 @@ static int pipe_to_sendpage(struct pipe_inode_info *info,
  *	- Destination page does not exist, we can add the pipe page to
  *	  the page cache and avoid the copy.
  *
- * For now we just do the slower thing and always copy pages over, it's
- * easier than migrating pages from the pipe to the target file. For the
- * case of doing file | file splicing, the migrate approach had some LRU
- * nastiness...
+ * If asked to move pages to the output file (SPLICE_F_MOVE is set in
+ * sd->flags), we attempt to migrate pages from the pipe to the output
+ * file address space page cache. This is possible if no one else has
+ * the pipe page referenced outside of the pipe and page cache. If
+ * SPLICE_F_MOVE isn't set, or we cannot move the page, we simply create
+ * a new page in the output file page cache and fill/dirty that.
  */
 static int pipe_to_file(struct pipe_inode_info *info, struct pipe_buffer *buf,
 			struct splice_desc *sd)
 {
 	struct file *file = sd->file;
 	struct address_space *mapping = file->f_mapping;
+	gfp_t gfp_mask = mapping_gfp_mask(mapping);
 	unsigned int offset;
 	struct page *page;
 	pgoff_t index;
@@ -395,18 +427,23 @@ static int pipe_to_file(struct pipe_inode_info *info, struct pipe_buffer *buf,
 	 * reuse buf page, if SPLICE_F_MOVE is set
 	 */
 	if (sd->flags & SPLICE_F_MOVE) {
+		/*
+		 * If steal succeeds, buf->page is now pruned from the vm
+		 * side (LRU and page cache) and we can reuse it.
+		 */
 		if (buf->ops->steal(info, buf))
 			goto find_page;
 
 		page = buf->page;
-		if (add_to_page_cache_lru(page, mapping, index,
-						mapping_gfp_mask(mapping)))
+		if (add_to_page_cache(page, mapping, index, gfp_mask))
 			goto find_page;
+
+		if (!(buf->flags & PIPE_BUF_FLAG_LRU))
+			lru_cache_add(page);
 	} else {
 find_page:
 		ret = -ENOMEM;
-		page = find_or_create_page(mapping, index,
-						mapping_gfp_mask(mapping));
+		page = find_or_create_page(mapping, index, gfp_mask);
 		if (!page)
 			goto out;
 
@@ -443,10 +480,13 @@ find_page:
 	}
 
 	ret = mapping->a_ops->prepare_write(file, page, 0, sd->len);
-	if (ret)
+	if (ret == AOP_TRUNCATED_PAGE) {
+		page_cache_release(page);
+		goto find_page;
+	} else if (ret)
 		goto out;
 
-	if (!buf->stolen) {
+	if (!(buf->flags & PIPE_BUF_FLAG_STOLEN)) {
 		char *dst = kmap_atomic(page, KM_USER0);
 
 		memcpy(dst + offset, src + buf->offset, sd->len);
@@ -455,16 +495,18 @@ find_page:
 	}
 
 	ret = mapping->a_ops->commit_write(file, page, 0, sd->len);
-	if (ret < 0)
+	if (ret == AOP_TRUNCATED_PAGE) {
+		page_cache_release(page);
+		goto find_page;
+	} else if (ret)
 		goto out;
 
-	set_page_dirty(page);
-	ret = write_one_page(page, 0);
+	balance_dirty_pages_ratelimited(mapping);
 out:
-	if (ret < 0)
-		unlock_page(page);
-	if (!buf->stolen)
+	if (!(buf->flags & PIPE_BUF_FLAG_STOLEN)) {
 		page_cache_release(page);
+		unlock_page(page);
+	}
 	buf->ops->unmap(info, buf);
 	return ret;
 }
@@ -472,6 +514,11 @@ out:
 typedef int (splice_actor)(struct pipe_inode_info *, struct pipe_buffer *,
 			   struct splice_desc *);
 
+/*
+ * Pipe input worker. Most of this logic works like a regular pipe, the
+ * key here is the 'actor' worker passed in that actually moves the data
+ * to the wanted destination. See pipe_to_file/pipe_to_sendpage above.
+ */
 static ssize_t move_from_pipe(struct inode *inode, struct file *out,
 			      size_t len, unsigned int flags,
 			      splice_actor *actor)
@@ -573,21 +620,67 @@ static ssize_t move_from_pipe(struct inode *inode, struct file *out,
 
 }
 
+/**
+ * generic_file_splice_write - splice data from a pipe to a file
+ * @inode:	pipe inode
+ * @out:	file to write to
+ * @len:	number of bytes to splice
+ * @flags:	splice modifier flags
+ *
+ * Will either move or copy pages (determined by @flags options) from
+ * the given pipe inode to the given file.
+ *
+ */
 ssize_t generic_file_splice_write(struct inode *inode, struct file *out,
 				  size_t len, unsigned int flags)
 {
-	return move_from_pipe(inode, out, len, flags, pipe_to_file);
+	struct address_space *mapping = out->f_mapping;
+	ssize_t ret = move_from_pipe(inode, out, len, flags, pipe_to_file);
+
+	/*
+	 * if file or inode is SYNC and we actually wrote some data, sync it
+	 */
+	if (unlikely((out->f_flags & O_SYNC) || IS_SYNC(mapping->host))
+	    && ret > 0) {
+		struct inode *inode = mapping->host;
+		int err;
+
+		mutex_lock(&inode->i_mutex);
+		err = generic_osync_inode(mapping->host, mapping,
+						OSYNC_METADATA|OSYNC_DATA);
+		mutex_unlock(&inode->i_mutex);
+
+		if (err)
+			ret = err;
+	}
+
+	return ret;
 }
 
+EXPORT_SYMBOL(generic_file_splice_write);
+
+/**
+ * generic_splice_sendpage - splice data from a pipe to a socket
+ * @inode:	pipe inode
+ * @out:	socket to write to
+ * @len:	number of bytes to splice
+ * @flags:	splice modifier flags
+ *
+ * Will send @len bytes from the pipe to a network socket. No data copying
+ * is involved.
+ *
+ */
 ssize_t generic_splice_sendpage(struct inode *inode, struct file *out,
 				size_t len, unsigned int flags)
 {
 	return move_from_pipe(inode, out, len, flags, pipe_to_sendpage);
 }
 
-EXPORT_SYMBOL(generic_file_splice_write);
-EXPORT_SYMBOL(generic_file_splice_read);
+EXPORT_SYMBOL(generic_splice_sendpage);
 
+/*
+ * Attempt to initiate a splice from pipe to file.
+ */
 static long do_splice_from(struct inode *pipe, struct file *out, size_t len,
 			   unsigned int flags)
 {
@@ -608,6 +701,9 @@ static long do_splice_from(struct inode *pipe, struct file *out, size_t len,
 	return out->f_op->splice_write(pipe, out, len, flags);
 }
 
+/*
+ * Attempt to initiate a splice from a file to a pipe.
+ */
 static long do_splice_to(struct file *in, struct inode *pipe, size_t len,
 			 unsigned int flags)
 {
@@ -636,6 +732,9 @@ static long do_splice_to(struct file *in, struct inode *pipe, size_t len,
 	return in->f_op->splice_read(in, pipe, len, flags);
 }
 
+/*
+ * Determine where to splice to/from.
+ */
 static long do_splice(struct file *in, struct file *out, size_t len,
 		      unsigned int flags)
 {

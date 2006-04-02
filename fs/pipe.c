@@ -95,6 +95,8 @@ static void anon_pipe_buf_release(struct pipe_inode_info *info, struct pipe_buff
 {
 	struct page *page = buf->page;
 
+	buf->flags &= ~PIPE_BUF_FLAG_STOLEN;
+
 	/*
 	 * If nobody else uses this page, and we don't already have a
 	 * temporary page, let's keep track of it as a one-deep
@@ -124,7 +126,7 @@ static void anon_pipe_buf_unmap(struct pipe_inode_info *info, struct pipe_buffer
 static int anon_pipe_buf_steal(struct pipe_inode_info *info,
 			       struct pipe_buffer *buf)
 {
-	buf->stolen = 1;
+	buf->flags |= PIPE_BUF_FLAG_STOLEN;
 	return 0;
 }
 
