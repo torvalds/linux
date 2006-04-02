@@ -54,7 +54,7 @@ static inline unsigned int ffz8(unsigned int word)
 	return k;
 }
 
-asmlinkage void ev96100_cpu_irq(unsigned int pendin)
+asmlinkage void ev96100_cpu_irq(unsigned int pending)
 {
 	do_IRQ(ffz8(pending >> 8), regs);
 }
