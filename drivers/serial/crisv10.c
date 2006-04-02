@@ -481,8 +481,6 @@ static char *serial_version = "$Revision: 1.25 $";
 #include "serial_compat.h"
 #endif
 
-#define _INLINE_ inline
-
 struct tty_driver *serial_driver;
 
 /* serial subtype definitions */
@@ -591,8 +589,6 @@ static void rs_throttle(struct tty_struct * tty);
 static void rs_wait_until_sent(struct tty_struct *tty, int timeout);
 static int rs_write(struct tty_struct * tty, int from_user,
                     const unsigned char *buf, int count);
-extern _INLINE_ int rs_raw_write(struct tty_struct * tty, int from_user,
-                            const unsigned char *buf, int count);
 #ifdef CONFIG_ETRAX_RS485
 static int e100_write_rs485(struct tty_struct * tty, int from_user,
                             const unsigned char *buf, int count);
@@ -1538,8 +1534,7 @@ e100_enable_rxdma_irq(struct e100_serial *info)
 
 /* the tx DMA uses only dma_descr interrupt */
 
-static _INLINE_ void
-e100_disable_txdma_irq(struct e100_serial *info)
+static void e100_disable_txdma_irq(struct e100_serial *info)
 {
 #ifdef SERIAL_DEBUG_INTR
 	printk("txdma_irq(%d): 0\n",info->line);
@@ -1548,8 +1543,7 @@ e100_disable_txdma_irq(struct e100_serial *info)
 	*R_IRQ_MASK2_CLR = info->irq;
 }
 
-static _INLINE_ void
-e100_enable_txdma_irq(struct e100_serial *info)
+static void e100_enable_txdma_irq(struct e100_serial *info)
 {
 #ifdef SERIAL_DEBUG_INTR
 	printk("txdma_irq(%d): 1\n",info->line);
@@ -1558,8 +1552,7 @@ e100_enable_txdma_irq(struct e100_serial *info)
 	*R_IRQ_MASK2_SET = info->irq;
 }
 
-static _INLINE_ void
-e100_disable_txdma_channel(struct e100_serial *info)
+static void e100_disable_txdma_channel(struct e100_serial *info)
 {
 	unsigned long flags;
 
@@ -1599,8 +1592,7 @@ e100_disable_txdma_channel(struct e100_serial *info)
 }
 
 
-static _INLINE_ void
-e100_enable_txdma_channel(struct e100_serial *info)
+static void e100_enable_txdma_channel(struct e100_serial *info)
 {
 	unsigned long flags;
 
@@ -1625,8 +1617,7 @@ e100_enable_txdma_channel(struct e100_serial *info)
 	restore_flags(flags);
 }
 
-static _INLINE_ void
-e100_disable_rxdma_channel(struct e100_serial *info)
+static void e100_disable_rxdma_channel(struct e100_serial *info)
 {
 	unsigned long flags;
 
@@ -1665,8 +1656,7 @@ e100_disable_rxdma_channel(struct e100_serial *info)
 }
 
 
-static _INLINE_ void
-e100_enable_rxdma_channel(struct e100_serial *info)
+static void e100_enable_rxdma_channel(struct e100_serial *info)
 {
 	unsigned long flags;
 
@@ -1913,9 +1903,7 @@ rs_start(struct tty_struct *tty)
  * This routine is used by the interrupt handler to schedule
  * processing in the software interrupt portion of the driver.
  */
-static _INLINE_ void
-rs_sched_event(struct e100_serial *info,
-				    int event)
+static void rs_sched_event(struct e100_serial *info, int event)
 {
 	if (info->event & (1 << event))
 		return;
@@ -2155,8 +2143,9 @@ add_char_and_flag(struct e100_serial *info, unsigned char data, unsigned char fl
 	return 1;
 }
 
-extern _INLINE_ unsigned int
-handle_descr_data(struct e100_serial *info, struct etrax_dma_descr *descr, unsigned int recvl)
+static unsigned int handle_descr_data(struct e100_serial *info,
+				      struct etrax_dma_descr *descr,
+				      unsigned int recvl)
 {
 	struct etrax_recv_buffer *buffer = phys_to_virt(descr->buf) - sizeof *buffer;
 
@@ -2182,8 +2171,7 @@ handle_descr_data(struct e100_serial *info, struct etrax_dma_descr *descr, unsig
 	return recvl;
 }
 
-static _INLINE_ unsigned int
-handle_all_descr_data(struct e100_serial *info)
+static unsigned int handle_all_descr_data(struct e100_serial *info)
 {
 	struct etrax_dma_descr *descr;
 	unsigned int recvl;
@@ -2230,8 +2218,7 @@ handle_all_descr_data(struct e100_serial *info)
 	return ret;
 }
 
-static _INLINE_ void
-receive_chars_dma(struct e100_serial *info)
+static void receive_chars_dma(struct e100_serial *info)
 {
 	struct tty_struct *tty;
 	unsigned char rstat;
@@ -2292,8 +2279,7 @@ receive_chars_dma(struct e100_serial *info)
 	*info->icmdadr = IO_STATE(R_DMA_CH6_CMD, cmd, restart);
 }
 
-static _INLINE_ int
-start_recv_dma(struct e100_serial *info)
+static int start_recv_dma(struct e100_serial *info)
 {
 	struct etrax_dma_descr *descr = info->rec_descr;
 	struct etrax_recv_buffer *buffer;
@@ -2347,11 +2333,6 @@ start_receive(struct e100_serial *info)
 	}
 }
 
-
-static _INLINE_ void
-status_handle(struct e100_serial *info, unsigned short status)
-{
-}
 
 /* the bits in the MASK2 register are laid out like this:
    DMAI_EOP DMAI_DESCR DMAO_EOP DMAO_DESCR
@@ -2454,8 +2435,7 @@ rec_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 	return IRQ_RETVAL(handled);
 } /* rec_interrupt */
 
-static _INLINE_ int
-force_eop_if_needed(struct e100_serial *info)
+static int force_eop_if_needed(struct e100_serial *info)
 {
 	/* We check data_avail bit to determine if data has
 	 * arrived since last time
@@ -2499,8 +2479,7 @@ force_eop_if_needed(struct e100_serial *info)
 	return 1;
 }
 
-extern _INLINE_ void
-flush_to_flip_buffer(struct e100_serial *info)
+static void flush_to_flip_buffer(struct e100_serial *info)
 {
 	struct tty_struct *tty;
 	struct etrax_recv_buffer *buffer;
@@ -2611,8 +2590,7 @@ flush_to_flip_buffer(struct e100_serial *info)
 	tty_flip_buffer_push(tty);
 }
 
-static _INLINE_ void
-check_flush_timeout(struct e100_serial *info)
+static void check_flush_timeout(struct e100_serial *info)
 {
 	/* Flip what we've got (if we can) */
 	flush_to_flip_buffer(info);
@@ -2741,7 +2719,7 @@ TODO: The break will be delayed until an F or V character is received.
 
 */
 
-extern _INLINE_
+static
 struct e100_serial * handle_ser_rx_interrupt_no_dma(struct e100_serial *info)
 {
 	unsigned long data_read;
@@ -2875,8 +2853,7 @@ more_data:
 	return info;
 }
 
-extern _INLINE_
-struct e100_serial* handle_ser_rx_interrupt(struct e100_serial *info)
+static struct e100_serial* handle_ser_rx_interrupt(struct e100_serial *info)
 {
 	unsigned char rstat;
 
@@ -2995,7 +2972,7 @@ struct e100_serial* handle_ser_rx_interrupt(struct e100_serial *info)
 	return info;
 } /* handle_ser_rx_interrupt */
 
-extern _INLINE_ void handle_ser_tx_interrupt(struct e100_serial *info)
+static void handle_ser_tx_interrupt(struct e100_serial *info)
 {
 	unsigned long flags;
 
@@ -3621,9 +3598,8 @@ rs_flush_chars(struct tty_struct *tty)
 	restore_flags(flags);
 }
 
-extern _INLINE_ int
-rs_raw_write(struct tty_struct * tty, int from_user,
-	  const unsigned char *buf, int count)
+static int rs_raw_write(struct tty_struct * tty, int from_user,
+			const unsigned char *buf, int count)
 {
 	int	c, ret = 0;
 	struct e100_serial *info = (struct e100_serial *)tty->driver_data;
@@ -4710,7 +4686,7 @@ rs_open(struct tty_struct *tty, struct file * filp)
  * /proc fs routines....
  */
 
-extern _INLINE_ int line_info(char *buf, struct e100_serial *info)
+static int line_info(char *buf, struct e100_serial *info)
 {
 	char	stat_buf[30];
 	int	ret;

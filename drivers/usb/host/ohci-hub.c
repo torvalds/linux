@@ -107,7 +107,7 @@ static int ohci_bus_suspend (struct usb_hcd *hcd)
 			&ohci->regs->intrstatus);
 
 	/* maybe resume can wake root hub */
-	if (hcd->remote_wakeup)
+	if (device_may_wakeup(&ohci_to_hcd(ohci)->self.root_hub->dev))
 		ohci->hc_control |= OHCI_CTRL_RWE;
 	else
 		ohci->hc_control &= ~OHCI_CTRL_RWE;
@@ -246,9 +246,9 @@ static int ohci_bus_resume (struct usb_hcd *hcd)
 	(void) ohci_readl (ohci, &ohci->regs->control);
 	msleep (3);
 
-	temp = OHCI_CONTROL_INIT | OHCI_USB_OPER;
-	if (hcd->can_wakeup)
-		temp |= OHCI_CTRL_RWC;
+	temp = ohci->hc_control;
+	temp &= OHCI_CTRL_RWC;
+	temp |= OHCI_CONTROL_INIT | OHCI_USB_OPER;
 	ohci->hc_control = temp;
 	ohci_writel (ohci, temp, &ohci->regs->control);
 	(void) ohci_readl (ohci, &ohci->regs->control);
@@ -302,7 +302,7 @@ ohci_hub_status_data (struct usb_hcd *hcd, char *buf)
 {
 	struct ohci_hcd	*ohci = hcd_to_ohci (hcd);
 	int		i, changed = 0, length = 1;
-	int		can_suspend = hcd->can_wakeup;
+	int		can_suspend = device_may_wakeup(&hcd->self.root_hub->dev);
 	unsigned long	flags;
 
 	spin_lock_irqsave (&ohci->lock, flags);
@@ -354,7 +354,7 @@ ohci_hub_status_data (struct usb_hcd *hcd, char *buf)
 		 */
 		if (!(status & RH_PS_CCS))
 			continue;
-		if ((status & RH_PS_PSS) && hcd->remote_wakeup)
+		if ((status & RH_PS_PSS) && can_suspend)
 			continue;
 		can_suspend = 0;
 	}

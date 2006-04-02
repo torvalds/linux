@@ -67,7 +67,8 @@ struct svc_expkey {
 	int			ek_fsidtype;
 	u32			ek_fsid[3];
 
-	struct svc_export *	ek_export;
+	struct vfsmount *	ek_mnt;
+	struct dentry *		ek_dentry;
 };
 
 #define EX_SECURE(exp)		(!((exp)->ex_flags & NFSEXP_INSECURE_PORT))
@@ -85,9 +86,6 @@ void			nfsd_export_shutdown(void);
 void			nfsd_export_flush(void);
 void			exp_readlock(void);
 void			exp_readunlock(void);
-struct svc_expkey *	exp_find_key(struct auth_domain *clp, 
-				     int fsid_type, u32 *fsidv,
-				     struct cache_req *reqp);
 struct svc_export *	exp_get_by_name(struct auth_domain *clp,
 					struct vfsmount *mnt,
 					struct dentry *dentry,
@@ -101,35 +99,20 @@ int			exp_rootfh(struct auth_domain *,
 int			exp_pseudoroot(struct auth_domain *, struct svc_fh *fhp, struct cache_req *creq);
 int			nfserrno(int errno);
 
-extern void expkey_put(struct cache_head *item, struct cache_detail *cd);
-extern void svc_export_put(struct cache_head *item, struct cache_detail *cd);
-extern struct cache_detail svc_export_cache, svc_expkey_cache;
+extern struct cache_detail svc_export_cache;
 
 static inline void exp_put(struct svc_export *exp)
 {
-	svc_export_put(&exp->h, &svc_export_cache);
+	cache_put(&exp->h, &svc_export_cache);
 }
 
 static inline void exp_get(struct svc_export *exp)
 {
 	cache_get(&exp->h);
 }
-static inline struct svc_export *
+extern struct svc_export *
 exp_find(struct auth_domain *clp, int fsid_type, u32 *fsidv,
-	 struct cache_req *reqp)
-{
-	struct svc_expkey *ek = exp_find_key(clp, fsid_type, fsidv, reqp);
-	if (ek && !IS_ERR(ek)) {
-		struct svc_export *exp = ek->ek_export;
-		int err;
-		exp_get(exp);
-		expkey_put(&ek->h, &svc_expkey_cache);
-		if ((err = cache_check(&svc_export_cache, &exp->h, reqp)))
-			exp = ERR_PTR(err);
-		return exp;
-	} else
-		return ERR_PTR(PTR_ERR(ek));
-}
+	 struct cache_req *reqp);
 
 #endif /* __KERNEL__ */
 

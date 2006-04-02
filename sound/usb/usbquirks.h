@@ -82,6 +82,7 @@ YAMAHA_DEVICE(0x1012, "TYROS"),
 YAMAHA_DEVICE(0x1013, "PF-500"),
 YAMAHA_DEVICE(0x1014, "S90"),
 YAMAHA_DEVICE(0x1015, "MOTIF-R"),
+YAMAHA_DEVICE(0x1016, "MDP-5"),
 YAMAHA_DEVICE(0x1017, "CVP-204"),
 YAMAHA_DEVICE(0x1018, "CVP-206"),
 YAMAHA_DEVICE(0x1019, "CVP-208"),
@@ -90,6 +91,7 @@ YAMAHA_DEVICE(0x101b, "PSR-1100"),
 YAMAHA_DEVICE(0x101c, "PSR-2100"),
 YAMAHA_DEVICE(0x101d, "CLP-175"),
 YAMAHA_DEVICE(0x101e, "PSR-K1"),
+YAMAHA_DEVICE(0x101f, "EZ-J24"),
 YAMAHA_DEVICE(0x1020, "EZ-250i"),
 YAMAHA_DEVICE(0x1021, "MOTIF ES 6"),
 YAMAHA_DEVICE(0x1022, "MOTIF ES 7"),
@@ -294,7 +296,8 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
-	/* a later revision uses ID 0x0099 */
+	/* Has ID 0x0099 when not in "Advanced Driver" mode.
+	 * The UM-2EX has only one input, but we cannot detect this. */
 	USB_DEVICE(0x0582, 0x0005),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		.vendor_name = "EDIROL",
@@ -385,7 +388,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
-	/* a later revision uses ID 0x009d */
+	/* has ID 0x009d when not in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x0009),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		.vendor_name = "EDIROL",
@@ -1090,6 +1093,53 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 		}
 	}
 },
+	/* TODO: add Edirol UA-101 support */
+{
+	/* has ID 0x0081 when not in "Advanced Driver" mode */
+	USB_DEVICE(0x0582, 0x0080),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		.vendor_name = "Roland",
+		.product_name = "G-70",
+		.ifnum = 0,
+		.type = QUIRK_MIDI_FIXED_ENDPOINT,
+		.data = & (const struct snd_usb_midi_endpoint_info) {
+			.out_cables = 0x0001,
+			.in_cables  = 0x0001
+		}
+	}
+},
+	/* TODO: add Roland V-SYNTH XT support */
+	/* TODO: add BOSS GT-PRO support */
+{
+	/* has ID 0x008c when not in "Advanced Driver" mode */
+	USB_DEVICE(0x0582, 0x008b),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		.vendor_name = "EDIROL",
+		.product_name = "PC-50",
+		.ifnum = 0,
+		.type = QUIRK_MIDI_FIXED_ENDPOINT,
+		.data = & (const struct snd_usb_midi_endpoint_info) {
+			.out_cables = 0x0001,
+			.in_cables  = 0x0001
+		}
+	}
+},
+	/* TODO: add Edirol PC-80 support */
+	/* TODO: add Edirol UA-1EX support */
+{
+	USB_DEVICE(0x0582, 0x009a),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		.vendor_name = "EDIROL",
+		.product_name = "UM-3EX",
+		.ifnum = 0,
+		.type = QUIRK_MIDI_FIXED_ENDPOINT,
+		.data = & (const struct snd_usb_midi_endpoint_info) {
+			.out_cables = 0x000f,
+			.in_cables  = 0x000f
+		}
+	}
+},
+	/* TODO: add Edirol MD-P1 support */
 
 /* Guillemot devices */
 {
@@ -1111,15 +1161,6 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 		}
 	}
 },
-	/* TODO: add Edirol UA-101 support */
-	/* TODO: add Roland G-70 support */
-	/* TODO: add Roland V-SYNTH XT support */
-	/* TODO: add BOSS GT-PRO support */
-	/* TODO: add Edirol PC-50 support */
-	/* TODO: add Edirol PC-80 support */
-	/* TODO: add Edirol UA-1EX support */
-	/* TODO: add Edirol UM-3 support */
-	/* TODO: add Edirol MD-P1 support */
 
 /* Midiman/M-Audio devices */
 {
@@ -1367,6 +1408,27 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 
+/* Casio devices */
+{
+	USB_DEVICE(0x07cf, 0x6801),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		.vendor_name = "Casio",
+		.product_name = "PL-40R",
+		.ifnum = 0,
+		.type = QUIRK_MIDI_YAMAHA
+	}
+},
+{
+	/* this ID is used by several devices without a product ID */
+	USB_DEVICE(0x07cf, 0x6802),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		.vendor_name = "Casio",
+		.product_name = "Keyboard",
+		.ifnum = 0,
+		.type = QUIRK_MIDI_YAMAHA
+	}
+},
+
 /* Mark of the Unicorn devices */
 {
 	/* thanks to Robert A. Lerche <ral 'at' msbit.com> */
@@ -1468,6 +1530,15 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 		.type = QUIRK_MIDI_STANDARD_INTERFACE
 	}
 },
+{
+	USB_DEVICE(0x0ccd, 0x0035),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		.vendor_name = "Miditech",
+		.product_name = "Play'n Roll",
+		.ifnum = 0,
+		.type = QUIRK_MIDI_CME
+	}
+},
 
 /* Novation EMS devices */
 {
@@ -1498,22 +1569,24 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 
+/* Miditech devices */
 {
 	USB_DEVICE(0x4752, 0x0011),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		.vendor_name = "Miditech",
 		.product_name = "Midistart-2",
 		.ifnum = 0,
-		.type = QUIRK_MIDI_MIDITECH
+		.type = QUIRK_MIDI_CME
 	}
 },
+
+/* Central Music devices */
 {
+	/* this ID used by both Miditech MidiStudio-2 and CME UF-x */
 	USB_DEVICE(0x7104, 0x2202),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
-		.vendor_name = "Miditech",
-		.product_name = "MidiStudio-2",
 		.ifnum = 0,
-		.type = QUIRK_MIDI_MIDITECH
+		.type = QUIRK_MIDI_CME
 	}
 },
 

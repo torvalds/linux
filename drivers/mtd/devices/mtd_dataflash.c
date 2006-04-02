@@ -178,7 +178,7 @@ static int dataflash_erase(struct mtd_info *mtd, struct erase_info *instr)
 		 * we're at a block boundary and need to erase the whole block.
 		 */
 		pageaddr = instr->addr / priv->page_size;
-		do_block = (pageaddr & 0x7) == 0 && instr->len <= blocksize;
+		do_block = (pageaddr & 0x7) == 0 && instr->len >= blocksize;
 		pageaddr = pageaddr << priv->page_offset;
 
 		command[0] = do_block ? OP_ERASE_BLOCK : OP_ERASE_PAGE;

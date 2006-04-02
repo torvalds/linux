@@ -5,8 +5,8 @@
  * Copyright (C) 1998-2003 Hewlett-Packard Co
  *	David Mosberger-Tang <davidm@hpl.hp.com>
  *
- * 02/06/02 find_next_bit() and find_first_bit() added from Erich Focht's ia64 O(1)
- *	    scheduler patch
+ * 02/06/02 find_next_bit() and find_first_bit() added from Erich Focht's ia64
+ * O(1) scheduler patch
  */
 
 #include <linux/compiler.h>
@@ -25,9 +25,9 @@
  * restricted to acting on a single-word quantity.
  *
  * The address must be (at least) "long" aligned.
- * Note that there are driver (e.g., eepro100) which use these operations to operate on
- * hw-defined data-structures, so we can't easily change these operations to force a
- * bigger alignment.
+ * Note that there are driver (e.g., eepro100) which use these operations to
+ * operate on hw-defined data-structures, so we can't easily change these
+ * operations to force a bigger alignment.
  *
  * bit 0 is the LSB of addr; bit 32 is the LSB of (addr+1).
  */
@@ -284,8 +284,8 @@ test_bit (int nr, const volatile void *addr)
  * ffz - find the first zero bit in a long word
  * @x: The long word to find the bit in
  *
- * Returns the bit-number (0..63) of the first (least significant) zero bit.  Undefined if
- * no zero exists, so code should check against ~0UL first...
+ * Returns the bit-number (0..63) of the first (least significant) zero bit.
+ * Undefined if no zero exists, so code should check against ~0UL first...
  */
 static inline unsigned long
 ffz (unsigned long x)
@@ -345,13 +345,14 @@ fls (int t)
 	x |= x >> 16;
 	return ia64_popcnt(x);
 }
-#define fls64(x)   generic_fls64(x)
+
+#include <asm-generic/bitops/fls64.h>
 
 /*
- * ffs: find first bit set. This is defined the same way as the libc and compiler builtin
- * ffs routines, therefore differs in spirit from the above ffz (man ffs): it operates on
- * "int" values only and the result value is the bit number + 1.  ffs(0) is defined to
- * return zero.
+ * ffs: find first bit set. This is defined the same way as the libc and
+ * compiler builtin ffs routines, therefore differs in spirit from the above
+ * ffz (man ffs): it operates on "int" values only and the result value is the
+ * bit number + 1.  ffs(0) is defined to return zero.
  */
 #define ffs(x)	__builtin_ffs(x)
 
@@ -373,51 +374,17 @@ hweight64 (unsigned long x)
 
 #endif /* __KERNEL__ */
 
-extern int __find_next_zero_bit (const void *addr, unsigned long size,
-			unsigned long offset);
-extern int __find_next_bit(const void *addr, unsigned long size,
-			unsigned long offset);
-
-#define find_next_zero_bit(addr, size, offset) \
-			__find_next_zero_bit((addr), (size), (offset))
-#define find_next_bit(addr, size, offset) \
-			__find_next_bit((addr), (size), (offset))
-
-/*
- * The optimizer actually does good code for this case..
- */
-#define find_first_zero_bit(addr, size) find_next_zero_bit((addr), (size), 0)
-
-#define find_first_bit(addr, size) find_next_bit((addr), (size), 0)
+#include <asm-generic/bitops/find.h>
 
 #ifdef __KERNEL__
 
-#define __clear_bit(nr, addr)		clear_bit(nr, addr)
+#include <asm-generic/bitops/ext2-non-atomic.h>
 
-#define ext2_set_bit			test_and_set_bit
 #define ext2_set_bit_atomic(l,n,a)	test_and_set_bit(n,a)
-#define ext2_clear_bit			test_and_clear_bit
 #define ext2_clear_bit_atomic(l,n,a)	test_and_clear_bit(n,a)
-#define ext2_test_bit			test_bit
-#define ext2_find_first_zero_bit	find_first_zero_bit
-#define ext2_find_next_zero_bit		find_next_zero_bit
 
-/* Bitmap functions for the minix filesystem.  */
-#define minix_test_and_set_bit(nr,addr)		test_and_set_bit(nr,addr)
-#define minix_set_bit(nr,addr)			set_bit(nr,addr)
-#define minix_test_and_clear_bit(nr,addr)	test_and_clear_bit(nr,addr)
-#define minix_test_bit(nr,addr)			test_bit(nr,addr)
-#define minix_find_first_zero_bit(addr,size)	find_first_zero_bit(addr,size)
-
-static inline int
-sched_find_first_bit (unsigned long *b)
-{
-	if (unlikely(b[0]))
-		return __ffs(b[0]);
-	if (unlikely(b[1]))
-		return 64 + __ffs(b[1]);
-	return __ffs(b[2]) + 128;
-}
+#include <asm-generic/bitops/minix.h>
+#include <asm-generic/bitops/sched.h>
 
 #endif /* __KERNEL__ */
 

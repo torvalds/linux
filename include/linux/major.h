@@ -113,6 +113,7 @@
 
 #define UBD_MAJOR		98
 
+#define PP_MAJOR		99
 #define JSFD_MAJOR		99
 
 #define PHONE_MAJOR		100

@@ -53,8 +53,8 @@ get_transaction(journal_t *journal, transaction_t *transaction)
 	spin_lock_init(&transaction->t_handle_lock);
 
 	/* Set up the commit timer for the new transaction. */
-	journal->j_commit_timer->expires = transaction->t_expires;
-	add_timer(journal->j_commit_timer);
+	journal->j_commit_timer.expires = transaction->t_expires;
+	add_timer(&journal->j_commit_timer);
 
 	J_ASSERT(journal->j_running_transaction == NULL);
 	journal->j_running_transaction = transaction;
@@ -455,7 +455,7 @@ void journal_lock_updates(journal_t *journal)
 	 * to make sure that we serialise special journal-locked operations
 	 * too.
 	 */
-	down(&journal->j_barrier);
+	mutex_lock(&journal->j_barrier);
 }
 
 /**
@@ -470,7 +470,7 @@ void journal_unlock_updates (journal_t *journal)
 {
 	J_ASSERT(journal->j_barrier_count != 0);
 
-	up(&journal->j_barrier);
+	mutex_unlock(&journal->j_barrier);
 	spin_lock(&journal->j_state_lock);
 	--journal->j_barrier_count;
 	spin_unlock(&journal->j_state_lock);
@@ -1873,16 +1873,15 @@ zap_buffer_unlocked:
 }
 
 /** 
- * int journal_invalidatepage() 
+ * void journal_invalidatepage()
  * @journal: journal to use for flush... 
  * @page:    page to flush
  * @offset:  length of page to invalidate.
  *
  * Reap page buffers containing data after offset in page.
  *
- * Return non-zero if the page's buffers were successfully reaped.
  */
-int journal_invalidatepage(journal_t *journal, 
+void journal_invalidatepage(journal_t *journal,
 		      struct page *page, 
 		      unsigned long offset)
 {
@@ -1893,7 +1892,7 @@ int journal_invalidatepage(journal_t *journal,
 	if (!PageLocked(page))
 		BUG();
 	if (!page_has_buffers(page))
-		return 1;
+		return;
 
 	/* We will potentially be playing with lists other than just the
 	 * data lists (especially for journaled data mode), so be
@@ -1916,11 +1915,9 @@ int journal_invalidatepage(journal_t *journal,
 	} while (bh != head);
 
 	if (!offset) {
-		if (!may_free || !try_to_free_buffers(page))
-			return 0;
-		J_ASSERT(!page_has_buffers(page));
+		if (may_free && try_to_free_buffers(page))
+			J_ASSERT(!page_has_buffers(page));
 	}
-	return 1;
 }
 
 /* 

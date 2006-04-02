@@ -72,7 +72,6 @@ remap_area_pmd(pmd_t *pmd, unsigned long address, unsigned long size,
 	return 0;
 }
 
-#if USE_HPPA_IOREMAP
 static int 
 remap_area_pages(unsigned long address, unsigned long phys_addr,
 		 unsigned long size, unsigned long flags)
@@ -114,31 +113,6 @@ remap_area_pages(unsigned long address, unsigned long phys_addr,
 
 	return error;
 }
-#endif /* USE_HPPA_IOREMAP */
-
-#ifdef CONFIG_DEBUG_IOREMAP
-static unsigned long last = 0;
-
-void gsc_bad_addr(unsigned long addr)
-{
-	if (time_after(jiffies, last + HZ*10)) {
-		printk("gsc_foo() called with bad address 0x%lx\n", addr);
-		dump_stack();
-		last = jiffies;
-	}
-}
-EXPORT_SYMBOL(gsc_bad_addr);
-
-void __raw_bad_addr(const volatile void __iomem *addr)
-{
-	if (time_after(jiffies, last + HZ*10)) {
-		printk("__raw_foo() called with bad address 0x%p\n", addr);
-		dump_stack();
-		last = jiffies;
-	}
-}
-EXPORT_SYMBOL(__raw_bad_addr);
-#endif
 
 /*
  * Generic mapping function (not visible outside):
@@ -154,25 +128,18 @@ EXPORT_SYMBOL(__raw_bad_addr);
  */
 void __iomem * __ioremap(unsigned long phys_addr, unsigned long size, unsigned long flags)
 {
-#if !(USE_HPPA_IOREMAP)
-
-	unsigned long end = phys_addr + size - 1;
-	/* Support EISA addresses */
-	if ((phys_addr >= 0x00080000 && end < 0x000fffff)
-			|| (phys_addr >= 0x00500000 && end < 0x03bfffff)) {
-		phys_addr |= 0xfc000000;
-	}
-
-#ifdef CONFIG_DEBUG_IOREMAP
-	return (void __iomem *)(phys_addr - (0x1UL << NYBBLE_SHIFT));
-#else
-	return (void __iomem *)phys_addr;
-#endif
-
-#else
 	void *addr;
 	struct vm_struct *area;
 	unsigned long offset, last_addr;
+
+#ifdef CONFIG_EISA
+	unsigned long end = phys_addr + size - 1;
+	/* Support EISA addresses */
+	if ((phys_addr >= 0x00080000 && end < 0x000fffff) ||
+	    (phys_addr >= 0x00500000 && end < 0x03bfffff)) {
+		phys_addr |= F_EXTEND(0xfc000000);
+	}
+#endif
 
 	/* Don't allow wraparound or zero size */
 	last_addr = phys_addr + size - 1;
@@ -217,15 +184,12 @@ void __iomem * __ioremap(unsigned long phys_addr, unsigned long size, unsigned l
 	}
 
 	return (void __iomem *) (offset + (char *)addr);
-#endif
 }
+EXPORT_SYMBOL(__ioremap);
 
 void iounmap(void __iomem *addr)
 {
-#if !(USE_HPPA_IOREMAP)
-	return;
-#else
 	if (addr > high_memory)
 		return vfree((void *) (PAGE_MASK & (unsigned long __force) addr));
-#endif
 }
+EXPORT_SYMBOL(iounmap);

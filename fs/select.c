@@ -29,12 +29,6 @@
 #define ROUND_UP(x,y) (((x)+(y)-1)/(y))
 #define DEFAULT_POLLMASK (POLLIN | POLLOUT | POLLRDNORM | POLLWRNORM)
 
-struct poll_table_entry {
-	struct file * filp;
-	wait_queue_t wait;
-	wait_queue_head_t * wait_address;
-};
-
 struct poll_table_page {
 	struct poll_table_page * next;
 	struct poll_table_entry * entry;
@@ -64,13 +58,23 @@ void poll_initwait(struct poll_wqueues *pwq)
 	init_poll_funcptr(&pwq->pt, __pollwait);
 	pwq->error = 0;
 	pwq->table = NULL;
+	pwq->inline_index = 0;
 }
 
 EXPORT_SYMBOL(poll_initwait);
 
+static void free_poll_entry(struct poll_table_entry *entry)
+{
+	remove_wait_queue(entry->wait_address,&entry->wait);
+	fput(entry->filp);
+}
+
 void poll_freewait(struct poll_wqueues *pwq)
 {
 	struct poll_table_page * p = pwq->table;
+	int i;
+	for (i = 0; i < pwq->inline_index; i++)
+		free_poll_entry(pwq->inline_entries + i);
 	while (p) {
 		struct poll_table_entry * entry;
 		struct poll_table_page *old;
@@ -78,8 +82,7 @@ void poll_freewait(struct poll_wqueues *pwq)
 		entry = p->entry;
 		do {
 			entry--;
-			remove_wait_queue(entry->wait_address,&entry->wait);
-			fput(entry->filp);
+			free_poll_entry(entry);
 		} while (entry > p->entries);
 		old = p;
 		p = p->next;
@@ -89,11 +92,13 @@ void poll_freewait(struct poll_wqueues *pwq)
 
 EXPORT_SYMBOL(poll_freewait);
 
-static void __pollwait(struct file *filp, wait_queue_head_t *wait_address,
-		       poll_table *_p)
+static struct poll_table_entry *poll_get_entry(poll_table *_p)
 {
 	struct poll_wqueues *p = container_of(_p, struct poll_wqueues, pt);
 	struct poll_table_page *table = p->table;
+
+	if (p->inline_index < N_INLINE_POLL_ENTRIES)
+		return p->inline_entries + p->inline_index++;
 
 	if (!table || POLL_TABLE_FULL(table)) {
 		struct poll_table_page *new_table;
@@ -102,7 +107,7 @@ static void __pollwait(struct file *filp, wait_queue_head_t *wait_address,
 		if (!new_table) {
 			p->error = -ENOMEM;
 			__set_current_state(TASK_RUNNING);
-			return;
+			return NULL;
 		}
 		new_table->entry = new_table->entries;
 		new_table->next = table;
@@ -110,16 +115,21 @@ static void __pollwait(struct file *filp, wait_queue_head_t *wait_address,
 		table = new_table;
 	}
 
-	/* Add a new entry */
-	{
-		struct poll_table_entry * entry = table->entry;
-		table->entry = entry+1;
-	 	get_file(filp);
-	 	entry->filp = filp;
-		entry->wait_address = wait_address;
-		init_waitqueue_entry(&entry->wait, current);
-		add_wait_queue(wait_address,&entry->wait);
-	}
+	return table->entry++;
+}
+
+/* Add a new entry */
+static void __pollwait(struct file *filp, wait_queue_head_t *wait_address,
+				poll_table *p)
+{
+	struct poll_table_entry *entry = poll_get_entry(p);
+	if (!entry)
+		return;
+	get_file(filp);
+	entry->filp = filp;
+	entry->wait_address = wait_address;
+	init_waitqueue_entry(&entry->wait, current);
+	add_wait_queue(wait_address,&entry->wait);
 }
 
 #define FDS_IN(fds, n)		(fds->in + n)
@@ -210,7 +220,7 @@ int do_select(int n, fd_set_bits *fds, s64 *timeout)
 		for (i = 0; i < n; ++rinp, ++routp, ++rexp) {
 			unsigned long in, out, ex, all_bits, bit = 1, mask, j;
 			unsigned long res_in = 0, res_out = 0, res_ex = 0;
-			struct file_operations *f_op = NULL;
+			const struct file_operations *f_op = NULL;
 			struct file *file = NULL;
 
 			in = *inp++; out = *outp++; ex = *exp++;
@@ -221,17 +231,18 @@ int do_select(int n, fd_set_bits *fds, s64 *timeout)
 			}
 
 			for (j = 0; j < __NFDBITS; ++j, ++i, bit <<= 1) {
+				int fput_needed;
 				if (i >= n)
 					break;
 				if (!(bit & all_bits))
 					continue;
-				file = fget(i);
+				file = fget_light(i, &fput_needed);
 				if (file) {
 					f_op = file->f_op;
 					mask = DEFAULT_POLLMASK;
 					if (f_op && f_op->poll)
 						mask = (*f_op->poll)(file, retval ? NULL : wait);
-					fput(file);
+					fput_light(file, fput_needed);
 					if ((mask & POLLIN_SET) && (in & bit)) {
 						res_in |= bit;
 						retval++;
@@ -284,16 +295,6 @@ int do_select(int n, fd_set_bits *fds, s64 *timeout)
 	return retval;
 }
 
-static void *select_bits_alloc(int size)
-{
-	return kmalloc(6 * size, GFP_KERNEL);
-}
-
-static void select_bits_free(void *bits, int size)
-{
-	kfree(bits);
-}
-
 /*
  * We can actually return ERESTARTSYS instead of EINTR, but I'd
  * like to be certain this leads to no problems. So I return
@@ -312,6 +313,8 @@ static int core_sys_select(int n, fd_set __user *inp, fd_set __user *outp,
 	char *bits;
 	int ret, size, max_fdset;
 	struct fdtable *fdt;
+	/* Allocate small arguments on the stack to save memory and be faster */
+	long stack_fds[SELECT_STACK_ALLOC/sizeof(long)];
 
 	ret = -EINVAL;
 	if (n < 0)
@@ -332,7 +335,10 @@ static int core_sys_select(int n, fd_set __user *inp, fd_set __user *outp,
 	 */
 	ret = -ENOMEM;
 	size = FDS_BYTES(n);
-	bits = select_bits_alloc(size);
+	if (6*size < SELECT_STACK_ALLOC)
+		bits = stack_fds;
+	else
+		bits = kmalloc(6 * size, GFP_KERNEL);
 	if (!bits)
 		goto out_nofds;
 	fds.in      = (unsigned long *)  bits;
@@ -367,7 +373,8 @@ static int core_sys_select(int n, fd_set __user *inp, fd_set __user *outp,
 		ret = -EFAULT;
 
 out:
-	select_bits_free(bits, size);
+	if (bits != stack_fds)
+		kfree(bits);
 out_nofds:
 	return ret;
 }
@@ -551,14 +558,15 @@ static void do_pollfd(unsigned int num, struct pollfd * fdpage,
 		fdp = fdpage+i;
 		fd = fdp->fd;
 		if (fd >= 0) {
-			struct file * file = fget(fd);
+			int fput_needed;
+			struct file * file = fget_light(fd, &fput_needed);
 			mask = POLLNVAL;
 			if (file != NULL) {
 				mask = DEFAULT_POLLMASK;
 				if (file->f_op && file->f_op->poll)
 					mask = file->f_op->poll(file, *pwait);
 				mask &= fdp->events | POLLERR | POLLHUP;
-				fput(file);
+				fput_light(file, fput_needed);
 			}
 			if (mask) {
 				*pwait = NULL;
@@ -619,6 +627,9 @@ static int do_poll(unsigned int nfds,  struct poll_list *list,
 	return count;
 }
 
+#define N_STACK_PPS ((sizeof(stack_pps) - sizeof(struct poll_list))  / \
+			sizeof(struct pollfd))
+
 int do_sys_poll(struct pollfd __user *ufds, unsigned int nfds, s64 *timeout)
 {
 	struct poll_wqueues table;
@@ -628,6 +639,11 @@ int do_sys_poll(struct pollfd __user *ufds, unsigned int nfds, s64 *timeout)
  	struct poll_list *walk;
 	struct fdtable *fdt;
 	int max_fdset;
+	/* Allocate small arguments on the stack to save memory and be
+	   faster - use long to make sure the buffer is aligned properly
+	   on 64 bit archs to avoid unaligned access */
+	long stack_pps[POLL_STACK_ALLOC/sizeof(long)];
+	struct poll_list *stack_pp = NULL;
 
 	/* Do a sanity check on nfds ... */
 	rcu_read_lock();
@@ -645,14 +661,23 @@ int do_sys_poll(struct pollfd __user *ufds, unsigned int nfds, s64 *timeout)
 	err = -ENOMEM;
 	while(i!=0) {
 		struct poll_list *pp;
-		pp = kmalloc(sizeof(struct poll_list)+
-				sizeof(struct pollfd)*
-				(i>POLLFD_PER_PAGE?POLLFD_PER_PAGE:i),
-					GFP_KERNEL);
-		if(pp==NULL)
-			goto out_fds;
+		int num, size;
+		if (stack_pp == NULL)
+			num = N_STACK_PPS;
+		else
+			num = POLLFD_PER_PAGE;
+		if (num > i)
+			num = i;
+		size = sizeof(struct poll_list) + sizeof(struct pollfd)*num;
+		if (!stack_pp)
+			stack_pp = pp = (struct poll_list *)stack_pps;
+		else {
+			pp = kmalloc(size, GFP_KERNEL);
+			if (!pp)
+				goto out_fds;
+		}
 		pp->next=NULL;
-		pp->len = (i>POLLFD_PER_PAGE?POLLFD_PER_PAGE:i);
+		pp->len = num;
 		if (head == NULL)
 			head = pp;
 		else
@@ -660,7 +685,7 @@ int do_sys_poll(struct pollfd __user *ufds, unsigned int nfds, s64 *timeout)
 
 		walk = pp;
 		if (copy_from_user(pp->entries, ufds + nfds-i, 
-				sizeof(struct pollfd)*pp->len)) {
+				sizeof(struct pollfd)*num)) {
 			err = -EFAULT;
 			goto out_fds;
 		}
@@ -689,7 +714,8 @@ out_fds:
 	walk = head;
 	while(walk!=NULL) {
 		struct poll_list *pp = walk->next;
-		kfree(walk);
+		if (walk != stack_pp)
+			kfree(walk);
 		walk = pp;
 	}
 	poll_freewait(&table);

@@ -27,7 +27,6 @@
 
 #include <media/tuner.h>
 #include <media/tveeprom.h>
-#include <media/audiochip.h>
 #include <media/video-buf.h>
 #include <media/video-buf-dvb.h>
 
@@ -35,6 +34,7 @@
 #include "cx88-reg.h"
 
 #include <linux/version.h>
+#include <linux/mutex.h>
 #define CX88_VERSION_CODE KERNEL_VERSION(0,0,5)
 
 #ifndef TRUE
@@ -62,7 +62,7 @@
 /* need "shadow" registers for some write-only ones ... */
 #define SHADOW_AUD_VOL_CTL           1
 #define SHADOW_AUD_BAL_CTL           2
-#define SHADOW_MAX                   2
+#define SHADOW_MAX                   3
 
 /* FM Radio deemphasis type */
 enum cx88_deemph_type {
@@ -187,6 +187,8 @@ extern struct sram_channel cx88_sram_channels[];
 #define CX88_BOARD_DNTV_LIVE_DVB_T_PRO     42
 #define CX88_BOARD_KWORLD_DVB_T_CX22702    43
 #define CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL 44
+#define CX88_BOARD_KWORLD_HARDWARE_MPEG_TV_XPERT 45
+#define CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_HYBRID 46
 
 enum cx88_itype {
 	CX88_VMUX_COMPOSITE1 = 1,
@@ -308,8 +310,7 @@ struct cx88_core {
 	/* IR remote control state */
 	struct cx88_IR             *ir;
 
-	struct semaphore           lock;
-
+	struct mutex               lock;
 	/* various v4l controls */
 	u32                        freq;
 
@@ -483,7 +484,7 @@ extern int
 cx88_risc_stopper(struct pci_dev *pci, struct btcx_riscmem *risc,
 		  u32 reg, u32 mask, u32 value);
 extern void
-cx88_free_buffer(struct pci_dev *pci, struct cx88_buffer *buf);
+cx88_free_buffer(struct videobuf_queue *q, struct cx88_buffer *buf);
 
 extern void cx88_risc_disasm(struct cx88_core *core,
 			     struct btcx_riscmem *risc);
@@ -575,8 +576,8 @@ void cx88_ir_irq(struct cx88_core *core);
 /* ----------------------------------------------------------- */
 /* cx88-mpeg.c                                                 */
 
-int cx8802_buf_prepare(struct cx8802_dev *dev, struct cx88_buffer *buf,
-			enum v4l2_field field);
+int cx8802_buf_prepare(struct videobuf_queue *q,struct cx8802_dev *dev,
+			struct cx88_buffer *buf, enum v4l2_field field);
 void cx8802_buf_queue(struct cx8802_dev *dev, struct cx88_buffer *buf);
 void cx8802_cancel_buffers(struct cx8802_dev *dev);
 

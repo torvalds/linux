@@ -518,7 +518,8 @@ struct osst_buffer {
   int writing;
   int midlevel_result;
   int syscall_result;
-  struct scsi_request *last_SRpnt;
+  struct osst_request *last_SRpnt;
+  struct st_cmdstatus cmdstat;
   unsigned char *b_data;
   os_aux_t *aux;               /* onstream AUX structure at end of each block     */
   unsigned short use_sg;       /* zero or number of s/g segments for this adapter */
@@ -625,6 +626,15 @@ struct osst_tape {
 #endif
   struct gendisk *drive;
 } ;
+
+/* scsi tape command */
+struct osst_request {
+	unsigned char cmd[MAX_COMMAND_SIZE];
+	unsigned char sense[SCSI_SENSE_BUFFERSIZE];
+	int result;
+	struct osst_tape *stp;
+	struct completion *waiting;
+};
 
 /* Values of write_type */
 #define OS_WRITE_DATA      0

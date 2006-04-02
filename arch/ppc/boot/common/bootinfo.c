@@ -1,6 +1,4 @@
 /*
- * arch/ppc/common/bootinfo.c
- *
  * General bootinfo record utilities
  * Author: Randy Vinson <rvinson@mvista.com>
  *

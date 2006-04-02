@@ -24,6 +24,8 @@
 #include <linux/coda_psdev.h>
 #include <linux/coda_proc.h>
 
+#include "coda_int.h"
+
 /* if CODA_STORE fails with EOPNOTSUPP, venus clearly doesn't support
  * CODA_STORE/CODA_RELEASE and we fall back on using the CODA_CLOSE upcall */
 static int use_coda_close;
@@ -286,7 +288,7 @@ int coda_fsync(struct file *coda_file, struct dentry *coda_dentry, int datasync)
 	return err;
 }
 
-struct file_operations coda_file_operations = {
+const struct file_operations coda_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= coda_file_read,
 	.write		= coda_file_write,

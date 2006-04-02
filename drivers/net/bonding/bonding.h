@@ -22,8 +22,8 @@
 #include "bond_3ad.h"
 #include "bond_alb.h"
 
-#define DRV_VERSION	"3.0.1"
-#define DRV_RELDATE	"January 9, 2006"
+#define DRV_VERSION	"3.0.3"
+#define DRV_RELDATE	"March 23, 2006"
 #define DRV_NAME	"bonding"
 #define DRV_DESCRIPTION	"Ethernet Channel Bonding Driver"
 
@@ -230,14 +230,37 @@ static inline struct bonding *bond_get_bond_by_slave(struct slave *slave)
 
 static inline void bond_set_slave_inactive_flags(struct slave *slave)
 {
-	slave->state = BOND_STATE_BACKUP;
-	slave->dev->flags |= IFF_NOARP;
+	struct bonding *bond = slave->dev->master->priv;
+	if (bond->params.mode != BOND_MODE_TLB &&
+	    bond->params.mode != BOND_MODE_ALB)
+		slave->state = BOND_STATE_BACKUP;
+	slave->dev->priv_flags |= IFF_SLAVE_INACTIVE;
 }
 
 static inline void bond_set_slave_active_flags(struct slave *slave)
 {
 	slave->state = BOND_STATE_ACTIVE;
-	slave->dev->flags &= ~IFF_NOARP;
+	slave->dev->priv_flags &= ~IFF_SLAVE_INACTIVE;
+}
+
+static inline void bond_set_master_3ad_flags(struct bonding *bond)
+{
+	bond->dev->priv_flags |= IFF_MASTER_8023AD;
+}
+
+static inline void bond_unset_master_3ad_flags(struct bonding *bond)
+{
+	bond->dev->priv_flags &= ~IFF_MASTER_8023AD;
+}
+
+static inline void bond_set_master_alb_flags(struct bonding *bond)
+{
+	bond->dev->priv_flags |= IFF_MASTER_ALB;
+}
+
+static inline void bond_unset_master_alb_flags(struct bonding *bond)
+{
+	bond->dev->priv_flags &= ~IFF_MASTER_ALB;
 }
 
 struct vlan_entry *bond_next_vlan(struct bonding *bond, struct vlan_entry *curr);

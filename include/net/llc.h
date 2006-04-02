@@ -71,7 +71,7 @@ extern int llc_rcv(struct sk_buff *skb, struct net_device *dev,
 		   struct packet_type *pt, struct net_device *orig_dev);
 
 extern int llc_mac_hdr_init(struct sk_buff *skb,
-			    unsigned char *sa, unsigned char *da);
+			    const unsigned char *sa, const unsigned char *da);
 
 extern void llc_add_pack(int type, void (*handler)(struct llc_sap *sap,
 						   struct sk_buff *skb));

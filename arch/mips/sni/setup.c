@@ -164,8 +164,8 @@ static struct pci_controller sni_controller = {
 
 static inline void sni_pcimt_time_init(void)
 {
-	rtc_get_time = mc146818_get_cmos_time;
-	rtc_set_time = mc146818_set_rtc_mmss;
+	rtc_mips_get_time = mc146818_get_cmos_time;
+	rtc_mips_set_time = mc146818_set_rtc_mmss;
 }
 
 void __init plat_setup(void)

@@ -3,7 +3,7 @@
    extension. */
 
 /* (C) 1999-2001 Paul `Rusty' Russell
- * (C) 2002-2005 Netfilter Core Team <coreteam@netfilter.org>
+ * (C) 2002-2006 Netfilter Core Team <coreteam@netfilter.org>
  * (C) 2003,2004 USAGI/WIDE Project <http://www.linux-ipv6.org>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -20,6 +20,11 @@
  *	- generalize L3 protocol denendent part.
  * 23 Mar 2004: Yasuyuki Kozakai @USAGI <yasuyuki.kozakai@toshiba.co.jp>
  *	- add support various size of conntrack structures.
+ * 26 Jan 2006: Harald Welte <laforge@netfilter.org>
+ * 	- restructure nf_conn (introduce nf_conn_help)
+ * 	- redesign 'features' how they were originally intended
+ * 26 Feb 2006: Pablo Neira Ayuso <pablo@eurodev.net>
+ * 	- add support for L3 protocol module load on demand.
  *
  * Derived from net/ipv4/netfilter/ip_conntrack_core.c
  */
@@ -55,7 +60,7 @@
 #include <net/netfilter/nf_conntrack_core.h>
 #include <linux/netfilter_ipv4/listhelp.h>
 
-#define NF_CONNTRACK_VERSION	"0.4.1"
+#define NF_CONNTRACK_VERSION	"0.5.0"
 
 #if 0
 #define DEBUGP printk
@@ -82,11 +87,11 @@ unsigned int nf_ct_log_invalid;
 static LIST_HEAD(unconfirmed);
 static int nf_conntrack_vmalloc;
 
-static unsigned int nf_conntrack_next_id = 1;
-static unsigned int nf_conntrack_expect_next_id = 1;
+static unsigned int nf_conntrack_next_id;
+static unsigned int nf_conntrack_expect_next_id;
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
-struct notifier_block *nf_conntrack_chain;
-struct notifier_block *nf_conntrack_expect_chain;
+ATOMIC_NOTIFIER_HEAD(nf_conntrack_chain);
+ATOMIC_NOTIFIER_HEAD(nf_conntrack_expect_chain);
 
 DEFINE_PER_CPU(struct nf_conntrack_ecache, nf_conntrack_ecache);
 
@@ -98,7 +103,7 @@ __nf_ct_deliver_cached_events(struct nf_conntrack_ecache *ecache)
 	DEBUGP("ecache: delivering events for %p\n", ecache->ct);
 	if (nf_ct_is_confirmed(ecache->ct) && !nf_ct_is_dying(ecache->ct)
 	    && ecache->events)
-		notifier_call_chain(&nf_conntrack_chain, ecache->events,
+		atomic_notifier_call_chain(&nf_conntrack_chain, ecache->events,
 				    ecache->ct);
 
 	ecache->events = 0;
@@ -182,7 +187,7 @@ static struct {
 DEFINE_RWLOCK(nf_ct_cache_lock);
 
 /* This avoids calling kmem_cache_create() with same name simultaneously */
-DECLARE_MUTEX(nf_ct_cache_mutex);
+static DEFINE_MUTEX(nf_ct_cache_mutex);
 
 extern struct nf_conntrack_protocol nf_conntrack_generic_protocol;
 struct nf_conntrack_protocol *
@@ -238,6 +243,35 @@ void nf_ct_l3proto_put(struct nf_conntrack_l3proto *p)
 	module_put(p->me);
 }
 
+int
+nf_ct_l3proto_try_module_get(unsigned short l3proto)
+{
+	int ret;
+	struct nf_conntrack_l3proto *p;
+
+retry:	p = nf_ct_l3proto_find_get(l3proto);
+	if (p == &nf_conntrack_generic_l3proto) {
+		ret = request_module("nf_conntrack-%d", l3proto);
+		if (!ret)
+			goto retry;
+
+		return -EPROTOTYPE;
+	}
+
+	return 0;
+}
+
+void nf_ct_l3proto_module_put(unsigned short l3proto)
+{
+	struct nf_conntrack_l3proto *p;
+
+	preempt_disable();
+	p = __nf_ct_l3proto_find(l3proto);
+	preempt_enable();
+
+	module_put(p->me);
+}
+
 static int nf_conntrack_hash_rnd_initted;
 static unsigned int nf_conntrack_hash_rnd;
 
@@ -259,21 +293,8 @@ static inline u_int32_t hash_conntrack(const struct nf_conntrack_tuple *tuple)
 				nf_conntrack_hash_rnd);
 }
 
-/* Initialize "struct nf_conn" which has spaces for helper */
-static int
-init_conntrack_for_helper(struct nf_conn *conntrack, u_int32_t features)
-{
-
-	conntrack->help = (union nf_conntrack_help *)
-		(((unsigned long)conntrack->data
-		  + (__alignof__(union nf_conntrack_help) - 1))
-		 & (~((unsigned long)(__alignof__(union nf_conntrack_help) -1))));
-	return 0;
-}
-
 int nf_conntrack_register_cache(u_int32_t features, const char *name,
-				size_t size,
-				int (*init)(struct nf_conn *, u_int32_t))
+				size_t size)
 {
 	int ret = 0;
 	char *cache_name;
@@ -288,7 +309,7 @@ int nf_conntrack_register_cache(u_int32_t features, const char *name,
 		return -EINVAL;
 	}
 
-	down(&nf_ct_cache_mutex);
+	mutex_lock(&nf_ct_cache_mutex);
 
 	write_lock_bh(&nf_ct_cache_lock);
 	/* e.g: multiple helpers are loaded */
@@ -296,8 +317,7 @@ int nf_conntrack_register_cache(u_int32_t features, const char *name,
 		DEBUGP("nf_conntrack_register_cache: already resisterd.\n");
 		if ((!strncmp(nf_ct_cache[features].name, name,
 			      NF_CT_FEATURES_NAMELEN))
-		    && nf_ct_cache[features].size == size
-		    && nf_ct_cache[features].init_conntrack == init) {
+		    && nf_ct_cache[features].size == size) {
 			DEBUGP("nf_conntrack_register_cache: reusing.\n");
 			nf_ct_cache[features].use++;
 			ret = 0;
@@ -305,7 +325,7 @@ int nf_conntrack_register_cache(u_int32_t features, const char *name,
 			ret = -EBUSY;
 
 		write_unlock_bh(&nf_ct_cache_lock);
-		up(&nf_ct_cache_mutex);
+		mutex_unlock(&nf_ct_cache_mutex);
 		return ret;
 	}
 	write_unlock_bh(&nf_ct_cache_lock);
@@ -340,7 +360,6 @@ int nf_conntrack_register_cache(u_int32_t features, const char *name,
 	write_lock_bh(&nf_ct_cache_lock);
 	nf_ct_cache[features].use = 1;
 	nf_ct_cache[features].size = size;
-	nf_ct_cache[features].init_conntrack = init;
 	nf_ct_cache[features].cachep = cachep;
 	nf_ct_cache[features].name = cache_name;
 	write_unlock_bh(&nf_ct_cache_lock);
@@ -350,7 +369,7 @@ int nf_conntrack_register_cache(u_int32_t features, const char *name,
 out_free_name:
 	kfree(cache_name);
 out_up_mutex:
-	up(&nf_ct_cache_mutex);
+	mutex_unlock(&nf_ct_cache_mutex);
 	return ret;
 }
 
@@ -365,19 +384,18 @@ void nf_conntrack_unregister_cache(u_int32_t features)
 	 * slab cache.
 	 */
 	DEBUGP("nf_conntrack_unregister_cache: 0x%04x\n", features);
-	down(&nf_ct_cache_mutex);
+	mutex_lock(&nf_ct_cache_mutex);
 
 	write_lock_bh(&nf_ct_cache_lock);
 	if (--nf_ct_cache[features].use > 0) {
 		write_unlock_bh(&nf_ct_cache_lock);
-		up(&nf_ct_cache_mutex);
+		mutex_unlock(&nf_ct_cache_mutex);
 		return;
 	}
 	cachep = nf_ct_cache[features].cachep;
 	name = nf_ct_cache[features].name;
 	nf_ct_cache[features].cachep = NULL;
 	nf_ct_cache[features].name = NULL;
-	nf_ct_cache[features].init_conntrack = NULL;
 	nf_ct_cache[features].size = 0;
 	write_unlock_bh(&nf_ct_cache_lock);
 
@@ -386,7 +404,7 @@ void nf_conntrack_unregister_cache(u_int32_t features)
 	kmem_cache_destroy(cachep);
 	kfree(name);
 
-	up(&nf_ct_cache_mutex);
+	mutex_unlock(&nf_ct_cache_mutex);
 }
 
 int
@@ -432,11 +450,15 @@ nf_ct_invert_tuple(struct nf_conntrack_tuple *inverse,
 /* nf_conntrack_expect helper functions */
 void nf_ct_unlink_expect(struct nf_conntrack_expect *exp)
 {
+	struct nf_conn_help *master_help = nfct_help(exp->master);
+
+	NF_CT_ASSERT(master_help);
 	ASSERT_WRITE_LOCK(&nf_conntrack_lock);
 	NF_CT_ASSERT(!timer_pending(&exp->timeout));
+
 	list_del(&exp->list);
 	NF_CT_STAT_INC(expect_delete);
-	exp->master->expecting--;
+	master_help->expecting--;
 	nf_conntrack_expect_put(exp);
 }
 
@@ -508,9 +530,10 @@ find_expectation(const struct nf_conntrack_tuple *tuple)
 void nf_ct_remove_expectations(struct nf_conn *ct)
 {
 	struct nf_conntrack_expect *i, *tmp;
+	struct nf_conn_help *help = nfct_help(ct);
 
 	/* Optimization: most connection never expect any others. */
-	if (ct->expecting == 0)
+	if (!help || help->expecting == 0)
 		return;
 
 	list_for_each_entry_safe(i, tmp, &nf_conntrack_expect_list, list) {
@@ -713,6 +736,7 @@ __nf_conntrack_confirm(struct sk_buff **pskb)
 			  conntrack_tuple_cmp,
 			  struct nf_conntrack_tuple_hash *,
 			  &ct->tuplehash[IP_CT_DIR_REPLY].tuple, NULL)) {
+		struct nf_conn_help *help;
 		/* Remove from unconfirmed list */
 		list_del(&ct->tuplehash[IP_CT_DIR_ORIGINAL].list);
 
@@ -726,7 +750,8 @@ __nf_conntrack_confirm(struct sk_buff **pskb)
 		set_bit(IPS_CONFIRMED_BIT, &ct->status);
 		NF_CT_STAT_INC(insert);
 		write_unlock_bh(&nf_conntrack_lock);
-		if (ct->helper)
+		help = nfct_help(ct);
+		if (help && help->helper)
 			nf_conntrack_event_cache(IPCT_HELPER, *pskb);
 #ifdef CONFIG_NF_NAT_NEEDED
 		if (test_bit(IPS_SRC_NAT_DONE_BIT, &ct->status) ||
@@ -842,8 +867,9 @@ __nf_conntrack_alloc(const struct nf_conntrack_tuple *orig,
 {
 	struct nf_conn *conntrack = NULL;
 	u_int32_t features = 0;
+	struct nf_conntrack_helper *helper;
 
-	if (!nf_conntrack_hash_rnd_initted) {
+	if (unlikely(!nf_conntrack_hash_rnd_initted)) {
 		get_random_bytes(&nf_conntrack_hash_rnd, 4);
 		nf_conntrack_hash_rnd_initted = 1;
 	}
@@ -863,8 +889,11 @@ __nf_conntrack_alloc(const struct nf_conntrack_tuple *orig,
 
 	/*  find features needed by this conntrack. */
 	features = l3proto->get_features(orig);
+
+	/* FIXME: protect helper list per RCU */
 	read_lock_bh(&nf_conntrack_lock);
-	if (__nf_ct_helper_find(repl) != NULL)
+	helper = __nf_ct_helper_find(repl);
+	if (helper)
 		features |= NF_CT_F_HELP;
 	read_unlock_bh(&nf_conntrack_lock);
 
@@ -872,7 +901,7 @@ __nf_conntrack_alloc(const struct nf_conntrack_tuple *orig,
 
 	read_lock_bh(&nf_ct_cache_lock);
 
-	if (!nf_ct_cache[features].use) {
+	if (unlikely(!nf_ct_cache[features].use)) {
 		DEBUGP("nf_conntrack_alloc: not supported features = 0x%x\n",
 			features);
 		goto out;
@@ -886,12 +915,10 @@ __nf_conntrack_alloc(const struct nf_conntrack_tuple *orig,
 
 	memset(conntrack, 0, nf_ct_cache[features].size);
 	conntrack->features = features;
-	if (nf_ct_cache[features].init_conntrack &&
-	    nf_ct_cache[features].init_conntrack(conntrack, features) < 0) {
-		DEBUGP("nf_conntrack_alloc: failed to init\n");
-		kmem_cache_free(nf_ct_cache[features].cachep, conntrack);
-		conntrack = NULL;
-		goto out;
+	if (helper) {
+		struct nf_conn_help *help = nfct_help(conntrack);
+		NF_CT_ASSERT(help);
+		help->helper = helper;
 	}
 
 	atomic_set(&conntrack->ct_general.use, 1);
@@ -972,11 +999,8 @@ init_conntrack(const struct nf_conntrack_tuple *tuple,
 #endif
 		nf_conntrack_get(&conntrack->master->ct_general);
 		NF_CT_STAT_INC(expect_new);
-	} else {
-		conntrack->helper = __nf_ct_helper_find(&repl_tuple);
-
+	} else
 		NF_CT_STAT_INC(new);
-        }
 
 	/* Overload tuple linked list to put us in unconfirmed list. */
 	list_add(&conntrack->tuplehash[IP_CT_DIR_ORIGINAL].list, &unconfirmed);
@@ -1206,14 +1230,16 @@ void nf_conntrack_expect_put(struct nf_conntrack_expect *exp)
 
 static void nf_conntrack_expect_insert(struct nf_conntrack_expect *exp)
 {
+	struct nf_conn_help *master_help = nfct_help(exp->master);
+
 	atomic_inc(&exp->use);
-	exp->master->expecting++;
+	master_help->expecting++;
 	list_add(&exp->list, &nf_conntrack_expect_list);
 
 	init_timer(&exp->timeout);
 	exp->timeout.data = (unsigned long)exp;
 	exp->timeout.function = expectation_timed_out;
-	exp->timeout.expires = jiffies + exp->master->helper->timeout * HZ;
+	exp->timeout.expires = jiffies + master_help->helper->timeout * HZ;
 	add_timer(&exp->timeout);
 
 	exp->id = ++nf_conntrack_expect_next_id;
@@ -1239,10 +1265,12 @@ static void evict_oldest_expect(struct nf_conn *master)
 
 static inline int refresh_timer(struct nf_conntrack_expect *i)
 {
+	struct nf_conn_help *master_help = nfct_help(i->master);
+
 	if (!del_timer(&i->timeout))
 		return 0;
 
-	i->timeout.expires = jiffies + i->master->helper->timeout*HZ;
+	i->timeout.expires = jiffies + master_help->helper->timeout*HZ;
 	add_timer(&i->timeout);
 	return 1;
 }
@@ -1251,7 +1279,10 @@ int nf_conntrack_expect_related(struct nf_conntrack_expect *expect)
 {
 	struct nf_conntrack_expect *i;
 	struct nf_conn *master = expect->master;
+	struct nf_conn_help *master_help = nfct_help(master);
 	int ret;
+
+	NF_CT_ASSERT(master_help);
 
 	DEBUGP("nf_conntrack_expect_related %p\n", related_to);
 	DEBUGP("tuple: "); NF_CT_DUMP_TUPLE(&expect->tuple);
@@ -1271,8 +1302,8 @@ int nf_conntrack_expect_related(struct nf_conntrack_expect *expect)
 		}
 	}
 	/* Will be over limit? */
-	if (master->helper->max_expected && 
-	    master->expecting >= master->helper->max_expected)
+	if (master_help->helper->max_expected &&
+	    master_help->expecting >= master_help->helper->max_expected)
 		evict_oldest_expect(master);
 
 	nf_conntrack_expect_insert(expect);
@@ -1283,24 +1314,6 @@ out:
 	return ret;
 }
 
-/* Alter reply tuple (maybe alter helper).  This is for NAT, and is
-   implicitly racy: see __nf_conntrack_confirm */
-void nf_conntrack_alter_reply(struct nf_conn *conntrack,
-			      const struct nf_conntrack_tuple *newreply)
-{
-	write_lock_bh(&nf_conntrack_lock);
-	/* Should be unconfirmed, so not in hash table yet */
-	NF_CT_ASSERT(!nf_ct_is_confirmed(conntrack));
-
-	DEBUGP("Altering reply tuple of %p to ", conntrack);
-	NF_CT_DUMP_TUPLE(newreply);
-
-	conntrack->tuplehash[IP_CT_DIR_REPLY].tuple = *newreply;
-	if (!conntrack->master && conntrack->expecting == 0)
-		conntrack->helper = __nf_ct_helper_find(newreply);
-	write_unlock_bh(&nf_conntrack_lock);
-}
-
 int nf_conntrack_helper_register(struct nf_conntrack_helper *me)
 {
 	int ret;
@@ -1308,9 +1321,8 @@ int nf_conntrack_helper_register(struct nf_conntrack_helper *me)
 
 	ret = nf_conntrack_register_cache(NF_CT_F_HELP, "nf_conntrack:help",
 					  sizeof(struct nf_conn)
-					  + sizeof(union nf_conntrack_help)
-					  + __alignof__(union nf_conntrack_help),
-					  init_conntrack_for_helper);
+					  + sizeof(struct nf_conn_help)
+					  + __alignof__(struct nf_conn_help));
 	if (ret < 0) {
 		printk(KERN_ERR "nf_conntrack_helper_reigster: Unable to create slab cache for conntracks\n");
 		return ret;
@@ -1338,9 +1350,12 @@ __nf_conntrack_helper_find_byname(const char *name)
 static inline int unhelp(struct nf_conntrack_tuple_hash *i,
 			 const struct nf_conntrack_helper *me)
 {
-	if (nf_ct_tuplehash_to_ctrack(i)->helper == me) {
-		nf_conntrack_event(IPCT_HELPER, nf_ct_tuplehash_to_ctrack(i));
-		nf_ct_tuplehash_to_ctrack(i)->helper = NULL;
+	struct nf_conn *ct = nf_ct_tuplehash_to_ctrack(i);
+	struct nf_conn_help *help = nfct_help(ct);
+
+	if (help && help->helper == me) {
+		nf_conntrack_event(IPCT_HELPER, ct);
+		help->helper = NULL;
 	}
 	return 0;
 }
@@ -1356,7 +1371,8 @@ void nf_conntrack_helper_unregister(struct nf_conntrack_helper *me)
 
 	/* Get rid of expectations */
 	list_for_each_entry_safe(exp, tmp, &nf_conntrack_expect_list, list) {
-		if (exp->master->helper == me && del_timer(&exp->timeout)) {
+		struct nf_conn_help *help = nfct_help(exp->master);
+		if (help->helper == me && del_timer(&exp->timeout)) {
 			nf_ct_unlink_expect(exp);
 			nf_conntrack_expect_put(exp);
 		}
@@ -1423,6 +1439,8 @@ void __nf_ct_refresh_acct(struct nf_conn *ct,
 
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_conntrack.h>
+#include <linux/mutex.h>
+
 
 /* Generic function for tcp/udp/sctp/dccp and alike. This needs to be
  * in ip_conntrack_core, since we don't want the protocols to autoload
@@ -1697,7 +1715,7 @@ int __init nf_conntrack_init(void)
 	}
 
 	ret = nf_conntrack_register_cache(NF_CT_F_BASIC, "nf_conntrack:basic",
-					  sizeof(struct nf_conn), NULL);
+					  sizeof(struct nf_conn));
 	if (ret < 0) {
 		printk(KERN_ERR "Unable to create nf_conn slab cache\n");
 		goto err_free_hash;

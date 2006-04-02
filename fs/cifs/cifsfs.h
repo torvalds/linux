@@ -61,10 +61,10 @@ extern struct inode_operations cifs_file_inode_ops;
 extern struct inode_operations cifs_symlink_inode_ops;
 
 /* Functions related to files and directories */
-extern struct file_operations cifs_file_ops;
-extern struct file_operations cifs_file_direct_ops; /* if directio mount */
-extern struct file_operations cifs_file_nobrl_ops;
-extern struct file_operations cifs_file_direct_nobrl_ops; /* if directio mount */
+extern const struct file_operations cifs_file_ops;
+extern const struct file_operations cifs_file_direct_ops; /* if directio mount */
+extern const struct file_operations cifs_file_nobrl_ops;
+extern const struct file_operations cifs_file_direct_nobrl_ops; /* if directio mount */
 extern int cifs_open(struct inode *inode, struct file *file);
 extern int cifs_close(struct inode *inode, struct file *file);
 extern int cifs_closedir(struct inode *inode, struct file *file);
@@ -76,7 +76,7 @@ extern int cifs_lock(struct file *, int, struct file_lock *);
 extern int cifs_fsync(struct file *, struct dentry *, int);
 extern int cifs_flush(struct file *);
 extern int cifs_file_mmap(struct file * , struct vm_area_struct *);
-extern struct file_operations cifs_dir_ops;
+extern const struct file_operations cifs_dir_ops;
 extern int cifs_dir_open(struct inode *inode, struct file *file);
 extern int cifs_readdir(struct file *file, void *direntry, filldir_t filldir);
 extern int cifs_dir_notify(struct file *, unsigned long arg);
@@ -99,5 +99,5 @@ extern ssize_t	cifs_getxattr(struct dentry *, const char *, void *, size_t);
 extern ssize_t	cifs_listxattr(struct dentry *, char *, size_t);
 extern int cifs_ioctl (struct inode * inode, struct file * filep,
 		       unsigned int command, unsigned long arg);
-#define CIFS_VERSION   "1.40"
+#define CIFS_VERSION   "1.42"
 #endif				/* _CIFSFS_H */

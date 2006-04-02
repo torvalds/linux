@@ -31,6 +31,7 @@
 extern void cobalt_machine_restart(char *command);
 extern void cobalt_machine_halt(void);
 extern void cobalt_machine_power_off(void);
+extern void cobalt_early_console(void);
 
 int cobalt_board_id;
 
@@ -109,14 +110,6 @@ void __init plat_setup(void)
 	/* I/O port resource must include UART and LCD/buttons */
 	ioport_resource.end = 0x0fffffff;
 
-	/*
-	 * This is a prom style console. We just poke at the
-	 *  UART to make it talk.
-	 * Only use this console if you really screw up and can't
-	 *  get to the stage of setting up a real serial console.
-	 */
-	/*ns16550_setup_console();*/
-
 	/* request I/O space for devices used on all i[345]86 PCs */
 	for (i = 0; i < COBALT_IO_RESOURCES; i++)
 		request_resource(&ioport_resource, cobalt_io_resources + i);
@@ -135,6 +128,10 @@ void __init plat_setup(void)
 
 #ifdef CONFIG_SERIAL_8250
 	if (cobalt_board_id > COBALT_BRD_ID_RAQ1) {
+
+#ifdef CONFIG_EARLY_PRINTK
+		cobalt_early_console();
+#endif
 
 		uart.line	= 0;
 		uart.type	= PORT_UNKNOWN;

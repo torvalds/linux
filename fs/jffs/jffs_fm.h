@@ -20,10 +20,11 @@
 #ifndef __LINUX_JFFS_FM_H__
 #define __LINUX_JFFS_FM_H__
 
+#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/jffs.h>
 #include <linux/mtd/mtd.h>
-#include <linux/config.h>
+#include <linux/mutex.h>
 
 /* The alignment between two nodes in the flash memory.  */
 #define JFFS_ALIGN_SIZE 4
@@ -97,7 +98,7 @@ struct jffs_fmcontrol
 	struct jffs_fm *tail;
 	struct jffs_fm *head_extra;
 	struct jffs_fm *tail_extra;
-	struct semaphore biglock;
+	struct mutex biglock;
 };
 
 /* Notice the two members head_extra and tail_extra in the jffs_control

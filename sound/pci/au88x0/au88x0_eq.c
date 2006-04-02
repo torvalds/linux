@@ -377,23 +377,23 @@ static void vortex_EqHw_GetLevels(vortex_t * vortex, u16 a[])
 
 #endif
 /* Global Control */
-static void vortex_EqHw_SetControlReg(vortex_t * vortex, unsigned long reg)
+static void vortex_EqHw_SetControlReg(vortex_t * vortex, u32 reg)
 {
 	hwwrite(vortex->mmio, 0x2b440, reg);
 }
 
-static void vortex_EqHw_SetSampleRate(vortex_t * vortex, int sr)
+static void vortex_EqHw_SetSampleRate(vortex_t * vortex, u32 sr)
 {
 	hwwrite(vortex->mmio, 0x2b440, ((sr & 0x1f) << 3) | 0xb800);
 }
 
 #if 0
-static void vortex_EqHw_GetControlReg(vortex_t * vortex, unsigned long *reg)
+static void vortex_EqHw_GetControlReg(vortex_t * vortex, u32 *reg)
 {
 	*reg = hwread(vortex->mmio, 0x2b440);
 }
 
-static void vortex_EqHw_GetSampleRate(vortex_t * vortex, int *sr)
+static void vortex_EqHw_GetSampleRate(vortex_t * vortex, u32 *sr)
 {
 	*sr = (hwread(vortex->mmio, 0x2b440) >> 3) & 0x1f;
 }
@@ -554,7 +554,7 @@ static void vortex_Eqlzr_SetRightGain(vortex_t * vortex, u16 index, u16 gain)
 
 #if 0
 static int
-vortex_Eqlzr_GetAllBands(vortex_t * vortex, u16 * gains, unsigned long *cnt)
+vortex_Eqlzr_GetAllBands(vortex_t * vortex, u16 * gains, s32 *cnt)
 {
 	eqlzr_t *eq = &(vortex->eq);
 	int si = 0;
@@ -586,7 +586,7 @@ static int vortex_Eqlzr_SetAllBandsFromActiveCoeffSet(vortex_t * vortex)
 }
 
 static int
-vortex_Eqlzr_SetAllBands(vortex_t * vortex, u16 gains[], unsigned long count)
+vortex_Eqlzr_SetAllBands(vortex_t * vortex, u16 gains[], s32 count)
 {
 	eqlzr_t *eq = &(vortex->eq);
 	int i;
@@ -604,11 +604,10 @@ vortex_Eqlzr_SetAllBands(vortex_t * vortex, u16 gains[], unsigned long count)
 }
 
 static void
-vortex_Eqlzr_SetA3dBypassGain(vortex_t * vortex, unsigned long a,
-			      unsigned long b)
+vortex_Eqlzr_SetA3dBypassGain(vortex_t * vortex, u32 a, u32 b)
 {
 	eqlzr_t *eq = &(vortex->eq);
-	int eax, ebx;
+	u32 eax, ebx;
 
 	eq->this58 = a;
 	eq->this5c = b;
@@ -624,7 +623,7 @@ vortex_Eqlzr_SetA3dBypassGain(vortex_t * vortex, unsigned long a,
 static void vortex_Eqlzr_ProgramA3dBypassGain(vortex_t * vortex)
 {
 	eqlzr_t *eq = &(vortex->eq);
-	int eax, ebx;
+	u32 eax, ebx;
 
 	if (eq->this54)
 		eax = eq->this0e;
@@ -641,7 +640,7 @@ static void vortex_Eqlzr_ShutDownA3d(vortex_t * vortex)
 		vortex_EqHw_ZeroA3DIO(vortex);
 }
 
-static void vortex_Eqlzr_SetBypass(vortex_t * vortex, long bp)
+static void vortex_Eqlzr_SetBypass(vortex_t * vortex, u32 bp)
 {
 	eqlzr_t *eq = &(vortex->eq);
 	
@@ -651,8 +650,8 @@ static void vortex_Eqlzr_SetBypass(vortex_t * vortex, long bp)
 		vortex_EqHw_SetBypassGain(vortex, eq->this08, eq->this08);
 	} else {
 		/* EQ disabled. */
-		vortex_EqHw_SetLeftGainsTarget(vortex, (u16 *) (eq->this14));
-		vortex_EqHw_SetRightGainsTarget(vortex, (u16 *) (eq->this14));
+		vortex_EqHw_SetLeftGainsTarget(vortex, eq->this14_array);
+		vortex_EqHw_SetRightGainsTarget(vortex, eq->this14_array);
 		vortex_EqHw_SetBypassGain(vortex, eq->this0c, eq->this0c);
 	}
 	vortex_Eqlzr_ProgramA3dBypassGain(vortex);
@@ -706,7 +705,7 @@ static void vortex_Eqlzr_init(vortex_t * vortex)
 	eq->this5c = 0xffff;
 
 	/* Set gains. */
-	memset(eq->this14, 0, 2 * 10);
+	memset(eq->this14_array, 0, sizeof(eq->this14_array));
 
 	/* Actual init. */
 	vortex_EqHw_ZeroState(vortex);
@@ -792,7 +791,7 @@ snd_vortex_eq_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucon
 {
 	vortex_t *vortex = snd_kcontrol_chip(kcontrol);
 	int i = kcontrol->private_value;
-	u16 gainL, gainR;
+	u16 gainL = 0, gainR = 0;
 
 	vortex_Eqlzr_GetLeftGain(vortex, i, &gainL);
 	vortex_Eqlzr_GetRightGain(vortex, i, &gainR);
@@ -806,7 +805,7 @@ snd_vortex_eq_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucon
 {
 	vortex_t *vortex = snd_kcontrol_chip(kcontrol);
 	int changed = 0, i = kcontrol->private_value;
-	u16 gainL, gainR;
+	u16 gainL = 0, gainR = 0;
 
 	vortex_Eqlzr_GetLeftGain(vortex, i, &gainL);
 	vortex_Eqlzr_GetRightGain(vortex, i, &gainR);

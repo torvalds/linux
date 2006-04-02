@@ -73,8 +73,8 @@ repeat:
 	 * orig_start..fdt->next_fd
 	 */
 	start = orig_start;
-	if (start < fdt->next_fd)
-		start = fdt->next_fd;
+	if (start < files->next_fd)
+		start = files->next_fd;
 
 	newfd = start;
 	if (start < fdt->max_fdset) {
@@ -102,9 +102,8 @@ repeat:
 	 * we reacquire the fdtable pointer and use it while holding
 	 * the lock, no one can free it during that time.
 	 */
-	fdt = files_fdtable(files);
-	if (start <= fdt->next_fd)
-		fdt->next_fd = newfd + 1;
+	if (start <= files->next_fd)
+		files->next_fd = newfd + 1;
 
 	error = newfd;
 	
@@ -413,7 +412,7 @@ out:
 
 /* Table to convert sigio signal codes into poll band bitmaps */
 
-static long band_table[NSIGPOLL] = {
+static const long band_table[NSIGPOLL] = {
 	POLLIN | POLLRDNORM,			/* POLL_IN */
 	POLLOUT | POLLWRNORM | POLLWRBAND,	/* POLL_OUT */
 	POLLIN | POLLRDNORM | POLLMSG,		/* POLL_MSG */
@@ -532,7 +531,7 @@ int send_sigurg(struct fown_struct *fown)
 }
 
 static DEFINE_RWLOCK(fasync_lock);
-static kmem_cache_t *fasync_cache;
+static kmem_cache_t *fasync_cache __read_mostly;
 
 /*
  * fasync_helper() is used by some character device drivers (mainly mice)

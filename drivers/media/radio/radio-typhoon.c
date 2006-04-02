@@ -59,7 +59,7 @@ struct typhoon_device {
 	int muted;
 	unsigned long curfreq;
 	unsigned long mutefreq;
-	struct semaphore lock;
+	struct mutex lock;
 };
 
 static void typhoon_setvol_generic(struct typhoon_device *dev, int vol);
@@ -77,12 +77,12 @@ static int typhoon_get_info(char *buf, char **start, off_t offset, int len);
 
 static void typhoon_setvol_generic(struct typhoon_device *dev, int vol)
 {
-	down(&dev->lock);
+	mutex_lock(&dev->lock);
 	vol >>= 14;				/* Map 16 bit to 2 bit */
 	vol &= 3;
 	outb_p(vol / 2, dev->iobase);		/* Set the volume, high bit. */
 	outb_p(vol % 2, dev->iobase + 2);	/* Set the volume, low bit. */
-	up(&dev->lock);
+	mutex_unlock(&dev->lock);
 }
 
 static int typhoon_setfreq_generic(struct typhoon_device *dev,
@@ -102,7 +102,7 @@ static int typhoon_setfreq_generic(struct typhoon_device *dev,
 	 *
 	 */
 
-	down(&dev->lock);
+	mutex_lock(&dev->lock);
 	x = frequency / 160;
 	outval = (x * x + 2500) / 5000;
 	outval = (outval * x + 5000) / 10000;
@@ -112,7 +112,7 @@ static int typhoon_setfreq_generic(struct typhoon_device *dev,
 	outb_p((outval >> 8) & 0x01, dev->iobase + 4);
 	outb_p(outval >> 9, dev->iobase + 6);
 	outb_p(outval & 0xff, dev->iobase + 8);
-	up(&dev->lock);
+	mutex_unlock(&dev->lock);
 
 	return 0;
 }
@@ -337,7 +337,7 @@ static int __init typhoon_init(void)
 #endif /* MODULE */
 
 	printk(KERN_INFO BANNER);
-	init_MUTEX(&typhoon_unit.lock);
+	mutex_init(&typhoon_unit.lock);
 	io = typhoon_unit.iobase;
 	if (!request_region(io, 8, "typhoon")) {
 		printk(KERN_ERR "radio-typhoon: port 0x%x already in use\n",

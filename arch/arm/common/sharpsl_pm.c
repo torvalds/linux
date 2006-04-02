@@ -22,6 +22,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
+#include <linux/leds.h>
 
 #include <asm/hardware.h>
 #include <asm/mach-types.h>
@@ -75,6 +76,7 @@ static void sharpsl_battery_thread(void *private_);
 struct sharpsl_pm_status sharpsl_pm;
 DECLARE_WORK(toggle_charger, sharpsl_charge_toggle, NULL);
 DECLARE_WORK(sharpsl_bat, sharpsl_battery_thread, NULL);
+DEFINE_LED_TRIGGER(sharpsl_charge_led_trigger);
 
 
 static int get_percentage(int voltage)
@@ -190,10 +192,10 @@ void sharpsl_pm_led(int val)
 		dev_err(sharpsl_pm.dev, "Charging Error!\n");
 	} else if (val == SHARPSL_LED_ON) {
 		dev_dbg(sharpsl_pm.dev, "Charge LED On\n");
-
+		led_trigger_event(sharpsl_charge_led_trigger, LED_FULL);
 	} else {
 		dev_dbg(sharpsl_pm.dev, "Charge LED Off\n");
-
+		led_trigger_event(sharpsl_charge_led_trigger, LED_OFF);
 	}
 }
 
@@ -786,6 +788,8 @@ static int __init sharpsl_pm_probe(struct platform_device *pdev)
 	init_timer(&sharpsl_pm.chrg_full_timer);
 	sharpsl_pm.chrg_full_timer.function = sharpsl_chrg_full_timer;
 
+	led_trigger_register_simple("sharpsl-charge", &sharpsl_charge_led_trigger);
+
 	sharpsl_pm.machinfo->init();
 
 	device_create_file(&pdev->dev, &dev_attr_battery_percentage);
@@ -806,6 +810,8 @@ static int sharpsl_pm_remove(struct platform_device *pdev)
 
 	device_remove_file(&pdev->dev, &dev_attr_battery_percentage);
 	device_remove_file(&pdev->dev, &dev_attr_battery_voltage);
+
+	led_trigger_unregister_simple(sharpsl_charge_led_trigger);
 
 	sharpsl_pm.machinfo->exit();
 

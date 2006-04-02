@@ -386,7 +386,7 @@ iucv_init(void)
 	}
 
 	/* Note: GFP_DMA used used to get memory below 2G */
-	iucv_external_int_buffer = kmalloc(sizeof(iucv_GeneralInterrupt),
+	iucv_external_int_buffer = kzalloc(sizeof(iucv_GeneralInterrupt),
 					   GFP_KERNEL|GFP_DMA);
 	if (!iucv_external_int_buffer) {
 		printk(KERN_WARNING
@@ -396,10 +396,9 @@ iucv_init(void)
 		bus_unregister(&iucv_bus);
 		return -ENOMEM;
 	}
-	memset(iucv_external_int_buffer, 0, sizeof(iucv_GeneralInterrupt));
 
 	/* Initialize parameter pool */
-	iucv_param_pool = kmalloc(sizeof(iucv_param) * PARAM_POOL_SIZE,
+	iucv_param_pool = kzalloc(sizeof(iucv_param) * PARAM_POOL_SIZE,
 				  GFP_KERNEL|GFP_DMA);
 	if (!iucv_param_pool) {
 		printk(KERN_WARNING "%s: Could not allocate param pool\n",
@@ -410,7 +409,6 @@ iucv_init(void)
 		bus_unregister(&iucv_bus);
 		return -ENOMEM;
 	}
-	memset(iucv_param_pool, 0, sizeof(iucv_param) * PARAM_POOL_SIZE);
 
 	/* Initialize irq queue */
 	INIT_LIST_HEAD(&iucv_irq_queue);
@@ -793,15 +791,14 @@ iucv_register_program (__u8 pgmname[16],
 		}
 
 		max_connections = iucv_query_maxconn();
-		iucv_pathid_table = kmalloc(max_connections * sizeof(handler *),
-				       GFP_ATOMIC);
+		iucv_pathid_table = kcalloc(max_connections, sizeof(handler *),
+					GFP_ATOMIC);
 		if (iucv_pathid_table == NULL) {
 			printk(KERN_WARNING "%s: iucv_pathid_table storage "
 			       "allocation failed\n", __FUNCTION__);
 			kfree(new_handler);
 			return NULL;
 		}
-		memset (iucv_pathid_table, 0, max_connections * sizeof(handler *));
 	}
 	memset(new_handler, 0, sizeof (handler));
 	memcpy(new_handler->id.user_data, pgmname,

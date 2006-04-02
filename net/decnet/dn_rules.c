@@ -27,6 +27,8 @@
 #include <linux/timer.h>
 #include <linux/spinlock.h>
 #include <linux/in_route.h>
+#include <linux/list.h>
+#include <linux/rcupdate.h>
 #include <asm/atomic.h>
 #include <asm/uaccess.h>
 #include <net/neighbour.h>
@@ -39,18 +41,18 @@
 
 struct dn_fib_rule
 {
-	struct dn_fib_rule	*r_next;
+	struct hlist_node	r_hlist;
 	atomic_t		r_clntref;
 	u32			r_preference;
 	unsigned char		r_table;
 	unsigned char		r_action;
 	unsigned char		r_dst_len;
 	unsigned char		r_src_len;
-	dn_address		r_src;
-	dn_address		r_srcmask;
-	dn_address		r_dst;
-	dn_address		r_dstmask;
-	dn_address		r_srcmap;
+	__le16			r_src;
+	__le16			r_srcmask;
+	__le16			r_dst;
+	__le16			r_dstmask;
+	__le16			r_srcmap;
 	u8			r_flags;
 #ifdef CONFIG_DECNET_ROUTE_FWMARK
 	u32			r_fwmark;
@@ -58,6 +60,7 @@ struct dn_fib_rule
 	int			r_ifindex;
 	char			r_ifname[IFNAMSIZ];
 	int			r_dead;
+	struct rcu_head		rcu;
 };
 
 static struct dn_fib_rule default_rule = {
@@ -67,18 +70,17 @@ static struct dn_fib_rule default_rule = {
 	.r_action =		RTN_UNICAST
 };
 
-static struct dn_fib_rule *dn_fib_rules = &default_rule;
-static DEFINE_RWLOCK(dn_fib_rules_lock);
-
+static struct hlist_head dn_fib_rules;
 
 int dn_fib_rtm_delrule(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 {
 	struct rtattr **rta = arg;
 	struct rtmsg *rtm = NLMSG_DATA(nlh);
-	struct dn_fib_rule *r, **rp;
+	struct dn_fib_rule *r;
+	struct hlist_node *node;
 	int err = -ESRCH;
 
-	for(rp=&dn_fib_rules; (r=*rp) != NULL; rp = &r->r_next) {
+	hlist_for_each_entry(r, node, &dn_fib_rules, r_hlist) {
 		if ((!rta[RTA_SRC-1] || memcmp(RTA_DATA(rta[RTA_SRC-1]), &r->r_src, 2) == 0) &&
 			rtm->rtm_src_len == r->r_src_len &&
 			rtm->rtm_dst_len == r->r_dst_len &&
@@ -95,10 +97,8 @@ int dn_fib_rtm_delrule(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 			if (r == &default_rule)
 				break;
 
-			write_lock_bh(&dn_fib_rules_lock);
-			*rp = r->r_next;
+			hlist_del_rcu(&r->r_hlist);
 			r->r_dead = 1;
-			write_unlock_bh(&dn_fib_rules_lock);
 			dn_fib_rule_put(r);
 			err = 0;
 			break;
@@ -108,11 +108,17 @@ int dn_fib_rtm_delrule(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	return err;
 }
 
+static inline void dn_fib_rule_put_rcu(struct rcu_head *head)
+{
+	struct dn_fib_rule *r = container_of(head, struct dn_fib_rule, rcu);
+	kfree(r);
+}
+
 void dn_fib_rule_put(struct dn_fib_rule *r)
 {
 	if (atomic_dec_and_test(&r->r_clntref)) {
 		if (r->r_dead)
-			kfree(r);
+			call_rcu(&r->rcu, dn_fib_rule_put_rcu);
 		else
 			printk(KERN_DEBUG "Attempt to free alive dn_fib_rule\n");
 	}
@@ -123,7 +129,8 @@ int dn_fib_rtm_newrule(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 {
 	struct rtattr **rta = arg;
 	struct rtmsg *rtm = NLMSG_DATA(nlh);
-	struct dn_fib_rule *r, *new_r, **rp;
+	struct dn_fib_rule *r, *new_r, *last = NULL;
+	struct hlist_node *node = NULL;
 	unsigned char table_id;
 
 	if (rtm->rtm_src_len > 16 || rtm->rtm_dst_len > 16)
@@ -149,6 +156,7 @@ int dn_fib_rtm_newrule(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	if (!new_r)
 		return -ENOMEM;
 	memset(new_r, 0, sizeof(*new_r));
+
 	if (rta[RTA_SRC-1])
 		memcpy(&new_r->r_src, RTA_DATA(rta[RTA_SRC-1]), 2);
 	if (rta[RTA_DST-1])
@@ -179,27 +187,26 @@ int dn_fib_rtm_newrule(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 		}
 	}
 
-	rp = &dn_fib_rules;
+	r = container_of(dn_fib_rules.first, struct dn_fib_rule, r_hlist);
 	if (!new_r->r_preference) {
-		r = dn_fib_rules;
-		if (r && (r = r->r_next) != NULL) {
-			rp = &dn_fib_rules->r_next;
+		if (r && r->r_hlist.next != NULL) {
+			r = container_of(r->r_hlist.next, struct dn_fib_rule, r_hlist);
 			if (r->r_preference)
 				new_r->r_preference = r->r_preference - 1;
 		}
 	}
 
-	while((r=*rp) != NULL) {
+	hlist_for_each_entry(r, node, &dn_fib_rules, r_hlist) {
 		if (r->r_preference > new_r->r_preference)
 			break;
-		rp = &r->r_next;
+		last = r;
 	}
-
-	new_r->r_next = r;
 	atomic_inc(&new_r->r_clntref);
-	write_lock_bh(&dn_fib_rules_lock);
-	*rp = new_r;
-	write_unlock_bh(&dn_fib_rules_lock);
+
+	if (last)
+		hlist_add_after_rcu(&last->r_hlist, &new_r->r_hlist);
+	else
+		hlist_add_before_rcu(&new_r->r_hlist, &r->r_hlist);
 	return 0;
 }
 
@@ -208,12 +215,14 @@ int dn_fib_lookup(const struct flowi *flp, struct dn_fib_res *res)
 {
 	struct dn_fib_rule *r, *policy;
 	struct dn_fib_table *tb;
-	dn_address saddr = flp->fld_src;
-	dn_address daddr = flp->fld_dst;
+	__le16 saddr = flp->fld_src;
+	__le16 daddr = flp->fld_dst;
+	struct hlist_node *node;
 	int err;
 
-	read_lock(&dn_fib_rules_lock);
-	for(r = dn_fib_rules; r; r = r->r_next) {
+	rcu_read_lock();
+
+	hlist_for_each_entry_rcu(r, node, &dn_fib_rules, r_hlist) {
 		if (((saddr^r->r_src) & r->r_srcmask) ||
 		    ((daddr^r->r_dst) & r->r_dstmask) ||
 #ifdef CONFIG_DECNET_ROUTE_FWMARK
@@ -228,14 +237,14 @@ int dn_fib_lookup(const struct flowi *flp, struct dn_fib_res *res)
 				policy = r;
 				break;
 			case RTN_UNREACHABLE:
-				read_unlock(&dn_fib_rules_lock);
+				rcu_read_unlock();
 				return -ENETUNREACH;
 			default:
 			case RTN_BLACKHOLE:
-				read_unlock(&dn_fib_rules_lock);
+				rcu_read_unlock();
 				return -EINVAL;
 			case RTN_PROHIBIT:
-				read_unlock(&dn_fib_rules_lock);
+				rcu_read_unlock();
 				return -EACCES;
 		}
 
@@ -246,20 +255,20 @@ int dn_fib_lookup(const struct flowi *flp, struct dn_fib_res *res)
 			res->r = policy;
 			if (policy)
 				atomic_inc(&policy->r_clntref);
-			read_unlock(&dn_fib_rules_lock);
+			rcu_read_unlock();
 			return 0;
 		}
 		if (err < 0 && err != -EAGAIN) {
-			read_unlock(&dn_fib_rules_lock);
+			rcu_read_unlock();
 			return err;
 		}
 	}
 
-	read_unlock(&dn_fib_rules_lock);
+	rcu_read_unlock();
 	return -ESRCH;
 }
 
-unsigned dnet_addr_type(__u16 addr)
+unsigned dnet_addr_type(__le16 addr)
 {
 	struct flowi fl = { .nl_u = { .dn_u = { .daddr = addr } } };
 	struct dn_fib_res res;
@@ -277,7 +286,7 @@ unsigned dnet_addr_type(__u16 addr)
 	return ret;
 }
 
-__u16 dn_fib_rules_policy(__u16 saddr, struct dn_fib_res *res, unsigned *flags)
+__le16 dn_fib_rules_policy(__le16 saddr, struct dn_fib_res *res, unsigned *flags)
 {
 	struct dn_fib_rule *r = res->r;
 
@@ -297,27 +306,23 @@ __u16 dn_fib_rules_policy(__u16 saddr, struct dn_fib_res *res, unsigned *flags)
 
 static void dn_fib_rules_detach(struct net_device *dev)
 {
+	struct hlist_node *node;
 	struct dn_fib_rule *r;
 
-	for(r = dn_fib_rules; r; r = r->r_next) {
-		if (r->r_ifindex == dev->ifindex) {
-			write_lock_bh(&dn_fib_rules_lock);
+	hlist_for_each_entry(r, node, &dn_fib_rules, r_hlist) {
+		if (r->r_ifindex == dev->ifindex)
 			r->r_ifindex = -1;
-			write_unlock_bh(&dn_fib_rules_lock);
-		}
 	}
 }
 
 static void dn_fib_rules_attach(struct net_device *dev)
 {
+	struct hlist_node *node;
 	struct dn_fib_rule *r;
 
-	for(r = dn_fib_rules; r; r = r->r_next) {
-		if (r->r_ifindex == -1 && strcmp(dev->name, r->r_ifname) == 0) {
-			write_lock_bh(&dn_fib_rules_lock);
+	hlist_for_each_entry(r, node, &dn_fib_rules, r_hlist) {
+		if (r->r_ifindex == -1 && strcmp(dev->name, r->r_ifname) == 0)
 			r->r_ifindex = dev->ifindex;
-			write_unlock_bh(&dn_fib_rules_lock);
-		}
 	}
 }
 
@@ -387,18 +392,20 @@ rtattr_failure:
 
 int dn_fib_dump_rules(struct sk_buff *skb, struct netlink_callback *cb)
 {
-	int idx;
+	int idx = 0;
 	int s_idx = cb->args[0];
 	struct dn_fib_rule *r;
+	struct hlist_node *node;
 
-	read_lock(&dn_fib_rules_lock);
-	for(r = dn_fib_rules, idx = 0; r; r = r->r_next, idx++) {
+	rcu_read_lock();
+	hlist_for_each_entry(r, node, &dn_fib_rules, r_hlist) {
 		if (idx < s_idx)
 			continue;
 		if (dn_fib_fill_rule(skb, r, cb, NLM_F_MULTI) < 0)
 			break;
+		idx++;
 	}
-	read_unlock(&dn_fib_rules_lock);
+	rcu_read_unlock();
 	cb->args[0] = idx;
 
 	return skb->len;
@@ -406,6 +413,8 @@ int dn_fib_dump_rules(struct sk_buff *skb, struct netlink_callback *cb)
 
 void __init dn_fib_rules_init(void)
 {
+	INIT_HLIST_HEAD(&dn_fib_rules);
+	hlist_add_head(&default_rule.r_hlist, &dn_fib_rules);
 	register_netdevice_notifier(&dn_fib_rules_notifier);
 }
 

@@ -135,6 +135,9 @@ static inline void __iomem * ioremap (unsigned long offset, unsigned long size)
 	return __ioremap(offset, size, 0);
 }
 
+extern void *early_ioremap(unsigned long addr, unsigned long size);
+extern void early_iounmap(void *addr, unsigned long size);
+
 /*
  * This one maps high address device memory and turns off caching for that area.
  * it's useful if some control registers are in such an area and write combining
@@ -142,11 +145,6 @@ static inline void __iomem * ioremap (unsigned long offset, unsigned long size)
  */
 extern void __iomem * ioremap_nocache (unsigned long offset, unsigned long size);
 extern void iounmap(volatile void __iomem *addr);
-
-/* Use normal IO mappings for DMI */
-#define dmi_ioremap ioremap
-#define dmi_iounmap(x,l) iounmap(x)
-#define dmi_alloc(l) kmalloc(l, GFP_ATOMIC)
 
 /*
  * ISA I/O bus memory addresses are 1:1 with the physical address.
@@ -202,23 +200,6 @@ static inline __u64 __readq(const volatile void __iomem *addr)
 
 #define mmiowb()
 
-#ifdef CONFIG_UNORDERED_IO
-static inline void __writel(__u32 val, volatile void __iomem *addr)
-{
-	volatile __u32 __iomem *target = addr;
-	asm volatile("movnti %1,%0"
-		     : "=m" (*target)
-		     : "r" (val) : "memory");
-}
-
-static inline void __writeq(__u64 val, volatile void __iomem *addr)
-{
-	volatile __u64 __iomem *target = addr;
-	asm volatile("movnti %1,%0"
-		     : "=m" (*target)
-		     : "r" (val) : "memory");
-}
-#else
 static inline void __writel(__u32 b, volatile void __iomem *addr)
 {
 	*(__force volatile __u32 *)addr = b;
@@ -227,7 +208,6 @@ static inline void __writeq(__u64 b, volatile void __iomem *addr)
 {
 	*(__force volatile __u64 *)addr = b;
 }
-#endif
 static inline void __writeb(__u8 b, volatile void __iomem *addr)
 {
 	*(__force volatile __u8 *)addr = b;
@@ -269,23 +249,11 @@ void memset_io(volatile void __iomem *a, int b, size_t c);
  */
 #define __ISA_IO_base ((char __iomem *)(PAGE_OFFSET))
 
-#define isa_readb(a) readb(__ISA_IO_base + (a))
-#define isa_readw(a) readw(__ISA_IO_base + (a))
-#define isa_readl(a) readl(__ISA_IO_base + (a))
-#define isa_writeb(b,a) writeb(b,__ISA_IO_base + (a))
-#define isa_writew(w,a) writew(w,__ISA_IO_base + (a))
-#define isa_writel(l,a) writel(l,__ISA_IO_base + (a))
-#define isa_memset_io(a,b,c)		memset_io(__ISA_IO_base + (a),(b),(c))
-#define isa_memcpy_fromio(a,b,c)	memcpy_fromio((a),__ISA_IO_base + (b),(c))
-#define isa_memcpy_toio(a,b,c)		memcpy_toio(__ISA_IO_base + (a),(b),(c))
-
-
 /*
  * Again, x86-64 does not require mem IO specific function.
  */
 
 #define eth_io_copy_and_sum(a,b,c,d)		eth_copy_and_sum((a),(void *)(b),(c),(d))
-#define isa_eth_io_copy_and_sum(a,b,c,d)	eth_copy_and_sum((a),(void *)(__ISA_IO_base + (b)),(c),(d))
 
 /**
  *	check_signature		-	find BIOS signatures

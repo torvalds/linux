@@ -5,7 +5,7 @@
 
 typedef struct
 {
-	volatile unsigned int counter;
+	volatile long counter;
 } local_t;
 
 #define LOCAL_INIT(i)	{ (i) }
@@ -13,34 +13,34 @@ typedef struct
 #define local_read(v)	((v)->counter)
 #define local_set(v,i)	(((v)->counter) = (i))
 
-static __inline__ void local_inc(local_t *v)
+static inline void local_inc(local_t *v)
 {
 	__asm__ __volatile__(
-		"incl %0"
+		"incq %0"
 		:"=m" (v->counter)
 		:"m" (v->counter));
 }
 
-static __inline__ void local_dec(local_t *v)
+static inline void local_dec(local_t *v)
 {
 	__asm__ __volatile__(
-		"decl %0"
+		"decq %0"
 		:"=m" (v->counter)
 		:"m" (v->counter));
 }
 
-static __inline__ void local_add(unsigned int i, local_t *v)
+static inline void local_add(long i, local_t *v)
 {
 	__asm__ __volatile__(
-		"addl %1,%0"
+		"addq %1,%0"
 		:"=m" (v->counter)
 		:"ir" (i), "m" (v->counter));
 }
 
-static __inline__ void local_sub(unsigned int i, local_t *v)
+static inline void local_sub(long i, local_t *v)
 {
 	__asm__ __volatile__(
-		"subl %1,%0"
+		"subq %1,%0"
 		:"=m" (v->counter)
 		:"ir" (i), "m" (v->counter));
 }

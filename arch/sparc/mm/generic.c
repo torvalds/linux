@@ -76,7 +76,6 @@ int io_remap_pfn_range(struct vm_area_struct *vma, unsigned long from,
 	vma->vm_pgoff = (offset >> PAGE_SHIFT) |
 		((unsigned long)space << 28UL);
 
-	prot = __pgprot(pg_iobits);
 	offset -= from;
 	dir = pgd_offset(mm, from);
 	flush_cache_range(vma, beg, end);

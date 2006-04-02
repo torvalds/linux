@@ -781,7 +781,7 @@ static int agpioc_acquire_wrap(struct agp_file_private *priv)
 	if (agp_fe.current_controller != NULL)
 		return -EBUSY;
 
-	if(!agp_bridge)
+	if (!agp_bridge)
 		return -ENODEV;
 
         if (atomic_read(&agp_bridge->agp_in_use))

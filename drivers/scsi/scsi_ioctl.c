@@ -241,10 +241,9 @@ int scsi_ioctl_send_command(struct scsi_device *sdev,
 		buf_needed = (buf_needed + 511) & ~511;
 		if (buf_needed > MAX_BUF)
 			buf_needed = MAX_BUF;
-		buf = kmalloc(buf_needed, gfp_mask);
+		buf = kzalloc(buf_needed, gfp_mask);
 		if (!buf)
 			return -ENOMEM;
-		memset(buf, 0, buf_needed);
 		if (inlen == 0) {
 			data_direction = DMA_FROM_DEVICE;
 		} else if (outlen == 0 ) {

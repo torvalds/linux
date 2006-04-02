@@ -15,12 +15,11 @@
 #include <linux/kmod.h>
 #include <linux/kobj_map.h>
 #include <linux/buffer_head.h>
-
-#define MAX_PROBE_HASH 255	/* random */
+#include <linux/mutex.h>
 
 static struct subsystem block_subsys;
 
-static DECLARE_MUTEX(block_subsys_sem);
+static DEFINE_MUTEX(block_subsys_lock);
 
 /*
  * Can be deleted altogether. Later.
@@ -30,115 +29,36 @@ static struct blk_major_name {
 	struct blk_major_name *next;
 	int major;
 	char name[16];
-} *major_names[MAX_PROBE_HASH];
+} *major_names[BLKDEV_MAJOR_HASH_SIZE];
 
 /* index in the above - for now: assume no multimajor ranges */
 static inline int major_to_index(int major)
 {
-	return major % MAX_PROBE_HASH;
+	return major % BLKDEV_MAJOR_HASH_SIZE;
 }
 
-struct blkdev_info {
-        int index;
-        struct blk_major_name *bd;
-};
+#ifdef CONFIG_PROC_FS
 
-/*
- * iterate over a list of blkdev_info structures.  allows
- * the major_names array to be iterated over from outside this file
- * must be called with the block_subsys_sem held
- */
-void *get_next_blkdev(void *dev)
+void blkdev_show(struct seq_file *f, off_t offset)
 {
-        struct blkdev_info *info;
+	struct blk_major_name *dp;
 
-        if (dev == NULL) {
-                info = kmalloc(sizeof(*info), GFP_KERNEL);
-                if (!info)
-                        goto out;
-                info->index=0;
-                info->bd = major_names[info->index];
-                if (info->bd)
-                        goto out;
-        } else {
-                info = dev;
-        }
-
-        while (info->index < ARRAY_SIZE(major_names)) {
-                if (info->bd)
-                        info->bd = info->bd->next;
-                if (info->bd)
-                        goto out;
-                /*
-                 * No devices on this chain, move to the next
-                 */
-                info->index++;
-                info->bd = (info->index < ARRAY_SIZE(major_names)) ?
-			major_names[info->index] : NULL;
-                if (info->bd)
-                        goto out;
-        }
-
-out:
-        return info;
-}
-
-void *acquire_blkdev_list(void)
-{
-        down(&block_subsys_sem);
-        return get_next_blkdev(NULL);
-}
-
-void release_blkdev_list(void *dev)
-{
-        up(&block_subsys_sem);
-        kfree(dev);
-}
-
-
-/*
- * Count the number of records in the blkdev_list.
- * must be called with the block_subsys_sem held
- */
-int count_blkdev_list(void)
-{
-	struct blk_major_name *n;
-	int i, count;
-
-	count = 0;
-
-	for (i = 0; i < ARRAY_SIZE(major_names); i++) {
-		for (n = major_names[i]; n; n = n->next)
-				count++;
+	if (offset < BLKDEV_MAJOR_HASH_SIZE) {
+		mutex_lock(&block_subsys_lock);
+		for (dp = major_names[offset]; dp; dp = dp->next)
+			seq_printf(f, "%3d %s\n", dp->major, dp->name);
+		mutex_unlock(&block_subsys_lock);
 	}
-
-	return count;
 }
 
-/*
- * extract the major and name values from a blkdev_info struct
- * passed in as a void to *dev.  Must be called with
- * block_subsys_sem held
- */
-int get_blkdev_info(void *dev, int *major, char **name)
-{
-        struct blkdev_info *info = dev;
-
-        if (info->bd == NULL)
-                return 1;
-
-        *major = info->bd->major;
-        *name = info->bd->name;
-        return 0;
-}
-
+#endif /* CONFIG_PROC_FS */
 
 int register_blkdev(unsigned int major, const char *name)
 {
 	struct blk_major_name **n, *p;
 	int index, ret = 0;
 
-	down(&block_subsys_sem);
+	mutex_lock(&block_subsys_lock);
 
 	/* temporary */
 	if (major == 0) {
@@ -183,7 +103,7 @@ int register_blkdev(unsigned int major, const char *name)
 		kfree(p);
 	}
 out:
-	up(&block_subsys_sem);
+	mutex_unlock(&block_subsys_lock);
 	return ret;
 }
 
@@ -197,7 +117,7 @@ int unregister_blkdev(unsigned int major, const char *name)
 	int index = major_to_index(major);
 	int ret = 0;
 
-	down(&block_subsys_sem);
+	mutex_lock(&block_subsys_lock);
 	for (n = &major_names[index]; *n; n = &(*n)->next)
 		if ((*n)->major == major)
 			break;
@@ -207,7 +127,7 @@ int unregister_blkdev(unsigned int major, const char *name)
 		p = *n;
 		*n = p->next;
 	}
-	up(&block_subsys_sem);
+	mutex_unlock(&block_subsys_lock);
 	kfree(p);
 
 	return ret;
@@ -301,7 +221,7 @@ static void *part_start(struct seq_file *part, loff_t *pos)
 	struct list_head *p;
 	loff_t l = *pos;
 
-	down(&block_subsys_sem);
+	mutex_lock(&block_subsys_lock);
 	list_for_each(p, &block_subsys.kset.list)
 		if (!l--)
 			return list_entry(p, struct gendisk, kobj.entry);
@@ -318,7 +238,7 @@ static void *part_next(struct seq_file *part, void *v, loff_t *pos)
 
 static void part_stop(struct seq_file *part, void *v)
 {
-	up(&block_subsys_sem);
+	mutex_unlock(&block_subsys_lock);
 }
 
 static int show_partition(struct seq_file *part, void *v)
@@ -377,7 +297,7 @@ static struct kobject *base_probe(dev_t dev, int *part, void *data)
 
 static int __init genhd_device_init(void)
 {
-	bdev_map = kobj_map_init(base_probe, &block_subsys_sem);
+	bdev_map = kobj_map_init(base_probe, &block_subsys_lock);
 	blk_dev_init();
 	subsystem_register(&block_subsys);
 	return 0;
@@ -453,8 +373,8 @@ static ssize_t disk_stats_read(struct gendisk * disk, char *page)
 	disk_round_stats(disk);
 	preempt_enable();
 	return sprintf(page,
-		"%8u %8u %8llu %8u "
-		"%8u %8u %8llu %8u "
+		"%8lu %8lu %8llu %8u "
+		"%8lu %8lu %8llu %8u "
 		"%8u %8u %8u"
 		"\n",
 		disk_stat_read(disk, ios[READ]),
@@ -611,7 +531,7 @@ static void *diskstats_start(struct seq_file *part, loff_t *pos)
 	loff_t k = *pos;
 	struct list_head *p;
 
-	down(&block_subsys_sem);
+	mutex_lock(&block_subsys_lock);
 	list_for_each(p, &block_subsys.kset.list)
 		if (!k--)
 			return list_entry(p, struct gendisk, kobj.entry);
@@ -628,7 +548,7 @@ static void *diskstats_next(struct seq_file *part, void *v, loff_t *pos)
 
 static void diskstats_stop(struct seq_file *part, void *v)
 {
-	up(&block_subsys_sem);
+	mutex_unlock(&block_subsys_lock);
 }
 
 static int diskstats_show(struct seq_file *s, void *v)
@@ -648,7 +568,7 @@ static int diskstats_show(struct seq_file *s, void *v)
 	preempt_disable();
 	disk_round_stats(gp);
 	preempt_enable();
-	seq_printf(s, "%4d %4d %s %u %u %llu %u %u %u %llu %u %u %u %u\n",
+	seq_printf(s, "%4d %4d %s %lu %lu %llu %u %lu %lu %llu %u %u %u %u\n",
 		gp->major, n + gp->first_minor, disk_name(gp, n, buf),
 		disk_stat_read(gp, ios[0]), disk_stat_read(gp, merges[0]),
 		(unsigned long long)disk_stat_read(gp, sectors[0]),

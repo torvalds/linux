@@ -585,8 +585,6 @@ static int prism2_config(dev_link_t *link)
 	parse = kmalloc(sizeof(cisparse_t), GFP_KERNEL);
 	hw_priv = kmalloc(sizeof(*hw_priv), GFP_KERNEL);
 	if (parse == NULL || hw_priv == NULL) {
-		kfree(parse);
-		kfree(hw_priv);
 		ret = -ENOMEM;
 		goto failed;
 	}

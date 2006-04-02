@@ -1645,7 +1645,7 @@ static int w840_suspend (struct pci_dev *pdev, pm_message_t state)
 
 		/* no more hardware accesses behind this line. */
 
-		if (np->csr6) BUG();
+		BUG_ON(np->csr6);
 		if (ioread32(ioaddr + IntrEnable)) BUG();
 
 		/* pci_power_off(pdev, -1); */

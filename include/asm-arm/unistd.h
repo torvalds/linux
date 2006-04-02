@@ -308,8 +308,6 @@
 #define __NR_mq_notify			(__NR_SYSCALL_BASE+278)
 #define __NR_mq_getsetattr		(__NR_SYSCALL_BASE+279)
 #define __NR_waitid			(__NR_SYSCALL_BASE+280)
-
-#if defined(__ARM_EABI__)  /* reserve these for un-muxing socketcall */
 #define __NR_socket			(__NR_SYSCALL_BASE+281)
 #define __NR_bind			(__NR_SYSCALL_BASE+282)
 #define __NR_connect			(__NR_SYSCALL_BASE+283)
@@ -327,9 +325,6 @@
 #define __NR_getsockopt			(__NR_SYSCALL_BASE+295)
 #define __NR_sendmsg			(__NR_SYSCALL_BASE+296)
 #define __NR_recvmsg			(__NR_SYSCALL_BASE+297)
-#endif
-
-#if defined(__ARM_EABI__)  /* reserve these for un-muxing ipc */
 #define __NR_semop			(__NR_SYSCALL_BASE+298)
 #define __NR_semget			(__NR_SYSCALL_BASE+299)
 #define __NR_semctl			(__NR_SYSCALL_BASE+300)
@@ -341,16 +336,10 @@
 #define __NR_shmdt			(__NR_SYSCALL_BASE+306)
 #define __NR_shmget			(__NR_SYSCALL_BASE+307)
 #define __NR_shmctl			(__NR_SYSCALL_BASE+308)
-#endif
-
 #define __NR_add_key			(__NR_SYSCALL_BASE+309)
 #define __NR_request_key		(__NR_SYSCALL_BASE+310)
 #define __NR_keyctl			(__NR_SYSCALL_BASE+311)
-
-#if defined(__ARM_EABI__)  /* reserved for un-muxing ipc */
 #define __NR_semtimedop			(__NR_SYSCALL_BASE+312)
-#endif
-
 #define __NR_vserver			(__NR_SYSCALL_BASE+313)
 #define __NR_ioprio_set			(__NR_SYSCALL_BASE+314)
 #define __NR_ioprio_get			(__NR_SYSCALL_BASE+315)

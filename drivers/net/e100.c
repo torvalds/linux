@@ -598,8 +598,8 @@ static void e100_enable_irq(struct nic *nic)
 
 	spin_lock_irqsave(&nic->cmd_lock, flags);
 	writeb(irq_mask_none, &nic->csr->scb.cmd_hi);
-	spin_unlock_irqrestore(&nic->cmd_lock, flags);
 	e100_write_flush(nic);
+	spin_unlock_irqrestore(&nic->cmd_lock, flags);
 }
 
 static void e100_disable_irq(struct nic *nic)
@@ -608,8 +608,8 @@ static void e100_disable_irq(struct nic *nic)
 
 	spin_lock_irqsave(&nic->cmd_lock, flags);
 	writeb(irq_mask_all, &nic->csr->scb.cmd_hi);
-	spin_unlock_irqrestore(&nic->cmd_lock, flags);
 	e100_write_flush(nic);
+	spin_unlock_irqrestore(&nic->cmd_lock, flags);
 }
 
 static void e100_hw_reset(struct nic *nic)
@@ -1582,8 +1582,8 @@ static void e100_watchdog(unsigned long data)
 	 * interrupt mask bit and the SW Interrupt generation bit */
 	spin_lock_irq(&nic->cmd_lock);
 	writeb(readb(&nic->csr->scb.cmd_hi) | irq_sw_gen,&nic->csr->scb.cmd_hi);
-	spin_unlock_irq(&nic->cmd_lock);
 	e100_write_flush(nic);
+	spin_unlock_irq(&nic->cmd_lock);
 
 	e100_update_stats(nic);
 	e100_adjust_adaptive_ifs(nic, cmd.speed, cmd.duplex);
@@ -2154,6 +2154,9 @@ static int e100_loopback_test(struct nic *nic, enum loopback loopback_mode)
 
 	msleep(10);
 
+	pci_dma_sync_single_for_cpu(nic->pdev, nic->rx_to_clean->dma_addr,
+			RFD_BUF_LEN, PCI_DMA_FROMDEVICE);
+
 	if(memcmp(nic->rx_to_clean->skb->data + sizeof(struct rfd),
 	   skb->data, ETH_DATA_LEN))
 		err = -EAGAIN;
@@ -2161,8 +2164,8 @@ static int e100_loopback_test(struct nic *nic, enum loopback loopback_mode)
 err_loopback_none:
 	mdio_write(nic->netdev, nic->mii.phy_id, MII_BMCR, 0);
 	nic->loopback = lb_none;
-	e100_hw_init(nic);
 	e100_clean_cbs(nic);
+	e100_hw_reset(nic);
 err_clean_rx:
 	e100_rx_clean_list(nic);
 	return err;

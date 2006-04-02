@@ -17,23 +17,18 @@
 #define UART		FFUART
 
 
-static __inline__ void putc(char c)
+static inline void putc(char c)
 {
-	while (!(UART[5] & 0x20));
+	while (!(UART[5] & 0x20))
+		barrier();
 	UART[0] = c;
 }
 
 /*
  * This does not append a newline
  */
-static void putstr(const char *s)
+static inline void flush(void)
 {
-	while (*s) {
-		putc(*s);
-		if (*s == '\n')
-			putc('\r');
-		s++;
-	}
 }
 
 /*

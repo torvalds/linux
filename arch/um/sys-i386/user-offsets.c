@@ -3,12 +3,13 @@
 #include <asm/ptrace.h>
 #include <asm/user.h>
 #include <linux/stddef.h>
+#include <sys/poll.h>
 
 #define DEFINE(sym, val) \
-        asm volatile("\n->" #sym " %0 " #val : : "i" (val))
+	asm volatile("\n->" #sym " %0 " #val : : "i" (val))
 
 #define DEFINE_LONGS(sym, val) \
-        asm volatile("\n->" #sym " %0 " #val : : "i" (val/sizeof(unsigned long)))
+	asm volatile("\n->" #sym " %0 " #val : : "i" (val/sizeof(unsigned long)))
 
 #define OFFSET(sym, str, mem) \
 	DEFINE(sym, offsetof(struct str, mem));
@@ -67,4 +68,9 @@ void foo(void)
 	DEFINE(HOST_ES, ES);
 	DEFINE(HOST_GS, GS);
 	DEFINE(UM_FRAME_SIZE, sizeof(struct user_regs_struct));
+
+	/* XXX Duplicated between i386 and x86_64 */
+	DEFINE(UM_POLLIN, POLLIN);
+	DEFINE(UM_POLLPRI, POLLPRI);
+	DEFINE(UM_POLLOUT, POLLOUT);
 }

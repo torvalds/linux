@@ -11,6 +11,7 @@
 #include <linux/gfp.h>
 #include <linux/page-flags.h>
 #include <linux/mm.h>
+#include <linux/jiffies.h>
 #include "agp.h"
 
 /* NVIDIA registers */
@@ -72,7 +73,7 @@ static int nvidia_init_iorr(u32 base, u32 size)
 	/* Find the iorr that is already used for the base */
 	/* If not found, determine the uppermost available iorr */
 	free_iorr_addr = AMD_K7_NUM_IORR;
-	for(iorr_addr = 0; iorr_addr < AMD_K7_NUM_IORR; iorr_addr++) {
+	for (iorr_addr = 0; iorr_addr < AMD_K7_NUM_IORR; iorr_addr++) {
 		rdmsr(IORR_BASE0 + 2 * iorr_addr, base_lo, base_hi);
 		rdmsr(IORR_MASK0 + 2 * iorr_addr, mask_lo, mask_hi);
 
@@ -82,7 +83,7 @@ static int nvidia_init_iorr(u32 base, u32 size)
 		if ((mask_lo & 0x00000800) == 0)
 			free_iorr_addr = iorr_addr;
 	}
-	
+
 	if (iorr_addr >= AMD_K7_NUM_IORR) {
 		iorr_addr = free_iorr_addr;
 		if (iorr_addr >= AMD_K7_NUM_IORR)
@@ -139,7 +140,7 @@ static int nvidia_configure(void)
 	}
 
 	/* attbase */
-	for(i = 0; i < 8; i++) {
+	for (i = 0; i < 8; i++) {
 		pci_write_config_dword(nvidia_private.dev_2, NVIDIA_2_ATTBASE(i),
 			(agp_bridge->gatt_bus_addr + (i % num_dirs) * 64 * 1024) | 1);
 	}
@@ -197,15 +198,15 @@ extern int agp_memory_reserved;
 static int nvidia_insert_memory(struct agp_memory *mem, off_t pg_start, int type)
 {
 	int i, j;
-	
+
 	if ((type != 0) || (mem->type != 0))
 		return -EINVAL;
-	
+
 	if ((pg_start + mem->page_count) >
 		(nvidia_private.num_active_entries - agp_memory_reserved/PAGE_SIZE))
 		return -EINVAL;
-	
-	for(j = pg_start; j < (pg_start + mem->page_count); j++) {
+
+	for (j = pg_start; j < (pg_start + mem->page_count); j++) {
 		if (!PGE_EMPTY(agp_bridge, readl(agp_bridge->gatt_table+nvidia_private.pg_offset+j)))
 			return -EBUSY;
 	}
@@ -256,7 +257,7 @@ static void nvidia_tlbflush(struct agp_memory *mem)
 		do {
 			pci_read_config_dword(nvidia_private.dev_1,
 					NVIDIA_1_WBC, &wbc_reg);
-			if ((signed)(end - jiffies) <= 0) {
+			if (time_before_eq(end, jiffies)) {
 				printk(KERN_ERR PFX
 				    "TLB flush took more than 3 seconds.\n");
 			}
@@ -264,9 +265,9 @@ static void nvidia_tlbflush(struct agp_memory *mem)
 	}
 
 	/* flush TLB entries */
-	for(i = 0; i < 32 + 1; i++)
+	for (i = 0; i < 32 + 1; i++)
 		temp = readl(nvidia_private.aperture+(i * PAGE_SIZE / sizeof(u32)));
-	for(i = 0; i < 32 + 1; i++)
+	for (i = 0; i < 32 + 1; i++)
 		temp = readl(nvidia_private.aperture+(i * PAGE_SIZE / sizeof(u32)));
 }
 
@@ -323,7 +324,7 @@ static int __devinit agp_nvidia_probe(struct pci_dev *pdev,
 		pci_find_slot((unsigned int)pdev->bus->number, PCI_DEVFN(0, 2));
 	nvidia_private.dev_3 =
 		pci_find_slot((unsigned int)pdev->bus->number, PCI_DEVFN(30, 0));
-	
+
 	if (!nvidia_private.dev_1 || !nvidia_private.dev_2 || !nvidia_private.dev_3) {
 		printk(KERN_INFO PFX "Detected an NVIDIA nForce/nForce2 "
 			"chipset, but could not find the secondary devices.\n");

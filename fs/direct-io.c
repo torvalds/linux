@@ -86,12 +86,12 @@ struct dio {
 	unsigned first_block_in_page;	/* doesn't change, Used only once */
 	int boundary;			/* prev block is at a boundary */
 	int reap_counter;		/* rate limit reaping */
-	get_blocks_t *get_blocks;	/* block mapping function */
+	get_block_t *get_block;		/* block mapping function */
 	dio_iodone_t *end_io;		/* IO completion function */
 	sector_t final_block_in_bio;	/* current final block in bio + 1 */
 	sector_t next_block_for_io;	/* next block to be put under IO,
 					   in dio_blocks units */
-	struct buffer_head map_bh;	/* last get_blocks() result */
+	struct buffer_head map_bh;	/* last get_block() result */
 
 	/*
 	 * Deferred addition of a page to the dio.  These variables are
@@ -129,6 +129,7 @@ struct dio {
 	/* AIO related stuff */
 	struct kiocb *iocb;		/* kiocb */
 	int is_async;			/* is IO async ? */
+	int io_error;			/* IO error in completion path */
 	ssize_t result;                 /* IO result */
 };
 
@@ -210,9 +211,9 @@ static struct page *dio_get_page(struct dio *dio)
 
 /*
  * Called when all DIO BIO I/O has been completed - let the filesystem
- * know, if it registered an interest earlier via get_blocks.  Pass the
+ * know, if it registered an interest earlier via get_block.  Pass the
  * private field of the map buffer_head so that filesystems can use it
- * to hold additional state between get_blocks calls and dio_complete.
+ * to hold additional state between get_block calls and dio_complete.
  */
 static void dio_complete(struct dio *dio, loff_t offset, ssize_t bytes)
 {
@@ -249,6 +250,10 @@ static void finished_one_bio(struct dio *dio)
 			if ((dio->rw == READ) &&
 			    ((offset + transferred) > dio->i_size))
 				transferred = dio->i_size - offset;
+
+			/* check for error in completion path */
+			if (dio->io_error)
+				transferred = dio->io_error;
 
 			dio_complete(dio, offset, transferred);
 
@@ -406,7 +411,7 @@ static int dio_bio_complete(struct dio *dio, struct bio *bio)
 	int page_no;
 
 	if (!uptodate)
-		dio->result = -EIO;
+		dio->io_error = -EIO;
 
 	if (dio->is_async && dio->rw == READ) {
 		bio_check_pages_dirty(bio);	/* transfers ownership */
@@ -488,7 +493,7 @@ static int dio_bio_reap(struct dio *dio)
  * The fs is allowed to map lots of blocks at once.  If it wants to do that,
  * it uses the passed inode-relative block number as the file offset, as usual.
  *
- * get_blocks() is passed the number of i_blkbits-sized blocks which direct_io
+ * get_block() is passed the number of i_blkbits-sized blocks which direct_io
  * has remaining to do.  The fs should not map more than this number of blocks.
  *
  * If the fs has mapped a lot of blocks, it should populate bh->b_size to
@@ -501,7 +506,7 @@ static int dio_bio_reap(struct dio *dio)
  * In the case of filesystem holes: the fs may return an arbitrarily-large
  * hole by returning an appropriate value in b_size and by clearing
  * buffer_mapped().  However the direct-io code will only process holes one
- * block at a time - it will repeatedly call get_blocks() as it walks the hole.
+ * block at a time - it will repeatedly call get_block() as it walks the hole.
  */
 static int get_more_blocks(struct dio *dio)
 {
@@ -519,8 +524,6 @@ static int get_more_blocks(struct dio *dio)
 	 */
 	ret = dio->page_errors;
 	if (ret == 0) {
-		map_bh->b_state = 0;
-		map_bh->b_size = 0;
 		BUG_ON(dio->block_in_file >= dio->final_block_in_request);
 		fs_startblk = dio->block_in_file >> dio->blkfactor;
 		dio_count = dio->final_block_in_request - dio->block_in_file;
@@ -528,6 +531,9 @@ static int get_more_blocks(struct dio *dio)
 		blkmask = (1 << dio->blkfactor) - 1;
 		if (dio_count & blkmask)	
 			fs_count++;
+
+		map_bh->b_state = 0;
+		map_bh->b_size = fs_count << dio->inode->i_blkbits;
 
 		create = dio->rw == WRITE;
 		if (dio->lock_type == DIO_LOCKING) {
@@ -537,13 +543,14 @@ static int get_more_blocks(struct dio *dio)
 		} else if (dio->lock_type == DIO_NO_LOCKING) {
 			create = 0;
 		}
+
 		/*
 		 * For writes inside i_size we forbid block creations: only
 		 * overwrites are permitted.  We fall back to buffered writes
 		 * at a higher level for inside-i_size block-instantiating
 		 * writes.
 		 */
-		ret = (*dio->get_blocks)(dio->inode, fs_startblk, fs_count,
+		ret = (*dio->get_block)(dio->inode, fs_startblk,
 						map_bh, create);
 	}
 	return ret;
@@ -778,11 +785,11 @@ static void dio_zero_block(struct dio *dio, int end)
  * happily perform page-sized but 512-byte aligned IOs.  It is important that
  * blockdev IO be able to have fine alignment and large sizes.
  *
- * So what we do is to permit the ->get_blocks function to populate bh.b_size
+ * So what we do is to permit the ->get_block function to populate bh.b_size
  * with the size of IO which is permitted at this offset and this i_blkbits.
  *
  * For best results, the blockdev should be set up with 512-byte i_blkbits and
- * it should set b_size to PAGE_SIZE or more inside get_blocks().  This gives
+ * it should set b_size to PAGE_SIZE or more inside get_block().  This gives
  * fine alignment but still allows this function to work in PAGE_SIZE units.
  */
 static int do_direct_IO(struct dio *dio)
@@ -942,7 +949,7 @@ out:
 static ssize_t
 direct_io_worker(int rw, struct kiocb *iocb, struct inode *inode, 
 	const struct iovec *iov, loff_t offset, unsigned long nr_segs, 
-	unsigned blkbits, get_blocks_t get_blocks, dio_iodone_t end_io,
+	unsigned blkbits, get_block_t get_block, dio_iodone_t end_io,
 	struct dio *dio)
 {
 	unsigned long user_addr; 
@@ -964,13 +971,14 @@ direct_io_worker(int rw, struct kiocb *iocb, struct inode *inode,
 
 	dio->boundary = 0;
 	dio->reap_counter = 0;
-	dio->get_blocks = get_blocks;
+	dio->get_block = get_block;
 	dio->end_io = end_io;
 	dio->map_bh.b_private = NULL;
 	dio->final_block_in_bio = -1;
 	dio->next_block_for_io = -1;
 
 	dio->page_errors = 0;
+	dio->io_error = 0;
 	dio->result = 0;
 	dio->iocb = iocb;
 	dio->i_size = i_size_read(inode);
@@ -1155,22 +1163,23 @@ direct_io_worker(int rw, struct kiocb *iocb, struct inode *inode,
  * For writes, i_mutex is not held on entry; it is never taken.
  *
  * DIO_LOCKING (simple locking for regular files)
- * For writes we are called under i_mutex and return with i_mutex held, even though
- * it is internally dropped.
+ * For writes we are called under i_mutex and return with i_mutex held, even
+ * though it is internally dropped.
  * For reads, i_mutex is not held on entry, but it is taken and dropped before
  * returning.
  *
  * DIO_OWN_LOCKING (filesystem provides synchronisation and handling of
  *	uninitialised data, allowing parallel direct readers and writers)
  * For writes we are called without i_mutex, return without it, never touch it.
- * For reads, i_mutex is held on entry and will be released before returning.
+ * For reads we are called under i_mutex and return with i_mutex held, even
+ * though it may be internally dropped.
  *
  * Additional i_alloc_sem locking requirements described inline below.
  */
 ssize_t
 __blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 	struct block_device *bdev, const struct iovec *iov, loff_t offset, 
-	unsigned long nr_segs, get_blocks_t get_blocks, dio_iodone_t end_io,
+	unsigned long nr_segs, get_block_t get_block, dio_iodone_t end_io,
 	int dio_lock_type)
 {
 	int seg;
@@ -1182,7 +1191,8 @@ __blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 	ssize_t retval = -EINVAL;
 	loff_t end = offset;
 	struct dio *dio;
-	int reader_with_isem = (rw == READ && dio_lock_type == DIO_OWN_LOCKING);
+	int release_i_mutex = 0;
+	int acquire_i_mutex = 0;
 
 	if (rw & WRITE)
 		current->flags |= PF_SYNCWRITE;
@@ -1225,7 +1235,6 @@ __blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 	 *	writers need to grab i_alloc_sem only (i_mutex is already held)
 	 * For regular files using DIO_OWN_LOCKING,
 	 *	neither readers nor writers take any locks here
-	 *	(i_mutex is already held and release for writers here)
 	 */
 	dio->lock_type = dio_lock_type;
 	if (dio_lock_type != DIO_NO_LOCKING) {
@@ -1236,7 +1245,7 @@ __blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 			mapping = iocb->ki_filp->f_mapping;
 			if (dio_lock_type != DIO_OWN_LOCKING) {
 				mutex_lock(&inode->i_mutex);
-				reader_with_isem = 1;
+				release_i_mutex = 1;
 			}
 
 			retval = filemap_write_and_wait_range(mapping, offset,
@@ -1248,7 +1257,7 @@ __blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 
 			if (dio_lock_type == DIO_OWN_LOCKING) {
 				mutex_unlock(&inode->i_mutex);
-				reader_with_isem = 0;
+				acquire_i_mutex = 1;
 			}
 		}
 
@@ -1266,14 +1275,16 @@ __blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 		(end > i_size_read(inode)));
 
 	retval = direct_io_worker(rw, iocb, inode, iov, offset,
-				nr_segs, blkbits, get_blocks, end_io, dio);
+				nr_segs, blkbits, get_block, end_io, dio);
 
 	if (rw == READ && dio_lock_type == DIO_LOCKING)
-		reader_with_isem = 0;
+		release_i_mutex = 0;
 
 out:
-	if (reader_with_isem)
+	if (release_i_mutex)
 		mutex_unlock(&inode->i_mutex);
+	else if (acquire_i_mutex)
+		mutex_lock(&inode->i_mutex);
 	if (rw & WRITE)
 		current->flags &= ~PF_SYNCWRITE;
 	return retval;

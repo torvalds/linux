@@ -1589,7 +1589,10 @@ static void sun4c_flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 
 static inline void sun4c_mapioaddr(unsigned long physaddr, unsigned long virt_addr)
 {
-	unsigned long page_entry;
+	unsigned long page_entry, pg_iobits;
+
+	pg_iobits = _SUN4C_PAGE_PRESENT | _SUN4C_READABLE | _SUN4C_WRITEABLE |
+		    _SUN4C_PAGE_IO | _SUN4C_PAGE_NOCACHE;
 
 	page_entry = ((physaddr >> PAGE_SHIFT) & SUN4C_PFN_MASK);
 	page_entry |= ((pg_iobits | _SUN4C_PAGE_PRIV) & ~(_SUN4C_PAGE_PRESENT));
@@ -2134,6 +2137,13 @@ void __init sun4c_paging_init(void)
 	printk("SUN4C: %d mmu entries for the kernel\n", cnt);
 }
 
+static pgprot_t sun4c_pgprot_noncached(pgprot_t prot)
+{
+	prot |= __pgprot(_SUN4C_PAGE_IO | _SUN4C_PAGE_NOCACHE);
+
+	return prot;
+}
+
 /* Load up routines and constants for sun4c mmu */
 void __init ld_mmu_sun4c(void)
 {
@@ -2156,10 +2166,9 @@ void __init ld_mmu_sun4c(void)
 	BTFIXUPSET_INT(page_readonly, pgprot_val(SUN4C_PAGE_READONLY));
 	BTFIXUPSET_INT(page_kernel, pgprot_val(SUN4C_PAGE_KERNEL));
 	page_kernel = pgprot_val(SUN4C_PAGE_KERNEL);
-	pg_iobits = _SUN4C_PAGE_PRESENT | _SUN4C_READABLE | _SUN4C_WRITEABLE |
-		    _SUN4C_PAGE_IO | _SUN4C_PAGE_NOCACHE;
 
 	/* Functions */
+	BTFIXUPSET_CALL(pgprot_noncached, sun4c_pgprot_noncached, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(___xchg32, ___xchg32_sun4c, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(do_check_pgt_cache, sun4c_check_pgt_cache, BTFIXUPCALL_NORM);
 	

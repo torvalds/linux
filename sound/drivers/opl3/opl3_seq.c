@@ -52,13 +52,13 @@ int snd_opl3_synth_setup(struct snd_opl3 * opl3)
 {
 	int idx;
 
-	down(&opl3->access_mutex);
+	mutex_lock(&opl3->access_mutex);
 	if (opl3->used) {
-		up(&opl3->access_mutex);
+		mutex_unlock(&opl3->access_mutex);
 		return -EBUSY;
 	}
 	opl3->used++;
-	up(&opl3->access_mutex);
+	mutex_unlock(&opl3->access_mutex);
 
 	snd_opl3_reset(opl3);
 
@@ -91,9 +91,9 @@ void snd_opl3_synth_cleanup(struct snd_opl3 * opl3)
 	spin_unlock_irqrestore(&opl3->sys_timer_lock, flags);
 
 	snd_opl3_reset(opl3);
-	down(&opl3->access_mutex);
+	mutex_lock(&opl3->access_mutex);
 	opl3->used--;
-	up(&opl3->access_mutex);
+	mutex_unlock(&opl3->access_mutex);
 }
 
 static int snd_opl3_synth_use(void *private_data, struct snd_seq_port_subscribe * info)
@@ -207,8 +207,10 @@ static int snd_opl3_synth_create_port(struct snd_opl3 * opl3)
 						      16, voices,
 						      name);
 	if (opl3->chset->port < 0) {
+		int port;
+		port = opl3->chset->port;
 		snd_midi_channel_free_set(opl3->chset);
-		return opl3->chset->port;
+		return port;
 	}
 	return 0;
 }
@@ -218,7 +220,7 @@ static int snd_opl3_synth_create_port(struct snd_opl3 * opl3)
 static int snd_opl3_seq_new_device(struct snd_seq_device *dev)
 {
 	struct snd_opl3 *opl3;
-	int client;
+	int client, err;
 	char name[32];
 	int opl_ver;
 
@@ -239,7 +241,11 @@ static int snd_opl3_seq_new_device(struct snd_seq_device *dev)
 	if (client < 0)
 		return client;
 
-	snd_opl3_synth_create_port(opl3);
+	if ((err = snd_opl3_synth_create_port(opl3)) < 0) {
+		snd_seq_delete_kernel_client(client);
+		opl3->seq_client = -1;
+		return err;
+	}
 
 	/* initialize instrument list */
 	opl3->ilist = snd_seq_instr_list_new();

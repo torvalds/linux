@@ -197,10 +197,10 @@ static void fill_in_inode(struct inode *tmp_inode,
 
 	if (allocation_size < end_of_file)
 		cFYI(1, ("May be sparse file, allocation less than file size"));
-	cFYI(1,
-	     ("File Size %ld and blocks %ld and blocksize %ld",
-	      (unsigned long)tmp_inode->i_size, tmp_inode->i_blocks,
-	      tmp_inode->i_blksize));
+	cFYI(1, ("File Size %ld and blocks %llu and blocksize %ld",
+		(unsigned long)tmp_inode->i_size,
+		(unsigned long long)tmp_inode->i_blocks,
+		tmp_inode->i_blksize));
 	if (S_ISREG(tmp_inode->i_mode)) {
 		cFYI(1, ("File inode"));
 		tmp_inode->i_op = &cifs_file_inode_ops;
@@ -404,9 +404,9 @@ static int initiate_cifs_search(const int xid, struct file *file)
 	if(pTcon == NULL)
 		return -EINVAL;
 
-	down(&file->f_dentry->d_sb->s_vfs_rename_sem);
+	mutex_lock(&file->f_dentry->d_sb->s_vfs_rename_mutex);
 	full_path = build_path_from_dentry(file->f_dentry);
-	up(&file->f_dentry->d_sb->s_vfs_rename_sem);
+	mutex_unlock(&file->f_dentry->d_sb->s_vfs_rename_mutex);
 
 	if(full_path == NULL) {
 		return -ENOMEM;
@@ -604,7 +604,12 @@ static int find_cifs_entry(const int xid, struct cifsTconInfo *pTcon,
 		cifsFile->search_resume_name = NULL;
 		if(cifsFile->srch_inf.ntwrk_buf_start) {
 			cFYI(1,("freeing SMB ff cache buf on search rewind"));
-			cifs_buf_release(cifsFile->srch_inf.ntwrk_buf_start);
+			if(cifsFile->srch_inf.smallBuf)
+				cifs_small_buf_release(cifsFile->srch_inf.
+						ntwrk_buf_start);
+			else
+				cifs_buf_release(cifsFile->srch_inf.
+						ntwrk_buf_start);
 		}
 		rc = initiate_cifs_search(xid,file);
 		if(rc) {

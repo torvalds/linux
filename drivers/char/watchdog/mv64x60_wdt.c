@@ -228,15 +228,25 @@ static int __init mv64x60_wdt_init(void)
 
 	printk(KERN_INFO "MV64x60 watchdog driver\n");
 
-	mv64x60_wdt_dev = platform_device_register_simple(MV64x60_WDT_NAME,
-							  -1, NULL, 0);
-	if (IS_ERR(mv64x60_wdt_dev)) {
-		ret = PTR_ERR(mv64x60_wdt_dev);
+	mv64x60_wdt_dev = platform_device_alloc(MV64x60_WDT_NAME, -1);
+	if (!mv64x60_wdt_dev) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	ret = platform_device_add(mv64x60_wdt_dev);
+	if (ret) {
+		platform_device_put(mv64x60_wdt_dev);
 		goto out;
 	}
 
 	ret = platform_driver_register(&mv64x60_wdt_driver);
-      out:
+	if (ret) {
+		platform_device_unregister(mv64x60_wdt_dev);
+		goto out;
+	}
+
+ out:
 	return ret;
 }
 

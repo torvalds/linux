@@ -19,11 +19,10 @@ extern int get_filesystem_list(char * buf);
 
 int __initdata rd_doload;	/* 1 = load RAM disk, 0 = don't load */
 
-int root_mountflags = MS_RDONLY | MS_VERBOSE;
+int root_mountflags = MS_RDONLY | MS_SILENT;
 char * __initdata root_device_name;
 static char __initdata saved_root_name[64];
 
-/* this is initialized in init/main.c */
 dev_t ROOT_DEV;
 
 static int __init load_ramdisk(char *str)

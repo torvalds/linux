@@ -331,9 +331,9 @@ static int grow_stripes(raid6_conf_t *conf, int num)
 	kmem_cache_t *sc;
 	int devs = conf->raid_disks;
 
-	sprintf(conf->cache_name, "raid6/%s", mdname(conf->mddev));
+	sprintf(conf->cache_name[0], "raid6/%s", mdname(conf->mddev));
 
-	sc = kmem_cache_create(conf->cache_name,
+	sc = kmem_cache_create(conf->cache_name[0],
 			       sizeof(struct stripe_head)+(devs-1)*sizeof(struct r5dev),
 			       0, 0, NULL, NULL);
 	if (!sc)
@@ -2006,11 +2006,14 @@ static int run(mddev_t *mddev)
 		return -EIO;
 	}
 
-	mddev->private = kzalloc(sizeof (raid6_conf_t)
-				 + mddev->raid_disks * sizeof(struct disk_info),
-				 GFP_KERNEL);
+	mddev->private = kzalloc(sizeof (raid6_conf_t), GFP_KERNEL);
 	if ((conf = mddev->private) == NULL)
 		goto abort;
+	conf->disks = kzalloc(mddev->raid_disks * sizeof(struct disk_info),
+				 GFP_KERNEL);
+	if (!conf->disks)
+		goto abort;
+
 	conf->mddev = mddev;
 
 	if ((conf->stripe_hashtbl = kzalloc(PAGE_SIZE, GFP_KERNEL)) == NULL)
@@ -2148,6 +2151,8 @@ static int run(mddev_t *mddev)
 	}
 
 	/* Ok, everything is just fine now */
+	sysfs_create_group(&mddev->kobj, &raid6_attrs_group);
+
 	mddev->array_size =  mddev->size * (mddev->raid_disks - 2);
 
 	mddev->queue->unplug_fn = raid6_unplug_device;
@@ -2158,6 +2163,7 @@ abort:
 		print_raid6_conf(conf);
 		safe_put_page(conf->spare_page);
 		kfree(conf->stripe_hashtbl);
+		kfree(conf->disks);
 		kfree(conf);
 	}
 	mddev->private = NULL;

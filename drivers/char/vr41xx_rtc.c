@@ -558,7 +558,7 @@ static struct miscdevice rtc_miscdevice = {
 	.fops	= &rtc_fops,
 };
 
-static int rtc_probe(struct platform_device *pdev)
+static int __devinit rtc_probe(struct platform_device *pdev)
 {
 	unsigned int irq;
 	int retval;
@@ -631,7 +631,7 @@ static int rtc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int rtc_remove(struct platform_device *dev)
+static int __devexit rtc_remove(struct platform_device *dev)
 {
 	int retval;
 
@@ -653,13 +653,14 @@ static struct platform_device *rtc_platform_device;
 
 static struct platform_driver rtc_device_driver = {
 	.probe		= rtc_probe,
-	.remove		= rtc_remove,
+	.remove		= __devexit_p(rtc_remove),
 	.driver		= {
 		.name	= rtc_name,
+		.owner	= THIS_MODULE,
 	},
 };
 
-static int __devinit vr41xx_rtc_init(void)
+static int __init vr41xx_rtc_init(void)
 {
 	int retval;
 
@@ -684,10 +685,20 @@ static int __devinit vr41xx_rtc_init(void)
 		break;
 	}
 
-	rtc_platform_device = platform_device_register_simple("RTC", -1,
-			      rtc_resource, ARRAY_SIZE(rtc_resource));
-	if (IS_ERR(rtc_platform_device))
-		return PTR_ERR(rtc_platform_device);
+	rtc_platform_device = platform_device_alloc("RTC", -1);
+	if (!rtc_platform_device)
+		return -ENOMEM;
+
+	retval = platform_device_add_resources(rtc_platform_device,
+				rtc_resource, ARRAY_SIZE(rtc_resource));
+
+	if (retval == 0)
+		retval = platform_device_add(rtc_platform_device);
+
+	if (retval < 0) {
+		platform_device_put(rtc_platform_device);
+		return retval;
+	}
 
 	retval = platform_driver_register(&rtc_device_driver);
 	if (retval < 0)
@@ -696,10 +707,9 @@ static int __devinit vr41xx_rtc_init(void)
 	return retval;
 }
 
-static void __devexit vr41xx_rtc_exit(void)
+static void __exit vr41xx_rtc_exit(void)
 {
 	platform_driver_unregister(&rtc_device_driver);
-
 	platform_device_unregister(rtc_platform_device);
 }
 

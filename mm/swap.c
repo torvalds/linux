@@ -209,19 +209,18 @@ int lru_add_drain_all(void)
  */
 void fastcall __page_cache_release(struct page *page)
 {
-	unsigned long flags;
-	struct zone *zone = page_zone(page);
+	if (PageLRU(page)) {
+		unsigned long flags;
+		struct zone *zone = page_zone(page);
 
-	spin_lock_irqsave(&zone->lru_lock, flags);
-	if (TestClearPageLRU(page))
+		spin_lock_irqsave(&zone->lru_lock, flags);
+		BUG_ON(!PageLRU(page));
+		__ClearPageLRU(page);
 		del_page_from_lru(zone, page);
-	if (page_count(page) != 0)
-		page = NULL;
-	spin_unlock_irqrestore(&zone->lru_lock, flags);
-	if (page)
-		free_hot_page(page);
+		spin_unlock_irqrestore(&zone->lru_lock, flags);
+	}
+	free_hot_page(page);
 }
-
 EXPORT_SYMBOL(__page_cache_release);
 
 /*
@@ -245,7 +244,6 @@ void release_pages(struct page **pages, int nr, int cold)
 	pagevec_init(&pages_to_free, cold);
 	for (i = 0; i < nr; i++) {
 		struct page *page = pages[i];
-		struct zone *pagezone;
 
 		if (unlikely(PageCompound(page))) {
 			if (zone) {
@@ -259,23 +257,27 @@ void release_pages(struct page **pages, int nr, int cold)
 		if (!put_page_testzero(page))
 			continue;
 
-		pagezone = page_zone(page);
-		if (pagezone != zone) {
-			if (zone)
-				spin_unlock_irq(&zone->lru_lock);
-			zone = pagezone;
-			spin_lock_irq(&zone->lru_lock);
-		}
-		if (TestClearPageLRU(page))
-			del_page_from_lru(zone, page);
-		if (page_count(page) == 0) {
-			if (!pagevec_add(&pages_to_free, page)) {
-				spin_unlock_irq(&zone->lru_lock);
-				__pagevec_free(&pages_to_free);
-				pagevec_reinit(&pages_to_free);
-				zone = NULL;	/* No lock is held */
+		if (PageLRU(page)) {
+			struct zone *pagezone = page_zone(page);
+			if (pagezone != zone) {
+				if (zone)
+					spin_unlock_irq(&zone->lru_lock);
+				zone = pagezone;
+				spin_lock_irq(&zone->lru_lock);
 			}
+			BUG_ON(!PageLRU(page));
+			__ClearPageLRU(page);
+			del_page_from_lru(zone, page);
 		}
+
+		if (!pagevec_add(&pages_to_free, page)) {
+			if (zone) {
+				spin_unlock_irq(&zone->lru_lock);
+				zone = NULL;
+			}
+			__pagevec_free(&pages_to_free);
+			pagevec_reinit(&pages_to_free);
+  		}
 	}
 	if (zone)
 		spin_unlock_irq(&zone->lru_lock);
@@ -343,8 +345,8 @@ void __pagevec_lru_add(struct pagevec *pvec)
 			zone = pagezone;
 			spin_lock_irq(&zone->lru_lock);
 		}
-		if (TestSetPageLRU(page))
-			BUG();
+		BUG_ON(PageLRU(page));
+		SetPageLRU(page);
 		add_page_to_inactive_list(zone, page);
 	}
 	if (zone)
@@ -370,10 +372,10 @@ void __pagevec_lru_add_active(struct pagevec *pvec)
 			zone = pagezone;
 			spin_lock_irq(&zone->lru_lock);
 		}
-		if (TestSetPageLRU(page))
-			BUG();
-		if (TestSetPageActive(page))
-			BUG();
+		BUG_ON(PageLRU(page));
+		SetPageLRU(page);
+		BUG_ON(PageActive(page));
+		SetPageActive(page);
 		add_page_to_active_list(zone, page);
 	}
 	if (zone)
@@ -393,7 +395,8 @@ void pagevec_strip(struct pagevec *pvec)
 		struct page *page = pvec->pages[i];
 
 		if (PagePrivate(page) && !TestSetPageLocked(page)) {
-			try_to_release_page(page, 0);
+			if (PagePrivate(page))
+				try_to_release_page(page, 0);
 			unlock_page(page);
 		}
 	}
@@ -509,7 +512,7 @@ long percpu_counter_sum(struct percpu_counter *fbc)
 
 	spin_lock(&fbc->lock);
 	ret = fbc->count;
-	for_each_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		long *pcount = per_cpu_ptr(fbc->counters, cpu);
 		ret += *pcount;
 	}

@@ -3532,26 +3532,26 @@ int __init pm3fb_init(void)
 MODULE_AUTHOR("Romain Dolbeau");
 MODULE_DESCRIPTION("Permedia3 framebuffer device driver");
 static char *mode[PM3_MAX_BOARD];
-MODULE_PARM(mode,PM3_MAX_BOARD_MODULE_ARRAY_STRING);
+module_param_array(mode, charp, NULL, 0);
 MODULE_PARM_DESC(mode,"video mode");
-MODULE_PARM(disable,PM3_MAX_BOARD_MODULE_ARRAY_SHORT);
+module_param_array(disable, short, NULL, 0);
 MODULE_PARM_DESC(disable,"disable board");
 static short off[PM3_MAX_BOARD];
-MODULE_PARM(off,PM3_MAX_BOARD_MODULE_ARRAY_SHORT);
+module_param_array(off, short, NULL, 0);
 MODULE_PARM_DESC(off,"disable board");
 static char *pciid[PM3_MAX_BOARD];
-MODULE_PARM(pciid,PM3_MAX_BOARD_MODULE_ARRAY_STRING);
+module_param_array(pciid, charp, NULL, 0);
 MODULE_PARM_DESC(pciid,"board PCI Id");
-MODULE_PARM(noaccel,PM3_MAX_BOARD_MODULE_ARRAY_SHORT);
+module_param_array(noaccel, short, NULL, 0);
 MODULE_PARM_DESC(noaccel,"disable accel");
 static char *font[PM3_MAX_BOARD];
-MODULE_PARM(font,PM3_MAX_BOARD_MODULE_ARRAY_STRING);
+module_param_array(font, charp, NULL, 0);
 MODULE_PARM_DESC(font,"choose font");
-MODULE_PARM(depth,PM3_MAX_BOARD_MODULE_ARRAY_SHORT);
+module_param(depth, short, NULL, 0);
 MODULE_PARM_DESC(depth,"boot-time depth");
-MODULE_PARM(printtimings, "h");
+module_param(printtimings, short, NULL, 0);
 MODULE_PARM_DESC(printtimings, "print the memory timings of the card(s)");
-MODULE_PARM(forcesize, PM3_MAX_BOARD_MODULE_ARRAY_SHORT);
+module_param(forcesize, short, NULL, 0);
 MODULE_PARM_DESC(forcesize, "force specified memory size");
 /*
 MODULE_SUPPORTED_DEVICE("Permedia3 PCI boards")

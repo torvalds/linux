@@ -24,13 +24,14 @@
 #include <linux/i2c.h>
 #include <linux/rtc.h>
 #include <linux/bcd.h>
+#include <linux/mutex.h>
 
 #include <asm/time.h>
 #include <asm/rtc.h>
 
 #define	M41T00_DRV_NAME		"m41t00"
 
-static DECLARE_MUTEX(m41t00_mutex);
+static DEFINE_MUTEX(m41t00_mutex);
 
 static struct i2c_driver m41t00_driver;
 static struct i2c_client *save_client;
@@ -54,7 +55,7 @@ m41t00_get_rtc_time(void)
 	sec = min = hour = day = mon = year = 0;
 	sec1 = min1 = hour1 = day1 = mon1 = year1 = 0;
 
-	down(&m41t00_mutex);
+	mutex_lock(&m41t00_mutex);
 	do {
 		if (((sec = i2c_smbus_read_byte_data(save_client, 0)) >= 0)
 			&& ((min = i2c_smbus_read_byte_data(save_client, 1))
@@ -80,7 +81,7 @@ m41t00_get_rtc_time(void)
 		mon1 = mon;
 		year1 = year;
 	} while (--limit > 0);
-	up(&m41t00_mutex);
+	mutex_unlock(&m41t00_mutex);
 
 	if (limit == 0) {
 		dev_warn(&save_client->dev,
@@ -125,7 +126,7 @@ m41t00_set_tlet(ulong arg)
 	BIN_TO_BCD(tm.tm_mday);
 	BIN_TO_BCD(tm.tm_year);
 
-	down(&m41t00_mutex);
+	mutex_lock(&m41t00_mutex);
 	if ((i2c_smbus_write_byte_data(save_client, 0, tm.tm_sec & 0x7f) < 0)
 		|| (i2c_smbus_write_byte_data(save_client, 1, tm.tm_min & 0x7f)
 			< 0)
@@ -140,7 +141,7 @@ m41t00_set_tlet(ulong arg)
 
 		dev_warn(&save_client->dev,"m41t00: can't write to rtc chip\n");
 
-	up(&m41t00_mutex);
+	mutex_unlock(&m41t00_mutex);
 	return;
 }
 

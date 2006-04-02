@@ -8,6 +8,9 @@
 
 #include "sysdep/ptrace.h"
 
+/* Copied from kernel.h */
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+
 #define CATCH_EINTR(expr) while ((errno = 0, ((expr) < 0)) && (errno == EINTR))
 
 extern int mode_tt;
@@ -31,7 +34,7 @@ extern unsigned long uml_physmem;
 extern unsigned long uml_reserved;
 extern unsigned long end_vm;
 extern unsigned long start_vm;
-extern unsigned long highmem;
+extern unsigned long long highmem;
 
 extern char host_info[];
 
@@ -58,7 +61,6 @@ extern int attach(int pid);
 extern void kill_child_dead(int pid);
 extern int cont(int pid);
 extern void check_sigio(void);
-extern void write_sigio_workaround(void);
 extern void arch_check_bugs(void);
 extern int cpu_feature(char *what, char *buf, int len);
 extern int arch_handle_signal(int sig, union uml_pt_regs *regs);

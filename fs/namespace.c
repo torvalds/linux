@@ -43,9 +43,9 @@ __cacheline_aligned_in_smp DEFINE_SPINLOCK(vfsmount_lock);
 
 static int event;
 
-static struct list_head *mount_hashtable;
+static struct list_head *mount_hashtable __read_mostly;
 static int hash_mask __read_mostly, hash_bits __read_mostly;
-static kmem_cache_t *mnt_cache;
+static kmem_cache_t *mnt_cache __read_mostly;
 static struct rw_semaphore namespace_sem;
 
 /* /sys/fs */
@@ -399,6 +399,44 @@ struct seq_operations mounts_op = {
 	.show	= show_vfsmnt
 };
 
+static int show_vfsstat(struct seq_file *m, void *v)
+{
+	struct vfsmount *mnt = v;
+	int err = 0;
+
+	/* device */
+	if (mnt->mnt_devname) {
+		seq_puts(m, "device ");
+		mangle(m, mnt->mnt_devname);
+	} else
+		seq_puts(m, "no device");
+
+	/* mount point */
+	seq_puts(m, " mounted on ");
+	seq_path(m, mnt, mnt->mnt_root, " \t\n\\");
+	seq_putc(m, ' ');
+
+	/* file system type */
+	seq_puts(m, "with fstype ");
+	mangle(m, mnt->mnt_sb->s_type->name);
+
+	/* optional statistics */
+	if (mnt->mnt_sb->s_op->show_stats) {
+		seq_putc(m, ' ');
+		err = mnt->mnt_sb->s_op->show_stats(m, mnt);
+	}
+
+	seq_putc(m, '\n');
+	return err;
+}
+
+struct seq_operations mountstats_op = {
+	.start	= m_start,
+	.next	= m_next,
+	.stop	= m_stop,
+	.show	= show_vfsstat,
+};
+
 /**
  * may_umount_tree - check if a mount tree is busy
  * @mnt: root of mount tree
@@ -421,9 +459,9 @@ int may_umount_tree(struct vfsmount *mnt)
 	spin_unlock(&vfsmount_lock);
 
 	if (actual_refs > minimum_refs)
-		return -EBUSY;
+		return 0;
 
-	return 0;
+	return 1;
 }
 
 EXPORT_SYMBOL(may_umount_tree);
@@ -443,10 +481,10 @@ EXPORT_SYMBOL(may_umount_tree);
  */
 int may_umount(struct vfsmount *mnt)
 {
-	int ret = 0;
+	int ret = 1;
 	spin_lock(&vfsmount_lock);
 	if (propagate_mount_busy(mnt, 2))
-		ret = -EBUSY;
+		ret = 0;
 	spin_unlock(&vfsmount_lock);
 	return ret;
 }
@@ -1338,7 +1376,7 @@ struct namespace *dup_namespace(struct task_struct *tsk, struct fs_struct *fs)
 
 	new_ns = kmalloc(sizeof(struct namespace), GFP_KERNEL);
 	if (!new_ns)
-		goto out;
+		return NULL;
 
 	atomic_set(&new_ns->count, 1);
 	INIT_LIST_HEAD(&new_ns->list);
@@ -1352,7 +1390,7 @@ struct namespace *dup_namespace(struct task_struct *tsk, struct fs_struct *fs)
 	if (!new_ns->root) {
 		up_write(&namespace_sem);
 		kfree(new_ns);
-		goto out;
+		return NULL;
 	}
 	spin_lock(&vfsmount_lock);
 	list_add_tail(&new_ns->list, &new_ns->root->mnt_list);
@@ -1393,7 +1431,6 @@ struct namespace *dup_namespace(struct task_struct *tsk, struct fs_struct *fs)
 	if (altrootmnt)
 		mntput(altrootmnt);
 
-out:
 	return new_ns;
 }
 

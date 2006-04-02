@@ -165,6 +165,6 @@ rtc_ds1386_init(unsigned long base)
 	WRITE_RTC(0xB, byte);
 
 	/* set the function pointers */
-	rtc_get_time = rtc_ds1386_get_time;
-	rtc_set_time = rtc_ds1386_set_time;
+	rtc_mips_get_time = rtc_ds1386_get_time;
+	rtc_mips_set_time = rtc_ds1386_set_time;
 }

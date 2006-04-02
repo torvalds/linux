@@ -93,18 +93,7 @@ static struct transport slip_transport = {
 static int register_slip(void)
 {
 	register_transport(&slip_transport);
-	return(1);
+	return 0;
 }
 
 __initcall(register_slip);
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

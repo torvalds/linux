@@ -1,6 +1,4 @@
 /*
- * arch/ppc/syslib/cpc700.h
- *
  * Header file for IBM CPC700 Host Bridge, et. al.
  *
  * Author: Mark A. Greer

@@ -9,7 +9,7 @@ removed soon. So for any new code dynamic initialization should be used:
    static int __init xxx_init(void)
    {
    	spin_lock_init(&xxx_lock);
-	rw_lock_init(&xxx_rw_lock);
+	rwlock_init(&xxx_rw_lock);
 	...
    }
 

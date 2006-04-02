@@ -244,6 +244,13 @@ extern void ia64_load_extra (struct task_struct *task);
 		__ia64_save_fpu((prev)->thread.fph);				\
 	}									\
 	__switch_to(prev, next, last);						\
+	/* "next" in old context is "current" in new context */			\
+	if (unlikely((current->thread.flags & IA64_THREAD_MIGRATION) &&	       \
+		     (task_cpu(current) !=				       \
+		      		      task_thread_info(current)->last_cpu))) { \
+		platform_migrate(current);				       \
+		task_thread_info(current)->last_cpu = task_cpu(current);       \
+	}								       \
 } while (0)
 #else
 # define switch_to(prev,next,last)	__switch_to(prev, next, last)
@@ -257,6 +264,8 @@ void cpu_idle_wait(void);
 void sched_cacheflush(void);
 
 #define arch_align_stack(x) (x)
+
+void default_idle(void);
 
 #endif /* __KERNEL__ */
 

@@ -4284,7 +4284,7 @@ struct cas {
 	 * (ie. not power managed) */
 	int hw_running;
 	int opened;
-	struct semaphore pm_sem; /* open/close/suspend/resume */
+	struct mutex pm_mutex; /* open/close/suspend/resume */
 
 	struct cas_init_block *init_block;
 	struct cas_tx_desc *init_txds[MAX_TX_RINGS];

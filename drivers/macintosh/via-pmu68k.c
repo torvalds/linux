@@ -102,7 +102,7 @@ static int pmu_kind = PMU_UNKNOWN;
 static int pmu_fully_inited = 0;
 
 int asleep;
-struct notifier_block *sleep_notifier_list;
+BLOCKING_NOTIFIER_HEAD(sleep_notifier_list);
 
 static int pmu_probe(void);
 static int pmu_init(void);
@@ -913,7 +913,8 @@ int powerbook_sleep(void)
 	struct adb_request sleep_req;
 
 	/* Notify device drivers */
-	ret = notifier_call_chain(&sleep_notifier_list, PBOOK_SLEEP, NULL);
+	ret = blocking_notifier_call_chain(&sleep_notifier_list,
+			PBOOK_SLEEP, NULL);
 	if (ret & NOTIFY_STOP_MASK)
 		return -EBUSY;
 
@@ -984,7 +985,7 @@ int powerbook_sleep(void)
 			enable_irq(i);
 
 	/* Notify drivers */
-	notifier_call_chain(&sleep_notifier_list, PBOOK_WAKE, NULL);
+	blocking_notifier_call_chain(&sleep_notifier_list, PBOOK_WAKE, NULL);
 
 	/* reenable ADB autopoll */
 	pmu_adb_autopoll(adb_dev_map);

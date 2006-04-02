@@ -245,9 +245,9 @@ struct cs4281_state {
 	void *tmpbuff;		// tmp buffer for sample conversions
 	unsigned ena;
 	spinlock_t lock;
-	struct semaphore open_sem;
-	struct semaphore open_sem_adc;
-	struct semaphore open_sem_dac;
+	struct mutex open_sem;
+	struct mutex open_sem_adc;
+	struct mutex open_sem_dac;
 	mode_t open_mode;
 	wait_queue_head_t open_wait;
 	wait_queue_head_t open_wait_adc;
@@ -3598,20 +3598,20 @@ static int cs4281_release(struct inode *inode, struct file *file)
 
 	if (file->f_mode & FMODE_WRITE) {
 		drain_dac(s, file->f_flags & O_NONBLOCK);
-		down(&s->open_sem_dac);
+		mutex_lock(&s->open_sem_dac);
 		stop_dac(s);
 		dealloc_dmabuf(s, &s->dma_dac);
 		s->open_mode &= ~FMODE_WRITE;
-		up(&s->open_sem_dac);
+		mutex_unlock(&s->open_sem_dac);
 		wake_up(&s->open_wait_dac);
 	}
 	if (file->f_mode & FMODE_READ) {
 		drain_adc(s, file->f_flags & O_NONBLOCK);
-		down(&s->open_sem_adc);
+		mutex_lock(&s->open_sem_adc);
 		stop_adc(s);
 		dealloc_dmabuf(s, &s->dma_adc);
 		s->open_mode &= ~FMODE_READ;
-		up(&s->open_sem_adc);
+		mutex_unlock(&s->open_sem_adc);
 		wake_up(&s->open_wait_adc);
 	}
 	return 0;
@@ -3651,33 +3651,33 @@ static int cs4281_open(struct inode *inode, struct file *file)
 		return -ENODEV;
 	}
 	if (file->f_mode & FMODE_WRITE) {
-		down(&s->open_sem_dac);
+		mutex_lock(&s->open_sem_dac);
 		while (s->open_mode & FMODE_WRITE) {
 			if (file->f_flags & O_NONBLOCK) {
-				up(&s->open_sem_dac);
+				mutex_unlock(&s->open_sem_dac);
 				return -EBUSY;
 			}
-			up(&s->open_sem_dac);
+			mutex_unlock(&s->open_sem_dac);
 			interruptible_sleep_on(&s->open_wait_dac);
 
 			if (signal_pending(current))
 				return -ERESTARTSYS;
-			down(&s->open_sem_dac);
+			mutex_lock(&s->open_sem_dac);
 		}
 	}
 	if (file->f_mode & FMODE_READ) {
-		down(&s->open_sem_adc);
+		mutex_lock(&s->open_sem_adc);
 		while (s->open_mode & FMODE_READ) {
 			if (file->f_flags & O_NONBLOCK) {
-				up(&s->open_sem_adc);
+				mutex_unlock(&s->open_sem_adc);
 				return -EBUSY;
 			}
-			up(&s->open_sem_adc);
+			mutex_unlock(&s->open_sem_adc);
 			interruptible_sleep_on(&s->open_wait_adc);
 
 			if (signal_pending(current))
 				return -ERESTARTSYS;
-			down(&s->open_sem_adc);
+			mutex_lock(&s->open_sem_adc);
 		}
 	}
 	s->open_mode |= file->f_mode & (FMODE_READ | FMODE_WRITE);
@@ -3691,7 +3691,7 @@ static int cs4281_open(struct inode *inode, struct file *file)
 		s->ena &= ~FMODE_READ;
 		s->dma_adc.ossfragshift = s->dma_adc.ossmaxfrags =
 		    s->dma_adc.subdivision = 0;
-		up(&s->open_sem_adc);
+		mutex_unlock(&s->open_sem_adc);
 
 		if (prog_dmabuf_adc(s)) {
 			CS_DBGOUT(CS_OPEN | CS_ERROR, 2, printk(KERN_ERR
@@ -3711,7 +3711,7 @@ static int cs4281_open(struct inode *inode, struct file *file)
 		s->ena &= ~FMODE_WRITE;
 		s->dma_dac.ossfragshift = s->dma_dac.ossmaxfrags =
 		    s->dma_dac.subdivision = 0;
-		up(&s->open_sem_dac);
+		mutex_unlock(&s->open_sem_dac);
 
 		if (prog_dmabuf_dac(s)) {
 			CS_DBGOUT(CS_OPEN | CS_ERROR, 2, printk(KERN_ERR
@@ -3978,17 +3978,17 @@ static int cs4281_midi_open(struct inode *inode, struct file *file)
 	VALIDATE_STATE(s);
 	file->private_data = s;
 	// wait for device to become free 
-	down(&s->open_sem);
+	mutex_lock(&s->open_sem);
 	while (s->open_mode & (file->f_mode << FMODE_MIDI_SHIFT)) {
 		if (file->f_flags & O_NONBLOCK) {
-			up(&s->open_sem);
+			mutex_unlock(&s->open_sem);
 			return -EBUSY;
 		}
-		up(&s->open_sem);
+		mutex_unlock(&s->open_sem);
 		interruptible_sleep_on(&s->open_wait);
 		if (signal_pending(current))
 			return -ERESTARTSYS;
-		down(&s->open_sem);
+		mutex_lock(&s->open_sem);
 	}
 	spin_lock_irqsave(&s->lock, flags);
 	if (!(s->open_mode & (FMODE_MIDI_READ | FMODE_MIDI_WRITE))) {
@@ -4018,7 +4018,7 @@ static int cs4281_midi_open(struct inode *inode, struct file *file)
 	    (file->
 	     f_mode << FMODE_MIDI_SHIFT) & (FMODE_MIDI_READ |
 					    FMODE_MIDI_WRITE);
-	up(&s->open_sem);
+	mutex_unlock(&s->open_sem);
 	return nonseekable_open(inode, file);
 }
 
@@ -4057,7 +4057,7 @@ static int cs4281_midi_release(struct inode *inode, struct file *file)
 		remove_wait_queue(&s->midi.owait, &wait);
 		current->state = TASK_RUNNING;
 	}
-	down(&s->open_sem);
+	mutex_lock(&s->open_sem);
 	s->open_mode &=
 	    (~(file->f_mode << FMODE_MIDI_SHIFT)) & (FMODE_MIDI_READ |
 						     FMODE_MIDI_WRITE);
@@ -4067,7 +4067,7 @@ static int cs4281_midi_release(struct inode *inode, struct file *file)
 		del_timer(&s->midi.timer);
 	}
 	spin_unlock_irqrestore(&s->lock, flags);
-	up(&s->open_sem);
+	mutex_unlock(&s->open_sem);
 	wake_up(&s->open_wait);
 	return 0;
 }
@@ -4300,9 +4300,9 @@ static int __devinit cs4281_probe(struct pci_dev *pcidev,
 	init_waitqueue_head(&s->open_wait_dac);
 	init_waitqueue_head(&s->midi.iwait);
 	init_waitqueue_head(&s->midi.owait);
-	init_MUTEX(&s->open_sem);
-	init_MUTEX(&s->open_sem_adc);
-	init_MUTEX(&s->open_sem_dac);
+	mutex_init(&s->open_sem);
+	mutex_init(&s->open_sem_adc);
+	mutex_init(&s->open_sem_dac);
 	spin_lock_init(&s->lock);
 	s->pBA0phys = pci_resource_start(pcidev, 0);
 	s->pBA1phys = pci_resource_start(pcidev, 1);

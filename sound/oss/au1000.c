@@ -68,6 +68,8 @@
 #include <linux/smp_lock.h>
 #include <linux/ac97_codec.h>
 #include <linux/interrupt.h>
+#include <linux/mutex.h>
+
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <asm/mach-au1x00/au1000.h>
@@ -98,7 +100,7 @@
 
 /* Boot options */
 static int      vra = 0;	// 0 = no VRA, 1 = use VRA if codec supports it
-MODULE_PARM(vra, "i");
+module_param(vra, bool, 0);
 MODULE_PARM_DESC(vra, "if 1 use VRA if codec supports it");
 
 
@@ -120,8 +122,8 @@ struct au1000_state {
 	int             no_vra;	// do not use VRA
 
 	spinlock_t      lock;
-	struct semaphore open_sem;
-	struct semaphore sem;
+	struct mutex open_mutex;
+	struct mutex sem;
 	mode_t          open_mode;
 	wait_queue_head_t open_wait;
 
@@ -1106,7 +1108,7 @@ static ssize_t au1000_read(struct file *file, char *buffer,
 
 	count *= db->cnt_factor;
 
-	down(&s->sem);
+	mutex_lock(&s->sem);
 	add_wait_queue(&db->wait, &wait);
 
 	while (count > 0) {
@@ -1125,14 +1127,14 @@ static ssize_t au1000_read(struct file *file, char *buffer,
 						ret = -EAGAIN;
 					goto out;
 				}
-				up(&s->sem);
+				mutex_unlock(&s->sem);
 				schedule();
 				if (signal_pending(current)) {
 					if (!ret)
 						ret = -ERESTARTSYS;
 					goto out2;
 				}
-				down(&s->sem);
+				mutex_lock(&s->sem);
 			}
 		} while (avail <= 0);
 
@@ -1159,7 +1161,7 @@ static ssize_t au1000_read(struct file *file, char *buffer,
 	}			// while (count > 0)
 
 out:
-	up(&s->sem);
+	mutex_unlock(&s->sem);
 out2:
 	remove_wait_queue(&db->wait, &wait);
 	set_current_state(TASK_RUNNING);
@@ -1187,7 +1189,7 @@ static ssize_t au1000_write(struct file *file, const char *buffer,
 
 	count *= db->cnt_factor;
 
-	down(&s->sem);	
+	mutex_lock(&s->sem);
 	add_wait_queue(&db->wait, &wait);
 
 	while (count > 0) {
@@ -1204,14 +1206,14 @@ static ssize_t au1000_write(struct file *file, const char *buffer,
 						ret = -EAGAIN;
 					goto out;
 				}
-				up(&s->sem);
+				mutex_unlock(&s->sem);
 				schedule();
 				if (signal_pending(current)) {
 					if (!ret)
 						ret = -ERESTARTSYS;
 					goto out2;
 				}
-				down(&s->sem);
+				mutex_lock(&s->sem);
 			}
 		} while (avail <= 0);
 
@@ -1240,7 +1242,7 @@ static ssize_t au1000_write(struct file *file, const char *buffer,
 	}			// while (count > 0)
 
 out:
-	up(&s->sem);
+	mutex_unlock(&s->sem);
 out2:
 	remove_wait_queue(&db->wait, &wait);
 	set_current_state(TASK_RUNNING);
@@ -1298,7 +1300,7 @@ static int au1000_mmap(struct file *file, struct vm_area_struct *vma)
 	dbg("%s", __FUNCTION__);
     
 	lock_kernel();
-	down(&s->sem);
+	mutex_lock(&s->sem);
 	if (vma->vm_flags & VM_WRITE)
 		db = &s->dma_dac;
 	else if (vma->vm_flags & VM_READ)
@@ -1324,7 +1326,7 @@ static int au1000_mmap(struct file *file, struct vm_area_struct *vma)
 	vma->vm_flags &= ~VM_IO;
 	db->mapped = 1;
 out:
-	up(&s->sem);
+	mutex_unlock(&s->sem);
 	unlock_kernel();
 	return ret;
 }
@@ -1829,21 +1831,21 @@ static int  au1000_open(struct inode *inode, struct file *file)
 	
 	file->private_data = s;
 	/* wait for device to become free */
-	down(&s->open_sem);
+	mutex_lock(&s->open_mutex);
 	while (s->open_mode & file->f_mode) {
 		if (file->f_flags & O_NONBLOCK) {
-			up(&s->open_sem);
+			mutex_unlock(&s->open_mutex);
 			return -EBUSY;
 		}
 		add_wait_queue(&s->open_wait, &wait);
 		__set_current_state(TASK_INTERRUPTIBLE);
-		up(&s->open_sem);
+		mutex_unlock(&s->open_mutex);
 		schedule();
 		remove_wait_queue(&s->open_wait, &wait);
 		set_current_state(TASK_RUNNING);
 		if (signal_pending(current))
 			return -ERESTARTSYS;
-		down(&s->open_sem);
+		mutex_lock(&s->open_mutex);
 	}
 
 	stop_dac(s);
@@ -1879,8 +1881,8 @@ static int  au1000_open(struct inode *inode, struct file *file)
 	}
 
 	s->open_mode |= file->f_mode & (FMODE_READ | FMODE_WRITE);
-	up(&s->open_sem);
-	init_MUTEX(&s->sem);
+	mutex_unlock(&s->open_mutex);
+	mutex_init(&s->sem);
 	return nonseekable_open(inode, file);
 }
 
@@ -1896,7 +1898,7 @@ static int au1000_release(struct inode *inode, struct file *file)
 		lock_kernel();
 	}
 
-	down(&s->open_sem);
+	mutex_lock(&s->open_mutex);
 	if (file->f_mode & FMODE_WRITE) {
 		stop_dac(s);
 		dealloc_dmabuf(s, &s->dma_dac);
@@ -1906,7 +1908,7 @@ static int au1000_release(struct inode *inode, struct file *file)
 		dealloc_dmabuf(s, &s->dma_adc);
 	}
 	s->open_mode &= ((~file->f_mode) & (FMODE_READ|FMODE_WRITE));
-	up(&s->open_sem);
+	mutex_unlock(&s->open_mutex);
 	wake_up(&s->open_wait);
 	unlock_kernel();
 	return 0;
@@ -1996,7 +1998,7 @@ static int __devinit au1000_probe(void)
 	init_waitqueue_head(&s->dma_adc.wait);
 	init_waitqueue_head(&s->dma_dac.wait);
 	init_waitqueue_head(&s->open_wait);
-	init_MUTEX(&s->open_sem);
+	mutex_init(&s->open_mutex);
 	spin_lock_init(&s->lock);
 	s->codec.private_data = s;
 	s->codec.id = 0;

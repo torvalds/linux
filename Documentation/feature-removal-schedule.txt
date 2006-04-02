@@ -116,9 +116,13 @@ Who:	Harald Welte <laforge@netfilter.org>
 
 ---------------------------
 
-What:	EXPORT_SYMBOL(lookup_hash)
-When:	January 2006
-Why:	Too low-level interface.  Use lookup_one_len or lookup_create instead.
+What:	remove EXPORT_SYMBOL(kernel_thread)
+When:	August 2006
+Files:	arch/*/kernel/*_ksyms.c
+Why:	kernel_thread is a low-level implementation detail.  Drivers should
+        use the <linux/kthread.h> API instead which shields them from
+	implementation details and provides a higherlevel interface that
+	prevents bugs and code duplication
 Who:	Christoph Hellwig <hch@lst.de>
 
 ---------------------------
@@ -151,10 +155,10 @@ Who:	Ralf Baechle <ralf@linux-mips.org>
 
 ---------------------------
 
-What:	Legacy /proc/pci interface (PCI_LEGACY_PROC)
-When:	March 2006
-Why:	deprecated since 2.5.53 in favor of lspci(8)
-Who:	Adrian Bunk <bunk@stusta.de>
+What:   eepro100 network driver
+When:   January 2007
+Why:    replaced by the e100 driver
+Who:    Adrian Bunk <bunk@stusta.de>
 
 ---------------------------
 
@@ -165,12 +169,35 @@ Who:	Richard Knutsson <ricknu-0@student.ltu.se> and Greg Kroah-Hartman <gregkh@s
 
 ---------------------------
 
+What:	Usage of invalid timevals in setitimer
+When:	March 2007
+Why:	POSIX requires to validate timevals in the setitimer call. This
+	was never done by Linux. The invalid (e.g. negative timevals) were
+	silently converted to more or less random timeouts and intervals.
+	Until the removal a per boot limited number of warnings is printed
+	and the timevals are sanitized.
+
+Who:	Thomas Gleixner <tglx@linutronix.de>
+
+---------------------------
+
 What:	I2C interface of the it87 driver
 When:	January 2007
 Why:	The ISA interface is faster and should be always available. The I2C
 	probing is also known to cause trouble in at least one case (see
 	bug #5889.)
 Who:	Jean Delvare <khali@linux-fr.org>
+
+---------------------------
+
+What:	remove EXPORT_SYMBOL(tasklist_lock)
+When:	August 2006
+Files:	kernel/fork.c
+Why:	tasklist_lock protects the kernel internal task list.  Modules have
+	no business looking at it, and all instances in drivers have been due
+	to use of too-lowlevel APIs.  Having this symbol exported prevents
+	moving to more scalable locking schemes for the task list.
+Who:	Christoph Hellwig <hch@lst.de>
 
 ---------------------------
 
@@ -189,3 +216,33 @@ Why:	Board specific code doesn't build anymore since ~2.6.0 and no
 	users have complained indicating there is no more need for these
 	boards.  This should really be considered a last call.
 Who:	Ralf Baechle <ralf@linux-mips.org>
+
+---------------------------
+
+What:	USB driver API moves to EXPORT_SYMBOL_GPL
+When:	Febuary 2008
+Files:	include/linux/usb.h, drivers/usb/core/driver.c
+Why:	The USB subsystem has changed a lot over time, and it has been
+	possible to create userspace USB drivers using usbfs/libusb/gadgetfs
+	that operate as fast as the USB bus allows.  Because of this, the USB
+	subsystem will not be allowing closed source kernel drivers to
+	register with it, after this grace period is over.  If anyone needs
+	any help in converting their closed source drivers over to use the
+	userspace filesystems, please contact the
+	linux-usb-devel@lists.sourceforge.net mailing list, and the developers
+	there will be glad to help you out.
+Who:	Greg Kroah-Hartman <gregkh@suse.de>
+
+---------------------------
+
+What:	find_trylock_page
+When:	January 2007
+Why:	The interface no longer has any callers left in the kernel. It
+	is an odd interface (compared with other find_*_page functions), in
+	that it does not take a refcount to the page, only the page lock.
+	It should be replaced with find_get_page or find_lock_page if possible.
+	This feature removal can be reevaluated if users of the interface
+	cannot cleanly use something else.
+Who:	Nick Piggin <npiggin@suse.de>
+
+---------------------------

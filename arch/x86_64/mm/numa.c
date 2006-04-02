@@ -25,8 +25,7 @@
 struct pglist_data *node_data[MAX_NUMNODES] __read_mostly;
 bootmem_data_t plat_node_bdata[MAX_NUMNODES];
 
-int memnode_shift;
-u8  memnodemap[NODEMAPSIZE];
+struct memnode memnode;
 
 unsigned char cpu_to_node[NR_CPUS] __read_mostly = {
 	[0 ... NR_CPUS-1] = NUMA_NO_NODE
@@ -47,7 +46,7 @@ int numa_off __initdata;
  * -1 if node overlap or lost ram (shift too big)
  */
 static int __init
-populate_memnodemap(const struct node *nodes, int numnodes, int shift)
+populate_memnodemap(const struct bootnode *nodes, int numnodes, int shift)
 {
 	int i; 
 	int res = -1;
@@ -74,7 +73,7 @@ populate_memnodemap(const struct node *nodes, int numnodes, int shift)
 	return res;
 }
 
-int __init compute_hash_shift(struct node *nodes, int numnodes)
+int __init compute_hash_shift(struct bootnode *nodes, int numnodes)
 {
 	int shift = 20;
 
@@ -149,7 +148,7 @@ void __init setup_node_bootmem(int nodeid, unsigned long start, unsigned long en
 /* Initialize final allocator for a zone */
 void __init setup_node_zones(int nodeid)
 { 
-	unsigned long start_pfn, end_pfn; 
+	unsigned long start_pfn, end_pfn, memmapsize, limit;
 	unsigned long zones[MAX_NR_ZONES];
 	unsigned long holes[MAX_NR_ZONES];
 
@@ -158,6 +157,16 @@ void __init setup_node_zones(int nodeid)
 
 	Dprintk(KERN_INFO "Setting up node %d %lx-%lx\n",
 		nodeid, start_pfn, end_pfn);
+
+	/* Try to allocate mem_map at end to not fill up precious <4GB
+	   memory. */
+	memmapsize = sizeof(struct page) * (end_pfn-start_pfn);
+	limit = end_pfn << PAGE_SHIFT;
+	NODE_DATA(nodeid)->node_mem_map = 
+		__alloc_bootmem_core(NODE_DATA(nodeid)->bdata, 
+				memmapsize, SMP_CACHE_BYTES, 
+				round_down(limit - memmapsize, PAGE_SIZE), 
+				limit);
 
 	size_zones(zones, holes, start_pfn, end_pfn);
 	free_area_init_node(nodeid, NODE_DATA(nodeid), zones,
@@ -191,7 +200,7 @@ int numa_fake __initdata = 0;
 static int numa_emulation(unsigned long start_pfn, unsigned long end_pfn)
 {
  	int i;
- 	struct node nodes[MAX_NUMNODES];
+ 	struct bootnode nodes[MAX_NUMNODES];
  	unsigned long sz = ((end_pfn - start_pfn)<<PAGE_SHIFT) / numa_fake;
 
  	/* Kludge needed for the hash function */
@@ -357,8 +366,7 @@ void __init init_cpu_to_node(void)
 
 EXPORT_SYMBOL(cpu_to_node);
 EXPORT_SYMBOL(node_to_cpumask);
-EXPORT_SYMBOL(memnode_shift);
-EXPORT_SYMBOL(memnodemap);
+EXPORT_SYMBOL(memnode);
 EXPORT_SYMBOL(node_data);
 
 #ifdef CONFIG_DISCONTIGMEM
@@ -368,21 +376,6 @@ EXPORT_SYMBOL(node_data);
  * They could be all tuned by pre caching more state.
  * Should do that.
  */
-
-/* Requires pfn_valid(pfn) to be true */
-struct page *pfn_to_page(unsigned long pfn)
-{
-	int nid = phys_to_nid(((unsigned long)(pfn)) << PAGE_SHIFT);
-	return (pfn - node_start_pfn(nid)) + NODE_DATA(nid)->node_mem_map;
-}
-EXPORT_SYMBOL(pfn_to_page);
-
-unsigned long page_to_pfn(struct page *page)
-{
-	return (long)(((page) - page_zone(page)->zone_mem_map) +
-		      page_zone(page)->zone_start_pfn);
-}
-EXPORT_SYMBOL(page_to_pfn);
 
 int pfn_valid(unsigned long pfn)
 {

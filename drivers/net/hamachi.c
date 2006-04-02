@@ -427,7 +427,7 @@ that case.
 static void hamachi_timer(unsigned long data);
 
 enum capability_flags {CanHaveMII=1, };
-static struct chip_info {
+static const struct chip_info {
 	u16	vendor_id, device_id, device_id_mask, pad;
 	const char *name;
 	void (*media_timer)(unsigned long data);

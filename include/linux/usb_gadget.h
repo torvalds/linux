@@ -801,7 +801,9 @@ struct usb_gadget_driver {
  * Call this in your gadget driver's module initialization function,
  * to tell the underlying usb controller driver about your driver.
  * The driver's bind() function will be called to bind it to a
- * gadget.  This function must be called in a context that can sleep.
+ * gadget before this registration call returns.  It's expected that
+ * the bind() functions will be in init sections.
+ * This function must be called in a context that can sleep.
  */
 int usb_gadget_register_driver (struct usb_gadget_driver *driver);
 
@@ -814,7 +816,8 @@ int usb_gadget_register_driver (struct usb_gadget_driver *driver);
  * going away.  If the controller is connected to a USB host,
  * it will first disconnect().  The driver is also requested
  * to unbind() and clean up any device state, before this procedure
- * finally returns.
+ * finally returns.  It's expected that the unbind() functions
+ * will in in exit sections, so may not be linked in some kernels.
  * This function must be called in a context that can sleep.
  */
 int usb_gadget_unregister_driver (struct usb_gadget_driver *driver);

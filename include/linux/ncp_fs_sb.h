@@ -11,6 +11,7 @@
 #include <linux/types.h>
 #include <linux/ncp_mount.h>
 #include <linux/net.h>
+#include <linux/mutex.h>
 
 #ifdef __KERNEL__
 
@@ -51,7 +52,7 @@ struct ncp_server {
 				   receive replies */
 
 	int lock;		/* To prevent mismatch in protocols. */
-	struct semaphore sem;
+	struct mutex mutex;
 
 	int current_size;	/* for packet preparation */
 	int has_subfunction;
@@ -96,7 +97,7 @@ struct ncp_server {
 	struct {
 		struct work_struct tq;		/* STREAM/DGRAM: data/error ready */
 		struct ncp_request_reply* creq;	/* STREAM/DGRAM: awaiting reply from this request */
-		struct semaphore creq_sem;	/* DGRAM only: lock accesses to rcv.creq */
+		struct mutex creq_mutex;	/* DGRAM only: lock accesses to rcv.creq */
 
 		unsigned int state;		/* STREAM only: receiver state */
 		struct {

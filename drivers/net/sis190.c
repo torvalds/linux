@@ -366,7 +366,7 @@ static const u32 sis190_intr_mask =
  * Maximum number of multicast addresses to filter (vs. Rx-all-multicast).
  * The chips use a 64 element hash table based on the Ethernet CRC.
  */
-static int multicast_filter_limit = 32;
+static const int multicast_filter_limit = 32;
 
 static void __mdio_cmd(void __iomem *ioaddr, u32 ctl)
 {

@@ -187,6 +187,99 @@ static void sock_disable_timestamp(struct sock *sk)
 }
 
 
+int sock_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
+{
+	int err = 0;
+	int skb_len;
+
+	/* Cast skb->rcvbuf to unsigned... It's pointless, but reduces
+	   number of warnings when compiling with -W --ANK
+	 */
+	if (atomic_read(&sk->sk_rmem_alloc) + skb->truesize >=
+	    (unsigned)sk->sk_rcvbuf) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	/* It would be deadlock, if sock_queue_rcv_skb is used
+	   with socket lock! We assume that users of this
+	   function are lock free.
+	*/
+	err = sk_filter(sk, skb, 1);
+	if (err)
+		goto out;
+
+	skb->dev = NULL;
+	skb_set_owner_r(skb, sk);
+
+	/* Cache the SKB length before we tack it onto the receive
+	 * queue.  Once it is added it no longer belongs to us and
+	 * may be freed by other threads of control pulling packets
+	 * from the queue.
+	 */
+	skb_len = skb->len;
+
+	skb_queue_tail(&sk->sk_receive_queue, skb);
+
+	if (!sock_flag(sk, SOCK_DEAD))
+		sk->sk_data_ready(sk, skb_len);
+out:
+	return err;
+}
+EXPORT_SYMBOL(sock_queue_rcv_skb);
+
+int sk_receive_skb(struct sock *sk, struct sk_buff *skb)
+{
+	int rc = NET_RX_SUCCESS;
+
+	if (sk_filter(sk, skb, 0))
+		goto discard_and_relse;
+
+	skb->dev = NULL;
+
+	bh_lock_sock(sk);
+	if (!sock_owned_by_user(sk))
+		rc = sk->sk_backlog_rcv(sk, skb);
+	else
+		sk_add_backlog(sk, skb);
+	bh_unlock_sock(sk);
+out:
+	sock_put(sk);
+	return rc;
+discard_and_relse:
+	kfree_skb(skb);
+	goto out;
+}
+EXPORT_SYMBOL(sk_receive_skb);
+
+struct dst_entry *__sk_dst_check(struct sock *sk, u32 cookie)
+{
+	struct dst_entry *dst = sk->sk_dst_cache;
+
+	if (dst && dst->obsolete && dst->ops->check(dst, cookie) == NULL) {
+		sk->sk_dst_cache = NULL;
+		dst_release(dst);
+		return NULL;
+	}
+
+	return dst;
+}
+EXPORT_SYMBOL(__sk_dst_check);
+
+struct dst_entry *sk_dst_check(struct sock *sk, u32 cookie)
+{
+	struct dst_entry *dst = sk_dst_get(sk);
+
+	if (dst && dst->obsolete && dst->ops->check(dst, cookie) == NULL) {
+		sk_dst_reset(sk);
+		dst_release(dst);
+		return NULL;
+	}
+
+	return dst;
+}
+EXPORT_SYMBOL(sk_dst_check);
+
 /*
  *	This is meant for all protocols to use and covers goings on
  *	at the socket level. Everything here is generic.
@@ -292,7 +385,21 @@ set_sndbuf:
 				val = sysctl_rmem_max;
 set_rcvbuf:
 			sk->sk_userlocks |= SOCK_RCVBUF_LOCK;
-			/* FIXME: is this lower bound the right one? */
+			/*
+			 * We double it on the way in to account for
+			 * "struct sk_buff" etc. overhead.   Applications
+			 * assume that the SO_RCVBUF setting they make will
+			 * allow that much actual data to be received on that
+			 * socket.
+			 *
+			 * Applications are unaware that "struct sk_buff" and
+			 * other overheads allocate from the receive buffer
+			 * during socket buffer allocation.
+			 *
+			 * And after considering the possible alternatives,
+			 * returning the value we actually used in getsockopt
+			 * is the most desirable behavior.
+			 */
 			if ((val * 2) < SOCK_MIN_RCVBUF)
 				sk->sk_rcvbuf = SOCK_MIN_RCVBUF;
 			else
@@ -404,8 +511,9 @@ set_rcvbuf:
 			if (!valbool) {
 				sk->sk_bound_dev_if = 0;
 			} else {
-				if (optlen > IFNAMSIZ) 
-					optlen = IFNAMSIZ; 
+				if (optlen > IFNAMSIZ - 1)
+					optlen = IFNAMSIZ - 1;
+				memset(devname, 0, sizeof(devname));
 				if (copy_from_user(devname, optval, optlen)) {
 					ret = -EFAULT;
 					break;
@@ -616,7 +724,7 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 			break;
 
 		case SO_PEERSEC:
-			return security_socket_getpeersec(sock, optval, optlen, len);
+			return security_socket_getpeersec_stream(sock, optval, optlen, len);
 
 		default:
 			return(-ENOPROTOOPT);
@@ -1385,6 +1493,20 @@ int sock_common_getsockopt(struct socket *sock, int level, int optname,
 
 EXPORT_SYMBOL(sock_common_getsockopt);
 
+#ifdef CONFIG_COMPAT
+int compat_sock_common_getsockopt(struct socket *sock, int level, int optname,
+				  char __user *optval, int __user *optlen)
+{
+	struct sock *sk = sock->sk;
+
+	if (sk->sk_prot->compat_setsockopt != NULL)
+		return sk->sk_prot->compat_getsockopt(sk, level, optname,
+						      optval, optlen);
+	return sk->sk_prot->getsockopt(sk, level, optname, optval, optlen);
+}
+EXPORT_SYMBOL(compat_sock_common_getsockopt);
+#endif
+
 int sock_common_recvmsg(struct kiocb *iocb, struct socket *sock,
 			struct msghdr *msg, size_t size, int flags)
 {
@@ -1413,6 +1535,20 @@ int sock_common_setsockopt(struct socket *sock, int level, int optname,
 }
 
 EXPORT_SYMBOL(sock_common_setsockopt);
+
+#ifdef CONFIG_COMPAT
+int compat_sock_common_setsockopt(struct socket *sock, int level, int optname,
+				  char __user *optval, int optlen)
+{
+	struct sock *sk = sock->sk;
+
+	if (sk->sk_prot->compat_setsockopt != NULL)
+		return sk->sk_prot->compat_setsockopt(sk, level, optname,
+						      optval, optlen);
+	return sk->sk_prot->setsockopt(sk, level, optname, optval, optlen);
+}
+EXPORT_SYMBOL(compat_sock_common_setsockopt);
+#endif
 
 void sk_common_release(struct sock *sk)
 {

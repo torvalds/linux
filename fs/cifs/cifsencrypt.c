@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/cifsencrypt.c
  *
- *   Copyright (C) International Business Machines  Corp., 2005
+ *   Copyright (C) International Business Machines  Corp., 2005,2006
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   This library is free software; you can redistribute it and/or modify
@@ -36,7 +36,8 @@
 extern void mdfour(unsigned char *out, unsigned char *in, int n);
 extern void E_md4hash(const unsigned char *passwd, unsigned char *p16);
 	
-static int cifs_calculate_signature(const struct smb_hdr * cifs_pdu, const char * key, char * signature)
+static int cifs_calculate_signature(const struct smb_hdr * cifs_pdu, 
+				    const char * key, char * signature)
 {
 	struct	MD5Context context;
 
@@ -55,9 +56,6 @@ int cifs_sign_smb(struct smb_hdr * cifs_pdu, struct TCP_Server_Info * server,
 {
 	int rc = 0;
 	char smb_signature[20];
-
-	/* BB remember to initialize sequence number elsewhere and initialize mac_signing key elsewhere BB */
-	/* BB remember to add code to save expected sequence number in midQ entry BB */
 
 	if((cifs_pdu == NULL) || (server == NULL))
 		return -EINVAL;
@@ -85,20 +83,33 @@ int cifs_sign_smb(struct smb_hdr * cifs_pdu, struct TCP_Server_Info * server,
 static int cifs_calc_signature2(const struct kvec * iov, int n_vec,
 				const char * key, char * signature)
 {
-        struct  MD5Context context;
+	struct  MD5Context context;
+	int i;
 
-        if((iov == NULL) || (signature == NULL))
-                return -EINVAL;
+	if((iov == NULL) || (signature == NULL))
+		return -EINVAL;
 
-        MD5Init(&context);
-        MD5Update(&context,key,CIFS_SESSION_KEY_SIZE+16);
+	MD5Init(&context);
+	MD5Update(&context,key,CIFS_SESSION_KEY_SIZE+16);
+	for(i=0;i<n_vec;i++) {
+		if(iov[i].iov_base == NULL) {
+			cERROR(1,("null iovec entry"));
+			return -EIO;
+		} else if(iov[i].iov_len == 0)
+			break; /* bail out if we are sent nothing to sign */
+		/* The first entry includes a length field (which does not get 
+		   signed that occupies the first 4 bytes before the header */
+		if(i==0) {
+			if (iov[0].iov_len <= 8 ) /* cmd field at offset 9 */
+				break; /* nothing to sign or corrupt header */
+			MD5Update(&context,iov[0].iov_base+4, iov[0].iov_len-4);
+		} else
+			MD5Update(&context,iov[i].iov_base, iov[i].iov_len);
+	}
 
-/*        MD5Update(&context,cifs_pdu->Protocol,cifs_pdu->smb_buf_length); */ /* BB FIXME BB */
+	MD5Final(signature,&context);
 
-        MD5Final(signature,&context);
-
-	return -EOPNOTSUPP;
-/*        return 0; */
+	return 0;
 }
 
 
@@ -259,4 +270,5 @@ void CalcNTLMv2_response(const struct cifsSesInfo * ses,char * v2_session_respon
 /*	hmac_md5_update(v2_session_response+16)client thing,8,&context); */ /* BB fix */
 
 	hmac_md5_final(v2_session_response,&context);
+	cifs_dump_mem("v2_sess_rsp: ", v2_session_response, 32); /* BB removeme BB */
 }

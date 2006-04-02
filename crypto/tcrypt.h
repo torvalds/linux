@@ -26,37 +26,38 @@
 #define MAX_IVLEN		32
 
 struct hash_testvec {
+	/* only used with keyed hash algorithms */
+	char key[128] __attribute__ ((__aligned__(4)));
 	char plaintext[128];
-	unsigned char psize;
 	char digest[MAX_DIGEST_SIZE];
-	unsigned char np;
 	unsigned char tap[MAX_TAP];
-	char key[128]; /* only used with keyed hash algorithms */
+	unsigned char psize;
+	unsigned char np;
 	unsigned char ksize;
 };
 
 struct hmac_testvec {
 	char key[128];
-	unsigned char ksize;
 	char plaintext[128];
-	unsigned char psize;
 	char digest[MAX_DIGEST_SIZE];
-	unsigned char np;
 	unsigned char tap[MAX_TAP];
+	unsigned char ksize;
+	unsigned char psize;
+	unsigned char np;
 };
 
 struct cipher_testvec {
-	unsigned char fail;
-	unsigned char wk; /* weak key flag */
-	char key[MAX_KEYLEN];
-	unsigned char klen;
+	char key[MAX_KEYLEN] __attribute__ ((__aligned__(4)));
 	char iv[MAX_IVLEN];
 	char input[48];
-	unsigned char ilen;
 	char result[48];
-	unsigned char rlen;
-	int np;
 	unsigned char tap[MAX_TAP];
+	int np;
+	unsigned char fail;
+	unsigned char wk; /* weak key flag */
+	unsigned char klen;
+	unsigned char ilen;
+	unsigned char rlen;
 };
 
 struct cipher_speed {

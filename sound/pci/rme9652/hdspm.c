@@ -474,7 +474,7 @@ static inline unsigned int hdspm_read(struct hdspm * hdspm, unsigned int reg)
 static inline int hdspm_read_in_gain(struct hdspm * hdspm, unsigned int chan,
 				     unsigned int in)
 {
-	if (chan > HDSPM_MIXER_CHANNELS || in > HDSPM_MIXER_CHANNELS)
+	if (chan >= HDSPM_MIXER_CHANNELS || in >= HDSPM_MIXER_CHANNELS)
 		return 0;
 
 	return hdspm->mixer->ch[chan].in[in];
@@ -483,7 +483,7 @@ static inline int hdspm_read_in_gain(struct hdspm * hdspm, unsigned int chan,
 static inline int hdspm_read_pb_gain(struct hdspm * hdspm, unsigned int chan,
 				     unsigned int pb)
 {
-	if (chan > HDSPM_MIXER_CHANNELS || pb > HDSPM_MIXER_CHANNELS)
+	if (chan >= HDSPM_MIXER_CHANNELS || pb >= HDSPM_MIXER_CHANNELS)
 		return 0;
 	return hdspm->mixer->ch[chan].pb[pb];
 }
@@ -2256,7 +2256,7 @@ static int snd_hdspm_create_controls(struct snd_card *card, struct hdspm * hdspm
 	}
 
 	/* Channel playback mixer as default control 
-	   Note: the whole matrix would be 128*HDSPM_MIXER_CHANNELS Faders, thats to big for any alsamixer 
+	   Note: the whole matrix would be 128*HDSPM_MIXER_CHANNELS Faders, thats too big for any alsamixer
 	   they are accesible via special IOCTL on hwdep
 	   and the mixer 2dimensional mixer control */
 

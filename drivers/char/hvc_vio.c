@@ -31,9 +31,12 @@
 
 #include <linux/types.h>
 #include <linux/init.h>
+
 #include <asm/hvconsole.h>
 #include <asm/vio.h>
 #include <asm/prom.h>
+
+#include "hvc_console.h"
 
 char hvc_driver_name[] = "hvc_console";
 
@@ -47,6 +50,14 @@ static int filtered_get_chars(uint32_t vtermno, char *buf, int count)
 {
 	unsigned long got;
 	int i;
+
+	/*
+	 * Vio firmware will read up to SIZE_VIO_GET_CHARS at its own discretion
+	 * so we play safe and avoid the situation where got > count which could
+	 * overload the flip buffer.
+	 */
+	if (count < SIZE_VIO_GET_CHARS)
+		return -EAGAIN;
 
 	got = hvc_get_chars(vtermno, buf, count);
 

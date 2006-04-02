@@ -15,6 +15,7 @@
 #define POLLWRBAND	512
 #define POLLMSG		1024
 #define POLLREMOVE	4096
+#define POLLRDHUP       8192
 
 struct pollfd {
 	int fd;

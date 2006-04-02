@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/4xx/sycamore.c
- *
  * Architecture- / platform-specific boot-time initialization code for
  * IBM PowerPC 4xx based boards.
  *

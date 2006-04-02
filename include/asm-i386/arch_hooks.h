@@ -24,4 +24,7 @@ extern void trap_init_hook(void);
 extern void time_init_hook(void);
 extern void mca_nmi_hook(void);
 
+extern int setup_early_printk(char *);
+extern void early_printk(const char *fmt, ...) __attribute__((format(printf,1,2)));
+
 #endif

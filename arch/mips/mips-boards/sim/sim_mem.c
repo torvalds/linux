@@ -42,9 +42,6 @@ static char *mtypes[3] = {
 /* References to section boundaries */
 extern char _end;
 
-#define PFN_ALIGN(x)    (((unsigned long)(x) + (PAGE_SIZE - 1)) & PAGE_MASK)
-
-
 struct prom_pmemblock * __init prom_getmdesc(void)
 {
 	unsigned int memsize;
@@ -64,10 +61,10 @@ struct prom_pmemblock * __init prom_getmdesc(void)
 
 	mdesc[2].type = simmem_reserved;
 	mdesc[2].base = 0x00100000;
-	mdesc[2].size = CPHYSADDR(PFN_ALIGN(&_end)) - mdesc[2].base;
+	mdesc[2].size = CPHYSADDR(PAGE_ALIGN(&_end)) - mdesc[2].base;
 
 	mdesc[3].type = simmem_free;
-	mdesc[3].base = CPHYSADDR(PFN_ALIGN(&_end));
+	mdesc[3].base = CPHYSADDR(PAGE_ALIGN(&_end));
 	mdesc[3].size = memsize - mdesc[3].base;
 
 	return &mdesc[0];
@@ -117,7 +114,7 @@ unsigned long __init prom_free_prom_memory(void)
 		while (addr < boot_mem_map.map[i].addr
 			      + boot_mem_map.map[i].size) {
 			ClearPageReserved(virt_to_page(__va(addr)));
-			set_page_count(virt_to_page(__va(addr)), 1);
+			init_page_count(virt_to_page(__va(addr)));
 			free_page((unsigned long)__va(addr));
 			addr += PAGE_SIZE;
 			freed += PAGE_SIZE;

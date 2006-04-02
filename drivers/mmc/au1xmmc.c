@@ -56,12 +56,11 @@
 #define DRIVER_NAME "au1xxx-mmc"
 
 /* Set this to enable special debugging macros */
-/* #define MMC_DEBUG */
 
-#ifdef MMC_DEBUG
-#define DEBUG(fmt, idx, args...) printk("au1xx(%d): DEBUG: " fmt, idx, ##args)
+#ifdef DEBUG
+#define DBG(fmt, idx, args...) printk("au1xx(%d): DEBUG: " fmt, idx, ##args)
 #else
-#define DEBUG(fmt, idx, args...)
+#define DBG(fmt, idx, args...)
 #endif
 
 const struct {
@@ -87,7 +86,7 @@ struct au1xmmc_host *au1xmmc_hosts[AU1XMMC_CONTROLLER_COUNT];
 static int dma = 1;
 
 #ifdef MODULE
-MODULE_PARM(dma, "i");
+module_param(dma, bool, 0);
 MODULE_PARM_DESC(dma, "Use DMA engine for data transfers (0 = disabled)");
 #endif
 
@@ -424,18 +423,18 @@ static void au1xmmc_receive_pio(struct au1xmmc_host *host)
 			break;
 
 		if (status & SD_STATUS_RC) {
-			DEBUG("RX CRC Error [%d + %d].\n", host->id,
+			DBG("RX CRC Error [%d + %d].\n", host->id,
 					host->pio.len, count);
 			break;
 		}
 
 		if (status & SD_STATUS_RO) {
-			DEBUG("RX Overrun [%d + %d]\n", host->id,
+			DBG("RX Overrun [%d + %d]\n", host->id,
 					host->pio.len, count);
 			break;
 		}
 		else if (status & SD_STATUS_RU) {
-			DEBUG("RX Underrun [%d + %d]\n", host->id,
+			DBG("RX Underrun [%d + %d]\n", host->id,
 					host->pio.len,	count);
 			break;
 		}
@@ -721,7 +720,7 @@ static void au1xmmc_set_ios(struct mmc_host* mmc, struct mmc_ios* ios)
 {
 	struct au1xmmc_host *host = mmc_priv(mmc);
 
-	DEBUG("set_ios (power=%u, clock=%uHz, vdd=%u, mode=%u)\n",
+	DBG("set_ios (power=%u, clock=%uHz, vdd=%u, mode=%u)\n",
 	      host->id, ios->power_mode, ios->clock, ios->vdd,
 	      ios->bus_mode);
 
@@ -810,7 +809,7 @@ static irqreturn_t au1xmmc_irq(int irq, void *dev_id, struct pt_regs *regs)
 				au1xmmc_receive_pio(host);
 		}
 		else if (status & 0x203FBC70) {
-			DEBUG("Unhandled status %8.8x\n", host->id, status);
+			DBG("Unhandled status %8.8x\n", host->id, status);
 			handled = 0;
 		}
 
@@ -839,7 +838,7 @@ static void au1xmmc_poll_event(unsigned long arg)
 
 	if (host->mrq != NULL) {
 		u32 status = au_readl(HOST_STATUS(host));
-		DEBUG("PENDING - %8.8x\n", host->id, status);
+		DBG("PENDING - %8.8x\n", host->id, status);
 	}
 
 	mod_timer(&host->timer, jiffies + AU1XMMC_DETECT_TIMEOUT);

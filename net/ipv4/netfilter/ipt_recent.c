@@ -102,6 +102,7 @@ static int
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
+      const struct xt_match *match,
       const void *matchinfo,
       int offset,
       unsigned int protoff,
@@ -318,7 +319,7 @@ static int ip_recent_ctrl(struct file *file, const char __user *input, unsigned 
 	skb->nh.iph->daddr = 0;
 	/* Clear ttl since we have no way of knowing it */
 	skb->nh.iph->ttl = 0;
-	match(skb,NULL,NULL,info,0,0,NULL);
+	match(skb,NULL,NULL,NULL,info,0,0,NULL);
 
 	kfree(skb->nh.iph);
 out_free_skb:
@@ -356,6 +357,7 @@ static int
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
+      const struct xt_match *match,
       const void *matchinfo,
       int offset,
       unsigned int protoff,
@@ -657,6 +659,7 @@ match(const struct sk_buff *skb,
 static int
 checkentry(const char *tablename,
            const void *ip,
+	   const struct xt_match *match,
            void *matchinfo,
            unsigned int matchsize,
            unsigned int hook_mask)
@@ -669,8 +672,6 @@ checkentry(const char *tablename,
 #ifdef DEBUG
 	if(debug) printk(KERN_INFO RECENT_NAME ": checkentry() entered.\n");
 #endif
-
-	if (matchsize != IPT_ALIGN(sizeof(struct ipt_recent_info))) return 0;
 
 	/* seconds and hit_count only valid for CHECK/UPDATE */
 	if(info->check_set & IPT_RECENT_SET) { flag++; if(info->seconds || info->hit_count) return 0; }
@@ -871,7 +872,7 @@ checkentry(const char *tablename,
  * up its memory.
  */
 static void
-destroy(void *matchinfo, unsigned int matchsize)
+destroy(const struct xt_match *match, void *matchinfo, unsigned int matchsize)
 {
 	const struct ipt_recent_info *info = matchinfo;
 	struct recent_ip_tables *curr_table, *last_table;
@@ -951,16 +952,17 @@ destroy(void *matchinfo, unsigned int matchsize)
 /* This is the structure we pass to ipt_register to register our
  * module with iptables.
  */
-static struct ipt_match recent_match = { 
-  .name = "recent", 
-  .match = &match, 
-  .checkentry = &checkentry, 
-  .destroy = &destroy, 
-  .me = THIS_MODULE
+static struct ipt_match recent_match = {
+	.name		= "recent",
+	.match		= match,
+	.matchsize	= sizeof(struct ipt_recent_info),
+	.checkentry	= checkentry,
+	.destroy	= destroy,
+	.me		= THIS_MODULE
 };
 
 /* Kernel module initialization. */
-static int __init init(void)
+static int __init ipt_recent_init(void)
 {
 	int err, count;
 
@@ -993,7 +995,7 @@ static int __init init(void)
 }
 
 /* Kernel module destruction. */
-static void __exit fini(void)
+static void __exit ipt_recent_fini(void)
 {
 	ipt_unregister_match(&recent_match);
 
@@ -1001,5 +1003,5 @@ static void __exit fini(void)
 }
 
 /* Register our module with the kernel. */
-module_init(init);
-module_exit(fini);
+module_init(ipt_recent_init);
+module_exit(ipt_recent_fini);

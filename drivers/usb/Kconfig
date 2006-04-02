@@ -10,6 +10,7 @@ menu "USB support"
 config USB_ARCH_HAS_HCD
 	boolean
 	default y if USB_ARCH_HAS_OHCI
+	default y if USB_ARCH_HAS_EHCI
 	default y if ARM				# SL-811
 	default PCI
 
@@ -22,12 +23,20 @@ config USB_ARCH_HAS_OHCI
 	default y if ARCH_LH7A404
 	default y if ARCH_S3C2410
 	default y if PXA27x
+	default y if ARCH_AT91RM9200
 	# PPC:
 	default y if STB03xxx
 	default y if PPC_MPC52xx
 	# MIPS:
 	default y if SOC_AU1X00
 	# more:
+	default PCI
+
+# some non-PCI hcds implement EHCI
+config USB_ARCH_HAS_EHCI
+	boolean
+	default y if PPC_83xx
+	default y if SOC_AU1200
 	default PCI
 
 # ARM SA1111 chips have a non-PCI based "OHCI-compatible" USB host interface.
@@ -77,8 +86,6 @@ source "drivers/usb/storage/Kconfig"
 source "drivers/usb/input/Kconfig"
 
 source "drivers/usb/image/Kconfig"
-
-source "drivers/usb/media/Kconfig"
 
 source "drivers/usb/net/Kconfig"
 

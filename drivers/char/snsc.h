@@ -5,7 +5,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2004 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (C) 2004-2006 Silicon Graphics, Inc. All rights reserved.
  */
 
 /*
@@ -69,6 +69,9 @@ struct sysctl_data_s {
 #define EV_CLASS_TEST_FAULT	0x5000ul
 #define EV_CLASS_TEST_WARNING	0x6000ul
 #define EV_CLASS_PWRD_NOTIFY	0x8000ul
+
+/* ENV class codes */
+#define ENV_PWRDN_PEND		0x4101ul
 
 #define EV_SEVERITY_POWER_STABLE	0x0000ul
 #define EV_SEVERITY_POWER_LOW_WARNING	0x0100ul

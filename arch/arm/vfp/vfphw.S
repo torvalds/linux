@@ -102,7 +102,6 @@ vfp_support_entry:
 	VFPFMRX	r8, FPINST2, NE		@ FPINST2 if needed - avoids reading
 					@ nonexistant reg on rev0
 	VFPFSTMIA r4 			@ save the working registers
-	add	r4, r4, #8*16+4
 	stmia	r4, {r1, r5, r6, r8}	@ save FPEXC, FPSCR, FPINST, FPINST2
 					@ and point r4 at the word at the
 					@ start of the register dump
@@ -111,10 +110,9 @@ no_old_VFP_process:
 	DBGSTR1	"load state %p", r10
 	str	r10, [r3]		@ update the last_VFP_context pointer
 					@ Load the saved state back into the VFP
-	add	r4, r10, #8*16+4
-	ldmia	r4, {r1, r5, r6, r8}	@ load FPEXC, FPSCR, FPINST, FPINST2
 	VFPFLDMIA r10	 		@ reload the working registers while
 					@ FPEXC is in a safe state
+	ldmia	r10, {r1, r5, r6, r8}	@ load FPEXC, FPSCR, FPINST, FPINST2
 	tst	r1, #FPEXC_FPV2		@ is there an FPINST2 to write?
 	VFPFMXR	FPINST2, r8, NE		@ FPINST2 if needed - avoids writing
 					@ nonexistant reg on rev0

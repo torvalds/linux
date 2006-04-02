@@ -39,6 +39,7 @@ static int
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
+      const struct xt_match *match,
       const void *matchinfo,
       int offset,
       unsigned int protoff,
@@ -71,49 +72,39 @@ match(const struct sk_buff *skb,
 static int
 checkentry(const char *tablename,
 	   const void *ip_void,
+	   const struct xt_match *match,
 	   void *matchinfo,
 	   unsigned int matchinfosize,
 	   unsigned int hook_mask)
 {
 	const struct ipt_ah *ahinfo = matchinfo;
-	const struct ipt_ip *ip = ip_void;
 
-	/* Must specify proto == AH, and no unknown invflags */
-	if (ip->proto != IPPROTO_AH || (ip->invflags & IPT_INV_PROTO)) {
-		duprintf("ipt_ah: Protocol %u != %u\n", ip->proto,
-			 IPPROTO_AH);
-		return 0;
-	}
-	if (matchinfosize != IPT_ALIGN(sizeof(struct ipt_ah))) {
-		duprintf("ipt_ah: matchsize %u != %u\n",
-			 matchinfosize, IPT_ALIGN(sizeof(struct ipt_ah)));
-		return 0;
-	}
+	/* Must specify no unknown invflags */
 	if (ahinfo->invflags & ~IPT_AH_INV_MASK) {
-		duprintf("ipt_ah: unknown flags %X\n",
-			 ahinfo->invflags);
+		duprintf("ipt_ah: unknown flags %X\n", ahinfo->invflags);
 		return 0;
 	}
-
 	return 1;
 }
 
 static struct ipt_match ah_match = {
 	.name		= "ah",
-	.match		= &match,
-	.checkentry	= &checkentry,
+	.match		= match,
+	.matchsize	= sizeof(struct ipt_ah),
+	.proto		= IPPROTO_AH,
+	.checkentry	= checkentry,
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init ipt_ah_init(void)
 {
 	return ipt_register_match(&ah_match);
 }
 
-static void __exit cleanup(void)
+static void __exit ipt_ah_fini(void)
 {
 	ipt_unregister_match(&ah_match);
 }
 
-module_init(init);
-module_exit(cleanup);
+module_init(ipt_ah_init);
+module_exit(ipt_ah_fini);

@@ -32,7 +32,7 @@
 
 extern unsigned long wall_jiffies;
 
-#define TIME_KEEPER_ID	0	/* smp_processor_id() of time-keeper */
+volatile int time_keeper_id = 0; /* smp_processor_id() of time-keeper */
 
 #ifdef CONFIG_IA64_DEBUG_IRQ
 
@@ -71,7 +71,7 @@ timer_interrupt (int irq, void *dev_id, struct pt_regs *regs)
 
 		new_itm += local_cpu_data->itm_delta;
 
-		if (smp_processor_id() == TIME_KEEPER_ID) {
+		if (smp_processor_id() == time_keeper_id) {
 			/*
 			 * Here we are in the timer irq handler. We have irqs locally
 			 * disabled, but we don't know if the timer_bh is running on
@@ -188,7 +188,7 @@ ia64_init_itm (void)
 	itc_freq = (platform_base_freq*itc_ratio.num)/itc_ratio.den;
 
 	local_cpu_data->itm_delta = (itc_freq + HZ/2) / HZ;
-	printk(KERN_DEBUG "CPU %d: base freq=%lu.%03luMHz, ITC ratio=%lu/%lu, "
+	printk(KERN_DEBUG "CPU %d: base freq=%lu.%03luMHz, ITC ratio=%u/%u, "
 	       "ITC freq=%lu.%03luMHz", smp_processor_id(),
 	       platform_base_freq / 1000000, (platform_base_freq / 1000) % 1000,
 	       itc_ratio.num, itc_ratio.den, itc_freq / 1000000, (itc_freq / 1000) % 1000);
@@ -235,6 +235,11 @@ static struct irqaction timer_irqaction = {
 	.flags =	SA_INTERRUPT,
 	.name =		"timer"
 };
+
+void __devinit ia64_disable_timer(void)
+{
+	ia64_set_itv(1 << 16);
+}
 
 void __init
 time_init (void)

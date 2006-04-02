@@ -3858,7 +3858,7 @@ static int orinoco_ioctl_setscan(struct net_device *dev,
 	unsigned long flags;
 
 	/* Note : you may have realised that, as this is a SET operation,
-	 * this is priviledged and therefore a normal user can't
+	 * this is privileged and therefore a normal user can't
 	 * perform scanning.
 	 * This is not an error, while the device perform scanning,
 	 * traffic doesn't flow, so it's a perfect DoS...

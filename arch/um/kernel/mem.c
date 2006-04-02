@@ -30,7 +30,7 @@ extern char __binary_start;
 unsigned long *empty_zero_page = NULL;
 unsigned long *empty_bad_page = NULL;
 pgd_t swapper_pg_dir[PTRS_PER_PGD];
-unsigned long highmem;
+unsigned long long highmem;
 int kmalloc_ok = 0;
 
 static unsigned long brk_end;
@@ -57,7 +57,7 @@ static void setup_highmem(unsigned long highmem_start,
 	for(i = 0; i < highmem_len >> PAGE_SHIFT; i++){
 		page = &mem_map[highmem_pfn + i];
 		ClearPageReserved(page);
-		set_page_count(page, 1);
+		init_page_count(page);
 		__free_page(page);
 	}
 }
@@ -296,7 +296,7 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 			(end - start) >> 10);
 	for (; start < end; start += PAGE_SIZE) {
 		ClearPageReserved(virt_to_page(start));
-		set_page_count(virt_to_page(start), 1);
+		init_page_count(virt_to_page(start));
 		free_page(start);
 		totalram_pages++;
 	}

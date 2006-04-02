@@ -64,11 +64,9 @@ static int iq80331_setup(int nr, struct pci_sys_data *sys)
 	if(nr != 0)
 		return 0;
 
-	res = kmalloc(sizeof(struct resource) * 2, GFP_KERNEL);
+	res = kzalloc(sizeof(struct resource) * 2, GFP_KERNEL);
 	if (!res)
 		panic("PCI: unable to alloc resources");
-
-	memset(res, 0, sizeof(struct resource) * 2);
 
 	res[0].start = IOP331_PCI_LOWER_IO_VA;
 	res[0].end   = IOP331_PCI_UPPER_IO_VA;

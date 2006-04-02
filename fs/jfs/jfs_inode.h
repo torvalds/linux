@@ -20,6 +20,8 @@
 
 extern struct inode *ialloc(struct inode *, umode_t);
 extern int jfs_fsync(struct file *, struct dentry *, int);
+extern int jfs_ioctl(struct inode *, struct file *,
+			unsigned int, unsigned long);
 extern void jfs_read_inode(struct inode *);
 extern int jfs_commit_inode(struct inode *, int);
 extern int jfs_write_inode(struct inode*, int);
@@ -29,12 +31,13 @@ extern void jfs_truncate(struct inode *);
 extern void jfs_truncate_nolock(struct inode *, loff_t);
 extern void jfs_free_zero_link(struct inode *);
 extern struct dentry *jfs_get_parent(struct dentry *dentry);
+extern void jfs_set_inode_flags(struct inode *);
 
 extern struct address_space_operations jfs_aops;
 extern struct inode_operations jfs_dir_inode_operations;
-extern struct file_operations jfs_dir_operations;
+extern const struct file_operations jfs_dir_operations;
 extern struct inode_operations jfs_file_inode_operations;
-extern struct file_operations jfs_file_operations;
+extern const struct file_operations jfs_file_operations;
 extern struct inode_operations jfs_symlink_inode_operations;
 extern struct dentry_operations jfs_ci_dentry_operations;
 #endif				/* _H_JFS_INODE */

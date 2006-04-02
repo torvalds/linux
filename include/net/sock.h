@@ -210,6 +210,7 @@ struct sock {
 	gfp_t			sk_allocation;
 	int			sk_sndbuf;
 	int			sk_route_caps;
+	int			sk_rcvlowat;
 	unsigned long 		sk_flags;
 	unsigned long	        sk_lingertime;
 	/*
@@ -230,7 +231,6 @@ struct sock {
 	unsigned short		sk_max_ack_backlog;
 	__u32			sk_priority;
 	struct ucred		sk_peercred;
-	int			sk_rcvlowat;
 	long			sk_rcvtimeo;
 	long			sk_sndtimeo;
 	struct sk_filter      	*sk_filter;
@@ -478,9 +478,9 @@ static inline void sk_add_backlog(struct sock *sk, struct sk_buff *skb)
 	rc = __condition;					\
 	if (!rc) {						\
 		*(__timeo) = schedule_timeout(*(__timeo));	\
-		rc = __condition;				\
 	}							\
 	lock_sock(__sk);					\
+	rc = __condition;					\
 	rc;							\
 })
 
@@ -520,6 +520,14 @@ struct proto {
 	int			(*getsockopt)(struct sock *sk, int level, 
 					int optname, char __user *optval, 
 					int __user *option);  	 
+	int			(*compat_setsockopt)(struct sock *sk,
+					int level,
+					int optname, char __user *optval,
+					int optlen);
+	int			(*compat_getsockopt)(struct sock *sk,
+					int level,
+					int optname, char __user *optval,
+					int __user *option);
 	int			(*sendmsg)(struct kiocb *iocb, struct sock *sk,
 					   struct msghdr *msg, size_t len);
 	int			(*recvmsg)(struct kiocb *iocb, struct sock *sk,
@@ -816,6 +824,10 @@ extern int sock_common_recvmsg(struct kiocb *iocb, struct socket *sock,
 			       struct msghdr *msg, size_t size, int flags);
 extern int sock_common_setsockopt(struct socket *sock, int level, int optname,
 				  char __user *optval, int optlen);
+extern int compat_sock_common_getsockopt(struct socket *sock, int level,
+		int optname, char __user *optval, int __user *optlen);
+extern int compat_sock_common_setsockopt(struct socket *sock, int level,
+		int optname, char __user *optval, int optlen);
 
 extern void sk_common_release(struct sock *sk);
 
@@ -926,28 +938,7 @@ static inline void sock_put(struct sock *sk)
 		sk_free(sk);
 }
 
-static inline int sk_receive_skb(struct sock *sk, struct sk_buff *skb)
-{
-	int rc = NET_RX_SUCCESS;
-
-	if (sk_filter(sk, skb, 0))
-		goto discard_and_relse;
-
-	skb->dev = NULL;
-
-	bh_lock_sock(sk);
-	if (!sock_owned_by_user(sk))
-		rc = sk->sk_backlog_rcv(sk, skb);
-	else
-		sk_add_backlog(sk, skb);
-	bh_unlock_sock(sk);
-out:
-	sock_put(sk);
-	return rc;
-discard_and_relse:
-	kfree_skb(skb);
-	goto out;
-}
+extern int sk_receive_skb(struct sock *sk, struct sk_buff *skb);
 
 /* Detach socket from process context.
  * Announce socket dead, detach it from wait queue and inode.
@@ -1032,33 +1023,9 @@ sk_dst_reset(struct sock *sk)
 	write_unlock(&sk->sk_dst_lock);
 }
 
-static inline struct dst_entry *
-__sk_dst_check(struct sock *sk, u32 cookie)
-{
-	struct dst_entry *dst = sk->sk_dst_cache;
+extern struct dst_entry *__sk_dst_check(struct sock *sk, u32 cookie);
 
-	if (dst && dst->obsolete && dst->ops->check(dst, cookie) == NULL) {
-		sk->sk_dst_cache = NULL;
-		dst_release(dst);
-		return NULL;
-	}
-
-	return dst;
-}
-
-static inline struct dst_entry *
-sk_dst_check(struct sock *sk, u32 cookie)
-{
-	struct dst_entry *dst = sk_dst_get(sk);
-
-	if (dst && dst->obsolete && dst->ops->check(dst, cookie) == NULL) {
-		sk_dst_reset(sk);
-		dst_release(dst);
-		return NULL;
-	}
-
-	return dst;
-}
+extern struct dst_entry *sk_dst_check(struct sock *sk, u32 cookie);
 
 static inline void sk_setup_caps(struct sock *sk, struct dst_entry *dst)
 {
@@ -1128,45 +1095,7 @@ extern void sk_reset_timer(struct sock *sk, struct timer_list* timer,
 
 extern void sk_stop_timer(struct sock *sk, struct timer_list* timer);
 
-static inline int sock_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
-{
-	int err = 0;
-	int skb_len;
-
-	/* Cast skb->rcvbuf to unsigned... It's pointless, but reduces
-	   number of warnings when compiling with -W --ANK
-	 */
-	if (atomic_read(&sk->sk_rmem_alloc) + skb->truesize >=
-	    (unsigned)sk->sk_rcvbuf) {
-		err = -ENOMEM;
-		goto out;
-	}
-
-	/* It would be deadlock, if sock_queue_rcv_skb is used
-	   with socket lock! We assume that users of this
-	   function are lock free.
-	*/
-	err = sk_filter(sk, skb, 1);
-	if (err)
-		goto out;
-
-	skb->dev = NULL;
-	skb_set_owner_r(skb, sk);
-
-	/* Cache the SKB length before we tack it onto the receive
-	 * queue.  Once it is added it no longer belongs to us and
-	 * may be freed by other threads of control pulling packets
-	 * from the queue.
-	 */
-	skb_len = skb->len;
-
-	skb_queue_tail(&sk->sk_receive_queue, skb);
-
-	if (!sock_flag(sk, SOCK_DEAD))
-		sk->sk_data_ready(sk, skb_len);
-out:
-	return err;
-}
+extern int sock_queue_rcv_skb(struct sock *sk, struct sk_buff *skb);
 
 static inline int sock_queue_err_skb(struct sock *sk, struct sk_buff *skb)
 {

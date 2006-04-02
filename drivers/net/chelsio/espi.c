@@ -87,15 +87,9 @@ static int tricn_write(adapter_t *adapter, int bundle_addr, int module_addr,
 static int tricn_init(adapter_t *adapter)
 {
 	int     i               = 0;
-	int     sme             = 1;
 	int     stat            = 0;
 	int     timeout         = 0;
 	int     is_ready        = 0;
-	int     dynamic_deskew  = 0;
-
-	if (dynamic_deskew)
-		sme = 0;
-
 
 	/* 1 */
 	timeout=1000;
@@ -113,11 +107,9 @@ static int tricn_init(adapter_t *adapter)
 	}
 
 	/* 2 */
-	if (sme) {
-		tricn_write(adapter, 0, 0, 0, TRICN_CNFG, 0x81);
-		tricn_write(adapter, 0, 1, 0, TRICN_CNFG, 0x81);
-		tricn_write(adapter, 0, 2, 0, TRICN_CNFG, 0x81);
-	}
+	tricn_write(adapter, 0, 0, 0, TRICN_CNFG, 0x81);
+	tricn_write(adapter, 0, 1, 0, TRICN_CNFG, 0x81);
+	tricn_write(adapter, 0, 2, 0, TRICN_CNFG, 0x81);
 	for (i=1; i<= 8; i++) tricn_write(adapter, 0, 0, i, TRICN_CNFG, 0xf1);
 	for (i=1; i<= 2; i++) tricn_write(adapter, 0, 1, i, TRICN_CNFG, 0xf1);
 	for (i=1; i<= 3; i++) tricn_write(adapter, 0, 2, i, TRICN_CNFG, 0xe1);

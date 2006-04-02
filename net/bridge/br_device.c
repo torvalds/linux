@@ -27,6 +27,7 @@ static struct net_device_stats *br_dev_get_stats(struct net_device *dev)
 	return &br->statistics;
 }
 
+/* net device transmit always called with no BH (preempt_disabled) */
 int br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct net_bridge *br = netdev_priv(dev);
@@ -39,7 +40,6 @@ int br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb->mac.raw = skb->data;
 	skb_pull(skb, ETH_HLEN);
 
-	rcu_read_lock();
 	if (dest[0] & 1) 
 		br_flood_deliver(br, skb, 0);
 	else if ((dst = __br_fdb_get(br, dest)) != NULL)
@@ -47,7 +47,6 @@ int br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	else
 		br_flood_deliver(br, skb, 0);
 
-	rcu_read_unlock();
 	return 0;
 }
 

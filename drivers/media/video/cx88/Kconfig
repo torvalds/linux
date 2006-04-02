@@ -15,6 +15,22 @@ config VIDEO_CX88
 	  To compile this driver as a module, choose M here: the
 	  module will be called cx8800
 
+config VIDEO_CX88_ALSA
+	tristate "Conexant 2388x DMA audio support"
+	depends on VIDEO_CX88 && SND && EXPERIMENTAL
+	select SND_PCM
+	---help---
+	  This is a video4linux driver for direct (DMA) audio on
+	  Conexant 2388x based TV cards using ALSA.
+
+	  It only works with boards with function 01 enabled.
+	  To check if your board supports, use lspci -n.
+	  If supported, you should see 1471:8801 or 1471:8811
+	  PCI device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cx88-alsa.
+
 config VIDEO_CX88_DVB
 	tristate "DVB/ATSC Support for cx2388x based TV cards"
 	depends on VIDEO_CX88 && DVB_CORE
@@ -29,27 +45,13 @@ config VIDEO_CX88_DVB
 	  You must also select one or more DVB/ATSC demodulators.
 	  If you are unsure which you need, choose all of them.
 
-config VIDEO_CX88_ALSA
-	tristate "ALSA DMA audio support"
-	depends on VIDEO_CX88 && SND && EXPERIMENTAL
-	select SND_PCM
-	---help---
-	  This is a video4linux driver for direct (DMA) audio on
-	  Conexant 2388x based TV cards.
-	  It only works with boards with function 01 enabled.
-	  To check if your board supports, use lspci -n.
-	  If supported, you should see 1471:8801 or 1471:8811
-	  PCI device.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called cx88-alsa.
-
 config VIDEO_CX88_DVB_ALL_FRONTENDS
 	bool "Build all supported frontends for cx2388x based TV cards"
 	default y
 	depends on VIDEO_CX88_DVB
 	select DVB_MT352
 	select VIDEO_CX88_VP3054
+	select DVB_ZL10353
 	select DVB_OR51132
 	select DVB_CX22702
 	select DVB_LGDT330X
@@ -80,6 +82,16 @@ config VIDEO_CX88_VP3054
 	  Connexant 2388x chip and the MT352 demodulator,
 	  which also require support for the VP-3054
 	  Secondary I2C bus, such at DNTV Live! DVB-T Pro.
+
+config VIDEO_CX88_DVB_ZL10353
+	bool "Zarlink ZL10353 DVB-T Support"
+	default y
+	depends on VIDEO_CX88_DVB && !VIDEO_CX88_DVB_ALL_FRONTENDS
+	select DVB_ZL10353
+	---help---
+	  This adds DVB-T support for cards based on the
+	  Connexant 2388x chip and the ZL10353 demodulator,
+	  successor to the Zarlink MT352.
 
 config VIDEO_CX88_DVB_OR51132
 	bool "OR51132 ATSC Support"

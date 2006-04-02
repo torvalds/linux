@@ -26,7 +26,7 @@ static inline void
 copy_user_page(void *vto, void *vfrom, unsigned long vaddr, struct page *pg)
 {
 	copy_user_page_asm(vto, vfrom);
-	flush_kernel_dcache_page(vto);
+	flush_kernel_dcache_page_asm(vto);
 	/* XXX: ppc flushes icache too, should we? */
 }
 
@@ -40,14 +40,19 @@ clear_user_page(void *page, unsigned long vaddr, struct page *pg)
 /*
  * These are used to make use of C type-checking..
  */
-#ifdef __LP64__
-typedef struct { unsigned long pte; } pte_t;
-#else
-typedef struct {
-	unsigned long pte;
-	unsigned long flags;
-} pte_t;
+#define STRICT_MM_TYPECHECKS
+#ifdef STRICT_MM_TYPECHECKS
+typedef struct { unsigned long pte;
+#if !defined(CONFIG_64BIT)
+                 unsigned long future_flags;
+ /* XXX: it's possible to remove future_flags and change BITS_PER_PTE_ENTRY
+	 to 2, but then strangely the identical 32bit kernel boots on a
+	 c3000(pa20), but not any longer on a 715(pa11).
+	 Still investigating... HelgeD.
+  */
 #endif
+} pte_t; /* either 32 or 64bit */
+
 /* NOTE: even on 64 bits, these entries are __u32 because we allocate
  * the pmd and pgd in ZONE_DMA (i.e. under 4GB) */
 typedef struct { __u32 pmd; } pmd_t;
@@ -55,24 +60,43 @@ typedef struct { __u32 pgd; } pgd_t;
 typedef struct { unsigned long pgprot; } pgprot_t;
 
 #define pte_val(x)	((x).pte)
-#ifdef __LP64__
-#define pte_flags(x)	(*(__u32 *)&((x).pte))
-#else
-#define pte_flags(x)	((x).flags)
-#endif
-
 /* These do not work lvalues, so make sure we don't use them as such. */
 #define pmd_val(x)	((x).pmd + 0)
 #define pgd_val(x)	((x).pgd + 0)
 #define pgprot_val(x)	((x).pgprot)
 
-#define __pmd_val_set(x,n) (x).pmd = (n)
-#define __pgd_val_set(x,n) (x).pgd = (n)
-
 #define __pte(x)	((pte_t) { (x) } )
 #define __pmd(x)	((pmd_t) { (x) } )
 #define __pgd(x)	((pgd_t) { (x) } )
 #define __pgprot(x)	((pgprot_t) { (x) } )
+
+#define __pmd_val_set(x,n) (x).pmd = (n)
+#define __pgd_val_set(x,n) (x).pgd = (n)
+
+#else
+/*
+ * .. while these make it easier on the compiler
+ */
+typedef unsigned long pte_t;
+typedef         __u32 pmd_t;
+typedef         __u32 pgd_t;
+typedef unsigned long pgprot_t;
+
+#define pte_val(x)      (x)
+#define pmd_val(x)      (x)
+#define pgd_val(x)      (x)
+#define pgprot_val(x)   (x)
+
+#define __pte(x)        (x)
+#define __pmd(x)	(x)
+#define __pgd(x)        (x)
+#define __pgprot(x)     (x)
+
+#define __pmd_val_set(x,n) (x) = (n)
+#define __pgd_val_set(x,n) (x) = (n)
+
+#endif /* STRICT_MM_TYPECHECKS */
+
 
 typedef struct __physmem_range {
 	unsigned long start_pfn;
@@ -130,8 +154,6 @@ extern int npmem_ranges;
 #define __va(x)			((void *)((unsigned long)(x)+PAGE_OFFSET))
 
 #ifndef CONFIG_DISCONTIGMEM
-#define pfn_to_page(pfn)	(mem_map + (pfn))
-#define page_to_pfn(page)	((unsigned long)((page) - mem_map))
 #define pfn_valid(pfn)		((pfn) < max_mapnr)
 #endif /* CONFIG_DISCONTIGMEM */
 
@@ -152,6 +174,7 @@ extern int npmem_ranges;
 
 #endif /* __KERNEL__ */
 
+#include <asm-generic/memory_model.h>
 #include <asm-generic/page.h>
 
 #endif /* _PARISC_PAGE_H */

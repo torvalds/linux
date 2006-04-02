@@ -42,6 +42,7 @@
 #include <linux/hwmon.h>
 #include <linux/hwmon-vid.h>
 #include <linux/err.h>
+#include <linux/mutex.h>
 #include <asm/io.h>
 #include "lm75.h"
 
@@ -55,6 +56,10 @@ static unsigned short isa_address = 0x290;
 I2C_CLIENT_INSMOD_5(w83781d, w83782d, w83783s, w83627hf, as99127f);
 I2C_CLIENT_MODULE_PARM(force_subclients, "List of subclient addresses: "
 		    "{bus, clientaddr, subclientaddr1, subclientaddr2}");
+
+static int reset;
+module_param(reset, bool, 0);
+MODULE_PARM_DESC(reset, "Set to one to reset chip on load");
 
 static int init = 1;
 module_param(init, bool, 0);
@@ -226,10 +231,10 @@ DIV_TO_REG(long val, enum chips type)
 struct w83781d_data {
 	struct i2c_client client;
 	struct class_device *class_dev;
-	struct semaphore lock;
+	struct mutex lock;
 	enum chips type;
 
-	struct semaphore update_lock;
+	struct mutex update_lock;
 	char valid;		/* !=0 if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
 
@@ -267,9 +272,8 @@ static int w83781d_isa_attach_adapter(struct i2c_adapter *adapter);
 static int w83781d_detect(struct i2c_adapter *adapter, int address, int kind);
 static int w83781d_detach_client(struct i2c_client *client);
 
-static int w83781d_read_value(struct i2c_client *client, u16 register);
-static int w83781d_write_value(struct i2c_client *client, u16 register,
-			       u16 value);
+static int w83781d_read_value(struct i2c_client *client, u16 reg);
+static int w83781d_write_value(struct i2c_client *client, u16 reg, u16 value);
 static struct w83781d_data *w83781d_update_device(struct device *dev);
 static void w83781d_init_client(struct i2c_client *client);
 
@@ -311,11 +315,11 @@ static ssize_t store_in_##reg (struct device *dev, const char *buf, size_t count
 	 \
 	val = simple_strtoul(buf, NULL, 10) / 10; \
 	 \
-	down(&data->update_lock); \
+	mutex_lock(&data->update_lock); \
 	data->in_##reg[nr] = IN_TO_REG(val); \
 	w83781d_write_value(client, W83781D_REG_IN_##REG(nr), data->in_##reg[nr]); \
 	 \
-	up(&data->update_lock); \
+	mutex_unlock(&data->update_lock); \
 	return count; \
 }
 store_in_reg(MIN, min);
@@ -381,13 +385,13 @@ store_fan_min(struct device *dev, const char *buf, size_t count, int nr)
 
 	val = simple_strtoul(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	data->fan_min[nr - 1] =
 	    FAN_TO_REG(val, DIV_FROM_REG(data->fan_div[nr - 1]));
 	w83781d_write_value(client, W83781D_REG_FAN_MIN(nr),
 			    data->fan_min[nr - 1]);
 
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -446,7 +450,7 @@ static ssize_t store_temp_##reg (struct device *dev, const char *buf, size_t cou
 	 \
 	val = simple_strtol(buf, NULL, 10); \
 	 \
-	down(&data->update_lock); \
+	mutex_lock(&data->update_lock); \
 	 \
 	if (nr >= 2) {	/* TEMP2 and TEMP3 */ \
 		data->temp_##reg##_add[nr-2] = LM75_TEMP_TO_REG(val); \
@@ -458,7 +462,7 @@ static ssize_t store_temp_##reg (struct device *dev, const char *buf, size_t cou
 			data->temp_##reg); \
 	} \
 	 \
-	up(&data->update_lock); \
+	mutex_unlock(&data->update_lock); \
 	return count; \
 }
 store_temp_reg(OVER, max);
@@ -571,7 +575,7 @@ store_beep_reg(struct device *dev, const char *buf, size_t count,
 
 	val = simple_strtoul(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 
 	if (update_mask == BEEP_MASK) {	/* We are storing beep_mask */
 		data->beep_mask = BEEP_MASK_TO_REG(val, data->type);
@@ -592,7 +596,7 @@ store_beep_reg(struct device *dev, const char *buf, size_t count,
 	w83781d_write_value(client, W83781D_REG_BEEP_INTS2,
 			    val2 | data->beep_enable << 7);
 
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -637,7 +641,7 @@ store_fan_div_reg(struct device *dev, const char *buf, size_t count, int nr)
 	u8 reg;
 	unsigned long val = simple_strtoul(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	
 	/* Save fan_min */
 	min = FAN_FROM_REG(data->fan_min[nr],
@@ -662,7 +666,7 @@ store_fan_div_reg(struct device *dev, const char *buf, size_t count, int nr)
 	data->fan_min[nr] = FAN_TO_REG(min, DIV_FROM_REG(data->fan_div[nr]));
 	w83781d_write_value(client, W83781D_REG_FAN_MIN(nr+1), data->fan_min[nr]);
 
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -709,10 +713,10 @@ store_pwm_reg(struct device *dev, const char *buf, size_t count, int nr)
 
 	val = simple_strtoul(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	data->pwm[nr - 1] = PWM_TO_REG(val);
 	w83781d_write_value(client, W83781D_REG_PWM(nr), data->pwm[nr - 1]);
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -725,7 +729,7 @@ store_pwmenable_reg(struct device *dev, const char *buf, size_t count, int nr)
 
 	val = simple_strtoul(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 
 	switch (val) {
 	case 0:
@@ -742,11 +746,11 @@ store_pwmenable_reg(struct device *dev, const char *buf, size_t count, int nr)
 		break;
 
 	default:
-		up(&data->update_lock);
+		mutex_unlock(&data->update_lock);
 		return -EINVAL;
 	}
 
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -808,7 +812,7 @@ store_sensor_reg(struct device *dev, const char *buf, size_t count, int nr)
 
 	val = simple_strtoul(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 
 	switch (val) {
 	case 1:		/* PII/Celeron diode */
@@ -841,7 +845,7 @@ store_sensor_reg(struct device *dev, const char *buf, size_t count, int nr)
 		break;
 	}
 
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -1073,7 +1077,7 @@ w83781d_detect(struct i2c_adapter *adapter, int address, int kind)
 	new_client = &data->client;
 	i2c_set_clientdata(new_client, data);
 	new_client->addr = address;
-	init_MUTEX(&data->lock);
+	mutex_init(&data->lock);
 	new_client->adapter = adapter;
 	new_client->driver = is_isa ? &w83781d_isa_driver : &w83781d_driver;
 	new_client->flags = 0;
@@ -1178,7 +1182,7 @@ w83781d_detect(struct i2c_adapter *adapter, int address, int kind)
 	data->type = kind;
 
 	data->valid = 0;
-	init_MUTEX(&data->update_lock);
+	mutex_init(&data->update_lock);
 
 	/* Tell the I2C layer a new client has arrived */
 	if ((err = i2c_attach_client(new_client)))
@@ -1325,7 +1329,7 @@ w83781d_read_value(struct i2c_client *client, u16 reg)
 	int res, word_sized, bank;
 	struct i2c_client *cl;
 
-	down(&data->lock);
+	mutex_lock(&data->lock);
 	if (i2c_is_isa_client(client)) {
 		word_sized = (((reg & 0xff00) == 0x100)
 			      || ((reg & 0xff00) == 0x200))
@@ -1383,7 +1387,7 @@ w83781d_read_value(struct i2c_client *client, u16 reg)
 		if (bank > 2)
 			i2c_smbus_write_byte_data(client, W83781D_REG_BANK, 0);
 	}
-	up(&data->lock);
+	mutex_unlock(&data->lock);
 	return res;
 }
 
@@ -1394,7 +1398,7 @@ w83781d_write_value(struct i2c_client *client, u16 reg, u16 value)
 	int word_sized, bank;
 	struct i2c_client *cl;
 
-	down(&data->lock);
+	mutex_lock(&data->lock);
 	if (i2c_is_isa_client(client)) {
 		word_sized = (((reg & 0xff00) == 0x100)
 			      || ((reg & 0xff00) == 0x200))
@@ -1447,7 +1451,7 @@ w83781d_write_value(struct i2c_client *client, u16 reg, u16 value)
 		if (bank > 2)
 			i2c_smbus_write_byte_data(client, W83781D_REG_BANK, 0);
 	}
-	up(&data->lock);
+	mutex_unlock(&data->lock);
 	return 0;
 }
 
@@ -1459,8 +1463,17 @@ w83781d_init_client(struct i2c_client *client)
 	int type = data->type;
 	u8 tmp;
 
-	if (init && type != as99127f) {	/* this resets registers we don't have
+	if (reset && type != as99127f) { /* this resets registers we don't have
 					   documentation for on the as99127f */
+		/* Resetting the chip has been the default for a long time,
+		   but it causes the BIOS initializations (fan clock dividers,
+		   thermal sensor types...) to be lost, so it is now optional.
+		   It might even go away if nobody reports it as being useful,
+		   as I see very little reason why this would be needed at
+		   all. */
+		dev_info(&client->dev, "If reset=1 solved a problem you were "
+			 "having, please report!\n");
+
 		/* save these registers */
 		i = w83781d_read_value(client, W83781D_REG_BEEP_CONFIG);
 		p = w83781d_read_value(client, W83781D_REG_PWMCLK12);
@@ -1475,6 +1488,13 @@ w83781d_init_client(struct i2c_client *client)
 		   Individual beep_mask should be reset to off but for some reason
 		   disabling this bit helps some people not get beeped */
 		w83781d_write_value(client, W83781D_REG_BEEP_INTS2, 0);
+	}
+
+	/* Disable power-on abnormal beep, as advised by the datasheet.
+	   Already done if reset=1. */
+	if (init && !reset && type != as99127f) {
+		i = w83781d_read_value(client, W83781D_REG_BEEP_CONFIG);
+		w83781d_write_value(client, W83781D_REG_BEEP_CONFIG, i | 0x80);
 	}
 
 	data->vrm = vid_which_vrm();
@@ -1533,7 +1553,7 @@ static struct w83781d_data *w83781d_update_device(struct device *dev)
 	struct w83781d_data *data = i2c_get_clientdata(client);
 	int i;
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 
 	if (time_after(jiffies, data->last_updated + HZ + HZ / 2)
 	    || !data->valid) {
@@ -1641,7 +1661,7 @@ static struct w83781d_data *w83781d_update_device(struct device *dev)
 		data->valid = 1;
 	}
 
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 
 	return data;
 }

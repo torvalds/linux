@@ -14,32 +14,9 @@
  */
 
 #include <linux/config.h>
+#include <linux/module.h>
 
 #include <asm/firmware.h>
 
-unsigned long ppc64_firmware_features;
-
-#ifdef CONFIG_PPC_PSERIES
-firmware_feature_t firmware_features_table[FIRMWARE_MAX_FEATURES] = {
-	{FW_FEATURE_PFT,		"hcall-pft"},
-	{FW_FEATURE_TCE,		"hcall-tce"},
-	{FW_FEATURE_SPRG0,		"hcall-sprg0"},
-	{FW_FEATURE_DABR,		"hcall-dabr"},
-	{FW_FEATURE_COPY,		"hcall-copy"},
-	{FW_FEATURE_ASR,		"hcall-asr"},
-	{FW_FEATURE_DEBUG,		"hcall-debug"},
-	{FW_FEATURE_PERF,		"hcall-perf"},
-	{FW_FEATURE_DUMP,		"hcall-dump"},
-	{FW_FEATURE_INTERRUPT,		"hcall-interrupt"},
-	{FW_FEATURE_MIGRATE,		"hcall-migrate"},
-	{FW_FEATURE_PERFMON,		"hcall-perfmon"},
-	{FW_FEATURE_CRQ,		"hcall-crq"},
-	{FW_FEATURE_VIO,		"hcall-vio"},
-	{FW_FEATURE_RDMA,		"hcall-rdma"},
-	{FW_FEATURE_LLAN,		"hcall-lLAN"},
-	{FW_FEATURE_BULK,		"hcall-bulk"},
-	{FW_FEATURE_XDABR,		"hcall-xdabr"},
-	{FW_FEATURE_MULTITCE,		"hcall-multi-tce"},
-	{FW_FEATURE_SPLPAR,		"hcall-splpar"},
-};
-#endif
+unsigned long powerpc_firmware_features;
+EXPORT_SYMBOL_GPL(powerpc_firmware_features);

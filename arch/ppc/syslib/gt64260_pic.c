@@ -1,6 +1,4 @@
 /*
- * arch/ppc/syslib/gt64260_pic.c
- *
  * Interrupt controller support for Galileo's GT64260.
  *
  * Author: Chris Zankel <source@mvista.com>

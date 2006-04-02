@@ -169,7 +169,7 @@ static int enable_bearer(struct tipc_bearer *tb_ptr)
 
 static void disable_bearer(struct tipc_bearer *tb_ptr)
 {
-	((struct eth_bearer *)tb_ptr->usr_handle)->bearer = 0;
+	((struct eth_bearer *)tb_ptr->usr_handle)->bearer = NULL;
 }
 
 /**
@@ -285,7 +285,7 @@ void tipc_eth_media_stop(void)
 	for (i = 0; i < MAX_ETH_BEARERS ; i++) {
 		if (eth_bearers[i].bearer) {
 			eth_bearers[i].bearer->blocked = 1;
-			eth_bearers[i].bearer = 0;
+			eth_bearers[i].bearer = NULL;
 		}
 		if (eth_bearers[i].dev) {
 			dev_remove_pack(&eth_bearers[i].tipc_packet_type);

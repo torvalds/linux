@@ -310,7 +310,7 @@ claw_probe(struct ccwgroup_device *cgdev)
         printk(KERN_INFO "claw: variable cgdev =\n");
         dumpit((char *)cgdev, sizeof(struct ccwgroup_device));
 #endif
-	privptr = kmalloc(sizeof(struct claw_privbk), GFP_KERNEL);
+	privptr = kzalloc(sizeof(struct claw_privbk), GFP_KERNEL);
 	if (privptr == NULL) {
 		probe_error(cgdev);
 		put_device(&cgdev->dev);
@@ -319,7 +319,6 @@ claw_probe(struct ccwgroup_device *cgdev)
 		CLAW_DBF_TEXT_(2,setup,"probex%d",-ENOMEM);
 		return -ENOMEM;
 	}
-	memset(privptr,0x00,sizeof(struct claw_privbk));
 	privptr->p_mtc_envelope= kmalloc( MAX_ENVELOPE_SIZE, GFP_KERNEL);
 	privptr->p_env = kmalloc(sizeof(struct claw_env), GFP_KERNEL);
         if ((privptr->p_mtc_envelope==NULL) || (privptr->p_env==NULL)) {
@@ -1404,7 +1403,7 @@ add_claw_reads(struct net_device *dev, struct ccwbk* p_first,
 
         if ( privptr-> p_read_active_first ==NULL ) {
 #ifdef DEBUGMSG
-                printk(KERN_INFO "%s:%s p_read_active_frist == NULL \n",
+                printk(KERN_INFO "%s:%s p_read_active_first == NULL \n",
 			dev->name,__FUNCTION__);
                 printk(KERN_INFO "%s:%s Read active first/last changed \n",
 			dev->name,__FUNCTION__);

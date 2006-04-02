@@ -103,7 +103,7 @@ static int suspend_prepare(suspend_state_t state)
 }
 
 
-static int suspend_enter(suspend_state_t state)
+int suspend_enter(suspend_state_t state)
 {
 	int error = 0;
 	unsigned long flags;

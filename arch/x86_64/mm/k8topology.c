@@ -43,7 +43,7 @@ static __init int find_northbridge(void)
 int __init k8_scan_nodes(unsigned long start, unsigned long end)
 { 
 	unsigned long prevbase;
-	struct node nodes[8];
+	struct bootnode nodes[8];
 	int nodeid, i, nb; 
 	unsigned char nodeids[8];
 	int found = 0;

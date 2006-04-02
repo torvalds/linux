@@ -127,7 +127,6 @@ int sctp_rcv(struct sk_buff *skb)
 	union sctp_addr dest;
 	int family;
 	struct sctp_af *af;
-	int ret = 0;
 
 	if (skb->pkt_type!=PACKET_HOST)
 		goto discard_it;
@@ -227,16 +226,13 @@ int sctp_rcv(struct sk_buff *skb)
 		goto discard_release;
 	nf_reset(skb);
 
-	ret = sk_filter(sk, skb, 1);
-	if (ret)
+	if (sk_filter(sk, skb, 1))
                 goto discard_release;
 
 	/* Create an SCTP packet structure. */
 	chunk = sctp_chunkify(skb, asoc, sk);
-	if (!chunk) {
-		ret = -ENOMEM;
+	if (!chunk)
 		goto discard_release;
-	}
 	SCTP_INPUT_CB(skb)->chunk = chunk;
 
 	/* Remember what endpoint is to handle this packet. */
@@ -277,11 +273,11 @@ int sctp_rcv(struct sk_buff *skb)
 	sctp_bh_unlock_sock(sk);
 	sock_put(sk);
 
-	return ret;
+	return 0;
 
 discard_it:
 	kfree_skb(skb);
-	return ret;
+	return 0;
 
 discard_release:
 	/* Release any structures we may be holding. */

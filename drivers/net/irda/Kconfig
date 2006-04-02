@@ -64,6 +64,14 @@ config TEKRAM_DONGLE
 	  dongles you will have to start irattach like this:
 	  "irattach -d tekram".
 
+config TOIM3232_DONGLE
+	tristate "TOIM3232 IrDa dongle"
+	depends on DONGLE && IRDA
+	help
+	  Say Y here if you want to build support for the Vishay/Temic
+	  TOIM3232 and TOIM4232 based dongles.
+	  To compile it as a module, choose M here.
+
 config LITELINK_DONGLE
 	tristate "Parallax LiteLink dongle"
 	depends on DONGLE && IRDA
@@ -283,7 +291,7 @@ config USB_IRDA
 	  Say Y here if you want to build support for the USB IrDA FIR Dongle
 	  device driver.  To compile it as a module, choose M here: the module
 	  will be called irda-usb.  IrDA-USB support the various IrDA USB
-	  dongles available and most of their pecularities.  Those dongles
+	  dongles available and most of their peculiarities.  Those dongles
 	  plug in the USB port of your computer, are plug and play, and
 	  support SIR and FIR (4Mbps) speeds.  On the other hand, those
 	  dongles tend to be less efficient than a FIR chipset.
@@ -360,7 +368,7 @@ config ALI_FIR
 	help
 	  Say Y here if you want to build support for the ALi M5123 FIR
 	  Controller.  The ALi M5123 FIR Controller is embedded in ALi M1543C,
-	  M1535, M1535D, M1535+, M1535D Sourth Bridge.  This driver supports
+	  M1535, M1535D, M1535+, M1535D South Bridge.  This driver supports
 	  SIR, MIR and FIR (4Mbps) speeds.
 
 	  To compile it as a module, choose M here: the module will be called

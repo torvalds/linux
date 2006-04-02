@@ -1,6 +1,4 @@
 /*
- * arch/ppc/syslib/hawk_common.c
- *
  * Common Motorola PowerPlus Platform--really Falcon/Raven or HAWK.
  *
  * Author: Mark A. Greer

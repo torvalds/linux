@@ -37,6 +37,10 @@ config GENERIC_IOMAP
 	bool
 	default y
 
+config GENERIC_HWEIGHT
+	bool
+	default y
+
 config ARCH_MAY_HAVE_PC_FDC
 	bool
 	default y
@@ -80,6 +84,7 @@ config X86_VOYAGER
 
 config X86_NUMAQ
 	bool "NUMAQ (IBM/Sequent)"
+	select SMP
 	select NUMA
 	help
 	  This option is used for getting Linux to run on a (IBM/Sequent) NUMA
@@ -225,6 +230,15 @@ config SCHED_SMT
 	  when dealing with Intel Pentium 4 chips with HyperThreading at a
 	  cost of slightly increased overhead in some places. If unsure say
 	  N here.
+
+config SCHED_MC
+	bool "Multi-core scheduler support"
+	depends on SMP
+	default y
+	help
+	  Multi-core scheduler support improves the CPU scheduler's decision
+	  making when dealing with multi-core CPU chips at a cost of slightly
+	  increased overhead in some places. If unsure say N here.
 
 source "kernel/Kconfig.preempt"
 
@@ -400,6 +414,7 @@ choice
 
 config NOHIGHMEM
 	bool "off"
+	depends on !X86_NUMAQ
 	---help---
 	  Linux can use up to 64 Gigabytes of physical memory on x86 systems.
 	  However, the address space of 32-bit x86 processors is only 4
@@ -436,6 +451,7 @@ config NOHIGHMEM
 
 config HIGHMEM4G
 	bool "4GB"
+	depends on !X86_NUMAQ
 	help
 	  Select this if you have a 32-bit processor and between 1 and 4
 	  gigabytes of physical RAM.
@@ -502,10 +518,6 @@ config NUMA
 	depends on SMP && HIGHMEM64G && (X86_NUMAQ || X86_GENERICARCH || (X86_SUMMIT && ACPI))
 	default n if X86_PC
 	default y if (X86_NUMAQ || X86_SUMMIT)
-
-# Need comments to help the hapless user trying to turn on NUMA support
-comment "NUMA (NUMA-Q) requires SMP, 64GB highmem support"
-	depends on X86_NUMAQ && (!HIGHMEM64G || !SMP)
 
 comment "NUMA (Summit) requires SMP, 64GB highmem support, ACPI"
 	depends on X86_SUMMIT && (!HIGHMEM64G || !ACPI)
@@ -660,13 +672,18 @@ config BOOT_IOREMAP
 	default y
 
 config REGPARM
-	bool "Use register arguments (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
-	default n
+	bool "Use register arguments"
+	default y
 	help
-	Compile the kernel with -mregparm=3. This uses a different ABI
-	and passes the first three arguments of a function call in registers.
-	This will probably break binary only modules.
+	Compile the kernel with -mregparm=3. This instructs gcc to use
+	a more efficient function call ABI which passes the first three
+	arguments of a function call via registers, which results in denser
+	and faster code.
+
+	If this option is disabled, then the default ABI of passing
+	arguments via the stack is used.
+
+	If unsure, say Y.
 
 config SECCOMP
 	bool "Enable seccomp to safely compute untrusted bytecode"
@@ -733,7 +750,7 @@ config PHYSICAL_START
 
 config HOTPLUG_CPU
 	bool "Support for hot-pluggable CPUs (EXPERIMENTAL)"
-	depends on SMP && HOTPLUG && EXPERIMENTAL && !X86_VOYAGER
+	depends on SMP && HOTPLUG && EXPERIMENTAL && !X86_VOYAGER && !X86_PC
 	---help---
 	  Say Y here to experiment with turning CPUs off and on.  CPUs
 	  can be controlled through /sys/devices/system/cpu.

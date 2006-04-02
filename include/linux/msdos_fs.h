@@ -184,6 +184,7 @@ struct fat_slot_info {
 #include <linux/string.h>
 #include <linux/nls.h>
 #include <linux/fs.h>
+#include <linux/mutex.h>
 
 struct fat_mount_options {
 	uid_t fs_uid;
@@ -199,7 +200,7 @@ struct fat_mount_options {
 		 sys_immutable:1, /* set = system files are immutable */
 		 dotsOK:1,        /* set = hidden and system files are named '.filename' */
 		 isvfat:1,        /* 0=no vfat long filename support, 1=vfat support */
-		 utf8:1,	  /* Use of UTF8 character set (Default) */
+		 utf8:1,	  /* Use of UTF-8 character set (Default) */
 		 unicode_xlate:1, /* create escape sequences for unhandled Unicode */
 		 numtail:1,       /* Does first alias have a numeric '~1' type tail? */
 		 atari:1,         /* Use Atari GEMDOS variation of MS-DOS fs */
@@ -226,7 +227,7 @@ struct msdos_sb_info {
 	unsigned long max_cluster;   /* maximum cluster number */
 	unsigned long root_cluster;  /* first cluster of the root directory */
 	unsigned long fsinfo_sector; /* sector number of FAT32 fsinfo */
-	struct semaphore fat_lock;
+	struct mutex fat_lock;
 	unsigned int prev_free;      /* previously allocated cluster number */
 	unsigned int free_clusters;  /* -1 if undefined */
 	struct fat_mount_options options;
@@ -333,7 +334,7 @@ extern int fat_bmap(struct inode *inode, sector_t sector, sector_t *phys,
 		    unsigned long *mapped_blocks);
 
 /* fat/dir.c */
-extern struct file_operations fat_dir_operations;
+extern const struct file_operations fat_dir_operations;
 extern int fat_search_long(struct inode *inode, const unsigned char *name,
 			   int name_len, struct fat_slot_info *sinfo);
 extern int fat_dir_empty(struct inode *dir);
@@ -396,7 +397,7 @@ extern int fat_count_free_clusters(struct super_block *sb);
 /* fat/file.c */
 extern int fat_generic_ioctl(struct inode *inode, struct file *filp,
 			     unsigned int cmd, unsigned long arg);
-extern struct file_operations fat_file_operations;
+extern const struct file_operations fat_file_operations;
 extern struct inode_operations fat_file_inode_operations;
 extern int fat_notify_change(struct dentry * dentry, struct iattr * attr);
 extern void fat_truncate(struct inode *inode);
@@ -418,6 +419,9 @@ extern int fat_chain_add(struct inode *inode, int new_dclus, int nr_cluster);
 extern int date_dos2unix(unsigned short time, unsigned short date);
 extern void fat_date_unix2dos(int unix_date, __le16 *time, __le16 *date);
 extern int fat_sync_bhs(struct buffer_head **bhs, int nr_bhs);
+
+int fat_cache_init(void);
+void fat_cache_destroy(void);
 
 #endif /* __KERNEL__ */
 

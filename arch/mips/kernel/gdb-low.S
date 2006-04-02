@@ -41,7 +41,7 @@
  */
 		.align 	5
 		NESTED(trap_low, GDB_FR_SIZE, sp)
- 		.set	noat
+		.set	noat
 		.set 	noreorder
 
 		mfc0	k0, CP0_STATUS

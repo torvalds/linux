@@ -273,13 +273,13 @@ int sb_common_mixer_set(sb_devc * devc, int dev, int left, int right)
 	int regoffs;
 	unsigned char val;
 
+	if ((dev < 0) || (dev >= devc->iomap_sz))
+		return -EINVAL;
+
 	regoffs = (*devc->iomap)[dev][LEFT_CHN].regno;
 
 	if (regoffs == 0)
 		return -EINVAL;
-
-	if ((dev < 0) || (dev >= devc->iomap_sz))
-	    return -EINVAL;
 
 	val = sb_getmixer(devc, regoffs);
 	change_bits(devc, &val, dev, LEFT_CHN, left);

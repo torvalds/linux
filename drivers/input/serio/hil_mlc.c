@@ -556,7 +556,7 @@ static inline void hilse_setup_input(hil_mlc *mlc, struct hilse_node *node) {
 	do_gettimeofday(&(mlc->instart));
 	mlc->icount = 15;
 	memset(mlc->ipacket, 0, 16 * sizeof(hil_packet));
-	if (down_trylock(&(mlc->isem))) BUG();
+	BUG_ON(down_trylock(&(mlc->isem)));
 
 	return;
 }

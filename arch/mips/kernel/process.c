@@ -60,17 +60,9 @@ ATTRIB_NORET void cpu_idle(void)
 	}
 }
 
-extern void do_signal(struct pt_regs *regs);
-extern void do_signal32(struct pt_regs *regs);
-
 /*
  * Native o32 and N64 ABI without DSP ASE
  */
-extern int setup_frame(struct k_sigaction * ka, struct pt_regs *regs,
-        int signr, sigset_t *set);
-extern int setup_rt_frame(struct k_sigaction * ka, struct pt_regs *regs,
-        int signr, sigset_t *set, siginfo_t *info);
-
 struct mips_abi mips_abi = {
 	.do_signal	= do_signal,
 #ifdef CONFIG_TRAD_SIGNALS
@@ -83,11 +75,6 @@ struct mips_abi mips_abi = {
 /*
  * o32 compatibility on 64-bit kernels, without DSP ASE
  */
-extern int setup_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
-        int signr, sigset_t *set);
-extern int setup_rt_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
-        int signr, sigset_t *set, siginfo_t *info);
-
 struct mips_abi mips_abi_32 = {
 	.do_signal	= do_signal32,
 	.setup_frame	= setup_frame_32,
@@ -99,9 +86,6 @@ struct mips_abi mips_abi_32 = {
 /*
  * N32 on 64-bit kernels, without DSP ASE
  */
-extern int setup_rt_frame_n32(struct k_sigaction * ka, struct pt_regs *regs,
-        int signr, sigset_t *set, siginfo_t *info);
-
 struct mips_abi mips_abi_n32 = {
 	.do_signal	= do_signal,
 	.setup_rt_frame	= setup_rt_frame_n32
@@ -435,4 +419,3 @@ unsigned long get_wchan(struct task_struct *p)
 	return pc;
 }
 
-EXPORT_SYMBOL(get_wchan);

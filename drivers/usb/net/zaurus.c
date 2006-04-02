@@ -217,7 +217,7 @@ static int blan_mdlm_bind(struct usbnet *dev, struct usb_interface *intf)
 			 * with devices that use it and those that don't.
 			 */
 			if ((detail->bDetailData[1] & ~0x02) != 0x01) {
-				/* bmDataCapabilites == 0 would be fine too,
+				/* bmDataCapabilities == 0 would be fine too,
 				 * but framing is minidriver-coupled for now.
 				 */
 bad_detail:

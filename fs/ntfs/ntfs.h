@@ -60,13 +60,13 @@ extern struct kmem_cache *ntfs_index_ctx_cache;
 extern struct address_space_operations ntfs_aops;
 extern struct address_space_operations ntfs_mst_aops;
 
-extern struct  file_operations ntfs_file_ops;
+extern const struct  file_operations ntfs_file_ops;
 extern struct inode_operations ntfs_file_inode_ops;
 
-extern struct  file_operations ntfs_dir_ops;
+extern const struct  file_operations ntfs_dir_ops;
 extern struct inode_operations ntfs_dir_inode_ops;
 
-extern struct  file_operations ntfs_empty_file_ops;
+extern const struct  file_operations ntfs_empty_file_ops;
 extern struct inode_operations ntfs_empty_inode_ops;
 
 extern struct export_operations ntfs_export_ops;
@@ -91,7 +91,7 @@ extern void free_compression_buffers(void);
 
 /* From fs/ntfs/super.c */
 #define default_upcase_len 0x10000
-extern struct semaphore ntfs_lock;
+extern struct mutex ntfs_lock;
 
 typedef struct {
 	int val;
@@ -131,5 +131,34 @@ extern int ntfs_ucstonls(const ntfs_volume *vol, const ntfschar *ins,
 
 /* From fs/ntfs/upcase.c */
 extern ntfschar *generate_default_upcase(void);
+
+static inline int ntfs_ffs(int x)
+{
+	int r = 1;
+
+	if (!x)
+		return 0;
+	if (!(x & 0xffff)) {
+		x >>= 16;
+		r += 16;
+	}
+	if (!(x & 0xff)) {
+		x >>= 8;
+		r += 8;
+	}
+	if (!(x & 0xf)) {
+		x >>= 4;
+		r += 4;
+	}
+	if (!(x & 3)) {
+		x >>= 2;
+		r += 2;
+	}
+	if (!(x & 1)) {
+		x >>= 1;
+		r += 1;
+	}
+	return r;
+}
 
 #endif /* _LINUX_NTFS_H */

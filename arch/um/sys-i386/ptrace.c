@@ -6,6 +6,7 @@
 #include <linux/config.h>
 #include <linux/compiler.h>
 #include "linux/sched.h"
+#include "linux/mm.h"
 #include "asm/elf.h"
 #include "asm/ptrace.h"
 #include "asm/uaccess.h"
@@ -14,9 +15,22 @@
 #include "sysdep/sigcontext.h"
 #include "sysdep/sc.h"
 
-void arch_switch(void)
+void arch_switch_to_tt(struct task_struct *from, struct task_struct *to)
 {
-	update_debugregs(current->thread.arch.debugregs_seq);
+	update_debugregs(to->thread.arch.debugregs_seq);
+	arch_switch_tls_tt(from, to);
+}
+
+void arch_switch_to_skas(struct task_struct *from, struct task_struct *to)
+{
+	int err = arch_switch_tls_skas(from, to);
+	if (!err)
+		return;
+
+	if (err != -EINVAL)
+		printk(KERN_WARNING "arch_switch_tls_skas failed, errno %d, not EINVAL\n", -err);
+	else
+		printk(KERN_WARNING "arch_switch_tls_skas failed, errno = EINVAL\n");
 }
 
 int is_syscall(unsigned long addr)
@@ -26,9 +40,17 @@ int is_syscall(unsigned long addr)
 
 	n = copy_from_user(&instr, (void __user *) addr, sizeof(instr));
 	if(n){
-		printk("is_syscall : failed to read instruction from 0x%lx\n",
-		       addr);
-		return(0);
+		/* access_process_vm() grants access to vsyscall and stub,
+		 * while copy_from_user doesn't. Maybe access_process_vm is
+		 * slow, but that doesn't matter, since it will be called only
+		 * in case of singlestepping, if copy_from_user failed.
+		 */
+		n = access_process_vm(current, addr, &instr, sizeof(instr), 0);
+		if(n != sizeof(instr)) {
+			printk("is_syscall : failed to read instruction from "
+			       "0x%lx\n", addr);
+			return(1);
+		}
 	}
 	/* int 0x80 or sysenter */
 	return((instr == 0x80cd) || (instr == 0x340f));
@@ -115,22 +137,22 @@ unsigned long getreg(struct task_struct *child, int regno)
 int peek_user(struct task_struct *child, long addr, long data)
 {
 /* read the word at location addr in the USER area. */
-        unsigned long tmp;
+	unsigned long tmp;
 
-        if ((addr & 3) || addr < 0)
-                return -EIO;
+	if ((addr & 3) || addr < 0)
+		return -EIO;
 
-        tmp = 0;  /* Default return condition */
-        if(addr < MAX_REG_OFFSET){
-                tmp = getreg(child, addr);
-        }
-        else if((addr >= offsetof(struct user, u_debugreg[0])) &&
-                (addr <= offsetof(struct user, u_debugreg[7]))){
-                addr -= offsetof(struct user, u_debugreg[0]);
-                addr = addr >> 2;
-                tmp = child->thread.arch.debugregs[addr];
-        }
-        return put_user(tmp, (unsigned long *) data);
+	tmp = 0;  /* Default return condition */
+	if(addr < MAX_REG_OFFSET){
+		tmp = getreg(child, addr);
+	}
+	else if((addr >= offsetof(struct user, u_debugreg[0])) &&
+		(addr <= offsetof(struct user, u_debugreg[7]))){
+		addr -= offsetof(struct user, u_debugreg[0]);
+		addr = addr >> 2;
+		tmp = child->thread.arch.debugregs[addr];
+	}
+	return put_user(tmp, (unsigned long __user *) data);
 }
 
 struct i387_fxsave_struct {

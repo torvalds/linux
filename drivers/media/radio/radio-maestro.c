@@ -23,9 +23,10 @@
 #include <linux/sched.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
 #include <linux/pci.h>
 #include <linux/videodev.h>
+
 
 #define DRIVER_VERSION	"0.05"
 
@@ -104,7 +105,7 @@ struct radio_device {
 		muted,	/* VIDEO_AUDIO_MUTE */
 		stereo,	/* VIDEO_TUNER_STEREO_ON */	
 		tuned;	/* signal strength (0 or 0xffff) */
-	struct	semaphore lock;
+	struct mutex lock;
 };
 
 static u32 radio_bits_get(struct radio_device *dev)
@@ -258,9 +259,9 @@ static int radio_ioctl(struct inode *inode, struct file *file,
 	struct radio_device *card = video_get_drvdata(dev);
 	int ret;
 
-	down(&card->lock);
+	mutex_lock(&card->lock);
 	ret = video_usercopy(inode, file, cmd, arg, radio_function);
-	up(&card->lock);
+	mutex_unlock(&card->lock);
 
 	return ret;
 }
@@ -311,7 +312,7 @@ static int __devinit maestro_probe(struct pci_dev *pdev,
 	}
 
 	radio_unit->io = pci_resource_start(pdev, 0) + GPIO_DATA;
-	init_MUTEX(&radio_unit->lock);
+	mutex_init(&radio_unit->lock);
 
 	maestro_radio_inst = video_device_alloc();
 	if (maestro_radio_inst == NULL) {

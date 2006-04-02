@@ -134,26 +134,21 @@ static ssize_t usbdev_read(struct file *file, char __user *buf, size_t nbytes, l
 	}
 
 	if (pos < sizeof(struct usb_device_descriptor)) {
-		struct usb_device_descriptor *desc = kmalloc(sizeof(*desc), GFP_KERNEL);
-		if (!desc) {
-			ret = -ENOMEM;
-			goto err;
-		}
-		memcpy(desc, &dev->descriptor, sizeof(dev->descriptor));
-		le16_to_cpus(&desc->bcdUSB);
-		le16_to_cpus(&desc->idVendor);
-		le16_to_cpus(&desc->idProduct);
-		le16_to_cpus(&desc->bcdDevice);
+		struct usb_device_descriptor temp_desc ; /* 18 bytes - fits on the stack */
+
+		memcpy(&temp_desc, &dev->descriptor, sizeof(dev->descriptor));
+		le16_to_cpus(&temp_desc.bcdUSB);
+		le16_to_cpus(&temp_desc.idVendor);
+		le16_to_cpus(&temp_desc.idProduct);
+		le16_to_cpus(&temp_desc.bcdDevice);
 
 		len = sizeof(struct usb_device_descriptor) - pos;
 		if (len > nbytes)
 			len = nbytes;
-		if (copy_to_user(buf, ((char *)desc) + pos, len)) {
-			kfree(desc);
+		if (copy_to_user(buf, ((char *)&temp_desc) + pos, len)) {
 			ret = -EFAULT;
 			goto err;
 		}
-		kfree(desc);
 
 		*ppos += len;
 		buf += len;
@@ -498,7 +493,8 @@ static int check_ctrlrecip(struct dev_state *ps, unsigned int requesttype, unsig
 {
 	int ret = 0;
 
-	if (ps->dev->state != USB_STATE_CONFIGURED)
+	if (ps->dev->state != USB_STATE_ADDRESS
+	 && ps->dev->state != USB_STATE_CONFIGURED)
 		return -EHOSTUNREACH;
 	if (USB_TYPE_VENDOR == (USB_TYPE_MASK & requesttype))
 		return 0;

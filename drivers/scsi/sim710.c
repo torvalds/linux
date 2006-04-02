@@ -146,7 +146,7 @@ sim710_probe_common(struct device *dev, unsigned long base_addr,
  out_put_host:
 	scsi_host_put(host);
  out_release:
-	release_region(host->base, 64);
+	release_region(base_addr, 64);
  out_free:
 	kfree(hostdata);
  out:

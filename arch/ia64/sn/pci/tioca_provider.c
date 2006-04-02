@@ -377,7 +377,7 @@ tioca_dma_mapped(struct pci_dev *pdev, u64 paddr, size_t req_size)
 	struct tioca_dmamap *ca_dmamap;
 	void *map;
 	unsigned long flags;
-	struct pcidev_info *pcidev_info = SN_PCIDEV_INFO(pdev);;
+	struct pcidev_info *pcidev_info = SN_PCIDEV_INFO(pdev);
 
 	tioca_common = (struct tioca_common *)pcidev_info->pdi_pcibus_info;
 	tioca_kern = (struct tioca_kernel *)tioca_common->ca_kernel_private;

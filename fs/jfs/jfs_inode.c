@@ -25,6 +25,26 @@
 #include "jfs_dinode.h"
 #include "jfs_debug.h"
 
+
+void jfs_set_inode_flags(struct inode *inode)
+{
+	unsigned int flags = JFS_IP(inode)->mode2;
+
+	inode->i_flags &= ~(S_IMMUTABLE | S_APPEND |
+		S_NOATIME | S_DIRSYNC | S_SYNC);
+
+	if (flags & JFS_IMMUTABLE_FL)
+		inode->i_flags |= S_IMMUTABLE;
+	if (flags & JFS_APPEND_FL)
+		inode->i_flags |= S_APPEND;
+	if (flags & JFS_NOATIME_FL)
+		inode->i_flags |= S_NOATIME;
+	if (flags & JFS_DIRSYNC_FL)
+		inode->i_flags |= S_DIRSYNC;
+	if (flags & JFS_SYNC_FL)
+		inode->i_flags |= S_SYNC;
+}
+
 /*
  * NAME:	ialloc()
  *
@@ -63,6 +83,13 @@ struct inode *ialloc(struct inode *parent, umode_t mode)
 		inode->i_gid = current->fsgid;
 
 	/*
+	 * New inodes need to save sane values on disk when
+	 * uid & gid mount options are used
+	 */
+	jfs_inode->saved_uid = inode->i_uid;
+	jfs_inode->saved_gid = inode->i_gid;
+
+	/*
 	 * Allocate inode to quota.
 	 */
 	if (DQUOT_ALLOC_INODE(inode)) {
@@ -74,10 +101,20 @@ struct inode *ialloc(struct inode *parent, umode_t mode)
 	}
 
 	inode->i_mode = mode;
-	if (S_ISDIR(mode))
-		jfs_inode->mode2 = IDIRECTORY | mode;
-	else
-		jfs_inode->mode2 = INLINEEA | ISPARSE | mode;
+	/* inherit flags from parent */
+	jfs_inode->mode2 = JFS_IP(parent)->mode2 & JFS_FL_INHERIT;
+
+	if (S_ISDIR(mode)) {
+		jfs_inode->mode2 |= IDIRECTORY;
+		jfs_inode->mode2 &= ~JFS_DIRSYNC_FL;
+	}
+	else {
+		jfs_inode->mode2 |= INLINEEA | ISPARSE;
+		if (S_ISLNK(mode))
+			jfs_inode->mode2 &= ~(JFS_IMMUTABLE_FL|JFS_APPEND_FL);
+	}
+	jfs_inode->mode2 |= mode;
+
 	inode->i_blksize = sb->s_blocksize;
 	inode->i_blocks = 0;
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
@@ -98,6 +135,7 @@ struct inode *ialloc(struct inode *parent, umode_t mode)
 	jfs_inode->atlhead = 0;
 	jfs_inode->atltail = 0;
 	jfs_inode->xtlid = 0;
+	jfs_set_inode_flags(inode);
 
 	jfs_info("ialloc returns inode = 0x%p\n", inode);
 

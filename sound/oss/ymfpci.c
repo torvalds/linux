@@ -1918,10 +1918,10 @@ static int ymf_open(struct inode *inode, struct file *file)
 	if (unit == NULL)
 		return -ENODEV;
 
-	down(&unit->open_sem);
+	mutex_lock(&unit->open_mutex);
 
 	if ((state = ymf_state_alloc(unit)) == NULL) {
-		up(&unit->open_sem);
+		mutex_unlock(&unit->open_mutex);
 		return -ENOMEM;
 	}
 	list_add_tail(&state->chain, &unit->states);
@@ -1956,7 +1956,7 @@ static int ymf_open(struct inode *inode, struct file *file)
 	ymfpci_writeb(unit, YDSXGR_TIMERCTRL,
 	    (YDSXGR_TIMERCTRL_TEN|YDSXGR_TIMERCTRL_TIEN));
 #endif
-	up(&unit->open_sem);
+	mutex_unlock(&unit->open_mutex);
 
 	return nonseekable_open(inode, file);
 
@@ -1974,7 +1974,7 @@ out_nodma:
 	list_del(&state->chain);
 	kfree(state);
 
-	up(&unit->open_sem);
+	mutex_unlock(&unit->open_mutex);
 	return err;
 }
 
@@ -1987,7 +1987,7 @@ static int ymf_release(struct inode *inode, struct file *file)
 	ymfpci_writeb(unit, YDSXGR_TIMERCTRL, 0);
 #endif
 
-	down(&unit->open_sem);
+	mutex_lock(&unit->open_mutex);
 
 	/*
 	 * XXX Solve the case of O_NONBLOCK close - don't deallocate here.
@@ -2004,7 +2004,7 @@ static int ymf_release(struct inode *inode, struct file *file)
 	file->private_data = NULL;	/* Can you tell I programmed Solaris */
 	kfree(state);
 
-	up(&unit->open_sem);
+	mutex_unlock(&unit->open_mutex);
 
 	return 0;
 }
@@ -2532,7 +2532,7 @@ static int __devinit ymf_probe_one(struct pci_dev *pcidev, const struct pci_devi
 	spin_lock_init(&codec->reg_lock);
 	spin_lock_init(&codec->voice_lock);
 	spin_lock_init(&codec->ac97_lock);
-	init_MUTEX(&codec->open_sem);
+	mutex_init(&codec->open_mutex);
 	INIT_LIST_HEAD(&codec->states);
 	codec->pci = pcidev;
 

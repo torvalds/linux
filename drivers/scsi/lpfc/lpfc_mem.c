@@ -38,18 +38,6 @@
 #define LPFC_MBUF_POOL_SIZE     64      /* max elements in MBUF safety pool */
 #define LPFC_MEM_POOL_SIZE      64      /* max elem in non-DMA safety pool */
 
-static void *
-lpfc_pool_kmalloc(gfp_t gfp_flags, void *data)
-{
-	return kmalloc((unsigned long)data, gfp_flags);
-}
-
-static void
-lpfc_pool_kfree(void *obj, void *data)
-{
-	kfree(obj);
-}
-
 int
 lpfc_mem_alloc(struct lpfc_hba * phba)
 {
@@ -79,15 +67,13 @@ lpfc_mem_alloc(struct lpfc_hba * phba)
 		pool->current_count++;
 	}
 
-	phba->mbox_mem_pool = mempool_create(LPFC_MEM_POOL_SIZE,
-				lpfc_pool_kmalloc, lpfc_pool_kfree,
-				(void *)(unsigned long)sizeof(LPFC_MBOXQ_t));
+	phba->mbox_mem_pool = mempool_create_kmalloc_pool(LPFC_MEM_POOL_SIZE,
+							 sizeof(LPFC_MBOXQ_t));
 	if (!phba->mbox_mem_pool)
 		goto fail_free_mbuf_pool;
 
-	phba->nlp_mem_pool = mempool_create(LPFC_MEM_POOL_SIZE,
-			lpfc_pool_kmalloc, lpfc_pool_kfree,
-			(void *)(unsigned long)sizeof(struct lpfc_nodelist));
+	phba->nlp_mem_pool = mempool_create_kmalloc_pool(LPFC_MEM_POOL_SIZE,
+						sizeof(struct lpfc_nodelist));
 	if (!phba->nlp_mem_pool)
 		goto fail_free_mbox_pool;
 

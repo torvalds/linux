@@ -1700,7 +1700,7 @@ after_handle_vic_irq(unsigned int irq)
 
 			printk("VOYAGER SMP: CPU%d lost interrupt %d\n",
 			       cpu, irq);
-			for_each_cpu(real_cpu, mask) {
+			for_each_possible_cpu(real_cpu, mask) {
 
 				outb(VIC_CPU_MASQUERADE_ENABLE | real_cpu,
 				     VIC_PROCESSOR_ID);

@@ -3,7 +3,7 @@
  *
  * Generic implementation of the mutex fastpath, based on xchg().
  *
- * NOTE: An xchg based implementation is less optimal than an atomic
+ * NOTE: An xchg based implementation might be less optimal than an atomic
  *       decrement/increment based implementation. If your architecture
  *       has a reasonable atomic dec/inc then you should probably use
  *	 asm-generic/mutex-dec.h instead, or you could open-code an
@@ -22,14 +22,14 @@
  * wasn't 1 originally. This function MUST leave the value lower than 1
  * even when the "1" assertion wasn't true.
  */
-#define __mutex_fastpath_lock(count, fail_fn)				\
-do {									\
-	if (unlikely(atomic_xchg(count, 0) != 1))			\
-		fail_fn(count);						\
-	else								\
-		smp_mb();						\
-} while (0)
-
+static inline void
+__mutex_fastpath_lock(atomic_t *count, fastcall void (*fail_fn)(atomic_t *))
+{
+	if (unlikely(atomic_xchg(count, 0) != 1))
+		fail_fn(count);
+	else
+		smp_mb();
+}
 
 /**
  *  __mutex_fastpath_lock_retval - try to take the lock by moving the count
@@ -42,7 +42,7 @@ do {									\
  * or anything the slow path function returns
  */
 static inline int
-__mutex_fastpath_lock_retval(atomic_t *count, int (*fail_fn)(atomic_t *))
+__mutex_fastpath_lock_retval(atomic_t *count, fastcall int (*fail_fn)(atomic_t *))
 {
 	if (unlikely(atomic_xchg(count, 0) != 1))
 		return fail_fn(count);
@@ -64,12 +64,13 @@ __mutex_fastpath_lock_retval(atomic_t *count, int (*fail_fn)(atomic_t *))
  * __mutex_slowpath_needs_to_unlock() macro needs to return 1, it needs
  * to return 0 otherwise.
  */
-#define __mutex_fastpath_unlock(count, fail_fn)				\
-do {									\
-	smp_mb();							\
-	if (unlikely(atomic_xchg(count, 1) != 0))			\
-		fail_fn(count);						\
-} while (0)
+static inline void
+__mutex_fastpath_unlock(atomic_t *count, fastcall void (*fail_fn)(atomic_t *))
+{
+	smp_mb();
+	if (unlikely(atomic_xchg(count, 1) != 0))
+		fail_fn(count);
+}
 
 #define __mutex_slowpath_needs_to_unlock()		0
 

@@ -1,11 +1,5 @@
 /*
- *  This file contains the power_save function for 6xx & 7xxx CPUs
- *  rewritten in assembler
- *
- *  Warning ! This code assumes that if your machine has a 750fx
- *  it will have PLL 1 set to low speed mode (used during NAP/DOZE).
- *  if this is not the case some additional changes will have to
- *  be done to check a runtime var (a bit like powersave-nap)
+ *  This file contains the power_save function for 970-family CPUs.
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -26,49 +20,23 @@
 
 	.text
 
-/*
- * Here is the power_save_6xx function. This could eventually be
- * split into several functions & changing the function pointer
- * depending on the various features.
- */
 _GLOBAL(power4_idle)
 BEGIN_FTR_SECTION
 	blr
 END_FTR_SECTION_IFCLR(CPU_FTR_CAN_NAP)
-	/* We must dynamically check for the NAP feature as it
-	 * can be cleared by CPU init after the fixups are done
-	 */
-	LOAD_REG_ADDRBASE(r3,cur_cpu_spec)
-	ld	r4,ADDROFF(cur_cpu_spec)(r3)
-	ld	r4,CPU_SPEC_FEATURES(r4)
-	andi.	r0,r4,CPU_FTR_CAN_NAP
-	beqlr
 	/* Now check if user or arch enabled NAP mode */
 	LOAD_REG_ADDRBASE(r3,powersave_nap)
 	lwz	r4,ADDROFF(powersave_nap)(r3)
 	cmpwi	0,r4,0
 	beqlr
 
-	/* Clear MSR:EE */
-	mfmsr	r7
-	li	r4,0
-	ori	r4,r4,MSR_EE
-	andc	r0,r7,r4
-	mtmsrd	r0
-
-	/* Check current_thread_info()->flags */
-	clrrdi	r4,r1,THREAD_SHIFT
-	ld	r4,TI_FLAGS(r4)
-	andi.	r0,r4,_TIF_NEED_RESCHED
-	beq	1f
-	mtmsrd	r7	/* out of line this ? */
-	blr
-1:
 	/* Go to NAP now */
 BEGIN_FTR_SECTION
 	DSSALL
 	sync
 END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
+	mfmsr	r7
+	ori	r7,r7,MSR_EE
 	oris	r7,r7,MSR_POW@h
 	sync
 	isync

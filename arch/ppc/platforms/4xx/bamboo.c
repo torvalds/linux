@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/4xx/bamboo.c
- *
  * Bamboo board specific routines
  *
  * Wade Farnsworth <wfarnsworth@mvista.com>

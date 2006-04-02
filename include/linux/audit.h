@@ -33,27 +33,42 @@
  * 1200 - 1299 messages internal to the audit daemon
  * 1300 - 1399 audit event messages
  * 1400 - 1499 SE Linux use
- * 1500 - 1999 future use
- * 2000 is for otherwise unclassified kernel audit messages
+ * 1500 - 1599 kernel LSPP events
+ * 1600 - 1699 kernel crypto events
+ * 1700 - 1799 kernel anomaly records
+ * 1800 - 1999 future kernel use (maybe integrity labels and related events)
+ * 2000 is for otherwise unclassified kernel audit messages (legacy)
+ * 2001 - 2099 unused (kernel)
+ * 2100 - 2199 user space anomaly records
+ * 2200 - 2299 user space actions taken in response to anomalies
+ * 2300 - 2399 user space generated LSPP events
+ * 2400 - 2499 user space crypto events
+ * 2500 - 2999 future user space (maybe integrity labels and related events)
  *
- * Messages from 1000-1199 are bi-directional. 1200-1299 are exclusively user
- * space. Anything over that is kernel --> user space communication.
+ * Messages from 1000-1199 are bi-directional. 1200-1299 & 2100 - 2999 are
+ * exclusively user space. 1300-2099 is kernel --> user space 
+ * communication.
  */
 #define AUDIT_GET		1000	/* Get status */
 #define AUDIT_SET		1001	/* Set status (enable/disable/auditd) */
-#define AUDIT_LIST		1002	/* List syscall filtering rules */
-#define AUDIT_ADD		1003	/* Add syscall filtering rule */
-#define AUDIT_DEL		1004	/* Delete syscall filtering rule */
+#define AUDIT_LIST		1002	/* List syscall rules -- deprecated */
+#define AUDIT_ADD		1003	/* Add syscall rule -- deprecated */
+#define AUDIT_DEL		1004	/* Delete syscall rule -- deprecated */
 #define AUDIT_USER		1005	/* Message from userspace -- deprecated */
 #define AUDIT_LOGIN		1006	/* Define the login id and information */
 #define AUDIT_WATCH_INS		1007	/* Insert file/dir watch entry */
 #define AUDIT_WATCH_REM		1008	/* Remove file/dir watch entry */
 #define AUDIT_WATCH_LIST	1009	/* List all file/dir watches */
 #define AUDIT_SIGNAL_INFO	1010	/* Get info about sender of signal to auditd */
+#define AUDIT_ADD_RULE		1011	/* Add syscall filtering rule */
+#define AUDIT_DEL_RULE		1012	/* Delete syscall filtering rule */
+#define AUDIT_LIST_RULES	1013	/* List syscall filtering rules */
 
 #define AUDIT_FIRST_USER_MSG	1100	/* Userspace messages mostly uninteresting to kernel */
 #define AUDIT_USER_AVC		1107	/* We filter this differently */
 #define AUDIT_LAST_USER_MSG	1199
+#define AUDIT_FIRST_USER_MSG2	2100	/* More user space messages */
+#define AUDIT_LAST_USER_MSG2	2999
  
 #define AUDIT_DAEMON_START      1200    /* Daemon startup record */
 #define AUDIT_DAEMON_END        1201    /* Daemon normal stop record */
@@ -72,6 +87,13 @@
 #define AUDIT_AVC		1400	/* SE Linux avc denial or grant */
 #define AUDIT_SELINUX_ERR	1401	/* Internal SE Linux Errors */
 #define AUDIT_AVC_PATH		1402	/* dentry, vfsmount pair from avc */
+#define AUDIT_MAC_POLICY_LOAD	1403	/* Policy file load */
+#define AUDIT_MAC_STATUS	1404	/* Changed enforcing,permissive,off */
+#define AUDIT_MAC_CONFIG_CHANGE	1405	/* Changes to booleans */
+
+#define AUDIT_FIRST_KERN_ANOM_MSG   1700
+#define AUDIT_LAST_KERN_ANOM_MSG    1799
+#define AUDIT_ANOM_PROMISCUOUS      1700 /* Device changed promiscuous mode */
 
 #define AUDIT_KERNEL		2000	/* Asynchronous audit record. NOT A REQUEST. */
 
@@ -81,8 +103,9 @@
 #define AUDIT_FILTER_ENTRY	0x02	/* Apply rule at syscall entry */
 #define AUDIT_FILTER_WATCH	0x03	/* Apply rule to file system watches */
 #define AUDIT_FILTER_EXIT	0x04	/* Apply rule at syscall exit */
+#define AUDIT_FILTER_TYPE	0x05	/* Apply rule at audit_log_start */
 
-#define AUDIT_NR_FILTERS	5
+#define AUDIT_NR_FILTERS	6
 
 #define AUDIT_FILTER_PREPEND	0x10	/* Prepend to front of list */
 
@@ -97,6 +120,13 @@
 #define AUDIT_BITMASK_SIZE 64
 #define AUDIT_WORD(nr) ((__u32)((nr)/32))
 #define AUDIT_BIT(nr)  (1 << ((nr) - AUDIT_WORD(nr)*32))
+
+/* This bitmask is used to validate user input.  It represents all bits that
+ * are currently used in an audit field constant understood by the kernel.
+ * If you are adding a new #define AUDIT_<whatever>, please ensure that
+ * AUDIT_UNUSED_BITS is updated if need be. */
+#define AUDIT_UNUSED_BITS	0x0FFFFC00
+
 
 /* Rule fields */
 				/* These are useful when checking the
@@ -114,6 +144,7 @@
 #define AUDIT_LOGINUID	9
 #define AUDIT_PERS	10
 #define AUDIT_ARCH	11
+#define AUDIT_MSGTYPE	12
 
 				/* These are ONLY useful when checking
 				 * at syscall exit time (AUDIT_AT_EXIT). */
@@ -128,8 +159,28 @@
 #define AUDIT_ARG2      (AUDIT_ARG0+2)
 #define AUDIT_ARG3      (AUDIT_ARG0+3)
 
-#define AUDIT_NEGATE    0x80000000
+#define AUDIT_NEGATE			0x80000000
 
+/* These are the supported operators.
+ *	4  2  1
+ *	=  >  <
+ *	-------
+ *	0  0  0		0	nonsense
+ *	0  0  1		1	<
+ *	0  1  0		2	>
+ *	0  1  1		3	!=
+ *	1  0  0		4	=
+ *	1  0  1		5	<=
+ *	1  1  0		6	>=
+ *	1  1  1		7	all operators
+ */
+#define AUDIT_LESS_THAN			0x10000000
+#define AUDIT_GREATER_THAN		0x20000000
+#define AUDIT_NOT_EQUAL			0x30000000
+#define AUDIT_EQUAL			0x40000000
+#define AUDIT_LESS_THAN_OR_EQUAL	(AUDIT_LESS_THAN|AUDIT_EQUAL)
+#define AUDIT_GREATER_THAN_OR_EQUAL	(AUDIT_GREATER_THAN|AUDIT_EQUAL)
+#define AUDIT_OPERATORS			(AUDIT_EQUAL|AUDIT_NOT_EQUAL)
 
 /* Status symbols */
 				/* Mask values */
@@ -186,6 +237,26 @@ struct audit_status {
 	__u32		backlog;	/* messages waiting in queue */
 };
 
+/* audit_rule_data supports filter rules with both integer and string
+ * fields.  It corresponds with AUDIT_ADD_RULE, AUDIT_DEL_RULE and
+ * AUDIT_LIST_RULES requests.
+ */
+struct audit_rule_data {
+	__u32		flags;	/* AUDIT_PER_{TASK,CALL}, AUDIT_PREPEND */
+	__u32		action;	/* AUDIT_NEVER, AUDIT_POSSIBLE, AUDIT_ALWAYS */
+	__u32		field_count;
+	__u32		mask[AUDIT_BITMASK_SIZE]; /* syscall(s) affected */
+	__u32		fields[AUDIT_MAX_FIELDS];
+	__u32		values[AUDIT_MAX_FIELDS];
+	__u32		fieldflags[AUDIT_MAX_FIELDS];
+	__u32		buflen;	/* total length of string fields */
+	char		buf[0];	/* string fields buffer */
+};
+
+/* audit_rule is supported to maintain backward compatibility with
+ * userspace.  It supports integer fields only and corresponds to
+ * AUDIT_ADD, AUDIT_DEL and AUDIT_LIST requests.
+ */
 struct audit_rule {		/* for AUDIT_LIST, AUDIT_ADD, and AUDIT_DEL */
 	__u32		flags;	/* AUDIT_PER_{TASK,CALL}, AUDIT_PREPEND */
 	__u32		action;	/* AUDIT_NEVER, AUDIT_POSSIBLE, AUDIT_ALWAYS */
@@ -222,22 +293,33 @@ extern void audit_syscall_entry(struct task_struct *task, int arch,
 extern void audit_syscall_exit(struct task_struct *task, int failed, long return_code);
 extern void audit_getname(const char *name);
 extern void audit_putname(const char *name);
-extern void audit_inode(const char *name, const struct inode *inode, unsigned flags);
+extern void __audit_inode(const char *name, const struct inode *inode, unsigned flags);
+extern void __audit_inode_child(const char *dname, const struct inode *inode,
+				unsigned long pino);
+static inline void audit_inode(const char *name, const struct inode *inode,
+			       unsigned flags) {
+	if (unlikely(current->audit_context))
+		__audit_inode(name, inode, flags);
+}
+static inline void audit_inode_child(const char *dname, 
+				     const struct inode *inode, 
+				     unsigned long pino) {
+	if (unlikely(current->audit_context))
+		__audit_inode_child(dname, inode, pino);
+}
 
 				/* Private API (for audit.c only) */
-extern int  audit_receive_filter(int type, int pid, int uid, int seq,
-				 void *data, uid_t loginuid);
 extern unsigned int audit_serial(void);
 extern void auditsc_get_stamp(struct audit_context *ctx,
 			      struct timespec *t, unsigned int *serial);
 extern int  audit_set_loginuid(struct task_struct *task, uid_t loginuid);
 extern uid_t audit_get_loginuid(struct audit_context *ctx);
-extern int audit_ipc_perms(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode);
+extern int audit_ipc_perms(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode, struct kern_ipc_perm *ipcp);
 extern int audit_socketcall(int nargs, unsigned long *args);
 extern int audit_sockaddr(int len, void *addr);
 extern int audit_avc_path(struct dentry *dentry, struct vfsmount *mnt);
 extern void audit_signal_info(int sig, struct task_struct *t);
-extern int audit_filter_user(struct netlink_skb_parms *cb, int type);
+extern int audit_set_macxattr(const char *name);
 #else
 #define audit_alloc(t) ({ 0; })
 #define audit_free(t) do { ; } while (0)
@@ -245,16 +327,18 @@ extern int audit_filter_user(struct netlink_skb_parms *cb, int type);
 #define audit_syscall_exit(t,f,r) do { ; } while (0)
 #define audit_getname(n) do { ; } while (0)
 #define audit_putname(n) do { ; } while (0)
+#define __audit_inode(n,i,f) do { ; } while (0)
+#define __audit_inode_child(d,i,p) do { ; } while (0)
 #define audit_inode(n,i,f) do { ; } while (0)
-#define audit_receive_filter(t,p,u,s,d,l) ({ -EOPNOTSUPP; })
+#define audit_inode_child(d,i,p) do { ; } while (0)
 #define auditsc_get_stamp(c,t,s) do { BUG(); } while (0)
 #define audit_get_loginuid(c) ({ -1; })
-#define audit_ipc_perms(q,u,g,m) ({ 0; })
+#define audit_ipc_perms(q,u,g,m,i) ({ 0; })
 #define audit_socketcall(n,a) ({ 0; })
 #define audit_sockaddr(len, addr) ({ 0; })
 #define audit_avc_path(dentry, mnt) ({ 0; })
 #define audit_signal_info(s,t) do { ; } while (0)
-#define audit_filter_user(cb,t) ({ 1; })
+#define audit_set_macxattr(n) do { ; } while (0)
 #endif
 
 #ifdef CONFIG_AUDIT
@@ -278,12 +362,11 @@ extern void		    audit_log_d_path(struct audit_buffer *ab,
 					     const char *prefix,
 					     struct dentry *dentry,
 					     struct vfsmount *vfsmnt);
-				/* Private API (for auditsc.c only) */
-extern void		    audit_send_reply(int pid, int seq, int type,
-					     int done, int multi,
-					     void *payload, int size);
-extern void		    audit_log_lost(const char *message);
-extern struct semaphore audit_netlink_sem;
+				/* Private API (for audit.c only) */
+extern int audit_filter_user(struct netlink_skb_parms *cb, int type);
+extern int audit_filter_type(int type);
+extern int  audit_receive_filter(int type, int pid, int uid, int seq,
+				 void *data, size_t datasz, uid_t loginuid);
 #else
 #define audit_log(c,g,t,f,...) do { ; } while (0)
 #define audit_log_start(c,g,t) ({ NULL; })
@@ -293,6 +376,7 @@ extern struct semaphore audit_netlink_sem;
 #define audit_log_hex(a,b,l) do { ; } while (0)
 #define audit_log_untrustedstring(a,s) do { ; } while (0)
 #define audit_log_d_path(b,p,d,v) do { ; } while (0)
+#define audit_panic(m) do { ; } while (0)
 #endif
 #endif
 #endif

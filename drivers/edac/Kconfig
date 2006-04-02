@@ -64,35 +64,35 @@ config EDAC_AMD76X
 
 config EDAC_E7XXX
 	tristate "Intel e7xxx (e7205, e7500, e7501, e7505)"
-	depends on EDAC_MM_EDAC && PCI
+	depends on EDAC_MM_EDAC && PCI && X86_32
 	help
 	  Support for error detection and correction on the Intel
 	  E7205, E7500, E7501 and E7505 server chipsets.
 
 config EDAC_E752X
 	tristate "Intel e752x (e7520, e7525, e7320)"
-	depends on EDAC_MM_EDAC && PCI
+	depends on EDAC_MM_EDAC && PCI && X86 && HOTPLUG
 	help
 	  Support for error detection and correction on the Intel
 	  E7520, E7525, E7320 server chipsets.
 
 config EDAC_I82875P
 	tristate "Intel 82875p (D82875P, E7210)"
-	depends on EDAC_MM_EDAC && PCI
+	depends on EDAC_MM_EDAC && PCI && X86_32
 	help
 	  Support for error detection and correction on the Intel
 	  DP82785P and E7210 server chipsets.
 
 config EDAC_I82860
 	tristate "Intel 82860"
-	depends on EDAC_MM_EDAC && PCI
+	depends on EDAC_MM_EDAC && PCI && X86_32
 	help
 	  Support for error detection and correction on the Intel
 	  82860 chipset.
 
 config EDAC_R82600
 	tristate "Radisys 82600 embedded chipset"
-	depends on EDAC_MM_EDAC
+	depends on EDAC_MM_EDAC && PCI && X86_32
 	help
 	  Support for error detection and correction on the Radisys
 	  82600 embedded chipset.

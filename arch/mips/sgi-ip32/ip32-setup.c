@@ -91,14 +91,14 @@ void __init plat_setup(void)
 {
 	board_be_init = ip32_be_init;
 
-	rtc_get_time = mc146818_get_cmos_time;
-	rtc_set_mmss = mc146818_set_rtc_mmss;
+	rtc_mips_get_time = mc146818_get_cmos_time;
+	rtc_mips_set_mmss = mc146818_set_rtc_mmss;
 
 	board_time_init = ip32_time_init;
 	board_timer_setup = ip32_timer_setup;
 
 #ifdef CONFIG_SERIAL_8250
- 	{
+	{
 		static struct uart_port o2_serial[2];
 
 		memset(o2_serial, 0, sizeof(o2_serial));

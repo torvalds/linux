@@ -163,8 +163,8 @@ static int cx8802_restart_queue(struct cx8802_dev    *dev,
 
 /* ------------------------------------------------------------------ */
 
-int cx8802_buf_prepare(struct cx8802_dev *dev, struct cx88_buffer *buf,
-			enum v4l2_field field)
+int cx8802_buf_prepare(struct videobuf_queue *q, struct cx8802_dev *dev,
+			struct cx88_buffer *buf, enum v4l2_field field)
 {
 	int size = dev->ts_packet_size * dev->ts_packet_count;
 	int rc;
@@ -179,7 +179,7 @@ int cx8802_buf_prepare(struct cx8802_dev *dev, struct cx88_buffer *buf,
 		buf->vb.size   = size;
 		buf->vb.field  = field /*V4L2_FIELD_TOP*/;
 
-		if (0 != (rc = videobuf_iolock(dev->pci,&buf->vb,NULL)))
+		if (0 != (rc = videobuf_iolock(q,&buf->vb,NULL)))
 			goto fail;
 		cx88_risc_databuffer(dev->pci, &buf->risc,
 				     buf->vb.dma.sglist,
@@ -189,36 +189,36 @@ int cx8802_buf_prepare(struct cx8802_dev *dev, struct cx88_buffer *buf,
 	return 0;
 
  fail:
-	cx88_free_buffer(dev->pci,buf);
+	cx88_free_buffer(q,buf);
 	return rc;
 }
 
 void cx8802_buf_queue(struct cx8802_dev *dev, struct cx88_buffer *buf)
 {
 	struct cx88_buffer    *prev;
-	struct cx88_dmaqueue  *q    = &dev->mpegq;
+	struct cx88_dmaqueue  *cx88q = &dev->mpegq;
 
 	dprintk( 1, "cx8802_buf_queue\n" );
 	/* add jump to stopper */
 	buf->risc.jmp[0] = cpu_to_le32(RISC_JUMP | RISC_IRQ1 | RISC_CNT_INC);
-	buf->risc.jmp[1] = cpu_to_le32(q->stopper.dma);
+	buf->risc.jmp[1] = cpu_to_le32(cx88q->stopper.dma);
 
-	if (list_empty(&q->active)) {
+	if (list_empty(&cx88q->active)) {
 		dprintk( 0, "queue is empty - first active\n" );
-		list_add_tail(&buf->vb.queue,&q->active);
-		cx8802_start_dma(dev, q, buf);
+		list_add_tail(&buf->vb.queue,&cx88q->active);
+		cx8802_start_dma(dev, cx88q, buf);
 		buf->vb.state = STATE_ACTIVE;
-		buf->count    = q->count++;
-		mod_timer(&q->timeout, jiffies+BUFFER_TIMEOUT);
+		buf->count    = cx88q->count++;
+		mod_timer(&cx88q->timeout, jiffies+BUFFER_TIMEOUT);
 		dprintk(0,"[%p/%d] %s - first active\n",
 			buf, buf->vb.i, __FUNCTION__);
 
 	} else {
 		dprintk( 1, "queue is not empty - append to active\n" );
-		prev = list_entry(q->active.prev, struct cx88_buffer, vb.queue);
-		list_add_tail(&buf->vb.queue,&q->active);
+		prev = list_entry(cx88q->active.prev, struct cx88_buffer, vb.queue);
+		list_add_tail(&buf->vb.queue,&cx88q->active);
 		buf->vb.state = STATE_ACTIVE;
-		buf->count    = q->count++;
+		buf->count    = cx88q->count++;
 		prev->risc.jmp[1] = cpu_to_le32(buf->risc.dma);
 		dprintk( 1, "[%p/%d] %s - append to active\n",
 			buf, buf->vb.i, __FUNCTION__);

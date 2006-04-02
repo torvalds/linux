@@ -85,7 +85,7 @@ enum adb_message {
     ADB_MSG_POST_RESET	/* Called after resetting the bus (re-do init & register) */
 };
 extern struct adb_driver *adb_controller;
-extern struct notifier_block *adb_client_list;
+extern struct blocking_notifier_head adb_client_list;
 
 int adb_request(struct adb_request *req, void (*done)(struct adb_request *),
 		int flags, int nbytes, ...);

@@ -1109,7 +1109,9 @@ nfs3_xdr_setaclres(struct rpc_rqst *req, u32 *p, struct nfs_fattr *fattr)
 	.p_encode    = (kxdrproc_t) nfs3_xdr_##argtype,			\
 	.p_decode    = (kxdrproc_t) nfs3_xdr_##restype,			\
 	.p_bufsiz    = MAX(NFS3_##argtype##_sz,NFS3_##restype##_sz) << 2,	\
-	.p_timer     = timer						\
+	.p_timer     = timer,						\
+	.p_statidx   = NFS3PROC_##proc,					\
+	.p_name      = #proc,						\
 	}
 
 struct rpc_procinfo	nfs3_procedures[] = {
@@ -1138,7 +1140,7 @@ struct rpc_procinfo	nfs3_procedures[] = {
 
 struct rpc_version		nfs_version3 = {
 	.number			= 3,
-	.nrprocs		= sizeof(nfs3_procedures)/sizeof(nfs3_procedures[0]),
+	.nrprocs		= ARRAY_SIZE(nfs3_procedures),
 	.procs			= nfs3_procedures
 };
 
@@ -1150,6 +1152,7 @@ static struct rpc_procinfo	nfs3_acl_procedures[] = {
 		.p_decode = (kxdrproc_t) nfs3_xdr_getaclres,
 		.p_bufsiz = MAX(ACL3_getaclargs_sz, ACL3_getaclres_sz) << 2,
 		.p_timer = 1,
+		.p_name = "GETACL",
 	},
 	[ACLPROC3_SETACL] = {
 		.p_proc = ACLPROC3_SETACL,
@@ -1157,6 +1160,7 @@ static struct rpc_procinfo	nfs3_acl_procedures[] = {
 		.p_decode = (kxdrproc_t) nfs3_xdr_setaclres,
 		.p_bufsiz = MAX(ACL3_setaclargs_sz, ACL3_setaclres_sz) << 2,
 		.p_timer = 0,
+		.p_name = "SETACL",
 	},
 };
 

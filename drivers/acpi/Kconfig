@@ -205,6 +205,18 @@ config ACPI_IBM
 
 	  If you have an IBM ThinkPad laptop, say Y or M here.
 
+config ACPI_IBM_DOCK
+	bool "Legacy Docking Station Support"
+	depends on ACPI_IBM
+	default n
+	---help---
+	  Allows the ibm_acpi driver to handle docking station events.
+	  This support is obsoleted by CONFIG_HOTPLUG_PCI_ACPI.  It will
+	  allow locking and removing the laptop from the docking station,
+	  but will not properly connect PCI devices.
+
+	  If you are not sure, say N here.
+
 config ACPI_TOSHIBA
 	tristate "Toshiba Laptop Extras"
 	depends on X86
@@ -244,7 +256,8 @@ config ACPI_CUSTOM_DSDT_FILE
 	depends on ACPI_CUSTOM_DSDT
 	default ""
 	help
-	  Enter the full path name to the file wich includes the AmlCode declaration.
+	  Enter the full path name to the file which includes the AmlCode
+	  declaration.
 
 config ACPI_BLACKLIST_YEAR
 	int "Disable ACPI for systems before Jan 1st this year" if X86_32

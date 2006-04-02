@@ -76,13 +76,13 @@ int snd_opl3_open(struct snd_hwdep * hw, struct file *file)
 {
 	struct snd_opl3 *opl3 = hw->private_data;
 
-	down(&opl3->access_mutex);
+	mutex_lock(&opl3->access_mutex);
 	if (opl3->used) {
-		up(&opl3->access_mutex);
+		mutex_unlock(&opl3->access_mutex);
 		return -EAGAIN;
 	}
 	opl3->used++;
-	up(&opl3->access_mutex);
+	mutex_unlock(&opl3->access_mutex);
 
 	return 0;
 }
@@ -179,9 +179,9 @@ int snd_opl3_release(struct snd_hwdep * hw, struct file *file)
 	struct snd_opl3 *opl3 = hw->private_data;
 
 	snd_opl3_reset(opl3);
-	down(&opl3->access_mutex);
+	mutex_lock(&opl3->access_mutex);
 	opl3->used--;
-	up(&opl3->access_mutex);
+	mutex_unlock(&opl3->access_mutex);
 
 	return 0;
 }

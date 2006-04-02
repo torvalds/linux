@@ -1,23 +1,18 @@
-obj-y := bitops.o bugs.o checksum.o delay.o fault.o ksyms.o ldt.o ptrace.o \
-	ptrace_user.o semaphore.o signal.o sigcontext.o syscalls.o sysrq.o \
-	sys_call_table.o
+obj-y = bugs.o checksum.o delay.o fault.o ksyms.o ldt.o ptrace.o \
+	ptrace_user.o signal.o sigcontext.o syscalls.o sysrq.o \
+	sys_call_table.o tls.o
 
 obj-$(CONFIG_MODE_SKAS) += stub.o stub_segv.o
 
-obj-$(CONFIG_HIGHMEM) += highmem.o
-obj-$(CONFIG_MODULES) += module.o
+subarch-obj-y = lib/bitops.o kernel/semaphore.o
+subarch-obj-$(CONFIG_HIGHMEM) += mm/highmem.o
+subarch-obj-$(CONFIG_MODULES) += kernel/module.o
 
 USER_OBJS := bugs.o ptrace_user.o sigcontext.o fault.o stub_segv.o
 
-SYMLINKS = bitops.c semaphore.c highmem.c module.c
-
 include arch/um/scripts/Makefile.rules
 
-bitops.c-dir = lib
-semaphore.c-dir = kernel
-highmem.c-dir = mm
-module.c-dir = kernel
+extra-$(CONFIG_MODE_TT) += unmap.o
 
-$(obj)/stub_segv.o : _c_flags = $(call unprofile,$(CFLAGS))
-
-include arch/um/scripts/Makefile.unmap
+$(obj)/stub_segv.o $(obj)/unmap.o: \
+	_c_flags = $(call unprofile,$(CFLAGS))

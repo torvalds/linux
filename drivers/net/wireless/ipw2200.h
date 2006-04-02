@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright(c) 2003 - 2005 Intel Corporation. All rights reserved.
+  Copyright(c) 2003 - 2006 Intel Corporation. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms of version 2 of the GNU General Public License as
@@ -33,6 +33,7 @@
 #include <linux/moduleparam.h>
 #include <linux/config.h>
 #include <linux/init.h>
+#include <linux/mutex.h>
 
 #include <linux/pci.h>
 #include <linux/netdevice.h>
@@ -46,6 +47,7 @@
 #include <linux/firmware.h>
 #include <linux/wireless.h>
 #include <linux/dma-mapping.h>
+#include <linux/jiffies.h>
 #include <asm/io.h>
 
 #include <net/ieee80211.h>
@@ -244,8 +246,10 @@ enum connection_manager_assoc_states {
 #define HOST_NOTIFICATION_S36_MEASUREMENT_REFUSED       31
 
 #define HOST_NOTIFICATION_STATUS_BEACON_MISSING         1
-#define IPW_MB_DISASSOCIATE_THRESHOLD_DEFAULT           24
+#define IPW_MB_ROAMING_THRESHOLD_MIN                    1
 #define IPW_MB_ROAMING_THRESHOLD_DEFAULT                8
+#define IPW_MB_ROAMING_THRESHOLD_MAX                    30
+#define IPW_MB_DISASSOCIATE_THRESHOLD_DEFAULT           3*IPW_MB_ROAMING_THRESHOLD_DEFAULT
 #define IPW_REAL_RATE_RX_PACKET_THRESHOLD               300
 
 #define MACADRR_BYTE_LEN                     6
@@ -616,13 +620,16 @@ struct notif_tgi_tx_key {
 	u8 reserved;
 } __attribute__ ((packed));
 
+#define SILENCE_OVER_THRESH (1)
+#define SILENCE_UNDER_THRESH (2)
+
 struct notif_link_deterioration {
 	struct ipw_cmd_stats stats;
 	u8 rate;
 	u8 modulation;
 	struct rate_histogram histogram;
-	u8 reserved1;
-	u16 reserved2;
+	u8 silence_notification_type;	/* SILENCE_OVER/UNDER_THRESH */
+	u16 silence_count;
 } __attribute__ ((packed));
 
 struct notif_association {
@@ -780,7 +787,7 @@ struct ipw_sys_config {
 	u8 enable_cts_to_self;
 	u8 enable_multicast_filtering;
 	u8 bt_coexist_collision_thr;
-	u8 reserved2;
+	u8 silence_threshold;
 	u8 accept_all_mgmt_bcpr;
 	u8 accept_all_mgtm_frames;
 	u8 pass_noise_stats_to_host;
@@ -852,7 +859,7 @@ struct ipw_scan_request_ext {
 	u16 dwell_time[IPW_SCAN_TYPES];
 } __attribute__ ((packed));
 
-extern inline u8 ipw_get_scan_type(struct ipw_scan_request_ext *scan, u8 index)
+static inline u8 ipw_get_scan_type(struct ipw_scan_request_ext *scan, u8 index)
 {
 	if (index % 2)
 		return scan->scan_type[index / 2] & 0x0F;
@@ -860,7 +867,7 @@ extern inline u8 ipw_get_scan_type(struct ipw_scan_request_ext *scan, u8 index)
 		return (scan->scan_type[index / 2] & 0xF0) >> 4;
 }
 
-extern inline void ipw_set_scan_type(struct ipw_scan_request_ext *scan,
+static inline void ipw_set_scan_type(struct ipw_scan_request_ext *scan,
 				     u8 index, u8 scan_type)
 {
 	if (index % 2)
@@ -1120,7 +1127,7 @@ struct ipw_priv {
 	struct ieee80211_device *ieee;
 
 	spinlock_t lock;
-	struct semaphore sem;
+	struct mutex mutex;
 
 	/* basic pci-network driver stuff */
 	struct pci_dev *pci_dev;
@@ -1406,13 +1413,6 @@ do { if (ipw_debug_level & (level)) \
 * Register bit definitions
 */
 
-/* Dino control registers bits */
-
-#define DINO_ENABLE_SYSTEM 0x80
-#define DINO_ENABLE_CS     0x40
-#define DINO_RXFIFO_DATA   0x01
-#define DINO_CONTROL_REG   0x00200000
-
 #define IPW_INTA_RW       0x00000008
 #define IPW_INTA_MASK_R   0x0000000C
 #define IPW_INDIRECT_ADDR 0x00000010
@@ -1459,6 +1459,11 @@ do { if (ipw_debug_level & (level)) \
 #define IPW_DOMAIN_0_END 0x1000
 #define CLX_MEM_BAR_SIZE 0x1000
 
+/* Dino/baseband control registers bits */
+
+#define DINO_ENABLE_SYSTEM 0x80	/* 1 = baseband processor on, 0 = reset */
+#define DINO_ENABLE_CS     0x40	/* 1 = enable ucode load */
+#define DINO_RXFIFO_DATA   0x01	/* 1 = data available */
 #define IPW_BASEBAND_CONTROL_STATUS	0X00200000
 #define IPW_BASEBAND_TX_FIFO_WRITE	0X00200004
 #define IPW_BASEBAND_RX_FIFO_READ	0X00200004
@@ -1567,12 +1572,17 @@ do { if (ipw_debug_level & (level)) \
 #define EEPROM_BSS_CHANNELS_BG  (GET_EEPROM_ADDR(0x2c,LSB))	/* 2 bytes  */
 #define EEPROM_HW_VERSION       (GET_EEPROM_ADDR(0x72,LSB))	/* 2 bytes  */
 
-/* NIC type as found in the one byte EEPROM_NIC_TYPE  offset*/
+/* NIC type as found in the one byte EEPROM_NIC_TYPE offset */
 #define EEPROM_NIC_TYPE_0 0
 #define EEPROM_NIC_TYPE_1 1
 #define EEPROM_NIC_TYPE_2 2
 #define EEPROM_NIC_TYPE_3 3
 #define EEPROM_NIC_TYPE_4 4
+
+/* Bluetooth Coexistence capabilities as found in EEPROM_SKU_CAPABILITY */
+#define EEPROM_SKU_CAP_BT_CHANNEL_SIG  0x01	/* we can tell BT our channel # */
+#define EEPROM_SKU_CAP_BT_PRIORITY     0x02	/* BT can take priority over us */
+#define EEPROM_SKU_CAP_BT_OOB          0x04	/* we can signal BT out-of-band */
 
 #define FW_MEM_REG_LOWER_BOUND          0x00300000
 #define FW_MEM_REG_EEPROM_ACCESS        (FW_MEM_REG_LOWER_BOUND + 0x40)
@@ -1658,9 +1668,10 @@ enum {
 	IPW_FW_ERROR_FATAL_ERROR
 };
 
-#define AUTH_OPEN       0
-#define AUTH_SHARED_KEY 1
-#define AUTH_IGNORE     3
+#define AUTH_OPEN	0
+#define AUTH_SHARED_KEY	1
+#define AUTH_LEAP	2
+#define AUTH_IGNORE	3
 
 #define HC_ASSOCIATE      0
 #define HC_REASSOCIATE    1
@@ -1860,7 +1871,7 @@ struct host_cmd {
 	u8 cmd;
 	u8 len;
 	u16 reserved;
-	u32 param[TFD_CMD_IMMEDIATE_PAYLOAD_LENGTH];
+	u32 *param;
 } __attribute__ ((packed));
 
 struct ipw_cmd_log {
@@ -1869,21 +1880,24 @@ struct ipw_cmd_log {
 	struct host_cmd cmd;
 };
 
-#define CFG_BT_COEXISTENCE_MIN                  0x00
-#define CFG_BT_COEXISTENCE_DEFER                0x02
-#define CFG_BT_COEXISTENCE_KILL                 0x04
-#define CFG_BT_COEXISTENCE_WME_OVER_BT          0x08
-#define CFG_BT_COEXISTENCE_OOB                  0x10
-#define CFG_BT_COEXISTENCE_MAX                  0xFF
-#define CFG_BT_COEXISTENCE_DEF                  0x80	/* read Bt from EEPROM */
+/* SysConfig command parameters ... */
+/* bt_coexistence param */
+#define CFG_BT_COEXISTENCE_SIGNAL_CHNL  0x01	/* tell BT our chnl # */
+#define CFG_BT_COEXISTENCE_DEFER        0x02	/* defer our Tx if BT traffic */
+#define CFG_BT_COEXISTENCE_KILL         0x04	/* kill our Tx if BT traffic */
+#define CFG_BT_COEXISTENCE_WME_OVER_BT  0x08	/* multimedia extensions */
+#define CFG_BT_COEXISTENCE_OOB          0x10	/* signal BT via out-of-band */
 
-#define CFG_CTS_TO_ITSELF_ENABLED_MIN	0x0
-#define CFG_CTS_TO_ITSELF_ENABLED_MAX	0x1
+/* clear-to-send to self param */
+#define CFG_CTS_TO_ITSELF_ENABLED_MIN	0x00
+#define CFG_CTS_TO_ITSELF_ENABLED_MAX	0x01
 #define CFG_CTS_TO_ITSELF_ENABLED_DEF	CFG_CTS_TO_ITSELF_ENABLED_MIN
 
-#define CFG_SYS_ANTENNA_BOTH                      0x000
-#define CFG_SYS_ANTENNA_A                         0x001
-#define CFG_SYS_ANTENNA_B                         0x003
+/* Antenna diversity param (h/w can select best antenna, based on signal) */
+#define CFG_SYS_ANTENNA_BOTH            0x00	/* NIC selects best antenna */
+#define CFG_SYS_ANTENNA_A               0x01	/* force antenna A */
+#define CFG_SYS_ANTENNA_B               0x03	/* force antenna B */
+#define CFG_SYS_ANTENNA_SLOW_DIV        0x02	/* consider background noise */
 
 /*
  * The definitions below were lifted off the ipw2100 driver, which only
@@ -1898,28 +1912,5 @@ struct ipw_cmd_log {
 #define IPW_IBSS_11B_DEFAULT_MASK   0x87ff
 
 #define IPW_MAX_CONFIG_RETRIES 10
-
-static inline u32 frame_hdr_len(struct ieee80211_hdr_4addr *hdr)
-{
-	u32 retval;
-	u16 fc;
-
-	retval = sizeof(struct ieee80211_hdr_3addr);
-	fc = le16_to_cpu(hdr->frame_ctl);
-
-	/*
-	 * Function     ToDS    FromDS
-	 * IBSS         0       0
-	 * To AP        1       0
-	 * From AP      0       1
-	 * WDS (bridge) 1       1
-	 *
-	 * Only WDS frames use Address4 among them. --YZ
-	 */
-	if (!(fc & IEEE80211_FCTL_TODS) || !(fc & IEEE80211_FCTL_FROMDS))
-		retval -= ETH_ALEN;
-
-	return retval;
-}
 
 #endif				/* __ipw2200_h__ */

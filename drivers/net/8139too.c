@@ -229,7 +229,7 @@ typedef enum {
 
 
 /* indexed by board_t, above */
-static struct {
+static const struct {
 	const char *name;
 	u32 hw_flags;
 } board_info[] __devinitdata = {
@@ -1131,7 +1131,7 @@ static void __devexit rtl8139_remove_one (struct pci_dev *pdev)
    No extra delay is needed with 33Mhz PCI, but 66Mhz may change this.
  */
 
-#define eeprom_delay()	RTL_R32(Cfg9346)
+#define eeprom_delay()	(void)RTL_R32(Cfg9346)
 
 /* The EEPROM commands include the alway-set leading bit. */
 #define EE_WRITE_CMD	(5)
@@ -1192,7 +1192,7 @@ static int __devinit read_eeprom (void __iomem *ioaddr, int location, int addr_l
 #define mdio_delay()	RTL_R8(Config4)
 
 
-static char mii_2_8139_map[8] = {
+static const char mii_2_8139_map[8] = {
 	BasicModeCtrl,
 	BasicModeStatus,
 	0,
@@ -1605,7 +1605,7 @@ static void rtl8139_thread (void *_data)
 	if (tp->watchdog_fired) {
 		tp->watchdog_fired = 0;
 		rtl8139_tx_timeout_task(_data);
-	} else if (rtnl_shlock_nowait() == 0) {
+	} else if (rtnl_trylock()) {
 		rtl8139_thread_iter (dev, tp, tp->mmio_addr);
 		rtnl_unlock ();
 	} else {

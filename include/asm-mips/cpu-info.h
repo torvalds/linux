@@ -39,6 +39,7 @@ struct cache_desc {
 #define MIPS_CACHE_ALIASES	0x00000004	/* Cache could have aliases */
 #define MIPS_CACHE_IC_F_DC	0x00000008	/* Ic can refill from D-cache */
 #define MIPS_IC_SNOOPS_REMOTE	0x00000010	/* Ic snoops remote stores */
+#define MIPS_CACHE_PINDEX	0x00000020	/* Physically indexed cache */
 
 struct cpuinfo_mips {
 	unsigned long		udelay_val;

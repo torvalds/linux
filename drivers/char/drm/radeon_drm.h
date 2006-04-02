@@ -222,6 +222,7 @@ typedef union {
 #	define R300_WAIT_3D  		0x2
 #	define R300_WAIT_2D_CLEAN  	0x3
 #	define R300_WAIT_3D_CLEAN  	0x4
+#define R300_CMD_SCRATCH		8
 
 typedef union {
 	unsigned int u;
@@ -247,6 +248,9 @@ typedef union {
 	struct {
 		unsigned char cmd_type, flags, pad0, pad1;
 	} wait;
+	struct {
+		unsigned char cmd_type, reg, n_bufs, flags;
+	} scratch;
 } drm_r300_cmd_header_t;
 
 #define RADEON_FRONT			0x1
@@ -697,6 +701,7 @@ typedef struct drm_radeon_setparam {
 #define RADEON_SETPARAM_FB_LOCATION    1	/* determined framebuffer location */
 #define RADEON_SETPARAM_SWITCH_TILING  2	/* enable/disable color tiling */
 #define RADEON_SETPARAM_PCIGART_LOCATION 3	/* PCI Gart Location */
+#define RADEON_SETPARAM_NEW_MEMMAP 4		/* Use new memory map */
 
 /* 1.14: Clients can allocate/free a surface
  */

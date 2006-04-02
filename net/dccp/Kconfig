@@ -24,6 +24,10 @@ config INET_DCCP_DIAG
 	def_tristate y if (IP_DCCP = y && INET_DIAG = y)
 	def_tristate m
 
+config IP_DCCP_ACKVEC
+	depends on IP_DCCP
+	def_bool N
+
 source "net/dccp/ccids/Kconfig"
 
 menu "DCCP Kernel Hacking"
@@ -36,15 +40,6 @@ config IP_DCCP_DEBUG
 
 	  Just say N.
 
-config IP_DCCP_UNLOAD_HACK
-	depends on IP_DCCP=m && IP_DCCP_CCID3=m
-	bool "DCCP control sock unload hack"
-	---help---
-	  Enable this to be able to unload the dccp module when the it
-	  has only one refcount held, the control sock one. Just execute
-	  "rmmod dccp_ccid3 dccp"
-
-	  Just say N.
 endmenu
 
 endmenu

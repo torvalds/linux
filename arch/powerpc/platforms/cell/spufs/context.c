@@ -27,7 +27,7 @@
 #include <asm/spu_csa.h>
 #include "spufs.h"
 
-struct spu_context *alloc_spu_context(struct address_space *local_store)
+struct spu_context *alloc_spu_context(void)
 {
 	struct spu_context *ctx;
 	ctx = kmalloc(sizeof *ctx, GFP_KERNEL);
@@ -47,10 +47,17 @@ struct spu_context *alloc_spu_context(struct address_space *local_store)
 	init_waitqueue_head(&ctx->ibox_wq);
 	init_waitqueue_head(&ctx->wbox_wq);
 	init_waitqueue_head(&ctx->stop_wq);
+	init_waitqueue_head(&ctx->mfc_wq);
 	ctx->ibox_fasync = NULL;
 	ctx->wbox_fasync = NULL;
+	ctx->mfc_fasync = NULL;
+	ctx->mfc = NULL;
+	ctx->tagwait = 0;
 	ctx->state = SPU_STATE_SAVED;
-	ctx->local_store = local_store;
+	ctx->local_store = NULL;
+	ctx->cntl = NULL;
+	ctx->signal1 = NULL;
+	ctx->signal2 = NULL;
 	ctx->spu = NULL;
 	ctx->ops = &spu_backing_ops;
 	ctx->owner = get_task_mm(current);
@@ -68,8 +75,6 @@ void destroy_spu_context(struct kref *kref)
 	ctx = container_of(kref, struct spu_context, kref);
 	down_write(&ctx->state_sema);
 	spu_deactivate(ctx);
-	ctx->ibox_fasync = NULL;
-	ctx->wbox_fasync = NULL;
 	up_write(&ctx->state_sema);
 	spu_fini_csa(&ctx->csa);
 	kfree(ctx);
@@ -109,7 +114,16 @@ void spu_release(struct spu_context *ctx)
 
 void spu_unmap_mappings(struct spu_context *ctx)
 {
-	unmap_mapping_range(ctx->local_store, 0, LS_SIZE, 1);
+	if (ctx->local_store)
+		unmap_mapping_range(ctx->local_store, 0, LS_SIZE, 1);
+	if (ctx->mfc)
+		unmap_mapping_range(ctx->mfc, 0, 0x4000, 1);
+	if (ctx->cntl)
+		unmap_mapping_range(ctx->cntl, 0, 0x4000, 1);
+	if (ctx->signal1)
+		unmap_mapping_range(ctx->signal1, 0, 0x4000, 1);
+	if (ctx->signal2)
+		unmap_mapping_range(ctx->signal2, 0, 0x4000, 1);
 }
 
 int spu_acquire_runnable(struct spu_context *ctx)

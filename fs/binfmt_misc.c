@@ -600,7 +600,7 @@ static ssize_t bm_entry_write(struct file *file, const char __user *buffer,
 	return count;
 }
 
-static struct file_operations bm_entry_operations = {
+static const struct file_operations bm_entry_operations = {
 	.read		= bm_entry_read,
 	.write		= bm_entry_write,
 };
@@ -668,7 +668,7 @@ out:
 	return count;
 }
 
-static struct file_operations bm_register_operations = {
+static const struct file_operations bm_register_operations = {
 	.write		= bm_register_write,
 };
 
@@ -715,7 +715,7 @@ static ssize_t bm_status_write(struct file * file, const char __user * buffer,
 	return count;
 }
 
-static struct file_operations bm_status_operations = {
+static const struct file_operations bm_status_operations = {
 	.read		= bm_status_read,
 	.write		= bm_status_write,
 };

@@ -33,38 +33,6 @@
 #ifndef	__rio_rio_h__
 #define	__rio_rio_h__
 
-#ifdef SCCS_LABELS
-static char *_rio_h_sccs_ = "@(#)rio.h	1.3";
-#endif
-
-/*
-** 30.09.1998 ARG -
-** Introduced driver version and host card type strings
-*/
-#define RIO_DRV_STR "Specialix RIO Driver"
-#define RIO_AT_HOST_STR "ISA"
-#define RIO_PCI_HOST_STR "PCI"
-
-
-/*
-** rio_info_store() commands (arbitary values) :
-*/
-#define RIO_INFO_PUT	0xA4B3C2D1
-#define RIO_INFO_GET	0xF1E2D3C4
-
-
-/*
-** anything that I couldn't cram in somewhere else
-*/
-/*
-#ifndef RIODEBUG
-#define debug
-#else
-#define debug rioprint
-#endif
-*/
-
-
 /*
 **	Maximum numbers of things
 */
@@ -101,9 +69,8 @@ static char *_rio_h_sccs_ = "@(#)rio.h	1.3";
 /*
 **	Flag values returned by functions
 */
+
 #define	RIO_FAIL	-1
-#define	RIO_SUCCESS	0
-#define	COPYFAIL	-1	/* copy[in|out] failed */
 
 /*
 ** SysPort value for something that hasn't any ports
@@ -142,38 +109,14 @@ static char *_rio_h_sccs_ = "@(#)rio.h	1.3";
 /*
 **	Generally useful constants
 */
-#define	HALF_A_SECOND		((HZ)>>1)
-#define	A_SECOND		(HZ)
-#define	HUNDRED_HZ		((HZ/100)?(HZ/100):1)
-#define	FIFTY_HZ		((HZ/50)?(HZ/50):1)
-#define	TWENTY_HZ		((HZ/20)?(HZ/20):1)
-#define	TEN_HZ			((HZ/10)?(HZ/10):1)
-#define	FIVE_HZ			((HZ/5)?(HZ/5):1)
-#define	HUNDRED_MS		TEN_HZ
-#define	FIFTY_MS		TWENTY_HZ
-#define	TWENTY_MS		FIFTY_HZ
-#define	TEN_MS			HUNDRED_HZ
-#define	TWO_SECONDS		((A_SECOND)*2)
-#define	FIVE_SECONDS		((A_SECOND)*5)
-#define	TEN_SECONDS		((A_SECOND)*10)
-#define	FIFTEEN_SECONDS		((A_SECOND)*15)
-#define	TWENTY_SECONDS		((A_SECOND)*20)
-#define	HALF_A_MINUTE		(A_MINUTE>>1)
-#define	A_MINUTE		(A_SECOND*60)
-#define	FIVE_MINUTES		(A_MINUTE*5)
-#define	QUARTER_HOUR		(A_MINUTE*15)
-#define	HALF_HOUR		(A_MINUTE*30)
-#define	HOUR			(A_MINUTE*60)
 
-#define	SIXTEEN_MEG		0x1000000
+#define	HUNDRED_MS		((HZ/10)?(HZ/10):1)
 #define	ONE_MEG			0x100000
 #define	SIXTY_FOUR_K		0x10000
 
 #define	RIO_AT_MEM_SIZE		SIXTY_FOUR_K
 #define	RIO_EISA_MEM_SIZE	SIXTY_FOUR_K
 #define	RIO_MCA_MEM_SIZE	SIXTY_FOUR_K
-
-#define	POLL_VECTOR		0x100
 
 #define	COOK_WELL		0
 #define	COOK_MEDIUM		1
@@ -186,69 +129,26 @@ static char *_rio_h_sccs_ = "@(#)rio.h	1.3";
 **	RIO_OBJ takes hostp->Caddr and a UNIX pointer to an object and
 **	returns the offset into the DP RAM area.
 */
-#define	RIO_PTR(C,O) (((caddr_t)(C))+(0xFFFF&(O)))
-#define	RIO_OFF(C,O) ((int)(O)-(int)(C))
+#define	RIO_PTR(C,O) (((unsigned char *)(C))+(0xFFFF&(O)))
+#define	RIO_OFF(C,O) ((long)(O)-(long)(C))
 
 /*
 **	How to convert from various different device number formats:
 **	DEV is a dev number, as passed to open, close etc - NOT a minor
 **	number!
-**
-**	Note:	LynxOS only gives us 8 bits for the device minor number,
-**		so all this crap here to deal with 'modem' bits etc. is
-**		just a load of irrelevant old bunkum!
-**		This however does not stop us needing to define a value
-**		for RIO_MODEMOFFSET which is required by the 'riomkdev'
-**		utility in the New Config Utilities suite.
-*/
-/* 0-511: direct 512-1023: modem */
-#define	RIO_MODEMOFFSET		0x200	/* doesn't mean anything */
+**/
+
 #define	RIO_MODEM_MASK		0x1FF
 #define	RIO_MODEM_BIT		0x200
 #define	RIO_UNMODEM(DEV)	(MINOR(DEV) & RIO_MODEM_MASK)
 #define	RIO_ISMODEM(DEV)	(MINOR(DEV) & RIO_MODEM_BIT)
 #define RIO_PORT(DEV,FIRST_MAJ)	( (MAJOR(DEV) - FIRST_MAJ) * PORTS_PER_HOST) \
 					+ MINOR(DEV)
-
-#define	splrio	spltty
-
-#define	RIO_IPL	5
-#define	RIO_PRI	(PZERO+10)
-#define RIO_CLOSE_PRI	PZERO-1	/* uninterruptible sleeps for close */
-
-typedef struct DbInf {
-	uint Flag;
-	char Name[8];
-} DbInf;
-
-#ifndef TRUE
-#define	TRUE (1==1)
-#endif
-#ifndef FALSE
-#define	FALSE	(!TRUE)
-#endif
-
-#define CSUM(pkt_ptr)  (((ushort *)(pkt_ptr))[0] + ((ushort *)(pkt_ptr))[1] + \
-			((ushort *)(pkt_ptr))[2] + ((ushort *)(pkt_ptr))[3] + \
-			((ushort *)(pkt_ptr))[4] + ((ushort *)(pkt_ptr))[5] + \
-			((ushort *)(pkt_ptr))[6] + ((ushort *)(pkt_ptr))[7] + \
-			((ushort *)(pkt_ptr))[8] + ((ushort *)(pkt_ptr))[9] )
-
-/*
-** This happy little macro copies SIZE bytes of data from FROM to TO
-** quite well. SIZE must be a constant.
-*/
-#define CCOPY( FROM, TO, SIZE ) { *(struct s { char data[SIZE]; } *)(TO) = *(struct s *)(FROM); }
-
-/*
-** increment a buffer pointer modulo the size of the buffer...
-*/
-#define	BUMP( P, I )	((P) = (((P)+(I)) & RIOBufferMask))
-
-#define INIT_PACKET( PK, PP ) \
-{ \
-	*((uint *)PK)    = PP->PacketInfo; \
-}
+#define CSUM(pkt_ptr)  (((u16 *)(pkt_ptr))[0] + ((u16 *)(pkt_ptr))[1] + \
+			((u16 *)(pkt_ptr))[2] + ((u16 *)(pkt_ptr))[3] + \
+			((u16 *)(pkt_ptr))[4] + ((u16 *)(pkt_ptr))[5] + \
+			((u16 *)(pkt_ptr))[6] + ((u16 *)(pkt_ptr))[7] + \
+			((u16 *)(pkt_ptr))[8] + ((u16 *)(pkt_ptr))[9] )
 
 #define	RIO_LINK_ENABLE	0x80FF	/* FF is a hack, mainly for Mips, to        */
 			       /* prevent a really stupid race condition.  */
@@ -267,27 +167,42 @@ typedef struct DbInf {
 #define	DISCONNECT	0
 #define	CONNECT		1
 
+/* ------ Control Codes ------ */
 
-/*
-** Machine types - these must NOT overlap with product codes 0-15
-*/
-#define	RIO_MIPS_R3230	31
-#define	RIO_MIPS_R4030	32
+#define	CONTROL		'^'
+#define IFOAD		( CONTROL + 1 )
+#define	IDENTIFY	( CONTROL + 2 )
+#define	ZOMBIE		( CONTROL + 3 )
+#define	UFOAD		( CONTROL + 4 )
+#define IWAIT		( CONTROL + 5 )
 
-#define	RIO_IO_UNKNOWN	-2
+#define	IFOAD_MAGIC	0xF0AD	/* of course */
+#define	ZOMBIE_MAGIC	(~0xDEAD)	/* not dead -> zombie */
+#define	UFOAD_MAGIC	0xD1E	/* kill-your-neighbour */
+#define	IWAIT_MAGIC	0xB1DE	/* Bide your time */
 
-#undef	MODERN
-#define	ERROR( E )	do { u.u_error = E; return OPENFAIL } while ( 0 )
+/* ------ Error Codes ------ */
 
-/* Defines for MPX line discipline routines */
+#define E_NO_ERROR                       ((ushort) 0)
 
-#define DIST_LINESW_OPEN	0x01
-#define DIST_LINESW_CLOSE	0x02
-#define DIST_LINESW_READ	0x04
-#define DIST_LINESW_WRITE	0x08
-#define DIST_LINESW_IOCTL	0x10
-#define DIST_LINESW_INPUT	0x20
-#define DIST_LINESW_OUTPUT	0x40
-#define DIST_LINESW_MDMINT	0x80
+/* ------ Free Lists ------ */
+
+struct rio_free_list {
+	u16 next;
+	u16 prev;
+};
+
+/* NULL for card side linked lists */
+#define	TPNULL	((ushort)(0x8000))
+/* We can add another packet to a transmit queue if the packet pointer pointed
+ * to by the TxAdd pointer has PKT_IN_USE clear in its address. */
+#define PKT_IN_USE    0x1
+
+/* ------ Topology ------ */
+
+struct Top {
+	u8 Unit;
+	u8 Link;
+};
 
 #endif				/* __rio_h__ */

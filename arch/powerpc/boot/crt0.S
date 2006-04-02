@@ -45,7 +45,8 @@ _zimage_start:
 	bdnz	2b
 
 	/* Do a cache flush for our text, in case OF didn't */
-3:	lis	r9,_start@h
+3:	lis	r9,_start@ha
+	addi	r9,r9,_start@l
 	add	r9,r0,r9
 	lis	r8,_etext@ha
 	addi	r8,r8,_etext@l
@@ -53,7 +54,7 @@ _zimage_start:
 4:	dcbf	r0,r9
 	icbi	r0,r9
 	addi	r9,r9,0x20
-	cmplwi	0,r9,8
+	cmplw	cr0,r9,r8
 	blt	4b
 	sync
 	isync

@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/sandpoint.h
- *
  * Definitions for Motorola SPS Sandpoint Test Platform
  *
  * Author: Mark A. Greer

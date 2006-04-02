@@ -3,9 +3,9 @@
  * gadget drivers or other code that needs to deal with them, and which
  * autoconfigures instead of using early binding to the hardware.
  *
- * This could eventually work like the ARM mach_is_*() stuff, driven by
+ * This SHOULD eventually work like the ARM mach_is_*() stuff, driven by
  * some config file that gets updated as new hardware is supported.
- * (And avoiding the runtime comparisons in typical one-choice cases.)
+ * (And avoiding all runtime comparisons in typical one-choice configs!)
  *
  * NOTE:  some of these controller drivers may not be available yet.
  */
@@ -93,6 +93,26 @@
 #define gadget_is_imx(g)	0
 #endif
 
+/* Mentor high speed function controller */
+#ifdef CONFIG_USB_GADGET_MUSBHSFC
+#define gadget_is_musbhsfc(g)	!strcmp("musbhsfc_udc", (g)->name)
+#else
+#define gadget_is_musbhsfc(g)	0
+#endif
+
+/* Mentor high speed "dual role" controller, peripheral mode */
+#ifdef CONFIG_USB_GADGET_MUSBHDRC
+#define gadget_is_musbhdrc(g)	!strcmp("musbhdrc_udc", (g)->name)
+#else
+#define gadget_is_musbhdrc(g)	0
+#endif
+
+#ifdef CONFIG_USB_GADGET_MPC8272
+#define gadget_is_mpc8272(g)	!strcmp("mpc8272_udc", (g)->name)
+#else
+#define gadget_is_mpc8272(g)	0
+#endif
+
 // CONFIG_USB_GADGET_SX2
 // CONFIG_USB_GADGET_AU1X00
 // ...
@@ -143,5 +163,11 @@ static inline int usb_gadget_controller_number(struct usb_gadget *gadget)
 		return 0x13;
 	else if (gadget_is_imx(gadget))
 		return 0x14;
+	else if (gadget_is_musbhsfc(gadget))
+		return 0x15;
+	else if (gadget_is_musbhdrc(gadget))
+		return 0x16;
+	else if (gadget_is_mpc8272(gadget))
+		return 0x17;
 	return -ENOENT;
 }

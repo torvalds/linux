@@ -28,11 +28,12 @@
 
 /* The V9 TSTATE Register (with SpitFire and Linux extensions).
  *
- * ---------------------------------------------------------------
- * |  Resv  |  CCR  |  ASI  |  %pil  |  PSTATE  |  Resv  |  CWP  |
- * ---------------------------------------------------------------
- *  63    40 39   32 31   24 23    20 19       8 7      5 4     0
+ * ---------------------------------------------------------------------
+ * |  Resv |  GL  |  CCR  |  ASI  |  %pil  |  PSTATE  |  Resv  |  CWP  |
+ * ---------------------------------------------------------------------
+ *  63   43 42  40 39   32 31   24 23    20 19       8 7      5 4     0
  */
+#define TSTATE_GL	_AC(0x0000070000000000,UL) /* Global reg level  */
 #define TSTATE_CCR	_AC(0x000000ff00000000,UL) /* Condition Codes.	*/
 #define TSTATE_XCC	_AC(0x000000f000000000,UL) /* Condition Codes.	*/
 #define TSTATE_XNEG	_AC(0x0000008000000000,UL) /* %xcc Negative.	*/

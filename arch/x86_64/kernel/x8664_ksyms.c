@@ -102,8 +102,6 @@ EXPORT_SYMBOL(cpu_callout_map);
 EXPORT_SYMBOL(screen_info);
 #endif
 
-EXPORT_SYMBOL(get_wchan);
-
 EXPORT_SYMBOL(rtc_lock);
 
 EXPORT_SYMBOL_GPL(set_nmi_callback);
@@ -124,6 +122,7 @@ extern void * __memcpy(void *,const void *,__kernel_size_t);
 
 EXPORT_SYMBOL(memset);
 EXPORT_SYMBOL(strlen);
+EXPORT_SYMBOL(strpbrk);
 EXPORT_SYMBOL(memmove);
 EXPORT_SYMBOL(memcpy);
 EXPORT_SYMBOL(__memcpy);
@@ -143,15 +142,11 @@ EXPORT_SYMBOL(rwsem_down_write_failed_thunk);
 EXPORT_SYMBOL(empty_zero_page);
 
 EXPORT_SYMBOL(die_chain);
-EXPORT_SYMBOL(register_die_notifier);
 
 #ifdef CONFIG_SMP
 EXPORT_SYMBOL(cpu_sibling_map);
 EXPORT_SYMBOL(smp_num_siblings);
 #endif
-
-extern void do_softirq_thunk(void);
-EXPORT_SYMBOL(do_softirq_thunk);
 
 #ifdef CONFIG_BUG
 EXPORT_SYMBOL(out_of_line_bug);

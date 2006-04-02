@@ -164,16 +164,19 @@ void au1000_restart(char *command)
 
 void au1000_halt(void)
 {
-#if defined(CONFIG_MIPS_PB1550)
+#if defined(CONFIG_MIPS_PB1550) || defined(CONFIG_MIPS_DB1550)
 	/* power off system */
-	printk("\n** Powering off Pb1550\n");
+	printk("\n** Powering off...\n");
 	au_writew(au_readw(0xAF00001C) | (3<<14), 0xAF00001C);
 	au_sync();
 	while(1); /* should not get here */
-#endif
+#else
 	printk(KERN_NOTICE "\n** You can safely turn off the power\n");
 #ifdef CONFIG_MIPS_MIRAGE
 	au_writel((1 << 26) | (1 << 10), GPIO2_OUTPUT);
+#endif
+#ifdef CONFIG_MIPS_DB1200
+	au_writew(au_readw(0xB980001C) | (1<<14), 0xB980001C);
 #endif
 #ifdef CONFIG_PM
 	au_sleep();
@@ -187,6 +190,7 @@ void au1000_halt(void)
 	                "wait\n\t"
 			".set\tmips0");
 #endif
+#endif /* defined(CONFIG_MIPS_PB1550) || defined(CONFIG_MIPS_DB1550) */
 }
 
 void au1000_power_off(void)

@@ -22,17 +22,6 @@
 #include "power.h"
 
 
-extern suspend_disk_method_t pm_disk_mode;
-
-extern int swsusp_shrink_memory(void);
-extern int swsusp_suspend(void);
-extern int swsusp_write(struct pbe *pblist, unsigned int nr_pages);
-extern int swsusp_check(void);
-extern int swsusp_read(struct pbe **pblist_ptr);
-extern void swsusp_close(void);
-extern int swsusp_resume(void);
-
-
 static int noresume = 0;
 char resume_file[256] = CONFIG_PM_STD_PARTITION;
 dev_t swsusp_resume_device;
@@ -70,10 +59,6 @@ static void power_down(suspend_disk_method_t mode)
 	while(1);
 }
 
-
-static int in_suspend __nosavedata = 0;
-
-
 static inline void platform_finish(void)
 {
 	if (pm_disk_mode == PM_DISK_PLATFORM) {
@@ -87,7 +72,6 @@ static int prepare_processes(void)
 	int error;
 
 	pm_prepare_console();
-	sys_sync();
 	disable_nonboot_cpus();
 
 	if (freeze_processes()) {
@@ -145,7 +129,7 @@ int pm_suspend_disk(void)
 	if (in_suspend) {
 		device_resume();
 		pr_debug("PM: writing image.\n");
-		error = swsusp_write(pagedir_nosave, nr_copy_pages);
+		error = swsusp_write();
 		if (!error)
 			power_down(pm_disk_mode);
 		else {
@@ -216,7 +200,7 @@ static int software_resume(void)
 
 	pr_debug("PM: Reading swsusp image.\n");
 
-	if ((error = swsusp_read(&pagedir_nosave))) {
+	if ((error = swsusp_read())) {
 		swsusp_free();
 		goto Thaw;
 	}

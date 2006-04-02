@@ -52,6 +52,11 @@ struct INFTLrecord {
 int INFTL_mount(struct INFTLrecord *s);
 int INFTL_formatblock(struct INFTLrecord *s, int block);
 
+extern char inftlmountrev[];
+
+void INFTL_dumptables(struct INFTLrecord *s);
+void INFTL_dumpVUchains(struct INFTLrecord *s);
+
 #endif /* __KERNEL__ */
 
 #endif /* __MTD_INFTL_H__ */

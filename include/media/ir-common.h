@@ -47,13 +47,6 @@ struct ir_input_state {
 	int                keypressed;  /* current state */
 };
 
-extern IR_KEYTAB_TYPE ir_codes_rc5_tv[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_winfast[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_pinnacle[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_empty[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_hauppauge_new[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_pixelview[IR_KEYTAB_SIZE];
-
 void ir_input_init(struct input_dev *dev, struct ir_input_state *ir,
 		   int ir_type, IR_KEYTAB_TYPE *ir_codes);
 void ir_input_nokey(struct input_dev *dev, struct ir_input_state *ir);
@@ -63,6 +56,39 @@ u32  ir_extract_bits(u32 data, u32 mask);
 int  ir_dump_samples(u32 *samples, int count);
 int  ir_decode_biphase(u32 *samples, int count, int low, int high);
 int  ir_decode_pulsedistance(u32 *samples, int count, int low, int high);
+
+/* Keymaps to be used by other modules */
+
+extern IR_KEYTAB_TYPE ir_codes_empty[IR_KEYTAB_SIZE];
+extern IR_KEYTAB_TYPE ir_codes_avermedia[IR_KEYTAB_SIZE];
+extern IR_KEYTAB_TYPE ir_codes_avermedia_dvbt[IR_KEYTAB_SIZE];
+extern IR_KEYTAB_TYPE ir_codes_apac_viewcomp[IR_KEYTAB_SIZE];
+extern IR_KEYTAB_TYPE ir_codes_pixelview[IR_KEYTAB_SIZE];
+extern IR_KEYTAB_TYPE ir_codes_nebula[IR_KEYTAB_SIZE];
+extern IR_KEYTAB_TYPE ir_codes_dntv_live_dvb_t[IR_KEYTAB_SIZE];
+extern IR_KEYTAB_TYPE ir_codes_iodata_bctv7e[IR_KEYTAB_SIZE];
+extern IR_KEYTAB_TYPE ir_codes_adstech_dvb_t_pci[IR_KEYTAB_SIZE];
+extern IR_KEYTAB_TYPE ir_codes_msi_tvanywhere[IR_KEYTAB_SIZE];
+extern IR_KEYTAB_TYPE ir_codes_cinergy_1400[IR_KEYTAB_SIZE];
+extern IR_KEYTAB_TYPE ir_codes_avertv_303[IR_KEYTAB_SIZE];
+extern IR_KEYTAB_TYPE ir_codes_dntv_live_dvbt_pro[IR_KEYTAB_SIZE];
+extern IR_KEYTAB_TYPE ir_codes_em_terratec[IR_KEYTAB_SIZE];
+extern IR_KEYTAB_TYPE ir_codes_em_pinnacle_usb[IR_KEYTAB_SIZE];
+extern IR_KEYTAB_TYPE ir_codes_flyvideo[IR_KEYTAB_SIZE];
+extern IR_KEYTAB_TYPE ir_codes_flydvb[IR_KEYTAB_SIZE];
+extern IR_KEYTAB_TYPE ir_codes_cinergy[IR_KEYTAB_SIZE];
+extern IR_KEYTAB_TYPE ir_codes_eztv[IR_KEYTAB_SIZE];
+extern IR_KEYTAB_TYPE ir_codes_avermedia[IR_KEYTAB_SIZE];
+extern IR_KEYTAB_TYPE ir_codes_videomate_tv_pvr[IR_KEYTAB_SIZE];
+extern IR_KEYTAB_TYPE ir_codes_manli[IR_KEYTAB_SIZE];
+extern IR_KEYTAB_TYPE ir_codes_gotview7135[IR_KEYTAB_SIZE];
+extern IR_KEYTAB_TYPE ir_codes_purpletv[IR_KEYTAB_SIZE];
+extern IR_KEYTAB_TYPE ir_codes_pctv_sedna[IR_KEYTAB_SIZE];
+extern IR_KEYTAB_TYPE ir_codes_pv951[IR_KEYTAB_SIZE];
+extern IR_KEYTAB_TYPE ir_codes_rc5_tv[IR_KEYTAB_SIZE];
+extern IR_KEYTAB_TYPE ir_codes_winfast[IR_KEYTAB_SIZE];
+extern IR_KEYTAB_TYPE ir_codes_pinnacle[IR_KEYTAB_SIZE];
+extern IR_KEYTAB_TYPE ir_codes_hauppauge_new[IR_KEYTAB_SIZE];
 
 #endif
 

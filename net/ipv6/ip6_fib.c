@@ -1105,7 +1105,6 @@ static int fib6_age(struct rt6_info *rt, void *arg)
 	if (rt->rt6i_flags&RTF_EXPIRES && rt->rt6i_expires) {
 		if (time_after(now, rt->rt6i_expires)) {
 			RT6_TRACE("expiring %p\n", rt);
-			rt6_reset_dflt_pointer(rt);
 			return -1;
 		}
 		gc_args.more++;

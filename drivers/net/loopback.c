@@ -172,11 +172,9 @@ static struct net_device_stats *get_stats(struct net_device *dev)
 
 	memset(stats, 0, sizeof(struct net_device_stats));
 
-	for (i=0; i < NR_CPUS; i++) {
+	for_each_possible_cpu(i) {
 		struct net_device_stats *lb_stats;
 
-		if (!cpu_possible(i)) 
-			continue;
 		lb_stats = &per_cpu(loopback_stats, i);
 		stats->rx_bytes   += lb_stats->rx_bytes;
 		stats->tx_bytes   += lb_stats->tx_bytes;

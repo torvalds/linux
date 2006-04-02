@@ -113,11 +113,10 @@ int hid_tmff_init(struct hid_device *hid)
 	struct hid_input *hidinput = list_entry(hid->inputs.next, struct hid_input, list);
 	struct input_dev *input_dev = hidinput->input;
 
-	private = kmalloc(sizeof(struct tmff_device), GFP_KERNEL);
+	private = kzalloc(sizeof(struct tmff_device), GFP_KERNEL);
 	if (!private)
 		return -ENOMEM;
 
-	memset(private, 0, sizeof(struct tmff_device));
 	hid->ff_private = private;
 
 	/* Find the report to use */

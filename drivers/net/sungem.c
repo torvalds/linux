@@ -55,6 +55,7 @@
 #include <linux/workqueue.h>
 #include <linux/if_vlan.h>
 #include <linux/bitops.h>
+#include <linux/mutex.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
@@ -2284,7 +2285,7 @@ static void gem_reset_task(void *data)
 {
 	struct gem *gp = (struct gem *) data;
 
-	down(&gp->pm_sem);
+	mutex_lock(&gp->pm_mutex);
 
 	netif_poll_disable(gp->dev);
 
@@ -2311,7 +2312,7 @@ static void gem_reset_task(void *data)
 
 	netif_poll_enable(gp->dev);
 
-	up(&gp->pm_sem);
+	mutex_unlock(&gp->pm_mutex);
 }
 
 
@@ -2320,14 +2321,14 @@ static int gem_open(struct net_device *dev)
 	struct gem *gp = dev->priv;
 	int rc = 0;
 
-	down(&gp->pm_sem);
+	mutex_lock(&gp->pm_mutex);
 
 	/* We need the cell enabled */
 	if (!gp->asleep)
 		rc = gem_do_start(dev);
 	gp->opened = (rc == 0);
 
-	up(&gp->pm_sem);
+	mutex_unlock(&gp->pm_mutex);
 
 	return rc;
 }
@@ -2340,13 +2341,13 @@ static int gem_close(struct net_device *dev)
 	 * our caller (dev_close) already did it for us
 	 */
 
-	down(&gp->pm_sem);
+	mutex_lock(&gp->pm_mutex);
 
 	gp->opened = 0;	
 	if (!gp->asleep)
 		gem_do_stop(dev, 0);
 
-	up(&gp->pm_sem);
+	mutex_unlock(&gp->pm_mutex);
 	
 	return 0;
 }
@@ -2358,7 +2359,7 @@ static int gem_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct gem *gp = dev->priv;
 	unsigned long flags;
 
-	down(&gp->pm_sem);
+	mutex_lock(&gp->pm_mutex);
 
 	netif_poll_disable(dev);
 
@@ -2391,11 +2392,11 @@ static int gem_suspend(struct pci_dev *pdev, pm_message_t state)
 	/* Stop the link timer */
 	del_timer_sync(&gp->link_timer);
 
-	/* Now we release the semaphore to not block the reset task who
+	/* Now we release the mutex to not block the reset task who
 	 * can take it too. We are marked asleep, so there will be no
 	 * conflict here
 	 */
-	up(&gp->pm_sem);
+	mutex_unlock(&gp->pm_mutex);
 
 	/* Wait for a pending reset task to complete */
 	while (gp->reset_task_pending)
@@ -2424,7 +2425,7 @@ static int gem_resume(struct pci_dev *pdev)
 
 	printk(KERN_INFO "%s: resuming\n", dev->name);
 
-	down(&gp->pm_sem);
+	mutex_lock(&gp->pm_mutex);
 
 	/* Keep the cell enabled during the entire operation, no need to
 	 * take a lock here tho since nothing else can happen while we are
@@ -2440,7 +2441,7 @@ static int gem_resume(struct pci_dev *pdev)
 		 * still asleep, a new sleep cycle may bring it back
 		 */
 		gem_put_cell(gp);
-		up(&gp->pm_sem);
+		mutex_unlock(&gp->pm_mutex);
 		return 0;
 	}
 	pci_set_master(gp->pdev);
@@ -2486,7 +2487,7 @@ static int gem_resume(struct pci_dev *pdev)
 
 	netif_poll_enable(dev);
 	
-	up(&gp->pm_sem);
+	mutex_unlock(&gp->pm_mutex);
 
 	return 0;
 }
@@ -2591,7 +2592,7 @@ static int gem_change_mtu(struct net_device *dev, int new_mtu)
 		return 0;
 	}
 
-	down(&gp->pm_sem);
+	mutex_lock(&gp->pm_mutex);
 	spin_lock_irq(&gp->lock);
 	spin_lock(&gp->tx_lock);
 	dev->mtu = new_mtu;
@@ -2602,7 +2603,7 @@ static int gem_change_mtu(struct net_device *dev, int new_mtu)
 	}
 	spin_unlock(&gp->tx_lock);
 	spin_unlock_irq(&gp->lock);
-	up(&gp->pm_sem);
+	mutex_unlock(&gp->pm_mutex);
 
 	return 0;
 }
@@ -2771,10 +2772,10 @@ static int gem_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	int rc = -EOPNOTSUPP;
 	unsigned long flags;
 
-	/* Hold the PM semaphore while doing ioctl's or we may collide
+	/* Hold the PM mutex while doing ioctl's or we may collide
 	 * with power management.
 	 */
-	down(&gp->pm_sem);
+	mutex_lock(&gp->pm_mutex);
 		
 	spin_lock_irqsave(&gp->lock, flags);
 	gem_get_cell(gp);
@@ -2812,7 +2813,7 @@ static int gem_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	gem_put_cell(gp);
 	spin_unlock_irqrestore(&gp->lock, flags);
 
-	up(&gp->pm_sem);
+	mutex_unlock(&gp->pm_mutex);
 	
 	return rc;
 }
@@ -3033,7 +3034,7 @@ static int __devinit gem_init_one(struct pci_dev *pdev,
 
 	spin_lock_init(&gp->lock);
 	spin_lock_init(&gp->tx_lock);
-	init_MUTEX(&gp->pm_sem);
+	mutex_init(&gp->pm_mutex);
 
 	init_timer(&gp->link_timer);
 	gp->link_timer.function = gem_link_timer;

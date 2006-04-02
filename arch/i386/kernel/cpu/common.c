@@ -25,9 +25,10 @@ EXPORT_PER_CPU_SYMBOL(cpu_gdt_descr);
 DEFINE_PER_CPU(unsigned char, cpu_16bit_stack[CPU_16BIT_STACK_SIZE]);
 EXPORT_PER_CPU_SYMBOL(cpu_16bit_stack);
 
-static int cachesize_override __devinitdata = -1;
-static int disable_x86_fxsr __devinitdata = 0;
-static int disable_x86_serial_nr __devinitdata = 1;
+static int cachesize_override __cpuinitdata = -1;
+static int disable_x86_fxsr __cpuinitdata;
+static int disable_x86_serial_nr __cpuinitdata = 1;
+static int disable_x86_sep __cpuinitdata;
 
 struct cpu_dev * cpu_devs[X86_VENDOR_NUM] = {};
 
@@ -59,7 +60,7 @@ static int __init cachesize_setup(char *str)
 }
 __setup("cachesize=", cachesize_setup);
 
-int __devinit get_model_name(struct cpuinfo_x86 *c)
+int __cpuinit get_model_name(struct cpuinfo_x86 *c)
 {
 	unsigned int *v;
 	char *p, *q;
@@ -89,7 +90,7 @@ int __devinit get_model_name(struct cpuinfo_x86 *c)
 }
 
 
-void __devinit display_cacheinfo(struct cpuinfo_x86 *c)
+void __cpuinit display_cacheinfo(struct cpuinfo_x86 *c)
 {
 	unsigned int n, dummy, ecx, edx, l2size;
 
@@ -130,7 +131,7 @@ void __devinit display_cacheinfo(struct cpuinfo_x86 *c)
 /* in particular, if CPUID levels 0x80000002..4 are supported, this isn't used */
 
 /* Look up CPU names by table lookup. */
-static char __devinit *table_lookup_model(struct cpuinfo_x86 *c)
+static char __cpuinit *table_lookup_model(struct cpuinfo_x86 *c)
 {
 	struct cpu_model_info *info;
 
@@ -151,7 +152,7 @@ static char __devinit *table_lookup_model(struct cpuinfo_x86 *c)
 }
 
 
-static void __devinit get_cpu_vendor(struct cpuinfo_x86 *c, int early)
+static void __cpuinit get_cpu_vendor(struct cpuinfo_x86 *c, int early)
 {
 	char *v = c->x86_vendor_id;
 	int i;
@@ -187,6 +188,14 @@ static int __init x86_fxsr_setup(char * s)
 __setup("nofxsr", x86_fxsr_setup);
 
 
+static int __init x86_sep_setup(char * s)
+{
+	disable_x86_sep = 1;
+	return 1;
+}
+__setup("nosep", x86_sep_setup);
+
+
 /* Standard macro to see if a specific flag is changeable */
 static inline int flag_is_changeable_p(u32 flag)
 {
@@ -210,7 +219,7 @@ static inline int flag_is_changeable_p(u32 flag)
 
 
 /* Probe for the CPUID instruction */
-static int __devinit have_cpuid_p(void)
+static int __cpuinit have_cpuid_p(void)
 {
 	return flag_is_changeable_p(X86_EFLAGS_ID);
 }
@@ -254,10 +263,10 @@ static void __init early_cpu_detect(void)
 	}
 }
 
-void __devinit generic_identify(struct cpuinfo_x86 * c)
+void __cpuinit generic_identify(struct cpuinfo_x86 * c)
 {
 	u32 tfms, xlvl;
-	int junk;
+	int ebx;
 
 	if (have_cpuid_p()) {
 		/* Get vendor name */
@@ -273,7 +282,7 @@ void __devinit generic_identify(struct cpuinfo_x86 * c)
 		/* Intel-defined flags: level 0x00000001 */
 		if ( c->cpuid_level >= 0x00000001 ) {
 			u32 capability, excap;
-			cpuid(0x00000001, &tfms, &junk, &excap, &capability);
+			cpuid(0x00000001, &tfms, &ebx, &excap, &capability);
 			c->x86_capability[0] = capability;
 			c->x86_capability[4] = excap;
 			c->x86 = (tfms >> 8) & 15;
@@ -283,6 +292,11 @@ void __devinit generic_identify(struct cpuinfo_x86 * c)
 			if (c->x86 >= 0x6)
 				c->x86_model += ((tfms >> 16) & 0xF) << 4;
 			c->x86_mask = tfms & 15;
+#ifdef CONFIG_SMP
+			c->apicid = phys_pkg_id((ebx >> 24) & 0xFF, 0);
+#else
+			c->apicid = (ebx >> 24) & 0xFF;
+#endif
 		} else {
 			/* Have CPUID level 0 only - unheard of */
 			c->x86 = 4;
@@ -307,7 +321,7 @@ void __devinit generic_identify(struct cpuinfo_x86 * c)
 #endif
 }
 
-static void __devinit squash_the_stupid_serial_number(struct cpuinfo_x86 *c)
+static void __cpuinit squash_the_stupid_serial_number(struct cpuinfo_x86 *c)
 {
 	if (cpu_has(c, X86_FEATURE_PN) && disable_x86_serial_nr ) {
 		/* Disable processor serial number */
@@ -335,7 +349,7 @@ __setup("serialnumber", x86_serial_nr_setup);
 /*
  * This does the hard work of actually picking apart the CPU stuff...
  */
-void __devinit identify_cpu(struct cpuinfo_x86 *c)
+void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 {
 	int i;
 
@@ -405,6 +419,10 @@ void __devinit identify_cpu(struct cpuinfo_x86 *c)
 		clear_bit(X86_FEATURE_XMM, c->x86_capability);
 	}
 
+	/* SEP disabled? */
+	if (disable_x86_sep)
+		clear_bit(X86_FEATURE_SEP, c->x86_capability);
+
 	if (disable_pse)
 		clear_bit(X86_FEATURE_PSE, c->x86_capability);
 
@@ -417,7 +435,7 @@ void __devinit identify_cpu(struct cpuinfo_x86 *c)
 		else
 			/* Last resort... */
 			sprintf(c->x86_model_id, "%02x/%02x",
-				c->x86_vendor, c->x86_model);
+				c->x86, c->x86_model);
 	}
 
 	/* Now the feature flags better reflect actual CPU features! */
@@ -453,7 +471,7 @@ void __devinit identify_cpu(struct cpuinfo_x86 *c)
 }
 
 #ifdef CONFIG_X86_HT
-void __devinit detect_ht(struct cpuinfo_x86 *c)
+void __cpuinit detect_ht(struct cpuinfo_x86 *c)
 {
 	u32 	eax, ebx, ecx, edx;
 	int 	index_msb, core_bits;
@@ -461,7 +479,6 @@ void __devinit detect_ht(struct cpuinfo_x86 *c)
 
 	cpuid(1, &eax, &ebx, &ecx, &edx);
 
-	c->apicid = phys_pkg_id((ebx >> 24) & 0xFF, 0);
 
 	if (!cpu_has(c, X86_FEATURE_HT) || cpu_has(c, X86_FEATURE_CMP_LEGACY))
 		return;
@@ -500,7 +517,7 @@ void __devinit detect_ht(struct cpuinfo_x86 *c)
 }
 #endif
 
-void __devinit print_cpu_info(struct cpuinfo_x86 *c)
+void __cpuinit print_cpu_info(struct cpuinfo_x86 *c)
 {
 	char *vendor = NULL;
 
@@ -523,7 +540,7 @@ void __devinit print_cpu_info(struct cpuinfo_x86 *c)
 		printk("\n");
 }
 
-cpumask_t cpu_initialized __devinitdata = CPU_MASK_NONE;
+cpumask_t cpu_initialized __cpuinitdata = CPU_MASK_NONE;
 
 /* This is hacky. :)
  * We're emulating future behavior.
@@ -570,7 +587,7 @@ void __init early_cpu_init(void)
  * and IDT. We reload them nevertheless, this function acts as a
  * 'CPU state barrier', nothing should get across.
  */
-void __devinit cpu_init(void)
+void __cpuinit cpu_init(void)
 {
 	int cpu = smp_processor_id();
 	struct tss_struct * t = &per_cpu(init_tss, cpu);
@@ -670,7 +687,7 @@ void __devinit cpu_init(void)
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-void __devinit cpu_uninit(void)
+void __cpuinit cpu_uninit(void)
 {
 	int cpu = raw_smp_processor_id();
 	cpu_clear(cpu, cpu_initialized);

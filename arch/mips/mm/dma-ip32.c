@@ -138,7 +138,7 @@ dma_addr_t dma_map_single(struct device *dev, void *ptr, size_t size,
 		BUG();
 	}
 
-	addr = virt_to_phys(ptr)&RAM_OFFSET_MASK;;
+	addr = virt_to_phys(ptr)&RAM_OFFSET_MASK;
 	if(dev == NULL)
 	    addr+=CRIME_HI_MEM_BASE;
 	return (dma_addr_t)addr;
@@ -179,7 +179,7 @@ int dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 		addr = (unsigned long) page_address(sg->page)+sg->offset;
 		if (addr)
 			__dma_sync(addr, sg->length, direction);
-		addr = __pa(addr)&RAM_OFFSET_MASK;;
+		addr = __pa(addr)&RAM_OFFSET_MASK;
 		if(dev == NULL)
 			addr +=  CRIME_HI_MEM_BASE;
 		sg->dma_address = (dma_addr_t)addr;
@@ -199,7 +199,7 @@ dma_addr_t dma_map_page(struct device *dev, struct page *page,
 
 	addr = (unsigned long) page_address(page) + offset;
 	dma_cache_wback_inv(addr, size);
-	addr = __pa(addr)&RAM_OFFSET_MASK;;
+	addr = __pa(addr)&RAM_OFFSET_MASK;
 	if(dev == NULL)
 		addr +=  CRIME_HI_MEM_BASE;
 

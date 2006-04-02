@@ -348,7 +348,7 @@ static ssize_t store_cmap(struct class_device *class_device, const char *buf,
 		fb_copy_cmap(&umap, &fb_info->cmap);
 		fb_dealloc_cmap(&umap);
 
-		return rc;
+		return rc ?: count;
 	}
 	for (i = 0; i < length; i++) {
 		u16 red, blue, green, tsp;
@@ -367,7 +367,7 @@ static ssize_t store_cmap(struct class_device *class_device, const char *buf,
 		if (transp)
 			fb_info->cmap.transp[i] = tsp;
 	}
-	return 0;
+	return count;
 }
 
 static ssize_t show_cmap(struct class_device *class_device, char *buf)

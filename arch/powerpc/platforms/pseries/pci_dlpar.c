@@ -27,6 +27,8 @@
 
 #include <linux/pci.h>
 #include <asm/pci-bridge.h>
+#include <asm/ppc-pci.h>
+#include <asm/firmware.h>
 
 static struct pci_bus *
 find_bus_among_children(struct pci_bus *bus,
@@ -151,20 +153,24 @@ pcibios_pci_config_bridge(struct pci_dev *dev)
 void
 pcibios_add_pci_devices(struct pci_bus * bus)
 {
-	int slotno, num;
+	int slotno, num, mode;
 	struct pci_dev *dev;
 	struct device_node *dn = pci_bus_to_OF_node(bus);
 
 	eeh_add_device_tree_early(dn);
 
-	if (_machine == PLATFORM_PSERIES_LPAR) {
+	mode = PCI_PROBE_NORMAL;
+	if (ppc_md.pci_probe_mode)
+		mode = ppc_md.pci_probe_mode(bus);
+
+	if (mode == PCI_PROBE_DEVTREE) {
 		/* use ofdt-based probe */
 		of_scan_bus(dn, bus);
 		if (!list_empty(&bus->devices)) {
 			pcibios_fixup_new_pci_devices(bus, 0);
 			pci_bus_add_devices(bus);
 		}
-	} else {
+	} else if (mode == PCI_PROBE_NORMAL) {
 		/* use legacy probe */
 		slotno = PCI_SLOT(PCI_DN(dn->child)->devfn);
 		num = pci_scan_slot(bus, PCI_DEVFN(slotno, 0));
@@ -179,3 +185,30 @@ pcibios_add_pci_devices(struct pci_bus * bus)
 	}
 }
 EXPORT_SYMBOL_GPL(pcibios_add_pci_devices);
+
+struct pci_controller * __devinit init_phb_dynamic(struct device_node *dn)
+{
+	struct pci_controller *phb;
+	int primary;
+
+	primary = list_empty(&hose_list);
+	phb = pcibios_alloc_controller(dn);
+	if (!phb)
+		return NULL;
+	setup_phb(dn, phb);
+	pci_process_bridge_OF_ranges(phb, dn, 0);
+
+	pci_setup_phb_io_dynamic(phb, primary);
+
+	pci_devs_phb_init_dynamic(phb);
+
+	if (dn->child)
+		eeh_add_device_tree_early(dn);
+
+	scan_phb(phb);
+	pcibios_fixup_new_pci_devices(phb->bus, 0);
+	pci_bus_add_devices(phb->bus);
+
+	return phb;
+}
+EXPORT_SYMBOL_GPL(init_phb_dynamic);

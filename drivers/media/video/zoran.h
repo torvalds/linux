@@ -1,4 +1,4 @@
-/* 
+/*
  * zoran - Iomega Buz driver
  *
  * Copyright (C) 1999 Rainer Johanni <Rainer@Johanni.de>
@@ -395,7 +395,7 @@ struct zoran {
 	struct videocodec *codec;	/* video codec */
 	struct videocodec *vfe;	/* video front end */
 
-	struct semaphore resource_lock;	/* prevent evil stuff */
+	struct mutex resource_lock;	/* prevent evil stuff */
 
 	u8 initialized;		/* flag if zoran has been correctly initalized */
 	int user;		/* number of current users */

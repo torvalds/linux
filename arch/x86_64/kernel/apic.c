@@ -342,6 +342,7 @@ void __init init_bsp_APIC(void)
 void __cpuinit setup_local_APIC (void)
 {
 	unsigned int value, maxlvt;
+	int i, j;
 
 	value = apic_read(APIC_LVR);
 
@@ -369,6 +370,25 @@ void __cpuinit setup_local_APIC (void)
 	value = apic_read(APIC_TASKPRI);
 	value &= ~APIC_TPRI_MASK;
 	apic_write(APIC_TASKPRI, value);
+
+	/*
+	 * After a crash, we no longer service the interrupts and a pending
+	 * interrupt from previous kernel might still have ISR bit set.
+	 *
+	 * Most probably by now CPU has serviced that pending interrupt and
+	 * it might not have done the ack_APIC_irq() because it thought,
+	 * interrupt came from i8259 as ExtInt. LAPIC did not get EOI so it
+	 * does not clear the ISR bit and cpu thinks it has already serivced
+	 * the interrupt. Hence a vector might get locked. It was noticed
+	 * for timer irq (vector 0x31). Issue an extra EOI to clear ISR.
+	 */
+	for (i = APIC_ISR_NR - 1; i >= 0; i--) {
+		value = apic_read(APIC_ISR + i*0x10);
+		for (j = 31; j >= 0; j--) {
+			if (value & (1<<j))
+				ack_APIC_irq();
+		}
+	}
 
 	/*
 	 * Now that we are all set up, enable the APIC
@@ -595,7 +615,7 @@ static int __init apic_set_verbosity(char *str)
 		printk(KERN_WARNING "APIC Verbosity level %s not recognised"
 				" use apic=verbose or apic=debug", str);
 
-	return 0;
+	return 1;
 }
 
 __setup("apic=", apic_set_verbosity);
@@ -1117,35 +1137,35 @@ int __init APIC_init_uniprocessor (void)
 static __init int setup_disableapic(char *str) 
 { 
 	disable_apic = 1;
-	return 0;
+	return 1;
 } 
 
 static __init int setup_nolapic(char *str) 
 { 
 	disable_apic = 1;
-	return 0;
+	return 1;
 } 
 
 static __init int setup_noapictimer(char *str) 
 { 
 	if (str[0] != ' ' && str[0] != 0)
-		return -1;
+		return 0;
 	disable_apic_timer = 1;
-	return 0;
+	return 1;
 } 
 
 static __init int setup_apicmaintimer(char *str)
 {
 	apic_runs_main_timer = 1;
 	nohpet = 1;
-	return 0;
+	return 1;
 }
 __setup("apicmaintimer", setup_apicmaintimer);
 
 static __init int setup_noapicmaintimer(char *str)
 {
 	apic_runs_main_timer = -1;
-	return 0;
+	return 1;
 }
 __setup("noapicmaintimer", setup_noapicmaintimer);
 

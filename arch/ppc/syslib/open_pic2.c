@@ -1,6 +1,4 @@
 /*
- *  arch/ppc/kernel/open_pic.c -- OpenPIC Interrupt Handling
- *
  *  Copyright (C) 1997 Geert Uytterhoeven
  *
  *  This file is subject to the terms and conditions of the GNU General Public

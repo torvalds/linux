@@ -70,10 +70,10 @@ MODULE_AUTHOR("Pauline Middelink <middelin@polyware.nl>");
 MODULE_DESCRIPTION("Zoran ZR36120 based framegrabber");
 MODULE_LICENSE("GPL");
 
-MODULE_PARM(triton1,"i");
-MODULE_PARM(cardtype,"1-" __MODULE_STRING(ZORAN_MAX) "i");
-MODULE_PARM(video_nr,"i");
-MODULE_PARM(vbi_nr,"i");
+module_param(triton1, uint, 0);
+module_param_array(cardtype, uint, NULL, 0);
+module_param(video_nr, int, 0);
+module_param(vbi_nr, int, 0);
 
 static int zoran_cards;
 static struct zoran zorans[ZORAN_MAX];
@@ -316,7 +316,7 @@ DEBUG(printk(CARD_DEBUG "%p added to queue\n",CARD,item));
 				item->status = FBUFFER_BUSY;
 				if (!lastitem)
 					ztv->workqueue = item;
-				else 
+				else
 					lastitem->next = item;
 				lastitem = item;
 			}
@@ -516,7 +516,7 @@ DEBUG(printk(KERN_DEBUG "       %d: clip(%d,%d,%d,%d)\n", i,vp->x,vp->y,vp->widt
 	zraor((ztv->vidInterlace*ystep)<<0,~ZORAN_OCR_MASKSTRIDE,ZORAN_OCR);
 }
 
-struct tvnorm 
+struct tvnorm
 {
 	u16 Wt, Wa, Ht, Ha, HStart, VStart;
 };
@@ -660,7 +660,7 @@ DEBUG(printk(KERN_DEBUG "       Y: scale=0, start=%d, end=%d\n", Hstart, Hend));
 		int HorDcm = 64-X;
 		int hcrop1 = 2*(Wa-We)/4;
 		/*
-		 * BUGFIX: Juha Nurmela <junki@qn-lpr2-165.quicknet.inet.fi> 
+		 * BUGFIX: Juha Nurmela <junki@qn-lpr2-165.quicknet.inet.fi>
 		 * found the solution to the color phase shift.
 		 * See ChangeLog for the full explanation)
 		 */
@@ -812,12 +812,12 @@ void zoran_close(struct video_device* dev)
 
 	zoran_common_close(ztv);
 
-        /*
-         *      This is sucky but right now I can't find a good way to
-         *      be sure its safe to free the buffer. We wait 5-6 fields
-         *      which is more than sufficient to be sure.
-         */
-        msleep(100);			/* Wait 1/10th of a second */
+	/*
+	 *      This is sucky but right now I can't find a good way to
+	 *      be sure its safe to free the buffer. We wait 5-6 fields
+	 *      which is more than sufficient to be sure.
+	 */
+	msleep(100);			/* Wait 1/10th of a second */
 
 	/* free the allocated framebuffer */
 	bfree(ztv->fbuffer, ZORAN_MAX_FBUFSIZE);
@@ -1436,7 +1436,7 @@ int zoran_ioctl(struct video_device* dev, unsigned int cmd, void *arg)
 
 	 /* Why isn't this in the API?
 	  * And why doesn't it take a buffer number?
-	 case BTTV_FIELDNR: 
+	 case BTTV_FIELDNR:
 	 {
 		unsigned long v = ztv->lastfieldnr;
 		if (copy_to_user(arg,&v,sizeof(v)))
@@ -1557,12 +1557,12 @@ void vbi_close(struct video_device *dev)
 
 	zoran_common_close(ztv);
 
-        /*
-         *      This is sucky but right now I can't find a good way to
-         *      be sure its safe to free the buffer. We wait 5-6 fields
-         *      which is more than sufficient to be sure.
-         */
-        msleep(100);			/* Wait 1/10th of a second */
+	/*
+	 *      This is sucky but right now I can't find a good way to
+	 *      be sure its safe to free the buffer. We wait 5-6 fields
+	 *      which is more than sufficient to be sure.
+	 */
+	msleep(100);			/* Wait 1/10th of a second */
 
 	for (item=ztv->readinfo; item!=ztv->readinfo+ZORAN_VBI_BUFFERS; item++)
 	{
@@ -1620,7 +1620,7 @@ long vbi_read(struct video_device* dev, char* buf, unsigned long count, int nonb
 			write_unlock_irq(&ztv->lock);
 			return -EWOULDBLOCK;
 		}
-		
+
 		/* mark the unused buffer as wanted */
 		unused->status = FBUFFER_BUSY;
 		unused->next = 0;
@@ -1671,7 +1671,7 @@ long vbi_read(struct video_device* dev, char* buf, unsigned long count, int nonb
 	if (count == 2*19*2048) {
 		/*
 		 * Extreme HACK, old VBI programs expect 2048 points
-		 * of data, and we only got 864 orso. Double each 
+		 * of data, and we only got 864 orso. Double each
 		 * datapoint and clear the rest of the line.
 		 * This way we have appear to have a
 		 * sample_frequency of 29.5 Mc.
@@ -1956,7 +1956,7 @@ int __init init_zoran(int card)
 		zrand(~ZORAN_VDC_TRICOM, ZORAN_VDC);
 
 	/* external FL determines TOP frame */
-	zror(ZORAN_VFEC_EXTFL, ZORAN_VFEC); 
+	zror(ZORAN_VFEC_EXTFL, ZORAN_VFEC);
 
 	/* set HSpol */
 	if (ztv->card->hsync_pos)
@@ -2012,7 +2012,7 @@ void release_zoran(int max)
 	struct zoran *ztv;
 	int i;
 
-	for (i=0;i<max; i++) 
+	for (i=0;i<max; i++)
 	{
 		ztv = &zorans[i];
 
@@ -2029,7 +2029,7 @@ void release_zoran(int max)
 
 		/* free it */
 		free_irq(ztv->dev->irq,ztv);
- 
+
     		/* unregister i2c_bus */
 		i2c_unregister_bus((&ztv->i2c));
 
@@ -2050,7 +2050,7 @@ void __exit zr36120_exit(void)
 int __init zr36120_init(void)
 {
 	int	card;
- 
+
 	handle_chipset();
 	zoran_cards = find_zoran();
 	if (zoran_cards<0)
@@ -2063,7 +2063,7 @@ int __init zr36120_init(void)
 			/* only release the zorans we have registered */
 			release_zoran(card);
 			return -EIO;
-		} 
+		}
 	}
 	return 0;
 }

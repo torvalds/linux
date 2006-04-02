@@ -1,6 +1,4 @@
 /*
- * arch/ppc/syslib/mpc52xx_pci.c
- *
  * PCI code for the Freescale MPC52xx embedded CPU.
  *
  *
@@ -227,7 +225,8 @@ mpc52xx_pci_fixup_resources(struct pci_dev *dev)
 	/* The PCI Host bridge of MPC52xx has a prefetch memory resource
 	   fixed to 1Gb. Doesn't fit in the resource system so we remove it */
 	if ( (dev->vendor == PCI_VENDOR_ID_MOTOROLA) &&
-	     (dev->device == PCI_DEVICE_ID_MOTOROLA_MPC5200) ) {
+	     (   dev->device == PCI_DEVICE_ID_MOTOROLA_MPC5200
+	      || dev->device == PCI_DEVICE_ID_MOTOROLA_MPC5200B) ) {
 		struct resource *res = &dev->resource[1];
 		res->start = res->end = res->flags = 0;
 	}

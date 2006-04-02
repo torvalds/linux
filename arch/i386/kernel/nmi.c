@@ -138,12 +138,12 @@ static int __init check_nmi_watchdog(void)
 	if (nmi_watchdog == NMI_LOCAL_APIC)
 		smp_call_function(nmi_cpu_busy, (void *)&endflag, 0, 0);
 
-	for_each_cpu(cpu)
+	for_each_possible_cpu(cpu)
 		prev_nmi_count[cpu] = per_cpu(irq_stat, cpu).__nmi_count;
 	local_irq_enable();
 	mdelay((10*1000)/nmi_hz); // wait 10 ticks
 
-	for (cpu = 0; cpu < NR_CPUS; cpu++) {
+	for_each_possible_cpu(cpu) {
 #ifdef CONFIG_SMP
 		/* Check cpu_callin_map here because that is set
 		   after the timer is started. */
@@ -510,7 +510,7 @@ void touch_nmi_watchdog (void)
 	 * Just reset the alert counters, (other CPUs might be
 	 * spinning on locks we hold):
 	 */
-	for (i = 0; i < NR_CPUS; i++)
+	for_each_possible_cpu(i)
 		alert_counter[i] = 0;
 
 	/*
@@ -529,7 +529,8 @@ void nmi_watchdog_tick (struct pt_regs * regs)
 	 * always switch the stack NMI-atomically, it's safe to use
 	 * smp_processor_id().
 	 */
-	int sum, cpu = smp_processor_id();
+	unsigned int sum;
+	int cpu = smp_processor_id();
 
 	sum = per_cpu(irq_stat, cpu).apic_timer_irqs;
 
@@ -543,7 +544,7 @@ void nmi_watchdog_tick (struct pt_regs * regs)
 			/*
 			 * die_nmi will return ONLY if NOTIFY_STOP happens..
 			 */
-			die_nmi(regs, "NMI Watchdog detected LOCKUP");
+			die_nmi(regs, "BUG: NMI Watchdog detected LOCKUP");
 	} else {
 		last_irq_sums[cpu] = sum;
 		alert_counter[cpu] = 0;

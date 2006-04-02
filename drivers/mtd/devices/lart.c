@@ -581,8 +581,6 @@ static int flash_write (struct mtd_info *mtd,loff_t to,size_t len,size_t *retlen
 
 /***************************************************************************************************/
 
-#define NB_OF(x) (sizeof (x) / sizeof (x[0]))
-
 static struct mtd_info mtd;
 
 static struct mtd_erase_region_info erase_regions[] = {
@@ -640,7 +638,7 @@ int __init lart_flash_init (void)
    mtd.flags = MTD_CAP_NORFLASH;
    mtd.size = FLASH_BLOCKSIZE_PARAM * FLASH_NUMBLOCKS_16m_PARAM + FLASH_BLOCKSIZE_MAIN * FLASH_NUMBLOCKS_16m_MAIN;
    mtd.erasesize = FLASH_BLOCKSIZE_MAIN;
-   mtd.numeraseregions = NB_OF (erase_regions);
+   mtd.numeraseregions = ARRAY_SIZE(erase_regions);
    mtd.eraseregions = erase_regions;
    mtd.erase = flash_erase;
    mtd.read = flash_read;
@@ -670,9 +668,9 @@ int __init lart_flash_init (void)
 			   result,mtd.eraseregions[result].numblocks);
 
 #ifdef HAVE_PARTITIONS
-   printk ("\npartitions = %d\n",NB_OF (lart_partitions));
+   printk ("\npartitions = %d\n", ARRAY_SIZE(lart_partitions));
 
-   for (result = 0; result < NB_OF (lart_partitions); result++)
+   for (result = 0; result < ARRAY_SIZE(lart_partitions); result++)
 	 printk (KERN_DEBUG
 			 "\n\n"
 			 "lart_partitions[%d].name = %s\n"
@@ -687,7 +685,7 @@ int __init lart_flash_init (void)
 #ifndef HAVE_PARTITIONS
    result = add_mtd_device (&mtd);
 #else
-   result = add_mtd_partitions (&mtd,lart_partitions,NB_OF (lart_partitions));
+   result = add_mtd_partitions (&mtd,lart_partitions, ARRAY_SIZE(lart_partitions));
 #endif
 
    return (result);

@@ -85,8 +85,8 @@ static int __init hp_zx1_ioc_shared(void)
 	/*
 	 * IOC already configured by sba_iommu module; just use
 	 * its setup.  We assume:
-	 * 	- IOVA space is 1Gb in size
-	 * 	- first 512Mb is IOMMU, second 512Mb is GART
+	 *	- IOVA space is 1Gb in size
+	 *	- first 512Mb is IOMMU, second 512Mb is GART
 	 */
 	hp->io_tlb_ps = readq(hp->ioc_regs+HP_ZX1_TCNFG);
 	switch (hp->io_tlb_ps) {
@@ -115,7 +115,7 @@ static int __init hp_zx1_ioc_shared(void)
 
 	if (hp->gatt[0] != HP_ZX1_SBA_IOMMU_COOKIE) {
 		/* Normal case when no AGP device in system */
-	    	hp->gatt = NULL;
+		hp->gatt = NULL;
 		hp->gatt_entries = 0;
 		printk(KERN_ERR PFX "No reserved IO PDIR entry found; "
 		       "GART disabled\n");

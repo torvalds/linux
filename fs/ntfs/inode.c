@@ -1,7 +1,7 @@
 /**
  * inode.c - NTFS kernel inode handling. Part of the Linux-NTFS project.
  *
- * Copyright (c) 2001-2005 Anton Altaparmakov
+ * Copyright (c) 2001-2006 Anton Altaparmakov
  *
  * This program/include file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as published
@@ -19,13 +19,19 @@
  * Foundation,Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include <linux/pagemap.h>
 #include <linux/buffer_head.h>
-#include <linux/smp_lock.h>
-#include <linux/quotaops.h>
+#include <linux/fs.h>
+#include <linux/mm.h>
 #include <linux/mount.h>
+#include <linux/mutex.h>
+#include <linux/pagemap.h>
+#include <linux/quotaops.h>
+#include <linux/slab.h>
+#include <linux/smp_lock.h>
 
 #include "aops.h"
+#include "attrib.h"
+#include "bitmap.h"
 #include "dir.h"
 #include "debug.h"
 #include "inode.h"
@@ -382,7 +388,7 @@ void __ntfs_init_inode(struct super_block *sb, ntfs_inode *ni)
 	atomic_set(&ni->count, 1);
 	ni->vol = NTFS_SB(sb);
 	ntfs_init_runlist(&ni->runlist);
-	init_MUTEX(&ni->mrec_lock);
+	mutex_init(&ni->mrec_lock);
 	ni->page = NULL;
 	ni->page_ofs = 0;
 	ni->attr_list_size = 0;
@@ -394,7 +400,7 @@ void __ntfs_init_inode(struct super_block *sb, ntfs_inode *ni)
 	ni->itype.index.collation_rule = 0;
 	ni->itype.index.block_size_bits = 0;
 	ni->itype.index.vcn_size_bits = 0;
-	init_MUTEX(&ni->extent_lock);
+	mutex_init(&ni->extent_lock);
 	ni->nr_extents = 0;
 	ni->ext.base_ntfs_ino = NULL;
 }
@@ -1064,10 +1070,10 @@ skip_large_dir_stuff:
 		if (a->non_resident) {
 			NInoSetNonResident(ni);
 			if (NInoCompressed(ni) || NInoSparse(ni)) {
-				if (a->data.non_resident.compression_unit !=
-						4) {
+				if (NInoCompressed(ni) && a->data.non_resident.
+						compression_unit != 4) {
 					ntfs_error(vi->i_sb, "Found "
-							"nonstandard "
+							"non-standard "
 							"compression unit (%u "
 							"instead of 4).  "
 							"Cannot handle this.",
@@ -1076,16 +1082,26 @@ skip_large_dir_stuff:
 					err = -EOPNOTSUPP;
 					goto unm_err_out;
 				}
-				ni->itype.compressed.block_clusters = 1U <<
-						a->data.non_resident.
-						compression_unit;
-				ni->itype.compressed.block_size = 1U << (
-						a->data.non_resident.
-						compression_unit +
-						vol->cluster_size_bits);
-				ni->itype.compressed.block_size_bits = ffs(
-						ni->itype.compressed.
-						block_size) - 1;
+				if (a->data.non_resident.compression_unit) {
+					ni->itype.compressed.block_size = 1U <<
+							(a->data.non_resident.
+							compression_unit +
+							vol->cluster_size_bits);
+					ni->itype.compressed.block_size_bits =
+							ffs(ni->itype.
+							compressed.
+							block_size) - 1;
+					ni->itype.compressed.block_clusters =
+							1U << a->data.
+							non_resident.
+							compression_unit;
+				} else {
+					ni->itype.compressed.block_size = 0;
+					ni->itype.compressed.block_size_bits =
+							0;
+					ni->itype.compressed.block_clusters =
+							0;
+				}
 				ni->itype.compressed.size = sle64_to_cpu(
 						a->data.non_resident.
 						compressed_size);
@@ -1338,8 +1354,9 @@ static int ntfs_read_locked_attr_inode(struct inode *base_vi, struct inode *vi)
 			goto unm_err_out;
 		}
 		if (NInoCompressed(ni) || NInoSparse(ni)) {
-			if (a->data.non_resident.compression_unit != 4) {
-				ntfs_error(vi->i_sb, "Found nonstandard "
+			if (NInoCompressed(ni) && a->data.non_resident.
+					compression_unit != 4) {
+				ntfs_error(vi->i_sb, "Found non-standard "
 						"compression unit (%u instead "
 						"of 4).  Cannot handle this.",
 						a->data.non_resident.
@@ -1347,13 +1364,22 @@ static int ntfs_read_locked_attr_inode(struct inode *base_vi, struct inode *vi)
 				err = -EOPNOTSUPP;
 				goto unm_err_out;
 			}
-			ni->itype.compressed.block_clusters = 1U <<
-					a->data.non_resident.compression_unit;
-			ni->itype.compressed.block_size = 1U << (
-					a->data.non_resident.compression_unit +
-					vol->cluster_size_bits);
-			ni->itype.compressed.block_size_bits = ffs(
-					ni->itype.compressed.block_size) - 1;
+			if (a->data.non_resident.compression_unit) {
+				ni->itype.compressed.block_size = 1U <<
+						(a->data.non_resident.
+						compression_unit +
+						vol->cluster_size_bits);
+				ni->itype.compressed.block_size_bits =
+						ffs(ni->itype.compressed.
+						block_size) - 1;
+				ni->itype.compressed.block_clusters = 1U <<
+						a->data.non_resident.
+						compression_unit;
+			} else {
+				ni->itype.compressed.block_size = 0;
+				ni->itype.compressed.block_size_bits = 0;
+				ni->itype.compressed.block_clusters = 0;
+			}
 			ni->itype.compressed.size = sle64_to_cpu(
 					a->data.non_resident.compressed_size);
 		}
@@ -1406,7 +1432,6 @@ err_out:
 			"Run chkdsk.", err, vi->i_ino, ni->type, ni->name_len,
 			base_vi->i_ino);
 	make_bad_inode(vi);
-	make_bad_inode(base_vi);
 	if (err != -ENOMEM)
 		NVolSetErrors(vol);
 	return err;
@@ -1591,6 +1616,7 @@ static int ntfs_read_locked_index_inode(struct inode *base_vi, struct inode *vi)
 					"$INDEX_ALLOCATION attribute.");
 		goto unm_err_out;
 	}
+	a = ctx->attr;
 	if (!a->non_resident) {
 		ntfs_error(vi->i_sb, "$INDEX_ALLOCATION attribute is "
 				"resident.");
@@ -2823,11 +2849,8 @@ done:
 old_bad_out:
 	old_size = -1;
 bad_out:
-	if (err != -ENOMEM && err != -EOPNOTSUPP) {
-		make_bad_inode(vi);
-		make_bad_inode(VFS_I(base_ni));
+	if (err != -ENOMEM && err != -EOPNOTSUPP)
 		NVolSetErrors(vol);
-	}
 	if (err != -EOPNOTSUPP)
 		NInoSetTruncateFailed(ni);
 	else if (old_size >= 0)
@@ -2842,11 +2865,8 @@ out:
 	ntfs_debug("Failed.  Returning error code %i.", err);
 	return err;
 conv_err_out:
-	if (err != -ENOMEM && err != -EOPNOTSUPP) {
-		make_bad_inode(vi);
-		make_bad_inode(VFS_I(base_ni));
+	if (err != -ENOMEM && err != -EOPNOTSUPP)
 		NVolSetErrors(vol);
-	}
 	if (err != -EOPNOTSUPP)
 		NInoSetTruncateFailed(ni);
 	else
@@ -3044,15 +3064,18 @@ int ntfs_write_inode(struct inode *vi, int sync)
 	 * record will be cleaned and written out to disk below, i.e. before
 	 * this function returns.
 	 */
-	if (modified && !NInoTestSetDirty(ctx->ntfs_ino))
-		mark_ntfs_record_dirty(ctx->ntfs_ino->page,
-				ctx->ntfs_ino->page_ofs);
+	if (modified) {
+		flush_dcache_mft_record_page(ctx->ntfs_ino);
+		if (!NInoTestSetDirty(ctx->ntfs_ino))
+			mark_ntfs_record_dirty(ctx->ntfs_ino->page,
+					ctx->ntfs_ino->page_ofs);
+	}
 	ntfs_attr_put_search_ctx(ctx);
 	/* Now the access times are updated, write the base mft record. */
 	if (NInoDirty(ni))
 		err = write_mft_record(ni, m, sync);
 	/* Write all attached extent mft records. */
-	down(&ni->extent_lock);
+	mutex_lock(&ni->extent_lock);
 	if (ni->nr_extents > 0) {
 		ntfs_inode **extent_nis = ni->ext.extent_ntfs_inos;
 		int i;
@@ -3079,7 +3102,7 @@ int ntfs_write_inode(struct inode *vi, int sync)
 			}
 		}
 	}
-	up(&ni->extent_lock);
+	mutex_unlock(&ni->extent_lock);
 	unmap_mft_record(ni);
 	if (unlikely(err))
 		goto err_out;
@@ -3094,9 +3117,7 @@ err_out:
 				"retries later.");
 		mark_inode_dirty(vi);
 	} else {
-		ntfs_error(vi->i_sb, "Failed (error code %i):  Marking inode "
-				"as bad.  You should run chkdsk.", -err);
-		make_bad_inode(vi);
+		ntfs_error(vi->i_sb, "Failed (error %i):  Run chkdsk.", -err);
 		NVolSetErrors(ni->vol);
 	}
 	return err;

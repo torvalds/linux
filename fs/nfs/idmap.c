@@ -35,6 +35,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/slab.h>
@@ -74,8 +75,8 @@ struct idmap {
 	struct dentry        *idmap_dentry;
 	wait_queue_head_t     idmap_wq;
 	struct idmap_msg      idmap_im;
-	struct semaphore      idmap_lock;    /* Serializes upcalls */
-	struct semaphore      idmap_im_lock; /* Protects the hashtable */
+	struct mutex          idmap_lock;    /* Serializes upcalls */
+	struct mutex          idmap_im_lock; /* Protects the hashtable */
 	struct idmap_hashtable idmap_user_hash;
 	struct idmap_hashtable idmap_group_hash;
 };
@@ -101,10 +102,8 @@ nfs_idmap_new(struct nfs4_client *clp)
 
 	if (clp->cl_idmap != NULL)
 		return;
-        if ((idmap = kmalloc(sizeof(*idmap), GFP_KERNEL)) == NULL)
+        if ((idmap = kzalloc(sizeof(*idmap), GFP_KERNEL)) == NULL)
                 return;
-
-	memset(idmap, 0, sizeof(*idmap));
 
 	snprintf(idmap->idmap_path, sizeof(idmap->idmap_path),
 	    "%s/idmap", clp->cl_rpcclient->cl_pathname);
@@ -116,8 +115,8 @@ nfs_idmap_new(struct nfs4_client *clp)
 		return;
 	}
 
-        init_MUTEX(&idmap->idmap_lock);
-        init_MUTEX(&idmap->idmap_im_lock);
+        mutex_init(&idmap->idmap_lock);
+        mutex_init(&idmap->idmap_im_lock);
 	init_waitqueue_head(&idmap->idmap_wq);
 	idmap->idmap_user_hash.h_type = IDMAP_TYPE_USER;
 	idmap->idmap_group_hash.h_type = IDMAP_TYPE_GROUP;
@@ -132,6 +131,8 @@ nfs_idmap_delete(struct nfs4_client *clp)
 
 	if (!idmap)
 		return;
+	dput(idmap->idmap_dentry);
+	idmap->idmap_dentry = NULL;
 	rpc_unlink(idmap->idmap_path);
 	clp->cl_idmap = NULL;
 	kfree(idmap);
@@ -232,8 +233,8 @@ nfs_idmap_id(struct idmap *idmap, struct idmap_hashtable *h,
 	if (namelen >= IDMAP_NAMESZ)
 		return -EINVAL;
 
-	down(&idmap->idmap_lock);
-	down(&idmap->idmap_im_lock);
+	mutex_lock(&idmap->idmap_lock);
+	mutex_lock(&idmap->idmap_im_lock);
 
 	he = idmap_lookup_name(h, name, namelen);
 	if (he != NULL) {
@@ -259,11 +260,11 @@ nfs_idmap_id(struct idmap *idmap, struct idmap_hashtable *h,
 	}
 
 	set_current_state(TASK_UNINTERRUPTIBLE);
-	up(&idmap->idmap_im_lock);
+	mutex_unlock(&idmap->idmap_im_lock);
 	schedule();
 	current->state = TASK_RUNNING;
 	remove_wait_queue(&idmap->idmap_wq, &wq);
-	down(&idmap->idmap_im_lock);
+	mutex_lock(&idmap->idmap_im_lock);
 
 	if (im->im_status & IDMAP_STATUS_SUCCESS) {
 		*id = im->im_id;
@@ -272,8 +273,8 @@ nfs_idmap_id(struct idmap *idmap, struct idmap_hashtable *h,
 
  out:
 	memset(im, 0, sizeof(*im));
-	up(&idmap->idmap_im_lock);
-	up(&idmap->idmap_lock);
+	mutex_unlock(&idmap->idmap_im_lock);
+	mutex_unlock(&idmap->idmap_lock);
 	return (ret);
 }
 
@@ -293,8 +294,8 @@ nfs_idmap_name(struct idmap *idmap, struct idmap_hashtable *h,
 
 	im = &idmap->idmap_im;
 
-	down(&idmap->idmap_lock);
-	down(&idmap->idmap_im_lock);
+	mutex_lock(&idmap->idmap_lock);
+	mutex_lock(&idmap->idmap_im_lock);
 
 	he = idmap_lookup_id(h, id);
 	if (he != 0) {
@@ -320,11 +321,11 @@ nfs_idmap_name(struct idmap *idmap, struct idmap_hashtable *h,
 	}
 
 	set_current_state(TASK_UNINTERRUPTIBLE);
-	up(&idmap->idmap_im_lock);
+	mutex_unlock(&idmap->idmap_im_lock);
 	schedule();
 	current->state = TASK_RUNNING;
 	remove_wait_queue(&idmap->idmap_wq, &wq);
-	down(&idmap->idmap_im_lock);
+	mutex_lock(&idmap->idmap_im_lock);
 
 	if (im->im_status & IDMAP_STATUS_SUCCESS) {
 		if ((len = strnlen(im->im_name, IDMAP_NAMESZ)) == 0)
@@ -335,8 +336,8 @@ nfs_idmap_name(struct idmap *idmap, struct idmap_hashtable *h,
 
  out:
 	memset(im, 0, sizeof(*im));
-	up(&idmap->idmap_im_lock);
-	up(&idmap->idmap_lock);
+	mutex_unlock(&idmap->idmap_im_lock);
+	mutex_unlock(&idmap->idmap_lock);
 	return ret;
 }
 
@@ -380,7 +381,7 @@ idmap_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
         if (copy_from_user(&im_in, src, mlen) != 0)
 		return (-EFAULT);
 
-	down(&idmap->idmap_im_lock);
+	mutex_lock(&idmap->idmap_im_lock);
 
 	ret = mlen;
 	im->im_status = im_in.im_status;
@@ -440,7 +441,7 @@ idmap_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 		idmap_update_entry(he, im_in.im_name, namelen_in, im_in.im_id);
 	ret = mlen;
 out:
-	up(&idmap->idmap_im_lock);
+	mutex_unlock(&idmap->idmap_im_lock);
 	return ret;
 }
 
@@ -452,10 +453,10 @@ idmap_pipe_destroy_msg(struct rpc_pipe_msg *msg)
 
 	if (msg->errno >= 0)
 		return;
-	down(&idmap->idmap_im_lock);
+	mutex_lock(&idmap->idmap_im_lock);
 	im->im_status = IDMAP_STATUS_LOOKUPFAIL;
 	wake_up(&idmap->idmap_wq);
-	up(&idmap->idmap_im_lock);
+	mutex_unlock(&idmap->idmap_im_lock);
 }
 
 /* 

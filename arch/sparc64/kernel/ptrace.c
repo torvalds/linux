@@ -124,6 +124,9 @@ void flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
 {
 	BUG_ON(len > PAGE_SIZE);
 
+	if (tlb_type == hypervisor)
+		return;
+
 #ifdef DCACHE_ALIASING_POSSIBLE
 	/* If bit 13 of the kernel address we used to access the
 	 * user page is the same as the virtual address that page

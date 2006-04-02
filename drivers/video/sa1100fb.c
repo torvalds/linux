@@ -1457,7 +1457,7 @@ static int __init sa1100fb_probe(struct platform_device *pdev)
 	int ret, irq;
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq <= 0)
+	if (irq < 0)
 		return -EINVAL;
 
 	if (!request_mem_region(0xb0100000, 0x10000, "LCD"))

@@ -621,10 +621,9 @@ static int zd1201_drvr_start(struct zd1201 *zd)
 	__le16 zdmax;
 	unsigned char *buffer;
 	
-	buffer = kmalloc(ZD1201_RXSIZE, GFP_KERNEL);
+	buffer = kzalloc(ZD1201_RXSIZE, GFP_KERNEL);
 	if (!buffer)
 		return -ENOMEM;
-	memset(buffer, 0, ZD1201_RXSIZE);
 
 	usb_fill_bulk_urb(zd->rx_urb, zd->usb, 
 	    usb_rcvbulkpipe(zd->usb, zd->endp_in), buffer, ZD1201_RXSIZE,
@@ -1737,6 +1736,7 @@ static const struct iw_handler_def zd1201_iw_handlers = {
 	.standard 		= (iw_handler *)zd1201_iw_handler,
 	.private 		= (iw_handler *)zd1201_private_handler,
 	.private_args 		= (struct iw_priv_args *) zd1201_private_args,
+	.get_wireless_stats	= zd1201_get_wireless_stats,
 };
 
 static int zd1201_probe(struct usb_interface *interface,
@@ -1750,11 +1750,9 @@ static int zd1201_probe(struct usb_interface *interface,
 
 	usb = interface_to_usbdev(interface);
 
-	zd = kmalloc(sizeof(struct zd1201), GFP_KERNEL);
-	if (!zd) {
+	zd = kzalloc(sizeof(struct zd1201), GFP_KERNEL);
+	if (!zd)
 		return -ENOMEM;
-	}
-	memset(zd, 0, sizeof(struct zd1201));
 	zd->ap = ap;
 	zd->usb = usb;
 	zd->removed = 0;
@@ -1799,7 +1797,6 @@ static int zd1201_probe(struct usb_interface *interface,
 	zd->dev->open = zd1201_net_open;
 	zd->dev->stop = zd1201_net_stop;
 	zd->dev->get_stats = zd1201_get_stats;
-	zd->dev->get_wireless_stats = zd1201_get_wireless_stats;
 	zd->dev->wireless_handlers =
 	    (struct iw_handler_def *)&zd1201_iw_handlers;
 	zd->dev->hard_start_xmit = zd1201_hard_start_xmit;

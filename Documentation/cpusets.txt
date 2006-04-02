@@ -4,8 +4,9 @@
 Copyright (C) 2004 BULL SA.
 Written by Simon.Derr@bull.net
 
-Portions Copyright (c) 2004 Silicon Graphics, Inc.
+Portions Copyright (c) 2004-2006 Silicon Graphics, Inc.
 Modified by Paul Jackson <pj@sgi.com>
+Modified by Christoph Lameter <clameter@sgi.com>
 
 CONTENTS:
 =========
@@ -17,7 +18,8 @@ CONTENTS:
   1.4 What are exclusive cpusets ?
   1.5 What does notify_on_release do ?
   1.6 What is memory_pressure ?
-  1.7 How do I use cpusets ?
+  1.7 What is memory spread ?
+  1.8 How do I use cpusets ?
 2. Usage Examples and Syntax
   2.1 Basic Usage
   2.2 Adding/removing cpus
@@ -90,7 +92,8 @@ This can be especially valuable on:
 
 These subsets, or "soft partitions" must be able to be dynamically
 adjusted, as the job mix changes, without impacting other concurrently
-executing jobs.
+executing jobs. The location of the running jobs pages may also be moved
+when the memory locations are changed.
 
 The kernel cpuset patch provides the minimum essential kernel
 mechanisms required to efficiently implement such subsets.  It
@@ -102,8 +105,8 @@ memory allocator code.
 1.3 How are cpusets implemented ?
 ---------------------------------
 
-Cpusets provide a Linux kernel (2.6.7 and above) mechanism to constrain
-which CPUs and Memory Nodes are used by a process or set of processes.
+Cpusets provide a Linux kernel mechanism to constrain which CPUs and
+Memory Nodes are used by a process or set of processes.
 
 The Linux kernel already has a pair of mechanisms to specify on which
 CPUs a task may be scheduled (sched_setaffinity) and on which Memory
@@ -315,7 +318,78 @@ the tasks in the cpuset, in units of reclaims attempted per second,
 times 1000.
 
 
-1.7 How do I use cpusets ?
+1.7 What is memory spread ?
+---------------------------
+There are two boolean flag files per cpuset that control where the
+kernel allocates pages for the file system buffers and related in
+kernel data structures.  They are called 'memory_spread_page' and
+'memory_spread_slab'.
+
+If the per-cpuset boolean flag file 'memory_spread_page' is set, then
+the kernel will spread the file system buffers (page cache) evenly
+over all the nodes that the faulting task is allowed to use, instead
+of preferring to put those pages on the node where the task is running.
+
+If the per-cpuset boolean flag file 'memory_spread_slab' is set,
+then the kernel will spread some file system related slab caches,
+such as for inodes and dentries evenly over all the nodes that the
+faulting task is allowed to use, instead of preferring to put those
+pages on the node where the task is running.
+
+The setting of these flags does not affect anonymous data segment or
+stack segment pages of a task.
+
+By default, both kinds of memory spreading are off, and memory
+pages are allocated on the node local to where the task is running,
+except perhaps as modified by the tasks NUMA mempolicy or cpuset
+configuration, so long as sufficient free memory pages are available.
+
+When new cpusets are created, they inherit the memory spread settings
+of their parent.
+
+Setting memory spreading causes allocations for the affected page
+or slab caches to ignore the tasks NUMA mempolicy and be spread
+instead.    Tasks using mbind() or set_mempolicy() calls to set NUMA
+mempolicies will not notice any change in these calls as a result of
+their containing tasks memory spread settings.  If memory spreading
+is turned off, then the currently specified NUMA mempolicy once again
+applies to memory page allocations.
+
+Both 'memory_spread_page' and 'memory_spread_slab' are boolean flag
+files.  By default they contain "0", meaning that the feature is off
+for that cpuset.  If a "1" is written to that file, then that turns
+the named feature on.
+
+The implementation is simple.
+
+Setting the flag 'memory_spread_page' turns on a per-process flag
+PF_SPREAD_PAGE for each task that is in that cpuset or subsequently
+joins that cpuset.  The page allocation calls for the page cache
+is modified to perform an inline check for this PF_SPREAD_PAGE task
+flag, and if set, a call to a new routine cpuset_mem_spread_node()
+returns the node to prefer for the allocation.
+
+Similarly, setting 'memory_spread_cache' turns on the flag
+PF_SPREAD_SLAB, and appropriately marked slab caches will allocate
+pages from the node returned by cpuset_mem_spread_node().
+
+The cpuset_mem_spread_node() routine is also simple.  It uses the
+value of a per-task rotor cpuset_mem_spread_rotor to select the next
+node in the current tasks mems_allowed to prefer for the allocation.
+
+This memory placement policy is also known (in other contexts) as
+round-robin or interleave.
+
+This policy can provide substantial improvements for jobs that need
+to place thread local data on the corresponding node, but that need
+to access large file system data sets that need to be spread across
+the several nodes in the jobs cpuset in order to fit.  Without this
+policy, especially for jobs that might have one thread reading in the
+data set, the memory allocation across the nodes in the jobs cpuset
+can become very uneven.
+
+
+1.8 How do I use cpusets ?
 --------------------------
 
 In order to minimize the impact of cpusets on critical kernel
@@ -371,22 +445,17 @@ cpusets memory placement policy 'mems' subsequently changes.
 If the cpuset flag file 'memory_migrate' is set true, then when
 tasks are attached to that cpuset, any pages that task had
 allocated to it on nodes in its previous cpuset are migrated
-to the tasks new cpuset.  Depending on the implementation,
-this migration may either be done by swapping the page out,
-so that the next time the page is referenced, it will be paged
-into the tasks new cpuset, usually on the node where it was
-referenced, or this migration may be done by directly copying
-the pages from the tasks previous cpuset to the new cpuset,
-where possible to the same node, relative to the new cpuset,
-as the node that held the page, relative to the old cpuset.
+to the tasks new cpuset. The relative placement of the page within
+the cpuset is preserved during these migration operations if possible.
+For example if the page was on the second valid node of the prior cpuset
+then the page will be placed on the second valid node of the new cpuset.
+
 Also if 'memory_migrate' is set true, then if that cpusets
 'mems' file is modified, pages allocated to tasks in that
 cpuset, that were on nodes in the previous setting of 'mems',
-will be moved to nodes in the new setting of 'mems.'  Again,
-depending on the implementation, this might be done by swapping,
-or by direct copying.  In either case, pages that were not in
-the tasks prior cpuset, or in the cpusets prior 'mems' setting,
-will not be moved.
+will be moved to nodes in the new setting of 'mems.'
+Pages that were not in the tasks prior cpuset, or in the cpusets
+prior 'mems' setting, will not be moved.
 
 There is an exception to the above.  If hotplug functionality is used
 to remove all the CPUs that are currently assigned to a cpuset,
@@ -433,16 +502,6 @@ and then start a subshell 'sh' in that cpuset:
   # The subshell 'sh' is now running in cpuset Charlie
   # The next line should display '/Charlie'
   cat /proc/self/cpuset
-
-In the case that a change of cpuset includes wanting to move already
-allocated memory pages, consider further the work of IWAMOTO
-Toshihiro <iwamoto@valinux.co.jp> for page remapping and memory
-hotremoval, which can be found at:
-
-  http://people.valinux.co.jp/~iwamoto/mh.html
-
-The integration of cpusets with such memory migration is not yet
-available.
 
 In the future, a C library interface to cpusets will likely be
 available.  For now, the only way to query or modify cpusets is

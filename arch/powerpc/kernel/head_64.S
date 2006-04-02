@@ -1,6 +1,4 @@
 /*
- *  arch/ppc64/kernel/head.S
- *
  *  PowerPC version
  *    Copyright (C) 1995-1996 Gary Thomas (gdt@linuxppc.org)
  *
@@ -279,6 +277,7 @@ exception_marker:
 	std	r10,0(r1);		/* make stack chain pointer	*/ \
 	std	r0,GPR0(r1);		/* save r0 in stackframe	*/ \
 	std	r10,GPR1(r1);		/* save r1 in stackframe	*/ \
+	ACCOUNT_CPU_USER_ENTRY(r9, r10);				   \
 	std	r2,GPR2(r1);		/* save r2 in stackframe	*/ \
 	SAVE_4GPRS(3, r1);		/* save r3 - r6 in stackframe	*/ \
 	SAVE_2GPRS(7, r1);		/* save r7, r8 in stackframe	*/ \
@@ -846,6 +845,14 @@ fast_exception_return:
 	ld	r11,_NIP(r1)
 	andi.	r3,r12,MSR_RI		/* check if RI is set */
 	beq-	unrecov_fer
+
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+	andi.	r3,r12,MSR_PR
+	beq	2f
+	ACCOUNT_CPU_USER_EXIT(r3, r4)
+2:
+#endif
+
 	ld	r3,_CCR(r1)
 	ld	r4,_LINK(r1)
 	ld	r5,_CTR(r1)
@@ -1537,7 +1544,11 @@ _STATIC(__boot_from_prom)
 	mr	r28,r6
 	mr	r27,r7
 
-	/* Align the stack to 16-byte boundary for broken yaboot */
+	/*
+	 * Align the stack to 16-byte boundary
+	 * Depending on the size and layout of the ELF sections in the initial
+	 * boot binary, the stack pointer will be unalignet on PowerMac
+	 */
 	rldicr	r1,r1,0,59
 
 	/* Make sure we are running in 64 bits mode */
@@ -1840,21 +1851,6 @@ _STATIC(start_here_multiplatform)
 	bl	.__save_cpu_setup
 	sync
 
-	/* Setup a valid physical PACA pointer in SPRG3 for early_setup
-	 * note that boot_cpuid can always be 0 nowadays since there is
-	 * nowhere it can be initialized differently before we reach this
-	 * code
-	 */
-	LOAD_REG_IMMEDIATE(r27, boot_cpuid)
-	add	r27,r27,r26
-	lwz	r27,0(r27)
-
-	LOAD_REG_IMMEDIATE(r24, paca) 	/* Get base vaddr of paca array	 */
-	mulli	r13,r27,PACA_SIZE	/* Calculate vaddr of right paca */
-	add	r13,r13,r24		/* for this processor.		 */
-	add	r13,r13,r26		/* convert to physical addr	 */
-	mtspr	SPRN_SPRG3,r13
-	
 	/* Do very early kernel initializations, including initial hash table,
 	 * stab and slb setup before we turn on relocation.	*/
 
@@ -1922,6 +1918,17 @@ _STATIC(start_here_common)
 
 	/* Not reached */
 	BUG_OPCODE
+
+/* Put the paca pointer into r13 and SPRG3 */
+_GLOBAL(setup_boot_paca)
+	LOAD_REG_IMMEDIATE(r3, boot_cpuid)
+	lwz	r3,0(r3)
+	LOAD_REG_IMMEDIATE(r4, paca) 	/* Get base vaddr of paca array	 */
+	mulli	r3,r3,PACA_SIZE		/* Calculate vaddr of right paca */
+	add	r13,r3,r4		/* for this processor.		 */
+	mtspr	SPRN_SPRG3,r13
+
+	blr
 
 /*
  * We put a few things here that have to be page-aligned.

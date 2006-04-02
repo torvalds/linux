@@ -740,7 +740,7 @@ static void irda_usb_receive(struct urb *urb, struct pt_regs *regs)
 	struct sk_buff *newskb;
 	struct sk_buff *dataskb;
 	struct urb *next_urb;
-	int		docopy;
+	unsigned int len, docopy;
 
 	IRDA_DEBUG(2, "%s(), len=%d\n", __FUNCTION__, urb->actual_length);
 	
@@ -851,10 +851,11 @@ static void irda_usb_receive(struct urb *urb, struct pt_regs *regs)
 	dataskb->dev = self->netdev;
 	dataskb->mac.raw  = dataskb->data;
 	dataskb->protocol = htons(ETH_P_IRDA);
+	len = dataskb->len;
 	netif_rx(dataskb);
 
 	/* Keep stats up to date */
-	self->stats.rx_bytes += dataskb->len;
+	self->stats.rx_bytes += len;
 	self->stats.rx_packets++;
 	self->netdev->last_rx = jiffies;
 

@@ -45,6 +45,12 @@
 	((256 - sizeof (struct list_head) - 2 * sizeof (int)) /		\
 	 (sizeof (struct scatterlist)))
 
+enum {
+	MTHCA_ICM_PAGE_SHIFT	= 12,
+	MTHCA_ICM_PAGE_SIZE	= 1 << MTHCA_ICM_PAGE_SHIFT,
+	MTHCA_DB_REC_PER_PAGE	= MTHCA_ICM_PAGE_SIZE / 8
+};
+
 struct mthca_icm_chunk {
 	struct list_head   list;
 	int                npages;
@@ -130,10 +136,6 @@ static inline unsigned long mthca_icm_size(struct mthca_icm_iter *iter)
 {
 	return sg_dma_len(&iter->chunk->mem[iter->page_idx]);
 }
-
-enum {
-	MTHCA_DB_REC_PER_PAGE = 4096 / 8
-};
 
 struct mthca_db_page {
 	DECLARE_BITMAP(used, MTHCA_DB_REC_PER_PAGE);

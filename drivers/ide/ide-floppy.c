@@ -98,6 +98,7 @@
 #include <linux/cdrom.h>
 #include <linux/ide.h>
 #include <linux/bitops.h>
+#include <linux/mutex.h>
 
 #include <asm/byteorder.h>
 #include <asm/irq.h>
@@ -517,7 +518,7 @@ typedef struct {
 	u8		reserved[4];
 } idefloppy_mode_parameter_header_t;
 
-static DECLARE_MUTEX(idefloppy_ref_sem);
+static DEFINE_MUTEX(idefloppy_ref_mutex);
 
 #define to_ide_floppy(obj) container_of(obj, struct ide_floppy_obj, kref)
 
@@ -528,11 +529,11 @@ static struct ide_floppy_obj *ide_floppy_get(struct gendisk *disk)
 {
 	struct ide_floppy_obj *floppy = NULL;
 
-	down(&idefloppy_ref_sem);
+	mutex_lock(&idefloppy_ref_mutex);
 	floppy = ide_floppy_g(disk);
 	if (floppy)
 		kref_get(&floppy->kref);
-	up(&idefloppy_ref_sem);
+	mutex_unlock(&idefloppy_ref_mutex);
 	return floppy;
 }
 
@@ -540,9 +541,9 @@ static void ide_floppy_release(struct kref *);
 
 static void ide_floppy_put(struct ide_floppy_obj *floppy)
 {
-	down(&idefloppy_ref_sem);
+	mutex_lock(&idefloppy_ref_mutex);
 	kref_put(&floppy->kref, ide_floppy_release);
-	up(&idefloppy_ref_sem);
+	mutex_unlock(&idefloppy_ref_mutex);
 }
 
 /*

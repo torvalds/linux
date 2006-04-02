@@ -178,7 +178,7 @@ enum typhoon_cards {
 };
 
 /* directly indexed by enum typhoon_cards, above */
-static struct typhoon_card_info typhoon_card_info[] __devinitdata = {
+static const struct typhoon_card_info typhoon_card_info[] __devinitdata = {
 	{ "3Com Typhoon (3C990-TX)",
 		TYPHOON_CRYPTO_NONE},
 	{ "3Com Typhoon (3CR990-TX-95)",
@@ -208,7 +208,7 @@ static struct typhoon_card_info typhoon_card_info[] __devinitdata = {
 };
 
 /* Notes on the new subsystem numbering scheme:
- * bits 0-1 indicate crypto capabilites: (0) variable, (1) DES, or (2) 3DES
+ * bits 0-1 indicate crypto capabilities: (0) variable, (1) DES, or (2) 3DES
  * bit 4 indicates if this card has secured firmware (we don't support it)
  * bit 8 indicates if this is a (0) copper or (1) fiber card
  * bits 12-16 indicate card type: (0) client and (1) server
@@ -788,7 +788,7 @@ typhoon_start_tx(struct sk_buff *skb, struct net_device *dev)
 	/* we have two rings to choose from, but we only use txLo for now
 	 * If we start using the Hi ring as well, we'll need to update
 	 * typhoon_stop_runtime(), typhoon_interrupt(), typhoon_num_free_tx(),
-	 * and TXHI_ENTIRES to match, as well as update the TSO code below
+	 * and TXHI_ENTRIES to match, as well as update the TSO code below
 	 * to get the right DMA address
 	 */
 	txRing = &tp->txLoRing;

@@ -1,6 +1,4 @@
 /*
- * arch/ppc/kernel/ibm440gp_common.h
- *
  * PPC440GP system library
  *
  * Eugene Surovegin <eugene.surovegin@zultys.com> or <ebs@ebshome.net>

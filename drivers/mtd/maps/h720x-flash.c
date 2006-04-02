@@ -59,7 +59,7 @@ static struct mtd_partition h720x_partitions[] = {
         }
 };
 
-#define NUM_PARTITIONS  (sizeof(h720x_partitions)/sizeof(h720x_partitions[0]))
+#define NUM_PARTITIONS ARRAY_SIZE(h720x_partitions)
 
 static int                   nr_mtd_parts;
 static struct mtd_partition *mtd_parts;

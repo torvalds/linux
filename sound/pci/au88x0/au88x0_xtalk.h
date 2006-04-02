@@ -39,16 +39,16 @@
 #define XT_SPEAKER1		3
 #define XT_DIAMOND		4
 
-typedef long xtalk_dline_t[XTDLINE_SZ];
-typedef short xtalk_gains_t[XTGAINS_SZ];
-typedef short xtalk_instate_t[XTINST_SZ];
-typedef short xtalk_coefs_t[5][5];
-typedef short xtalk_state_t[5][4];
+typedef u32 xtalk_dline_t[XTDLINE_SZ];
+typedef u16 xtalk_gains_t[XTGAINS_SZ];
+typedef u16 xtalk_instate_t[XTINST_SZ];
+typedef u16 xtalk_coefs_t[5][5];
+typedef u16 xtalk_state_t[5][4];
 
 static void vortex_XtalkHw_SetGains(vortex_t * vortex,
 				    xtalk_gains_t const gains);
 static void vortex_XtalkHw_SetGainsAllChan(vortex_t * vortex);
-static void vortex_XtalkHw_SetSampleRate(vortex_t * vortex, int sr);
+static void vortex_XtalkHw_SetSampleRate(vortex_t * vortex, u32 sr);
 static void vortex_XtalkHw_ProgramPipe(vortex_t * vortex);
 static void vortex_XtalkHw_ProgramPipe(vortex_t * vortex);
 static void vortex_XtalkHw_ProgramXtalkWide(vortex_t * vortex);

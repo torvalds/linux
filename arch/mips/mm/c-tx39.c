@@ -210,7 +210,6 @@ static void tx39_flush_cache_page(struct vm_area_struct *vma, unsigned long page
 	 * Do indexed flush, too much work to get the (possible) TLB refills
 	 * to work correctly.
 	 */
-	page = (KSEG0 + (page & (dcache_size - 1)));
 	if (cpu_has_dc_aliases || exec)
 		tx39_blast_dcache_page_indexed(page);
 	if (exec)

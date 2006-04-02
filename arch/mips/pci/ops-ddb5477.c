@@ -253,9 +253,9 @@ static int write_config_byte(struct pci_config_swap *swap,
 static int prefix##_##rw##_config(struct pci_bus *bus, unsigned int devfn, int where, int size, u32 star val) \
 { \
 	if (size == 1) \
-     		return rw##_config_byte(pciswap, bus, devfn, where, (u8 star)val); \
+		return rw##_config_byte(pciswap, bus, devfn, where, (u8 star)val); \
 	else if (size == 2) \
-     		return rw##_config_word(pciswap, bus, devfn, where, (u16 star)val); \
+		return rw##_config_word(pciswap, bus, devfn, where, (u16 star)val); \
 	/* Size must be 4 */ \
      	return rw##_config_dword(pciswap, bus, devfn, where, val); \
 }

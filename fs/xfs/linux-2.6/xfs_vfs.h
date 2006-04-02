@@ -92,7 +92,7 @@ typedef enum {
 #define SYNC_FSDATA		0x0020	/* flush fs data (e.g. superblocks) */
 #define SYNC_REFCACHE		0x0040  /* prune some of the nfs ref cache */
 #define SYNC_REMOUNT		0x0080  /* remount readonly, no dummy LRs */
-#define SYNC_QUIESCE		0x0100  /* quiesce fileystem for a snapshot */
+#define SYNC_QUIESCE		0x0100  /* quiesce filesystem for a snapshot */
 
 typedef int	(*vfs_mount_t)(bhv_desc_t *,
 				struct xfs_mount_args *, struct cred *);
@@ -193,7 +193,8 @@ typedef struct bhv_vfsops {
 #define vfs_bhv_set_custom(b,o)	( (b)->bhv_custom = (void *)(o))
 #define vfs_bhv_clr_custom(b)	( (b)->bhv_custom = NULL )
 
-extern vfs_t *vfs_allocate(void);
+extern vfs_t *vfs_allocate(struct super_block *);
+extern vfs_t *vfs_from_sb(struct super_block *);
 extern void vfs_deallocate(vfs_t *);
 extern void vfs_insertops(vfs_t *, bhv_vfsops_t *);
 extern void vfs_insertbhv(vfs_t *, bhv_desc_t *, vfsops_t *, void *);

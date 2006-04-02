@@ -401,7 +401,7 @@ smb_file_permission(struct inode *inode, int mask, struct nameidata *nd)
 	return error;
 }
 
-struct file_operations smb_file_operations =
+const struct file_operations smb_file_operations =
 {
 	.llseek		= remote_llseek,
 	.read		= smb_file_read,

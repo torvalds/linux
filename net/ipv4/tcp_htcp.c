@@ -27,12 +27,12 @@ struct htcp {
 	u16	alpha;		/* Fixed point arith, << 7 */
 	u8	beta;           /* Fixed point arith, << 7 */
 	u8	modeswitch;     /* Delay modeswitch until we had at least one congestion event */
-	u8	ccount;		/* Number of RTTs since last congestion event */
-	u8	undo_ccount;
-	u16	packetcount;
+	u32	last_cong;	/* Time since last congestion event end */
+	u32	undo_last_cong;
+	u16	pkts_acked;
+	u32	packetcount;
 	u32	minRTT;
 	u32	maxRTT;
-	u32	snd_cwnd_cnt2;
 
 	u32	undo_maxRTT;
 	u32	undo_old_maxB;
@@ -45,21 +45,30 @@ struct htcp {
 	u32	lasttime;
 };
 
+static inline u32 htcp_cong_time(struct htcp *ca)
+{
+	return jiffies - ca->last_cong;
+}
+
+static inline u32 htcp_ccount(struct htcp *ca)
+{
+	return htcp_cong_time(ca)/ca->minRTT;
+}
+
 static inline void htcp_reset(struct htcp *ca)
 {
-	ca->undo_ccount = ca->ccount;
+	ca->undo_last_cong = ca->last_cong;
 	ca->undo_maxRTT = ca->maxRTT;
 	ca->undo_old_maxB = ca->old_maxB;
 
-	ca->ccount = 0;
-	ca->snd_cwnd_cnt2 = 0;
+	ca->last_cong = jiffies;
 }
 
 static u32 htcp_cwnd_undo(struct sock *sk)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
 	struct htcp *ca = inet_csk_ca(sk);
-	ca->ccount = ca->undo_ccount;
+	ca->last_cong = ca->undo_last_cong;
 	ca->maxRTT = ca->undo_maxRTT;
 	ca->old_maxB = ca->undo_old_maxB;
 	return max(tp->snd_cwnd, (tp->snd_ssthresh<<7)/ca->beta);
@@ -77,10 +86,10 @@ static inline void measure_rtt(struct sock *sk)
 		ca->minRTT = srtt;
 
 	/* max RTT */
-	if (icsk->icsk_ca_state == TCP_CA_Open && tp->snd_ssthresh < 0xFFFF && ca->ccount > 3) {
+	if (icsk->icsk_ca_state == TCP_CA_Open && tp->snd_ssthresh < 0xFFFF && htcp_ccount(ca) > 3) {
 		if (ca->maxRTT < ca->minRTT)
 			ca->maxRTT = ca->minRTT;
-		if (ca->maxRTT < srtt && srtt <= ca->maxRTT+HZ/50)
+		if (ca->maxRTT < srtt && srtt <= ca->maxRTT+msecs_to_jiffies(20))
 			ca->maxRTT = srtt;
 	}
 }
@@ -91,6 +100,12 @@ static void measure_achieved_throughput(struct sock *sk, u32 pkts_acked)
 	const struct tcp_sock *tp = tcp_sk(sk);
 	struct htcp *ca = inet_csk_ca(sk);
 	u32 now = tcp_time_stamp;
+
+	if (icsk->icsk_ca_state == TCP_CA_Open)
+		ca->pkts_acked = pkts_acked;
+
+	if (!use_bandwidth_switch)
+		return;
 
 	/* achieved throughput calculations */
 	if (icsk->icsk_ca_state != TCP_CA_Open &&
@@ -106,7 +121,7 @@ static void measure_achieved_throughput(struct sock *sk, u32 pkts_acked)
 			&& now - ca->lasttime >= ca->minRTT
 			&& ca->minRTT > 0) {
 		__u32 cur_Bi = ca->packetcount*HZ/(now - ca->lasttime);
-		if (ca->ccount <= 3) {
+		if (htcp_ccount(ca) <= 3) {
 			/* just after backoff */
 			ca->minB = ca->maxB = ca->Bi = cur_Bi;
 		} else {
@@ -135,7 +150,7 @@ static inline void htcp_beta_update(struct htcp *ca, u32 minRTT, u32 maxRTT)
 		}
 	}
 
-	if (ca->modeswitch && minRTT > max(HZ/100, 1) && maxRTT) {
+	if (ca->modeswitch && minRTT > msecs_to_jiffies(10) && maxRTT) {
 		ca->beta = (minRTT<<7)/maxRTT;
 		if (ca->beta < BETA_MIN)
 			ca->beta = BETA_MIN;
@@ -151,7 +166,7 @@ static inline void htcp_alpha_update(struct htcp *ca)
 {
 	u32 minRTT = ca->minRTT;
 	u32 factor = 1;
-	u32 diff = ca->ccount * minRTT; /* time since last backoff */
+	u32 diff = htcp_cong_time(ca);
 
 	if (diff > HZ) {
 		diff -= HZ;
@@ -216,21 +231,18 @@ static void htcp_cong_avoid(struct sock *sk, u32 ack, u32 rtt,
 
 		measure_rtt(sk);
 
-		/* keep track of number of round-trip times since last backoff event */
-		if (ca->snd_cwnd_cnt2++ > tp->snd_cwnd) {
-			ca->ccount++;
-			ca->snd_cwnd_cnt2 = 0;
-			htcp_alpha_update(ca);
-		}
-
 		/* In dangerous area, increase slowly.
 		 * In theory this is tp->snd_cwnd += alpha / tp->snd_cwnd
 		 */
-		if ((tp->snd_cwnd_cnt++ * ca->alpha)>>7 >= tp->snd_cwnd) {
+		if ((tp->snd_cwnd_cnt * ca->alpha)>>7 >= tp->snd_cwnd) {
 			if (tp->snd_cwnd < tp->snd_cwnd_clamp)
 				tp->snd_cwnd++;
 			tp->snd_cwnd_cnt = 0;
-		}
+			htcp_alpha_update(ca);
+		} else
+			tp->snd_cwnd_cnt += ca->pkts_acked;
+
+		ca->pkts_acked = 1;
 	}
 }
 
@@ -249,11 +261,19 @@ static void htcp_init(struct sock *sk)
 	memset(ca, 0, sizeof(struct htcp));
 	ca->alpha = ALPHA_BASE;
 	ca->beta = BETA_MIN;
+	ca->pkts_acked = 1;
+	ca->last_cong = jiffies;
 }
 
 static void htcp_state(struct sock *sk, u8 new_state)
 {
 	switch (new_state) {
+	case TCP_CA_Open:
+		{
+			struct htcp *ca = inet_csk_ca(sk);
+			ca->last_cong = jiffies;
+		}
+		break;
 	case TCP_CA_CWR:
 	case TCP_CA_Recovery:
 	case TCP_CA_Loss:
@@ -278,8 +298,6 @@ static int __init htcp_register(void)
 {
 	BUG_ON(sizeof(struct htcp) > ICSK_CA_PRIV_SIZE);
 	BUILD_BUG_ON(BETA_MIN >= BETA_MAX);
-	if (!use_bandwidth_switch)
-		htcp.pkts_acked = NULL;
 	return tcp_register_congestion_control(&htcp);
 }
 

@@ -112,7 +112,7 @@ static ssize_t state_show(struct ib_port *p, struct port_attribute *unused,
 		return ret;
 
 	return sprintf(buf, "%d: %s\n", attr.state,
-		       attr.state >= 0 && attr.state <= ARRAY_SIZE(state_name) ?
+		       attr.state >= 0 && attr.state < ARRAY_SIZE(state_name) ?
 		       state_name[attr.state] : "UNKNOWN");
 }
 
@@ -472,8 +472,10 @@ alloc_group_attrs(ssize_t (*show)(struct ib_port *,
 			goto err;
 
 		if (snprintf(element->name, sizeof(element->name),
-			     "%d", i) >= sizeof(element->name))
+			     "%d", i) >= sizeof(element->name)) {
+			kfree(element);
 			goto err;
+		}
 
 		element->attr.attr.name  = element->name;
 		element->attr.attr.mode  = S_IRUGO;
@@ -628,14 +630,42 @@ static ssize_t show_node_guid(struct class_device *cdev, char *buf)
 		       be16_to_cpu(((__be16 *) &dev->node_guid)[3]));
 }
 
+static ssize_t show_node_desc(struct class_device *cdev, char *buf)
+{
+	struct ib_device *dev = container_of(cdev, struct ib_device, class_dev);
+
+	return sprintf(buf, "%.64s\n", dev->node_desc);
+}
+
+static ssize_t set_node_desc(struct class_device *cdev, const char *buf,
+			      size_t count)
+{
+	struct ib_device *dev = container_of(cdev, struct ib_device, class_dev);
+	struct ib_device_modify desc = {};
+	int ret;
+
+	if (!dev->modify_device)
+		return -EIO;
+
+	memcpy(desc.node_desc, buf, min_t(int, count, 64));
+	ret = ib_modify_device(dev, IB_DEVICE_MODIFY_NODE_DESC, &desc);
+	if (ret)
+		return ret;
+
+	return count;
+}
+
 static CLASS_DEVICE_ATTR(node_type, S_IRUGO, show_node_type, NULL);
 static CLASS_DEVICE_ATTR(sys_image_guid, S_IRUGO, show_sys_image_guid, NULL);
 static CLASS_DEVICE_ATTR(node_guid, S_IRUGO, show_node_guid, NULL);
+static CLASS_DEVICE_ATTR(node_desc, S_IRUGO | S_IWUSR, show_node_desc,
+			 set_node_desc);
 
 static struct class_device_attribute *ib_class_attributes[] = {
 	&class_device_attr_node_type,
 	&class_device_attr_sys_image_guid,
-	&class_device_attr_node_guid
+	&class_device_attr_node_guid,
+	&class_device_attr_node_desc
 };
 
 static struct class ib_class = {

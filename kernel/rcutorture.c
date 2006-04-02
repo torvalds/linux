@@ -54,15 +54,15 @@ static int verbose;		/* Print more debug info. */
 static int test_no_idle_hz;	/* Test RCU's support for tickless idle CPUs. */
 static int shuffle_interval = 5; /* Interval between shuffles (in sec)*/
 
-MODULE_PARM(nreaders, "i");
+module_param(nreaders, int, 0);
 MODULE_PARM_DESC(nreaders, "Number of RCU reader threads");
-MODULE_PARM(stat_interval, "i");
+module_param(stat_interval, int, 0);
 MODULE_PARM_DESC(stat_interval, "Number of seconds between stats printk()s");
-MODULE_PARM(verbose, "i");
+module_param(verbose, bool, 0);
 MODULE_PARM_DESC(verbose, "Enable verbose debugging printk()s");
-MODULE_PARM(test_no_idle_hz, "i");
+module_param(test_no_idle_hz, bool, 0);
 MODULE_PARM_DESC(test_no_idle_hz, "Test support for tickless idle CPUs");
-MODULE_PARM(shuffle_interval, "i");
+module_param(shuffle_interval, int, 0);
 MODULE_PARM_DESC(shuffle_interval, "Number of seconds between shuffles");
 #define TORTURE_FLAG "rcutorture: "
 #define PRINTK_STRING(s) \
@@ -301,7 +301,7 @@ rcu_torture_printk(char *page)
 	long pipesummary[RCU_TORTURE_PIPE_LEN + 1] = { 0 };
 	long batchsummary[RCU_TORTURE_PIPE_LEN + 1] = { 0 };
 
-	for_each_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		for (i = 0; i < RCU_TORTURE_PIPE_LEN + 1; i++) {
 			pipesummary[i] += per_cpu(rcu_torture_count, cpu)[i];
 			batchsummary[i] += per_cpu(rcu_torture_batch, cpu)[i];
@@ -441,6 +441,16 @@ rcu_torture_shuffle(void *arg)
 	return 0;
 }
 
+static inline void
+rcu_torture_print_module_parms(char *tag)
+{
+	printk(KERN_ALERT TORTURE_FLAG "--- %s: nreaders=%d "
+		"stat_interval=%d verbose=%d test_no_idle_hz=%d "
+		"shuffle_interval = %d\n",
+		tag, nrealreaders, stat_interval, verbose, test_no_idle_hz,
+		shuffle_interval);
+}
+
 static void
 rcu_torture_cleanup(void)
 {
@@ -483,9 +493,10 @@ rcu_torture_cleanup(void)
 	rcu_barrier();
 
 	rcu_torture_stats_print();  /* -After- the stats thread is stopped! */
-	printk(KERN_ALERT TORTURE_FLAG
-	       "--- End of test: %s\n",
-	       atomic_read(&n_rcu_torture_error) == 0 ? "SUCCESS" : "FAILURE");
+	if (atomic_read(&n_rcu_torture_error))
+		rcu_torture_print_module_parms("End of test: FAILURE");
+	else
+		rcu_torture_print_module_parms("End of test: SUCCESS");
 }
 
 static int
@@ -501,11 +512,7 @@ rcu_torture_init(void)
 		nrealreaders = nreaders;
 	else
 		nrealreaders = 2 * num_online_cpus();
-	printk(KERN_ALERT TORTURE_FLAG "--- Start of test: nreaders=%d "
-		"stat_interval=%d verbose=%d test_no_idle_hz=%d "
-		"shuffle_interval = %d\n",
-		nrealreaders, stat_interval, verbose, test_no_idle_hz,
-		shuffle_interval);
+	rcu_torture_print_module_parms("Start of test");
 	fullstop = 0;
 
 	/* Set up the freelist. */
@@ -528,7 +535,7 @@ rcu_torture_init(void)
 	atomic_set(&n_rcu_torture_error, 0);
 	for (i = 0; i < RCU_TORTURE_PIPE_LEN + 1; i++)
 		atomic_set(&rcu_torture_wcount[i], 0);
-	for_each_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		for (i = 0; i < RCU_TORTURE_PIPE_LEN + 1; i++) {
 			per_cpu(rcu_torture_count, cpu)[i] = 0;
 			per_cpu(rcu_torture_batch, cpu)[i] = 0;

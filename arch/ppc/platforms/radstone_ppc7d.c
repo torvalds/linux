@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/radstone_ppc7d.c
- *
  * Board setup routines for the Radstone PPC7D boards.
  *
  * Author: James Chapman <jchapman@katalix.com>
@@ -685,11 +683,10 @@ ppc7d_fixup_i2c_pdata(struct platform_device *pdev)
 
 	pdata = pdev->dev.platform_data;
 	if (pdata == NULL) {
-		pdata = kmalloc(sizeof(*pdata), GFP_KERNEL);
+		pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
 		if (pdata == NULL)
 			return;
 
-		memset(pdata, 0, sizeof(*pdata));
 		pdev->dev.platform_data = pdata;
 	}
 
@@ -712,7 +709,7 @@ ppc7d_fixup_i2c_pdata(struct platform_device *pdev)
 }
 #endif
 
-static int __init ppc7d_platform_notify(struct device *dev)
+static int ppc7d_platform_notify(struct device *dev)
 {
 	static struct {
 		char *bus_id;

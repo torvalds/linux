@@ -3,7 +3,7 @@
  *
  *  Copyright (C) 1998 Philip Blundell <philb@gnu.org>
  *  Copyright (C) 1999 Matthew Wilcox <willy@bofh.ai>
- *  Copyright (C) 1999-2003 Helge Deller <deller@gmx.de>
+ *  Copyright (C) 1999-2006 Helge Deller <deller@gmx.de>
  *
  *  Very basic HP Human Interface Loop (HIL) driver.
  *  This driver handles the keyboard on HP300 (m68k) and on some 
@@ -90,7 +90,7 @@ static unsigned int hphilkeyb_keycode[HIL_KEYCODES_SET1_TBLSIZE] =
 
 /* HIL structure */
 static struct {
-	struct input_dev dev;
+	struct input_dev *dev;
 
 	unsigned int curdev;
 	
@@ -117,7 +117,7 @@ static void poll_finished(void)
 		down = (hil_dev.data[1] & 1) == 0;
 		scode = hil_dev.data[1] >> 1;
 		key = hphilkeyb_keycode[scode];
-		input_report_key(&hil_dev.dev, key, down);
+		input_report_key(hil_dev.dev, key, down);
 		break;
 	}
 	hil_dev.curdev = 0;
@@ -207,9 +207,14 @@ hil_keyb_init(void)
 	unsigned int i, kbid;
 	wait_queue_head_t hil_wait;
 
-	if (hil_dev.dev.id.bustype) {
+	if (hil_dev.dev) {
 		return -ENODEV; /* already initialized */
 	}
+
+	hil_dev.dev = input_allocate_device();
+	if (!hil_dev.dev)
+		return -ENOMEM;
+	hil_dev.dev->private = &hil_dev;
 	
 #if defined(CONFIG_HP300)
 	if (!hwreg_present((void *)(HILBASE + HIL_DATA)))
@@ -247,28 +252,26 @@ hil_keyb_init(void)
 	c = 0;
 	hil_do(HIL_WRITEKBDSADR, &c, 1);
 	
-	init_input_dev(&hil_dev.dev);
-
 	for (i = 0; i < HIL_KEYCODES_SET1_TBLSIZE; i++)
 		if (hphilkeyb_keycode[i] != KEY_RESERVED)
-			set_bit(hphilkeyb_keycode[i], hil_dev.dev.keybit);
+			set_bit(hphilkeyb_keycode[i], hil_dev.dev->keybit);
 
-	hil_dev.dev.evbit[0]    = BIT(EV_KEY) | BIT(EV_REP);
-	hil_dev.dev.ledbit[0]   = BIT(LED_NUML) | BIT(LED_CAPSL) | BIT(LED_SCROLLL);
-	hil_dev.dev.keycodemax  = HIL_KEYCODES_SET1_TBLSIZE;
-        hil_dev.dev.keycodesize = sizeof(hphilkeyb_keycode[0]);
-	hil_dev.dev.keycode     = hphilkeyb_keycode;
-	hil_dev.dev.name 	= "HIL keyboard";
-	hil_dev.dev.phys 	= "hpkbd/input0";
+	hil_dev.dev->evbit[0]    = BIT(EV_KEY) | BIT(EV_REP);
+	hil_dev.dev->ledbit[0]   = BIT(LED_NUML) | BIT(LED_CAPSL) | BIT(LED_SCROLLL);
+	hil_dev.dev->keycodemax  = HIL_KEYCODES_SET1_TBLSIZE;
+	hil_dev.dev->keycodesize = sizeof(hphilkeyb_keycode[0]);
+	hil_dev.dev->keycode     = hphilkeyb_keycode;
+	hil_dev.dev->name 	= "HIL keyboard";
+	hil_dev.dev->phys 	= "hpkbd/input0";
 
-	hil_dev.dev.id.bustype	= BUS_HIL;
-	hil_dev.dev.id.vendor	= PCI_VENDOR_ID_HP;
-	hil_dev.dev.id.product	= 0x0001;
-	hil_dev.dev.id.version	= 0x0010;
+	hil_dev.dev->id.bustype	= BUS_HIL;
+	hil_dev.dev->id.vendor	= PCI_VENDOR_ID_HP;
+	hil_dev.dev->id.product	= 0x0001;
+	hil_dev.dev->id.version	= 0x0010;
 
-	input_register_device(&hil_dev.dev);
+	input_register_device(hil_dev.dev);
 	printk(KERN_INFO "input: %s, ID %d at 0x%08lx (irq %d) found and attached\n",
-		hil_dev.dev.name, kbid, HILBASE, HIL_IRQ);
+		hil_dev.dev->name, kbid, HILBASE, HIL_IRQ);
 
 	return 0;
 }
@@ -329,7 +332,9 @@ static void __exit hil_exit(void)
 	/* Turn off interrupts */
 	hil_do(HIL_INTOFF, NULL, 0);
 
-	input_unregister_device(&hil_dev.dev);
+	input_unregister_device(hil_dev.dev);
+
+	hil_dev.dev = NULL;
 
 #if defined(CONFIG_PARISC)
 	unregister_parisc_driver(&hil_driver);

@@ -56,7 +56,18 @@ Desc. | ctrl | dura |  DA/RA  |   TA    |    SA   | Sequ |  Frame  |  fcs |
       `--------------------------------------------------|         |------'
 Total: 28 non-data bytes                                 `----.----'
                                                               |
-       .- 'Frame data' expands to <---------------------------'
+       .- 'Frame data' expands, if WEP enabled, to <----------'
+       |
+       V
+      ,-----------------------.
+Bytes |  4  |   0-2296  |  4  |
+      |-----|-----------|-----|
+Desc. | IV  | Encrypted | ICV |
+      |     | Packet    |     |
+      `-----|           |-----'
+            `-----.-----'
+                  |
+       .- 'Encrypted Packet' expands to
        |
        V
       ,---------------------------------------------------.
@@ -65,18 +76,7 @@ Bytes |  1   |  1   |    1    |    3     |  2   |  0-2304 |
 Desc. | SNAP | SNAP | Control |Eth Tunnel| Type | IP      |
       | DSAP | SSAP |         |          |      | Packet  |
       | 0xAA | 0xAA |0x03 (UI)|0x00-00-F8|      |         |
-      `-----------------------------------------|         |
-Total: 8 non-data bytes                         `----.----'
-                                                     |
-       .- 'IP Packet' expands, if WEP enabled, to <--'
-       |
-       V
-      ,-----------------------.
-Bytes |  4  |   0-2296  |  4  |
-      |-----|-----------|-----|
-Desc. | IV  | Encrypted | ICV |
-      |     | IP Packet |     |
-      `-----------------------'
+      `----------------------------------------------------
 Total: 8 non-data bytes
 
 802.3 Ethernet Data Frame
@@ -470,7 +470,9 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 			atomic_inc(&crypt->refcnt);
 			if (crypt->ops->build_iv)
 				crypt->ops->build_iv(skb_frag, hdr_len,
-						     crypt->priv);
+				      ieee->sec.keys[ieee->sec.active_key],
+				      ieee->sec.key_sizes[ieee->sec.active_key],
+				      crypt->priv);
 			atomic_dec(&crypt->refcnt);
 		}
 

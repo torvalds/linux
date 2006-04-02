@@ -171,6 +171,8 @@ extern u32 booke_wdt_period;
 
 /* EBCDIC -> ASCII conversion for [0-9A-Z] on iSeries */
 extern unsigned char e2a(unsigned char);
+extern unsigned char* strne2a(unsigned char *dest,
+		const unsigned char *src, size_t n);
 
 struct device_node;
 extern void note_scsi_host(struct device_node *, void *);
@@ -363,8 +365,11 @@ __cmpxchg(volatile void *ptr, unsigned long old, unsigned long new,
  * powers of 2 writes until it reaches sufficient alignment).
  *
  * Based on this we disable the IP header alignment in network drivers.
+ * We also modify NET_SKB_PAD to be a cacheline in size, thus maintaining
+ * cacheline alignment of buffers.
  */
-#define NET_IP_ALIGN   0
+#define NET_IP_ALIGN	0
+#define NET_SKB_PAD	L1_CACHE_BYTES
 #endif
 
 #define arch_align_stack(x) (x)
@@ -423,6 +428,10 @@ static inline void create_function_call(unsigned long addr, void * func)
 #endif
 	create_branch(addr, func_addr, BRANCH_SET_LINK);
 }
+
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+extern void account_system_vtime(struct task_struct *);
+#endif
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_SYSTEM_H */

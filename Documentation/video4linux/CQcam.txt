@@ -1,7 +1,7 @@
 c-qcam - Connectix Color QuickCam video4linux kernel driver
 
 Copyright (C) 1999  Dave Forrest  <drf5n@virginia.edu>
-                    released under GNU GPL.
+		    released under GNU GPL.
 
 1999-12-08 Dave Forrest, written with kernel version 2.2.12 in mind
 
@@ -45,21 +45,21 @@ configuration.  The appropriate flags are:
     CONFIG_PNP_PARPORT   M for autoprobe.o IEEE1284 readback module
     CONFIG_PRINTER_READBACK M for parport_probe.o IEEE1284 readback module
     CONFIG_VIDEO_DEV     M    for videodev.o video4linux module
-    CONFIG_VIDEO_CQCAM   M    for c-qcam.o  Color Quickcam module 
+    CONFIG_VIDEO_CQCAM   M    for c-qcam.o  Color Quickcam module
 
   With these flags, the kernel should compile and install the modules.
 To record and monitor the compilation, I use:
 
  (make zlilo ; \
   make modules; \
-  make modules_install ; 
+  make modules_install ;
   depmod -a ) &>log &
  less log  # then a capital 'F' to watch the progress
-  
+
 But that is my personal preference.
 
 2.2 Configuration
- 
+
   The configuration requires module configuration and device
 configuration.  I like kmod or kerneld process with the
 /etc/modprobe.conf file so the modules can automatically load/unload as
@@ -68,7 +68,7 @@ using MAKEDEV, or need to be created.  The following sections detail
 these procedures.
 
 
-2.1 Module Configuration  
+2.1 Module Configuration
 
   Using modules requires a bit of work to install and pass the
 parameters.  Understand that entries in /etc/modprobe.conf of:
@@ -128,9 +128,9 @@ system (CONFIG_PROC_FS), the parallel printer support
 (CONFIG_PRINTER), the IEEE 1284 system,(CONFIG_PRINTER_READBACK), you
 should be able to read some identification from your quickcam with
 
-         modprobe -v parport
-         modprobe -v parport_probe
-         cat /proc/parport/PORTNUMBER/autoprobe
+	 modprobe -v parport
+	 modprobe -v parport_probe
+	 cat /proc/parport/PORTNUMBER/autoprobe
 Returns:
   CLASS:MEDIA;
   MODEL:Color QuickCam 2.0;
@@ -140,7 +140,7 @@ Returns:
 and well.  A common problem is that the current driver does not
 reliably detect a c-qcam, even though one is attached.  In this case,
 
-     modprobe -v c-qcam     
+     modprobe -v c-qcam
 or
      insmod -v c-qcam
 
@@ -152,16 +152,16 @@ video4linux mailing list and archive for more current information.
 3.1 Checklist:
 
   Can you get an image?
-            v4lgrab >qcam.ppm ; wc qcam.ppm ; xv qcam.ppm
+	    v4lgrab >qcam.ppm ; wc qcam.ppm ; xv qcam.ppm
 
-  Is a working c-qcam connected to the port? 
-            grep ^ /proc/parport/?/autoprobe
+  Is a working c-qcam connected to the port?
+	    grep ^ /proc/parport/?/autoprobe
 
-  Do the /dev/video* files exist?  
-            ls -lad /dev/video
+  Do the /dev/video* files exist?
+	    ls -lad /dev/video
 
-  Is the c-qcam module loaded?     
-            modprobe -v c-qcam ; lsmod
+  Is the c-qcam module loaded?
+	    modprobe -v c-qcam ; lsmod
 
   Does the camera work with alternate programs? cqcam, etc?
 
@@ -174,7 +174,7 @@ video4linux mailing list and archive for more current information.
 isn't, you might try patching the c-qcam module to add a parport=xxx
 option as in the bw-qcam module so you can specify the parallel port:
 
-       insmod -v c-qcam parport=0  
+       insmod -v c-qcam parport=0
 
 And bypass the detection code, see ../../drivers/char/c-qcam.c and
 look for the 'qc_detect' code and call.
@@ -183,12 +183,12 @@ look for the 'qc_detect' code and call.
 this work is documented at the video4linux2 site listed below.
 
 
-9.0 --- A sample program using v4lgrabber, 
+9.0 --- A sample program using v4lgrabber,
 
 This program is a simple image grabber that will copy a frame from the
 first video device, /dev/video0 to standard output in portable pixmap
 format (.ppm)  Using this like: 'v4lgrab | convert - c-qcam.jpg'
-produced this picture of me at 
+produced this picture of me at
     http://mug.sys.virginia.edu/~drf5n/extras/c-qcam.jpg
 
 -------------------- 8< ---------------- 8< -----------------------------
@@ -202,8 +202,8 @@ produced this picture of me at
  *      Use as:
  *              v4lgrab >image.ppm
  *
- *	Copyright (C) 1998-05-03, Phil Blundell <philb@gnu.org>  
- *      Copied from http://www.tazenda.demon.co.uk/phil/vgrabber.c 
+ *	Copyright (C) 1998-05-03, Phil Blundell <philb@gnu.org>
+ *      Copied from http://www.tazenda.demon.co.uk/phil/vgrabber.c
  *      with minor modifications (Dave Forrest, drf5n@virginia.edu).
  *
  */
@@ -225,55 +225,55 @@ produced this picture of me at
 
 #define READ_VIDEO_PIXEL(buf, format, depth, r, g, b)                   \
 {                                                                       \
-        switch (format)                                                 \
-        {                                                               \
-                case VIDEO_PALETTE_GREY:                                \
-                        switch (depth)                                  \
-                        {                                               \
-                                case 4:                                 \
-                                case 6:                                 \
-                                case 8:                                 \
-                                        (r) = (g) = (b) = (*buf++ << 8);\
-                                        break;                          \
-                                                                        \
-                                case 16:                                \
-                                        (r) = (g) = (b) =               \
-                                                *((unsigned short *) buf);      \
-                                        buf += 2;                       \
-                                        break;                          \
-                        }                                               \
-                        break;                                          \
-                                                                        \
-                                                                        \
-                case VIDEO_PALETTE_RGB565:                              \
-                {                                                       \
-                        unsigned short tmp = *(unsigned short *)buf;    \
-                        (r) = tmp&0xF800;                               \
-                        (g) = (tmp<<5)&0xFC00;                          \
-                        (b) = (tmp<<11)&0xF800;                         \
-                        buf += 2;                                       \
-                }                                                       \
-                break;                                                  \
-                                                                        \
-                case VIDEO_PALETTE_RGB555:                              \
-                        (r) = (buf[0]&0xF8)<<8;                         \
-                        (g) = ((buf[0] << 5 | buf[1] >> 3)&0xF8)<<8;    \
-                        (b) = ((buf[1] << 2 ) & 0xF8)<<8;               \
-                        buf += 2;                                       \
-                        break;                                          \
-                                                                        \
-                case VIDEO_PALETTE_RGB24:                               \
-                        (r) = buf[0] << 8; (g) = buf[1] << 8;           \
-                        (b) = buf[2] << 8;                              \
-                        buf += 3;                                       \
-                        break;                                          \
-                                                                        \
-                default:                                                \
-                        fprintf(stderr,                                 \
-                                "Format %d not yet supported\n",        \
-                                format);                                \
-        }                                                               \
-}                                               
+	switch (format)                                                 \
+	{                                                               \
+		case VIDEO_PALETTE_GREY:                                \
+			switch (depth)                                  \
+			{                                               \
+				case 4:                                 \
+				case 6:                                 \
+				case 8:                                 \
+					(r) = (g) = (b) = (*buf++ << 8);\
+					break;                          \
+									\
+				case 16:                                \
+					(r) = (g) = (b) =               \
+						*((unsigned short *) buf);      \
+					buf += 2;                       \
+					break;                          \
+			}                                               \
+			break;                                          \
+									\
+									\
+		case VIDEO_PALETTE_RGB565:                              \
+		{                                                       \
+			unsigned short tmp = *(unsigned short *)buf;    \
+			(r) = tmp&0xF800;                               \
+			(g) = (tmp<<5)&0xFC00;                          \
+			(b) = (tmp<<11)&0xF800;                         \
+			buf += 2;                                       \
+		}                                                       \
+		break;                                                  \
+									\
+		case VIDEO_PALETTE_RGB555:                              \
+			(r) = (buf[0]&0xF8)<<8;                         \
+			(g) = ((buf[0] << 5 | buf[1] >> 3)&0xF8)<<8;    \
+			(b) = ((buf[1] << 2 ) & 0xF8)<<8;               \
+			buf += 2;                                       \
+			break;                                          \
+									\
+		case VIDEO_PALETTE_RGB24:                               \
+			(r) = buf[0] << 8; (g) = buf[1] << 8;           \
+			(b) = buf[2] << 8;                              \
+			buf += 3;                                       \
+			break;                                          \
+									\
+		default:                                                \
+			fprintf(stderr,                                 \
+				"Format %d not yet supported\n",        \
+				format);                                \
+	}                                                               \
+}
 
 int get_brightness_adj(unsigned char *image, long size, int *brightness) {
   long i, tot = 0;
@@ -324,40 +324,40 @@ int main(int argc, char ** argv)
     if(ioctl(fd, VIDIOCSPICT, &vpic) < 0) {
       vpic.depth=6;
       if(ioctl(fd, VIDIOCSPICT, &vpic) < 0) {
-        vpic.depth=4;
-        if(ioctl(fd, VIDIOCSPICT, &vpic) < 0) {
-          fprintf(stderr, "Unable to find a supported capture format.\n");
-          close(fd);
-          exit(1);
-        }
+	vpic.depth=4;
+	if(ioctl(fd, VIDIOCSPICT, &vpic) < 0) {
+	  fprintf(stderr, "Unable to find a supported capture format.\n");
+	  close(fd);
+	  exit(1);
+	}
       }
     }
   } else {
     vpic.depth=24;
     vpic.palette=VIDEO_PALETTE_RGB24;
-    
+
     if(ioctl(fd, VIDIOCSPICT, &vpic) < 0) {
       vpic.palette=VIDEO_PALETTE_RGB565;
       vpic.depth=16;
-      
+
       if(ioctl(fd, VIDIOCSPICT, &vpic)==-1) {
-        vpic.palette=VIDEO_PALETTE_RGB555;
-        vpic.depth=15;
-        
-        if(ioctl(fd, VIDIOCSPICT, &vpic)==-1) {
-          fprintf(stderr, "Unable to find a supported capture format.\n");
-          return -1;
-        }
+	vpic.palette=VIDEO_PALETTE_RGB555;
+	vpic.depth=15;
+
+	if(ioctl(fd, VIDIOCSPICT, &vpic)==-1) {
+	  fprintf(stderr, "Unable to find a supported capture format.\n");
+	  return -1;
+	}
       }
     }
   }
-  
+
   buffer = malloc(win.width * win.height * bpp);
   if (!buffer) {
     fprintf(stderr, "Out of memory.\n");
     exit(1);
   }
-  
+
   do {
     int newbright;
     read(fd, buffer, win.width * win.height * bpp);
@@ -365,8 +365,8 @@ int main(int argc, char ** argv)
     if (f) {
       vpic.brightness += (newbright << 8);
       if(ioctl(fd, VIDIOCSPICT, &vpic)==-1) {
-        perror("VIDIOSPICT");
-        break;
+	perror("VIDIOSPICT");
+	break;
       }
     }
   } while (f);
@@ -381,7 +381,7 @@ int main(int argc, char ** argv)
     fputc(g>>8, stdout);
     fputc(b>>8, stdout);
   }
-    
+
   close(fd);
   return 0;
 }

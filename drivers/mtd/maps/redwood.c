@@ -121,8 +121,7 @@ struct map_info redwood_flash_map = {
 };
 
 
-#define NUM_REDWOOD_FLASH_PARTITIONS \
-	(sizeof(redwood_flash_partitions)/sizeof(redwood_flash_partitions[0]))
+#define NUM_REDWOOD_FLASH_PARTITIONS ARRAY_SIZE(redwood_flash_partitions)
 
 static struct mtd_info *redwood_mtd;
 

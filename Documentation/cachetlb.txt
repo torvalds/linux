@@ -362,6 +362,27 @@ maps this page at its virtual address.
 	likely that you will need to flush the instruction cache
 	for copy_to_user_page().
 
+  void flush_anon_page(struct page *page, unsigned long vmaddr)
+  	When the kernel needs to access the contents of an anonymous
+	page, it calls this function (currently only
+	get_user_pages()).  Note: flush_dcache_page() deliberately
+	doesn't work for an anonymous page.  The default
+	implementation is a nop (and should remain so for all coherent
+	architectures).  For incoherent architectures, it should flush
+	the cache of the page at vmaddr in the current user process.
+
+  void flush_kernel_dcache_page(struct page *page)
+	When the kernel needs to modify a user page is has obtained
+	with kmap, it calls this function after all modifications are
+	complete (but before kunmapping it) to bring the underlying
+	page up to date.  It is assumed here that the user has no
+	incoherent cached copies (i.e. the original page was obtained
+	from a mechanism like get_user_pages()).  The default
+	implementation is a nop and should remain so on all coherent
+	architectures.  On incoherent architectures, this should flush
+	the kernel cache for page (using page_address(page)).
+
+
   void flush_icache_range(unsigned long start, unsigned long end)
   	When the kernel stores into addresses that it will execute
 	out of (eg when loading modules), this function is called.

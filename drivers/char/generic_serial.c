@@ -48,8 +48,8 @@ static int gs_debug;
 #define NEW_WRITE_LOCKING 1
 #if NEW_WRITE_LOCKING
 #define DECL      /* Nothing */
-#define LOCKIT    down (& port->port_write_sem);
-#define RELEASEIT up (&port->port_write_sem);
+#define LOCKIT    mutex_lock(& port->port_write_mutex);
+#define RELEASEIT mutex_unlock(&port->port_write_mutex);
 #else
 #define DECL      unsigned long flags;
 #define LOCKIT    save_flags (flags);cli ()
@@ -124,14 +124,14 @@ int gs_write(struct tty_struct * tty,
 	/* get exclusive "write" access to this port (problem 3) */
 	/* This is not a spinlock because we can have a disk access (page 
 		 fault) in copy_from_user */
-	down (& port->port_write_sem);
+	mutex_lock(& port->port_write_mutex);
 
 	while (1) {
 
 		c = count;
  
 		/* This is safe because we "OWN" the "head". Noone else can 
-		   change the "head": we own the port_write_sem. */
+		   change the "head": we own the port_write_mutex. */
 		/* Don't overrun the end of the buffer */
 		t = SERIAL_XMIT_SIZE - port->xmit_head;
 		if (t < c) c = t;
@@ -153,7 +153,7 @@ int gs_write(struct tty_struct * tty,
 		count -= c;
 		total += c;
 	}
-	up (& port->port_write_sem);
+	mutex_unlock(& port->port_write_mutex);
 
 	gs_dprintk (GS_DEBUG_WRITE, "write: interrupts are %s\n", 
 	            (port->flags & GS_TX_INTEN)?"enabled": "disabled"); 
@@ -214,7 +214,7 @@ int gs_write(struct tty_struct * tty,
 		c = count;
 
 		/* This is safe because we "OWN" the "head". Noone else can 
-		   change the "head": we own the port_write_sem. */
+		   change the "head": we own the port_write_mutex. */
 		/* Don't overrun the end of the buffer */
 		t = SERIAL_XMIT_SIZE - port->xmit_head;
 		if (t < c) c = t;
@@ -888,7 +888,7 @@ int gs_init_port(struct gs_port *port)
 	spin_lock_irqsave (&port->driver_lock, flags);
 	if (port->tty) 
 		clear_bit(TTY_IO_ERROR, &port->tty->flags);
-	init_MUTEX(&port->port_write_sem);
+	mutex_init(&port->port_write_mutex);
 	port->xmit_cnt = port->xmit_head = port->xmit_tail = 0;
 	spin_unlock_irqrestore(&port->driver_lock, flags);
 	gs_set_termios(port->tty, NULL);

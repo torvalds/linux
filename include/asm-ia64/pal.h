@@ -68,6 +68,7 @@
 #define PAL_SHUTDOWN		40	/* enter processor shutdown state */
 #define PAL_PREFETCH_VISIBILITY	41	/* Make Processor Prefetches Visible */
 #define PAL_LOGICAL_TO_PHYSICAL 42	/* returns information on logical to physical processor mapping */
+#define PAL_CACHE_SHARED_INFO	43	/* returns information on caches shared by logical processor */
 
 #define PAL_COPY_PAL		256	/* relocate PAL procedures and PAL PMI */
 #define PAL_HALT_INFO		257	/* return the low power capabilities of processor */
@@ -130,7 +131,7 @@ typedef u64				pal_cache_line_state_t;
 #define PAL_CACHE_LINE_STATE_MODIFIED	3	/* Modified */
 
 typedef struct pal_freq_ratio {
-	u64 den : 32, num : 32;	/* numerator & denominator */
+	u32 den, num;		/* numerator & denominator */
 } itc_ratio, proc_ratio;
 
 typedef	union  pal_cache_config_info_1_s {
@@ -151,10 +152,10 @@ typedef	union  pal_cache_config_info_1_s {
 
 typedef	union  pal_cache_config_info_2_s {
 	struct {
-		u64		cache_size	: 32,	/*cache size in bytes*/
+		u32		cache_size;		/*cache size in bytes*/
 
 
-				alias_boundary	: 8,	/* 39-32 aliased addr
+		u32		alias_boundary	: 8,	/* 39-32 aliased addr
 							 * separation for max
 							 * performance.
 							 */
@@ -1640,10 +1641,36 @@ ia64_pal_logical_to_phys(u64 proc_number, pal_logical_to_physical_t *mapping)
 
 	if (iprv.status == PAL_STATUS_SUCCESS)
 	{
-		if (proc_number == 0)
-			mapping->overview.overview_data = iprv.v0;
+		mapping->overview.overview_data = iprv.v0;
 		mapping->ppli1.ppli1_data = iprv.v1;
 		mapping->ppli2.ppli2_data = iprv.v2;
+	}
+
+	return iprv.status;
+}
+
+typedef struct pal_cache_shared_info_s
+{
+	u64 num_shared;
+	pal_proc_n_log_info1_t ppli1;
+	pal_proc_n_log_info2_t ppli2;
+} pal_cache_shared_info_t;
+
+/* Get information on logical to physical processor mappings. */
+static inline s64
+ia64_pal_cache_shared_info(u64 level,
+		u64 type,
+		u64 proc_number,
+		pal_cache_shared_info_t *info)
+{
+	struct ia64_pal_retval iprv;
+
+	PAL_CALL(iprv, PAL_CACHE_SHARED_INFO, level, type, proc_number);
+
+	if (iprv.status == PAL_STATUS_SUCCESS) {
+		info->num_shared = iprv.v0;
+		info->ppli1.ppli1_data = iprv.v1;
+		info->ppli2.ppli2_data = iprv.v2;
 	}
 
 	return iprv.status;

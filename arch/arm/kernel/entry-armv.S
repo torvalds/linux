@@ -484,7 +484,6 @@ call_fpe:
 	movcss	r7, r5, lsr #(TIF_USING_IWMMXT + 1)
 	bcs	iwmmxt_task_enable
 #endif
-	enable_irq
 	add	pc, pc, r8, lsr #6
 	mov	r0, r0
 
@@ -511,6 +510,7 @@ call_fpe:
 	mov	pc, lr				@ CP#15 (Control)
 
 do_fpe:
+	enable_irq
 	ldr	r4, .LCfp
 	add	r10, r10, #TI_FPSTATE		@ r10 = workspace
 	ldr	pc, [r4]			@ Call FP module USR entry point
@@ -666,7 +666,7 @@ __kuser_helper_start:
  *
  * #define __kernel_dmb() \
  *         asm volatile ( "mov r0, #0xffff0fff; mov lr, pc; sub pc, r0, #95" \
- *	        : : : "lr","cc" )
+ *	        : : : "r0", "lr","cc" )
  */
 
 __kuser_memory_barrier:				@ 0xffff0fa0

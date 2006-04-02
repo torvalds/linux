@@ -20,6 +20,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/init.h>
+#include <linux/jiffies.h>
 
 #include <asm/board.h>
 #include <asm/io.h>
@@ -606,7 +607,7 @@ retry:
 #endif
 
 	while ((ei_ibp(base + EN0_ISR) & ENISR_RDC) == 0) {
-		if (jiffies - start > OAKNET_WAIT) {
+		if (time_after(jiffies, start + OAKNET_WAIT)) {
 			printk("%s: timeout waiting for Tx RDC.\n", dev->name);
 			oaknet_reset_8390(dev);
 			NS8390_init(dev, TRUE);

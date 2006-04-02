@@ -60,6 +60,7 @@ typedef enum {
     e1000_82571,
     e1000_82572,
     e1000_82573,
+    e1000_80003es2lan,
     e1000_num_macs
 } e1000_mac_type;
 
@@ -139,6 +140,13 @@ typedef enum {
 } e1000_cable_length;
 
 typedef enum {
+    e1000_gg_cable_length_60 = 0,
+    e1000_gg_cable_length_60_115 = 1,
+    e1000_gg_cable_length_115_150 = 2,
+    e1000_gg_cable_length_150 = 4
+} e1000_gg_cable_length;
+
+typedef enum {
     e1000_igp_cable_length_10  = 10,
     e1000_igp_cable_length_20  = 20,
     e1000_igp_cable_length_30  = 30,
@@ -208,6 +216,7 @@ typedef enum {
     e1000_phy_m88 = 0,
     e1000_phy_igp,
     e1000_phy_igp_2,
+    e1000_phy_gg82563,
     e1000_phy_undefined = 0xFF
 } e1000_phy_type;
 
@@ -281,6 +290,7 @@ typedef enum {
 #define E1000_ERR_MASTER_REQUESTS_PENDING 10
 #define E1000_ERR_HOST_INTERFACE_COMMAND 11
 #define E1000_BLK_PHY_RESET   12
+#define E1000_ERR_SWFW_SYNC 13
 
 /* Function prototypes */
 /* Initialization */
@@ -304,6 +314,8 @@ int32_t e1000_phy_hw_reset(struct e1000_hw *hw);
 int32_t e1000_phy_reset(struct e1000_hw *hw);
 int32_t e1000_phy_get_info(struct e1000_hw *hw, struct e1000_phy_info *phy_info);
 int32_t e1000_validate_mdi_setting(struct e1000_hw *hw);
+int32_t e1000_read_kmrn_reg(struct e1000_hw *hw, uint32_t reg_addr, uint16_t *data);
+int32_t e1000_write_kmrn_reg(struct e1000_hw *hw, uint32_t reg_addr, uint16_t data);
 
 /* EEPROM Functions */
 int32_t e1000_init_eeprom_params(struct e1000_hw *hw);
@@ -454,6 +466,8 @@ int32_t e1000_check_phy_reset_block(struct e1000_hw *hw);
 #define E1000_DEV_ID_82573E_IAMT         0x108C
 #define E1000_DEV_ID_82573L              0x109A
 #define E1000_DEV_ID_82546GB_QUAD_COPPER_KSP3 0x10B5
+#define E1000_DEV_ID_80003ES2LAN_COPPER_DPT     0x1096
+#define E1000_DEV_ID_80003ES2LAN_SERDES_DPT     0x1098
 
 
 #define NODE_ADDRESS_SIZE 6
@@ -850,6 +864,7 @@ struct e1000_ffvt_entry {
 #define E1000_TXCW     0x00178  /* TX Configuration Word - RW */
 #define E1000_RXCW     0x00180  /* RX Configuration Word - RO */
 #define E1000_TCTL     0x00400  /* TX Control - RW */
+#define E1000_TCTL_EXT 0x00404  /* Extended TX Control - RW */
 #define E1000_TIPG     0x00410  /* TX Inter-packet gap -RW */
 #define E1000_TBT      0x00448  /* TX Burst Timer - RW */
 #define E1000_AIT      0x00458  /* Adaptive Interframe Spacing Throttle - RW */
@@ -996,6 +1011,11 @@ struct e1000_ffvt_entry {
 #define E1000_FFMT     0x09000  /* Flexible Filter Mask Table - RW Array */
 #define E1000_FFVT     0x09800  /* Flexible Filter Value Table - RW Array */
 
+#define E1000_KUMCTRLSTA 0x00034 /* MAC-PHY interface - RW */
+#define E1000_MDPHYA     0x0003C  /* PHY address - RW */
+#define E1000_MANC2H     0x05860  /* Managment Control To Host - RW */
+#define E1000_SW_FW_SYNC 0x05B5C /* Software-Firmware Synchronization - RW */
+
 #define E1000_GCR       0x05B00 /* PCI-Ex Control */
 #define E1000_GSCL_1    0x05B10 /* PCI-Ex Statistic Control #1 */
 #define E1000_GSCL_2    0x05B14 /* PCI-Ex Statistic Control #2 */
@@ -1065,6 +1085,7 @@ struct e1000_ffvt_entry {
 #define E1000_82542_RXCW     E1000_RXCW
 #define E1000_82542_MTA      0x00200
 #define E1000_82542_TCTL     E1000_TCTL
+#define E1000_82542_TCTL_EXT E1000_TCTL_EXT
 #define E1000_82542_TIPG     E1000_TIPG
 #define E1000_82542_TDBAL    0x00420
 #define E1000_82542_TDBAH    0x00424
@@ -1212,6 +1233,8 @@ struct e1000_ffvt_entry {
 #define E1000_82542_RSSRK       E1000_RSSRK
 #define E1000_82542_RSSIM       E1000_RSSIM
 #define E1000_82542_RSSIR       E1000_RSSIR
+#define E1000_82542_KUMCTRLSTA E1000_KUMCTRLSTA
+#define E1000_82542_SW_FW_SYNC E1000_SW_FW_SYNC
 
 /* Statistics counters collected by the MAC */
 struct e1000_hw_stats {
@@ -1303,6 +1326,7 @@ struct e1000_hw {
     e1000_ffe_config ffe_config_state;
     uint32_t asf_firmware_present;
     uint32_t eeprom_semaphore_present;
+    uint32_t swfw_sync_present;
     unsigned long io_base;
     uint32_t phy_id;
     uint32_t phy_revision;
@@ -1361,6 +1385,7 @@ struct e1000_hw {
     boolean_t ifs_params_forced;
     boolean_t in_ifs_mode;
     boolean_t mng_reg_access_disabled;
+    boolean_t leave_av_bit_off;
 };
 
 
@@ -1393,6 +1418,8 @@ struct e1000_hw {
 #define E1000_CTRL_FRCDPX   0x00001000  /* Force Duplex */
 #define E1000_CTRL_D_UD_EN  0x00002000  /* Dock/Undock enable */
 #define E1000_CTRL_D_UD_POLARITY 0x00004000 /* Defined polarity of Dock/Undock indication in SDP[0] */
+#define E1000_CTRL_FORCE_PHY_RESET 0x00008000 /* Reset both PHY ports, through PHYRST_N pin */
+#define E1000_CTRL_EXT_LINK_EN 0x00010000 /* enable link status from external LINK_0 and LINK_1 pins */
 #define E1000_CTRL_SWDPIN0  0x00040000  /* SWDPIN 0 value */
 #define E1000_CTRL_SWDPIN1  0x00080000  /* SWDPIN 1 value */
 #define E1000_CTRL_SWDPIN2  0x00100000  /* SWDPIN 2 value */
@@ -1429,6 +1456,16 @@ struct e1000_hw {
 #define E1000_STATUS_BUS64      0x00001000      /* In 64 bit slot */
 #define E1000_STATUS_PCIX_MODE  0x00002000      /* PCI-X mode */
 #define E1000_STATUS_PCIX_SPEED 0x0000C000      /* PCI-X bus speed */
+#define E1000_STATUS_BMC_SKU_0  0x00100000 /* BMC USB redirect disabled */
+#define E1000_STATUS_BMC_SKU_1  0x00200000 /* BMC SRAM disabled */
+#define E1000_STATUS_BMC_SKU_2  0x00400000 /* BMC SDRAM disabled */
+#define E1000_STATUS_BMC_CRYPTO 0x00800000 /* BMC crypto disabled */
+#define E1000_STATUS_BMC_LITE   0x01000000 /* BMC external code execution disabled */
+#define E1000_STATUS_RGMII_ENABLE 0x02000000 /* RGMII disabled */
+#define E1000_STATUS_FUSE_8       0x04000000
+#define E1000_STATUS_FUSE_9       0x08000000
+#define E1000_STATUS_SERDES0_DIS  0x10000000 /* SERDES disabled on port 0 */
+#define E1000_STATUS_SERDES1_DIS  0x20000000 /* SERDES disabled on port 1 */
 
 /* Constants used to intrepret the masked PCI-X bus speed. */
 #define E1000_STATUS_PCIX_SPEED_66  0x00000000 /* PCI-X bus speed  50-66 MHz */
@@ -1506,6 +1543,8 @@ struct e1000_hw {
 #define E1000_CTRL_EXT_LINK_MODE_MASK 0x00C00000
 #define E1000_CTRL_EXT_LINK_MODE_GMII 0x00000000
 #define E1000_CTRL_EXT_LINK_MODE_TBI  0x00C00000
+#define E1000_CTRL_EXT_LINK_MODE_KMRN    0x00000000
+#define E1000_CTRL_EXT_LINK_MODE_SERDES  0x00C00000
 #define E1000_CTRL_EXT_WR_WMARK_MASK  0x03000000
 #define E1000_CTRL_EXT_WR_WMARK_256   0x00000000
 #define E1000_CTRL_EXT_WR_WMARK_320   0x01000000
@@ -1515,6 +1554,9 @@ struct e1000_hw {
 #define E1000_CTRL_EXT_DRV_LOAD       0x10000000  /* Driver loaded bit for FW */
 #define E1000_CTRL_EXT_IAME           0x08000000  /* Interrupt acknowledge Auto-mask */
 #define E1000_CTRL_EXT_INT_TIMER_CLR  0x20000000  /* Clear Interrupt timers after IMS clear */
+#define E1000_CRTL_EXT_PB_PAREN       0x01000000 /* packet buffer parity error detection enabled */
+#define E1000_CTRL_EXT_DF_PAREN       0x02000000 /* descriptor FIFO parity error detection enable */
+#define E1000_CTRL_EXT_GHOST_PAREN    0x40000000
 
 /* MDI Control */
 #define E1000_MDIC_DATA_MASK 0x0000FFFF
@@ -1527,6 +1569,32 @@ struct e1000_hw {
 #define E1000_MDIC_READY     0x10000000
 #define E1000_MDIC_INT_EN    0x20000000
 #define E1000_MDIC_ERROR     0x40000000
+
+#define E1000_KUMCTRLSTA_MASK           0x0000FFFF
+#define E1000_KUMCTRLSTA_OFFSET         0x001F0000
+#define E1000_KUMCTRLSTA_OFFSET_SHIFT   16
+#define E1000_KUMCTRLSTA_REN            0x00200000
+
+#define E1000_KUMCTRLSTA_OFFSET_FIFO_CTRL      0x00000000
+#define E1000_KUMCTRLSTA_OFFSET_CTRL           0x00000001
+#define E1000_KUMCTRLSTA_OFFSET_INB_CTRL       0x00000002
+#define E1000_KUMCTRLSTA_OFFSET_DIAG           0x00000003
+#define E1000_KUMCTRLSTA_OFFSET_TIMEOUTS       0x00000004
+#define E1000_KUMCTRLSTA_OFFSET_INB_PARAM      0x00000009
+#define E1000_KUMCTRLSTA_OFFSET_HD_CTRL        0x00000010
+#define E1000_KUMCTRLSTA_OFFSET_M2P_SERDES     0x0000001E
+#define E1000_KUMCTRLSTA_OFFSET_M2P_MODES      0x0000001F
+
+/* FIFO Control */
+#define E1000_KUMCTRLSTA_FIFO_CTRL_RX_BYPASS   0x00000008
+#define E1000_KUMCTRLSTA_FIFO_CTRL_TX_BYPASS   0x00000800
+
+/* In-Band Control */
+#define E1000_KUMCTRLSTA_INB_CTRL_DIS_PADDING  0x00000010
+
+/* Half-Duplex Control */
+#define E1000_KUMCTRLSTA_HD_CTRL_10_100_DEFAULT 0x00000004
+#define E1000_KUMCTRLSTA_HD_CTRL_1000_DEFAULT  0x00000000
 
 /* LED Control */
 #define E1000_LEDCTL_LED0_MODE_MASK       0x0000000F
@@ -1590,6 +1658,13 @@ struct e1000_hw {
 #define E1000_ICR_MNG           0x00040000 /* Manageability event */
 #define E1000_ICR_DOCK          0x00080000 /* Dock/Undock */
 #define E1000_ICR_INT_ASSERTED  0x80000000 /* If this bit asserted, the driver should claim the interrupt */
+#define E1000_ICR_RXD_FIFO_PAR0 0x00100000 /* queue 0 Rx descriptor FIFO parity error */
+#define E1000_ICR_TXD_FIFO_PAR0 0x00200000 /* queue 0 Tx descriptor FIFO parity error */
+#define E1000_ICR_HOST_ARB_PAR  0x00400000 /* host arb read buffer parity error */
+#define E1000_ICR_PB_PAR        0x00800000 /* packet buffer parity error */
+#define E1000_ICR_RXD_FIFO_PAR1 0x01000000 /* queue 1 Rx descriptor FIFO parity error */
+#define E1000_ICR_TXD_FIFO_PAR1 0x02000000 /* queue 1 Tx descriptor FIFO parity error */
+#define E1000_ICR_ALL_PARITY    0x03F00000 /* all parity error bits */
 
 /* Interrupt Cause Set */
 #define E1000_ICS_TXDW      E1000_ICR_TXDW      /* Transmit desc written back */
@@ -1610,6 +1685,12 @@ struct e1000_hw {
 #define E1000_ICS_ACK       E1000_ICR_ACK       /* Receive Ack frame */
 #define E1000_ICS_MNG       E1000_ICR_MNG       /* Manageability event */
 #define E1000_ICS_DOCK      E1000_ICR_DOCK      /* Dock/Undock */
+#define E1000_ICS_RXD_FIFO_PAR0 E1000_ICR_RXD_FIFO_PAR0 /* queue 0 Rx descriptor FIFO parity error */
+#define E1000_ICS_TXD_FIFO_PAR0 E1000_ICR_TXD_FIFO_PAR0 /* queue 0 Tx descriptor FIFO parity error */
+#define E1000_ICS_HOST_ARB_PAR  E1000_ICR_HOST_ARB_PAR  /* host arb read buffer parity error */
+#define E1000_ICS_PB_PAR        E1000_ICR_PB_PAR        /* packet buffer parity error */
+#define E1000_ICS_RXD_FIFO_PAR1 E1000_ICR_RXD_FIFO_PAR1 /* queue 1 Rx descriptor FIFO parity error */
+#define E1000_ICS_TXD_FIFO_PAR1 E1000_ICR_TXD_FIFO_PAR1 /* queue 1 Tx descriptor FIFO parity error */
 
 /* Interrupt Mask Set */
 #define E1000_IMS_TXDW      E1000_ICR_TXDW      /* Transmit desc written back */
@@ -1630,6 +1711,12 @@ struct e1000_hw {
 #define E1000_IMS_ACK       E1000_ICR_ACK       /* Receive Ack frame */
 #define E1000_IMS_MNG       E1000_ICR_MNG       /* Manageability event */
 #define E1000_IMS_DOCK      E1000_ICR_DOCK      /* Dock/Undock */
+#define E1000_IMS_RXD_FIFO_PAR0 E1000_ICR_RXD_FIFO_PAR0 /* queue 0 Rx descriptor FIFO parity error */
+#define E1000_IMS_TXD_FIFO_PAR0 E1000_ICR_TXD_FIFO_PAR0 /* queue 0 Tx descriptor FIFO parity error */
+#define E1000_IMS_HOST_ARB_PAR  E1000_ICR_HOST_ARB_PAR  /* host arb read buffer parity error */
+#define E1000_IMS_PB_PAR        E1000_ICR_PB_PAR        /* packet buffer parity error */
+#define E1000_IMS_RXD_FIFO_PAR1 E1000_ICR_RXD_FIFO_PAR1 /* queue 1 Rx descriptor FIFO parity error */
+#define E1000_IMS_TXD_FIFO_PAR1 E1000_ICR_TXD_FIFO_PAR1 /* queue 1 Tx descriptor FIFO parity error */
 
 /* Interrupt Mask Clear */
 #define E1000_IMC_TXDW      E1000_ICR_TXDW      /* Transmit desc written back */
@@ -1650,6 +1737,12 @@ struct e1000_hw {
 #define E1000_IMC_ACK       E1000_ICR_ACK       /* Receive Ack frame */
 #define E1000_IMC_MNG       E1000_ICR_MNG       /* Manageability event */
 #define E1000_IMC_DOCK      E1000_ICR_DOCK      /* Dock/Undock */
+#define E1000_IMC_RXD_FIFO_PAR0 E1000_ICR_RXD_FIFO_PAR0 /* queue 0 Rx descriptor FIFO parity error */
+#define E1000_IMC_TXD_FIFO_PAR0 E1000_ICR_TXD_FIFO_PAR0 /* queue 0 Tx descriptor FIFO parity error */
+#define E1000_IMC_HOST_ARB_PAR  E1000_ICR_HOST_ARB_PAR  /* host arb read buffer parity error */
+#define E1000_IMC_PB_PAR        E1000_ICR_PB_PAR        /* packet buffer parity error */
+#define E1000_IMC_RXD_FIFO_PAR1 E1000_ICR_RXD_FIFO_PAR1 /* queue 1 Rx descriptor FIFO parity error */
+#define E1000_IMC_TXD_FIFO_PAR1 E1000_ICR_TXD_FIFO_PAR1 /* queue 1 Tx descriptor FIFO parity error */
 
 /* Receive Control */
 #define E1000_RCTL_RST            0x00000001    /* Software reset */
@@ -1718,6 +1811,12 @@ struct e1000_hw {
 #define E1000_PSRCTL_BSIZE1_SHIFT  2            /* Shift _right_ 2 */
 #define E1000_PSRCTL_BSIZE2_SHIFT  6            /* Shift _left_ 6 */
 #define E1000_PSRCTL_BSIZE3_SHIFT 14            /* Shift _left_ 14 */
+
+/* SW_W_SYNC definitions */
+#define E1000_SWFW_EEP_SM     0x0001
+#define E1000_SWFW_PHY0_SM    0x0002
+#define E1000_SWFW_PHY1_SM    0x0004
+#define E1000_SWFW_MAC_CSR_SM 0x0008
 
 /* Receive Descriptor */
 #define E1000_RDT_DELAY 0x0000ffff      /* Delay timer (1=1024us) */
@@ -1797,6 +1896,11 @@ struct e1000_hw {
 #define E1000_TCTL_RTLC   0x01000000    /* Re-transmit on late collision */
 #define E1000_TCTL_NRTU   0x02000000    /* No Re-transmit on underrun */
 #define E1000_TCTL_MULR   0x10000000    /* Multiple request support */
+/* Extended Transmit Control */
+#define E1000_TCTL_EXT_BST_MASK  0x000003FF /* Backoff Slot Time */
+#define E1000_TCTL_EXT_GCEX_MASK 0x000FFC00 /* Gigabit Carry Extend Padding */
+
+#define DEFAULT_80003ES2LAN_TCTL_EXT_GCEX   0x00010000
 
 /* Receive Checksum Control */
 #define E1000_RXCSUM_PCSS_MASK 0x000000FF   /* Packet Checksum Start */
@@ -1874,6 +1978,7 @@ struct e1000_hw {
 #define E1000_MANC_TCO_RESET     0x00010000 /* TCO Reset Occurred */
 #define E1000_MANC_RCV_TCO_EN    0x00020000 /* Receive TCO Packets Enabled */
 #define E1000_MANC_REPORT_STATUS 0x00040000 /* Status Reporting Enabled */
+#define E1000_MANC_RCV_ALL       0x00080000 /* Receive All Enabled */
 #define E1000_MANC_BLK_PHY_RST_ON_IDE   0x00040000 /* Block phy resets */
 #define E1000_MANC_EN_MAC_ADDR_FILTER   0x00100000 /* Enable MAC address
                                                     * filtering */
@@ -1962,19 +2067,19 @@ struct e1000_host_command_info {
 /* PCI-Ex registers */
 
 /* PCI-Ex Control Register */
-#define E1000_GCR_RXD_NO_SNOOP			0x00000001
-#define E1000_GCR_RXDSCW_NO_SNOOP		0x00000002
-#define E1000_GCR_RXDSCR_NO_SNOOP		0x00000004
-#define E1000_GCR_TXD_NO_SNOOP			0x00000008
-#define E1000_GCR_TXDSCW_NO_SNOOP		0x00000010
-#define E1000_GCR_TXDSCR_NO_SNOOP		0x00000020
+#define E1000_GCR_RXD_NO_SNOOP          0x00000001
+#define E1000_GCR_RXDSCW_NO_SNOOP       0x00000002
+#define E1000_GCR_RXDSCR_NO_SNOOP       0x00000004
+#define E1000_GCR_TXD_NO_SNOOP          0x00000008
+#define E1000_GCR_TXDSCW_NO_SNOOP       0x00000010
+#define E1000_GCR_TXDSCR_NO_SNOOP       0x00000020
 
-#define PCI_EX_NO_SNOOP_ALL (E1000_GCR_RXD_NO_SNOOP		| \
-							 E1000_GCR_RXDSCW_NO_SNOOP	| \
-							 E1000_GCR_RXDSCR_NO_SNOOP	| \
-							 E1000_GCR TXD_NO_SNOOP		| \
-							 E1000_GCR_TXDSCW_NO_SNOOP	| \
-							 E1000_GCR_TXDSCR_NO_SNOOP)
+#define PCI_EX_NO_SNOOP_ALL (E1000_GCR_RXD_NO_SNOOP         | \
+                             E1000_GCR_RXDSCW_NO_SNOOP      | \
+                             E1000_GCR_RXDSCR_NO_SNOOP      | \
+                             E1000_GCR_TXD_NO_SNOOP         | \
+                             E1000_GCR_TXDSCW_NO_SNOOP      | \
+                             E1000_GCR_TXDSCR_NO_SNOOP)
 
 #define E1000_GCR_L1_ACT_WITHOUT_L0S_RX 0x08000000
 /* Function Active and Power State to MNG */
@@ -2035,12 +2140,14 @@ struct e1000_host_command_info {
 #define EEPROM_INIT_CONTROL1_REG      0x000A
 #define EEPROM_INIT_CONTROL2_REG      0x000F
 #define EEPROM_INIT_CONTROL3_PORT_B   0x0014
+#define EEPROM_INIT_3GIO_3            0x001A
 #define EEPROM_INIT_CONTROL3_PORT_A   0x0024
 #define EEPROM_CFG                    0x0012
 #define EEPROM_FLASH_VERSION          0x0032
 #define EEPROM_CHECKSUM_REG           0x003F
 
 #define E1000_EEPROM_CFG_DONE         0x00040000   /* MNG config cycle done */
+#define E1000_EEPROM_CFG_DONE_PORT_1  0x00080000   /* ...for second port */
 
 /* Word definitions for ID LED Settings */
 #define ID_LED_RESERVED_0000 0x0000
@@ -2084,6 +2191,9 @@ struct e1000_host_command_info {
 #define EEPROM_WORD0F_ANE        0x0800
 #define EEPROM_WORD0F_SWPDIO_EXT 0x00F0
 
+/* Mask bits for fields in Word 0x1a of the EEPROM */
+#define EEPROM_WORD1A_ASPM_MASK  0x000C
+
 /* For checksumming, the sum of all words in the EEPROM should equal 0xBABA. */
 #define EEPROM_SUM 0xBABA
 
@@ -2126,8 +2236,11 @@ struct e1000_host_command_info {
 
 #define DEFAULT_82542_TIPG_IPGR2 10
 #define DEFAULT_82543_TIPG_IPGR2 6
+#define DEFAULT_80003ES2LAN_TIPG_IPGR2 7
 #define E1000_TIPG_IPGR2_SHIFT  20
 
+#define DEFAULT_80003ES2LAN_TIPG_IPGT_10_100 0x00000009
+#define DEFAULT_80003ES2LAN_TIPG_IPGT_1000   0x00000008
 #define E1000_TXDMAC_DPP 0x00000001
 
 /* Adaptive IFS defines */
@@ -2368,6 +2481,78 @@ struct e1000_host_command_info {
 
 #define IGP01E1000_ANALOG_REGS_PAGE  0x20C0
 
+/* Bits...
+ * 15-5: page
+ * 4-0: register offset
+ */
+#define GG82563_PAGE_SHIFT        5
+#define GG82563_REG(page, reg)    \
+        (((page) << GG82563_PAGE_SHIFT) | ((reg) & MAX_PHY_REG_ADDRESS))
+#define GG82563_MIN_ALT_REG       30
+
+/* GG82563 Specific Registers */
+#define GG82563_PHY_SPEC_CTRL           \
+        GG82563_REG(0, 16) /* PHY Specific Control */
+#define GG82563_PHY_SPEC_STATUS         \
+        GG82563_REG(0, 17) /* PHY Specific Status */
+#define GG82563_PHY_INT_ENABLE          \
+        GG82563_REG(0, 18) /* Interrupt Enable */
+#define GG82563_PHY_SPEC_STATUS_2       \
+        GG82563_REG(0, 19) /* PHY Specific Status 2 */
+#define GG82563_PHY_RX_ERR_CNTR         \
+        GG82563_REG(0, 21) /* Receive Error Counter */
+#define GG82563_PHY_PAGE_SELECT         \
+        GG82563_REG(0, 22) /* Page Select */
+#define GG82563_PHY_SPEC_CTRL_2         \
+        GG82563_REG(0, 26) /* PHY Specific Control 2 */
+#define GG82563_PHY_PAGE_SELECT_ALT     \
+        GG82563_REG(0, 29) /* Alternate Page Select */
+#define GG82563_PHY_TEST_CLK_CTRL       \
+        GG82563_REG(0, 30) /* Test Clock Control (use reg. 29 to select) */
+
+#define GG82563_PHY_MAC_SPEC_CTRL       \
+        GG82563_REG(2, 21) /* MAC Specific Control Register */
+#define GG82563_PHY_MAC_SPEC_CTRL_2     \
+        GG82563_REG(2, 26) /* MAC Specific Control 2 */
+
+#define GG82563_PHY_DSP_DISTANCE    \
+        GG82563_REG(5, 26) /* DSP Distance */
+
+/* Page 193 - Port Control Registers */
+#define GG82563_PHY_KMRN_MODE_CTRL   \
+        GG82563_REG(193, 16) /* Kumeran Mode Control */
+#define GG82563_PHY_PORT_RESET          \
+        GG82563_REG(193, 17) /* Port Reset */
+#define GG82563_PHY_REVISION_ID         \
+        GG82563_REG(193, 18) /* Revision ID */
+#define GG82563_PHY_DEVICE_ID           \
+        GG82563_REG(193, 19) /* Device ID */
+#define GG82563_PHY_PWR_MGMT_CTRL       \
+        GG82563_REG(193, 20) /* Power Management Control */
+#define GG82563_PHY_RATE_ADAPT_CTRL     \
+        GG82563_REG(193, 25) /* Rate Adaptation Control */
+
+/* Page 194 - KMRN Registers */
+#define GG82563_PHY_KMRN_FIFO_CTRL_STAT \
+        GG82563_REG(194, 16) /* FIFO's Control/Status */
+#define GG82563_PHY_KMRN_CTRL           \
+        GG82563_REG(194, 17) /* Control */
+#define GG82563_PHY_INBAND_CTRL         \
+        GG82563_REG(194, 18) /* Inband Control */
+#define GG82563_PHY_KMRN_DIAGNOSTIC     \
+        GG82563_REG(194, 19) /* Diagnostic */
+#define GG82563_PHY_ACK_TIMEOUTS        \
+        GG82563_REG(194, 20) /* Acknowledge Timeouts */
+#define GG82563_PHY_ADV_ABILITY         \
+        GG82563_REG(194, 21) /* Advertised Ability */
+#define GG82563_PHY_LINK_PARTNER_ADV_ABILITY \
+        GG82563_REG(194, 23) /* Link Partner Advertised Ability */
+#define GG82563_PHY_ADV_NEXT_PAGE       \
+        GG82563_REG(194, 24) /* Advertised Next Page */
+#define GG82563_PHY_LINK_PARTNER_ADV_NEXT_PAGE \
+        GG82563_REG(194, 25) /* Link Partner Advertised Next page */
+#define GG82563_PHY_KMRN_MISC           \
+        GG82563_REG(194, 26) /* Misc. */
 
 /* PHY Control Register */
 #define MII_CR_SPEED_SELECT_MSB 0x0040  /* bits 6,13: 10=1000, 01=100, 00=10 */
@@ -2681,6 +2866,113 @@ struct e1000_host_command_info {
 #define IGP01E1000_ANALOG_FUSE_FINE_1               0x0080
 #define IGP01E1000_ANALOG_FUSE_FINE_10              0x0500
 
+/* GG82563 PHY Specific Status Register (Page 0, Register 16 */
+#define GG82563_PSCR_DISABLE_JABBER             0x0001 /* 1=Disable Jabber */
+#define GG82563_PSCR_POLARITY_REVERSAL_DISABLE  0x0002 /* 1=Polarity Reversal Disabled */
+#define GG82563_PSCR_POWER_DOWN                 0x0004 /* 1=Power Down */
+#define GG82563_PSCR_COPPER_TRANSMITER_DISABLE  0x0008 /* 1=Transmitter Disabled */
+#define GG82563_PSCR_CROSSOVER_MODE_MASK        0x0060
+#define GG82563_PSCR_CROSSOVER_MODE_MDI         0x0000 /* 00=Manual MDI configuration */
+#define GG82563_PSCR_CROSSOVER_MODE_MDIX        0x0020 /* 01=Manual MDIX configuration */
+#define GG82563_PSCR_CROSSOVER_MODE_AUTO        0x0060 /* 11=Automatic crossover */
+#define GG82563_PSCR_ENALBE_EXTENDED_DISTANCE   0x0080 /* 1=Enable Extended Distance */
+#define GG82563_PSCR_ENERGY_DETECT_MASK         0x0300
+#define GG82563_PSCR_ENERGY_DETECT_OFF          0x0000 /* 00,01=Off */
+#define GG82563_PSCR_ENERGY_DETECT_RX           0x0200 /* 10=Sense on Rx only (Energy Detect) */
+#define GG82563_PSCR_ENERGY_DETECT_RX_TM        0x0300 /* 11=Sense and Tx NLP */
+#define GG82563_PSCR_FORCE_LINK_GOOD            0x0400 /* 1=Force Link Good */
+#define GG82563_PSCR_DOWNSHIFT_ENABLE           0x0800 /* 1=Enable Downshift */
+#define GG82563_PSCR_DOWNSHIFT_COUNTER_MASK     0x7000
+#define GG82563_PSCR_DOWNSHIFT_COUNTER_SHIFT    12
+
+/* PHY Specific Status Register (Page 0, Register 17) */
+#define GG82563_PSSR_JABBER                0x0001 /* 1=Jabber */
+#define GG82563_PSSR_POLARITY              0x0002 /* 1=Polarity Reversed */
+#define GG82563_PSSR_LINK                  0x0008 /* 1=Link is Up */
+#define GG82563_PSSR_ENERGY_DETECT         0x0010 /* 1=Sleep, 0=Active */
+#define GG82563_PSSR_DOWNSHIFT             0x0020 /* 1=Downshift */
+#define GG82563_PSSR_CROSSOVER_STATUS      0x0040 /* 1=MDIX, 0=MDI */
+#define GG82563_PSSR_RX_PAUSE_ENABLED      0x0100 /* 1=Receive Pause Enabled */
+#define GG82563_PSSR_TX_PAUSE_ENABLED      0x0200 /* 1=Transmit Pause Enabled */
+#define GG82563_PSSR_LINK_UP               0x0400 /* 1=Link Up */
+#define GG82563_PSSR_SPEED_DUPLEX_RESOLVED 0x0800 /* 1=Resolved */
+#define GG82563_PSSR_PAGE_RECEIVED         0x1000 /* 1=Page Received */
+#define GG82563_PSSR_DUPLEX                0x2000 /* 1-Full-Duplex */
+#define GG82563_PSSR_SPEED_MASK            0xC000
+#define GG82563_PSSR_SPEED_10MBPS          0x0000 /* 00=10Mbps */
+#define GG82563_PSSR_SPEED_100MBPS         0x4000 /* 01=100Mbps */
+#define GG82563_PSSR_SPEED_1000MBPS        0x8000 /* 10=1000Mbps */
+
+/* PHY Specific Status Register 2 (Page 0, Register 19) */
+#define GG82563_PSSR2_JABBER                0x0001 /* 1=Jabber */
+#define GG82563_PSSR2_POLARITY_CHANGED      0x0002 /* 1=Polarity Changed */
+#define GG82563_PSSR2_ENERGY_DETECT_CHANGED 0x0010 /* 1=Energy Detect Changed */
+#define GG82563_PSSR2_DOWNSHIFT_INTERRUPT   0x0020 /* 1=Downshift Detected */
+#define GG82563_PSSR2_MDI_CROSSOVER_CHANGE  0x0040 /* 1=Crossover Changed */
+#define GG82563_PSSR2_FALSE_CARRIER         0x0100 /* 1=False Carrier */
+#define GG82563_PSSR2_SYMBOL_ERROR          0x0200 /* 1=Symbol Error */
+#define GG82563_PSSR2_LINK_STATUS_CHANGED   0x0400 /* 1=Link Status Changed */
+#define GG82563_PSSR2_AUTO_NEG_COMPLETED    0x0800 /* 1=Auto-Neg Completed */
+#define GG82563_PSSR2_PAGE_RECEIVED         0x1000 /* 1=Page Received */
+#define GG82563_PSSR2_DUPLEX_CHANGED        0x2000 /* 1=Duplex Changed */
+#define GG82563_PSSR2_SPEED_CHANGED         0x4000 /* 1=Speed Changed */
+#define GG82563_PSSR2_AUTO_NEG_ERROR        0x8000 /* 1=Auto-Neg Error */
+
+/* PHY Specific Control Register 2 (Page 0, Register 26) */
+#define GG82563_PSCR2_10BT_POLARITY_FORCE           0x0002 /* 1=Force Negative Polarity */
+#define GG82563_PSCR2_1000MB_TEST_SELECT_MASK       0x000C
+#define GG82563_PSCR2_1000MB_TEST_SELECT_NORMAL     0x0000 /* 00,01=Normal Operation */
+#define GG82563_PSCR2_1000MB_TEST_SELECT_112NS      0x0008 /* 10=Select 112ns Sequence */
+#define GG82563_PSCR2_1000MB_TEST_SELECT_16NS       0x000C /* 11=Select 16ns Sequence */
+#define GG82563_PSCR2_REVERSE_AUTO_NEG              0x2000 /* 1=Reverse Auto-Negotiation */
+#define GG82563_PSCR2_1000BT_DISABLE                0x4000 /* 1=Disable 1000BASE-T */
+#define GG82563_PSCR2_TRANSMITER_TYPE_MASK          0x8000
+#define GG82563_PSCR2_TRANSMITTER_TYPE_CLASS_B      0x0000 /* 0=Class B */
+#define GG82563_PSCR2_TRANSMITTER_TYPE_CLASS_A      0x8000 /* 1=Class A */
+
+/* MAC Specific Control Register (Page 2, Register 21) */
+/* Tx clock speed for Link Down and 1000BASE-T for the following speeds */
+#define GG82563_MSCR_TX_CLK_MASK                    0x0007
+#define GG82563_MSCR_TX_CLK_10MBPS_2_5MHZ           0x0004
+#define GG82563_MSCR_TX_CLK_100MBPS_25MHZ           0x0005
+#define GG82563_MSCR_TX_CLK_1000MBPS_2_5MHZ         0x0006
+#define GG82563_MSCR_TX_CLK_1000MBPS_25MHZ          0x0007
+
+#define GG82563_MSCR_ASSERT_CRS_ON_TX               0x0010 /* 1=Assert */
+
+/* DSP Distance Register (Page 5, Register 26) */
+#define GG82563_DSPD_CABLE_LENGTH               0x0007 /* 0 = <50M;
+							      1 = 50-80M;
+							      2 = 80-110M;
+							      3 = 110-140M;
+							      4 = >140M */
+
+/* Kumeran Mode Control Register (Page 193, Register 16) */
+#define GG82563_KMCR_PHY_LEDS_EN                    0x0020 /* 1=PHY LEDs, 0=Kumeran Inband LEDs */
+#define GG82563_KMCR_FORCE_LINK_UP                  0x0040 /* 1=Force Link Up */
+#define GG82563_KMCR_SUPPRESS_SGMII_EPD_EXT         0x0080
+#define GG82563_KMCR_MDIO_BUS_SPEED_SELECT_MASK     0x0400
+#define GG82563_KMCR_MDIO_BUS_SPEED_SELECT          0x0400 /* 1=6.25MHz, 0=0.8MHz */
+#define GG82563_KMCR_PASS_FALSE_CARRIER             0x0800
+
+/* Power Management Control Register (Page 193, Register 20) */
+#define GG82563_PMCR_ENABLE_ELECTRICAL_IDLE         0x0001 /* 1=Enalbe SERDES Electrical Idle */
+#define GG82563_PMCR_DISABLE_PORT                   0x0002 /* 1=Disable Port */
+#define GG82563_PMCR_DISABLE_SERDES                 0x0004 /* 1=Disable SERDES */
+#define GG82563_PMCR_REVERSE_AUTO_NEG               0x0008 /* 1=Enable Reverse Auto-Negotiation */
+#define GG82563_PMCR_DISABLE_1000_NON_D0            0x0010 /* 1=Disable 1000Mbps Auto-Neg in non D0 */
+#define GG82563_PMCR_DISABLE_1000                   0x0020 /* 1=Disable 1000Mbps Auto-Neg Always */
+#define GG82563_PMCR_REVERSE_AUTO_NEG_D0A           0x0040 /* 1=Enable D0a Reverse Auto-Negotiation */
+#define GG82563_PMCR_FORCE_POWER_STATE              0x0080 /* 1=Force Power State */
+#define GG82563_PMCR_PROGRAMMED_POWER_STATE_MASK    0x0300
+#define GG82563_PMCR_PROGRAMMED_POWER_STATE_DR      0x0000 /* 00=Dr */
+#define GG82563_PMCR_PROGRAMMED_POWER_STATE_D0U     0x0100 /* 01=D0u */
+#define GG82563_PMCR_PROGRAMMED_POWER_STATE_D0A     0x0200 /* 10=D0a */
+#define GG82563_PMCR_PROGRAMMED_POWER_STATE_D3      0x0300 /* 11=D3 */
+
+/* In-Band Control Register (Page 194, Register 18) */
+#define GG82563_ICR_DIS_PADDING                     0x0010 /* Disable Padding Use */
+
 
 /* Bit definitions for valid PHY IDs. */
 /* I = Integrated
@@ -2695,6 +2987,7 @@ struct e1000_host_command_info {
 #define M88E1011_I_REV_4   0x04
 #define M88E1111_I_PHY_ID  0x01410CC0
 #define L1LXT971A_PHY_ID   0x001378E0
+#define GG82563_E_PHY_ID   0x01410CA0
 
 /* Miscellaneous PHY bit definitions. */
 #define PHY_PREAMBLE        0xFFFFFFFF

@@ -619,6 +619,14 @@ static inline void wait_for_xmitr(struct uart_pxa_port *up)
 	}
 }
 
+static void serial_pxa_console_putchar(struct uart_port *port, int ch)
+{
+	struct uart_pxa_port *up = (struct uart_pxa_port *)port;
+
+	wait_for_xmitr(up);
+	serial_out(up, UART_TX, ch);
+}
+
 /*
  * Print a string to the serial port trying not to disturb
  * any possible real use of the port...
@@ -630,7 +638,6 @@ serial_pxa_console_write(struct console *co, const char *s, unsigned int count)
 {
 	struct uart_pxa_port *up = &serial_pxa_ports[co->index];
 	unsigned int ier;
-	int i;
 
 	/*
 	 *	First save the IER then disable the interrupts
@@ -638,22 +645,7 @@ serial_pxa_console_write(struct console *co, const char *s, unsigned int count)
 	ier = serial_in(up, UART_IER);
 	serial_out(up, UART_IER, UART_IER_UUE);
 
-	/*
-	 *	Now, do each character
-	 */
-	for (i = 0; i < count; i++, s++) {
-		wait_for_xmitr(up);
-
-		/*
-		 *	Send the character out.
-		 *	If a LF, also do CR...
-		 */
-		serial_out(up, UART_TX, *s);
-		if (*s == 10) {
-			wait_for_xmitr(up);
-			serial_out(up, UART_TX, 13);
-		}
-	}
+	uart_console_write(&up->port, s, count, serial_pxa_console_putchar);
 
 	/*
 	 *	Finally, wait for transmitter to become empty

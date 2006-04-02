@@ -24,7 +24,7 @@ static int min_t3[1],   		max_t3[] = {3600 * HZ};
 static int min_idle[1],  		max_idle[] = {65535 * HZ};
 static int min_n2[] = {1},		max_n2[] = {31};
 static int min_paclen[] = {1},		max_paclen[] = {512};
-static int min_proto[1],		max_proto[] = {3};
+static int min_proto[1],		max_proto[] = { AX25_PROTO_MAX };
 static int min_ds_timeout[1],   	max_ds_timeout[] = {65535 * HZ};
 
 static struct ctl_table_header *ax25_table_header;

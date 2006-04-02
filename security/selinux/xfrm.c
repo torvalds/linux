@@ -225,6 +225,74 @@ void selinux_xfrm_state_free(struct xfrm_state *x)
 }
 
 /*
+ * SELinux internal function to retrieve the context of a connected
+ * (sk->sk_state == TCP_ESTABLISHED) TCP socket based on its security
+ * association used to connect to the remote socket.
+ *
+ * Retrieve via getsockopt SO_PEERSEC.
+ */
+u32 selinux_socket_getpeer_stream(struct sock *sk)
+{
+	struct dst_entry *dst, *dst_test;
+	u32 peer_sid = SECSID_NULL;
+
+	if (sk->sk_state != TCP_ESTABLISHED)
+		goto out;
+
+	dst = sk_dst_get(sk);
+	if (!dst)
+		goto out;
+
+ 	for (dst_test = dst; dst_test != 0;
+      	     dst_test = dst_test->child) {
+		struct xfrm_state *x = dst_test->xfrm;
+
+ 		if (x && selinux_authorizable_xfrm(x)) {
+	 	 	struct xfrm_sec_ctx *ctx = x->security;
+			peer_sid = ctx->ctx_sid;
+			break;
+		}
+	}
+	dst_release(dst);
+
+out:
+	return peer_sid;
+}
+
+/*
+ * SELinux internal function to retrieve the context of a UDP packet
+ * based on its security association used to connect to the remote socket.
+ *
+ * Retrieve via setsockopt IP_PASSSEC and recvmsg with control message
+ * type SCM_SECURITY.
+ */
+u32 selinux_socket_getpeer_dgram(struct sk_buff *skb)
+{
+	struct sec_path *sp;
+
+	if (skb == NULL)
+		return SECSID_NULL;
+
+	if (skb->sk->sk_protocol != IPPROTO_UDP)
+		return SECSID_NULL;
+
+	sp = skb->sp;
+	if (sp) {
+		int i;
+
+		for (i = sp->len-1; i >= 0; i--) {
+			struct xfrm_state *x = sp->x[i].xvec;
+			if (selinux_authorizable_xfrm(x)) {
+				struct xfrm_sec_ctx *ctx = x->security;
+				return ctx->ctx_sid;
+			}
+		}
+	}
+
+	return SECSID_NULL;
+}
+
+/*
  * LSM hook that controls access to unlabelled packets.  If
  * a xfrm_state is authorizable (defined by macro) then it was
  * already authorized by the IPSec process.  If not, then

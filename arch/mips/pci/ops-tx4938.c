@@ -34,16 +34,16 @@ struct resource pci_mem_resource = {
 };
 
 struct resource tx4938_pcic1_pci_io_resource = {
-       	.name	= "PCI1 IO",
-       	.start	= 0,
-       	.end	= 0,
-       	.flags	= IORESOURCE_IO
+	.name	= "PCI1 IO",
+	.start	= 0,
+	.end	= 0,
+	.flags	= IORESOURCE_IO
 };
 struct resource tx4938_pcic1_pci_mem_resource = {
-       	.name	= "PCI1 mem",
-       	.start	= 0,
-       	.end	= 0,
-       	.flags	= IORESOURCE_MEM
+	.name	= "PCI1 mem",
+	.start	= 0,
+	.end	= 0,
+	.flags	= IORESOURCE_MEM
 };
 
 static int mkaddr(int bus, int dev_fn, int where, int *flagsp)

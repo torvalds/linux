@@ -415,10 +415,10 @@ static int vif_add(struct vifctl *vifc, int mrtsock)
 			return -ENOBUFS;
 		break;
 	case 0:
-		dev=ip_dev_find(vifc->vifc_lcl_addr.s_addr);
+		dev = ip_dev_find(vifc->vifc_lcl_addr.s_addr);
 		if (!dev)
 			return -EADDRNOTAVAIL;
-		__dev_put(dev);
+		dev_put(dev);
 		break;
 	default:
 		return -EINVAL;

@@ -178,12 +178,6 @@ rff_trace:
  * Interrupts are off on entry.
  * Only called from user space.
  *
- * EM64T CPUs have somewhat weird error reporting for non canonical RIPs in SYSRET. 
- * We can't handle any exceptions there because the exception handler would
- * end up running on the user stack which is unsafe. To avoid problems 
- * any code that might end up with a user touched pt_regs should return
- * using int_ret_from_syscall.
- *
  * XXX	if we had a free scratch register we could save the RSP into the stack frame
  *      and report it properly in ps. Unfortunately we haven't.
  */ 			 		
@@ -260,9 +254,7 @@ sysret_signal:
 	xorl %esi,%esi # oldset -> arg2
 	call ptregscall_common
 1:	movl $_TIF_NEED_RESCHED,%edi
-	/* Stack frame might have been changed. The IRET path does
-	   some additional checks to handle this */
-	jmp int_with_check
+	jmp sysret_check
 	
 badsys:
 	movq $-ENOSYS,RAX-ARGOFFSET(%rsp)
@@ -288,8 +280,7 @@ tracesys:
 	call syscall_trace_leave
 	RESTORE_TOP_OF_STACK %rbx
 	RESTORE_REST
-	/* Stack frame might have been changed. Use the more careful IRET path */
-	jmp int_ret_from_sys_call
+	jmp ret_from_sys_call
 	CFI_ENDPROC
 		
 /* 
@@ -417,9 +408,25 @@ ENTRY(stub_execve)
 	CFI_ADJUST_CFA_OFFSET -8
 	CFI_REGISTER rip, r11
 	SAVE_REST
+	movq %r11, %r15
+	CFI_REGISTER rip, r15
 	FIXUP_TOP_OF_STACK %r11
 	call sys_execve
+	GET_THREAD_INFO(%rcx)
+	bt $TIF_IA32,threadinfo_flags(%rcx)
+	CFI_REMEMBER_STATE
+	jc exec_32bit
 	RESTORE_TOP_OF_STACK %r11
+	movq %r15, %r11
+	CFI_REGISTER rip, r11
+	RESTORE_REST
+	pushq %r11
+	CFI_ADJUST_CFA_OFFSET 8
+	CFI_REL_OFFSET rip, 0
+	ret
+
+exec_32bit:
+	CFI_RESTORE_STATE
 	movq %rax,RAX(%rsp)
 	RESTORE_REST
 	jmp int_ret_from_sys_call
@@ -546,7 +553,7 @@ iret_label:
 	/* force a signal here? this matches i386 behaviour */
 	/* running with kernel gs */
 bad_iret:
-	movq $-9999,%rdi	/* better code? */
+	movq $11,%rdi	/* SIGSEGV */
 	sti
 	jmp do_exit			
 	.previous	

@@ -116,6 +116,9 @@
 #include <linux/spinlock.h>
 #include <linux/smp_lock.h>
 #include <linux/gameport.h>
+#include <linux/dma-mapping.h>
+#include <linux/mutex.h>
+
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
@@ -328,7 +331,7 @@ struct sv_state {
 	unsigned char fmt, enable;
 
 	spinlock_t lock;
-	struct semaphore open_sem;
+	struct mutex open_mutex;
 	mode_t open_mode;
 	wait_queue_head_t open_wait;
 
@@ -403,24 +406,6 @@ static inline unsigned ld2(unsigned int x)
 	if (x >= 2)
 		r++;
 	return r;
-}
-
-/*
- * hweightN: returns the hamming weight (i.e. the number
- * of bits set) of a N-bit word
- */
-
-#ifdef hweight32
-#undef hweight32
-#endif
-
-static inline unsigned int hweight32(unsigned int w)
-{
-        unsigned int res = (w & 0x55555555) + ((w >> 1) & 0x55555555);
-        res = (res & 0x33333333) + ((res >> 2) & 0x33333333);
-        res = (res & 0x0F0F0F0F) + ((res >> 4) & 0x0F0F0F0F);
-        res = (res & 0x00FF00FF) + ((res >> 8) & 0x00FF00FF);
-        return (res & 0x0000FFFF) + ((res >> 16) & 0x0000FFFF);
 }
 
 /* --------------------------------------------------------------------- */
@@ -1922,21 +1907,21 @@ static int sv_open(struct inode *inode, struct file *file)
        	VALIDATE_STATE(s);
 	file->private_data = s;
 	/* wait for device to become free */
-	down(&s->open_sem);
+	mutex_lock(&s->open_mutex);
 	while (s->open_mode & file->f_mode) {
 		if (file->f_flags & O_NONBLOCK) {
-			up(&s->open_sem);
+			mutex_unlock(&s->open_mutex);
 			return -EBUSY;
 		}
 		add_wait_queue(&s->open_wait, &wait);
 		__set_current_state(TASK_INTERRUPTIBLE);
-		up(&s->open_sem);
+		mutex_unlock(&s->open_mutex);
 		schedule();
 		remove_wait_queue(&s->open_wait, &wait);
 		set_current_state(TASK_RUNNING);
 		if (signal_pending(current))
 			return -ERESTARTSYS;
-		down(&s->open_sem);
+		mutex_lock(&s->open_mutex);
 	}
 	if (file->f_mode & FMODE_READ) {
 		fmtm &= ~((SV_CFMT_STEREO | SV_CFMT_16BIT) << SV_CFMT_CSHIFT);
@@ -1956,7 +1941,7 @@ static int sv_open(struct inode *inode, struct file *file)
 	}
 	set_fmt(s, fmtm, fmts);
 	s->open_mode |= file->f_mode & (FMODE_READ | FMODE_WRITE);
-	up(&s->open_sem);
+	mutex_unlock(&s->open_mutex);
 	return nonseekable_open(inode, file);
 }
 
@@ -1968,7 +1953,7 @@ static int sv_release(struct inode *inode, struct file *file)
 	lock_kernel();
 	if (file->f_mode & FMODE_WRITE)
 		drain_dac(s, file->f_flags & O_NONBLOCK);
-	down(&s->open_sem);
+	mutex_lock(&s->open_mutex);
 	if (file->f_mode & FMODE_WRITE) {
 		stop_dac(s);
 		dealloc_dmabuf(s, &s->dma_dac);
@@ -1979,7 +1964,7 @@ static int sv_release(struct inode *inode, struct file *file)
 	}
 	s->open_mode &= ~(file->f_mode & (FMODE_READ|FMODE_WRITE));
 	wake_up(&s->open_wait);
-	up(&s->open_sem);
+	mutex_unlock(&s->open_mutex);
 	unlock_kernel();
 	return 0;
 }
@@ -2167,21 +2152,21 @@ static int sv_midi_open(struct inode *inode, struct file *file)
        	VALIDATE_STATE(s);
 	file->private_data = s;
 	/* wait for device to become free */
-	down(&s->open_sem);
+	mutex_lock(&s->open_mutex);
 	while (s->open_mode & (file->f_mode << FMODE_MIDI_SHIFT)) {
 		if (file->f_flags & O_NONBLOCK) {
-			up(&s->open_sem);
+			mutex_unlock(&s->open_mutex);
 			return -EBUSY;
 		}
 		add_wait_queue(&s->open_wait, &wait);
 		__set_current_state(TASK_INTERRUPTIBLE);
-		up(&s->open_sem);
+		mutex_unlock(&s->open_mutex);
 		schedule();
 		remove_wait_queue(&s->open_wait, &wait);
 		set_current_state(TASK_RUNNING);
 		if (signal_pending(current))
 			return -ERESTARTSYS;
-		down(&s->open_sem);
+		mutex_lock(&s->open_mutex);
 	}
 	spin_lock_irqsave(&s->lock, flags);
 	if (!(s->open_mode & (FMODE_MIDI_READ | FMODE_MIDI_WRITE))) {
@@ -2210,7 +2195,7 @@ static int sv_midi_open(struct inode *inode, struct file *file)
 	}
 	spin_unlock_irqrestore(&s->lock, flags);
 	s->open_mode |= (file->f_mode << FMODE_MIDI_SHIFT) & (FMODE_MIDI_READ | FMODE_MIDI_WRITE);
-	up(&s->open_sem);
+	mutex_unlock(&s->open_mutex);
 	return nonseekable_open(inode, file);
 }
 
@@ -2248,7 +2233,7 @@ static int sv_midi_release(struct inode *inode, struct file *file)
 		remove_wait_queue(&s->midi.owait, &wait);
 		set_current_state(TASK_RUNNING);
 	}
-	down(&s->open_sem);
+	mutex_lock(&s->open_mutex);
 	s->open_mode &= ~((file->f_mode << FMODE_MIDI_SHIFT) & (FMODE_MIDI_READ|FMODE_MIDI_WRITE));
 	spin_lock_irqsave(&s->lock, flags);
 	if (!(s->open_mode & (FMODE_MIDI_READ | FMODE_MIDI_WRITE))) {
@@ -2257,7 +2242,7 @@ static int sv_midi_release(struct inode *inode, struct file *file)
 	}
 	spin_unlock_irqrestore(&s->lock, flags);
 	wake_up(&s->open_wait);
-	up(&s->open_sem);
+	mutex_unlock(&s->open_mutex);
 	unlock_kernel();
 	return 0;
 }
@@ -2388,21 +2373,21 @@ static int sv_dmfm_open(struct inode *inode, struct file *file)
        	VALIDATE_STATE(s);
 	file->private_data = s;
 	/* wait for device to become free */
-	down(&s->open_sem);
+	mutex_lock(&s->open_mutex);
 	while (s->open_mode & FMODE_DMFM) {
 		if (file->f_flags & O_NONBLOCK) {
-			up(&s->open_sem);
+			mutex_unlock(&s->open_mutex);
 			return -EBUSY;
 		}
 		add_wait_queue(&s->open_wait, &wait);
 		__set_current_state(TASK_INTERRUPTIBLE);
-		up(&s->open_sem);
+		mutex_unlock(&s->open_mutex);
 		schedule();
 		remove_wait_queue(&s->open_wait, &wait);
 		set_current_state(TASK_RUNNING);
 		if (signal_pending(current))
 			return -ERESTARTSYS;
-		down(&s->open_sem);
+		mutex_lock(&s->open_mutex);
 	}
 	/* init the stuff */
 	outb(1, s->iosynth);
@@ -2412,7 +2397,7 @@ static int sv_dmfm_open(struct inode *inode, struct file *file)
 	outb(5, s->iosynth+2);
 	outb(1, s->iosynth+3);  /* enable OPL3 */
 	s->open_mode |= FMODE_DMFM;
-	up(&s->open_sem);
+	mutex_unlock(&s->open_mutex);
 	return nonseekable_open(inode, file);
 }
 
@@ -2423,7 +2408,7 @@ static int sv_dmfm_release(struct inode *inode, struct file *file)
 
 	VALIDATE_STATE(s);
 	lock_kernel();
-	down(&s->open_sem);
+	mutex_lock(&s->open_mutex);
 	s->open_mode &= ~FMODE_DMFM;
 	for (regb = 0xb0; regb < 0xb9; regb++) {
 		outb(regb, s->iosynth);
@@ -2432,7 +2417,7 @@ static int sv_dmfm_release(struct inode *inode, struct file *file)
 		outb(0, s->iosynth+3);
 	}
 	wake_up(&s->open_wait);
-	up(&s->open_sem);
+	mutex_unlock(&s->open_mutex);
 	unlock_kernel();
 	return 0;
 }
@@ -2551,7 +2536,7 @@ static int __devinit sv_probe(struct pci_dev *pcidev, const struct pci_device_id
 		return -ENODEV;
 	if (pcidev->irq == 0)
 		return -ENODEV;
-	if (pci_set_dma_mask(pcidev, 0x00ffffff)) {
+	if (pci_set_dma_mask(pcidev, DMA_24BIT_MASK)) {
 		printk(KERN_WARNING "sonicvibes: architecture does not support 24bit PCI busmaster DMA\n");
 		return -ENODEV;
 	}
@@ -2582,7 +2567,7 @@ static int __devinit sv_probe(struct pci_dev *pcidev, const struct pci_device_id
 	init_waitqueue_head(&s->open_wait);
 	init_waitqueue_head(&s->midi.iwait);
 	init_waitqueue_head(&s->midi.owait);
-	init_MUTEX(&s->open_sem);
+	mutex_init(&s->open_mutex);
 	spin_lock_init(&s->lock);
 	s->magic = SV_MAGIC;
 	s->dev = pcidev;

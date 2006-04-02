@@ -49,7 +49,6 @@ extern int iomem_size;
 extern unsigned long host_task_size;
 extern unsigned long task_size;
 
-extern void check_devanon(void);
 extern int init_mem_user(void);
 extern void setup_memory(void *entry);
 extern unsigned long find_iomem(char *driver, unsigned long *len_out);

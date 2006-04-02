@@ -25,6 +25,7 @@
 #include <linux/highmem.h>
 #include <linux/swap.h>
 #include <linux/proc_fs.h>
+#include <linux/pfn.h>
 
 #include <asm/bootinfo.h>
 #include <asm/cachectl.h>
@@ -54,7 +55,8 @@ unsigned long empty_zero_page, zero_page_mask;
  */
 unsigned long setup_zero_pages(void)
 {
-	unsigned long order, size;
+	unsigned int order;
+	unsigned long size;
 	struct page *page;
 
 	if (cpu_has_vce)
@@ -67,9 +69,9 @@ unsigned long setup_zero_pages(void)
 		panic("Oh boy, that early out of memory?");
 
 	page = virt_to_page(empty_zero_page);
+	split_page(page, order);
 	while (page < virt_to_page(empty_zero_page + (PAGE_SIZE << order))) {
 		SetPageReserved(page);
-		set_page_count(page, 1);
 		page++;
 	}
 
@@ -176,9 +178,6 @@ void __init paging_init(void)
 	free_area_init(zones_size);
 }
 
-#define PFN_UP(x)	(((x) + PAGE_SIZE - 1) >> PAGE_SHIFT)
-#define PFN_DOWN(x)	((x) >> PAGE_SHIFT)
-
 static inline int page_is_ram(unsigned long pagenr)
 {
 	int i;
@@ -244,7 +243,7 @@ void __init mem_init(void)
 #ifdef CONFIG_LIMITED_DMA
 		set_page_address(page, lowmem_page_address(page));
 #endif
-		set_page_count(page, 1);
+		init_page_count(page);
 		__free_page(page);
 		totalhigh_pages++;
 	}
@@ -291,7 +290,7 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 
 	for (; start < end; start += PAGE_SIZE) {
 		ClearPageReserved(virt_to_page(start));
-		set_page_count(virt_to_page(start), 1);
+		init_page_count(virt_to_page(start));
 		free_page(start);
 		totalram_pages++;
 	}
@@ -314,7 +313,7 @@ void free_initmem(void)
 		page = addr;
 #endif
 		ClearPageReserved(virt_to_page(page));
-		set_page_count(virt_to_page(page), 1);
+		init_page_count(virt_to_page(page));
 		free_page(page);
 		totalram_pages++;
 		freed += PAGE_SIZE;

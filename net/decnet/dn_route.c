@@ -133,9 +133,9 @@ static struct dst_ops dn_dst_ops = {
 	.entries =		ATOMIC_INIT(0),
 };
 
-static __inline__ unsigned dn_hash(unsigned short src, unsigned short dst)
+static __inline__ unsigned dn_hash(__le16 src, __le16 dst)
 {
-	unsigned short tmp = src ^ dst;
+	__u16 tmp = (__u16 __force)(src ^ dst);
 	tmp ^= (tmp >> 3);
 	tmp ^= (tmp >> 5);
 	tmp ^= (tmp >> 10);
@@ -149,8 +149,7 @@ static inline void dnrt_free(struct dn_route *rt)
 
 static inline void dnrt_drop(struct dn_route *rt)
 {
-	if (rt)
-		dst_release(&rt->u.dst);
+	dst_release(&rt->u.dst);
 	call_rcu_bh(&rt->u.dst.rcu_head, dst_rcu_free);
 }
 
@@ -379,9 +378,9 @@ static int dn_return_short(struct sk_buff *skb)
 {
 	struct dn_skb_cb *cb;
 	unsigned char *ptr;
-	dn_address *src;
-	dn_address *dst;
-	dn_address tmp;
+	__le16 *src;
+	__le16 *dst;
+	__le16 tmp;
 
 	/* Add back headers */
 	skb_push(skb, skb->data - skb->nh.raw);
@@ -394,9 +393,9 @@ static int dn_return_short(struct sk_buff *skb)
 	ptr = skb->data + 2;
 	*ptr++ = (cb->rt_flags & ~DN_RT_F_RQR) | DN_RT_F_RTS;
 
-	dst = (dn_address *)ptr;
+	dst = (__le16 *)ptr;
 	ptr += 2;
-	src = (dn_address *)ptr;
+	src = (__le16 *)ptr;
 	ptr += 2;
 	*ptr = 0; /* Zero hop count */
 
@@ -475,7 +474,8 @@ static int dn_route_rx_packet(struct sk_buff *skb)
 		struct dn_skb_cb *cb = DN_SKB_CB(skb);
 		printk(KERN_DEBUG
 			"DECnet: dn_route_rx_packet: rt_flags=0x%02x dev=%s len=%d src=0x%04hx dst=0x%04hx err=%d type=%d\n",
-			(int)cb->rt_flags, devname, skb->len, cb->src, cb->dst, 
+			(int)cb->rt_flags, devname, skb->len,
+			dn_ntohs(cb->src), dn_ntohs(cb->dst),
 			err, skb->pkt_type);
 	}
 
@@ -505,7 +505,7 @@ static int dn_route_rx_long(struct sk_buff *skb)
 
         /* Destination info */
         ptr += 2;
-	cb->dst = dn_htons(dn_eth2dn(ptr));
+	cb->dst = dn_eth2dn(ptr);
         if (memcmp(ptr, dn_hiord_addr, 4) != 0)
                 goto drop_it;
         ptr += 6;
@@ -513,7 +513,7 @@ static int dn_route_rx_long(struct sk_buff *skb)
 
         /* Source info */
         ptr += 2;
-	cb->src = dn_htons(dn_eth2dn(ptr));
+	cb->src = dn_eth2dn(ptr);
         if (memcmp(ptr, dn_hiord_addr, 4) != 0)
                 goto drop_it;
         ptr += 6;
@@ -541,9 +541,9 @@ static int dn_route_rx_short(struct sk_buff *skb)
 	skb_pull(skb, 5);
 	skb->h.raw = skb->data;
 
-	cb->dst = *(dn_address *)ptr;
+	cb->dst = *(__le16 *)ptr;
         ptr += 2;
-        cb->src = *(dn_address *)ptr;
+        cb->src = *(__le16 *)ptr;
         ptr += 2;
         cb->hops = *ptr & 0x3f;
 
@@ -575,7 +575,7 @@ int dn_route_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type
 {
 	struct dn_skb_cb *cb;
 	unsigned char flags = 0;
-	__u16 len = dn_ntohs(*(__u16 *)skb->data);
+	__u16 len = dn_ntohs(*(__le16 *)skb->data);
 	struct dn_dev *dn = (struct dn_dev *)dev->dn_ptr;
 	unsigned char padlen = 0;
 
@@ -782,7 +782,7 @@ static int dn_rt_bug(struct sk_buff *skb)
 		struct dn_skb_cb *cb = DN_SKB_CB(skb);
 
 		printk(KERN_DEBUG "dn_rt_bug: skb from:%04x to:%04x\n",
-				cb->src, cb->dst);
+				dn_ntohs(cb->src), dn_ntohs(cb->dst));
 	}
 
 	kfree_skb(skb);
@@ -823,7 +823,7 @@ static int dn_rt_set_next_hop(struct dn_route *rt, struct dn_fib_res *res)
 	return 0;
 }
 
-static inline int dn_match_addr(__u16 addr1, __u16 addr2)
+static inline int dn_match_addr(__le16 addr1, __le16 addr2)
 {
 	__u16 tmp = dn_ntohs(addr1) ^ dn_ntohs(addr2);
 	int match = 16;
@@ -834,9 +834,9 @@ static inline int dn_match_addr(__u16 addr1, __u16 addr2)
 	return match;
 }
 
-static __u16 dnet_select_source(const struct net_device *dev, __u16 daddr, int scope)
+static __le16 dnet_select_source(const struct net_device *dev, __le16 daddr, int scope)
 {
-	__u16 saddr = 0;
+	__le16 saddr = 0;
 	struct dn_dev *dn_db = dev->dn_ptr;
 	struct dn_ifaddr *ifa;
 	int best_match = 0;
@@ -861,14 +861,14 @@ static __u16 dnet_select_source(const struct net_device *dev, __u16 daddr, int s
 	return saddr;
 }
 
-static inline __u16 __dn_fib_res_prefsrc(struct dn_fib_res *res)
+static inline __le16 __dn_fib_res_prefsrc(struct dn_fib_res *res)
 {
 	return dnet_select_source(DN_FIB_RES_DEV(*res), DN_FIB_RES_GW(*res), res->scope);
 }
 
-static inline __u16 dn_fib_rules_map_destination(__u16 daddr, struct dn_fib_res *res)
+static inline __le16 dn_fib_rules_map_destination(__le16 daddr, struct dn_fib_res *res)
 {
-	__u16 mask = dnet_make_mask(res->prefixlen);
+	__le16 mask = dnet_make_mask(res->prefixlen);
 	return (daddr&~mask)|res->fi->fib_nh->nh_gw;
 }
 
@@ -892,12 +892,13 @@ static int dn_route_output_slow(struct dst_entry **pprt, const struct flowi *old
 	struct dn_fib_res res = { .fi = NULL, .type = RTN_UNICAST };
 	int err;
 	int free_res = 0;
-	__u16 gateway = 0;
+	__le16 gateway = 0;
 
 	if (decnet_debug_level & 16)
 		printk(KERN_DEBUG
 		       "dn_route_output_slow: dst=%04x src=%04x mark=%d"
-		       " iif=%d oif=%d\n", oldflp->fld_dst, oldflp->fld_src,
+		       " iif=%d oif=%d\n", dn_ntohs(oldflp->fld_dst),
+		       dn_ntohs(oldflp->fld_src),
                        oldflp->fld_fwmark, loopback_dev.ifindex, oldflp->oif);
 
 	/* If we have an output interface, verify its a DECnet device */
@@ -961,8 +962,9 @@ source_ok:
 	if (decnet_debug_level & 16)
 		printk(KERN_DEBUG
 		       "dn_route_output_slow: initial checks complete."
-		       " dst=%o4x src=%04x oif=%d try_hard=%d\n", fl.fld_dst,
-		       fl.fld_src, fl.oif, try_hard);
+		       " dst=%o4x src=%04x oif=%d try_hard=%d\n",
+		       dn_ntohs(fl.fld_dst), dn_ntohs(fl.fld_src),
+		       fl.oif, try_hard);
 
 	/*
 	 * N.B. If the kernel is compiled without router support then
@@ -1218,8 +1220,8 @@ static int dn_route_input_slow(struct sk_buff *skb)
 	struct neighbour *neigh = NULL;
 	unsigned hash;
 	int flags = 0;
-	__u16 gateway = 0;
-	__u16 local_src = 0;
+	__le16 gateway = 0;
+	__le16 local_src = 0;
 	struct flowi fl = { .nl_u = { .dn_u = 
 				     { .daddr = cb->dst,
 				       .saddr = cb->src,
@@ -1266,7 +1268,7 @@ static int dn_route_input_slow(struct sk_buff *skb)
 		res.type = RTN_LOCAL;
 		flags |= RTCF_DIRECTSRC;
 	} else {
-		__u16 src_map = fl.fld_src;
+		__le16 src_map = fl.fld_src;
 		free_res = 1;
 
 		out_dev = DN_FIB_RES_DEV(res);

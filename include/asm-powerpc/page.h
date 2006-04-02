@@ -69,8 +69,6 @@
 #endif
 
 #ifdef CONFIG_FLATMEM
-#define pfn_to_page(pfn)	(mem_map + (pfn))
-#define page_to_pfn(page)	((unsigned long)((page) - mem_map))
 #define pfn_valid(pfn)		((pfn) < max_mapnr)
 #endif
 
@@ -200,6 +198,7 @@ extern void copy_user_page(void *to, void *from, unsigned long vaddr,
 		struct page *p);
 extern int page_is_ram(unsigned long pfn);
 
+#include <asm-generic/memory_model.h>
 #endif /* __ASSEMBLY__ */
 
 #endif /* __KERNEL__ */

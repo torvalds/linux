@@ -181,7 +181,6 @@ static struct tty_driver	*stli_serial;
  *	is already swapping a shared buffer won't make things any worse.
  */
 static char			*stli_tmpwritebuf;
-static DECLARE_MUTEX(stli_tmpwritesem);
 
 #define	STLI_TXBUFSIZE		4096
 
@@ -379,13 +378,13 @@ MODULE_DESCRIPTION("Stallion Intelligent Multiport Serial Driver");
 MODULE_LICENSE("GPL");
 
 
-MODULE_PARM(board0, "1-3s");
+module_param_array(board0, charp, NULL, 0);
 MODULE_PARM_DESC(board0, "Board 0 config -> name[,ioaddr[,memaddr]");
-MODULE_PARM(board1, "1-3s");
+module_param_array(board1, charp, NULL, 0);
 MODULE_PARM_DESC(board1, "Board 1 config -> name[,ioaddr[,memaddr]");
-MODULE_PARM(board2, "1-3s");
+module_param_array(board2, charp, NULL, 0);
 MODULE_PARM_DESC(board2, "Board 2 config -> name[,ioaddr[,memaddr]");
-MODULE_PARM(board3, "1-3s");
+module_param_array(board3, charp, NULL, 0);
 MODULE_PARM_DESC(board3, "Board 3 config -> name[,ioaddr[,memaddr]");
 
 #endif
@@ -707,7 +706,6 @@ static int	stli_portcmdstats(stliport_t *portp);
 static int	stli_clrportstats(stliport_t *portp, comstats_t __user *cp);
 static int	stli_getportstruct(stliport_t __user *arg);
 static int	stli_getbrdstruct(stlibrd_t __user *arg);
-static void	*stli_memalloc(int len);
 static stlibrd_t *stli_allocbrd(void);
 
 static void	stli_ecpinit(stlibrd_t *brdp);
@@ -995,17 +993,6 @@ static int stli_parsebrd(stlconf_t *confp, char **argp)
 }
 
 #endif
-
-/*****************************************************************************/
-
-/*
- *	Local driver kernel malloc routine.
- */
-
-static void *stli_memalloc(int len)
-{
-	return((void *) kmalloc(len, GFP_KERNEL));
-}
 
 /*****************************************************************************/
 
@@ -3228,13 +3215,12 @@ static int stli_initports(stlibrd_t *brdp)
 #endif
 
 	for (i = 0, panelnr = 0, panelport = 0; (i < brdp->nrports); i++) {
-		portp = (stliport_t *) stli_memalloc(sizeof(stliport_t));
-		if (portp == (stliport_t *) NULL) {
+		portp = kzalloc(sizeof(stliport_t), GFP_KERNEL);
+		if (!portp) {
 			printk("STALLION: failed to allocate port structure\n");
 			continue;
 		}
 
-		memset(portp, 0, sizeof(stliport_t));
 		portp->magic = STLI_PORTMAGIC;
 		portp->portnr = i;
 		portp->brdnr = brdp->brdnr;
@@ -4611,14 +4597,13 @@ static stlibrd_t *stli_allocbrd(void)
 {
 	stlibrd_t	*brdp;
 
-	brdp = (stlibrd_t *) stli_memalloc(sizeof(stlibrd_t));
-	if (brdp == (stlibrd_t *) NULL) {
+	brdp = kzalloc(sizeof(stlibrd_t), GFP_KERNEL);
+	if (!brdp) {
 		printk(KERN_ERR "STALLION: failed to allocate memory "
 				"(size=%d)\n", sizeof(stlibrd_t));
-		return((stlibrd_t *) NULL);
+		return NULL;
 	}
 
-	memset(brdp, 0, sizeof(stlibrd_t));
 	brdp->magic = STLI_BOARDMAGIC;
 	return(brdp);
 }
@@ -5211,12 +5196,12 @@ int __init stli_init(void)
 /*
  *	Allocate a temporary write buffer.
  */
-	stli_tmpwritebuf = (char *) stli_memalloc(STLI_TXBUFSIZE);
-	if (stli_tmpwritebuf == (char *) NULL)
+	stli_tmpwritebuf = kmalloc(STLI_TXBUFSIZE, GFP_KERNEL);
+	if (!stli_tmpwritebuf)
 		printk(KERN_ERR "STALLION: failed to allocate memory "
 				"(size=%d)\n", STLI_TXBUFSIZE);
-	stli_txcookbuf = stli_memalloc(STLI_TXBUFSIZE);
-	if (stli_txcookbuf == (char *) NULL)
+	stli_txcookbuf = kmalloc(STLI_TXBUFSIZE, GFP_KERNEL);
+	if (!stli_txcookbuf)
 		printk(KERN_ERR "STALLION: failed to allocate memory "
 				"(size=%d)\n", STLI_TXBUFSIZE);
 

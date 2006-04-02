@@ -30,9 +30,9 @@ extern struct inode_operations coda_ioctl_inode_operations;
 extern struct address_space_operations coda_file_aops;
 extern struct address_space_operations coda_symlink_aops;
 
-extern struct file_operations coda_dir_operations;
-extern struct file_operations coda_file_operations;
-extern struct file_operations coda_ioctl_operations;
+extern const struct file_operations coda_dir_operations;
+extern const struct file_operations coda_file_operations;
+extern const struct file_operations coda_ioctl_operations;
 
 /* operations shared over more than one file */
 int coda_open(struct inode *i, struct file *f);

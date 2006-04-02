@@ -1179,10 +1179,9 @@ static int __init i2o_block_init(void)
 		goto exit;
 	}
 
-	i2o_blk_req_pool.pool = mempool_create(I2O_BLOCK_REQ_MEMPOOL_SIZE,
-					       mempool_alloc_slab,
-					       mempool_free_slab,
-					       i2o_blk_req_pool.slab);
+	i2o_blk_req_pool.pool =
+		mempool_create_slab_pool(I2O_BLOCK_REQ_MEMPOOL_SIZE,
+					 i2o_blk_req_pool.slab);
 	if (!i2o_blk_req_pool.pool) {
 		osm_err("can't init request mempool\n");
 		rc = -ENOMEM;

@@ -43,7 +43,7 @@
 
 static int io = CONFIG_RADIO_RTRACK_PORT; 
 static int radio_nr = -1;
-static struct semaphore lock;
+static struct mutex lock;
 
 struct rt_device
 {
@@ -83,23 +83,23 @@ static void rt_incvol(void)
 static void rt_mute(struct rt_device *dev)
 {
 	dev->muted = 1;
-	down(&lock);
+	mutex_lock(&lock);
 	outb(0xd0, io);			/* volume steady, off		*/
-	up(&lock);
+	mutex_unlock(&lock);
 }
 
 static int rt_setvol(struct rt_device *dev, int vol)
 {
 	int i;
 
-	down(&lock);
+	mutex_lock(&lock);
 	
 	if(vol == dev->curvol) {	/* requested volume = current */
 		if (dev->muted) {	/* user is unmuting the card  */
 			dev->muted = 0;
 			outb (0xd8, io);	/* enable card */
 		}	
-		up(&lock);
+		mutex_unlock(&lock);
 		return 0;
 	}
 
@@ -108,7 +108,7 @@ static int rt_setvol(struct rt_device *dev, int vol)
 		sleep_delay(2000000);	/* make sure it's totally down	*/
 		outb(0xd0, io);		/* volume steady, off		*/
 		dev->curvol = 0;	/* track the volume state!	*/
-		up(&lock);
+		mutex_unlock(&lock);
 		return 0;
 	}
 
@@ -121,7 +121,7 @@ static int rt_setvol(struct rt_device *dev, int vol)
 			rt_decvol();
 
 	dev->curvol = vol;
-	up(&lock);
+	mutex_unlock(&lock);
 	return 0;
 }
 
@@ -168,7 +168,7 @@ static int rt_setfreq(struct rt_device *dev, unsigned long freq)
 	freq += 171200;			/* Add 10.7 MHz IF 		*/
 	freq /= 800;			/* Convert to 50 kHz units	*/
 	
-	down(&lock);			/* Stop other ops interfering */
+	mutex_lock(&lock);			/* Stop other ops interfering */
 	 
 	send_0_byte (io, dev);		/*  0: LSB of frequency		*/
 
@@ -196,7 +196,7 @@ static int rt_setfreq(struct rt_device *dev, unsigned long freq)
 	else
 		outb (0xd8, io);	/* volume steady + sigstr + on */
 		
-	up(&lock);
+	mutex_unlock(&lock);
 
 	return 0;
 }
@@ -337,7 +337,7 @@ static int __init rtrack_init(void)
 
 	/* Set up the I/O locking */
 	
-	init_MUTEX(&lock);
+	mutex_init(&lock);
 	
  	/* mute card - prevents noisy bootups */
 

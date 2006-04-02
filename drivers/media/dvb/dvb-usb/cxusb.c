@@ -77,22 +77,23 @@ static int cxusb_i2c_xfer(struct i2c_adapter *adap,struct i2c_msg msg[],int num)
 	struct dvb_usb_device *d = i2c_get_adapdata(adap);
 	int i;
 
-	if (down_interruptible(&d->i2c_sem) < 0)
+	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
 		return -EAGAIN;
 
 	if (num > 2)
-		warn("more than 2 i2c messages at a time is not handled yet. TODO.");
+		warn("more than two i2c messages at a time is not handled yet. TODO.");
 
 	for (i = 0; i < num; i++) {
 
-		switch (msg[i].addr) {
-			case 0x63:
-				cxusb_gpio_tuner(d,0);
-				break;
-			default:
-				cxusb_gpio_tuner(d,1);
-				break;
-		}
+		if (d->udev->descriptor.idVendor == USB_VID_MEDION)
+			switch (msg[i].addr) {
+				case 0x63:
+					cxusb_gpio_tuner(d,0);
+					break;
+				default:
+					cxusb_gpio_tuner(d,1);
+					break;
+			}
 
 		/* read request */
 		if (i+1 < num && (msg[i+1].flags & I2C_M_RD)) {
@@ -108,7 +109,7 @@ static int cxusb_i2c_xfer(struct i2c_adapter *adap,struct i2c_msg msg[],int num)
 				break;
 
 			if (ibuf[0] != 0x08)
-				deb_info("i2c read could have been failed\n");
+				deb_i2c("i2c read may have failed\n");
 
 			memcpy(msg[i+1].buf,&ibuf[1],msg[i+1].len);
 
@@ -122,11 +123,11 @@ static int cxusb_i2c_xfer(struct i2c_adapter *adap,struct i2c_msg msg[],int num)
 			if (cxusb_ctrl_msg(d,CMD_I2C_WRITE, obuf, 2+msg[i].len, &ibuf,1) < 0)
 				break;
 			if (ibuf != 0x08)
-				deb_info("i2c write could have been failed\n");
+				deb_i2c("i2c write may have failed\n");
 		}
 	}
 
-	up(&d->i2c_sem);
+	mutex_unlock(&d->i2c_mutex);
 	return i;
 }
 
@@ -410,7 +411,6 @@ static int bluebird_patch_dvico_firmware_download(struct usb_device *udev, const
 	if (fw->data[BLUEBIRD_01_ID_OFFSET] == (USB_VID_DVICO & 0xff) &&
 	    fw->data[BLUEBIRD_01_ID_OFFSET + 1] == USB_VID_DVICO >> 8) {
 
-		/* FIXME: are we allowed to change the fw-data ? */
 		fw->data[BLUEBIRD_01_ID_OFFSET + 2] = udev->descriptor.idProduct + 1;
 		fw->data[BLUEBIRD_01_ID_OFFSET + 3] = udev->descriptor.idProduct >> 8;
 

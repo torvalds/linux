@@ -373,7 +373,6 @@ static void ahc_linux_handle_scsi_status(struct ahc_softc *,
 					 struct scb *);
 static void ahc_linux_queue_cmd_complete(struct ahc_softc *ahc,
 					 struct scsi_cmnd *cmd);
-static void ahc_linux_sem_timeout(u_long arg);
 static void ahc_linux_freeze_simq(struct ahc_softc *ahc);
 static void ahc_linux_release_simq(struct ahc_softc *ahc);
 static int  ahc_linux_queue_recovery_cmd(struct scsi_cmnd *cmd, scb_flag flag);
@@ -1193,7 +1192,6 @@ ahc_platform_alloc(struct ahc_softc *ahc, void *platform_arg)
 	memset(ahc->platform_data, 0, sizeof(struct ahc_platform_data));
 	ahc->platform_data->irq = AHC_LINUX_NOIRQ;
 	ahc_lockinit(ahc);
-	init_MUTEX_LOCKED(&ahc->platform_data->eh_sem);
 	ahc->seltime = (aic7xxx_seltime & 0x3) << 4;
 	ahc->seltime_b = (aic7xxx_seltime & 0x3) << 4;
 	if (aic7xxx_pci_parity == 0)
@@ -1830,10 +1828,9 @@ ahc_done(struct ahc_softc *ahc, struct scb *scb)
 		if (ahc_get_transaction_status(scb) == CAM_BDR_SENT
 		 || ahc_get_transaction_status(scb) == CAM_REQ_ABORTED)
 			ahc_set_transaction_status(scb, CAM_CMD_TIMEOUT);
-		if ((ahc->platform_data->flags & AHC_UP_EH_SEMAPHORE) != 0) {
-			ahc->platform_data->flags &= ~AHC_UP_EH_SEMAPHORE;
-			up(&ahc->platform_data->eh_sem);
-		}
+
+		if (ahc->platform_data->eh_done)
+			complete(ahc->platform_data->eh_done);
 	}
 
 	ahc_free_scb(ahc, scb);
@@ -2037,22 +2034,6 @@ ahc_linux_queue_cmd_complete(struct ahc_softc *ahc, struct scsi_cmnd *cmd)
 	}
 
 	cmd->scsi_done(cmd);
-}
-
-static void
-ahc_linux_sem_timeout(u_long arg)
-{
-	struct	ahc_softc *ahc;
-	u_long	s;
-
-	ahc = (struct ahc_softc *)arg;
-
-	ahc_lock(ahc, &s);
-	if ((ahc->platform_data->flags & AHC_UP_EH_SEMAPHORE) != 0) {
-		ahc->platform_data->flags &= ~AHC_UP_EH_SEMAPHORE;
-		up(&ahc->platform_data->eh_sem);
-	}
-	ahc_unlock(ahc, &s);
 }
 
 static void
@@ -2355,25 +2336,21 @@ done:
 	if (paused)
 		ahc_unpause(ahc);
 	if (wait) {
-		struct timer_list timer;
-		int ret;
+		DECLARE_COMPLETION(done);
 
-		ahc->platform_data->flags |= AHC_UP_EH_SEMAPHORE;
+		ahc->platform_data->eh_done = &done;
 		ahc_unlock(ahc, &flags);
 
-		init_timer(&timer);
-		timer.data = (u_long)ahc;
-		timer.expires = jiffies + (5 * HZ);
-		timer.function = ahc_linux_sem_timeout;
-		add_timer(&timer);
 		printf("Recovery code sleeping\n");
-		down(&ahc->platform_data->eh_sem);
-		printf("Recovery code awake\n");
-        	ret = del_timer_sync(&timer);
-		if (ret == 0) {
+		if (!wait_for_completion_timeout(&done, 5 * HZ)) {
+			ahc_lock(ahc, &flags);
+			ahc->platform_data->eh_done = NULL;
+			ahc_unlock(ahc, &flags);
+
 			printf("Timer Expired\n");
 			retval = FAILED;
 		}
+		printf("Recovery code awake\n");
 	} else
 		ahc_unlock(ahc, &flags);
 	return (retval);

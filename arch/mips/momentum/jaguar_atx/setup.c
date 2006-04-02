@@ -229,8 +229,8 @@ void momenco_time_init(void)
 	mips_hpt_frequency = cpu_clock / 2;
 	board_timer_setup = momenco_timer_setup;
 
-	rtc_get_time = m48t37y_get_time;
-	rtc_set_time = m48t37y_set_time;
+	rtc_mips_get_time = m48t37y_get_time;
+	rtc_mips_set_time = m48t37y_set_time;
 }
 
 static struct resource mv_pci_io_mem0_resource = {
@@ -461,7 +461,7 @@ void __init plat_setup(void)
 	  unsigned int tbControl;
 	  tbControl =
 	    0 << 26 |  /* post trigger delay 0 */
-	    	    0x2 << 16 |		/* sequential trace mode */
+		    0x2 << 16 |		/* sequential trace mode */
 	    //	    0x0 << 16 |		/* non-sequential trace mode */
 	    //	    0xf << 4 |		/* watchpoints disabled */
 	    2 << 2 |		/* armed */

@@ -478,10 +478,9 @@ dummy_alloc_request (struct usb_ep *_ep, gfp_t mem_flags)
 		return NULL;
 	ep = usb_ep_to_dummy_ep (_ep);
 
-	req = kmalloc (sizeof *req, mem_flags);
+	req = kzalloc(sizeof(*req), mem_flags);
 	if (!req)
 		return NULL;
-	memset (req, 0, sizeof *req);
 	INIT_LIST_HEAD (&req->queue);
 	return &req->req;
 }

@@ -12,6 +12,7 @@
 #include <linux/input.h>
 #include <linux/usb.h>
 #include <linux/firmware.h>
+#include <linux/mutex.h>
 
 #include "dvb_frontend.h"
 #include "dvb_demux.h"
@@ -227,8 +228,8 @@ struct dvb_usb_properties {
  * @feedcount: number of reqested feeds (used for streaming-activation)
  * @pid_filtering: is hardware pid_filtering used or not.
  *
- * @usb_sem: semaphore of USB control messages (reading needs two messages)
- * @i2c_sem: semaphore for i2c-transfers
+ * @usb_mutex: semaphore of USB control messages (reading needs two messages)
+ * @i2c_mutex: semaphore for i2c-transfers
  *
  * @i2c_adap: device's i2c_adapter if it uses I2CoverUSB
  * @pll_addr: I2C address of the tuner for programming
@@ -283,10 +284,10 @@ struct dvb_usb_device {
 	int pid_filtering;
 
 	/* locking */
-	struct semaphore usb_sem;
+	struct mutex usb_mutex;
 
 	/* i2c */
-	struct semaphore i2c_sem;
+	struct mutex i2c_mutex;
 	struct i2c_adapter i2c_adap;
 
 	/* tuner programming information */

@@ -186,9 +186,9 @@ void hpfs_write_inode(struct inode *i)
 		kfree(hpfs_inode->i_rddir_off);
 		hpfs_inode->i_rddir_off = NULL;
 	}
-	down(&hpfs_inode->i_parent);
+	mutex_lock(&hpfs_inode->i_parent_mutex);
 	if (!i->i_nlink) {
-		up(&hpfs_inode->i_parent);
+		mutex_unlock(&hpfs_inode->i_parent_mutex);
 		return;
 	}
 	parent = iget_locked(i->i_sb, hpfs_inode->i_parent_dir);
@@ -199,14 +199,14 @@ void hpfs_write_inode(struct inode *i)
 			hpfs_read_inode(parent);
 			unlock_new_inode(parent);
 		}
-		down(&hpfs_inode->i_sem);
+		mutex_lock(&hpfs_inode->i_mutex);
 		hpfs_write_inode_nolock(i);
-		up(&hpfs_inode->i_sem);
+		mutex_unlock(&hpfs_inode->i_mutex);
 		iput(parent);
 	} else {
 		mark_inode_dirty(i);
 	}
-	up(&hpfs_inode->i_parent);
+	mutex_unlock(&hpfs_inode->i_parent_mutex);
 }
 
 void hpfs_write_inode_nolock(struct inode *i)

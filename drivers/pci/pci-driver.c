@@ -53,11 +53,10 @@ store_new_id(struct device_driver *driver, const char *buf, size_t count)
 	if (fields < 0)
 		return -EINVAL;
 
-	dynid = kmalloc(sizeof(*dynid), GFP_KERNEL);
+	dynid = kzalloc(sizeof(*dynid), GFP_KERNEL);
 	if (!dynid)
 		return -ENOMEM;
 
-	memset(dynid, 0, sizeof(*dynid));
 	INIT_LIST_HEAD(&dynid->node);
 	dynid->id.vendor = vendor;
 	dynid->id.device = device;
@@ -380,14 +379,6 @@ int __pci_register_driver(struct pci_driver *drv, struct module *owner)
 	/* initialize common driver fields */
 	drv->driver.name = drv->name;
 	drv->driver.bus = &pci_bus_type;
-	/* FIXME, once all of the existing PCI drivers have been fixed to set
-	 * the pci shutdown function, this test can go away. */
-	if (!drv->driver.shutdown)
-		drv->driver.shutdown = pci_device_shutdown;
-	else
-		printk(KERN_WARNING "Warning: PCI driver %s has a struct "
-			"device_driver shutdown method, please update!\n",
-			drv->name);
 	drv->driver.owner = owner;
 	drv->driver.kobj.ktype = &pci_driver_kobj_type;
 
@@ -514,6 +505,7 @@ struct bus_type pci_bus_type = {
 	.probe		= pci_device_probe,
 	.remove		= pci_device_remove,
 	.suspend	= pci_device_suspend,
+	.shutdown	= pci_device_shutdown,
 	.resume		= pci_device_resume,
 	.dev_attrs	= pci_dev_attrs,
 };

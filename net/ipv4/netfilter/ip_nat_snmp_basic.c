@@ -250,6 +250,7 @@ static unsigned char asn1_header_decode(struct asn1_ctx *ctx,
 	if (!asn1_id_decode(ctx, cls, con, tag))
 		return 0;
 		
+	def = len = 0;
 	if (!asn1_length_decode(ctx, &def, &len))
 		return 0;
 		
@@ -669,7 +670,7 @@ static unsigned char snmp_object_decode(struct asn1_ctx *ctx,
 	unsigned char *eoc, *end, *p;
 	unsigned long *lp, *id;
 	unsigned long ul;
-	long  l;
+	long l;
 	
 	*obj = NULL;
 	id = NULL;
@@ -699,11 +700,13 @@ static unsigned char snmp_object_decode(struct asn1_ctx *ctx,
 		return 0;
 	}
 	
+	type = 0;
 	if (!snmp_tag_cls2syntax(tag, cls, &type)) {
 		kfree(id);
 		return 0;
 	}
 	
+	l = 0;
 	switch (type) {
 		case SNMP_INTEGER:
 			len = sizeof(long);
@@ -1321,7 +1324,7 @@ static struct ip_conntrack_helper snmp_trap_helper = {
  *
  *****************************************************************************/
  
-static int __init init(void)
+static int __init ip_nat_snmp_basic_init(void)
 {
 	int ret = 0;
 
@@ -1336,13 +1339,13 @@ static int __init init(void)
 	return ret;
 }
 
-static void __exit fini(void)
+static void __exit ip_nat_snmp_basic_fini(void)
 {
 	ip_conntrack_helper_unregister(&snmp_helper);
 	ip_conntrack_helper_unregister(&snmp_trap_helper);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ip_nat_snmp_basic_init);
+module_exit(ip_nat_snmp_basic_fini);
 
 module_param(debug, bool, 0600);

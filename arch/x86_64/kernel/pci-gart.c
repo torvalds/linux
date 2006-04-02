@@ -65,9 +65,7 @@ static u32 gart_unmapped_entry;
 
 #define for_all_nb(dev) \
 	dev = NULL;	\
-	while ((dev = pci_get_device(PCI_VENDOR_ID_AMD, 0x1103, dev))!=NULL)\
-	     if (dev->bus->number == 0 && 				     \
-		    (PCI_SLOT(dev->devfn) >= 24) && (PCI_SLOT(dev->devfn) <= 31))
+	while ((dev = pci_get_device(PCI_VENDOR_ID_AMD, 0x1103, dev))!=NULL)
 
 static struct pci_dev *northbridges[MAX_NB];
 static u32 northbridge_flush_word[MAX_NB];
@@ -148,9 +146,12 @@ static void flush_gart(struct device *dev)
 			if (!northbridges[i])
 				continue;
 			/* Make sure the hardware actually executed the flush. */
-			do { 
+			for (;;) { 
 				pci_read_config_dword(northbridges[i], 0x9c, &w);
-			} while (w & 1);
+				if (!(w & 1))
+					break;
+				cpu_relax();
+			}
 		} 
 		if (!flushed) 
 			printk("nothing to flush?\n");

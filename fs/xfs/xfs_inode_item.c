@@ -580,7 +580,7 @@ xfs_inode_item_unpin_remove(
  * been or is in the process of being flushed, then (ideally) we'd like to
  * see if the inode's buffer is still incore, and if so give it a nudge.
  * We delay doing so until the pushbuf routine, though, to avoid holding
- * the AIL lock across a call to the blackhole which is the buffercache.
+ * the AIL lock across a call to the blackhole which is the buffer cache.
  * Also we don't want to sleep in any device strategy routines, which can happen
  * if we do the subsequent bawrite in here.
  */

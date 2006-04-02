@@ -551,10 +551,10 @@ sys32_newuname_wrapper:
 	llgtr	%r2,%r2			# struct new_utsname *
 	jg	s390x_newuname		# branch to system call
 
-	.globl  sys32_adjtimex_wrapper 
-sys32_adjtimex_wrapper:
-	llgtr	%r2,%r2			# struct timex_emu31 *
-	jg	sys32_adjtimex		# branch to system call
+	.globl  compat_sys_adjtimex_wrapper
+compat_sys_adjtimex_wrapper:
+	llgtr	%r2,%r2			# struct compat_timex *
+	jg	compat_sys_adjtimex	# branch to system call
 
 	.globl  sys32_mprotect_wrapper 
 sys32_mprotect_wrapper:

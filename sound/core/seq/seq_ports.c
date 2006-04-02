@@ -159,7 +159,7 @@ struct snd_seq_client_port *snd_seq_create_port(struct snd_seq_client *client,
 	port_subs_info_init(&new_port->c_dest);
 
 	num = port >= 0 ? port : 0;
-	down(&client->ports_mutex);
+	mutex_lock(&client->ports_mutex);
 	write_lock_irqsave(&client->ports_lock, flags);
 	list_for_each(l, &client->ports_list_head) {
 		struct snd_seq_client_port *p = list_entry(l, struct snd_seq_client_port, list);
@@ -173,7 +173,7 @@ struct snd_seq_client_port *snd_seq_create_port(struct snd_seq_client *client,
 	client->num_ports++;
 	new_port->addr.port = num;	/* store the port number in the port */
 	write_unlock_irqrestore(&client->ports_lock, flags);
-	up(&client->ports_mutex);
+	mutex_unlock(&client->ports_mutex);
 	sprintf(new_port->name, "port-%d", num);
 
 	return new_port;
@@ -292,7 +292,7 @@ int snd_seq_delete_port(struct snd_seq_client *client, int port)
 	struct list_head *l;
 	struct snd_seq_client_port *found = NULL;
 
-	down(&client->ports_mutex);
+	mutex_lock(&client->ports_mutex);
 	write_lock_irqsave(&client->ports_lock, flags);
 	list_for_each(l, &client->ports_list_head) {
 		struct snd_seq_client_port *p = list_entry(l, struct snd_seq_client_port, list);
@@ -305,7 +305,7 @@ int snd_seq_delete_port(struct snd_seq_client *client, int port)
 		}
 	}
 	write_unlock_irqrestore(&client->ports_lock, flags);
-	up(&client->ports_mutex);
+	mutex_unlock(&client->ports_mutex);
 	if (found)
 		return port_delete(client, found);
 	else
@@ -321,7 +321,7 @@ int snd_seq_delete_all_ports(struct snd_seq_client *client)
 	/* move the port list to deleted_list, and
 	 * clear the port list in the client data.
 	 */
-	down(&client->ports_mutex);
+	mutex_lock(&client->ports_mutex);
 	write_lock_irqsave(&client->ports_lock, flags);
 	if (! list_empty(&client->ports_list_head)) {
 		__list_add(&deleted_list,
@@ -341,7 +341,7 @@ int snd_seq_delete_all_ports(struct snd_seq_client *client)
 		snd_seq_system_client_ev_port_exit(port->addr.client, port->addr.port);
 		port_delete(client, port);
 	}
-	up(&client->ports_mutex);
+	mutex_unlock(&client->ports_mutex);
 	return 0;
 }
 

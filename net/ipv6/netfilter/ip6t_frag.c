@@ -43,6 +43,7 @@ static int
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
+      const struct xt_match *match,
       const void *matchinfo,
       int offset,
       unsigned int protoff,
@@ -116,41 +117,37 @@ match(const struct sk_buff *skb,
 static int
 checkentry(const char *tablename,
 	   const void *ip,
+	   const struct xt_match *match,
 	   void *matchinfo,
 	   unsigned int matchinfosize,
 	   unsigned int hook_mask)
 {
 	const struct ip6t_frag *fraginfo = matchinfo;
 
-	if (matchinfosize != IP6T_ALIGN(sizeof(struct ip6t_frag))) {
-		DEBUGP("ip6t_frag: matchsize %u != %u\n",
-		       matchinfosize, IP6T_ALIGN(sizeof(struct ip6t_frag)));
-		return 0;
-	}
 	if (fraginfo->invflags & ~IP6T_FRAG_INV_MASK) {
 		DEBUGP("ip6t_frag: unknown flags %X\n", fraginfo->invflags);
 		return 0;
 	}
-
 	return 1;
 }
 
 static struct ip6t_match frag_match = {
 	.name		= "frag",
-	.match		= &match,
-	.checkentry	= &checkentry,
+	.match		= match,
+	.matchsize	= sizeof(struct ip6t_frag),
+	.checkentry	= checkentry,
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init ip6t_frag_init(void)
 {
 	return ip6t_register_match(&frag_match);
 }
 
-static void __exit cleanup(void)
+static void __exit ip6t_frag_fini(void)
 {
 	ip6t_unregister_match(&frag_match);
 }
 
-module_init(init);
-module_exit(cleanup);
+module_init(ip6t_frag_init);
+module_exit(ip6t_frag_fini);

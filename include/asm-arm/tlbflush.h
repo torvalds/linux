@@ -11,6 +11,13 @@
 #define _ASMARM_TLBFLUSH_H
 
 #include <linux/config.h>
+
+#ifndef CONFIG_MMU
+
+#define tlb_flush(tlb)	((void) tlb)
+
+#else /* CONFIG_MMU */
+
 #include <asm/glue.h>
 
 #define TLB_V3_PAGE	(1 << 0)
@@ -422,5 +429,7 @@ extern void update_mmu_cache(struct vm_area_struct *vma, unsigned long addr, pte
 #define flush_tlb_pgtables(mm,start,end)	do { } while (0)
 
 #endif
+
+#endif /* CONFIG_MMU */
 
 #endif

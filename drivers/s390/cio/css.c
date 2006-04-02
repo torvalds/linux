@@ -409,6 +409,9 @@ __init_channel_subsystem(struct subchannel_id schid, void *data)
 		/* -ENXIO: no more subchannels. */
 		case -ENXIO:
 			return ret;
+		/* -EIO: this subchannel set not supported. */
+		case -EIO:
+			return ret;
 		default:
 			return 0;
 		}
@@ -449,8 +452,42 @@ channel_subsystem_release(struct device *dev)
 	struct channel_subsystem *css;
 
 	css = to_css(dev);
+	mutex_destroy(&css->mutex);
 	kfree(css);
 }
+
+static ssize_t
+css_cm_enable_show(struct device *dev, struct device_attribute *attr,
+		   char *buf)
+{
+	struct channel_subsystem *css = to_css(dev);
+
+	if (!css)
+		return 0;
+	return sprintf(buf, "%x\n", css->cm_enabled);
+}
+
+static ssize_t
+css_cm_enable_store(struct device *dev, struct device_attribute *attr,
+		    const char *buf, size_t count)
+{
+	struct channel_subsystem *css = to_css(dev);
+	int ret;
+
+	switch (buf[0]) {
+	case '0':
+		ret = css->cm_enabled ? chsc_secm(css, 0) : 0;
+		break;
+	case '1':
+		ret = css->cm_enabled ? 0 : chsc_secm(css, 1);
+		break;
+	default:
+		ret = -EINVAL;
+	}
+	return ret < 0 ? ret : count;
+}
+
+static DEVICE_ATTR(cm_enable, 0644, css_cm_enable_show, css_cm_enable_store);
 
 static inline void __init
 setup_css(int nr)
@@ -458,6 +495,7 @@ setup_css(int nr)
 	u32 tod_high;
 
 	memset(css[nr], 0, sizeof(struct channel_subsystem));
+	mutex_init(&css[nr]->mutex);
 	css[nr]->valid = 1;
 	css[nr]->cssid = nr;
 	sprintf(css[nr]->device.bus_id, "css%x", nr);
@@ -504,6 +542,9 @@ init_channel_subsystem (void)
 		ret = device_register(&css[i]->device);
 		if (ret)
 			goto out_free;
+		if (css_characteristics_avail && css_chsc_characteristics.secm)
+			device_create_file(&css[i]->device,
+					   &dev_attr_cm_enable);
 	}
 	css_init_done = 1;
 
@@ -516,6 +557,9 @@ out_free:
 out_unregister:
 	while (i > 0) {
 		i--;
+		if (css_characteristics_avail && css_chsc_characteristics.secm)
+			device_remove_file(&css[i]->device,
+					   &dev_attr_cm_enable);
 		device_unregister(&css[i]->device);
 	}
 out_bus:
@@ -586,10 +630,9 @@ css_enqueue_subchannel_slow(struct subchannel_id schid)
 	struct slow_subchannel *new_slow_sch;
 	unsigned long flags;
 
-	new_slow_sch = kmalloc(sizeof(struct slow_subchannel), GFP_ATOMIC);
+	new_slow_sch = kzalloc(sizeof(struct slow_subchannel), GFP_ATOMIC);
 	if (!new_slow_sch)
 		return -ENOMEM;
-	memset(new_slow_sch, 0, sizeof(struct slow_subchannel));
 	new_slow_sch->schid = schid;
 	spin_lock_irqsave(&slow_subchannel_lock, flags);
 	list_add_tail(&new_slow_sch->slow_list, &slow_subchannels_head);

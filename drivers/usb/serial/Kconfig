@@ -403,6 +403,13 @@ config USB_SERIAL_MCT_U232
 	  To compile this driver as a module, choose M here: the
 	  module will be called mct_u232.
 
+config USB_SERIAL_NAVMAN
+	tristate "USB Navman GPS device"
+	depends on USB_SERIAL
+	help
+	  To compile this driver as a module, choose M here: the
+	  module will be called navman.
+
 config USB_SERIAL_PL2303
 	tristate "USB Prolific 2303 Single Port Serial Driver"
 	depends on USB_SERIAL

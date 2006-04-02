@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2002 Jeff Dike (jdike@karaya.com)
  * Licensed under the GPL
  */
@@ -6,21 +6,48 @@
 #ifndef __UM_PROCESSOR_I386_H
 #define __UM_PROCESSOR_I386_H
 
+#include "linux/string.h"
+#include "asm/host_ldt.h"
+#include "asm/segment.h"
+
 extern int host_has_xmm;
 extern int host_has_cmov;
 
 /* include faultinfo structure */
 #include "sysdep/faultinfo.h"
 
+struct uml_tls_struct {
+	struct user_desc tls;
+	unsigned flushed:1;
+	unsigned present:1;
+};
+
 struct arch_thread {
+	struct uml_tls_struct tls_array[GDT_ENTRY_TLS_ENTRIES];
 	unsigned long debugregs[8];
 	int debugregs_seq;
 	struct faultinfo faultinfo;
 };
 
-#define INIT_ARCH_THREAD { .debugregs  		= { [ 0 ... 7 ] = 0 }, \
-                           .debugregs_seq	= 0, \
-                           .faultinfo		= { 0, 0, 0 } }
+#define INIT_ARCH_THREAD { \
+	.tls_array  		= { [ 0 ... GDT_ENTRY_TLS_ENTRIES - 1 ] = \
+				    { .present = 0, .flushed = 0 } }, \
+	.debugregs  		= { [ 0 ... 7 ] = 0 }, \
+	.debugregs_seq		= 0, \
+	.faultinfo		= { 0, 0, 0 } \
+}
+
+static inline void arch_flush_thread(struct arch_thread *thread)
+{
+	/* Clear any TLS still hanging */
+	memset(&thread->tls_array, 0, sizeof(thread->tls_array));
+}
+
+static inline void arch_copy_thread(struct arch_thread *from,
+                                    struct arch_thread *to)
+{
+        memcpy(&to->tls_array, &from->tls_array, sizeof(from->tls_array));
+}
 
 #include "asm/arch/user.h"
 

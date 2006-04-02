@@ -334,9 +334,6 @@ mtd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	return 0;
 
 release:
-	if (mtd)
-		map_destroy(mtd);
-
 	if (map) {
 		map->exit(dev, map);
 		kfree(map);

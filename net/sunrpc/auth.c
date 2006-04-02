@@ -64,14 +64,26 @@ rpcauth_create(rpc_authflavor_t pseudoflavor, struct rpc_clnt *clnt)
 	struct rpc_authops	*ops;
 	u32			flavor = pseudoflavor_to_flavor(pseudoflavor);
 
-	if (flavor >= RPC_AUTH_MAXFLAVOR || !(ops = auth_flavors[flavor]))
-		return ERR_PTR(-EINVAL);
+	auth = ERR_PTR(-EINVAL);
+	if (flavor >= RPC_AUTH_MAXFLAVOR)
+		goto out;
+
+	/* FIXME - auth_flavors[] really needs an rw lock,
+	 * and module refcounting. */
+#ifdef CONFIG_KMOD
+	if ((ops = auth_flavors[flavor]) == NULL)
+		request_module("rpc-auth-%u", flavor);
+#endif
+	if ((ops = auth_flavors[flavor]) == NULL)
+		goto out;
 	auth = ops->create(clnt, pseudoflavor);
 	if (IS_ERR(auth))
 		return auth;
 	if (clnt->cl_auth)
 		rpcauth_destroy(clnt->cl_auth);
 	clnt->cl_auth = auth;
+
+out:
 	return auth;
 }
 

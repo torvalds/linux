@@ -203,6 +203,9 @@ static int __init us3_freq_init(void)
 	unsigned long manuf, impl, ver;
 	int ret;
 
+	if (tlb_type != cheetah && tlb_type != cheetah_plus)
+		return -ENODEV;
+
 	__asm__("rdpr %%ver, %0" : "=r" (ver));
 	manuf = ((ver >> 48) & 0xffff);
 	impl  = ((ver >> 32) & 0xffff);
@@ -215,19 +218,15 @@ static int __init us3_freq_init(void)
 		struct cpufreq_driver *driver;
 
 		ret = -ENOMEM;
-		driver = kmalloc(sizeof(struct cpufreq_driver), GFP_KERNEL);
+		driver = kzalloc(sizeof(struct cpufreq_driver), GFP_KERNEL);
 		if (!driver)
 			goto err_out;
-		memset(driver, 0, sizeof(*driver));
 
-		us3_freq_table = kmalloc(
+		us3_freq_table = kzalloc(
 			(NR_CPUS * sizeof(struct us3_freq_percpu_info)),
 			GFP_KERNEL);
 		if (!us3_freq_table)
 			goto err_out;
-
-		memset(us3_freq_table, 0,
-		       (NR_CPUS * sizeof(struct us3_freq_percpu_info)));
 
 		driver->init = us3_freq_cpu_init;
 		driver->verify = us3_freq_verify;

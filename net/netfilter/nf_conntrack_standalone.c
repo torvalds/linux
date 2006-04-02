@@ -806,18 +806,18 @@ void nf_conntrack_protocol_unregister(struct nf_conntrack_protocol *proto)
 	nf_ct_iterate_cleanup(kill_proto, proto);
 }
 
-static int __init init(void)
+static int __init nf_conntrack_standalone_init(void)
 {
 	return init_or_cleanup(1);
 }
 
-static void __exit fini(void)
+static void __exit nf_conntrack_standalone_fini(void)
 {
 	init_or_cleanup(0);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(nf_conntrack_standalone_init);
+module_exit(nf_conntrack_standalone_fini);
 
 /* Some modules need us, but don't depend directly on any symbol.
    They should call this. */
@@ -834,12 +834,13 @@ EXPORT_SYMBOL_GPL(__nf_ct_event_cache_init);
 EXPORT_PER_CPU_SYMBOL_GPL(nf_conntrack_ecache);
 EXPORT_SYMBOL_GPL(nf_ct_deliver_cached_events);
 #endif
+EXPORT_SYMBOL(nf_ct_l3proto_try_module_get);
+EXPORT_SYMBOL(nf_ct_l3proto_module_put);
 EXPORT_SYMBOL(nf_conntrack_l3proto_register);
 EXPORT_SYMBOL(nf_conntrack_l3proto_unregister);
 EXPORT_SYMBOL(nf_conntrack_protocol_register);
 EXPORT_SYMBOL(nf_conntrack_protocol_unregister);
 EXPORT_SYMBOL(nf_ct_invert_tuplepr);
-EXPORT_SYMBOL(nf_conntrack_alter_reply);
 EXPORT_SYMBOL(nf_conntrack_destroyed);
 EXPORT_SYMBOL(need_conntrack);
 EXPORT_SYMBOL(nf_conntrack_helper_register);

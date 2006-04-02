@@ -98,16 +98,16 @@ static struct ebt_match ebt_limit_reg =
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init ebt_limit_init(void)
 {
 	return ebt_register_match(&ebt_limit_reg);
 }
 
-static void __exit fini(void)
+static void __exit ebt_limit_fini(void)
 {
 	ebt_unregister_match(&ebt_limit_reg);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ebt_limit_init);
+module_exit(ebt_limit_fini);
 MODULE_LICENSE("GPL");

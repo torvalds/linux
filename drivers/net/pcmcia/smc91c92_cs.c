@@ -59,7 +59,7 @@
 
 /*====================================================================*/
 
-static char *if_names[] = { "auto", "10baseT", "10base2"};
+static const char *if_names[] = { "auto", "10baseT", "10base2"};
 
 /* Module parameters */
 
@@ -777,7 +777,7 @@ free_cfg_mem:
 static int osi_config(dev_link_t *link)
 {
     struct net_device *dev = link->priv;
-    static kio_addr_t com[4] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8 };
+    static const kio_addr_t com[4] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8 };
     int i, j;
 
     link->conf.Attributes |= CONF_ENABLE_SPKR;

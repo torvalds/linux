@@ -90,7 +90,7 @@ static u32 do_solaris_mmap(u32 addr, u32 len, u32 prot, u32 flags, u32 fd, u64 o
 	len = PAGE_ALIGN(len);
 	if(!(flags & MAP_FIXED))
 		addr = 0;
-	else if (len > 0xf0000000UL || addr > 0xf0000000UL - len)
+	else if (len > STACK_TOP32 || addr > STACK_TOP32 - len)
 		goto out_putf;
 	ret_type = flags & _MAP_NEW;
 	flags &= ~_MAP_NEW;
@@ -102,7 +102,7 @@ static u32 do_solaris_mmap(u32 addr, u32 len, u32 prot, u32 flags, u32 fd, u64 o
 			 (unsigned long) prot, (unsigned long) flags, off);
 	up_write(&current->mm->mmap_sem);
 	if(!ret_type)
-		retval = ((retval < 0xf0000000) ? 0 : retval);
+		retval = ((retval < STACK_TOP32) ? 0 : retval);
 	                        
 out_putf:
 	if (file)

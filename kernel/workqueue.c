@@ -27,6 +27,7 @@
 #include <linux/cpu.h>
 #include <linux/notifier.h>
 #include <linux/kthread.h>
+#include <linux/hardirq.h>
 
 /*
  * The per-CPU workqueue (if single thread, we always use the first
@@ -475,6 +476,34 @@ void cancel_rearming_delayed_work(struct work_struct *work)
 	cancel_rearming_delayed_workqueue(keventd_wq, work);
 }
 EXPORT_SYMBOL(cancel_rearming_delayed_work);
+
+/**
+ * execute_in_process_context - reliably execute the routine with user context
+ * @fn:		the function to execute
+ * @data:	data to pass to the function
+ * @ew:		guaranteed storage for the execute work structure (must
+ *		be available when the work executes)
+ *
+ * Executes the function immediately if process context is available,
+ * otherwise schedules the function for delayed execution.
+ *
+ * Returns:	0 - function was executed
+ *		1 - function was scheduled for execution
+ */
+int execute_in_process_context(void (*fn)(void *data), void *data,
+			       struct execute_work *ew)
+{
+	if (!in_interrupt()) {
+		fn(data);
+		return 0;
+	}
+
+	INIT_WORK(&ew->work, fn, data);
+	schedule_work(&ew->work);
+
+	return 1;
+}
+EXPORT_SYMBOL_GPL(execute_in_process_context);
 
 int keventd_up(void)
 {

@@ -87,10 +87,13 @@ extern int cond_resched(void);
 		(__x < 0) ? -__x : __x;		\
 	})
 
-extern struct notifier_block *panic_notifier_list;
+extern struct atomic_notifier_head panic_notifier_list;
 extern long (*panic_blink)(long time);
 NORET_TYPE void panic(const char * fmt, ...)
 	__attribute__ ((NORET_AND format (printf, 1, 2)));
+extern void oops_enter(void);
+extern void oops_exit(void);
+extern int oops_may_print(void);
 fastcall NORET_TYPE void do_exit(long error_code)
 	ATTRIB_NORET;
 NORET_TYPE void complete_and_exit(struct completion *, long)
@@ -151,9 +154,10 @@ static inline int __attribute_pure__ long_log2(unsigned long x)
 	return r;
 }
 
-static inline unsigned long __attribute_const__ roundup_pow_of_two(unsigned long x)
+static inline unsigned long
+__attribute_const__ roundup_pow_of_two(unsigned long x)
 {
-	return (1UL << fls(x - 1));
+	return 1UL << fls_long(x - 1);
 }
 
 extern int printk_ratelimit(void);

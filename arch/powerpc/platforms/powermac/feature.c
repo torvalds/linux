@@ -1,6 +1,4 @@
 /*
- *  arch/ppc/platforms/pmac_feature.c
- *
  *  Copyright (C) 1996-2001 Paul Mackerras (paulus@cs.anu.edu.au)
  *                          Ben. Herrenschmidt (benh@kernel.crashing.org)
  *
@@ -2491,9 +2489,7 @@ found:
 			pmac_mb.model_id = PMAC_TYPE_COMET;
 		iounmap(mach_id_ptr);
 	}
-#endif /* CONFIG_POWER4 */
 
-#ifdef CONFIG_6xx
 	/* Set default value of powersave_nap on machines that support it.
 	 * It appears that uninorth rev 3 has a problem with it, we don't
 	 * enable it on those. In theory, the flush-on-lock property is
@@ -2522,10 +2518,11 @@ found:
 	 * NAP mode
 	 */
 	powersave_lowspeed = 1;
-#endif /* CONFIG_6xx */
-#ifdef CONFIG_POWER4
+
+#else /* CONFIG_POWER4 */
 	powersave_nap = 1;
-#endif
+#endif  /* CONFIG_POWER4 */
+
 	/* Check for "mobile" machine */
 	if (model && (strncmp(model, "PowerBook", 9) == 0
 		   || strncmp(model, "iBook", 5) == 0))
@@ -2954,7 +2951,7 @@ static void *pmac_early_vresume_data;
 
 void pmac_set_early_video_resume(void (*proc)(void *data), void *data)
 {
-	if (_machine != _MACH_Pmac)
+	if (!machine_is(powermac))
 		return;
 	preempt_disable();
 	pmac_early_vresume_proc = proc;

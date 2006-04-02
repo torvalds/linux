@@ -159,8 +159,6 @@ static const char accel[] = { 1, 2, 4, 6, 9, 13, 20 };
  */
 #define FILTER_TIME (HZ / 20)
 
-static DECLARE_MUTEX(disconnect_sem);
-
 struct ati_remote {
 	struct input_dev *idev;
 	struct usb_device *udev;

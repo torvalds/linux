@@ -24,6 +24,6 @@ struct op_counter_config {
 	unsigned long user;
 };
 
-extern struct op_counter_config counter_config[];
+extern struct op_counter_config *counter_config;
 
 #endif /* OP_COUNTER_H */

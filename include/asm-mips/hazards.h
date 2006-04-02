@@ -3,7 +3,9 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2003, 2004 Ralf Baechle
+ * Copyright (C) 2003, 2004 Ralf Baechle <ralf@linux-mips.org>
+ * Copyright (C) MIPS Technologies, Inc.
+ *   written by Ralf Baechle <ralf@linux-mips.org>
  */
 #ifndef _ASM_HAZARDS_H
 #define _ASM_HAZARDS_H
@@ -74,8 +76,7 @@
 #define irq_disable_hazard
 	_ehb
 
-#elif defined(CONFIG_CPU_R10000) || defined(CONFIG_CPU_RM9000) || \
-      defined(CONFIG_CPU_SB1)
+#elif defined(CONFIG_CPU_R10000) || defined(CONFIG_CPU_RM9000)
 
 /*
  * R10000 rocks - all hazards handled in hardware, so this becomes a nobrainer.
@@ -99,13 +100,13 @@
 #else /* __ASSEMBLY__ */
 
 __asm__(
-	"	.macro	_ssnop					\n\t"
-	"	sll	$0, $0, 1				\n\t"
-	"	.endm						\n\t"
-	"							\n\t"
-	"	.macro	_ehb					\n\t"
-	"	sll	$0, $0, 3				\n\t"
-	"	.endm						\n\t");
+	"	.macro	_ssnop					\n"
+	"	sll	$0, $0, 1				\n"
+	"	.endm						\n"
+	"							\n"
+	"	.macro	_ehb					\n"
+	"	sll	$0, $0, 3				\n"
+	"	.endm						\n");
 
 #ifdef CONFIG_CPU_RM9000
 
@@ -117,17 +118,21 @@ __asm__(
 
 #define mtc0_tlbw_hazard()						\
 	__asm__ __volatile__(						\
-		".set\tmips32\n\t"					\
-		"_ssnop; _ssnop; _ssnop; _ssnop\n\t"			\
-		".set\tmips0")
+	"	.set	mips32					\n"	\
+	"	_ssnop						\n"	\
+	"	_ssnop						\n"	\
+	"	_ssnop						\n"	\
+	"	_ssnop						\n"	\
+	"	.set	mips0					\n")
 
 #define tlbw_use_hazard()						\
 	__asm__ __volatile__(						\
-		".set\tmips32\n\t"					\
-		"_ssnop; _ssnop; _ssnop; _ssnop\n\t"			\
-		".set\tmips0")
-
-#define back_to_back_c0_hazard()	do { } while (0)
+	"	.set	mips32					\n"	\
+	"	_ssnop						\n"	\
+	"	_ssnop						\n"	\
+	"	_ssnop						\n"	\
+	"	_ssnop						\n"	\
+	"	.set	mips0					\n")
 
 #else
 
@@ -136,15 +141,25 @@ __asm__(
  */
 #define mtc0_tlbw_hazard()						\
 	__asm__ __volatile__(						\
-		".set noreorder\n\t"					\
-		"nop; nop; nop; nop; nop; nop;\n\t"			\
-		".set reorder\n\t")
+	"	.set	noreorder				\n"	\
+	"	nop						\n"	\
+	"	nop						\n"	\
+	"	nop						\n"	\
+	"	nop						\n"	\
+	"	nop						\n"	\
+	"	nop						\n"	\
+	"	.set	reorder					\n")
 
 #define tlbw_use_hazard()						\
 	__asm__ __volatile__(						\
-		".set noreorder\n\t"					\
-		"nop; nop; nop; nop; nop; nop;\n\t"			\
-		".set reorder\n\t")
+	"	.set	noreorder				\n"	\
+	"	nop						\n"	\
+	"	nop						\n"	\
+	"	nop						\n"	\
+	"	nop						\n"	\
+	"	nop						\n"	\
+	"	nop						\n"	\
+	"	.set	reorder					\n")
 
 #endif
 
@@ -156,49 +171,26 @@ __asm__(
 
 #ifdef CONFIG_CPU_MIPSR2
 
-__asm__(
-	"	.macro\tirq_enable_hazard			\n\t"
-	"	_ehb						\n\t"
-	"	.endm						\n\t"
-	"							\n\t"
-	"	.macro\tirq_disable_hazard			\n\t"
-	"	_ehb						\n\t"
-	"	.endm						\n\t"
-	"							\n\t"
-	"	.macro\tback_to_back_c0_hazard			\n\t"
-	"	_ehb						\n\t"
-	"	.endm");
+__asm__("	.macro	irq_enable_hazard			\n"
+	"	_ehb						\n"
+	"	.endm						\n"
+	"							\n"
+	"	.macro	irq_disable_hazard			\n"
+	"	_ehb						\n"
+	"	.endm						\n");
 
-#define irq_enable_hazard()						\
-	__asm__ __volatile__(						\
-	"irq_enable_hazard")
-
-#define irq_disable_hazard()						\
-	__asm__ __volatile__(						\
-	"irq_disable_hazard")
-
-#define back_to_back_c0_hazard()					\
-	__asm__ __volatile__(						\
-	"back_to_back_c0_hazard")
-
-#elif defined(CONFIG_CPU_R10000) || defined(CONFIG_CPU_RM9000) || \
-      defined(CONFIG_CPU_SB1)
+#elif defined(CONFIG_CPU_R10000) || defined(CONFIG_CPU_RM9000)
 
 /*
  * R10000 rocks - all hazards handled in hardware, so this becomes a nobrainer.
  */
 
 __asm__(
-	"	.macro\tirq_enable_hazard			\n\t"
-	"	.endm						\n\t"
-	"							\n\t"
-	"	.macro\tirq_disable_hazard			\n\t"
-	"	.endm");
-
-#define irq_enable_hazard()	do { } while (0)
-#define irq_disable_hazard()	do { } while (0)
-
-#define back_to_back_c0_hazard()	do { } while (0)
+	"	.macro	irq_enable_hazard			\n"
+	"	.endm						\n"
+	"							\n"
+	"	.macro	irq_disable_hazard			\n"
+	"	.endm						\n");
 
 #else
 
@@ -209,29 +201,63 @@ __asm__(
  */
 
 __asm__(
-	"	#						\n\t"
-	"	# There is a hazard but we do not care		\n\t"
-	"	#						\n\t"
-	"	.macro\tirq_enable_hazard			\n\t"
-	"	.endm						\n\t"
-	"							\n\t"
-	"	.macro\tirq_disable_hazard			\n\t"
-	"	_ssnop; _ssnop; _ssnop				\n\t"
-	"	.endm");
-
-#define irq_enable_hazard()	do { } while (0)
-#define irq_disable_hazard()						\
-	__asm__ __volatile__(						\
-	"irq_disable_hazard")
-
-#define back_to_back_c0_hazard()					\
-	__asm__ __volatile__(						\
-	"	.set noreorder				\n"		\
-	"	nop; nop; nop				\n"		\
-	"	.set reorder				\n")
+	"	#						\n"
+	"	# There is a hazard but we do not care		\n"
+	"	#						\n"
+	"	.macro\tirq_enable_hazard			\n"
+	"	.endm						\n"
+	"							\n"
+	"	.macro\tirq_disable_hazard			\n"
+	"	_ssnop						\n"
+	"	_ssnop						\n"
+	"	_ssnop						\n"
+	"	.endm						\n");
 
 #endif
 
+#define irq_enable_hazard()						\
+	__asm__ __volatile__("irq_enable_hazard")
+#define irq_disable_hazard()						\
+	__asm__ __volatile__("irq_disable_hazard")
+
+
+/*
+ * Back-to-back hazards -
+ *
+ * What is needed to separate a move to cp0 from a subsequent read from the
+ * same cp0 register?
+ */
+#ifdef CONFIG_CPU_MIPSR2
+
+__asm__("	.macro	back_to_back_c0_hazard			\n"
+	"	_ehb						\n"
+	"	.endm						\n");
+
+#elif defined(CONFIG_CPU_R10000) || defined(CONFIG_CPU_RM9000) || \
+      defined(CONFIG_CPU_SB1)
+
+__asm__("	.macro	back_to_back_c0_hazard			\n"
+	"	.endm						\n");
+
+#else
+
+__asm__("	.macro	back_to_back_c0_hazard			\n"
+	"	.set	noreorder				\n"
+	"	_ssnop						\n"
+	"	_ssnop						\n"
+	"	_ssnop						\n"
+	"	.set	reorder					\n"
+	"	.endm");
+
+#endif
+
+#define back_to_back_c0_hazard()					\
+	__asm__ __volatile__("back_to_back_c0_hazard")
+
+
+/*
+ * Instruction execution hazard
+ */
 #ifdef CONFIG_CPU_MIPSR2
 /*
  * gcc has a tradition of misscompiling the previous construct using the

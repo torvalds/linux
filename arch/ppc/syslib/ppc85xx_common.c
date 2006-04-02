@@ -1,6 +1,4 @@
 /*
- * arch/ppc/syslib/ppc85xx_common.c
- *
  * MPC85xx support routines
  *
  * Maintainer: Kumar Gala <galak@kernel.crashing.org>

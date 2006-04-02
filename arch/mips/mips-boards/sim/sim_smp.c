@@ -115,7 +115,7 @@ void prom_prepare_cpus(unsigned int max_cpus)
 #ifdef CONFIG_MIPS_MT_SMTC
 	void mipsmt_prepare_cpus(int c);
 	/*
- 	 * As noted above, we can assume a single CPU for now
+	 * As noted above, we can assume a single CPU for now
 	 * but it may be multithreaded.
 	 */
 

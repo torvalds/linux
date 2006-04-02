@@ -416,7 +416,7 @@ struct compat_sock_fprog {
 	compat_uptr_t	filter;		/* struct sock_filter * */
 };
 
-static int do_set_attach_filter(int fd, int level, int optname,
+static int do_set_attach_filter(struct socket *sock, int level, int optname,
 				char __user *optval, int optlen)
 {
 	struct compat_sock_fprog __user *fprog32 = (struct compat_sock_fprog __user *)optval;
@@ -432,11 +432,12 @@ static int do_set_attach_filter(int fd, int level, int optname,
 	    __put_user(compat_ptr(ptr), &kfprog->filter))
 		return -EFAULT;
 
-	return sys_setsockopt(fd, level, optname, (char __user *)kfprog, 
+	return sock_setsockopt(sock, level, optname, (char __user *)kfprog,
 			      sizeof(struct sock_fprog));
 }
 
-static int do_set_sock_timeout(int fd, int level, int optname, char __user *optval, int optlen)
+static int do_set_sock_timeout(struct socket *sock, int level,
+		int optname, char __user *optval, int optlen)
 {
 	struct compat_timeval __user *up = (struct compat_timeval __user *) optval;
 	struct timeval ktime;
@@ -451,30 +452,61 @@ static int do_set_sock_timeout(int fd, int level, int optname, char __user *optv
 		return -EFAULT;
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);
-	err = sys_setsockopt(fd, level, optname, (char *) &ktime, sizeof(ktime));
+	err = sock_setsockopt(sock, level, optname, (char *) &ktime, sizeof(ktime));
 	set_fs(old_fs);
 
 	return err;
 }
 
+static int compat_sock_setsockopt(struct socket *sock, int level, int optname,
+				char __user *optval, int optlen)
+{
+	if (optname == SO_ATTACH_FILTER)
+		return do_set_attach_filter(sock, level, optname,
+					    optval, optlen);
+	if (optname == SO_RCVTIMEO || optname == SO_SNDTIMEO)
+		return do_set_sock_timeout(sock, level, optname, optval, optlen);
+
+	return sock_setsockopt(sock, level, optname, optval, optlen);
+}
+
 asmlinkage long compat_sys_setsockopt(int fd, int level, int optname,
 				char __user *optval, int optlen)
 {
+	int err;
+	struct socket *sock;
+
 	/* SO_SET_REPLACE seems to be the same in all levels */
 	if (optname == IPT_SO_SET_REPLACE)
 		return do_netfilter_replace(fd, level, optname,
 					    optval, optlen);
-	if (level == SOL_SOCKET && optname == SO_ATTACH_FILTER)
-		return do_set_attach_filter(fd, level, optname,
-					    optval, optlen);
-	if (level == SOL_SOCKET &&
-	    (optname == SO_RCVTIMEO || optname == SO_SNDTIMEO))
-		return do_set_sock_timeout(fd, level, optname, optval, optlen);
 
-	return sys_setsockopt(fd, level, optname, optval, optlen);
+	if (optlen < 0)
+		return -EINVAL;
+
+	if ((sock = sockfd_lookup(fd, &err))!=NULL)
+	{
+		err = security_socket_setsockopt(sock,level,optname);
+		if (err) {
+			sockfd_put(sock);
+			return err;
+		}
+
+		if (level == SOL_SOCKET)
+			err = compat_sock_setsockopt(sock, level,
+					optname, optval, optlen);
+		else if (sock->ops->compat_setsockopt)
+			err = sock->ops->compat_setsockopt(sock, level,
+					optname, optval, optlen);
+		else
+			err = sock->ops->setsockopt(sock, level,
+					optname, optval, optlen);
+		sockfd_put(sock);
+	}
+	return err;
 }
 
-static int do_get_sock_timeout(int fd, int level, int optname,
+static int do_get_sock_timeout(struct socket *sock, int level, int optname,
 		char __user *optval, int __user *optlen)
 {
 	struct compat_timeval __user *up;
@@ -490,7 +522,7 @@ static int do_get_sock_timeout(int fd, int level, int optname,
 	len = sizeof(ktime);
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);
-	err = sys_getsockopt(fd, level, optname, (char *) &ktime, &len);
+	err = sock_getsockopt(sock, level, optname, (char *) &ktime, &len);
 	set_fs(old_fs);
 
 	if (!err) {
@@ -503,15 +535,61 @@ static int do_get_sock_timeout(int fd, int level, int optname,
 	return err;
 }
 
+static int compat_sock_getsockopt(struct socket *sock, int level, int optname,
+				char __user *optval, int __user *optlen)
+{
+	if (optname == SO_RCVTIMEO || optname == SO_SNDTIMEO)
+		return do_get_sock_timeout(sock, level, optname, optval, optlen);
+	return sock_getsockopt(sock, level, optname, optval, optlen);
+}
+
+int compat_sock_get_timestamp(struct sock *sk, struct timeval __user *userstamp)
+{
+	struct compat_timeval __user *ctv =
+			(struct compat_timeval __user*) userstamp;
+	int err = -ENOENT;
+
+	if (!sock_flag(sk, SOCK_TIMESTAMP))
+		sock_enable_timestamp(sk);
+	if (sk->sk_stamp.tv_sec == -1)
+		return err;
+	if (sk->sk_stamp.tv_sec == 0)
+		do_gettimeofday(&sk->sk_stamp);
+	if (put_user(sk->sk_stamp.tv_sec, &ctv->tv_sec) ||
+			put_user(sk->sk_stamp.tv_usec, &ctv->tv_usec))
+		err = -EFAULT;
+	return err;
+}
+EXPORT_SYMBOL(compat_sock_get_timestamp);
+
 asmlinkage long compat_sys_getsockopt(int fd, int level, int optname,
 				char __user *optval, int __user *optlen)
 {
-	if (level == SOL_SOCKET &&
-	    (optname == SO_RCVTIMEO || optname == SO_SNDTIMEO))
-		return do_get_sock_timeout(fd, level, optname, optval, optlen);
-	return sys_getsockopt(fd, level, optname, optval, optlen);
-}
+	int err;
+	struct socket *sock;
 
+	if ((sock = sockfd_lookup(fd, &err))!=NULL)
+	{
+		err = security_socket_getsockopt(sock, level,
+							   optname);
+		if (err) {
+			sockfd_put(sock);
+			return err;
+		}
+
+		if (level == SOL_SOCKET)
+			err = compat_sock_getsockopt(sock, level,
+					optname, optval, optlen);
+		else if (sock->ops->compat_getsockopt)
+			err = sock->ops->compat_getsockopt(sock, level,
+					optname, optval, optlen);
+		else
+			err = sock->ops->getsockopt(sock, level,
+					optname, optval, optlen);
+		sockfd_put(sock);
+	}
+	return err;
+}
 /* Argument list sizes for compat_sys_socketcall */
 #define AL(x) ((x) * sizeof(u32))
 static unsigned char nas[18]={AL(0),AL(3),AL(3),AL(3),AL(2),AL(3),

@@ -21,6 +21,7 @@
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/pci.h>
+#include <linux/console.h>
 #ifdef CONFIG_MTRR
 #include <asm/mtrr.h>
 #endif
@@ -29,6 +30,7 @@
 #include <asm/pci-bridge.h>
 #endif
 #ifdef CONFIG_PMAC_BACKLIGHT
+#include <asm/machdep.h>
 #include <asm/backlight.h>
 #endif
 
@@ -295,6 +297,8 @@ static struct pci_device_id nvidiafb_pci_tbl[] = {
 	{PCI_VENDOR_ID_NVIDIA, PCIE_DEVICE_ID_NVIDIA_GEFORCE_6200_ALT1,
 	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_NVIDIA, PCIE_DEVICE_ID_NVIDIA_GEFORCE_6800_GT,
+	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{PCI_VENDOR_ID_NVIDIA, PCIE_DEVICE_ID_NVIDIA_QUADRO_NVS280,
 	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_NVIDIA, 0x0252,
 	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
@@ -615,6 +619,30 @@ static int nvidia_panel_tweak(struct nvidia_par *par,
    return tweak;
 }
 
+static void nvidia_vga_protect(struct nvidia_par *par, int on)
+{
+	unsigned char tmp;
+
+	if (on) {
+		/*
+		 * Turn off screen and disable sequencer.
+		 */
+		tmp = NVReadSeq(par, 0x01);
+
+		NVWriteSeq(par, 0x00, 0x01);		/* Synchronous Reset */
+		NVWriteSeq(par, 0x01, tmp | 0x20);	/* disable the display */
+	} else {
+		/*
+		 * Reenable sequencer, then turn on screen.
+		 */
+
+		tmp = NVReadSeq(par, 0x01);
+
+		NVWriteSeq(par, 0x01, tmp & ~0x20);	/* reenable display */
+		NVWriteSeq(par, 0x00, 0x03);		/* End Reset */
+	}
+}
+
 static void nvidia_save_vga(struct nvidia_par *par,
 			    struct _riva_hw_state *state)
 {
@@ -643,9 +671,9 @@ static void nvidia_save_vga(struct nvidia_par *par,
 
 #undef DUMP_REG
 
-static void nvidia_write_regs(struct nvidia_par *par)
+static void nvidia_write_regs(struct nvidia_par *par,
+			      struct _riva_hw_state *state)
 {
-	struct _riva_hw_state *state = &par->ModeReg;
 	int i;
 
 	NVTRACE_ENTER();
@@ -693,32 +721,6 @@ static void nvidia_write_regs(struct nvidia_par *par)
 
 	NVTRACE_LEAVE();
 }
-
-static void nvidia_vga_protect(struct nvidia_par *par, int on)
-{
-	unsigned char tmp;
-
-	if (on) {
-		/*
-		 * Turn off screen and disable sequencer.
-		 */
-		tmp = NVReadSeq(par, 0x01);
-
-		NVWriteSeq(par, 0x00, 0x01);		/* Synchronous Reset */
-		NVWriteSeq(par, 0x01, tmp | 0x20);	/* disable the display */
-	} else {
-		/*
-		 * Reenable sequencer, then turn on screen.
-		 */
-
-		tmp = NVReadSeq(par, 0x01);
-
-		NVWriteSeq(par, 0x01, tmp & ~0x20);	/* reenable display */
-		NVWriteSeq(par, 0x00, 0x03);		/* End Reset */
-	}
-}
-
-
 
 static int nvidia_calc_regs(struct fb_info *info)
 {
@@ -1068,7 +1070,8 @@ static int nvidiafb_set_par(struct fb_info *info)
 
 	nvidia_vga_protect(par, 1);
 
-	nvidia_write_regs(par);
+	nvidia_write_regs(par, &par->ModeReg);
+	NVSetStartAddress(par, 0);
 
 #if defined (__BIG_ENDIAN)
 	/* turn on LFB swapping */
@@ -1353,7 +1356,7 @@ static int nvidiafb_blank(int blank, struct fb_info *info)
 	NVWriteCrtc(par, 0x1a, vesa);
 
 #ifdef CONFIG_PMAC_BACKLIGHT
-	if (par->FlatPanel && _machine == _MACH_Pmac) {
+	if (par->FlatPanel && machine_is(powermac)) {
 		set_backlight_enable(!blank);
 	}
 #endif
@@ -1376,6 +1379,57 @@ static struct fb_ops nvidia_fb_ops = {
 	.fb_cursor      = nvidiafb_cursor,
 	.fb_sync        = nvidiafb_sync,
 };
+
+#ifdef CONFIG_PM
+static int nvidiafb_suspend(struct pci_dev *dev, pm_message_t state)
+{
+	struct fb_info *info = pci_get_drvdata(dev);
+	struct nvidia_par *par = info->par;
+
+	acquire_console_sem();
+	par->pm_state = state.event;
+
+	if (state.event == PM_EVENT_FREEZE) {
+		dev->dev.power.power_state = state;
+	} else {
+		fb_set_suspend(info, 1);
+		nvidiafb_blank(FB_BLANK_POWERDOWN, info);
+		nvidia_write_regs(par, &par->SavedReg);
+		pci_save_state(dev);
+		pci_disable_device(dev);
+		pci_set_power_state(dev, pci_choose_state(dev, state));
+	}
+
+	release_console_sem();
+	return 0;
+}
+
+static int nvidiafb_resume(struct pci_dev *dev)
+{
+	struct fb_info *info = pci_get_drvdata(dev);
+	struct nvidia_par *par = info->par;
+
+	acquire_console_sem();
+	pci_set_power_state(dev, PCI_D0);
+
+	if (par->pm_state != PM_EVENT_FREEZE) {
+		pci_restore_state(dev);
+		pci_enable_device(dev);
+		pci_set_master(dev);
+	}
+
+	par->pm_state = PM_EVENT_ON;
+	nvidiafb_set_par(info);
+	fb_set_suspend (info, 0);
+	nvidiafb_blank(FB_BLANK_UNBLANK, info);
+
+	release_console_sem();
+	return 0;
+}
+#else
+#define nvidiafb_suspend NULL
+#define nvidiafb_resume NULL
+#endif
 
 static int __devinit nvidia_set_fbinfo(struct fb_info *info)
 {
@@ -1688,7 +1742,7 @@ static int __devinit nvidiafb_probe(struct pci_dev *pd,
 	       info->fix.id,
 	       par->FbMapSize / (1024 * 1024), info->fix.smem_start);
 #ifdef CONFIG_PMAC_BACKLIGHT
-	if (par->FlatPanel && _machine == _MACH_Pmac)
+	if (par->FlatPanel && machine_is(powermac))
 		register_backlight_controller(&nvidia_backlight_controller,
 					      par, "mnca");
 #endif
@@ -1720,8 +1774,6 @@ static void __exit nvidiafb_remove(struct pci_dev *pd)
 	struct nvidia_par *par = info->par;
 
 	NVTRACE_ENTER();
-	if (!info)
-		return;
 
 	unregister_framebuffer(info);
 #ifdef CONFIG_MTRR
@@ -1798,8 +1850,10 @@ static int __devinit nvidiafb_setup(char *options)
 static struct pci_driver nvidiafb_driver = {
 	.name = "nvidiafb",
 	.id_table = nvidiafb_pci_tbl,
-	.probe = nvidiafb_probe,
-	.remove = __exit_p(nvidiafb_remove),
+	.probe    = nvidiafb_probe,
+	.suspend  = nvidiafb_suspend,
+	.resume   = nvidiafb_resume,
+	.remove   = __exit_p(nvidiafb_remove),
 };
 
 /* ------------------------------------------------------------------------- *

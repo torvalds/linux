@@ -44,11 +44,17 @@ enum {
 	uli_5287		= 1,
 	uli_5281		= 2,
 
+	uli_max_ports		= 4,
+
 	/* PCI configuration registers */
 	ULI5287_BASE		= 0x90, /* sata0 phy SCR registers */
 	ULI5287_OFFS		= 0x10, /* offset from sata0->sata1 phy regs */
 	ULI5281_BASE		= 0x60, /* sata0 phy SCR  registers */
 	ULI5281_OFFS		= 0x60, /* offset from sata0->sata1 phy regs */
+};
+
+struct uli_priv {
+	unsigned int		scr_cfg_addr[uli_max_ports];
 };
 
 static int uli_init_one (struct pci_dev *pdev, const struct pci_device_id *ent);
@@ -79,7 +85,6 @@ static struct scsi_host_template uli_sht = {
 	.can_queue		= ATA_DEF_QUEUE,
 	.this_id		= ATA_SHT_THIS_ID,
 	.sg_tablesize		= LIBATA_MAX_PRD,
-	.max_sectors		= ATA_MAX_SECTORS,
 	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
 	.emulated		= ATA_SHT_EMULATED,
 	.use_clustering		= ATA_SHT_USE_CLUSTERING,
@@ -138,7 +143,8 @@ MODULE_VERSION(DRV_VERSION);
 
 static unsigned int get_scr_cfg_addr(struct ata_port *ap, unsigned int sc_reg)
 {
-	return ap->ioaddr.scr_addr + (4 * sc_reg);
+	struct uli_priv *hpriv = ap->host_set->private_data;
+	return hpriv->scr_cfg_addr[ap->port_no] + (4 * sc_reg);
 }
 
 static u32 uli_scr_cfg_read (struct ata_port *ap, unsigned int sc_reg)
@@ -183,6 +189,7 @@ static int uli_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	int rc;
 	unsigned int board_idx = (unsigned int) ent->driver_data;
 	int pci_dev_busy = 0;
+	struct uli_priv *hpriv;
 
 	if (!printed_version++)
 		dev_printk(KERN_INFO, &pdev->dev, "version " DRV_VERSION "\n");
@@ -211,10 +218,18 @@ static int uli_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out_regions;
 	}
 
+	hpriv = kzalloc(sizeof(*hpriv), GFP_KERNEL);
+	if (!hpriv) {
+		rc = -ENOMEM;
+		goto err_out_probe_ent;
+	}
+
+	probe_ent->private_data = hpriv;
+
 	switch (board_idx) {
 	case uli_5287:
-		probe_ent->port[0].scr_addr = ULI5287_BASE;
-		probe_ent->port[1].scr_addr = ULI5287_BASE + ULI5287_OFFS;
+		hpriv->scr_cfg_addr[0] = ULI5287_BASE;
+		hpriv->scr_cfg_addr[1] = ULI5287_BASE + ULI5287_OFFS;
        		probe_ent->n_ports = 4;
 
        		probe_ent->port[2].cmd_addr = pci_resource_start(pdev, 0) + 8;
@@ -222,27 +237,27 @@ static int uli_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		probe_ent->port[2].ctl_addr =
 			(pci_resource_start(pdev, 1) | ATA_PCI_CTL_OFS) + 4;
 		probe_ent->port[2].bmdma_addr = pci_resource_start(pdev, 4) + 16;
-		probe_ent->port[2].scr_addr = ULI5287_BASE + ULI5287_OFFS*4;
+		hpriv->scr_cfg_addr[2] = ULI5287_BASE + ULI5287_OFFS*4;
 
 		probe_ent->port[3].cmd_addr = pci_resource_start(pdev, 2) + 8;
 		probe_ent->port[3].altstatus_addr =
 		probe_ent->port[3].ctl_addr =
 			(pci_resource_start(pdev, 3) | ATA_PCI_CTL_OFS) + 4;
 		probe_ent->port[3].bmdma_addr = pci_resource_start(pdev, 4) + 24;
-		probe_ent->port[3].scr_addr = ULI5287_BASE + ULI5287_OFFS*5;
+		hpriv->scr_cfg_addr[3] = ULI5287_BASE + ULI5287_OFFS*5;
 
 		ata_std_ports(&probe_ent->port[2]);
 		ata_std_ports(&probe_ent->port[3]);
 		break;
 
 	case uli_5289:
-		probe_ent->port[0].scr_addr = ULI5287_BASE;
-		probe_ent->port[1].scr_addr = ULI5287_BASE + ULI5287_OFFS;
+		hpriv->scr_cfg_addr[0] = ULI5287_BASE;
+		hpriv->scr_cfg_addr[1] = ULI5287_BASE + ULI5287_OFFS;
 		break;
 
 	case uli_5281:
-		probe_ent->port[0].scr_addr = ULI5281_BASE;
-		probe_ent->port[1].scr_addr = ULI5281_BASE + ULI5281_OFFS;
+		hpriv->scr_cfg_addr[0] = ULI5281_BASE;
+		hpriv->scr_cfg_addr[1] = ULI5281_BASE + ULI5281_OFFS;
 		break;
 
 	default:
@@ -259,9 +274,10 @@ static int uli_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	return 0;
 
+err_out_probe_ent:
+	kfree(probe_ent);
 err_out_regions:
 	pci_release_regions(pdev);
-
 err_out:
 	if (!pci_dev_busy)
 		pci_disable_device(pdev);

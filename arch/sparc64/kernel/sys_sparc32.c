@@ -19,7 +19,6 @@
 #include <linux/resource.h>
 #include <linux/times.h>
 #include <linux/utsname.h>
-#include <linux/timex.h>
 #include <linux/smp.h>
 #include <linux/smp_lock.h>
 #include <linux/sem.h>
@@ -62,6 +61,7 @@
 #include <asm/fpumacro.h>
 #include <asm/semaphore.h>
 #include <asm/mmu_context.h>
+#include <asm/a.out.h>
 
 asmlinkage long sys32_chown16(const char __user * filename, u16 user, u16 group)
 {
@@ -944,79 +944,6 @@ asmlinkage long compat_sys_sendfile64(int out_fd, int in_fd,
 	return ret;
 }
 
-/* Handle adjtimex compatibility. */
-
-struct timex32 {
-	u32 modes;
-	s32 offset, freq, maxerror, esterror;
-	s32 status, constant, precision, tolerance;
-	struct compat_timeval time;
-	s32 tick;
-	s32 ppsfreq, jitter, shift, stabil;
-	s32 jitcnt, calcnt, errcnt, stbcnt;
-	s32  :32; s32  :32; s32  :32; s32  :32;
-	s32  :32; s32  :32; s32  :32; s32  :32;
-	s32  :32; s32  :32; s32  :32; s32  :32;
-};
-
-extern int do_adjtimex(struct timex *);
-
-asmlinkage long sys32_adjtimex(struct timex32 __user *utp)
-{
-	struct timex txc;
-	int ret;
-
-	memset(&txc, 0, sizeof(struct timex));
-
-	if (get_user(txc.modes, &utp->modes) ||
-	    __get_user(txc.offset, &utp->offset) ||
-	    __get_user(txc.freq, &utp->freq) ||
-	    __get_user(txc.maxerror, &utp->maxerror) ||
-	    __get_user(txc.esterror, &utp->esterror) ||
-	    __get_user(txc.status, &utp->status) ||
-	    __get_user(txc.constant, &utp->constant) ||
-	    __get_user(txc.precision, &utp->precision) ||
-	    __get_user(txc.tolerance, &utp->tolerance) ||
-	    __get_user(txc.time.tv_sec, &utp->time.tv_sec) ||
-	    __get_user(txc.time.tv_usec, &utp->time.tv_usec) ||
-	    __get_user(txc.tick, &utp->tick) ||
-	    __get_user(txc.ppsfreq, &utp->ppsfreq) ||
-	    __get_user(txc.jitter, &utp->jitter) ||
-	    __get_user(txc.shift, &utp->shift) ||
-	    __get_user(txc.stabil, &utp->stabil) ||
-	    __get_user(txc.jitcnt, &utp->jitcnt) ||
-	    __get_user(txc.calcnt, &utp->calcnt) ||
-	    __get_user(txc.errcnt, &utp->errcnt) ||
-	    __get_user(txc.stbcnt, &utp->stbcnt))
-		return -EFAULT;
-
-	ret = do_adjtimex(&txc);
-
-	if (put_user(txc.modes, &utp->modes) ||
-	    __put_user(txc.offset, &utp->offset) ||
-	    __put_user(txc.freq, &utp->freq) ||
-	    __put_user(txc.maxerror, &utp->maxerror) ||
-	    __put_user(txc.esterror, &utp->esterror) ||
-	    __put_user(txc.status, &utp->status) ||
-	    __put_user(txc.constant, &utp->constant) ||
-	    __put_user(txc.precision, &utp->precision) ||
-	    __put_user(txc.tolerance, &utp->tolerance) ||
-	    __put_user(txc.time.tv_sec, &utp->time.tv_sec) ||
-	    __put_user(txc.time.tv_usec, &utp->time.tv_usec) ||
-	    __put_user(txc.tick, &utp->tick) ||
-	    __put_user(txc.ppsfreq, &utp->ppsfreq) ||
-	    __put_user(txc.jitter, &utp->jitter) ||
-	    __put_user(txc.shift, &utp->shift) ||
-	    __put_user(txc.stabil, &utp->stabil) ||
-	    __put_user(txc.jitcnt, &utp->jitcnt) ||
-	    __put_user(txc.calcnt, &utp->calcnt) ||
-	    __put_user(txc.errcnt, &utp->errcnt) ||
-	    __put_user(txc.stbcnt, &utp->stbcnt))
-		ret = -EFAULT;
-
-	return ret;
-}
-
 /* This is just a version for 32-bit applications which does
  * not force O_LARGEFILE on.
  */
@@ -1039,15 +966,15 @@ asmlinkage unsigned long sys32_mremap(unsigned long addr,
 	unsigned long ret = -EINVAL;
 	unsigned long new_addr = __new_addr;
 
-	if (old_len > 0xf0000000UL || new_len > 0xf0000000UL)
+	if (old_len > STACK_TOP32 || new_len > STACK_TOP32)
 		goto out;
-	if (addr > 0xf0000000UL - old_len)
+	if (addr > STACK_TOP32 - old_len)
 		goto out;
 	down_write(&current->mm->mmap_sem);
 	if (flags & MREMAP_FIXED) {
-		if (new_addr > 0xf0000000UL - new_len)
+		if (new_addr > STACK_TOP32 - new_len)
 			goto out_sem;
-	} else if (addr > 0xf0000000UL - new_len) {
+	} else if (addr > STACK_TOP32 - new_len) {
 		unsigned long map_flags = 0;
 		struct file *file = NULL;
 

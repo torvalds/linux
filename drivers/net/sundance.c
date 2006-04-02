@@ -106,7 +106,7 @@
 static int debug = 1;			/* 1 normal messages, 0 quiet .. 7 verbose. */
 /* Maximum number of multicast addresses to filter (vs. rx-all-multicast).
    Typical is a 64 element hash table based on the Ethernet CRC.  */
-static int multicast_filter_limit = 32;
+static const int multicast_filter_limit = 32;
 
 /* Set the copy breakpoint for the copy-only-tiny-frames scheme.
    Setting to > 1518 effectively disables this feature.
@@ -298,7 +298,7 @@ enum {
 struct pci_id_info {
         const char *name;
 };
-static struct pci_id_info pci_id_tbl[] = {
+static const struct pci_id_info pci_id_tbl[] = {
 	{"D-Link DFE-550TX FAST Ethernet Adapter"},
 	{"D-Link DFE-550FX 100Mbps Fiber-optics Adapter"},
 	{"D-Link DFE-580TX 4 port Server Adapter"},
@@ -633,9 +633,13 @@ static int __devinit sundance_probe1 (struct pci_dev *pdev,
 
 	np->phys[0] = 1;		/* Default setting */
 	np->mii_preamble_required++;
+	/*
+	 * It seems some phys doesn't deal well with address 0 being accessed
+	 * first, so leave address zero to the end of the loop (32 & 31).
+	 */
 	for (phy = 1; phy <= 32 && phy_idx < MII_CNT; phy++) {
-		int mii_status = mdio_read(dev, phy, MII_BMSR);
 		int phyx = phy & 0x1f;
+		int mii_status = mdio_read(dev, phyx, MII_BMSR);
 		if (mii_status != 0xffff  &&  mii_status != 0x0000) {
 			np->phys[phy_idx++] = phyx;
 			np->mii_if.advertising = mdio_read(dev, phyx, MII_ADVERTISE);

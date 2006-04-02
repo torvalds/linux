@@ -182,7 +182,7 @@ int __init init_vmax301(void)
 		}
 	}
 
-	if (!vmax_mtd[1] && !vmax_mtd[2]) {
+	if (!vmax_mtd[0] && !vmax_mtd[1]) {
 		iounmap((void *)iomapadr);
 		return -ENXIO;
 	}

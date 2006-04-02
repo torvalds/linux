@@ -68,7 +68,7 @@ struct zfcp_data zfcp_data = {
 	      eh_host_reset_handler:   zfcp_scsi_eh_host_reset_handler,
 			               /* FIXME(openfcp): Tune */
 	      can_queue:               4096,
-	      this_id:	               0,
+	      this_id:	               -1,
 	      /*
 	       * FIXME:
 	       * one less? can zfcp_create_sbale cope with it?
@@ -183,7 +183,8 @@ zfcp_scsi_slave_alloc(struct scsi_device *sdp)
 
 	read_lock_irqsave(&zfcp_data.config_lock, flags);
 	unit = zfcp_unit_lookup(adapter, sdp->channel, sdp->id, sdp->lun);
-	if (unit) {
+	if (unit && atomic_test_mask(ZFCP_STATUS_UNIT_REGISTERED,
+				     &unit->status)) {
 		sdp->hostdata = unit;
 		unit->device = sdp;
 		zfcp_unit_get(unit);
@@ -208,6 +209,7 @@ zfcp_scsi_slave_destroy(struct scsi_device *sdpnt)
 	struct zfcp_unit *unit = (struct zfcp_unit *) sdpnt->hostdata;
 
 	if (unit) {
+		atomic_clear_mask(ZFCP_STATUS_UNIT_REGISTERED, &unit->status);
 		sdpnt->hostdata = NULL;
 		unit->device = NULL;
 		zfcp_unit_put(unit);
@@ -291,7 +293,7 @@ zfcp_scsi_command_async(struct zfcp_adapter *adapter, struct zfcp_unit *unit,
 			       "on port 0x%016Lx in recovery\n",
 			       zfcp_get_busid_by_unit(unit),
 			       unit->fcp_lun, unit->port->wwpn);
-		retval = SCSI_MLQUEUE_DEVICE_BUSY;
+		zfcp_scsi_command_fail(scpnt, DID_NO_CONNECT);
 		goto out;
 	}
 

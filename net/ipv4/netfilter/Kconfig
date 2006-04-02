@@ -168,6 +168,26 @@ config IP_NF_PPTP
 	  If you want to compile it as a module, say M here and read
 	  Documentation/modules.txt.  If unsure, say `N'.
 
+config IP_NF_H323
+	tristate  'H.323 protocol support'
+	depends on IP_NF_CONNTRACK
+	help
+	  H.323 is a VoIP signalling protocol from ITU-T. As one of the most
+	  important VoIP protocols, it is widely used by voice hardware and
+	  software including voice gateways, IP phones, Netmeeting, OpenPhone,
+	  Gnomemeeting, etc.
+
+	  With this module you can support H.323 on a connection tracking/NAT
+	  firewall.
+
+	  This module supports RAS, Fast-start, H.245 tunnelling, RTP/RTCP
+	  and T.120 based data and applications including audio, video, FAX,
+	  chat, whiteboard, file transfer, etc. For more information, please
+	  see http://nath323.sourceforge.net/.
+
+	  If you want to compile it as a module, say 'M' here and read
+	  Documentation/modules.txt.  If unsure, say 'N'.
+
 config IP_NF_QUEUE
 	tristate "IP Userspace queueing via NETLINK (OBSOLETE)"
 	help
@@ -302,16 +322,6 @@ config IP_NF_MATCH_HASHLIMIT
 	  It enables you to express policies like `10kpps for any given
 	  destination IP' or `500pps from any given source IP'  with a single
 	  IPtables rule.
-
-config IP_NF_MATCH_POLICY
-       tristate "IPsec policy match support"
-       depends on IP_NF_IPTABLES && XFRM
-       help
-         Policy matching allows you to match packets based on the
-         IPsec policy that was used during decapsulation/will
-         be used during encapsulation.
-
-         To compile it as a module, choose M here.  If unsure, say N.
 
 # `filter', generic and specific targets
 config IP_NF_FILTER
@@ -493,6 +503,12 @@ config IP_NF_NAT_PPTP
 	depends on IP_NF_NAT!=n && IP_NF_PPTP!=n
 	default IP_NF_NAT if IP_NF_PPTP=y
 	default m if IP_NF_PPTP=m
+
+config IP_NF_NAT_H323
+	tristate
+	depends on IP_NF_IPTABLES!=n && IP_NF_CONNTRACK!=n && IP_NF_NAT!=n
+	default IP_NF_NAT if IP_NF_H323=y
+	default m if IP_NF_H323=m
 
 # mangle + specific targets
 config IP_NF_MANGLE

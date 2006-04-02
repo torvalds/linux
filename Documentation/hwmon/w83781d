@@ -36,6 +36,11 @@ Module parameters
   Use 'init=0' to bypass initializing the chip.
   Try this if your computer crashes when you load the module.
 
+* reset int
+  (default 0)
+  The driver used to reset the chip on load, but does no more. Use
+  'reset=1' to restore the old behavior. Report if you need to do this.
+
 force_subclients=bus,caddr,saddr,saddr
   This is used to force the i2c addresses for subclients of
   a certain chip. Typical usage is `force_subclients=0,0x2d,0x4a,0x4b'
@@ -122,6 +127,25 @@ chips which triggers if your computer case is open.
 When an alarm goes off, you can be warned by a beeping signal through
 your computer speaker. It is possible to enable all beeping globally,
 or only the beeping for some alarms.
+
+Individual alarm and beep bits:
+
+0x000001: in0
+0x000002: in1
+0x000004: in2
+0x000008: in3
+0x000010: temp1
+0x000020: temp2 (+temp3 on W83781D)
+0x000040: fan1
+0x000080: fan2
+0x000100: in4
+0x000200: in5
+0x000400: in6
+0x000800: fan3
+0x001000: chassis
+0x002000: temp3 (W83782D and W83627HF only)
+0x010000: in7 (W83782D and W83627HF only)
+0x020000: in8 (W83782D and W83627HF only)
 
 If an alarm triggers, it will remain triggered until the hardware register
 is read at least once. This means that the cause for the alarm may

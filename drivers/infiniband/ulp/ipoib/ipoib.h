@@ -72,13 +72,14 @@ enum {
 	IPOIB_MAX_MCAST_QUEUE     = 3,
 
 	IPOIB_FLAG_OPER_UP 	  = 0,
-	IPOIB_FLAG_ADMIN_UP 	  = 1,
-	IPOIB_PKEY_ASSIGNED 	  = 2,
-	IPOIB_PKEY_STOP 	  = 3,
-	IPOIB_FLAG_SUBINTERFACE   = 4,
-	IPOIB_MCAST_RUN 	  = 5,
-	IPOIB_STOP_REAPER         = 6,
-	IPOIB_MCAST_STARTED       = 7,
+	IPOIB_FLAG_INITIALIZED    = 1,
+	IPOIB_FLAG_ADMIN_UP 	  = 2,
+	IPOIB_PKEY_ASSIGNED 	  = 3,
+	IPOIB_PKEY_STOP 	  = 4,
+	IPOIB_FLAG_SUBINTERFACE   = 5,
+	IPOIB_MCAST_RUN 	  = 6,
+	IPOIB_STOP_REAPER         = 7,
+	IPOIB_MCAST_STARTED       = 8,
 
 	IPOIB_MAX_BACKOFF_SECONDS = 16,
 
@@ -217,10 +218,16 @@ struct ipoib_neigh {
 	struct list_head    list;
 };
 
+/*
+ * We stash a pointer to our private neighbour information after our
+ * hardware address in neigh->ha.  The ALIGN() expression here makes
+ * sure that this pointer is stored aligned so that an unaligned
+ * load is not needed to dereference it.
+ */
 static inline struct ipoib_neigh **to_ipoib_neigh(struct neighbour *neigh)
 {
-	return (struct ipoib_neigh **) (neigh->ha + 24 -
-					(offsetof(struct neighbour, ha) & 4));
+	return (void*) neigh + ALIGN(offsetof(struct neighbour, ha) +
+				     INFINIBAND_ALEN, sizeof(void *));
 }
 
 extern struct workqueue_struct *ipoib_workqueue;
@@ -253,7 +260,7 @@ void ipoib_ib_dev_cleanup(struct net_device *dev);
 
 int ipoib_ib_dev_open(struct net_device *dev);
 int ipoib_ib_dev_up(struct net_device *dev);
-int ipoib_ib_dev_down(struct net_device *dev);
+int ipoib_ib_dev_down(struct net_device *dev, int flush);
 int ipoib_ib_dev_stop(struct net_device *dev);
 
 int ipoib_dev_init(struct net_device *dev, struct ib_device *ca, int port);

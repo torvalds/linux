@@ -70,6 +70,12 @@ const char *get_system_type(void)
 	return "SiByte " SIBYTE_BOARD_NAME;
 }
 
+void __init swarm_time_init(void)
+{
+	/* Setup HPT */
+	sb1250_hpt_setup();
+}
+
 void __init swarm_timer_setup(struct irqaction *irq)
 {
         /*
@@ -109,19 +115,20 @@ void __init plat_setup(void)
 
 	panic_timeout = 5;  /* For debug.  */
 
+	board_time_init = swarm_time_init;
 	board_timer_setup = swarm_timer_setup;
 	board_be_handler = swarm_be_handler;
 
 	if (xicor_probe()) {
 		printk("swarm setup: Xicor 1241 RTC detected.\n");
-		rtc_get_time = xicor_get_time;
-		rtc_set_time = xicor_set_time;
+		rtc_mips_get_time = xicor_get_time;
+		rtc_mips_set_time = xicor_set_time;
 	}
 
 	if (m41t81_probe()) {
 		printk("swarm setup: M41T81 RTC detected.\n");
-		rtc_get_time = m41t81_get_time;
-		rtc_set_time = m41t81_set_time;
+		rtc_mips_get_time = m41t81_get_time;
+		rtc_mips_set_time = m41t81_set_time;
 	}
 
 	printk("This kernel optimized for "

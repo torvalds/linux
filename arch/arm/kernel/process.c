@@ -27,6 +27,7 @@
 #include <linux/kallsyms.h>
 #include <linux/init.h>
 #include <linux/cpu.h>
+#include <linux/elfcore.h>
 
 #include <asm/leds.h>
 #include <asm/processor.h>
@@ -83,7 +84,7 @@ EXPORT_SYMBOL(pm_power_off);
  * This is our default idle handler.  We need to disable
  * interrupts here to ensure we don't miss a wakeup call.
  */
-void default_idle(void)
+static void default_idle(void)
 {
 	if (hlt_counter)
 		cpu_relax();
@@ -473,4 +474,3 @@ unsigned long get_wchan(struct task_struct *p)
 	} while (count ++ < 16);
 	return 0;
 }
-EXPORT_SYMBOL(get_wchan);

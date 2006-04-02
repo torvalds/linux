@@ -23,14 +23,16 @@
 
 struct tcp_info;
 
-struct ccid {
+struct ccid_operations {
 	unsigned char	ccid_id;
 	const char	*ccid_name;
 	struct module	*ccid_owner;
-	int		(*ccid_init)(struct sock *sk);
-	void		(*ccid_exit)(struct sock *sk);
-	int		(*ccid_hc_rx_init)(struct sock *sk);
-	int		(*ccid_hc_tx_init)(struct sock *sk);
+	kmem_cache_t	*ccid_hc_rx_slab;
+	__u32		ccid_hc_rx_obj_size;
+	kmem_cache_t	*ccid_hc_tx_slab;
+	__u32		ccid_hc_tx_obj_size;
+	int		(*ccid_hc_rx_init)(struct ccid *ccid, struct sock *sk);
+	int		(*ccid_hc_tx_init)(struct ccid *ccid, struct sock *sk);
 	void		(*ccid_hc_rx_exit)(struct sock *sk);
 	void		(*ccid_hc_tx_exit)(struct sock *sk);
 	void		(*ccid_hc_rx_packet_recv)(struct sock *sk,
@@ -39,9 +41,9 @@ struct ccid {
 						    unsigned char option,
 						    unsigned char len, u16 idx,
 						    unsigned char* value);
-	void		(*ccid_hc_rx_insert_options)(struct sock *sk,
+	int		(*ccid_hc_rx_insert_options)(struct sock *sk,
 						     struct sk_buff *skb);
-	void		(*ccid_hc_tx_insert_options)(struct sock *sk,
+	int		(*ccid_hc_tx_insert_options)(struct sock *sk,
 						     struct sk_buff *skb);
 	void		(*ccid_hc_tx_packet_recv)(struct sock *sk,
 						  struct sk_buff *skb);
@@ -67,75 +69,58 @@ struct ccid {
 						 int __user *optlen);
 };
 
-extern int	   ccid_register(struct ccid *ccid);
-extern int	   ccid_unregister(struct ccid *ccid);
+extern int ccid_register(struct ccid_operations *ccid_ops);
+extern int ccid_unregister(struct ccid_operations *ccid_ops);
 
-extern struct ccid *ccid_init(unsigned char id, struct sock *sk);
-extern void	   ccid_exit(struct ccid *ccid, struct sock *sk);
+struct ccid {
+	struct ccid_operations *ccid_ops;
+	char		       ccid_priv[0];
+};
 
-static inline void __ccid_get(struct ccid *ccid)
+static inline void *ccid_priv(const struct ccid *ccid)
 {
-	__module_get(ccid->ccid_owner);
+	return (void *)ccid->ccid_priv;
 }
+
+extern struct ccid *ccid_new(unsigned char id, struct sock *sk, int rx,
+			     gfp_t gfp);
+
+extern struct ccid *ccid_hc_rx_new(unsigned char id, struct sock *sk,
+				   gfp_t gfp);
+extern struct ccid *ccid_hc_tx_new(unsigned char id, struct sock *sk,
+				   gfp_t gfp);
+
+extern void ccid_hc_rx_delete(struct ccid *ccid, struct sock *sk);
+extern void ccid_hc_tx_delete(struct ccid *ccid, struct sock *sk);
 
 static inline int ccid_hc_tx_send_packet(struct ccid *ccid, struct sock *sk,
 					 struct sk_buff *skb, int len)
 {
 	int rc = 0;
-	if (ccid->ccid_hc_tx_send_packet != NULL)
-		rc = ccid->ccid_hc_tx_send_packet(sk, skb, len);
+	if (ccid->ccid_ops->ccid_hc_tx_send_packet != NULL)
+		rc = ccid->ccid_ops->ccid_hc_tx_send_packet(sk, skb, len);
 	return rc;
 }
 
 static inline void ccid_hc_tx_packet_sent(struct ccid *ccid, struct sock *sk,
 					  int more, int len)
 {
-	if (ccid->ccid_hc_tx_packet_sent != NULL)
-		ccid->ccid_hc_tx_packet_sent(sk, more, len);
-}
-
-static inline int ccid_hc_rx_init(struct ccid *ccid, struct sock *sk)
-{
-	int rc = 0;
-	if (ccid->ccid_hc_rx_init != NULL)
-		rc = ccid->ccid_hc_rx_init(sk);
-	return rc;
-}
-
-static inline int ccid_hc_tx_init(struct ccid *ccid, struct sock *sk)
-{
-	int rc = 0;
-	if (ccid->ccid_hc_tx_init != NULL)
-		rc = ccid->ccid_hc_tx_init(sk);
-	return rc;
-}
-
-static inline void ccid_hc_rx_exit(struct ccid *ccid, struct sock *sk)
-{
-	if (ccid != NULL && ccid->ccid_hc_rx_exit != NULL &&
-	    dccp_sk(sk)->dccps_hc_rx_ccid_private != NULL)
-		ccid->ccid_hc_rx_exit(sk);
-}
-
-static inline void ccid_hc_tx_exit(struct ccid *ccid, struct sock *sk)
-{
-	if (ccid != NULL && ccid->ccid_hc_tx_exit != NULL &&
-	    dccp_sk(sk)->dccps_hc_tx_ccid_private != NULL)
-		ccid->ccid_hc_tx_exit(sk);
+	if (ccid->ccid_ops->ccid_hc_tx_packet_sent != NULL)
+		ccid->ccid_ops->ccid_hc_tx_packet_sent(sk, more, len);
 }
 
 static inline void ccid_hc_rx_packet_recv(struct ccid *ccid, struct sock *sk,
 					  struct sk_buff *skb)
 {
-	if (ccid->ccid_hc_rx_packet_recv != NULL)
-		ccid->ccid_hc_rx_packet_recv(sk, skb);
+	if (ccid->ccid_ops->ccid_hc_rx_packet_recv != NULL)
+		ccid->ccid_ops->ccid_hc_rx_packet_recv(sk, skb);
 }
 
 static inline void ccid_hc_tx_packet_recv(struct ccid *ccid, struct sock *sk,
 					  struct sk_buff *skb)
 {
-	if (ccid->ccid_hc_tx_packet_recv != NULL)
-		ccid->ccid_hc_tx_packet_recv(sk, skb);
+	if (ccid->ccid_ops->ccid_hc_tx_packet_recv != NULL)
+		ccid->ccid_ops->ccid_hc_tx_packet_recv(sk, skb);
 }
 
 static inline int ccid_hc_tx_parse_options(struct ccid *ccid, struct sock *sk,
@@ -144,8 +129,8 @@ static inline int ccid_hc_tx_parse_options(struct ccid *ccid, struct sock *sk,
 					   unsigned char* value)
 {
 	int rc = 0;
-	if (ccid->ccid_hc_tx_parse_options != NULL)
-		rc = ccid->ccid_hc_tx_parse_options(sk, option, len, idx,
+	if (ccid->ccid_ops->ccid_hc_tx_parse_options != NULL)
+		rc = ccid->ccid_ops->ccid_hc_tx_parse_options(sk, option, len, idx,
 						    value);
 	return rc;
 }
@@ -156,37 +141,39 @@ static inline int ccid_hc_rx_parse_options(struct ccid *ccid, struct sock *sk,
 					   unsigned char* value)
 {
 	int rc = 0;
-	if (ccid->ccid_hc_rx_parse_options != NULL)
-		rc = ccid->ccid_hc_rx_parse_options(sk, option, len, idx, value);
+	if (ccid->ccid_ops->ccid_hc_rx_parse_options != NULL)
+		rc = ccid->ccid_ops->ccid_hc_rx_parse_options(sk, option, len, idx, value);
 	return rc;
 }
 
-static inline void ccid_hc_tx_insert_options(struct ccid *ccid, struct sock *sk,
-					     struct sk_buff *skb)
+static inline int ccid_hc_tx_insert_options(struct ccid *ccid, struct sock *sk,
+					    struct sk_buff *skb)
 {
-	if (ccid->ccid_hc_tx_insert_options != NULL)
-		ccid->ccid_hc_tx_insert_options(sk, skb);
+	if (ccid->ccid_ops->ccid_hc_tx_insert_options != NULL)
+		return ccid->ccid_ops->ccid_hc_tx_insert_options(sk, skb);
+	return 0;
 }
 
-static inline void ccid_hc_rx_insert_options(struct ccid *ccid, struct sock *sk,
-					     struct sk_buff *skb)
+static inline int ccid_hc_rx_insert_options(struct ccid *ccid, struct sock *sk,
+					    struct sk_buff *skb)
 {
-	if (ccid->ccid_hc_rx_insert_options != NULL)
-		ccid->ccid_hc_rx_insert_options(sk, skb);
+	if (ccid->ccid_ops->ccid_hc_rx_insert_options != NULL)
+		return ccid->ccid_ops->ccid_hc_rx_insert_options(sk, skb);
+	return 0;
 }
 
 static inline void ccid_hc_rx_get_info(struct ccid *ccid, struct sock *sk,
 				       struct tcp_info *info)
 {
-	if (ccid->ccid_hc_rx_get_info != NULL)
-		ccid->ccid_hc_rx_get_info(sk, info);
+	if (ccid->ccid_ops->ccid_hc_rx_get_info != NULL)
+		ccid->ccid_ops->ccid_hc_rx_get_info(sk, info);
 }
 
 static inline void ccid_hc_tx_get_info(struct ccid *ccid, struct sock *sk,
 				       struct tcp_info *info)
 {
-	if (ccid->ccid_hc_tx_get_info != NULL)
-		ccid->ccid_hc_tx_get_info(sk, info);
+	if (ccid->ccid_ops->ccid_hc_tx_get_info != NULL)
+		ccid->ccid_ops->ccid_hc_tx_get_info(sk, info);
 }
 
 static inline int ccid_hc_rx_getsockopt(struct ccid *ccid, struct sock *sk,
@@ -194,8 +181,8 @@ static inline int ccid_hc_rx_getsockopt(struct ccid *ccid, struct sock *sk,
 					u32 __user *optval, int __user *optlen)
 {
 	int rc = -ENOPROTOOPT;
-	if (ccid->ccid_hc_rx_getsockopt != NULL)
-		rc = ccid->ccid_hc_rx_getsockopt(sk, optname, len,
+	if (ccid->ccid_ops->ccid_hc_rx_getsockopt != NULL)
+		rc = ccid->ccid_ops->ccid_hc_rx_getsockopt(sk, optname, len,
 						 optval, optlen);
 	return rc;
 }
@@ -205,8 +192,8 @@ static inline int ccid_hc_tx_getsockopt(struct ccid *ccid, struct sock *sk,
 					u32 __user *optval, int __user *optlen)
 {
 	int rc = -ENOPROTOOPT;
-	if (ccid->ccid_hc_tx_getsockopt != NULL)
-		rc = ccid->ccid_hc_tx_getsockopt(sk, optname, len,
+	if (ccid->ccid_ops->ccid_hc_tx_getsockopt != NULL)
+		rc = ccid->ccid_ops->ccid_hc_tx_getsockopt(sk, optname, len,
 						 optval, optlen);
 	return rc;
 }

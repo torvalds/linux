@@ -946,10 +946,6 @@ typedef struct s_PnmiData {
  * Function prototypes
  */
 extern int SkPnmiInit(SK_AC *pAC, SK_IOC IoC, int Level);
-extern int SkPnmiGetVar(SK_AC *pAC, SK_IOC IoC, SK_U32 Id, void* pBuf,
-	unsigned int* pLen, SK_U32 Instance, SK_U32 NetIndex);
-extern int SkPnmiPreSetVar(SK_AC *pAC, SK_IOC IoC, SK_U32 Id,
-	void* pBuf, unsigned int *pLen, SK_U32 Instance, SK_U32 NetIndex);
 extern int SkPnmiSetVar(SK_AC *pAC, SK_IOC IoC, SK_U32 Id, void* pBuf,
 	unsigned int *pLen, SK_U32 Instance, SK_U32 NetIndex);
 extern int SkPnmiGetStruct(SK_AC *pAC, SK_IOC IoC, void* pBuf,

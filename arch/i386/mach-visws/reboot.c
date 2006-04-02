@@ -1,7 +1,6 @@
 #include <linux/module.h>
 #include <linux/smp.h>
 #include <linux/delay.h>
-#include <linux/platform.h>
 
 #include <asm/io.h>
 #include "piix4.h"

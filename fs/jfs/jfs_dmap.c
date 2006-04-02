@@ -64,9 +64,9 @@
  *	to the persistent bitmaps in dmaps) is guarded by (busy) buffers.
  */
 
-#define BMAP_LOCK_INIT(bmp)	init_MUTEX(&bmp->db_bmaplock)
-#define BMAP_LOCK(bmp)		down(&bmp->db_bmaplock)
-#define BMAP_UNLOCK(bmp)	up(&bmp->db_bmaplock)
+#define BMAP_LOCK_INIT(bmp)	mutex_init(&bmp->db_bmaplock)
+#define BMAP_LOCK(bmp)		mutex_lock(&bmp->db_bmaplock)
+#define BMAP_UNLOCK(bmp)	mutex_unlock(&bmp->db_bmaplock)
 
 /*
  * forward references
@@ -125,7 +125,7 @@ static int dbGetL2AGSize(s64 nblocks);
  * into the table, with the table elements yielding the maximum
  * binary buddy of free bits within the character.
  */
-static s8 budtab[256] = {
+static const s8 budtab[256] = {
 	3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
 	2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 	2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -532,10 +532,10 @@ dbUpdatePMap(struct inode *ipbmap,
 
 		lastlblkno = lblkno;
 
+		LOGSYNC_LOCK(log, flags);
 		if (mp->lsn != 0) {
 			/* inherit older/smaller lsn */
 			logdiff(diffp, mp->lsn, log);
-			LOGSYNC_LOCK(log, flags);
 			if (difft < diffp) {
 				mp->lsn = lsn;
 
@@ -548,20 +548,17 @@ dbUpdatePMap(struct inode *ipbmap,
 			logdiff(diffp, mp->clsn, log);
 			if (difft > diffp)
 				mp->clsn = tblk->clsn;
-			LOGSYNC_UNLOCK(log, flags);
 		} else {
 			mp->log = log;
 			mp->lsn = lsn;
 
 			/* insert bp after tblock in logsync list */
-			LOGSYNC_LOCK(log, flags);
-
 			log->count++;
 			list_add(&mp->synclist, &tblk->synclist);
 
 			mp->clsn = tblk->clsn;
-			LOGSYNC_UNLOCK(log, flags);
 		}
+		LOGSYNC_UNLOCK(log, flags);
 	}
 
 	/* write the last buffer. */

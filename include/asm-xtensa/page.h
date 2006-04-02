@@ -109,10 +109,7 @@ void copy_user_page(void *to,void* from,unsigned long vaddr,struct page* page);
 #define __pa(x)			((unsigned long) (x) - PAGE_OFFSET)
 #define __va(x)			((void *)((unsigned long) (x) + PAGE_OFFSET))
 #define pfn_valid(pfn)		((unsigned long)pfn < max_mapnr)
-#ifndef CONFIG_DISCONTIGMEM
-# define pfn_to_page(pfn)	(mem_map + (pfn))
-# define page_to_pfn(page)	((unsigned long)((page) - mem_map))
-#else
+#ifdef CONFIG_DISCONTIGMEM
 # error CONFIG_DISCONTIGMEM not supported
 #endif
 
@@ -130,4 +127,5 @@ void copy_user_page(void *to,void* from,unsigned long vaddr,struct page* page);
 				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
 
 #endif /* __KERNEL__ */
+#include <asm-generic/memory_model.h>
 #endif /* _XTENSA_PAGE_H */

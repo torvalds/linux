@@ -77,7 +77,7 @@ struct termios {
 #define IXANY	0004000		/* Any character will restart after stop.  */
 #define IXOFF	0010000		/* Enable start/stop input control.  */
 #define IMAXBEL	0020000		/* Ring bell when input queue is full.  */
-#define IUTF8	0040000		/* Input is UTF8 */
+#define IUTF8	0040000		/* Input is UTF-8 */
 
 /* c_oflag bits */
 #define OPOST	0000001		/* Perform output processing.  */

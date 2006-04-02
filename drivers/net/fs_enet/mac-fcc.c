@@ -118,6 +118,8 @@ static int do_pd_setup(struct fs_enet_private *fep)
 
 	/* Fill out IRQ field */
 	fep->interrupt = platform_get_irq(pdev, 0);
+	if (fep->interrupt < 0)
+		return -EINVAL;
 
 	/* Attach the memory for the FCC Parameter RAM */
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "fcc_pram");

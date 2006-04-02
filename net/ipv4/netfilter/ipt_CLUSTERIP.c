@@ -311,6 +311,7 @@ target(struct sk_buff **pskb,
        const struct net_device *in,
        const struct net_device *out,
        unsigned int hooknum,
+       const struct xt_target *target,
        const void *targinfo,
        void *userinfo)
 {
@@ -380,6 +381,7 @@ target(struct sk_buff **pskb,
 static int
 checkentry(const char *tablename,
 	   const void *e_void,
+	   const struct xt_target *target,
            void *targinfo,
            unsigned int targinfosize,
            unsigned int hook_mask)
@@ -388,13 +390,6 @@ checkentry(const char *tablename,
 	const struct ipt_entry *e = e_void;
 
 	struct clusterip_config *config;
-
-	if (targinfosize != IPT_ALIGN(sizeof(struct ipt_clusterip_tgt_info))) {
-		printk(KERN_WARNING "CLUSTERIP: targinfosize %u != %Zu\n",
-		       targinfosize,
-		       IPT_ALIGN(sizeof(struct ipt_clusterip_tgt_info)));
-		return 0;
-	}
 
 	if (cipinfo->hash_mode != CLUSTERIP_HASHMODE_SIP &&
 	    cipinfo->hash_mode != CLUSTERIP_HASHMODE_SIP_SPT &&
@@ -465,9 +460,10 @@ checkentry(const char *tablename,
 }
 
 /* drop reference count of cluster config when rule is deleted */
-static void destroy(void *matchinfo, unsigned int matchinfosize)
+static void destroy(const struct xt_target *target, void *targinfo,
+		    unsigned int targinfosize)
 {
-	struct ipt_clusterip_tgt_info *cipinfo = matchinfo;
+	struct ipt_clusterip_tgt_info *cipinfo = targinfo;
 
 	/* if no more entries are referencing the config, remove it
 	 * from the list and destroy the proc entry */
@@ -476,12 +472,13 @@ static void destroy(void *matchinfo, unsigned int matchinfosize)
 	clusterip_config_put(cipinfo->config);
 }
 
-static struct ipt_target clusterip_tgt = { 
-	.name = "CLUSTERIP",
-	.target = &target, 
-	.checkentry = &checkentry, 
-	.destroy = &destroy,
-	.me = THIS_MODULE
+static struct ipt_target clusterip_tgt = {
+	.name		= "CLUSTERIP",
+	.target		= target,
+	.targetsize	= sizeof(struct ipt_clusterip_tgt_info),
+	.checkentry	= checkentry,
+	.destroy	= destroy,
+	.me		= THIS_MODULE
 };
 
 
@@ -773,15 +770,15 @@ cleanup_none:
 	return -EINVAL;
 }
 
-static int __init init(void)
+static int __init ipt_clusterip_init(void)
 {
 	return init_or_cleanup(0);
 }
 
-static void __exit fini(void)
+static void __exit ipt_clusterip_fini(void)
 {
 	init_or_cleanup(1);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ipt_clusterip_init);
+module_exit(ipt_clusterip_fini);

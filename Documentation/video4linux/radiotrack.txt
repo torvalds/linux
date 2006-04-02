@@ -131,17 +131,17 @@ Check Stereo:   BASE <-- 0xd8  (current volume, stereo detect,
 		x=0xff ==> "not stereo", x=0xfd ==> "stereo detected"
 
 Set Frequency:  code = (freq*40) + 10486188
-                foreach of the 24 bits in code,
-                (from Least to Most Significant):
-                  to write a "zero" bit,
-                    BASE <-- 0x01  (audio mute, no stereo detect, radio
+		foreach of the 24 bits in code,
+		(from Least to Most Significant):
+		  to write a "zero" bit,
+		    BASE <-- 0x01  (audio mute, no stereo detect, radio
 				    disable, "zero" bit phase 1, tuner adjust)
-                    BASE <-- 0x03  (audio mute, no stereo detect, radio
+		    BASE <-- 0x03  (audio mute, no stereo detect, radio
 				    disable, "zero" bit phase 2, tuner adjust)
-                  to write a "one" bit,
-                    BASE <-- 0x05  (audio mute, no stereo detect, radio
+		  to write a "one" bit,
+		    BASE <-- 0x05  (audio mute, no stereo detect, radio
 				    disable, "one" bit phase 1, tuner adjust)
-                    BASE <-- 0x07  (audio mute, no stereo detect, radio
+		    BASE <-- 0x07  (audio mute, no stereo detect, radio
 				    disable, "one" bit phase 2, tuner adjust)
 
 ----------------------------------------------------------------------------

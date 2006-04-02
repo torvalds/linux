@@ -183,8 +183,8 @@ EXPORT_SYMBOL(mempool_resize);
  */
 void mempool_destroy(mempool_t *pool)
 {
-	if (pool->curr_nr != pool->min_nr)
-		BUG();		/* There were outstanding elements */
+	/* Check for outstanding elements */
+	BUG_ON(pool->curr_nr != pool->min_nr);
 	free_pool(pool);
 }
 EXPORT_SYMBOL(mempool_destroy);
@@ -278,14 +278,56 @@ EXPORT_SYMBOL(mempool_free);
  */
 void *mempool_alloc_slab(gfp_t gfp_mask, void *pool_data)
 {
-	kmem_cache_t *mem = (kmem_cache_t *) pool_data;
+	struct kmem_cache *mem = pool_data;
 	return kmem_cache_alloc(mem, gfp_mask);
 }
 EXPORT_SYMBOL(mempool_alloc_slab);
 
 void mempool_free_slab(void *element, void *pool_data)
 {
-	kmem_cache_t *mem = (kmem_cache_t *) pool_data;
+	struct kmem_cache *mem = pool_data;
 	kmem_cache_free(mem, element);
 }
 EXPORT_SYMBOL(mempool_free_slab);
+
+/*
+ * A commonly used alloc and free fn that kmalloc/kfrees the amount of memory
+ * specfied by pool_data
+ */
+void *mempool_kmalloc(gfp_t gfp_mask, void *pool_data)
+{
+	size_t size = (size_t)(long)pool_data;
+	return kmalloc(size, gfp_mask);
+}
+EXPORT_SYMBOL(mempool_kmalloc);
+
+void *mempool_kzalloc(gfp_t gfp_mask, void *pool_data)
+{
+	size_t size = (size_t) pool_data;
+	return kzalloc(size, gfp_mask);
+}
+EXPORT_SYMBOL(mempool_kzalloc);
+
+void mempool_kfree(void *element, void *pool_data)
+{
+	kfree(element);
+}
+EXPORT_SYMBOL(mempool_kfree);
+
+/*
+ * A simple mempool-backed page allocator that allocates pages
+ * of the order specified by pool_data.
+ */
+void *mempool_alloc_pages(gfp_t gfp_mask, void *pool_data)
+{
+	int order = (int)(long)pool_data;
+	return alloc_pages(gfp_mask, order);
+}
+EXPORT_SYMBOL(mempool_alloc_pages);
+
+void mempool_free_pages(void *element, void *pool_data)
+{
+	int order = (int)(long)pool_data;
+	__free_pages(element, order);
+}
+EXPORT_SYMBOL(mempool_free_pages);

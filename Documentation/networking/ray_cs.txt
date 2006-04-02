@@ -25,7 +25,7 @@ the essid= string parameter is available via the kernel command line.
 This will change after the method of sorting out parameters for all
 the PCMCIA drivers is agreed upon.  If you must have a built in driver
 with nondefault parameters, they can be edited in
-/usr/src/linux/drivers/net/pcmcia/ray_cs.c.  Searching for MODULE_PARM
+/usr/src/linux/drivers/net/pcmcia/ray_cs.c.  Searching for module_param
 will find them all.
 
 Information on card services is available at:

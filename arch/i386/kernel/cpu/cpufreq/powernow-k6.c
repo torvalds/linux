@@ -8,7 +8,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h> 
+#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/cpufreq.h>
 #include <linux/ioport.h>
@@ -50,7 +50,7 @@ static int powernow_k6_get_cpu_multiplier(void)
 {
 	u64             invalue = 0;
 	u32             msrval;
-	
+
 	msrval = POWERNOW_IOPORT + 0x1;
 	wrmsr(MSR_K6_EPMR, msrval, 0); /* enable the PowerNow port */
 	invalue=inl(POWERNOW_IOPORT + 0x8);
@@ -81,7 +81,7 @@ static void powernow_k6_set_state (unsigned int best_i)
 	freqs.old = busfreq * powernow_k6_get_cpu_multiplier();
 	freqs.new = busfreq * clock_ratio[best_i].index;
 	freqs.cpu = 0; /* powernow-k6.c is UP only driver */
-	
+
 	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
 
 	/* we now need to transform best_i to the BVC format, see AMD#23446 */
@@ -152,7 +152,7 @@ static int powernow_k6_cpu_init(struct cpufreq_policy *policy)
 	busfreq = cpu_khz / max_multiplier;
 
 	/* table init */
- 	for (i=0; (clock_ratio[i].frequency != CPUFREQ_TABLE_END); i++) {
+	for (i=0; (clock_ratio[i].frequency != CPUFREQ_TABLE_END); i++) {
 		if (clock_ratio[i].index > max_multiplier)
 			clock_ratio[i].frequency = CPUFREQ_ENTRY_INVALID;
 		else
@@ -182,7 +182,7 @@ static int powernow_k6_cpu_exit(struct cpufreq_policy *policy)
 			powernow_k6_set_state(i);
 	}
 	cpufreq_frequency_table_put_attr(policy->cpu);
- 	return 0;
+	return 0;
 }
 
 static unsigned int powernow_k6_get(unsigned int cpu)
@@ -196,8 +196,8 @@ static struct freq_attr* powernow_k6_attr[] = {
 };
 
 static struct cpufreq_driver powernow_k6_driver = {
-	.verify 	= powernow_k6_verify,
-	.target 	= powernow_k6_target,
+	.verify		= powernow_k6_verify,
+	.target		= powernow_k6_target,
 	.init		= powernow_k6_cpu_init,
 	.exit		= powernow_k6_cpu_exit,
 	.get		= powernow_k6_get,
@@ -215,7 +215,7 @@ static struct cpufreq_driver powernow_k6_driver = {
  * on success.
  */
 static int __init powernow_k6_init(void)
-{	
+{
 	struct cpuinfo_x86      *c = cpu_data;
 
 	if ((c->x86_vendor != X86_VENDOR_AMD) || (c->x86 != 5) ||

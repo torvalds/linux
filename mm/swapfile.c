@@ -45,7 +45,7 @@ static const char Unused_offset[] = "Unused swap offset entry ";
 
 struct swap_list_t swap_list = {-1, -1};
 
-struct swap_info_struct swap_info[MAX_SWAPFILES];
+static struct swap_info_struct swap_info[MAX_SWAPFILES];
 
 static DEFINE_MUTEX(swapon_mutex);
 
@@ -116,7 +116,7 @@ static inline unsigned long scan_swap_map(struct swap_info_struct *si)
 				last_in_cluster = offset + SWAPFILE_CLUSTER;
 			else if (offset == last_in_cluster) {
 				spin_lock(&swap_lock);
-				si->cluster_next = offset-SWAPFILE_CLUSTER-1;
+				si->cluster_next = offset-SWAPFILE_CLUSTER+1;
 				goto cluster;
 			}
 			if (unlikely(--latency_ration < 0)) {
@@ -397,18 +397,24 @@ void free_swap_and_cache(swp_entry_t entry)
 
 	p = swap_info_get(entry);
 	if (p) {
-		if (swap_entry_free(p, swp_offset(entry)) == 1)
-			page = find_trylock_page(&swapper_space, entry.val);
+		if (swap_entry_free(p, swp_offset(entry)) == 1) {
+			page = find_get_page(&swapper_space, entry.val);
+			if (page && unlikely(TestSetPageLocked(page))) {
+				page_cache_release(page);
+				page = NULL;
+			}
+		}
 		spin_unlock(&swap_lock);
 	}
 	if (page) {
 		int one_user;
 
 		BUG_ON(PagePrivate(page));
-		page_cache_get(page);
 		one_user = (page_count(page) == 2);
 		/* Only cache user (+us), or swap space full? Free it! */
-		if (!PageWriteback(page) && (one_user || vm_swap_full())) {
+		/* Also recheck PageSwapCache after page is locked (above) */
+		if (PageSwapCache(page) && !PageWriteback(page) &&
+					(one_user || vm_swap_full())) {
 			delete_from_swap_cache(page);
 			SetPageDirty(page);
 		}
@@ -416,6 +422,61 @@ void free_swap_and_cache(swp_entry_t entry)
 		page_cache_release(page);
 	}
 }
+
+#ifdef CONFIG_SOFTWARE_SUSPEND
+/*
+ * Find the swap type that corresponds to given device (if any)
+ *
+ * This is needed for software suspend and is done in such a way that inode
+ * aliasing is allowed.
+ */
+int swap_type_of(dev_t device)
+{
+	int i;
+
+	spin_lock(&swap_lock);
+	for (i = 0; i < nr_swapfiles; i++) {
+		struct inode *inode;
+
+		if (!(swap_info[i].flags & SWP_WRITEOK))
+			continue;
+		if (!device) {
+			spin_unlock(&swap_lock);
+			return i;
+		}
+		inode = swap_info->swap_file->f_dentry->d_inode;
+		if (S_ISBLK(inode->i_mode) &&
+		    device == MKDEV(imajor(inode), iminor(inode))) {
+			spin_unlock(&swap_lock);
+			return i;
+		}
+	}
+	spin_unlock(&swap_lock);
+	return -ENODEV;
+}
+
+/*
+ * Return either the total number of swap pages of given type, or the number
+ * of free pages of that type (depending on @free)
+ *
+ * This is needed for software suspend
+ */
+unsigned int count_swap_pages(int type, int free)
+{
+	unsigned int n = 0;
+
+	if (type < nr_swapfiles) {
+		spin_lock(&swap_lock);
+		if (swap_info[type].flags & SWP_WRITEOK) {
+			n = swap_info[type].pages;
+			if (free)
+				n -= swap_info[type].inuse_pages;
+		}
+		spin_unlock(&swap_lock);
+	}
+	return n;
+}
+#endif
 
 /*
  * No need to decide whether this PTE shares the swap entry with others,

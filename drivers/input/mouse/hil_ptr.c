@@ -55,7 +55,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 #define HIL_PTR_MAX_LENGTH 16
 
 struct hil_ptr {
-	struct input_dev dev;
+	struct input_dev *dev;
 	struct serio *serio;
 
 	/* Input buffer and index for packets from HIL bus. */
@@ -79,7 +79,7 @@ struct hil_ptr {
 /* Process a complete packet after transfer from the HIL */
 static void hil_ptr_process_record(struct hil_ptr *ptr)
 {
-	struct input_dev *dev = &ptr->dev;
+	struct input_dev *dev = ptr->dev;
 	hil_packet *data = ptr->data;
 	hil_packet p;
 	int idx, i, cnt, laxis;
@@ -148,12 +148,12 @@ static void hil_ptr_process_record(struct hil_ptr *ptr)
 		if (absdev) {
 			val = lo + (hi<<8);
 #ifdef TABLET_AUTOADJUST
-			if (val < ptr->dev.absmin[ABS_X + i])
-				ptr->dev.absmin[ABS_X + i] = val;
-			if (val > ptr->dev.absmax[ABS_X + i])
-				ptr->dev.absmax[ABS_X + i] = val;
+			if (val < dev->absmin[ABS_X + i])
+				dev->absmin[ABS_X + i] = val;
+			if (val > dev->absmax[ABS_X + i])
+				dev->absmax[ABS_X + i] = val;
 #endif
-			if (i%3) val = ptr->dev.absmax[ABS_X + i] - val;
+			if (i%3) val = dev->absmax[ABS_X + i] - val;
 			input_report_abs(dev, ABS_X + i, val);
 		} else {
 			val = (int) (((int8_t)lo) | ((int8_t)hi<<8));
@@ -233,27 +233,32 @@ static void hil_ptr_disconnect(struct serio *serio)
 		return;
 	}
 
-	input_unregister_device(&ptr->dev);
 	serio_close(serio);
+	input_unregister_device(ptr->dev);
 	kfree(ptr);
 }
 
 static int hil_ptr_connect(struct serio *serio, struct serio_driver *driver)
 {
-	struct hil_ptr	*ptr;
-	char		*txt;
-	unsigned int	i, naxsets, btntype;
-	uint8_t		did, *idd;
+	struct hil_ptr	 *ptr;
+	char		 *txt;
+	unsigned int	 i, naxsets, btntype;
+	uint8_t		 did, *idd;
 
 	if (!(ptr = kzalloc(sizeof(struct hil_ptr), GFP_KERNEL)))
 		return -ENOMEM;
 
-	if (serio_open(serio, driver))
+	ptr->dev = input_allocate_device();
+	if (!ptr->dev)
 		goto bail0;
+
+	ptr->dev->private = ptr;
+
+	if (serio_open(serio, driver))
+		goto bail1;
 
 	serio_set_drvdata(serio, ptr);
 	ptr->serio = serio;
-	ptr->dev.private = ptr;
 
 	init_MUTEX_LOCKED(&(ptr->sem));
 
@@ -284,25 +289,24 @@ static int hil_ptr_connect(struct serio *serio, struct serio_driver *driver)
 
 	up(&(ptr->sem));
 
-	init_input_dev(&ptr->dev);
 	did = ptr->idd[0];
 	idd = ptr->idd + 1;
 	txt = "unknown";
 	if ((did & HIL_IDD_DID_TYPE_MASK) == HIL_IDD_DID_TYPE_REL) {
-		ptr->dev.evbit[0] = BIT(EV_REL);
+		ptr->dev->evbit[0] = BIT(EV_REL);
 		txt = "relative";
 	}
 
 	if ((did & HIL_IDD_DID_TYPE_MASK) == HIL_IDD_DID_TYPE_ABS) {
-		ptr->dev.evbit[0] = BIT(EV_ABS);
+		ptr->dev->evbit[0] = BIT(EV_ABS);
 		txt = "absolute";
 	}
-	if (!ptr->dev.evbit[0]) {
-		goto bail1;
+	if (!ptr->dev->evbit[0]) {
+		goto bail2;
 	}
 
 	ptr->nbtn = HIL_IDD_NUM_BUTTONS(idd);
-	if (ptr->nbtn) ptr->dev.evbit[0] |= BIT(EV_KEY);
+	if (ptr->nbtn) ptr->dev->evbit[0] |= BIT(EV_KEY);
 
 	naxsets = HIL_IDD_NUM_AXSETS(*idd);
 	ptr->naxes = HIL_IDD_NUM_AXES_PER_SET(*idd);
@@ -326,7 +330,7 @@ static int hil_ptr_connect(struct serio *serio, struct serio_driver *driver)
 		btntype = BTN_MOUSE;
 
 	for (i = 0; i < ptr->nbtn; i++) {
-		set_bit(btntype | i, ptr->dev.keybit);
+		set_bit(btntype | i, ptr->dev->keybit);
 		ptr->btnmap[i] = btntype | i;
 	}
 
@@ -338,50 +342,52 @@ static int hil_ptr_connect(struct serio *serio, struct serio_driver *driver)
 
 	if ((did & HIL_IDD_DID_TYPE_MASK) == HIL_IDD_DID_TYPE_REL) {
 		for (i = 0; i < ptr->naxes; i++) {
-			set_bit(REL_X + i, ptr->dev.relbit);
+			set_bit(REL_X + i, ptr->dev->relbit);
 		}
 		for (i = 3; (i < ptr->naxes + 3) && (naxsets > 1); i++) {
-			set_bit(REL_X + i, ptr->dev.relbit);
+			set_bit(REL_X + i, ptr->dev->relbit);
 		}
 	} else {
 		for (i = 0; i < ptr->naxes; i++) {
-	  		set_bit(ABS_X + i, ptr->dev.absbit);
-			ptr->dev.absmin[ABS_X + i] = 0;
-			ptr->dev.absmax[ABS_X + i] = 
+			set_bit(ABS_X + i, ptr->dev->absbit);
+			ptr->dev->absmin[ABS_X + i] = 0;
+			ptr->dev->absmax[ABS_X + i] =
 				HIL_IDD_AXIS_MAX((ptr->idd + 1), i);
 		}
 		for (i = 3; (i < ptr->naxes + 3) && (naxsets > 1); i++) {
-			set_bit(ABS_X + i, ptr->dev.absbit);
-			ptr->dev.absmin[ABS_X + i] = 0;
-			ptr->dev.absmax[ABS_X + i] = 
+			set_bit(ABS_X + i, ptr->dev->absbit);
+			ptr->dev->absmin[ABS_X + i] = 0;
+			ptr->dev->absmax[ABS_X + i] =
 				HIL_IDD_AXIS_MAX((ptr->idd + 1), (i - 3));
 		}
 #ifdef TABLET_AUTOADJUST
 		for (i = 0; i < ABS_MAX; i++) {
-			int diff = ptr->dev.absmax[ABS_X + i] / 10;
-			ptr->dev.absmin[ABS_X + i] += diff;
-			ptr->dev.absmax[ABS_X + i] -= diff;
+			int diff = ptr->dev->absmax[ABS_X + i] / 10;
+			ptr->dev->absmin[ABS_X + i] += diff;
+			ptr->dev->absmax[ABS_X + i] -= diff;
 		}
 #endif
 	}
 
-	ptr->dev.name = strlen(ptr->rnm) ? ptr->rnm : HIL_GENERIC_NAME;
+	ptr->dev->name = strlen(ptr->rnm) ? ptr->rnm : HIL_GENERIC_NAME;
 
-	ptr->dev.id.bustype	= BUS_HIL;
-	ptr->dev.id.vendor	= PCI_VENDOR_ID_HP;
-	ptr->dev.id.product	= 0x0001; /* TODO: get from ptr->rsc */
-	ptr->dev.id.version	= 0x0100; /* TODO: get from ptr->rsc */
-	ptr->dev.dev		= &serio->dev;
+	ptr->dev->id.bustype	= BUS_HIL;
+	ptr->dev->id.vendor	= PCI_VENDOR_ID_HP;
+	ptr->dev->id.product	= 0x0001; /* TODO: get from ptr->rsc */
+	ptr->dev->id.version	= 0x0100; /* TODO: get from ptr->rsc */
+	ptr->dev->dev		= &serio->dev;
 
-	input_register_device(&ptr->dev);
+	input_register_device(ptr->dev);
 	printk(KERN_INFO "input: %s (%s), ID: %d\n",
-                ptr->dev.name, 
+		ptr->dev->name,
 		(btntype == BTN_MOUSE) ? "HIL mouse":"HIL tablet or touchpad",
 		did);
 
 	return 0;
- bail1:
+ bail2:
 	serio_close(serio);
+ bail1:
+	input_free_device(ptr->dev);
  bail0:
 	kfree(ptr);
 	serio_set_drvdata(serio, NULL);

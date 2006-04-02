@@ -1898,6 +1898,21 @@ static int int_tab[] in2000__INITDATA = {
 	10
 };
 
+static int probe_bios(u32 addr, u32 *s1, uchar *switches)
+{
+	void __iomem *p = ioremap(addr, 0x34);
+	if (!p)
+		return 0;
+	*s1 = readl(p + 0x10);
+	if (*s1 == 0x41564f4e || readl(p + 0x30) == 0x61776c41) {
+		/* Read the switch image that's mapped into EPROM space */
+		*switches = ~readb(p + 0x20);
+		iounmap(p);
+		return 1;
+	}
+	iounmap(p);
+	return 0;
+}
 
 static int __init in2000_detect(struct scsi_host_template * tpnt)
 {
@@ -1930,6 +1945,7 @@ static int __init in2000_detect(struct scsi_host_template * tpnt)
 
 	detect_count = 0;
 	for (bios = 0; bios_tab[bios]; bios++) {
+		u32 s1 = 0;
 		if (check_setup_args("ioport", &val, buf)) {
 			base = val;
 			switches = ~inb(base + IO_SWITCHES) & 0xff;
@@ -1941,12 +1957,8 @@ static int __init in2000_detect(struct scsi_host_template * tpnt)
  * for the obvious ID strings. We look for the 2 most common ones and
  * hope that they cover all the cases...
  */
-		else if (isa_readl(bios_tab[bios] + 0x10) == 0x41564f4e || isa_readl(bios_tab[bios] + 0x30) == 0x61776c41) {
+		else if (probe_bios(bios_tab[bios], &s1, &switches)) {
 			printk("Found IN2000 BIOS at 0x%x ", (unsigned int) bios_tab[bios]);
-
-/* Read the switch image that's mapped into EPROM space */
-
-			switches = ~((isa_readb(bios_tab[bios] + 0x20) & 0xff));
 
 /* Find out where the IO space is */
 
@@ -2037,7 +2049,7 @@ static int __init in2000_detect(struct scsi_host_template * tpnt)
 
 /* Older BIOS's had a 'sync on/off' switch - use its setting */
 
-		if (isa_readl(bios_tab[bios] + 0x10) == 0x41564f4e && (switches & SW_SYNC_DOS5))
+		if (s1 == 0x41564f4e && (switches & SW_SYNC_DOS5))
 			hostdata->sync_off = 0x00;	/* sync defaults to on */
 		else
 			hostdata->sync_off = 0xff;	/* sync defaults to off */

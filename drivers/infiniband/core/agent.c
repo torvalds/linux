@@ -78,25 +78,6 @@ ib_get_agent_port(struct ib_device *device, int port_num)
 	return entry;
 }
 
-int smi_check_local_dr_smp(struct ib_smp *smp,
-			   struct ib_device *device,
-			   int port_num)
-{
-	struct ib_agent_port_private *port_priv;
-
-	if (smp->mgmt_class != IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE)
-		return 1;
-
-	port_priv = ib_get_agent_port(device, port_num);
-	if (!port_priv) {
-		printk(KERN_DEBUG SPFX "smi_check_local_dr_smp %s port %d "
-		       "not open\n", device->name, port_num);
-		return 1;
-	}
-
-	return smi_check_local_smp(port_priv->agent[0], smp);
-}
-
 int agent_send_response(struct ib_mad *mad, struct ib_grh *grh,
 			struct ib_wc *wc, struct ib_device *device,
 			int port_num, int qpn)

@@ -70,6 +70,12 @@
 #endif
 
 #ifdef CONFIG_HOTPLUG_CPU
+#ifdef CONFIG_PERMIT_BSP_REMOVE
+#define bsp_remove_ok	1
+#else
+#define bsp_remove_ok	0
+#endif
+
 /*
  * Store all idle threads, this can be reused instead of creating
  * a new thread. Also avoids complicated thread destroy functionality
@@ -104,7 +110,7 @@ struct sal_to_os_boot *sal_state_for_booting_cpu = &sal_boot_rendez_state[0];
 /*
  * ITC synchronization related stuff:
  */
-#define MASTER	0
+#define MASTER	(0)
 #define SLAVE	(SMP_CACHE_BYTES/8)
 
 #define NUM_ROUNDS	64	/* magic value */
@@ -151,6 +157,27 @@ char __initdata no_int_routing;
 
 unsigned char smp_int_redirect; /* are INT and IPI redirectable by the chipset? */
 
+#ifdef CONFIG_FORCE_CPEI_RETARGET
+#define CPEI_OVERRIDE_DEFAULT	(1)
+#else
+#define CPEI_OVERRIDE_DEFAULT	(0)
+#endif
+
+unsigned int force_cpei_retarget = CPEI_OVERRIDE_DEFAULT;
+
+static int __init
+cmdl_force_cpei(char *str)
+{
+	int value=0;
+
+	get_option (&str, &value);
+	force_cpei_retarget = value;
+
+	return 1;
+}
+
+__setup("force_cpei=", cmdl_force_cpei);
+
 static int __init
 nointroute (char *str)
 {
@@ -160,6 +187,27 @@ nointroute (char *str)
 }
 
 __setup("nointroute", nointroute);
+
+static void fix_b0_for_bsp(void)
+{
+#ifdef CONFIG_HOTPLUG_CPU
+	int cpuid;
+	static int fix_bsp_b0 = 1;
+
+	cpuid = smp_processor_id();
+
+	/*
+	 * Cache the b0 value on the first AP that comes up
+	 */
+	if (!(fix_bsp_b0 && cpuid))
+		return;
+
+	sal_boot_rendez_state[0].br[0] = sal_boot_rendez_state[cpuid].br[0];
+	printk ("Fixed BSP b0 value from CPU %d\n", cpuid);
+
+	fix_bsp_b0 = 0;
+#endif
+}
 
 void
 sync_master (void *arg)
@@ -327,8 +375,9 @@ smp_setup_percpu_timer (void)
 static void __devinit
 smp_callin (void)
 {
-	int cpuid, phys_id;
+	int cpuid, phys_id, itc_master;
 	extern void ia64_init_itm(void);
+	extern volatile int time_keeper_id;
 
 #ifdef CONFIG_PERFMON
 	extern void pfm_init_percpu(void);
@@ -336,12 +385,15 @@ smp_callin (void)
 
 	cpuid = smp_processor_id();
 	phys_id = hard_smp_processor_id();
+	itc_master = time_keeper_id;
 
 	if (cpu_online(cpuid)) {
 		printk(KERN_ERR "huh, phys CPU#0x%x, CPU#0x%x already present??\n",
 		       phys_id, cpuid);
 		BUG();
 	}
+
+	fix_b0_for_bsp();
 
 	lock_ipi_calllock();
 	cpu_set(cpuid, cpu_online_map);
@@ -365,8 +417,8 @@ smp_callin (void)
 		 * calls spin_unlock_bh(), which calls spin_unlock_bh(), which calls
 		 * local_bh_enable(), which bugs out if irqs are not enabled...
 		 */
-		Dprintk("Going to syncup ITC with BP.\n");
-		ia64_sync_itc(0);
+		Dprintk("Going to syncup ITC with ITC Master.\n");
+		ia64_sync_itc(itc_master);
 	}
 
 	/*
@@ -572,31 +624,7 @@ void __devinit smp_prepare_boot_cpu(void)
 	per_cpu(cpu_state, smp_processor_id()) = CPU_ONLINE;
 }
 
-/*
- * mt_info[] is a temporary store for all info returned by
- * PAL_LOGICAL_TO_PHYSICAL, to be copied into cpuinfo_ia64 when the
- * specific cpu comes.
- */
-static struct {
-	__u32   socket_id;
-	__u16   core_id;
-	__u16   thread_id;
-	__u16   proc_fixed_addr;
-	__u8    valid;
-} mt_info[NR_CPUS] __devinitdata;
-
 #ifdef CONFIG_HOTPLUG_CPU
-static inline void
-remove_from_mtinfo(int cpu)
-{
-	int i;
-
-	for_each_cpu(i)
-		if (mt_info[i].valid &&  mt_info[i].socket_id ==
-		    				cpu_data(cpu)->socket_id)
-			mt_info[i].valid = 0;
-}
-
 static inline void
 clear_cpu_sibling_map(int cpu)
 {
@@ -626,15 +654,50 @@ remove_siblinginfo(int cpu)
 
 	/* remove it from all sibling map's */
 	clear_cpu_sibling_map(cpu);
-
-	/* if this cpu is the last in the core group, remove all its info 
-	 * from mt_info structure
-	 */
-	if (last)
-		remove_from_mtinfo(cpu);
 }
 
 extern void fixup_irqs(void);
+
+int migrate_platform_irqs(unsigned int cpu)
+{
+	int new_cpei_cpu;
+	irq_desc_t *desc = NULL;
+	cpumask_t 	mask;
+	int 		retval = 0;
+
+	/*
+	 * dont permit CPEI target to removed.
+	 */
+	if (cpe_vector > 0 && is_cpu_cpei_target(cpu)) {
+		printk ("CPU (%d) is CPEI Target\n", cpu);
+		if (can_cpei_retarget()) {
+			/*
+			 * Now re-target the CPEI to a different processor
+			 */
+			new_cpei_cpu = any_online_cpu(cpu_online_map);
+			mask = cpumask_of_cpu(new_cpei_cpu);
+			set_cpei_target_cpu(new_cpei_cpu);
+			desc = irq_descp(ia64_cpe_irq);
+			/*
+			 * Switch for now, immediatly, we need to do fake intr
+			 * as other interrupts, but need to study CPEI behaviour with
+			 * polling before making changes.
+			 */
+			if (desc) {
+				desc->handler->disable(ia64_cpe_irq);
+				desc->handler->set_affinity(ia64_cpe_irq, mask);
+				desc->handler->enable(ia64_cpe_irq);
+				printk ("Re-targetting CPEI to cpu %d\n", new_cpei_cpu);
+			}
+		}
+		if (!desc) {
+			printk ("Unable to retarget CPEI, offline cpu [%d] failed\n", cpu);
+			retval = -EBUSY;
+		}
+	}
+	return retval;
+}
+
 /* must be called with cpucontrol mutex held */
 int __cpu_disable(void)
 {
@@ -643,8 +706,17 @@ int __cpu_disable(void)
 	/*
 	 * dont permit boot processor for now
 	 */
-	if (cpu == 0)
-		return -EBUSY;
+	if (cpu == 0 && !bsp_remove_ok) {
+		printk ("Your platform does not support removal of BSP\n");
+		return (-EBUSY);
+	}
+
+	cpu_clear(cpu, cpu_online_map);
+
+	if (migrate_platform_irqs(cpu)) {
+		cpu_set(cpu, cpu_online_map);
+		return (-EBUSY);
+	}
 
 	remove_siblinginfo(cpu);
 	cpu_clear(cpu, cpu_online_map);
@@ -776,40 +848,6 @@ init_smp_config(void)
 		       ia64_sal_strerror(sal_ret));
 }
 
-static inline int __devinit
-check_for_mtinfo_index(void)
-{
-	int i;
-	
-	for_each_cpu(i)
-		if (!mt_info[i].valid)
-			return i;
-
-	return -1;
-}
-
-/*
- * Search the mt_info to find out if this socket's cid/tid information is
- * cached or not. If the socket exists, fill in the core_id and thread_id 
- * in cpuinfo
- */
-static int __devinit
-check_for_new_socket(__u16 logical_address, struct cpuinfo_ia64 *c)
-{
-	int i;
-	__u32 sid = c->socket_id;
-
-	for_each_cpu(i) {
-		if (mt_info[i].valid && mt_info[i].proc_fixed_addr == logical_address
-		    && mt_info[i].socket_id == sid) {
-			c->core_id = mt_info[i].core_id;
-			c->thread_id = mt_info[i].thread_id;
-			return 1; /* not a new socket */
-		}
-	}
-	return 0;
-}
-
 /*
  * identify_siblings(cpu) gets called from identify_cpu. This populates the 
  * information related to logical execution units in per_cpu_data structure.
@@ -819,14 +857,12 @@ identify_siblings(struct cpuinfo_ia64 *c)
 {
 	s64 status;
 	u16 pltid;
-	u64 proc_fixed_addr;
-	int count, i;
 	pal_logical_to_physical_t info;
 
 	if (smp_num_cpucores == 1 && smp_num_siblings == 1)
 		return;
 
-	if ((status = ia64_pal_logical_to_phys(0, &info)) != PAL_STATUS_SUCCESS) {
+	if ((status = ia64_pal_logical_to_phys(-1, &info)) != PAL_STATUS_SUCCESS) {
 		printk(KERN_ERR "ia64_pal_logical_to_phys failed with %ld\n",
 		       status);
 		return;
@@ -835,47 +871,12 @@ identify_siblings(struct cpuinfo_ia64 *c)
 		printk(KERN_ERR "ia64_sal_pltid failed with %ld\n", status);
 		return;
 	}
-	if ((status = ia64_pal_fixed_addr(&proc_fixed_addr)) != PAL_STATUS_SUCCESS) {
-		printk(KERN_ERR "ia64_pal_fixed_addr failed with %ld\n", status);
-		return;
-	}
 
 	c->socket_id =  (pltid << 8) | info.overview_ppid;
 	c->cores_per_socket = info.overview_cpp;
 	c->threads_per_core = info.overview_tpc;
-	count = c->num_log = info.overview_num_log;
+	c->num_log = info.overview_num_log;
 
-	/* If the thread and core id information is already cached, then
-	 * we will simply update cpu_info and return. Otherwise, we will
-	 * do the PAL calls and cache core and thread id's of all the siblings.
-	 */
-	if (check_for_new_socket(proc_fixed_addr, c))
-		return;
-
-	for (i = 0; i < count; i++) {
-		int index;
-
-		if (i && (status = ia64_pal_logical_to_phys(i, &info))
-			  != PAL_STATUS_SUCCESS) {
-                	printk(KERN_ERR "ia64_pal_logical_to_phys failed"
-					" with %ld\n", status);
-                	return;
-		}
-		if (info.log2_la == proc_fixed_addr) {
-			c->core_id = info.log1_cid;
-			c->thread_id = info.log1_tid;
-		}
-
-		index = check_for_mtinfo_index();
-		/* We will not do the mt_info caching optimization in this case.
-		 */
-		if (index < 0)
-			continue;
-
-		mt_info[index].valid = 1;
-		mt_info[index].socket_id = c->socket_id;
-		mt_info[index].core_id = info.log1_cid;
-		mt_info[index].thread_id = info.log1_tid;
-		mt_info[index].proc_fixed_addr = info.log2_la;
-	}
+	c->core_id = info.log1_cid;
+	c->thread_id = info.log1_tid;
 }

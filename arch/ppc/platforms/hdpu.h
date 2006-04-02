@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/hdpu.h
- *
  * Definitions for Sky Computers HDPU board.
  *
  * Brian Waite <waite@skycomputers.com>

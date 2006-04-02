@@ -71,12 +71,12 @@ struct dn_route {
 		struct dn_route *rt_next;
 	} u;
 
-	__u16 rt_saddr;
-	__u16 rt_daddr;
-	__u16 rt_gateway;
-	__u16 rt_local_src;	/* Source used for forwarding packets */
-	__u16 rt_src_map;
-	__u16 rt_dst_map;
+	__le16 rt_saddr;
+	__le16 rt_daddr;
+	__le16 rt_gateway;
+	__le16 rt_local_src;	/* Source used for forwarding packets */
+	__le16 rt_src_map;
+	__le16 rt_dst_map;
 
 	unsigned rt_flags;
 	unsigned rt_type;

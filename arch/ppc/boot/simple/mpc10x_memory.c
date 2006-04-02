@@ -1,6 +1,4 @@
 /*
- * arch/ppc/boot/common/mpc10x_common.c
- *
  * A routine to find out how much memory the machine has.
  *
  * Based on:
@@ -52,10 +50,10 @@ MPC10X_PCI_OP(read, dword, u32 *, in_le32, 0)
  * the system.  This assumes that the firmware has correctly set up the memory
  * controller registers.  On CONFIG_PPC_PREP, we know we are being called
  * under a PReP memory map. On all other machines, we assume we are under
- * a CHRP memory map.  Further, on CONFIG_PPC_MULTIPLATFORM we must rename
+ * a CHRP memory map.  Further, on CONFIG_PPC_PREP we must rename
  * this function.
  */
-#ifdef CONFIG_PPC_MULTIPLATFORM
+#ifdef CONFIG_PPC_PREP
 #define get_mem_size mpc10x_get_mem_size
 #endif
 unsigned long

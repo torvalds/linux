@@ -924,7 +924,7 @@ void input_unregister_handler(struct input_handler *handler)
 static int input_open_file(struct inode *inode, struct file *file)
 {
 	struct input_handler *handler = input_table[iminor(inode) >> 5];
-	struct file_operations *old_fops, *new_fops = NULL;
+	const struct file_operations *old_fops, *new_fops = NULL;
 	int err;
 
 	/* No load-on-demand here? */

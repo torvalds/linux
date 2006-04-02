@@ -94,6 +94,7 @@ target(struct sk_buff **pskb,
        const struct net_device *in,
        const struct net_device *out,
        unsigned int hooknum,
+       const struct xt_target *target,
        const void *targinfo,
        void *userinfo)
 {
@@ -114,24 +115,13 @@ target(struct sk_buff **pskb,
 static int
 checkentry(const char *tablename,
 	   const void *e_void,
+	   const struct xt_target *target,
            void *targinfo,
            unsigned int targinfosize,
            unsigned int hook_mask)
 {
 	const struct ipt_ECN_info *einfo = (struct ipt_ECN_info *)targinfo;
 	const struct ipt_entry *e = e_void;
-
-	if (targinfosize != IPT_ALIGN(sizeof(struct ipt_ECN_info))) {
-		printk(KERN_WARNING "ECN: targinfosize %u != %Zu\n",
-		       targinfosize,
-		       IPT_ALIGN(sizeof(struct ipt_ECN_info)));
-		return 0;
-	}
-
-	if (strcmp(tablename, "mangle") != 0) {
-		printk(KERN_WARNING "ECN: can only be called from \"mangle\" table, not \"%s\"\n", tablename);
-		return 0;
-	}
 
 	if (einfo->operation & IPT_ECN_OP_MASK) {
 		printk(KERN_WARNING "ECN: unsupported ECN operation %x\n",
@@ -143,33 +133,33 @@ checkentry(const char *tablename,
 			einfo->ip_ect);
 		return 0;
 	}
-
 	if ((einfo->operation & (IPT_ECN_OP_SET_ECE|IPT_ECN_OP_SET_CWR))
 	    && (e->ip.proto != IPPROTO_TCP || (e->ip.invflags & IPT_INV_PROTO))) {
 		printk(KERN_WARNING "ECN: cannot use TCP operations on a "
 		       "non-tcp rule\n");
 		return 0;
 	}
-
 	return 1;
 }
 
 static struct ipt_target ipt_ecn_reg = {
 	.name		= "ECN",
 	.target		= target,
+	.targetsize	= sizeof(struct ipt_ECN_info),
+	.table		= "mangle",
 	.checkentry	= checkentry,
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init ipt_ecn_init(void)
 {
 	return ipt_register_target(&ipt_ecn_reg);
 }
 
-static void __exit fini(void)
+static void __exit ipt_ecn_fini(void)
 {
 	ipt_unregister_target(&ipt_ecn_reg);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ipt_ecn_init);
+module_exit(ipt_ecn_fini);

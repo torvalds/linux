@@ -197,13 +197,15 @@ extern void __put_user_8(void);
 
 #define put_user(x,ptr)						\
 ({	int __ret_pu;						\
+	__typeof__(*(ptr)) __pu_val;				\
 	__chk_user_ptr(ptr);					\
+	__pu_val = x;						\
 	switch(sizeof(*(ptr))) {				\
-	case 1: __put_user_1(x, ptr); break;			\
-	case 2: __put_user_2(x, ptr); break;			\
-	case 4: __put_user_4(x, ptr); break;			\
-	case 8: __put_user_8(x, ptr); break;			\
-	default:__put_user_X(x, ptr); break;			\
+	case 1: __put_user_1(__pu_val, ptr); break;		\
+	case 2: __put_user_2(__pu_val, ptr); break;		\
+	case 4: __put_user_4(__pu_val, ptr); break;		\
+	case 8: __put_user_8(__pu_val, ptr); break;		\
+	default:__put_user_X(__pu_val, ptr); break;		\
 	}							\
 	__ret_pu;						\
 })

@@ -28,6 +28,7 @@
 #include <linux/i2c.h>
 #include <linux/hwmon.h>
 #include <linux/err.h>
+#include <linux/mutex.h>
 #include "lm75.h"
 
 /* Addresses to scan */
@@ -72,7 +73,7 @@ MODULE_PARM_DESC(polarity, "Output's polarity: 0 = active high, 1 = active low")
 struct ds1621_data {
 	struct i2c_client client;
 	struct class_device *class_dev;
-	struct semaphore update_lock;
+	struct mutex update_lock;
 	char valid;			/* !=0 if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
 
@@ -156,10 +157,10 @@ static ssize_t set_temp_##suffix(struct device *dev, struct device_attribute *at
 	struct ds1621_data *data = ds1621_update_client(dev);		\
 	u16 val = LM75_TEMP_TO_REG(simple_strtoul(buf, NULL, 10));	\
 									\
-	down(&data->update_lock);					\
+	mutex_lock(&data->update_lock);					\
 	data->value = val;						\
 	ds1621_write_value(client, reg, data->value);			\
-	up(&data->update_lock);						\
+	mutex_unlock(&data->update_lock);				\
 	return count;							\
 }
 
@@ -242,7 +243,7 @@ static int ds1621_detect(struct i2c_adapter *adapter, int address,
 	/* Fill in remaining client fields and put it into the global list */
 	strlcpy(new_client->name, "ds1621", I2C_NAME_SIZE);
 	data->valid = 0;
-	init_MUTEX(&data->update_lock);
+	mutex_init(&data->update_lock);
 
 	/* Tell the I2C layer a new client has arrived */
 	if ((err = i2c_attach_client(new_client)))
@@ -297,7 +298,7 @@ static struct ds1621_data *ds1621_update_client(struct device *dev)
 	struct ds1621_data *data = i2c_get_clientdata(client);
 	u8 new_conf;
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 
 	if (time_after(jiffies, data->last_updated + HZ + HZ / 2)
 	    || !data->valid) {
@@ -327,7 +328,7 @@ static struct ds1621_data *ds1621_update_client(struct device *dev)
 		data->valid = 1;
 	}
 
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 
 	return data;
 }

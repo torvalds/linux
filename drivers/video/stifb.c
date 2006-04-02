@@ -3,7 +3,7 @@
  * Low level Frame buffer driver for HP workstations with 
  * STI (standard text interface) video firmware.
  *
- * Copyright (C) 2001-2005 Helge Deller <deller@gmx.de>
+ * Copyright (C) 2001-2006 Helge Deller <deller@gmx.de>
  * Portions Copyright (C) 2001 Thomas Bogendoerfer <tsbogend@alpha.franken.de>
  * 
  * Based on:
@@ -514,7 +514,7 @@ rattlerSetupPlanes(struct stifb_info *fb)
 	SETUP_HW(fb);
 	WRITE_BYTE(1, fb, REG_16b1);
 
-	fb_memset(fb->info.fix.smem_start, 0xff,
+	fb_memset((void*)fb->info.fix.smem_start, 0xff,
 		fb->info.var.yres*fb->info.fix.line_length);
     
 	CRX24_SET_OVLY_MASK(fb);
@@ -908,83 +908,6 @@ SETUP_HCRX(struct stifb_info *fb)
 
 /* ------------------- driver specific functions --------------------------- */
 
-#define TMPBUFLEN 2048
-
-static ssize_t
-stifb_read(struct file *file, char *buf, size_t count, loff_t *ppos)
-{
-	unsigned long p = *ppos;
-	struct inode *inode = file->f_dentry->d_inode;
-	int fbidx = iminor(inode);
-	struct fb_info *info = registered_fb[fbidx];
-	char tmpbuf[TMPBUFLEN];
-
-	if (!info || ! info->screen_base)
-		return -ENODEV;
-
-	if (p >= info->fix.smem_len)
-	    return 0;
-	if (count >= info->fix.smem_len)
-	    count = info->fix.smem_len;
-	if (count + p > info->fix.smem_len)
-		count = info->fix.smem_len - p;
-	if (count > sizeof(tmpbuf))
-		count = sizeof(tmpbuf);
-	if (count) {
-	    char *base_addr;
-
-	    base_addr = info->screen_base;
-	    memcpy_fromio(&tmpbuf, base_addr+p, count);
-	    count -= copy_to_user(buf, &tmpbuf, count);
-	    if (!count)
-		return -EFAULT;
-	    *ppos += count;
-	}
-	return count;
-}
-
-static ssize_t
-stifb_write(struct file *file, const char *buf, size_t count, loff_t *ppos)
-{
-	struct inode *inode = file->f_dentry->d_inode;
-	int fbidx = iminor(inode);
-	struct fb_info *info = registered_fb[fbidx];
-	unsigned long p = *ppos;
-	size_t c;
-	int err;
-	char tmpbuf[TMPBUFLEN];
-
-	if (!info || !info->screen_base)
-		return -ENODEV;
-
-	if (p > info->fix.smem_len)
-	    return -ENOSPC;
-	if (count >= info->fix.smem_len)
-	    count = info->fix.smem_len;
-	err = 0;
-	if (count + p > info->fix.smem_len) {
-	    count = info->fix.smem_len - p;
-	    err = -ENOSPC;
-	}
-
-	p += (unsigned long)info->screen_base;
-	c = count;
-	while (c) {
-	    int len = c > sizeof(tmpbuf) ? sizeof(tmpbuf) : c;
-	    err = -EFAULT;
-	    if (copy_from_user(&tmpbuf, buf, len))
-		    break;
-	    memcpy_toio(p, &tmpbuf, len);
-	    c -= len;
-	    p += len;
-	    buf += len;
-	    *ppos += len;
-	}
-	if (count-c)
-		return (count-c);
-	return err;
-}
-
 static int
 stifb_setcolreg(u_int regno, u_int red, u_int green,
 	      u_int blue, u_int transp, struct fb_info *info)
@@ -1137,8 +1060,6 @@ stifb_init_display(struct stifb_info *fb)
 
 static struct fb_ops stifb_ops = {
 	.owner		= THIS_MODULE,
-	.fb_read	= stifb_read,
-	.fb_write	= stifb_write,
 	.fb_setcolreg	= stifb_setcolreg,
 	.fb_blank	= stifb_blank,
 	.fb_fillrect	= cfb_fillrect,
@@ -1162,7 +1083,7 @@ stifb_init_fb(struct sti_struct *sti, int bpp_pref)
 	char *dev_name;
 	int bpp, xres, yres;
 
-	fb = kmalloc(sizeof(*fb), GFP_ATOMIC);
+	fb = kzalloc(sizeof(*fb), GFP_ATOMIC);
 	if (!fb) {
 		printk(KERN_ERR "stifb: Could not allocate stifb structure\n");
 		return -ENODEV;
@@ -1171,7 +1092,6 @@ stifb_init_fb(struct sti_struct *sti, int bpp_pref)
 	info = &fb->info;
 
 	/* set struct to a known state */
-	memset(fb, 0, sizeof(*fb));
 	fix = &info->fix;
 	var = &info->var;
 
@@ -1234,7 +1154,7 @@ stifb_init_fb(struct sti_struct *sti, int bpp_pref)
 	case S9000_ID_TOMCAT:	/* Dual CRX, behaves else like a CRX */
 		/* FIXME: TomCat supports two heads:
 		 * fb.iobase = REGION_BASE(fb_info,3);
-		 * fb.screen_base = (void*) REGION_BASE(fb_info,2);
+		 * fb.screen_base = ioremap_nocache(REGION_BASE(fb_info,2),xxx);
 		 * for now we only support the left one ! */
 		xres = fb->ngle_rom.x_size_visible;
 		yres = fb->ngle_rom.y_size_visible;
@@ -1327,7 +1247,8 @@ stifb_init_fb(struct sti_struct *sti, int bpp_pref)
 
 	strcpy(fix->id, "stifb");
 	info->fbops = &stifb_ops;
-	info->screen_base = (void*) REGION_BASE(fb,1);
+	info->screen_base = ioremap_nocache(REGION_BASE(fb,1), fix->smem_len);
+	info->screen_size = fix->smem_len;
 	info->flags = FBINFO_DEFAULT;
 	info->pseudo_palette = &fb->pseudo_palette;
 
@@ -1457,7 +1378,7 @@ stifb_setup(char *options)
 	int i;
 	
 	if (!options || !*options)
-		return 0;
+		return 1;
 	
 	if (strncmp(options, "off", 3) == 0) {
 		stifb_disabled = 1;
@@ -1472,7 +1393,7 @@ stifb_setup(char *options)
 			stifb_bpp_pref[i] = simple_strtoul(options, &options, 10);
 		}
 	}
-	return 0;
+	return 1;
 }
 
 __setup("stifb=", stifb_setup);

@@ -80,7 +80,8 @@ static int init_inodecache(void)
 {
 	smb_inode_cachep = kmem_cache_create("smb_inode_cache",
 					     sizeof(struct smb_inode_info),
-					     0, SLAB_RECLAIM_ACCOUNT,
+					     0, (SLAB_RECLAIM_ACCOUNT|
+						SLAB_MEM_SPREAD),
 					     init_once, NULL);
 	if (smb_inode_cachep == NULL)
 		return -ENOMEM;
@@ -216,7 +217,7 @@ smb_set_inode_attr(struct inode *inode, struct smb_fattr *fattr)
 	if (inode->i_mtime.tv_sec != last_time || inode->i_size != last_sz) {
 		VERBOSE("%ld changed, old=%ld, new=%ld, oz=%ld, nz=%ld\n",
 			inode->i_ino,
-			(long) last_time, (long) inode->i_mtime,
+			(long) last_time, (long) inode->i_mtime.tv_sec,
 			(long) last_sz, (long) inode->i_size);
 
 		if (!S_ISDIR(inode->i_mode))

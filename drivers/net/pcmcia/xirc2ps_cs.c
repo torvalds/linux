@@ -208,7 +208,7 @@ enum xirc_cmd { 	    /* Commands */
 #define XIRCREG45_REV	 15 /* Revision Register (rd) */
 #define XIRCREG50_IA	8   /* Individual Address (8-13) */
 
-static char *if_names[] = { "Auto", "10BaseT", "10Base2", "AUI", "100BaseT" };
+static const char *if_names[] = { "Auto", "10BaseT", "10Base2", "AUI", "100BaseT" };
 
 /****************
  * All the PCMCIA modules use PCMCIA_DEBUG to control debugging.  If
@@ -1973,7 +1973,7 @@ static int __init setup_xirc2ps_cs(char *str)
 	MAYBE_SET(lockup_hack, 6);
 #undef  MAYBE_SET
 
-	return 0;
+	return 1;
 }
 
 __setup("xirc2ps_cs=", setup_xirc2ps_cs);

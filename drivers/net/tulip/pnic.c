@@ -16,6 +16,7 @@
 
 #include <linux/kernel.h>
 #include <linux/pci.h>
+#include <linux/jiffies.h>
 #include "tulip.h"
 
 
@@ -68,7 +69,7 @@ void pnic_lnk_change(struct net_device *dev, int csr5)
 		 */
 		if (tulip_media_cap[dev->if_port] & MediaIsMII)
 			return;
-		if (! tp->nwayset  ||  jiffies - dev->trans_start > 1*HZ) {
+		if (! tp->nwayset  ||  time_after(jiffies, dev->trans_start + 1*HZ)) {
 			tp->csr6 = 0x00420000 | (tp->csr6 & 0x0000fdff);
 			iowrite32(tp->csr6, ioaddr + CSR6);
 			iowrite32(0x30, ioaddr + CSR12);
