@@ -29,7 +29,7 @@
 #define __LIBATA_H__
 
 #define DRV_NAME	"libata"
-#define DRV_VERSION	"1.20"	/* must be exactly four chars */
+#define DRV_VERSION	"1.30"	/* must be exactly four chars */
 
 struct ata_scsi_args {
 	struct ata_port		*ap;

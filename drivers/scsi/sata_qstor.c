@@ -41,7 +41,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"sata_qstor"
-#define DRV_VERSION	"0.05"
+#define DRV_VERSION	"0.06"
 
 enum {
 	QS_PORTS		= 4,

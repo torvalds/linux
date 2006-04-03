@@ -43,7 +43,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"sata_sis"
-#define DRV_VERSION	"0.5"
+#define DRV_VERSION	"0.6"
 
 enum {
 	sis_180			= 0,
