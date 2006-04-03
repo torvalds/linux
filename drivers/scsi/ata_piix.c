@@ -93,7 +93,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"ata_piix"
-#define DRV_VERSION	"1.05"
+#define DRV_VERSION	"1.10"
 
 enum {
 	PIIX_IOCFG		= 0x54, /* IDE I/O configuration register */

@@ -54,7 +54,7 @@
 #endif /* CONFIG_PPC_OF */
 
 #define DRV_NAME	"sata_svw"
-#define DRV_VERSION	"1.07"
+#define DRV_VERSION	"1.8"
 
 enum {
 	/* Taskfile registers offsets */
