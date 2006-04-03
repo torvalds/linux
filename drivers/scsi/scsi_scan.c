@@ -872,6 +872,8 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 	if (scsi_probe_lun(sdev, result, result_len, &bflags))
 		goto out_free_result;
 
+	if (bflagsp)
+		*bflagsp = bflags;
 	/*
 	 * result contains valid SCSI INQUIRY data.
 	 */
@@ -912,8 +914,6 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 			sdev->lockable = 0;
 			scsi_unlock_floptical(sdev, result);
 		}
-		if (bflagsp)
-			*bflagsp = bflags;
 	}
 
  out_free_result:
@@ -938,7 +938,6 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
  * scsi_sequential_lun_scan - sequentially scan a SCSI target
  * @starget:	pointer to target structure to scan
  * @bflags:	black/white list flag for LUN 0
- * @lun0_res:	result of scanning LUN 0
  *
  * Description:
  *     Generally, scan from LUN 1 (LUN 0 is assumed to already have been
@@ -948,8 +947,7 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
  *     Modifies sdevscan->lun.
  **/
 static void scsi_sequential_lun_scan(struct scsi_target *starget,
-				     int bflags, int lun0_res, int scsi_level,
-				     int rescan)
+				     int bflags, int scsi_level, int rescan)
 {
 	unsigned int sparse_lun, lun, max_dev_lun;
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
@@ -968,13 +966,6 @@ static void scsi_sequential_lun_scan(struct scsi_target *starget,
 		sparse_lun = 1;
 	} else
 		sparse_lun = 0;
-
-	/*
-	 * If not sparse lun and no device attached at LUN 0 do not scan
-	 * any further.
-	 */
-	if (!sparse_lun && (lun0_res != SCSI_SCAN_LUN_PRESENT))
-		return;
 
 	/*
 	 * If less than SCSI_1_CSS, and no special lun scaning, stop
@@ -1384,7 +1375,7 @@ static void __scsi_scan_target(struct device *parent, unsigned int channel,
 			 * do a sequential scan.
 			 */
 			scsi_sequential_lun_scan(starget, bflags,
-				       	res, starget->scsi_level, rescan);
+						 starget->scsi_level, rescan);
 	}
 
  out_reap:
