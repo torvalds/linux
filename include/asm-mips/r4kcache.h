@@ -37,7 +37,7 @@
 	"	cache	%0, %1					\n"	\
 	"	.set	pop					\n"	\
 	:								\
-	: "i" (op), "m" (*(unsigned char *)(addr)))
+	: "i" (op), "R" (*(unsigned char *)(addr)))
 
 static inline void flush_icache_line_indexed(unsigned long addr)
 {
