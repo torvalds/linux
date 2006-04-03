@@ -3,7 +3,7 @@
 
    Copyright (C) 2005 Markus Rechberger <mrechberger@gmail.com>
 		      Ludovico Cavedon <cavedon@sssup.it>
-		      Mauro Carvalho Chehab <mchehab@brturbo.com.br>
+		      Mauro Carvalho Chehab <mchehab@infradead.org>
 
    Based on the em2800 driver from Sascha Sommer <saschasommer@freenet.de>
 

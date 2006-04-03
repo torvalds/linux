@@ -3,7 +3,7 @@
 
    Copyright (C) 2005 Ludovico Cavedon <cavedon@sssup.it>
 		      Markus Rechberger <mrechberger@gmail.com>
-		      Mauro Carvalho Chehab <mchehab@brturbo.com.br>
+		      Mauro Carvalho Chehab <mchehab@infradead.org>
 		      Sascha Sommer <saschasommer@freenet.de>
 
 	Some parts based on SN9C10x PC Camera Controllers GPL driver made
@@ -42,7 +42,7 @@
 
 #define DRIVER_AUTHOR "Ludovico Cavedon <cavedon@sssup.it>, " \
 		      "Markus Rechberger <mrechberger@gmail.com>, " \
-		      "Mauro Carvalho Chehab <mchehab@brturbo.com.br>, " \
+		      "Mauro Carvalho Chehab <mchehab@infradead.org>, " \
 		      "Sascha Sommer <saschasommer@freenet.de>"
 
 #define DRIVER_NAME         "em28xx"

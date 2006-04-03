@@ -2762,7 +2762,7 @@ struct tvcard bttv_tvcards[] = {
 	},
 		/* ---- card 0x88---------------------------------- */
 	[BTTV_BOARD_ACORP_Y878F] = {
-		/* Mauro Carvalho Chehab <mchehab@brturbo.com.br> */
+		/* Mauro Carvalho Chehab <mchehab@infradead.org> */
 		.name		= "Acorp Y878F",
 		.video_inputs	= 3,
 		.audio_inputs	= 1,

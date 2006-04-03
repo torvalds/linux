@@ -4,7 +4,7 @@
  *  PCI function #1 of the cx2388x.
  *
  *    (c) 2005,2006 Ricardo Cerqueira <v4l@cerqueira.org>
- *    (c) 2005 Mauro Carvalho Chehab <mchehab@brturbo.com.br>
+ *    (c) 2005 Mauro Carvalho Chehab <mchehab@infradead.org>
  *    Based on a dummy cx88 module by Gerd Knorr <kraxel@bytesex.org>
  *    Based on dummy.c by Jaroslav Kysela <perex@suse.cz>
  *
@@ -111,7 +111,7 @@ MODULE_PARM_DESC(index, "Index value for cx88x capture interface(s).");
 
 MODULE_DESCRIPTION("ALSA driver module for cx2388x based TV cards");
 MODULE_AUTHOR("Ricardo Cerqueira");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@brturbo.com.br>");
+MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{Conexant,23881},"
 			"{{Conexant,23882},"
