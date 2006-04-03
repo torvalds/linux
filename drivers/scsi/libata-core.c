@@ -4043,8 +4043,8 @@ fsm_start:
 		}
 
 		/* no more data to transfer */
-		DPRINTK("ata%u: command complete, drv_stat 0x%x\n",
-			ap->id, status);
+		DPRINTK("ata%u: dev %u command complete, drv_stat 0x%x\n",
+			ap->id, qc->dev->devno, status);
 
 		WARN_ON(qc->err_mask);
 
@@ -4061,8 +4061,8 @@ fsm_start:
 
 	case HSM_ST_ERR:
 		if (qc->tf.command != ATA_CMD_PACKET)
-			printk(KERN_ERR "ata%u: command error, drv_stat 0x%x\n",
-			       ap->id, status);
+			printk(KERN_ERR "ata%u: dev %u command error, drv_stat 0x%x\n",
+			       ap->id, qc->dev->devno, status);
 
 		/* make sure qc->err_mask is available to
 		 * know what's wrong and recover
