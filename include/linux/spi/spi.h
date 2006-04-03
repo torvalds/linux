@@ -35,10 +35,13 @@ extern struct bus_type spi_bus_type;
  * @chip-select: Chipselect, distinguishing chips handled by "master".
  * @mode: The spi mode defines how data is clocked out and in.
  *	This may be changed by the device's driver.
+ *	The "active low" default for chipselect mode can be overridden,
+ *	as can the "MSB first" default for each word in a transfer.
  * @bits_per_word: Data transfers involve one or more words; word sizes
  *	like eight or 12 bits are common.  In-memory wordsizes are
  *	powers of two bytes (e.g. 20 bit samples use 32 bits).
- *	This may be changed by the device's driver.
+ *	This may be changed by the device's driver, or left at the
+ *	default (0) indicating protocol words are eight bit bytes.
  *	The spi_transfer.bits_per_word can override this for each transfer.
  * @irq: Negative, or the number passed to request_irq() to receive
  *	interrupts from this device.
@@ -67,6 +70,7 @@ struct spi_device {
 #define	SPI_MODE_2	(SPI_CPOL|0)
 #define	SPI_MODE_3	(SPI_CPOL|SPI_CPHA)
 #define	SPI_CS_HIGH	0x04			/* chipselect active high? */
+#define	SPI_LSB_FIRST	0x08			/* per-word bits-on-wire */
 	u8			bits_per_word;
 	int			irq;
 	void			*controller_state;
@@ -75,7 +79,6 @@ struct spi_device {
 
 	// likely need more hooks for more protocol options affecting how
 	// the controller talks to each chip, like:
-	//  - bit order (default is wordwise msb-first)
 	//  - memory packing (12 bit samples into low bits, others zeroed)
 	//  - priority
 	//  - drop chipselect after each word

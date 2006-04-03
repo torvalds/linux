@@ -187,13 +187,22 @@ int spi_bitbang_setup(struct spi_device *spi)
 	if (!spi->max_speed_hz)
 		return -EINVAL;
 
+	bitbang = spi_master_get_devdata(spi->master);
+
+	/* REVISIT: some systems will want to support devices using lsb-first
+	 * bit encodings on the wire.  In pure software that would be trivial,
+	 * just bitbang_txrx_le_cphaX() routines shifting the other way, and
+	 * some hardware controllers also have this support.
+	 */
+	if ((spi->mode & SPI_LSB_FIRST) != 0)
+		return -EINVAL;
+
 	if (!cs) {
 		cs = kzalloc(sizeof *cs, SLAB_KERNEL);
 		if (!cs)
 			return -ENOMEM;
 		spi->controller_state = cs;
 	}
-	bitbang = spi_master_get_devdata(spi->master);
 
 	if (!spi->bits_per_word)
 		spi->bits_per_word = 8;
