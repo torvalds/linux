@@ -395,7 +395,7 @@ EXPORT_SYMBOL_GPL(spi_alloc_master);
 int __init_or_module
 spi_register_master(struct spi_master *master)
 {
-	static atomic_t		dyn_bus_id = ATOMIC_INIT(0);
+	static atomic_t		dyn_bus_id = ATOMIC_INIT((1<<16) - 1);
 	struct device		*dev = master->cdev.dev;
 	int			status = -ENODEV;
 	int			dynamic = 0;
@@ -404,7 +404,7 @@ spi_register_master(struct spi_master *master)
 		return -ENODEV;
 
 	/* convention:  dynamically assigned bus IDs count down from the max */
-	if (master->bus_num == 0) {
+	if (master->bus_num < 0) {
 		master->bus_num = atomic_dec_return(&dyn_bus_id);
 		dynamic = 1;
 	}

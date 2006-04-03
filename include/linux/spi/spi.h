@@ -172,13 +172,13 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
 struct spi_master {
 	struct class_device	cdev;
 
-	/* other than zero (== assign one dynamically), bus_num is fully
+	/* other than negative (== assign one dynamically), bus_num is fully
 	 * board-specific.  usually that simplifies to being SOC-specific.
-	 * example:  one SOC has three SPI controllers, numbered 1..3,
+	 * example:  one SOC has three SPI controllers, numbered 0..2,
 	 * and one board's schematics might show it using SPI-2.  software
 	 * would normally use bus_num=2 for that controller.
 	 */
-	u16			bus_num;
+	s16			bus_num;
 
 	/* chipselects will be integral to many controllers; some others
 	 * might use board-specific GPIOs.
