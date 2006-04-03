@@ -22,6 +22,7 @@
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/bootmem.h>
+#include <linux/pfn.h>
 #include <linux/string.h>
 
 #include <asm/bootinfo.h>
@@ -104,10 +105,10 @@ struct prom_pmemblock * __init prom_getmdesc(void)
 
 	mdesc[3].type = yamon_dontuse;
 	mdesc[3].base = 0x00100000;
-	mdesc[3].size = CPHYSADDR(PAGE_ALIGN((unsigned long)&_end)) - mdesc[3].base;
+	mdesc[3].size = CPHYSADDR(PFN_ALIGN((unsigned long)&_end)) - mdesc[3].base;
 
 	mdesc[4].type = yamon_free;
-	mdesc[4].base = CPHYSADDR(PAGE_ALIGN(&_end));
+	mdesc[4].base = CPHYSADDR(PFN_ALIGN(&_end));
 	mdesc[4].size = memsize - mdesc[4].base;
 
 	return &mdesc[0];
