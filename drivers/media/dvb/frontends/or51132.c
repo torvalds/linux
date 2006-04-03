@@ -183,7 +183,7 @@ static int or51132_load_firmware (struct dvb_frontend* fe, const struct firmware
 
 	for(i=0;i<4;i++) {
 		msleep(20); /* 20ms */
-		/* One apon a time, this command might have had something
+		/* Once upon a time, this command might have had something
 		   to do with getting the firmware version, but it's
 		   not used anymore:
 		   {0x04,0x00,0x30,0x00,i+1} */
