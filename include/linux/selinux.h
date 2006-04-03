@@ -15,6 +15,7 @@
 
 struct selinux_audit_rule;
 struct audit_context;
+struct inode;
 
 #ifdef CONFIG_SECURITY_SELINUX
 
@@ -76,6 +77,27 @@ void selinux_audit_set_callback(int (*callback)(void));
  */
 void selinux_task_ctxid(struct task_struct *tsk, u32 *ctxid);
 
+/**
+ *     selinux_ctxid_to_string - map a security context ID to a string
+ *     @ctxid: security context ID to be converted.
+ *     @ctx: address of context string to be returned
+ *     @ctxlen: length of returned context string.
+ *
+ *     Returns 0 if successful, -errno if not.  On success, the context
+ *     string will be allocated internally, and the caller must call
+ *     kfree() on it after use.
+ */
+int selinux_ctxid_to_string(u32 ctxid, char **ctx, u32 *ctxlen);
+
+/**
+ *     selinux_get_inode_sid - get the inode's security context ID
+ *     @inode: inode structure to get the sid from.
+ *     @sid: pointer to security context ID to be filled in.
+ *
+ *     Returns nothing
+ */
+void selinux_get_inode_sid(const struct inode *inode, u32 *sid);
+
 #else
 
 static inline int selinux_audit_rule_init(u32 field, u32 op,
@@ -105,6 +127,18 @@ static inline void selinux_audit_set_callback(int (*callback)(void))
 static inline void selinux_task_ctxid(struct task_struct *tsk, u32 *ctxid)
 {
 	*ctxid = 0;
+}
+
+static inline int selinux_ctxid_to_string(u32 ctxid, char **ctx, u32 *ctxlen)
+{
+       *ctx = NULL;
+       *ctxlen = 0;
+       return 0;
+}
+
+static inline void selinux_get_inode_sid(const struct inode *inode, u32 *sid)
+{
+	*sid = 0;
 }
 
 #endif	/* CONFIG_SECURITY_SELINUX */

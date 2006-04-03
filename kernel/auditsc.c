@@ -90,7 +90,7 @@ struct audit_names {
 	uid_t		uid;
 	gid_t		gid;
 	dev_t		rdev;
-	char		*ctx;
+	u32		osid;
 };
 
 struct audit_aux_data {
@@ -410,9 +410,6 @@ static inline void audit_free_names(struct audit_context *context)
 #endif
 
 	for (i = 0; i < context->name_count; i++) {
-		char *p = context->names[i].ctx;
-		context->names[i].ctx = NULL;
-		kfree(p);
 		if (context->names[i].name)
 			__putname(context->names[i].name);
 	}
@@ -674,6 +671,7 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 		}
 	}
 	for (i = 0; i < context->name_count; i++) {
+		int call_panic = 0;
 		unsigned long ino  = context->names[i].ino;
 		unsigned long pino = context->names[i].pino;
 
@@ -703,12 +701,22 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 					 context->names[i].gid, 
 					 MAJOR(context->names[i].rdev), 
 					 MINOR(context->names[i].rdev));
-		if (context->names[i].ctx) {
-			audit_log_format(ab, " obj=%s",
-					context->names[i].ctx);
+		if (context->names[i].osid != 0) {
+			char *ctx = NULL;
+			u32 len;
+			if (selinux_ctxid_to_string(
+				context->names[i].osid, &ctx, &len)) {
+				audit_log_format(ab, " obj=%u",
+						context->names[i].osid);
+				call_panic = 1;
+			} else
+				audit_log_format(ab, " obj=%s", ctx);
+			kfree(ctx);
 		}
 
 		audit_log_end(ab);
+		if (call_panic)
+			audit_panic("error converting sid to string");
 	}
 }
 
@@ -946,37 +954,8 @@ void audit_putname(const char *name)
 void audit_inode_context(int idx, const struct inode *inode)
 {
 	struct audit_context *context = current->audit_context;
-	const char *suffix = security_inode_xattr_getsuffix();
-	char *ctx = NULL;
-	int len = 0;
 
-	if (!suffix)
-		goto ret;
-
-	len = security_inode_getsecurity(inode, suffix, NULL, 0, 0);
-	if (len == -EOPNOTSUPP)
-		goto ret;
-	if (len < 0) 
-		goto error_path;
-
-	ctx = kmalloc(len, GFP_KERNEL);
-	if (!ctx) 
-		goto error_path;
-
-	len = security_inode_getsecurity(inode, suffix, ctx, len, 0);
-	if (len < 0)
-		goto error_path;
-
-	kfree(context->names[idx].ctx);
-	context->names[idx].ctx = ctx;
-	goto ret;
-
-error_path:
-	if (ctx)
-		kfree(ctx);
-	audit_panic("error in audit_inode_context");
-ret:
-	return;
+	selinux_get_inode_sid(inode, &context->names[idx].osid);
 }
 
 
