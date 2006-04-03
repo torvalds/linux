@@ -232,8 +232,8 @@ static void anubis_nand_select(struct s3c2410_nand_set *set, int slot)
 
 static struct s3c2410_platform_nand anubis_nand_info = {
 	.tacls		= 25,
-	.twrph0		= 80,
-	.twrph1		= 80,
+	.twrph0		= 55,
+	.twrph1		= 40,
 	.nr_sets	= ARRAY_SIZE(anubis_nand_sets),
 	.sets		= anubis_nand_sets,
 	.select_chip	= anubis_nand_select,

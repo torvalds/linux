@@ -356,7 +356,7 @@ config PCI_HERMES
 
 config ATMEL
       tristate "Atmel at76c50x chipset  802.11b support"
-      depends on NET_RADIO
+      depends on NET_RADIO && (PCI || PCMCIA)
       select FW_LOADER
       select CRC32
        ---help---

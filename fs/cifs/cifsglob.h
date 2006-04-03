@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/cifsglob.h
  *
- *   Copyright (C) International Business Machines  Corp., 2002,2005
+ *   Copyright (C) International Business Machines  Corp., 2002,2006
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   This library is free software; you can redistribute it and/or modify
@@ -429,6 +429,15 @@ struct dir_notify_req {
 #define   CIFS_SMALL_BUFFER     1
 #define   CIFS_LARGE_BUFFER     2
 #define   CIFS_IOVEC            4    /* array of response buffers */
+
+/* Type of session setup needed */
+#define   CIFS_PLAINTEXT	0
+#define   CIFS_LANMAN		1
+#define   CIFS_NTLM		2
+#define   CIFS_NTLMSSP_NEG	3
+#define   CIFS_NTLMSSP_AUTH	4
+#define   CIFS_SPNEGO_INIT	5
+#define   CIFS_SPNEGO_TARG	6
 
 /*
  *****************************************************************

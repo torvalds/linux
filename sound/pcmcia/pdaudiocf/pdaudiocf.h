@@ -116,7 +116,7 @@ struct snd_pdacf {
 	void *pcm_area;
 	
 	/* pcmcia stuff */
-	dev_link_t link;
+	struct pcmcia_device	*p_dev;
 	dev_node_t node;
 };
 

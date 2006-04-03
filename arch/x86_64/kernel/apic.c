@@ -615,7 +615,7 @@ static int __init apic_set_verbosity(char *str)
 		printk(KERN_WARNING "APIC Verbosity level %s not recognised"
 				" use apic=verbose or apic=debug", str);
 
-	return 0;
+	return 1;
 }
 
 __setup("apic=", apic_set_verbosity);
@@ -1137,35 +1137,35 @@ int __init APIC_init_uniprocessor (void)
 static __init int setup_disableapic(char *str) 
 { 
 	disable_apic = 1;
-	return 0;
+	return 1;
 } 
 
 static __init int setup_nolapic(char *str) 
 { 
 	disable_apic = 1;
-	return 0;
+	return 1;
 } 
 
 static __init int setup_noapictimer(char *str) 
 { 
 	if (str[0] != ' ' && str[0] != 0)
-		return -1;
+		return 0;
 	disable_apic_timer = 1;
-	return 0;
+	return 1;
 } 
 
 static __init int setup_apicmaintimer(char *str)
 {
 	apic_runs_main_timer = 1;
 	nohpet = 1;
-	return 0;
+	return 1;
 }
 __setup("apicmaintimer", setup_apicmaintimer);
 
 static __init int setup_noapicmaintimer(char *str)
 {
 	apic_runs_main_timer = -1;
-	return 0;
+	return 1;
 }
 __setup("noapicmaintimer", setup_noapicmaintimer);
 

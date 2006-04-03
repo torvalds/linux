@@ -183,7 +183,7 @@ fill_write_buffer(struct sysfs_buffer * buffer, const char __user * buf, size_t 
 		return -ENOMEM;
 
 	if (count >= PAGE_SIZE)
-		count = PAGE_SIZE;
+		count = PAGE_SIZE - 1;
 	error = copy_from_user(buffer->page,buf,count);
 	buffer->needs_read_fill = 1;
 	return error ? -EFAULT : count;

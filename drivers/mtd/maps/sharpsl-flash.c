@@ -49,8 +49,6 @@ static struct mtd_partition sharpsl_partitions[1] = {
 	}
 };
 
-#define NB_OF(x)  (sizeof(x)/sizeof(x[0]))
-
 int __init init_sharpsl(void)
 {
 	struct mtd_partition *parts;
@@ -92,7 +90,7 @@ int __init init_sharpsl(void)
 	}
 
 	parts = sharpsl_partitions;
-	nb_parts = NB_OF(sharpsl_partitions);
+	nb_parts = ARRAY_SIZE(sharpsl_partitions);
 
 	printk(KERN_NOTICE "Using %s partision definition\n", part_type);
 	add_mtd_partitions(mymtd, parts, nb_parts);

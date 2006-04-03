@@ -33,7 +33,6 @@
 #include <linux/module.h>
 #include <linux/timer.h>
 #include <linux/dmi.h>
-#include <linux/mutex.h>
 #include <asm/io.h>
 
 #define HDAPS_LOW_PORT		0x1600	/* first port used by hdaps */
@@ -71,10 +70,10 @@ static u8 km_activity;
 static int rest_x;
 static int rest_y;
 
-static DEFINE_MUTEX(hdaps_mutex);
+static DECLARE_MUTEX(hdaps_sem);
 
 /*
- * __get_latch - Get the value from a given port.  Callers must hold hdaps_mutex.
+ * __get_latch - Get the value from a given port.  Callers must hold hdaps_sem.
  */
 static inline u8 __get_latch(u16 port)
 {
@@ -83,7 +82,7 @@ static inline u8 __get_latch(u16 port)
 
 /*
  * __check_latch - Check a port latch for a given value.  Returns zero if the
- * port contains the given value.  Callers must hold hdaps_mutex.
+ * port contains the given value.  Callers must hold hdaps_sem.
  */
 static inline int __check_latch(u16 port, u8 val)
 {
@@ -94,7 +93,7 @@ static inline int __check_latch(u16 port, u8 val)
 
 /*
  * __wait_latch - Wait up to 100us for a port latch to get a certain value,
- * returning zero if the value is obtained.  Callers must hold hdaps_mutex.
+ * returning zero if the value is obtained.  Callers must hold hdaps_sem.
  */
 static int __wait_latch(u16 port, u8 val)
 {
@@ -111,7 +110,7 @@ static int __wait_latch(u16 port, u8 val)
 
 /*
  * __device_refresh - request a refresh from the accelerometer.  Does not wait
- * for refresh to complete.  Callers must hold hdaps_mutex.
+ * for refresh to complete.  Callers must hold hdaps_sem.
  */
 static void __device_refresh(void)
 {
@@ -125,7 +124,7 @@ static void __device_refresh(void)
 /*
  * __device_refresh_sync - request a synchronous refresh from the
  * accelerometer.  We wait for the refresh to complete.  Returns zero if
- * successful and nonzero on error.  Callers must hold hdaps_mutex.
+ * successful and nonzero on error.  Callers must hold hdaps_sem.
  */
 static int __device_refresh_sync(void)
 {
@@ -135,7 +134,7 @@ static int __device_refresh_sync(void)
 
 /*
  * __device_complete - indicate to the accelerometer that we are done reading
- * data, and then initiate an async refresh.  Callers must hold hdaps_mutex.
+ * data, and then initiate an async refresh.  Callers must hold hdaps_sem.
  */
 static inline void __device_complete(void)
 {
@@ -153,7 +152,7 @@ static int hdaps_readb_one(unsigned int port, u8 *val)
 {
 	int ret;
 
-	mutex_lock(&hdaps_mutex);
+	down(&hdaps_sem);
 
 	/* do a sync refresh -- we need to be sure that we read fresh data */
 	ret = __device_refresh_sync();
@@ -164,7 +163,7 @@ static int hdaps_readb_one(unsigned int port, u8 *val)
 	__device_complete();
 
 out:
-	mutex_unlock(&hdaps_mutex);
+	up(&hdaps_sem);
 	return ret;
 }
 
@@ -199,9 +198,9 @@ static int hdaps_read_pair(unsigned int port1, unsigned int port2,
 {
 	int ret;
 
-	mutex_lock(&hdaps_mutex);
+	down(&hdaps_sem);
 	ret = __hdaps_read_pair(port1, port2, val1, val2);
-	mutex_unlock(&hdaps_mutex);
+	up(&hdaps_sem);
 
 	return ret;
 }
@@ -214,7 +213,7 @@ static int hdaps_device_init(void)
 {
 	int total, ret = -ENXIO;
 
-	mutex_lock(&hdaps_mutex);
+	down(&hdaps_sem);
 
 	outb(0x13, 0x1610);
 	outb(0x01, 0x161f);
@@ -280,7 +279,7 @@ static int hdaps_device_init(void)
 	}
 
 out:
-	mutex_unlock(&hdaps_mutex);
+	up(&hdaps_sem);
 	return ret;
 }
 
@@ -314,7 +313,7 @@ static struct platform_driver hdaps_driver = {
 };
 
 /*
- * hdaps_calibrate - Set our "resting" values.  Callers must hold hdaps_mutex.
+ * hdaps_calibrate - Set our "resting" values.  Callers must hold hdaps_sem.
  */
 static void hdaps_calibrate(void)
 {
@@ -326,7 +325,7 @@ static void hdaps_mousedev_poll(unsigned long unused)
 	int x, y;
 
 	/* Cannot sleep.  Try nonblockingly.  If we fail, try again later. */
-	if (!mutex_trylock(&hdaps_mutex)) {
+	if (down_trylock(&hdaps_sem)) {
 		mod_timer(&hdaps_timer,jiffies + HDAPS_POLL_PERIOD);
 		return;
 	}
@@ -341,7 +340,7 @@ static void hdaps_mousedev_poll(unsigned long unused)
 	mod_timer(&hdaps_timer, jiffies + HDAPS_POLL_PERIOD);
 
 out:
-	mutex_unlock(&hdaps_mutex);
+	up(&hdaps_sem);
 }
 
 
@@ -421,9 +420,9 @@ static ssize_t hdaps_calibrate_store(struct device *dev,
 				     struct device_attribute *attr,
 				     const char *buf, size_t count)
 {
-	mutex_lock(&hdaps_mutex);
+	down(&hdaps_sem);
 	hdaps_calibrate();
-	mutex_unlock(&hdaps_mutex);
+	up(&hdaps_sem);
 
 	return count;
 }

@@ -31,12 +31,8 @@
 
 #define BUGMAIL "<sdhci-devel@list.drzeus.cx>"
 
-#ifdef CONFIG_MMC_DEBUG
 #define DBG(f, x...) \
-	printk(KERN_DEBUG DRIVER_NAME " [%s()]: " f, __func__,## x)
-#else
-#define DBG(f, x...) do { } while (0)
-#endif
+	pr_debug(DRIVER_NAME " [%s()]: " f, __func__,## x)
 
 static const struct pci_device_id pci_ids[] __devinitdata = {
 	/* handle any SD host controller */

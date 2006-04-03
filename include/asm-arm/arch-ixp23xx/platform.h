@@ -22,6 +22,7 @@ void ixp23xx_sys_init(void);
 int ixp23xx_pci_setup(int, struct pci_sys_data *);
 void ixp23xx_pci_preinit(void);
 struct pci_bus *ixp23xx_pci_scan_bus(int, struct pci_sys_data*);
+void ixp23xx_pci_slave_init(void);
 
 extern struct sys_timer ixp23xx_timer;
 

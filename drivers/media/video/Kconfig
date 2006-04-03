@@ -300,7 +300,7 @@ config VIDEO_OVCAMCHIP
 	  camera drivers.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called ovcamchip
+	  module will be called ovcamchip.
 
 config VIDEO_M32R_AR
 	tristate "AR devices"
@@ -316,6 +316,13 @@ config VIDEO_M32R_AR_M64278
 	  Say Y here to use the Renesas M64278E-800 camera module,
 	  which supports VGA(640x480 pixcels) size of images.
 
+#
+# Encoder / Decoder module configuration
+#
+
+menu "Encoders and Decoders"
+	depends on VIDEO_DEV
+
 config VIDEO_MSP3400
 	tristate "Micronas MSP34xx audio decoders"
 	depends on VIDEO_DEV && I2C
@@ -323,7 +330,7 @@ config VIDEO_MSP3400
 	  Support for the Micronas MSP34xx series of audio decoders.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called msp3400
+	  module will be called msp3400.
 
 config VIDEO_CS53L32A
 	tristate "Cirrus Logic CS53L32A audio ADC"
@@ -333,17 +340,27 @@ config VIDEO_CS53L32A
 	  stereo A/D converter.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called cs53l32a
+	  module will be called cs53l32a.
 
 config VIDEO_WM8775
-	tristate "Wolfson Microelectronics WM8775 audio ADC"
+	tristate "Wolfson Microelectronics WM8775 audio ADC with input mixer"
 	depends on VIDEO_DEV && I2C && EXPERIMENTAL
 	---help---
-	  Support for the Wolfson Microelectronics WM8775
-	  high performance stereo A/D Converter.
+	  Support for the Wolfson Microelectronics WM8775 high
+	  performance stereo A/D Converter with a 4 channel input mixer.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called wm8775
+	  module will be called wm8775.
+
+config VIDEO_WM8739
+	tristate "Wolfson Microelectronics WM8739 stereo audio ADC"
+	depends on VIDEO_DEV && I2C && EXPERIMENTAL
+	---help---
+	  Support for the Wolfson Microelectronics WM8739
+	  stereo A/D Converter.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called wm8739.
 
 source "drivers/media/video/cx25840/Kconfig"
 
@@ -354,7 +371,7 @@ config VIDEO_SAA711X
 	  Support for the Philips SAA7113/4/5 video decoders.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called saa7115
+	  module will be called saa7115.
 
 config VIDEO_SAA7127
 	tristate "Philips SAA7127/9 digital video encoders"
@@ -363,7 +380,32 @@ config VIDEO_SAA7127
 	  Support for the Philips SAA7127/9 digital video encoders.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called saa7127
+	  module will be called saa7127.
+
+config VIDEO_UPD64031A
+	tristate "NEC Electronics uPD64031A Ghost Reduction"
+	depends on VIDEO_DEV && I2C && EXPERIMENTAL
+	---help---
+	  Support for the NEC Electronics uPD64031A Ghost Reduction
+	  video chip. It is most often found in NTSC TV cards made for
+	  Japan and is used to reduce the 'ghosting' effect that can
+	  be present in analog TV broadcasts.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called upd64031a.
+
+config VIDEO_UPD64083
+	tristate "NEC Electronics uPD64083 3-Dimensional Y/C separation"
+	depends on VIDEO_DEV && I2C && EXPERIMENTAL
+	---help---
+	  Support for the NEC Electronics uPD64083 3-Dimensional Y/C
+	  separation video chip. It is used to improve the quality of
+	  the colors of a composite signal.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called upd64083.
+
+endmenu # encoder / decoder chips
 
 #
 # USB Multimedia device configuration
@@ -374,20 +416,6 @@ menu "V4L USB devices"
 
 source "drivers/media/video/em28xx/Kconfig"
 
-config USB_VICAM
-	tristate "USB 3com HomeConnect (aka vicam) support (EXPERIMENTAL)"
-	depends on USB && VIDEO_DEV && EXPERIMENTAL
-	---help---
-	  Say Y here if you have 3com homeconnect camera (vicam).
-
-	  This driver uses the Video For Linux API. You must say Y or M to
-	  "Video For Linux" (under Multimedia Devices) to use this driver.
-	  Information on this API and pointers to "v4l" programs may be found
-	  at <file:Documentation/video4linux/API.html>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called vicam.
-
 config USB_DSBR
 	tristate "D-Link USB FM radio support (EXPERIMENTAL)"
 	depends on USB && VIDEO_DEV && EXPERIMENTAL
@@ -397,79 +425,20 @@ config USB_DSBR
 	  you must connect the line out connector to a sound card or a
 	  set of speakers.
 
-	  This driver uses the Video For Linux API.  You must enable
-	  (Y or M in config) Video For Linux (under Character Devices)
-	  to use this driver.  Information on this API and pointers to
-	  "v4l" programs may be found at
-	  <file:Documentation/video4linux/API.html>.
-
 	  To compile this driver as a module, choose M here: the
 	  module will be called dsbr100.
 
-config USB_ET61X251
-	tristate "USB ET61X[12]51 PC Camera Controller support"
-	depends on USB && VIDEO_DEV
-	---help---
-	  Say Y here if you want support for cameras based on Etoms ET61X151
-	  or ET61X251 PC Camera Controllers.
+source "drivers/media/video/usbvideo/Kconfig"
 
-	  See <file:Documentation/usb/et61x251.txt> for more informations.
-
-	  This driver uses the Video For Linux API. You must say Y or M to
-	  "Video For Linux" to use this driver.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called et61x251.
-
-config USB_IBMCAM
-	tristate "USB IBM (Xirlink) C-it Camera support"
-	depends on USB && VIDEO_DEV
-	---help---
-	  Say Y here if you want to connect a IBM "C-It" camera, also known as
-	  "Xirlink PC Camera" to your computer's USB port.  For more
-	  information, read <file:Documentation/usb/ibmcam.txt>.
-
-	  This driver uses the Video For Linux API.  You must enable
-	  (Y or M in config) Video For Linux (under Character Devices)
-	  to use this driver.  Information on this API and pointers to
-	  "v4l" programs may be found at
-	  <file:Documentation/video4linux/API.html>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ibmcam.
-
-	  This camera has several configuration options which
-	  can be specified when you load the module. Read
-	  <file:Documentation/usb/ibmcam.txt> to learn more.
-
-config USB_KONICAWC
-	tristate "USB Konica Webcam support"
-	depends on USB && VIDEO_DEV
-	---help---
-	  Say Y here if you want support for webcams based on a Konica
-	  chipset. This is known to work with the Intel YC76 webcam.
-
-	  This driver uses the Video For Linux API.  You must enable
-	  (Y or M in config) Video For Linux (under Character Devices)
-	  to use this driver.  Information on this API and pointers to
-	  "v4l" programs may be found at
-	  <file:Documentation/video4linux/API.html>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called konicawc.
+source "drivers/media/video/et61x251/Kconfig"
 
 config USB_OV511
 	tristate "USB OV511 Camera support"
 	depends on USB && VIDEO_DEV
 	---help---
 	  Say Y here if you want to connect this type of camera to your
-	  computer's USB port. See <file:Documentation/usb/ov511.txt> for more
-	  information and for a list of supported cameras.
-
-	  This driver uses the Video For Linux API. You must say Y or M to
-	  "Video For Linux" (under Character Devices) to use this driver.
-	  Information on this API and pointers to "v4l" programs may be found
-	  at <file:Documentation/video4linux/API.html>.
+	  computer's USB port. See <file:Documentation/video4linux/ov511.txt>
+	  for more information and for a list of supported cameras.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ov511.
@@ -479,31 +448,13 @@ config USB_SE401
 	depends on USB && VIDEO_DEV
 	---help---
 	  Say Y here if you want to connect this type of camera to your
-	  computer's USB port. See <file:Documentation/usb/se401.txt> for more
-	  information and for a list of supported cameras.
-
-	  This driver uses the Video For Linux API. You must say Y or M to
-	  "Video For Linux" (under Multimedia Devices) to use this driver.
-	  Information on this API and pointers to "v4l" programs may be found
-	  at <file:Documentation/video4linux/API.html>.
+	  computer's USB port. See <file:Documentation/video4linux/se401.txt>
+	  for more information and for a list of supported cameras.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called se401.
 
-config USB_SN9C102
-	tristate "USB SN9C10x PC Camera Controller support"
-	depends on USB && VIDEO_DEV
-	---help---
-	  Say Y here if you want support for cameras based on SONiX SN9C101,
-	  SN9C102 or SN9C103 PC Camera Controllers.
-
-	  See <file:Documentation/usb/sn9c102.txt> for more informations.
-
-	  This driver uses the Video For Linux API. You must say Y or M to
-	  "Video For Linux" to use this driver.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called sn9c102.
+source "drivers/media/video/sn9c102/Kconfig"
 
 config USB_STV680
 	tristate "USB STV680 (Pencam) Camera support"
@@ -511,20 +462,16 @@ config USB_STV680
 	---help---
 	  Say Y here if you want to connect this type of camera to your
 	  computer's USB port. This includes the Pencam line of cameras.
-	  See <file:Documentation/usb/stv680.txt> for more information and for
-	  a list of supported cameras.
-
-	  This driver uses the Video For Linux API. You must say Y or M to
-	  "Video For Linux" (under Multimedia Devices) to use this driver.
-	  Information on this API and pointers to "v4l" programs may be found
-	  at <file:Documentation/video4linux/API.html>.
+	  See <file:Documentation/video4linux/stv680.txt> for more information
+	  and for a list of supported cameras.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called stv680.
 
 config USB_W9968CF
 	tristate "USB W996[87]CF JPEG Dual Mode Camera support"
-	depends on USB && VIDEO_DEV && I2C && VIDEO_OVCAMCHIP
+	depends on USB && VIDEO_DEV && I2C
+	select VIDEO_OVCAMCHIP
 	---help---
 	  Say Y here if you want support for cameras based on OV681 or
 	  Winbond W9967CF/W9968CF JPEG USB Dual Mode Camera Chips.
@@ -534,64 +481,14 @@ config USB_W9968CF
 	  resolutions and framerates, but cannot be included in the official
 	  Linux kernel for performance purposes.
 
-	  See <file:Documentation/usb/w9968cf.txt> for more informations.
-
-	  This driver uses the Video For Linux and the I2C APIs. It needs the
-	  OmniVision Camera Chip support as well. You must say Y or M to
-	  "Video For Linux", "I2C Support" and "OmniVision Camera Chip
-	  support" to use this driver.
+	  See <file:Documentation/video4linux/w9968cf.txt> for more info.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called w9968cf.
 
-config USB_ZC0301
-	tristate "USB ZC0301 Image Processor and Control Chip support"
-	depends on USB && VIDEO_DEV
-	---help---
-	  Say Y here if you want support for cameras based on the ZC0301
-	  Image Processor and Control Chip.
+source "drivers/media/video/zc0301/Kconfig"
 
-	  See <file:Documentation/usb/zc0301.txt> for more informations.
-
-	  This driver uses the Video For Linux API. You must say Y or M to
-	  "Video For Linux" to use this driver.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called zc0301.
-
-config USB_PWC
-	tristate "USB Philips Cameras"
-	depends on USB && VIDEO_DEV
-	---help---
-	  Say Y or M here if you want to use one of these Philips & OEM
-	  webcams:
-	   * Philips PCA645, PCA646
-	   * Philips PCVC675, PCVC680, PCVC690
-	   * Philips PCVC720/40, PCVC730, PCVC740, PCVC750
-	   * Askey VC010
-	   * Logitech QuickCam Pro 3000, 4000, 'Zoom', 'Notebook Pro'
-	     and 'Orbit'/'Sphere'
-	   * Samsung MPC-C10, MPC-C30
-	   * Creative Webcam 5, Pro Ex
-	   * SOTEC Afina Eye
-	   * Visionite VCS-UC300, VCS-UM100
-
-	  The PCA635, PCVC665 and PCVC720/20 are not supported by this driver
-	  and never will be, but the 665 and 720/20 are supported by other
-	  drivers.
-
-	  See <file:Documentation/usb/philips.txt> for more information and
-	  installation instructions.
-
-	  The built-in microphone is enabled by selecting USB Audio support.
-
-	  This driver uses the Video For Linux API. You must say Y or M to
-	  "Video For Linux" (under Character Devices) to use this driver.
-	  Information on this API and pointers to "v4l" programs may be found
-	  at <file:Documentation/video4linux/API.html>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called pwc.
+source "drivers/media/video/pwc/Kconfig"
 
 endmenu # V4L USB devices
 

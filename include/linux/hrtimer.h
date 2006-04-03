@@ -58,6 +58,19 @@ struct hrtimer {
 };
 
 /**
+ * struct hrtimer_sleeper - simple sleeper structure
+ *
+ * @timer:	embedded timer structure
+ * @task:	task to wake up
+ *
+ * task is set to NULL, when the timer expires.
+ */
+struct hrtimer_sleeper {
+	struct hrtimer timer;
+	struct task_struct *task;
+};
+
+/**
  * struct hrtimer_base - the timer base for a specific clock
  *
  * @index:		clock type index for per_cpu support when moving a timer
@@ -67,7 +80,7 @@ struct hrtimer {
  * @first:		pointer to the timer node which expires first
  * @resolution:		the resolution of the clock, in nanoseconds
  * @get_time:		function to retrieve the current time of the clock
- * @get_sofirq_time:	function to retrieve the current time from the softirq
+ * @get_softirq_time:	function to retrieve the current time from the softirq
  * @curr_timer:		the timer which is executing a callback right now
  * @softirq_time:	the time when running the hrtimer queue in the softirq
  */
@@ -126,6 +139,9 @@ extern long hrtimer_nanosleep(struct timespec *rqtp,
 			      struct timespec __user *rmtp,
 			      const enum hrtimer_mode mode,
 			      const clockid_t clockid);
+
+extern void hrtimer_init_sleeper(struct hrtimer_sleeper *sl,
+				 struct task_struct *tsk);
 
 /* Soft interrupt function to run the hrtimer queues: */
 extern void hrtimer_run_queues(void);

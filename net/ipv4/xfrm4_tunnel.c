@@ -21,7 +21,7 @@ static int ipip_output(struct xfrm_state *x, struct sk_buff *skb)
 	return 0;
 }
 
-static int ipip_xfrm_rcv(struct xfrm_state *x, struct xfrm_decap_state *decap, struct sk_buff *skb)
+static int ipip_xfrm_rcv(struct xfrm_state *x, struct sk_buff *skb)
 {
 	return 0;
 }

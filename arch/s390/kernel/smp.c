@@ -801,7 +801,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
          */
 	print_cpu_info(&S390_lowcore.cpu_data);
 
-        for_each_cpu(i) {
+        for_each_possible_cpu(i) {
 		lowcore_ptr[i] = (struct _lowcore *)
 			__get_free_pages(GFP_KERNEL|GFP_DMA, 
 					sizeof(void*) == 8 ? 1 : 0);
@@ -831,7 +831,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 #endif
 	set_prefix((u32)(unsigned long) lowcore_ptr[smp_processor_id()]);
 
-	for_each_cpu(cpu)
+	for_each_possible_cpu(cpu)
 		if (cpu != smp_processor_id())
 			smp_create_idle(cpu);
 }
@@ -868,7 +868,7 @@ static int __init topology_init(void)
 	int cpu;
 	int ret;
 
-	for_each_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		ret = register_cpu(&per_cpu(cpu_devices, cpu), cpu, NULL);
 		if (ret)
 			printk(KERN_WARNING "topology_init: register_cpu %d "

@@ -15,9 +15,22 @@
 #include "sysdep/sigcontext.h"
 #include "sysdep/sc.h"
 
-void arch_switch(void)
+void arch_switch_to_tt(struct task_struct *from, struct task_struct *to)
 {
-	update_debugregs(current->thread.arch.debugregs_seq);
+	update_debugregs(to->thread.arch.debugregs_seq);
+	arch_switch_tls_tt(from, to);
+}
+
+void arch_switch_to_skas(struct task_struct *from, struct task_struct *to)
+{
+	int err = arch_switch_tls_skas(from, to);
+	if (!err)
+		return;
+
+	if (err != -EINVAL)
+		printk(KERN_WARNING "arch_switch_tls_skas failed, errno %d, not EINVAL\n", -err);
+	else
+		printk(KERN_WARNING "arch_switch_tls_skas failed, errno = EINVAL\n");
 }
 
 int is_syscall(unsigned long addr)
@@ -124,22 +137,22 @@ unsigned long getreg(struct task_struct *child, int regno)
 int peek_user(struct task_struct *child, long addr, long data)
 {
 /* read the word at location addr in the USER area. */
-        unsigned long tmp;
+	unsigned long tmp;
 
-        if ((addr & 3) || addr < 0)
-                return -EIO;
+	if ((addr & 3) || addr < 0)
+		return -EIO;
 
-        tmp = 0;  /* Default return condition */
-        if(addr < MAX_REG_OFFSET){
-                tmp = getreg(child, addr);
-        }
-        else if((addr >= offsetof(struct user, u_debugreg[0])) &&
-                (addr <= offsetof(struct user, u_debugreg[7]))){
-                addr -= offsetof(struct user, u_debugreg[0]);
-                addr = addr >> 2;
-                tmp = child->thread.arch.debugregs[addr];
-        }
-        return put_user(tmp, (unsigned long *) data);
+	tmp = 0;  /* Default return condition */
+	if(addr < MAX_REG_OFFSET){
+		tmp = getreg(child, addr);
+	}
+	else if((addr >= offsetof(struct user, u_debugreg[0])) &&
+		(addr <= offsetof(struct user, u_debugreg[7]))){
+		addr -= offsetof(struct user, u_debugreg[0]);
+		addr = addr >> 2;
+		tmp = child->thread.arch.debugregs[addr];
+	}
+	return put_user(tmp, (unsigned long __user *) data);
 }
 
 struct i387_fxsave_struct {

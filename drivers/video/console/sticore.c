@@ -275,7 +275,7 @@ static int __init sti_setup(char *str)
 	if (str)
 		strlcpy (default_sti_path, str, sizeof (default_sti_path));
 	
-	return 0;
+	return 1;
 }
 
 /*	Assuming the machine has multiple STI consoles (=graphic cards) which
@@ -321,7 +321,7 @@ static int __init sti_font_setup(char *str)
 		i++;
 	}
 
-	return 0;
+	return 1;
 }
 
 /*	The optional linux kernel parameter "sti_font" defines which font

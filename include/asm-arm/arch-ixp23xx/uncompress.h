@@ -16,26 +16,21 @@
 
 #define UART_BASE	((volatile u32 *)IXP23XX_UART1_PHYS)
 
-static __inline__ void putc(char c)
+static inline void putc(char c)
 {
 	int j;
 
 	for (j = 0; j < 0x1000; j++) {
 		if (UART_BASE[UART_LSR] & UART_LSR_THRE)
 			break;
+		barrier();
 	}
 
 	UART_BASE[UART_TX] = c;
 }
 
-static void putstr(const char *s)
+static inline void flush(void)
 {
-	while (*s) {
-		putc(*s);
-		if (*s == '\n')
-			putc('\r');
-		s++;
-	}
 }
 
 #define arch_decomp_setup()

@@ -435,7 +435,7 @@ marvel_specify_io7(char *str)
 		str = pchar;
 	} while(*str);
 
-	return 0;
+	return 1;
 }
 __setup("io7=", marvel_specify_io7);
 

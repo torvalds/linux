@@ -644,7 +644,7 @@ failed:
 int __init irqbalance_disable(char *str)
 {
 	irqbalance_disabled = 1;
-	return 0;
+	return 1;
 }
 
 __setup("noirqbalance", irqbalance_disable);

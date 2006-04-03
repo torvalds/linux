@@ -577,20 +577,6 @@ static int budget_patch_attach (struct saa7146_dev* dev, struct saa7146_pci_exte
 	saa7146_setgpio(dev, 3, SAA7146_GPIO_OUTLO);
 	// Set RPS1 Address register to point to RPS code               (r108 p42)
 	saa7146_write(dev, RPS_ADDR1, dev->d_rps1.dma_handle);
-	// Set Source Line Counter Threshold, using BRS                 (rCC p43)
-	// It generates HS event every TS_HEIGHT lines
-	// this is related to TS_WIDTH set in register
-	// NUM_LINE_BYTE3 in budget-core.c. If NUM_LINE_BYTE
-	// low 16 bits are set to TS_WIDTH bytes (TS_WIDTH=2*188
-	//,then RPS_THRESH1
-	// should be set to trigger every TS_HEIGHT (512) lines.
-	//
-	saa7146_write(dev, RPS_THRESH1, (TS_HEIGHT*1) | MASK_12 );
-
-	// saa7146_write(dev, RPS_THRESH0, ((TS_HEIGHT/2)<<16) |MASK_28| (TS_HEIGHT/2) |MASK_12 );
-	// Enable RPS1                                                  (rFC p33)
-	saa7146_write(dev, MC1, (MASK_13 | MASK_29));
-
 
 	if (!(budget = kmalloc (sizeof(struct budget_patch), GFP_KERNEL)))
 		return -ENOMEM;
@@ -601,6 +587,20 @@ static int budget_patch_attach (struct saa7146_dev* dev, struct saa7146_pci_exte
 		kfree (budget);
 		return err;
 	}
+
+	// Set Source Line Counter Threshold, using BRS                 (rCC p43)
+	// It generates HS event every TS_HEIGHT lines
+	// this is related to TS_WIDTH set in register
+	// NUM_LINE_BYTE3 in budget-core.c. If NUM_LINE_BYTE
+	// low 16 bits are set to TS_WIDTH bytes (TS_WIDTH=2*188
+	//,then RPS_THRESH1
+	// should be set to trigger every TS_HEIGHT (512) lines.
+	//
+	saa7146_write(dev, RPS_THRESH1, budget->buffer_height | MASK_12 );
+
+	// saa7146_write(dev, RPS_THRESH0, ((TS_HEIGHT/2)<<16) |MASK_28| (TS_HEIGHT/2) |MASK_12 );
+	// Enable RPS1                                                  (rFC p33)
+	saa7146_write(dev, MC1, (MASK_13 | MASK_29));
 
 
 	dev->ext_priv = budget;

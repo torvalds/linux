@@ -1658,7 +1658,7 @@ static void __exit ctnetlink_exit(void)
 	printk("ctnetlink: unregistering from nfnetlink.\n");
 
 #ifdef CONFIG_IP_NF_CONNTRACK_EVENTS
-	ip_conntrack_unregister_notifier(&ctnl_notifier_exp);
+	ip_conntrack_expect_unregister_notifier(&ctnl_notifier_exp);
 	ip_conntrack_unregister_notifier(&ctnl_notifier);
 #endif
 

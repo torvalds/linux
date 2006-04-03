@@ -365,8 +365,11 @@ __cmpxchg(volatile void *ptr, unsigned long old, unsigned long new,
  * powers of 2 writes until it reaches sufficient alignment).
  *
  * Based on this we disable the IP header alignment in network drivers.
+ * We also modify NET_SKB_PAD to be a cacheline in size, thus maintaining
+ * cacheline alignment of buffers.
  */
-#define NET_IP_ALIGN   0
+#define NET_IP_ALIGN	0
+#define NET_SKB_PAD	L1_CACHE_BYTES
 #endif
 
 #define arch_align_stack(x) (x)

@@ -198,7 +198,7 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user, void *sc)
 		si.si_signo = SIGBUS;
 		si.si_errno = 0;
 		si.si_code = BUS_ADRERR;
-		si.si_addr = (void *)address;
+		si.si_addr = (void __user *)address;
                 current->thread.arch.faultinfo = fi;
 		force_sig_info(SIGBUS, &si, current);
 	} else if (err == -ENOMEM) {
@@ -207,7 +207,7 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user, void *sc)
 	} else {
 		BUG_ON(err != -EFAULT);
 		si.si_signo = SIGSEGV;
-		si.si_addr = (void *) address;
+		si.si_addr = (void __user *) address;
                 current->thread.arch.faultinfo = fi;
 		force_sig_info(SIGSEGV, &si, current);
 	}
@@ -220,8 +220,8 @@ void bad_segv(struct faultinfo fi, unsigned long ip)
 
 	si.si_signo = SIGSEGV;
 	si.si_code = SEGV_ACCERR;
-        si.si_addr = (void *) FAULT_ADDRESS(fi);
-        current->thread.arch.faultinfo = fi;
+	si.si_addr = (void __user *) FAULT_ADDRESS(fi);
+	current->thread.arch.faultinfo = fi;
 	force_sig_info(SIGSEGV, &si, current);
 }
 

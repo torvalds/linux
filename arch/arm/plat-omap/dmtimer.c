@@ -97,6 +97,32 @@ int omap_dm_timers_active(void)
 }
 
 
+/**
+ * omap_dm_timer_modify_idlect_mask - Check if any running timers use ARMXOR
+ * @inputmask: current value of idlect mask
+ */
+__u32 omap_dm_timer_modify_idlect_mask(__u32 inputmask)
+{
+	int n;
+
+	/* If ARMXOR cannot be idled this function call is unnecessary */
+	if (!(inputmask & (1 << 1)))
+		return inputmask;
+
+	/* If any active timer is using ARMXOR return modified mask */
+	for (n = 0; dm_timers[n].base; ++n)
+		if (omap_dm_timer_read_reg(&dm_timers[n], OMAP_TIMER_CTRL_REG)&
+		    OMAP_TIMER_CTRL_ST) {
+			if (((omap_readl(MOD_CONF_CTRL_1)>>(n*2)) & 0x03) == 0)
+				inputmask &= ~(1 << 1);
+			else
+				inputmask &= ~(1 << 2);
+		}
+
+	return inputmask;
+}
+
+
 void omap_dm_timer_set_source(struct omap_dm_timer *timer, int source)
 {
 	int n = (timer - dm_timers) << 1;

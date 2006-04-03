@@ -46,7 +46,7 @@ extern unsigned long __per_cpu_offset[NR_CPUS];
 #define percpu_modcopy(pcpudst, src, size)			\
 do {								\
 	unsigned int __i;					\
-	for_each_cpu(__i)					\
+	for_each_possible_cpu(__i)				\
 		memcpy((pcpudst)+__per_cpu_offset[__i],		\
 		       (src), (size));				\
 } while (0)

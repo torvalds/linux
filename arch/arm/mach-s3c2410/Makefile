@@ -48,3 +48,5 @@ obj-$(CONFIG_MACH_VR1000)	+= mach-vr1000.o usb-simtec.o
 obj-$(CONFIG_MACH_RX3715)	+= mach-rx3715.o
 obj-$(CONFIG_MACH_OTOM)		+= mach-otom.o
 obj-$(CONFIG_MACH_NEXCODER_2440) += mach-nexcoder.o
+
+obj-$(CONFIG_MACH_SMDK)		+= common-smdk.o

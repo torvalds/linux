@@ -215,13 +215,11 @@ static void mddev_put(mddev_t *mddev)
 		return;
 	if (!mddev->raid_disks && list_empty(&mddev->disks)) {
 		list_del(&mddev->all_mddevs);
-		/* that blocks */
+		spin_unlock(&all_mddevs_lock);
 		blk_cleanup_queue(mddev->queue);
-		/* that also blocks */
 		kobject_unregister(&mddev->kobj);
-		/* result blows... */
-	}
-	spin_unlock(&all_mddevs_lock);
+	} else
+		spin_unlock(&all_mddevs_lock);
 }
 
 static mddev_t * mddev_find(dev_t unit)

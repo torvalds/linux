@@ -254,7 +254,7 @@ and, the number of frames be
 
 	<block number> * <block size> / <frame size>
 
-Suposse the following parameters, which apply for 2.6 kernel and an
+Suppose the following parameters, which apply for 2.6 kernel and an
 i386 architecture:
 
 	<size-max> = 131072 bytes

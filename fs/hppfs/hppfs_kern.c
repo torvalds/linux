@@ -216,10 +216,10 @@ static struct dentry *hppfs_lookup(struct inode *ino, struct dentry *dentry,
 static struct inode_operations hppfs_file_iops = {
 };
 
-static ssize_t read_proc(struct file *file, char *buf, ssize_t count,
+static ssize_t read_proc(struct file *file, char __user *buf, ssize_t count,
 			 loff_t *ppos, int is_user)
 {
-	ssize_t (*read)(struct file *, char *, size_t, loff_t *);
+	ssize_t (*read)(struct file *, char __user *, size_t, loff_t *);
 	ssize_t n;
 
 	read = file->f_dentry->d_inode->i_fop->read;
@@ -236,7 +236,7 @@ static ssize_t read_proc(struct file *file, char *buf, ssize_t count,
 	return n;
 }
 
-static ssize_t hppfs_read_file(int fd, char *buf, ssize_t count)
+static ssize_t hppfs_read_file(int fd, char __user *buf, ssize_t count)
 {
 	ssize_t n;
 	int cur, err;
@@ -274,7 +274,7 @@ static ssize_t hppfs_read_file(int fd, char *buf, ssize_t count)
 	return n;
 }
 
-static ssize_t hppfs_read(struct file *file, char *buf, size_t count,
+static ssize_t hppfs_read(struct file *file, char __user *buf, size_t count,
 			  loff_t *ppos)
 {
 	struct hppfs_private *hppfs = file->private_data;
@@ -313,12 +313,12 @@ static ssize_t hppfs_read(struct file *file, char *buf, size_t count,
 	return(count);
 }
 
-static ssize_t hppfs_write(struct file *file, const char *buf, size_t len,
+static ssize_t hppfs_write(struct file *file, const char __user *buf, size_t len,
 			   loff_t *ppos)
 {
 	struct hppfs_private *data = file->private_data;
 	struct file *proc_file = data->proc_file;
-	ssize_t (*write)(struct file *, const char *, size_t, loff_t *);
+	ssize_t (*write)(struct file *, const char __user *, size_t, loff_t *);
 	int err;
 
 	write = proc_file->f_dentry->d_inode->i_fop->write;
@@ -658,7 +658,7 @@ static struct super_operations hppfs_sbops = {
 	.statfs		= hppfs_statfs,
 };
 
-static int hppfs_readlink(struct dentry *dentry, char *buffer, int buflen)
+static int hppfs_readlink(struct dentry *dentry, char __user *buffer, int buflen)
 {
 	struct file *proc_file;
 	struct dentry *proc_dentry;

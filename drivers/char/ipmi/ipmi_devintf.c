@@ -42,7 +42,7 @@
 #include <linux/slab.h>
 #include <linux/devfs_fs_kernel.h>
 #include <linux/ipmi.h>
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/compat.h>
@@ -55,7 +55,7 @@ struct ipmi_file_private
 	struct file          *file;
 	struct fasync_struct *fasync_queue;
 	wait_queue_head_t    wait;
-	struct semaphore     recv_sem;
+	struct mutex	     recv_mutex;
 	int                  default_retries;
 	unsigned int         default_retry_time_ms;
 };
@@ -141,7 +141,7 @@ static int ipmi_open(struct inode *inode, struct file *file)
 	INIT_LIST_HEAD(&(priv->recv_msgs));
 	init_waitqueue_head(&priv->wait);
 	priv->fasync_queue = NULL;
-	sema_init(&(priv->recv_sem), 1);
+	mutex_init(&priv->recv_mutex);
 
 	/* Use the low-level defaults. */
 	priv->default_retries = -1;
@@ -285,15 +285,15 @@ static int ipmi_ioctl(struct inode  *inode,
 			break;
 		}
 
-		/* We claim a semaphore because we don't want two
+		/* We claim a mutex because we don't want two
                    users getting something from the queue at a time.
                    Since we have to release the spinlock before we can
                    copy the data to the user, it's possible another
                    user will grab something from the queue, too.  Then
                    the messages might get out of order if something
                    fails and the message gets put back onto the
-                   queue.  This semaphore prevents that problem. */
-		down(&(priv->recv_sem));
+                   queue.  This mutex prevents that problem. */
+		mutex_lock(&priv->recv_mutex);
 
 		/* Grab the message off the list. */
 		spin_lock_irqsave(&(priv->recv_msg_lock), flags);
@@ -352,7 +352,7 @@ static int ipmi_ioctl(struct inode  *inode,
 			goto recv_putback_on_err;
 		}
 
-		up(&(priv->recv_sem));
+		mutex_unlock(&priv->recv_mutex);
 		ipmi_free_recv_msg(msg);
 		break;
 
@@ -362,11 +362,11 @@ static int ipmi_ioctl(struct inode  *inode,
 		spin_lock_irqsave(&(priv->recv_msg_lock), flags);
 		list_add(entry, &(priv->recv_msgs));
 		spin_unlock_irqrestore(&(priv->recv_msg_lock), flags);
-		up(&(priv->recv_sem));
+		mutex_unlock(&priv->recv_mutex);
 		break;
 
 	recv_err:
-		up(&(priv->recv_sem));
+		mutex_unlock(&priv->recv_mutex);
 		break;
 	}
 

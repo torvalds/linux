@@ -1378,7 +1378,7 @@ stifb_setup(char *options)
 	int i;
 	
 	if (!options || !*options)
-		return 0;
+		return 1;
 	
 	if (strncmp(options, "off", 3) == 0) {
 		stifb_disabled = 1;
@@ -1393,7 +1393,7 @@ stifb_setup(char *options)
 			stifb_bpp_pref[i] = simple_strtoul(options, &options, 10);
 		}
 	}
-	return 0;
+	return 1;
 }
 
 __setup("stifb=", stifb_setup);

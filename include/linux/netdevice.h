@@ -598,20 +598,7 @@ DECLARE_PER_CPU(struct softnet_data,softnet_data);
 
 #define HAVE_NETIF_QUEUE
 
-static inline void __netif_schedule(struct net_device *dev)
-{
-	if (!test_and_set_bit(__LINK_STATE_SCHED, &dev->state)) {
-		unsigned long flags;
-		struct softnet_data *sd;
-
-		local_irq_save(flags);
-		sd = &__get_cpu_var(softnet_data);
-		dev->next_sched = sd->output_queue;
-		sd->output_queue = dev;
-		raise_softirq_irqoff(NET_TX_SOFTIRQ);
-		local_irq_restore(flags);
-	}
-}
+extern void __netif_schedule(struct net_device *dev);
 
 static inline void netif_schedule(struct net_device *dev)
 {
@@ -675,13 +662,7 @@ static inline void dev_kfree_skb_irq(struct sk_buff *skb)
 /* Use this variant in places where it could be invoked
  * either from interrupt or non-interrupt context.
  */
-static inline void dev_kfree_skb_any(struct sk_buff *skb)
-{
-	if (in_irq() || irqs_disabled())
-		dev_kfree_skb_irq(skb);
-	else
-		dev_kfree_skb(skb);
-}
+extern void dev_kfree_skb_any(struct sk_buff *skb);
 
 #define HAVE_NETIF_RX 1
 extern int		netif_rx(struct sk_buff *skb);
@@ -768,22 +749,9 @@ static inline int netif_device_present(struct net_device *dev)
 	return test_bit(__LINK_STATE_PRESENT, &dev->state);
 }
 
-static inline void netif_device_detach(struct net_device *dev)
-{
-	if (test_and_clear_bit(__LINK_STATE_PRESENT, &dev->state) &&
-	    netif_running(dev)) {
-		netif_stop_queue(dev);
-	}
-}
+extern void netif_device_detach(struct net_device *dev);
 
-static inline void netif_device_attach(struct net_device *dev)
-{
-	if (!test_and_set_bit(__LINK_STATE_PRESENT, &dev->state) &&
-	    netif_running(dev)) {
-		netif_wake_queue(dev);
- 		__netdev_watchdog_up(dev);
-	}
-}
+extern void netif_device_attach(struct net_device *dev);
 
 /*
  * Network interface message level settings
@@ -851,20 +819,7 @@ static inline int netif_rx_schedule_prep(struct net_device *dev)
  * already been called and returned 1.
  */
 
-static inline void __netif_rx_schedule(struct net_device *dev)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	dev_hold(dev);
-	list_add_tail(&dev->poll_list, &__get_cpu_var(softnet_data).poll_list);
-	if (dev->quota < 0)
-		dev->quota += dev->weight;
-	else
-		dev->quota = dev->weight;
-	__raise_softirq_irqoff(NET_RX_SOFTIRQ);
-	local_irq_restore(flags);
-}
+extern void __netif_rx_schedule(struct net_device *dev);
 
 /* Try to reschedule poll. Called by irq handler. */
 

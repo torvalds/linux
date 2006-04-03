@@ -91,18 +91,18 @@ static struct scsi_host_template qlogicfas_driver_template = {
 /*====================================================================*/
 
 typedef struct scsi_info_t {
-	dev_link_t link;
+	struct pcmcia_device	*p_dev;
 	dev_node_t node;
 	struct Scsi_Host *host;
 	unsigned short manf_id;
 } scsi_info_t;
 
-static void qlogic_release(dev_link_t *link);
+static void qlogic_release(struct pcmcia_device *link);
 static void qlogic_detach(struct pcmcia_device *p_dev);
-static void qlogic_config(dev_link_t * link);
+static int qlogic_config(struct pcmcia_device * link);
 
 static struct Scsi_Host *qlogic_detect(struct scsi_host_template *host,
-				dev_link_t *link, int qbase, int qlirq)
+				struct pcmcia_device *link, int qbase, int qlirq)
 {
 	int qltyp;		/* type of chip */
 	int qinitid;
@@ -156,10 +156,9 @@ free_scsi_host:
 err:
 	return NULL;
 }
-static int qlogic_attach(struct pcmcia_device *p_dev)
+static int qlogic_probe(struct pcmcia_device *link)
 {
 	scsi_info_t *info;
-	dev_link_t *link;
 
 	DEBUG(0, "qlogic_attach()\n");
 
@@ -168,7 +167,7 @@ static int qlogic_attach(struct pcmcia_device *p_dev)
 	if (!info)
 		return -ENOMEM;
 	memset(info, 0, sizeof(*info));
-	link = &info->link;
+	info->p_dev = link;
 	link->priv = info;
 	link->io.NumPorts1 = 16;
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
@@ -176,30 +175,19 @@ static int qlogic_attach(struct pcmcia_device *p_dev)
 	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
 	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
 	link->conf.Attributes = CONF_ENABLE_IRQ;
-	link->conf.Vcc = 50;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 	link->conf.Present = PRESENT_OPTION;
 
-	link->handle = p_dev;
-	p_dev->instance = link;
-
-	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	qlogic_config(link);
-
-	return 0;
+	return qlogic_config(link);
 }				/* qlogic_attach */
 
 /*====================================================================*/
 
-static void qlogic_detach(struct pcmcia_device *p_dev)
+static void qlogic_detach(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
-
 	DEBUG(0, "qlogic_detach(0x%p)\n", link);
 
-	if (link->state & DEV_CONFIG)
-		qlogic_release(link);
-
+	qlogic_release(link);
 	kfree(link->priv);
 
 }				/* qlogic_detach */
@@ -209,9 +197,8 @@ static void qlogic_detach(struct pcmcia_device *p_dev)
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
-static void qlogic_config(dev_link_t * link)
+static int qlogic_config(struct pcmcia_device * link)
 {
-	client_handle_t handle = link->handle;
 	scsi_info_t *info = link->priv;
 	tuple_t tuple;
 	cisparse_t parse;
@@ -225,38 +212,35 @@ static void qlogic_config(dev_link_t * link)
 	tuple.TupleDataMax = 64;
 	tuple.TupleOffset = 0;
 	tuple.DesiredTuple = CISTPL_CONFIG;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
-	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(handle, &tuple));
-	CS_CHECK(ParseTuple, pcmcia_parse_tuple(handle, &tuple, &parse));
+	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
+	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
+	CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
 	link->conf.ConfigBase = parse.config.base;
 
 	tuple.DesiredTuple = CISTPL_MANFID;
-	if ((pcmcia_get_first_tuple(handle, &tuple) == CS_SUCCESS) && (pcmcia_get_tuple_data(handle, &tuple) == CS_SUCCESS))
+	if ((pcmcia_get_first_tuple(link, &tuple) == CS_SUCCESS) && (pcmcia_get_tuple_data(link, &tuple) == CS_SUCCESS))
 		info->manf_id = le16_to_cpu(tuple.TupleData[0]);
 
-	/* Configure card */
-	link->state |= DEV_CONFIG;
-
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
+	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
 	while (1) {
-		if (pcmcia_get_tuple_data(handle, &tuple) != 0 ||
-				pcmcia_parse_tuple(handle, &tuple, &parse) != 0)
+		if (pcmcia_get_tuple_data(link, &tuple) != 0 ||
+				pcmcia_parse_tuple(link, &tuple, &parse) != 0)
 			goto next_entry;
 		link->conf.ConfigIndex = parse.cftable_entry.index;
 		link->io.BasePort1 = parse.cftable_entry.io.win[0].base;
 		link->io.NumPorts1 = parse.cftable_entry.io.win[0].len;
 		if (link->io.BasePort1 != 0) {
-			i = pcmcia_request_io(handle, &link->io);
+			i = pcmcia_request_io(link, &link->io);
 			if (i == CS_SUCCESS)
 				break;
 		}
 	      next_entry:
-		CS_CHECK(GetNextTuple, pcmcia_get_next_tuple(handle, &tuple));
+		CS_CHECK(GetNextTuple, pcmcia_get_next_tuple(link, &tuple));
 	}
 
-	CS_CHECK(RequestIRQ, pcmcia_request_irq(handle, &link->irq));
-	CS_CHECK(RequestConfiguration, pcmcia_request_configuration(handle, &link->conf));
+	CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
+	CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
 
 	if ((info->manf_id == MANFID_MACNICA) || (info->manf_id == MANFID_PIONEER) || (info->manf_id == 0x0098)) {
 		/* set ATAcmd */
@@ -275,82 +259,54 @@ static void qlogic_config(dev_link_t * link)
 	
 	if (!host) {
 		printk(KERN_INFO "%s: no SCSI devices found\n", qlogic_name);
-		goto out;
+		goto cs_failed;
 	}
 
 	sprintf(info->node.dev_name, "scsi%d", host->host_no);
-	link->dev = &info->node;
+	link->dev_node = &info->node;
 	info->host = host;
 
-out:
-	link->state &= ~DEV_CONFIG_PENDING;
-	return;
+	return 0;
 
 cs_failed:
-	cs_error(link->handle, last_fn, last_ret);
-	link->dev = NULL;
-	pcmcia_release_configuration(link->handle);
-	pcmcia_release_io(link->handle, &link->io);
-	pcmcia_release_irq(link->handle, &link->irq);
-	link->state &= ~DEV_CONFIG;
-	return;
+	cs_error(link, last_fn, last_ret);
+	pcmcia_disable_device(link);
+	return -ENODEV;
 
 }				/* qlogic_config */
 
 /*====================================================================*/
 
-static void qlogic_release(dev_link_t *link)
+static void qlogic_release(struct pcmcia_device *link)
 {
 	scsi_info_t *info = link->priv;
 
 	DEBUG(0, "qlogic_release(0x%p)\n", link);
 
 	scsi_remove_host(info->host);
-	link->dev = NULL;
 
 	free_irq(link->irq.AssignedIRQ, info->host);
-
-	pcmcia_release_configuration(link->handle);
-	pcmcia_release_io(link->handle, &link->io);
-	pcmcia_release_irq(link->handle, &link->irq);
+	pcmcia_disable_device(link);
 
 	scsi_host_put(info->host);
-
-	link->state &= ~DEV_CONFIG;
 }
 
 /*====================================================================*/
 
-static int qlogic_suspend(struct pcmcia_device *dev)
+static int qlogic_resume(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(dev);
+	scsi_info_t *info = link->priv;
 
-	link->state |= DEV_SUSPEND;
-	if (link->state & DEV_CONFIG)
-		pcmcia_release_configuration(link->handle);
-
-	return 0;
-}
-
-static int qlogic_resume(struct pcmcia_device *dev)
-{
-	dev_link_t *link = dev_to_instance(dev);
-
-	link->state &= ~DEV_SUSPEND;
-	if (link->state & DEV_CONFIG) {
-		scsi_info_t *info = link->priv;
-
-		pcmcia_request_configuration(link->handle, &link->conf);
-		if ((info->manf_id == MANFID_MACNICA) ||
-		    (info->manf_id == MANFID_PIONEER) ||
-		    (info->manf_id == 0x0098)) {
-			outb(0x80, link->io.BasePort1 + 0xd);
-			outb(0x24, link->io.BasePort1 + 0x9);
-			outb(0x04, link->io.BasePort1 + 0xd);
-		}
-		/* Ugggglllyyyy!!! */
-		qlogicfas408_bus_reset(NULL);
+	pcmcia_request_configuration(link, &link->conf);
+	if ((info->manf_id == MANFID_MACNICA) ||
+	    (info->manf_id == MANFID_PIONEER) ||
+	    (info->manf_id == 0x0098)) {
+		outb(0x80, link->io.BasePort1 + 0xd);
+		outb(0x24, link->io.BasePort1 + 0x9);
+		outb(0x04, link->io.BasePort1 + 0xd);
 	}
+	/* Ugggglllyyyy!!! */
+	qlogicfas408_bus_reset(NULL);
 
 	return 0;
 }
@@ -382,10 +338,9 @@ static struct pcmcia_driver qlogic_cs_driver = {
 	.drv		= {
 	.name		= "qlogic_cs",
 	},
-	.probe		= qlogic_attach,
+	.probe		= qlogic_probe,
 	.remove		= qlogic_detach,
 	.id_table       = qlogic_ids,
-	.suspend	= qlogic_suspend,
 	.resume		= qlogic_resume,
 };
 

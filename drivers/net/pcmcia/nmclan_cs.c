@@ -362,7 +362,7 @@ typedef struct _mace_statistics {
 } mace_statistics;
 
 typedef struct _mace_private {
-    dev_link_t link;
+	struct pcmcia_device	*p_dev;
     dev_node_t node;
     struct net_device_stats linux_stats; /* Linux statistics counters */
     mace_statistics mace_stats; /* MACE chip statistics counters */
@@ -417,8 +417,8 @@ INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
 Function Prototypes
 ---------------------------------------------------------------------------- */
 
-static void nmclan_config(dev_link_t *link);
-static void nmclan_release(dev_link_t *link);
+static int nmclan_config(struct pcmcia_device *link);
+static void nmclan_release(struct pcmcia_device *link);
 
 static void nmclan_reset(struct net_device *dev);
 static int mace_config(struct net_device *dev, struct ifmap *map);
@@ -443,10 +443,9 @@ nmclan_attach
 	Services.
 ---------------------------------------------------------------------------- */
 
-static int nmclan_attach(struct pcmcia_device *p_dev)
+static int nmclan_probe(struct pcmcia_device *link)
 {
     mace_private *lp;
-    dev_link_t *link;
     struct net_device *dev;
 
     DEBUG(0, "nmclan_attach()\n");
@@ -457,7 +456,7 @@ static int nmclan_attach(struct pcmcia_device *p_dev)
     if (!dev)
 	    return -ENOMEM;
     lp = netdev_priv(dev);
-    link = &lp->link;
+    lp->p_dev = link;
     link->priv = dev;
     
     spin_lock_init(&lp->bank_lock);
@@ -469,7 +468,6 @@ static int nmclan_attach(struct pcmcia_device *p_dev)
     link->irq.Handler = &mace_interrupt;
     link->irq.Instance = dev;
     link->conf.Attributes = CONF_ENABLE_IRQ;
-    link->conf.Vcc = 50;
     link->conf.IntType = INT_MEMORY_AND_IO;
     link->conf.ConfigIndex = 1;
     link->conf.Present = PRESENT_OPTION;
@@ -489,13 +487,7 @@ static int nmclan_attach(struct pcmcia_device *p_dev)
     dev->watchdog_timeo = TX_TIMEOUT;
 #endif
 
-    link->handle = p_dev;
-    p_dev->instance = link;
-
-    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-    nmclan_config(link);
-
-    return 0;
+    return nmclan_config(link);
 } /* nmclan_attach */
 
 /* ----------------------------------------------------------------------------
@@ -506,18 +498,16 @@ nmclan_detach
 	when the device is released.
 ---------------------------------------------------------------------------- */
 
-static void nmclan_detach(struct pcmcia_device *p_dev)
+static void nmclan_detach(struct pcmcia_device *link)
 {
-    dev_link_t *link = dev_to_instance(p_dev);
     struct net_device *dev = link->priv;
 
     DEBUG(0, "nmclan_detach(0x%p)\n", link);
 
-    if (link->dev)
+    if (link->dev_node)
 	unregister_netdev(dev);
 
-    if (link->state & DEV_CONFIG)
-	nmclan_release(link);
+    nmclan_release(link);
 
     free_netdev(dev);
 } /* nmclan_detach */
@@ -661,9 +651,8 @@ nmclan_config
 #define CS_CHECK(fn, ret) \
   do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
-static void nmclan_config(dev_link_t *link)
+static int nmclan_config(struct pcmcia_device *link)
 {
-  client_handle_t handle = link->handle;
   struct net_device *dev = link->priv;
   mace_private *lp = netdev_priv(dev);
   tuple_t tuple;
@@ -679,17 +668,14 @@ static void nmclan_config(dev_link_t *link)
   tuple.TupleDataMax = 64;
   tuple.TupleOffset = 0;
   tuple.DesiredTuple = CISTPL_CONFIG;
-  CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
-  CS_CHECK(GetTupleData, pcmcia_get_tuple_data(handle, &tuple));
-  CS_CHECK(ParseTuple, pcmcia_parse_tuple(handle, &tuple, &parse));
+  CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
+  CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
+  CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
   link->conf.ConfigBase = parse.config.base;
 
-  /* Configure card */
-  link->state |= DEV_CONFIG;
-
-  CS_CHECK(RequestIO, pcmcia_request_io(handle, &link->io));
-  CS_CHECK(RequestIRQ, pcmcia_request_irq(handle, &link->irq));
-  CS_CHECK(RequestConfiguration, pcmcia_request_configuration(handle, &link->conf));
+  CS_CHECK(RequestIO, pcmcia_request_io(link, &link->io));
+  CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
+  CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
   dev->irq = link->irq.AssignedIRQ;
   dev->base_addr = link->io.BasePort1;
 
@@ -700,8 +686,8 @@ static void nmclan_config(dev_link_t *link)
   tuple.TupleData = buf;
   tuple.TupleDataMax = 64;
   tuple.TupleOffset = 0;
-  CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
-  CS_CHECK(GetTupleData, pcmcia_get_tuple_data(handle, &tuple));
+  CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
+  CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
   memcpy(dev->dev_addr, tuple.TupleData, ETHER_ADDR_LEN);
 
   /* Verify configuration by reading the MACE ID. */
@@ -716,8 +702,7 @@ static void nmclan_config(dev_link_t *link)
     } else {
       printk(KERN_NOTICE "nmclan_cs: mace id not found: %x %x should"
 	     " be 0x40 0x?9\n", sig[0], sig[1]);
-      link->state &= ~DEV_CONFIG_PENDING;
-      return;
+      return -ENODEV;
     }
   }
 
@@ -730,14 +715,13 @@ static void nmclan_config(dev_link_t *link)
   else
     printk(KERN_NOTICE "nmclan_cs: invalid if_port requested\n");
 
-  link->dev = &lp->node;
-  link->state &= ~DEV_CONFIG_PENDING;
-  SET_NETDEV_DEV(dev, &handle_to_dev(handle));
+  link->dev_node = &lp->node;
+  SET_NETDEV_DEV(dev, &handle_to_dev(link));
 
   i = register_netdev(dev);
   if (i != 0) {
     printk(KERN_NOTICE "nmclan_cs: register_netdev() failed\n");
-    link->dev = NULL;
+    link->dev_node = NULL;
     goto failed;
   }
 
@@ -747,14 +731,13 @@ static void nmclan_config(dev_link_t *link)
 	 dev->name, dev->base_addr, dev->irq, if_names[dev->if_port]);
   for (i = 0; i < 6; i++)
       printk("%02X%s", dev->dev_addr[i], ((i<5) ? ":" : "\n"));
-  return;
+  return 0;
 
 cs_failed:
-    cs_error(link->handle, last_fn, last_ret);
+	cs_error(link, last_fn, last_ret);
 failed:
-    nmclan_release(link);
-    return;
-
+	nmclan_release(link);
+	return -ENODEV;
 } /* nmclan_config */
 
 /* ----------------------------------------------------------------------------
@@ -763,46 +746,29 @@ nmclan_release
 	net device, and release the PCMCIA configuration.  If the device
 	is still open, this will be postponed until it is closed.
 ---------------------------------------------------------------------------- */
-static void nmclan_release(dev_link_t *link)
+static void nmclan_release(struct pcmcia_device *link)
 {
-
-  DEBUG(0, "nmclan_release(0x%p)\n", link);
-
-  pcmcia_release_configuration(link->handle);
-  pcmcia_release_io(link->handle, &link->io);
-  pcmcia_release_irq(link->handle, &link->irq);
-
-  link->state &= ~DEV_CONFIG;
+	DEBUG(0, "nmclan_release(0x%p)\n", link);
+	pcmcia_disable_device(link);
 }
 
-static int nmclan_suspend(struct pcmcia_device *p_dev)
+static int nmclan_suspend(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
 	struct net_device *dev = link->priv;
 
-	link->state |= DEV_SUSPEND;
-	if (link->state & DEV_CONFIG) {
-		if (link->open)
-			netif_device_detach(dev);
-		pcmcia_release_configuration(link->handle);
-	}
-
+	if (link->open)
+		netif_device_detach(dev);
 
 	return 0;
 }
 
-static int nmclan_resume(struct pcmcia_device *p_dev)
+static int nmclan_resume(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
 	struct net_device *dev = link->priv;
 
-	link->state &= ~DEV_SUSPEND;
-	if (link->state & DEV_CONFIG) {
-		pcmcia_request_configuration(link->handle, &link->conf);
-		if (link->open) {
-			nmclan_reset(dev);
-			netif_device_attach(dev);
-		}
+	if (link->open) {
+		nmclan_reset(dev);
+		netif_device_attach(dev);
 	}
 
 	return 0;
@@ -818,7 +784,7 @@ static void nmclan_reset(struct net_device *dev)
   mace_private *lp = netdev_priv(dev);
 
 #if RESET_XILINX
-  dev_link_t *link = &lp->link;
+  struct pcmcia_device *link = &lp->link;
   conf_reg_t reg;
   u_long OrigCorValue; 
 
@@ -827,7 +793,7 @@ static void nmclan_reset(struct net_device *dev)
   reg.Action = CS_READ;
   reg.Offset = CISREG_COR;
   reg.Value = 0;
-  pcmcia_access_configuration_register(link->handle, &reg);
+  pcmcia_access_configuration_register(link, &reg);
   OrigCorValue = reg.Value;
 
   /* Reset Xilinx */
@@ -836,12 +802,12 @@ static void nmclan_reset(struct net_device *dev)
   DEBUG(1, "nmclan_reset: OrigCorValue=0x%lX, resetting...\n",
 	OrigCorValue);
   reg.Value = COR_SOFT_RESET;
-  pcmcia_access_configuration_register(link->handle, &reg);
+  pcmcia_access_configuration_register(link, &reg);
   /* Need to wait for 20 ms for PCMCIA to finish reset. */
 
   /* Restore original COR configuration index */
   reg.Value = COR_LEVEL_REQ | (OrigCorValue & COR_CONFIG_MASK);
-  pcmcia_access_configuration_register(link->handle, &reg);
+  pcmcia_access_configuration_register(link, &reg);
   /* Xilinx is now completely reset along with the MACE chip. */
   lp->tx_free_frames=AM2150_MAX_TX_FRAMES;
 
@@ -885,9 +851,9 @@ static int mace_open(struct net_device *dev)
 {
   kio_addr_t ioaddr = dev->base_addr;
   mace_private *lp = netdev_priv(dev);
-  dev_link_t *link = &lp->link;
+  struct pcmcia_device *link = lp->p_dev;
 
-  if (!DEV_OK(link))
+  if (!pcmcia_dev_present(link))
     return -ENODEV;
 
   link->open++;
@@ -908,7 +874,7 @@ static int mace_close(struct net_device *dev)
 {
   kio_addr_t ioaddr = dev->base_addr;
   mace_private *lp = netdev_priv(dev);
-  dev_link_t *link = &lp->link;
+  struct pcmcia_device *link = lp->p_dev;
 
   DEBUG(2, "%s: shutting down ethercard.\n", dev->name);
 
@@ -963,12 +929,12 @@ mace_start_xmit
 static void mace_tx_timeout(struct net_device *dev)
 {
   mace_private *lp = netdev_priv(dev);
-  dev_link_t *link = &lp->link;
+  struct pcmcia_device *link = lp->p_dev;
 
   printk(KERN_NOTICE "%s: transmit timed out -- ", dev->name);
 #if RESET_ON_TIMEOUT
   printk("resetting card\n");
-  pcmcia_reset_card(link->handle, NULL);
+  pcmcia_reset_card(link, NULL);
 #else /* #if RESET_ON_TIMEOUT */
   printk("NOT resetting card\n");
 #endif /* #if RESET_ON_TIMEOUT */
@@ -1635,7 +1601,7 @@ static struct pcmcia_driver nmclan_cs_driver = {
 	.drv		= {
 		.name	= "nmclan_cs",
 	},
-	.probe		= nmclan_attach,
+	.probe		= nmclan_probe,
 	.remove		= nmclan_detach,
 	.id_table       = nmclan_ids,
 	.suspend	= nmclan_suspend,

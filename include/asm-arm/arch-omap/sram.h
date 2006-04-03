@@ -20,6 +20,8 @@ extern void omap2_sram_reprogram_sdrc(u32 perf_level, u32 dll_val,
 				      u32 mem_type);
 extern u32 omap2_set_prcm(u32 dpll_ctrl_val, u32 sdrc_rfr_val, int bypass);
 
+extern unsigned long omap_fb_sram_start;
+extern unsigned long omap_fb_sram_size;
 
 /* Do not use these */
 extern void sram_reprogram_clock(u32 ckctl, u32 dpllctl);

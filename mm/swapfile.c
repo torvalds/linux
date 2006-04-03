@@ -397,18 +397,24 @@ void free_swap_and_cache(swp_entry_t entry)
 
 	p = swap_info_get(entry);
 	if (p) {
-		if (swap_entry_free(p, swp_offset(entry)) == 1)
-			page = find_trylock_page(&swapper_space, entry.val);
+		if (swap_entry_free(p, swp_offset(entry)) == 1) {
+			page = find_get_page(&swapper_space, entry.val);
+			if (page && unlikely(TestSetPageLocked(page))) {
+				page_cache_release(page);
+				page = NULL;
+			}
+		}
 		spin_unlock(&swap_lock);
 	}
 	if (page) {
 		int one_user;
 
 		BUG_ON(PagePrivate(page));
-		page_cache_get(page);
 		one_user = (page_count(page) == 2);
 		/* Only cache user (+us), or swap space full? Free it! */
-		if (!PageWriteback(page) && (one_user || vm_swap_full())) {
+		/* Also recheck PageSwapCache after page is locked (above) */
+		if (PageSwapCache(page) && !PageWriteback(page) &&
+					(one_user || vm_swap_full())) {
 			delete_from_swap_cache(page);
 			SetPageDirty(page);
 		}

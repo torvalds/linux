@@ -830,9 +830,16 @@ void smp_call_function_client(int irq, struct pt_regs *regs)
 
 static void tsb_sync(void *info)
 {
+	struct trap_per_cpu *tp = &trap_block[raw_smp_processor_id()];
 	struct mm_struct *mm = info;
 
-	if (current->active_mm == mm)
+	/* It is not valid to test "currrent->active_mm == mm" here.
+	 *
+	 * The value of "current" is not changed atomically with
+	 * switch_mm().  But that's OK, we just need to check the
+	 * current cpu's trap block PGD physical address.
+	 */
+	if (tp->pgd_paddr == __pa(mm->pgd))
 		tsb_context_switch(mm);
 }
 

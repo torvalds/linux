@@ -20,6 +20,7 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/bitops.h>
+#include <linux/mutex.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
@@ -605,7 +606,7 @@ static void DoC2k_init(struct mtd_info *mtd)
 
 	this->curfloor = -1;
 	this->curchip = -1;
-	init_MUTEX(&this->lock);
+	mutex_init(&this->lock);
 
 	/* Ident all the chips present. */
 	DoC_ScanChips(this, maxchips);
@@ -645,7 +646,7 @@ static int doc_read_ecc(struct mtd_info *mtd, loff_t from, size_t len,
 	if (from >= this->totlen)
 		return -EINVAL;
 
-	down(&this->lock);
+	mutex_lock(&this->lock);
 
 	*retlen = 0;
 	while (left) {
@@ -774,7 +775,7 @@ static int doc_read_ecc(struct mtd_info *mtd, loff_t from, size_t len,
 		buf += len;
 	}
 
-	up(&this->lock);
+	mutex_unlock(&this->lock);
 
 	return ret;
 }
@@ -803,7 +804,7 @@ static int doc_write_ecc(struct mtd_info *mtd, loff_t to, size_t len,
 	if (to >= this->totlen)
 		return -EINVAL;
 
-	down(&this->lock);
+	mutex_lock(&this->lock);
 
 	*retlen = 0;
 	while (left) {
@@ -873,7 +874,7 @@ static int doc_write_ecc(struct mtd_info *mtd, loff_t to, size_t len,
 				printk(KERN_ERR "Error programming flash\n");
 				/* Error in programming */
 				*retlen = 0;
-				up(&this->lock);
+				mutex_unlock(&this->lock);
 				return -EIO;
 			}
 
@@ -935,7 +936,7 @@ static int doc_write_ecc(struct mtd_info *mtd, loff_t to, size_t len,
 			printk(KERN_ERR "Error programming flash\n");
 			/* Error in programming */
 			*retlen = 0;
-			up(&this->lock);
+			mutex_unlock(&this->lock);
 			return -EIO;
 		}
 
@@ -956,7 +957,7 @@ static int doc_write_ecc(struct mtd_info *mtd, loff_t to, size_t len,
 
 			ret = doc_write_oob_nolock(mtd, to, 8, &dummy, x);
 			if (ret) {
-				up(&this->lock);
+				mutex_unlock(&this->lock);
 				return ret;
 			}
 		}
@@ -966,7 +967,7 @@ static int doc_write_ecc(struct mtd_info *mtd, loff_t to, size_t len,
 		buf += len;
 	}
 
-	up(&this->lock);
+	mutex_unlock(&this->lock);
 	return 0;
 }
 
@@ -975,13 +976,13 @@ static int doc_writev_ecc(struct mtd_info *mtd, const struct kvec *vecs,
 			  u_char *eccbuf, struct nand_oobinfo *oobsel)
 {
 	static char static_buf[512];
-	static DECLARE_MUTEX(writev_buf_sem);
+	static DEFINE_MUTEX(writev_buf_mutex);
 
 	size_t totretlen = 0;
 	size_t thisvecofs = 0;
 	int ret= 0;
 
-	down(&writev_buf_sem);
+	mutex_lock(&writev_buf_mutex);
 
 	while(count) {
 		size_t thislen, thisretlen;
@@ -1024,7 +1025,7 @@ static int doc_writev_ecc(struct mtd_info *mtd, const struct kvec *vecs,
 		to += thislen;
 	}
 
-	up(&writev_buf_sem);
+	mutex_unlock(&writev_buf_mutex);
 	*retlen = totretlen;
 	return ret;
 }
@@ -1037,7 +1038,7 @@ static int doc_read_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
 	int len256 = 0, ret;
 	struct Nand *mychip;
 
-	down(&this->lock);
+	mutex_lock(&this->lock);
 
 	mychip = &this->chips[ofs >> this->chipshift];
 
@@ -1083,7 +1084,7 @@ static int doc_read_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
 
 	ret = DoC_WaitReady(this);
 
-	up(&this->lock);
+	mutex_unlock(&this->lock);
 	return ret;
 
 }
@@ -1197,10 +1198,10 @@ static int doc_write_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
  	struct DiskOnChip *this = mtd->priv;
  	int ret;
 
- 	down(&this->lock);
+ 	mutex_lock(&this->lock);
  	ret = doc_write_oob_nolock(mtd, ofs, len, retlen, buf);
 
- 	up(&this->lock);
+ 	mutex_unlock(&this->lock);
  	return ret;
 }
 
@@ -1214,10 +1215,10 @@ static int doc_erase(struct mtd_info *mtd, struct erase_info *instr)
 	struct Nand *mychip;
 	int status;
 
- 	down(&this->lock);
+ 	mutex_lock(&this->lock);
 
 	if (ofs & (mtd->erasesize-1) || len & (mtd->erasesize-1)) {
-		up(&this->lock);
+		mutex_unlock(&this->lock);
 		return -EINVAL;
 	}
 
@@ -1265,7 +1266,7 @@ static int doc_erase(struct mtd_info *mtd, struct erase_info *instr)
  callback:
 	mtd_erase_callback(instr);
 
-	up(&this->lock);
+	mutex_unlock(&this->lock);
 	return 0;
 }
 

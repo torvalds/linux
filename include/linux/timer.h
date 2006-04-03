@@ -6,7 +6,7 @@
 #include <linux/spinlock.h>
 #include <linux/stddef.h>
 
-struct timer_base_s;
+struct tvec_t_base_s;
 
 struct timer_list {
 	struct list_head entry;
@@ -15,16 +15,16 @@ struct timer_list {
 	void (*function)(unsigned long);
 	unsigned long data;
 
-	struct timer_base_s *base;
+	struct tvec_t_base_s *base;
 };
 
-extern struct timer_base_s __init_timer_base;
+extern struct tvec_t_base_s boot_tvec_bases;
 
 #define TIMER_INITIALIZER(_function, _expires, _data) {		\
 		.function = (_function),			\
 		.expires = (_expires),				\
 		.data = (_data),				\
-		.base = &__init_timer_base,			\
+		.base = &boot_tvec_bases,			\
 	}
 
 #define DEFINE_TIMER(_name, _function, _expires, _data)		\

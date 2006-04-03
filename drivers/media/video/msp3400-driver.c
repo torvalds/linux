@@ -279,20 +279,8 @@ void msp_set_scart(struct i2c_client *client, int in, int out)
 	msp_write_dsp(client, 0x13, state->acb);
 
 	/* Sets I2S speed 0 = 1.024 Mbps, 1 = 2.048 Mbps */
-	msp_write_dem(client, 0x40, state->i2s_mode);
-}
-
-void msp_set_mute(struct i2c_client *client)
-{
-	struct msp_state *state = i2c_get_clientdata(client);
-
-	v4l_dbg(1, msp_debug, client, "mute audio\n");
-	msp_write_dsp(client, 0x0000, 0);
-	msp_write_dsp(client, 0x0007, 1);
-	if (state->has_scart2_out_volume)
-		msp_write_dsp(client, 0x0040, 1);
-	if (state->has_headphones)
-		msp_write_dsp(client, 0x0006, 0);
+	if (state->has_i2s_conf)
+		msp_write_dem(client, 0x40, state->i2s_mode);
 }
 
 void msp_set_audio(struct i2c_client *client)
@@ -300,17 +288,19 @@ void msp_set_audio(struct i2c_client *client)
 	struct msp_state *state = i2c_get_clientdata(client);
 	int bal = 0, bass, treble, loudness;
 	int val = 0;
+	int reallymuted = state->muted | state->scan_in_progress;
 
-	if (!state->muted)
+	if (!reallymuted)
 		val = (state->volume * 0x7f / 65535) << 8;
 
-	v4l_dbg(1, msp_debug, client, "mute=%s volume=%d\n",
-		state->muted ? "on" : "off", state->volume);
+	v4l_dbg(1, msp_debug, client, "mute=%s scanning=%s volume=%d\n",
+		state->muted ? "on" : "off", state->scan_in_progress ? "yes" : "no",
+		state->volume);
 
 	msp_write_dsp(client, 0x0000, val);
-	msp_write_dsp(client, 0x0007, state->muted ? 0x1 : (val | 0x1));
+	msp_write_dsp(client, 0x0007, reallymuted ? 0x1 : (val | 0x1));
 	if (state->has_scart2_out_volume)
-		msp_write_dsp(client, 0x0040, state->muted ? 0x1 : (val | 0x1));
+		msp_write_dsp(client, 0x0040, reallymuted ? 0x1 : (val | 0x1));
 	if (state->has_headphones)
 		msp_write_dsp(client, 0x0006, val);
 	if (!state->has_sound_processing)
@@ -346,7 +336,6 @@ static void msp_wake_thread(struct i2c_client *client)
 
 	if (NULL == state->kthread)
 		return;
-	msp_set_mute(client);
 	state->watch_stereo = 0;
 	state->restart = 1;
 	wake_up_interruptible(&state->wq);
@@ -374,19 +363,15 @@ int msp_sleep(struct msp_state *state, int timeout)
 
 /* ------------------------------------------------------------------------ */
 
-static int msp_mode_v4l2_to_v4l1(int rxsubchans)
+static int msp_mode_v4l2_to_v4l1(int rxsubchans, int audmode)
 {
-	int mode = 0;
-
-	if (rxsubchans & V4L2_TUNER_SUB_STEREO)
-		mode |= VIDEO_SOUND_STEREO;
-	if (rxsubchans & V4L2_TUNER_SUB_LANG2)
-		mode |= VIDEO_SOUND_LANG2 | VIDEO_SOUND_STEREO;
-	if (rxsubchans & V4L2_TUNER_SUB_LANG1)
-		mode |= VIDEO_SOUND_LANG1 | VIDEO_SOUND_STEREO;
-	if (mode == 0)
-		mode |= VIDEO_SOUND_MONO;
-	return mode;
+	if (rxsubchans == V4L2_TUNER_SUB_MONO)
+		return VIDEO_SOUND_MONO;
+	if (rxsubchans == V4L2_TUNER_SUB_STEREO)
+		return VIDEO_SOUND_STEREO;
+	if (audmode == V4L2_TUNER_MODE_LANG2)
+		return VIDEO_SOUND_LANG2;
+	return VIDEO_SOUND_LANG1;
 }
 
 static int msp_mode_v4l1_to_v4l2(int mode)
@@ -605,7 +590,7 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			break;
 		if (state->opmode == OPMODE_AUTOSELECT)
 			msp_detect_stereo(client);
-		va->mode = msp_mode_v4l2_to_v4l1(state->rxsubchans);
+		va->mode = msp_mode_v4l2_to_v4l1(state->rxsubchans, state->audmode);
 		break;
 	}
 
@@ -620,7 +605,8 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		state->treble = va->treble;
 		msp_set_audio(client);
 
-		if (va->mode != 0 && state->radio == 0) {
+		if (va->mode != 0 && state->radio == 0 &&
+		    state->audmode != msp_mode_v4l1_to_v4l2(va->mode)) {
 			state->audmode = msp_mode_v4l1_to_v4l2(va->mode);
 			msp_set_audmode(client);
 		}
@@ -687,21 +673,23 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		int sc_in = rt->input & 0x7;
 		int sc1_out = rt->output & 0xf;
 		int sc2_out = (rt->output >> 4) & 0xf;
-		u16 val;
+		u16 val, reg;
 
+		if (state->routing.input == rt->input &&
+		    state->routing.output == rt->output)
+			break;
 		state->routing = *rt;
-		if (state->opmode == OPMODE_AUTOSELECT) {
-			val = msp_read_dem(client, 0x30) & ~0x100;
-			msp_write_dem(client, 0x30, val | (tuner ? 0x100 : 0));
-		} else {
-			val = msp_read_dem(client, 0xbb) & ~0x100;
-			msp_write_dem(client, 0xbb, val | (tuner ? 0x100 : 0));
-		}
 		msp_set_scart(client, sc_in, 0);
 		msp_set_scart(client, sc1_out, 1);
 		msp_set_scart(client, sc2_out, 2);
 		msp_set_audmode(client);
-		msp_wake_thread(client);
+		reg = (state->opmode == OPMODE_AUTOSELECT) ? 0x30 : 0xbb;
+		val = msp_read_dem(client, reg);
+		if (tuner != ((val >> 8) & 1)) {
+			msp_write_dem(client, reg, (val & ~0x100) | (tuner << 8));
+			/* wake thread when a new tuner input is chosen */
+			msp_wake_thread(client);
+		}
 		break;
 	}
 
@@ -715,7 +703,7 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			msp_detect_stereo(client);
 		vt->audmode    = state->audmode;
 		vt->rxsubchans = state->rxsubchans;
-		vt->capability = V4L2_TUNER_CAP_STEREO |
+		vt->capability |= V4L2_TUNER_CAP_STEREO |
 			V4L2_TUNER_CAP_LANG1 | V4L2_TUNER_CAP_LANG2;
 		break;
 	}
@@ -725,6 +713,8 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		struct v4l2_tuner *vt = (struct v4l2_tuner *)arg;
 
 		if (state->radio)  /* TODO: add mono/stereo support for radio */
+			break;
+		if (state->audmode == vt->audmode)
 			break;
 		state->audmode = vt->audmode;
 		/* only set audmode */
@@ -887,7 +877,7 @@ static int msp_attach(struct i2c_adapter *adapter, int address, int kind)
 
 	memset(state, 0, sizeof(*state));
 	state->v4l2_std = V4L2_STD_NTSC;
-	state->audmode = V4L2_TUNER_MODE_LANG1;
+	state->audmode = V4L2_TUNER_MODE_STEREO;
 	state->volume = 58880;	/* 0db gain */
 	state->balance = 32768;	/* 0db gain */
 	state->bass = 32768;
@@ -931,13 +921,16 @@ static int msp_attach(struct i2c_adapter *adapter, int address, int kind)
 	state->has_radio = msp_revision >= 'G';
 	/* Has headphones output: not for stripped down products */
 	state->has_headphones = msp_prod_lo < 5;
+	/* Has scart2 input: not in stripped down products of the '3' family */
+	state->has_scart2 = msp_family >= 4 || msp_prod_lo < 7;
+	/* Has scart3 input: not in stripped down products of the '3' family */
+	state->has_scart3 = msp_family >= 4 || msp_prod_lo < 5;
 	/* Has scart4 input: not in pre D revisions, not in stripped D revs */
 	state->has_scart4 = msp_family >= 4 || (msp_revision >= 'D' && msp_prod_lo < 5);
-	/* Has scart2 and scart3 inputs and scart2 output: not in stripped
-	   down products of the '3' family */
-	state->has_scart23_in_scart2_out = msp_family >= 4 || msp_prod_lo < 5;
+	/* Has scart2 output: not in stripped down products of the '3' family */
+	state->has_scart2_out = msp_family >= 4 || msp_prod_lo < 5;
 	/* Has scart2 a volume control? Not in pre-D revisions. */
-	state->has_scart2_out_volume = msp_revision > 'C' && state->has_scart23_in_scart2_out;
+	state->has_scart2_out_volume = msp_revision > 'C' && state->has_scart2_out;
 	/* Has a configurable i2s out? */
 	state->has_i2s_conf = msp_revision >= 'G' && msp_prod_lo < 7;
 	/* Has subwoofer output: not in pre-D revs and not in stripped down products */

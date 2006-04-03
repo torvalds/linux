@@ -250,16 +250,19 @@ static int hil_kbd_connect(struct serio *serio, struct serio_driver *drv)
 	struct hil_kbd	*kbd;
 	uint8_t		did, *idd;
 	int		i;
-	
+
 	kbd = kzalloc(sizeof(*kbd), GFP_KERNEL);
 	if (!kbd)
 		return -ENOMEM;
 
 	kbd->dev = input_allocate_device();
-	if (!kbd->dev) goto bail1;
+	if (!kbd->dev)
+		goto bail0;
+
 	kbd->dev->private = kbd;
 
-	if (serio_open(serio, drv)) goto bail0;
+	if (serio_open(serio, drv))
+		goto bail1;
 
 	serio_set_drvdata(serio, kbd);
 	kbd->serio = serio;

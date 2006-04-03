@@ -1064,6 +1064,10 @@ static int dvb_init(struct saa7134_dev *dev)
 		dev->dvb.frontend = tda10046_attach(&tevion_dvbt220rf_config,
 						    &dev->i2c_adap);
 		break;
+	case SAA7134_BOARD_FLYDVBT_HYBRID_CARDBUS:
+		dev->dvb.frontend = tda10046_attach(&ads_tech_duo_config,
+						    &dev->i2c_adap);
+		break;
 #endif
 #ifdef HAVE_NXT200X
 	case SAA7134_BOARD_AVERMEDIA_AVERTVHD_A180:

@@ -295,7 +295,7 @@ static int init_unsol_queue(struct hda_bus *bus)
 		snd_printk(KERN_ERR "hda_codec: can't allocate unsolicited queue\n");
 		return -ENOMEM;
 	}
-	unsol->workq = create_workqueue("hda_codec");
+	unsol->workq = create_singlethread_workqueue("hda_codec");
 	if (! unsol->workq) {
 		snd_printk(KERN_ERR "hda_codec: can't create workqueue\n");
 		kfree(unsol);

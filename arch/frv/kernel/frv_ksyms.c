@@ -79,8 +79,6 @@ EXPORT_SYMBOL(memmove);
 EXPORT_SYMBOL(__outsl_ns);
 EXPORT_SYMBOL(__insl_ns);
 
-EXPORT_SYMBOL(get_wchan);
-
 #ifdef CONFIG_FRV_OUTOFLINE_ATOMIC_OPS
 EXPORT_SYMBOL(atomic_test_and_ANDNOT_mask);
 EXPORT_SYMBOL(atomic_test_and_OR_mask);

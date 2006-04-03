@@ -23,6 +23,7 @@ obj-$(CONFIG_WDTPCI) += wdt_pci.o
 obj-$(CONFIG_USBPCWATCHDOG) += pcwd_usb.o
 
 # ARM Architecture
+obj-$(CONFIG_AT91_WATCHDOG) += at91_wdt.o
 obj-$(CONFIG_21285_WATCHDOG) += wdt285.o
 obj-$(CONFIG_977_WATCHDOG) += wdt977.o
 obj-$(CONFIG_IXP2000_WATCHDOG) += ixp2000_wdt.o

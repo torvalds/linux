@@ -788,7 +788,7 @@ struct vortex_private {
 	int options;						/* User-settable misc. driver options. */
 	unsigned int media_override:4, 		/* Passed-in media type. */
 		default_media:4,				/* Read from the EEPROM/Wn3_Config. */
-		full_duplex:1, force_fd:1, autoselect:1,
+		full_duplex:1, autoselect:1,
 		bus_master:1,					/* Vortex can only do a fragment bus-m. */
 		full_bus_master_tx:1, full_bus_master_rx:2, /* Boomerang  */
 		flow_ctrl:1,					/* Use 802.3x flow control (PAUSE only) */
@@ -1633,12 +1633,6 @@ vortex_set_duplex(struct net_device *dev)
 			((vp->full_duplex && vp->flow_ctrl && vp->partner_flow_ctrl) ?
 					0x100 : 0),
 			ioaddr + Wn3_MAC_Ctrl);
-
-	issue_and_wait(dev, TxReset);
-	/*
-	 * Don't reset the PHY - that upsets autonegotiation during DHCP operations.
-	 */
-	issue_and_wait(dev, RxReset|0x04);
 }
 
 static void vortex_check_media(struct net_device *dev, unsigned int init)
@@ -1663,7 +1657,7 @@ vortex_up(struct net_device *dev)
 	struct vortex_private *vp = netdev_priv(dev);
 	void __iomem *ioaddr = vp->ioaddr;
 	unsigned int config;
-	int i;
+	int i, mii_reg1, mii_reg5;
 
 	if (VORTEX_PCI(vp)) {
 		pci_set_power_state(VORTEX_PCI(vp), PCI_D0);	/* Go active */
@@ -1723,13 +1717,22 @@ vortex_up(struct net_device *dev)
 		printk(KERN_DEBUG "vortex_up(): writing 0x%x to InternalConfig\n", config);
 	iowrite32(config, ioaddr + Wn3_Config);
 
-	netif_carrier_off(dev);
 	if (dev->if_port == XCVR_MII || dev->if_port == XCVR_NWAY) {
 		EL3WINDOW(4);
+		mii_reg1 = mdio_read(dev, vp->phys[0], MII_BMSR);
+		mii_reg5 = mdio_read(dev, vp->phys[0], MII_LPA);
+		vp->partner_flow_ctrl = ((mii_reg5 & 0x0400) != 0);
+
 		vortex_check_media(dev, 1);
 	}
 	else
 		vortex_set_duplex(dev);
+
+	issue_and_wait(dev, TxReset);
+	/*
+	 * Don't reset the PHY - that upsets autonegotiation during DHCP operations.
+	 */
+	issue_and_wait(dev, RxReset|0x04);
 
 
 	iowrite16(SetStatusEnb | 0x00, ioaddr + EL3_CMD);
@@ -2083,16 +2086,14 @@ vortex_error(struct net_device *dev, int status)
 		}
 		if (tx_status & 0x14)  vp->stats.tx_fifo_errors++;
 		if (tx_status & 0x38)  vp->stats.tx_aborted_errors++;
+		if (tx_status & 0x08)  vp->xstats.tx_max_collisions++;
 		iowrite8(0, ioaddr + TxStatus);
 		if (tx_status & 0x30) {			/* txJabber or txUnderrun */
 			do_tx_reset = 1;
-		} else if (tx_status & 0x08) {	/* maxCollisions */
-			vp->xstats.tx_max_collisions++;
-			if (vp->drv_flags & MAX_COLLISION_RESET) {
-				do_tx_reset = 1;
-				reset_mask = 0x0108;		/* Reset interface logic, but not download logic */
-			}
-		} else {						/* Merely re-enable the transmitter. */
+		} else if ((tx_status & 0x08) && (vp->drv_flags & MAX_COLLISION_RESET))  {	/* maxCollisions */
+			do_tx_reset = 1;
+			reset_mask = 0x0108;		/* Reset interface logic, but not download logic */
+		} else {				/* Merely re-enable the transmitter. */
 			iowrite16(TxEnable, ioaddr + EL3_CMD);
 		}
 	}

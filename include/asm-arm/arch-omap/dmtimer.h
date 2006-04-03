@@ -88,5 +88,6 @@ unsigned int omap_dm_timer_read_counter(struct omap_dm_timer *timer);
 void omap_dm_timer_reset_counter(struct omap_dm_timer *timer);
 
 int omap_dm_timers_active(void);
+u32 omap_dm_timer_modify_idlect_mask(u32 inputmask);
 
 #endif /* __ASM_ARCH_TIMER_H */

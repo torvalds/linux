@@ -31,7 +31,7 @@ typedef struct ray_dev_t {
     void __iomem *sram;            /* pointer to beginning of shared RAM     */
     void __iomem *amem;            /* pointer to attribute mem window        */
     void __iomem *rmem;            /* pointer to receive buffer window       */
-    dev_link_t *finder;            /* pointer back to dev_link_t for card    */
+    struct pcmcia_device *finder;            /* pointer back to struct pcmcia_device for card    */
     struct timer_list timer;
     long tx_ccs_lock;
     long ccs_lock;

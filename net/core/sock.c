@@ -385,7 +385,21 @@ set_sndbuf:
 				val = sysctl_rmem_max;
 set_rcvbuf:
 			sk->sk_userlocks |= SOCK_RCVBUF_LOCK;
-			/* FIXME: is this lower bound the right one? */
+			/*
+			 * We double it on the way in to account for
+			 * "struct sk_buff" etc. overhead.   Applications
+			 * assume that the SO_RCVBUF setting they make will
+			 * allow that much actual data to be received on that
+			 * socket.
+			 *
+			 * Applications are unaware that "struct sk_buff" and
+			 * other overheads allocate from the receive buffer
+			 * during socket buffer allocation.
+			 *
+			 * And after considering the possible alternatives,
+			 * returning the value we actually used in getsockopt
+			 * is the most desirable behavior.
+			 */
 			if ((val * 2) < SOCK_MIN_RCVBUF)
 				sk->sk_rcvbuf = SOCK_MIN_RCVBUF;
 			else

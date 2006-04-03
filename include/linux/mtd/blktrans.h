@@ -10,7 +10,7 @@
 #ifndef __MTD_TRANS_H__
 #define __MTD_TRANS_H__
 
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
 
 struct hd_geometry;
 struct mtd_info;
@@ -22,7 +22,7 @@ struct mtd_blktrans_dev {
 	struct mtd_blktrans_ops *tr;
 	struct list_head list;
 	struct mtd_info *mtd;
-	struct semaphore sem;
+	struct mutex lock;
 	int devnum;
 	int blksize;
 	unsigned long size;
