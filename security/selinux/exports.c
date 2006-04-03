@@ -5,6 +5,7 @@
  *
  * Copyright (C) 2005 Red Hat, Inc., James Morris <jmorris@redhat.com>
  * Copyright (C) 2006 Trusted Computer Solutions, Inc. <dgoeddel@trustedcs.com>
+ * Copyright (C) 2006 IBM Corporation, Timothy R. Chavez <tinytim@us.ibm.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2,
@@ -56,6 +57,16 @@ void selinux_get_ipc_sid(const struct kern_ipc_perm *ipcp, u32 *sid)
 	if (selinux_enabled) {
 		struct ipc_security_struct *isec = ipcp->security;
 		*sid = isec->sid;
+		return;
+	}
+	*sid = 0;
+}
+
+void selinux_get_task_sid(struct task_struct *tsk, u32 *sid)
+{
+	if (selinux_enabled) {
+		struct task_security_struct *tsec = tsk->security;
+		*sid = tsec->sid;
 		return;
 	}
 	*sid = 0;

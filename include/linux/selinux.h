@@ -5,6 +5,7 @@
  *
  * Copyright (C) 2005 Red Hat, Inc., James Morris <jmorris@redhat.com>
  * Copyright (C) 2006 Trusted Computer Solutions, Inc. <dgoeddel@trustedcs.com>
+ * Copyright (C) 2006 IBM Corporation, Timothy R. Chavez <tinytim@us.ibm.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2,
@@ -108,6 +109,16 @@ void selinux_get_inode_sid(const struct inode *inode, u32 *sid);
  */
 void selinux_get_ipc_sid(const struct kern_ipc_perm *ipcp, u32 *sid);
 
+/**
+ *     selinux_get_task_sid - return the SID of task
+ *     @tsk: the task whose SID will be returned
+ *     @sid: pointer to security context ID to be filled in.
+ *
+ *     Returns nothing
+ */
+void selinux_get_task_sid(struct task_struct *tsk, u32 *sid);
+
+
 #else
 
 static inline int selinux_audit_rule_init(u32 field, u32 op,
@@ -152,6 +163,11 @@ static inline void selinux_get_inode_sid(const struct inode *inode, u32 *sid)
 }
 
 static inline void selinux_get_ipc_sid(const struct kern_ipc_perm *ipcp, u32 *sid)
+{
+	*sid = 0;
+}
+
+static inline void selinux_get_task_sid(struct task_struct *tsk, u32 *sid)
 {
 	*sid = 0;
 }

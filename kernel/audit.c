@@ -390,7 +390,7 @@ static int audit_netlink_ok(kernel_cap_t eff_cap, u16 msg_type)
 
 static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
-	u32			uid, pid, seq;
+	u32			uid, pid, seq, sid;
 	void			*data;
 	struct audit_status	*status_get, status_set;
 	int			err;
@@ -416,6 +416,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	pid  = NETLINK_CREDS(skb)->pid;
 	uid  = NETLINK_CREDS(skb)->uid;
 	loginuid = NETLINK_CB(skb).loginuid;
+	sid  = NETLINK_CB(skb).sid;
 	seq  = nlh->nlmsg_seq;
 	data = NLMSG_DATA(nlh);
 
@@ -468,8 +469,23 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 			ab = audit_log_start(NULL, GFP_KERNEL, msg_type);
 			if (ab) {
 				audit_log_format(ab,
-						 "user pid=%d uid=%u auid=%u msg='%.1024s'",
-						 pid, uid, loginuid, (char *)data);
+						 "user pid=%d uid=%u auid=%u",
+						 pid, uid, loginuid);
+				if (sid) {
+					char *ctx = NULL;
+					u32 len;
+					if (selinux_ctxid_to_string(
+							sid, &ctx, &len)) {
+						audit_log_format(ab, 
+							" subj=%u", sid);
+						/* Maybe call audit_panic? */
+					} else
+						audit_log_format(ab, 
+							" subj=%s", ctx);
+					kfree(ctx);
+				}
+				audit_log_format(ab, " msg='%.1024s'",
+					 (char *)data);
 				audit_set_pid(ab, pid);
 				audit_log_end(ab);
 			}
