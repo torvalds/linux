@@ -77,7 +77,7 @@ vrc5476_irq_init(u32 base)
 }
 
 
-asmlinkage void
+void
 vrc5476_irq_dispatch(struct pt_regs *regs)
 {
 	u32 mask;

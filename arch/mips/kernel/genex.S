@@ -122,6 +122,20 @@ handle_vcei:
 	.set	pop
 	END(except_vec3_r4000)
 
+	__FINIT
+
+	.align  5
+NESTED(handle_int, PT_SIZE, sp)
+	SAVE_ALL
+	CLI
+
+	PTR_LA	ra, ret_from_irq
+	move	a0, sp
+	j	plat_irq_dispatch
+	END(handle_int)
+
+	__INIT
+
 /*
  * Special interrupt vector for MIPS64 ISA & embedded MIPS processors.
  * This is a dedicated interrupt exception vector which reduces the

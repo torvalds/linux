@@ -40,7 +40,6 @@
 #include <asm/mips-boards/msc01_pci.h>
 #include <asm/msc01_ic.h>
 
-extern asmlinkage void mipsIRQ(void);
 extern void mips_timer_interrupt(void);
 
 static DEFINE_SPINLOCK(mips_irq_lock);
@@ -114,7 +113,7 @@ static inline int get_int(void)
 	return irq;
 }
 
-void malta_hw0_irqdispatch(struct pt_regs *regs)
+static void malta_hw0_irqdispatch(struct pt_regs *regs)
 {
 	int irq;
 
@@ -182,6 +181,92 @@ void corehi_irqdispatch(struct pt_regs *regs)
         die("CoreHi interrupt", regs);
 }
 
+static inline int clz(unsigned long x)
+{
+	__asm__ (
+	"	.set	push					\n"
+	"	.set	mips32					\n"
+	"	clz	%0, %1					\n"
+	"	.set	pop					\n"
+	: "=r" (x)
+	: "r" (x));
+
+	return x;
+}
+
+/*
+ * Version of ffs that only looks at bits 12..15.
+ */
+static inline unsigned int irq_ffs(unsigned int pending)
+{
+#if defined(CONFIG_CPU_MIPS32) || defined(CONFIG_CPU_MIPS64)
+	return -clz(pending) + 31 - CAUSEB_IP;
+#else
+	unsigned int a0 = 7;
+	unsigned int t0;
+
+	t0 = s0 & 0xf000;
+	t0 = t0 < 1;
+	t0 = t0 << 2;
+	a0 = a0 - t0;
+	s0 = s0 << t0;
+
+	t0 = s0 & 0xc000;
+	t0 = t0 < 1;
+	t0 = t0 << 1;
+	a0 = a0 - t0;
+	s0 = s0 << t0;
+
+	t0 = s0 & 0x8000;
+	t0 = t0 < 1;
+	//t0 = t0 << 2;
+	a0 = a0 - t0;
+	//s0 = s0 << t0;
+
+	return a0;
+#endif
+}
+
+/*
+ * IRQs on the Malta board look basically (barring software IRQs which we
+ * don't use at all and all external interrupt sources are combined together
+ * on hardware interrupt 0 (MIPS IRQ 2)) like:
+ *
+ *	MIPS IRQ	Source
+ *      --------        ------
+ *             0	Software (ignored)
+ *             1        Software (ignored)
+ *             2        Combined hardware interrupt (hw0)
+ *             3        Hardware (ignored)
+ *             4        Hardware (ignored)
+ *             5        Hardware (ignored)
+ *             6        Hardware (ignored)
+ *             7        R4k timer (what we use)
+ *
+ * We handle the IRQ according to _our_ priority which is:
+ *
+ * Highest ----     R4k Timer
+ * Lowest  ----     Combined hardware interrupt
+ *
+ * then we just return, if multiple IRQs are pending then we will just take
+ * another exception, big deal.
+ */
+
+asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+{
+	unsigned int pending = read_c0_cause() & read_c0_status() & ST0_IM;
+	int irq;
+
+	irq = irq_ffs(pending);
+
+	if (irq == MIPSCPU_INT_I8259A)
+		malta_hw0_irqdispatch(regs);
+	else if (irq > 0)
+		do_IRQ(MIPSCPU_INT_BASE + irq, regs);
+	else
+		spurious_interrupt(regs);
+}
+
 static struct irqaction i8259irq = {
 	.handler = no_action,
 	.name = "XT-PIC cascade"
@@ -214,7 +299,6 @@ int __initdata msc_nr_eicirqs = sizeof(msc_eicirqmap)/sizeof(msc_irqmap_t);
 
 void __init arch_init_irq(void)
 {
-	set_except_vector(0, mipsIRQ);
 	init_i8259_irqs();
 
 	if (!cpu_has_veic)
@@ -245,7 +329,6 @@ void __init arch_init_irq(void)
 		setup_irq (MIPSCPU_INT_BASE+MIPSCPU_INT_COREHI, &corehi_irqaction);
 	}
 	else {
-		set_except_vector(0, mipsIRQ);
 		setup_irq (MIPSCPU_INT_BASE+MIPSCPU_INT_I8259A, &i8259irq);
 		setup_irq (MIPSCPU_INT_BASE+MIPSCPU_INT_COREHI, &corehi_irqaction);
 	}

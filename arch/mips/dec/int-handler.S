@@ -36,7 +36,7 @@
 		.text
 		.set	noreorder
 /*
- * decstation_handle_int: Interrupt handler for DECstations
+ * plat_irq_dispatch: Interrupt handler for DECstations
  *
  * We follow the model in the Indy interrupt code by David Miller, where he
  * says: a lot of complication here is taken away because:
@@ -125,11 +125,7 @@
  * just take another exception, big deal.
  */
 		.align	5
-		NESTED(decstation_handle_int, PT_SIZE, ra)
-		.set	noat
-		SAVE_ALL
-		CLI				# TEST: interrupts should be off
-		.set	at
+		NESTED(plat_irq_dispatch, PT_SIZE, ra)
 		.set	noreorder
 
 		/*
@@ -286,7 +282,7 @@ spurious:
 		 nop
 		j	ret_from_irq
 		 nop
-		END(decstation_handle_int)
+		END(plat_irq_dispatch)
 
 /*
  * Generic unimplemented interrupt routines -- cpu_mask_nr_tbl

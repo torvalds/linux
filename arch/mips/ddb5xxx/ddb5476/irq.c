@@ -110,10 +110,35 @@ static void nile4_irq_setup(void)
 static struct irqaction irq_cascade = { no_action, 0, CPU_MASK_NONE, "cascade", NULL, NULL };
 static struct irqaction irq_error = { no_action, 0, CPU_MASK_NONE, "error", NULL, NULL };
 
-extern asmlinkage void ddb5476_handle_int(void);
 extern int setup_irq(unsigned int irq, struct irqaction *irqaction);
 extern void mips_cpu_irq_init(u32 irq_base);
 extern void vrc5476_irq_init(u32 irq_base);
+
+extern void vrc5476_irq_dispatch(struct pt_regs *regs);
+
+asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+{
+	unsigned int pending = read_c0_cause() & read_c0_status();
+
+	if (pending & STATUSF_IP7)
+		do_IRQ(CPU_IRQ_BASE + 7, regs);
+	else if (pending & STATUSF_IP2)
+		vrc5476_irq_dispatch(regs);
+	else if (pending & STATUSF_IP3)
+		do_IRQ(CPU_IRQ_BASE + 3, regs);
+	else if (pending & STATUSF_IP4)
+		do_IRQ(CPU_IRQ_BASE + 4, regs);
+	else if (pending & STATUSF_IP5)
+		do_IRQ(CPU_IRQ_BASE + 5, regs);
+	else if (pending & STATUSF_IP6)
+		do_IRQ(CPU_IRQ_BASE + 6, regs);
+	else if (pending & STATUSF_IP0)
+		do_IRQ(CPU_IRQ_BASE, regs);
+	else if (pending & STATUSF_IP1)
+		do_IRQ(CPU_IRQ_BASE + 1, regs);
+
+	vrc5476_irq_dispatch(regs);
+}
 
 void __init arch_init_irq(void)
 {
@@ -137,7 +162,4 @@ void __init arch_init_irq(void)
 	setup_irq(VRC5476_IRQ_BASE + VRC5476_IRQ_LBRT, &irq_error);
 	setup_irq(VRC5476_IRQ_BASE + VRC5476_IRQ_PCIS, &irq_error);
 	setup_irq(VRC5476_IRQ_BASE + VRC5476_IRQ_PCI, &irq_error);
-
-	/* setup the grandpa intr vector */
-	set_except_vector(0, ddb5476_handle_int);
 }
