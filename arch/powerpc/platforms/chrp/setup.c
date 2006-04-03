@@ -440,8 +440,6 @@ void __init chrp_init_IRQ(void)
 
 	if (_chrp_type == _CHRP_Pegasos)
 		ppc_md.get_irq        = i8259_irq;
-	else
-		ppc_md.get_irq        = mpic_get_irq;
 
 #if defined(CONFIG_VT) && defined(CONFIG_INPUT_ADBHID) && defined(XMON)
 	/* see if there is a keyboard in the device tree
@@ -528,26 +526,24 @@ static int __init chrp_probe(void)
 	/* Assume we have an 8259... */
 	__irq_offset_value = NUM_ISA_INTERRUPTS;
 
-	ppc_md.setup_arch     = chrp_setup_arch;
-	ppc_md.show_cpuinfo   = chrp_show_cpuinfo;
-
-	ppc_md.init_IRQ       = chrp_init_IRQ;
-	ppc_md.init           = chrp_init2;
-
-	ppc_md.phys_mem_access_prot = pci_phys_mem_access_prot;
-
-	ppc_md.restart        = rtas_restart;
-	ppc_md.power_off      = rtas_power_off;
-	ppc_md.halt           = rtas_halt;
-
-	ppc_md.time_init      = chrp_time_init;
-	ppc_md.calibrate_decr = generic_calibrate_decr;
-
-	/* this may get overridden with rtas routines later... */
-	ppc_md.set_rtc_time   = chrp_set_rtc_time;
-	ppc_md.get_rtc_time   = chrp_get_rtc_time;
-
-#ifdef CONFIG_SMP
-	smp_ops = &chrp_smp_ops;
-#endif /* CONFIG_SMP */
+	return 1;
 }
+
+define_machine(chrp) {
+	.name			= "CHRP",
+	.probe			= chrp_probe,
+	.setup_arch		= chrp_setup_arch,
+	.init			= chrp_init2,
+	.show_cpuinfo		= chrp_show_cpuinfo,
+	.init_IRQ		= chrp_init_IRQ,
+	.get_irq		= mpic_get_irq,
+	.pcibios_fixup		= chrp_pcibios_fixup,
+	.restart		= rtas_restart,
+	.power_off		= rtas_power_off,
+	.halt			= rtas_halt,
+	.time_init		= chrp_time_init,
+	.set_rtc_time		= chrp_set_rtc_time,
+	.get_rtc_time		= chrp_get_rtc_time,
+	.calibrate_decr		= generic_calibrate_decr,
+	.phys_mem_access_prot	= pci_phys_mem_access_prot,
+};
