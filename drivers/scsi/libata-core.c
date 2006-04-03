@@ -4097,9 +4097,6 @@ static void ata_pio_task(void *_data)
 fsm_start:
 	WARN_ON(ap->hsm_task_state == HSM_ST_IDLE);
 
-	qc = ata_qc_from_tag(ap, ap->active_tag);
-	WARN_ON(qc == NULL);
-
 	/*
 	 * This is purely heuristic.  This is a fast path.
 	 * Sometimes when we enter, BSY will be cleared in
@@ -4112,7 +4109,7 @@ fsm_start:
 		msleep(2);
 		status = ata_busy_wait(ap, ATA_BUSY, 10);
 		if (status & ATA_BUSY) {
-			ata_port_queue_task(ap, ata_pio_task, ap, ATA_SHORT_PAUSE);
+			ata_port_queue_task(ap, ata_pio_task, qc, ATA_SHORT_PAUSE);
 			return;
 		}
 	}
@@ -4347,7 +4344,7 @@ unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 		ap->hsm_task_state = HSM_ST_LAST;
 
 		if (qc->tf.flags & ATA_TFLAG_POLLING)
-			ata_port_queue_task(ap, ata_pio_task, ap, 0);
+			ata_port_queue_task(ap, ata_pio_task, qc, 0);
 
 		break;
 
@@ -4369,7 +4366,7 @@ unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 		if (qc->tf.flags & ATA_TFLAG_WRITE) {
 			/* PIO data out protocol */
 			ap->hsm_task_state = HSM_ST_FIRST;
-			ata_port_queue_task(ap, ata_pio_task, ap, 0);
+			ata_port_queue_task(ap, ata_pio_task, qc, 0);
 
 			/* always send first data block using
 			 * the ata_pio_task() codepath.
@@ -4379,7 +4376,7 @@ unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 			ap->hsm_task_state = HSM_ST;
 
 			if (qc->tf.flags & ATA_TFLAG_POLLING)
-				ata_port_queue_task(ap, ata_pio_task, ap, 0);
+				ata_port_queue_task(ap, ata_pio_task, qc, 0);
 
 			/* if polling, ata_pio_task() handles the rest.
 			 * otherwise, interrupt handler takes over from here.
@@ -4400,7 +4397,7 @@ unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 		/* send cdb by polling if no cdb interrupt */
 		if ((!(qc->dev->flags & ATA_DFLAG_CDB_INTR)) ||
 		    (qc->tf.flags & ATA_TFLAG_POLLING))
-			ata_port_queue_task(ap, ata_pio_task, ap, 0);
+			ata_port_queue_task(ap, ata_pio_task, qc, 0);
 		break;
 
 	case ATA_PROT_ATAPI_DMA:
@@ -4412,7 +4409,7 @@ unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 
 		/* send cdb by polling if no cdb interrupt */
 		if (!(qc->dev->flags & ATA_DFLAG_CDB_INTR))
-			ata_port_queue_task(ap, ata_pio_task, ap, 0);
+			ata_port_queue_task(ap, ata_pio_task, qc, 0);
 		break;
 
 	default:
