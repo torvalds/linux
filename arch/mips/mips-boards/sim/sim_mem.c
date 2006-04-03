@@ -21,6 +21,7 @@
 
 #include <asm/bootinfo.h>
 #include <asm/page.h>
+#include <asm/sections.h>
 
 #include <asm/mips-boards/prom.h>
 
@@ -38,9 +39,6 @@ static char *mtypes[3] = {
 	"SIM free memory",
 };
 #endif
-
-/* References to section boundaries */
-extern char _end;
 
 struct prom_pmemblock * __init prom_getmdesc(void)
 {

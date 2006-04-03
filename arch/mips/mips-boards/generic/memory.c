@@ -26,6 +26,7 @@
 
 #include <asm/bootinfo.h>
 #include <asm/page.h>
+#include <asm/sections.h>
 
 #include <asm/mips-boards/prom.h>
 
@@ -45,9 +46,6 @@ static char *mtypes[3] = {
 	"Free memmory",
 };
 #endif
-
-/* References to section boundaries */
-extern char _end;
 
 struct prom_pmemblock * __init prom_getmdesc(void)
 {
@@ -106,7 +104,7 @@ struct prom_pmemblock * __init prom_getmdesc(void)
 
 	mdesc[3].type = yamon_dontuse;
 	mdesc[3].base = 0x00100000;
-	mdesc[3].size = CPHYSADDR(PAGE_ALIGN(&_end)) - mdesc[3].base;
+	mdesc[3].size = CPHYSADDR(PAGE_ALIGN((unsigned long)&_end)) - mdesc[3].base;
 
 	mdesc[4].type = yamon_free;
 	mdesc[4].base = CPHYSADDR(PAGE_ALIGN(&_end));
