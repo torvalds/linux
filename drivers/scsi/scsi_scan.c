@@ -808,6 +808,29 @@ static inline void scsi_destroy_sdev(struct scsi_device *sdev)
 	put_device(&sdev->sdev_gendev);
 }
 
+/** 
+ * scsi_inq_str - print INQUIRY data from min to max index,
+ * strip trailing whitespace
+ * @buf:   Output buffer with at least end-first+1 bytes of space
+ * @inq:   Inquiry buffer (input)
+ * @first: Offset of string into inq
+ * @end:   Index after last character in inq
+ */
+static unsigned char* scsi_inq_str(unsigned char* buf, unsigned char *inq,
+				   unsigned first, unsigned end)
+{
+	unsigned term = 0, idx;
+	for (idx = 0; idx+first < end && idx+first < inq[4]+5; ++idx) {
+		if (inq[idx+first] > 0x20) {
+			buf[idx] = inq[idx+first];
+			term = idx+1;
+		} else {
+			buf[idx] = ' ';
+		}
+	}
+	buf[term] = 0;
+	return buf;
+}
 
 /**
  * scsi_probe_and_add_lun - probe a LUN, if a LUN is found add it
@@ -888,9 +911,18 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 		 * logical disk configured at sdev->lun, but there
 		 * is a target id responding.
 		 */
-		SCSI_LOG_SCAN_BUS(3, printk(KERN_INFO
-					"scsi scan: peripheral qualifier of 3,"
-					" no device added\n"));
+		SCSI_LOG_SCAN_BUS(2, sdev_printk(KERN_INFO, sdev, "scsi scan:"
+				   " peripheral qualifier of 3, device not"
+				   " added\n"))
+		if (lun == 0) {
+			unsigned char vend[9], mod[17];
+			SCSI_LOG_SCAN_BUS(1, sdev_printk(KERN_INFO, sdev,
+					"scsi scan: consider passing scsi_mod."
+					"dev_flags=%s:%s:0x240 or 0x800240\n",
+					scsi_inq_str(vend, result, 8, 16),
+					scsi_inq_str(mod, result, 16, 32)));
+		}
+		
 		res = SCSI_SCAN_TARGET_PRESENT;
 		goto out_free_result;
 	}
