@@ -1210,7 +1210,7 @@ intelfbhw_mode_to_hw(struct intelfb_info *dinfo, struct intelfb_hwstate *hw,
 	*ss = (hactive << SRC_SIZE_HORIZ_SHIFT) |
 	      (vactive << SRC_SIZE_VERT_SHIFT);
 
-	hw->disp_a_stride = var->xres_virtual * var->bits_per_pixel / 8;
+	hw->disp_a_stride = dinfo->pitch;
 	DBG_MSG("pitch is %d\n", hw->disp_a_stride);
 
 	hw->disp_a_base = hw->disp_a_stride * var->yoffset +

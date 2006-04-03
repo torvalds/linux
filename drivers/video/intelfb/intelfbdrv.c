@@ -1164,15 +1164,32 @@ intelfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	struct fb_var_screeninfo v;
 	struct intelfb_info *dinfo;
 	static int first = 1;
+	int i;
+	/* Good pitches to allow tiling.  Don't care about pitches < 1024. */
+	static const int pitches[] = {
+		128 * 8,
+		128 * 16,
+		128 * 32,
+		128 * 64,
+		0
+	};
 
 	DBG_MSG("intelfb_check_var: accel_flags is %d\n", var->accel_flags);
 
 	dinfo = GET_DINFO(info);
 
+	/* update the pitch */
 	if (intelfbhw_validate_mode(dinfo, var) != 0)
 		return -EINVAL;
 
 	v = *var;
+
+	for (i = 0; pitches[i] != 0; i++) {
+		if (pitches[i] >= v.xres_virtual) {
+			v.xres_virtual = pitches[i];
+			break;
+		}
+	}
 
 	/* Check for a supported bpp. */
 	if (v.bits_per_pixel <= 8) {
