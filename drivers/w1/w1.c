@@ -54,7 +54,7 @@ module_param_named(control_timeout, w1_control_timeout, int, 0);
 module_param_named(max_slave_count, w1_max_slave_count, int, 0);
 module_param_named(slave_ttl, w1_max_slave_ttl, int, 0);
 
-DECLARE_MUTEX(w1_mlock);
+DEFINE_MUTEX(w1_mlock);
 LIST_HEAD(w1_masters);
 
 static struct task_struct *w1_control_thread;
@@ -139,11 +139,7 @@ static ssize_t w1_default_write(struct kobject *kobj, char *buf, loff_t off, siz
 {
 	struct w1_slave *sl = kobj_to_w1_slave(kobj);
 
-	if (down_interruptible(&sl->master->mutex)) {
-		count = 0;
-		goto out;
-	}
-
+	mutex_lock(&sl->master->mutex);
 	if (w1_reset_select_slave(sl)) {
 		count = 0;
 		goto out_up;
@@ -152,8 +148,7 @@ static ssize_t w1_default_write(struct kobject *kobj, char *buf, loff_t off, siz
 	w1_write_block(sl->master, buf, count);
 
 out_up:
-	up(&sl->master->mutex);
-out:
+	mutex_unlock(&sl->master->mutex);
 	return count;
 }
 
@@ -161,15 +156,9 @@ static ssize_t w1_default_read(struct kobject *kobj, char *buf, loff_t off, size
 {
 	struct w1_slave *sl = kobj_to_w1_slave(kobj);
 
-	if (down_interruptible(&sl->master->mutex)) {
-		count = 0;
-		goto out;
-	}
-
+	mutex_lock(&sl->master->mutex);
 	w1_read_block(sl->master, buf, count);
-
-	up(&sl->master->mutex);
-out:
+	mutex_unlock(&sl->master->mutex);
 	return count;
 }
 
@@ -243,12 +232,9 @@ static ssize_t w1_master_attribute_show_name(struct device *dev, struct device_a
 	struct w1_master *md = dev_to_w1_master(dev);
 	ssize_t count;
 
-	if (down_interruptible (&md->mutex))
-		return -EBUSY;
-
+	mutex_lock(&md->mutex);
 	count = sprintf(buf, "%s\n", md->name);
-
-	up(&md->mutex);
+	mutex_unlock(&md->mutex);
 
 	return count;
 }
@@ -259,12 +245,9 @@ static ssize_t w1_master_attribute_store_search(struct device * dev,
 {
 	struct w1_master *md = dev_to_w1_master(dev);
 
-	if (down_interruptible (&md->mutex))
-		return -EBUSY;
-
+	mutex_lock(&md->mutex);
 	md->search_count = simple_strtol(buf, NULL, 0);
-
-	up(&md->mutex);
+	mutex_unlock(&md->mutex);
 
 	return count;
 }
@@ -276,12 +259,9 @@ static ssize_t w1_master_attribute_show_search(struct device *dev,
 	struct w1_master *md = dev_to_w1_master(dev);
 	ssize_t count;
 
-	if (down_interruptible (&md->mutex))
-		return -EBUSY;
-
+	mutex_lock(&md->mutex);
 	count = sprintf(buf, "%d\n", md->search_count);
-
-	up(&md->mutex);
+	mutex_unlock(&md->mutex);
 
 	return count;
 }
@@ -291,12 +271,9 @@ static ssize_t w1_master_attribute_show_pointer(struct device *dev, struct devic
 	struct w1_master *md = dev_to_w1_master(dev);
 	ssize_t count;
 
-	if (down_interruptible(&md->mutex))
-		return -EBUSY;
-
+	mutex_lock(&md->mutex);
 	count = sprintf(buf, "0x%p\n", md->bus_master);
-
-	up(&md->mutex);
+	mutex_unlock(&md->mutex);
 	return count;
 }
 
@@ -312,12 +289,9 @@ static ssize_t w1_master_attribute_show_max_slave_count(struct device *dev, stru
 	struct w1_master *md = dev_to_w1_master(dev);
 	ssize_t count;
 
-	if (down_interruptible(&md->mutex))
-		return -EBUSY;
-
+	mutex_lock(&md->mutex);
 	count = sprintf(buf, "%d\n", md->max_slave_count);
-
-	up(&md->mutex);
+	mutex_unlock(&md->mutex);
 	return count;
 }
 
@@ -326,12 +300,9 @@ static ssize_t w1_master_attribute_show_attempts(struct device *dev, struct devi
 	struct w1_master *md = dev_to_w1_master(dev);
 	ssize_t count;
 
-	if (down_interruptible(&md->mutex))
-		return -EBUSY;
-
+	mutex_lock(&md->mutex);
 	count = sprintf(buf, "%lu\n", md->attempts);
-
-	up(&md->mutex);
+	mutex_unlock(&md->mutex);
 	return count;
 }
 
@@ -340,12 +311,9 @@ static ssize_t w1_master_attribute_show_slave_count(struct device *dev, struct d
 	struct w1_master *md = dev_to_w1_master(dev);
 	ssize_t count;
 
-	if (down_interruptible(&md->mutex))
-		return -EBUSY;
-
+	mutex_lock(&md->mutex);
 	count = sprintf(buf, "%d\n", md->slave_count);
-
-	up(&md->mutex);
+	mutex_unlock(&md->mutex);
 	return count;
 }
 
@@ -354,8 +322,7 @@ static ssize_t w1_master_attribute_show_slaves(struct device *dev, struct device
 	struct w1_master *md = dev_to_w1_master(dev);
 	int c = PAGE_SIZE;
 
-	if (down_interruptible(&md->mutex))
-		return -EBUSY;
+	mutex_lock(&md->mutex);
 
 	if (md->slave_count == 0)
 		c -= snprintf(buf + PAGE_SIZE - c, c, "not found.\n");
@@ -370,7 +337,7 @@ static ssize_t w1_master_attribute_show_slaves(struct device *dev, struct device
 		}
 	}
 
-	up(&md->mutex);
+	mutex_unlock(&md->mutex);
 
 	return PAGE_SIZE - c;
 }
@@ -620,7 +587,7 @@ static struct w1_master *w1_search_master(void *data)
 	struct w1_master *dev;
 	int found = 0;
 
-	down(&w1_mlock);
+	mutex_lock(&w1_mlock);
 	list_for_each_entry(dev, &w1_masters, w1_master_entry) {
 		if (dev->bus_master->data == data) {
 			found = 1;
@@ -628,7 +595,7 @@ static struct w1_master *w1_search_master(void *data)
 			break;
 		}
 	}
-	up(&w1_mlock);
+	mutex_unlock(&w1_mlock);
 
 	return (found)?dev:NULL;
 }
@@ -638,7 +605,7 @@ struct w1_master *w1_search_master_id(u32 id)
 	struct w1_master *dev;
 	int found = 0;
 
-	down(&w1_mlock);
+	mutex_lock(&w1_mlock);
 	list_for_each_entry(dev, &w1_masters, w1_master_entry) {
 		if (dev->id == id) {
 			found = 1;
@@ -646,7 +613,7 @@ struct w1_master *w1_search_master_id(u32 id)
 			break;
 		}
 	}
-	up(&w1_mlock);
+	mutex_unlock(&w1_mlock);
 
 	return (found)?dev:NULL;
 }
@@ -657,9 +624,9 @@ struct w1_slave *w1_search_slave(struct w1_reg_num *id)
 	struct w1_slave *sl = NULL;
 	int found = 0;
 
-	down(&w1_mlock);
+	mutex_lock(&w1_mlock);
 	list_for_each_entry(dev, &w1_masters, w1_master_entry) {
-		down(&dev->mutex);
+		mutex_lock(&dev->mutex);
 		list_for_each_entry(sl, &dev->slist, w1_slave_entry) {
 			if (sl->reg_num.family == id->family &&
 					sl->reg_num.id == id->id &&
@@ -670,12 +637,12 @@ struct w1_slave *w1_search_slave(struct w1_reg_num *id)
 				break;
 			}
 		}
-		up(&dev->mutex);
+		mutex_unlock(&dev->mutex);
 
 		if (found)
 			break;
 	}
-	up(&w1_mlock);
+	mutex_unlock(&w1_mlock);
 
 	return (found)?sl:NULL;
 }
@@ -684,13 +651,13 @@ void w1_reconnect_slaves(struct w1_family *f)
 {
 	struct w1_master *dev;
 
-	down(&w1_mlock);
+	mutex_lock(&w1_mlock);
 	list_for_each_entry(dev, &w1_masters, w1_master_entry) {
 		dev_dbg(&dev->dev, "Reconnecting slaves in %s into new family %02x.\n",
 				dev->name, f->fid);
 		set_bit(W1_MASTER_NEED_RECONNECT, &dev->flags);
 	}
-	up(&w1_mlock);
+	mutex_unlock(&w1_mlock);
 }
 
 static void w1_slave_found(void *data, u64 rn)
@@ -845,23 +812,23 @@ static int w1_control(void *data)
 			if (kthread_should_stop() || test_bit(W1_MASTER_NEED_EXIT, &dev->flags)) {
 				set_bit(W1_MASTER_NEED_EXIT, &dev->flags);
 
-				down(&w1_mlock);
+				mutex_lock(&w1_mlock);
 				list_del(&dev->w1_master_entry);
-				up(&w1_mlock);
+				mutex_unlock(&w1_mlock);
 
-				down(&dev->mutex);
+				mutex_lock(&dev->mutex);
 				list_for_each_entry_safe(sl, sln, &dev->slist, w1_slave_entry) {
 					w1_slave_detach(sl);
 				}
 				w1_destroy_master_attributes(dev);
-				up(&dev->mutex);
+				mutex_unlock(&dev->mutex);
 				atomic_dec(&dev->refcnt);
 				continue;
 			}
 
 			if (test_bit(W1_MASTER_NEED_RECONNECT, &dev->flags)) {
 				dev_dbg(&dev->dev, "Reconnecting slaves in device %s.\n", dev->name);
-				down(&dev->mutex);
+				mutex_lock(&dev->mutex);
 				list_for_each_entry_safe(sl, sln, &dev->slist, w1_slave_entry) {
 					if (sl->family->fid == W1_FAMILY_DEFAULT) {
 						struct w1_reg_num rn;
@@ -874,7 +841,7 @@ static int w1_control(void *data)
 				}
 				dev_dbg(&dev->dev, "Reconnecting slaves in device %s has been finished.\n", dev->name);
 				clear_bit(W1_MASTER_NEED_RECONNECT, &dev->flags);
-				up(&dev->mutex);
+				mutex_unlock(&dev->mutex);
 			}
 		}
 	}
@@ -921,12 +888,9 @@ int w1_process(void *data)
 		if (dev->search_count == 0)
 			continue;
 
-		if (down_interruptible(&dev->mutex))
-			continue;
-
+		mutex_lock(&dev->mutex);
 		w1_search_process(dev, W1_SEARCH);
-
-		up(&dev->mutex);
+		mutex_unlock(&dev->mutex);
 	}
 
 	atomic_dec(&dev->refcnt);

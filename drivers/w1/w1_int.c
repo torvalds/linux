@@ -36,7 +36,7 @@ extern struct device w1_master_device;
 extern int w1_max_slave_count;
 extern int w1_max_slave_ttl;
 extern struct list_head w1_masters;
-extern struct semaphore w1_mlock;
+extern struct mutex w1_mlock;
 
 extern int w1_process(void *);
 
@@ -74,7 +74,7 @@ static struct w1_master * w1_alloc_dev(u32 id, int slave_count, int slave_ttl,
 	atomic_set(&dev->refcnt, 2);
 
 	INIT_LIST_HEAD(&dev->slist);
-	init_MUTEX(&dev->mutex);
+	mutex_init(&dev->mutex);
 
 	memcpy(&dev->dev, device, sizeof(struct device));
 	snprintf(dev->dev.bus_id, sizeof(dev->dev.bus_id),
@@ -135,9 +135,9 @@ int w1_add_master_device(struct w1_bus_master *master)
 
 	dev->initialized = 1;
 
-	down(&w1_mlock);
+	mutex_lock(&w1_mlock);
 	list_add(&dev->w1_master_entry, &w1_masters);
-	up(&w1_mlock);
+	mutex_unlock(&w1_mlock);
 
 	memset(&msg, 0, sizeof(msg));
 	msg.id.mst.id = dev->id;

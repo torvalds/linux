@@ -171,7 +171,7 @@ static void w1_cn_callback(void *data)
 			goto out_cont;
 		}
 
-		down(&dev->mutex);
+		mutex_lock(&dev->mutex);
 
 		if (sl && w1_reset_select_slave(sl)) {
 			err = -ENODEV;
@@ -198,7 +198,7 @@ out_up:
 		atomic_dec(&dev->refcnt);
 		if (sl)
 			atomic_dec(&sl->refcnt);
-		up(&dev->mutex);
+		mutex_unlock(&dev->mutex);
 out_cont:
 		msg->len -= sizeof(struct w1_netlink_msg) + m->len;
 		m = (struct w1_netlink_msg *)(((u8 *)m) + sizeof(struct w1_netlink_msg) + m->len);

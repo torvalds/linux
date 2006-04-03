@@ -105,11 +105,7 @@ static ssize_t w1_f23_read_bin(struct kobject *kobj, char *buf, loff_t off,
 	if ((count = w1_f23_fix_count(off, count, W1_EEPROM_SIZE)) == 0)
 		return 0;
 
-	atomic_inc(&sl->refcnt);
-	if (down_interruptible(&sl->master->mutex)) {
-		count = 0;
-		goto out_dec;
-	}
+	mutex_lock(&sl->master->mutex);
 
 #ifdef CONFIG_W1_F23_CRC
 
@@ -140,9 +136,7 @@ static ssize_t w1_f23_read_bin(struct kobject *kobj, char *buf, loff_t off,
 #endif	/* CONFIG_W1_F23_CRC */
 
 out_up:
-	up(&sl->master->mutex);
-out_dec:
-	atomic_dec(&sl->refcnt);
+	mutex_unlock(&sl->master->mutex);
 
 	return count;
 }
@@ -231,11 +225,7 @@ static ssize_t w1_f23_write_bin(struct kobject *kobj, char *buf, loff_t off,
 	}
 #endif	/* CONFIG_W1_F23_CRC */
 
-	atomic_inc(&sl->refcnt);
-	if (down_interruptible(&sl->master->mutex)) {
-		count = 0;
-		goto out_dec;
-	}
+	mutex_lock(&sl->master->mutex);
 
 	/* Can only write data to one page at a time */
 	idx = 0;
@@ -253,9 +243,7 @@ static ssize_t w1_f23_write_bin(struct kobject *kobj, char *buf, loff_t off,
 	}
 
 out_up:
-	up(&sl->master->mutex);
-out_dec:
-	atomic_dec(&sl->refcnt);
+	mutex_unlock(&sl->master->mutex);
 
 	return count;
 }

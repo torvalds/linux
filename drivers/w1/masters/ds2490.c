@@ -169,7 +169,7 @@ static int ds_send_control(struct ds_device *, u16, u16);
 static int ds_send_control_cmd(struct ds_device *, u16, u16);
 
 static LIST_HEAD(ds_devices);
-static DECLARE_MUTEX(ds_mutex);
+static DEFINE_MUTEX(ds_mutex);
 
 static struct usb_driver ds_driver = {
 	.name =		"DS9490R",
@@ -887,9 +887,9 @@ static int ds_probe(struct usb_interface *intf,
 	if (err)
 		goto err_out_clear;
 
-	down(&ds_mutex);
+	mutex_lock(&ds_mutex);
 	list_add_tail(&dev->ds_entry, &ds_devices);
-	up(&ds_mutex);
+	mutex_unlock(&ds_mutex);
 
 	return 0;
 
@@ -909,9 +909,9 @@ static void ds_disconnect(struct usb_interface *intf)
 	if (!dev)
 		return;
 
-	down(&ds_mutex);
+	mutex_lock(&ds_mutex);
 	list_del(&dev->ds_entry);
-	up(&ds_mutex);
+	mutex_unlock(&ds_mutex);
 
 	ds_w1_fini(dev);
 

@@ -41,8 +41,7 @@ struct w1_reg_num
 
 #include <linux/completion.h>
 #include <linux/device.h>
-
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
 
 #include "w1_family.h"
 
@@ -171,7 +170,7 @@ struct w1_master
 	long			flags;
 
 	struct task_struct	*thread;
-	struct semaphore	mutex;
+	struct mutex		mutex;
 
 	struct device_driver	*driver;
 	struct device		dev;
