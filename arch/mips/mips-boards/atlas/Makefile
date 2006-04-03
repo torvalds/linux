@@ -16,5 +16,5 @@
 # 59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
 #
 
-obj-y			:= atlas_int.o atlas_setup.o
+obj-y			:= atlas_int.o atlas-irq.o atlas_setup.o
 obj-$(CONFIG_KGDB)	+= atlas_gdb.o

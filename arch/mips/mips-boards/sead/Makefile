@@ -23,4 +23,4 @@
 # under Linux.
 #
 
-obj-y		:= sead_int.o sead_setup.o
+obj-y		:= sead_int.o sead-irq.o sead_setup.o

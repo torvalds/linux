@@ -2,8 +2,6 @@
  * Carsten Langgaard, carstenl@mips.com
  * Copyright (C) 1999, 2000 MIPS Technologies, Inc.  All rights reserved.
  *
- * ########################################################################
- *
  *  This program is free software; you can distribute it and/or modify it
  *  under the terms of the GNU General Public License (Version 2) as
  *  published by the Free Software Foundation.
@@ -17,10 +15,7 @@
  *  with this program; if not, write to the Free Software Foundation, Inc.,
  *  59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
  *
- * ########################################################################
- *
  * Interrupt exception dispatch code.
- *
  */
 #include <linux/config.h>
 
@@ -28,33 +23,9 @@
 #include <asm/mipsregs.h>
 #include <asm/regdef.h>
 #include <asm/stackframe.h>
-
-#ifdef CONFIG_MIPS_ATLAS
 #include <asm/mips-boards/atlasint.h>
-#define CASCADE_IRQ		MIPSCPU_INT_ATLAS
-#define CASCADE_DISPATCH	atlas_hw0_irqdispatch
-#endif
-#ifdef CONFIG_MIPS_MALTA
-#include <asm/mips-boards/maltaint.h>
-#define CASCADE_IRQ		MIPSCPU_INT_I8259A
-#define CASCADE_DISPATCH	malta_hw0_irqdispatch
-#endif
-#ifdef CONFIG_MIPS_SEAD
-#include <asm/mips-boards/seadint.h>
-#endif
 
-/* A lot of complication here is taken away because:
- *
- * 1) We handle one interrupt and return, sitting in a loop and moving across
- *    all the pending IRQ bits in the cause register is _NOT_ the answer, the
- *    common case is one pending IRQ so optimize in that direction.
- *
- * 2) We need not check against bits in the status register IRQ mask, that
- *    would make this routine slow as hell.
- *
- * 3) Linux only thinks in terms of all IRQs on or all IRQs off, nothing in
- *    between like BSD spl() brain-damage.
- *
+/*
  * Furthermore, the IRQs on the MIPS board look basically (barring software
  * IRQs which we don't use at all and all external interrupt sources are
  * combined together on hardware interrupt 0 (MIPS IRQ 2)) like:
@@ -127,31 +98,23 @@
 	# sll	s0, t0
 #endif
 
-#ifdef CASCADE_IRQ
-	 li	a1, CASCADE_IRQ
+	 li	a1, MIPSCPU_INT_ATLAS
 	bne	a0, a1, 1f
 	 addu	a0, MIPSCPU_INT_BASE
 
-	jal	CASCADE_DISPATCH
+	jal	atlas_hw0_irqdispatch
 	 move	 a0, sp
 
 	j	ret_from_irq
 	 nop
-1:
-#else
-	 addu	a0, MIPSCPU_INT_BASE
-#endif
 
-	jal	do_IRQ
+1:	jal	do_IRQ
 	 move	a1, sp
 
 	j	ret_from_irq
 	 nop
 
-
 spurious:
-	jal	spurious_interrupt
-	 nop
-	j	ret_from_irq
+	j	spurious_interrupt
 	 nop
 	END(mipsIRQ)

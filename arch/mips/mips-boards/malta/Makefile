@@ -19,4 +19,4 @@
 # under Linux.
 #
 
-obj-y := malta_int.o malta_setup.o
+obj-y := malta_int.o malta-irq.o malta_setup.o
