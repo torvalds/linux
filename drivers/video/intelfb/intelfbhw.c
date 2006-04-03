@@ -41,14 +41,10 @@
 #include "intelfbhw.h"
 
 struct pll_min_max {
-	int min_m, max_m;
-	int min_m1, max_m1;
-	int min_m2, max_m2;
-	int min_n, max_n;
-	int min_p, max_p;
-	int min_p1, max_p1;
-	int min_vco, max_vco;
-	int p_transition_clk, ref_clk;
+	int min_m, max_m, min_m1, max_m1;
+	int min_m2, max_m2, min_n, max_n;
+	int min_p, max_p, min_p1, max_p1;
+	int min_vco, max_vco, p_transition_clk, ref_clk;
 	int p_inc_lo, p_inc_hi;
 };
 
@@ -57,8 +53,17 @@ struct pll_min_max {
 #define PLLS_MAX 2
 
 static struct pll_min_max plls[PLLS_MAX] = {
-  { 108, 140, 18, 26, 6, 16, 3, 16, 4, 128, 0, 31, 930000, 1400000, 165000, 48000, 4, 22 }, //I8xx
-  {  75, 120, 10, 20, 5, 9, 4,  7, 5, 80, 1, 8, 930000, 2800000, 200000, 96000, 10, 5 }  //I9xx
+	{ 108, 140, 18, 26,
+	  6, 16, 3, 16,
+	  4, 128, 0, 31,
+	  930000, 1400000, 165000, 48000,
+	  4, 2 }, //I8xx
+
+	{ 75, 120, 10, 20,
+	  5, 9, 4, 7,
+	  5, 80, 1, 8,
+	  1400000, 2800000, 200000, 96000,
+	  10, 5 }  //I9xx
 };
 
 int
@@ -698,8 +703,7 @@ intelfbhw_print_hw_state(struct intelfb_info *dinfo, struct intelfb_hwstate *hw)
 
 		tmpp1 = p1;
 
-		switch (tmpp1)
-		{
+		switch (tmpp1) {
 		case 0x1: p1 = 1; break;
 		case 0x2: p1 = 2; break;
 		case 0x4: p1 = 3; break;
@@ -710,7 +714,7 @@ intelfbhw_print_hw_state(struct intelfb_info *dinfo, struct intelfb_hwstate *hw)
 		case 0x80: p1 = 8; break;
 		default: break;
 		}
-
+		
 		p2 = (hw->dpll_a >> DPLL_I9XX_P2_SHIFT) & DPLL_P2_MASK;
 
 	} else {
@@ -849,8 +853,7 @@ splitp(int index, unsigned int p, unsigned int *retp1, unsigned int *retp2)
 	int p1, p2;
 
 	if (index == PLLS_I9xx) {
-
-		p2 = 0; // for now
+		p2 = (p % 10) ? 1 : 0;
 
 		p1 = p / (p2 ? 5 : 10);
 
@@ -890,7 +893,8 @@ calc_pll_params(int index, int clock, u32 *retm1, u32 *retm2, u32 *retn, u32 *re
 	u32 f_vco, p, p_best = 0, m, f_out = 0;
 	u32 err_max, err_target, err_best = 10000000;
 	u32 n_best = 0, m_best = 0, f_best, f_err;
-	u32 p_min, p_max, p_inc, div_min, div_max;
+	u32 p_min, p_max, p_inc, div_max;
+	struct pll_min_max *pll = &plls[index];
 
 	/* Accept 0.5% difference, but aim for 0.1% */
 	err_max = 5 * clock / 1000;
@@ -898,22 +902,15 @@ calc_pll_params(int index, int clock, u32 *retm1, u32 *retm2, u32 *retn, u32 *re
 
 	DBG_MSG("Clock is %d\n", clock);
 
-	div_max = plls[index].max_vco / clock;
-	if (index == PLLS_I9xx)
-		div_min = 5;
-	else
-		div_min = ROUND_UP_TO(plls[index].min_vco, clock) / clock;
+	div_max = pll->max_vco / clock;
 
-	if (clock <= plls[index].p_transition_clk)
-		p_inc = plls[index].p_inc_lo;
-	else
-		p_inc = plls[index].p_inc_hi;
-	p_min = ROUND_UP_TO(div_min, p_inc);
+	p_inc = (clock <= pll->p_transition_clk) ? pll->p_inc_lo : pll->p_inc_hi;
+	p_min = p_inc;
 	p_max = ROUND_DOWN_TO(div_max, p_inc);
-	if (p_min < plls[index].min_p)
-		p_min = plls[index].min_p;
-	if (p_max > plls[index].max_p)
-		p_max = plls[index].max_p;
+	if (p_min < pll->min_p)
+		p_min = pll->min_p;
+	if (p_max > pll->max_p)
+		p_max = pll->max_p;
 
 	DBG_MSG("p range is %d-%d (%d)\n", p_min, p_max, p_inc);
 
@@ -924,15 +921,15 @@ calc_pll_params(int index, int clock, u32 *retm1, u32 *retm2, u32 *retn, u32 *re
 			p += p_inc;
 			continue;
 		}
-		n = plls[index].min_n;
+		n = pll->min_n;
 		f_vco = clock * p;
 
 		do {
-			m = ROUND_UP_TO(f_vco * n, plls[index].ref_clk) / plls[index].ref_clk;
-			if (m < plls[index].min_m)
-				m = plls[index].min_m + 1;
-			if (m > plls[index].max_m)
-				m = plls[index].max_m - 1;
+			m = ROUND_UP_TO(f_vco * n, pll->ref_clk) / pll->ref_clk;
+			if (m < pll->min_m)
+				m = pll->min_m + 1;
+			if (m > pll->max_m)
+				m = pll->max_m - 1;
 			for (testm = m - 1; testm <= m; testm++) {
 				f_out = calc_vclock3(index, m, n, p);
 				if (splitm(index, m, &m1, &m2)) {
@@ -954,7 +951,7 @@ calc_pll_params(int index, int clock, u32 *retm1, u32 *retm2, u32 *retn, u32 *re
 				}
 			}
 			n++;
-		} while ((n <= plls[index].max_n) && (f_out >= clock));
+		} while ((n <= pll->max_n) && (f_out >= clock));
 		p += p_inc;
 	} while ((p <= p_max));
 
