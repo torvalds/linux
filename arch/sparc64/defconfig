@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.16
-# Fri Mar 31 01:40:57 2006
+# Sun Apr  2 19:31:04 2006
 #
 CONFIG_SPARC=y
 CONFIG_SPARC64=y
@@ -838,7 +838,6 @@ CONFIG_FB_TILEBLITTING=y
 # CONFIG_FB_NVIDIA is not set
 # CONFIG_FB_RIVA is not set
 # CONFIG_FB_MATROX is not set
-# CONFIG_FB_RADEON_OLD is not set
 CONFIG_FB_RADEON=y
 CONFIG_FB_RADEON_I2C=y
 # CONFIG_FB_RADEON_DEBUG is not set
@@ -924,6 +923,7 @@ CONFIG_SND_MTPAV=m
 # PCI devices
 #
 # CONFIG_SND_AD1889 is not set
+# CONFIG_SND_ALS300 is not set
 CONFIG_SND_ALI5451=m
 # CONFIG_SND_ATIIXP is not set
 # CONFIG_SND_ATIIXP_MODEM is not set
@@ -955,6 +955,7 @@ CONFIG_SND_ALI5451=m
 # CONFIG_SND_MIXART is not set
 # CONFIG_SND_NM256 is not set
 # CONFIG_SND_PCXHR is not set
+# CONFIG_SND_RIPTIDE is not set
 # CONFIG_SND_RME32 is not set
 # CONFIG_SND_RME96 is not set
 # CONFIG_SND_RME9652 is not set
@@ -1107,6 +1108,11 @@ CONFIG_USB_HIDDEV=y
 # MMC/SD Card support
 #
 # CONFIG_MMC is not set
+
+#
+# LED devices
+#
+# CONFIG_NEW_LEDS is not set
 
 #
 # InfiniBand support
