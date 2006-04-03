@@ -28,4 +28,5 @@
 #define BLIST_NO_ULD_ATTACH	0x100000 /* device is actually for RAID config */
 #define BLIST_SELECT_NO_ATN	0x200000 /* select without ATN */
 #define BLIST_RETRY_HWERROR	0x400000 /* retry HARDWARE_ERROR */
+#define BLIST_ATTACH_PQ3	0x800000 /* Scan: Attach to PQ3 devices */
 #endif

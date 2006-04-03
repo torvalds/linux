@@ -900,7 +900,7 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 	/*
 	 * result contains valid SCSI INQUIRY data.
 	 */
-	if ((result[0] >> 5) == 3) {
+	if (((result[0] >> 5) == 3) && !(bflags & BLIST_ATTACH_PQ3)) {
 		/*
 		 * For a Peripheral qualifier 3 (011b), the SCSI
 		 * spec says: The device server is not capable of
