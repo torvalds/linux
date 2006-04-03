@@ -2,10 +2,6 @@
 # Makefile for the Dallas's 1-wire bus.
 #
 
-ifeq ($(CONFIG_CONNECTOR), n)
-EXTRA_CFLAGS	+= -DNETLINK_DISABLED
-endif
-
 ifeq ($(CONFIG_W1_DS2433_CRC), y)
 EXTRA_CFLAGS	+= -DCONFIG_W1_F23_CRC
 endif

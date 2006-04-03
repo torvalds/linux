@@ -27,7 +27,7 @@
 #include "w1_log.h"
 #include "w1_netlink.h"
 
-#ifndef NETLINK_DISABLED
+#if defined(CONFIG_W1_CON) && (defined(CONFIG_CONNECTOR) || (defined(CONFIG_CONNECTOR_MODULE) && defined(CONFIG_W1_MODULE)))
 void w1_netlink_send(struct w1_master *dev, struct w1_netlink_msg *msg)
 {
 	char buf[sizeof(struct cn_msg) + sizeof(struct w1_netlink_msg)];
@@ -230,8 +230,6 @@ void w1_fini_netlink(void)
 	cn_del_callback(&w1_id);
 }
 #else
-#warning Netlink support is disabled. Please compile with NET support enabled.
-
 void w1_netlink_send(struct w1_master *dev, struct w1_netlink_msg *msg)
 {
 }
