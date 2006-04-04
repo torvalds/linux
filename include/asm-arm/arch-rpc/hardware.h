@@ -46,7 +46,6 @@
 #define SCREEN_END		0xdfc00000
 #define SCREEN_BASE		0xdf800000
 
-#define FLUSH_BASE		0xdf000000
 #define UNCACHEABLE_ADDR	0xdf010000
 
 /*
@@ -58,8 +57,6 @@
 #define IOC_BASE		IOMEM(0xe0200000)
 #define PCIO_BASE		IOMEM(0xe0010000)
 #define FLOPPYDMA_BASE		IOMEM(0xe002a000)
-
-#define FLUSH_BASE_PHYS		0x00000000	/* ROM */
 
 #define vidc_writel(val)	__raw_writel(val, VIDC_BASE)
 
