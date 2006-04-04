@@ -2698,7 +2698,8 @@ int dev_ioctl(unsigned int cmd, void __user *arg)
 				/* If command is `set a parameter', or
 				 * `get the encoding parameters', check if
 				 * the user has the right to do it */
-				if (IW_IS_SET(cmd) || cmd == SIOCGIWENCODE) {
+				if (IW_IS_SET(cmd) || cmd == SIOCGIWENCODE
+				    || cmd == SIOCGIWENCODEEXT) {
 					if (!capable(CAP_NET_ADMIN))
 						return -EPERM;
 				}
