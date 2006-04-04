@@ -213,6 +213,16 @@ static inline struct w1_master* dev_to_w1_master(struct device *dev)
 	return container_of(dev, struct w1_master, dev);
 }
 
+extern struct device_driver w1_master_driver;
+extern struct bus_type w1_bus_type;
+extern struct device w1_master_device;
+extern int w1_max_slave_count;
+extern int w1_max_slave_ttl;
+extern struct list_head w1_masters;
+extern struct mutex w1_mlock;
+
+extern int w1_process(void *);
+
 #endif /* __KERNEL__ */
 
 #endif /* __W1_H */

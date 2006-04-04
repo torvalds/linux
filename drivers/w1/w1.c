@@ -214,11 +214,12 @@ struct device w1_master_device = {
 	.release = &w1_master_release
 };
 
-struct device_driver w1_slave_driver = {
+static struct device_driver w1_slave_driver = {
 	.name = "w1_slave_driver",
 	.bus = &w1_bus_type,
 };
 
+#if 0
 struct device w1_slave_device = {
 	.parent = NULL,
 	.bus = &w1_bus_type,
@@ -226,6 +227,7 @@ struct device w1_slave_device = {
 	.driver = &w1_slave_driver,
 	.release = &w1_slave_release
 };
+#endif  /*  0  */
 
 static ssize_t w1_master_attribute_show_name(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -383,7 +385,7 @@ int w1_create_master_attributes(struct w1_master *master)
 	return sysfs_create_group(&master->dev.kobj, &w1_master_defattr_group);
 }
 
-void w1_destroy_master_attributes(struct w1_master *master)
+static void w1_destroy_master_attributes(struct w1_master *master)
 {
 	sysfs_remove_group(&master->dev.kobj, &w1_master_defattr_group);
 }
