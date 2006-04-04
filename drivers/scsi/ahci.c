@@ -549,6 +549,12 @@ static int ahci_softreset(struct ata_port *ap, int verbose, unsigned int *class)
 
 	DPRINTK("ENTER\n");
 
+	if (!sata_dev_present(ap)) {
+		DPRINTK("PHY reports no device\n");
+		*class = ATA_DEV_NONE;
+		return 0;
+	}
+
 	/* prepare for SRST (AHCI-1.1 10.4.1) */
 	rc = ahci_stop_engine(ap);
 	if (rc) {
