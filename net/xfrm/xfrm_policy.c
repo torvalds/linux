@@ -943,9 +943,9 @@ xfrm_policy_ok(struct xfrm_tmpl *tmpl, struct sec_path *sp, int start,
 	} else
 		start = -1;
 	for (; idx < sp->len; idx++) {
-		if (xfrm_state_ok(tmpl, sp->x[idx].xvec, family))
+		if (xfrm_state_ok(tmpl, sp->xvec[idx], family))
 			return ++idx;
-		if (sp->x[idx].xvec->props.mode)
+		if (sp->xvec[idx]->props.mode)
 			break;
 	}
 	return start;
@@ -968,7 +968,7 @@ EXPORT_SYMBOL(xfrm_decode_session);
 static inline int secpath_has_tunnel(struct sec_path *sp, int k)
 {
 	for (; k < sp->len; k++) {
-		if (sp->x[k].xvec->props.mode)
+		if (sp->xvec[k]->props.mode)
 			return 1;
 	}
 
@@ -994,8 +994,8 @@ int __xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb,
 		int i;
 
 		for (i=skb->sp->len-1; i>=0; i--) {
-			struct sec_decap_state *xvec = &(skb->sp->x[i]);
-			if (!xfrm_selector_match(&xvec->xvec->sel, &fl, family))
+			struct xfrm_state *x = skb->sp->xvec[i];
+			if (!xfrm_selector_match(&x->sel, &fl, family))
 				return 0;
 		}
 	}

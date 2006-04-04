@@ -252,6 +252,9 @@ static void __init dump_cpu_info(int cpu)
 			dump_cache("cache", cpu, CACHE_ISIZE(info));
 		}
 	}
+
+	if (arch_is_coherent())
+		printk("Cache coherency enabled\n");
 }
 
 int cpu_architecture(void)

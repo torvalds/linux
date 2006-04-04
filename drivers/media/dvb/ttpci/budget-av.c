@@ -60,11 +60,11 @@ struct budget_av {
 	struct dvb_ca_en50221 ca;
 };
 
-/* GPIO CI Connections:
- * 0 - Vcc/Reset (Reset is controlled by capacitor)
- * 1 - Attribute Memory
- * 2 - Card Enable (Active Low)
- * 3 - Card Detect
+/* GPIO Connections:
+ * 0 - Vcc/Reset (Reset is controlled by capacitor). Resets the frontend *AS WELL*!
+ * 1 - CI memory select 0=>IO memory, 1=>Attribute Memory
+ * 2 - CI Card Enable (Active Low)
+ * 3 - CI Card Detect
  */
 
 /****************************************************************************
@@ -213,6 +213,9 @@ static int ciintf_slot_reset(struct dvb_ca_en50221 *ca, int slot)
 	 * but AFAICS it is not routed to the saa7146 */
 	while (--timeout > 0 && ciintf_read_attribute_mem(ca, slot, 0) != 0x1d)
 		msleep(100);
+
+	/* reinitialise the frontend */
+	dvb_frontend_reinitialise(budget_av->budget.dvb_frontend);
 
 	if (timeout <= 0)
 	{

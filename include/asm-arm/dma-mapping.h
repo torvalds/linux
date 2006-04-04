@@ -47,7 +47,7 @@ static inline int dma_get_cache_alignment(void)
 
 static inline int dma_is_consistent(dma_addr_t handle)
 {
-	return 0;
+	return !!arch_is_coherent();
 }
 
 /*
@@ -145,7 +145,9 @@ static inline dma_addr_t
 dma_map_single(struct device *dev, void *cpu_addr, size_t size,
 	       enum dma_data_direction dir)
 {
-	consistent_sync(cpu_addr, size, dir);
+	if (!arch_is_coherent())
+		consistent_sync(cpu_addr, size, dir);
+
 	return virt_to_dma(dev, (unsigned long)cpu_addr);
 }
 #else
@@ -255,7 +257,9 @@ dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 
 		sg->dma_address = page_to_dma(dev, sg->page) + sg->offset;
 		virt = page_address(sg->page) + sg->offset;
-		consistent_sync(virt, sg->length, dir);
+
+		if (!arch_is_coherent())
+			consistent_sync(virt, sg->length, dir);
 	}
 
 	return nents;
@@ -310,14 +314,16 @@ static inline void
 dma_sync_single_for_cpu(struct device *dev, dma_addr_t handle, size_t size,
 			enum dma_data_direction dir)
 {
-	consistent_sync((void *)dma_to_virt(dev, handle), size, dir);
+	if (!arch_is_coherent())
+		consistent_sync((void *)dma_to_virt(dev, handle), size, dir);
 }
 
 static inline void
 dma_sync_single_for_device(struct device *dev, dma_addr_t handle, size_t size,
 			   enum dma_data_direction dir)
 {
-	consistent_sync((void *)dma_to_virt(dev, handle), size, dir);
+	if (!arch_is_coherent())
+		consistent_sync((void *)dma_to_virt(dev, handle), size, dir);
 }
 #else
 extern void dma_sync_single_for_cpu(struct device*, dma_addr_t, size_t, enum dma_data_direction);
@@ -347,7 +353,8 @@ dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg, int nents,
 
 	for (i = 0; i < nents; i++, sg++) {
 		char *virt = page_address(sg->page) + sg->offset;
-		consistent_sync(virt, sg->length, dir);
+		if (!arch_is_coherent())
+			consistent_sync(virt, sg->length, dir);
 	}
 }
 
@@ -359,7 +366,8 @@ dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg, int nents,
 
 	for (i = 0; i < nents; i++, sg++) {
 		char *virt = page_address(sg->page) + sg->offset;
-		consistent_sync(virt, sg->length, dir);
+		if (!arch_is_coherent())
+			consistent_sync(virt, sg->length, dir);
 	}
 }
 #else

@@ -120,6 +120,34 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     enable  	- enable card
 		- Default: enabled, for PCI and ISA PnP cards
 
+  Module snd-adlib
+  ----------------
+
+    Module for AdLib FM cards.
+
+    port	- port # for OPL chip
+
+    This module supports multiple cards. It does not support autoprobe, so
+    the port must be specified. For actual AdLib FM cards it will be 0x388.
+    Note that this card does not have PCM support and no mixer; only FM
+    synthesis.
+
+    Make sure you have "sbiload" from the alsa-tools package available and,
+    after loading the module, find out the assigned ALSA sequencer port
+    number through "sbiload -l". Example output:
+
+      Port     Client name                       Port name
+      64:0     OPL2 FM synth                     OPL2 FM Port
+
+    Load the std.sb and drums.sb patches also supplied by sbiload:
+
+      sbiload -p 64:0 std.sb drums.sb
+
+    If you use this driver to drive an OPL3, you can use std.o3 and drums.o3
+    instead. To have the card produce sound, use aplaymidi from alsa-utils:
+
+      aplaymidi -p 64:0 foo.mid
+
   Module snd-ad1816a
   ------------------
 
@@ -187,6 +215,15 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     fm_port	- port # for OPL3 FM (PnP setup)
     
     This module supports multiple cards, autoprobe and PnP.
+
+    The power-management is supported.
+
+  Module snd-als300
+  -----------------
+
+    Module for  Avance Logic ALS300 and ALS300+
+
+    This module supports multiple cards.
 
     The power-management is supported.
 
@@ -701,6 +738,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  uniwill	3-jack
 	  F1734		2-jack
 	  lg		LG laptop (m1 express dual)
+	  lg-lw		LG LW20 laptop
 	  test		for testing/debugging purpose, almost all controls can be
 			adjusted.  Appearing only when compiled with
 			$CONFIG_SND_DEBUG=y
@@ -1013,6 +1051,23 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     The power-management is supported.
 
+  Module snd-miro
+  ---------------
+
+    Module for Miro soundcards: miroSOUND PCM 1 pro, 
+				miroSOUND PCM 12,
+				miroSOUND PCM 20 Radio.
+
+    port	- Port # (0x530,0x604,0xe80,0xf40)
+    irq		- IRQ # (5,7,9,10,11)
+    dma1	- 1st dma # (0,1,3)
+    dma2	- 2nd dma # (0,1)
+    mpu_port	- MPU-401 port # (0x300,0x310,0x320,0x330)
+    mpu_irq	- MPU-401 irq # (5,7,9,10)
+    fm_port	- FM Port # (0x388)
+    wss		- enable WSS mode
+    ide		- enable onboard ide support
+
   Module snd-mixart
   -----------------
 
@@ -1201,6 +1256,20 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     For ARM architecture only.
 
     The power-management is supported.
+
+  Module snd-riptide
+  ------------------
+
+    Module for Conexant Riptide chip
+
+      joystick_port	- Joystick port # (default: 0x200)
+      mpu_port		- MPU401 port # (default: 0x330)
+      opl3_port		- OPL3 port # (default: 0x388)
+
+    This module supports multiple cards.
+    The driver requires the firmware loader support on kernel.
+    You need to install the firmware file "riptide.hex" to the standard
+    firmware path (e.g. /lib/firmware).
 
   Module snd-rme32
   ----------------

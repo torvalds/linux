@@ -258,7 +258,7 @@ EXPORT_SYMBOL(vio_find_node);
 int vio_enable_interrupts(struct vio_dev *dev)
 {
 	int rc = h_vio_signal(dev->unit_address, VIO_IRQ_ENABLE);
-	if (rc != H_Success)
+	if (rc != H_SUCCESS)
 		printk(KERN_ERR "vio: Error 0x%x enabling interrupts\n", rc);
 	return rc;
 }
@@ -267,7 +267,7 @@ EXPORT_SYMBOL(vio_enable_interrupts);
 int vio_disable_interrupts(struct vio_dev *dev)
 {
 	int rc = h_vio_signal(dev->unit_address, VIO_IRQ_DISABLE);
-	if (rc != H_Success)
+	if (rc != H_SUCCESS)
 		printk(KERN_ERR "vio: Error 0x%x disabling interrupts\n", rc);
 	return rc;
 }

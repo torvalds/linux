@@ -28,6 +28,7 @@
 #include <linux/init.h>
 #include <linux/string.h>
 #include <linux/ioport.h>
+#include <linux/platform_device.h>
 #include <linux/bootmem.h>
 #include <linux/pci.h>
 #include <linux/seq_file.h>
@@ -1478,3 +1479,20 @@ alpha_panic_event(struct notifier_block *this, unsigned long event, void *ptr)
 #endif
         return NOTIFY_DONE;
 }
+
+static __init int add_pcspkr(void)
+{
+	struct platform_device *pd;
+	int ret;
+
+	pd = platform_device_alloc("pcspkr", -1);
+	if (!pd)
+		return -ENOMEM;
+
+	ret = platform_device_add(pd);
+	if (ret)
+		platform_device_put(pd);
+
+	return ret;
+}
+device_initcall(add_pcspkr);

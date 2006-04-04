@@ -12,7 +12,6 @@
 #include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/config.h>
 #include <linux/string.h>
 #include <linux/major.h>
 #include <linux/errno.h>
@@ -25,6 +24,7 @@
 #include <linux/pm.h>
 #include <linux/pci.h>
 #include <linux/device.h>
+#include <linux/mutex.h>
 #include <asm/system.h>
 #include <asm/irq.h>
 
@@ -183,7 +183,7 @@ static ssize_t pccard_store_resource(struct class_device *dev, const char *buf, 
 		s->resource_setup_done = 1;
 	spin_unlock_irqrestore(&s->lock, flags);
 
-	down(&s->skt_sem);
+	mutex_lock(&s->skt_mutex);
 	if ((s->callback) &&
 	    (s->state & SOCKET_PRESENT) &&
 	    !(s->state & SOCKET_CARDBUS)) {
@@ -192,7 +192,7 @@ static ssize_t pccard_store_resource(struct class_device *dev, const char *buf, 
 			module_put(s->callback->owner);
 		}
 	}
-	up(&s->skt_sem);
+	mutex_unlock(&s->skt_mutex);
 
 	return count;
 }
@@ -322,7 +322,7 @@ static ssize_t pccard_store_cis(struct kobject *kobj, char *buf, loff_t off, siz
 	kfree(cis);
 
 	if (!ret) {
-		down(&s->skt_sem);
+		mutex_lock(&s->skt_mutex);
 		if ((s->callback) && (s->state & SOCKET_PRESENT) &&
 		    !(s->state & SOCKET_CARDBUS)) {
 			if (try_module_get(s->callback->owner)) {
@@ -330,7 +330,7 @@ static ssize_t pccard_store_cis(struct kobject *kobj, char *buf, loff_t off, siz
 				module_put(s->callback->owner);
 			}
 		}
-		up(&s->skt_sem);
+		mutex_unlock(&s->skt_mutex);
 	}
 
 

@@ -22,6 +22,7 @@
 #include <linux/delay.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
+#include <linux/input.h>
 
 #include <asm/hardware.h>
 #include <asm/mach-types.h>
@@ -34,7 +35,21 @@
 #include <asm/arch/gpio.h>
 #include <asm/arch/tc.h>
 #include <asm/arch/usb.h>
+#include <asm/arch/keypad.h>
 #include <asm/arch/common.h>
+
+static int innovator_keymap[] = {
+	KEY(0, 0, KEY_F1),
+	KEY(0, 3, KEY_DOWN),
+	KEY(1, 1, KEY_F2),
+	KEY(1, 2, KEY_RIGHT),
+	KEY(2, 0, KEY_F3),
+	KEY(2, 1, KEY_F4),
+	KEY(2, 2, KEY_UP),
+	KEY(3, 2, KEY_ENTER),
+	KEY(3, 3, KEY_LEFT),
+	0
+};
 
 static struct mtd_partition innovator_partitions[] = {
 	/* bootloader (U-Boot, etc) in first sector */
@@ -97,6 +112,31 @@ static struct platform_device innovator_flash_device = {
 	.resource	= &innovator_flash_resource,
 };
 
+static struct resource innovator_kp_resources[] = {
+	[0] = {
+		.start	= INT_KEYBOARD,
+		.end	= INT_KEYBOARD,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct omap_kp_platform_data innovator_kp_data = {
+	.rows	= 8,
+	.cols	= 8,
+	.keymap = innovator_keymap,
+};
+
+static struct platform_device innovator_kp_device = {
+	.name		= "omap-keypad",
+	.id		= -1,
+	.dev		= {
+		.platform_data = &innovator_kp_data,
+	},
+	.num_resources	= ARRAY_SIZE(innovator_kp_resources),
+	.resource	= innovator_kp_resources,
+};
+
+
 #ifdef CONFIG_ARCH_OMAP15XX
 
 /* Only FPGA needs to be mapped here. All others are done with ioremap */
@@ -129,9 +169,16 @@ static struct platform_device innovator1510_smc91x_device = {
 	.resource	= innovator1510_smc91x_resources,
 };
 
+static struct platform_device innovator1510_lcd_device = {
+	.name		= "lcd_inn1510",
+	.id		= -1,
+};
+
 static struct platform_device *innovator1510_devices[] __initdata = {
 	&innovator_flash_device,
 	&innovator1510_smc91x_device,
+	&innovator_kp_device,
+	&innovator1510_lcd_device,
 };
 
 #endif /* CONFIG_ARCH_OMAP15XX */
@@ -158,9 +205,16 @@ static struct platform_device innovator1610_smc91x_device = {
 	.resource	= innovator1610_smc91x_resources,
 };
 
+static struct platform_device innovator1610_lcd_device = {
+	.name		= "inn1610_lcd",
+	.id		= -1,
+};
+
 static struct platform_device *innovator1610_devices[] __initdata = {
 	&innovator_flash_device,
 	&innovator1610_smc91x_device,
+	&innovator_kp_device,
+	&innovator1610_lcd_device,
 };
 
 #endif /* CONFIG_ARCH_OMAP16XX */
@@ -206,7 +260,6 @@ static struct omap_usb_config innovator1510_usb_config __initdata = {
 };
 
 static struct omap_lcd_config innovator1510_lcd_config __initdata = {
-	.panel_name	= "inn1510",
 	.ctrl_name	= "internal",
 };
 #endif
@@ -228,7 +281,6 @@ static struct omap_usb_config h2_usb_config __initdata = {
 };
 
 static struct omap_lcd_config innovator1610_lcd_config __initdata = {
-	.panel_name	= "inn1610",
 	.ctrl_name	= "internal",
 };
 #endif

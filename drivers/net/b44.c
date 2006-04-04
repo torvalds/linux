@@ -608,8 +608,7 @@ static void b44_tx(struct b44 *bp)
 		struct ring_info *rp = &bp->tx_buffers[cons];
 		struct sk_buff *skb = rp->skb;
 
-		if (unlikely(skb == NULL))
-			BUG();
+		BUG_ON(skb == NULL);
 
 		pci_unmap_single(bp->pdev,
 				 pci_unmap_addr(rp, mapping),

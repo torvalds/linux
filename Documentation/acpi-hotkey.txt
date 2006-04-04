@@ -30,7 +30,7 @@ specific hotkey(event))
 echo "event_num:event_type:event_argument" > 
 	/proc/acpi/hotkey/action.
 The result of the execution of this aml method is 
-attached to /proc/acpi/hotkey/poll_method, which is dnyamically
+attached to /proc/acpi/hotkey/poll_method, which is dynamically
 created.  Please use command "cat /proc/acpi/hotkey/polling_method" 
 to retrieve it.
 

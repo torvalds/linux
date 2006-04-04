@@ -32,8 +32,9 @@
 #include <linux/videodev2.h>
 #include <linux/i2c.h>
 #include <media/v4l2-common.h>
+#include <media/cx25840.h>
 
-#include "cx25840.h"
+#include "cx25840-core.h"
 
 MODULE_DESCRIPTION("Conexant CX25840 audio/video decoder driver");
 MODULE_AUTHOR("Ulf Eklund, Chris Kennedy, Hans Verkuil, Tyler Trafford");
@@ -668,6 +669,7 @@ static int cx25840_command(struct i2c_client *client, unsigned int cmd,
 {
 	struct cx25840_state *state = i2c_get_clientdata(client);
 	struct v4l2_tuner *vt = arg;
+	struct v4l2_routing *route = arg;
 
 	switch (cmd) {
 #ifdef CONFIG_VIDEO_ADV_DEBUG
@@ -749,19 +751,21 @@ static int cx25840_command(struct i2c_client *client, unsigned int cmd,
 		state->radio = 1;
 		break;
 
-	case VIDIOC_G_INPUT:
-		*(int *)arg = state->vid_input;
+	case VIDIOC_INT_G_VIDEO_ROUTING:
+		route->input = state->vid_input;
+		route->output = 0;
 		break;
 
-	case VIDIOC_S_INPUT:
-		return set_input(client, *(enum cx25840_video_input *)arg, state->aud_input);
+	case VIDIOC_INT_S_VIDEO_ROUTING:
+		return set_input(client, route->input, state->aud_input);
 
-	case VIDIOC_S_AUDIO:
-	{
-		struct v4l2_audio *input = arg;
+	case VIDIOC_INT_G_AUDIO_ROUTING:
+		route->input = state->aud_input;
+		route->output = 0;
+		break;
 
-		return set_input(client, state->vid_input, input->index);
-	}
+	case VIDIOC_INT_S_AUDIO_ROUTING:
+		return set_input(client, state->vid_input, route->input);
 
 	case VIDIOC_S_FREQUENCY:
 		input_change(client);

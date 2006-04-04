@@ -864,7 +864,7 @@ struct super_block {
 	 */
 	struct mutex s_vfs_rename_mutex;	/* Kludge */
 
-	/* Granuality of c/m/atime in ns.
+	/* Granularity of c/m/atime in ns.
 	   Cannot be worse than a second */
 	u32		   s_time_gran;
 };

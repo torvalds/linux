@@ -51,18 +51,18 @@ config VIDEO_TVEEPROM
 	tristate
 
 config USB_DABUSB
-        tristate "DABUSB driver"
-        depends on USB
-        ---help---
-          A Digital Audio Broadcasting (DAB) Receiver for USB and Linux
-          brought to you by the DAB-Team
-          <http://wwwbode.cs.tum.edu/Par/arch/dab/>.  This driver can be taken
-          as an example for URB-based bulk, control, and isochronous
-          transactions. URB's are explained in
-          <Documentation/usb/URB.txt>.
+	tristate "DABUSB driver"
+	depends on USB
+	---help---
+	  A Digital Audio Broadcasting (DAB) Receiver for USB and Linux
+	  brought to you by the DAB-Team
+	  <http://wwwbode.cs.tum.edu/Par/arch/dab/>.  This driver can be taken
+	  as an example for URB-based bulk, control, and isochronous
+	  transactions. URB's are explained in
+	  <Documentation/usb/URB.txt>.
 
-          To compile this driver as a module, choose M here: the
-          module will be called dabusb.
+	  To compile this driver as a module, choose M here: the
+	  module will be called dabusb.
 
 endmenu
 

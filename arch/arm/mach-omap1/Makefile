@@ -3,7 +3,13 @@
 #
 
 # Common support
-obj-y := io.o id.o clock.o irq.o time.o mux.o serial.o devices.o
+obj-y := io.o id.o clock.o irq.o mux.o serial.o devices.o
+
+obj-$(CONFIG_OMAP_MPU_TIMER)		+= time.o
+
+# Power Management
+obj-$(CONFIG_PM) += pm.o sleep.o
+
 led-y := leds.o
 
 # Specific board support
@@ -14,8 +20,9 @@ obj-$(CONFIG_MACH_OMAP_PERSEUS2)	+= board-perseus2.o
 obj-$(CONFIG_MACH_OMAP_OSK)		+= board-osk.o
 obj-$(CONFIG_MACH_OMAP_H3)		+= board-h3.o
 obj-$(CONFIG_MACH_VOICEBLUE)		+= board-voiceblue.o
-obj-$(CONFIG_MACH_NETSTAR)		+= board-netstar.o
 obj-$(CONFIG_MACH_OMAP_PALMTE)		+= board-palmte.o
+obj-$(CONFIG_MACH_NOKIA770)		+= board-nokia770.o
+obj-$(CONFIG_MACH_AMS_DELTA)		+= board-ams-delta.o
 
 ifeq ($(CONFIG_ARCH_OMAP15XX),y)
 # Innovator-1510 FPGA

@@ -44,6 +44,15 @@
 #include <asm/mach/irq.h>
 #include <asm/mach/pci.h>
 
+static int __init espresso_pci_init(void)
+{
+	if (machine_is_espresso())
+		ixp23xx_pci_slave_init();
+
+	return 0;
+};
+subsys_initcall(espresso_pci_init);
+
 static void __init espresso_init(void)
 {
 	physmap_configure(0x90000000, 0x02000000, 2, NULL);

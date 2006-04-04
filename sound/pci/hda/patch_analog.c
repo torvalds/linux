@@ -44,6 +44,7 @@ struct ad198x_spec {
 					 * dig_out_nid and hp_nid are optional
 					 */
 	unsigned int cur_eapd;
+	unsigned int need_dac_fix;
 
 	/* capture */
 	unsigned int num_adc_nids;
@@ -836,10 +837,14 @@ static int patch_ad1986a(struct hda_codec *codec)
 	case AD1986A_3STACK:
 		spec->num_mixers = 2;
 		spec->mixers[1] = ad1986a_3st_mixers;
-		spec->num_init_verbs = 2;
+		spec->num_init_verbs = 3;
 		spec->init_verbs[1] = ad1986a_3st_init_verbs;
+		spec->init_verbs[2] = ad1986a_ch2_init;
 		spec->channel_mode = ad1986a_modes;
 		spec->num_channel_mode = ARRAY_SIZE(ad1986a_modes);
+		spec->need_dac_fix = 1;
+		spec->multiout.max_channels = 2;
+		spec->multiout.num_dacs = 1;
 		break;
 	case AD1986A_LAPTOP:
 		spec->mixers[0] = ad1986a_laptop_mixers;
@@ -1555,6 +1560,8 @@ static int ad198x_ch_mode_put(struct snd_kcontrol *kcontrol,
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct ad198x_spec *spec = codec->spec;
+	if (spec->need_dac_fix)
+		spec->multiout.num_dacs = spec->multiout.max_channels / 2;
 	return snd_hda_ch_mode_put(codec, ucontrol, spec->channel_mode,
 				   spec->num_channel_mode, &spec->multiout.max_channels);
 }

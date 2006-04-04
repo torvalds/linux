@@ -30,9 +30,9 @@
 #include <asm/arch/pm.h>
 #endif
 
-static struct clk * uart1_ck = NULL;
-static struct clk * uart2_ck = NULL;
-static struct clk * uart3_ck = NULL;
+static struct clk * uart1_ck;
+static struct clk * uart2_ck;
+static struct clk * uart3_ck;
 
 static inline unsigned int omap_serial_in(struct plat_serial8250_port *up,
 					  int offset)

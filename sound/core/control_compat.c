@@ -109,7 +109,7 @@ static int snd_ctl_elem_info_compat(struct snd_ctl_file *ctl,
 		goto error;
 
 	snd_power_lock(ctl->card);
-	err = snd_power_wait(ctl->card, SNDRV_CTL_POWER_D0, NULL);
+	err = snd_power_wait(ctl->card, SNDRV_CTL_POWER_D0);
 	if (err >= 0)
 		err = snd_ctl_elem_info(ctl, data);
 	snd_power_unlock(ctl->card);
@@ -294,7 +294,7 @@ static int snd_ctl_elem_read_user_compat(struct snd_card *card,
 		goto error;
 
 	snd_power_lock(card);
-	err = snd_power_wait(card, SNDRV_CTL_POWER_D0, NULL);
+	err = snd_power_wait(card, SNDRV_CTL_POWER_D0);
 	if (err >= 0)
 		err = snd_ctl_elem_read(card, data);
 	snd_power_unlock(card);
@@ -320,7 +320,7 @@ static int snd_ctl_elem_write_user_compat(struct snd_ctl_file *file,
 		goto error;
 
 	snd_power_lock(card);
-	err = snd_power_wait(card, SNDRV_CTL_POWER_D0, NULL);
+	err = snd_power_wait(card, SNDRV_CTL_POWER_D0);
 	if (err >= 0)
 		err = snd_ctl_elem_write(card, file, data);
 	snd_power_unlock(card);

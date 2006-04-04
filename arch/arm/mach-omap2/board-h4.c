@@ -17,6 +17,8 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/delay.h>
+#include <linux/workqueue.h>
+#include <linux/input.h>
 
 #include <asm/hardware.h>
 #include <asm/mach-types.h>
@@ -25,14 +27,56 @@
 #include <asm/mach/flash.h>
 
 #include <asm/arch/gpio.h>
+#include <asm/arch/gpioexpander.h>
 #include <asm/arch/mux.h>
 #include <asm/arch/usb.h>
+#include <asm/arch/irda.h>
 #include <asm/arch/board.h>
 #include <asm/arch/common.h>
-#include <asm/arch/prcm.h>
+#include <asm/arch/keypad.h>
+#include <asm/arch/menelaus.h>
+#include <asm/arch/dma.h>
+#include "prcm-regs.h"
 
 #include <asm/io.h>
 #include <asm/delay.h>
+
+static unsigned int row_gpios[6] = { 88, 89, 124, 11, 6, 96 };
+static unsigned int col_gpios[7] = { 90, 91, 100, 36, 12, 97, 98 };
+
+static int h4_keymap[] = {
+	KEY(0, 0, KEY_LEFT),
+	KEY(0, 1, KEY_RIGHT),
+	KEY(0, 2, KEY_A),
+	KEY(0, 3, KEY_B),
+	KEY(0, 4, KEY_C),
+	KEY(1, 0, KEY_DOWN),
+	KEY(1, 1, KEY_UP),
+	KEY(1, 2, KEY_E),
+	KEY(1, 3, KEY_F),
+	KEY(1, 4, KEY_G),
+	KEY(2, 0, KEY_ENTER),
+	KEY(2, 1, KEY_I),
+	KEY(2, 2, KEY_J),
+	KEY(2, 3, KEY_K),
+	KEY(2, 4, KEY_3),
+	KEY(3, 0, KEY_M),
+	KEY(3, 1, KEY_N),
+	KEY(3, 2, KEY_O),
+	KEY(3, 3, KEY_P),
+	KEY(3, 4, KEY_Q),
+	KEY(4, 0, KEY_R),
+	KEY(4, 1, KEY_4),
+	KEY(4, 2, KEY_T),
+	KEY(4, 3, KEY_U),
+	KEY(4, 4, KEY_ENTER),
+	KEY(5, 0, KEY_V),
+	KEY(5, 1, KEY_W),
+	KEY(5, 2, KEY_L),
+	KEY(5, 3, KEY_S),
+	KEY(5, 4, KEY_ENTER),
+	0
+};
 
 static struct mtd_partition h4_partitions[] = {
 	/* bootloader (U-Boot, etc) in first sector */
@@ -108,9 +152,123 @@ static struct platform_device h4_smc91x_device = {
 	.resource	= h4_smc91x_resources,
 };
 
+/* Select between the IrDA and aGPS module
+ */
+static int h4_select_irda(struct device *dev, int state)
+{
+	unsigned char expa;
+	int err = 0;
+
+	if ((err = read_gpio_expa(&expa, 0x21))) {
+		printk(KERN_ERR "Error reading from I/O expander\n");
+		return err;
+	}
+
+	/* 'P6' enable/disable IRDA_TX and IRDA_RX */
+	if (state & IR_SEL) {	/* IrDa */
+		if ((err = write_gpio_expa(expa | 0x01, 0x21))) {
+			printk(KERN_ERR "Error writing to I/O expander\n");
+			return err;
+		}
+	} else {
+		if ((err = write_gpio_expa(expa & ~0x01, 0x21))) {
+			printk(KERN_ERR "Error writing to I/O expander\n");
+			return err;
+		}
+	}
+	return err;
+}
+
+static void set_trans_mode(void *data)
+{
+	int *mode = data;
+	unsigned char expa;
+	int err = 0;
+
+	if ((err = read_gpio_expa(&expa, 0x20)) != 0) {
+		printk(KERN_ERR "Error reading from I/O expander\n");
+	}
+
+	expa &= ~0x01;
+
+	if (!(*mode & IR_SIRMODE)) { /* MIR/FIR */
+		expa |= 0x01;
+	}
+
+	if ((err = write_gpio_expa(expa, 0x20)) != 0) {
+		printk(KERN_ERR "Error writing to I/O expander\n");
+	}
+}
+
+static int h4_transceiver_mode(struct device *dev, int mode)
+{
+	struct omap_irda_config *irda_config = dev->platform_data;
+
+	cancel_delayed_work(&irda_config->gpio_expa);
+	PREPARE_WORK(&irda_config->gpio_expa, set_trans_mode, &mode);
+	schedule_work(&irda_config->gpio_expa);
+
+	return 0;
+}
+
+static struct omap_irda_config h4_irda_data = {
+	.transceiver_cap	= IR_SIRMODE | IR_MIRMODE | IR_FIRMODE,
+	.transceiver_mode	= h4_transceiver_mode,
+	.select_irda	 	= h4_select_irda,
+	.rx_channel		= OMAP24XX_DMA_UART3_RX,
+	.tx_channel		= OMAP24XX_DMA_UART3_TX,
+	.dest_start		= OMAP_UART3_BASE,
+	.src_start		= OMAP_UART3_BASE,
+	.tx_trigger		= OMAP24XX_DMA_UART3_TX,
+	.rx_trigger		= OMAP24XX_DMA_UART3_RX,
+};
+
+static struct resource h4_irda_resources[] = {
+	[0] = {
+		.start	= INT_24XX_UART3_IRQ,
+		.end	= INT_24XX_UART3_IRQ,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device h4_irda_device = {
+	.name		= "omapirda",
+	.id		= -1,
+	.dev		= {
+		.platform_data	= &h4_irda_data,
+	},
+	.num_resources	= 1,
+	.resource	= h4_irda_resources,
+};
+
+static struct omap_kp_platform_data h4_kp_data = {
+	.rows		= 6,
+	.cols		= 7,
+	.keymap 	= h4_keymap,
+	.rep		= 1,
+	.row_gpios 	= row_gpios,
+	.col_gpios 	= col_gpios,
+};
+
+static struct platform_device h4_kp_device = {
+	.name		= "omap-keypad",
+	.id		= -1,
+	.dev		= {
+		.platform_data = &h4_kp_data,
+	},
+};
+
+static struct platform_device h4_lcd_device = {
+	.name		= "lcd_h4",
+	.id		= -1,
+};
+
 static struct platform_device *h4_devices[] __initdata = {
 	&h4_smc91x_device,
 	&h4_flash_device,
+	&h4_irda_device,
+	&h4_kp_device,
+	&h4_lcd_device,
 };
 
 static inline void __init h4_init_smc91x(void)
@@ -157,7 +315,6 @@ static struct omap_mmc_config h4_mmc_config __initdata = {
 };
 
 static struct omap_lcd_config h4_lcd_config __initdata = {
-	.panel_name	= "h4",
 	.ctrl_name	= "internal",
 };
 
@@ -174,6 +331,19 @@ static void __init omap_h4_init(void)
 	 * You have to mux them off in device drivers later on
 	 * if not needed.
 	 */
+#if defined(CONFIG_OMAP_IR) || defined(CONFIG_OMAP_IR_MODULE)
+	omap_cfg_reg(K15_24XX_UART3_TX);
+	omap_cfg_reg(K14_24XX_UART3_RX);
+#endif
+
+#if defined(CONFIG_KEYBOARD_OMAP) || defined(CONFIG_KEYBOARD_OMAP_MODULE)
+	if (omap_has_menelaus()) {
+		row_gpios[5] = 0;
+		col_gpios[2] = 15;
+		col_gpios[6] = 18;
+	}
+#endif
+
 	platform_add_devices(h4_devices, ARRAY_SIZE(h4_devices));
 	omap_board_config = h4_config;
 	omap_board_config_size = ARRAY_SIZE(h4_config);

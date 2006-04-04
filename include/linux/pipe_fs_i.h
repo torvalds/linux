@@ -5,11 +5,14 @@
 
 #define PIPE_BUFFERS (16)
 
+#define PIPE_BUF_FLAG_STOLEN	0x01
+#define PIPE_BUF_FLAG_LRU	0x02
+
 struct pipe_buffer {
 	struct page *page;
 	unsigned int offset, len;
 	struct pipe_buf_operations *ops;
-	unsigned int stolen;
+	unsigned int flags;
 };
 
 struct pipe_buf_operations {
@@ -60,5 +63,9 @@ void free_pipe_info(struct inode* inode);
  * add the splice flags here.
  */
 #define SPLICE_F_MOVE	(0x01)	/* move pages instead of copying */
+#define SPLICE_F_NONBLOCK (0x02) /* don't block on the pipe splicing (but */
+				 /* we may still block on the fd we splice */
+				 /* from/to, of course */
+#define SPLICE_F_MORE	(0x04)	/* expect more data */
 
 #endif

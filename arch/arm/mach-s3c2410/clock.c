@@ -249,7 +249,7 @@ static int s3c24xx_upll_enable(struct clk *clk, int enable)
 
 	/* if we started the UPLL, then allow to settle */
 
-	if (enable && !(orig & S3C2410_CLKSLOW_UCLK_OFF))
+	if (enable && (orig & S3C2410_CLKSLOW_UCLK_OFF))
 		udelay(200);
 
 	return 0;

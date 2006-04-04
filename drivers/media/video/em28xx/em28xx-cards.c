@@ -151,8 +151,8 @@ struct em28xx_board em28xx_boards[] = {
 		},{
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = 2,
-			.amux     = MSP_INPUT(MSP_IN_SCART_1, MSP_IN_TUNER_1,
-					MSP_DSP_OUT_SCART, MSP_DSP_OUT_SCART),
+			.amux     = MSP_INPUT(MSP_IN_SCART1, MSP_IN_TUNER1,
+					MSP_DSP_IN_SCART, MSP_DSP_IN_SCART),
 		}},
 	},
 	[EM2820_BOARD_MSI_VOX_USB_2] = {

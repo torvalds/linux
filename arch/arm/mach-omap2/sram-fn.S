@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-omap1/sram.S
+ * linux/arch/arm/mach-omap2/sram.S
  *
  * Omap2 specific functions that need to be run in internal SRAM
  *
@@ -28,7 +28,7 @@
 #include <asm/arch/io.h>
 #include <asm/hardware.h>
 
-#include <asm/arch/prcm.h>
+#include "prcm-regs.h"
 
 #define TIMER_32KSYNCT_CR_V	IO_ADDRESS(OMAP24XX_32KSYNCT_BASE + 0x010)
 

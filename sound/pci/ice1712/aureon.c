@@ -87,7 +87,151 @@
 #define CS8415_C_BUFFER	0x20
 #define CS8415_ID		0x7F
 
-static void aureon_ac97_write(struct snd_ice1712 *ice, unsigned short reg, unsigned short val) {
+/* PCA9554 registers */
+#define PCA9554_DEV     0x40            /* I2C device address */
+#define PCA9554_IN      0x00            /* input port */
+#define PCA9554_OUT     0x01            /* output port */
+#define PCA9554_INVERT  0x02            /* input invert */
+#define PCA9554_DIR     0x03            /* port directions */
+
+/*
+ * Aureon Universe additional controls using PCA9554
+ */
+
+/*
+ * Send data to pca9554
+ */
+static void aureon_pca9554_write(struct snd_ice1712 *ice, unsigned char reg,
+				 unsigned char data)
+{
+	unsigned int tmp;
+	int i, j;
+	unsigned char dev = PCA9554_DEV;  /* ID 0100000, write */
+	unsigned char val = 0;
+
+	tmp = snd_ice1712_gpio_read(ice);
+
+	snd_ice1712_gpio_set_mask(ice, ~(AUREON_SPI_MOSI|AUREON_SPI_CLK|
+					 AUREON_WM_RW|AUREON_WM_CS|
+					 AUREON_CS8415_CS));
+	tmp |= AUREON_WM_RW;
+	tmp |= AUREON_CS8415_CS | AUREON_WM_CS; /* disable SPI devices */
+
+	tmp &= ~AUREON_SPI_MOSI;
+	tmp &= ~AUREON_SPI_CLK;
+	snd_ice1712_gpio_write(ice, tmp);
+	udelay(50);
+
+	/* 
+	 * send i2c stop condition and start condition
+	 * to obtain sane state
+	 */
+	tmp |= AUREON_SPI_CLK;
+	snd_ice1712_gpio_write(ice, tmp);
+	udelay(50);
+	tmp |= AUREON_SPI_MOSI;
+	snd_ice1712_gpio_write(ice, tmp);
+	udelay(100);
+	tmp &= ~AUREON_SPI_MOSI;
+	snd_ice1712_gpio_write(ice, tmp);
+	udelay(50);
+	tmp &= ~AUREON_SPI_CLK;
+	snd_ice1712_gpio_write(ice, tmp);
+	udelay(100);
+	/*
+	 * send device address, command and value,
+	 * skipping ack cycles inbetween
+	 */
+	for (j = 0; j < 3; j++) {
+		switch(j) {
+		case 0: val = dev; break;
+		case 1: val = reg; break;
+		case 2: val = data; break;
+		}
+		for (i = 7; i >= 0; i--) {
+			tmp &= ~AUREON_SPI_CLK;
+			snd_ice1712_gpio_write(ice, tmp);
+			udelay(40);
+			if (val & (1 << i))
+				tmp |= AUREON_SPI_MOSI;
+			else
+				tmp &= ~AUREON_SPI_MOSI;
+			snd_ice1712_gpio_write(ice, tmp);
+			udelay(40);
+			tmp |= AUREON_SPI_CLK;
+			snd_ice1712_gpio_write(ice, tmp);
+			udelay(40);
+		}
+                tmp &= ~AUREON_SPI_CLK;
+		snd_ice1712_gpio_write(ice, tmp);
+		udelay(40);
+		tmp |= AUREON_SPI_CLK;
+		snd_ice1712_gpio_write(ice, tmp);
+		udelay(40);
+		tmp &= ~AUREON_SPI_CLK;
+		snd_ice1712_gpio_write(ice, tmp);
+		udelay(40);
+	}
+	tmp &= ~AUREON_SPI_CLK;
+	snd_ice1712_gpio_write(ice, tmp);
+	udelay(40);
+	tmp &= ~AUREON_SPI_MOSI;
+	snd_ice1712_gpio_write(ice, tmp);
+	udelay(40);
+	tmp |= AUREON_SPI_CLK;
+	snd_ice1712_gpio_write(ice, tmp);
+	udelay(50);
+	tmp |= AUREON_SPI_MOSI;
+	snd_ice1712_gpio_write(ice, tmp);
+	udelay(100);
+}
+
+static int aureon_universe_inmux_info(struct snd_kcontrol *kcontrol,
+				      struct snd_ctl_elem_info *uinfo)
+{
+	char *texts[3] = {"Internal Aux", "Wavetable", "Rear Line-In"};
+
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	uinfo->count = 1;
+	uinfo->value.enumerated.items = 3;
+	if(uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
+		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
+	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
+	return 0;
+}
+
+static int aureon_universe_inmux_get(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
+	ucontrol->value.integer.value[0] = ice->spec.aureon.pca9554_out;
+	return 0;
+}
+
+static int aureon_universe_inmux_put(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
+	unsigned char oval, nval;
+	int change;
+
+	snd_ice1712_save_gpio_status(ice);
+	
+	oval = ice->spec.aureon.pca9554_out;
+	nval = ucontrol->value.integer.value[0];
+	if ((change = (oval != nval))) {
+		aureon_pca9554_write(ice, PCA9554_OUT, nval);
+		ice->spec.aureon.pca9554_out = nval;
+	}
+	snd_ice1712_restore_gpio_status(ice);
+	
+	return change;
+}
+
+
+static void aureon_ac97_write(struct snd_ice1712 *ice, unsigned short reg,
+			      unsigned short val)
+{
 	unsigned int tmp;
 
 	/* Send address to XILINX chip */
@@ -146,7 +290,8 @@ static unsigned short aureon_ac97_read(struct snd_ice1712 *ice, unsigned short r
 /*
  * Initialize STAC9744 chip
  */
-static int aureon_ac97_init (struct snd_ice1712 *ice) {
+static int aureon_ac97_init (struct snd_ice1712 *ice)
+{
 	int i;
 	static unsigned short ac97_defaults[] = {
 		0x00, 0x9640,
@@ -1598,7 +1743,15 @@ static struct snd_kcontrol_new universe_ac97_controls[] __devinitdata = {
  		.get = aureon_ac97_vol_get,
  		.put = aureon_ac97_vol_put,
  		.private_value = AC97_VIDEO|AUREON_AC97_STEREO
- 	}
+ 	},
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Aux Source",
+		.info = aureon_universe_inmux_info,
+		.get = aureon_universe_inmux_get,
+		.put = aureon_universe_inmux_put
+	}
+
 };
 
 	
@@ -1856,6 +2009,10 @@ static int __devinit aureon_init(struct snd_ice1712 *ice)
 	}
 
 	snd_ice1712_restore_gpio_status(ice);
+
+        /* initialize PCA9554 pin directions & set default input*/
+	aureon_pca9554_write(ice, PCA9554_DIR, 0x00);
+	aureon_pca9554_write(ice, PCA9554_OUT, 0x00);   /* internal AUX */
 	
 	ice->spec.aureon.master[0] = WM_VOL_MUTE;
 	ice->spec.aureon.master[1] = WM_VOL_MUTE;

@@ -198,9 +198,7 @@ tapeblock_request_fn(request_queue_t *queue)
 
 	device = (struct tape_device *) queue->queuedata;
 	DBF_LH(6, "tapeblock_request_fn(device=%p)\n", device);
-	if (device == NULL)
-		BUG();
-
+	BUG_ON(device == NULL);
 	tapeblock_trigger_requeue(device);
 }
 
@@ -307,8 +305,7 @@ tapeblock_revalidate_disk(struct gendisk *disk)
 	int			rc;
 
 	device = (struct tape_device *) disk->private_data;
-	if (!device)
-		BUG();
+	BUG_ON(!device);
 
 	if (!device->blk_data.medium_changed)
 		return 0;
@@ -440,11 +437,9 @@ tapeblock_ioctl(
 
 	rc     = 0;
 	disk   = inode->i_bdev->bd_disk;
-	if (!disk)
-		BUG();
+	BUG_ON(!disk);
 	device = disk->private_data;
-	if (!device)
-		BUG();
+	BUG_ON(!device);
 	minor  = iminor(inode);
 
 	DBF_LH(6, "tapeblock_ioctl(0x%0x)\n", command);

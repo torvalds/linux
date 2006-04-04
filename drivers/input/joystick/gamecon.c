@@ -7,6 +7,7 @@
  *  Based on the work of:
  *	Andree Borrmann		John Dahlstrom
  *	David Kuder		Nathan Hand
+ *	Raphael Assenat
  */
 
 /*
@@ -36,6 +37,7 @@
 #include <linux/init.h>
 #include <linux/parport.h>
 #include <linux/input.h>
+#include <linux/mutex.h>
 
 MODULE_AUTHOR("Vojtech Pavlik <vojtech@ucw.cz>");
 MODULE_DESCRIPTION("NES, SNES, N64, MultiSystem, PSX gamepad driver");
@@ -72,8 +74,9 @@ __obsolete_setup("gc_3=");
 #define GC_N64		6
 #define GC_PSX		7
 #define GC_DDR		8
+#define GC_SNESMOUSE	9
 
-#define GC_MAX		8
+#define GC_MAX		9
 
 #define GC_REFRESH_TIME	HZ/100
 
@@ -83,7 +86,7 @@ struct gc {
 	struct timer_list timer;
 	unsigned char pads[GC_MAX + 1];
 	int used;
-	struct semaphore sem;
+	struct mutex mutex;
 	char phys[GC_MAX_DEVICES][32];
 };
 
@@ -93,7 +96,7 @@ static int gc_status_bit[] = { 0x40, 0x80, 0x20, 0x10, 0x08 };
 
 static char *gc_names[] = { NULL, "SNES pad", "NES pad", "NES FourPort", "Multisystem joystick",
 				"Multisystem 2-button joystick", "N64 controller", "PSX controller",
-				"PSX DDR controller" };
+				"PSX DDR controller", "SNES mouse" };
 /*
  * N64 support.
  */
@@ -205,9 +208,12 @@ static void gc_n64_process_packet(struct gc *gc)
  * NES/SNES support.
  */
 
-#define GC_NES_DELAY	6	/* Delay between bits - 6us */
-#define GC_NES_LENGTH	8	/* The NES pads use 8 bits of data */
-#define GC_SNES_LENGTH	12	/* The SNES true length is 16, but the last 4 bits are unused */
+#define GC_NES_DELAY		6	/* Delay between bits - 6us */
+#define GC_NES_LENGTH		8	/* The NES pads use 8 bits of data */
+#define GC_SNES_LENGTH		12	/* The SNES true length is 16, but the
+					   last 4 bits are unused */
+#define GC_SNESMOUSE_LENGTH	32	/* The SNES mouse uses 32 bits, the first
+					   16 bits are equivalent to a gamepad */
 
 #define GC_NES_POWER	0xfc
 #define GC_NES_CLOCK	0x01
@@ -242,11 +248,15 @@ static void gc_nes_read_packet(struct gc *gc, int length, unsigned char *data)
 
 static void gc_nes_process_packet(struct gc *gc)
 {
-	unsigned char data[GC_SNES_LENGTH];
+	unsigned char data[GC_SNESMOUSE_LENGTH];
 	struct input_dev *dev;
-	int i, j, s;
+	int i, j, s, len;
+	char x_rel, y_rel;
 
-	gc_nes_read_packet(gc, gc->pads[GC_SNES] ? GC_SNES_LENGTH : GC_NES_LENGTH, data);
+	len = gc->pads[GC_SNESMOUSE] ? GC_SNESMOUSE_LENGTH :
+			(gc->pads[GC_SNES] ? GC_SNES_LENGTH : GC_NES_LENGTH);
+
+	gc_nes_read_packet(gc, len, data);
 
 	for (i = 0; i < GC_MAX_DEVICES; i++) {
 
@@ -269,6 +279,44 @@ static void gc_nes_process_packet(struct gc *gc)
 			for (j = 0; j < 8; j++)
 				input_report_key(dev, gc_snes_btn[j], s & data[gc_snes_bytes[j]]);
 
+		if (s & gc->pads[GC_SNESMOUSE]) {
+			/*
+			 * The 4 unused bits from SNES controllers appear to be ID bits
+			 * so use them to make sure iwe are dealing with a mouse.
+			 * gamepad is connected. This is important since
+			 * my SNES gamepad sends 1's for bits 16-31, which
+			 * cause the mouse pointer to quickly move to the
+			 * upper left corner of the screen.
+			 */
+			if (!(s & data[12]) && !(s & data[13]) &&
+			    !(s & data[14]) && (s & data[15])) {
+				input_report_key(dev, BTN_LEFT, s & data[9]);
+				input_report_key(dev, BTN_RIGHT, s & data[8]);
+
+				x_rel = y_rel = 0;
+				for (j = 0; j < 7; j++) {
+					x_rel <<= 1;
+					if (data[25 + j] & s)
+						x_rel |= 1;
+
+					y_rel <<= 1;
+					if (data[17 + j] & s)
+						y_rel |= 1;
+				}
+
+				if (x_rel) {
+					if (data[24] & s)
+						x_rel = -x_rel;
+					input_report_rel(dev, REL_X, x_rel);
+				}
+
+				if (y_rel) {
+					if (data[16] & s)
+						y_rel = -y_rel;
+					input_report_rel(dev, REL_Y, y_rel);
+				}
+			}
+		}
 		input_sync(dev);
 	}
 }
@@ -524,10 +572,10 @@ static void gc_timer(unsigned long private)
 		gc_n64_process_packet(gc);
 
 /*
- * NES and SNES pads
+ * NES and SNES pads or mouse
  */
 
-	if (gc->pads[GC_NES] || gc->pads[GC_SNES])
+	if (gc->pads[GC_NES] || gc->pads[GC_SNES] || gc->pads[GC_SNESMOUSE])
 		gc_nes_process_packet(gc);
 
 /*
@@ -552,7 +600,7 @@ static int gc_open(struct input_dev *dev)
 	struct gc *gc = dev->private;
 	int err;
 
-	err = down_interruptible(&gc->sem);
+	err = mutex_lock_interruptible(&gc->mutex);
 	if (err)
 		return err;
 
@@ -562,7 +610,7 @@ static int gc_open(struct input_dev *dev)
 		mod_timer(&gc->timer, jiffies + GC_REFRESH_TIME);
 	}
 
-	up(&gc->sem);
+	mutex_unlock(&gc->mutex);
 	return 0;
 }
 
@@ -570,13 +618,13 @@ static void gc_close(struct input_dev *dev)
 {
 	struct gc *gc = dev->private;
 
-	down(&gc->sem);
+	mutex_lock(&gc->mutex);
 	if (!--gc->used) {
 		del_timer_sync(&gc->timer);
 		parport_write_control(gc->pd->port, 0x00);
 		parport_release(gc->pd);
 	}
-	up(&gc->sem);
+	mutex_unlock(&gc->mutex);
 }
 
 static int __init gc_setup_pad(struct gc *gc, int idx, int pad_type)
@@ -609,10 +657,13 @@ static int __init gc_setup_pad(struct gc *gc, int idx, int pad_type)
 	input_dev->open = gc_open;
 	input_dev->close = gc_close;
 
-	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
+	if (pad_type != GC_SNESMOUSE) {
+		input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
 
-	for (i = 0; i < 2; i++)
-		input_set_abs_params(input_dev, ABS_X + i, -1, 1, 0, 0);
+		for (i = 0; i < 2; i++)
+			input_set_abs_params(input_dev, ABS_X + i, -1, 1, 0, 0);
+	} else
+		input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_REL);
 
 	gc->pads[0] |= gc_status_bit[idx];
 	gc->pads[pad_type] |= gc_status_bit[idx];
@@ -628,6 +679,13 @@ static int __init gc_setup_pad(struct gc *gc, int idx, int pad_type)
 				input_set_abs_params(input_dev, ABS_HAT0X + i, -1, 1, 0, 0);
 			}
 
+			break;
+
+		case GC_SNESMOUSE:
+			set_bit(BTN_LEFT, input_dev->keybit);
+			set_bit(BTN_RIGHT, input_dev->keybit);
+			set_bit(REL_X, input_dev->relbit);
+			set_bit(REL_Y, input_dev->relbit);
 			break;
 
 		case GC_SNES:
@@ -693,7 +751,7 @@ static struct gc __init *gc_probe(int parport, int *pads, int n_pads)
 		goto err_unreg_pardev;
 	}
 
-	init_MUTEX(&gc->sem);
+	mutex_init(&gc->mutex);
 	gc->pd = pd;
 	init_timer(&gc->timer);
 	gc->timer.data = (long) gc;
