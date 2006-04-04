@@ -277,12 +277,8 @@ enum {
 
 struct gfs2_file {
 	unsigned long f_flags;		/* GFF_... */
-
 	struct mutex f_fl_mutex;
 	struct gfs2_holder f_fl_gh;
-
-	struct gfs2_inode *f_inode;
-	struct file *f_vfile;
 };
 
 struct gfs2_revoke {

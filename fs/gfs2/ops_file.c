@@ -572,7 +572,7 @@ static int gfs2_get_flags(struct inode *inode, u32 __user *ptr)
 	error = gfs2_glock_nq_m_atime(1, &gh);
 	if (error)
 		return error;
-
+	
 	iflags = iflags_cvt(gfs2_to_iflags, ip->i_di.di_flags);
 	if (put_user(iflags, ptr))
 		error = -EFAULT;
@@ -600,20 +600,22 @@ static int gfs2_get_flags(struct inode *inode, u32 __user *ptr)
  * @mask: Indicates which flags are valid
  *
  */
-static int do_gfs2_set_flags(struct inode *inode, u32 flags, u32 mask)
+static int do_gfs2_set_flags(struct inode *inode, u32 reqflags, u32 mask)
 {
 	struct gfs2_inode *ip = inode->u.generic_ip;
+	struct gfs2_sbd *sdp = ip->i_sbd;
 	struct buffer_head *bh;
 	struct gfs2_holder gh;
 	int error;
-	u32 new_flags;
+	u32 new_flags, flags;
 
 	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
 	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
 	if (error)
 		return error;
 
-	new_flags = (ip->i_di.di_flags & ~mask) | (flags & mask);
+	flags = ip->i_di.di_flags;
+	new_flags = (flags & ~mask) | (reqflags & mask);
 	if ((new_flags ^ flags) == 0)
 		goto out;
 
@@ -640,13 +642,18 @@ static int do_gfs2_set_flags(struct inode *inode, u32 flags, u32 mask)
 	if (error)
 		goto out;
 
-	error = gfs2_meta_inode_buffer(ip, &bh);
+	error = gfs2_trans_begin(sdp, RES_DINODE, 0);
 	if (error)
 		goto out;
+	error = gfs2_meta_inode_buffer(ip, &bh);
+	if (error)
+		goto out_trans_end;
 	gfs2_trans_add_bh(ip->i_gl, bh, 1);
 	ip->i_di.di_flags = new_flags;
 	gfs2_dinode_out(&ip->i_di, bh->b_data);
 	brelse(bh);
+out_trans_end:
+	gfs2_trans_end(sdp);
 out:
 	gfs2_glock_dq_uninit(&gh);
 	return error;
@@ -729,9 +736,6 @@ static int gfs2_open(struct inode *inode, struct file *file)
 		return -ENOMEM;
 
 	mutex_init(&fp->f_fl_mutex);
-
-	fp->f_inode = ip;
-	fp->f_vfile = file;
 
 	gfs2_assert_warn(ip->i_sbd, !file->private_data);
 	file->private_data = fp;
@@ -875,7 +879,7 @@ static int do_flock(struct file *file, int cmd, struct file_lock *fl)
 {
 	struct gfs2_file *fp = file->private_data;
 	struct gfs2_holder *fl_gh = &fp->f_fl_gh;
-	struct gfs2_inode *ip = fp->f_inode;
+	struct gfs2_inode *ip = file->f_dentry->d_inode->u.generic_ip;
 	struct gfs2_glock *gl;
 	unsigned int state;
 	int flags;
