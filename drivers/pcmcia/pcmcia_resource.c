@@ -947,7 +947,5 @@ void pcmcia_disable_device(struct pcmcia_device *p_dev) {
 	pcmcia_release_irq(p_dev, &p_dev->irq);
 	if (&p_dev->win)
 		pcmcia_release_window(p_dev->win);
-
-	p_dev->dev_node = NULL;
 }
 EXPORT_SYMBOL(pcmcia_disable_device);
