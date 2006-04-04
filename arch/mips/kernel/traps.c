@@ -961,15 +961,19 @@ void *set_except_vector(int n, void *addr)
 
 #ifdef CONFIG_CPU_MIPSR2
 /*
- * Shadow register allocation
+ * MIPSR2 shadow register set allocation
  * FIXME: SMP...
  */
 
-/* MIPSR2 shadow register sets */
-struct shadow_registers {
-	spinlock_t sr_lock;	/*  */
-	int sr_supported;	/* Number of shadow register sets supported */
-	int sr_allocated;	/* Bitmap of allocated shadow registers */
+static struct shadow_registers {
+	/*
+	 * Number of shadow register sets supported
+	 */
+	unsigned long sr_supported;
+	/*
+	 * Bitmap of allocated shadow registers
+	 */
+	unsigned long sr_allocated;
 } shadow_registers;
 
 void mips_srs_init(void)
@@ -980,7 +984,6 @@ void mips_srs_init(void)
 	       shadow_registers.sr_supported);
 #endif
 	shadow_registers.sr_allocated = 1;	/* Set 0 used by kernel */
-	spin_lock_init(&shadow_registers.sr_lock);
 }
 
 int mips_srs_max(void)
@@ -991,32 +994,24 @@ int mips_srs_max(void)
 int mips_srs_alloc(void)
 {
 	struct shadow_registers *sr = &shadow_registers;
-	unsigned long flags;
 	int set;
 
-	spin_lock_irqsave(&sr->sr_lock, flags);
+again:
+	set = find_first_zero_bit(&sr->sr_allocated, sr->sr_supported);
+	if (set >= sr->sr_supported)
+		return -1;
 
-	for (set = 0; set < sr->sr_supported; set++) {
-		if ((sr->sr_allocated & (1 << set)) == 0) {
-			sr->sr_allocated |= 1 << set;
-			spin_unlock_irqrestore(&sr->sr_lock, flags);
-			return set;
-		}
-	}
+	if (test_and_set_bit(set, &sr->sr_allocated))
+		goto again;
 
-	/* None available */
-	spin_unlock_irqrestore(&sr->sr_lock, flags);
-	return -1;
+	return set;
 }
 
 void mips_srs_free (int set)
 {
 	struct shadow_registers *sr = &shadow_registers;
-	unsigned long flags;
 
-	spin_lock_irqsave(&sr->sr_lock, flags);
-	sr->sr_allocated &= ~(1 << set);
-	spin_unlock_irqrestore(&sr->sr_lock, flags);
+	clear_bit(set, &sr->sr_allocated);
 }
 
 static void *set_vi_srs_handler(int n, void *addr, int srs)
