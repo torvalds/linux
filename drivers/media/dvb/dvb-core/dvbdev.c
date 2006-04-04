@@ -219,8 +219,6 @@ int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev,
 		return -ENOMEM;
 	}
 
-	mutex_unlock(&dvbdev_register_lock);
-
 	memcpy(dvbdev, template, sizeof(struct dvb_device));
 	dvbdev->type = type;
 	dvbdev->id = id;
@@ -230,6 +228,8 @@ int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev,
 	dvbdev->fops->owner = adap->module;
 
 	list_add_tail (&dvbdev->list_head, &adap->device_list);
+
+	mutex_unlock(&dvbdev_register_lock);
 
 	devfs_mk_cdev(MKDEV(DVB_MAJOR, nums2minor(adap->num, type, id)),
 			S_IFCHR | S_IRUSR | S_IWUSR,
