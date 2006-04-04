@@ -362,8 +362,7 @@ static void device_remove_attrs(struct bus_type * bus, struct device * dev)
  *	@dev:	device being added
  *
  *	- Add the device to its bus's list of devices.
- *	- Try to attach to driver.
- *	- Create link to device's physical location.
+ *	- Create link to device's bus.
  */
 int bus_add_device(struct device * dev)
 {
@@ -372,8 +371,6 @@ int bus_add_device(struct device * dev)
 
 	if (bus) {
 		pr_debug("bus %s: add device %s\n", bus->name, dev->bus_id);
-		device_attach(dev);
-		klist_add_tail(&dev->knode_bus, &bus->klist_devices);
 		error = device_add_attrs(bus, dev);
 		if (!error) {
 			sysfs_create_link(&bus->devices.kobj, &dev->kobj, dev->bus_id);
@@ -381,6 +378,22 @@ int bus_add_device(struct device * dev)
 		}
 	}
 	return error;
+}
+
+/**
+ *	bus_attach_device - add device to bus
+ *	@dev:	device tried to attach to a driver
+ *
+ *	- Try to attach to driver.
+ */
+void bus_attach_device(struct device * dev)
+{
+	struct bus_type * bus = dev->bus;
+
+	if (bus) {
+		device_attach(dev);
+		klist_add_tail(&dev->knode_bus, &bus->klist_devices);
+	}
 }
 
 /**
@@ -733,6 +746,7 @@ EXPORT_SYMBOL_GPL(bus_find_device);
 EXPORT_SYMBOL_GPL(bus_for_each_drv);
 
 EXPORT_SYMBOL_GPL(bus_add_device);
+EXPORT_SYMBOL_GPL(bus_attach_device);
 EXPORT_SYMBOL_GPL(bus_remove_device);
 EXPORT_SYMBOL_GPL(bus_register);
 EXPORT_SYMBOL_GPL(bus_unregister);

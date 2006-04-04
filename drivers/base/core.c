@@ -274,11 +274,12 @@ int device_add(struct device *dev)
 	dev->uevent_attr.store = store_uevent;
 	device_create_file(dev, &dev->uevent_attr);
 
-	kobject_uevent(&dev->kobj, KOBJ_ADD);
 	if ((error = device_pm_add(dev)))
 		goto PMError;
 	if ((error = bus_add_device(dev)))
 		goto BusError;
+	kobject_uevent(&dev->kobj, KOBJ_ADD);
+	bus_attach_device(dev);
 	if (parent)
 		klist_add_tail(&dev->knode_parent, &parent->klist_children);
 
