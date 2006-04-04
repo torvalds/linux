@@ -240,7 +240,7 @@ static int or51132_sleep(struct dvb_frontend* fe)
 static int or51132_setmode(struct dvb_frontend* fe)
 {
 	struct or51132_state* state = fe->demodulator_priv;
-	unsigned char cmd_buf[4];
+	unsigned char cmd_buf[3];
 
 	dprintk("setmode %d\n",(int)state->current_modulation);
 	/* set operation mode in Receiver 1 register; */
@@ -260,7 +260,6 @@ static int or51132_setmode(struct dvb_frontend* fe)
 	default:
 		printk("setmode:Modulation set to unsupported value\n");
 	};
-	cmd_buf[3] = 0x00;
 	if (i2c_writebytes(state,state->config->demod_address,
 			   cmd_buf,3)) {
 		printk(KERN_WARNING "or51132: set_mode error 1\n");
@@ -298,7 +297,6 @@ static int or51132_setmode(struct dvb_frontend* fe)
 	default:
 		printk("setmode: Modulation set to unsupported value\n");
 	};
-	cmd_buf[3] = 0x00;
 	msleep(20); /* 20ms */
 	if (i2c_writebytes(state,state->config->demod_address,
 			   cmd_buf,3)) {
