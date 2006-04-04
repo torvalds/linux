@@ -37,8 +37,6 @@ static int xfrm4_parse_spi(struct sk_buff *skb, u8 nexthdr, u32 *spi, u32 *seq)
 {
 	switch (nexthdr) {
 	case IPPROTO_IPIP:
-		if (!pskb_may_pull(skb, sizeof(struct iphdr)))
-			return -EINVAL;
 		*spi = skb->nh.iph->saddr;
 		*seq = 0;
 		return 0;

@@ -519,9 +519,6 @@ ip6ip6_rcv(struct sk_buff *skb)
 	struct ipv6hdr *ipv6h;
 	struct ip6_tnl *t;
 
-	if (!pskb_may_pull(skb, sizeof (*ipv6h)))
-		goto discard;
-
 	ipv6h = skb->nh.ipv6h;
 
 	read_lock(&ip6ip6_lock);
@@ -529,8 +526,7 @@ ip6ip6_rcv(struct sk_buff *skb)
 	if ((t = ip6ip6_tnl_lookup(&ipv6h->saddr, &ipv6h->daddr)) != NULL) {
 		if (!xfrm6_policy_check(NULL, XFRM_POLICY_IN, skb)) {
 			read_unlock(&ip6ip6_lock);
-			kfree_skb(skb);
-			return 0;
+			goto discard;
 		}
 
 		if (!(t->parms.flags & IP6_TNL_F_CAP_RCV)) {
@@ -557,9 +553,11 @@ ip6ip6_rcv(struct sk_buff *skb)
 		return 0;
 	}
 	read_unlock(&ip6ip6_lock);
-	icmpv6_send(skb, ICMPV6_DEST_UNREACH, ICMPV6_ADDR_UNREACH, 0, skb->dev);
-discard:
 	return 1;
+
+discard:
+	kfree_skb(skb);
+	return 0;
 }
 
 static inline struct ipv6_txoptions *create_tel(__u8 encap_limit)

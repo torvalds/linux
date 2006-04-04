@@ -474,9 +474,6 @@ static int ipip_rcv(struct sk_buff *skb)
 	struct iphdr *iph;
 	struct ip_tunnel *tunnel;
 
-	if (!pskb_may_pull(skb, sizeof(struct iphdr)))
-		goto out;
-
 	iph = skb->nh.iph;
 
 	read_lock(&ipip_lock);
@@ -508,7 +505,6 @@ static int ipip_rcv(struct sk_buff *skb)
 	}
 	read_unlock(&ipip_lock);
 
-out:
 	return -1;
 }
 
