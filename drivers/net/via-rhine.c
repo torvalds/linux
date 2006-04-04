@@ -469,7 +469,7 @@ struct rhine_private {
 	struct sk_buff *tx_skbuff[TX_RING_SIZE];
 	dma_addr_t tx_skbuff_dma[TX_RING_SIZE];
 
-	/* Tx bounce buffers */
+	/* Tx bounce buffers (Rhine-I only) */
 	unsigned char *tx_buf[TX_RING_SIZE];
 	unsigned char *tx_bufs;
 	dma_addr_t tx_bufs_dma;
@@ -1043,7 +1043,8 @@ static void alloc_tbufs(struct net_device* dev)
 		rp->tx_ring[i].desc_length = cpu_to_le32(TXDESC);
 		next += sizeof(struct tx_desc);
 		rp->tx_ring[i].next_desc = cpu_to_le32(next);
-		rp->tx_buf[i] = &rp->tx_bufs[i * PKT_BUF_SZ];
+		if (rp->quirks & rqRhineI)
+			rp->tx_buf[i] = &rp->tx_bufs[i * PKT_BUF_SZ];
 	}
 	rp->tx_ring[i-1].next_desc = cpu_to_le32(rp->tx_ring_dma);
 
