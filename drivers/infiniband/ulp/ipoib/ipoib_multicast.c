@@ -114,8 +114,7 @@ static void ipoib_mcast_free(struct ipoib_mcast *mcast)
 		 */
 		if (neigh->ah)
 			ipoib_put_ah(neigh->ah);
-		*to_ipoib_neigh(neigh->neighbour) = NULL;
-		kfree(neigh);
+		ipoib_neigh_free(neigh);
 	}
 
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -772,13 +771,11 @@ out:
 		if (skb->dst            &&
 		    skb->dst->neighbour &&
 		    !*to_ipoib_neigh(skb->dst->neighbour)) {
-			struct ipoib_neigh *neigh = kmalloc(sizeof *neigh, GFP_ATOMIC);
+			struct ipoib_neigh *neigh = ipoib_neigh_alloc(skb->dst->neighbour);
 
 			if (neigh) {
 				kref_get(&mcast->ah->ref);
 				neigh->ah  	= mcast->ah;
-				neigh->neighbour = skb->dst->neighbour;
-				*to_ipoib_neigh(skb->dst->neighbour) = neigh;
 				list_add_tail(&neigh->list, &mcast->neigh_list);
 			}
 		}

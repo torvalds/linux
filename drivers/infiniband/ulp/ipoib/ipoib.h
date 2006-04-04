@@ -230,6 +230,9 @@ static inline struct ipoib_neigh **to_ipoib_neigh(struct neighbour *neigh)
 				     INFINIBAND_ALEN, sizeof(void *));
 }
 
+struct ipoib_neigh *ipoib_neigh_alloc(struct neighbour *neigh);
+void ipoib_neigh_free(struct ipoib_neigh *neigh);
+
 extern struct workqueue_struct *ipoib_workqueue;
 
 /* functions */

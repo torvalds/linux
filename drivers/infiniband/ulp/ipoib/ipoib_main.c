@@ -252,8 +252,8 @@ static void path_free(struct net_device *dev, struct ipoib_path *path)
 		 */
 		if (neigh->ah)
 			ipoib_put_ah(neigh->ah);
-		*to_ipoib_neigh(neigh->neighbour) = NULL;
-		kfree(neigh);
+
+		ipoib_neigh_free(neigh);
 	}
 
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -481,7 +481,7 @@ static void neigh_add_path(struct sk_buff *skb, struct net_device *dev)
 	struct ipoib_path *path;
 	struct ipoib_neigh *neigh;
 
-	neigh = kmalloc(sizeof *neigh, GFP_ATOMIC);
+	neigh = ipoib_neigh_alloc(skb->dst->neighbour);
 	if (!neigh) {
 		++priv->stats.tx_dropped;
 		dev_kfree_skb_any(skb);
@@ -489,8 +489,6 @@ static void neigh_add_path(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	skb_queue_head_init(&neigh->queue);
-	neigh->neighbour = skb->dst->neighbour;
-	*to_ipoib_neigh(skb->dst->neighbour) = neigh;
 
 	/*
 	 * We can only be called from ipoib_start_xmit, so we're
@@ -503,7 +501,7 @@ static void neigh_add_path(struct sk_buff *skb, struct net_device *dev)
 		path = path_rec_create(dev,
 				       (union ib_gid *) (skb->dst->neighbour->ha + 4));
 		if (!path)
-			goto err;
+			goto err_path;
 
 		__path_add(dev, path);
 	}
@@ -521,17 +519,17 @@ static void neigh_add_path(struct sk_buff *skb, struct net_device *dev)
 		__skb_queue_tail(&neigh->queue, skb);
 
 		if (!path->query && path_rec_start(dev, path))
-			goto err;
+			goto err_list;
 	}
 
 	spin_unlock(&priv->lock);
 	return;
 
-err:
-	*to_ipoib_neigh(skb->dst->neighbour) = NULL;
+err_list:
 	list_del(&neigh->list);
-	kfree(neigh);
 
+err_path:
+	ipoib_neigh_free(neigh);
 	++priv->stats.tx_dropped;
 	dev_kfree_skb_any(skb);
 
@@ -763,14 +761,33 @@ static void ipoib_neigh_destructor(struct neighbour *n)
 		if (neigh->ah)
 			ah = neigh->ah;
 		list_del(&neigh->list);
-		*to_ipoib_neigh(n) = NULL;
-		kfree(neigh);
+		ipoib_neigh_free(neigh);
 	}
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	if (ah)
 		ipoib_put_ah(ah);
+}
+
+struct ipoib_neigh *ipoib_neigh_alloc(struct neighbour *neighbour)
+{
+	struct ipoib_neigh *neigh;
+
+	neigh = kmalloc(sizeof *neigh, GFP_ATOMIC);
+	if (!neigh)
+		return NULL;
+
+	neigh->neighbour = neighbour;
+	*to_ipoib_neigh(neighbour) = neigh;
+
+	return neigh;
+}
+
+void ipoib_neigh_free(struct ipoib_neigh *neigh)
+{
+	*to_ipoib_neigh(neigh->neighbour) = NULL;
+	kfree(neigh);
 }
 
 static int ipoib_neigh_setup_dev(struct net_device *dev, struct neigh_parms *parms)
