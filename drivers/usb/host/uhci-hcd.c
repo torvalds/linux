@@ -115,8 +115,7 @@ static void finish_reset(struct uhci_hcd *uhci)
 	for (port = 0; port < uhci->rh_numports; ++port)
 		outw(0, uhci->io_addr + USBPORTSC1 + (port * 2));
 
-	uhci->port_c_suspend = uhci->suspended_ports =
-			uhci->resuming_ports = 0;
+	uhci->port_c_suspend = uhci->resuming_ports = 0;
 	uhci->rh_state = UHCI_RH_RESET;
 	uhci->is_stopped = UHCI_IS_STOPPED;
 	uhci_to_hcd(uhci)->state = HC_STATE_HALT;

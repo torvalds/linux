@@ -85,11 +85,10 @@ static void uhci_finish_suspend(struct uhci_hcd *uhci, int port,
 {
 	int status;
 
-	if (test_bit(port, &uhci->suspended_ports)) {
+	if (inw(port_addr) & (USBPORTSC_SUSP | USBPORTSC_RD)) {
 		CLR_RH_PORTSTAT(USBPORTSC_SUSP | USBPORTSC_RD);
-		clear_bit(port, &uhci->suspended_ports);
-		clear_bit(port, &uhci->resuming_ports);
-		set_bit(port, &uhci->port_c_suspend);
+		if (test_bit(port, &uhci->resuming_ports))
+			set_bit(port, &uhci->port_c_suspend);
 
 		/* The controller won't actually turn off the RD bit until
 		 * it has had a chance to send a low-speed EOP sequence,
@@ -97,6 +96,7 @@ static void uhci_finish_suspend(struct uhci_hcd *uhci, int port,
 		 * slightly longer for good luck. */
 		udelay(4);
 	}
+	clear_bit(port, &uhci->resuming_ports);
 }
 
 /* Wait for the UHCI controller in HP's iLO2 server management chip.
@@ -265,8 +265,6 @@ static int uhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			wPortChange |= USB_PORT_STAT_C_SUSPEND;
 			lstatus |= 1;
 		}
-		if (test_bit(port, &uhci->suspended_ports))
-			lstatus |= 2;
 		if (test_bit(port, &uhci->resuming_ports))
 			lstatus |= 4;
 
@@ -309,7 +307,6 @@ static int uhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 
 		switch (wValue) {
 		case USB_PORT_FEAT_SUSPEND:
-			set_bit(port, &uhci->suspended_ports);
 			SET_RH_PORTSTAT(USBPORTSC_SUSP);
 			OK(0);
 		case USB_PORT_FEAT_RESET:
@@ -343,8 +340,11 @@ static int uhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			CLR_RH_PORTSTAT(USBPORTSC_PEC);
 			OK(0);
 		case USB_PORT_FEAT_SUSPEND:
-			if (test_bit(port, &uhci->suspended_ports) &&
-					!test_and_set_bit(port,
+			if (!(inw(port_addr) & USBPORTSC_SUSP)) {
+
+				/* Make certain the port isn't suspended */
+				uhci_finish_suspend(uhci, port, port_addr);
+			} else if (!test_and_set_bit(port,
 						&uhci->resuming_ports)) {
 				SET_RH_PORTSTAT(USBPORTSC_RD);
 
