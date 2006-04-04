@@ -154,7 +154,8 @@ static inline void blast_icache32_r4600_v1_page_indexed(unsigned long page)
 
 static inline void tx49_blast_icache32_page_indexed(unsigned long page)
 {
-	unsigned long start = page;
+	unsigned long indexmask = current_cpu_data.icache.waysize - 1;
+	unsigned long start = INDEX_BASE + (page & indexmask);
 	unsigned long end = start + PAGE_SIZE;
 	unsigned long ws_inc = 1UL << current_cpu_data.icache.waybit;
 	unsigned long ws_end = current_cpu_data.icache.ways <<
