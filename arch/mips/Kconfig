@@ -816,6 +816,10 @@ config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
 
+config SCHED_NO_NO_OMIT_FRAME_POINTER
+	bool
+	default y
+
 #
 # Select some configuration options automatically based on user selections.
 #
