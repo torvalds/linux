@@ -157,7 +157,7 @@ config DVB_STV0297
 	help
 	  A DVB-C tuner module. Say Y when you want to support this frontend.
 
-comment "ATSC (North American/Korean Terresterial DTV) frontends"
+comment "ATSC (North American/Korean Terrestrial/Cable DTV) frontends"
 	depends on DVB_CORE
 
 config DVB_NXT200X
