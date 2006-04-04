@@ -765,8 +765,7 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	BUGMSG(D_DURING, "in arcnet_interrupt\n");
 	
 	lp = dev->priv;
-	if (!lp)
-		BUG();
+	BUG_ON(!lp);
 		
 	spin_lock(&lp->lock);
 

@@ -54,7 +54,8 @@ EXPORT_SYMBOL(plpar_hcall);
 EXPORT_SYMBOL(plpar_hcall_4out);
 EXPORT_SYMBOL(plpar_hcall_norets);
 EXPORT_SYMBOL(plpar_hcall_8arg_2ret);
-
+EXPORT_SYMBOL(plpar_hcall_7arg_7ret);
+EXPORT_SYMBOL(plpar_hcall_9arg_9ret);
 extern void pSeries_find_serial_port(void);
 
 
@@ -72,7 +73,7 @@ static void udbg_hvsi_putc(char c)
 
 	do {
 		rc = plpar_put_term_char(vtermno, sizeof(packet), packet);
-	} while (rc == H_Busy);
+	} while (rc == H_BUSY);
 }
 
 static long hvsi_udbg_buf_len;
@@ -85,7 +86,7 @@ static int udbg_hvsi_getc_poll(void)
 
 	if (hvsi_udbg_buf_len == 0) {
 		rc = plpar_get_term_char(vtermno, &hvsi_udbg_buf_len, hvsi_udbg_buf);
-		if (rc != H_Success || hvsi_udbg_buf[0] != 0xff) {
+		if (rc != H_SUCCESS || hvsi_udbg_buf[0] != 0xff) {
 			/* bad read or non-data packet */
 			hvsi_udbg_buf_len = 0;
 		} else {
@@ -139,7 +140,7 @@ static void udbg_putcLP(char c)
 	buf[0] = c;
 	do {
 		rc = plpar_put_term_char(vtermno, 1, buf);
-	} while(rc == H_Busy);
+	} while(rc == H_BUSY);
 }
 
 /* Buffered chars getc */
@@ -158,7 +159,7 @@ static int udbg_getc_pollLP(void)
 		/* get some more chars. */
 		inbuflen = 0;
 		rc = plpar_get_term_char(vtermno, &inbuflen, buf);
-		if (rc != H_Success)
+		if (rc != H_SUCCESS)
 			inbuflen = 0;	/* otherwise inbuflen is garbage */
 	}
 	if (inbuflen <= 0 || inbuflen > 16) {
@@ -304,7 +305,7 @@ long pSeries_lpar_hpte_insert(unsigned long hpte_group,
 
 	lpar_rc = plpar_hcall(H_ENTER, flags, hpte_group, hpte_v,
 			      hpte_r, &slot, &dummy0, &dummy1);
-	if (unlikely(lpar_rc == H_PTEG_Full)) {
+	if (unlikely(lpar_rc == H_PTEG_FULL)) {
 		if (!(vflags & HPTE_V_BOLTED))
 			DBG_LOW(" full\n");
 		return -1;
@@ -315,7 +316,7 @@ long pSeries_lpar_hpte_insert(unsigned long hpte_group,
 	 * will fail. However we must catch the failure in hash_page
 	 * or we will loop forever, so return -2 in this case.
 	 */
-	if (unlikely(lpar_rc != H_Success)) {
+	if (unlikely(lpar_rc != H_SUCCESS)) {
 		if (!(vflags & HPTE_V_BOLTED))
 			DBG_LOW(" lpar err %d\n", lpar_rc);
 		return -2;
@@ -346,9 +347,9 @@ static long pSeries_lpar_hpte_remove(unsigned long hpte_group)
 		/* don't remove a bolted entry */
 		lpar_rc = plpar_pte_remove(H_ANDCOND, hpte_group + slot_offset,
 					   (0x1UL << 4), &dummy1, &dummy2);
-		if (lpar_rc == H_Success)
+		if (lpar_rc == H_SUCCESS)
 			return i;
-		BUG_ON(lpar_rc != H_Not_Found);
+		BUG_ON(lpar_rc != H_NOT_FOUND);
 
 		slot_offset++;
 		slot_offset &= 0x7;
@@ -391,14 +392,14 @@ static long pSeries_lpar_hpte_updatepp(unsigned long slot,
 
 	lpar_rc = plpar_pte_protect(flags, slot, want_v & HPTE_V_AVPN);
 
-	if (lpar_rc == H_Not_Found) {
+	if (lpar_rc == H_NOT_FOUND) {
 		DBG_LOW("not found !\n");
 		return -1;
 	}
 
 	DBG_LOW("ok\n");
 
-	BUG_ON(lpar_rc != H_Success);
+	BUG_ON(lpar_rc != H_SUCCESS);
 
 	return 0;
 }
@@ -417,7 +418,7 @@ static unsigned long pSeries_lpar_hpte_getword0(unsigned long slot)
 
 	lpar_rc = plpar_pte_read(flags, slot, &dword0, &dummy_word1);
 
-	BUG_ON(lpar_rc != H_Success);
+	BUG_ON(lpar_rc != H_SUCCESS);
 
 	return dword0;
 }
@@ -468,7 +469,7 @@ static void pSeries_lpar_hpte_updateboltedpp(unsigned long newpp,
 	flags = newpp & 7;
 	lpar_rc = plpar_pte_protect(flags, slot, 0);
 
-	BUG_ON(lpar_rc != H_Success);
+	BUG_ON(lpar_rc != H_SUCCESS);
 }
 
 static void pSeries_lpar_hpte_invalidate(unsigned long slot, unsigned long va,
@@ -484,10 +485,10 @@ static void pSeries_lpar_hpte_invalidate(unsigned long slot, unsigned long va,
 	want_v = hpte_encode_v(va, psize);
 	lpar_rc = plpar_pte_remove(H_AVPN, slot, want_v & HPTE_V_AVPN,
 				   &dummy1, &dummy2);
-	if (lpar_rc == H_Not_Found)
+	if (lpar_rc == H_NOT_FOUND)
 		return;
 
-	BUG_ON(lpar_rc != H_Success);
+	BUG_ON(lpar_rc != H_SUCCESS);
 }
 
 /*

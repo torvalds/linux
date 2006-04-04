@@ -312,12 +312,10 @@ static int udf_get_block(struct inode *inode, sector_t block, struct buffer_head
 	err = 0;
 
 	bh = inode_getblk(inode, block, &err, &phys, &new);
-	if (bh)
-		BUG();
+	BUG_ON(bh);
 	if (err)
 		goto abort;
-	if (!phys)
-		BUG();
+	BUG_ON(!phys);
 
 	if (new)
 		set_buffer_new(bh_result);

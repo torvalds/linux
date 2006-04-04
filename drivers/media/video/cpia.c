@@ -64,14 +64,13 @@ MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("video");
 #endif
 
-static unsigned short colorspace_conv = 0;
+static unsigned short colorspace_conv;
 module_param(colorspace_conv, ushort, 0444);
 MODULE_PARM_DESC(colorspace_conv,
-		 "\n<n> Colorspace conversion:"
-		 "\n0 = disable"
-		 "\n1 = enable"
-		 "\nDefault value is 0"
-		 "\n");
+                 " Colorspace conversion:"
+                 "\n  0 = disable, 1 = enable"
+                 "\n  Default value is 0"
+                 );
 
 #define ABOUT "V4L-Driver for Vision CPiA based cameras"
 
@@ -4042,7 +4041,7 @@ static int __init cpia_init(void)
 	       "allowed, it is disabled by default now. Users should fix the "
 	       "applications in case they don't work without conversion "
 	       "reenabled by setting the 'colorspace_conv' module "
-	       "parameter to 1");
+	       "parameter to 1\n");
 
 #ifdef CONFIG_PROC_FS
 	proc_cpia_create();

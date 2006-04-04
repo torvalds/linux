@@ -18,6 +18,7 @@
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 
+#include <asm/memory.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 #include <asm/sizes.h>
@@ -272,6 +273,17 @@ __dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp,
 void *
 dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp)
 {
+	if (arch_is_coherent()) {
+		void *virt;
+
+		virt = kmalloc(size, gfp);
+		if (!virt)
+			return NULL;
+		*handle =  virt_to_dma(dev, virt);
+
+		return virt;
+	}
+
 	return __dma_alloc(dev, size, handle, gfp,
 			   pgprot_noncached(pgprot_kernel));
 }
@@ -349,6 +361,11 @@ void dma_free_coherent(struct device *dev, size_t size, void *cpu_addr, dma_addr
 	u32 off;
 
 	WARN_ON(irqs_disabled());
+
+	if (arch_is_coherent()) {
+		kfree(cpu_addr);
+		return;
+	}
 
 	size = PAGE_ALIGN(size);
 

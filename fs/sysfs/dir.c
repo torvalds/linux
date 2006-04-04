@@ -50,7 +50,7 @@ static struct sysfs_dirent * sysfs_new_dirent(struct sysfs_dirent * parent_sd,
 	return sd;
 }
 
-/**
+/*
  *
  * Return -EEXIST if there is already a sysfs element with the same name for
  * the same parent.

@@ -70,6 +70,9 @@ static void __init ek_map_io(void)
 	/* Initialize clocks: 18.432 MHz crystal */
 	at91_clock_init(18432000);
 
+	/* Setup the LEDs */
+	at91_init_leds(AT91_PIN_PB1, AT91_PIN_PB2);
+
 #ifdef CONFIG_SERIAL_AT91
 	at91_console_port = EK_SERIAL_CONSOLE;
 	memcpy(at91_serial_map, serial, sizeof(serial));
@@ -111,9 +114,14 @@ static void __init ek_board_init(void)
 	at91_add_device_usbh(&ek_usbh_data);
 	/* USB Device */
 	at91_add_device_udc(&ek_udc_data);
+#ifdef CONFIG_MTD_AT91_DATAFLASH_CARD
+	/* DataFlash card */
+	at91_set_gpio_output(AT91_PIN_PB22, 0);
+#else
 	/* MMC */
-	at91_set_gpio_output(AT91_PIN_PB22, 1);	/* this MMC card slot can optionally use SPI signaling (CS3). default: MMC */
+	at91_set_gpio_output(AT91_PIN_PB22, 1);	/* this MMC card slot can optionally use SPI signaling (CS3). */
 	at91_add_device_mmc(&ek_mmc_data);
+#endif
 	/* VGA */
 //	ek_add_device_video();
 }

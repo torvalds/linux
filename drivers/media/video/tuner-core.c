@@ -401,7 +401,7 @@ static void tuner_status(struct i2c_client *client)
 	}
 	tuner_info("Tuner mode:      %s\n", p);
 	tuner_info("Frequency:       %lu.%02lu MHz\n", freq, freq_fraction);
-	tuner_info("Standard:        0x%08llx\n", t->std);
+	tuner_info("Standard:        0x%08lx\n", (unsigned long)t->std);
 	if (t->mode != V4L2_TUNER_RADIO)
 	       return;
 	if (t->has_signal) {
@@ -558,10 +558,10 @@ static inline int set_mode(struct i2c_client *client, struct tuner *t, int mode,
 
 static inline int check_v4l2(struct tuner *t)
 {
-	if (t->using_v4l2) {
-		tuner_dbg ("ignore v4l1 call\n");
-		return EINVAL;
-	}
+	/* bttv still uses both v4l1 and v4l2 calls to the tuner (v4l2 for
+	   TV, v4l1 for radio), until that is fixed this code is disabled.
+	   Otherwise the radio (v4l1) wouldn't tune after using the TV (v4l2)
+	   first. */
 	return 0;
 }
 
@@ -744,6 +744,8 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			switch_v4l2();
 
 			tuner->type = t->mode;
+			if (t->mode == V4L2_TUNER_ANALOG_TV)
+				tuner->capability |= V4L2_TUNER_CAP_NORM;
 			if (t->mode != V4L2_TUNER_RADIO) {
 				tuner->rangelow = tv_range[0] * 16;
 				tuner->rangehigh = tv_range[1] * 16;

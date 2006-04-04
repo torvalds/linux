@@ -155,9 +155,9 @@ static struct omap_uart_config voiceblue_uart_config __initdata = {
 };
 
 static struct omap_board_config_kernel voiceblue_config[] = {
-	{ OMAP_TAG_USB, &voiceblue_usb_config },
-	{ OMAP_TAG_MMC, &voiceblue_mmc_config },
-	{ OMAP_TAG_UART,	&voiceblue_uart_config },
+	{ OMAP_TAG_USB,  &voiceblue_usb_config },
+	{ OMAP_TAG_MMC,  &voiceblue_mmc_config },
+	{ OMAP_TAG_UART, &voiceblue_uart_config },
 };
 
 static void __init voiceblue_init_irq(void)
@@ -235,7 +235,7 @@ static struct notifier_block panic_block = {
 static int __init voiceblue_setup(void)
 {
 	/* Setup panic notifier */
-	atomic_notifier_chain_register(&panic_notifier_list, &panic_block);
+	notifier_chain_register(&panic_notifier_list, &panic_block);
 
 	return 0;
 }

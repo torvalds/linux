@@ -10,7 +10,7 @@ pcmcia_core-y					+= cs.o cistpl.o rsrc_mgr.o socket_sysfs.o
 pcmcia_core-$(CONFIG_CARDBUS)			+= cardbus.o
 obj-$(CONFIG_PCCARD)				+= pcmcia_core.o
 
-pcmcia-y					+= ds.o pcmcia_compat.o pcmcia_resource.o
+pcmcia-y					+= ds.o pcmcia_resource.o
 pcmcia-$(CONFIG_PCMCIA_IOCTL)			+= pcmcia_ioctl.o
 obj-$(CONFIG_PCMCIA)				+= pcmcia.o
 
@@ -36,6 +36,7 @@ obj-$(CONFIG_PCMCIA_AU1X00)			+= au1x00_ss.o
 obj-$(CONFIG_PCMCIA_VRC4171)			+= vrc4171_card.o
 obj-$(CONFIG_PCMCIA_VRC4173)			+= vrc4173_cardu.o
 obj-$(CONFIG_OMAP_CF)				+= omap_cf.o
+obj-$(CONFIG_AT91_CF)				+= at91_cf.o
 
 sa11xx_core-y					+= soc_common.o sa11xx_base.o
 pxa2xx_core-y					+= soc_common.o pxa2xx_base.o

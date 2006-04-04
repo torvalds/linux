@@ -36,12 +36,12 @@ with them.
 
   All NES and SNES use the same synchronous serial protocol, clocked from
 the computer's side (and thus timing insensitive). To allow up to 5 NES
-and/or SNES gamepads connected to the parallel port at once, the output
-lines of the parallel port are shared, while one of 5 available input lines
-is assigned to each gamepad.
+and/or SNES gamepads and/or SNES mice connected to the parallel port at once,
+the output lines of the parallel port are shared, while one of 5 available
+input lines is assigned to each gamepad.
 
   This protocol is handled by the gamecon.c driver, so that's the one
-you'll use for NES and SNES gamepads.
+you'll use for NES, SNES gamepads and SNES mice.
 
   The main problem with PC parallel ports is that they don't have +5V power
 source on any of their pins. So, if you want a reliable source of power
@@ -106,7 +106,7 @@ A, Turbo B, Select and Start, and is connected through 5 wires, then it is
 either a NES or NES clone and will work with this connection. SNES gamepads
 also use 5 wires, but have more buttons. They will work as well, of course.
 
-Pinout for NES gamepads                 Pinout for SNES gamepads
+Pinout for NES gamepads                 Pinout for SNES gamepads and mice
 
 	   +----> Power                   +-----------------------\
 	   |                            7 | o  o  o  o |  x  x  o  | 1
@@ -454,6 +454,7 @@ uses the following kernel/module command line:
 	  6  | N64 pad
 	  7  | Sony PSX controller
 	  8  | Sony PSX DDR controller
+	  9  | SNES mouse
 
   The exact type of the PSX controller type is autoprobed when used so
 hot swapping should work (but is not recomended).

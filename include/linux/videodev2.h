@@ -966,66 +966,17 @@ struct v4l2_sliced_vbi_format
 
 /* Teletext World System Teletext
    (WST), defined on ITU-R BT.653-2 */
-#define V4L2_SLICED_TELETEXT_PAL_B      (0x000001)
-#define V4L2_SLICED_TELETEXT_PAL_C      (0x000002)
-#define V4L2_SLICED_TELETEXT_NTSC_B     (0x000010)
-#define V4L2_SLICED_TELETEXT_SECAM      (0x000020)
-
-/* Teletext North American Broadcast Teletext Specification
-   (NABTS), defined on ITU-R BT.653-2 */
-#define V4L2_SLICED_TELETEXT_NTSC_C     (0x000040)
-#define V4L2_SLICED_TELETEXT_NTSC_D     (0x000080)
-
+#define V4L2_SLICED_TELETEXT_B          (0x0001)
 /* Video Program System, defined on ETS 300 231*/
-#define V4L2_SLICED_VPS                 (0x000400)
-
+#define V4L2_SLICED_VPS                 (0x0400)
 /* Closed Caption, defined on EIA-608 */
-#define V4L2_SLICED_CAPTION_525         (0x001000)
-#define V4L2_SLICED_CAPTION_625         (0x002000)
-
+#define V4L2_SLICED_CAPTION_525         (0x1000)
 /* Wide Screen System, defined on ITU-R BT1119.1 */
-#define V4L2_SLICED_WSS_625             (0x004000)
+#define V4L2_SLICED_WSS_625             (0x4000)
 
-/* Wide Screen System, defined on IEC 61880 */
-#define V4L2_SLICED_WSS_525             (0x008000)
+#define V4L2_SLICED_VBI_525             (V4L2_SLICED_CAPTION_525)
+#define V4L2_SLICED_VBI_625             (V4L2_SLICED_TELETEXT_B | V4L2_SLICED_VPS | V4L2_SLICED_WSS_625)
 
-/* Vertical Interval Timecode (VITC), defined on SMPTE 12M */
-#define V4l2_SLICED_VITC_625		(0x010000)
-#define V4l2_SLICED_VITC_525		(0x020000)
-
-#define V4L2_SLICED_TELETEXT_B		(V4L2_SLICED_TELETEXT_PAL_B  |\
-					 V4L2_SLICED_TELETEXT_NTSC_B)
-
-#define V4L2_SLICED_TELETEXT		(V4L2_SLICED_TELETEXT_PAL_B  |\
-					 V4L2_SLICED_TELETEXT_PAL_C  |\
-					 V4L2_SLICED_TELETEXT_SECAM  |\
-					 V4L2_SLICED_TELETEXT_NTSC_B |\
-					 V4L2_SLICED_TELETEXT_NTSC_C |\
-					 V4L2_SLICED_TELETEXT_NTSC_D)
-
-#define V4L2_SLICED_CAPTION		(V4L2_SLICED_CAPTION_525     |\
-					 V4L2_SLICED_CAPTION_625)
-
-#define V4L2_SLICED_WSS			(V4L2_SLICED_WSS_525         |\
-					 V4L2_SLICED_WSS_625)
-
-#define V4L2_SLICED_VITC		(V4L2_SLICED_VITC_525        |\
-					 V4L2_SLICED_VITC_625)
-
-#define V4L2_SLICED_VBI_525             (V4L2_SLICED_TELETEXT_NTSC_B |\
-					 V4L2_SLICED_TELETEXT_NTSC_C |\
-					 V4L2_SLICED_TELETEXT_NTSC_D |\
-					 V4L2_SLICED_CAPTION_525     |\
-					 V4L2_SLICED_WSS_525         |\
-					 V4l2_SLICED_VITC_525)
-
-#define V4L2_SLICED_VBI_625             (V4L2_SLICED_TELETEXT_PAL_B  |\
-					 V4L2_SLICED_TELETEXT_PAL_C  |\
-					 V4L2_SLICED_TELETEXT_SECAM  |\
-					 V4L2_SLICED_VPS             |\
-					 V4L2_SLICED_CAPTION_625     |\
-					 V4L2_SLICED_WSS_625         |\
-					 V4l2_SLICED_VITC_625)
 
 struct v4l2_sliced_vbi_cap
 {

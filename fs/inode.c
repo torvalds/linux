@@ -172,8 +172,7 @@ static struct inode *alloc_inode(struct super_block *sb)
 
 void destroy_inode(struct inode *inode) 
 {
-	if (inode_has_buffers(inode))
-		BUG();
+	BUG_ON(inode_has_buffers(inode));
 	security_inode_free(inode);
 	if (inode->i_sb->s_op->destroy_inode)
 		inode->i_sb->s_op->destroy_inode(inode);
@@ -249,12 +248,9 @@ void clear_inode(struct inode *inode)
 	might_sleep();
 	invalidate_inode_buffers(inode);
        
-	if (inode->i_data.nrpages)
-		BUG();
-	if (!(inode->i_state & I_FREEING))
-		BUG();
-	if (inode->i_state & I_CLEAR)
-		BUG();
+	BUG_ON(inode->i_data.nrpages);
+	BUG_ON(!(inode->i_state & I_FREEING));
+	BUG_ON(inode->i_state & I_CLEAR);
 	wait_on_inode(inode);
 	DQUOT_DROP(inode);
 	if (inode->i_sb && inode->i_sb->s_op->clear_inode)
@@ -1054,8 +1050,7 @@ void generic_delete_inode(struct inode *inode)
 	hlist_del_init(&inode->i_hash);
 	spin_unlock(&inode_lock);
 	wake_up_inode(inode);
-	if (inode->i_state != I_CLEAR)
-		BUG();
+	BUG_ON(inode->i_state != I_CLEAR);
 	destroy_inode(inode);
 }
 

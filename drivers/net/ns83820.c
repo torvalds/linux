@@ -568,8 +568,7 @@ static inline int ns83820_add_rx_skb(struct ns83820 *dev, struct sk_buff *skb)
 #endif
 
 	sg = dev->rx_info.descs + (next_empty * DESC_SIZE);
-	if (unlikely(NULL != dev->rx_info.skbs[next_empty]))
-		BUG();
+	BUG_ON(NULL != dev->rx_info.skbs[next_empty]);
 	dev->rx_info.skbs[next_empty] = skb;
 
 	dev->rx_info.next_empty = (next_empty + 1) % NR_RX_DESC;

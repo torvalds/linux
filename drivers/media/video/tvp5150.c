@@ -53,7 +53,7 @@ static struct v4l2_queryctrl tvp5150_qctrl[] = {
 		.minimum = 0,
 		.maximum = 255,
 		.step = 1,
-		.default_value = 0,
+		.default_value = 128,
 		.flags = 0,
 	}, {
 		.id = V4L2_CID_CONTRAST,
@@ -62,7 +62,7 @@ static struct v4l2_queryctrl tvp5150_qctrl[] = {
 		.minimum = 0,
 		.maximum = 255,
 		.step = 0x1,
-		.default_value = 0x10,
+		.default_value = 128,
 		.flags = 0,
 	}, {
 		 .id = V4L2_CID_SATURATION,
@@ -71,7 +71,7 @@ static struct v4l2_queryctrl tvp5150_qctrl[] = {
 		 .minimum = 0,
 		 .maximum = 255,
 		 .step = 0x1,
-		 .default_value = 0x10,
+		 .default_value = 128,
 		 .flags = 0,
 	}, {
 		.id = V4L2_CID_HUE,
@@ -80,7 +80,7 @@ static struct v4l2_queryctrl tvp5150_qctrl[] = {
 		.minimum = -128,
 		.maximum = 127,
 		.step = 0x1,
-		.default_value = 0x10,
+		.default_value = 0,
 		.flags = 0,
 	}
 };
@@ -500,16 +500,21 @@ struct i2c_vbi_ram_value {
 
 static struct i2c_vbi_ram_value vbi_ram_default[] =
 {
+	/* FIXME: Current api doesn't handle all VBI types, those not
+	   yet supported are placed under #if 0 */
+#if 0
 	{0x010, /* Teletext, SECAM, WST System A */
 		{V4L2_SLICED_TELETEXT_SECAM,6,23,1},
 		{ 0xaa, 0xaa, 0xff, 0xff, 0xe7, 0x2e, 0x20, 0x26,
 		  0xe6, 0xb4, 0x0e, 0x00, 0x00, 0x00, 0x10, 0x00 }
 	},
+#endif
 	{0x030, /* Teletext, PAL, WST System B */
-		{V4L2_SLICED_TELETEXT_PAL_B,6,22,1},
+		{V4L2_SLICED_TELETEXT_B,6,22,1},
 		{ 0xaa, 0xaa, 0xff, 0xff, 0x27, 0x2e, 0x20, 0x2b,
 		  0xa6, 0x72, 0x10, 0x00, 0x00, 0x00, 0x10, 0x00 }
 	},
+#if 0
 	{0x050, /* Teletext, PAL, WST System C */
 		{V4L2_SLICED_TELETEXT_PAL_C,6,22,1},
 		{ 0xaa, 0xaa, 0xff, 0xff, 0xe7, 0x2e, 0x20, 0x22,
@@ -535,6 +540,7 @@ static struct i2c_vbi_ram_value vbi_ram_default[] =
 		{ 0xaa, 0x2a, 0xff, 0x3f, 0x04, 0x51, 0x6e, 0x02,
 		  0xa6, 0x7b, 0x09, 0x00, 0x00, 0x00, 0x27, 0x00 }
 	},
+#endif
 	{0x0f0, /* Closed Caption, NTSC */
 		{V4L2_SLICED_CAPTION_525,21,21,1},
 		{ 0xaa, 0x2a, 0xff, 0x3f, 0x04, 0x51, 0x6e, 0x02,
@@ -545,6 +551,7 @@ static struct i2c_vbi_ram_value vbi_ram_default[] =
 		{ 0x5b, 0x55, 0xc5, 0xff, 0x00, 0x71, 0x6e, 0x42,
 		  0xa6, 0xcd, 0x0f, 0x00, 0x00, 0x00, 0x3a, 0x00 }
 	},
+#if 0
 	{0x130, /* Wide Screen Signal, NTSC C */
 		{V4L2_SLICED_WSS_525,20,20,1},
 		{ 0x38, 0x00, 0x3f, 0x00, 0x00, 0x71, 0x6e, 0x43,
@@ -560,6 +567,7 @@ static struct i2c_vbi_ram_value vbi_ram_default[] =
 		{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x8f, 0x6d, 0x49,
 		  0x69, 0x94, 0x08, 0x00, 0x00, 0x00, 0x4c, 0x00 }
 	},
+#endif
 	{0x190, /* Video Program System (VPS), PAL */
 		{V4L2_SLICED_VPS,16,16,0},
 		{ 0xaa, 0xaa, 0xff, 0xff, 0xba, 0xce, 0x2b, 0x0d,
@@ -850,7 +858,6 @@ static int tvp5150_command(struct i2c_client *c,
 
 	case 0:
 	case VIDIOC_INT_RESET:
-	case DECODER_INIT:
 		tvp5150_reset(c);
 		break;
 	case VIDIOC_S_STD:
@@ -949,99 +956,15 @@ static int tvp5150_command(struct i2c_client *c,
 #endif
 
 	case VIDIOC_LOG_STATUS:
-	case DECODER_DUMP:
 		dump_reg(c);
 		break;
 
-	case DECODER_GET_CAPABILITIES:
+	case VIDIOC_G_TUNER:
 		{
-			struct video_decoder_capability *cap = arg;
+			struct v4l2_tuner *vt = arg;
+			int status = tvp5150_read(c, 0x88);
 
-			cap->flags = VIDEO_DECODER_PAL |
-			    VIDEO_DECODER_NTSC |
-			    VIDEO_DECODER_SECAM |
-			    VIDEO_DECODER_AUTO | VIDEO_DECODER_CCIR;
-			cap->inputs = 3;
-			cap->outputs = 1;
-			break;
-		}
-	case DECODER_GET_STATUS:
-		{
-			int *iarg = arg;
-			int status;
-			int res=0;
-			status = tvp5150_read(c, 0x88);
-			if(status&0x08){
-				res |= DECODER_STATUS_COLOR;
-			}
-			if(status&0x04 && status&0x02){
-				res |= DECODER_STATUS_GOOD;
-			}
-			*iarg=res;
-			break;
-		}
-
-	case DECODER_SET_GPIO:
-		break;
-
-	case DECODER_SET_VBI_BYPASS:
-		break;
-
-	case DECODER_SET_NORM:
-		{
-			int *iarg = arg;
-
-			switch (*iarg) {
-
-			case VIDEO_MODE_NTSC:
-				break;
-
-			case VIDEO_MODE_PAL:
-				break;
-
-			case VIDEO_MODE_SECAM:
-				break;
-
-			case VIDEO_MODE_AUTO:
-				break;
-
-			default:
-				return -EINVAL;
-
-			}
-			decoder->norm = *iarg;
-			break;
-		}
-	case DECODER_SET_INPUT:
-		{
-			int *iarg = arg;
-			if (*iarg < 0 || *iarg > 3) {
-				return -EINVAL;
-			}
-
-			decoder->input = *iarg;
-			tvp5150_selmux(c, decoder->input);
-
-			break;
-		}
-	case DECODER_SET_OUTPUT:
-		{
-			int *iarg = arg;
-
-			/* not much choice of outputs */
-			if (*iarg != 0) {
-				return -EINVAL;
-			}
-			break;
-		}
-	case DECODER_ENABLE_OUTPUT:
-		{
-			int *iarg = arg;
-
-			decoder->enable = (*iarg != 0);
-
-			tvp5150_selmux(c, decoder->input);
-
+			vt->signal = ((status & 0x04) && (status & 0x02)) ? 0xffff : 0x0;
 			break;
 		}
 	case VIDIOC_QUERYCTRL:
@@ -1087,35 +1010,6 @@ static int tvp5150_command(struct i2c_client *c,
 			return -EINVAL;
 		}
 
-	case DECODER_SET_PICTURE:
-		{
-			struct video_picture *pic = arg;
-			if (decoder->bright != pic->brightness) {
-				/* We want 0 to 255 we get 0-65535 */
-				decoder->bright = pic->brightness;
-				tvp5150_write(c, TVP5150_BRIGHT_CTL,
-					      decoder->bright >> 8);
-			}
-			if (decoder->contrast != pic->contrast) {
-				/* We want 0 to 255 we get 0-65535 */
-				decoder->contrast = pic->contrast;
-				tvp5150_write(c, TVP5150_CONTRAST_CTL,
-					      decoder->contrast >> 8);
-			}
-			if (decoder->sat != pic->colour) {
-				/* We want 0 to 255 we get 0-65535 */
-				decoder->sat = pic->colour;
-				tvp5150_write(c, TVP5150_SATURATION_CTL,
-					      decoder->contrast >> 8);
-			}
-			if (decoder->hue != pic->hue) {
-				/* We want -128 to 127 we get 0-65535 */
-				decoder->hue = pic->hue;
-				tvp5150_write(c, TVP5150_HUE_CTL,
-					      (decoder->hue - 32768) >> 8);
-			}
-			break;
-		}
 	default:
 		return -EINVAL;
 	}

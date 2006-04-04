@@ -34,7 +34,7 @@
 #ifdef CONFIG_MCBSP_DEBUG
 #define DBG(x...)	printk(x)
 #else
-#define DBG(x...)	do { } while (0)
+#define DBG(x...)			do { } while (0)
 #endif
 
 struct omap_mcbsp {
@@ -44,6 +44,7 @@ struct omap_mcbsp {
 	omap_mcbsp_word_length       rx_word_length;
 	omap_mcbsp_word_length       tx_word_length;
 
+	omap_mcbsp_io_type_t         io_type; /* IRQ or poll */
 	/* IRQ based TX/RX */
 	int                          rx_irq;
 	int                          tx_irq;
@@ -64,10 +65,19 @@ struct omap_mcbsp {
 };
 
 static struct omap_mcbsp mcbsp[OMAP_MAX_MCBSP_COUNT];
+#ifdef CONFIG_ARCH_OMAP1
 static struct clk *mcbsp_dsp_ck = 0;
 static struct clk *mcbsp_api_ck = 0;
 static struct clk *mcbsp_dspxor_ck = 0;
-
+#endif
+#ifdef CONFIG_ARCH_OMAP2
+static struct clk *mcbsp1_ick = 0;
+static struct clk *mcbsp1_fck = 0;
+static struct clk *mcbsp2_ick = 0;
+static struct clk *mcbsp2_fck = 0;
+static struct clk *sys_ck = 0;
+static struct clk *sys_clkout = 0;
+#endif
 
 static void omap_mcbsp_dump_reg(u8 id)
 {
@@ -88,7 +98,6 @@ static void omap_mcbsp_dump_reg(u8 id)
 	DBG("***********************\n");
 }
 
-
 static irqreturn_t omap_mcbsp_tx_irq_handler(int irq, void *dev_id, struct pt_regs *regs)
 {
 	struct omap_mcbsp * mcbsp_tx = (struct omap_mcbsp *)(dev_id);
@@ -108,7 +117,6 @@ static irqreturn_t omap_mcbsp_rx_irq_handler(int irq, void *dev_id, struct pt_re
 	complete(&mcbsp_rx->rx_irq_completion);
 	return IRQ_HANDLED;
 }
-
 
 static void omap_mcbsp_tx_dma_callback(int lch, u16 ch_status, void *data)
 {
@@ -176,7 +184,7 @@ static int omap_mcbsp_check(unsigned int id)
 		return 0;
 	}
 
-	if (cpu_is_omap1510() || cpu_is_omap16xx()) {
+	if (cpu_is_omap15xx() || cpu_is_omap16xx() || cpu_is_omap24xx()) {
 		if (id > OMAP_MAX_MCBSP_COUNT) {
 			printk(KERN_ERR "OMAP-McBSP: McBSP%d doesn't exist\n", id + 1);
 			return -1;
@@ -187,9 +195,10 @@ static int omap_mcbsp_check(unsigned int id)
 	return -1;
 }
 
+#ifdef CONFIG_ARCH_OMAP1
 static void omap_mcbsp_dsp_request(void)
 {
-	if (cpu_is_omap1510() || cpu_is_omap16xx()) {
+	if (cpu_is_omap15xx() || cpu_is_omap16xx()) {
 		clk_enable(mcbsp_dsp_ck);
 		clk_enable(mcbsp_api_ck);
 
@@ -207,11 +216,48 @@ static void omap_mcbsp_dsp_request(void)
 
 static void omap_mcbsp_dsp_free(void)
 {
-	if (cpu_is_omap1510() || cpu_is_omap16xx()) {
+	if (cpu_is_omap15xx() || cpu_is_omap16xx()) {
 		clk_disable(mcbsp_dspxor_ck);
 		clk_disable(mcbsp_dsp_ck);
 		clk_disable(mcbsp_api_ck);
 	}
+}
+#endif
+
+#ifdef CONFIG_ARCH_OMAP2
+static void omap2_mcbsp2_mux_setup(void)
+{
+	omap_cfg_reg(Y15_24XX_MCBSP2_CLKX);
+	omap_cfg_reg(R14_24XX_MCBSP2_FSX);
+	omap_cfg_reg(W15_24XX_MCBSP2_DR);
+	omap_cfg_reg(V15_24XX_MCBSP2_DX);
+	omap_cfg_reg(V14_24XX_GPIO117);
+	omap_cfg_reg(W14_24XX_SYS_CLKOUT);
+}
+#endif
+
+/*
+ * We can choose between IRQ based or polled IO.
+ * This needs to be called before omap_mcbsp_request().
+ */
+int omap_mcbsp_set_io_type(unsigned int id, omap_mcbsp_io_type_t io_type)
+{
+	if (omap_mcbsp_check(id) < 0)
+		return -EINVAL;
+
+	spin_lock(&mcbsp[id].lock);
+
+	if (!mcbsp[id].free) {
+		printk (KERN_ERR "OMAP-McBSP: McBSP%d is currently in use\n", id + 1);
+		spin_unlock(&mcbsp[id].lock);
+		return -EINVAL;
+	}
+
+	mcbsp[id].io_type = io_type;
+
+	spin_unlock(&mcbsp[id].lock);
+
+	return 0;
 }
 
 int omap_mcbsp_request(unsigned int id)
@@ -221,12 +267,26 @@ int omap_mcbsp_request(unsigned int id)
 	if (omap_mcbsp_check(id) < 0)
 		return -EINVAL;
 
+#ifdef CONFIG_ARCH_OMAP1
 	/*
 	 * On 1510, 1610 and 1710, McBSP1 and McBSP3
 	 * are DSP public peripherals.
 	 */
 	if (id == OMAP_MCBSP1 || id == OMAP_MCBSP3)
 		omap_mcbsp_dsp_request();
+#endif
+
+#ifdef CONFIG_ARCH_OMAP2
+	if (cpu_is_omap24xx()) {
+		if (id == OMAP_MCBSP1) {
+			clk_enable(mcbsp1_ick);
+			clk_enable(mcbsp1_fck);
+		} else {
+			clk_enable(mcbsp2_ick);
+			clk_enable(mcbsp2_fck);
+		}
+	}
+#endif
 
 	spin_lock(&mcbsp[id].lock);
 	if (!mcbsp[id].free) {
@@ -238,30 +298,33 @@ int omap_mcbsp_request(unsigned int id)
 	mcbsp[id].free = 0;
 	spin_unlock(&mcbsp[id].lock);
 
-	/* We need to get IRQs here */
-	err = request_irq(mcbsp[id].tx_irq, omap_mcbsp_tx_irq_handler, 0,
-			  "McBSP",
-			  (void *) (&mcbsp[id]));
-	if (err != 0) {
-		printk(KERN_ERR "OMAP-McBSP: Unable to request TX IRQ %d for McBSP%d\n",
-		       mcbsp[id].tx_irq, mcbsp[id].id);
-		return err;
+	if (mcbsp[id].io_type == OMAP_MCBSP_IRQ_IO) {
+		/* We need to get IRQs here */
+		err = request_irq(mcbsp[id].tx_irq, omap_mcbsp_tx_irq_handler, 0,
+				  "McBSP",
+				  (void *) (&mcbsp[id]));
+		if (err != 0) {
+			printk(KERN_ERR "OMAP-McBSP: Unable to request TX IRQ %d for McBSP%d\n",
+			       mcbsp[id].tx_irq, mcbsp[id].id);
+			return err;
+		}
+
+		init_completion(&(mcbsp[id].tx_irq_completion));
+
+
+		err = request_irq(mcbsp[id].rx_irq, omap_mcbsp_rx_irq_handler, 0,
+				  "McBSP",
+				  (void *) (&mcbsp[id]));
+		if (err != 0) {
+			printk(KERN_ERR "OMAP-McBSP: Unable to request RX IRQ %d for McBSP%d\n",
+			       mcbsp[id].rx_irq, mcbsp[id].id);
+			free_irq(mcbsp[id].tx_irq, (void *) (&mcbsp[id]));
+			return err;
+		}
+
+		init_completion(&(mcbsp[id].rx_irq_completion));
 	}
 
-	init_completion(&(mcbsp[id].tx_irq_completion));
-
-
-	err = request_irq(mcbsp[id].rx_irq, omap_mcbsp_rx_irq_handler, 0,
-			  "McBSP",
-			  (void *) (&mcbsp[id]));
-	if (err != 0) {
-		printk(KERN_ERR "OMAP-McBSP: Unable to request RX IRQ %d for McBSP%d\n",
-		       mcbsp[id].rx_irq, mcbsp[id].id);
-		free_irq(mcbsp[id].tx_irq, (void *) (&mcbsp[id]));
-		return err;
-	}
-
-	init_completion(&(mcbsp[id].rx_irq_completion));
 	return 0;
 
 }
@@ -271,8 +334,24 @@ void omap_mcbsp_free(unsigned int id)
 	if (omap_mcbsp_check(id) < 0)
 		return;
 
-	if (id == OMAP_MCBSP1 || id == OMAP_MCBSP3)
-		omap_mcbsp_dsp_free();
+#ifdef CONFIG_ARCH_OMAP1
+	if (cpu_class_is_omap1()) {
+		if (id == OMAP_MCBSP1 || id == OMAP_MCBSP3)
+			omap_mcbsp_dsp_free();
+	}
+#endif
+
+#ifdef CONFIG_ARCH_OMAP2
+	if (cpu_is_omap24xx()) {
+		if (id == OMAP_MCBSP1) {
+			clk_disable(mcbsp1_ick);
+			clk_disable(mcbsp1_fck);
+		} else {
+			clk_disable(mcbsp2_ick);
+			clk_disable(mcbsp2_fck);
+		}
+	}
+#endif
 
 	spin_lock(&mcbsp[id].lock);
 	if (mcbsp[id].free) {
@@ -284,9 +363,11 @@ void omap_mcbsp_free(unsigned int id)
 	mcbsp[id].free = 1;
 	spin_unlock(&mcbsp[id].lock);
 
-	/* Free IRQs */
-	free_irq(mcbsp[id].rx_irq, (void *) (&mcbsp[id]));
-	free_irq(mcbsp[id].tx_irq, (void *) (&mcbsp[id]));
+	if (mcbsp[id].io_type == OMAP_MCBSP_IRQ_IO) {
+		/* Free IRQs */
+		free_irq(mcbsp[id].rx_irq, (void *) (&mcbsp[id]));
+		free_irq(mcbsp[id].tx_irq, (void *) (&mcbsp[id]));
+	}
 }
 
 /*
@@ -461,6 +542,115 @@ u32 omap_mcbsp_recv_word(unsigned int id)
 }
 
 
+int omap_mcbsp_spi_master_xmit_word_poll(unsigned int id, u32 word)
+{
+	u32 io_base = mcbsp[id].io_base;
+	omap_mcbsp_word_length tx_word_length = mcbsp[id].tx_word_length;
+	omap_mcbsp_word_length rx_word_length = mcbsp[id].rx_word_length;
+	u16 spcr2, spcr1, attempts = 0, word_lsb, word_msb = 0;
+
+	if (tx_word_length != rx_word_length)
+		return -EINVAL;
+
+	/* First we wait for the transmitter to be ready */
+	spcr2 = OMAP_MCBSP_READ(io_base, SPCR2);
+	while (!(spcr2 & XRDY)) {
+		spcr2 = OMAP_MCBSP_READ(io_base, SPCR2);
+		if (attempts++ > 1000) {
+			/* We must reset the transmitter */
+			OMAP_MCBSP_WRITE(io_base, SPCR2, spcr2 & (~XRST));
+			udelay(10);
+			OMAP_MCBSP_WRITE(io_base, SPCR2, spcr2 | XRST);
+			udelay(10);
+			printk("McBSP transmitter not ready\n");
+			return -EAGAIN;
+		}
+	}
+
+	/* Now we can push the data */
+	if (tx_word_length > OMAP_MCBSP_WORD_16)
+		OMAP_MCBSP_WRITE(io_base, DXR2, word >> 16);
+	OMAP_MCBSP_WRITE(io_base, DXR1, word & 0xffff);
+
+	/* We wait for the receiver to be ready */
+	spcr1 = OMAP_MCBSP_READ(io_base, SPCR1);
+	while (!(spcr1 & RRDY)) {
+		spcr1 = OMAP_MCBSP_READ(io_base, SPCR1);
+		if (attempts++ > 1000) {
+			/* We must reset the receiver */
+			OMAP_MCBSP_WRITE(io_base, SPCR1, spcr1 & (~RRST));
+			udelay(10);
+			OMAP_MCBSP_WRITE(io_base, SPCR1, spcr1 | RRST);
+			udelay(10);
+			printk("McBSP receiver not ready\n");
+			return -EAGAIN;
+		}
+	}
+
+	/* Receiver is ready, let's read the dummy data */
+	if (rx_word_length > OMAP_MCBSP_WORD_16)
+		word_msb = OMAP_MCBSP_READ(io_base, DRR2);
+	word_lsb = OMAP_MCBSP_READ(io_base, DRR1);
+
+	return 0;
+}
+
+int omap_mcbsp_spi_master_recv_word_poll(unsigned int id, u32 * word)
+{
+	u32 io_base = mcbsp[id].io_base, clock_word = 0;
+	omap_mcbsp_word_length tx_word_length = mcbsp[id].tx_word_length;
+	omap_mcbsp_word_length rx_word_length = mcbsp[id].rx_word_length;
+	u16 spcr2, spcr1, attempts = 0, word_lsb, word_msb = 0;
+
+	if (tx_word_length != rx_word_length)
+		return -EINVAL;
+
+	/* First we wait for the transmitter to be ready */
+	spcr2 = OMAP_MCBSP_READ(io_base, SPCR2);
+	while (!(spcr2 & XRDY)) {
+		spcr2 = OMAP_MCBSP_READ(io_base, SPCR2);
+		if (attempts++ > 1000) {
+			/* We must reset the transmitter */
+			OMAP_MCBSP_WRITE(io_base, SPCR2, spcr2 & (~XRST));
+			udelay(10);
+			OMAP_MCBSP_WRITE(io_base, SPCR2, spcr2 | XRST);
+			udelay(10);
+			printk("McBSP transmitter not ready\n");
+			return -EAGAIN;
+		}
+	}
+
+	/* We first need to enable the bus clock */
+	if (tx_word_length > OMAP_MCBSP_WORD_16)
+		OMAP_MCBSP_WRITE(io_base, DXR2, clock_word >> 16);
+	OMAP_MCBSP_WRITE(io_base, DXR1, clock_word & 0xffff);
+
+	/* We wait for the receiver to be ready */
+	spcr1 = OMAP_MCBSP_READ(io_base, SPCR1);
+	while (!(spcr1 & RRDY)) {
+		spcr1 = OMAP_MCBSP_READ(io_base, SPCR1);
+		if (attempts++ > 1000) {
+			/* We must reset the receiver */
+			OMAP_MCBSP_WRITE(io_base, SPCR1, spcr1 & (~RRST));
+			udelay(10);
+			OMAP_MCBSP_WRITE(io_base, SPCR1, spcr1 | RRST);
+			udelay(10);
+			printk("McBSP receiver not ready\n");
+			return -EAGAIN;
+		}
+	}
+
+	/* Receiver is ready, there is something for us */
+	if (rx_word_length > OMAP_MCBSP_WORD_16)
+		word_msb = OMAP_MCBSP_READ(io_base, DRR2);
+	word_lsb = OMAP_MCBSP_READ(io_base, DRR1);
+
+	word[0] = (word_lsb | (word_msb << 16));
+
+	return 0;
+}
+
+
 /*
  * Simple DMA based buffer rx/tx routines.
  * Nothing fancy, just a single buffer tx/rx through DMA.
@@ -471,6 +661,9 @@ u32 omap_mcbsp_recv_word(unsigned int id)
 int omap_mcbsp_xmit_buffer(unsigned int id, dma_addr_t buffer, unsigned int length)
 {
 	int dma_tx_ch;
+	int src_port = 0;
+	int dest_port = 0;
+	int sync_dev = 0;
 
 	if (omap_mcbsp_check(id) < 0)
 		return -EINVAL;
@@ -487,20 +680,27 @@ int omap_mcbsp_xmit_buffer(unsigned int id, dma_addr_t buffer, unsigned int leng
 
 	init_completion(&(mcbsp[id].tx_dma_completion));
 
+	if (cpu_class_is_omap1()) {
+		src_port = OMAP_DMA_PORT_TIPB;
+		dest_port = OMAP_DMA_PORT_EMIFF;
+	}
+	if (cpu_is_omap24xx())
+		sync_dev = mcbsp[id].dma_tx_sync;
+
 	omap_set_dma_transfer_params(mcbsp[id].dma_tx_lch,
 				     OMAP_DMA_DATA_TYPE_S16,
 				     length >> 1, 1,
 				     OMAP_DMA_SYNC_ELEMENT,
-				     0, 0);
+	 sync_dev, 0);
 
 	omap_set_dma_dest_params(mcbsp[id].dma_tx_lch,
-				 OMAP_DMA_PORT_TIPB,
+				 src_port,
 				 OMAP_DMA_AMODE_CONSTANT,
 				 mcbsp[id].io_base + OMAP_MCBSP_REG_DXR1,
 				 0, 0);
 
 	omap_set_dma_src_params(mcbsp[id].dma_tx_lch,
-				OMAP_DMA_PORT_EMIFF,
+				dest_port,
 				OMAP_DMA_AMODE_POST_INC,
 				buffer,
 				0, 0);
@@ -514,6 +714,9 @@ int omap_mcbsp_xmit_buffer(unsigned int id, dma_addr_t buffer, unsigned int leng
 int omap_mcbsp_recv_buffer(unsigned int id, dma_addr_t buffer, unsigned int length)
 {
 	int dma_rx_ch;
+	int src_port = 0;
+	int dest_port = 0;
+	int sync_dev = 0;
 
 	if (omap_mcbsp_check(id) < 0)
 		return -EINVAL;
@@ -530,20 +733,27 @@ int omap_mcbsp_recv_buffer(unsigned int id, dma_addr_t buffer, unsigned int leng
 
 	init_completion(&(mcbsp[id].rx_dma_completion));
 
+	if (cpu_class_is_omap1()) {
+		src_port = OMAP_DMA_PORT_TIPB;
+		dest_port = OMAP_DMA_PORT_EMIFF;
+	}
+	if (cpu_is_omap24xx())
+		sync_dev = mcbsp[id].dma_rx_sync;
+
 	omap_set_dma_transfer_params(mcbsp[id].dma_rx_lch,
 				     OMAP_DMA_DATA_TYPE_S16,
 				     length >> 1, 1,
 				     OMAP_DMA_SYNC_ELEMENT,
-				     0, 0);
+	 sync_dev, 0);
 
 	omap_set_dma_src_params(mcbsp[id].dma_rx_lch,
-				OMAP_DMA_PORT_TIPB,
+				src_port,
 				OMAP_DMA_AMODE_CONSTANT,
 				mcbsp[id].io_base + OMAP_MCBSP_REG_DRR1,
 				0, 0);
 
 	omap_set_dma_dest_params(mcbsp[id].dma_rx_lch,
-				 OMAP_DMA_PORT_EMIFF,
+				 dest_port,
 				 OMAP_DMA_AMODE_POST_INC,
 				 buffer,
 				 0, 0);
@@ -688,6 +898,23 @@ static const struct omap_mcbsp_info mcbsp_1610[] = {
 };
 #endif
 
+#if defined(CONFIG_ARCH_OMAP24XX)
+static const struct omap_mcbsp_info mcbsp_24xx[] = {
+	[0] = { .virt_base = IO_ADDRESS(OMAP24XX_MCBSP1_BASE),
+		.dma_rx_sync = OMAP24XX_DMA_MCBSP1_RX,
+		.dma_tx_sync = OMAP24XX_DMA_MCBSP1_TX,
+		.rx_irq = INT_24XX_MCBSP1_IRQ_RX,
+		.tx_irq = INT_24XX_MCBSP1_IRQ_TX,
+		},
+	[1] = { .virt_base = IO_ADDRESS(OMAP24XX_MCBSP2_BASE),
+		.dma_rx_sync = OMAP24XX_DMA_MCBSP2_RX,
+		.dma_tx_sync = OMAP24XX_DMA_MCBSP2_TX,
+		.rx_irq = INT_24XX_MCBSP2_IRQ_RX,
+		.tx_irq = INT_24XX_MCBSP2_IRQ_TX,
+		},
+};
+#endif
+
 static int __init omap_mcbsp_init(void)
 {
 	int mcbsp_count = 0, i;
@@ -695,6 +922,7 @@ static int __init omap_mcbsp_init(void)
 
 	printk("Initializing OMAP McBSP system\n");
 
+#ifdef CONFIG_ARCH_OMAP1
 	mcbsp_dsp_ck = clk_get(0, "dsp_ck");
 	if (IS_ERR(mcbsp_dsp_ck)) {
 		printk(KERN_ERR "mcbsp: could not acquire dsp_ck handle.\n");
@@ -710,6 +938,29 @@ static int __init omap_mcbsp_init(void)
 		printk(KERN_ERR "mcbsp: could not acquire dspxor_ck handle.\n");
 		return PTR_ERR(mcbsp_dspxor_ck);
 	}
+#endif
+#ifdef CONFIG_ARCH_OMAP2
+	mcbsp1_ick = clk_get(0, "mcbsp1_ick");
+	if (IS_ERR(mcbsp1_ick)) {
+		printk(KERN_ERR "mcbsp: could not acquire mcbsp1_ick handle.\n");
+		return PTR_ERR(mcbsp1_ick);
+	}
+	mcbsp1_fck = clk_get(0, "mcbsp1_fck");
+	if (IS_ERR(mcbsp1_fck)) {
+		printk(KERN_ERR "mcbsp: could not acquire mcbsp1_fck handle.\n");
+		return PTR_ERR(mcbsp1_fck);
+	}
+	mcbsp2_ick = clk_get(0, "mcbsp2_ick");
+	if (IS_ERR(mcbsp2_ick)) {
+		printk(KERN_ERR "mcbsp: could not acquire mcbsp2_ick handle.\n");
+		return PTR_ERR(mcbsp2_ick);
+	}
+	mcbsp2_fck = clk_get(0, "mcbsp2_fck");
+	if (IS_ERR(mcbsp2_fck)) {
+		printk(KERN_ERR "mcbsp: could not acquire mcbsp2_fck handle.\n");
+		return PTR_ERR(mcbsp2_fck);
+	}
+#endif
 
 #ifdef CONFIG_ARCH_OMAP730
 	if (cpu_is_omap730()) {
@@ -718,7 +969,7 @@ static int __init omap_mcbsp_init(void)
 	}
 #endif
 #ifdef CONFIG_ARCH_OMAP15XX
-	if (cpu_is_omap1510()) {
+	if (cpu_is_omap15xx()) {
 		mcbsp_info = mcbsp_1510;
 		mcbsp_count = ARRAY_SIZE(mcbsp_1510);
 	}
@@ -727,6 +978,19 @@ static int __init omap_mcbsp_init(void)
 	if (cpu_is_omap16xx()) {
 		mcbsp_info = mcbsp_1610;
 		mcbsp_count = ARRAY_SIZE(mcbsp_1610);
+	}
+#endif
+#if defined(CONFIG_ARCH_OMAP24XX)
+	if (cpu_is_omap24xx()) {
+		mcbsp_info = mcbsp_24xx;
+		mcbsp_count = ARRAY_SIZE(mcbsp_24xx);
+
+		/* REVISIT: where's the right place? */
+		omap2_mcbsp2_mux_setup();
+		sys_ck = clk_get(0, "sys_ck");
+		sys_clkout = clk_get(0, "sys_clkout");
+		clk_set_parent(sys_clkout, sys_ck);
+		clk_enable(sys_clkout);
 	}
 #endif
 	for (i = 0; i < OMAP_MAX_MCBSP_COUNT ; i++) {
@@ -741,6 +1005,7 @@ static int __init omap_mcbsp_init(void)
 		mcbsp[i].dma_rx_lch = -1;
 
 		mcbsp[i].io_base = mcbsp_info[i].virt_base;
+		mcbsp[i].io_type = OMAP_MCBSP_IRQ_IO; /* Default I/O is IRQ based */
 		mcbsp[i].tx_irq = mcbsp_info[i].tx_irq;
 		mcbsp[i].rx_irq = mcbsp_info[i].rx_irq;
 		mcbsp[i].dma_rx_sync = mcbsp_info[i].dma_rx_sync;
@@ -751,11 +1016,11 @@ static int __init omap_mcbsp_init(void)
 	return 0;
 }
 
-
 arch_initcall(omap_mcbsp_init);
 
 EXPORT_SYMBOL(omap_mcbsp_config);
 EXPORT_SYMBOL(omap_mcbsp_request);
+EXPORT_SYMBOL(omap_mcbsp_set_io_type);
 EXPORT_SYMBOL(omap_mcbsp_free);
 EXPORT_SYMBOL(omap_mcbsp_start);
 EXPORT_SYMBOL(omap_mcbsp_stop);
@@ -763,4 +1028,6 @@ EXPORT_SYMBOL(omap_mcbsp_xmit_word);
 EXPORT_SYMBOL(omap_mcbsp_recv_word);
 EXPORT_SYMBOL(omap_mcbsp_xmit_buffer);
 EXPORT_SYMBOL(omap_mcbsp_recv_buffer);
+EXPORT_SYMBOL(omap_mcbsp_spi_master_xmit_word_poll);
+EXPORT_SYMBOL(omap_mcbsp_spi_master_recv_word_poll);
 EXPORT_SYMBOL(omap_mcbsp_set_spi_mode);

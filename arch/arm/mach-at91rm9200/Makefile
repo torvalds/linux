@@ -16,11 +16,12 @@ obj-$(CONFIG_MACH_CSB637)	+= board-csb637.o
 #obj-$(CONFIG_MACH_KB9200)	+= board-kb9202.o
 
 # LEDs support
-#led-$(CONFIG_ARCH_AT91RM9200DK)	+= leds.o
-#led-$(CONFIG_MACH_AT91RM9200EK)	+= leds.o
-#led-$(CONFIG_MACH_CSB337)	+= leds.o
-#led-$(CONFIG_MACH_CSB637)	+= leds.o
+led-$(CONFIG_ARCH_AT91RM9200DK)	+= leds.o
+led-$(CONFIG_MACH_AT91RM9200EK)	+= leds.o
+led-$(CONFIG_MACH_CSB337)	+= leds.o
+led-$(CONFIG_MACH_CSB637)	+= leds.o
 #led-$(CONFIG_MACH_KB9200)	+= leds.o
+#led-$(CONFIG_MACH_KAFA)	+= leds.o
 obj-$(CONFIG_LEDS) += $(led-y)
 
 # VGA support

@@ -16,7 +16,6 @@
 #include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/config.h>
 #include <linux/string.h>
 #include <linux/major.h>
 #include <linux/errno.h>
@@ -111,9 +110,9 @@ int pcmcia_socket_dev_suspend(struct device *dev, pm_message_t state)
 	list_for_each_entry(socket, &pcmcia_socket_list, socket_list) {
 		if (socket->dev.dev != dev)
 			continue;
-		down(&socket->skt_sem);
+		mutex_lock(&socket->skt_mutex);
 		socket_suspend(socket);
-		up(&socket->skt_sem);
+		mutex_unlock(&socket->skt_mutex);
 	}
 	up_read(&pcmcia_socket_list_rwsem);
 
@@ -129,9 +128,9 @@ int pcmcia_socket_dev_resume(struct device *dev)
 	list_for_each_entry(socket, &pcmcia_socket_list, socket_list) {
 		if (socket->dev.dev != dev)
 			continue;
-		down(&socket->skt_sem);
+		mutex_lock(&socket->skt_mutex);
 		socket_resume(socket);
-		up(&socket->skt_sem);
+		mutex_unlock(&socket->skt_mutex);
 	}
 	up_read(&pcmcia_socket_list_rwsem);
 
@@ -237,7 +236,7 @@ int pcmcia_register_socket(struct pcmcia_socket *socket)
 	init_completion(&socket->socket_released);
 	init_completion(&socket->thread_done);
 	init_waitqueue_head(&socket->thread_wait);
-	init_MUTEX(&socket->skt_sem);
+	mutex_init(&socket->skt_mutex);
 	spin_lock_init(&socket->thread_lock);
 
 	ret = kernel_thread(pccardd, socket, CLONE_KERNEL);
@@ -406,8 +405,6 @@ static void socket_shutdown(struct pcmcia_socket *s)
 	cb_free(s);
 #endif
 	s->functions = 0;
-	kfree(s->config);
-	s->config = NULL;
 
 	s->ops->get_status(s, &status);
 	if (status & SS_POWERON) {
@@ -664,7 +661,7 @@ static int pccardd(void *__skt)
 		spin_unlock_irqrestore(&skt->thread_lock, flags);
 
 		if (events) {
-			down(&skt->skt_sem);
+			mutex_lock(&skt->skt_mutex);
 			if (events & SS_DETECT)
 				socket_detect_change(skt);
 			if (events & SS_BATDEAD)
@@ -673,7 +670,7 @@ static int pccardd(void *__skt)
 				send_event(skt, CS_EVENT_BATTERY_LOW, CS_EVENT_PRI_LOW);
 			if (events & SS_READY)
 				send_event(skt, CS_EVENT_READY_CHANGE, CS_EVENT_PRI_LOW);
-			up(&skt->skt_sem);
+			mutex_unlock(&skt->skt_mutex);
 			continue;
 		}
 
@@ -717,8 +714,8 @@ int pccard_register_pcmcia(struct pcmcia_socket *s, struct pcmcia_callback *c)
 {
         int ret = 0;
 
-	/* s->skt_sem also protects s->callback */
-	down(&s->skt_sem);
+	/* s->skt_mutex also protects s->callback */
+	mutex_lock(&s->skt_mutex);
 
 	if (c) {
 		/* registration */
@@ -734,7 +731,7 @@ int pccard_register_pcmcia(struct pcmcia_socket *s, struct pcmcia_callback *c)
 	} else
 		s->callback = NULL;
  err:
-	up(&s->skt_sem);
+	mutex_unlock(&s->skt_mutex);
 
 	return ret;
 }
@@ -752,7 +749,7 @@ int pccard_reset_card(struct pcmcia_socket *skt)
 
 	cs_dbg(skt, 1, "resetting socket\n");
 
-	down(&skt->skt_sem);
+	mutex_lock(&skt->skt_mutex);
 	do {
 		if (!(skt->state & SOCKET_PRESENT)) {
 			ret = CS_NO_CARD;
@@ -781,7 +778,7 @@ int pccard_reset_card(struct pcmcia_socket *skt)
 
 		ret = CS_SUCCESS;
 	} while (0);
-	up(&skt->skt_sem);
+	mutex_unlock(&skt->skt_mutex);
 
 	return ret;
 } /* reset_card */
@@ -797,7 +794,7 @@ int pcmcia_suspend_card(struct pcmcia_socket *skt)
 
 	cs_dbg(skt, 1, "suspending socket\n");
 
-	down(&skt->skt_sem);
+	mutex_lock(&skt->skt_mutex);
 	do {
 		if (!(skt->state & SOCKET_PRESENT)) {
 			ret = CS_NO_CARD;
@@ -814,7 +811,7 @@ int pcmcia_suspend_card(struct pcmcia_socket *skt)
 		}
 		ret = socket_suspend(skt);
 	} while (0);
-	up(&skt->skt_sem);
+	mutex_unlock(&skt->skt_mutex);
 
 	return ret;
 } /* suspend_card */
@@ -827,7 +824,7 @@ int pcmcia_resume_card(struct pcmcia_socket *skt)
     
 	cs_dbg(skt, 1, "waking up socket\n");
 
-	down(&skt->skt_sem);
+	mutex_lock(&skt->skt_mutex);
 	do {
 		if (!(skt->state & SOCKET_PRESENT)) {
 			ret = CS_NO_CARD;
@@ -841,7 +838,7 @@ int pcmcia_resume_card(struct pcmcia_socket *skt)
 		if (!ret && skt->callback)
 			skt->callback->resume(skt);
 	} while (0);
-	up(&skt->skt_sem);
+	mutex_unlock(&skt->skt_mutex);
 
 	return ret;
 } /* resume_card */
@@ -855,7 +852,7 @@ int pcmcia_eject_card(struct pcmcia_socket *skt)
     
 	cs_dbg(skt, 1, "user eject request\n");
 
-	down(&skt->skt_sem);
+	mutex_lock(&skt->skt_mutex);
 	do {
 		if (!(skt->state & SOCKET_PRESENT)) {
 			ret = -ENODEV;
@@ -871,7 +868,7 @@ int pcmcia_eject_card(struct pcmcia_socket *skt)
 		socket_remove(skt);
 		ret = 0;
 	} while (0);
-	up(&skt->skt_sem);
+	mutex_unlock(&skt->skt_mutex);
 
 	return ret;
 } /* eject_card */
@@ -884,7 +881,7 @@ int pcmcia_insert_card(struct pcmcia_socket *skt)
 
 	cs_dbg(skt, 1, "user insert request\n");
 
-	down(&skt->skt_sem);
+	mutex_lock(&skt->skt_mutex);
 	do {
 		if (skt->state & SOCKET_PRESENT) {
 			ret = -EBUSY;
@@ -896,7 +893,7 @@ int pcmcia_insert_card(struct pcmcia_socket *skt)
 		}
 		ret = 0;
 	} while (0);
-	up(&skt->skt_sem);
+	mutex_unlock(&skt->skt_mutex);
 
 	return ret;
 } /* insert_card */

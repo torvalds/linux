@@ -463,7 +463,7 @@ static void pseries_dedicated_idle_sleep(void)
 	 * very low priority.  The cede enables interrupts, which
 	 * doesn't matter here.
 	 */
-	if (!lppaca[cpu ^ 1].idle || poll_pending() == H_Pending)
+	if (!lppaca[cpu ^ 1].idle || poll_pending() == H_PENDING)
 		cede_processor();
 
 out:
