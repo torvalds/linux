@@ -310,6 +310,25 @@ static int or51132_setmode(struct dvb_frontend* fe)
 	return 0;
 }
 
+/* Some modulations use the same firmware.  This classifies modulations
+   by the firmware they use. */
+#define MOD_FWCLASS_UNKNOWN	0
+#define MOD_FWCLASS_VSB		1
+#define MOD_FWCLASS_QAM		2
+static int modulation_fw_class(fe_modulation_t modulation)
+{
+	switch(modulation) {
+	case VSB_8:
+		return MOD_FWCLASS_VSB;
+	case QAM_AUTO:
+	case QAM_64:
+	case QAM_256:
+		return MOD_FWCLASS_QAM;
+	default:
+		return MOD_FWCLASS_UNKNOWN;
+	}
+}
+
 static int or51132_set_parameters(struct dvb_frontend* fe,
 				  struct dvb_frontend_parameters *param)
 {
@@ -317,45 +336,40 @@ static int or51132_set_parameters(struct dvb_frontend* fe,
 	u8 buf[4];
 	struct or51132_state* state = fe->demodulator_priv;
 	const struct firmware *fw;
+	const char *fwname;
+	int clock_mode;
 
-	/* Change only if we are actually changing the modulation */
-	if (state->current_modulation != param->u.vsb.modulation) {
-		switch(param->u.vsb.modulation) {
-		case VSB_8:
+	/* Upload new firmware only if we need a different one */
+	if (modulation_fw_class(state->current_modulation) !=
+	    modulation_fw_class(param->u.vsb.modulation)) {
+		switch(modulation_fw_class(param->u.vsb.modulation)) {
+		case MOD_FWCLASS_VSB:
 			dprintk("set_parameters VSB MODE\n");
-			printk("or51132: Waiting for firmware upload(%s)...\n",
-			       OR51132_VSB_FIRMWARE);
-			ret = request_firmware(&fw, OR51132_VSB_FIRMWARE,
-					       &state->i2c->dev);
-			if (ret){
-				printk(KERN_WARNING "or51132: No firmware up"
-				       "loaded(timeout or file not found?)\n");
-				return ret;
-			}
+			fwname = OR51132_VSB_FIRMWARE;
+
 			/* Set non-punctured clock for VSB */
-			state->config->set_ts_params(fe, 0);
+			clock_mode = 0;
 			break;
-		case QAM_AUTO:
-		case QAM_64:
-		case QAM_256:
+		case MOD_FWCLASS_QAM:
 			dprintk("set_parameters QAM MODE\n");
-			printk("or51132: Waiting for firmware upload(%s)...\n",
-			       OR51132_QAM_FIRMWARE);
-			ret = request_firmware(&fw, OR51132_QAM_FIRMWARE,
-					       &state->i2c->dev);
-			if (ret){
-				printk(KERN_WARNING "or51132: No firmware up"
-				       "loaded(timeout or file not found?)\n");
-				return ret;
-			}
+			fwname = OR51132_QAM_FIRMWARE;
+
 			/* Set punctured clock for QAM */
-			state->config->set_ts_params(fe, 1);
+			clock_mode = 1;
 			break;
 		default:
-			printk("or51132:Modulation type(%d) UNSUPPORTED\n",
+			printk("or51132: Modulation type(%d) UNSUPPORTED\n",
 			       param->u.vsb.modulation);
 			return -1;
-		};
+		}
+		printk("or51132: Waiting for firmware upload(%s)...\n",
+		       fwname);
+		ret = request_firmware(&fw, fwname, &state->i2c->dev);
+		if (ret) {
+			printk(KERN_WARNING "or51132: No firmware up"
+			       "loaded(timeout or file not found?)\n");
+			return ret;
+		}
 		ret = or51132_load_firmware(fe, fw);
 		release_firmware(fw);
 		if (ret) {
@@ -364,7 +378,10 @@ static int or51132_set_parameters(struct dvb_frontend* fe,
 			return ret;
 		}
 		printk("or51132: Firmware upload complete.\n");
-
+		state->config->set_ts_params(fe, clock_mode);
+	}
+	/* Change only if we are actually changing the modulation */
+	if (state->current_modulation != param->u.vsb.modulation) {
 		state->current_modulation = param->u.vsb.modulation;
 		or51132_setmode(fe);
 	}
@@ -373,7 +390,7 @@ static int or51132_set_parameters(struct dvb_frontend* fe,
 			  param->frequency, 0);
 	dprintk("set_parameters tuner bytes: 0x%02x 0x%02x "
 		"0x%02x 0x%02x\n",buf[0],buf[1],buf[2],buf[3]);
-	if (i2c_writebytes(state, state->config->pll_address ,buf, 4))
+	if (i2c_writebytes(state, state->config->pll_address, buf, 4))
 		printk(KERN_WARNING "or51132: set_parameters error "
 		       "writing to tuner\n");
 
