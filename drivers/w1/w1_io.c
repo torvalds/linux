@@ -23,6 +23,7 @@
 
 #include <linux/delay.h>
 #include <linux/moduleparam.h>
+#include <linux/module.h>
 
 #include "w1.h"
 #include "w1_log.h"
@@ -107,6 +108,7 @@ void w1_write_8(struct w1_master *dev, u8 byte)
 		for (i = 0; i < 8; ++i)
 			w1_touch_bit(dev, (byte >> i) & 0x1);
 }
+EXPORT_SYMBOL_GPL(w1_write_8);
 
 
 /**
@@ -207,6 +209,7 @@ void w1_write_block(struct w1_master *dev, const u8 *buf, int len)
 		for (i = 0; i < len; ++i)
 			w1_write_8(dev, buf[i]);
 }
+EXPORT_SYMBOL_GPL(w1_write_block);
 
 /**
  * Reads a series of bytes.
@@ -231,6 +234,7 @@ u8 w1_read_block(struct w1_master *dev, u8 *buf, int len)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(w1_read_block);
 
 /**
  * Issues a reset bus sequence.
@@ -256,6 +260,7 @@ int w1_reset_bus(struct w1_master *dev)
 
 	return result;
 }
+EXPORT_SYMBOL_GPL(w1_reset_bus);
 
 u8 w1_calc_crc8(u8 * data, int len)
 {
@@ -266,6 +271,7 @@ u8 w1_calc_crc8(u8 * data, int len)
 
 	return crc;
 }
+EXPORT_SYMBOL_GPL(w1_calc_crc8);
 
 void w1_search_devices(struct w1_master *dev, u8 search_type, w1_slave_found_callback cb)
 {
@@ -298,5 +304,4 @@ int w1_reset_select_slave(struct w1_slave *sl)
 	}
 	return 0;
 }
-
-EXPORT_SYMBOL_GPL(w1_calc_crc8);
+EXPORT_SYMBOL_GPL(w1_reset_select_slave);
