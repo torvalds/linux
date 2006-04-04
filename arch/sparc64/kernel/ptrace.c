@@ -609,6 +609,22 @@ asmlinkage void do_ptrace(struct pt_regs *regs)
 
 	/* PTRACE_DUMPCORE unsupported... */
 
+	case PTRACE_GETEVENTMSG: {
+		int err;
+
+		if (test_thread_flag(TIF_32BIT))
+			err = put_user(child->ptrace_message,
+				       (unsigned int __user *) data);
+		else
+			err = put_user(child->ptrace_message,
+				       (unsigned long __user *) data);
+		if (err)
+			pt_error_return(regs, -err);
+		else
+			pt_succ_return(regs, 0);
+		break;
+	}
+
 	default: {
 		int err = ptrace_request(child, request, addr, data);
 		if (err)
