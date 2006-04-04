@@ -74,8 +74,7 @@ static void flush_all_zero_pkmaps(void)
 		pkmap_count[i] = 0;
 
 		/* sanity check */
-		if (pte_none(pkmap_page_table[i]))
-			BUG();
+		BUG_ON(pte_none(pkmap_page_table[i]));
 
 		/*
 		 * Don't need an atomic fetch-and-clear op here;
@@ -158,8 +157,7 @@ void fastcall *kmap_high(struct page *page)
 	if (!vaddr)
 		vaddr = map_new_virtual(page);
 	pkmap_count[PKMAP_NR(vaddr)]++;
-	if (pkmap_count[PKMAP_NR(vaddr)] < 2)
-		BUG();
+	BUG_ON(pkmap_count[PKMAP_NR(vaddr)] < 2);
 	spin_unlock(&kmap_lock);
 	return (void*) vaddr;
 }
@@ -174,8 +172,7 @@ void fastcall kunmap_high(struct page *page)
 
 	spin_lock(&kmap_lock);
 	vaddr = (unsigned long)page_address(page);
-	if (!vaddr)
-		BUG();
+	BUG_ON(!vaddr);
 	nr = PKMAP_NR(vaddr);
 
 	/*
@@ -220,8 +217,7 @@ static __init int init_emergency_pool(void)
 		return 0;
 
 	page_pool = mempool_create_page_pool(POOL_SIZE, 0);
-	if (!page_pool)
-		BUG();
+	BUG_ON(!page_pool);
 	printk("highmem bounce pool size: %d pages\n", POOL_SIZE);
 
 	return 0;
@@ -264,8 +260,7 @@ int init_emergency_isa_pool(void)
 
 	isa_page_pool = mempool_create(ISA_POOL_SIZE, mempool_alloc_pages_isa,
 				       mempool_free_pages, (void *) 0);
-	if (!isa_page_pool)
-		BUG();
+	BUG_ON(!isa_page_pool);
 
 	printk("isa bounce pool size: %d pages\n", ISA_POOL_SIZE);
 	return 0;

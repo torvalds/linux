@@ -20,3 +20,6 @@ config MACH_OMAP_H4
 	bool "OMAP 2420 H4 board"
 	depends on ARCH_OMAP2 && ARCH_OMAP24XX
 
+config MACH_OMAP_APOLLON
+	bool "OMAP 2420 Apollon board"
+	depends on ARCH_OMAP2 && ARCH_OMAP24XX

@@ -100,23 +100,12 @@ EXPORT_SYMBOL(__raw_writesl);
 #endif
 
 	/* string / mem functions */
-EXPORT_SYMBOL(strcpy);
-EXPORT_SYMBOL(strncpy);
-EXPORT_SYMBOL(strcat);
-EXPORT_SYMBOL(strncat);
-EXPORT_SYMBOL(strcmp);
-EXPORT_SYMBOL(strncmp);
 EXPORT_SYMBOL(strchr);
-EXPORT_SYMBOL(strlen);
-EXPORT_SYMBOL(strnlen);
 EXPORT_SYMBOL(strpbrk);
 EXPORT_SYMBOL(strrchr);
-EXPORT_SYMBOL(strstr);
 EXPORT_SYMBOL(memset);
 EXPORT_SYMBOL(memcpy);
 EXPORT_SYMBOL(memmove);
-EXPORT_SYMBOL(memcmp);
-EXPORT_SYMBOL(memscan);
 EXPORT_SYMBOL(memchr);
 EXPORT_SYMBOL(__memzero);
 
@@ -190,8 +179,6 @@ EXPORT_SYMBOL(_find_next_bit_be);
 
 	/* syscalls */
 EXPORT_SYMBOL(sys_write);
-EXPORT_SYMBOL(sys_read);
 EXPORT_SYMBOL(sys_lseek);
-EXPORT_SYMBOL(sys_open);
 EXPORT_SYMBOL(sys_exit);
 EXPORT_SYMBOL(sys_wait4);

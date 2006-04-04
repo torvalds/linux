@@ -142,6 +142,12 @@ struct xt_counters_info
 #define ASSERT_WRITE_LOCK(x)
 #include <linux/netfilter_ipv4/listhelp.h>
 
+#ifdef CONFIG_COMPAT
+#define COMPAT_TO_USER		1
+#define COMPAT_FROM_USER	-1
+#define COMPAT_CALC_SIZE	0
+#endif
+
 struct xt_match
 {
 	struct list_head list;
@@ -174,6 +180,9 @@ struct xt_match
 	/* Called when entry of this type deleted. */
 	void (*destroy)(const struct xt_match *match, void *matchinfo,
 			unsigned int matchinfosize);
+
+	/* Called when userspace align differs from kernel space one */
+	int (*compat)(void *match, void **dstptr, int *size, int convert);
 
 	/* Set this to THIS_MODULE if you are a module, otherwise NULL */
 	struct module *me;
@@ -219,6 +228,9 @@ struct xt_target
 	/* Called when entry of this type deleted. */
 	void (*destroy)(const struct xt_target *target, void *targinfo,
 			unsigned int targinfosize);
+
+	/* Called when userspace align differs from kernel space one */
+	int (*compat)(void *target, void **dstptr, int *size, int convert);
 
 	/* Set this to THIS_MODULE if you are a module, otherwise NULL */
 	struct module *me;
@@ -314,6 +326,61 @@ extern void xt_proto_fini(int af);
 extern struct xt_table_info *xt_alloc_table_info(unsigned int size);
 extern void xt_free_table_info(struct xt_table_info *info);
 
+#ifdef CONFIG_COMPAT
+#include <net/compat.h>
+
+struct compat_xt_entry_match
+{
+	union {
+		struct {
+			u_int16_t match_size;
+			char name[XT_FUNCTION_MAXNAMELEN - 1];
+			u_int8_t revision;
+		} user;
+		u_int16_t match_size;
+	} u;
+	unsigned char data[0];
+};
+
+struct compat_xt_entry_target
+{
+	union {
+		struct {
+			u_int16_t target_size;
+			char name[XT_FUNCTION_MAXNAMELEN - 1];
+			u_int8_t revision;
+		} user;
+		u_int16_t target_size;
+	} u;
+	unsigned char data[0];
+};
+
+/* FIXME: this works only on 32 bit tasks
+ * need to change whole approach in order to calculate align as function of
+ * current task alignment */
+
+struct compat_xt_counters
+{
+	u_int32_t cnt[4];
+};
+
+struct compat_xt_counters_info
+{
+	char name[XT_TABLE_MAXNAMELEN];
+	compat_uint_t num_counters;
+	struct compat_xt_counters counters[0];
+};
+
+#define COMPAT_XT_ALIGN(s) (((s) + (__alignof__(struct compat_xt_counters)-1)) \
+		& ~(__alignof__(struct compat_xt_counters)-1))
+
+extern void xt_compat_lock(int af);
+extern void xt_compat_unlock(int af);
+extern int xt_compat_match(void *match, void **dstptr, int *size, int convert);
+extern int xt_compat_target(void *target, void **dstptr, int *size,
+		int convert);
+
+#endif /* CONFIG_COMPAT */
 #endif /* __KERNEL__ */
 
 #endif /* _X_TABLES_H */

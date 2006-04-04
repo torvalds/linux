@@ -112,14 +112,13 @@
  *   as mux config
  */
 #define MUX_CFG_730(desc, mux_reg, mode_offset, mode,	\
-		   pull_reg, pull_bit, pull_status,	\
-		   pu_pd_reg, pu_pd_status, debug_status)\
+		   pull_bit, pull_status, debug_status)\
 {							\
 	.name =	 desc,					\
 	.debug = debug_status,				\
 	MUX_REG_730(mux_reg, mode_offset, mode)		\
 	PULL_REG_730(mux_reg, pull_bit, pull_status)	\
-	PU_PD_REG(pu_pd_reg, pu_pd_status)		\
+	PU_PD_REG(NA, 0)		\
 },
 
 #define MUX_CFG_24XX(desc, reg_offset, mode,			\
@@ -172,6 +171,11 @@ enum omap730_index {
 	E4_730_KBC2,
 	F4_730_KBC3,
 	E3_730_KBC4,
+
+	/* USB */
+	AA17_730_USB_DM,
+	W16_730_USB_PU_EN,
+	W17_730_USB_VBUSI,
 };
 
 enum omap1xxx_index {
@@ -403,9 +407,53 @@ enum omap24xx_index {
 	/* 24xx Menelaus interrupt */
 	W19_24XX_SYS_NIRQ,
 
+	/* 24xx clock */
+	W14_24XX_SYS_CLKOUT,
+
+	/* 242X McBSP */
+	Y15_24XX_MCBSP2_CLKX,
+	R14_24XX_MCBSP2_FSX,
+	W15_24XX_MCBSP2_DR,
+	V15_24XX_MCBSP2_DX,
+
 	/* 24xx GPIO */
+	M21_242X_GPIO11,
+	AA10_242X_GPIO13,
+	AA6_242X_GPIO14,
+	AA4_242X_GPIO15,
+	Y11_242X_GPIO16,
+	AA12_242X_GPIO17,
+	AA8_242X_GPIO58,
 	Y20_24XX_GPIO60,
+	W4__24XX_GPIO74,
 	M15_24XX_GPIO92,
+	V14_24XX_GPIO117,
+
+	P20_24XX_TSC_IRQ,
+
+	/* UART3 */
+	K15_24XX_UART3_TX,
+	K14_24XX_UART3_RX,
+
+	/* Keypad GPIO*/
+	T19_24XX_KBR0,
+	R19_24XX_KBR1,
+	V18_24XX_KBR2,
+	M21_24XX_KBR3,
+	E5__24XX_KBR4,
+	M18_24XX_KBR5,
+	R20_24XX_KBC0,
+	M14_24XX_KBC1,
+	H19_24XX_KBC2,
+	V17_24XX_KBC3,
+	P21_24XX_KBC4,
+	L14_24XX_KBC5,
+	N19_24XX_KBC6,
+
+	/* 24xx Menelaus Keypad GPIO */
+	B3__24XX_KBR5,
+	AA4_24XX_KBC2,
+	B13_24XX_KBC6,
 };
 
 #ifdef	CONFIG_OMAP_MUX

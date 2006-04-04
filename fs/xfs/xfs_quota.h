@@ -196,10 +196,11 @@ typedef struct xfs_qoff_logformat {
 #define XFS_QMOPT_QUOTAOFF	0x0000080 /* quotas are being turned off */
 #define XFS_QMOPT_UMOUNTING	0x0000100 /* filesys is being unmounted */
 #define XFS_QMOPT_DOLOG		0x0000200 /* log buf changes (in quotacheck) */
-#define XFS_QMOPT_DOWARN        0x0000400 /* increase warning cnt if necessary */
+#define XFS_QMOPT_DOWARN        0x0000400 /* increase warning cnt if needed */
 #define XFS_QMOPT_ILOCKED	0x0000800 /* inode is already locked (excl) */
-#define XFS_QMOPT_DQREPAIR	0x0001000 /* repair dquot, if damaged. */
+#define XFS_QMOPT_DQREPAIR	0x0001000 /* repair dquot if damaged */
 #define XFS_QMOPT_GQUOTA	0x0002000 /* group dquot requested */
+#define XFS_QMOPT_ENOSPC	0x0004000 /* enospc instead of edquot (prj) */
 
 /*
  * flags to xfs_trans_mod_dquot to indicate which field needs to be

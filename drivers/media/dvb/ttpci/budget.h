@@ -58,7 +58,13 @@ struct budget {
 	int ci_present;
 	int video_port;
 
-	u8 tsf;
+	u32 buffer_width;
+	u32 buffer_height;
+	u32 buffer_size;
+	u32 buffer_warning_threshold;
+	u32 buffer_warnings;
+	unsigned long buffer_warning_time;
+
 	u32 ttbp;
 	int feeding;
 
@@ -78,11 +84,6 @@ static struct budget_info x_var ## _info = { \
 static struct saa7146_pci_extension_data x_var = { \
 	.ext_priv = &x_var ## _info, \
 	.ext = &budget_extension };
-
-#define TS_WIDTH  (376)
-#define TS_HEIGHT (512)
-#define TS_BUFLEN (TS_WIDTH*TS_HEIGHT)
-#define TS_MAX_PACKETS (TS_BUFLEN/TS_SIZE)
 
 #define BUDGET_TT		   0
 #define BUDGET_TT_HW_DISEQC	   1

@@ -1297,8 +1297,7 @@ void __init kmem_cache_init(void)
 		if (cache_cache.num)
 			break;
 	}
-	if (!cache_cache.num)
-		BUG();
+	BUG_ON(!cache_cache.num);
 	cache_cache.gfporder = order;
 	cache_cache.colour = left_over / cache_cache.colour_off;
 	cache_cache.slab_size = ALIGN(cache_cache.num * sizeof(kmem_bufctl_t) +
@@ -1974,8 +1973,7 @@ kmem_cache_create (const char *name, size_t size, size_t align,
 	 * Always checks flags, a caller might be expecting debug support which
 	 * isn't available.
 	 */
-	if (flags & ~CREATE_MASK)
-		BUG();
+	BUG_ON(flags & ~CREATE_MASK);
 
 	/*
 	 * Check that size is in terms of words.  This is needed to avoid
@@ -2206,8 +2204,7 @@ static int __node_shrink(struct kmem_cache *cachep, int node)
 
 		slabp = list_entry(l3->slabs_free.prev, struct slab, list);
 #if DEBUG
-		if (slabp->inuse)
-			BUG();
+		BUG_ON(slabp->inuse);
 #endif
 		list_del(&slabp->list);
 
@@ -2248,8 +2245,7 @@ static int __cache_shrink(struct kmem_cache *cachep)
  */
 int kmem_cache_shrink(struct kmem_cache *cachep)
 {
-	if (!cachep || in_interrupt())
-		BUG();
+	BUG_ON(!cachep || in_interrupt());
 
 	return __cache_shrink(cachep);
 }
@@ -2277,8 +2273,7 @@ int kmem_cache_destroy(struct kmem_cache *cachep)
 	int i;
 	struct kmem_list3 *l3;
 
-	if (!cachep || in_interrupt())
-		BUG();
+	BUG_ON(!cachep || in_interrupt());
 
 	/* Don't let CPUs to come and go */
 	lock_cpu_hotplug();
@@ -2477,8 +2472,7 @@ static int cache_grow(struct kmem_cache *cachep, gfp_t flags, int nodeid)
 	 * Be lazy and only check for valid flags here,  keeping it out of the
 	 * critical path in kmem_cache_alloc().
 	 */
-	if (flags & ~(SLAB_DMA | SLAB_LEVEL_MASK | SLAB_NO_GROW))
-		BUG();
+	BUG_ON(flags & ~(SLAB_DMA | SLAB_LEVEL_MASK | SLAB_NO_GROW));
 	if (flags & SLAB_NO_GROW)
 		return 0;
 

@@ -735,8 +735,7 @@ static int __devexit madgemc_remove(struct device *device)
 	struct net_local *tp;
         struct card_info *card;
 
-	if (!dev)
-		BUG();
+	BUG_ON(!dev);
 
 	tp = dev->priv;
 	card = tp->tmspriv;

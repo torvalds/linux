@@ -73,6 +73,7 @@
 #define PTE_EXT_AP_URW_SRW	(PTE_EXT_AP1|PTE_EXT_AP0)
 #define PTE_EXT_TEX(x)		((x) << 6)	/* v5 */
 #define PTE_EXT_APX		(1 << 9)	/* v6 */
+#define PTE_EXT_COHERENT	(1 << 9)	/* XScale3 */
 #define PTE_EXT_SHARED		(1 << 10)	/* v6 */
 #define PTE_EXT_NG		(1 << 11)	/* v6 */
 

@@ -198,6 +198,13 @@ pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr)
 	pmd_t *pmd;
 	pte_t *pte = NULL;
 
+	/* We must align the address, because our caller will run
+	 * set_huge_pte_at() on whatever we return, which writes out
+	 * all of the sub-ptes for the hugepage range.  So we have
+	 * to give it the first such sub-pte.
+	 */
+	addr &= HPAGE_MASK;
+
 	pgd = pgd_offset(mm, addr);
 	pud = pud_alloc(mm, pgd, addr);
 	if (pud) {

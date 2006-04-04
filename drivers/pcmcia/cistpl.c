@@ -12,7 +12,6 @@
  * (C) 1999		David A. Hinds
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>

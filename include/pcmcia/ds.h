@@ -39,7 +39,7 @@ typedef struct win_info_t {
 typedef struct bind_info_t {
     dev_info_t		dev_info;
     u_char		function;
-    struct dev_link_t	*instance;
+    struct pcmcia_device *instance;
     char		name[DEV_NAME_LEN];
     u_short		major, minor;
     void		*next;
@@ -96,6 +96,7 @@ typedef union ds_ioctl_arg_t {
 
 #ifdef __KERNEL__
 #include <linux/device.h>
+#include <pcmcia/ss.h>
 
 typedef struct dev_node_t {
     char		dev_name[DEV_NAME_LEN];
@@ -103,34 +104,9 @@ typedef struct dev_node_t {
     struct dev_node_t	*next;
 } dev_node_t;
 
-typedef struct dev_link_t {
-    dev_node_t		*dev;
-    u_int		state, open;
-    wait_queue_head_t	pending;
-    client_handle_t	handle;
-    io_req_t		io;
-    irq_req_t		irq;
-    config_req_t	conf;
-    window_handle_t	win;
-    void		*priv;
-    struct dev_link_t	*next;
-} dev_link_t;
-
-/* Flags for device state */
-#define DEV_PRESENT		0x01
-#define DEV_CONFIG		0x02
-#define DEV_STALE_CONFIG	0x04	/* release on close */
-#define DEV_STALE_LINK		0x08	/* detach on release */
-#define DEV_CONFIG_PENDING	0x10
-#define DEV_RELEASE_PENDING	0x20
-#define DEV_SUSPEND		0x40
-#define DEV_BUSY		0x80
-
-#define DEV_OK(l) \
-    ((l) && ((l->state & ~DEV_BUSY) == (DEV_CONFIG|DEV_PRESENT)))
-
 
 struct pcmcia_socket;
+struct config_t;
 
 struct pcmcia_driver {
 	int (*probe)		(struct pcmcia_device *dev);
@@ -148,6 +124,7 @@ struct pcmcia_driver {
 int pcmcia_register_driver(struct pcmcia_driver *driver);
 void pcmcia_unregister_driver(struct pcmcia_driver *driver);
 
+
 struct pcmcia_device {
 	/* the socket and the device_no [for multifunction devices]
 	   uniquely define a pcmcia_device */
@@ -160,21 +137,40 @@ struct pcmcia_device {
 	/* the hardware "function" device; certain subdevices can
 	 * share one hardware "function" device. */
 	u8			func;
+	struct config_t*	function_config;
 
 	struct list_head	socket_device_list;
 
-	/* deprecated, a cleaned up version will be moved into this
-	   struct soon */
-	dev_link_t		*instance;
-	u_int			state;
+	/* deprecated, will be cleaned up soon */
+	dev_node_t		*dev_node;
+	u_int			open;
+	io_req_t		io;
+	irq_req_t		irq;
+	config_req_t		conf;
+	window_handle_t		win;
+
+	/* Is the device suspended, or in the process of
+	 * being removed? */
+	u16			suspended:1;
+	u16			_removed:1;
+
+	/* Flags whether io, irq, win configurations were
+	 * requested, and whether the configuration is "locked" */
+	u16			_irq:1;
+	u16			_io:1;
+	u16			_win:4;
+	u16			_locked:1;
+
+	/* Flag whether a "fuzzy" func_id based match is
+	 * allowed. */
+	u16			allow_func_id_match:1;
 
 	/* information about this device */
-	u8			has_manf_id:1;
-	u8			has_card_id:1;
-	u8			has_func_id:1;
+	u16			has_manf_id:1;
+	u16			has_card_id:1;
+	u16			has_func_id:1;
 
-	u8			allow_func_id_match:1;
-	u8			reserved:4;
+	u16			reserved:3;
 
 	u8			func_id;
 	u16			manf_id;
@@ -182,22 +178,24 @@ struct pcmcia_device {
 
 	char *			prod_id[4];
 
+	struct device		dev;
+
+#ifdef CONFIG_PCMCIA_IOCTL
 	/* device driver wanted by cardmgr */
 	struct pcmcia_driver *	cardmgr;
+#endif
 
-	struct device		dev;
+	/* data private to drivers */
+	void			*priv;
 };
 
 #define to_pcmcia_dev(n) container_of(n, struct pcmcia_device, dev)
 #define to_pcmcia_drv(n) container_of(n, struct pcmcia_driver, drv)
 
-#define handle_to_pdev(handle) (handle)
 #define handle_to_dev(handle) (handle->dev)
 
-#define dev_to_instance(dev) (dev->instance)
-
 /* error reporting */
-void cs_error(client_handle_t handle, int func, int ret);
+void cs_error(struct pcmcia_device *handle, int func, int ret);
 
 #endif /* __KERNEL__ */
 #endif /* _LINUX_DS_H */

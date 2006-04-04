@@ -18,7 +18,6 @@
  */
 
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -70,10 +69,26 @@ extern int ds_pc_debug;
 #define ds_dbg(lvl, fmt, arg...) do { } while (0)
 #endif
 
+static struct pcmcia_device *get_pcmcia_device(struct pcmcia_socket *s,
+						unsigned int function)
+{
+	struct pcmcia_device *p_dev = NULL;
+	unsigned long flags;
+
+	spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
+	list_for_each_entry(p_dev, &s->devices_list, socket_device_list) {
+		if (p_dev->func == function) {
+			spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
+			return pcmcia_get_dev(p_dev);
+		}
+	}
+	spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
+	return NULL;
+}
 
 /* backwards-compatible accessing of driver --- by name! */
 
-static struct pcmcia_driver * get_pcmcia_driver (dev_info_t *dev_info)
+static struct pcmcia_driver *get_pcmcia_driver(dev_info_t *dev_info)
 {
 	struct device_driver *drv;
 	struct pcmcia_driver *p_drv;
@@ -214,7 +229,7 @@ static int bind_request(struct pcmcia_socket *s, bind_info_t *bind_info)
 					 * by userspace before, we need to
 					 * return the "instance". */
 					spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
-					bind_info->instance = p_dev->instance;
+					bind_info->instance = p_dev;
 					ret = -EBUSY;
 					goto err_put_module;
 				} else {
@@ -253,9 +268,9 @@ rescan:
 	/*
 	 * Prevent this racing with a card insertion.
 	 */
-	down(&s->skt_sem);
+	mutex_lock(&s->skt_mutex);
 	bus_rescan_devices(&pcmcia_bus_type);
-	up(&s->skt_sem);
+	mutex_unlock(&s->skt_mutex);
 
 	/* check whether the driver indeed matched. I don't care if this
 	 * is racy or not, because it can only happen on cardmgr access
@@ -289,6 +304,7 @@ static int get_device_info(struct pcmcia_socket *s, bind_info_t *bind_info, int 
 {
 	dev_node_t *node;
 	struct pcmcia_device *p_dev;
+	struct pcmcia_driver *p_drv;
 	unsigned long flags;
 	int ret = 0;
 
@@ -343,16 +359,16 @@ static int get_device_info(struct pcmcia_socket *s, bind_info_t *bind_info, int 
  found:
 	spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
 
-	if ((!p_dev->instance) ||
-	    (p_dev->instance->state & DEV_CONFIG_PENDING)) {
+	p_drv = to_pcmcia_drv(p_dev->dev.driver);
+	if (p_drv && !p_dev->_locked) {
 		ret = -EAGAIN;
 		goto err_put;
 	}
 
 	if (first)
-		node = p_dev->instance->dev;
+		node = p_dev->dev_node;
 	else
-		for (node = p_dev->instance->dev; node; node = node->next)
+		for (node = p_dev->dev_node; node; node = node->next)
 			if (node == bind_info->next)
 				break;
 	if (!node) {
@@ -583,14 +599,16 @@ static int ds_ioctl(struct inode * inode, struct file * file,
 	if (buf->config.Function &&
 	   (buf->config.Function >= s->functions))
 	    ret = CS_BAD_ARGS;
-	else
-	    ret = pccard_get_configuration_info(s,
-			buf->config.Function, &buf->config);
+	else {
+	    struct pcmcia_device *p_dev = get_pcmcia_device(s, buf->config.Function);
+	    ret = pccard_get_configuration_info(s, p_dev, &buf->config);
+	    pcmcia_put_dev(p_dev);
+	}
 	break;
     case DS_GET_FIRST_TUPLE:
-	down(&s->skt_sem);
+	mutex_lock(&s->skt_mutex);
 	pcmcia_validate_mem(s);
-	up(&s->skt_sem);
+	mutex_unlock(&s->skt_mutex);
 	ret = pccard_get_first_tuple(s, BIND_FN_ALL, &buf->tuple);
 	break;
     case DS_GET_NEXT_TUPLE:
@@ -609,16 +627,19 @@ static int ds_ioctl(struct inode * inode, struct file * file,
 	ret = pccard_reset_card(s);
 	break;
     case DS_GET_STATUS:
-	if (buf->status.Function &&
-	   (buf->status.Function >= s->functions))
-	    ret = CS_BAD_ARGS;
-	else
-	ret = pccard_get_status(s, buf->status.Function, &buf->status);
-	break;
+	    if (buf->status.Function &&
+		(buf->status.Function >= s->functions))
+		    ret = CS_BAD_ARGS;
+	    else {
+		    struct pcmcia_device *p_dev = get_pcmcia_device(s, buf->status.Function);
+		    ret = pccard_get_status(s, p_dev, &buf->status);
+		    pcmcia_put_dev(p_dev);
+	    }
+	    break;
     case DS_VALIDATE_CIS:
-	down(&s->skt_sem);
+	mutex_lock(&s->skt_mutex);
 	pcmcia_validate_mem(s);
-	up(&s->skt_sem);
+	mutex_unlock(&s->skt_mutex);
 	ret = pccard_validate_cis(s, BIND_FN_ALL, &buf->cisinfo);
 	break;
     case DS_SUSPEND_CARD:
@@ -638,12 +659,16 @@ static int ds_ioctl(struct inode * inode, struct file * file,
 	    err = -EPERM;
 	    goto free_out;
 	}
-	if (buf->conf_reg.Function &&
-	   (buf->conf_reg.Function >= s->functions))
-	    ret = CS_BAD_ARGS;
-	else
-	    ret = pccard_access_configuration_register(s,
-			buf->conf_reg.Function, &buf->conf_reg);
+
+	ret = CS_BAD_ARGS;
+
+	if (!(buf->conf_reg.Function &&
+	     (buf->conf_reg.Function >= s->functions))) {
+		struct pcmcia_device *p_dev = get_pcmcia_device(s, buf->conf_reg.Function);
+		if (p_dev)
+			ret = pcmcia_access_configuration_register(p_dev, &buf->conf_reg);
+		pcmcia_put_dev(p_dev);
+	}
 	break;
     case DS_GET_FIRST_REGION:
     case DS_GET_NEXT_REGION:

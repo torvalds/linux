@@ -173,6 +173,12 @@ typedef ssize_t (*vop_write_t)(bhv_desc_t *, struct kiocb *,
 typedef ssize_t (*vop_sendfile_t)(bhv_desc_t *, struct file *,
 				loff_t *, int, size_t, read_actor_t,
 				void *, struct cred *);
+typedef ssize_t (*vop_splice_read_t)(bhv_desc_t *, struct file *,
+				struct inode *, size_t, int, int,
+				struct cred *);
+typedef ssize_t (*vop_splice_write_t)(bhv_desc_t *, struct inode *,
+				struct file *, size_t, int, int,
+				struct cred *);
 typedef int	(*vop_ioctl_t)(bhv_desc_t *, struct inode *, struct file *,
 				int, unsigned int, void __user *);
 typedef int	(*vop_getattr_t)(bhv_desc_t *, struct vattr *, int,
@@ -231,6 +237,8 @@ typedef struct vnodeops {
 	vop_read_t		vop_read;
 	vop_write_t		vop_write;
 	vop_sendfile_t		vop_sendfile;
+	vop_splice_read_t	vop_splice_read;
+	vop_splice_write_t	vop_splice_write;
 	vop_ioctl_t		vop_ioctl;
 	vop_getattr_t		vop_getattr;
 	vop_setattr_t		vop_setattr;
@@ -276,6 +284,10 @@ typedef struct vnodeops {
 	rv = _VOP_(vop_write, vp)((vp)->v_fbhv,file,iov,segs,offset,ioflags,cr)
 #define VOP_SENDFILE(vp,f,off,ioflags,cnt,act,targ,cr,rv)		\
 	rv = _VOP_(vop_sendfile, vp)((vp)->v_fbhv,f,off,ioflags,cnt,act,targ,cr)
+#define VOP_SPLICE_READ(vp,f,pipe,cnt,fl,iofl,cr,rv)			\
+	rv = _VOP_(vop_splice_read, vp)((vp)->v_fbhv,f,pipe,cnt,fl,iofl,cr)
+#define VOP_SPLICE_WRITE(vp,f,pipe,cnt,fl,iofl,cr,rv)			\
+	rv = _VOP_(vop_splice_write, vp)((vp)->v_fbhv,f,pipe,cnt,fl,iofl,cr)
 #define VOP_BMAP(vp,of,sz,rw,b,n,rv)					\
 	rv = _VOP_(vop_bmap, vp)((vp)->v_fbhv,of,sz,rw,b,n)
 #define VOP_OPEN(vp, cr, rv)						\

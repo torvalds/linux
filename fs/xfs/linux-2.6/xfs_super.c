@@ -67,7 +67,8 @@ mempool_t *xfs_ioend_pool;
 
 STATIC struct xfs_mount_args *
 xfs_args_allocate(
-	struct super_block	*sb)
+	struct super_block	*sb,
+	int			silent)
 {
 	struct xfs_mount_args	*args;
 
@@ -80,8 +81,8 @@ xfs_args_allocate(
 		args->flags |= XFSMNT_DIRSYNC;
 	if (sb->s_flags & MS_SYNCHRONOUS)
 		args->flags |= XFSMNT_WSYNC;
-
-	/* Default to 32 bit inodes on Linux all the time */
+	if (silent)
+		args->flags |= XFSMNT_QUIET;
 	args->flags |= XFSMNT_32BITINODES;
 
 	return args;
@@ -719,7 +720,7 @@ xfs_fs_remount(
 	char			*options)
 {
 	vfs_t			*vfsp = vfs_from_sb(sb);
-	struct xfs_mount_args	*args = xfs_args_allocate(sb);
+	struct xfs_mount_args	*args = xfs_args_allocate(sb, 0);
 	int			error;
 
 	VFS_PARSEARGS(vfsp, options, args, 1, error);
@@ -825,7 +826,7 @@ xfs_fs_fill_super(
 {
 	vnode_t			*rootvp;
 	struct vfs		*vfsp = vfs_allocate(sb);
-	struct xfs_mount_args	*args = xfs_args_allocate(sb);
+	struct xfs_mount_args	*args = xfs_args_allocate(sb, silent);
 	struct kstatfs		statvfs;
 	int			error, error2;
 

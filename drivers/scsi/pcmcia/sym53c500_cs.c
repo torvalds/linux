@@ -202,7 +202,7 @@ static char *version =
 /* ================================================================== */
 
 struct scsi_info_t {
-	dev_link_t link;
+	struct pcmcia_device	*p_dev;
 	dev_node_t node;
 	struct Scsi_Host *host;
 	unsigned short manf_id;
@@ -527,7 +527,7 @@ idle_out:
 }
 
 static void
-SYM53C500_release(dev_link_t *link)
+SYM53C500_release(struct pcmcia_device *link)
 {
 	struct scsi_info_t *info = link->priv;
 	struct Scsi_Host *shost = info->host;
@@ -550,13 +550,7 @@ SYM53C500_release(dev_link_t *link)
 	if (shost->io_port && shost->n_io_port)
 		release_region(shost->io_port, shost->n_io_port);
 
-	link->dev = NULL;
-
-	pcmcia_release_configuration(link->handle);
-	pcmcia_release_io(link->handle, &link->io);
-	pcmcia_release_irq(link->handle, &link->irq);
-
-	link->state &= ~DEV_CONFIG;
+	pcmcia_disable_device(link);
 
 	scsi_host_put(shost);
 } /* SYM53C500_release */
@@ -713,10 +707,9 @@ static struct scsi_host_template sym53c500_driver_template = {
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
-static void
-SYM53C500_config(dev_link_t *link)
+static int
+SYM53C500_config(struct pcmcia_device *link)
 {
-	client_handle_t handle = link->handle;
 	struct scsi_info_t *info = link->priv;
 	tuple_t tuple;
 	cisparse_t parse;
@@ -733,40 +726,37 @@ SYM53C500_config(dev_link_t *link)
 	tuple.TupleDataMax = 64;
 	tuple.TupleOffset = 0;
 	tuple.DesiredTuple = CISTPL_CONFIG;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
-	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(handle, &tuple));
-	CS_CHECK(ParseTuple, pcmcia_parse_tuple(handle, &tuple, &parse));
+	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
+	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
+	CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
 	link->conf.ConfigBase = parse.config.base;
 
 	tuple.DesiredTuple = CISTPL_MANFID;
-	if ((pcmcia_get_first_tuple(handle, &tuple) == CS_SUCCESS) &&
-	    (pcmcia_get_tuple_data(handle, &tuple) == CS_SUCCESS))
+	if ((pcmcia_get_first_tuple(link, &tuple) == CS_SUCCESS) &&
+	    (pcmcia_get_tuple_data(link, &tuple) == CS_SUCCESS))
 		info->manf_id = le16_to_cpu(tuple.TupleData[0]);
 
-	/* Configure card */
-	link->state |= DEV_CONFIG;
-
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
+	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
 	while (1) {
-		if (pcmcia_get_tuple_data(handle, &tuple) != 0 ||
-		    pcmcia_parse_tuple(handle, &tuple, &parse) != 0)
+		if (pcmcia_get_tuple_data(link, &tuple) != 0 ||
+		    pcmcia_parse_tuple(link, &tuple, &parse) != 0)
 			goto next_entry;
 		link->conf.ConfigIndex = parse.cftable_entry.index;
 		link->io.BasePort1 = parse.cftable_entry.io.win[0].base;
 		link->io.NumPorts1 = parse.cftable_entry.io.win[0].len;
 
 		if (link->io.BasePort1 != 0) {
-			i = pcmcia_request_io(handle, &link->io);
+			i = pcmcia_request_io(link, &link->io);
 			if (i == CS_SUCCESS)
 				break;
 		}
 next_entry:
-		CS_CHECK(GetNextTuple, pcmcia_get_next_tuple(handle, &tuple));
+		CS_CHECK(GetNextTuple, pcmcia_get_next_tuple(link, &tuple));
 	}
 
-	CS_CHECK(RequestIRQ, pcmcia_request_irq(handle, &link->irq));
-	CS_CHECK(RequestConfiguration, pcmcia_request_configuration(handle, &link->conf));
+	CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
+	CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
 
 	/*
 	*  That's the trouble with copying liberally from another driver.
@@ -835,7 +825,7 @@ next_entry:
 	data->fast_pio = USE_FAST_PIO;
 
 	sprintf(info->node.dev_name, "scsi%d", host->host_no);
-	link->dev = &info->node;
+	link->dev_node = &info->node;
 	info->host = host;
 
 	if (scsi_add_host(host, NULL))
@@ -843,7 +833,7 @@ next_entry:
 
 	scsi_scan_host(host);
 
-	goto out;	/* SUCCESS */
+	return 0;
 
 err_free_irq:
 	free_irq(irq_level, host);
@@ -852,74 +842,50 @@ err_free_scsi:
 err_release:
 	release_region(port_base, 0x10);
 	printk(KERN_INFO "sym53c500_cs: no SCSI devices found\n");
-
-out:
-	link->state &= ~DEV_CONFIG_PENDING;
-	return;
+	return -ENODEV;
 
 cs_failed:
-	cs_error(link->handle, last_fn, last_ret);
+	cs_error(link, last_fn, last_ret);
 	SYM53C500_release(link);
-	return;
+	return -ENODEV;
 } /* SYM53C500_config */
 
-static int sym53c500_suspend(struct pcmcia_device *dev)
+static int sym53c500_resume(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(dev);
-
-	link->state |= DEV_SUSPEND;
-	if (link->state & DEV_CONFIG)
-		pcmcia_release_configuration(link->handle);
-
-	return 0;
-}
-
-static int sym53c500_resume(struct pcmcia_device *dev)
-{
-	dev_link_t *link = dev_to_instance(dev);
 	struct scsi_info_t *info = link->priv;
 
-	link->state &= ~DEV_SUSPEND;
-	if (link->state & DEV_CONFIG) {
-		pcmcia_request_configuration(link->handle, &link->conf);
-
-		/* See earlier comment about manufacturer IDs. */
-		if ((info->manf_id == MANFID_MACNICA) ||
-		    (info->manf_id == MANFID_PIONEER) ||
-		    (info->manf_id == 0x0098)) {
-			outb(0x80, link->io.BasePort1 + 0xd);
-			outb(0x24, link->io.BasePort1 + 0x9);
-			outb(0x04, link->io.BasePort1 + 0xd);
-		}
-		/*
-		 *  If things don't work after a "resume",
-		 *  this is a good place to start looking.
-		 */
-		SYM53C500_int_host_reset(link->io.BasePort1);
+	/* See earlier comment about manufacturer IDs. */
+	if ((info->manf_id == MANFID_MACNICA) ||
+	    (info->manf_id == MANFID_PIONEER) ||
+	    (info->manf_id == 0x0098)) {
+		outb(0x80, link->io.BasePort1 + 0xd);
+		outb(0x24, link->io.BasePort1 + 0x9);
+		outb(0x04, link->io.BasePort1 + 0xd);
 	}
+	/*
+	 *  If things don't work after a "resume",
+	 *  this is a good place to start looking.
+	 */
+	SYM53C500_int_host_reset(link->io.BasePort1);
 
 	return 0;
 }
 
 static void
-SYM53C500_detach(struct pcmcia_device *p_dev)
+SYM53C500_detach(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
-
 	DEBUG(0, "SYM53C500_detach(0x%p)\n", link);
 
-	if (link->state & DEV_CONFIG)
-		SYM53C500_release(link);
+	SYM53C500_release(link);
 
 	kfree(link->priv);
 	link->priv = NULL;
 } /* SYM53C500_detach */
 
 static int
-SYM53C500_attach(struct pcmcia_device *p_dev)
+SYM53C500_probe(struct pcmcia_device *link)
 {
 	struct scsi_info_t *info;
-	dev_link_t *link;
 
 	DEBUG(0, "SYM53C500_attach()\n");
 
@@ -928,7 +894,7 @@ SYM53C500_attach(struct pcmcia_device *p_dev)
 	if (!info)
 		return -ENOMEM;
 	memset(info, 0, sizeof(*info));
-	link = &info->link;
+	info->p_dev = link;
 	link->priv = info;
 	link->io.NumPorts1 = 16;
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
@@ -936,17 +902,10 @@ SYM53C500_attach(struct pcmcia_device *p_dev)
 	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
 	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
 	link->conf.Attributes = CONF_ENABLE_IRQ;
-	link->conf.Vcc = 50;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 	link->conf.Present = PRESENT_OPTION;
 
-	link->handle = p_dev;
-	p_dev->instance = link;
-
-	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	SYM53C500_config(link);
-
-	return 0;
+	return SYM53C500_config(link);
 } /* SYM53C500_attach */
 
 MODULE_AUTHOR("Bob Tracy <rct@frus.com>");
@@ -966,10 +925,9 @@ static struct pcmcia_driver sym53c500_cs_driver = {
 	.drv		= {
 		.name	= "sym53c500_cs",
 	},
-	.probe		= SYM53C500_attach,
+	.probe		= SYM53C500_probe,
 	.remove		= SYM53C500_detach,
 	.id_table       = sym53c500_ids,
-	.suspend	= sym53c500_suspend,
 	.resume		= sym53c500_resume,
 };
 

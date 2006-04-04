@@ -184,7 +184,7 @@ void bttv_vbi_try_fmt(struct bttv_fh *fh, struct v4l2_format *f)
 		- tvnorm->vbistart[0];
 	count1 = (s64) f->fmt.vbi.start[1] + f->fmt.vbi.count[1]
 		- tvnorm->vbistart[1];
-	count  = clamp (max (count0, count1), 1LL, (s64) VBI_MAXLINES);
+	count  = clamp (max (count0, count1), (s64) 1, (s64) VBI_MAXLINES);
 
 	f->fmt.vbi.start[0] = tvnorm->vbistart[0];
 	f->fmt.vbi.start[1] = tvnorm->vbistart[1];

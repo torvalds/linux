@@ -1479,8 +1479,7 @@ register_time_interpolator(struct time_interpolator *ti)
 	unsigned long flags;
 
 	/* Sanity check */
-	if (ti->frequency == 0 || ti->mask == 0)
-		BUG();
+	BUG_ON(ti->frequency == 0 || ti->mask == 0);
 
 	ti->nsec_per_cyc = ((u64)NSEC_PER_SEC << ti->shift) / ti->frequency;
 	spin_lock(&time_interpolator_lock);

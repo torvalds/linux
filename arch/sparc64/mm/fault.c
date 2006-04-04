@@ -327,8 +327,12 @@ asmlinkage void __kprobes do_sparc64_fault(struct pt_regs *regs)
 		insn = get_fault_insn(regs, 0);
 		if (!insn)
 			goto continue_fault;
+		/* All loads, stores and atomics have bits 30 and 31 both set
+		 * in the instruction.  Bit 21 is set in all stores, but we
+		 * have to avoid prefetches which also have bit 21 set.
+		 */
 		if ((insn & 0xc0200000) == 0xc0200000 &&
-		    (insn & 0x1780000) != 0x1680000) {
+		    (insn & 0x01780000) != 0x01680000) {
 			/* Don't bother updating thread struct value,
 			 * because update_mmu_cache only cares which tlb
 			 * the access came from.

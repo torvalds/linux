@@ -453,8 +453,7 @@ static void send_sigio_to_task(struct task_struct *p,
 			/* Make sure we are called with one of the POLL_*
 			   reasons, otherwise we could leak kernel stack into
 			   userspace.  */
-			if ((reason & __SI_MASK) != __SI_POLL)
-				BUG();
+			BUG_ON((reason & __SI_MASK) != __SI_POLL);
 			if (reason - POLL_IN >= NSIGPOLL)
 				si.si_band  = ~0L;
 			else

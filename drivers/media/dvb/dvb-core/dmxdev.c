@@ -141,12 +141,18 @@ static int dvb_dvr_open(struct inode *inode, struct file *file)
 	}
 
 	if ((file->f_flags & O_ACCMODE) == O_RDONLY) {
-		void *mem = vmalloc(DVR_BUFFER_SIZE);
+		void *mem;
+		if (!dvbdev->readers) {
+			mutex_unlock(&dmxdev->mutex);
+			return -EBUSY;
+		}
+		mem = vmalloc(DVR_BUFFER_SIZE);
 		if (!mem) {
 			mutex_unlock(&dmxdev->mutex);
 			return -ENOMEM;
 		}
 		dvb_ringbuffer_init(&dmxdev->dvr_buffer, mem, DVR_BUFFER_SIZE);
+		dvbdev->readers--;
 	}
 
 	if ((file->f_flags & O_ACCMODE) == O_WRONLY) {
@@ -184,6 +190,7 @@ static int dvb_dvr_release(struct inode *inode, struct file *file)
 						dmxdev->dvr_orig_fe);
 	}
 	if ((file->f_flags & O_ACCMODE) == O_RDONLY) {
+		dvbdev->readers++;
 		if (dmxdev->dvr_buffer.data) {
 			void *mem = dmxdev->dvr_buffer.data;
 			mb();
@@ -1029,8 +1036,7 @@ static struct file_operations dvb_dvr_fops = {
 
 static struct dvb_device dvbdev_dvr = {
 	.priv = NULL,
-	.users = 1,
-	.writers = 1,
+	.readers = 1,
 	.fops = &dvb_dvr_fops
 };
 

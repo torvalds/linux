@@ -18,7 +18,7 @@ void __secpath_destroy(struct sec_path *sp)
 {
 	int i;
 	for (i = 0; i < sp->len; i++)
-		xfrm_state_put(sp->x[i].xvec);
+		xfrm_state_put(sp->xvec[i]);
 	kmem_cache_free(secpath_cachep, sp);
 }
 EXPORT_SYMBOL(__secpath_destroy);
@@ -37,7 +37,7 @@ struct sec_path *secpath_dup(struct sec_path *src)
 
 		memcpy(sp, src, sizeof(*sp));
 		for (i = 0; i < sp->len; i++)
-			xfrm_state_hold(sp->x[i].xvec);
+			xfrm_state_hold(sp->xvec[i]);
 	}
 	atomic_set(&sp->refcnt, 1);
 	return sp;
