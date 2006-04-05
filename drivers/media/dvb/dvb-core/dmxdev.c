@@ -872,9 +872,6 @@ static int dvb_demux_do_ioctl(struct inode *inode, struct file *file,
 		mutex_unlock(&dmxdevfilter->mutex);
 		break;
 
-	case DMX_GET_EVENT:
-		break;
-
 	case DMX_GET_PES_PIDS:
 		if (!dmxdev->demux->get_pes_pids) {
 			ret = -EINVAL;
