@@ -25,7 +25,7 @@
 #include <asm/serial.h>
 #include <asm/io.h>
 
-static struct serial_state rs_table[RS_TABLE_SIZE] = {
+static struct serial_state rs_table[] = {
 	SERIAL_PORT_DFNS	/* Defined in serial.h */
 };
 
