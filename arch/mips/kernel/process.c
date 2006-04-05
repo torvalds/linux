@@ -185,6 +185,17 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 	childregs->cp0_status &= ~(ST0_CU2|ST0_CU1);
 	clear_tsk_thread_flag(p, TIF_USEDFPU);
 
+#ifdef CONFIG_MIPS_MT_FPAFF
+	/*
+	 * FPU affinity support is cleaner if we track the
+	 * user-visible CPU affinity from the very beginning.
+	 * The generic cpus_allowed mask will already have
+	 * been copied from the parent before copy_thread
+	 * is invoked.
+	 */
+	p->thread.user_cpus_allowed = p->cpus_allowed;
+#endif /* CONFIG_MIPS_MT_FPAFF */
+
 	if (clone_flags & CLONE_SETTLS)
 		ti->tp_value = regs->regs[7];
 

@@ -569,8 +569,19 @@ einval:	li	v0, -EINVAL
 	sys	sys_tkill		2
 	sys	sys_sendfile64		5
 	sys	sys_futex		6
+#ifdef CONFIG_MIPS_MT_FPAFF
+	/*
+	 * For FPU affinity scheduling on MIPS MT processors, we need to
+	 * intercept sys_sched_xxxaffinity() calls until we get a proper hook
+	 * in kernel/sched.c.  Considered only temporary we only support these
+	 * hooks for the 32-bit kernel - there is no MIPS64 MT processor atm.
+	 */
+	sys	mipsmt_sys_sched_setaffinity	3
+	sys	mipsmt_sys_sched_getaffinity	3
+#else
 	sys	sys_sched_setaffinity	3
 	sys	sys_sched_getaffinity	3	/* 4240 */
+#endif /* CONFIG_MIPS_MT_FPAFF */
 	sys	sys_io_setup		2
 	sys	sys_io_destroy		1
 	sys	sys_io_getevents	5

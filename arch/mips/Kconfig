@@ -1464,6 +1464,11 @@ config MIPS_VPE_LOADER
 
 endchoice
 
+config MIPS_MT_FPAFF
+	bool "Dynamic FPU affinity for FP-intensive threads"
+	depends on MIPS_MT
+	default y
+
 config MIPS_VPE_LOADER_TOM
 	bool "Load VPE program into memory hidden from linux"
 	depends on MIPS_VPE_LOADER

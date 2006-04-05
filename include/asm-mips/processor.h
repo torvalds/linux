@@ -134,6 +134,12 @@ struct thread_struct {
 
 	/* Saved fpu/fpu emulator stuff. */
 	union mips_fpu_union fpu;
+#ifdef CONFIG_MIPS_MT_FPAFF
+	/* Emulated instruction count */
+	unsigned long emulated_fp;
+	/* Saved per-thread scheduler affinity mask */
+	cpumask_t user_cpus_allowed;
+#endif /* CONFIG_MIPS_MT_FPAFF */
 
 	/* Saved state of the DSP ASE, if available. */
 	struct mips_dsp_state dsp;
@@ -159,6 +165,12 @@ struct thread_struct {
 #define MF_N32		MF_32BIT_ADDR
 #define MF_N64		0
 
+#ifdef CONFIG_MIPS_MT_FPAFF
+#define FPAFF_INIT 0, INIT_CPUMASK,
+#else
+#define FPAFF_INIT
+#endif /* CONFIG_MIPS_MT_FPAFF */
+
 #define INIT_THREAD  { \
         /* \
          * saved main processor registers \
@@ -173,6 +185,10 @@ struct thread_struct {
 	 * saved fpu/fpu emulator stuff \
 	 */ \
 	INIT_FPU, \
+	/* \
+	 * fpu affinity state (null if not FPAFF) \
+	 */ \
+	FPAFF_INIT \
 	/* \
 	 * saved dsp/dsp emulator stuff \
 	 */ \

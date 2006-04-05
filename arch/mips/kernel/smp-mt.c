@@ -150,6 +150,11 @@ void plat_smp_setup(void)
 	unsigned long val;
 	int i, num;
 
+#ifdef CONFIG_MIPS_MT_FPAFF
+	/* If we have an FPU, enroll ourselves in the FPU-full mask */
+	if (cpu_has_fpu)
+		cpu_set(0, mt_fpu_cpumask);
+#endif /* CONFIG_MIPS_MT_FPAFF */
 	if (!cpu_has_mipsmt)
 		return;
 
@@ -311,6 +316,12 @@ void prom_init_secondary(void)
 void prom_smp_finish(void)
 {
 	write_c0_compare(read_c0_count() + (8* mips_hpt_frequency/HZ));
+
+#ifdef CONFIG_MIPS_MT_FPAFF
+	/* If we have an FPU, enroll ourselves in the FPU-full mask */
+	if (cpu_has_fpu)
+		cpu_set(smp_processor_id(), mt_fpu_cpumask);
+#endif /* CONFIG_MIPS_MT_FPAFF */
 
 	local_irq_enable();
 }
