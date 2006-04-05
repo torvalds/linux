@@ -609,6 +609,22 @@ int ipoib_mcast_start_thread(struct net_device *dev)
 	return 0;
 }
 
+static void wait_for_mcast_join(struct ipoib_dev_priv *priv,
+				struct ipoib_mcast *mcast)
+{
+	spin_lock_irq(&priv->lock);
+	if (mcast && mcast->query) {
+		ib_sa_cancel_query(mcast->query_id, mcast->query);
+		mcast->query = NULL;
+		spin_unlock_irq(&priv->lock);
+		ipoib_dbg_mcast(priv, "waiting for MGID " IPOIB_GID_FMT "\n",
+				IPOIB_GID_ARG(mcast->mcmember.mgid));
+		wait_for_completion(&mcast->done);
+	}
+	else
+		spin_unlock_irq(&priv->lock);
+}
+
 int ipoib_mcast_stop_thread(struct net_device *dev, int flush)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
@@ -628,28 +644,10 @@ int ipoib_mcast_stop_thread(struct net_device *dev, int flush)
 	if (flush)
 		flush_workqueue(ipoib_workqueue);
 
-	spin_lock_irq(&priv->lock);
-	if (priv->broadcast && priv->broadcast->query) {
-		ib_sa_cancel_query(priv->broadcast->query_id, priv->broadcast->query);
-		priv->broadcast->query = NULL;
-		spin_unlock_irq(&priv->lock);
-		ipoib_dbg_mcast(priv, "waiting for bcast\n");
-		wait_for_completion(&priv->broadcast->done);
-	} else
-		spin_unlock_irq(&priv->lock);
+	wait_for_mcast_join(priv, priv->broadcast);
 
-	list_for_each_entry(mcast, &priv->multicast_list, list) {
-		spin_lock_irq(&priv->lock);
-		if (mcast->query) {
-			ib_sa_cancel_query(mcast->query_id, mcast->query);
-			mcast->query = NULL;
-			spin_unlock_irq(&priv->lock);
-			ipoib_dbg_mcast(priv, "waiting for MGID " IPOIB_GID_FMT "\n",
-					IPOIB_GID_ARG(mcast->mcmember.mgid));
-			wait_for_completion(&mcast->done);
-		} else
-			spin_unlock_irq(&priv->lock);
-	}
+	list_for_each_entry(mcast, &priv->multicast_list, list)
+		wait_for_mcast_join(priv, mcast);
 
 	return 0;
 }
@@ -902,6 +900,7 @@ void ipoib_mcast_restart_task(void *dev_ptr)
 
 	/* We have to cancel outside of the spinlock */
 	list_for_each_entry_safe(mcast, tmcast, &remove_list, list) {
+		wait_for_mcast_join(priv, mcast);
 		ipoib_mcast_leave(mcast->dev, mcast);
 		ipoib_mcast_free(mcast);
 	}
