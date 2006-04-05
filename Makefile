@@ -1112,7 +1112,6 @@ modules_install: _emodinst_ _emodinst_post
 install-dir := $(if $(INSTALL_MOD_DIR),$(INSTALL_MOD_DIR),extra)
 PHONY += _emodinst_
 _emodinst_:
-	$(Q)rm -rf $(MODLIB)/$(install-dir)
 	$(Q)mkdir -p $(MODLIB)/$(install-dir)
 	$(Q)$(MAKE) -rR -f $(srctree)/scripts/Makefile.modinst
 
