@@ -234,7 +234,7 @@ static inline void __raw_emt(void)
 	__asm__ __volatile__(
 	"	.set	noreorder					\n"
 	"	.set	mips32r2					\n"
-	"	emt							\n"
+	"	.word	0x41600be1			# emt		\n"
 	"	ehb							\n"
 	"	.set	mips0						\n"
 	"	.set	reorder");
@@ -364,6 +364,9 @@ do {									\
 #define read_vpe_c0_ebase()		mftc0(15,1)
 #define write_vpe_c0_ebase(val)		mttc0(15, 1, val)
 #define write_vpe_c0_compare(val)	mttc0(11, 0, val)
+#define read_vpe_c0_badvaddr()		mftc0(8, 0)
+#define read_vpe_c0_epc()		mftc0(14, 0)
+#define write_vpe_c0_epc(val)		mttc0(14, 0, val)
 
 
 /* TC */

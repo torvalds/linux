@@ -1476,6 +1476,16 @@ config MIPS_VPE_APSP_API
 	depends on MIPS_VPE_LOADER
 	help
 
+config MIPS_APSP_KSPD
+	bool "Enable KSPD"
+	depends on MIPS_VPE_APSP_API
+	default y
+	help
+	  KSPD is a kernel daemon that accepts syscall requests from the SP
+	  side, actions them and returns the results. It also handles the
+	  "exit" syscall notifying other kernel modules the SP program is
+	  exiting.  You probably want to say yes here.
+
 config SB1_PASS_1_WORKAROUNDS
 	bool
 	depends on CPU_SB1_PASS_1

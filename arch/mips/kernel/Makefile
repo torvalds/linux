@@ -36,6 +36,7 @@ obj-$(CONFIG_SMP)		+= smp.o
 
 obj-$(CONFIG_MIPS_MT_SMP)	+= smp_mt.o
 
+obj-$(CONFIG_MIPS_APSP_KSPD)	+= kspd.o
 obj-$(CONFIG_MIPS_VPE_LOADER)	+= vpe.o
 obj-$(CONFIG_MIPS_VPE_APSP_API)	+= rtlx.o
 
