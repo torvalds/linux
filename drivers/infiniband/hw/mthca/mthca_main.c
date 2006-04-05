@@ -77,6 +77,10 @@ MODULE_PARM_DESC(msi, "attempt to use MSI if nonzero");
 
 #endif /* CONFIG_PCI_MSI */
 
+static int tune_pci = 0;
+module_param(tune_pci, int, 0444);
+MODULE_PARM_DESC(tune_pci, "increase PCI burst from the default set by BIOS if nonzero");
+
 static const char mthca_version[] __devinitdata =
 	DRV_NAME ": Mellanox InfiniBand HCA driver v"
 	DRV_VERSION " (" DRV_RELDATE ")\n";
@@ -97,6 +101,9 @@ static int __devinit mthca_tune_pci(struct mthca_dev *mdev)
 {
 	int cap;
 	u16 val;
+
+	if (!tune_pci)
+		return 0;
 
 	/* First try to max out Read Byte Count */
 	cap = pci_find_capability(mdev->pdev, PCI_CAP_ID_PCIX);
