@@ -198,7 +198,7 @@ via_driver_irq_wait(drm_device_t * dev, unsigned int irq, int force_sequence,
 	unsigned int cur_irq_sequence;
 	drm_via_irq_t *cur_irq = dev_priv->via_irqs;
 	int ret = 0;
-	maskarray_t *masks = dev_priv->irq_masks;
+	maskarray_t *masks;
 	int real_irq;
 
 	DRM_DEBUG("%s\n", __FUNCTION__);
@@ -221,7 +221,8 @@ via_driver_irq_wait(drm_device_t * dev, unsigned int irq, int force_sequence,
 			  __FUNCTION__, irq);
 		return DRM_ERR(EINVAL);
 	}
-	
+
+	masks = dev_priv->irq_masks;
 	cur_irq += real_irq;
 
 	if (masks[real_irq][2] && !force_sequence) {
