@@ -280,9 +280,16 @@ static DEFINE_SPINLOCK(die_lock);
 NORET_TYPE void ATTRIB_NORET die(const char * str, struct pt_regs * regs)
 {
 	static int die_counter;
+#ifdef CONFIG_MIPS_MT_SMTC
+	unsigned long dvpret = dvpe();
+#endif /* CONFIG_MIPS_MT_SMTC */
 
 	console_verbose();
 	spin_lock_irq(&die_lock);
+	bust_spinlocks(1);
+#ifdef CONFIG_MIPS_MT_SMTC
+	mips_mt_regdump(dvpret);
+#endif /* CONFIG_MIPS_MT_SMTC */
 	printk("%s[#%d]:\n", str, ++die_counter);
 	show_registers(regs);
 	spin_unlock_irq(&die_lock);
@@ -757,6 +764,7 @@ asmlinkage void do_cpu(struct pt_regs *regs)
 
 	case 2:
 	case 3:
+		die_if_kernel("do_cpu invoked from kernel context!", regs);
 		break;
 	}
 
@@ -794,6 +802,36 @@ asmlinkage void do_mcheck(struct pt_regs *regs)
 
 asmlinkage void do_mt(struct pt_regs *regs)
 {
+	int subcode;
+
+	die_if_kernel("MIPS MT Thread exception in kernel", regs);
+
+	subcode = (read_vpe_c0_vpecontrol() & VPECONTROL_EXCPT)
+			>> VPECONTROL_EXCPT_SHIFT;
+	switch (subcode) {
+	case 0:
+		printk(KERN_ERR "Thread Underflow\n");
+		break;
+	case 1:
+		printk(KERN_ERR "Thread Overflow\n");
+		break;
+	case 2:
+		printk(KERN_ERR "Invalid YIELD Qualifier\n");
+		break;
+	case 3:
+		printk(KERN_ERR "Gating Storage Exception\n");
+		break;
+	case 4:
+		printk(KERN_ERR "YIELD Scheduler Exception\n");
+		break;
+	case 5:
+		printk(KERN_ERR "Gating Storage Schedulier Exception\n");
+		break;
+	default:
+		printk(KERN_ERR "*** UNKNOWN THREAD EXCEPTION %d ***\n",
+			subcode);
+		break;
+	}
 	die_if_kernel("MIPS MT Thread exception in kernel", regs);
 
 	force_sig(SIGILL, current);
@@ -929,7 +967,15 @@ void ejtag_exception_handler(struct pt_regs *regs)
  */
 void nmi_exception_handler(struct pt_regs *regs)
 {
+#ifdef CONFIG_MIPS_MT_SMTC
+	unsigned long dvpret = dvpe();
+	bust_spinlocks(1);
 	printk("NMI taken!!!!\n");
+	mips_mt_regdump(dvpret);
+#else
+	bust_spinlocks(1);
+	printk("NMI taken!!!!\n");
+#endif /* CONFIG_MIPS_MT_SMTC */
 	die("NMI", regs);
 	while(1) ;
 }
@@ -1007,7 +1053,7 @@ again:
 	return set;
 }
 
-void mips_srs_free (int set)
+void mips_srs_free(int set)
 {
 	struct shadow_registers *sr = &shadow_registers;
 
@@ -1027,8 +1073,7 @@ static void *set_vi_srs_handler(int n, void *addr, int srs)
 	if (addr == NULL) {
 		handler = (unsigned long) do_default_vi;
 		srs = 0;
-	}
-	else
+	} else
 		handler = (unsigned long) addr;
 	vi_handlers[n] = (unsigned long) addr;
 
@@ -1040,8 +1085,7 @@ static void *set_vi_srs_handler(int n, void *addr, int srs)
 	if (cpu_has_veic) {
 		if (board_bind_eic_interrupt)
 			board_bind_eic_interrupt (n, srs);
-	}
-	else if (cpu_has_vint) {
+	} else if (cpu_has_vint) {
 		/* SRSMap is only defined if shadow sets are implemented */
 		if (mips_srs_max() > 1)
 			change_c0_srsmap (0xf << n*4, srs << n*4);
@@ -1055,6 +1099,15 @@ static void *set_vi_srs_handler(int n, void *addr, int srs)
 
 		extern char except_vec_vi, except_vec_vi_lui;
 		extern char except_vec_vi_ori, except_vec_vi_end;
+#ifdef CONFIG_MIPS_MT_SMTC
+		/*
+		 * We need to provide the SMTC vectored interrupt handler
+		 * not only with the address of the handler, but with the
+		 * Status.IM bit to be masked before going there.
+		 */
+		extern char except_vec_vi_mori;
+		const int mori_offset = &except_vec_vi_mori - &except_vec_vi;
+#endif /* CONFIG_MIPS_MT_SMTC */
 		const int handler_len = &except_vec_vi_end - &except_vec_vi;
 		const int lui_offset = &except_vec_vi_lui - &except_vec_vi;
 		const int ori_offset = &except_vec_vi_ori - &except_vec_vi;
@@ -1068,6 +1121,12 @@ static void *set_vi_srs_handler(int n, void *addr, int srs)
 		}
 
 		memcpy (b, &except_vec_vi, handler_len);
+#ifdef CONFIG_MIPS_MT_SMTC
+		if (n > 7)
+			printk("Vector index %d exceeds SMTC maximum\n", n);
+		w = (u32 *)(b + mori_offset);
+		*w = (*w & 0xffff0000) | (0x100 << n);
+#endif /* CONFIG_MIPS_MT_SMTC */
 		w = (u32 *)(b + lui_offset);
 		*w = (*w & 0xffff0000) | (((u32)handler >> 16) & 0xffff);
 		w = (u32 *)(b + ori_offset);
@@ -1090,7 +1149,7 @@ static void *set_vi_srs_handler(int n, void *addr, int srs)
 	return (void *)old_handler;
 }
 
-void *set_vi_handler (int n, void *addr)
+void *set_vi_handler(int n, void *addr)
 {
 	return set_vi_srs_handler(n, addr, 0);
 }
@@ -1108,8 +1167,29 @@ extern asmlinkage int _restore_fp_context(struct sigcontext *sc);
 extern asmlinkage int fpu_emulator_save_context(struct sigcontext *sc);
 extern asmlinkage int fpu_emulator_restore_context(struct sigcontext *sc);
 
+#ifdef CONFIG_SMP
+static int smp_save_fp_context(struct sigcontext *sc)
+{
+	return cpu_has_fpu
+	       ? _save_fp_context(sc)
+	       : fpu_emulator_save_context(sc);
+}
+
+static int smp_restore_fp_context(struct sigcontext *sc)
+{
+	return cpu_has_fpu
+	       ? _restore_fp_context(sc)
+	       : fpu_emulator_restore_context(sc);
+}
+#endif
+
 static inline void signal_init(void)
 {
+#ifdef CONFIG_SMP
+	/* For now just do the cpu_has_fpu check when the functions are invoked */
+	save_fp_context = smp_save_fp_context;
+	restore_fp_context = smp_restore_fp_context;
+#else
 	if (cpu_has_fpu) {
 		save_fp_context = _save_fp_context;
 		restore_fp_context = _restore_fp_context;
@@ -1117,6 +1197,7 @@ static inline void signal_init(void)
 		save_fp_context = fpu_emulator_save_context;
 		restore_fp_context = fpu_emulator_restore_context;
 	}
+#endif
 }
 
 #ifdef CONFIG_MIPS32_COMPAT
@@ -1153,6 +1234,20 @@ void __init per_cpu_trap_init(void)
 {
 	unsigned int cpu = smp_processor_id();
 	unsigned int status_set = ST0_CU0;
+#ifdef CONFIG_MIPS_MT_SMTC
+	int secondaryTC = 0;
+	int bootTC = (cpu == 0);
+
+	/*
+	 * Only do per_cpu_trap_init() for first TC of Each VPE.
+	 * Note that this hack assumes that the SMTC init code
+	 * assigns TCs consecutively and in ascending order.
+	 */
+
+	if (((read_c0_tcbind() & TCBIND_CURTC) != 0) &&
+	    ((read_c0_tcbind() & TCBIND_CURVPE) == cpu_data[cpu - 1].vpe_id))
+		secondaryTC = 1;
+#endif /* CONFIG_MIPS_MT_SMTC */
 
 	/*
 	 * Disable coprocessors and select 32-bit or 64-bit addressing
@@ -1175,6 +1270,10 @@ void __init per_cpu_trap_init(void)
 	write_c0_hwrena (0x0000000f); /* Allow rdhwr to all registers */
 #endif
 
+#ifdef CONFIG_MIPS_MT_SMTC
+	if (!secondaryTC) {
+#endif /* CONFIG_MIPS_MT_SMTC */
+
 	/*
 	 * Interrupt handling.
 	 */
@@ -1191,6 +1290,9 @@ void __init per_cpu_trap_init(void)
 		} else
 			set_c0_cause(CAUSEF_IV);
 	}
+#ifdef CONFIG_MIPS_MT_SMTC
+	}
+#endif /* CONFIG_MIPS_MT_SMTC */
 
 	cpu_data[cpu].asid_cache = ASID_FIRST_VERSION;
 	TLBMISS_HANDLER_SETUP();
@@ -1200,8 +1302,14 @@ void __init per_cpu_trap_init(void)
 	BUG_ON(current->mm);
 	enter_lazy_tlb(&init_mm, current);
 
-	cpu_cache_init();
-	tlb_init();
+#ifdef CONFIG_MIPS_MT_SMTC
+	if (bootTC) {
+#endif /* CONFIG_MIPS_MT_SMTC */
+		cpu_cache_init();
+		tlb_init();
+#ifdef CONFIG_MIPS_MT_SMTC
+	}
+#endif /* CONFIG_MIPS_MT_SMTC */
 }
 
 /* Install CPU exception handler */

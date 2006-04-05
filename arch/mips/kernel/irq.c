@@ -38,6 +38,15 @@ void ack_bad_irq(unsigned int irq)
 
 atomic_t irq_err_count;
 
+#ifdef CONFIG_MIPS_MT_SMTC
+/*
+ * SMTC Kernel needs to manipulate low-level CPU interrupt mask
+ * in do_IRQ. These are passed in setup_irq_smtc() and stored
+ * in this table.
+ */
+unsigned long irq_hwmask[NR_IRQS];
+#endif /* CONFIG_MIPS_MT_SMTC */
+
 #undef do_IRQ
 
 /*
@@ -49,6 +58,7 @@ asmlinkage unsigned int do_IRQ(unsigned int irq, struct pt_regs *regs)
 {
 	irq_enter();
 
+	__DO_IRQ_SMTC_HOOK();
 	__do_IRQ(irq, regs);
 
 	irq_exit();
@@ -129,6 +139,9 @@ void __init init_IRQ(void)
 		irq_desc[i].depth   = 1;
 		irq_desc[i].handler = &no_irq_type;
 		spin_lock_init(&irq_desc[i].lock);
+#ifdef CONFIG_MIPS_MT_SMTC
+		irq_hwmask[i] = 0;
+#endif /* CONFIG_MIPS_MT_SMTC */
 	}
 
 	arch_init_irq();

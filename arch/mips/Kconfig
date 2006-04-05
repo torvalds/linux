@@ -1447,6 +1447,10 @@ choice
 	prompt "MIPS MT options"
 	depends on MIPS_MT
 
+config MIPS_MT_SMTC
+	bool "SMTC: Use all TCs on all VPEs for SMP"
+	select SMP
+
 config MIPS_MT_SMP
 	bool "Use 1 TC on each available VPE for SMP"
 	select SMP
@@ -1613,7 +1617,7 @@ source "mm/Kconfig"
 
 config SMP
 	bool "Multi-Processing support"
-	depends on CPU_RM9000 || ((SIBYTE_BCM1x80 || SIBYTE_BCM1x55 || SIBYTE_SB1250 || QEMU) && !SIBYTE_STANDALONE) || SGI_IP27 || MIPS_MT_SMP
+	depends on CPU_RM9000 || ((SIBYTE_BCM1x80 || SIBYTE_BCM1x55 || SIBYTE_SB1250 || QEMU) && !SIBYTE_STANDALONE) || SGI_IP27 || MIPS_MT_SMP || MIPS_MT_SMTC
 	---help---
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, like most personal computers, say N. If

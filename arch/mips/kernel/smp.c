@@ -38,6 +38,10 @@
 #include <asm/mmu_context.h>
 #include <asm/smp.h>
 
+#ifdef CONFIG_MIPS_MT_SMTC
+#include <asm/mipsmtregs.h>
+#endif /* CONFIG_MIPS_MT_SMTC */
+
 cpumask_t phys_cpu_present_map;		/* Bitmask of available CPUs */
 volatile cpumask_t cpu_callin_map;	/* Bitmask of started secondaries */
 cpumask_t cpu_online_map;		/* Bitmask of currently online CPUs */
@@ -85,6 +89,10 @@ asmlinkage void start_secondary(void)
 {
 	unsigned int cpu;
 
+#ifdef CONFIG_MIPS_MT_SMTC
+	/* Only do cpu_probe for first TC of CPU */
+	if ((read_c0_tcbind() & TCBIND_CURTC) == 0)
+#endif /* CONFIG_MIPS_MT_SMTC */
 	cpu_probe();
 	cpu_report();
 	per_cpu_trap_init();
@@ -179,10 +187,12 @@ int smp_call_function (void (*func) (void *info), void *info, int retry,
 	if (wait)
 		while (atomic_read(&data.finished) != cpus)
 			barrier();
+	call_data = NULL;
 	spin_unlock(&smp_call_lock);
 
 	return 0;
 }
+
 
 void smp_call_function_interrupt(void)
 {

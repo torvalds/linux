@@ -118,8 +118,9 @@ static void malta_hw0_irqdispatch(struct pt_regs *regs)
 	int irq;
 
 	irq = get_int();
-	if (irq < 0)
+	if (irq < 0) {
 		return;  /* interrupt has already been cleared */
+	}
 
 	do_IRQ(MALTA_INT_BASE+irq, regs);
 }
@@ -324,9 +325,15 @@ void __init arch_init_irq(void)
 	else if (cpu_has_vint) {
 		set_vi_handler (MIPSCPU_INT_I8259A, malta_hw0_irqdispatch);
 		set_vi_handler (MIPSCPU_INT_COREHI, corehi_irqdispatch);
-
+#ifdef CONFIG_MIPS_MT_SMTC
+		setup_irq_smtc (MIPSCPU_INT_BASE+MIPSCPU_INT_I8259A, &i8259irq,
+			(0x100 << MIPSCPU_INT_I8259A));
+		setup_irq_smtc (MIPSCPU_INT_BASE+MIPSCPU_INT_COREHI,
+			&corehi_irqaction, (0x100 << MIPSCPU_INT_COREHI));
+#else /* Not SMTC */
 		setup_irq (MIPSCPU_INT_BASE+MIPSCPU_INT_I8259A, &i8259irq);
 		setup_irq (MIPSCPU_INT_BASE+MIPSCPU_INT_COREHI, &corehi_irqaction);
+#endif /* CONFIG_MIPS_MT_SMTC */
 	}
 	else {
 		setup_irq (MIPSCPU_INT_BASE+MIPSCPU_INT_I8259A, &i8259irq);

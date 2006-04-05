@@ -1,28 +1,12 @@
 /*
- * Copyright (C) 2005 MIPS Technologies, Inc.  All rights reserved.
- *
- *  This program is free software; you can distribute it and/or modify it
- *  under the terms of the GNU General Public License (Version 2) as
- *  published by the Free Software Foundation.
- *
- *  This program is distributed in the hope it will be useful, but WITHOUT
- *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- *  for more details.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
+ * Malta Platform-specific hooks for SMP operation
  */
-/*
- * Simulator Platform-specific hooks for SMP operation
- */
-#include <linux/config.h>
+
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/cpumask.h>
 #include <linux/interrupt.h>
+
 #include <asm/atomic.h>
 #include <asm/cpu.h>
 #include <asm/processor.h>
@@ -43,11 +27,10 @@
 
 void core_send_ipi(int cpu, unsigned int action)
 {
+/* "CPU" may be TC of same VPE, VPE of same CPU, or different CPU */
 #ifdef CONFIG_MIPS_MT_SMTC
 	smtc_send_ipi(cpu, LINUX_SMP_IPI, action);
 #endif /* CONFIG_MIPS_MT_SMTC */
-/* "CPU" may be TC of same VPE, VPE of same CPU, or different CPU */
-
 }
 
 /*
@@ -56,7 +39,6 @@ void core_send_ipi(int cpu, unsigned int action)
 
 void __init prom_build_cpu_map(void)
 {
-#ifdef CONFIG_MIPS_MT_SMTC
 	int nextslot;
 
 	/*
@@ -68,7 +50,6 @@ void __init prom_build_cpu_map(void)
 	if (read_c0_config3() & (1<<2)) {
 		nextslot = mipsmt_build_cpu_map(1);
 	}
-#endif /* CONFIG_MIPS_MT_SMTC */
 }
 
 /*
@@ -89,28 +70,40 @@ void prom_boot_secondary(int cpu, struct task_struct *idle)
 void prom_init_secondary(void)
 {
 #ifdef CONFIG_MIPS_MT_SMTC
-	void smtc_init_secondary(void);
+        void smtc_init_secondary(void);
+	int myvpe;
 
-	smtc_init_secondary();
+	/* Don't enable Malta I/O interrupts (IP2) for secondary VPEs */
+	myvpe = read_c0_tcbind() & TCBIND_CURVPE;
+	if (myvpe != 0) {
+		/* Ideally, this should be done only once per VPE, but... */
+		clear_c0_status(STATUSF_IP2);
+		set_c0_status(STATUSF_IP0 | STATUSF_IP1 | STATUSF_IP3
+				| STATUSF_IP4 | STATUSF_IP5 | STATUSF_IP6
+				| STATUSF_IP7);
+	}
+
+        smtc_init_secondary();
 #endif /* CONFIG_MIPS_MT_SMTC */
 }
 
 /*
  * Platform SMP pre-initialization
+ *
+ * As noted above, we can assume a single CPU for now
+ * but it may be multithreaded.
  */
 
-void prom_prepare_cpus(unsigned int max_cpus)
+void plat_smp_setup(void)
 {
-#ifdef CONFIG_MIPS_MT_SMTC
-	/*
-	 * As noted above, we can assume a single CPU for now
-	 * but it may be multithreaded.
-	 */
+	if (read_c0_config3() & (1<<2))
+		mipsmt_build_cpu_map(0);
+}
 
-	if (read_c0_config3() & (1<<2)) {
-		mipsmt_prepare_cpus(max_cpus);
-	}
-#endif /* CONFIG_MIPS_MT_SMTC */
+void __init plat_prepare_cpus(unsigned int max_cpus)
+{
+	if (read_c0_config3() & (1<<2))
+		mipsmt_prepare_cpus();
 }
 
 /*
@@ -130,8 +123,6 @@ void prom_smp_finish(void)
 
 void prom_cpus_done(void)
 {
-#ifdef CONFIG_MIPS_MT_SMTC
-
-#endif /* CONFIG_MIPS_MT_SMTC */
 }
+
 #endif /* CONFIG_MIPS32R2_MT_SMP */

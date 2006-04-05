@@ -165,7 +165,7 @@
 
 #ifndef __ASSEMBLY__
 
-extern void mips_mt_regdump(void);
+extern void mips_mt_regdump(unsigned long previous_mvpcontrol_value);
 
 static inline unsigned int dvpe(void)
 {
@@ -282,8 +282,11 @@ static inline void ehb(void)
 									\
 	__asm__ __volatile__(						\
 	"	.set	push					\n"	\
+	"	.set	noat					\n"	\
 	"	.set	mips32r2				\n"	\
-	"	mftgpr	%0," #rt "				\n"	\
+	"	# mftgpr $1," #rt "				\n"	\
+	"	.word	0x41000820 | (" #rt " << 16)		\n"	\
+	"	move	%0, $1					\n"	\
 	"	.set	pop					\n"	\
 	: "=r" (__res));						\
 									\
@@ -295,9 +298,7 @@ static inline void ehb(void)
 	unsigned long __res;						\
 									\
 	__asm__ __volatile__(						\
-	".set noat\n\t"							\
-	"mftr\t%0, " #rt ", " #u ", " #sel "\n\t"			\
-	".set at\n\t"							\
+	"	mftr	%0, " #rt ", " #u ", " #sel "		\n"	\
 	: "=r" (__res));						\
 									\
 	__res;								\

@@ -88,7 +88,18 @@
 
 	PTR_ADDIU	t0, $28, _THREAD_SIZE - 32
 	set_saved_sp	t0, t1, t2
-
+#ifdef CONFIG_MIPS_MT_SMTC
+	/* Read-modify-writes of Status must be atomic on a VPE */
+	mfc0	t2, CP0_TCSTATUS
+	ori	t1, t2, TCSTATUS_IXMT
+	mtc0	t1, CP0_TCSTATUS
+	andi	t2, t2, TCSTATUS_IXMT
+	ehb
+	DMT	8				# dmt	t0
+	move	t1,ra
+	jal	mips_ihb
+	move	ra,t1
+#endif /* CONFIG_MIPS_MT_SMTC */
 	mfc0	t1, CP0_STATUS		/* Do we really need this? */
 	li	a3, 0xff01
 	and	t1, a3
@@ -97,6 +108,18 @@
 	and	a2, a3
 	or	a2, t1
 	mtc0	a2, CP0_STATUS
+#ifdef CONFIG_MIPS_MT_SMTC
+	ehb
+	andi	t0, t0, VPECONTROL_TE
+	beqz	t0, 1f
+	emt
+1:
+	mfc0	t1, CP0_TCSTATUS
+	xori	t1, t1, TCSTATUS_IXMT
+	or	t1, t1, t2
+	mtc0	t1, CP0_TCSTATUS
+	ehb
+#endif /* CONFIG_MIPS_MT_SMTC */
 	move	v0, a0
 	jr	ra
 	END(resume)
@@ -131,10 +154,19 @@ LEAF(_restore_fp)
 #define FPU_DEFAULT  0x00000000
 
 LEAF(_init_fpu)
+#ifdef CONFIG_MIPS_MT_SMTC
+	/* Rather than manipulate per-VPE Status, set per-TC bit in TCStatus */
+	mfc0	t0, CP0_TCSTATUS
+	/* Bit position is the same for Status, TCStatus */
+	li	t1, ST0_CU1
+	or	t0, t1
+	mtc0	t0, CP0_TCSTATUS
+#else /* Normal MIPS CU1 enable */
 	mfc0	t0, CP0_STATUS
 	li	t1, ST0_CU1
 	or	t0, t1
 	mtc0	t0, CP0_STATUS
+#endif /* CONFIG_MIPS_MT_SMTC */
 	fpu_enable_hazard
 
 	li	t1, FPU_DEFAULT

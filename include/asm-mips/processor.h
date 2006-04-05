@@ -12,6 +12,7 @@
 #define _ASM_PROCESSOR_H
 
 #include <linux/config.h>
+#include <linux/cpumask.h>
 #include <linux/threads.h>
 
 #include <asm/cachectl.h>
@@ -107,6 +108,10 @@ struct mips_dsp_state {
 
 #define INIT_DSP {{0,},}
 
+#define INIT_CPUMASK { \
+	{0,} \
+}
+
 typedef struct {
 	unsigned long seg;
 } mm_segment_t;
@@ -142,6 +147,7 @@ struct thread_struct {
 #define MF_LOGADE	2		/* Log address errors to syslog */
 #define MF_32BIT_REGS	4		/* also implies 16/32 fprs */
 #define MF_32BIT_ADDR	8		/* 32-bit address space (o32/n32) */
+#define MF_FPUBOUND	0x10		/* thread bound to FPU-full CPU set */
 	unsigned long mflags;
 	unsigned long irix_trampoline;  /* Wheee... */
 	unsigned long irix_oldctx;
