@@ -758,7 +758,7 @@ static int khazad_setkey(void *ctx_arg, const u8 *in_key,
                        unsigned int key_len, u32 *flags)
 {
 	struct khazad_ctx *ctx = ctx_arg;
-	const __be64 *key = (const __be64 *)in_key;
+	const __be32 *key = (const __be32 *)in_key;
 	int r;
 	const u64 *S = T7;
 	u64 K2, K1;
@@ -769,8 +769,9 @@ static int khazad_setkey(void *ctx_arg, const u8 *in_key,
 		return -EINVAL;
 	}
 
-	K2 = be64_to_cpu(key[0]);
-	K1 = be64_to_cpu(key[1]);
+	/* key is supposed to be 32-bit aligned */
+	K2 = ((u64)be32_to_cpu(key[0]) << 32) | be32_to_cpu(key[1]);
+	K1 = ((u64)be32_to_cpu(key[2]) << 32) | be32_to_cpu(key[3]);
 
 	/* setup the encrypt key */
 	for (r = 0; r <= KHAZAD_ROUNDS; r++) {
