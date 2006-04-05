@@ -346,14 +346,15 @@ void ipoib_flush_paths(struct net_device *dev)
 	list_for_each_entry(path, &remove_list, list)
 		rb_erase(&path->rb_node, &priv->path_tree);
 
-	spin_unlock_irqrestore(&priv->lock, flags);
-
 	list_for_each_entry_safe(path, tp, &remove_list, list) {
 		if (path->query)
 			ib_sa_cancel_query(path->query_id, path->query);
+		spin_unlock_irqrestore(&priv->lock, flags);
 		wait_for_completion(&path->done);
 		path_free(dev, path);
+		spin_lock_irqsave(&priv->lock, flags);
 	}
+	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
 static void path_rec_completion(int status,
