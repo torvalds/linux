@@ -1052,7 +1052,7 @@ static struct shadow_registers {
 	unsigned long sr_allocated;
 } shadow_registers;
 
-void mips_srs_init(void)
+static void mips_srs_init(void)
 {
 #ifdef CONFIG_CPU_MIPSR2_SRS
 	shadow_registers.sr_supported = ((read_c0_srsctl() >> 26) & 0x0f) + 1;
