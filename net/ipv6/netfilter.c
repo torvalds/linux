@@ -79,8 +79,42 @@ static int nf_ip6_reroute(struct sk_buff **pskb, const struct nf_info *info)
 	return 0;
 }
 
+unsigned int nf_ip6_checksum(struct sk_buff *skb, unsigned int hook,
+			     unsigned int dataoff, u_int8_t protocol)
+{
+	struct ipv6hdr *ip6h = skb->nh.ipv6h;
+	unsigned int csum = 0;
+
+	switch (skb->ip_summed) {
+	case CHECKSUM_HW:
+		if (hook != NF_IP6_PRE_ROUTING && hook != NF_IP6_LOCAL_IN)
+			break;
+		if (!csum_ipv6_magic(&ip6h->saddr, &ip6h->daddr,
+			    	     skb->len - dataoff, protocol,
+				     csum_sub(skb->csum,
+					      skb_checksum(skb, 0,
+							   dataoff, 0)))) {
+			skb->ip_summed = CHECKSUM_UNNECESSARY;
+			break;
+		}
+		/* fall through */
+	case CHECKSUM_NONE:
+		skb->csum = ~csum_ipv6_magic(&ip6h->saddr, &ip6h->daddr,
+					     skb->len - dataoff,
+					     protocol,
+					     csum_sub(0,
+						      skb_checksum(skb, 0,
+							           dataoff, 0)));
+		csum = __skb_checksum_complete(skb);
+	}
+	return csum;
+}
+
+EXPORT_SYMBOL(nf_ip6_checksum);
+
 static struct nf_afinfo nf_ip6_afinfo = {
 	.family		= AF_INET6,
+	.checksum	= nf_ip6_checksum,
 	.saveroute	= nf_ip6_saveroute,
 	.reroute	= nf_ip6_reroute,
 	.route_key_size	= sizeof(struct ip6_rt_info),

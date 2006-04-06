@@ -285,6 +285,8 @@ extern int skb_make_writable(struct sk_buff **pskb, unsigned int writable_len);
 
 struct nf_afinfo {
 	unsigned short	family;
+	unsigned int	(*checksum)(struct sk_buff *skb, unsigned int hook,
+				    unsigned int dataoff, u_int8_t protocol);
 	void		(*saveroute)(const struct sk_buff *skb,
 				     struct nf_info *info);
 	int		(*reroute)(struct sk_buff **skb,
@@ -296,6 +298,21 @@ extern struct nf_afinfo *nf_afinfo[];
 static inline struct nf_afinfo *nf_get_afinfo(unsigned short family)
 {
 	return rcu_dereference(nf_afinfo[family]);
+}
+
+static inline unsigned int
+nf_checksum(struct sk_buff *skb, unsigned int hook, unsigned int dataoff,
+	    u_int8_t protocol, unsigned short family)
+{
+	struct nf_afinfo *afinfo;
+	unsigned int csum = 0;
+
+	rcu_read_lock();
+	afinfo = nf_get_afinfo(family);
+	if (afinfo)
+		csum = afinfo->checksum(skb, hook, dataoff, protocol);
+	rcu_read_unlock();
+	return csum;
 }
 
 extern int nf_register_afinfo(struct nf_afinfo *afinfo);
