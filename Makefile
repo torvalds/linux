@@ -1284,7 +1284,7 @@ kernelversion:
 #  build-dir  => directory in kernel source tree to use
 
 ifeq ($(KBUILD_EXTMOD),)
-        build-dir  = $(dir $@)
+        build-dir  = $(patsubst %/,%,$(dir $@))
         target-dir = $(dir $@)
 else
         zap-slash=$(filter-out .,$(patsubst %/,%,$(dir $@)))
