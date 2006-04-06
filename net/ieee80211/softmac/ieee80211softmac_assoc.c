@@ -391,6 +391,7 @@ ieee80211softmac_handle_reassoc_req(struct net_device * dev,
 		dprintkl(KERN_INFO PFX "reassoc request from unknown network\n");
 		return 0;
 	}
-	ieee80211softmac_assoc(mac, network);
+	schedule_work(&mac->associnfo.work);
+
 	return 0;
 }
