@@ -299,60 +299,56 @@ ip_nat_adjust(unsigned int hooknum,
 
 /* We must be after connection tracking and before packet filtering. */
 
-/* Before packet filtering, change destination */
-static struct nf_hook_ops ip_nat_in_ops = {
-	.hook		= ip_nat_in,
-	.owner		= THIS_MODULE,
-	.pf		= PF_INET,
-	.hooknum	= NF_IP_PRE_ROUTING,
-	.priority	= NF_IP_PRI_NAT_DST,
+static struct nf_hook_ops ip_nat_ops[] = {
+	/* Before packet filtering, change destination */
+	{
+		.hook		= ip_nat_in,
+		.owner		= THIS_MODULE,
+		.pf		= PF_INET,
+		.hooknum	= NF_IP_PRE_ROUTING,
+		.priority	= NF_IP_PRI_NAT_DST,
+	},
+	/* After packet filtering, change source */
+	{
+		.hook		= ip_nat_out,
+		.owner		= THIS_MODULE,
+		.pf		= PF_INET,
+		.hooknum	= NF_IP_POST_ROUTING,
+		.priority	= NF_IP_PRI_NAT_SRC,
+	},
+	/* After conntrack, adjust sequence number */
+	{
+		.hook		= ip_nat_adjust,
+		.owner		= THIS_MODULE,
+		.pf		= PF_INET,
+		.hooknum	= NF_IP_POST_ROUTING,
+		.priority	= NF_IP_PRI_NAT_SEQ_ADJUST,
+	},
+	/* Before packet filtering, change destination */
+	{
+		.hook		= ip_nat_local_fn,
+		.owner		= THIS_MODULE,
+		.pf		= PF_INET,
+		.hooknum	= NF_IP_LOCAL_OUT,
+		.priority	= NF_IP_PRI_NAT_DST,
+	},
+	/* After packet filtering, change source */
+	{
+		.hook		= ip_nat_fn,
+		.owner		= THIS_MODULE,
+		.pf		= PF_INET,
+		.hooknum	= NF_IP_LOCAL_IN,
+		.priority	= NF_IP_PRI_NAT_SRC,
+	},
+	/* After conntrack, adjust sequence number */
+	{
+		.hook		= ip_nat_adjust,
+		.owner		= THIS_MODULE,
+		.pf		= PF_INET,
+		.hooknum	= NF_IP_LOCAL_IN,
+		.priority	= NF_IP_PRI_NAT_SEQ_ADJUST,
+	},
 };
-
-/* After packet filtering, change source */
-static struct nf_hook_ops ip_nat_out_ops = {
-	.hook		= ip_nat_out,
-	.owner		= THIS_MODULE,
-	.pf		= PF_INET,
-	.hooknum	= NF_IP_POST_ROUTING,
-	.priority	= NF_IP_PRI_NAT_SRC,
-};
-
-/* After conntrack, adjust sequence number */
-static struct nf_hook_ops ip_nat_adjust_out_ops = {
-	.hook		= ip_nat_adjust,
-	.owner		= THIS_MODULE,
-	.pf		= PF_INET,
-	.hooknum	= NF_IP_POST_ROUTING,
-	.priority	= NF_IP_PRI_NAT_SEQ_ADJUST,
-};
-
-/* Before packet filtering, change destination */
-static struct nf_hook_ops ip_nat_local_out_ops = {
-	.hook		= ip_nat_local_fn,
-	.owner		= THIS_MODULE,
-	.pf		= PF_INET,
-	.hooknum	= NF_IP_LOCAL_OUT,
-	.priority	= NF_IP_PRI_NAT_DST,
-};
-
-/* After packet filtering, change source for reply packets of LOCAL_OUT DNAT */
-static struct nf_hook_ops ip_nat_local_in_ops = {
-	.hook		= ip_nat_fn,
-	.owner		= THIS_MODULE,
-	.pf		= PF_INET,
-	.hooknum	= NF_IP_LOCAL_IN,
-	.priority	= NF_IP_PRI_NAT_SRC,
-};
-
-/* After conntrack, adjust sequence number */
-static struct nf_hook_ops ip_nat_adjust_in_ops = {
-	.hook		= ip_nat_adjust,
-	.owner		= THIS_MODULE,
-	.pf		= PF_INET,
-	.hooknum	= NF_IP_LOCAL_IN,
-	.priority	= NF_IP_PRI_NAT_SEQ_ADJUST,
-};
-
 
 static int init_or_cleanup(int init)
 {
@@ -371,50 +367,15 @@ static int init_or_cleanup(int init)
 		printk("ip_nat_init: can't setup rules.\n");
 		goto cleanup_decode_session;
 	}
-	ret = nf_register_hook(&ip_nat_in_ops);
+	ret = nf_register_hooks(ip_nat_ops, ARRAY_SIZE(ip_nat_ops));
 	if (ret < 0) {
-		printk("ip_nat_init: can't register in hook.\n");
+		printk("ip_nat_init: can't register hooks.\n");
 		goto cleanup_rule_init;
-	}
-	ret = nf_register_hook(&ip_nat_out_ops);
-	if (ret < 0) {
-		printk("ip_nat_init: can't register out hook.\n");
-		goto cleanup_inops;
-	}
-	ret = nf_register_hook(&ip_nat_adjust_in_ops);
-	if (ret < 0) {
-		printk("ip_nat_init: can't register adjust in hook.\n");
-		goto cleanup_outops;
-	}
-	ret = nf_register_hook(&ip_nat_adjust_out_ops);
-	if (ret < 0) {
-		printk("ip_nat_init: can't register adjust out hook.\n");
-		goto cleanup_adjustin_ops;
-	}
-	ret = nf_register_hook(&ip_nat_local_out_ops);
-	if (ret < 0) {
-		printk("ip_nat_init: can't register local out hook.\n");
-		goto cleanup_adjustout_ops;
-	}
-	ret = nf_register_hook(&ip_nat_local_in_ops);
-	if (ret < 0) {
-		printk("ip_nat_init: can't register local in hook.\n");
-		goto cleanup_localoutops;
 	}
 	return ret;
 
  cleanup:
-	nf_unregister_hook(&ip_nat_local_in_ops);
- cleanup_localoutops:
-	nf_unregister_hook(&ip_nat_local_out_ops);
- cleanup_adjustout_ops:
-	nf_unregister_hook(&ip_nat_adjust_out_ops);
- cleanup_adjustin_ops:
-	nf_unregister_hook(&ip_nat_adjust_in_ops);
- cleanup_outops:
-	nf_unregister_hook(&ip_nat_out_ops);
- cleanup_inops:
-	nf_unregister_hook(&ip_nat_in_ops);
+	nf_unregister_hooks(ip_nat_ops, ARRAY_SIZE(ip_nat_ops));
  cleanup_rule_init:
 	ip_nat_rule_cleanup();
  cleanup_decode_session:
