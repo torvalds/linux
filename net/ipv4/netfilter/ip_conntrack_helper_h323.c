@@ -220,8 +220,8 @@ static int get_tpkt_data(struct sk_buff **pskb, struct ip_conntrack *ct,
 }
 
 /****************************************************************************/
-int get_h245_addr(unsigned char *data, H245_TransportAddress * addr,
-		  u_int32_t * ip, u_int16_t * port)
+static int get_h245_addr(unsigned char *data, H245_TransportAddress * addr,
+			 u_int32_t * ip, u_int16_t * port)
 {
 	unsigned char *p;
 
