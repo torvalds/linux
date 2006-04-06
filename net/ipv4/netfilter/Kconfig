@@ -69,6 +69,7 @@ config IP_NF_CONNTRACK_NETLINK
 	tristate 'Connection tracking netlink interface (EXPERIMENTAL)'
 	depends on EXPERIMENTAL && IP_NF_CONNTRACK && NETFILTER_NETLINK
 	depends on IP_NF_CONNTRACK!=y || NETFILTER_NETLINK!=m
+	depends on IP_NF_NAT=n || IP_NF_NAT
 	help
 	  This option enables support for a netlink-based userspace interface
 
