@@ -397,7 +397,7 @@ static int ipip6_rcv(struct sk_buff *skb)
 		return 0;
 	}
 
-	icmp_send(skb, ICMP_DEST_UNREACH, ICMP_PROT_UNREACH, 0);
+	icmp_send(skb, ICMP_DEST_UNREACH, ICMP_PORT_UNREACH, 0);
 	kfree_skb(skb);
 	read_unlock(&ipip6_lock);
 out:
