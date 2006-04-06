@@ -350,13 +350,11 @@ static struct nf_hook_ops ip_nat_ops[] = {
 	},
 };
 
-static int init_or_cleanup(int init)
+static int __init ip_nat_standalone_init(void)
 {
 	int ret = 0;
 
 	need_conntrack();
-
-	if (!init) goto cleanup;
 
 #ifdef CONFIG_XFRM
 	BUG_ON(ip_nat_decode_session != NULL);
@@ -374,8 +372,6 @@ static int init_or_cleanup(int init)
 	}
 	return ret;
 
- cleanup:
-	nf_unregister_hooks(ip_nat_ops, ARRAY_SIZE(ip_nat_ops));
  cleanup_rule_init:
 	ip_nat_rule_cleanup();
  cleanup_decode_session:
@@ -386,14 +382,14 @@ static int init_or_cleanup(int init)
 	return ret;
 }
 
-static int __init ip_nat_standalone_init(void)
-{
-	return init_or_cleanup(1);
-}
-
 static void __exit ip_nat_standalone_fini(void)
 {
-	init_or_cleanup(0);
+	nf_unregister_hooks(ip_nat_ops, ARRAY_SIZE(ip_nat_ops));
+	ip_nat_rule_cleanup();
+#ifdef CONFIG_XFRM
+	ip_nat_decode_session = NULL;
+	synchronize_net();
+#endif
 }
 
 module_init(ip_nat_standalone_init);

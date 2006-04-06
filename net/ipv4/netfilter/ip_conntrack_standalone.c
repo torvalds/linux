@@ -776,18 +776,46 @@ static ctl_table ip_ct_net_table[] = {
 EXPORT_SYMBOL(ip_ct_log_invalid);
 #endif /* CONFIG_SYSCTL */
 
-static int init_or_cleanup(int init)
+/* FIXME: Allow NULL functions and sub in pointers to generic for
+   them. --RR */
+int ip_conntrack_protocol_register(struct ip_conntrack_protocol *proto)
+{
+	int ret = 0;
+
+	write_lock_bh(&ip_conntrack_lock);
+	if (ip_ct_protos[proto->proto] != &ip_conntrack_generic_protocol) {
+		ret = -EBUSY;
+		goto out;
+	}
+	ip_ct_protos[proto->proto] = proto;
+ out:
+	write_unlock_bh(&ip_conntrack_lock);
+	return ret;
+}
+
+void ip_conntrack_protocol_unregister(struct ip_conntrack_protocol *proto)
+{
+	write_lock_bh(&ip_conntrack_lock);
+	ip_ct_protos[proto->proto] = &ip_conntrack_generic_protocol;
+	write_unlock_bh(&ip_conntrack_lock);
+
+	/* Somebody could be still looking at the proto in bh. */
+	synchronize_net();
+
+	/* Remove all contrack entries for this protocol */
+	ip_ct_iterate_cleanup(kill_proto, &proto->proto);
+}
+
+static int __init ip_conntrack_standalone_init(void)
 {
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry *proc, *proc_exp, *proc_stat;
 #endif
 	int ret = 0;
 
-	if (!init) goto cleanup;
-
 	ret = ip_conntrack_init();
 	if (ret < 0)
-		goto cleanup_nothing;
+		return ret;
 
 #ifdef CONFIG_PROC_FS
 	ret = -ENOMEM;
@@ -819,16 +847,12 @@ static int init_or_cleanup(int init)
 		goto cleanup_hooks;
 	}
 #endif
-
 	return ret;
 
- cleanup:
-	synchronize_net();
 #ifdef CONFIG_SYSCTL
- 	unregister_sysctl_table(ip_ct_sysctl_header);
  cleanup_hooks:
-#endif
 	nf_unregister_hooks(ip_conntrack_ops, ARRAY_SIZE(ip_conntrack_ops));
+#endif
  cleanup_proc_stat:
 #ifdef CONFIG_PROC_FS
 	remove_proc_entry("ip_conntrack", proc_net_stat);
@@ -839,48 +863,22 @@ static int init_or_cleanup(int init)
  cleanup_init:
 #endif /* CONFIG_PROC_FS */
 	ip_conntrack_cleanup();
- cleanup_nothing:
 	return ret;
-}
-
-/* FIXME: Allow NULL functions and sub in pointers to generic for
-   them. --RR */
-int ip_conntrack_protocol_register(struct ip_conntrack_protocol *proto)
-{
-	int ret = 0;
-
-	write_lock_bh(&ip_conntrack_lock);
-	if (ip_ct_protos[proto->proto] != &ip_conntrack_generic_protocol) {
-		ret = -EBUSY;
-		goto out;
-	}
-	ip_ct_protos[proto->proto] = proto;
- out:
-	write_unlock_bh(&ip_conntrack_lock);
-	return ret;
-}
-
-void ip_conntrack_protocol_unregister(struct ip_conntrack_protocol *proto)
-{
-	write_lock_bh(&ip_conntrack_lock);
-	ip_ct_protos[proto->proto] = &ip_conntrack_generic_protocol;
-	write_unlock_bh(&ip_conntrack_lock);
-	
-	/* Somebody could be still looking at the proto in bh. */
-	synchronize_net();
-
-	/* Remove all contrack entries for this protocol */
-	ip_ct_iterate_cleanup(kill_proto, &proto->proto);
-}
-
-static int __init ip_conntrack_standalone_init(void)
-{
-	return init_or_cleanup(1);
 }
 
 static void __exit ip_conntrack_standalone_fini(void)
 {
-	init_or_cleanup(0);
+	synchronize_net();
+#ifdef CONFIG_SYSCTL
+	unregister_sysctl_table(ip_ct_sysctl_header);
+#endif
+	nf_unregister_hooks(ip_conntrack_ops, ARRAY_SIZE(ip_conntrack_ops));
+#ifdef CONFIG_PROC_FS
+	remove_proc_entry("ip_conntrack", proc_net_stat);
+	proc_net_remove("ip_conntrack_expect");
+	proc_net_remove("ip_conntrack");
+#endif /* CONFIG_PROC_FS */
+	ip_conntrack_cleanup();
 }
 
 module_init(ip_conntrack_standalone_init);

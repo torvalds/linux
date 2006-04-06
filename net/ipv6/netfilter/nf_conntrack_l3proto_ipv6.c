@@ -464,16 +464,21 @@ extern struct nf_conntrack_protocol nf_conntrack_protocol_udp6;
 extern struct nf_conntrack_protocol nf_conntrack_protocol_icmpv6;
 extern int nf_ct_frag6_init(void);
 extern void nf_ct_frag6_cleanup(void);
-static int init_or_cleanup(int init)
+
+MODULE_ALIAS("nf_conntrack-" __stringify(AF_INET6));
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Yasuyuki KOZAKAI @USAGI <yasuyuki.kozakai@toshiba.co.jp>");
+
+static int __init nf_conntrack_l3proto_ipv6_init(void)
 {
 	int ret = 0;
 
-	if (!init) goto cleanup;
+	need_conntrack();
 
 	ret = nf_ct_frag6_init();
 	if (ret < 0) {
 		printk("nf_conntrack_ipv6: can't initialize frag6.\n");
-		goto cleanup_nothing;
+		return ret;
 	}
 	ret = nf_conntrack_protocol_register(&nf_conntrack_protocol_tcp6);
 	if (ret < 0) {
@@ -516,13 +521,10 @@ static int init_or_cleanup(int init)
 #endif
 	return ret;
 
- cleanup:
-	synchronize_net();
 #ifdef CONFIG_SYSCTL
- 	unregister_sysctl_table(nf_ct_ipv6_sysctl_header);
  cleanup_hooks:
-#endif
 	nf_unregister_hooks(ipv6_conntrack_ops, ARRAY_SIZE(ipv6_conntrack_ops));
+#endif
  cleanup_ipv6:
 	nf_conntrack_l3proto_unregister(&nf_conntrack_l3proto_ipv6);
  cleanup_icmpv6:
@@ -533,23 +535,21 @@ static int init_or_cleanup(int init)
 	nf_conntrack_protocol_unregister(&nf_conntrack_protocol_tcp6);
  cleanup_frag6:
 	nf_ct_frag6_cleanup();
- cleanup_nothing:
 	return ret;
-}
-
-MODULE_ALIAS("nf_conntrack-" __stringify(AF_INET6));
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Yasuyuki KOZAKAI @USAGI <yasuyuki.kozakai@toshiba.co.jp>");
-
-static int __init nf_conntrack_l3proto_ipv6_init(void)
-{
-	need_conntrack();
-	return init_or_cleanup(1);
 }
 
 static void __exit nf_conntrack_l3proto_ipv6_fini(void)
 {
-	init_or_cleanup(0);
+	synchronize_net();
+#ifdef CONFIG_SYSCTL
+ 	unregister_sysctl_table(nf_ct_ipv6_sysctl_header);
+#endif
+	nf_unregister_hooks(ipv6_conntrack_ops, ARRAY_SIZE(ipv6_conntrack_ops));
+	nf_conntrack_l3proto_unregister(&nf_conntrack_l3proto_ipv6);
+	nf_conntrack_protocol_unregister(&nf_conntrack_protocol_icmpv6);
+	nf_conntrack_protocol_unregister(&nf_conntrack_protocol_udp6);
+	nf_conntrack_protocol_unregister(&nf_conntrack_protocol_tcp6);
+	nf_ct_frag6_cleanup();
 }
 
 module_init(nf_conntrack_l3proto_ipv6_init);

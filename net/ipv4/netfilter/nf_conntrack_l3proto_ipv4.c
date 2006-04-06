@@ -432,16 +432,20 @@ struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv4 = {
 extern struct nf_conntrack_protocol nf_conntrack_protocol_tcp4;
 extern struct nf_conntrack_protocol nf_conntrack_protocol_udp4;
 extern struct nf_conntrack_protocol nf_conntrack_protocol_icmp;
-static int init_or_cleanup(int init)
+
+MODULE_ALIAS("nf_conntrack-" __stringify(AF_INET));
+MODULE_LICENSE("GPL");
+
+static int __init nf_conntrack_l3proto_ipv4_init(void)
 {
 	int ret = 0;
 
-	if (!init) goto cleanup;
+	need_conntrack();
 
 	ret = nf_register_sockopt(&so_getorigdst);
 	if (ret < 0) {
 		printk(KERN_ERR "Unable to register netfilter socket option\n");
-		goto cleanup_nothing;
+		return ret;
 	}
 
 	ret = nf_conntrack_protocol_register(&nf_conntrack_protocol_tcp4);
@@ -484,13 +488,10 @@ static int init_or_cleanup(int init)
 #endif
 	return ret;
 
- cleanup:
-	synchronize_net();
 #ifdef CONFIG_SYSCTL
- 	unregister_sysctl_table(nf_ct_ipv4_sysctl_header);
  cleanup_hooks:
-#endif
 	nf_unregister_hooks(ipv4_conntrack_ops, ARRAY_SIZE(ipv4_conntrack_ops));
+#endif
  cleanup_ipv4:
 	nf_conntrack_l3proto_unregister(&nf_conntrack_l3proto_ipv4);
  cleanup_icmp:
@@ -501,22 +502,21 @@ static int init_or_cleanup(int init)
 	nf_conntrack_protocol_unregister(&nf_conntrack_protocol_tcp4);
  cleanup_sockopt:
 	nf_unregister_sockopt(&so_getorigdst);
- cleanup_nothing:
 	return ret;
-}
-
-MODULE_ALIAS("nf_conntrack-" __stringify(AF_INET));
-MODULE_LICENSE("GPL");
-
-static int __init nf_conntrack_l3proto_ipv4_init(void)
-{
-	need_conntrack();
-	return init_or_cleanup(1);
 }
 
 static void __exit nf_conntrack_l3proto_ipv4_fini(void)
 {
-	init_or_cleanup(0);
+	synchronize_net();
+#ifdef CONFIG_SYSCTL
+ 	unregister_sysctl_table(nf_ct_ipv4_sysctl_header);
+#endif
+	nf_unregister_hooks(ipv4_conntrack_ops, ARRAY_SIZE(ipv4_conntrack_ops));
+	nf_conntrack_l3proto_unregister(&nf_conntrack_l3proto_ipv4);
+	nf_conntrack_protocol_unregister(&nf_conntrack_protocol_icmp);
+	nf_conntrack_protocol_unregister(&nf_conntrack_protocol_udp4);
+	nf_conntrack_protocol_unregister(&nf_conntrack_protocol_tcp4);
+	nf_unregister_sockopt(&so_getorigdst);
 }
 
 module_init(nf_conntrack_l3proto_ipv4_init);
