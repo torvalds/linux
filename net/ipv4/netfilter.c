@@ -133,7 +133,7 @@ struct ip_rt_info {
 	u_int8_t tos;
 };
 
-static void queue_save(const struct sk_buff *skb, struct nf_info *info)
+static void nf_ip_saveroute(const struct sk_buff *skb, struct nf_info *info)
 {
 	struct ip_rt_info *rt_info = nf_info_reroute(info);
 
@@ -146,7 +146,7 @@ static void queue_save(const struct sk_buff *skb, struct nf_info *info)
 	}
 }
 
-static int queue_reroute(struct sk_buff **pskb, const struct nf_info *info)
+static int nf_ip_reroute(struct sk_buff **pskb, const struct nf_info *info)
 {
 	const struct ip_rt_info *rt_info = nf_info_reroute(info);
 
@@ -161,20 +161,21 @@ static int queue_reroute(struct sk_buff **pskb, const struct nf_info *info)
 	return 0;
 }
 
-static struct nf_queue_rerouter ip_reroute = {
-	.rer_size	= sizeof(struct ip_rt_info),
-	.save		= queue_save,
-	.reroute	= queue_reroute,
+static struct nf_afinfo nf_ip_afinfo = {
+	.family		= AF_INET,
+	.saveroute	= nf_ip_saveroute,
+	.reroute	= nf_ip_reroute,
+	.route_key_size	= sizeof(struct ip_rt_info),
 };
 
 static int ipv4_netfilter_init(void)
 {
-	return nf_register_queue_rerouter(PF_INET, &ip_reroute);
+	return nf_register_afinfo(&nf_ip_afinfo);
 }
 
 static void ipv4_netfilter_fini(void)
 {
-	nf_unregister_queue_rerouter(PF_INET);
+	nf_unregister_afinfo(&nf_ip_afinfo);
 }
 
 module_init(ipv4_netfilter_init);

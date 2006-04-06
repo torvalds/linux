@@ -283,16 +283,25 @@ extern void nf_invalidate_cache(int pf);
    Returns true or false. */
 extern int skb_make_writable(struct sk_buff **pskb, unsigned int writable_len);
 
-struct nf_queue_rerouter {
-	void (*save)(const struct sk_buff *skb, struct nf_info *info);
-	int (*reroute)(struct sk_buff **skb, const struct nf_info *info);
-	int rer_size;
+struct nf_afinfo {
+	unsigned short	family;
+	void		(*saveroute)(const struct sk_buff *skb,
+				     struct nf_info *info);
+	int		(*reroute)(struct sk_buff **skb,
+				   const struct nf_info *info);
+	int		route_key_size;
 };
 
-#define nf_info_reroute(x) ((void *)x + sizeof(struct nf_info))
+extern struct nf_afinfo *nf_afinfo[];
+static inline struct nf_afinfo *nf_get_afinfo(unsigned short family)
+{
+	return rcu_dereference(nf_afinfo[family]);
+}
 
-extern int nf_register_queue_rerouter(int pf, struct nf_queue_rerouter *rer);
-extern int nf_unregister_queue_rerouter(int pf);
+extern int nf_register_afinfo(struct nf_afinfo *afinfo);
+extern void nf_unregister_afinfo(struct nf_afinfo *afinfo);
+
+#define nf_info_reroute(x) ((void *)x + sizeof(struct nf_info))
 
 #include <net/flow.h>
 extern void (*ip_nat_decode_session)(struct sk_buff *, struct flowi *);

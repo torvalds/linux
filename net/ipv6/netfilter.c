@@ -54,7 +54,7 @@ struct ip6_rt_info {
 	struct in6_addr saddr;
 };
 
-static void save(const struct sk_buff *skb, struct nf_info *info)
+static void nf_ip6_saveroute(const struct sk_buff *skb, struct nf_info *info)
 {
 	struct ip6_rt_info *rt_info = nf_info_reroute(info);
 
@@ -66,7 +66,7 @@ static void save(const struct sk_buff *skb, struct nf_info *info)
 	}
 }
 
-static int reroute(struct sk_buff **pskb, const struct nf_info *info)
+static int nf_ip6_reroute(struct sk_buff **pskb, const struct nf_info *info)
 {
 	struct ip6_rt_info *rt_info = nf_info_reroute(info);
 
@@ -79,15 +79,16 @@ static int reroute(struct sk_buff **pskb, const struct nf_info *info)
 	return 0;
 }
 
-static struct nf_queue_rerouter ip6_reroute = {
-	.rer_size	= sizeof(struct ip6_rt_info),
-	.save 		= &save,
-	.reroute	= &reroute,
+static struct nf_afinfo nf_ip6_afinfo = {
+	.family		= AF_INET6,
+	.saveroute	= nf_ip6_saveroute,
+	.reroute	= nf_ip6_reroute,
+	.route_key_size	= sizeof(struct ip6_rt_info),
 };
 
 int __init ipv6_netfilter_init(void)
 {
-	return nf_register_queue_rerouter(PF_INET6, &ip6_reroute);
+	return nf_register_afinfo(&nf_ip6_afinfo);
 }
 
 /* This can be called from inet6_init() on errors, so it cannot
@@ -95,5 +96,5 @@ int __init ipv6_netfilter_init(void)
  */
 void ipv6_netfilter_fini(void)
 {
-	nf_unregister_queue_rerouter(PF_INET6);
+	nf_unregister_afinfo(&nf_ip6_afinfo);
 }

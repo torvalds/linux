@@ -27,6 +27,29 @@
 
 #include "nf_internals.h"
 
+static DEFINE_SPINLOCK(afinfo_lock);
+
+struct nf_afinfo *nf_afinfo[NPROTO];
+EXPORT_SYMBOL(nf_afinfo);
+
+int nf_register_afinfo(struct nf_afinfo *afinfo)
+{
+	spin_lock(&afinfo_lock);
+	rcu_assign_pointer(nf_afinfo[afinfo->family], afinfo);
+	spin_unlock(&afinfo_lock);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(nf_register_afinfo);
+
+void nf_unregister_afinfo(struct nf_afinfo *afinfo)
+{
+	spin_lock(&afinfo_lock);
+	rcu_assign_pointer(nf_afinfo[afinfo->family], NULL);
+	spin_unlock(&afinfo_lock);
+	synchronize_rcu();
+}
+EXPORT_SYMBOL_GPL(nf_unregister_afinfo);
+
 /* In this code, we can be waiting indefinitely for userspace to
  * service a packet if a hook returns NF_QUEUE.  We could keep a count
  * of skbuffs queued for userspace, and not deregister a hook unless
