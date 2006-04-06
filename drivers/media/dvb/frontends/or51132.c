@@ -400,6 +400,44 @@ static int or51132_set_parameters(struct dvb_frontend* fe,
 	return 0;
 }
 
+static int or51132_get_parameters(struct dvb_frontend* fe,
+				  struct dvb_frontend_parameters *param)
+{
+	struct or51132_state* state = fe->demodulator_priv;
+	u8 buf[2];
+
+	/* Receiver Status */
+	buf[0]=0x04;
+	buf[1]=0x00;
+	msleep(30); /* 30ms */
+	if (i2c_writebytes(state,state->config->demod_address,buf,2)) {
+		printk(KERN_WARNING "or51132: get_parameters write error\n");
+		return -EREMOTEIO;
+	}
+	msleep(30); /* 30ms */
+	if (i2c_readbytes(state,state->config->demod_address,buf,2)) {
+		printk(KERN_WARNING "or51132: get_parameters read error\n");
+		return -EREMOTEIO;
+	}
+	switch(buf[0]) {
+		case 0x06: param->u.vsb.modulation = VSB_8; break;
+		case 0x43: param->u.vsb.modulation = QAM_64; break;
+		case 0x45: param->u.vsb.modulation = QAM_256; break;
+		default:
+			printk(KERN_WARNING "or51132: unknown status 0x%02x\n",
+			       buf[0]);
+			return -EREMOTEIO;
+	}
+
+	/* FIXME: Read frequency from frontend, take AFC into account */
+	param->frequency = state->current_frequency;
+
+	/* FIXME: How to read inversion setting? Receiver 6 register? */
+	param->inversion = INVERSION_AUTO;
+
+	return 0;
+}
+
 static int or51132_read_status(struct dvb_frontend* fe, fe_status_t* status)
 {
 	struct or51132_state* state = fe->demodulator_priv;
@@ -618,6 +656,7 @@ static struct dvb_frontend_ops or51132_ops = {
 	.sleep = or51132_sleep,
 
 	.set_frontend = or51132_set_parameters,
+	.get_frontend = or51132_get_parameters,
 	.get_tune_settings = or51132_get_tune_settings,
 
 	.read_status = or51132_read_status,
