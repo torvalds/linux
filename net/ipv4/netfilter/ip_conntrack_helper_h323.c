@@ -61,6 +61,10 @@
 #endif
 
 /* Parameters */
+static unsigned int default_rrq_ttl = 300;
+module_param(default_rrq_ttl, uint, 0600);
+MODULE_PARM_DESC(default_rrq_ttl, "use this TTL if it's missing in RRQ");
+
 static int gkrouted_only = 1;
 module_param(gkrouted_only, int, 0600);
 MODULE_PARM_DESC(gkrouted_only, "only accept calls from gatekeeper");
@@ -1300,7 +1304,7 @@ static int process_rrq(struct sk_buff **pskb, struct ip_conntrack *ct,
 		DEBUGP("ip_ct_ras: RRQ TTL = %u seconds\n", rrq->timeToLive);
 		info->timeout = rrq->timeToLive;
 	} else
-		info->timeout = 0;
+		info->timeout = default_rrq_ttl;
 
 	return 0;
 }
