@@ -63,6 +63,34 @@ void nf_unregister_hook(struct nf_hook_ops *reg)
 }
 EXPORT_SYMBOL(nf_unregister_hook);
 
+int nf_register_hooks(struct nf_hook_ops *reg, unsigned int n)
+{
+	unsigned int i;
+	int err = 0;
+
+	for (i = 0; i < n; i++) {
+		err = nf_register_hook(&reg[i]);
+		if (err)
+			goto err;
+	}
+	return err;
+
+err:
+	if (i > 0)
+		nf_unregister_hooks(reg, i);
+	return err;
+}
+EXPORT_SYMBOL(nf_register_hooks);
+
+void nf_unregister_hooks(struct nf_hook_ops *reg, unsigned int n)
+{
+	unsigned int i;
+
+	for (i = 0; i < n; i++)
+		nf_unregister_hook(&reg[i]);
+}
+EXPORT_SYMBOL(nf_unregister_hooks);
+
 unsigned int nf_iterate(struct list_head *head,
 			struct sk_buff **skb,
 			int hook,
