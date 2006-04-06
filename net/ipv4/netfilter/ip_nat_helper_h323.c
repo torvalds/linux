@@ -7,24 +7,6 @@
  *
  * Based on the 'brute force' H.323 NAT module by
  * Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
- *
- * Changes:
- *	2006-02-01 - initial version 0.1
- *
- *	2006-02-20 - version 0.2
- *	  1. Changed source format to follow kernel conventions
- *	  2. Deleted some unnecessary structures
- *	  3. Minor fixes
- *
- * 	2006-03-10 - version 0.3
- * 	  1. Added support for multiple TPKTs in one packet (suggested by
- * 	     Patrick McHardy)
- * 	  2. Added support for non-linear skb (based on Patrick McHardy's patch)
- * 	  3. Eliminated unnecessary return code
- *
- * 	2006-03-15 - version 0.4
- * 	  1. Added support for T.120 channels
- * 	  2. Added parameter gkrouted_only (suggested by Patrick McHardy)
  */
 
 #include <linux/module.h>

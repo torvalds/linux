@@ -9,37 +9,6 @@
  * Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
  *
  * For more information, please see http://nath323.sourceforge.net/
- *
- * Changes:
- * 	2006-02-01 - initial version 0.1
- *
- *	2006-02-20 - version 0.2
- *	  1. Changed source format to follow kernel conventions
- *	  2. Deleted some unnecessary structures
- *	  3. Minor fixes
- *
- * 	2006-03-10 - version 0.3
- * 	  1. Added support for multiple TPKTs in one packet (suggested by
- * 	     Patrick McHardy)
- * 	  2. Avoid excessive stack usage (based on Patrick McHardy's patch)
- * 	  3. Added support for non-linear skb (based on Patrick McHardy's patch)
- * 	  4. Fixed missing H.245 module owner (Patrick McHardy)
- * 	  5. Avoid long RAS expectation chains (Patrick McHardy)
- * 	  6. Fixed incorrect __exit attribute (Patrick McHardy)
- * 	  7. Eliminated unnecessary return code
- * 	  8. Fixed incorrect use of NAT data from conntrack code (suggested by
- * 	     Patrick McHardy)
- * 	  9. Fixed TTL calculation error in RCF
- * 	  10. Added TTL support in RRQ
- * 	  11. Better support for separate TPKT header and data
- *
- * 	2006-03-15 - version 0.4
- * 	  1. Added support for T.120 channels
- * 	  2. Added parameter gkrouted_only (suggested by Patrick McHardy)
- * 	  3. Splitted ASN.1 code and data (suggested by Patrick McHardy)
- * 	  4. Sort ASN.1 data to avoid forwarding declarations (suggested by
- * 	     Patrick McHardy)
- * 	  5. Reset next TPKT data length in get_tpkt_data()
  */
 
 #include <linux/config.h>
