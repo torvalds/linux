@@ -1760,7 +1760,7 @@ static int snd_pcm_oss_open_file(struct file *file,
 		snd_pcm_oss_init_substream(substream, &setup[idx], minor);
 	}
 	
-	if (! pcm_oss_file->streams[0] && pcm_oss_file->streams[1]) {
+	if (!pcm_oss_file->streams[0] && !pcm_oss_file->streams[1]) {
 		snd_pcm_oss_release_file(pcm_oss_file);
 		return -EINVAL;
 	}
