@@ -1711,18 +1711,17 @@ static int __init init(void)
 module_init(init);
 module_exit(fini);
 
-EXPORT_SYMBOL(get_h245_addr);
-EXPORT_SYMBOL(get_h225_addr);
-EXPORT_SYMBOL(ip_conntrack_h245_expect);
-EXPORT_SYMBOL(ip_conntrack_q931_expect);
-EXPORT_SYMBOL(set_h245_addr_hook);
-EXPORT_SYMBOL(set_h225_addr_hook);
-EXPORT_SYMBOL(set_sig_addr_hook);
-EXPORT_SYMBOL(set_ras_addr_hook);
-EXPORT_SYMBOL(nat_rtp_rtcp_hook);
-EXPORT_SYMBOL(nat_t120_hook);
-EXPORT_SYMBOL(nat_h245_hook);
-EXPORT_SYMBOL(nat_q931_hook);
+EXPORT_SYMBOL_GPL(get_h225_addr);
+EXPORT_SYMBOL_GPL(ip_conntrack_h245_expect);
+EXPORT_SYMBOL_GPL(ip_conntrack_q931_expect);
+EXPORT_SYMBOL_GPL(set_h245_addr_hook);
+EXPORT_SYMBOL_GPL(set_h225_addr_hook);
+EXPORT_SYMBOL_GPL(set_sig_addr_hook);
+EXPORT_SYMBOL_GPL(set_ras_addr_hook);
+EXPORT_SYMBOL_GPL(nat_rtp_rtcp_hook);
+EXPORT_SYMBOL_GPL(nat_t120_hook);
+EXPORT_SYMBOL_GPL(nat_h245_hook);
+EXPORT_SYMBOL_GPL(nat_q931_hook);
 
 MODULE_AUTHOR("Jing Min Zhao <zhaojingmin@users.sourceforge.net>");
 MODULE_DESCRIPTION("H.323 connection tracking helper");
