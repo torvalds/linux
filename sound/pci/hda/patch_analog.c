@@ -1330,6 +1330,8 @@ static struct hda_board_config ad1981_cfg_tbl[] = {
 	  .config = AD1981_HP }, /* HP nx6320 */
 	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x309f,
 	  .config = AD1981_HP }, /* HP nx9420 AngelFire */
+	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x30a2,
+	  .config = AD1981_HP }, /* HP nx9420 AngelFire */
 	{ .modelname = "basic", .config = AD1981_BASIC },
 	{}
 };
