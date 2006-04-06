@@ -8034,9 +8034,13 @@ static int tg3_test_nvram(struct tg3 *tp)
 		for (i = 0; i < size; i++)
 			csum8 += buf8[i];
 
-		if (csum8 == 0)
-			return 0;
-		return -EIO;
+		if (csum8 == 0) {
+			err = 0;
+			goto out;
+		}
+
+		err = -EIO;
+		goto out;
 	}
 
 	/* Bootstrap checksum at offset 0x10 */
