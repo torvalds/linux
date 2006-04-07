@@ -304,7 +304,9 @@ static int orinoco_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	
 	orinoco_unlock(priv, &flags);
 
+	free_irq(pdev->irq, dev);
 	pci_save_state(pdev);
+	pci_disable_device(pdev);
 	pci_set_power_state(pdev, PCI_D3hot);
 
 	return 0;
@@ -320,7 +322,16 @@ static int orinoco_pci_resume(struct pci_dev *pdev)
 	printk(KERN_DEBUG "%s: Orinoco-PCI waking up\n", dev->name);
 
 	pci_set_power_state(pdev, 0);
+	pci_enable_device(pdev);
 	pci_restore_state(pdev);
+
+	err = request_irq(pdev->irq, orinoco_interrupt, SA_SHIRQ,
+			  dev->name, dev);
+	if (err) {
+		printk(KERN_ERR "%s: Cannot re-allocate IRQ\n", dev->name);
+		pci_disable_device(pdev);
+		return -EBUSY;
+	}
 
 	err = orinoco_reinit_firmware(dev);
 	if (err) {
