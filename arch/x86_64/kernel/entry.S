@@ -408,25 +408,9 @@ ENTRY(stub_execve)
 	CFI_ADJUST_CFA_OFFSET -8
 	CFI_REGISTER rip, r11
 	SAVE_REST
-	movq %r11, %r15
-	CFI_REGISTER rip, r15
 	FIXUP_TOP_OF_STACK %r11
 	call sys_execve
-	GET_THREAD_INFO(%rcx)
-	bt $TIF_IA32,threadinfo_flags(%rcx)
-	CFI_REMEMBER_STATE
-	jc exec_32bit
 	RESTORE_TOP_OF_STACK %r11
-	movq %r15, %r11
-	CFI_REGISTER rip, r11
-	RESTORE_REST
-	pushq %r11
-	CFI_ADJUST_CFA_OFFSET 8
-	CFI_REL_OFFSET rip, 0
-	ret
-
-exec_32bit:
-	CFI_RESTORE_STATE
 	movq %rax,RAX(%rsp)
 	RESTORE_REST
 	jmp int_ret_from_sys_call
