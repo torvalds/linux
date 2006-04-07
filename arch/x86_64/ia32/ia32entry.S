@@ -687,9 +687,11 @@ ia32_sys_call_table:
 	.quad sys_readlinkat		/* 305 */
 	.quad sys_fchmodat
 	.quad sys_faccessat
-	.quad sys_ni_syscall		/* pselect6 for now */
-	.quad sys_ni_syscall		/* ppoll for now */
+	.quad quiet_ni_syscall		/* pselect6 for now */
+	.quad quiet_ni_syscall		/* ppoll for now */
 	.quad sys_unshare		/* 310 */
 	.quad compat_sys_set_robust_list
 	.quad compat_sys_get_robust_list
+	.quad sys_splice
+	.quad sys_sync_file_range
 ia32_syscall_end:		
