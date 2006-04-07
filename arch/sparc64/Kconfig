@@ -194,6 +194,9 @@ endchoice
 
 endmenu
 
+config ARCH_SELECT_MEMORY_MODEL
+	def_bool y
+
 config ARCH_SPARSEMEM_ENABLE
 	def_bool y
 
