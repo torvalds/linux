@@ -48,6 +48,7 @@ extern unsigned long e820_end_of_ram(void);
 extern void e820_reserve_resources(void);
 extern void e820_print_map(char *who);
 extern int e820_any_mapped(unsigned long start, unsigned long end, unsigned type);
+extern int e820_all_mapped(unsigned long start, unsigned long end, unsigned type);
 
 extern void e820_bootmem_free(pg_data_t *pgdat, unsigned long start,unsigned long end);
 extern void e820_setup_gap(void);
