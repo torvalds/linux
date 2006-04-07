@@ -100,11 +100,30 @@ int early_pfn_to_nid(unsigned long pfn)
 }
 #endif
 
+static void * __init
+early_node_mem(int nodeid, unsigned long start, unsigned long end,
+	      unsigned long size)
+{
+	unsigned long mem = find_e820_area(start, end, size);
+	void *ptr;
+	if (mem != -1L)
+		return __va(mem);
+	ptr = __alloc_bootmem_nopanic(size,
+				SMP_CACHE_BYTES, __pa(MAX_DMA_ADDRESS));
+	if (ptr == 0) {
+		printk(KERN_ERR "Cannot find %lu bytes in node %d\n",
+			size, nodeid);
+		return NULL;
+	}
+	return ptr;
+}
+
 /* Initialize bootmem allocator for a node */
 void __init setup_node_bootmem(int nodeid, unsigned long start, unsigned long end)
 { 
 	unsigned long start_pfn, end_pfn, bootmap_pages, bootmap_size, bootmap_start; 
 	unsigned long nodedata_phys;
+	void *bootmap;
 	const int pgdat_size = round_up(sizeof(pg_data_t), PAGE_SIZE);
 
 	start = round_up(start, ZONE_ALIGN); 
@@ -114,13 +133,11 @@ void __init setup_node_bootmem(int nodeid, unsigned long start, unsigned long en
 	start_pfn = start >> PAGE_SHIFT;
 	end_pfn = end >> PAGE_SHIFT;
 
-	nodedata_phys = find_e820_area(start, end, pgdat_size); 
-	if (nodedata_phys == -1L) 
-		panic("Cannot find memory pgdat in node %d\n", nodeid);
+	node_data[nodeid] = early_node_mem(nodeid, start, end, pgdat_size);
+	if (node_data[nodeid] == NULL)
+		return;
+	nodedata_phys = __pa(node_data[nodeid]);
 
-	Dprintk("nodedata_phys %lx\n", nodedata_phys); 
-
-	node_data[nodeid] = phys_to_virt(nodedata_phys);
 	memset(NODE_DATA(nodeid), 0, sizeof(pg_data_t));
 	NODE_DATA(nodeid)->bdata = &plat_node_bdata[nodeid];
 	NODE_DATA(nodeid)->node_start_pfn = start_pfn;
@@ -129,9 +146,15 @@ void __init setup_node_bootmem(int nodeid, unsigned long start, unsigned long en
 	/* Find a place for the bootmem map */
 	bootmap_pages = bootmem_bootmap_pages(end_pfn - start_pfn); 
 	bootmap_start = round_up(nodedata_phys + pgdat_size, PAGE_SIZE);
-	bootmap_start = find_e820_area(bootmap_start, end, bootmap_pages<<PAGE_SHIFT);
-	if (bootmap_start == -1L) 
-		panic("Not enough continuous space for bootmap on node %d", nodeid); 
+	bootmap = early_node_mem(nodeid, bootmap_start, end,
+					bootmap_pages<<PAGE_SHIFT);
+	if (bootmap == NULL)  {
+		if (nodedata_phys < start || nodedata_phys >= end)
+			free_bootmem((unsigned long)node_data[nodeid],pgdat_size);
+		node_data[nodeid] = NULL;
+		return;
+	}
+	bootmap_start = __pa(bootmap);
 	Dprintk("bootmap start %lu pages %lu\n", bootmap_start, bootmap_pages); 
 	
 	bootmap_size = init_bootmem_node(NODE_DATA(nodeid),
