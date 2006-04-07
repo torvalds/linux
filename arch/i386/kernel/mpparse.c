@@ -110,21 +110,6 @@ static int __init mpf_checksum(unsigned char *mp, int len)
 static int mpc_record; 
 static struct mpc_config_translation *translation_table[MAX_MPC_ENTRY] __initdata;
 
-#ifdef CONFIG_X86_NUMAQ
-static int MP_valid_apicid(int apicid, int version)
-{
-	return hweight_long(apicid & 0xf) == 1 && (apicid >> 4) != 0xf;
-}
-#else
-static int MP_valid_apicid(int apicid, int version)
-{
-	if (version >= 0x14)
-		return apicid < 0xff;
-	else
-		return apicid < 0xf;
-}
-#endif
-
 static void __devinit MP_processor_info (struct mpc_config_processor *m)
 {
  	int ver, apicid;
@@ -189,12 +174,6 @@ static void __devinit MP_processor_info (struct mpc_config_processor *m)
 	}
 
 	ver = m->mpc_apicver;
-
-	if (!MP_valid_apicid(apicid, ver)) {
-		printk(KERN_WARNING "Processor #%d INVALID. (Max ID: %d).\n",
-			m->mpc_apicid, MAX_APICS);
-		return;
-	}
 
 	/*
 	 * Validate version

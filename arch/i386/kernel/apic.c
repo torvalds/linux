@@ -62,6 +62,18 @@ int apic_verbosity;
 
 static void apic_pm_activate(void);
 
+int modern_apic(void)
+{
+	unsigned int lvr, version;
+	/* AMD systems use old APIC versions, so check the CPU */
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD &&
+		boot_cpu_data.x86 >= 0xf)
+		return 1;
+	lvr = apic_read(APIC_LVR);
+	version = GET_APIC_VERSION(lvr);
+	return version >= 0x14;
+}
+
 /*
  * 'what should we do if we get a hw irq event on an illegal vector'.
  * each architecture has to answer this themselves.
@@ -119,10 +131,7 @@ void enable_NMI_through_LVT0 (void * dummy)
 
 int get_physical_broadcast(void)
 {
-	unsigned int lvr, version;
-	lvr = apic_read(APIC_LVR);
-	version = GET_APIC_VERSION(lvr);
-	if (!APIC_INTEGRATED(version) || version >= 0x14)
+	if (modern_apic())
 		return 0xff;
 	else
 		return 0xf;
@@ -349,9 +358,9 @@ int __init verify_local_APIC(void)
 
 void __init sync_Arb_IDs(void)
 {
-	/* Unsupported on P4 - see Intel Dev. Manual Vol. 3, Ch. 8.6.1 */
-	unsigned int ver = GET_APIC_VERSION(apic_read(APIC_LVR));
-	if (ver >= 0x14)	/* P4 or higher */
+	/* Unsupported on P4 - see Intel Dev. Manual Vol. 3, Ch. 8.6.1
+	   And not needed on AMD */
+	if (modern_apic())
 		return;
 	/*
 	 * Wait for idle.
