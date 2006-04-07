@@ -449,16 +449,13 @@ static int orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 		/* Oops, the firmware hasn't established a connection,
                    silently drop the packet (this seems to be the
                    safest approach). */
-		stats->tx_errors++;
-		orinoco_unlock(priv, &flags);
-		dev_kfree_skb(skb);
-		return NETDEV_TX_OK;
+		goto drop;
 	}
 
 	/* Check packet length */
 	data_len = skb->len;
 	if (data_len < ETH_HLEN)
-		goto fail;
+		goto drop;
 
 	eh = (struct ethhdr *)skb->data;
 
@@ -469,8 +466,7 @@ static int orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (net_ratelimit())
 			printk(KERN_ERR "%s: Error %d writing Tx descriptor "
 			       "to BAP\n", dev->name, err);
-		stats->tx_errors++;
-		goto fail;
+		goto busy;
 	}
 
 	/* Clear the 802.11 header and data length fields - some
@@ -501,8 +497,7 @@ static int orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 			if (net_ratelimit())
 				printk(KERN_ERR "%s: Error %d writing packet "
 				       "header to BAP\n", dev->name, err);
-			stats->tx_errors++;
-			goto fail;
+			goto busy;
 		}
 	} else { /* IEEE 802.3 frame */
 		data_len = skb->len;
@@ -515,8 +510,7 @@ static int orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (err) {
 		printk(KERN_ERR "%s: Error %d writing packet to BAP\n",
 		       dev->name, err);
-		stats->tx_errors++;
-		goto fail;
+		goto busy;
 	}
 
 	/* Finally, we actually initiate the send */
@@ -529,20 +523,23 @@ static int orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (net_ratelimit())
 			printk(KERN_ERR "%s: Error %d transmitting packet\n",
 				dev->name, err);
-		stats->tx_errors++;
-		goto fail;
+		goto busy;
 	}
 
 	dev->trans_start = jiffies;
 	stats->tx_bytes += data_off + data_len;
+	goto ok;
 
+ drop:
+	stats->tx_errors++;
+	stats->tx_dropped++;
+
+ ok:
 	orinoco_unlock(priv, &flags);
-
 	dev_kfree_skb(skb);
-
 	return NETDEV_TX_OK;
- fail:
 
+ busy:
 	orinoco_unlock(priv, &flags);
 	return NETDEV_TX_BUSY;
 }
