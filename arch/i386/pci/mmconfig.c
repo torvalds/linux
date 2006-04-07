@@ -80,8 +80,10 @@ static int pci_mmcfg_read(unsigned int seg, unsigned int bus,
 	unsigned long flags;
 	u32 base;
 
-	if (!value || (bus > 255) || (devfn > 255) || (reg > 4095))
+	if (!value || (bus > 255) || (devfn > 255) || (reg > 4095)) {
+		*value = -1;
 		return -EINVAL;
+	}
 
 	base = get_base_addr(seg, bus, devfn);
 	if (!base)

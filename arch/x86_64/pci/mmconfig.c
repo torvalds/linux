@@ -75,8 +75,10 @@ static int pci_mmcfg_read(unsigned int seg, unsigned int bus,
 	char __iomem *addr;
 
 	/* Why do we have this when nobody checks it. How about a BUG()!? -AK */
-	if (unlikely(!value || (bus > 255) || (devfn > 255) || (reg > 4095)))
+	if (unlikely(!value || (bus > 255) || (devfn > 255) || (reg > 4095))) {
+		*value = -1;
 		return -EINVAL;
+	}
 
 	addr = pci_dev_base(seg, bus, devfn);
 	if (!addr)

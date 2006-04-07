@@ -19,8 +19,10 @@ int pci_conf1_read(unsigned int seg, unsigned int bus,
 {
 	unsigned long flags;
 
-	if (!value || (bus > 255) || (devfn > 255) || (reg > 255))
+	if (!value || (bus > 255) || (devfn > 255) || (reg > 255)) {
+		*value = -1;
 		return -EINVAL;
+	}
 
 	spin_lock_irqsave(&pci_config_lock, flags);
 
