@@ -776,21 +776,32 @@ static void pnpacpi_encode_dma(struct acpi_resource *resource,
 	struct resource *p)
 {
 	/* Note: pnp_assign_dma will copy pnp_dma->flags into p->flags */
-	if (p->flags & IORESOURCE_DMA_COMPATIBLE)
-		resource->data.dma.type = ACPI_COMPATIBILITY;
-	else if (p->flags & IORESOURCE_DMA_TYPEA)
-		resource->data.dma.type = ACPI_TYPE_A;
-	else if (p->flags & IORESOURCE_DMA_TYPEB)
-		resource->data.dma.type = ACPI_TYPE_B;
-	else if (p->flags & IORESOURCE_DMA_TYPEF)
-		resource->data.dma.type = ACPI_TYPE_F;
-	if (p->flags & IORESOURCE_DMA_8BIT)
-		resource->data.dma.transfer = ACPI_TRANSFER_8;
-	else if (p->flags & IORESOURCE_DMA_8AND16BIT)
-		resource->data.dma.transfer = ACPI_TRANSFER_8_16;
-	else if (p->flags & IORESOURCE_DMA_16BIT)
-		resource->data.dma.transfer = ACPI_TRANSFER_16;
-	resource->data.dma.bus_master = p->flags & IORESOURCE_DMA_MASTER;
+	switch (p->flags & IORESOURCE_DMA_SPEED_MASK) {
+		case IORESOURCE_DMA_TYPEA:
+			resource->data.dma.type = ACPI_TYPE_A;
+			break;
+		case IORESOURCE_DMA_TYPEB:
+			resource->data.dma.type = ACPI_TYPE_B;
+			break;
+		case IORESOURCE_DMA_TYPEF:
+			resource->data.dma.type = ACPI_TYPE_F;
+			break;
+		default:
+			resource->data.dma.type = ACPI_COMPATIBILITY;
+	}
+
+	switch (p->flags & IORESOURCE_DMA_TYPE_MASK) {
+		case IORESOURCE_DMA_8BIT:
+			resource->data.dma.transfer = ACPI_TRANSFER_8;
+			break;
+		case IORESOURCE_DMA_8AND16BIT:
+			resource->data.dma.transfer = ACPI_TRANSFER_8_16;
+			break;
+		default:
+			resource->data.dma.transfer = ACPI_TRANSFER_16;
+	}
+
+	resource->data.dma.bus_master = !!(p->flags & IORESOURCE_DMA_MASTER);
 	resource->data.dma.channel_count = 1;
 	resource->data.dma.channels[0] = p->start;
 }
