@@ -726,7 +726,7 @@ static __init int late_hpet_init(void)
 	unsigned int 		ntimer;
 
 	if (!vxtime.hpet_address)
-        	return -1;
+        	return 0;
 
 	memset(&hd, 0, sizeof (hd));
 
