@@ -4,6 +4,7 @@
 
 #include <linux/pci.h>
 #include <linux/init.h>
+#include <linux/dmi.h>
 #include "pci.h"
 
 /*
@@ -187,6 +188,10 @@ static int __init pci_sanity_check(struct pci_raw_ops *o)
 	int devfn;
 
 	if (pci_probe & PCI_NO_CHECKS)
+		return 1;
+	/* Assume Type 1 works for newer systems.
+	   This handles machines that don't have anything on PCI Bus 0. */
+	if (dmi_get_year(DMI_BIOS_DATE) >= 2001)
 		return 1;
 
 	for (devfn = 0; devfn < 0x100; devfn++) {
