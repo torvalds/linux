@@ -601,6 +601,28 @@ struct cx88_board cx88_boards[] = {
 		},
 		.dvb            = 1,
 	},
+	[CX88_BOARD_PCHDTV_HD5500] = {
+		.name           = "pcHDTV HD5500 HDTV",
+		.tuner_type     = TUNER_LG_TDVS_H062F,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.tda9887_conf   = TDA9887_PRESENT,
+		.input          = {{
+			.type   = CX88_VMUX_TELEVISION,
+			.vmux   = 0,
+			.gpio0  = 0x87fd,
+		},{
+			.type   = CX88_VMUX_COMPOSITE1,
+			.vmux   = 1,
+			.gpio0  = 0x87f9,
+		},{
+			.type   = CX88_VMUX_SVIDEO,
+			.vmux   = 2,
+			.gpio0  = 0x87f9,
+		}},
+		.dvb            = 1,
+	},
 	[CX88_BOARD_HAUPPAUGE_ROSLYN] = {
 		// entry added by Kaustubh D. Bhalerao <bhalerao.1@osu.edu>
 		// GPIO values obtained from regspy, courtesy Sean Covel
@@ -1311,6 +1333,10 @@ struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x18ac,
 		.subdevice = 0xdb44,
 		.card      = CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_HYBRID,
+	},{
+		.subvendor = 0x7063,
+		.subdevice = 0x5500,
+		.card      = CX88_BOARD_PCHDTV_HD5500,
 	},
 };
 const unsigned int cx88_idcount = ARRAY_SIZE(cx88_subids);

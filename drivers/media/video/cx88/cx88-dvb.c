@@ -455,6 +455,14 @@ static struct lgdt330x_config fusionhdtv_5_gold = {
 	.pll_set          = lgdt330x_pll_set,
 	.set_ts_params    = lgdt330x_set_ts_param,
 };
+
+static struct lgdt330x_config pchdtv_hd5500 = {
+	.demod_address    = 0x59,
+	.demod_chip       = LGDT3303,
+	.serial_mpeg      = 0x40, /* TPSERIAL for 3303 in TOP_CONTROL */
+	.pll_set          = lgdt330x_pll_set,
+	.set_ts_params    = lgdt330x_set_ts_param,
+};
 #endif
 
 #ifdef HAVE_NXT200X
@@ -658,6 +666,22 @@ static int dvb_register(struct cx8802_dev *dev)
 		dev->core->pll_addr = 0x61;
 		dev->core->pll_desc = &dvb_pll_tdvs_tua6034;
 		dev->dvb.frontend = lgdt330x_attach(&fusionhdtv_5_gold,
+						    &dev->core->i2c_adap);
+		}
+		break;
+	case CX88_BOARD_PCHDTV_HD5500:
+		dev->ts_gen_cntrl = 0x08;
+		{
+		/* Do a hardware reset of chip before using it. */
+		struct cx88_core *core = dev->core;
+
+		cx_clear(MO_GP0_IO, 1);
+		mdelay(100);
+		cx_set(MO_GP0_IO, 1);
+		mdelay(200);
+		dev->core->pll_addr = 0x61;
+		dev->core->pll_desc = &dvb_pll_tdvs_tua6034;
+		dev->dvb.frontend = lgdt330x_attach(&pchdtv_hd5500,
 						    &dev->core->i2c_adap);
 		}
 		break;
