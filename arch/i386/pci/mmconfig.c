@@ -17,12 +17,15 @@
 
 #define MMCONFIG_APER_SIZE (256*1024*1024)
 
+/* Assume systems with more busses have correct MCFG */
+#define MAX_CHECK_BUS 16
+
 #define mmcfg_virt_addr ((void __iomem *) fix_to_virt(FIX_PCIE_MCFG))
 
 /* The base address of the last MMCONFIG device accessed */
 static u32 mmcfg_last_accessed_device;
 
-static DECLARE_BITMAP(fallback_slots, 32);
+static DECLARE_BITMAP(fallback_slots, MAX_CHECK_BUS*32);
 
 /*
  * Functions for accessing PCI configuration space with MMCONFIG accesses
@@ -32,8 +35,8 @@ static u32 get_base_addr(unsigned int seg, int bus, unsigned devfn)
 	int cfg_num = -1;
 	struct acpi_table_mcfg_config *cfg;
 
-	if (seg == 0 && bus == 0 &&
-	    test_bit(PCI_SLOT(devfn), fallback_slots))
+	if (seg == 0 && bus < MAX_CHECK_BUS &&
+	    test_bit(PCI_SLOT(devfn) + 32*bus, fallback_slots))
 		return 0;
 
 	while (1) {
@@ -149,29 +152,34 @@ static struct pci_raw_ops pci_mmcfg = {
    Normally this can be expressed in the MCFG by not listing them
    and assigning suitable _SEGs, but this isn't implemented in some BIOS.
    Instead try to discover all devices on bus 0 that are unreachable using MM
-   and fallback for them.
-   We only do this for bus 0/seg 0 */
+   and fallback for them. */
 static __init void unreachable_devices(void)
 {
-	int i;
+	int i, k;
 	unsigned long flags;
 
-	for (i = 0; i < 32; i++) {
-		u32 val1;
-		u32 addr;
+	for (k = 0; k < MAX_CHECK_BUS; k++) {
+		for (i = 0; i < 32; i++) {
+			u32 val1;
+			u32 addr;
 
-		pci_conf1_read(0, 0, PCI_DEVFN(i, 0), 0, 4, &val1);
-		if (val1 == 0xffffffff)
-			continue;
+			pci_conf1_read(0, k, PCI_DEVFN(i, 0), 0, 4, &val1);
+			if (val1 == 0xffffffff)
+				continue;
 
-		/* Locking probably not needed, but safer */
-		spin_lock_irqsave(&pci_config_lock, flags);
-		addr = get_base_addr(0, 0, PCI_DEVFN(i, 0));
-		if (addr != 0)
-			pci_exp_set_dev_base(addr, 0, PCI_DEVFN(i, 0));
-		if (addr == 0 || readl((u32 __iomem *)mmcfg_virt_addr) != val1)
-			set_bit(i, fallback_slots);
-		spin_unlock_irqrestore(&pci_config_lock, flags);
+			/* Locking probably not needed, but safer */
+			spin_lock_irqsave(&pci_config_lock, flags);
+			addr = get_base_addr(0, k, PCI_DEVFN(i, 0));
+			if (addr != 0)
+				pci_exp_set_dev_base(addr, k, PCI_DEVFN(i, 0));
+			if (addr == 0 ||
+			    readl((u32 __iomem *)mmcfg_virt_addr) != val1) {
+				set_bit(i, fallback_slots);
+				printk(KERN_NOTICE
+			"PCI: No mmconfig possible on %x:%x\n", k, i);
+			}
+			spin_unlock_irqrestore(&pci_config_lock, flags);
+		}
 	}
 }
 
