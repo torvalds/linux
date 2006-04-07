@@ -38,12 +38,10 @@ int reqsk_queue_alloc(struct request_sock_queue *queue,
 {
 	const int lopt_size = sizeof(struct listen_sock) +
 			      nr_table_entries * sizeof(struct request_sock *);
-	struct listen_sock *lopt = kmalloc(lopt_size, GFP_KERNEL);
+	struct listen_sock *lopt = kzalloc(lopt_size, GFP_KERNEL);
 
 	if (lopt == NULL)
 		return -ENOMEM;
-
-	memset(lopt, 0, lopt_size);
 
 	for (lopt->max_qlen_log = 6;
 	     (1 << lopt->max_qlen_log) < sysctl_max_syn_backlog;
