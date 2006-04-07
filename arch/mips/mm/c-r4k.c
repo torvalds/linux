@@ -750,12 +750,12 @@ static void __init probe_pcache(void)
 		icache_size = 1 << (12 + ((config & CONF_IC) >> 9));
 		c->icache.linesz = 16 << ((config & CONF_IB) >> 5);
 		c->icache.ways = 2;
-		c->icache.waybit = ffs(icache_size/2) - 1;
+		c->icache.waybit = __ffs(icache_size/2);
 
 		dcache_size = 1 << (12 + ((config & CONF_DC) >> 6));
 		c->dcache.linesz = 16 << ((config & CONF_DB) >> 4);
 		c->dcache.ways = 2;
-		c->dcache.waybit= ffs(dcache_size/2) - 1;
+		c->dcache.waybit= __ffs(dcache_size/2);
 
 		c->options |= MIPS_CPU_CACHE_CDEX_P;
 		break;
@@ -838,12 +838,12 @@ static void __init probe_pcache(void)
 		icache_size = 1 << (10 + ((config & CONF_IC) >> 9));
 		c->icache.linesz = 16 << ((config & CONF_IB) >> 5);
 		c->icache.ways = 2;
-		c->icache.waybit = ffs(icache_size/2) - 1;
+		c->icache.waybit = __ffs(icache_size/2);
 
 		dcache_size = 1 << (10 + ((config & CONF_DC) >> 6));
 		c->dcache.linesz = 16 << ((config & CONF_DB) >> 4);
 		c->dcache.ways = 2;
-		c->dcache.waybit = ffs(dcache_size/2) - 1;
+		c->dcache.waybit = __ffs(dcache_size/2);
 
 		c->options |= MIPS_CPU_CACHE_CDEX_P;
 		break;
@@ -874,12 +874,12 @@ static void __init probe_pcache(void)
 		icache_size = 1 << (12 + ((config & CONF_IC) >> 9));
 		c->icache.linesz = 16 << ((config & CONF_IB) >> 5);
 		c->icache.ways = 4;
-		c->icache.waybit = ffs(icache_size / c->icache.ways) - 1;
+		c->icache.waybit = __ffs(icache_size / c->icache.ways);
 
 		dcache_size = 1 << (12 + ((config & CONF_DC) >> 6));
 		c->dcache.linesz = 16 << ((config & CONF_DB) >> 4);
 		c->dcache.ways = 4;
-		c->dcache.waybit = ffs(dcache_size / c->dcache.ways) - 1;
+		c->dcache.waybit = __ffs(dcache_size / c->dcache.ways);
 
 #if !defined(CONFIG_SMP) || !defined(RM9000_CDEX_SMP_WAR)
 		c->options |= MIPS_CPU_CACHE_CDEX_P;
@@ -907,7 +907,7 @@ static void __init probe_pcache(void)
 		icache_size = c->icache.sets *
 		              c->icache.ways *
 		              c->icache.linesz;
-		c->icache.waybit = ffs(icache_size/c->icache.ways) - 1;
+		c->icache.waybit = __ffs(icache_size/c->icache.ways);
 
 		if (config & 0x8)		/* VI bit */
 			c->icache.flags |= MIPS_CACHE_VTAG;
@@ -927,7 +927,7 @@ static void __init probe_pcache(void)
 		dcache_size = c->dcache.sets *
 		              c->dcache.ways *
 		              c->dcache.linesz;
-		c->dcache.waybit = ffs(dcache_size/c->dcache.ways) - 1;
+		c->dcache.waybit = __ffs(dcache_size/c->dcache.ways);
 
 		c->options |= MIPS_CPU_PREFETCH;
 		break;
