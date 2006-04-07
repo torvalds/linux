@@ -46,7 +46,7 @@
 
 #define PFX "powernow-k8: "
 #define BFX PFX "BIOS error: "
-#define VERSION "version 1.60.1"
+#define VERSION "version 1.60.2"
 #include "powernow-k8.h"
 
 /* serialize freq changes  */
@@ -910,6 +910,9 @@ static int powernowk8_target(struct cpufreq_policy *pol, unsigned targfreq, unsi
 	unsigned int newstate;
 	int ret = -EIO;
 
+	if (!data)
+		return -EINVAL;
+
 	/* only run on specific CPU from here on */
 	oldmask = current->cpus_allowed;
 	set_cpus_allowed(current, cpumask_of_cpu(pol->cpu));
@@ -968,6 +971,9 @@ err_out:
 static int powernowk8_verify(struct cpufreq_policy *pol)
 {
 	struct powernow_k8_data *data = powernow_data[pol->cpu];
+
+	if (!data)
+		return -EINVAL;
 
 	return cpufreq_frequency_table_verify(pol, data->powernow_table);
 }
