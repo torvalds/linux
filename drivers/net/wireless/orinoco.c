@@ -536,6 +536,8 @@ static int orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 
  busy:
+	if (err == -EIO)
+		schedule_work(&priv->reset_work);
 	orinoco_unlock(priv, &flags);
 	return NETDEV_TX_BUSY;
 }
