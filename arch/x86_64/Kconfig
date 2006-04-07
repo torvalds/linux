@@ -136,6 +136,11 @@ config X86_L1_CACHE_SHIFT
 	default "7" if GENERIC_CPU || MPSC
 	default "6" if MK8
 
+config X86_INTERNODE_CACHE_BYTES
+	int
+	default "4096" if X86_VSMP
+	default X86_L1_CACHE_BYTES if !X86_VSMP
+
 config X86_TSC
 	bool
 	default y
