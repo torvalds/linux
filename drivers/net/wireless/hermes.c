@@ -400,8 +400,7 @@ int hermes_bap_pread(hermes_t *hw, int bap, void *buf, int len,
 }
 
 /* Write a block of data to the chip's buffer, via the
- * BAP. Synchronization/serialization is the caller's problem. len
- * must be even.
+ * BAP. Synchronization/serialization is the caller's problem.
  *
  * Returns: < 0 on internal failure (errno), 0 on success, > 0 on error from firmware
  */
@@ -411,7 +410,7 @@ int hermes_bap_pwrite(hermes_t *hw, int bap, const void *buf, int len,
 	int dreg = bap ? HERMES_DATA1 : HERMES_DATA0;
 	int err = 0;
 
-	if ( (len < 0) || (len % 2) )
+	if (len < 0)
 		return -EINVAL;
 
 	err = hermes_bap_seek(hw, bap, id, offset);
@@ -419,7 +418,7 @@ int hermes_bap_pwrite(hermes_t *hw, int bap, const void *buf, int len,
 		goto out;
 	
 	/* Actually do the transfer */
-	hermes_write_words(hw, dreg, buf, len/2);
+	hermes_write_bytes(hw, dreg, buf, len);
 
  out:	
 	return err;
@@ -427,7 +426,7 @@ int hermes_bap_pwrite(hermes_t *hw, int bap, const void *buf, int len,
 
 /* Write a block of data to the chip's buffer with padding if
  * neccessary, via the BAP. Synchronization/serialization is the
- * caller's problem. len must be even.
+ * caller's problem.
  *
  * Returns: < 0 on internal failure (errno), 0 on success, > 0 on error from firmware
  */
@@ -437,7 +436,7 @@ int hermes_bap_pwrite_pad(hermes_t *hw, int bap, const void *buf, unsigned data_
 	int dreg = bap ? HERMES_DATA1 : HERMES_DATA0;
 	int err = 0;
 
-	if (len < 0 || len % 2 || data_len > len)
+	if (len < 0 || data_len > len)
 		return -EINVAL;
 
 	err = hermes_bap_seek(hw, bap, id, offset);
@@ -445,13 +444,13 @@ int hermes_bap_pwrite_pad(hermes_t *hw, int bap, const void *buf, unsigned data_
 		goto out;
 
 	/* Transfer all the complete words of data */
-	hermes_write_words(hw, dreg, buf, data_len/2);
+	hermes_write_bytes(hw, dreg, buf, data_len);
 	/* If there is an odd byte left over pad and transfer it */
 	if (data_len & 1) {
 		u8 end[2];
 		end[1] = 0;
 		end[0] = ((unsigned char *)buf)[data_len - 1];
-		hermes_write_words(hw, dreg, end, 1);
+		hermes_write_bytes(hw, dreg, end, 2);
 		data_len ++;
 	}
 	/* Now send zeros for the padding */
@@ -534,7 +533,7 @@ int hermes_write_ltv(hermes_t *hw, int bap, u16 rid,
 
 	count = length - 1;
 
-	hermes_write_words(hw, dreg, value, count);
+	hermes_write_bytes(hw, dreg, value, count << 1);
 
 	err = hermes_docmd_wait(hw, HERMES_CMD_ACCESS | HERMES_CMD_WRITE, 
 				rid, NULL);

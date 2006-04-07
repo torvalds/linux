@@ -408,10 +408,13 @@ static inline void hermes_read_words(struct hermes *hw, int off, void *buf, unsi
 	ioread16_rep(hw->iobase + off, buf, count);
 }
 
-static inline void hermes_write_words(struct hermes *hw, int off, const void *buf, unsigned count)
+static inline void hermes_write_bytes(struct hermes *hw, int off,
+				      const char *buf, unsigned count)
 {
 	off = off << hw->reg_spacing;
-	iowrite16_rep(hw->iobase + off, buf, count);
+	iowrite16_rep(hw->iobase + off, buf, count >> 1);
+	if (unlikely(count & 1))
+		iowrite8(buf[count - 1], hw->iobase + off);
 }
 
 static inline void hermes_clear_words(struct hermes *hw, int off, unsigned count)

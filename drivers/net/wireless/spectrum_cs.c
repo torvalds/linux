@@ -343,8 +343,7 @@ spectrum_plug_pdi(hermes_t *hw, struct pdr *first_pdr, struct pdi *pdi)
 
 	/* do the actual plugging */
 	spectrum_aux_setaddr(hw, pdr_addr(pdr));
-	hermes_write_words(hw, HERMES_AUXDATA, pdi->data,
-			   pdi_len(pdi) / 2);
+	hermes_write_bytes(hw, HERMES_AUXDATA, pdi->data, pdi_len(pdi));
 
 	return 0;
 }
@@ -424,8 +423,8 @@ spectrum_load_blocks(hermes_t *hw, const struct dblock *first_block)
 
 	while (dblock_addr(blk) != BLOCK_END) {
 		spectrum_aux_setaddr(hw, blkaddr);
-		hermes_write_words(hw, HERMES_AUXDATA, blk->data,
-				   blklen / 2);
+		hermes_write_bytes(hw, HERMES_AUXDATA, blk->data,
+				   blklen);
 
 		blk = (struct dblock *) &blk->data[blklen];
 		blkaddr = dblock_addr(blk);
