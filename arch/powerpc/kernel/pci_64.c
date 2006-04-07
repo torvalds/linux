@@ -42,14 +42,6 @@
 unsigned long pci_probe_only = 1;
 int pci_assign_all_buses = 0;
 
-/*
- * legal IO pages under MAX_ISA_PORT.  This is to ensure we don't touch
- * devices we don't have access to.
- */
-unsigned long io_page_mask;
-
-EXPORT_SYMBOL(io_page_mask);
-
 #ifdef CONFIG_PPC_MULTIPLATFORM
 static void fixup_resource(struct resource *res, struct pci_dev *dev);
 static void do_bus_setup(struct pci_bus *bus);
@@ -1104,8 +1096,6 @@ void __init pci_setup_phb_io(struct pci_controller *hose, int primary)
 			pci_process_ISA_OF_ranges(isa_dn, hose->io_base_phys,
 						hose->io_base_virt);
 			of_node_put(isa_dn);
-			/* Allow all IO */
-			io_page_mask = -1;
 		}
 	}
 
@@ -1232,27 +1222,13 @@ static void phbs_remap_io(void)
 static void __devinit fixup_resource(struct resource *res, struct pci_dev *dev)
 {
 	struct pci_controller *hose = pci_bus_to_host(dev->bus);
-	unsigned long start, end, mask, offset;
+	unsigned long offset;
 
 	if (res->flags & IORESOURCE_IO) {
 		offset = (unsigned long)hose->io_base_virt - pci_io_base;
 
-		start = res->start += offset;
-		end = res->end += offset;
-
-		/* Need to allow IO access to pages that are in the
-		   ISA range */
-		if (start < MAX_ISA_PORT) {
-			if (end > MAX_ISA_PORT)
-				end = MAX_ISA_PORT;
-
-			start >>= PAGE_SHIFT;
-			end >>= PAGE_SHIFT;
-
-			/* get the range of pages for the map */
-			mask = ((1 << (end+1)) - 1) ^ ((1 << start) - 1);
-			io_page_mask |= mask;
-		}
+		res->start += offset;
+		res->end += offset;
 	} else if (res->flags & IORESOURCE_MEM) {
 		res->start += hose->pci_mem_offset;
 		res->end += hose->pci_mem_offset;

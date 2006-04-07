@@ -45,8 +45,6 @@
 #include "call_pci.h"
 #include "iommu.h"
 
-extern unsigned long io_page_mask;
-
 /*
  * Forward declares of prototypes.
  */
@@ -277,7 +275,6 @@ void iSeries_pcibios_init(void)
 {
 	iomm_table_initialize();
 	find_and_init_phbs();
-	io_page_mask = -1;
 }
 
 /*
