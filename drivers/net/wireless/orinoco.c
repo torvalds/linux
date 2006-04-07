@@ -456,26 +456,21 @@ static int orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct hermes_tx_descriptor desc;
 	unsigned long flags;
 
-	TRACE_ENTER(dev->name);
-
 	if (! netif_running(dev)) {
 		printk(KERN_ERR "%s: Tx on stopped device!\n",
 		       dev->name);
-		TRACE_EXIT(dev->name);
 		return 1;
 	}
 	
 	if (netif_queue_stopped(dev)) {
 		printk(KERN_DEBUG "%s: Tx while transmitter busy!\n", 
 		       dev->name);
-		TRACE_EXIT(dev->name);
 		return 1;
 	}
 	
 	if (orinoco_lock(priv, &flags) != 0) {
 		printk(KERN_ERR "%s: orinoco_xmit() called while hw_unavailable\n",
 		       dev->name);
-		TRACE_EXIT(dev->name);
 		return 1;
 	}
 
@@ -486,7 +481,6 @@ static int orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 		stats->tx_errors++;
 		orinoco_unlock(priv, &flags);
 		dev_kfree_skb(skb);
-		TRACE_EXIT(dev->name);
 		return 0;
 	}
 
@@ -586,11 +580,8 @@ static int orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	dev_kfree_skb(skb);
 
-	TRACE_EXIT(dev->name);
-
 	return 0;
  fail:
-	TRACE_EXIT(dev->name);
 
 	orinoco_unlock(priv, &flags);
 	return err;
@@ -2274,8 +2265,6 @@ static int orinoco_init(struct net_device *dev)
 	u16 reclen;
 	int len;
 
-	TRACE_ENTER(dev->name);
-
 	/* No need to lock, the hw_unavailable flag is already set in
 	 * alloc_orinocodev() */
 	priv->nicbuf_size = IEEE80211_FRAME_LEN + ETH_HLEN;
@@ -2429,7 +2418,6 @@ static int orinoco_init(struct net_device *dev)
 	printk(KERN_DEBUG "%s: ready\n", dev->name);
 
  out:
-	TRACE_EXIT(dev->name);
 	return err;
 }
 
@@ -2797,8 +2785,6 @@ static int orinoco_ioctl_getiwrange(struct net_device *dev,
 	int numrates;
 	int i, k;
 
-	TRACE_ENTER(dev->name);
-
 	rrq->length = sizeof(struct iw_range);
 	memset(range, 0, sizeof(struct iw_range));
 
@@ -2887,8 +2873,6 @@ static int orinoco_ioctl_getiwrange(struct net_device *dev,
 	IW_EVENT_CAPA_SET(range->event_capa, SIOCGIWAP);
 	IW_EVENT_CAPA_SET(range->event_capa, SIOCGIWSCAN);
 	IW_EVENT_CAPA_SET(range->event_capa, IWEVTXDROP);
-
-	TRACE_EXIT(dev->name);
 
 	return 0;
 }
@@ -3071,8 +3055,6 @@ static int orinoco_ioctl_getessid(struct net_device *dev,
 	int err = 0;
 	unsigned long flags;
 
-	TRACE_ENTER(dev->name);
-
 	if (netif_running(dev)) {
 		err = orinoco_hw_get_essid(priv, &active, essidbuf);
 		if (err)
@@ -3087,8 +3069,6 @@ static int orinoco_ioctl_getessid(struct net_device *dev,
 	erq->flags = 1;
 	erq->length = strlen(essidbuf) + 1;
 
-	TRACE_EXIT(dev->name);
-	
 	return 0;
 }
 
@@ -4347,69 +4327,6 @@ static struct ethtool_ops orinoco_ethtool_ops = {
 	.get_drvinfo = orinoco_get_drvinfo,
 	.get_link = ethtool_op_get_link,
 };
-
-/********************************************************************/
-/* Debugging                                                        */
-/********************************************************************/
-
-#if 0
-static void show_rx_frame(struct orinoco_rxframe_hdr *frame)
-{
-	printk(KERN_DEBUG "RX descriptor:\n");
-	printk(KERN_DEBUG "  status      = 0x%04x\n", frame->desc.status);
-	printk(KERN_DEBUG "  time        = 0x%08x\n", frame->desc.time);
-	printk(KERN_DEBUG "  silence     = 0x%02x\n", frame->desc.silence);
-	printk(KERN_DEBUG "  signal      = 0x%02x\n", frame->desc.signal);
-	printk(KERN_DEBUG "  rate        = 0x%02x\n", frame->desc.rate);
-	printk(KERN_DEBUG "  rxflow      = 0x%02x\n", frame->desc.rxflow);
-	printk(KERN_DEBUG "  reserved    = 0x%08x\n", frame->desc.reserved);
-
-	printk(KERN_DEBUG "IEEE 802.11 header:\n");
-	printk(KERN_DEBUG "  frame_ctl   = 0x%04x\n",
-	       frame->p80211.frame_ctl);
-	printk(KERN_DEBUG "  duration_id = 0x%04x\n",
-	       frame->p80211.duration_id);
-	printk(KERN_DEBUG "  addr1       = %02x:%02x:%02x:%02x:%02x:%02x\n",
-	       frame->p80211.addr1[0], frame->p80211.addr1[1],
-	       frame->p80211.addr1[2], frame->p80211.addr1[3],
-	       frame->p80211.addr1[4], frame->p80211.addr1[5]);
-	printk(KERN_DEBUG "  addr2       = %02x:%02x:%02x:%02x:%02x:%02x\n",
-	       frame->p80211.addr2[0], frame->p80211.addr2[1],
-	       frame->p80211.addr2[2], frame->p80211.addr2[3],
-	       frame->p80211.addr2[4], frame->p80211.addr2[5]);
-	printk(KERN_DEBUG "  addr3       = %02x:%02x:%02x:%02x:%02x:%02x\n",
-	       frame->p80211.addr3[0], frame->p80211.addr3[1],
-	       frame->p80211.addr3[2], frame->p80211.addr3[3],
-	       frame->p80211.addr3[4], frame->p80211.addr3[5]);
-	printk(KERN_DEBUG "  seq_ctl     = 0x%04x\n",
-	       frame->p80211.seq_ctl);
-	printk(KERN_DEBUG "  addr4       = %02x:%02x:%02x:%02x:%02x:%02x\n",
-	       frame->p80211.addr4[0], frame->p80211.addr4[1],
-	       frame->p80211.addr4[2], frame->p80211.addr4[3],
-	       frame->p80211.addr4[4], frame->p80211.addr4[5]);
-	printk(KERN_DEBUG "  data_len    = 0x%04x\n",
-	       frame->p80211.data_len);
-
-	printk(KERN_DEBUG "IEEE 802.3 header:\n");
-	printk(KERN_DEBUG "  dest        = %02x:%02x:%02x:%02x:%02x:%02x\n",
-	       frame->p8023.h_dest[0], frame->p8023.h_dest[1],
-	       frame->p8023.h_dest[2], frame->p8023.h_dest[3],
-	       frame->p8023.h_dest[4], frame->p8023.h_dest[5]);
-	printk(KERN_DEBUG "  src         = %02x:%02x:%02x:%02x:%02x:%02x\n",
-	       frame->p8023.h_source[0], frame->p8023.h_source[1],
-	       frame->p8023.h_source[2], frame->p8023.h_source[3],
-	       frame->p8023.h_source[4], frame->p8023.h_source[5]);
-	printk(KERN_DEBUG "  len         = 0x%04x\n", frame->p8023.h_proto);
-
-	printk(KERN_DEBUG "IEEE 802.2 LLC/SNAP header:\n");
-	printk(KERN_DEBUG "  DSAP        = 0x%02x\n", frame->p8022.dsap);
-	printk(KERN_DEBUG "  SSAP        = 0x%02x\n", frame->p8022.ssap);
-	printk(KERN_DEBUG "  ctrl        = 0x%02x\n", frame->p8022.ctrl);
-	printk(KERN_DEBUG "  OUI         = %02x:%02x:%02x\n",
-	       frame->p8022.oui[0], frame->p8022.oui[1], frame->p8022.oui[2]);
-	printk(KERN_DEBUG "  ethertype  = 0x%04x\n", frame->ethertype);
-}
-#endif /* 0 */
 
 /********************************************************************/
 /* Module initialization                                            */

@@ -132,9 +132,6 @@ extern int orinoco_debug;
 #define DEBUG(n, args...) do { } while (0)
 #endif	/* ORINOCO_DEBUG */
 
-#define TRACE_ENTER(devname) DEBUG(2, "%s: -> %s()\n", devname, __FUNCTION__);
-#define TRACE_EXIT(devname)  DEBUG(2, "%s: <- %s()\n", devname, __FUNCTION__);
-
 /********************************************************************/
 /* Exported prototypes                                              */
 /********************************************************************/
