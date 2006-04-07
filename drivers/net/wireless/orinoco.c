@@ -201,41 +201,12 @@ static struct {
 /* Data types                                                       */
 /********************************************************************/
 
-/* Used in Event handling.
- * We avoid nested structures as they break on ARM -- Moustafa */
-struct hermes_tx_descriptor_802_11 {
-	/* hermes_tx_descriptor */
-	__le16 status;
-	__le16 reserved1;
-	__le16 reserved2;
-	__le32 sw_support;
-	u8 retry_count;
-	u8 tx_rate;
-	__le16 tx_control;
-
-	/* ieee80211_hdr */
+/* Beginning of the Tx descriptor, used in TxExc handling */
+struct hermes_txexc_data {
+	struct hermes_tx_descriptor desc;
 	__le16 frame_ctl;
 	__le16 duration_id;
 	u8 addr1[ETH_ALEN];
-	u8 addr2[ETH_ALEN];
-	u8 addr3[ETH_ALEN];
-	__le16 seq_ctl;
-	u8 addr4[ETH_ALEN];
-
-	__le16 data_len;
-
-	/* ethhdr */
-	u8 h_dest[ETH_ALEN];	/* destination eth addr */
-	u8 h_source[ETH_ALEN];	/* source ether addr    */
-	__be16 h_proto;		/* packet type ID field */
-
-	/* p8022_hdr */
-	u8 dsap;
-	u8 ssap;
-	u8 ctrl;
-	u8 oui[3];
-
-	__be16 ethertype;
 } __attribute__ ((packed));
 
 /* Rx frame header except compatibility 802.3 header */
@@ -620,7 +591,7 @@ static void __orinoco_ev_txexc(struct net_device *dev, hermes_t *hw)
 	struct net_device_stats *stats = &priv->stats;
 	u16 fid = hermes_read_regn(hw, TXCOMPLFID);
 	u16 status;
-	struct hermes_tx_descriptor_802_11 hdr;
+	struct hermes_txexc_data hdr;
 	int err = 0;
 
 	if (fid == DUMMY_FID)
@@ -628,8 +599,7 @@ static void __orinoco_ev_txexc(struct net_device *dev, hermes_t *hw)
 
 	/* Read part of the frame header - we need status and addr1 */
 	err = hermes_bap_pread(hw, IRQ_BAP, &hdr,
-			       offsetof(struct hermes_tx_descriptor_802_11,
-					addr2),
+			       sizeof(struct hermes_txexc_data),
 			       fid, 0);
 
 	hermes_write_regn(hw, TXCOMPLFID, DUMMY_FID);
@@ -649,7 +619,7 @@ static void __orinoco_ev_txexc(struct net_device *dev, hermes_t *hw)
 	 * exceeded, because that's the only status that really mean
 	 * that this particular node went away.
 	 * Other errors means that *we* screwed up. - Jean II */
-	status = le16_to_cpu(hdr.status);
+	status = le16_to_cpu(hdr.desc.status);
 	if (status & (HERMES_TXSTAT_RETRYERR | HERMES_TXSTAT_AGEDERR)) {
 		union iwreq_data	wrqu;
 
