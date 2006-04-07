@@ -421,9 +421,8 @@ static int orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 	hermes_t *hw = &priv->hw;
 	int err = 0;
 	u16 txfid = priv->txfid;
-	char *p;
 	struct ethhdr *eh;
-	int data_len, data_off;
+	int data_off;
 	struct hermes_tx_descriptor desc;
 	unsigned long flags;
 
@@ -453,8 +452,7 @@ static int orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	/* Check packet length */
-	data_len = skb->len;
-	if (data_len < ETH_HLEN)
+	if (skb->len < ETH_HLEN)
 		goto drop;
 
 	eh = (struct ethhdr *)skb->data;
@@ -477,22 +475,22 @@ static int orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* Encapsulate Ethernet-II frames */
 	if (ntohs(eh->h_proto) > ETH_DATA_LEN) { /* Ethernet-II frame */
-		struct header_struct hdr;
-		data_len = skb->len - ETH_HLEN;
-		data_off = HERMES_802_3_OFFSET + sizeof(hdr);
-		p = skb->data + ETH_HLEN;
+		struct header_struct {
+			struct ethhdr eth;	/* 802.3 header */
+			u8 encap[6];		/* 802.2 header */
+		} __attribute__ ((packed)) hdr;
 
-		/* 802.3 header */
-		memcpy(hdr.dest, eh->h_dest, ETH_ALEN);
-		memcpy(hdr.src, eh->h_source, ETH_ALEN);
-		hdr.len = htons(data_len + ENCAPS_OVERHEAD);
-		
-		/* 802.2 header */
-		memcpy(&hdr.dsap, &encaps_hdr, sizeof(encaps_hdr));
-			
-		hdr.ethertype = eh->h_proto;
-		err  = hermes_bap_pwrite(hw, USER_BAP, &hdr, sizeof(hdr),
-					 txfid, HERMES_802_3_OFFSET);
+		/* Strip destination and source from the data */
+		skb_pull(skb, 2 * ETH_ALEN);
+		data_off = HERMES_802_2_OFFSET + sizeof(encaps_hdr);
+
+		/* And move them to a separate header */
+		memcpy(&hdr.eth, eh, 2 * ETH_ALEN);
+		hdr.eth.h_proto = htons(sizeof(encaps_hdr) + skb->len);
+		memcpy(hdr.encap, encaps_hdr, sizeof(encaps_hdr));
+
+		err = hermes_bap_pwrite(hw, USER_BAP, &hdr, sizeof(hdr),
+					txfid, HERMES_802_3_OFFSET);
 		if (err) {
 			if (net_ratelimit())
 				printk(KERN_ERR "%s: Error %d writing packet "
@@ -500,12 +498,10 @@ static int orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 			goto busy;
 		}
 	} else { /* IEEE 802.3 frame */
-		data_len = skb->len;
 		data_off = HERMES_802_3_OFFSET;
-		p = skb->data;
 	}
 
-	err = hermes_bap_pwrite(hw, USER_BAP, p, data_len,
+	err = hermes_bap_pwrite(hw, USER_BAP, skb->data, skb->len,
 				txfid, data_off);
 	if (err) {
 		printk(KERN_ERR "%s: Error %d writing packet to BAP\n",
@@ -527,7 +523,7 @@ static int orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	dev->trans_start = jiffies;
-	stats->tx_bytes += data_off + data_len;
+	stats->tx_bytes += data_off + skb->len;
 	goto ok;
 
  drop:

@@ -30,20 +30,6 @@ struct orinoco_key {
 	char data[ORINOCO_MAX_KEY_SIZE];
 } __attribute__ ((packed));
 
-struct header_struct {
-	/* 802.3 */
-	u8 dest[ETH_ALEN];
-	u8 src[ETH_ALEN];
-	__be16 len;
-	/* 802.2 */
-	u8 dsap;
-	u8 ssap;
-	u8 ctrl;
-	/* SNAP */
-	u8 oui[3];
-	unsigned short ethertype;
-} __attribute__ ((packed));
-
 typedef enum {
 	FIRMWARE_TYPE_AGERE,
 	FIRMWARE_TYPE_INTERSIL,
