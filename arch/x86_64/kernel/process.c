@@ -781,10 +781,16 @@ long do_arch_prctl(struct task_struct *task, int code, unsigned long addr)
 	}
 	case ARCH_GET_GS: { 
 		unsigned long base;
+		unsigned gsindex;
 		if (task->thread.gsindex == GS_TLS_SEL)
 			base = read_32bit_tls(task, GS_TLS);
-		else if (doit)
-			rdmsrl(MSR_KERNEL_GS_BASE, base);
+		else if (doit) {
+ 			asm("movl %%gs,%0" : "=r" (gsindex));
+			if (gsindex)
+				rdmsrl(MSR_KERNEL_GS_BASE, base);
+			else
+				base = task->thread.gs;
+		}
 		else
 			base = task->thread.gs;
 		ret = put_user(base, (unsigned long __user *)addr); 
