@@ -180,6 +180,10 @@ rff_trace:
  *
  * XXX	if we had a free scratch register we could save the RSP into the stack frame
  *      and report it properly in ps. Unfortunately we haven't.
+ *
+ * When user can change the frames always force IRET. That is because
+ * it deals with uncanonical addresses better. SYSRET has trouble
+ * with them due to bugs in both AMD and Intel CPUs.
  */ 			 		
 
 ENTRY(system_call)
@@ -254,7 +258,10 @@ sysret_signal:
 	xorl %esi,%esi # oldset -> arg2
 	call ptregscall_common
 1:	movl $_TIF_NEED_RESCHED,%edi
-	jmp sysret_check
+	/* Use IRET because user could have changed frame. This
+	   works because ptregscall_common has called FIXUP_TOP_OF_STACK. */
+	cli
+	jmp int_with_check
 	
 badsys:
 	movq $-ENOSYS,RAX-ARGOFFSET(%rsp)
@@ -280,7 +287,8 @@ tracesys:
 	call syscall_trace_leave
 	RESTORE_TOP_OF_STACK %rbx
 	RESTORE_REST
-	jmp ret_from_sys_call
+	/* Use IRET because user could have changed frame */
+	jmp int_ret_from_sys_call
 	CFI_ENDPROC
 		
 /* 
