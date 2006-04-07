@@ -100,6 +100,7 @@
 #include <linux/pci.h>
 
 #include "orinoco.h"
+#include "orinoco_pci.h"
 
 /* All the magic there is from wlan-ng */
 /* Magic offset of the reset register of the PCI card */
@@ -112,11 +113,6 @@
 #define HERMES_PCI_COR_ONT	(250)		/* ms */
 #define HERMES_PCI_COR_OFFT	(500)		/* ms */
 #define HERMES_PCI_COR_BUSYT	(500)		/* ms */
-
-/* Orinoco PCI specific data */
-struct orinoco_pci_card {
-	void __iomem *pci_ioaddr;
-};
 
 /*
  * Do a soft reset of the PCI card using the Configuration Option Register
@@ -131,12 +127,11 @@ struct orinoco_pci_card {
  * Note bis : Don't try to access HERMES_CMD during the reset phase.
  * It just won't work !
  */
-static int
-orinoco_pci_cor_reset(struct orinoco_private *priv)
+static int orinoco_pci_cor_reset(struct orinoco_private *priv)
 {
 	hermes_t *hw = &priv->hw;
-	unsigned long	timeout;
-	u16	reg;
+	unsigned long timeout;
+	u16 reg;
 
 	/* Assert the reset until the card notice */
 	hermes_write_regn(hw, PCI_COR, HERMES_PCI_COR_MASK);
@@ -163,17 +158,14 @@ orinoco_pci_cor_reset(struct orinoco_private *priv)
 	return 0;
 }
 
-/*
- * Initialise a card. Mostly similar to PLX code.
- */
 static int orinoco_pci_init_one(struct pci_dev *pdev,
 				const struct pci_device_id *ent)
 {
-	int err = 0;
-	void __iomem *pci_ioaddr = NULL;
-	struct orinoco_private *priv = NULL;
+	int err;
+	struct orinoco_private *priv;
 	struct orinoco_pci_card *card;
-	struct net_device *dev = NULL;
+	struct net_device *dev;
+	void __iomem *hermes_io;
 
 	err = pci_enable_device(pdev);
 	if (err) {
@@ -182,38 +174,32 @@ static int orinoco_pci_init_one(struct pci_dev *pdev,
 	}
 
 	err = pci_request_regions(pdev, DRIVER_NAME);
-	if (err != 0) {
+	if (err) {
 		printk(KERN_ERR PFX "Cannot obtain PCI resources\n");
 		goto fail_resources;
 	}
 
-	/* Resource 0 is mapped to the hermes registers */
-	pci_ioaddr = pci_iomap(pdev, 0, 0);
-	if (!pci_ioaddr) {
+	hermes_io = pci_iomap(pdev, 0, 0);
+	if (!hermes_io) {
+		printk(KERN_ERR PFX "Cannot remap chipset registers\n");
 		err = -EIO;
-		printk(KERN_ERR PFX "Cannot remap hardware registers\n");
-		goto fail_map;
+		goto fail_map_hermes;
 	}
 
 	/* Allocate network device */
 	dev = alloc_orinocodev(sizeof(*card), orinoco_pci_cor_reset);
-	if (! dev) {
+	if (!dev) {
+		printk(KERN_ERR PFX "Cannot allocate network device\n");
 		err = -ENOMEM;
 		goto fail_alloc;
 	}
 
 	priv = netdev_priv(dev);
 	card = priv->card;
-	card->pci_ioaddr = pci_ioaddr;
-	dev->mem_start = pci_resource_start(pdev, 0);
-	dev->mem_end = dev->mem_start + pci_resource_len(pdev, 0) - 1;
 	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
-	hermes_struct_init(&priv->hw, pci_ioaddr, HERMES_32BIT_REGSPACING);
-
-	printk(KERN_DEBUG PFX "Detected device %s, mem:0x%lx-0x%lx, irq %d\n",
-	       pci_name(pdev), dev->mem_start, dev->mem_end, pdev->irq);
+	hermes_struct_init(&priv->hw, hermes_io, HERMES_32BIT_REGSPACING);
 
 	err = request_irq(pdev->irq, orinoco_interrupt, SA_SHIRQ,
 			  dev->name, dev);
@@ -222,9 +208,8 @@ static int orinoco_pci_init_one(struct pci_dev *pdev,
 		err = -EBUSY;
 		goto fail_irq;
 	}
-	dev->irq = pdev->irq;
+	orinoco_pci_setup_netdev(dev, pdev, 0);
 
-	/* Perform a COR reset to start the card */
 	err = orinoco_pci_cor_reset(priv);
 	if (err) {
 		printk(KERN_ERR PFX "Initial reset failed\n");
@@ -233,7 +218,7 @@ static int orinoco_pci_init_one(struct pci_dev *pdev,
 
 	err = register_netdev(dev);
 	if (err) {
-		printk(KERN_ERR PFX "Failed to register net device\n");
+		printk(KERN_ERR PFX "Cannot register network device\n");
 		goto fail;
 	}
 
@@ -249,9 +234,9 @@ static int orinoco_pci_init_one(struct pci_dev *pdev,
 	free_orinocodev(dev);
 
  fail_alloc:
-	iounmap(pci_ioaddr);
+	pci_iounmap(pdev, hermes_io);
 
- fail_map:
+ fail_map_hermes:
 	pci_release_regions(pdev);
 
  fail_resources:
@@ -264,98 +249,17 @@ static void __devexit orinoco_pci_remove_one(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct orinoco_private *priv = netdev_priv(dev);
-	struct orinoco_pci_card *card = priv->card;
 
 	unregister_netdev(dev);
 	free_irq(dev->irq, dev);
 	pci_set_drvdata(pdev, NULL);
 	free_orinocodev(dev);
-	iounmap(card->pci_ioaddr);
+	pci_iounmap(pdev, priv->hw.iobase);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 }
 
-static int orinoco_pci_suspend(struct pci_dev *pdev, pm_message_t state)
-{
-	struct net_device *dev = pci_get_drvdata(pdev);
-	struct orinoco_private *priv = netdev_priv(dev);
-	unsigned long flags;
-	int err;
-	
-
-	err = orinoco_lock(priv, &flags);
-	if (err) {
-		printk(KERN_ERR "%s: hw_unavailable on orinoco_pci_suspend\n",
-		       dev->name);
-		return err;
-	}
-
-	err = __orinoco_down(dev);
-	if (err)
-		printk(KERN_WARNING "%s: orinoco_pci_suspend(): Error %d downing interface\n",
-		       dev->name, err);
-	
-	netif_device_detach(dev);
-
-	priv->hw_unavailable++;
-	
-	orinoco_unlock(priv, &flags);
-
-	free_irq(pdev->irq, dev);
-	pci_save_state(pdev);
-	pci_disable_device(pdev);
-	pci_set_power_state(pdev, PCI_D3hot);
-
-	return 0;
-}
-
-static int orinoco_pci_resume(struct pci_dev *pdev)
-{
-	struct net_device *dev = pci_get_drvdata(pdev);
-	struct orinoco_private *priv = netdev_priv(dev);
-	unsigned long flags;
-	int err;
-
-	printk(KERN_DEBUG "%s: Orinoco-PCI waking up\n", dev->name);
-
-	pci_set_power_state(pdev, 0);
-	pci_enable_device(pdev);
-	pci_restore_state(pdev);
-
-	err = request_irq(pdev->irq, orinoco_interrupt, SA_SHIRQ,
-			  dev->name, dev);
-	if (err) {
-		printk(KERN_ERR "%s: Cannot re-allocate IRQ\n", dev->name);
-		pci_disable_device(pdev);
-		return -EBUSY;
-	}
-
-	err = orinoco_reinit_firmware(dev);
-	if (err) {
-		printk(KERN_ERR "%s: Error %d re-initializing firmware on orinoco_pci_resume()\n",
-		       dev->name, err);
-		return err;
-	}
-
-	spin_lock_irqsave(&priv->lock, flags);
-
-	netif_device_attach(dev);
-
-	priv->hw_unavailable--;
-
-	if (priv->open && (! priv->hw_unavailable)) {
-		err = __orinoco_up(dev);
-		if (err)
-			printk(KERN_ERR "%s: Error %d restarting card on orinoco_pci_resume()\n",
-			       dev->name, err);
-	}
-	
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	return 0;
-}
-
-static struct pci_device_id orinoco_pci_pci_id_table[] = {
+static struct pci_device_id orinoco_pci_id_table[] = {
 	/* Intersil Prism 3 */
 	{0x1260, 0x3872, PCI_ANY_ID, PCI_ANY_ID,},
 	/* Intersil Prism 2.5 */
@@ -365,11 +269,11 @@ static struct pci_device_id orinoco_pci_pci_id_table[] = {
 	{0,},
 };
 
-MODULE_DEVICE_TABLE(pci, orinoco_pci_pci_id_table);
+MODULE_DEVICE_TABLE(pci, orinoco_pci_id_table);
 
 static struct pci_driver orinoco_pci_driver = {
 	.name		= DRIVER_NAME,
-	.id_table	= orinoco_pci_pci_id_table,
+	.id_table	= orinoco_pci_id_table,
 	.probe		= orinoco_pci_init_one,
 	.remove		= __devexit_p(orinoco_pci_remove_one),
 	.suspend	= orinoco_pci_suspend,

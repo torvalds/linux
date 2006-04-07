@@ -1,5 +1,5 @@
 /* orinoco_nortel.c
- * 
+ *
  * Driver for Prism II devices which would usually be driven by orinoco_cs,
  * but are connected to the PCI bus by a PCI-to-PCMCIA adapter used in
  * Nortel emobility, Symbol LA-4113 and Symbol LA-4123.
@@ -50,16 +50,11 @@
 #include <pcmcia/cisreg.h>
 
 #include "orinoco.h"
+#include "orinoco_pci.h"
 
 #define COR_OFFSET    (0xe0)	/* COR attribute offset of Prism2 PC card */
 #define COR_VALUE     (COR_LEVEL_REQ | COR_FUNC_ENA)	/* Enable PC card with interrupt in level trigger */
 
-
-/* Nortel specific data */
-struct nortel_pci_card {
-	unsigned long iobase1;
-	unsigned long iobase2;
-};
 
 /*
  * Do a soft reset of the PCI card using the Configuration Option Register
@@ -69,48 +64,48 @@ struct nortel_pci_card {
  * Note bis : Don't try to access HERMES_CMD during the reset phase.
  * It just won't work !
  */
-static int nortel_pci_cor_reset(struct orinoco_private *priv)
+static int orinoco_nortel_cor_reset(struct orinoco_private *priv)
 {
-	struct nortel_pci_card *card = priv->card;
+	struct orinoco_pci_card *card = priv->card;
 
 	/* Assert the reset until the card notice */
-	outw_p(8, card->iobase1 + 2);
-	inw(card->iobase2 + COR_OFFSET);
-	outw_p(0x80, card->iobase2 + COR_OFFSET);
+	iowrite16(8, card->bridge_io + 2);
+	ioread16(card->attr_io + COR_OFFSET);
+	iowrite16(0x80, card->attr_io + COR_OFFSET);
 	mdelay(1);
 
 	/* Give time for the card to recover from this hard effort */
-	outw_p(0, card->iobase2 + COR_OFFSET);
-	outw_p(0, card->iobase2 + COR_OFFSET);
+	iowrite16(0, card->attr_io + COR_OFFSET);
+	iowrite16(0, card->attr_io + COR_OFFSET);
 	mdelay(1);
 
-	/* set COR as usual */
-	outw_p(COR_VALUE, card->iobase2 + COR_OFFSET);
-	outw_p(COR_VALUE, card->iobase2 + COR_OFFSET);
+	/* Set COR as usual */
+	iowrite16(COR_VALUE, card->attr_io + COR_OFFSET);
+	iowrite16(COR_VALUE, card->attr_io + COR_OFFSET);
 	mdelay(1);
 
-	outw_p(0x228, card->iobase1 + 2);
+	iowrite16(0x228, card->bridge_io + 2);
 
 	return 0;
 }
 
-static int nortel_pci_hw_init(struct nortel_pci_card *card)
+static int orinoco_nortel_hw_init(struct orinoco_pci_card *card)
 {
 	int i;
 	u32 reg;
 
-	/* setup bridge */
-	if (inw(card->iobase1) & 1) {
+	/* Setup bridge */
+	if (ioread16(card->bridge_io) & 1) {
 		printk(KERN_ERR PFX "brg1 answer1 wrong\n");
 		return -EBUSY;
 	}
-	outw_p(0x118, card->iobase1 + 2);
-	outw_p(0x108, card->iobase1 + 2);
+	iowrite16(0x118, card->bridge_io + 2);
+	iowrite16(0x108, card->bridge_io + 2);
 	mdelay(30);
-	outw_p(0x8, card->iobase1 + 2);
+	iowrite16(0x8, card->bridge_io + 2);
 	for (i = 0; i < 30; i++) {
 		mdelay(30);
-		if (inw(card->iobase1) & 0x10) {
+		if (ioread16(card->bridge_io) & 0x10) {
 			break;
 		}
 	}
@@ -118,42 +113,42 @@ static int nortel_pci_hw_init(struct nortel_pci_card *card)
 		printk(KERN_ERR PFX "brg1 timed out\n");
 		return -EBUSY;
 	}
-	if (inw(card->iobase2 + 0xe0) & 1) {
+	if (ioread16(card->attr_io + COR_OFFSET) & 1) {
 		printk(KERN_ERR PFX "brg2 answer1 wrong\n");
 		return -EBUSY;
 	}
-	if (inw(card->iobase2 + 0xe2) & 1) {
+	if (ioread16(card->attr_io + COR_OFFSET + 2) & 1) {
 		printk(KERN_ERR PFX "brg2 answer2 wrong\n");
 		return -EBUSY;
 	}
-	if (inw(card->iobase2 + 0xe4) & 1) {
+	if (ioread16(card->attr_io + COR_OFFSET + 4) & 1) {
 		printk(KERN_ERR PFX "brg2 answer3 wrong\n");
 		return -EBUSY;
 	}
 
-	/* set the PCMCIA COR-Register */
-	outw_p(COR_VALUE, card->iobase2 + COR_OFFSET);
+	/* Set the PCMCIA COR-Register */
+	iowrite16(COR_VALUE, card->attr_io + COR_OFFSET);
 	mdelay(1);
-	reg = inw(card->iobase2 + COR_OFFSET);
+	reg = ioread16(card->attr_io + COR_OFFSET);
 	if (reg != COR_VALUE) {
 		printk(KERN_ERR PFX "Error setting COR value (reg=%x)\n",
 		       reg);
 		return -EBUSY;
 	}
 
-	/* set leds */
-	outw_p(1, card->iobase1 + 10);
+	/* Set LEDs */
+	iowrite16(1, card->bridge_io + 10);
 	return 0;
 }
 
-static int nortel_pci_init_one(struct pci_dev *pdev,
-			       const struct pci_device_id *ent)
+static int orinoco_nortel_init_one(struct pci_dev *pdev,
+				   const struct pci_device_id *ent)
 {
 	int err;
 	struct orinoco_private *priv;
-	struct nortel_pci_card *card;
+	struct orinoco_pci_card *card;
 	struct net_device *dev;
-	void __iomem *iomem;
+	void __iomem *hermes_io, *bridge_io, *attr_io;
 
 	err = pci_enable_device(pdev);
 	if (err) {
@@ -162,19 +157,34 @@ static int nortel_pci_init_one(struct pci_dev *pdev,
 	}
 
 	err = pci_request_regions(pdev, DRIVER_NAME);
-	if (err != 0) {
+	if (err) {
 		printk(KERN_ERR PFX "Cannot obtain PCI resources\n");
 		goto fail_resources;
 	}
 
-	iomem = pci_iomap(pdev, 2, 0);
-	if (!iomem) {
-		err = -ENOMEM;
-		goto fail_map_io;
+	bridge_io = pci_iomap(pdev, 0, 0);
+	if (!bridge_io) {
+		printk(KERN_ERR PFX "Cannot map bridge registers\n");
+		err = -EIO;
+		goto fail_map_bridge;
+	}
+
+	attr_io = pci_iomap(pdev, 1, 0);
+	if (!attr_io) {
+		printk(KERN_ERR PFX "Cannot map PCMCIA attributes\n");
+		err = -EIO;
+		goto fail_map_attr;
+	}
+
+	hermes_io = pci_iomap(pdev, 2, 0);
+	if (!hermes_io) {
+		printk(KERN_ERR PFX "Cannot map chipset registers\n");
+		err = -EIO;
+		goto fail_map_hermes;
 	}
 
 	/* Allocate network device */
-	dev = alloc_orinocodev(sizeof(*card), nortel_pci_cor_reset);
+	dev = alloc_orinocodev(sizeof(*card), orinoco_nortel_cor_reset);
 	if (!dev) {
 		printk(KERN_ERR PFX "Cannot allocate network device\n");
 		err = -ENOMEM;
@@ -183,16 +193,12 @@ static int nortel_pci_init_one(struct pci_dev *pdev,
 
 	priv = netdev_priv(dev);
 	card = priv->card;
-	card->iobase1 = pci_resource_start(pdev, 0);
-	card->iobase2 = pci_resource_start(pdev, 1);
-	dev->base_addr = pci_resource_start(pdev, 2);
+	card->bridge_io = bridge_io;
+	card->attr_io = attr_io;
 	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
-	hermes_struct_init(&priv->hw, iomem, HERMES_16BIT_REGSPACING);
-
-	printk(KERN_DEBUG PFX "Detected Nortel PCI device at %s irq:%d, "
-	       "io addr:0x%lx\n", pci_name(pdev), pdev->irq, dev->base_addr);
+	hermes_struct_init(&priv->hw, hermes_io, HERMES_16BIT_REGSPACING);
 
 	err = request_irq(pdev->irq, orinoco_interrupt, SA_SHIRQ,
 			  dev->name, dev);
@@ -201,20 +207,19 @@ static int nortel_pci_init_one(struct pci_dev *pdev,
 		err = -EBUSY;
 		goto fail_irq;
 	}
-	dev->irq = pdev->irq;
+	orinoco_pci_setup_netdev(dev, pdev, 2);
 
-	err = nortel_pci_hw_init(card);
+	err = orinoco_nortel_hw_init(card);
 	if (err) {
 		printk(KERN_ERR PFX "Hardware initialization failed\n");
 		goto fail;
 	}
 
-	err = nortel_pci_cor_reset(priv);
+	err = orinoco_nortel_cor_reset(priv);
 	if (err) {
 		printk(KERN_ERR PFX "Initial reset failed\n");
 		goto fail;
 	}
-
 
 	err = register_netdev(dev);
 	if (err) {
@@ -234,9 +239,15 @@ static int nortel_pci_init_one(struct pci_dev *pdev,
 	free_orinocodev(dev);
 
  fail_alloc:
-	pci_iounmap(pdev, iomem);
+	pci_iounmap(pdev, hermes_io);
 
- fail_map_io:
+ fail_map_hermes:
+	pci_iounmap(pdev, attr_io);
+
+ fail_map_attr:
+	pci_iounmap(pdev, bridge_io);
+
+ fail_map_bridge:
 	pci_release_regions(pdev);
 
  fail_resources:
@@ -245,103 +256,27 @@ static int nortel_pci_init_one(struct pci_dev *pdev,
 	return err;
 }
 
-static void __devexit nortel_pci_remove_one(struct pci_dev *pdev)
+static void __devexit orinoco_nortel_remove_one(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct orinoco_private *priv = netdev_priv(dev);
-	struct nortel_pci_card *card = priv->card;
+	struct orinoco_pci_card *card = priv->card;
 
-	/* clear leds */
-	outw_p(0, card->iobase1 + 10);
+	/* Clear LEDs */
+	iowrite16(0, card->bridge_io + 10);
 
 	unregister_netdev(dev);
 	free_irq(dev->irq, dev);
 	pci_set_drvdata(pdev, NULL);
 	free_orinocodev(dev);
 	pci_iounmap(pdev, priv->hw.iobase);
+	pci_iounmap(pdev, card->attr_io);
+	pci_iounmap(pdev, card->bridge_io);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 }
 
-static int orinoco_nortel_suspend(struct pci_dev *pdev, pm_message_t state)
-{
-	struct net_device *dev = pci_get_drvdata(pdev);
-	struct orinoco_private *priv = netdev_priv(dev);
-	unsigned long flags;
-	int err;
-
-	err = orinoco_lock(priv, &flags);
-	if (err) {
-		printk(KERN_ERR "%s: cannot lock hardware for suspend\n",
-		       dev->name);
-		return err;
-	}
-
-	err = __orinoco_down(dev);
-	if (err)
-		printk(KERN_WARNING "%s: error %d bringing interface down "
-		       "for suspend\n", dev->name, err);
-	
-	netif_device_detach(dev);
-
-	priv->hw_unavailable++;
-	
-	orinoco_unlock(priv, &flags);
-
-	free_irq(pdev->irq, dev);
-	pci_save_state(pdev);
-	pci_disable_device(pdev);
-	pci_set_power_state(pdev, PCI_D3hot);
-
-	return 0;
-}
-
-static int orinoco_nortel_resume(struct pci_dev *pdev)
-{
-	struct net_device *dev = pci_get_drvdata(pdev);
-	struct orinoco_private *priv = netdev_priv(dev);
-	unsigned long flags;
-	int err;
-
-	pci_set_power_state(pdev, 0);
-	pci_enable_device(pdev);
-	pci_restore_state(pdev);
-
-	err = request_irq(pdev->irq, orinoco_interrupt, SA_SHIRQ,
-			  dev->name, dev);
-	if (err) {
-		printk(KERN_ERR "%s: cannot re-allocate IRQ on resume\n",
-		       dev->name);
-		pci_disable_device(pdev);
-		return -EBUSY;
-	}
-
-	err = orinoco_reinit_firmware(dev);
-	if (err) {
-		printk(KERN_ERR "%s: error %d re-initializing firmware "
-		       "on resume\n", dev->name, err);
-		return err;
-	}
-
-	spin_lock_irqsave(&priv->lock, flags);
-
-	netif_device_attach(dev);
-
-	priv->hw_unavailable--;
-
-	if (priv->open && (! priv->hw_unavailable)) {
-		err = __orinoco_up(dev);
-		if (err)
-			printk(KERN_ERR "%s: Error %d restarting card on resume\n",
-			       dev->name, err);
-	}
-	
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	return 0;
-}
-
-static struct pci_device_id nortel_pci_id_table[] = {
+static struct pci_device_id orinoco_nortel_id_table[] = {
 	/* Nortel emobility PCI */
 	{0x126c, 0x8030, PCI_ANY_ID, PCI_ANY_ID,},
 	/* Symbol LA-4123 PCI */
@@ -349,15 +284,15 @@ static struct pci_device_id nortel_pci_id_table[] = {
 	{0,},
 };
 
-MODULE_DEVICE_TABLE(pci, nortel_pci_id_table);
+MODULE_DEVICE_TABLE(pci, orinoco_nortel_id_table);
 
-static struct pci_driver nortel_pci_driver = {
+static struct pci_driver orinoco_nortel_driver = {
 	.name		= DRIVER_NAME,
-	.id_table	= nortel_pci_id_table,
-	.probe		= nortel_pci_init_one,
-	.remove		= __devexit_p(nortel_pci_remove_one),
-	.suspend	= orinoco_nortel_suspend,
-	.resume		= orinoco_nortel_resume,
+	.id_table	= orinoco_nortel_id_table,
+	.probe		= orinoco_nortel_init_one,
+	.remove		= __devexit_p(orinoco_nortel_remove_one),
+	.suspend	= orinoco_pci_suspend,
+	.resume		= orinoco_pci_resume,
 };
 
 static char version[] __initdata = DRIVER_NAME " " DRIVER_VERSION
@@ -367,20 +302,19 @@ MODULE_DESCRIPTION
     ("Driver for wireless LAN cards using the Nortel PCI bridge");
 MODULE_LICENSE("Dual MPL/GPL");
 
-static int __init nortel_pci_init(void)
+static int __init orinoco_nortel_init(void)
 {
 	printk(KERN_DEBUG "%s\n", version);
-	return pci_module_init(&nortel_pci_driver);
+	return pci_module_init(&orinoco_nortel_driver);
 }
 
-static void __exit nortel_pci_exit(void)
+static void __exit orinoco_nortel_exit(void)
 {
-	pci_unregister_driver(&nortel_pci_driver);
-	ssleep(1);
+	pci_unregister_driver(&orinoco_nortel_driver);
 }
 
-module_init(nortel_pci_init);
-module_exit(nortel_pci_exit);
+module_init(orinoco_nortel_init);
+module_exit(orinoco_nortel_exit);
 
 /*
  * Local variables:
