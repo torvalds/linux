@@ -3,7 +3,7 @@
  * Driver for Prism II devices which would usually be driven by orinoco_cs,
  * but are connected to the PCI bus by a PLX9052.
  *
- * Current maintainers (as of 29 September 2003) are:
+ * Current maintainers are:
  * 	Pavel Roskin <proski AT gnu.org>
  * and	David Gibson <hermes AT gibson.dropbear.id.au>
  *
@@ -30,38 +30,18 @@
  * other provisions required by the GPL.  If you do not delete the
  * provisions above, a recipient may use your version of this file
  * under either the MPL or the GPL.
-
- * Caution: this is experimental and probably buggy.  For success and
- * failure reports for different cards and adaptors, see
- * orinoco_plx_id_table near the end of the file.  If you have a
- * card we don't have the PCI id for, and looks like it should work,
- * drop me mail with the id and "it works"/"it doesn't work".
  *
- * Note: if everything gets detected fine but it doesn't actually send
- * or receive packets, your first port of call should probably be to
- * try newer firmware in the card.  Especially if you're doing Ad-Hoc
- * modes.
- *
- * The actual driving is done by orinoco.c, this is just resource
- * allocation stuff.  The explanation below is courtesy of Ryan Niemi
- * on the linux-wlan-ng list at
- * http://archives.neohapsis.com/archives/dev/linux-wlan/2001-q1/0026.html
- *
- * The PLX9052-based cards (WL11000 and several others) are a
- * different beast than the usual PCMCIA-based PRISM2 configuration
- * expected by wlan-ng.  Here's the general details on how the WL11000
- * PCI adapter works:
+ * Here's the general details on how the PLX9052 adapter works:
  *
  * - Two PCI I/O address spaces, one 0x80 long which contains the
  * PLX9052 registers, and one that's 0x40 long mapped to the PCMCIA
  * slot I/O address space.
  *
- * - One PCI memory address space, mapped to the PCMCIA memory space
+ * - One PCI memory address space, mapped to the PCMCIA attribute space
  * (containing the CIS).
  *
- * After identifying the I/O and memory space, you can read through
- * the memory space to confirm the CIS's device ID or manufacturer ID
- * to make sure it's the expected card.  qKeep in mind that the PCMCIA
+ * Using the later, you can read through the CIS data to make sure the
+ * card is compatible with the driver. Keep in mind that the PCMCIA
  * spec specifies the CIS as the lower 8 bits of each word read from
  * the CIS, so to read the bytes of the CIS, read every other byte
  * (0,2,4,...). Passing that test, you need to enable the I/O address
@@ -71,7 +51,7 @@
  * within the PCI memory space. Write 0x41 to the COR register to
  * enable I/O mode and to select level triggered interrupts. To
  * confirm you actually succeeded, read the COR register back and make
- * sure it actually got set to 0x41, incase you have an unexpected
+ * sure it actually got set to 0x41, in case you have an unexpected
  * card inserted.
  *
  * Following that, you can treat the second PCI I/O address space (the
@@ -101,16 +81,6 @@
  * that, I've hot-swapped a number of times during debugging and
  * driver development for various reasons (stuck WAIT# line after the
  * radio card's firmware locks up).
- *
- * Hope this is enough info for someone to add PLX9052 support to the
- * wlan-ng card. In the case of the WL11000, the PCI ID's are
- * 0x1639/0x0200, with matching subsystem ID's. Other PLX9052-based
- * manufacturers other than Eumitcom (or on cards other than the
- * WL11000) may have different PCI ID's.
- *
- * If anyone needs any more specific info, let me know. I haven't had
- * time to implement support myself yet, and with the way things are
- * going, might not have time for a while..
  */
 
 #define DRIVER_NAME "orinoco_plx"

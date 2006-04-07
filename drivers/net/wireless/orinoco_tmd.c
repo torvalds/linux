@@ -26,25 +26,13 @@
  * other provisions required by the GPL.  If you do not delete the
  * provisions above, a recipient may use your version of this file
  * under either the MPL or the GPL.
-
- * Caution: this is experimental and probably buggy.  For success and
- * failure reports for different cards and adaptors, see
- * orinoco_tmd_id_table near the end of the file.  If you have a
- * card we don't have the PCI id for, and looks like it should work,
- * drop me mail with the id and "it works"/"it doesn't work".
- *
- * Note: if everything gets detected fine but it doesn't actually send
- * or receive packets, your first port of call should probably be to
- * try newer firmware in the card.  Especially if you're doing Ad-Hoc
- * modes.
  *
  * The actual driving is done by orinoco.c, this is just resource
  * allocation stuff.
  *
  * This driver is modeled after the orinoco_plx driver. The main
- * difference is that the TMD chip has only IO port ranges and no
- * memory space, i.e.  no access to the CIS. Compared to the PLX chip,
- * the io range functionalities are exchanged.
+ * difference is that the TMD chip has only IO port ranges and doesn't
+ * provide access to the PCMCIA attribute space.
  *
  * Pheecom sells cards with the TMD chip as "ASIC version"
  */

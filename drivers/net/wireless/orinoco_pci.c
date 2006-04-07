@@ -1,11 +1,11 @@
 /* orinoco_pci.c
  * 
- * Driver for Prism II devices that have a direct PCI interface
- * (i.e., not in a Pcmcia or PLX bridge)
+ * Driver for Prism 2.5/3 devices that have a direct PCI interface
+ * (i.e. these are not PCMCIA cards in a PCMCIA-to-PCI bridge).
+ * The card contains only one PCI region, which contains all the usual
+ * hermes registers, as well as the COR register.
  *
- * Specifically here we're talking about the Linksys WMP11
- *
- * Current maintainers (as of 29 September 2003) are:
+ * Current maintainers are:
  * 	Pavel Roskin <proski AT gnu.org>
  * and	David Gibson <hermes AT gibson.dropbear.id.au>
  *
@@ -41,54 +41,6 @@
  * under either the MPL or the GPL.
  */
 
-/*
- * Theory of operation...
- * -------------------
- * Maybe you had a look in orinoco_plx. Well, this is totally different...
- *
- * The card contains only one PCI region, which contains all the usual
- * hermes registers.
- *
- * The driver will memory map this region in normal memory. Because
- * the hermes registers are mapped in normal memory and not in ISA I/O
- * post space, we can't use the usual inw/outw macros and we need to
- * use readw/writew.
- * This slight difference force us to compile our own version of
- * hermes.c with the register access macro changed. That's a bit
- * hackish but works fine.
- *
- * Note that the PCI region is pretty big (4K). That's much more than
- * the usual set of hermes register (0x0 -> 0x3E). I've got a strong
- * suspicion that the whole memory space of the adapter is in fact in
- * this region. Accessing directly the adapter memory instead of going
- * through the usual register would speed up significantely the
- * operations...
- *
- * Finally, the card looks like this :
------------------------
-  Bus  0, device  14, function  0:
-    Network controller: PCI device 1260:3873 (Harris Semiconductor) (rev 1).
-      IRQ 11.
-      Master Capable.  Latency=248.  
-      Prefetchable 32 bit memory at 0xffbcc000 [0xffbccfff].
------------------------
-00:0e.0 Network controller: Harris Semiconductor: Unknown device 3873 (rev 01)
-        Subsystem: Unknown device 1737:3874
-        Control: I/O+ Mem+ BusMaster+ SpecCycle- MemWINV- VGASnoop- ParErr- Stepping- SERR- FastB2B-
-        Status: Cap+ 66Mhz- UDF- FastB2B+ ParErr- DEVSEL=medium >TAbort- <TAbort- <MAbort- >SERR- <PERR-
-        Latency: 248 set, cache line size 08
-        Interrupt: pin A routed to IRQ 11
-        Region 0: Memory at ffbcc000 (32-bit, prefetchable) [size=4K]
-        Capabilities: [dc] Power Management version 2
-                Flags: PMEClk- AuxPwr- DSI- D1+ D2+ PME+
-                Status: D0 PME-Enable- DSel=0 DScale=0 PME-
------------------------
- *
- * That's all..
- *
- * Jean II
- */
-
 #define DRIVER_NAME "orinoco_pci"
 #define PFX DRIVER_NAME ": "
 
@@ -102,11 +54,12 @@
 #include "orinoco.h"
 #include "orinoco_pci.h"
 
-/* All the magic there is from wlan-ng */
-/* Magic offset of the reset register of the PCI card */
+/* Offset of the COR register of the PCI card */
 #define HERMES_PCI_COR		(0x26)
-/* Magic bitmask to reset the card */
+
+/* Bitmask to reset the card */
 #define HERMES_PCI_COR_MASK	(0x0080)
+
 /* Magic timeouts for doing the reset.
  * Those times are straight from wlan-ng, and it is claimed that they
  * are necessary. Alan will kill me. Take your time and grab a coffee. */
@@ -115,7 +68,7 @@
 #define HERMES_PCI_COR_BUSYT	(500)		/* ms */
 
 /*
- * Do a soft reset of the PCI card using the Configuration Option Register
+ * Do a soft reset of the card using the Configuration Option Register
  * We need this to get going...
  * This is the part of the code that is strongly inspired from wlan-ng
  *
@@ -133,7 +86,7 @@ static int orinoco_pci_cor_reset(struct orinoco_private *priv)
 	unsigned long timeout;
 	u16 reg;
 
-	/* Assert the reset until the card notice */
+	/* Assert the reset until the card notices */
 	hermes_write_regn(hw, PCI_COR, HERMES_PCI_COR_MASK);
 	mdelay(HERMES_PCI_COR_ONT);
 

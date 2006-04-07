@@ -3,7 +3,6 @@
  * Driver for Prism II devices which would usually be driven by orinoco_cs,
  * but are connected to the PCI bus by a PCI-to-PCMCIA adapter used in
  * Nortel emobility, Symbol LA-4113 and Symbol LA-4123.
- * but are connected to the PCI bus by a Nortel PCI-PCMCIA-Adapter. 
  *
  * Copyright (C) 2002 Tobias Hoffmann
  *           (C) 2003 Christoph Jungegger <disdos@traum404.de>
@@ -57,7 +56,7 @@
 
 
 /*
- * Do a soft reset of the PCI card using the Configuration Option Register
+ * Do a soft reset of the card using the Configuration Option Register
  * We need this to get going...
  * This is the part of the code that is strongly inspired from wlan-ng
  *
@@ -68,7 +67,7 @@ static int orinoco_nortel_cor_reset(struct orinoco_private *priv)
 {
 	struct orinoco_pci_card *card = priv->card;
 
-	/* Assert the reset until the card notice */
+	/* Assert the reset until the card notices */
 	iowrite16(8, card->bridge_io + 2);
 	ioread16(card->attr_io + COR_OFFSET);
 	iowrite16(0x80, card->attr_io + COR_OFFSET);
@@ -126,7 +125,7 @@ static int orinoco_nortel_hw_init(struct orinoco_pci_card *card)
 		return -EBUSY;
 	}
 
-	/* Set the PCMCIA COR-Register */
+	/* Set the PCMCIA COR register */
 	iowrite16(COR_VALUE, card->attr_io + COR_OFFSET);
 	mdelay(1);
 	reg = ioread16(card->attr_io + COR_OFFSET);
