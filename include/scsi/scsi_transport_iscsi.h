@@ -53,11 +53,11 @@ struct iscsi_transport {
 	struct module *owner;
 	char *name;
 	unsigned int caps;
+	/* LLD sets this to indicate what values it can export to sysfs */
+	unsigned int param_mask;
 	struct scsi_host_template *host_template;
 	/* LLD session/scsi_host data size */
 	int hostdata_size;
-	/* LLD iscsi_host data size */
-	int ihostdata_size;
 	/* LLD connection data size */
 	int conndata_size;
 	/* LLD session data size */
@@ -79,10 +79,13 @@ struct iscsi_transport {
 	int (*set_param) (struct iscsi_cls_conn *conn, enum iscsi_param param,
 			  uint32_t value);
 	int (*get_conn_param) (struct iscsi_cls_conn *conn,
-			       enum iscsi_param param,
-			       uint32_t *value);
+			       enum iscsi_param param, uint32_t *value);
 	int (*get_session_param) (struct iscsi_cls_session *session,
 				  enum iscsi_param param, uint32_t *value);
+	int (*get_conn_str_param) (struct iscsi_cls_conn *conn,
+				   enum iscsi_param param, char *buf);
+	int (*get_session_str_param) (struct iscsi_cls_session *session,
+				      enum iscsi_param param, char *buf);
 	int (*send_pdu) (struct iscsi_cls_conn *conn, struct iscsi_hdr *hdr,
 			 char *data, uint32_t data_size);
 	void (*get_stats) (struct iscsi_cls_conn *conn,
@@ -107,6 +110,14 @@ struct iscsi_cls_conn {
 	void *dd_data;			/* LLD private data */
 	struct iscsi_transport *transport;
 	uint32_t cid;			/* connection id */
+
+	/* portal/group values we got during discovery */
+	char *persistent_address;
+	int persistent_port;
+	/* portal/group values we are currently using */
+	char *address;
+	int port;
+
 	int active;			/* must be accessed with the connlock */
 	struct device dev;		/* sysfs transport/container device */
 	struct mempool_zone *z_error;
@@ -120,6 +131,11 @@ struct iscsi_cls_conn {
 struct iscsi_cls_session {
 	struct list_head sess_list;		/* item in session_list */
 	struct iscsi_transport *transport;
+
+	/* iSCSI values used as unique id by userspace. */
+	char *targetname;
+	int tpgt;
+
 	int sid;				/* session id */
 	void *dd_data;				/* LLD private data */
 	struct device dev;	/* sysfs transport/container device */

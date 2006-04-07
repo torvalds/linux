@@ -3536,7 +3536,7 @@ iscsi_session_get_param(struct iscsi_cls_session *cls_session,
 		*value = session->ofmarker_en;
 		break;
 	default:
-		return ISCSI_ERR_PARAM_NOT_FOUND;
+		return -EINVAL;
 	}
 
 	return 0;
@@ -3547,6 +3547,7 @@ iscsi_conn_get_param(struct iscsi_cls_conn *cls_conn,
 		     enum iscsi_param param, uint32_t *value)
 {
 	struct iscsi_conn *conn = cls_conn->dd_data;
+	struct inet_sock *inet;
 
 	switch(param) {
 	case ISCSI_PARAM_MAX_RECV_DLENGTH:
@@ -3561,11 +3562,59 @@ iscsi_conn_get_param(struct iscsi_cls_conn *cls_conn,
 	case ISCSI_PARAM_DATADGST_EN:
 		*value = conn->datadgst_en;
 		break;
+	case ISCSI_PARAM_CONN_PORT:
+		mutex_lock(&conn->xmitmutex);
+		if (!conn->sock) {
+			mutex_unlock(&conn->xmitmutex);
+			return -EINVAL;
+		}
+
+		inet = inet_sk(conn->sock->sk);
+		*value = be16_to_cpu(inet->dport);
+		mutex_unlock(&conn->xmitmutex);
 	default:
-		return ISCSI_ERR_PARAM_NOT_FOUND;
+		return -EINVAL;
 	}
 
 	return 0;
+}
+
+static int
+iscsi_conn_get_str_param(struct iscsi_cls_conn *cls_conn,
+			 enum iscsi_param param, char *buf)
+{
+	struct iscsi_conn *conn = cls_conn->dd_data;
+	struct sock *sk;
+	struct inet_sock *inet;
+	struct ipv6_pinfo *np;
+	int len = 0;
+
+	switch (param) {
+	case ISCSI_PARAM_CONN_ADDRESS:
+		mutex_lock(&conn->xmitmutex);
+		if (!conn->sock) {
+			mutex_unlock(&conn->xmitmutex);
+			return -EINVAL;
+		}
+
+		sk = conn->sock->sk;
+		if (sk->sk_family == PF_INET) {
+			inet = inet_sk(sk);
+			len = sprintf(buf, "%u.%u.%u.%u\n",
+				      NIPQUAD(inet->daddr));
+		} else {
+			np = inet6_sk(sk);
+			len = sprintf(buf,
+				"%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x\n",
+				NIP6(np->daddr));
+		}
+		mutex_unlock(&conn->xmitmutex);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return len;
 }
 
 static void
@@ -3610,6 +3659,20 @@ static struct iscsi_transport iscsi_tcp_transport = {
 	.name			= "tcp",
 	.caps			= CAP_RECOVERY_L0 | CAP_MULTI_R2T | CAP_HDRDGST
 				  | CAP_DATADGST,
+	.param_mask		= ISCSI_MAX_RECV_DLENGTH |
+				  ISCSI_MAX_XMIT_DLENGTH |
+				  ISCSI_HDRDGST_EN |
+				  ISCSI_DATADGST_EN |
+				  ISCSI_INITIAL_R2T_EN |
+				  ISCSI_MAX_R2T |
+				  ISCSI_IMM_DATA_EN |
+				  ISCSI_FIRST_BURST |
+				  ISCSI_MAX_BURST |
+				  ISCSI_PDU_INORDER_EN |
+				  ISCSI_DATASEQ_INORDER_EN |
+				  ISCSI_ERL |
+				  ISCSI_CONN_PORT |
+				  ISCSI_CONN_ADDRESS,
 	.host_template		= &iscsi_sht,
 	.hostdata_size		= sizeof(struct iscsi_session),
 	.conndata_size		= sizeof(struct iscsi_conn),
@@ -3622,6 +3685,7 @@ static struct iscsi_transport iscsi_tcp_transport = {
 	.destroy_conn		= iscsi_conn_destroy,
 	.set_param		= iscsi_conn_set_param,
 	.get_conn_param		= iscsi_conn_get_param,
+	.get_conn_str_param	= iscsi_conn_get_str_param,
 	.get_session_param	= iscsi_session_get_param,
 	.start_conn		= iscsi_conn_start,
 	.stop_conn		= iscsi_conn_stop,
