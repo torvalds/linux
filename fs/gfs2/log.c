@@ -196,7 +196,6 @@ int gfs2_log_reserve(struct gfs2_sbd *sdp, unsigned int blks)
 
 void gfs2_log_release(struct gfs2_sbd *sdp, unsigned int blks)
 {
-	up_read(&sdp->sd_log_flush_lock);
 
 	gfs2_log_lock(sdp);
 	sdp->sd_log_blks_free += blks;
@@ -204,6 +203,7 @@ void gfs2_log_release(struct gfs2_sbd *sdp, unsigned int blks)
 	gfs2_assert_withdraw(sdp,
 			     sdp->sd_log_blks_free <= sdp->sd_jdesc->jd_blocks);
 	gfs2_log_unlock(sdp);
+	up_read(&sdp->sd_log_flush_lock);
 }
 
 static uint64_t log_bmap(struct gfs2_sbd *sdp, unsigned int lbn)
