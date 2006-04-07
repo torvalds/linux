@@ -7,6 +7,7 @@
 #include <net/ipv6.h>
 #include <net/ip6_route.h>
 #include <net/xfrm.h>
+#include <net/ip6_checksum.h>
 
 int ip6_route_me_harder(struct sk_buff *skb)
 {
