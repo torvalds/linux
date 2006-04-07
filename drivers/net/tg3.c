@@ -497,21 +497,20 @@ static void tg3_write_mem(struct tg3 *tp, u32 off, u32 val)
 	unsigned long flags;
 
 	spin_lock_irqsave(&tp->indirect_lock, flags);
-	pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_BASE_ADDR, off);
-	pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_DATA, val);
+	if (tp->tg3_flags & TG3_FLAG_SRAM_USE_CONFIG) {
+		pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_BASE_ADDR, off);
+		pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_DATA, val);
 
-	/* Always leave this as zero. */
-	pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_BASE_ADDR, 0);
+		/* Always leave this as zero. */
+		pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_BASE_ADDR, 0);
+	} else {
+		tw32_f(TG3PCI_MEM_WIN_BASE_ADDR, off);
+		tw32_f(TG3PCI_MEM_WIN_DATA, val);
+
+		/* Always leave this as zero. */
+		tw32_f(TG3PCI_MEM_WIN_BASE_ADDR, 0);
+	}
 	spin_unlock_irqrestore(&tp->indirect_lock, flags);
-}
-
-static void tg3_write_mem_fast(struct tg3 *tp, u32 off, u32 val)
-{
-	/* If no workaround is needed, write to mem space directly */
-	if (tp->write32 != tg3_write_indirect_reg32)
-		tw32(NIC_SRAM_WIN_BASE + off, val);
-	else
-		tg3_write_mem(tp, off, val);
 }
 
 static void tg3_read_mem(struct tg3 *tp, u32 off, u32 *val)
@@ -519,11 +518,19 @@ static void tg3_read_mem(struct tg3 *tp, u32 off, u32 *val)
 	unsigned long flags;
 
 	spin_lock_irqsave(&tp->indirect_lock, flags);
-	pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_BASE_ADDR, off);
-	pci_read_config_dword(tp->pdev, TG3PCI_MEM_WIN_DATA, val);
+	if (tp->tg3_flags & TG3_FLAG_SRAM_USE_CONFIG) {
+		pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_BASE_ADDR, off);
+		pci_read_config_dword(tp->pdev, TG3PCI_MEM_WIN_DATA, val);
 
-	/* Always leave this as zero. */
-	pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_BASE_ADDR, 0);
+		/* Always leave this as zero. */
+		pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_BASE_ADDR, 0);
+	} else {
+		tw32_f(TG3PCI_MEM_WIN_BASE_ADDR, off);
+		*val = tr32(TG3PCI_MEM_WIN_DATA);
+
+		/* Always leave this as zero. */
+		tw32_f(TG3PCI_MEM_WIN_BASE_ADDR, 0);
+	}
 	spin_unlock_irqrestore(&tp->indirect_lock, flags);
 }
 
@@ -1367,11 +1374,11 @@ static int tg3_set_power_state(struct tg3 *tp, pci_power_t state)
 		}
 	}
 
+	tg3_write_sig_post_reset(tp, RESET_KIND_SHUTDOWN);
+
 	/* Finally, set the new power state. */
 	pci_write_config_word(tp->pdev, pm + PCI_PM_CTRL, power_control);
 	udelay(100);	/* Delay after power state change */
-
-	tg3_write_sig_post_reset(tp, RESET_KIND_SHUTDOWN);
 
 	return 0;
 }
@@ -6539,11 +6546,11 @@ static void tg3_timer(unsigned long __opaque)
 		if (tp->tg3_flags & TG3_FLAG_ENABLE_ASF) {
 			u32 val;
 
-			tg3_write_mem_fast(tp, NIC_SRAM_FW_CMD_MBOX,
-					   FWCMD_NICDRV_ALIVE2);
-			tg3_write_mem_fast(tp, NIC_SRAM_FW_CMD_LEN_MBOX, 4);
+			tg3_write_mem(tp, NIC_SRAM_FW_CMD_MBOX,
+				      FWCMD_NICDRV_ALIVE2);
+			tg3_write_mem(tp, NIC_SRAM_FW_CMD_LEN_MBOX, 4);
 			/* 5 seconds timeout */
-			tg3_write_mem_fast(tp, NIC_SRAM_FW_CMD_DATA_MBOX, 5);
+			tg3_write_mem(tp, NIC_SRAM_FW_CMD_DATA_MBOX, 5);
 			val = tr32(GRC_RX_CPU_EVENT);
 			val |= (1 << 14);
 			tw32(GRC_RX_CPU_EVENT, val);
@@ -9539,8 +9546,11 @@ static void __devinit tg3_get_eeprom_hw_cfg(struct tg3 *tp)
 	tp->led_ctrl = LED_CTRL_MODE_PHY_1;
 
 	/* Do not even try poking around in here on Sun parts.  */
-	if (tp->tg3_flags2 & TG3_FLG2_SUN_570X)
+	if (tp->tg3_flags2 & TG3_FLG2_SUN_570X) {
+		/* All SUN chips are built-in LOMs. */
+		tp->tg3_flags |= TG3_FLAG_EEPROM_WRITE_PROT;
 		return;
+	}
 
 	tg3_read_mem(tp, NIC_SRAM_DATA_SIG, &val);
 	if (val == NIC_SRAM_DATA_SIG_MAGIC) {
@@ -9638,9 +9648,7 @@ static void __devinit tg3_get_eeprom_hw_cfg(struct tg3 *tp)
 		    tp->pdev->subsystem_vendor == PCI_VENDOR_ID_DELL)
 			tp->led_ctrl = LED_CTRL_MODE_PHY_2;
 
-		if ((GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5700) &&
-		    (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5701) &&
-		    (nic_cfg & NIC_SRAM_DATA_CFG_EEPROM_WP))
+		if (nic_cfg & NIC_SRAM_DATA_CFG_EEPROM_WP)
 			tp->tg3_flags |= TG3_FLAG_EEPROM_WRITE_PROT;
 
 		if (nic_cfg & NIC_SRAM_DATA_CFG_ASF_ENABLE) {
@@ -10264,6 +10272,13 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 		pci_cmd &= ~PCI_COMMAND_MEMORY;
 		pci_write_config_word(tp->pdev, PCI_COMMAND, pci_cmd);
 	}
+
+	if (tp->write32 == tg3_write_indirect_reg32 ||
+	    ((tp->tg3_flags & TG3_FLAG_PCIX_MODE) &&
+	     (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5700 ||
+	      GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5701)) ||
+	    (tp->tg3_flags2 & TG3_FLG2_SUN_570X))
+		tp->tg3_flags |= TG3_FLAG_SRAM_USE_CONFIG;
 
 	/* Get eeprom hw config before calling tg3_set_power_state().
 	 * In particular, the TG3_FLAG_EEPROM_WRITE_PROT flag must be
