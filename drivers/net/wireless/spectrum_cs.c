@@ -120,8 +120,8 @@ static void spectrum_cs_release(struct pcmcia_device *link);
  * Each block has the following structure.
  */
 struct dblock {
-	__le32 _addr;		/* adapter address where to write the block */
-	__le16 _len;		/* length of the data only, in bytes */
+	__le32 addr;		/* adapter address where to write the block */
+	__le16 len;		/* length of the data only, in bytes */
 	char data[0];		/* data to be written */
 } __attribute__ ((packed));
 
@@ -131,9 +131,9 @@ struct dblock {
  * items with matching ID should be written.
  */
 struct pdr {
-	__le32 _id;		/* record ID */
-	__le32 _addr;		/* adapter address where to write the data */
-	__le32 _len;		/* expected length of the data, in bytes */
+	__le32 id;		/* record ID */
+	__le32 addr;		/* adapter address where to write the data */
+	__le32 len;		/* expected length of the data, in bytes */
 	char next[0];		/* next PDR starts here */
 } __attribute__ ((packed));
 
@@ -144,8 +144,8 @@ struct pdr {
  * be plugged into the secondary firmware.
  */
 struct pdi {
-	__le16 _len;		/* length of ID and data, in words */
-	__le16 _id;		/* record ID */
+	__le16 len;		/* length of ID and data, in words */
+	__le16 id;		/* record ID */
 	char data[0];		/* plug data */
 } __attribute__ ((packed));
 
@@ -154,44 +154,44 @@ struct pdi {
 static inline u32
 dblock_addr(const struct dblock *blk)
 {
-	return le32_to_cpu(blk->_addr);
+	return le32_to_cpu(blk->addr);
 }
 
 static inline u32
 dblock_len(const struct dblock *blk)
 {
-	return le16_to_cpu(blk->_len);
+	return le16_to_cpu(blk->len);
 }
 
 static inline u32
 pdr_id(const struct pdr *pdr)
 {
-	return le32_to_cpu(pdr->_id);
+	return le32_to_cpu(pdr->id);
 }
 
 static inline u32
 pdr_addr(const struct pdr *pdr)
 {
-	return le32_to_cpu(pdr->_addr);
+	return le32_to_cpu(pdr->addr);
 }
 
 static inline u32
 pdr_len(const struct pdr *pdr)
 {
-	return le32_to_cpu(pdr->_len);
+	return le32_to_cpu(pdr->len);
 }
 
 static inline u32
 pdi_id(const struct pdi *pdi)
 {
-	return le16_to_cpu(pdi->_id);
+	return le16_to_cpu(pdi->id);
 }
 
 /* Return length of the data only, in bytes */
 static inline u32
 pdi_len(const struct pdi *pdi)
 {
-	return 2 * (le16_to_cpu(pdi->_len) - 1);
+	return 2 * (le16_to_cpu(pdi->len) - 1);
 }
 
 
