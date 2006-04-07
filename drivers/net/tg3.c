@@ -5828,10 +5828,14 @@ static int tg3_reset_hw(struct tg3 *tp)
 			  GRC_MODE_NO_TX_PHDR_CSUM |
 			  GRC_MODE_NO_RX_PHDR_CSUM);
 	tp->grc_mode |= GRC_MODE_HOST_SENDBDS;
-	if (tp->tg3_flags & TG3_FLAG_NO_TX_PSEUDO_CSUM)
-		tp->grc_mode |= GRC_MODE_NO_TX_PHDR_CSUM;
-	if (tp->tg3_flags & TG3_FLAG_NO_RX_PSEUDO_CSUM)
-		tp->grc_mode |= GRC_MODE_NO_RX_PHDR_CSUM;
+
+	/* Pseudo-header checksum is done by hardware logic and not
+	 * the offload processers, so make the chip do the pseudo-
+	 * header checksums on receive.  For transmit it is more
+	 * convenient to do the pseudo-header checksum in software
+	 * as Linux does that on transmit for us in all cases.
+	 */
+	tp->grc_mode |= GRC_MODE_NO_TX_PHDR_CSUM;
 
 	tw32(GRC_MODE,
 	     tp->grc_mode |
@@ -10302,15 +10306,6 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	 */
 	if (tp->pci_chip_rev_id == CHIPREV_ID_5700_B0)
 		tp->tg3_flags |= TG3_FLAG_BROKEN_CHECKSUMS;
-
-	/* Pseudo-header checksum is done by hardware logic and not
-	 * the offload processers, so make the chip do the pseudo-
-	 * header checksums on receive.  For transmit it is more
-	 * convenient to do the pseudo-header checksum in software
-	 * as Linux does that on transmit for us in all cases.
-	 */
-	tp->tg3_flags |= TG3_FLAG_NO_TX_PSEUDO_CSUM;
-	tp->tg3_flags &= ~TG3_FLAG_NO_RX_PSEUDO_CSUM;
 
 	/* Derive initial jumbo mode from MTU assigned in
 	 * ether_setup() via the alloc_etherdev() call
