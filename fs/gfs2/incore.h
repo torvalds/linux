@@ -62,12 +62,12 @@ struct gfs2_log_operations {
 				 struct gfs2_log_descriptor *ld, __be64 *ptr,
 				 int pass);
 	void (*lo_after_scan) (struct gfs2_jdesc *jd, int error, int pass);
-	char *lo_name;
+	const char *lo_name;
 };
 
 struct gfs2_log_element {
 	struct list_head le_list;
-	struct gfs2_log_operations *le_ops;
+	const struct gfs2_log_operations *le_ops;
 };
 
 struct gfs2_bitmap {
@@ -618,6 +618,7 @@ struct gfs2_sbd {
 	unsigned int sd_log_num_rg;
 	unsigned int sd_log_num_databuf;
 	unsigned int sd_log_num_jdata;
+	unsigned int sd_log_num_hdrs;
 
 	struct list_head sd_log_le_gl;
 	struct list_head sd_log_le_buf;
@@ -631,7 +632,6 @@ struct gfs2_sbd {
 	uint64_t sd_log_sequence;
 	unsigned int sd_log_head;
 	unsigned int sd_log_tail;
-	uint64_t sd_log_wraps;
 	int sd_log_idle;
 
 	unsigned long sd_log_flush_time;

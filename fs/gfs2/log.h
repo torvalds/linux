@@ -37,7 +37,6 @@ static inline void gfs2_log_pointers_init(struct gfs2_sbd *sdp,
 {
 	if (++value == sdp->sd_jdesc->jd_blocks) {
 		value = 0;
-		sdp->sd_log_wraps++;
 	}
 	sdp->sd_log_head = sdp->sd_log_tail = value;
 }
@@ -54,10 +53,7 @@ void gfs2_log_release(struct gfs2_sbd *sdp, unsigned int blks);
 struct buffer_head *gfs2_log_get_buf(struct gfs2_sbd *sdp);
 struct buffer_head *gfs2_log_fake_buf(struct gfs2_sbd *sdp,
 				      struct buffer_head *real);
-
-#define gfs2_log_flush(sdp) gfs2_log_flush_i((sdp), NULL)
-#define gfs2_log_flush_glock(gl) gfs2_log_flush_i((gl)->gl_sbd, (gl))
-void gfs2_log_flush_i(struct gfs2_sbd *sdp, struct gfs2_glock *gl);
+void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl);
 void gfs2_log_commit(struct gfs2_sbd *sdp, struct gfs2_trans *trans);
 
 void gfs2_log_shutdown(struct gfs2_sbd *sdp);

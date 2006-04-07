@@ -789,6 +789,8 @@ static struct gfs2_dirent *gfs2_dirent_search(struct inode *inode,
 	if (error)
 		return ERR_PTR(error);
 	dent = gfs2_dirent_scan(inode, bh->b_data, bh->b_size, scan, name, NULL);
+	brelse(bh);
+
 got_dent:
 	*pbh = bh;
 	return dent;

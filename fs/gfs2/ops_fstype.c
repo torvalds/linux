@@ -276,8 +276,8 @@ static struct inode *gfs2_lookup_root(struct gfs2_sbd *sdp,
 	struct gfs2_inode *ip;
 	struct inode *inode;
 
-	error = gfs2_glock_get(sdp, inum->no_addr,
-                               &gfs2_inode_glops, CREATE, &gl);
+	error = gfs2_glock_get(sdp, inum->no_addr, &gfs2_inode_glops,
+			       CREATE, &gl);
         if (!error) {
                	error = gfs2_inode_get(gl, inum, CREATE, &ip);
 		if (!error) {

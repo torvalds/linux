@@ -10,16 +10,16 @@
 #ifndef __LOPS_DOT_H__
 #define __LOPS_DOT_H__
 
-extern struct gfs2_log_operations gfs2_glock_lops;
-extern struct gfs2_log_operations gfs2_buf_lops;
-extern struct gfs2_log_operations gfs2_revoke_lops;
-extern struct gfs2_log_operations gfs2_rg_lops;
-extern struct gfs2_log_operations gfs2_databuf_lops;
+extern const struct gfs2_log_operations gfs2_glock_lops;
+extern const struct gfs2_log_operations gfs2_buf_lops;
+extern const struct gfs2_log_operations gfs2_revoke_lops;
+extern const struct gfs2_log_operations gfs2_rg_lops;
+extern const struct gfs2_log_operations gfs2_databuf_lops;
 
-extern struct gfs2_log_operations *gfs2_log_ops[];
+extern const struct gfs2_log_operations *gfs2_log_ops[];
 
 static inline void lops_init_le(struct gfs2_log_element *le,
-				struct gfs2_log_operations *lops)
+				const struct gfs2_log_operations *lops)
 {
 	INIT_LIST_HEAD(&le->le_list);
 	le->le_ops = lops;

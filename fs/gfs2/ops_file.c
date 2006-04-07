@@ -561,8 +561,9 @@ static const u32 gfs2_to_iflags[32] = {
 	[gfs2fl_InheritJdata] = IFLAG_INHERITJDATA,
 };
 
-static int gfs2_get_flags(struct inode *inode, u32 __user *ptr)
+static int gfs2_get_flags(struct file *filp, u32 __user *ptr)
 {
+	struct inode *inode = filp->f_dentry->d_inode;
 	struct gfs2_inode *ip = inode->u.generic_ip;
 	struct gfs2_holder gh;
 	int error;
@@ -600,8 +601,9 @@ static int gfs2_get_flags(struct inode *inode, u32 __user *ptr)
  * @mask: Indicates which flags are valid
  *
  */
-static int do_gfs2_set_flags(struct inode *inode, u32 reqflags, u32 mask)
+static int do_gfs2_set_flags(struct file *filp, u32 reqflags, u32 mask)
 {
+	struct inode *inode = filp->f_dentry->d_inode;
 	struct gfs2_inode *ip = inode->u.generic_ip;
 	struct gfs2_sbd *sdp = ip->i_sbd;
 	struct buffer_head *bh;
@@ -659,23 +661,22 @@ out:
 	return error;
 }
 
-static int gfs2_set_flags(struct inode *inode, u32 __user *ptr)
+static int gfs2_set_flags(struct file *filp, u32 __user *ptr)
 {
 	u32 iflags, gfsflags;
 	if (get_user(iflags, ptr))
 		return -EFAULT;
 	gfsflags = iflags_cvt(iflags_to_gfs2, iflags);
-	return do_gfs2_set_flags(inode, gfsflags, ~0);
+	return do_gfs2_set_flags(filp, gfsflags, ~0);
 }
 
-int gfs2_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
-	       unsigned long arg)
+static long gfs2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	switch(cmd) {
 	case IFLAGS_GET_IOC:
-		return gfs2_get_flags(inode, (u32 __user *)arg);
+		return gfs2_get_flags(filp, (u32 __user *)arg);
 	case IFLAGS_SET_IOC:
-		return gfs2_set_flags(inode, (u32 __user *)arg);
+		return gfs2_set_flags(filp, (u32 __user *)arg);
 	}
 	return -ENOTTY;
 }
@@ -808,7 +809,7 @@ static int gfs2_fsync(struct file *file, struct dentry *dentry, int datasync)
 {
 	struct gfs2_inode *ip = dentry->d_inode->u.generic_ip;
 
-	gfs2_log_flush_glock(ip->i_gl);
+	gfs2_log_flush(ip->i_gl->gl_sbd, ip->i_gl);
 
 	return 0;
 }
@@ -974,7 +975,7 @@ struct file_operations gfs2_file_fops = {
 	.write = generic_file_write,
 	.writev = generic_file_writev,
 	.aio_write = generic_file_aio_write,
-	.ioctl = gfs2_ioctl,
+	.unlocked_ioctl = gfs2_ioctl,
 	.mmap = gfs2_mmap,
 	.open = gfs2_open,
 	.release = gfs2_close,
@@ -988,7 +989,7 @@ struct file_operations gfs2_file_fops = {
 
 struct file_operations gfs2_dir_fops = {
 	.readdir = gfs2_readdir,
-	.ioctl = gfs2_ioctl,
+	.unlocked_ioctl = gfs2_ioctl,
 	.open = gfs2_open,
 	.release = gfs2_close,
 	.fsync = gfs2_fsync,

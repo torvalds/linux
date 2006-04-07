@@ -59,11 +59,12 @@ static int gfs2_aspace_writepage(struct page *page,
 
 static void stuck_releasepage(struct buffer_head *bh)
 {
-	struct gfs2_sbd *sdp = bh->b_page->mapping->host->i_sb->s_fs_info;
+	struct inode *inode = bh->b_page->mapping->host;
+	struct gfs2_sbd *sdp = inode->i_sb->s_fs_info;
 	struct gfs2_bufdata *bd = bh->b_private;
 	struct gfs2_glock *gl;
 
-	fs_warn(sdp, "stuck in gfs2_releasepage()\n");
+	fs_warn(sdp, "stuck in gfs2_releasepage() %p\n", inode);
 	fs_warn(sdp, "blkno = %llu, bh->b_count = %d\n",
 		(uint64_t)bh->b_blocknr, atomic_read(&bh->b_count));
 	fs_warn(sdp, "pinned = %u\n", buffer_pinned(bh));
@@ -191,7 +192,6 @@ struct inode *gfs2_aspace_get(struct gfs2_sbd *sdp)
 		aspace->u.generic_ip = NULL;
 		insert_inode_hash(aspace);
 	}
-
 	return aspace;
 }
 
@@ -353,7 +353,7 @@ void gfs2_ail_empty_gl(struct gfs2_glock *gl)
 	gfs2_log_unlock(sdp);
 
 	gfs2_trans_end(sdp);
-	gfs2_log_flush(sdp);
+	gfs2_log_flush(sdp, NULL);
 }
 
 /**
@@ -876,7 +876,7 @@ void gfs2_meta_ra(struct gfs2_glock *gl, uint64_t dblock, uint32_t extlen)
 
 void gfs2_meta_syncfs(struct gfs2_sbd *sdp)
 {
-	gfs2_log_flush(sdp);
+	gfs2_log_flush(sdp, NULL);
 	for (;;) {
 		gfs2_ail1_start(sdp, DIO_ALL);
 		if (gfs2_ail1_empty(sdp, DIO_ALL))

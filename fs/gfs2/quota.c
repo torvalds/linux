@@ -749,7 +749,7 @@ static int do_sync(unsigned int num_qd, struct gfs2_quota_data **qda)
 	while (qx--)
 		gfs2_glock_dq_uninit(&ghs[qx]);
 	kfree(ghs);
-	gfs2_log_flush_glock(ip->i_gl);
+	gfs2_log_flush(ip->i_gl->gl_sbd, ip->i_gl);
 
 	return error;
 }

@@ -53,7 +53,7 @@ static int gfs2_write_inode(struct inode *inode, int sync)
 	if (current->flags & PF_MEMALLOC)
 		return 0;
 	if (ip && sync)
-		gfs2_log_flush_glock(ip->i_gl);
+		gfs2_log_flush(ip->i_gl->gl_sbd, ip->i_gl);
 
 	return 0;
 }
@@ -121,10 +121,8 @@ static void gfs2_put_super(struct super_block *sb)
 	}
 
 	gfs2_glock_dq_uninit(&sdp->sd_live_gh);
-
 	gfs2_clear_rgrpd(sdp);
 	gfs2_jindex_free(sdp);
-
 	/*  Take apart glock structures and buffer lists  */
 	gfs2_gl_hash_clear(sdp, WAIT);
 
@@ -134,10 +132,6 @@ static void gfs2_put_super(struct super_block *sb)
 	/*  At this point, we're through participating in the lockspace  */
 
 	gfs2_sys_fs_del(sdp);
-
-	/*  Get rid of any extra inodes  */
-	while (invalidate_inodes(sb))
-		yield();
 
 	vfree(sdp);
 
@@ -149,13 +143,13 @@ static void gfs2_put_super(struct super_block *sb)
  * @sb: the filesystem
  *
  * This function is called every time sync(2) is called.
- * After this exits, all dirty buffers and synced.
+ * After this exits, all dirty buffers are synced.
  */
 
 static void gfs2_write_super(struct super_block *sb)
 {
 	struct gfs2_sbd *sdp = sb->s_fs_info;
-	gfs2_log_flush(sdp);
+	gfs2_log_flush(sdp, NULL);
 }
 
 /**

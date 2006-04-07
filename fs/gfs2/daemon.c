@@ -129,7 +129,7 @@ int gfs2_logd(void *data)
 		gfs2_ail1_empty(sdp, DIO_ALL);
 
 		if (time_after_eq(jiffies, t)) {
-			gfs2_log_flush(sdp);
+			gfs2_log_flush(sdp, NULL);
 			sdp->sd_log_flush_time = jiffies;
 		}
 

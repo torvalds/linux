@@ -120,7 +120,7 @@ void gfs2_trans_end(struct gfs2_sbd *sdp)
         kfree(tr);
 
 	if (sdp->sd_vfs->s_flags & MS_SYNCHRONOUS)
-		gfs2_log_flush(sdp);
+		gfs2_log_flush(sdp, NULL);
 }
 
 void gfs2_trans_add_gl(struct gfs2_glock *gl)

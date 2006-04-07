@@ -130,6 +130,7 @@ static void buf_lo_before_commit(struct gfs2_sbd *sdp)
 		if (total > limit)
 			num = limit;
 		bh = gfs2_log_get_buf(sdp);
+		sdp->sd_log_num_hdrs++;
 		ld = (struct gfs2_log_descriptor *)bh->b_data;
 		ptr = (__be64 *)(bh->b_data + offset);
 		ld->ld_header.mh_magic = cpu_to_be32(GFS2_MAGIC);
@@ -570,6 +571,7 @@ static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
 				gfs2_log_unlock(sdp);
 				if (!bh) {
 					bh = gfs2_log_get_buf(sdp);
+					sdp->sd_log_num_hdrs++;
 					ld = (struct gfs2_log_descriptor *)
 					     bh->b_data;
 					ptr = (__be64 *)(bh->b_data + offset);
@@ -750,13 +752,13 @@ static void databuf_lo_after_commit(struct gfs2_sbd *sdp, struct gfs2_ail *ai)
 }
 
 
-struct gfs2_log_operations gfs2_glock_lops = {
+const struct gfs2_log_operations gfs2_glock_lops = {
 	.lo_add = glock_lo_add,
 	.lo_after_commit = glock_lo_after_commit,
 	.lo_name = "glock"
 };
 
-struct gfs2_log_operations gfs2_buf_lops = {
+const struct gfs2_log_operations gfs2_buf_lops = {
 	.lo_add = buf_lo_add,
 	.lo_incore_commit = buf_lo_incore_commit,
 	.lo_before_commit = buf_lo_before_commit,
@@ -767,7 +769,7 @@ struct gfs2_log_operations gfs2_buf_lops = {
 	.lo_name = "buf"
 };
 
-struct gfs2_log_operations gfs2_revoke_lops = {
+const struct gfs2_log_operations gfs2_revoke_lops = {
 	.lo_add = revoke_lo_add,
 	.lo_before_commit = revoke_lo_before_commit,
 	.lo_before_scan = revoke_lo_before_scan,
@@ -776,13 +778,13 @@ struct gfs2_log_operations gfs2_revoke_lops = {
 	.lo_name = "revoke"
 };
 
-struct gfs2_log_operations gfs2_rg_lops = {
+const struct gfs2_log_operations gfs2_rg_lops = {
 	.lo_add = rg_lo_add,
 	.lo_after_commit = rg_lo_after_commit,
 	.lo_name = "rg"
 };
 
-struct gfs2_log_operations gfs2_databuf_lops = {
+const struct gfs2_log_operations gfs2_databuf_lops = {
 	.lo_add = databuf_lo_add,
 	.lo_incore_commit = buf_lo_incore_commit,
 	.lo_before_commit = databuf_lo_before_commit,
@@ -792,7 +794,7 @@ struct gfs2_log_operations gfs2_databuf_lops = {
 	.lo_name = "databuf"
 };
 
-struct gfs2_log_operations *gfs2_log_ops[] = {
+const struct gfs2_log_operations *gfs2_log_ops[] = {
 	&gfs2_glock_lops,
 	&gfs2_buf_lops,
 	&gfs2_revoke_lops,

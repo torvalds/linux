@@ -45,7 +45,7 @@ static void meta_go_sync(struct gfs2_glock *gl, int flags)
 		return;
 
 	if (test_and_clear_bit(GLF_DIRTY, &gl->gl_flags)) {
-		gfs2_log_flush_glock(gl);
+		gfs2_log_flush(gl->gl_sbd, gl);
 		gfs2_meta_sync(gl, flags | DIO_START | DIO_WAIT);
 		if (flags & DIO_RELEASE)
 			gfs2_ail_empty_gl(gl);
@@ -149,12 +149,12 @@ static void inode_go_sync(struct gfs2_glock *gl, int flags)
 	if (test_bit(GLF_DIRTY, &gl->gl_flags)) {
 		if (meta && data) {
 			gfs2_page_sync(gl, flags | DIO_START);
-			gfs2_log_flush_glock(gl);
+			gfs2_log_flush(gl->gl_sbd, gl);
 			gfs2_meta_sync(gl, flags | DIO_START | DIO_WAIT);
 			gfs2_page_sync(gl, flags | DIO_WAIT);
 			clear_bit(GLF_DIRTY, &gl->gl_flags);
 		} else if (meta) {
-			gfs2_log_flush_glock(gl);
+			gfs2_log_flush(gl->gl_sbd, gl);
 			gfs2_meta_sync(gl, flags | DIO_START | DIO_WAIT);
 		} else if (data)
 			gfs2_page_sync(gl, flags | DIO_START | DIO_WAIT);
