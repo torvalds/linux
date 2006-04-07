@@ -530,8 +530,7 @@ int __add_pages(struct zone *z, unsigned long start_pfn, unsigned long nr_pages)
 	unsigned long pfn;
 	unsigned long total = 0, mem = 0;
 	for (pfn = start_pfn; pfn < start_pfn + nr_pages; pfn++) {
-		unsigned long addr = pfn << PAGE_SHIFT;
-		if (pfn_valid(pfn) && e820_mapped(addr, addr+1, E820_RAM)) {
+		if (pfn_valid(pfn)) {
 			online_page(pfn_to_page(pfn));
 			err = 0;
 			mem++;
