@@ -2,7 +2,7 @@
  * iSCSI transport class definitions
  *
  * Copyright (C) IBM Corporation, 2004
- * Copyright (C) Mike Christie, 2004 - 2005
+ * Copyright (C) Mike Christie, 2004 - 2006
  * Copyright (C) Dmitry Yusupov, 2004 - 2005
  * Copyright (C) Alex Aizman, 2004 - 2005
  *
@@ -27,9 +27,13 @@
 #include <scsi/iscsi_if.h>
 
 struct scsi_transport_template;
+struct iscsi_transport;
 struct Scsi_Host;
 struct mempool_zone;
 struct iscsi_cls_conn;
+struct iscsi_conn;
+struct iscsi_cmd_task;
+struct iscsi_mgmt_task;
 
 /**
  * struct iscsi_transport - iSCSI Transport template
@@ -46,6 +50,20 @@ struct iscsi_cls_conn;
  * @start_conn:		set connection to be operational
  * @stop_conn:		suspend/recover/terminate connection
  * @send_pdu:		send iSCSI PDU, Login, Logout, NOP-Out, Reject, Text.
+ * @session_recovery_timedout: notify LLD a block during recovery timed out
+ * @suspend_conn_recv:	susepend the recv side of the connection
+ * @termincate_conn:	destroy socket connection. Called with mutex lock.
+ * @init_cmd_task:	Initialize a iscsi_cmd_task and any internal structs.
+ *			Called from queuecommand with session lock held.
+ * @init_mgmt_task:	Initialize a iscsi_mgmt_task and any internal structs.
+ *			Called from iscsi_conn_send_generic with xmitmutex.
+ * @xmit_cmd_task:	requests LLD to transfer cmd task
+ * @xmit_mgmt_task:	requests LLD to transfer mgmt task
+ * @cleanup_cmd_task:	requests LLD to fail cmd task. Called with xmitmutex
+ *			and session->lock after the connection has been
+ *			suspended and terminated during recovery. If called
+ *			from abort task then connection is not suspended
+ *			or terminated but sk_callback_lock is held
  *
  * Template API provided by iSCSI Transport
  */
@@ -56,8 +74,6 @@ struct iscsi_transport {
 	/* LLD sets this to indicate what values it can export to sysfs */
 	unsigned int param_mask;
 	struct scsi_host_template *host_template;
-	/* LLD session/scsi_host data size */
-	int hostdata_size;
 	/* LLD connection data size */
 	int conndata_size;
 	/* LLD session data size */
@@ -65,8 +81,8 @@ struct iscsi_transport {
 	int max_lun;
 	unsigned int max_conn;
 	unsigned int max_cmd_len;
-	struct iscsi_cls_session *(*create_session)
-		(struct scsi_transport_template *t, uint32_t sn, uint32_t *hn);
+	struct iscsi_cls_session *(*create_session) (struct iscsi_transport *it,
+		struct scsi_transport_template *t, uint32_t sn, uint32_t *hn);
 	void (*destroy_session) (struct iscsi_cls_session *session);
 	struct iscsi_cls_conn *(*create_conn) (struct iscsi_cls_session *sess,
 				uint32_t cid);
@@ -90,6 +106,18 @@ struct iscsi_transport {
 			 char *data, uint32_t data_size);
 	void (*get_stats) (struct iscsi_cls_conn *conn,
 			   struct iscsi_stats *stats);
+	void (*suspend_conn_recv) (struct iscsi_conn *conn);
+	void (*terminate_conn) (struct iscsi_conn *conn);
+	void (*init_cmd_task) (struct iscsi_cmd_task *ctask);
+	void (*init_mgmt_task) (struct iscsi_conn *conn,
+				struct iscsi_mgmt_task *mtask,
+				char *data, uint32_t data_size);
+	int (*xmit_cmd_task) (struct iscsi_conn *conn,
+			      struct iscsi_cmd_task *ctask);
+	void (*cleanup_cmd_task) (struct iscsi_conn *conn,
+				  struct iscsi_cmd_task *ctask);
+	int (*xmit_mgmt_task) (struct iscsi_conn *conn,
+			       struct iscsi_mgmt_task *mtask);
 	void (*session_recovery_timedout) (struct iscsi_cls_session *session);
 };
 
@@ -105,6 +133,13 @@ extern int iscsi_unregister_transport(struct iscsi_transport *tt);
 extern void iscsi_conn_error(struct iscsi_cls_conn *conn, enum iscsi_err error);
 extern int iscsi_recv_pdu(struct iscsi_cls_conn *conn, struct iscsi_hdr *hdr,
 			  char *data, uint32_t data_size);
+
+
+/* Connection's states */
+#define ISCSI_CONN_INITIAL_STAGE	0
+#define ISCSI_CONN_STARTED		1
+#define ISCSI_CONN_STOPPED		2
+#define ISCSI_CONN_CLEANUP_WAIT		3
 
 struct iscsi_cls_conn {
 	struct list_head conn_list;	/* item in connlist */
@@ -128,6 +163,12 @@ struct iscsi_cls_conn {
 
 #define iscsi_dev_to_conn(_dev) \
 	container_of(_dev, struct iscsi_cls_conn, dev)
+
+/* Session's states */
+#define ISCSI_STATE_FREE		1
+#define ISCSI_STATE_LOGGED_IN		2
+#define ISCSI_STATE_FAILED		3
+#define ISCSI_STATE_TERMINATE		4
 
 struct iscsi_cls_session {
 	struct list_head sess_list;		/* item in session_list */
@@ -173,13 +214,5 @@ extern struct iscsi_cls_conn *iscsi_create_conn(struct iscsi_cls_session *sess,
 extern int iscsi_destroy_conn(struct iscsi_cls_conn *conn);
 extern void iscsi_unblock_session(struct iscsi_cls_session *session);
 extern void iscsi_block_session(struct iscsi_cls_session *session);
-
-/*
- * session functions used by software iscsi
- */
-extern struct Scsi_Host *
-iscsi_transport_create_session(struct scsi_transport_template *scsit,
-                               struct iscsi_transport *transport);
-extern int iscsi_transport_destroy_session(struct Scsi_Host *shost);
 
 #endif
