@@ -60,11 +60,13 @@ struct iscsi_transport {
 	int ihostdata_size;
 	/* LLD connection data size */
 	int conndata_size;
+	/* LLD session data size */
+	int sessiondata_size;
 	int max_lun;
 	unsigned int max_conn;
 	unsigned int max_cmd_len;
 	struct iscsi_cls_session *(*create_session)
-		(struct scsi_transport_template *t, uint32_t sn, uint32_t *sid);
+		(struct scsi_transport_template *t, uint32_t sn, uint32_t *hn);
 	void (*destroy_session) (struct iscsi_cls_session *session);
 	struct iscsi_cls_conn *(*create_conn) (struct iscsi_cls_session *sess,
 				uint32_t cid);
@@ -104,6 +106,7 @@ struct iscsi_cls_conn {
 	struct list_head conn_list;	/* item in connlist */
 	void *dd_data;			/* LLD private data */
 	struct iscsi_transport *transport;
+	uint32_t cid;			/* connection id */
 	int active;			/* must be accessed with the connlock */
 	struct device dev;		/* sysfs transport/container device */
 	struct mempool_zone *z_error;
@@ -117,6 +120,8 @@ struct iscsi_cls_conn {
 struct iscsi_cls_session {
 	struct list_head sess_list;		/* item in session_list */
 	struct iscsi_transport *transport;
+	int sid;				/* session id */
+	void *dd_data;				/* LLD private data */
 	struct device dev;	/* sysfs transport/container device */
 };
 

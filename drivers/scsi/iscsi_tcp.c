@@ -3254,7 +3254,7 @@ static struct iscsi_transport iscsi_tcp_transport;
 
 static struct iscsi_cls_session *
 iscsi_session_create(struct scsi_transport_template *scsit,
-		     uint32_t initial_cmdsn, uint32_t *sid)
+		     uint32_t initial_cmdsn, uint32_t *hostno)
 {
 	struct Scsi_Host *shost;
 	struct iscsi_session *session;
@@ -3274,7 +3274,8 @@ iscsi_session_create(struct scsi_transport_template *scsit,
 	session->exp_cmdsn = initial_cmdsn + 1;
 	session->max_cmdsn = initial_cmdsn + 1;
 	session->max_r2t = 1;
-	*sid = shost->host_no;
+
+	*hostno = shost->host_no;
 
 	/* initialize SCSI PDU commands pool */
 	if (iscsi_pool_init(&session->cmdpool, session->cmds_max,

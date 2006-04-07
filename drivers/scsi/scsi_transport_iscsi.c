@@ -56,6 +56,8 @@ struct iscsi_internal {
 	struct class_device_attribute *session_attrs[ISCSI_SESSION_ATTRS + 1];
 };
 
+static int iscsi_session_nr;	/* sysfs session id for next new session */
+
 /*
  * list of registered transports and lock that must
  * be held while accessing list. The iscsi_transport_lock must
@@ -165,14 +167,23 @@ static DEFINE_SPINLOCK(sesslock);
 static LIST_HEAD(connlist);
 static DEFINE_SPINLOCK(connlock);
 
-static struct iscsi_cls_session *iscsi_session_lookup(uint64_t handle)
+static uint32_t iscsi_conn_get_sid(struct iscsi_cls_conn *conn)
+{
+	struct iscsi_cls_session *sess = iscsi_dev_to_session(conn->dev.parent);
+	return sess->sid;
+}
+
+/*
+ * Returns the matching session to a given sid
+ */
+static struct iscsi_cls_session *iscsi_session_lookup(uint32_t sid)
 {
 	unsigned long flags;
 	struct iscsi_cls_session *sess;
 
 	spin_lock_irqsave(&sesslock, flags);
 	list_for_each_entry(sess, &sesslist, sess_list) {
-		if (sess == iscsi_ptr(handle)) {
+		if (sess->sid == sid) {
 			spin_unlock_irqrestore(&sesslock, flags);
 			return sess;
 		}
@@ -181,14 +192,17 @@ static struct iscsi_cls_session *iscsi_session_lookup(uint64_t handle)
 	return NULL;
 }
 
-static struct iscsi_cls_conn *iscsi_conn_lookup(uint64_t handle)
+/*
+ * Returns the matching connection to a given sid / cid tuple
+ */
+static struct iscsi_cls_conn *iscsi_conn_lookup(uint32_t sid, uint32_t cid)
 {
 	unsigned long flags;
 	struct iscsi_cls_conn *conn;
 
 	spin_lock_irqsave(&connlock, flags);
 	list_for_each_entry(conn, &connlist, conn_list) {
-		if (conn == iscsi_ptr(handle)) {
+		if ((conn->cid == cid) && (iscsi_conn_get_sid(conn) == sid)) {
 			spin_unlock_irqrestore(&connlock, flags);
 			return conn;
 		}
@@ -223,7 +237,7 @@ static int iscsi_is_session_dev(const struct device *dev)
  * @shost: scsi host
  * @transport: iscsi transport
  *
- * This can be called from a LLD or iscsi_transport
+ * This can be called from a LLD or iscsi_transport.
  **/
 struct iscsi_cls_session *
 iscsi_create_session(struct Scsi_Host *shost, struct iscsi_transport *transport)
@@ -234,14 +248,20 @@ iscsi_create_session(struct Scsi_Host *shost, struct iscsi_transport *transport)
 	if (!try_module_get(transport->owner))
 		return NULL;
 
-	session = kzalloc(sizeof(*session), GFP_KERNEL);
+	session = kzalloc(sizeof(*session) + transport->sessiondata_size,
+			  GFP_KERNEL);
 	if (!session)
 		goto module_put;
 	session->transport = transport;
 
+	if (transport->sessiondata_size)
+		session->dd_data = &session[1];
+
 	/* this is released in the dev's release function */
 	scsi_host_get(shost);
-	snprintf(session->dev.bus_id, BUS_ID_SIZE, "session%u", shost->host_no);
+	session->sid = iscsi_session_nr++;
+	snprintf(session->dev.bus_id, BUS_ID_SIZE, "session%u",
+		 session->sid);
 	session->dev.parent = &shost->shost_gendev;
 	session->dev.release = iscsi_session_release;
 	err = device_register(&session->dev);
@@ -301,12 +321,16 @@ static int iscsi_is_conn_dev(const struct device *dev)
  * This can be called from a LLD or iscsi_transport. The connection
  * is child of the session so cid must be unique for all connections
  * on the session.
+ *
+ * Since we do not support MCS, cid will normally be zero. In some cases
+ * for software iscsi we could be trying to preallocate a connection struct
+ * in which case there could be two connection structs and cid would be
+ * non-zero.
  **/
 struct iscsi_cls_conn *
 iscsi_create_conn(struct iscsi_cls_session *session, uint32_t cid)
 {
 	struct iscsi_transport *transport = session->transport;
-	struct Scsi_Host *shost = iscsi_session_to_shost(session);
 	struct iscsi_cls_conn *conn;
 	int err;
 
@@ -319,12 +343,14 @@ iscsi_create_conn(struct iscsi_cls_session *session, uint32_t cid)
 
 	INIT_LIST_HEAD(&conn->conn_list);
 	conn->transport = transport;
+	conn->cid = cid;
 
 	/* this is released in the dev's release function */
 	if (!get_device(&session->dev))
 		goto free_conn;
+
 	snprintf(conn->dev.bus_id, BUS_ID_SIZE, "connection%d:%u",
-		 shost->host_no, cid);
+		 session->sid, cid);
 	conn->dev.parent = &session->dev;
 	conn->dev.release = iscsi_conn_release;
 	err = device_register(&conn->dev);
@@ -607,7 +633,8 @@ int iscsi_recv_pdu(struct iscsi_cls_conn *conn, struct iscsi_hdr *hdr,
 	ev->type = ISCSI_KEVENT_RECV_PDU;
 	if (atomic_read(&conn->z_pdu->allocated) >= conn->z_pdu->hiwat)
 		ev->iferror = -ENOMEM;
-	ev->r.recv_req.conn_handle = iscsi_handle(conn);
+	ev->r.recv_req.cid = conn->cid;
+	ev->r.recv_req.sid = iscsi_conn_get_sid(conn);
 	pdu = (char*)ev + sizeof(*ev);
 	memcpy(pdu, hdr, sizeof(struct iscsi_hdr));
 	memcpy(pdu + sizeof(struct iscsi_hdr), data, data_size);
@@ -639,7 +666,8 @@ void iscsi_conn_error(struct iscsi_cls_conn *conn, enum iscsi_err error)
 	if (atomic_read(&conn->z_error->allocated) >= conn->z_error->hiwat)
 		ev->iferror = -ENOMEM;
 	ev->r.connerror.error = error;
-	ev->r.connerror.conn_handle = iscsi_handle(conn);
+	ev->r.connerror.cid = conn->cid;
+	ev->r.connerror.sid = iscsi_conn_get_sid(conn);
 
 	iscsi_unicast_skb(conn->z_error, skb);
 
@@ -689,7 +717,7 @@ iscsi_if_get_stats(struct iscsi_transport *transport, struct nlmsghdr *nlh)
 			      ISCSI_STATS_CUSTOM_MAX);
 	int err = 0;
 
-	conn = iscsi_conn_lookup(ev->u.get_stats.conn_handle);
+	conn = iscsi_conn_lookup(ev->u.get_stats.sid, ev->u.get_stats.cid);
 	if (!conn)
 		return -EEXIST;
 
@@ -713,8 +741,10 @@ iscsi_if_get_stats(struct iscsi_transport *transport, struct nlmsghdr *nlh)
 		evstat->type = nlh->nlmsg_type;
 		if (atomic_read(&conn->z_pdu->allocated) >= conn->z_pdu->hiwat)
 			evstat->iferror = -ENOMEM;
-		evstat->u.get_stats.conn_handle =
-			ev->u.get_stats.conn_handle;
+		evstat->u.get_stats.cid =
+			ev->u.get_stats.cid;
+		evstat->u.get_stats.sid =
+			ev->u.get_stats.sid;
 		stats = (struct iscsi_stats *)
 			((char*)evstat + sizeof(*evstat));
 		memset(stats, 0, sizeof(*stats));
@@ -740,16 +770,16 @@ iscsi_if_create_session(struct iscsi_internal *priv, struct iscsi_uevent *ev)
 {
 	struct iscsi_transport *transport = priv->iscsi_transport;
 	struct iscsi_cls_session *session;
-	uint32_t sid;
+	uint32_t hostno;
 
 	session = transport->create_session(&priv->t,
 					    ev->u.c_session.initial_cmdsn,
-					    &sid);
+					    &hostno);
 	if (!session)
 		return -ENOMEM;
 
-	ev->r.c_session_ret.session_handle = iscsi_handle(session);
-	ev->r.c_session_ret.sid = sid;
+	ev->r.c_session_ret.host_no = hostno;
+	ev->r.c_session_ret.sid = session->sid;
 	return 0;
 }
 
@@ -760,13 +790,20 @@ iscsi_if_create_conn(struct iscsi_transport *transport, struct iscsi_uevent *ev)
 	struct iscsi_cls_session *session;
 	unsigned long flags;
 
-	session = iscsi_session_lookup(ev->u.c_conn.session_handle);
-	if (!session)
+	session = iscsi_session_lookup(ev->u.c_conn.sid);
+	if (!session) {
+		printk(KERN_ERR "iscsi: invalid session %d\n",
+		       ev->u.c_conn.sid);
 		return -EINVAL;
+	}
 
 	conn = transport->create_conn(session, ev->u.c_conn.cid);
-	if (!conn)
+	if (!conn) {
+		printk(KERN_ERR "iscsi: couldn't create a new "
+			   "connection for session %d\n",
+			   session->sid);
 		return -ENOMEM;
+	}
 
 	conn->z_pdu = mempool_zone_init(Z_MAX_PDU,
 			NLMSG_SPACE(sizeof(struct iscsi_uevent) +
@@ -788,7 +825,8 @@ iscsi_if_create_conn(struct iscsi_transport *transport, struct iscsi_uevent *ev)
 		goto free_pdu_pool;
 	}
 
-	ev->r.handle = iscsi_handle(conn);
+	ev->r.c_conn_ret.sid = session->sid;
+	ev->r.c_conn_ret.cid = conn->cid;
 
 	spin_lock_irqsave(&connlock, flags);
 	list_add(&conn->conn_list, &connlist);
@@ -812,7 +850,7 @@ iscsi_if_destroy_conn(struct iscsi_transport *transport, struct iscsi_uevent *ev
 	struct iscsi_cls_conn *conn;
 	struct mempool_zone *z_error, *z_pdu;
 
-	conn = iscsi_conn_lookup(ev->u.d_conn.conn_handle);
+	conn = iscsi_conn_lookup(ev->u.d_conn.sid, ev->u.d_conn.cid);
 	if (!conn)
 		return -EINVAL;
 	spin_lock_irqsave(&connlock, flags);
@@ -855,7 +893,7 @@ iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		err = iscsi_if_create_session(priv, ev);
 		break;
 	case ISCSI_UEVENT_DESTROY_SESSION:
-		session = iscsi_session_lookup(ev->u.d_session.session_handle);
+		session = iscsi_session_lookup(ev->u.d_session.sid);
 		if (session)
 			transport->destroy_session(session);
 		else
@@ -868,8 +906,8 @@ iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		err = iscsi_if_destroy_conn(transport, ev);
 		break;
 	case ISCSI_UEVENT_BIND_CONN:
-		session = iscsi_session_lookup(ev->u.b_conn.session_handle);
-		conn = iscsi_conn_lookup(ev->u.b_conn.conn_handle);
+		session = iscsi_session_lookup(ev->u.b_conn.sid);
+		conn = iscsi_conn_lookup(ev->u.b_conn.sid, ev->u.b_conn.cid);
 
 		if (session && conn)
 			ev->r.retcode =	transport->bind_conn(session, conn,
@@ -879,7 +917,7 @@ iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 			err = -EINVAL;
 		break;
 	case ISCSI_UEVENT_SET_PARAM:
-		conn = iscsi_conn_lookup(ev->u.set_param.conn_handle);
+		conn = iscsi_conn_lookup(ev->u.set_param.sid, ev->u.set_param.cid);
 		if (conn)
 			ev->r.retcode =	transport->set_param(conn,
 				ev->u.set_param.param, ev->u.set_param.value);
@@ -887,7 +925,7 @@ iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 			err = -EINVAL;
 		break;
 	case ISCSI_UEVENT_START_CONN:
-		conn = iscsi_conn_lookup(ev->u.start_conn.conn_handle);
+		conn = iscsi_conn_lookup(ev->u.start_conn.sid, ev->u.start_conn.cid);
 		if (conn)
 			ev->r.retcode = transport->start_conn(conn);
 		else
@@ -895,14 +933,14 @@ iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 		break;
 	case ISCSI_UEVENT_STOP_CONN:
-		conn = iscsi_conn_lookup(ev->u.stop_conn.conn_handle);
+		conn = iscsi_conn_lookup(ev->u.stop_conn.sid, ev->u.stop_conn.cid);
 		if (conn)
 			transport->stop_conn(conn, ev->u.stop_conn.flag);
 		else
 			err = -EINVAL;
 		break;
 	case ISCSI_UEVENT_SEND_PDU:
-		conn = iscsi_conn_lookup(ev->u.send_pdu.conn_handle);
+		conn = iscsi_conn_lookup(ev->u.send_pdu.sid, ev->u.send_pdu.cid);
 		if (conn)
 			ev->r.retcode =	transport->send_pdu(conn,
 				(struct iscsi_hdr*)((char*)ev + sizeof(*ev)),
@@ -923,9 +961,11 @@ iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	return err;
 }
 
-/* Get message from skb (based on rtnetlink_rcv_skb).  Each message is
- * processed by iscsi_if_recv_msg.  Malformed skbs with wrong length are
- * or invalid creds discarded silently.  */
+/*
+ * Get message from skb (based on rtnetlink_rcv_skb).  Each message is
+ * processed by iscsi_if_recv_msg.  Malformed skbs with wrong lengths or
+ * invalid creds are discarded silently.
+ */
 static void
 iscsi_if_rx(struct sock *sk, int len)
 {

@@ -60,59 +60,68 @@ struct iscsi_uevent {
 			uint32_t	initial_cmdsn;
 		} c_session;
 		struct msg_destroy_session {
-			uint64_t	session_handle;
 			uint32_t	sid;
 		} d_session;
 		struct msg_create_conn {
-			uint64_t	session_handle;
-			uint32_t	cid;
 			uint32_t	sid;
+			uint32_t	cid;
 		} c_conn;
 		struct msg_bind_conn {
-			uint64_t	session_handle;
-			uint64_t	conn_handle;
+			uint32_t	sid;
+			uint32_t	cid;
 			uint32_t	transport_fd;
 			uint32_t	is_leading;
 		} b_conn;
 		struct msg_destroy_conn {
-			uint64_t	conn_handle;
+			uint32_t	sid;
 			uint32_t	cid;
 		} d_conn;
 		struct msg_send_pdu {
+			uint32_t	sid;
+			uint32_t	cid;
 			uint32_t	hdr_size;
 			uint32_t	data_size;
-			uint64_t	conn_handle;
 		} send_pdu;
 		struct msg_set_param {
-			uint64_t	conn_handle;
+			uint32_t	sid;
+			uint32_t	cid;
 			uint32_t	param; /* enum iscsi_param */
 			uint32_t	value;
 		} set_param;
 		struct msg_start_conn {
-			uint64_t	conn_handle;
+			uint32_t	sid;
+			uint32_t	cid;
 		} start_conn;
 		struct msg_stop_conn {
+			uint32_t	sid;
+			uint32_t	cid;
 			uint64_t	conn_handle;
 			uint32_t	flag;
 		} stop_conn;
 		struct msg_get_stats {
-			uint64_t	conn_handle;
+			uint32_t	sid;
+			uint32_t	cid;
 		} get_stats;
 	} u;
 	union {
 		/* messages k -> u */
-		uint64_t		handle;
 		int			retcode;
 		struct msg_create_session_ret {
-			uint64_t	session_handle;
 			uint32_t	sid;
+			uint32_t	host_no;
 		} c_session_ret;
+		struct msg_create_conn_ret {
+			uint32_t	sid;
+			uint32_t	cid;
+		} c_conn_ret;
 		struct msg_recv_req {
+			uint32_t	sid;
+			uint32_t	cid;
 			uint64_t	recv_handle;
-			uint64_t	conn_handle;
 		} recv_req;
 		struct msg_conn_error {
-			uint64_t	conn_handle;
+			uint32_t	sid;
+			uint32_t	cid;
 			uint32_t	error; /* enum iscsi_err */
 		} connerror;
 	} r;
