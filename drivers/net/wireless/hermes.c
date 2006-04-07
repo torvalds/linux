@@ -121,12 +121,6 @@ void hermes_struct_init(hermes_t *hw, void __iomem *address, int reg_spacing)
 	hw->iobase = address;
 	hw->reg_spacing = reg_spacing;
 	hw->inten = 0x0;
-
-#ifdef HERMES_DEBUG_BUFFER
-	hw->dbufp = 0;
-	memset(&hw->dbuf, 0xff, sizeof(hw->dbuf));
-	memset(&hw->profile, 0, sizeof(hw->profile));
-#endif
 }
 
 int hermes_init(hermes_t *hw)
@@ -346,19 +340,6 @@ static int hermes_bap_seek(hermes_t *hw, int bap, u16 id, u16 offset)
 		udelay(1);
 		reg = hermes_read_reg(hw, oreg);
 	}
-
-#ifdef HERMES_DEBUG_BUFFER
-	hw->profile[HERMES_BAP_BUSY_TIMEOUT - k]++;
-
-	if (k < HERMES_BAP_BUSY_TIMEOUT) {
-		struct hermes_debug_entry *e = 
-			&hw->dbuf[(hw->dbufp++) % HERMES_DEBUG_BUFSIZE];
-		e->bap = bap;
-		e->id = id;
-		e->offset = offset;
-		e->cycles = HERMES_BAP_BUSY_TIMEOUT - k;
-	}
-#endif
 
 	if (reg & HERMES_OFFSET_BUSY)
 		return -ETIMEDOUT;
