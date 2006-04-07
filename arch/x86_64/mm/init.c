@@ -507,9 +507,8 @@ void __init clear_kernel_mapping(unsigned long address, unsigned long size)
 
 /*
  * Memory hotplug specific functions
- * These are only for non-NUMA machines right now.
  */
-#ifdef CONFIG_MEMORY_HOTPLUG
+#if defined(CONFIG_ACPI_HOTPLUG_MEMORY) || defined(CONFIG_ACPI_HOTPLUG_MEMORY_MODULE)
 
 void online_page(struct page *page)
 {
@@ -520,6 +519,39 @@ void online_page(struct page *page)
 	num_physpages++;
 }
 
+#ifndef CONFIG_MEMORY_HOTPLUG
+/*
+ * Memory Hotadd without sparsemem. The mem_maps have been allocated in advance,
+ * just online the pages.
+ */
+int __add_pages(struct zone *z, unsigned long start_pfn, unsigned long nr_pages)
+{
+	int err = -EIO;
+	unsigned long pfn;
+	unsigned long total = 0, mem = 0;
+	for (pfn = start_pfn; pfn < start_pfn + nr_pages; pfn++) {
+		unsigned long addr = pfn << PAGE_SHIFT;
+		if (pfn_valid(pfn) && e820_mapped(addr, addr+1, E820_RAM)) {
+			online_page(pfn_to_page(pfn));
+			err = 0;
+			mem++;
+		}
+		total++;
+	}
+	if (!err) {
+		z->spanned_pages += total;
+		z->present_pages += mem;
+		z->zone_pgdat->node_spanned_pages += total;
+		z->zone_pgdat->node_present_pages += mem;
+	}
+	return err;
+}
+#endif
+
+/*
+ * Memory is added always to NORMAL zone. This means you will never get
+ * additional DMA/DMA32 memory.
+ */
 int add_memory(u64 start, u64 size)
 {
 	struct pglist_data *pgdat = NODE_DATA(0);

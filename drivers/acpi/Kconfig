@@ -329,7 +329,7 @@ config ACPI_CONTAINER
 config ACPI_HOTPLUG_MEMORY
 	tristate "Memory Hotplug"
 	depends on ACPI
-	depends on MEMORY_HOTPLUG
+	depends on MEMORY_HOTPLUG || X86_64
 	default n
 	help
 	  This driver adds supports for ACPI Memory Hotplug.  This driver
