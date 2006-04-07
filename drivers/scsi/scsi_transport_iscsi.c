@@ -31,17 +31,17 @@
 #include <scsi/scsi_transport_iscsi.h>
 #include <scsi/iscsi_if.h>
 
-#define ISCSI_SESSION_ATTRS 10
+#define ISCSI_SESSION_ATTRS 11
 #define ISCSI_CONN_ATTRS 10
+#define ISCSI_HOST_ATTRS 0
 
 struct iscsi_internal {
 	struct scsi_transport_template t;
 	struct iscsi_transport *iscsi_transport;
 	struct list_head list;
 	struct class_device cdev;
-	/*
-	 * We do not have any private or other attrs.
-	 */
+
+	struct class_device_attribute *host_attrs[ISCSI_HOST_ATTRS + 1];
 	struct transport_container conn_cont;
 	struct class_device_attribute *conn_attrs[ISCSI_CONN_ATTRS + 1];
 	struct transport_container session_cont;
@@ -113,6 +113,24 @@ static struct attribute *iscsi_transport_attrs[] = {
 static struct attribute_group iscsi_transport_group = {
 	.attrs = iscsi_transport_attrs,
 };
+
+static int iscsi_setup_host(struct transport_container *tc, struct device *dev,
+			    struct class_device *cdev)
+{
+	struct Scsi_Host *shost = dev_to_shost(dev);
+	struct iscsi_host *ihost = shost->shost_data;
+
+	memset(ihost, 0, sizeof(*ihost));
+	INIT_LIST_HEAD(&ihost->sessions);
+	mutex_init(&ihost->mutex);
+	return 0;
+}
+
+static DECLARE_TRANSPORT_CLASS(iscsi_host_class,
+			       "iscsi_host",
+			       iscsi_setup_host,
+			       NULL,
+			       NULL);
 
 static DECLARE_TRANSPORT_CLASS(iscsi_session_class,
 			       "iscsi_session",
@@ -225,6 +243,54 @@ static int iscsi_is_session_dev(const struct device *dev)
 	return dev->release == iscsi_session_release;
 }
 
+static int iscsi_user_scan(struct Scsi_Host *shost, uint channel,
+			   uint id, uint lun)
+{
+	struct iscsi_host *ihost = shost->shost_data;
+	struct iscsi_cls_session *session;
+
+	mutex_lock(&ihost->mutex);
+	list_for_each_entry(session, &ihost->sessions, host_list) {
+		if ((channel == SCAN_WILD_CARD ||
+		     channel == session->channel) &&
+		    (id == SCAN_WILD_CARD || id == session->target_id))
+			scsi_scan_target(&session->dev, session->channel,
+					 session->target_id, lun, 1);
+	}
+	mutex_unlock(&ihost->mutex);
+
+	return 0;
+}
+
+static void session_recovery_timedout(void *data)
+{
+	struct iscsi_cls_session *session = data;
+
+	dev_printk(KERN_INFO, &session->dev, "session recovery timed out "
+		  "after %d secs\n", session->recovery_tmo);
+
+	if (session->transport->session_recovery_timedout)
+		session->transport->session_recovery_timedout(session);
+
+	scsi_target_unblock(&session->dev);
+}
+
+void iscsi_unblock_session(struct iscsi_cls_session *session)
+{
+	if (!cancel_delayed_work(&session->recovery_work))
+		flush_scheduled_work();
+	scsi_target_unblock(&session->dev);
+}
+EXPORT_SYMBOL_GPL(iscsi_unblock_session);
+
+void iscsi_block_session(struct iscsi_cls_session *session)
+{
+	scsi_target_block(&session->dev);
+	schedule_delayed_work(&session->recovery_work,
+			     session->recovery_tmo * HZ);
+}
+EXPORT_SYMBOL_GPL(iscsi_block_session);
+
 /**
  * iscsi_create_session - create iscsi class session
  * @shost: scsi host
@@ -233,8 +299,10 @@ static int iscsi_is_session_dev(const struct device *dev)
  * This can be called from a LLD or iscsi_transport.
  **/
 struct iscsi_cls_session *
-iscsi_create_session(struct Scsi_Host *shost, struct iscsi_transport *transport)
+iscsi_create_session(struct Scsi_Host *shost,
+		     struct iscsi_transport *transport, int channel)
 {
+	struct iscsi_host *ihost;
 	struct iscsi_cls_session *session;
 	int err;
 
@@ -246,13 +314,22 @@ iscsi_create_session(struct Scsi_Host *shost, struct iscsi_transport *transport)
 	if (!session)
 		goto module_put;
 	session->transport = transport;
+	session->recovery_tmo = 120;
+	INIT_WORK(&session->recovery_work, session_recovery_timedout, session);
+	INIT_LIST_HEAD(&session->host_list);
+	INIT_LIST_HEAD(&session->sess_list);
 
 	if (transport->sessiondata_size)
 		session->dd_data = &session[1];
 
 	/* this is released in the dev's release function */
 	scsi_host_get(shost);
+	ihost = shost->shost_data;
+
 	session->sid = iscsi_session_nr++;
+	session->channel = channel;
+	session->target_id = ihost->next_target_id++;
+
 	snprintf(session->dev.bus_id, BUS_ID_SIZE, "session%u",
 		 session->sid);
 	session->dev.parent = &shost->shost_gendev;
@@ -264,6 +341,10 @@ iscsi_create_session(struct Scsi_Host *shost, struct iscsi_transport *transport)
 		goto free_session;
 	}
 	transport_register_device(&session->dev);
+
+	mutex_lock(&ihost->mutex);
+	list_add(&session->host_list, &ihost->sessions);
+	mutex_unlock(&ihost->mutex);
 
 	return session;
 
@@ -285,6 +366,16 @@ EXPORT_SYMBOL_GPL(iscsi_create_session);
  **/
 int iscsi_destroy_session(struct iscsi_cls_session *session)
 {
+	struct Scsi_Host *shost = iscsi_session_to_shost(session);
+	struct iscsi_host *ihost = shost->shost_data;
+
+	if (!cancel_delayed_work(&session->recovery_work))
+		flush_scheduled_work();
+
+	mutex_lock(&ihost->mutex);
+	list_del(&session->host_list);
+	mutex_unlock(&ihost->mutex);
+
 	transport_unregister_device(&session->dev);
 	device_unregister(&session->dev);
 	return 0;
@@ -435,7 +526,7 @@ iscsi_transport_create_session(struct scsi_transport_template *scsit,
 	if (scsi_add_host(shost, NULL))
 		goto free_host;
 
-	session = iscsi_create_session(shost, transport);
+	session = iscsi_create_session(shost, transport, 0);
 	if (!session)
 		goto remove_host;
 
@@ -466,12 +557,13 @@ int iscsi_transport_destroy_session(struct Scsi_Host *shost)
 	struct iscsi_cls_session *session;
 	unsigned long flags;
 
-	scsi_remove_host(shost);
 	session = hostdata_session(shost->hostdata);
 	spin_lock_irqsave(&sesslock, flags);
 	list_del(&session->sess_list);
 	spin_unlock_irqrestore(&sesslock, flags);
 	iscsi_destroy_session(session);
+
+	scsi_remove_host(shost);
 	/* ref from host alloc */
 	scsi_host_put(shost);
 	return 0;
@@ -594,6 +686,7 @@ iscsi_unicast_skb(struct mempool_zone *zone, struct sk_buff *skb)
 	}
 
 	spin_lock_irqsave(&zone->freelock, flags);
+	INIT_LIST_HEAD(skb_to_lh(skb));
 	list_add(skb_to_lh(skb), &zone->freequeue);
 	spin_unlock_irqrestore(&zone->freelock, flags);
 
@@ -888,6 +981,11 @@ iscsi_set_param(struct iscsi_transport *transport, struct iscsi_uevent *ev)
 		return -EINVAL;
 
 	switch (ev->u.set_param.param) {
+	case ISCSI_PARAM_SESS_RECOVERY_TMO:
+		iscsi_copy_param(ev, &value, data);
+		if (value != 0)
+			session->recovery_tmo = value;
+		break;
 	case ISCSI_PARAM_TARGET_NAME:
 		/* this should not change between logins */
 		if (session->targetname)
@@ -980,7 +1078,6 @@ iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 			ev->r.retcode = transport->start_conn(conn);
 		else
 			err = -EINVAL;
-
 		break;
 	case ISCSI_UEVENT_STOP_CONN:
 		conn = iscsi_conn_lookup(ev->u.stop_conn.sid, ev->u.stop_conn.cid);
@@ -1198,6 +1295,7 @@ static ISCSI_CLASS_ATTR(priv_sess, field, S_IRUGO, show_priv_session_##field, \
 			NULL)
 iscsi_priv_session_attr(targetname, "%s");
 iscsi_priv_session_attr(tpgt, "%d");
+iscsi_priv_session_attr(recovery_tmo, "%d");
 
 #define iscsi_priv_conn_attr_show(field, format)			\
 static ssize_t								\
@@ -1289,6 +1387,24 @@ static int iscsi_conn_match(struct attribute_container *cont,
 	return &priv->conn_cont.ac == cont;
 }
 
+static int iscsi_host_match(struct attribute_container *cont,
+			    struct device *dev)
+{
+	struct Scsi_Host *shost;
+	struct iscsi_internal *priv;
+
+	if (!scsi_is_host_device(dev))
+		return 0;
+
+	shost = dev_to_shost(dev);
+	if (!shost->transportt  ||
+	    shost->transportt->host_attrs.ac.class != &iscsi_host_class.class)
+		return 0;
+
+        priv = to_iscsi_internal(shost->transportt);
+        return &priv->t.host_attrs.ac == cont;
+}
+
 struct scsi_transport_template *
 iscsi_register_transport(struct iscsi_transport *tt)
 {
@@ -1307,6 +1423,7 @@ iscsi_register_transport(struct iscsi_transport *tt)
 		return NULL;
 	INIT_LIST_HEAD(&priv->list);
 	priv->iscsi_transport = tt;
+	priv->t.user_scan = iscsi_user_scan;
 
 	priv->cdev.class = &iscsi_transport_class;
 	snprintf(priv->cdev.class_id, BUS_ID_SIZE, "%s", tt->name);
@@ -1317,6 +1434,14 @@ iscsi_register_transport(struct iscsi_transport *tt)
 	err = sysfs_create_group(&priv->cdev.kobj, &iscsi_transport_group);
 	if (err)
 		goto unregister_cdev;
+
+	/* host parameters */
+	priv->t.host_attrs.ac.attrs = &priv->host_attrs[0];
+	priv->t.host_attrs.ac.class = &iscsi_host_class.class;
+	priv->t.host_attrs.ac.match = iscsi_host_match;
+	priv->t.host_size = sizeof(struct iscsi_host);
+	priv->host_attrs[0] = NULL;
+	transport_container_register(&priv->t.host_attrs);
 
 	/* connection parameters */
 	priv->conn_cont.ac.attrs = &priv->conn_attrs[0];
@@ -1361,6 +1486,7 @@ iscsi_register_transport(struct iscsi_transport *tt)
 	SETUP_SESSION_RD_ATTR(data_pdu_in_order, ISCSI_PDU_INORDER_EN);
 	SETUP_SESSION_RD_ATTR(data_seq_in_order, ISCSI_DATASEQ_INORDER_EN);
 	SETUP_SESSION_RD_ATTR(erl, ISCSI_ERL);
+	SETUP_PRIV_SESSION_RD_ATTR(recovery_tmo);
 
 	if (tt->param_mask & ISCSI_TARGET_NAME)
 		SETUP_SESSION_RD_ATTR(targetname, ISCSI_TARGET_NAME);
@@ -1408,6 +1534,7 @@ int iscsi_unregister_transport(struct iscsi_transport *tt)
 
 	transport_container_unregister(&priv->conn_cont);
 	transport_container_unregister(&priv->session_cont);
+	transport_container_unregister(&priv->t.host_attrs);
 
 	sysfs_remove_group(&priv->cdev.kobj, &iscsi_transport_group);
 	class_device_unregister(&priv->cdev);
@@ -1451,9 +1578,13 @@ static __init int iscsi_transport_init(void)
 	if (err)
 		return err;
 
-	err = transport_class_register(&iscsi_connection_class);
+	err = transport_class_register(&iscsi_host_class);
 	if (err)
 		goto unregister_transport_class;
+
+	err = transport_class_register(&iscsi_connection_class);
+	if (err)
+		goto unregister_host_class;
 
 	err = transport_class_register(&iscsi_session_class);
 	if (err)
@@ -1482,6 +1613,8 @@ unregister_session_class:
 	transport_class_unregister(&iscsi_session_class);
 unregister_conn_class:
 	transport_class_unregister(&iscsi_connection_class);
+unregister_host_class:
+	transport_class_unregister(&iscsi_host_class);
 unregister_transport_class:
 	class_unregister(&iscsi_transport_class);
 	return err;
@@ -1494,6 +1627,7 @@ static void __exit iscsi_transport_exit(void)
 	netlink_unregister_notifier(&iscsi_nl_notifier);
 	transport_class_unregister(&iscsi_connection_class);
 	transport_class_unregister(&iscsi_session_class);
+	transport_class_unregister(&iscsi_host_class);
 	class_unregister(&iscsi_transport_class);
 }
 

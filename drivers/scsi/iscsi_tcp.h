@@ -159,6 +159,7 @@ struct iscsi_conn {
 	struct kfifo		*immqueue;	/* immediate xmit queue */
 	struct kfifo		*mgmtqueue;	/* mgmt (control) xmit queue */
 	struct kfifo		*xmitqueue;	/* data-path cmd queue */
+	struct list_head	run_list;	/* list of cmds in progress */
 	struct work_struct	xmitwork;	/* per-conn. xmit workqueue */
 	struct mutex		xmitmutex;	/* serializes connection xmit,
 						 * access to kfifos:	  *
@@ -228,6 +229,7 @@ struct iscsi_session {
 						 * - mgmtpool,		   *
 						 * - r2tpool		   */
 	int			state;		/* session state           */
+	int			recovery_failed;
 	struct list_head	item;
 	void			*auth_client;
 	int			conn_cnt;
@@ -310,6 +312,7 @@ struct iscsi_cmd_task {
 	struct iscsi_conn	*conn;			/* used connection    */
 	struct iscsi_mgmt_task	*mtask;			/* tmf mtask in progr */
 
+	struct list_head	running;		/* running cmd list */
 	struct iscsi_r2t_info	*r2t;			/* in progress R2T    */
 	struct iscsi_queue	r2tpool;
 	struct kfifo		*r2tqueue;
