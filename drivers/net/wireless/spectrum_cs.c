@@ -1,6 +1,6 @@
 /*
  * Driver for 802.11b cards using RAM-loadable Symbol firmware, such as
- * Symbol Wireless Networker LA4100, CompactFlash cards by Socket
+ * Symbol Wireless Networker LA4137, CompactFlash cards by Socket
  * Communications and Intel PRO/Wireless 2011B.
  *
  * The driver implements Symbol firmware download.  The rest is handled
@@ -923,7 +923,7 @@ static char version[] __initdata = DRIVER_NAME " " DRIVER_VERSION
 	" David Gibson <hermes@gibson.dropbear.id.au>, et al)";
 
 static struct pcmcia_device_id spectrum_cs_ids[] = {
-	PCMCIA_DEVICE_MANF_CARD(0x026c, 0x0001), /* Symbol Spectrum24 LA4100 */
+	PCMCIA_DEVICE_MANF_CARD(0x026c, 0x0001), /* Symbol Spectrum24 LA4137 */
 	PCMCIA_DEVICE_MANF_CARD(0x0104, 0x0001), /* Socket Communications CF */
 	PCMCIA_DEVICE_PROD_ID12("Intel", "PRO/Wireless LAN PC Card", 0x816cc815, 0x6fbf459a), /* 2011B, not 2011 */
 	PCMCIA_DEVICE_NULL,
