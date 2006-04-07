@@ -56,6 +56,7 @@
 #include <linux/skbuff.h>
 #include <linux/netlink.h>
 #include <linux/selinux.h>
+#include <linux/inotify.h>
 
 #include "audit.h"
 
@@ -103,6 +104,12 @@ static atomic_t    audit_lost = ATOMIC_INIT(0);
 /* The netlink socket. */
 static struct sock *audit_sock;
 
+/* Inotify handle. */
+struct inotify_handle *audit_ih;
+
+/* Hash for inode-based rules */
+struct list_head audit_inode_hash[AUDIT_INODE_BUCKETS];
+
 /* The audit_freelist is a list of pre-allocated audit buffers (if more
  * than AUDIT_MAXFREE are in use, the audit buffer is freed instead of
  * being placed on the freelist). */
@@ -115,10 +122,8 @@ static struct task_struct *kauditd_task;
 static DECLARE_WAIT_QUEUE_HEAD(kauditd_wait);
 static DECLARE_WAIT_QUEUE_HEAD(audit_backlog_wait);
 
-/* The netlink socket is only to be read by 1 CPU, which lets us assume
- * that list additions and deletions never happen simultaneously in
- * auditsc.c */
-DEFINE_MUTEX(audit_netlink_mutex);
+/* Serialize requests from userspace. */
+static DEFINE_MUTEX(audit_cmd_mutex);
 
 /* AUDIT_BUFSIZ is the size of the temporary buffer used for formatting
  * audit records.  Since printk uses a 1024 byte buffer, this buffer
@@ -373,8 +378,8 @@ int audit_send_list(void *_dest)
 	struct sk_buff *skb;
 
 	/* wait for parent to finish and send an ACK */
-	mutex_lock(&audit_netlink_mutex);
-	mutex_unlock(&audit_netlink_mutex);
+	mutex_lock(&audit_cmd_mutex);
+	mutex_unlock(&audit_cmd_mutex);
 
 	while ((skb = __skb_dequeue(&dest->q)) != NULL)
 		netlink_unicast(audit_sock, skb, pid, 0);
@@ -665,20 +670,30 @@ static void audit_receive(struct sock *sk, int length)
 	struct sk_buff  *skb;
 	unsigned int qlen;
 
-	mutex_lock(&audit_netlink_mutex);
+	mutex_lock(&audit_cmd_mutex);
 
 	for (qlen = skb_queue_len(&sk->sk_receive_queue); qlen; qlen--) {
 		skb = skb_dequeue(&sk->sk_receive_queue);
 		audit_receive_skb(skb);
 		kfree_skb(skb);
 	}
-	mutex_unlock(&audit_netlink_mutex);
+	mutex_unlock(&audit_cmd_mutex);
 }
 
+#ifdef CONFIG_AUDITSYSCALL
+static const struct inotify_operations audit_inotify_ops = {
+	.handle_event	= audit_handle_ievent,
+	.destroy_watch	= audit_free_parent,
+};
+#endif
 
 /* Initialize audit support at boot time. */
 static int __init audit_init(void)
 {
+#ifdef CONFIG_AUDITSYSCALL
+	int i;
+#endif
+
 	printk(KERN_INFO "audit: initializing netlink socket (%s)\n",
 	       audit_default ? "enabled" : "disabled");
 	audit_sock = netlink_kernel_create(NETLINK_AUDIT, 0, audit_receive,
@@ -697,6 +712,16 @@ static int __init audit_init(void)
 	selinux_audit_set_callback(&selinux_audit_rule_update);
 
 	audit_log(NULL, GFP_KERNEL, AUDIT_KERNEL, "initialized");
+
+#ifdef CONFIG_AUDITSYSCALL
+	audit_ih = inotify_init(&audit_inotify_ops);
+	if (IS_ERR(audit_ih))
+		audit_panic("cannot initialize inotify handle");
+
+	for (i = 0; i < AUDIT_INODE_BUCKETS; i++)
+		INIT_LIST_HEAD(&audit_inode_hash[i]);
+#endif
+
 	return 0;
 }
 __initcall(audit_init);

@@ -200,12 +200,13 @@ struct audit_context {
 #endif
 };
 
-
+/* Determine if any context name data matches a rule's watch data */
 /* Compare a task_struct with an audit_rule.  Return 1 on match, 0
  * otherwise. */
 static int audit_filter_rules(struct task_struct *tsk,
 			      struct audit_krule *rule,
 			      struct audit_context *ctx,
+			      struct audit_names *name,
 			      enum audit_state *state)
 {
 	int i, j, need_sid = 1;
@@ -268,7 +269,10 @@ static int audit_filter_rules(struct task_struct *tsk,
 			}
 			break;
 		case AUDIT_DEVMAJOR:
-			if (ctx) {
+			if (name)
+				result = audit_comparator(MAJOR(name->dev),
+							  f->op, f->val);
+			else if (ctx) {
 				for (j = 0; j < ctx->name_count; j++) {
 					if (audit_comparator(MAJOR(ctx->names[j].dev),	f->op, f->val)) {
 						++result;
@@ -278,7 +282,10 @@ static int audit_filter_rules(struct task_struct *tsk,
 			}
 			break;
 		case AUDIT_DEVMINOR:
-			if (ctx) {
+			if (name)
+				result = audit_comparator(MINOR(name->dev),
+							  f->op, f->val);
+			else if (ctx) {
 				for (j = 0; j < ctx->name_count; j++) {
 					if (audit_comparator(MINOR(ctx->names[j].dev), f->op, f->val)) {
 						++result;
@@ -288,7 +295,10 @@ static int audit_filter_rules(struct task_struct *tsk,
 			}
 			break;
 		case AUDIT_INODE:
-			if (ctx) {
+			if (name)
+				result = (name->ino == f->val ||
+					  name->pino == f->val);
+			else if (ctx) {
 				for (j = 0; j < ctx->name_count; j++) {
 					if (audit_comparator(ctx->names[j].ino, f->op, f->val) ||
 					    audit_comparator(ctx->names[j].pino, f->op, f->val)) {
@@ -297,6 +307,12 @@ static int audit_filter_rules(struct task_struct *tsk,
 					}
 				}
 			}
+			break;
+		case AUDIT_WATCH:
+			if (name && rule->watch->ino != (unsigned long)-1)
+				result = (name->dev == rule->watch->dev &&
+					  (name->ino == rule->watch->ino ||
+					   name->pino == rule->watch->ino));
 			break;
 		case AUDIT_LOGINUID:
 			result = 0;
@@ -354,7 +370,7 @@ static enum audit_state audit_filter_task(struct task_struct *tsk)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(e, &audit_filter_list[AUDIT_FILTER_TASK], list) {
-		if (audit_filter_rules(tsk, &e->rule, NULL, &state)) {
+		if (audit_filter_rules(tsk, &e->rule, NULL, NULL, &state)) {
 			rcu_read_unlock();
 			return state;
 		}
@@ -384,8 +400,9 @@ static enum audit_state audit_filter_syscall(struct task_struct *tsk,
 		int bit  = AUDIT_BIT(ctx->major);
 
 		list_for_each_entry_rcu(e, list, list) {
-			if ((e->rule.mask[word] & bit) == bit
-					&& audit_filter_rules(tsk, &e->rule, ctx, &state)) {
+			if ((e->rule.mask[word] & bit) == bit &&
+			    audit_filter_rules(tsk, &e->rule, ctx, NULL,
+					       &state)) {
 				rcu_read_unlock();
 				return state;
 			}
@@ -393,6 +410,49 @@ static enum audit_state audit_filter_syscall(struct task_struct *tsk,
 	}
 	rcu_read_unlock();
 	return AUDIT_BUILD_CONTEXT;
+}
+
+/* At syscall exit time, this filter is called if any audit_names[] have been
+ * collected during syscall processing.  We only check rules in sublists at hash
+ * buckets applicable to the inode numbers in audit_names[].
+ * Regarding audit_state, same rules apply as for audit_filter_syscall().
+ */
+enum audit_state audit_filter_inodes(struct task_struct *tsk,
+				     struct audit_context *ctx)
+{
+	int i;
+	struct audit_entry *e;
+	enum audit_state state;
+
+	if (audit_pid && tsk->tgid == audit_pid)
+		return AUDIT_DISABLED;
+
+	rcu_read_lock();
+	for (i = 0; i < ctx->name_count; i++) {
+		int word = AUDIT_WORD(ctx->major);
+		int bit  = AUDIT_BIT(ctx->major);
+		struct audit_names *n = &ctx->names[i];
+		int h = audit_hash_ino((u32)n->ino);
+		struct list_head *list = &audit_inode_hash[h];
+
+		if (list_empty(list))
+			continue;
+
+		list_for_each_entry_rcu(e, list, list) {
+			if ((e->rule.mask[word] & bit) == bit &&
+			    audit_filter_rules(tsk, &e->rule, ctx, n, &state)) {
+				rcu_read_unlock();
+				return state;
+			}
+		}
+	}
+	rcu_read_unlock();
+	return AUDIT_BUILD_CONTEXT;
+}
+
+void audit_set_auditable(struct audit_context *ctx)
+{
+	ctx->auditable = 1;
 }
 
 static inline struct audit_context *audit_get_context(struct task_struct *tsk,
@@ -408,11 +468,20 @@ static inline struct audit_context *audit_get_context(struct task_struct *tsk,
 
 	if (context->in_syscall && !context->auditable) {
 		enum audit_state state;
+
 		state = audit_filter_syscall(tsk, context, &audit_filter_list[AUDIT_FILTER_EXIT]);
+		if (state == AUDIT_RECORD_CONTEXT) {
+			context->auditable = 1;
+			goto get_context;
+		}
+
+		state = audit_filter_inodes(tsk, context);
 		if (state == AUDIT_RECORD_CONTEXT)
 			context->auditable = 1;
+
 	}
 
+get_context:
 	context->pid = tsk->pid;
 	context->ppid = sys_getppid();	/* sic.  tsk == current in all cases */
 	context->uid = tsk->uid;
@@ -1142,37 +1211,20 @@ void __audit_inode_child(const char *dname, const struct inode *inode,
 		return;
 
 	/* determine matching parent */
-	if (dname)
-		for (idx = 0; idx < context->name_count; idx++)
-			if (context->names[idx].pino == pino) {
-				const char *n;
-				const char *name = context->names[idx].name;
-				int dlen = strlen(dname);
-				int nlen = name ? strlen(name) : 0;
+	if (!dname)
+		goto no_match;
+	for (idx = 0; idx < context->name_count; idx++)
+		if (context->names[idx].pino == pino) {
+			const char *name = context->names[idx].name;
 
-				if (nlen < dlen)
-					continue;
-				
-				/* disregard trailing slashes */
-				n = name + nlen - 1;
-				while ((*n == '/') && (n > name))
-					n--;
+			if (!name)
+				continue;
 
-				/* find last path component */
-				n = n - dlen + 1;
-				if (n < name)
-					continue;
-				else if (n > name) {
-					if (*--n != '/')
-						continue;
-					else
-						n++;
-				}
+			if (audit_compare_dname_path(dname, name) == 0)
+				goto update_context;
+		}
 
-				if (strncmp(n, dname, dlen) == 0)
-					goto update_context;
-			}
-
+no_match:
 	/* catch-all in case match not found */
 	idx = context->name_count++;
 	context->names[idx].name  = NULL;

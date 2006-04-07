@@ -165,6 +165,7 @@
 #define AUDIT_INODE	102
 #define AUDIT_EXIT	103
 #define AUDIT_SUCCESS   104	/* exit >= 0; value ignored */
+#define AUDIT_WATCH	105
 
 #define AUDIT_ARG0      200
 #define AUDIT_ARG1      (AUDIT_ARG0+1)

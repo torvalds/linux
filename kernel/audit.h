@@ -19,7 +19,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include <linux/mutex.h>
 #include <linux/fs.h>
 #include <linux/audit.h>
 #include <linux/skbuff.h>
@@ -54,6 +53,18 @@ enum audit_state {
 };
 
 /* Rule lists */
+struct audit_parent;
+
+struct audit_watch {
+	atomic_t		count;	/* reference count */
+	char			*path;	/* insertion path */
+	dev_t			dev;	/* associated superblock device */
+	unsigned long		ino;	/* associated inode number */
+	struct audit_parent	*parent; /* associated parent */
+	struct list_head	wlist;	/* entry in parent->watches list */
+	struct list_head	rules;	/* associated rules */
+};
+
 struct audit_field {
 	u32				type;
 	u32				val;
@@ -71,6 +82,9 @@ struct audit_krule {
 	u32			buflen; /* for data alloc on list rules */
 	u32			field_count;
 	struct audit_field	*fields;
+	struct audit_field	*inode_f; /* quick access to an inode field */
+	struct audit_watch	*watch;	/* associated watch */
+	struct list_head	rlist;	/* entry in audit_watch.rules list */
 };
 
 struct audit_entry {
@@ -79,10 +93,18 @@ struct audit_entry {
 	struct audit_krule	rule;
 };
 
-
 extern int audit_pid;
-extern int audit_comparator(const u32 left, const u32 op, const u32 right);
 
+#define AUDIT_INODE_BUCKETS	32
+extern struct list_head audit_inode_hash[AUDIT_INODE_BUCKETS];
+
+static inline int audit_hash_ino(u32 ino)
+{
+	return (ino & (AUDIT_INODE_BUCKETS-1));
+}
+
+extern int audit_comparator(const u32 left, const u32 op, const u32 right);
+extern int audit_compare_dname_path(const char *dname, const char *path);
 extern struct sk_buff *	    audit_make_reply(int pid, int seq, int type,
 					     int done, int multi,
 					     void *payload, int size);
@@ -91,7 +113,6 @@ extern void		    audit_send_reply(int pid, int seq, int type,
 					     void *payload, int size);
 extern void		    audit_log_lost(const char *message);
 extern void		    audit_panic(const char *message);
-extern struct mutex audit_netlink_mutex;
 
 struct audit_netlink_list {
 	int pid;
@@ -100,6 +121,10 @@ struct audit_netlink_list {
 
 int audit_send_list(void *);
 
+struct inotify_watch;
+extern void audit_free_parent(struct inotify_watch *);
+extern void audit_handle_ievent(struct inotify_watch *, u32, u32, u32,
+				const char *, struct inode *);
 extern int selinux_audit_rule_update(void);
 
 #ifdef CONFIG_AUDITSYSCALL
@@ -109,6 +134,11 @@ static inline void audit_signal_info(int sig, struct task_struct *t)
 	if (unlikely(audit_pid && t->tgid == audit_pid))
 		__audit_signal_info(sig, t);
 }
+extern enum audit_state audit_filter_inodes(struct task_struct *,
+					    struct audit_context *);
+extern void audit_set_auditable(struct audit_context *);
 #else
 #define audit_signal_info(s,t)
+#define audit_filter_inodes(t,c) AUDIT_DISABLED
+#define audit_set_auditable(c)
 #endif
