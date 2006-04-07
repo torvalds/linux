@@ -1455,7 +1455,7 @@ static void time_interpolator_update(long delta_nsec)
 	 */
 	if (jiffies % INTERPOLATOR_ADJUST == 0)
 	{
-		if (time_interpolator->skips == 0 && time_interpolator->offset > TICK_NSEC)
+		if (time_interpolator->skips == 0 && time_interpolator->offset > tick_nsec)
 			time_interpolator->nsec_per_cyc--;
 		if (time_interpolator->ns_skipped > INTERPOLATOR_MAX_SKIP && time_interpolator->offset == 0)
 			time_interpolator->nsec_per_cyc++;

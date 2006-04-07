@@ -51,6 +51,8 @@
 
 #define HPET_TN_ROUTE_SHIFT	9
 
+#define HPET_TICK_RATE (HZ * 100000UL)
+
 extern int is_hpet_enabled(void);
 extern int hpet_rtc_timer_init(void);
 extern int oem_force_hpet_timer(void);

@@ -917,6 +917,8 @@ void __init time_init(void)
 		vxtime.hpet_address = 0;
 
 	if (hpet_use_timer) {
+		/* set tick_nsec to use the proper rate for HPET */
+	  	tick_nsec = TICK_NSEC_HPET;
 		cpu_khz = hpet_calibrate_tsc();
 		timename = "HPET";
 #ifdef CONFIG_X86_PM_TIMER
