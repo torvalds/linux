@@ -170,9 +170,7 @@ static int orinoco_pci_init_one(struct pci_dev *pdev,
 				const struct pci_device_id *ent)
 {
 	int err = 0;
-	unsigned long pci_iorange;
-	u16 __iomem *pci_ioaddr = NULL;
-	unsigned long pci_iolen;
+	void __iomem *pci_ioaddr = NULL;
 	struct orinoco_private *priv = NULL;
 	struct orinoco_pci_card *card;
 	struct net_device *dev = NULL;
@@ -190,10 +188,9 @@ static int orinoco_pci_init_one(struct pci_dev *pdev,
 	}
 
 	/* Resource 0 is mapped to the hermes registers */
-	pci_iorange = pci_resource_start(pdev, 0);
-	pci_iolen = pci_resource_len(pdev, 0);
-	pci_ioaddr = ioremap(pci_iorange, pci_iolen);
-	if (!pci_iorange) {
+	pci_ioaddr = pci_iomap(pdev, 0, 0);
+	if (!pci_ioaddr) {
+		err = -EIO;
 		printk(KERN_ERR PFX "Cannot remap hardware registers\n");
 		goto fail_map;
 	}
@@ -208,8 +205,8 @@ static int orinoco_pci_init_one(struct pci_dev *pdev,
 	priv = netdev_priv(dev);
 	card = priv->card;
 	card->pci_ioaddr = pci_ioaddr;
-	dev->mem_start = pci_iorange;
-	dev->mem_end = pci_iorange + pci_iolen - 1;
+	dev->mem_start = pci_resource_start(pdev, 0);
+	dev->mem_end = dev->mem_start + pci_resource_len(pdev, 0) - 1;
 	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
