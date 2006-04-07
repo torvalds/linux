@@ -305,7 +305,7 @@ static void __meminit phys_pud_init(pud_t *pud, unsigned long address, unsigned 
 		if (paddr >= end)
 			break;
 
-		if (!after_bootmem && !e820_mapped(paddr, paddr+PUD_SIZE, 0)) {
+		if (!after_bootmem && !e820_any_mapped(paddr, paddr+PUD_SIZE, 0)) {
 			set_pud(pud, __pud(0)); 
 			continue;
 		} 

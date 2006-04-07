@@ -80,7 +80,8 @@ static inline int bad_addr(unsigned long *addrp, unsigned long size)
 	return 0;
 } 
 
-int __meminit e820_mapped(unsigned long start, unsigned long end, unsigned type)
+int __meminit
+e820_any_mapped(unsigned long start, unsigned long end, unsigned type)
 { 
 	int i;
 	for (i = 0; i < e820.nr_map; i++) { 
