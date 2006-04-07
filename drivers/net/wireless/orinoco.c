@@ -1345,15 +1345,11 @@ int __orinoco_down(struct net_device *dev)
 	return 0;
 }
 
-int orinoco_reinit_firmware(struct net_device *dev)
+static int orinoco_allocate_fid(struct net_device *dev)
 {
 	struct orinoco_private *priv = netdev_priv(dev);
 	struct hermes *hw = &priv->hw;
 	int err;
-
-	err = hermes_init(hw);
-	if (err)
-		return err;
 
 	err = hermes_allocate(hw, priv->nicbuf_size, &priv->txfid);
 	if (err == -EIO && priv->nicbuf_size > TX_NICBUF_SIZE_BUG) {
@@ -1369,6 +1365,19 @@ int orinoco_reinit_firmware(struct net_device *dev)
 		else
 			printk("ok.\n");
 	}
+
+	return err;
+}
+
+int orinoco_reinit_firmware(struct net_device *dev)
+{
+	struct orinoco_private *priv = netdev_priv(dev);
+	struct hermes *hw = &priv->hw;
+	int err;
+
+	err = hermes_init(hw);
+	if (!err)
+		err = orinoco_allocate_fid(dev);
 
 	return err;
 }
@@ -2224,7 +2233,7 @@ static int orinoco_init(struct net_device *dev)
 	priv->nicbuf_size = IEEE80211_FRAME_LEN + ETH_HLEN;
 
 	/* Initialize the firmware */
-	err = orinoco_reinit_firmware(dev);
+	err = hermes_init(hw);
 	if (err != 0) {
 		printk(KERN_ERR "%s: failed to initialize firmware (err = %d)\n",
 		       dev->name, err);
@@ -2281,6 +2290,13 @@ static int orinoco_init(struct net_device *dev)
 	priv->nick[len] = '\0';
 
 	printk(KERN_DEBUG "%s: Station name \"%s\"\n", dev->name, priv->nick);
+
+	err = orinoco_allocate_fid(dev);
+	if (err) {
+		printk(KERN_ERR "%s: failed to allocate NIC buffer!\n",
+		       dev->name);
+		goto out;
+	}
 
 	/* Get allowed channels */
 	err = hermes_read_wordrec(hw, USER_BAP, HERMES_RID_CHANNELLIST,
