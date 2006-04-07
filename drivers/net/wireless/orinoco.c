@@ -430,19 +430,19 @@ static int orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (! netif_running(dev)) {
 		printk(KERN_ERR "%s: Tx on stopped device!\n",
 		       dev->name);
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 	
 	if (netif_queue_stopped(dev)) {
 		printk(KERN_DEBUG "%s: Tx while transmitter busy!\n", 
 		       dev->name);
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 	
 	if (orinoco_lock(priv, &flags) != 0) {
 		printk(KERN_ERR "%s: orinoco_xmit() called while hw_unavailable\n",
 		       dev->name);
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
 
 	if (! netif_carrier_ok(dev) || (priv->iw_mode == IW_MODE_MONITOR)) {
@@ -452,7 +452,7 @@ static int orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 		stats->tx_errors++;
 		orinoco_unlock(priv, &flags);
 		dev_kfree_skb(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	/* Length of the packet body */
@@ -551,11 +551,11 @@ static int orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	dev_kfree_skb(skb);
 
-	return 0;
+	return NETDEV_TX_OK;
  fail:
 
 	orinoco_unlock(priv, &flags);
-	return err;
+	return NETDEV_TX_BUSY;
 }
 
 static void __orinoco_ev_alloc(struct net_device *dev, hermes_t *hw)
