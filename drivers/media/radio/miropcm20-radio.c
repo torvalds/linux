@@ -16,7 +16,7 @@
 
 /* What ever you think about the ACI, version 0x07 is not very well!
  * I can't get frequency, 'tuner status', 'tuner flags' or mute/mono
- * conditions...                Robert 
+ * conditions...                Robert
  */
 
 #include <linux/module.h>
@@ -123,7 +123,7 @@ static int pcm20_do_ioctl(struct inode *inode, struct file *file,
 	struct video_device *dev = video_devdata(file);
 	struct pcm20_device *pcm20 = dev->priv;
 	int i;
-	
+
 	switch(cmd)
 	{
 		case VIDIOCGCAP:
@@ -139,7 +139,7 @@ static int pcm20_do_ioctl(struct inode *inode, struct file *file,
 		case VIDIOCGTUNER:
 		{
 			struct video_tuner *v = arg;
-			if(v->tuner)	/* Only 1 tuner */ 
+			if(v->tuner)	/* Only 1 tuner */
 				return -EINVAL;
 			v->rangelow=87*16000;
 			v->rangehigh=108*16000;
@@ -172,7 +172,7 @@ static int pcm20_do_ioctl(struct inode *inode, struct file *file,
 			return i;
 		}
 		case VIDIOCGAUDIO:
-		{	
+		{
 			struct video_audio *v = arg;
 			memset(v,0, sizeof(*v));
 			v->flags=VIDEO_AUDIO_MUTABLE;
@@ -183,12 +183,12 @@ static int pcm20_do_ioctl(struct inode *inode, struct file *file,
 				v->mode|=VIDEO_SOUND_MONO;
 			/* v->step=2048; */
 			strcpy(v->name, "Radio");
-			return 0;			
+			return 0;
 		}
 		case VIDIOCSAUDIO:
 		{
 			struct video_audio *v = arg;
-			if(v->audio) 
+			if(v->audio)
 				return -EINVAL;
 
 			pcm20_mute(pcm20, !!(v->flags&VIDEO_AUDIO_MUTE));
@@ -237,7 +237,7 @@ static int __init pcm20_init(void)
 {
 	if(video_register_device(&pcm20_radio, VFL_TYPE_RADIO, radio_nr)==-1)
 		goto video_register_device;
-		
+
 	if(attach_aci_rds()<0)
 		goto attach_aci_rds;
 

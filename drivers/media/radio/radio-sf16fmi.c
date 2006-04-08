@@ -12,7 +12,7 @@
  *  Frequency control is done digitally -- ie out(port,encodefreq(95.8));
  *  No volume control - only mute/unmute - you have to use line volume
  *  control on SB-part of SF16FMI
- *  
+ *
  */
 
 #include <linux/kernel.h>	/* __setup			*/
@@ -29,19 +29,19 @@
 struct fmi_device
 {
 	int port;
-        int curvol; /* 1 or 0 */
-        unsigned long curfreq; /* freq in kHz */
-        __u32 flags;
+	int curvol; /* 1 or 0 */
+	unsigned long curfreq; /* freq in kHz */
+	__u32 flags;
 };
 
-static int io = -1; 
+static int io = -1;
 static int radio_nr = -1;
 static struct pnp_dev *dev = NULL;
 static struct mutex lock;
 
 /* freq is in 1/16 kHz to internal number, hw precision is 50 kHz */
 /* It is only useful to give freq in intervall of 800 (=0.05Mhz),
- * other bits will be truncated, e.g 92.7400016 -> 92.7, but 
+ * other bits will be truncated, e.g 92.7400016 -> 92.7, but
  * 92.7400017 -> 92.75
  */
 #define RSF16_ENCODE(x)	((x)/800+214)
@@ -51,7 +51,7 @@ static struct mutex lock;
 static void outbits(int bits, unsigned int data, int port)
 {
 	while(bits--) {
- 		if(data & 1) {
+		if(data & 1) {
 			outb(5, port);
 			udelay(6);
 			outb(7, port);
@@ -101,7 +101,7 @@ static inline int fmi_getsigstr(struct fmi_device *dev)
 	int res;
 	int myport = dev->port;
 
-	
+
 	mutex_lock(&lock);
 	val = dev->curvol ? 0x08 : 0x00;	/* unmute/mute */
 	outb(val, myport);
@@ -109,7 +109,7 @@ static inline int fmi_getsigstr(struct fmi_device *dev)
 	msleep(143); 		/* was schedule_timeout(HZ/7) */
 	res = (int)inb(myport+1);
 	outb(val, myport);
-	
+
 	mutex_unlock(&lock);
 	return (res & 2) ? 0 : 0xFFFF;
 }
@@ -119,7 +119,7 @@ static int fmi_do_ioctl(struct inode *inode, struct file *file,
 {
 	struct video_device *dev = video_devdata(file);
 	struct fmi_device *fmi=dev->priv;
-	
+
 	switch(cmd)
 	{
 		case VIDIOCGCAP:
@@ -174,18 +174,18 @@ static int fmi_do_ioctl(struct inode *inode, struct file *file,
 				return -EINVAL;
 			/*rounding in steps of 800 to match th freq
 			  that will be used */
-			fmi->curfreq = (*freq/800)*800; 
+			fmi->curfreq = (*freq/800)*800;
 			fmi_setfreq(fmi);
 			return 0;
 		}
 		case VIDIOCGAUDIO:
-		{	
+		{
 			struct video_audio *v = arg;
 			memset(v,0,sizeof(*v));
 			v->flags=( (!fmi->curvol)*VIDEO_AUDIO_MUTE | VIDEO_AUDIO_MUTABLE);
 			strcpy(v->name, "Radio");
 			v->mode=VIDEO_SOUND_STEREO;
-			return 0;			
+			return 0;
 		}
 		case VIDIOCSAUDIO:
 		{
@@ -193,19 +193,19 @@ static int fmi_do_ioctl(struct inode *inode, struct file *file,
 			if(v->audio)
 				return -EINVAL;
 			fmi->curvol= v->flags&VIDEO_AUDIO_MUTE ? 0 : 1;
-			fmi->curvol ? 
+			fmi->curvol ?
 				fmi_unmute(fmi->port) : fmi_mute(fmi->port);
 			return 0;
 		}
-	        case VIDIOCGUNIT:
+		case VIDIOCGUNIT:
 		{
-               		struct video_unit *v = arg;
+			struct video_unit *v = arg;
 			v->video=VIDEO_NO_UNIT;
 			v->vbi=VIDEO_NO_UNIT;
 			v->radio=dev->minor;
 			v->audio=0; /* How do we find out this??? */
 			v->teletext=VIDEO_NO_UNIT;
-			return 0;			
+			return 0;
 		}
 		default:
 			return -ENOIOCTLCMD;
@@ -295,14 +295,14 @@ static int __init fmi_init(void)
 	fmi_unit.curfreq = 0;
 	fmi_unit.flags = VIDEO_TUNER_LOW;
 	fmi_radio.priv = &fmi_unit;
-	
+
 	mutex_init(&lock);
-	
+
 	if (video_register_device(&fmi_radio, VFL_TYPE_RADIO, radio_nr) == -1) {
 		release_region(io, 2);
 		return -EINVAL;
 	}
-		
+
 	printk(KERN_INFO "SF16FMx radio card driver at 0x%x\n", io);
 	/* mute card - prevents noisy bootups */
 	fmi_mute(io);

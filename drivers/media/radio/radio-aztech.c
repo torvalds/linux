@@ -1,11 +1,11 @@
-/* radio-aztech.c - Aztech radio card driver for Linux 2.2 
+/* radio-aztech.c - Aztech radio card driver for Linux 2.2
  *
- * Adapted to support the Video for Linux API by 
+ * Adapted to support the Video for Linux API by
  * Russell Kroll <rkroll@exploits.org>.  Based on original tuner code by:
  *
  * Quay Ly
  * Donald Song
- * Jason Lewis      (jlewis@twilight.vtc.vsc.edu) 
+ * Jason Lewis      (jlewis@twilight.vtc.vsc.edu)
  * Scott McGrath    (smcgrath@twilight.vtc.vsc.edu)
  * William McGrath  (wmcgrath@twilight.vtc.vsc.edu)
  *
@@ -39,7 +39,7 @@
 #define CONFIG_RADIO_AZTECH_PORT -1
 #endif
 
-static int io = CONFIG_RADIO_AZTECH_PORT; 
+static int io = CONFIG_RADIO_AZTECH_PORT;
 static int radio_nr = -1;
 static int radio_wait_time = 1000;
 static struct mutex lock;
@@ -53,15 +53,15 @@ struct az_device
 
 static int volconvert(int level)
 {
-	level>>=14;	 	/* Map 16bits down to 2 bit */
- 	level&=3;
-	
+	level>>=14;		/* Map 16bits down to 2 bit */
+	level&=3;
+
 	/* convert to card-friendly values */
-	switch (level) 
+	switch (level)
 	{
-		case 0: 
+		case 0:
 			return 0;
-		case 1: 
+		case 1:
 			return 1;
 		case 2:
 			return 4;
@@ -121,9 +121,9 @@ static int az_setfreq(struct az_device *dev, unsigned long frequency)
 
 	frequency += 171200;		/* Add 10.7 MHz IF		*/
 	frequency /= 800;		/* Convert to 50 kHz units	*/
-					
+
 	mutex_lock(&lock);
-	
+
 	send_0_byte (dev);		/*  0: LSB of frequency       */
 
 	for (i = 0; i < 13; i++)	/*   : frequency bits (1-13)  */
@@ -151,7 +151,7 @@ static int az_setfreq(struct az_device *dev, unsigned long frequency)
 
 	udelay (radio_wait_time);
 	outb_p(128+64+volconvert(dev->curvol), io);
-	
+
 	mutex_unlock(&lock);
 
 	return 0;
@@ -162,7 +162,7 @@ static int az_do_ioctl(struct inode *inode, struct file *file,
 {
 	struct video_device *dev = video_devdata(file);
 	struct az_device *az = dev->priv;
-	
+
 	switch(cmd)
 	{
 		case VIDIOCGCAP:
@@ -178,7 +178,7 @@ static int az_do_ioctl(struct inode *inode, struct file *file,
 		case VIDIOCGTUNER:
 		{
 			struct video_tuner *v = arg;
-			if(v->tuner)	/* Only 1 tuner */ 
+			if(v->tuner)	/* Only 1 tuner */
 				return -EINVAL;
 			v->rangelow=(87*16000);
 			v->rangehigh=(108*16000);
@@ -211,7 +211,7 @@ static int az_do_ioctl(struct inode *inode, struct file *file,
 			return 0;
 		}
 		case VIDIOCGAUDIO:
-		{	
+		{
 			struct video_audio *v = arg;
 			memset(v,0, sizeof(*v));
 			v->flags|=VIDEO_AUDIO_MUTABLE|VIDEO_AUDIO_VOLUME;
@@ -222,17 +222,17 @@ static int az_do_ioctl(struct inode *inode, struct file *file,
 			v->volume=az->curvol;
 			v->step=16384;
 			strcpy(v->name, "Radio");
-			return 0;			
+			return 0;
 		}
 		case VIDIOCSAUDIO:
 		{
 			struct video_audio *v = arg;
-			if(v->audio) 
+			if(v->audio)
 				return -EINVAL;
 			az->curvol=v->volume;
 
 			az->stereo=(v->mode&VIDEO_SOUND_STEREO)?1:0;
-			if(v->flags&VIDEO_AUDIO_MUTE) 
+			if(v->flags&VIDEO_AUDIO_MUTE)
 				az_setvol(az,0);
 			else
 				az_setvol(az,az->curvol);
@@ -277,7 +277,7 @@ static int __init aztech_init(void)
 		return -EINVAL;
 	}
 
-	if (!request_region(io, 2, "aztech")) 
+	if (!request_region(io, 2, "aztech"))
 	{
 		printk(KERN_ERR "aztech: port 0x%x already in use\n", io);
 		return -EBUSY;
@@ -285,13 +285,13 @@ static int __init aztech_init(void)
 
 	mutex_init(&lock);
 	aztech_radio.priv=&aztech_unit;
-	
+
 	if(video_register_device(&aztech_radio, VFL_TYPE_RADIO, radio_nr)==-1)
 	{
 		release_region(io,2);
 		return -EINVAL;
 	}
-		
+
 	printk(KERN_INFO "Aztech radio card driver v1.00/19990224 rkroll@exploits.org\n");
 	/* mute card - prevents noisy bootups */
 	outb (0, io);

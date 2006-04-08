@@ -1,14 +1,14 @@
-/* radio-trust.c - Trust FM Radio card driver for Linux 2.2 
+/* radio-trust.c - Trust FM Radio card driver for Linux 2.2
  * by Eric Lammerts <eric@scintilla.utwente.nl>
  *
  * Based on radio-aztech.c. Original notes:
  *
- * Adapted to support the Video for Linux API by 
+ * Adapted to support the Video for Linux API by
  * Russell Kroll <rkroll@exploits.org>.  Based on original tuner code by:
  *
  * Quay Ly
  * Donald Song
- * Jason Lewis      (jlewis@twilight.vtc.vsc.edu) 
+ * Jason Lewis      (jlewis@twilight.vtc.vsc.edu)
  * Scott McGrath    (smcgrath@twilight.vtc.vsc.edu)
  * William McGrath  (wmcgrath@twilight.vtc.vsc.edu)
  *
@@ -30,7 +30,7 @@
 #define CONFIG_RADIO_TRUST_PORT -1
 #endif
 
-static int io = CONFIG_RADIO_TRUST_PORT; 
+static int io = CONFIG_RADIO_TRUST_PORT;
 static int radio_nr = -1;
 static int ioval = 0xf;
 static __u16 curvol;
@@ -135,7 +135,7 @@ static void tr_setmute(int mute)
 static int tr_getsigstr(void)
 {
 	int i, v;
-	
+
 	for(i = 0, v = 0; i < 100; i++) v |= inb(io);
 	return (v & 1)? 0 : 0xffff;
 }
@@ -175,7 +175,7 @@ static int tr_do_ioctl(struct inode *inode, struct file *file,
 		{
 			struct video_tuner *v = arg;
 
-			if(v->tuner)	/* Only 1 tuner */ 
+			if(v->tuner)	/* Only 1 tuner */
 				return -EINVAL;
 
 			v->rangelow = 87500 * 16;
@@ -211,28 +211,28 @@ static int tr_do_ioctl(struct inode *inode, struct file *file,
 			return 0;
 		}
 		case VIDIOCGAUDIO:
-		{	
+		{
 			struct video_audio *v = arg;
 
 			memset(v,0, sizeof(*v));
 			v->flags = VIDEO_AUDIO_MUTABLE | VIDEO_AUDIO_VOLUME |
-			          VIDEO_AUDIO_BASS | VIDEO_AUDIO_TREBLE;
+				  VIDEO_AUDIO_BASS | VIDEO_AUDIO_TREBLE;
 			v->mode = curstereo? VIDEO_SOUND_STEREO : VIDEO_SOUND_MONO;
 			v->volume = curvol * 2048;
 			v->step = 2048;
 			v->bass = curbass * 4370;
 			v->treble = curtreble * 4370;
-			
+
 			strcpy(v->name, "Trust FM Radio");
-			return 0;			
+			return 0;
 		}
 		case VIDIOCSAUDIO:
 		{
 			struct video_audio *v = arg;
 
-			if(v->audio) 
+			if(v->audio)
 				return -EINVAL;
-			tr_setvol(v->volume);					
+			tr_setvol(v->volume);
 			tr_setbass(v->bass);
 			tr_settreble(v->treble);
 			tr_setstereo(v->mode & VIDEO_SOUND_STEREO);
@@ -292,7 +292,7 @@ static int __init trust_init(void)
 	write_i2c(2, TDA7318_ADDR, 0xe0);	/* speaker att. RR = 0 dB */
 	write_i2c(2, TDA7318_ADDR, 0x40);	/* stereo 1 input, gain = 18.75 dB */
 
-	tr_setvol(0x8000);					
+	tr_setvol(0x8000);
 	tr_setbass(0x8000);
 	tr_settreble(0x8000);
 	tr_setstereo(1);

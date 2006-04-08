@@ -24,7 +24,7 @@
  *   out(port, start_increasing_volume);
  *   wait(a_wee_while);
  *   out(port, stop_changing_the_volume);
- *  
+ *
  */
 
 #include <linux/module.h>	/* Modules 			*/
@@ -41,7 +41,7 @@
 #define CONFIG_RADIO_RTRACK_PORT -1
 #endif
 
-static int io = CONFIG_RADIO_RTRACK_PORT; 
+static int io = CONFIG_RADIO_RTRACK_PORT;
 static int radio_nr = -1;
 static struct mutex lock;
 
@@ -93,12 +93,12 @@ static int rt_setvol(struct rt_device *dev, int vol)
 	int i;
 
 	mutex_lock(&lock);
-	
+
 	if(vol == dev->curvol) {	/* requested volume = current */
 		if (dev->muted) {	/* user is unmuting the card  */
 			dev->muted = 0;
 			outb (0xd8, io);	/* enable card */
-		}	
+		}
 		mutex_unlock(&lock);
 		return 0;
 	}
@@ -114,10 +114,10 @@ static int rt_setvol(struct rt_device *dev, int vol)
 
 	dev->muted = 0;
 	if(vol > dev->curvol)
-		for(i = dev->curvol; i < vol; i++) 
+		for(i = dev->curvol; i < vol; i++)
 			rt_incvol();
 	else
-		for(i = dev->curvol; i > vol; i--) 
+		for(i = dev->curvol; i > vol; i--)
 			rt_decvol();
 
 	dev->curvol = vol;
@@ -125,7 +125,7 @@ static int rt_setvol(struct rt_device *dev, int vol)
 	return 0;
 }
 
-/* the 128+64 on these outb's is to keep the volume stable while tuning 
+/* the 128+64 on these outb's is to keep the volume stable while tuning
  * without them, the volume _will_ creep up with each frequency change
  * and bit 4 (+16) is to keep the signal strength meter enabled
  */
@@ -140,7 +140,7 @@ static void send_0_byte(int port, struct rt_device *dev)
 		outb_p(128+64+16+8+  1, port);  /* on + wr-enable + data low */
 		outb_p(128+64+16+8+2+1, port);  /* clock */
 	}
-	sleep_delay(1000); 
+	sleep_delay(1000);
 }
 
 static void send_1_byte(int port, struct rt_device *dev)
@@ -148,13 +148,13 @@ static void send_1_byte(int port, struct rt_device *dev)
 	if ((dev->curvol == 0) || (dev->muted)) {
 		outb_p(128+64+16+4  +1, port);   /* wr-enable+data high */
 		outb_p(128+64+16+4+2+1, port);   /* clock */
-	} 
+	}
 	else {
 		outb_p(128+64+16+8+4  +1, port); /* on+wr-enable+data high */
 		outb_p(128+64+16+8+4+2+1, port); /* clock */
 	}
 
-	sleep_delay(1000); 
+	sleep_delay(1000);
 }
 
 static int rt_setfreq(struct rt_device *dev, unsigned long freq)
@@ -167,9 +167,9 @@ static int rt_setfreq(struct rt_device *dev, unsigned long freq)
 
 	freq += 171200;			/* Add 10.7 MHz IF 		*/
 	freq /= 800;			/* Convert to 50 kHz units	*/
-	
+
 	mutex_lock(&lock);			/* Stop other ops interfering */
-	 
+
 	send_0_byte (io, dev);		/*  0: LSB of frequency		*/
 
 	for (i = 0; i < 13; i++)	/*   : frequency bits (1-13)	*/
@@ -195,7 +195,7 @@ static int rt_setfreq(struct rt_device *dev, unsigned long freq)
 		outb (0xd0, io);	/* volume steady + sigstr */
 	else
 		outb (0xd8, io);	/* volume steady + sigstr + on */
-		
+
 	mutex_unlock(&lock);
 
 	return 0;
@@ -213,7 +213,7 @@ static int rt_do_ioctl(struct inode *inode, struct file *file,
 {
 	struct video_device *dev = video_devdata(file);
 	struct rt_device *rt=dev->priv;
-	
+
 	switch(cmd)
 	{
 		case VIDIOCGCAP:
@@ -229,7 +229,7 @@ static int rt_do_ioctl(struct inode *inode, struct file *file,
 		case VIDIOCGTUNER:
 		{
 			struct video_tuner *v = arg;
-			if(v->tuner)	/* Only 1 tuner */ 
+			if(v->tuner)	/* Only 1 tuner */
 				return -EINVAL;
 			v->rangelow=(87*16000);
 			v->rangehigh=(108*16000);
@@ -261,21 +261,21 @@ static int rt_do_ioctl(struct inode *inode, struct file *file,
 			return 0;
 		}
 		case VIDIOCGAUDIO:
-		{	
+		{
 			struct video_audio *v = arg;
 			memset(v,0, sizeof(*v));
 			v->flags|=VIDEO_AUDIO_MUTABLE|VIDEO_AUDIO_VOLUME;
 			v->volume=rt->curvol * 6554;
 			v->step=6554;
 			strcpy(v->name, "Radio");
-			return 0;			
+			return 0;
 		}
 		case VIDIOCSAUDIO:
 		{
 			struct video_audio *v = arg;
-			if(v->audio) 
+			if(v->audio)
 				return -EINVAL;
-			if(v->flags&VIDEO_AUDIO_MUTE) 
+			if(v->flags&VIDEO_AUDIO_MUTE)
 				rt_mute(rt);
 			else
 				rt_setvol(rt,v->volume/6554);
@@ -298,7 +298,7 @@ static struct file_operations rtrack_fops = {
 	.owner		= THIS_MODULE,
 	.open           = video_exclusive_open,
 	.release        = video_exclusive_release,
-	.ioctl	        = rt_ioctl,
+	.ioctl		= rt_ioctl,
 	.compat_ioctl	= v4l_compat_ioctl32,
 	.llseek         = no_llseek,
 };
@@ -320,14 +320,14 @@ static int __init rtrack_init(void)
 		return -EINVAL;
 	}
 
-	if (!request_region(io, 2, "rtrack")) 
+	if (!request_region(io, 2, "rtrack"))
 	{
 		printk(KERN_ERR "rtrack: port 0x%x already in use\n", io);
 		return -EBUSY;
 	}
 
 	rtrack_radio.priv=&rtrack_unit;
-	
+
 	if(video_register_device(&rtrack_radio, VFL_TYPE_RADIO, radio_nr)==-1)
 	{
 		release_region(io, 2);
@@ -336,10 +336,10 @@ static int __init rtrack_init(void)
 	printk(KERN_INFO "AIMSlab RadioTrack/RadioReveal card driver.\n");
 
 	/* Set up the I/O locking */
-	
+
 	mutex_init(&lock);
-	
- 	/* mute card - prevents noisy bootups */
+
+	/* mute card - prevents noisy bootups */
 
 	/* this ensures that the volume is all the way down  */
 	outb(0x48, io);		/* volume down but still "on"	*/

@@ -361,7 +361,7 @@ static int __init typhoon_init(void)
 
 #ifdef CONFIG_RADIO_TYPHOON_PROC_FS
 	if (!create_proc_info_entry("driver/radio-typhoon", 0, NULL,
-				    typhoon_get_info)) 
+				    typhoon_get_info))
 	    	printk(KERN_ERR "radio-typhoon: registering /proc/driver/radio-typhoon failed\n");
 #endif
 

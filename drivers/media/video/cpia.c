@@ -67,10 +67,10 @@ MODULE_SUPPORTED_DEVICE("video");
 static unsigned short colorspace_conv;
 module_param(colorspace_conv, ushort, 0444);
 MODULE_PARM_DESC(colorspace_conv,
-                 " Colorspace conversion:"
-                 "\n  0 = disable, 1 = enable"
-                 "\n  Default value is 0"
-                 );
+		 " Colorspace conversion:"
+		 "\n  0 = disable, 1 = enable"
+		 "\n  Default value is 0"
+		 );
 
 #define ABOUT "V4L-Driver for Vision CPiA based cameras"
 

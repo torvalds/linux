@@ -2,7 +2,7 @@
  * (c) 2000 A. Tlalka, atlka@pg.gda.pl
  * Notes on the hardware
  *
- *  + Frequency control is done digitally 
+ *  + Frequency control is done digitally
  *  + No volume control - only mute/unmute - you have to use Aux line volume
  *  control on Maestro card to set the volume
  *  + Radio status (tuned/not_tuned and stereo/mono) is valid some time after
@@ -103,7 +103,7 @@ static struct video_device maestro_radio = {
 struct radio_device {
 	u16	io,	/* base of Maestro card radio io (GPIO_DATA)*/
 		muted,	/* VIDEO_AUDIO_MUTE */
-		stereo,	/* VIDEO_TUNER_STEREO_ON */	
+		stereo,	/* VIDEO_TUNER_STEREO_ON */
 		tuned;	/* signal strength (0 or 0xffff) */
 	struct mutex lock;
 };
@@ -122,14 +122,14 @@ static u32 radio_bits_get(struct radio_device *dev)
 	for (l=24;l--;) {
 		outw(STR_CLK, io);		/* HI state */
 		udelay(2);
-		if(!l) 
+		if(!l)
 			dev->tuned = inw(io) & STR_MOST ? 0 : 0xffff;
 		outw(0, io);			/* LO state */
 		udelay(2);
 		data <<= 1;			/* shift data */
 		rdata = inw(io);
 		if(!l)
-			dev->stereo =  rdata & STR_MOST ? 
+			dev->stereo =  rdata & STR_MOST ?
 			0 : VIDEO_TUNER_STEREO_ON;
 		else
 			if(rdata & STR_DATA)

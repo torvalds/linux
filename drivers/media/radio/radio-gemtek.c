@@ -6,7 +6,7 @@
  * Besides the protocol changes, this is mostly a copy of:
  *
  *    RadioTrack II driver for Linux radio support (C) 1998 Ben Pfaff
- * 
+ *
  *    Based on RadioTrack I/RadioReveal (C) 1997 M. Kirkwood
  *    Converted to new API by Alan Cox <Alan.Cox@linux.org>
  *    Various bugfixes and enhancements by Russell Kroll <rkroll@exploits.org>
@@ -29,7 +29,7 @@
 #define CONFIG_RADIO_GEMTEK_PORT -1
 #endif
 
-static int io = CONFIG_RADIO_GEMTEK_PORT; 
+static int io = CONFIG_RADIO_GEMTEK_PORT;
 static int radio_nr = -1;
 static spinlock_t lock;
 
@@ -48,7 +48,7 @@ struct gemtek_device
  */
 static void gemtek_mute(struct gemtek_device *dev)
 {
-        if(dev->muted)
+	if(dev->muted)
 		return;
 	spin_lock(&lock);
 	outb(0x10, io);
@@ -94,20 +94,20 @@ static int gemtek_setfreq(struct gemtek_device *dev, unsigned long freq)
 	freq /= 100000;
 
 	spin_lock(&lock);
-	
+
 	/* 2 start bits */
 	outb_p(0x03, io);
 	udelay(5);
 	outb_p(0x07, io);
 	udelay(5);
 
-        /* 28 frequency bits (lsb first) */
+	/* 28 frequency bits (lsb first) */
 	for (i = 0; i < 14; i++)
 		if (freq & (1 << i))
 			one();
 		else
 			zero();
-        /* 36 unknown bits */
+	/* 36 unknown bits */
 	for (i = 0; i < 11; i++)
 		zero();
 	one();
@@ -123,7 +123,7 @@ static int gemtek_setfreq(struct gemtek_device *dev, unsigned long freq)
 	udelay(5);
 
 	spin_unlock(&lock);
-	
+
 	return 0;
 }
 
@@ -159,7 +159,7 @@ static int gemtek_do_ioctl(struct inode *inode, struct file *file,
 		case VIDIOCGTUNER:
 		{
 			struct video_tuner *v = arg;
-			if(v->tuner)	/* Only 1 tuner */ 
+			if(v->tuner)	/* Only 1 tuner */
 				return -EINVAL;
 			v->rangelow=87*16000;
 			v->rangehigh=108*16000;
@@ -193,25 +193,25 @@ static int gemtek_do_ioctl(struct inode *inode, struct file *file,
 			return 0;
 		}
 		case VIDIOCGAUDIO:
-		{	
+		{
 			struct video_audio *v = arg;
 			memset(v,0, sizeof(*v));
 			v->flags|=VIDEO_AUDIO_MUTABLE;
 			v->volume=1;
 			v->step=65535;
 			strcpy(v->name, "Radio");
-			return 0;			
+			return 0;
 		}
 		case VIDIOCSAUDIO:
 		{
 			struct video_audio *v = arg;
-			if(v->audio) 
+			if(v->audio)
 				return -EINVAL;
 
-			if(v->flags&VIDEO_AUDIO_MUTE) 
+			if(v->flags&VIDEO_AUDIO_MUTE)
 				gemtek_mute(rt);
 			else
-			        gemtek_unmute(rt);
+				gemtek_unmute(rt);
 
 			return 0;
 		}
@@ -254,14 +254,14 @@ static int __init gemtek_init(void)
 		return -EINVAL;
 	}
 
-	if (!request_region(io, 4, "gemtek")) 
+	if (!request_region(io, 4, "gemtek"))
 	{
 		printk(KERN_ERR "gemtek: port 0x%x already in use\n", io);
 		return -EBUSY;
 	}
 
 	gemtek_radio.priv=&gemtek_unit;
-	
+
 	if(video_register_device(&gemtek_radio, VFL_TYPE_RADIO, radio_nr)==-1)
 	{
 		release_region(io, 4);
@@ -274,7 +274,7 @@ static int __init gemtek_init(void)
 	/* this is _maybe_ unnecessary */
 	outb(0x01, io);
 
- 	/* mute card - prevents noisy bootups */
+	/* mute card - prevents noisy bootups */
 	gemtek_unit.muted = 0;
 	gemtek_mute(&gemtek_unit);
 
