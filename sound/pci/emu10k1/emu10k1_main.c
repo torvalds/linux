@@ -777,14 +777,6 @@ static int snd_emu10k1_dev_free(struct snd_device *device)
 
 static struct snd_emu_chip_details emu_chip_details[] = {
 	/* Audigy 2 Value AC3 out does not work yet. Need to find out how to turn off interpolators.*/
-	/* Audigy4 SB0400 */
-	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x10211102,
-	 .driver = "Audigy2", .name = "Audigy 4 [SB0400]", 
-	 .id = "Audigy2",
-	 .emu10k2_chip = 1,
-	 .ca0108_chip = 1,
-	 .spk71 = 1,
-	 .ac97_chip = 1} ,
 	/* Tested by James@superbug.co.uk 3rd July 2005 */
 	/* DSP: CA0108-IAT
 	 * DAC: CS4382-KQ
@@ -799,13 +791,59 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .ca0108_chip = 1,
 	 .spk71 = 1,
 	 .ac97_chip = 1} ,
+	/* Audigy4 (Not PRO) SB0610 */
+	/* Tested by James@superbug.co.uk 4th April 2006 */
+	/* A_IOCFG bits
+	 * Output
+	 * 0: ?
+	 * 1: ?
+	 * 2: ?
+	 * 3: 0 - Digital Out, 1 - Line in
+	 * 4: ?
+	 * 5: ?
+	 * 6: ?
+	 * 7: ?
+	 * Input
+	 * 8: ?
+	 * 9: ?
+	 * A: Green jack sense (Front)
+	 * B: ?
+	 * C: Black jack sense (Rear/Side Right)
+	 * D: Yellow jack sense (Center/LFE/Side Left)
+	 * E: ?
+	 * F: ?
+	 *
+	 * Digital Out/Line in switch using A_IOCFG bit 3 (0x08)
+	 * 0 - Digital Out
+	 * 1 - Line in
+	 */
+	/* Mic input not tested.
+	 * Analog CD input not tested
+	 * Digital Out not tested.
+	 * Line in working.
+	 * Audio output 5.1 working. Side outputs not working.
+	 */
+	/* DSP: CA10300-IAT LF
+	 * DAC: Cirrus Logic CS4382-KQZ
+	 * ADC: Philips 1361T
+	 * AC97: Sigmatel STAC9750
+	 * CA0151: None
+	 */
+	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x10211102,
+	 .driver = "Audigy2", .name = "Audigy 4 [SB0610]", 
+	 .id = "Audigy2",
+	 .emu10k2_chip = 1,
+	 .ca0108_chip = 1,
+	 .spk71 = 1,
+	 .adc_1361t = 1,  /* 24 bit capture instead of 16bit */
+	 .ac97_chip = 1} ,
 	/* Audigy 2 ZS Notebook Cardbus card.*/
 	/* Tested by James@superbug.co.uk 22th December 2005 */
 	/* Audio output 7.1/Headphones working.
 	 * Digital output working. (AC3 not checked, only PCM)
 	 * Audio inputs not tested.
 	 */ 
-	/* DSP: Tiny2
+	/* DSP: Tina2
 	 * DAC: Wolfson WM8768/WM8568
 	 * ADC: Wolfson WM8775
 	 * AC97: None
