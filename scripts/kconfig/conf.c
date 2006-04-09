@@ -328,8 +328,7 @@ static int conf_choice(struct menu *menu)
 		printf("%*s%s\n", indent - 1, "", menu_get_prompt(menu));
 		def_sym = sym_get_choice_value(sym);
 		cnt = def = 0;
-		line[0] = '0';
-		line[1] = 0;
+		line[0] = 0;
 		for (child = menu->list; child; child = child->next) {
 			if (!menu_is_visible(child))
 				continue;
