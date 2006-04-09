@@ -843,8 +843,11 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .spdif_bug = 1,
 	 .ac97_chip = 1} ,
 	/* Tested by shane-alsa@cm.nu 5th Nov 2005 */
+	/* The 0x20061102 does have SB0350 written on it
+	 * Just like 0x20021102
+	 */
 	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x20061102,
-	 .driver = "Audigy2", .name = "Audigy 2 [2006]", 
+	 .driver = "Audigy2", .name = "Audigy 2 [SB0350b]", 
 	 .id = "Audigy2",
 	 .emu10k2_chip = 1,
 	 .ca0102_chip = 1,
