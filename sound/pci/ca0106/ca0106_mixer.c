@@ -227,6 +227,20 @@ static int snd_ca0106_i2c_capture_source_put(struct snd_kcontrol *kcontrol,
         return change;
 }
 
+static int snd_ca0106_capture_line_in_side_out_info(struct snd_kcontrol *kcontrol,
+					       struct snd_ctl_elem_info *uinfo)
+{
+	static char *texts[2] = { "Side out", "Line in" };
+
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	uinfo->count = 1;
+	uinfo->value.enumerated.items = 2;
+	if (uinfo->value.enumerated.item > 1)
+                uinfo->value.enumerated.item = 1;
+	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
+	return 0;
+}
+
 static int snd_ca0106_capture_mic_line_in_info(struct snd_kcontrol *kcontrol,
 					       struct snd_ctl_elem_info *uinfo)
 {
@@ -286,6 +300,16 @@ static struct snd_kcontrol_new snd_ca0106_capture_mic_line_in __devinitdata =
 	.get =		snd_ca0106_capture_mic_line_in_get,
 	.put =		snd_ca0106_capture_mic_line_in_put
 };
+
+static struct snd_kcontrol_new snd_ca0106_capture_line_in_side_out __devinitdata =
+{
+	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name =		"Shared Line in/Side out Capture Switch",
+	.info =		snd_ca0106_capture_line_in_side_out_info,
+	.get =		snd_ca0106_capture_mic_line_in_get,
+	.put =		snd_ca0106_capture_mic_line_in_put
+};
+
 
 static int snd_ca0106_spdif_info(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_info *uinfo)
@@ -611,7 +635,10 @@ int __devinit snd_ca0106_mixer(struct snd_ca0106 *emu)
 			return err;
 	}
 	if (emu->details->i2c_adc == 1) {
-		err = snd_ctl_add(card, snd_ctl_new1(&snd_ca0106_capture_mic_line_in, emu));
+		if (emu->details->gpio_type == 1)
+			err = snd_ctl_add(card, snd_ctl_new1(&snd_ca0106_capture_mic_line_in, emu));
+		else  /* gpio_type == 2 */
+			err = snd_ctl_add(card, snd_ctl_new1(&snd_ca0106_capture_line_in_side_out, emu));
 		if (err < 0)
 			return err;
 	}

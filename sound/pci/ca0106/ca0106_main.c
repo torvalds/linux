@@ -195,9 +195,14 @@ static struct snd_ca0106_details ca0106_chip_details[] = {
 	   .i2c_adc = 1,
 	   .spi_dac = 1 } ,
 	 /* MSI K8N Diamond Motherboard with onboard SB Live 24bit without AC97 */
+	 /* SB0438
+	  * CTRL:CA0106-DAT
+	  * ADC: WM8775SEDS
+	  * DAC: CS4382-KQZ
+	  */
 	 { .serial = 0x10091462,
 	   .name   = "MSI K8N Diamond MB [SB0438]",
-	   .gpio_type = 1,
+	   .gpio_type = 2,
 	   .i2c_adc = 1 } ,
 	 /* Shuttle XPC SD31P which has an onboard Creative Labs
 	  * Sound Blaster Live! 24-bit EAX
@@ -1380,7 +1385,7 @@ static int __devinit snd_ca0106_create(struct snd_card *card,
         snd_ca0106_ptr_write(chip, CAPTURE_SOURCE, 0x0, 0x333300e4); /* Select MIC, Line in, TAD in, AUX in */
 	chip->capture_source = 3; /* Set CAPTURE_SOURCE */
 
-        if (chip->details->gpio_type == 2) { /* The SB0410 and SB0413 use GPIO differently. */
+        if (chip->details->gpio_type == 2) { /* The SB0438 use GPIO differently. */
 		/* FIXME: Still need to find out what the other GPIO bits do. E.g. For digital spdif out. */
 		outl(0x0, chip->port+GPIO);
 		//outl(0x00f0e000, chip->port+GPIO); /* Analog */
