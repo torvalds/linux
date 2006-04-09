@@ -145,6 +145,7 @@ static struct crypto_alg michael_mic_alg = {
 	.cra_blocksize	= 8,
 	.cra_ctxsize	= sizeof(struct michael_mic_ctx),
 	.cra_module	= THIS_MODULE,
+	.cra_alignmask	= 3,
 	.cra_list	= LIST_HEAD_INIT(michael_mic_alg.cra_list),
 	.cra_u		= { .digest = {
 	.dia_digestsize	= 8,

@@ -627,6 +627,7 @@ static struct crypto_alg tgr192 = {
 	.cra_blocksize = TGR192_BLOCK_SIZE,
 	.cra_ctxsize = sizeof(struct tgr192_ctx),
 	.cra_module = THIS_MODULE,
+	.cra_alignmask = 7,
 	.cra_list = LIST_HEAD_INIT(tgr192.cra_list),
 	.cra_u = {.digest = {
 			     .dia_digestsize = TGR192_DIGEST_SIZE,
@@ -641,6 +642,7 @@ static struct crypto_alg tgr160 = {
 	.cra_blocksize = TGR192_BLOCK_SIZE,
 	.cra_ctxsize = sizeof(struct tgr192_ctx),
 	.cra_module = THIS_MODULE,
+	.cra_alignmask = 7,
 	.cra_list = LIST_HEAD_INIT(tgr160.cra_list),
 	.cra_u = {.digest = {
 			     .dia_digestsize = TGR160_DIGEST_SIZE,
@@ -655,6 +657,7 @@ static struct crypto_alg tgr128 = {
 	.cra_blocksize = TGR192_BLOCK_SIZE,
 	.cra_ctxsize = sizeof(struct tgr192_ctx),
 	.cra_module = THIS_MODULE,
+	.cra_alignmask = 7,
 	.cra_list = LIST_HEAD_INIT(tgr128.cra_list),
 	.cra_u = {.digest = {
 			     .dia_digestsize = TGR128_DIGEST_SIZE,

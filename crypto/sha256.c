@@ -313,6 +313,7 @@ static struct crypto_alg alg = {
 	.cra_blocksize	=	SHA256_HMAC_BLOCK_SIZE,
 	.cra_ctxsize	=	sizeof(struct sha256_ctx),
 	.cra_module	=	THIS_MODULE,
+	.cra_alignmask	=	3,
 	.cra_list       =       LIST_HEAD_INIT(alg.cra_list),
 	.cra_u		=	{ .digest = {
 	.dia_digestsize	=	SHA256_DIGEST_SIZE,

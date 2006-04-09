@@ -281,6 +281,7 @@ static struct crypto_alg sha512 = {
         .cra_blocksize  = SHA512_HMAC_BLOCK_SIZE,
         .cra_ctxsize    = sizeof(struct sha512_ctx),
         .cra_module     = THIS_MODULE,
+	.cra_alignmask	= 3,
         .cra_list       = LIST_HEAD_INIT(sha512.cra_list),
         .cra_u          = { .digest = {
                                 .dia_digestsize = SHA512_DIGEST_SIZE,
@@ -295,6 +296,7 @@ static struct crypto_alg sha384 = {
         .cra_flags      = CRYPTO_ALG_TYPE_DIGEST,
         .cra_blocksize  = SHA384_HMAC_BLOCK_SIZE,
         .cra_ctxsize    = sizeof(struct sha512_ctx),
+	.cra_alignmask	= 3,
         .cra_module     = THIS_MODULE,
         .cra_list       = LIST_HEAD_INIT(sha384.cra_list),
         .cra_u          = { .digest = {
