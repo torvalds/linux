@@ -85,4 +85,6 @@ obj-$(CONFIG_USB_IBMCAM)        += usbvideo/
 obj-$(CONFIG_USB_KONICAWC)      += usbvideo/
 obj-$(CONFIG_USB_VICAM)         += usbvideo/
 
+obj-$(CONFIG_VIDEO_VIVI) += vivi.o
+
 EXTRA_CFLAGS += -Idrivers/media/dvb/dvb-core

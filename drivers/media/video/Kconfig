@@ -16,6 +16,17 @@ config VIDEO_ADV_DEBUG
 	  V4L devices.
 	  In doubt, say N.
 
+config VIDEO_VIVI
+	tristate "Virtual Video Driver"
+	depends on VIDEO_V4L2
+	default n
+	---help---
+	  Enables a virtual video driver. This device shows a color bar
+	  and a timestamp, as a real device would generate by using V4L2
+	  api.
+	  Say Y here if you want to test video apps or debug V4L devices.
+	  In doubt, say N.
+
 source "drivers/media/video/bt8xx/Kconfig"
 
 config VIDEO_SAA6588
