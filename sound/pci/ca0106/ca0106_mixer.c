@@ -171,6 +171,62 @@ static int snd_ca0106_capture_source_put(struct snd_kcontrol *kcontrol,
         return change;
 }
 
+static int snd_ca0106_i2c_capture_source_info(struct snd_kcontrol *kcontrol,
+					  struct snd_ctl_elem_info *uinfo)
+{
+	static char *texts[6] = {
+		"Phone", "Mic", "Line in", "Aux"
+	};
+
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	uinfo->count = 1;
+	uinfo->value.enumerated.items = 4;
+	if (uinfo->value.enumerated.item > 3)
+                uinfo->value.enumerated.item = 3;
+	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
+	return 0;
+}
+
+static int snd_ca0106_i2c_capture_source_get(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_ca0106 *emu = snd_kcontrol_chip(kcontrol);
+
+	ucontrol->value.enumerated.item[0] = emu->i2c_capture_source;
+	return 0;
+}
+
+static int snd_ca0106_i2c_capture_source_put(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_ca0106 *emu = snd_kcontrol_chip(kcontrol);
+	unsigned int source_id;
+	unsigned int ngain, ogain;
+	int change = 0;
+	u32 source;
+	/* If the capture source has changed,
+	 * update the capture volume from the cached value
+	 * for the particular source.
+	 */
+	source_id = ucontrol->value.enumerated.item[0] ;
+	change = (emu->i2c_capture_source != source_id);
+	if (change) {
+		snd_ca0106_i2c_write(emu, ADC_MUX, 0); /* Mute input */
+		ngain = emu->i2c_capture_volume[source_id][0]; /* Left */
+		ogain = emu->i2c_capture_volume[emu->i2c_capture_source][0]; /* Left */
+		if (ngain != ogain)
+			snd_ca0106_i2c_write(emu, ADC_ATTEN_ADCL, ((ngain) & 0xff));
+		ngain = emu->i2c_capture_volume[source_id][1]; /* Left */
+		ogain = emu->i2c_capture_volume[emu->i2c_capture_source][1]; /* Left */
+		if (ngain != ogain)
+			snd_ca0106_i2c_write(emu, ADC_ATTEN_ADCR, ((ngain) & 0xff));
+		source = 1 << source_id;
+		snd_ca0106_i2c_write(emu, ADC_MUX, source); /* Set source */
+		emu->i2c_capture_source = source_id;
+	}
+        return change;
+}
+
 static int snd_ca0106_capture_mic_line_in_info(struct snd_kcontrol *kcontrol,
 					       struct snd_ctl_elem_info *uinfo)
 {
@@ -207,16 +263,16 @@ static int snd_ca0106_capture_mic_line_in_put(struct snd_kcontrol *kcontrol,
 	if (change) {
 		emu->capture_mic_line_in = val;
 		if (val) {
-			snd_ca0106_i2c_write(emu, ADC_MUX, ADC_MUX_PHONE); /* Mute input */
+			//snd_ca0106_i2c_write(emu, ADC_MUX, 0); /* Mute input */
 			tmp = inl(emu->port+GPIO) & ~0x400;
 			tmp = tmp | 0x400;
 			outl(tmp, emu->port+GPIO);
-			snd_ca0106_i2c_write(emu, ADC_MUX, ADC_MUX_MIC);
+			//snd_ca0106_i2c_write(emu, ADC_MUX, ADC_MUX_MIC);
 		} else {
-			snd_ca0106_i2c_write(emu, ADC_MUX, ADC_MUX_PHONE); /* Mute input */
+			//snd_ca0106_i2c_write(emu, ADC_MUX, 0); /* Mute input */
 			tmp = inl(emu->port+GPIO) & ~0x400;
 			outl(tmp, emu->port+GPIO);
-			snd_ca0106_i2c_write(emu, ADC_MUX, ADC_MUX_LINEIN);
+			//snd_ca0106_i2c_write(emu, ADC_MUX, ADC_MUX_LINEIN);
 		}
 	}
         return change;
@@ -225,7 +281,7 @@ static int snd_ca0106_capture_mic_line_in_put(struct snd_kcontrol *kcontrol,
 static struct snd_kcontrol_new snd_ca0106_capture_mic_line_in __devinitdata =
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name =		"Mic/Line in Capture",
+	.name =		"Shared Mic/Line in Capture Switch",
 	.info =		snd_ca0106_capture_mic_line_in_info,
 	.get =		snd_ca0106_capture_mic_line_in_get,
 	.put =		snd_ca0106_capture_mic_line_in_put
@@ -329,13 +385,79 @@ static int snd_ca0106_volume_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
+static int snd_ca0106_i2c_volume_info(struct snd_kcontrol *kcontrol,
+				  struct snd_ctl_elem_info *uinfo)
+{
+        uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+        uinfo->count = 2;
+        uinfo->value.integer.min = 0;
+        uinfo->value.integer.max = 255;
+        return 0;
+}
+
+static int snd_ca0106_i2c_volume_get(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
+{
+        struct snd_ca0106 *emu = snd_kcontrol_chip(kcontrol);
+	int source_id;
+
+	source_id = kcontrol->private_value;
+
+        ucontrol->value.integer.value[0] = emu->i2c_capture_volume[source_id][0];
+        ucontrol->value.integer.value[1] = emu->i2c_capture_volume[source_id][1];
+        return 0;
+}
+
+static int snd_ca0106_i2c_volume_put(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
+{
+        struct snd_ca0106 *emu = snd_kcontrol_chip(kcontrol);
+        unsigned int ogain;
+        unsigned int ngain;
+	int source_id;
+	int change = 0;
+
+	source_id = kcontrol->private_value;
+	ogain = emu->i2c_capture_volume[source_id][0]; /* Left */
+	ngain = ucontrol->value.integer.value[0];
+	if (ngain > 0xff)
+		return 0;
+	if (ogain != ngain) {
+		if (emu->i2c_capture_source == source_id)
+			snd_ca0106_i2c_write(emu, ADC_ATTEN_ADCL, ((ngain) & 0xff) );
+		emu->i2c_capture_volume[source_id][0] = ucontrol->value.integer.value[0];
+		change = 1;
+	}
+	ogain = emu->i2c_capture_volume[source_id][1]; /* Right */
+	ngain = ucontrol->value.integer.value[1];
+	if (ngain > 0xff)
+		return 0;
+	if (ogain != ngain) {
+		if (emu->i2c_capture_source == source_id)
+			snd_ca0106_i2c_write(emu, ADC_ATTEN_ADCR, ((ngain) & 0xff));
+		emu->i2c_capture_volume[source_id][1] = ucontrol->value.integer.value[1];
+		change = 1;
+	}
+
+	return change;
+}
+
 #define CA_VOLUME(xname,chid,reg) \
 {								\
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname,	\
-	.info = snd_ca0106_volume_info,				\
-	.get =          snd_ca0106_volume_get,			\
-	.put =          snd_ca0106_volume_put,			\
+	.info =	 snd_ca0106_volume_info,			\
+	.get =   snd_ca0106_volume_get,				\
+	.put =   snd_ca0106_volume_put,				\
 	.private_value = ((chid) << 8) | (reg)			\
+}
+
+#define I2C_VOLUME(xname,chid) \
+{								\
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname,	\
+	.info =  snd_ca0106_i2c_volume_info,			\
+	.get =   snd_ca0106_i2c_volume_get,			\
+	.put =   snd_ca0106_i2c_volume_put,			\
+	.private_value = chid					\
 }
 
 
@@ -361,6 +483,11 @@ static struct snd_kcontrol_new snd_ca0106_volume_ctls[] __devinitdata = {
         CA_VOLUME("CAPTURE feedback Playback Volume",
 		  1, CAPTURE_CONTROL),
 
+        I2C_VOLUME("Phone Capture Volume", 0),
+        I2C_VOLUME("Mic Capture Volume", 1),
+        I2C_VOLUME("Line in Capture Volume", 2),
+        I2C_VOLUME("Aux Capture Volume", 3),
+
 	{
 		.access =	SNDRV_CTL_ELEM_ACCESS_READ,
 		.iface =        SNDRV_CTL_ELEM_IFACE_PCM,
@@ -378,10 +505,17 @@ static struct snd_kcontrol_new snd_ca0106_volume_ctls[] __devinitdata = {
 	},
 	{
 		.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name =		"Capture Source",
+		.name =		"Digital Capture Source",
 		.info =		snd_ca0106_capture_source_info,
 		.get =		snd_ca0106_capture_source_get,
 		.put =		snd_ca0106_capture_source_put
+	},
+	{
+		.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name =		"Capture Source",
+		.info =		snd_ca0106_i2c_capture_source_info,
+		.get =		snd_ca0106_i2c_capture_source_get,
+		.put =		snd_ca0106_i2c_capture_source_put
 	},
 	{
 		.iface =	SNDRV_CTL_ELEM_IFACE_PCM,

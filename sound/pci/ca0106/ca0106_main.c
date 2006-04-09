@@ -326,6 +326,7 @@ int snd_ca0106_spi_write(struct snd_ca0106 * emu,
 	return 0;
 }
 
+/* The ADC does not support i2c read, so only write is implemented */
 int snd_ca0106_i2c_write(struct snd_ca0106 *emu,
 				u32 reg,
 				u32 value)
@@ -340,6 +341,7 @@ int snd_ca0106_i2c_write(struct snd_ca0106 *emu,
 	}
 
 	tmp = reg << 25 | value << 16;
+	// snd_printk("I2C-write:reg=0x%x, value=0x%x\n", reg, value);
 	/* Not sure what this I2C channel controls. */
 	/* snd_ca0106_ptr_write(emu, I2C_D0, 0, tmp); */
 
@@ -348,8 +350,9 @@ int snd_ca0106_i2c_write(struct snd_ca0106 *emu,
 
 	for (retry = 0; retry < 10; retry++) {
 		/* Send the data to i2c */
-		tmp = snd_ca0106_ptr_read(emu, I2C_A, 0);
-		tmp = tmp & ~(I2C_A_ADC_READ|I2C_A_ADC_LAST|I2C_A_ADC_START|I2C_A_ADC_ADD_MASK);
+		//tmp = snd_ca0106_ptr_read(emu, I2C_A, 0);
+		//tmp = tmp & ~(I2C_A_ADC_READ|I2C_A_ADC_LAST|I2C_A_ADC_START|I2C_A_ADC_ADD_MASK);
+		tmp = 0;
 		tmp = tmp | (I2C_A_ADC_LAST|I2C_A_ADC_START|I2C_A_ADC_ADD);
 		snd_ca0106_ptr_write(emu, I2C_A, 0, tmp);
 
@@ -1200,6 +1203,22 @@ static unsigned int spi_dac_init[] = {
 	0x1400,
 };
 
+static unsigned int i2c_adc_init[][2] = {
+	{ 0x17, 0x00 }, /* Reset */
+	{ 0x07, 0x00 }, /* Timeout */
+	{ 0x0b, 0x22 },  /* Interface control */
+	{ 0x0c, 0x22 },  /* Master mode control */
+	{ 0x0d, 0x08 },  /* Powerdown control */
+	{ 0x0e, 0xcf },  /* Attenuation Left  0x01 = -103dB, 0xff = 24dB */
+	{ 0x0f, 0xcf },  /* Attenuation Right 0.5dB steps */
+	{ 0x10, 0x7b },  /* ALC Control 1 */
+	{ 0x11, 0x00 },  /* ALC Control 2 */
+	{ 0x12, 0x32 },  /* ALC Control 3 */
+	{ 0x13, 0x00 },  /* Noise gate control */
+	{ 0x14, 0xa6 },  /* Limiter control */
+	{ 0x15, ADC_MUX_LINEIN },  /* ADC Mixer control */
+};
+
 static int __devinit snd_ca0106_create(struct snd_card *card,
 					 struct pci_dev *pci,
 					 struct snd_ca0106 **rchip)
@@ -1361,7 +1380,12 @@ static int __devinit snd_ca0106_create(struct snd_card *card,
         snd_ca0106_ptr_write(chip, CAPTURE_SOURCE, 0x0, 0x333300e4); /* Select MIC, Line in, TAD in, AUX in */
 	chip->capture_source = 3; /* Set CAPTURE_SOURCE */
 
-        if (chip->details->gpio_type == 1) { /* The SB0410 and SB0413 use GPIO differently. */
+        if (chip->details->gpio_type == 2) { /* The SB0410 and SB0413 use GPIO differently. */
+		/* FIXME: Still need to find out what the other GPIO bits do. E.g. For digital spdif out. */
+		outl(0x0, chip->port+GPIO);
+		//outl(0x00f0e000, chip->port+GPIO); /* Analog */
+		outl(0x005f5301, chip->port+GPIO); /* Analog */
+	} else if (chip->details->gpio_type == 1) { /* The SB0410 and SB0413 use GPIO differently. */
 		/* FIXME: Still need to find out what the other GPIO bits do. E.g. For digital spdif out. */
 		outl(0x0, chip->port+GPIO);
 		//outl(0x00f0e000, chip->port+GPIO); /* Analog */
@@ -1379,7 +1403,19 @@ static int __devinit snd_ca0106_create(struct snd_card *card,
 	outl(HCFG_AC97 | HCFG_AUDIOENABLE, chip->port+HCFG); /* AC97 2.0, Enable outputs. */
 
         if (chip->details->i2c_adc == 1) { /* The SB0410 and SB0413 use I2C to control ADC. */
-	        snd_ca0106_i2c_write(chip, ADC_MUX, ADC_MUX_LINEIN); /* Enable Line-in capture. MIC in currently untested. */
+		int size, n;
+
+		size = ARRAY_SIZE(i2c_adc_init);
+                //snd_printk("I2C:array size=0x%x\n", size);
+		for (n=0; n < size; n++) {
+			snd_ca0106_i2c_write(chip, i2c_adc_init[n][0], i2c_adc_init[n][1]);
+		}
+		for (n=0; n < 4; n++) {
+			chip->i2c_capture_volume[n][0]= 0xcf;
+			chip->i2c_capture_volume[n][1]= 0xcf;
+		}
+		chip->i2c_capture_source=2; /* Line in */
+	        //snd_ca0106_i2c_write(chip, ADC_MUX, ADC_MUX_LINEIN); /* Enable Line-in capture. MIC in currently untested. */
 	}
         if (chip->details->spi_dac == 1) { /* The SB0570 use SPI to control DAC. */
 		int size, n;
