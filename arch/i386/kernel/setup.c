@@ -1347,8 +1347,8 @@ legacy_init_iomem_resources(struct resource *code_resource, struct resource *dat
 /*
  * Request address space for all standard resources
  *
- * This is called just before pcibios_assign_resources(), which is also
- * an fs_initcall, but is linked in later (in arch/i386/pci/i386.c).
+ * This is called just before pcibios_init(), which is also a
+ * subsys_initcall, but is linked in later (in arch/i386/pci/common.c).
  */
 static int __init request_standard_resources(void)
 {
@@ -1369,7 +1369,7 @@ static int __init request_standard_resources(void)
 	return 0;
 }
 
-fs_initcall(request_standard_resources);
+subsys_initcall(request_standard_resources);
 
 static void __init register_memory(void)
 {
