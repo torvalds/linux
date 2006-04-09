@@ -1,6 +1,6 @@
 config USB_ZC0301
 	tristate "USB ZC0301 Image Processor and Control Chip support"
-	depends on USB && VIDEO_DEV
+	depends on USB && VIDEO_V4L1
 	---help---
 	  Say Y here if you want support for cameras based on the ZC0301
 	  Image Processor and Control Chip.

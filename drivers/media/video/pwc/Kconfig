@@ -1,6 +1,6 @@
 config USB_PWC
 	tristate "USB Philips Cameras"
-	depends on USB && VIDEO_DEV
+	depends on USB && VIDEO_V4L1
 	---help---
 	  Say Y or M here if you want to use one of these Philips & OEM
 	  webcams:

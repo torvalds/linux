@@ -2,10 +2,10 @@
 # Multimedia Video device configuration
 #
 
-menu "Video For Linux"
+menu "Video Capture Adapters"
 	depends on VIDEO_DEV
 
-comment "Video Adapters"
+comment "Video Capture Adapters"
 
 config VIDEO_ADV_DEBUG
 	bool "Enable advanced debug functionality"
@@ -20,7 +20,7 @@ source "drivers/media/video/bt8xx/Kconfig"
 
 config VIDEO_SAA6588
 	tristate "SAA6588 Radio Chip RDS decoder support on BT848 cards"
-	depends on VIDEO_DEV && I2C && VIDEO_BT848
+	depends on I2C && VIDEO_BT848
 
 	help
 	  Support for  Radio Data System (RDS) decoder. This allows seeing
@@ -32,7 +32,7 @@ config VIDEO_SAA6588
 
 config VIDEO_PMS
 	tristate "Mediavision Pro Movie Studio Video For Linux"
-	depends on VIDEO_DEV && ISA
+	depends on ISA && VIDEO_V4L1
 	help
 	  Say Y if you have such a thing.
 
@@ -41,7 +41,7 @@ config VIDEO_PMS
 
 config VIDEO_PLANB
 	tristate "PlanB Video-In on PowerMac"
-	depends on PPC_PMAC && VIDEO_DEV && BROKEN
+	depends on PPC_PMAC && VIDEO_V4L1 && BROKEN
 	help
 	  PlanB is the V4L driver for the PowerMac 7x00/8x00 series video
 	  input hardware. If you want to experiment with this, say Y.
@@ -52,7 +52,7 @@ config VIDEO_PLANB
 
 config VIDEO_BWQCAM
 	tristate "Quickcam BW Video For Linux"
-	depends on VIDEO_DEV && PARPORT
+	depends on PARPORT && VIDEO_V4L1
 	help
 	  Say Y have if you the black and white version of the QuickCam
 	  camera. See the next option for the color version.
@@ -62,7 +62,7 @@ config VIDEO_BWQCAM
 
 config VIDEO_CQCAM
 	tristate "QuickCam Colour Video For Linux (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && VIDEO_DEV && PARPORT
+	depends on EXPERIMENTAL && PARPORT && VIDEO_V4L1
 	help
 	  This is the video4linux driver for the colour version of the
 	  Connectix QuickCam.  If you have one of these cameras, say Y here,
@@ -73,7 +73,7 @@ config VIDEO_CQCAM
 
 config VIDEO_W9966
 	tristate "W9966CF Webcam (FlyCam Supra and others) Video For Linux"
-	depends on PARPORT_1284 && VIDEO_DEV && PARPORT
+	depends on PARPORT_1284 && PARPORT && VIDEO_V4L1
 	help
 	  Video4linux driver for Winbond's w9966 based Webcams.
 	  Currently tested with the LifeView FlyCam Supra.
@@ -86,7 +86,7 @@ config VIDEO_W9966
 
 config VIDEO_CPIA
 	tristate "CPiA Video For Linux"
-	depends on VIDEO_DEV
+	depends on VIDEO_V4L1
 	---help---
 	  This is the video4linux driver for cameras based on Vision's CPiA
 	  (Colour Processor Interface ASIC), such as the Creative Labs Video
@@ -123,7 +123,7 @@ source "drivers/media/video/cpia2/Kconfig"
 
 config VIDEO_SAA5246A
 	tristate "SAA5246A, SAA5281 Teletext processor"
-	depends on VIDEO_DEV && I2C
+	depends on I2C && VIDEO_V4L1
 	help
 	  Support for I2C bus based teletext using the SAA5246A or SAA5281
 	  chip. Useful only if you live in Europe.
@@ -150,7 +150,7 @@ config TUNER_3036
 
 config VIDEO_VINO
 	tristate "SGI Vino Video For Linux (EXPERIMENTAL)"
-	depends on VIDEO_DEV && I2C && SGI_IP22 && EXPERIMENTAL
+	depends on I2C && SGI_IP22 && EXPERIMENTAL && VIDEO_V4L1
 	select I2C_ALGO_SGI
 	help
 	  Say Y here to build in support for the Vino video input system found
@@ -158,7 +158,7 @@ config VIDEO_VINO
 
 config VIDEO_STRADIS
 	tristate "Stradis 4:2:2 MPEG-2 video driver  (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && VIDEO_DEV && PCI
+	depends on EXPERIMENTAL && PCI && VIDEO_V4L1
 	help
 	  Say Y here to enable support for the Stradis 4:2:2 MPEG-2 video
 	  driver for PCI.  There is a product page at
@@ -166,7 +166,7 @@ config VIDEO_STRADIS
 
 config VIDEO_ZORAN
 	tristate "Zoran ZR36057/36067 Video For Linux"
-	depends on VIDEO_DEV && PCI && I2C_ALGOBIT
+	depends on PCI && I2C_ALGOBIT && VIDEO_V4L1
 	help
 	  Say Y for support for MJPEG capture cards based on the Zoran
 	  36057/36067 PCI controller chipset. This includes the Iomega
@@ -214,7 +214,7 @@ config VIDEO_ZORAN_LML33R10
 
 config VIDEO_ZR36120
 	tristate "Zoran ZR36120/36125 Video For Linux"
-	depends on VIDEO_DEV && PCI && I2C && BROKEN
+	depends on PCI && I2C && VIDEO_V4L1 && BROKEN
 	help
 	  Support for ZR36120/ZR36125 based frame grabber/overlay boards.
 	  This includes the Victor II, WaveWatcher, Video Wonder, Maxi-TV,
@@ -226,7 +226,7 @@ config VIDEO_ZR36120
 
 config VIDEO_MEYE
 	tristate "Sony Vaio Picturebook Motion Eye Video For Linux"
-	depends on VIDEO_DEV && PCI && SONYPI
+	depends on PCI && SONYPI && VIDEO_V4L1
 	---help---
 	  This is the video4linux driver for the Motion Eye camera found
 	  in the Vaio Picturebook laptops. Please read the material in
@@ -242,7 +242,7 @@ source "drivers/media/video/saa7134/Kconfig"
 
 config VIDEO_MXB
 	tristate "Siemens-Nixdorf 'Multimedia eXtension Board'"
-	depends on VIDEO_DEV && PCI
+	depends on PCI && VIDEO_V4L1
 	select VIDEO_SAA7146_VV
 	select VIDEO_TUNER
 	---help---
@@ -254,8 +254,9 @@ config VIDEO_MXB
 
 config VIDEO_DPC
 	tristate "Philips-Semiconductors 'dpc7146 demonstration board'"
-	depends on VIDEO_DEV && PCI
+	depends on PCI && VIDEO_V4L1
 	select VIDEO_SAA7146_VV
+	select VIDEO_V4L2
 	---help---
 	  This is a video4linux driver for the 'dpc7146 demonstration
 	  board' by Philips-Semiconductors. It's the reference design
@@ -268,8 +269,9 @@ config VIDEO_DPC
 
 config VIDEO_HEXIUM_ORION
 	tristate "Hexium HV-PCI6 and Orion frame grabber"
-	depends on VIDEO_DEV && PCI
+	depends on PCI && VIDEO_V4L1
 	select VIDEO_SAA7146_VV
+	select VIDEO_V4L2
 	---help---
 	  This is a video4linux driver for the Hexium HV-PCI6 and
 	  Orion frame grabber cards by Hexium.
@@ -279,8 +281,9 @@ config VIDEO_HEXIUM_ORION
 
 config VIDEO_HEXIUM_GEMINI
 	tristate "Hexium Gemini frame grabber"
-	depends on VIDEO_DEV && PCI
+	depends on PCI && VIDEO_V4L1
 	select VIDEO_SAA7146_VV
+	select VIDEO_V4L2
 	---help---
 	  This is a video4linux driver for the Hexium Gemini frame
 	  grabber card by Hexium. Please note that the Gemini Dual
@@ -293,7 +296,7 @@ source "drivers/media/video/cx88/Kconfig"
 
 config VIDEO_OVCAMCHIP
 	tristate "OmniVision Camera Chip support"
-	depends on VIDEO_DEV && I2C
+	depends on I2C && VIDEO_V4L1
 	---help---
 	  Support for the OmniVision OV6xxx and OV7xxx series of camera chips.
 	  This driver is intended to be used with the ov511 and w9968cf USB
@@ -304,7 +307,7 @@ config VIDEO_OVCAMCHIP
 
 config VIDEO_M32R_AR
 	tristate "AR devices"
-	depends on M32R
+	depends on M32R && VIDEO_V4L1
 	---help---
 	  This is a video4linux driver for the Renesas AR (Artificial Retina)
 	  camera module.
@@ -365,17 +368,17 @@ config VIDEO_WM8739
 source "drivers/media/video/cx25840/Kconfig"
 
 config VIDEO_SAA711X
-	tristate "Philips SAA7113/4/5 video decoders"
-	depends on VIDEO_DEV && I2C && EXPERIMENTAL
+	tristate "Philips SAA7113/4/5 video decoders (OBSOLETED)"
+	depends on VIDEO_V4L1 && I2C && EXPERIMENTAL
 	---help---
-	  Support for the Philips SAA7113/4/5 video decoders.
+	  Old support for the Philips SAA7113/4 video decoders.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called saa7115.
 
 config VIDEO_SAA7127
 	tristate "Philips SAA7127/9 digital video encoders"
-	depends on VIDEO_DEV && I2C && EXPERIMENTAL
+	depends on VIDEO_V4L2 && I2C && EXPERIMENTAL
 	---help---
 	  Support for the Philips SAA7127/9 digital video encoders.
 
@@ -384,7 +387,7 @@ config VIDEO_SAA7127
 
 config VIDEO_UPD64031A
 	tristate "NEC Electronics uPD64031A Ghost Reduction"
-	depends on VIDEO_DEV && I2C && EXPERIMENTAL
+	depends on VIDEO_V4L2 && I2C && EXPERIMENTAL
 	---help---
 	  Support for the NEC Electronics uPD64031A Ghost Reduction
 	  video chip. It is most often found in NTSC TV cards made for
@@ -396,7 +399,7 @@ config VIDEO_UPD64031A
 
 config VIDEO_UPD64083
 	tristate "NEC Electronics uPD64083 3-Dimensional Y/C separation"
-	depends on VIDEO_DEV && I2C && EXPERIMENTAL
+	depends on VIDEO_V4L2 && I2C && EXPERIMENTAL
 	---help---
 	  Support for the NEC Electronics uPD64083 3-Dimensional Y/C
 	  separation video chip. It is used to improve the quality of
@@ -418,7 +421,7 @@ source "drivers/media/video/em28xx/Kconfig"
 
 config USB_DSBR
 	tristate "D-Link USB FM radio support (EXPERIMENTAL)"
-	depends on USB && VIDEO_DEV && EXPERIMENTAL
+	depends on USB && VIDEO_V4L1 && EXPERIMENTAL
 	---help---
 	  Say Y here if you want to connect this type of radio to your
 	  computer's USB port. Note that the audio is not digital, and
@@ -434,7 +437,7 @@ source "drivers/media/video/et61x251/Kconfig"
 
 config USB_OV511
 	tristate "USB OV511 Camera support"
-	depends on USB && VIDEO_DEV
+	depends on USB && VIDEO_V4L1
 	---help---
 	  Say Y here if you want to connect this type of camera to your
 	  computer's USB port. See <file:Documentation/video4linux/ov511.txt>
@@ -445,7 +448,7 @@ config USB_OV511
 
 config USB_SE401
 	tristate "USB SE401 Camera support"
-	depends on USB && VIDEO_DEV
+	depends on USB && VIDEO_V4L1
 	---help---
 	  Say Y here if you want to connect this type of camera to your
 	  computer's USB port. See <file:Documentation/video4linux/se401.txt>
@@ -458,7 +461,7 @@ source "drivers/media/video/sn9c102/Kconfig"
 
 config USB_STV680
 	tristate "USB STV680 (Pencam) Camera support"
-	depends on USB && VIDEO_DEV
+	depends on USB && VIDEO_V4L1
 	---help---
 	  Say Y here if you want to connect this type of camera to your
 	  computer's USB port. This includes the Pencam line of cameras.
@@ -470,7 +473,7 @@ config USB_STV680
 
 config USB_W9968CF
 	tristate "USB W996[87]CF JPEG Dual Mode Camera support"
-	depends on USB && VIDEO_DEV && I2C
+	depends on USB && VIDEO_V4L1 && I2C
 	select VIDEO_OVCAMCHIP
 	---help---
 	  Say Y here if you want support for cameras based on OV681 or

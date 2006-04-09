@@ -26,6 +26,10 @@
 #include <linux/random.h>
 #include <linux/version.h>
 #include <linux/videodev2.h>
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
+/* Include V4L1 specific functions. Should be removed soon */
+#include <linux/videodev.h>
+#endif
 #include <linux/interrupt.h>
 #include <media/video-buf.h>
 #include <media/v4l2-common.h>
