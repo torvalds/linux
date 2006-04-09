@@ -367,6 +367,8 @@ static int s3c24xx_clkout_setparent(struct clk *clk, struct clk *parent)
 		source = S3C2410_MISCCR_CLK0_UPLL;
 	else if (parent == &clk_f)
 		source = S3C2410_MISCCR_CLK0_FCLK;
+	else if (parent == &clk_h)
+		source = S3C2410_MISCCR_CLK0_HCLK;
 	else if (parent == &clk_p)
 		source = S3C2410_MISCCR_CLK0_PCLK;
 	else if (clk == &s3c24xx_clkout0 && parent == &s3c24xx_dclk0)
@@ -375,6 +377,8 @@ static int s3c24xx_clkout_setparent(struct clk *clk, struct clk *parent)
 		source = S3C2410_MISCCR_CLK0_DCLK0;
 	else
 		return -EINVAL;
+
+	clk->parent = parent;
 
 	if (clk == &s3c24xx_dclk0)
 		mask = S3C2410_MISCCR_CLK0_MASK;
