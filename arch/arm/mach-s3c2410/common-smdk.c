@@ -37,6 +37,7 @@
 
 #include <asm/arch/nand.h>
 
+#include "common-smdk.h"
 #include "devs.h"
 #include "pm.h"
 
