@@ -136,34 +136,33 @@ static struct pipe_buf_operations page_cache_pipe_buf_ops = {
  * Pipe output worker. This sets up our pipe format with the page cache
  * pipe buffer operations. Otherwise very similar to the regular pipe_writev().
  */
-static ssize_t move_to_pipe(struct inode *inode, struct page **pages,
+static ssize_t move_to_pipe(struct pipe_inode_info *pipe, struct page **pages,
 			    int nr_pages, unsigned long offset,
 			    unsigned long len, unsigned int flags)
 {
-	struct pipe_inode_info *info;
 	int ret, do_wakeup, i;
 
 	ret = 0;
 	do_wakeup = 0;
 	i = 0;
 
-	mutex_lock(PIPE_MUTEX(*inode));
+	if (pipe->inode)
+		mutex_lock(&pipe->inode->i_mutex);
 
-	info = inode->i_pipe;
 	for (;;) {
 		int bufs;
 
-		if (!PIPE_READERS(*inode)) {
+		if (!pipe->readers) {
 			send_sig(SIGPIPE, current, 0);
 			if (!ret)
 				ret = -EPIPE;
 			break;
 		}
 
-		bufs = info->nrbufs;
+		bufs = pipe->nrbufs;
 		if (bufs < PIPE_BUFFERS) {
-			int newbuf = (info->curbuf + bufs) & (PIPE_BUFFERS - 1);
-			struct pipe_buffer *buf = info->bufs + newbuf;
+			int newbuf = (pipe->curbuf + bufs) & (PIPE_BUFFERS - 1);
+			struct pipe_buffer *buf = pipe->bufs + newbuf;
 			struct page *page = pages[i++];
 			unsigned long this_len;
 
@@ -175,7 +174,7 @@ static ssize_t move_to_pipe(struct inode *inode, struct page **pages,
 			buf->offset = offset;
 			buf->len = this_len;
 			buf->ops = &page_cache_pipe_buf_ops;
-			info->nrbufs = ++bufs;
+			pipe->nrbufs = ++bufs;
 			do_wakeup = 1;
 
 			ret += this_len;
@@ -205,25 +204,25 @@ static ssize_t move_to_pipe(struct inode *inode, struct page **pages,
 
 		if (do_wakeup) {
 			smp_mb();
-			if (waitqueue_active(PIPE_WAIT(*inode)))
-				wake_up_interruptible_sync(PIPE_WAIT(*inode));
-			kill_fasync(PIPE_FASYNC_READERS(*inode), SIGIO,
-				    POLL_IN);
+			if (waitqueue_active(&pipe->wait))
+				wake_up_interruptible_sync(&pipe->wait);
+			kill_fasync(&pipe->fasync_readers, SIGIO, POLL_IN);
 			do_wakeup = 0;
 		}
 
-		PIPE_WAITING_WRITERS(*inode)++;
-		pipe_wait(inode);
-		PIPE_WAITING_WRITERS(*inode)--;
+		pipe->waiting_writers++;
+		pipe_wait(pipe);
+		pipe->waiting_writers--;
 	}
 
-	mutex_unlock(PIPE_MUTEX(*inode));
+	if (pipe->inode)
+		mutex_unlock(&pipe->inode->i_mutex);
 
 	if (do_wakeup) {
 		smp_mb();
-		if (waitqueue_active(PIPE_WAIT(*inode)))
-			wake_up_interruptible(PIPE_WAIT(*inode));
-		kill_fasync(PIPE_FASYNC_READERS(*inode), SIGIO, POLL_IN);
+		if (waitqueue_active(&pipe->wait))
+			wake_up_interruptible(&pipe->wait);
+		kill_fasync(&pipe->fasync_readers, SIGIO, POLL_IN);
 	}
 
 	while (i < nr_pages)
@@ -232,8 +231,9 @@ static ssize_t move_to_pipe(struct inode *inode, struct page **pages,
 	return ret;
 }
 
-static int __generic_file_splice_read(struct file *in, struct inode *pipe,
-				      size_t len, unsigned int flags)
+static int
+__generic_file_splice_read(struct file *in, struct pipe_inode_info *pipe,
+			   size_t len, unsigned int flags)
 {
 	struct address_space *mapping = in->f_mapping;
 	unsigned int offset, nr_pages;
@@ -298,7 +298,7 @@ static int __generic_file_splice_read(struct file *in, struct inode *pipe,
  * Will read pages from given file and fill them into a pipe.
  *
  */
-ssize_t generic_file_splice_read(struct file *in, struct inode *pipe,
+ssize_t generic_file_splice_read(struct file *in, struct pipe_inode_info *pipe,
 				 size_t len, unsigned int flags)
 {
 	ssize_t spliced;
@@ -306,6 +306,7 @@ ssize_t generic_file_splice_read(struct file *in, struct inode *pipe,
 
 	ret = 0;
 	spliced = 0;
+
 	while (len) {
 		ret = __generic_file_splice_read(in, pipe, len, flags);
 
@@ -509,11 +510,10 @@ typedef int (splice_actor)(struct pipe_inode_info *, struct pipe_buffer *,
  * key here is the 'actor' worker passed in that actually moves the data
  * to the wanted destination. See pipe_to_file/pipe_to_sendpage above.
  */
-static ssize_t move_from_pipe(struct inode *inode, struct file *out,
+static ssize_t move_from_pipe(struct pipe_inode_info *pipe, struct file *out,
 			      size_t len, unsigned int flags,
 			      splice_actor *actor)
 {
-	struct pipe_inode_info *info;
 	int ret, do_wakeup, err;
 	struct splice_desc sd;
 
@@ -525,22 +525,22 @@ static ssize_t move_from_pipe(struct inode *inode, struct file *out,
 	sd.file = out;
 	sd.pos = out->f_pos;
 
-	mutex_lock(PIPE_MUTEX(*inode));
+	if (pipe->inode)
+		mutex_lock(&pipe->inode->i_mutex);
 
-	info = inode->i_pipe;
 	for (;;) {
-		int bufs = info->nrbufs;
+		int bufs = pipe->nrbufs;
 
 		if (bufs) {
-			int curbuf = info->curbuf;
-			struct pipe_buffer *buf = info->bufs + curbuf;
+			int curbuf = pipe->curbuf;
+			struct pipe_buffer *buf = pipe->bufs + curbuf;
 			struct pipe_buf_operations *ops = buf->ops;
 
 			sd.len = buf->len;
 			if (sd.len > sd.total_len)
 				sd.len = sd.total_len;
 
-			err = actor(info, buf, &sd);
+			err = actor(pipe, buf, &sd);
 			if (err) {
 				if (!ret && err != -ENODATA)
 					ret = err;
@@ -553,10 +553,10 @@ static ssize_t move_from_pipe(struct inode *inode, struct file *out,
 			buf->len -= sd.len;
 			if (!buf->len) {
 				buf->ops = NULL;
-				ops->release(info, buf);
+				ops->release(pipe, buf);
 				curbuf = (curbuf + 1) & (PIPE_BUFFERS - 1);
-				info->curbuf = curbuf;
-				info->nrbufs = --bufs;
+				pipe->curbuf = curbuf;
+				pipe->nrbufs = --bufs;
 				do_wakeup = 1;
 			}
 
@@ -568,9 +568,9 @@ static ssize_t move_from_pipe(struct inode *inode, struct file *out,
 
 		if (bufs)
 			continue;
-		if (!PIPE_WRITERS(*inode))
+		if (!pipe->writers)
 			break;
-		if (!PIPE_WAITING_WRITERS(*inode)) {
+		if (!pipe->waiting_writers) {
 			if (ret)
 				break;
 		}
@@ -589,22 +589,23 @@ static ssize_t move_from_pipe(struct inode *inode, struct file *out,
 
 		if (do_wakeup) {
 			smp_mb();
-			if (waitqueue_active(PIPE_WAIT(*inode)))
-				wake_up_interruptible_sync(PIPE_WAIT(*inode));
-			kill_fasync(PIPE_FASYNC_WRITERS(*inode),SIGIO,POLL_OUT);
+			if (waitqueue_active(&pipe->wait))
+				wake_up_interruptible_sync(&pipe->wait);
+			kill_fasync(&pipe->fasync_writers, SIGIO, POLL_OUT);
 			do_wakeup = 0;
 		}
 
-		pipe_wait(inode);
+		pipe_wait(pipe);
 	}
 
-	mutex_unlock(PIPE_MUTEX(*inode));
+	if (pipe->inode)
+		mutex_unlock(&pipe->inode->i_mutex);
 
 	if (do_wakeup) {
 		smp_mb();
-		if (waitqueue_active(PIPE_WAIT(*inode)))
-			wake_up_interruptible(PIPE_WAIT(*inode));
-		kill_fasync(PIPE_FASYNC_WRITERS(*inode), SIGIO, POLL_OUT);
+		if (waitqueue_active(&pipe->wait))
+			wake_up_interruptible(&pipe->wait);
+		kill_fasync(&pipe->fasync_writers, SIGIO, POLL_OUT);
 	}
 
 	mutex_lock(&out->f_mapping->host->i_mutex);
@@ -616,7 +617,7 @@ static ssize_t move_from_pipe(struct inode *inode, struct file *out,
 
 /**
  * generic_file_splice_write - splice data from a pipe to a file
- * @inode:	pipe inode
+ * @pipe:	pipe info
  * @out:	file to write to
  * @len:	number of bytes to splice
  * @flags:	splice modifier flags
@@ -625,11 +626,14 @@ static ssize_t move_from_pipe(struct inode *inode, struct file *out,
  * the given pipe inode to the given file.
  *
  */
-ssize_t generic_file_splice_write(struct inode *inode, struct file *out,
-				  size_t len, unsigned int flags)
+ssize_t
+generic_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
+			  size_t len, unsigned int flags)
 {
 	struct address_space *mapping = out->f_mapping;
-	ssize_t ret = move_from_pipe(inode, out, len, flags, pipe_to_file);
+	ssize_t ret;
+
+	ret = move_from_pipe(pipe, out, len, flags, pipe_to_file);
 
 	/*
 	 * if file or inode is SYNC and we actually wrote some data, sync it
@@ -664,10 +668,10 @@ EXPORT_SYMBOL(generic_file_splice_write);
  * is involved.
  *
  */
-ssize_t generic_splice_sendpage(struct inode *inode, struct file *out,
+ssize_t generic_splice_sendpage(struct pipe_inode_info *pipe, struct file *out,
 				size_t len, unsigned int flags)
 {
-	return move_from_pipe(inode, out, len, flags, pipe_to_sendpage);
+	return move_from_pipe(pipe, out, len, flags, pipe_to_sendpage);
 }
 
 EXPORT_SYMBOL(generic_splice_sendpage);
@@ -675,8 +679,8 @@ EXPORT_SYMBOL(generic_splice_sendpage);
 /*
  * Attempt to initiate a splice from pipe to file.
  */
-static long do_splice_from(struct inode *pipe, struct file *out, size_t len,
-			   unsigned int flags)
+static long do_splice_from(struct pipe_inode_info *pipe, struct file *out,
+			   size_t len, unsigned int flags)
 {
 	loff_t pos;
 	int ret;
@@ -698,8 +702,8 @@ static long do_splice_from(struct inode *pipe, struct file *out, size_t len,
 /*
  * Attempt to initiate a splice from a file to a pipe.
  */
-static long do_splice_to(struct file *in, struct inode *pipe, size_t len,
-			 unsigned int flags)
+static long do_splice_to(struct file *in, struct pipe_inode_info *pipe,
+			 size_t len, unsigned int flags)
 {
 	loff_t pos, isize, left;
 	int ret;
@@ -732,14 +736,14 @@ static long do_splice_to(struct file *in, struct inode *pipe, size_t len,
 static long do_splice(struct file *in, struct file *out, size_t len,
 		      unsigned int flags)
 {
-	struct inode *pipe;
+	struct pipe_inode_info *pipe;
 
-	pipe = in->f_dentry->d_inode;
-	if (pipe->i_pipe)
+	pipe = in->f_dentry->d_inode->i_pipe;
+	if (pipe)
 		return do_splice_from(pipe, out, len, flags);
 
-	pipe = out->f_dentry->d_inode;
-	if (pipe->i_pipe)
+	pipe = out->f_dentry->d_inode->i_pipe;
+	if (pipe)
 		return do_splice_to(in, pipe, len, flags);
 
 	return -EINVAL;

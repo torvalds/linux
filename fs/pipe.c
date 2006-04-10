@@ -36,7 +36,7 @@
  */
 
 /* Drop the inode semaphore and wait for a pipe event, atomically */
-void pipe_wait(struct inode * inode)
+void pipe_wait(struct pipe_inode_info *pipe)
 {
 	DEFINE_WAIT(wait);
 
@@ -44,11 +44,13 @@ void pipe_wait(struct inode * inode)
 	 * Pipes are system-local resources, so sleeping on them
 	 * is considered a noninteractive wait:
 	 */
-	prepare_to_wait(PIPE_WAIT(*inode), &wait, TASK_INTERRUPTIBLE|TASK_NONINTERACTIVE);
-	mutex_unlock(PIPE_MUTEX(*inode));
+	prepare_to_wait(&pipe->wait, &wait, TASK_INTERRUPTIBLE|TASK_NONINTERACTIVE);
+	if (pipe->inode)
+		mutex_unlock(&pipe->inode->i_mutex);
 	schedule();
-	finish_wait(PIPE_WAIT(*inode), &wait);
-	mutex_lock(PIPE_MUTEX(*inode));
+	finish_wait(&pipe->wait, &wait);
+	if (pipe->inode)
+		mutex_lock(&pipe->inode->i_mutex);
 }
 
 static int
@@ -223,7 +225,7 @@ pipe_readv(struct file *filp, const struct iovec *_iov,
 			wake_up_interruptible_sync(PIPE_WAIT(*inode));
  			kill_fasync(PIPE_FASYNC_WRITERS(*inode), SIGIO, POLL_OUT);
 		}
-		pipe_wait(inode);
+		pipe_wait(inode->i_pipe);
 	}
 	mutex_unlock(PIPE_MUTEX(*inode));
 	/* Signal writers asynchronously that there is more room.  */
@@ -370,7 +372,7 @@ pipe_writev(struct file *filp, const struct iovec *_iov,
 			do_wakeup = 0;
 		}
 		PIPE_WAITING_WRITERS(*inode)++;
-		pipe_wait(inode);
+		pipe_wait(inode->i_pipe);
 		PIPE_WAITING_WRITERS(*inode)--;
 	}
 out:
@@ -675,6 +677,20 @@ static struct file_operations rdwr_pipe_fops = {
 	.fasync		= pipe_rdwr_fasync,
 };
 
+struct pipe_inode_info * alloc_pipe_info(struct inode *inode)
+{
+	struct pipe_inode_info *info;
+
+	info = kzalloc(sizeof(struct pipe_inode_info), GFP_KERNEL);
+	if (info) {
+		init_waitqueue_head(&info->wait);
+		info->r_counter = info->w_counter = 1;
+		info->inode = inode;
+	}
+
+	return info;
+}
+
 void free_pipe_info(struct inode *inode)
 {
 	int i;
@@ -689,23 +705,6 @@ void free_pipe_info(struct inode *inode)
 	if (info->tmp_page)
 		__free_page(info->tmp_page);
 	kfree(info);
-}
-
-struct inode* pipe_new(struct inode* inode)
-{
-	struct pipe_inode_info *info;
-
-	info = kzalloc(sizeof(struct pipe_inode_info), GFP_KERNEL);
-	if (!info)
-		goto fail_page;
-	inode->i_pipe = info;
-
-	init_waitqueue_head(PIPE_WAIT(*inode));
-	PIPE_RCOUNTER(*inode) = PIPE_WCOUNTER(*inode) = 1;
-
-	return inode;
-fail_page:
-	return NULL;
 }
 
 static struct vfsmount *pipe_mnt __read_mostly;
@@ -724,8 +723,10 @@ static struct inode * get_pipe_inode(void)
 	if (!inode)
 		goto fail_inode;
 
-	if(!pipe_new(inode))
+	inode->i_pipe = alloc_pipe_info(inode);
+	if (!inode->i_pipe)
 		goto fail_iput;
+
 	PIPE_READERS(*inode) = PIPE_WRITERS(*inode) = 1;
 	inode->i_fop = &rdwr_pipe_fops;
 

@@ -15,12 +15,13 @@
 #include <linux/fs.h>
 #include <linux/pipe_fs_i.h>
 
-static void wait_for_partner(struct inode* inode, unsigned int* cnt)
+static void wait_for_partner(struct inode* inode, unsigned int *cnt)
 {
 	int cur = *cnt;	
-	while(cur == *cnt) {
-		pipe_wait(inode);
-		if(signal_pending(current))
+
+	while (cur == *cnt) {
+		pipe_wait(inode->i_pipe);
+		if (signal_pending(current))
 			break;
 	}
 }
@@ -37,7 +38,8 @@ static int fifo_open(struct inode *inode, struct file *filp)
 	mutex_lock(PIPE_MUTEX(*inode));
 	if (!inode->i_pipe) {
 		ret = -ENOMEM;
-		if(!pipe_new(inode))
+		inode->i_pipe = alloc_pipe_info(inode);
+		if (!inode->i_pipe)
 			goto err_nocleanup;
 	}
 	filp->f_version = 0;

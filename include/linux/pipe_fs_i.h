@@ -36,6 +36,7 @@ struct pipe_inode_info {
 	unsigned int w_counter;
 	struct fasync_struct *fasync_readers;
 	struct fasync_struct *fasync_writers;
+	struct inode *inode;
 };
 
 /* Differs from PIPE_BUF in that PIPE_SIZE is the length of the actual
@@ -53,10 +54,10 @@ struct pipe_inode_info {
 #define PIPE_FASYNC_WRITERS(inode)     (&((inode).i_pipe->fasync_writers))
 
 /* Drop the inode semaphore and wait for a pipe event, atomically */
-void pipe_wait(struct inode * inode);
+void pipe_wait(struct pipe_inode_info *pipe);
 
-struct inode* pipe_new(struct inode* inode);
-void free_pipe_info(struct inode* inode);
+struct pipe_inode_info * alloc_pipe_info(struct inode * inode);
+void free_pipe_info(struct inode * inode);
 
 /*
  * splice is tied to pipes as a transport (at least for now), so we'll just
