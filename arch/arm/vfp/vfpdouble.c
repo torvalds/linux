@@ -588,6 +588,7 @@ static u32 vfp_double_ftosi(int sd, int unused, int dm, u32 fpscr)
 	struct vfp_double vdm;
 	u32 d, exceptions = 0;
 	int rmode = fpscr & FPSCR_RMODE_MASK;
+	int tm;
 
 	vfp_double_unpack(&vdm, vfp_get_double(dm));
 	vfp_double_dump("VDM", &vdm);
@@ -595,10 +596,14 @@ static u32 vfp_double_ftosi(int sd, int unused, int dm, u32 fpscr)
 	/*
 	 * Do we have denormalised number?
 	 */
-	if (vfp_double_type(&vdm) & VFP_DENORMAL)
+	tm = vfp_double_type(&vdm);
+	if (tm & VFP_DENORMAL)
 		exceptions |= FPSCR_IDC;
 
-	if (vdm.exponent >= 1023 + 32) {
+	if (tm & VFP_NAN) {
+		d = 0;
+		exceptions |= FPSCR_IOC;
+	} else if (vdm.exponent >= 1023 + 32) {
 		d = 0x7fffffff;
 		if (vdm.sign)
 			d = ~d;

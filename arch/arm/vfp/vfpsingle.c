@@ -632,6 +632,7 @@ static u32 vfp_single_ftosi(int sd, int unused, s32 m, u32 fpscr)
 	struct vfp_single vsm;
 	u32 d, exceptions = 0;
 	int rmode = fpscr & FPSCR_RMODE_MASK;
+	int tm;
 
 	vfp_single_unpack(&vsm, m);
 	vfp_single_dump("VSM", &vsm);
@@ -639,10 +640,14 @@ static u32 vfp_single_ftosi(int sd, int unused, s32 m, u32 fpscr)
 	/*
 	 * Do we have a denormalised number?
 	 */
+	tm = vfp_single_type(&vsm);
 	if (vfp_single_type(&vsm) & VFP_DENORMAL)
 		exceptions |= FPSCR_IDC;
 
-	if (vsm.exponent >= 127 + 32) {
+	if (tm & VFP_NAN) {
+		d = 0;
+		exceptions |= FPSCR_IOC;
+	} else if (vsm.exponent >= 127 + 32) {
 		/*
 		 * m >= 2^31-2^7: invalid
 		 */
