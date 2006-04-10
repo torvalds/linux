@@ -336,9 +336,8 @@ void ipoib_flush_paths(struct net_device *dev)
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ipoib_path *path, *tp;
 	LIST_HEAD(remove_list);
-	unsigned long flags;
 
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irq(&priv->lock);
 
 	list_splice(&priv->path_list, &remove_list);
 	INIT_LIST_HEAD(&priv->path_list);
@@ -349,12 +348,12 @@ void ipoib_flush_paths(struct net_device *dev)
 	list_for_each_entry_safe(path, tp, &remove_list, list) {
 		if (path->query)
 			ib_sa_cancel_query(path->query_id, path->query);
-		spin_unlock_irqrestore(&priv->lock, flags);
+		spin_unlock_irq(&priv->lock);
 		wait_for_completion(&path->done);
 		path_free(dev, path);
-		spin_lock_irqsave(&priv->lock, flags);
+		spin_lock_irq(&priv->lock);
 	}
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irq(&priv->lock);
 }
 
 static void path_rec_completion(int status,
