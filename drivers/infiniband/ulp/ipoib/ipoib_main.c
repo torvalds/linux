@@ -41,6 +41,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
+#include <linux/kernel.h>
 
 #include <linux/if_arp.h>	/* For ARPHRD_xxx */
 
@@ -52,6 +53,14 @@
 MODULE_AUTHOR("Roland Dreier");
 MODULE_DESCRIPTION("IP-over-InfiniBand net driver");
 MODULE_LICENSE("Dual BSD/GPL");
+
+int ipoib_sendq_size __read_mostly = IPOIB_TX_RING_SIZE;
+int ipoib_recvq_size __read_mostly = IPOIB_RX_RING_SIZE;
+
+module_param_named(send_queue_size, ipoib_sendq_size, int, 0444);
+MODULE_PARM_DESC(send_queue_size, "Number of descriptors in send queue");
+module_param_named(recv_queue_size, ipoib_recvq_size, int, 0444);
+MODULE_PARM_DESC(recv_queue_size, "Number of descriptors in receive queue");
 
 #ifdef CONFIG_INFINIBAND_IPOIB_DEBUG
 int ipoib_debug_level;
@@ -795,20 +804,19 @@ int ipoib_dev_init(struct net_device *dev, struct ib_device *ca, int port)
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 
 	/* Allocate RX/TX "rings" to hold queued skbs */
-
-	priv->rx_ring =	kzalloc(IPOIB_RX_RING_SIZE * sizeof (struct ipoib_rx_buf),
+	priv->rx_ring =	kzalloc(ipoib_recvq_size * sizeof *priv->rx_ring,
 				GFP_KERNEL);
 	if (!priv->rx_ring) {
 		printk(KERN_WARNING "%s: failed to allocate RX ring (%d entries)\n",
-		       ca->name, IPOIB_RX_RING_SIZE);
+		       ca->name, ipoib_recvq_size);
 		goto out;
 	}
 
-	priv->tx_ring = kzalloc(IPOIB_TX_RING_SIZE * sizeof (struct ipoib_tx_buf),
+	priv->tx_ring = kzalloc(ipoib_sendq_size * sizeof *priv->tx_ring,
 				GFP_KERNEL);
 	if (!priv->tx_ring) {
 		printk(KERN_WARNING "%s: failed to allocate TX ring (%d entries)\n",
-		       ca->name, IPOIB_TX_RING_SIZE);
+		       ca->name, ipoib_sendq_size);
 		goto out_rx_ring_cleanup;
 	}
 
@@ -876,7 +884,7 @@ static void ipoib_setup(struct net_device *dev)
 	dev->hard_header_len 	 = IPOIB_ENCAP_LEN + INFINIBAND_ALEN;
 	dev->addr_len 		 = INFINIBAND_ALEN;
 	dev->type 		 = ARPHRD_INFINIBAND;
-	dev->tx_queue_len 	 = IPOIB_TX_RING_SIZE * 2;
+	dev->tx_queue_len 	 = ipoib_sendq_size * 2;
 	dev->features            = NETIF_F_VLAN_CHALLENGED | NETIF_F_LLTX;
 
 	/* MTU will be reset when mcast join happens */
@@ -1127,6 +1135,14 @@ static void ipoib_remove_one(struct ib_device *device)
 static int __init ipoib_init_module(void)
 {
 	int ret;
+
+	ipoib_recvq_size = roundup_pow_of_two(ipoib_recvq_size);
+	ipoib_recvq_size = min(ipoib_recvq_size, IPOIB_MAX_QUEUE_SIZE);
+	ipoib_recvq_size = max(ipoib_recvq_size, IPOIB_MIN_QUEUE_SIZE);
+
+	ipoib_sendq_size = roundup_pow_of_two(ipoib_sendq_size);
+	ipoib_sendq_size = min(ipoib_sendq_size, IPOIB_MAX_QUEUE_SIZE);
+	ipoib_sendq_size = max(ipoib_sendq_size, IPOIB_MIN_QUEUE_SIZE);
 
 	ret = ipoib_register_debugfs();
 	if (ret)
