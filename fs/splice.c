@@ -680,7 +680,8 @@ EXPORT_SYMBOL(generic_splice_sendpage);
  * Attempt to initiate a splice from pipe to file.
  */
 static long do_splice_from(struct pipe_inode_info *pipe, struct file *out,
-			   size_t len, unsigned int flags)
+			   loff_t __user *off_out, size_t len,
+			   unsigned int flags)
 {
 	loff_t pos;
 	int ret;
@@ -691,7 +692,11 @@ static long do_splice_from(struct pipe_inode_info *pipe, struct file *out,
 	if (!(out->f_mode & FMODE_WRITE))
 		return -EBADF;
 
+	if (off_out && copy_from_user(&out->f_pos, off_out, sizeof(loff_t)))
+		return -EFAULT;
+
 	pos = out->f_pos;
+
 	ret = rw_verify_area(WRITE, out, &pos, len);
 	if (unlikely(ret < 0))
 		return ret;
@@ -702,8 +707,9 @@ static long do_splice_from(struct pipe_inode_info *pipe, struct file *out,
 /*
  * Attempt to initiate a splice from a file to a pipe.
  */
-static long do_splice_to(struct file *in, struct pipe_inode_info *pipe,
-			 size_t len, unsigned int flags)
+static long do_splice_to(struct file *in, loff_t __user *off_in,
+			 struct pipe_inode_info *pipe, size_t len,
+			 unsigned int flags)
 {
 	loff_t pos, isize, left;
 	int ret;
@@ -714,7 +720,11 @@ static long do_splice_to(struct file *in, struct pipe_inode_info *pipe,
 	if (!(in->f_mode & FMODE_READ))
 		return -EBADF;
 
+	if (off_in && copy_from_user(&in->f_pos, off_in, sizeof(loff_t)))
+		return -EFAULT;
+
 	pos = in->f_pos;
+
 	ret = rw_verify_area(READ, in, &pos, len);
 	if (unlikely(ret < 0))
 		return ret;
@@ -733,23 +743,39 @@ static long do_splice_to(struct file *in, struct pipe_inode_info *pipe,
 /*
  * Determine where to splice to/from.
  */
-static long do_splice(struct file *in, struct file *out, size_t len,
-		      unsigned int flags)
+static long do_splice(struct file *in, loff_t __user *off_in,
+		      struct file *out, loff_t __user *off_out,
+		      size_t len, unsigned int flags)
 {
 	struct pipe_inode_info *pipe;
 
+	if (off_out && out->f_op->llseek == no_llseek)
+		return -EINVAL;
+	if (off_in && in->f_op->llseek == no_llseek)
+		return -EINVAL;
+
 	pipe = in->f_dentry->d_inode->i_pipe;
-	if (pipe)
-		return do_splice_from(pipe, out, len, flags);
+	if (pipe) {
+		if (off_in)
+			return -ESPIPE;
+
+		return do_splice_from(pipe, out, off_out, len, flags);
+	}
 
 	pipe = out->f_dentry->d_inode->i_pipe;
-	if (pipe)
-		return do_splice_to(in, pipe, len, flags);
+	if (pipe) {
+		if (off_out)
+			return -ESPIPE;
+
+		return do_splice_to(in, off_in, pipe, len, flags);
+	}
 
 	return -EINVAL;
 }
 
-asmlinkage long sys_splice(int fdin, int fdout, size_t len, unsigned int flags)
+asmlinkage long sys_splice(int fd_in, loff_t __user *off_in,
+			   int fd_out, loff_t __user *off_out,
+			   size_t len, unsigned int flags)
 {
 	long error;
 	struct file *in, *out;
@@ -759,13 +785,15 @@ asmlinkage long sys_splice(int fdin, int fdout, size_t len, unsigned int flags)
 		return 0;
 
 	error = -EBADF;
-	in = fget_light(fdin, &fput_in);
+	in = fget_light(fd_in, &fput_in);
 	if (in) {
 		if (in->f_mode & FMODE_READ) {
-			out = fget_light(fdout, &fput_out);
+			out = fget_light(fd_out, &fput_out);
 			if (out) {
 				if (out->f_mode & FMODE_WRITE)
-					error = do_splice(in, out, len, flags);
+					error = do_splice(in, off_in,
+							  out, off_out,
+							  len, flags);
 				fput_light(out, fput_out);
 			}
 		}
