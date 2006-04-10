@@ -151,7 +151,8 @@ static void bad_page(struct page *page)
 			1 << PG_reclaim |
 			1 << PG_slab    |
 			1 << PG_swapcache |
-			1 << PG_writeback );
+			1 << PG_writeback |
+			1 << PG_buddy );
 	set_page_count(page, 0);
 	reset_page_mapcount(page);
 	page->mapping = NULL;
@@ -236,12 +237,12 @@ static inline unsigned long page_order(struct page *page) {
 
 static inline void set_page_order(struct page *page, int order) {
 	set_page_private(page, order);
-	__SetPagePrivate(page);
+	__SetPageBuddy(page);
 }
 
 static inline void rmv_page_order(struct page *page)
 {
-	__ClearPagePrivate(page);
+	__ClearPageBuddy(page);
 	set_page_private(page, 0);
 }
 
@@ -280,11 +281,13 @@ __find_combined_index(unsigned long page_idx, unsigned int order)
  * This function checks whether a page is free && is the buddy
  * we can do coalesce a page and its buddy if
  * (a) the buddy is not in a hole &&
- * (b) the buddy is free &&
- * (c) the buddy is on the buddy system &&
- * (d) a page and its buddy have the same order.
- * for recording page's order, we use page_private(page) and PG_private.
+ * (b) the buddy is in the buddy system &&
+ * (c) a page and its buddy have the same order.
  *
+ * For recording whether a page is in the buddy system, we use PG_buddy.
+ * Setting, clearing, and testing PG_buddy is serialized by zone->lock.
+ *
+ * For recording page's order, we use page_private(page).
  */
 static inline int page_is_buddy(struct page *page, int order)
 {
@@ -293,10 +296,10 @@ static inline int page_is_buddy(struct page *page, int order)
 		return 0;
 #endif
 
-       if (PagePrivate(page)           &&
-           (page_order(page) == order) &&
-            page_count(page) == 0)
+	if (PageBuddy(page) && page_order(page) == order) {
+		BUG_ON(page_count(page) != 0);
                return 1;
+	}
        return 0;
 }
 
@@ -313,7 +316,7 @@ static inline int page_is_buddy(struct page *page, int order)
  * as necessary, plus some accounting needed to play nicely with other
  * parts of the VM system.
  * At each level, we keep a list of pages, which are heads of continuous
- * free pages of length of (1 << order) and marked with PG_Private.Page's
+ * free pages of length of (1 << order) and marked with PG_buddy. Page's
  * order is recorded in page_private(page) field.
  * So when we are allocating or freeing one, we can derive the state of the
  * other.  That is, if we allocate a small block, and both were   
@@ -376,7 +379,8 @@ static inline int free_pages_check(struct page *page)
 			1 << PG_slab	|
 			1 << PG_swapcache |
 			1 << PG_writeback |
-			1 << PG_reserved ))))
+			1 << PG_reserved |
+			1 << PG_buddy ))))
 		bad_page(page);
 	if (PageDirty(page))
 		__ClearPageDirty(page);
@@ -524,7 +528,8 @@ static int prep_new_page(struct page *page, int order, gfp_t gfp_flags)
 			1 << PG_slab    |
 			1 << PG_swapcache |
 			1 << PG_writeback |
-			1 << PG_reserved ))))
+			1 << PG_reserved |
+			1 << PG_buddy ))))
 		bad_page(page);
 
 	/*

@@ -74,7 +74,9 @@
 #define PG_mappedtodisk		16	/* Has blocks allocated on-disk */
 #define PG_reclaim		17	/* To be reclaimed asap */
 #define PG_nosave_free		18	/* Free, should not be written */
-#define PG_uncached		19	/* Page has been mapped as uncached */
+#define PG_buddy		19	/* Page is free, on buddy lists */
+
+#define PG_uncached		20	/* Page has been mapped as uncached */
 
 /*
  * Global page accounting.  One instance per CPU.  Only unsigned longs are
@@ -316,6 +318,10 @@ extern void __mod_page_state_offset(unsigned long offset, unsigned long delta);
 #define PageNosaveFree(page)	test_bit(PG_nosave_free, &(page)->flags)
 #define SetPageNosaveFree(page)	set_bit(PG_nosave_free, &(page)->flags)
 #define ClearPageNosaveFree(page)		clear_bit(PG_nosave_free, &(page)->flags)
+
+#define PageBuddy(page)		test_bit(PG_buddy, &(page)->flags)
+#define __SetPageBuddy(page)	__set_bit(PG_buddy, &(page)->flags)
+#define __ClearPageBuddy(page)	__clear_bit(PG_buddy, &(page)->flags)
 
 #define PageMappedToDisk(page)	test_bit(PG_mappedtodisk, &(page)->flags)
 #define SetPageMappedToDisk(page) set_bit(PG_mappedtodisk, &(page)->flags)
