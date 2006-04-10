@@ -1127,9 +1127,9 @@ u32 vfp_double_cpdo(u32 inst, u32 fpscr)
 {
 	u32 op = inst & FOP_MASK;
 	u32 exceptions = 0;
-	unsigned int dd = vfp_get_sd(inst);
-	unsigned int dn = vfp_get_sn(inst);
-	unsigned int dm = vfp_get_sm(inst);
+	unsigned int dd = vfp_get_dd(inst);
+	unsigned int dn = vfp_get_dn(inst);
+	unsigned int dm = vfp_get_dm(inst);
 	unsigned int vecitr, veclen, vecstride;
 	u32 (*fop)(int, int, s32, u32);
 
@@ -1146,7 +1146,7 @@ u32 vfp_double_cpdo(u32 inst, u32 fpscr)
 	pr_debug("VFP: vecstride=%u veclen=%u\n", vecstride,
 		 (veclen >> FPSCR_LENGTH_BIT) + 1);
 
-	fop = (op == FOP_EXT) ? fop_extfns[dn] : fop_fns[FOP_TO_IDX(op)];
+	fop = (op == FOP_EXT) ? fop_extfns[FEXT_TO_IDX(inst)] : fop_fns[FOP_TO_IDX(op)];
 	if (!fop)
 		goto invalid;
 
@@ -1154,17 +1154,13 @@ u32 vfp_double_cpdo(u32 inst, u32 fpscr)
 		u32 except;
 
 		if (op == FOP_EXT)
-			pr_debug("VFP: itr%d (d%u.%u) = op[%u] (d%u.%u)\n",
+			pr_debug("VFP: itr%d (d%u) = op[%u] (d%u)\n",
 				 vecitr >> FPSCR_LENGTH_BIT,
-				 dd >> 1, dd & 1, dn,
-				 dm >> 1, dm & 1);
+				 dd, dn, dm);
 		else
-			pr_debug("VFP: itr%d (d%u.%u) = (d%u.%u) op[%u] (d%u.%u)\n",
+			pr_debug("VFP: itr%d (d%u) = (d%u) op[%u] (d%u)\n",
 				 vecitr >> FPSCR_LENGTH_BIT,
-				 dd >> 1, dd & 1,
-				 dn >> 1, dn & 1,
-				 FOP_TO_IDX(op),
-				 dm >> 1, dm & 1);
+				 dd, dn, FOP_TO_IDX(op), dm);
 
 		except = fop(dd, dn, dm, fpscr);
 		pr_debug("VFP: itr%d: exceptions=%08x\n",

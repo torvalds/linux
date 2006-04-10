@@ -1193,7 +1193,7 @@ u32 vfp_single_cpdo(u32 inst, u32 fpscr)
 	pr_debug("VFP: vecstride=%u veclen=%u\n", vecstride,
 		 (veclen >> FPSCR_LENGTH_BIT) + 1);
 
-	fop = (op == FOP_EXT) ? fop_extfns[sn] : fop_fns[FOP_TO_IDX(op)];
+	fop = (op == FOP_EXT) ? fop_extfns[FEXT_TO_IDX(inst)] : fop_fns[FOP_TO_IDX(op)];
 	if (!fop)
 		goto invalid;
 
