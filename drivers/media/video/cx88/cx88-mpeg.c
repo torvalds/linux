@@ -54,7 +54,7 @@ static int cx8802_start_dma(struct cx8802_dev    *dev,
 {
 	struct cx88_core *core = dev->core;
 
-	dprintk(0, "cx8802_start_dma w: %d, h: %d, f: %d\n", dev->width, dev->height, buf->vb.field);
+	dprintk(1, "cx8802_start_dma w: %d, h: %d, f: %d\n", dev->width, dev->height, buf->vb.field);
 
 	/* setup fifo + format */
 	cx88_sram_channel_setup(core, &cx88_sram_channels[SRAM_CH28],
@@ -110,7 +110,7 @@ static int cx8802_start_dma(struct cx8802_dev    *dev,
 	q->count = 1;
 
 	/* enable irqs */
-	dprintk( 0, "setting the interrupt mask\n" );
+	dprintk( 1, "setting the interrupt mask\n" );
 	cx_set(MO_PCI_INTMSK, core->pci_irqmask | 0x04);
 	cx_set(MO_TS_INTMSK,  0x1f0011);
 
@@ -123,7 +123,7 @@ static int cx8802_start_dma(struct cx8802_dev    *dev,
 static int cx8802_stop_dma(struct cx8802_dev *dev)
 {
 	struct cx88_core *core = dev->core;
-	dprintk( 0, "cx8802_stop_dma\n" );
+	dprintk( 1, "cx8802_stop_dma\n" );
 
 	/* stop dma */
 	cx_clear(MO_TS_DMACNTRL, 0x11);
@@ -205,13 +205,13 @@ void cx8802_buf_queue(struct cx8802_dev *dev, struct cx88_buffer *buf)
 	buf->risc.jmp[1] = cpu_to_le32(cx88q->stopper.dma);
 
 	if (list_empty(&cx88q->active)) {
-		dprintk( 0, "queue is empty - first active\n" );
+		dprintk( 1, "queue is empty - first active\n" );
 		list_add_tail(&buf->vb.queue,&cx88q->active);
 		cx8802_start_dma(dev, cx88q, buf);
 		buf->vb.state = STATE_ACTIVE;
 		buf->count    = cx88q->count++;
 		mod_timer(&cx88q->timeout, jiffies+BUFFER_TIMEOUT);
-		dprintk(0,"[%p/%d] %s - first active\n",
+		dprintk(1,"[%p/%d] %s - first active\n",
 			buf, buf->vb.i, __FUNCTION__);
 
 	} else {
@@ -245,7 +245,7 @@ static void do_cancel_buffers(struct cx8802_dev *dev, char *reason, int restart)
 	}
 	if (restart)
 	{
-		dprintk(0, "restarting queue\n" );
+		dprintk(1, "restarting queue\n" );
 		cx8802_restart_queue(dev,q);
 	}
 	spin_unlock_irqrestore(&dev->slock,flags);
