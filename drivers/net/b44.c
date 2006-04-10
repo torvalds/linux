@@ -2,6 +2,7 @@
  *
  * Copyright (C) 2002 David S. Miller (davem@redhat.com)
  * Fixed by Pekka Pietikainen (pp@ee.oulu.fi)
+ * Copyright (C) 2006 Broadcom Corporation.
  *
  * Distribute under GPL.
  */
@@ -28,8 +29,8 @@
 
 #define DRV_MODULE_NAME		"b44"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"0.97"
-#define DRV_MODULE_RELDATE	"Nov 30, 2005"
+#define DRV_MODULE_VERSION	"1.00"
+#define DRV_MODULE_RELDATE	"Apr 7, 2006"
 
 #define B44_DEF_MSG_ENABLE	  \
 	(NETIF_MSG_DRV		| \
