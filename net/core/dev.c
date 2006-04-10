@@ -3042,11 +3042,11 @@ void netdev_run_todo(void)
 
 		switch(dev->reg_state) {
 		case NETREG_REGISTERING:
+			dev->reg_state = NETREG_REGISTERED;
 			err = netdev_register_sysfs(dev);
 			if (err)
 				printk(KERN_ERR "%s: failed sysfs registration (%d)\n",
 				       dev->name, err);
-			dev->reg_state = NETREG_REGISTERED;
 			break;
 
 		case NETREG_UNREGISTERING:
@@ -3100,12 +3100,11 @@ struct net_device *alloc_netdev(int sizeof_priv, const char *name,
 	alloc_size = (sizeof(*dev) + NETDEV_ALIGN_CONST) & ~NETDEV_ALIGN_CONST;
 	alloc_size += sizeof_priv + NETDEV_ALIGN_CONST;
 
-	p = kmalloc(alloc_size, GFP_KERNEL);
+	p = kzalloc(alloc_size, GFP_KERNEL);
 	if (!p) {
 		printk(KERN_ERR "alloc_dev: Unable to allocate device.\n");
 		return NULL;
 	}
-	memset(p, 0, alloc_size);
 
 	dev = (struct net_device *)
 		(((long)p + NETDEV_ALIGN_CONST) & ~NETDEV_ALIGN_CONST);

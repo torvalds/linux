@@ -284,14 +284,11 @@ static struct neighbour **neigh_hash_alloc(unsigned int entries)
 	struct neighbour **ret;
 
 	if (size <= PAGE_SIZE) {
-		ret = kmalloc(size, GFP_ATOMIC);
+		ret = kzalloc(size, GFP_ATOMIC);
 	} else {
 		ret = (struct neighbour **)
-			__get_free_pages(GFP_ATOMIC, get_order(size));
+		      __get_free_pages(GFP_ATOMIC|__GFP_ZERO, get_order(size));
 	}
-	if (ret)
-		memset(ret, 0, size);
-
 	return ret;
 }
 
@@ -1089,8 +1086,7 @@ static void neigh_hh_init(struct neighbour *n, struct dst_entry *dst,
 		if (hh->hh_type == protocol)
 			break;
 
-	if (!hh && (hh = kmalloc(sizeof(*hh), GFP_ATOMIC)) != NULL) {
-		memset(hh, 0, sizeof(struct hh_cache));
+	if (!hh && (hh = kzalloc(sizeof(*hh), GFP_ATOMIC)) != NULL) {
 		rwlock_init(&hh->hh_lock);
 		hh->hh_type = protocol;
 		atomic_set(&hh->hh_refcnt, 0);
@@ -1366,12 +1362,10 @@ void neigh_table_init(struct neigh_table *tbl)
 	tbl->hash_buckets = neigh_hash_alloc(tbl->hash_mask + 1);
 
 	phsize = (PNEIGH_HASHMASK + 1) * sizeof(struct pneigh_entry *);
-	tbl->phash_buckets = kmalloc(phsize, GFP_KERNEL);
+	tbl->phash_buckets = kzalloc(phsize, GFP_KERNEL);
 
 	if (!tbl->hash_buckets || !tbl->phash_buckets)
 		panic("cannot allocate neighbour cache hashes");
-
-	memset(tbl->phash_buckets, 0, phsize);
 
 	get_random_bytes(&tbl->hash_rnd, sizeof(tbl->hash_rnd));
 

@@ -120,11 +120,8 @@ static int udp_error(struct sk_buff *skb, enum ip_conntrack_info *ctinfo,
 	 * because the semantic of CHECKSUM_HW is different there 
 	 * and moreover root might send raw packets.
 	 * FIXME: Source route IP option packets --RR */
-	if (hooknum == NF_IP_PRE_ROUTING
-	    && skb->ip_summed != CHECKSUM_UNNECESSARY
-	    && csum_tcpudp_magic(iph->saddr, iph->daddr, udplen, IPPROTO_UDP,
-			         skb->ip_summed == CHECKSUM_HW ? skb->csum
-			      	 : skb_checksum(skb, iph->ihl*4, udplen, 0))) {
+	if (hooknum == NF_IP_PRE_ROUTING &&
+	    nf_ip_checksum(skb, hooknum, iph->ihl * 4, IPPROTO_UDP)) {
 		if (LOG_INVALID(IPPROTO_UDP))
 			nf_log_packet(PF_INET, 0, skb, NULL, NULL, NULL,
 				  "ip_ct_udp: bad UDP checksum ");

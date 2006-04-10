@@ -318,11 +318,9 @@ static void __devinit flow_cache_cpu_prepare(int cpu)
 		/* NOTHING */;
 
 	flow_table(cpu) = (struct flow_cache_entry **)
-		__get_free_pages(GFP_KERNEL, order);
+		__get_free_pages(GFP_KERNEL|__GFP_ZERO, order);
 	if (!flow_table(cpu))
 		panic("NET: failed to allocate flow cache order %lu\n", order);
-
-	memset(flow_table(cpu), 0, PAGE_SIZE << order);
 
 	flow_hash_rnd_recalc(cpu) = 1;
 	flow_count(cpu) = 0;

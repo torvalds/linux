@@ -658,15 +658,11 @@ static struct nf_queue_handler nfqh = {
 	.outfn	= &ipq_enqueue_packet,
 };
 
-static int
-init_or_cleanup(int init)
+static int __init ip6_queue_init(void)
 {
 	int status = -ENOMEM;
 	struct proc_dir_entry *proc;
 	
-	if (!init)
-		goto cleanup;
-
 	netlink_register_notifier(&ipq_nl_notifier);
 	ipqnl = netlink_kernel_create(NETLINK_IP6_FW, 0, ipq_rcv_sk,
 	                              THIS_MODULE);
@@ -693,11 +689,6 @@ init_or_cleanup(int init)
 	}
 	return status;
 
-cleanup:
-	nf_unregister_queue_handlers(&nfqh);
-	synchronize_net();
-	ipq_flush(NF_DROP);
-	
 cleanup_sysctl:
 	unregister_sysctl_table(ipq_sysctl_header);
 	unregister_netdevice_notifier(&ipq_dev_notifier);
@@ -713,15 +704,21 @@ cleanup_netlink_notifier:
 	return status;
 }
 
-static int __init ip6_queue_init(void)
-{
-	
-	return init_or_cleanup(1);
-}
-
 static void __exit ip6_queue_fini(void)
 {
-	init_or_cleanup(0);
+	nf_unregister_queue_handlers(&nfqh);
+	synchronize_net();
+	ipq_flush(NF_DROP);
+
+	unregister_sysctl_table(ipq_sysctl_header);
+	unregister_netdevice_notifier(&ipq_dev_notifier);
+	proc_net_remove(IPQ_PROC_FS_NAME);
+
+	sock_release(ipqnl->sk_socket);
+	mutex_lock(&ipqnl_mutex);
+	mutex_unlock(&ipqnl_mutex);
+
+	netlink_unregister_notifier(&ipq_nl_notifier);
 }
 
 MODULE_DESCRIPTION("IPv6 packet queue handler");

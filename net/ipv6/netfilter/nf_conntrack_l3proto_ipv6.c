@@ -286,55 +286,49 @@ static unsigned int ipv6_conntrack_local(unsigned int hooknum,
 	return ipv6_conntrack_in(hooknum, pskb, in, out, okfn);
 }
 
-/* Connection tracking may drop packets, but never alters them, so
-   make it the first hook. */
-static struct nf_hook_ops ipv6_conntrack_defrag_ops = {
-	.hook		= ipv6_defrag,
-	.owner		= THIS_MODULE,
-	.pf		= PF_INET6,
-	.hooknum	= NF_IP6_PRE_ROUTING,
-	.priority	= NF_IP6_PRI_CONNTRACK_DEFRAG,
-};
-
-static struct nf_hook_ops ipv6_conntrack_in_ops = {
-	.hook		= ipv6_conntrack_in,
-	.owner		= THIS_MODULE,
-	.pf		= PF_INET6,
-	.hooknum	= NF_IP6_PRE_ROUTING,
-	.priority	= NF_IP6_PRI_CONNTRACK,
-};
-
-static struct nf_hook_ops ipv6_conntrack_local_out_ops = {
-	.hook		= ipv6_conntrack_local,
-	.owner		= THIS_MODULE,
-	.pf		= PF_INET6,
-	.hooknum	= NF_IP6_LOCAL_OUT,
-	.priority	= NF_IP6_PRI_CONNTRACK,
-};
-
-static struct nf_hook_ops ipv6_conntrack_defrag_local_out_ops = {
-	.hook		= ipv6_defrag,
-	.owner		= THIS_MODULE,
-	.pf		= PF_INET6,
-	.hooknum	= NF_IP6_LOCAL_OUT,
-	.priority	= NF_IP6_PRI_CONNTRACK_DEFRAG,
-};
-
-/* Refragmenter; last chance. */
-static struct nf_hook_ops ipv6_conntrack_out_ops = {
-	.hook		= ipv6_confirm,
-	.owner		= THIS_MODULE,
-	.pf		= PF_INET6,
-	.hooknum	= NF_IP6_POST_ROUTING,
-	.priority	= NF_IP6_PRI_LAST,
-};
-
-static struct nf_hook_ops ipv6_conntrack_local_in_ops = {
-	.hook		= ipv6_confirm,
-	.owner		= THIS_MODULE,
-	.pf		= PF_INET6,
-	.hooknum	= NF_IP6_LOCAL_IN,
-	.priority	= NF_IP6_PRI_LAST-1,
+static struct nf_hook_ops ipv6_conntrack_ops[] = {
+	{
+		.hook		= ipv6_defrag,
+		.owner		= THIS_MODULE,
+		.pf		= PF_INET6,
+		.hooknum	= NF_IP6_PRE_ROUTING,
+		.priority	= NF_IP6_PRI_CONNTRACK_DEFRAG,
+	},
+	{
+		.hook		= ipv6_conntrack_in,
+		.owner		= THIS_MODULE,
+		.pf		= PF_INET6,
+		.hooknum	= NF_IP6_PRE_ROUTING,
+		.priority	= NF_IP6_PRI_CONNTRACK,
+	},
+	{
+		.hook		= ipv6_conntrack_local,
+		.owner		= THIS_MODULE,
+		.pf		= PF_INET6,
+		.hooknum	= NF_IP6_LOCAL_OUT,
+		.priority	= NF_IP6_PRI_CONNTRACK,
+	},
+	{
+		.hook		= ipv6_defrag,
+		.owner		= THIS_MODULE,
+		.pf		= PF_INET6,
+		.hooknum	= NF_IP6_LOCAL_OUT,
+		.priority	= NF_IP6_PRI_CONNTRACK_DEFRAG,
+	},
+	{
+		.hook		= ipv6_confirm,
+		.owner		= THIS_MODULE,
+		.pf		= PF_INET6,
+		.hooknum	= NF_IP6_POST_ROUTING,
+		.priority	= NF_IP6_PRI_LAST,
+	},
+	{
+		.hook		= ipv6_confirm,
+		.owner		= THIS_MODULE,
+		.pf		= PF_INET6,
+		.hooknum	= NF_IP6_LOCAL_IN,
+		.priority	= NF_IP6_PRI_LAST-1,
+	},
 };
 
 #ifdef CONFIG_SYSCTL
@@ -470,16 +464,21 @@ extern struct nf_conntrack_protocol nf_conntrack_protocol_udp6;
 extern struct nf_conntrack_protocol nf_conntrack_protocol_icmpv6;
 extern int nf_ct_frag6_init(void);
 extern void nf_ct_frag6_cleanup(void);
-static int init_or_cleanup(int init)
+
+MODULE_ALIAS("nf_conntrack-" __stringify(AF_INET6));
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Yasuyuki KOZAKAI @USAGI <yasuyuki.kozakai@toshiba.co.jp>");
+
+static int __init nf_conntrack_l3proto_ipv6_init(void)
 {
 	int ret = 0;
 
-	if (!init) goto cleanup;
+	need_conntrack();
 
 	ret = nf_ct_frag6_init();
 	if (ret < 0) {
 		printk("nf_conntrack_ipv6: can't initialize frag6.\n");
-		goto cleanup_nothing;
+		return ret;
 	}
 	ret = nf_conntrack_protocol_register(&nf_conntrack_protocol_tcp6);
 	if (ret < 0) {
@@ -505,71 +504,27 @@ static int init_or_cleanup(int init)
 		goto cleanup_icmpv6;
 	}
 
-	ret = nf_register_hook(&ipv6_conntrack_defrag_ops);
+	ret = nf_register_hooks(ipv6_conntrack_ops,
+				ARRAY_SIZE(ipv6_conntrack_ops));
 	if (ret < 0) {
 		printk("nf_conntrack_ipv6: can't register pre-routing defrag "
 		       "hook.\n");
 		goto cleanup_ipv6;
 	}
-
-	ret = nf_register_hook(&ipv6_conntrack_defrag_local_out_ops);
-	if (ret < 0) {
-		printk("nf_conntrack_ipv6: can't register local_out defrag "
-		       "hook.\n");
-		goto cleanup_defragops;
-	}
-
-	ret = nf_register_hook(&ipv6_conntrack_in_ops);
-	if (ret < 0) {
-		printk("nf_conntrack_ipv6: can't register pre-routing hook.\n");
-		goto cleanup_defraglocalops;
-	}
-
-	ret = nf_register_hook(&ipv6_conntrack_local_out_ops);
-	if (ret < 0) {
-		printk("nf_conntrack_ipv6: can't register local out hook.\n");
-		goto cleanup_inops;
-	}
-
-	ret = nf_register_hook(&ipv6_conntrack_out_ops);
-	if (ret < 0) {
-		printk("nf_conntrack_ipv6: can't register post-routing hook.\n");
-		goto cleanup_inandlocalops;
-	}
-
-	ret = nf_register_hook(&ipv6_conntrack_local_in_ops);
-	if (ret < 0) {
-		printk("nf_conntrack_ipv6: can't register local in hook.\n");
-		goto cleanup_inoutandlocalops;
-	}
-
 #ifdef CONFIG_SYSCTL
 	nf_ct_ipv6_sysctl_header = register_sysctl_table(nf_ct_net_table, 0);
 	if (nf_ct_ipv6_sysctl_header == NULL) {
 		printk("nf_conntrack: can't register to sysctl.\n");
 		ret = -ENOMEM;
-		goto cleanup_localinops;
+		goto cleanup_hooks;
 	}
 #endif
 	return ret;
 
- cleanup:
-	synchronize_net();
 #ifdef CONFIG_SYSCTL
- 	unregister_sysctl_table(nf_ct_ipv6_sysctl_header);
- cleanup_localinops:
+ cleanup_hooks:
+	nf_unregister_hooks(ipv6_conntrack_ops, ARRAY_SIZE(ipv6_conntrack_ops));
 #endif
-	nf_unregister_hook(&ipv6_conntrack_local_in_ops);
- cleanup_inoutandlocalops:
-	nf_unregister_hook(&ipv6_conntrack_out_ops);
- cleanup_inandlocalops:
-	nf_unregister_hook(&ipv6_conntrack_local_out_ops);
- cleanup_inops:
-	nf_unregister_hook(&ipv6_conntrack_in_ops);
- cleanup_defraglocalops:
-	nf_unregister_hook(&ipv6_conntrack_defrag_local_out_ops);
- cleanup_defragops:
-	nf_unregister_hook(&ipv6_conntrack_defrag_ops);
  cleanup_ipv6:
 	nf_conntrack_l3proto_unregister(&nf_conntrack_l3proto_ipv6);
  cleanup_icmpv6:
@@ -580,23 +535,21 @@ static int init_or_cleanup(int init)
 	nf_conntrack_protocol_unregister(&nf_conntrack_protocol_tcp6);
  cleanup_frag6:
 	nf_ct_frag6_cleanup();
- cleanup_nothing:
 	return ret;
-}
-
-MODULE_ALIAS("nf_conntrack-" __stringify(AF_INET6));
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Yasuyuki KOZAKAI @USAGI <yasuyuki.kozakai@toshiba.co.jp>");
-
-static int __init nf_conntrack_l3proto_ipv6_init(void)
-{
-	need_conntrack();
-	return init_or_cleanup(1);
 }
 
 static void __exit nf_conntrack_l3proto_ipv6_fini(void)
 {
-	init_or_cleanup(0);
+	synchronize_net();
+#ifdef CONFIG_SYSCTL
+ 	unregister_sysctl_table(nf_ct_ipv6_sysctl_header);
+#endif
+	nf_unregister_hooks(ipv6_conntrack_ops, ARRAY_SIZE(ipv6_conntrack_ops));
+	nf_conntrack_l3proto_unregister(&nf_conntrack_l3proto_ipv6);
+	nf_conntrack_protocol_unregister(&nf_conntrack_protocol_icmpv6);
+	nf_conntrack_protocol_unregister(&nf_conntrack_protocol_udp6);
+	nf_conntrack_protocol_unregister(&nf_conntrack_protocol_tcp6);
+	nf_ct_frag6_cleanup();
 }
 
 module_init(nf_conntrack_l3proto_ipv6_init);

@@ -279,7 +279,7 @@ static struct ipt_target ipt_dnat_reg = {
 	.target		= ipt_dnat_target,
 	.targetsize	= sizeof(struct ip_nat_multi_range_compat),
 	.table		= "nat",
-	.hooks		= 1 << NF_IP_PRE_ROUTING,
+	.hooks		= (1 << NF_IP_PRE_ROUTING) | (1 << NF_IP_LOCAL_OUT),
 	.checkentry	= ipt_dnat_checkentry,
 };
 
