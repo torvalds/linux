@@ -67,7 +67,7 @@ static int flexcop_dvb_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 static int flexcop_dvb_init(struct flexcop_device *fc)
 {
 	int ret;
-	if ((ret = dvb_register_adapter(&fc->dvb_adapter,"FlexCop Digital TV device",fc->owner)) < 0) {
+	if ((ret = dvb_register_adapter(&fc->dvb_adapter,"FlexCop Digital TV device",fc->owner,fc->dev)) < 0) {
 		err("error registering DVB adapter");
 		return ret;
 	}

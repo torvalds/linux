@@ -722,7 +722,7 @@ static int dvb_register(struct cx8802_dev *dev)
 	cx88_call_i2c_clients (dev->core, TUNER_SET_STANDBY, NULL);
 
 	/* register everything */
-	return videobuf_dvb_register(&dev->dvb, THIS_MODULE, dev);
+	return videobuf_dvb_register(&dev->dvb, THIS_MODULE, dev, &dev->pci->dev);
 }
 
 /* ----------------------------------------------------------- */

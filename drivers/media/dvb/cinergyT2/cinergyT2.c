@@ -902,7 +902,7 @@ static int cinergyt2_probe (struct usb_interface *intf,
 		return -ENOMEM;
 	}
 
-	if ((err = dvb_register_adapter(&cinergyt2->adapter, DRIVER_NAME, THIS_MODULE)) < 0) {
+	if ((err = dvb_register_adapter(&cinergyt2->adapter, DRIVER_NAME, THIS_MODULE, &cinergyt2->udev->dev)) < 0) {
 		kfree(cinergyt2);
 		return err;
 	}

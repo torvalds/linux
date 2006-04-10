@@ -82,7 +82,7 @@ int dvb_usb_dvb_init(struct dvb_usb_device *d)
 	int ret;
 
 	if ((ret = dvb_register_adapter(&d->dvb_adap, d->desc->name,
-			d->owner)) < 0) {
+			d->owner, &d->udev->dev)) < 0) {
 		deb_info("dvb_register_adapter failed: error %d", ret);
 		goto err;
 	}

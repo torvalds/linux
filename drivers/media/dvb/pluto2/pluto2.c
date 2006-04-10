@@ -647,7 +647,7 @@ static int __devinit pluto2_probe(struct pci_dev *pdev,
 		goto err_pluto_hw_exit;
 
 	/* dvb */
-	ret = dvb_register_adapter(&pluto->dvb_adapter, DRIVER_NAME, THIS_MODULE);
+	ret = dvb_register_adapter(&pluto->dvb_adapter, DRIVER_NAME, THIS_MODULE, &pdev->dev);
 	if (ret < 0)
 		goto err_i2c_bit_del_bus;
 

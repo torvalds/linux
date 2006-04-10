@@ -1088,7 +1088,7 @@ static int dvb_init(struct saa7134_dev *dev)
 	}
 
 	/* register everything else */
-	return videobuf_dvb_register(&dev->dvb, THIS_MODULE, dev);
+	return videobuf_dvb_register(&dev->dvb, THIS_MODULE, dev, &dev->pci->dev);
 }
 
 static int dvb_fini(struct saa7134_dev *dev)

@@ -2413,7 +2413,7 @@ static int __devinit av7110_attach(struct saa7146_dev* dev,
 		goto err_kfree_0;
 
 	ret = dvb_register_adapter(&av7110->dvb_adapter, av7110->card_name,
-				   THIS_MODULE);
+				   THIS_MODULE, &dev->pci->dev);
 	if (ret < 0)
 		goto err_put_firmware_1;
 

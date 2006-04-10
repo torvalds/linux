@@ -236,7 +236,7 @@ int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev,
 			"dvb/adapter%d/%s%d", adap->num, dnames[type], id);
 
 	class_device_create(dvb_class, NULL, MKDEV(DVB_MAJOR, nums2minor(adap->num, type, id)),
-			    NULL, "dvb%d.%s%d", adap->num, dnames[type], id);
+			    adap->device, "dvb%d.%s%d", adap->num, dnames[type], id);
 
 	dprintk("DVB: register adapter%d/%s%d @ minor: %i (0x%02x)\n",
 		adap->num, dnames[type], id, nums2minor(adap->num, type, id),
@@ -285,7 +285,7 @@ skip:
 }
 
 
-int dvb_register_adapter(struct dvb_adapter *adap, const char *name, struct module *module)
+int dvb_register_adapter(struct dvb_adapter *adap, const char *name, struct module *module, struct device *device)
 {
 	int num;
 
@@ -306,6 +306,7 @@ int dvb_register_adapter(struct dvb_adapter *adap, const char *name, struct modu
 	adap->num = num;
 	adap->name = name;
 	adap->module = module;
+	adap->device = device;
 
 	list_add_tail (&adap->list_head, &dvb_adapter_list);
 

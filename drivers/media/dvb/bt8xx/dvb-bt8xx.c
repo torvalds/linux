@@ -713,7 +713,7 @@ static int __devinit dvb_bt8xx_load_card(struct dvb_bt8xx_card *card, u32 type)
 {
 	int result;
 
-	if ((result = dvb_register_adapter(&card->dvb_adapter, card->card_name, THIS_MODULE)) < 0) {
+	if ((result = dvb_register_adapter(&card->dvb_adapter, card->card_name, THIS_MODULE, &card->bt->dev->dev)) < 0) {
 		printk("dvb_bt8xx: dvb_register_adapter failed (errno = %d)\n", result);
 		return result;
 	}
