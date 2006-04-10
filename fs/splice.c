@@ -250,9 +250,12 @@ static int __generic_file_splice_read(struct file *in, struct inode *pipe,
 		nr_pages = PIPE_BUFFERS;
 
 	/*
-	 * initiate read-ahead on this page range
+	 * initiate read-ahead on this page range. however, don't call into
+	 * read-ahead if this is a non-zero offset (we are likely doing small
+	 * chunk splice and the page is already there) for a single page.
 	 */
-	do_page_cache_readahead(mapping, in, index, nr_pages);
+	if (!offset || nr_pages > 1)
+		do_page_cache_readahead(mapping, in, index, nr_pages);
 
 	/*
 	 * now fill in the holes
