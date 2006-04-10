@@ -220,10 +220,10 @@ static int __generic_file_splice_read(struct file *in, struct inode *pipe,
 {
 	struct address_space *mapping = in->f_mapping;
 	unsigned int offset, nr_pages;
-	struct page *pages[PIPE_BUFFERS], *shadow[PIPE_BUFFERS];
+	struct page *pages[PIPE_BUFFERS];
 	struct page *page;
-	pgoff_t index, pidx;
-	int i, j;
+	pgoff_t index;
+	int i;
 
 	index = in->f_pos >> PAGE_CACHE_SHIFT;
 	offset = in->f_pos & ~PAGE_CACHE_MASK;
@@ -238,41 +238,13 @@ static int __generic_file_splice_read(struct file *in, struct inode *pipe,
 	do_page_cache_readahead(mapping, in, index, nr_pages);
 
 	/*
-	 * Get as many pages from the page cache as possible..
-	 * Start IO on the page cache entries we create (we
-	 * can assume that any pre-existing ones we find have
-	 * already had IO started on them).
-	 */
-	i = find_get_pages(mapping, index, nr_pages, pages);
-
-	/*
-	 * common case - we found all pages and they are contiguous,
-	 * kick them off
-	 */
-	if (i && (pages[i - 1]->index == index + i - 1))
-		goto splice_them;
-
-	/*
-	 * fill shadow[] with pages at the right locations, so we only
-	 * have to fill holes
-	 */
-	memset(shadow, 0, nr_pages * sizeof(struct page *));
-	for (j = 0; j < i; j++)
-		shadow[pages[j]->index - index] = pages[j];
-
-	/*
 	 * now fill in the holes
 	 */
-	for (i = 0, pidx = index; i < nr_pages; pidx++, i++) {
-		int error;
-
-		if (shadow[i])
-			continue;
-
+	for (i = 0; i < nr_pages; i++, index++) {
 		/*
 		 * no page there, look one up / create it
 		 */
-		page = find_or_create_page(mapping, pidx,
+		page = find_or_create_page(mapping, index,
 						   mapping_gfp_mask(mapping));
 		if (!page)
 			break;
@@ -280,31 +252,20 @@ static int __generic_file_splice_read(struct file *in, struct inode *pipe,
 		if (PageUptodate(page))
 			unlock_page(page);
 		else {
-			error = mapping->a_ops->readpage(in, page);
+			int error = mapping->a_ops->readpage(in, page);
 
 			if (unlikely(error)) {
 				page_cache_release(page);
 				break;
 			}
 		}
-		shadow[i] = page;
+		pages[i] = page;
 	}
 
-	if (!i) {
-		for (i = 0; i < nr_pages; i++) {
-			 if (shadow[i])
-				page_cache_release(shadow[i]);
-		}
-		return 0;
-	}
+	if (i)
+		return move_to_pipe(pipe, pages, i, offset, len, flags);
 
-	memcpy(pages, shadow, i * sizeof(struct page *));
-
-	/*
-	 * Now we splice them into the pipe..
-	 */
-splice_them:
-	return move_to_pipe(pipe, pages, i, offset, len, flags);
+	return 0;
 }
 
 /**
