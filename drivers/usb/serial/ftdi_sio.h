@@ -400,6 +400,11 @@
 #define FTDI_WESTREX_MODEL_8900F_PID	0xDC01	/* Model 8900F */
 
 /*
+ * RR-CirKits LocoBuffer USB (http://www.rr-cirkits.com)
+ */
+#define FTDI_RRCIRKITS_LOCOBUFFER_PID	0xc7d0	/* LocoBuffer USB */
+
+/*
  * Eclo (http://www.eclo.pt/) product IDs.
  * PID 0xEA90 submitted by Martin Grill.
  */
