@@ -1180,6 +1180,53 @@ static int revalidate_allvol(ctlr_info_t *host)
         return 0;
 }
 
+static inline void complete_buffers(struct bio *bio, int status)
+{
+	while (bio) {
+		struct bio *xbh = bio->bi_next;
+		int nr_sectors = bio_sectors(bio);
+
+		bio->bi_next = NULL;
+		blk_finished_io(len);
+		bio_endio(bio, nr_sectors << 9, status ? 0 : -EIO);
+		bio = xbh;
+	}
+
+}
+
+static void cciss_softirq_done(struct request *rq)
+{
+	CommandList_struct *cmd = rq->completion_data;
+	ctlr_info_t *h = hba[cmd->ctlr];
+	unsigned long flags;
+	u64bit temp64;
+	int i, ddir;
+
+	if (cmd->Request.Type.Direction == XFER_READ)
+		ddir = PCI_DMA_FROMDEVICE;
+	else
+		ddir = PCI_DMA_TODEVICE;
+
+	/* command did not need to be retried */
+	/* unmap the DMA mapping for all the scatter gather elements */
+	for(i=0; i<cmd->Header.SGList; i++) {
+		temp64.val32.lower = cmd->SG[i].Addr.lower;
+		temp64.val32.upper = cmd->SG[i].Addr.upper;
+		pci_unmap_page(h->pdev, temp64.val, cmd->SG[i].Len, ddir);
+	}
+
+	complete_buffers(rq->bio, rq->errors);
+
+#ifdef CCISS_DEBUG
+	printk("Done with %p\n", rq);
+#endif /* CCISS_DEBUG */
+
+	spin_lock_irqsave(&h->lock, flags);
+	end_that_request_last(rq, rq->errors);
+	cmd_free(h, cmd,1);
+	spin_unlock_irqrestore(&h->lock, flags);
+}
+
 /* This function will check the usage_count of the drive to be updated/added.
  * If the usage_count is zero then the drive information will be updated and
  * the disk will be re-registered with the kernel.  If not then it will be
@@ -1247,6 +1294,8 @@ static void cciss_update_drive_info(int ctlr, int drv_index)
 		blk_queue_max_phys_segments(disk->queue, MAXSGENTRIES);
 
 		blk_queue_max_sectors(disk->queue, 512);
+
+		blk_queue_softirq_done(disk->queue, cciss_softirq_done);
 
 		disk->queue->queuedata = hba[ctlr];
 
@@ -2147,20 +2196,6 @@ static void start_io( ctlr_info_t *h)
 		addQ (&(h->cmpQ), c); 
 	}
 }
-
-static inline void complete_buffers(struct bio *bio, int status)
-{
-	while (bio) {
-		struct bio *xbh = bio->bi_next; 
-		int nr_sectors = bio_sectors(bio);
-
-		bio->bi_next = NULL; 
-		blk_finished_io(len);
-		bio_endio(bio, nr_sectors << 9, status ? 0 : -EIO);
-		bio = xbh;
-	}
-
-} 
 /* Assumes that CCISS_LOCK(h->ctlr) is held. */
 /* Zeros out the error record and then resends the command back */
 /* to the controller */
@@ -2176,39 +2211,6 @@ static inline void resend_cciss_cmd( ctlr_info_t *h, CommandList_struct *c)
 		h->maxQsinceinit = h->Qdepth;
 
 	start_io(h);
-}
-
-static void cciss_softirq_done(struct request *rq)
-{
-	CommandList_struct *cmd = rq->completion_data;
-	ctlr_info_t *h = hba[cmd->ctlr];
-	unsigned long flags;
-	u64bit temp64;
-	int i, ddir;
-
-	if (cmd->Request.Type.Direction == XFER_READ)
-		ddir = PCI_DMA_FROMDEVICE;
-	else
-		ddir = PCI_DMA_TODEVICE;
-
-	/* command did not need to be retried */
-	/* unmap the DMA mapping for all the scatter gather elements */
-	for(i=0; i<cmd->Header.SGList; i++) {
-		temp64.val32.lower = cmd->SG[i].Addr.lower;
-		temp64.val32.upper = cmd->SG[i].Addr.upper;
-		pci_unmap_page(h->pdev, temp64.val, cmd->SG[i].Len, ddir);
-	}
-
-	complete_buffers(rq->bio, rq->errors);
-
-#ifdef CCISS_DEBUG
-	printk("Done with %p\n", rq);
-#endif /* CCISS_DEBUG */ 
-
-	spin_lock_irqsave(&h->lock, flags);
-	end_that_request_last(rq, rq->errors);
-	cmd_free(h, cmd,1);
-	spin_unlock_irqrestore(&h->lock, flags);
 }
 
 /* checks the status of the job and calls complete buffers to mark all 
