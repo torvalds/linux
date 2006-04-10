@@ -501,6 +501,7 @@ find_page:
 	} else if (ret)
 		goto out;
 
+	mark_page_accessed(page);
 	balance_dirty_pages_ratelimited(mapping);
 out:
 	if (!(buf->flags & PIPE_BUF_FLAG_STOLEN)) {
