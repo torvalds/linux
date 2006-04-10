@@ -187,7 +187,9 @@ static ssize_t move_to_pipe(struct inode *inode, struct page **pages,
 		}
 
 		if (do_wakeup) {
-			wake_up_interruptible_sync(PIPE_WAIT(*inode));
+			smp_mb();
+			if (waitqueue_active(PIPE_WAIT(*inode)))
+				wake_up_interruptible_sync(PIPE_WAIT(*inode));
 			kill_fasync(PIPE_FASYNC_READERS(*inode), SIGIO,
 				    POLL_IN);
 			do_wakeup = 0;
@@ -201,7 +203,9 @@ static ssize_t move_to_pipe(struct inode *inode, struct page **pages,
 	mutex_unlock(PIPE_MUTEX(*inode));
 
 	if (do_wakeup) {
-		wake_up_interruptible(PIPE_WAIT(*inode));
+		smp_mb();
+		if (waitqueue_active(PIPE_WAIT(*inode)))
+			wake_up_interruptible(PIPE_WAIT(*inode));
 		kill_fasync(PIPE_FASYNC_READERS(*inode), SIGIO, POLL_IN);
 	}
 
@@ -600,7 +604,9 @@ static ssize_t move_from_pipe(struct inode *inode, struct file *out,
 		}
 
 		if (do_wakeup) {
-			wake_up_interruptible_sync(PIPE_WAIT(*inode));
+			smp_mb();
+			if (waitqueue_active(PIPE_WAIT(*inode)))
+				wake_up_interruptible_sync(PIPE_WAIT(*inode));
 			kill_fasync(PIPE_FASYNC_WRITERS(*inode),SIGIO,POLL_OUT);
 			do_wakeup = 0;
 		}
@@ -611,7 +617,9 @@ static ssize_t move_from_pipe(struct inode *inode, struct file *out,
 	mutex_unlock(PIPE_MUTEX(*inode));
 
 	if (do_wakeup) {
-		wake_up_interruptible(PIPE_WAIT(*inode));
+		smp_mb();
+		if (waitqueue_active(PIPE_WAIT(*inode)))
+			wake_up_interruptible(PIPE_WAIT(*inode));
 		kill_fasync(PIPE_FASYNC_WRITERS(*inode), SIGIO, POLL_OUT);
 	}
 
