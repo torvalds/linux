@@ -410,25 +410,18 @@ static void __b44_set_flow_ctrl(struct b44 *bp, u32 pause_flags)
 
 static void b44_set_flow_ctrl(struct b44 *bp, u32 local, u32 remote)
 {
-	u32 pause_enab = bp->flags & (B44_FLAG_TX_PAUSE |
-				      B44_FLAG_RX_PAUSE);
+	u32 pause_enab = 0; 
 
-	if (local & ADVERTISE_PAUSE_CAP) {
-		if (local & ADVERTISE_PAUSE_ASYM) {
-			if (remote & LPA_PAUSE_CAP)
-				pause_enab |= (B44_FLAG_TX_PAUSE |
-					       B44_FLAG_RX_PAUSE);
-			else if (remote & LPA_PAUSE_ASYM)
-				pause_enab |= B44_FLAG_RX_PAUSE;
-		} else {
-			if (remote & LPA_PAUSE_CAP)
-				pause_enab |= (B44_FLAG_TX_PAUSE |
-					       B44_FLAG_RX_PAUSE);
-		}
-	} else if (local & ADVERTISE_PAUSE_ASYM) {
-		if ((remote & LPA_PAUSE_CAP) &&
-		    (remote & LPA_PAUSE_ASYM))
-			pause_enab |= B44_FLAG_TX_PAUSE;
+	/* The driver supports only rx pause by default because
+	   the b44 mac tx pause mechanism generates excessive 
+	   pause frames. 	   
+	   Use ethtool to turn on b44 tx pause if necessary.
+	 */
+	if ((local & ADVERTISE_PAUSE_CAP) &&
+	    (local & ADVERTISE_PAUSE_ASYM)){ 
+		if ((remote & LPA_PAUSE_ASYM) &&
+		    !(remote & LPA_PAUSE_CAP))
+			pause_enab |= B44_FLAG_RX_PAUSE;
 	}
 
 	__b44_set_flow_ctrl(bp, pause_enab);
