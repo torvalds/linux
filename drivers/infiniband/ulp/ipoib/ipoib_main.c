@@ -373,16 +373,9 @@ static void path_rec_completion(int status,
 		struct ib_ah_attr av = {
 			.dlid 	       = be16_to_cpu(pathrec->dlid),
 			.sl 	       = pathrec->sl,
-			.port_num      = priv->port
+			.port_num      = priv->port,
+			.static_rate   = pathrec->rate
 		};
-		int path_rate = ib_sa_rate_enum_to_int(pathrec->rate);
-
-		if (path_rate > 0 && priv->local_rate > path_rate)
-			av.static_rate = (priv->local_rate - 1) / path_rate;
-
-		ipoib_dbg(priv, "static_rate %d for local port %dX, path %dX\n",
-			  av.static_rate, priv->local_rate,
-			  ib_sa_rate_enum_to_int(pathrec->rate));
 
 		ah = ipoib_create_ah(dev, priv->pd, &av);
 	}

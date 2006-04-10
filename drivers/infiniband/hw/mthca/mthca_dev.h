@@ -172,6 +172,7 @@ struct mthca_limits {
 	int      reserved_pds;
 	u32      page_size_cap;
 	u32      flags;
+	u16      stat_rate_support;
 	u8       port_width_cap;
 };
 
@@ -353,6 +354,7 @@ struct mthca_dev {
 	struct ib_mad_agent  *send_agent[MTHCA_MAX_PORTS][2];
 	struct ib_ah         *sm_ah[MTHCA_MAX_PORTS];
 	spinlock_t            sm_lock;
+	u8                    rate[MTHCA_MAX_PORTS];
 };
 
 #ifdef CONFIG_INFINIBAND_MTHCA_DEBUG
@@ -555,6 +557,8 @@ int mthca_read_ah(struct mthca_dev *dev, struct mthca_ah *ah,
 		  struct ib_ud_header *header);
 int mthca_ah_query(struct ib_ah *ibah, struct ib_ah_attr *attr);
 int mthca_ah_grh_present(struct mthca_ah *ah);
+u8 mthca_get_rate(struct mthca_dev *dev, int static_rate, u8 port);
+enum ib_rate mthca_rate_to_ib(struct mthca_dev *dev, u8 mthca_rate, u8 port);
 
 int mthca_multicast_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid);
 int mthca_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid);

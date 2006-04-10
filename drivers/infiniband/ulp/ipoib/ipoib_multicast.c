@@ -250,6 +250,7 @@ static int ipoib_mcast_join_finish(struct ipoib_mcast *mcast,
 			.port_num      = priv->port,
 			.sl	       = mcast->mcmember.sl,
 			.ah_flags      = IB_AH_GRH,
+			.static_rate   = mcast->mcmember.rate,
 			.grh	       = {
 				.flow_label    = be32_to_cpu(mcast->mcmember.flow_label),
 				.hop_limit     = mcast->mcmember.hop_limit,
@@ -257,16 +258,7 @@ static int ipoib_mcast_join_finish(struct ipoib_mcast *mcast,
 				.traffic_class = mcast->mcmember.traffic_class
 			}
 		};
-		int path_rate = ib_sa_rate_enum_to_int(mcast->mcmember.rate);
-
 		av.grh.dgid = mcast->mcmember.mgid;
-
-		if (path_rate > 0 && priv->local_rate > path_rate)
-			av.static_rate = (priv->local_rate - 1) / path_rate;
-
-		ipoib_dbg_mcast(priv, "static_rate %d for local port %dX, mcmember %dX\n",
-				av.static_rate, priv->local_rate,
-				ib_sa_rate_enum_to_int(mcast->mcmember.rate));
 
 		ah = ipoib_create_ah(dev, priv->pd, &av);
 		if (!ah) {

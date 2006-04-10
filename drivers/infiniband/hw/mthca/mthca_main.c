@@ -199,6 +199,18 @@ static int __devinit mthca_dev_lim(struct mthca_dev *mdev, struct mthca_dev_lim 
 	mdev->limits.port_width_cap     = dev_lim->max_port_width;
 	mdev->limits.page_size_cap      = ~(u32) (dev_lim->min_page_sz - 1);
 	mdev->limits.flags              = dev_lim->flags;
+	/*
+	 * For old FW that doesn't return static rate support, use a
+	 * value of 0x3 (only static rate values of 0 or 1 are handled),
+	 * except on Sinai, where even old FW can handle static rate
+	 * values of 2 and 3.
+	 */
+	if (dev_lim->stat_rate_support)
+		mdev->limits.stat_rate_support = dev_lim->stat_rate_support;
+	else if (mdev->mthca_flags & MTHCA_FLAG_SINAI_OPT)
+		mdev->limits.stat_rate_support = 0xf;
+	else
+		mdev->limits.stat_rate_support = 0x3;
 
 	/* IB_DEVICE_RESIZE_MAX_WR not supported by driver.
 	   May be doable since hardware supports it for SRQ.
