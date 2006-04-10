@@ -372,7 +372,7 @@ static int or51132_set_ts_param(struct dvb_frontend* fe,
 static struct or51132_config pchdtv_hd3000 = {
 	.demod_address    = 0x15,
 	.pll_address      = 0x61,
-	.pll_desc         = &dvb_pll_thomson_dtt7610,
+	.pll_desc         = &dvb_pll_thomson_dtt761x,
 	.set_ts_params    = or51132_set_ts_param,
 };
 #endif
