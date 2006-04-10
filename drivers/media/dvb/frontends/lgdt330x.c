@@ -29,6 +29,7 @@
  *   DViCO FusionHDTV 5 Lite
  *   DViCO FusionHDTV 5 USB Gold
  *   Air2PC/AirStar 2 ATSC 3rd generation (HD5000)
+ *   pcHDTV HD5500
  *
  * TODO:
  * signal strength always returns 0.
