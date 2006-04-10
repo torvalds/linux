@@ -1203,7 +1203,8 @@ extern void wait_task_inactive(task_t * p);
 #define while_each_thread(g, t) \
 	while ((t = next_thread(t)) != g)
 
-#define thread_group_leader(p)	(p->pid == p->tgid)
+/* de_thread depends on thread_group_leader not being a pid based check */
+#define thread_group_leader(p)	(p == p->group_leader)
 
 static inline task_t *next_thread(task_t *p)
 {

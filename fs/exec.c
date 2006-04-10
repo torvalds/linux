@@ -723,7 +723,12 @@ static int de_thread(struct task_struct *tsk)
 		current->parent = current->real_parent = leader->real_parent;
 		leader->parent = leader->real_parent = child_reaper;
 		current->group_leader = current;
-		leader->group_leader = leader;
+		leader->group_leader = current;
+
+		/* Reduce leader to a thread */
+		detach_pid(leader, PIDTYPE_PGID);
+		detach_pid(leader, PIDTYPE_SID);
+		list_del_init(&leader->tasks);
 
 		add_parent(current);
 		add_parent(leader);
