@@ -3522,6 +3522,7 @@ static inline int bcm43xx_tx(struct bcm43xx_private *bcm,
 		err = bcm43xx_pio_tx(bcm, txb);
 	else
 		err = bcm43xx_dma_tx(bcm, txb);
+	bcm->net_dev->trans_start = jiffies;
 
 	return err;
 }
