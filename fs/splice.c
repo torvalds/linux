@@ -445,7 +445,7 @@ find_page:
 		ret = -ENOMEM;
 		page = find_or_create_page(mapping, index, gfp_mask);
 		if (!page)
-			goto out;
+			goto out_nomem;
 
 		/*
 		 * If the page is uptodate, it is also locked. If it isn't
@@ -508,6 +508,7 @@ out:
 		page_cache_release(page);
 		unlock_page(page);
 	}
+out_nomem:
 	buf->ops->unmap(info, buf);
 	return ret;
 }
