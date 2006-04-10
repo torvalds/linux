@@ -801,6 +801,8 @@ static struct hda_board_config ad1986a_cfg_tbl[] = {
 	  .config = AD1986A_LAPTOP_EAPD }, /* Samsung R65-T2300 Charis */
 	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x1213,
 	  .config = AD1986A_LAPTOP_EAPD }, /* ASUS A6J */
+	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x30af,
+	  .config = AD1986A_LAPTOP_EAPD }, /* HP Compaq Presario B2800 */
 	{}
 };
 
