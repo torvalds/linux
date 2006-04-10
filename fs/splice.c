@@ -84,26 +84,43 @@ static void *page_cache_pipe_buf_map(struct file *file,
 				     struct pipe_buffer *buf)
 {
 	struct page *page = buf->page;
-
-	lock_page(page);
+	int err;
 
 	if (!PageUptodate(page)) {
+		lock_page(page);
+
+		/*
+		 * Page got truncated/unhashed. This will cause a 0-byte
+		 * splice, if this is the first page
+		 */
+		if (!page->mapping) {
+			err = -ENODATA;
+			goto error;
+		}
+
+		/*
+		 * uh oh, read-error from disk
+		 */
+		if (!PageUptodate(page)) {
+			err = -EIO;
+			goto error;
+		}
+
+		/*
+		 * page is ok afterall, fall through to mapping
+		 */
 		unlock_page(page);
-		return ERR_PTR(-EIO);
 	}
 
-	if (!page->mapping) {
-		unlock_page(page);
-		return ERR_PTR(-ENODATA);
-	}
-
-	return kmap(buf->page);
+	return kmap(page);
+error:
+	unlock_page(page);
+	return ERR_PTR(err);
 }
 
 static void page_cache_pipe_buf_unmap(struct pipe_inode_info *info,
 				      struct pipe_buffer *buf)
 {
-	unlock_page(buf->page);
 	kunmap(buf->page);
 }
 
@@ -379,7 +396,7 @@ static int pipe_to_file(struct pipe_inode_info *info, struct pipe_buffer *buf,
 	int ret;
 
 	/*
-	 * after this, page will be locked and unmapped
+	 * make sure the data in this buffer is uptodate
 	 */
 	src = buf->ops->map(file, info, buf);
 	if (IS_ERR(src))
@@ -399,6 +416,9 @@ static int pipe_to_file(struct pipe_inode_info *info, struct pipe_buffer *buf,
 		if (buf->ops->steal(info, buf))
 			goto find_page;
 
+		/*
+		 * this will also set the page locked
+		 */
 		page = buf->page;
 		if (add_to_page_cache(page, mapping, index, gfp_mask))
 			goto find_page;
