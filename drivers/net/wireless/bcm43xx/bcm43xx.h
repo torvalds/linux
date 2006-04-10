@@ -645,7 +645,6 @@ struct bcm43xx_private {
 	unsigned int irq;
 
 	void __iomem *mmio_addr;
-	unsigned int mmio_len;
 
 	/* Do not use the lock directly. Use the bcm43xx_lock* helper
 	 * functions, to be MMIO-safe. */

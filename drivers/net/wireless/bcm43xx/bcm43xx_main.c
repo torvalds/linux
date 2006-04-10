@@ -3288,8 +3288,7 @@ static void bcm43xx_detach_board(struct bcm43xx_private *bcm)
 
 	bcm43xx_chipset_detach(bcm);
 	/* Do _not_ access the chip, after it is detached. */
-	iounmap(bcm->mmio_addr);
-	
+	pci_iounmap(pci_dev, bcm->mmio_addr);
 	pci_release_regions(pci_dev);
 	pci_disable_device(pci_dev);
 
@@ -3379,40 +3378,26 @@ static int bcm43xx_attach_board(struct bcm43xx_private *bcm)
 	struct net_device *net_dev = bcm->net_dev;
 	int err;
 	int i;
-	unsigned long mmio_start, mmio_flags, mmio_len;
 	u32 coremask;
 
 	err = pci_enable_device(pci_dev);
 	if (err) {
-		printk(KERN_ERR PFX "unable to wake up pci device (%i)\n", err);
+		printk(KERN_ERR PFX "pci_enable_device() failed\n");
 		goto out;
-	}
-	mmio_start = pci_resource_start(pci_dev, 0);
-	mmio_flags = pci_resource_flags(pci_dev, 0);
-	mmio_len = pci_resource_len(pci_dev, 0);
-	if (!(mmio_flags & IORESOURCE_MEM)) {
-		printk(KERN_ERR PFX
-		       "%s, region #0 not an MMIO resource, aborting\n",
-		       pci_name(pci_dev));
-		err = -ENODEV;
-		goto err_pci_disable;
 	}
 	err = pci_request_regions(pci_dev, KBUILD_MODNAME);
 	if (err) {
-		printk(KERN_ERR PFX
-		       "could not access PCI resources (%i)\n", err);
+		printk(KERN_ERR PFX "pci_request_regions() failed\n");
 		goto err_pci_disable;
 	}
 	/* enable PCI bus-mastering */
 	pci_set_master(pci_dev);
-	bcm->mmio_addr = ioremap(mmio_start, mmio_len);
+	bcm->mmio_addr = pci_iomap(pci_dev, 0, ~0UL);
 	if (!bcm->mmio_addr) {
-		printk(KERN_ERR PFX "%s: cannot remap MMIO, aborting\n",
-		       pci_name(pci_dev));
+		printk(KERN_ERR PFX "pci_iomap() failed\n");
 		err = -EIO;
 		goto err_pci_release;
 	}
-	bcm->mmio_len = mmio_len;
 	net_dev->base_addr = (unsigned long)bcm->mmio_addr;
 
 	bcm43xx_pci_read_config16(bcm, PCI_SUBSYSTEM_VENDOR_ID,
@@ -3505,7 +3490,7 @@ err_80211_unwind:
 err_chipset_detach:
 	bcm43xx_chipset_detach(bcm);
 err_iounmap:
-	iounmap(bcm->mmio_addr);
+	pci_iounmap(pci_dev, bcm->mmio_addr);
 err_pci_release:
 	pci_release_regions(pci_dev);
 err_pci_disable:
