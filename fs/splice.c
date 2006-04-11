@@ -125,12 +125,19 @@ static void page_cache_pipe_buf_unmap(struct pipe_inode_info *info,
 	kunmap(buf->page);
 }
 
+static void page_cache_pipe_buf_get(struct pipe_inode_info *info,
+				    struct pipe_buffer *buf)
+{
+	page_cache_get(buf->page);
+}
+
 static struct pipe_buf_operations page_cache_pipe_buf_ops = {
 	.can_merge = 0,
 	.map = page_cache_pipe_buf_map,
 	.unmap = page_cache_pipe_buf_unmap,
 	.release = page_cache_pipe_buf_release,
 	.steal = page_cache_pipe_buf_steal,
+	.get = page_cache_pipe_buf_get,
 };
 
 /*
@@ -960,6 +967,185 @@ asmlinkage long sys_splice(int fd_in, loff_t __user *off_in,
 
 		fput_light(in, fput_in);
 	}
+
+	return error;
+}
+
+/*
+ * Link contents of ipipe to opipe.
+ */
+static int link_pipe(struct pipe_inode_info *ipipe,
+		     struct pipe_inode_info *opipe,
+		     size_t len, unsigned int flags)
+{
+	struct pipe_buffer *ibuf, *obuf;
+	int ret = 0, do_wakeup = 0, i;
+
+	/*
+	 * Potential ABBA deadlock, work around it by ordering lock
+	 * grabbing by inode address. Otherwise two different processes
+	 * could deadlock (one doing tee from A -> B, the other from B -> A).
+	 */
+	if (ipipe->inode < opipe->inode) {
+		mutex_lock(&ipipe->inode->i_mutex);
+		mutex_lock(&opipe->inode->i_mutex);
+	} else {
+		mutex_lock(&opipe->inode->i_mutex);
+		mutex_lock(&ipipe->inode->i_mutex);
+	}
+
+	for (i = 0;; i++) {
+		if (!opipe->readers) {
+			send_sig(SIGPIPE, current, 0);
+			if (!ret)
+				ret = -EPIPE;
+			break;
+		}
+		if (ipipe->nrbufs - i) {
+			ibuf = ipipe->bufs + ((ipipe->curbuf + i) & (PIPE_BUFFERS - 1));
+
+			/*
+			 * If we have room, fill this buffer
+			 */
+			if (opipe->nrbufs < PIPE_BUFFERS) {
+				int nbuf = (opipe->curbuf + opipe->nrbufs) & (PIPE_BUFFERS - 1);
+
+				/*
+				 * Get a reference to this pipe buffer,
+				 * so we can copy the contents over.
+				 */
+				ibuf->ops->get(ipipe, ibuf);
+
+				obuf = opipe->bufs + nbuf;
+				*obuf = *ibuf;
+
+				if (obuf->len > len)
+					obuf->len = len;
+
+				opipe->nrbufs++;
+				do_wakeup = 1;
+				ret += obuf->len;
+				len -= obuf->len;
+
+				if (!len)
+					break;
+				if (opipe->nrbufs < PIPE_BUFFERS)
+					continue;
+			}
+
+			/*
+			 * We have input available, but no output room.
+			 * If we already copied data, return that.
+			 */
+			if (flags & SPLICE_F_NONBLOCK) {
+				if (!ret)
+					ret = -EAGAIN;
+				break;
+			}
+			if (signal_pending(current)) {
+				if (!ret)
+					ret = -ERESTARTSYS;
+				break;
+			}
+			if (do_wakeup) {
+				smp_mb();
+				if (waitqueue_active(&opipe->wait))
+					wake_up_interruptible(&opipe->wait);
+				kill_fasync(&opipe->fasync_readers, SIGIO, POLL_IN);
+				do_wakeup = 0;
+			}
+
+			opipe->waiting_writers++;
+			pipe_wait(opipe);
+			opipe->waiting_writers--;
+			continue;
+		}
+
+		/*
+		 * No input buffers, do the usual checks for available
+		 * writers and blocking and wait if necessary
+		 */
+		if (!ipipe->writers)
+			break;
+		if (!ipipe->waiting_writers) {
+			if (ret)
+				break;
+		}
+		if (flags & SPLICE_F_NONBLOCK) {
+			if (!ret)
+				ret = -EAGAIN;
+			break;
+		}
+		if (signal_pending(current)) {
+			if (!ret)
+				ret = -ERESTARTSYS;
+			break;
+		}
+
+		if (waitqueue_active(&ipipe->wait))
+			wake_up_interruptible_sync(&ipipe->wait);
+		kill_fasync(&ipipe->fasync_writers, SIGIO, POLL_OUT);
+
+		pipe_wait(ipipe);
+	}
+
+	mutex_unlock(&ipipe->inode->i_mutex);
+	mutex_unlock(&opipe->inode->i_mutex);
+
+	if (do_wakeup) {
+		smp_mb();
+		if (waitqueue_active(&opipe->wait))
+			wake_up_interruptible(&opipe->wait);
+		kill_fasync(&opipe->fasync_readers, SIGIO, POLL_IN);
+	}
+
+	return ret;
+}
+
+/*
+ * This is a tee(1) implementation that works on pipes. It doesn't copy
+ * any data, it simply references the 'in' pages on the 'out' pipe.
+ * The 'flags' used are the SPLICE_F_* variants, currently the only
+ * applicable one is SPLICE_F_NONBLOCK.
+ */
+static long do_tee(struct file *in, struct file *out, size_t len,
+		   unsigned int flags)
+{
+	struct pipe_inode_info *ipipe = in->f_dentry->d_inode->i_pipe;
+	struct pipe_inode_info *opipe = out->f_dentry->d_inode->i_pipe;
+
+	/*
+	 * Link ipipe to the two output pipes, consuming as we go along.
+	 */
+	if (ipipe && opipe)
+		return link_pipe(ipipe, opipe, len, flags);
+
+	return -EINVAL;
+}
+
+asmlinkage long sys_tee(int fdin, int fdout, size_t len, unsigned int flags)
+{
+	struct file *in;
+	int error, fput_in;
+
+	if (unlikely(!len))
+		return 0;
+
+	error = -EBADF;
+	in = fget_light(fdin, &fput_in);
+	if (in) {
+		if (in->f_mode & FMODE_READ) {
+			int fput_out;
+			struct file *out = fget_light(fdout, &fput_out);
+
+			if (out) {
+				if (out->f_mode & FMODE_WRITE)
+					error = do_tee(in, out, len, flags);
+				fput_light(out, fput_out);
+			}
+		}
+ 		fput_light(in, fput_in);
+ 	}
 
 	return error;
 }
