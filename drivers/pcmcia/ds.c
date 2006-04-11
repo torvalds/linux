@@ -298,9 +298,6 @@ static inline int pcmcia_load_firmware(struct pcmcia_device *dev, char * filenam
  *
  * Registers a PCMCIA driver with the PCMCIA bus core.
  */
-static int pcmcia_device_probe(struct device *dev);
-static int pcmcia_device_remove(struct device * dev);
-
 int pcmcia_register_driver(struct pcmcia_driver *driver)
 {
 	if (!driver)
@@ -400,7 +397,7 @@ static int pcmcia_device_probe(struct device * dev)
 	 * call which will then check whether there are two
 	 * pseudo devices, and if not, add the second one.
 	 */
-	did = (struct pcmcia_device_id *) p_dev->dev.driver_data;
+	did = p_dev->dev.driver_data;
 	if (did && (did->match_flags & PCMCIA_DEV_ID_MATCH_DEVICE_NO) &&
 	    (p_dev->socket->device_count == 1) && (p_dev->device_no == 0))
 		pcmcia_add_pseudo_device(p_dev->socket);
@@ -448,7 +445,6 @@ static void pcmcia_card_remove(struct pcmcia_socket *s, struct pcmcia_device *le
 	return;
 }
 
-
 static int pcmcia_device_remove(struct device * dev)
 {
 	struct pcmcia_device *p_dev;
@@ -463,7 +459,7 @@ static int pcmcia_device_remove(struct device * dev)
 	 * pseudo multi-function card, we need to unbind
 	 * all devices
 	 */
-	did = (struct pcmcia_device_id *) p_dev->dev.driver_data;
+	did = p_dev->dev.driver_data;
 	if (did && (did->match_flags & PCMCIA_DEV_ID_MATCH_DEVICE_NO) &&
 	    (p_dev->socket->device_count != 0) &&
 	    (p_dev->device_no == 0))
