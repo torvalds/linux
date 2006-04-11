@@ -174,7 +174,7 @@ enum {
 	PORT_CERR_CMD_PCIPERR	= 27, /* ctrl[15:13] 110 - PCI parity err while fetching PRB */
 	PORT_CERR_XFR_UNDEF	= 32, /* PSD ecode 00 - undefined */
 	PORT_CERR_XFR_TGTABRT	= 33, /* PSD ecode 01 - target abort */
-	PORT_CERR_XFR_MSGABRT	= 34, /* PSD ecode 10 - master abort */
+	PORT_CERR_XFR_MSTABRT	= 34, /* PSD ecode 10 - master abort */
 	PORT_CERR_XFR_PCIPERR	= 35, /* PSD ecode 11 - PCI prity err during transfer */
 	PORT_CERR_SENDSERVICE	= 36, /* FIS received while sending service */
 
