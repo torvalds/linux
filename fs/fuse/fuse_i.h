@@ -255,14 +255,8 @@ struct fuse_conn {
 	/** waitq for blocked connection */
 	wait_queue_head_t blocked_waitq;
 
-	/** RW semaphore for exclusion with fuse_put_super() */
-	struct rw_semaphore sbput_sem;
-
 	/** The next unique request id */
 	u64 reqctr;
-
-	/** Mount is active */
-	unsigned mounted;
 
 	/** Connection established, cleared on umount, connection
 	    abort and device release */
@@ -474,11 +468,11 @@ void request_send_noreply(struct fuse_conn *fc, struct fuse_req *req);
 void request_send_background(struct fuse_conn *fc, struct fuse_req *req);
 
 /**
- * Release inodes and file associated with background request
+ * Remove request from the the background list
  */
-void fuse_release_background(struct fuse_conn *fc, struct fuse_req *req);
+void fuse_remove_background(struct fuse_conn *fc, struct fuse_req *req);
 
-/* Abort all requests */
+/** Abort all requests */
 void fuse_abort_conn(struct fuse_conn *fc);
 
 /**

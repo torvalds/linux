@@ -120,20 +120,14 @@ void fuse_put_request(struct fuse_conn *fc, struct fuse_req *req)
 	}
 }
 
-void fuse_release_background(struct fuse_conn *fc, struct fuse_req *req)
+void fuse_remove_background(struct fuse_conn *fc, struct fuse_req *req)
 {
-	iput(req->inode);
-	iput(req->inode2);
-	if (req->file)
-		fput(req->file);
-	spin_lock(&fc->lock);
-	list_del(&req->bg_entry);
+	list_del_init(&req->bg_entry);
 	if (fc->num_background == FUSE_MAX_BACKGROUND) {
 		fc->blocked = 0;
 		wake_up_all(&fc->blocked_waitq);
 	}
 	fc->num_background--;
-	spin_unlock(&fc->lock);
 }
 
 /*
@@ -163,17 +157,27 @@ static void request_end(struct fuse_conn *fc, struct fuse_req *req)
 		wake_up(&req->waitq);
 		fuse_put_request(fc, req);
 	} else {
+		struct inode *inode = req->inode;
+		struct inode *inode2 = req->inode2;
+		struct file *file = req->file;
 		void (*end) (struct fuse_conn *, struct fuse_req *) = req->end;
 		req->end = NULL;
+		req->inode = NULL;
+		req->inode2 = NULL;
+		req->file = NULL;
+		if (!list_empty(&req->bg_entry))
+			fuse_remove_background(fc, req);
 		spin_unlock(&fc->lock);
-		down_read(&fc->sbput_sem);
-		if (fc->mounted)
-			fuse_release_background(fc, req);
-		up_read(&fc->sbput_sem);
+
 		if (end)
 			end(fc, req);
 		else
 			fuse_put_request(fc, req);
+
+		if (file)
+			fput(file);
+		iput(inode);
+		iput(inode2);
 	}
 }
 
