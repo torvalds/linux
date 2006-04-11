@@ -1740,7 +1740,7 @@ static void release_dev(struct file * filp)
 {
 	struct tty_struct *tty, *o_tty;
 	int	pty_master, tty_closing, o_tty_closing, do_sleep;
-	int	devpts_master, devpts;
+	int	devpts;
 	int	idx;
 	char	buf[64];
 	unsigned long flags;
@@ -1757,7 +1757,6 @@ static void release_dev(struct file * filp)
 	pty_master = (tty->driver->type == TTY_DRIVER_TYPE_PTY &&
 		      tty->driver->subtype == PTY_TYPE_MASTER);
 	devpts = (tty->driver->flags & TTY_DRIVER_DEVPTS_MEM) != 0;
-	devpts_master = pty_master && devpts;
 	o_tty = tty->link;
 
 #ifdef TTY_PARANOIA_CHECK
