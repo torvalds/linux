@@ -1441,12 +1441,12 @@ static int ata_bus_probe(struct ata_port *ap)
 				break;
 			}
 		rc = 0;
-	} else {
+	} else
 		rc = ata_set_mode(ap, &dev);
-		if (rc) {
-			down_xfermask = 1;
-			goto fail;
-		}
+
+	if (rc) {
+		down_xfermask = 1;
+		goto fail;
 	}
 
 	for (i = 0; i < ATA_MAX_DEVICES; i++)
