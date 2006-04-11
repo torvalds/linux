@@ -44,7 +44,7 @@ int gfs2_trans_begin(struct gfs2_sbd *sdp, unsigned int blocks,
 	tr->tr_revokes = revokes;
 	tr->tr_reserved = 1;
 	if (blocks)
-		tr->tr_reserved += 1 + blocks;
+		tr->tr_reserved += 6 + blocks;
 	if (revokes)
 		tr->tr_reserved += gfs2_struct2blk(sdp, revokes,
 						   sizeof(uint64_t));
@@ -83,20 +83,15 @@ fail_holder_uninit:
 
 void gfs2_trans_end(struct gfs2_sbd *sdp)
 {
-	struct gfs2_trans *tr;
+	struct gfs2_trans *tr = current->journal_info;
 
-	tr = current->journal_info;
+	BUG_ON(!tr);
 	current->journal_info = NULL;
-
-	if (gfs2_assert_warn(sdp, tr))
-		return;
 
 	if (!tr->tr_touched) {
 		gfs2_log_release(sdp, tr->tr_reserved);
-
 		gfs2_glock_dq(&tr->tr_t_gh);
 		gfs2_holder_uninit(&tr->tr_t_gh);
-
 		kfree(tr);
 		return;
 	}
@@ -113,10 +108,8 @@ void gfs2_trans_end(struct gfs2_sbd *sdp)
 	}
 
 	gfs2_log_commit(sdp, tr);
-
         gfs2_glock_dq(&tr->tr_t_gh);
         gfs2_holder_uninit(&tr->tr_t_gh);
-
         kfree(tr);
 
 	if (sdp->sd_vfs->s_flags & MS_SYNCHRONOUS)

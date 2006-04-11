@@ -776,9 +776,9 @@ static struct gfs2_dirent *gfs2_dirent_search(struct inode *inode,
 				goto got_dent;
 			leaf = (struct gfs2_leaf *)bh->b_data;
 			ln = be64_to_cpu(leaf->lf_next);
+			brelse(bh);
 			if (!ln)
 				break;
-			brelse(bh);
 			error = get_leaf(ip, ln, &bh);
 		} while(!error);
 
@@ -790,7 +790,7 @@ static struct gfs2_dirent *gfs2_dirent_search(struct inode *inode,
 		return ERR_PTR(error);
 	dent = gfs2_dirent_scan(inode, bh->b_data, bh->b_size, scan, name, NULL);
 got_dent:
-	if (unlikely(IS_ERR(dent))) {
+	if (unlikely(dent == NULL || IS_ERR(dent))) {
 		brelse(bh);
 		bh = NULL;
 	}
@@ -1477,7 +1477,6 @@ int gfs2_dir_search(struct inode *dir, const struct qstr *name,
 		brelse(bh);
 		return 0;
 	}
-	brelse(bh);
 	return -ENOENT;
 }
 
@@ -1619,7 +1618,6 @@ int gfs2_dir_del(struct gfs2_inode *dip, const struct qstr *name)
 	   previous entry otherwise */
 	dent = gfs2_dirent_search(dip->i_vnode, name, gfs2_dirent_prev, &bh);
 	if (!dent) {
-		brelse(bh);
 		gfs2_consist_inode(dip);
 		return -EIO;
 	}
@@ -1680,7 +1678,6 @@ int gfs2_dir_mvino(struct gfs2_inode *dip, const struct qstr *filename,
 
 	dent = gfs2_dirent_search(dip->i_vnode, filename, gfs2_dirent_find, &bh);
 	if (!dent) {
-		brelse(bh);
 		gfs2_consist_inode(dip);
 		return -EIO;
 	}
@@ -1961,7 +1958,6 @@ int gfs2_diradd_alloc_required(struct inode *inode,
 
 	dent = gfs2_dirent_search(inode, name, gfs2_dirent_find_space, &bh);
 	if (!dent) {
-		brelse(bh);
 		return 1;
 	}
 	if (IS_ERR(dent))

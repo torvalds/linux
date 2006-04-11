@@ -412,11 +412,13 @@ static void log_flush_commit(struct gfs2_sbd *sdp)
 	struct list_head *head = &sdp->sd_log_flush_list;
 	struct gfs2_log_buf *lb;
 	struct buffer_head *bh;
+#if 0
 	unsigned int d;
 
 	d = log_distance(sdp, sdp->sd_log_flush_head, sdp->sd_log_head);
 
 	gfs2_assert_withdraw(sdp, d + 1 == sdp->sd_log_blks_reserved);
+#endif
 
 	while (!list_empty(head)) {
 		lb = list_entry(head->next, struct gfs2_log_buf, lb_list);
@@ -483,6 +485,7 @@ void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl)
 	sdp->sd_log_head = sdp->sd_log_flush_head;
 
 	/* printk(KERN_INFO "sd_log_num_hdrs %u\n", sdp->sd_log_num_hdrs); */
+	sdp->sd_log_blks_free -= sdp->sd_log_num_hdrs;
 
 	sdp->sd_log_blks_reserved =
 		sdp->sd_log_commited_buf =
@@ -515,8 +518,7 @@ static void log_refund(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 	gfs2_assert_withdraw(sdp, ((int)sdp->sd_log_commited_revoke) >= 0);
 
 	if (sdp->sd_log_commited_buf)
-		reserved += 1 + sdp->sd_log_commited_buf +
-			    sdp->sd_log_commited_buf/503;
+		reserved += sdp->sd_log_commited_buf;
 	if (sdp->sd_log_commited_revoke)
 		reserved += gfs2_struct2blk(sdp, sdp->sd_log_commited_revoke,
 					    sizeof(uint64_t));
@@ -527,7 +529,8 @@ static void log_refund(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 
 	gfs2_assert_withdraw(sdp, sdp->sd_log_blks_free >= old);
 	gfs2_assert_withdraw(sdp,
-			     sdp->sd_log_blks_free <= sdp->sd_jdesc->jd_blocks);
+			     sdp->sd_log_blks_free <= sdp->sd_jdesc->jd_blocks +
+			     sdp->sd_log_num_hdrs);
 
 	sdp->sd_log_blks_reserved = reserved;
 
@@ -582,6 +585,7 @@ void gfs2_log_shutdown(struct gfs2_sbd *sdp)
 
 	log_write_header(sdp, GFS2_LOG_HEAD_UNMOUNT, 0);
 
+	/* printk(KERN_INFO "sd_log_blks_free %u, sd_jdesc->jd_blocks %u\n", sdp->sd_log_blks_free, sdp->sd_jdesc->jd_blocks); */
 	gfs2_assert_withdraw(sdp, sdp->sd_log_blks_free ==
 			     sdp->sd_jdesc->jd_blocks);
 	gfs2_assert_withdraw(sdp, sdp->sd_log_head == sdp->sd_log_tail);
