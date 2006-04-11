@@ -133,7 +133,7 @@ static void ip_ct_event_cache_flush(void)
 	struct ip_conntrack_ecache *ecache;
 	int cpu;
 
-	for_each_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		ecache = &per_cpu(ip_conntrack_ecache, cpu);
 		if (ecache->ct)
 			ip_conntrack_put(ecache->ct);

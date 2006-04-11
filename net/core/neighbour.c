@@ -1627,7 +1627,7 @@ static int neightbl_fill_info(struct neigh_table *tbl, struct sk_buff *skb,
 
 		memset(&ndst, 0, sizeof(ndst));
 
-		for_each_cpu(cpu) {
+		for_each_possible_cpu(cpu) {
 			struct neigh_statistics	*st;
 
 			st = per_cpu_ptr(tbl->stats, cpu);
