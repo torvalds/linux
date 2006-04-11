@@ -829,8 +829,8 @@ There are some more advanced barrier functions:
  (*) smp_mb__after_atomic_inc();
 
      These are for use with atomic add, subtract, increment and decrement
-     functions, especially when used for reference counting.  These functions
-     do not imply memory barriers.
+     functions that don't return a value, especially when used for reference
+     counting.  These functions do not imply memory barriers.
 
      As an example, consider a piece of code that marks an object as being dead
      and then decrements the object's reference count:
@@ -1263,15 +1263,17 @@ else.
 ATOMIC OPERATIONS
 -----------------
 
-Though they are technically interprocessor interaction considerations, atomic
-operations are noted specially as they do _not_ generally imply memory
-barriers.  The possible offenders include:
+Whilst they are technically interprocessor interaction considerations, atomic
+operations are noted specially as some of them imply full memory barriers and
+some don't, but they're very heavily relied on as a group throughout the
+kernel.
+
+Any atomic operation that modifies some state in memory and returns information
+about the state (old or new) implies an SMP-conditional general memory barrier
+(smp_mb()) on each side of the actual operation.  These include:
 
 	xchg();
 	cmpxchg();
-	test_and_set_bit();
-	test_and_clear_bit();
-	test_and_change_bit();
 	atomic_cmpxchg();
 	atomic_inc_return();
 	atomic_dec_return();
@@ -1282,21 +1284,31 @@ barriers.  The possible offenders include:
 	atomic_sub_and_test();
 	atomic_add_negative();
 	atomic_add_unless();
+	test_and_set_bit();
+	test_and_clear_bit();
+	test_and_change_bit();
 
-These may be used for such things as implementing LOCK operations or controlling
-the lifetime of objects by decreasing their reference counts.  In such cases
-they need preceding memory barriers.
+These are used for such things as implementing LOCK-class and UNLOCK-class
+operations and adjusting reference counters towards object destruction, and as
+such the implicit memory barrier effects are necessary.
 
-The following may also be possible offenders as they may be used as UNLOCK
-operations.
 
+The following operation are potential problems as they do _not_ imply memory
+barriers, but might be used for implementing such things as UNLOCK-class
+operations:
+
+	atomic_set();
 	set_bit();
 	clear_bit();
 	change_bit();
-	atomic_set();
+
+With these the appropriate explicit memory barrier should be used if necessary
+(smp_mb__before_clear_bit() for instance).
 
 
-The following are a little tricky:
+The following also do _not_ imply memory barriers, and so may require explicit
+memory barriers under some circumstances (smp_mb__before_atomic_dec() for
+instance)):
 
 	atomic_add();
 	atomic_sub();
@@ -1317,10 +1329,12 @@ specific order.
 
 
 Basically, each usage case has to be carefully considered as to whether memory
-barriers are needed or not.  The simplest rule is probably: if the atomic
-operation is protected by a lock, then it does not require a barrier unless
-there's another operation within the critical section with respect to which an
-ordering must be maintained.
+barriers are needed or not.
+
+[!] Note that special memory barrier primitives are available for these
+situations because on some CPUs the atomic instructions used imply full memory
+barriers, and so barrier instructions are superfluous in conjunction with them,
+and in such cases the special barrier primitives will be no-ops.
 
 See Documentation/atomic_ops.txt for more information.
 
