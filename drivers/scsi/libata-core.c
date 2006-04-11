@@ -2369,12 +2369,16 @@ void ata_std_probeinit(struct ata_port *ap)
 	if ((ap->flags & ATA_FLAG_SATA) && ap->ops->scr_read) {
 		u32 spd;
 
+		/* set cable type and resume link */
+		ap->cbl = ATA_CBL_SATA;
 		sata_phy_resume(ap);
 
+		/* init sata_spd_limit to the current value */
 		spd = (scr_read(ap, SCR_CONTROL) & 0xf0) >> 4;
 		if (spd)
 			ap->sata_spd_limit &= (1 << spd) - 1;
 
+		/* wait for device */
 		if (sata_dev_present(ap))
 			ata_busy_sleep(ap, ATA_TMOUT_BOOT_QUICK, ATA_TMOUT_BOOT);
 	}
@@ -2531,10 +2535,6 @@ void ata_std_postreset(struct ata_port *ap, unsigned int *classes)
 {
 	DPRINTK("ENTER\n");
 
-	/* set cable type if it isn't already set */
-	if (ap->cbl == ATA_CBL_NONE && ap->flags & ATA_FLAG_SATA)
-		ap->cbl = ATA_CBL_SATA;
-
 	/* print link status */
 	if (ap->cbl == ATA_CBL_SATA)
 		sata_print_link_status(ap);
@@ -2584,7 +2584,7 @@ int ata_std_probe_reset(struct ata_port *ap, unsigned int *classes)
 	ata_reset_fn_t hardreset;
 
 	hardreset = NULL;
-	if (ap->flags & ATA_FLAG_SATA && ap->ops->scr_read)
+	if (ap->cbl == ATA_CBL_SATA && ap->ops->scr_read)
 		hardreset = sata_std_hardreset;
 
 	return ata_drive_probe_reset(ap, ata_std_probeinit,
