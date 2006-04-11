@@ -106,7 +106,7 @@ static ssize_t node_read_numastat(struct sys_device * dev, char * buf)
 	other_node = 0;
 	for (i = 0; i < MAX_NR_ZONES; i++) {
 		struct zone *z = &pg->node_zones[i];
-		for (cpu = 0; cpu < NR_CPUS; cpu++) {
+		for_each_online_cpu(cpu) {
 			struct per_cpu_pageset *ps = zone_pcp(z,cpu);
 			numa_hit += ps->numa_hit;
 			numa_miss += ps->numa_miss;
