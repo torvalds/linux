@@ -318,8 +318,8 @@
 #define __NR_unshare		310
 #define __NR_set_robust_list	311
 #define __NR_get_robust_list	312
-#define __NR_sys_splice		313
-#define __NR_sys_sync_file_range 314
+#define __NR_splice		313
+#define __NR_sync_file_range	314
 
 #define NR_syscalls 315
 

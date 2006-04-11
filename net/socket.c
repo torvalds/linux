@@ -119,10 +119,6 @@ static ssize_t sock_writev(struct file *file, const struct iovec *vector,
 static ssize_t sock_sendpage(struct file *file, struct page *page,
 			     int offset, size_t size, loff_t *ppos, int more);
 
-extern ssize_t generic_splice_sendpage(struct inode *inode, struct file *out,
-				size_t len, unsigned int flags);
-
-
 /*
  *	Socket files have a set of 'special' operations as well as the generic file ones. These don't appear
  *	in the operation structures but are done directly via the socketcall() multiplexor.

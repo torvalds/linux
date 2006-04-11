@@ -684,6 +684,7 @@ static inline void prefetch_stack(struct task_struct *t) { }
 
 struct audit_context;		/* See audit.c */
 struct mempolicy;
+struct pipe_inode_info;
 
 enum sleep_type {
 	SLEEP_NORMAL,
@@ -882,6 +883,11 @@ struct task_struct {
 
 	atomic_t fs_excl;	/* holding fs exclusive resources */
 	struct rcu_head rcu;
+
+	/*
+	 * cache last used pipe for splice
+	 */
+	struct pipe_inode_info *splice_pipe;
 };
 
 static inline pid_t process_group(struct task_struct *tsk)

@@ -34,6 +34,7 @@
 #include <linux/mutex.h>
 #include <linux/futex.h>
 #include <linux/compat.h>
+#include <linux/pipe_fs_i.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -940,6 +941,9 @@ fastcall NORET_TYPE void do_exit(long code)
 
 	if (tsk->io_context)
 		exit_io_context();
+
+	if (tsk->splice_pipe)
+		__free_pipe_info(tsk->splice_pipe);
 
 	/* PF_DEAD causes final put_task_struct after we schedule. */
 	preempt_disable();
