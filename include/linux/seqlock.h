@@ -73,7 +73,7 @@ static inline int write_tryseqlock(seqlock_t *sl)
 }
 
 /* Start of read calculation -- fetch last complete writer token */
-static inline unsigned read_seqbegin(const seqlock_t *sl)
+static __always_inline unsigned read_seqbegin(const seqlock_t *sl)
 {
 	unsigned ret = sl->sequence;
 	smp_rmb();
@@ -88,7 +88,7 @@ static inline unsigned read_seqbegin(const seqlock_t *sl)
  *    
  * Using xor saves one conditional branch.
  */
-static inline int read_seqretry(const seqlock_t *sl, unsigned iv)
+static __always_inline int read_seqretry(const seqlock_t *sl, unsigned iv)
 {
 	smp_rmb();
 	return (iv & 1) | (sl->sequence ^ iv);
