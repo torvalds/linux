@@ -1456,7 +1456,14 @@ static void *kmem_getpages(struct kmem_cache *cachep, gfp_t flags, int nodeid)
 	int i;
 
 	flags |= cachep->gfpflags;
+#ifndef CONFIG_MMU
+	/* nommu uses slab's for process anonymous memory allocations, so
+	 * requires __GFP_COMP to properly refcount higher order allocations"
+	 */
+	page = alloc_pages_node(nodeid, (flags | __GFP_COMP), cachep->gfporder);
+#else
 	page = alloc_pages_node(nodeid, flags, cachep->gfporder);
+#endif
 	if (!page)
 		return NULL;
 	addr = page_address(page);
