@@ -168,10 +168,8 @@ static int audit_filter_rules(struct task_struct *tsk,
 			      struct audit_context *ctx,
 			      enum audit_state *state)
 {
-	int i, j;
+	int i, j, need_sid = 1;
 	u32 sid;
-
-	selinux_task_ctxid(tsk, &sid);
 
 	for (i = 0; i < rule->field_count; i++) {
 		struct audit_field *f = &rule->fields[i];
@@ -271,11 +269,16 @@ static int audit_filter_rules(struct task_struct *tsk,
 			   match for now to avoid losing information that
 			   may be wanted.   An error message will also be
 			   logged upon error */
-			if (f->se_rule)
+			if (f->se_rule) {
+				if (need_sid) {
+					selinux_task_ctxid(tsk, &sid);
+					need_sid = 0;
+				}
 				result = selinux_audit_rule_match(sid, f->type,
 				                                  f->op,
 				                                  f->se_rule,
 				                                  ctx);
+			}
 			break;
 		case AUDIT_ARG0:
 		case AUDIT_ARG1:
