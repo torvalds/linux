@@ -379,23 +379,3 @@ static struct pci_driver ehci_pci_driver = {
 	.resume =	usb_hcd_pci_resume,
 #endif
 };
-
-static int __init ehci_hcd_pci_init(void)
-{
-	if (usb_disabled())
-		return -ENODEV;
-
-	pr_debug("%s: block sizes: qh %Zd qtd %Zd itd %Zd sitd %Zd\n",
-		hcd_name,
-		sizeof(struct ehci_qh), sizeof(struct ehci_qtd),
-		sizeof(struct ehci_itd), sizeof(struct ehci_sitd));
-
-	return pci_register_driver(&ehci_pci_driver);
-}
-module_init(ehci_hcd_pci_init);
-
-static void __exit ehci_hcd_pci_cleanup(void)
-{
-	pci_unregister_driver(&ehci_pci_driver);
-}
-module_exit(ehci_hcd_pci_cleanup);
