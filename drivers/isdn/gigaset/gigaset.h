@@ -902,47 +902,9 @@ static inline void gigaset_rcv_error(struct sk_buff *procskb,
 /* bitwise byte inversion table */
 extern __u8 gigaset_invtab[];	/* in common.c */
 
-
 /* append received bytes to inbuf */
-static inline int gigaset_fill_inbuf(struct inbuf_t *inbuf,
-				     const unsigned char *src,
-				     unsigned numbytes)
-{
-	unsigned n, head, tail, bytesleft;
-
-	gig_dbg(DEBUG_INTR, "received %u bytes", numbytes);
-
-	if (!numbytes)
-		return 0;
-
-	bytesleft = numbytes;
-	tail = atomic_read(&inbuf->tail);
-	head = atomic_read(&inbuf->head);
-	gig_dbg(DEBUG_INTR, "buffer state: %u -> %u", head, tail);
-
-	while (bytesleft) {
-		if (head > tail)
-			n = head - 1 - tail;
-		else if (head == 0)
-			n = (RBUFSIZE-1) - tail;
-		else
-			n = RBUFSIZE - tail;
-		if (!n) {
-			dev_err(inbuf->cs->dev,
-				"buffer overflow (%u bytes lost)", bytesleft);
-			break;
-		}
-		if (n > bytesleft)
-			n = bytesleft;
-		memcpy(inbuf->data + tail, src, n);
-		bytesleft -= n;
-		tail = (tail + n) % RBUFSIZE;
-		src += n;
-	}
-	gig_dbg(DEBUG_INTR, "setting tail to %u", tail);
-	atomic_set(&inbuf->tail, tail);
-	return numbytes != bytesleft;
-}
+int gigaset_fill_inbuf(struct inbuf_t *inbuf, const unsigned char *src,
+		       unsigned numbytes);
 
 /* ===========================================================================
  *  Functions implemented in interface.c

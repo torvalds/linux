@@ -521,6 +521,47 @@ static void gigaset_inbuf_init(struct inbuf_t *inbuf, struct bc_state *bcs,
 	inbuf->inputstate = inputstate;
 }
 
+/* append received bytes to inbuf */
+int gigaset_fill_inbuf(struct inbuf_t *inbuf, const unsigned char *src,
+		       unsigned numbytes)
+{
+	unsigned n, head, tail, bytesleft;
+
+	gig_dbg(DEBUG_INTR, "received %u bytes", numbytes);
+
+	if (!numbytes)
+		return 0;
+
+	bytesleft = numbytes;
+	tail = atomic_read(&inbuf->tail);
+	head = atomic_read(&inbuf->head);
+	gig_dbg(DEBUG_INTR, "buffer state: %u -> %u", head, tail);
+
+	while (bytesleft) {
+		if (head > tail)
+			n = head - 1 - tail;
+		else if (head == 0)
+			n = (RBUFSIZE-1) - tail;
+		else
+			n = RBUFSIZE - tail;
+		if (!n) {
+			dev_err(inbuf->cs->dev,
+				"buffer overflow (%u bytes lost)", bytesleft);
+			break;
+		}
+		if (n > bytesleft)
+			n = bytesleft;
+		memcpy(inbuf->data + tail, src, n);
+		bytesleft -= n;
+		tail = (tail + n) % RBUFSIZE;
+		src += n;
+	}
+	gig_dbg(DEBUG_INTR, "setting tail to %u", tail);
+	atomic_set(&inbuf->tail, tail);
+	return numbytes != bytesleft;
+}
+EXPORT_SYMBOL_GPL(gigaset_fill_inbuf);
+
 /* Initialize the b-channel structure */
 static struct bc_state *gigaset_initbcs(struct bc_state *bcs,
 					struct cardstate *cs, int channel)
