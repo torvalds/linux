@@ -1206,7 +1206,7 @@ extern void wait_task_inactive(task_t * p);
 /* de_thread depends on thread_group_leader not being a pid based check */
 #define thread_group_leader(p)	(p == p->group_leader)
 
-static inline task_t *next_thread(task_t *p)
+static inline task_t *next_thread(const task_t *p)
 {
 	return list_entry(rcu_dereference(p->thread_group.next),
 				task_t, thread_group);
