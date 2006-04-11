@@ -474,6 +474,12 @@ static int sil24_softreset(struct ata_port *ap, unsigned int *class)
 	irq_enable = readl(port + PORT_IRQ_ENABLE_SET);
 	writel(irq_enable, port + PORT_IRQ_ENABLE_CLR);
 
+	/* put the port into known state */
+	if (sil24_init_port(ap)) {
+		reason ="port not ready";
+		goto err;
+	}
+
 	/*
 	 * XXX: Not sure whether the following sleep is needed or not.
 	 * The original driver had it.  So....
