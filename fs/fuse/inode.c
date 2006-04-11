@@ -216,6 +216,7 @@ static void fuse_put_super(struct super_block *sb)
 	spin_unlock(&fuse_lock);
 	up_write(&fc->sbput_sem);
 	/* Flush all readers on this fs */
+	kill_fasync(&fc->fasync, SIGIO, POLL_IN);
 	wake_up_all(&fc->waitq);
 	kobject_del(&fc->kobj);
 	kobject_put(&fc->kobj);

@@ -318,6 +318,9 @@ struct fuse_conn {
 
 	/** kobject */
 	struct kobject kobj;
+
+	/** O_ASYNC requests */
+	struct fasync_struct *fasync;
 };
 
 static inline struct fuse_conn *get_fuse_conn_super(struct super_block *sb)
