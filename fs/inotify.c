@@ -538,7 +538,7 @@ void inotify_d_instantiate(struct dentry *entry, struct inode *inode)
 	WARN_ON(entry->d_flags & DCACHE_INOTIFY_PARENT_WATCHED);
 	spin_lock(&entry->d_lock);
 	parent = entry->d_parent;
-	if (inotify_inode_watched(parent->d_inode))
+	if (parent->d_inode && inotify_inode_watched(parent->d_inode))
 		entry->d_flags |= DCACHE_INOTIFY_PARENT_WATCHED;
 	spin_unlock(&entry->d_lock);
 }
