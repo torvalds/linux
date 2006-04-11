@@ -437,6 +437,22 @@ static void sil24_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
 	*tf = pp->tf;
 }
 
+static int sil24_init_port(struct ata_port *ap)
+{
+	void __iomem *port = (void __iomem *)ap->ioaddr.cmd_addr;
+	u32 tmp;
+
+	writel(PORT_CS_INIT, port + PORT_CTRL_STAT);
+	ata_wait_register(port + PORT_CTRL_STAT,
+			  PORT_CS_INIT, PORT_CS_INIT, 10, 100);
+	tmp = ata_wait_register(port + PORT_CTRL_STAT,
+				PORT_CS_RDY, 0, 10, 100);
+
+	if ((tmp & (PORT_CS_INIT | PORT_CS_RDY)) != PORT_CS_RDY)
+		return -EIO;
+	return 0;
+}
+
 static int sil24_softreset(struct ata_port *ap, unsigned int *class)
 {
 	void __iomem *port = (void __iomem *)ap->ioaddr.cmd_addr;
