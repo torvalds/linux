@@ -62,7 +62,7 @@ static void mc_work_proc(void *unused)
 	unsigned long flags;
 
 	while(!list_empty(&mc_requests)){
-		local_save_flags(flags);
+		local_irq_save(flags);
 		req = list_entry(mc_requests.next, struct mconsole_entry,
 				 list);
 		list_del(&req->list);
