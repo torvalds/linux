@@ -799,6 +799,7 @@ config PROC_KCORE
 config PROC_VMCORE
         bool "/proc/vmcore support (EXPERIMENTAL)"
         depends on PROC_FS && EXPERIMENTAL && CRASH_DUMP
+	default y
         help
         Exports the dump image of crashed kernel in ELF format.
 
