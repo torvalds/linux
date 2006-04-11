@@ -1069,11 +1069,6 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 		/* Clear port multiplier enable and resume bits */
 		writel(PORT_CS_PM_EN | PORT_CS_RESUME, port + PORT_CTRL_CLR);
-
-		/* Reset itself */
-		if (__sil24_reset_controller(port))
-			dev_printk(KERN_ERR, &pdev->dev,
-			           "failed to reset controller\n");
 	}
 
 	/* Turn on interrupts */
