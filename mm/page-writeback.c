@@ -72,13 +72,12 @@ int dirty_background_ratio = 10;
 int vm_dirty_ratio = 40;
 
 /*
- * The interval between `kupdate'-style writebacks, in centiseconds
- * (hundredths of a second)
+ * The interval between `kupdate'-style writebacks, in jiffies
  */
 int dirty_writeback_interval = 5 * HZ;
 
 /*
- * The longest number of centiseconds for which data is allowed to remain dirty
+ * The longest number of jiffies for which data is allowed to remain dirty
  */
 int dirty_expire_interval = 30 * HZ;
 
