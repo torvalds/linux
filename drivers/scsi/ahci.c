@@ -534,7 +534,7 @@ static int ahci_poll_register(void __iomem *reg, u32 mask, u32 val,
 	return -1;
 }
 
-static int ahci_softreset(struct ata_port *ap, int verbose, unsigned int *class)
+static int ahci_softreset(struct ata_port *ap, unsigned int *class)
 {
 	struct ahci_host_priv *hpriv = ap->host_set->private_data;
 	struct ahci_port_priv *pp = ap->private_data;
@@ -646,22 +646,19 @@ static int ahci_softreset(struct ata_port *ap, int verbose, unsigned int *class)
  fail_restart:
 	ahci_start_engine(ap);
  fail:
-	if (verbose)
-		printk(KERN_ERR "ata%u: softreset failed (%s)\n",
-		       ap->id, reason);
-	else
-		DPRINTK("EXIT, rc=%d reason=\"%s\"\n", rc, reason);
+	printk(KERN_ERR "ata%u: softreset failed (%s)\n",
+	       ap->id, reason);
 	return rc;
 }
 
-static int ahci_hardreset(struct ata_port *ap, int verbose, unsigned int *class)
+static int ahci_hardreset(struct ata_port *ap, unsigned int *class)
 {
 	int rc;
 
 	DPRINTK("ENTER\n");
 
 	ahci_stop_engine(ap);
-	rc = sata_std_hardreset(ap, verbose, class);
+	rc = sata_std_hardreset(ap, class);
 	ahci_start_engine(ap);
 
 	if (rc == 0)

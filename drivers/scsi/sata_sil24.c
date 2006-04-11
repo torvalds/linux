@@ -426,8 +426,7 @@ static void sil24_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
 	*tf = pp->tf;
 }
 
-static int sil24_softreset(struct ata_port *ap, int verbose,
-			   unsigned int *class)
+static int sil24_softreset(struct ata_port *ap, unsigned int *class)
 {
 	void __iomem *port = (void __iomem *)ap->ioaddr.cmd_addr;
 	struct sil24_port_priv *pp = ap->private_data;
@@ -489,13 +488,12 @@ static int sil24_softreset(struct ata_port *ap, int verbose,
 	return 0;
 }
 
-static int sil24_hardreset(struct ata_port *ap, int verbose,
-			   unsigned int *class)
+static int sil24_hardreset(struct ata_port *ap, unsigned int *class)
 {
 	unsigned int dummy_class;
 
 	/* sil24 doesn't report device signature after hard reset */
-	return sata_std_hardreset(ap, verbose, &dummy_class);
+	return sata_std_hardreset(ap, &dummy_class);
 }
 
 static int sil24_probe_reset(struct ata_port *ap, unsigned int *classes)

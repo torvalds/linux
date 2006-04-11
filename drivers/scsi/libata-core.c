@@ -2387,7 +2387,6 @@ void ata_std_probeinit(struct ata_port *ap)
 /**
  *	ata_std_softreset - reset host port via ATA SRST
  *	@ap: port to reset
- *	@verbose: fail verbosely
  *	@classes: resulting classes of attached devices
  *
  *	Reset host port using ATA SRST.  This function is to be used
@@ -2399,7 +2398,7 @@ void ata_std_probeinit(struct ata_port *ap)
  *	RETURNS:
  *	0 on success, -errno otherwise.
  */
-int ata_std_softreset(struct ata_port *ap, int verbose, unsigned int *classes)
+int ata_std_softreset(struct ata_port *ap, unsigned int *classes)
 {
 	unsigned int slave_possible = ap->flags & ATA_FLAG_SLAVE_POSS;
 	unsigned int devmask = 0, err_mask;
@@ -2425,12 +2424,8 @@ int ata_std_softreset(struct ata_port *ap, int verbose, unsigned int *classes)
 	DPRINTK("about to softreset, devmask=%x\n", devmask);
 	err_mask = ata_bus_softreset(ap, devmask);
 	if (err_mask) {
-		if (verbose)
-			printk(KERN_ERR "ata%u: SRST failed (err_mask=0x%x)\n",
-			       ap->id, err_mask);
-		else
-			DPRINTK("EXIT, softreset failed (err_mask=0x%x)\n",
-				err_mask);
+		printk(KERN_ERR "ata%u: SRST failed (err_mask=0x%x)\n",
+		       ap->id, err_mask);
 		return -EIO;
 	}
 
@@ -2447,7 +2442,6 @@ int ata_std_softreset(struct ata_port *ap, int verbose, unsigned int *classes)
 /**
  *	sata_std_hardreset - reset host port via SATA phy reset
  *	@ap: port to reset
- *	@verbose: fail verbosely
  *	@class: resulting class of attached device
  *
  *	SATA phy-reset host port using DET bits of SControl register.
@@ -2460,7 +2454,7 @@ int ata_std_softreset(struct ata_port *ap, int verbose, unsigned int *classes)
  *	RETURNS:
  *	0 on success, -errno otherwise.
  */
-int sata_std_hardreset(struct ata_port *ap, int verbose, unsigned int *class)
+int sata_std_hardreset(struct ata_port *ap, unsigned int *class)
 {
 	u32 scontrol;
 
@@ -2500,11 +2494,8 @@ int sata_std_hardreset(struct ata_port *ap, int verbose, unsigned int *class)
 	}
 
 	if (ata_busy_sleep(ap, ATA_TMOUT_BOOT_QUICK, ATA_TMOUT_BOOT)) {
-		if (verbose)
-			printk(KERN_ERR "ata%u: COMRESET failed "
-			       "(device not ready)\n", ap->id);
-		else
-			DPRINTK("EXIT, device not ready\n");
+		printk(KERN_ERR "ata%u: COMRESET failed "
+		       "(device not ready)\n", ap->id);
 		return -EIO;
 	}
 
@@ -2592,16 +2583,15 @@ int ata_std_probe_reset(struct ata_port *ap, unsigned int *classes)
 				     ata_std_postreset, classes);
 }
 
-int ata_do_reset(struct ata_port *ap,
-		 ata_reset_fn_t reset, ata_postreset_fn_t postreset,
-		 int verbose, unsigned int *classes)
+int ata_do_reset(struct ata_port *ap, ata_reset_fn_t reset,
+		 ata_postreset_fn_t postreset, unsigned int *classes)
 {
 	int i, rc;
 
 	for (i = 0; i < ATA_MAX_DEVICES; i++)
 		classes[i] = ATA_DEV_UNKNOWN;
 
-	rc = reset(ap, verbose, classes);
+	rc = reset(ap, classes);
 	if (rc)
 		return rc;
 
@@ -2645,8 +2635,6 @@ int ata_do_reset(struct ata_port *ap,
  *	- If classification is supported, fill classes[] with
  *	  recognized class codes.
  *	- If classification is not supported, leave classes[] alone.
- *	- If verbose is non-zero, print error message on failure;
- *	  otherwise, shut up.
  *
  *	LOCKING:
  *	Kernel thread context (may sleep)
@@ -2666,7 +2654,7 @@ int ata_drive_probe_reset(struct ata_port *ap, ata_probeinit_fn_t probeinit,
 		probeinit(ap);
 
 	if (softreset && !ata_set_sata_spd_needed(ap)) {
-		rc = ata_do_reset(ap, softreset, postreset, 0, classes);
+		rc = ata_do_reset(ap, softreset, postreset, classes);
 		if (rc == 0 && classes[0] != ATA_DEV_UNKNOWN)
 			goto done;
 		printk(KERN_INFO "ata%u: softreset failed, will try "
@@ -2678,7 +2666,7 @@ int ata_drive_probe_reset(struct ata_port *ap, ata_probeinit_fn_t probeinit,
 		goto done;
 
 	while (1) {
-		rc = ata_do_reset(ap, hardreset, postreset, 0, classes);
+		rc = ata_do_reset(ap, hardreset, postreset, classes);
 		if (rc == 0) {
 			if (classes[0] != ATA_DEV_UNKNOWN)
 				goto done;
@@ -2699,7 +2687,7 @@ int ata_drive_probe_reset(struct ata_port *ap, ata_probeinit_fn_t probeinit,
 		       ap->id);
 		ssleep(5);
 
-		rc = ata_do_reset(ap, softreset, postreset, 0, classes);
+		rc = ata_do_reset(ap, softreset, postreset, classes);
 	}
 
  done:

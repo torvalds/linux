@@ -56,10 +56,8 @@ extern int ata_set_sata_spd_needed(struct ata_port *ap);
 extern int ata_down_xfermask_limit(struct ata_port *ap, struct ata_device *dev,
 				   int force_pio0);
 extern int ata_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev);
-extern int ata_do_reset(struct ata_port *ap,
-			ata_reset_fn_t reset,
-			ata_postreset_fn_t postreset,
-			int verbose, unsigned int *classes);
+extern int ata_do_reset(struct ata_port *ap, ata_reset_fn_t reset,
+			ata_postreset_fn_t postreset, unsigned int *classes);
 extern void ata_qc_free(struct ata_queued_cmd *qc);
 extern void ata_qc_issue(struct ata_queued_cmd *qc);
 extern int ata_check_atapi_dma(struct ata_queued_cmd *qc);
