@@ -414,37 +414,6 @@ static struct fuse_conn *new_conn(void)
 	return fc;
 }
 
-static struct fuse_conn *get_conn(struct file *file, struct super_block *sb)
-{
-	struct fuse_conn *fc;
-	int err;
-
-	err = -EINVAL;
-	if (file->f_op != &fuse_dev_operations)
-		goto out_err;
-
-	err = -ENOMEM;
-	fc = new_conn();
-	if (!fc)
-		goto out_err;
-
-	spin_lock(&fuse_lock);
-	err = -EINVAL;
-	if (file->private_data)
-		goto out_unlock;
-
-	kobject_get(&fc->kobj);
-	file->private_data = fc;
-	spin_unlock(&fuse_lock);
-	return fc;
-
- out_unlock:
-	spin_unlock(&fuse_lock);
-	kobject_put(&fc->kobj);
- out_err:
-	return ERR_PTR(err);
-}
-
 static struct inode *get_root_inode(struct super_block *sb, unsigned mode)
 {
 	struct fuse_attr attr;
@@ -526,12 +495,9 @@ static void fuse_send_init(struct fuse_conn *fc)
 
 static unsigned long long conn_id(void)
 {
+	/* BKL is held for ->get_sb() */
 	static unsigned long long ctr = 1;
-	unsigned long long val;
-	spin_lock(&fuse_lock);
-	val = ctr++;
-	spin_unlock(&fuse_lock);
-	return val;
+	return ctr++;
 }
 
 static int fuse_fill_super(struct super_block *sb, void *data, int silent)
@@ -556,10 +522,17 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	if (!file)
 		return -EINVAL;
 
-	fc = get_conn(file, sb);
-	fput(file);
-	if (IS_ERR(fc))
-		return PTR_ERR(fc);
+	if (file->f_op != &fuse_dev_operations)
+		return -EINVAL;
+
+	/* Setting file->private_data can't race with other mount()
+	   instances, since BKL is held for ->get_sb() */
+	if (file->private_data)
+		return -EINVAL;
+
+	fc = new_conn();
+	if (!fc)
+		return -ENOMEM;
 
 	fc->flags = d.flags;
 	fc->user_id = d.user_id;
@@ -589,10 +562,16 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 		goto err_put_root;
 
 	sb->s_root = root_dentry;
-	spin_lock(&fuse_lock);
 	fc->mounted = 1;
 	fc->connected = 1;
-	spin_unlock(&fuse_lock);
+	kobject_get(&fc->kobj);
+	file->private_data = fc;
+	/*
+	 * atomic_dec_and_test() in fput() provides the necessary
+	 * memory barrier for file->private_data to be visible on all
+	 * CPUs after this
+	 */
+	fput(file);
 
 	fuse_send_init(fc);
 
@@ -601,6 +580,7 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
  err_put_root:
 	dput(root_dentry);
  err:
+	fput(file);
 	kobject_put(&fc->kobj);
 	return err;
 }

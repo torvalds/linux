@@ -23,13 +23,11 @@ static kmem_cache_t *fuse_req_cachep;
 
 static struct fuse_conn *fuse_get_conn(struct file *file)
 {
-	struct fuse_conn *fc;
-	spin_lock(&fuse_lock);
-	fc = file->private_data;
-	if (fc && !fc->connected)
-		fc = NULL;
-	spin_unlock(&fuse_lock);
-	return fc;
+	/*
+	 * Lockless access is OK, because file->private data is set
+	 * once during mount and is valid until the file is released.
+	 */
+	return file->private_data;
 }
 
 static void fuse_request_init(struct fuse_req *req)
@@ -607,19 +605,16 @@ static ssize_t fuse_dev_readv(struct file *file, const struct iovec *iov,
 			      unsigned long nr_segs, loff_t *off)
 {
 	int err;
-	struct fuse_conn *fc;
 	struct fuse_req *req;
 	struct fuse_in *in;
 	struct fuse_copy_state cs;
 	unsigned reqsize;
+	struct fuse_conn *fc = fuse_get_conn(file);
+	if (!fc)
+		return -EPERM;
 
  restart:
 	spin_lock(&fuse_lock);
-	fc = file->private_data;
-	err = -EPERM;
-	if (!fc)
-		goto err_unlock;
-
 	err = -EAGAIN;
 	if ((file->f_flags & O_NONBLOCK) && fc->connected &&
 	    list_empty(&fc->pending))
@@ -915,17 +910,13 @@ void fuse_abort_conn(struct fuse_conn *fc)
 
 static int fuse_dev_release(struct inode *inode, struct file *file)
 {
-	struct fuse_conn *fc;
-
-	spin_lock(&fuse_lock);
-	fc = file->private_data;
+	struct fuse_conn *fc = fuse_get_conn(file);
 	if (fc) {
+		spin_lock(&fuse_lock);
 		fc->connected = 0;
 		end_requests(fc, &fc->pending);
 		end_requests(fc, &fc->processing);
-	}
-	spin_unlock(&fuse_lock);
-	if (fc) {
+		spin_unlock(&fuse_lock);
 		fasync_helper(-1, file, 0, &fc->fasync);
 		kobject_put(&fc->kobj);
 	}
