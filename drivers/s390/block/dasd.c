@@ -1968,7 +1968,7 @@ int
 dasd_generic_set_offline (struct ccw_device *cdev)
 {
 	struct dasd_device *device;
-	int max_count;
+	int max_count, open_count;
 
 	device = dasd_device_from_cdev(cdev);
 	if (IS_ERR(device))
@@ -1985,10 +1985,16 @@ dasd_generic_set_offline (struct ccw_device *cdev)
 	 * in the other openers.
 	 */
 	max_count = device->bdev ? 0 : -1;
-	if (atomic_read(&device->open_count) > max_count) {
-		printk (KERN_WARNING "Can't offline dasd device with open"
-			" count = %i.\n",
-			atomic_read(&device->open_count));
+	open_count = (int) atomic_read(&device->open_count);
+	if (open_count > max_count) {
+		if (open_count > 0)
+			printk (KERN_WARNING "Can't offline dasd device with "
+				"open count = %i.\n",
+				open_count);
+		else
+			printk (KERN_WARNING "%s",
+				"Can't offline dasd device due to internal "
+				"use\n");
 		clear_bit(DASD_FLAG_OFFLINE, &device->flags);
 		dasd_put_device(device);
 		return -EBUSY;
