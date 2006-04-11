@@ -143,7 +143,7 @@ enum {
 	PORT_IRQ_PHYRDY_CHG	= (1 << 4), /* PHY ready change */
 	PORT_IRQ_COMWAKE	= (1 << 5), /* COMWAKE received */
 	PORT_IRQ_UNK_FIS	= (1 << 6), /* Unknown FIS received */
-	PORT_IRQ_SDB_FIS	= (1 << 11), /* SDB FIS received */
+	PORT_IRQ_SDB_NOTIFY	= (1 << 11), /* SDB notify received */
 
 	/* bits[27:16] are unmasked (raw) */
 	PORT_IRQ_RAW_SHIFT	= 16,
@@ -974,8 +974,8 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 		/* Configure interrupts */
 		writel(0xffff, port + PORT_IRQ_ENABLE_CLR);
-		writel(PORT_IRQ_COMPLETE | PORT_IRQ_ERROR | PORT_IRQ_SDB_FIS,
-		       port + PORT_IRQ_ENABLE_SET);
+		writel(PORT_IRQ_COMPLETE | PORT_IRQ_ERROR |
+		       PORT_IRQ_SDB_NOTIFY, port + PORT_IRQ_ENABLE_SET);
 
 		/* Clear interrupts */
 		writel(0x0fff0fff, port + PORT_IRQ_STAT);
