@@ -2195,6 +2195,7 @@ static int ptmx_open(struct inode * inode, struct file * filp)
 		return 0;
 out1:
 	release_dev(filp);
+	return retval;
 out:
 	down(&allocated_ptys_lock);
 	idr_remove(&allocated_ptys, index);
