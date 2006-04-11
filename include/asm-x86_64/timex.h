@@ -33,7 +33,7 @@ static __always_inline cycles_t get_cycles_sync(void)
 	unsigned eax;
 	/* Don't do an additional sync on CPUs where we know
 	   RDTSC is already synchronous. */
-	alternative_io(ASM_NOP2, "cpuid", X86_FEATURE_SYNC_RDTSC,
+	alternative_io("cpuid", ASM_NOP2, X86_FEATURE_SYNC_RDTSC,
 			  "=a" (eax), "0" (1) : "ebx","ecx","edx","memory");
 	rdtscll(ret);
 	return ret;
