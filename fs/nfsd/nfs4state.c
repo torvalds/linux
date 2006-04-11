@@ -3238,8 +3238,6 @@ __nfs4_state_shutdown(void)
 	}
 
 	cancel_delayed_work(&laundromat_work);
-	flush_workqueue(laundry_wq);
-	destroy_workqueue(laundry_wq);
 	nfsd4_shutdown_recdir();
 	nfs4_init = 0;
 }
@@ -3247,6 +3245,8 @@ __nfs4_state_shutdown(void)
 void
 nfs4_state_shutdown(void)
 {
+	cancel_rearming_delayed_workqueue(laundry_wq, &laundromat_work);
+	destroy_workqueue(laundry_wq);
 	nfs4_lock_state();
 	nfs4_release_reclaim();
 	__nfs4_state_shutdown();
