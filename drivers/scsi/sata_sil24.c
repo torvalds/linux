@@ -481,7 +481,7 @@ static int sil24_softreset(struct ata_port *ap, unsigned int *class)
 	}
 
 	/* do SRST */
-	prb->ctrl = PRB_CTRL_SRST;
+	prb->ctrl = cpu_to_le16(PRB_CTRL_SRST);
 	prb->fis[1] = 0; /* no PM yet */
 
 	writel((u32)paddr, port + PORT_CMD_ACTIVATE);
@@ -597,6 +597,7 @@ static void sil24_qc_prep(struct ata_queued_cmd *qc)
 	union sil24_cmd_block *cb = pp->cmd_block + qc->tag;
 	struct sil24_prb *prb;
 	struct sil24_sge *sge;
+	u16 ctrl = 0;
 
 	switch (qc->tf.protocol) {
 	case ATA_PROT_PIO:
@@ -604,7 +605,6 @@ static void sil24_qc_prep(struct ata_queued_cmd *qc)
 	case ATA_PROT_NODATA:
 		prb = &cb->ata.prb;
 		sge = cb->ata.sge;
-		prb->ctrl = 0;
 		break;
 
 	case ATA_PROT_ATAPI:
@@ -617,12 +617,10 @@ static void sil24_qc_prep(struct ata_queued_cmd *qc)
 
 		if (qc->tf.protocol != ATA_PROT_ATAPI_NODATA) {
 			if (qc->tf.flags & ATA_TFLAG_WRITE)
-				prb->ctrl = PRB_CTRL_PACKET_WRITE;
+				ctrl = PRB_CTRL_PACKET_WRITE;
 			else
-				prb->ctrl = PRB_CTRL_PACKET_READ;
-		} else
-			prb->ctrl = 0;
-
+				ctrl = PRB_CTRL_PACKET_READ;
+		}
 		break;
 
 	default:
@@ -631,6 +629,7 @@ static void sil24_qc_prep(struct ata_queued_cmd *qc)
 		BUG();
 	}
 
+	prb->ctrl = cpu_to_le16(ctrl);
 	ata_tf_to_fis(&qc->tf, prb->fis, 0);
 
 	if (qc->flags & ATA_QCFLAG_DMAMAP)
