@@ -274,11 +274,6 @@ static int putreg(struct task_struct *child,
 				return -EIO;
 			value &= 0xffff;
 			break;
-		case offsetof(struct user_regs_struct, rip):
-			/* Check if the new RIP address is canonical */
-			if (value >= TASK_SIZE_OF(child))
-				return -EIO;
-			break;
 	}
 	put_stack_long(child, regno - sizeof(struct pt_regs), value);
 	return 0;
