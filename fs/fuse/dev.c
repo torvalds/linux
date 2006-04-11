@@ -619,6 +619,12 @@ static ssize_t fuse_dev_readv(struct file *file, const struct iovec *iov,
 	err = -EPERM;
 	if (!fc)
 		goto err_unlock;
+
+	err = -EAGAIN;
+	if ((file->f_flags & O_NONBLOCK) && fc->connected &&
+	    list_empty(&fc->pending))
+		goto err_unlock;
+
 	request_wait(fc);
 	err = -ENODEV;
 	if (!fc->connected)
