@@ -142,7 +142,7 @@ static __init void unreachable_devices(void)
 {
 	int i, k;
 	/* Use the max bus number from ACPI here? */
-	for (k = 0; i < MAX_CHECK_BUS; k++) {
+	for (k = 0; k < MAX_CHECK_BUS; k++) {
 		for (i = 0; i < 32; i++) {
 			u32 val1;
 			char __iomem *addr;
