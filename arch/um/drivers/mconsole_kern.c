@@ -87,7 +87,7 @@ static irqreturn_t mconsole_interrupt(int irq, void *dev_id,
 		if(req.cmd->context == MCONSOLE_INTR)
 			(*req.cmd->handler)(&req);
 		else {
-			new = kmalloc(sizeof(*new), GFP_ATOMIC);
+			new = kmalloc(sizeof(*new), GFP_NOWAIT);
 			if(new == NULL)
 				mconsole_reply(&req, "Out of memory", 1, 0);
 			else {
@@ -415,7 +415,6 @@ static int mem_config(char *str)
 
 			unplugged = page_address(page);
 			if(unplug_index == UNPLUGGED_PER_PAGE){
-				INIT_LIST_HEAD(&unplugged->list);
 				list_add(&unplugged->list, &unplugged_pages);
 				unplug_index = 0;
 			}
@@ -655,7 +654,6 @@ static void with_console(struct mc_request *req, void (*proc)(void *),
 	struct mconsole_entry entry;
 	unsigned long flags;
 
-	INIT_LIST_HEAD(&entry.list);
 	entry.request = *req;
 	list_add(&entry.list, &clients);
 	spin_lock_irqsave(&console_lock, flags);
