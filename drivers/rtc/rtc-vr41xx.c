@@ -1,7 +1,7 @@
 /*
- *  Driver for NEC VR4100 series  Real Time Clock unit.
+ *  Driver for NEC VR4100 series Real Time Clock unit.
  *
- *  Copyright (C) 2003-2005  Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
+ *  Copyright (C) 2003-2006  Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -17,23 +17,18 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-#include <linux/platform_device.h>
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/irq.h>
-#include <linux/mc146818rtc.h>
-#include <linux/miscdevice.h>
 #include <linux/module.h>
-#include <linux/poll.h>
+#include <linux/platform_device.h>
 #include <linux/rtc.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
-#include <linux/wait.h>
 
 #include <asm/div64.h>
 #include <asm/io.h>
-#include <asm/time.h>
 #include <asm/uaccess.h>
 #include <asm/vr41xx/vr41xx.h>
 
@@ -99,26 +94,10 @@ static void __iomem *rtc2_base;
 
 static unsigned long epoch = 1970;	/* Jan 1 1970 00:00:00 */
 
-static spinlock_t rtc_task_lock;
-static wait_queue_head_t rtc_wait;
-static unsigned long rtc_irq_data;
-static struct fasync_struct *rtc_async_queue;
-static rtc_task_t *rtc_callback;
+static spinlock_t rtc_lock = SPIN_LOCK_UNLOCKED;
 static char rtc_name[] = "RTC";
 static unsigned long periodic_frequency;
 static unsigned long periodic_count;
-
-typedef enum {
-	RTC_RELEASE,
-	RTC_OPEN,
-} rtc_status_t;
-
-static rtc_status_t rtc_status;
-
-typedef enum {
-	FUNCTION_RTC_IOCTL,
-	FUNCTION_RTC_CONTROL,
-} rtc_callfrom_t;
 
 struct resource rtc_resource[2] = {
 	{	.name	= rtc_name,
@@ -129,7 +108,9 @@ struct resource rtc_resource[2] = {
 
 static inline unsigned long read_elapsed_second(void)
 {
+
 	unsigned long first_low, first_mid, first_high;
+
 	unsigned long second_low, second_mid, second_high;
 
 	do {
@@ -156,9 +137,70 @@ static inline void write_elapsed_second(unsigned long sec)
 	spin_unlock_irq(&rtc_lock);
 }
 
-static void set_alarm(struct rtc_time *time)
+static void vr41xx_rtc_release(struct device *dev)
+{
+
+	spin_lock_irq(&rtc_lock);
+
+	rtc1_write(ECMPLREG, 0);
+	rtc1_write(ECMPMREG, 0);
+	rtc1_write(ECMPHREG, 0);
+	rtc1_write(RTCL1LREG, 0);
+	rtc1_write(RTCL1HREG, 0);
+
+	spin_unlock_irq(&rtc_lock);
+
+	disable_irq(ELAPSEDTIME_IRQ);
+	disable_irq(RTCLONG1_IRQ);
+}
+
+static int vr41xx_rtc_read_time(struct device *dev, struct rtc_time *time)
+{
+	unsigned long epoch_sec, elapsed_sec;
+
+	epoch_sec = mktime(epoch, 1, 1, 0, 0, 0);
+	elapsed_sec = read_elapsed_second();
+
+	rtc_time_to_tm(epoch_sec + elapsed_sec, time);
+
+	return 0;
+}
+
+static int vr41xx_rtc_set_time(struct device *dev, struct rtc_time *time)
+{
+	unsigned long epoch_sec, current_sec;
+
+	epoch_sec = mktime(epoch, 1, 1, 0, 0, 0);
+	current_sec = mktime(time->tm_year + 1900, time->tm_mon + 1, time->tm_mday,
+	                     time->tm_hour, time->tm_min, time->tm_sec);
+
+	write_elapsed_second(current_sec - epoch_sec);
+
+	return 0;
+}
+
+static int vr41xx_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *wkalrm)
+{
+	unsigned long low, mid, high;
+	struct rtc_time *time = &wkalrm->time;
+
+	spin_lock_irq(&rtc_lock);
+
+	low = rtc1_read(ECMPLREG);
+	mid = rtc1_read(ECMPMREG);
+	high = rtc1_read(ECMPHREG);
+
+	spin_unlock_irq(&rtc_lock);
+
+	rtc_time_to_tm((high << 17) | (mid << 1) | (low >> 15), time);
+
+	return 0;
+}
+
+static int vr41xx_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *wkalrm)
 {
 	unsigned long alarm_sec;
+	struct rtc_time *time = &wkalrm->time;
 
 	alarm_sec = mktime(time->tm_year + 1900, time->tm_mon + 1, time->tm_mday,
 	                   time->tm_hour, time->tm_min, time->tm_sec);
@@ -170,111 +212,12 @@ static void set_alarm(struct rtc_time *time)
 	rtc1_write(ECMPHREG, (uint16_t)(alarm_sec >> 17));
 
 	spin_unlock_irq(&rtc_lock);
-}
-
-static void read_alarm(struct rtc_time *time)
-{
-	unsigned long low, mid, high;
-
-	spin_lock_irq(&rtc_lock);
-
-	low = rtc1_read(ECMPLREG);
-	mid = rtc1_read(ECMPMREG);
-	high = rtc1_read(ECMPHREG);
-
-	spin_unlock_irq(&rtc_lock);
-
-	to_tm((high << 17) | (mid << 1) | (low >> 15), time);
-	time->tm_year -= 1900;
-}
-
-static void read_time(struct rtc_time *time)
-{
-	unsigned long epoch_sec, elapsed_sec;
-
-	epoch_sec = mktime(epoch, 1, 1, 0, 0, 0);
-	elapsed_sec = read_elapsed_second();
-
-	to_tm(epoch_sec + elapsed_sec, time);
-	time->tm_year -= 1900;
-}
-
-static void set_time(struct rtc_time *time)
-{
-	unsigned long epoch_sec, current_sec;
-
-	epoch_sec = mktime(epoch, 1, 1, 0, 0, 0);
-	current_sec = mktime(time->tm_year + 1900, time->tm_mon + 1, time->tm_mday,
-	                     time->tm_hour, time->tm_min, time->tm_sec);
-
-	write_elapsed_second(current_sec - epoch_sec);
-}
-
-static ssize_t rtc_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
-{
-	DECLARE_WAITQUEUE(wait, current);
-	unsigned long irq_data;
-	int retval = 0;
-
-	if (count != sizeof(unsigned int) && count != sizeof(unsigned long))
-		return -EINVAL;
-
-	add_wait_queue(&rtc_wait, &wait);
-
-	do {
-		__set_current_state(TASK_INTERRUPTIBLE);
-
-		spin_lock_irq(&rtc_lock);
-		irq_data = rtc_irq_data;
-		rtc_irq_data = 0;
-		spin_unlock_irq(&rtc_lock);
-
-		if (irq_data != 0)
-			break;
-
-		if (file->f_flags & O_NONBLOCK) {
-			retval = -EAGAIN;
-			break;
-		}
-
-		if (signal_pending(current)) {
-			retval = -ERESTARTSYS;
-			break;
-		}
-	} while (1);
-
-	if (retval == 0) {
-		if (count == sizeof(unsigned int)) {
-			retval = put_user(irq_data, (unsigned int __user *)buf);
-			if (retval == 0)
-				retval = sizeof(unsigned int);
-		} else {
-			retval = put_user(irq_data, (unsigned long __user *)buf);
-			if (retval == 0)
-				retval = sizeof(unsigned long);
-		}
-
-	}
-
-	__set_current_state(TASK_RUNNING);
-	remove_wait_queue(&rtc_wait, &wait);
-
-	return retval;
-}
-
-static unsigned int rtc_poll(struct file *file, struct poll_table_struct *table)
-{
-	poll_wait(file, &rtc_wait, table);
-
-	if (rtc_irq_data != 0)
-		return POLLIN | POLLRDNORM;
 
 	return 0;
 }
 
-static int rtc_do_ioctl(unsigned int cmd, unsigned long arg, rtc_callfrom_t from)
+static int vr41xx_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 {
-	struct rtc_time time;
 	unsigned long count;
 
 	switch (cmd) {
@@ -290,33 +233,6 @@ static int rtc_do_ioctl(unsigned int cmd, unsigned long arg, rtc_callfrom_t from
 	case RTC_PIE_OFF:
 		disable_irq(RTCLONG1_IRQ);
 		break;
-	case RTC_ALM_SET:
-		if (copy_from_user(&time, (struct rtc_time __user *)arg,
-		                   sizeof(struct rtc_time)))
-			return -EFAULT;
-
-		set_alarm(&time);
-		break;
-	case RTC_ALM_READ:
-		memset(&time, 0, sizeof(struct rtc_time));
-		read_alarm(&time);
-		break;
-	case RTC_RD_TIME:
-		memset(&time, 0, sizeof(struct rtc_time));
-		read_time(&time);
-		if (copy_to_user((void __user *)arg, &time, sizeof(struct rtc_time)))
-			return -EFAULT;
-		break;
-	case RTC_SET_TIME:
-		if (capable(CAP_SYS_TIME) == 0)
-			return -EACCES;
-
-		if (copy_from_user(&time, (struct rtc_time __user *)arg,
-		                   sizeof(struct rtc_time)))
-			return -EFAULT;
-
-		set_time(&time);
-		break;
 	case RTC_IRQP_READ:
 		return put_user(periodic_frequency, (unsigned long __user *)arg);
 		break;
@@ -324,8 +240,7 @@ static int rtc_do_ioctl(unsigned int cmd, unsigned long arg, rtc_callfrom_t from
 		if (arg > MAX_PERIODIC_RATE)
 			return -EINVAL;
 
-		if (from == FUNCTION_RTC_IOCTL && arg > MAX_USER_PERIODIC_RATE &&
-		    capable(CAP_SYS_RESOURCE) == 0)
+		if (arg > MAX_USER_PERIODIC_RATE && capable(CAP_SYS_RESOURCE) == 0)
 			return -EACCES;
 
 		periodic_frequency = arg;
@@ -361,205 +276,46 @@ static int rtc_do_ioctl(unsigned int cmd, unsigned long arg, rtc_callfrom_t from
 	return 0;
 }
 
-static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-                     unsigned long arg)
-{
-	return rtc_do_ioctl(cmd, arg, FUNCTION_RTC_IOCTL);
-}
-
-static int rtc_open(struct inode *inode, struct file *file)
-{
-	spin_lock_irq(&rtc_lock);
-
-	if (rtc_status == RTC_OPEN) {
-		spin_unlock_irq(&rtc_lock);
-		return -EBUSY;
-	}
-
-	rtc_status = RTC_OPEN;
-	rtc_irq_data = 0;
-
-	spin_unlock_irq(&rtc_lock);
-
-	return 0;
-}
-
-static int rtc_release(struct inode *inode, struct file *file)
-{
-	if (file->f_flags & FASYNC)
-		(void)fasync_helper(-1, file, 0, &rtc_async_queue);
-
-	spin_lock_irq(&rtc_lock);
-
-	rtc1_write(ECMPLREG, 0);
-	rtc1_write(ECMPMREG, 0);
-	rtc1_write(ECMPHREG, 0);
-	rtc1_write(RTCL1LREG, 0);
-	rtc1_write(RTCL1HREG, 0);
-
-	rtc_status = RTC_RELEASE;
-
-	spin_unlock_irq(&rtc_lock);
-
-	disable_irq(ELAPSEDTIME_IRQ);
-	disable_irq(RTCLONG1_IRQ);
-
-	return 0;
-}
-
-static int rtc_fasync(int fd, struct file *file, int on)
-{
-	return fasync_helper(fd, file, on, &rtc_async_queue);
-}
-
-static struct file_operations rtc_fops = {
-	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
-	.read		= rtc_read,
-	.poll		= rtc_poll,
-	.ioctl		= rtc_ioctl,
-	.open		= rtc_open,
-	.release	= rtc_release,
-	.fasync		= rtc_fasync,
-};
-
 static irqreturn_t elapsedtime_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
-	spin_lock(&rtc_lock);
+	struct platform_device *pdev = (struct platform_device *)dev_id;
+	struct rtc_device *rtc = platform_get_drvdata(pdev);
+
 	rtc2_write(RTCINTREG, ELAPSEDTIME_INT);
 
-	rtc_irq_data += 0x100;
-	rtc_irq_data &= ~0xff;
-	rtc_irq_data |= RTC_AF;
-	spin_unlock(&rtc_lock);
-
-	spin_lock(&rtc_lock);
-	if (rtc_callback)
-		rtc_callback->func(rtc_callback->private_data);
-	spin_unlock(&rtc_lock);
-
-	wake_up_interruptible(&rtc_wait);
-
-	kill_fasync(&rtc_async_queue, SIGIO, POLL_IN);
+	rtc_update_irq(&rtc->class_dev, 1, RTC_AF);
 
 	return IRQ_HANDLED;
 }
 
 static irqreturn_t rtclong1_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
+	struct platform_device *pdev = (struct platform_device *)dev_id;
+	struct rtc_device *rtc = platform_get_drvdata(pdev);
 	unsigned long count = periodic_count;
 
-	spin_lock(&rtc_lock);
 	rtc2_write(RTCINTREG, RTCLONG1_INT);
 
 	rtc1_write(RTCL1LREG, count);
 	rtc1_write(RTCL1HREG, count >> 16);
 
-	rtc_irq_data += 0x100;
-	rtc_irq_data &= ~0xff;
-	rtc_irq_data |= RTC_PF;
-	spin_unlock(&rtc_lock);
-
-	spin_lock(&rtc_task_lock);
-	if (rtc_callback)
-		rtc_callback->func(rtc_callback->private_data);
-	spin_unlock(&rtc_task_lock);
-
-	wake_up_interruptible(&rtc_wait);
-
-	kill_fasync(&rtc_async_queue, SIGIO, POLL_IN);
+	rtc_update_irq(&rtc->class_dev, 1, RTC_PF);
 
 	return IRQ_HANDLED;
 }
 
-int rtc_register(rtc_task_t *task)
-{
-	if (task == NULL || task->func == NULL)
-		return -EINVAL;
-
-	spin_lock_irq(&rtc_lock);
-	if (rtc_status == RTC_OPEN) {
-		spin_unlock_irq(&rtc_lock);
-		return -EBUSY;
-	}
-
-	spin_lock(&rtc_task_lock);
-	if (rtc_callback != NULL) {
-		spin_unlock(&rtc_task_lock);
-		spin_unlock_irq(&rtc_task_lock);
-		return -EBUSY;
-	}
-
-	rtc_callback = task;
-	spin_unlock(&rtc_task_lock);
-
-	rtc_status = RTC_OPEN;
-
-	spin_unlock_irq(&rtc_lock);
-
-	return 0;
-}
-
-EXPORT_SYMBOL_GPL(rtc_register);
-
-int rtc_unregister(rtc_task_t *task)
-{
-	spin_lock_irq(&rtc_task_lock);
-	if (task == NULL || rtc_callback != task) {
-		spin_unlock_irq(&rtc_task_lock);
-		return -ENXIO;
-	}
-
-	spin_lock(&rtc_lock);
-
-	rtc1_write(ECMPLREG, 0);
-	rtc1_write(ECMPMREG, 0);
-	rtc1_write(ECMPHREG, 0);
-	rtc1_write(RTCL1LREG, 0);
-	rtc1_write(RTCL1HREG, 0);
-
-	rtc_status = RTC_RELEASE;
-
-	spin_unlock(&rtc_lock);
-
-	rtc_callback = NULL;
-
-	spin_unlock_irq(&rtc_task_lock);
-
-	disable_irq(ELAPSEDTIME_IRQ);
-	disable_irq(RTCLONG1_IRQ);
-
-	return 0;
-}
-
-EXPORT_SYMBOL_GPL(rtc_unregister);
-
-int rtc_control(rtc_task_t *task, unsigned int cmd, unsigned long arg)
-{
-	int retval = 0;
-
-	spin_lock_irq(&rtc_task_lock);
-
-	if (rtc_callback != task)
-		retval = -ENXIO;
-	else
-		rtc_do_ioctl(cmd, arg, FUNCTION_RTC_CONTROL);
-
-	spin_unlock_irq(&rtc_task_lock);
-
-	return retval;
-}
-
-EXPORT_SYMBOL_GPL(rtc_control);
-
-static struct miscdevice rtc_miscdevice = {
-	.minor	= RTC_MINOR,
-	.name	= rtc_name,
-	.fops	= &rtc_fops,
+static struct rtc_class_ops vr41xx_rtc_ops = {
+	.release	= vr41xx_rtc_release,
+	.ioctl		= vr41xx_rtc_ioctl,
+	.read_time	= vr41xx_rtc_read_time,
+	.set_time	= vr41xx_rtc_set_time,
+	.read_alarm	= vr41xx_rtc_read_alarm,
+	.set_alarm	= vr41xx_rtc_set_alarm,
 };
 
 static int __devinit rtc_probe(struct platform_device *pdev)
 {
+	struct rtc_device *rtc;
 	unsigned int irq;
 	int retval;
 
@@ -577,13 +333,13 @@ static int __devinit rtc_probe(struct platform_device *pdev)
 		return -EBUSY;
 	}
 
-	retval = misc_register(&rtc_miscdevice);
-	if (retval < 0) {
+	rtc = rtc_device_register(rtc_name, &pdev->dev, &vr41xx_rtc_ops, THIS_MODULE);
+	if (IS_ERR(rtc)) {
 		iounmap(rtc1_base);
 		iounmap(rtc2_base);
 		rtc1_base = NULL;
 		rtc2_base = NULL;
-		return retval;
+		return PTR_ERR(rtc);
 	}
 
 	spin_lock_irq(&rtc_lock);
@@ -594,24 +350,20 @@ static int __devinit rtc_probe(struct platform_device *pdev)
 	rtc1_write(RTCL1LREG, 0);
 	rtc1_write(RTCL1HREG, 0);
 
-	rtc_status = RTC_RELEASE;
-	rtc_irq_data = 0;
-
 	spin_unlock_irq(&rtc_lock);
-
-	init_waitqueue_head(&rtc_wait);
 
 	irq = ELAPSEDTIME_IRQ;
 	retval = request_irq(irq, elapsedtime_interrupt, SA_INTERRUPT,
-	                     "elapsed_time", NULL);
+	                     "elapsed_time", pdev);
 	if (retval == 0) {
 		irq = RTCLONG1_IRQ;
 		retval = request_irq(irq, rtclong1_interrupt, SA_INTERRUPT,
-		                     "rtclong1", NULL);
+		                     "rtclong1", pdev);
 	}
 
 	if (retval < 0) {
 		printk(KERN_ERR "rtc: IRQ%d is busy\n", irq);
+		rtc_device_unregister(rtc);
 		if (irq == RTCLONG1_IRQ)
 			free_irq(ELAPSEDTIME_IRQ, NULL);
 		iounmap(rtc1_base);
@@ -621,23 +373,25 @@ static int __devinit rtc_probe(struct platform_device *pdev)
 		return retval;
 	}
 
+	platform_set_drvdata(pdev, rtc);
+
 	disable_irq(ELAPSEDTIME_IRQ);
 	disable_irq(RTCLONG1_IRQ);
-
-	spin_lock_init(&rtc_task_lock);
 
 	printk(KERN_INFO "rtc: Real Time Clock of NEC VR4100 series\n");
 
 	return 0;
 }
 
-static int __devexit rtc_remove(struct platform_device *dev)
+static int __devexit rtc_remove(struct platform_device *pdev)
 {
-	int retval;
+	struct rtc_device *rtc;
 
-	retval = misc_deregister(&rtc_miscdevice);
-	if (retval < 0)
-		return retval;
+	rtc = platform_get_drvdata(pdev);
+	if (rtc != NULL)
+		rtc_device_unregister(rtc);
+
+	platform_set_drvdata(pdev, NULL);
 
 	free_irq(ELAPSEDTIME_IRQ, NULL);
 	free_irq(RTCLONG1_IRQ, NULL);
@@ -651,7 +405,7 @@ static int __devexit rtc_remove(struct platform_device *dev)
 
 static struct platform_device *rtc_platform_device;
 
-static struct platform_driver rtc_device_driver = {
+static struct platform_driver rtc_platform_driver = {
 	.probe		= rtc_probe,
 	.remove		= __devexit_p(rtc_remove),
 	.driver		= {
@@ -686,7 +440,7 @@ static int __init vr41xx_rtc_init(void)
 	}
 
 	rtc_platform_device = platform_device_alloc("RTC", -1);
-	if (!rtc_platform_device)
+	if (rtc_platform_device == NULL)
 		return -ENOMEM;
 
 	retval = platform_device_add_resources(rtc_platform_device,
@@ -700,7 +454,7 @@ static int __init vr41xx_rtc_init(void)
 		return retval;
 	}
 
-	retval = platform_driver_register(&rtc_device_driver);
+	retval = platform_driver_register(&rtc_platform_driver);
 	if (retval < 0)
 		platform_device_unregister(rtc_platform_device);
 
@@ -709,7 +463,7 @@ static int __init vr41xx_rtc_init(void)
 
 static void __exit vr41xx_rtc_exit(void)
 {
-	platform_driver_unregister(&rtc_device_driver);
+	platform_driver_unregister(&rtc_platform_driver);
 	platform_device_unregister(rtc_platform_device);
 }
 

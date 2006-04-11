@@ -147,6 +147,10 @@ config RTC_DRV_SA1100
 	  To compile this driver as a module, choose M here: the
 	  module will be called rtc-sa1100.
 
+config RTC_DRV_VR41XX
+	tristate "NEC VR4100 series RTC"
+	depends on RTC_CLASS && CPU_VR41XX
+
 config RTC_DRV_TEST
 	tristate "Test driver/device"
 	depends on RTC_CLASS
