@@ -169,24 +169,26 @@ static struct rtc_class_ops rs5c372_rtc_ops = {
 static ssize_t rs5c372_sysfs_show_trim(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	int trim;
+	int err, trim;
 
-	if (rs5c372_get_trim(to_i2c_client(dev), NULL, &trim) == 0)
-		return sprintf(buf, "0x%2x\n", trim);
+	err = rs5c372_get_trim(to_i2c_client(dev), NULL, &trim);
+	if (err)
+		return err;
 
-	return 0;
+	return sprintf(buf, "0x%2x\n", trim);
 }
 static DEVICE_ATTR(trim, S_IRUGO, rs5c372_sysfs_show_trim, NULL);
 
 static ssize_t rs5c372_sysfs_show_osc(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	int osc;
+	int err, osc;
 
-	if (rs5c372_get_trim(to_i2c_client(dev), &osc, NULL) == 0)
-		return sprintf(buf, "%d.%03d KHz\n", osc / 1000, osc % 1000);
+	err = rs5c372_get_trim(to_i2c_client(dev), &osc, NULL);
+	if (err)
+		return err;
 
-	return 0;
+	return sprintf(buf, "%d.%03d KHz\n", osc / 1000, osc % 1000);
 }
 static DEVICE_ATTR(osc, S_IRUGO, rs5c372_sysfs_show_osc, NULL);
 
