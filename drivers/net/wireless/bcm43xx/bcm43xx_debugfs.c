@@ -452,12 +452,12 @@ void bcm43xx_printk_dump(const char *data,
 	size_t i;
 	char c;
 
-	printk(KERN_INFO PFX "Data dump (%s, %u bytes):",
+	printk(KERN_INFO PFX "Data dump (%s, %zd bytes):",
 	       description, size);
 	for (i = 0; i < size; i++) {
 		c = data[i];
 		if (i % 8 == 0)
-			printk("\n" KERN_INFO PFX "0x%08x:  0x%02x, ", i, c & 0xff);
+			printk("\n" KERN_INFO PFX "0x%08zx:  0x%02x, ", i, c & 0xff);
 		else
 			printk("0x%02x, ", c & 0xff);
 	}
@@ -472,12 +472,12 @@ void bcm43xx_printk_bitdump(const unsigned char *data,
 	int j;
 	const unsigned char *d;
 
-	printk(KERN_INFO PFX "*** Bitdump (%s, %u bytes, %s) ***",
+	printk(KERN_INFO PFX "*** Bitdump (%s, %zd bytes, %s) ***",
 	       description, bytes, msb_to_lsb ? "MSB to LSB" : "LSB to MSB");
 	for (i = 0; i < bytes; i++) {
 		d = data + i;
 		if (i % 8 == 0)
-			printk("\n" KERN_INFO PFX "0x%08x:  ", i);
+			printk("\n" KERN_INFO PFX "0x%08zx:  ", i);
 		if (msb_to_lsb) {
 			for (j = 7; j >= 0; j--) {
 				if (*d & (1 << j))
