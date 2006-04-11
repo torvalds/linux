@@ -434,6 +434,7 @@ static int sil24_softreset(struct ata_port *ap, unsigned int *class)
 	dma_addr_t paddr = pp->cmd_block_dma;
 	unsigned long timeout = jiffies + ATA_TMOUT_BOOT;
 	u32 irq_enable, irq_stat;
+	const char *reason;
 
 	DPRINTK("ENTER\n");
 
@@ -473,8 +474,11 @@ static int sil24_softreset(struct ata_port *ap, unsigned int *class)
 	writel(irq_enable, port + PORT_IRQ_ENABLE_SET);
 
 	if (!(irq_stat & PORT_IRQ_COMPLETE)) {
-		printk(KERN_ERR "ata%u: softreset failed (timeout)\n", ap->id);
-		return -EIO;
+		if (irq_stat & PORT_IRQ_ERROR)
+			reason = "SRST command error";
+		else
+			reason = "timeout";
+		goto err;
 	}
 
 	sil24_update_tf(ap);
@@ -486,6 +490,10 @@ static int sil24_softreset(struct ata_port *ap, unsigned int *class)
  out:
 	DPRINTK("EXIT, class=%u\n", *class);
 	return 0;
+
+ err:
+	printk(KERN_ERR "ata%u: softreset failed (%s)\n", ap->id, reason);
+	return -EIO;
 }
 
 static int sil24_hardreset(struct ata_port *ap, unsigned int *class)
