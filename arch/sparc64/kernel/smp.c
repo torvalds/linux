@@ -1280,7 +1280,7 @@ int setup_profiling_timer(unsigned int multiplier)
 		return -EINVAL;
 
 	spin_lock_irqsave(&prof_setup_lock, flags);
-	for_each_cpu(i)
+	for_each_possible_cpu(i)
 		prof_multiplier(i) = multiplier;
 	current_tick_offset = (timer_tick_offset / multiplier);
 	spin_unlock_irqrestore(&prof_setup_lock, flags);
@@ -1308,12 +1308,12 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 		}
 	}
 
-	for_each_cpu(i) {
+	for_each_possible_cpu(i) {
 		if (tlb_type == hypervisor) {
 			int j;
 
 			/* XXX get this mapping from machine description */
-			for_each_cpu(j) {
+			for_each_possible_cpu(j) {
 				if ((j >> 2) == (i >> 2))
 					cpu_set(j, cpu_sibling_map[i]);
 			}
