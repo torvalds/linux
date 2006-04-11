@@ -1037,16 +1037,8 @@ void gigaset_debugdrivers(void)
 	}
 	spin_unlock_irqrestore(&driver_lock, flags);
 }
-EXPORT_SYMBOL_GPL(gigaset_debugdrivers);
 
-struct cardstate *gigaset_get_cs_by_tty(struct tty_struct *tty)
-{
-	if (tty->index < 0 || tty->index >= tty->driver->num)
-		return NULL;
-	return gigaset_get_cs_by_minor(tty->index + tty->driver->minor_start);
-}
-
-struct cardstate *gigaset_get_cs_by_minor(unsigned minor)
+static struct cardstate *gigaset_get_cs_by_minor(unsigned minor)
 {
 	unsigned long flags;
 	static struct cardstate *ret = NULL;
@@ -1067,6 +1059,13 @@ struct cardstate *gigaset_get_cs_by_minor(unsigned minor)
 	}
 	spin_unlock_irqrestore(&driver_lock, flags);
 	return ret;
+}
+
+struct cardstate *gigaset_get_cs_by_tty(struct tty_struct *tty)
+{
+	if (tty->index < 0 || tty->index >= tty->driver->num)
+		return NULL;
+	return gigaset_get_cs_by_minor(tty->index + tty->driver->minor_start);
 }
 
 void gigaset_freedriver(struct gigaset_driver *drv)

@@ -776,7 +776,6 @@ struct gigaset_driver *gigaset_initdriver(unsigned minor, unsigned minors,
 /* Deallocate driver structure. */
 void gigaset_freedriver(struct gigaset_driver *drv);
 void gigaset_debugdrivers(void);
-struct cardstate *gigaset_get_cs_by_minor(unsigned minor);
 struct cardstate *gigaset_get_cs_by_tty(struct tty_struct *tty);
 struct cardstate *gigaset_get_cs_by_id(int id);
 
