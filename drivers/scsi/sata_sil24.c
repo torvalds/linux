@@ -485,6 +485,7 @@ static int sil24_softreset(struct ata_port *ap, unsigned int *class)
 	prb->fis[1] = 0; /* no PM yet */
 
 	writel((u32)paddr, port + PORT_CMD_ACTIVATE);
+	writel((u64)paddr >> 32, port + PORT_CMD_ACTIVATE + 4);
 
 	mask = (PORT_IRQ_COMPLETE | PORT_IRQ_ERROR) << PORT_IRQ_RAW_SHIFT;
 	irq_stat = ata_wait_register(port + PORT_IRQ_STAT, mask, 0x0,
@@ -644,6 +645,8 @@ static unsigned int sil24_qc_issue(struct ata_queued_cmd *qc)
 	dma_addr_t paddr = pp->cmd_block_dma + qc->tag * sizeof(*pp->cmd_block);
 
 	writel((u32)paddr, port + PORT_CMD_ACTIVATE);
+	writel((u64)paddr >> 32, port + PORT_CMD_ACTIVATE + 4);
+
 	return 0;
 }
 
@@ -980,22 +983,29 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/*
 	 * Configure the device
 	 */
-	/*
-	 * FIXME: This device is certainly 64-bit capable.  We just
-	 * don't know how to use it.  After fixing 32bit activation in
-	 * this function, enable 64bit masks here.
-	 */
-	rc = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
-	if (rc) {
-		dev_printk(KERN_ERR, &pdev->dev,
-			   "32-bit DMA enable failed\n");
-		goto out_free;
-	}
-	rc = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
-	if (rc) {
-		dev_printk(KERN_ERR, &pdev->dev,
-			   "32-bit consistent DMA enable failed\n");
-		goto out_free;
+	if (!pci_set_dma_mask(pdev, DMA_64BIT_MASK)) {
+		rc = pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK);
+		if (rc) {
+			rc = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
+			if (rc) {
+				dev_printk(KERN_ERR, &pdev->dev,
+					   "64-bit DMA enable failed\n");
+				goto out_free;
+			}
+		}
+	} else {
+		rc = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+		if (rc) {
+			dev_printk(KERN_ERR, &pdev->dev,
+				   "32-bit DMA enable failed\n");
+			goto out_free;
+		}
+		rc = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
+		if (rc) {
+			dev_printk(KERN_ERR, &pdev->dev,
+				   "32-bit consistent DMA enable failed\n");
+			goto out_free;
+		}
 	}
 
 	/* GPIO off */
@@ -1053,9 +1063,8 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		writel(0x0000, port + PORT_CRC_ERR_CNT);
 		writel(0x0000, port + PORT_HSHK_ERR_CNT);
 
-		/* FIXME: 32bit activation? */
-		writel(0, port + PORT_ACTIVATE_UPPER_ADDR);
-		writel(PORT_CS_32BIT_ACTV, port + PORT_CTRL_STAT);
+		/* Always use 64bit activation */
+		writel(PORT_CS_32BIT_ACTV, port + PORT_CTRL_CLR);
 
 		/* Configure interrupts */
 		writel(0xffff, port + PORT_IRQ_ENABLE_CLR);
