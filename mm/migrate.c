@@ -173,7 +173,6 @@ unlock_retry:
 retry:
 	return -EAGAIN;
 }
-EXPORT_SYMBOL(swap_page);
 
 /*
  * Remove references for a page and establish the new page with the correct
