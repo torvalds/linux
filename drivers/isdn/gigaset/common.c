@@ -1,7 +1,7 @@
 /*
  * Stuff used by all variants of the driver
  *
- * Copyright (c) 2001 by Stefan Eilers <Eilers.Stefan@epost.de>,
+ * Copyright (c) 2001 by Stefan Eilers,
  *                       Hansjoerg Lipp <hjlipp@web.de>,
  *                       Tilman Schmidt <tilman@imap.cc>.
  *
@@ -19,7 +19,7 @@
 #include <linux/moduleparam.h>
 
 /* Version Information */
-#define DRIVER_AUTHOR "Hansjoerg Lipp <hjlipp@web.de>, Tilman Schmidt <tilman@imap.cc>, Stefan Eilers <Eilers.Stefan@epost.de>"
+#define DRIVER_AUTHOR "Hansjoerg Lipp <hjlipp@web.de>, Tilman Schmidt <tilman@imap.cc>, Stefan Eilers"
 #define DRIVER_DESC "Driver for Gigaset 307x"
 
 /* Module parameters */
@@ -28,15 +28,7 @@ EXPORT_SYMBOL_GPL(gigaset_debuglevel);
 module_param_named(debug, gigaset_debuglevel, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(debug, "debug level");
 
-/*======================================================================
-  Prototypes of internal functions
- */
-
-static struct cardstate *alloc_cs(struct gigaset_driver *drv);
-static void free_cs(struct cardstate *cs);
-static void make_valid(struct cardstate *cs, unsigned mask);
-static void make_invalid(struct cardstate *cs, unsigned mask);
-
+/* driver state flags */
 #define VALID_MINOR	0x01
 #define VALID_ID	0x02
 #define ASSIGNED	0x04
@@ -398,6 +390,52 @@ static void gigaset_freebcs(struct bc_state *bcs)
 		kfree(bcs->commands[i]);
 		bcs->commands[i] = NULL;
 	}
+}
+
+static struct cardstate *alloc_cs(struct gigaset_driver *drv)
+{
+	unsigned long flags;
+	unsigned i;
+	static struct cardstate *ret = NULL;
+
+	spin_lock_irqsave(&drv->lock, flags);
+	for (i = 0; i < drv->minors; ++i) {
+		if (!(drv->flags[i] & VALID_MINOR)) {
+			drv->flags[i] = VALID_MINOR;
+			ret = drv->cs + i;
+		}
+		if (ret)
+			break;
+	}
+	spin_unlock_irqrestore(&drv->lock, flags);
+	return ret;
+}
+
+static void free_cs(struct cardstate *cs)
+{
+	unsigned long flags;
+	struct gigaset_driver *drv = cs->driver;
+	spin_lock_irqsave(&drv->lock, flags);
+	drv->flags[cs->minor_index] = 0;
+	spin_unlock_irqrestore(&drv->lock, flags);
+}
+
+static void make_valid(struct cardstate *cs, unsigned mask)
+{
+	unsigned long flags;
+	struct gigaset_driver *drv = cs->driver;
+	spin_lock_irqsave(&drv->lock, flags);
+	drv->flags[cs->minor_index] |= mask;
+	spin_unlock_irqrestore(&drv->lock, flags);
+}
+
+static void make_invalid(struct cardstate *cs, unsigned mask)
+{
+	unsigned long flags;
+	struct gigaset_driver *drv = cs->driver;
+	spin_lock_irqsave(&drv->lock, flags);
+	drv->flags[cs->minor_index] &= ~mask;
+	spin_unlock_irqrestore(&drv->lock, flags);
 }
 
 void gigaset_freecs(struct cardstate *cs)
@@ -1116,52 +1154,6 @@ out1:
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(gigaset_initdriver);
-
-static struct cardstate *alloc_cs(struct gigaset_driver *drv)
-{
-	unsigned long flags;
-	unsigned i;
-	static struct cardstate *ret = NULL;
-
-	spin_lock_irqsave(&drv->lock, flags);
-	for (i = 0; i < drv->minors; ++i) {
-		if (!(drv->flags[i] & VALID_MINOR)) {
-			drv->flags[i] = VALID_MINOR;
-			ret = drv->cs + i;
-		}
-		if (ret)
-			break;
-	}
-	spin_unlock_irqrestore(&drv->lock, flags);
-	return ret;
-}
-
-static void free_cs(struct cardstate *cs)
-{
-	unsigned long flags;
-	struct gigaset_driver *drv = cs->driver;
-	spin_lock_irqsave(&drv->lock, flags);
-	drv->flags[cs->minor_index] = 0;
-	spin_unlock_irqrestore(&drv->lock, flags);
-}
-
-static void make_valid(struct cardstate *cs, unsigned mask)
-{
-	unsigned long flags;
-	struct gigaset_driver *drv = cs->driver;
-	spin_lock_irqsave(&drv->lock, flags);
-	drv->flags[cs->minor_index] |= mask;
-	spin_unlock_irqrestore(&drv->lock, flags);
-}
-
-static void make_invalid(struct cardstate *cs, unsigned mask)
-{
-	unsigned long flags;
-	struct gigaset_driver *drv = cs->driver;
-	spin_lock_irqsave(&drv->lock, flags);
-	drv->flags[cs->minor_index] &= ~mask;
-	spin_unlock_irqrestore(&drv->lock, flags);
-}
 
 /* For drivers without fixed assignment device<->cardstate (usb) */
 struct cardstate *gigaset_getunassignedcs(struct gigaset_driver *drv)

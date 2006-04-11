@@ -1,7 +1,7 @@
 /*
  * Stuff used by all variants of the driver
  *
- * Copyright (c) 2001 by Stefan Eilers <Eilers.Stefan@epost.de>,
+ * Copyright (c) 2001 by Stefan Eilers,
  *                       Hansjoerg Lipp <hjlipp@web.de>,
  *                       Tilman Schmidt <tilman@imap.cc>.
  *

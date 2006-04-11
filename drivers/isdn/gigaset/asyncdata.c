@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2005 by Tilman Schmidt <tilman@imap.cc>,
  *                       Hansjoerg Lipp <hjlipp@web.de>,
- *                       Stefan Eilers <Eilers.Stefan@epost.de>.
+ *                       Stefan Eilers.
  *
  * =====================================================================
  *	This program is free software; you can redistribute it and/or

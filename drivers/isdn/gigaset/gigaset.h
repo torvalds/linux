@@ -2,7 +2,7 @@
  * Siemens Gigaset 307x driver
  * Common header file for all connection variants
  *
- * Written by Stefan Eilers <Eilers.Stefan@epost.de>
+ * Written by Stefan Eilers
  *        and Hansjoerg Lipp <hjlipp@web.de>
  *
  * =====================================================================

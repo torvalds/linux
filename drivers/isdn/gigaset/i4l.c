@@ -1,9 +1,9 @@
 /*
  * Stuff used by all variants of the driver
  *
- * Copyright (c) 2001 by Stefan Eilers (Eilers.Stefan@epost.de),
- *                       Hansjoerg Lipp (hjlipp@web.de),
- *                       Tilman Schmidt (tilman@imap.cc).
+ * Copyright (c) 2001 by Stefan Eilers,
+ *                       Hansjoerg Lipp <hjlipp@web.de>,
+ *                       Tilman Schmidt <tilman@imap.cc>.
  *
  * =====================================================================
  *	This program is free software; you can redistribute it and/or

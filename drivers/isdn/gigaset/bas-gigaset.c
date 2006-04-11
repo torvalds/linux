@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2001 by Hansjoerg Lipp <hjlipp@web.de>,
  *                       Tilman Schmidt <tilman@imap.cc>,
- *                       Stefan Eilers <Eilers.Stefan@epost.de>.
+ *                       Stefan Eilers.
  *
  * Based on usb-gigaset.c.
  *
@@ -26,7 +26,7 @@
 #include <linux/moduleparam.h>
 
 /* Version Information */
-#define DRIVER_AUTHOR "Tilman Schmidt <tilman@imap.cc>, Hansjoerg Lipp <hjlipp@web.de>, Stefan Eilers <Eilers.Stefan@epost.de>"
+#define DRIVER_AUTHOR "Tilman Schmidt <tilman@imap.cc>, Hansjoerg Lipp <hjlipp@web.de>, Stefan Eilers"
 #define DRIVER_DESC "USB Driver for Gigaset 307x"
 
 

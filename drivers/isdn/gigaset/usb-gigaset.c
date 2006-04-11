@@ -1,7 +1,7 @@
 /*
  * USB driver for Gigaset 307x directly or using M105 Data.
  *
- * Copyright (c) 2001 by Stefan Eilers <Eilers.Stefan@epost.de>
+ * Copyright (c) 2001 by Stefan Eilers
  *                   and Hansjoerg Lipp <hjlipp@web.de>.
  *
  * This driver was derived from the USB skeleton driver by
@@ -25,7 +25,7 @@
 #include <linux/moduleparam.h>
 
 /* Version Information */
-#define DRIVER_AUTHOR "Hansjoerg Lipp <hjlipp@web.de>, Stefan Eilers <Eilers.Stefan@epost.de>"
+#define DRIVER_AUTHOR "Hansjoerg Lipp <hjlipp@web.de>, Stefan Eilers"
 #define DRIVER_DESC "USB Driver for Gigaset 307x using M105"
 
 /* Module parameters */
@@ -816,9 +816,6 @@ error:
 	return retval;
 }
 
-/**
- *	skel_disconnect
- */
 static void gigaset_disconnect(struct usb_interface *interface)
 {
 	struct cardstate *cs;
