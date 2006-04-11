@@ -231,8 +231,9 @@ static ssize_t move_to_pipe(struct pipe_inode_info *pipe, struct page **pages,
 }
 
 static int
-__generic_file_splice_read(struct file *in, struct pipe_inode_info *pipe,
-			   size_t len, unsigned int flags)
+__generic_file_splice_read(struct file *in, loff_t *ppos,
+			   struct pipe_inode_info *pipe, size_t len,
+			   unsigned int flags)
 {
 	struct address_space *mapping = in->f_mapping;
 	unsigned int offset, nr_pages;
@@ -241,8 +242,8 @@ __generic_file_splice_read(struct file *in, struct pipe_inode_info *pipe,
 	pgoff_t index;
 	int i, error;
 
-	index = in->f_pos >> PAGE_CACHE_SHIFT;
-	offset = in->f_pos & ~PAGE_CACHE_MASK;
+	index = *ppos >> PAGE_CACHE_SHIFT;
+	offset = *ppos & ~PAGE_CACHE_MASK;
 	nr_pages = (len + offset + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
 
 	if (nr_pages > PIPE_BUFFERS)
@@ -348,8 +349,9 @@ fill_it:
  *
  * Will read pages from given file and fill them into a pipe.
  */
-ssize_t generic_file_splice_read(struct file *in, struct pipe_inode_info *pipe,
-				 size_t len, unsigned int flags)
+ssize_t generic_file_splice_read(struct file *in, loff_t *ppos,
+				 struct pipe_inode_info *pipe, size_t len,
+				 unsigned int flags)
 {
 	ssize_t spliced;
 	int ret;
@@ -358,12 +360,12 @@ ssize_t generic_file_splice_read(struct file *in, struct pipe_inode_info *pipe,
 	spliced = 0;
 
 	while (len) {
-		ret = __generic_file_splice_read(in, pipe, len, flags);
+		ret = __generic_file_splice_read(in, ppos, pipe, len, flags);
 
 		if (ret <= 0)
 			break;
 
-		in->f_pos += ret;
+		*ppos += ret;
 		len -= ret;
 		spliced += ret;
 
@@ -561,7 +563,7 @@ typedef int (splice_actor)(struct pipe_inode_info *, struct pipe_buffer *,
  * to the wanted destination. See pipe_to_file/pipe_to_sendpage above.
  */
 static ssize_t move_from_pipe(struct pipe_inode_info *pipe, struct file *out,
-			      size_t len, unsigned int flags,
+			      loff_t *ppos, size_t len, unsigned int flags,
 			      splice_actor *actor)
 {
 	int ret, do_wakeup, err;
@@ -573,7 +575,7 @@ static ssize_t move_from_pipe(struct pipe_inode_info *pipe, struct file *out,
 	sd.total_len = len;
 	sd.flags = flags;
 	sd.file = out;
-	sd.pos = out->f_pos;
+	sd.pos = *ppos;
 
 	if (pipe->inode)
 		mutex_lock(&pipe->inode->i_mutex);
@@ -656,9 +658,7 @@ static ssize_t move_from_pipe(struct pipe_inode_info *pipe, struct file *out,
 		kill_fasync(&pipe->fasync_writers, SIGIO, POLL_OUT);
 	}
 
-	out->f_pos = sd.pos;
 	return ret;
-
 }
 
 /**
@@ -674,12 +674,12 @@ static ssize_t move_from_pipe(struct pipe_inode_info *pipe, struct file *out,
  */
 ssize_t
 generic_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
-			  size_t len, unsigned int flags)
+			  loff_t *ppos, size_t len, unsigned int flags)
 {
 	struct address_space *mapping = out->f_mapping;
 	ssize_t ret;
 
-	ret = move_from_pipe(pipe, out, len, flags, pipe_to_file);
+	ret = move_from_pipe(pipe, out, ppos, len, flags, pipe_to_file);
 
 	/*
 	 * If file or inode is SYNC and we actually wrote some data, sync it.
@@ -715,9 +715,9 @@ EXPORT_SYMBOL(generic_file_splice_write);
  *
  */
 ssize_t generic_splice_sendpage(struct pipe_inode_info *pipe, struct file *out,
-				size_t len, unsigned int flags)
+				loff_t *ppos, size_t len, unsigned int flags)
 {
-	return move_from_pipe(pipe, out, len, flags, pipe_to_sendpage);
+	return move_from_pipe(pipe, out, ppos, len, flags, pipe_to_sendpage);
 }
 
 EXPORT_SYMBOL(generic_splice_sendpage);
@@ -726,9 +726,8 @@ EXPORT_SYMBOL(generic_splice_sendpage);
  * Attempt to initiate a splice from pipe to file.
  */
 static long do_splice_from(struct pipe_inode_info *pipe, struct file *out,
-			   size_t len, unsigned int flags)
+			   loff_t *ppos, size_t len, unsigned int flags)
 {
-	loff_t pos;
 	int ret;
 
 	if (unlikely(!out->f_op || !out->f_op->splice_write))
@@ -737,22 +736,21 @@ static long do_splice_from(struct pipe_inode_info *pipe, struct file *out,
 	if (unlikely(!(out->f_mode & FMODE_WRITE)))
 		return -EBADF;
 
-	pos = out->f_pos;
-
-	ret = rw_verify_area(WRITE, out, &pos, len);
+	ret = rw_verify_area(WRITE, out, ppos, len);
 	if (unlikely(ret < 0))
 		return ret;
 
-	return out->f_op->splice_write(pipe, out, len, flags);
+	return out->f_op->splice_write(pipe, out, ppos, len, flags);
 }
 
 /*
  * Attempt to initiate a splice from a file to a pipe.
  */
-static long do_splice_to(struct file *in, struct pipe_inode_info *pipe,
-			 size_t len, unsigned int flags)
+static long do_splice_to(struct file *in, loff_t *ppos,
+			 struct pipe_inode_info *pipe, size_t len,
+			 unsigned int flags)
 {
-	loff_t pos, isize, left;
+	loff_t isize, left;
 	int ret;
 
 	if (unlikely(!in->f_op || !in->f_op->splice_read))
@@ -761,28 +759,27 @@ static long do_splice_to(struct file *in, struct pipe_inode_info *pipe,
 	if (unlikely(!(in->f_mode & FMODE_READ)))
 		return -EBADF;
 
-	pos = in->f_pos;
-
-	ret = rw_verify_area(READ, in, &pos, len);
+	ret = rw_verify_area(READ, in, ppos, len);
 	if (unlikely(ret < 0))
 		return ret;
 
 	isize = i_size_read(in->f_mapping->host);
-	if (unlikely(in->f_pos >= isize))
+	if (unlikely(*ppos >= isize))
 		return 0;
 	
-	left = isize - in->f_pos;
+	left = isize - *ppos;
 	if (unlikely(left < len))
 		len = left;
 
-	return in->f_op->splice_read(in, pipe, len, flags);
+	return in->f_op->splice_read(in, ppos, pipe, len, flags);
 }
 
-long do_splice_direct(struct file *in, struct file *out, size_t len,
-		      unsigned int flags)
+long do_splice_direct(struct file *in, loff_t *ppos, struct file *out,
+		      size_t len, unsigned int flags)
 {
 	struct pipe_inode_info *pipe;
 	long ret, bytes;
+	loff_t out_off;
 	umode_t i_mode;
 	int i;
 
@@ -820,6 +817,7 @@ long do_splice_direct(struct file *in, struct file *out, size_t len,
 	 */
 	ret = 0;
 	bytes = 0;
+	out_off = 0;
 
 	while (len) {
 		size_t read_len, max_read_len;
@@ -829,7 +827,7 @@ long do_splice_direct(struct file *in, struct file *out, size_t len,
 		 */
 		max_read_len = min(len, (size_t)(PIPE_BUFFERS*PAGE_SIZE));
 
-		ret = do_splice_to(in, pipe, max_read_len, flags);
+		ret = do_splice_to(in, ppos, pipe, max_read_len, flags);
 		if (unlikely(ret < 0))
 			goto out_release;
 
@@ -840,7 +838,7 @@ long do_splice_direct(struct file *in, struct file *out, size_t len,
 		 * must not do the output in nonblocking mode as then we
 		 * could get stuck data in the internal pipe:
 		 */
-		ret = do_splice_from(pipe, out, read_len,
+		ret = do_splice_from(pipe, out, &out_off, read_len,
 				     flags & ~SPLICE_F_NONBLOCK);
 		if (unlikely(ret < 0))
 			goto out_release;
@@ -898,6 +896,7 @@ static long do_splice(struct file *in, loff_t __user *off_in,
 		      size_t len, unsigned int flags)
 {
 	struct pipe_inode_info *pipe;
+	loff_t offset, *off;
 
 	pipe = in->f_dentry->d_inode->i_pipe;
 	if (pipe) {
@@ -906,12 +905,13 @@ static long do_splice(struct file *in, loff_t __user *off_in,
 		if (off_out) {
 			if (out->f_op->llseek == no_llseek)
 				return -EINVAL;
-			if (copy_from_user(&out->f_pos, off_out,
-					   sizeof(loff_t)))
+			if (copy_from_user(&offset, off_out, sizeof(loff_t)))
 				return -EFAULT;
-		}
+			off = &offset;
+		} else
+			off = &out->f_pos;
 
-		return do_splice_from(pipe, out, len, flags);
+		return do_splice_from(pipe, out, off, len, flags);
 	}
 
 	pipe = out->f_dentry->d_inode->i_pipe;
@@ -921,11 +921,13 @@ static long do_splice(struct file *in, loff_t __user *off_in,
 		if (off_in) {
 			if (in->f_op->llseek == no_llseek)
 				return -EINVAL;
-			if (copy_from_user(&in->f_pos, off_in, sizeof(loff_t)))
+			if (copy_from_user(&offset, off_in, sizeof(loff_t)))
 				return -EFAULT;
-		}
+			off = &offset;
+		} else
+			off = &in->f_pos;
 
-		return do_splice_to(in, pipe, len, flags);
+		return do_splice_to(in, off, pipe, len, flags);
 	}
 
 	return -EINVAL;
