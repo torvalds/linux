@@ -610,6 +610,7 @@ loads.  Consider the following sequence of events:
 
 	CPU 1			CPU 2
 	=======================	=======================
+		{ B = 7; X = 9; Y = 8; C = &Y }
 	STORE A = 1
 	STORE B = 2
 	<write barrier>
@@ -651,7 +652,20 @@ In the above example, CPU 2 perceives that B is 7, despite the load of *C
 (which would be B) coming after the the LOAD of C.
 
 If, however, a data dependency barrier were to be placed between the load of C
-and the load of *C (ie: B) on CPU 2, then the following will occur:
+and the load of *C (ie: B) on CPU 2:
+
+	CPU 1			CPU 2
+	=======================	=======================
+		{ B = 7; X = 9; Y = 8; C = &Y }
+	STORE A = 1
+	STORE B = 2
+	<write barrier>
+	STORE C = &B		LOAD X
+	STORE D = 4		LOAD C (gets &B)
+				<data dependency barrier>
+				LOAD *C (reads B)
+
+then the following will occur:
 
 	+-------+       :      :                :       :
 	|       |       +------+                +-------+
