@@ -346,7 +346,6 @@ fill_it:
  * @flags:	splice modifier flags
  *
  * Will read pages from given file and fill them into a pipe.
- *
  */
 ssize_t generic_file_splice_read(struct file *in, struct pipe_inode_info *pipe,
 				 size_t len, unsigned int flags)
@@ -690,7 +689,7 @@ generic_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 
 		mutex_lock(&inode->i_mutex);
 		err = generic_osync_inode(mapping->host, mapping,
-						OSYNC_METADATA|OSYNC_DATA);
+					  OSYNC_METADATA|OSYNC_DATA);
 		mutex_unlock(&inode->i_mutex);
 
 		if (err)
@@ -730,10 +729,10 @@ static long do_splice_from(struct pipe_inode_info *pipe, struct file *out,
 	loff_t pos;
 	int ret;
 
-	if (!out->f_op || !out->f_op->splice_write)
+	if (unlikely(!out->f_op || !out->f_op->splice_write))
 		return -EINVAL;
 
-	if (!(out->f_mode & FMODE_WRITE))
+	if (unlikely(!(out->f_mode & FMODE_WRITE)))
 		return -EBADF;
 
 	pos = out->f_pos;
@@ -754,10 +753,10 @@ static long do_splice_to(struct file *in, struct pipe_inode_info *pipe,
 	loff_t pos, isize, left;
 	int ret;
 
-	if (!in->f_op || !in->f_op->splice_read)
+	if (unlikely(!in->f_op || !in->f_op->splice_read))
 		return -EINVAL;
 
-	if (!(in->f_mode & FMODE_READ))
+	if (unlikely(!(in->f_mode & FMODE_READ)))
 		return -EBADF;
 
 	pos = in->f_pos;
@@ -771,7 +770,7 @@ static long do_splice_to(struct file *in, struct pipe_inode_info *pipe,
 		return 0;
 	
 	left = isize - in->f_pos;
-	if (left < len)
+	if (unlikely(left < len))
 		len = left;
 
 	return in->f_op->splice_read(in, pipe, len, flags);
@@ -799,7 +798,7 @@ long do_splice_direct(struct file *in, struct file *out, size_t len,
 	 * 'out' and transfer the wanted data from 'in' to 'out' through that
 	 */
 	pipe = current->splice_pipe;
-	if (!pipe) {
+	if (unlikely(!pipe)) {
 		pipe = alloc_pipe_info(NULL);
 		if (!pipe)
 			return -ENOMEM;
