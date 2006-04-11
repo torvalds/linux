@@ -713,7 +713,7 @@ static void __activate_task(task_t *p, runqueue_t *rq)
 {
 	prio_array_t *target = rq->active;
 
-	if (unlikely(batch_task(p) || expired_starving(rq)))
+	if (unlikely(batch_task(p) || (expired_starving(rq) && !rt_task(p))))
 		target = rq->expired;
 	enqueue_task(p, target);
 	rq->nr_running++;
