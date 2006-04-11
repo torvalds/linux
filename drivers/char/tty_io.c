@@ -351,10 +351,10 @@ int tty_buffer_request_room(struct tty_struct *tty, size_t size)
 	spin_unlock_irqrestore(&tty->buf.lock, flags);
 	return size;
 }
-
 EXPORT_SYMBOL_GPL(tty_buffer_request_room);
 
-int tty_insert_flip_string(struct tty_struct *tty, const unsigned char *chars, size_t size)
+int tty_insert_flip_string(struct tty_struct *tty, const unsigned char *chars,
+				size_t size)
 {
 	int copied = 0;
 	do {
@@ -368,17 +368,16 @@ int tty_insert_flip_string(struct tty_struct *tty, const unsigned char *chars, s
 		tb->used += space;
 		copied += space;
 		chars += space;
-/* 		printk("Flip insert %d.\n", space); */
 	}
 	/* There is a small chance that we need to split the data over
 	   several buffers. If this is the case we must loop */
 	while (unlikely(size > copied));
 	return copied;
 }
-
 EXPORT_SYMBOL(tty_insert_flip_string);
 
-int tty_insert_flip_string_flags(struct tty_struct *tty, const unsigned char *chars, const char *flags, size_t size)
+int tty_insert_flip_string_flags(struct tty_struct *tty,
+		const unsigned char *chars, const char *flags, size_t size)
 {
 	int copied = 0;
 	do {
@@ -399,9 +398,20 @@ int tty_insert_flip_string_flags(struct tty_struct *tty, const unsigned char *ch
 	while (unlikely(size > copied));
 	return copied;
 }
-
 EXPORT_SYMBOL_GPL(tty_insert_flip_string_flags);
 
+void tty_schedule_flip(struct tty_struct *tty)
+{
+	unsigned long flags;
+	spin_lock_irqsave(&tty->buf.lock, flags);
+	if (tty->buf.tail != NULL) {
+		tty->buf.tail->active = 0;
+		tty->buf.tail->commit = tty->buf.tail->used;
+	}
+	spin_unlock_irqrestore(&tty->buf.lock, flags);
+	schedule_delayed_work(&tty->buf.work, 1);
+}
+EXPORT_SYMBOL(tty_schedule_flip);
 
 /*
  *	Prepare a block of space in the buffer for data. Returns the length
