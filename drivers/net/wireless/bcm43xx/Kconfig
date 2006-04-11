@@ -17,8 +17,11 @@ config BCM43XX_DEBUG
 
 config BCM43XX_DMA
 	bool
+	depends on BCM43XX
+
 config BCM43XX_PIO
 	bool
+	depends on BCM43XX
 
 choice
 	prompt "BCM43xx data transfer mode"
