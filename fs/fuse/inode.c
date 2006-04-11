@@ -243,9 +243,9 @@ static int fuse_statfs(struct super_block *sb, struct kstatfs *buf)
 	struct fuse_statfs_out outarg;
 	int err;
 
-        req = fuse_get_request(fc);
-	if (!req)
-		return -EINTR;
+	req = fuse_get_req(fc);
+	if (IS_ERR(req))
+		return PTR_ERR(req);
 
 	memset(&outarg, 0, sizeof(outarg));
 	req->in.numargs = 0;
@@ -370,15 +370,7 @@ static int fuse_show_options(struct seq_file *m, struct vfsmount *mnt)
 
 static void fuse_conn_release(struct kobject *kobj)
 {
-	struct fuse_conn *fc = get_fuse_conn_kobj(kobj);
-
-	while (!list_empty(&fc->unused_list)) {
-		struct fuse_req *req;
-		req = list_entry(fc->unused_list.next, struct fuse_req, list);
-		list_del(&req->list);
-		fuse_request_free(req);
-	}
-	kfree(fc);
+	kfree(get_fuse_conn_kobj(kobj));
 }
 
 static struct fuse_conn *new_conn(void)
@@ -387,27 +379,16 @@ static struct fuse_conn *new_conn(void)
 
 	fc = kzalloc(sizeof(*fc), GFP_KERNEL);
 	if (fc) {
-		int i;
 		spin_lock_init(&fc->lock);
 		init_waitqueue_head(&fc->waitq);
 		INIT_LIST_HEAD(&fc->pending);
 		INIT_LIST_HEAD(&fc->processing);
 		INIT_LIST_HEAD(&fc->io);
-		INIT_LIST_HEAD(&fc->unused_list);
 		INIT_LIST_HEAD(&fc->background);
-		sema_init(&fc->outstanding_sem, 1); /* One for INIT */
 		init_rwsem(&fc->sbput_sem);
 		kobj_set_kset_s(fc, connections_subsys);
 		kobject_init(&fc->kobj);
 		atomic_set(&fc->num_waiting, 0);
-		for (i = 0; i < FUSE_MAX_OUTSTANDING; i++) {
-			struct fuse_req *req = fuse_request_alloc();
-			if (!req) {
-				kobject_put(&fc->kobj);
-				return NULL;
-			}
-			list_add(&req->list, &fc->unused_list);
-		}
 		fc->bdi.ra_pages = (VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
 		fc->bdi.unplug_io_fn = default_unplug_io_fn;
 		fc->reqctr = 0;
@@ -438,7 +419,6 @@ static struct super_operations fuse_super_operations = {
 
 static void process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 {
-	int i;
 	struct fuse_init_out *arg = &req->misc.init_out;
 
 	if (req->out.h.error || arg->major != FUSE_KERNEL_VERSION)
@@ -457,22 +437,11 @@ static void process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 		fc->minor = arg->minor;
 		fc->max_write = arg->minor < 5 ? 4096 : arg->max_write;
 	}
-
-	/* After INIT reply is received other requests can go
-	   out.  So do (FUSE_MAX_OUTSTANDING - 1) number of
-	   up()s on outstanding_sem.  The last up() is done in
-	   fuse_putback_request() */
-	for (i = 1; i < FUSE_MAX_OUTSTANDING; i++)
-		up(&fc->outstanding_sem);
-
 	fuse_put_request(fc, req);
 }
 
-static void fuse_send_init(struct fuse_conn *fc)
+static void fuse_send_init(struct fuse_conn *fc, struct fuse_req *req)
 {
-	/* This is called from fuse_read_super() so there's guaranteed
-	   to be exactly one request available */
-	struct fuse_req *req = fuse_get_request(fc);
 	struct fuse_init_in *arg = &req->misc.init_in;
 
 	arg->major = FUSE_KERNEL_VERSION;
@@ -508,6 +477,7 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	struct fuse_mount_data d;
 	struct file *file;
 	struct dentry *root_dentry;
+	struct fuse_req *init_req;
 	int err;
 
 	if (!parse_fuse_opt((char *) data, &d))
@@ -554,13 +524,17 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 		goto err;
 	}
 
+	init_req = fuse_request_alloc();
+	if (!init_req)
+		goto err_put_root;
+
 	err = kobject_set_name(&fc->kobj, "%llu", conn_id());
 	if (err)
-		goto err_put_root;
+		goto err_free_req;
 
 	err = kobject_add(&fc->kobj);
 	if (err)
-		goto err_put_root;
+		goto err_free_req;
 
 	sb->s_root = root_dentry;
 	fc->mounted = 1;
@@ -574,10 +548,12 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	 */
 	fput(file);
 
-	fuse_send_init(fc);
+	fuse_send_init(fc, init_req);
 
 	return 0;
 
+ err_free_req:
+	fuse_request_free(init_req);
  err_put_root:
 	dput(root_dentry);
  err:

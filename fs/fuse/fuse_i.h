@@ -18,9 +18,6 @@
 /** Max number of pages that can be used in a single read request */
 #define FUSE_MAX_PAGES_PER_REQ 32
 
-/** If more requests are outstanding, then the operation will block */
-#define FUSE_MAX_OUTSTANDING 10
-
 /** It could be as large as PATH_MAX, but would that have any uses? */
 #define FUSE_NAME_MAX 1024
 
@@ -131,8 +128,8 @@ struct fuse_conn;
  * A request to the client
  */
 struct fuse_req {
-	/** This can be on either unused_list, pending processing or
-	    io lists in fuse_conn */
+	/** This can be on either pending processing or io lists in
+	    fuse_conn */
 	struct list_head list;
 
 	/** Entry on the background list */
@@ -149,9 +146,6 @@ struct fuse_req {
 
 	/** True if the request has reply */
 	unsigned isreply:1;
-
-	/** The request is preallocated */
-	unsigned preallocated:1;
 
 	/** The request was interrupted */
 	unsigned interrupted:1;
@@ -247,18 +241,8 @@ struct fuse_conn {
 	    interrupted request) */
 	struct list_head background;
 
-	/** Controls the maximum number of outstanding requests */
-	struct semaphore outstanding_sem;
-
-	/** This counts the number of outstanding requests if
-	    outstanding_sem would go negative */
-	unsigned outstanding_debt;
-
 	/** RW semaphore for exclusion with fuse_put_super() */
 	struct rw_semaphore sbput_sem;
-
-	/** The list of unused requests */
-	struct list_head unused_list;
 
 	/** The next unique request id */
 	u64 reqctr;
@@ -452,11 +436,11 @@ void fuse_reset_request(struct fuse_req *req);
 /**
  * Reserve a preallocated request
  */
-struct fuse_req *fuse_get_request(struct fuse_conn *fc);
+struct fuse_req *fuse_get_req(struct fuse_conn *fc);
 
 /**
- * Decrement reference count of a request.  If count goes to zero put
- * on unused list (preallocated) or free request (not preallocated).
+ * Decrement reference count of a request.  If count goes to zero free
+ * the request.
  */
 void fuse_put_request(struct fuse_conn *fc, struct fuse_req *req);
 

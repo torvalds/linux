@@ -72,10 +72,8 @@ static void restore_sigs(sigset_t *oldset)
  */
 void fuse_reset_request(struct fuse_req *req)
 {
-	int preallocated = req->preallocated;
 	BUG_ON(atomic_read(&req->count) != 1);
 	fuse_request_init(req);
-	req->preallocated = preallocated;
 }
 
 static void __fuse_get_request(struct fuse_req *req)
@@ -90,69 +88,26 @@ static void __fuse_put_request(struct fuse_req *req)
 	atomic_dec(&req->count);
 }
 
-static struct fuse_req *do_get_request(struct fuse_conn *fc)
+struct fuse_req *fuse_get_req(struct fuse_conn *fc)
 {
-	struct fuse_req *req;
+	struct fuse_req *req = fuse_request_alloc();
+	if (!req)
+		return ERR_PTR(-ENOMEM);
 
-	spin_lock(&fc->lock);
-	BUG_ON(list_empty(&fc->unused_list));
-	req = list_entry(fc->unused_list.next, struct fuse_req, list);
-	list_del_init(&req->list);
-	spin_unlock(&fc->lock);
+	atomic_inc(&fc->num_waiting);
 	fuse_request_init(req);
-	req->preallocated = 1;
 	req->in.h.uid = current->fsuid;
 	req->in.h.gid = current->fsgid;
 	req->in.h.pid = current->pid;
 	return req;
 }
 
-/* This can return NULL, but only in case it's interrupted by a SIGKILL */
-struct fuse_req *fuse_get_request(struct fuse_conn *fc)
-{
-	int intr;
-	sigset_t oldset;
-
-	atomic_inc(&fc->num_waiting);
-	block_sigs(&oldset);
-	intr = down_interruptible(&fc->outstanding_sem);
-	restore_sigs(&oldset);
-	if (intr) {
-		atomic_dec(&fc->num_waiting);
-		return NULL;
-	}
-	return do_get_request(fc);
-}
-
-/* Must be called with fc->lock held */
-static void fuse_putback_request(struct fuse_conn *fc, struct fuse_req *req)
-{
-	if (req->preallocated) {
-		atomic_dec(&fc->num_waiting);
-		list_add(&req->list, &fc->unused_list);
-	} else
-		fuse_request_free(req);
-
-	/* If we are in debt decrease that first */
-	if (fc->outstanding_debt)
-		fc->outstanding_debt--;
-	else
-		up(&fc->outstanding_sem);
-}
-
 void fuse_put_request(struct fuse_conn *fc, struct fuse_req *req)
 {
 	if (atomic_dec_and_test(&req->count)) {
-		spin_lock(&fc->lock);
-		fuse_putback_request(fc, req);
-		spin_unlock(&fc->lock);
+		atomic_dec(&fc->num_waiting);
+		fuse_request_free(req);
 	}
-}
-
-static void fuse_put_request_locked(struct fuse_conn *fc, struct fuse_req *req)
-{
-	if (atomic_dec_and_test(&req->count))
-		fuse_putback_request(fc, req);
 }
 
 void fuse_release_background(struct fuse_conn *fc, struct fuse_req *req)
@@ -189,9 +144,9 @@ static void request_end(struct fuse_conn *fc, struct fuse_req *req)
 	list_del(&req->list);
 	req->state = FUSE_REQ_FINISHED;
 	if (!req->background) {
-		wake_up(&req->waitq);
-		fuse_put_request_locked(fc, req);
 		spin_unlock(&fc->lock);
+		wake_up(&req->waitq);
+		fuse_put_request(fc, req);
 	} else {
 		void (*end) (struct fuse_conn *, struct fuse_req *) = req->end;
 		req->end = NULL;
@@ -302,16 +257,6 @@ static void queue_request(struct fuse_conn *fc, struct fuse_req *req)
 	req->in.h.unique = fc->reqctr;
 	req->in.h.len = sizeof(struct fuse_in_header) +
 		len_args(req->in.numargs, (struct fuse_arg *) req->in.args);
-	if (!req->preallocated) {
-		/* If request is not preallocated (either FORGET or
-		   RELEASE), then still decrease outstanding_sem, so
-		   user can't open infinite number of files while not
-		   processing the RELEASE requests.  However for
-		   efficiency do it without blocking, so if down()
-		   would block, just increase the debt instead */
-		if (down_trylock(&fc->outstanding_sem))
-			fc->outstanding_debt++;
-	}
 	list_add_tail(&req->list, &fc->pending);
 	req->state = FUSE_REQ_PENDING;
 	wake_up(&fc->waitq);
