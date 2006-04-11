@@ -515,6 +515,7 @@ static int __init hdaps_init(void)
 
 	/* Note that DMI_MATCH(...,"ThinkPad T42") will match "ThinkPad T42p" */
 	struct dmi_system_id hdaps_whitelist[] = {
+		HDAPS_DMI_MATCH_NORMAL("ThinkPad H"),
 		HDAPS_DMI_MATCH_INVERT("ThinkPad R50p"),
 		HDAPS_DMI_MATCH_NORMAL("ThinkPad R50"),
 		HDAPS_DMI_MATCH_NORMAL("ThinkPad R51"),
