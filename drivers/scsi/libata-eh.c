@@ -97,7 +97,7 @@ enum scsi_eh_timer_return ata_scsi_timed_out(struct scsi_cmnd *cmd)
  *	RETURNS:
  *	Zero.
  */
-int ata_scsi_error(struct Scsi_Host *host)
+void ata_scsi_error(struct Scsi_Host *host)
 {
 	struct ata_port *ap = (struct ata_port *)&host->hostdata[0];
 
@@ -116,7 +116,6 @@ int ata_scsi_error(struct Scsi_Host *host)
 	scsi_eh_flush_done_q(&ap->eh_done_q);
 
 	DPRINTK("EXIT\n");
-	return 0;
 }
 
 /**

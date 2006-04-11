@@ -105,5 +105,6 @@ extern void ata_scsi_rbuf_fill(struct ata_scsi_args *args,
 
 /* libata-eh.c */
 extern enum scsi_eh_timer_return ata_scsi_timed_out(struct scsi_cmnd *cmd);
+extern void ata_scsi_error(struct Scsi_Host *host);
 
 #endif /* __LIBATA_H__ */
