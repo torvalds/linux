@@ -104,7 +104,7 @@ static void slirp_close(int fd, void *data)
 	}
 
 	if(err == 0) {
-		printk("slirp_close: process %d has not exited\n");
+		printk("slirp_close: process %d has not exited\n", pri->pid);
 		return;
 	}
 

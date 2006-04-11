@@ -265,7 +265,7 @@ void userspace(union uml_pt_regs *regs)
 		if(err)
 			panic("userspace - could not resume userspace process, "
 			      "pid=%d, ptrace operation = %d, errno = %d\n",
-			      op, errno);
+			      pid, op, errno);
 
 		CATCH_EINTR(err = waitpid(pid, &status, WUNTRACED));
 		if(err < 0)
@@ -369,7 +369,7 @@ int copy_context_skas0(unsigned long new_stack, int pid)
 	 */
 	wait_stub_done(pid, -1, "copy_context_skas0");
 	if (child_data->err != UML_CONFIG_STUB_DATA)
-		panic("copy_context_skas0 - stub-child reports error %d\n",
+		panic("copy_context_skas0 - stub-child reports error %ld\n",
 		      child_data->err);
 
 	if (ptrace(PTRACE_OLDSETOPTIONS, pid, NULL,
