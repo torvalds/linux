@@ -516,24 +516,6 @@ static void ahci_fill_cmd_slot(struct ahci_port_priv *pp, u32 opts)
 	pp->cmd_slot[0].tbl_addr_hi = cpu_to_le32((pp->cmd_tbl_dma >> 16) >> 16);
 }
 
-static int ahci_poll_register(void __iomem *reg, u32 mask, u32 val,
-			      unsigned long interval_msec,
-			      unsigned long timeout_msec)
-{
-	unsigned long timeout;
-	u32 tmp;
-
-	timeout = jiffies + (timeout_msec * HZ) / 1000;
-	do {
-		tmp = readl(reg);
-		if ((tmp & mask) == val)
-			return 0;
-		msleep(interval_msec);
-	} while (time_before(jiffies, timeout));
-
-	return -1;
-}
-
 static int ahci_softreset(struct ata_port *ap, unsigned int *class)
 {
 	struct ahci_host_priv *hpriv = ap->host_set->private_data;
@@ -543,6 +525,7 @@ static int ahci_softreset(struct ata_port *ap, unsigned int *class)
 	const u32 cmd_fis_len = 5; /* five dwords */
 	const char *reason = NULL;
 	struct ata_taskfile tf;
+	u32 tmp;
 	u8 *fis;
 	int rc;
 
@@ -564,8 +547,6 @@ static int ahci_softreset(struct ata_port *ap, unsigned int *class)
 	/* check BUSY/DRQ, perform Command List Override if necessary */
 	ahci_tf_read(ap, &tf);
 	if (tf.command & (ATA_BUSY | ATA_DRQ)) {
-		u32 tmp;
-
 		if (!(hpriv->cap & HOST_CAP_CLO)) {
 			rc = -EIO;
 			reason = "port busy but no CLO";
@@ -575,10 +556,10 @@ static int ahci_softreset(struct ata_port *ap, unsigned int *class)
 		tmp = readl(port_mmio + PORT_CMD);
 		tmp |= PORT_CMD_CLO;
 		writel(tmp, port_mmio + PORT_CMD);
-		readl(port_mmio + PORT_CMD); /* flush */
 
-		if (ahci_poll_register(port_mmio + PORT_CMD, PORT_CMD_CLO, 0x0,
-				       1, 500)) {
+		tmp = ata_wait_register(port_mmio + PORT_CMD,
+					PORT_CMD_CLO, PORT_CMD_CLO, 1, 500);
+		if (tmp & PORT_CMD_CLO) {
 			rc = -EIO;
 			reason = "CLO failed";
 			goto fail_restart;
@@ -599,9 +580,9 @@ static int ahci_softreset(struct ata_port *ap, unsigned int *class)
 	fis[1] &= ~(1 << 7);	/* turn off Command FIS bit */
 
 	writel(1, port_mmio + PORT_CMD_ISSUE);
-	readl(port_mmio + PORT_CMD_ISSUE);	/* flush */
 
-	if (ahci_poll_register(port_mmio + PORT_CMD_ISSUE, 0x1, 0x0, 1, 500)) {
+	tmp = ata_wait_register(port_mmio + PORT_CMD_ISSUE, 0x1, 0x1, 1, 500);
+	if (tmp & 0x1) {
 		rc = -EIO;
 		reason = "1st FIS failed";
 		goto fail;
