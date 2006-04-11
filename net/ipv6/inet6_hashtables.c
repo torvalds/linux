@@ -23,6 +23,86 @@
 #include <net/inet6_hashtables.h>
 #include <net/ip.h>
 
+void __inet6_hash(struct inet_hashinfo *hashinfo,
+				struct sock *sk)
+{
+	struct hlist_head *list;
+	rwlock_t *lock;
+
+	BUG_TRAP(sk_unhashed(sk));
+
+	if (sk->sk_state == TCP_LISTEN) {
+		list = &hashinfo->listening_hash[inet_sk_listen_hashfn(sk)];
+		lock = &hashinfo->lhash_lock;
+		inet_listen_wlock(hashinfo);
+	} else {
+		unsigned int hash;
+		sk->sk_hash = hash = inet6_sk_ehashfn(sk);
+		hash &= (hashinfo->ehash_size - 1);
+		list = &hashinfo->ehash[hash].chain;
+		lock = &hashinfo->ehash[hash].lock;
+		write_lock(lock);
+	}
+
+	__sk_add_node(sk, list);
+	sock_prot_inc_use(sk->sk_prot);
+	write_unlock(lock);
+}
+EXPORT_SYMBOL(__inet6_hash);
+
+/*
+ * Sockets in TCP_CLOSE state are _always_ taken out of the hash, so
+ * we need not check it for TCP lookups anymore, thanks Alexey. -DaveM
+ *
+ * The sockhash lock must be held as a reader here.
+ */
+struct sock *__inet6_lookup_established(struct inet_hashinfo *hashinfo,
+					   const struct in6_addr *saddr,
+					   const u16 sport,
+					   const struct in6_addr *daddr,
+					   const u16 hnum,
+					   const int dif)
+{
+	struct sock *sk;
+	const struct hlist_node *node;
+	const __u32 ports = INET_COMBINED_PORTS(sport, hnum);
+	/* Optimize here for direct hit, only listening connections can
+	 * have wildcards anyways.
+	 */
+	unsigned int hash = inet6_ehashfn(daddr, hnum, saddr, sport);
+	struct inet_ehash_bucket *head = inet_ehash_bucket(hashinfo, hash);
+
+	prefetch(head->chain.first);
+	read_lock(&head->lock);
+	sk_for_each(sk, node, &head->chain) {
+		/* For IPV6 do the cheaper port and family tests first. */
+		if (INET6_MATCH(sk, hash, saddr, daddr, ports, dif))
+			goto hit; /* You sunk my battleship! */
+	}
+	/* Must check for a TIME_WAIT'er before going to listener hash. */
+	sk_for_each(sk, node, &(head + hashinfo->ehash_size)->chain) {
+		const struct inet_timewait_sock *tw = inet_twsk(sk);
+
+		if(*((__u32 *)&(tw->tw_dport))	== ports	&&
+		   sk->sk_family		== PF_INET6) {
+			const struct inet6_timewait_sock *tw6 = inet6_twsk(sk);
+
+			if (ipv6_addr_equal(&tw6->tw_v6_daddr, saddr)	&&
+			    ipv6_addr_equal(&tw6->tw_v6_rcv_saddr, daddr)	&&
+			    (!sk->sk_bound_dev_if || sk->sk_bound_dev_if == dif))
+				goto hit;
+		}
+	}
+	read_unlock(&head->lock);
+	return NULL;
+
+hit:
+	sock_hold(sk);
+	read_unlock(&head->lock);
+	return sk;
+}
+EXPORT_SYMBOL(__inet6_lookup_established);
+
 struct sock *inet6_lookup_listener(struct inet_hashinfo *hashinfo,
 				   const struct in6_addr *daddr,
 				   const unsigned short hnum, const int dif)

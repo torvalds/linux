@@ -224,25 +224,14 @@ icmp_error(struct sk_buff *skb, enum ip_conntrack_info *ctinfo,
 	}
 
 	/* See ip_conntrack_proto_tcp.c */
-	if (hooknum != NF_IP_PRE_ROUTING)
-		goto checksum_skipped;
-
-	switch (skb->ip_summed) {
-	case CHECKSUM_HW:
-		if (!(u16)csum_fold(skb->csum)) 
-			break;
-		/* fall through */
-	case CHECKSUM_NONE:
-		skb->csum = 0;
-		if (__skb_checksum_complete(skb)) {
-			if (LOG_INVALID(IPPROTO_ICMP))
-				nf_log_packet(PF_INET, 0, skb, NULL, NULL, NULL,
-					      "ip_ct_icmp: bad ICMP checksum ");
-			return -NF_ACCEPT;
-		}
+	if (hooknum == NF_IP_PRE_ROUTING &&
+	    nf_ip_checksum(skb, hooknum, skb->nh.iph->ihl * 4, 0)) {
+		if (LOG_INVALID(IPPROTO_ICMP))
+			nf_log_packet(PF_INET, 0, skb, NULL, NULL, NULL,
+				      "ip_ct_icmp: bad ICMP checksum ");
+		return -NF_ACCEPT;
 	}
 
-checksum_skipped:
 	/*
 	 *	18 is the highest 'known' ICMP type. Anything else is a mystery
 	 *

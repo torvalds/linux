@@ -658,7 +658,7 @@ static void warn_sec_mismatch(const char *modname, const char *fromsec,
 		warn("%s - Section mismatch: reference to %s:%s from %s "
 		     "before '%s' (at offset -0x%llx)\n",
 		     modname, secname, refsymname, fromsec,
-		     elf->strtab + before->st_name,
+		     elf->strtab + after->st_name,
 		     (long long)r.r_offset);
 	} else {
 		warn("%s - Section mismatch: reference to %s:%s from %s "

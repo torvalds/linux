@@ -1,6 +1,6 @@
 /*
   FUSE: Filesystem in Userspace
-  Copyright (C) 2001-2005  Miklos Szeredi <miklos@szeredi.hu>
+  Copyright (C) 2001-2006  Miklos Szeredi <miklos@szeredi.hu>
 
   This program can be distributed under the terms of the GNU GPL.
   See the file COPYING.
@@ -22,7 +22,6 @@ MODULE_AUTHOR("Miklos Szeredi <miklos@szeredi.hu>");
 MODULE_DESCRIPTION("Filesystem in Userspace");
 MODULE_LICENSE("GPL");
 
-spinlock_t fuse_lock;
 static kmem_cache_t *fuse_inode_cachep;
 static struct subsystem connections_subsys;
 
@@ -207,15 +206,17 @@ static void fuse_put_super(struct super_block *sb)
 
 	down_write(&fc->sbput_sem);
 	while (!list_empty(&fc->background))
-		fuse_release_background(list_entry(fc->background.next,
+		fuse_release_background(fc,
+					list_entry(fc->background.next,
 						   struct fuse_req, bg_entry));
 
-	spin_lock(&fuse_lock);
+	spin_lock(&fc->lock);
 	fc->mounted = 0;
 	fc->connected = 0;
-	spin_unlock(&fuse_lock);
+	spin_unlock(&fc->lock);
 	up_write(&fc->sbput_sem);
 	/* Flush all readers on this fs */
+	kill_fasync(&fc->fasync, SIGIO, POLL_IN);
 	wake_up_all(&fc->waitq);
 	kobject_del(&fc->kobj);
 	kobject_put(&fc->kobj);
@@ -242,9 +243,9 @@ static int fuse_statfs(struct super_block *sb, struct kstatfs *buf)
 	struct fuse_statfs_out outarg;
 	int err;
 
-        req = fuse_get_request(fc);
-	if (!req)
-		return -EINTR;
+	req = fuse_get_req(fc);
+	if (IS_ERR(req))
+		return PTR_ERR(req);
 
 	memset(&outarg, 0, sizeof(outarg));
 	req->in.numargs = 0;
@@ -369,15 +370,7 @@ static int fuse_show_options(struct seq_file *m, struct vfsmount *mnt)
 
 static void fuse_conn_release(struct kobject *kobj)
 {
-	struct fuse_conn *fc = get_fuse_conn_kobj(kobj);
-
-	while (!list_empty(&fc->unused_list)) {
-		struct fuse_req *req;
-		req = list_entry(fc->unused_list.next, struct fuse_req, list);
-		list_del(&req->list);
-		fuse_request_free(req);
-	}
-	kfree(fc);
+	kfree(get_fuse_conn_kobj(kobj));
 }
 
 static struct fuse_conn *new_conn(void)
@@ -386,62 +379,23 @@ static struct fuse_conn *new_conn(void)
 
 	fc = kzalloc(sizeof(*fc), GFP_KERNEL);
 	if (fc) {
-		int i;
+		spin_lock_init(&fc->lock);
 		init_waitqueue_head(&fc->waitq);
+		init_waitqueue_head(&fc->blocked_waitq);
 		INIT_LIST_HEAD(&fc->pending);
 		INIT_LIST_HEAD(&fc->processing);
 		INIT_LIST_HEAD(&fc->io);
-		INIT_LIST_HEAD(&fc->unused_list);
 		INIT_LIST_HEAD(&fc->background);
-		sema_init(&fc->outstanding_sem, 1); /* One for INIT */
 		init_rwsem(&fc->sbput_sem);
 		kobj_set_kset_s(fc, connections_subsys);
 		kobject_init(&fc->kobj);
 		atomic_set(&fc->num_waiting, 0);
-		for (i = 0; i < FUSE_MAX_OUTSTANDING; i++) {
-			struct fuse_req *req = fuse_request_alloc();
-			if (!req) {
-				kobject_put(&fc->kobj);
-				return NULL;
-			}
-			list_add(&req->list, &fc->unused_list);
-		}
 		fc->bdi.ra_pages = (VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
 		fc->bdi.unplug_io_fn = default_unplug_io_fn;
 		fc->reqctr = 0;
+		fc->blocked = 1;
 	}
 	return fc;
-}
-
-static struct fuse_conn *get_conn(struct file *file, struct super_block *sb)
-{
-	struct fuse_conn *fc;
-	int err;
-
-	err = -EINVAL;
-	if (file->f_op != &fuse_dev_operations)
-		goto out_err;
-
-	err = -ENOMEM;
-	fc = new_conn();
-	if (!fc)
-		goto out_err;
-
-	spin_lock(&fuse_lock);
-	err = -EINVAL;
-	if (file->private_data)
-		goto out_unlock;
-
-	kobject_get(&fc->kobj);
-	file->private_data = fc;
-	spin_unlock(&fuse_lock);
-	return fc;
-
- out_unlock:
-	spin_unlock(&fuse_lock);
-	kobject_put(&fc->kobj);
- out_err:
-	return ERR_PTR(err);
 }
 
 static struct inode *get_root_inode(struct super_block *sb, unsigned mode)
@@ -467,7 +421,6 @@ static struct super_operations fuse_super_operations = {
 
 static void process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 {
-	int i;
 	struct fuse_init_out *arg = &req->misc.init_out;
 
 	if (req->out.h.error || arg->major != FUSE_KERNEL_VERSION)
@@ -486,22 +439,13 @@ static void process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 		fc->minor = arg->minor;
 		fc->max_write = arg->minor < 5 ? 4096 : arg->max_write;
 	}
-
-	/* After INIT reply is received other requests can go
-	   out.  So do (FUSE_MAX_OUTSTANDING - 1) number of
-	   up()s on outstanding_sem.  The last up() is done in
-	   fuse_putback_request() */
-	for (i = 1; i < FUSE_MAX_OUTSTANDING; i++)
-		up(&fc->outstanding_sem);
-
 	fuse_put_request(fc, req);
+	fc->blocked = 0;
+	wake_up_all(&fc->blocked_waitq);
 }
 
-static void fuse_send_init(struct fuse_conn *fc)
+static void fuse_send_init(struct fuse_conn *fc, struct fuse_req *req)
 {
-	/* This is called from fuse_read_super() so there's guaranteed
-	   to be exactly one request available */
-	struct fuse_req *req = fuse_get_request(fc);
 	struct fuse_init_in *arg = &req->misc.init_in;
 
 	arg->major = FUSE_KERNEL_VERSION;
@@ -525,12 +469,9 @@ static void fuse_send_init(struct fuse_conn *fc)
 
 static unsigned long long conn_id(void)
 {
+	/* BKL is held for ->get_sb() */
 	static unsigned long long ctr = 1;
-	unsigned long long val;
-	spin_lock(&fuse_lock);
-	val = ctr++;
-	spin_unlock(&fuse_lock);
-	return val;
+	return ctr++;
 }
 
 static int fuse_fill_super(struct super_block *sb, void *data, int silent)
@@ -540,6 +481,7 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	struct fuse_mount_data d;
 	struct file *file;
 	struct dentry *root_dentry;
+	struct fuse_req *init_req;
 	int err;
 
 	if (!parse_fuse_opt((char *) data, &d))
@@ -555,10 +497,17 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	if (!file)
 		return -EINVAL;
 
-	fc = get_conn(file, sb);
-	fput(file);
-	if (IS_ERR(fc))
-		return PTR_ERR(fc);
+	if (file->f_op != &fuse_dev_operations)
+		return -EINVAL;
+
+	/* Setting file->private_data can't race with other mount()
+	   instances, since BKL is held for ->get_sb() */
+	if (file->private_data)
+		return -EINVAL;
+
+	fc = new_conn();
+	if (!fc)
+		return -ENOMEM;
 
 	fc->flags = d.flags;
 	fc->user_id = d.user_id;
@@ -579,27 +528,40 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 		goto err;
 	}
 
+	init_req = fuse_request_alloc();
+	if (!init_req)
+		goto err_put_root;
+
 	err = kobject_set_name(&fc->kobj, "%llu", conn_id());
 	if (err)
-		goto err_put_root;
+		goto err_free_req;
 
 	err = kobject_add(&fc->kobj);
 	if (err)
-		goto err_put_root;
+		goto err_free_req;
 
 	sb->s_root = root_dentry;
-	spin_lock(&fuse_lock);
 	fc->mounted = 1;
 	fc->connected = 1;
-	spin_unlock(&fuse_lock);
+	kobject_get(&fc->kobj);
+	file->private_data = fc;
+	/*
+	 * atomic_dec_and_test() in fput() provides the necessary
+	 * memory barrier for file->private_data to be visible on all
+	 * CPUs after this
+	 */
+	fput(file);
 
-	fuse_send_init(fc);
+	fuse_send_init(fc, init_req);
 
 	return 0;
 
+ err_free_req:
+	fuse_request_free(init_req);
  err_put_root:
 	dput(root_dentry);
  err:
+	fput(file);
 	kobject_put(&fc->kobj);
 	return err;
 }
@@ -753,7 +715,6 @@ static int __init fuse_init(void)
 	printk("fuse init (API version %i.%i)\n",
 	       FUSE_KERNEL_VERSION, FUSE_KERNEL_MINOR_VERSION);
 
-	spin_lock_init(&fuse_lock);
 	res = fuse_fs_init();
 	if (res)
 		goto err;

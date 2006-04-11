@@ -18,7 +18,7 @@ define sed-y
 	"/^->/{s:^->\([^ ]*\) [\$$#]*\([^ ]*\) \(.*\):#define \1 \2 /* \3 */:; s:->::; p;}"
 endef
 # Override default regexp for specific architectures
-sed-$(CONFIG_MIPS) := "/^@@@/s///p"
+sed-$(CONFIG_MIPS) := "/^@@@/{s/^@@@//; s/ \#.*\$$//; p;}"
 
 quiet_cmd_offsets = GEN     $@
 define cmd_offsets

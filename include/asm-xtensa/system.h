@@ -111,8 +111,6 @@ extern void *_switch_to(void *last, void *next);
 
 #endif	/* __ASSEMBLY__ */
 
-#define prepare_to_switch()	do { } while(0)
-
 #define switch_to(prev,next,last)		\
 do {						\
 	clear_cpenable();			\

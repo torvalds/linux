@@ -947,7 +947,7 @@ void
 percpu_modcopy (void *pcpudst, const void *src, unsigned long size)
 {
 	unsigned int i;
-	for_each_cpu(i) {
+	for_each_possible_cpu(i) {
 		memcpy(pcpudst + __per_cpu_offset[i], src, size);
 	}
 }

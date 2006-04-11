@@ -1,7 +1,7 @@
 /*
  * Stuff used by all variants of the driver
  *
- * Copyright (c) 2001 by Stefan Eilers <Eilers.Stefan@epost.de>,
+ * Copyright (c) 2001 by Stefan Eilers,
  *                       Hansjoerg Lipp <hjlipp@web.de>,
  *                       Tilman Schmidt <tilman@imap.cc>.
  *
@@ -11,10 +11,6 @@
  *	published by the Free Software Foundation; either version 2 of
  *	the License, or (at your option) any later version.
  * =====================================================================
- * ToDo: ...
- * =====================================================================
- * Version: $Id: common.c,v 1.104.4.22 2006/02/04 18:28:16 hjlipp Exp $
- * =====================================================================
  */
 
 #include "gigaset.h"
@@ -23,7 +19,7 @@
 #include <linux/moduleparam.h>
 
 /* Version Information */
-#define DRIVER_AUTHOR "Hansjoerg Lipp <hjlipp@web.de>, Tilman Schmidt <tilman@imap.cc>, Stefan Eilers <Eilers.Stefan@epost.de>"
+#define DRIVER_AUTHOR "Hansjoerg Lipp <hjlipp@web.de>, Tilman Schmidt <tilman@imap.cc>, Stefan Eilers"
 #define DRIVER_DESC "Driver for Gigaset 307x"
 
 /* Module parameters */
@@ -32,21 +28,10 @@ EXPORT_SYMBOL_GPL(gigaset_debuglevel);
 module_param_named(debug, gigaset_debuglevel, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(debug, "debug level");
 
-/*======================================================================
-  Prototypes of internal functions
- */
-
-//static void gigaset_process_response(int resp_code, int parameter,
-//                                     struct at_state_t *at_state,
-//                                     unsigned char ** pstring);
-static struct cardstate *alloc_cs(struct gigaset_driver *drv);
-static void free_cs(struct cardstate *cs);
-static void make_valid(struct cardstate *cs, unsigned mask);
-static void make_invalid(struct cardstate *cs, unsigned mask);
-
-#define VALID_MINOR       0x01
-#define VALID_ID          0x02
-#define ASSIGNED          0x04
+/* driver state flags */
+#define VALID_MINOR	0x01
+#define VALID_ID	0x02
+#define ASSIGNED	0x04
 
 /* bitwise byte inversion table */
 __u8 gigaset_invtab[256] = {
@@ -86,42 +71,40 @@ __u8 gigaset_invtab[256] = {
 EXPORT_SYMBOL_GPL(gigaset_invtab);
 
 void gigaset_dbg_buffer(enum debuglevel level, const unsigned char *msg,
-                        size_t len, const unsigned char *buf, int from_user)
+			size_t len, const unsigned char *buf)
 {
 	unsigned char outbuf[80];
-	unsigned char inbuf[80 - 1];
-	size_t numin;
-	const unsigned char *in;
+	unsigned char c;
 	size_t space = sizeof outbuf - 1;
 	unsigned char *out = outbuf;
+	size_t numin = len;
 
-	if (!from_user) {
-		in = buf;
-		numin = len;
-	} else {
-		numin = len < sizeof inbuf ? len : sizeof inbuf;
-		in = inbuf;
-		if (copy_from_user(inbuf, (const unsigned char __user *) buf, numin)) {
-			strncpy(inbuf, "<FAULT>", sizeof inbuf);
-			numin = sizeof "<FAULT>" - 1;
+	while (numin--) {
+		c = *buf++;
+		if (c == '~' || c == '^' || c == '\\') {
+			if (!space--)
+				break;
+			*out++ = '\\';
 		}
-	}
-
-	for (; numin && space; --numin, ++in) {
-		--space;
-		if (*in >= 32)
-			*out++ = *in;
-		else {
+		if (c & 0x80) {
+			if (!space--)
+				break;
+			*out++ = '~';
+			c ^= 0x80;
+		}
+		if (c < 0x20 || c == 0x7f) {
+			if (!space--)
+				break;
 			*out++ = '^';
-			if (space) {
-				*out++ = '@' + *in;
-				--space;
-			}
+			c ^= 0x40;
 		}
+		if (!space--)
+			break;
+		*out++ = c;
 	}
 	*out = 0;
 
-	dbg(level, "%s (%u bytes): %s", msg, (unsigned) len, outbuf);
+	gig_dbg(level, "%s (%u bytes): %s", msg, (unsigned) len, outbuf);
 }
 EXPORT_SYMBOL_GPL(gigaset_dbg_buffer);
 
@@ -146,11 +129,6 @@ int gigaset_enterconfigmode(struct cardstate *cs)
 {
 	int i, r;
 
-	if (!atomic_read(&cs->connected)) {
-		err("not connected!");
-		return -1;
-	}
-
 	cs->control_state = TIOCM_RTS; //FIXME
 
 	r = setflags(cs, TIOCM_DTR, 200);
@@ -174,7 +152,7 @@ int gigaset_enterconfigmode(struct cardstate *cs)
 	return 0;
 
 error:
-	err("error %d on setuartbits!\n", -r);
+	dev_err(cs->dev, "error %d on setuartbits\n", -r);
 	cs->control_state = TIOCM_RTS|TIOCM_DTR; // FIXME is this a good value?
 	cs->ops->set_modem_ctrl(cs, 0, TIOCM_RTS|TIOCM_DTR);
 
@@ -187,13 +165,13 @@ static int test_timeout(struct at_state_t *at_state)
 		return 0;
 
 	if (--at_state->timer_expires) {
-		dbg(DEBUG_MCMD, "decreased timer of %p to %lu",
-		    at_state, at_state->timer_expires);
+		gig_dbg(DEBUG_MCMD, "decreased timer of %p to %lu",
+			at_state, at_state->timer_expires);
 		return 0;
 	}
 
 	if (!gigaset_add_event(at_state->cs, at_state, EV_TIMEOUT, NULL,
-	                       atomic_read(&at_state->timer_index), NULL)) {
+			       at_state->timer_index, NULL)) {
 		//FIXME what should we do?
 	}
 
@@ -221,10 +199,10 @@ static void timer_tick(unsigned long data)
 		if (test_timeout(at_state))
 			timeout = 1;
 
-	if (atomic_read(&cs->running)) {
-		mod_timer(&cs->timer, jiffies + GIG_TICK);
+	if (cs->running) {
+		mod_timer(&cs->timer, jiffies + msecs_to_jiffies(GIG_TICK));
 		if (timeout) {
-			dbg(DEBUG_CMD, "scheduling timeout");
+			gig_dbg(DEBUG_CMD, "scheduling timeout");
 			tasklet_schedule(&cs->event_tasklet);
 		}
 	}
@@ -238,13 +216,14 @@ int gigaset_get_channel(struct bc_state *bcs)
 
 	spin_lock_irqsave(&bcs->cs->lock, flags);
 	if (bcs->use_count) {
-		dbg(DEBUG_ANY, "could not allocate channel %d", bcs->channel);
+		gig_dbg(DEBUG_ANY, "could not allocate channel %d",
+			bcs->channel);
 		spin_unlock_irqrestore(&bcs->cs->lock, flags);
 		return 0;
 	}
 	++bcs->use_count;
 	bcs->busy = 1;
-	dbg(DEBUG_ANY, "allocated channel %d", bcs->channel);
+	gig_dbg(DEBUG_ANY, "allocated channel %d", bcs->channel);
 	spin_unlock_irqrestore(&bcs->cs->lock, flags);
 	return 1;
 }
@@ -255,13 +234,13 @@ void gigaset_free_channel(struct bc_state *bcs)
 
 	spin_lock_irqsave(&bcs->cs->lock, flags);
 	if (!bcs->busy) {
-		dbg(DEBUG_ANY, "could not free channel %d", bcs->channel);
+		gig_dbg(DEBUG_ANY, "could not free channel %d", bcs->channel);
 		spin_unlock_irqrestore(&bcs->cs->lock, flags);
 		return;
 	}
 	--bcs->use_count;
 	bcs->busy = 0;
-	dbg(DEBUG_ANY, "freed channel %d", bcs->channel);
+	gig_dbg(DEBUG_ANY, "freed channel %d", bcs->channel);
 	spin_unlock_irqrestore(&bcs->cs->lock, flags);
 }
 
@@ -274,14 +253,14 @@ int gigaset_get_channels(struct cardstate *cs)
 	for (i = 0; i < cs->channels; ++i)
 		if (cs->bcs[i].use_count) {
 			spin_unlock_irqrestore(&cs->lock, flags);
-			dbg(DEBUG_ANY, "could not allocated all channels");
+			gig_dbg(DEBUG_ANY, "could not allocate all channels");
 			return 0;
 		}
 	for (i = 0; i < cs->channels; ++i)
 		++cs->bcs[i].use_count;
 	spin_unlock_irqrestore(&cs->lock, flags);
 
-	dbg(DEBUG_ANY, "allocated all channels");
+	gig_dbg(DEBUG_ANY, "allocated all channels");
 
 	return 1;
 }
@@ -291,7 +270,7 @@ void gigaset_free_channels(struct cardstate *cs)
 	unsigned long flags;
 	int i;
 
-	dbg(DEBUG_ANY, "unblocking all channels");
+	gig_dbg(DEBUG_ANY, "unblocking all channels");
 	spin_lock_irqsave(&cs->lock, flags);
 	for (i = 0; i < cs->channels; ++i)
 		--cs->bcs[i].use_count;
@@ -303,7 +282,7 @@ void gigaset_block_channels(struct cardstate *cs)
 	unsigned long flags;
 	int i;
 
-	dbg(DEBUG_ANY, "blocking all channels");
+	gig_dbg(DEBUG_ANY, "blocking all channels");
 	spin_lock_irqsave(&cs->lock, flags);
 	for (i = 0; i < cs->channels; ++i)
 		++cs->bcs[i].use_count;
@@ -314,25 +293,27 @@ static void clear_events(struct cardstate *cs)
 {
 	struct event_t *ev;
 	unsigned head, tail;
+	unsigned long flags;
 
-	/* no locking needed (no reader/writer allowed) */
+	spin_lock_irqsave(&cs->ev_lock, flags);
 
-	head = atomic_read(&cs->ev_head);
-	tail = atomic_read(&cs->ev_tail);
+	head = cs->ev_head;
+	tail = cs->ev_tail;
 
 	while (tail != head) {
 		ev = cs->events + head;
 		kfree(ev->ptr);
-
 		head = (head + 1) % MAX_EVENTS;
 	}
 
-	atomic_set(&cs->ev_head, tail);
+	cs->ev_head = tail;
+
+	spin_unlock_irqrestore(&cs->ev_lock, flags);
 }
 
 struct event_t *gigaset_add_event(struct cardstate *cs,
-                                  struct at_state_t *at_state, int type,
-                                  void *ptr, int parameter, void *arg)
+				  struct at_state_t *at_state, int type,
+				  void *ptr, int parameter, void *arg)
 {
 	unsigned long flags;
 	unsigned next, tail;
@@ -340,9 +321,9 @@ struct event_t *gigaset_add_event(struct cardstate *cs,
 
 	spin_lock_irqsave(&cs->ev_lock, flags);
 
-	tail = atomic_read(&cs->ev_tail);
+	tail = cs->ev_tail;
 	next = (tail + 1) % MAX_EVENTS;
-	if (unlikely(next == atomic_read(&cs->ev_head)))
+	if (unlikely(next == cs->ev_head))
 		err("event queue full");
 	else {
 		event = cs->events + tail;
@@ -352,7 +333,7 @@ struct event_t *gigaset_add_event(struct cardstate *cs,
 		event->ptr = ptr;
 		event->arg = arg;
 		event->parameter = parameter;
-		atomic_set(&cs->ev_tail, next);
+		cs->ev_tail = next;
 	}
 
 	spin_unlock_irqrestore(&cs->ev_lock, flags);
@@ -391,14 +372,14 @@ static void gigaset_freebcs(struct bc_state *bcs)
 {
 	int i;
 
-	dbg(DEBUG_INIT, "freeing bcs[%d]->hw", bcs->channel);
+	gig_dbg(DEBUG_INIT, "freeing bcs[%d]->hw", bcs->channel);
 	if (!bcs->cs->ops->freebcshw(bcs)) {
-		dbg(DEBUG_INIT, "failed");
+		gig_dbg(DEBUG_INIT, "failed");
 	}
 
-	dbg(DEBUG_INIT, "clearing bcs[%d]->at_state", bcs->channel);
+	gig_dbg(DEBUG_INIT, "clearing bcs[%d]->at_state", bcs->channel);
 	clear_at_state(&bcs->at_state);
-	dbg(DEBUG_INIT, "freeing bcs[%d]->skb", bcs->channel);
+	gig_dbg(DEBUG_INIT, "freeing bcs[%d]->skb", bcs->channel);
 
 	if (bcs->skb)
 		dev_kfree_skb(bcs->skb);
@@ -406,6 +387,52 @@ static void gigaset_freebcs(struct bc_state *bcs)
 		kfree(bcs->commands[i]);
 		bcs->commands[i] = NULL;
 	}
+}
+
+static struct cardstate *alloc_cs(struct gigaset_driver *drv)
+{
+	unsigned long flags;
+	unsigned i;
+	static struct cardstate *ret = NULL;
+
+	spin_lock_irqsave(&drv->lock, flags);
+	for (i = 0; i < drv->minors; ++i) {
+		if (!(drv->flags[i] & VALID_MINOR)) {
+			drv->flags[i] = VALID_MINOR;
+			ret = drv->cs + i;
+		}
+		if (ret)
+			break;
+	}
+	spin_unlock_irqrestore(&drv->lock, flags);
+	return ret;
+}
+
+static void free_cs(struct cardstate *cs)
+{
+	unsigned long flags;
+	struct gigaset_driver *drv = cs->driver;
+	spin_lock_irqsave(&drv->lock, flags);
+	drv->flags[cs->minor_index] = 0;
+	spin_unlock_irqrestore(&drv->lock, flags);
+}
+
+static void make_valid(struct cardstate *cs, unsigned mask)
+{
+	unsigned long flags;
+	struct gigaset_driver *drv = cs->driver;
+	spin_lock_irqsave(&drv->lock, flags);
+	drv->flags[cs->minor_index] |= mask;
+	spin_unlock_irqrestore(&drv->lock, flags);
+}
+
+static void make_invalid(struct cardstate *cs, unsigned mask)
+{
+	unsigned long flags;
+	struct gigaset_driver *drv = cs->driver;
+	spin_lock_irqsave(&drv->lock, flags);
+	drv->flags[cs->minor_index] &= ~mask;
+	spin_unlock_irqrestore(&drv->lock, flags);
 }
 
 void gigaset_freecs(struct cardstate *cs)
@@ -416,7 +443,7 @@ void gigaset_freecs(struct cardstate *cs)
 	if (!cs)
 		return;
 
-	down(&cs->sem);
+	mutex_lock(&cs->mutex);
 
 	if (!cs->bcs)
 		goto f_cs;
@@ -424,8 +451,9 @@ void gigaset_freecs(struct cardstate *cs)
 		goto f_bcs;
 
 	spin_lock_irqsave(&cs->lock, flags);
-	atomic_set(&cs->running, 0);
-	spin_unlock_irqrestore(&cs->lock, flags); /* event handler and timer are not rescheduled below */
+	cs->running = 0;
+	spin_unlock_irqrestore(&cs->lock, flags); /* event handler and timer are
+						     not rescheduled below */
 
 	tasklet_kill(&cs->event_tasklet);
 	del_timer_sync(&cs->timer);
@@ -434,7 +462,7 @@ void gigaset_freecs(struct cardstate *cs)
 	default:
 		gigaset_if_free(cs);
 
-		dbg(DEBUG_INIT, "clearing hw");
+		gig_dbg(DEBUG_INIT, "clearing hw");
 		cs->ops->freecshw(cs);
 
 		//FIXME cmdbuf
@@ -443,36 +471,36 @@ void gigaset_freecs(struct cardstate *cs)
 	case 2: /* error in initcshw */
 		/* Deregister from LL */
 		make_invalid(cs, VALID_ID);
-		dbg(DEBUG_INIT, "clearing iif");
+		gig_dbg(DEBUG_INIT, "clearing iif");
 		gigaset_i4l_cmd(cs, ISDN_STAT_UNLOAD);
 
 		/* fall through */
 	case 1: /* error when regestering to LL */
-		dbg(DEBUG_INIT, "clearing at_state");
+		gig_dbg(DEBUG_INIT, "clearing at_state");
 		clear_at_state(&cs->at_state);
 		dealloc_at_states(cs);
 
 		/* fall through */
 	case 0: /* error in one call to initbcs */
 		for (i = 0; i < cs->channels; ++i) {
-			dbg(DEBUG_INIT, "clearing bcs[%d]", i);
+			gig_dbg(DEBUG_INIT, "clearing bcs[%d]", i);
 			gigaset_freebcs(cs->bcs + i);
 		}
 
 		clear_events(cs);
-		dbg(DEBUG_INIT, "freeing inbuf");
+		gig_dbg(DEBUG_INIT, "freeing inbuf");
 		kfree(cs->inbuf);
 	}
-f_bcs:	dbg(DEBUG_INIT, "freeing bcs[]");
+f_bcs:	gig_dbg(DEBUG_INIT, "freeing bcs[]");
 	kfree(cs->bcs);
-f_cs:	dbg(DEBUG_INIT, "freeing cs");
-	up(&cs->sem);
+f_cs:	gig_dbg(DEBUG_INIT, "freeing cs");
+	mutex_unlock(&cs->mutex);
 	free_cs(cs);
 }
 EXPORT_SYMBOL_GPL(gigaset_freecs);
 
 void gigaset_at_init(struct at_state_t *at_state, struct bc_state *bcs,
-                     struct cardstate *cs, int cid)
+		     struct cardstate *cs, int cid)
 {
 	int i;
 
@@ -482,8 +510,8 @@ void gigaset_at_init(struct at_state_t *at_state, struct bc_state *bcs,
 	at_state->pending_commands = 0;
 	at_state->timer_expires = 0;
 	at_state->timer_active = 0;
-	atomic_set(&at_state->timer_index, 0);
-	atomic_set(&at_state->seq_index, 0);
+	at_state->timer_index = 0;
+	at_state->seq_index = 0;
 	at_state->ConState = 0;
 	for (i = 0; i < STR_NUM; ++i)
 		at_state->str_var[i] = NULL;
@@ -501,7 +529,7 @@ void gigaset_at_init(struct at_state_t *at_state, struct bc_state *bcs,
 
 
 static void gigaset_inbuf_init(struct inbuf_t *inbuf, struct bc_state *bcs,
-                               struct cardstate *cs, int inputstate)
+			       struct cardstate *cs, int inputstate)
 /* inbuf->read must be allocated before! */
 {
 	atomic_set(&inbuf->head, 0);
@@ -512,9 +540,50 @@ static void gigaset_inbuf_init(struct inbuf_t *inbuf, struct bc_state *bcs,
 	inbuf->inputstate = inputstate;
 }
 
+/* append received bytes to inbuf */
+int gigaset_fill_inbuf(struct inbuf_t *inbuf, const unsigned char *src,
+		       unsigned numbytes)
+{
+	unsigned n, head, tail, bytesleft;
+
+	gig_dbg(DEBUG_INTR, "received %u bytes", numbytes);
+
+	if (!numbytes)
+		return 0;
+
+	bytesleft = numbytes;
+	tail = atomic_read(&inbuf->tail);
+	head = atomic_read(&inbuf->head);
+	gig_dbg(DEBUG_INTR, "buffer state: %u -> %u", head, tail);
+
+	while (bytesleft) {
+		if (head > tail)
+			n = head - 1 - tail;
+		else if (head == 0)
+			n = (RBUFSIZE-1) - tail;
+		else
+			n = RBUFSIZE - tail;
+		if (!n) {
+			dev_err(inbuf->cs->dev,
+				"buffer overflow (%u bytes lost)", bytesleft);
+			break;
+		}
+		if (n > bytesleft)
+			n = bytesleft;
+		memcpy(inbuf->data + tail, src, n);
+		bytesleft -= n;
+		tail = (tail + n) % RBUFSIZE;
+		src += n;
+	}
+	gig_dbg(DEBUG_INTR, "setting tail to %u", tail);
+	atomic_set(&inbuf->tail, tail);
+	return numbytes != bytesleft;
+}
+EXPORT_SYMBOL_GPL(gigaset_fill_inbuf);
+
 /* Initialize the b-channel structure */
 static struct bc_state *gigaset_initbcs(struct bc_state *bcs,
-                                        struct cardstate *cs, int channel)
+					struct cardstate *cs, int channel)
 {
 	int i;
 
@@ -526,7 +595,7 @@ static struct bc_state *gigaset_initbcs(struct bc_state *bcs,
 	bcs->trans_down = 0;
 	bcs->trans_up = 0;
 
-	dbg(DEBUG_INIT, "setting up bcs[%d]->at_state", channel);
+	gig_dbg(DEBUG_INIT, "setting up bcs[%d]->at_state", channel);
 	gigaset_at_init(&bcs->at_state, bcs, cs, -1);
 
 	bcs->rcvbytes = 0;
@@ -535,7 +604,7 @@ static struct bc_state *gigaset_initbcs(struct bc_state *bcs,
 	bcs->emptycount = 0;
 #endif
 
-	dbg(DEBUG_INIT, "allocating bcs[%d]->skb", channel);
+	gig_dbg(DEBUG_INIT, "allocating bcs[%d]->skb", channel);
 	bcs->fcs = PPP_INITFCS;
 	bcs->inputstate = 0;
 	if (cs->ignoreframes) {
@@ -544,7 +613,7 @@ static struct bc_state *gigaset_initbcs(struct bc_state *bcs,
 	} else if ((bcs->skb = dev_alloc_skb(SBUFSIZE + HW_HDR_LEN)) != NULL)
 		skb_reserve(bcs->skb, HW_HDR_LEN);
 	else {
-		warn("could not allocate skb");
+		dev_warn(cs->dev, "could not allocate skb\n");
 		bcs->inputstate |= INS_skip_frame;
 	}
 
@@ -559,14 +628,13 @@ static struct bc_state *gigaset_initbcs(struct bc_state *bcs,
 	for (i = 0; i < AT_NUM; ++i)
 		bcs->commands[i] = NULL;
 
-	dbg(DEBUG_INIT, "  setting up bcs[%d]->hw", channel);
+	gig_dbg(DEBUG_INIT, "  setting up bcs[%d]->hw", channel);
 	if (cs->ops->initbcshw(bcs))
 		return bcs;
 
-//error:
-	dbg(DEBUG_INIT, "  failed");
+	gig_dbg(DEBUG_INIT, "  failed");
 
-	dbg(DEBUG_INIT, "  freeing bcs[%d]->skb", channel);
+	gig_dbg(DEBUG_INIT, "  freeing bcs[%d]->skb", channel);
 	if (bcs->skb)
 		dev_kfree_skb(bcs->skb);
 
@@ -578,9 +646,10 @@ static struct bc_state *gigaset_initbcs(struct bc_state *bcs,
  * Calls hardware dependent gigaset_initcshw() function
  * Calls B channel initialization function gigaset_initbcs() for each B channel
  * parameters:
- *      drv		hardware driver the device belongs to
+ *	drv		hardware driver the device belongs to
  *	channels	number of B channels supported by device
- *	onechannel	!=0: B channel data and AT commands share one communication channel
+ *	onechannel	!=0: B channel data and AT commands share one
+ *			     communication channel
  *			==0: B channels have separate communication channels
  *	ignoreframes	number of frames to ignore after setting up B channel
  *	cidmode		!=0: start in CallID mode
@@ -593,17 +662,18 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 				 int cidmode, const char *modulename)
 {
 	struct cardstate *cs = NULL;
+	unsigned long flags;
 	int i;
 
-	dbg(DEBUG_INIT, "allocating cs");
+	gig_dbg(DEBUG_INIT, "allocating cs");
 	cs = alloc_cs(drv);
 	if (!cs)
 		goto error;
-	dbg(DEBUG_INIT, "allocating bcs[0..%d]", channels - 1);
+	gig_dbg(DEBUG_INIT, "allocating bcs[0..%d]", channels - 1);
 	cs->bcs = kmalloc(channels * sizeof(struct bc_state), GFP_KERNEL);
 	if (!cs->bcs)
 		goto error;
-	dbg(DEBUG_INIT, "allocating inbuf");
+	gig_dbg(DEBUG_INIT, "allocating inbuf");
 	cs->inbuf = kmalloc(sizeof(struct inbuf_t), GFP_KERNEL);
 	if (!cs->inbuf)
 		goto error;
@@ -613,19 +683,23 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 	cs->onechannel = onechannel;
 	cs->ignoreframes = ignoreframes;
 	INIT_LIST_HEAD(&cs->temp_at_states);
-	atomic_set(&cs->running, 0);
+	cs->running = 0;
 	init_timer(&cs->timer); /* clear next & prev */
 	spin_lock_init(&cs->ev_lock);
-	atomic_set(&cs->ev_tail, 0);
-	atomic_set(&cs->ev_head, 0);
-	init_MUTEX_LOCKED(&cs->sem);
-	tasklet_init(&cs->event_tasklet, &gigaset_handle_event, (unsigned long) cs);
+	cs->ev_tail = 0;
+	cs->ev_head = 0;
+	mutex_init(&cs->mutex);
+	mutex_lock(&cs->mutex);
+
+	tasklet_init(&cs->event_tasklet, &gigaset_handle_event,
+		     (unsigned long) cs);
 	atomic_set(&cs->commands_pending, 0);
 	cs->cur_at_seq = 0;
 	cs->gotfwver = -1;
 	cs->open_count = 0;
+	cs->dev = NULL;
 	cs->tty = NULL;
-	atomic_set(&cs->cidmode, cidmode != 0);
+	cs->cidmode = cidmode != 0;
 
 	//if(onechannel) { //FIXME
 		cs->tabnocid = gigaset_tab_nocid_m10x;
@@ -642,50 +716,43 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 	atomic_set(&cs->mstate, MS_UNINITIALIZED);
 
 	for (i = 0; i < channels; ++i) {
-		dbg(DEBUG_INIT, "setting up bcs[%d].read", i);
+		gig_dbg(DEBUG_INIT, "setting up bcs[%d].read", i);
 		if (!gigaset_initbcs(cs->bcs + i, cs, i))
 			goto error;
 	}
 
 	++cs->cs_init;
 
-	dbg(DEBUG_INIT, "setting up at_state");
+	gig_dbg(DEBUG_INIT, "setting up at_state");
 	spin_lock_init(&cs->lock);
 	gigaset_at_init(&cs->at_state, NULL, cs, 0);
 	cs->dle = 0;
 	cs->cbytes = 0;
 
-	dbg(DEBUG_INIT, "setting up inbuf");
+	gig_dbg(DEBUG_INIT, "setting up inbuf");
 	if (onechannel) {			//FIXME distinction necessary?
 		gigaset_inbuf_init(cs->inbuf, cs->bcs, cs, INS_command);
 	} else
 		gigaset_inbuf_init(cs->inbuf, NULL,    cs, INS_command);
 
-	atomic_set(&cs->connected, 0);
+	cs->connected = 0;
+	cs->isdn_up = 0;
 
-	dbg(DEBUG_INIT, "setting up cmdbuf");
+	gig_dbg(DEBUG_INIT, "setting up cmdbuf");
 	cs->cmdbuf = cs->lastcmdbuf = NULL;
 	spin_lock_init(&cs->cmdlock);
 	cs->curlen = 0;
 	cs->cmdbytes = 0;
 
-	/*
-	 * Tell the ISDN4Linux subsystem (the LL) that
-	 * a driver for a USB-Device is available !
-	 * If this is done, "isdnctrl" is able to bind a device for this driver even
-	 * if no physical usb-device is currently connected.
-	 * But this device will just be accessable if a physical USB device is connected
-	 * (via "gigaset_probe") .
-	 */
-	dbg(DEBUG_INIT, "setting up iif");
+	gig_dbg(DEBUG_INIT, "setting up iif");
 	if (!gigaset_register_to_LL(cs, modulename)) {
-		err("register_isdn=>error");
+		err("register_isdn failed");
 		goto error;
 	}
 
 	make_valid(cs, VALID_ID);
 	++cs->cs_init;
-	dbg(DEBUG_INIT, "setting up hw");
+	gig_dbg(DEBUG_INIT, "setting up hw");
 	if (!cs->ops->initcshw(cs))
 		goto error;
 
@@ -693,27 +760,29 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 
 	gigaset_if_init(cs);
 
-	atomic_set(&cs->running, 1);
-	cs->timer.data = (unsigned long) cs;
-	cs->timer.function = timer_tick;
-	cs->timer.expires = jiffies + GIG_TICK;
+	spin_lock_irqsave(&cs->lock, flags);
+	cs->running = 1;
+	spin_unlock_irqrestore(&cs->lock, flags);
+	setup_timer(&cs->timer, timer_tick, (unsigned long) cs);
+	cs->timer.expires = jiffies + msecs_to_jiffies(GIG_TICK);
 	/* FIXME: can jiffies increase too much until the timer is added?
 	 * Same problem(?) with mod_timer() in timer_tick(). */
 	add_timer(&cs->timer);
 
-	dbg(DEBUG_INIT, "cs initialized!");
-	up(&cs->sem);
+	gig_dbg(DEBUG_INIT, "cs initialized");
+	mutex_unlock(&cs->mutex);
 	return cs;
 
 error:	if (cs)
-		up(&cs->sem);
-	dbg(DEBUG_INIT, "failed");
+		mutex_unlock(&cs->mutex);
+	gig_dbg(DEBUG_INIT, "failed");
 	gigaset_freecs(cs);
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(gigaset_initcs);
 
-/* ReInitialize the b-channel structure */ /* e.g. called on hangup, disconnect */
+/* ReInitialize the b-channel structure */
+/* e.g. called on hangup, disconnect */
 void gigaset_bcs_reinit(struct bc_state *bcs)
 {
 	struct sk_buff *skb;
@@ -723,12 +792,12 @@ void gigaset_bcs_reinit(struct bc_state *bcs)
 	while ((skb = skb_dequeue(&bcs->squeue)) != NULL)
 		dev_kfree_skb(skb);
 
-	spin_lock_irqsave(&cs->lock, flags); //FIXME
+	spin_lock_irqsave(&cs->lock, flags);
 	clear_at_state(&bcs->at_state);
 	bcs->at_state.ConState = 0;
 	bcs->at_state.timer_active = 0;
 	bcs->at_state.timer_expires = 0;
-	bcs->at_state.cid = -1;                     /* No CID defined */
+	bcs->at_state.cid = -1;			/* No CID defined */
 	spin_unlock_irqrestore(&cs->lock, flags);
 
 	bcs->inputstate = 0;
@@ -803,11 +872,14 @@ static void cleanup_cs(struct cardstate *cs)
 
 int gigaset_start(struct cardstate *cs)
 {
-	if (down_interruptible(&cs->sem))
-		return 0;
-	//info("USB device for Gigaset 307x now attached to Dev %d", ucs->minor);
+	unsigned long flags;
 
-	atomic_set(&cs->connected, 1);
+	if (mutex_lock_interruptible(&cs->mutex))
+		return 0;
+
+	spin_lock_irqsave(&cs->lock, flags);
+	cs->connected = 1;
+	spin_unlock_irqrestore(&cs->lock, flags);
 
 	if (atomic_read(&cs->mstate) != MS_LOCKED) {
 		cs->ops->set_modem_ctrl(cs, 0, TIOCM_DTR|TIOCM_RTS);
@@ -826,23 +898,26 @@ int gigaset_start(struct cardstate *cs)
 		goto error;
 	}
 
-	dbg(DEBUG_CMD, "scheduling START");
+	gig_dbg(DEBUG_CMD, "scheduling START");
 	gigaset_schedule_event(cs);
 
 	wait_event(cs->waitqueue, !cs->waiting);
 
-	up(&cs->sem);
+	/* set up device sysfs */
+	gigaset_init_dev_sysfs(cs);
+
+	mutex_unlock(&cs->mutex);
 	return 1;
 
 error:
-	up(&cs->sem);
+	mutex_unlock(&cs->mutex);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(gigaset_start);
 
 void gigaset_shutdown(struct cardstate *cs)
 {
-	down(&cs->sem);
+	mutex_lock(&cs->mutex);
 
 	cs->waiting = 1;
 
@@ -851,11 +926,11 @@ void gigaset_shutdown(struct cardstate *cs)
 		goto exit;
 	}
 
-	dbg(DEBUG_CMD, "scheduling SHUTDOWN");
+	gig_dbg(DEBUG_CMD, "scheduling SHUTDOWN");
 	gigaset_schedule_event(cs);
 
 	if (wait_event_interruptible(cs->waitqueue, !cs->waiting)) {
-		warn("aborted");
+		warn("%s: aborted", __func__);
 		//FIXME
 	}
 
@@ -872,15 +947,13 @@ void gigaset_shutdown(struct cardstate *cs)
 	cleanup_cs(cs);
 
 exit:
-	up(&cs->sem);
+	mutex_unlock(&cs->mutex);
 }
 EXPORT_SYMBOL_GPL(gigaset_shutdown);
 
 void gigaset_stop(struct cardstate *cs)
 {
-	down(&cs->sem);
-
-	atomic_set(&cs->connected, 0);
+	mutex_lock(&cs->mutex);
 
 	cs->waiting = 1;
 
@@ -889,21 +962,21 @@ void gigaset_stop(struct cardstate *cs)
 		goto exit;
 	}
 
-	dbg(DEBUG_CMD, "scheduling STOP");
+	gig_dbg(DEBUG_CMD, "scheduling STOP");
 	gigaset_schedule_event(cs);
 
 	if (wait_event_interruptible(cs->waitqueue, !cs->waiting)) {
-		warn("aborted");
+		warn("%s: aborted", __func__);
 		//FIXME
 	}
 
-	/* Tell the LL that the device is not available .. */
-	gigaset_i4l_cmd(cs, ISDN_STAT_STOP); // FIXME move to event layer?
+	/* clear device sysfs */
+	gigaset_free_dev_sysfs(cs);
 
 	cleanup_cs(cs);
 
 exit:
-	up(&cs->sem);
+	mutex_unlock(&cs->mutex);
 }
 EXPORT_SYMBOL_GPL(gigaset_stop);
 
@@ -947,31 +1020,25 @@ void gigaset_debugdrivers(void)
 
 	spin_lock_irqsave(&driver_lock, flags);
 	list_for_each_entry(drv, &drivers, list) {
-		dbg(DEBUG_DRIVER, "driver %p", drv);
+		gig_dbg(DEBUG_DRIVER, "driver %p", drv);
 		spin_lock(&drv->lock);
 		for (i = 0; i < drv->minors; ++i) {
-			dbg(DEBUG_DRIVER, "  index %u", i);
-			dbg(DEBUG_DRIVER, "    flags 0x%02x", drv->flags[i]);
+			gig_dbg(DEBUG_DRIVER, "  index %u", i);
+			gig_dbg(DEBUG_DRIVER, "    flags 0x%02x",
+				drv->flags[i]);
 			cs = drv->cs + i;
-			dbg(DEBUG_DRIVER, "    cardstate %p", cs);
-			dbg(DEBUG_DRIVER, "    minor_index %u", cs->minor_index);
-			dbg(DEBUG_DRIVER, "    driver %p", cs->driver);
-			dbg(DEBUG_DRIVER, "    i4l id %d", cs->myid);
+			gig_dbg(DEBUG_DRIVER, "    cardstate %p", cs);
+			gig_dbg(DEBUG_DRIVER, "    minor_index %u",
+				cs->minor_index);
+			gig_dbg(DEBUG_DRIVER, "    driver %p", cs->driver);
+			gig_dbg(DEBUG_DRIVER, "    i4l id %d", cs->myid);
 		}
 		spin_unlock(&drv->lock);
 	}
 	spin_unlock_irqrestore(&driver_lock, flags);
 }
-EXPORT_SYMBOL_GPL(gigaset_debugdrivers);
 
-struct cardstate *gigaset_get_cs_by_tty(struct tty_struct *tty)
-{
-	if (tty->index < 0 || tty->index >= tty->driver->num)
-		return NULL;
-	return gigaset_get_cs_by_minor(tty->index + tty->driver->minor_start);
-}
-
-struct cardstate *gigaset_get_cs_by_minor(unsigned minor)
+static struct cardstate *gigaset_get_cs_by_minor(unsigned minor)
 {
 	unsigned long flags;
 	static struct cardstate *ret = NULL;
@@ -994,6 +1061,13 @@ struct cardstate *gigaset_get_cs_by_minor(unsigned minor)
 	return ret;
 }
 
+struct cardstate *gigaset_get_cs_by_tty(struct tty_struct *tty)
+{
+	if (tty->index < 0 || tty->index >= tty->driver->num)
+		return NULL;
+	return gigaset_get_cs_by_minor(tty->index + tty->driver->minor_start);
+}
+
 void gigaset_freedriver(struct gigaset_driver *drv)
 {
 	unsigned long flags;
@@ -1014,20 +1088,20 @@ EXPORT_SYMBOL_GPL(gigaset_freedriver);
 /* gigaset_initdriver
  * Allocate and initialize gigaset_driver structure. Initialize interface.
  * parameters:
- *      minor           First minor number
- *      minors          Number of minors this driver can handle
- *      procname        Name of the driver (e.g. for /proc/tty/drivers, path in /proc/driver)
- *      devname         Name of the device files (prefix without minor number)
- *      devfsname       Devfs name of the device files without %d
+ *	minor		First minor number
+ *	minors		Number of minors this driver can handle
+ *	procname	Name of the driver
+ *	devname		Name of the device files (prefix without minor number)
+ *	devfsname	Devfs name of the device files without %d
  * return value:
- *      Pointer to the gigaset_driver structure on success, NULL on failure.
+ *	Pointer to the gigaset_driver structure on success, NULL on failure.
  */
 struct gigaset_driver *gigaset_initdriver(unsigned minor, unsigned minors,
-                                          const char *procname,
-                                          const char *devname,
-                                          const char *devfsname,
-                                          const struct gigaset_ops *ops,
-                                          struct module *owner)
+					  const char *procname,
+					  const char *devname,
+					  const char *devfsname,
+					  const struct gigaset_ops *ops,
+					  struct module *owner)
 {
 	struct gigaset_driver *drv;
 	unsigned long flags;
@@ -1036,8 +1110,9 @@ struct gigaset_driver *gigaset_initdriver(unsigned minor, unsigned minors,
 	drv = kmalloc(sizeof *drv, GFP_KERNEL);
 	if (!drv)
 		return NULL;
+
 	if (!try_module_get(owner))
-		return NULL;
+		goto out1;
 
 	drv->cs = NULL;
 	drv->have_tty = 0;
@@ -1051,10 +1126,11 @@ struct gigaset_driver *gigaset_initdriver(unsigned minor, unsigned minors,
 
 	drv->cs = kmalloc(minors * sizeof *drv->cs, GFP_KERNEL);
 	if (!drv->cs)
-		goto out1;
+		goto out2;
+
 	drv->flags = kmalloc(minors * sizeof *drv->flags, GFP_KERNEL);
 	if (!drv->flags)
-		goto out2;
+		goto out3;
 
 	for (i = 0; i < minors; ++i) {
 		drv->flags[i] = 0;
@@ -1071,60 +1147,15 @@ struct gigaset_driver *gigaset_initdriver(unsigned minor, unsigned minors,
 
 	return drv;
 
-out2:
+out3:
 	kfree(drv->cs);
+out2:
+	module_put(owner);
 out1:
 	kfree(drv);
-	module_put(owner);
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(gigaset_initdriver);
-
-static struct cardstate *alloc_cs(struct gigaset_driver *drv)
-{
-	unsigned long flags;
-	unsigned i;
-	static struct cardstate *ret = NULL;
-
-	spin_lock_irqsave(&drv->lock, flags);
-	for (i = 0; i < drv->minors; ++i) {
-		if (!(drv->flags[i] & VALID_MINOR)) {
-			drv->flags[i] = VALID_MINOR;
-			ret = drv->cs + i;
-		}
-		if (ret)
-			break;
-	}
-	spin_unlock_irqrestore(&drv->lock, flags);
-	return ret;
-}
-
-static void free_cs(struct cardstate *cs)
-{
-	unsigned long flags;
-	struct gigaset_driver *drv = cs->driver;
-	spin_lock_irqsave(&drv->lock, flags);
-	drv->flags[cs->minor_index] = 0;
-	spin_unlock_irqrestore(&drv->lock, flags);
-}
-
-static void make_valid(struct cardstate *cs, unsigned mask)
-{
-	unsigned long flags;
-	struct gigaset_driver *drv = cs->driver;
-	spin_lock_irqsave(&drv->lock, flags);
-	drv->flags[cs->minor_index] |= mask;
-	spin_unlock_irqrestore(&drv->lock, flags);
-}
-
-static void make_invalid(struct cardstate *cs, unsigned mask)
-{
-	unsigned long flags;
-	struct gigaset_driver *drv = cs->driver;
-	spin_lock_irqsave(&drv->lock, flags);
-	drv->flags[cs->minor_index] &= ~mask;
-	spin_unlock_irqrestore(&drv->lock, flags);
-}
 
 /* For drivers without fixed assignment device<->cardstate (usb) */
 struct cardstate *gigaset_getunassignedcs(struct gigaset_driver *drv)

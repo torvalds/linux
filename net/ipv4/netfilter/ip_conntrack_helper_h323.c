@@ -9,37 +9,6 @@
  * Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
  *
  * For more information, please see http://nath323.sourceforge.net/
- *
- * Changes:
- * 	2006-02-01 - initial version 0.1
- *
- *	2006-02-20 - version 0.2
- *	  1. Changed source format to follow kernel conventions
- *	  2. Deleted some unnecessary structures
- *	  3. Minor fixes
- *
- * 	2006-03-10 - version 0.3
- * 	  1. Added support for multiple TPKTs in one packet (suggested by
- * 	     Patrick McHardy)
- * 	  2. Avoid excessive stack usage (based on Patrick McHardy's patch)
- * 	  3. Added support for non-linear skb (based on Patrick McHardy's patch)
- * 	  4. Fixed missing H.245 module owner (Patrick McHardy)
- * 	  5. Avoid long RAS expectation chains (Patrick McHardy)
- * 	  6. Fixed incorrect __exit attribute (Patrick McHardy)
- * 	  7. Eliminated unnecessary return code
- * 	  8. Fixed incorrect use of NAT data from conntrack code (suggested by
- * 	     Patrick McHardy)
- * 	  9. Fixed TTL calculation error in RCF
- * 	  10. Added TTL support in RRQ
- * 	  11. Better support for separate TPKT header and data
- *
- * 	2006-03-15 - version 0.4
- * 	  1. Added support for T.120 channels
- * 	  2. Added parameter gkrouted_only (suggested by Patrick McHardy)
- * 	  3. Splitted ASN.1 code and data (suggested by Patrick McHardy)
- * 	  4. Sort ASN.1 data to avoid forwarding declarations (suggested by
- * 	     Patrick McHardy)
- * 	  5. Reset next TPKT data length in get_tpkt_data()
  */
 
 #include <linux/config.h>
@@ -54,8 +23,6 @@
 #include <linux/netfilter_ipv4/ip_conntrack_h323.h>
 #include <linux/moduleparam.h>
 
-#include "ip_conntrack_helper_h323_asn1.h"
-
 #if 0
 #define DEBUGP printk
 #else
@@ -63,6 +30,10 @@
 #endif
 
 /* Parameters */
+static unsigned int default_rrq_ttl = 300;
+module_param(default_rrq_ttl, uint, 0600);
+MODULE_PARM_DESC(default_rrq_ttl, "use this TTL if it's missing in RRQ");
+
 static int gkrouted_only = 1;
 module_param(gkrouted_only, int, 0600);
 MODULE_PARM_DESC(gkrouted_only, "only accept calls from gatekeeper");
@@ -222,8 +193,8 @@ static int get_tpkt_data(struct sk_buff **pskb, struct ip_conntrack *ct,
 }
 
 /****************************************************************************/
-int get_h245_addr(unsigned char *data, H245_TransportAddress * addr,
-		  u_int32_t * ip, u_int16_t * port)
+static int get_h245_addr(unsigned char *data, H245_TransportAddress * addr,
+			 u_int32_t * ip, u_int16_t * port)
 {
 	unsigned char *p;
 
@@ -1302,7 +1273,7 @@ static int process_rrq(struct sk_buff **pskb, struct ip_conntrack *ct,
 		DEBUGP("ip_ct_ras: RRQ TTL = %u seconds\n", rrq->timeToLive);
 		info->timeout = rrq->timeToLive;
 	} else
-		info->timeout = 0;
+		info->timeout = default_rrq_ttl;
 
 	return 0;
 }
@@ -1713,18 +1684,17 @@ static int __init init(void)
 module_init(init);
 module_exit(fini);
 
-EXPORT_SYMBOL(get_h245_addr);
-EXPORT_SYMBOL(get_h225_addr);
-EXPORT_SYMBOL(ip_conntrack_h245_expect);
-EXPORT_SYMBOL(ip_conntrack_q931_expect);
-EXPORT_SYMBOL(set_h245_addr_hook);
-EXPORT_SYMBOL(set_h225_addr_hook);
-EXPORT_SYMBOL(set_sig_addr_hook);
-EXPORT_SYMBOL(set_ras_addr_hook);
-EXPORT_SYMBOL(nat_rtp_rtcp_hook);
-EXPORT_SYMBOL(nat_t120_hook);
-EXPORT_SYMBOL(nat_h245_hook);
-EXPORT_SYMBOL(nat_q931_hook);
+EXPORT_SYMBOL_GPL(get_h225_addr);
+EXPORT_SYMBOL_GPL(ip_conntrack_h245_expect);
+EXPORT_SYMBOL_GPL(ip_conntrack_q931_expect);
+EXPORT_SYMBOL_GPL(set_h245_addr_hook);
+EXPORT_SYMBOL_GPL(set_h225_addr_hook);
+EXPORT_SYMBOL_GPL(set_sig_addr_hook);
+EXPORT_SYMBOL_GPL(set_ras_addr_hook);
+EXPORT_SYMBOL_GPL(nat_rtp_rtcp_hook);
+EXPORT_SYMBOL_GPL(nat_t120_hook);
+EXPORT_SYMBOL_GPL(nat_h245_hook);
+EXPORT_SYMBOL_GPL(nat_q931_hook);
 
 MODULE_AUTHOR("Jing Min Zhao <zhaojingmin@users.sourceforge.net>");
 MODULE_DESCRIPTION("H.323 connection tracking helper");

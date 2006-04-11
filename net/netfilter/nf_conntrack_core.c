@@ -146,7 +146,7 @@ static void nf_ct_event_cache_flush(void)
 	struct nf_conntrack_ecache *ecache;
 	int cpu;
 
-	for_each_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		ecache = &per_cpu(nf_conntrack_ecache, cpu);
 		if (ecache->ct)
 			nf_ct_put(ecache->ct);

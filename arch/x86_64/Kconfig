@@ -136,6 +136,11 @@ config X86_L1_CACHE_SHIFT
 	default "7" if GENERIC_CPU || MPSC
 	default "6" if MK8
 
+config X86_INTERNODE_CACHE_BYTES
+	int
+	default "4096" if X86_VSMP
+	default X86_L1_CACHE_BYTES if !X86_VSMP
+
 config X86_TSC
 	bool
 	default y
@@ -282,6 +287,11 @@ config K8_NUMA
 	 method to read the NUMA configurtion directly from the builtin
 	 Northbridge of Opteron. It is recommended to use X86_64_ACPI_NUMA
 	 instead, which also takes priority if both are compiled in.   
+
+config NODES_SHIFT
+	int
+	default "6"
+	depends on NEED_MULTIPLE_NODES
 
 # Dummy CONFIG option to select ACPI_NUMA from drivers/acpi/Kconfig.
 

@@ -22,10 +22,6 @@
  * `next' and `prev' should be struct task_struct, but it isn't always defined
  */
 
-#ifndef CONFIG_SMP
-#define prepare_to_switch()  do { } while(0)
-#endif	/* not CONFIG_SMP */
-
 #define switch_to(prev, next, last)  do { \
 	register unsigned long  arg0 __asm__ ("r0") = (unsigned long)prev; \
 	register unsigned long  arg1 __asm__ ("r1") = (unsigned long)next; \

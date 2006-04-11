@@ -52,9 +52,6 @@
 #define ISA_SIZE		0x20000000
 #define ISA_BASE		0xe0000000
 
-#define FLUSH_BASE_PHYS		0x40000000	/* ROM */
-#define FLUSH_BASE		0xdf000000
-
 #define PCIO_BASE		IO_BASE
 
 #endif

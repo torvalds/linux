@@ -333,7 +333,7 @@
 #define __NR_mq_timedreceive    (__NR_mq_open+3)
 #define __NR_mq_notify          (__NR_mq_open+4)
 #define __NR_mq_getsetattr      (__NR_mq_open+5)
-#define __NR_sys_kexec_load	311
+#define __NR_kexec_load		311
 #define __NR_waitid		312
 #define __NR_add_key		313
 #define __NR_request_key	314

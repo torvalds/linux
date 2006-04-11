@@ -147,6 +147,16 @@ config RTC_DRV_SA1100
 	  To compile this driver as a module, choose M here: the
 	  module will be called rtc-sa1100.
 
+config RTC_DRV_VR41XX
+	tristate "NEC VR41XX"
+	depends on RTC_CLASS && CPU_VR41XX
+	help
+	  If you say Y here you will get access to the real time clock
+	  built into your NEC VR41XX CPU.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rtc-vr41xx.
+
 config RTC_DRV_TEST
 	tristate "Test driver/device"
 	depends on RTC_CLASS

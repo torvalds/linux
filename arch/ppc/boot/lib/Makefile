@@ -3,7 +3,7 @@
 #
 
 CFLAGS_kbd.o	:= -Idrivers/char
-CFLAGS_vreset.o := -I$(srctree)/arch/ppc/boot/include
+CFLAGS_vreset.o := -Iarch/ppc/boot/include
 
 zlib  := infblock.c infcodes.c inffast.c inflate.c inftrees.c infutil.c
 	 

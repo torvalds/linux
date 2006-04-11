@@ -19,7 +19,6 @@ EXPORT_SYMBOL(__put_user_2);
 EXPORT_SYMBOL(__put_user_4);
 EXPORT_SYMBOL(__put_user_8);
 
-EXPORT_SYMBOL(strpbrk);
 EXPORT_SYMBOL(strstr);
 
 #ifdef CONFIG_SMP

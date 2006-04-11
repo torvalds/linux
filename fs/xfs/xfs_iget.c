@@ -421,7 +421,10 @@ finish_inode:
 			ip->i_chash = chlnew;
 			chlnew->chl_ip = ip;
 			chlnew->chl_blkno = ip->i_blkno;
+			if (ch->ch_list)
+				ch->ch_list->chl_prev = chlnew;
 			chlnew->chl_next = ch->ch_list;
+			chlnew->chl_prev = NULL;
 			ch->ch_list = chlnew;
 			chlnew = NULL;
 		}
@@ -723,23 +726,15 @@ xfs_iextract(
 		ASSERT(ip->i_cnext == ip && ip->i_cprev == ip);
 		ASSERT(ip->i_chash != NULL);
 		chm=NULL;
-		for (chl = ch->ch_list; chl != NULL; chl = chl->chl_next) {
-			if (chl->chl_blkno == ip->i_blkno) {
-				if (chm == NULL) {
-					/* first item on the list */
-					ch->ch_list = chl->chl_next;
-				} else {
-					chm->chl_next = chl->chl_next;
-				}
-				kmem_zone_free(xfs_chashlist_zone, chl);
-				break;
-			} else {
-				ASSERT(chl->chl_ip != ip);
-				chm = chl;
-			}
-		}
-		ASSERT_ALWAYS(chl != NULL);
-       } else {
+		chl = ip->i_chash;
+		if (chl->chl_prev)
+			chl->chl_prev->chl_next = chl->chl_next;
+		else
+			ch->ch_list = chl->chl_next;
+		if (chl->chl_next)
+			chl->chl_next->chl_prev = chl->chl_prev;
+		kmem_zone_free(xfs_chashlist_zone, chl);
+	} else {
 		/* delete one inode from a non-empty list */
 		iq = ip->i_cnext;
 		iq->i_cprev = ip->i_cprev;

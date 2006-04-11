@@ -41,7 +41,6 @@ EXPORT_SYMBOL(kernel_thread);
 /* Networking helper routines. */
 EXPORT_SYMBOL(csum_partial_copy);
 
-EXPORT_SYMBOL(strpbrk);
 EXPORT_SYMBOL(strstr);
 
 #ifdef CONFIG_VT

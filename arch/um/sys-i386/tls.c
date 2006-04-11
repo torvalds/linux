@@ -378,7 +378,7 @@ static int __init __setup_host_supports_tls(void) {
 	} else
 		printk(KERN_ERR "  Host TLS support NOT detected! "
 				"TLS support inside UML will not work\n");
-	return 1;
+	return 0;
 }
 
 __initcall(__setup_host_supports_tls);

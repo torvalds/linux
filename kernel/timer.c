@@ -81,9 +81,10 @@ struct tvec_t_base_s {
 } ____cacheline_aligned_in_smp;
 
 typedef struct tvec_t_base_s tvec_base_t;
-static DEFINE_PER_CPU(tvec_base_t *, tvec_bases);
+
 tvec_base_t boot_tvec_bases;
 EXPORT_SYMBOL(boot_tvec_bases);
+static DEFINE_PER_CPU(tvec_base_t *, tvec_bases) = { &boot_tvec_bases };
 
 static inline void set_running_timer(tvec_base_t *base,
 					struct timer_list *timer)
@@ -1224,28 +1225,36 @@ static int __devinit init_timers_cpu(int cpu)
 {
 	int j;
 	tvec_base_t *base;
+	static char __devinitdata tvec_base_done[NR_CPUS];
 
-	base = per_cpu(tvec_bases, cpu);
-	if (!base) {
+	if (!tvec_base_done[cpu]) {
 		static char boot_done;
 
-		/*
-		 * Cannot do allocation in init_timers as that runs before the
-		 * allocator initializes (and would waste memory if there are
-		 * more possible CPUs than will ever be installed/brought up).
-		 */
 		if (boot_done) {
+			/*
+			 * The APs use this path later in boot
+			 */
 			base = kmalloc_node(sizeof(*base), GFP_KERNEL,
 						cpu_to_node(cpu));
 			if (!base)
 				return -ENOMEM;
 			memset(base, 0, sizeof(*base));
+			per_cpu(tvec_bases, cpu) = base;
 		} else {
-			base = &boot_tvec_bases;
+			/*
+			 * This is for the boot CPU - we use compile-time
+			 * static initialisation because per-cpu memory isn't
+			 * ready yet and because the memory allocators are not
+			 * initialised either.
+			 */
 			boot_done = 1;
+			base = &boot_tvec_bases;
 		}
-		per_cpu(tvec_bases, cpu) = base;
+		tvec_base_done[cpu] = 1;
+	} else {
+		base = per_cpu(tvec_bases, cpu);
 	}
+
 	spin_lock_init(&base->lock);
 	for (j = 0; j < TVN_SIZE; j++) {
 		INIT_LIST_HEAD(base->tv5.vec + j);
@@ -1455,7 +1464,7 @@ static void time_interpolator_update(long delta_nsec)
 	 */
 	if (jiffies % INTERPOLATOR_ADJUST == 0)
 	{
-		if (time_interpolator->skips == 0 && time_interpolator->offset > TICK_NSEC)
+		if (time_interpolator->skips == 0 && time_interpolator->offset > tick_nsec)
 			time_interpolator->nsec_per_cyc--;
 		if (time_interpolator->ns_skipped > INTERPOLATOR_MAX_SKIP && time_interpolator->offset == 0)
 			time_interpolator->nsec_per_cyc++;

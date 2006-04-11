@@ -98,6 +98,7 @@ static const u8 def_control_mpage[CONTROL_MPAGE_LEN] = {
  * It just needs the eh_timed_out hook.
  */
 struct scsi_transport_template ata_scsi_transport_template = {
+	.eh_strategy_handler	= ata_scsi_error,
 	.eh_timed_out		= ata_scsi_timed_out,
 };
 

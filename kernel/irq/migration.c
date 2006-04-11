@@ -1,6 +1,5 @@
-#include <linux/irq.h>
 
-#if defined(CONFIG_GENERIC_PENDING_IRQ)
+#include <linux/irq.h>
 
 void set_pending_irq(unsigned int irq, cpumask_t mask)
 {
@@ -61,5 +60,3 @@ void move_native_irq(int irq)
 	}
 	cpus_clear(pending_irq_cpumask[irq]);
 }
-
-#endif

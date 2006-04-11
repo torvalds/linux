@@ -94,9 +94,9 @@ extern ssize_t xfs_sendfile(struct bhv_desc *, struct file *,
 				loff_t *, int, size_t, read_actor_t,
 				void *, struct cred *);
 extern ssize_t xfs_splice_read(struct bhv_desc *, struct file *,
-				struct inode *, size_t, int, int,
+				struct pipe_inode_info *, size_t, int, int,
 				struct cred *);
-extern ssize_t xfs_splice_write(struct bhv_desc *, struct inode *,
+extern ssize_t xfs_splice_write(struct bhv_desc *, struct pipe_inode_info *,
 				struct file *, size_t, int, int,
 				struct cred *);
 

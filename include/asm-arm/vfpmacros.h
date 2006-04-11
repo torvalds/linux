@@ -16,10 +16,18 @@
 
 	@ read all the working registers back into the VFP
 	.macro	VFPFLDMIA, base
+#if __LINUX_ARM_ARCH__ < 6
 	LDC	p11, cr0, [\base],#33*4		    @ FLDMIAX \base!, {d0-d15}
+#else
+	LDC	p11, cr0, [\base],#32*4		    @ FLDMIAD \base!, {d0-d15}
+#endif
 	.endm
 
 	@ write all the working registers out of the VFP
 	.macro	VFPFSTMIA, base
+#if __LINUX_ARM_ARCH__ < 6
 	STC	p11, cr0, [\base],#33*4		    @ FSTMIAX \base!, {d0-d15}
+#else
+	STC	p11, cr0, [\base],#32*4		    @ FSTMIAD \base!, {d0-d15}
+#endif
 	.endm

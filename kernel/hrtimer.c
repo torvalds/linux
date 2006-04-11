@@ -501,6 +501,7 @@ int hrtimer_cancel(struct hrtimer *timer)
 
 		if (ret >= 0)
 			return ret;
+		cpu_relax();
 	}
 }
 

@@ -82,8 +82,8 @@ static inline long do_syscall_stub(struct mm_id * mm_idp, void **addr)
 	if (offset) {
 		data = (unsigned long *)(mm_idp->stack +
 					 offset - UML_CONFIG_STUB_DATA);
-		printk("do_syscall_stub : ret = %d, offset = %d, "
-		       "data = 0x%x\n", ret, offset, data);
+		printk("do_syscall_stub : ret = %ld, offset = %ld, "
+		       "data = %p\n", ret, offset, data);
 		syscall = (unsigned long *)((unsigned long)data + data[0]);
 		printk("do_syscall_stub: syscall %ld failed, return value = "
 		       "0x%lx, expected return value = 0x%lx\n",

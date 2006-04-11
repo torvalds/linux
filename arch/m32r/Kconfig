@@ -285,6 +285,11 @@ config NUMA
 	depends on SMP && BROKEN
 	default n
 
+config NODES_SHIFT
+	int
+	default "1"
+	depends on NEED_MULTIPLE_NODES
+
 # turning this on wastes a bunch of space.
 # Summit needs it only when NUMA is on
 config BOOT_IOREMAP

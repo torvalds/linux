@@ -174,9 +174,9 @@ typedef ssize_t (*vop_sendfile_t)(bhv_desc_t *, struct file *,
 				loff_t *, int, size_t, read_actor_t,
 				void *, struct cred *);
 typedef ssize_t (*vop_splice_read_t)(bhv_desc_t *, struct file *,
-				struct inode *, size_t, int, int,
+				struct pipe_inode_info *, size_t, int, int,
 				struct cred *);
-typedef ssize_t (*vop_splice_write_t)(bhv_desc_t *, struct inode *,
+typedef ssize_t (*vop_splice_write_t)(bhv_desc_t *, struct pipe_inode_info *,
 				struct file *, size_t, int, int,
 				struct cred *);
 typedef int	(*vop_ioctl_t)(bhv_desc_t *, struct inode *, struct file *,

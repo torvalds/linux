@@ -158,9 +158,10 @@ xfs_ialloc_ag_alloc(
  	 */
 	agi = XFS_BUF_TO_AGI(agbp);
 	newino = be32_to_cpu(agi->agi_newino);
-	if(likely(newino != NULLAGINO)) {
-		args.agbno = XFS_AGINO_TO_AGBNO(args.mp, newino) +
-				XFS_IALLOC_BLOCKS(args.mp);
+	args.agbno = XFS_AGINO_TO_AGBNO(args.mp, newino) +
+			XFS_IALLOC_BLOCKS(args.mp);
+	if (likely(newino != NULLAGINO &&
+		  (args.agbno < be32_to_cpu(agi->agi_length)))) {
 		args.fsbno = XFS_AGB_TO_FSB(args.mp,
 				be32_to_cpu(agi->agi_seqno), args.agbno);
 		args.type = XFS_ALLOCTYPE_THIS_BNO;
@@ -182,8 +183,8 @@ xfs_ialloc_ag_alloc(
 		 * Set the alignment for the allocation.
 		 * If stripe alignment is turned on then align at stripe unit
 		 * boundary.
-		 * If the cluster size is smaller than a filesystem block 
-		 * then we're doing I/O for inodes in filesystem block size 
+		 * If the cluster size is smaller than a filesystem block
+		 * then we're doing I/O for inodes in filesystem block size
 		 * pieces, so don't need alignment anyway.
 		 */
 		isaligned = 0;
@@ -192,7 +193,7 @@ xfs_ialloc_ag_alloc(
 			args.alignment = args.mp->m_dalign;
 			isaligned = 1;
 		} else if (XFS_SB_VERSION_HASALIGN(&args.mp->m_sb) &&
-			   args.mp->m_sb.sb_inoalignmt >= 
+			   args.mp->m_sb.sb_inoalignmt >=
 			   XFS_B_TO_FSBT(args.mp,
 			  	XFS_INODE_CLUSTER_SIZE(args.mp)))
 				args.alignment = args.mp->m_sb.sb_inoalignmt;
@@ -220,7 +221,7 @@ xfs_ialloc_ag_alloc(
 		if ((error = xfs_alloc_vextent(&args)))
 			return error;
 	}
- 
+
 	/*
 	 * If stripe alignment is turned on, then try again with cluster
 	 * alignment.

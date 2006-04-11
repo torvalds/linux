@@ -338,7 +338,7 @@ ssize_t
 xfs_splice_read(
 	bhv_desc_t		*bdp,
 	struct file		*infilp,
-	struct inode		*pipe,
+	struct pipe_inode_info	*pipe,
 	size_t			count,
 	int			flags,
 	int			ioflags,
@@ -380,7 +380,7 @@ xfs_splice_read(
 ssize_t
 xfs_splice_write(
 	bhv_desc_t		*bdp,
-	struct inode		*pipe,
+	struct pipe_inode_info	*pipe,
 	struct file		*outfilp,
 	size_t			count,
 	int			flags,

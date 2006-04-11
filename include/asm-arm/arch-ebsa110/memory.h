@@ -28,4 +28,10 @@
 #define __virt_to_bus(x)	(x)
 #define __bus_to_virt(x)	(x)
 
+/*
+ * Cache flushing area - SRAM
+ */
+#define FLUSH_BASE_PHYS		0x40000000
+#define FLUSH_BASE		0xdf000000
+
 #endif
