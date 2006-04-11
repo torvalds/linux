@@ -28,14 +28,14 @@ static void wait_for_partner(struct inode* inode, unsigned int *cnt)
 
 static void wake_up_partner(struct inode* inode)
 {
-	wake_up_interruptible(PIPE_WAIT(*inode));
+	wake_up_interruptible(&inode->i_pipe->wait);
 }
 
 static int fifo_open(struct inode *inode, struct file *filp)
 {
 	int ret;
 
-	mutex_lock(PIPE_MUTEX(*inode));
+	mutex_lock(&inode->i_mutex);
 	if (!inode->i_pipe) {
 		ret = -ENOMEM;
 		inode->i_pipe = alloc_pipe_info(inode);
@@ -55,18 +55,18 @@ static int fifo_open(struct inode *inode, struct file *filp)
 	 *  opened, even when there is no process writing the FIFO.
 	 */
 		filp->f_op = &read_fifo_fops;
-		PIPE_RCOUNTER(*inode)++;
-		if (PIPE_READERS(*inode)++ == 0)
+		inode->i_pipe->r_counter++;
+		if (inode->i_pipe->readers++ == 0)
 			wake_up_partner(inode);
 
-		if (!PIPE_WRITERS(*inode)) {
+		if (!inode->i_pipe->writers) {
 			if ((filp->f_flags & O_NONBLOCK)) {
 				/* suppress POLLHUP until we have
 				 * seen a writer */
-				filp->f_version = PIPE_WCOUNTER(*inode);
+				filp->f_version = inode->i_pipe->w_counter;
 			} else 
 			{
-				wait_for_partner(inode, &PIPE_WCOUNTER(*inode));
+				wait_for_partner(inode, &inode->i_pipe->w_counter);
 				if(signal_pending(current))
 					goto err_rd;
 			}
@@ -80,16 +80,16 @@ static int fifo_open(struct inode *inode, struct file *filp)
 	 *  errno=ENXIO when there is no process reading the FIFO.
 	 */
 		ret = -ENXIO;
-		if ((filp->f_flags & O_NONBLOCK) && !PIPE_READERS(*inode))
+		if ((filp->f_flags & O_NONBLOCK) && !inode->i_pipe->readers)
 			goto err;
 
 		filp->f_op = &write_fifo_fops;
-		PIPE_WCOUNTER(*inode)++;
-		if (!PIPE_WRITERS(*inode)++)
+		inode->i_pipe->w_counter++;
+		if (!inode->i_pipe->writers++)
 			wake_up_partner(inode);
 
-		if (!PIPE_READERS(*inode)) {
-			wait_for_partner(inode, &PIPE_RCOUNTER(*inode));
+		if (!inode->i_pipe->readers) {
+			wait_for_partner(inode, &inode->i_pipe->r_counter);
 			if (signal_pending(current))
 				goto err_wr;
 		}
@@ -104,11 +104,11 @@ static int fifo_open(struct inode *inode, struct file *filp)
 	 */
 		filp->f_op = &rdwr_fifo_fops;
 
-		PIPE_READERS(*inode)++;
-		PIPE_WRITERS(*inode)++;
-		PIPE_RCOUNTER(*inode)++;
-		PIPE_WCOUNTER(*inode)++;
-		if (PIPE_READERS(*inode) == 1 || PIPE_WRITERS(*inode) == 1)
+		inode->i_pipe->readers++;
+		inode->i_pipe->writers++;
+		inode->i_pipe->r_counter++;
+		inode->i_pipe->w_counter++;
+		if (inode->i_pipe->readers == 1 || inode->i_pipe->writers == 1)
 			wake_up_partner(inode);
 		break;
 
@@ -118,27 +118,27 @@ static int fifo_open(struct inode *inode, struct file *filp)
 	}
 
 	/* Ok! */
-	mutex_unlock(PIPE_MUTEX(*inode));
+	mutex_unlock(&inode->i_mutex);
 	return 0;
 
 err_rd:
-	if (!--PIPE_READERS(*inode))
-		wake_up_interruptible(PIPE_WAIT(*inode));
+	if (!--inode->i_pipe->readers)
+		wake_up_interruptible(&inode->i_pipe->wait);
 	ret = -ERESTARTSYS;
 	goto err;
 
 err_wr:
-	if (!--PIPE_WRITERS(*inode))
-		wake_up_interruptible(PIPE_WAIT(*inode));
+	if (!--inode->i_pipe->writers)
+		wake_up_interruptible(&inode->i_pipe->wait);
 	ret = -ERESTARTSYS;
 	goto err;
 
 err:
-	if (!PIPE_READERS(*inode) && !PIPE_WRITERS(*inode))
+	if (!inode->i_pipe->readers && !inode->i_pipe->writers)
 		free_pipe_info(inode);
 
 err_nocleanup:
-	mutex_unlock(PIPE_MUTEX(*inode));
+	mutex_unlock(&inode->i_mutex);
 	return ret;
 }
 

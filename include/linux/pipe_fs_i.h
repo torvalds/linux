@@ -43,16 +43,6 @@ struct pipe_inode_info {
    memory allocation, whereas PIPE_BUF makes atomicity guarantees.  */
 #define PIPE_SIZE		PAGE_SIZE
 
-#define PIPE_MUTEX(inode)	(&(inode).i_mutex)
-#define PIPE_WAIT(inode)	(&(inode).i_pipe->wait)
-#define PIPE_READERS(inode)	((inode).i_pipe->readers)
-#define PIPE_WRITERS(inode)	((inode).i_pipe->writers)
-#define PIPE_WAITING_WRITERS(inode)	((inode).i_pipe->waiting_writers)
-#define PIPE_RCOUNTER(inode)	((inode).i_pipe->r_counter)
-#define PIPE_WCOUNTER(inode)	((inode).i_pipe->w_counter)
-#define PIPE_FASYNC_READERS(inode)     (&((inode).i_pipe->fasync_readers))
-#define PIPE_FASYNC_WRITERS(inode)     (&((inode).i_pipe->fasync_writers))
-
 /* Drop the inode semaphore and wait for a pipe event, atomically */
 void pipe_wait(struct pipe_inode_info *pipe);
 

@@ -158,7 +158,7 @@ pipe_readv(struct file *filp, const struct iovec *_iov,
 
 	do_wakeup = 0;
 	ret = 0;
-	mutex_lock(PIPE_MUTEX(*inode));
+	mutex_lock(&inode->i_mutex);
 	info = inode->i_pipe;
 	for (;;) {
 		int bufs = info->nrbufs;
@@ -202,9 +202,9 @@ pipe_readv(struct file *filp, const struct iovec *_iov,
 		}
 		if (bufs)	/* More to do? */
 			continue;
-		if (!PIPE_WRITERS(*inode))
+		if (!inode->i_pipe->writers)
 			break;
-		if (!PIPE_WAITING_WRITERS(*inode)) {
+		if (!inode->i_pipe->waiting_writers) {
 			/* syscall merging: Usually we must not sleep
 			 * if O_NONBLOCK is set, or if we got some data.
 			 * But if a writer sleeps in kernel space, then
@@ -222,16 +222,16 @@ pipe_readv(struct file *filp, const struct iovec *_iov,
 			break;
 		}
 		if (do_wakeup) {
-			wake_up_interruptible_sync(PIPE_WAIT(*inode));
- 			kill_fasync(PIPE_FASYNC_WRITERS(*inode), SIGIO, POLL_OUT);
+			wake_up_interruptible_sync(&inode->i_pipe->wait);
+ 			kill_fasync(&inode->i_pipe->fasync_writers, SIGIO, POLL_OUT);
 		}
 		pipe_wait(inode->i_pipe);
 	}
-	mutex_unlock(PIPE_MUTEX(*inode));
+	mutex_unlock(&inode->i_mutex);
 	/* Signal writers asynchronously that there is more room.  */
 	if (do_wakeup) {
-		wake_up_interruptible(PIPE_WAIT(*inode));
-		kill_fasync(PIPE_FASYNC_WRITERS(*inode), SIGIO, POLL_OUT);
+		wake_up_interruptible(&inode->i_pipe->wait);
+		kill_fasync(&inode->i_pipe->fasync_writers, SIGIO, POLL_OUT);
 	}
 	if (ret > 0)
 		file_accessed(filp);
@@ -264,10 +264,10 @@ pipe_writev(struct file *filp, const struct iovec *_iov,
 
 	do_wakeup = 0;
 	ret = 0;
-	mutex_lock(PIPE_MUTEX(*inode));
+	mutex_lock(&inode->i_mutex);
 	info = inode->i_pipe;
 
-	if (!PIPE_READERS(*inode)) {
+	if (!inode->i_pipe->readers) {
 		send_sig(SIGPIPE, current, 0);
 		ret = -EPIPE;
 		goto out;
@@ -306,7 +306,7 @@ pipe_writev(struct file *filp, const struct iovec *_iov,
 
 	for (;;) {
 		int bufs;
-		if (!PIPE_READERS(*inode)) {
+		if (!inode->i_pipe->readers) {
 			send_sig(SIGPIPE, current, 0);
 			if (!ret) ret = -EPIPE;
 			break;
@@ -367,19 +367,19 @@ pipe_writev(struct file *filp, const struct iovec *_iov,
 			break;
 		}
 		if (do_wakeup) {
-			wake_up_interruptible_sync(PIPE_WAIT(*inode));
-			kill_fasync(PIPE_FASYNC_READERS(*inode), SIGIO, POLL_IN);
+			wake_up_interruptible_sync(&inode->i_pipe->wait);
+			kill_fasync(&inode->i_pipe->fasync_readers, SIGIO, POLL_IN);
 			do_wakeup = 0;
 		}
-		PIPE_WAITING_WRITERS(*inode)++;
+		inode->i_pipe->waiting_writers++;
 		pipe_wait(inode->i_pipe);
-		PIPE_WAITING_WRITERS(*inode)--;
+		inode->i_pipe->waiting_writers--;
 	}
 out:
-	mutex_unlock(PIPE_MUTEX(*inode));
+	mutex_unlock(&inode->i_mutex);
 	if (do_wakeup) {
-		wake_up_interruptible(PIPE_WAIT(*inode));
-		kill_fasync(PIPE_FASYNC_READERS(*inode), SIGIO, POLL_IN);
+		wake_up_interruptible(&inode->i_pipe->wait);
+		kill_fasync(&inode->i_pipe->fasync_readers, SIGIO, POLL_IN);
 	}
 	if (ret > 0)
 		file_update_time(filp);
@@ -416,7 +416,7 @@ pipe_ioctl(struct inode *pino, struct file *filp,
 
 	switch (cmd) {
 		case FIONREAD:
-			mutex_lock(PIPE_MUTEX(*inode));
+			mutex_lock(&inode->i_mutex);
 			info =  inode->i_pipe;
 			count = 0;
 			buf = info->curbuf;
@@ -425,7 +425,7 @@ pipe_ioctl(struct inode *pino, struct file *filp,
 				count += info->bufs[buf].len;
 				buf = (buf+1) & (PIPE_BUFFERS-1);
 			}
-			mutex_unlock(PIPE_MUTEX(*inode));
+			mutex_unlock(&inode->i_mutex);
 			return put_user(count, (int __user *)arg);
 		default:
 			return -EINVAL;
@@ -441,14 +441,14 @@ pipe_poll(struct file *filp, poll_table *wait)
 	struct pipe_inode_info *info = inode->i_pipe;
 	int nrbufs;
 
-	poll_wait(filp, PIPE_WAIT(*inode), wait);
+	poll_wait(filp, &inode->i_pipe->wait, wait);
 
 	/* Reading only -- no need for acquiring the semaphore.  */
 	nrbufs = info->nrbufs;
 	mask = 0;
 	if (filp->f_mode & FMODE_READ) {
 		mask = (nrbufs > 0) ? POLLIN | POLLRDNORM : 0;
-		if (!PIPE_WRITERS(*inode) && filp->f_version != PIPE_WCOUNTER(*inode))
+		if (!inode->i_pipe->writers && filp->f_version != inode->i_pipe->w_counter)
 			mask |= POLLHUP;
 	}
 
@@ -458,7 +458,7 @@ pipe_poll(struct file *filp, poll_table *wait)
 		 * Most Unices do not set POLLERR for FIFOs but on Linux they
 		 * behave exactly like pipes for poll().
 		 */
-		if (!PIPE_READERS(*inode))
+		if (!inode->i_pipe->readers)
 			mask |= POLLERR;
 	}
 
@@ -468,17 +468,17 @@ pipe_poll(struct file *filp, poll_table *wait)
 static int
 pipe_release(struct inode *inode, int decr, int decw)
 {
-	mutex_lock(PIPE_MUTEX(*inode));
-	PIPE_READERS(*inode) -= decr;
-	PIPE_WRITERS(*inode) -= decw;
-	if (!PIPE_READERS(*inode) && !PIPE_WRITERS(*inode)) {
+	mutex_lock(&inode->i_mutex);
+	inode->i_pipe->readers -= decr;
+	inode->i_pipe->writers -= decw;
+	if (!inode->i_pipe->readers && !inode->i_pipe->writers) {
 		free_pipe_info(inode);
 	} else {
-		wake_up_interruptible(PIPE_WAIT(*inode));
-		kill_fasync(PIPE_FASYNC_READERS(*inode), SIGIO, POLL_IN);
-		kill_fasync(PIPE_FASYNC_WRITERS(*inode), SIGIO, POLL_OUT);
+		wake_up_interruptible(&inode->i_pipe->wait);
+		kill_fasync(&inode->i_pipe->fasync_readers, SIGIO, POLL_IN);
+		kill_fasync(&inode->i_pipe->fasync_writers, SIGIO, POLL_OUT);
 	}
-	mutex_unlock(PIPE_MUTEX(*inode));
+	mutex_unlock(&inode->i_mutex);
 
 	return 0;
 }
@@ -489,9 +489,9 @@ pipe_read_fasync(int fd, struct file *filp, int on)
 	struct inode *inode = filp->f_dentry->d_inode;
 	int retval;
 
-	mutex_lock(PIPE_MUTEX(*inode));
-	retval = fasync_helper(fd, filp, on, PIPE_FASYNC_READERS(*inode));
-	mutex_unlock(PIPE_MUTEX(*inode));
+	mutex_lock(&inode->i_mutex);
+	retval = fasync_helper(fd, filp, on, &inode->i_pipe->fasync_readers);
+	mutex_unlock(&inode->i_mutex);
 
 	if (retval < 0)
 		return retval;
@@ -506,9 +506,9 @@ pipe_write_fasync(int fd, struct file *filp, int on)
 	struct inode *inode = filp->f_dentry->d_inode;
 	int retval;
 
-	mutex_lock(PIPE_MUTEX(*inode));
-	retval = fasync_helper(fd, filp, on, PIPE_FASYNC_WRITERS(*inode));
-	mutex_unlock(PIPE_MUTEX(*inode));
+	mutex_lock(&inode->i_mutex);
+	retval = fasync_helper(fd, filp, on, &inode->i_pipe->fasync_writers);
+	mutex_unlock(&inode->i_mutex);
 
 	if (retval < 0)
 		return retval;
@@ -523,14 +523,14 @@ pipe_rdwr_fasync(int fd, struct file *filp, int on)
 	struct inode *inode = filp->f_dentry->d_inode;
 	int retval;
 
-	mutex_lock(PIPE_MUTEX(*inode));
+	mutex_lock(&inode->i_mutex);
 
-	retval = fasync_helper(fd, filp, on, PIPE_FASYNC_READERS(*inode));
+	retval = fasync_helper(fd, filp, on, &inode->i_pipe->fasync_readers);
 
 	if (retval >= 0)
-		retval = fasync_helper(fd, filp, on, PIPE_FASYNC_WRITERS(*inode));
+		retval = fasync_helper(fd, filp, on, &inode->i_pipe->fasync_writers);
 
-	mutex_unlock(PIPE_MUTEX(*inode));
+	mutex_unlock(&inode->i_mutex);
 
 	if (retval < 0)
 		return retval;
@@ -569,9 +569,9 @@ pipe_read_open(struct inode *inode, struct file *filp)
 {
 	/* We could have perhaps used atomic_t, but this and friends
 	   below are the only places.  So it doesn't seem worthwhile.  */
-	mutex_lock(PIPE_MUTEX(*inode));
-	PIPE_READERS(*inode)++;
-	mutex_unlock(PIPE_MUTEX(*inode));
+	mutex_lock(&inode->i_mutex);
+	inode->i_pipe->readers++;
+	mutex_unlock(&inode->i_mutex);
 
 	return 0;
 }
@@ -579,9 +579,9 @@ pipe_read_open(struct inode *inode, struct file *filp)
 static int
 pipe_write_open(struct inode *inode, struct file *filp)
 {
-	mutex_lock(PIPE_MUTEX(*inode));
-	PIPE_WRITERS(*inode)++;
-	mutex_unlock(PIPE_MUTEX(*inode));
+	mutex_lock(&inode->i_mutex);
+	inode->i_pipe->writers++;
+	mutex_unlock(&inode->i_mutex);
 
 	return 0;
 }
@@ -589,12 +589,12 @@ pipe_write_open(struct inode *inode, struct file *filp)
 static int
 pipe_rdwr_open(struct inode *inode, struct file *filp)
 {
-	mutex_lock(PIPE_MUTEX(*inode));
+	mutex_lock(&inode->i_mutex);
 	if (filp->f_mode & FMODE_READ)
-		PIPE_READERS(*inode)++;
+		inode->i_pipe->readers++;
 	if (filp->f_mode & FMODE_WRITE)
-		PIPE_WRITERS(*inode)++;
-	mutex_unlock(PIPE_MUTEX(*inode));
+		inode->i_pipe->writers++;
+	mutex_unlock(&inode->i_mutex);
 
 	return 0;
 }
@@ -731,7 +731,7 @@ static struct inode * get_pipe_inode(void)
 	if (!inode->i_pipe)
 		goto fail_iput;
 
-	PIPE_READERS(*inode) = PIPE_WRITERS(*inode) = 1;
+	inode->i_pipe->readers = inode->i_pipe->writers = 1;
 	inode->i_fop = &rdwr_pipe_fops;
 
 	/*
