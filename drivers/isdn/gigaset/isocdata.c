@@ -532,7 +532,7 @@ static inline void hdlc_putbyte(unsigned char c, struct bc_state *bcs)
 		bcs->skb = NULL;
 		return;
 	}
-	*gigaset_skb_put_quick(bcs->skb, 1) = c;
+	*__skb_put(bcs->skb, 1) = c;
 }
 
 /* hdlc_flush

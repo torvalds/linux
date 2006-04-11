@@ -852,23 +852,6 @@ static inline void gigaset_bchannel_up(struct bc_state *bcs)
 /* handling routines for sk_buff */
 /* ============================= */
 
-/* private version of __skb_put()
- * append 'len' bytes to the content of 'skb', already knowing that the
- * existing buffer can accomodate them
- * returns a pointer to the location where the new bytes should be copied to
- * This function does not take any locks so it must be called with the
- * appropriate locks held only.
- */
-static inline unsigned char *gigaset_skb_put_quick(struct sk_buff *skb,
-						   unsigned int len)
-{
-	unsigned char *tmp = skb->tail;
-	/*SKB_LINEAR_ASSERT(skb);*/		/* not needed here */
-	skb->tail += len;
-	skb->len += len;
-	return tmp;
-}
-
 /* pass received skb to LL
  * Warning: skb must not be accessed anymore!
  */

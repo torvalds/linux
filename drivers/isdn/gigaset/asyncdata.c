@@ -252,8 +252,7 @@ byte_stuff:
 				inputstate |= INS_skip_frame;
 				break;
 			}
-			*gigaset_skb_put_quick(skb, 1) = c;
-			/* *__skb_put (skb, 1) = c; */
+			*__skb_put(skb, 1) = c;
 			fcs = crc_ccitt_byte(fcs, c);
 		}
 
@@ -303,7 +302,7 @@ static inline int iraw_loop(unsigned char c, unsigned char *src, int numbytes,
 				inputstate |= INS_skip_frame;
 				break;
 			}
-			*gigaset_skb_put_quick(skb, 1) = gigaset_invtab[c];
+			*__skb_put(skb, 1) = gigaset_invtab[c];
 		}
 
 		if (unlikely(!numbytes))
