@@ -975,7 +975,7 @@ struct nfsd4_voidargs { int dummy; };
  */
 static struct svc_procedure		nfsd_procedures4[2] = {
   PROC(null,	 void,		void,		void,	  RC_NOCACHE, 1),
-  PROC(compound, compound,	compound,	compound, RC_NOCACHE, NFSD_BUFSIZE)
+  PROC(compound, compound,	compound,	compound, RC_NOCACHE, NFSD_BUFSIZE/4)
 };
 
 struct svc_version	nfsd_version4 = {
