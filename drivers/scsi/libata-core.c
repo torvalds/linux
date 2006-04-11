@@ -5029,6 +5029,52 @@ int ata_ratelimit(void)
 	return rc;
 }
 
+/**
+ *	ata_wait_register - wait until register value changes
+ *	@reg: IO-mapped register
+ *	@mask: Mask to apply to read register value
+ *	@val: Wait condition
+ *	@interval_msec: polling interval in milliseconds
+ *	@timeout_msec: timeout in milliseconds
+ *
+ *	Waiting for some bits of register to change is a common
+ *	operation for ATA controllers.  This function reads 32bit LE
+ *	IO-mapped register @reg and tests for the following condition.
+ *
+ *	(*@reg & mask) != val
+ *
+ *	If the condition is met, it returns; otherwise, the process is
+ *	repeated after @interval_msec until timeout.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep)
+ *
+ *	RETURNS:
+ *	The final register value.
+ */
+u32 ata_wait_register(void __iomem *reg, u32 mask, u32 val,
+		      unsigned long interval_msec,
+		      unsigned long timeout_msec)
+{
+	unsigned long timeout;
+	u32 tmp;
+
+	tmp = ioread32(reg);
+
+	/* Calculate timeout _after_ the first read to make sure
+	 * preceding writes reach the controller before starting to
+	 * eat away the timeout.
+	 */
+	timeout = jiffies + (timeout_msec * HZ) / 1000;
+
+	while ((tmp & mask) == val && time_before(jiffies, timeout)) {
+		msleep(interval_msec);
+		tmp = ioread32(reg);
+	}
+
+	return tmp;
+}
+
 /*
  * libata is essentially a library of internal helper functions for
  * low-level ATA host controller drivers.  As such, the API/ABI is
@@ -5079,6 +5125,7 @@ EXPORT_SYMBOL_GPL(ata_dev_classify);
 EXPORT_SYMBOL_GPL(ata_dev_pair);
 EXPORT_SYMBOL_GPL(ata_port_disable);
 EXPORT_SYMBOL_GPL(ata_ratelimit);
+EXPORT_SYMBOL_GPL(ata_wait_register);
 EXPORT_SYMBOL_GPL(ata_busy_sleep);
 EXPORT_SYMBOL_GPL(ata_port_queue_task);
 EXPORT_SYMBOL_GPL(ata_scsi_ioctl);
