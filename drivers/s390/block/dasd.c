@@ -1257,25 +1257,28 @@ __dasd_start_head(struct dasd_device * device)
 	if (list_empty(&device->ccw_queue))
 		return;
 	cqr = list_entry(device->ccw_queue.next, struct dasd_ccw_req, list);
-        /* check FAILFAST */
+	if (cqr->status != DASD_CQR_QUEUED)
+		return;
+	/* Non-temporary stop condition will trigger fail fast */
 	if (device->stopped & ~DASD_STOPPED_PENDING &&
 	    test_bit(DASD_CQR_FLAGS_FAILFAST, &cqr->flags) &&
 	    (!dasd_eer_enabled(device))) {
 		cqr->status = DASD_CQR_FAILED;
 		dasd_schedule_bh(device);
+		return;
 	}
-	if ((cqr->status == DASD_CQR_QUEUED) &&
-	    (!device->stopped)) {
-		/* try to start the first I/O that can be started */
-		rc = device->discipline->start_IO(cqr);
-		if (rc == 0)
-			dasd_set_timer(device, cqr->expires);
-		else if (rc == -EACCES) {
-			dasd_schedule_bh(device);
-		} else
-			/* Hmpf, try again in 1/2 sec */
-			dasd_set_timer(device, 50);
-	}
+	/* Don't try to start requests if device is stopped */
+	if (device->stopped)
+		return;
+
+	rc = device->discipline->start_IO(cqr);
+	if (rc == 0)
+		dasd_set_timer(device, cqr->expires);
+	else if (rc == -EACCES) {
+		dasd_schedule_bh(device);
+	} else
+		/* Hmpf, try again in 1/2 sec */
+		dasd_set_timer(device, 50);
 }
 
 /*
