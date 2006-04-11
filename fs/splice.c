@@ -150,8 +150,6 @@ static ssize_t move_to_pipe(struct pipe_inode_info *pipe, struct page **pages,
 		mutex_lock(&pipe->inode->i_mutex);
 
 	for (;;) {
-		int bufs;
-
 		if (!pipe->readers) {
 			send_sig(SIGPIPE, current, 0);
 			if (!ret)
@@ -159,9 +157,8 @@ static ssize_t move_to_pipe(struct pipe_inode_info *pipe, struct page **pages,
 			break;
 		}
 
-		bufs = pipe->nrbufs;
-		if (bufs < PIPE_BUFFERS) {
-			int newbuf = (pipe->curbuf + bufs) & (PIPE_BUFFERS - 1);
+		if (pipe->nrbufs < PIPE_BUFFERS) {
+			int newbuf = (pipe->curbuf + pipe->nrbufs) & (PIPE_BUFFERS - 1);
 			struct pipe_buffer *buf = pipe->bufs + newbuf;
 			struct page *page = pages[i++];
 			unsigned long this_len;
@@ -174,8 +171,9 @@ static ssize_t move_to_pipe(struct pipe_inode_info *pipe, struct page **pages,
 			buf->offset = offset;
 			buf->len = this_len;
 			buf->ops = &page_cache_pipe_buf_ops;
-			pipe->nrbufs = ++bufs;
-			do_wakeup = 1;
+			pipe->nrbufs++;
+			if (pipe->inode)
+				do_wakeup = 1;
 
 			ret += this_len;
 			len -= this_len;
@@ -184,7 +182,7 @@ static ssize_t move_to_pipe(struct pipe_inode_info *pipe, struct page **pages,
 				break;
 			if (!len)
 				break;
-			if (bufs < PIPE_BUFFERS)
+			if (pipe->nrbufs < PIPE_BUFFERS)
 				continue;
 
 			break;
@@ -581,11 +579,8 @@ static ssize_t move_from_pipe(struct pipe_inode_info *pipe, struct file *out,
 		mutex_lock(&pipe->inode->i_mutex);
 
 	for (;;) {
-		int bufs = pipe->nrbufs;
-
-		if (bufs) {
-			int curbuf = pipe->curbuf;
-			struct pipe_buffer *buf = pipe->bufs + curbuf;
+		if (pipe->nrbufs) {
+			struct pipe_buffer *buf = pipe->bufs + pipe->curbuf;
 			struct pipe_buf_operations *ops = buf->ops;
 
 			sd.len = buf->len;
@@ -606,10 +601,10 @@ static ssize_t move_from_pipe(struct pipe_inode_info *pipe, struct file *out,
 			if (!buf->len) {
 				buf->ops = NULL;
 				ops->release(pipe, buf);
-				curbuf = (curbuf + 1) & (PIPE_BUFFERS - 1);
-				pipe->curbuf = curbuf;
-				pipe->nrbufs = --bufs;
-				do_wakeup = 1;
+				pipe->curbuf = (pipe->curbuf + 1) & (PIPE_BUFFERS - 1);
+				pipe->nrbufs--;
+				if (pipe->inode)
+					do_wakeup = 1;
 			}
 
 			sd.pos += sd.len;
@@ -618,7 +613,7 @@ static ssize_t move_from_pipe(struct pipe_inode_info *pipe, struct file *out,
 				break;
 		}
 
-		if (bufs)
+		if (pipe->nrbufs)
 			continue;
 		if (!pipe->writers)
 			break;
@@ -660,9 +655,7 @@ static ssize_t move_from_pipe(struct pipe_inode_info *pipe, struct file *out,
 		kill_fasync(&pipe->fasync_writers, SIGIO, POLL_OUT);
 	}
 
-	mutex_lock(&out->f_mapping->host->i_mutex);
 	out->f_pos = sd.pos;
-	mutex_unlock(&out->f_mapping->host->i_mutex);
 	return ret;
 
 }
