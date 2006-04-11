@@ -19,7 +19,7 @@ int pci_conf1_read(unsigned int seg, unsigned int bus,
 {
 	unsigned long flags;
 
-	if (!value || (bus > 255) || (devfn > 255) || (reg > 255)) {
+	if ((bus > 255) || (devfn > 255) || (reg > 255)) {
 		*value = -1;
 		return -EINVAL;
 	}
@@ -94,8 +94,10 @@ static int pci_conf2_read(unsigned int seg, unsigned int bus,
 	unsigned long flags;
 	int dev, fn;
 
-	if (!value || (bus > 255) || (devfn > 255) || (reg > 255))
+	if ((bus > 255) || (devfn > 255) || (reg > 255)) {
+		*value = -1;
 		return -EINVAL;
+	}
 
 	dev = PCI_SLOT(devfn);
 	fn = PCI_FUNC(devfn);
