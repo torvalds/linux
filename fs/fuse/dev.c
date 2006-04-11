@@ -108,7 +108,6 @@ struct fuse_req *fuse_get_req(struct fuse_conn *fc)
 	if (!req)
 		goto out;
 
-	fuse_request_init(req);
 	req->in.h.uid = current->fsuid;
 	req->in.h.gid = current->fsgid;
 	req->in.h.pid = current->pid;
