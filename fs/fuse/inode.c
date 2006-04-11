@@ -381,6 +381,7 @@ static struct fuse_conn *new_conn(void)
 	if (fc) {
 		spin_lock_init(&fc->lock);
 		init_waitqueue_head(&fc->waitq);
+		init_waitqueue_head(&fc->blocked_waitq);
 		INIT_LIST_HEAD(&fc->pending);
 		INIT_LIST_HEAD(&fc->processing);
 		INIT_LIST_HEAD(&fc->io);
@@ -392,6 +393,7 @@ static struct fuse_conn *new_conn(void)
 		fc->bdi.ra_pages = (VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
 		fc->bdi.unplug_io_fn = default_unplug_io_fn;
 		fc->reqctr = 0;
+		fc->blocked = 1;
 	}
 	return fc;
 }
@@ -438,6 +440,8 @@ static void process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 		fc->max_write = arg->minor < 5 ? 4096 : arg->max_write;
 	}
 	fuse_put_request(fc, req);
+	fc->blocked = 0;
+	wake_up_all(&fc->blocked_waitq);
 }
 
 static void fuse_send_init(struct fuse_conn *fc, struct fuse_req *req)

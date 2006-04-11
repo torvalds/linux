@@ -18,6 +18,9 @@
 /** Max number of pages that can be used in a single read request */
 #define FUSE_MAX_PAGES_PER_REQ 32
 
+/** Maximum number of outstanding background requests */
+#define FUSE_MAX_BACKGROUND 10
+
 /** It could be as large as PATH_MAX, but would that have any uses? */
 #define FUSE_NAME_MAX 1024
 
@@ -240,6 +243,17 @@ struct fuse_conn {
 	/** Requests put in the background (RELEASE or any other
 	    interrupted request) */
 	struct list_head background;
+
+	/** Number of requests currently in the background */
+	unsigned num_background;
+
+	/** Flag indicating if connection is blocked.  This will be
+	    the case before the INIT reply is received, and if there
+	    are too many outstading backgrounds requests */
+	int blocked;
+
+	/** waitq for blocked connection */
+	wait_queue_head_t blocked_waitq;
 
 	/** RW semaphore for exclusion with fuse_put_super() */
 	struct rw_semaphore sbput_sem;

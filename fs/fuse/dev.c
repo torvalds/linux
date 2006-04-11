@@ -90,7 +90,17 @@ static void __fuse_put_request(struct fuse_req *req)
 
 struct fuse_req *fuse_get_req(struct fuse_conn *fc)
 {
-	struct fuse_req *req = fuse_request_alloc();
+	struct fuse_req *req;
+	sigset_t oldset;
+	int err;
+
+	block_sigs(&oldset);
+	err = wait_event_interruptible(fc->blocked_waitq, !fc->blocked);
+	restore_sigs(&oldset);
+	if (err)
+		return ERR_PTR(-EINTR);
+
+	req = fuse_request_alloc();
 	if (!req)
 		return ERR_PTR(-ENOMEM);
 
@@ -118,6 +128,11 @@ void fuse_release_background(struct fuse_conn *fc, struct fuse_req *req)
 		fput(req->file);
 	spin_lock(&fc->lock);
 	list_del(&req->bg_entry);
+	if (fc->num_background == FUSE_MAX_BACKGROUND) {
+		fc->blocked = 0;
+		wake_up_all(&fc->blocked_waitq);
+	}
+	fc->num_background--;
 	spin_unlock(&fc->lock);
 }
 
@@ -195,6 +210,9 @@ static void background_request(struct fuse_conn *fc, struct fuse_req *req)
 {
 	req->background = 1;
 	list_add(&req->bg_entry, &fc->background);
+	fc->num_background++;
+	if (fc->num_background == FUSE_MAX_BACKGROUND)
+		fc->blocked = 1;
 	if (req->inode)
 		req->inode = igrab(req->inode);
 	if (req->inode2)
@@ -288,6 +306,7 @@ void request_send(struct fuse_conn *fc, struct fuse_req *req)
 static void request_send_nowait(struct fuse_conn *fc, struct fuse_req *req)
 {
 	spin_lock(&fc->lock);
+	background_request(fc, req);
 	if (fc->connected) {
 		queue_request(fc, req);
 		spin_unlock(&fc->lock);
@@ -306,9 +325,6 @@ void request_send_noreply(struct fuse_conn *fc, struct fuse_req *req)
 void request_send_background(struct fuse_conn *fc, struct fuse_req *req)
 {
 	req->isreply = 1;
-	spin_lock(&fc->lock);
-	background_request(fc, req);
-	spin_unlock(&fc->lock);
 	request_send_nowait(fc, req);
 }
 
