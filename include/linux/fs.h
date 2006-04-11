@@ -762,7 +762,7 @@ extern int fcntl_getlease(struct file *filp);
 #define SYNC_FILE_RANGE_WRITE		2
 #define SYNC_FILE_RANGE_WAIT_AFTER	4
 extern int do_sync_file_range(struct file *file, loff_t offset, loff_t endbyte,
-			int flags);
+			unsigned int flags);
 
 /* fs/locks.c */
 extern void locks_init_lock(struct file_lock *);

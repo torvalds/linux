@@ -572,6 +572,6 @@ asmlinkage long sys_unshare(unsigned long unshare_flags);
 asmlinkage long sys_splice(int fdin, int fdout, size_t len,
 				unsigned int flags);
 asmlinkage long sys_sync_file_range(int fd, loff_t offset, loff_t nbytes,
-					int flags);
+					unsigned int flags);
 
 #endif
