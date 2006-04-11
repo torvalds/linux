@@ -1199,8 +1199,7 @@ move_to_close_lru(struct nfs4_stateowner *sop)
 {
 	dprintk("NFSD: move_to_close_lru nfs4_stateowner %p\n", sop);
 
-	unhash_stateowner(sop);
-	list_add_tail(&sop->so_close_lru, &close_lru);
+	list_move_tail(&sop->so_close_lru, &close_lru);
 	sop->so_time = get_seconds();
 }
 
@@ -1929,8 +1928,7 @@ nfs4_laundromat(void)
 		}
 		dprintk("NFSD: purging unused open stateowner (so_id %d)\n",
 			sop->so_id);
-		list_del(&sop->so_close_lru);
-		nfs4_put_stateowner(sop);
+		release_stateowner(sop);
 	}
 	if (clientid_val < NFSD_LAUNDROMAT_MINTIMEOUT)
 		clientid_val = NFSD_LAUNDROMAT_MINTIMEOUT;
@@ -3218,14 +3216,7 @@ __nfs4_state_shutdown(void)
 	int i;
 	struct nfs4_client *clp = NULL;
 	struct nfs4_delegation *dp = NULL;
-	struct nfs4_stateowner *sop = NULL;
 	struct list_head *pos, *next, reaplist;
-
-	list_for_each_safe(pos, next, &close_lru) {
-		sop = list_entry(pos, struct nfs4_stateowner, so_close_lru);
-		list_del(&sop->so_close_lru);
-		nfs4_put_stateowner(sop);
-	}
 
 	for (i = 0; i < CLIENT_HASH_SIZE; i++) {
 		while (!list_empty(&conf_id_hashtbl[i])) {
