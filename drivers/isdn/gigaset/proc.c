@@ -44,13 +44,13 @@ static ssize_t set_cidmode(struct device *dev, struct device_attribute *attr,
 
 	cs->waiting = 1;
 	if (!gigaset_add_event(cs, &cs->at_state, EV_PROC_CIDMODE,
-		               NULL, value, NULL)) {
+			       NULL, value, NULL)) {
 		cs->waiting = 0;
 		up(&cs->sem);
 		return -ENOMEM;
 	}
 
-	dbg(DEBUG_CMD, "scheduling PROC_CIDMODE");
+	gig_dbg(DEBUG_CMD, "scheduling PROC_CIDMODE");
 	gigaset_schedule_event(cs);
 
 	wait_event(cs->waitqueue, !cs->waiting);
@@ -65,7 +65,7 @@ static DEVICE_ATTR(cidmode, S_IRUGO|S_IWUSR, show_cidmode, set_cidmode);
 /* free sysfs for device */
 void gigaset_free_dev_sysfs(struct usb_interface *interface)
 {
-	dbg(DEBUG_INIT, "removing sysfs entries");
+	gig_dbg(DEBUG_INIT, "removing sysfs entries");
 	device_remove_file(&interface->dev, &dev_attr_cidmode);
 }
 EXPORT_SYMBOL_GPL(gigaset_free_dev_sysfs);
@@ -73,7 +73,7 @@ EXPORT_SYMBOL_GPL(gigaset_free_dev_sysfs);
 /* initialize sysfs for device */
 void gigaset_init_dev_sysfs(struct usb_interface *interface)
 {
-	dbg(DEBUG_INIT, "setting up sysfs");
+	gig_dbg(DEBUG_INIT, "setting up sysfs");
 	device_create_file(&interface->dev, &dev_attr_cidmode);
 }
 EXPORT_SYMBOL_GPL(gigaset_init_dev_sysfs);

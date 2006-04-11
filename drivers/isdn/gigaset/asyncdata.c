@@ -41,7 +41,7 @@ static inline int muststuff(unsigned char c)
  *	number of processed bytes
  */
 static inline int cmd_loop(unsigned char c, unsigned char *src, int numbytes,
-                           struct inbuf_t *inbuf)
+			   struct inbuf_t *inbuf)
 {
 	struct cardstate *cs = inbuf->cs;
 	unsigned cbytes      = cs->cbytes;
@@ -51,8 +51,8 @@ static inline int cmd_loop(unsigned char c, unsigned char *src, int numbytes,
 	for (;;) {
 		cs->respdata[cbytes] = c;
 		if (c == 10 || c == 13) {
-			dbg(DEBUG_TRANSCMD, "%s: End of Command (%d Bytes)",
-			    __func__, cbytes);
+			gig_dbg(DEBUG_TRANSCMD, "%s: End of Command (%d Bytes)",
+				__func__, cbytes);
 			cs->cbytes = cbytes;
 			gigaset_handle_modem_response(cs); /* can change
 							      cs->dle */
@@ -68,7 +68,7 @@ static inline int cmd_loop(unsigned char c, unsigned char *src, int numbytes,
 			if (cbytes < MAX_RESP_SIZE - 1)
 				cbytes++;
 			else
-				warn("response too large");
+				dev_warn(cs->dev, "response too large\n");
 		}
 
 		if (!numbytes)
@@ -93,7 +93,7 @@ static inline int cmd_loop(unsigned char c, unsigned char *src, int numbytes,
  *	number of processed bytes
  */
 static inline int lock_loop(unsigned char *src, int numbytes,
-                            struct inbuf_t *inbuf)
+			    struct inbuf_t *inbuf)
 {
 	struct cardstate *cs = inbuf->cs;
 
@@ -113,7 +113,7 @@ static inline int lock_loop(unsigned char *src, int numbytes,
  *	numbytes (all bytes processed) on error --FIXME
  */
 static inline int hdlc_loop(unsigned char c, unsigned char *src, int numbytes,
-                            struct inbuf_t *inbuf)
+			    struct inbuf_t *inbuf)
 {
 	struct cardstate *cs = inbuf->cs;
 	struct bc_state *bcs = inbuf->bcs;
@@ -154,39 +154,37 @@ byte_stuff:
 			c ^= PPP_TRANS;
 #ifdef CONFIG_GIGASET_DEBUG
 			if (unlikely(!muststuff(c)))
-				dbg(DEBUG_HDLC,
-				    "byte stuffed: 0x%02x", c);
+				gig_dbg(DEBUG_HDLC, "byte stuffed: 0x%02x", c);
 #endif
 		} else if (unlikely(c == PPP_FLAG)) {
 			if (unlikely(inputstate & INS_skip_frame)) {
 				if (!(inputstate & INS_have_data)) { /* 7E 7E */
-					//dbg(DEBUG_HDLC, "(7e)7e------------------------");
 #ifdef CONFIG_GIGASET_DEBUG
 					++bcs->emptycount;
 #endif
 				} else
-					dbg(DEBUG_HDLC,
+					gig_dbg(DEBUG_HDLC,
 					    "7e----------------------------");
 
 				/* end of frame */
 				error = 1;
 				gigaset_rcv_error(NULL, cs, bcs);
 			} else if (!(inputstate & INS_have_data)) { /* 7E 7E */
-				//dbg(DEBUG_HDLC, "(7e)7e------------------------");
 #ifdef CONFIG_GIGASET_DEBUG
 				++bcs->emptycount;
 #endif
 				break;
 			} else {
-				dbg(DEBUG_HDLC,
-				    "7e----------------------------");
+				gig_dbg(DEBUG_HDLC,
+					"7e----------------------------");
 
 				/* end of frame */
 				error = 0;
 
 				if (unlikely(fcs != PPP_GOODFCS)) {
-					err("Packet checksum at %lu failed, "
-					    "packet is corrupted (%u bytes)!",
+					dev_err(cs->dev,
+					    "Packet checksum at %lu failed, "
+					    "packet is corrupted (%u bytes)!\n",
 					    bcs->rcvbytes, skb->len);
 					compskb = NULL;
 					gigaset_rcv_error(compskb, cs, bcs);
@@ -200,9 +198,11 @@ byte_stuff:
 						skb = NULL;
 						inputstate |= INS_skip_frame;
 						if (l == 1) {
-							err("invalid packet size (1)!");
+							dev_err(cs->dev,
+						  "invalid packet size (1)!\n");
 							error = 1;
-							gigaset_rcv_error(NULL, cs, bcs);
+							gigaset_rcv_error(NULL,
+								cs, bcs);
 						}
 					}
 					if (likely(!(error ||
@@ -225,7 +225,8 @@ byte_stuff:
 			} else if (likely((skb = dev_alloc_skb(SBUFSIZE + HW_HDR_LEN)) != NULL)) {
 				skb_reserve(skb, HW_HDR_LEN);
 			} else {
-				warn("could not allocate new skb");
+				dev_warn(cs->dev,
+					 "could not allocate new skb\n");
 				inputstate |= INS_skip_frame;
 			}
 
@@ -233,7 +234,7 @@ byte_stuff:
 #ifdef CONFIG_GIGASET_DEBUG
 		} else if (unlikely(muststuff(c))) {
 			/* Should not happen. Possible after ZDLE=1<CR><LF>. */
-			dbg(DEBUG_HDLC, "not byte stuffed: 0x%02x", c);
+			gig_dbg(DEBUG_HDLC, "not byte stuffed: 0x%02x", c);
 #endif
 		}
 
@@ -241,8 +242,8 @@ byte_stuff:
 
 #ifdef CONFIG_GIGASET_DEBUG
 		if (unlikely(!(inputstate & INS_have_data))) {
-			dbg(DEBUG_HDLC,
-			    "7e (%d x) ================", bcs->emptycount);
+			gig_dbg(DEBUG_HDLC, "7e (%d x) ================",
+				bcs->emptycount);
 			bcs->emptycount = 0;
 		}
 #endif
@@ -251,7 +252,7 @@ byte_stuff:
 
 		if (likely(!(inputstate & INS_skip_frame))) {
 			if (unlikely(skb->len == SBUFSIZE)) {
-				warn("received packet too long");
+				dev_warn(cs->dev, "received packet too long\n");
 				dev_kfree_skb_any(skb);
 				skb = NULL;
 				inputstate |= INS_skip_frame;
@@ -287,7 +288,7 @@ byte_stuff:
  *	numbytes (all bytes processed) on error --FIXME
  */
 static inline int iraw_loop(unsigned char c, unsigned char *src, int numbytes,
-                            struct inbuf_t *inbuf)
+			    struct inbuf_t *inbuf)
 {
 	struct cardstate *cs = inbuf->cs;
 	struct bc_state *bcs = inbuf->bcs;
@@ -307,7 +308,7 @@ static inline int iraw_loop(unsigned char c, unsigned char *src, int numbytes,
 		if (likely(!(inputstate & INS_skip_frame))) {
 			if (unlikely(skb->len == SBUFSIZE)) {
 				//FIXME just pass skb up and allocate a new one
-				warn("received packet too long");
+				dev_warn(cs->dev, "received packet too long\n");
 				dev_kfree_skb_any(skb);
 				skb = NULL;
 				inputstate |= INS_skip_frame;
@@ -341,7 +342,7 @@ static inline int iraw_loop(unsigned char c, unsigned char *src, int numbytes,
 				  != NULL)) {
 			skb_reserve(skb, HW_HDR_LEN);
 		} else {
-			warn("could not allocate new skb");
+			dev_warn(cs->dev, "could not allocate new skb\n");
 			inputstate |= INS_skip_frame;
 		}
 	}
@@ -362,13 +363,13 @@ void gigaset_m10x_input(struct inbuf_t *inbuf)
 
 	head = atomic_read(&inbuf->head);
 	tail = atomic_read(&inbuf->tail);
-	dbg(DEBUG_INTR, "buffer state: %u -> %u", head, tail);
+	gig_dbg(DEBUG_INTR, "buffer state: %u -> %u", head, tail);
 
 	if (head != tail) {
 		cs = inbuf->cs;
 		src = inbuf->data + head;
 		numbytes = (head > tail ? RBUFSIZE : tail) - head;
-		dbg(DEBUG_INTR, "processing %u bytes", numbytes);
+		gig_dbg(DEBUG_INTR, "processing %u bytes", numbytes);
 
 		while (numbytes) {
 			if (atomic_read(&cs->mstate) == MS_LOCKED) {
@@ -400,13 +401,14 @@ void gigaset_m10x_input(struct inbuf_t *inbuf)
 
 					src += procbytes;
 					numbytes -= procbytes;
-				} else {  /* DLE-char */
+				} else {  /* DLE char */
 					inbuf->inputstate &= ~INS_DLE_char;
 					switch (c) {
 					case 'X': /*begin of command*/
 #ifdef CONFIG_GIGASET_DEBUG
 						if (inbuf->inputstate & INS_command)
-							err("received <DLE> 'X' in command mode");
+							dev_err(cs->dev,
+					"received <DLE> 'X' in command mode\n");
 #endif
 						inbuf->inputstate |=
 							INS_command | INS_DLE_command;
@@ -414,7 +416,8 @@ void gigaset_m10x_input(struct inbuf_t *inbuf)
 					case '.': /*end of command*/
 #ifdef CONFIG_GIGASET_DEBUG
 						if (!(inbuf->inputstate & INS_command))
-							err("received <DLE> '.' in hdlc mode");
+							dev_err(cs->dev,
+					"received <DLE> '.' in hdlc mode\n");
 #endif
 						inbuf->inputstate &= cs->dle ?
 							~(INS_DLE_command|INS_command)
@@ -422,7 +425,9 @@ void gigaset_m10x_input(struct inbuf_t *inbuf)
 						break;
 					//case DLE_FLAG: /*DLE_FLAG in data stream*/ /* schon oben behandelt! */
 					default:
-						err("received 0x10 0x%02x!", (int) c);
+						dev_err(cs->dev,
+						      "received 0x10 0x%02x!\n",
+							(int) c);
 						/* FIXME: reset driver?? */
 					}
 				}
@@ -441,7 +446,7 @@ nextbyte:
 			}
 		}
 
-		dbg(DEBUG_INTR, "setting head to %u", head);
+		gig_dbg(DEBUG_INTR, "setting head to %u", head);
 		atomic_set(&inbuf->head, head);
 	}
 }
@@ -476,14 +481,13 @@ static struct sk_buff *HDLC_Encode(struct sk_buff *skb, int head, int tail)
 			stuf_cnt++;
 		fcs = crc_ccitt_byte(fcs, *cp++);
 	}
-	fcs ^= 0xffff;                 /* complement */
+	fcs ^= 0xffff;			/* complement */
 
 	/* size of new buffer: original size + number of stuffing bytes
 	 * + 2 bytes FCS + 2 stuffing bytes for FCS (if needed) + 2 flag bytes
 	 */
 	hdlc_skb = dev_alloc_skb(skb->len + stuf_cnt + 6 + tail + head);
 	if (!hdlc_skb) {
-		err("unable to allocate memory for HDLC encoding!");
 		dev_kfree_skb(skb);
 		return NULL;
 	}
@@ -505,7 +509,7 @@ static struct sk_buff *HDLC_Encode(struct sk_buff *skb, int head, int tail)
 	}
 
 	/* Finally add FCS (byte stuffed) and flag sequence */
-	c = (fcs & 0x00ff);      /* least significant byte first */
+	c = (fcs & 0x00ff);	/* least significant byte first */
 	if (muststuff(c)) {
 		*(skb_put(hdlc_skb, 1)) = PPP_ESCAPE;
 		c ^= PPP_TRANS;
@@ -543,7 +547,6 @@ static struct sk_buff *iraw_encode(struct sk_buff *skb, int head, int tail)
 	/* worst case: every byte must be stuffed */
 	iraw_skb = dev_alloc_skb(2*skb->len + tail + head);
 	if (!iraw_skb) {
-		err("unable to allocate memory for HDLC encoding!");
 		dev_kfree_skb(skb);
 		return NULL;
 	}
@@ -584,8 +587,11 @@ int gigaset_m10x_send_skb(struct bc_state *bcs, struct sk_buff *skb)
 		skb = HDLC_Encode(skb, HW_HDR_LEN, 0);
 	else
 		skb = iraw_encode(skb, HW_HDR_LEN, 0);
-	if (!skb)
+	if (!skb) {
+		dev_err(bcs->cs->dev,
+			"unable to allocate memory for encoding!\n");
 		return -ENOMEM;
+	}
 
 	skb_queue_tail(&bcs->squeue, skb);
 	tasklet_schedule(&bcs->cs->write_tasklet);
