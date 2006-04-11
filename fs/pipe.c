@@ -93,7 +93,7 @@ pipe_iov_copy_to_user(struct iovec *iov, const void *from, unsigned long len)
 	return 0;
 }
 
-static void anon_pipe_buf_release(struct pipe_inode_info *info, struct pipe_buffer *buf)
+static void anon_pipe_buf_release(struct pipe_inode_info *pipe, struct pipe_buffer *buf)
 {
 	struct page *page = buf->page;
 
@@ -104,8 +104,8 @@ static void anon_pipe_buf_release(struct pipe_inode_info *info, struct pipe_buff
 	 * temporary page, let's keep track of it as a one-deep
 	 * allocation cache
 	 */
-	if (page_count(page) == 1 && !info->tmp_page) {
-		info->tmp_page = page;
+	if (page_count(page) == 1 && !pipe->tmp_page) {
+		pipe->tmp_page = page;
 		return;
 	}
 
@@ -115,17 +115,17 @@ static void anon_pipe_buf_release(struct pipe_inode_info *info, struct pipe_buff
 	page_cache_release(page);
 }
 
-static void *anon_pipe_buf_map(struct file *file, struct pipe_inode_info *info, struct pipe_buffer *buf)
+static void *anon_pipe_buf_map(struct file *file, struct pipe_inode_info *pipe, struct pipe_buffer *buf)
 {
 	return kmap(buf->page);
 }
 
-static void anon_pipe_buf_unmap(struct pipe_inode_info *info, struct pipe_buffer *buf)
+static void anon_pipe_buf_unmap(struct pipe_inode_info *pipe, struct pipe_buffer *buf)
 {
 	kunmap(buf->page);
 }
 
-static int anon_pipe_buf_steal(struct pipe_inode_info *info,
+static int anon_pipe_buf_steal(struct pipe_inode_info *pipe,
 			       struct pipe_buffer *buf)
 {
 	buf->flags |= PIPE_BUF_FLAG_STOLEN;
@@ -145,7 +145,7 @@ pipe_readv(struct file *filp, const struct iovec *_iov,
 	   unsigned long nr_segs, loff_t *ppos)
 {
 	struct inode *inode = filp->f_dentry->d_inode;
-	struct pipe_inode_info *info;
+	struct pipe_inode_info *pipe;
 	int do_wakeup;
 	ssize_t ret;
 	struct iovec *iov = (struct iovec *)_iov;
@@ -159,12 +159,12 @@ pipe_readv(struct file *filp, const struct iovec *_iov,
 	do_wakeup = 0;
 	ret = 0;
 	mutex_lock(&inode->i_mutex);
-	info = inode->i_pipe;
+	pipe = inode->i_pipe;
 	for (;;) {
-		int bufs = info->nrbufs;
+		int bufs = pipe->nrbufs;
 		if (bufs) {
-			int curbuf = info->curbuf;
-			struct pipe_buffer *buf = info->bufs + curbuf;
+			int curbuf = pipe->curbuf;
+			struct pipe_buffer *buf = pipe->bufs + curbuf;
 			struct pipe_buf_operations *ops = buf->ops;
 			void *addr;
 			size_t chars = buf->len;
@@ -173,14 +173,14 @@ pipe_readv(struct file *filp, const struct iovec *_iov,
 			if (chars > total_len)
 				chars = total_len;
 
-			addr = ops->map(filp, info, buf);
+			addr = ops->map(filp, pipe, buf);
 			if (IS_ERR(addr)) {
 				if (!ret)
 					ret = PTR_ERR(addr);
 				break;
 			}
 			error = pipe_iov_copy_to_user(iov, addr + buf->offset, chars);
-			ops->unmap(info, buf);
+			ops->unmap(pipe, buf);
 			if (unlikely(error)) {
 				if (!ret) ret = -EFAULT;
 				break;
@@ -190,10 +190,10 @@ pipe_readv(struct file *filp, const struct iovec *_iov,
 			buf->len -= chars;
 			if (!buf->len) {
 				buf->ops = NULL;
-				ops->release(info, buf);
+				ops->release(pipe, buf);
 				curbuf = (curbuf + 1) & (PIPE_BUFFERS-1);
-				info->curbuf = curbuf;
-				info->nrbufs = --bufs;
+				pipe->curbuf = curbuf;
+				pipe->nrbufs = --bufs;
 				do_wakeup = 1;
 			}
 			total_len -= chars;
@@ -202,9 +202,9 @@ pipe_readv(struct file *filp, const struct iovec *_iov,
 		}
 		if (bufs)	/* More to do? */
 			continue;
-		if (!inode->i_pipe->writers)
+		if (!pipe->writers)
 			break;
-		if (!inode->i_pipe->waiting_writers) {
+		if (!pipe->waiting_writers) {
 			/* syscall merging: Usually we must not sleep
 			 * if O_NONBLOCK is set, or if we got some data.
 			 * But if a writer sleeps in kernel space, then
@@ -222,16 +222,16 @@ pipe_readv(struct file *filp, const struct iovec *_iov,
 			break;
 		}
 		if (do_wakeup) {
-			wake_up_interruptible_sync(&inode->i_pipe->wait);
- 			kill_fasync(&inode->i_pipe->fasync_writers, SIGIO, POLL_OUT);
+			wake_up_interruptible_sync(&pipe->wait);
+ 			kill_fasync(&pipe->fasync_writers, SIGIO, POLL_OUT);
 		}
-		pipe_wait(inode->i_pipe);
+		pipe_wait(pipe);
 	}
 	mutex_unlock(&inode->i_mutex);
 	/* Signal writers asynchronously that there is more room.  */
 	if (do_wakeup) {
-		wake_up_interruptible(&inode->i_pipe->wait);
-		kill_fasync(&inode->i_pipe->fasync_writers, SIGIO, POLL_OUT);
+		wake_up_interruptible(&pipe->wait);
+		kill_fasync(&pipe->fasync_writers, SIGIO, POLL_OUT);
 	}
 	if (ret > 0)
 		file_accessed(filp);
@@ -250,7 +250,7 @@ pipe_writev(struct file *filp, const struct iovec *_iov,
 	    unsigned long nr_segs, loff_t *ppos)
 {
 	struct inode *inode = filp->f_dentry->d_inode;
-	struct pipe_inode_info *info;
+	struct pipe_inode_info *pipe;
 	ssize_t ret;
 	int do_wakeup;
 	struct iovec *iov = (struct iovec *)_iov;
@@ -265,9 +265,9 @@ pipe_writev(struct file *filp, const struct iovec *_iov,
 	do_wakeup = 0;
 	ret = 0;
 	mutex_lock(&inode->i_mutex);
-	info = inode->i_pipe;
+	pipe = inode->i_pipe;
 
-	if (!inode->i_pipe->readers) {
+	if (!pipe->readers) {
 		send_sig(SIGPIPE, current, 0);
 		ret = -EPIPE;
 		goto out;
@@ -275,23 +275,23 @@ pipe_writev(struct file *filp, const struct iovec *_iov,
 
 	/* We try to merge small writes */
 	chars = total_len & (PAGE_SIZE-1); /* size of the last buffer */
-	if (info->nrbufs && chars != 0) {
-		int lastbuf = (info->curbuf + info->nrbufs - 1) & (PIPE_BUFFERS-1);
-		struct pipe_buffer *buf = info->bufs + lastbuf;
+	if (pipe->nrbufs && chars != 0) {
+		int lastbuf = (pipe->curbuf + pipe->nrbufs - 1) & (PIPE_BUFFERS-1);
+		struct pipe_buffer *buf = pipe->bufs + lastbuf;
 		struct pipe_buf_operations *ops = buf->ops;
 		int offset = buf->offset + buf->len;
 		if (ops->can_merge && offset + chars <= PAGE_SIZE) {
 			void *addr;
 			int error;
 
-			addr = ops->map(filp, info, buf);
+			addr = ops->map(filp, pipe, buf);
 			if (IS_ERR(addr)) {
 				error = PTR_ERR(addr);
 				goto out;
 			}
 			error = pipe_iov_copy_from_user(offset + addr, iov,
 							chars);
-			ops->unmap(info, buf);
+			ops->unmap(pipe, buf);
 			ret = error;
 			do_wakeup = 1;
 			if (error)
@@ -306,16 +306,16 @@ pipe_writev(struct file *filp, const struct iovec *_iov,
 
 	for (;;) {
 		int bufs;
-		if (!inode->i_pipe->readers) {
+		if (!pipe->readers) {
 			send_sig(SIGPIPE, current, 0);
 			if (!ret) ret = -EPIPE;
 			break;
 		}
-		bufs = info->nrbufs;
+		bufs = pipe->nrbufs;
 		if (bufs < PIPE_BUFFERS) {
-			int newbuf = (info->curbuf + bufs) & (PIPE_BUFFERS-1);
-			struct pipe_buffer *buf = info->bufs + newbuf;
-			struct page *page = info->tmp_page;
+			int newbuf = (pipe->curbuf + bufs) & (PIPE_BUFFERS-1);
+			struct pipe_buffer *buf = pipe->bufs + newbuf;
+			struct page *page = pipe->tmp_page;
 			int error;
 
 			if (!page) {
@@ -324,7 +324,7 @@ pipe_writev(struct file *filp, const struct iovec *_iov,
 					ret = ret ? : -ENOMEM;
 					break;
 				}
-				info->tmp_page = page;
+				pipe->tmp_page = page;
 			}
 			/* Always wakeup, even if the copy fails. Otherwise
 			 * we lock up (O_NONBLOCK-)readers that sleep due to
@@ -349,8 +349,8 @@ pipe_writev(struct file *filp, const struct iovec *_iov,
 			buf->ops = &anon_pipe_buf_ops;
 			buf->offset = 0;
 			buf->len = chars;
-			info->nrbufs = ++bufs;
-			info->tmp_page = NULL;
+			pipe->nrbufs = ++bufs;
+			pipe->tmp_page = NULL;
 
 			total_len -= chars;
 			if (!total_len)
@@ -367,19 +367,19 @@ pipe_writev(struct file *filp, const struct iovec *_iov,
 			break;
 		}
 		if (do_wakeup) {
-			wake_up_interruptible_sync(&inode->i_pipe->wait);
-			kill_fasync(&inode->i_pipe->fasync_readers, SIGIO, POLL_IN);
+			wake_up_interruptible_sync(&pipe->wait);
+			kill_fasync(&pipe->fasync_readers, SIGIO, POLL_IN);
 			do_wakeup = 0;
 		}
-		inode->i_pipe->waiting_writers++;
-		pipe_wait(inode->i_pipe);
-		inode->i_pipe->waiting_writers--;
+		pipe->waiting_writers++;
+		pipe_wait(pipe);
+		pipe->waiting_writers--;
 	}
 out:
 	mutex_unlock(&inode->i_mutex);
 	if (do_wakeup) {
-		wake_up_interruptible(&inode->i_pipe->wait);
-		kill_fasync(&inode->i_pipe->fasync_readers, SIGIO, POLL_IN);
+		wake_up_interruptible(&pipe->wait);
+		kill_fasync(&pipe->fasync_readers, SIGIO, POLL_IN);
 	}
 	if (ret > 0)
 		file_update_time(filp);
@@ -411,21 +411,22 @@ pipe_ioctl(struct inode *pino, struct file *filp,
 	   unsigned int cmd, unsigned long arg)
 {
 	struct inode *inode = filp->f_dentry->d_inode;
-	struct pipe_inode_info *info;
+	struct pipe_inode_info *pipe;
 	int count, buf, nrbufs;
 
 	switch (cmd) {
 		case FIONREAD:
 			mutex_lock(&inode->i_mutex);
-			info =  inode->i_pipe;
+			pipe = inode->i_pipe;
 			count = 0;
-			buf = info->curbuf;
-			nrbufs = info->nrbufs;
+			buf = pipe->curbuf;
+			nrbufs = pipe->nrbufs;
 			while (--nrbufs >= 0) {
-				count += info->bufs[buf].len;
+				count += pipe->bufs[buf].len;
 				buf = (buf+1) & (PIPE_BUFFERS-1);
 			}
 			mutex_unlock(&inode->i_mutex);
+
 			return put_user(count, (int __user *)arg);
 		default:
 			return -EINVAL;
@@ -438,17 +439,17 @@ pipe_poll(struct file *filp, poll_table *wait)
 {
 	unsigned int mask;
 	struct inode *inode = filp->f_dentry->d_inode;
-	struct pipe_inode_info *info = inode->i_pipe;
+	struct pipe_inode_info *pipe = inode->i_pipe;
 	int nrbufs;
 
-	poll_wait(filp, &inode->i_pipe->wait, wait);
+	poll_wait(filp, &pipe->wait, wait);
 
 	/* Reading only -- no need for acquiring the semaphore.  */
-	nrbufs = info->nrbufs;
+	nrbufs = pipe->nrbufs;
 	mask = 0;
 	if (filp->f_mode & FMODE_READ) {
 		mask = (nrbufs > 0) ? POLLIN | POLLRDNORM : 0;
-		if (!inode->i_pipe->writers && filp->f_version != inode->i_pipe->w_counter)
+		if (!pipe->writers && filp->f_version != pipe->w_counter)
 			mask |= POLLHUP;
 	}
 
@@ -458,7 +459,7 @@ pipe_poll(struct file *filp, poll_table *wait)
 		 * Most Unices do not set POLLERR for FIFOs but on Linux they
 		 * behave exactly like pipes for poll().
 		 */
-		if (!inode->i_pipe->readers)
+		if (!pipe->readers)
 			mask |= POLLERR;
 	}
 
@@ -468,15 +469,18 @@ pipe_poll(struct file *filp, poll_table *wait)
 static int
 pipe_release(struct inode *inode, int decr, int decw)
 {
+	struct pipe_inode_info *pipe;
+
 	mutex_lock(&inode->i_mutex);
-	inode->i_pipe->readers -= decr;
-	inode->i_pipe->writers -= decw;
-	if (!inode->i_pipe->readers && !inode->i_pipe->writers) {
+	pipe = inode->i_pipe;
+	pipe->readers -= decr;
+	pipe->writers -= decw;
+	if (!pipe->readers && !pipe->writers) {
 		free_pipe_info(inode);
 	} else {
-		wake_up_interruptible(&inode->i_pipe->wait);
-		kill_fasync(&inode->i_pipe->fasync_readers, SIGIO, POLL_IN);
-		kill_fasync(&inode->i_pipe->fasync_writers, SIGIO, POLL_OUT);
+		wake_up_interruptible(&pipe->wait);
+		kill_fasync(&pipe->fasync_readers, SIGIO, POLL_IN);
+		kill_fasync(&pipe->fasync_writers, SIGIO, POLL_OUT);
 	}
 	mutex_unlock(&inode->i_mutex);
 
@@ -679,30 +683,30 @@ static struct file_operations rdwr_pipe_fops = {
 
 struct pipe_inode_info * alloc_pipe_info(struct inode *inode)
 {
-	struct pipe_inode_info *info;
+	struct pipe_inode_info *pipe;
 
-	info = kzalloc(sizeof(struct pipe_inode_info), GFP_KERNEL);
-	if (info) {
-		init_waitqueue_head(&info->wait);
-		info->r_counter = info->w_counter = 1;
-		info->inode = inode;
+	pipe = kzalloc(sizeof(struct pipe_inode_info), GFP_KERNEL);
+	if (pipe) {
+		init_waitqueue_head(&pipe->wait);
+		pipe->r_counter = pipe->w_counter = 1;
+		pipe->inode = inode;
 	}
 
-	return info;
+	return pipe;
 }
 
-void __free_pipe_info(struct pipe_inode_info *info)
+void __free_pipe_info(struct pipe_inode_info *pipe)
 {
 	int i;
 
 	for (i = 0; i < PIPE_BUFFERS; i++) {
-		struct pipe_buffer *buf = info->bufs + i;
+		struct pipe_buffer *buf = pipe->bufs + i;
 		if (buf->ops)
-			buf->ops->release(info, buf);
+			buf->ops->release(pipe, buf);
 	}
-	if (info->tmp_page)
-		__free_page(info->tmp_page);
-	kfree(info);
+	if (pipe->tmp_page)
+		__free_page(pipe->tmp_page);
+	kfree(pipe);
 }
 
 void free_pipe_info(struct inode *inode)
@@ -723,15 +727,17 @@ static struct dentry_operations pipefs_dentry_operations = {
 static struct inode * get_pipe_inode(void)
 {
 	struct inode *inode = new_inode(pipe_mnt->mnt_sb);
+	struct pipe_inode_info *pipe;
 
 	if (!inode)
 		goto fail_inode;
 
-	inode->i_pipe = alloc_pipe_info(inode);
-	if (!inode->i_pipe)
+	pipe = alloc_pipe_info(inode);
+	if (!pipe)
 		goto fail_iput;
+	inode->i_pipe = pipe;
 
-	inode->i_pipe->readers = inode->i_pipe->writers = 1;
+	pipe->readers = pipe->writers = 1;
 	inode->i_fop = &rdwr_pipe_fops;
 
 	/*
@@ -746,6 +752,7 @@ static struct inode * get_pipe_inode(void)
 	inode->i_gid = current->fsgid;
 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 	inode->i_blksize = PAGE_SIZE;
+
 	return inode;
 
 fail_iput:
