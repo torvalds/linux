@@ -86,6 +86,13 @@ enum {
 	/* HOST_SLOT_STAT bits */
 	HOST_SSTAT_ATTN		= (1 << 31),
 
+	/* HOST_CTRL bits */
+	HOST_CTRL_M66EN		= (1 << 16), /* M66EN PCI bus signal */
+	HOST_CTRL_TRDY		= (1 << 17), /* latched PCI TRDY */
+	HOST_CTRL_STOP		= (1 << 18), /* latched PCI STOP */
+	HOST_CTRL_DEVSEL	= (1 << 19), /* latched PCI DEVSEL */
+	HOST_CTRL_REQ64		= (1 << 20), /* latched PCI REQ64 */
+
 	/*
 	 * Port registers
 	 * (8192 bytes @ +0x0000, +0x2000, +0x4000 and +0x6000 @ BAR2)
@@ -142,7 +149,11 @@ enum {
 	PORT_IRQ_PWR_CHG	= (1 << 3), /* power management change */
 	PORT_IRQ_PHYRDY_CHG	= (1 << 4), /* PHY ready change */
 	PORT_IRQ_COMWAKE	= (1 << 5), /* COMWAKE received */
-	PORT_IRQ_UNK_FIS	= (1 << 6), /* Unknown FIS received */
+	PORT_IRQ_UNK_FIS	= (1 << 6), /* unknown FIS received */
+	PORT_IRQ_DEV_XCHG	= (1 << 7), /* device exchanged */
+	PORT_IRQ_8B10B		= (1 << 8), /* 8b/10b decode error threshold */
+	PORT_IRQ_CRC		= (1 << 9), /* CRC error threshold */
+	PORT_IRQ_HANDSHAKE	= (1 << 10), /* handshake error threshold */
 	PORT_IRQ_SDB_NOTIFY	= (1 << 11), /* SDB notify received */
 
 	/* bits[27:16] are unmasked (raw) */
