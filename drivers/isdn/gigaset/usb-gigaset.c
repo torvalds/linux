@@ -748,7 +748,10 @@ static int gigaset_probe(struct usb_interface *interface,
 	usb_get_dev(udev);
 	ucs->udev = udev;
 	ucs->interface = interface;
-	cs->dev = &udev->dev;
+	cs->dev = &interface->dev;
+
+	/* save address of controller structure */
+	usb_set_intfdata(interface, cs); // dev_set_drvdata(&interface->dev, cs);
 
 	endpoint = &hostif->endpoint[0].desc;
 
@@ -805,17 +808,12 @@ static int gigaset_probe(struct usb_interface *interface,
 	/* tell common part that the device is ready */
 	if (startmode == SM_LOCKED)
 		atomic_set(&cs->mstate, MS_LOCKED);
+
 	if (!gigaset_start(cs)) {
 		tasklet_kill(&cs->write_tasklet);
 		retval = -ENODEV; //FIXME
 		goto error;
 	}
-
-	/* save address of controller structure */
-	usb_set_intfdata(interface, cs);
-
-	/* set up device sysfs */
-	gigaset_init_dev_sysfs(interface);
 	return 0;
 
 error:
@@ -827,6 +825,7 @@ error:
 	kfree(cs->inbuf[0].rcvbuf);
 	if (ucs->read_urb != NULL)
 		usb_free_urb(ucs->read_urb);
+	usb_set_intfdata(interface, NULL);
 	ucs->read_urb = ucs->bulk_out_urb = NULL;
 	cs->inbuf[0].rcvbuf = ucs->bulk_out_buffer = NULL;
 	usb_put_dev(ucs->udev);
@@ -845,16 +844,12 @@ static void gigaset_disconnect(struct usb_interface *interface)
 	struct usb_cardstate *ucs;
 
 	cs = usb_get_intfdata(interface);
-
-	/* clear device sysfs */
-	gigaset_free_dev_sysfs(interface);
-
-	usb_set_intfdata(interface, NULL);
 	ucs = cs->hw.usb;
 	usb_kill_urb(ucs->read_urb);
 
 	gigaset_stop(cs);
 
+	usb_set_intfdata(interface, NULL);
 	tasklet_kill(&cs->write_tasklet);
 
 	usb_kill_urb(ucs->bulk_out_urb);	/* FIXME: only if active? */
@@ -868,6 +863,10 @@ static void gigaset_disconnect(struct usb_interface *interface)
 	ucs->read_urb = ucs->bulk_out_urb = NULL;
 	cs->inbuf[0].rcvbuf = ucs->bulk_out_buffer = NULL;
 
+	usb_put_dev(ucs->udev);
+	ucs->interface = NULL;
+	ucs->udev = NULL;
+	cs->dev = NULL;
 	gigaset_unassign(cs);
 }
 

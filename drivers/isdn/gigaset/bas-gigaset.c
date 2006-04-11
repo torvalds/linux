@@ -2217,7 +2217,7 @@ static int gigaset_probe(struct usb_interface *interface,
 	usb_get_dev(udev);
 	ucs->udev = udev;
 	ucs->interface = interface;
-	cs->dev = &udev->dev;
+	cs->dev = &interface->dev;
 
 	/* allocate URBs:
 	 * - one for the interrupt pipe
@@ -2289,14 +2289,13 @@ static int gigaset_probe(struct usb_interface *interface,
 	/* tell common part that the device is ready */
 	if (startmode == SM_LOCKED)
 		atomic_set(&cs->mstate, MS_LOCKED);
-	if (!gigaset_start(cs))
-		goto error;
 
 	/* save address of controller structure */
 	usb_set_intfdata(interface, cs);
 
-	/* set up device sysfs */
-	gigaset_init_dev_sysfs(interface);
+	if (!gigaset_start(cs))
+		goto error;
+
 	return 0;
 
 error:
@@ -2313,23 +2312,24 @@ static void gigaset_disconnect(struct usb_interface *interface)
 	struct cardstate *cs;
 	struct bas_cardstate *ucs;
 
-	/* clear device sysfs */
-	gigaset_free_dev_sysfs(interface);
-
 	cs = usb_get_intfdata(interface);
-	usb_set_intfdata(interface, NULL);
 
 	IFNULLRET(cs);
 	ucs = cs->hw.bas;
 	IFNULLRET(ucs);
 
-	dev_info(cs->dev, "disconnecting GigaSet base");
+	dev_info(cs->dev, "disconnecting Gigaset base\n");
 	gigaset_stop(cs);
 	freeurbs(cs);
+	usb_set_intfdata(interface, NULL);
 	kfree(ucs->rcvbuf);
 	ucs->rcvbuf = NULL;
 	ucs->rcvbuf_size = 0;
 	atomic_set(&ucs->basstate, 0);
+	usb_put_dev(ucs->udev);
+	ucs->interface = NULL;
+	ucs->udev = NULL;
+	cs->dev = NULL;
 	gigaset_unassign(cs);
 }
 

@@ -778,8 +778,8 @@ void gigaset_handle_modem_response(struct cardstate *cs);
  */
 
 /* initialize sysfs for device */
-void gigaset_init_dev_sysfs(struct usb_interface *interface);
-void gigaset_free_dev_sysfs(struct usb_interface *interface);
+void gigaset_init_dev_sysfs(struct cardstate *cs);
+void gigaset_free_dev_sysfs(struct cardstate *cs);
 
 /* ===========================================================================
  *  Functions implemented in common.c/gigaset.h

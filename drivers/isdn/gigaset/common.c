@@ -833,6 +833,9 @@ int gigaset_start(struct cardstate *cs)
 
 	wait_event(cs->waitqueue, !cs->waiting);
 
+	/* set up device sysfs */
+	gigaset_init_dev_sysfs(cs);
+
 	up(&cs->sem);
 	return 1;
 
@@ -881,6 +884,9 @@ EXPORT_SYMBOL_GPL(gigaset_shutdown);
 void gigaset_stop(struct cardstate *cs)
 {
 	down(&cs->sem);
+
+	/* clear device sysfs */
+	gigaset_free_dev_sysfs(cs);
 
 	atomic_set(&cs->connected, 0);
 

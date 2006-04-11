@@ -19,16 +19,14 @@
 static ssize_t show_cidmode(struct device *dev, struct device_attribute *attr,
 			    char *buf)
 {
-	struct usb_interface *intf = to_usb_interface(dev);
-	struct cardstate *cs = usb_get_intfdata(intf);
+	struct cardstate *cs = dev_get_drvdata(dev);
 	return sprintf(buf, "%d\n", atomic_read(&cs->cidmode));
 }
 
 static ssize_t set_cidmode(struct device *dev, struct device_attribute *attr,
 			   const char *buf, size_t count)
 {
-	struct usb_interface *intf = to_usb_interface(dev);
-	struct cardstate *cs = usb_get_intfdata(intf);
+	struct cardstate *cs = dev_get_drvdata(dev);
 	long int value;
 	char *end;
 
@@ -63,17 +61,15 @@ static ssize_t set_cidmode(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR(cidmode, S_IRUGO|S_IWUSR, show_cidmode, set_cidmode);
 
 /* free sysfs for device */
-void gigaset_free_dev_sysfs(struct usb_interface *interface)
+void gigaset_free_dev_sysfs(struct cardstate *cs)
 {
 	gig_dbg(DEBUG_INIT, "removing sysfs entries");
-	device_remove_file(&interface->dev, &dev_attr_cidmode);
+	device_remove_file(cs->dev, &dev_attr_cidmode);
 }
-EXPORT_SYMBOL_GPL(gigaset_free_dev_sysfs);
 
 /* initialize sysfs for device */
-void gigaset_init_dev_sysfs(struct usb_interface *interface)
+void gigaset_init_dev_sysfs(struct cardstate *cs)
 {
 	gig_dbg(DEBUG_INIT, "setting up sysfs");
-	device_create_file(&interface->dev, &dev_attr_cidmode);
+	device_create_file(cs->dev, &dev_attr_cidmode);
 }
-EXPORT_SYMBOL_GPL(gigaset_init_dev_sysfs);
