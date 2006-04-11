@@ -247,8 +247,6 @@ static inline void dump_bytes(enum debuglevel level, const char *tag,
 	static char dbgline[3 * 32 + 1];
 	static const char hexdigit[] = "0123456789abcdef";
 	int i = 0;
-	IFNULLRET(tag);
-	IFNULLRET(bytes);
 	while (count-- > 0) {
 		if (i > sizeof(dbgline) - 4) {
 			dbgline[i] = '\0';
@@ -663,13 +661,9 @@ static unsigned char bitcounts[256] = {
 static inline void hdlc_unpack(unsigned char *src, unsigned count,
 			       struct bc_state *bcs)
 {
-	struct bas_bc_state *ubc;
+	struct bas_bc_state *ubc = bcs->hw.bas;
 	int inputstate;
 	unsigned seqlen, inbyte, inbits;
-
-	IFNULLRET(bcs);
-	ubc = bcs->hw.bas;
-	IFNULLRET(ubc);
 
 	/* load previous state:
 	 * inputstate = set of flag bits:
@@ -995,11 +989,7 @@ void gigaset_isoc_input(struct inbuf_t *inbuf)
  */
 int gigaset_isoc_send_skb(struct bc_state *bcs, struct sk_buff *skb)
 {
-	int len;
-
-	IFNULLRETVAL(bcs, -EFAULT);
-	IFNULLRETVAL(skb, -EFAULT);
-	len = skb->len;
+	int len = skb->len;
 
 	skb_queue_tail(&bcs->squeue, skb);
 	gig_dbg(DEBUG_ISO, "%s: skb queued, qlen=%d",

@@ -72,33 +72,6 @@
 
 #define MAXACT 3
 
-#define IFNULL(a) \
-	if (unlikely(!(a)))
-
-#define IFNULLRET(a) \
-	if (unlikely(!(a))) { \
-		err("%s==NULL at %s:%d!", #a, __FILE__, __LINE__); \
-		return; \
-	}
-
-#define IFNULLRETVAL(a,b) \
-	if (unlikely(!(a))) { \
-		err("%s==NULL at %s:%d!", #a, __FILE__, __LINE__); \
-		return (b); \
-	}
-
-#define IFNULLCONT(a) \
-	if (unlikely(!(a))) { \
-		err("%s==NULL at %s:%d!", #a, __FILE__, __LINE__); \
-		continue; \
-	}
-
-#define IFNULLGOTO(a,b) \
-	if (unlikely(!(a))) { \
-		err("%s==NULL at %s:%d!", #a, __FILE__, __LINE__); \
-		goto b; \
-	}
-
 extern int gigaset_debuglevel;	/* "needs" cast to (enum debuglevel) */
 
 /* any combination of these can be given with the 'debug=' parameter to insmod,

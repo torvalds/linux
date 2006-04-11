@@ -365,18 +365,12 @@ static void gigaset_modem_fill(unsigned long data)
  */
 static void gigaset_read_int_callback(struct urb *urb, struct pt_regs *regs)
 {
+	struct inbuf_t *inbuf = urb->context;
+	struct cardstate *cs = inbuf->cs;
 	int resubmit = 0;
 	int r;
-	struct cardstate *cs;
 	unsigned numbytes;
 	unsigned char *src;
-	struct inbuf_t *inbuf;
-
-	IFNULLRET(urb);
-	inbuf = (struct inbuf_t *) urb->context;
-	IFNULLRET(inbuf);
-	cs = inbuf->cs;
-	IFNULLRET(cs);
 
 	if (!atomic_read(&cs->connected)) {
 		err("%s: disconnected", __func__);
@@ -421,9 +415,8 @@ static void gigaset_read_int_callback(struct urb *urb, struct pt_regs *regs)
 /* This callback routine is called when data was transmitted to the device. */
 static void gigaset_write_bulk_callback(struct urb *urb, struct pt_regs *regs)
 {
-	struct cardstate *cs = (struct cardstate *) urb->context;
+	struct cardstate *cs = urb->context;
 
-	IFNULLRET(cs);
 #ifdef CONFIG_GIGASET_DEBUG
 	if (!atomic_read(&cs->connected)) {
 		err("%s: not connected", __func__);
@@ -632,19 +625,12 @@ static int gigaset_initcshw(struct cardstate *cs)
 /* Send data from current skb to the device. */
 static int write_modem(struct cardstate *cs)
 {
-	int ret;
+	int ret = 0;
 	int count;
 	struct bc_state *bcs = &cs->bcs[0]; /* only one channel */
 	struct usb_cardstate *ucs = cs->hw.usb;
 
-	IFNULLRETVAL(bcs->tx_skb, -EINVAL);
-
 	gig_dbg(DEBUG_WRITE, "len: %d...", bcs->tx_skb->len);
-
-	ret = -ENODEV;
-	IFNULLGOTO(ucs->bulk_out_buffer, error);
-	IFNULLGOTO(ucs->bulk_out_urb, error);
-	ret = 0;
 
 	if (!bcs->tx_skb->len) {
 		dev_kfree_skb_any(bcs->tx_skb);
@@ -683,11 +669,6 @@ static int write_modem(struct cardstate *cs)
 	}
 
 	return ret;
-error:
-	dev_kfree_skb_any(bcs->tx_skb);
-	bcs->tx_skb = NULL;
-	return ret;
-
 }
 
 static int gigaset_probe(struct usb_interface *interface,

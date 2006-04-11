@@ -442,8 +442,6 @@ static int isdn_getnum(char *p)
 {
 	int v = -1;
 
-	IFNULLRETVAL(p, -1);
-
 	gig_dbg(DEBUG_TRANSCMD, "string: %s", p);
 
 	while (*p >= '0' && *p <= '9')
@@ -460,8 +458,6 @@ static int isdn_gethex(char *p)
 {
 	int v = 0;
 	int c;
-
-	IFNULLRETVAL(p, -1);
 
 	gig_dbg(DEBUG_TRANSCMD, "string: %s", p);
 
@@ -531,8 +527,6 @@ void gigaset_handle_modem_response(struct cardstate *cs)
 	size_t len;
 	int cid;
 	int rawstring;
-
-	IFNULLRET(cs);
 
 	len = cs->cbytes;
 	if (!len) {
@@ -737,14 +731,8 @@ EXPORT_SYMBOL_GPL(gigaset_handle_modem_response);
 static void disconnect(struct at_state_t **at_state_p)
 {
 	unsigned long flags;
-	struct bc_state *bcs;
-	struct cardstate *cs;
-
-	IFNULLRET(at_state_p);
-	IFNULLRET(*at_state_p);
-	bcs = (*at_state_p)->bcs;
-	cs = (*at_state_p)->cs;
-	IFNULLRET(cs);
+	struct bc_state *bcs = (*at_state_p)->bcs;
+	struct cardstate *cs = (*at_state_p)->cs;
 
 	new_index(&(*at_state_p)->seq_index, MAX_SEQ_INDEX);
 
@@ -912,9 +900,6 @@ static struct at_state_t *at_state_from_cid(struct cardstate *cs, int cid)
 
 static void bchannel_down(struct bc_state *bcs)
 {
-	IFNULLRET(bcs);
-	IFNULLRET(bcs->cs);
-
 	if (bcs->chstate & CHS_B_UP) {
 		bcs->chstate &= ~CHS_B_UP;
 		gigaset_i4l_channel_cmd(bcs, ISDN_STAT_BHUP);
@@ -932,8 +917,6 @@ static void bchannel_down(struct bc_state *bcs)
 
 static void bchannel_up(struct bc_state *bcs)
 {
-	IFNULLRET(bcs);
-
 	if (!(bcs->chstate & CHS_D_UP)) {
 		dev_notice(bcs->cs->dev, "%s: D channel not up\n", __func__);
 		bcs->chstate |= CHS_D_UP;
@@ -1607,9 +1590,6 @@ static void process_event(struct cardstate *cs, struct event_t *ev)
 	int curact;
 	unsigned long flags;
 
-	IFNULLRET(cs);
-	IFNULLRET(ev);
-
 	if (ev->cid >= 0) {
 		at_state = at_state_from_cid(cs, ev->cid);
 		if (!at_state) {
@@ -1634,7 +1614,6 @@ static void process_event(struct cardstate *cs, struct event_t *ev)
 
 	/* Setting the pointer to the dial array */
 	rep = at_state->replystruct;
-	IFNULLRET(rep);
 
 	if (ev->type == EV_TIMEOUT) {
 		if (ev->parameter != atomic_read(&at_state->timer_index)
@@ -1745,8 +1724,6 @@ static void process_command_flags(struct cardstate *cs)
 	struct bc_state *bcs;
 	int i;
 	int sequence;
-
-	IFNULLRET(cs);
 
 	atomic_set(&cs->commands_pending, 0);
 
@@ -1967,9 +1944,6 @@ static void process_events(struct cardstate *cs)
 void gigaset_handle_event(unsigned long data)
 {
 	struct cardstate *cs = (struct cardstate *) data;
-
-	IFNULLRET(cs);
-	IFNULLRET(cs->inbuf);
 
 	/* handle incoming data on control/common channel */
 	if (atomic_read(&cs->inbuf->head) != atomic_read(&cs->inbuf->tail)) {

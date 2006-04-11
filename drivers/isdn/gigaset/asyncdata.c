@@ -117,19 +117,13 @@ static inline int hdlc_loop(unsigned char c, unsigned char *src, int numbytes,
 {
 	struct cardstate *cs = inbuf->cs;
 	struct bc_state *bcs = inbuf->bcs;
-	int inputstate;
-	__u16 fcs;
-	struct sk_buff *skb;
+	int inputstate = bcs->inputstate;
+	__u16 fcs = bcs->fcs;
+	struct sk_buff *skb = bcs->skb;
 	unsigned char error;
 	struct sk_buff *compskb;
 	int startbytes = numbytes;
 	int l;
-
-	IFNULLRETVAL(bcs, numbytes);
-	inputstate = bcs->inputstate;
-	fcs = bcs->fcs;
-	skb = bcs->skb;
-	IFNULLRETVAL(skb, numbytes);
 
 	if (unlikely(inputstate & INS_byte_stuff)) {
 		inputstate &= ~INS_byte_stuff;
@@ -292,14 +286,9 @@ static inline int iraw_loop(unsigned char c, unsigned char *src, int numbytes,
 {
 	struct cardstate *cs = inbuf->cs;
 	struct bc_state *bcs = inbuf->bcs;
-	int inputstate;
-	struct sk_buff *skb;
+	int inputstate = bcs->inputstate;
+	struct sk_buff *skb = bcs->skb;
 	int startbytes = numbytes;
-
-	IFNULLRETVAL(bcs, numbytes);
-	inputstate = bcs->inputstate;
-	skb = bcs->skb;
-	IFNULLRETVAL(skb, numbytes);
 
 	for (;;) {
 		/* add character */
@@ -577,11 +566,7 @@ static struct sk_buff *iraw_encode(struct sk_buff *skb, int head, int tail)
  */
 int gigaset_m10x_send_skb(struct bc_state *bcs, struct sk_buff *skb)
 {
-	unsigned len;
-
-	IFNULLRETVAL(bcs, -EFAULT);
-	IFNULLRETVAL(skb, -EFAULT);
-	len = skb->len;
+	unsigned len = skb->len;
 
 	if (bcs->proto2 == ISDN_PROTO_L2_HDLC)
 		skb = HDLC_Encode(skb, HW_HDR_LEN, 0);

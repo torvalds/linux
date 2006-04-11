@@ -205,7 +205,6 @@ static inline void dump_urb(enum debuglevel level, const char *tag,
 {
 #ifdef CONFIG_GIGASET_DEBUG
 	int i;
-	IFNULLRET(tag);
 	gig_dbg(level, "%s urb(0x%08lx)->{", tag, (unsigned long) urb);
 	if (urb) {
 		gig_dbg(level,
@@ -309,8 +308,6 @@ static void check_pending(struct bas_cardstate *ucs)
 {
 	unsigned long flags;
 
-	IFNULLRET(ucs);
-
 	spin_lock_irqsave(&ucs->lock, flags);
 	switch (ucs->pending) {
 	case 0:
@@ -366,12 +363,8 @@ static void check_pending(struct bas_cardstate *ucs)
 static void cmd_in_timeout(unsigned long data)
 {
 	struct cardstate *cs = (struct cardstate *) data;
-	struct bas_cardstate *ucs;
+	struct bas_cardstate *ucs = cs->hw.bas;
 	unsigned long flags;
-
-	IFNULLRET(cs);
-	ucs = cs->hw.bas;
-	IFNULLRET(ucs);
 
 	spin_lock_irqsave(&cs->lock, flags);
 	if (unlikely(!atomic_read(&cs->connected))) {
@@ -406,13 +399,8 @@ static void read_ctrl_callback(struct urb *urb, struct pt_regs *regs);
  */
 static int atread_submit(struct cardstate *cs, int timeout)
 {
-	struct bas_cardstate *ucs;
+	struct bas_cardstate *ucs = cs->hw.bas;
 	int ret;
-
-	IFNULLRETVAL(cs, -EINVAL);
-	ucs = cs->hw.bas;
-	IFNULLRETVAL(ucs, -EINVAL);
-	IFNULLRETVAL(ucs->urb_cmd_in, -EINVAL);
 
 	gig_dbg(DEBUG_USBREQ, "-------> HD_READ_ATMESSAGE (%d)",
 		ucs->rcvbuf_size);
@@ -479,19 +467,13 @@ inline static void update_basstate(struct bas_cardstate *ucs,
  */
 static void read_int_callback(struct urb *urb, struct pt_regs *regs)
 {
-	struct cardstate *cs;
-	struct bas_cardstate *ucs;
+	struct cardstate *cs = urb->context;
+	struct bas_cardstate *ucs = cs->hw.bas;
 	struct bc_state *bcs;
 	unsigned long flags;
 	int status;
 	unsigned l;
 	int channel;
-
-	IFNULLRET(urb);
-	cs = (struct cardstate *) urb->context;
-	IFNULLRET(cs);
-	ucs = cs->hw.bas;
-	IFNULLRET(ucs);
 
 	if (unlikely(!atomic_read(&cs->connected))) {
 		warn("%s: disconnected", __func__);
@@ -638,20 +620,12 @@ resubmit:
  */
 static void read_ctrl_callback(struct urb *urb, struct pt_regs *regs)
 {
-	struct cardstate *cs;
-	struct bas_cardstate *ucs;
+	struct inbuf_t *inbuf = urb->context;
+	struct cardstate *cs = inbuf->cs;
+	struct bas_cardstate *ucs = cs->hw.bas;
+	int have_data = 0;
 	unsigned numbytes;
 	unsigned long flags;
-	struct inbuf_t *inbuf;
-	int have_data = 0;
-
-	IFNULLRET(urb);
-	inbuf = (struct inbuf_t *) urb->context;
-	IFNULLRET(inbuf);
-	cs = inbuf->cs;
-	IFNULLRET(cs);
-	ucs = cs->hw.bas;
-	IFNULLRET(ucs);
 
 	spin_lock_irqsave(&cs->lock, flags);
 	if (unlikely(!atomic_read(&cs->connected))) {
@@ -747,10 +721,6 @@ static void read_iso_callback(struct urb *urb, struct pt_regs *regs)
 	unsigned long flags;
 	int i, rc;
 
-	IFNULLRET(urb);
-	IFNULLRET(urb->context);
-	IFNULLRET(cardstate);
-
 	/* status codes not worth bothering the tasklet with */
 	if (unlikely(urb->status == -ENOENT || urb->status == -ECONNRESET ||
 		     urb->status == -EINPROGRESS)) {
@@ -759,9 +729,8 @@ static void read_iso_callback(struct urb *urb, struct pt_regs *regs)
 		return;
 	}
 
-	bcs = (struct bc_state *) urb->context;
+	bcs = urb->context;
 	ubc = bcs->hw.bas;
-	IFNULLRET(ubc);
 
 	spin_lock_irqsave(&ubc->isoinlock, flags);
 	if (likely(ubc->isoindone == NULL)) {
@@ -813,10 +782,6 @@ static void write_iso_callback(struct urb *urb, struct pt_regs *regs)
 	struct bas_bc_state *ubc;
 	unsigned long flags;
 
-	IFNULLRET(urb);
-	IFNULLRET(urb->context);
-	IFNULLRET(cardstate);
-
 	/* status codes not worth bothering the tasklet with */
 	if (unlikely(urb->status == -ENOENT || urb->status == -ECONNRESET ||
 		     urb->status == -EINPROGRESS)) {
@@ -826,10 +791,8 @@ static void write_iso_callback(struct urb *urb, struct pt_regs *regs)
 	}
 
 	/* pass URB context to tasklet */
-	ucx = (struct isow_urbctx_t *) urb->context;
-	IFNULLRET(ucx->bcs);
+	ucx = urb->context;
 	ubc = ucx->bcs->hw.bas;
-	IFNULLRET(ubc);
 
 	spin_lock_irqsave(&ubc->isooutlock, flags);
 	ubc->isooutovfl = ubc->isooutdone;
@@ -848,14 +811,10 @@ static void write_iso_callback(struct urb *urb, struct pt_regs *regs)
  */
 static int starturbs(struct bc_state *bcs)
 {
+	struct bas_bc_state *ubc = bcs->hw.bas;
 	struct urb *urb;
-	struct bas_bc_state *ubc;
 	int j, k;
 	int rc;
-
-	IFNULLRETVAL(bcs, -EFAULT);
-	ubc = bcs->hw.bas;
-	IFNULLRETVAL(ubc, -EFAULT);
 
 	/* initialize L2 reception */
 	if (bcs->proto2 == ISDN_PROTO_L2_HDLC)
@@ -955,8 +914,6 @@ static void stopurbs(struct bas_bc_state *ubc)
 {
 	int k, rc;
 
-	IFNULLRET(ubc);
-
 	atomic_set(&ubc->running, 0);
 
 	for (k = 0; k < BAS_INURBS; ++k) {
@@ -988,17 +945,10 @@ static void stopurbs(struct bas_bc_state *ubc)
  */
 static int submit_iso_write_urb(struct isow_urbctx_t *ucx)
 {
-	struct urb *urb;
-	struct bas_bc_state *ubc;
+	struct urb *urb = ucx->urb;
+	struct bas_bc_state *ubc = ucx->bcs->hw.bas;
 	struct usb_iso_packet_descriptor *ifd;
 	int corrbytes, nframe, rc;
-
-	IFNULLRETVAL(ucx, -EFAULT);
-	urb = ucx->urb;
-	IFNULLRETVAL(urb, -EFAULT);
-	IFNULLRETVAL(ucx->bcs, -EFAULT);
-	ubc = ucx->bcs->hw.bas;
-	IFNULLRETVAL(ubc, -EFAULT);
 
 	/* urb->dev is clobbered by USB subsystem */
 	urb->dev = ucx->bcs->cs->hw.bas->udev;
@@ -1065,9 +1015,9 @@ static int submit_iso_write_urb(struct isow_urbctx_t *ucx)
  */
 static void write_iso_tasklet(unsigned long data)
 {
-	struct bc_state *bcs;
-	struct bas_bc_state *ubc;
-	struct cardstate *cs;
+	struct bc_state *bcs = (struct bc_state *) data;
+	struct bas_bc_state *ubc = bcs->hw.bas;
+	struct cardstate *cs = bcs->cs;
 	struct isow_urbctx_t *done, *next, *ovfl;
 	struct urb *urb;
 	struct usb_iso_packet_descriptor *ifd;
@@ -1076,13 +1026,6 @@ static void write_iso_tasklet(unsigned long data)
 	int i;
 	struct sk_buff *skb;
 	int len;
-
-	bcs = (struct bc_state *) data;
-	IFNULLRET(bcs);
-	ubc = bcs->hw.bas;
-	IFNULLRET(ubc);
-	cs = bcs->cs;
-	IFNULLRET(cs);
 
 	/* loop while completed URBs arrive in time */
 	for (;;) {
@@ -1237,20 +1180,13 @@ static void write_iso_tasklet(unsigned long data)
  */
 static void read_iso_tasklet(unsigned long data)
 {
-	struct bc_state *bcs;
-	struct bas_bc_state *ubc;
-	struct cardstate *cs;
+	struct bc_state *bcs = (struct bc_state *) data;
+	struct bas_bc_state *ubc = bcs->hw.bas;
+	struct cardstate *cs = bcs->cs;
 	struct urb *urb;
 	char *rcvbuf;
 	unsigned long flags;
 	int totleft, numbytes, offset, frame, rc;
-
-	bcs = (struct bc_state *) data;
-	IFNULLRET(bcs);
-	ubc = bcs->hw.bas;
-	IFNULLRET(ubc);
-	cs = bcs->cs;
-	IFNULLRET(cs);
 
 	/* loop while more completed URBs arrive in the meantime */
 	for (;;) {
@@ -1383,14 +1319,9 @@ static void read_iso_tasklet(unsigned long data)
 static void req_timeout(unsigned long data)
 {
 	struct bc_state *bcs = (struct bc_state *) data;
-	struct bas_cardstate *ucs;
+	struct bas_cardstate *ucs = bcs->cs->hw.bas;
 	int pending;
 	unsigned long flags;
-
-	IFNULLRET(bcs);
-	IFNULLRET(bcs->cs);
-	ucs = bcs->cs->hw.bas;
-	IFNULLRET(ucs);
 
 	check_pending(ucs);
 
@@ -1441,14 +1372,9 @@ static void req_timeout(unsigned long data)
  */
 static void write_ctrl_callback(struct urb *urb, struct pt_regs *regs)
 {
-	struct bas_cardstate *ucs;
+	struct bas_cardstate *ucs = urb->context;
 	unsigned long flags;
 
-	IFNULLRET(urb);
-	IFNULLRET(urb->context);
-	IFNULLRET(cardstate);
-
-	ucs = (struct bas_cardstate *) urb->context;
 	spin_lock_irqsave(&ucs->lock, flags);
 	if (urb->status && ucs->pending) {
 		dev_err(&ucs->interface->dev,
@@ -1482,15 +1408,9 @@ static void write_ctrl_callback(struct urb *urb, struct pt_regs *regs)
  */
 static int req_submit(struct bc_state *bcs, int req, int val, int timeout)
 {
-	struct bas_cardstate *ucs;
+	struct bas_cardstate *ucs = bcs->cs->hw.bas;
 	int ret;
 	unsigned long flags;
-
-	IFNULLRETVAL(bcs, -EINVAL);
-	IFNULLRETVAL(bcs->cs, -EINVAL);
-	ucs = bcs->cs->hw.bas;
-	IFNULLRETVAL(ucs, -EINVAL);
-	IFNULLRETVAL(ucs->urb_ctrl, -EINVAL);
 
 	gig_dbg(DEBUG_USBREQ, "-------> 0x%02x (%d)", req, val);
 
@@ -1551,8 +1471,6 @@ static int gigaset_init_bchannel(struct bc_state *bcs)
 {
 	int req, ret;
 
-	IFNULLRETVAL(bcs, -EINVAL);
-
 	if ((ret = starturbs(bcs)) < 0) {
 		dev_err(bcs->cs->dev,
 			"could not start isochronous I/O for channel %d\n",
@@ -1585,8 +1503,6 @@ static int gigaset_close_bchannel(struct bc_state *bcs)
 {
 	int req, ret;
 
-	IFNULLRETVAL(bcs, -EINVAL);
-
 	if (!(atomic_read(&bcs->cs->hw.bas->basstate) &
 	      (bcs->channel ? BS_B2OPEN : BS_B1OPEN))) {
 		/* channel not running: just signal common.c */
@@ -1613,11 +1529,7 @@ static int gigaset_close_bchannel(struct bc_state *bcs)
  */
 static void complete_cb(struct cardstate *cs)
 {
-	struct cmdbuf_t *cb;
-
-	IFNULLRET(cs);
-	cb = cs->cmdbuf;
-	IFNULLRET(cb);
+	struct cmdbuf_t *cb = cs->cmdbuf;
 
 	/* unqueue completed buffer */
 	cs->cmdbytes -= cs->curlen;
@@ -1649,15 +1561,9 @@ static int atwrite_submit(struct cardstate *cs, unsigned char *buf, int len);
  */
 static void write_command_callback(struct urb *urb, struct pt_regs *regs)
 {
-	struct cardstate *cs;
+	struct cardstate *cs = urb->context;
+	struct bas_cardstate *ucs = cs->hw.bas;
 	unsigned long flags;
-	struct bas_cardstate *ucs;
-
-	IFNULLRET(urb);
-	cs = (struct cardstate *) urb->context;
-	IFNULLRET(cs);
-	ucs = cs->hw.bas;
-	IFNULLRET(ucs);
 
 	/* check status */
 	switch (urb->status) {
@@ -1709,11 +1615,7 @@ static void write_command_callback(struct urb *urb, struct pt_regs *regs)
 static void atrdy_timeout(unsigned long data)
 {
 	struct cardstate *cs = (struct cardstate *) data;
-	struct bas_cardstate *ucs;
-
-	IFNULLRET(cs);
-	ucs = cs->hw.bas;
-	IFNULLRET(ucs);
+	struct bas_cardstate *ucs = cs->hw.bas;
 
 	dev_warn(cs->dev, "timeout waiting for HD_READY_SEND_ATDATA\n");
 
@@ -1736,13 +1638,8 @@ static void atrdy_timeout(unsigned long data)
  */
 static int atwrite_submit(struct cardstate *cs, unsigned char *buf, int len)
 {
-	struct bas_cardstate *ucs;
+	struct bas_cardstate *ucs = cs->hw.bas;
 	int ret;
-
-	IFNULLRETVAL(cs, -EFAULT);
-	ucs = cs->hw.bas;
-	IFNULLRETVAL(ucs, -EFAULT);
-	IFNULLRETVAL(ucs->urb_cmd_out, -EFAULT);
 
 	gig_dbg(DEBUG_USBREQ, "-------> HD_WRITE_ATMESSAGE (%d)", len);
 
@@ -1795,14 +1692,10 @@ static int atwrite_submit(struct cardstate *cs, unsigned char *buf, int len)
 static int start_cbsend(struct cardstate *cs)
 {
 	struct cmdbuf_t *cb;
-	struct bas_cardstate *ucs;
+	struct bas_cardstate *ucs = cs->hw.bas;
 	unsigned long flags;
 	int rc;
 	int retval = 0;
-
-	IFNULLRETVAL(cs, -EFAULT);
-	ucs = cs->hw.bas;
-	IFNULLRETVAL(ucs, -EFAULT);
 
 	/* check if AT channel is open */
 	if (!(atomic_read(&ucs->basstate) & BS_ATOPEN)) {
@@ -2084,17 +1977,12 @@ static int gigaset_initcshw(struct cardstate *cs)
  */
 static void freeurbs(struct cardstate *cs)
 {
-	struct bas_cardstate *ucs;
+	struct bas_cardstate *ucs = cs->hw.bas;
 	struct bas_bc_state *ubc;
 	int i, j;
 
-	IFNULLRET(cs);
-	ucs = cs->hw.bas;
-	IFNULLRET(ucs);
-
 	for (j = 0; j < 2; ++j) {
 		ubc = cs->bcs[j].hw.bas;
-		IFNULLCONT(ubc);
 		for (i = 0; i < BAS_OUTURBS; ++i)
 			if (ubc->isoouturbs[i].urb) {
 				usb_kill_urb(ubc->isoouturbs[i].urb);
@@ -2159,8 +2047,6 @@ static int gigaset_probe(struct usb_interface *interface,
 	struct usb_endpoint_descriptor *endpoint;
 	int i, j;
 	int ret;
-
-	IFNULLRETVAL(udev, -ENODEV);
 
 	gig_dbg(DEBUG_ANY,
 		"%s: Check if device matches .. (Vendor: 0x%x, Product: 0x%x)",
@@ -2314,9 +2200,7 @@ static void gigaset_disconnect(struct usb_interface *interface)
 
 	cs = usb_get_intfdata(interface);
 
-	IFNULLRET(cs);
 	ucs = cs->hw.bas;
-	IFNULLRET(ucs);
 
 	dev_info(cs->dev, "disconnecting Gigaset base\n");
 	gigaset_stop(cs);
