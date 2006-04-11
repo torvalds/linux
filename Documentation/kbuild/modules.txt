@@ -44,7 +44,7 @@ What is covered within this file is mainly information to authors
 of modules. The author of an external modules should supply
 a makefile that hides most of the complexity so one only has to type
 'make' to build the module. A complete example will be present in
-chapter ¤. Creating a kbuild file for an external module".
+chapter 4, "Creating a kbuild file for an external module".
 
 
 === 2. How to build external modules
