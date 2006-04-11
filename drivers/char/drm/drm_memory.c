@@ -83,8 +83,8 @@ void *drm_realloc(void *oldpt, size_t oldsize, size_t size, int area)
 /*
  * Find the drm_map that covers the range [offset, offset+size).
  */
-drm_map_t *drm_lookup_map(unsigned long offset,
-					unsigned long size, drm_device_t * dev)
+static drm_map_t *drm_lookup_map(unsigned long offset,
+				 unsigned long size, drm_device_t * dev)
 {
 	struct list_head *list;
 	drm_map_list_t *r_list;
@@ -102,8 +102,8 @@ drm_map_t *drm_lookup_map(unsigned long offset,
 	return NULL;
 }
 
-void *agp_remap(unsigned long offset, unsigned long size,
-			      drm_device_t * dev)
+static void *agp_remap(unsigned long offset, unsigned long size,
+		       drm_device_t * dev)
 {
 	unsigned long *phys_addr_map, i, num_pages =
 	    PAGE_ALIGN(size) / PAGE_SIZE;
@@ -168,6 +168,21 @@ int drm_unbind_agp(DRM_AGP_MEM * handle)
 {
 	return drm_agp_unbind_memory(handle);
 }
+
+#else  /*  __OS_HAS_AGP  */
+
+static inline drm_map_t *drm_lookup_map(unsigned long offset,
+					unsigned long size, drm_device_t * dev)
+{
+	return NULL;
+}
+
+static inline void *agp_remap(unsigned long offset, unsigned long size,
+			      drm_device_t * dev)
+{
+	return NULL;
+}
+
 #endif				/* agp */
 
 void *drm_ioremap(unsigned long offset, unsigned long size,
@@ -183,6 +198,7 @@ void *drm_ioremap(unsigned long offset, unsigned long size,
 }
 EXPORT_SYMBOL(drm_ioremap);
 
+#if 0
 void *drm_ioremap_nocache(unsigned long offset,
 					unsigned long size, drm_device_t * dev)
 {
@@ -194,6 +210,7 @@ void *drm_ioremap_nocache(unsigned long offset,
 	}
 	return ioremap_nocache(offset, size);
 }
+#endif  /*  0  */
 
 void drm_ioremapfree(void *pt, unsigned long size,
 				   drm_device_t * dev)

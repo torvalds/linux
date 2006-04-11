@@ -57,15 +57,6 @@
 # endif
 #endif
 
-/*
- * Find the drm_map that covers the range [offset, offset+size).
- */
-drm_map_t *drm_lookup_map(unsigned long offset,
-					unsigned long size, drm_device_t * dev);
-
-void *agp_remap(unsigned long offset, unsigned long size,
-			      drm_device_t * dev);
-
 static inline unsigned long drm_follow_page(void *vaddr)
 {
 	pgd_t *pgd = pgd_offset_k((unsigned long)vaddr);
@@ -77,18 +68,6 @@ static inline unsigned long drm_follow_page(void *vaddr)
 
 #else				/* __OS_HAS_AGP */
 
-static inline drm_map_t *drm_lookup_map(unsigned long offset,
-					unsigned long size, drm_device_t * dev)
-{
-	return NULL;
-}
-
-static inline void *agp_remap(unsigned long offset, unsigned long size,
-			      drm_device_t * dev)
-{
-	return NULL;
-}
-
 static inline unsigned long drm_follow_page(void *vaddr)
 {
 	return 0;
@@ -98,9 +77,6 @@ static inline unsigned long drm_follow_page(void *vaddr)
 
 void *drm_ioremap(unsigned long offset, unsigned long size,
 				drm_device_t * dev);
-
-void *drm_ioremap_nocache(unsigned long offset,
-					unsigned long size, drm_device_t * dev);
 
 void drm_ioremapfree(void *pt, unsigned long size,
 				   drm_device_t * dev);
