@@ -782,6 +782,10 @@ static int __init alsa_card_cs423x_init(void)
 							 i, NULL, 0);
 		if (IS_ERR(device))
 			continue;
+		if (!platform_get_drvdata(device)) {
+			platform_device_unregister(device);
+			continue;
+		}
 		platform_devices[i] = device;
 		snd_cs423x_devices++;
 	}

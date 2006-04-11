@@ -964,6 +964,10 @@ static int __init alsa_card_opl3sa2_init(void)
 							 i, NULL, 0);
 		if (IS_ERR(device))
 			continue;
+		if (!platform_get_drvdata(device)) {
+			platform_device_unregister(device);
+			continue;
+		}
 		platform_devices[i] = device;
 		snd_opl3sa2_devices++;
 	}
