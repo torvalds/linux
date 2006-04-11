@@ -218,6 +218,10 @@ enum {
 	BID_SIL3132		= 1,
 	BID_SIL3131		= 2,
 
+	/* host flags */
+	SIL24_COMMON_FLAGS	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
+				  ATA_FLAG_MMIO | ATA_FLAG_PIO_DMA,
+
 	IRQ_STAT_4PORTS		= 0xf,
 };
 
@@ -344,9 +348,7 @@ static struct ata_port_info sil24_port_info[] = {
 	/* sil_3124 */
 	{
 		.sht		= &sil24_sht,
-		.host_flags	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
-				  ATA_FLAG_MMIO | ATA_FLAG_PIO_DMA |
-				  SIL24_NPORTS2FLAG(4),
+		.host_flags	= SIL24_COMMON_FLAGS | SIL24_NPORTS2FLAG(4),
 		.pio_mask	= 0x1f,			/* pio0-4 */
 		.mwdma_mask	= 0x07,			/* mwdma0-2 */
 		.udma_mask	= 0x3f,			/* udma0-5 */
@@ -355,9 +357,7 @@ static struct ata_port_info sil24_port_info[] = {
 	/* sil_3132 */
 	{
 		.sht		= &sil24_sht,
-		.host_flags	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
-				  ATA_FLAG_MMIO | ATA_FLAG_PIO_DMA |
-				  SIL24_NPORTS2FLAG(2),
+		.host_flags	= SIL24_COMMON_FLAGS | SIL24_NPORTS2FLAG(2),
 		.pio_mask	= 0x1f,			/* pio0-4 */
 		.mwdma_mask	= 0x07,			/* mwdma0-2 */
 		.udma_mask	= 0x3f,			/* udma0-5 */
@@ -366,9 +366,7 @@ static struct ata_port_info sil24_port_info[] = {
 	/* sil_3131/sil_3531 */
 	{
 		.sht		= &sil24_sht,
-		.host_flags	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
-				  ATA_FLAG_MMIO | ATA_FLAG_PIO_DMA |
-				  SIL24_NPORTS2FLAG(1),
+		.host_flags	= SIL24_COMMON_FLAGS | SIL24_NPORTS2FLAG(1),
 		.pio_mask	= 0x1f,			/* pio0-4 */
 		.mwdma_mask	= 0x07,			/* mwdma0-2 */
 		.udma_mask	= 0x3f,			/* udma0-5 */
