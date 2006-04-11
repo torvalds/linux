@@ -1411,12 +1411,9 @@ static int ata_bus_probe(struct ata_port *ap)
 	/* read IDENTIFY page and configure devices */
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
 		dev = &ap->device[i];
-		dev->class = classes[i];
 
-		if (!tries[i]) {
-			ata_down_xfermask_limit(ap, dev, 1);
-			ata_dev_disable(ap, dev);
-		}
+		if (tries[i])
+			dev->class = classes[i];
 
 		if (!ata_dev_enabled(dev))
 			continue;
@@ -1475,6 +1472,11 @@ static int ata_bus_probe(struct ata_port *ap)
 		if (down_xfermask &&
 		    ata_down_xfermask_limit(ap, dev, tries[dev->devno] == 1))
 			tries[dev->devno] = 0;
+	}
+
+	if (!tries[dev->devno]) {
+		ata_down_xfermask_limit(ap, dev, 1);
+		ata_dev_disable(ap, dev);
 	}
 
 	goto retry;
