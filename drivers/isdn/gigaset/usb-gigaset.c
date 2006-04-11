@@ -13,10 +13,6 @@
  *	published by the Free Software Foundation; either version 2 of
  *	the License, or (at your option) any later version.
  * =====================================================================
- * ToDo: ...
- * =====================================================================
- * Version: $Id: usb-gigaset.c,v 1.85.4.18 2006/02/04 18:28:16 hjlipp Exp $
- * =====================================================================
  */
 
 #include "gigaset.h"
@@ -61,10 +57,6 @@ static struct usb_device_id gigaset_table [] = {
 };
 
 MODULE_DEVICE_TABLE(usb, gigaset_table);
-
-/* Get a minor range for your devices from the usb maintainer */
-#define USB_SKEL_MINOR_BASE	200
-
 
 /*
  * Control requests (empty fields: 00)
@@ -122,29 +114,29 @@ static struct cardstate *cardstate = NULL;
 
 /* usb specific object needed to register this driver with the usb subsystem */
 static struct usb_driver gigaset_usb_driver = {
-	.name =         GIGASET_MODULENAME,
-	.probe =        gigaset_probe,
-	.disconnect =   gigaset_disconnect,
-	.id_table =     gigaset_table,
+	.name =		GIGASET_MODULENAME,
+	.probe =	gigaset_probe,
+	.disconnect =	gigaset_disconnect,
+	.id_table =	gigaset_table,
 };
 
 struct usb_cardstate {
-	struct usb_device       *udev;                  /* save off the usb device pointer */
-	struct usb_interface    *interface;             /* the interface for this device */
-	atomic_t                busy;                   /* bulk output in progress */
+	struct usb_device	*udev;		/* usb device pointer */
+	struct usb_interface	*interface;	/* interface for this device */
+	atomic_t		busy;		/* bulk output in progress */
 
-	/* Output buffer for commands (M105: and data)*/
-	unsigned char           *bulk_out_buffer;       /* the buffer to send data */
-	int                     bulk_out_size;          /* the size of the send buffer */
-	__u8                    bulk_out_endpointAddr;  /* the address of the bulk out endpoint */
-	struct urb              *bulk_out_urb;          /* the urb used to transmit data */
+	/* Output buffer */
+	unsigned char		*bulk_out_buffer;	/* send buffer */
+	int			bulk_out_size;		/* send buffer size */
+	__u8			bulk_out_endpointAddr;	/* bulk out endpoint */
+	struct urb		*bulk_out_urb;		/* bulk out urb */
 
-	/* Input buffer for command responses (M105: and data)*/
-	int                     rcvbuf_size;            /* the size of the receive buffer */
-	struct urb              *read_urb;              /* the urb used to receive data */
-	__u8                    int_in_endpointAddr;    /* the address of the bulk in endpoint */
+	/* Input buffer */
+	int			rcvbuf_size;		/* rcv buffer */
+	struct urb		*read_urb;		/* rcv buffer size */
+	__u8			int_in_endpointAddr;    /* int in endpoint */
 
-	char                    bchars[6];              /* req. 0x19 */
+	char			bchars[6];		/* request 0x19 */
 };
 
 struct usb_bc_state {};
@@ -166,10 +158,11 @@ static int gigaset_set_modem_ctrl(struct cardstate *cs, unsigned old_state,
 	val = tiocm_to_gigaset(new_state);
 
 	dbg(DEBUG_USBREQ, "set flags 0x%02x with mask 0x%02x", val, mask);
+	// don't use this in an interrupt/BH
 	r = usb_control_msg(cs->hw.usb->udev,
 	                    usb_sndctrlpipe(cs->hw.usb->udev, 0), 7, 0x41,
 	                    (val & 0xff) | ((mask & 0xff) << 8), 0,
-	                    NULL, 0, 2000 /*timeout??*/); // don't use this in an interrupt/BH
+	                    NULL, 0, 2000 /* timeout? */);
 	if (r < 0)
 		return r;
 	//..
@@ -309,15 +302,12 @@ static int gigaset_close_bchannel(struct bc_state *bcs)
 	return 0;
 }
 
-//void send_ack_to_LL(void *data);
 static int write_modem(struct cardstate *cs);
 static int send_cb(struct cardstate *cs, struct cmdbuf_t *cb);
 
 
-/* Handling of send queue. If there is already a skb opened, put data to
- * the transfer buffer by calling "write_modem". Otherwise take a new skb out of the queue.
- * This function will be called by the ISR via "transmit_chars" (USB: B-Channel Bulk callback handler
- * via immediate task queue) or by writebuf_from_LL if the LL wants to transmit data.
+/* Write tasklet handler: Continue sending current skb, or send command, or
+ * start sending an skb from the send queue.
  */
 static void gigaset_modem_fill(unsigned long data)
 {
@@ -345,7 +335,8 @@ static void gigaset_modem_fill(unsigned long data)
 				if (send_cb(cs, cb) < 0) {
 					dbg(DEBUG_OUTPUT,
 					    "modem_fill: send_cb failed");
-					again = 1; /* no callback will be called! */
+					again = 1; /* no callback will be
+						      called! */
 				}
 			} else { /* skbs to send? */
 				bcs->tx_skb = skb_dequeue(&bcs->squeue);
@@ -371,8 +362,7 @@ static void gigaset_modem_fill(unsigned long data)
 /**
  *	gigaset_read_int_callback
  *
- *      It is called if the data was received from the device. This is almost similiar to
- *      the interrupt service routine in the serial device.
+ *      It is called if the data was received from the device.
  */
 static void gigaset_read_int_callback(struct urb *urb, struct pt_regs *regs)
 {
@@ -381,13 +371,11 @@ static void gigaset_read_int_callback(struct urb *urb, struct pt_regs *regs)
 	struct cardstate *cs;
 	unsigned numbytes;
 	unsigned char *src;
-	//unsigned long flags;
 	struct inbuf_t *inbuf;
 
 	IFNULLRET(urb);
 	inbuf = (struct inbuf_t *) urb->context;
 	IFNULLRET(inbuf);
-	//spin_lock_irqsave(&inbuf->lock, flags);
 	cs = inbuf->cs;
 	IFNULLGOTO(cs, exit);
 	IFNULLGOTO(cardstate, exit);
@@ -422,7 +410,6 @@ static void gigaset_read_int_callback(struct urb *urb, struct pt_regs *regs)
 			resubmit = 1;
 	}
 exit:
-	//spin_unlock_irqrestore(&inbuf->lock, flags);
 	if (resubmit) {
 		r = usb_submit_urb(urb, SLAB_ATOMIC);
 		if (r)
@@ -431,11 +418,7 @@ exit:
 }
 
 
-/* This callback routine is called when data was transmitted to a B-Channel.
- * Therefore it has to check if there is still data to transmit. This
- * happens by calling modem_fill via task queue.
- *
- */
+/* This callback routine is called when data was transmitted to the device. */
 static void gigaset_write_bulk_callback(struct urb *urb, struct pt_regs *regs)
 {
 	struct cardstate *cs = (struct cardstate *) urb->context;
@@ -448,8 +431,9 @@ static void gigaset_write_bulk_callback(struct urb *urb, struct pt_regs *regs)
 	}
 #endif
 	if (urb->status)
-		err("bulk transfer failed (status %d)", -urb->status); /* That's all we can do. Communication problems
-		                                                           are handeled by timeouts or network protocols */
+		err("bulk transfer failed (status %d)", -urb->status);
+		/* That's all we can do. Communication problems
+		   are handeled by timeouts or network protocols */
 
 	atomic_set(&cs->hw.usb->busy, 0);
 	tasklet_schedule(&cs->write_tasklet);
@@ -503,16 +487,16 @@ static int send_cb(struct cardstate *cs, struct cmdbuf_t *cb)
 				atomic_set(&ucs->busy, 0);
 				err("could not submit urb (error %d).",
 				    -status);
-				cb->len = 0; /* skip urb => remove cb+wakeup in next loop cycle */
+				cb->len = 0; /* skip urb => remove cb+wakeup
+						in next loop cycle */
 			}
 		}
-	} while (cb && status); /* bei Fehler naechster Befehl //FIXME: ist das OK? */
+	} while (cb && status); /* next command on error */
 
 	return status;
 }
 
-/* Write string into transbuf and send it to modem.
- */
+/* Send command to device. */
 static int gigaset_write_cmd(struct cardstate *cs, const unsigned char *buf,
                              int len, struct tasklet_struct *wake_tasklet)
 {
@@ -604,7 +588,6 @@ static int gigaset_initbcshw(struct bc_state *bcs)
 	if (!bcs->hw.usb)
 		return 0;
 
-	//bcs->hw.usb->trans_flg = READY_TO_TRNSMIT; /* B-Channel ready to transmit */
 	return 1;
 }
 
@@ -614,7 +597,6 @@ static void gigaset_reinitbcshw(struct bc_state *bcs)
 
 static void gigaset_freecshw(struct cardstate *cs)
 {
-	//FIXME
 	tasklet_kill(&cs->write_tasklet);
 	kfree(cs->hw.usb);
 }
@@ -644,19 +626,13 @@ static int gigaset_initcshw(struct cardstate *cs)
 	return 1;
 }
 
-/* Writes the data of the current open skb into the modem.
- * We have to protect against multiple calls until the
- * callback handler () is called , due to the fact that we
- * are just allowed to send data once to an endpoint. Therefore
- * we using "trans_flg" to synchonize ...
- */
+/* Send data from current skb to the device. */
 static int write_modem(struct cardstate *cs)
 {
 	int ret;
 	int count;
 	struct bc_state *bcs = &cs->bcs[0]; /* only one channel */
 	struct usb_cardstate *ucs = cs->hw.usb;
-	//unsigned long flags;
 
 	IFNULLRETVAL(bcs->tx_skb, -EINVAL);
 
@@ -720,12 +696,9 @@ static int gigaset_probe(struct usb_interface *interface,
 	struct usb_host_interface *hostif;
 	struct cardstate *cs = NULL;
 	struct usb_cardstate *ucs = NULL;
-	//struct usb_interface_descriptor *iface_desc;
 	struct usb_endpoint_descriptor *endpoint;
-	//isdn_ctrl command;
 	int buffer_size;
 	int alt;
-	//unsigned long flags;
 
 	info("%s: Check if device matches .. (Vendor: 0x%x, Product: 0x%x)",
 	    __func__, le16_to_cpu(udev->descriptor.idVendor),
@@ -765,29 +738,6 @@ static int gigaset_probe(struct usb_interface *interface,
 		return -ENODEV;
 	}
 	ucs = cs->hw.usb;
-
-#if 0
-	if (usb_set_configuration(udev, udev->config[0].desc.bConfigurationValue) < 0) {
-		warn("set_configuration failed");
-		goto error;
-	}
-
-
-	if (usb_set_interface(udev, ifnum/*==0*/, alt/*==0*/) < 0) {
-		warn("usb_set_interface failed, device %d interface %d altsetting %d",
-		     udev->devnum, ifnum, alt);
-		goto error;
-	}
-#endif
-
-	/* set up the endpoint information */
-	/* check out the endpoints */
-	/* We will get 2 endpoints: One for sending commands to the device (bulk out) and one to
-	 * poll messages from the device(int in).
-	 * Therefore we will have an almost similiar situation as with our serial port handler.
-	 * If an connection will be established, we will have to create data in/out pipes
-	 * dynamically...
-	 */
 
 	endpoint = &hostif->endpoint[0].desc;
 
@@ -896,18 +846,15 @@ static void gigaset_disconnect(struct usb_interface *interface)
 
 	tasklet_kill(&cs->write_tasklet);
 
-	usb_kill_urb(ucs->bulk_out_urb);  /* FIXME: nur, wenn noetig */
-	//usb_kill_urb(ucs->urb_cmd_out);  /* FIXME: nur, wenn noetig */
+	usb_kill_urb(ucs->bulk_out_urb);  /* FIXME: only if active? */
 
 	kfree(ucs->bulk_out_buffer);
 	if (ucs->bulk_out_urb != NULL)
 		usb_free_urb(ucs->bulk_out_urb);
-	//if(ucs->urb_cmd_out != NULL)
-	//	usb_free_urb(ucs->urb_cmd_out);
 	kfree(cs->inbuf[0].rcvbuf);
 	if (ucs->read_urb != NULL)
 		usb_free_urb(ucs->read_urb);
-	ucs->read_urb = ucs->bulk_out_urb/*=ucs->urb_cmd_out*/=NULL;
+	ucs->read_urb = ucs->bulk_out_urb = NULL;
 	cs->inbuf[0].rcvbuf = ucs->bulk_out_buffer = NULL;
 
 	gigaset_unassign(cs);

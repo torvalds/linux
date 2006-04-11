@@ -11,10 +11,6 @@
  *	published by the Free Software Foundation; either version 2 of
  *	the License, or (at your option) any later version.
  * =====================================================================
- * ToDo: ...
- * =====================================================================
- * Version: $Id: asyncdata.c,v 1.2.2.7 2005/11/13 23:05:18 hjlipp Exp $
- * =====================================================================
  */
 
 #include "gigaset.h"
@@ -58,7 +54,8 @@ static inline int cmd_loop(unsigned char c, unsigned char *src, int numbytes,
 			dbg(DEBUG_TRANSCMD, "%s: End of Command (%d Bytes)",
 			    __func__, cbytes);
 			cs->cbytes = cbytes;
-			gigaset_handle_modem_response(cs); /* can change cs->dle */
+			gigaset_handle_modem_response(cs); /* can change
+							      cs->dle */
 			cbytes = 0;
 
 			if (cs->dle &&
@@ -100,7 +97,8 @@ static inline int lock_loop(unsigned char *src, int numbytes,
 {
 	struct cardstate *cs = inbuf->cs;
 
-	gigaset_dbg_buffer(DEBUG_LOCKCMD, "received response", numbytes, src, 0);
+	gigaset_dbg_buffer(DEBUG_LOCKCMD, "received response",
+			   numbytes, src, 0);
 	gigaset_if_receive(cs, src, numbytes);
 
 	return numbytes;
@@ -392,8 +390,7 @@ void gigaset_m10x_input(struct inbuf_t *inbuf)
 
 				if (!(inbuf->inputstate & INS_DLE_char)) {
 
-					/* FIXME Einfach je nach Modus Funktionszeiger in cs setzen [hier+hdlc_loop]?  */
-					/* FIXME Spart folgendes "if" und ermoeglicht andere Protokolle */
+					/* FIXME use function pointers?  */
 					if (inbuf->inputstate & INS_command)
 						procbytes = cmd_loop(c, src, numbytes, inbuf);
 					else if (inbuf->bcs->proto2 == ISDN_PROTO_L2_HDLC)

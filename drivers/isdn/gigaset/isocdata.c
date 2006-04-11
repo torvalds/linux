@@ -10,10 +10,6 @@
  *	published by the Free Software Foundation; either version 2 of
  *	the License, or (at your option) any later version.
  * =====================================================================
- * ToDo: ...
- * =====================================================================
- * Version: $Id: isocdata.c,v 1.2.2.5 2005/11/13 23:05:19 hjlipp Exp $
- * =====================================================================
  */
 
 #include "gigaset.h"
@@ -196,7 +192,8 @@ int gigaset_isowbuf_getbytes(struct isowbuf_t *iwb, int size)
 				return -EBUSY;
 			/* write position could have changed */
 			if (limit >= (write = atomic_read(&iwb->write))) {
-				pbyte = iwb->data[write]; /* save partial byte */
+				pbyte = iwb->data[write]; /* save
+							     partial byte */
 				limit = write + BAS_OUTBUFPAD;
 				dbg(DEBUG_STREAM,
 				    "%s: filling %d->%d with %02x",
@@ -213,7 +210,8 @@ int gigaset_isowbuf_getbytes(struct isowbuf_t *iwb, int size)
 				}
 				dbg(DEBUG_STREAM, "%s: restoring %02x at %d",
 				    __func__, pbyte, limit);
-				iwb->data[limit] = pbyte; /* restore partial byte */
+				iwb->data[limit] = pbyte; /* restore
+							     partial byte */
 				atomic_set(&iwb->write, limit);
 			}
 			isowbuf_donewrite(iwb);
@@ -508,11 +506,13 @@ int gigaset_isoc_buildframe(struct bc_state *bcs, unsigned char *in, int len)
 	switch (bcs->proto2) {
 	case ISDN_PROTO_L2_HDLC:
 		result = hdlc_buildframe(bcs->hw.bas->isooutbuf, in, len);
-		dbg(DEBUG_ISO, "%s: %d bytes HDLC -> %d", __func__, len, result);
+		dbg(DEBUG_ISO, "%s: %d bytes HDLC -> %d",
+		    __func__, len, result);
 		break;
 	default:			/* assume transparent */
 		result = trans_buildframe(bcs->hw.bas->isooutbuf, in, len);
-		dbg(DEBUG_ISO, "%s: %d bytes trans -> %d", __func__, len, result);
+		dbg(DEBUG_ISO, "%s: %d bytes trans -> %d",
+		    __func__, len, result);
 	}
 	return result;
 }

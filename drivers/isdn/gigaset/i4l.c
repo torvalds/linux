@@ -11,10 +11,6 @@
  *	published by the Free Software Foundation; either version 2 of
  *	the License, or (at your option) any later version.
  * =====================================================================
- * ToDo: ...
- * =====================================================================
- * Version: $Id: i4l.c,v 1.3.2.9 2006/02/04 18:28:16 hjlipp Exp $
- * =====================================================================
  */
 
 #include "gigaset.h"
@@ -29,7 +25,8 @@
  * parameters:
  *	driverID	driver ID as assigned by LL
  *	channel		channel number
- *	ack		if != 0 LL wants to be notified on completion via statcallb(ISDN_STAT_BSENT)
+ *	ack		if != 0 LL wants to be notified on completion via
+ *			statcallb(ISDN_STAT_BSENT)
  *	skb		skb containing data to send
  * return value:
  *	number of accepted bytes
@@ -123,9 +120,6 @@ static int command_from_LL(isdn_ctrl *cntrl)
 	//dbg(DEBUG_ANY, "Gigaset_HW: Receiving command");
 	gigaset_debugdrivers();
 
-	/* Terminate this call if no device is present. Bt if the command is "ISDN_CMD_LOCK" or
-	 * "ISDN_CMD_UNLOCK" then execute it due to the fact that they are device independent !
-	 */
 	//FIXME "remove test for &connected"
 	if ((!cs || !atomic_read(&cs->connected))) {
 		warn("LL tried to access unknown device with nr. %d",
@@ -222,15 +216,15 @@ static int command_from_LL(isdn_ctrl *cntrl)
 		gigaset_schedule_event(cs);
 
 		break;
-	case ISDN_CMD_CLREAZ:               /* Do not signal incoming signals */ //FIXME
+	case ISDN_CMD_CLREAZ: /* Do not signal incoming signals */ //FIXME
 		dbg(DEBUG_ANY, "ISDN_CMD_CLREAZ");
 		break;
-	case ISDN_CMD_SETEAZ:               /* Signal incoming calls for given MSN */ //FIXME
+	case ISDN_CMD_SETEAZ: /* Signal incoming calls for given MSN */ //FIXME
 		dbg(DEBUG_ANY,
 		    "ISDN_CMD_SETEAZ (id:%d, channel: %ld, number: %s)",
 		    cntrl->driver, cntrl->arg, cntrl->parm.num);
 		break;
-	case ISDN_CMD_SETL2:                /* Set L2 to given protocol */
+	case ISDN_CMD_SETL2: /* Set L2 to given protocol */
 		dbg(DEBUG_ANY, "ISDN_CMD_SETL2 (Channel: %ld, Proto: %lx)",
 		     cntrl->arg & 0xff, (cntrl->arg >> 8));
 
@@ -250,7 +244,7 @@ static int command_from_LL(isdn_ctrl *cntrl)
 		dbg(DEBUG_CMD, "scheduling PROTO_L2");
 		gigaset_schedule_event(cs);
 		break;
-	case ISDN_CMD_SETL3:              /* Set L3 to given protocol */
+	case ISDN_CMD_SETL3: /* Set L3 to given protocol */
 		dbg(DEBUG_ANY, "ISDN_CMD_SETL3 (Channel: %ld, Proto: %lx)",
 		     cntrl->arg & 0xff, (cntrl->arg >> 8));
 
@@ -396,10 +390,14 @@ int gigaset_isdn_setup_dial(struct at_state_t *at_state, void *data)
 	}
 
 	if (bcs->commands[AT_MSN])
-		snprintf(bcs->commands[AT_MSN], length[AT_MSN], "^SMSN=%s\r", sp->eazmsn);
-	snprintf(bcs->commands[AT_BC   ], length[AT_BC   ], "^SBC=%s\r", bc);
-	snprintf(bcs->commands[AT_PROTO], length[AT_PROTO], "^SBPR=%u\r", proto);
-	snprintf(bcs->commands[AT_ISO  ], length[AT_ISO  ], "^SISO=%u\r", (unsigned)bcs->channel + 1);
+		snprintf(bcs->commands[AT_MSN], length[AT_MSN],
+			 "^SMSN=%s\r", sp->eazmsn);
+	snprintf(bcs->commands[AT_BC   ], length[AT_BC   ],
+		 "^SBC=%s\r", bc);
+	snprintf(bcs->commands[AT_PROTO], length[AT_PROTO],
+		 "^SBPR=%u\r", proto);
+	snprintf(bcs->commands[AT_ISO  ], length[AT_ISO  ],
+		 "^SISO=%u\r", (unsigned)bcs->channel + 1);
 
 	return 0;
 }
@@ -441,8 +439,10 @@ int gigaset_isdn_setup_accept(struct at_state_t *at_state)
 		}
 	}
 
-	snprintf(bcs->commands[AT_PROTO], length[AT_PROTO], "^SBPR=%u\r", proto);
-	snprintf(bcs->commands[AT_ISO  ], length[AT_ISO  ], "^SISO=%u\r", (unsigned) bcs->channel + 1);
+	snprintf(bcs->commands[AT_PROTO], length[AT_PROTO],
+		 "^SBPR=%u\r", proto);
+	snprintf(bcs->commands[AT_ISO  ], length[AT_ISO  ],
+		 "^SISO=%u\r", (unsigned) bcs->channel + 1);
 
 	return 0;
 }
@@ -542,9 +542,9 @@ int gigaset_register_to_LL(struct cardstate *cs, const char *isdnid)
 		return -ENOMEM; //FIXME EINVAL/...??
 
 	iif->owner = THIS_MODULE;
-	iif->channels = cs->channels;                        /* I am supporting just one channel *//* I was supporting...*/
+	iif->channels = cs->channels;
 	iif->maxbufsize = MAX_BUF_SIZE;
-	iif->features = ISDN_FEATURE_L2_TRANS |   /* Our device is very advanced, therefore */
+	iif->features = ISDN_FEATURE_L2_TRANS |
 		ISDN_FEATURE_L2_HDLC |
 #ifdef GIG_X75
 		ISDN_FEATURE_L2_X75I |

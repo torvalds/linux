@@ -13,10 +13,6 @@
  *	published by the Free Software Foundation; either version 2 of
  *	the License, or (at your option) any later version.
  * =====================================================================
- * ToDo: ...
- * =====================================================================
- * Version: $Id: bas-gigaset.c,v 1.52.4.19 2006/02/04 18:28:16 hjlipp Exp $
- * =====================================================================
  */
 
 #include "gigaset.h"
@@ -69,9 +65,6 @@ static struct usb_device_id gigaset_table [] = {
 };
 
 MODULE_DEVICE_TABLE(usb, gigaset_table);
-
-/* Get a minor range for your devices from the usb maintainer */
-#define USB_SKEL_MINOR_BASE	200
 
 /*======================= local function prototypes =============================*/
 
@@ -240,7 +233,8 @@ static inline void dump_urb(enum debuglevel level, const char *tag,
 		    (unsigned long) urb->context,
 		    (unsigned long) urb->complete);
 		for (i = 0; i < urb->number_of_packets; i++) {
-			struct usb_iso_packet_descriptor *pifd = &urb->iso_frame_desc[i];
+			struct usb_iso_packet_descriptor *pifd
+				= &urb->iso_frame_desc[i];
 			dbg(level,
 			    "    {offset=%u, length=%u, actual_length=%u, "
 			    "status=%u}",
@@ -777,10 +771,11 @@ static void read_iso_callback(struct urb *urb, struct pt_regs *regs)
 			urb->iso_frame_desc[i].actual_length = 0;
 		}
 		if (likely(atomic_read(&ubc->running))) {
-			urb->dev = bcs->cs->hw.bas->udev;	/* clobbered by USB subsystem */
+			urb->dev = bcs->cs->hw.bas->udev; /* clobbered by USB subsystem */
 			urb->transfer_flags = URB_ISO_ASAP;
 			urb->number_of_packets = BAS_NUMFRAMES;
-			dbg(DEBUG_ISO, "%s: isoc read overrun/resubmit", __func__);
+			dbg(DEBUG_ISO, "%s: isoc read overrun/resubmit",
+			    __func__);
 			rc = usb_submit_urb(urb, SLAB_ATOMIC);
 			if (unlikely(rc != 0)) {
 				err("could not resubmit isochronous read URB: %s",
@@ -989,7 +984,7 @@ static int submit_iso_write_urb(struct isow_urbctx_t *ucx)
 	ubc = ucx->bcs->hw.bas;
 	IFNULLRETVAL(ubc, -EFAULT);
 
-	urb->dev = ucx->bcs->cs->hw.bas->udev;	/* clobbered by USB subsystem */
+	urb->dev = ucx->bcs->cs->hw.bas->udev; /* clobbered by USB subsystem */
 	urb->transfer_flags = URB_ISO_ASAP;
 	urb->transfer_buffer = ubc->isooutbuf->data;
 	urb->transfer_buffer_length = sizeof(ubc->isooutbuf->data);
@@ -1011,7 +1006,8 @@ static int submit_iso_write_urb(struct isow_urbctx_t *ucx)
 		//dbg(DEBUG_ISO, "%s: frame %d length=%d", __func__, nframe, ifd->length);
 
 		/* retrieve block of data to send */
-		ifd->offset = gigaset_isowbuf_getbytes(ubc->isooutbuf, ifd->length);
+		ifd->offset = gigaset_isowbuf_getbytes(ubc->isooutbuf,
+						       ifd->length);
 		if (ifd->offset < 0) {
 			if (ifd->offset == -EBUSY) {
 				dbg(DEBUG_ISO, "%s: buffer busy at frame %d",
@@ -1123,7 +1119,8 @@ static void write_iso_tasklet(unsigned long data)
 			break;
 		case -EXDEV:			/* inspect individual frames */
 			/* assumptions (for lack of documentation):
-			 * - actual_length bytes of the frame in error are successfully sent
+			 * - actual_length bytes of the frame in error are
+			 *   successfully sent
 			 * - all following frames are not sent at all
 			 */
 			dbg(DEBUG_ISO, "%s: URB partially completed", __func__);
@@ -1260,7 +1257,8 @@ static void read_iso_tasklet(unsigned long data)
 		switch (urb->status) {
 		case 0:				/* normal completion */
 			break;
-		case -EXDEV:			/* inspect individual frames (we do that anyway) */
+		case -EXDEV:			/* inspect individual frames
+						   (we do that anyway) */
 			dbg(DEBUG_ISO, "%s: URB partially completed", __func__);
 			break;
 		case -ENOENT:
@@ -1284,8 +1282,8 @@ static void read_iso_tasklet(unsigned long data)
 		totleft = urb->actual_length;
 		for (frame = 0; totleft > 0 && frame < BAS_NUMFRAMES; frame++) {
 			if (unlikely(urb->iso_frame_desc[frame].status)) {
-				warn("isochronous read: frame %d: %s",
-				     frame, get_usb_statmsg(urb->iso_frame_desc[frame].status));
+				warn("isochronous read: frame %d: %s", frame,
+				     get_usb_statmsg(urb->iso_frame_desc[frame].status));
 				break;
 			}
 			numbytes = urb->iso_frame_desc[frame].actual_length;
@@ -1318,7 +1316,7 @@ static void read_iso_tasklet(unsigned long data)
 			urb->iso_frame_desc[frame].status = 0;
 			urb->iso_frame_desc[frame].actual_length = 0;
 		}
-		urb->dev = bcs->cs->hw.bas->udev;	/* clobbered by USB subsystem */
+		urb->dev = bcs->cs->hw.bas->udev; /* clobbered by USB subsystem */
 		urb->transfer_flags = URB_ISO_ASAP;
 		urb->number_of_packets = BAS_NUMFRAMES;
 		if ((rc = usb_submit_urb(urb, SLAB_ATOMIC)) != 0) {
@@ -1792,7 +1790,8 @@ static int start_cbsend(struct cardstate *cs)
  *	cs		controller state structure
  *	buf		command string to send
  *	len		number of bytes to send (max. IF_WRITEBUF)
- *	wake_tasklet	tasklet to run when transmission is completed (NULL if none)
+ *	wake_tasklet	tasklet to run when transmission is completed
+ *			(NULL if none)
  * return value:
  *	number of bytes queued on success
  *	error code < 0 on error
@@ -1849,7 +1848,8 @@ static int gigaset_write_cmd(struct cardstate *cs,
 
 /* gigaset_write_room
  * tty_driver.write_room interface routine
- * return number of characters the driver will accept to be written via gigaset_write_cmd
+ * return number of characters the driver will accept to be written via
+ * gigaset_write_cmd
  * parameter:
  *	controller state structure
  * return value:
@@ -2299,7 +2299,8 @@ static int __init bas_gigaset_init(void)
 		goto error;
 
 	/* allocate memory for our device state and intialize it */
-	cardstate = gigaset_initcs(driver, 2, 0, 0, cidmode, GIGASET_MODULENAME);
+	cardstate = gigaset_initcs(driver, 2, 0, 0, cidmode,
+				   GIGASET_MODULENAME);
 	if (!cardstate)
 		goto error;
 

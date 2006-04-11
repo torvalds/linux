@@ -9,8 +9,6 @@
  *    published by the Free Software Foundation; either version 2 of
  *    the License, or (at your option) any later version.
  * =====================================================================
- * Version: $Id: interface.c,v 1.14.4.15 2006/02/04 18:28:16 hjlipp Exp $
- * =====================================================================
  */
 
 #include "gigaset.h"
@@ -173,7 +171,6 @@ static int if_open(struct tty_struct *tty, struct file *filp)
 		cs->tty = tty;
 		spin_unlock_irqrestore(&cs->lock, flags);
 		tty->low_latency = 1; //FIXME test
-		//FIXME
 	}
 
 	up(&cs->sem);
@@ -202,7 +199,6 @@ static void if_close(struct tty_struct *tty, struct file *filp)
 			spin_lock_irqsave(&cs->lock, flags);
 			cs->tty = NULL;
 			spin_unlock_irqrestore(&cs->lock, flags);
-			//FIXME
 		}
 	}
 
@@ -253,24 +249,26 @@ static int if_ioctl(struct tty_struct *tty, struct file *file,
 			gigaset_dbg_buffer(DEBUG_IF, "GIGASET_BRKCHARS",
 			                   6, (const unsigned char *) arg, 1);
 			if (!atomic_read(&cs->connected)) {
-				dbg(DEBUG_ANY, "can't communicate with unplugged device");
+				dbg(DEBUG_ANY,
+				    "can't communicate with unplugged device");
 				retval = -ENODEV;
 				break;
 			}
 			retval = copy_from_user(&buf,
-			                        (const unsigned char __user *) arg, 6)
+			           (const unsigned char __user *) arg, 6)
 			         ? -EFAULT : 0;
 			if (retval >= 0)
 				retval = cs->ops->brkchars(cs, buf);
 			break;
 		case GIGASET_VERSION:
-			retval = copy_from_user(version, (unsigned __user *) arg,
+			retval = copy_from_user(version,
+			                        (unsigned __user *) arg,
 			                        sizeof version) ? -EFAULT : 0;
 			if (retval >= 0)
 				retval = if_version(cs, version);
 			if (retval >= 0)
-				retval = copy_to_user((unsigned __user *) arg, version,
-				                      sizeof version)
+				retval = copy_to_user((unsigned __user *) arg,
+				                      version, sizeof version)
 				         ? -EFAULT : 0;
 			break;
 	        default:
@@ -575,7 +573,7 @@ static void if_set_termios(struct tty_struct *tty, struct termios *old)
 		new_state &= ~(TIOCM_DTR | TIOCM_RTS);
 	if (new_state != control_state) {
 		dbg(DEBUG_IF, "%u: new_state %x", cs->minor_index, new_state);
-		gigaset_set_modem_ctrl(cs, control_state, new_state); // FIXME: mct_u232.c sets the old state here. is this a bug?
+		gigaset_set_modem_ctrl(cs, control_state, new_state);
 		control_state = new_state;
 	}
 #endif

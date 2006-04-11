@@ -11,10 +11,6 @@
  *	published by the Free Software Foundation; either version 2 of
  *	the License, or (at your option) any later version.
  * =====================================================================
- * ToDo: ...
- * =====================================================================
- * Version: $Id: common.c,v 1.104.4.22 2006/02/04 18:28:16 hjlipp Exp $
- * =====================================================================
  */
 
 #include "gigaset.h"
@@ -101,7 +97,8 @@ void gigaset_dbg_buffer(enum debuglevel level, const unsigned char *msg,
 	} else {
 		numin = len < sizeof inbuf ? len : sizeof inbuf;
 		in = inbuf;
-		if (copy_from_user(inbuf, (const unsigned char __user *) buf, numin)) {
+		if (copy_from_user(inbuf, (const unsigned char __user *) buf,
+				   numin)) {
 			strncpy(inbuf, "<FAULT>", sizeof inbuf);
 			numin = sizeof "<FAULT>" - 1;
 		}
@@ -425,7 +422,8 @@ void gigaset_freecs(struct cardstate *cs)
 
 	spin_lock_irqsave(&cs->lock, flags);
 	atomic_set(&cs->running, 0);
-	spin_unlock_irqrestore(&cs->lock, flags); /* event handler and timer are not rescheduled below */
+	spin_unlock_irqrestore(&cs->lock, flags); /* event handler and timer are
+						     not rescheduled below */
 
 	tasklet_kill(&cs->event_tasklet);
 	del_timer_sync(&cs->timer);
@@ -563,7 +561,6 @@ static struct bc_state *gigaset_initbcs(struct bc_state *bcs,
 	if (cs->ops->initbcshw(bcs))
 		return bcs;
 
-//error:
 	dbg(DEBUG_INIT, "  failed");
 
 	dbg(DEBUG_INIT, "  freeing bcs[%d]->skb", channel);
@@ -580,7 +577,8 @@ static struct bc_state *gigaset_initbcs(struct bc_state *bcs,
  * parameters:
  *      drv		hardware driver the device belongs to
  *	channels	number of B channels supported by device
- *	onechannel	!=0: B channel data and AT commands share one communication channel
+ *	onechannel	!=0: B channel data and AT commands share one
+ *			     communication channel
  *			==0: B channels have separate communication channels
  *	ignoreframes	number of frames to ignore after setting up B channel
  *	cidmode		!=0: start in CallID mode
@@ -619,7 +617,8 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 	atomic_set(&cs->ev_tail, 0);
 	atomic_set(&cs->ev_head, 0);
 	init_MUTEX_LOCKED(&cs->sem);
-	tasklet_init(&cs->event_tasklet, &gigaset_handle_event, (unsigned long) cs);
+	tasklet_init(&cs->event_tasklet, &gigaset_handle_event,
+		     (unsigned long) cs);
 	atomic_set(&cs->commands_pending, 0);
 	cs->cur_at_seq = 0;
 	cs->gotfwver = -1;
@@ -669,14 +668,6 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 	cs->curlen = 0;
 	cs->cmdbytes = 0;
 
-	/*
-	 * Tell the ISDN4Linux subsystem (the LL) that
-	 * a driver for a USB-Device is available !
-	 * If this is done, "isdnctrl" is able to bind a device for this driver even
-	 * if no physical usb-device is currently connected.
-	 * But this device will just be accessable if a physical USB device is connected
-	 * (via "gigaset_probe") .
-	 */
 	dbg(DEBUG_INIT, "setting up iif");
 	if (!gigaset_register_to_LL(cs, modulename)) {
 		err("register_isdn=>error");
@@ -713,7 +704,8 @@ error:	if (cs)
 }
 EXPORT_SYMBOL_GPL(gigaset_initcs);
 
-/* ReInitialize the b-channel structure */ /* e.g. called on hangup, disconnect */
+/* ReInitialize the b-channel structure */
+/* e.g. called on hangup, disconnect */
 void gigaset_bcs_reinit(struct bc_state *bcs)
 {
 	struct sk_buff *skb;
@@ -723,7 +715,7 @@ void gigaset_bcs_reinit(struct bc_state *bcs)
 	while ((skb = skb_dequeue(&bcs->squeue)) != NULL)
 		dev_kfree_skb(skb);
 
-	spin_lock_irqsave(&cs->lock, flags); //FIXME
+	spin_lock_irqsave(&cs->lock, flags);
 	clear_at_state(&bcs->at_state);
 	bcs->at_state.ConState = 0;
 	bcs->at_state.timer_active = 0;
@@ -805,7 +797,6 @@ int gigaset_start(struct cardstate *cs)
 {
 	if (down_interruptible(&cs->sem))
 		return 0;
-	//info("USB device for Gigaset 307x now attached to Dev %d", ucs->minor);
 
 	atomic_set(&cs->connected, 1);
 
@@ -954,7 +945,8 @@ void gigaset_debugdrivers(void)
 			dbg(DEBUG_DRIVER, "    flags 0x%02x", drv->flags[i]);
 			cs = drv->cs + i;
 			dbg(DEBUG_DRIVER, "    cardstate %p", cs);
-			dbg(DEBUG_DRIVER, "    minor_index %u", cs->minor_index);
+			dbg(DEBUG_DRIVER, "    minor_index %u",
+			    cs->minor_index);
 			dbg(DEBUG_DRIVER, "    driver %p", cs->driver);
 			dbg(DEBUG_DRIVER, "    i4l id %d", cs->myid);
 		}
@@ -1016,7 +1008,7 @@ EXPORT_SYMBOL_GPL(gigaset_freedriver);
  * parameters:
  *      minor           First minor number
  *      minors          Number of minors this driver can handle
- *      procname        Name of the driver (e.g. for /proc/tty/drivers, path in /proc/driver)
+ *      procname        Name of the driver
  *      devname         Name of the device files (prefix without minor number)
  *      devfsname       Devfs name of the device files without %d
  * return value:

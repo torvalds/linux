@@ -11,82 +11,78 @@
  *	published by the Free Software Foundation; either version 2 of
  *	the License, or (at your option) any later version.
  * =====================================================================
- * ToDo: ...
- * =====================================================================
- * Version: $Id: ev-layer.c,v 1.4.2.18 2006/02/04 18:28:16 hjlipp Exp $
- * =====================================================================
  */
 
 #include "gigaset.h"
 
 /* ========================================================== */
 /* bit masks for pending commands */
-#define PC_INIT       0x004
-#define PC_DLE0       0x008
-#define PC_DLE1       0x010
-#define PC_CID        0x080
-#define PC_NOCID      0x100
-#define PC_HUP        0x002
-#define PC_DIAL       0x001
-#define PC_ACCEPT     0x040
-#define PC_SHUTDOWN   0x020
-#define PC_CIDMODE    0x200
-#define PC_UMMODE     0x400
+#define PC_DIAL		0x001
+#define PC_HUP		0x002
+#define PC_INIT		0x004
+#define PC_DLE0		0x008
+#define PC_DLE1		0x010
+#define PC_SHUTDOWN	0x020
+#define PC_ACCEPT	0x040
+#define PC_CID		0x080
+#define PC_NOCID	0x100
+#define PC_CIDMODE	0x200
+#define PC_UMMODE	0x400
 
 /* types of modem responses */
-#define RT_NOTHING 0
-#define RT_ZSAU    1
-#define RT_RING    2
-#define RT_NUMBER  3
-#define RT_STRING  4
-#define RT_HEX     5
-#define RT_ZCAU    6
+#define RT_NOTHING	0
+#define RT_ZSAU		1
+#define RT_RING		2
+#define RT_NUMBER	3
+#define RT_STRING	4
+#define RT_HEX		5
+#define RT_ZCAU		6
 
 /* Possible ASCII responses */
-#define RSP_OK           0
-//#define RSP_BUSY       1
-//#define RSP_CONNECT    2
-#define RSP_ZGCI         3
-#define RSP_RING         4
-#define RSP_ZAOC         5
-#define RSP_ZCSTR        6
-#define RSP_ZCFGT        7
-#define RSP_ZCFG         8
-#define RSP_ZCCR         9
-#define RSP_EMPTY        10
-#define RSP_ZLOG         11
-#define RSP_ZCAU         12
-#define RSP_ZMWI         13
-#define RSP_ZABINFO      14
-#define RSP_ZSMLSTCHG    15
-#define RSP_VAR          100
-#define RSP_ZSAU         (RSP_VAR + VAR_ZSAU)
-#define RSP_ZDLE         (RSP_VAR + VAR_ZDLE)
-#define RSP_ZVLS         (RSP_VAR + VAR_ZVLS)
-#define RSP_ZCTP         (RSP_VAR + VAR_ZCTP)
-#define RSP_STR          (RSP_VAR + VAR_NUM)
-#define RSP_NMBR         (RSP_STR + STR_NMBR)
-#define RSP_ZCPN         (RSP_STR + STR_ZCPN)
-#define RSP_ZCON         (RSP_STR + STR_ZCON)
-#define RSP_ZBC          (RSP_STR + STR_ZBC)
-#define RSP_ZHLC         (RSP_STR + STR_ZHLC)
-#define RSP_ERROR       -1       /* ERROR              */
-#define RSP_WRONG_CID   -2       /* unknown cid in cmd */
-//#define RSP_EMPTY     -3
-#define RSP_UNKNOWN     -4       /* unknown response   */
-#define RSP_FAIL        -5       /* internal error     */
-#define RSP_INVAL       -6       /* invalid response   */
+#define RSP_OK		0
+//#define RSP_BUSY	1
+//#define RSP_CONNECT	2
+#define RSP_ZGCI	3
+#define RSP_RING	4
+#define RSP_ZAOC	5
+#define RSP_ZCSTR	6
+#define RSP_ZCFGT	7
+#define RSP_ZCFG	8
+#define RSP_ZCCR	9
+#define RSP_EMPTY	10
+#define RSP_ZLOG	11
+#define RSP_ZCAU	12
+#define RSP_ZMWI	13
+#define RSP_ZABINFO	14
+#define RSP_ZSMLSTCHG	15
+#define RSP_VAR		100
+#define RSP_ZSAU	(RSP_VAR + VAR_ZSAU)
+#define RSP_ZDLE	(RSP_VAR + VAR_ZDLE)
+#define RSP_ZVLS	(RSP_VAR + VAR_ZVLS)
+#define RSP_ZCTP	(RSP_VAR + VAR_ZCTP)
+#define RSP_STR		(RSP_VAR + VAR_NUM)
+#define RSP_NMBR	(RSP_STR + STR_NMBR)
+#define RSP_ZCPN	(RSP_STR + STR_ZCPN)
+#define RSP_ZCON	(RSP_STR + STR_ZCON)
+#define RSP_ZBC		(RSP_STR + STR_ZBC)
+#define RSP_ZHLC	(RSP_STR + STR_ZHLC)
+#define RSP_ERROR	-1	/* ERROR              */
+#define RSP_WRONG_CID	-2	/* unknown cid in cmd */
+//#define RSP_EMPTY	-3
+#define RSP_UNKNOWN	-4	/* unknown response   */
+#define RSP_FAIL	-5	/* internal error     */
+#define RSP_INVAL	-6	/* invalid response   */
 
-#define RSP_NONE        -19
-#define RSP_STRING      -20
-#define RSP_NULL        -21
-//#define RSP_RETRYFAIL -22
-//#define RSP_RETRY     -23
-//#define RSP_SKIP      -24
-#define RSP_INIT        -27
-#define RSP_ANY         -26
-#define RSP_LAST        -28
-#define RSP_NODEV       -9
+#define RSP_NONE	-19
+#define RSP_STRING	-20
+#define RSP_NULL	-21
+//#define RSP_RETRYFAIL	-22
+//#define RSP_RETRY	-23
+//#define RSP_SKIP	-24
+#define RSP_INIT	-27
+#define RSP_ANY		-26
+#define RSP_LAST	-28
+#define RSP_NODEV	-9
 
 /* actions for process_response */
 #define ACT_NOTHING		0
@@ -112,7 +108,7 @@
 #define ACT_DISCONNECT		20
 #define ACT_CONNECT		21
 #define ACT_REMOTEREJECT	22
-#define ACT_CONNTIMEOUT         23
+#define ACT_CONNTIMEOUT		23
 #define ACT_REMOTEHUP		24
 #define ACT_ABORTHUP		25
 #define ACT_ICALL		26
@@ -127,40 +123,40 @@
 #define ACT_ERROR		35
 #define ACT_ABORTCID		36
 #define ACT_ZCAU		37
-#define ACT_NOTIFY_BC_DOWN      38
-#define ACT_NOTIFY_BC_UP        39
-#define ACT_DIAL                40
-#define ACT_ACCEPT              41
-#define ACT_PROTO_L2            42
-#define ACT_HUP                 43
-#define ACT_IF_LOCK             44
-#define ACT_START               45
-#define ACT_STOP                46
-#define ACT_FAKEDLE0            47
-#define ACT_FAKEHUP             48
-#define ACT_FAKESDOWN           49
-#define ACT_SHUTDOWN            50
-#define ACT_PROC_CIDMODE        51
-#define ACT_UMODESET            52
-#define ACT_FAILUMODE           53
-#define ACT_CMODESET            54
-#define ACT_FAILCMODE           55
-#define ACT_IF_VER              56
+#define ACT_NOTIFY_BC_DOWN	38
+#define ACT_NOTIFY_BC_UP	39
+#define ACT_DIAL		40
+#define ACT_ACCEPT		41
+#define ACT_PROTO_L2		42
+#define ACT_HUP			43
+#define ACT_IF_LOCK		44
+#define ACT_START		45
+#define ACT_STOP		46
+#define ACT_FAKEDLE0		47
+#define ACT_FAKEHUP		48
+#define ACT_FAKESDOWN		49
+#define ACT_SHUTDOWN		50
+#define ACT_PROC_CIDMODE	51
+#define ACT_UMODESET		52
+#define ACT_FAILUMODE		53
+#define ACT_CMODESET		54
+#define ACT_FAILCMODE		55
+#define ACT_IF_VER		56
 #define ACT_CMD			100
 
 /* at command sequences */
-#define SEQ_NONE      0
-#define SEQ_INIT      100
-#define SEQ_DLE0      200
-#define SEQ_DLE1      250
-#define SEQ_CID       300
-#define SEQ_NOCID     350
-#define SEQ_HUP       400
-#define SEQ_DIAL      600
-#define SEQ_ACCEPT    720
-#define SEQ_SHUTDOWN  500
-#define SEQ_CIDMODE   10
-#define SEQ_UMMODE    11
+#define SEQ_NONE	0
+#define SEQ_INIT	100
+#define SEQ_DLE0	200
+#define SEQ_DLE1	250
+#define SEQ_CID		300
+#define SEQ_NOCID	350
+#define SEQ_HUP		400
+#define SEQ_DIAL	600
+#define SEQ_ACCEPT	720
+#define SEQ_SHUTDOWN	500
+#define SEQ_CIDMODE	10
+#define SEQ_UMMODE	11
 
 
 // 100: init, 200: dle0, 250:dle1, 300: get cid (dial), 350: "hup" (no cid), 400: hup, 500: reset, 600: dial, 700: ring
@@ -393,7 +389,7 @@ struct reply_t gigaset_tab_cid_m10x[] = /* for M10x */
 
 
 #if 0
-static struct reply_t tab_nocid[]= /* no dle mode */ //FIXME aenderungen uebernehmen
+static struct reply_t tab_nocid[]= /* no dle mode */ //FIXME
 {
 	/* resp_code, min_ConState, max_ConState, parameter, new_ConState, timeout, action, command */
 
@@ -401,7 +397,7 @@ static struct reply_t tab_nocid[]= /* no dle mode */ //FIXME aenderungen ueberne
 	{RSP_LAST,0,0,0,0,0,0}
 };
 
-static struct reply_t tab_cid[] = /* no dle mode */ //FIXME aenderungen uebernehmen
+static struct reply_t tab_cid[] = /* no dle mode */ //FIXME
 {
 	/* resp_code, min_ConState, max_ConState, parameter, new_ConState, timeout, action, command */
 
@@ -412,30 +408,30 @@ static struct reply_t tab_cid[] = /* no dle mode */ //FIXME aenderungen ueberneh
 
 static struct resp_type_t resp_type[]=
 {
-	/*{"",          RSP_EMPTY,  RT_NOTHING},*/
-	{"OK",        RSP_OK,     RT_NOTHING},
-	{"ERROR",     RSP_ERROR,  RT_NOTHING},
-	{"ZSAU",      RSP_ZSAU,   RT_ZSAU},
-	{"ZCAU",      RSP_ZCAU,   RT_ZCAU},
-	{"RING",      RSP_RING,   RT_RING},
-	{"ZGCI",      RSP_ZGCI,   RT_NUMBER},
-	{"ZVLS",      RSP_ZVLS,   RT_NUMBER},
-	{"ZCTP",      RSP_ZCTP,   RT_NUMBER},
-	{"ZDLE",      RSP_ZDLE,   RT_NUMBER},
-	{"ZCFGT",     RSP_ZCFGT,  RT_NUMBER},
-	{"ZCCR",      RSP_ZCCR,   RT_NUMBER},
-	{"ZMWI",      RSP_ZMWI,   RT_NUMBER},
-	{"ZHLC",      RSP_ZHLC,   RT_STRING},
-	{"ZBC",       RSP_ZBC,    RT_STRING},
-	{"NMBR",      RSP_NMBR,   RT_STRING},
-	{"ZCPN",      RSP_ZCPN,   RT_STRING},
-	{"ZCON",      RSP_ZCON,   RT_STRING},
-	{"ZAOC",      RSP_ZAOC,   RT_STRING},
-	{"ZCSTR",     RSP_ZCSTR,  RT_STRING},
-	{"ZCFG",      RSP_ZCFG,   RT_HEX},
-	{"ZLOG",      RSP_ZLOG,   RT_NOTHING},
-	{"ZABINFO",   RSP_ZABINFO, RT_NOTHING},
-	{"ZSMLSTCHG", RSP_ZSMLSTCHG, RT_NOTHING},
+	/*{"",		RSP_EMPTY,	RT_NOTHING},*/
+	{"OK",		RSP_OK,		RT_NOTHING},
+	{"ERROR",	RSP_ERROR,	RT_NOTHING},
+	{"ZSAU",	RSP_ZSAU,	RT_ZSAU},
+	{"ZCAU",	RSP_ZCAU,	RT_ZCAU},
+	{"RING",	RSP_RING,	RT_RING},
+	{"ZGCI",	RSP_ZGCI,	RT_NUMBER},
+	{"ZVLS",	RSP_ZVLS,	RT_NUMBER},
+	{"ZCTP",	RSP_ZCTP,	RT_NUMBER},
+	{"ZDLE",	RSP_ZDLE,	RT_NUMBER},
+	{"ZCFGT",	RSP_ZCFGT,	RT_NUMBER},
+	{"ZCCR",	RSP_ZCCR,	RT_NUMBER},
+	{"ZMWI",	RSP_ZMWI,	RT_NUMBER},
+	{"ZHLC",	RSP_ZHLC,	RT_STRING},
+	{"ZBC",		RSP_ZBC,	RT_STRING},
+	{"NMBR",	RSP_NMBR,	RT_STRING},
+	{"ZCPN",	RSP_ZCPN,	RT_STRING},
+	{"ZCON",	RSP_ZCON,	RT_STRING},
+	{"ZAOC",	RSP_ZAOC,	RT_STRING},
+	{"ZCSTR",	RSP_ZCSTR,	RT_STRING},
+	{"ZCFG",	RSP_ZCFG,	RT_HEX},
+	{"ZLOG",	RSP_ZLOG,	RT_NOTHING},
+	{"ZABINFO",	RSP_ZABINFO,	RT_NOTHING},
+	{"ZSMLSTCHG",	RSP_ZSMLSTCHG,	RT_NOTHING},
 	{NULL,0,0}
 };
 
@@ -837,7 +833,8 @@ static void schedule_init(struct cardstate *cs, int state)
 	dbg(DEBUG_CMD, "Scheduling PC_INIT");
 }
 
-/* Add "AT" to a command, add the cid, dle encode it, send the result to the hardware. */
+/* Add "AT" to a command, add the cid, dle encode it, send the result to the
+   hardware. */
 static void send_command(struct cardstate *cs, const char *cmd, int cid,
                          int dle, gfp_t kmallocflags)
 {
@@ -966,19 +963,13 @@ static void start_dial(struct at_state_t *at_state, void *data, int seq_index)
 
 	at_state->pending_commands |= PC_CID;
 	dbg(DEBUG_CMD, "Scheduling PC_CID");
-//#ifdef GIG_MAYINITONDIAL
-//	if (atomic_read(&cs->MState) == MS_UNKNOWN) {
-//		cs->at_state.pending_commands |= PC_INIT;
-//		dbg(DEBUG_CMD, "Scheduling PC_INIT");
-//	}
-//#endif
-	atomic_set(&cs->commands_pending, 1); //FIXME
+	atomic_set(&cs->commands_pending, 1);
 	return;
 
 error:
 	at_state->pending_commands |= PC_NOCID;
 	dbg(DEBUG_CMD, "Scheduling PC_NOCID");
-	atomic_set(&cs->commands_pending, 1); //FIXME
+	atomic_set(&cs->commands_pending, 1);
 	return;
 }
 
@@ -992,12 +983,12 @@ static void start_accept(struct at_state_t *at_state)
 	if (retval == 0) {
 		at_state->pending_commands |= PC_ACCEPT;
 		dbg(DEBUG_CMD, "Scheduling PC_ACCEPT");
-		atomic_set(&cs->commands_pending, 1); //FIXME
+		atomic_set(&cs->commands_pending, 1);
 	} else {
 		//FIXME
 		at_state->pending_commands |= PC_HUP;
 		dbg(DEBUG_CMD, "Scheduling PC_HUP");
-		atomic_set(&cs->commands_pending, 1); //FIXME
+		atomic_set(&cs->commands_pending, 1);
 	}
 }
 
@@ -1037,9 +1028,8 @@ static void do_shutdown(struct cardstate *cs)
 	if (atomic_read(&cs->mstate) == MS_READY) {
 		atomic_set(&cs->mstate, MS_SHUTDOWN);
 		cs->at_state.pending_commands |= PC_SHUTDOWN;
-		atomic_set(&cs->commands_pending, 1); //FIXME
-		dbg(DEBUG_CMD, "Scheduling PC_SHUTDOWN"); //FIXME
-		//gigaset_schedule_event(cs); //FIXME
+		atomic_set(&cs->commands_pending, 1);
+		dbg(DEBUG_CMD, "Scheduling PC_SHUTDOWN");
 	} else
 		finish_shutdown(cs);
 }
@@ -1160,7 +1150,6 @@ static int do_lock(struct cardstate *cs)
 	mode = atomic_read(&cs->mode);
 	atomic_set(&cs->mstate, MS_LOCKED);
 	atomic_set(&cs->mode, M_UNKNOWN);
-	//FIXME reset card state / at states / bcs states
 
 	return mode;
 }
@@ -1173,7 +1162,6 @@ static int do_unlock(struct cardstate *cs)
 	atomic_set(&cs->mstate, MS_UNINITIALIZED);
 	atomic_set(&cs->mode, M_UNKNOWN);
 	gigaset_free_channels(cs);
-	//FIXME reset card state / at states / bcs states
 	if (atomic_read(&cs->connected))
 		schedule_init(cs, MS_INIT);
 
@@ -1203,7 +1191,6 @@ static void do_action(int action, struct cardstate *cs,
 		at_state->waiting = 1;
 		break;
 	case ACT_INIT:
-		//FIXME setup everything
 		cs->at_state.pending_commands &= ~PC_INIT;
 		cs->cur_at_seq = SEQ_NONE;
 		atomic_set(&cs->mode, M_UNIMODEM);
@@ -1213,7 +1200,7 @@ static void do_action(int action, struct cardstate *cs,
 			break;
 		}
 		cs->at_state.pending_commands |= PC_CIDMODE;
-		atomic_set(&cs->commands_pending, 1); //FIXME
+		atomic_set(&cs->commands_pending, 1);
 		dbg(DEBUG_CMD, "Scheduling PC_CIDMODE");
 		break;
 	case ACT_FAILINIT:
@@ -1428,7 +1415,8 @@ static void do_action(int action, struct cardstate *cs,
 		at_state->pending_commands |= PC_HUP;
 		atomic_set(&cs->commands_pending, 1);
 		break;
-	case ACT_GETSTRING: /* warning: RING, ZDLE, ... are not handled properly any more */
+	case ACT_GETSTRING: /* warning: RING, ZDLE, ...
+			       are not handled properly any more */
 		at_state->getstring = 1;
 		break;
 	case ACT_SETVER:
@@ -1522,7 +1510,7 @@ static void do_action(int action, struct cardstate *cs,
 		break;
 	case ACT_HUP:
 		at_state->pending_commands |= PC_HUP;
-		atomic_set(&cs->commands_pending, 1); //FIXME
+		atomic_set(&cs->commands_pending, 1);
 		dbg(DEBUG_CMD, "Scheduling PC_HUP");
 		break;
 
@@ -1649,7 +1637,8 @@ static void process_event(struct cardstate *cs, struct event_t *ev)
 			dbg(DEBUG_ANY, "stopped waiting");
 	}
 
-	/* if the response belongs to a variable in at_state->int_var[VAR_XXXX] or at_state->str_var[STR_XXXX], set it */
+	/* if the response belongs to a variable in at_state->int_var[VAR_XXXX]
+	   or at_state->str_var[STR_XXXX], set it */
 	if (ev->type >= RSP_VAR && ev->type < RSP_VAR + VAR_NUM) {
 		index = ev->type - RSP_VAR;
 		at_state->int_var[index] = ev->parameter;
@@ -1657,13 +1646,15 @@ static void process_event(struct cardstate *cs, struct event_t *ev)
 		index = ev->type - RSP_STR;
 		kfree(at_state->str_var[index]);
 		at_state->str_var[index] = ev->ptr;
-		ev->ptr = NULL; /* prevent process_events() from deallocating ptr */
+		ev->ptr = NULL; /* prevent process_events() from
+				   deallocating ptr */
 	}
 
 	if (ev->type == EV_TIMEOUT || ev->type == RSP_STRING)
 		at_state->getstring = 0;
 
-	/* Search row in dial array which matches modem response and current constate */
+	/* Search row in dial array which matches modem response and current
+	   constate */
 	for (;; rep++) {
 		rcode = rep->resp_code;
 		/* dbg (DEBUG_ANY, "rcode %d", rcode); */
@@ -1865,11 +1856,7 @@ static void process_command_flags(struct cardstate *cs)
 	if (cs->at_state.pending_commands & PC_CIDMODE) {
 		cs->at_state.pending_commands &= ~PC_CIDMODE;
 		if (atomic_read(&cs->mode) == M_UNIMODEM) {
-#if 0
-			cs->retry_count = 2;
-#else
 			cs->retry_count = 1;
-#endif
 			schedule_sequence(cs, &cs->at_state, SEQ_CIDMODE);
 			return;
 		}

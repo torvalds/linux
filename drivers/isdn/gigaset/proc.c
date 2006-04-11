@@ -11,23 +11,21 @@
  *	published by the Free Software Foundation; either version 2 of
  *	the License, or (at your option) any later version.
  * =====================================================================
- * ToDo: ...
- * =====================================================================
- * Version: $Id: proc.c,v 1.5.2.13 2006/02/04 18:28:16 hjlipp Exp $
- * =====================================================================
  */
 
 #include "gigaset.h"
 #include <linux/ctype.h>
 
-static ssize_t show_cidmode(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t show_cidmode(struct device *dev, struct device_attribute *attr,
+			    char *buf)
 {
 	struct usb_interface *intf = to_usb_interface(dev);
 	struct cardstate *cs = usb_get_intfdata(intf);
-	return sprintf(buf, "%d\n", atomic_read(&cs->cidmode)); // FIXME use scnprintf for 13607 bit architectures (if PAGE_SIZE==4096)
+	return sprintf(buf, "%d\n", atomic_read(&cs->cidmode));
 }
 
-static ssize_t set_cidmode(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t set_cidmode(struct device *dev, struct device_attribute *attr,
+			   const char *buf, size_t count)
 {
 	struct usb_interface *intf = to_usb_interface(dev);
 	struct cardstate *cs = usb_get_intfdata(intf);
