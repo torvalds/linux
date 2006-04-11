@@ -184,6 +184,11 @@ static struct mt352_config thomson_dtt7579_config = {
 	.pll_set = thomson_dtt7579_pll_set,
 };
 
+static struct zl10353_config thomson_dtt7579_zl10353_config = {
+	.demod_address = 0x0f,
+	.pll_set = thomson_dtt7579_pll_set,
+};
+
 static int cx24108_pll_set(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)
 {
 	u32 freq = params->frequency;
@@ -617,6 +622,11 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 	switch(type) {
 	case BTTV_BOARD_DVICO_DVBT_LITE:
 		card->fe = mt352_attach(&thomson_dtt7579_config, card->i2c_adapter);
+
+		if (card->fe == NULL)
+			card->fe = zl10353_attach(&thomson_dtt7579_zl10353_config,
+						  card->i2c_adapter);
+
 		if (card->fe != NULL) {
 			card->fe->ops->info.frequency_min = 174000000;
 			card->fe->ops->info.frequency_max = 862000000;

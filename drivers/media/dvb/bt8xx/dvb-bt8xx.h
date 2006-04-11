@@ -37,6 +37,7 @@
 #include "cx24110.h"
 #include "or51211.h"
 #include "lgdt330x.h"
+#include "zl10353.h"
 
 struct dvb_bt8xx_card {
 	struct mutex lock;
