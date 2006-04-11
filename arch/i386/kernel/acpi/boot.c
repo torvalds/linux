@@ -168,7 +168,7 @@ int __init acpi_parse_mcfg(unsigned long phys_addr, unsigned long size)
 	unsigned long i;
 	int config_size;
 
-	if (!phys_addr || !size)
+	if (!phys_addr || !size || !cpu_has_apic)
 		return -EINVAL;
 
 	mcfg = (struct acpi_table_mcfg *)__acpi_map_table(phys_addr, size);
@@ -692,6 +692,9 @@ unsigned long __init acpi_find_rsdp(void)
 static int __init acpi_parse_madt_lapic_entries(void)
 {
 	int count;
+
+	if (!cpu_has_apic)
+		return -ENODEV;
 
 	/* 
 	 * Note that the LAPIC address is obtained from the MADT (32-bit value)
