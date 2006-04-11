@@ -44,7 +44,8 @@ void pipe_wait(struct pipe_inode_info *pipe)
 	 * Pipes are system-local resources, so sleeping on them
 	 * is considered a noninteractive wait:
 	 */
-	prepare_to_wait(&pipe->wait, &wait, TASK_INTERRUPTIBLE|TASK_NONINTERACTIVE);
+	prepare_to_wait(&pipe->wait, &wait,
+			TASK_INTERRUPTIBLE | TASK_NONINTERACTIVE);
 	if (pipe->inode)
 		mutex_unlock(&pipe->inode->i_mutex);
 	schedule();
@@ -93,7 +94,8 @@ pipe_iov_copy_to_user(struct iovec *iov, const void *from, unsigned long len)
 	return 0;
 }
 
-static void anon_pipe_buf_release(struct pipe_inode_info *pipe, struct pipe_buffer *buf)
+static void anon_pipe_buf_release(struct pipe_inode_info *pipe,
+				  struct pipe_buffer *buf)
 {
 	struct page *page = buf->page;
 
@@ -102,25 +104,22 @@ static void anon_pipe_buf_release(struct pipe_inode_info *pipe, struct pipe_buff
 	/*
 	 * If nobody else uses this page, and we don't already have a
 	 * temporary page, let's keep track of it as a one-deep
-	 * allocation cache
+	 * allocation cache. (Otherwise just release our reference to it)
 	 */
-	if (page_count(page) == 1 && !pipe->tmp_page) {
+	if (page_count(page) == 1 && !pipe->tmp_page)
 		pipe->tmp_page = page;
-		return;
-	}
-
-	/*
-	 * Otherwise just release our reference to it
-	 */
-	page_cache_release(page);
+	else
+		page_cache_release(page);
 }
 
-static void *anon_pipe_buf_map(struct file *file, struct pipe_inode_info *pipe, struct pipe_buffer *buf)
+static void * anon_pipe_buf_map(struct file *file, struct pipe_inode_info *pipe,
+				struct pipe_buffer *buf)
 {
 	return kmap(buf->page);
 }
 
-static void anon_pipe_buf_unmap(struct pipe_inode_info *pipe, struct pipe_buffer *buf)
+static void anon_pipe_buf_unmap(struct pipe_inode_info *pipe,
+				struct pipe_buffer *buf)
 {
 	kunmap(buf->page);
 }
@@ -182,7 +181,8 @@ pipe_readv(struct file *filp, const struct iovec *_iov,
 			error = pipe_iov_copy_to_user(iov, addr + buf->offset, chars);
 			ops->unmap(pipe, buf);
 			if (unlikely(error)) {
-				if (!ret) ret = -EFAULT;
+				if (!ret)
+					ret = -EFAULT;
 				break;
 			}
 			ret += chars;
@@ -218,7 +218,8 @@ pipe_readv(struct file *filp, const struct iovec *_iov,
 			}
 		}
 		if (signal_pending(current)) {
-			if (!ret) ret = -ERESTARTSYS;
+			if (!ret)
+				ret = -ERESTARTSYS;
 			break;
 		}
 		if (do_wakeup) {
@@ -228,7 +229,8 @@ pipe_readv(struct file *filp, const struct iovec *_iov,
 		pipe_wait(pipe);
 	}
 	mutex_unlock(&inode->i_mutex);
-	/* Signal writers asynchronously that there is more room.  */
+
+	/* Signal writers asynchronously that there is more room. */
 	if (do_wakeup) {
 		wake_up_interruptible(&pipe->wait);
 		kill_fasync(&pipe->fasync_writers, SIGIO, POLL_OUT);
@@ -242,6 +244,7 @@ static ssize_t
 pipe_read(struct file *filp, char __user *buf, size_t count, loff_t *ppos)
 {
 	struct iovec iov = { .iov_base = buf, .iov_len = count };
+
 	return pipe_readv(filp, &iov, 1, ppos);
 }
 
@@ -276,10 +279,12 @@ pipe_writev(struct file *filp, const struct iovec *_iov,
 	/* We try to merge small writes */
 	chars = total_len & (PAGE_SIZE-1); /* size of the last buffer */
 	if (pipe->nrbufs && chars != 0) {
-		int lastbuf = (pipe->curbuf + pipe->nrbufs - 1) & (PIPE_BUFFERS-1);
+		int lastbuf = (pipe->curbuf + pipe->nrbufs - 1) &
+							(PIPE_BUFFERS-1);
 		struct pipe_buffer *buf = pipe->bufs + lastbuf;
 		struct pipe_buf_operations *ops = buf->ops;
 		int offset = buf->offset + buf->len;
+
 		if (ops->can_merge && offset + chars <= PAGE_SIZE) {
 			void *addr;
 			int error;
@@ -306,9 +311,11 @@ pipe_writev(struct file *filp, const struct iovec *_iov,
 
 	for (;;) {
 		int bufs;
+
 		if (!pipe->readers) {
 			send_sig(SIGPIPE, current, 0);
-			if (!ret) ret = -EPIPE;
+			if (!ret)
+				ret = -EPIPE;
 			break;
 		}
 		bufs = pipe->nrbufs;
@@ -326,7 +333,7 @@ pipe_writev(struct file *filp, const struct iovec *_iov,
 				}
 				pipe->tmp_page = page;
 			}
-			/* Always wakeup, even if the copy fails. Otherwise
+			/* Always wake up, even if the copy fails. Otherwise
 			 * we lock up (O_NONBLOCK-)readers that sleep due to
 			 * syscall merging.
 			 * FIXME! Is this really true?
@@ -339,7 +346,8 @@ pipe_writev(struct file *filp, const struct iovec *_iov,
 			error = pipe_iov_copy_from_user(kmap(page), iov, chars);
 			kunmap(page);
 			if (unlikely(error)) {
-				if (!ret) ret = -EFAULT;
+				if (!ret)
+					ret = -EFAULT;
 				break;
 			}
 			ret += chars;
@@ -359,11 +367,13 @@ pipe_writev(struct file *filp, const struct iovec *_iov,
 		if (bufs < PIPE_BUFFERS)
 			continue;
 		if (filp->f_flags & O_NONBLOCK) {
-			if (!ret) ret = -EAGAIN;
+			if (!ret)
+				ret = -EAGAIN;
 			break;
 		}
 		if (signal_pending(current)) {
-			if (!ret) ret = -ERESTARTSYS;
+			if (!ret)
+				ret = -ERESTARTSYS;
 			break;
 		}
 		if (do_wakeup) {
@@ -391,6 +401,7 @@ pipe_write(struct file *filp, const char __user *buf,
 	   size_t count, loff_t *ppos)
 {
 	struct iovec iov = { .iov_base = (void __user *)buf, .iov_len = count };
+
 	return pipe_writev(filp, &iov, 1, ppos);
 }
 
@@ -401,7 +412,8 @@ bad_pipe_r(struct file *filp, char __user *buf, size_t count, loff_t *ppos)
 }
 
 static ssize_t
-bad_pipe_w(struct file *filp, const char __user *buf, size_t count, loff_t *ppos)
+bad_pipe_w(struct file *filp, const char __user *buf, size_t count,
+	   loff_t *ppos)
 {
 	return -EBADF;
 }
@@ -475,6 +487,7 @@ pipe_release(struct inode *inode, int decr, int decw)
 	pipe = inode->i_pipe;
 	pipe->readers -= decr;
 	pipe->writers -= decw;
+
 	if (!pipe->readers && !pipe->writers) {
 		free_pipe_info(inode);
 	} else {
@@ -525,14 +538,15 @@ static int
 pipe_rdwr_fasync(int fd, struct file *filp, int on)
 {
 	struct inode *inode = filp->f_dentry->d_inode;
+	struct pipe_inode_info *pipe = inode->i_pipe;
 	int retval;
 
 	mutex_lock(&inode->i_mutex);
 
-	retval = fasync_helper(fd, filp, on, &inode->i_pipe->fasync_readers);
+	retval = fasync_helper(fd, filp, on, &pipe->fasync_readers);
 
 	if (retval >= 0)
-		retval = fasync_helper(fd, filp, on, &inode->i_pipe->fasync_writers);
+		retval = fasync_helper(fd, filp, on, &pipe->fasync_writers);
 
 	mutex_unlock(&inode->i_mutex);
 
@@ -720,6 +734,7 @@ static int pipefs_delete_dentry(struct dentry *dentry)
 {
 	return 1;
 }
+
 static struct dentry_operations pipefs_dentry_operations = {
 	.d_delete	= pipefs_delete_dentry,
 };
@@ -757,6 +772,7 @@ static struct inode * get_pipe_inode(void)
 
 fail_iput:
 	iput(inode);
+
 fail_inode:
 	return NULL;
 }
@@ -769,7 +785,7 @@ int do_pipe(int *fd)
 	struct inode * inode;
 	struct file *f1, *f2;
 	int error;
-	int i,j;
+	int i, j;
 
 	error = -ENFILE;
 	f1 = get_empty_filp();
@@ -802,6 +818,7 @@ int do_pipe(int *fd)
 	dentry = d_alloc(pipe_mnt->mnt_sb->s_root, &this);
 	if (!dentry)
 		goto close_f12_inode_i_j;
+
 	dentry->d_op = &pipefs_dentry_operations;
 	d_add(dentry, inode);
 	f1->f_vfsmnt = f2->f_vfsmnt = mntget(mntget(pipe_mnt));
@@ -825,6 +842,7 @@ int do_pipe(int *fd)
 	fd_install(j, f2);
 	fd[0] = i;
 	fd[1] = j;
+
 	return 0;
 
 close_f12_inode_i_j:
@@ -849,8 +867,9 @@ no_files:
  * d_name - pipe: will go nicely and kill the special-casing in procfs.
  */
 
-static struct super_block *pipefs_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static struct super_block *
+pipefs_get_sb(struct file_system_type *fs_type, int flags,
+	      const char *dev_name, void *data)
 {
 	return get_sb_pseudo(fs_type, "pipe:", NULL, PIPEFS_MAGIC);
 }
@@ -864,6 +883,7 @@ static struct file_system_type pipe_fs_type = {
 static int __init init_pipe_fs(void)
 {
 	int err = register_filesystem(&pipe_fs_type);
+
 	if (!err) {
 		pipe_mnt = kern_mount(&pipe_fs_type);
 		if (IS_ERR(pipe_mnt)) {
