@@ -310,7 +310,7 @@ static int core_sys_select(int n, fd_set __user *inp, fd_set __user *outp,
 			   fd_set __user *exp, s64 *timeout)
 {
 	fd_set_bits fds;
-	char *bits;
+	void *bits;
 	int ret, size, max_fdset;
 	struct fdtable *fdt;
 	/* Allocate small arguments on the stack to save memory and be faster */
@@ -341,12 +341,12 @@ static int core_sys_select(int n, fd_set __user *inp, fd_set __user *outp,
 		bits = kmalloc(6 * size, GFP_KERNEL);
 	if (!bits)
 		goto out_nofds;
-	fds.in      = (unsigned long *)  bits;
-	fds.out     = (unsigned long *) (bits +   size);
-	fds.ex      = (unsigned long *) (bits + 2*size);
-	fds.res_in  = (unsigned long *) (bits + 3*size);
-	fds.res_out = (unsigned long *) (bits + 4*size);
-	fds.res_ex  = (unsigned long *) (bits + 5*size);
+	fds.in      = bits;
+	fds.out     = bits +   size;
+	fds.ex      = bits + 2*size;
+	fds.res_in  = bits + 3*size;
+	fds.res_out = bits + 4*size;
+	fds.res_ex  = bits + 5*size;
 
 	if ((ret = get_fd_set(n, inp, fds.in)) ||
 	    (ret = get_fd_set(n, outp, fds.out)) ||
