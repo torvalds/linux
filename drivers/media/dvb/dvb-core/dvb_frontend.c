@@ -56,7 +56,7 @@ MODULE_PARM_DESC(dvb_force_auto_inversion, "0: normal (default), 1: INVERSION_AU
 module_param(dvb_override_tune_delay, int, 0644);
 MODULE_PARM_DESC(dvb_override_tune_delay, "0: normal (default), >0 => delay in milliseconds to wait for lock after a tune attempt");
 module_param(dvb_powerdown_on_sleep, int, 0644);
-MODULE_PARM_DESC(dvb_powerdown_on_sleep, "0: do not power down, 1: turn LNB volatage off on sleep (default)");
+MODULE_PARM_DESC(dvb_powerdown_on_sleep, "0: do not power down, 1: turn LNB voltage off on sleep (default)");
 
 #define dprintk if (dvb_frontend_debug) printk
 
