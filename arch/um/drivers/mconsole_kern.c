@@ -615,7 +615,7 @@ static void console_write(struct console *console, const char *string,
 		return;
 
 	while(1){
-		n = min((size_t)len, ARRAY_SIZE(console_buf) - console_index);
+		n = min((size_t) len, ARRAY_SIZE(console_buf) - console_index);
 		strncpy(&console_buf[console_index], string, n);
 		console_index += n;
 		string += n;

@@ -210,8 +210,9 @@ int write_cow_header(char *cow_file, int fd, char *backing_file,
 
 	err = -EINVAL;
 	if(strlen(backing_file) > sizeof(header->backing_file) - 1){
+		/* Below, %zd is for a size_t value */
 		cow_printf("Backing file name \"%s\" is too long - names are "
-			   "limited to %d characters\n", backing_file,
+			   "limited to %zd characters\n", backing_file,
 			   sizeof(header->backing_file) - 1);
 		goto out_free;
 	}
