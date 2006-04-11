@@ -57,7 +57,7 @@ static unsigned short  *pmi_base  = NULL;
 static void            (*pmi_start)(void);
 static void            (*pmi_pal)(void);
 static int             depth;
-
+static int             vga_compat;
 /* --------------------------------------------------------------------- */
 
 static int vesafb_pan_display(struct fb_var_screeninfo *var,
@@ -83,9 +83,10 @@ static int vesafb_pan_display(struct fb_var_screeninfo *var,
 static void vesa_setpalette(int regno, unsigned red, unsigned green,
 			    unsigned blue)
 {
+	int shift = 16 - depth;
+
 #ifdef __i386__
 	struct { u_char blue, green, red, pad; } entry;
-	int shift = 16 - depth;
 
 	if (pmi_setpal) {
 		entry.red   = red   >> shift;
@@ -101,14 +102,20 @@ static void vesa_setpalette(int regno, unsigned red, unsigned green,
                   "d" (regno),          /* EDX */
                   "D" (&entry),         /* EDI */
                   "S" (&pmi_pal));      /* ESI */
-	} else {
-		/* without protected mode interface, try VGA registers... */
+		return;
+	}
+#endif
+
+/*
+ * without protected mode interface and if VGA compatible,
+ * try VGA registers...
+ */
+	if (vga_compat) {
 		outb_p(regno,       dac_reg);
 		outb_p(red   >> shift, dac_val);
 		outb_p(green >> shift, dac_val);
 		outb_p(blue  >> shift, dac_val);
 	}
-#endif
 }
 
 static int vesafb_setcolreg(unsigned regno, unsigned red, unsigned green,
@@ -214,6 +221,7 @@ static int __init vesafb_probe(struct platform_device *dev)
 	if (screen_info.orig_video_isVGA != VIDEO_TYPE_VLFB)
 		return -ENODEV;
 
+	vga_compat = (screen_info.capabilities & 2) ? 0 : 1;
 	vesafb_fix.smem_start = screen_info.lfb_base;
 	vesafb_defined.bits_per_pixel = screen_info.lfb_depth;
 	if (15 == vesafb_defined.bits_per_pixel)
@@ -318,6 +326,12 @@ static int __init vesafb_probe(struct platform_device *dev)
 		}
 	}
 
+	if (vesafb_defined.bits_per_pixel == 8 && !pmi_setpal && !vga_compat) {
+		printk(KERN_WARNING "vesafb: hardware palette is unchangeable,\n"
+		                    "        colors may be incorrect\n");
+		vesafb_fix.visual = FB_VISUAL_STATIC_PSEUDOCOLOR;
+	}
+
 	vesafb_defined.xres_virtual = vesafb_defined.xres;
 	vesafb_defined.yres_virtual = vesafb_fix.smem_len / vesafb_fix.line_length;
 	if (ypan && vesafb_defined.yres_virtual > vesafb_defined.yres) {
@@ -354,7 +368,8 @@ static int __init vesafb_probe(struct platform_device *dev)
 	printk(KERN_INFO "vesafb: %s: "
 	       "size=%d:%d:%d:%d, shift=%d:%d:%d:%d\n",
 	       (vesafb_defined.bits_per_pixel > 8) ?
-	       "Truecolor" : "Pseudocolor",
+	       "Truecolor" : (vga_compat || pmi_setpal) ?
+	       "Pseudocolor" : "Static Pseudocolor",
 	       screen_info.rsvd_size,
 	       screen_info.red_size,
 	       screen_info.green_size,
