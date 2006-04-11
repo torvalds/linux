@@ -33,6 +33,7 @@
 #include <asm/io.h>
 #include <linux/ata.h>
 #include <linux/workqueue.h>
+#include <scsi/scsi_host.h>
 
 /*
  * compile-time options: to be removed as soon as all the drivers are
@@ -975,6 +976,11 @@ static inline int ata_pad_alloc(struct ata_port *ap, struct device *dev)
 static inline void ata_pad_free(struct ata_port *ap, struct device *dev)
 {
 	dma_free_coherent(dev, ATA_DMA_PAD_BUF_SZ, ap->pad, ap->pad_dma);
+}
+
+static inline struct ata_port *ata_shost_to_port(struct Scsi_Host *host)
+{
+	return (struct ata_port *) &host->hostdata[0];
 }
 
 #endif /* __LINUX_LIBATA_H__ */

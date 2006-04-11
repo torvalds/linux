@@ -257,7 +257,7 @@ static int k2_sata_proc_info(struct Scsi_Host *shost, char *page, char **start,
 	int len, index;
 
 	/* Find  the ata_port */
-	ap = (struct ata_port *) &shost->hostdata[0];
+	ap = ata_shost_to_port(shost);
 	if (ap == NULL)
 		return 0;
 

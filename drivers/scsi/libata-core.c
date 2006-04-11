@@ -4659,7 +4659,7 @@ static struct ata_port * ata_host_add(const struct ata_probe_ent *ent,
 
 	host->transportt = &ata_scsi_transport_template;
 
-	ap = (struct ata_port *) &host->hostdata[0];
+	ap = ata_shost_to_port(host);
 
 	ata_host_init(ap, host, host_set, ent, port_no);
 
@@ -4872,7 +4872,7 @@ void ata_host_set_remove(struct ata_host_set *host_set)
 
 int ata_scsi_release(struct Scsi_Host *host)
 {
-	struct ata_port *ap = (struct ata_port *) &host->hostdata[0];
+	struct ata_port *ap = ata_shost_to_port(host);
 	int i;
 
 	DPRINTK("ENTER\n");
