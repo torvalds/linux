@@ -240,7 +240,7 @@ __generic_file_splice_read(struct file *in, struct pipe_inode_info *pipe,
 	struct page *pages[PIPE_BUFFERS];
 	struct page *page;
 	pgoff_t index;
-	int i;
+	int i, error;
 
 	index = in->f_pos >> PAGE_CACHE_SHIFT;
 	offset = in->f_pos & ~PAGE_CACHE_MASK;
@@ -260,32 +260,84 @@ __generic_file_splice_read(struct file *in, struct pipe_inode_info *pipe,
 	/*
 	 * now fill in the holes
 	 */
+	error = 0;
 	for (i = 0; i < nr_pages; i++, index++) {
+find_page:
 		/*
-		 * no page there, look one up / create it
+		 * lookup the page for this index
 		 */
-		page = find_or_create_page(mapping, index,
-						   mapping_gfp_mask(mapping));
-		if (!page)
-			break;
+		page = find_get_page(mapping, index);
+		if (!page) {
+			/*
+			 * If in nonblock mode then dont block on
+			 * readpage (we've kicked readahead so there
+			 * will be asynchronous progress):
+			 */
+			if (flags & SPLICE_F_NONBLOCK)
+				break;
 
-		if (PageUptodate(page))
-			unlock_page(page);
-		else {
-			int error = mapping->a_ops->readpage(in, page);
+			/*
+			 * page didn't exist, allocate one
+			 */
+			page = page_cache_alloc_cold(mapping);
+			if (!page)
+				break;
 
+			error = add_to_page_cache_lru(page, mapping, index,
+						mapping_gfp_mask(mapping));
 			if (unlikely(error)) {
 				page_cache_release(page);
 				break;
 			}
+
+			goto readpage;
 		}
+
+		/*
+		 * If the page isn't uptodate, we may need to start io on it
+		 */
+		if (!PageUptodate(page)) {
+			lock_page(page);
+
+			/*
+			 * page was truncated, stop here. if this isn't the
+			 * first page, we'll just complete what we already
+			 * added
+			 */
+			if (!page->mapping) {
+				unlock_page(page);
+				page_cache_release(page);
+				break;
+			}
+			/*
+			 * page was already under io and is now done, great
+			 */
+			if (PageUptodate(page)) {
+				unlock_page(page);
+				goto fill_it;
+			}
+
+readpage:
+			/*
+			 * need to read in the page
+			 */
+			error = mapping->a_ops->readpage(in, page);
+
+			if (unlikely(error)) {
+				page_cache_release(page);
+				if (error == AOP_TRUNCATED_PAGE)
+					goto find_page;
+				break;
+			}
+		}
+fill_it:
 		pages[i] = page;
 	}
 
 	if (i)
 		return move_to_pipe(pipe, pages, i, offset, len, flags);
 
-	return 0;
+	return error;
 }
 
 /**
