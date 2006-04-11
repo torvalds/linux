@@ -33,7 +33,7 @@ static int if_lock(struct cardstate *cs, int *arg)
 	}
 
 	if (!cmd && atomic_read(&cs->mstate) == MS_LOCKED
-	    && atomic_read(&cs->connected)) {
+	    && cs->connected) {
 		cs->ops->set_modem_ctrl(cs, 0, TIOCM_DTR|TIOCM_RTS);
 		cs->ops->baud_rate(cs, B115200);
 		cs->ops->set_line_ctrl(cs, CS8);
@@ -106,6 +106,11 @@ static int if_config(struct cardstate *cs, int *arg)
 
 	if (atomic_read(&cs->mstate) != MS_LOCKED)
 		return -EBUSY;
+
+	if (!cs->connected) {
+		err("not connected!");
+		return -ENODEV;
+	}
 
 	*arg = 0;
 	return gigaset_enterconfigmode(cs);
@@ -246,7 +251,7 @@ static int if_ioctl(struct tty_struct *tty, struct file *file,
 			break;
 		case GIGASET_BRKCHARS:
 			//FIXME test if MS_LOCKED
-			if (!atomic_read(&cs->connected)) {
+			if (!cs->connected) {
 				gig_dbg(DEBUG_ANY,
 				    "can't communicate with unplugged device");
 				retval = -ENODEV;
@@ -327,7 +332,7 @@ static int if_tiocmset(struct tty_struct *tty, struct file *file,
 	if (mutex_lock_interruptible(&cs->mutex))
 		return -ERESTARTSYS; // FIXME -EINTR?
 
-	if (!atomic_read(&cs->connected)) {
+	if (!cs->connected) {
 		gig_dbg(DEBUG_ANY, "can't communicate with unplugged device");
 		retval = -ENODEV;
 	} else {
@@ -362,7 +367,7 @@ static int if_write(struct tty_struct *tty, const unsigned char *buf, int count)
 	else if (atomic_read(&cs->mstate) != MS_LOCKED) {
 		warn("can't write to unlocked device");
 		retval = -EBUSY;
-	} else if (!atomic_read(&cs->connected)) {
+	} else if (!cs->connected) {
 		gig_dbg(DEBUG_ANY, "can't write to unplugged device");
 		retval = -EBUSY; //FIXME
 	} else {
@@ -396,7 +401,7 @@ static int if_write_room(struct tty_struct *tty)
 	else if (atomic_read(&cs->mstate) != MS_LOCKED) {
 		warn("can't write to unlocked device");
 		retval = -EBUSY; //FIXME
-	} else if (!atomic_read(&cs->connected)) {
+	} else if (!cs->connected) {
 		gig_dbg(DEBUG_ANY, "can't write to unplugged device");
 		retval = -EBUSY; //FIXME
 	} else
@@ -428,7 +433,7 @@ static int if_chars_in_buffer(struct tty_struct *tty)
 	else if (atomic_read(&cs->mstate) != MS_LOCKED) {
 		warn("can't write to unlocked device");
 		retval = -EBUSY;
-	} else if (!atomic_read(&cs->connected)) {
+	} else if (!cs->connected) {
 		gig_dbg(DEBUG_ANY, "can't write to unplugged device");
 		retval = -EBUSY; //FIXME
 	} else
@@ -508,7 +513,7 @@ static void if_set_termios(struct tty_struct *tty, struct termios *old)
 		goto out;
 	}
 
-	if (!atomic_read(&cs->connected)) {
+	if (!cs->connected) {
 		gig_dbg(DEBUG_ANY, "can't communicate with unplugged device");
 		goto out;
 	}

@@ -129,11 +129,6 @@ int gigaset_enterconfigmode(struct cardstate *cs)
 {
 	int i, r;
 
-	if (!atomic_read(&cs->connected)) {
-		err("not connected!");
-		return -1;
-	}
-
 	cs->control_state = TIOCM_RTS; //FIXME
 
 	r = setflags(cs, TIOCM_DTR, 200);
@@ -176,7 +171,7 @@ static int test_timeout(struct at_state_t *at_state)
 	}
 
 	if (!gigaset_add_event(at_state->cs, at_state, EV_TIMEOUT, NULL,
-			       atomic_read(&at_state->timer_index), NULL)) {
+			       at_state->timer_index, NULL)) {
 		//FIXME what should we do?
 	}
 
@@ -204,7 +199,7 @@ static void timer_tick(unsigned long data)
 		if (test_timeout(at_state))
 			timeout = 1;
 
-	if (atomic_read(&cs->running)) {
+	if (cs->running) {
 		mod_timer(&cs->timer, jiffies + msecs_to_jiffies(GIG_TICK));
 		if (timeout) {
 			gig_dbg(DEBUG_CMD, "scheduling timeout");
@@ -298,20 +293,22 @@ static void clear_events(struct cardstate *cs)
 {
 	struct event_t *ev;
 	unsigned head, tail;
+	unsigned long flags;
 
-	/* no locking needed (no reader/writer allowed) */
+	spin_lock_irqsave(&cs->ev_lock, flags);
 
-	head = atomic_read(&cs->ev_head);
-	tail = atomic_read(&cs->ev_tail);
+	head = cs->ev_head;
+	tail = cs->ev_tail;
 
 	while (tail != head) {
 		ev = cs->events + head;
 		kfree(ev->ptr);
-
 		head = (head + 1) % MAX_EVENTS;
 	}
 
-	atomic_set(&cs->ev_head, tail);
+	cs->ev_head = tail;
+
+	spin_unlock_irqrestore(&cs->ev_lock, flags);
 }
 
 struct event_t *gigaset_add_event(struct cardstate *cs,
@@ -324,9 +321,9 @@ struct event_t *gigaset_add_event(struct cardstate *cs,
 
 	spin_lock_irqsave(&cs->ev_lock, flags);
 
-	tail = atomic_read(&cs->ev_tail);
+	tail = cs->ev_tail;
 	next = (tail + 1) % MAX_EVENTS;
-	if (unlikely(next == atomic_read(&cs->ev_head)))
+	if (unlikely(next == cs->ev_head))
 		err("event queue full");
 	else {
 		event = cs->events + tail;
@@ -336,7 +333,7 @@ struct event_t *gigaset_add_event(struct cardstate *cs,
 		event->ptr = ptr;
 		event->arg = arg;
 		event->parameter = parameter;
-		atomic_set(&cs->ev_tail, next);
+		cs->ev_tail = next;
 	}
 
 	spin_unlock_irqrestore(&cs->ev_lock, flags);
@@ -454,7 +451,7 @@ void gigaset_freecs(struct cardstate *cs)
 		goto f_bcs;
 
 	spin_lock_irqsave(&cs->lock, flags);
-	atomic_set(&cs->running, 0);
+	cs->running = 0;
 	spin_unlock_irqrestore(&cs->lock, flags); /* event handler and timer are
 						     not rescheduled below */
 
@@ -513,8 +510,8 @@ void gigaset_at_init(struct at_state_t *at_state, struct bc_state *bcs,
 	at_state->pending_commands = 0;
 	at_state->timer_expires = 0;
 	at_state->timer_active = 0;
-	atomic_set(&at_state->timer_index, 0);
-	atomic_set(&at_state->seq_index, 0);
+	at_state->timer_index = 0;
+	at_state->seq_index = 0;
 	at_state->ConState = 0;
 	for (i = 0; i < STR_NUM; ++i)
 		at_state->str_var[i] = NULL;
@@ -665,6 +662,7 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 				 int cidmode, const char *modulename)
 {
 	struct cardstate *cs = NULL;
+	unsigned long flags;
 	int i;
 
 	gig_dbg(DEBUG_INIT, "allocating cs");
@@ -685,11 +683,11 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 	cs->onechannel = onechannel;
 	cs->ignoreframes = ignoreframes;
 	INIT_LIST_HEAD(&cs->temp_at_states);
-	atomic_set(&cs->running, 0);
+	cs->running = 0;
 	init_timer(&cs->timer); /* clear next & prev */
 	spin_lock_init(&cs->ev_lock);
-	atomic_set(&cs->ev_tail, 0);
-	atomic_set(&cs->ev_head, 0);
+	cs->ev_tail = 0;
+	cs->ev_head = 0;
 	mutex_init(&cs->mutex);
 	mutex_lock(&cs->mutex);
 
@@ -701,7 +699,7 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 	cs->open_count = 0;
 	cs->dev = NULL;
 	cs->tty = NULL;
-	atomic_set(&cs->cidmode, cidmode != 0);
+	cs->cidmode = cidmode != 0;
 
 	//if(onechannel) { //FIXME
 		cs->tabnocid = gigaset_tab_nocid_m10x;
@@ -737,7 +735,8 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 	} else
 		gigaset_inbuf_init(cs->inbuf, NULL,    cs, INS_command);
 
-	atomic_set(&cs->connected, 0);
+	cs->connected = 0;
+	cs->isdn_up = 0;
 
 	gig_dbg(DEBUG_INIT, "setting up cmdbuf");
 	cs->cmdbuf = cs->lastcmdbuf = NULL;
@@ -761,7 +760,9 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 
 	gigaset_if_init(cs);
 
-	atomic_set(&cs->running, 1);
+	spin_lock_irqsave(&cs->lock, flags);
+	cs->running = 1;
+	spin_unlock_irqrestore(&cs->lock, flags);
 	setup_timer(&cs->timer, timer_tick, (unsigned long) cs);
 	cs->timer.expires = jiffies + msecs_to_jiffies(GIG_TICK);
 	/* FIXME: can jiffies increase too much until the timer is added?
@@ -871,10 +872,14 @@ static void cleanup_cs(struct cardstate *cs)
 
 int gigaset_start(struct cardstate *cs)
 {
+	unsigned long flags;
+
 	if (mutex_lock_interruptible(&cs->mutex))
 		return 0;
 
-	atomic_set(&cs->connected, 1);
+	spin_lock_irqsave(&cs->lock, flags);
+	cs->connected = 1;
+	spin_unlock_irqrestore(&cs->lock, flags);
 
 	if (atomic_read(&cs->mstate) != MS_LOCKED) {
 		cs->ops->set_modem_ctrl(cs, 0, TIOCM_DTR|TIOCM_RTS);
@@ -950,11 +955,6 @@ void gigaset_stop(struct cardstate *cs)
 {
 	mutex_lock(&cs->mutex);
 
-	/* clear device sysfs */
-	gigaset_free_dev_sysfs(cs);
-
-	atomic_set(&cs->connected, 0);
-
 	cs->waiting = 1;
 
 	if (!gigaset_add_event(cs, &cs->at_state, EV_STOP, NULL, 0, NULL)) {
@@ -970,8 +970,8 @@ void gigaset_stop(struct cardstate *cs)
 		//FIXME
 	}
 
-	/* Tell the LL that the device is not available .. */
-	gigaset_i4l_cmd(cs, ISDN_STAT_STOP); // FIXME move to event layer?
+	/* clear device sysfs */
+	gigaset_free_dev_sysfs(cs);
 
 	cleanup_cs(cs);
 

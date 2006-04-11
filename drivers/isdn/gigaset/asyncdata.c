@@ -566,19 +566,22 @@ static struct sk_buff *iraw_encode(struct sk_buff *skb, int head, int tail)
 int gigaset_m10x_send_skb(struct bc_state *bcs, struct sk_buff *skb)
 {
 	unsigned len = skb->len;
+	unsigned long flags;
 
 	if (bcs->proto2 == ISDN_PROTO_L2_HDLC)
 		skb = HDLC_Encode(skb, HW_HDR_LEN, 0);
 	else
 		skb = iraw_encode(skb, HW_HDR_LEN, 0);
 	if (!skb) {
-		dev_err(bcs->cs->dev,
-			"unable to allocate memory for encoding!\n");
+		err("unable to allocate memory for encoding!\n");
 		return -ENOMEM;
 	}
 
 	skb_queue_tail(&bcs->squeue, skb);
-	tasklet_schedule(&bcs->cs->write_tasklet);
+	spin_lock_irqsave(&bcs->cs->lock, flags);
+	if (bcs->cs->connected)
+		tasklet_schedule(&bcs->cs->write_tasklet);
+	spin_unlock_irqrestore(&bcs->cs->lock, flags);
 
 	return len;	/* ok so far */
 }

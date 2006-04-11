@@ -19,8 +19,15 @@
 static ssize_t show_cidmode(struct device *dev, struct device_attribute *attr,
 			    char *buf)
 {
+	int ret;
+	unsigned long flags;
 	struct cardstate *cs = dev_get_drvdata(dev);
-	return sprintf(buf, "%d\n", atomic_read(&cs->cidmode));
+
+	spin_lock_irqsave(&cs->lock, flags);
+	ret = sprintf(buf, "%u\n", cs->cidmode);
+	spin_unlock_irqrestore(&cs->lock, flags);
+
+	return ret;
 }
 
 static ssize_t set_cidmode(struct device *dev, struct device_attribute *attr,

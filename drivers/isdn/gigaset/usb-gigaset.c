@@ -371,13 +371,14 @@ static void gigaset_read_int_callback(struct urb *urb, struct pt_regs *regs)
 	int r;
 	unsigned numbytes;
 	unsigned char *src;
-
-	if (!atomic_read(&cs->connected)) {
-		err("%s: disconnected", __func__);
-		return;
-	}
+	unsigned long flags;
 
 	if (!urb->status) {
+		if (!cs->connected) {
+			err("%s: disconnected", __func__); /* should never happen */
+			return;
+		}
+
 		numbytes = urb->actual_length;
 
 		if (numbytes) {
@@ -399,12 +400,19 @@ static void gigaset_read_int_callback(struct urb *urb, struct pt_regs *regs)
 		/* The urb might have been killed. */
 		gig_dbg(DEBUG_ANY, "%s - nonzero read bulk status received: %d",
 			__func__, urb->status);
-		if (urb->status != -ENOENT) /* not killed */
+		if (urb->status != -ENOENT) { /* not killed */
+			if (!cs->connected) {
+				err("%s: disconnected", __func__); /* should never happen */
+				return;
+			}
 			resubmit = 1;
+		}
 	}
 
 	if (resubmit) {
-		r = usb_submit_urb(urb, SLAB_ATOMIC);
+		spin_lock_irqsave(&cs->lock, flags);
+		r = cs->connected ? usb_submit_urb(urb, SLAB_ATOMIC) : -ENODEV;
+		spin_unlock_irqrestore(&cs->lock, flags);
 		if (r)
 			dev_err(cs->dev, "error %d when resubmitting urb.\n",
 				-r);
@@ -416,21 +424,22 @@ static void gigaset_read_int_callback(struct urb *urb, struct pt_regs *regs)
 static void gigaset_write_bulk_callback(struct urb *urb, struct pt_regs *regs)
 {
 	struct cardstate *cs = urb->context;
+	unsigned long flags;
 
-#ifdef CONFIG_GIGASET_DEBUG
-	if (!atomic_read(&cs->connected)) {
-		err("%s: not connected", __func__);
-		return;
-	}
-#endif
 	if (urb->status)
 		dev_err(cs->dev, "bulk transfer failed (status %d)\n",
 			-urb->status);
 		/* That's all we can do. Communication problems
 		   are handled by timeouts or network protocols. */
 
-	atomic_set(&cs->hw.usb->busy, 0);
-	tasklet_schedule(&cs->write_tasklet);
+	spin_lock_irqsave(&cs->lock, flags);
+	if (!cs->connected) {
+		err("%s: not connected", __func__);
+	} else {
+		atomic_set(&cs->hw.usb->busy, 0);
+		tasklet_schedule(&cs->write_tasklet);
+	}
+	spin_unlock_irqrestore(&cs->lock, flags);
 }
 
 static int send_cb(struct cardstate *cs, struct cmdbuf_t *cb)
@@ -465,6 +474,8 @@ static int send_cb(struct cardstate *cs, struct cmdbuf_t *cb)
 		}
 		if (cb) {
 			count = min(cb->len, ucs->bulk_out_size);
+			gig_dbg(DEBUG_OUTPUT, "send_cb: send %d bytes", count);
+
 			usb_fill_bulk_urb(ucs->bulk_out_urb, ucs->udev,
 					  usb_sndbulkpipe(ucs->udev,
 					     ucs->bulk_out_endpointAddr & 0x0f),
@@ -474,14 +485,15 @@ static int send_cb(struct cardstate *cs, struct cmdbuf_t *cb)
 			cb->offset += count;
 			cb->len -= count;
 			atomic_set(&ucs->busy, 1);
-			gig_dbg(DEBUG_OUTPUT, "send_cb: send %d bytes", count);
 
-			status = usb_submit_urb(ucs->bulk_out_urb, SLAB_ATOMIC);
+			spin_lock_irqsave(&cs->lock, flags);
+			status = cs->connected ? usb_submit_urb(ucs->bulk_out_urb, SLAB_ATOMIC) : -ENODEV;
+			spin_unlock_irqrestore(&cs->lock, flags);
+
 			if (status) {
 				atomic_set(&ucs->busy, 0);
-				dev_err(cs->dev,
-					"could not submit urb (error %d)\n",
-					-status);
+				err("could not submit urb (error %d)\n",
+				    -status);
 				cb->len = 0; /* skip urb => remove cb+wakeup
 						in next loop cycle */
 			}
@@ -501,11 +513,6 @@ static int gigaset_write_cmd(struct cardstate *cs, const unsigned char *buf,
 	gigaset_dbg_buffer(atomic_read(&cs->mstate) != MS_LOCKED ?
 			     DEBUG_TRANSCMD : DEBUG_LOCKCMD,
 			   "CMD Transmit", len, buf);
-
-	if (!atomic_read(&cs->connected)) {
-		err("%s: not connected", __func__);
-		return -ENODEV;
-	}
 
 	if (len <= 0)
 		return 0;
@@ -533,7 +540,10 @@ static int gigaset_write_cmd(struct cardstate *cs, const unsigned char *buf,
 	cs->lastcmdbuf = cb;
 	spin_unlock_irqrestore(&cs->cmdlock, flags);
 
-	tasklet_schedule(&cs->write_tasklet);
+	spin_lock_irqsave(&cs->lock, flags);
+	if (cs->connected)
+		tasklet_schedule(&cs->write_tasklet);
+	spin_unlock_irqrestore(&cs->lock, flags);
 	return len;
 }
 
@@ -629,6 +639,7 @@ static int write_modem(struct cardstate *cs)
 	int count;
 	struct bc_state *bcs = &cs->bcs[0]; /* only one channel */
 	struct usb_cardstate *ucs = cs->hw.usb;
+	unsigned long flags;
 
 	gig_dbg(DEBUG_WRITE, "len: %d...", bcs->tx_skb->len);
 
@@ -644,20 +655,27 @@ static int write_modem(struct cardstate *cs)
 	count = min(bcs->tx_skb->len, (unsigned) ucs->bulk_out_size);
 	memcpy(ucs->bulk_out_buffer, bcs->tx_skb->data, count);
 	skb_pull(bcs->tx_skb, count);
-
-	usb_fill_bulk_urb(ucs->bulk_out_urb, ucs->udev,
-			  usb_sndbulkpipe(ucs->udev,
-					  ucs->bulk_out_endpointAddr & 0x0f),
-			  ucs->bulk_out_buffer, count,
-			  gigaset_write_bulk_callback, cs);
 	atomic_set(&ucs->busy, 1);
 	gig_dbg(DEBUG_OUTPUT, "write_modem: send %d bytes", count);
 
-	ret = usb_submit_urb(ucs->bulk_out_urb, SLAB_ATOMIC);
+	spin_lock_irqsave(&cs->lock, flags);
+	if (cs->connected) {
+		usb_fill_bulk_urb(ucs->bulk_out_urb, ucs->udev,
+				  usb_sndbulkpipe(ucs->udev,
+						  ucs->bulk_out_endpointAddr & 0x0f),
+				  ucs->bulk_out_buffer, count,
+				  gigaset_write_bulk_callback, cs);
+		ret = usb_submit_urb(ucs->bulk_out_urb, SLAB_ATOMIC);
+	} else {
+		ret = -ENODEV;
+	}
+	spin_unlock_irqrestore(&cs->lock, flags);
+
 	if (ret) {
-		dev_err(cs->dev, "could not submit urb (error %d)\n", -ret);
+		err("could not submit urb (error %d)\n", -ret);
 		atomic_set(&ucs->busy, 0);
 	}
+
 	if (!bcs->tx_skb->len) {
 		/* skb sent completely */
 		gigaset_skb_sent(bcs, bcs->tx_skb); //FIXME also, when ret<0?

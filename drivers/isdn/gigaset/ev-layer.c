@@ -482,14 +482,6 @@ static int isdn_gethex(char *p)
 	return v;
 }
 
-static inline void new_index(atomic_t *index, int max)
-{
-	if (atomic_read(index) == max)	//FIXME race?
-		atomic_set(index, 0);
-	else
-		atomic_inc(index);
-}
-
 /* retrieve CID from parsed response
  * returns 0 if no CID, -1 if invalid CID, or CID value 1..65535
  */
@@ -581,8 +573,8 @@ void gigaset_handle_modem_response(struct cardstate *cs)
 	}
 
 	spin_lock_irqsave(&cs->ev_lock, flags);
-	head = atomic_read(&cs->ev_head);
-	tail = atomic_read(&cs->ev_tail);
+	head = cs->ev_head;
+	tail = cs->ev_tail;
 
 	abort = 1;
 	curarg = 0;
@@ -715,7 +707,7 @@ void gigaset_handle_modem_response(struct cardstate *cs)
 			break;
 	}
 
-	atomic_set(&cs->ev_tail, tail);
+	cs->ev_tail = tail;
 	spin_unlock_irqrestore(&cs->ev_lock, flags);
 
 	if (curarg != params)
@@ -734,14 +726,16 @@ static void disconnect(struct at_state_t **at_state_p)
 	struct bc_state *bcs = (*at_state_p)->bcs;
 	struct cardstate *cs = (*at_state_p)->cs;
 
-	new_index(&(*at_state_p)->seq_index, MAX_SEQ_INDEX);
+	spin_lock_irqsave(&cs->lock, flags);
+	++(*at_state_p)->seq_index;
 
 	/* revert to selected idle mode */
-	if (!atomic_read(&cs->cidmode)) {
+	if (!cs->cidmode) {
 		cs->at_state.pending_commands |= PC_UMMODE;
 		atomic_set(&cs->commands_pending, 1); //FIXME
 		gig_dbg(DEBUG_CMD, "Scheduling PC_UMMODE");
 	}
+	spin_unlock_irqrestore(&cs->lock, flags);
 
 	if (bcs) {
 		/* B channel assigned: invoke hardware specific handler */
@@ -933,17 +927,21 @@ static void bchannel_up(struct bc_state *bcs)
 	gigaset_i4l_channel_cmd(bcs, ISDN_STAT_BCONN);
 }
 
-static void start_dial(struct at_state_t *at_state, void *data, int seq_index)
+static void start_dial(struct at_state_t *at_state, void *data, unsigned seq_index)
 {
 	struct bc_state *bcs = at_state->bcs;
 	struct cardstate *cs = at_state->cs;
 	int retval;
+	unsigned long flags;
 
 	bcs->chstate |= CHS_NOTIFY_LL;
-	//atomic_set(&bcs->status, BCS_INIT);
 
-	if (atomic_read(&at_state->seq_index) != seq_index)
+	spin_lock_irqsave(&cs->lock, flags);
+	if (at_state->seq_index != seq_index) {
+		spin_unlock_irqrestore(&cs->lock, flags);
 		goto error;
+	}
+	spin_unlock_irqrestore(&cs->lock, flags);
 
 	retval = gigaset_isdn_setup_dial(at_state, data);
 	if (retval != 0)
@@ -988,6 +986,7 @@ static void do_start(struct cardstate *cs)
 	if (atomic_read(&cs->mstate) != MS_LOCKED)
 		schedule_init(cs, MS_INIT);
 
+	cs->isdn_up = 1;
 	gigaset_i4l_cmd(cs, ISDN_STAT_RUN);
 					// FIXME: not in locked mode
 					// FIXME 2: only after init sequence
@@ -1001,6 +1000,12 @@ static void finish_shutdown(struct cardstate *cs)
 	if (atomic_read(&cs->mstate) != MS_LOCKED) {
 		atomic_set(&cs->mstate, MS_UNINITIALIZED);
 		atomic_set(&cs->mode, M_UNKNOWN);
+	}
+
+	/* Tell the LL that the device is not available .. */
+	if (cs->isdn_up) {
+		cs->isdn_up = 0;
+		gigaset_i4l_cmd(cs, ISDN_STAT_STOP);
 	}
 
 	/* The rest is done by cleanup_cs () in user mode. */
@@ -1025,6 +1030,12 @@ static void do_shutdown(struct cardstate *cs)
 
 static void do_stop(struct cardstate *cs)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&cs->lock, flags);
+	cs->connected = 0;
+	spin_unlock_irqrestore(&cs->lock, flags);
+
 	do_shutdown(cs);
 }
 
@@ -1153,7 +1164,7 @@ static int do_unlock(struct cardstate *cs)
 	atomic_set(&cs->mstate, MS_UNINITIALIZED);
 	atomic_set(&cs->mode, M_UNKNOWN);
 	gigaset_free_channels(cs);
-	if (atomic_read(&cs->connected))
+	if (cs->connected)
 		schedule_init(cs, MS_INIT);
 
 	return 0;
@@ -1185,11 +1196,14 @@ static void do_action(int action, struct cardstate *cs,
 		cs->at_state.pending_commands &= ~PC_INIT;
 		cs->cur_at_seq = SEQ_NONE;
 		atomic_set(&cs->mode, M_UNIMODEM);
-		if (!atomic_read(&cs->cidmode)) {
+		spin_lock_irqsave(&cs->lock, flags);
+		if (!cs->cidmode) {
+			spin_unlock_irqrestore(&cs->lock, flags);
 			gigaset_free_channels(cs);
 			atomic_set(&cs->mstate, MS_READY);
 			break;
 		}
+		spin_unlock_irqrestore(&cs->lock, flags);
 		cs->at_state.pending_commands |= PC_CIDMODE;
 		atomic_set(&cs->commands_pending, 1);
 		gig_dbg(DEBUG_CMD, "Scheduling PC_CIDMODE");
@@ -1536,8 +1550,9 @@ static void do_action(int action, struct cardstate *cs,
 
 	/* events from the proc file system */ // FIXME without ACT_xxxx?
 	case ACT_PROC_CIDMODE:
-		if (ev->parameter != atomic_read(&cs->cidmode)) {
-			atomic_set(&cs->cidmode, ev->parameter);
+		spin_lock_irqsave(&cs->lock, flags);
+		if (ev->parameter != cs->cidmode) {
+			cs->cidmode = ev->parameter;
 			if (ev->parameter) {
 				cs->at_state.pending_commands |= PC_CIDMODE;
 				gig_dbg(DEBUG_CMD, "Scheduling PC_CIDMODE");
@@ -1547,6 +1562,7 @@ static void do_action(int action, struct cardstate *cs,
 			}
 			atomic_set(&cs->commands_pending, 1);
 		}
+		spin_unlock_irqrestore(&cs->lock, flags);
 		cs->waiting = 0;
 		wake_up(&cs->waitqueue);
 		break;
@@ -1615,8 +1631,9 @@ static void process_event(struct cardstate *cs, struct event_t *ev)
 	/* Setting the pointer to the dial array */
 	rep = at_state->replystruct;
 
+	spin_lock_irqsave(&cs->lock, flags);
 	if (ev->type == EV_TIMEOUT) {
-		if (ev->parameter != atomic_read(&at_state->timer_index)
+		if (ev->parameter != at_state->timer_index
 		    || !at_state->timer_active) {
 			ev->type = RSP_NONE; /* old timeout */
 			gig_dbg(DEBUG_ANY, "old timeout");
@@ -1625,6 +1642,7 @@ static void process_event(struct cardstate *cs, struct event_t *ev)
 		else
 			gig_dbg(DEBUG_ANY, "stopped waiting");
 	}
+	spin_unlock_irqrestore(&cs->lock, flags);
 
 	/* if the response belongs to a variable in at_state->int_var[VAR_XXXX]
 	   or at_state->str_var[STR_XXXX], set it */
@@ -1686,7 +1704,7 @@ static void process_event(struct cardstate *cs, struct event_t *ev)
 		} else {
 			/* Send command to modem if not NULL... */
 			if (p_command/*rep->command*/) {
-				if (atomic_read(&cs->connected))
+				if (cs->connected)
 					send_command(cs, p_command,
 						     sendcid, cs->dle,
 						     GFP_ATOMIC);
@@ -1703,8 +1721,7 @@ static void process_event(struct cardstate *cs, struct event_t *ev)
 			} else if (rep->timeout > 0) { /* new timeout */
 				at_state->timer_expires = rep->timeout * 10;
 				at_state->timer_active = 1;
-				new_index(&at_state->timer_index,
-					  MAX_TIMER_INDEX);
+				++at_state->timer_index;
 			}
 			spin_unlock_irqrestore(&cs->lock, flags);
 		}
@@ -1724,6 +1741,7 @@ static void process_command_flags(struct cardstate *cs)
 	struct bc_state *bcs;
 	int i;
 	int sequence;
+	unsigned long flags;
 
 	atomic_set(&cs->commands_pending, 0);
 
@@ -1773,8 +1791,9 @@ static void process_command_flags(struct cardstate *cs)
 	}
 
 	/* only switch back to unimodem mode, if no commands are pending and no channels are up */
+	spin_lock_irqsave(&cs->lock, flags);
 	if (cs->at_state.pending_commands == PC_UMMODE
-	    && !atomic_read(&cs->cidmode)
+	    && !cs->cidmode
 	    && list_empty(&cs->temp_at_states)
 	    && atomic_read(&cs->mode) == M_CID) {
 		sequence = SEQ_UMMODE;
@@ -1788,6 +1807,7 @@ static void process_command_flags(struct cardstate *cs)
 			}
 		}
 	}
+	spin_unlock_irqrestore(&cs->lock, flags);
 	cs->at_state.pending_commands &= ~PC_UMMODE;
 	if (sequence != SEQ_NONE) {
 		schedule_sequence(cs, at_state, sequence);
@@ -1900,18 +1920,21 @@ static void process_events(struct cardstate *cs)
 	int i;
 	int check_flags = 0;
 	int was_busy;
+	unsigned long flags;
 
-	/* no locking needed (only one reader) */
-	head = atomic_read(&cs->ev_head);
+	spin_lock_irqsave(&cs->ev_lock, flags);
+	head = cs->ev_head;
 
 	for (i = 0; i < 2 * MAX_EVENTS; ++i) {
-		tail = atomic_read(&cs->ev_tail);
+		tail = cs->ev_tail;
 		if (tail == head) {
 			if (!check_flags && !atomic_read(&cs->commands_pending))
 				break;
 			check_flags = 0;
+			spin_unlock_irqrestore(&cs->ev_lock, flags);
 			process_command_flags(cs);
-			tail = atomic_read(&cs->ev_tail);
+			spin_lock_irqsave(&cs->ev_lock, flags);
+			tail = cs->ev_tail;
 			if (tail == head) {
 				if (!atomic_read(&cs->commands_pending))
 					break;
@@ -1921,15 +1944,19 @@ static void process_events(struct cardstate *cs)
 
 		ev = cs->events + head;
 		was_busy = cs->cur_at_seq != SEQ_NONE;
+		spin_unlock_irqrestore(&cs->ev_lock, flags);
 		process_event(cs, ev);
+		spin_lock_irqsave(&cs->ev_lock, flags);
 		kfree(ev->ptr);
 		ev->ptr = NULL;
 		if (was_busy && cs->cur_at_seq == SEQ_NONE)
 			check_flags = 1;
 
 		head = (head + 1) % MAX_EVENTS;
-		atomic_set(&cs->ev_head, head);
+		cs->ev_head = head;
 	}
+
+	spin_unlock_irqrestore(&cs->ev_lock, flags);
 
 	if (i == 2 * MAX_EVENTS) {
 		dev_err(cs->dev,

@@ -56,11 +56,6 @@ static int writebuf_from_LL(int driverID, int channel, int ack,
 		"Receiving data from LL (id: %d, ch: %d, ack: %d, sz: %d)",
 		driverID, channel, ack, len);
 
-	if (!atomic_read(&cs->connected)) {
-		err("%s: disconnected", __func__);
-		return -ENODEV;
-	}
-
 	if (!len) {
 		if (ack)
 			notice("%s: not ACKing empty packet", __func__);
@@ -78,7 +73,7 @@ static int writebuf_from_LL(int driverID, int channel, int ack,
 		len, skblen, (unsigned) skb->head[0], (unsigned) skb->head[1]);
 
 	/* pass to device-specific module */
-	return cs->ops->send_skb(bcs, skb);
+	return cs->ops->send_skb(bcs, skb); //FIXME cs->ops->send_skb() must handle !cs->connected correctly
 }
 
 void gigaset_skb_sent(struct bc_state *bcs, struct sk_buff *skb)
@@ -119,11 +114,12 @@ static int command_from_LL(isdn_ctrl *cntrl)
 	struct bc_state *bcs;
 	int retval = 0;
 	struct setup_parm *sp;
+	unsigned param;
+	unsigned long flags;
 
 	gigaset_debugdrivers();
 
-	//FIXME "remove test for &connected"
-	if ((!cs || !atomic_read(&cs->connected))) {
+	if (!cs) {
 		warn("LL tried to access unknown device with nr. %d",
 		     cntrl->driver);
 		return -ENODEV;
@@ -166,8 +162,11 @@ static int command_from_LL(isdn_ctrl *cntrl)
 		}
 		*sp = cntrl->parm.setup;
 
-		if (!gigaset_add_event(cs, &bcs->at_state, EV_DIAL, sp,
-				       atomic_read(&bcs->at_state.seq_index),
+		spin_lock_irqsave(&cs->lock, flags);
+		param = bcs->at_state.seq_index;
+		spin_unlock_irqrestore(&cs->lock, flags);
+
+		if (!gigaset_add_event(cs, &bcs->at_state, EV_DIAL, sp, param,
 				       NULL)) {
 			//FIXME what should we do?
 			kfree(sp);

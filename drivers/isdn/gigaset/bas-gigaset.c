@@ -367,7 +367,7 @@ static void cmd_in_timeout(unsigned long data)
 	unsigned long flags;
 
 	spin_lock_irqsave(&cs->lock, flags);
-	if (unlikely(!atomic_read(&cs->connected))) {
+	if (unlikely(!cs->connected)) {
 		gig_dbg(DEBUG_USBREQ, "%s: disconnected", __func__);
 		spin_unlock_irqrestore(&cs->lock, flags);
 		return;
@@ -474,11 +474,6 @@ static void read_int_callback(struct urb *urb, struct pt_regs *regs)
 	int status;
 	unsigned l;
 	int channel;
-
-	if (unlikely(!atomic_read(&cs->connected))) {
-		warn("%s: disconnected", __func__);
-		return;
-	}
 
 	switch (urb->status) {
 	case 0:			/* success */
@@ -603,7 +598,9 @@ static void read_int_callback(struct urb *urb, struct pt_regs *regs)
 	check_pending(ucs);
 
 resubmit:
-	status = usb_submit_urb(urb, SLAB_ATOMIC);
+	spin_lock_irqsave(&cs->lock, flags);
+	status = cs->connected ? usb_submit_urb(urb, SLAB_ATOMIC) : -ENODEV;
+	spin_unlock_irqrestore(&cs->lock, flags);
 	if (unlikely(status)) {
 		dev_err(cs->dev, "could not resubmit interrupt URB: %s\n",
 			get_usb_statmsg(status));
@@ -628,7 +625,7 @@ static void read_ctrl_callback(struct urb *urb, struct pt_regs *regs)
 	unsigned long flags;
 
 	spin_lock_irqsave(&cs->lock, flags);
-	if (unlikely(!atomic_read(&cs->connected))) {
+	if (unlikely(!cs->connected)) {
 		warn("%s: disconnected", __func__);
 		spin_unlock_irqrestore(&cs->lock, flags);
 		return;
@@ -949,6 +946,7 @@ static int submit_iso_write_urb(struct isow_urbctx_t *ucx)
 	struct bas_bc_state *ubc = ucx->bcs->hw.bas;
 	struct usb_iso_packet_descriptor *ifd;
 	int corrbytes, nframe, rc;
+	unsigned long flags;
 
 	/* urb->dev is clobbered by USB subsystem */
 	urb->dev = ucx->bcs->cs->hw.bas->udev;
@@ -995,7 +993,11 @@ static int submit_iso_write_urb(struct isow_urbctx_t *ucx)
 		ifd->actual_length = 0;
 	}
 	if ((urb->number_of_packets = nframe) > 0) {
-		if ((rc = usb_submit_urb(urb, SLAB_ATOMIC)) != 0) {
+		spin_lock_irqsave(&ucx->bcs->cs->lock, flags);
+		rc = ucx->bcs->cs->connected ? usb_submit_urb(urb, SLAB_ATOMIC) : -ENODEV;
+		spin_unlock_irqrestore(&ucx->bcs->cs->lock, flags);
+
+		if (rc) {
 			dev_err(ucx->bcs->cs->dev,
 				"could not submit isochronous write URB: %s\n",
 				get_usb_statmsg(rc));
@@ -1029,11 +1031,6 @@ static void write_iso_tasklet(unsigned long data)
 
 	/* loop while completed URBs arrive in time */
 	for (;;) {
-		if (unlikely(!atomic_read(&cs->connected))) {
-			warn("%s: disconnected", __func__);
-			return;
-		}
-
 		if (unlikely(!(atomic_read(&ubc->running)))) {
 			gig_dbg(DEBUG_ISO, "%s: not running", __func__);
 			return;
@@ -1190,11 +1187,6 @@ static void read_iso_tasklet(unsigned long data)
 
 	/* loop while more completed URBs arrive in the meantime */
 	for (;;) {
-		if (unlikely(!atomic_read(&cs->connected))) {
-			warn("%s: disconnected", __func__);
-			return;
-		}
-
 		/* retrieve URB */
 		spin_lock_irqsave(&ubc->isoinlock, flags);
 		if (!(urb = ubc->isoindone)) {
@@ -1298,7 +1290,10 @@ static void read_iso_tasklet(unsigned long data)
 		urb->dev = bcs->cs->hw.bas->udev;
 		urb->transfer_flags = URB_ISO_ASAP;
 		urb->number_of_packets = BAS_NUMFRAMES;
-		if ((rc = usb_submit_urb(urb, SLAB_ATOMIC)) != 0) {
+		spin_lock_irqsave(&cs->lock, flags);
+		rc = cs->connected ? usb_submit_urb(urb, SLAB_ATOMIC) : -ENODEV;
+		spin_unlock_irqrestore(&cs->lock, flags);
+		if (rc) {
 			dev_err(cs->dev,
 				"could not resubmit isochronous read URB: %s\n",
 				get_usb_statmsg(rc));
@@ -1639,6 +1634,7 @@ static void atrdy_timeout(unsigned long data)
 static int atwrite_submit(struct cardstate *cs, unsigned char *buf, int len)
 {
 	struct bas_cardstate *ucs = cs->hw.bas;
+	unsigned long flags;
 	int ret;
 
 	gig_dbg(DEBUG_USBREQ, "-------> HD_WRITE_ATMESSAGE (%d)", len);
@@ -1659,7 +1655,11 @@ static int atwrite_submit(struct cardstate *cs, unsigned char *buf, int len)
 			     (unsigned char*) &ucs->dr_cmd_out, buf, len,
 			     write_command_callback, cs);
 
-	if ((ret = usb_submit_urb(ucs->urb_cmd_out, SLAB_ATOMIC)) != 0) {
+	spin_lock_irqsave(&cs->lock, flags);
+	ret = cs->connected ? usb_submit_urb(ucs->urb_cmd_out, SLAB_ATOMIC) : -ENODEV;
+	spin_unlock_irqrestore(&cs->lock, flags);
+
+	if (ret) {
 		dev_err(cs->dev, "could not submit HD_WRITE_ATMESSAGE: %s\n",
 			get_usb_statmsg(ret));
 		return ret;
@@ -1757,11 +1757,6 @@ static int gigaset_write_cmd(struct cardstate *cs,
 	gigaset_dbg_buffer(atomic_read(&cs->mstate) != MS_LOCKED ?
 			     DEBUG_TRANSCMD : DEBUG_LOCKCMD,
 			   "CMD Transmit", len, buf);
-
-	if (unlikely(!atomic_read(&cs->connected))) {
-		err("%s: disconnected", __func__);
-		return -ENODEV;
-	}
 
 	if (len <= 0)
 		return 0;			/* nothing to do */
@@ -2186,6 +2181,7 @@ static int gigaset_probe(struct usb_interface *interface,
 
 error:
 	freeurbs(cs);
+	usb_set_intfdata(interface, NULL);
 	gigaset_unassign(cs);
 	return -ENODEV;
 }

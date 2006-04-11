@@ -990,13 +990,17 @@ void gigaset_isoc_input(struct inbuf_t *inbuf)
 int gigaset_isoc_send_skb(struct bc_state *bcs, struct sk_buff *skb)
 {
 	int len = skb->len;
+	unsigned long flags;
 
 	skb_queue_tail(&bcs->squeue, skb);
 	gig_dbg(DEBUG_ISO, "%s: skb queued, qlen=%d",
 		__func__, skb_queue_len(&bcs->squeue));
 
 	/* tasklet submits URB if necessary */
-	tasklet_schedule(&bcs->hw.bas->sent_tasklet);
+	spin_lock_irqsave(&bcs->cs->lock, flags);
+	if (bcs->cs->connected)
+		tasklet_schedule(&bcs->hw.bas->sent_tasklet);
+	spin_unlock_irqrestore(&bcs->cs->lock, flags);
 
 	return len;	/* ok so far */
 }

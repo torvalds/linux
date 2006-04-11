@@ -55,9 +55,6 @@
 #define GIG_RETRYCID
 #define GIG_X75
 
-#define MAX_TIMER_INDEX 1000
-#define MAX_SEQ_INDEX   1000
-
 #define GIG_TICK 100		/* in milliseconds */
 
 /* timeout values (unit: 1 sec) */
@@ -375,7 +372,7 @@ struct at_state_t {
 	struct list_head	list;
 	int			waiting;
 	int			getstring;
-	atomic_t		timer_index;
+	unsigned		timer_index;
 	unsigned long		timer_expires;
 	int			timer_active;
 	unsigned int		ConState;	/* State of connection */
@@ -384,7 +381,7 @@ struct at_state_t {
 	int			int_var[VAR_NUM];	/* see VAR_XXXX */
 	char			*str_var[STR_NUM];	/* see STR_XXXX */
 	unsigned		pending_commands;	/* see PC_XXXX */
-	atomic_t		seq_index;
+	unsigned		seq_index;
 
 	struct cardstate	*cs;
 	struct bc_state		*bcs;
@@ -484,10 +481,11 @@ struct cardstate {
 	unsigned fwver[4];
 	int gotfwver;
 
-	atomic_t running;		/* !=0 if events are handled */
-	atomic_t connected;		/* !=0 if hardware is connected */
+	unsigned running;		/* !=0 if events are handled */
+	unsigned connected;		/* !=0 if hardware is connected */
+	unsigned isdn_up;		/* !=0 after ISDN_STAT_RUN */
 
-	atomic_t cidmode;
+	unsigned cidmode;
 
 	int myid;			/* id for communication with LL */
 	isdn_if iif;
@@ -528,7 +526,7 @@ struct cardstate {
 
 	/* event queue */
 	struct event_t events[MAX_EVENTS];
-	atomic_t ev_tail, ev_head;
+	unsigned ev_tail, ev_head;
 	spinlock_t ev_lock;
 
 	/* current modem response */
@@ -824,7 +822,7 @@ static inline void gigaset_schedule_event(struct cardstate *cs)
 {
 	unsigned long flags;
 	spin_lock_irqsave(&cs->lock, flags);
-	if (atomic_read(&cs->running))
+	if (cs->running)
 		tasklet_schedule(&cs->event_tasklet);
 	spin_unlock_irqrestore(&cs->lock, flags);
 }
