@@ -581,10 +581,12 @@ ia64_mca_rendez_int_handler(int rendez_irq, void *arg, struct pt_regs *regs)
 {
 	unsigned long flags;
 	int cpu = smp_processor_id();
+	struct ia64_mca_notify_die nd =
+		{ .sos = NULL, .monarch_cpu = &monarch_cpu };
 
 	/* Mask all interrupts */
 	local_irq_save(flags);
-	if (notify_die(DIE_MCA_RENDZVOUS_ENTER, "MCA", regs, 0, 0, 0)
+	if (notify_die(DIE_MCA_RENDZVOUS_ENTER, "MCA", regs, (long)&nd, 0, 0)
 			== NOTIFY_STOP)
 		ia64_mca_spin(__FUNCTION__);
 
@@ -594,7 +596,7 @@ ia64_mca_rendez_int_handler(int rendez_irq, void *arg, struct pt_regs *regs)
 	 */
 	ia64_sal_mc_rendez();
 
-	if (notify_die(DIE_MCA_RENDZVOUS_PROCESS, "MCA", regs, 0, 0, 0)
+	if (notify_die(DIE_MCA_RENDZVOUS_PROCESS, "MCA", regs, (long)&nd, 0, 0)
 			== NOTIFY_STOP)
 		ia64_mca_spin(__FUNCTION__);
 
@@ -602,7 +604,7 @@ ia64_mca_rendez_int_handler(int rendez_irq, void *arg, struct pt_regs *regs)
 	while (monarch_cpu != -1)
 	       cpu_relax();	/* spin until monarch leaves */
 
-	if (notify_die(DIE_MCA_RENDZVOUS_LEAVE, "MCA", regs, 0, 0, 0)
+	if (notify_die(DIE_MCA_RENDZVOUS_LEAVE, "MCA", regs, (long)&nd, 0, 0)
 			== NOTIFY_STOP)
 		ia64_mca_spin(__FUNCTION__);
 
@@ -1023,6 +1025,8 @@ ia64_mca_handler(struct pt_regs *regs, struct switch_stack *sw,
 		&sos->proc_state_param;
 	int recover, cpu = smp_processor_id();
 	task_t *previous_current;
+	struct ia64_mca_notify_die nd =
+		{ .sos = sos, .monarch_cpu = &monarch_cpu };
 
 	oops_in_progress = 1;	/* FIXME: make printk NMI/MCA/INIT safe */
 	console_loglevel = 15;	/* make sure printks make it to console */
@@ -1031,7 +1035,7 @@ ia64_mca_handler(struct pt_regs *regs, struct switch_stack *sw,
 
 	previous_current = ia64_mca_modify_original_stack(regs, sw, sos, "MCA");
 	monarch_cpu = cpu;
-	if (notify_die(DIE_MCA_MONARCH_ENTER, "MCA", regs, 0, 0, 0)
+	if (notify_die(DIE_MCA_MONARCH_ENTER, "MCA", regs, (long)&nd, 0, 0)
 			== NOTIFY_STOP)
 		ia64_mca_spin(__FUNCTION__);
 	ia64_wait_for_slaves(cpu);
@@ -1043,7 +1047,7 @@ ia64_mca_handler(struct pt_regs *regs, struct switch_stack *sw,
 	 * spinning in SAL does not work.
 	 */
 	ia64_mca_wakeup_all();
-	if (notify_die(DIE_MCA_MONARCH_PROCESS, "MCA", regs, 0, 0, 0)
+	if (notify_die(DIE_MCA_MONARCH_PROCESS, "MCA", regs, (long)&nd, 0, 0)
 			== NOTIFY_STOP)
 		ia64_mca_spin(__FUNCTION__);
 
@@ -1064,7 +1068,7 @@ ia64_mca_handler(struct pt_regs *regs, struct switch_stack *sw,
 		ia64_sal_clear_state_info(SAL_INFO_TYPE_MCA);
 		sos->os_status = IA64_MCA_CORRECTED;
 	}
-	if (notify_die(DIE_MCA_MONARCH_LEAVE, "MCA", regs, 0, 0, recover)
+	if (notify_die(DIE_MCA_MONARCH_LEAVE, "MCA", regs, (long)&nd, 0, recover)
 			== NOTIFY_STOP)
 		ia64_mca_spin(__FUNCTION__);
 
@@ -1351,9 +1355,13 @@ ia64_init_handler(struct pt_regs *regs, struct switch_stack *sw,
 	static atomic_t monarchs;
 	task_t *previous_current;
 	int cpu = smp_processor_id();
+	struct ia64_mca_notify_die nd =
+		{ .sos = sos, .monarch_cpu = &monarch_cpu };
 
 	oops_in_progress = 1;	/* FIXME: make printk NMI/MCA/INIT safe */
 	console_loglevel = 15;	/* make sure printks make it to console */
+
+	(void) notify_die(DIE_INIT_ENTER, "INIT", regs, (long)&nd, 0, 0);
 
 	printk(KERN_INFO "Entered OS INIT handler. PSP=%lx cpu=%d monarch=%ld\n",
 		sos->proc_state_param, cpu, sos->monarch);
@@ -1390,15 +1398,15 @@ ia64_init_handler(struct pt_regs *regs, struct switch_stack *sw,
 		ia64_mc_info.imi_rendez_checkin[cpu] = IA64_MCA_RENDEZ_CHECKIN_INIT;
 		while (monarch_cpu == -1)
 		       cpu_relax();	/* spin until monarch enters */
-		if (notify_die(DIE_INIT_SLAVE_ENTER, "INIT", regs, 0, 0, 0)
+		if (notify_die(DIE_INIT_SLAVE_ENTER, "INIT", regs, (long)&nd, 0, 0)
 				== NOTIFY_STOP)
 			ia64_mca_spin(__FUNCTION__);
-		if (notify_die(DIE_INIT_SLAVE_PROCESS, "INIT", regs, 0, 0, 0)
+		if (notify_die(DIE_INIT_SLAVE_PROCESS, "INIT", regs, (long)&nd, 0, 0)
 				== NOTIFY_STOP)
 			ia64_mca_spin(__FUNCTION__);
 		while (monarch_cpu != -1)
 		       cpu_relax();	/* spin until monarch leaves */
-		if (notify_die(DIE_INIT_SLAVE_LEAVE, "INIT", regs, 0, 0, 0)
+		if (notify_die(DIE_INIT_SLAVE_LEAVE, "INIT", regs, (long)&nd, 0, 0)
 				== NOTIFY_STOP)
 			ia64_mca_spin(__FUNCTION__);
 		printk("Slave on cpu %d returning to normal service.\n", cpu);
@@ -1409,7 +1417,7 @@ ia64_init_handler(struct pt_regs *regs, struct switch_stack *sw,
 	}
 
 	monarch_cpu = cpu;
-	if (notify_die(DIE_INIT_MONARCH_ENTER, "INIT", regs, 0, 0, 0)
+	if (notify_die(DIE_INIT_MONARCH_ENTER, "INIT", regs, (long)&nd, 0, 0)
 			== NOTIFY_STOP)
 		ia64_mca_spin(__FUNCTION__);
 
@@ -1426,10 +1434,10 @@ ia64_init_handler(struct pt_regs *regs, struct switch_stack *sw,
 	 * to default_monarch_init_process() above and just print all the
 	 * tasks.
 	 */
-	if (notify_die(DIE_INIT_MONARCH_PROCESS, "INIT", regs, 0, 0, 0)
+	if (notify_die(DIE_INIT_MONARCH_PROCESS, "INIT", regs, (long)&nd, 0, 0)
 			== NOTIFY_STOP)
 		ia64_mca_spin(__FUNCTION__);
-	if (notify_die(DIE_INIT_MONARCH_LEAVE, "INIT", regs, 0, 0, 0)
+	if (notify_die(DIE_INIT_MONARCH_LEAVE, "INIT", regs, (long)&nd, 0, 0)
 			== NOTIFY_STOP)
 		ia64_mca_spin(__FUNCTION__);
 	printk("\nINIT dump complete.  Monarch on cpu %d returning to normal service.\n", cpu);
@@ -1631,6 +1639,7 @@ ia64_mca_init(void)
 			printk(KERN_INFO "Increasing MCA rendezvous timeout from "
 				"%ld to %ld milliseconds\n", timeout, isrv.v0);
 			timeout = isrv.v0;
+			(void) notify_die(DIE_MCA_NEW_TIMEOUT, "MCA", NULL, timeout, 0, 0);
 			continue;
 		}
 		printk(KERN_ERR "Failed to register rendezvous interrupt "

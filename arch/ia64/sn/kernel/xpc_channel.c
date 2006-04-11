@@ -1831,7 +1831,7 @@ xpc_initiate_allocate(partid_t partid, int ch_number, u32 flags, void **payload)
 {
 	struct xpc_partition *part = &xpc_partitions[partid];
 	enum xpc_retval ret = xpcUnknownReason;
-	struct xpc_msg *msg;
+	struct xpc_msg *msg = NULL;
 
 
 	DBUG_ON(partid <= 0 || partid >= XP_MAX_PARTITIONS);
