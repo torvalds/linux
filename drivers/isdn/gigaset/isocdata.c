@@ -957,11 +957,11 @@ void gigaset_isoc_input(struct inbuf_t *inbuf)
 
 		if (atomic_read(&cs->mstate) == MS_LOCKED) {
 			gigaset_dbg_buffer(DEBUG_LOCKCMD, "received response",
-					   numbytes, src, 0);
+					   numbytes, src);
 			gigaset_if_receive(inbuf->cs, src, numbytes);
 		} else {
 			gigaset_dbg_buffer(DEBUG_CMD, "received response",
-					   numbytes, src, 0);
+					   numbytes, src);
 			cmd_loop(src, numbytes, inbuf);
 		}
 

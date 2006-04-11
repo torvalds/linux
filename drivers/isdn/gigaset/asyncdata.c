@@ -98,7 +98,7 @@ static inline int lock_loop(unsigned char *src, int numbytes,
 	struct cardstate *cs = inbuf->cs;
 
 	gigaset_dbg_buffer(DEBUG_LOCKCMD, "received response",
-			   numbytes, src, 0);
+			   numbytes, src);
 	gigaset_if_receive(cs, src, numbytes);
 
 	return numbytes;

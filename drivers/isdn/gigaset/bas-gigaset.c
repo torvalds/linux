@@ -1756,7 +1756,7 @@ static int gigaset_write_cmd(struct cardstate *cs,
 
 	gigaset_dbg_buffer(atomic_read(&cs->mstate) != MS_LOCKED ?
 			     DEBUG_TRANSCMD : DEBUG_LOCKCMD,
-			   "CMD Transmit", len, buf, 0);
+			   "CMD Transmit", len, buf);
 
 	if (unlikely(!atomic_read(&cs->connected))) {
 		err("%s: disconnected", __func__);

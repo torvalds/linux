@@ -79,50 +79,34 @@ __u8 gigaset_invtab[256] = {
 EXPORT_SYMBOL_GPL(gigaset_invtab);
 
 void gigaset_dbg_buffer(enum debuglevel level, const unsigned char *msg,
-			size_t len, const unsigned char *buf, int from_user)
+			size_t len, const unsigned char *buf)
 {
 	unsigned char outbuf[80];
-	unsigned char inbuf[80 - 1];
 	unsigned char c;
-	size_t numin;
-	const unsigned char *in;
 	size_t space = sizeof outbuf - 1;
 	unsigned char *out = outbuf;
+	size_t numin = len;
 
-	if (!from_user) {
-		in = buf;
-		numin = len;
-	} else {
-		numin = len < sizeof inbuf ? len : sizeof inbuf;
-		in = inbuf;
-		if (copy_from_user(inbuf, (const unsigned char __user *) buf,
-				   numin)) {
-			gig_dbg(level, "%s (%u bytes) - copy_from_user failed",
-				msg, (unsigned) len);
-			return;
-		}
-	}
-
-	while (numin-- > 0) {
+	while (numin--) {
 		c = *buf++;
 		if (c == '~' || c == '^' || c == '\\') {
-			if (space-- <= 0)
+			if (!space--)
 				break;
 			*out++ = '\\';
 		}
 		if (c & 0x80) {
-			if (space-- <= 0)
+			if (!space--)
 				break;
 			*out++ = '~';
 			c ^= 0x80;
 		}
 		if (c < 0x20 || c == 0x7f) {
-			if (space-- <= 0)
+			if (!space--)
 				break;
 			*out++ = '^';
 			c ^= 0x40;
 		}
-		if (space-- <= 0)
+		if (!space--)
 			break;
 		*out++ = c;
 	}

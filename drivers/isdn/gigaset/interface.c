@@ -246,8 +246,6 @@ static int if_ioctl(struct tty_struct *tty, struct file *file,
 			break;
 		case GIGASET_BRKCHARS:
 			//FIXME test if MS_LOCKED
-			gigaset_dbg_buffer(DEBUG_IF, "GIGASET_BRKCHARS",
-					   6, (const unsigned char *) arg, 1);
 			if (!atomic_read(&cs->connected)) {
 				gig_dbg(DEBUG_ANY,
 				    "can't communicate with unplugged device");
@@ -257,8 +255,11 @@ static int if_ioctl(struct tty_struct *tty, struct file *file,
 			retval = copy_from_user(&buf,
 					(const unsigned char __user *) arg, 6)
 				? -EFAULT : 0;
-			if (retval >= 0)
+			if (retval >= 0) {
+				gigaset_dbg_buffer(DEBUG_IF, "GIGASET_BRKCHARS",
+						6, (const unsigned char *) arg);
 				retval = cs->ops->brkchars(cs, buf);
+			}
 			break;
 		case GIGASET_VERSION:
 			retval = copy_from_user(version,

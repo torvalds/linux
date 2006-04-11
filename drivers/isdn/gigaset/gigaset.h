@@ -154,7 +154,7 @@ enum debuglevel { /* up to 24 bits (atomic_t) */
 #endif
 
 void gigaset_dbg_buffer(enum debuglevel level, const unsigned char *msg,
-			size_t len, const unsigned char *buf, int from_user);
+			size_t len, const unsigned char *buf);
 
 /* connection state */
 #define ZSAU_NONE			0

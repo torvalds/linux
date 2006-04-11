@@ -500,7 +500,7 @@ static int gigaset_write_cmd(struct cardstate *cs, const unsigned char *buf,
 
 	gigaset_dbg_buffer(atomic_read(&cs->mstate) != MS_LOCKED ?
 			     DEBUG_TRANSCMD : DEBUG_LOCKCMD,
-			   "CMD Transmit", len, buf, 0);
+			   "CMD Transmit", len, buf);
 
 	if (!atomic_read(&cs->connected)) {
 		err("%s: not connected", __func__);
@@ -559,7 +559,7 @@ static int gigaset_brkchars(struct cardstate *cs, const unsigned char buf[6])
 #ifdef CONFIG_GIGASET_UNDOCREQ
 	struct usb_device *udev = cs->hw.usb->udev;
 
-	gigaset_dbg_buffer(DEBUG_USBREQ, "brkchars", 6, buf, 0);
+	gigaset_dbg_buffer(DEBUG_USBREQ, "brkchars", 6, buf);
 	memcpy(cs->hw.usb->bchars, buf, 6);
 	return usb_control_msg(udev, usb_sndctrlpipe(udev, 0), 0x19, 0x41,
 			       0, 0, &buf, 6, 2000);
