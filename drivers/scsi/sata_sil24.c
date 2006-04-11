@@ -432,8 +432,7 @@ static int sil24_softreset(struct ata_port *ap, unsigned int *class)
 	struct sil24_port_priv *pp = ap->private_data;
 	struct sil24_prb *prb = &pp->cmd_block[0].ata.prb;
 	dma_addr_t paddr = pp->cmd_block_dma;
-	unsigned long timeout = jiffies + ATA_TMOUT_BOOT;
-	u32 irq_enable, irq_stat;
+	u32 mask, irq_enable, irq_stat;
 	const char *reason;
 
 	DPRINTK("ENTER\n");
@@ -459,16 +458,12 @@ static int sil24_softreset(struct ata_port *ap, unsigned int *class)
 
 	writel((u32)paddr, port + PORT_CMD_ACTIVATE);
 
-	do {
-		irq_stat = readl(port + PORT_IRQ_STAT);
-		writel(irq_stat, port + PORT_IRQ_STAT);		/* clear irq */
+	mask = (PORT_IRQ_COMPLETE | PORT_IRQ_ERROR) << PORT_IRQ_RAW_SHIFT;
+	irq_stat = ata_wait_register(port + PORT_IRQ_STAT, mask, 0x0,
+				     100, ATA_TMOUT_BOOT / HZ * 1000);
 
-		irq_stat >>= PORT_IRQ_RAW_SHIFT;
-		if (irq_stat & (PORT_IRQ_COMPLETE | PORT_IRQ_ERROR))
-			break;
-
-		msleep(100);
-	} while (time_before(jiffies, timeout));
+	writel(irq_stat, port + PORT_IRQ_STAT); /* clear IRQs */
+	irq_stat >>= PORT_IRQ_RAW_SHIFT;
 
 	/* restore IRQs */
 	writel(irq_enable, port + PORT_IRQ_ENABLE_SET);
@@ -937,14 +932,13 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* GPIO off */
 	writel(0, host_base + HOST_FLASH_CMD);
 
-	/* Mask interrupts during initialization */
+	/* clear global reset & mask interrupts during initialization */
 	writel(0, host_base + HOST_CTRL);
 
 	for (i = 0; i < probe_ent->n_ports; i++) {
 		void __iomem *port = port_base + i * PORT_REGS_SIZE;
 		unsigned long portu = (unsigned long)port;
 		u32 tmp;
-		int cnt;
 
 		probe_ent->port[i].cmd_addr = portu + PORT_PRB;
 		probe_ent->port[i].scr_addr = portu + PORT_SCONTROL;
@@ -958,13 +952,9 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		tmp = readl(port + PORT_CTRL_STAT);
 		if (tmp & PORT_CS_PORT_RST) {
 			writel(PORT_CS_PORT_RST, port + PORT_CTRL_CLR);
-			readl(port + PORT_CTRL_STAT);	/* sync */
-			for (cnt = 0; cnt < 10; cnt++) {
-				msleep(10);
-				tmp = readl(port + PORT_CTRL_STAT);
-				if (!(tmp & PORT_CS_PORT_RST))
-					break;
-			}
+			tmp = ata_wait_register(port + PORT_CTRL_STAT,
+						PORT_CS_PORT_RST,
+						PORT_CS_PORT_RST, 10, 100);
 			if (tmp & PORT_CS_PORT_RST)
 				dev_printk(KERN_ERR, &pdev->dev,
 				           "failed to clear port RST\n");
