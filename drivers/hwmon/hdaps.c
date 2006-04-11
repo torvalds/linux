@@ -544,7 +544,7 @@ static int __init hdaps_init(void)
 
 	if (!dmi_check_system(hdaps_whitelist)) {
 		printk(KERN_WARNING "hdaps: supported laptop not found!\n");
-		ret = -ENXIO;
+		ret = -ENODEV;
 		goto out;
 	}
 
