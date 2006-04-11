@@ -1,6 +1,6 @@
 /*
   FUSE: Filesystem in Userspace
-  Copyright (C) 2001-2005  Miklos Szeredi <miklos@szeredi.hu>
+  Copyright (C) 2001-2006  Miklos Szeredi <miklos@szeredi.hu>
 
   This program can be distributed under the terms of the GNU GPL.
   See the file COPYING.
@@ -22,7 +22,6 @@ MODULE_AUTHOR("Miklos Szeredi <miklos@szeredi.hu>");
 MODULE_DESCRIPTION("Filesystem in Userspace");
 MODULE_LICENSE("GPL");
 
-spinlock_t fuse_lock;
 static kmem_cache_t *fuse_inode_cachep;
 static struct subsystem connections_subsys;
 
@@ -207,13 +206,14 @@ static void fuse_put_super(struct super_block *sb)
 
 	down_write(&fc->sbput_sem);
 	while (!list_empty(&fc->background))
-		fuse_release_background(list_entry(fc->background.next,
+		fuse_release_background(fc,
+					list_entry(fc->background.next,
 						   struct fuse_req, bg_entry));
 
-	spin_lock(&fuse_lock);
+	spin_lock(&fc->lock);
 	fc->mounted = 0;
 	fc->connected = 0;
-	spin_unlock(&fuse_lock);
+	spin_unlock(&fc->lock);
 	up_write(&fc->sbput_sem);
 	/* Flush all readers on this fs */
 	kill_fasync(&fc->fasync, SIGIO, POLL_IN);
@@ -388,6 +388,7 @@ static struct fuse_conn *new_conn(void)
 	fc = kzalloc(sizeof(*fc), GFP_KERNEL);
 	if (fc) {
 		int i;
+		spin_lock_init(&fc->lock);
 		init_waitqueue_head(&fc->waitq);
 		INIT_LIST_HEAD(&fc->pending);
 		INIT_LIST_HEAD(&fc->processing);
@@ -734,7 +735,6 @@ static int __init fuse_init(void)
 	printk("fuse init (API version %i.%i)\n",
 	       FUSE_KERNEL_VERSION, FUSE_KERNEL_MINOR_VERSION);
 
-	spin_lock_init(&fuse_lock);
 	res = fuse_fs_init();
 	if (res)
 		goto err;

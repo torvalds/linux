@@ -1,6 +1,6 @@
 /*
   FUSE: Filesystem in Userspace
-  Copyright (C) 2001-2005  Miklos Szeredi <miklos@szeredi.hu>
+  Copyright (C) 2001-2006  Miklos Szeredi <miklos@szeredi.hu>
 
   This program can be distributed under the terms of the GNU GPL.
   See the file COPYING.
@@ -144,7 +144,7 @@ struct fuse_req {
 	/*
 	 * The following bitfields are either set once before the
 	 * request is queued or setting/clearing them is protected by
-	 * fuse_lock
+	 * fuse_conn->lock
 	 */
 
 	/** True if the request has reply */
@@ -213,6 +213,9 @@ struct fuse_req {
  * unmounted.
  */
 struct fuse_conn {
+	/** Lock protecting accessess to  members of this structure */
+	spinlock_t lock;
+
 	/** The user id for this mount */
 	uid_t user_id;
 
@@ -352,21 +355,6 @@ static inline u64 get_node_id(struct inode *inode)
 extern const struct file_operations fuse_dev_operations;
 
 /**
- * This is the single global spinlock which protects FUSE's structures
- *
- * The following data is protected by this lock:
- *
- *  - the private_data field of the device file
- *  - the s_fs_info field of the super block
- *  - unused_list, pending, processing lists in fuse_conn
- *  - background list in fuse_conn
- *  - the unique request ID counter reqctr in fuse_conn
- *  - the sb (super_block) field in fuse_conn
- *  - the file (device file) field in fuse_conn
- */
-extern spinlock_t fuse_lock;
-
-/**
  * Get a filled in inode
  */
 struct inode *fuse_iget(struct super_block *sb, unsigned long nodeid,
@@ -490,7 +478,7 @@ void request_send_background(struct fuse_conn *fc, struct fuse_req *req);
 /**
  * Release inodes and file associated with background request
  */
-void fuse_release_background(struct fuse_req *req);
+void fuse_release_background(struct fuse_conn *fc, struct fuse_req *req);
 
 /* Abort all requests */
 void fuse_abort_conn(struct fuse_conn *fc);
