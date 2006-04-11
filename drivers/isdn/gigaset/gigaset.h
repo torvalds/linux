@@ -58,7 +58,7 @@
 #define MAX_TIMER_INDEX 1000
 #define MAX_SEQ_INDEX   1000
 
-#define GIG_TICK (HZ / 10)
+#define GIG_TICK 100		/* in milliseconds */
 
 /* timeout values (unit: 1 sec) */
 #define INIT_TIMEOUT 1

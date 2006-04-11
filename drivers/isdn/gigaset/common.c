@@ -219,7 +219,7 @@ static void timer_tick(unsigned long data)
 			timeout = 1;
 
 	if (atomic_read(&cs->running)) {
-		mod_timer(&cs->timer, jiffies + GIG_TICK);
+		mod_timer(&cs->timer, jiffies + msecs_to_jiffies(GIG_TICK));
 		if (timeout) {
 			dbg(DEBUG_CMD, "scheduling timeout");
 			tasklet_schedule(&cs->event_tasklet);
@@ -685,9 +685,8 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 	gigaset_if_init(cs);
 
 	atomic_set(&cs->running, 1);
-	cs->timer.data = (unsigned long) cs;
-	cs->timer.function = timer_tick;
-	cs->timer.expires = jiffies + GIG_TICK;
+	setup_timer(&cs->timer, timer_tick, (unsigned long) cs);
+	cs->timer.expires = jiffies + msecs_to_jiffies(GIG_TICK);
 	/* FIXME: can jiffies increase too much until the timer is added?
 	 * Same problem(?) with mod_timer() in timer_tick(). */
 	add_timer(&cs->timer);
