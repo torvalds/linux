@@ -397,8 +397,12 @@ static int fuse_readpages(struct file *file, struct address_space *mapping,
 		return -EINTR;
 
 	err = read_cache_pages(mapping, pages, fuse_readpages_fill, &data);
-	if (!err)
-		fuse_send_readpages(data.req, file, inode);
+	if (!err) {
+		if (data.req->num_pages)
+			fuse_send_readpages(data.req, file, inode);
+		else
+			fuse_put_request(fc, data.req);
+	}
 	return err;
 }
 
