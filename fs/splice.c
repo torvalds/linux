@@ -9,11 +9,12 @@
  * that transfers data buffers to or from a pipe buffer.
  *
  * Named by Larry McVoy, original implementation from Linus, extended by
- * Jens to support splicing to files and fixing the initial implementation
- * bugs.
+ * Jens to support splicing to files, network, direct splicing, etc and
+ * fixing lots of bugs.
  *
- * Copyright (C) 2005 Jens Axboe <axboe@suse.de>
- * Copyright (C) 2005 Linus Torvalds <torvalds@osdl.org>
+ * Copyright (C) 2005-2006 Jens Axboe <axboe@suse.de>
+ * Copyright (C) 2005-2006 Linus Torvalds <torvalds@osdl.org>
+ * Copyright (C) 2006 Ingo Molnar <mingo@elte.hu>
  *
  */
 #include <linux/fs.h>
