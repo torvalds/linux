@@ -3,8 +3,7 @@ menu "Siemens Gigaset"
 
 config ISDN_DRV_GIGASET
 	tristate "Siemens Gigaset support (isdn)"
-	depends on ISDN_I4L && m
-#	depends on ISDN_I4L && MODULES
+	depends on ISDN_I4L && CRC_CCITT
 	help
 	  Say m here if you have a Gigaset or Sinus isdn device.
 
