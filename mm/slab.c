@@ -2318,13 +2318,15 @@ EXPORT_SYMBOL(kmem_cache_destroy);
 
 /* Get the memory for a slab management obj. */
 static struct slab *alloc_slabmgmt(struct kmem_cache *cachep, void *objp,
-				   int colour_off, gfp_t local_flags)
+				   int colour_off, gfp_t local_flags,
+				   int nodeid)
 {
 	struct slab *slabp;
 
 	if (OFF_SLAB(cachep)) {
 		/* Slab management obj is off-slab. */
-		slabp = kmem_cache_alloc(cachep->slabp_cache, local_flags);
+		slabp = kmem_cache_alloc_node(cachep->slabp_cache,
+					      local_flags, nodeid);
 		if (!slabp)
 			return NULL;
 	} else {
@@ -2334,6 +2336,7 @@ static struct slab *alloc_slabmgmt(struct kmem_cache *cachep, void *objp,
 	slabp->inuse = 0;
 	slabp->colouroff = colour_off;
 	slabp->s_mem = objp + colour_off;
+	slabp->nodeid = nodeid;
 	return slabp;
 }
 
@@ -2519,7 +2522,7 @@ static int cache_grow(struct kmem_cache *cachep, gfp_t flags, int nodeid)
 		goto failed;
 
 	/* Get slab management. */
-	slabp = alloc_slabmgmt(cachep, objp, offset, local_flags);
+	slabp = alloc_slabmgmt(cachep, objp, offset, local_flags, nodeid);
 	if (!slabp)
 		goto opps1;
 
