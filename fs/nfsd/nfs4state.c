@@ -2497,7 +2497,7 @@ nfs4_transform_lock_offset(struct file_lock *lock)
 
 /* Hack!: For now, we're defining this just so we can use a pointer to it
  * as a unique cookie to identify our (NFSv4's) posix locks. */
-struct lock_manager_operations nfsd_posix_mng_ops  = {
+static struct lock_manager_operations nfsd_posix_mng_ops  = {
 };
 
 static inline void
