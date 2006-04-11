@@ -189,6 +189,7 @@ typedef struct xfs_ihash {
  */
 typedef struct xfs_chashlist {
 	struct xfs_chashlist	*chl_next;
+	struct xfs_chashlist	*chl_prev;
 	struct xfs_inode	*chl_ip;
 	xfs_daddr_t		chl_blkno;	/* starting block number of
 						 * the cluster */
