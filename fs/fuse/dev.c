@@ -92,30 +92,39 @@ struct fuse_req *fuse_get_req(struct fuse_conn *fc)
 {
 	struct fuse_req *req;
 	sigset_t oldset;
+	int intr;
 	int err;
 
+	atomic_inc(&fc->num_waiting);
 	block_sigs(&oldset);
-	err = wait_event_interruptible(fc->blocked_waitq, !fc->blocked);
+	intr = wait_event_interruptible(fc->blocked_waitq, !fc->blocked);
 	restore_sigs(&oldset);
-	if (err)
-		return ERR_PTR(-EINTR);
+	err = -EINTR;
+	if (intr)
+		goto out;
 
 	req = fuse_request_alloc();
+	err = -ENOMEM;
 	if (!req)
-		return ERR_PTR(-ENOMEM);
+		goto out;
 
-	atomic_inc(&fc->num_waiting);
 	fuse_request_init(req);
 	req->in.h.uid = current->fsuid;
 	req->in.h.gid = current->fsgid;
 	req->in.h.pid = current->pid;
+	req->waiting = 1;
 	return req;
+
+ out:
+	atomic_dec(&fc->num_waiting);
+	return ERR_PTR(err);
 }
 
 void fuse_put_request(struct fuse_conn *fc, struct fuse_req *req)
 {
 	if (atomic_dec_and_test(&req->count)) {
-		atomic_dec(&fc->num_waiting);
+		if (req->waiting)
+			atomic_dec(&fc->num_waiting);
 		fuse_request_free(req);
 	}
 }
@@ -281,6 +290,10 @@ static void queue_request(struct fuse_conn *fc, struct fuse_req *req)
 		len_args(req->in.numargs, (struct fuse_arg *) req->in.args);
 	list_add_tail(&req->list, &fc->pending);
 	req->state = FUSE_REQ_PENDING;
+	if (!req->waiting) {
+		req->waiting = 1;
+		atomic_inc(&fc->num_waiting);
+	}
 	wake_up(&fc->waitq);
 	kill_fasync(&fc->fasync, SIGIO, POLL_IN);
 }
