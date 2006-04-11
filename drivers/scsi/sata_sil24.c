@@ -432,7 +432,7 @@ static int sil24_softreset(struct ata_port *ap, unsigned int *class)
 	struct sil24_port_priv *pp = ap->private_data;
 	struct sil24_prb *prb = &pp->cmd_block[0].ata.prb;
 	dma_addr_t paddr = pp->cmd_block_dma;
-	unsigned long timeout = jiffies + ATA_TMOUT_BOOT * HZ;
+	unsigned long timeout = jiffies + ATA_TMOUT_BOOT;
 	u32 irq_enable, irq_stat;
 
 	DPRINTK("ENTER\n");
