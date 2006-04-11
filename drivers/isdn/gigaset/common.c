@@ -1110,8 +1110,9 @@ struct gigaset_driver *gigaset_initdriver(unsigned minor, unsigned minors,
 	drv = kmalloc(sizeof *drv, GFP_KERNEL);
 	if (!drv)
 		return NULL;
+
 	if (!try_module_get(owner))
-		return NULL;
+		goto out1;
 
 	drv->cs = NULL;
 	drv->have_tty = 0;
@@ -1125,10 +1126,11 @@ struct gigaset_driver *gigaset_initdriver(unsigned minor, unsigned minors,
 
 	drv->cs = kmalloc(minors * sizeof *drv->cs, GFP_KERNEL);
 	if (!drv->cs)
-		goto out1;
+		goto out2;
+
 	drv->flags = kmalloc(minors * sizeof *drv->flags, GFP_KERNEL);
 	if (!drv->flags)
-		goto out2;
+		goto out3;
 
 	for (i = 0; i < minors; ++i) {
 		drv->flags[i] = 0;
@@ -1145,11 +1147,12 @@ struct gigaset_driver *gigaset_initdriver(unsigned minor, unsigned minors,
 
 	return drv;
 
-out2:
+out3:
 	kfree(drv->cs);
+out2:
+	module_put(owner);
 out1:
 	kfree(drv);
-	module_put(owner);
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(gigaset_initdriver);
