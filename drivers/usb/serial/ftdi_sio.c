@@ -308,6 +308,7 @@ static struct ftdi_sio_quirk ftdi_HE_TIRA1_quirk = {
 
 static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(FTDI_VID, FTDI_IRTRANS_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_IPLUS_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_SIO_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_8U232AM_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_8U232AM_ALT_PID) },

@@ -39,6 +39,9 @@
 /* www.thoughttechnology.com/ TT-USB provide with procomp use ftdi_sio */
 #define FTDI_TTUSB_PID 0xFF20 /* Product Id */
 
+/* iPlus device */
+#define FTDI_IPLUS_PID 0xD070 /* Product Id */
+
 /* www.crystalfontz.com devices - thanx for providing free devices for evaluation ! */
 /* they use the ftdi chipset for the USB interface and the vendor id is the same */
 #define FTDI_XF_632_PID 0xFC08	/* 632: 16x2 Character Display */
