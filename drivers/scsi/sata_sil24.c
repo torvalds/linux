@@ -473,7 +473,7 @@ static int sil24_softreset(struct ata_port *ap, unsigned int *class)
 	writel(irq_enable, port + PORT_IRQ_ENABLE_SET);
 
 	if (!(irq_stat & PORT_IRQ_COMPLETE)) {
-		DPRINTK("EXIT, srst failed\n");
+		printk(KERN_ERR "ata%u: softreset failed (timeout)\n", ap->id);
 		return -EIO;
 	}
 

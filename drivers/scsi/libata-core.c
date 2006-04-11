@@ -2232,8 +2232,10 @@ static unsigned int ata_bus_softreset(struct ata_port *ap,
 	 * the bus shows 0xFF because the odd clown forgets the D7
 	 * pulldown resistor.
 	 */
-	if (ata_check_status(ap) == 0xFF)
+	if (ata_check_status(ap) == 0xFF) {
+		printk(KERN_ERR "ata%u: SRST failed (status 0xFF)\n", ap->id);
 		return AC_ERR_OTHER;
+	}
 
 	ata_bus_post_reset(ap, devmask);
 
@@ -2494,8 +2496,8 @@ int sata_std_hardreset(struct ata_port *ap, unsigned int *class)
 	}
 
 	if (ata_busy_sleep(ap, ATA_TMOUT_BOOT_QUICK, ATA_TMOUT_BOOT)) {
-		printk(KERN_ERR "ata%u: COMRESET failed "
-		       "(device not ready)\n", ap->id);
+		printk(KERN_ERR
+		       "ata%u: COMRESET failed (device not ready)\n", ap->id);
 		return -EIO;
 	}
 
