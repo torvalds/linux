@@ -451,8 +451,6 @@ static int x1205_rtc_proc(struct device *dev, struct seq_file *seq)
 {
 	int err, dtrim, atrim;
 
-	seq_printf(seq, "24hr\t\t: yes\n");
-
 	if ((err = x1205_get_dtrim(to_i2c_client(dev), &dtrim)) == 0)
 		seq_printf(seq, "digital_trim\t: %d ppm\n", dtrim);
 

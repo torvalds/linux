@@ -151,9 +151,8 @@ static int rs5c372_rtc_proc(struct device *dev, struct seq_file *seq)
 {
 	int err, osc, trim;
 
-	seq_printf(seq, "24hr\t\t: yes\n");
-
-	if ((err = rs5c372_get_trim(to_i2c_client(dev), &osc, &trim)) == 0) {
+	err = rs5c372_get_trim(to_i2c_client(dev), &osc, &trim);
+	if (err == 0) {
 		seq_printf(seq, "%d.%03d KHz\n", osc / 1000, osc % 1000);
 		seq_printf(seq, "trim\t: %d\n", trim);
 	}

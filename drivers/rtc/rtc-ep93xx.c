@@ -67,7 +67,6 @@ static int ep93xx_rtc_proc(struct device *dev, struct seq_file *seq)
 
 	ep93xx_get_swcomp(dev, &preload, &delete);
 
-	seq_printf(seq, "24hr\t\t: yes\n");
 	seq_printf(seq, "preload\t\t: %d\n", preload);
 	seq_printf(seq, "delete\t\t: %d\n", delete);
 

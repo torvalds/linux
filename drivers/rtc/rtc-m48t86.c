@@ -127,9 +127,6 @@ static int m48t86_rtc_proc(struct device *dev, struct seq_file *seq)
 
 	reg = ops->readb(M48T86_REG_B);
 
-	seq_printf(seq, "24hr\t\t: %s\n",
-		 (reg & M48T86_REG_B_H24) ? "yes" : "no");
-
 	seq_printf(seq, "mode\t\t: %s\n",
 		 (reg & M48T86_REG_B_DM) ? "binary" : "bcd");
 

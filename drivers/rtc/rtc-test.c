@@ -49,7 +49,6 @@ static int test_rtc_proc(struct device *dev, struct seq_file *seq)
 {
 	struct platform_device *plat_dev = to_platform_device(dev);
 
-	seq_printf(seq, "24hr\t\t: yes\n");
 	seq_printf(seq, "test\t\t: yes\n");
 	seq_printf(seq, "id\t\t: %d\n", plat_dev->id);
 
