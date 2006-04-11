@@ -38,12 +38,6 @@
 int smp_found_config;
 unsigned int __initdata maxcpus = NR_CPUS;
 
-#ifdef CONFIG_HOTPLUG_CPU
-#define CPU_HOTPLUG_ENABLED	(1)
-#else
-#define CPU_HOTPLUG_ENABLED	(0)
-#endif
-
 /*
  * Various Linux-internal data structures created from the
  * MP-table.
@@ -204,7 +198,14 @@ static void __devinit MP_processor_info (struct mpc_config_processor *m)
 	cpu_set(num_processors, cpu_possible_map);
 	num_processors++;
 
-	if (CPU_HOTPLUG_ENABLED || (num_processors > 8)) {
+	/*
+	 * Would be preferable to switch to bigsmp when CONFIG_HOTPLUG_CPU=y
+	 * but we need to work other dependencies like SMP_SUSPEND etc
+	 * before this can be done without some confusion.
+	 * if (CPU_HOTPLUG_ENABLED || num_processors > 8)
+	 *       - Ashok Raj <ashok.raj@intel.com>
+	 */
+	if (num_processors > 8) {
 		switch (boot_cpu_data.x86_vendor) {
 		case X86_VENDOR_INTEL:
 			if (!APIC_XAPIC(ver)) {
