@@ -20,6 +20,8 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/cfi.h>
 #include <linux/reboot.h>
+#include <linux/kdev_t.h>
+#include <linux/root_dev.h>
 #include <asm/io.h>
 
 /****************************************************************************/
