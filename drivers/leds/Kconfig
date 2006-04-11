@@ -59,6 +59,13 @@ config LEDS_TOSA
 	  This option enables support for the LEDs on Sharp Zaurus
 	  SL-6000 series.
 
+config LEDS_S3C24XX
+	tristate "LED Support for Samsung S3C24XX GPIO LEDs"
+	depends on LEDS_CLASS && ARCH_S3C2410
+	help
+	  This option enables support for LEDs connected to GPIO lines
+	  on Samsung S3C24XX series CPUs, such as the S3C2410 and S3C2440.
+
 config LEDS_TRIGGER_TIMER
 	tristate "LED Timer Trigger"
 	depends LEDS_TRIGGERS
