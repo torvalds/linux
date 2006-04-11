@@ -51,6 +51,7 @@ nodemask_t node_possible_map __read_mostly = NODE_MASK_ALL;
 EXPORT_SYMBOL(node_possible_map);
 unsigned long totalram_pages __read_mostly;
 unsigned long totalhigh_pages __read_mostly;
+unsigned long totalreserve_pages __read_mostly;
 long nr_swap_pages;
 int percpu_pagelist_fraction;
 
@@ -2477,6 +2478,38 @@ void __init page_alloc_init(void)
 }
 
 /*
+ * calculate_totalreserve_pages - called when sysctl_lower_zone_reserve_ratio
+ *	or min_free_kbytes changes.
+ */
+static void calculate_totalreserve_pages(void)
+{
+	struct pglist_data *pgdat;
+	unsigned long reserve_pages = 0;
+	int i, j;
+
+	for_each_online_pgdat(pgdat) {
+		for (i = 0; i < MAX_NR_ZONES; i++) {
+			struct zone *zone = pgdat->node_zones + i;
+			unsigned long max = 0;
+
+			/* Find valid and maximum lowmem_reserve in the zone */
+			for (j = i; j < MAX_NR_ZONES; j++) {
+				if (zone->lowmem_reserve[j] > max)
+					max = zone->lowmem_reserve[j];
+			}
+
+			/* we treat pages_high as reserved pages. */
+			max += zone->pages_high;
+
+			if (max > zone->present_pages)
+				max = zone->present_pages;
+			reserve_pages += max;
+		}
+	}
+	totalreserve_pages = reserve_pages;
+}
+
+/*
  * setup_per_zone_lowmem_reserve - called whenever
  *	sysctl_lower_zone_reserve_ratio changes.  Ensures that each zone
  *	has a correct pages reserved value, so an adequate number of
@@ -2507,6 +2540,9 @@ static void setup_per_zone_lowmem_reserve(void)
 			}
 		}
 	}
+
+	/* update totalreserve_pages */
+	calculate_totalreserve_pages();
 }
 
 /*
@@ -2561,6 +2597,9 @@ void setup_per_zone_pages_min(void)
 		zone->pages_high  = zone->pages_min + tmp / 2;
 		spin_unlock_irqrestore(&zone->lru_lock, flags);
 	}
+
+	/* update totalreserve_pages */
+	calculate_totalreserve_pages();
 }
 
 /*
