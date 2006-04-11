@@ -330,22 +330,29 @@ put_nfs4_client(struct nfs4_client *clp)
 }
 
 static void
+shutdown_callback_client(struct nfs4_client *clp)
+{
+	struct rpc_clnt *clnt = clp->cl_callback.cb_client;
+
+	/* shutdown rpc client, ending any outstanding recall rpcs */
+	if (clnt) {
+		clp->cl_callback.cb_client = NULL;
+		rpc_shutdown_client(clnt);
+		rpciod_down();
+	}
+}
+
+static void
 expire_client(struct nfs4_client *clp)
 {
 	struct nfs4_stateowner *sop;
 	struct nfs4_delegation *dp;
-	struct nfs4_callback *cb = &clp->cl_callback;
-	struct rpc_clnt *clnt = clp->cl_callback.cb_client;
 	struct list_head reaplist;
 
 	dprintk("NFSD: expire_client cl_count %d\n",
 	                    atomic_read(&clp->cl_count));
 
-	/* shutdown rpc client, ending any outstanding recall rpcs */
-	if (atomic_read(&cb->cb_set) == 1 && clnt) {
-		rpc_shutdown_client(clnt);
-		clnt = clp->cl_callback.cb_client = NULL;
-	}
+	shutdown_callback_client(clp);
 
 	INIT_LIST_HEAD(&reaplist);
 	spin_lock(&recall_lock);
