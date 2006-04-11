@@ -2495,36 +2495,27 @@ nfs4_transform_lock_offset(struct file_lock *lock)
 		lock->fl_end = OFFSET_MAX;
 }
 
-static int
-nfs4_verify_lock_stateowner(struct nfs4_stateowner *sop, unsigned int hashval)
-{
-	struct nfs4_stateowner *local = NULL;
-	int status = 0;
-			        
-	if (hashval >= LOCK_HASH_SIZE)
-		goto out;
-	list_for_each_entry(local, &lock_ownerid_hashtbl[hashval], so_idhash) {
-		if (local == sop) {
-			status = 1;
-			goto out;
-		}
-	}
-out:
-	return status;
-}
-
+/* Hack!: For now, we're defining this just so we can use a pointer to it
+ * as a unique cookie to identify our (NFSv4's) posix locks. */
+struct lock_manager_operations nfsd_posix_mng_ops  = {
+};
 
 static inline void
 nfs4_set_lock_denied(struct file_lock *fl, struct nfsd4_lock_denied *deny)
 {
-	struct nfs4_stateowner *sop = (struct nfs4_stateowner *) fl->fl_owner;
-	unsigned int hval = lockownerid_hashval(sop->so_id);
+	struct nfs4_stateowner *sop;
+	unsigned int hval;
 
-	deny->ld_sop = NULL;
-	if (nfs4_verify_lock_stateowner(sop, hval)) {
+	if (fl->fl_lmops == &nfsd_posix_mng_ops) {
+		sop = (struct nfs4_stateowner *) fl->fl_owner;
+		hval = lockownerid_hashval(sop->so_id);
 		kref_get(&sop->so_ref);
 		deny->ld_sop = sop;
 		deny->ld_clientid = sop->so_client->cl_clientid;
+	} else {
+		deny->ld_sop = NULL;
+		deny->ld_clientid.cl_boot = 0;
+		deny->ld_clientid.cl_id = 0;
 	}
 	deny->ld_start = fl->fl_start;
 	deny->ld_length = ~(u64)0;
@@ -2736,6 +2727,7 @@ nfsd4_lock(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_lock 
 	file_lock.fl_pid = current->tgid;
 	file_lock.fl_file = filp;
 	file_lock.fl_flags = FL_POSIX;
+	file_lock.fl_lmops = &nfsd_posix_mng_ops;
 
 	file_lock.fl_start = lock->lk_offset;
 	if ((lock->lk_length == ~(u64)0) || 
@@ -2841,6 +2833,7 @@ nfsd4_lockt(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_lock
 		file_lock.fl_owner = (fl_owner_t)lockt->lt_stateowner;
 	file_lock.fl_pid = current->tgid;
 	file_lock.fl_flags = FL_POSIX;
+	file_lock.fl_lmops = &nfsd_posix_mng_ops;
 
 	file_lock.fl_start = lockt->lt_offset;
 	if ((lockt->lt_length == ~(u64)0) || LOFF_OVERFLOW(lockt->lt_offset, lockt->lt_length))
@@ -2900,6 +2893,7 @@ nfsd4_locku(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_lock
 	file_lock.fl_pid = current->tgid;
 	file_lock.fl_file = filp;
 	file_lock.fl_flags = FL_POSIX; 
+	file_lock.fl_lmops = &nfsd_posix_mng_ops;
 	file_lock.fl_start = locku->lu_offset;
 
 	if ((locku->lu_length == ~(u64)0) || LOFF_OVERFLOW(locku->lu_offset, locku->lu_length))
