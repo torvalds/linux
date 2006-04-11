@@ -691,12 +691,10 @@ struct pipe_inode_info * alloc_pipe_info(struct inode *inode)
 	return info;
 }
 
-void free_pipe_info(struct inode *inode)
+void __free_pipe_info(struct pipe_inode_info *info)
 {
 	int i;
-	struct pipe_inode_info *info = inode->i_pipe;
 
-	inode->i_pipe = NULL;
 	for (i = 0; i < PIPE_BUFFERS; i++) {
 		struct pipe_buffer *buf = info->bufs + i;
 		if (buf->ops)
@@ -705,6 +703,12 @@ void free_pipe_info(struct inode *inode)
 	if (info->tmp_page)
 		__free_page(info->tmp_page);
 	kfree(info);
+}
+
+void free_pipe_info(struct inode *inode)
+{
+	__free_pipe_info(inode->i_pipe);
+	inode->i_pipe = NULL;
 }
 
 static struct vfsmount *pipe_mnt __read_mostly;

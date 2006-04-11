@@ -58,6 +58,7 @@ void pipe_wait(struct pipe_inode_info *pipe);
 
 struct pipe_inode_info * alloc_pipe_info(struct inode * inode);
 void free_pipe_info(struct inode * inode);
+void __free_pipe_info(struct pipe_inode_info *);
 
 /*
  * splice is tied to pipes as a transport (at least for now), so we'll just
