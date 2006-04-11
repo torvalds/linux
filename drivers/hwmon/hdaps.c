@@ -509,6 +509,15 @@ static int hdaps_dmi_match_invert(struct dmi_system_id *id)
 	}						\
 }
 
+#define HDAPS_DMI_MATCH_LENOVO(model)   {               \
+        .ident = "Lenovo " model,                       \
+        .callback = hdaps_dmi_match_invert,             \
+        .matches = {                                    \
+                DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),  \
+                DMI_MATCH(DMI_PRODUCT_VERSION, model)   \
+        }                                               \
+}
+
 static int __init hdaps_init(void)
 {
 	int ret;
@@ -525,9 +534,11 @@ static int __init hdaps_init(void)
 		HDAPS_DMI_MATCH_INVERT("ThinkPad T42p"),
 		HDAPS_DMI_MATCH_NORMAL("ThinkPad T42"),
 		HDAPS_DMI_MATCH_NORMAL("ThinkPad T43"),
+		HDAPS_DMI_MATCH_LENOVO("ThinkPad T60p"),
 		HDAPS_DMI_MATCH_NORMAL("ThinkPad X40"),
 		HDAPS_DMI_MATCH_NORMAL("ThinkPad X41 Tablet"),
 		HDAPS_DMI_MATCH_NORMAL("ThinkPad X41"),
+		HDAPS_DMI_MATCH_LENOVO("ThinkPad X60"),
 		{ .ident = NULL }
 	};
 
