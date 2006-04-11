@@ -31,7 +31,6 @@
 
 #include <linux/string.h>
 EXPORT_SYMBOL(memset);
-EXPORT_SYMBOL(strpbrk);
 
 #include <asm/atomic.h>
 EXPORT_SYMBOL(__xchg8);
