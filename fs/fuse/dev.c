@@ -804,17 +804,18 @@ static ssize_t fuse_dev_write(struct file *file, const char __user *buf,
 
 static unsigned fuse_dev_poll(struct file *file, poll_table *wait)
 {
-	struct fuse_conn *fc = fuse_get_conn(file);
 	unsigned mask = POLLOUT | POLLWRNORM;
-
+	struct fuse_conn *fc = fuse_get_conn(file);
 	if (!fc)
-		return -ENODEV;
+		return POLLERR;
 
 	poll_wait(file, &fc->waitq, wait);
 
 	spin_lock(&fuse_lock);
-	if (!list_empty(&fc->pending))
-                mask |= POLLIN | POLLRDNORM;
+	if (!fc->connected)
+		mask = POLLERR;
+	else if (!list_empty(&fc->pending))
+		mask |= POLLIN | POLLRDNORM;
 	spin_unlock(&fuse_lock);
 
 	return mask;
