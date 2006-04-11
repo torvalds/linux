@@ -2,7 +2,6 @@
 #define _ASM_X8664_NUMA_H 1
 
 #include <linux/nodemask.h>
-#include <asm/numnodes.h>
 
 struct bootnode {
 	u64 start,end; 

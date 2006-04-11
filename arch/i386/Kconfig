@@ -522,6 +522,12 @@ config NUMA
 comment "NUMA (Summit) requires SMP, 64GB highmem support, ACPI"
 	depends on X86_SUMMIT && (!HIGHMEM64G || !ACPI)
 
+config NODES_SHIFT
+	int
+	default "4" if X86_NUMAQ
+	default "3"
+	depends on NEED_MULTIPLE_NODES
+
 config HAVE_ARCH_BOOTMEM_NODE
 	bool
 	depends on NUMA
