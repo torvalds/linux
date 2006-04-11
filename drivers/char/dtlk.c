@@ -490,7 +490,7 @@ for (i = 0; i < 10; i++)			\
 		release_region(dtlk_portlist[i], DTLK_IO_EXTENT);
 	}
 
-	printk(KERN_INFO "\nDoubleTalk PC - not found\n");
+	printk(KERN_INFO "DoubleTalk PC - not found\n");
 	return -ENODEV;
 }
 
