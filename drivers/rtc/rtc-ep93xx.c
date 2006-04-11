@@ -109,7 +109,6 @@ static int __devinit ep93xx_rtc_probe(struct platform_device *dev)
 				&dev->dev, &ep93xx_rtc_ops, THIS_MODULE);
 
 	if (IS_ERR(rtc)) {
-		dev_err(&dev->dev, "unable to register\n");
 		return PTR_ERR(rtc);
 	}
 

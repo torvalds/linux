@@ -544,8 +544,6 @@ static int x1205_probe(struct i2c_adapter *adapter, int address, int kind)
 
 	if (IS_ERR(rtc)) {
 		err = PTR_ERR(rtc);
-		dev_err(&client->dev,
-			"unable to register the class device\n");
 		goto exit_detach;
 	}
 

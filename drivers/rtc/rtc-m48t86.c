@@ -151,10 +151,8 @@ static int __devinit m48t86_rtc_probe(struct platform_device *dev)
 	struct rtc_device *rtc = rtc_device_register("m48t86",
 				&dev->dev, &m48t86_rtc_ops, THIS_MODULE);
 
-	if (IS_ERR(rtc)) {
-		dev_err(&dev->dev, "unable to register\n");
+	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
-	}
 
 	platform_set_drvdata(dev, rtc);
 

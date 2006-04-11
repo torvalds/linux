@@ -341,7 +341,6 @@ static int sa1100_rtc_probe(struct platform_device *pdev)
 				THIS_MODULE);
 
 	if (IS_ERR(rtc)) {
-		dev_err(&pdev->dev, "Unable to register the RTC device\n");
 		return PTR_ERR(rtc);
 	}
 

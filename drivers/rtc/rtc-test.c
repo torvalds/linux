@@ -119,8 +119,6 @@ static int test_probe(struct platform_device *plat_dev)
 						&test_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc)) {
 		err = PTR_ERR(rtc);
-		dev_err(&plat_dev->dev,
-			"unable to register the class device\n");
 		return err;
 	}
 	device_create_file(&plat_dev->dev, &dev_attr_irq);
