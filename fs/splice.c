@@ -92,7 +92,7 @@ static void *page_cache_pipe_buf_map(struct file *file,
 
 		/*
 		 * Page got truncated/unhashed. This will cause a 0-byte
-		 * splice, if this is the first page
+		 * splice, if this is the first page.
 		 */
 		if (!page->mapping) {
 			err = -ENODATA;
@@ -100,7 +100,7 @@ static void *page_cache_pipe_buf_map(struct file *file,
 		}
 
 		/*
-		 * uh oh, read-error from disk
+		 * Uh oh, read-error from disk.
 		 */
 		if (!PageUptodate(page)) {
 			err = -EIO;
@@ -108,7 +108,7 @@ static void *page_cache_pipe_buf_map(struct file *file,
 		}
 
 		/*
-		 * page is ok afterall, fall through to mapping
+		 * Page is ok afterall, fall through to mapping.
 		 */
 		unlock_page(page);
 	}
@@ -249,7 +249,7 @@ __generic_file_splice_read(struct file *in, struct pipe_inode_info *pipe,
 		nr_pages = PIPE_BUFFERS;
 
 	/*
-	 * initiate read-ahead on this page range. however, don't call into
+	 * Initiate read-ahead on this page range. however, don't call into
 	 * read-ahead if this is a non-zero offset (we are likely doing small
 	 * chunk splice and the page is already there) for a single page.
 	 */
@@ -257,7 +257,7 @@ __generic_file_splice_read(struct file *in, struct pipe_inode_info *pipe,
 		do_page_cache_readahead(mapping, in, index, nr_pages);
 
 	/*
-	 * now fill in the holes
+	 * Now fill in the holes:
 	 */
 	error = 0;
 	for (i = 0; i < nr_pages; i++, index++) {
@@ -396,10 +396,10 @@ static int pipe_to_sendpage(struct pipe_inode_info *info,
 	int more;
 
 	/*
-	 * sub-optimal, but we are limited by the pipe ->map. we don't
+	 * Sub-optimal, but we are limited by the pipe ->map. We don't
 	 * need a kmap'ed buffer here, we just want to make sure we
 	 * have the page pinned if the pipe page originates from the
-	 * page cache
+	 * page cache.
 	 */
 	ptr = buf->ops->map(file, info, buf);
 	if (IS_ERR(ptr))
@@ -460,7 +460,7 @@ static int pipe_to_file(struct pipe_inode_info *info, struct pipe_buffer *buf,
 	offset = sd->pos & ~PAGE_CACHE_MASK;
 
 	/*
-	 * reuse buf page, if SPLICE_F_MOVE is set
+	 * Reuse buf page, if SPLICE_F_MOVE is set.
 	 */
 	if (sd->flags & SPLICE_F_MOVE) {
 		/*
@@ -501,7 +501,7 @@ find_page:
 
 				if (!PageUptodate(page)) {
 					/*
-					 * page got invalidated, repeat
+					 * Page got invalidated, repeat.
 					 */
 					if (!page->mapping) {
 						unlock_page(page);
@@ -598,6 +598,7 @@ static ssize_t move_from_pipe(struct pipe_inode_info *pipe, struct file *out,
 			ret += sd.len;
 			buf->offset += sd.len;
 			buf->len -= sd.len;
+
 			if (!buf->len) {
 				buf->ops = NULL;
 				ops->release(pipe, buf);
@@ -681,7 +682,7 @@ generic_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 	ret = move_from_pipe(pipe, out, len, flags, pipe_to_file);
 
 	/*
-	 * if file or inode is SYNC and we actually wrote some data, sync it
+	 * If file or inode is SYNC and we actually wrote some data, sync it.
 	 */
 	if (unlikely((out->f_flags & O_SYNC) || IS_SYNC(mapping->host))
 	    && ret > 0) {
@@ -815,7 +816,7 @@ long do_splice_direct(struct file *in, struct file *out, size_t len,
 	}
 
 	/*
-	 * do the splice
+	 * Do the splice.
 	 */
 	ret = 0;
 	bytes = 0;
