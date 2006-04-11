@@ -563,7 +563,7 @@ AC97_SINGLE("PC Speaker Playback Volume", AC97_PC_BEEP, 1, 15, 1)
 };
 
 static const struct snd_kcontrol_new snd_ac97_controls_mic_boost =
-	AC97_SINGLE("Mic Boost (+20dB) Capture Switch", AC97_MIC, 6, 1, 0);
+	AC97_SINGLE("Mic Boost (+20dB) Switch", AC97_MIC, 6, 1, 0);
 
 
 static const char* std_rec_sel[] = {"Mic", "CD", "Video", "Aux", "Line", "Mix", "Mix Mono", "Phone"};
