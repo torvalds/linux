@@ -1427,8 +1427,8 @@ static int __init sscape_manual_probe(void)
 		    dma[i] == SNDRV_AUTO_DMA) {
 			printk(KERN_INFO
 			       "sscape: insufficient parameters, need IO, IRQ, MPU-IRQ and DMA\n");
-			ret = -ENXIO;
-			goto errout;
+			sscape_unregister_all();
+			return -ENXIO;
 		}
 
 		/*
@@ -1436,17 +1436,11 @@ static int __init sscape_manual_probe(void)
 		 */
 		device = platform_device_register_simple(SSCAPE_DRIVER,
 							 i, NULL, 0);
-		if (IS_ERR(device)) {
-			ret = PTR_ERR(device);
-			goto errout;
-		}
+		if (IS_ERR(device))
+			continue;
 		platform_devices[i] = device;
 	}
 	return 0;
-
- errout:
-	sscape_unregister_all();
-	return ret;
 }
 
 static void sscape_exit(void)
