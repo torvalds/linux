@@ -53,6 +53,35 @@ source "init/Kconfig"
 
 menu "Processor type and features"
 
+config SMP
+	bool "Symmetric multi-processing support"
+	---help---
+	  This enables support for systems with more than one CPU. If you have
+	  a system with only one CPU, like most personal computers, say N. If
+	  you have a system with more than one CPU, say Y.
+
+	  If you say N here, the kernel will run on single and multiprocessor
+	  machines, but will use only one CPU of a multiprocessor machine. If
+	  you say Y here, the kernel will run on many, but not all,
+	  singleprocessor machines. On a singleprocessor machine, the kernel
+	  will run faster if you say N here.
+
+	  Note that if you say Y here and choose architecture "586" or
+	  "Pentium" under "Processor family", the kernel will not work on 486
+	  architectures. Similarly, multiprocessor kernels for the "PPro"
+	  architecture may not work on all Pentium based boards.
+
+	  People using multiprocessor machines who say Y here should also say
+	  Y to "Enhanced Real Time Clock Support", below. The "Advanced Power
+	  Management" code will be disabled if you say Y here.
+
+	  See also the <file:Documentation/smp.txt>,
+	  <file:Documentation/i386/IO-APIC.txt>,
+	  <file:Documentation/nmi_watchdog.txt> and the SMP-HOWTO available at
+	  <http://www.tldp.org/docs.html#howto>.
+
+	  If you don't know what to do here, say N.
+
 choice
 	prompt "Subarchitecture Type"
 	default X86_PC
@@ -177,35 +206,6 @@ config HPET_EMULATE_RTC
 	bool
 	depends on HPET_TIMER && RTC=y
 	default y
-
-config SMP
-	bool "Symmetric multi-processing support"
-	---help---
-	  This enables support for systems with more than one CPU. If you have
-	  a system with only one CPU, like most personal computers, say N. If
-	  you have a system with more than one CPU, say Y.
-
-	  If you say N here, the kernel will run on single and multiprocessor
-	  machines, but will use only one CPU of a multiprocessor machine. If
-	  you say Y here, the kernel will run on many, but not all,
-	  singleprocessor machines. On a singleprocessor machine, the kernel
-	  will run faster if you say N here.
-
-	  Note that if you say Y here and choose architecture "586" or
-	  "Pentium" under "Processor family", the kernel will not work on 486
-	  architectures. Similarly, multiprocessor kernels for the "PPro"
-	  architecture may not work on all Pentium based boards.
-
-	  People using multiprocessor machines who say Y here should also say
-	  Y to "Enhanced Real Time Clock Support", below. The "Advanced Power
-	  Management" code will be disabled if you say Y here.
-
-	  See also the <file:Documentation/smp.txt>,
-	  <file:Documentation/i386/IO-APIC.txt>,
-	  <file:Documentation/nmi_watchdog.txt> and the SMP-HOWTO available at
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  If you don't know what to do here, say N.
 
 config NR_CPUS
 	int "Maximum number of CPUs (2-255)"
