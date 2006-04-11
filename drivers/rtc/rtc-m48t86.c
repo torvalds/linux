@@ -23,7 +23,7 @@
 #define M48T86_REG_SECALRM	0x01
 #define M48T86_REG_MIN		0x02
 #define M48T86_REG_MINALRM	0x03
-#define M48T86_REG_HOUR	0x04
+#define M48T86_REG_HOUR		0x04
 #define M48T86_REG_HOURALRM	0x05
 #define M48T86_REG_DOW		0x06 /* 1 = sunday */
 #define M48T86_REG_DOM		0x07

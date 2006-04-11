@@ -193,7 +193,6 @@ static DEVICE_ATTR(osc, S_IRUGO, rs5c372_sysfs_show_osc, NULL);
 
 static int rs5c372_attach(struct i2c_adapter *adapter)
 {
-	dev_dbg(&adapter->dev, "%s\n", __FUNCTION__);
 	return i2c_probe(adapter, &addr_data, rs5c372_probe);
 }
 
@@ -259,8 +258,6 @@ static int rs5c372_detach(struct i2c_client *client)
 {
 	int err;
 	struct rtc_device *rtc = i2c_get_clientdata(client);
-
-	dev_dbg(&client->dev, "%s\n", __FUNCTION__);
 
 	if (rtc)
 		rtc_device_unregister(rtc);

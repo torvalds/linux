@@ -321,8 +321,6 @@ static int pcf8563_detach(struct i2c_client *client)
 	int err;
 	struct rtc_device *rtc = i2c_get_clientdata(client);
 
-	dev_dbg(&client->dev, "%s\n", __FUNCTION__);
-
 	if (rtc)
 		rtc_device_unregister(rtc);
 
