@@ -160,7 +160,7 @@ static int if_open(struct tty_struct *tty, struct file *filp)
 	if (!cs)
 		return -ENODEV;
 
-	if (down_interruptible(&cs->sem))
+	if (mutex_lock_interruptible(&cs->mutex))
 		return -ERESTARTSYS; // FIXME -EINTR?
 	tty->driver_data = cs;
 
@@ -173,7 +173,7 @@ static int if_open(struct tty_struct *tty, struct file *filp)
 		tty->low_latency = 1; //FIXME test
 	}
 
-	up(&cs->sem);
+	mutex_unlock(&cs->mutex);
 	return 0;
 }
 
@@ -190,7 +190,7 @@ static void if_close(struct tty_struct *tty, struct file *filp)
 
 	gig_dbg(DEBUG_IF, "%u: %s()", cs->minor_index, __func__);
 
-	down(&cs->sem);
+	mutex_lock(&cs->mutex);
 
 	if (!cs->open_count)
 		warn("%s: device not opened", __func__);
@@ -202,7 +202,7 @@ static void if_close(struct tty_struct *tty, struct file *filp)
 		}
 	}
 
-	up(&cs->sem);
+	mutex_unlock(&cs->mutex);
 }
 
 static int if_ioctl(struct tty_struct *tty, struct file *file,
@@ -222,7 +222,7 @@ static int if_ioctl(struct tty_struct *tty, struct file *file,
 
 	gig_dbg(DEBUG_IF, "%u: %s(0x%x)", cs->minor_index, __func__, cmd);
 
-	if (down_interruptible(&cs->sem))
+	if (mutex_lock_interruptible(&cs->mutex))
 		return -ERESTARTSYS; // FIXME -EINTR?
 
 	if (!cs->open_count)
@@ -279,7 +279,7 @@ static int if_ioctl(struct tty_struct *tty, struct file *file,
 		}
 	}
 
-	up(&cs->sem);
+	mutex_unlock(&cs->mutex);
 
 	return retval;
 }
@@ -297,13 +297,13 @@ static int if_tiocmget(struct tty_struct *tty, struct file *file)
 
 	gig_dbg(DEBUG_IF, "%u: %s()", cs->minor_index, __func__);
 
-	if (down_interruptible(&cs->sem))
+	if (mutex_lock_interruptible(&cs->mutex))
 		return -ERESTARTSYS; // FIXME -EINTR?
 
 	// FIXME read from device?
 	retval = cs->control_state & (TIOCM_RTS|TIOCM_DTR);
 
-	up(&cs->sem);
+	mutex_unlock(&cs->mutex);
 
 	return retval;
 }
@@ -324,7 +324,7 @@ static int if_tiocmset(struct tty_struct *tty, struct file *file,
 	gig_dbg(DEBUG_IF, "%u: %s(0x%x, 0x%x)",
 		cs->minor_index, __func__, set, clear);
 
-	if (down_interruptible(&cs->sem))
+	if (mutex_lock_interruptible(&cs->mutex))
 		return -ERESTARTSYS; // FIXME -EINTR?
 
 	if (!atomic_read(&cs->connected)) {
@@ -336,7 +336,7 @@ static int if_tiocmset(struct tty_struct *tty, struct file *file,
 		cs->control_state = mc;
 	}
 
-	up(&cs->sem);
+	mutex_unlock(&cs->mutex);
 
 	return retval;
 }
@@ -354,7 +354,7 @@ static int if_write(struct tty_struct *tty, const unsigned char *buf, int count)
 
 	gig_dbg(DEBUG_IF, "%u: %s()", cs->minor_index, __func__);
 
-	if (down_interruptible(&cs->sem))
+	if (mutex_lock_interruptible(&cs->mutex))
 		return -ERESTARTSYS; // FIXME -EINTR?
 
 	if (!cs->open_count)
@@ -370,7 +370,7 @@ static int if_write(struct tty_struct *tty, const unsigned char *buf, int count)
 					    &cs->if_wake_tasklet);
 	}
 
-	up(&cs->sem);
+	mutex_unlock(&cs->mutex);
 
 	return retval;
 }
@@ -388,7 +388,7 @@ static int if_write_room(struct tty_struct *tty)
 
 	gig_dbg(DEBUG_IF, "%u: %s()", cs->minor_index, __func__);
 
-	if (down_interruptible(&cs->sem))
+	if (mutex_lock_interruptible(&cs->mutex))
 		return -ERESTARTSYS; // FIXME -EINTR?
 
 	if (!cs->open_count)
@@ -402,7 +402,7 @@ static int if_write_room(struct tty_struct *tty)
 	} else
 		retval = cs->ops->write_room(cs);
 
-	up(&cs->sem);
+	mutex_unlock(&cs->mutex);
 
 	return retval;
 }
@@ -420,7 +420,7 @@ static int if_chars_in_buffer(struct tty_struct *tty)
 
 	gig_dbg(DEBUG_IF, "%u: %s()", cs->minor_index, __func__);
 
-	if (down_interruptible(&cs->sem))
+	if (mutex_lock_interruptible(&cs->mutex))
 		return -ERESTARTSYS; // FIXME -EINTR?
 
 	if (!cs->open_count)
@@ -434,7 +434,7 @@ static int if_chars_in_buffer(struct tty_struct *tty)
 	} else
 		retval = cs->ops->chars_in_buffer(cs);
 
-	up(&cs->sem);
+	mutex_unlock(&cs->mutex);
 
 	return retval;
 }
@@ -451,7 +451,7 @@ static void if_throttle(struct tty_struct *tty)
 
 	gig_dbg(DEBUG_IF, "%u: %s()", cs->minor_index, __func__);
 
-	down(&cs->sem);
+	mutex_lock(&cs->mutex);
 
 	if (!cs->open_count)
 		warn("%s: device not opened", __func__);
@@ -459,7 +459,7 @@ static void if_throttle(struct tty_struct *tty)
 		//FIXME
 	}
 
-	up(&cs->sem);
+	mutex_unlock(&cs->mutex);
 }
 
 static void if_unthrottle(struct tty_struct *tty)
@@ -474,7 +474,7 @@ static void if_unthrottle(struct tty_struct *tty)
 
 	gig_dbg(DEBUG_IF, "%u: %s()", cs->minor_index, __func__);
 
-	down(&cs->sem);
+	mutex_lock(&cs->mutex);
 
 	if (!cs->open_count)
 		warn("%s: device not opened", __func__);
@@ -482,7 +482,7 @@ static void if_unthrottle(struct tty_struct *tty)
 		//FIXME
 	}
 
-	up(&cs->sem);
+	mutex_unlock(&cs->mutex);
 }
 
 static void if_set_termios(struct tty_struct *tty, struct termios *old)
@@ -501,7 +501,7 @@ static void if_set_termios(struct tty_struct *tty, struct termios *old)
 
 	gig_dbg(DEBUG_IF, "%u: %s()", cs->minor_index, __func__);
 
-	down(&cs->sem);
+	mutex_lock(&cs->mutex);
 
 	if (!cs->open_count) {
 		warn("%s: device not opened", __func__);
@@ -586,7 +586,7 @@ static void if_set_termios(struct tty_struct *tty, struct termios *old)
 	cs->control_state = control_state;
 
 out:
-	up(&cs->sem);
+	mutex_unlock(&cs->mutex);
 }
 
 

@@ -497,7 +497,7 @@ struct cardstate {
 	int cs_init;
 	int ignoreframes;		/* frames to ignore after setting up the
 					   B channel */
-	struct semaphore sem;		/* locks this structure:
+	struct mutex mutex;		/* locks this structure:
 					 *   connected is not changed,
 					 *   hardware_up is not changed,
 					 *   MState is not changed to or from

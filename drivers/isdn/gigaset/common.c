@@ -408,7 +408,7 @@ void gigaset_freecs(struct cardstate *cs)
 	if (!cs)
 		return;
 
-	down(&cs->sem);
+	mutex_lock(&cs->mutex);
 
 	if (!cs->bcs)
 		goto f_cs;
@@ -459,7 +459,7 @@ void gigaset_freecs(struct cardstate *cs)
 f_bcs:	gig_dbg(DEBUG_INIT, "freeing bcs[]");
 	kfree(cs->bcs);
 f_cs:	gig_dbg(DEBUG_INIT, "freeing cs");
-	up(&cs->sem);
+	mutex_unlock(&cs->mutex);
 	free_cs(cs);
 }
 EXPORT_SYMBOL_GPL(gigaset_freecs);
@@ -652,7 +652,9 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 	spin_lock_init(&cs->ev_lock);
 	atomic_set(&cs->ev_tail, 0);
 	atomic_set(&cs->ev_head, 0);
-	init_MUTEX_LOCKED(&cs->sem);
+	mutex_init(&cs->mutex);
+	mutex_lock(&cs->mutex);
+
 	tasklet_init(&cs->event_tasklet, &gigaset_handle_event,
 		     (unsigned long) cs);
 	atomic_set(&cs->commands_pending, 0);
@@ -729,11 +731,11 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 	add_timer(&cs->timer);
 
 	gig_dbg(DEBUG_INIT, "cs initialized");
-	up(&cs->sem);
+	mutex_unlock(&cs->mutex);
 	return cs;
 
 error:	if (cs)
-		up(&cs->sem);
+		mutex_unlock(&cs->mutex);
 	gig_dbg(DEBUG_INIT, "failed");
 	gigaset_freecs(cs);
 	return NULL;
@@ -831,7 +833,7 @@ static void cleanup_cs(struct cardstate *cs)
 
 int gigaset_start(struct cardstate *cs)
 {
-	if (down_interruptible(&cs->sem))
+	if (mutex_lock_interruptible(&cs->mutex))
 		return 0;
 
 	atomic_set(&cs->connected, 1);
@@ -861,18 +863,18 @@ int gigaset_start(struct cardstate *cs)
 	/* set up device sysfs */
 	gigaset_init_dev_sysfs(cs);
 
-	up(&cs->sem);
+	mutex_unlock(&cs->mutex);
 	return 1;
 
 error:
-	up(&cs->sem);
+	mutex_unlock(&cs->mutex);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(gigaset_start);
 
 void gigaset_shutdown(struct cardstate *cs)
 {
-	down(&cs->sem);
+	mutex_lock(&cs->mutex);
 
 	cs->waiting = 1;
 
@@ -902,13 +904,13 @@ void gigaset_shutdown(struct cardstate *cs)
 	cleanup_cs(cs);
 
 exit:
-	up(&cs->sem);
+	mutex_unlock(&cs->mutex);
 }
 EXPORT_SYMBOL_GPL(gigaset_shutdown);
 
 void gigaset_stop(struct cardstate *cs)
 {
-	down(&cs->sem);
+	mutex_lock(&cs->mutex);
 
 	/* clear device sysfs */
 	gigaset_free_dev_sysfs(cs);
@@ -936,7 +938,7 @@ void gigaset_stop(struct cardstate *cs)
 	cleanup_cs(cs);
 
 exit:
-	up(&cs->sem);
+	mutex_unlock(&cs->mutex);
 }
 EXPORT_SYMBOL_GPL(gigaset_stop);
 
