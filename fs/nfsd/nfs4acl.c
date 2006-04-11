@@ -790,7 +790,7 @@ nfs4_acl_split(struct nfs4_acl *acl, struct nfs4_acl *dacl)
 			continue;
 
 		error = nfs4_acl_add_ace(dacl, ace->type, ace->flag,
-				ace->access_mask, ace->whotype, ace->who) == -1;
+				ace->access_mask, ace->whotype, ace->who);
 		if (error < 0)
 			goto out;
 
