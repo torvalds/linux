@@ -420,6 +420,7 @@ struct kmem_cache {
 	unsigned long max_freeable;
 	unsigned long node_allocs;
 	unsigned long node_frees;
+	unsigned long node_overflow;
 	atomic_t allochit;
 	atomic_t allocmiss;
 	atomic_t freehit;
@@ -465,6 +466,7 @@ struct kmem_cache {
 #define	STATS_INC_ERR(x)	((x)->errors++)
 #define	STATS_INC_NODEALLOCS(x)	((x)->node_allocs++)
 #define	STATS_INC_NODEFREES(x)	((x)->node_frees++)
+#define STATS_INC_ACOVERFLOW(x)   ((x)->node_overflow++)
 #define	STATS_SET_FREEABLE(x, i)					\
 	do {								\
 		if ((x)->max_freeable < i)				\
@@ -484,6 +486,7 @@ struct kmem_cache {
 #define	STATS_INC_ERR(x)	do { } while (0)
 #define	STATS_INC_NODEALLOCS(x)	do { } while (0)
 #define	STATS_INC_NODEFREES(x)	do { } while (0)
+#define STATS_INC_ACOVERFLOW(x)   do { } while (0)
 #define	STATS_SET_FREEABLE(x, i) do { } while (0)
 #define STATS_INC_ALLOCHIT(x)	do { } while (0)
 #define STATS_INC_ALLOCMISS(x)	do { } while (0)
@@ -3083,9 +3086,11 @@ static inline void __cache_free(struct kmem_cache *cachep, void *objp)
 			if (l3->alien && l3->alien[nodeid]) {
 				alien = l3->alien[nodeid];
 				spin_lock(&alien->lock);
-				if (unlikely(alien->avail == alien->limit))
+				if (unlikely(alien->avail == alien->limit)) {
+					STATS_INC_ACOVERFLOW(cachep);
 					__drain_alien_cache(cachep,
 							    alien, nodeid);
+				}
 				alien->entry[alien->avail++] = objp;
 				spin_unlock(&alien->lock);
 			} else {
@@ -3763,7 +3768,7 @@ static void print_slabinfo_header(struct seq_file *m)
 	seq_puts(m, " : slabdata <active_slabs> <num_slabs> <sharedavail>");
 #if STATS
 	seq_puts(m, " : globalstat <listallocs> <maxobjs> <grown> <reaped> "
-		 "<error> <maxfreeable> <nodeallocs> <remotefrees>");
+		 "<error> <maxfreeable> <nodeallocs> <remotefrees> <alienoverflow>");
 	seq_puts(m, " : cpustat <allochit> <allocmiss> <freehit> <freemiss>");
 #endif
 	seq_putc(m, '\n');
@@ -3877,11 +3882,12 @@ static int s_show(struct seq_file *m, void *p)
 		unsigned long max_freeable = cachep->max_freeable;
 		unsigned long node_allocs = cachep->node_allocs;
 		unsigned long node_frees = cachep->node_frees;
+		unsigned long overflows = cachep->node_overflow;
 
 		seq_printf(m, " : globalstat %7lu %6lu %5lu %4lu \
-				%4lu %4lu %4lu %4lu", allocs, high, grown,
+				%4lu %4lu %4lu %4lu %4lu", allocs, high, grown,
 				reaped, errors, max_freeable, node_allocs,
-				node_frees);
+				node_frees, overflows);
 	}
 	/* cpu stats */
 	{
