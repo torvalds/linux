@@ -48,8 +48,20 @@
 
 /*
  * Don't use the *_dontuse flags.  Use the macros.  Otherwise you'll break
- * locked- and dirty-page accounting.  The top eight bits of page->flags are
- * used for page->zone, so putting flag bits there doesn't work.
+ * locked- and dirty-page accounting.
+ *
+ * The page flags field is split into two parts, the main flags area
+ * which extends from the low bits upwards, and the fields area which
+ * extends from the high bits downwards.
+ *
+ *  | FIELD | ... | FLAGS |
+ *  N-1     ^             0
+ *          (N-FLAGS_RESERVED)
+ *
+ * The fields area is reserved for fields mapping zone, node and SPARSEMEM
+ * section.  The boundry between these two areas is defined by
+ * FLAGS_RESERVED which defines the width of the fields section
+ * (see linux/mmzone.h).  New flags must _not_ overlap with this area.
  */
 #define PG_locked	 	 0	/* Page is locked. Don't touch. */
 #define PG_error		 1
