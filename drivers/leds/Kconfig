@@ -14,13 +14,7 @@ config LEDS_CLASS
 	  This option enables the led sysfs class in /sys/class/leds.  You'll
 	  need this to do anything useful with LEDs.  If unsure, say N.
 
-config LEDS_TRIGGERS
-	bool "LED Trigger support"
-	depends NEW_LEDS
-	help
-	  This option enables trigger support for the leds class.
-	  These triggers allow kernel events to drive the LEDs and can
-	  be configured via sysfs. If unsure, say Y.
+comment "LED drivers"
 
 config LEDS_CORGI
 	tristate "LED Support for the Sharp SL-C7x0 series"
@@ -65,6 +59,16 @@ config LEDS_S3C24XX
 	help
 	  This option enables support for LEDs connected to GPIO lines
 	  on Samsung S3C24XX series CPUs, such as the S3C2410 and S3C2440.
+
+comment "LED Triggers"
+
+config LEDS_TRIGGERS
+	bool "LED Trigger support"
+	depends NEW_LEDS
+	help
+	  This option enables trigger support for the leds class.
+	  These triggers allow kernel events to drive the LEDs and can
+	  be configured via sysfs. If unsure, say Y.
 
 config LEDS_TRIGGER_TIMER
 	tristate "LED Timer Trigger"
