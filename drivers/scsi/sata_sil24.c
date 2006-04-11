@@ -480,12 +480,7 @@ static int sil24_softreset(struct ata_port *ap, unsigned int *class)
 		goto err;
 	}
 
-	/*
-	 * XXX: Not sure whether the following sleep is needed or not.
-	 * The original driver had it.  So....
-	 */
-	msleep(10);
-
+	/* do SRST */
 	prb->ctrl = PRB_CTRL_SRST;
 	prb->fis[1] = 0; /* no PM yet */
 
