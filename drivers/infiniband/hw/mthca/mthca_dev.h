@@ -151,6 +151,7 @@ struct mthca_limits {
 	int      reserved_qps;
 	int      num_srqs;
 	int      max_srq_wqes;
+	int      max_srq_sge;
 	int      reserved_srqs;
 	int      num_eecs;
 	int      reserved_eecs;
@@ -507,6 +508,7 @@ void mthca_free_srq(struct mthca_dev *dev, struct mthca_srq *srq);
 int mthca_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 		     enum ib_srq_attr_mask attr_mask);
 int mthca_query_srq(struct ib_srq *srq, struct ib_srq_attr *srq_attr);
+int mthca_max_srq_sge(struct mthca_dev *dev);
 void mthca_srq_event(struct mthca_dev *dev, u32 srqn,
 		     enum ib_event_type event_type);
 void mthca_free_srq_wqe(struct mthca_srq *srq, u32 wqe_addr);

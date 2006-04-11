@@ -191,6 +191,7 @@ static int __devinit mthca_dev_lim(struct mthca_dev *mdev, struct mthca_dev_lim 
 	mdev->limits.reserved_srqs      = dev_lim->reserved_srqs;
 	mdev->limits.reserved_eecs      = dev_lim->reserved_eecs;
 	mdev->limits.max_desc_sz        = dev_lim->max_desc_sz;
+	mdev->limits.max_srq_sge	= mthca_max_srq_sge(mdev);
 	/*
 	 * Subtract 1 from the limit because we need to allocate a
 	 * spare CQE so the HCA HW can tell the difference between an
