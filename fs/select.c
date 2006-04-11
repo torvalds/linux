@@ -311,7 +311,8 @@ static int core_sys_select(int n, fd_set __user *inp, fd_set __user *outp,
 {
 	fd_set_bits fds;
 	void *bits;
-	int ret, size, max_fdset;
+	int ret, max_fdset;
+	unsigned int size;
 	struct fdtable *fdt;
 	/* Allocate small arguments on the stack to save memory and be faster */
 	long stack_fds[SELECT_STACK_ALLOC/sizeof(long)];
@@ -333,14 +334,15 @@ static int core_sys_select(int n, fd_set __user *inp, fd_set __user *outp,
 	 * since we used fdset we need to allocate memory in units of
 	 * long-words. 
 	 */
-	ret = -ENOMEM;
 	size = FDS_BYTES(n);
-	if (6*size < SELECT_STACK_ALLOC)
-		bits = stack_fds;
-	else
+	bits = stack_fds;
+	if (size > sizeof(stack_fds) / 6) {
+		/* Not enough space in on-stack array; must use kmalloc */
+		ret = -ENOMEM;
 		bits = kmalloc(6 * size, GFP_KERNEL);
-	if (!bits)
-		goto out_nofds;
+		if (!bits)
+			goto out_nofds;
+	}
 	fds.in      = bits;
 	fds.out     = bits +   size;
 	fds.ex      = bits + 2*size;
