@@ -142,7 +142,7 @@ static int ac_register_board(unsigned long physloc, void __iomem *loc,
 	if (!boardno)
 		boardno = readb(loc + NUMCARD_OWNER_TO_PC);
 
-	if (!boardno && boardno > MAX_BOARD) {
+	if (!boardno || boardno > MAX_BOARD) {
 		printk(KERN_WARNING "Board #%d (at 0x%lx) is out of range (1 <= x <= %d).\n",
 		       boardno, physloc, MAX_BOARD);
 		return 0;
