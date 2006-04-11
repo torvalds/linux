@@ -2084,27 +2084,20 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, int nfserr, struct nfsd4_read 
 	WRITE32(eof);
 	WRITE32(maxcount);
 	ADJUST_ARGS();
-	resp->xbuf->head[0].iov_len = ((char*)resp->p) - (char*)resp->xbuf->head[0].iov_base;
-
+	resp->xbuf->head[0].iov_len = (char*)p
+					- (char*)resp->xbuf->head[0].iov_base;
 	resp->xbuf->page_len = maxcount;
 
-	/* read zero bytes -> don't set up tail */
-	if(!maxcount)
-		return 0;        
-
-	/* set up page for remaining responses */
-	svc_take_page(resp->rqstp);
-	resp->xbuf->tail[0].iov_base = 
-		page_address(resp->rqstp->rq_respages[resp->rqstp->rq_resused-1]);
-	resp->rqstp->rq_restailpage = resp->rqstp->rq_resused-1;
+	/* Use rest of head for padding and remaining ops: */
+	resp->rqstp->rq_restailpage = 0;
+	resp->xbuf->tail[0].iov_base = p;
 	resp->xbuf->tail[0].iov_len = 0;
-	resp->p = resp->xbuf->tail[0].iov_base;
-	resp->end = resp->p + PAGE_SIZE/4;
-
 	if (maxcount&3) {
-		*(resp->p)++ = 0;
+		RESERVE_SPACE(4);
+		WRITE32(0);
 		resp->xbuf->tail[0].iov_base += maxcount&3;
 		resp->xbuf->tail[0].iov_len = 4 - (maxcount&3);
+		ADJUST_ARGS();
 	}
 	return 0;
 }
@@ -2141,21 +2134,20 @@ nfsd4_encode_readlink(struct nfsd4_compoundres *resp, int nfserr, struct nfsd4_r
 
 	WRITE32(maxcount);
 	ADJUST_ARGS();
-	resp->xbuf->head[0].iov_len = ((char*)resp->p) - (char*)resp->xbuf->head[0].iov_base;
-
-	svc_take_page(resp->rqstp);
-	resp->xbuf->tail[0].iov_base = 
-		page_address(resp->rqstp->rq_respages[resp->rqstp->rq_resused-1]);
-	resp->rqstp->rq_restailpage = resp->rqstp->rq_resused-1;
-	resp->xbuf->tail[0].iov_len = 0;
-	resp->p = resp->xbuf->tail[0].iov_base;
-	resp->end = resp->p + PAGE_SIZE/4;
-
+	resp->xbuf->head[0].iov_len = (char*)p
+				- (char*)resp->xbuf->head[0].iov_base;
 	resp->xbuf->page_len = maxcount;
+
+	/* Use rest of head for padding and remaining ops: */
+	resp->rqstp->rq_restailpage = 0;
+	resp->xbuf->tail[0].iov_base = p;
+	resp->xbuf->tail[0].iov_len = 0;
 	if (maxcount&3) {
-		*(resp->p)++ = 0;
+		RESERVE_SPACE(4);
+		WRITE32(0);
 		resp->xbuf->tail[0].iov_base += maxcount&3;
 		resp->xbuf->tail[0].iov_len = 4 - (maxcount&3);
+		ADJUST_ARGS();
 	}
 	return 0;
 }
