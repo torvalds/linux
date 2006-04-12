@@ -130,9 +130,8 @@ static int evdev_open(struct inode * inode, struct file * file)
 	if ((accept_err = input_accept_process(&(evdev_table[i]->handle), file)))
 		return accept_err;
 
-	if (!(list = kmalloc(sizeof(struct evdev_list), GFP_KERNEL)))
+	if (!(list = kzalloc(sizeof(struct evdev_list), GFP_KERNEL)))
 		return -ENOMEM;
-	memset(list, 0, sizeof(struct evdev_list));
 
 	list->evdev = evdev_table[i];
 	list_add_tail(&list->node, &evdev_table[i]->list);
@@ -609,9 +608,8 @@ static struct input_handle *evdev_connect(struct input_handler *handler, struct 
 		return NULL;
 	}
 
-	if (!(evdev = kmalloc(sizeof(struct evdev), GFP_KERNEL)))
+	if (!(evdev = kzalloc(sizeof(struct evdev), GFP_KERNEL)))
 		return NULL;
-	memset(evdev, 0, sizeof(struct evdev));
 
 	INIT_LIST_HEAD(&evdev->list);
 	init_waitqueue_head(&evdev->wait);

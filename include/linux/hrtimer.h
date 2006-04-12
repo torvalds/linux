@@ -80,7 +80,7 @@ struct hrtimer_sleeper {
  * @first:		pointer to the timer node which expires first
  * @resolution:		the resolution of the clock, in nanoseconds
  * @get_time:		function to retrieve the current time of the clock
- * @get_sofirq_time:	function to retrieve the current time from the softirq
+ * @get_softirq_time:	function to retrieve the current time from the softirq
  * @curr_timer:		the timer which is executing a callback right now
  * @softirq_time:	the time when running the hrtimer queue in the softirq
  */

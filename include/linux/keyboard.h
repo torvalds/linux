@@ -44,6 +44,7 @@ extern unsigned short plain_map[NR_KEYS];
 #define KT_ASCII	9
 #define KT_LOCK		10
 #define KT_SLOCK	12
+#define KT_BRL		14
 
 #define K(t,v)		(((t)<<8)|(v))
 #define KTYP(x)		((x) >> 8)
@@ -426,6 +427,18 @@ extern unsigned short plain_map[NR_KEYS];
 #define K_CTRLR_SLOCK	K(KT_SLOCK,KG_CTRLR)
 
 #define NR_LOCK		8
+
+#define K_BRL_BLANK     K(KT_BRL, 0)
+#define K_BRL_DOT1      K(KT_BRL, 1)
+#define K_BRL_DOT2      K(KT_BRL, 2)
+#define K_BRL_DOT3      K(KT_BRL, 3)
+#define K_BRL_DOT4      K(KT_BRL, 4)
+#define K_BRL_DOT5      K(KT_BRL, 5)
+#define K_BRL_DOT6      K(KT_BRL, 6)
+#define K_BRL_DOT7      K(KT_BRL, 7)
+#define K_BRL_DOT8      K(KT_BRL, 8)
+
+#define NR_BRL		9
 
 #define MAX_DIACR	256
 #endif

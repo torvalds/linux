@@ -304,13 +304,17 @@ out:
 
 /* Creation primitives. */
 
-static struct ipq *ip_frag_intern(unsigned int hash, struct ipq *qp_in)
+static struct ipq *ip_frag_intern(struct ipq *qp_in)
 {
 	struct ipq *qp;
 #ifdef CONFIG_SMP
 	struct hlist_node *n;
 #endif
+	unsigned int hash;
+
 	write_lock(&ipfrag_lock);
+	hash = ipqhashfn(qp_in->id, qp_in->saddr, qp_in->daddr,
+			 qp_in->protocol);
 #ifdef CONFIG_SMP
 	/* With SMP race we have to recheck hash table, because
 	 * such entry could be created on other cpu, while we
@@ -345,7 +349,7 @@ static struct ipq *ip_frag_intern(unsigned int hash, struct ipq *qp_in)
 }
 
 /* Add an entry to the 'ipq' queue for a newly received IP datagram. */
-static struct ipq *ip_frag_create(unsigned hash, struct iphdr *iph, u32 user)
+static struct ipq *ip_frag_create(struct iphdr *iph, u32 user)
 {
 	struct ipq *qp;
 
@@ -371,7 +375,7 @@ static struct ipq *ip_frag_create(unsigned hash, struct iphdr *iph, u32 user)
 	spin_lock_init(&qp->lock);
 	atomic_set(&qp->refcnt, 1);
 
-	return ip_frag_intern(hash, qp);
+	return ip_frag_intern(qp);
 
 out_nomem:
 	LIMIT_NETDEBUG(KERN_ERR "ip_frag_create: no memory left !\n");
@@ -387,11 +391,12 @@ static inline struct ipq *ip_find(struct iphdr *iph, u32 user)
 	__u32 saddr = iph->saddr;
 	__u32 daddr = iph->daddr;
 	__u8 protocol = iph->protocol;
-	unsigned int hash = ipqhashfn(id, saddr, daddr, protocol);
+	unsigned int hash;
 	struct ipq *qp;
 	struct hlist_node *n;
 
 	read_lock(&ipfrag_lock);
+	hash = ipqhashfn(id, saddr, daddr, protocol);
 	hlist_for_each_entry(qp, n, &ipq_hash[hash], list) {
 		if(qp->id == id		&&
 		   qp->saddr == saddr	&&
@@ -405,7 +410,7 @@ static inline struct ipq *ip_find(struct iphdr *iph, u32 user)
 	}
 	read_unlock(&ipfrag_lock);
 
-	return ip_frag_create(hash, iph, user);
+	return ip_frag_create(iph, user);
 }
 
 /* Is the fragment too far ahead to be part of ipq? */

@@ -1,5 +1,11 @@
 This file details changes in 2.6 which affect PCMCIA card driver authors:
 
+* New release helper (as of 2.6.17)
+   Instead of calling pcmcia_release_{configuration,io,irq,win}, all that's
+   necessary now is calling pcmcia_disable_device. As there is no valid
+   reason left to call pcmcia_release_io and pcmcia_release_irq, the
+   exports for them were removed.
+
 * Unify detach and REMOVAL event code, as well as attach and INSERTION
   code (as of 2.6.16)
        void (*remove)          (struct pcmcia_device *dev);

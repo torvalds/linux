@@ -109,17 +109,6 @@ typedef struct client_req_t {
 
 #define CLIENT_THIS_SOCKET	0x01
 
-/* For RegisterClient */
-typedef struct client_reg_t {
-    dev_info_t	*dev_info;
-    u_int	Attributes;  /* UNUSED */
-    u_int	EventMask;
-    int		(*event_handler)(event_t event, int priority,
-				 event_callback_args_t *);
-    event_callback_args_t event_callback_args;
-    u_int	Version;
-} client_reg_t;
-
 /* ModifyConfiguration */
 typedef struct modconf_t {
     u_int	Attributes;
@@ -127,15 +116,16 @@ typedef struct modconf_t {
 } modconf_t;
 
 /* Attributes for ModifyConfiguration */
-#define CONF_IRQ_CHANGE_VALID	0x100
-#define CONF_VCC_CHANGE_VALID	0x200
-#define CONF_VPP1_CHANGE_VALID	0x400
-#define CONF_VPP2_CHANGE_VALID	0x800
+#define CONF_IRQ_CHANGE_VALID	0x0100
+#define CONF_VCC_CHANGE_VALID	0x0200
+#define CONF_VPP1_CHANGE_VALID	0x0400
+#define CONF_VPP2_CHANGE_VALID	0x0800
+#define CONF_IO_CHANGE_WIDTH	0x1000
 
 /* For RequestConfiguration */
 typedef struct config_req_t {
     u_int	Attributes;
-    u_int	Vcc, Vpp1, Vpp2;
+    u_int	Vpp; /* both Vpp1 and Vpp2 */
     u_int	IntType;
     u_int	ConfigBase;
     u_char	Status, Pin, Copy, ExtStatus;
@@ -389,22 +379,26 @@ int pcmcia_get_status(struct pcmcia_device *p_dev, cs_status_t *status);
 int pcmcia_get_mem_page(window_handle_t win, memreq_t *req);
 int pcmcia_map_mem_page(window_handle_t win, memreq_t *req);
 int pcmcia_modify_configuration(struct pcmcia_device *p_dev, modconf_t *mod);
-int pcmcia_release_configuration(struct pcmcia_device *p_dev);
-int pcmcia_release_io(struct pcmcia_device *p_dev, io_req_t *req);
-int pcmcia_release_irq(struct pcmcia_device *p_dev, irq_req_t *req);
 int pcmcia_release_window(window_handle_t win);
 int pcmcia_request_configuration(struct pcmcia_device *p_dev, config_req_t *req);
 int pcmcia_request_io(struct pcmcia_device *p_dev, io_req_t *req);
 int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req);
 int pcmcia_request_window(struct pcmcia_device **p_dev, win_req_t *req, window_handle_t *wh);
-int pcmcia_reset_card(struct pcmcia_device *p_dev, client_req_t *req);
 int pcmcia_suspend_card(struct pcmcia_socket *skt);
 int pcmcia_resume_card(struct pcmcia_socket *skt);
 int pcmcia_eject_card(struct pcmcia_socket *skt);
 int pcmcia_insert_card(struct pcmcia_socket *skt);
+int pccard_reset_card(struct pcmcia_socket *skt);
+
+struct pcmcia_device * pcmcia_dev_present(struct pcmcia_device *p_dev);
+void pcmcia_disable_device(struct pcmcia_device *p_dev);
 
 struct pcmcia_socket * pcmcia_get_socket(struct pcmcia_socket *skt);
 void pcmcia_put_socket(struct pcmcia_socket *skt);
+
+/* compatibility functions */
+#define pcmcia_reset_card(p_dev, req) \
+		pccard_reset_card(p_dev->socket)
 
 #endif /* __KERNEL__ */
 

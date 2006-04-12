@@ -569,9 +569,12 @@ asmlinkage long compat_sys_newfstatat(unsigned int dfd, char __user * filename,
 asmlinkage long compat_sys_openat(unsigned int dfd, const char __user *filename,
 				   int flags, int mode);
 asmlinkage long sys_unshare(unsigned long unshare_flags);
-asmlinkage long sys_splice(int fdin, int fdout, size_t len,
-				unsigned int flags);
+
+asmlinkage long sys_splice(int fd_in, loff_t __user *off_in,
+			   int fd_out, loff_t __user *off_out,
+			   size_t len, unsigned int flags);
+
 asmlinkage long sys_sync_file_range(int fd, loff_t offset, loff_t nbytes,
-					int flags);
+					unsigned int flags);
 
 #endif

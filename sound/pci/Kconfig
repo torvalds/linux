@@ -15,6 +15,18 @@ config SND_AD1889
 	  To compile this as a module, choose M here: the module
 	  will be called snd-ad1889.
 
+config SND_ALS300
+        tristate "Avance Logic ALS300/ALS300+"
+        depends on SND
+        select SND_PCM
+        select SND_AC97_CODEC
+        select SND_OPL3_LIB
+        help
+          Say 'Y' or 'M' to include support for Avance Logic ALS300/ALS300+
+
+          To compile this driver as a module, choose M here: the module
+          will be called snd-als300
+
 config SND_ALS4000
 	tristate "Avance Logic ALS4000"
 	depends on SND && ISA_DMA_API
@@ -195,8 +207,9 @@ config SND_CS46XX
 	  will be called snd-cs46xx.
 
 config SND_CS46XX_NEW_DSP
-	bool "Cirrus Logic (Sound Fusion) New DSP support (EXPERIMENTAL)"
-	depends on SND_CS46XX && EXPERIMENTAL
+	bool "Cirrus Logic (Sound Fusion) New DSP support"
+	depends on SND_CS46XX
+        default y
 	help
 	  Say Y here to use a new DSP image for SPDIF and dual codecs.
 
@@ -465,6 +478,19 @@ config SND_PCXHR
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-pcxhr.
+
+config SND_RIPTIDE
+	tristate "Conexant Riptide"
+	depends on SND
+	depends on FW_LOADER
+	select SND_OPL3_LIB
+	select SND_MPU401_UART
+	select SND_AC97_CODEC
+	help
+	  Say 'Y' or 'M' to include support for Conexant Riptide chip.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-riptide
 
 config SND_RME32
 	tristate "RME Digi32, 32/8, 32 PRO"

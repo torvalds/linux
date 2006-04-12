@@ -24,10 +24,12 @@
 #include <linux/config.h>	/* CONFIG_ALPHA_LCA etc */
 #include <linux/mc146818rtc.h>
 #include <linux/console.h>
+#include <linux/cpu.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/string.h>
 #include <linux/ioport.h>
+#include <linux/platform_device.h>
 #include <linux/bootmem.h>
 #include <linux/pci.h>
 #include <linux/seq_file.h>
@@ -469,6 +471,22 @@ page_is_ram(unsigned long pfn)
 
 	return 0;
 }
+
+static int __init
+register_cpus(void)
+{
+	int i;
+
+	for_each_possible_cpu(i) {
+		struct cpu *p = kzalloc(sizeof(*p), GFP_KERNEL);
+		if (!p)
+			return -ENOMEM;
+		register_cpu(p, i, NULL);
+	}
+	return 0;
+}
+
+arch_initcall(register_cpus);
 
 void __init
 setup_arch(char **cmdline_p)
@@ -1478,3 +1496,20 @@ alpha_panic_event(struct notifier_block *this, unsigned long event, void *ptr)
 #endif
         return NOTIFY_DONE;
 }
+
+static __init int add_pcspkr(void)
+{
+	struct platform_device *pd;
+	int ret;
+
+	pd = platform_device_alloc("pcspkr", -1);
+	if (!pd)
+		return -ENOMEM;
+
+	ret = platform_device_add(pd);
+	if (ret)
+		platform_device_put(pd);
+
+	return ret;
+}
+device_initcall(add_pcspkr);

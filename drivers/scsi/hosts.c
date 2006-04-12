@@ -294,18 +294,6 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 	if (sht->unchecked_isa_dma && privsize)
 		gfp_mask |= __GFP_DMA;
 
-        /* Check to see if this host has any error handling facilities */
-        if (!sht->eh_strategy_handler && !sht->eh_abort_handler &&
-	    !sht->eh_device_reset_handler && !sht->eh_bus_reset_handler &&
-            !sht->eh_host_reset_handler) {
-		printk(KERN_ERR "ERROR: SCSI host `%s' has no error handling\n"
-				"ERROR: This is not a safe way to run your "
-				        "SCSI host\n"
-				"ERROR: The error handling must be added to "
-				"this driver\n", sht->proc_name);
-		dump_stack();
-        }
-
 	shost = kzalloc(sizeof(struct Scsi_Host) + privsize, gfp_mask);
 	if (!shost)
 		return NULL;

@@ -69,7 +69,6 @@ __xfs_file_read(
 	return rval;
 }
 
-
 STATIC ssize_t
 xfs_file_aio_read(
 	struct kiocb		*iocb,
@@ -89,7 +88,6 @@ xfs_file_aio_read_invis(
 {
 	return __xfs_file_read(iocb, buf, IO_ISAIO|IO_INVIS, count, pos);
 }
-
 
 STATIC inline ssize_t
 __xfs_file_write(
@@ -113,7 +111,6 @@ __xfs_file_write(
 	return rval;
 }
 
-
 STATIC ssize_t
 xfs_file_aio_write(
 	struct kiocb		*iocb,
@@ -133,7 +130,6 @@ xfs_file_aio_write_invis(
 {
 	return __xfs_file_write(iocb, buf, IO_ISAIO|IO_INVIS, count, pos);
 }
-
 
 STATIC inline ssize_t
 __xfs_file_readv(
@@ -179,7 +175,6 @@ xfs_file_readv_invis(
 	return __xfs_file_readv(file, iov, IO_INVIS, nr_segs, ppos);
 }
 
-
 STATIC inline ssize_t
 __xfs_file_writev(
 	struct file		*file,
@@ -204,7 +199,6 @@ __xfs_file_writev(
 	return rval;
 }
 
-
 STATIC ssize_t
 xfs_file_writev(
 	struct file		*file,
@@ -228,7 +222,7 @@ xfs_file_writev_invis(
 STATIC ssize_t
 xfs_file_sendfile(
 	struct file		*filp,
-	loff_t			*ppos,
+	loff_t			*pos,
 	size_t			count,
 	read_actor_t		actor,
 	void			*target)
@@ -236,10 +230,80 @@ xfs_file_sendfile(
 	vnode_t			*vp = vn_from_inode(filp->f_dentry->d_inode);
 	ssize_t			rval;
 
-	VOP_SENDFILE(vp, filp, ppos, 0, count, actor, target, NULL, rval);
+	VOP_SENDFILE(vp, filp, pos, 0, count, actor, target, NULL, rval);
 	return rval;
 }
 
+STATIC ssize_t
+xfs_file_sendfile_invis(
+	struct file		*filp,
+	loff_t			*pos,
+	size_t			count,
+	read_actor_t		actor,
+	void			*target)
+{
+	vnode_t			*vp = vn_from_inode(filp->f_dentry->d_inode);
+	ssize_t			rval;
+
+	VOP_SENDFILE(vp, filp, pos, IO_INVIS, count, actor, target, NULL, rval);
+	return rval;
+}
+
+STATIC ssize_t
+xfs_file_splice_read(
+	struct file		*infilp,
+	struct pipe_inode_info	*pipe,
+	size_t			len,
+	unsigned int		flags)
+{
+	vnode_t			*vp = vn_from_inode(infilp->f_dentry->d_inode);
+	ssize_t			rval;
+
+	VOP_SPLICE_READ(vp, infilp, pipe, len, flags, 0, NULL, rval);
+	return rval;
+}
+
+STATIC ssize_t
+xfs_file_splice_read_invis(
+	struct file		*infilp,
+	struct pipe_inode_info	*pipe,
+	size_t			len,
+	unsigned int		flags)
+{
+	vnode_t			*vp = vn_from_inode(infilp->f_dentry->d_inode);
+	ssize_t			rval;
+
+	VOP_SPLICE_READ(vp, infilp, pipe, len, flags, IO_INVIS, NULL, rval);
+	return rval;
+}
+
+STATIC ssize_t
+xfs_file_splice_write(
+	struct pipe_inode_info	*pipe,
+	struct file		*outfilp,
+	size_t			len,
+	unsigned int		flags)
+{
+	vnode_t			*vp = vn_from_inode(outfilp->f_dentry->d_inode);
+	ssize_t			rval;
+
+	VOP_SPLICE_WRITE(vp, pipe, outfilp, len, flags, 0, NULL, rval);
+	return rval;
+}
+
+STATIC ssize_t
+xfs_file_splice_write_invis(
+	struct pipe_inode_info	*pipe,
+	struct file		*outfilp,
+	size_t			len,
+	unsigned int		flags)
+{
+	vnode_t			*vp = vn_from_inode(outfilp->f_dentry->d_inode);
+	ssize_t			rval;
+
+	VOP_SPLICE_WRITE(vp, pipe, outfilp, len, flags, IO_INVIS, NULL, rval);
+	return rval;
+}
 
 STATIC int
 xfs_file_open(
@@ -251,12 +315,9 @@ xfs_file_open(
 
 	if (!(filp->f_flags & O_LARGEFILE) && i_size_read(inode) > MAX_NON_LFS)
 		return -EFBIG;
-
-	ASSERT(vp);
 	VOP_OPEN(vp, NULL, error);
 	return -error;
 }
-
 
 STATIC int
 xfs_file_release(
@@ -271,7 +332,6 @@ xfs_file_release(
 	return -error;
 }
 
-
 STATIC int
 xfs_file_fsync(
 	struct file	*filp,
@@ -285,21 +345,11 @@ xfs_file_fsync(
 
 	if (datasync)
 		flags |= FSYNC_DATA;
-
-	ASSERT(vp);
 	VOP_FSYNC(vp, flags, NULL, (xfs_off_t)0, (xfs_off_t)-1, error);
 	return -error;
 }
 
-/*
- * xfs_file_readdir maps to VOP_READDIR().
- * We need to build a uio, cred, ...
- */
-
-#define nextdp(dp)      ((struct xfs_dirent *)((char *)(dp) + (dp)->d_reclen))
-
 #ifdef CONFIG_XFS_DMAPI
-
 STATIC struct page *
 xfs_vm_nopage(
 	struct vm_area_struct	*area,
@@ -319,9 +369,7 @@ xfs_vm_nopage(
 
 	return filemap_nopage(area, address, type);
 }
-
 #endif /* CONFIG_XFS_DMAPI */
-
 
 STATIC int
 xfs_file_readdir(
@@ -330,7 +378,7 @@ xfs_file_readdir(
 	filldir_t	filldir)
 {
 	int		error = 0;
-	vnode_t		*vp;
+	vnode_t		*vp = vn_from_inode(filp->f_dentry->d_inode);
 	uio_t		uio;
 	iovec_t		iov;
 	int		eof = 0;
@@ -339,9 +387,6 @@ xfs_file_readdir(
 	size_t		rlen = PAGE_CACHE_SIZE;
 	xfs_off_t	start_offset, curr_offset;
 	xfs_dirent_t	*dbp = NULL;
-
-	vp = vn_from_inode(filp->f_dentry->d_inode);
-	ASSERT(vp);
 
 	/* Try fairly hard to get memory */
 	do {
@@ -387,7 +432,7 @@ xfs_file_readdir(
 			}
 			size -= dbp->d_reclen;
 			curr_offset = (loff_t)dbp->d_off /* & 0x7fffffff */;
-			dbp = nextdp(dbp);
+			dbp = (xfs_dirent_t *)((char *)dbp + dbp->d_reclen);
 		}
 	}
 done:
@@ -401,7 +446,6 @@ done:
 	kfree(read_buf);
 	return -error;
 }
-
 
 STATIC int
 xfs_file_mmap(
@@ -457,11 +501,10 @@ xfs_file_ioctl_invis(
 	unsigned int	cmd,
 	unsigned long	arg)
 {
-	int		error;
 	struct inode	*inode = filp->f_dentry->d_inode;
 	vnode_t		*vp = vn_from_inode(inode);
+	int		error;
 
-	ASSERT(vp);
 	VOP_IOCTL(vp, inode, filp, IO_INVIS, cmd, (void __user *)arg, error);
 	VMODIFY(vp);
 
@@ -537,6 +580,8 @@ const struct file_operations xfs_file_operations = {
 	.aio_read	= xfs_file_aio_read,
 	.aio_write	= xfs_file_aio_write,
 	.sendfile	= xfs_file_sendfile,
+	.splice_read	= xfs_file_splice_read,
+	.splice_write	= xfs_file_splice_write,
 	.unlocked_ioctl	= xfs_file_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= xfs_file_compat_ioctl,
@@ -558,7 +603,9 @@ const struct file_operations xfs_invis_file_operations = {
 	.writev		= xfs_file_writev_invis,
 	.aio_read	= xfs_file_aio_read_invis,
 	.aio_write	= xfs_file_aio_write_invis,
-	.sendfile	= xfs_file_sendfile,
+	.sendfile	= xfs_file_sendfile_invis,
+	.splice_read	= xfs_file_splice_read_invis,
+	.splice_write	= xfs_file_splice_write_invis,
 	.unlocked_ioctl	= xfs_file_ioctl_invis,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= xfs_file_compat_invis_ioctl,

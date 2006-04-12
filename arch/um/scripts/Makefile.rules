@@ -9,10 +9,8 @@ USER_OBJS := $(foreach file,$(USER_OBJS),$(obj)/$(file))
 
 $(USER_OBJS) $(USER_OBJS:.o=.i) $(USER_OBJS:.o=.s) $(USER_OBJS:.o=.lst): \
 	c_flags = -Wp,-MD,$(depfile) $(USER_CFLAGS) $(CFLAGS_$(notdir $@))
-$(USER_OBJS): cmd_checksrc =
-$(USER_OBJS): quiet_cmd_checksrc =
-$(USER_OBJS): cmd_force_checksrc =
-$(USER_OBJS): quiet_cmd_force_checksrc =
+$(USER_OBJS) : CHECKFLAGS := -D__linux__ -Dlinux -D__STDC__ \
+	-Dunix -D__unix__ -D__$(SUBARCH)__
 
 
 # The stubs and unmap.o can't try to call mcount or update basic block data

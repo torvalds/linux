@@ -899,11 +899,13 @@ static int do_change_type(struct nameidata *nd, int flag)
 /*
  * do loopback mount.
  */
-static int do_loopback(struct nameidata *nd, char *old_name, int recurse)
+static int do_loopback(struct nameidata *nd, char *old_name, unsigned long flags, int mnt_flags)
 {
 	struct nameidata old_nd;
 	struct vfsmount *mnt = NULL;
+	int recurse = flags & MS_REC;
 	int err = mount_is_safe(nd);
+
 	if (err)
 		return err;
 	if (!old_name || !*old_name)
@@ -937,6 +939,7 @@ static int do_loopback(struct nameidata *nd, char *old_name, int recurse)
 		spin_unlock(&vfsmount_lock);
 		release_mounts(&umount_list);
 	}
+	mnt->mnt_flags = mnt_flags;
 
 out:
 	up_write(&namespace_sem);
@@ -1350,7 +1353,7 @@ long do_mount(char *dev_name, char *dir_name, char *type_page,
 		retval = do_remount(&nd, flags & ~MS_REMOUNT, mnt_flags,
 				    data_page);
 	else if (flags & MS_BIND)
-		retval = do_loopback(&nd, dev_name, flags & MS_REC);
+		retval = do_loopback(&nd, dev_name, flags, mnt_flags);
 	else if (flags & (MS_SHARED | MS_PRIVATE | MS_SLAVE | MS_UNBINDABLE))
 		retval = do_change_type(&nd, flags);
 	else if (flags & MS_MOVE)

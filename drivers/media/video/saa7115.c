@@ -40,6 +40,7 @@
 #include <linux/i2c.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
+#include <media/saa7115.h>
 #include <asm/div64.h>
 
 MODULE_DESCRIPTION("Philips SAA7113/SAA7114/SAA7115 video decoder driver");
@@ -53,7 +54,7 @@ module_param(debug, bool, 0644);
 MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
 static unsigned short normal_i2c[] = {
-		0x4a >>1, 0x48 >>1,	/* SAA7113 */
+		0x4a >> 1, 0x48 >> 1,	/* SAA7113 */
 		0x42 >> 1, 0x40 >> 1,	/* SAA7114 and SAA7115 */
 		I2C_CLIENT_END };
 
@@ -722,16 +723,16 @@ static void saa7115_set_v4lstd(struct i2c_client *client, v4l2_std_id std)
 	100 reserved                    NTSC-Japan (3.58MHz)
 	*/
 	if (state->ident == V4L2_IDENT_SAA7113) {
-		u8 reg =  saa7115_read(client, 0x0e) & 0x8f;
+		u8 reg = saa7115_read(client, 0x0e) & 0x8f;
 
 		if (std == V4L2_STD_PAL_M) {
-			reg|=0x30;
+			reg |= 0x30;
 		} else if (std == V4L2_STD_PAL_N) {
-			reg|=0x20;
+			reg |= 0x20;
 		} else if (std == V4L2_STD_PAL_60) {
-			reg|=0x10;
+			reg |= 0x10;
 		} else if (std == V4L2_STD_NTSC_M_JP) {
-			reg|=0x40;
+			reg |= 0x40;
 		}
 		saa7115_write(client, 0x0e, reg);
 	}
@@ -811,7 +812,7 @@ static void saa7115_set_lcr(struct i2c_client *client, struct v4l2_sliced_vbi_fo
 	u8 lcr[24];
 	int i, x;
 
-	/* saa7113/71144 doesn't yet support VBI */
+	/* saa7113/7114 doesn't yet support VBI */
 	if (state->ident != V4L2_IDENT_SAA7115)
 		return;
 
@@ -851,7 +852,7 @@ static void saa7115_set_lcr(struct i2c_client *client, struct v4l2_sliced_vbi_fo
 					case 0:
 						lcr[i] |= 0xf << (4 * x);
 						break;
-					case V4L2_SLICED_TELETEXT_PAL_B:
+					case V4L2_SLICED_TELETEXT_B:
 						lcr[i] |= 1 << (4 * x);
 						break;
 					case V4L2_SLICED_CAPTION_525:
@@ -880,7 +881,7 @@ static void saa7115_set_lcr(struct i2c_client *client, struct v4l2_sliced_vbi_fo
 static int saa7115_get_v4lfmt(struct i2c_client *client, struct v4l2_format *fmt)
 {
 	static u16 lcr2vbi[] = {
-		0, V4L2_SLICED_TELETEXT_PAL_B, 0,	/* 1 */
+		0, V4L2_SLICED_TELETEXT_B, 0,	/* 1 */
 		0, V4L2_SLICED_CAPTION_525,	/* 4 */
 		V4L2_SLICED_WSS_625, 0,		/* 5 */
 		V4L2_SLICED_VPS, 0, 0, 0, 0,	/* 7 */
@@ -1045,7 +1046,7 @@ static void saa7115_decode_vbi_line(struct i2c_client *client,
 	/* decode payloads */
 	switch (id2) {
 	case 1:
-		vbi->type = V4L2_SLICED_TELETEXT_PAL_B;
+		vbi->type = V4L2_SLICED_TELETEXT_B;
 		break;
 	case 4:
 		if (!saa7115_odd_parity(p[0]) || !saa7115_odd_parity(p[1]))
@@ -1179,6 +1180,46 @@ static int saa7115_command(struct i2c_client *client, unsigned int cmd, void *ar
 	case AUDC_SET_RADIO:
 		state->radio = 1;
 		break;
+
+	case VIDIOC_INT_G_VIDEO_ROUTING:
+	{
+		struct v4l2_routing *route = arg;
+
+		route->input = state->input;
+		route->output = 0;
+		break;
+	}
+
+	case VIDIOC_INT_S_VIDEO_ROUTING:
+	{
+		struct v4l2_routing *route = arg;
+
+		v4l_dbg(1, debug, client, "decoder set input %d\n", route->input);
+		/* saa7113 does not have these inputs */
+		if (state->ident == V4L2_IDENT_SAA7113 &&
+		    (route->input == SAA7115_COMPOSITE4 ||
+		     route->input == SAA7115_COMPOSITE5)) {
+			return -EINVAL;
+		}
+		if (route->input > SAA7115_SVIDEO3)
+			return -EINVAL;
+		if (state->input == route->input)
+			break;
+		v4l_dbg(1, debug, client, "now setting %s input\n",
+			(route->input >= SAA7115_SVIDEO0) ? "S-Video" : "Composite");
+		state->input = route->input;
+
+		/* select mode */
+		saa7115_write(client, 0x02,
+			      (saa7115_read(client, 0x02) & 0xf0) |
+			       state->input);
+
+		/* bypass chrominance trap for S-Video modes */
+		saa7115_write(client, 0x09,
+			      (saa7115_read(client, 0x09) & 0x7f) |
+			       (state->input >= SAA7115_SVIDEO0 ? 0x80 : 0x0));
+		break;
+	}
 
 	case VIDIOC_G_INPUT:
 		*(int *)arg = state->input;
@@ -1321,7 +1362,7 @@ static int saa7115_attach(struct i2c_adapter *adapter, int address, int kind)
 
 	saa7115_write(client, 0, 5);
 	chip_id = saa7115_read(client, 0) & 0x0f;
-	if (chip_id <3 && chip_id > 5) {
+	if (chip_id < 3 && chip_id > 5) {
 		v4l_dbg(1, debug, client, "saa7115 not found\n");
 		kfree(client);
 		return 0;
@@ -1360,7 +1401,7 @@ static int saa7115_attach(struct i2c_adapter *adapter, int address, int kind)
 	v4l_dbg(1, debug, client, "writing init values\n");
 
 	/* init to 60hz/48khz */
-	if (state->ident==V4L2_IDENT_SAA7113)
+	if (state->ident == V4L2_IDENT_SAA7113)
 		saa7115_writeregs(client, saa7113_init_auto_input);
 	else
 		saa7115_writeregs(client, saa7115_init_auto_input);

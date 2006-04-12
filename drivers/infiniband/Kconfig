@@ -30,6 +30,7 @@ config INFINIBAND_USER_ACCESS
 	  <http://www.openib.org>.
 
 source "drivers/infiniband/hw/mthca/Kconfig"
+source "drivers/infiniband/hw/ipath/Kconfig"
 
 source "drivers/infiniband/ulp/ipoib/Kconfig"
 

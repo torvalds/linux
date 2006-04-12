@@ -705,7 +705,7 @@ and other resources, etc.
 
 	<sect1><title>ata_scsi_error()</title>
 	<para>
-	ata_scsi_error() is the current hostt->eh_strategy_handler()
+	ata_scsi_error() is the current transportt->eh_strategy_handler()
 	for libata.  As discussed above, this will be entered in two
 	cases - timeout and ATAPI error completion.  This function
 	calls low level libata driver's eng_timeout() callback, the

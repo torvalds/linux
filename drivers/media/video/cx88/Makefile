@@ -8,9 +8,9 @@ obj-$(CONFIG_VIDEO_CX88_DVB) += cx88-dvb.o
 obj-$(CONFIG_VIDEO_CX88_ALSA) += cx88-alsa.o
 obj-$(CONFIG_VIDEO_CX88_VP3054) += cx88-vp3054-i2c.o
 
-EXTRA_CFLAGS += -I$(src)/..
-EXTRA_CFLAGS += -I$(srctree)/drivers/media/dvb/dvb-core
-EXTRA_CFLAGS += -I$(srctree)/drivers/media/dvb/frontends
+EXTRA_CFLAGS += -Idrivers/media/video
+EXTRA_CFLAGS += -Idrivers/media/dvb/dvb-core
+EXTRA_CFLAGS += -Idrivers/media/dvb/frontends
 
 extra-cflags-$(CONFIG_VIDEO_BUF_DVB) += -DHAVE_VIDEO_BUF_DVB=1
 extra-cflags-$(CONFIG_DVB_CX22702)   += -DHAVE_CX22702=1

@@ -725,22 +725,17 @@ static struct file_operations clusterip_proc_fops = {
 
 #endif /* CONFIG_PROC_FS */
 
-static int init_or_cleanup(int fini)
+static int __init ipt_clusterip_init(void)
 {
 	int ret;
 
-	if (fini)
-		goto cleanup;
+	ret = ipt_register_target(&clusterip_tgt);
+	if (ret < 0)
+		return ret;
 
-	if (ipt_register_target(&clusterip_tgt)) {
-		ret = -EINVAL;
-		goto cleanup_none;
-	}
-
-	if (nf_register_hook(&cip_arp_ops) < 0) {
-		ret = -EINVAL;
+	ret = nf_register_hook(&cip_arp_ops);
+	if (ret < 0)
 		goto cleanup_target;
-	}
 
 #ifdef CONFIG_PROC_FS
 	clusterip_procdir = proc_mkdir("ipt_CLUSTERIP", proc_net);
@@ -753,31 +748,24 @@ static int init_or_cleanup(int fini)
 
 	printk(KERN_NOTICE "ClusterIP Version %s loaded successfully\n",
 		CLUSTERIP_VERSION);
-
 	return 0;
 
-cleanup:
+cleanup_hook:
+	nf_unregister_hook(&cip_arp_ops);
+cleanup_target:
+	ipt_unregister_target(&clusterip_tgt);
+	return ret;
+}
+
+static void __exit ipt_clusterip_fini(void)
+{
 	printk(KERN_NOTICE "ClusterIP Version %s unloading\n",
 		CLUSTERIP_VERSION);
 #ifdef CONFIG_PROC_FS
 	remove_proc_entry(clusterip_procdir->name, clusterip_procdir->parent);
 #endif
-cleanup_hook:
 	nf_unregister_hook(&cip_arp_ops);
-cleanup_target:
 	ipt_unregister_target(&clusterip_tgt);
-cleanup_none:
-	return -EINVAL;
-}
-
-static int __init ipt_clusterip_init(void)
-{
-	return init_or_cleanup(0);
-}
-
-static void __exit ipt_clusterip_fini(void)
-{
-	init_or_cleanup(1);
 }
 
 module_init(ipt_clusterip_init);

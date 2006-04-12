@@ -48,7 +48,6 @@ EXPORT_SYMBOL(memchr);
 EXPORT_SYMBOL(strcat);
 EXPORT_SYMBOL(strchr);
 EXPORT_SYMBOL(strlen);
-EXPORT_SYMBOL(strpbrk);
 EXPORT_SYMBOL(strncat);
 EXPORT_SYMBOL(strnlen);
 EXPORT_SYMBOL(strrchr);

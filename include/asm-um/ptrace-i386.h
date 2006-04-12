@@ -56,6 +56,9 @@ extern int do_get_thread_area_tt(struct user_desc *info);
 extern int arch_switch_tls_skas(struct task_struct *from, struct task_struct *to);
 extern int arch_switch_tls_tt(struct task_struct *from, struct task_struct *to);
 
+extern void arch_switch_to_tt(struct task_struct *from, struct task_struct *to);
+extern void arch_switch_to_skas(struct task_struct *from, struct task_struct *to);
+
 static inline int do_get_thread_area(struct user_desc *info)
 {
 	return CHOOSE_MODE_PROC(do_get_thread_area_tt, do_get_thread_area_skas, info);

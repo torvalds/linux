@@ -69,8 +69,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.55"
-#define DRV_MODULE_RELDATE	"Mar 27, 2006"
+#define DRV_MODULE_VERSION	"3.56"
+#define DRV_MODULE_RELDATE	"Apr 1, 2006"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -497,18 +497,18 @@ static void tg3_write_mem(struct tg3 *tp, u32 off, u32 val)
 	unsigned long flags;
 
 	spin_lock_irqsave(&tp->indirect_lock, flags);
-	if (tp->write32 != tg3_write_indirect_reg32) {
-		tw32_f(TG3PCI_MEM_WIN_BASE_ADDR, off);
-		tw32_f(TG3PCI_MEM_WIN_DATA, val);
-
-		/* Always leave this as zero. */
-		tw32_f(TG3PCI_MEM_WIN_BASE_ADDR, 0);
-	} else {
+	if (tp->tg3_flags & TG3_FLAG_SRAM_USE_CONFIG) {
 		pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_BASE_ADDR, off);
 		pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_DATA, val);
 
 		/* Always leave this as zero. */
 		pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_BASE_ADDR, 0);
+	} else {
+		tw32_f(TG3PCI_MEM_WIN_BASE_ADDR, off);
+		tw32_f(TG3PCI_MEM_WIN_DATA, val);
+
+		/* Always leave this as zero. */
+		tw32_f(TG3PCI_MEM_WIN_BASE_ADDR, 0);
 	}
 	spin_unlock_irqrestore(&tp->indirect_lock, flags);
 }
@@ -518,18 +518,18 @@ static void tg3_read_mem(struct tg3 *tp, u32 off, u32 *val)
 	unsigned long flags;
 
 	spin_lock_irqsave(&tp->indirect_lock, flags);
-	if (tp->write32 != tg3_write_indirect_reg32) {
-		tw32_f(TG3PCI_MEM_WIN_BASE_ADDR, off);
-		*val = tr32(TG3PCI_MEM_WIN_DATA);
-
-		/* Always leave this as zero. */
-		tw32_f(TG3PCI_MEM_WIN_BASE_ADDR, 0);
-	} else {
+	if (tp->tg3_flags & TG3_FLAG_SRAM_USE_CONFIG) {
 		pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_BASE_ADDR, off);
 		pci_read_config_dword(tp->pdev, TG3PCI_MEM_WIN_DATA, val);
 
 		/* Always leave this as zero. */
 		pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_BASE_ADDR, 0);
+	} else {
+		tw32_f(TG3PCI_MEM_WIN_BASE_ADDR, off);
+		*val = tr32(TG3PCI_MEM_WIN_DATA);
+
+		/* Always leave this as zero. */
+		tw32_f(TG3PCI_MEM_WIN_BASE_ADDR, 0);
 	}
 	spin_unlock_irqrestore(&tp->indirect_lock, flags);
 }
@@ -2966,9 +2966,7 @@ static void tg3_tx(struct tg3 *tp)
 		struct sk_buff *skb = ri->skb;
 		int i;
 
-		if (unlikely(skb == NULL))
-			BUG();
-
+		BUG_ON(skb == NULL);
 		pci_unmap_single(tp->pdev,
 				 pci_unmap_addr(ri, mapping),
 				 skb_headlen(skb),
@@ -2979,12 +2977,10 @@ static void tg3_tx(struct tg3 *tp)
 		sw_idx = NEXT_TX(sw_idx);
 
 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-			if (unlikely(sw_idx == hw_idx))
-				BUG();
+			BUG_ON(sw_idx == hw_idx);
 
 			ri = &tp->tx_buffers[sw_idx];
-			if (unlikely(ri->skb != NULL))
-				BUG();
+			BUG_ON(ri->skb != NULL);
 
 			pci_unmap_page(tp->pdev,
 				       pci_unmap_addr(ri, mapping),
@@ -4935,9 +4931,8 @@ static int tg3_halt_cpu(struct tg3 *tp, u32 offset)
 {
 	int i;
 
-	if (offset == TX_CPU_BASE &&
-	    (tp->tg3_flags2 & TG3_FLG2_5705_PLUS))
-		BUG();
+	BUG_ON(offset == TX_CPU_BASE &&
+	    (tp->tg3_flags2 & TG3_FLG2_5705_PLUS));
 
 	if (offset == RX_CPU_BASE) {
 		for (i = 0; i < 10000; i++) {
@@ -5840,10 +5835,14 @@ static int tg3_reset_hw(struct tg3 *tp)
 			  GRC_MODE_NO_TX_PHDR_CSUM |
 			  GRC_MODE_NO_RX_PHDR_CSUM);
 	tp->grc_mode |= GRC_MODE_HOST_SENDBDS;
-	if (tp->tg3_flags & TG3_FLAG_NO_TX_PSEUDO_CSUM)
-		tp->grc_mode |= GRC_MODE_NO_TX_PHDR_CSUM;
-	if (tp->tg3_flags & TG3_FLAG_NO_RX_PSEUDO_CSUM)
-		tp->grc_mode |= GRC_MODE_NO_RX_PHDR_CSUM;
+
+	/* Pseudo-header checksum is done by hardware logic and not
+	 * the offload processers, so make the chip do the pseudo-
+	 * header checksums on receive.  For transmit it is more
+	 * convenient to do the pseudo-header checksum in software
+	 * as Linux does that on transmit for us in all cases.
+	 */
+	tp->grc_mode |= GRC_MODE_NO_TX_PHDR_CSUM;
 
 	tw32(GRC_MODE,
 	     tp->grc_mode |
@@ -8046,9 +8045,13 @@ static int tg3_test_nvram(struct tg3 *tp)
 		for (i = 0; i < size; i++)
 			csum8 += buf8[i];
 
-		if (csum8 == 0)
-			return 0;
-		return -EIO;
+		if (csum8 == 0) {
+			err = 0;
+			goto out;
+		}
+
+		err = -EIO;
+		goto out;
 	}
 
 	/* Bootstrap checksum at offset 0x10 */
@@ -9543,8 +9546,11 @@ static void __devinit tg3_get_eeprom_hw_cfg(struct tg3 *tp)
 	tp->led_ctrl = LED_CTRL_MODE_PHY_1;
 
 	/* Do not even try poking around in here on Sun parts.  */
-	if (tp->tg3_flags2 & TG3_FLG2_SUN_570X)
+	if (tp->tg3_flags2 & TG3_FLG2_SUN_570X) {
+		/* All SUN chips are built-in LOMs. */
+		tp->tg3_flags |= TG3_FLAG_EEPROM_WRITE_PROT;
 		return;
+	}
 
 	tg3_read_mem(tp, NIC_SRAM_DATA_SIG, &val);
 	if (val == NIC_SRAM_DATA_SIG_MAGIC) {
@@ -9642,9 +9648,7 @@ static void __devinit tg3_get_eeprom_hw_cfg(struct tg3 *tp)
 		    tp->pdev->subsystem_vendor == PCI_VENDOR_ID_DELL)
 			tp->led_ctrl = LED_CTRL_MODE_PHY_2;
 
-		if ((GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5700) &&
-		    (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5701) &&
-		    (nic_cfg & NIC_SRAM_DATA_CFG_EEPROM_WP))
+		if (nic_cfg & NIC_SRAM_DATA_CFG_EEPROM_WP)
 			tp->tg3_flags |= TG3_FLAG_EEPROM_WRITE_PROT;
 
 		if (nic_cfg & NIC_SRAM_DATA_CFG_ASF_ENABLE) {
@@ -10269,6 +10273,13 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 		pci_write_config_word(tp->pdev, PCI_COMMAND, pci_cmd);
 	}
 
+	if (tp->write32 == tg3_write_indirect_reg32 ||
+	    ((tp->tg3_flags & TG3_FLAG_PCIX_MODE) &&
+	     (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5700 ||
+	      GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5701)) ||
+	    (tp->tg3_flags2 & TG3_FLG2_SUN_570X))
+		tp->tg3_flags |= TG3_FLAG_SRAM_USE_CONFIG;
+
 	/* Get eeprom hw config before calling tg3_set_power_state().
 	 * In particular, the TG3_FLAG_EEPROM_WRITE_PROT flag must be
 	 * determined before calling tg3_set_power_state() so that
@@ -10310,15 +10321,6 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	 */
 	if (tp->pci_chip_rev_id == CHIPREV_ID_5700_B0)
 		tp->tg3_flags |= TG3_FLAG_BROKEN_CHECKSUMS;
-
-	/* Pseudo-header checksum is done by hardware logic and not
-	 * the offload processers, so make the chip do the pseudo-
-	 * header checksums on receive.  For transmit it is more
-	 * convenient to do the pseudo-header checksum in software
-	 * as Linux does that on transmit for us in all cases.
-	 */
-	tp->tg3_flags |= TG3_FLAG_NO_TX_PSEUDO_CSUM;
-	tp->tg3_flags &= ~TG3_FLAG_NO_RX_PSEUDO_CSUM;
 
 	/* Derive initial jumbo mode from MTU assigned in
 	 * ether_setup() via the alloc_etherdev() call

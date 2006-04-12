@@ -1,0 +1,16 @@
+config IPATH_CORE
+	tristate "PathScale InfiniPath Driver"
+	depends on 64BIT && PCI_MSI && NET
+	---help---
+	This is a low-level driver for PathScale InfiniPath host channel
+	adapters (HCAs) based on the HT-400 and PE-800 chips.
+
+config INFINIBAND_IPATH
+	tristate "PathScale InfiniPath Verbs Driver"
+	depends on IPATH_CORE && INFINIBAND
+	---help---
+	This is a driver that provides InfiniBand verbs support for
+	PathScale InfiniPath host channel adapters (HCAs).  This
+	allows these devices to be used with both kernel upper level
+	protocols such as IP-over-InfiniBand as well as with userspace
+	applications (in conjunction with InfiniBand userspace access).

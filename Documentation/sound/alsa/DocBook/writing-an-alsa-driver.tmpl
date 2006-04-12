@@ -1123,8 +1123,8 @@
           if ((err = pci_enable_device(pci)) < 0)
                   return err;
           /* check PCI availability (28bit DMA) */
-          if (pci_set_dma_mask(pci, 0x0fffffff) < 0 ||
-              pci_set_consistent_dma_mask(pci, 0x0fffffff) < 0) {
+          if (pci_set_dma_mask(pci, DMA_28BIT_MASK) < 0 ||
+              pci_set_consistent_dma_mask(pci, DMA_28BIT_MASK) < 0) {
                   printk(KERN_ERR "error to set 28bit mask DMA\n");
                   pci_disable_device(pci);
                   return -ENXIO;
@@ -1216,7 +1216,7 @@
         The allocation of PCI resources is done in the
       <function>probe()</function> function, and usually an extra
       <function>xxx_create()</function> function is written for this
-      purpose. 
+      purpose.
       </para>
 
       <para>
@@ -1225,7 +1225,7 @@
       allocating resources. Also, you need to set the proper PCI DMA
       mask to limit the accessed i/o range. In some cases, you might
       need to call <function>pci_set_master()</function> function,
-      too. 
+      too.
       </para>
 
       <para>
@@ -1236,8 +1236,8 @@
 <![CDATA[
   if ((err = pci_enable_device(pci)) < 0)
           return err;
-  if (pci_set_dma_mask(pci, 0x0fffffff) < 0 ||
-      pci_set_consistent_dma_mask(pci, 0x0fffffff) < 0) {
+  if (pci_set_dma_mask(pci, DMA_28BIT_MASK) < 0 ||
+      pci_set_consistent_dma_mask(pci, DMA_28BIT_MASK) < 0) {
           printk(KERN_ERR "error to set 28bit mask DMA\n");
           pci_disable_device(pci);
           return -ENXIO;
@@ -1256,13 +1256,13 @@
       functions. Unlike ALSA ver.0.5.x., there are no helpers for
       that. And these resources must be released in the destructor
       function (see below). Also, on ALSA 0.9.x, you don't need to
-      allocate (pseudo-)DMA for PCI like ALSA 0.5.x. 
+      allocate (pseudo-)DMA for PCI like ALSA 0.5.x.
       </para>
 
       <para>
         Now assume that this PCI device has an I/O port with 8 bytes
         and an interrupt. Then struct <structname>mychip</structname> will have the
-        following fields: 
+        following fields:
 
         <informalexample>
           <programlisting>

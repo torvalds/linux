@@ -17,7 +17,6 @@
  * for queueing and must reinject all packets it receives, no matter what.
  */
 static struct nf_queue_handler *queue_handler[NPROTO];
-static struct nf_queue_rerouter *queue_rerouter[NPROTO];
 
 static DEFINE_RWLOCK(queue_handler_lock);
 
@@ -59,32 +58,6 @@ int nf_unregister_queue_handler(int pf)
 }
 EXPORT_SYMBOL(nf_unregister_queue_handler);
 
-int nf_register_queue_rerouter(int pf, struct nf_queue_rerouter *rer)
-{
-	if (pf >= NPROTO)
-		return -EINVAL;
-
-	write_lock_bh(&queue_handler_lock);
-	rcu_assign_pointer(queue_rerouter[pf], rer);
-	write_unlock_bh(&queue_handler_lock);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(nf_register_queue_rerouter);
-
-int nf_unregister_queue_rerouter(int pf)
-{
-	if (pf >= NPROTO)
-		return -EINVAL;
-
-	write_lock_bh(&queue_handler_lock);
-	rcu_assign_pointer(queue_rerouter[pf], NULL);
-	write_unlock_bh(&queue_handler_lock);
-	synchronize_rcu();
-	return 0;
-}
-EXPORT_SYMBOL_GPL(nf_unregister_queue_rerouter);
-
 void nf_unregister_queue_handlers(struct nf_queue_handler *qh)
 {
 	int pf;
@@ -116,7 +89,7 @@ int nf_queue(struct sk_buff **skb,
 	struct net_device *physindev = NULL;
 	struct net_device *physoutdev = NULL;
 #endif
-	struct nf_queue_rerouter *rerouter;
+	struct nf_afinfo *afinfo;
 
 	/* QUEUE == DROP if noone is waiting, to be safe. */
 	read_lock(&queue_handler_lock);
@@ -126,7 +99,14 @@ int nf_queue(struct sk_buff **skb,
 		return 1;
 	}
 
-	info = kmalloc(sizeof(*info)+queue_rerouter[pf]->rer_size, GFP_ATOMIC);
+	afinfo = nf_get_afinfo(pf);
+	if (!afinfo) {
+		read_unlock(&queue_handler_lock);
+		kfree_skb(*skb);
+		return 1;
+	}
+
+	info = kmalloc(sizeof(*info) + afinfo->route_key_size, GFP_ATOMIC);
 	if (!info) {
 		if (net_ratelimit())
 			printk(KERN_ERR "OOM queueing packet %p\n",
@@ -158,10 +138,7 @@ int nf_queue(struct sk_buff **skb,
 		if (physoutdev) dev_hold(physoutdev);
 	}
 #endif
-	rerouter = rcu_dereference(queue_rerouter[pf]);
-	if (rerouter)
-		rerouter->save(*skb, info);
-
+	afinfo->saveroute(*skb, info);
 	status = queue_handler[pf]->outfn(*skb, info, queuenum,
 					  queue_handler[pf]->data);
 
@@ -190,7 +167,7 @@ void nf_reinject(struct sk_buff *skb, struct nf_info *info,
 {
 	struct list_head *elem = &info->elem->list;
 	struct list_head *i;
-	struct nf_queue_rerouter *rerouter;
+	struct nf_afinfo *afinfo;
 
 	rcu_read_lock();
 
@@ -228,8 +205,8 @@ void nf_reinject(struct sk_buff *skb, struct nf_info *info,
 	}
 
 	if (verdict == NF_ACCEPT) {
-		rerouter = rcu_dereference(queue_rerouter[info->pf]);
-		if (rerouter && rerouter->reroute(&skb, info) < 0)
+		afinfo = nf_get_afinfo(info->pf);
+		if (!afinfo || afinfo->reroute(&skb, info) < 0)
 			verdict = NF_DROP;
 	}
 

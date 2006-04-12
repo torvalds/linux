@@ -25,10 +25,6 @@
 #include <asm/arch/mux.h>
 #include <asm/arch/gpio.h>
 
-extern void omap_nop_release(struct device *dev);
-
-/*-------------------------------------------------------------------------*/
-
 #if	defined(CONFIG_OMAP1610_IR) || defined(CONFIG_OMAP161O_IR_MODULE)
 
 static u64 irda_dmamask = 0xffffffff;
@@ -37,7 +33,6 @@ static struct platform_device omap1610ir_device = {
 	.name = "omap1610-ir",
 	.id = -1,
 	.dev = {
-		.release	= omap_nop_release,
 		.dma_mask	= &irda_dmamask,
 	},
 };
@@ -84,9 +79,6 @@ static struct resource rtc_resources[] = {
 static struct platform_device omap_rtc_device = {
 	.name           = "omap_rtc",
 	.id             = -1,
-	.dev = {
-		.release        = omap_nop_release,
-	},
 	.num_resources	= ARRAY_SIZE(rtc_resources),
 	.resource	= rtc_resources,
 };
@@ -99,6 +91,42 @@ static void omap_init_rtc(void)
 static inline void omap_init_rtc(void) {}
 #endif
 
+#if defined(CONFIG_OMAP_STI)
+
+#define OMAP1_STI_BASE		IO_ADDRESS(0xfffea000)
+#define OMAP1_STI_CHANNEL_BASE	(OMAP1_STI_BASE + 0x400)
+
+static struct resource sti_resources[] = {
+	{
+		.start		= OMAP1_STI_BASE,
+		.end		= OMAP1_STI_BASE + SZ_1K - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		.start		= OMAP1_STI_CHANNEL_BASE,
+		.end		= OMAP1_STI_CHANNEL_BASE + SZ_1K - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		.start		= INT_1610_STI,
+		.flags		= IORESOURCE_IRQ,
+	}
+};
+
+static struct platform_device sti_device = {
+	.name		= "sti",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(sti_resources),
+	.resource	= sti_resources,
+};
+
+static inline void omap_init_sti(void)
+{
+	platform_device_register(&sti_device);
+}
+#else
+static inline void omap_init_sti(void) {}
+#endif
 
 /*-------------------------------------------------------------------------*/
 
@@ -129,6 +157,7 @@ static int __init omap1_init_devices(void)
 	 */
 	omap_init_irda();
 	omap_init_rtc();
+	omap_init_sti();
 
 	return 0;
 }

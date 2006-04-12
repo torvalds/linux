@@ -53,33 +53,36 @@ static void __init find_tempdir(void)
  */
 int make_tempfile(const char *template, char **out_tempname, int do_unlink)
 {
-	char tempname[MAXPATHLEN];
+	char *tempname;
 	int fd;
 
+	tempname = malloc(MAXPATHLEN);
+
 	find_tempdir();
-	if (*template != '/')
+	if (template[0] != '/')
 		strcpy(tempname, tempdir);
 	else
-		*tempname = 0;
+		tempname[0] = '\0';
 	strcat(tempname, template);
 	fd = mkstemp(tempname);
 	if(fd < 0){
 		fprintf(stderr, "open - cannot create %s: %s\n", tempname,
 			strerror(errno));
-		return -1;
+		goto out;
 	}
 	if(do_unlink && (unlink(tempname) < 0)){
 		perror("unlink");
-		return -1;
+		goto out;
 	}
 	if(out_tempname){
-		*out_tempname = strdup(tempname);
-		if(*out_tempname == NULL){
-			perror("strdup");
-			return -1;
-		}
+		*out_tempname = tempname;
+	} else {
+		free(tempname);
 	}
 	return(fd);
+out:
+	free(tempname);
+	return -1;
 }
 
 #define TEMPNAME_TEMPLATE "vm_file-XXXXXX"

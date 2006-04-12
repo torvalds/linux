@@ -1,0 +1,286 @@
+GigaSet 307x Device Driver
+==========================
+
+1.   Requirements
+     ------------
+1.1. Hardware
+     --------
+     This release supports the connection of the Gigaset 307x/417x family of
+     ISDN DECT bases via Gigaset M101 Data, Gigaset M105 Data or direct USB
+     connection. The following devices are reported to be compatible:
+     307x/417x:
+        Gigaset SX255isdn
+        Gigaset SX353isdn
+        Sinus 45 [AB] isdn (Deutsche Telekom)
+        Sinus 721X/XA
+        Vox Chicago 390 ISDN (KPN Telecom)
+     M101:
+        Sinus 45 Data 1 (Telekom)
+     M105:
+        Gigaset USB Adapter DECT
+        Sinus 45 Data 2 (Telekom)
+        Sinus 721 data
+        Chicago 390 USB (KPN)
+     See also http://www.erbze.info/sinus_gigaset.htm and
+              http://gigaset307x.sourceforge.net/
+
+     We had also reports from users of Gigaset M105 who could use the drivers
+     with SX 100 and CX 100 ISDN bases (only in unimodem mode, see section 2.4.)
+     If you have another device that works with our driver, please let us know.
+     For example, Gigaset SX205isdn/Sinus 721 X SE and Gigaset SX303isdn bases
+     are just versions without answering machine of models known to work, so
+     they should work just as well; but so far we are lacking positive reports
+     on these.
+
+     Chances of getting an USB device to work are good if the output of
+        lsusb
+     at the command line contains one of the following:
+        ID 0681:0001
+        ID 0681:0002
+        ID 0681:0009
+        ID 0681:0021
+        ID 0681:0022
+
+1.2. Software
+     --------
+     The driver works with ISDN4linux and so can be used with any software
+     which is able to use ISDN4linux for ISDN connections (voice or data).
+     CAPI4Linux support is planned but not yet available.
+
+     There are some user space tools available at
+     http://sourceforge.net/projects/gigaset307x/
+     which provide access to additional device specific functions like SMS,
+     phonebook or call journal.
+
+
+2.   How to use the driver
+     ---------------------
+2.1. Modules
+     -------
+     To get the device working, you have to load the proper kernel module. You
+     can do this using
+         modprobe modulename
+     where modulename is usb_gigaset (M105) or bas_gigaset (direct USB
+     connection to the base).
+
+2.2. Device nodes for user space programs
+     ------------------------------------
+     The device can be accessed from user space (eg. by the user space tools
+     mentioned in 1.2.) through the device nodes:
+
+     - /dev/ttyGU0 for M105 (USB data boxes)
+     - /dev/ttyGB0 for the base driver (direct USB connection)
+
+     You can also select a "default device" which is used by the frontends when
+     no device node is given as parameter, by creating a symlink /dev/ttyG to
+     one of them, eg.:
+
+        ln -s /dev/ttyGB0 /dev/ttyG
+
+2.3. ISDN4linux
+     ----------
+     This is the "normal" mode of operation. After loading the module you can
+     set up the ISDN system just as you'd do with any ISDN card.
+     Your distribution should provide some configuration utility.
+     If not, you can use some HOWTOs like
+         http://www.linuxhaven.de/dlhp/HOWTO/DE-ISDN-HOWTO-5.html
+     If this doesn't work, because you have some recent device like SX100 where
+     debug output (see section 3.2.) shows something like this when dialing
+         CMD Received: ERROR
+         Available Params: 0
+         Connection State: 0, Response: -1
+         gigaset_process_response: resp_code -1 in ConState 0 !
+         Timeout occurred
+     you might need to use unimodem mode:
+
+2.4. Unimodem mode
+     -------------
+     This is needed for some devices [e.g. SX100] as they have problems with
+     the "normal" commands.
+
+     If you have installed the command line tool gigacontr, you can enter
+     unimodem mode using
+         gigacontr --mode unimodem
+     You can switch back using
+         gigacontr --mode isdn
+
+     You can also load the driver using e.g.
+         modprobe usb_gigaset startmode=0
+     to prevent the driver from starting in "isdn4linux mode".
+
+     In this mode the device works like a modem connected to a serial port
+     (the /dev/ttyGU0, ... mentioned above) which understands the commands
+         ATZ                 init, reset
+             => OK or ERROR
+         ATD
+         ATDT                dial
+             => OK, CONNECT,
+                BUSY,
+                NO DIAL TONE,
+                NO CARRIER,
+                NO ANSWER
+         <pause>+++<pause>   change to command mode when connected
+         ATH                 hangup
+
+     You can use some configuration tool of your distribution to configure this
+     "modem" or configure pppd/wvdial manually. There are some example ppp
+     configuration files and chat scripts in the gigaset-VERSION/ppp directory.
+     Please note that the USB drivers are not able to change the state of the
+     control lines (the M105 driver can be configured to use some undocumented
+     control requests, if you really need the control lines, though). This means
+     you must use "Stupid Mode" if you are using wvdial or you should use the
+     nocrtscts option of pppd.
+     You must also assure that the ppp_async module is loaded with the parameter
+     flag_time=0. You can do this e.g. by adding a line like
+
+        options ppp_async flag_time=0
+
+     to /etc/modprobe.conf. If your distribution has some local module
+     configuration file like /etc/modprobe.conf.local,
+     using that should be preferred.
+
+2.5. Call-ID (CID) mode
+     ------------------
+     Call-IDs are numbers used to tag commands to, and responses from, the
+     Gigaset base in order to support the simultaneous handling of multiple
+     ISDN calls. Their use can be enabled ("CID mode") or disabled ("Unimodem
+     mode"). Without Call-IDs (in Unimodem mode), only a very limited set of
+     functions is available. It allows outgoing data connections only, but
+     does not signal incoming calls or other base events.
+
+     DECT cordless data devices (M10x) permanently occupy the cordless
+     connection to the base while Call-IDs are activated. As the Gigaset
+     bases only support one DECT data connection at a time, this prevents
+     other DECT cordless data devices from accessing the base.
+
+     During active operation, the driver switches to the necessary mode
+     automatically. However, for the reasons above, the mode chosen when
+     the device is not in use (idle) can be selected by the user.
+     - If you want to receive incoming calls, you can use the default
+       settings (CID mode).
+     - If you have several DECT data devices (M10x) which you want to use
+       in turn, select Unimodem mode by passing the parameter "cidmode=0" to
+       the driver ("modprobe usb_gigaset cidmode=0" or modprobe.conf).
+
+     If you want both of these at once, you are out of luck.
+
+     You can also use /sys/module/<name>/parameters/cidmode for changing
+     the CID mode setting (<name> is usb_gigaset or bas_gigaset).
+
+
+3.   Troubleshooting
+     ---------------
+3.1. Solutions to frequently reported problems
+     -----------------------------------------
+     Problem:
+        You have a slow provider and isdn4linux gives up dialing too early.
+     Solution:
+        Load the isdn module using the dialtimeout option. You can do this e.g.
+        by adding a line like
+
+           options isdn dialtimeout=15
+
+        to /etc/modprobe.conf. If your distribution has some local module
+        configuration file like /etc/modprobe.conf.local,
+        using that should be preferred.
+
+     Problem:
+        Your isdn script aborts with a message about isdnlog.
+     Solution:
+        Try deactivating (or commenting out) isdnlog. This driver does not
+        support it.
+
+     Problem:
+        You have two or more DECT data adapters (M101/M105) and only the
+        first one you turn on works.
+     Solution:
+        Select Unimodem mode for all DECT data adapters. (see section 2.4.)
+
+3.2. Telling the driver to provide more information
+     ----------------------------------------------
+     Building the driver with the "Gigaset debugging" kernel configuration
+     option (CONFIG_GIGASET_DEBUG) gives it the ability to produce additional
+     information useful for debugging.
+
+     You can control the amount of debugging information the driver produces by
+     writing an appropriate value to /sys/module/gigaset/parameters/debug, e.g.
+        echo 0 > /sys/module/gigaset/parameters/debug
+     switches off debugging output completely,
+        echo 0x10a020 > /sys/module/gigaset/parameters/debug
+     enables the standard set of debugging output messages. These values are
+     bit patterns where every bit controls a certain type of debugging output.
+     See the constants DEBUG_* in the source file gigaset.h for details.
+
+     The initial value can be set using the debug parameter when loading the
+     module "gigaset", e.g. by adding a line
+        options gigaset debug=0
+     to /etc/modprobe.conf, ...
+
+     Generated debugging information can be found
+     - as output of the command
+         dmesg
+     - in system log files written by your syslog daemon, usually
+       in /var/log/, e.g. /var/log/messages.
+
+3.3. Reporting problems and bugs
+     ---------------------------
+     If you can't solve problems with the driver on your own, feel free to
+     use one of the forums, bug trackers, or mailing lists on
+         http://sourceforge.net/projects/gigaset307x
+     or write an electronic mail to the maintainers.
+
+     Try to provide as much information as possible, such as
+     - distribution
+     - kernel version (uname -r)
+     - gcc version (gcc --version)
+     - hardware architecture (uname -m, ...)
+     - type and firmware version of your device (base and wireless module,
+       if any)
+     - output of "lsusb -v" (if using an USB device)
+     - error messages
+     - relevant system log messages (it would help if you activate debug
+       output as described in 3.2.)
+
+     For help with general configuration problems not specific to our driver,
+     such as isdn4linux and network configuration issues, please refer to the
+     appropriate forums and newsgroups.
+
+3.4. Reporting problem solutions
+     ---------------------------
+     If you solved a problem with our drivers, wrote startup scripts for your
+     distribution, ... feel free to contact us (using one of the places
+     mentioned in 3.3.). We'd like to add scripts, hints, documentation
+     to the driver and/or the project web page.
+
+
+4.   Links, other software
+     ---------------------
+     - Sourceforge project developing this driver and associated tools
+         http://sourceforge.net/projects/gigaset307x
+     - Yahoo! Group on the Siemens Gigaset family of devices
+         http://de.groups.yahoo.com/group/Siemens-Gigaset
+     - Siemens Gigaset/T-Sinus compatibility table
+         http://www.erbze.info/sinus_gigaset.htm
+
+
+5.   Credits
+     -------
+     Thanks to
+
+     Karsten Keil
+        for his help with isdn4linux
+     Deti Fliegl
+        for his base driver code
+     Dennis Dietrich
+        for his kernel 2.6 patches
+     Andreas Rummel
+        for his work and logs to get unimodem mode working
+     Andreas Degert
+        for his logs and patches to get cx 100 working
+     Dietrich Feist
+        for his generous donation of one M105 and two M101 cordless adapters
+     Christoph Schweers
+        for his generous donation of a M34 device
+
+     and all the other people who sent logs and other information.
+

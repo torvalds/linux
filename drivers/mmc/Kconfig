@@ -91,4 +91,22 @@ config MMC_AU1X
 
 	  If unsure, say N.
 
+config MMC_AT91RM9200
+	tristate "AT91RM9200 SD/MMC Card Interface support"
+	depends on ARCH_AT91RM9200 && MMC
+	help
+	  This selects the AT91RM9200 MCI controller.
+
+	  If unsure, say N.
+
+config MMC_IMX
+	tristate "Motorola i.MX Multimedia Card Interface support"
+	depends on ARCH_IMX && MMC
+	help
+	  This selects the Motorola i.MX Multimedia card Interface.
+	  If you have a i.MX platform with a Multimedia Card slot,
+	  say Y or M here.
+
+	  If unsure, say N.
+
 endmenu

@@ -194,7 +194,7 @@ document for how to handle this case.
 Finally, if your device can only drive the low 24-bits of
 address during PCI bus mastering you might do something like:
 
-	if (pci_set_dma_mask(pdev, 0x00ffffff)) {
+	if (pci_set_dma_mask(pdev, DMA_24BIT_MASK)) {
 		printk(KERN_WARNING
 		       "mydev: 24-bit DMA addressing not available.\n");
 		goto ignore_this_device;
@@ -212,7 +212,7 @@ functions (for example a sound card provides playback and record
 functions) and the various different functions have _different_
 DMA addressing limitations, you may wish to probe each mask and
 only provide the functionality which the machine can handle.  It
-is important that the last call to pci_set_dma_mask() be for the 
+is important that the last call to pci_set_dma_mask() be for the
 most specific mask.
 
 Here is pseudo-code showing how this might be done:

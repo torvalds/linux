@@ -307,6 +307,10 @@ static void __init fixup_poodle(struct machine_desc *desc,
 		struct tag *tags, char **cmdline, struct meminfo *mi)
 {
 	sharpsl_save_param();
+	mi->nr_banks=1;
+	mi->bank[0].start = 0xa0000000;
+	mi->bank[0].node = 0;
+	mi->bank[0].size = (32*1024*1024);
 }
 
 MACHINE_START(POODLE, "SHARP Poodle")

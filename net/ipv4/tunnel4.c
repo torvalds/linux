@@ -8,6 +8,8 @@
 #include <linux/mutex.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
+#include <net/icmp.h>
+#include <net/ip.h>
 #include <net/protocol.h>
 #include <net/xfrm.h>
 
@@ -70,10 +72,16 @@ static int tunnel4_rcv(struct sk_buff *skb)
 {
 	struct xfrm_tunnel *handler;
 
+	if (!pskb_may_pull(skb, sizeof(struct iphdr)))
+		goto drop;
+
 	for (handler = tunnel4_handlers; handler; handler = handler->next)
 		if (!handler->handler(skb))
 			return 0;
 
+	icmp_send(skb, ICMP_DEST_UNREACH, ICMP_PORT_UNREACH, 0);
+
+drop:
 	kfree_skb(skb);
 	return 0;
 }

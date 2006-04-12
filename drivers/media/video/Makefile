@@ -45,6 +45,7 @@ obj-$(CONFIG_VIDEO_EM28XX) += tvp5150.o
 obj-$(CONFIG_VIDEO_MSP3400) += msp3400.o
 obj-$(CONFIG_VIDEO_CS53L32A) += cs53l32a.o
 obj-$(CONFIG_VIDEO_WM8775) += wm8775.o
+obj-$(CONFIG_VIDEO_WM8739) += wm8739.o
 obj-$(CONFIG_VIDEO_OVCAMCHIP) += ovcamchip/
 obj-$(CONFIG_VIDEO_CPIA2) += cpia2/
 obj-$(CONFIG_VIDEO_MXB) += saa7111.o tda9840.o tea6415c.o tea6420.o mxb.o
@@ -64,9 +65,8 @@ obj-$(CONFIG_VIDEO_M32R_AR_M64278) += arv.o
 obj-$(CONFIG_VIDEO_CX25840) += cx25840/
 obj-$(CONFIG_VIDEO_SAA711X) += saa7115.o
 obj-$(CONFIG_VIDEO_SAA7127) += saa7127.o
-
-et61x251-objs   := et61x251_core.o et61x251_tas5130d1b.o
-zc0301-objs     := zc0301_core.o zc0301_pas202bcb.o
+obj-$(CONFIG_VIDEO_UPD64031A) += upd64031a.o
+obj-$(CONFIG_VIDEO_UPD64083) += upd64083.o
 
 obj-$(CONFIG_USB_DABUSB)        += dabusb.o
 obj-$(CONFIG_USB_DSBR)          += dsbr100.o
@@ -84,4 +84,4 @@ obj-$(CONFIG_USB_IBMCAM)        += usbvideo/
 obj-$(CONFIG_USB_KONICAWC)      += usbvideo/
 obj-$(CONFIG_USB_VICAM)         += usbvideo/
 
-EXTRA_CFLAGS += -I$(srctree)/drivers/media/dvb/dvb-core
+EXTRA_CFLAGS += -Idrivers/media/dvb/dvb-core

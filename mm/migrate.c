@@ -16,8 +16,7 @@
 #include <linux/module.h>
 #include <linux/swap.h>
 #include <linux/pagemap.h>
-#include <linux/buffer_head.h>	/* for try_to_release_page(),
-					buffer_heads_over_limit */
+#include <linux/buffer_head.h>
 #include <linux/mm_inline.h>
 #include <linux/pagevec.h>
 #include <linux/rmap.h>
@@ -25,8 +24,6 @@
 #include <linux/cpu.h>
 #include <linux/cpuset.h>
 #include <linux/swapops.h>
-
-#include "internal.h"
 
 #include "internal.h"
 
@@ -176,7 +173,6 @@ unlock_retry:
 retry:
 	return -EAGAIN;
 }
-EXPORT_SYMBOL(swap_page);
 
 /*
  * Remove references for a page and establish the new page with the correct
@@ -234,7 +230,7 @@ int migrate_page_remove_references(struct page *newpage,
 	if (!page_mapping(page) || page_count(page) != nr_refs ||
 			*radix_pointer != page) {
 		write_unlock_irq(&mapping->tree_lock);
-		return 1;
+		return -EAGAIN;
 	}
 
 	/*

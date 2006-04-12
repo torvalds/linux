@@ -549,6 +549,11 @@ config NUMA
 	  Access).  This option is for configuring high-end multiprocessor
 	  server machines.  If in doubt, say N.
 
+config NODES_SHIFT
+	int
+	default "7"
+	depends on NEED_MULTIPLE_NODES
+
 # LARGE_VMALLOC is racy, if you *really* need it then fix it first
 config ALPHA_LARGE_VMALLOC
 	bool

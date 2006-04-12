@@ -87,6 +87,7 @@ static void write_msg(struct console *con, const char *msg, unsigned int len)
 }
 
 static struct console netconsole = {
+	.name = "netcon",
 	.flags = CON_ENABLED | CON_PRINTBUFFER,
 	.write = write_msg
 };

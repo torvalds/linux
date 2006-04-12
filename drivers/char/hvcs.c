@@ -904,7 +904,7 @@ static int hvcs_enable_device(struct hvcs_struct *hvcsd, uint32_t unit_address,
 		 * It is possible the vty-server was removed after the irq was
 		 * requested but before we have time to enable interrupts.
 		 */
-		if (vio_enable_interrupts(vdev) == H_Success)
+		if (vio_enable_interrupts(vdev) == H_SUCCESS)
 			return 0;
 		else {
 			printk(KERN_ERR "HVCS: int enable failed for"

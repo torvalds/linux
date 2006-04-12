@@ -599,7 +599,7 @@ sys_epoll_ctl(int epfd, int op, int fd, struct epoll_event __user *event)
 	switch (op) {
 	case EPOLL_CTL_ADD:
 		if (!epi) {
-			epds.events |= POLLERR | POLLHUP | POLLRDHUP;
+			epds.events |= POLLERR | POLLHUP;
 
 			error = ep_insert(ep, &epds, tfile, fd);
 		} else
@@ -613,7 +613,7 @@ sys_epoll_ctl(int epfd, int op, int fd, struct epoll_event __user *event)
 		break;
 	case EPOLL_CTL_MOD:
 		if (epi) {
-			epds.events |= POLLERR | POLLHUP | POLLRDHUP;
+			epds.events |= POLLERR | POLLHUP;
 			error = ep_modify(ep, epi, &epds);
 		} else
 			error = -ENOENT;

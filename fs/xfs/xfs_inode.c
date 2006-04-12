@@ -2732,16 +2732,29 @@ xfs_iunpin(
 	ASSERT(atomic_read(&ip->i_pincount) > 0);
 
 	if (atomic_dec_and_test(&ip->i_pincount)) {
-		vnode_t	*vp = XFS_ITOV_NULL(ip);
+		/*
+		 * If the inode is currently being reclaimed, the
+		 * linux inode _and_ the xfs vnode may have been
+		 * freed so we cannot reference either of them safely.
+		 * Hence we should not try to do anything to them
+		 * if the xfs inode is currently in the reclaim
+		 * path.
+		 *
+		 * However, we still need to issue the unpin wakeup
+		 * call as the inode reclaim may be blocked waiting for
+		 * the inode to become unpinned.
+		 */
+		if (!(ip->i_flags & (XFS_IRECLAIM|XFS_IRECLAIMABLE))) {
+			vnode_t	*vp = XFS_ITOV_NULL(ip);
 
-		/* make sync come back and flush this inode */
-		if (vp) {
-			struct inode	*inode = vn_to_inode(vp);
+			/* make sync come back and flush this inode */
+			if (vp) {
+				struct inode	*inode = vn_to_inode(vp);
 
-			if (!(inode->i_state & I_NEW))
-				mark_inode_dirty_sync(inode);
+				if (!(inode->i_state & I_NEW))
+					mark_inode_dirty_sync(inode);
+			}
 		}
-
 		wake_up(&ip->i_ipin_wait);
 	}
 }

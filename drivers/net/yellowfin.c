@@ -1441,8 +1441,7 @@ static void __devexit yellowfin_remove_one (struct pci_dev *pdev)
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct yellowfin_private *np;
 
-	if (!dev)
-		BUG();
+	BUG_ON(!dev);
 	np = netdev_priv(dev);
 
         pci_free_consistent(pdev, STATUS_TOTAL_SIZE, np->tx_status, 

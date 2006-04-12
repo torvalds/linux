@@ -203,8 +203,7 @@ static int eql_open(struct net_device *dev)
 	printk(KERN_INFO "%s: remember to turn off Van-Jacobson compression on "
 	       "your slave devices.\n", dev->name);
 
-	if (!list_empty(&eql->queue.all_slaves))
-		BUG();
+	BUG_ON(!list_empty(&eql->queue.all_slaves));
 
 	eql->min_slaves = 1;
 	eql->max_slaves = EQL_DEFAULT_MAX_SLAVES; /* 4 usually... */

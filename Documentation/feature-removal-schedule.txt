@@ -71,14 +71,6 @@ Who:	Mauro Carvalho Chehab <mchehab@brturbo.com.br>
 
 ---------------------------
 
-What:	remove EXPORT_SYMBOL(panic_timeout)
-When:	April 2006
-Files:	kernel/panic.c
-Why:	No modular usage in the kernel.
-Who:	Adrian Bunk <bunk@stusta.de>
-
----------------------------
-
 What:	remove EXPORT_SYMBOL(insert_resource)
 When:	April 2006
 Files:	kernel/resource.c

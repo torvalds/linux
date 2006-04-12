@@ -138,7 +138,7 @@ This means that you have to read/write IP packets when you are using tun and
 ethernet frames when using tap.
 
 5. What is the difference between BPF and TUN/TAP driver?
-BFP is an advanced packet filter. It can be attached to existing
+BPF is an advanced packet filter. It can be attached to existing
 network interface. It does not provide a virtual network interface.
 A TUN/TAP driver does provide a virtual network interface and it is possible
 to attach BPF to this interface.

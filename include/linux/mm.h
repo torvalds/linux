@@ -229,10 +229,9 @@ struct page {
 		unsigned long private;		/* Mapping-private opaque data:
 					 	 * usually used for buffer_heads
 						 * if PagePrivate set; used for
-						 * swp_entry_t if PageSwapCache.
-						 * When page is free, this
+						 * swp_entry_t if PageSwapCache;
 						 * indicates order in the buddy
-						 * system.
+						 * system if PG_buddy is set.
 						 */
 		struct address_space *mapping;	/* If low bit clear, points to
 						 * inode address_space, or NULL.

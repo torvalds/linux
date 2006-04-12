@@ -208,7 +208,7 @@ struct saa7134_board saa7134_boards[] = {
 	[SAA7134_BOARD_FLYTVPLATINUM_FM] = {
 		/* LifeView FlyTV Platinum FM (LR214WF) */
 		/* "Peter Missel <peter.missel@onlinehome.de> */
-		.name           = "LifeView FlyTV Platinum FM",
+		.name           = "LifeView FlyTV Platinum FM / Gold",
 		.audio_clock    = 0x00200000,
 		.tuner_type     = TUNER_PHILIPS_TDA8290,
 		.radio_type     = UNSET,
@@ -2660,7 +2660,7 @@ struct saa7134_board saa7134_boards[] = {
 		.mpeg           = SAA7134_MPEG_DVB,
 		.inputs = {{
 			.name   = name_comp1,
-			.vmux   = 0,
+			.vmux   = 1,
 			.amux   = LINE1,
 		},{
 			.name   = name_svideo,
@@ -2671,7 +2671,7 @@ struct saa7134_board saa7134_boards[] = {
 	[SAA7134_BOARD_FLYDVBT_LR301] = {
 		/* LifeView FlyDVB-T */
 		/* Giampiero Giancipoli <gianci@libero.it> */
-		.name           = "LifeView FlyDVB-T",
+		.name           = "LifeView FlyDVB-T / Genius VideoWonder DVB-T",
 		.audio_clock    = 0x00200000,
 		.tuner_type     = TUNER_ABSENT,
 		.radio_type     = UNSET,
@@ -2807,6 +2807,40 @@ struct saa7134_board saa7134_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
+	},
+	[SAA7134_BOARD_FLYDVBT_HYBRID_CARDBUS] = {
+		.name		= "LifeView FlyDVB-T Hybrid Cardbus",
+		.audio_clock    = 0x00200000,
+		.tuner_type     = TUNER_PHILIPS_TDA8290,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.mpeg           = SAA7134_MPEG_DVB,
+		.gpiomask       = 0x00600000, /* Bit 21 0=Radio, Bit 22 0=TV */
+		.inputs         = {{
+			.name = name_tv,
+			.vmux = 1,
+			.amux = TV,
+			.gpio = 0x200000,	/* GPIO21=High for TV input */
+			.tv   = 1,
+		},{
+			.name = name_svideo,	/* S-Video signal on S-Video input */
+			.vmux = 8,
+			.amux = LINE2,
+		},{
+			.name = name_comp1,	/* Composite signal on S-Video input */
+			.vmux = 0,
+			.amux = LINE2,
+		},{
+			.name = name_comp2,	/* Composite input */
+			.vmux = 3,
+			.amux = LINE2,
+		}},
+		.radio = {
+			.name = name_radio,
+			.amux = TV,
+			.gpio = 0x000000,	/* GPIO21=Low for FM radio antenna */
+		},
 	},
 };
 
@@ -3333,6 +3367,30 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subdevice    = 0x0005,
 		.driver_data  = SAA7134_BOARD_MD7134_BRIDGE_2,
 	},{
+		.vendor = PCI_VENDOR_ID_PHILIPS,
+		.device = PCI_DEVICE_ID_PHILIPS_SAA7134,
+		.subvendor = 0x1489,
+		.subdevice = 0x0301,
+		.driver_data = SAA7134_BOARD_FLYDVBT_LR301,
+	},{
+		.vendor = PCI_VENDOR_ID_PHILIPS,
+		.device = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor = 0x5168, /* Animation Technologies (LifeView) */
+		.subdevice = 0x0304,
+		.driver_data = SAA7134_BOARD_FLYTVPLATINUM_FM,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x5168,
+		.subdevice    = 0x3306,
+		.driver_data  = SAA7134_BOARD_FLYDVBT_HYBRID_CARDBUS,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x5168,
+		.subdevice    = 0x3502,  /* whats the difference to 0x3306 ?*/
+		.driver_data  = SAA7134_BOARD_FLYDVBT_HYBRID_CARDBUS,
+	},{
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
@@ -3462,6 +3520,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 		saa_writeb(SAA7134_GPIO_GPSTATUS3, 0x06);
 		break;
 	case SAA7134_BOARD_ADS_DUO_CARDBUS_PTV331:
+	case SAA7134_BOARD_FLYDVBT_HYBRID_CARDBUS:
 		saa_writeb(SAA7134_GPIO_GPMODE3, 0x08);
 		saa_writeb(SAA7134_GPIO_GPSTATUS3, 0x00);
 		break;
@@ -3633,6 +3692,7 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		}
 		break;
 	case SAA7134_BOARD_ADS_DUO_CARDBUS_PTV331:
+	case SAA7134_BOARD_FLYDVBT_HYBRID_CARDBUS:
 		/* make the tda10046 find its eeprom */
 		{
 		u8 data[] = { 0x3c, 0x33, 0x62};

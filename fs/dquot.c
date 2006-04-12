@@ -590,8 +590,7 @@ we_slept:
 	atomic_dec(&dquot->dq_count);
 #ifdef __DQUOT_PARANOIA
 	/* sanity check */
-	if (!list_empty(&dquot->dq_free))
-		BUG();
+	BUG_ON(!list_empty(&dquot->dq_free));
 #endif
 	put_dquot_last(dquot);
 	spin_unlock(&dq_list_lock);
@@ -666,8 +665,7 @@ we_slept:
 		return NODQUOT;
 	}
 #ifdef __DQUOT_PARANOIA
-	if (!dquot->dq_sb)	/* Has somebody invalidated entry under us? */
-		BUG();
+	BUG_ON(!dquot->dq_sb);	/* Has somebody invalidated entry under us? */
 #endif
 
 	return dquot;

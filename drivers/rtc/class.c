@@ -96,6 +96,8 @@ exit_idr:
 	idr_remove(&rtc_idr, id);
 
 exit:
+	dev_err(dev, "rtc core: unable to register %s, err = %d\n",
+			name, err);
 	return ERR_PTR(err);
 }
 EXPORT_SYMBOL_GPL(rtc_device_register);

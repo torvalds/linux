@@ -27,6 +27,7 @@
 #include <linux/serio.h>
 #include <linux/workqueue.h>
 #include <linux/libps2.h>
+#include <linux/mutex.h>
 
 #define DRIVER_DESC	"AT and PS/2 keyboard driver"
 
@@ -216,7 +217,7 @@ struct atkbd {
 	unsigned long time;
 
 	struct work_struct event_work;
-	struct semaphore event_sem;
+	struct mutex event_mutex;
 	unsigned long event_mask;
 };
 
@@ -302,19 +303,19 @@ static irqreturn_t atkbd_interrupt(struct serio *serio, unsigned char data,
 	if (atkbd->translated) {
 
 		if (atkbd->emul ||
-		    !(code == ATKBD_RET_EMUL0 || code == ATKBD_RET_EMUL1 ||
-		      code == ATKBD_RET_HANGUEL || code == ATKBD_RET_HANJA ||
-		     (code == ATKBD_RET_ERR && !atkbd->err_xl) ||
-	             (code == ATKBD_RET_BAT && !atkbd->bat_xl))) {
+		    (code != ATKBD_RET_EMUL0 && code != ATKBD_RET_EMUL1 &&
+		     code != ATKBD_RET_HANGUEL && code != ATKBD_RET_HANJA &&
+		     (code != ATKBD_RET_ERR || atkbd->err_xl) &&
+	             (code != ATKBD_RET_BAT || atkbd->bat_xl))) {
 			atkbd->release = code >> 7;
 			code &= 0x7f;
 		}
 
 		if (!atkbd->emul) {
 		     if ((code & 0x7f) == (ATKBD_RET_BAT & 0x7f))
-			atkbd->bat_xl = !atkbd->release;
+			atkbd->bat_xl = !(data >> 7);
 		     if ((code & 0x7f) == (ATKBD_RET_ERR & 0x7f))
-			atkbd->err_xl = !atkbd->release;
+			atkbd->err_xl = !(data >> 7);
 		}
 	}
 
@@ -449,7 +450,7 @@ static void atkbd_event_work(void *data)
 	unsigned char param[2];
 	int i, j;
 
-	down(&atkbd->event_sem);
+	mutex_lock(&atkbd->event_mutex);
 
 	if (test_and_clear_bit(ATKBD_LED_EVENT_BIT, &atkbd->event_mask)) {
 		param[0] = (test_bit(LED_SCROLLL, dev->led) ? 1 : 0)
@@ -480,7 +481,7 @@ static void atkbd_event_work(void *data)
 		ps2_command(&atkbd->ps2dev, param, ATKBD_CMD_SETREP);
 	}
 
-	up(&atkbd->event_sem);
+	mutex_unlock(&atkbd->event_mutex);
 }
 
 /*
@@ -846,7 +847,7 @@ static int atkbd_connect(struct serio *serio, struct serio_driver *drv)
 	atkbd->dev = dev;
 	ps2_init(&atkbd->ps2dev, serio);
 	INIT_WORK(&atkbd->event_work, atkbd_event_work, atkbd);
-	init_MUTEX(&atkbd->event_sem);
+	mutex_init(&atkbd->event_mutex);
 
 	switch (serio->id.type) {
 
@@ -861,9 +862,6 @@ static int atkbd_connect(struct serio *serio, struct serio_driver *drv)
 	atkbd->softraw = atkbd_softraw;
 	atkbd->softrepeat = atkbd_softrepeat;
 	atkbd->scroll = atkbd_scroll;
-
-	if (!atkbd->write)
-		atkbd->softrepeat = 1;
 
 	if (atkbd->softrepeat)
 		atkbd->softraw = 1;

@@ -1093,8 +1093,7 @@ static int process_responses(struct adapter *adapter, int budget)
 		if (likely(e->DataValid)) {
 			struct freelQ *fl = &sge->freelQ[e->FreelistQid];
 
-			if (unlikely(!e->Sop || !e->Eop))
-				BUG();
+			BUG_ON(!e->Sop || !e->Eop);
 			if (unlikely(e->Offload))
 				unexpected_offload(adapter, fl);
 			else
