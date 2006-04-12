@@ -522,7 +522,7 @@ nextnode:
 
 	np = of_find_node_by_type(NULL, "interrupt-controller");
 	if (!np) {
-		printk(KERN_WARNING "xics: no ISA interrupt controller\n");
+		printk(KERN_DEBUG "xics: no ISA interrupt controller\n");
 		xics_irq_8259_cascade_real = -1;
 		xics_irq_8259_cascade = -1;
 	} else {
