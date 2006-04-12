@@ -552,9 +552,9 @@ static irqreturn_t mv643xx_eth_int_handler(int irq, void *dev_id,
 #else
 	if (eth_int_cause & ETH_INT_CAUSE_RX)
 		mv643xx_eth_receive_queue(dev, INT_MAX);
+#endif
 	if (eth_int_cause_ext & ETH_INT_CAUSE_TX)
 		mv643xx_eth_free_completed_tx_descs(dev);
-#endif
 
 	/*
 	 * If no real interrupt occured, exit.
