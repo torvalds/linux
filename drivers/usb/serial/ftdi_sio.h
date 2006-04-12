@@ -156,6 +156,11 @@
 #define ICOM_ID1_PID            0x0004
 
 /*
+ * ASK.fr devices
+ */
+#define FTDI_ASK_RDR400_PID	0xC991	/* ASK RDR 400 series card reader */
+
+/*
  * DSS-20 Sync Station for Sony Ericsson P800
  */
  
