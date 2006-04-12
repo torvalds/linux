@@ -2,6 +2,8 @@
  * ADS7846 based touchscreen and sensor driver
  *
  * Copyright (c) 2005 David Brownell
+ * Copyright (c) 2006 Nokia Corporation
+ * Various changes: Imre Deak <imre.deak@nokia.com>
  *
  * Using code from:
  *  - corgi_ts.c
@@ -34,17 +36,25 @@
 
 
 /*
- * This code has been lightly tested on an ads7846.
+ * This code has been tested on an ads7846 / N770 device.
  * Support for ads7843 and ads7845 has only been stubbed in.
  *
- * Not yet done:  investigate the values reported.  Are x/y/pressure
- * event values sane enough for X11?  How accurate are the temperature
- * and voltage readings?  (System-specific calibration should support
+ * Not yet done:  How accurate are the temperature and voltage
+ * readings? (System-specific calibration should support
  * accuracy of 0.3 degrees C; otherwise it's 2.0 degrees.)
+ *
+ * IRQ handling needs a workaround because of a shortcoming in handling
+ * edge triggered IRQs on some platforms like the OMAP1/2. These
+ * platforms don't handle the ARM lazy IRQ disabling properly, thus we
+ * have to maintain our own SW IRQ disabled status. This should be
+ * removed as soon as the affected platform's IRQ handling is fixed.
  *
  * app note sbaa036 talks in more detail about accurate sampling...
  * that ought to help in situations like LCDs inducing noise (which
  * can also be helped by using synch signals) and more generally.
+ * This driver tries to utilize the measures described in the app
+ * note. The strength of filtering can be set in the board-* specific
+ * files.
  */
 
 #define	TS_POLL_PERIOD	msecs_to_jiffies(10)
@@ -91,6 +101,7 @@ struct ads7846 {
 	unsigned		pending:1;	/* P: lock */
 // FIXME remove "irq_disabled"
 	unsigned		irq_disabled:1;	/* P: lock */
+	unsigned		disabled:1;
 };
 
 /* leave chip selected when we're done, for quicker re-select? */
@@ -160,6 +171,9 @@ struct ser_req {
 	struct spi_message	msg;
 	struct spi_transfer	xfer[6];
 };
+
+static void ads7846_enable(struct ads7846 *ts);
+static void ads7846_disable(struct ads7846 *ts);
 
 static int ads7846_read12_ser(struct device *dev, unsigned command)
 {
@@ -256,6 +270,37 @@ static ssize_t ads7846_pen_down_show(struct device *dev,
 }
 
 static DEVICE_ATTR(pen_down, S_IRUGO, ads7846_pen_down_show, NULL);
+
+static ssize_t ads7846_disable_show(struct device *dev,
+				     struct device_attribute *attr, char *buf)
+{
+	struct ads7846	*ts = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%u\n", ts->disabled);
+}
+
+static ssize_t ads7846_disable_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct ads7846 *ts = dev_get_drvdata(dev);
+	char *endp;
+	int i;
+
+	i = simple_strtoul(buf, &endp, 10);
+	spin_lock_irq(&ts->lock);
+
+	if (i)
+		ads7846_disable(ts);
+	else
+		ads7846_enable(ts);
+
+	spin_unlock_irq(&ts->lock);
+
+	return count;
+}
+
+static DEVICE_ATTR(disable, 0664, ads7846_disable_show, ads7846_disable_store);
 
 /*--------------------------------------------------------------------------*/
 
@@ -396,12 +441,9 @@ static irqreturn_t ads7846_irq(int irq, void *handle, struct pt_regs *regs)
 {
 	struct ads7846 *ts = handle;
 	unsigned long flags;
-	int r = IRQ_HANDLED;
 
 	spin_lock_irqsave(&ts->lock, flags);
-	if (ts->irq_disabled)
-		r = IRQ_HANDLED;
-	else {
+	if (likely(!ts->irq_disabled && !ts->disabled)) {
 		if (!ts->irq_disabled) {
 			/* REVISIT irq logic for many ARM chips has cloned a
 			 * bug wherein disabling an irq in its handler won't
@@ -419,20 +461,17 @@ static irqreturn_t ads7846_irq(int irq, void *handle, struct pt_regs *regs)
 		}
 	}
 	spin_unlock_irqrestore(&ts->lock, flags);
-	return r;
+
+	return IRQ_HANDLED;
 }
 
 /*--------------------------------------------------------------------------*/
 
-static int
-ads7846_suspend(struct spi_device *spi, pm_message_t message)
+/* Must be called with ts->lock held */
+static void ads7846_disable(struct ads7846 *ts)
 {
-	struct ads7846 *ts = dev_get_drvdata(&spi->dev);
-	unsigned long	flags;
-
-	spin_lock_irqsave(&ts->lock, flags);
-
-	spi->dev.power.power_state = message;
+	if (ts->disabled)
+		return;
 
 	/* are we waiting for IRQ, or polling? */
 	if (!ts->pendown) {
@@ -448,9 +487,9 @@ ads7846_suspend(struct spi_device *spi, pm_message_t message)
 			mod_timer(&ts->timer, jiffies);
 
 		while (ts->pendown || ts->pending) {
-			spin_unlock_irqrestore(&ts->lock, flags);
+			spin_unlock_irq(&ts->lock);
 			msleep(1);
-			spin_lock_irqsave(&ts->lock, flags);
+			spin_lock_irq(&ts->lock);
 		}
 	}
 
@@ -458,17 +497,46 @@ ads7846_suspend(struct spi_device *spi, pm_message_t message)
 	 * leave it that way after every request
 	 */
 
-	spin_unlock_irqrestore(&ts->lock, flags);
+	ts->disabled = 1;
+}
+
+/* Must be called with ts->lock held */
+static void ads7846_enable(struct ads7846 *ts)
+{
+	if (!ts->disabled)
+		return;
+
+	ts->disabled = 0;
+	ts->irq_disabled = 0;
+	enable_irq(ts->spi->irq);
+}
+
+static int ads7846_suspend(struct spi_device *spi, pm_message_t message)
+{
+	struct ads7846 *ts = dev_get_drvdata(&spi->dev);
+
+	spin_lock_irq(&ts->lock);
+
+	spi->dev.power.power_state = message;
+	ads7846_disable(ts);
+
+	spin_unlock_irq(&ts->lock);
+
 	return 0;
+
 }
 
 static int ads7846_resume(struct spi_device *spi)
 {
 	struct ads7846 *ts = dev_get_drvdata(&spi->dev);
 
-	ts->irq_disabled = 0;
-	enable_irq(ts->spi->irq);
+	spin_lock_irq(&ts->lock);
+
 	spi->dev.power.power_state = PMSG_ON;
+	ads7846_enable(ts);
+
+	spin_unlock_irq(&ts->lock);
+
 	return 0;
 }
 
@@ -520,6 +588,8 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 	init_timer(&ts->timer);
 	ts->timer.data = (unsigned long) ts;
 	ts->timer.function = ads7846_timer;
+
+	spin_lock_init(&ts->lock);
 
 	ts->model = pdata->model ? : 7846;
 	ts->vref_delay_usecs = pdata->vref_delay_usecs ? : 100;
@@ -671,13 +741,25 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 
 	device_create_file(&spi->dev, &dev_attr_pen_down);
 
+	device_create_file(&spi->dev, &dev_attr_disable);
+
 	err = input_register_device(input_dev);
 	if (err)
-		goto err_free_irq;
+		goto err_remove_attr;
 
 	return 0;
 
- err_free_irq:
+ err_remove_attr:
+	device_remove_file(&spi->dev, &dev_attr_disable);
+	device_remove_file(&spi->dev, &dev_attr_pen_down);
+	if (ts->model == 7846) {
+		device_remove_file(&spi->dev, &dev_attr_temp1);
+		device_remove_file(&spi->dev, &dev_attr_temp0);
+	}
+	if (ts->model != 7845)
+		device_remove_file(&spi->dev, &dev_attr_vbatt);
+	device_remove_file(&spi->dev, &dev_attr_vaux);
+
 	free_irq(spi->irq, ts);
  err_free_mem:
 	input_free_device(input_dev);
@@ -689,22 +771,24 @@ static int __devexit ads7846_remove(struct spi_device *spi)
 {
 	struct ads7846		*ts = dev_get_drvdata(&spi->dev);
 
+	input_unregister_device(ts->input);
+
 	ads7846_suspend(spi, PMSG_SUSPEND);
-	free_irq(ts->spi->irq, ts);
-	if (ts->irq_disabled)
-		enable_irq(ts->spi->irq);
 
+	device_remove_file(&spi->dev, &dev_attr_disable);
 	device_remove_file(&spi->dev, &dev_attr_pen_down);
-
 	if (ts->model == 7846) {
-		device_remove_file(&spi->dev, &dev_attr_temp0);
 		device_remove_file(&spi->dev, &dev_attr_temp1);
+		device_remove_file(&spi->dev, &dev_attr_temp0);
 	}
 	if (ts->model != 7845)
 		device_remove_file(&spi->dev, &dev_attr_vbatt);
 	device_remove_file(&spi->dev, &dev_attr_vaux);
 
-	input_unregister_device(ts->input);
+	free_irq(ts->spi->irq, ts);
+	if (ts->irq_disabled)
+		enable_irq(ts->spi->irq);
+
 	kfree(ts);
 
 	dev_dbg(&spi->dev, "unregistered touchscreen\n");
