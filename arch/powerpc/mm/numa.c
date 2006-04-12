@@ -465,9 +465,9 @@ static void __init setup_nonnuma(void)
 	unsigned long total_ram = lmb_phys_mem_size();
 	unsigned int i;
 
-	printk(KERN_INFO "Top of RAM: 0x%lx, Total RAM: 0x%lx\n",
+	printk(KERN_DEBUG "Top of RAM: 0x%lx, Total RAM: 0x%lx\n",
 	       top_of_ram, total_ram);
-	printk(KERN_INFO "Memory hole size: %ldMB\n",
+	printk(KERN_DEBUG "Memory hole size: %ldMB\n",
 	       (top_of_ram - total_ram) >> 20);
 
 	for (i = 0; i < lmb.memory.cnt; ++i)
@@ -485,7 +485,7 @@ void __init dump_numa_cpu_topology(void)
 		return;
 
 	for_each_online_node(node) {
-		printk(KERN_INFO "Node %d CPUs:", node);
+		printk(KERN_DEBUG "Node %d CPUs:", node);
 
 		count = 0;
 		/*
@@ -521,7 +521,7 @@ static void __init dump_numa_memory_topology(void)
 	for_each_online_node(node) {
 		unsigned long i;
 
-		printk(KERN_INFO "Node %d Memory:", node);
+		printk(KERN_DEBUG "Node %d Memory:", node);
 
 		count = 0;
 
