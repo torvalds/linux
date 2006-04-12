@@ -72,10 +72,11 @@ struct ads7846 {
 	u16			vref_delay_usecs;
 	u16			x_plate_ohms;
 
-	u8			read_x, read_y, read_z1, read_z2;
+	u8			read_x, read_y, read_z1, read_z2, pwrdown;
+	u16			dummy;		/* for the pwrdown read */
 	struct ts_event		tc;
 
-	struct spi_transfer	xfer[8];
+	struct spi_transfer	xfer[10];
 	struct spi_message	msg;
 
 	spinlock_t		lock;
@@ -125,7 +126,9 @@ struct ads7846 {
 #define	READ_Y	(READ_12BIT_DFR(y)  | ADS_PD10_ADC_ON)
 #define	READ_Z1	(READ_12BIT_DFR(z1) | ADS_PD10_ADC_ON)
 #define	READ_Z2	(READ_12BIT_DFR(z2) | ADS_PD10_ADC_ON)
-#define	READ_X	(READ_12BIT_DFR(x)  | ADS_PD10_PDOWN)	/* LAST */
+
+#define	READ_X	(READ_12BIT_DFR(x)  | ADS_PD10_ADC_ON)
+#define	PWRDOWN	(READ_12BIT_DFR(y)  | ADS_PD10_PDOWN)	/* LAST */
 
 /* single-ended samples need to first power up reference voltage;
  * we leave both ADC and VREF powered
@@ -540,6 +543,18 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 
 	x++;
 	x->rx_buf = &ts->tc.x;
+	x->len = 2;
+	spi_message_add_tail(x, &ts->msg);
+
+	/* power down */
+	x++;
+	ts->pwrdown = PWRDOWN;
+	x->tx_buf = &ts->pwrdown;
+	x->len = 1;
+	spi_message_add_tail(x, &ts->msg);
+
+	x++;
+	x->rx_buf = &ts->dummy;
 	x->len = 2;
 	CS_CHANGE(*x);
 	spi_message_add_tail(x, &ts->msg);
