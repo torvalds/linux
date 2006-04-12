@@ -117,7 +117,7 @@ struct ocfs2_journal_handle *ocfs2_alloc_handle(struct ocfs2_super *osb)
 {
 	struct ocfs2_journal_handle *retval = NULL;
 
-	retval = kcalloc(1, sizeof(*retval), GFP_KERNEL);
+	retval = kcalloc(1, sizeof(*retval), GFP_NOFS);
 	if (!retval) {
 		mlog(ML_ERROR, "Failed to allocate memory for journal "
 		     "handle!\n");
@@ -984,7 +984,7 @@ static void ocfs2_queue_recovery_completion(struct ocfs2_journal *journal,
 {
 	struct ocfs2_la_recovery_item *item;
 
-	item = kmalloc(sizeof(struct ocfs2_la_recovery_item), GFP_KERNEL);
+	item = kmalloc(sizeof(struct ocfs2_la_recovery_item), GFP_NOFS);
 	if (!item) {
 		/* Though we wish to avoid it, we are in fact safe in
 		 * skipping local alloc cleanup as fsck.ocfs2 is more
