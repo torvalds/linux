@@ -319,7 +319,7 @@ static void __init htab_init_page_sizes(void)
 		mmu_virtual_psize = MMU_PAGE_64K;
 #endif
 
-	printk(KERN_INFO "Page orders: linear mapping = %d, others = %d\n",
+	printk(KERN_DEBUG "Page orders: linear mapping = %d, others = %d\n",
 	       mmu_psize_defs[mmu_linear_psize].shift,
 	       mmu_psize_defs[mmu_virtual_psize].shift);
 
