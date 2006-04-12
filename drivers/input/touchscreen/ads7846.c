@@ -77,7 +77,13 @@ struct ads7846 {
 	struct ts_event		tc;
 
 	struct spi_transfer	xfer[10];
-	struct spi_message	msg;
+	struct spi_message	msg[5];
+	int			msg_idx;
+	int			read_cnt;
+	int			last_read;
+
+	u16			debounce_max;
+	u16			debounce_tol;
 
 	spinlock_t		lock;
 	struct timer_list	timer;		/* P: lock */
@@ -167,7 +173,7 @@ static int ads7846_read12_ser(struct device *dev, unsigned command)
 	if (!req)
 		return -ENOMEM;
 
-	INIT_LIST_HEAD(&req->msg.transfers);
+	spi_message_init(&req->msg);
 
 	/* activate reference, so it has time to settle; */
 	req->ref_on = REF_ON;
@@ -344,31 +350,76 @@ static void ads7846_rx(void *ads)
 	spin_unlock_irqrestore(&ts->lock, flags);
 }
 
+static void ads7846_debounce(void *ads)
+{
+	struct ads7846		*ts = ads;
+	struct spi_message	*m;
+	struct spi_transfer	*t;
+	u16			val;
+	int			status;
+
+	m = &ts->msg[ts->msg_idx];
+	t = list_entry(m->transfers.prev, struct spi_transfer, transfer_list);
+	val = (*(u16 *)t->rx_buf) >> 3;
+
+	if (!ts->read_cnt || (abs(ts->last_read - val) > ts->debounce_tol
+				&& ts->read_cnt < ts->debounce_max)) {
+		/* Repeat it, if this was the first read or the read wasn't
+		 * consistent enough
+		 */
+		ts->read_cnt++;
+		ts->last_read = val;
+	} else {
+		/* Go for the next read */
+		ts->msg_idx++;
+		ts->read_cnt = 0;
+		m++;
+	}
+	status = spi_async(ts->spi, m);
+	if (status)
+		dev_err(&ts->spi->dev, "spi_async --> %d\n",
+				status);
+}
+
 static void ads7846_timer(unsigned long handle)
 {
 	struct ads7846	*ts = (void *)handle;
 	int		status = 0;
-	unsigned long	flags;
 
-	spin_lock_irqsave(&ts->lock, flags);
-	if (!ts->pending) {
-		ts->pending = 1;
-		if (!ts->irq_disabled) {
-			ts->irq_disabled = 1;
-			disable_irq(ts->spi->irq);
-		}
-		status = spi_async(ts->spi, &ts->msg);
-		if (status)
-			dev_err(&ts->spi->dev, "spi_async --> %d\n",
-					status);
-	}
-	spin_unlock_irqrestore(&ts->lock, flags);
+	ts->msg_idx = 0;
+	status = spi_async(ts->spi, &ts->msg[0]);
+	if (status)
+		dev_err(&ts->spi->dev, "spi_async --> %d\n", status);
 }
 
 static irqreturn_t ads7846_irq(int irq, void *handle, struct pt_regs *regs)
 {
-	ads7846_timer((unsigned long) handle);
-	return IRQ_HANDLED;
+	struct ads7846 *ts = handle;
+	unsigned long flags;
+	int r = IRQ_HANDLED;
+
+	spin_lock_irqsave(&ts->lock, flags);
+	if (ts->irq_disabled)
+		r = IRQ_HANDLED;
+	else {
+		if (!ts->irq_disabled) {
+			/* REVISIT irq logic for many ARM chips has cloned a
+			 * bug wherein disabling an irq in its handler won't
+			 * work;(it's disabled lazily, and too late to work.
+			 * until all their irq logic is fixed, we must shadow
+			 * that state here.
+			 */
+			ts->irq_disabled = 1;
+
+			disable_irq(ts->spi->irq);
+		}
+		if (!ts->pending) {
+			ts->pending = 1;
+			mod_timer(&ts->timer, jiffies);
+		}
+	}
+	spin_unlock_irqrestore(&ts->lock, flags);
+	return r;
 }
 
 /*--------------------------------------------------------------------------*/
@@ -426,6 +477,7 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 	struct ads7846			*ts;
 	struct input_dev		*input_dev;
 	struct ads7846_platform_data	*pdata = spi->dev.platform_data;
+	struct spi_message		*m;
 	struct spi_transfer		*x;
 	int				err;
 
@@ -472,6 +524,8 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 	ts->model = pdata->model ? : 7846;
 	ts->vref_delay_usecs = pdata->vref_delay_usecs ? : 100;
 	ts->x_plate_ohms = pdata->x_plate_ohms ? : 400;
+	ts->debounce_max = pdata->debounce_max ? : 1;
+	ts->debounce_tol = pdata->debounce_tol ? : 10;
 
 	snprintf(ts->phys, sizeof(ts->phys), "%s/input0", spi->dev.bus_id);
 
@@ -495,72 +549,98 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 	/* set up the transfers to read touchscreen state; this assumes we
 	 * use formula #2 for pressure, not #3.
 	 */
-	INIT_LIST_HEAD(&ts->msg.transfers);
+	m = &ts->msg[0];
 	x = ts->xfer;
+
+	spi_message_init(m);
 
 	/* y- still on; turn on only y+ (and ADC) */
 	ts->read_y = READ_Y;
 	x->tx_buf = &ts->read_y;
 	x->len = 1;
-	spi_message_add_tail(x, &ts->msg);
+	spi_message_add_tail(x, m);
 
 	x++;
 	x->rx_buf = &ts->tc.y;
 	x->len = 2;
-	spi_message_add_tail(x, &ts->msg);
+	spi_message_add_tail(x, m);
 
-	/* turn y+ off, x- on; we'll use formula #2 */
-	if (ts->model == 7846) {
-		x++;
-		ts->read_z1 = READ_Z1;
-		x->tx_buf = &ts->read_z1;
-		x->len = 1;
-		spi_message_add_tail(x, &ts->msg);
+	m->complete = ads7846_debounce;
+	m->context = ts;
 
-		x++;
-		x->rx_buf = &ts->tc.z1;
-		x->len = 2;
-		spi_message_add_tail(x, &ts->msg);
-
-		x++;
-		ts->read_z2 = READ_Z2;
-		x->tx_buf = &ts->read_z2;
-		x->len = 1;
-		spi_message_add_tail(x, &ts->msg);
-
-		x++;
-		x->rx_buf = &ts->tc.z2;
-		x->len = 2;
-		spi_message_add_tail(x, &ts->msg);
-	}
+	m++;
+	spi_message_init(m);
 
 	/* turn y- off, x+ on, then leave in lowpower */
 	x++;
 	ts->read_x = READ_X;
 	x->tx_buf = &ts->read_x;
 	x->len = 1;
-	spi_message_add_tail(x, &ts->msg);
+	spi_message_add_tail(x, m);
 
 	x++;
 	x->rx_buf = &ts->tc.x;
 	x->len = 2;
-	spi_message_add_tail(x, &ts->msg);
+	spi_message_add_tail(x, m);
+
+	m->complete = ads7846_debounce;
+	m->context = ts;
+
+	/* turn y+ off, x- on; we'll use formula #2 */
+	if (ts->model == 7846) {
+		m++;
+		spi_message_init(m);
+
+		x++;
+		ts->read_z1 = READ_Z1;
+		x->tx_buf = &ts->read_z1;
+		x->len = 1;
+		spi_message_add_tail(x, m);
+
+		x++;
+		x->rx_buf = &ts->tc.z1;
+		x->len = 2;
+		spi_message_add_tail(x, m);
+
+		m->complete = ads7846_debounce;
+		m->context = ts;
+
+		m++;
+		spi_message_init(m);
+
+		x++;
+		ts->read_z2 = READ_Z2;
+		x->tx_buf = &ts->read_z2;
+		x->len = 1;
+		spi_message_add_tail(x, m);
+
+		x++;
+		x->rx_buf = &ts->tc.z2;
+		x->len = 2;
+		spi_message_add_tail(x, m);
+
+		m->complete = ads7846_debounce;
+		m->context = ts;
+	}
 
 	/* power down */
+	m++;
+	spi_message_init(m);
+
 	x++;
 	ts->pwrdown = PWRDOWN;
 	x->tx_buf = &ts->pwrdown;
 	x->len = 1;
-	spi_message_add_tail(x, &ts->msg);
+	spi_message_add_tail(x, m);
 
 	x++;
 	x->rx_buf = &ts->dummy;
 	x->len = 2;
 	CS_CHANGE(*x);
-	spi_message_add_tail(x, &ts->msg);
+	spi_message_add_tail(x, m);
 
-	ts->msg.complete = ads7846_rx;
-	ts->msg.context = ts;
+	m->complete = ads7846_rx;
+	m->context = ts;
 
 	if (request_irq(spi->irq, ads7846_irq,
 			SA_SAMPLE_RANDOM | SA_TRIGGER_FALLING,
