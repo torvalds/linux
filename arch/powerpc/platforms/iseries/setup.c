@@ -536,10 +536,10 @@ static void __init iSeries_setup_arch(void)
 {
 	if (get_lppaca()->shared_proc) {
 		ppc_md.idle_loop = iseries_shared_idle;
-		printk(KERN_INFO "Using shared processor idle loop\n");
+		printk(KERN_DEBUG "Using shared processor idle loop\n");
 	} else {
 		ppc_md.idle_loop = iseries_dedicated_idle;
-		printk(KERN_INFO "Using dedicated idle loop\n");
+		printk(KERN_DEBUG "Using dedicated idle loop\n");
 	}
 
 	/* Setup the Lp Event Queue */
