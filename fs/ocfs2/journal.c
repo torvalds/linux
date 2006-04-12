@@ -870,9 +870,11 @@ static int ocfs2_force_read_journal(struct inode *inode)
 		if (p_blocks > CONCURRENT_JOURNAL_FILL)
 			p_blocks = CONCURRENT_JOURNAL_FILL;
 
+		/* We are reading journal data which should not
+		 * be put in the uptodate cache */
 		status = ocfs2_read_blocks(OCFS2_SB(inode->i_sb),
 					   p_blkno, p_blocks, bhs, 0,
-					   inode);
+					   NULL);
 		if (status < 0) {
 			mlog_errno(status);
 			goto bail;
