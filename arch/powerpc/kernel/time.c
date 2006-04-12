@@ -945,9 +945,9 @@ void __init time_init(void)
 	} else {
 		/* Normal PowerPC with timebase register */
 		ppc_md.calibrate_decr();
-		printk(KERN_INFO "time_init: decrementer frequency = %lu.%.6lu MHz\n",
+		printk(KERN_DEBUG "time_init: decrementer frequency = %lu.%.6lu MHz\n",
 		       ppc_tb_freq / 1000000, ppc_tb_freq % 1000000);
-		printk(KERN_INFO "time_init: processor frequency   = %lu.%.6lu MHz\n",
+		printk(KERN_DEBUG "time_init: processor frequency   = %lu.%.6lu MHz\n",
 		       ppc_proc_freq / 1000000, ppc_proc_freq % 1000000);
 		tb_last_stamp = tb_last_jiffy = get_tb();
 	}
