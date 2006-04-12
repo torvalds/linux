@@ -281,10 +281,16 @@ static void mv643xx_eth_tx_timeout_task(struct net_device *dev)
 {
 	struct mv643xx_private *mp = netdev_priv(dev);
 
-	netif_device_detach(dev);
+	if (!netif_running(dev))
+		return;
+
+	netif_stop_queue(dev);
+
 	eth_port_reset(mp->port_num);
 	eth_port_start(dev);
-	netif_device_attach(dev);
+
+	if (mp->tx_ring_size - mp->tx_desc_count >= MAX_DESCS_PER_SKB)
+		netif_wake_queue(dev);
 }
 
 /**
@@ -1186,7 +1192,12 @@ static int mv643xx_eth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	BUG_ON(netif_queue_stopped(dev));
 	BUG_ON(skb == NULL);
-	BUG_ON(mp->tx_ring_size - mp->tx_desc_count < MAX_DESCS_PER_SKB);
+
+	if (mp->tx_ring_size - mp->tx_desc_count < MAX_DESCS_PER_SKB) {
+		printk(KERN_ERR "%s: transmit with queue full\n", dev->name);
+		netif_stop_queue(dev);
+		return 1;
+	}
 
 	if (has_tiny_unaligned_frags(skb)) {
 		if ((skb_linearize(skb, GFP_ATOMIC) != 0)) {
