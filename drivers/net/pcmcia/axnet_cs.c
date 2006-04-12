@@ -1560,7 +1560,7 @@ static void ei_receive(struct net_device *dev)
 
 static void ei_rx_overrun(struct net_device *dev)
 {
-	axnet_dev_t *info = (axnet_dev_t *)dev;
+	axnet_dev_t *info = PRIV(dev);
 	long e8390_base = dev->base_addr;
 	unsigned char was_txing, must_resend = 0;
 	struct ei_device *ei_local = (struct ei_device *) netdev_priv(dev);
