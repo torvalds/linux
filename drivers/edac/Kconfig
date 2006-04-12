@@ -71,7 +71,7 @@ config EDAC_E7XXX
 
 config EDAC_E752X
 	tristate "Intel e752x (e7520, e7525, e7320)"
-	depends on EDAC_MM_EDAC && PCI && X86
+	depends on EDAC_MM_EDAC && PCI && X86 && HOTPLUG
 	help
 	  Support for error detection and correction on the Intel
 	  E7520, E7525, E7320 server chipsets.

@@ -29,6 +29,8 @@
 #define MISC_MCELOG_MINOR 227
 #define NR_BANKS 6
 
+atomic_t mce_entry;
+
 static int mce_dont_init;
 
 /* 0: always panic, 1: panic if deadlock possible, 2: try to avoid panic,
@@ -172,10 +174,12 @@ void do_machine_check(struct pt_regs * regs, long error_code)
 	int i;
 	int panicm_found = 0;
 
+	atomic_inc(&mce_entry);
+
 	if (regs)
 		notify_die(DIE_NMI, "machine check", regs, error_code, 18, SIGKILL);
 	if (!banks)
-		return;
+		goto out2;
 
 	memset(&m, 0, sizeof(struct mce));
 	m.cpu = safe_smp_processor_id();
@@ -266,6 +270,8 @@ void do_machine_check(struct pt_regs * regs, long error_code)
  out:
 	/* Last thing done in the machine check exception to clear state. */
 	wrmsrl(MSR_IA32_MCG_STATUS, 0);
+ out2:
+	atomic_dec(&mce_entry);
 }
 
 /*
@@ -501,7 +507,7 @@ static struct miscdevice mce_log_device = {
 static int __init mcheck_disable(char *str)
 {
 	mce_dont_init = 1;
-	return 0;
+	return 1;
 }
 
 /* mce=off disables machine check. Note you can reenable it later
@@ -521,7 +527,7 @@ static int __init mcheck_enable(char *str)
 		get_option(&str, &tolerant);
 	else
 		printk("mce= argument %s ignored. Please use /sys", str); 
-	return 0;
+	return 1;
 }
 
 __setup("nomce", mcheck_disable);

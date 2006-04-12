@@ -4,8 +4,9 @@
  * Frame Buffer Device for ATI Imageon w100 (Wallaby)
  *
  * Copyright (C) 2002, ATI Corp.
- * Copyright (C) 2004-2005 Richard Purdie
+ * Copyright (C) 2004-2006 Richard Purdie
  * Copyright (c) 2005 Ian Molton
+ * Copyright (c) 2006 Alberto Mardegan
  *
  * Rewritten for 2.6 by Richard Purdie <rpurdie@rpsys.net>
  *
@@ -13,6 +14,9 @@
  * and Richard Purdie <rpurdie@rpsys.net>
  *
  * w32xx support by Ian Molton
+ *
+ * Hardware acceleration support by Alberto Mardegan
+ * <mardy@users.sourceforge.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -47,6 +51,7 @@ static void w100_set_dispregs(struct w100fb_par*);
 static void w100_update_enable(void);
 static void w100_update_disable(void);
 static void calc_hsync(struct w100fb_par *par);
+static void w100_init_graphic_engine(struct w100fb_par *par);
 struct w100_pll_info *w100_get_xtal_table(unsigned int freq);
 
 /* Pseudo palette size */
@@ -248,6 +253,152 @@ static int w100fb_blank(int blank_mode, struct fb_info *info)
 }
 
 
+static void w100_fifo_wait(int entries)
+{
+	union rbbm_status_u status;
+	int i;
+
+	for (i = 0; i < 2000000; i++) {
+		status.val = readl(remapped_regs + mmRBBM_STATUS);
+		if (status.f.cmdfifo_avail >= entries)
+			return;
+		udelay(1);
+	}
+	printk(KERN_ERR "w100fb: FIFO Timeout!\n");
+}
+
+
+static int w100fb_sync(struct fb_info *info)
+{
+	union rbbm_status_u status;
+	int i;
+
+	for (i = 0; i < 2000000; i++) {
+		status.val = readl(remapped_regs + mmRBBM_STATUS);
+		if (!status.f.gui_active)
+			return 0;
+		udelay(1);
+	}
+	printk(KERN_ERR "w100fb: Graphic engine timeout!\n");
+	return -EBUSY;
+}
+
+
+static void w100_init_graphic_engine(struct w100fb_par *par)
+{
+	union dp_gui_master_cntl_u gmc;
+	union dp_mix_u dp_mix;
+	union dp_datatype_u dp_datatype;
+	union dp_cntl_u dp_cntl;
+
+	w100_fifo_wait(4);
+	writel(W100_FB_BASE, remapped_regs + mmDST_OFFSET);
+	writel(par->xres, remapped_regs + mmDST_PITCH);
+	writel(W100_FB_BASE, remapped_regs + mmSRC_OFFSET);
+	writel(par->xres, remapped_regs + mmSRC_PITCH);
+
+	w100_fifo_wait(3);
+	writel(0, remapped_regs + mmSC_TOP_LEFT);
+	writel((par->yres << 16) | par->xres, remapped_regs + mmSC_BOTTOM_RIGHT);
+	writel(0x1fff1fff, remapped_regs + mmSRC_SC_BOTTOM_RIGHT);
+
+	w100_fifo_wait(4);
+	dp_cntl.val = 0;
+	dp_cntl.f.dst_x_dir = 1;
+	dp_cntl.f.dst_y_dir = 1;
+	dp_cntl.f.src_x_dir = 1;
+	dp_cntl.f.src_y_dir = 1;
+	dp_cntl.f.dst_major_x = 1;
+	dp_cntl.f.src_major_x = 1;
+	writel(dp_cntl.val, remapped_regs + mmDP_CNTL);
+
+	gmc.val = 0;
+	gmc.f.gmc_src_pitch_offset_cntl = 1;
+	gmc.f.gmc_dst_pitch_offset_cntl = 1;
+	gmc.f.gmc_src_clipping = 1;
+	gmc.f.gmc_dst_clipping = 1;
+	gmc.f.gmc_brush_datatype = GMC_BRUSH_NONE;
+	gmc.f.gmc_dst_datatype = 3; /* from DstType_16Bpp_444 */
+	gmc.f.gmc_src_datatype = SRC_DATATYPE_EQU_DST;
+	gmc.f.gmc_byte_pix_order = 1;
+	gmc.f.gmc_default_sel = 0;
+	gmc.f.gmc_rop3 = ROP3_SRCCOPY;
+	gmc.f.gmc_dp_src_source = DP_SRC_MEM_RECTANGULAR;
+	gmc.f.gmc_clr_cmp_fcn_dis = 1;
+	gmc.f.gmc_wr_msk_dis = 1;
+	gmc.f.gmc_dp_op = DP_OP_ROP;
+	writel(gmc.val, remapped_regs + mmDP_GUI_MASTER_CNTL);
+
+	dp_datatype.val = dp_mix.val = 0;
+	dp_datatype.f.dp_dst_datatype = gmc.f.gmc_dst_datatype;
+	dp_datatype.f.dp_brush_datatype = gmc.f.gmc_brush_datatype;
+	dp_datatype.f.dp_src2_type = 0;
+	dp_datatype.f.dp_src2_datatype = gmc.f.gmc_src_datatype;
+	dp_datatype.f.dp_src_datatype = gmc.f.gmc_src_datatype;
+	dp_datatype.f.dp_byte_pix_order = gmc.f.gmc_byte_pix_order;
+	writel(dp_datatype.val, remapped_regs + mmDP_DATATYPE);
+
+	dp_mix.f.dp_src_source = gmc.f.gmc_dp_src_source;
+	dp_mix.f.dp_src2_source = 1;
+	dp_mix.f.dp_rop3 = gmc.f.gmc_rop3;
+	dp_mix.f.dp_op = gmc.f.gmc_dp_op;
+	writel(dp_mix.val, remapped_regs + mmDP_MIX);
+}
+
+
+static void w100fb_fillrect(struct fb_info *info,
+                            const struct fb_fillrect *rect)
+{
+	union dp_gui_master_cntl_u gmc;
+
+	if (info->state != FBINFO_STATE_RUNNING)
+		return;
+	if (info->flags & FBINFO_HWACCEL_DISABLED) {
+		cfb_fillrect(info, rect);
+		return;
+	}
+
+	gmc.val = readl(remapped_regs + mmDP_GUI_MASTER_CNTL);
+	gmc.f.gmc_rop3 = ROP3_PATCOPY;
+	gmc.f.gmc_brush_datatype = GMC_BRUSH_SOLID_COLOR;
+	w100_fifo_wait(2);
+	writel(gmc.val, remapped_regs + mmDP_GUI_MASTER_CNTL);
+	writel(rect->color, remapped_regs + mmDP_BRUSH_FRGD_CLR);
+
+	w100_fifo_wait(2);
+	writel((rect->dy << 16) | (rect->dx & 0xffff), remapped_regs + mmDST_Y_X);
+	writel((rect->width << 16) | (rect->height & 0xffff),
+	       remapped_regs + mmDST_WIDTH_HEIGHT);
+}
+
+
+static void w100fb_copyarea(struct fb_info *info,
+                            const struct fb_copyarea *area)
+{
+	u32 dx = area->dx, dy = area->dy, sx = area->sx, sy = area->sy;
+	u32 h = area->height, w = area->width;
+	union dp_gui_master_cntl_u gmc;
+
+	if (info->state != FBINFO_STATE_RUNNING)
+		return;
+	if (info->flags & FBINFO_HWACCEL_DISABLED) {
+		cfb_copyarea(info, area);
+		return;
+	}
+
+	gmc.val = readl(remapped_regs + mmDP_GUI_MASTER_CNTL);
+	gmc.f.gmc_rop3 = ROP3_SRCCOPY;
+	gmc.f.gmc_brush_datatype = GMC_BRUSH_NONE;
+	w100_fifo_wait(1);
+	writel(gmc.val, remapped_regs + mmDP_GUI_MASTER_CNTL);
+
+	w100_fifo_wait(3);
+	writel((sy << 16) | (sx & 0xffff), remapped_regs + mmSRC_Y_X);
+	writel((dy << 16) | (dx & 0xffff), remapped_regs + mmDST_Y_X);
+	writel((w << 16) | (h & 0xffff), remapped_regs + mmDST_WIDTH_HEIGHT);
+}
+
+
 /*
  *  Change the resolution by calling the appropriate hardware functions
  */
@@ -265,6 +416,7 @@ static void w100fb_activate_var(struct w100fb_par *par)
 	w100_init_lcd(par);
 	w100_set_dispregs(par);
 	w100_update_enable();
+	w100_init_graphic_engine(par);
 
 	calc_hsync(par);
 
@@ -394,9 +546,10 @@ static struct fb_ops w100fb_ops = {
 	.fb_set_par   = w100fb_set_par,
 	.fb_setcolreg = w100fb_setcolreg,
 	.fb_blank     = w100fb_blank,
-	.fb_fillrect  = cfb_fillrect,
-	.fb_copyarea  = cfb_copyarea,
+	.fb_fillrect  = w100fb_fillrect,
+	.fb_copyarea  = w100fb_copyarea,
 	.fb_imageblit = cfb_imageblit,
+	.fb_sync      = w100fb_sync,
 };
 
 #ifdef CONFIG_PM
@@ -543,7 +696,8 @@ int __init w100fb_probe(struct platform_device *pdev)
 	}
 
 	info->fbops = &w100fb_ops;
-	info->flags = FBINFO_DEFAULT;
+	info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_COPYAREA |
+		FBINFO_HWACCEL_FILLRECT;
 	info->node = -1;
 	info->screen_base = remapped_fbuf + (W100_FB_BASE-MEM_WINDOW_BASE);
 	info->screen_size = REMAPPED_FB_LEN;

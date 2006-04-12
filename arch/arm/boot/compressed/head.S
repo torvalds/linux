@@ -2,6 +2,7 @@
  *  linux/arch/arm/boot/compressed/head.S
  *
  *  Copyright (C) 1996-2002 Russell King
+ *  Copyright (C) 2004 Hyok S. Choi (MPU support)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -320,6 +321,62 @@ params:		ldr	r0, =params_phys
 cache_on:	mov	r3, #8			@ cache_on function
 		b	call_cache_fn
 
+/*
+ * Initialize the highest priority protection region, PR7
+ * to cover all 32bit address and cacheable and bufferable.
+ */
+__armv4_mpu_cache_on:
+		mov	r0, #0x3f		@ 4G, the whole
+		mcr	p15, 0, r0, c6, c7, 0	@ PR7 Area Setting
+		mcr 	p15, 0, r0, c6, c7, 1
+
+		mov	r0, #0x80		@ PR7
+		mcr	p15, 0, r0, c2, c0, 0	@ D-cache on
+		mcr	p15, 0, r0, c2, c0, 1	@ I-cache on
+		mcr	p15, 0, r0, c3, c0, 0	@ write-buffer on
+
+		mov	r0, #0xc000
+		mcr	p15, 0, r0, c5, c0, 1	@ I-access permission
+		mcr	p15, 0, r0, c5, c0, 0	@ D-access permission
+
+		mov	r0, #0
+		mcr	p15, 0, r0, c7, c10, 4	@ drain write buffer
+		mcr	p15, 0, r0, c7, c5, 0	@ flush(inval) I-Cache
+		mcr	p15, 0, r0, c7, c6, 0	@ flush(inval) D-Cache
+		mrc	p15, 0, r0, c1, c0, 0	@ read control reg
+						@ ...I .... ..D. WC.M
+		orr	r0, r0, #0x002d		@ .... .... ..1. 11.1
+		orr	r0, r0, #0x1000		@ ...1 .... .... ....
+
+		mcr	p15, 0, r0, c1, c0, 0	@ write control reg
+
+		mov	r0, #0
+		mcr	p15, 0, r0, c7, c5, 0	@ flush(inval) I-Cache
+		mcr	p15, 0, r0, c7, c6, 0	@ flush(inval) D-Cache
+		mov	pc, lr
+
+__armv3_mpu_cache_on:
+		mov	r0, #0x3f		@ 4G, the whole
+		mcr	p15, 0, r0, c6, c7, 0	@ PR7 Area Setting
+
+		mov	r0, #0x80		@ PR7
+		mcr	p15, 0, r0, c2, c0, 0	@ cache on
+		mcr	p15, 0, r0, c3, c0, 0	@ write-buffer on
+
+		mov	r0, #0xc000
+		mcr	p15, 0, r0, c5, c0, 0	@ access permission
+
+		mov	r0, #0
+		mcr	p15, 0, r0, c7, c0, 0	@ invalidate whole cache v3
+		mrc	p15, 0, r0, c1, c0, 0	@ read control reg
+						@ .... .... .... WC.M
+		orr	r0, r0, #0x000d		@ .... .... .... 11.1
+		mov	r0, #0
+		mcr	p15, 0, r0, c1, c0, 0	@ write control reg
+
+		mcr	p15, 0, r0, c7, c0, 0	@ invalidate whole cache v3
+		mov	pc, lr
+
 __setup_mmu:	sub	r3, r4, #16384		@ Page directory size
 		bic	r3, r3, #0xff		@ Align the pointer
 		bic	r3, r3, #0x3f00
@@ -496,6 +553,18 @@ proc_types:
 		b	__armv4_mmu_cache_off
 		mov	pc, lr
 
+		.word	0x41007400		@ ARM74x
+		.word	0xff00ff00
+		b	__armv3_mpu_cache_on
+		b	__armv3_mpu_cache_off
+		b	__armv3_mpu_cache_flush
+		
+		.word	0x41009400		@ ARM94x
+		.word	0xff00ff00
+		b	__armv4_mpu_cache_on
+		b	__armv4_mpu_cache_off
+		b	__armv4_mpu_cache_flush
+
 		.word	0x00007000		@ ARM7 IDs
 		.word	0x0000f000
 		mov	pc, lr
@@ -562,6 +631,24 @@ proc_types:
 cache_off:	mov	r3, #12			@ cache_off function
 		b	call_cache_fn
 
+__armv4_mpu_cache_off:
+		mrc	p15, 0, r0, c1, c0
+		bic	r0, r0, #0x000d
+		mcr	p15, 0, r0, c1, c0	@ turn MPU and cache off
+		mov	r0, #0
+		mcr	p15, 0, r0, c7, c10, 4	@ drain write buffer
+		mcr	p15, 0, r0, c7, c6, 0	@ flush D-Cache
+		mcr	p15, 0, r0, c7, c5, 0	@ flush I-Cache
+		mov	pc, lr
+
+__armv3_mpu_cache_off:
+		mrc	p15, 0, r0, c1, c0
+		bic	r0, r0, #0x000d
+		mcr	p15, 0, r0, c1, c0, 0	@ turn MPU and cache off
+		mov	r0, #0
+		mcr	p15, 0, r0, c7, c0, 0	@ invalidate whole cache v3
+		mov	pc, lr
+
 __armv4_mmu_cache_off:
 		mrc	p15, 0, r0, c1, c0
 		bic	r0, r0, #0x000d
@@ -601,6 +688,24 @@ cache_clean_flush:
 		mov	r3, #16
 		b	call_cache_fn
 
+__armv4_mpu_cache_flush:
+		mov	r2, #1
+		mov	r3, #0
+		mcr	p15, 0, ip, c7, c6, 0	@ invalidate D cache
+		mov	r1, #7 << 5		@ 8 segments
+1:		orr	r3, r1, #63 << 26	@ 64 entries
+2:		mcr	p15, 0, r3, c7, c14, 2	@ clean & invalidate D index
+		subs	r3, r3, #1 << 26
+		bcs	2b			@ entries 63 to 0
+		subs 	r1, r1, #1 << 5
+		bcs	1b			@ segments 7 to 0
+
+		teq	r2, #0
+		mcrne	p15, 0, ip, c7, c5, 0	@ invalidate I cache
+		mcr	p15, 0, ip, c7, c10, 4	@ drain WB
+		mov	pc, lr
+		
+
 __armv6_mmu_cache_flush:
 		mov	r1, #0
 		mcr	p15, 0, r1, c7, c14, 0	@ clean+invalidate D
@@ -638,6 +743,7 @@ no_cache_id:
 		mov	pc, lr
 
 __armv3_mmu_cache_flush:
+__armv3_mpu_cache_flush:
 		mov	r1, #0
 		mcr	p15, 0, r0, c7, c0, 0	@ invalidate whole cache v3
 		mov	pc, lr

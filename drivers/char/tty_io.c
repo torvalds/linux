@@ -351,10 +351,10 @@ int tty_buffer_request_room(struct tty_struct *tty, size_t size)
 	spin_unlock_irqrestore(&tty->buf.lock, flags);
 	return size;
 }
-
 EXPORT_SYMBOL_GPL(tty_buffer_request_room);
 
-int tty_insert_flip_string(struct tty_struct *tty, const unsigned char *chars, size_t size)
+int tty_insert_flip_string(struct tty_struct *tty, const unsigned char *chars,
+				size_t size)
 {
 	int copied = 0;
 	do {
@@ -368,17 +368,16 @@ int tty_insert_flip_string(struct tty_struct *tty, const unsigned char *chars, s
 		tb->used += space;
 		copied += space;
 		chars += space;
-/* 		printk("Flip insert %d.\n", space); */
 	}
 	/* There is a small chance that we need to split the data over
 	   several buffers. If this is the case we must loop */
 	while (unlikely(size > copied));
 	return copied;
 }
+EXPORT_SYMBOL(tty_insert_flip_string);
 
-EXPORT_SYMBOL_GPL(tty_insert_flip_string);
-
-int tty_insert_flip_string_flags(struct tty_struct *tty, const unsigned char *chars, const char *flags, size_t size)
+int tty_insert_flip_string_flags(struct tty_struct *tty,
+		const unsigned char *chars, const char *flags, size_t size)
 {
 	int copied = 0;
 	do {
@@ -399,9 +398,20 @@ int tty_insert_flip_string_flags(struct tty_struct *tty, const unsigned char *ch
 	while (unlikely(size > copied));
 	return copied;
 }
-
 EXPORT_SYMBOL_GPL(tty_insert_flip_string_flags);
 
+void tty_schedule_flip(struct tty_struct *tty)
+{
+	unsigned long flags;
+	spin_lock_irqsave(&tty->buf.lock, flags);
+	if (tty->buf.tail != NULL) {
+		tty->buf.tail->active = 0;
+		tty->buf.tail->commit = tty->buf.tail->used;
+	}
+	spin_unlock_irqrestore(&tty->buf.lock, flags);
+	schedule_delayed_work(&tty->buf.work, 1);
+}
+EXPORT_SYMBOL(tty_schedule_flip);
 
 /*
  *	Prepare a block of space in the buffer for data. Returns the length
@@ -1730,7 +1740,7 @@ static void release_dev(struct file * filp)
 {
 	struct tty_struct *tty, *o_tty;
 	int	pty_master, tty_closing, o_tty_closing, do_sleep;
-	int	devpts_master, devpts;
+	int	devpts;
 	int	idx;
 	char	buf[64];
 	unsigned long flags;
@@ -1747,7 +1757,6 @@ static void release_dev(struct file * filp)
 	pty_master = (tty->driver->type == TTY_DRIVER_TYPE_PTY &&
 		      tty->driver->subtype == PTY_TYPE_MASTER);
 	devpts = (tty->driver->flags & TTY_DRIVER_DEVPTS_MEM) != 0;
-	devpts_master = pty_master && devpts;
 	o_tty = tty->link;
 
 #ifdef TTY_PARANOIA_CHECK
@@ -2185,6 +2194,7 @@ static int ptmx_open(struct inode * inode, struct file * filp)
 		return 0;
 out1:
 	release_dev(filp);
+	return retval;
 out:
 	down(&allocated_ptys_lock);
 	idr_remove(&allocated_ptys, index);

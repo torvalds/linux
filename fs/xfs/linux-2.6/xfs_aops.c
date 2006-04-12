@@ -870,12 +870,14 @@ xfs_page_state_convert(
 	pgoff_t                 end_index, last_index, tlast;
 	ssize_t			size, len;
 	int			flags, err, iomap_valid = 0, uptodate = 1;
-	int			page_dirty, count = 0, trylock_flag = 0;
+	int			page_dirty, count = 0;
+	int			trylock = 0;
 	int			all_bh = unmapped;
 
-	/* wait for other IO threads? */
-	if (startio && (wbc->sync_mode == WB_SYNC_NONE && wbc->nonblocking))
-		trylock_flag |= BMAPI_TRYLOCK;
+	if (startio) {
+		if (wbc->sync_mode == WB_SYNC_NONE && wbc->nonblocking)
+			trylock |= BMAPI_TRYLOCK;
+	}
 
 	/* Is this page beyond the end of the file? */
 	offset = i_size_read(inode);
@@ -956,15 +958,13 @@ xfs_page_state_convert(
 
 			if (buffer_unwritten(bh)) {
 				type = IOMAP_UNWRITTEN;
-				flags = BMAPI_WRITE|BMAPI_IGNSTATE;
+				flags = BMAPI_WRITE | BMAPI_IGNSTATE;
 			} else if (buffer_delay(bh)) {
 				type = IOMAP_DELAY;
-				flags = BMAPI_ALLOCATE;
-				if (!startio)
-					flags |= trylock_flag;
+				flags = BMAPI_ALLOCATE | trylock;
 			} else {
 				type = IOMAP_NEW;
-				flags = BMAPI_WRITE|BMAPI_MMAP;
+				flags = BMAPI_WRITE | BMAPI_MMAP;
 			}
 
 			if (!iomap_valid) {

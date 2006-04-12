@@ -1,3 +1,7 @@
+config VIDEO_CX88_VP3054
+	tristate
+	depends on VIDEO_CX88_DVB && DVB_MT352
+
 config VIDEO_CX88
 	tristate "Conexant 2388x (bt878 successor) support"
 	depends on VIDEO_DEV && PCI && I2C
@@ -25,7 +29,7 @@ config VIDEO_CX88_ALSA
 
 	  It only works with boards with function 01 enabled.
 	  To check if your board supports, use lspci -n.
-	  If supported, you should see 1471:8801 or 1471:8811
+	  If supported, you should see 14f1:8801 or 14f1:8811
 	  PCI device.
 
 	  To compile this driver as a module, choose M here: the
@@ -73,10 +77,11 @@ config VIDEO_CX88_DVB_MT352
 	  This adds DVB-T support for cards based on the
 	  Connexant 2388x chip and the MT352 demodulator.
 
-config VIDEO_CX88_VP3054
-	tristate "VP-3054 Secondary I2C Bus Support"
-	default m
-	depends on DVB_MT352
+config VIDEO_CX88_DVB_VP3054
+	bool "VP-3054 Secondary I2C Bus Support"
+	default y
+	depends on VIDEO_CX88_DVB_MT352
+	select VIDEO_CX88_VP3054
 	---help---
 	  This adds DVB-T support for cards based on the
 	  Connexant 2388x chip and the MT352 demodulator,

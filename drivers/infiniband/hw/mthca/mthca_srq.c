@@ -206,7 +206,7 @@ int mthca_alloc_srq(struct mthca_dev *dev, struct mthca_pd *pd,
 		 roundup_pow_of_two(sizeof (struct mthca_next_seg) +
 				    srq->max_gs * sizeof (struct mthca_data_seg)));
 
-	if (ds > dev->limits.max_desc_sz)
+	if (!mthca_is_memfree(dev) && (ds > dev->limits.max_desc_sz))
 		return -EINVAL;
 
 	srq->wqe_shift = long_log2(ds);
@@ -684,7 +684,7 @@ int __devinit mthca_init_srq_table(struct mthca_dev *dev)
 	return err;
 }
 
-void __devexit mthca_cleanup_srq_table(struct mthca_dev *dev)
+void mthca_cleanup_srq_table(struct mthca_dev *dev)
 {
 	if (!(dev->mthca_flags & MTHCA_FLAG_SRQ))
 		return;

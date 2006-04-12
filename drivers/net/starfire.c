@@ -2122,8 +2122,7 @@ static void __devexit starfire_remove_one (struct pci_dev *pdev)
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct netdev_private *np = netdev_priv(dev);
 
-	if (!dev)
-		BUG();
+	BUG_ON(!dev);
 
 	unregister_netdev(dev);
 

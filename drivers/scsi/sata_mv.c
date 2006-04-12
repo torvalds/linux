@@ -378,7 +378,6 @@ static struct scsi_host_template mv_sht = {
 	.name			= DRV_NAME,
 	.ioctl			= ata_scsi_ioctl,
 	.queuecommand		= ata_scsi_queuecmd,
-	.eh_strategy_handler	= ata_scsi_error,
 	.can_queue		= MV_USE_Q_DEPTH,
 	.this_id		= ATA_SHT_THIS_ID,
 	.sg_tablesize		= MV_MAX_SG_CT / 2,
@@ -1397,7 +1396,7 @@ static void mv_host_intr(struct ata_host_set *host_set, u32 relevant,
 			}
 		}
 
-		if (ap->flags & (ATA_FLAG_PORT_DISABLED | ATA_FLAG_NOINTR))
+		if (ap->flags & (ATA_FLAG_DISABLED | ATA_FLAG_NOINTR))
 			continue;
 
 		err_mask = ac_err_mask(ata_status);
@@ -1991,7 +1990,7 @@ comreset_retry:
 	tf.nsect = readb((void __iomem *) ap->ioaddr.nsect_addr);
 
 	dev->class = ata_dev_classify(&tf);
-	if (!ata_dev_present(dev)) {
+	if (!ata_dev_enabled(dev)) {
 		VPRINTK("Port disabled post-sig: No device present.\n");
 		ata_port_disable(ap);
 	}

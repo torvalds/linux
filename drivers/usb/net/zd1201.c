@@ -1736,6 +1736,7 @@ static const struct iw_handler_def zd1201_iw_handlers = {
 	.standard 		= (iw_handler *)zd1201_iw_handler,
 	.private 		= (iw_handler *)zd1201_private_handler,
 	.private_args 		= (struct iw_priv_args *) zd1201_private_args,
+	.get_wireless_stats	= zd1201_get_wireless_stats,
 };
 
 static int zd1201_probe(struct usb_interface *interface,
@@ -1796,7 +1797,6 @@ static int zd1201_probe(struct usb_interface *interface,
 	zd->dev->open = zd1201_net_open;
 	zd->dev->stop = zd1201_net_stop;
 	zd->dev->get_stats = zd1201_get_stats;
-	zd->dev->get_wireless_stats = zd1201_get_wireless_stats;
 	zd->dev->wireless_handlers =
 	    (struct iw_handler_def *)&zd1201_iw_handlers;
 	zd->dev->hard_start_xmit = zd1201_hard_start_xmit;

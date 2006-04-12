@@ -7,8 +7,15 @@
 #include <asm/atomic.h>
 #include <asm/types.h>
 
-/* An unsigned long type for operations which are atomic for a single
- * CPU.  Usually used in combination with per-cpu variables. */
+/*
+ * A signed long type for operations which are atomic for a single CPU.
+ * Usually used in combination with per-cpu variables.
+ *
+ * This is the default implementation, which uses atomic_long_t.  Which is
+ * rather pointless.  The whole point behind local_t is that some processors
+ * can perform atomic adds and subtracts in a manner which is atomic wrt IRQs
+ * running on this CPU.  local_t allows exploitation of such capabilities.
+ */
 
 /* Implement in terms of atomics. */
 
@@ -20,7 +27,7 @@ typedef struct
 
 #define LOCAL_INIT(i)	{ ATOMIC_LONG_INIT(i) }
 
-#define local_read(l)	((unsigned long)atomic_long_read(&(l)->a))
+#define local_read(l)	atomic_long_read(&(l)->a)
 #define local_set(l,i)	atomic_long_set((&(l)->a),(i))
 #define local_inc(l)	atomic_long_inc(&(l)->a)
 #define local_dec(l)	atomic_long_dec(&(l)->a)

@@ -16,9 +16,13 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 
-#include <asm/mach/map.h>
+#include <asm/tlb.h>
 #include <asm/io.h>
+
+#include <asm/mach/map.h>
+
 #include <asm/arch/mux.h>
+#include <asm/arch/omapfb.h>
 
 extern void omap_sram_init(void);
 extern int omap2_clk_init(void);
@@ -43,11 +47,24 @@ static struct map_desc omap2_io_desc[] __initdata = {
 	}
 };
 
-void __init omap_map_common_io(void)
+void __init omap2_map_common_io(void)
 {
 	iotable_init(omap2_io_desc, ARRAY_SIZE(omap2_io_desc));
+
+	/* Normally devicemaps_init() would flush caches and tlb after
+	 * mdesc->map_io(), but we must also do it here because of the CPU
+	 * revision check below.
+	 */
+	local_flush_tlb_all();
+	flush_cache_all();
+
 	omap2_check_revision();
 	omap_sram_init();
+	omapfb_reserve_mem();
+}
+
+void __init omap2_init_common_hw(void)
+{
 	omap2_mux_init();
 	omap2_clk_init();
 }

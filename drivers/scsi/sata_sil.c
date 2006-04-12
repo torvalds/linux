@@ -46,7 +46,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"sata_sil"
-#define DRV_VERSION	"0.9"
+#define DRV_VERSION	"1.0"
 
 enum {
 	/*
@@ -146,7 +146,6 @@ static struct scsi_host_template sil_sht = {
 	.name			= DRV_NAME,
 	.ioctl			= ata_scsi_ioctl,
 	.queuecommand		= ata_scsi_queuecmd,
-	.eh_strategy_handler	= ata_scsi_error,
 	.can_queue		= ATA_DEF_QUEUE,
 	.this_id		= ATA_SHT_THIS_ID,
 	.sg_tablesize		= LIBATA_MAX_PRD,
@@ -264,7 +263,7 @@ static void sil_post_set_mode (struct ata_port *ap)
 
 	for (i = 0; i < 2; i++) {
 		dev = &ap->device[i];
-		if (!ata_dev_present(dev))
+		if (!ata_dev_enabled(dev))
 			dev_mode[i] = 0;	/* PIO0/1/2 */
 		else if (dev->flags & ATA_DFLAG_PIO)
 			dev_mode[i] = 1;	/* PIO3/4 */
@@ -391,10 +390,6 @@ static int sil_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
 
-	/*
-	 * If this driver happens to only be useful on Apple's K2, then
-	 * we should check that here as it has a normal Serverworks ID
-	 */
 	rc = pci_enable_device(pdev);
 	if (rc)
 		return rc;

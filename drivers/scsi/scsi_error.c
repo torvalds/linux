@@ -1537,8 +1537,8 @@ int scsi_error_handler(void *data)
 		 * what we need to do to get it up and online again (if we can).
 		 * If we fail, we end up taking the thing offline.
 		 */
-		if (shost->hostt->eh_strategy_handler) 
-			shost->hostt->eh_strategy_handler(shost);
+		if (shost->transportt->eh_strategy_handler)
+			shost->transportt->eh_strategy_handler(shost);
 		else
 			scsi_unjam_host(shost);
 

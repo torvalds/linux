@@ -85,10 +85,6 @@ static int parse_redboot_partitions(struct mtd_info *master,
 
 	numslots = (master->erasesize / sizeof(struct fis_image_desc));
 	for (i = 0; i < numslots; i++) {
-		if (buf[i].name[0] == 0xff) {
-			i = numslots;
-			break;
-		}
 		if (!memcmp(buf[i].name, "FIS directory", 14)) {
 			/* This is apparently the FIS directory entry for the
 			 * FIS directory itself.  The FIS directory size is
@@ -128,7 +124,7 @@ static int parse_redboot_partitions(struct mtd_info *master,
 		struct fis_list *new_fl, **prev;
 
 		if (buf[i].name[0] == 0xff)
-			break;
+			continue;
 		if (!redboot_checksum(&buf[i]))
 			break;
 

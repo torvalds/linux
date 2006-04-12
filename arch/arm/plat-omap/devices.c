@@ -24,14 +24,7 @@
 #include <asm/arch/board.h>
 #include <asm/arch/mux.h>
 #include <asm/arch/gpio.h>
-
-
-void omap_nop_release(struct device *dev)
-{
-        /* Nothing */
-}
-
-/*-------------------------------------------------------------------------*/
+#include <asm/arch/menelaus.h>
 
 #if 	defined(CONFIG_I2C_OMAP) || defined(CONFIG_I2C_OMAP_MODULE)
 
@@ -58,9 +51,6 @@ static struct resource i2c_resources1[] = {
 static struct platform_device omap_i2c_device1 = {
         .name           = "i2c_omap",
         .id             = 1,
-        .dev = {
-                .release        = omap_nop_release,
-        },
 	.num_resources	= ARRAY_SIZE(i2c_resources1),
 	.resource	= i2c_resources1,
 };
@@ -98,6 +88,62 @@ static inline void omap_init_i2c(void) {}
 #endif
 
 /*-------------------------------------------------------------------------*/
+#if	defined(CONFIG_KEYBOARD_OMAP) || defined(CONFIG_KEYBOARD_OMAP_MODULE)
+
+static void omap_init_kp(void)
+{
+	if (machine_is_omap_h2() || machine_is_omap_h3()) {
+		omap_cfg_reg(F18_1610_KBC0);
+		omap_cfg_reg(D20_1610_KBC1);
+		omap_cfg_reg(D19_1610_KBC2);
+		omap_cfg_reg(E18_1610_KBC3);
+		omap_cfg_reg(C21_1610_KBC4);
+
+		omap_cfg_reg(G18_1610_KBR0);
+		omap_cfg_reg(F19_1610_KBR1);
+		omap_cfg_reg(H14_1610_KBR2);
+		omap_cfg_reg(E20_1610_KBR3);
+		omap_cfg_reg(E19_1610_KBR4);
+		omap_cfg_reg(N19_1610_KBR5);
+	} else if (machine_is_omap_perseus2()) {
+		omap_cfg_reg(E2_730_KBR0);
+		omap_cfg_reg(J7_730_KBR1);
+		omap_cfg_reg(E1_730_KBR2);
+		omap_cfg_reg(F3_730_KBR3);
+		omap_cfg_reg(D2_730_KBR4);
+
+		omap_cfg_reg(C2_730_KBC0);
+		omap_cfg_reg(D3_730_KBC1);
+		omap_cfg_reg(E4_730_KBC2);
+		omap_cfg_reg(F4_730_KBC3);
+		omap_cfg_reg(E3_730_KBC4);
+	} else if (machine_is_omap_h4()) {
+		omap_cfg_reg(T19_24XX_KBR0);
+		omap_cfg_reg(R19_24XX_KBR1);
+		omap_cfg_reg(V18_24XX_KBR2);
+		omap_cfg_reg(M21_24XX_KBR3);
+		omap_cfg_reg(E5__24XX_KBR4);
+		if (omap_has_menelaus()) {
+			omap_cfg_reg(B3__24XX_KBR5);
+			omap_cfg_reg(AA4_24XX_KBC2);
+			omap_cfg_reg(B13_24XX_KBC6);
+		} else {
+			omap_cfg_reg(M18_24XX_KBR5);
+			omap_cfg_reg(H19_24XX_KBC2);
+			omap_cfg_reg(N19_24XX_KBC6);
+		}
+		omap_cfg_reg(R20_24XX_KBC0);
+		omap_cfg_reg(M14_24XX_KBC1);
+		omap_cfg_reg(V17_24XX_KBC3);
+		omap_cfg_reg(P21_24XX_KBC4);
+		omap_cfg_reg(L14_24XX_KBC5);
+	}
+}
+#else
+static inline void omap_init_kp(void) {}
+#endif
+
+/*-------------------------------------------------------------------------*/
 
 #if	defined(CONFIG_MMC_OMAP) || defined(CONFIG_MMC_OMAP_MODULE)
 
@@ -130,7 +176,6 @@ static struct platform_device mmc_omap_device1 = {
 	.name		= "mmci-omap",
 	.id		= 1,
 	.dev = {
-		.release	= omap_nop_release,
 		.dma_mask	= &mmc1_dmamask,
 		.platform_data	= &mmc1_conf,
 	},
@@ -160,7 +205,6 @@ static struct platform_device mmc_omap_device2 = {
 	.name		= "mmci-omap",
 	.id		= 2,
 	.dev = {
-		.release	= omap_nop_release,
 		.dma_mask	= &mmc2_dmamask,
 		.platform_data	= &mmc2_conf,
 	},
@@ -240,6 +284,52 @@ static void __init omap_init_mmc(void)
 static inline void omap_init_mmc(void) {}
 #endif
 
+/*-------------------------------------------------------------------------*/
+
+/* Numbering for the SPI-capable controllers when used for SPI:
+ * spi		= 1
+ * uwire	= 2
+ * mmc1..2	= 3..4
+ * mcbsp1..3	= 5..7
+ */
+
+#if defined(CONFIG_SPI_OMAP_UWIRE) || defined(CONFIG_SPI_OMAP_UWIRE_MODULE)
+
+#define	OMAP_UWIRE_BASE		0xfffb3000
+
+static struct resource uwire_resources[] = {
+	{
+		.start		= OMAP_UWIRE_BASE,
+		.end		= OMAP_UWIRE_BASE + 0x20,
+		.flags		= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device omap_uwire_device = {
+	.name	   = "omap_uwire",
+	.id	     = -1,
+	.num_resources	= ARRAY_SIZE(uwire_resources),
+	.resource	= uwire_resources,
+};
+
+static void omap_init_uwire(void)
+{
+	/* FIXME define and use a boot tag; not all boards will be hooking
+	 * up devices to the microwire controller, and multi-board configs
+	 * mean that CONFIG_SPI_OMAP_UWIRE may be configured anyway...
+	 */
+
+	/* board-specific code must configure chipselects (only a few
+	 * are normally used) and SCLK/SDI/SDO (each has two choices).
+	 */
+	(void) platform_device_register(&omap_uwire_device);
+}
+#else
+static inline void omap_init_uwire(void) {}
+#endif
+
+/*-------------------------------------------------------------------------*/
+
 #if	defined(CONFIG_OMAP_WATCHDOG) || defined(CONFIG_OMAP_WATCHDOG_MODULE)
 
 #ifdef CONFIG_ARCH_OMAP24XX
@@ -259,9 +349,6 @@ static struct resource wdt_resources[] = {
 static struct platform_device omap_wdt_device = {
 	.name	   = "omap_wdt",
 	.id	     = -1,
-	.dev = {
-		.release	= omap_nop_release,
-	},
 	.num_resources	= ARRAY_SIZE(wdt_resources),
 	.resource	= wdt_resources,
 };
@@ -295,9 +382,6 @@ static struct resource rng_resources[] = {
 static struct platform_device omap_rng_device = {
 	.name	   = "omap_rng",
 	.id	     = -1,
-	.dev = {
-		.release	= omap_nop_release,
-	},
 	.num_resources	= ARRAY_SIZE(rng_resources),
 	.resource	= rng_resources,
 };
@@ -308,40 +392,6 @@ static void omap_init_rng(void)
 }
 #else
 static inline void omap_init_rng(void) {}
-#endif
-
-#if defined(CONFIG_FB_OMAP) || defined(CONFIG_FB_OMAP_MODULE)
-
-static struct omap_lcd_config omap_fb_conf;
-
-static u64 omap_fb_dma_mask = ~(u32)0;
-
-static struct platform_device omap_fb_device = {
-	.name		= "omapfb",
-	.id		= -1,
-	.dev = {
-		.release		= omap_nop_release,
-		.dma_mask		= &omap_fb_dma_mask,
-		.coherent_dma_mask	= ~(u32)0,
-		.platform_data		= &omap_fb_conf,
-	},
-	.num_resources = 0,
-};
-
-static inline void omap_init_fb(void)
-{
-	const struct omap_lcd_config *conf;
-
-	conf = omap_get_config(OMAP_TAG_LCD, struct omap_lcd_config);
-	if (conf != NULL)
-		omap_fb_conf = *conf;
-	platform_device_register(&omap_fb_device);
-}
-
-#else
-
-static inline void omap_init_fb(void) {}
-
 #endif
 
 /*
@@ -369,9 +419,10 @@ static int __init omap_init_devices(void)
 	/* please keep these calls, and their implementations above,
 	 * in alphabetical order so they're easier to sort through.
 	 */
-	omap_init_fb();
 	omap_init_i2c();
+	omap_init_kp();
 	omap_init_mmc();
+	omap_init_uwire();
 	omap_init_wdt();
 	omap_init_rng();
 

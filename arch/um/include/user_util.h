@@ -8,6 +8,9 @@
 
 #include "sysdep/ptrace.h"
 
+/* Copied from kernel.h */
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+
 #define CATCH_EINTR(expr) while ((errno = 0, ((expr) < 0)) && (errno == EINTR))
 
 extern int mode_tt;
@@ -31,7 +34,7 @@ extern unsigned long uml_physmem;
 extern unsigned long uml_reserved;
 extern unsigned long end_vm;
 extern unsigned long start_vm;
-extern unsigned long highmem;
+extern unsigned long long highmem;
 
 extern char host_info[];
 
@@ -52,7 +55,8 @@ extern int get_pty(void);
 extern void *um_kmalloc(int size);
 extern int switcheroo(int fd, int prot, void *from, void *to, int size);
 extern void do_exec(int old_pid, int new_pid);
-extern void tracer_panic(char *msg, ...);
+extern void tracer_panic(char *msg, ...)
+	__attribute__ ((format (printf, 1, 2)));
 extern int detach(int pid, int sig);
 extern int attach(int pid);
 extern void kill_child_dead(int pid);

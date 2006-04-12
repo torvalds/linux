@@ -44,7 +44,7 @@ __kernel_rt_sigreturn:
 .LSTARTCIEDLSI1:
 	.long 0			/* CIE ID */
 	.byte 1			/* Version number */
-	.string "zR"		/* NUL-terminated augmentation string */
+	.string "zRS"		/* NUL-terminated augmentation string */
 	.uleb128 1		/* Code alignment factor */
 	.sleb128 -4		/* Data alignment factor */
 	.byte 8			/* Return address register column */

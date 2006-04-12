@@ -68,6 +68,7 @@ struct xfs_mount_args {
 						 * enforcement */
 #define XFSMNT_PQUOTAENF	0x00000040	/* IRIX project quota limit
 						 * enforcement */
+#define XFSMNT_QUIET		0x00000080	/* don't report mount errors */
 #define XFSMNT_NOALIGN		0x00000200	/* don't allocate at
 						 * stripe boundaries*/
 #define XFSMNT_RETERR		0x00000400	/* return error to user */

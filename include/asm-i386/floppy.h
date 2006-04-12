@@ -56,7 +56,6 @@ static irqreturn_t floppy_hardint(int irq, void *dev_id, struct pt_regs * regs)
 	register unsigned char st;
 
 #undef TRACE_FLPY_INT
-#define NO_FLOPPY_ASSEMBLER
 
 #ifdef TRACE_FLPY_INT
 	static int calls=0;
@@ -71,38 +70,6 @@ static irqreturn_t floppy_hardint(int irq, void *dev_id, struct pt_regs * regs)
 		bytes = virtual_dma_count;
 #endif
 
-#ifndef NO_FLOPPY_ASSEMBLER
-	__asm__ (
-       "testl %1,%1"
-	"je 3f"
-"1:	inb %w4,%b0"
-	"andb $160,%b0"
-	"cmpb $160,%b0"
-	"jne 2f"
-	"incw %w4"
-	"testl %3,%3"
-	"jne 4f"
-	"inb %w4,%b0"
-	"movb %0,(%2)"
-	"jmp 5f"
-"4:    	movb (%2),%0"
-	"outb %b0,%w4"
-"5:	decw %w4"
-	"outb %0,$0x80"
-	"decl %1"
-	"incl %2"
-	"testl %1,%1"
-	"jne 1b"
-"3:	inb %w4,%b0"
-"2:	"
-       : "=a" ((char) st), 
-       "=c" ((long) virtual_dma_count), 
-       "=S" ((long) virtual_dma_addr)
-       : "b" ((long) virtual_dma_mode),
-       "d" ((short) virtual_dma_port+4), 
-       "1" ((long) virtual_dma_count),
-       "2" ((long) virtual_dma_addr));
-#else	
 	{
 		register int lcount;
 		register char *lptr;
@@ -122,7 +89,6 @@ static irqreturn_t floppy_hardint(int irq, void *dev_id, struct pt_regs * regs)
 		virtual_dma_addr = lptr;
 		st = inb(virtual_dma_port+4);
 	}
-#endif
 
 #ifdef TRACE_FLPY_INT
 	calls++;

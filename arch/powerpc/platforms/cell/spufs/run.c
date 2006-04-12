@@ -2,6 +2,7 @@
 #include <linux/ptrace.h>
 
 #include <asm/spu.h>
+#include <asm/unistd.h>
 
 #include "spufs.h"
 

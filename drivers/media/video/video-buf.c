@@ -399,19 +399,25 @@ void videobuf_queue_pci(struct videobuf_queue* q)
 int videobuf_pci_dma_map(struct pci_dev *pci,struct videobuf_dmabuf *dma)
 {
 	struct videobuf_queue q;
+	struct videobuf_queue_ops qops;
 
 	q.dev=pci;
-	q.ops->vb_map_sg=(vb_map_sg_t *)pci_unmap_sg;
+	qops.vb_map_sg=(vb_map_sg_t *)pci_map_sg;
+	qops.vb_unmap_sg=(vb_map_sg_t *)pci_unmap_sg;
+	q.ops = &qops;
 
-	return (videobuf_dma_unmap(&q,dma));
+	return (videobuf_dma_map(&q,dma));
 }
 
 int videobuf_pci_dma_unmap(struct pci_dev *pci,struct videobuf_dmabuf *dma)
 {
 	struct videobuf_queue q;
+	struct videobuf_queue_ops qops;
 
 	q.dev=pci;
-	q.ops->vb_map_sg=(vb_map_sg_t *)pci_unmap_sg;
+	qops.vb_map_sg=(vb_map_sg_t *)pci_map_sg;
+	qops.vb_unmap_sg=(vb_map_sg_t *)pci_unmap_sg;
+	q.ops = &qops;
 
 	return (videobuf_dma_unmap(&q,dma));
 }
@@ -923,7 +929,7 @@ ssize_t videobuf_read_one(struct videobuf_queue *q,
 		/* need to capture a new frame */
 		retval = -ENOMEM;
 		q->read_buf = videobuf_alloc(q->msize);
-		dprintk(1,"video alloc=0x%08x\n",(unsigned int) q->read_buf);
+		dprintk(1,"video alloc=0x%p\n", q->read_buf);
 		if (NULL == q->read_buf)
 			goto done;
 		q->read_buf->memory = V4L2_MEMORY_USERPTR;

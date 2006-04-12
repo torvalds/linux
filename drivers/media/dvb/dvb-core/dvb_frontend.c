@@ -105,6 +105,7 @@ struct dvb_frontend_private {
 	fe_status_t status;
 	unsigned long tune_mode_flags;
 	unsigned int delay;
+	unsigned int reinitialise;
 
 	/* swzigzag values */
 	unsigned int state;
@@ -121,6 +122,7 @@ struct dvb_frontend_private {
 	unsigned int check_wrapped;
 };
 
+static void dvb_frontend_wakeup(struct dvb_frontend *fe);
 
 static void dvb_frontend_add_event(struct dvb_frontend *fe, fe_status_t status)
 {
@@ -212,6 +214,15 @@ static void dvb_frontend_init(struct dvb_frontend *fe)
 	if (fe->ops->init)
 		fe->ops->init(fe);
 }
+
+void dvb_frontend_reinitialise(struct dvb_frontend *fe)
+{
+	struct dvb_frontend_private *fepriv = fe->frontend_priv;
+
+	fepriv->reinitialise = 1;
+	dvb_frontend_wakeup(fe);
+}
+EXPORT_SYMBOL(dvb_frontend_reinitialise);
 
 static void dvb_frontend_swzigzag_update_delay(struct dvb_frontend_private *fepriv, int locked)
 {
@@ -505,8 +516,8 @@ static int dvb_frontend_thread(void *data)
 	fepriv->quality = 0;
 	fepriv->delay = 3*HZ;
 	fepriv->status = 0;
-	dvb_frontend_init(fe);
 	fepriv->wakeup = 0;
+	fepriv->reinitialise = 1;
 
 	while (1) {
 		up(&fepriv->sem);	    /* is locked when we enter the thread... */
@@ -523,6 +534,11 @@ static int dvb_frontend_thread(void *data)
 
 		if (down_interruptible(&fepriv->sem))
 			break;
+
+		if (fepriv->reinitialise) {
+			dvb_frontend_init(fe);
+			fepriv->reinitialise = 0;
+		}
 
 		/* do an iteration of the tuning loop */
 		if (fe->ops->tune) {

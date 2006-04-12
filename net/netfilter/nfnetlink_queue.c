@@ -1071,17 +1071,13 @@ static struct file_operations nfqnl_file_ops = {
 
 #endif /* PROC_FS */
 
-static int
-init_or_cleanup(int init)
+static int __init nfnetlink_queue_init(void)
 {
 	int i, status = -ENOMEM;
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry *proc_nfqueue;
 #endif
 	
-	if (!init)
-		goto cleanup;
-
 	for (i = 0; i < INSTANCE_BUCKETS; i++)
 		INIT_HLIST_HEAD(&instance_table[i]);
 
@@ -1101,31 +1097,26 @@ init_or_cleanup(int init)
 #endif
 
 	register_netdevice_notifier(&nfqnl_dev_notifier);
-
 	return status;
 
-cleanup:
-	nf_unregister_queue_handlers(&nfqh);
-	unregister_netdevice_notifier(&nfqnl_dev_notifier);
 #ifdef CONFIG_PROC_FS
-	remove_proc_entry("nfnetlink_queue", proc_net_netfilter);
 cleanup_subsys:
-#endif	
 	nfnetlink_subsys_unregister(&nfqnl_subsys);
+#endif
 cleanup_netlink_notifier:
 	netlink_unregister_notifier(&nfqnl_rtnl_notifier);
 	return status;
 }
 
-static int __init nfnetlink_queue_init(void)
-{
-	
-	return init_or_cleanup(1);
-}
-
 static void __exit nfnetlink_queue_fini(void)
 {
-	init_or_cleanup(0);
+	nf_unregister_queue_handlers(&nfqh);
+	unregister_netdevice_notifier(&nfqnl_dev_notifier);
+#ifdef CONFIG_PROC_FS
+	remove_proc_entry("nfnetlink_queue", proc_net_netfilter);
+#endif
+	nfnetlink_subsys_unregister(&nfqnl_subsys);
+	netlink_unregister_notifier(&nfqnl_rtnl_notifier);
 }
 
 MODULE_DESCRIPTION("netfilter packet queue handler");

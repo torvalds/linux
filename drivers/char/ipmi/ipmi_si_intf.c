@@ -803,7 +803,7 @@ static int ipmi_thread(void *data)
 	set_user_nice(current, 19);
 	while (!kthread_should_stop()) {
 		spin_lock_irqsave(&(smi_info->si_lock), flags);
-		smi_result=smi_event_handler(smi_info, 0);
+		smi_result = smi_event_handler(smi_info, 0);
 		spin_unlock_irqrestore(&(smi_info->si_lock), flags);
 		if (smi_result == SI_SM_CALL_WITHOUT_DELAY) {
 			/* do nothing */
@@ -972,10 +972,37 @@ static irqreturn_t si_bt_irq_handler(int irq, void *data, struct pt_regs *regs)
 	return si_irq_handler(irq, data, regs);
 }
 
+static int smi_start_processing(void       *send_info,
+				ipmi_smi_t intf)
+{
+	struct smi_info *new_smi = send_info;
+
+	new_smi->intf = intf;
+
+	/* Set up the timer that drives the interface. */
+	setup_timer(&new_smi->si_timer, smi_timeout, (long)new_smi);
+	new_smi->last_timeout_jiffies = jiffies;
+	mod_timer(&new_smi->si_timer, jiffies + SI_TIMEOUT_JIFFIES);
+
+ 	if (new_smi->si_type != SI_BT) {
+		new_smi->thread = kthread_run(ipmi_thread, new_smi,
+					      "kipmi%d", new_smi->intf_num);
+		if (IS_ERR(new_smi->thread)) {
+			printk(KERN_NOTICE "ipmi_si_intf: Could not start"
+			       " kernel thread due to error %ld, only using"
+			       " timers to drive the interface\n",
+			       PTR_ERR(new_smi->thread));
+			new_smi->thread = NULL;
+		}
+	}
+
+	return 0;
+}
 
 static struct ipmi_smi_handlers handlers =
 {
 	.owner                  = THIS_MODULE,
+	.start_processing       = smi_start_processing,
 	.sender			= sender,
 	.request_events		= request_events,
 	.set_run_to_completion  = set_run_to_completion,
@@ -987,7 +1014,7 @@ static struct ipmi_smi_handlers handlers =
 
 #define SI_MAX_PARMS 4
 static LIST_HEAD(smi_infos);
-static DECLARE_MUTEX(smi_infos_lock);
+static DEFINE_MUTEX(smi_infos_lock);
 static int smi_num; /* Used to sequence the SMIs */
 
 #define DEFAULT_REGSPACING	1
@@ -2162,9 +2189,13 @@ static void setup_xaction_handlers(struct smi_info *smi_info)
 
 static inline void wait_for_timer_and_thread(struct smi_info *smi_info)
 {
-	if (smi_info->thread != NULL && smi_info->thread != ERR_PTR(-ENOMEM))
-		kthread_stop(smi_info->thread);
-	del_timer_sync(&smi_info->si_timer);
+	if (smi_info->intf) {
+		/* The timer and thread are only running if the
+		   interface has been started up and registered. */
+		if (smi_info->thread != NULL)
+			kthread_stop(smi_info->thread);
+		del_timer_sync(&smi_info->si_timer);
+	}
 }
 
 static struct ipmi_default_vals
@@ -2245,7 +2276,7 @@ static int try_smi_init(struct smi_info *new_smi)
 		       new_smi->slave_addr, new_smi->irq);
 	}
 
-	down(&smi_infos_lock);
+	mutex_lock(&smi_infos_lock);
 	if (!is_new_interface(new_smi)) {
 		printk(KERN_WARNING "ipmi_si: duplicate interface\n");
 		rv = -EBUSY;
@@ -2341,21 +2372,6 @@ static int try_smi_init(struct smi_info *new_smi)
 	if (new_smi->irq)
 		new_smi->si_state = SI_CLEARING_FLAGS_THEN_SET_IRQ;
 
-	/* The ipmi_register_smi() code does some operations to
-	   determine the channel information, so we must be ready to
-	   handle operations before it is called.  This means we have
-	   to stop the timer if we get an error after this point. */
-	init_timer(&(new_smi->si_timer));
-	new_smi->si_timer.data = (long) new_smi;
-	new_smi->si_timer.function = smi_timeout;
-	new_smi->last_timeout_jiffies = jiffies;
-	new_smi->si_timer.expires = jiffies + SI_TIMEOUT_JIFFIES;
-
-	add_timer(&(new_smi->si_timer));
- 	if (new_smi->si_type != SI_BT)
-		new_smi->thread = kthread_run(ipmi_thread, new_smi,
-					      "kipmi%d", new_smi->intf_num);
-
 	if (!new_smi->dev) {
 		/* If we don't already have a device from something
 		 * else (like PCI), then register a new one. */
@@ -2365,7 +2381,7 @@ static int try_smi_init(struct smi_info *new_smi)
 			printk(KERN_ERR
 			       "ipmi_si_intf:"
 			       " Unable to allocate platform device\n");
-			goto out_err_stop_timer;
+			goto out_err;
 		}
 		new_smi->dev = &new_smi->pdev->dev;
 		new_smi->dev->driver = &ipmi_driver;
@@ -2377,7 +2393,7 @@ static int try_smi_init(struct smi_info *new_smi)
 			       " Unable to register system interface device:"
 			       " %d\n",
 			       rv);
-			goto out_err_stop_timer;
+			goto out_err;
 		}
 		new_smi->dev_registered = 1;
 	}
@@ -2386,8 +2402,7 @@ static int try_smi_init(struct smi_info *new_smi)
 			       new_smi,
 			       &new_smi->device_id,
 			       new_smi->dev,
-			       new_smi->slave_addr,
-			       &(new_smi->intf));
+			       new_smi->slave_addr);
 	if (rv) {
 		printk(KERN_ERR
 		       "ipmi_si: Unable to register device: error %d\n",
@@ -2417,7 +2432,7 @@ static int try_smi_init(struct smi_info *new_smi)
 
 	list_add_tail(&new_smi->link, &smi_infos);
 
-	up(&smi_infos_lock);
+	mutex_unlock(&smi_infos_lock);
 
 	printk(" IPMI %s interface initialized\n",si_to_str[new_smi->si_type]);
 
@@ -2454,7 +2469,7 @@ static int try_smi_init(struct smi_info *new_smi)
 
 	kfree(new_smi);
 
-	up(&smi_infos_lock);
+	mutex_unlock(&smi_infos_lock);
 
 	return rv;
 }
@@ -2512,26 +2527,26 @@ static __devinit int init_ipmi_si(void)
 #endif
 
 	if (si_trydefaults) {
-		down(&smi_infos_lock);
+		mutex_lock(&smi_infos_lock);
 		if (list_empty(&smi_infos)) {
 			/* No BMC was found, try defaults. */
-			up(&smi_infos_lock);
+			mutex_unlock(&smi_infos_lock);
 			default_find_bmc();
 		} else {
-			up(&smi_infos_lock);
+			mutex_unlock(&smi_infos_lock);
 		}
 	}
 
-	down(&smi_infos_lock);
+	mutex_lock(&smi_infos_lock);
 	if (list_empty(&smi_infos)) {
-		up(&smi_infos_lock);
+		mutex_unlock(&smi_infos_lock);
 #ifdef CONFIG_PCI
 		pci_unregister_driver(&ipmi_pci_driver);
 #endif
 		printk("ipmi_si: Unable to find any System Interface(s)\n");
 		return -ENODEV;
 	} else {
-		up(&smi_infos_lock);
+		mutex_unlock(&smi_infos_lock);
 		return 0;
 	}
 }
@@ -2607,10 +2622,10 @@ static __exit void cleanup_ipmi_si(void)
 	pci_unregister_driver(&ipmi_pci_driver);
 #endif
 
-	down(&smi_infos_lock);
+	mutex_lock(&smi_infos_lock);
 	list_for_each_entry_safe(e, tmp_e, &smi_infos, link)
 		cleanup_one_si(e);
-	up(&smi_infos_lock);
+	mutex_unlock(&smi_infos_lock);
 
 	driver_unregister(&ipmi_driver);
 }

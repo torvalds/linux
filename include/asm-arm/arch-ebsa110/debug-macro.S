@@ -18,4 +18,4 @@
 
 #define UART_SHIFT	2
 #define FLOW_CONTROL
-#include <asm/hardware/debug-8250.h>
+#include <asm/hardware/debug-8250.S>

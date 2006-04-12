@@ -20,6 +20,8 @@
 #include "linux/namei.h"
 #include "linux/proc_fs.h"
 #include "linux/syscalls.h"
+#include "linux/list.h"
+#include "linux/mm.h"
 #include "linux/console.h"
 #include "asm/irq.h"
 #include "asm/uaccess.h"
@@ -60,7 +62,7 @@ static void mc_work_proc(void *unused)
 	unsigned long flags;
 
 	while(!list_empty(&mc_requests)){
-		local_save_flags(flags);
+		local_irq_save(flags);
 		req = list_entry(mc_requests.next, struct mconsole_entry,
 				 list);
 		list_del(&req->list);
@@ -85,7 +87,7 @@ static irqreturn_t mconsole_interrupt(int irq, void *dev_id,
 		if(req.cmd->context == MCONSOLE_INTR)
 			(*req.cmd->handler)(&req);
 		else {
-			new = kmalloc(sizeof(*new), GFP_ATOMIC);
+			new = kmalloc(sizeof(*new), GFP_NOWAIT);
 			if(new == NULL)
 				mconsole_reply(&req, "Out of memory", 1, 0);
 			else {
@@ -347,6 +349,141 @@ static struct mc_device *mconsole_find_dev(char *name)
 	return(NULL);
 }
 
+#define UNPLUGGED_PER_PAGE \
+	((PAGE_SIZE - sizeof(struct list_head)) / sizeof(unsigned long))
+
+struct unplugged_pages {
+	struct list_head list;
+	void *pages[UNPLUGGED_PER_PAGE];
+};
+
+static unsigned long long unplugged_pages_count = 0;
+static struct list_head unplugged_pages = LIST_HEAD_INIT(unplugged_pages);
+static int unplug_index = UNPLUGGED_PER_PAGE;
+
+static int mem_config(char *str)
+{
+	unsigned long long diff;
+	int err = -EINVAL, i, add;
+	char *ret;
+
+	if(str[0] != '=')
+		goto out;
+
+	str++;
+	if(str[0] == '-')
+		add = 0;
+	else if(str[0] == '+'){
+		add = 1;
+	}
+	else goto out;
+
+	str++;
+	diff = memparse(str, &ret);
+	if(*ret != '\0')
+		goto out;
+
+	diff /= PAGE_SIZE;
+
+	for(i = 0; i < diff; i++){
+		struct unplugged_pages *unplugged;
+		void *addr;
+
+		if(add){
+			if(list_empty(&unplugged_pages))
+				break;
+
+			unplugged = list_entry(unplugged_pages.next,
+					       struct unplugged_pages, list);
+			if(unplug_index > 0)
+				addr = unplugged->pages[--unplug_index];
+			else {
+				list_del(&unplugged->list);
+				addr = unplugged;
+				unplug_index = UNPLUGGED_PER_PAGE;
+			}
+
+			free_page((unsigned long) addr);
+			unplugged_pages_count--;
+		}
+		else {
+			struct page *page;
+
+			page = alloc_page(GFP_ATOMIC);
+			if(page == NULL)
+				break;
+
+			unplugged = page_address(page);
+			if(unplug_index == UNPLUGGED_PER_PAGE){
+				list_add(&unplugged->list, &unplugged_pages);
+				unplug_index = 0;
+			}
+			else {
+				struct list_head *entry = unplugged_pages.next;
+				addr = unplugged;
+
+				unplugged = list_entry(entry,
+						       struct unplugged_pages,
+						       list);
+				unplugged->pages[unplug_index++] = addr;
+				err = os_drop_memory(addr, PAGE_SIZE);
+				if(err)
+					printk("Failed to release memory - "
+					       "errno = %d\n", err);
+			}
+
+			unplugged_pages_count++;
+		}
+	}
+
+	err = 0;
+out:
+	return err;
+}
+
+static int mem_get_config(char *name, char *str, int size, char **error_out)
+{
+	char buf[sizeof("18446744073709551615")];
+	int len = 0;
+
+	sprintf(buf, "%ld", uml_physmem);
+	CONFIG_CHUNK(str, size, len, buf, 1);
+
+	return len;
+}
+
+static int mem_id(char **str, int *start_out, int *end_out)
+{
+	*start_out = 0;
+	*end_out = 0;
+
+	return 0;
+}
+
+static int mem_remove(int n)
+{
+	return -EBUSY;
+}
+
+static struct mc_device mem_mc = {
+	.name		= "mem",
+	.config		= mem_config,
+	.get_config	= mem_get_config,
+	.id		= mem_id,
+	.remove		= mem_remove,
+};
+
+static int mem_mc_init(void)
+{
+	if(can_drop_memory())
+		mconsole_register_dev(&mem_mc);
+	else printk("Can't release memory to the host - memory hotplug won't "
+		    "be supported\n");
+	return 0;
+}
+
+__initcall(mem_mc_init);
+
 #define CONFIG_BUF_SIZE 64
 
 static void mconsole_get_config(int (*get_config)(char *, char *, int,
@@ -478,7 +615,7 @@ static void console_write(struct console *console, const char *string,
 		return;
 
 	while(1){
-		n = min(len, ARRAY_SIZE(console_buf) - console_index);
+		n = min((size_t) len, ARRAY_SIZE(console_buf) - console_index);
 		strncpy(&console_buf[console_index], string, n);
 		console_index += n;
 		string += n;
@@ -517,7 +654,6 @@ static void with_console(struct mc_request *req, void (*proc)(void *),
 	struct mconsole_entry entry;
 	unsigned long flags;
 
-	INIT_LIST_HEAD(&entry.list);
 	entry.request = *req;
 	list_add(&entry.list, &clients);
 	spin_lock_irqsave(&console_lock, flags);

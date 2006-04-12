@@ -799,6 +799,7 @@ config PROC_KCORE
 config PROC_VMCORE
         bool "/proc/vmcore support (EXPERIMENTAL)"
         depends on PROC_FS && EXPERIMENTAL && CRASH_DUMP
+	default y
         help
         Exports the dump image of crashed kernel in ELF format.
 
@@ -861,7 +862,7 @@ config RAMFS
 
 config CONFIGFS_FS
 	tristate "Userspace-driven configuration filesystem (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	depends on SYSFS && EXPERIMENTAL
 	help
 	  configfs is a ram-based filesystem that provides the converse
 	  of sysfs's functionality. Where sysfs is a filesystem-based

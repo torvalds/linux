@@ -1,3 +1,21 @@
+Version 1.42
+------------
+Fix slow oplock break when mounted to different servers at the same time and
+the tids match and we try to find matching fid on wrong server.
+
+Version 1.41
+------------
+Fix NTLMv2 security (can be enabled in /proc/fs/cifs) so customers can
+configure stronger authentication.  Fix sfu symlinks so they can
+be followed (not just recognized).  Fix wraparound of bcc on
+read responses when buffer size over 64K and also fix wrap of
+max smb buffer size when CIFSMaxBufSize over 64K.  Fix oops in
+cifs_user_read and cifs_readpages (when EAGAIN on send of smb
+on socket is returned over and over).  Add POSIX (advisory) byte range
+locking support (requires server with newest CIFS UNIX Extensions
+to the protocol implemented). Slow down negprot slightly in port 139
+RFC1001 case to give session_init time on buggy servers.
+
 Version 1.40
 ------------
 Use fsuid (fsgid) more consistently instead of uid (gid). Improve performance

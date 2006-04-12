@@ -43,7 +43,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"sata_sis"
-#define DRV_VERSION	"0.5"
+#define DRV_VERSION	"0.6"
 
 enum {
 	sis_180			= 0,
@@ -87,7 +87,6 @@ static struct scsi_host_template sis_sht = {
 	.name			= DRV_NAME,
 	.ioctl			= ata_scsi_ioctl,
 	.queuecommand		= ata_scsi_queuecmd,
-	.eh_strategy_handler	= ata_scsi_error,
 	.can_queue		= ATA_DEF_QUEUE,
 	.this_id		= ATA_SHT_THIS_ID,
 	.sg_tablesize		= ATA_MAX_PRD,

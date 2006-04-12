@@ -60,6 +60,13 @@ config SOFT_WATCHDOG
 
 # ARM Architecture
 
+config AT91_WATCHDOG
+	tristate "AT91RM9200 watchdog"
+	depends on WATCHDOG && ARCH_AT91RM9200
+	help
+	  Watchdog timer embedded into AT91RM9200 chips. This will reboot your
+	  system when the timeout is reached.
+
 config 21285_WATCHDOG
 	tristate "DC21285 watchdog"
 	depends on WATCHDOG && FOOTBRIDGE

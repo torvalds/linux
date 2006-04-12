@@ -177,17 +177,6 @@ static int queue_packet(struct ib_umad_file *file,
 	return ret;
 }
 
-static int data_offset(u8 mgmt_class)
-{
-	if (mgmt_class == IB_MGMT_CLASS_SUBN_ADM)
-		return IB_MGMT_SA_HDR;
-	else if ((mgmt_class >= IB_MGMT_CLASS_VENDOR_RANGE2_START) &&
-		 (mgmt_class <= IB_MGMT_CLASS_VENDOR_RANGE2_END))
-		return IB_MGMT_VENDOR_HDR;
-	else
-		return IB_MGMT_RMPP_HDR;
-}
-
 static void send_handler(struct ib_mad_agent *agent,
 			 struct ib_mad_send_wc *send_wc)
 {
@@ -283,7 +272,7 @@ static ssize_t copy_recv_mad(char __user *buf, struct ib_umad_packet *packet,
 			 */
 			return -ENOSPC;
 		}
-		offset = data_offset(recv_buf->mad->mad_hdr.mgmt_class);
+		offset = ib_get_mad_data_offset(recv_buf->mad->mad_hdr.mgmt_class);
 		max_seg_payload = sizeof (struct ib_mad) - offset;
 
 		for (left = packet->length - seg_payload, buf += seg_payload;
@@ -441,21 +430,14 @@ static ssize_t ib_umad_write(struct file *filp, const char __user *buf,
 	}
 
 	rmpp_mad = (struct ib_rmpp_mad *) packet->mad.data;
-	if (rmpp_mad->mad_hdr.mgmt_class == IB_MGMT_CLASS_SUBN_ADM) {
-		hdr_len = IB_MGMT_SA_HDR;
-		copy_offset = IB_MGMT_RMPP_HDR;
-		rmpp_active = ib_get_rmpp_flags(&rmpp_mad->rmpp_hdr) &
-			      IB_MGMT_RMPP_FLAG_ACTIVE;
-	} else if (rmpp_mad->mad_hdr.mgmt_class >= IB_MGMT_CLASS_VENDOR_RANGE2_START &&
-		   rmpp_mad->mad_hdr.mgmt_class <= IB_MGMT_CLASS_VENDOR_RANGE2_END) {
-		hdr_len = IB_MGMT_VENDOR_HDR;
-		copy_offset = IB_MGMT_RMPP_HDR;
-		rmpp_active = ib_get_rmpp_flags(&rmpp_mad->rmpp_hdr) &
-			      IB_MGMT_RMPP_FLAG_ACTIVE;
-	} else {
-		hdr_len = IB_MGMT_MAD_HDR;
+	hdr_len = ib_get_mad_data_offset(rmpp_mad->mad_hdr.mgmt_class);
+	if (!ib_is_mad_class_rmpp(rmpp_mad->mad_hdr.mgmt_class)) {
 		copy_offset = IB_MGMT_MAD_HDR;
 		rmpp_active = 0;
+	} else {
+		copy_offset = IB_MGMT_RMPP_HDR;
+		rmpp_active = ib_get_rmpp_flags(&rmpp_mad->rmpp_hdr) &
+			      IB_MGMT_RMPP_FLAG_ACTIVE;
 	}
 
 	data_len = count - sizeof (struct ib_user_mad) - hdr_len;

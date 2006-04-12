@@ -1706,21 +1706,6 @@ static int chip_command(struct i2c_client *client,
 		break;
 	}
 
-	case VIDIOC_S_AUDIO:
-	{
-		struct v4l2_audio *sarg = arg;
-
-		if (!(desc->flags & CHIP_HAS_INPUTSEL) || sarg->index >= 4)
-				return -EINVAL;
-		/* There are four inputs: tuner, radio, extern and intern. */
-		chip->input = sarg->index;
-		if (chip->muted)
-			break;
-		chip_write_masked(chip, desc->inputreg,
-				desc->inputmap[chip->input], desc->inputmask);
-		break;
-	}
-
 	case VIDIOC_S_TUNER:
 	{
 		struct v4l2_tuner *vt = arg;

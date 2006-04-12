@@ -7,24 +7,6 @@
  *
  * Based on the 'brute force' H.323 NAT module by
  * Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
- *
- * Changes:
- *	2006-02-01 - initial version 0.1
- *
- *	2006-02-20 - version 0.2
- *	  1. Changed source format to follow kernel conventions
- *	  2. Deleted some unnecessary structures
- *	  3. Minor fixes
- *
- * 	2006-03-10 - version 0.3
- * 	  1. Added support for multiple TPKTs in one packet (suggested by
- * 	     Patrick McHardy)
- * 	  2. Added support for non-linear skb (based on Patrick McHardy's patch)
- * 	  3. Eliminated unnecessary return code
- *
- * 	2006-03-15 - version 0.4
- * 	  1. Added support for T.120 channels
- * 	  2. Added parameter gkrouted_only (suggested by Patrick McHardy)
  */
 
 #include <linux/module.h>
@@ -41,64 +23,11 @@
 #include <linux/netfilter_ipv4/ip_conntrack_h323.h>
 #include <linux/netfilter_ipv4/ip_conntrack_helper.h>
 
-#include "ip_conntrack_helper_h323_asn1.h"
-
 #if 0
 #define DEBUGP printk
 #else
 #define DEBUGP(format, args...)
 #endif
-
-extern int get_h245_addr(unsigned char *data, H245_TransportAddress * addr,
-			 u_int32_t * ip, u_int16_t * port);
-extern int get_h225_addr(unsigned char *data, TransportAddress * addr,
-			 u_int32_t * ip, u_int16_t * port);
-extern void ip_conntrack_h245_expect(struct ip_conntrack *new,
-				     struct ip_conntrack_expect *this);
-extern void ip_conntrack_q931_expect(struct ip_conntrack *new,
-				     struct ip_conntrack_expect *this);
-extern int (*set_h245_addr_hook) (struct sk_buff ** pskb,
-				  unsigned char **data, int dataoff,
-				  H245_TransportAddress * addr,
-				  u_int32_t ip, u_int16_t port);
-extern int (*set_h225_addr_hook) (struct sk_buff ** pskb,
-				  unsigned char **data, int dataoff,
-				  TransportAddress * addr,
-				  u_int32_t ip, u_int16_t port);
-extern int (*set_sig_addr_hook) (struct sk_buff ** pskb,
-				 struct ip_conntrack * ct,
-				 enum ip_conntrack_info ctinfo,
-				 unsigned char **data,
-				 TransportAddress * addr, int count);
-extern int (*set_ras_addr_hook) (struct sk_buff ** pskb,
-				 struct ip_conntrack * ct,
-				 enum ip_conntrack_info ctinfo,
-				 unsigned char **data,
-				 TransportAddress * addr, int count);
-extern int (*nat_rtp_rtcp_hook) (struct sk_buff ** pskb,
-				 struct ip_conntrack * ct,
-				 enum ip_conntrack_info ctinfo,
-				 unsigned char **data, int dataoff,
-				 H245_TransportAddress * addr,
-				 u_int16_t port, u_int16_t rtp_port,
-				 struct ip_conntrack_expect * rtp_exp,
-				 struct ip_conntrack_expect * rtcp_exp);
-extern int (*nat_t120_hook) (struct sk_buff ** pskb, struct ip_conntrack * ct,
-			     enum ip_conntrack_info ctinfo,
-			     unsigned char **data, int dataoff,
-			     H245_TransportAddress * addr, u_int16_t port,
-			     struct ip_conntrack_expect * exp);
-extern int (*nat_h245_hook) (struct sk_buff ** pskb, struct ip_conntrack * ct,
-			     enum ip_conntrack_info ctinfo,
-			     unsigned char **data, int dataoff,
-			     TransportAddress * addr, u_int16_t port,
-			     struct ip_conntrack_expect * exp);
-extern int (*nat_q931_hook) (struct sk_buff ** pskb, struct ip_conntrack * ct,
-			     enum ip_conntrack_info ctinfo,
-			     unsigned char **data, TransportAddress * addr,
-			     int idx, u_int16_t port,
-			     struct ip_conntrack_expect * exp);
-
 
 /****************************************************************************/
 static int set_addr(struct sk_buff **pskb,

@@ -365,6 +365,9 @@ void die(const char * str, struct pt_regs * regs, long err)
 
 	if (++die.lock_owner_depth < 3) {
 		int nl = 0;
+		unsigned long esp;
+		unsigned short ss;
+
 		handle_BUG(regs);
 		printk(KERN_EMERG "%s: %04lx [#%d]\n", str, err & 0xffff, ++die_counter);
 #ifdef CONFIG_PREEMPT
@@ -387,8 +390,19 @@ void die(const char * str, struct pt_regs * regs, long err)
 			printk("\n");
 		if (notify_die(DIE_OOPS, str, regs, err,
 					current->thread.trap_no, SIGSEGV) !=
-				NOTIFY_STOP)
+				NOTIFY_STOP) {
 			show_registers(regs);
+			/* Executive summary in case the oops scrolled away */
+			esp = (unsigned long) (&regs->esp);
+			savesegment(ss, ss);
+			if (user_mode(regs)) {
+				esp = regs->esp;
+				ss = regs->xss & 0xffff;
+			}
+			printk(KERN_EMERG "EIP: [<%08lx>] ", regs->eip);
+			print_symbol("%s", regs->eip);
+			printk(" SS:ESP %04x:%08lx\n", ss, esp);
+		}
 		else
 			regs = NULL;
   	} else
@@ -1193,6 +1207,6 @@ void __init trap_init(void)
 static int __init kstack_setup(char *s)
 {
 	kstack_depth_to_print = simple_strtoul(s, NULL, 0);
-	return 0;
+	return 1;
 }
 __setup("kstack=", kstack_setup);

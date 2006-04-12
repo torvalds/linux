@@ -608,8 +608,7 @@ static void b44_tx(struct b44 *bp)
 		struct ring_info *rp = &bp->tx_buffers[cons];
 		struct sk_buff *skb = rp->skb;
 
-		if (unlikely(skb == NULL))
-			BUG();
+		BUG_ON(skb == NULL);
 
 		pci_unmap_single(bp->pdev,
 				 pci_unmap_addr(rp, mapping),
@@ -1339,6 +1338,9 @@ static int b44_set_mac_addr(struct net_device *dev, void *p)
 	if (netif_running(dev))
 		return -EBUSY;
 
+	if (!is_valid_ether_addr(addr->sa_data))
+		return -EINVAL;
+
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
 
 	spin_lock_irq(&bp->lock);
@@ -1876,6 +1878,12 @@ static int __devinit b44_get_invariants(struct b44 *bp)
 	bp->dev->dev_addr[3] = eeprom[80];
 	bp->dev->dev_addr[4] = eeprom[83];
 	bp->dev->dev_addr[5] = eeprom[82];
+
+	if (!is_valid_ether_addr(&bp->dev->dev_addr[0])){
+		printk(KERN_ERR PFX "Invalid MAC address found in EEPROM\n");
+		return -EINVAL;
+	}
+
 	memcpy(bp->dev->perm_addr, bp->dev->dev_addr, bp->dev->addr_len);
 
 	bp->phy_addr = eeprom[90] & 0x1f;
@@ -2032,6 +2040,11 @@ static int __devinit b44_init_one(struct pci_dev *pdev,
 	pci_set_drvdata(pdev, dev);
 
 	pci_save_state(bp->pdev);
+
+	/* Chip reset provides power to the b44 MAC & PCI cores, which 
+	 * is necessary for MAC register access.
+	 */ 
+	b44_chip_reset(bp);
 
 	printk(KERN_INFO "%s: Broadcom 4400 10/100BaseT Ethernet ", dev->name);
 	for (i = 0; i < 6; i++)

@@ -1,16 +1,10 @@
 #ifndef _IPT_ESP_H
 #define _IPT_ESP_H
 
-struct ipt_esp
-{
-	u_int32_t spis[2];			/* Security Parameter Index */
-	u_int8_t  invflags;			/* Inverse flags */
-};
+#include <linux/netfilter/xt_esp.h>
 
-
-
-/* Values for "invflags" field in struct ipt_esp. */
-#define IPT_ESP_INV_SPI		0x01	/* Invert the sense of spi. */
-#define IPT_ESP_INV_MASK	0x01	/* All possible flags. */
+#define ipt_esp xt_esp
+#define IPT_ESP_INV_SPI		XT_ESP_INV_SPI
+#define IPT_ESP_INV_MASK	XT_ESP_INV_MASK
 
 #endif /*_IPT_ESP_H*/

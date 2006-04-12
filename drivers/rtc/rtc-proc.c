@@ -71,6 +71,8 @@ static int rtc_proc_show(struct seq_file *seq, void *offset)
 				alrm.pending ? "yes" : "no");
 	}
 
+	seq_printf(seq, "24hr\t\t: yes\n");
+
 	if (ops->proc)
 		ops->proc(class_dev->dev, seq);
 

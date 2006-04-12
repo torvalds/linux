@@ -80,8 +80,8 @@ MODULE_SUPPORTED_DEVICE("Aironet 4500, 4800 and Cisco 340 PCMCIA cards");
    event handler. 
 */
 
-static void airo_config(dev_link_t *link);
-static void airo_release(dev_link_t *link);
+static int airo_config(struct pcmcia_device *link);
+static void airo_release(struct pcmcia_device *link);
 
 /*
    The attach() and detach() entry points are used to create and destroy
@@ -101,10 +101,10 @@ static void airo_detach(struct pcmcia_device *p_dev);
 /*
    A linked list of "instances" of the  aironet device.  Each actual
    PCMCIA card corresponds to one device instance, and is described
-   by one dev_link_t structure (defined in ds.h).
+   by one struct pcmcia_device structure (defined in ds.h).
 
    You may not want to use a linked list for this -- for example, the
-   memory card driver uses an array of dev_link_t pointers, where minor
+   memory card driver uses an array of struct pcmcia_device pointers, where minor
    device numbers are used to derive the corresponding array index.
 */
 
@@ -114,7 +114,7 @@ static void airo_detach(struct pcmcia_device *p_dev);
    example, ethernet cards, modems).  In other cases, there may be
    many actual or logical devices (SCSI adapters, memory cards with
    multiple partitions).  The dev_node_t structures need to be kept
-   in a linked list starting at the 'dev' field of a dev_link_t
+   in a linked list starting at the 'dev' field of a struct pcmcia_device
    structure.  We allocate them in the card's private data structure,
    because they generally shouldn't be allocated dynamically.
 
@@ -141,24 +141,16 @@ typedef struct local_info_t {
   
   ======================================================================*/
 
-static int airo_attach(struct pcmcia_device *p_dev)
+static int airo_probe(struct pcmcia_device *p_dev)
 {
-	dev_link_t *link;
 	local_info_t *local;
 
 	DEBUG(0, "airo_attach()\n");
 
-	/* Initialize the dev_link_t structure */
-	link = kzalloc(sizeof(struct dev_link_t), GFP_KERNEL);
-	if (!link) {
-		printk(KERN_ERR "airo_cs: no memory for new device\n");
-		return -ENOMEM;
-	}
-	
 	/* Interrupt setup */
-	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
-	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
-	link->irq.Handler = NULL;
+	p_dev->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
+	p_dev->irq.IRQInfo1 = IRQ_LEVEL_ID;
+	p_dev->irq.Handler = NULL;
 	
 	/*
 	  General socket configuration defaults can go here.  In this
@@ -167,26 +159,18 @@ static int airo_attach(struct pcmcia_device *p_dev)
 	  and attributes of IO windows) are fixed by the nature of the
 	  device, and can be hard-wired here.
 	*/
-	link->conf.Attributes = 0;
-	link->conf.Vcc = 50;
-	link->conf.IntType = INT_MEMORY_AND_IO;
+	p_dev->conf.Attributes = 0;
+	p_dev->conf.IntType = INT_MEMORY_AND_IO;
 	
 	/* Allocate space for private device-specific data */
 	local = kzalloc(sizeof(local_info_t), GFP_KERNEL);
 	if (!local) {
 		printk(KERN_ERR "airo_cs: no memory for new device\n");
-		kfree (link);
 		return -ENOMEM;
 	}
-	link->priv = local;
+	p_dev->priv = local;
 
-	link->handle = p_dev;
-	p_dev->instance = link;
-
-	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	airo_config(link);
-
-	return 0;
+	return airo_config(p_dev);
 } /* airo_attach */
 
 /*======================================================================
@@ -198,14 +182,11 @@ static int airo_attach(struct pcmcia_device *p_dev)
   
   ======================================================================*/
 
-static void airo_detach(struct pcmcia_device *p_dev)
+static void airo_detach(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
-
 	DEBUG(0, "airo_detach(0x%p)\n", link);
 
-	if (link->state & DEV_CONFIG)
-		airo_release(link);
+	airo_release(link);
 
 	if ( ((local_info_t*)link->priv)->eth_dev ) {
 		stop_airo_card( ((local_info_t*)link->priv)->eth_dev, 0 );
@@ -213,7 +194,6 @@ static void airo_detach(struct pcmcia_device *p_dev)
 	((local_info_t*)link->priv)->eth_dev = NULL;
 
 	kfree(link->priv);
-	kfree(link);
 } /* airo_detach */
 
 /*======================================================================
@@ -227,9 +207,8 @@ static void airo_detach(struct pcmcia_device *p_dev)
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
-static void airo_config(dev_link_t *link)
+static int airo_config(struct pcmcia_device *link)
 {
-	client_handle_t handle;
 	tuple_t tuple;
 	cisparse_t parse;
 	local_info_t *dev;
@@ -237,8 +216,7 @@ static void airo_config(dev_link_t *link)
 	u_char buf[64];
 	win_req_t req;
 	memreq_t map;
-	
-	handle = link->handle;
+
 	dev = link->priv;
 
 	DEBUG(0, "airo_config(0x%p)\n", link);
@@ -252,15 +230,12 @@ static void airo_config(dev_link_t *link)
 	tuple.TupleData = buf;
 	tuple.TupleDataMax = sizeof(buf);
 	tuple.TupleOffset = 0;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
-	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(handle, &tuple));
-	CS_CHECK(ParseTuple, pcmcia_parse_tuple(handle, &tuple, &parse));
+	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
+	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
+	CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
 	link->conf.ConfigBase = parse.config.base;
 	link->conf.Present = parse.config.rmask[0];
-	
-	/* Configure card */
-	link->state |= DEV_CONFIG;
-	
+
 	/*
 	  In this loop, we scan the CIS for configuration table entries,
 	  each of which describes a valid card configuration, including
@@ -274,12 +249,12 @@ static void airo_config(dev_link_t *link)
 	  will only use the CIS to fill in implementation-defined details.
 	*/
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
+	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
 	while (1) {
 		cistpl_cftable_entry_t dflt = { 0 };
 		cistpl_cftable_entry_t *cfg = &(parse.cftable_entry);
-		if (pcmcia_get_tuple_data(handle, &tuple) != 0 ||
-				pcmcia_parse_tuple(handle, &tuple, &parse) != 0)
+		if (pcmcia_get_tuple_data(link, &tuple) != 0 ||
+				pcmcia_parse_tuple(link, &tuple, &parse) != 0)
 			goto next_entry;
 		
 		if (cfg->flags & CISTPL_CFTABLE_DEFAULT) dflt = *cfg;
@@ -294,16 +269,11 @@ static void airo_config(dev_link_t *link)
 		
 		/* Use power settings for Vcc and Vpp if present */
 		/*  Note that the CIS values need to be rescaled */
-		if (cfg->vcc.present & (1<<CISTPL_POWER_VNOM))
-			link->conf.Vcc = cfg->vcc.param[CISTPL_POWER_VNOM]/10000;
-		else if (dflt.vcc.present & (1<<CISTPL_POWER_VNOM))
-			link->conf.Vcc = dflt.vcc.param[CISTPL_POWER_VNOM]/10000;
-		
 		if (cfg->vpp1.present & (1<<CISTPL_POWER_VNOM))
-			link->conf.Vpp1 = link->conf.Vpp2 =
+			link->conf.Vpp =
 				cfg->vpp1.param[CISTPL_POWER_VNOM]/10000;
 		else if (dflt.vpp1.present & (1<<CISTPL_POWER_VNOM))
-			link->conf.Vpp1 = link->conf.Vpp2 =
+			link->conf.Vpp =
 				dflt.vpp1.param[CISTPL_POWER_VNOM]/10000;
 		
 		/* Do we need to allocate an interrupt? */
@@ -329,12 +299,12 @@ static void airo_config(dev_link_t *link)
 		}
 		
 		/* This reserves IO space but doesn't actually enable it */
-		if (pcmcia_request_io(link->handle, &link->io) != 0)
+		if (pcmcia_request_io(link, &link->io) != 0)
 			goto next_entry;
 		
 		/*
 		  Now set up a common memory window, if needed.  There is room
-		  in the dev_link_t structure for one memory window handle,
+		  in the struct pcmcia_device structure for one memory window handle,
 		  but if the base addresses need to be saved, or if multiple
 		  windows are needed, the info should go in the private data
 		  structure for this device.
@@ -350,7 +320,7 @@ static void airo_config(dev_link_t *link)
 			req.Base = mem->win[0].host_addr;
 			req.Size = mem->win[0].len;
 			req.AccessSpeed = 0;
-			if (pcmcia_request_window(&link->handle, &req, &link->win) != 0)
+			if (pcmcia_request_window(&link, &req, &link->win) != 0)
 				goto next_entry;
 			map.Page = 0; map.CardOffset = mem->win[0].card_addr;
 			if (pcmcia_map_mem_page(link->win, &map) != 0)
@@ -360,7 +330,7 @@ static void airo_config(dev_link_t *link)
 		break;
 		
 	next_entry:
-		CS_CHECK(GetNextTuple, pcmcia_get_next_tuple(handle, &tuple));
+		CS_CHECK(GetNextTuple, pcmcia_get_next_tuple(link, &tuple));
 	}
 	
     /*
@@ -369,33 +339,32 @@ static void airo_config(dev_link_t *link)
       irq structure is initialized.
     */
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
-		CS_CHECK(RequestIRQ, pcmcia_request_irq(link->handle, &link->irq));
+		CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
 	
 	/*
 	  This actually configures the PCMCIA socket -- setting up
 	  the I/O windows and the interrupt mapping, and putting the
 	  card and host interface into "Memory and IO" mode.
 	*/
-	CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link->handle, &link->conf));
+	CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
 	((local_info_t*)link->priv)->eth_dev = 
 		init_airo_card( link->irq.AssignedIRQ,
-				link->io.BasePort1, 1, &handle_to_dev(handle) );
+				link->io.BasePort1, 1, &handle_to_dev(link) );
 	if (!((local_info_t*)link->priv)->eth_dev) goto cs_failed;
 	
 	/*
 	  At this point, the dev_node_t structure(s) need to be
-	  initialized and arranged in a linked list at link->dev.
+	  initialized and arranged in a linked list at link->dev_node.
 	*/
 	strcpy(dev->node.dev_name, ((local_info_t*)link->priv)->eth_dev->name );
 	dev->node.major = dev->node.minor = 0;
-	link->dev = &dev->node;
+	link->dev_node = &dev->node;
 	
 	/* Finally, report what we've done */
-	printk(KERN_INFO "%s: index 0x%02x: Vcc %d.%d",
-	       dev->node.dev_name, link->conf.ConfigIndex,
-	       link->conf.Vcc/10, link->conf.Vcc%10);
-	if (link->conf.Vpp1)
-		printk(", Vpp %d.%d", link->conf.Vpp1/10, link->conf.Vpp1%10);
+	printk(KERN_INFO "%s: index 0x%02x: ",
+	       dev->node.dev_name, link->conf.ConfigIndex);
+	if (link->conf.Vpp)
+		printk(", Vpp %d.%d", link->conf.Vpp/10, link->conf.Vpp%10);
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
 		printk(", irq %d", link->irq.AssignedIRQ);
 	if (link->io.NumPorts1)
@@ -408,14 +377,12 @@ static void airo_config(dev_link_t *link)
 		printk(", mem 0x%06lx-0x%06lx", req.Base,
 		       req.Base+req.Size-1);
 	printk("\n");
-	
-	link->state &= ~DEV_CONFIG_PENDING;
-	return;
-	
+	return 0;
+
  cs_failed:
-	cs_error(link->handle, last_fn, last_ret);
+	cs_error(link, last_fn, last_ret);
 	airo_release(link);
-	
+	return -ENODEV;
 } /* airo_config */
 
 /*======================================================================
@@ -426,51 +393,26 @@ static void airo_config(dev_link_t *link)
   
   ======================================================================*/
 
-static void airo_release(dev_link_t *link)
+static void airo_release(struct pcmcia_device *link)
 {
 	DEBUG(0, "airo_release(0x%p)\n", link);
-	
-	/* Unlink the device chain */
-	link->dev = NULL;
-	
-	/*
-	  In a normal driver, additional code may be needed to release
-	  other kernel data structures associated with this device. 
-	*/
-	
-	/* Don't bother checking to see if these succeed or not */
-	if (link->win)
-		pcmcia_release_window(link->win);
-	pcmcia_release_configuration(link->handle);
-	if (link->io.NumPorts1)
-		pcmcia_release_io(link->handle, &link->io);
-	if (link->irq.AssignedIRQ)
-		pcmcia_release_irq(link->handle, &link->irq);
-	link->state &= ~DEV_CONFIG;
+	pcmcia_disable_device(link);
 }
 
-static int airo_suspend(struct pcmcia_device *p_dev)
+static int airo_suspend(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
 	local_info_t *local = link->priv;
 
-	link->state |= DEV_SUSPEND;
-	if (link->state & DEV_CONFIG) {
-		netif_device_detach(local->eth_dev);
-		pcmcia_release_configuration(link->handle);
-	}
+	netif_device_detach(local->eth_dev);
 
 	return 0;
 }
 
-static int airo_resume(struct pcmcia_device *p_dev)
+static int airo_resume(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
 	local_info_t *local = link->priv;
 
-	link->state &= ~DEV_SUSPEND;
-	if (link->state & DEV_CONFIG) {
-		pcmcia_request_configuration(link->handle, &link->conf);
+	if (link->open) {
 		reset_airo_card(local->eth_dev);
 		netif_device_attach(local->eth_dev);
 	}
@@ -492,7 +434,7 @@ static struct pcmcia_driver airo_driver = {
 	.drv		= {
 		.name	= "airo_cs",
 	},
-	.probe		= airo_attach,
+	.probe		= airo_probe,
 	.remove		= airo_detach,
 	.id_table       = airo_ids,
 	.suspend	= airo_suspend,

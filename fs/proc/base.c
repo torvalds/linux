@@ -534,12 +534,15 @@ static int proc_oom_score(struct task_struct *task, char *buffer)
 
 /* If the process being read is separated by chroot from the reading process,
  * don't let the reader access the threads.
+ *
+ * note: this does dput(root) and mntput(vfsmnt) on exit.
  */
 static int proc_check_chroot(struct dentry *root, struct vfsmount *vfsmnt)
 {
 	struct dentry *de, *base;
 	struct vfsmount *our_vfsmnt, *mnt;
 	int res = 0;
+
 	read_lock(&current->fs->lock);
 	our_vfsmnt = mntget(current->fs->rootmnt);
 	base = dget(current->fs->root);
@@ -549,11 +552,11 @@ static int proc_check_chroot(struct dentry *root, struct vfsmount *vfsmnt)
 	de = root;
 	mnt = vfsmnt;
 
-	while (vfsmnt != our_vfsmnt) {
-		if (vfsmnt == vfsmnt->mnt_parent)
+	while (mnt != our_vfsmnt) {
+		if (mnt == mnt->mnt_parent)
 			goto out;
-		de = vfsmnt->mnt_mountpoint;
-		vfsmnt = vfsmnt->mnt_parent;
+		de = mnt->mnt_mountpoint;
+		mnt = mnt->mnt_parent;
 	}
 
 	if (!is_subdir(de, base))
@@ -564,7 +567,7 @@ exit:
 	dput(base);
 	mntput(our_vfsmnt);
 	dput(root);
-	mntput(mnt);
+	mntput(vfsmnt);
 	return res;
 out:
 	spin_unlock(&vfsmount_lock);

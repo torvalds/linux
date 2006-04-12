@@ -306,16 +306,16 @@
 #include "board-h4.h"
 #endif
 
+#ifdef CONFIG_MACH_OMAP_APOLLON
+#include "board-apollon.h"
+#endif
+
 #ifdef CONFIG_MACH_OMAP_OSK
 #include "board-osk.h"
 #endif
 
 #ifdef CONFIG_MACH_VOICEBLUE
 #include "board-voiceblue.h"
-#endif
-
-#ifdef CONFIG_MACH_NETSTAR
-#include "board-netstar.h"
 #endif
 
 #endif /* !__ASSEMBLER__ */

@@ -86,7 +86,7 @@ config AIC7XXX_DEBUG_MASK
         default "0"
         help
 	Bit mask of debug options that is only valid if the
-	CONFIG_AIC7XXX_DEBUG_ENBLE option is enabled.  The bits in this mask
+	CONFIG_AIC7XXX_DEBUG_ENABLE option is enabled.  The bits in this mask
 	are defined in the drivers/scsi/aic7xxx/aic7xxx.h - search for the
 	variable ahc_debug in that file to find them.
 

@@ -235,7 +235,7 @@ static void ibmveth_replenish_buffer_pool(struct ibmveth_adapter *adapter, struc
 
 		lpar_rc = h_add_logical_lan_buffer(adapter->vdev->unit_address, desc.desc);
 		    
-		if(lpar_rc != H_Success) {
+		if(lpar_rc != H_SUCCESS) {
 			pool->free_map[free_index] = index;
 			pool->skbuff[index] = NULL;
 			pool->consumer_index--;
@@ -373,7 +373,7 @@ static void ibmveth_rxq_recycle_buffer(struct ibmveth_adapter *adapter)
 
 	lpar_rc = h_add_logical_lan_buffer(adapter->vdev->unit_address, desc.desc);
 		    
-	if(lpar_rc != H_Success) {
+	if(lpar_rc != H_SUCCESS) {
 		ibmveth_debug_printk("h_add_logical_lan_buffer failed during recycle rc=%ld", lpar_rc);
 		ibmveth_remove_buffer_from_pool(adapter, adapter->rx_queue.queue_addr[adapter->rx_queue.index].correlator);
 	}
@@ -511,7 +511,7 @@ static int ibmveth_open(struct net_device *netdev)
 					 adapter->filter_list_dma,
 					 mac_address);
 
-	if(lpar_rc != H_Success) {
+	if(lpar_rc != H_SUCCESS) {
 		ibmveth_error_printk("h_register_logical_lan failed with %ld\n", lpar_rc);
 		ibmveth_error_printk("buffer TCE:0x%lx filter TCE:0x%lx rxq desc:0x%lx MAC:0x%lx\n",
 				     adapter->buffer_list_dma,
@@ -527,7 +527,7 @@ static int ibmveth_open(struct net_device *netdev)
 		ibmveth_error_printk("unable to request irq 0x%x, rc %d\n", netdev->irq, rc);
 		do {
 			rc = h_free_logical_lan(adapter->vdev->unit_address);
-		} while (H_isLongBusy(rc) || (rc == H_Busy));
+		} while (H_IS_LONG_BUSY(rc) || (rc == H_BUSY));
 
 		ibmveth_cleanup(adapter);
 		return rc;
@@ -556,9 +556,9 @@ static int ibmveth_close(struct net_device *netdev)
 
 	do {
 		lpar_rc = h_free_logical_lan(adapter->vdev->unit_address);
-	} while (H_isLongBusy(lpar_rc) || (lpar_rc == H_Busy));
+	} while (H_IS_LONG_BUSY(lpar_rc) || (lpar_rc == H_BUSY));
 
-	if(lpar_rc != H_Success)
+	if(lpar_rc != H_SUCCESS)
 	{
 		ibmveth_error_printk("h_free_logical_lan failed with %lx, continuing with close\n",
 				     lpar_rc);
@@ -693,9 +693,9 @@ static int ibmveth_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 					     desc[4].desc,
 					     desc[5].desc,
 					     correlator);
-	} while ((lpar_rc == H_Busy) && (retry_count--));
+	} while ((lpar_rc == H_BUSY) && (retry_count--));
     
-	if(lpar_rc != H_Success && lpar_rc != H_Dropped) {
+	if(lpar_rc != H_SUCCESS && lpar_rc != H_DROPPED) {
 		int i;
 		ibmveth_error_printk("tx: h_send_logical_lan failed with rc=%ld\n", lpar_rc);
 		for(i = 0; i < 6; i++) {
@@ -786,14 +786,14 @@ static int ibmveth_poll(struct net_device *netdev, int *budget)
 	/* we think we are done - reenable interrupts, then check once more to make sure we are done */
 	lpar_rc = h_vio_signal(adapter->vdev->unit_address, VIO_IRQ_ENABLE);
 
-	ibmveth_assert(lpar_rc == H_Success);
+	ibmveth_assert(lpar_rc == H_SUCCESS);
 
 	netif_rx_complete(netdev);
 
 	if(ibmveth_rxq_pending_buffer(adapter) && netif_rx_reschedule(netdev, frames_processed))
 	{
 		lpar_rc = h_vio_signal(adapter->vdev->unit_address, VIO_IRQ_DISABLE);
-		ibmveth_assert(lpar_rc == H_Success);
+		ibmveth_assert(lpar_rc == H_SUCCESS);
 		more_work = 1;
 		goto restart_poll;
 	}
@@ -813,7 +813,7 @@ static irqreturn_t ibmveth_interrupt(int irq, void *dev_instance, struct pt_regs
 
 	if(netif_rx_schedule_prep(netdev)) {
 		lpar_rc = h_vio_signal(adapter->vdev->unit_address, VIO_IRQ_DISABLE);
-		ibmveth_assert(lpar_rc == H_Success);
+		ibmveth_assert(lpar_rc == H_SUCCESS);
 		__netif_rx_schedule(netdev);
 	}
 	return IRQ_HANDLED;
@@ -835,7 +835,7 @@ static void ibmveth_set_multicast_list(struct net_device *netdev)
 					   IbmVethMcastEnableRecv |
 					   IbmVethMcastDisableFiltering,
 					   0);
-		if(lpar_rc != H_Success) {
+		if(lpar_rc != H_SUCCESS) {
 			ibmveth_error_printk("h_multicast_ctrl rc=%ld when entering promisc mode\n", lpar_rc);
 		}
 	} else {
@@ -847,7 +847,7 @@ static void ibmveth_set_multicast_list(struct net_device *netdev)
 					   IbmVethMcastDisableFiltering |
 					   IbmVethMcastClearFilterTable,
 					   0);
-		if(lpar_rc != H_Success) {
+		if(lpar_rc != H_SUCCESS) {
 			ibmveth_error_printk("h_multicast_ctrl rc=%ld when attempting to clear filter table\n", lpar_rc);
 		}
 		/* add the addresses to the filter table */
@@ -858,7 +858,7 @@ static void ibmveth_set_multicast_list(struct net_device *netdev)
 			lpar_rc = h_multicast_ctrl(adapter->vdev->unit_address,
 						   IbmVethMcastAddFilter,
 						   mcast_addr);
-			if(lpar_rc != H_Success) {
+			if(lpar_rc != H_SUCCESS) {
 				ibmveth_error_printk("h_multicast_ctrl rc=%ld when adding an entry to the filter table\n", lpar_rc);
 			}
 		}
@@ -867,7 +867,7 @@ static void ibmveth_set_multicast_list(struct net_device *netdev)
 		lpar_rc = h_multicast_ctrl(adapter->vdev->unit_address,
 					   IbmVethMcastEnableFiltering,
 					   0);
-		if(lpar_rc != H_Success) {
+		if(lpar_rc != H_SUCCESS) {
 			ibmveth_error_printk("h_multicast_ctrl rc=%ld when enabling filtering\n", lpar_rc);
 		}
 	}

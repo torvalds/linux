@@ -3308,8 +3308,7 @@ e1000_clean(struct net_device *poll_dev, int *budget)
 
 	while (poll_dev != &adapter->polling_netdev[i]) {
 		i++;
-		if (unlikely(i == adapter->num_rx_queues))
-			BUG();
+		BUG_ON(i == adapter->num_rx_queues);
 	}
 
 	if (likely(adapter->num_tx_queues == 1)) {

@@ -8,8 +8,11 @@
 
 #define HOST_AUDIT_ARCH AUDIT_ARCH_I386
 
+#include "linux/compiler.h"
 #include "sysdep/ptrace.h"
 #include "asm/ptrace-generic.h"
+#include "asm/host_ldt.h"
+#include "choose-mode.h"
 
 #define PT_REGS_EAX(r) UPT_EAX(&(r)->regs)
 #define PT_REGS_EBX(r) UPT_EBX(&(r)->regs)
@@ -38,15 +41,34 @@
 
 #define user_mode(r) UPT_IS_USER(&(r)->regs)
 
-#endif
+extern int ptrace_get_thread_area(struct task_struct *child, int idx,
+                                  struct user_desc __user *user_desc);
 
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */
+extern int ptrace_set_thread_area(struct task_struct *child, int idx,
+                                  struct user_desc __user *user_desc);
+
+extern int do_set_thread_area_skas(struct user_desc *info);
+extern int do_get_thread_area_skas(struct user_desc *info);
+
+extern int do_set_thread_area_tt(struct user_desc *info);
+extern int do_get_thread_area_tt(struct user_desc *info);
+
+extern int arch_switch_tls_skas(struct task_struct *from, struct task_struct *to);
+extern int arch_switch_tls_tt(struct task_struct *from, struct task_struct *to);
+
+extern void arch_switch_to_tt(struct task_struct *from, struct task_struct *to);
+extern void arch_switch_to_skas(struct task_struct *from, struct task_struct *to);
+
+static inline int do_get_thread_area(struct user_desc *info)
+{
+	return CHOOSE_MODE_PROC(do_get_thread_area_tt, do_get_thread_area_skas, info);
+}
+
+static inline int do_set_thread_area(struct user_desc *info)
+{
+	return CHOOSE_MODE_PROC(do_set_thread_area_tt, do_set_thread_area_skas, info);
+}
+
+struct task_struct;
+
+#endif

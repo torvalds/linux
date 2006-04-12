@@ -73,10 +73,8 @@ static void print_raid5_conf (raid5_conf_t *conf);
 static void __release_stripe(raid5_conf_t *conf, struct stripe_head *sh)
 {
 	if (atomic_dec_and_test(&sh->count)) {
-		if (!list_empty(&sh->lru))
-			BUG();
-		if (atomic_read(&conf->active_stripes)==0)
-			BUG();
+		BUG_ON(!list_empty(&sh->lru));
+		BUG_ON(atomic_read(&conf->active_stripes)==0);
 		if (test_bit(STRIPE_HANDLE, &sh->state)) {
 			if (test_bit(STRIPE_DELAYED, &sh->state))
 				list_add_tail(&sh->lru, &conf->delayed_list);
@@ -184,10 +182,8 @@ static void init_stripe(struct stripe_head *sh, sector_t sector, int pd_idx, int
 	raid5_conf_t *conf = sh->raid_conf;
 	int i;
 
-	if (atomic_read(&sh->count) != 0)
-		BUG();
-	if (test_bit(STRIPE_HANDLE, &sh->state))
-		BUG();
+	BUG_ON(atomic_read(&sh->count) != 0);
+	BUG_ON(test_bit(STRIPE_HANDLE, &sh->state));
 	
 	CHECK_DEVLOCK();
 	PRINTK("init_stripe called, stripe %llu\n", 
@@ -269,8 +265,7 @@ static struct stripe_head *get_active_stripe(raid5_conf_t *conf, sector_t sector
 				init_stripe(sh, sector, pd_idx, disks);
 		} else {
 			if (atomic_read(&sh->count)) {
-				if (!list_empty(&sh->lru))
-					BUG();
+			  BUG_ON(!list_empty(&sh->lru));
 			} else {
 				if (!test_bit(STRIPE_HANDLE, &sh->state))
 					atomic_inc(&conf->active_stripes);
@@ -465,8 +460,7 @@ static int drop_one_stripe(raid5_conf_t *conf)
 	spin_unlock_irq(&conf->device_lock);
 	if (!sh)
 		return 0;
-	if (atomic_read(&sh->count))
-		BUG();
+	BUG_ON(atomic_read(&sh->count));
 	shrink_buffers(sh, conf->pool_size);
 	kmem_cache_free(conf->slab_cache, sh);
 	atomic_dec(&conf->active_stripes);
@@ -882,8 +876,7 @@ static void compute_parity(struct stripe_head *sh, int method)
 	ptr[0] = page_address(sh->dev[pd_idx].page);
 	switch(method) {
 	case READ_MODIFY_WRITE:
-		if (!test_bit(R5_UPTODATE, &sh->dev[pd_idx].flags))
-			BUG();
+		BUG_ON(!test_bit(R5_UPTODATE, &sh->dev[pd_idx].flags));
 		for (i=disks ; i-- ;) {
 			if (i==pd_idx)
 				continue;
@@ -896,7 +889,7 @@ static void compute_parity(struct stripe_head *sh, int method)
 				if (test_and_clear_bit(R5_Overlap, &sh->dev[i].flags))
 					wake_up(&conf->wait_for_overlap);
 
-				if (sh->dev[i].written) BUG();
+				BUG_ON(sh->dev[i].written);
 				sh->dev[i].written = chosen;
 				check_xor();
 			}
@@ -912,7 +905,7 @@ static void compute_parity(struct stripe_head *sh, int method)
 				if (test_and_clear_bit(R5_Overlap, &sh->dev[i].flags))
 					wake_up(&conf->wait_for_overlap);
 
-				if (sh->dev[i].written) BUG();
+				BUG_ON(sh->dev[i].written);
 				sh->dev[i].written = chosen;
 			}
 		break;
@@ -995,8 +988,7 @@ static int add_stripe_bio(struct stripe_head *sh, struct bio *bi, int dd_idx, in
 	if (*bip && (*bip)->bi_sector < bi->bi_sector + ((bi->bi_size)>>9))
 		goto overlap;
 
-	if (*bip && bi->bi_next && (*bip) != bi->bi_next)
-		BUG();
+	BUG_ON(*bip && bi->bi_next && (*bip) != bi->bi_next);
 	if (*bip)
 		bi->bi_next = *bip;
 	*bip = bi;
@@ -1430,8 +1422,7 @@ static void handle_stripe(struct stripe_head *sh)
 		set_bit(STRIPE_HANDLE, &sh->state);
 		if (failed == 0) {
 			char *pagea;
-			if (uptodate != disks)
-				BUG();
+			BUG_ON(uptodate != disks);
 			compute_parity(sh, CHECK_PARITY);
 			uptodate--;
 			pagea = page_address(sh->dev[sh->pd_idx].page);
@@ -2096,8 +2087,7 @@ static void raid5d (mddev_t *mddev)
 
 		list_del_init(first);
 		atomic_inc(&sh->count);
-		if (atomic_read(&sh->count)!= 1)
-			BUG();
+		BUG_ON(atomic_read(&sh->count)!= 1);
 		spin_unlock_irq(&conf->device_lock);
 		
 		handled++;

@@ -561,7 +561,7 @@ static int exec_mmap(struct mm_struct *mm)
 	arch_pick_mmap_layout(mm);
 	if (old_mm) {
 		up_read(&old_mm->mmap_sem);
-		if (active_mm != old_mm) BUG();
+		BUG_ON(active_mm != old_mm);
 		mmput(old_mm);
 		return 0;
 	}
@@ -678,6 +678,18 @@ static int de_thread(struct task_struct *tsk)
 		while (leader->exit_state != EXIT_ZOMBIE)
 			yield();
 
+		/*
+		 * The only record we have of the real-time age of a
+		 * process, regardless of execs it's done, is start_time.
+		 * All the past CPU time is accumulated in signal_struct
+		 * from sister threads now dead.  But in this non-leader
+		 * exec, nothing survives from the original leader thread,
+		 * whose birth marks the true age of this process now.
+		 * When we take on its identity by switching to its PID, we
+		 * also take its birthdate (always earlier than our own).
+		 */
+		current->start_time = leader->start_time;
+
 		spin_lock(&leader->proc_lock);
 		spin_lock(&current->proc_lock);
 		proc_dentry1 = proc_pid_unhash(current);
@@ -723,7 +735,12 @@ static int de_thread(struct task_struct *tsk)
 		current->parent = current->real_parent = leader->real_parent;
 		leader->parent = leader->real_parent = child_reaper;
 		current->group_leader = current;
-		leader->group_leader = leader;
+		leader->group_leader = current;
+
+		/* Reduce leader to a thread */
+		detach_pid(leader, PIDTYPE_PGID);
+		detach_pid(leader, PIDTYPE_SID);
+		list_del_init(&leader->tasks);
 
 		add_parent(current);
 		add_parent(leader);

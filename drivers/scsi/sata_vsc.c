@@ -222,7 +222,7 @@ static irqreturn_t vsc_sata_interrupt (int irq, void *dev_instance,
 			ap = host_set->ports[i];
 
 			if (ap && !(ap->flags &
-				    (ATA_FLAG_PORT_DISABLED|ATA_FLAG_NOINTR))) {
+				    (ATA_FLAG_DISABLED|ATA_FLAG_NOINTR))) {
 				struct ata_queued_cmd *qc;
 
 				qc = ata_qc_from_tag(ap, ap->active_tag);
@@ -263,7 +263,6 @@ static struct scsi_host_template vsc_sata_sht = {
 	.name			= DRV_NAME,
 	.ioctl			= ata_scsi_ioctl,
 	.queuecommand		= ata_scsi_queuecmd,
-	.eh_strategy_handler	= ata_scsi_error,
 	.can_queue		= ATA_DEF_QUEUE,
 	.this_id		= ATA_SHT_THIS_ID,
 	.sg_tablesize		= LIBATA_MAX_PRD,

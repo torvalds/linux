@@ -51,7 +51,7 @@
 #define MUX_BREAK(status) ((status & 0xF000) == 0x2000)
 
 #define MUX_NR 256
-static unsigned int port_cnt = 0;
+static unsigned int port_cnt __read_mostly;
 static struct uart_port mux_ports[MUX_NR];
 
 static struct uart_driver mux_driver = {
@@ -461,7 +461,7 @@ static int __init mux_probe(struct parisc_device *dev)
 		port->iobase	= 0;
 		port->mapbase	= dev->hpa.start + MUX_OFFSET +
 						(i * MUX_LINE_OFFSET);
-		port->membase	= ioremap(port->mapbase, MUX_LINE_OFFSET);
+		port->membase	= ioremap_nocache(port->mapbase, MUX_LINE_OFFSET);
 		port->iotype	= UPIO_MEM;
 		port->type	= PORT_MUX;
 		port->irq	= NO_IRQ;

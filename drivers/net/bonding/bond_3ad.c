@@ -2294,6 +2294,34 @@ void bond_3ad_handle_link_change(struct slave *slave, char link)
 	port->sm_vars |= AD_PORT_BEGIN;
 }
 
+/*
+ * set link state for bonding master: if we have an active partnered
+ * aggregator, we're up, if not, we're down.  Presumes that we cannot
+ * have an active aggregator if there are no slaves with link up.
+ *
+ * Called by bond_set_carrier(). Return zero if carrier state does not
+ * change, nonzero if it does.
+ */
+int bond_3ad_set_carrier(struct bonding *bond)
+{
+	struct aggregator *agg;
+
+	agg = __get_active_agg(&(SLAVE_AD_INFO(bond->first_slave).aggregator));
+	if (agg && MAC_ADDRESS_COMPARE(&agg->partner_system, &null_mac_addr)) {
+		if (!netif_carrier_ok(bond->dev)) {
+			netif_carrier_on(bond->dev);
+			return 1;
+		}
+		return 0;
+	}
+
+	if (netif_carrier_ok(bond->dev)) {
+		netif_carrier_off(bond->dev);
+		return 1;
+	}
+	return 0;
+}
+
 /**
  * bond_3ad_get_active_agg_info - get information of the active aggregator
  * @bond: bonding struct to work on

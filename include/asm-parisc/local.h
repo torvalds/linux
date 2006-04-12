@@ -4,16 +4,16 @@
 #include <linux/percpu.h>
 #include <asm/atomic.h>
 
-typedef atomic_t local_t;
+typedef atomic_long_t local_t;
 
-#define LOCAL_INIT(i)	ATOMIC_INIT(i)
-#define local_read(v)	atomic_read(v)
-#define local_set(v,i)	atomic_set(v,i)
+#define LOCAL_INIT(i)	ATOMIC_LONG_INIT(i)
+#define local_read(v)	atomic_long_read(v)
+#define local_set(v,i)	atomic_long_set(v,i)
 
-#define local_inc(v)	atomic_inc(v)
-#define local_dec(v)	atomic_dec(v)
-#define local_add(i, v)	atomic_add(i, v)
-#define local_sub(i, v)	atomic_sub(i, v)
+#define local_inc(v)	atomic_long_inc(v)
+#define local_dec(v)	atomic_long_dec(v)
+#define local_add(i, v)	atomic_long_add(i, v)
+#define local_sub(i, v)	atomic_long_sub(i, v)
 
 #define __local_inc(v)		((v)->counter++)
 #define __local_dec(v)		((v)->counter--)

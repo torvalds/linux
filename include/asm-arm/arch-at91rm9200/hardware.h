@@ -65,6 +65,9 @@
 /* SmartMedia */
 #define AT91_SMARTMEDIA_BASE	0x40000000	/* NCS3: Smartmedia physical base address */
 
+/* Compact Flash */
+#define AT91_CF_BASE		0x50000000	/* NCS4-NCS6: Compact Flash physical base address */
+
 /* Multi-Master Memory controller */
 #define AT91_UHP_BASE		0x00300000	/* USB Host controller */
 

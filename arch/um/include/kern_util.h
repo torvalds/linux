@@ -116,7 +116,7 @@ extern void *get_current(void);
 extern struct task_struct *get_task(int pid, int require);
 extern void machine_halt(void);
 extern int is_syscall(unsigned long addr);
-extern void arch_switch(void);
+
 extern void free_irq(unsigned int, void *);
 extern int cpu(void);
 

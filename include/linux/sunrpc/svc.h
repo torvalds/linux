@@ -197,15 +197,16 @@ svc_take_res_page(struct svc_rqst *rqstp)
 	return rqstp->rq_respages[rqstp->rq_resused++];
 }
 
-static inline int svc_take_page(struct svc_rqst *rqstp)
+static inline void svc_take_page(struct svc_rqst *rqstp)
 {
-	if (rqstp->rq_arghi <= rqstp->rq_argused)
-		return -ENOMEM;
+	if (rqstp->rq_arghi <= rqstp->rq_argused) {
+		WARN_ON(1);
+		return;
+	}
 	rqstp->rq_arghi--;
 	rqstp->rq_respages[rqstp->rq_resused] =
 		rqstp->rq_argpages[rqstp->rq_arghi];
 	rqstp->rq_resused++;
-	return 0;
 }
 
 static inline void svc_pushback_allpages(struct svc_rqst *rqstp)

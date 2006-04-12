@@ -185,24 +185,6 @@ static int vfat_valid_longname(const unsigned char *name, unsigned int len)
 		return -EINVAL;
 	if (len >= 256)
 		return -ENAMETOOLONG;
-
-	/* MS-DOS "device special files" */
-	if (len == 3 || (len > 3 && name[3] == '.')) {	/* basename == 3 */
-		if (!strnicmp(name, "aux", 3) ||
-		    !strnicmp(name, "con", 3) ||
-		    !strnicmp(name, "nul", 3) ||
-		    !strnicmp(name, "prn", 3))
-			return -EINVAL;
-	}
-	if (len == 4 || (len > 4 && name[4] == '.')) {	/* basename == 4 */
-		/* "com1", "com2", ... */
-		if ('1' <= name[3] && name[3] <= '9') {
-			if (!strnicmp(name, "com", 3) ||
-			    !strnicmp(name, "lpt", 3))
-				return -EINVAL;
-		}
-	}
-
 	return 0;
 }
 

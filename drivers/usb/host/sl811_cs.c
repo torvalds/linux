@@ -67,11 +67,11 @@ module_param(pc_debug, int, 0644);
 static const char driver_name[DEV_NAME_LEN]  = "sl811_cs";
 
 typedef struct local_info_t {
-	dev_link_t		link;
+	struct pcmcia_device	*p_dev;
 	dev_node_t		node;
 } local_info_t;
 
-static void sl811_cs_release(dev_link_t * link);
+static void sl811_cs_release(struct pcmcia_device * link);
 
 /*====================================================================*/
 
@@ -138,41 +138,27 @@ static int sl811_hc_init(struct device *parent, ioaddr_t base_addr, int irq)
 
 /*====================================================================*/
 
-static void sl811_cs_detach(struct pcmcia_device *p_dev)
+static void sl811_cs_detach(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
-
 	DBG(0, "sl811_cs_detach(0x%p)\n", link);
 
-	link->state &= ~DEV_PRESENT;
-	if (link->state & DEV_CONFIG)
-		sl811_cs_release(link);
+	sl811_cs_release(link);
 
 	/* This points to the parent local_info_t struct */
 	kfree(link->priv);
 }
 
-static void sl811_cs_release(dev_link_t * link)
+static void sl811_cs_release(struct pcmcia_device * link)
 {
-
 	DBG(0, "sl811_cs_release(0x%p)\n", link);
 
-	/* Unlink the device chain */
-	link->dev = NULL;
-
+	pcmcia_disable_device(link);
 	platform_device_unregister(&platform_dev);
-	pcmcia_release_configuration(link->handle);
-	if (link->io.NumPorts1)
-		pcmcia_release_io(link->handle, &link->io);
-	if (link->irq.AssignedIRQ)
-		pcmcia_release_irq(link->handle, &link->irq);
-	link->state &= ~DEV_CONFIG;
 }
 
-static void sl811_cs_config(dev_link_t *link)
+static int sl811_cs_config(struct pcmcia_device *link)
 {
-	client_handle_t		handle = link->handle;
-	struct device		*parent = &handle_to_dev(handle);
+	struct device		*parent = &handle_to_dev(link);
 	local_info_t		*dev = link->priv;
 	tuple_t			tuple;
 	cisparse_t		parse;
@@ -188,27 +174,23 @@ static void sl811_cs_config(dev_link_t *link)
 	tuple.TupleData = buf;
 	tuple.TupleDataMax = sizeof(buf);
 	tuple.TupleOffset = 0;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
-	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(handle, &tuple));
-	CS_CHECK(ParseTuple, pcmcia_parse_tuple(handle, &tuple, &parse));
+	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
+	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
+	CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
 	link->conf.ConfigBase = parse.config.base;
 	link->conf.Present = parse.config.rmask[0];
 
-	/* Configure card */
-	link->state |= DEV_CONFIG;
-
 	/* Look up the current Vcc */
 	CS_CHECK(GetConfigurationInfo,
-			pcmcia_get_configuration_info(handle, &conf));
-	link->conf.Vcc = conf.Vcc;
+			pcmcia_get_configuration_info(link, &conf));
 
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
+	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
 	while (1) {
 		cistpl_cftable_entry_t	*cfg = &(parse.cftable_entry);
 
-		if (pcmcia_get_tuple_data(handle, &tuple) != 0
-				|| pcmcia_parse_tuple(handle, &tuple, &parse)
+		if (pcmcia_get_tuple_data(link, &tuple) != 0
+				|| pcmcia_parse_tuple(link, &tuple, &parse)
 						!= 0)
 			goto next_entry;
 
@@ -234,10 +216,10 @@ static void sl811_cs_config(dev_link_t *link)
 		}
 
 		if (cfg->vpp1.present & (1<<CISTPL_POWER_VNOM))
-			link->conf.Vpp1 = link->conf.Vpp2 =
+			link->conf.Vpp =
 				cfg->vpp1.param[CISTPL_POWER_VNOM]/10000;
 		else if (dflt.vpp1.present & (1<<CISTPL_POWER_VNOM))
-			link->conf.Vpp1 = link->conf.Vpp2 =
+			link->conf.Vpp =
 				dflt.vpp1.param[CISTPL_POWER_VNOM]/10000;
 
 		/* we need an interrupt */
@@ -254,15 +236,14 @@ static void sl811_cs_config(dev_link_t *link)
 			link->io.BasePort1 = io->win[0].base;
 			link->io.NumPorts1 = io->win[0].len;
 
-			if (pcmcia_request_io(link->handle, &link->io) != 0)
+			if (pcmcia_request_io(link, &link->io) != 0)
 				goto next_entry;
 		}
 		break;
 
 next_entry:
-		if (link->io.NumPorts1)
-			pcmcia_release_io(link->handle, &link->io);
-		last_ret = pcmcia_get_next_tuple(handle, &tuple);
+		pcmcia_disable_device(link);
+		last_ret = pcmcia_get_next_tuple(link, &tuple);
 	}
 
 	/* require an IRQ and two registers */
@@ -270,71 +251,46 @@ next_entry:
 		goto cs_failed;
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
 		CS_CHECK(RequestIRQ,
-			pcmcia_request_irq(link->handle, &link->irq));
+			pcmcia_request_irq(link, &link->irq));
 	else
 		goto cs_failed;
 
 	CS_CHECK(RequestConfiguration,
-		pcmcia_request_configuration(link->handle, &link->conf));
+		pcmcia_request_configuration(link, &link->conf));
 
 	sprintf(dev->node.dev_name, driver_name);
 	dev->node.major = dev->node.minor = 0;
-	link->dev = &dev->node;
+	link->dev_node = &dev->node;
 
-	printk(KERN_INFO "%s: index 0x%02x: Vcc %d.%d",
-	       dev->node.dev_name, link->conf.ConfigIndex,
-	       link->conf.Vcc/10, link->conf.Vcc%10);
-	if (link->conf.Vpp1)
-		printk(", Vpp %d.%d", link->conf.Vpp1/10, link->conf.Vpp1%10);
+	printk(KERN_INFO "%s: index 0x%02x: ",
+	       dev->node.dev_name, link->conf.ConfigIndex);
+	if (link->conf.Vpp)
+		printk(", Vpp %d.%d", link->conf.Vpp/10, link->conf.Vpp%10);
 	printk(", irq %d", link->irq.AssignedIRQ);
 	printk(", io 0x%04x-0x%04x", link->io.BasePort1,
 	       link->io.BasePort1+link->io.NumPorts1-1);
 	printk("\n");
 
-	link->state &= ~DEV_CONFIG_PENDING;
-
 	if (sl811_hc_init(parent, link->io.BasePort1, link->irq.AssignedIRQ)
 			< 0) {
 cs_failed:
 		printk("sl811_cs_config failed\n");
-		cs_error(link->handle, last_fn, last_ret);
+		cs_error(link, last_fn, last_ret);
 		sl811_cs_release(link);
-		link->state &= ~DEV_CONFIG_PENDING;
+		return  -ENODEV;
 	}
-}
-
-static int sl811_suspend(struct pcmcia_device *dev)
-{
-	dev_link_t *link = dev_to_instance(dev);
-
-	link->state |= DEV_SUSPEND;
-	if (link->state & DEV_CONFIG)
-		pcmcia_release_configuration(link->handle);
-
 	return 0;
 }
 
-static int sl811_resume(struct pcmcia_device *dev)
-{
-	dev_link_t *link = dev_to_instance(dev);
-
-	link->state &= ~DEV_SUSPEND;
-	if (link->state & DEV_CONFIG)
-		pcmcia_request_configuration(link->handle, &link->conf);
-
-	return 0;
-}
-
-static int sl811_cs_attach(struct pcmcia_device *p_dev)
+static int sl811_cs_probe(struct pcmcia_device *link)
 {
 	local_info_t *local;
-	dev_link_t *link;
 
 	local = kmalloc(sizeof(local_info_t), GFP_KERNEL);
 	if (!local)
 		return -ENOMEM;
 	memset(local, 0, sizeof(local_info_t));
-	link = &local->link;
+	local->p_dev = link;
 	link->priv = local;
 
 	/* Initialize */
@@ -343,16 +299,9 @@ static int sl811_cs_attach(struct pcmcia_device *p_dev)
 	link->irq.Handler = NULL;
 
 	link->conf.Attributes = 0;
-	link->conf.Vcc = 33;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
-	link->handle = p_dev;
-	p_dev->instance = link;
-
-	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	sl811_cs_config(link);
-
-	return 0;
+	return sl811_cs_config(link);
 }
 
 static struct pcmcia_device_id sl811_ids[] = {
@@ -366,11 +315,9 @@ static struct pcmcia_driver sl811_cs_driver = {
 	.drv		= {
 		.name	= (char *)driver_name,
 	},
-	.probe		= sl811_cs_attach,
+	.probe		= sl811_cs_probe,
 	.remove		= sl811_cs_detach,
 	.id_table	= sl811_ids,
-	.suspend	= sl811_suspend,
-	.resume		= sl811_resume,
 };
 
 /*====================================================================*/

@@ -59,15 +59,9 @@ static unsigned int card_alloc;
 
 /*
  */
-static void vxpocket_release(dev_link_t *link)
+static void vxpocket_release(struct pcmcia_device *link)
 {
-	if (link->state & DEV_CONFIG) {
-		/* release cs resources */
-		pcmcia_release_configuration(link->handle);
-		pcmcia_release_io(link->handle, &link->io);
-		pcmcia_release_irq(link->handle, &link->irq);
-		link->state &= ~DEV_CONFIG;
-	}
+	pcmcia_disable_device(link);
 }
 
 /*
@@ -132,9 +126,9 @@ static struct snd_vx_hardware vxp440_hw = {
 /*
  * create vxpocket instance
  */
-static struct snd_vxpocket *snd_vxpocket_new(struct snd_card *card, int ibl)
+static struct snd_vxpocket *snd_vxpocket_new(struct snd_card *card, int ibl,
+					     struct pcmcia_device *link)
 {
-	dev_link_t *link;		/* Info for cardmgr */
 	struct vx_core *chip;
 	struct snd_vxpocket *vxp;
 	static struct snd_device_ops ops = {
@@ -154,7 +148,7 @@ static struct snd_vxpocket *snd_vxpocket_new(struct snd_card *card, int ibl)
 
 	vxp = (struct snd_vxpocket *)chip;
 
-	link = &vxp->link;
+	vxp->p_dev = link;
 	link->priv = chip;
 
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
@@ -167,7 +161,6 @@ static struct snd_vxpocket *snd_vxpocket_new(struct snd_card *card, int ibl)
 	link->irq.Instance = chip;
 
 	link->conf.Attributes = CONF_ENABLE_IRQ;
-	link->conf.Vcc = 50;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 	link->conf.ConfigIndex = 1;
 	link->conf.Present = PRESENT_OPTION;
@@ -215,9 +208,8 @@ static int snd_vxpocket_assign_resources(struct vx_core *chip, int port, int irq
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
-static void vxpocket_config(dev_link_t *link)
+static int vxpocket_config(struct pcmcia_device *link)
 {
-	client_handle_t handle = link->handle;
 	struct vx_core *chip = link->priv;
 	struct snd_vxpocket *vxp = (struct snd_vxpocket *)chip;
 	tuple_t tuple;
@@ -229,24 +221,24 @@ static void vxpocket_config(dev_link_t *link)
 	parse = kmalloc(sizeof(*parse), GFP_KERNEL);
 	if (! parse) {
 		snd_printk(KERN_ERR "vx: cannot allocate\n");
-		return;
+		return -ENOMEM;
 	}
 	tuple.Attributes = 0;
 	tuple.TupleData = (cisdata_t *)buf;
 	tuple.TupleDataMax = sizeof(buf);
 	tuple.TupleOffset = 0;
 	tuple.DesiredTuple = CISTPL_CONFIG;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
-	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(handle, &tuple));
-	CS_CHECK(ParseTuple, pcmcia_parse_tuple(handle, &tuple, parse));
+	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
+	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
+	CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, parse));
 	link->conf.ConfigBase = parse->config.base;
 	link->conf.Present = parse->config.rmask[0];
 
 	/* redefine hardware record according to the VERSION1 string */
 	tuple.DesiredTuple = CISTPL_VERS_1;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(handle, &tuple));
-	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(handle, &tuple));
-	CS_CHECK(ParseTuple, pcmcia_parse_tuple(handle, &tuple, parse));
+	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
+	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
+	CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, parse));
 	if (! strcmp(parse->version_1.str + parse->version_1.ofs[1], "VX-POCKET")) {
 		snd_printdd("VX-pocket is detected\n");
 	} else {
@@ -257,67 +249,50 @@ static void vxpocket_config(dev_link_t *link)
 		strcpy(chip->card->driver, vxp440_hw.name);
 	}
 
-	/* Configure card */
-	link->state |= DEV_CONFIG;
+	CS_CHECK(RequestIO, pcmcia_request_io(link, &link->io));
+	CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
+	CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
 
-	CS_CHECK(RequestIO, pcmcia_request_io(handle, &link->io));
-	CS_CHECK(RequestIRQ, pcmcia_request_irq(link->handle, &link->irq));
-	CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link->handle, &link->conf));
-
-	chip->dev = &handle_to_dev(link->handle);
+	chip->dev = &handle_to_dev(link);
 	snd_card_set_dev(chip->card, chip->dev);
 
 	if (snd_vxpocket_assign_resources(chip, link->io.BasePort1, link->irq.AssignedIRQ) < 0)
 		goto failed;
 
-	link->dev = &vxp->node;
-	link->state &= ~DEV_CONFIG_PENDING;
+	link->dev_node = &vxp->node;
 	kfree(parse);
-	return;
+	return 9;
 
 cs_failed:
-	cs_error(link->handle, last_fn, last_ret);
+	cs_error(link, last_fn, last_ret);
 failed:
-	pcmcia_release_configuration(link->handle);
-	pcmcia_release_io(link->handle, &link->io);
-	pcmcia_release_irq(link->handle, &link->irq);
-	link->state &= ~DEV_CONFIG;
+	pcmcia_disable_device(link);
 	kfree(parse);
+	return -ENODEV;
 }
 
 #ifdef CONFIG_PM
 
-static int vxp_suspend(struct pcmcia_device *dev)
+static int vxp_suspend(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(dev);
 	struct vx_core *chip = link->priv;
 
 	snd_printdd(KERN_DEBUG "SUSPEND\n");
-	link->state |= DEV_SUSPEND;
 	if (chip) {
 		snd_printdd(KERN_DEBUG "snd_vx_suspend calling\n");
 		snd_vx_suspend(chip, PMSG_SUSPEND);
 	}
-	snd_printdd(KERN_DEBUG "RESET_PHYSICAL\n");
-	if (link->state & DEV_CONFIG)
-		pcmcia_release_configuration(link->handle);
 
 	return 0;
 }
 
-static int vxp_resume(struct pcmcia_device *dev)
+static int vxp_resume(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(dev);
 	struct vx_core *chip = link->priv;
 
 	snd_printdd(KERN_DEBUG "RESUME\n");
-	link->state &= ~DEV_SUSPEND;
-
-	snd_printdd(KERN_DEBUG "CARD_RESET\n");
-	if (DEV_OK(link)) {
+	if (pcmcia_dev_present(link)) {
 		//struct snd_vxpocket *vxp = (struct snd_vxpocket *)chip;
-		snd_printdd(KERN_DEBUG "requestconfig...\n");
-		pcmcia_request_configuration(link->handle, &link->conf);
 		if (chip) {
 			snd_printdd(KERN_DEBUG "calling snd_vx_resume\n");
 			snd_vx_resume(chip);
@@ -333,7 +308,7 @@ static int vxp_resume(struct pcmcia_device *dev)
 
 /*
  */
-static int vxpocket_attach(struct pcmcia_device *p_dev)
+static int vxpocket_probe(struct pcmcia_device *p_dev)
 {
 	struct snd_card *card;
 	struct snd_vxpocket *vxp;
@@ -358,7 +333,7 @@ static int vxpocket_attach(struct pcmcia_device *p_dev)
 		return -ENOMEM;
 	}
 
-	vxp = snd_vxpocket_new(card, ibl[i]);
+	vxp = snd_vxpocket_new(card, ibl[i], p_dev);
 	if (! vxp) {
 		snd_card_free(card);
 		return -ENODEV;
@@ -368,20 +343,13 @@ static int vxpocket_attach(struct pcmcia_device *p_dev)
 	vxp->index = i;
 	card_alloc |= 1 << i;
 
-	/* Chain drivers */
-	vxp->link.next = NULL;
+	vxp->p_dev = p_dev;
 
-	vxp->link.handle = p_dev;
-	vxp->link.state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	p_dev->instance = &vxp->link;
-	vxpocket_config(&vxp->link);
-
-	return 0;
+	return vxpocket_config(p_dev);
 }
 
-static void vxpocket_detach(struct pcmcia_device *p_dev)
+static void vxpocket_detach(struct pcmcia_device *link)
 {
-	dev_link_t *link = dev_to_instance(p_dev);
 	struct snd_vxpocket *vxp;
 	struct vx_core *chip;
 
@@ -413,7 +381,7 @@ static struct pcmcia_driver vxp_cs_driver = {
 	.drv		= {
 		.name	= "snd-vxpocket",
 	},
-	.probe		= vxpocket_attach,
+	.probe		= vxpocket_probe,
 	.remove		= vxpocket_detach,
 	.id_table	= vxp_ids,
 #ifdef CONFIG_PM

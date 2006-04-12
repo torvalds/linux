@@ -357,6 +357,12 @@ typedef struct drm_freelist {
 	spinlock_t lock;
 } drm_freelist_t;
 
+typedef struct drm_dma_handle {
+	dma_addr_t busaddr;
+	void *vaddr;
+	size_t size;
+} drm_dma_handle_t;
+
 /**
  * Buffer entry.  There is one of this for each buffer size order.
  */
@@ -366,7 +372,7 @@ typedef struct drm_buf_entry {
 	drm_buf_t *buflist;		/**< buffer list */
 	int seg_count;
 	int page_order;
-	unsigned long *seglist;
+	drm_dma_handle_t **seglist;
 
 	drm_freelist_t freelist;
 } drm_buf_entry_t;
@@ -482,12 +488,6 @@ typedef struct drm_sigdata {
 	int context;
 	drm_hw_lock_t *lock;
 } drm_sigdata_t;
-
-typedef struct drm_dma_handle {
-	dma_addr_t busaddr;
-	void *vaddr;
-	size_t size;
-} drm_dma_handle_t;
 
 /**
  * Mappings list
@@ -813,8 +813,6 @@ extern void drm_mem_init(void);
 extern int drm_mem_info(char *buf, char **start, off_t offset,
 			int request, int *eof, void *data);
 extern void *drm_realloc(void *oldpt, size_t oldsize, size_t size, int area);
-extern unsigned long drm_alloc_pages(int order, int area);
-extern void drm_free_pages(unsigned long address, int order, int area);
 extern void *drm_ioremap(unsigned long offset, unsigned long size,
 			 drm_device_t * dev);
 extern void *drm_ioremap_nocache(unsigned long offset, unsigned long size,

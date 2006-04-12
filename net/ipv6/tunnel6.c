@@ -19,11 +19,13 @@
  * 		YOSHIFUJI Hideaki <yoshfuji@linux-ipv6.org>
  */
 
+#include <linux/icmpv6.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
+#include <net/ipv6.h>
 #include <net/protocol.h>
 #include <net/xfrm.h>
 
@@ -87,10 +89,16 @@ static int tunnel6_rcv(struct sk_buff **pskb)
 	struct sk_buff *skb = *pskb;
 	struct xfrm6_tunnel *handler;
 
+	if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
+		goto drop;
+
 	for (handler = tunnel6_handlers; handler; handler = handler->next)
 		if (!handler->handler(skb))
 			return 0;
 
+	icmpv6_send(skb, ICMPV6_DEST_UNREACH, ICMPV6_PORT_UNREACH, 0, skb->dev);
+
+drop:
 	kfree_skb(skb);
 	return 0;
 }

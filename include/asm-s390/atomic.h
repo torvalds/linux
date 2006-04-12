@@ -1,6 +1,8 @@
 #ifndef __ARCH_S390_ATOMIC__
 #define __ARCH_S390_ATOMIC__
 
+#include <linux/compiler.h>
+
 /*
  *  include/asm-s390/atomic.h
  *

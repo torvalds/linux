@@ -85,9 +85,7 @@ void drm_dma_takedown(drm_device_t * dev)
 				  dma->bufs[i].seg_count);
 			for (j = 0; j < dma->bufs[i].seg_count; j++) {
 				if (dma->bufs[i].seglist[j]) {
-					drm_free_pages(dma->bufs[i].seglist[j],
-						       dma->bufs[i].page_order,
-						       DRM_MEM_DMA);
+					drm_pci_free(dev, dma->bufs[i].seglist[j]);
 				}
 			}
 			drm_free(dma->bufs[i].seglist,

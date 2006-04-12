@@ -55,7 +55,7 @@ int __init nonx_setup(char *str)
 		do_not_nx = 1;
 		__supported_pte_mask &= ~_PAGE_NX;
         }
-	return 0;
+	return 1;
 } 
 __setup("noexec=", nonx_setup);	/* parsed early actually */
 
@@ -74,7 +74,7 @@ static int __init nonx32_setup(char *str)
 		force_personality32 &= ~READ_IMPLIES_EXEC;
 	else if (!strcmp(str, "off"))
 		force_personality32 |= READ_IMPLIES_EXEC;
-	return 0;
+	return 1;
 }
 __setup("noexec32=", nonx32_setup);
 

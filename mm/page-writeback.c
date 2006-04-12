@@ -72,13 +72,12 @@ int dirty_background_ratio = 10;
 int vm_dirty_ratio = 40;
 
 /*
- * The interval between `kupdate'-style writebacks, in centiseconds
- * (hundredths of a second)
+ * The interval between `kupdate'-style writebacks, in jiffies
  */
 int dirty_writeback_interval = 5 * HZ;
 
 /*
- * The longest number of centiseconds for which data is allowed to remain dirty
+ * The longest number of jiffies for which data is allowed to remain dirty
  */
 int dirty_expire_interval = 30 * HZ;
 
@@ -258,7 +257,7 @@ static void balance_dirty_pages(struct address_space *mapping)
 /**
  * balance_dirty_pages_ratelimited_nr - balance dirty memory state
  * @mapping: address_space which was dirtied
- * @nr_pages: number of pages which the caller has just dirtied
+ * @nr_pages_dirtied: number of pages which the caller has just dirtied
  *
  * Processes which are dirtying memory should call in here once for each page
  * which was newly dirtied.  The function will periodically check the system's

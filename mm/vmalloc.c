@@ -321,8 +321,7 @@ void __vunmap(void *addr, int deallocate_pages)
 		int i;
 
 		for (i = 0; i < area->nr_pages; i++) {
-			if (unlikely(!area->pages[i]))
-				BUG();
+			BUG_ON(!area->pages[i]);
 			__free_page(area->pages[i]);
 		}
 

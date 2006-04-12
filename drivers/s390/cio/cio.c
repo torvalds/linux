@@ -67,7 +67,7 @@ cio_debug_init (void)
 		goto out_unregister;
 	debug_register_view (cio_debug_msg_id, &debug_sprintf_view);
 	debug_set_level (cio_debug_msg_id, 2);
-	cio_debug_trace_id = debug_register ("cio_trace", 16, 4, 8);
+	cio_debug_trace_id = debug_register ("cio_trace", 16, 4, 16);
 	if (!cio_debug_trace_id)
 		goto out_unregister;
 	debug_register_view (cio_debug_trace_id, &debug_hex_ascii_view);

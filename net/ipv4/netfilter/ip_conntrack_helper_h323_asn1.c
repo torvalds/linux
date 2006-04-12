@@ -15,7 +15,7 @@
 #else
 #include <stdio.h>
 #endif
-#include "ip_conntrack_helper_h323_asn1.h"
+#include <linux/netfilter_ipv4/ip_conntrack_helper_h323_asn1.h>
 
 /* Trace Flag */
 #ifndef H323_TRACE

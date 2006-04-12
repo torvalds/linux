@@ -4,47 +4,88 @@
 
 #define HVSC			.long 0x44000022
 
-#define H_Success	0
-#define H_Busy		1	/* Hardware busy -- retry later */
-#define H_Closed	2	/* Resource closed */
-#define H_Constrained	4	/* Resource request constrained to max allowed */
-#define H_InProgress   14	/* Kind of like busy */
-#define H_Pending      17	/* returned from H_POLL_PENDING */
-#define H_Continue     18	/* Returned from H_Join on success */
-#define H_LongBusyStartRange   9900  /* Start of long busy range */
-#define H_LongBusyOrder1msec   9900  /* Long busy, hint that 1msec is a good time to retry */
-#define H_LongBusyOrder10msec  9901  /* Long busy, hint that 10msec is a good time to retry */
-#define H_LongBusyOrder100msec 9902  /* Long busy, hint that 100msec is a good time to retry */
-#define H_LongBusyOrder1sec    9903  /* Long busy, hint that 1sec is a good time to retry */
-#define H_LongBusyOrder10sec   9904  /* Long busy, hint that 10sec is a good time to retry */
-#define H_LongBusyOrder100sec  9905  /* Long busy, hint that 100sec is a good time to retry */
-#define H_LongBusyEndRange     9905  /* End of long busy range */
-#define H_Hardware	-1	/* Hardware error */
-#define H_Function	-2	/* Function not supported */
-#define H_Privilege	-3	/* Caller not privileged */
-#define H_Parameter	-4	/* Parameter invalid, out-of-range or conflicting */
-#define H_Bad_Mode	-5	/* Illegal msr value */
-#define H_PTEG_Full	-6	/* PTEG is full */
-#define H_Not_Found	-7	/* PTE was not found" */
-#define H_Reserved_DABR	-8	/* DABR address is reserved by the hypervisor on this processor" */
-#define H_NoMem                 -9
-#define H_Authority            -10
-#define H_Permission           -11
-#define H_Dropped              -12
-#define H_SourceParm           -13
-#define H_DestParm             -14
-#define H_RemoteParm           -15
-#define H_Resource             -16
+#define H_SUCCESS	0
+#define H_BUSY		1	/* Hardware busy -- retry later */
+#define H_CLOSED	2	/* Resource closed */
+#define H_NOT_AVAILABLE 3
+#define H_CONSTRAINED	4	/* Resource request constrained to max allowed */
+#define H_PARTIAL       5
+#define H_IN_PROGRESS	14	/* Kind of like busy */
+#define H_PAGE_REGISTERED 15
+#define H_PARTIAL_STORE   16
+#define H_PENDING	17	/* returned from H_POLL_PENDING */
+#define H_CONTINUE	18	/* Returned from H_Join on success */
+#define H_LONG_BUSY_START_RANGE		9900  /* Start of long busy range */
+#define H_LONG_BUSY_ORDER_1_MSEC	9900  /* Long busy, hint that 1msec \
+						 is a good time to retry */
+#define H_LONG_BUSY_ORDER_10_MSEC	9901  /* Long busy, hint that 10msec \
+						 is a good time to retry */
+#define H_LONG_BUSY_ORDER_100_MSEC 	9902  /* Long busy, hint that 100msec \
+						 is a good time to retry */
+#define H_LONG_BUSY_ORDER_1_SEC		9903  /* Long busy, hint that 1sec \
+						 is a good time to retry */
+#define H_LONG_BUSY_ORDER_10_SEC	9904  /* Long busy, hint that 10sec \
+						 is a good time to retry */
+#define H_LONG_BUSY_ORDER_100_SEC	9905  /* Long busy, hint that 100sec \
+						 is a good time to retry */
+#define H_LONG_BUSY_END_RANGE		9905  /* End of long busy range */
+#define H_HARDWARE	-1	/* Hardware error */
+#define H_FUNCTION	-2	/* Function not supported */
+#define H_PRIVILEGE	-3	/* Caller not privileged */
+#define H_PARAMETER	-4	/* Parameter invalid, out-of-range or conflicting */
+#define H_BAD_MODE	-5	/* Illegal msr value */
+#define H_PTEG_FULL	-6	/* PTEG is full */
+#define H_NOT_FOUND	-7	/* PTE was not found" */
+#define H_RESERVED_DABR	-8	/* DABR address is reserved by the hypervisor on this processor" */
+#define H_NO_MEM	-9
+#define H_AUTHORITY	-10
+#define H_PERMISSION	-11
+#define H_DROPPED	-12
+#define H_SOURCE_PARM	-13
+#define H_DEST_PARM	-14
+#define H_REMOTE_PARM	-15
+#define H_RESOURCE	-16
+#define H_ADAPTER_PARM  -17
+#define H_RH_PARM       -18
+#define H_RCQ_PARM      -19
+#define H_SCQ_PARM      -20
+#define H_EQ_PARM       -21
+#define H_RT_PARM       -22
+#define H_ST_PARM       -23
+#define H_SIGT_PARM     -24
+#define H_TOKEN_PARM    -25
+#define H_MLENGTH_PARM  -27
+#define H_MEM_PARM      -28
+#define H_MEM_ACCESS_PARM -29
+#define H_ATTR_PARM     -30
+#define H_PORT_PARM     -31
+#define H_MCG_PARM      -32
+#define H_VL_PARM       -33
+#define H_TSIZE_PARM    -34
+#define H_TRACE_PARM    -35
+
+#define H_MASK_PARM     -37
+#define H_MCG_FULL      -38
+#define H_ALIAS_EXIST   -39
+#define H_P_COUNTER     -40
+#define H_TABLE_FULL    -41
+#define H_ALT_TABLE     -42
+#define H_MR_CONDITION  -43
+#define H_NOT_ENOUGH_RESOURCES -44
+#define H_R_STATE       -45
+#define H_RESCINDEND    -46
+
 
 /* Long Busy is a condition that can be returned by the firmware
  * when a call cannot be completed now, but the identical call
  * should be retried later.  This prevents calls blocking in the
- * firmware for long periods of time. Annoyingly the firmware can return
+ * firmware for long periods of time.  Annoyingly the firmware can return
  * a range of return codes, hinting at how long we should wait before
  * retrying.  If you don't care for the hint, the macro below is a good
  * way to check for the long_busy return codes
  */
-#define H_isLongBusy(x)  ((x >= H_LongBusyStartRange) && (x <= H_LongBusyEndRange))
+#define H_IS_LONG_BUSY(x)  ((x >= H_LONG_BUSY_START_RANGE) \
+			     && (x <= H_LONG_BUSY_END_RANGE))
 
 /* Flags */
 #define H_LARGE_PAGE		(1UL<<(63-16))
@@ -65,6 +106,9 @@
 #define H_DABRX_HYPERVISOR	(1UL<<(63-61))
 #define H_DABRX_KERNEL		(1UL<<(63-62))
 #define H_DABRX_USER		(1UL<<(63-63))
+
+/* Each control block has to be on a 4K bondary */
+#define H_CB_ALIGNMENT          4096
 
 /* pSeries hypervisor opcodes */
 #define H_REMOVE		0x04
@@ -99,25 +143,52 @@
 #define H_PERFMON		0x7c
 #define H_MIGRATE_DMA		0x78
 #define H_REGISTER_VPA		0xDC
-#define H_CEDE		        0xE0
+#define H_CEDE			0xE0
 #define H_CONFER		0xE4
-#define H_PROD		        0xE8
+#define H_PROD			0xE8
 #define H_GET_PPP		0xEC
 #define H_SET_PPP		0xF0
 #define H_PURR			0xF4
-#define H_PIC		        0xF8
+#define H_PIC			0xF8
 #define H_REG_CRQ		0xFC
 #define H_FREE_CRQ		0x100
 #define H_VIO_SIGNAL		0x104
 #define H_SEND_CRQ		0x108
-#define H_COPY_RDMA             0x110
+#define H_COPY_RDMA		0x110
 #define H_SET_XDABR		0x134
 #define H_STUFF_TCE		0x138
 #define H_PUT_TCE_INDIRECT	0x13C
 #define H_VTERM_PARTNER_INFO	0x150
 #define H_REGISTER_VTERM	0x154
 #define H_FREE_VTERM		0x158
-#define H_POLL_PENDING	        0x1D8
+#define H_RESET_EVENTS          0x15C
+#define H_ALLOC_RESOURCE        0x160
+#define H_FREE_RESOURCE         0x164
+#define H_MODIFY_QP             0x168
+#define H_QUERY_QP              0x16C
+#define H_REREGISTER_PMR        0x170
+#define H_REGISTER_SMR          0x174
+#define H_QUERY_MR              0x178
+#define H_QUERY_MW              0x17C
+#define H_QUERY_HCA             0x180
+#define H_QUERY_PORT            0x184
+#define H_MODIFY_PORT           0x188
+#define H_DEFINE_AQP1           0x18C
+#define H_GET_TRACE_BUFFER      0x190
+#define H_DEFINE_AQP0           0x194
+#define H_RESIZE_MR             0x198
+#define H_ATTACH_MCQP           0x19C
+#define H_DETACH_MCQP           0x1A0
+#define H_CREATE_RPT            0x1A4
+#define H_REMOVE_RPT            0x1A8
+#define H_REGISTER_RPAGES       0x1AC
+#define H_DISABLE_AND_GETC      0x1B0
+#define H_ERROR_DATA            0x1B4
+#define H_GET_HCA_INFO          0x1B8
+#define H_GET_PERF_COUNT        0x1BC
+#define H_MANAGE_TRACE          0x1C0
+#define H_QUERY_INT_STATE       0x1E4
+#define H_POLL_PENDING		0x1D8
 #define H_JOIN			0x298
 #define H_ENABLE_CRQ		0x2B0
 
@@ -152,7 +223,7 @@ long plpar_hcall_norets(unsigned long opcode, ...);
  */
 long plpar_hcall_8arg_2ret(unsigned long opcode,
 			   unsigned long arg1,
-		  	   unsigned long arg2,
+			   unsigned long arg2,
 			   unsigned long arg3,
 			   unsigned long arg4,
 			   unsigned long arg5,
@@ -175,6 +246,42 @@ long plpar_hcall_4out(unsigned long opcode,
 		      unsigned long *out2,
 		      unsigned long *out3,
 		      unsigned long *out4);
+
+long plpar_hcall_7arg_7ret(unsigned long opcode,
+			   unsigned long arg1,
+			   unsigned long arg2,
+			   unsigned long arg3,
+			   unsigned long arg4,
+			   unsigned long arg5,
+			   unsigned long arg6,
+			   unsigned long arg7,
+			   unsigned long *out1,
+			   unsigned long *out2,
+			   unsigned long *out3,
+			   unsigned long *out4,
+			   unsigned long *out5,
+			   unsigned long *out6,
+			   unsigned long *out7);
+
+long plpar_hcall_9arg_9ret(unsigned long opcode,
+			   unsigned long arg1,
+			   unsigned long arg2,
+			   unsigned long arg3,
+			   unsigned long arg4,
+			   unsigned long arg5,
+			   unsigned long arg6,
+			   unsigned long arg7,
+			   unsigned long arg8,
+			   unsigned long arg9,
+			   unsigned long *out1,
+			   unsigned long *out2,
+			   unsigned long *out3,
+			   unsigned long *out4,
+			   unsigned long *out5,
+			   unsigned long *out6,
+			   unsigned long *out7,
+			   unsigned long *out8,
+			   unsigned long *out9);
 
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */

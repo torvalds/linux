@@ -4,6 +4,7 @@
 #
 
 snd-ad1889-objs := ad1889.o
+snd-als300-objs := als300.o
 snd-als4000-objs := als4000.o
 snd-atiixp-objs := atiixp.o
 snd-atiixp-modem-objs := atiixp_modem.o
@@ -27,6 +28,7 @@ snd-via82xx-modem-objs := via82xx_modem.o
 
 # Toplevel Module Dependency
 obj-$(CONFIG_SND_AD1889) += snd-ad1889.o
+obj-$(CONFIG_SND_ALS300) += snd-als300.o
 obj-$(CONFIG_SND_ALS4000) += snd-als4000.o
 obj-$(CONFIG_SND_ATIIXP) += snd-atiixp.o
 obj-$(CONFIG_SND_ATIIXP_MODEM) += snd-atiixp-modem.o
@@ -62,6 +64,7 @@ obj-$(CONFIG_SND) += \
 	mixart/ \
 	nm256/ \
 	pcxhr/ \
+	riptide/ \
 	rme9652/ \
 	trident/ \
 	ymfpci/ \

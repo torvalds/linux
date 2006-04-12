@@ -157,19 +157,6 @@ config DEBUG_INFO
 
 	  If unsure, say N.
 
-config DEBUG_IOREMAP
-	bool "Enable ioremap() debugging"
-	depends on DEBUG_KERNEL && PARISC
-	help
-	  Enabling this option will cause the kernel to distinguish between
-	  ioremapped and physical addresses.  It will print a backtrace (at
-	  most one every 10 seconds), hopefully allowing you to see which
-	  drivers need work.  Fixing all these problems is a prerequisite
-	  for turning on USE_HPPA_IOREMAP.  The warnings are harmless;
-	  the kernel has enough information to fix the broken drivers
-	  automatically, but we'd like to make it more efficient by not
-	  having to do that.
-
 config DEBUG_FS
 	bool "Debug Filesystem"
 	depends on SYSFS

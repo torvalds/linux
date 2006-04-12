@@ -34,6 +34,7 @@
 #include <linux/initrd.h>
 #include <linux/bootmem.h>
 #include <linux/seq_file.h>
+#include <linux/platform_device.h>
 #include <linux/console.h>
 #include <linux/mca.h>
 #include <linux/root_dev.h>
@@ -962,6 +963,36 @@ efi_memory_present_wrapper(unsigned long start, unsigned long end, void *arg)
 	return 0;
 }
 
+ /*
+  * This function checks if the entire range <start,end> is mapped with type.
+  *
+  * Note: this function only works correct if the e820 table is sorted and
+  * not-overlapping, which is the case
+  */
+int __init
+e820_all_mapped(unsigned long start, unsigned long end, unsigned type)
+{
+	int i;
+	for (i = 0; i < e820.nr_map; i++) {
+		struct e820entry *ei = &e820.map[i];
+		if (type && ei->type != type)
+			continue;
+		/* is the region (part) in overlap with the current region ?*/
+		if (ei->addr >= end || ei->addr + ei->size <= start)
+			continue;
+		/* if the region is at the beginning of <start,end> we move
+		 * start to the end of the region since it's ok until there
+		 */
+		if (ei->addr <= start)
+			start = ei->addr + ei->size;
+		/* if start is now at or beyond end, we're done, full
+		 * coverage */
+		if (start >= end)
+			return 1; /* we're done */
+	}
+	return 0;
+}
+
 /*
  * Find the highest page frame number we have available
  */
@@ -1316,8 +1347,8 @@ legacy_init_iomem_resources(struct resource *code_resource, struct resource *dat
 /*
  * Request address space for all standard resources
  *
- * This is called just before pcibios_assign_resources(), which is also
- * an fs_initcall, but is linked in later (in arch/i386/pci/i386.c).
+ * This is called just before pcibios_init(), which is also a
+ * subsys_initcall, but is linked in later (in arch/i386/pci/common.c).
  */
 static int __init request_standard_resources(void)
 {
@@ -1338,7 +1369,7 @@ static int __init request_standard_resources(void)
 	return 0;
 }
 
-fs_initcall(request_standard_resources);
+subsys_initcall(request_standard_resources);
 
 static void __init register_memory(void)
 {
@@ -1546,6 +1577,23 @@ void __init setup_arch(char **cmdline_p)
 #endif
 #endif
 }
+
+static __init int add_pcspkr(void)
+{
+	struct platform_device *pd;
+	int ret;
+
+	pd = platform_device_alloc("pcspkr", -1);
+	if (!pd)
+		return -ENOMEM;
+
+	ret = platform_device_add(pd);
+	if (ret)
+		platform_device_put(pd);
+
+	return ret;
+}
+device_initcall(add_pcspkr);
 
 #include "setup_arch_post.h"
 /*

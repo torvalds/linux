@@ -186,7 +186,7 @@ static int m25p80_erase(struct mtd_info *mtd, struct erase_info *instr)
 	struct m25p *flash = mtd_to_m25p(mtd);
 	u32 addr,len;
 
-	DEBUG(MTD_DEBUG_LEVEL2, "%s: %s %s 0x%08x, len %zd\n",
+	DEBUG(MTD_DEBUG_LEVEL2, "%s: %s %s 0x%08x, len %d\n",
 			flash->spi->dev.bus_id, __FUNCTION__, "at",
 			(u32)instr->addr, instr->len);
 

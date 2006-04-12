@@ -688,6 +688,7 @@ EXPORT_SYMBOL(abort);
 
 void __init trap_init(void)
 {
+	unsigned long vectors = CONFIG_VECTORS_BASE;
 	extern char __stubs_start[], __stubs_end[];
 	extern char __vectors_start[], __vectors_end[];
 	extern char __kuser_helper_start[], __kuser_helper_end[];
@@ -698,9 +699,9 @@ void __init trap_init(void)
 	 * into the vector page, mapped at 0xffff0000, and ensure these
 	 * are visible to the instruction stream.
 	 */
-	memcpy((void *)0xffff0000, __vectors_start, __vectors_end - __vectors_start);
-	memcpy((void *)0xffff0200, __stubs_start, __stubs_end - __stubs_start);
-	memcpy((void *)0xffff1000 - kuser_sz, __kuser_helper_start, kuser_sz);
+	memcpy((void *)vectors, __vectors_start, __vectors_end - __vectors_start);
+	memcpy((void *)vectors + 0x200, __stubs_start, __stubs_end - __stubs_start);
+	memcpy((void *)vectors + 0x1000 - kuser_sz, __kuser_helper_start, kuser_sz);
 
 	/*
 	 * Copy signal return handlers into the vector page, and
@@ -709,6 +710,6 @@ void __init trap_init(void)
 	memcpy((void *)KERN_SIGRETURN_CODE, sigreturn_codes,
 	       sizeof(sigreturn_codes));
 
-	flush_icache_range(0xffff0000, 0xffff0000 + PAGE_SIZE);
+	flush_icache_range(vectors, vectors + PAGE_SIZE);
 	modify_domain(DOMAIN_USER, DOMAIN_CLIENT);
 }

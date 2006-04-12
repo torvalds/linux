@@ -46,7 +46,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pdc_adma"
-#define DRV_VERSION	"0.03"
+#define DRV_VERSION	"0.04"
 
 /* macro to calculate base address for ATA regs */
 #define ADMA_ATA_REGS(base,port_no)	((base) + ((port_no) * 0x40))
@@ -143,7 +143,6 @@ static struct scsi_host_template adma_ata_sht = {
 	.name			= DRV_NAME,
 	.ioctl			= ata_scsi_ioctl,
 	.queuecommand		= ata_scsi_queuecmd,
-	.eh_strategy_handler	= ata_scsi_error,
 	.can_queue		= ATA_DEF_QUEUE,
 	.this_id		= ATA_SHT_THIS_ID,
 	.sg_tablesize		= LIBATA_MAX_PRD,
@@ -456,7 +455,7 @@ static inline unsigned int adma_intr_pkt(struct ata_host_set *host_set)
 			continue;
 		handled = 1;
 		adma_enter_reg_mode(ap);
-		if (ap->flags & (ATA_FLAG_PORT_DISABLED | ATA_FLAG_NOINTR))
+		if (ap->flags & (ATA_FLAG_DISABLED | ATA_FLAG_NOINTR))
 			continue;
 		pp = ap->private_data;
 		if (!pp || pp->state != adma_state_pkt)
@@ -481,7 +480,7 @@ static inline unsigned int adma_intr_mmio(struct ata_host_set *host_set)
 	for (port_no = 0; port_no < host_set->n_ports; ++port_no) {
 		struct ata_port *ap;
 		ap = host_set->ports[port_no];
-		if (ap && (!(ap->flags & (ATA_FLAG_PORT_DISABLED | ATA_FLAG_NOINTR)))) {
+		if (ap && (!(ap->flags & (ATA_FLAG_DISABLED | ATA_FLAG_NOINTR)))) {
 			struct ata_queued_cmd *qc;
 			struct adma_port_priv *pp = ap->private_data;
 			if (!pp || pp->state != adma_state_mmio)

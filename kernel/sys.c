@@ -1372,18 +1372,29 @@ asmlinkage long sys_getsid(pid_t pid)
 asmlinkage long sys_setsid(void)
 {
 	struct task_struct *group_leader = current->group_leader;
-	struct pid *pid;
+	pid_t session;
 	int err = -EPERM;
 
 	mutex_lock(&tty_mutex);
 	write_lock_irq(&tasklist_lock);
 
-	pid = find_pid(PIDTYPE_PGID, group_leader->pid);
-	if (pid)
+	/* Fail if I am already a session leader */
+	if (group_leader->signal->leader)
+		goto out;
+
+	session = group_leader->pid;
+	/* Fail if a process group id already exists that equals the
+	 * proposed session id.
+	 *
+	 * Don't check if session id == 1 because kernel threads use this
+	 * session id and so the check will always fail and make it so
+	 * init cannot successfully call setsid.
+	 */
+	if (session > 1 && find_task_by_pid_type(PIDTYPE_PGID, session))
 		goto out;
 
 	group_leader->signal->leader = 1;
-	__set_special_pids(group_leader->pid, group_leader->pid);
+	__set_special_pids(session, session);
 	group_leader->signal->tty = NULL;
 	group_leader->signal->tty_old_pgrp = 0;
 	err = process_group(group_leader);

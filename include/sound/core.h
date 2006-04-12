@@ -170,13 +170,13 @@ static inline void snd_power_change_state(struct snd_card *card, unsigned int st
 }
 
 /* init.c */
-int snd_power_wait(struct snd_card *card, unsigned int power_state, struct file *file);
+int snd_power_wait(struct snd_card *card, unsigned int power_state);
 
 #else /* ! CONFIG_PM */
 
 #define snd_power_lock(card)		do { (void)(card); } while (0)
 #define snd_power_unlock(card)		do { (void)(card); } while (0)
-static inline int snd_power_wait(struct snd_card *card, unsigned int state, struct file *file) { return 0; }
+static inline int snd_power_wait(struct snd_card *card, unsigned int state) { return 0; }
 #define snd_power_get_state(card)	SNDRV_CTL_POWER_D0
 #define snd_power_change_state(card, state)	do { (void)(card); } while (0)
 

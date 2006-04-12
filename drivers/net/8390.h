@@ -134,7 +134,7 @@ struct ei_device {
 #define inb_p(_p)	inb(_p)
 #define outb_p(_v,_p)	outb(_v,_p)
 
-#elif defined(CONFIG_NET_CBUS) || defined(CONFIG_NE_H8300) || defined(CONFIG_NE_H8300_MODULE)
+#elif defined(CONFIG_NE_H8300) || defined(CONFIG_NE_H8300_MODULE)
 #define EI_SHIFT(x)	(ei_local->reg_offset[x])
 #else
 #define EI_SHIFT(x)	(x)

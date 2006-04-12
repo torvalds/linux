@@ -373,6 +373,7 @@ struct snd_ice1712 {
 			unsigned int cs8415_mux;
 			unsigned short master[2];
 			unsigned short vol[8];
+			unsigned char pca9554_out;
 		} aureon;
 		/* AC97 register cache for Phase28 */
 		struct phase28_spec {

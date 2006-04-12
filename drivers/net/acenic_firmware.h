@@ -4397,7 +4397,7 @@ static u32 tigonFwText[(MAX_TEXT_LEN/4) + 1] __devinitdata = {
 0x3c010001, 0x220821, 0xac317e30, 0x8fbf0024, 
 0x8fb40020, 0x8fb3001c, 0x8fb20018, 0x8fb10014, 
 0x8fb00010, 0x3e00008, 0x27bd0028, 0x0 };
-static u32 tigonFwRodata[(MAX_RODATA_LEN/4) + 1] __initdata = {
+static u32 tigonFwRodata[(MAX_RODATA_LEN/4) + 1] __devinitdata = {
 0x24486561, 0x6465723a, 0x202f7072, 
 0x6f6a6563, 0x74732f72, 0x63732f73, 0x772f6765, 
 0x2f2e2f6e, 0x69632f66, 0x772f636f, 0x6d6d6f6e, 
@@ -4571,7 +4571,7 @@ static u32 tigonFwRodata[(MAX_RODATA_LEN/4) + 1] __initdata = {
 0x0, 0x14c38, 0x14c38, 0x14b80, 
 0x14bc4, 0x14c38, 0x14c38, 0x0, 
 0x0, 0x0 };
-static u32 tigonFwData[(MAX_DATA_LEN/4) + 1] __initdata = {
+static u32 tigonFwData[(MAX_DATA_LEN/4) + 1] __devinitdata = {
 0x416c7465, 
 0x6f6e2041, 0x63654e49, 0x43205600, 0x416c7465, 
 0x6f6e2041, 0x63654e49, 0x43205600, 0x42424242, 
@@ -4612,7 +4612,7 @@ static u32 tigonFwData[(MAX_DATA_LEN/4) + 1] __initdata = {
 #define tigon2FwSbssLen 0xcc
 #define tigon2FwBssAddr 0x00016f50
 #define tigon2FwBssLen 0x20c0
-static u32 tigon2FwText[(MAX_TEXT_LEN/4) + 1] __initdata = {
+static u32 tigon2FwText[(MAX_TEXT_LEN/4) + 1] __devinitdata = {
 0x0, 
 0x10000003, 0x0, 0xd, 0xd, 
 0x3c1d0001, 0x8fbd6d20, 0x3a0f021, 0x3c100000, 
@@ -9154,7 +9154,7 @@ static u32 tigon2FwText[(MAX_TEXT_LEN/4) + 1] __initdata = {
 0x24020001, 0x8f430328, 0x1021, 0x24630001, 
 0x3e00008, 0xaf430328, 0x3e00008, 0x0, 
 0x0, 0x0, 0x0, 0x0 };
-static u32 tigon2FwRodata[(MAX_RODATA_LEN/4) + 1] __initdata = {
+static u32 tigon2FwRodata[(MAX_RODATA_LEN/4) + 1] __devinitdata = {
 0x24486561, 0x6465723a, 0x202f7072, 
 0x6f6a6563, 0x74732f72, 0x63732f73, 0x772f6765, 
 0x2f2e2f6e, 0x69632f66, 0x77322f63, 0x6f6d6d6f, 
@@ -9425,7 +9425,7 @@ static u32 tigon2FwRodata[(MAX_RODATA_LEN/4) + 1] __initdata = {
 0x14ed8, 0x14b8c, 0x14bd8, 0x14c24, 
 0x14ed8, 0x7365746d, 0x61636163, 0x74000000, 
 0x0, 0x0 };
-static u32 tigon2FwData[(MAX_DATA_LEN/4) + 1] __initdata = {
+static u32 tigon2FwData[(MAX_DATA_LEN/4) + 1] __devinitdata = {
 0x1, 
 0x1, 0x1, 0xc001fc, 0x3ffc, 
 0xc00000, 0x416c7465, 0x6f6e2041, 0x63654e49, 

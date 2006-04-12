@@ -55,8 +55,6 @@ static const struct mtd_partition partition_info[] = {
  		.size 	=    MTDPART_SIZ_FULL
 	}
 };
-#define NB_OF(x)  (sizeof(x)/sizeof(x[0]))
-
 
 /**
  * au_read_byte -  read one byte from the chip
@@ -462,7 +460,7 @@ int __init au1xxx_nand_init (void)
 	}
 
 	/* Register the partitions */
-	add_mtd_partitions(au1550_mtd, partition_info, NB_OF(partition_info));
+	add_mtd_partitions(au1550_mtd, partition_info, ARRAY_SIZE(partition_info));
 
 	return 0;
 

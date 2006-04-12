@@ -1451,6 +1451,12 @@ P:	Juanjo Ciarlante
 M:	jjciarla@raiz.uncu.edu.ar
 S:	Maintained
 
+IPATH DRIVER:
+P:	Bryan O'Sullivan
+M:	support@pathscale.com
+L:	openib-general@openib.org
+S:	Supported
+
 IPX NETWORK LAYER
 P:	Arnaldo Carvalho de Melo
 M:	acme@conectiva.com.br
@@ -1550,9 +1556,7 @@ S:	Maintained
 
 KEXEC
 P:	Eric Biederman
-P:	Randy Dunlap
 M:	ebiederm@xmission.com
-M:	rdunlap@xenotime.net
 W:	http://www.xmission.com/~ebiederm/files/kexec/
 L:	linux-kernel@vger.kernel.org
 L:	fastboot@osdl.org

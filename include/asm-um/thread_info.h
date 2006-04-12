@@ -27,14 +27,14 @@ struct thread_info {
 
 #define INIT_THREAD_INFO(tsk)			\
 {						\
-	task:		&tsk,			\
-	exec_domain:	&default_exec_domain,	\
-	flags:		0,			\
-	cpu:		0,			\
-	preempt_count:	1,			\
-	addr_limit:	KERNEL_DS,		\
-	restart_block:  {			\
-		fn:  do_no_restart_syscall,	\
+	.task =		&tsk,			\
+	.exec_domain =	&default_exec_domain,	\
+	.flags =		0,		\
+	.cpu =		0,			\
+	.preempt_count =	1,		\
+	.addr_limit =	KERNEL_DS,		\
+	.restart_block =  {			\
+		.fn =  do_no_restart_syscall,	\
 	},					\
 }
 

@@ -346,7 +346,7 @@ static int ipmi_dell_chassis_detect (ipmi_user_t user)
 {
 	const char ipmi_version_major = ipmi_version & 0xF;
 	const char ipmi_version_minor = (ipmi_version >> 4) & 0xF;
-	const char mfr[3]=DELL_IANA_MFR_ID;
+	const char mfr[3] = DELL_IANA_MFR_ID;
 	if (!memcmp(mfr, &mfg_id, sizeof(mfr)) &&
 	    ipmi_version_major <= 1 &&
 	    ipmi_version_minor < 5)

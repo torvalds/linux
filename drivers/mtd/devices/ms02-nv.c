@@ -308,7 +308,7 @@ static int __init ms02nv_init(void)
 		break;
 	}
 
-	for (i = 0; i < (sizeof(ms02nv_addrs) / sizeof(*ms02nv_addrs)); i++)
+	for (i = 0; i < ARRAY_SIZE(ms02nv_addrs); i++)
 		if (!ms02nv_init_one(ms02nv_addrs[i] << stride))
 			count++;
 

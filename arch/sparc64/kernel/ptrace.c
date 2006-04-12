@@ -244,6 +244,13 @@ asmlinkage void do_ptrace(struct pt_regs *regs)
 	}
 
 	switch(request) {
+	case PTRACE_PEEKUSR:
+		if (addr != 0)
+			pt_error_return(regs, EIO);
+		else
+			pt_succ_return(regs, 0);
+		goto out_tsk;
+
 	case PTRACE_PEEKTEXT: /* read word at location addr. */ 
 	case PTRACE_PEEKDATA: {
 		unsigned long tmp64;
@@ -601,6 +608,22 @@ asmlinkage void do_ptrace(struct pt_regs *regs)
 	}
 
 	/* PTRACE_DUMPCORE unsupported... */
+
+	case PTRACE_GETEVENTMSG: {
+		int err;
+
+		if (test_thread_flag(TIF_32BIT))
+			err = put_user(child->ptrace_message,
+				       (unsigned int __user *) data);
+		else
+			err = put_user(child->ptrace_message,
+				       (unsigned long __user *) data);
+		if (err)
+			pt_error_return(regs, -err);
+		else
+			pt_succ_return(regs, 0);
+		break;
+	}
 
 	default: {
 		int err = ptrace_request(child, request, addr, data);

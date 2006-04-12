@@ -54,7 +54,7 @@
 #endif /* CONFIG_PPC_OF */
 
 #define DRV_NAME	"sata_svw"
-#define DRV_VERSION	"1.07"
+#define DRV_VERSION	"1.8"
 
 enum {
 	/* Taskfile registers offsets */
@@ -257,7 +257,7 @@ static int k2_sata_proc_info(struct Scsi_Host *shost, char *page, char **start,
 	int len, index;
 
 	/* Find  the ata_port */
-	ap = (struct ata_port *) &shost->hostdata[0];
+	ap = ata_shost_to_port(shost);
 	if (ap == NULL)
 		return 0;
 
@@ -290,7 +290,6 @@ static struct scsi_host_template k2_sata_sht = {
 	.name			= DRV_NAME,
 	.ioctl			= ata_scsi_ioctl,
 	.queuecommand		= ata_scsi_queuecmd,
-	.eh_strategy_handler	= ata_scsi_error,
 	.can_queue		= ATA_DEF_QUEUE,
 	.this_id		= ATA_SHT_THIS_ID,
 	.sg_tablesize		= LIBATA_MAX_PRD,

@@ -37,6 +37,11 @@
 #define OMAP1610_MCBSP2_BASE	0xfffb1000
 #define OMAP1610_MCBSP3_BASE	0xe1017000
 
+#define OMAP24XX_MCBSP1_BASE	0x48074000
+#define OMAP24XX_MCBSP2_BASE	0x48076000
+
+#if defined(CONFIG_ARCH_OMAP15XX) || defined(CONFIG_ARCH_OMAP16XX) || defined(CONFIG_ARCH_OMAP730)
+
 #define OMAP_MCBSP_REG_DRR2	0x00
 #define OMAP_MCBSP_REG_DRR1	0x02
 #define OMAP_MCBSP_REG_DXR2	0x04
@@ -71,8 +76,61 @@
 
 #define OMAP_MAX_MCBSP_COUNT 3
 
+#define AUDIO_MCBSP_DATAWRITE	(OMAP1510_MCBSP1_BASE + OMAP_MCBSP_REG_DXR1)
+#define AUDIO_MCBSP_DATAREAD	(OMAP1510_MCBSP1_BASE + OMAP_MCBSP_REG_DRR1)
+
+#define AUDIO_MCBSP		OMAP_MCBSP1
+#define AUDIO_DMA_TX		OMAP_DMA_MCBSP1_TX
+#define AUDIO_DMA_RX		OMAP_DMA_MCBSP1_RX
+
+#elif defined(CONFIG_ARCH_OMAP24XX)
+
+#define OMAP_MCBSP_REG_DRR2	0x00
+#define OMAP_MCBSP_REG_DRR1	0x04
+#define OMAP_MCBSP_REG_DXR2	0x08
+#define OMAP_MCBSP_REG_DXR1	0x0C
+#define OMAP_MCBSP_REG_SPCR2	0x10
+#define OMAP_MCBSP_REG_SPCR1	0x14
+#define OMAP_MCBSP_REG_RCR2	0x18
+#define OMAP_MCBSP_REG_RCR1	0x1C
+#define OMAP_MCBSP_REG_XCR2	0x20
+#define OMAP_MCBSP_REG_XCR1	0x24
+#define OMAP_MCBSP_REG_SRGR2	0x28
+#define OMAP_MCBSP_REG_SRGR1	0x2C
+#define OMAP_MCBSP_REG_MCR2	0x30
+#define OMAP_MCBSP_REG_MCR1	0x34
+#define OMAP_MCBSP_REG_RCERA	0x38
+#define OMAP_MCBSP_REG_RCERB	0x3C
+#define OMAP_MCBSP_REG_XCERA	0x40
+#define OMAP_MCBSP_REG_XCERB	0x44
+#define OMAP_MCBSP_REG_PCR0	0x48
+#define OMAP_MCBSP_REG_RCERC	0x4C
+#define OMAP_MCBSP_REG_RCERD	0x50
+#define OMAP_MCBSP_REG_XCERC	0x54
+#define OMAP_MCBSP_REG_XCERD	0x58
+#define OMAP_MCBSP_REG_RCERE	0x5C
+#define OMAP_MCBSP_REG_RCERF	0x60
+#define OMAP_MCBSP_REG_XCERE	0x64
+#define OMAP_MCBSP_REG_XCERF	0x68
+#define OMAP_MCBSP_REG_RCERG	0x6C
+#define OMAP_MCBSP_REG_RCERH	0x70
+#define OMAP_MCBSP_REG_XCERG	0x74
+#define OMAP_MCBSP_REG_XCERH	0x78
+
+#define OMAP_MAX_MCBSP_COUNT 2
+
+#define AUDIO_MCBSP_DATAWRITE	(OMAP24XX_MCBSP2_BASE + OMAP_MCBSP_REG_DXR1)
+#define AUDIO_MCBSP_DATAREAD	(OMAP24XX_MCBSP2_BASE + OMAP_MCBSP_REG_DRR1)
+
+#define AUDIO_MCBSP		OMAP_MCBSP2
+#define AUDIO_DMA_TX		OMAP24XX_DMA_MCBSP2_TX
+#define AUDIO_DMA_RX		OMAP24XX_DMA_MCBSP2_RX
+
+#endif
+
 #define OMAP_MCBSP_READ(base, reg)		__raw_readw((base) + OMAP_MCBSP_REG_##reg)
 #define OMAP_MCBSP_WRITE(base, reg, val)	__raw_writew((val), (base) + OMAP_MCBSP_REG_##reg)
+
 
 /************************** McBSP SPCR1 bit definitions ***********************/
 #define RRST			0x0001
@@ -195,6 +253,10 @@ typedef enum {
 	OMAP_MCBSP3,
 } omap_mcbsp_id;
 
+typedef int __bitwise omap_mcbsp_io_type_t;
+#define OMAP_MCBSP_IRQ_IO ((__force omap_mcbsp_io_type_t) 1)
+#define OMAP_MCBSP_POLL_IO ((__force omap_mcbsp_io_type_t) 2)
+
 typedef enum {
 	OMAP_MCBSP_WORD_8 = 0,
 	OMAP_MCBSP_WORD_12,
@@ -246,6 +308,9 @@ u32 omap_mcbsp_recv_word(unsigned int id);
 
 int omap_mcbsp_xmit_buffer(unsigned int id, dma_addr_t buffer, unsigned int length);
 int omap_mcbsp_recv_buffer(unsigned int id, dma_addr_t buffer, unsigned int length);
+int omap_mcbsp_spi_master_xmit_word_poll(unsigned int id, u32 word);
+int omap_mcbsp_spi_master_recv_word_poll(unsigned int id, u32 * word);
+
 
 /* SPI specific API */
 void omap_mcbsp_set_spi_mode(unsigned int id, const struct omap_mcbsp_spi_cfg * spi_cfg);

@@ -252,6 +252,9 @@ static void __init dump_cpu_info(int cpu)
 			dump_cache("cache", cpu, CACHE_ISIZE(info));
 		}
 	}
+
+	if (arch_is_coherent())
+		printk("Cache coherency enabled\n");
 }
 
 int cpu_architecture(void)
@@ -319,6 +322,12 @@ static void __init setup_processor(void)
 	sprintf(system_utsname.machine, "%s%c", list->arch_name, ENDIANNESS);
 	sprintf(elf_platform, "%s%c", list->elf_name, ENDIANNESS);
 	elf_hwcap = list->elf_hwcap;
+#ifndef CONFIG_ARM_THUMB
+	elf_hwcap &= ~HWCAP_THUMB;
+#endif
+#ifndef CONFIG_VFP
+	elf_hwcap &= ~HWCAP_VFP;
+#endif
 
 	cpu_proc_init();
 }

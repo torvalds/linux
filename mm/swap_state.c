@@ -148,8 +148,7 @@ int add_to_swap(struct page * page, gfp_t gfp_mask)
 	swp_entry_t entry;
 	int err;
 
-	if (!PageLocked(page))
-		BUG();
+	BUG_ON(!PageLocked(page));
 
 	for (;;) {
 		entry = get_swap_page();

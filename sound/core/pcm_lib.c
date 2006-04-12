@@ -2299,19 +2299,7 @@ snd_pcm_sframes_t snd_pcm_lib_write(struct snd_pcm_substream *substream, const v
 	if (runtime->status->state == SNDRV_PCM_STATE_OPEN)
 		return -EBADFD;
 
-	snd_assert(substream->ffile != NULL, return -ENXIO);
 	nonblock = !!(substream->ffile->f_flags & O_NONBLOCK);
-#if defined(CONFIG_SND_PCM_OSS) || defined(CONFIG_SND_PCM_OSS_MODULE)
-	if (substream->oss.oss) {
-		struct snd_pcm_oss_setup *setup = substream->oss.setup;
-		if (setup != NULL) {
-			if (setup->nonblock)
-				nonblock = 1;
-			else if (setup->block)
-				nonblock = 0;
-		}
-	}
-#endif
 
 	if (runtime->access != SNDRV_PCM_ACCESS_RW_INTERLEAVED &&
 	    runtime->channels > 1)
@@ -2374,19 +2362,7 @@ snd_pcm_sframes_t snd_pcm_lib_writev(struct snd_pcm_substream *substream,
 	if (runtime->status->state == SNDRV_PCM_STATE_OPEN)
 		return -EBADFD;
 
-	snd_assert(substream->ffile != NULL, return -ENXIO);
 	nonblock = !!(substream->ffile->f_flags & O_NONBLOCK);
-#if defined(CONFIG_SND_PCM_OSS) || defined(CONFIG_SND_PCM_OSS_MODULE)
-	if (substream->oss.oss) {
-		struct snd_pcm_oss_setup *setup = substream->oss.setup;
-		if (setup != NULL) {
-			if (setup->nonblock)
-				nonblock = 1;
-			else if (setup->block)
-				nonblock = 0;
-		}
-	}
-#endif
 
 	if (runtime->access != SNDRV_PCM_ACCESS_RW_NONINTERLEAVED)
 		return -EINVAL;
@@ -2596,19 +2572,7 @@ snd_pcm_sframes_t snd_pcm_lib_read(struct snd_pcm_substream *substream, void __u
 	if (runtime->status->state == SNDRV_PCM_STATE_OPEN)
 		return -EBADFD;
 
-	snd_assert(substream->ffile != NULL, return -ENXIO);
 	nonblock = !!(substream->ffile->f_flags & O_NONBLOCK);
-#if defined(CONFIG_SND_PCM_OSS) || defined(CONFIG_SND_PCM_OSS_MODULE)
-	if (substream->oss.oss) {
-		struct snd_pcm_oss_setup *setup = substream->oss.setup;
-		if (setup != NULL) {
-			if (setup->nonblock)
-				nonblock = 1;
-			else if (setup->block)
-				nonblock = 0;
-		}
-	}
-#endif
 	if (runtime->access != SNDRV_PCM_ACCESS_RW_INTERLEAVED)
 		return -EINVAL;
 	return snd_pcm_lib_read1(substream, (unsigned long)buf, size, nonblock, snd_pcm_lib_read_transfer);
@@ -2665,20 +2629,7 @@ snd_pcm_sframes_t snd_pcm_lib_readv(struct snd_pcm_substream *substream,
 	if (runtime->status->state == SNDRV_PCM_STATE_OPEN)
 		return -EBADFD;
 
-	snd_assert(substream->ffile != NULL, return -ENXIO);
 	nonblock = !!(substream->ffile->f_flags & O_NONBLOCK);
-#if defined(CONFIG_SND_PCM_OSS) || defined(CONFIG_SND_PCM_OSS_MODULE)
-	if (substream->oss.oss) {
-		struct snd_pcm_oss_setup *setup = substream->oss.setup;
-		if (setup != NULL) {
-			if (setup->nonblock)
-				nonblock = 1;
-			else if (setup->block)
-				nonblock = 0;
-		}
-	}
-#endif
-
 	if (runtime->access != SNDRV_PCM_ACCESS_RW_NONINTERLEAVED)
 		return -EINVAL;
 	return snd_pcm_lib_read1(substream, (unsigned long)bufs, frames, nonblock, snd_pcm_lib_readv_transfer);

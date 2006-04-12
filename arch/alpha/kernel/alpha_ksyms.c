@@ -76,7 +76,6 @@ EXPORT_SYMBOL(strncpy);
 EXPORT_SYMBOL(strnlen);
 EXPORT_SYMBOL(strncat);
 EXPORT_SYMBOL(strstr);
-EXPORT_SYMBOL(strpbrk);
 EXPORT_SYMBOL(strchr);
 EXPORT_SYMBOL(strrchr);
 EXPORT_SYMBOL(memcmp);
@@ -215,8 +214,6 @@ EXPORT_SYMBOL(__remqu);
 EXPORT_SYMBOL(memcpy);
 EXPORT_SYMBOL(memset);
 EXPORT_SYMBOL(memchr);
-
-EXPORT_SYMBOL(get_wchan);
 
 #ifdef CONFIG_ALPHA_IRONGATE
 EXPORT_SYMBOL(irongate_ioremap);

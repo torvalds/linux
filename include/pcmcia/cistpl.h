@@ -586,12 +586,7 @@ typedef struct cisdump_t {
     cisdata_t	Data[CISTPL_MAX_CIS_SIZE];
 } cisdump_t;
 
-int pcmcia_get_first_tuple(client_handle_t handle, tuple_t *tuple);
-int pcmcia_get_next_tuple(client_handle_t handle, tuple_t *tuple);
-int pcmcia_get_tuple_data(client_handle_t handle, tuple_t *tuple);
-int pcmcia_parse_tuple(client_handle_t handle, tuple_t *tuple, cisparse_t *parse);
 
-int pcmcia_validate_cis(client_handle_t handle, cisinfo_t *info);
 int pcmcia_replace_cis(struct pcmcia_socket *s, cisdump_t *cis);
 
 /* don't use outside of PCMCIA core yet */
@@ -601,5 +596,21 @@ int pccard_get_tuple_data(struct pcmcia_socket *s, tuple_t *tuple);
 int pccard_parse_tuple(tuple_t *tuple, cisparse_t *parse);
 
 int pccard_validate_cis(struct pcmcia_socket *s, unsigned int function, cisinfo_t *info);
+
+/* ... but use these wrappers instead */
+#define pcmcia_get_first_tuple(p_dev, tuple) \
+		pccard_get_first_tuple(p_dev->socket, p_dev->func, tuple)
+
+#define pcmcia_get_next_tuple(p_dev, tuple) \
+		pccard_get_next_tuple(p_dev->socket, p_dev->func, tuple)
+
+#define pcmcia_get_tuple_data(p_dev, tuple) \
+		pccard_get_tuple_data(p_dev->socket, tuple)
+
+#define pcmcia_parse_tuple(p_dev, tuple, parse) \
+		pccard_parse_tuple(tuple, parse)
+
+#define pcmcia_validate_cis(p_dev, info) \
+		pccard_validate_cis(p_dev->socket, p_dev->func, info)
 
 #endif /* LINUX_CISTPL_H */

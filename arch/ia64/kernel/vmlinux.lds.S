@@ -70,6 +70,15 @@ SECTIONS
 	  __stop___ex_table = .;
 	}
 
+  /* MCA table */
+  . = ALIGN(16);
+  __mca_table : AT(ADDR(__mca_table) - LOAD_OFFSET)
+	{
+	  __start___mca_table = .;
+	  *(__mca_table)
+	  __stop___mca_table = .;
+	}
+
   /* Global data */
   _data = .;
 
@@ -128,15 +137,6 @@ SECTIONS
 	  *(.initcall6.init)
 	  *(.initcall7.init)
 	  __initcall_end = .;
-	}
-
-  /* MCA table */
-  . = ALIGN(16);
-  __mca_table : AT(ADDR(__mca_table) - LOAD_OFFSET)
-	{
-	  __start___mca_table = .;
-	  *(__mca_table)
-	  __stop___mca_table = .;
 	}
 
   .data.patch.vtop : AT(ADDR(.data.patch.vtop) - LOAD_OFFSET)

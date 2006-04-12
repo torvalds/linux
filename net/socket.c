@@ -119,7 +119,6 @@ static ssize_t sock_writev(struct file *file, const struct iovec *vector,
 static ssize_t sock_sendpage(struct file *file, struct page *page,
 			     int offset, size_t size, loff_t *ppos, int more);
 
-
 /*
  *	Socket files have a set of 'special' operations as well as the generic file ones. These don't appear
  *	in the operation structures but are done directly via the socketcall() multiplexor.
@@ -141,7 +140,8 @@ static struct file_operations socket_file_ops = {
 	.fasync =	sock_fasync,
 	.readv =	sock_readv,
 	.writev =	sock_writev,
-	.sendpage =	sock_sendpage
+	.sendpage =	sock_sendpage,
+	.splice_write = generic_splice_sendpage,
 };
 
 /*
@@ -1414,7 +1414,8 @@ asmlinkage long sys_accept(int fd, struct sockaddr __user *upeer_sockaddr, int _
 	newfd = sock_alloc_fd(&newfile);
 	if (unlikely(newfd < 0)) {
 		err = newfd;
-		goto out_release;
+		sock_release(newsock);
+		goto out_put;
 	}
 
 	err = sock_attach_fd(newsock, newfile);
@@ -1451,10 +1452,8 @@ out_put:
 out:
 	return err;
 out_fd:
-	put_filp(newfile);
+	fput(newfile);
 	put_unused_fd(newfd);
-out_release:
-	sock_release(newsock);
 	goto out_put;
 }
 
@@ -2133,7 +2132,7 @@ void socket_seq_show(struct seq_file *seq)
 	int cpu;
 	int counter = 0;
 
-	for_each_cpu(cpu)
+	for_each_possible_cpu(cpu)
 		counter += per_cpu(sockets_in_use, cpu);
 
 	/* It can be negative, by the way. 8) */

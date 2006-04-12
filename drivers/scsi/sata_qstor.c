@@ -41,7 +41,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"sata_qstor"
-#define DRV_VERSION	"0.05"
+#define DRV_VERSION	"0.06"
 
 enum {
 	QS_PORTS		= 4,
@@ -132,7 +132,6 @@ static struct scsi_host_template qs_ata_sht = {
 	.name			= DRV_NAME,
 	.ioctl			= ata_scsi_ioctl,
 	.queuecommand		= ata_scsi_queuecmd,
-	.eh_strategy_handler	= ata_scsi_error,
 	.can_queue		= ATA_DEF_QUEUE,
 	.this_id		= ATA_SHT_THIS_ID,
 	.sg_tablesize		= QS_MAX_PRD,
@@ -396,7 +395,7 @@ static inline unsigned int qs_intr_pkt(struct ata_host_set *host_set)
 					sff1, sff0, port_no, sHST, sDST);
 			handled = 1;
 			if (ap && !(ap->flags &
-				    (ATA_FLAG_PORT_DISABLED|ATA_FLAG_NOINTR))) {
+				    (ATA_FLAG_DISABLED|ATA_FLAG_NOINTR))) {
 				struct ata_queued_cmd *qc;
 				struct qs_port_priv *pp = ap->private_data;
 				if (!pp || pp->state != qs_state_pkt)
@@ -429,7 +428,7 @@ static inline unsigned int qs_intr_mmio(struct ata_host_set *host_set)
 		struct ata_port *ap;
 		ap = host_set->ports[port_no];
 		if (ap &&
-		    !(ap->flags & (ATA_FLAG_PORT_DISABLED | ATA_FLAG_NOINTR))) {
+		    !(ap->flags & (ATA_FLAG_DISABLED | ATA_FLAG_NOINTR))) {
 			struct ata_queued_cmd *qc;
 			struct qs_port_priv *pp = ap->private_data;
 			if (!pp || pp->state != qs_state_mmio)
