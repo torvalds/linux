@@ -162,7 +162,7 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 	ops->stop = op_powerpc_stop;
 	ops->backtrace = op_powerpc_backtrace;
 
-	printk(KERN_INFO "oprofile: using %s performance monitoring.\n",
+	printk(KERN_DEBUG "oprofile: using %s performance monitoring.\n",
 	       ops->cpu_type);
 
 	return 0;
