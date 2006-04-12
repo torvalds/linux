@@ -48,8 +48,20 @@
 
 /*
  * Don't use the *_dontuse flags.  Use the macros.  Otherwise you'll break
- * locked- and dirty-page accounting.  The top eight bits of page->flags are
- * used for page->zone, so putting flag bits there doesn't work.
+ * locked- and dirty-page accounting.
+ *
+ * The page flags field is split into two parts, the main flags area
+ * which extends from the low bits upwards, and the fields area which
+ * extends from the high bits downwards.
+ *
+ *  | FIELD | ... | FLAGS |
+ *  N-1     ^             0
+ *          (N-FLAGS_RESERVED)
+ *
+ * The fields area is reserved for fields mapping zone, node and SPARSEMEM
+ * section.  The boundry between these two areas is defined by
+ * FLAGS_RESERVED which defines the width of the fields section
+ * (see linux/mmzone.h).  New flags must _not_ overlap with this area.
  */
 #define PG_locked	 	 0	/* Page is locked. Don't touch. */
 #define PG_error		 1
@@ -74,7 +86,9 @@
 #define PG_mappedtodisk		16	/* Has blocks allocated on-disk */
 #define PG_reclaim		17	/* To be reclaimed asap */
 #define PG_nosave_free		18	/* Free, should not be written */
-#define PG_uncached		19	/* Page has been mapped as uncached */
+#define PG_buddy		19	/* Page is free, on buddy lists */
+
+#define PG_uncached		20	/* Page has been mapped as uncached */
 
 /*
  * Global page accounting.  One instance per CPU.  Only unsigned longs are
@@ -316,6 +330,10 @@ extern void __mod_page_state_offset(unsigned long offset, unsigned long delta);
 #define PageNosaveFree(page)	test_bit(PG_nosave_free, &(page)->flags)
 #define SetPageNosaveFree(page)	set_bit(PG_nosave_free, &(page)->flags)
 #define ClearPageNosaveFree(page)		clear_bit(PG_nosave_free, &(page)->flags)
+
+#define PageBuddy(page)		test_bit(PG_buddy, &(page)->flags)
+#define __SetPageBuddy(page)	__set_bit(PG_buddy, &(page)->flags)
+#define __ClearPageBuddy(page)	__clear_bit(PG_buddy, &(page)->flags)
 
 #define PageMappedToDisk(page)	test_bit(PG_mappedtodisk, &(page)->flags)
 #define SetPageMappedToDisk(page) set_bit(PG_mappedtodisk, &(page)->flags)

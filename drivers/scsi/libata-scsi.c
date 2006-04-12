@@ -98,6 +98,7 @@ static const u8 def_control_mpage[CONTROL_MPAGE_LEN] = {
  * It just needs the eh_timed_out hook.
  */
 struct scsi_transport_template ata_scsi_transport_template = {
+	.eh_strategy_handler	= ata_scsi_error,
 	.eh_timed_out		= ata_scsi_timed_out,
 };
 
@@ -394,7 +395,7 @@ void ata_dump_status(unsigned id, struct ata_taskfile *tf)
 
 int ata_scsi_device_resume(struct scsi_device *sdev)
 {
-	struct ata_port *ap = (struct ata_port *) &sdev->host->hostdata[0];
+	struct ata_port *ap = ata_shost_to_port(sdev->host);
 	struct ata_device *dev = &ap->device[sdev->id];
 
 	return ata_device_resume(ap, dev);
@@ -402,7 +403,7 @@ int ata_scsi_device_resume(struct scsi_device *sdev)
 
 int ata_scsi_device_suspend(struct scsi_device *sdev, pm_message_t state)
 {
-	struct ata_port *ap = (struct ata_port *) &sdev->host->hostdata[0];
+	struct ata_port *ap = ata_shost_to_port(sdev->host);
 	struct ata_device *dev = &ap->device[sdev->id];
 
 	return ata_device_suspend(ap, dev, state);
@@ -703,7 +704,7 @@ int ata_scsi_slave_config(struct scsi_device *sdev)
 		struct ata_port *ap;
 		struct ata_device *dev;
 
-		ap = (struct ata_port *) &sdev->host->hostdata[0];
+		ap = ata_shost_to_port(sdev->host);
 		dev = &ap->device[sdev->id];
 
 		ata_scsi_dev_config(sdev, dev);
@@ -2477,7 +2478,7 @@ int ata_scsi_queuecmd(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 	struct scsi_device *scsidev = cmd->device;
 	struct Scsi_Host *shost = scsidev->host;
 
-	ap = (struct ata_port *) &shost->hostdata[0];
+	ap = ata_shost_to_port(shost);
 
 	spin_unlock(shost->host_lock);
 	spin_lock(&ap->host_set->lock);

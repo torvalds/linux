@@ -227,14 +227,7 @@ static int pcf8563_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	return pcf8563_set_datetime(to_i2c_client(dev), tm);
 }
 
-static int pcf8563_rtc_proc(struct device *dev, struct seq_file *seq)
-{
-	seq_printf(seq, "24hr\t\t: yes\n");
-	return 0;
-}
-
 static struct rtc_class_ops pcf8563_rtc_ops = {
-	.proc		= pcf8563_rtc_proc,
 	.read_time	= pcf8563_rtc_read_time,
 	.set_time	= pcf8563_rtc_set_time,
 };
@@ -297,8 +290,6 @@ static int pcf8563_probe(struct i2c_adapter *adapter, int address, int kind)
 
 	if (IS_ERR(rtc)) {
 		err = PTR_ERR(rtc);
-		dev_err(&client->dev,
-			"unable to register the class device\n");
 		goto exit_detach;
 	}
 
@@ -320,8 +311,6 @@ static int pcf8563_detach(struct i2c_client *client)
 {
 	int err;
 	struct rtc_device *rtc = i2c_get_clientdata(client);
-
-	dev_dbg(&client->dev, "%s\n", __FUNCTION__);
 
 	if (rtc)
 		rtc_device_unregister(rtc);

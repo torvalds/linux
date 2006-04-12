@@ -6,8 +6,10 @@
 #ifndef __USER_H__
 #define __USER_H__
 
-extern void panic(const char *fmt, ...);
-extern int printk(const char *fmt, ...);
+extern void panic(const char *fmt, ...)
+	__attribute__ ((format (printf, 1, 2)));
+extern int printk(const char *fmt, ...)
+	__attribute__ ((format (printf, 1, 2)));
 extern void schedule(void);
 extern void *um_kmalloc(int size);
 extern void *um_kmalloc_atomic(int size);

@@ -868,7 +868,6 @@ __group_complete_signal(int sig, struct task_struct *p)
 		if (t == NULL)
 			/* restart balancing at this thread */
 			t = p->signal->curr_target = p;
-		BUG_ON(t->tgid != p->tgid);
 
 		while (!wants_signal(sig, t)) {
 			t = next_thread(t);

@@ -5,4 +5,4 @@
 obj-y    := math.o
 
 EXTRA_AFLAGS := -ansi
-EXTRA_CFLAGS = -I. -I$(TOPDIR)/include/math-emu -w
+EXTRA_CFLAGS = -I. -Iinclude/math-emu -w

@@ -649,6 +649,11 @@ config NUMA
 	depends on PPC64
 	default y if SMP && PPC_PSERIES
 
+config NODES_SHIFT
+	int
+	default "4"
+	depends on NEED_MULTIPLE_NODES
+
 config ARCH_SELECT_MEMORY_MODEL
 	def_bool y
 	depends on PPC64

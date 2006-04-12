@@ -117,10 +117,6 @@ extern struct task_struct *get_task(int pid, int require);
 extern void machine_halt(void);
 extern int is_syscall(unsigned long addr);
 
-extern void arch_switch_to_tt(struct task_struct *from, struct task_struct *to);
-
-extern void arch_switch_to_skas(struct task_struct *from, struct task_struct *to);
-
 extern void free_irq(unsigned int, void *);
 extern int cpu(void);
 

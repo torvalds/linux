@@ -1508,10 +1508,12 @@ static void tw_transfer_internal(TW_Device_Extension *tw_dev, int request_id,
 	struct scsi_cmnd *cmd = tw_dev->srb[request_id];
 	void *buf;
 	unsigned int transfer_len;
+	unsigned long flags = 0;
 
 	if (cmd->use_sg) {
 		struct scatterlist *sg =
 			(struct scatterlist *)cmd->request_buffer;
+		local_irq_save(flags);
 		buf = kmap_atomic(sg->page, KM_IRQ0) + sg->offset;
 		transfer_len = min(sg->length, len);
 	} else {
@@ -1526,6 +1528,7 @@ static void tw_transfer_internal(TW_Device_Extension *tw_dev, int request_id,
 
 		sg = (struct scatterlist *)cmd->request_buffer;
 		kunmap_atomic(buf - sg->offset, KM_IRQ0);
+		local_irq_restore(flags);
 	}
 }
 

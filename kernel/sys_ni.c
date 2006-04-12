@@ -120,3 +120,15 @@ cond_syscall(sys32_sysctl);
 cond_syscall(ppc_rtas);
 cond_syscall(sys_spu_run);
 cond_syscall(sys_spu_create);
+
+/* mmu depending weak syscall entries */
+cond_syscall(sys_mprotect);
+cond_syscall(sys_msync);
+cond_syscall(sys_mlock);
+cond_syscall(sys_munlock);
+cond_syscall(sys_mlockall);
+cond_syscall(sys_munlockall);
+cond_syscall(sys_mincore);
+cond_syscall(sys_madvise);
+cond_syscall(sys_mremap);
+cond_syscall(sys_remap_file_pages);

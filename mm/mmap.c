@@ -121,14 +121,26 @@ int __vm_enough_memory(long pages, int cap_sys_admin)
 		 * only call if we're about to fail.
 		 */
 		n = nr_free_pages();
+
+		/*
+		 * Leave reserved pages. The pages are not for anonymous pages.
+		 */
+		if (n <= totalreserve_pages)
+			goto error;
+		else
+			n -= totalreserve_pages;
+
+		/*
+		 * Leave the last 3% for root
+		 */
 		if (!cap_sys_admin)
 			n -= n / 32;
 		free += n;
 
 		if (free > pages)
 			return 0;
-		vm_unacct_memory(pages);
-		return -ENOMEM;
+
+		goto error;
 	}
 
 	allowed = (totalram_pages - hugetlb_total_pages())
@@ -150,7 +162,7 @@ int __vm_enough_memory(long pages, int cap_sys_admin)
 	 */
 	if (atomic_read(&vm_committed_space) < (long)allowed)
 		return 0;
-
+error:
 	vm_unacct_memory(pages);
 
 	return -ENOMEM;
@@ -220,6 +232,17 @@ asmlinkage unsigned long sys_brk(unsigned long brk)
 
 	if (brk < mm->end_code)
 		goto out;
+
+	/*
+	 * Check against rlimit here. If this check is done later after the test
+	 * of oldbrk with newbrk then it can escape the test and let the data
+	 * segment grow beyond its set limit the in case where the limit is
+	 * not page aligned -Ram Gupta
+	 */
+	rlim = current->signal->rlim[RLIMIT_DATA].rlim_cur;
+	if (rlim < RLIM_INFINITY && brk - mm->start_data > rlim)
+		goto out;
+
 	newbrk = PAGE_ALIGN(brk);
 	oldbrk = PAGE_ALIGN(mm->brk);
 	if (oldbrk == newbrk)
@@ -231,11 +254,6 @@ asmlinkage unsigned long sys_brk(unsigned long brk)
 			goto set_brk;
 		goto out;
 	}
-
-	/* Check against rlimit.. */
-	rlim = current->signal->rlim[RLIMIT_DATA].rlim_cur;
-	if (rlim < RLIM_INFINITY && brk - mm->start_data > rlim)
-		goto out;
 
 	/* Check against existing mmap mappings. */
 	if (find_vma_intersection(mm, oldbrk, newbrk+PAGE_SIZE))

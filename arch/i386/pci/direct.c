@@ -4,6 +4,7 @@
 
 #include <linux/pci.h>
 #include <linux/init.h>
+#include <linux/dmi.h>
 #include "pci.h"
 
 /*
@@ -18,8 +19,10 @@ int pci_conf1_read(unsigned int seg, unsigned int bus,
 {
 	unsigned long flags;
 
-	if (!value || (bus > 255) || (devfn > 255) || (reg > 255))
+	if ((bus > 255) || (devfn > 255) || (reg > 255)) {
+		*value = -1;
 		return -EINVAL;
+	}
 
 	spin_lock_irqsave(&pci_config_lock, flags);
 
@@ -91,8 +94,10 @@ static int pci_conf2_read(unsigned int seg, unsigned int bus,
 	unsigned long flags;
 	int dev, fn;
 
-	if (!value || (bus > 255) || (devfn > 255) || (reg > 255))
+	if ((bus > 255) || (devfn > 255) || (reg > 255)) {
+		*value = -1;
 		return -EINVAL;
+	}
 
 	dev = PCI_SLOT(devfn);
 	fn = PCI_FUNC(devfn);
@@ -187,6 +192,10 @@ static int __init pci_sanity_check(struct pci_raw_ops *o)
 	int devfn;
 
 	if (pci_probe & PCI_NO_CHECKS)
+		return 1;
+	/* Assume Type 1 works for newer systems.
+	   This handles machines that don't have anything on PCI Bus 0. */
+	if (dmi_get_year(DMI_BIOS_DATE) >= 2001)
 		return 1;
 
 	for (devfn = 0; devfn < 0x100; devfn++) {

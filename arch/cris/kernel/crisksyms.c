@@ -39,7 +39,6 @@ EXPORT_SYMBOL(loops_per_usec);
 /* String functions */
 EXPORT_SYMBOL(memcmp);
 EXPORT_SYMBOL(memmove);
-EXPORT_SYMBOL(strpbrk);
 EXPORT_SYMBOL(strstr);
 EXPORT_SYMBOL(strcpy);
 EXPORT_SYMBOL(strchr);

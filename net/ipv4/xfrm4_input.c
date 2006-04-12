@@ -37,8 +37,6 @@ static int xfrm4_parse_spi(struct sk_buff *skb, u8 nexthdr, u32 *spi, u32 *seq)
 {
 	switch (nexthdr) {
 	case IPPROTO_IPIP:
-		if (!pskb_may_pull(skb, sizeof(struct iphdr)))
-			return -EINVAL;
 		*spi = skb->nh.iph->saddr;
 		*seq = 0;
 		return 0;
@@ -90,7 +88,7 @@ int xfrm4_rcv_encap(struct sk_buff *skb, __u16 encap_type)
 		if (unlikely(x->km.state != XFRM_STATE_VALID))
 			goto drop_unlock;
 
-		if (x->encap->encap_type != encap_type)
+		if ((x->encap ? x->encap->encap_type : 0) != encap_type)
 			goto drop_unlock;
 
 		if (x->props.replay_window && xfrm_replay_check(x, seq))

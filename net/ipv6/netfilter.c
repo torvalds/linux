@@ -7,6 +7,7 @@
 #include <net/ipv6.h>
 #include <net/ip6_route.h>
 #include <net/xfrm.h>
+#include <net/ip6_checksum.h>
 
 int ip6_route_me_harder(struct sk_buff *skb)
 {
@@ -54,7 +55,7 @@ struct ip6_rt_info {
 	struct in6_addr saddr;
 };
 
-static void save(const struct sk_buff *skb, struct nf_info *info)
+static void nf_ip6_saveroute(const struct sk_buff *skb, struct nf_info *info)
 {
 	struct ip6_rt_info *rt_info = nf_info_reroute(info);
 
@@ -66,7 +67,7 @@ static void save(const struct sk_buff *skb, struct nf_info *info)
 	}
 }
 
-static int reroute(struct sk_buff **pskb, const struct nf_info *info)
+static int nf_ip6_reroute(struct sk_buff **pskb, const struct nf_info *info)
 {
 	struct ip6_rt_info *rt_info = nf_info_reroute(info);
 
@@ -79,15 +80,50 @@ static int reroute(struct sk_buff **pskb, const struct nf_info *info)
 	return 0;
 }
 
-static struct nf_queue_rerouter ip6_reroute = {
-	.rer_size	= sizeof(struct ip6_rt_info),
-	.save 		= &save,
-	.reroute	= &reroute,
+unsigned int nf_ip6_checksum(struct sk_buff *skb, unsigned int hook,
+			     unsigned int dataoff, u_int8_t protocol)
+{
+	struct ipv6hdr *ip6h = skb->nh.ipv6h;
+	unsigned int csum = 0;
+
+	switch (skb->ip_summed) {
+	case CHECKSUM_HW:
+		if (hook != NF_IP6_PRE_ROUTING && hook != NF_IP6_LOCAL_IN)
+			break;
+		if (!csum_ipv6_magic(&ip6h->saddr, &ip6h->daddr,
+			    	     skb->len - dataoff, protocol,
+				     csum_sub(skb->csum,
+					      skb_checksum(skb, 0,
+							   dataoff, 0)))) {
+			skb->ip_summed = CHECKSUM_UNNECESSARY;
+			break;
+		}
+		/* fall through */
+	case CHECKSUM_NONE:
+		skb->csum = ~csum_ipv6_magic(&ip6h->saddr, &ip6h->daddr,
+					     skb->len - dataoff,
+					     protocol,
+					     csum_sub(0,
+						      skb_checksum(skb, 0,
+							           dataoff, 0)));
+		csum = __skb_checksum_complete(skb);
+	}
+	return csum;
+}
+
+EXPORT_SYMBOL(nf_ip6_checksum);
+
+static struct nf_afinfo nf_ip6_afinfo = {
+	.family		= AF_INET6,
+	.checksum	= nf_ip6_checksum,
+	.saveroute	= nf_ip6_saveroute,
+	.reroute	= nf_ip6_reroute,
+	.route_key_size	= sizeof(struct ip6_rt_info),
 };
 
 int __init ipv6_netfilter_init(void)
 {
-	return nf_register_queue_rerouter(PF_INET6, &ip6_reroute);
+	return nf_register_afinfo(&nf_ip6_afinfo);
 }
 
 /* This can be called from inet6_init() on errors, so it cannot
@@ -95,5 +131,5 @@ int __init ipv6_netfilter_init(void)
  */
 void ipv6_netfilter_fini(void)
 {
-	nf_unregister_queue_rerouter(PF_INET6);
+	nf_unregister_afinfo(&nf_ip6_afinfo);
 }

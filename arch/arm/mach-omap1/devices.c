@@ -25,10 +25,6 @@
 #include <asm/arch/mux.h>
 #include <asm/arch/gpio.h>
 
-extern void omap_nop_release(struct device *dev);
-
-/*-------------------------------------------------------------------------*/
-
 #if	defined(CONFIG_OMAP1610_IR) || defined(CONFIG_OMAP161O_IR_MODULE)
 
 static u64 irda_dmamask = 0xffffffff;
@@ -37,7 +33,6 @@ static struct platform_device omap1610ir_device = {
 	.name = "omap1610-ir",
 	.id = -1,
 	.dev = {
-		.release	= omap_nop_release,
 		.dma_mask	= &irda_dmamask,
 	},
 };
@@ -84,9 +79,6 @@ static struct resource rtc_resources[] = {
 static struct platform_device omap_rtc_device = {
 	.name           = "omap_rtc",
 	.id             = -1,
-	.dev = {
-		.release        = omap_nop_release,
-	},
 	.num_resources	= ARRAY_SIZE(rtc_resources),
 	.resource	= rtc_resources,
 };
@@ -124,9 +116,6 @@ static struct resource sti_resources[] = {
 static struct platform_device sti_device = {
 	.name		= "sti",
 	.id		= -1,
-	.dev = {
-		.release	= omap_nop_release,
-	},
 	.num_resources	= ARRAY_SIZE(sti_resources),
 	.resource	= sti_resources,
 };

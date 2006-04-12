@@ -304,8 +304,8 @@ out_clear_poll:
 					   .size	= 0,
 					   .used	= 0 });
 out_free:
-	kfree(p);
 	sigio_unlock();
+	kfree(p);
 out_close2:
 	close(l_sigio_private[0]);
 	close(l_sigio_private[1]);

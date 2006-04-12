@@ -33,6 +33,7 @@
 #include <asm/io.h>
 #include <linux/ata.h>
 #include <linux/workqueue.h>
+#include <scsi/scsi_host.h>
 
 /*
  * compile-time options: to be removed as soon as all the drivers are
@@ -248,7 +249,7 @@ struct ata_queued_cmd;
 /* typedefs */
 typedef void (*ata_qc_cb_t) (struct ata_queued_cmd *qc);
 typedef void (*ata_probeinit_fn_t)(struct ata_port *);
-typedef int (*ata_reset_fn_t)(struct ata_port *, int, unsigned int *);
+typedef int (*ata_reset_fn_t)(struct ata_port *, unsigned int *);
 typedef void (*ata_postreset_fn_t)(struct ata_port *ap, unsigned int *);
 
 struct ata_ioports {
@@ -499,15 +500,14 @@ extern void ata_port_probe(struct ata_port *);
 extern void __sata_phy_reset(struct ata_port *ap);
 extern void sata_phy_reset(struct ata_port *ap);
 extern void ata_bus_reset(struct ata_port *ap);
+extern int ata_set_sata_spd(struct ata_port *ap);
 extern int ata_drive_probe_reset(struct ata_port *ap,
 			ata_probeinit_fn_t probeinit,
 			ata_reset_fn_t softreset, ata_reset_fn_t hardreset,
 			ata_postreset_fn_t postreset, unsigned int *classes);
 extern void ata_std_probeinit(struct ata_port *ap);
-extern int ata_std_softreset(struct ata_port *ap, int verbose,
-			     unsigned int *classes);
-extern int sata_std_hardreset(struct ata_port *ap, int verbose,
-			      unsigned int *class);
+extern int ata_std_softreset(struct ata_port *ap, unsigned int *classes);
+extern int sata_std_hardreset(struct ata_port *ap, unsigned int *class);
 extern void ata_std_postreset(struct ata_port *ap, unsigned int *classes);
 extern int ata_dev_revalidate(struct ata_port *ap, struct ata_device *dev,
 			      int post_reset);
@@ -526,6 +526,8 @@ extern void ata_host_set_remove(struct ata_host_set *host_set);
 extern int ata_scsi_detect(struct scsi_host_template *sht);
 extern int ata_scsi_ioctl(struct scsi_device *dev, int cmd, void __user *arg);
 extern int ata_scsi_queuecmd(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *));
+extern void ata_eh_qc_complete(struct ata_queued_cmd *qc);
+extern void ata_eh_qc_retry(struct ata_queued_cmd *qc);
 extern int ata_scsi_release(struct Scsi_Host *host);
 extern unsigned int ata_host_intr(struct ata_port *ap, struct ata_queued_cmd *qc);
 extern int ata_scsi_device_resume(struct scsi_device *);
@@ -538,6 +540,9 @@ extern unsigned int ata_busy_sleep(struct ata_port *ap,
 				   unsigned long timeout);
 extern void ata_port_queue_task(struct ata_port *ap, void (*fn)(void *),
 				void *data, unsigned long delay);
+extern u32 ata_wait_register(void __iomem *reg, u32 mask, u32 val,
+			     unsigned long interval_msec,
+			     unsigned long timeout_msec);
 
 /*
  * Default driver ops implementations
@@ -631,7 +636,6 @@ extern unsigned long ata_pci_default_filter(const struct ata_port *, struct ata_
 /*
  * EH
  */
-extern int ata_scsi_error(struct Scsi_Host *host);
 extern void ata_eng_timeout(struct ata_port *ap);
 extern void ata_eh_qc_complete(struct ata_queued_cmd *qc);
 extern void ata_eh_qc_retry(struct ata_queued_cmd *qc);
@@ -970,6 +974,11 @@ static inline int ata_pad_alloc(struct ata_port *ap, struct device *dev)
 static inline void ata_pad_free(struct ata_port *ap, struct device *dev)
 {
 	dma_free_coherent(dev, ATA_DMA_PAD_BUF_SZ, ap->pad, ap->pad_dma);
+}
+
+static inline struct ata_port *ata_shost_to_port(struct Scsi_Host *host)
+{
+	return (struct ata_port *) &host->hostdata[0];
 }
 
 #endif /* __LINUX_LIBATA_H__ */

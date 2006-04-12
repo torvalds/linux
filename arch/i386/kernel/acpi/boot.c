@@ -168,7 +168,7 @@ int __init acpi_parse_mcfg(unsigned long phys_addr, unsigned long size)
 	unsigned long i;
 	int config_size;
 
-	if (!phys_addr || !size)
+	if (!phys_addr || !size || !cpu_has_apic)
 		return -EINVAL;
 
 	mcfg = (struct acpi_table_mcfg *)__acpi_map_table(phys_addr, size);
@@ -215,7 +215,7 @@ static int __init acpi_parse_madt(unsigned long phys_addr, unsigned long size)
 {
 	struct acpi_table_madt *madt = NULL;
 
-	if (!phys_addr || !size)
+	if (!phys_addr || !size || !cpu_has_apic)
 		return -EINVAL;
 
 	madt = (struct acpi_table_madt *)__acpi_map_table(phys_addr, size);
@@ -693,6 +693,9 @@ static int __init acpi_parse_madt_lapic_entries(void)
 {
 	int count;
 
+	if (!cpu_has_apic)
+		return -ENODEV;
+
 	/* 
 	 * Note that the LAPIC address is obtained from the MADT (32-bit value)
 	 * and (optionally) overriden by a LAPIC_ADDR_OVR entry (64-bit value).
@@ -750,6 +753,9 @@ static int __init acpi_parse_madt_ioapic_entries(void)
 	if (acpi_disabled || acpi_noirq) {
 		return -ENODEV;
 	}
+
+	if (!cpu_has_apic)
+		return -ENODEV;
 
 	/*
 	 * if "noapic" boot option, don't look for IO-APICs

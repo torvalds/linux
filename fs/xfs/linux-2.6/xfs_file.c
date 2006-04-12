@@ -252,7 +252,7 @@ xfs_file_sendfile_invis(
 STATIC ssize_t
 xfs_file_splice_read(
 	struct file		*infilp,
-	struct inode		*pipe,
+	struct pipe_inode_info	*pipe,
 	size_t			len,
 	unsigned int		flags)
 {
@@ -266,7 +266,7 @@ xfs_file_splice_read(
 STATIC ssize_t
 xfs_file_splice_read_invis(
 	struct file		*infilp,
-	struct inode		*pipe,
+	struct pipe_inode_info	*pipe,
 	size_t			len,
 	unsigned int		flags)
 {
@@ -279,7 +279,7 @@ xfs_file_splice_read_invis(
 
 STATIC ssize_t
 xfs_file_splice_write(
-	struct inode		*pipe,
+	struct pipe_inode_info	*pipe,
 	struct file		*outfilp,
 	size_t			len,
 	unsigned int		flags)
@@ -293,7 +293,7 @@ xfs_file_splice_write(
 
 STATIC ssize_t
 xfs_file_splice_write_invis(
-	struct inode		*pipe,
+	struct pipe_inode_info	*pipe,
 	struct file		*outfilp,
 	size_t			len,
 	unsigned int		flags)

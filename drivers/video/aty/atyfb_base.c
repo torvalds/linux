@@ -3400,7 +3400,7 @@ static int __devinit atyfb_pci_probe(struct pci_dev *pdev, const struct pci_devi
 	struct atyfb_par *par;
 	int i, rc = -ENOMEM;
 
-	for (i = ARRAY_SIZE(aty_chips); i >= 0; i--)
+	for (i = ARRAY_SIZE(aty_chips) - 1; i >= 0; i--)
 		if (pdev->device == aty_chips[i].pci_id)
 			break;
 

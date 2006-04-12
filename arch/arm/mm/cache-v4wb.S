@@ -10,7 +10,7 @@
 #include <linux/config.h>
 #include <linux/linkage.h>
 #include <linux/init.h>
-#include <asm/hardware.h>
+#include <asm/memory.h>
 #include <asm/page.h>
 #include "proc-macros.S"
 
@@ -46,6 +46,11 @@
  */
 #define CACHE_DLIMIT	(CACHE_DSIZE * 4)
 
+	.data
+flush_base:
+	.long	FLUSH_BASE
+	.text
+
 /*
  *	flush_user_cache_all()
  *
@@ -63,11 +68,21 @@ ENTRY(v4wb_flush_kern_cache_all)
 	mov	ip, #0
 	mcr	p15, 0, ip, c7, c5, 0		@ invalidate I cache
 __flush_whole_cache:
-	mov	r0, #FLUSH_BASE
-	add	r1, r0, #CACHE_DSIZE
-1:	ldr	r2, [r0], #32
-	cmp	r0, r1
+	ldr	r3, =flush_base
+	ldr	r1, [r3, #0]
+	eor	r1, r1, #CACHE_DSIZE
+	str	r1, [r3, #0]
+	add	r2, r1, #CACHE_DSIZE
+1:	ldr	r3, [r1], #32
+	cmp	r1, r2
 	blo	1b
+#ifdef FLUSH_BASE_MINICACHE
+	add	r2, r2, #FLUSH_BASE_MINICACHE - FLUSH_BASE
+	sub	r1, r2, #512			@ only 512 bytes
+1:	ldr	r3, [r1], #32
+	cmp	r1, r2
+	blo	1b
+#endif
 	mcr	p15, 0, ip, c7, c10, 4		@ drain write buffer
 	mov	pc, lr
 
@@ -82,6 +97,7 @@ __flush_whole_cache:
  *	- flags	- vma_area_struct flags describing address space
  */
 ENTRY(v4wb_flush_user_cache_range)
+	mov	ip, #0
 	sub	r3, r1, r0			@ calculate total size
 	tst	r2, #VM_EXEC			@ executable region?
 	mcrne	p15, 0, ip, c7, c5, 0		@ invalidate I cache

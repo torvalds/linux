@@ -656,7 +656,7 @@ static int ipgre_rcv(struct sk_buff *skb)
 		read_unlock(&ipgre_lock);
 		return(0);
 	}
-	icmp_send(skb, ICMP_DEST_UNREACH, ICMP_PROT_UNREACH, 0);
+	icmp_send(skb, ICMP_DEST_UNREACH, ICMP_PORT_UNREACH, 0);
 
 drop:
 	read_unlock(&ipgre_lock);

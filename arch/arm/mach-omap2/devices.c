@@ -25,10 +25,6 @@
 #include <asm/arch/mux.h>
 #include <asm/arch/gpio.h>
 
-extern void omap_nop_release(struct device *dev);
-
-/*-------------------------------------------------------------------------*/
-
 #if 	defined(CONFIG_I2C_OMAP) || defined(CONFIG_I2C_OMAP_MODULE)
 
 #define OMAP2_I2C_BASE2		0x48072000
@@ -49,9 +45,6 @@ static struct resource i2c_resources2[] = {
 static struct platform_device omap_i2c_device2 = {
         .name           = "i2c_omap",
         .id             = 2,
-        .dev = {
-                .release        = omap_nop_release,
-        },
 	.num_resources	= ARRAY_SIZE(i2c_resources2),
 	.resource	= i2c_resources2,
 };
@@ -100,9 +93,6 @@ static struct resource sti_resources[] = {
 static struct platform_device sti_device = {
 	.name		= "sti",
 	.id		= -1,
-	.dev = {
-		.release	= omap_nop_release,
-	},
 	.num_resources	= ARRAY_SIZE(sti_resources),
 	.resource	= sti_resources,
 };

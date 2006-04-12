@@ -432,8 +432,8 @@ tapeblock_ioctl(
 ) {
 	int rc;
 	int minor;
-	struct gendisk *disk = inode->i_bdev->bd_disk;
-	struct tape_device *device = disk->private_data;
+	struct gendisk *disk;
+	struct tape_device *device;
 
 	rc     = 0;
 	disk   = inode->i_bdev->bd_disk;

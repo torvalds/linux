@@ -89,6 +89,7 @@
  * then 32 bit HPET counter wrapsaround in less than 0.5 sec.
  */
 #define HPET_MIN_PERIOD (100000UL)
+#define HPET_TICK_RATE  (HZ * 100000UL)
 
 extern unsigned long hpet_tick;  	/* hpet clks count per tick */
 extern unsigned long hpet_address;	/* hpet memory map physical address */

@@ -48,9 +48,11 @@ dma_alloc_pages(struct device *dev, gfp_t gfp, unsigned order)
 {
 	struct page *page;
 	int node;
+#ifdef CONFIG_PCI
 	if (dev->bus == &pci_bus_type)
 		node = pcibus_to_node(to_pci_dev(dev)->bus);
 	else
+#endif
 		node = numa_node_id();
 	page = alloc_pages_node(node, gfp, order);
 	return page ? page_address(page) : NULL;

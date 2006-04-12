@@ -829,7 +829,7 @@ static int translate_table(struct ebt_replace *repl,
 				   		* sizeof(struct ebt_chainstack));
 		if (!newinfo->chainstack)
 			return -ENOMEM;
-		for_each_cpu(i) {
+		for_each_possible_cpu(i) {
 			newinfo->chainstack[i] =
 			   vmalloc(udc_cnt * sizeof(struct ebt_chainstack));
 			if (!newinfo->chainstack[i]) {
@@ -901,7 +901,7 @@ static void get_counters(struct ebt_counter *oldcounters,
 	       sizeof(struct ebt_counter) * nentries);
 
 	/* add other counters to those of cpu 0 */
-	for_each_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		if (cpu == 0)
 			continue;
 		counter_base = COUNTER_BASE(oldcounters, nentries, cpu);
@@ -1036,7 +1036,7 @@ static int do_replace(void __user *user, unsigned int len)
 
 	vfree(table->entries);
 	if (table->chainstack) {
-		for_each_cpu(i)
+		for_each_possible_cpu(i)
 			vfree(table->chainstack[i]);
 		vfree(table->chainstack);
 	}
@@ -1054,7 +1054,7 @@ free_counterstmp:
 	vfree(counterstmp);
 	/* can be initialized in translate_table() */
 	if (newinfo->chainstack) {
-		for_each_cpu(i)
+		for_each_possible_cpu(i)
 			vfree(newinfo->chainstack[i]);
 		vfree(newinfo->chainstack);
 	}
@@ -1201,7 +1201,7 @@ free_unlock:
 	mutex_unlock(&ebt_mutex);
 free_chainstack:
 	if (newinfo->chainstack) {
-		for_each_cpu(i)
+		for_each_possible_cpu(i)
 			vfree(newinfo->chainstack[i]);
 		vfree(newinfo->chainstack);
 	}
@@ -1224,7 +1224,7 @@ void ebt_unregister_table(struct ebt_table *table)
 	mutex_unlock(&ebt_mutex);
 	vfree(table->private->entries);
 	if (table->private->chainstack) {
-		for_each_cpu(i)
+		for_each_possible_cpu(i)
 			vfree(table->private->chainstack[i]);
 		vfree(table->private->chainstack);
 	}

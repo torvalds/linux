@@ -55,7 +55,8 @@ extern int get_pty(void);
 extern void *um_kmalloc(int size);
 extern int switcheroo(int fd, int prot, void *from, void *to, int size);
 extern void do_exec(int old_pid, int new_pid);
-extern void tracer_panic(char *msg, ...);
+extern void tracer_panic(char *msg, ...)
+	__attribute__ ((format (printf, 1, 2)));
 extern int detach(int pid, int sig);
 extern int attach(int pid);
 extern void kill_child_dead(int pid);

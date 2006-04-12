@@ -684,6 +684,7 @@ static inline void prefetch_stack(struct task_struct *t) { }
 
 struct audit_context;		/* See audit.c */
 struct mempolicy;
+struct pipe_inode_info;
 
 enum sleep_type {
 	SLEEP_NORMAL,
@@ -882,6 +883,11 @@ struct task_struct {
 
 	atomic_t fs_excl;	/* holding fs exclusive resources */
 	struct rcu_head rcu;
+
+	/*
+	 * cache last used pipe for splice
+	 */
+	struct pipe_inode_info *splice_pipe;
 };
 
 static inline pid_t process_group(struct task_struct *tsk)
@@ -1203,9 +1209,10 @@ extern void wait_task_inactive(task_t * p);
 #define while_each_thread(g, t) \
 	while ((t = next_thread(t)) != g)
 
-#define thread_group_leader(p)	(p->pid == p->tgid)
+/* de_thread depends on thread_group_leader not being a pid based check */
+#define thread_group_leader(p)	(p == p->group_leader)
 
-static inline task_t *next_thread(task_t *p)
+static inline task_t *next_thread(const task_t *p)
 {
 	return list_entry(rcu_dereference(p->thread_group.next),
 				task_t, thread_group);

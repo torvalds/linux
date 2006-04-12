@@ -1425,12 +1425,9 @@ static int ata_bus_probe(struct ata_port *ap)
 	/* read IDENTIFY page and configure devices */
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
 		dev = &ap->device[i];
-		dev->class = classes[i];
 
-		if (!tries[i]) {
-			ata_down_xfermask_limit(ap, dev, 1);
-			ata_dev_disable(ap, dev);
-		}
+		if (tries[i])
+			dev->class = classes[i];
 
 		if (!ata_dev_enabled(dev))
 			continue;
@@ -1458,12 +1455,12 @@ static int ata_bus_probe(struct ata_port *ap)
 				break;
 			}
 		rc = 0;
-	} else {
+	} else
 		rc = ata_set_mode(ap, &dev);
-		if (rc) {
-			down_xfermask = 1;
-			goto fail;
-		}
+
+	if (rc) {
+		down_xfermask = 1;
+		goto fail;
 	}
 
 	for (i = 0; i < ATA_MAX_DEVICES; i++)
@@ -1489,6 +1486,11 @@ static int ata_bus_probe(struct ata_port *ap)
 		if (down_xfermask &&
 		    ata_down_xfermask_limit(ap, dev, tries[dev->devno] == 1))
 			tries[dev->devno] = 0;
+	}
+
+	if (!tries[dev->devno]) {
+		ata_down_xfermask_limit(ap, dev, 1);
+		ata_dev_disable(ap, dev);
 	}
 
 	goto retry;
@@ -1750,7 +1752,7 @@ int ata_set_sata_spd_needed(struct ata_port *ap)
  *	0 if spd doesn't need to be changed, 1 if spd has been
  *	changed.  -EOPNOTSUPP if SCR registers are inaccessible.
  */
-static int ata_set_sata_spd(struct ata_port *ap)
+int ata_set_sata_spd(struct ata_port *ap)
 {
 	u32 scontrol;
 
@@ -2246,8 +2248,10 @@ static unsigned int ata_bus_softreset(struct ata_port *ap,
 	 * the bus shows 0xFF because the odd clown forgets the D7
 	 * pulldown resistor.
 	 */
-	if (ata_check_status(ap) == 0xFF)
+	if (ata_check_status(ap) == 0xFF) {
+		printk(KERN_ERR "ata%u: SRST failed (status 0xFF)\n", ap->id);
 		return AC_ERR_OTHER;
+	}
 
 	ata_bus_post_reset(ap, devmask);
 
@@ -2383,12 +2387,16 @@ void ata_std_probeinit(struct ata_port *ap)
 	if ((ap->flags & ATA_FLAG_SATA) && ap->ops->scr_read) {
 		u32 spd;
 
+		/* set cable type and resume link */
+		ap->cbl = ATA_CBL_SATA;
 		sata_phy_resume(ap);
 
+		/* init sata_spd_limit to the current value */
 		spd = (scr_read(ap, SCR_CONTROL) & 0xf0) >> 4;
 		if (spd)
 			ap->sata_spd_limit &= (1 << spd) - 1;
 
+		/* wait for device */
 		if (sata_dev_present(ap))
 			ata_busy_sleep(ap, ATA_TMOUT_BOOT_QUICK, ATA_TMOUT_BOOT);
 	}
@@ -2397,7 +2405,6 @@ void ata_std_probeinit(struct ata_port *ap)
 /**
  *	ata_std_softreset - reset host port via ATA SRST
  *	@ap: port to reset
- *	@verbose: fail verbosely
  *	@classes: resulting classes of attached devices
  *
  *	Reset host port using ATA SRST.  This function is to be used
@@ -2409,7 +2416,7 @@ void ata_std_probeinit(struct ata_port *ap)
  *	RETURNS:
  *	0 on success, -errno otherwise.
  */
-int ata_std_softreset(struct ata_port *ap, int verbose, unsigned int *classes)
+int ata_std_softreset(struct ata_port *ap, unsigned int *classes)
 {
 	unsigned int slave_possible = ap->flags & ATA_FLAG_SLAVE_POSS;
 	unsigned int devmask = 0, err_mask;
@@ -2435,12 +2442,8 @@ int ata_std_softreset(struct ata_port *ap, int verbose, unsigned int *classes)
 	DPRINTK("about to softreset, devmask=%x\n", devmask);
 	err_mask = ata_bus_softreset(ap, devmask);
 	if (err_mask) {
-		if (verbose)
-			printk(KERN_ERR "ata%u: SRST failed (err_mask=0x%x)\n",
-			       ap->id, err_mask);
-		else
-			DPRINTK("EXIT, softreset failed (err_mask=0x%x)\n",
-				err_mask);
+		printk(KERN_ERR "ata%u: SRST failed (err_mask=0x%x)\n",
+		       ap->id, err_mask);
 		return -EIO;
 	}
 
@@ -2457,7 +2460,6 @@ int ata_std_softreset(struct ata_port *ap, int verbose, unsigned int *classes)
 /**
  *	sata_std_hardreset - reset host port via SATA phy reset
  *	@ap: port to reset
- *	@verbose: fail verbosely
  *	@class: resulting class of attached device
  *
  *	SATA phy-reset host port using DET bits of SControl register.
@@ -2470,7 +2472,7 @@ int ata_std_softreset(struct ata_port *ap, int verbose, unsigned int *classes)
  *	RETURNS:
  *	0 on success, -errno otherwise.
  */
-int sata_std_hardreset(struct ata_port *ap, int verbose, unsigned int *class)
+int sata_std_hardreset(struct ata_port *ap, unsigned int *class)
 {
 	u32 scontrol;
 
@@ -2510,11 +2512,8 @@ int sata_std_hardreset(struct ata_port *ap, int verbose, unsigned int *class)
 	}
 
 	if (ata_busy_sleep(ap, ATA_TMOUT_BOOT_QUICK, ATA_TMOUT_BOOT)) {
-		if (verbose)
-			printk(KERN_ERR "ata%u: COMRESET failed "
-			       "(device not ready)\n", ap->id);
-		else
-			DPRINTK("EXIT, device not ready\n");
+		printk(KERN_ERR
+		       "ata%u: COMRESET failed (device not ready)\n", ap->id);
 		return -EIO;
 	}
 
@@ -2544,10 +2543,6 @@ int sata_std_hardreset(struct ata_port *ap, int verbose, unsigned int *class)
 void ata_std_postreset(struct ata_port *ap, unsigned int *classes)
 {
 	DPRINTK("ENTER\n");
-
-	/* set cable type if it isn't already set */
-	if (ap->cbl == ATA_CBL_NONE && ap->flags & ATA_FLAG_SATA)
-		ap->cbl = ATA_CBL_SATA;
 
 	/* print link status */
 	if (ap->cbl == ATA_CBL_SATA)
@@ -2598,7 +2593,7 @@ int ata_std_probe_reset(struct ata_port *ap, unsigned int *classes)
 	ata_reset_fn_t hardreset;
 
 	hardreset = NULL;
-	if (ap->flags & ATA_FLAG_SATA && ap->ops->scr_read)
+	if (ap->cbl == ATA_CBL_SATA && ap->ops->scr_read)
 		hardreset = sata_std_hardreset;
 
 	return ata_drive_probe_reset(ap, ata_std_probeinit,
@@ -2606,16 +2601,15 @@ int ata_std_probe_reset(struct ata_port *ap, unsigned int *classes)
 				     ata_std_postreset, classes);
 }
 
-int ata_do_reset(struct ata_port *ap,
-		 ata_reset_fn_t reset, ata_postreset_fn_t postreset,
-		 int verbose, unsigned int *classes)
+int ata_do_reset(struct ata_port *ap, ata_reset_fn_t reset,
+		 ata_postreset_fn_t postreset, unsigned int *classes)
 {
 	int i, rc;
 
 	for (i = 0; i < ATA_MAX_DEVICES; i++)
 		classes[i] = ATA_DEV_UNKNOWN;
 
-	rc = reset(ap, verbose, classes);
+	rc = reset(ap, classes);
 	if (rc)
 		return rc;
 
@@ -2659,8 +2653,6 @@ int ata_do_reset(struct ata_port *ap,
  *	- If classification is supported, fill classes[] with
  *	  recognized class codes.
  *	- If classification is not supported, leave classes[] alone.
- *	- If verbose is non-zero, print error message on failure;
- *	  otherwise, shut up.
  *
  *	LOCKING:
  *	Kernel thread context (may sleep)
@@ -2680,7 +2672,7 @@ int ata_drive_probe_reset(struct ata_port *ap, ata_probeinit_fn_t probeinit,
 		probeinit(ap);
 
 	if (softreset && !ata_set_sata_spd_needed(ap)) {
-		rc = ata_do_reset(ap, softreset, postreset, 0, classes);
+		rc = ata_do_reset(ap, softreset, postreset, classes);
 		if (rc == 0 && classes[0] != ATA_DEV_UNKNOWN)
 			goto done;
 		printk(KERN_INFO "ata%u: softreset failed, will try "
@@ -2692,7 +2684,7 @@ int ata_drive_probe_reset(struct ata_port *ap, ata_probeinit_fn_t probeinit,
 		goto done;
 
 	while (1) {
-		rc = ata_do_reset(ap, hardreset, postreset, 0, classes);
+		rc = ata_do_reset(ap, hardreset, postreset, classes);
 		if (rc == 0) {
 			if (classes[0] != ATA_DEV_UNKNOWN)
 				goto done;
@@ -2713,7 +2705,7 @@ int ata_drive_probe_reset(struct ata_port *ap, ata_probeinit_fn_t probeinit,
 		       ap->id);
 		ssleep(5);
 
-		rc = ata_do_reset(ap, softreset, postreset, 0, classes);
+		rc = ata_do_reset(ap, softreset, postreset, classes);
 	}
 
  done:
@@ -4846,7 +4838,7 @@ static struct ata_port * ata_host_add(const struct ata_probe_ent *ent,
 
 	host->transportt = &ata_scsi_transport_template;
 
-	ap = (struct ata_port *) &host->hostdata[0];
+	ap = ata_shost_to_port(host);
 
 	ata_host_init(ap, host, host_set, ent, port_no);
 
@@ -5059,7 +5051,7 @@ void ata_host_set_remove(struct ata_host_set *host_set)
 
 int ata_scsi_release(struct Scsi_Host *host)
 {
-	struct ata_port *ap = (struct ata_port *) &host->hostdata[0];
+	struct ata_port *ap = ata_shost_to_port(host);
 	int i;
 
 	DPRINTK("ENTER\n");
@@ -5226,6 +5218,52 @@ int ata_ratelimit(void)
 	return rc;
 }
 
+/**
+ *	ata_wait_register - wait until register value changes
+ *	@reg: IO-mapped register
+ *	@mask: Mask to apply to read register value
+ *	@val: Wait condition
+ *	@interval_msec: polling interval in milliseconds
+ *	@timeout_msec: timeout in milliseconds
+ *
+ *	Waiting for some bits of register to change is a common
+ *	operation for ATA controllers.  This function reads 32bit LE
+ *	IO-mapped register @reg and tests for the following condition.
+ *
+ *	(*@reg & mask) != val
+ *
+ *	If the condition is met, it returns; otherwise, the process is
+ *	repeated after @interval_msec until timeout.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep)
+ *
+ *	RETURNS:
+ *	The final register value.
+ */
+u32 ata_wait_register(void __iomem *reg, u32 mask, u32 val,
+		      unsigned long interval_msec,
+		      unsigned long timeout_msec)
+{
+	unsigned long timeout;
+	u32 tmp;
+
+	tmp = ioread32(reg);
+
+	/* Calculate timeout _after_ the first read to make sure
+	 * preceding writes reach the controller before starting to
+	 * eat away the timeout.
+	 */
+	timeout = jiffies + (timeout_msec * HZ) / 1000;
+
+	while ((tmp & mask) == val && time_before(jiffies, timeout)) {
+		msleep(interval_msec);
+		tmp = ioread32(reg);
+	}
+
+	return tmp;
+}
+
 /*
  * libata is essentially a library of internal helper functions for
  * low-level ATA host controller drivers.  As such, the API/ABI is
@@ -5262,6 +5300,7 @@ EXPORT_SYMBOL_GPL(ata_bmdma_irq_clear);
 EXPORT_SYMBOL_GPL(ata_bmdma_status);
 EXPORT_SYMBOL_GPL(ata_bmdma_stop);
 EXPORT_SYMBOL_GPL(ata_port_probe);
+EXPORT_SYMBOL_GPL(ata_set_sata_spd);
 EXPORT_SYMBOL_GPL(sata_phy_reset);
 EXPORT_SYMBOL_GPL(__sata_phy_reset);
 EXPORT_SYMBOL_GPL(ata_bus_reset);
@@ -5276,6 +5315,7 @@ EXPORT_SYMBOL_GPL(ata_dev_classify);
 EXPORT_SYMBOL_GPL(ata_dev_pair);
 EXPORT_SYMBOL_GPL(ata_port_disable);
 EXPORT_SYMBOL_GPL(ata_ratelimit);
+EXPORT_SYMBOL_GPL(ata_wait_register);
 EXPORT_SYMBOL_GPL(ata_busy_sleep);
 EXPORT_SYMBOL_GPL(ata_port_queue_task);
 EXPORT_SYMBOL_GPL(ata_scsi_ioctl);

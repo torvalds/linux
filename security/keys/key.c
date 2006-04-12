@@ -785,6 +785,10 @@ key_ref_t key_create_or_update(key_ref_t keyring_ref,
 
 	key_check(keyring);
 
+	key_ref = ERR_PTR(-ENOTDIR);
+	if (keyring->type != &key_type_keyring)
+		goto error_2;
+
 	down_write(&keyring->sem);
 
 	/* if we're going to allocate a new key, we're going to have
