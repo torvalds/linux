@@ -1556,7 +1556,6 @@ void __init devinet_init(void)
 #endif
 }
 
-EXPORT_SYMBOL(devinet_ioctl);
 EXPORT_SYMBOL(in_dev_finish_destroy);
 EXPORT_SYMBOL(inet_select_addr);
 EXPORT_SYMBOL(inetdev_by_index);
