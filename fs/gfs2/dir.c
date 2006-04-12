@@ -1511,7 +1511,7 @@ static int dir_new_leaf(struct inode *inode, const struct qstr *name)
 		brelse(obh);
 		return -ENOSPC;
 	}
-	oleaf->lf_next = cpu_to_be64(bn);
+	oleaf->lf_next = cpu_to_be64(bh->b_blocknr);
 	brelse(bh);
 	brelse(obh);
 
@@ -1950,8 +1950,7 @@ int gfs2_dir_exhash_dealloc(struct gfs2_inode *dip)
  * Returns: 1 if alloc required, 0 if not, -ve on error
  */
 
-int gfs2_diradd_alloc_required(struct inode *inode,
-			       const struct qstr *name)
+int gfs2_diradd_alloc_required(struct inode *inode, const struct qstr *name)
 {
 	struct gfs2_dirent *dent;
 	struct buffer_head *bh;
