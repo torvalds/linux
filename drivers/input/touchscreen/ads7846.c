@@ -233,6 +233,21 @@ SHOW(temp1)
 SHOW(vaux)
 SHOW(vbatt)
 
+static int is_pen_down(struct device *dev)
+{
+	struct ads7846		*ts = dev_get_drvdata(dev);
+
+	return ts->pendown;
+}
+
+static ssize_t ads7846_pen_down_show(struct device *dev,
+				     struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%u\n", is_pen_down(dev));
+}
+
+static DEVICE_ATTR(pen_down, S_IRUGO, ads7846_pen_down_show, NULL);
+
 /*--------------------------------------------------------------------------*/
 
 /*
@@ -559,6 +574,8 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 		device_create_file(&spi->dev, &dev_attr_vbatt);
 	device_create_file(&spi->dev, &dev_attr_vaux);
 
+	device_create_file(&spi->dev, &dev_attr_pen_down);
+
 	err = input_register_device(input_dev);
 	if (err)
 		goto err_free_irq;
@@ -581,6 +598,8 @@ static int __devexit ads7846_remove(struct spi_device *spi)
 	free_irq(ts->spi->irq, ts);
 	if (ts->irq_disabled)
 		enable_irq(ts->spi->irq);
+
+	device_remove_file(&spi->dev, &dev_attr_pen_down);
 
 	if (ts->model == 7846) {
 		device_remove_file(&spi->dev, &dev_attr_temp0);
