@@ -134,7 +134,7 @@ static const int multicast_filter_limit = 32;
 #include "typhoon.h"
 #include "typhoon-firmware.h"
 
-static char version[] __devinitdata =
+static const char version[] __devinitdata =
     "typhoon.c: version " DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
 
 MODULE_AUTHOR("David Dillow <dave@thedillows.org>");
