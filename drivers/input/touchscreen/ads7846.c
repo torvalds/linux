@@ -102,6 +102,8 @@ struct ads7846 {
 // FIXME remove "irq_disabled"
 	unsigned		irq_disabled:1;	/* P: lock */
 	unsigned		disabled:1;
+
+	int			(*get_pendown_state)(void);
 };
 
 /* leave chip selected when we're done, for quicker re-select? */
@@ -175,6 +177,12 @@ struct ser_req {
 static void ads7846_enable(struct ads7846 *ts);
 static void ads7846_disable(struct ads7846 *ts);
 
+static int device_suspended(struct device *dev)
+{
+	struct ads7846 *ts = dev_get_drvdata(dev);
+	return dev->power.power_state.event != PM_EVENT_ON || ts->disabled;
+}
+
 static int ads7846_read12_ser(struct device *dev, unsigned command)
 {
 	struct spi_device	*spi = to_spi_device(dev);
@@ -227,8 +235,10 @@ static int ads7846_read12_ser(struct device *dev, unsigned command)
 	for (i = 0; i < 6; i++)
 		spi_message_add_tail(&req->xfer[i], &req->msg);
 
+	ts->irq_disabled = 1;
 	disable_irq(spi->irq);
 	status = spi_sync(spi, &req->msg);
+	ts->irq_disabled = 0;
 	enable_irq(spi->irq);
 
 	if (req->msg.status)
@@ -333,7 +343,7 @@ static void ads7846_rx(void *ads)
 	if (x == MAX_12BIT)
 		x = 0;
 
-	if (x && z1 && ts->spi->dev.power.power_state.event == PM_EVENT_ON) {
+	if (likely(x && z1 && !device_suspended(&ts->spi->dev))) {
 		/* compute touch pressure resistance using equation #2 */
 		Rt = z2;
 		Rt -= z1;
@@ -377,20 +387,10 @@ static void ads7846_rx(void *ads)
 			x, y, Rt, Rt ? "" : " UP");
 #endif
 
-	/* don't retrigger while we're suspended */
 	spin_lock_irqsave(&ts->lock, flags);
 
 	ts->pendown = (Rt != 0);
-	ts->pending = 0;
-
-	if (ts->spi->dev.power.power_state.event == PM_EVENT_ON) {
-		if (ts->pendown)
-			mod_timer(&ts->timer, jiffies + TS_POLL_PERIOD);
-		else if (ts->irq_disabled) {
-			ts->irq_disabled = 0;
-			enable_irq(ts->spi->irq);
-		}
-	}
+	mod_timer(&ts->timer, jiffies + TS_POLL_PERIOD);
 
 	spin_unlock_irqrestore(&ts->lock, flags);
 }
@@ -431,10 +431,25 @@ static void ads7846_timer(unsigned long handle)
 	struct ads7846	*ts = (void *)handle;
 	int		status = 0;
 
-	ts->msg_idx = 0;
-	status = spi_async(ts->spi, &ts->msg[0]);
-	if (status)
-		dev_err(&ts->spi->dev, "spi_async --> %d\n", status);
+	spin_lock_irq(&ts->lock);
+
+	if (unlikely(ts->msg_idx && !ts->pendown)) {
+		/* measurment cycle ended */
+		if (!device_suspended(&ts->spi->dev)) {
+			ts->irq_disabled = 0;
+			enable_irq(ts->spi->irq);
+		}
+		ts->pending = 0;
+		ts->msg_idx = 0;
+	} else {
+		/* pen is still down, continue with the measurement */
+		ts->msg_idx = 0;
+		status = spi_async(ts->spi, &ts->msg[0]);
+		if (status)
+			dev_err(&ts->spi->dev, "spi_async --> %d\n", status);
+	}
+
+	spin_unlock_irq(&ts->lock);
 }
 
 static irqreturn_t ads7846_irq(int irq, void *handle, struct pt_regs *regs)
@@ -443,7 +458,7 @@ static irqreturn_t ads7846_irq(int irq, void *handle, struct pt_regs *regs)
 	unsigned long flags;
 
 	spin_lock_irqsave(&ts->lock, flags);
-	if (likely(!ts->irq_disabled && !ts->disabled)) {
+	if (likely(ts->get_pendown_state())) {
 		if (!ts->irq_disabled) {
 			/* REVISIT irq logic for many ARM chips has cloned a
 			 * bug wherein disabling an irq in its handler won't
@@ -452,10 +467,7 @@ static irqreturn_t ads7846_irq(int irq, void *handle, struct pt_regs *regs)
 			 * that state here.
 			 */
 			ts->irq_disabled = 1;
-
 			disable_irq(ts->spi->irq);
-		}
-		if (!ts->pending) {
 			ts->pending = 1;
 			mod_timer(&ts->timer, jiffies);
 		}
@@ -473,20 +485,17 @@ static void ads7846_disable(struct ads7846 *ts)
 	if (ts->disabled)
 		return;
 
-	/* are we waiting for IRQ, or polling? */
-	if (!ts->pendown) {
-		if (!ts->irq_disabled) {
-			ts->irq_disabled = 1;
-			disable_irq(ts->spi->irq);
-		}
-	} else {
-		/* polling; force a final SPI completion;
-		 * that will clean things up neatly
-		 */
-		if (!ts->pending)
-			mod_timer(&ts->timer, jiffies);
+	ts->disabled = 1;
 
-		while (ts->pendown || ts->pending) {
+	/* are we waiting for IRQ, or polling? */
+	if (!ts->pending) {
+		ts->irq_disabled = 1;
+		disable_irq(ts->spi->irq);
+	} else {
+		/* the timer will run at least once more, and
+		 * leave everything in a clean state, IRQ disabled
+		 */
+		while (ts->pending) {
 			spin_unlock_irq(&ts->lock);
 			msleep(1);
 			spin_lock_irq(&ts->lock);
@@ -497,7 +506,6 @@ static void ads7846_disable(struct ads7846 *ts)
 	 * leave it that way after every request
 	 */
 
-	ts->disabled = 1;
 }
 
 /* Must be called with ts->lock held */
@@ -566,6 +574,11 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 		return -EINVAL;
 	}
 
+	if (pdata->get_pendown_state == NULL) {
+		dev_dbg(&spi->dev, "no get_pendown_state function?\n");
+		return -EINVAL;
+	}
+
 	/* We'd set the wordsize to 12 bits ... except that some controllers
 	 * will then treat the 8 bit command words as 12 bits (and drop the
 	 * four MSBs of the 12 bit result).  Result: inputs must be shifted
@@ -596,6 +609,7 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 	ts->x_plate_ohms = pdata->x_plate_ohms ? : 400;
 	ts->debounce_max = pdata->debounce_max ? : 1;
 	ts->debounce_tol = pdata->debounce_tol ? : 10;
+	ts->get_pendown_state = pdata->get_pendown_state;
 
 	snprintf(ts->phys, sizeof(ts->phys), "%s/input0", spi->dev.bus_id);
 
@@ -786,8 +800,8 @@ static int __devexit ads7846_remove(struct spi_device *spi)
 	device_remove_file(&spi->dev, &dev_attr_vaux);
 
 	free_irq(ts->spi->irq, ts);
-	if (ts->irq_disabled)
-		enable_irq(ts->spi->irq);
+	/* suspend left the IRQ disabled */
+	enable_irq(ts->spi->irq);
 
 	kfree(ts);
 

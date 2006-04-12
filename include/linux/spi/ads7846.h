@@ -17,5 +17,7 @@ struct ads7846_platform_data {
 
 	u16	debounce_max;		/* max number of readings per sample */
 	u16	debounce_tol;		/* tolerance used for filtering */
+
+	int	(*get_pendown_state)(void);
 };
 
