@@ -597,7 +597,7 @@ static int __init pcibios_init(void)
 	iSeries_pcibios_init(); 
 #endif
 
-	printk("PCI: Probing PCI hardware\n");
+	printk(KERN_DEBUG "PCI: Probing PCI hardware\n");
 
 	/* Scan all of the recorded PCI controllers.  */
 	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
@@ -622,14 +622,14 @@ static int __init pcibios_init(void)
 	/* Cache the location of the ISA bridge (if we have one) */
 	ppc64_isabridge_dev = pci_get_class(PCI_CLASS_BRIDGE_ISA << 8, NULL);
 	if (ppc64_isabridge_dev != NULL)
-		printk("ISA bridge at %s\n", pci_name(ppc64_isabridge_dev));
+		printk(KERN_DEBUG "ISA bridge at %s\n", pci_name(ppc64_isabridge_dev));
 
 #ifdef CONFIG_PPC_MULTIPLATFORM
 	/* map in PCI I/O space */
 	phbs_remap_io();
 #endif
 
-	printk("PCI: Probing PCI hardware done\n");
+	printk(KERN_DEBUG "PCI: Probing PCI hardware done\n");
 
 	return 0;
 }
@@ -796,7 +796,7 @@ static pgprot_t __pci_mmap_set_pgprot(struct pci_dev *dev, struct resource *rp,
 	else
 		prot |= _PAGE_GUARDED;
 
-	printk("PCI map for %s:%lx, prot: %lx\n", pci_name(dev), rp->start,
+	printk(KERN_DEBUG "PCI map for %s:%lx, prot: %lx\n", pci_name(dev), rp->start,
 	       prot);
 
 	return __pgprot(prot);
@@ -1202,7 +1202,7 @@ int remap_bus_range(struct pci_bus *bus)
 		return 1;
 	if (start_phys == 0)
 		return 1;
-	printk("mapping IO %lx -> %lx, size: %lx\n", start_phys, start_virt, size);
+	printk(KERN_DEBUG "mapping IO %lx -> %lx, size: %lx\n", start_phys, start_virt, size);
 	if (__ioremap_explicit(start_phys, start_virt, size,
 			       _PAGE_NO_CACHE | _PAGE_GUARDED))
 		return 1;
