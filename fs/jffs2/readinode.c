@@ -204,7 +204,7 @@ static inline int read_dnode(struct jffs2_sb_info *c, struct jffs2_raw_node_ref 
 
 	tn = jffs2_alloc_tmp_dnode_info();
 	if (!tn) {
-		JFFS2_ERROR("failed to allocate tn (%d bytes).\n", sizeof(*tn));
+		JFFS2_ERROR("failed to allocate tn (%zu bytes).\n", sizeof(*tn));
 		return -ENOMEM;
 	}
 
@@ -434,7 +434,7 @@ static int read_more(struct jffs2_sb_info *c, struct jffs2_raw_node_ref *ref,
 	}
 
 	if (retlen < len) {
-		JFFS2_ERROR("short read at %#08x: %d instead of %d.\n",
+		JFFS2_ERROR("short read at %#08x: %zu instead of %d.\n",
 				offs, retlen, len);
 		return -EIO;
 	}
@@ -542,7 +542,7 @@ static int jffs2_get_inode_nodes(struct jffs2_sb_info *c, struct jffs2_inode_inf
 		}
 
 		if (retlen < len) {
-			JFFS2_ERROR("short read at %#08x: %d instead of %d.\n", ref_offset(ref), retlen, len);
+			JFFS2_ERROR("short read at %#08x: %zu instead of %d.\n", ref_offset(ref), retlen, len);
 			err = -EIO;
 			goto free_out;
 		}
