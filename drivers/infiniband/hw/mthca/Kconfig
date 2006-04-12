@@ -7,10 +7,11 @@ config INFINIBAND_MTHCA
 	  ("Tavor") and the MT25208 PCI Express HCA ("Arbel").
 
 config INFINIBAND_MTHCA_DEBUG
-	bool "Verbose debugging output"
+	bool "Verbose debugging output" if EMBEDDED
 	depends on INFINIBAND_MTHCA
-	default n
+	default y
 	---help---
-	  This option causes the mthca driver produce a bunch of debug
-	  messages.  Select this is you are developing the driver or
-	  trying to diagnose a problem.
+	  This option causes debugging code to be compiled into the
+	  mthca driver.  The output can be turned on via the
+	  debug_level module parameter (which can also be set after
+	  the driver is loaded through sysfs).

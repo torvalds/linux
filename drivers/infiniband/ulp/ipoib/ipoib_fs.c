@@ -213,7 +213,7 @@ static int ipoib_path_seq_show(struct seq_file *file, void *iter_ptr)
 		   gid_buf, path.pathrec.dlid ? "yes" : "no");
 
 	if (path.pathrec.dlid) {
-		rate = ib_sa_rate_enum_to_int(path.pathrec.rate) * 25;
+		rate = ib_rate_to_mult(path.pathrec.rate) * 25;
 
 		seq_printf(file,
 			   "  DLID:     0x%04x\n"
