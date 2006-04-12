@@ -449,7 +449,7 @@ ads7846_suspend(struct spi_device *spi, pm_message_t message)
 
 		while (ts->pendown || ts->pending) {
 			spin_unlock_irqrestore(&ts->lock, flags);
-			udelay(10);
+			msleep(1);
 			spin_lock_irqsave(&ts->lock, flags);
 		}
 	}
