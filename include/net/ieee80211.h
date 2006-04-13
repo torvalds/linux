@@ -104,6 +104,9 @@
 #define IEEE80211_SCTL_FRAG		0x000F
 #define IEEE80211_SCTL_SEQ		0xFFF0
 
+/* QOS control */
+#define IEEE80211_QCTL_TID		0x000F
+
 /* debug macros */
 
 #ifdef CONFIG_IEEE80211_DEBUG
