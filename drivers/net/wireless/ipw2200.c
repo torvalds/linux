@@ -3771,6 +3771,13 @@ static void inline average_init(struct average *avg)
 	memset(avg, 0, sizeof(*avg));
 }
 
+#define DEPTH_RSSI 8
+#define DEPTH_NOISE 16
+static s16 exponential_average(s16 prev_avg, s16 val, u8 depth)
+{
+	return ((depth-1)*prev_avg +  val)/depth;
+}
+
 static void average_add(struct average *avg, s16 val)
 {
 	avg->sum -= avg->entries[avg->pos];
@@ -3800,8 +3807,8 @@ static void ipw_reset_stats(struct ipw_priv *priv)
 	priv->quality = 0;
 
 	average_init(&priv->average_missed_beacons);
-	average_init(&priv->average_rssi);
-	average_init(&priv->average_noise);
+	priv->exp_avg_rssi = -60;
+	priv->exp_avg_noise = -85 + 0x100;
 
 	priv->last_rate = 0;
 	priv->last_missed_beacons = 0;
@@ -4008,7 +4015,7 @@ static void ipw_gather_stats(struct ipw_priv *priv)
 	IPW_DEBUG_STATS("Tx quality   : %3d%% (%u errors, %u packets)\n",
 			tx_quality, tx_failures_delta, tx_packets_delta);
 
-	rssi = average_value(&priv->average_rssi);
+	rssi = priv->exp_avg_rssi;
 	signal_quality =
 	    (100 *
 	     (priv->ieee->perfect_rssi - priv->ieee->worst_rssi) *
@@ -4023,7 +4030,7 @@ static void ipw_gather_stats(struct ipw_priv *priv)
 	else if (signal_quality < 1)
 		signal_quality = 0;
 
-	IPW_DEBUG_STATS("Signal level : %3d%% (%d dBm)\n",
+	IPW_ERROR("Signal level : %3d%% (%d dBm)\n",
 			signal_quality, rssi);
 
 	quality = min(beacon_quality,
@@ -4577,11 +4584,10 @@ static void ipw_rx_notification(struct ipw_priv *priv,
 
 	case HOST_NOTIFICATION_NOISE_STATS:{
 			if (notif->size == sizeof(u32)) {
-				priv->last_noise =
-				    (u8) (le32_to_cpu(notif->u.noise.value) &
-					  0xff);
-				average_add(&priv->average_noise,
-					    priv->last_noise);
+				priv->exp_avg_noise =
+				    exponential_average(priv->exp_avg_noise,
+				    (u8) (le32_to_cpu(notif->u.noise.value) & 0xff),
+				    DEPTH_NOISE);
 				break;
 			}
 
@@ -7837,9 +7843,9 @@ static void ipw_rx(struct ipw_priv *priv)
 				if (network_packet && priv->assoc_network) {
 					priv->assoc_network->stats.rssi =
 					    stats.rssi;
-					average_add(&priv->average_rssi,
-						    stats.rssi);
-					priv->last_rx_rssi = stats.rssi;
+					priv->exp_avg_rssi =
+					    exponential_average(priv->exp_avg_rssi,
+					    stats.rssi, DEPTH_RSSI);
 				}
 
 				IPW_DEBUG_RX("Frame: len=%u\n",
@@ -9579,8 +9585,8 @@ static struct iw_statistics *ipw_get_wireless_stats(struct net_device *dev)
 	}
 
 	wstats->qual.qual = priv->quality;
-	wstats->qual.level = average_value(&priv->average_rssi);
-	wstats->qual.noise = average_value(&priv->average_noise);
+	wstats->qual.level = priv->exp_avg_rssi;
+	wstats->qual.noise = priv->exp_avg_noise;
 	wstats->qual.updated = IW_QUAL_QUAL_UPDATED | IW_QUAL_LEVEL_UPDATED |
 	    IW_QUAL_NOISE_UPDATED | IW_QUAL_DBM;
 

@@ -1153,11 +1153,9 @@ struct ipw_priv {
 	u32 config;
 	u32 capability;
 
-	u8 last_rx_rssi;
-	u8 last_noise;
 	struct average average_missed_beacons;
-	struct average average_rssi;
-	struct average average_noise;
+	s16 exp_avg_rssi;
+	s16 exp_avg_noise;
 	u32 port_type;
 	int rx_bufs_min;	  /**< minimum number of bufs in Rx queue */
 	int rx_pend_max;	  /**< maximum pending buffers for one IRQ */
