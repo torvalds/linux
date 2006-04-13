@@ -142,7 +142,7 @@ static int register_device(char *name, unsigned long start, unsigned long len)
 
 	new->mtd.name = name;
 	new->mtd.size = len;
-	new->mtd.flags = MTD_CAP_RAM | MTD_ERASEABLE | MTD_VOLATILE;
+	new->mtd.flags = MTD_CAP_RAM;
         new->mtd.erase = phram_erase;
 	new->mtd.point = phram_point;
 	new->mtd.unpoint = phram_unpoint;

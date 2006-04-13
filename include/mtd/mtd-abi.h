@@ -35,20 +35,14 @@ struct mtd_oob_buf {
 
 #define MTD_CLEAR_BITS		1       // Bits can be cleared (flash)
 #define MTD_SET_BITS		2       // Bits can be set
-#define MTD_ERASEABLE		4       // Has an erase function
-#define MTD_WRITEB_WRITEABLE	8       // Direct IO is possible
-#define MTD_VOLATILE		16      // Set for RAMs
-#define MTD_XIP			32	// eXecute-In-Place possible
-#define MTD_OOB			64	// Out-of-band data (NAND flash)
 #define MTD_ECC			128	// Device capable of automatic ECC
-#define MTD_NO_VIRTBLOCKS	256	// Virtual blocks not allowed
 #define MTD_PROGRAM_REGIONS	512	// Configurable Programming Regions
 
 // Some common devices / combinations of capabilities
 #define MTD_CAP_ROM		0
-#define MTD_CAP_RAM		(MTD_CLEAR_BITS|MTD_SET_BITS|MTD_WRITEB_WRITEABLE)
-#define MTD_CAP_NORFLASH        (MTD_CLEAR_BITS|MTD_ERASEABLE)
-#define MTD_CAP_NANDFLASH       (MTD_CLEAR_BITS|MTD_ERASEABLE|MTD_OOB)
+#define MTD_CAP_RAM		(MTD_CLEAR_BITS|MTD_SET_BITS)
+#define MTD_CAP_NORFLASH	(MTD_CLEAR_BITS)
+#define MTD_CAP_NANDFLASH	(MTD_CLEAR_BITS)
 #define MTD_WRITEABLE		(MTD_CLEAR_BITS|MTD_SET_BITS)
 
 
