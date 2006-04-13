@@ -6344,8 +6344,6 @@ static void ipw_wpa_assoc_frame(struct ipw_priv *priv, char *wpa_ie,
 {
 	/* make sure WPA is enabled */
 	ipw_wpa_enable(priv, 1);
-
-	ipw_disassociate(priv);
 }
 
 static int ipw_set_rsn_capa(struct ipw_priv *priv,
@@ -6539,6 +6537,7 @@ static int ipw_wx_set_auth(struct net_device *dev,
 
 	case IW_AUTH_WPA_ENABLED:
 		ret = ipw_wpa_enable(priv, param->value);
+		ipw_disassociate(priv);
 		break;
 
 	case IW_AUTH_RX_UNENCRYPTED_EAPOL:
