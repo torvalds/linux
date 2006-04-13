@@ -4489,6 +4489,24 @@ static void ipw_rx_notification(struct ipw_priv *priv,
 				 && priv->status & STATUS_ASSOCIATED)
 				queue_delayed_work(priv->workqueue,
 						   &priv->request_scan, HZ);
+
+			/* Send an empty event to user space.
+			 * We don't send the received data on the event because
+			 * it would require us to do complex transcoding, and
+			 * we want to minimise the work done in the irq handler
+			 * Use a request to extract the data.
+			 * Also, we generate this even for any scan, regardless
+			 * on how the scan was initiated. User space can just
+			 * sync on periodic scan to get fresh data...
+			 * Jean II */
+			if (x->status == SCAN_COMPLETED_STATUS_COMPLETE) {
+				union iwreq_data wrqu;
+
+				wrqu.data.length = 0;
+				wrqu.data.flags = 0;
+				wireless_send_event(priv->net_dev, SIOCGIWSCAN,
+						    &wrqu, NULL);
+			}
 			break;
 		}
 
@@ -8379,7 +8397,8 @@ static int ipw_wx_get_range(struct net_device *dev,
 	/* Event capability (kernel + driver) */
 	range->event_capa[0] = (IW_EVENT_CAPA_K_0 |
 				IW_EVENT_CAPA_MASK(SIOCGIWTHRSPY) |
-				IW_EVENT_CAPA_MASK(SIOCGIWAP));
+				IW_EVENT_CAPA_MASK(SIOCGIWAP) |
+				IW_EVENT_CAPA_MASK(SIOCGIWSCAN));
 	range->event_capa[1] = IW_EVENT_CAPA_K_1;
 
 	range->enc_capa = IW_ENC_CAPA_WPA | IW_ENC_CAPA_WPA2 |
