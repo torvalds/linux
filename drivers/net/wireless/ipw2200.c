@@ -58,7 +58,7 @@
 #define VP
 #endif
 
-#ifdef CONFIG_IEEE80211_RADIOTAP
+#ifdef CONFIG_IPW2200_RADIOTAP
 #define VR "r"
 #else
 #define VR
@@ -7583,7 +7583,7 @@ static void ipw_handle_data_packet(struct ipw_priv *priv,
 	}
 }
 
-#ifdef CONFIG_IEEE80211_RADIOTAP
+#ifdef CONFIG_IPW2200_RADIOTAP
 static void ipw_handle_data_packet_monitor(struct ipw_priv *priv,
 					   struct ipw_rx_mem_buffer *rxb,
 					   struct ieee80211_rx_stats *stats)
@@ -8191,7 +8191,7 @@ static void ipw_rx(struct ipw_priv *priv)
 
 #ifdef CONFIG_IPW2200_MONITOR
 				if (priv->ieee->iw_mode == IW_MODE_MONITOR) {
-#ifdef CONFIG_IEEE80211_RADIOTAP
+#ifdef CONFIG_IPW2200_RADIOTAP
 
                 ipw_handle_data_packet_monitor(priv,
 					       rxb,
@@ -8378,7 +8378,7 @@ static int ipw_sw_reset(struct ipw_priv *priv, int option)
 #ifdef CONFIG_IPW2200_MONITOR
 	case 2:
 		priv->ieee->iw_mode = IW_MODE_MONITOR;
-#ifdef CONFIG_IEEE80211_RADIOTAP
+#ifdef CONFIG_IPW2200_RADIOTAP
 		priv->net_dev->type = ARPHRD_IEEE80211_RADIOTAP;
 #else
 		priv->net_dev->type = ARPHRD_IEEE80211;
@@ -8633,7 +8633,7 @@ static int ipw_wx_set_mode(struct net_device *dev,
 		priv->net_dev->type = ARPHRD_ETHER;
 
 	if (wrqu->mode == IW_MODE_MONITOR)
-#ifdef CONFIG_IEEE80211_RADIOTAP
+#ifdef CONFIG_IPW2200_RADIOTAP
 		priv->net_dev->type = ARPHRD_IEEE80211_RADIOTAP;
 #else
 		priv->net_dev->type = ARPHRD_IEEE80211;
@@ -9735,7 +9735,7 @@ static int ipw_wx_set_monitor(struct net_device *dev,
 	IPW_DEBUG_WX("SET MONITOR: %d %d\n", enable, parms[1]);
 	if (enable) {
 		if (priv->ieee->iw_mode != IW_MODE_MONITOR) {
-#ifdef CONFIG_IEEE80211_RADIOTAP
+#ifdef CONFIG_IPW2200_RADIOTAP
 			priv->net_dev->type = ARPHRD_IEEE80211_RADIOTAP;
 #else
 			priv->net_dev->type = ARPHRD_IEEE80211;

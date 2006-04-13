@@ -1146,7 +1146,7 @@ struct ipw_prom_priv {
 };
 #endif
 
-#if defined(CONFIG_IEEE80211_RADIOTAP) || defined(CONFIG_IPW2200_PROMISCUOUS)
+#if defined(CONFIG_IPW2200_RADIOTAP) || defined(CONFIG_IPW2200_PROMISCUOUS)
 /* Magic struct that slots into the radiotap header -- no reason
  * to build this manually element by element, we can write it much
  * more efficiently than we can parse it. ORDER MATTERS HERE
