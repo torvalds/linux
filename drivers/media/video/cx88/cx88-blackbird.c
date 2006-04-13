@@ -1291,7 +1291,7 @@ static int blackbird_initialize_codec(struct cx8802_dev *dev)
 	   blackbird_api_cmd(dev, IVTV_API_ASSIGN_NUM_VSYNC_LINES, 4, 0, 0x180, 0x180); */
 	blackbird_api_cmd(dev, BLACKBIRD_API_SET_CAPTURE_LINES, 2, 0,
 			BLACKBIRD_FIELD1_SAA7115,
-			BLACKBIRD_FIELD1_SAA7115
+			BLACKBIRD_FIELD2_SAA7115
 		);
 
 	/* blackbird_api_cmd(dev, IVTV_API_ASSIGN_PLACEHOLDER, 12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0); */
