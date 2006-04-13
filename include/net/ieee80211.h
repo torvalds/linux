@@ -1076,6 +1076,7 @@ struct ieee80211_device {
 
 	int (*handle_management) (struct net_device * dev,
 				  struct ieee80211_network * network, u16 type);
+	int (*is_qos_active) (struct net_device *dev, struct sk_buff *skb);
 
 	/* Typical STA methods */
 	int (*handle_auth) (struct net_device * dev,
