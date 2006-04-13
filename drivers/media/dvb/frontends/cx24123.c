@@ -31,6 +31,7 @@
 
 #define XTAL 10111000
 
+static int force_band;
 static int debug;
 #define dprintk(args...) \
 	do { \
@@ -109,65 +110,76 @@ static struct
 	u32 progdata;
 } cx24123_bandselect_vals[] =
 {
+	/* band 1 */
 	{
 		.freq_low	= 950000,
-		.freq_high	= 1018999,
-		.VCOdivider	= 4,
-		.progdata	= (0 << 18) | (0 << 9) | 0x40,
-	},
-	{
-		.freq_low	= 1019000,
 		.freq_high	= 1074999,
 		.VCOdivider	= 4,
-		.progdata	= (0 << 18) | (0 << 9) | 0x80,
+		.progdata	= (0 << 19) | (0 << 9) | 0x40,
 	},
+
+	/* band 2 */
 	{
 		.freq_low	= 1075000,
-		.freq_high	= 1227999,
-		.VCOdivider	= 2,
-		.progdata	= (0 << 18) | (1 << 9) | 0x01,
+		.freq_high	= 1177999,
+		.VCOdivider	= 4,
+		.progdata	= (0 << 19) | (0 << 9) | 0x80,
 	},
+
+	/* band 3 */
 	{
-		.freq_low	= 1228000,
-		.freq_high	= 1349999,
+		.freq_low	= 1178000,
+		.freq_high	= 1295999,
 		.VCOdivider	= 2,
-		.progdata	= (0 << 18) | (1 << 9) | 0x02,
+		.progdata	= (0 << 19) | (1 << 9) | 0x01,
 	},
+
+	/* band 4 */
 	{
-		.freq_low	= 1350000,
-		.freq_high	= 1481999,
+		.freq_low	= 1296000,
+		.freq_high	= 1431999,
 		.VCOdivider	= 2,
-		.progdata	= (0 << 18) | (1 << 9) | 0x04,
+		.progdata	= (0 << 19) | (1 << 9) | 0x02,
 	},
+
+	/* band 5 */
 	{
-		.freq_low	= 1482000,
-		.freq_high	= 1595999,
+		.freq_low	= 1432000,
+		.freq_high	= 1575999,
 		.VCOdivider	= 2,
-		.progdata	= (0 << 18) | (1 << 9) | 0x08,
+		.progdata	= (0 << 19) | (1 << 9) | 0x04,
 	},
+
+	/* band 6 */
 	{
-		.freq_low	= 1596000,
+		.freq_low	= 1576000,
 		.freq_high	= 1717999,
 		.VCOdivider	= 2,
-		.progdata	= (0 << 18) | (1 << 9) | 0x10,
+		.progdata	= (0 << 19) | (1 << 9) | 0x08,
 	},
+
+	/* band 7 */
 	{
 		.freq_low	= 1718000,
 		.freq_high	= 1855999,
 		.VCOdivider	= 2,
-		.progdata	= (0 << 18) | (1 << 9) | 0x20,
+		.progdata	= (0 << 19) | (1 << 9) | 0x10,
 	},
+
+	/* band 8 */
 	{
 		.freq_low	= 1856000,
 		.freq_high	= 2035999,
 		.VCOdivider	= 2,
-		.progdata	= (0 << 18) | (1 << 9) | 0x40,
+		.progdata	= (0 << 19) | (1 << 9) | 0x20,
 	},
+
+	/* band 9 */
 	{
 		.freq_low	= 2036000,
-		.freq_high	= 2149999,
+		.freq_high	= 2150000,
 		.VCOdivider	= 2,
-		.progdata	= (0 << 18) | (1 << 9) | 0x80,
+		.progdata	= (0 << 19) | (1 << 9) | 0x40,
 	},
 };
 
@@ -520,6 +532,8 @@ static int cx24123_pll_calculate(struct dvb_frontend* fe, struct dvb_frontend_pa
 	u32 ndiv = 0, adiv = 0, vco_div = 0;
 	int i = 0;
 	int pump = 2;
+	int band = 0;
+	int num_bands = sizeof(cx24123_bandselect_vals) / sizeof(cx24123_bandselect_vals[0]);
 
 	/* Defaults for low freq, low rate */
 	state->VCAarg = cx24123_AGC_vals[0].VCAprogdata;
@@ -538,21 +552,27 @@ static int cx24123_pll_calculate(struct dvb_frontend* fe, struct dvb_frontend_pa
 		}
 	}
 
-	/* For the given frequency, determine the bandselect programming bits */
-	for (i = 0; i < sizeof(cx24123_bandselect_vals) / sizeof(cx24123_bandselect_vals[0]); i++)
+	/* determine the band to use */
+	if(force_band < 1 || force_band > num_bands)
 	{
-		if ((cx24123_bandselect_vals[i].freq_low <= p->frequency) &&
-		    (cx24123_bandselect_vals[i].freq_high >= p->frequency) ) {
-			state->bandselectarg = cx24123_bandselect_vals[i].progdata;
-			vco_div = cx24123_bandselect_vals[i].VCOdivider;
-
-			/* determine the charge pump current */
-			if ( p->frequency < (cx24123_bandselect_vals[i].freq_low + cx24123_bandselect_vals[i].freq_high)/2 )
-				pump = 0x01;
-			else
-				pump = 0x02;
+		for (i = 0; i < num_bands; i++)
+		{
+			if ((cx24123_bandselect_vals[i].freq_low <= p->frequency) &&
+			    (cx24123_bandselect_vals[i].freq_high >= p->frequency) )
+				band = i;
 		}
 	}
+	else
+		band = force_band - 1;
+
+	state->bandselectarg = cx24123_bandselect_vals[band].progdata;
+	vco_div = cx24123_bandselect_vals[band].VCOdivider;
+
+	/* determine the charge pump current */
+	if ( p->frequency < (cx24123_bandselect_vals[band].freq_low + cx24123_bandselect_vals[band].freq_high)/2 )
+		pump = 0x01;
+	else
+		pump = 0x02;
 
 	/* Determine the N/A dividers for the requested lband freq (in kHz). */
 	/* Note: the reference divider R=10, frequency is in KHz, XTAL is in Hz */
@@ -1085,6 +1105,9 @@ static struct dvb_frontend_ops cx24123_ops = {
 
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Activates frontend debugging (default:0)");
+
+module_param(force_band, int, 0644);
+MODULE_PARM_DESC(force_band, "Force a specific band select (1-9, default:off).");
 
 MODULE_DESCRIPTION("DVB Frontend module for Conexant cx24123/cx24109 hardware");
 MODULE_AUTHOR("Steven Toth");
