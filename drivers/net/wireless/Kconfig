@@ -235,6 +235,34 @@ config IPW2200_MONITOR
 	  promiscuous mode via the Wireless Tool's Monitor mode.  While in this
 	  mode, no packets can be sent.
 
+config IPW2200_RADIOTAP
+	bool "Enable radiotap format 802.11 raw packet support"
+	depends on IPW2200_MONITOR
+
+config IPW2200_PROMISCUOUS
+	bool "Enable creation of a RF radiotap promiscuous interface"
+	depends on IPW2200_MONITOR
+	select IPW2200_RADIOTAP
+	---help---
+          Enables the creation of a second interface prefixed 'rtap'. 
+          This second interface will provide every received in radiotap
+	  format.
+
+          This is useful for performing wireless network analysis while
+          maintaining an active association.
+
+          Example usage:
+
+            % modprobe ipw2200 rtap_iface=1
+            % ifconfig rtap0 up
+            % tethereal -i rtap0
+
+          If you do not specify 'rtap_iface=1' as a module parameter then 
+          the rtap interface will not be created and you will need to turn 
+          it on via sysfs:
+	
+            % echo 1 > /sys/bus/pci/drivers/ipw2200/*/rtap_iface
+
 config IPW2200_QOS
         bool "Enable QoS support"
         depends on IPW2200 && EXPERIMENTAL
@@ -262,30 +290,6 @@ config IPW2200_DEBUG
 
 	  If you are not trying to debug or develop the IPW2200 driver, you 
 	  most likely want to say N here.
-
-config IPW2200_PROMISCUOUS
-	bool "Enable creation of a RF radiotap promiscuous interface."
-	depends on IPW2200
-	select IEEE80211_RADIOTAP
-	---help---
-          Enables the creation of a second interface prefixed 'rtap'. 
-          This second interface will provide every received in radiotap
-	  format.
-
-          This is useful for performing wireless network analysis while
-          maintaining an active association.
-
-          Example usage:
-
-            % modprobe ipw2200 rtap_iface=1
-            % ifconfig rtap0 up
-            % tethereal -i rtap0
-
-          If you do not specify 'rtap_iface=1' as a module parameter then 
-          the rtap interface will not be created and you will need to turn 
-          it on via sysfs:
-	
-            % echo 1 > /sys/bus/pci/drivers/ipw2200/*/rtap_iface
 
 config AIRO
 	tristate "Cisco/Aironet 34X/35X/4500/4800 ISA and PCI cards"
