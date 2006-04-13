@@ -1242,6 +1242,8 @@ static int snd_pcm_oss_set_format(struct snd_pcm_oss_file *pcm_oss_file, int for
 	
 	if (format != AFMT_QUERY) {
 		formats = snd_pcm_oss_get_formats(pcm_oss_file);
+		if (formats < 0)
+			return formats;
 		if (!(formats & format))
 			format = AFMT_U8;
 		for (idx = 1; idx >= 0; --idx) {
