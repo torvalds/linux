@@ -188,11 +188,15 @@ static int __init alsa_card_pmac_init(void)
 	if ((err = platform_driver_register(&snd_pmac_driver)) < 0)
 		return err;
 	device = platform_device_register_simple(SND_PMAC_DRIVER, -1, NULL, 0);
-	if (IS_ERR(device)) {
-		platform_driver_unregister(&snd_pmac_driver);
-		return PTR_ERR(device);
-	}
-	return 0;
+	if (!IS_ERR(device)) {
+		if (platform_get_drvdata(device))
+			return 0;
+		platform_device_unregister(device);
+		err = -ENODEV;
+	} else
+		err = PTR_ERR(device);
+	platform_driver_unregister(&snd_pmac_driver);
+	return err;
 
 }
 
