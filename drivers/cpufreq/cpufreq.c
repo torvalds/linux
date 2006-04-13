@@ -346,6 +346,8 @@ show_one(scaling_min_freq, min);
 show_one(scaling_max_freq, max);
 show_one(scaling_cur_freq, cur);
 
+static int __cpufreq_set_policy(struct cpufreq_policy *data, struct cpufreq_policy *policy);
+
 /**
  * cpufreq_per_cpu_attr_write() / store_##file_name() - sysfs write access
  */
@@ -364,7 +366,10 @@ static ssize_t store_##file_name					\
 	if (ret != 1)							\
 		return -EINVAL;						\
 									\
-	ret = cpufreq_set_policy(&new_policy);				\
+	mutex_lock(&policy->lock);					\
+	ret = __cpufreq_set_policy(policy, &new_policy);		\
+	policy->user_policy.object = policy->object;			\
+	mutex_unlock(&policy->lock);					\
 									\
 	return ret ? ret : count;					\
 }
@@ -420,7 +425,15 @@ static ssize_t store_scaling_governor (struct cpufreq_policy * policy,
 	if (cpufreq_parse_governor(str_governor, &new_policy.policy, &new_policy.governor))
 		return -EINVAL;
 
-	ret = cpufreq_set_policy(&new_policy);
+	/* Do not use cpufreq_set_policy here or the user_policy.max
+	   will be wrongly overridden */
+	mutex_lock(&policy->lock);
+	ret = __cpufreq_set_policy(policy, &new_policy);
+
+	policy->user_policy.policy = policy->policy;
+	policy->user_policy.governor = policy->governor;
+	mutex_unlock(&policy->lock);
+
 	return ret ? ret : count;
 }
 
