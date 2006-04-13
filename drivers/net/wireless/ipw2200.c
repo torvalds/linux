@@ -107,7 +107,7 @@ static int rtap_iface = 0;     /* def: 0 -- do not create rtap interface */
 #endif
 
 
-#ifdef CONFIG_IPW_QOS
+#ifdef CONFIG_IPW2200_QOS
 static int qos_enable = 0;
 static int qos_burst_enable = 0;
 static int qos_no_ack_mask = 0;
@@ -171,7 +171,7 @@ static int ipw_send_qos_params_command(struct ipw_priv *priv, struct ieee80211_q
 				       *qos_param);
 static int ipw_send_qos_info_command(struct ipw_priv *priv, struct ieee80211_qos_information_element
 				     *qos_param);
-#endif				/* CONFIG_IPW_QOS */
+#endif				/* CONFIG_IPW2200_QOS */
 
 static struct iw_statistics *ipw_get_wireless_stats(struct net_device *dev);
 static void ipw_remove_current_network(struct ipw_priv *priv);
@@ -4342,7 +4342,7 @@ static void ipw_rx_notification(struct ipw_priv *priv,
 					queue_work(priv->workqueue,
 						   &priv->system_config);
 
-#ifdef CONFIG_IPW_QOS
+#ifdef CONFIG_IPW2200_QOS
 #define IPW_GET_PACKET_STYPE(x) WLAN_FC_GET_STYPE( \
 			 le16_to_cpu(((struct ieee80211_hdr *)(x))->frame_ctl))
 					if ((priv->status & STATUS_AUTH) &&
@@ -6680,7 +6680,7 @@ static int ipw_wx_set_mlme(struct net_device *dev,
 	return 0;
 }
 
-#ifdef CONFIG_IPW_QOS
+#ifdef CONFIG_IPW2200_QOS
 
 /* QoS */
 /*
@@ -7145,7 +7145,7 @@ static int ipw_send_qos_info_command(struct ipw_priv *priv, struct ieee80211_qos
 				qos_param);
 }
 
-#endif				/* CONFIG_IPW_QOS */
+#endif				/* CONFIG_IPW2200_QOS */
 
 static int ipw_associate_network(struct ipw_priv *priv,
 				 struct ieee80211_network *network,
@@ -7309,7 +7309,7 @@ static int ipw_associate_network(struct ipw_priv *priv,
 
 	priv->assoc_network = network;
 
-#ifdef CONFIG_IPW_QOS
+#ifdef CONFIG_IPW2200_QOS
 	ipw_qos_association(priv, network);
 #endif
 
@@ -8364,10 +8364,10 @@ static int ipw_sw_reset(struct ipw_priv *priv, int option)
 		IPW_DEBUG_INFO("Bind to static channel %d\n", channel);
 		/* TODO: Validate that provided channel is in range */
 	}
-#ifdef CONFIG_IPW_QOS
+#ifdef CONFIG_IPW2200_QOS
 	ipw_qos_init(priv, qos_enable, qos_burst_enable,
 		     burst_duration_CCK, burst_duration_OFDM);
-#endif				/* CONFIG_IPW_QOS */
+#endif				/* CONFIG_IPW2200_QOS */
 
 	switch (mode) {
 	case 1:
@@ -10037,7 +10037,7 @@ static int ipw_tx_skb(struct ipw_priv *priv, struct ieee80211_txb *txb,
 	    txb->fragments[0]->data;
 	int i = 0;
 	struct tfd_frame *tfd;
-#ifdef CONFIG_IPW_QOS
+#ifdef CONFIG_IPW2200_QOS
 	int tx_id = ipw_get_tx_queue_number(priv, pri);
 	struct clx2_tx_queue *txq = &priv->txq[tx_id];
 #else
@@ -10144,10 +10144,10 @@ static int ipw_tx_skb(struct ipw_priv *priv, struct ieee80211_txb *txb,
 		/* No hardware encryption */
 		tfd->u.data.tx_flags |= DCT_FLAG_NO_WEP;
 
-#ifdef CONFIG_IPW_QOS
+#ifdef CONFIG_IPW2200_QOS
 	if (fc & IEEE80211_STYPE_QOS_DATA)
 		ipw_qos_set_tx_queue_command(priv, pri, &(tfd->u.data));
-#endif				/* CONFIG_IPW_QOS */
+#endif				/* CONFIG_IPW2200_QOS */
 
 	/* payload */
 	tfd->u.data.num_chunks = cpu_to_le32(min((u8) (NUM_TFD_CHUNKS - 2),
@@ -10227,12 +10227,12 @@ static int ipw_tx_skb(struct ipw_priv *priv, struct ieee80211_txb *txb,
 static int ipw_net_is_queue_full(struct net_device *dev, int pri)
 {
 	struct ipw_priv *priv = ieee80211_priv(dev);
-#ifdef CONFIG_IPW_QOS
+#ifdef CONFIG_IPW2200_QOS
 	int tx_id = ipw_get_tx_queue_number(priv, pri);
 	struct clx2_tx_queue *txq = &priv->txq[tx_id];
 #else
 	struct clx2_tx_queue *txq = &priv->txq[0];
-#endif				/* CONFIG_IPW_QOS */
+#endif				/* CONFIG_IPW2200_QOS */
 
 	if (ipw_queue_space(&txq->q) < txq->q.high_mark)
 		return 1;
@@ -10642,10 +10642,10 @@ static int ipw_setup_deferred_work(struct ipw_priv *priv)
 	INIT_WORK(&priv->merge_networks,
 		  (void (*)(void *))ipw_merge_adhoc_network, priv);
 
-#ifdef CONFIG_IPW_QOS
+#ifdef CONFIG_IPW2200_QOS
 	INIT_WORK(&priv->qos_activate, (void (*)(void *))ipw_bg_qos_activate,
 		  priv);
-#endif				/* CONFIG_IPW_QOS */
+#endif				/* CONFIG_IPW2200_QOS */
 
 	tasklet_init(&priv->irq_tasklet, (void (*)(unsigned long))
 		     ipw_irq_tasklet, (unsigned long)priv);
@@ -10817,10 +10817,10 @@ static int ipw_config(struct ipw_priv *priv)
 		if (ipw_send_rts_threshold(priv, priv->rts_threshold))
 			goto error;
 	}
-#ifdef CONFIG_IPW_QOS
+#ifdef CONFIG_IPW2200_QOS
 	IPW_DEBUG_QOS("QoS: call ipw_qos_activate\n");
 	ipw_qos_activate(priv, NULL);
-#endif				/* CONFIG_IPW_QOS */
+#endif				/* CONFIG_IPW2200_QOS */
 
 	if (ipw_set_random_seed(priv))
 		goto error;
@@ -11549,12 +11549,12 @@ static int ipw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	priv->ieee->set_security = shim__set_security;
 	priv->ieee->is_queue_full = ipw_net_is_queue_full;
 
-#ifdef CONFIG_IPW_QOS
+#ifdef CONFIG_IPW2200_QOS
 	priv->ieee->is_qos_active = ipw_is_qos_active;
 	priv->ieee->handle_probe_response = ipw_handle_beacon;
 	priv->ieee->handle_beacon = ipw_handle_probe_response;
 	priv->ieee->handle_assoc_response = ipw_handle_assoc_response;
-#endif				/* CONFIG_IPW_QOS */
+#endif				/* CONFIG_IPW2200_QOS */
 
 	priv->ieee->perfect_rssi = -20;
 	priv->ieee->worst_rssi = -85;
@@ -11812,7 +11812,7 @@ module_param(rtap_iface, int, 0444);
 MODULE_PARM_DESC(rtap_iface, "create the rtap interface (1 - create, default 0)");
 #endif
 
-#ifdef CONFIG_IPW_QOS
+#ifdef CONFIG_IPW2200_QOS
 module_param(qos_enable, int, 0444);
 MODULE_PARM_DESC(qos_enable, "enable all QoS functionalitis");
 
@@ -11827,7 +11827,7 @@ MODULE_PARM_DESC(burst_duration_CCK, "set CCK burst value");
 
 module_param(burst_duration_OFDM, int, 0444);
 MODULE_PARM_DESC(burst_duration_OFDM, "set OFDM burst value");
-#endif				/* CONFIG_IPW_QOS */
+#endif				/* CONFIG_IPW2200_QOS */
 
 #ifdef CONFIG_IPW2200_MONITOR
 module_param(mode, int, 0444);

@@ -235,7 +235,7 @@ config IPW2200_MONITOR
 	  promiscuous mode via the Wireless Tool's Monitor mode.  While in this
 	  mode, no packets can be sent.
 
-config IPW_QOS
+config IPW2200_QOS
         bool "Enable QoS support"
         depends on IPW2200 && EXPERIMENTAL
 
