@@ -152,6 +152,12 @@ ieee80211softmac_call_events_locked(struct ieee80211softmac_device *mac, int eve
 			wrqu.ap_addr.sa_family = ARPHRD_ETHER;
 			we_event = SIOCGIWAP;
 			break;
+		case IEEE80211SOFTMAC_EVENT_SCAN_FINISHED:
+			wrqu.data.length = 0;
+			wrqu.data.flags = 0;
+			memset(&wrqu, '\0', sizeof (union iwreq_data));
+			we_event = SIOCGIWSCAN;
+			break;
 		default:
 			msg = event_descriptions[event];
 			wrqu.data.length = strlen(msg);
