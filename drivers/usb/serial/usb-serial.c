@@ -201,12 +201,12 @@ static int serial_open (struct tty_struct *tty, struct file * filp)
 	 
 	++port->open_count;
 
-	if (port->open_count == 1) {
+	/* set up our port structure making the tty driver
+	 * remember our port object, and us it */
+	tty->driver_data = port;
+	port->tty = tty;
 
-		/* set up our port structure making the tty driver
-		 * remember our port object, and us it */
-		tty->driver_data = port;
-		port->tty = tty;
+	if (port->open_count == 1) {
 
 		/* lock this module before we call it
 		 * this may fail, which means we must bail out,
