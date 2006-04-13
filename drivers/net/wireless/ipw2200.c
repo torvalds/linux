@@ -4033,7 +4033,7 @@ static void ipw_gather_stats(struct ipw_priv *priv)
 	else if (signal_quality < 1)
 		signal_quality = 0;
 
-	IPW_ERROR("Signal level : %3d%% (%d dBm)\n",
+	IPW_DEBUG_STATS("Signal level : %3d%% (%d dBm)\n",
 			signal_quality, rssi);
 
 	quality = min(beacon_quality,
