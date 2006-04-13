@@ -687,15 +687,27 @@ static int cx24123_set_voltage(struct dvb_frontend* fe, fe_sec_voltage_t voltage
 	return 0;
 }
 
+/* wait for diseqc queue to become ready (or timeout) */
+static void cx24123_wait_for_diseqc(struct cx24123_state *state)
+{
+	unsigned long timeout = jiffies + msecs_to_jiffies(200);
+	while (!(cx24123_readreg(state, 0x29) & 0x40)) {
+		if(time_after(jiffies, timeout)) {
+			printk("%s: diseqc queue not ready, command may be lost.\n", __FUNCTION__);
+			break;
+		}
+		msleep(10);
+	}
+}
+
 static int cx24123_send_diseqc_msg(struct dvb_frontend* fe, struct dvb_diseqc_master_cmd *cmd)
 {
 	struct cx24123_state *state = fe->demodulator_priv;
 	int i, val;
-	unsigned long timeout;
 
 	dprintk("%s:\n",__FUNCTION__);
 
-	/* check if continuous tone has been stoped */
+	/* check if continuous tone has been stopped */
 	if (state->config->use_isl6421)
 		val = cx24123_readlnbreg(state, 0x00) & 0x10;
 	else
@@ -707,6 +719,9 @@ static int cx24123_send_diseqc_msg(struct dvb_frontend* fe, struct dvb_diseqc_ma
 		return -ENOTSUPP;
 	}
 
+	/* wait for diseqc queue ready */
+	cx24123_wait_for_diseqc(state);
+
 	/* select tone mode */
 	cx24123_writereg(state, 0x2a, cx24123_readreg(state, 0x2a) & 0xf8);
 
@@ -716,9 +731,8 @@ static int cx24123_send_diseqc_msg(struct dvb_frontend* fe, struct dvb_diseqc_ma
 	val = cx24123_readreg(state, 0x29);
 	cx24123_writereg(state, 0x29, ((val & 0x90) | 0x40) | ((cmd->msg_len-3) & 3));
 
-	timeout = jiffies + msecs_to_jiffies(100);
-	while (!time_after(jiffies, timeout) && !(cx24123_readreg(state, 0x29) & 0x40))
-		; // wait for LNB ready
+	/* wait for diseqc message to finish sending */
+	cx24123_wait_for_diseqc(state);
 
 	return 0;
 }
@@ -727,7 +741,6 @@ static int cx24123_diseqc_send_burst(struct dvb_frontend* fe, fe_sec_mini_cmd_t 
 {
 	struct cx24123_state *state = fe->demodulator_priv;
 	int val;
-	unsigned long timeout;
 
 	dprintk("%s:\n", __FUNCTION__);
 
@@ -743,6 +756,8 @@ static int cx24123_diseqc_send_burst(struct dvb_frontend* fe, fe_sec_mini_cmd_t 
 		return -ENOTSUPP;
 	}
 
+	cx24123_wait_for_diseqc(state);
+
 	/* select tone mode */
 	val = cx24123_readreg(state, 0x2a) & 0xf8;
 	cx24123_writereg(state, 0x2a, val | 0x04);
@@ -756,10 +771,7 @@ static int cx24123_diseqc_send_burst(struct dvb_frontend* fe, fe_sec_mini_cmd_t 
 	else
 		return -EINVAL;
 
-
-	timeout = jiffies + msecs_to_jiffies(100);
-	while (!time_after(jiffies, timeout) && !(cx24123_readreg(state, 0x29) & 0x40))
-		; // wait for LNB ready
+	cx24123_wait_for_diseqc(state);
 
 	return 0;
 }
