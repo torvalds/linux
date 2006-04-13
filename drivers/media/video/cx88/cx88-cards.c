@@ -1115,6 +1115,22 @@ struct cx88_board cx88_boards[] = {
 		}},
 		.dvb            = 1,
 	},
+	[CX88_BOARD_KWORLD_MCE200_DELUXE] = {
+		/* FIXME: tested TV input only, disabled composite,
+		   svideo and radio until they can be tested also. */
+		.name           = "Kworld MCE 200 Deluxe",
+		.tuner_type     = TUNER_TENA_9533_DI,
+		.radio_type     = UNSET,
+		.tda9887_conf   = TDA9887_PRESENT,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.input          = {{
+			.type   = CX88_VMUX_TELEVISION,
+			.vmux   = 0,
+			.gpio0  = 0x0000BDE6
+		}},
+		.blackbird = 1,
+	},
 };
 const unsigned int cx88_bcount = ARRAY_SIZE(cx88_boards);
 
@@ -1336,6 +1352,10 @@ struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x7063,
 		.subdevice = 0x5500,
 		.card      = CX88_BOARD_PCHDTV_HD5500,
+	},{
+		.subvendor = 0x17de,
+		.subdevice = 0x0841,
+		.card      = CX88_BOARD_KWORLD_MCE200_DELUXE,
 	},
 };
 const unsigned int cx88_idcount = ARRAY_SIZE(cx88_subids);
