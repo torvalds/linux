@@ -61,6 +61,7 @@ static int roaming = 1;
 static const char ipw_modes[] = {
 	'a', 'b', 'g', '?'
 };
+static int antenna = CFG_SYS_ANTENNA_BOTH;
 
 #ifdef CONFIG_IPW_QOS
 static int qos_enable = 0;
@@ -9627,7 +9628,9 @@ static  void init_sys_config(struct ipw_sys_config *sys_config)
 	sys_config->disable_unicast_decryption = 1;
 	sys_config->exclude_multicast_unencrypted = 0;
 	sys_config->disable_multicast_decryption = 1;
-	sys_config->antenna_diversity = CFG_SYS_ANTENNA_SLOW_DIV;
+	if (antenna < CFG_SYS_ANTENNA_BOTH || antenna > CFG_SYS_ANTENNA_B)
+		antenna = CFG_SYS_ANTENNA_BOTH;
+	sys_config->antenna_diversity = antenna;
 	sys_config->pass_crc_to_host = 0;	/* TODO: See if 1 gives us FCS */
 	sys_config->dot11g_auto_detection = 0;
 	sys_config->enable_cts_to_self = 0;
@@ -11257,6 +11260,9 @@ MODULE_PARM_DESC(cmdlog,
 
 module_param(roaming, int, 0444);
 MODULE_PARM_DESC(roaming, "enable roaming support (default on)");
+
+module_param(antenna, int, 0444);
+MODULE_PARM_DESC(antenna, "select antenna 1=Main, 3=Aux, default 0 [both], 2=slow_diversity (choose the one with lower background noise)");
 
 module_exit(ipw_exit);
 module_init(ipw_init);
