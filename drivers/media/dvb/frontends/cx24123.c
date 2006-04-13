@@ -76,23 +76,23 @@ static struct
 		.symbolrate_high	= 4999999,
 		/* the specs recommend other values for VGA offsets,
 		   but tests show they are wrong */
-		.VGAprogdata		= (2 << 18) | (0x180 << 9) | 0x1e0,
-		.VCAprogdata		= (4 << 18) | (0x07 << 9) | 0x07,
-		.FILTune		= 0x280 /* 0.41 V */
+		.VGAprogdata		= (1 << 19) | (0x180 << 9) | 0x1e0,
+		.VCAprogdata		= (2 << 19) | (0x07 << 9) | 0x07,
+		.FILTune		= 0x27f /* 0.41 V */
 	},
 	{
 		.symbolrate_low		=  5000000,
 		.symbolrate_high	= 14999999,
-		.VGAprogdata		= (2 << 18) | (0x180 << 9) | 0x1e0,
-		.VCAprogdata		= (4 << 18) | (0x07 << 9) | 0x1f,
+		.VGAprogdata		= (1 << 19) | (0x180 << 9) | 0x1e0,
+		.VCAprogdata		= (2 << 19) | (0x07 << 9) | 0x1f,
 		.FILTune		= 0x317 /* 0.90 V */
 	},
 	{
 		.symbolrate_low		= 15000000,
 		.symbolrate_high	= 45000000,
-		.VGAprogdata		= (2 << 18) | (0x100 << 9) | 0x180,
-		.VCAprogdata		= (4 << 18) | (0x07 << 9) | 0x3f,
-		.FILTune		= 0x146 /* 2.70 V */
+		.VGAprogdata		= (1 << 19) | (0x100 << 9) | 0x180,
+		.VCAprogdata		= (2 << 19) | (0x07 << 9) | 0x3f,
+		.FILTune		= 0x145 /* 2.70 V */
 	},
 };
 
@@ -178,45 +178,44 @@ static struct {
 {
 	{0x00, 0x03}, /* Reset system */
 	{0x00, 0x00}, /* Clear reset */
-	{0x03, 0x07},
-	{0x04, 0x10},
-	{0x05, 0x04},
-	{0x06, 0x31},
-	{0x0d, 0x02},
-	{0x0e, 0x03},
-	{0x0f, 0xfe},
-	{0x10, 0x01},
-	{0x14, 0x01},
-	{0x16, 0x00},
-	{0x17, 0x01},
-	{0x1b, 0x05},
-	{0x1c, 0x80},
-	{0x1d, 0x00},
-	{0x1e, 0x00},
-	{0x20, 0x41},
-	{0x21, 0x15},
-	{0x29, 0x00},
-	{0x2a, 0xb0},
-	{0x2b, 0x73},
-	{0x2c, 0x00},
+	{0x03, 0x07}, /* QPSK, DVB, Auto Acquisition (default) */
+	{0x04, 0x10}, /* MPEG */
+	{0x05, 0x04}, /* MPEG */
+	{0x06, 0x31}, /* MPEG (default) */
+	{0x0b, 0x00}, /* Freq search start point (default) */
+	{0x0c, 0x00}, /* Demodulator sample gain (default) */
+	{0x0d, 0x02}, /* Frequency search range = Fsymbol / 4 (default) */
+	{0x0e, 0x03}, /* Default non-inverted, FEC 3/4 (default) */
+	{0x0f, 0xfe}, /* FEC search mask (all supported codes) */
+	{0x10, 0x01}, /* Default search inversion, no repeat (default) */
+	{0x16, 0x00}, /* Enable reading of frequency */
+	{0x17, 0x01}, /* Enable EsNO Ready Counter */
+	{0x1c, 0x80}, /* Enable error counter */
+	{0x20, 0x00}, /* Tuner burst clock rate = 500KHz */
+	{0x21, 0x15}, /* Tuner burst mode, word length = 0x15 */
+	{0x28, 0x00}, /* Enable FILTERV with positive pol., DiSEqC 2.x off */
+	{0x29, 0x00}, /* DiSEqC LNB_DC off */
+	{0x2a, 0xb0}, /* DiSEqC Parameters (default) */
+	{0x2b, 0x73}, /* DiSEqC Tone Frequency (default) */
+	{0x2c, 0x00}, /* DiSEqC Message (0x2c - 0x31) */
 	{0x2d, 0x00},
 	{0x2e, 0x00},
 	{0x2f, 0x00},
 	{0x30, 0x00},
 	{0x31, 0x00},
-	{0x32, 0x8c},
-	{0x33, 0x00},
+	{0x32, 0x8c}, /* DiSEqC Parameters (default) */
+	{0x33, 0x00}, /* Interrupts off (0x33 - 0x34) */
 	{0x34, 0x00},
-	{0x35, 0x03},
-	{0x36, 0x02},
-	{0x37, 0x3a},
-	{0x3a, 0x00},	/* Enable AGC accumulator */
-	{0x44, 0x00},
-	{0x45, 0x00},
-	{0x46, 0x05},
-	{0x56, 0x41},
-	{0x57, 0xff},
-	{0x67, 0x83},
+	{0x35, 0x03}, /* DiSEqC Tone Amplitude (default) */
+	{0x36, 0x02}, /* DiSEqC Parameters (default) */
+	{0x37, 0x3a}, /* DiSEqC Parameters (default) */
+	{0x3a, 0x00}, /* Enable AGC accumulator (for signal strength) */
+	{0x44, 0x00}, /* Constellation (default) */
+	{0x45, 0x00}, /* Symbol count (default) */
+	{0x46, 0x0d}, /* Symbol rate estimator on (default) */
+	{0x56, 0x41}, /* Various (default) */
+	{0x57, 0xff}, /* Error Counter Window (default) */
+	{0x67, 0x83}, /* Non-DCII symbol clock */
 };
 
 static int cx24123_writereg(struct cx24123_state* state, int reg, int data)
@@ -291,20 +290,23 @@ static int cx24123_readlnbreg(struct cx24123_state* state, u8 reg)
 
 static int cx24123_set_inversion(struct cx24123_state* state, fe_spectral_inversion_t inversion)
 {
+	u8 nom_reg = cx24123_readreg(state, 0x0e);
+	u8 auto_reg = cx24123_readreg(state, 0x10);
+
 	switch (inversion) {
 	case INVERSION_OFF:
 		dprintk("%s:  inversion off\n",__FUNCTION__);
-		cx24123_writereg(state, 0x0e, cx24123_readreg(state, 0x0e) & 0x7f);
-		cx24123_writereg(state, 0x10, cx24123_readreg(state, 0x10) | 0x80);
+		cx24123_writereg(state, 0x0e, nom_reg & ~0x80);
+		cx24123_writereg(state, 0x10, auto_reg | 0x80);
 		break;
 	case INVERSION_ON:
 		dprintk("%s:  inversion on\n",__FUNCTION__);
-		cx24123_writereg(state, 0x0e, cx24123_readreg(state, 0x0e) | 0x80);
-		cx24123_writereg(state, 0x10, cx24123_readreg(state, 0x10) | 0x80);
+		cx24123_writereg(state, 0x0e, nom_reg | 0x80);
+		cx24123_writereg(state, 0x10, auto_reg | 0x80);
 		break;
 	case INVERSION_AUTO:
 		dprintk("%s:  inversion auto\n",__FUNCTION__);
-		cx24123_writereg(state, 0x10, cx24123_readreg(state, 0x10) & 0x7f);
+		cx24123_writereg(state, 0x10, auto_reg & ~0x80);
 		break;
 	default:
 		return -EINVAL;
@@ -332,35 +334,56 @@ static int cx24123_get_inversion(struct cx24123_state* state, fe_spectral_invers
 
 static int cx24123_set_fec(struct cx24123_state* state, fe_code_rate_t fec)
 {
+	u8 nom_reg = cx24123_readreg(state, 0x0e) & ~0x07;
+
 	if ( (fec < FEC_NONE) || (fec > FEC_AUTO) )
 		fec = FEC_AUTO;
 
-	/* Hardware has 5/11 and 3/5 but are never unused */
 	switch (fec) {
-	case FEC_NONE:
-		dprintk("%s:  set FEC to none\n",__FUNCTION__);
-		return cx24123_writereg(state, 0x0f, 0x01);
 	case FEC_1_2:
 		dprintk("%s:  set FEC to 1/2\n",__FUNCTION__);
-		return cx24123_writereg(state, 0x0f, 0x02);
+		cx24123_writereg(state, 0x0e, nom_reg | 0x01);
+		cx24123_writereg(state, 0x0f, 0x02);
+		break;
 	case FEC_2_3:
 		dprintk("%s:  set FEC to 2/3\n",__FUNCTION__);
-		return cx24123_writereg(state, 0x0f, 0x04);
+		cx24123_writereg(state, 0x0e, nom_reg | 0x02);
+		cx24123_writereg(state, 0x0f, 0x04);
+		break;
 	case FEC_3_4:
 		dprintk("%s:  set FEC to 3/4\n",__FUNCTION__);
-		return cx24123_writereg(state, 0x0f, 0x08);
-	case FEC_5_6:
+		cx24123_writereg(state, 0x0e, nom_reg | 0x03);
+		cx24123_writereg(state, 0x0f, 0x08);
+		break;
+	case FEC_4_5:
 		dprintk("%s:  set FEC to 4/5\n",__FUNCTION__);
-		return cx24123_writereg(state, 0x0f, 0x20);
-	case FEC_7_8:
+		cx24123_writereg(state, 0x0e, nom_reg | 0x04);
+		cx24123_writereg(state, 0x0f, 0x10);
+		break;
+	case FEC_5_6:
 		dprintk("%s:  set FEC to 5/6\n",__FUNCTION__);
-		return cx24123_writereg(state, 0x0f, 0x80);
+		cx24123_writereg(state, 0x0e, nom_reg | 0x05);
+		cx24123_writereg(state, 0x0f, 0x20);
+		break;
+	case FEC_6_7:
+		dprintk("%s:  set FEC to 6/7\n",__FUNCTION__);
+		cx24123_writereg(state, 0x0e, nom_reg | 0x06);
+		cx24123_writereg(state, 0x0f, 0x40);
+		break;
+	case FEC_7_8:
+		dprintk("%s:  set FEC to 7/8\n",__FUNCTION__);
+		cx24123_writereg(state, 0x0e, nom_reg | 0x07);
+		cx24123_writereg(state, 0x0f, 0x80);
+		break;
 	case FEC_AUTO:
 		dprintk("%s:  set FEC to auto\n",__FUNCTION__);
-		return cx24123_writereg(state, 0x0f, 0xae);
+		cx24123_writereg(state, 0x0f, 0xfe);
+		break;
 	default:
 		return -EOPNOTSUPP;
 	}
+
+	return 0;
 }
 
 static int cx24123_get_fec(struct cx24123_state* state, fe_code_rate_t *fec)
@@ -395,16 +418,31 @@ static int cx24123_get_fec(struct cx24123_state* state, fe_code_rate_t *fec)
 		*fec = FEC_7_8;
 		break;
 	default:
-		*fec = FEC_NONE; // can't happen
-		printk("FEC_NONE ?\n");
+		/* this can happen when there's no lock */
+		*fec = FEC_NONE;
 	}
 
 	return 0;
 }
 
+/* Approximation of closest integer of log2(a/b). It actually gives the
+   lowest integer i such that 2^i >= round(a/b) */
+static u32 cx24123_int_log2(u32 a, u32 b)
+{
+	u32 exp, nearest = 0;
+	u32 div = a / b;
+	if(a % b >= b / 2) ++div;
+	if(div < (1 << 31))
+	{
+		for(exp = 1; div > exp; nearest++)
+			exp += exp;
+	}
+	return nearest;
+}
+
 static int cx24123_set_symbolrate(struct cx24123_state* state, u32 srate)
 {
-	u32 tmp, sample_rate, ratio;
+	u32 tmp, sample_rate, ratio, sample_gain;
 	u8 pll_mult;
 
 	/*  check if symbol rate is within limits */
@@ -462,7 +500,12 @@ static int cx24123_set_symbolrate(struct cx24123_state* state, u32 srate)
 	cx24123_writereg(state, 0x09, (ratio >>  8) & 0xff );
 	cx24123_writereg(state, 0x0a, (ratio      ) & 0xff );
 
-	dprintk("%s: srate=%d, ratio=0x%08x, sample_rate=%i\n", __FUNCTION__, srate, ratio, sample_rate);
+	/* also set the demodulator sample gain */
+	sample_gain = cx24123_int_log2(sample_rate, srate);
+	tmp = cx24123_readreg(state, 0x0c) & ~0xe0;
+	cx24123_writereg(state, 0x0c, tmp | sample_gain << 5);
+
+	dprintk("%s: srate=%d, ratio=0x%08x, sample_rate=%i sample_gain=%d\n", __FUNCTION__, srate, ratio, sample_rate, sample_gain);
 
 	return 0;
 }
@@ -1014,12 +1057,13 @@ static struct dvb_frontend_ops cx24123_ops = {
 		.frequency_min = 950000,
 		.frequency_max = 2150000,
 		.frequency_stepsize = 1011, /* kHz for QPSK frontends */
-		.frequency_tolerance = 29500,
+		.frequency_tolerance = 5000,
 		.symbol_rate_min = 1000000,
 		.symbol_rate_max = 45000000,
 		.caps = FE_CAN_INVERSION_AUTO |
 			FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
-			FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |
+			FE_CAN_FEC_4_5 | FE_CAN_FEC_5_6 | FE_CAN_FEC_6_7 |
+			FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |
 			FE_CAN_QPSK | FE_CAN_RECOVER
 	},
 
