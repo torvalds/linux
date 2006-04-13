@@ -29,7 +29,7 @@
 #include <linux/kernel.h>	/* ARRAY_SIZE */
 #include <linux/wireless.h>
 
-#define IEEE80211_VERSION "git-1.1.7"
+#define IEEE80211_VERSION "git-1.1.13"
 
 #define IEEE80211_DATA_LEN		2304
 /* Maximum size for the MA-UNITDATA primitive, 802.11 standard section
