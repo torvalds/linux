@@ -1261,7 +1261,6 @@ static void ftdi_shutdown (struct usb_serial *serial)
 
 static int  ftdi_open (struct usb_serial_port *port, struct file *filp)
 { /* ftdi_open */
-	struct termios tmp_termios;
 	struct usb_device *dev = port->serial->dev;
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
@@ -1271,8 +1270,8 @@ static int  ftdi_open (struct usb_serial_port *port, struct file *filp)
 
 	dbg("%s", __FUNCTION__);
 
-
-	port->tty->low_latency = (priv->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
+	if (port->tty)
+		port->tty->low_latency = (priv->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
 
 	/* No error checking for this (will get errors later anyway) */
 	/* See ftdi_sio.h for description of what is reset */
@@ -1286,7 +1285,8 @@ static int  ftdi_open (struct usb_serial_port *port, struct file *filp)
 	   This is same behaviour as serial.c/rs_open() - Kuba */
 
 	/* ftdi_set_termios  will send usb control messages */
-	ftdi_set_termios(port, &tmp_termios);
+	if (port->tty)
+		ftdi_set_termios(port, NULL);
 
 	/* FIXME: Flow control might be enabled, so it should be checked -
 	   we have no control of defaults! */
@@ -1867,7 +1867,7 @@ static void ftdi_set_termios (struct usb_serial_port *port, struct termios *old_
 			err("%s urb failed to set baudrate", __FUNCTION__);
 		}
 		/* Ensure RTS and DTR are raised when baudrate changed from 0 */
-		if ((old_termios->c_cflag & CBAUD) == B0) {
+		if (!old_termios || (old_termios->c_cflag & CBAUD) == B0) {
 			set_mctrl(port, TIOCM_DTR | TIOCM_RTS);
 		}
 	}
