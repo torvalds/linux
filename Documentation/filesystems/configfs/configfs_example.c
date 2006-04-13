@@ -264,6 +264,15 @@ static struct config_item_type simple_child_type = {
 };
 
 
+struct simple_children {
+	struct config_group group;
+};
+
+static inline struct simple_children *to_simple_children(struct config_item *item)
+{
+	return item ? container_of(to_config_group(item), struct simple_children, group) : NULL;
+}
+
 static struct config_item *simple_children_make_item(struct config_group *group, const char *name)
 {
 	struct simple_child *simple_child;
@@ -304,7 +313,13 @@ static ssize_t simple_children_attr_show(struct config_item *item,
 "items have only one attribute that is readable and writeable.\n");
 }
 
+static void simple_children_release(struct config_item *item)
+{
+	kfree(to_simple_children(item));
+}
+
 static struct configfs_item_operations simple_children_item_ops = {
+	.release 	= simple_children_release,
 	.show_attribute	= simple_children_attr_show,
 };
 
@@ -344,10 +359,6 @@ static struct configfs_subsystem simple_children_subsys = {
  * a new simple_children group.  That group can then have simple_child
  * children of its own.
  */
-
-struct simple_children {
-	struct config_group group;
-};
 
 static struct config_group *group_children_make_group(struct config_group *group, const char *name)
 {
