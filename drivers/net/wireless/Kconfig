@@ -263,6 +263,30 @@ config IPW2200_DEBUG
 	  If you are not trying to debug or develop the IPW2200 driver, you 
 	  most likely want to say N here.
 
+config IPW2200_PROMISCUOUS
+	bool "Enable creation of a RF radiotap promiscuous interface."
+	depends on IPW2200
+	select IEEE80211_RADIOTAP
+	---help---
+          Enables the creation of a second interface prefixed 'rtap'. 
+          This second interface will provide every received in radiotap
+	  format.
+
+          This is useful for performing wireless network analysis while
+          maintaining an active association.
+
+          Example usage:
+
+            % modprobe ipw2200 rtap_iface=1
+            % ifconfig rtap0 up
+            % tethereal -i rtap0
+
+          If you do not specify 'rtap_iface=1' as a module parameter then 
+          the rtap interface will not be created and you will need to turn 
+          it on via sysfs:
+	
+            % echo 1 > /sys/bus/pci/drivers/ipw2200/*/rtap_iface
+
 config AIRO
 	tristate "Cisco/Aironet 34X/35X/4500/4800 ISA and PCI cards"
  	depends on NET_RADIO && ISA_DMA_API && (PCI || BROKEN)
