@@ -33,7 +33,44 @@
 #include "ipw2200.h"
 #include <linux/version.h>
 
-#define IPW2200_VERSION "git-1.1.1"
+
+#ifndef KBUILD_EXTMOD
+#define VK "k"
+#else
+#define VK
+#endif
+
+#ifdef CONFIG_IPW2200_DEBUG
+#define VD "d"
+#else
+#define VD
+#endif
+
+#ifdef CONFIG_IPW2200_MONITOR
+#define VM "m"
+#else
+#define VM
+#endif
+
+#ifdef CONFIG_IPW2200_PROMISCUOUS
+#define VP "p"
+#else
+#define VP
+#endif
+
+#ifdef CONFIG_IEEE80211_RADIOTAP
+#define VR "r"
+#else
+#define VR
+#endif
+
+#ifdef CONFIG_IPW2200_QOS
+#define VQ "q"
+#else
+#define VQ
+#endif
+
+#define IPW2200_VERSION "1.1.1" VK VD VM VP VR VQ
 #define DRV_DESCRIPTION	"Intel(R) PRO/Wireless 2200/2915 Network Driver"
 #define DRV_COPYRIGHT	"Copyright(c) 2003-2006 Intel Corporation"
 #define DRV_VERSION     IPW2200_VERSION
