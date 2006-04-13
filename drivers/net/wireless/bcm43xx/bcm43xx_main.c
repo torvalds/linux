@@ -52,6 +52,7 @@
 #include "bcm43xx_wx.h"
 #include "bcm43xx_ethtool.h"
 #include "bcm43xx_xmit.h"
+#include "bcm43xx_sysfs.h"
 
 
 MODULE_DESCRIPTION("Broadcom BCM43xx wireless driver");
