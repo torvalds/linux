@@ -247,8 +247,8 @@ and can set the contents via echo.  For example:
 % cat /sys/bus/pci/drivers/ipw2200/debug_level
 
 Will report the current debug level of the driver's logging subsystem 
-(only available if CONFIG_IPW_DEBUG was configured when the driver was 
-built).
+(only available if CONFIG_IPW2200_DEBUG was configured when the driver
+was built).
 
 You can set the debug level via:
 
