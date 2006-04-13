@@ -7790,9 +7790,6 @@ static void ipw_handle_promiscuous_rx(struct ipw_priv *priv,
 	if (filter & IPW_PROM_NO_RX)
 		return;
 
-	if (!noise)
-		noise = priv->last_noise;
-
 	/* We received data from the HW, so stop the watchdog */
 	priv->prom_net_dev->trans_start = jiffies;
 
