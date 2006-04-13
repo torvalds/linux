@@ -213,17 +213,38 @@ static void usb_console_write(struct console *co, const char *buf, unsigned coun
 
 	if (!port->open_count) {
 		dbg ("%s - port not opened", __FUNCTION__);
-		goto exit;
+		return;
 	}
 
-	/* pass on to the driver specific version of this function if it is available */
-	if (serial->type->write)
-		retval = serial->type->write(port, buf, count);
-	else
-		retval = usb_serial_generic_write(port, buf, count);
-
-exit:
-	dbg("%s - return value (if we had one): %d", __FUNCTION__, retval);
+	while (count) {
+		unsigned int i;
+		unsigned int lf;
+		/* search for LF so we can insert CR if necessary */
+		for (i=0, lf=0 ; i < count ; i++) {
+			if (*(buf + i) == 10) {
+				lf = 1;
+				i++;
+				break;
+			}
+		}
+		/* pass on to the driver specific version of this function if it is available */
+		if (serial->type->write)
+			retval = serial->type->write(port, buf, i);
+		else
+			retval = usb_serial_generic_write(port, buf, i);
+		dbg("%s - return value : %d", __FUNCTION__, retval);
+		if (lf) {
+			/* append CR after LF */
+			unsigned char cr = 13;
+			if (serial->type->write)
+				retval = serial->type->write(port, &cr, 1);
+			else
+				retval = usb_serial_generic_write(port, &cr, 1);
+			dbg("%s - return value : %d", __FUNCTION__, retval);
+		}
+		buf += i;
+		count -= i;
+	}
 }
 
 static struct console usbcons = {
