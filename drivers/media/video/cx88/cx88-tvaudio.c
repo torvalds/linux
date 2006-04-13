@@ -148,11 +148,14 @@ static void set_audio_finish(struct cx88_core *core, u32 ctl)
 
 	if (cx88_boards[core->board].blackbird) {
 		/* sets sound input from external adc */
-		if ((core->board == CX88_BOARD_HAUPPAUGE_ROSLYN)||
-		    (core->board == CX88_BOARD_KWORLD_MCE200_DELUXE))
+		switch (core->board) {
+		case CX88_BOARD_HAUPPAUGE_ROSLYN:
+		case CX88_BOARD_KWORLD_MCE200_DELUXE:
 			cx_clear(AUD_CTL, EN_I2SIN_ENABLE);
-		else
+			break;
+		default:
 			cx_set(AUD_CTL, EN_I2SIN_ENABLE);
+		}
 
 		cx_write(AUD_I2SINPUTCNTL, 4);
 		cx_write(AUD_BAUDRATE, 1);
