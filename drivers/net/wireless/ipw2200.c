@@ -46,7 +46,9 @@ MODULE_AUTHOR(DRV_COPYRIGHT);
 MODULE_LICENSE("GPL");
 
 static int cmdlog = 0;
+#ifdef CONFIG_IPW2200_DEBUG
 static int debug = 0;
+#endif
 static int channel = 0;
 static int mode = 0;
 
