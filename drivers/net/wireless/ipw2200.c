@@ -10663,6 +10663,7 @@ static int ipw_up(struct ipw_priv *priv)
 		if (priv->cmdlog == NULL) {
 			IPW_ERROR("Error allocating %d command log entries.\n",
 				  cmdlog);
+			return -ENOMEM;
 		} else {
 			memset(priv->cmdlog, 0, sizeof(*priv->cmdlog) * cmdlog);
 			priv->cmdlog_len = cmdlog;
