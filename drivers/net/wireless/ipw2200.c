@@ -8756,6 +8756,7 @@ static int ipw_wx_get_rate(struct net_device *dev,
 	struct ipw_priv *priv = ieee80211_priv(dev);
 	mutex_lock(&priv->mutex);
 	wrqu->bitrate.value = priv->last_rate;
+	wrqu->bitrate.fixed = (priv->config & CFG_FIXED_RATE) ? 1 : 0;
 	mutex_unlock(&priv->mutex);
 	IPW_DEBUG_WX("GET Rate -> %d \n", wrqu->bitrate.value);
 	return 0;
