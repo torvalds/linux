@@ -28,10 +28,7 @@ struct mtd_oob_buf {
 #define MTD_ROM			2
 #define MTD_NORFLASH		3
 #define MTD_NANDFLASH		4
-#define MTD_PEROM		5
 #define MTD_DATAFLASH		6
-#define MTD_OTHER		14
-#define MTD_UNKNOWN		15
 
 #define MTD_CLEAR_BITS		1       // Bits can be cleared (flash)
 #define MTD_SET_BITS		2       // Bits can be set
