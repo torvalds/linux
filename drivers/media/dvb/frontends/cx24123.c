@@ -29,6 +29,8 @@
 #include "dvb_frontend.h"
 #include "cx24123.h"
 
+#define XTAL 10111000
+
 static int debug;
 #define dprintk(args...) \
 	do { \
@@ -52,6 +54,7 @@ struct cx24123_state
 	u32 VGAarg;
 	u32 bandselectarg;
 	u32 pllarg;
+	u32 FILTune;
 
 	/* The Demod/Tuner can't easily provide these, we cache them */
 	u32 currentfreq;
@@ -63,43 +66,33 @@ static struct
 {
 	u32 symbolrate_low;
 	u32 symbolrate_high;
-	u32 VCAslope;
-	u32 VCAoffset;
-	u32 VGA1offset;
-	u32 VGA2offset;
 	u32 VCAprogdata;
 	u32 VGAprogdata;
+	u32 FILTune;
 } cx24123_AGC_vals[] =
 {
 	{
 		.symbolrate_low		= 1000000,
 		.symbolrate_high	= 4999999,
-		.VCAslope		= 0x07,
-		.VCAoffset		= 0x0f,
-		.VGA1offset		= 0x1f8,
-		.VGA2offset		= 0x1f8,
-		.VGAprogdata		= (2 << 18) | (0x1f8 << 9) | 0x1f8,
+		/* the specs recommend other values for VGA offsets,
+		   but tests show they are wrong */
+		.VGAprogdata		= (2 << 18) | (0x180 << 9) | 0x1e0,
 		.VCAprogdata		= (4 << 18) | (0x07 << 9) | 0x07,
+		.FILTune		= 0x280 /* 0.41 V */
 	},
 	{
 		.symbolrate_low		=  5000000,
 		.symbolrate_high	= 14999999,
-		.VCAslope		= 0x1f,
-		.VCAoffset		= 0x1f,
-		.VGA1offset		= 0x1e0,
-		.VGA2offset		= 0x180,
 		.VGAprogdata		= (2 << 18) | (0x180 << 9) | 0x1e0,
 		.VCAprogdata		= (4 << 18) | (0x07 << 9) | 0x1f,
+		.FILTune		= 0x317 /* 0.90 V */
 	},
 	{
 		.symbolrate_low		= 15000000,
 		.symbolrate_high	= 45000000,
-		.VCAslope		= 0x3f,
-		.VCAoffset		= 0x3f,
-		.VGA1offset		= 0x180,
-		.VGA2offset		= 0x100,
 		.VGAprogdata		= (2 << 18) | (0x100 << 9) | 0x180,
 		.VCAprogdata		= (4 << 18) | (0x07 << 9) | 0x3f,
+		.FILTune		= 0x146 /* 2.70 V */
 	},
 };
 
@@ -112,90 +105,68 @@ static struct
 {
 	u32 freq_low;
 	u32 freq_high;
-	u32 bandselect;
 	u32 VCOdivider;
-	u32 VCOnumber;
 	u32 progdata;
 } cx24123_bandselect_vals[] =
 {
 	{
 		.freq_low	= 950000,
 		.freq_high	= 1018999,
-		.bandselect	= 0x40,
 		.VCOdivider	= 4,
-		.VCOnumber	= 7,
 		.progdata	= (0 << 18) | (0 << 9) | 0x40,
 	},
 	{
 		.freq_low	= 1019000,
 		.freq_high	= 1074999,
-		.bandselect	= 0x80,
 		.VCOdivider	= 4,
-		.VCOnumber	= 8,
 		.progdata	= (0 << 18) | (0 << 9) | 0x80,
 	},
 	{
 		.freq_low	= 1075000,
 		.freq_high	= 1227999,
-		.bandselect	= 0x01,
 		.VCOdivider	= 2,
-		.VCOnumber	= 1,
 		.progdata	= (0 << 18) | (1 << 9) | 0x01,
 	},
 	{
 		.freq_low	= 1228000,
 		.freq_high	= 1349999,
-		.bandselect	= 0x02,
 		.VCOdivider	= 2,
-		.VCOnumber	= 2,
 		.progdata	= (0 << 18) | (1 << 9) | 0x02,
 	},
 	{
 		.freq_low	= 1350000,
 		.freq_high	= 1481999,
-		.bandselect	= 0x04,
 		.VCOdivider	= 2,
-		.VCOnumber	= 3,
 		.progdata	= (0 << 18) | (1 << 9) | 0x04,
 	},
 	{
 		.freq_low	= 1482000,
 		.freq_high	= 1595999,
-		.bandselect	= 0x08,
 		.VCOdivider	= 2,
-		.VCOnumber	= 4,
 		.progdata	= (0 << 18) | (1 << 9) | 0x08,
 	},
 	{
 		.freq_low	= 1596000,
 		.freq_high	= 1717999,
-		.bandselect	= 0x10,
 		.VCOdivider	= 2,
-		.VCOnumber	= 5,
 		.progdata	= (0 << 18) | (1 << 9) | 0x10,
 	},
 	{
 		.freq_low	= 1718000,
 		.freq_high	= 1855999,
-		.bandselect	= 0x20,
 		.VCOdivider	= 2,
-		.VCOnumber	= 6,
 		.progdata	= (0 << 18) | (1 << 9) | 0x20,
 	},
 	{
 		.freq_low	= 1856000,
 		.freq_high	= 2035999,
-		.bandselect	= 0x40,
 		.VCOdivider	= 2,
-		.VCOnumber	= 7,
 		.progdata	= (0 << 18) | (1 << 9) | 0x40,
 	},
 	{
 		.freq_low	= 2036000,
 		.freq_high	= 2149999,
-		.bandselect	= 0x80,
 		.VCOdivider	= 2,
-		.VCOnumber	= 8,
 		.progdata	= (0 << 18) | (1 << 9) | 0x80,
 	},
 };
@@ -207,7 +178,6 @@ static struct {
 {
 	{0x00, 0x03}, /* Reset system */
 	{0x00, 0x00}, /* Clear reset */
-	{0x01, 0x3b}, /* Apply sensible defaults, from an i2c sniffer */
 	{0x03, 0x07},
 	{0x04, 0x10},
 	{0x05, 0x04},
@@ -217,7 +187,6 @@ static struct {
 	{0x0f, 0xfe},
 	{0x10, 0x01},
 	{0x14, 0x01},
-	{0x15, 0x98},
 	{0x16, 0x00},
 	{0x17, 0x01},
 	{0x1b, 0x05},
@@ -226,8 +195,6 @@ static struct {
 	{0x1e, 0x00},
 	{0x20, 0x41},
 	{0x21, 0x15},
-	{0x27, 0x14},
-	{0x28, 0x46},
 	{0x29, 0x00},
 	{0x2a, 0xb0},
 	{0x2b, 0x73},
@@ -375,55 +342,103 @@ static int cx24123_set_fec(struct cx24123_state* state, fe_code_rate_t fec)
 static int cx24123_get_fec(struct cx24123_state* state, fe_code_rate_t *fec)
 {
 	int ret;
-	u8 val;
 
 	ret = cx24123_readreg (state, 0x1b);
 	if (ret < 0)
 		return ret;
-	val = ret & 0x07;
-	switch (val) {
+	ret = ret & 0x07;
+
+	switch (ret) {
 	case 1:
 		*fec = FEC_1_2;
 		break;
-	case 3:
+	case 2:
 		*fec = FEC_2_3;
 		break;
-	case 4:
+	case 3:
 		*fec = FEC_3_4;
 		break;
-	case 5:
+	case 4:
 		*fec = FEC_4_5;
 		break;
-	case 6:
+	case 5:
 		*fec = FEC_5_6;
+		break;
+	case 6:
+		*fec = FEC_6_7;
 		break;
 	case 7:
 		*fec = FEC_7_8;
 		break;
-	case 2:	/* *fec = FEC_3_5; break; */
-	case 0:	/* *fec = FEC_5_11; break; */
-		*fec = FEC_AUTO;
-		break;
 	default:
 		*fec = FEC_NONE; // can't happen
+		printk("FEC_NONE ?\n");
 	}
 
 	return 0;
 }
 
-/* fixme: Symbol rates < 3MSps may not work because of precision loss */
 static int cx24123_set_symbolrate(struct cx24123_state* state, u32 srate)
 {
-	u32 val;
+	u32 tmp, sample_rate, ratio;
+	u8 pll_mult;
 
-	val = (srate / 1185) * 100;
+	/*  check if symbol rate is within limits */
+	if ((srate > state->ops.info.symbol_rate_max) ||
+	    (srate < state->ops.info.symbol_rate_min))
+		return -EOPNOTSUPP;;
 
-	/* Compensate for scaling up, by removing 17 symbols per 1Msps */
-	val = val - (17 * (srate / 1000000));
+	/* choose the sampling rate high enough for the required operation,
+	   while optimizing the power consumed by the demodulator */
+	if (srate < (XTAL*2)/2)
+		pll_mult = 2;
+	else if (srate < (XTAL*3)/2)
+		pll_mult = 3;
+	else if (srate < (XTAL*4)/2)
+		pll_mult = 4;
+	else if (srate < (XTAL*5)/2)
+		pll_mult = 5;
+	else if (srate < (XTAL*6)/2)
+		pll_mult = 6;
+	else if (srate < (XTAL*7)/2)
+		pll_mult = 7;
+	else if (srate < (XTAL*8)/2)
+		pll_mult = 8;
+	else
+		pll_mult = 9;
 
-	cx24123_writereg(state, 0x08, (val >> 16) & 0xff );
-	cx24123_writereg(state, 0x09, (val >>  8) & 0xff );
-	cx24123_writereg(state, 0x0a, (val      ) & 0xff );
+
+	sample_rate = pll_mult * XTAL;
+
+	/*
+	    SYSSymbolRate[21:0] = (srate << 23) / sample_rate
+
+	    We have to use 32 bit unsigned arithmetic without precision loss.
+	    The maximum srate is 45000000 or 0x02AEA540. This number has
+	    only 6 clear bits on top, hence we can shift it left only 6 bits
+	    at a time. Borrowed from cx24110.c
+	*/
+
+	tmp = srate << 6;
+	ratio = tmp / sample_rate;
+
+	tmp = (tmp % sample_rate) << 6;
+	ratio = (ratio << 6) + (tmp / sample_rate);
+
+	tmp = (tmp % sample_rate) << 6;
+	ratio = (ratio << 6) + (tmp / sample_rate);
+
+	tmp = (tmp % sample_rate) << 5;
+	ratio = (ratio << 5) + (tmp / sample_rate);
+
+
+	cx24123_writereg(state, 0x01, pll_mult * 6);
+
+	cx24123_writereg(state, 0x08, (ratio >> 16) & 0x3f );
+	cx24123_writereg(state, 0x09, (ratio >>  8) & 0xff );
+	cx24123_writereg(state, 0x0a, (ratio      ) & 0xff );
+
+	dprintk("%s: srate=%d, ratio=0x%08x, sample_rate=%i\n", __FUNCTION__, srate, ratio, sample_rate);
 
 	return 0;
 }
@@ -437,6 +452,7 @@ static int cx24123_pll_calculate(struct dvb_frontend* fe, struct dvb_frontend_pa
 	struct cx24123_state *state = fe->demodulator_priv;
 	u32 ndiv = 0, adiv = 0, vco_div = 0;
 	int i = 0;
+	int pump = 2;
 
 	/* Defaults for low freq, low rate */
 	state->VCAarg = cx24123_AGC_vals[0].VCAprogdata;
@@ -444,13 +460,14 @@ static int cx24123_pll_calculate(struct dvb_frontend* fe, struct dvb_frontend_pa
 	state->bandselectarg = cx24123_bandselect_vals[0].progdata;
 	vco_div = cx24123_bandselect_vals[0].VCOdivider;
 
-	/* For the given symbolerate, determine the VCA and VGA programming bits */
+	/* For the given symbol rate, determine the VCA, VGA and FILTUNE programming bits */
 	for (i = 0; i < sizeof(cx24123_AGC_vals) / sizeof(cx24123_AGC_vals[0]); i++)
 	{
 		if ((cx24123_AGC_vals[i].symbolrate_low <= p->u.qpsk.symbol_rate) &&
-				(cx24123_AGC_vals[i].symbolrate_high >= p->u.qpsk.symbol_rate) ) {
+		    (cx24123_AGC_vals[i].symbolrate_high >= p->u.qpsk.symbol_rate) ) {
 			state->VCAarg = cx24123_AGC_vals[i].VCAprogdata;
 			state->VGAarg = cx24123_AGC_vals[i].VGAprogdata;
+			state->FILTune = cx24123_AGC_vals[i].FILTune;
 		}
 	}
 
@@ -458,24 +475,28 @@ static int cx24123_pll_calculate(struct dvb_frontend* fe, struct dvb_frontend_pa
 	for (i = 0; i < sizeof(cx24123_bandselect_vals) / sizeof(cx24123_bandselect_vals[0]); i++)
 	{
 		if ((cx24123_bandselect_vals[i].freq_low <= p->frequency) &&
-				(cx24123_bandselect_vals[i].freq_high >= p->frequency) ) {
+		    (cx24123_bandselect_vals[i].freq_high >= p->frequency) ) {
 			state->bandselectarg = cx24123_bandselect_vals[i].progdata;
 			vco_div = cx24123_bandselect_vals[i].VCOdivider;
+
+			/* determine the charge pump current */
+			if ( p->frequency < (cx24123_bandselect_vals[i].freq_low + cx24123_bandselect_vals[i].freq_high)/2 )
+				pump = 0x01;
+			else
+				pump = 0x02;
 		}
 	}
 
 	/* Determine the N/A dividers for the requested lband freq (in kHz). */
-	/* Note: 10111 (kHz) is the Crystal Freq and divider of 10. */
-	ndiv = ( ((p->frequency * vco_div) / (10111 / 10) / 2) / 32) & 0x1ff;
-	adiv = ( ((p->frequency * vco_div) / (10111 / 10) / 2) % 32) & 0x1f;
+	/* Note: the reference divider R=10, frequency is in KHz, XTAL is in Hz */
+	ndiv = ( ((p->frequency * vco_div * 10) / (2 * XTAL / 1000)) / 32) & 0x1ff;
+	adiv = ( ((p->frequency * vco_div * 10) / (2 * XTAL / 1000)) % 32) & 0x1f;
 
 	if (adiv == 0)
-		adiv++;
+		ndiv++;
 
-	/* determine the correct pll frequency values. */
-	/* Command 11, refdiv 11, cpump polarity 1, cpump current 3mA 10. */
-	state->pllarg = (3 << 19) | (3 << 17) | (1 << 16) | (2 << 14);
-	state->pllarg |= (ndiv << 5) | adiv;
+	/* control bits 11, refdiv 11, charge pump polarity 1, charge pump current, ndiv, adiv */
+	state->pllarg = (3 << 19) | (3 << 17) | (1 << 16) | (pump << 14) | (ndiv << 5) | adiv;
 
 	return 0;
 }
@@ -538,6 +559,9 @@ static int cx24123_pll_writereg(struct dvb_frontend* fe, struct dvb_frontend_par
 static int cx24123_pll_tune(struct dvb_frontend* fe, struct dvb_frontend_parameters *p)
 {
 	struct cx24123_state *state = fe->demodulator_priv;
+	u8 val;
+
+	dprintk("frequency=%i\n", p->frequency);
 
 	if (cx24123_pll_calculate(fe, p) != 0) {
 		printk("%s: cx24123_pll_calcutate failed\n",__FUNCTION__);
@@ -551,6 +575,11 @@ static int cx24123_pll_tune(struct dvb_frontend* fe, struct dvb_frontend_paramet
 	/* Write the new bandselect and pll args */
 	cx24123_pll_writereg(fe, p, state->bandselectarg);
 	cx24123_pll_writereg(fe, p, state->pllarg);
+
+	/* set the FILTUNE voltage */
+	val = cx24123_readreg(state, 0x28) & ~0x3;
+	cx24123_writereg(state, 0x27, state->FILTune >> 2);
+	cx24123_writereg(state, 0x28, val | (state->FILTune & 0x3));
 
 	return 0;
 }
@@ -624,13 +653,81 @@ static int cx24123_set_voltage(struct dvb_frontend* fe, fe_sec_voltage_t voltage
 	return 0;
 }
 
-static int cx24123_send_diseqc_msg(struct dvb_frontend* fe,
-				   struct dvb_diseqc_master_cmd *cmd)
+static int cx24123_send_diseqc_msg(struct dvb_frontend* fe, struct dvb_diseqc_master_cmd *cmd)
 {
-	/* fixme: Implement diseqc */
-	printk("%s: No support yet\n",__FUNCTION__);
+	struct cx24123_state *state = fe->demodulator_priv;
+	int i, val;
+	unsigned long timeout;
 
-	return -ENOTSUPP;
+	dprintk("%s:\n",__FUNCTION__);
+
+	/* check if continuous tone has been stoped */
+	if (state->config->use_isl6421)
+		val = cx24123_readlnbreg(state, 0x00) & 0x10;
+	else
+		val = cx24123_readreg(state, 0x29) & 0x10;
+
+
+	if (val) {
+		printk("%s: ERROR: attempt to send diseqc command before tone is off\n", __FUNCTION__);
+		return -ENOTSUPP;
+	}
+
+	/* select tone mode */
+	cx24123_writereg(state, 0x2a, cx24123_readreg(state, 0x2a) & 0xf8);
+
+	for (i = 0; i < cmd->msg_len; i++)
+		cx24123_writereg(state, 0x2C + i, cmd->msg[i]);
+
+	val = cx24123_readreg(state, 0x29);
+	cx24123_writereg(state, 0x29, ((val & 0x90) | 0x40) | ((cmd->msg_len-3) & 3));
+
+	timeout = jiffies + msecs_to_jiffies(100);
+	while (!time_after(jiffies, timeout) && !(cx24123_readreg(state, 0x29) & 0x40))
+		; // wait for LNB ready
+
+	return 0;
+}
+
+static int cx24123_diseqc_send_burst(struct dvb_frontend* fe, fe_sec_mini_cmd_t burst)
+{
+	struct cx24123_state *state = fe->demodulator_priv;
+	int val;
+	unsigned long timeout;
+
+	dprintk("%s:\n", __FUNCTION__);
+
+	/* check if continuous tone has been stoped */
+	if (state->config->use_isl6421)
+		val = cx24123_readlnbreg(state, 0x00) & 0x10;
+	else
+		val = cx24123_readreg(state, 0x29) & 0x10;
+
+
+	if (val) {
+		printk("%s: ERROR: attempt to send diseqc command before tone is off\n", __FUNCTION__);
+		return -ENOTSUPP;
+	}
+
+	/* select tone mode */
+	val = cx24123_readreg(state, 0x2a) & 0xf8;
+	cx24123_writereg(state, 0x2a, val | 0x04);
+
+	val = cx24123_readreg(state, 0x29);
+
+	if (burst == SEC_MINI_A)
+		cx24123_writereg(state, 0x29, ((val & 0x90) | 0x40 | 0x00));
+	else if (burst == SEC_MINI_B)
+		cx24123_writereg(state, 0x29, ((val & 0x90) | 0x40 | 0x08));
+	else
+		return -EINVAL;
+
+
+	timeout = jiffies + msecs_to_jiffies(100);
+	while (!time_after(jiffies, timeout) && !(cx24123_readreg(state, 0x29) & 0x40))
+		; // wait for LNB ready
+
+	return 0;
 }
 
 static int cx24123_read_status(struct dvb_frontend* fe, fe_status_t* status)
@@ -642,13 +739,15 @@ static int cx24123_read_status(struct dvb_frontend* fe, fe_status_t* status)
 
 	*status = 0;
 	if (lock & 0x01)
-		*status |= FE_HAS_CARRIER | FE_HAS_SIGNAL;
+		*status |= FE_HAS_SIGNAL;
+	if (sync & 0x02)
+		*status |= FE_HAS_CARRIER;
 	if (sync & 0x04)
 		*status |= FE_HAS_VITERBI;
 	if (sync & 0x08)
-		*status |= FE_HAS_CARRIER;
+		*status |= FE_HAS_SYNC;
 	if (sync & 0x80)
-		*status |= FE_HAS_SYNC | FE_HAS_LOCK;
+		*status |= FE_HAS_LOCK;
 
 	return 0;
 }
@@ -875,6 +974,7 @@ static struct dvb_frontend_ops cx24123_ops = {
 	.read_snr = cx24123_read_snr,
 	.read_ucblocks = cx24123_read_ucblocks,
 	.diseqc_send_master_cmd = cx24123_send_diseqc_msg,
+	.diseqc_send_burst = cx24123_diseqc_send_burst,
 	.set_tone = cx24123_set_tone,
 	.set_voltage = cx24123_set_voltage,
 };
