@@ -1686,16 +1686,12 @@ static int __devinit blackbird_probe(struct pci_dev *pci_dev,
 	memcpy(&dev->params,&default_mpeg_params,sizeof(default_mpeg_params));
 	memcpy(&dev->dnr_params,&default_dnr_params,sizeof(default_dnr_params));
 
-	if (core->board == CX88_BOARD_HAUPPAUGE_ROSLYN) {
-
-		if (core->tuner_formats & V4L2_STD_525_60) {
-			dev->height = 480;
-			dev->params.vi_frame_rate = 30;
-		} else {
-			dev->height = 576;
-			dev->params.vi_frame_rate = 25;
-		}
-
+	if (core->tuner_formats & V4L2_STD_525_60) {
+		dev->height = 480;
+		dev->params.vi_frame_rate = 30;
+	} else {
+		dev->height = 576;
+		dev->params.vi_frame_rate = 25;
 	}
 
 	err = cx8802_init_common(dev);
