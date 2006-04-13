@@ -88,7 +88,6 @@ static int alloc_io_space(struct pcmcia_socket *s, u_int attr, ioaddr_t *base,
 	}
 	if ((s->features & SS_CAP_STATIC_MAP) && s->io_offset) {
 		*base = s->io_offset | (*base & 0x0fff);
-		s->io[0].res->flags = (s->io[0].res->flags & ~IORESOURCE_BITS) | (attr & IORESOURCE_BITS);
 		return 0;
 	}
 	/* Check for an already-allocated window that must conflict with
