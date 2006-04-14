@@ -1049,6 +1049,8 @@ int sym_reset_scsi_bus(struct sym_hcb *np, int enab_int);
 struct sym_chip *sym_lookup_chip_table(u_short device_id, u_char revision);
 #ifdef SYM_OPT_HANDLE_DEVICE_QUEUEING
 void sym_start_next_ccbs(struct sym_hcb *np, struct sym_lcb *lp, int maxn);
+#else
+void sym_put_start_queue(struct sym_hcb *np, struct sym_ccb *cp);
 #endif
 void sym_start_up(struct sym_hcb *np, int reason);
 void sym_interrupt(struct sym_hcb *np);

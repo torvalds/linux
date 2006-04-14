@@ -183,7 +183,7 @@ static int rkt_sync_cmd(struct aac_dev *dev, u32 command,
 		/*
 		 *	Yield the processor in case we are slow 
 		 */
-		schedule_timeout_uninterruptible(1);
+		msleep(1);
 	}
 	if (ok != 1) {
 		/*
@@ -343,7 +343,7 @@ static int aac_rkt_check_health(struct aac_dev *dev)
 		  NULL, NULL, NULL, NULL, NULL);
 		pci_free_consistent(dev->pdev, sizeof(struct POSTSTATUS),
 		  post, paddr);
-                if ((buffer[0] == '0') && (buffer[1] == 'x')) {
+                if ((buffer[0] == '0') && ((buffer[1] == 'x') || (buffer[1] == 'X'))) {
                         ret = (buffer[2] <= '9') ? (buffer[2] - '0') : (buffer[2] - 'A' + 10);
                         ret <<= 4;
                         ret += (buffer[3] <= '9') ? (buffer[3] - '0') : (buffer[3] - 'A' + 10);
