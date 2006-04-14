@@ -2742,6 +2742,10 @@ static irqreturn_t net2280_irq (int irq, void *_dev, struct pt_regs * r)
 {
 	struct net2280		*dev = _dev;
 
+	/* shared interrupt, not ours */
+	if (!(readl(&dev->regs->irqstat0) & (1 << INTA_ASSERTED)))
+		return IRQ_NONE;
+
 	spin_lock (&dev->lock);
 
 	/* handle disconnect, dma, and more */
