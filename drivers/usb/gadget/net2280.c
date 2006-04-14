@@ -2166,7 +2166,7 @@ static void handle_ep_small (struct net2280_ep *ep)
 					ep->stopped = 1;
 					set_halt (ep);
 					mode = 2;
-				} else if (!req && ep->stopped)
+				} else if (!req && !ep->stopped)
 					write_fifo (ep, NULL);
 			}
 		} else {
