@@ -131,12 +131,19 @@ static int anon_pipe_buf_steal(struct pipe_inode_info *pipe,
 	return 0;
 }
 
+static void anon_pipe_buf_get(struct pipe_inode_info *info,
+			      struct pipe_buffer *buf)
+{
+	page_cache_get(buf->page);
+}
+
 static struct pipe_buf_operations anon_pipe_buf_ops = {
 	.can_merge = 1,
 	.map = anon_pipe_buf_map,
 	.unmap = anon_pipe_buf_unmap,
 	.release = anon_pipe_buf_release,
 	.steal = anon_pipe_buf_steal,
+	.get = anon_pipe_buf_get,
 };
 
 static ssize_t
