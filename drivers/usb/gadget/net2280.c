@@ -2280,9 +2280,7 @@ static void handle_ep_small (struct net2280_ep *ep)
 		/* if we wrote it all, we're usually done */
 		if (req->req.actual == req->req.length) {
 			if (ep->num == 0) {
-				/* wait for control status */
-				if (mode != 2)
-					req = NULL;
+				/* send zlps until the status stage */
 			} else if (!req->req.zero || len != ep->ep.maxpacket)
 				mode = 2;
 		}
