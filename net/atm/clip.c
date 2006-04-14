@@ -443,7 +443,7 @@ static int clip_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 	clip_priv->stats.tx_packets++;
 	clip_priv->stats.tx_bytes += skb->len;
-	(void)vcc->send(vcc, skb);
+	vcc->send(vcc, skb);
 	if (atm_may_send(vcc, 0)) {
 		entry->vccs->xoff = 0;
 		return 0;
@@ -620,26 +620,16 @@ static int clip_device_event(struct notifier_block *this, unsigned long event,
 	switch (event) {
 	case NETDEV_UP:
 		DPRINTK("clip_device_event NETDEV_UP\n");
-		(void)to_atmarpd(act_up, PRIV(dev)->number, 0);
+		to_atmarpd(act_up, PRIV(dev)->number, 0);
 		break;
 	case NETDEV_GOING_DOWN:
 		DPRINTK("clip_device_event NETDEV_DOWN\n");
-		(void)to_atmarpd(act_down, PRIV(dev)->number, 0);
+		to_atmarpd(act_down, PRIV(dev)->number, 0);
 		break;
 	case NETDEV_CHANGE:
 	case NETDEV_CHANGEMTU:
 		DPRINTK("clip_device_event NETDEV_CHANGE*\n");
-		(void)to_atmarpd(act_change, PRIV(dev)->number, 0);
-		break;
-	case NETDEV_REBOOT:
-	case NETDEV_REGISTER:
-	case NETDEV_DOWN:
-		DPRINTK("clip_device_event %ld\n", event);
-		/* ignore */
-		break;
-	default:
-		printk(KERN_WARNING "clip_device_event: unknown event "
-		       "%ld\n", event);
+		to_atmarpd(act_change, PRIV(dev)->number, 0);
 		break;
 	}
 	return NOTIFY_DONE;
@@ -666,17 +656,13 @@ static int clip_inet_event(struct notifier_block *this, unsigned long event,
 
 
 static struct notifier_block clip_dev_notifier = {
-	clip_device_event,
-	NULL,
-	0
+	.notifier_call = clip_device_event,
 };
 
 
 
 static struct notifier_block clip_inet_notifier = {
-	clip_inet_event,
-	NULL,
-	0
+	.notifier_call = clip_inet_event,
 };
 
 
