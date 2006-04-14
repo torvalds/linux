@@ -124,12 +124,6 @@ void __put_task_struct(struct task_struct *tsk)
 		free_task(tsk);
 }
 
-void __put_task_struct_cb(struct rcu_head *rhp)
-{
-	struct task_struct *tsk = container_of(rhp, struct task_struct, rcu);
-	__put_task_struct(tsk);
-}
-
 void __init fork_init(unsigned long mempages)
 {
 #ifndef __HAVE_ARCH_TASK_STRUCT_ALLOCATOR
