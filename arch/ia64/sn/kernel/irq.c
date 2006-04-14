@@ -202,6 +202,9 @@ void sn_irq_init(void)
 	int i;
 	irq_desc_t *base_desc = irq_desc;
 
+	ia64_first_device_vector = IA64_SN2_FIRST_DEVICE_VECTOR;
+	ia64_last_device_vector = IA64_SN2_LAST_DEVICE_VECTOR;
+
 	for (i = 0; i < NR_IRQS; i++) {
 		if (base_desc[i].handler == &no_irq_type) {
 			base_desc[i].handler = &irq_type_sn;
@@ -285,6 +288,7 @@ void sn_irq_fixup(struct pci_dev *pci_dev, struct sn_irq_info *sn_irq_info)
 	/* link it into the sn_irq[irq] list */
 	spin_lock(&sn_irq_info_lock);
 	list_add_rcu(&sn_irq_info->list, sn_irq_lh[sn_irq_info->irq_irq]);
+	reserve_irq_vector(sn_irq_info->irq_irq);
 	spin_unlock(&sn_irq_info_lock);
 
 	register_intr_pda(sn_irq_info);
@@ -310,8 +314,11 @@ void sn_irq_unfixup(struct pci_dev *pci_dev)
 	spin_lock(&sn_irq_info_lock);
 	list_del_rcu(&sn_irq_info->list);
 	spin_unlock(&sn_irq_info_lock);
+	if (list_empty(sn_irq_lh[sn_irq_info->irq_irq]))
+		free_irq_vector(sn_irq_info->irq_irq);
 	call_rcu(&sn_irq_info->rcu, sn_irq_info_free);
 	pci_dev_put(pci_dev);
+
 }
 
 static inline void
