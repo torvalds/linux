@@ -208,7 +208,6 @@ int pccard_get_configuration_info(struct pcmcia_socket *s,
 	if (!(s->state & SOCKET_PRESENT))
 		return CS_NO_CARD;
 
-	config->Function = p_dev->func;
 
 #ifdef CONFIG_CARDBUS
 	if (s->state & SOCKET_CARDBUS) {
@@ -222,14 +221,22 @@ int pccard_get_configuration_info(struct pcmcia_socket *s,
 			config->AssignedIRQ = s->irq.AssignedIRQ;
 			if (config->AssignedIRQ)
 				config->Attributes |= CONF_ENABLE_IRQ;
-			config->BasePort1 = s->io[0].res->start;
-			config->NumPorts1 = s->io[0].res->end - config->BasePort1 + 1;
+			if (s->io[0].res) {
+				config->BasePort1 = s->io[0].res->start;
+				config->NumPorts1 = s->io[0].res->end - config->BasePort1 + 1;
+			}
 		}
 		return CS_SUCCESS;
 	}
 #endif
 
-	c = (p_dev) ? p_dev->function_config : NULL;
+	if (p_dev) {
+		c = p_dev->function_config;
+		config->Function = p_dev->func;
+	} else {
+		c = NULL;
+		config->Function = 0;
+	}
 
 	if ((c == NULL) || !(c->state & CONFIG_LOCKED)) {
 		config->Attributes = 0;
