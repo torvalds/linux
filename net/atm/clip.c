@@ -613,12 +613,19 @@ static int clip_create(int number)
 
 
 static int clip_device_event(struct notifier_block *this,unsigned long event,
-    void *dev)
+			     void *arg)
 {
-	/* ignore non-CLIP devices */
-	if (((struct net_device *) dev)->type != ARPHRD_ATM ||
-	    ((struct net_device *) dev)->hard_start_xmit != clip_start_xmit)
+	struct net_device *dev = arg;
+
+	if (event == NETDEV_UNREGISTER) {
+		neigh_ifdown(&clip_tbl, dev);
 		return NOTIFY_DONE;
+	}
+
+	/* ignore non-CLIP devices */
+	if (dev->type != ARPHRD_ATM || dev->hard_start_xmit != clip_start_xmit)
+		return NOTIFY_DONE;
+
 	switch (event) {
 		case NETDEV_UP:
 			DPRINTK("clip_device_event NETDEV_UP\n");
@@ -686,14 +693,12 @@ static struct notifier_block clip_inet_notifier = {
 static void atmarpd_close(struct atm_vcc *vcc)
 {
 	DPRINTK("atmarpd_close\n");
-	atmarpd = NULL; /* assumed to be atomic */
-	barrier();
-	unregister_inetaddr_notifier(&clip_inet_notifier);
-	unregister_netdevice_notifier(&clip_dev_notifier);
-	if (skb_peek(&sk_atm(vcc)->sk_receive_queue))
-		printk(KERN_ERR "atmarpd_close: closing with requests "
-		    "pending\n");
+
+	rtnl_lock();
+	atmarpd = NULL;
 	skb_queue_purge(&sk_atm(vcc)->sk_receive_queue);
+	rtnl_unlock();
+
 	DPRINTK("(done)\n");
 	module_put(THIS_MODULE);
 }
@@ -714,7 +719,12 @@ static struct atm_dev atmarpd_dev = {
 
 static int atm_init_atmarp(struct atm_vcc *vcc)
 {
-	if (atmarpd) return -EADDRINUSE;
+	rtnl_lock();
+	if (atmarpd) {
+		rtnl_unlock();
+		return -EADDRINUSE;
+	}
+
 	if (start_timer) {
 		start_timer = 0;
 		init_timer(&idle_timer);
@@ -731,10 +741,7 @@ static int atm_init_atmarp(struct atm_vcc *vcc)
 	vcc->push = NULL;
 	vcc->pop = NULL; /* crash */
 	vcc->push_oam = NULL; /* crash */
-	if (register_netdevice_notifier(&clip_dev_notifier))
-		printk(KERN_ERR "register_netdevice_notifier failed\n");
-	if (register_inetaddr_notifier(&clip_inet_notifier))
-		printk(KERN_ERR "register_inetaddr_notifier failed\n");
+	rtnl_unlock();
 	return 0;
 }
 
@@ -992,6 +999,8 @@ static int __init atm_clip_init(void)
 
 	clip_tbl_hook = &clip_tbl;
 	register_atm_ioctl(&clip_ioctl_ops);
+	register_netdevice_notifier(&clip_dev_notifier);
+	register_inetaddr_notifier(&clip_inet_notifier);
 
 #ifdef CONFIG_PROC_FS
 {
@@ -1011,6 +1020,9 @@ static void __exit atm_clip_exit(void)
 	struct net_device *dev, *next;
 
 	remove_proc_entry("arp", atm_proc_root);
+
+	unregister_inetaddr_notifier(&clip_inet_notifier);
+	unregister_netdevice_notifier(&clip_dev_notifier);
 
 	deregister_atm_ioctl(&clip_ioctl_ops);
 
