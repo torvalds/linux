@@ -26,11 +26,11 @@ static void unregister_intr_pda(struct sn_irq_info *sn_irq_info);
 
 int sn_force_interrupt_flag = 1;
 extern int sn_ioif_inited;
-static struct list_head **sn_irq_lh;
+struct list_head **sn_irq_lh;
 static spinlock_t sn_irq_info_lock = SPIN_LOCK_UNLOCKED; /* non-IRQ lock */
 
-static inline u64 sn_intr_alloc(nasid_t local_nasid, int local_widget,
-				     u64 sn_irq_info,
+u64 sn_intr_alloc(nasid_t local_nasid, int local_widget,
+				     struct sn_irq_info *sn_irq_info,
 				     int req_irq, nasid_t req_nasid,
 				     int req_slice)
 {
@@ -40,12 +40,13 @@ static inline u64 sn_intr_alloc(nasid_t local_nasid, int local_widget,
 
 	SAL_CALL_NOLOCK(ret_stuff, (u64) SN_SAL_IOIF_INTERRUPT,
 			(u64) SAL_INTR_ALLOC, (u64) local_nasid,
-			(u64) local_widget, (u64) sn_irq_info, (u64) req_irq,
+			(u64) local_widget, __pa(sn_irq_info), (u64) req_irq,
 			(u64) req_nasid, (u64) req_slice);
+
 	return ret_stuff.status;
 }
 
-static inline void sn_intr_free(nasid_t local_nasid, int local_widget,
+void sn_intr_free(nasid_t local_nasid, int local_widget,
 				struct sn_irq_info *sn_irq_info)
 {
 	struct ia64_sal_retval ret_stuff;
@@ -112,73 +113,91 @@ static void sn_end_irq(unsigned int irq)
 
 static void sn_irq_info_free(struct rcu_head *head);
 
+struct sn_irq_info *sn_retarget_vector(struct sn_irq_info *sn_irq_info,
+				       nasid_t nasid, int slice)
+{
+	int vector;
+	int cpuphys;
+	int64_t bridge;
+	int local_widget, status;
+	nasid_t local_nasid;
+	struct sn_irq_info *new_irq_info;
+	struct sn_pcibus_provider *pci_provider;
+
+	new_irq_info = kmalloc(sizeof(struct sn_irq_info), GFP_ATOMIC);
+	if (new_irq_info == NULL)
+		return NULL;
+
+	memcpy(new_irq_info, sn_irq_info, sizeof(struct sn_irq_info));
+
+	bridge = (u64) new_irq_info->irq_bridge;
+	if (!bridge) {
+		kfree(new_irq_info);
+		return NULL; /* irq is not a device interrupt */
+	}
+
+	local_nasid = NASID_GET(bridge);
+
+	if (local_nasid & 1)
+		local_widget = TIO_SWIN_WIDGETNUM(bridge);
+	else
+		local_widget = SWIN_WIDGETNUM(bridge);
+
+	vector = sn_irq_info->irq_irq;
+	/* Free the old PROM new_irq_info structure */
+	sn_intr_free(local_nasid, local_widget, new_irq_info);
+	/* Update kernels new_irq_info with new target info */
+	unregister_intr_pda(new_irq_info);
+
+	/* allocate a new PROM new_irq_info struct */
+	status = sn_intr_alloc(local_nasid, local_widget,
+			       new_irq_info, vector,
+			       nasid, slice);
+
+	/* SAL call failed */
+	if (status) {
+		kfree(new_irq_info);
+		return NULL;
+	}
+
+	cpuphys = nasid_slice_to_cpuid(nasid, slice);
+	new_irq_info->irq_cpuid = cpuphys;
+	register_intr_pda(new_irq_info);
+
+	pci_provider = sn_pci_provider[new_irq_info->irq_bridge_type];
+
+	/*
+	 * If this represents a line interrupt, target it.  If it's
+	 * an msi (irq_int_bit < 0), it's already targeted.
+	 */
+	if (new_irq_info->irq_int_bit >= 0 &&
+	    pci_provider && pci_provider->target_interrupt)
+		(pci_provider->target_interrupt)(new_irq_info);
+
+	spin_lock(&sn_irq_info_lock);
+	list_replace_rcu(&sn_irq_info->list, &new_irq_info->list);
+	spin_unlock(&sn_irq_info_lock);
+	call_rcu(&sn_irq_info->rcu, sn_irq_info_free);
+
+#ifdef CONFIG_SMP
+	set_irq_affinity_info((vector & 0xff), cpuphys, 0);
+#endif
+
+	return new_irq_info;
+}
+
 static void sn_set_affinity_irq(unsigned int irq, cpumask_t mask)
 {
 	struct sn_irq_info *sn_irq_info, *sn_irq_info_safe;
-	int cpuid, cpuphys;
+	nasid_t nasid;
+	int slice;
 
-	cpuid = first_cpu(mask);
-	cpuphys = cpu_physical_id(cpuid);
+	nasid = cpuid_to_nasid(first_cpu(mask));
+	slice = cpuid_to_slice(first_cpu(mask));
 
 	list_for_each_entry_safe(sn_irq_info, sn_irq_info_safe,
-				 sn_irq_lh[irq], list) {
-		u64 bridge;
-		int local_widget, status;
-		nasid_t local_nasid;
-		struct sn_irq_info *new_irq_info;
-		struct sn_pcibus_provider *pci_provider;
-
-		new_irq_info = kmalloc(sizeof(struct sn_irq_info), GFP_ATOMIC);
-		if (new_irq_info == NULL)
-			break;
-		memcpy(new_irq_info, sn_irq_info, sizeof(struct sn_irq_info));
-
-		bridge = (u64) new_irq_info->irq_bridge;
-		if (!bridge) {
-			kfree(new_irq_info);
-			break; /* irq is not a device interrupt */
-		}
-
-		local_nasid = NASID_GET(bridge);
-
-		if (local_nasid & 1)
-			local_widget = TIO_SWIN_WIDGETNUM(bridge);
-		else
-			local_widget = SWIN_WIDGETNUM(bridge);
-
-		/* Free the old PROM new_irq_info structure */
-		sn_intr_free(local_nasid, local_widget, new_irq_info);
-		/* Update kernels new_irq_info with new target info */
-		unregister_intr_pda(new_irq_info);
-
-		/* allocate a new PROM new_irq_info struct */
-		status = sn_intr_alloc(local_nasid, local_widget,
-				       __pa(new_irq_info), irq,
-				       cpuid_to_nasid(cpuid),
-				       cpuid_to_slice(cpuid));
-
-		/* SAL call failed */
-		if (status) {
-			kfree(new_irq_info);
-			break;
-		}
-
-		new_irq_info->irq_cpuid = cpuid;
-		register_intr_pda(new_irq_info);
-
-		pci_provider = sn_pci_provider[new_irq_info->irq_bridge_type];
-		if (pci_provider && pci_provider->target_interrupt)
-			(pci_provider->target_interrupt)(new_irq_info);
-
-		spin_lock(&sn_irq_info_lock);
-		list_replace_rcu(&sn_irq_info->list, &new_irq_info->list);
-		spin_unlock(&sn_irq_info_lock);
-		call_rcu(&sn_irq_info->rcu, sn_irq_info_free);
-
-#ifdef CONFIG_SMP
-		set_irq_affinity_info((irq & 0xff), cpuphys, 0);
-#endif
-	}
+				 sn_irq_lh[irq], list)
+		(void)sn_retarget_vector(sn_irq_info, nasid, slice);
 }
 
 struct hw_interrupt_type irq_type_sn = {
