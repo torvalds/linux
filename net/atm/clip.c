@@ -54,8 +54,6 @@ static struct net_device *clip_devs;
 static struct atm_vcc *atmarpd;
 static struct neigh_table clip_tbl;
 static struct timer_list idle_timer;
-static int start_timer = 1;
-
 
 static int to_atmarpd(enum atmarp_ctrl_type type,int itf,unsigned long ip)
 {
@@ -725,13 +723,8 @@ static int atm_init_atmarp(struct atm_vcc *vcc)
 		return -EADDRINUSE;
 	}
 
-	if (start_timer) {
-		start_timer = 0;
-		init_timer(&idle_timer);
-		idle_timer.expires = jiffies+CLIP_CHECK_INTERVAL*HZ;
-		idle_timer.function = idle_timer_check;
-		add_timer(&idle_timer);
-	}
+	mod_timer(&idle_timer, jiffies+CLIP_CHECK_INTERVAL*HZ);
+
 	atmarpd = vcc;
 	set_bit(ATM_VF_META,&vcc->flags);
 	set_bit(ATM_VF_READY,&vcc->flags);
@@ -1002,6 +995,8 @@ static int __init atm_clip_init(void)
 	register_netdevice_notifier(&clip_dev_notifier);
 	register_inetaddr_notifier(&clip_inet_notifier);
 
+	setup_timer(&idle_timer, idle_timer_check, 0);
+
 #ifdef CONFIG_PROC_FS
 {
 	struct proc_dir_entry *p;
@@ -1029,8 +1024,7 @@ static void __exit atm_clip_exit(void)
 	/* First, stop the idle timer, so it stops banging
 	 * on the table.
 	 */
-	if (start_timer == 0)
-		del_timer(&idle_timer);
+	del_timer_sync(&idle_timer);
 
 	/* Next, purge the table, so that the device
 	 * unregister loop below does not hang due to
