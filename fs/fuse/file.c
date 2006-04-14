@@ -1,6 +1,6 @@
 /*
   FUSE: Filesystem in Userspace
-  Copyright (C) 2001-2005  Miklos Szeredi <miklos@szeredi.hu>
+  Copyright (C) 2001-2006  Miklos Szeredi <miklos@szeredi.hu>
 
   This program can be distributed under the terms of the GNU GPL.
   See the file COPYING.
@@ -565,8 +565,12 @@ static ssize_t fuse_direct_io(struct file *file, const char __user *buf,
 		buf += nres;
 		if (nres != nbytes)
 			break;
-		if (count)
-			fuse_reset_request(req);
+		if (count) {
+			fuse_put_request(fc, req);
+			req = fuse_get_req(fc);
+			if (IS_ERR(req))
+				break;
+		}
 	}
 	fuse_put_request(fc, req);
 	if (res > 0) {
