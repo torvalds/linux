@@ -70,27 +70,9 @@
 #include <linux/vmalloc.h>
 
 #include "sisusb.h"
+#include "sisusb_init.h"
 
 #ifdef INCL_SISUSB_CON
-extern int sisusb_setreg(struct sisusb_usb_data *, int, u8);
-extern int sisusb_getreg(struct sisusb_usb_data *, int, u8 *);
-extern int sisusb_setidxreg(struct sisusb_usb_data *, int, u8, u8);
-extern int sisusb_getidxreg(struct sisusb_usb_data *, int, u8, u8 *);
-extern int sisusb_setidxregor(struct sisusb_usb_data *, int, u8, u8);
-extern int sisusb_setidxregand(struct sisusb_usb_data *, int, u8, u8);
-extern int sisusb_setidxregandor(struct sisusb_usb_data *, int, u8, u8, u8);
-
-extern int sisusb_writeb(struct sisusb_usb_data *sisusb, u32 adr, u8 data);
-extern int sisusb_readb(struct sisusb_usb_data *sisusb, u32 adr, u8 *data);
-extern int sisusb_writew(struct sisusb_usb_data *sisusb, u32 adr, u16 data);
-extern int sisusb_readw(struct sisusb_usb_data *sisusb, u32 adr, u16 *data);
-extern int sisusb_copy_memory(struct sisusb_usb_data *sisusb, char *src,
-			u32 dest, int length, size_t *bytes_written);
-
-extern void sisusb_delete(struct kref *kref);
-extern int sisusb_reset_text_mode(struct sisusb_usb_data *sisusb, int init);
-
-extern int SiSUSBSetMode(struct SiS_Private *SiS_Pr, unsigned short ModeNo);
 
 #define sisusbcon_writew(val, addr)	(*(addr) = (val))
 #define sisusbcon_readw(addr)		(*(addr))
@@ -102,8 +84,6 @@ static struct sisusb_usb_data *mysisusbs[MAX_NR_CONSOLES];
 
 /* Forward declaration */
 static const struct consw sisusb_con;
-
-extern struct mutex disconnect_mutex;
 
 static inline void
 sisusbcon_memsetw(u16 *s, u16 c, unsigned int count)
@@ -1487,7 +1467,7 @@ static int sisusbdummycon_dummy(void)
 
 #define SISUSBCONDUMMY	(void *)sisusbdummycon_dummy
 
-const struct consw sisusb_dummy_con = {
+static const struct consw sisusb_dummy_con = {
 	.owner =		THIS_MODULE,
 	.con_startup =		sisusbdummycon_startup,
 	.con_init =		sisusbdummycon_init,

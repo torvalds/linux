@@ -53,6 +53,7 @@
 #include <linux/vmalloc.h>
 
 #include "sisusb.h"
+#include "sisusb_init.h"
 
 #ifdef INCL_SISUSB_CON
 #include <linux/font.h>
@@ -63,36 +64,6 @@
 /* Forward declarations / clean-up routines */
 
 #ifdef INCL_SISUSB_CON
-int	sisusb_setreg(struct sisusb_usb_data *sisusb, int port, u8 data);
-int	sisusb_getreg(struct sisusb_usb_data *sisusb, int port, u8 *data);
-int	sisusb_setidxreg(struct sisusb_usb_data *sisusb, int port, u8 index, u8 data);
-int	sisusb_getidxreg(struct sisusb_usb_data *sisusb, int port, u8 index, u8 *data);
-int	sisusb_setidxregandor(struct sisusb_usb_data *sisusb, int port, u8 idx,	u8 myand, u8 myor);
-int	sisusb_setidxregor(struct sisusb_usb_data *sisusb, int port, u8 index, u8 myor);
-int	sisusb_setidxregand(struct sisusb_usb_data *sisusb, int port, u8 idx, u8 myand);
-
-int	sisusb_writeb(struct sisusb_usb_data *sisusb, u32 adr, u8 data);
-int	sisusb_readb(struct sisusb_usb_data *sisusb, u32 adr, u8 *data);
-int	sisusb_writew(struct sisusb_usb_data *sisusb, u32 adr, u16 data);
-int	sisusb_readw(struct sisusb_usb_data *sisusb, u32 adr, u16 *data);
-int	sisusb_copy_memory(struct sisusb_usb_data *sisusb, char *src,
-			u32 dest, int length, size_t *bytes_written);
-
-int	sisusb_reset_text_mode(struct sisusb_usb_data *sisusb, int init);
-
-extern int  SiSUSBSetMode(struct SiS_Private *SiS_Pr, unsigned short ModeNo);
-extern int  SiSUSBSetVESAMode(struct SiS_Private *SiS_Pr, unsigned short VModeNo);
-
-extern void sisusb_init_concode(void);
-extern int  sisusb_console_init(struct sisusb_usb_data *sisusb, int first, int last);
-extern void sisusb_console_exit(struct sisusb_usb_data *sisusb);
-
-extern void sisusb_set_cursor(struct sisusb_usb_data *sisusb, unsigned int location);
-
-extern int  sisusbcon_do_font_op(struct sisusb_usb_data *sisusb, int set, int slot,
-		u8 *arg, int cmapsz, int ch512, int dorecalc,
-		struct vc_data *c, int fh, int uplock);
-
 static int sisusb_first_vc = 0;
 static int sisusb_last_vc = 0;
 module_param_named(first, sisusb_first_vc, int, 0);
@@ -1360,9 +1331,6 @@ sisusb_getreg(struct sisusb_usb_data *sisusb, int port, u8 *data)
 }
 #endif
 
-#ifndef INCL_SISUSB_CON
-static
-#endif
 int
 sisusb_setidxreg(struct sisusb_usb_data *sisusb, int port, u8 index, u8 data)
 {
@@ -1372,9 +1340,6 @@ sisusb_setidxreg(struct sisusb_usb_data *sisusb, int port, u8 index, u8 data)
 	return ret;
 }
 
-#ifndef INCL_SISUSB_CON
-static
-#endif
 int
 sisusb_getidxreg(struct sisusb_usb_data *sisusb, int port, u8 index, u8 *data)
 {
@@ -1384,9 +1349,6 @@ sisusb_getidxreg(struct sisusb_usb_data *sisusb, int port, u8 index, u8 *data)
 	return ret;
 }
 
-#ifndef INCL_SISUSB_CON
-static
-#endif
 int
 sisusb_setidxregandor(struct sisusb_usb_data *sisusb, int port, u8 idx,
 							u8 myand, u8 myor)
@@ -1416,18 +1378,12 @@ sisusb_setidxregmask(struct sisusb_usb_data *sisusb, int port, u8 idx,
 	return ret;
 }
 
-#ifndef INCL_SISUSB_CON
-static
-#endif
 int
 sisusb_setidxregor(struct sisusb_usb_data *sisusb, int port, u8 index, u8 myor)
 {
 	return(sisusb_setidxregandor(sisusb, port, index, 0xff, myor));
 }
 
-#ifndef INCL_SISUSB_CON
-static
-#endif
 int
 sisusb_setidxregand(struct sisusb_usb_data *sisusb, int port, u8 idx, u8 myand)
 {
@@ -1449,6 +1405,8 @@ sisusb_readb(struct sisusb_usb_data *sisusb, u32 adr, u8 *data)
 	return(sisusb_read_memio_byte(sisusb, SISUSB_TYPE_MEM, adr, data));
 }
 
+#if 0
+
 int
 sisusb_writew(struct sisusb_usb_data *sisusb, u32 adr, u16 data)
 {
@@ -1460,6 +1418,8 @@ sisusb_readw(struct sisusb_usb_data *sisusb, u32 adr, u16 *data)
 {
 	return(sisusb_read_memio_word(sisusb, SISUSB_TYPE_MEM, adr, data));
 }
+
+#endif  /*  0  */
 
 int
 sisusb_copy_memory(struct sisusb_usb_data *sisusb, char *src,
