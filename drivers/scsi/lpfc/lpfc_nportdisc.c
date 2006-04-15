@@ -832,11 +832,17 @@ static uint32_t
 lpfc_device_rm_plogi_issue(struct lpfc_hba * phba,
 			   struct lpfc_nodelist * ndlp, void *arg, uint32_t evt)
 {
-	/* software abort outstanding PLOGI */
-	lpfc_els_abort(phba, ndlp, 1);
+	if(ndlp->nlp_flag & NLP_NPR_2B_DISC) {
+		ndlp->nlp_flag |= NLP_NODEV_REMOVE;
+		return ndlp->nlp_state;
+	}
+	else {
+		/* software abort outstanding PLOGI */
+		lpfc_els_abort(phba, ndlp, 1);
 
-	lpfc_nlp_list(phba, ndlp, NLP_NO_LIST);
-	return NLP_STE_FREED_NODE;
+		lpfc_nlp_list(phba, ndlp, NLP_NO_LIST);
+		return NLP_STE_FREED_NODE;
+	}
 }
 
 static uint32_t
@@ -851,7 +857,7 @@ lpfc_device_recov_plogi_issue(struct lpfc_hba * phba,
 	ndlp->nlp_state = NLP_STE_NPR_NODE;
 	lpfc_nlp_list(phba, ndlp, NLP_NPR_LIST);
 	spin_lock_irq(phba->host->host_lock);
-	ndlp->nlp_flag &= ~NLP_NPR_2B_DISC;
+	ndlp->nlp_flag &= ~(NLP_NODEV_REMOVE | NLP_NPR_2B_DISC);
 	spin_unlock_irq(phba->host->host_lock);
 
 	return ndlp->nlp_state;
@@ -987,11 +993,17 @@ lpfc_device_rm_adisc_issue(struct lpfc_hba * phba,
 			    struct lpfc_nodelist * ndlp, void *arg,
 			    uint32_t evt)
 {
-	/* software abort outstanding ADISC */
-	lpfc_els_abort(phba, ndlp, 1);
+	if(ndlp->nlp_flag & NLP_NPR_2B_DISC) {
+		ndlp->nlp_flag |= NLP_NODEV_REMOVE;
+		return ndlp->nlp_state;
+	}
+	else {
+		/* software abort outstanding ADISC */
+		lpfc_els_abort(phba, ndlp, 1);
 
-	lpfc_nlp_list(phba, ndlp, NLP_NO_LIST);
-	return NLP_STE_FREED_NODE;
+		lpfc_nlp_list(phba, ndlp, NLP_NO_LIST);
+		return NLP_STE_FREED_NODE;
+	}
 }
 
 static uint32_t
@@ -1006,7 +1018,7 @@ lpfc_device_recov_adisc_issue(struct lpfc_hba * phba,
 	ndlp->nlp_state = NLP_STE_NPR_NODE;
 	lpfc_nlp_list(phba, ndlp, NLP_NPR_LIST);
 	spin_lock_irq(phba->host->host_lock);
-	ndlp->nlp_flag &= ~NLP_NPR_2B_DISC;
+	ndlp->nlp_flag &= ~(NLP_NODEV_REMOVE | NLP_NPR_2B_DISC);
 	ndlp->nlp_flag |= NLP_NPR_ADISC;
 	spin_unlock_irq(phba->host->host_lock);
 
@@ -1133,8 +1145,14 @@ lpfc_device_rm_reglogin_issue(struct lpfc_hba * phba,
 			      struct lpfc_nodelist * ndlp, void *arg,
 			      uint32_t evt)
 {
-	lpfc_nlp_list(phba, ndlp, NLP_NO_LIST);
-	return NLP_STE_FREED_NODE;
+	if(ndlp->nlp_flag & NLP_NPR_2B_DISC) {
+		ndlp->nlp_flag |= NLP_NODEV_REMOVE;
+		return ndlp->nlp_state;
+	}
+	else {
+		lpfc_nlp_list(phba, ndlp, NLP_NO_LIST);
+		return NLP_STE_FREED_NODE;
+	}
 }
 
 static uint32_t
@@ -1146,7 +1164,7 @@ lpfc_device_recov_reglogin_issue(struct lpfc_hba * phba,
 	ndlp->nlp_state = NLP_STE_NPR_NODE;
 	lpfc_nlp_list(phba, ndlp, NLP_NPR_LIST);
 	spin_lock_irq(phba->host->host_lock);
-	ndlp->nlp_flag &= ~NLP_NPR_2B_DISC;
+	ndlp->nlp_flag &= ~(NLP_NODEV_REMOVE | NLP_NPR_2B_DISC);
 	spin_unlock_irq(phba->host->host_lock);
 	return ndlp->nlp_state;
 }
@@ -1278,11 +1296,17 @@ static uint32_t
 lpfc_device_rm_prli_issue(struct lpfc_hba * phba,
 			  struct lpfc_nodelist * ndlp, void *arg, uint32_t evt)
 {
-	/* software abort outstanding PRLI */
-	lpfc_els_abort(phba, ndlp, 1);
+	if(ndlp->nlp_flag & NLP_NPR_2B_DISC) {
+		ndlp->nlp_flag |= NLP_NODEV_REMOVE;
+		return ndlp->nlp_state;
+	}
+	else {
+		/* software abort outstanding PLOGI */
+		lpfc_els_abort(phba, ndlp, 1);
 
-	lpfc_nlp_list(phba, ndlp, NLP_NO_LIST);
-	return NLP_STE_FREED_NODE;
+		lpfc_nlp_list(phba, ndlp, NLP_NO_LIST);
+		return NLP_STE_FREED_NODE;
+	}
 }
 
 
@@ -1313,7 +1337,7 @@ lpfc_device_recov_prli_issue(struct lpfc_hba * phba,
 	ndlp->nlp_state = NLP_STE_NPR_NODE;
 	lpfc_nlp_list(phba, ndlp, NLP_NPR_LIST);
 	spin_lock_irq(phba->host->host_lock);
-	ndlp->nlp_flag &= ~NLP_NPR_2B_DISC;
+	ndlp->nlp_flag &= ~(NLP_NODEV_REMOVE | NLP_NPR_2B_DISC);
 	spin_unlock_irq(phba->host->host_lock);
 	return ndlp->nlp_state;
 }
@@ -1386,7 +1410,7 @@ lpfc_device_recov_unmap_node(struct lpfc_hba * phba,
 	ndlp->nlp_prev_state = NLP_STE_UNMAPPED_NODE;
 	ndlp->nlp_state = NLP_STE_NPR_NODE;
 	lpfc_nlp_list(phba, ndlp, NLP_NPR_LIST);
-	ndlp->nlp_flag &= ~NLP_NPR_2B_DISC;
+	ndlp->nlp_flag &= ~(NLP_NODEV_REMOVE | NLP_NPR_2B_DISC);
 	lpfc_disc_set_adisc(phba, ndlp);
 
 	return ndlp->nlp_state;
@@ -1469,7 +1493,7 @@ lpfc_device_recov_mapped_node(struct lpfc_hba * phba,
 	ndlp->nlp_state = NLP_STE_NPR_NODE;
 	lpfc_nlp_list(phba, ndlp, NLP_NPR_LIST);
 	spin_lock_irq(phba->host->host_lock);
-	ndlp->nlp_flag &= ~NLP_NPR_2B_DISC;
+	ndlp->nlp_flag &= ~(NLP_NODEV_REMOVE | NLP_NPR_2B_DISC);
 	spin_unlock_irq(phba->host->host_lock);
 	lpfc_disc_set_adisc(phba, ndlp);
 	return ndlp->nlp_state;
@@ -1617,9 +1641,16 @@ lpfc_cmpl_plogi_npr_node(struct lpfc_hba * phba,
 			  struct lpfc_nodelist * ndlp, void *arg, uint32_t evt)
 {
 	struct lpfc_iocbq *cmdiocb, *rspiocb;
+	IOCB_t *irsp;
 
 	cmdiocb = (struct lpfc_iocbq *) arg;
 	rspiocb = cmdiocb->context_un.rsp_iocb;
+
+	irsp = &rspiocb->iocb;
+	if (irsp->ulpStatus) {
+		lpfc_nlp_list(phba, ndlp, NLP_NO_LIST);
+		return NLP_STE_FREED_NODE;
+	}
 	return ndlp->nlp_state;
 }
 
@@ -1628,9 +1659,16 @@ lpfc_cmpl_prli_npr_node(struct lpfc_hba * phba,
 			  struct lpfc_nodelist * ndlp, void *arg, uint32_t evt)
 {
 	struct lpfc_iocbq *cmdiocb, *rspiocb;
+	IOCB_t *irsp;
 
 	cmdiocb = (struct lpfc_iocbq *) arg;
 	rspiocb = cmdiocb->context_un.rsp_iocb;
+
+	irsp = &rspiocb->iocb;
+	if (irsp->ulpStatus && (ndlp->nlp_flag & NLP_NODEV_REMOVE)) {
+		lpfc_nlp_list(phba, ndlp, NLP_NO_LIST);
+		return NLP_STE_FREED_NODE;
+	}
 	return ndlp->nlp_state;
 }
 
@@ -1649,9 +1687,16 @@ lpfc_cmpl_adisc_npr_node(struct lpfc_hba * phba,
 			    uint32_t evt)
 {
 	struct lpfc_iocbq *cmdiocb, *rspiocb;
+	IOCB_t *irsp;
 
 	cmdiocb = (struct lpfc_iocbq *) arg;
 	rspiocb = cmdiocb->context_un.rsp_iocb;
+
+	irsp = &rspiocb->iocb;
+	if (irsp->ulpStatus && (ndlp->nlp_flag & NLP_NODEV_REMOVE)) {
+		lpfc_nlp_list(phba, ndlp, NLP_NO_LIST);
+		return NLP_STE_FREED_NODE;
+	}
 	return ndlp->nlp_state;
 }
 
@@ -1668,7 +1713,12 @@ lpfc_cmpl_reglogin_npr_node(struct lpfc_hba * phba,
 
 	if (!mb->mbxStatus)
 		ndlp->nlp_rpi = mb->un.varWords[0];
-
+	else {
+		if (ndlp->nlp_flag & NLP_NODEV_REMOVE) {
+			lpfc_nlp_list(phba, ndlp, NLP_NO_LIST);
+			return NLP_STE_FREED_NODE;
+		}
+	}
 	return ndlp->nlp_state;
 }
 
@@ -1677,6 +1727,10 @@ lpfc_device_rm_npr_node(struct lpfc_hba * phba,
 			    struct lpfc_nodelist * ndlp, void *arg,
 			    uint32_t evt)
 {
+	if (ndlp->nlp_flag & NLP_NPR_2B_DISC) {
+		ndlp->nlp_flag |= NLP_NODEV_REMOVE;
+		return ndlp->nlp_state;
+	}
 	lpfc_nlp_list(phba, ndlp, NLP_NO_LIST);
 	return NLP_STE_FREED_NODE;
 }
@@ -1687,7 +1741,7 @@ lpfc_device_recov_npr_node(struct lpfc_hba * phba,
 			    uint32_t evt)
 {
 	spin_lock_irq(phba->host->host_lock);
-	ndlp->nlp_flag &= ~NLP_NPR_2B_DISC;
+	ndlp->nlp_flag &= ~(NLP_NODEV_REMOVE | NLP_NPR_2B_DISC);
 	spin_unlock_irq(phba->host->host_lock);
 	if (ndlp->nlp_flag & NLP_DELAY_TMO) {
 		lpfc_cancel_retry_delay_tmo(phba, ndlp);

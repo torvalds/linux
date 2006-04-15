@@ -1238,6 +1238,7 @@ lpfc_nlp_list(struct lpfc_hba * phba, struct lpfc_nodelist * nlp, int list)
 						evt_listp);
 
 		}
+		nlp->nlp_flag &= ~NLP_NODEV_REMOVE;
 		nlp->nlp_type |= NLP_FC_NODE;
 		break;
 	case NLP_MAPPED_LIST:
@@ -1258,6 +1259,7 @@ lpfc_nlp_list(struct lpfc_hba * phba, struct lpfc_nodelist * nlp, int list)
 						evt_listp);
 
 		}
+		nlp->nlp_flag &= ~NLP_NODEV_REMOVE;
 		break;
 	case NLP_NPR_LIST:
 		nlp->nlp_flag |= list;
