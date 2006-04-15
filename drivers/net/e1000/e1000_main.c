@@ -1715,7 +1715,7 @@ e1000_configure_rx(struct e1000_adapter *adapter)
 	if (hw->mac_type >= e1000_82571) {
 		ctrl_ext = E1000_READ_REG(hw, CTRL_EXT);
 		/* Reset delay timers after every interrupt */
-		ctrl_ext |= E1000_CTRL_EXT_CANC;
+		ctrl_ext |= E1000_CTRL_EXT_INT_TIMER_CLR;
 #ifdef CONFIG_E1000_NAPI
 		/* Auto-Mask interrupts upon ICR read. */
 		ctrl_ext |= E1000_CTRL_EXT_IAME;
@@ -3165,7 +3165,6 @@ e1000_update_stats(struct e1000_adapter *adapter)
 		adapter->stats.crcerrs + adapter->stats.algnerrc +
 		adapter->stats.ruc + adapter->stats.roc +
 		adapter->stats.cexterr;
-	adapter->net_stats.rx_dropped = 0;
 	adapter->net_stats.rx_length_errors = adapter->stats.ruc +
 	                                      adapter->stats.roc;
 	adapter->net_stats.rx_crc_errors = adapter->stats.crcerrs;
