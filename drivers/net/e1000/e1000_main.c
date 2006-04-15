@@ -2247,6 +2247,7 @@ e1000_watchdog_task(struct e1000_adapter *adapter)
 
 	if (link) {
 		if (!netif_carrier_ok(netdev)) {
+			boolean_t txb2b = 1;
 			e1000_get_speed_and_duplex(&adapter->hw,
 			                           &adapter->link_speed,
 			                           &adapter->link_duplex);
@@ -2260,23 +2261,22 @@ e1000_watchdog_task(struct e1000_adapter *adapter)
 			 * and adjust the timeout factor */
 			netdev->tx_queue_len = adapter->tx_queue_len;
 			adapter->tx_timeout_factor = 1;
-			adapter->txb2b = 1;
 			switch (adapter->link_speed) {
 			case SPEED_10:
-				adapter->txb2b = 0;
+				txb2b = 0;
 				netdev->tx_queue_len = 10;
 				adapter->tx_timeout_factor = 8;
 				break;
 			case SPEED_100:
-				adapter->txb2b = 0;
+				txb2b = 0;
 				netdev->tx_queue_len = 100;
 				/* maybe add some timeout factor ? */
 				break;
 			}
 
-			if ((adapter->hw.mac_type == e1000_82571 || 
+			if ((adapter->hw.mac_type == e1000_82571 ||
 			     adapter->hw.mac_type == e1000_82572) &&
-			    adapter->txb2b == 0) {
+			    txb2b == 0) {
 #define SPEED_MODE_BIT (1 << 21)
 				uint32_t tarc0;
 				tarc0 = E1000_READ_REG(&adapter->hw, TARC0);

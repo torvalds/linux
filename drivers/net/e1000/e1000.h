@@ -334,7 +334,6 @@ struct e1000_adapter {
 	boolean_t have_msi;
 #endif
 	/* to not mess up cache alignment, always add to the bottom */
-	boolean_t txb2b;
 #ifdef NETIF_F_TSO
 	boolean_t tso_force;
 #endif
