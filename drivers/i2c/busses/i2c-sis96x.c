@@ -43,13 +43,6 @@
 #include <linux/init.h>
 #include <asm/io.h>
 
-/*
-	HISTORY:
-	2003-05-11	1.0.0 	Updated from lm_sensors project for kernel 2.5
-				(was i2c-sis645.c from lm_sensors 2.7.0)
-*/
-#define SIS96x_VERSION "1.0.0"
-
 /* base address register in PCI config space */
 #define SIS96x_BAR 0x04
 
@@ -337,7 +330,6 @@ static struct pci_driver sis96x_driver = {
 
 static int __init i2c_sis96x_init(void)
 {
-	printk(KERN_INFO "i2c-sis96x version %s\n", SIS96x_VERSION);
 	return pci_register_driver(&sis96x_driver);
 }
 
