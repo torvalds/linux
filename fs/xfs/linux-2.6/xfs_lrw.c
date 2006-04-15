@@ -338,6 +338,7 @@ ssize_t
 xfs_splice_read(
 	bhv_desc_t		*bdp,
 	struct file		*infilp,
+	loff_t			*ppos,
 	struct pipe_inode_info	*pipe,
 	size_t			count,
 	int			flags,
@@ -360,7 +361,7 @@ xfs_splice_read(
 		int error;
 
 		error = XFS_SEND_DATA(mp, DM_EVENT_READ, BHV_TO_VNODE(bdp),
-					infilp->f_pos, count,
+					*ppos, count,
 					FILP_DELAY_FLAG(infilp), &locktype);
 		if (error) {
 			xfs_iunlock(ip, XFS_IOLOCK_SHARED);
@@ -368,8 +369,8 @@ xfs_splice_read(
 		}
 	}
 	xfs_rw_enter_trace(XFS_SPLICE_READ_ENTER, &ip->i_iocore,
-			   pipe, count, infilp->f_pos, ioflags);
-	ret = generic_file_splice_read(infilp, pipe, count, flags);
+			   pipe, count, *ppos, ioflags);
+	ret = generic_file_splice_read(infilp, ppos, pipe, count, flags);
 	if (ret > 0)
 		XFS_STATS_ADD(xs_read_bytes, ret);
 
@@ -382,6 +383,7 @@ xfs_splice_write(
 	bhv_desc_t		*bdp,
 	struct pipe_inode_info	*pipe,
 	struct file		*outfilp,
+	loff_t			*ppos,
 	size_t			count,
 	int			flags,
 	int			ioflags,
@@ -403,7 +405,7 @@ xfs_splice_write(
 		int error;
 
 		error = XFS_SEND_DATA(mp, DM_EVENT_WRITE, BHV_TO_VNODE(bdp),
-					outfilp->f_pos, count,
+					*ppos, count,
 					FILP_DELAY_FLAG(outfilp), &locktype);
 		if (error) {
 			xfs_iunlock(ip, XFS_IOLOCK_EXCL);
@@ -411,8 +413,8 @@ xfs_splice_write(
 		}
 	}
 	xfs_rw_enter_trace(XFS_SPLICE_WRITE_ENTER, &ip->i_iocore,
-			   pipe, count, outfilp->f_pos, ioflags);
-	ret = generic_file_splice_write(pipe, outfilp, count, flags);
+			   pipe, count, *ppos, ioflags);
+	ret = generic_file_splice_write(pipe, outfilp, ppos, count, flags);
 	if (ret > 0)
 		XFS_STATS_ADD(xs_write_bytes, ret);
 

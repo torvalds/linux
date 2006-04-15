@@ -134,66 +134,17 @@ static void sym2_setup_params(void)
 	}
 }
 
-/*
- * We used to try to deal with 64-bit BARs here, but don't any more.
- * There are many parts of this driver which would need to be modified
- * to handle a 64-bit base address, including scripts.  I'm uncomfortable
- * with making those changes when I have no way of testing it, so I'm
- * just going to disable it.
- *
- * Note that some machines (eg HP rx8620 and Superdome) have bus addresses
- * below 4GB and physical addresses above 4GB.  These will continue to work.
- */
-static int __devinit
-pci_get_base_address(struct pci_dev *pdev, int index, unsigned long *basep)
-{
-	u32 tmp;
-	unsigned long base;
-#define PCI_BAR_OFFSET(index) (PCI_BASE_ADDRESS_0 + (index<<2))
-
-	pci_read_config_dword(pdev, PCI_BAR_OFFSET(index++), &tmp);
-	base = tmp;
-	if ((tmp & 0x7) == PCI_BASE_ADDRESS_MEM_TYPE_64) {
-		pci_read_config_dword(pdev, PCI_BAR_OFFSET(index++), &tmp);
-		if (tmp > 0) {
-			dev_err(&pdev->dev,
-				"BAR %d is 64-bit, disabling\n", index - 1);
-			base = 0;
-		}
-	}
-
-	if ((base & PCI_BASE_ADDRESS_SPACE) == PCI_BASE_ADDRESS_SPACE_IO) {
-		base &= PCI_BASE_ADDRESS_IO_MASK;
-	} else {
-		base &= PCI_BASE_ADDRESS_MEM_MASK;
-	}
-
-	*basep = base;
-	return index;
-#undef PCI_BAR_OFFSET
-}
-
 static struct scsi_transport_template *sym2_transport_template = NULL;
-
-/*
- *  Used by the eh thread to wait for command completion.
- *  It is allocated on the eh thread stack.
- */
-struct sym_eh_wait {
-	struct completion done;
-	struct timer_list timer;
-	void (*old_done)(struct scsi_cmnd *);
-	int to_do;
-	int timed_out;
-};
 
 /*
  *  Driver private area in the SCSI command structure.
  */
 struct sym_ucmd {		/* Override the SCSI pointer structure */
-	dma_addr_t data_mapping;
-	u_char	data_mapped;
-	struct sym_eh_wait *eh_wait;
+	dma_addr_t	data_mapping;
+	unsigned char	data_mapped;
+	unsigned char	to_do;			/* For error handling */
+	void (*old_done)(struct scsi_cmnd *);	/* For error handling */
+	struct completion *eh_done;		/* For error handling */
 };
 
 #define SYM_UCMD_PTR(cmd)  ((struct sym_ucmd *)(&(cmd)->SCp))
@@ -514,8 +465,6 @@ static inline int sym_setup_cdb(struct sym_hcb *np, struct scsi_cmnd *cmd, struc
  */
 int sym_setup_data_and_start(struct sym_hcb *np, struct scsi_cmnd *cmd, struct sym_ccb *cp)
 {
-	struct sym_tcb *tp = &np->target[cp->target];
-	struct sym_lcb *lp = sym_lp(tp, cp->lun);
 	u32 lastp, goalp;
 	int dir;
 
@@ -596,7 +545,7 @@ int sym_setup_data_and_start(struct sym_hcb *np, struct scsi_cmnd *cmd, struct s
 	/*
 	 *	activate this job.
 	 */
-	sym_start_next_ccbs(np, lp, 2);
+	sym_put_start_queue(np, cp);
 	return 0;
 
 out_abort:
@@ -751,43 +700,21 @@ static void sym53c8xx_timer(unsigned long npref)
  *  What we will do regarding the involved SCSI command.
  */
 #define SYM_EH_DO_IGNORE	0
-#define SYM_EH_DO_COMPLETE	1
 #define SYM_EH_DO_WAIT		2
 
 /*
- *  Our general completion handler.
+ *  scsi_done() alias when error recovery is in progress.
  */
-static void __sym_eh_done(struct scsi_cmnd *cmd, int timed_out)
+static void sym_eh_done(struct scsi_cmnd *cmd)
 {
-	struct sym_eh_wait *ep = SYM_UCMD_PTR(cmd)->eh_wait;
-	if (!ep)
-		return;
+	struct sym_ucmd *ucmd = SYM_UCMD_PTR(cmd);
+	BUILD_BUG_ON(sizeof(struct scsi_pointer) < sizeof(struct sym_ucmd));
 
-	/* Try to avoid a race here (not 100% safe) */
-	if (!timed_out) {
-		ep->timed_out = 0;
-		if (ep->to_do == SYM_EH_DO_WAIT && !del_timer(&ep->timer))
-			return;
-	}
+	cmd->scsi_done = ucmd->old_done;
 
-	/* Revert everything */
-	SYM_UCMD_PTR(cmd)->eh_wait = NULL;
-	cmd->scsi_done = ep->old_done;
-
-	/* Wake up the eh thread if it wants to sleep */
-	if (ep->to_do == SYM_EH_DO_WAIT)
-		complete(&ep->done);
+	if (ucmd->to_do == SYM_EH_DO_WAIT)
+		complete(ucmd->eh_done);
 }
-
-/*
- *  scsi_done() alias when error recovery is in progress. 
- */
-static void sym_eh_done(struct scsi_cmnd *cmd) { __sym_eh_done(cmd, 0); }
-
-/*
- *  Some timeout handler to avoid waiting too long.
- */
-static void sym_eh_timeout(u_long p) { __sym_eh_done((struct scsi_cmnd *)p, 1); }
 
 /*
  *  Generic method for our eh processing.
@@ -796,35 +723,31 @@ static void sym_eh_timeout(u_long p) { __sym_eh_done((struct scsi_cmnd *)p, 1); 
 static int sym_eh_handler(int op, char *opname, struct scsi_cmnd *cmd)
 {
 	struct sym_hcb *np = SYM_SOFTC_PTR(cmd);
+	struct sym_ucmd *ucmd = SYM_UCMD_PTR(cmd);
+	struct Scsi_Host *host = cmd->device->host;
 	SYM_QUEHEAD *qp;
 	int to_do = SYM_EH_DO_IGNORE;
 	int sts = -1;
-	struct sym_eh_wait eh, *ep = &eh;
+	struct completion eh_done;
 
 	dev_warn(&cmd->device->sdev_gendev, "%s operation started.\n", opname);
 
+	spin_lock_irq(host->host_lock);
 	/* This one is queued in some place -> to wait for completion */
 	FOR_EACH_QUEUED_ELEMENT(&np->busy_ccbq, qp) {
 		struct sym_ccb *cp = sym_que_entry(qp, struct sym_ccb, link_ccbq);
 		if (cp->cmd == cmd) {
 			to_do = SYM_EH_DO_WAIT;
-			goto prepare;
+			break;
 		}
 	}
 
-prepare:
-	/* Prepare stuff to either ignore, complete or wait for completion */
-	switch(to_do) {
-	default:
-	case SYM_EH_DO_IGNORE:
-		break;
-	case SYM_EH_DO_WAIT:
-		init_completion(&ep->done);
-		/* fall through */
-	case SYM_EH_DO_COMPLETE:
-		ep->old_done = cmd->scsi_done;
+	if (to_do == SYM_EH_DO_WAIT) {
+		init_completion(&eh_done);
+		ucmd->old_done = cmd->scsi_done;
+		ucmd->eh_done = &eh_done;
+		wmb();
 		cmd->scsi_done = sym_eh_done;
-		SYM_UCMD_PTR(cmd)->eh_wait = ep;
 	}
 
 	/* Try to proceed the operation we have been asked for */
@@ -851,29 +774,19 @@ prepare:
 
 	/* On error, restore everything and cross fingers :) */
 	if (sts) {
-		SYM_UCMD_PTR(cmd)->eh_wait = NULL;
-		cmd->scsi_done = ep->old_done;
+		cmd->scsi_done = ucmd->old_done;
 		to_do = SYM_EH_DO_IGNORE;
 	}
 
-	ep->to_do = to_do;
-	/* Complete the command with locks held as required by the driver */
-	if (to_do == SYM_EH_DO_COMPLETE)
-		sym_xpt_done2(np, cmd, DID_ABORT);
+	ucmd->to_do = to_do;
+	spin_unlock_irq(host->host_lock);
 
-	/* Wait for completion with locks released, as required by kernel */
 	if (to_do == SYM_EH_DO_WAIT) {
-		init_timer(&ep->timer);
-		ep->timer.expires = jiffies + (5*HZ);
-		ep->timer.function = sym_eh_timeout;
-		ep->timer.data = (u_long)cmd;
-		ep->timed_out = 1;	/* Be pessimistic for once :) */
-		add_timer(&ep->timer);
-		spin_unlock_irq(np->s.host->host_lock);
-		wait_for_completion(&ep->done);
-		spin_lock_irq(np->s.host->host_lock);
-		if (ep->timed_out)
+		if (!wait_for_completion_timeout(&eh_done, 5*HZ)) {
+			ucmd->to_do = SYM_EH_DO_IGNORE;
+			wmb();
 			sts = -2;
+		}
 	}
 	dev_warn(&cmd->device->sdev_gendev, "%s operation %s.\n", opname,
 			sts==0 ? "complete" :sts==-2 ? "timed-out" : "failed");
@@ -886,46 +799,22 @@ prepare:
  */
 static int sym53c8xx_eh_abort_handler(struct scsi_cmnd *cmd)
 {
-	int rc;
-
-	spin_lock_irq(cmd->device->host->host_lock);
-	rc = sym_eh_handler(SYM_EH_ABORT, "ABORT", cmd);
-	spin_unlock_irq(cmd->device->host->host_lock);
-
-	return rc;
+	return sym_eh_handler(SYM_EH_ABORT, "ABORT", cmd);
 }
 
 static int sym53c8xx_eh_device_reset_handler(struct scsi_cmnd *cmd)
 {
-	int rc;
-
-	spin_lock_irq(cmd->device->host->host_lock);
-	rc = sym_eh_handler(SYM_EH_DEVICE_RESET, "DEVICE RESET", cmd);
-	spin_unlock_irq(cmd->device->host->host_lock);
-
-	return rc;
+	return sym_eh_handler(SYM_EH_DEVICE_RESET, "DEVICE RESET", cmd);
 }
 
 static int sym53c8xx_eh_bus_reset_handler(struct scsi_cmnd *cmd)
 {
-	int rc;
-
-	spin_lock_irq(cmd->device->host->host_lock);
-	rc = sym_eh_handler(SYM_EH_BUS_RESET, "BUS RESET", cmd);
-	spin_unlock_irq(cmd->device->host->host_lock);
-
-	return rc;
+	return sym_eh_handler(SYM_EH_BUS_RESET, "BUS RESET", cmd);
 }
 
 static int sym53c8xx_eh_host_reset_handler(struct scsi_cmnd *cmd)
 {
-	int rc;
-
-	spin_lock_irq(cmd->device->host->host_lock);
-	rc = sym_eh_handler(SYM_EH_HOST_RESET, "HOST RESET", cmd);
-	spin_unlock_irq(cmd->device->host->host_lock);
-
-	return rc;
+	return sym_eh_handler(SYM_EH_HOST_RESET, "HOST RESET", cmd);
 }
 
 /*
@@ -944,15 +833,12 @@ static void sym_tune_dev_queuing(struct sym_tcb *tp, int lun, u_short reqtags)
 	if (reqtags > lp->s.scdev_depth)
 		reqtags = lp->s.scdev_depth;
 
-	lp->started_limit = reqtags ? reqtags : 2;
-	lp->started_max   = 1;
 	lp->s.reqtags     = reqtags;
 
 	if (reqtags != oldtags) {
 		dev_info(&tp->starget->dev,
 		         "tagged command queuing %s, command queue depth %d.\n",
-		          lp->s.reqtags ? "enabled" : "disabled",
- 		          lp->started_limit);
+		          lp->s.reqtags ? "enabled" : "disabled", reqtags);
 	}
 }
 
@@ -1866,15 +1752,25 @@ static int __devinit sym_set_workarounds(struct sym_device *device)
 static void __devinit
 sym_init_device(struct pci_dev *pdev, struct sym_device *device)
 {
-	int i;
+	int i = 2;
+	struct pci_bus_region bus_addr;
 
 	device->host_id = SYM_SETUP_HOST_ID;
 	device->pdev = pdev;
 
-	i = pci_get_base_address(pdev, 1, &device->mmio_base);
-	pci_get_base_address(pdev, i, &device->ram_base);
+	pcibios_resource_to_bus(pdev, &bus_addr, &pdev->resource[1]);
+	device->mmio_base = bus_addr.start;
 
-#ifndef CONFIG_SCSI_SYM53C8XX_IOMAPPED
+	/*
+	 * If the BAR is 64-bit, resource 2 will be occupied by the
+	 * upper 32 bits
+	 */
+	if (!pdev->resource[i].flags)
+		i++;
+	pcibios_resource_to_bus(pdev, &bus_addr, &pdev->resource[i]);
+	device->ram_base = bus_addr.start;
+
+#ifdef CONFIG_SCSI_SYM53C8XX_MMIO
 	if (device->mmio_base)
 		device->s.ioaddr = pci_iomap(pdev, 1,
 						pci_resource_len(pdev, 1));
@@ -1978,7 +1874,8 @@ static struct scsi_host_template sym2_template = {
 	.eh_bus_reset_handler	= sym53c8xx_eh_bus_reset_handler,
 	.eh_host_reset_handler	= sym53c8xx_eh_host_reset_handler,
 	.this_id		= 7,
-	.use_clustering		= DISABLE_CLUSTERING,
+	.use_clustering		= ENABLE_CLUSTERING,
+	.max_sectors		= 0xFFFF,
 #ifdef SYM_LINUX_PROC_INFO_SUPPORT
 	.proc_info		= sym53c8xx_proc_info,
 	.proc_name		= NAME53C8XX,

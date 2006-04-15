@@ -1682,7 +1682,7 @@ static void snd_pcm_oss_init_substream(struct snd_pcm_substream *substream,
 	substream->oss.setup = *setup;
 	if (setup->nonblock)
 		substream->ffile->f_flags |= O_NONBLOCK;
-	else
+	else if (setup->block)
 		substream->ffile->f_flags &= ~O_NONBLOCK;
 	runtime = substream->runtime;
 	runtime->oss.params = 1;
@@ -1757,10 +1757,11 @@ static int snd_pcm_oss_open_file(struct file *file,
 		}
 
 		pcm_oss_file->streams[idx] = substream;
+		substream->file = pcm_oss_file;
 		snd_pcm_oss_init_substream(substream, &setup[idx], minor);
 	}
 	
-	if (! pcm_oss_file->streams[0] && pcm_oss_file->streams[1]) {
+	if (!pcm_oss_file->streams[0] && !pcm_oss_file->streams[1]) {
 		snd_pcm_oss_release_file(pcm_oss_file);
 		return -EINVAL;
 	}
@@ -1809,7 +1810,7 @@ static int snd_pcm_oss_open(struct inode *inode, struct file *file)
 		err = -EFAULT;
 		goto __error;
 	}
-	memset(setup, 0, sizeof(*setup));
+	memset(setup, 0, sizeof(setup));
 	if (file->f_mode & FMODE_WRITE)
 		snd_pcm_oss_look_for_setup(pcm, SNDRV_PCM_STREAM_PLAYBACK,
 					   task_name, &setup[0]);

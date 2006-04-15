@@ -297,6 +297,8 @@ static void keyspan_check_data(struct usb_keyspan *remote, struct pt_regs *regs)
 			remote->data.bits_left -= 6;
 		} else {
 			err("%s - Error in message, invalid toggle.\n", __FUNCTION__);
+			remote->stage = 0;
+			return;
 		}
 
 		keyspan_load_tester(remote, 5);

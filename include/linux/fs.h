@@ -1039,8 +1039,8 @@ struct file_operations {
 	int (*check_flags)(int);
 	int (*dir_notify)(struct file *filp, unsigned long arg);
 	int (*flock) (struct file *, int, struct file_lock *);
-	ssize_t (*splice_write)(struct pipe_inode_info *, struct file *, size_t, unsigned int);
-	ssize_t (*splice_read)(struct file *, struct pipe_inode_info *, size_t, unsigned int);
+	ssize_t (*splice_write)(struct pipe_inode_info *, struct file *, loff_t *, size_t, unsigned int);
+	ssize_t (*splice_read)(struct file *, loff_t *, struct pipe_inode_info *, size_t, unsigned int);
 };
 
 struct inode_operations {
@@ -1613,13 +1613,13 @@ extern void do_generic_mapping_read(struct address_space *mapping,
 				    loff_t *, read_descriptor_t *, read_actor_t);
 
 /* fs/splice.c */
-extern ssize_t generic_file_splice_read(struct file *,
+extern ssize_t generic_file_splice_read(struct file *, loff_t *,
 		struct pipe_inode_info *, size_t, unsigned int);
 extern ssize_t generic_file_splice_write(struct pipe_inode_info *,
-		struct file *, size_t, unsigned int);
+		struct file *, loff_t *, size_t, unsigned int);
 extern ssize_t generic_splice_sendpage(struct pipe_inode_info *pipe,
-		struct file *out, size_t len, unsigned int flags);
-extern long do_splice_direct(struct file *in, struct file *out,
+		struct file *out, loff_t *, size_t len, unsigned int flags);
+extern long do_splice_direct(struct file *in, loff_t *ppos, struct file *out,
 		size_t len, unsigned int flags);
 
 extern void

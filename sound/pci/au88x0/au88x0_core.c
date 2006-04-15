@@ -2658,7 +2658,7 @@ static void vortex_spdif_init(vortex_t * vortex, int spdif_sr, int spdif_mode)
 
 /* Initialization */
 
-static int vortex_core_init(vortex_t * vortex)
+static int __devinit vortex_core_init(vortex_t * vortex)
 {
 
 	printk(KERN_INFO "Vortex: init.... ");

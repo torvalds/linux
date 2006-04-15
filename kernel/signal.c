@@ -1754,9 +1754,9 @@ relock:
 			/* Let the debugger run.  */
 			ptrace_stop(signr, signr, info);
 
-			/* We're back.  Did the debugger cancel the sig or group_exit? */
+			/* We're back.  Did the debugger cancel the sig?  */
 			signr = current->exit_code;
-			if (signr == 0 || current->signal->flags & SIGNAL_GROUP_EXIT)
+			if (signr == 0)
 				continue;
 
 			current->exit_code = 0;

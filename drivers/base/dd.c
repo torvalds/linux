@@ -209,7 +209,7 @@ static void __device_release_driver(struct device * dev)
 		sysfs_remove_link(&dev->kobj, "driver");
 		klist_remove(&dev->knode_driver);
 
-		if (dev->bus->remove)
+		if (dev->bus && dev->bus->remove)
 			dev->bus->remove(dev);
 		else if (drv->remove)
 			drv->remove(dev);

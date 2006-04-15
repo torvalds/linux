@@ -192,7 +192,7 @@ int mthca_alloc_srq(struct mthca_dev *dev, struct mthca_pd *pd,
 
 	/* Sanity check SRQ size before proceeding */
 	if (attr->max_wr  > dev->limits.max_srq_wqes ||
-	    attr->max_sge > dev->limits.max_sg)
+	    attr->max_sge > dev->limits.max_srq_sge)
 		return -EINVAL;
 
 	srq->max      = attr->max_wr;
@@ -658,6 +658,31 @@ int mthca_arbel_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 
 	spin_unlock_irqrestore(&srq->lock, flags);
 	return err;
+}
+
+int mthca_max_srq_sge(struct mthca_dev *dev)
+{
+	if (mthca_is_memfree(dev))
+		return dev->limits.max_sg;
+
+	/*
+	 * SRQ allocations are based on powers of 2 for Tavor,
+	 * (although they only need to be multiples of 16 bytes).
+	 *
+	 * Therefore, we need to base the max number of sg entries on
+	 * the largest power of 2 descriptor size that is <= to the
+	 * actual max WQE descriptor size, rather than return the
+	 * max_sg value given by the firmware (which is based on WQE
+	 * sizes as multiples of 16, not powers of 2).
+	 *
+	 * If SRQ implementation is changed for Tavor to be based on
+	 * multiples of 16, the calculation below can be deleted and
+	 * the FW max_sg value returned.
+	 */
+	return min_t(int, dev->limits.max_sg,
+		     ((1 << (fls(dev->limits.max_desc_sz) - 1)) -
+		      sizeof (struct mthca_next_seg)) /
+		     sizeof (struct mthca_data_seg));
 }
 
 int __devinit mthca_init_srq_table(struct mthca_dev *dev)
