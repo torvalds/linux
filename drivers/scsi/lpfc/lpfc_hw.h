@@ -1539,6 +1539,7 @@ typedef struct {
 
 #define FLAGS_TOPOLOGY_FAILOVER      0x0400	/* Bit 10 */
 #define FLAGS_LINK_SPEED             0x0800	/* Bit 11 */
+#define FLAGS_IMED_ABORT             0x04000	/* Bit 14 */
 
 	uint32_t link_speed;
 #define LINK_SPEED_AUTO 0       /* Auto selection */

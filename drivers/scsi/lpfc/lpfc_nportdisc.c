@@ -788,10 +788,6 @@ lpfc_cmpl_plogi_plogi_issue(struct lpfc_hba * phba,
 	if (lpfc_reg_login
 	    (phba, irsp->un.elsreq64.remoteID,
 	     (uint8_t *) sp, mbox, 0) == 0) {
-		/* set_slim mailbox command needs to
-		 * execute first, queue this command to
-		 * be processed later.
-		 */
 		switch (ndlp->nlp_DID) {
 		case NameServer_DID:
 			mbox->mbox_cmpl =

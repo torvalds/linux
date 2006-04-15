@@ -302,10 +302,6 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 	if (lpfc_reg_login(phba, Fabric_DID, (uint8_t *) sp, mbox, 0))
 		goto fail_free_mbox;
 
-	/*
-	 * set_slim mailbox command needs to execute first,
-	 * queue this command to be processed later.
-	 */
 	mbox->mbox_cmpl = lpfc_mbx_cmpl_fabric_reg_login;
 	mbox->context2 = ndlp;
 
@@ -1872,9 +1868,6 @@ lpfc_cmpl_els_acc(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 	if (mbox) {
 		if ((rspiocb->iocb.ulpStatus == 0)
 		    && (ndlp->nlp_flag & NLP_ACC_REGLOGIN)) {
-			/* set_slim mailbox command needs to execute first,
-			 * queue this command to be processed later.
-			 */
 			lpfc_unreg_rpi(phba, ndlp);
 			mbox->mbox_cmpl = lpfc_mbx_cmpl_reg_login;
 			mbox->context2 = ndlp;

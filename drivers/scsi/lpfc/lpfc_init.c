@@ -294,15 +294,6 @@ lpfc_config_port_post(struct lpfc_hba * phba)
 		}
 	}
 
-	/* This should turn on DELAYED ABTS for ELS timeouts */
-	lpfc_set_slim(phba, pmb, 0x052198, 0x1);
-	if (lpfc_sli_issue_mbox(phba, pmb, MBX_POLL) != MBX_SUCCESS) {
-		phba->hba_state = LPFC_HBA_ERROR;
-		mempool_free( pmb, phba->mbox_mem_pool);
-		return -EIO;
-	}
-
-
 	lpfc_read_config(phba, pmb);
 	if (lpfc_sli_issue_mbox(phba, pmb, MBX_POLL) != MBX_SUCCESS) {
 		lpfc_printf_log(phba,
