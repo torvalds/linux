@@ -3400,13 +3400,15 @@ e1000_clean_tx_irq(struct e1000_adapter *adapter,
 
 	tx_ring->next_to_clean = i;
 
-	spin_lock(&tx_ring->tx_lock);
-
+#define TX_WAKE_THRESHOLD 32
 	if (unlikely(cleaned && netif_queue_stopped(netdev) &&
-		    netif_carrier_ok(netdev)))
-		netif_wake_queue(netdev);
-
-	spin_unlock(&tx_ring->tx_lock);
+	             netif_carrier_ok(netdev))) {
+		spin_lock(&tx_ring->tx_lock);
+		if (netif_queue_stopped(netdev) &&
+		    (E1000_DESC_UNUSED(tx_ring) >= TX_WAKE_THRESHOLD))
+			netif_wake_queue(netdev);
+		spin_unlock(&tx_ring->tx_lock);
+	}
 
 	if (adapter->detect_tx_hung) {
 		/* Detect a transmit hang in hardware, this serializes the
