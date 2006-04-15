@@ -164,29 +164,6 @@ MODULE_PARM_DESC(auto_create, "Auto-create single device RAID 0 arrays when init
 MODULE_LICENSE("GPL");
 MODULE_VERSION(IPR_DRIVER_VERSION);
 
-static const char *ipr_gpdd_dev_end_states[] = {
-	"Command complete",
-	"Terminated by host",
-	"Terminated by device reset",
-	"Terminated by bus reset",
-	"Unknown",
-	"Command not started"
-};
-
-static const char *ipr_gpdd_dev_bus_phases[] = {
-	"Bus free",
-	"Arbitration",
-	"Selection",
-	"Message out",
-	"Command",
-	"Message in",
-	"Data out",
-	"Data in",
-	"Status",
-	"Reselection",
-	"Unknown"
-};
-
 /*  A constant array of IOASCs/URCs/Error Messages */
 static const
 struct ipr_error_table_t ipr_error_table[] = {
@@ -869,8 +846,8 @@ static void ipr_handle_config_change(struct ipr_ioa_cfg *ioa_cfg,
 
 	if (hostrcb->hcam.notify_type == IPR_HOST_RCB_NOTIF_TYPE_REM_ENTRY) {
 		if (res->sdev) {
-			res->sdev->hostdata = NULL;
 			res->del_from_ml = 1;
+			res->cfgte.res_handle = IPR_INVALID_RES_HANDLE;
 			if (ioa_cfg->allow_ml_add_del)
 				schedule_work(&ioa_cfg->work_q);
 		} else
@@ -1356,8 +1333,8 @@ static void ipr_handle_log_data(struct ipr_ioa_cfg *ioa_cfg,
 		return;
 
 	if (ipr_is_device(&hostrcb->hcam.u.error.failing_dev_res_addr)) {
-		ipr_res_err(ioa_cfg, hostrcb->hcam.u.error.failing_dev_res_addr,
-			    "%s\n", ipr_error_table[error_index].error);
+		ipr_ra_err(ioa_cfg, hostrcb->hcam.u.error.failing_dev_res_addr,
+			   "%s\n", ipr_error_table[error_index].error);
 	} else {
 		dev_err(&ioa_cfg->pdev->dev, "%s\n",
 			ipr_error_table[error_index].error);
@@ -2107,7 +2084,6 @@ restart:
 				did_work = 1;
 				sdev = res->sdev;
 				if (!scsi_device_get(sdev)) {
-					res->sdev = NULL;
 					list_move_tail(&res->queue, &ioa_cfg->free_res_q);
 					spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
 					scsi_remove_device(sdev);
@@ -2124,6 +2100,7 @@ restart:
 			bus = res->cfgte.res_addr.bus;
 			target = res->cfgte.res_addr.target;
 			lun = res->cfgte.res_addr.lun;
+			res->add_to_ml = 0;
 			spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
 			scsi_add_device(ioa_cfg->host, bus, target, lun);
 			spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
@@ -3214,7 +3191,7 @@ static int ipr_slave_configure(struct scsi_device *sdev)
 			sdev->timeout = IPR_VSET_RW_TIMEOUT;
 			blk_queue_max_sectors(sdev->request_queue, IPR_VSET_MAX_SECTORS);
 		}
-		if (IPR_IS_DASD_DEVICE(res->cfgte.std_inq_data))
+		if (ipr_is_vset_device(res) || ipr_is_scsi_disk(res))
 			sdev->allow_restart = 1;
 		scsi_adjust_queue_depth(sdev, 0, sdev->host->cmd_per_lun);
 	}
@@ -3304,6 +3281,44 @@ static int ipr_eh_host_reset(struct scsi_cmnd * cmd)
 }
 
 /**
+ * ipr_device_reset - Reset the device
+ * @ioa_cfg:	ioa config struct
+ * @res:		resource entry struct
+ *
+ * This function issues a device reset to the affected device.
+ * If the device is a SCSI device, a LUN reset will be sent
+ * to the device first. If that does not work, a target reset
+ * will be sent.
+ *
+ * Return value:
+ *	0 on success / non-zero on failure
+ **/
+static int ipr_device_reset(struct ipr_ioa_cfg *ioa_cfg,
+			    struct ipr_resource_entry *res)
+{
+	struct ipr_cmnd *ipr_cmd;
+	struct ipr_ioarcb *ioarcb;
+	struct ipr_cmd_pkt *cmd_pkt;
+	u32 ioasc;
+
+	ENTER;
+	ipr_cmd = ipr_get_free_ipr_cmnd(ioa_cfg);
+	ioarcb = &ipr_cmd->ioarcb;
+	cmd_pkt = &ioarcb->cmd_pkt;
+
+	ioarcb->res_handle = res->cfgte.res_handle;
+	cmd_pkt->request_type = IPR_RQTYPE_IOACMD;
+	cmd_pkt->cdb[0] = IPR_RESET_DEVICE;
+
+	ipr_send_blocking_cmd(ipr_cmd, ipr_timeout, IPR_DEVICE_RESET_TIMEOUT);
+	ioasc = be32_to_cpu(ipr_cmd->ioasa.ioasc);
+	list_add_tail(&ipr_cmd->queue, &ioa_cfg->free_q);
+
+	LEAVE;
+	return (IPR_IOASC_SENSE_KEY(ioasc) ? -EIO : 0);
+}
+
+/**
  * ipr_eh_dev_reset - Reset the device
  * @scsi_cmd:	scsi command struct
  *
@@ -3319,8 +3334,7 @@ static int __ipr_eh_dev_reset(struct scsi_cmnd * scsi_cmd)
 	struct ipr_cmnd *ipr_cmd;
 	struct ipr_ioa_cfg *ioa_cfg;
 	struct ipr_resource_entry *res;
-	struct ipr_cmd_pkt *cmd_pkt;
-	u32 ioasc;
+	int rc;
 
 	ENTER;
 	ioa_cfg = (struct ipr_ioa_cfg *) scsi_cmd->device->host->hostdata;
@@ -3347,25 +3361,12 @@ static int __ipr_eh_dev_reset(struct scsi_cmnd * scsi_cmd)
 	}
 
 	res->resetting_device = 1;
-
-	ipr_cmd = ipr_get_free_ipr_cmnd(ioa_cfg);
-
-	ipr_cmd->ioarcb.res_handle = res->cfgte.res_handle;
-	cmd_pkt = &ipr_cmd->ioarcb.cmd_pkt;
-	cmd_pkt->request_type = IPR_RQTYPE_IOACMD;
-	cmd_pkt->cdb[0] = IPR_RESET_DEVICE;
-
-	ipr_sdev_err(scsi_cmd->device, "Resetting device\n");
-	ipr_send_blocking_cmd(ipr_cmd, ipr_timeout, IPR_DEVICE_RESET_TIMEOUT);
-
-	ioasc = be32_to_cpu(ipr_cmd->ioasa.ioasc);
-
+	scmd_printk(KERN_ERR, scsi_cmd, "Resetting device\n");
+	rc = ipr_device_reset(ioa_cfg, res);
 	res->resetting_device = 0;
 
-	list_add_tail(&ipr_cmd->queue, &ioa_cfg->free_q);
-
 	LEAVE;
-	return (IPR_IOASC_SENSE_KEY(ioasc) ? FAILED : SUCCESS);
+	return (rc ? FAILED : SUCCESS);
 }
 
 static int ipr_eh_dev_reset(struct scsi_cmnd * cmd)
@@ -3440,7 +3441,7 @@ static void ipr_abort_timeout(struct ipr_cmnd *ipr_cmd)
 		return;
 	}
 
-	ipr_sdev_err(ipr_cmd->u.sdev, "Abort timed out. Resetting bus\n");
+	sdev_printk(KERN_ERR, ipr_cmd->u.sdev, "Abort timed out. Resetting bus.\n");
 	reset_cmd = ipr_get_free_ipr_cmnd(ioa_cfg);
 	ipr_cmd->sibling = reset_cmd;
 	reset_cmd->sibling = ipr_cmd;
@@ -3504,7 +3505,8 @@ static int ipr_cancel_op(struct scsi_cmnd * scsi_cmd)
 	cmd_pkt->cdb[0] = IPR_CANCEL_ALL_REQUESTS;
 	ipr_cmd->u.sdev = scsi_cmd->device;
 
-	ipr_sdev_err(scsi_cmd->device, "Aborting command: %02X\n", scsi_cmd->cmnd[0]);
+	scmd_printk(KERN_ERR, scsi_cmd, "Aborting command: %02X\n",
+		    scsi_cmd->cmnd[0]);
 	ipr_send_blocking_cmd(ipr_cmd, ipr_abort_timeout, IPR_CANCEL_ALL_TIMEOUT);
 	ioasc = be32_to_cpu(ipr_cmd->ioasa.ioasc);
 
@@ -3815,8 +3817,8 @@ static void ipr_erp_done(struct ipr_cmnd *ipr_cmd)
 
 	if (IPR_IOASC_SENSE_KEY(ioasc) > 0) {
 		scsi_cmd->result |= (DID_ERROR << 16);
-		ipr_sdev_err(scsi_cmd->device,
-			     "Request Sense failed with IOASC: 0x%08X\n", ioasc);
+		scmd_printk(KERN_ERR, scsi_cmd,
+			    "Request Sense failed with IOASC: 0x%08X\n", ioasc);
 	} else {
 		memcpy(scsi_cmd->sense_buffer, ipr_cmd->sense_buffer,
 		       SCSI_SENSE_BUFFERSIZE);
@@ -3938,6 +3940,7 @@ static void ipr_erp_cancel_all(struct ipr_cmnd *ipr_cmd)
  * ipr_dump_ioasa - Dump contents of IOASA
  * @ioa_cfg:	ioa config struct
  * @ipr_cmd:	ipr command struct
+ * @res:		resource entry struct
  *
  * This function is invoked by the interrupt handler when ops
  * fail. It will log the IOASA if appropriate. Only called
@@ -3947,7 +3950,7 @@ static void ipr_erp_cancel_all(struct ipr_cmnd *ipr_cmd)
  * 	none
  **/
 static void ipr_dump_ioasa(struct ipr_ioa_cfg *ioa_cfg,
-			   struct ipr_cmnd *ipr_cmd)
+			   struct ipr_cmnd *ipr_cmd, struct ipr_resource_entry *res)
 {
 	int i;
 	u16 data_len;
@@ -3975,16 +3978,7 @@ static void ipr_dump_ioasa(struct ipr_ioa_cfg *ioa_cfg,
 			return;
 	}
 
-	ipr_sdev_err(ipr_cmd->scsi_cmd->device, "%s\n",
-		     ipr_error_table[error_index].error);
-
-	if ((ioasa->u.gpdd.end_state <= ARRAY_SIZE(ipr_gpdd_dev_end_states)) &&
-	    (ioasa->u.gpdd.bus_phase <=  ARRAY_SIZE(ipr_gpdd_dev_bus_phases))) {
-		ipr_sdev_err(ipr_cmd->scsi_cmd->device,
-			     "Device End state: %s Phase: %s\n",
-			     ipr_gpdd_dev_end_states[ioasa->u.gpdd.end_state],
-			     ipr_gpdd_dev_bus_phases[ioasa->u.gpdd.bus_phase]);
-	}
+	ipr_res_err(ioa_cfg, res, "%s\n", ipr_error_table[error_index].error);
 
 	if (sizeof(struct ipr_ioasa) < be16_to_cpu(ioasa->ret_stat_len))
 		data_len = sizeof(struct ipr_ioasa);
@@ -4141,7 +4135,7 @@ static void ipr_erp_start(struct ipr_ioa_cfg *ioa_cfg,
 	}
 
 	if (ipr_is_gscsi(res))
-		ipr_dump_ioasa(ioa_cfg, ipr_cmd);
+		ipr_dump_ioasa(ioa_cfg, ipr_cmd, res);
 	else
 		ipr_gen_sense(ipr_cmd);
 
@@ -4540,7 +4534,7 @@ static int ipr_set_supported_devs(struct ipr_cmnd *ipr_cmd)
 	ipr_cmd->job_step = ipr_ioa_reset_done;
 
 	list_for_each_entry_continue(res, &ioa_cfg->used_res_q, queue) {
-		if (!IPR_IS_DASD_DEVICE(res->cfgte.std_inq_data))
+		if (!ipr_is_scsi_disk(res))
 			continue;
 
 		ipr_cmd->u.res = res;
@@ -4980,7 +4974,7 @@ static int ipr_init_res_table(struct ipr_cmnd *ipr_cmd)
 	list_for_each_entry_safe(res, temp, &old_res, queue) {
 		if (res->sdev) {
 			res->del_from_ml = 1;
-			res->sdev->hostdata = NULL;
+			res->cfgte.res_handle = IPR_INVALID_RES_HANDLE;
 			list_move_tail(&res->queue, &ioa_cfg->used_res_q);
 		} else {
 			list_move_tail(&res->queue, &ioa_cfg->free_res_q);
