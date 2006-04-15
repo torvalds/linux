@@ -22,6 +22,7 @@
 # 
 # Contact Information:
 # Linux NICS <linux.nics@intel.com>
+# e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
 # Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 #
 ################################################################################
