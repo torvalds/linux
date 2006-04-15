@@ -359,6 +359,7 @@ e1000_release_hw_control(struct e1000_adapter *adapter)
 	switch (adapter->hw.mac_type) {
 	case e1000_82571:
 	case e1000_82572:
+	case e1000_80003es2lan:
 		ctrl_ext = E1000_READ_REG(&adapter->hw, CTRL_EXT);
 		E1000_WRITE_REG(&adapter->hw, CTRL_EXT,
 				ctrl_ext & ~E1000_CTRL_EXT_DRV_LOAD);
@@ -392,6 +393,7 @@ e1000_get_hw_control(struct e1000_adapter *adapter)
 	switch (adapter->hw.mac_type) {
 	case e1000_82571:
 	case e1000_82572:
+	case e1000_80003es2lan:
 		ctrl_ext = E1000_READ_REG(&adapter->hw, CTRL_EXT);
 		E1000_WRITE_REG(&adapter->hw, CTRL_EXT,
 				ctrl_ext | E1000_CTRL_EXT_DRV_LOAD);
@@ -419,7 +421,7 @@ e1000_up(struct e1000_adapter *adapter)
 		uint16_t mii_reg;
 		e1000_read_phy_reg(&adapter->hw, PHY_CTRL, &mii_reg);
 		if (mii_reg & MII_CR_POWER_DOWN)
-			e1000_phy_reset(&adapter->hw);
+			e1000_phy_hw_reset(&adapter->hw);
 	}
 
 	e1000_set_multi(netdev);
