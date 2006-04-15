@@ -462,3 +462,4 @@ sys_call_table:
 	PTR	sys_unshare
 	PTR	sys_splice
 	PTR	sys_sync_file_range
+	PTR	sys_tee				/* 5265 */
