@@ -449,6 +449,7 @@ struct serv_parm {	/* Structure is in Big Endian format */
 #define ELS_CMD_RRQ       0x12000000
 #define ELS_CMD_PRLI      0x20100014
 #define ELS_CMD_PRLO      0x21100014
+#define ELS_CMD_PRLO_ACC  0x02100014
 #define ELS_CMD_PDISC     0x50000000
 #define ELS_CMD_FDISC     0x51000000
 #define ELS_CMD_ADISC     0x52000000
@@ -484,6 +485,7 @@ struct serv_parm {	/* Structure is in Big Endian format */
 #define ELS_CMD_RRQ       0x12
 #define ELS_CMD_PRLI      0x14001020
 #define ELS_CMD_PRLO      0x14001021
+#define ELS_CMD_PRLO_ACC  0x14001002
 #define ELS_CMD_PDISC     0x50
 #define ELS_CMD_FDISC     0x51
 #define ELS_CMD_ADISC     0x52

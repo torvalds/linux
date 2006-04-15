@@ -1913,6 +1913,7 @@ lpfc_els_rsp_acc(struct lpfc_hba * phba, uint32_t flag,
 	uint8_t *pcmd;
 	uint16_t cmdsize;
 	int rc;
+	ELS_PKT *els_pkt_ptr;
 
 	psli = &phba->sli;
 	pring = &psli->ring[LPFC_ELS_RING];	/* ELS ring */
@@ -1950,6 +1951,23 @@ lpfc_els_rsp_acc(struct lpfc_hba * phba, uint32_t flag,
 		*((uint32_t *) (pcmd)) = ELS_CMD_ACC;
 		pcmd += sizeof (uint32_t);
 		memcpy(pcmd, &phba->fc_sparam, sizeof (struct serv_parm));
+		break;
+	case ELS_CMD_PRLO:
+		cmdsize = sizeof (uint32_t) + sizeof (PRLO);
+		elsiocb = lpfc_prep_els_iocb(phba, 0, cmdsize, oldiocb->retry,
+					     ndlp, ndlp->nlp_DID, ELS_CMD_PRLO);
+		if (!elsiocb)
+			return 1;
+
+		icmd = &elsiocb->iocb;
+		icmd->ulpContext = oldcmd->ulpContext; /* Xri */
+		pcmd = (((struct lpfc_dmabuf *) elsiocb->context2)->virt);
+
+		memcpy(pcmd, ((struct lpfc_dmabuf *) oldiocb->context2)->virt,
+		       sizeof (uint32_t) + sizeof (PRLO));
+		*((uint32_t *) (pcmd)) = ELS_CMD_PRLO_ACC;
+		els_pkt_ptr = (ELS_PKT *) pcmd;
+		els_pkt_ptr->un.prlo.acceptRspCode = PRLO_REQ_EXECUTED;
 		break;
 	default:
 		return 1;
