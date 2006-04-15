@@ -139,7 +139,7 @@ static int s3c2440_clk_add(struct sys_device *sysdev)
 
 		clkdivn = __raw_readl(S3C2410_CLKDIVN);
 		clkdivn |= S3C2440_CLKDIVN_UCLK;
-		__raw_writel(camdivn, S3C2410_CLKDIVN);
+		__raw_writel(clkdivn, S3C2410_CLKDIVN);
 
 		mutex_unlock(&clocks_mutex);
 	}
