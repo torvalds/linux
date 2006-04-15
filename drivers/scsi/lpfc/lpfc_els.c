@@ -2511,7 +2511,7 @@ lpfc_els_rcv_rscn(struct lpfc_hba * phba,
 	/* If we are about to begin discovery, just ACC the RSCN.
 	 * Discovery processing will satisfy it.
 	 */
-	if (phba->hba_state < LPFC_NS_QRY) {
+	if (phba->hba_state <= LPFC_NS_QRY) {
 		lpfc_els_rsp_acc(phba, ELS_CMD_ACC, cmdiocb, ndlp, NULL,
 								newnode);
 		return 0;
