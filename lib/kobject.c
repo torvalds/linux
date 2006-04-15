@@ -128,6 +128,7 @@ void kobject_init(struct kobject * kobj)
 {
 	kref_init(&kobj->kref);
 	INIT_LIST_HEAD(&kobj->entry);
+	init_waitqueue_head(&kobj->poll);
 	kobj->kset = kset_get(kobj->kset);
 }
 
