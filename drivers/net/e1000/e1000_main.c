@@ -972,8 +972,8 @@ e1000_sw_init(struct e1000_adapter *adapter)
 
 	pci_read_config_word(pdev, PCI_COMMAND, &hw->pci_cmd_word);
 
-	adapter->rx_buffer_len = E1000_RXBUFFER_2048;
-	adapter->rx_ps_bsize0 = E1000_RXBUFFER_256;
+	adapter->rx_buffer_len = MAXIMUM_ETHERNET_FRAME_SIZE;
+	adapter->rx_ps_bsize0 = E1000_RXBUFFER_128;
 	hw->max_frame_size = netdev->mtu +
 			     ENET_HEADER_SIZE + ETHERNET_FCS_SIZE;
 	hw->min_frame_size = MINIMUM_ETHERNET_FRAME_SIZE;
@@ -1599,14 +1599,21 @@ e1000_setup_rctl(struct e1000_adapter *adapter)
 		rctl |= E1000_RCTL_LPE;
 
 	/* Setup buffer sizes */
-	if (adapter->hw.mac_type >= e1000_82571) {
-		/* We can now specify buffers in 1K increments.
-		 * BSIZE and BSEX are ignored in this case. */
-		rctl |= adapter->rx_buffer_len << 0x11;
-	} else {
-		rctl &= ~E1000_RCTL_SZ_4096;
-		rctl |= E1000_RCTL_BSEX; 
-		switch (adapter->rx_buffer_len) {
+	rctl &= ~E1000_RCTL_SZ_4096;
+	rctl |= E1000_RCTL_BSEX;
+	switch (adapter->rx_buffer_len) {
+		case E1000_RXBUFFER_256:
+			rctl |= E1000_RCTL_SZ_256;
+			rctl &= ~E1000_RCTL_BSEX;
+			break;
+		case E1000_RXBUFFER_512:
+			rctl |= E1000_RCTL_SZ_512;
+			rctl &= ~E1000_RCTL_BSEX;
+			break;
+		case E1000_RXBUFFER_1024:
+			rctl |= E1000_RCTL_SZ_1024;
+			rctl &= ~E1000_RCTL_BSEX;
+			break;
 		case E1000_RXBUFFER_2048:
 		default:
 			rctl |= E1000_RCTL_SZ_2048;
@@ -1621,7 +1628,6 @@ e1000_setup_rctl(struct e1000_adapter *adapter)
 		case E1000_RXBUFFER_16384:
 			rctl |= E1000_RCTL_SZ_16384;
 			break;
-		}
 	}
 
 #ifndef CONFIG_E1000_DISABLE_PACKET_SPLIT
@@ -2982,8 +2988,7 @@ e1000_change_mtu(struct net_device *netdev, int new_mtu)
 
 	/* Adapter-specific max frame size limits. */
 	switch (adapter->hw.mac_type) {
-	case e1000_82542_rev2_0:
-	case e1000_82542_rev2_1:
+	case e1000_undefined ... e1000_82542_rev2_1:
 		if (max_frame > MAXIMUM_ETHERNET_FRAME_SIZE) {
 			DPRINTK(PROBE, ERR, "Jumbo Frames not supported.\n");
 			return -EINVAL;
@@ -3017,27 +3022,32 @@ e1000_change_mtu(struct net_device *netdev, int new_mtu)
 		break;
 	}
 
+	/* NOTE: dev_alloc_skb reserves 16 bytes, and typically NET_IP_ALIGN
+	 * means we reserve 2 more, this pushes us to allocate from the next
+	 * larger slab size
+	 * i.e. RXBUFFER_2048 --> size-4096 slab */
 
-	if (adapter->hw.mac_type > e1000_82547_rev_2) {
-		adapter->rx_buffer_len = max_frame;
-		E1000_ROUNDUP(adapter->rx_buffer_len, 1024);
-	} else {
-		if(unlikely((adapter->hw.mac_type < e1000_82543) &&
-		   (max_frame > MAXIMUM_ETHERNET_FRAME_SIZE))) {
-			DPRINTK(PROBE, ERR, "Jumbo Frames not supported "
-					    "on 82542\n");
-			return -EINVAL;
-		} else {
-			if(max_frame <= E1000_RXBUFFER_2048)
-				adapter->rx_buffer_len = E1000_RXBUFFER_2048;
-			else if(max_frame <= E1000_RXBUFFER_4096)
-				adapter->rx_buffer_len = E1000_RXBUFFER_4096;
-			else if(max_frame <= E1000_RXBUFFER_8192)
-				adapter->rx_buffer_len = E1000_RXBUFFER_8192;
-			else if(max_frame <= E1000_RXBUFFER_16384)
-				adapter->rx_buffer_len = E1000_RXBUFFER_16384;
-		}
-	}
+	if (max_frame <= E1000_RXBUFFER_256)
+		adapter->rx_buffer_len = E1000_RXBUFFER_256;
+	else if (max_frame <= E1000_RXBUFFER_512)
+		adapter->rx_buffer_len = E1000_RXBUFFER_512;
+	else if (max_frame <= E1000_RXBUFFER_1024)
+		adapter->rx_buffer_len = E1000_RXBUFFER_1024;
+	else if (max_frame <= E1000_RXBUFFER_2048)
+		adapter->rx_buffer_len = E1000_RXBUFFER_2048;
+	else if (max_frame <= E1000_RXBUFFER_4096)
+		adapter->rx_buffer_len = E1000_RXBUFFER_4096;
+	else if (max_frame <= E1000_RXBUFFER_8192)
+		adapter->rx_buffer_len = E1000_RXBUFFER_8192;
+	else if (max_frame <= E1000_RXBUFFER_16384)
+		adapter->rx_buffer_len = E1000_RXBUFFER_16384;
+
+	/* adjust allocation if LPE protects us, and we aren't using SBP */
+#define MAXIMUM_ETHERNET_VLAN_SIZE 1522
+	if (!adapter->hw.tbi_compatibility_on &&
+	    ((max_frame == MAXIMUM_ETHERNET_FRAME_SIZE) ||
+	     (max_frame == MAXIMUM_ETHERNET_VLAN_SIZE)))
+		adapter->rx_buffer_len = MAXIMUM_ETHERNET_VLAN_SIZE;
 
 	netdev->mtu = new_mtu;
 
@@ -3568,10 +3578,12 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 				                       flags);
 				length--;
 			} else {
-				dev_kfree_skb_irq(skb);
+				/* recycle */
+				buffer_info->skb = skb;
 				goto next_desc;
 			}
-		}
+		} else
+			skb_put(skb, length);
 
 		/* code added for copybreak, this should improve
 		 * performance for small packets with large amounts
@@ -3676,6 +3688,7 @@ e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 	i = rx_ring->next_to_clean;
 	rx_desc = E1000_RX_DESC_PS(*rx_ring, i);
 	staterr = le32_to_cpu(rx_desc->wb.middle.status_error);
+	buffer_info = &rx_ring->buffer_info[i];
 
 	while (staterr & E1000_RXD_STAT_DD) {
 		buffer_info = &rx_ring->buffer_info[i];
@@ -3736,7 +3749,7 @@ e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 
 		/* page alloc/put takes too long and effects small packet
 		 * throughput, so unsplit small packets and save the alloc/put*/
-		if (l1 && ((length + l1) < E1000_CB_LENGTH)) {
+		if (l1 && ((length + l1) <= adapter->rx_ps_bsize0)) {
 			u8 *vaddr;
 			/* there is no documentation about how to call 
 			 * kmap_atomic, so we can't hold the mapping

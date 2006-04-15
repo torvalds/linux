@@ -114,6 +114,8 @@ struct e1000_adapter;
 /* Supported Rx Buffer Sizes */
 #define E1000_RXBUFFER_128   128    /* Used for packet split */
 #define E1000_RXBUFFER_256   256    /* Used for packet split */
+#define E1000_RXBUFFER_512   512
+#define E1000_RXBUFFER_1024  1024
 #define E1000_RXBUFFER_2048  2048
 #define E1000_RXBUFFER_4096  4096
 #define E1000_RXBUFFER_8192  8192
