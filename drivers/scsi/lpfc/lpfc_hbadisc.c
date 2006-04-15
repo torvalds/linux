@@ -1404,6 +1404,8 @@ lpfc_check_sli_ndlp(struct lpfc_hba * phba,
 			if (icmd->ulpContext == (volatile ushort)ndlp->nlp_rpi)
 				return 1;
 		case CMD_ELS_REQUEST64_CR:
+			if (icmd->un.elsreq64.remoteID == ndlp->nlp_DID)
+				return 1;
 		case CMD_XMIT_ELS_RSP64_CX:
 			if (iocb->context1 == (uint8_t *) ndlp)
 				return 1;

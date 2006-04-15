@@ -777,25 +777,26 @@ lpfc_cmpl_els_plogi(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 	if (disc && phba->num_disc_nodes) {
 		/* Check to see if there are more PLOGIs to be sent */
 		lpfc_more_plogi(phba);
-	}
 
-	if (phba->num_disc_nodes == 0) {
-		spin_lock_irq(phba->host->host_lock);
-		phba->fc_flag &= ~FC_NDISC_ACTIVE;
-		spin_unlock_irq(phba->host->host_lock);
+		if (phba->num_disc_nodes == 0) {
+			spin_lock_irq(phba->host->host_lock);
+			phba->fc_flag &= ~FC_NDISC_ACTIVE;
+			spin_unlock_irq(phba->host->host_lock);
 
-		lpfc_can_disctmo(phba);
-		if (phba->fc_flag & FC_RSCN_MODE) {
-			/* Check to see if more RSCNs came in while we were
-			 * processing this one.
-			 */
-			if ((phba->fc_rscn_id_cnt == 0) &&
-			    (!(phba->fc_flag & FC_RSCN_DISCOVERY))) {
-				spin_lock_irq(phba->host->host_lock);
-				phba->fc_flag &= ~FC_RSCN_MODE;
-				spin_unlock_irq(phba->host->host_lock);
-			} else {
-				lpfc_els_handle_rscn(phba);
+			lpfc_can_disctmo(phba);
+			if (phba->fc_flag & FC_RSCN_MODE) {
+				/*
+				 * Check to see if more RSCNs came in while
+				 * we were processing this one.
+				 */
+				if ((phba->fc_rscn_id_cnt == 0) &&
+			    	(!(phba->fc_flag & FC_RSCN_DISCOVERY))) {
+					spin_lock_irq(phba->host->host_lock);
+					phba->fc_flag &= ~FC_RSCN_MODE;
+					spin_unlock_irq(phba->host->host_lock);
+				} else {
+					lpfc_els_handle_rscn(phba);
+				}
 			}
 		}
 	}
@@ -1259,7 +1260,7 @@ lpfc_issue_els_logo(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp,
 	psli = &phba->sli;
 	pring = &psli->ring[LPFC_ELS_RING];
 
-	cmdsize = 2 * (sizeof (uint32_t) + sizeof (struct lpfc_name));
+	cmdsize = (2 * sizeof (uint32_t)) + sizeof (struct lpfc_name);
 	elsiocb = lpfc_prep_els_iocb(phba, 1, cmdsize, retry, ndlp,
 						ndlp->nlp_DID, ELS_CMD_LOGO);
 	if (!elsiocb)
@@ -1447,22 +1448,23 @@ lpfc_cancel_retry_delay_tmo(struct lpfc_hba *phba, struct lpfc_nodelist * nlp)
 			 * PLOGIs to be sent
 			 */
 			lpfc_more_plogi(phba);
-		}
 
-		if (phba->num_disc_nodes == 0) {
-			phba->fc_flag &= ~FC_NDISC_ACTIVE;
-			lpfc_can_disctmo(phba);
-			if (phba->fc_flag & FC_RSCN_MODE) {
-				/* Check to see if more RSCNs
-				 * came in while we were
-				 * processing this one.
-				 */
-				if((phba->fc_rscn_id_cnt==0) &&
-				   (!(phba->fc_flag & FC_RSCN_DISCOVERY))) {
-					phba->fc_flag &= ~FC_RSCN_MODE;
-				}
-				else {
-					lpfc_els_handle_rscn(phba);
+			if (phba->num_disc_nodes == 0) {
+				phba->fc_flag &= ~FC_NDISC_ACTIVE;
+				lpfc_can_disctmo(phba);
+				if (phba->fc_flag & FC_RSCN_MODE) {
+					/*
+					 * Check to see if more RSCNs
+					 * came in while we were
+					 * processing this one.
+					 */
+					if((phba->fc_rscn_id_cnt==0) &&
+					 !(phba->fc_flag & FC_RSCN_DISCOVERY)) {
+						phba->fc_flag &= ~FC_RSCN_MODE;
+					}
+					else {
+						lpfc_els_handle_rscn(phba);
+					}
 				}
 			}
 		}
