@@ -3770,6 +3770,7 @@ e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 			ps_page->ps_page[j] = NULL;
 			skb->len += length;
 			skb->data_len += length;
+			skb->truesize += length;
 		}
 
 copydone:
