@@ -322,6 +322,36 @@ static int cxusb_mt352_demod_init(struct dvb_frontend* fe)
 	return 0;
 }
 
+static int cxusb_lgh064f_pll_set_i2c(struct dvb_frontend *fe,
+				     struct dvb_frontend_parameters *fep)
+{
+	struct dvb_usb_device *d = fe->dvb->priv;
+	int ret = 0;
+	u8 b[5];
+	struct i2c_msg msg = { .addr = d->pll_addr, .flags = 0,
+			       .buf = &b[1], .len = 4 };
+
+	dvb_usb_pll_set(fe,fep,b);
+
+	if (i2c_transfer (&d->i2c_adap, &msg, 1) != 1) {
+		err("tuner i2c write failed for pll_set.");
+		ret = -EREMOTEIO;
+	}
+	msleep(1);
+
+	/* Set the Auxiliary Byte. */
+	b[3] &= ~0x20;
+	b[3] |= 0x18;
+	b[4] = 0x50;
+	if (i2c_transfer(&d->i2c_adap, &msg, 1) != 1) {
+		err("tuner i2c write failed writing auxiliary byte.");
+		ret = -EREMOTEIO;
+	}
+	msleep(1);
+
+	return ret;
+}
+
 static struct cx22702_config cxusb_cx22702_config = {
 	.demod_address = 0x63,
 
@@ -334,7 +364,7 @@ static struct cx22702_config cxusb_cx22702_config = {
 static struct lgdt330x_config cxusb_lgdt3303_config = {
 	.demod_address = 0x0e,
 	.demod_chip    = LGDT3303,
-	.pll_set       = dvb_usb_pll_set_i2c,
+	.pll_set       = cxusb_lgh064f_pll_set_i2c,
 };
 
 static struct mt352_config cxusb_dee1601_config = {
@@ -362,11 +392,7 @@ static int cxusb_fmd1216me_tuner_attach(struct dvb_usb_device *d)
 
 static int cxusb_lgh064f_tuner_attach(struct dvb_usb_device *d)
 {
-	u8 bpll[4] = { 0x00, 0x00, 0x18, 0x50 };
-	/* bpll[2] : unset bit 3, set bits 4&5
-	   bpll[3] : 0x50 - digital, 0x20 - analog */
 	d->pll_addr = 0x61;
-	memcpy(d->pll_init, bpll, 4);
 	d->pll_desc = &dvb_pll_tdvs_tua6034;
 	return 0;
 }
