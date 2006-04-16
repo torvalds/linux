@@ -1071,6 +1071,7 @@ struct cx88_board cx88_boards[] = {
 			.gpio0  = 0x3de6,
 			.gpio2  = 0x00ff,
 		},
+		.blackbird      = 1,
 	},
 	[CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_HYBRID] = {
 		.name           = "DViCO FusionHDTV DVB-T Hybrid",

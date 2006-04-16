@@ -151,6 +151,7 @@ static void set_audio_finish(struct cx88_core *core, u32 ctl)
 		switch (core->board) {
 		case CX88_BOARD_HAUPPAUGE_ROSLYN:
 		case CX88_BOARD_KWORLD_MCE200_DELUXE:
+		case CX88_BOARD_KWORLD_HARDWARE_MPEG_TV_XPERT:
 			cx_clear(AUD_CTL, EN_I2SIN_ENABLE);
 			break;
 		default:
