@@ -181,6 +181,10 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 			   and trigger the BUG() above while we haven't yet
 			   finished checking all its nodes */
 			D1(printk(KERN_DEBUG "Waiting for ino #%u to finish reading\n", ic->ino));
+			/* We need to come back again for the _same_ inode. We've
+			 made no progress in this case, but that should be OK */
+			c->checked_ino--;
+
 			up(&c->alloc_sem);
 			sleep_on_spinunlock(&c->inocache_wq, &c->inocache_lock);
 			return 0;
