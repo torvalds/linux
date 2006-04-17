@@ -1,6 +1,6 @@
 /* sis900.c: A SiS 900/7016 PCI Fast Ethernet driver for Linux.
    Copyright 1999 Silicon Integrated System Corporation 
-   Revision:	1.08.09 Sep. 19 2005
+   Revision:	1.08.10 Apr. 2 2006
    
    Modified from the driver which is originally written by Donald Becker.
    
@@ -17,9 +17,10 @@
    SiS 7014 Single Chip 100BASE-TX/10BASE-T Physical Layer Solution,
    preliminary Rev. 1.0 Jan. 18, 1998
 
+   Rev 1.08.10 Apr.  2 2006 Daniele Venzano add vlan (jumbo packets) support
    Rev 1.08.09 Sep. 19 2005 Daniele Venzano add Wake on LAN support
    Rev 1.08.08 Jan. 22 2005 Daniele Venzano use netif_msg for debugging messages
-   Rev 1.08.07 Nov.  2 2003 Daniele Venzano <webvenza@libero.it> add suspend/resume support
+   Rev 1.08.07 Nov.  2 2003 Daniele Venzano <venza@brownhat.org> add suspend/resume support
    Rev 1.08.06 Sep. 24 2002 Mufasa Yang bug fix for Tx timeout & add SiS963 support
    Rev 1.08.05 Jun.  6 2002 Mufasa Yang bug fix for read_eeprom & Tx descriptor over-boundary
    Rev 1.08.04 Apr. 25 2002 Mufasa Yang <mufasa@sis.com.tw> added SiS962 support
@@ -77,7 +78,7 @@
 #include "sis900.h"
 
 #define SIS900_MODULE_NAME "sis900"
-#define SIS900_DRV_VERSION "v1.08.09 Sep. 19 2005"
+#define SIS900_DRV_VERSION "v1.08.10 Apr. 2 2006"
 
 static char version[] __devinitdata =
 KERN_INFO "sis900.c: " SIS900_DRV_VERSION "\n";
@@ -1401,6 +1402,11 @@ static void sis900_set_mode (long ioaddr, int speed, int duplex)
 		rx_flags |= RxATX;
 	}
 
+#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
+	/* Can accept Jumbo packet */
+	rx_flags |= RxAJAB;
+#endif
+
 	outl (tx_flags, ioaddr + txcfg);
 	outl (rx_flags, ioaddr + rxcfg);
 }
@@ -1713,18 +1719,26 @@ static int sis900_rx(struct net_device *net_dev)
 
 	while (rx_status & OWN) {
 		unsigned int rx_size;
+		unsigned int data_size;
 
 		if (--rx_work_limit < 0)
 			break;
 
-		rx_size = (rx_status & DSIZE) - CRC_SIZE;
+		data_size = rx_status & DSIZE;
+		rx_size = data_size - CRC_SIZE;
+
+#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
+		/* ``TOOLONG'' flag means jumbo packet recived. */
+		if ((rx_status & TOOLONG) && data_size <= MAX_FRAME_SIZE)
+			rx_status &= (~ ((unsigned int)TOOLONG));
+#endif
 
 		if (rx_status & (ABORT|OVERRUN|TOOLONG|RUNT|RXISERR|CRCERR|FAERR)) {
 			/* corrupted packet received */
 			if (netif_msg_rx_err(sis_priv))
 				printk(KERN_DEBUG "%s: Corrupted packet "
-				       "received, buffer status = 0x%8.8x.\n",
-				       net_dev->name, rx_status);
+				       "received, buffer status = 0x%8.8x/%d.\n",
+				       net_dev->name, rx_status, data_size);
 			sis_priv->stats.rx_errors++;
 			if (rx_status & OVERRUN)
 				sis_priv->stats.rx_over_errors++;
