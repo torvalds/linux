@@ -1815,14 +1815,14 @@ static int irda_usb_probe(struct usb_interface *intf,
 		self->needspatch = (ret < 0);
 		if (ret < 0) {
 			printk("patch_device failed\n");
-			goto err_out_4;
+			goto err_out_5;
 		}
 
 		/* replace IrDA class descriptor with what patched device is now reporting */
 		irda_desc = irda_usb_find_class_desc (self->usbintf);
 		if (irda_desc == NULL) {
 			ret = -ENODEV;
-			goto err_out_4;
+			goto err_out_5;
 		}
 		if (self->irda_desc)
 			kfree (self->irda_desc);
@@ -1832,6 +1832,8 @@ static int irda_usb_probe(struct usb_interface *intf,
 
 	return 0;
 
+err_out_5:
+	unregister_netdev(self->netdev);
 err_out_4:
 	kfree(self->speed_buff);
 err_out_3:

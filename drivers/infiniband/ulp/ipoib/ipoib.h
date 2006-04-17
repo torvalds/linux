@@ -65,6 +65,8 @@ enum {
 
 	IPOIB_RX_RING_SIZE 	  = 128,
 	IPOIB_TX_RING_SIZE 	  = 64,
+	IPOIB_MAX_QUEUE_SIZE	  = 8192,
+	IPOIB_MIN_QUEUE_SIZE	  = 2,
 
 	IPOIB_NUM_WC 		  = 4,
 
@@ -230,6 +232,9 @@ static inline struct ipoib_neigh **to_ipoib_neigh(struct neighbour *neigh)
 				     INFINIBAND_ALEN, sizeof(void *));
 }
 
+struct ipoib_neigh *ipoib_neigh_alloc(struct neighbour *neigh);
+void ipoib_neigh_free(struct ipoib_neigh *neigh);
+
 extern struct workqueue_struct *ipoib_workqueue;
 
 /* functions */
@@ -329,6 +334,8 @@ static inline void ipoib_unregister_debugfs(void) { }
 #define ipoib_warn(priv, format, arg...)		\
 	ipoib_printk(KERN_WARNING, priv, format , ## arg)
 
+extern int ipoib_sendq_size;
+extern int ipoib_recvq_size;
 
 #ifdef CONFIG_INFINIBAND_IPOIB_DEBUG
 extern int ipoib_debug_level;

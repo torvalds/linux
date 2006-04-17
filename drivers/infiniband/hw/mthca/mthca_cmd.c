@@ -965,6 +965,7 @@ int mthca_QUERY_DEV_LIM(struct mthca_dev *dev,
 	u32 *outbox;
 	u8 field;
 	u16 size;
+	u16 stat_rate;
 	int err;
 
 #define QUERY_DEV_LIM_OUT_SIZE             0x100
@@ -995,6 +996,7 @@ int mthca_QUERY_DEV_LIM(struct mthca_dev *dev,
 #define QUERY_DEV_LIM_MTU_WIDTH_OFFSET      0x36
 #define QUERY_DEV_LIM_VL_PORT_OFFSET        0x37
 #define QUERY_DEV_LIM_MAX_GID_OFFSET        0x3b
+#define QUERY_DEV_LIM_RATE_SUPPORT_OFFSET   0x3c
 #define QUERY_DEV_LIM_MAX_PKEY_OFFSET       0x3f
 #define QUERY_DEV_LIM_FLAGS_OFFSET          0x44
 #define QUERY_DEV_LIM_RSVD_UAR_OFFSET       0x48
@@ -1086,6 +1088,8 @@ int mthca_QUERY_DEV_LIM(struct mthca_dev *dev,
 	dev_lim->num_ports = field & 0xf;
 	MTHCA_GET(field, outbox, QUERY_DEV_LIM_MAX_GID_OFFSET);
 	dev_lim->max_gids = 1 << (field & 0xf);
+	MTHCA_GET(stat_rate, outbox, QUERY_DEV_LIM_RATE_SUPPORT_OFFSET);
+	dev_lim->stat_rate_support = stat_rate;
 	MTHCA_GET(field, outbox, QUERY_DEV_LIM_MAX_PKEY_OFFSET);
 	dev_lim->max_pkeys = 1 << (field & 0xf);
 	MTHCA_GET(dev_lim->flags, outbox, QUERY_DEV_LIM_FLAGS_OFFSET);

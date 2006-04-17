@@ -12,17 +12,21 @@ meant as a replacement for the older, individual drivers:
                       teletext adapters)
 
 It currently supports the following devices:
- * Philips adapter
- * home brew teletext adapter
- * Velleman K8000 adapter
- * ELV adapter
- * Analog Devices evaluation boards (ADM1025, ADM1030, ADM1031, ADM1032)
- * Barco LPT->DVI (K5800236) adapter
+ * (type=0) Philips adapter
+ * (type=1) home brew teletext adapter
+ * (type=2) Velleman K8000 adapter
+ * (type=3) ELV adapter
+ * (type=4) Analog Devices ADM1032 evaluation board
+ * (type=5) Analog Devices evaluation boards: ADM1025, ADM1030, ADM1031
+ * (type=6) Barco LPT->DVI (K5800236) adapter
 
 These devices use different pinout configurations, so you have to tell
 the driver what you have, using the type module parameter. There is no
 way to autodetect the devices. Support for different pinout configurations
 can be easily added when needed.
+
+Earlier kernels defaulted to type=0 (Philips).  But now, if the type
+parameter is missing, the driver will simply fail to initialize.
 
 
 Building your own adapter

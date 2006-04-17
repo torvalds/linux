@@ -65,6 +65,7 @@
    2.26.02.005 - Fix use_sg == 0 mapping on systems with 4GB or higher.
    2.26.02.006 - Fix 9550SX pchip reset timeout.
                  Add big endian support.
+   2.26.02.007 - Disable local interrupts during kmap/unmap_atomic().
 */
 
 #include <linux/module.h>
@@ -88,7 +89,7 @@
 #include "3w-9xxx.h"
 
 /* Globals */
-#define TW_DRIVER_VERSION "2.26.02.006"
+#define TW_DRIVER_VERSION "2.26.02.007"
 static TW_Device_Extension *twa_device_extension_list[TW_MAX_SLOT];
 static unsigned int twa_device_extension_count;
 static int twa_major = -1;
@@ -1942,9 +1943,13 @@ static void twa_scsiop_execute_scsi_complete(TW_Device_Extension *tw_dev, int re
 		}
 		if (tw_dev->srb[request_id]->use_sg == 1) {
 			struct scatterlist *sg = (struct scatterlist *)tw_dev->srb[request_id]->request_buffer;
-			char *buf = kmap_atomic(sg->page, KM_IRQ0) + sg->offset;
+			char *buf;
+			unsigned long flags = 0;
+			local_irq_save(flags);
+			buf = kmap_atomic(sg->page, KM_IRQ0) + sg->offset;
 			memcpy(buf, tw_dev->generic_buffer_virt[request_id], sg->length);
 			kunmap_atomic(buf - sg->offset, KM_IRQ0);
+			local_irq_restore(flags);
 		}
 	}
 } /* End twa_scsiop_execute_scsi_complete() */

@@ -257,6 +257,8 @@ struct mthca_qp {
 	atomic_t               refcount;
 	u32                    qpn;
 	int                    is_direct;
+	u8                     port; /* for SQP and memfree use only */
+	u8                     alt_port; /* for memfree use only */
 	u8                     transport;
 	u8                     state;
 	u8                     atomic_rd_en;
@@ -278,7 +280,6 @@ struct mthca_qp {
 
 struct mthca_sqp {
 	struct mthca_qp qp;
-	int             port;
 	int             pkey_index;
 	u32             qkey;
 	u32             send_psn;

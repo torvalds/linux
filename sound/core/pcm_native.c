@@ -2007,13 +2007,15 @@ static void pcm_release_private(struct snd_pcm_substream *substream)
 void snd_pcm_release_substream(struct snd_pcm_substream *substream)
 {
 	snd_pcm_drop(substream);
-	if (substream->pcm_release)
-		substream->pcm_release(substream);
 	if (substream->hw_opened) {
 		if (substream->ops->hw_free != NULL)
 			substream->ops->hw_free(substream);
 		substream->ops->close(substream);
 		substream->hw_opened = 0;
+	}
+	if (substream->pcm_release) {
+		substream->pcm_release(substream);
+		substream->pcm_release = NULL;
 	}
 	snd_pcm_detach_substream(substream);
 }

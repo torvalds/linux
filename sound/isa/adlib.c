@@ -43,8 +43,7 @@ static int __devinit snd_adlib_probe(struct platform_device *device)
 	struct snd_card *card;
 	struct snd_opl3 *opl3;
 
-	int error;
-	int i = device->id;
+	int error, i = device->id;
 
 	if (port[i] == SNDRV_AUTO_PORT) {
 		snd_printk(KERN_ERR DRV_NAME ": please specify port\n");
@@ -95,8 +94,7 @@ static int __devinit snd_adlib_probe(struct platform_device *device)
 	return 0;
 
 out1:	snd_card_free(card);
- out0:	error = -EINVAL; /* FIXME: should be the original error code */
-	return error;
+out0:	return error;
 }
 
 static int __devexit snd_adlib_remove(struct platform_device *device)
@@ -133,6 +131,11 @@ static int __init alsa_card_adlib_init(void)
 		device = platform_device_register_simple(DRV_NAME, i, NULL, 0);
 		if (IS_ERR(device))
 			continue;
+
+		if (!platform_get_drvdata(device)) {
+			platform_device_unregister(device);
+			continue;
+		}
 
 		devices[i] = device;
 		cards++;

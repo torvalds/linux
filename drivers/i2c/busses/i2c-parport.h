@@ -90,7 +90,7 @@ static struct adapter_parm adapter_parm[] = {
 	},
 };
 
-static int type;
+static int type = -1;
 module_param(type, int, 0);
 MODULE_PARM_DESC(type,
 	"Type of adapter:\n"
