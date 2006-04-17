@@ -5741,6 +5741,7 @@ static void
 EventDescriptionStr(u8 event, u32 evData0, char *evStr)
 {
 	char *ds;
+	char buf[50];
 
 	switch(event) {
 	case MPI_EVENT_NONE:
@@ -5841,7 +5842,6 @@ EventDescriptionStr(u8 event, u32 evData0, char *evStr)
 		break;
 	case MPI_EVENT_SAS_DEVICE_STATUS_CHANGE:
 	{
-		char buf[50];
 		u8 id = (u8)(evData0);
 		u8 ReasonCode = (u8)(evData0 >> 16);
 		switch (ReasonCode) {
@@ -5878,7 +5878,6 @@ EventDescriptionStr(u8 event, u32 evData0, char *evStr)
 		break;
 	case MPI_EVENT_SAS_PHY_LINK_STATUS:
 	{
-		char buf[50];
 		u8 LinkRates = (u8)(evData0 >> 8);
 		u8 PhyNumber = (u8)(evData0);
 		LinkRates = (LinkRates & MPI_EVENT_SAS_PLS_LR_CURRENT_MASK) >>
@@ -5921,7 +5920,6 @@ EventDescriptionStr(u8 event, u32 evData0, char *evStr)
 	case MPI_EVENT_IR_RESYNC_UPDATE:
 	{
 		u8 resync_complete = (u8)(evData0 >> 16);
-		char buf[40];
 		sprintf(buf,"IR Resync Update: Complete = %d:",resync_complete);
 		ds = buf;
 		break;
