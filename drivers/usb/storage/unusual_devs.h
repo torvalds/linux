@@ -773,6 +773,13 @@ UNUSUAL_DEV(  0x069b, 0x3004, 0x0001, 0x0001,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY ),
 
+/* Reported by Olivier Blondeau <zeitoun@gmail.com> */
+UNUSUAL_DEV(  0x0727, 0x0306, 0x0100, 0x0100,
+		"ATMEL",
+		"SND1 Storage",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_IGNORE_RESIDUE),
+
 /* Submitted by Roman Hodek <roman@hodek.net> */
 UNUSUAL_DEV(  0x0781, 0x0001, 0x0200, 0x0200,
 		"Sandisk",
