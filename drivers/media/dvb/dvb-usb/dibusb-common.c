@@ -234,12 +234,31 @@ EXPORT_SYMBOL(dibusb_dib3000mc_frontend_attach);
 int dibusb_dib3000mc_tuner_attach (struct dvb_usb_device *d)
 {
 	int ret;
+	u8 a,b;
+	u16 if1=1220;
 
 	if (d->tuner_pass_ctrl) {
 		struct dibusb_state *st = d->priv;
 		d->tuner_pass_ctrl(d->fe, 1, stk3000p_mt2060_config.i2c_address);
-		/* check for mt2060 */
-		if ((ret = mt2060_attach(&st->mt2060,&stk3000p_mt2060_config, &d->i2c_adap)) != 0) {
+		// First IF calibration for Liteon Sticks
+		if (d->udev->descriptor.idVendor == USB_VID_LITEON &&
+		    d->udev->descriptor.idProduct == USB_PID_LITEON_DVB_T_WARM) {
+			dibusb_read_eeprom_byte(d,0x7E,&a);
+			dibusb_read_eeprom_byte(d,0x7F,&b);
+			if (a == 0xFF && b == 0xFF) {
+				if1 = 1220;
+			} else
+			if (a == 0x00) {
+				if1 = 1220+b;
+			} else
+			if (a == 0x80) {
+				if1 = 1220-b;
+			} else {
+				warn("LITE-ON DVB-T Tuner : Strange IF1 calibration :%2X %2X\n",(int)a,(int)b);
+				if1 = 1220;
+			}
+		}
+		if ((ret = mt2060_attach(&st->mt2060,&stk3000p_mt2060_config, &d->i2c_adap,if1)) != 0) {
 			/* not found - use panasonic pll parameters */
 			d->pll_addr = 0x60;
 			d->pll_desc = &dvb_pll_env57h1xd5;
