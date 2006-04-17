@@ -170,15 +170,21 @@ static ssize_t mtd_read(struct file *file, char __user *buf, size_t count,loff_t
 
 	/* FIXME: Use kiovec in 2.5 to lock down the user's buffers
 	   and pass them directly to the MTD functions */
+
+	if (count > MAX_KMALLOC_SIZE)
+		kbuf=kmalloc(MAX_KMALLOC_SIZE, GFP_KERNEL);
+	else
+		kbuf=kmalloc(count, GFP_KERNEL);
+
+	if (!kbuf)
+		return -ENOMEM;
+
 	while (count) {
+
 		if (count > MAX_KMALLOC_SIZE)
 			len = MAX_KMALLOC_SIZE;
 		else
 			len = count;
-
-		kbuf=kmalloc(len,GFP_KERNEL);
-		if (!kbuf)
-			return -ENOMEM;
 
 		switch (MTD_MODE(file)) {
 		case MTD_MODE_OTP_FACT:
@@ -215,9 +221,9 @@ static ssize_t mtd_read(struct file *file, char __user *buf, size_t count,loff_t
 			return ret;
 		}
 
-		kfree(kbuf);
 	}
 
+	kfree(kbuf);
 	return total_retlen;
 } /* mtd_read */
 
@@ -241,17 +247,20 @@ static ssize_t mtd_write(struct file *file, const char __user *buf, size_t count
 	if (!count)
 		return 0;
 
+	if (count > MAX_KMALLOC_SIZE)
+		kbuf=kmalloc(MAX_KMALLOC_SIZE, GFP_KERNEL);
+	else
+		kbuf=kmalloc(count, GFP_KERNEL);
+
+	if (!kbuf)
+		return -ENOMEM;
+
 	while (count) {
+
 		if (count > MAX_KMALLOC_SIZE)
 			len = MAX_KMALLOC_SIZE;
 		else
 			len = count;
-
-		kbuf=kmalloc(len,GFP_KERNEL);
-		if (!kbuf) {
-			printk("kmalloc is null\n");
-			return -ENOMEM;
-		}
 
 		if (copy_from_user(kbuf, buf, len)) {
 			kfree(kbuf);
@@ -282,10 +291,9 @@ static ssize_t mtd_write(struct file *file, const char __user *buf, size_t count
 			kfree(kbuf);
 			return ret;
 		}
-
-		kfree(kbuf);
 	}
 
+	kfree(kbuf);
 	return total_retlen;
 } /* mtd_write */
 
