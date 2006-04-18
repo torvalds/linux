@@ -30,10 +30,6 @@ struct tda10021_config
 {
 	/* the demodulator's i2c address */
 	u8 demod_address;
-
-	/* PLL maintenance */
-	int (*pll_init)(struct dvb_frontend* fe);
-	int (*pll_set)(struct dvb_frontend* fe, struct dvb_frontend_parameters* params);
 };
 
 extern struct dvb_frontend* tda10021_attach(const struct tda10021_config* config,
