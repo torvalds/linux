@@ -167,11 +167,12 @@ static int samsung_tbmu24112_set_symbol_rate(struct dvb_frontend* fe, u32 srate,
 	return 0;
 }
 
-static int samsung_tbmu24112_pll_set(struct dvb_frontend* fe, struct i2c_adapter *i2c, struct dvb_frontend_parameters* params)
+static int samsung_tbmu24112_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters *params)
 {
 	u8 buf[4];
 	u32 div;
 	struct i2c_msg msg = { .addr = 0x61, .flags = 0, .buf = buf, .len = sizeof(buf) };
+	struct flexcop_device *fc = fe->dvb->priv;
 
 	div = params->frequency / 125;
 
@@ -182,8 +183,11 @@ static int samsung_tbmu24112_pll_set(struct dvb_frontend* fe, struct i2c_adapter
 
 	if (params->frequency < 1500000) buf[3] |= 0x10;
 
-	if (i2c_transfer(i2c, &msg, 1) != 1)
+	if (fe->ops->i2c_gate_ctrl)
+		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (i2c_transfer(&fc->i2c_adap, &msg, 1) != 1) {
 		return -EIO;
+	}
 	return 0;
 }
 
@@ -242,7 +246,6 @@ static struct stv0299_config samsung_tbmu24112_config = {
 	.volt13_op0_op1 = STV0299_VOLT13_OP1,
 	.min_delay_ms = 100,
 	.set_symbol_rate = samsung_tbmu24112_set_symbol_rate,
-	.pll_set = samsung_tbmu24112_pll_set,
 };
 
 /* dvb-t mt352 */
@@ -265,10 +268,13 @@ static int samsung_tdtc9251dh0_demod_init(struct dvb_frontend* fe)
 	return 0;
 }
 
-static int samsung_tdtc9251dh0_pll_set(struct dvb_frontend* fe, struct dvb_frontend_parameters* params, u8* pllbuf)
+static int samsung_tdtc9251dh0_calc_regs(struct dvb_frontend* fe, struct dvb_frontend_parameters *params, u8* pllbuf, int buf_len)
 {
 	u32 div;
 	unsigned char bs = 0;
+
+	if (buf_len < 5)
+		return -EINVAL;
 
 	#define IF_FREQUENCYx6 217    /* 6 * 36.16666666667MHz */
 	div = (((params->frequency + 83333) * 3) / 500000) + IF_FREQUENCYx6;
@@ -277,19 +283,18 @@ static int samsung_tdtc9251dh0_pll_set(struct dvb_frontend* fe, struct dvb_front
 	if (params->frequency >= 161000000 && params->frequency <= 439000000) bs = 0x0a;
 	if (params->frequency >= 447000000 && params->frequency <= 863000000) bs = 0x08;
 
-	pllbuf[0] = 0xc2; /* Note: non-linux standard PLL i2c address */
+	pllbuf[0] = 0x61;
 	pllbuf[1] = div >> 8;
 	pllbuf[2] = div & 0xff;
 	pllbuf[3] = 0xcc;
 	pllbuf[4] = bs;
 
-	return 0;
+	return 5;
 }
 
 static struct mt352_config samsung_tdtc9251dh0_config = {
 	.demod_address = 0x0f,
 	.demod_init    = samsung_tdtc9251dh0_demod_init,
-	.pll_set       = samsung_tdtc9251dh0_pll_set,
 };
 
 static int flexcop_fe_request_firmware(struct dvb_frontend* fe, const struct firmware **fw, char* name)
@@ -298,8 +303,7 @@ static int flexcop_fe_request_firmware(struct dvb_frontend* fe, const struct fir
 	return request_firmware(fw, name, fc->dev);
 }
 
-static int lgdt3303_pll_set(struct dvb_frontend* fe,
-			    struct dvb_frontend_parameters* params)
+static int lgdt3303_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters *params)
 {
 	struct flexcop_device *fc = fe->dvb->priv;
 	return lg_h06xf_pll_set(fe, &fc->i2c_adap, params);
@@ -309,14 +313,11 @@ static struct lgdt330x_config air2pc_atsc_hd5000_config = {
 	.demod_address       = 0x59,
 	.demod_chip          = LGDT3303,
 	.serial_mpeg         = 0x04,
-	.pll_set             = lgdt3303_pll_set,
 	.clock_polarity_flip = 1,
 };
 
 static struct nxt200x_config samsung_tbmv_config = {
 	.demod_address    = 0x0a,
-	.pll_address      = 0xc2,
-	.pll_desc         = &dvb_pll_samsung_tbmv,
 };
 
 static struct bcm3510_config air2pc_atsc_first_gen_config = {
@@ -324,7 +325,7 @@ static struct bcm3510_config air2pc_atsc_first_gen_config = {
 	.request_firmware = flexcop_fe_request_firmware,
 };
 
-static int skystar23_samsung_tbdu18132_pll_set(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)
+static int skystar23_samsung_tbdu18132_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters *params)
 {
 	u8 buf[4];
 	u32 div;
@@ -341,6 +342,8 @@ static int skystar23_samsung_tbdu18132_pll_set(struct dvb_frontend* fe, struct d
 	if (params->frequency < 1550000)
 		buf[3] |= 0x02;
 
+	if (fe->ops->i2c_gate_ctrl)
+		fe->ops->i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&fc->i2c_adap, &msg, 1) != 1)
 		return -EIO;
 	return 0;
@@ -349,9 +352,51 @@ static int skystar23_samsung_tbdu18132_pll_set(struct dvb_frontend* fe, struct d
 static struct mt312_config skystar23_samsung_tbdu18132_config = {
 
 	.demod_address = 0x0e,
-	.pll_set = skystar23_samsung_tbdu18132_pll_set,
 };
 
+int alps_tdee4_stv0297_tuner_set_params (struct dvb_frontend* fe, struct dvb_frontend_parameters *fep)
+{
+	struct flexcop_device *fc = fe->dvb->priv;
+	u8 buf[4];
+	u16 div;
+	int ret;
+
+/*  62.5 kHz * 10 */
+#define REF_FREQ    625
+#define FREQ_OFFSET 36125
+
+	div = ((fep->frequency/1000 + FREQ_OFFSET ) * 10)  / REF_FREQ; // 4 MHz = 4000 KHz
+
+	buf[0] = (u8)( div >> 8) & 0x7f;
+	buf[1] = (u8)        div & 0xff;
+
+/* F(osc) = N * Reference Freq. (62.5 kHz)
+ * byte 2 :  0 N14 N13 N12 N11 N10 N9  N8
+ * byte 3 : N7 N6  N5  N4  N3  N2  N1  N0
+ * byte 4 : 1  *   *   AGD R3  R2  R1  R0
+ * byte 5 : C1 *   RE  RTS BS4 BS3 BS2 BS1
+ * AGD = 1, R3 R2 R1 R0 = 0 1 0 1 => byte 4 = 1**10101 = 0x95 */
+	buf[2] = 0x95;
+
+// Range(MHz)  C1 *  RE RTS BS4 BS3 BS2 BS1  Byte 5
+//  47 - 153   0  *  0   0   0   0   0   1   0x01
+// 153 - 430   0  *  0   0   0   0   1   0   0x02
+// 430 - 822   0  *  0   0   1   0   0   0   0x08
+// 822 - 862   1  *  0   0   1   0   0   0   0x88
+
+	     if (fep->frequency <= 153000000) buf[3] = 0x01;
+	else if (fep->frequency <= 430000000) buf[3] = 0x02;
+	else if (fep->frequency <= 822000000) buf[3] = 0x08;
+	else buf[3] = 0x88;
+
+	if (fe->ops->i2c_gate_ctrl)
+		fe->ops->i2c_gate_ctrl(fe, 1);
+	deb_tuner("tuner buffer for %d Hz: %x %x %x %x\n",fep->frequency, buf[0],buf[1],buf[2],buf[3]);
+	ret = fc->i2c_request(fc,FC_WRITE,FC_I2C_PORT_TUNER,0x61,buf[0],&buf[1],3);
+	deb_tuner("tuner write returned: %d\n",ret);
+
+	return 0;
+}
 
 static u8 alps_tdee4_stv0297_inittab[] = {
 	0x80, 0x01,
@@ -462,6 +507,8 @@ int flexcop_frontend_init(struct flexcop_device *fc)
 	if ((fc->fe = stv0299_attach(&samsung_tbmu24112_config, &fc->i2c_adap)) != NULL) {
 		ops = fc->fe->ops;
 
+		ops->tuner_ops.set_params = samsung_tbmu24112_tuner_set_params;
+
 		ops->set_voltage = flexcop_set_voltage;
 
 		fc->fe_sleep             = ops->sleep;
@@ -473,16 +520,19 @@ int flexcop_frontend_init(struct flexcop_device *fc)
 	/* try the air dvb-t (mt352/Samsung tdtc9251dh0(??)) */
 	if ((fc->fe = mt352_attach(&samsung_tdtc9251dh0_config, &fc->i2c_adap)) != NULL ) {
 		fc->dev_type          = FC_AIR_DVB;
+		fc->fe->ops->tuner_ops.calc_regs = samsung_tdtc9251dh0_calc_regs;
 		info("found the mt352 at i2c address: 0x%02x",samsung_tdtc9251dh0_config.demod_address);
 	} else
 	/* try the air atsc 2nd generation (nxt2002) */
 	if ((fc->fe = nxt200x_attach(&samsung_tbmv_config, &fc->i2c_adap)) != NULL) {
 		fc->dev_type          = FC_AIR_ATSC2;
+		dvb_pll_attach(fc->fe, 0x61, &fc->i2c_adap, &dvb_pll_samsung_tbmv);
 		info("found the nxt2002 at i2c address: 0x%02x",samsung_tbmv_config.demod_address);
 	} else
 	/* try the air atsc 3nd generation (lgdt3303) */
 	if ((fc->fe = lgdt330x_attach(&air2pc_atsc_hd5000_config, &fc->i2c_adap)) != NULL) {
 		fc->dev_type          = FC_AIR_ATSC3;
+		fc->fe->ops->tuner_ops.set_params = lgdt3303_tuner_set_params;
 		info("found the lgdt3303 at i2c address: 0x%02x",air2pc_atsc_hd5000_config.demod_address);
 	} else
 	/* try the air atsc 1nd generation (bcm3510)/panasonic ct10s */
@@ -493,11 +543,14 @@ int flexcop_frontend_init(struct flexcop_device *fc)
 	/* try the cable dvb (stv0297) */
 	if ((fc->fe = stv0297_attach(&alps_tdee4_stv0297_config, &fc->i2c_adap)) != NULL) {
 		fc->dev_type                        = FC_CABLE;
+		fc->fe->ops->tuner_ops.set_params = alps_tdee4_stv0297_tuner_set_params;
 		info("found the stv0297 at i2c address: 0x%02x",alps_tdee4_stv0297_config.demod_address);
 	} else
 	/* try the sky v2.3 (vp310/Samsung tbdu18132(tsa5059)) */
 	if ((fc->fe = vp310_mt312_attach(&skystar23_samsung_tbdu18132_config, &fc->i2c_adap)) != NULL) {
 		ops = fc->fe->ops;
+
+		ops->tuner_ops.set_params = skystar23_samsung_tbdu18132_tuner_set_params;
 
 		ops->diseqc_send_master_cmd = flexcop_diseqc_send_master_cmd;
 		ops->diseqc_send_burst      = flexcop_diseqc_send_burst;
