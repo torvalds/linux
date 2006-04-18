@@ -462,8 +462,9 @@ static int dib3000mc_set_frontend(struct dvb_frontend* fe,
 	int search_state,auto_val;
 	u16 val;
 
-	if (tuner && state->config.pll_set) { /* initial call from dvb */
-		state->config.pll_set(fe,fep);
+	if (tuner && fe->ops->tuner_ops.set_params) { /* initial call from dvb */
+		fe->ops->tuner_ops.set_params(fe, fep);
+		if (fe->ops->i2c_gate_ctrl) fe->ops->i2c_gate_ctrl(fe, 0);
 
 		state->last_tuned_freq = fep->frequency;
 	//	if (!scanboost) {
@@ -641,9 +642,6 @@ static int dib3000mc_fe_init(struct dvb_frontend* fe, int mobile_mode)
 	set_and(DIB3000MC_REG_DIVERSITY3,DIB3000MC_DIVERSITY3_IN_OFF);
 
 	set_or(DIB3000MC_REG_CLK_CFG_7,DIB3000MC_CLK_CFG_7_DIV_IN_OFF);
-
-	if (state->config.pll_init)
-		state->config.pll_init(fe);
 
 	deb_info("init end\n");
 	return 0;

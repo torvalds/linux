@@ -60,8 +60,9 @@ static int dib3000mb_set_frontend(struct dvb_frontend* fe,
 	fe_code_rate_t fe_cr = FEC_NONE;
 	int search_state, seq;
 
-	if (tuner && state->config.pll_set) {
-		state->config.pll_set(fe, fep);
+	if (tuner && fe->ops->tuner_ops.set_params) {
+		fe->ops->tuner_ops.set_params(fe, fep);
+		if (fe->ops->i2c_gate_ctrl) fe->ops->i2c_gate_ctrl(fe, 0);
 
 		deb_setf("bandwidth: ");
 		switch (ofdm->bandwidth) {
@@ -385,9 +386,6 @@ static int dib3000mb_fe_init(struct dvb_frontend* fe, int mobile_mode)
 	wr(DIB3000MB_REG_FIFO_147, DIB3000MB_FIFO_147);
 
 	wr(DIB3000MB_REG_DATA_IN_DIVERSITY, DIB3000MB_DATA_DIVERSITY_IN_OFF);
-
-	if (state->config.pll_init)
-		state->config.pll_init(fe);
 
 	return 0;
 }
