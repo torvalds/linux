@@ -333,17 +333,17 @@ static int nxt200x_writetuner (struct nxt200x_state* state, u8* data)
 
 	dprintk("%s\n", __FUNCTION__);
 
-	dprintk("Tuner Bytes: %02X %02X %02X %02X\n", data[0], data[1], data[2], data[3]);
+	dprintk("Tuner Bytes: %02X %02X %02X %02X\n", data[1], data[2], data[3], data[4]);
 
 	/* if NXT2004, write directly to tuner. if NXT2002, write through NXT chip.
 	 * direct write is required for Philips TUV1236D and ALPS TDHU2 */
 	switch (state->demod_chip) {
 		case NXT2004:
-			if (i2c_writebytes(state, state->config->pll_address, data, 4))
+			if (i2c_writebytes(state, data[0], data+1, 4))
 				printk(KERN_WARNING "nxt200x: error writing to tuner\n");
 			/* wait until we have a lock */
 			while (count < 20) {
-				i2c_readbytes(state, state->config->pll_address, &buf, 1);
+				i2c_readbytes(state, data[0], &buf, 1);
 				if (buf & 0x40)
 					return 0;
 				msleep(100);
@@ -361,10 +361,10 @@ static int nxt200x_writetuner (struct nxt200x_state* state, u8* data)
 			nxt200x_writebytes(state, 0x34, &buf, 1);
 
 			/* write actual tuner bytes */
-			nxt200x_writebytes(state, 0x36, data, 4);
+			nxt200x_writebytes(state, 0x36, data+1, 4);
 
 			/* set tuner i2c address */
-			buf = state->config->pll_address;
+			buf = data[0] << 1;
 			nxt200x_writebytes(state, 0x35, &buf, 1);
 
 			/* write UC Opmode to begin transfer */
@@ -534,7 +534,7 @@ static int nxt200x_setup_frontend_parameters (struct dvb_frontend* fe,
 					     struct dvb_frontend_parameters *p)
 {
 	struct nxt200x_state* state = fe->demodulator_priv;
-	u8 buf[4];
+	u8 buf[5];
 
 	/* stop the micro first */
 	nxt200x_microcontroller_stop(state);
@@ -548,7 +548,9 @@ static int nxt200x_setup_frontend_parameters (struct dvb_frontend* fe,
 	}
 
 	/* get tuning information */
-	dvb_pll_configure(state->config->pll_desc, buf, p->frequency, 0);
+	if (fe->ops->tuner_ops.pllbuf) {
+		fe->ops->tuner_ops.pllbuf(fe, p, buf, 5);
+	}
 
 	/* set additional params */
 	switch (p->u.vsb.modulation) {
