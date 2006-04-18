@@ -207,12 +207,6 @@ static void nxt6000_setup(struct dvb_frontend* fe)
 		nxt6000_writereg(state, SUB_DIAG_MODE_SEL, 0);
 
 	nxt6000_writereg(state, TS_FORMAT, 0);
-
-	if (state->config->pll_init) {
-		nxt6000_writereg(state, ENABLE_TUNER_IIC, 0x01);	/* open i2c bus switch */
-		state->config->pll_init(fe);
-		nxt6000_writereg(state, ENABLE_TUNER_IIC, 0x00);	/* close i2c bus switch */
-	}
 }
 
 static void nxt6000_dump_status(struct nxt6000_state *state)
@@ -469,9 +463,10 @@ static int nxt6000_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 	struct nxt6000_state* state = fe->demodulator_priv;
 	int result;
 
-	nxt6000_writereg(state, ENABLE_TUNER_IIC, 0x01);	/* open i2c bus switch */
-	state->config->pll_set(fe, param);
-	nxt6000_writereg(state, ENABLE_TUNER_IIC, 0x00);	/* close i2c bus switch */
+	if (fe->ops->tuner_ops.set_params) {
+		fe->ops->tuner_ops.set_params(fe, param);
+		if (fe->ops->i2c_gate_ctrl) fe->ops->i2c_gate_ctrl(fe, 0);
+	}
 
 	if ((result = nxt6000_set_bandwidth(state, param->u.ofdm.bandwidth)) < 0)
 		return result;
@@ -532,6 +527,17 @@ static int nxt6000_fe_get_tune_settings(struct dvb_frontend* fe, struct dvb_fron
 	return 0;
 }
 
+static int nxt6000_i2c_gate_ctrl(struct dvb_frontend* fe, int enable)
+{
+	struct nxt6000_state* state = fe->demodulator_priv;
+
+	if (enable) {
+		return nxt6000_writereg(state, ENABLE_TUNER_IIC, 0x01);
+	} else {
+		return nxt6000_writereg(state, ENABLE_TUNER_IIC, 0x00);
+	}
+}
+
 static struct dvb_frontend_ops nxt6000_ops;
 
 struct dvb_frontend* nxt6000_attach(const struct nxt6000_config* config,
@@ -584,6 +590,7 @@ static struct dvb_frontend_ops nxt6000_ops = {
 	.release = nxt6000_release,
 
 	.init = nxt6000_init,
+	.i2c_gate_ctrl = nxt6000_i2c_gate_ctrl,
 
 	.get_tune_settings = nxt6000_fe_get_tune_settings,
 
