@@ -1552,7 +1552,7 @@ static int get_firmware(struct av7110* av7110)
 #endif
 
 
-static int alps_bsrv2_pll_set(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)
+static int alps_bsrv2_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters *params)
 {
 	struct av7110* av7110 = (struct av7110*) fe->dvb->priv;
 	u8 pwr = 0;
@@ -1575,6 +1575,8 @@ static int alps_bsrv2_pll_set(struct dvb_frontend* fe, struct dvb_frontend_param
 	// NOTE: since we're using a prescaler of 2, we set the
 	// divisor frequency to 62.5kHz and divide by 125 above
 
+	if (fe->ops->i2c_gate_ctrl)
+		fe->ops->i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer (&av7110->i2c_adap, &msg, 1) != 1)
 		return -EIO;
 	return 0;
@@ -1584,10 +1586,9 @@ static struct ves1x93_config alps_bsrv2_config = {
 	.demod_address = 0x08,
 	.xin = 90100000UL,
 	.invert_pwm = 0,
-	.pll_set = alps_bsrv2_pll_set,
 };
 
-static int alps_tdbe2_pll_set(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)
+static int alps_tdbe2_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters *params)
 {
 	struct av7110* av7110 = fe->dvb->priv;
 	u32 div;
@@ -1601,6 +1602,8 @@ static int alps_tdbe2_pll_set(struct dvb_frontend* fe, struct dvb_frontend_param
 	data[2] = 0x85 | ((div >> 10) & 0x60);
 	data[3] = (params->frequency < 174000000 ? 0x88 : params->frequency < 470000000 ? 0x84 : 0x81);
 
+	if (fe->ops->i2c_gate_ctrl)
+		fe->ops->i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&av7110->i2c_adap, &msg, 1) != 1)
 		return -EIO;
 	return 0;
@@ -1611,14 +1614,12 @@ static struct ves1820_config alps_tdbe2_config = {
 	.xin = 57840000UL,
 	.invert = 1,
 	.selagc = VES1820_SELAGC_SIGNAMPERR,
-	.pll_set = alps_tdbe2_pll_set,
 };
 
 
 
 
-static int grundig_29504_451_pll_set(struct dvb_frontend* fe,
-				     struct dvb_frontend_parameters* params)
+static int grundig_29504_451_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters *params)
 {
 	struct av7110* av7110 = fe->dvb->priv;
 	u32 div;
@@ -1631,6 +1632,8 @@ static int grundig_29504_451_pll_set(struct dvb_frontend* fe,
 	data[2] = 0x8e;
 	data[3] = 0x00;
 
+	if (fe->ops->i2c_gate_ctrl)
+		fe->ops->i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&av7110->i2c_adap, &msg, 1) != 1)
 		return -EIO;
 	return 0;
@@ -1638,13 +1641,11 @@ static int grundig_29504_451_pll_set(struct dvb_frontend* fe,
 
 static struct tda8083_config grundig_29504_451_config = {
 	.demod_address = 0x68,
-	.pll_set = grundig_29504_451_pll_set,
 };
 
 
 
-static int philips_cd1516_pll_set(struct dvb_frontend* fe,
-				  struct dvb_frontend_parameters* params)
+static int philips_cd1516_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters *params)
 {
 	struct av7110* av7110 = fe->dvb->priv;
 	u32 div;
@@ -1659,6 +1660,8 @@ static int philips_cd1516_pll_set(struct dvb_frontend* fe,
 	data[2] = 0x8e;
 	data[3] = (f < 174000000 ? 0xa1 : f < 470000000 ? 0x92 : 0x34);
 
+	if (fe->ops->i2c_gate_ctrl)
+		fe->ops->i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&av7110->i2c_adap, &msg, 1) != 1)
 		return -EIO;
 	return 0;
@@ -1669,12 +1672,11 @@ static struct ves1820_config philips_cd1516_config = {
 	.xin = 57840000UL,
 	.invert = 1,
 	.selagc = VES1820_SELAGC_SIGNAMPERR,
-	.pll_set = philips_cd1516_pll_set,
 };
 
 
 
-static int alps_tdlb7_pll_set(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)
+static int alps_tdlb7_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters *params)
 {
 	struct av7110* av7110 = fe->dvb->priv;
 	u32 div, pwr;
@@ -1693,6 +1695,8 @@ static int alps_tdlb7_pll_set(struct dvb_frontend* fe, struct dvb_frontend_param
 	data[2] = 0x85;
 	data[3] = pwr << 6;
 
+	if (fe->ops->i2c_gate_ctrl)
+		fe->ops->i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&av7110->i2c_adap, &msg, 1) != 1)
 		return -EIO;
 	return 0;
@@ -1708,7 +1712,6 @@ static int alps_tdlb7_request_firmware(struct dvb_frontend* fe, const struct fir
 static struct sp8870_config alps_tdlb7_config = {
 
 	.demod_address = 0x71,
-	.pll_set = alps_tdlb7_pll_set,
 	.request_firmware = alps_tdlb7_request_firmware,
 };
 
@@ -1806,7 +1809,7 @@ static u8 nexusca_stv0297_inittab[] = {
 	0xff, 0xff,
 };
 
-static int nexusca_stv0297_pll_set(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)
+static int nexusca_stv0297_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters *params)
 {
 	struct av7110* av7110 = fe->dvb->priv;
 	u32 div;
@@ -1832,7 +1835,8 @@ static int nexusca_stv0297_pll_set(struct dvb_frontend* fe, struct dvb_frontend_
 	else
 		return -EINVAL;
 
-	stv0297_enable_plli2c(fe);
+	if (fe->ops->i2c_gate_ctrl)
+		fe->ops->i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&av7110->i2c_adap, &msg, 1) != 1) {
 		printk("nexusca: pll transfer failed!\n");
 		return -EIO;
@@ -1840,8 +1844,8 @@ static int nexusca_stv0297_pll_set(struct dvb_frontend* fe, struct dvb_frontend_
 
 	// wait for PLL lock
 	for(i = 0; i < 20; i++) {
-
-		stv0297_enable_plli2c(fe);
+		if (fe->ops->i2c_gate_ctrl)
+			fe->ops->i2c_gate_ctrl(fe, 1);
 		if (i2c_transfer(&av7110->i2c_adap, &readmsg, 1) == 1)
 			if (data[0] & 0x40) break;
 		msleep(10);
@@ -1855,12 +1859,11 @@ static struct stv0297_config nexusca_stv0297_config = {
 	.demod_address = 0x1C,
 	.inittab = nexusca_stv0297_inittab,
 	.invert = 1,
-	.pll_set = nexusca_stv0297_pll_set,
 };
 
 
 
-static int grundig_29504_401_pll_set(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)
+static int grundig_29504_401_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters *params)
 {
 	struct av7110* av7110 = (struct av7110*) fe->dvb->priv;
 	u32 div;
@@ -1887,13 +1890,14 @@ static int grundig_29504_401_pll_set(struct dvb_frontend* fe, struct dvb_fronten
 	data[2] = ((div >> 10) & 0x60) | cfg;
 	data[3] = (cpump << 6) | band_select;
 
+	if (fe->ops->i2c_gate_ctrl)
+		fe->ops->i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer (&av7110->i2c_adap, &msg, 1) != 1) return -EIO;
 	return 0;
 }
 
 static struct l64781_config grundig_29504_401_config = {
 	.demod_address = 0x55,
-	.pll_set = grundig_29504_401_pll_set,
 };
 
 
@@ -2079,6 +2083,7 @@ static int frontend_init(struct av7110 *av7110)
 		case 0x0000: // Fujitsu/Siemens DVB-Cable (ves1820/Philips CD1516(??))
 			av7110->fe = ves1820_attach(&philips_cd1516_config,
 						    &av7110->i2c_adap, read_pwm(av7110));
+			av7110->fe->ops->tuner_ops.set_params = philips_cd1516_tuner_set_params;
 			break;
 		}
 
@@ -2091,6 +2096,7 @@ static int frontend_init(struct av7110 *av7110)
 			// try the ALPS BSRV2 first of all
 			av7110->fe = ves1x93_attach(&alps_bsrv2_config, &av7110->i2c_adap);
 			if (av7110->fe) {
+				av7110->fe->ops->tuner_ops.set_params = alps_bsrv2_tuner_set_params;
 				av7110->fe->ops->diseqc_send_master_cmd = av7110_diseqc_send_master_cmd;
 				av7110->fe->ops->diseqc_send_burst = av7110_diseqc_send_burst;
 				av7110->fe->ops->set_tone = av7110_set_tone;
@@ -2101,6 +2107,9 @@ static int frontend_init(struct av7110 *av7110)
 			// try the ALPS BSRU6 now
 			av7110->fe = stv0299_attach(&alps_bsru6_config, &av7110->i2c_adap);
 			if (av7110->fe) {
+				av7110->fe->ops->tuner_ops.set_params = alps_bsru6_tuner_set_params;
+				av7110->fe->tuner_priv = &av7110->i2c_adap;
+
 				av7110->fe->ops->diseqc_send_master_cmd = av7110_diseqc_send_master_cmd;
 				av7110->fe->ops->diseqc_send_burst = av7110_diseqc_send_burst;
 				av7110->fe->ops->set_tone = av7110_set_tone;
@@ -2111,6 +2120,7 @@ static int frontend_init(struct av7110 *av7110)
 			// Try the grundig 29504-451
 			av7110->fe = tda8083_attach(&grundig_29504_451_config, &av7110->i2c_adap);
 			if (av7110->fe) {
+				av7110->fe->ops->tuner_ops.set_params = grundig_29504_451_tuner_set_params;
 				av7110->fe->ops->diseqc_send_master_cmd = av7110_diseqc_send_master_cmd;
 				av7110->fe->ops->diseqc_send_burst = av7110_diseqc_send_burst;
 				av7110->fe->ops->set_tone = av7110_set_tone;
@@ -2124,11 +2134,13 @@ static int frontend_init(struct av7110 *av7110)
 				/* Siemens DVB-C (full-length card) VES1820/Philips CD1516 */
 				av7110->fe = ves1820_attach(&philips_cd1516_config, &av7110->i2c_adap,
 							read_pwm(av7110));
+				av7110->fe->ops->tuner_ops.set_params = philips_cd1516_tuner_set_params;
 				break;
 			case 0x0003:
 				/* Hauppauge DVB-C 2.1 VES1820/ALPS TDBE2 */
 				av7110->fe = ves1820_attach(&alps_tdbe2_config, &av7110->i2c_adap,
 							read_pwm(av7110));
+				av7110->fe->ops->tuner_ops.set_params = alps_tdbe2_tuner_set_params;
 				break;
 			}
 			break;
@@ -2137,17 +2149,20 @@ static int frontend_init(struct av7110 *av7110)
 
 			// ALPS TDLB7
 			av7110->fe = sp8870_attach(&alps_tdlb7_config, &av7110->i2c_adap);
+			av7110->fe->ops->tuner_ops.set_params = alps_tdlb7_tuner_set_params;
 			break;
 
 		case 0x0002: // Hauppauge/TT DVB-C premium rev2.X
 
 			av7110->fe = ves1820_attach(&alps_tdbe2_config, &av7110->i2c_adap, read_pwm(av7110));
+			av7110->fe->ops->tuner_ops.set_params = alps_tdbe2_tuner_set_params;
 			break;
 
 		case 0x0004: // Galaxis DVB-S rev1.3
 			/* ALPS BSRV2 */
 			av7110->fe = ves1x93_attach(&alps_bsrv2_config, &av7110->i2c_adap);
 			if (av7110->fe) {
+				av7110->fe->ops->tuner_ops.set_params = alps_bsrv2_tuner_set_params;
 				av7110->fe->ops->diseqc_send_master_cmd = av7110_diseqc_send_master_cmd;
 				av7110->fe->ops->diseqc_send_burst = av7110_diseqc_send_burst;
 				av7110->fe->ops->set_tone = av7110_set_tone;
@@ -2159,6 +2174,7 @@ static int frontend_init(struct av7110 *av7110)
 			/* Grundig 29504-451 */
 			av7110->fe = tda8083_attach(&grundig_29504_451_config, &av7110->i2c_adap);
 			if (av7110->fe) {
+				av7110->fe->ops->tuner_ops.set_params = grundig_29504_451_tuner_set_params;
 				av7110->fe->ops->diseqc_send_master_cmd = av7110_diseqc_send_master_cmd;
 				av7110->fe->ops->diseqc_send_burst = av7110_diseqc_send_burst;
 				av7110->fe->ops->set_tone = av7110_set_tone;
@@ -2169,12 +2185,15 @@ static int frontend_init(struct av7110 *av7110)
 		case 0x0008: // Hauppauge/TT DVB-T
 
 			av7110->fe = l64781_attach(&grundig_29504_401_config, &av7110->i2c_adap);
+			av7110->fe->ops->tuner_ops.set_params = grundig_29504_401_tuner_set_params;
 			break;
 
 		case 0x000A: // Hauppauge/TT Nexus-CA rev1.X
 
 			av7110->fe = stv0297_attach(&nexusca_stv0297_config, &av7110->i2c_adap);
 			if (av7110->fe) {
+				av7110->fe->ops->tuner_ops.set_params = nexusca_stv0297_tuner_set_params;
+
 				/* set TDA9819 into DVB mode */
 				saa7146_setgpio(av7110->dev, 1, SAA7146_GPIO_OUTLO); // TDA9198 pin9(STD)
 				saa7146_setgpio(av7110->dev, 3, SAA7146_GPIO_OUTLO); // TDA9198 pin30(VIF)
@@ -2189,6 +2208,9 @@ static int frontend_init(struct av7110 *av7110)
 			/* ALPS BSBE1 */
 			av7110->fe = stv0299_attach(&alps_bsbe1_config, &av7110->i2c_adap);
 			if (av7110->fe) {
+				av7110->fe->ops->tuner_ops.set_params = alps_bsbe1_tuner_set_params;
+				av7110->fe->tuner_priv = &av7110->i2c_adap;
+
 				if (lnbp21_init(av7110->fe, &av7110->i2c_adap, 0, 0)) {
 					printk("dvb-ttpci: LNBP21 not found!\n");
 					if (av7110->fe->ops->release)
