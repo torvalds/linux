@@ -26,14 +26,6 @@
 #include "soc_common.h"
 
 #define	NO_KEEP_VS 0x0001
-
-/* PCMCIA to Scoop linkage
-
-   There is no easy way to link multiple scoop devices into one
-   single entity for the pxa2xx_pcmcia device so this structure
-   is used which is setup by the platform code
-*/
-struct scoop_pcmcia_config *platform_scoop_config;
 #define SCOOP_DEV platform_scoop_config->devs
 
 static void sharpsl_pcmcia_init_reset(struct soc_pcmcia_socket *skt)
