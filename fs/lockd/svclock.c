@@ -650,7 +650,7 @@ static void nlmsvc_grant_callback(struct rpc_task *task, void *data)
 	svc_wake_up(block->b_daemon);
 }
 
-void nlmsvc_grant_release(void *data)
+static void nlmsvc_grant_release(void *data)
 {
 	struct nlm_rqst		*call = data;
 
