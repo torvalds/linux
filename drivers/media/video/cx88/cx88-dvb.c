@@ -51,6 +51,7 @@
 #endif
 #ifdef HAVE_LGDT330X
 # include "lgdt330x.h"
+# include "fe_lgh06xf.h"
 #endif
 #ifdef HAVE_NXT200X
 # include "nxt200x.h"
@@ -378,7 +379,7 @@ static struct or51132_config pchdtv_hd3000 = {
 #endif
 
 #ifdef HAVE_LGDT330X
-static int lgdt330x_pll_set(struct dvb_frontend* fe,
+static int lgdt3302_pll_set(struct dvb_frontend* fe,
 			    struct dvb_frontend_parameters* params)
 {
 	/* FIXME make this routine use the tuner-simple code.
@@ -392,9 +393,6 @@ static int lgdt330x_pll_set(struct dvb_frontend* fe,
 		{ .addr = dev->core->pll_addr, .flags = 0, .buf = buf, .len = 4 };
 	int err;
 
-	/* Put the analog decoder in standby to keep it quiet */
-	cx88_call_i2c_clients (dev->core, TUNER_SET_STANDBY, NULL);
-
 	dvb_pll_configure(core->pll_desc, buf, params->frequency, 0);
 	dprintk(1, "%s: tuner at 0x%02x bytes: 0x%02x 0x%02x 0x%02x 0x%02x\n",
 			__FUNCTION__, msg.addr, buf[0],buf[1],buf[2],buf[3]);
@@ -407,14 +405,19 @@ static int lgdt330x_pll_set(struct dvb_frontend* fe,
 		else
 			return -EREMOTEIO;
 	}
-	if (core->tuner_type == TUNER_LG_TDVS_H062F) {
-		/* Set the Auxiliary Byte. */
-		buf[2] &= ~0x20;
-		buf[2] |= 0x18;
-		buf[3] = 0x50;
-		i2c_transfer(&core->i2c_adap, &msg, 1);
-	}
 	return 0;
+}
+
+static int lgdt3303_pll_set(struct dvb_frontend* fe,
+			    struct dvb_frontend_parameters* params)
+{
+	struct cx8802_dev *dev= fe->dvb->priv;
+	struct cx88_core *core = dev->core;
+
+	/* Put the analog decoder in standby to keep it quiet */
+	cx88_call_i2c_clients (dev->core, TUNER_SET_STANDBY, NULL);
+
+	return lg_h06xf_pll_set(fe, &core->i2c_adap, params);
 }
 
 static int lgdt330x_pll_rf_set(struct dvb_frontend* fe, int index)
@@ -444,7 +447,7 @@ static struct lgdt330x_config fusionhdtv_3_gold = {
 	.demod_address    = 0x0e,
 	.demod_chip       = LGDT3302,
 	.serial_mpeg      = 0x04, /* TPSERIAL for 3302 in TOP_CONTROL */
-	.pll_set          = lgdt330x_pll_set,
+	.pll_set          = lgdt3302_pll_set,
 	.set_ts_params    = lgdt330x_set_ts_param,
 };
 
@@ -452,7 +455,7 @@ static struct lgdt330x_config fusionhdtv_5_gold = {
 	.demod_address    = 0x0e,
 	.demod_chip       = LGDT3303,
 	.serial_mpeg      = 0x40, /* TPSERIAL for 3303 in TOP_CONTROL */
-	.pll_set          = lgdt330x_pll_set,
+	.pll_set          = lgdt3303_pll_set,
 	.set_ts_params    = lgdt330x_set_ts_param,
 };
 
@@ -460,7 +463,7 @@ static struct lgdt330x_config pchdtv_hd5500 = {
 	.demod_address    = 0x59,
 	.demod_chip       = LGDT3303,
 	.serial_mpeg      = 0x40, /* TPSERIAL for 3303 in TOP_CONTROL */
-	.pll_set          = lgdt330x_pll_set,
+	.pll_set          = lgdt3303_pll_set,
 	.set_ts_params    = lgdt330x_set_ts_param,
 };
 #endif
@@ -663,8 +666,6 @@ static int dvb_register(struct cx8802_dev *dev)
 		mdelay(100);
 		cx_set(MO_GP0_IO, 1);
 		mdelay(200);
-		dev->core->pll_addr = 0x61;
-		dev->core->pll_desc = &dvb_pll_tdvs_tua6034;
 		dev->dvb.frontend = lgdt330x_attach(&fusionhdtv_5_gold,
 						    &dev->core->i2c_adap);
 		}
@@ -679,8 +680,6 @@ static int dvb_register(struct cx8802_dev *dev)
 		mdelay(100);
 		cx_set(MO_GP0_IO, 1);
 		mdelay(200);
-		dev->core->pll_addr = 0x61;
-		dev->core->pll_desc = &dvb_pll_tdvs_tua6034;
 		dev->dvb.frontend = lgdt330x_attach(&pchdtv_hd5500,
 						    &dev->core->i2c_adap);
 		}
