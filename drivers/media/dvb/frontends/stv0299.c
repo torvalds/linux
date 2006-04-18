@@ -131,13 +131,6 @@ static int stv0299_readregs (struct stv0299_state* state, u8 reg1, u8 *b, u8 len
 	return ret == 2 ? 0 : ret;
 }
 
-int stv0299_enable_plli2c (struct dvb_frontend* fe)
-{
-	struct stv0299_state* state = fe->demodulator_priv;
-
-	return stv0299_writeregI(state, 0x05, 0xb5);	/*  enable i2c repeater on stv0299  */
-}
-
 static int stv0299_set_FEC (struct stv0299_state* state, fe_code_rate_t fec)
 {
 	dprintk ("%s\n", __FUNCTION__);
@@ -457,12 +450,6 @@ static int stv0299_init (struct dvb_frontend* fe)
 	for (i=0; !(state->config->inittab[i] == 0xff && state->config->inittab[i+1] == 0xff); i+=2)
 		stv0299_writeregI(state, state->config->inittab[i], state->config->inittab[i+1]);
 
-	if (state->config->pll_init) {
-		stv0299_writeregI(state, 0x05, 0xb5);	/*  enable i2c repeater on stv0299  */
-		state->config->pll_init(fe, state->i2c);
-		stv0299_writeregI(state, 0x05, 0x35);	/*  disable i2c repeater on stv0299  */
-	}
-
 	return 0;
 }
 
@@ -560,9 +547,10 @@ static int stv0299_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 	if (state->config->invert) invval = (~invval) & 1;
 	stv0299_writeregI(state, 0x0c, (stv0299_readreg(state, 0x0c) & 0xfe) | invval);
 
-	stv0299_writeregI(state, 0x05, 0xb5);	/*  enable i2c repeater on stv0299  */
-	state->config->pll_set(fe, state->i2c, p);
-	stv0299_writeregI(state, 0x05, 0x35);	/*  disable i2c repeater on stv0299  */
+	if (fe->ops->tuner_ops.set_params) {
+		fe->ops->tuner_ops.set_params(fe, p);
+		if (fe->ops->i2c_gate_ctrl) fe->ops->i2c_gate_ctrl(fe, 0);
+	}
 
 	stv0299_set_FEC (state, p->u.qpsk.fec_inner);
 	stv0299_set_symbolrate (fe, p->u.qpsk.symbol_rate);
@@ -609,6 +597,17 @@ static int stv0299_sleep(struct dvb_frontend* fe)
 	state->initialised = 0;
 
 	return 0;
+}
+
+static int stv0299_i2c_gate_ctrl(struct dvb_frontend* fe, int enable)
+{
+	struct stv0299_state* state = fe->demodulator_priv;
+
+	if (enable) {
+		return stv0299_writeregI(state, 0x05, 0xb5);
+	} else {
+		return stv0299_writeregI(state, 0x05, 0x35);
+	}
 }
 
 static int stv0299_get_tune_settings(struct dvb_frontend* fe, struct dvb_frontend_tune_settings* fesettings)
@@ -695,6 +694,7 @@ static struct dvb_frontend_ops stv0299_ops = {
 
 	.init = stv0299_init,
 	.sleep = stv0299_sleep,
+	.i2c_gate_ctrl = stv0299_i2c_gate_ctrl,
 
 	.set_frontend = stv0299_set_frontend,
 	.get_frontend = stv0299_get_frontend,
@@ -721,9 +721,8 @@ MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
 
 MODULE_DESCRIPTION("ST STV0299 DVB Demodulator driver");
 MODULE_AUTHOR("Ralph Metzler, Holger Waechtler, Peter Schildmann, Felix Domke, "
-	      "Andreas Oberritter, Andrew de Quincey, Kenneth Aafløy");
+	      "Andreas Oberritter, Andrew de Quincey, Kenneth Aafly");
 MODULE_LICENSE("GPL");
 
-EXPORT_SYMBOL(stv0299_enable_plli2c);
 EXPORT_SYMBOL(stv0299_writereg);
 EXPORT_SYMBOL(stv0299_attach);
