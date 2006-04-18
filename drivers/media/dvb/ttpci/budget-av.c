@@ -472,12 +472,12 @@ static int philips_su1278_ty_ci_set_symbol_rate(struct dvb_frontend *fe, u32 sra
 	return 0;
 }
 
-static int philips_su1278_ty_ci_pll_set(struct dvb_frontend *fe,
-					struct i2c_adapter *i2c,
-					struct dvb_frontend_parameters *params)
+static int philips_su1278_ty_ci_tuner_set_params(struct dvb_frontend *fe,
+						 struct dvb_frontend_parameters *params)
 {
 	u32 div;
 	u8 buf[4];
+	struct budget *budget = (struct budget *) fe->dvb->priv;
 	struct i2c_msg msg = {.addr = 0x61,.flags = 0,.buf = buf,.len = sizeof(buf) };
 
 	if ((params->frequency < 950000) || (params->frequency > 2150000))
@@ -501,7 +501,9 @@ static int philips_su1278_ty_ci_pll_set(struct dvb_frontend *fe,
 	else if (params->frequency < 2150000)
 		buf[3] |= 0xC0;
 
-	if (i2c_transfer(i2c, &msg, 1) != 1)
+	if (fe->ops->i2c_gate_ctrl)
+		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (i2c_transfer(&budget->i2c_adap, &msg, 1) != 1)
 		return -EIO;
 	return 0;
 }
@@ -509,9 +511,8 @@ static int philips_su1278_ty_ci_pll_set(struct dvb_frontend *fe,
 #define MIN2(a,b) ((a) < (b) ? (a) : (b))
 #define MIN3(a,b,c) MIN2(MIN2(a,b),c)
 
-static int philips_su1278sh2_tua6100_pll_set(struct dvb_frontend *fe,
-					struct i2c_adapter *i2c,
-					struct dvb_frontend_parameters *params)
+static int philips_su1278sh2_tua6100_tuner_set_params(struct dvb_frontend *fe,
+						      struct dvb_frontend_parameters *params)
 {
 	u8 reg0 [2] = { 0x00, 0x00 };
 	u8 reg1 [4] = { 0x01, 0x00, 0x00, 0x00 };
@@ -521,6 +522,7 @@ static int philips_su1278sh2_tua6100_pll_set(struct dvb_frontend *fe,
 	int R, A, N, P, M;
 	struct i2c_msg msg = {.addr = 0x60,.flags = 0,.buf = NULL,.len = 0 };
 	int freq = params->frequency;
+	struct budget *budget = (struct budget *) fe->dvb->priv;
 
 	first_ZF = (freq) / 1000;
 
@@ -620,21 +622,25 @@ static int philips_su1278sh2_tua6100_pll_set(struct dvb_frontend *fe,
 	reg0[1] |= 0x03;
 
 	/* already enabled - do not reenable i2c repeater or TX fails */
+	if (fe->ops->i2c_gate_ctrl)
+		fe->ops->i2c_gate_ctrl(fe, 1);
 	msg.buf = reg0;
 	msg.len = sizeof(reg0);
-	if (i2c_transfer(i2c, &msg, 1) != 1)
+	if (i2c_transfer(&budget->i2c_adap, &msg, 1) != 1)
 		return -EIO;
 
-	stv0299_enable_plli2c(fe);
+	if (fe->ops->i2c_gate_ctrl)
+		fe->ops->i2c_gate_ctrl(fe, 1);
 	msg.buf = reg1;
 	msg.len = sizeof(reg1);
-	if (i2c_transfer(i2c, &msg, 1) != 1)
+	if (i2c_transfer(&budget->i2c_adap, &msg, 1) != 1)
 		return -EIO;
 
-	stv0299_enable_plli2c(fe);
+	if (fe->ops->i2c_gate_ctrl)
+		fe->ops->i2c_gate_ctrl(fe, 1);
 	msg.buf = reg2;
 	msg.len = sizeof(reg2);
-	if (i2c_transfer(i2c, &msg, 1) != 1)
+	if (i2c_transfer(&budget->i2c_adap, &msg, 1) != 1)
 		return -EIO;
 
 	return 0;
@@ -692,7 +698,6 @@ static struct stv0299_config typhoon_config = {
 	.volt13_op0_op1 = STV0299_VOLT13_OP0,
 	.min_delay_ms = 100,
 	.set_symbol_rate = philips_su1278_ty_ci_set_symbol_rate,
-	.pll_set = philips_su1278_ty_ci_pll_set,
 };
 
 
@@ -706,7 +711,6 @@ static struct stv0299_config cinergy_1200s_config = {
 	.volt13_op0_op1 = STV0299_VOLT13_OP0,
 	.min_delay_ms = 100,
 	.set_symbol_rate = philips_su1278_ty_ci_set_symbol_rate,
-	.pll_set = philips_su1278_ty_ci_pll_set,
 };
 
 static struct stv0299_config cinergy_1200s_1894_0010_config = {
@@ -719,10 +723,9 @@ static struct stv0299_config cinergy_1200s_1894_0010_config = {
 	.volt13_op0_op1 = STV0299_VOLT13_OP0,
 	.min_delay_ms = 100,
 	.set_symbol_rate = philips_su1278_ty_ci_set_symbol_rate,
-	.pll_set = philips_su1278sh2_tua6100_pll_set,
 };
 
-static int philips_cu1216_pll_set(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
+static int philips_cu1216_tuner_set_params(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
 {
 	struct budget *budget = (struct budget *) fe->dvb->priv;
 	u8 buf[4];
@@ -738,6 +741,8 @@ static int philips_cu1216_pll_set(struct dvb_frontend *fe, struct dvb_frontend_p
 	buf[3] = (params->frequency < 150000000 ? 0x01 :
 		  params->frequency < 445000000 ? 0x02 : 0x04);
 
+	if (fe->ops->i2c_gate_ctrl)
+		fe->ops->i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&budget->i2c_adap, &msg, 1) != 1)
 		return -EIO;
 	return 0;
@@ -745,19 +750,20 @@ static int philips_cu1216_pll_set(struct dvb_frontend *fe, struct dvb_frontend_p
 
 static struct tda10021_config philips_cu1216_config = {
 	.demod_address = 0x0c,
-	.pll_set = philips_cu1216_pll_set,
 };
 
 
 
 
-static int philips_tu1216_pll_init(struct dvb_frontend *fe)
+static int philips_tu1216_tuner_init(struct dvb_frontend *fe)
 {
 	struct budget *budget = (struct budget *) fe->dvb->priv;
 	static u8 tu1216_init[] = { 0x0b, 0xf5, 0x85, 0xab };
 	struct i2c_msg tuner_msg = {.addr = 0x60,.flags = 0,.buf = tu1216_init,.len = sizeof(tu1216_init) };
 
 	// setup PLL configuration
+	if (fe->ops->i2c_gate_ctrl)
+		fe->ops->i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&budget->i2c_adap, &tuner_msg, 1) != 1)
 		return -EIO;
 	msleep(1);
@@ -765,7 +771,7 @@ static int philips_tu1216_pll_init(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int philips_tu1216_pll_set(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
+static int philips_tu1216_tuner_set_params(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
 {
 	struct budget *budget = (struct budget *) fe->dvb->priv;
 	u8 tuner_buf[4];
@@ -839,6 +845,8 @@ static int philips_tu1216_pll_set(struct dvb_frontend *fe, struct dvb_frontend_p
 	tuner_buf[2] = 0xca;
 	tuner_buf[3] = (cp << 5) | (filter << 3) | band;
 
+	if (fe->ops->i2c_gate_ctrl)
+		fe->ops->i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&budget->i2c_adap, &tuner_msg, 1) != 1)
 		return -EIO;
 
@@ -862,9 +870,6 @@ static struct tda1004x_config philips_tu1216_config = {
 	.xtal_freq = TDA10046_XTAL_4M,
 	.agc_config = TDA10046_AGC_DEFAULT,
 	.if_freq = TDA10046_FREQ_3617,
-	.pll_init = philips_tu1216_pll_init,
-	.pll_set = philips_tu1216_pll_set,
-	.pll_sleep = NULL,
 	.request_firmware = philips_tu1216_request_firmware,
 };
 
@@ -911,13 +916,13 @@ static u8 philips_sd1878_inittab[] = {
 	0xff, 0xff
 };
 
-static int philips_sd1878_tda8261_pll_set(struct dvb_frontend *fe,
-		struct i2c_adapter *i2c,
-		struct dvb_frontend_parameters *params)
+static int philips_sd1878_tda8261_tuner_set_params(struct dvb_frontend *fe,
+						   struct dvb_frontend_parameters *params)
 {
 	u8              buf[4];
 	int             rc;
 	struct i2c_msg  tuner_msg = {.addr=0x60,.flags=0,.buf=buf,.len=sizeof(buf)};
+	struct budget *budget = (struct budget *) fe->dvb->priv;
 
 	if((params->frequency < 950000) || (params->frequency > 2150000))
 		return -EINVAL;
@@ -926,7 +931,9 @@ static int philips_sd1878_tda8261_pll_set(struct dvb_frontend *fe,
 			params->frequency, 0);
 	if(rc < 0) return rc;
 
-	if(i2c_transfer(i2c, &tuner_msg, 1) != 1)
+	if (fe->ops->i2c_gate_ctrl)
+		fe->ops->i2c_gate_ctrl(fe, 1);
+	if(i2c_transfer(&budget->i2c_adap, &tuner_msg, 1) != 1)
 		return -EIO;
 
     return 0;
@@ -977,7 +984,6 @@ static struct stv0299_config philips_sd1878_config = {
 	.volt13_op0_op1 = STV0299_VOLT13_OP0,
 	.min_delay_ms = 100,
 	.set_symbol_rate = philips_sd1878_ci_set_symbol_rate,
-	.pll_set = philips_sd1878_tda8261_pll_set,
 };
 
 static u8 read_pwm(struct budget_av *budget_av)
@@ -1035,9 +1041,15 @@ static void frontend_init(struct budget_av *budget_av)
 		if (saa->pci->subsystem_vendor == 0x1894) {
 			fe = stv0299_attach(&cinergy_1200s_1894_0010_config,
 					     &budget_av->budget.i2c_adap);
+			if (fe) {
+				fe->ops->tuner_ops.set_params = philips_su1278sh2_tua6100_tuner_set_params;
+			}
 		} else {
 			fe = stv0299_attach(&typhoon_config,
 					     &budget_av->budget.i2c_adap);
+			if (fe) {
+				fe->ops->tuner_ops.set_params = philips_su1278_ty_ci_tuner_set_params;
+			}
 		}
 		break;
 
@@ -1047,17 +1059,26 @@ static void frontend_init(struct budget_av *budget_av)
 	case SUBID_DVBS_EASYWATCH:
 		fe = stv0299_attach(&philips_sd1878_config,
 				&budget_av->budget.i2c_adap);
+		if (fe) {
+			fe->ops->tuner_ops.set_params = philips_sd1878_tda8261_tuner_set_params;
+		}
 		break;
 
 	case SUBID_DVBS_KNC1_PLUS:
 	case SUBID_DVBS_TYPHOON:
 		fe = stv0299_attach(&typhoon_config,
 				    &budget_av->budget.i2c_adap);
+		if (fe) {
+			fe->ops->tuner_ops.set_params = philips_su1278_ty_ci_tuner_set_params;
+		}
 		break;
 
 	case SUBID_DVBS_CINERGY1200:
 		fe = stv0299_attach(&cinergy_1200s_config,
 				    &budget_av->budget.i2c_adap);
+		if (fe) {
+			fe->ops->tuner_ops.set_params = philips_su1278_ty_ci_tuner_set_params;
+		}
 		break;
 
 	case SUBID_DVBC_KNC1:
@@ -1065,18 +1086,28 @@ static void frontend_init(struct budget_av *budget_av)
 		fe = tda10021_attach(&philips_cu1216_config,
 				     &budget_av->budget.i2c_adap,
 				     read_pwm(budget_av));
+		if (fe) {
+			fe->ops->tuner_ops.set_params = philips_cu1216_tuner_set_params;
+		}
 		break;
 
 	case SUBID_DVBT_KNC1:
 	case SUBID_DVBT_KNC1_PLUS:
 		fe = tda10046_attach(&philips_tu1216_config,
 				     &budget_av->budget.i2c_adap);
+		if (fe) {
+			fe->ops->tuner_ops.init = philips_tu1216_tuner_init;
+			fe->ops->tuner_ops.set_params = philips_tu1216_tuner_set_params;
+		}
 		break;
 
 	case SUBID_DVBC_CINERGY1200:
 		fe = tda10021_attach(&philips_cu1216_config,
 				     &budget_av->budget.i2c_adap,
 				     read_pwm(budget_av));
+		if (fe) {
+			fe->ops->tuner_ops.set_params = philips_cu1216_tuner_set_params;
+		}
 		break;
 
 	case SUBID_DVBT_CINERGY1200:
