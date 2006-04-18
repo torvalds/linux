@@ -366,6 +366,7 @@ config PPC_PMAC64
 	select U3_DART
 	select MPIC_BROKEN_U3
 	select GENERIC_TBSYNC
+	select PPC_970_NAP
 	default y
 
 config PPC_PREP
@@ -383,6 +384,7 @@ config PPC_MAPLE
 	select MPIC_BROKEN_U3
 	select GENERIC_TBSYNC
 	select PPC_UDBG_16550
+	select PPC_970_NAP
 	default n
 	help
           This option enables support for the Maple 970FX Evaluation Board.
@@ -454,6 +456,10 @@ config IBMEBUS
 	  Bus device driver for GX bus based adapters.
 
 config PPC_MPC106
+	bool
+	default n
+
+config PPC_970_NAP
 	bool
 	default n
 
