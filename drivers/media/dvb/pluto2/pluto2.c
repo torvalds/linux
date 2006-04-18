@@ -424,8 +424,8 @@ static inline u32 divide(u32 numerator, u32 denominator)
 }
 
 /* LG Innotek TDTE-E001P (Infineon TUA6034) */
-static int lg_tdtpe001p_pll_set(struct dvb_frontend *fe,
-				struct dvb_frontend_parameters *p)
+static int lg_tdtpe001p_tuner_set_params(struct dvb_frontend *fe,
+					 struct dvb_frontend_parameters *p)
 {
 	struct pluto *pluto = frontend_to_pluto(fe);
 	struct i2c_msg msg;
@@ -473,6 +473,8 @@ static int lg_tdtpe001p_pll_set(struct dvb_frontend *fe,
 	msg.buf = buf;
 	msg.len = sizeof(buf);
 
+	if (fe->ops->i2c_gate_ctrl)
+		fe->ops->i2c_gate_ctrl(fe, 1);
 	ret = i2c_transfer(&pluto->i2c_adap, &msg, 1);
 	if (ret < 0)
 		return ret;
@@ -497,8 +499,6 @@ static struct tda1004x_config pluto2_fe_config __devinitdata = {
 	.xtal_freq = TDA10046_XTAL_16M,
 	.agc_config = TDA10046_AGC_DEFAULT,
 	.if_freq = TDA10046_FREQ_3617,
-	.pll_set = lg_tdtpe001p_pll_set,
-	.pll_sleep = NULL,
 	.request_firmware = pluto2_request_firmware,
 };
 
@@ -511,6 +511,7 @@ static int __devinit frontend_init(struct pluto *pluto)
 		dev_err(&pluto->pdev->dev, "could not attach frontend\n");
 		return -ENODEV;
 	}
+	pluto->fe->ops->tuner_ops.set_params = lg_tdtpe001p_tuner_set_params;
 
 	ret = dvb_register_frontend(&pluto->dvb_adapter, pluto->fe);
 	if (ret < 0) {
