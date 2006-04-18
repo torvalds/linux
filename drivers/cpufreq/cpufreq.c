@@ -319,7 +319,6 @@ out:
 	}
 	return -EINVAL;
 }
-EXPORT_SYMBOL_GPL(cpufreq_parse_governor);
 
 
 /* drivers/base/cpu.c */
