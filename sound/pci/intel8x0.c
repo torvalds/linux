@@ -1293,6 +1293,7 @@ static int snd_intel8x0_ali_ac97spdifout_close(struct snd_pcm_substream *substre
 	return 0;
 }
 
+#if 0 // NYI
 static int snd_intel8x0_ali_spdifin_open(struct snd_pcm_substream *substream)
 {
 	struct intel8x0 *chip = snd_pcm_substream_chip(substream);
@@ -1308,7 +1309,6 @@ static int snd_intel8x0_ali_spdifin_close(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-#if 0 // NYI
 static int snd_intel8x0_ali_spdifout_open(struct snd_pcm_substream *substream)
 {
 	struct intel8x0 *chip = snd_pcm_substream_chip(substream);
@@ -1435,6 +1435,7 @@ static struct snd_pcm_ops snd_intel8x0_ali_ac97spdifout_ops = {
 	.pointer =	snd_intel8x0_pcm_pointer,
 };
 
+#if 0 // NYI
 static struct snd_pcm_ops snd_intel8x0_ali_spdifin_ops = {
 	.open =		snd_intel8x0_ali_spdifin_open,
 	.close =	snd_intel8x0_ali_spdifin_close,
@@ -1446,7 +1447,6 @@ static struct snd_pcm_ops snd_intel8x0_ali_spdifin_ops = {
 	.pointer =	snd_intel8x0_pcm_pointer,
 };
 
-#if 0 // NYI
 static struct snd_pcm_ops snd_intel8x0_ali_spdifout_ops = {
 	.open =		snd_intel8x0_ali_spdifout_open,
 	.close =	snd_intel8x0_ali_spdifout_close,
@@ -1582,7 +1582,7 @@ static struct ich_pcm_table ali_pcms[] __devinitdata = {
 	{
 		.suffix = "IEC958",
 		.playback_ops = &snd_intel8x0_ali_ac97spdifout_ops,
-		.capture_ops = &snd_intel8x0_ali_spdifin_ops,
+		/* .capture_ops = &snd_intel8x0_ali_spdifin_ops, */
 		.prealloc_size = 64 * 1024,
 		.prealloc_max_size = 128 * 1024,
 		.ac97_idx = ALID_AC97SPDIFOUT,
