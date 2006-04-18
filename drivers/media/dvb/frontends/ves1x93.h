@@ -38,10 +38,6 @@ struct ves1x93_config
 
 	/* should PWM be inverted? */
 	u8 invert_pwm:1;
-
-	/* PLL maintenance */
-	int (*pll_init)(struct dvb_frontend* fe);
-	int (*pll_set)(struct dvb_frontend* fe, struct dvb_frontend_parameters* params);
 };
 
 extern struct dvb_frontend* ves1x93_attach(const struct ves1x93_config* config,
