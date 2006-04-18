@@ -76,7 +76,6 @@
 
 /* keep track of when we need to update the rtc */
 time_t last_rtc_update;
-extern int piranha_simulator;
 #ifdef CONFIG_PPC_ISERIES
 unsigned long iSeries_recal_titan = 0;
 unsigned long iSeries_recal_tb = 0; 
@@ -1010,10 +1009,7 @@ void __init time_init(void)
 	tb_to_ns_scale = scale;
 	tb_to_ns_shift = shift;
 
-#ifdef CONFIG_PPC_ISERIES
-	if (!piranha_simulator)
-#endif
-		tm = get_boot_time();
+	tm = get_boot_time();
 
 	write_seqlock_irqsave(&xtime_lock, flags);
 

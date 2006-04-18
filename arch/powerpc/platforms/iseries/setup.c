@@ -81,9 +81,6 @@ extern void iSeries_pci_final_fixup(void);
 static void iSeries_pci_final_fixup(void) { }
 #endif
 
-/* Global Variables */
-int piranha_simulator;
-
 extern int rd_size;		/* Defined in drivers/block/rd.c */
 extern unsigned long embedded_sysmap_start;
 extern unsigned long embedded_sysmap_end;
@@ -340,8 +337,6 @@ static void __init iSeries_init_early(void)
 #ifdef CONFIG_SMP
 	smp_init_iSeries();
 #endif
-	if (itLpNaca.xPirEnvironMode == 0)
-		piranha_simulator = 1;
 
 	/* Associate Lp Event Queue 0 with processor 0 */
 	HvCallEvent_setLpEventQueueInterruptProc(0, 0);
