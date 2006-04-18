@@ -43,7 +43,6 @@ struct lgdt330x_config
 
 	/* PLL interface */
 	int (*pll_rf_set) (struct dvb_frontend* fe, int index);
-	int (*pll_set)(struct dvb_frontend* fe, struct dvb_frontend_parameters* params);
 
 	/* Need to set device param for start_dma */
 	int (*set_ts_params)(struct dvb_frontend* fe, int is_punctured);

@@ -400,8 +400,10 @@ static int lgdt330x_set_parameters(struct dvb_frontend* fe,
 	}
 
 	/* Tune to the specified frequency */
-	if (state->config->pll_set)
-		state->config->pll_set(fe, param);
+	if (fe->ops->tuner_ops.set_params) {
+		fe->ops->tuner_ops.set_params(fe, param);
+		if (fe->ops->i2c_gate_ctrl) fe->ops->i2c_gate_ctrl(fe, 0);
+	}
 
 	/* Keep track of the new frequency */
 	/* FIXME this is the wrong way to do this...           */
