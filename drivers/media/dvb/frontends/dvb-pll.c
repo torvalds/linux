@@ -419,6 +419,19 @@ struct dvb_pll_desc dvb_pll_thomson_fe6600 = {
 };
 EXPORT_SYMBOL(dvb_pll_thomson_fe6600);
 
+struct dvb_pll_priv {
+	/* i2c details */
+	int pll_i2c_address;
+	struct i2c_adapter *i2c;
+
+	/* the PLL descriptor */
+	struct dvb_pll_desc *pll_desc;
+
+	/* cached frequency/bandwidth */
+	u32 frequency;
+	u32 bandwidth;
+};
+
 /* ----------------------------------------------------------- */
 /* code                                                        */
 
@@ -443,7 +456,8 @@ int dvb_pll_configure(struct dvb_pll_desc *desc, u8 *buf,
 	if (debug)
 		printk("pll: %s: freq=%d bw=%d | i=%d/%d\n",
 		       desc->name, freq, bandwidth, i, desc->count);
-	BUG_ON(i == desc->count);
+	if (i == desc->count)
+		return -EINVAL;
 
 	div = (freq + desc->entries[i].offset) / desc->entries[i].stepsize;
 	buf[0] = div >> 8;
@@ -461,6 +475,163 @@ int dvb_pll_configure(struct dvb_pll_desc *desc, u8 *buf,
 	return 0;
 }
 EXPORT_SYMBOL(dvb_pll_configure);
+
+static int dvb_pll_release(struct dvb_frontend *fe)
+{
+	if (fe->tuner_priv)
+		kfree(fe->tuner_priv);
+	fe->tuner_priv = NULL;
+	return 0;
+}
+
+static int dvb_pll_sleep(struct dvb_frontend *fe)
+{
+	struct dvb_pll_priv *priv = fe->tuner_priv;
+	u8 buf[4];
+	struct i2c_msg msg =
+		{ .addr = priv->pll_i2c_address, .flags = 0, .buf = buf, .len = sizeof(buf) };
+	int i;
+	int result;
+
+	for (i = 0; i < priv->pll_desc->count; i++) {
+		if (priv->pll_desc->entries[i].limit == 0)
+			break;
+	}
+	if (i == priv->pll_desc->count)
+		return 0;
+
+	buf[0] = 0;
+	buf[1] = 0;
+	buf[2] = priv->pll_desc->entries[i].config;
+	buf[3] = priv->pll_desc->entries[i].cb;
+
+	if (fe->ops->i2c_gate_ctrl)
+		fe->ops->i2c_gate_ctrl(fe, 1);
+	if ((result = i2c_transfer(priv->i2c, &msg, 1)) != 1) {
+		return result;
+	}
+
+	return 0;
+}
+
+static int dvb_pll_set_params(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
+{
+	struct dvb_pll_priv *priv = fe->tuner_priv;
+	u8 buf[4];
+	struct i2c_msg msg =
+		{ .addr = priv->pll_i2c_address, .flags = 0, .buf = buf, .len = sizeof(buf) };
+	int result;
+	u32 div;
+	int i;
+	u32 bandwidth = 0;
+
+	if (priv->i2c == NULL)
+		return -EINVAL;
+
+	// DVBT bandwidth only just now
+	if (fe->ops->info.type == FE_OFDM) {
+		bandwidth = params->u.ofdm.bandwidth;
+	}
+
+	if ((result = dvb_pll_configure(priv->pll_desc, buf, params->frequency, bandwidth)) != 0)
+		return result;
+
+	if (fe->ops->i2c_gate_ctrl)
+		fe->ops->i2c_gate_ctrl(fe, 1);
+	if ((result = i2c_transfer(priv->i2c, &msg, 1)) != 1) {
+		return result;
+	}
+
+	// calculate the frequency we set it to
+	for (i = 0; i < priv->pll_desc->count; i++) {
+		if (params->frequency > priv->pll_desc->entries[i].limit)
+			continue;
+		break;
+	}
+	div = (params->frequency + priv->pll_desc->entries[i].offset) / priv->pll_desc->entries[i].stepsize;
+	priv->frequency = (div * priv->pll_desc->entries[i].stepsize) - priv->pll_desc->entries[i].offset;
+	priv->bandwidth = bandwidth;
+
+	return 0;
+}
+
+static int dvb_pll_pllbuf(struct dvb_frontend *fe, struct dvb_frontend_parameters *params, u8 *buf, int buf_len)
+{
+	struct dvb_pll_priv *priv = fe->tuner_priv;
+	int result;
+	u32 div;
+	int i;
+	u32 bandwidth = 0;
+
+	if (buf_len < 5)
+		return -EINVAL;
+
+	// DVBT bandwidth only just now
+	if (fe->ops->info.type == FE_OFDM) {
+		bandwidth = params->u.ofdm.bandwidth;
+	}
+
+	if ((result = dvb_pll_configure(priv->pll_desc, buf+1, params->frequency, bandwidth)) != 0)
+		return result;
+	buf[0] = priv->pll_i2c_address;
+
+	// calculate the frequency we set it to
+	for (i = 0; i < priv->pll_desc->count; i++) {
+		if (params->frequency > priv->pll_desc->entries[i].limit)
+			continue;
+		break;
+	}
+	div = (params->frequency + priv->pll_desc->entries[i].offset) / priv->pll_desc->entries[i].stepsize;
+	priv->frequency = (div * priv->pll_desc->entries[i].stepsize) - priv->pll_desc->entries[i].offset;
+	priv->bandwidth = bandwidth;
+
+	return 5;
+}
+
+static int dvb_pll_get_frequency(struct dvb_frontend *fe, u32 *frequency)
+{
+	struct dvb_pll_priv *priv = fe->tuner_priv;
+	*frequency = priv->frequency;
+	return 0;
+}
+
+static int dvb_pll_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
+{
+	struct dvb_pll_priv *priv = fe->tuner_priv;
+	*bandwidth = priv->bandwidth;
+	return 0;
+}
+
+static struct dvb_tuner_ops dvb_pll_tuner_ops = {
+	.release = dvb_pll_release,
+	.sleep = dvb_pll_sleep,
+	.set_params = dvb_pll_set_params,
+	.pllbuf = dvb_pll_pllbuf,
+	.get_frequency = dvb_pll_get_frequency,
+	.get_bandwidth = dvb_pll_get_bandwidth,
+};
+
+int dvb_pll_attach(struct dvb_frontend *fe, int pll_addr, struct i2c_adapter *i2c, struct dvb_pll_desc *desc)
+{
+	struct dvb_pll_priv *priv = NULL;
+
+	priv = kzalloc(sizeof(struct dvb_pll_priv), GFP_KERNEL);
+	if (priv == NULL)
+		return -ENOMEM;
+
+	priv->pll_i2c_address = pll_addr;
+	priv->i2c = i2c;
+	priv->pll_desc = desc;
+
+	memcpy(&fe->ops->tuner_ops, &dvb_pll_tuner_ops, sizeof(struct dvb_tuner_ops));
+	strncpy(fe->ops->tuner_ops.info.name, desc->name, 128);
+	fe->ops->tuner_ops.info.frequency_min = desc->min;
+	fe->ops->tuner_ops.info.frequency_min = desc->max;
+
+	fe->tuner_priv = priv;
+	return 0;
+}
+EXPORT_SYMBOL(dvb_pll_attach);
 
 MODULE_DESCRIPTION("dvb pll library");
 MODULE_AUTHOR("Gerd Knorr");
