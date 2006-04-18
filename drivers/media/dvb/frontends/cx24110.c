@@ -366,17 +366,6 @@ static int cx24110_initfe(struct dvb_frontend* fe)
 		cx24110_writereg(state, cx24110_regdata[i].reg, cx24110_regdata[i].data);
 	};
 
-	if (state->config->pll_init) state->config->pll_init(fe);
-
-	return 0;
-}
-
-static int cx24110_sleep(struct dvb_frontend *fe)
-{
-	struct cx24110_state *state = fe->demodulator_priv;
-
-	if (state->config->pll_sleep)
-		  return state->config->pll_sleep(fe);
 	return 0;
 }
 
@@ -548,7 +537,12 @@ static int cx24110_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 {
 	struct cx24110_state *state = fe->demodulator_priv;
 
-	state->config->pll_set(fe, p);
+
+	if (fe->ops->tuner_ops.set_params) {
+		fe->ops->tuner_ops.set_params(fe, p);
+		if (fe->ops->i2c_gate_ctrl) fe->ops->i2c_gate_ctrl(fe, 0);
+	}
+
 	cx24110_set_inversion (state, p->inversion);
 	cx24110_set_fec (state, p->u.qpsk.fec_inner);
 	cx24110_set_symbolrate (state, p->u.qpsk.symbol_rate);
@@ -651,7 +645,6 @@ static struct dvb_frontend_ops cx24110_ops = {
 	.release = cx24110_release,
 
 	.init = cx24110_initfe,
-	.sleep = cx24110_sleep,
 	.set_frontend = cx24110_set_frontend,
 	.get_frontend = cx24110_get_frontend,
 	.read_status = cx24110_read_status,
