@@ -584,7 +584,6 @@ static int s5h1420_set_frontend(struct dvb_frontend* fe,
 	struct s5h1420_state* state = fe->demodulator_priv;
 	int frequency_delta;
 	struct dvb_frontend_tune_settings fesettings;
-	u32 tmp;
 
 	/* check if we should do a fast-tune */
 	memcpy(&fesettings.parameters, p, sizeof(struct dvb_frontend_parameters));
@@ -596,10 +595,17 @@ static int s5h1420_set_frontend(struct dvb_frontend* fe,
 	    (state->fec_inner == p->u.qpsk.fec_inner) &&
 	    (state->symbol_rate == p->u.qpsk.symbol_rate)) {
 
-		if (state->config->pll_set) {
-			s5h1420_writereg (state, 0x02, s5h1420_readreg(state,0x02) | 1);
-			state->config->pll_set(fe, p, &tmp);
+		if (fe->ops->tuner_ops.set_params) {
+			fe->ops->tuner_ops.set_params(fe, p);
+			if (fe->ops->i2c_gate_ctrl) fe->ops->i2c_gate_ctrl(fe, 0);
+		}
+		if (fe->ops->tuner_ops.get_frequency) {
+			u32 tmp;
+			fe->ops->tuner_ops.get_frequency(fe, &tmp);
+			if (fe->ops->i2c_gate_ctrl) fe->ops->i2c_gate_ctrl(fe, 0);
 			s5h1420_setfreqoffset(state, p->frequency - tmp);
+		} else {
+			s5h1420_setfreqoffset(state, 0);
 		}
 		return 0;
 	}
@@ -646,9 +652,9 @@ static int s5h1420_set_frontend(struct dvb_frontend* fe,
 	s5h1420_writereg(state, 0x05, s5h1420_readreg(state, 0x05) | 1);
 
 	/* set tuner PLL */
-	if (state->config->pll_set) {
-		s5h1420_writereg (state, 0x02, s5h1420_readreg(state,0x02) | 1);
-		state->config->pll_set(fe, p, &tmp);
+	if (fe->ops->tuner_ops.set_params) {
+		fe->ops->tuner_ops.set_params(fe, p);
+		if (fe->ops->i2c_gate_ctrl) fe->ops->i2c_gate_ctrl(fe, 0);
 		s5h1420_setfreqoffset(state, 0);
 	}
 
@@ -708,6 +714,17 @@ static int s5h1420_get_tune_settings(struct dvb_frontend* fe,
 	return 0;
 }
 
+static int s5h1420_i2c_gate_ctrl(struct dvb_frontend* fe, int enable)
+{
+	struct s5h1420_state* state = fe->demodulator_priv;
+
+	if (enable) {
+		return s5h1420_writereg (state, 0x02, s5h1420_readreg(state,0x02) | 1);
+	} else {
+		return s5h1420_writereg (state, 0x02, s5h1420_readreg(state,0x02) & 0xfe);
+	}
+}
+
 static int s5h1420_init (struct dvb_frontend* fe)
 {
 	struct s5h1420_state* state = fe->demodulator_priv;
@@ -716,13 +733,6 @@ static int s5h1420_init (struct dvb_frontend* fe)
 	s5h1420_writereg(state, 0x02, 0x10);
 	msleep(10);
 	s5h1420_reset(state);
-
-	/* init PLL */
-	if (state->config->pll_init) {
-		s5h1420_writereg (state, 0x02, s5h1420_readreg(state,0x02) | 1);
-		state->config->pll_init(fe);
-		s5h1420_writereg (state, 0x02, s5h1420_readreg(state,0x02) & 0xfe);
-	}
 
 	return 0;
 }
@@ -800,6 +810,7 @@ static struct dvb_frontend_ops s5h1420_ops = {
 
 	.init = s5h1420_init,
 	.sleep = s5h1420_sleep,
+	.i2c_gate_ctrl = s5h1420_i2c_gate_ctrl,
 
 	.set_frontend = s5h1420_set_frontend,
 	.get_frontend = s5h1420_get_frontend,
