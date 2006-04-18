@@ -247,12 +247,6 @@ static int cx22700_init (struct dvb_frontend* fe)
 
 	cx22700_writereg (state, 0x00, 0x01);
 
-	if (state->config->pll_init) {
-		cx22700_writereg (state, 0x0a, 0x00);  /* open i2c bus switch */
-		state->config->pll_init(fe);
-		cx22700_writereg (state, 0x0a, 0x01);  /* close i2c bus switch */
-	}
-
 	return 0;
 }
 
@@ -333,9 +327,11 @@ static int cx22700_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 	cx22700_writereg (state, 0x00, 0x02); /* XXX CHECKME: soft reset*/
 	cx22700_writereg (state, 0x00, 0x00);
 
-	cx22700_writereg (state, 0x0a, 0x00);  /* open i2c bus switch */
-	state->config->pll_set(fe, p);
-	cx22700_writereg (state, 0x0a, 0x01);  /* close i2c bus switch */
+	if (fe->ops->tuner_ops.set_params) {
+		fe->ops->tuner_ops.set_params(fe, p);
+		if (fe->ops->i2c_gate_ctrl) fe->ops->i2c_gate_ctrl(fe, 0);
+	}
+
 	cx22700_set_inversion (state, p->inversion);
 	cx22700_set_tps (state, &p->u.ofdm);
 	cx22700_writereg (state, 0x37, 0x01);  /* PAL loop filter off */
@@ -351,6 +347,17 @@ static int cx22700_get_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 
 	p->inversion = reg09 & 0x1 ? INVERSION_ON : INVERSION_OFF;
 	return cx22700_get_tps (state, &p->u.ofdm);
+}
+
+static int cx22700_i2c_gate_ctrl(struct dvb_frontend* fe, int enable)
+{
+	struct cx22700_state* state = fe->demodulator_priv;
+
+	if (enable) {
+		return cx22700_writereg(state, 0x0a, 0x00);
+	} else {
+		return cx22700_writereg(state, 0x0a, 0x01);
+	}
 }
 
 static int cx22700_get_tune_settings(struct dvb_frontend* fe, struct dvb_frontend_tune_settings* fesettings)
@@ -413,6 +420,7 @@ static struct dvb_frontend_ops cx22700_ops = {
 	.release = cx22700_release,
 
 	.init = cx22700_init,
+	.i2c_gate_ctrl = cx22700_i2c_gate_ctrl,
 
 	.set_frontend = cx22700_set_frontend,
 	.get_frontend = cx22700_get_frontend,
