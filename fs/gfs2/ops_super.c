@@ -132,9 +132,7 @@ static void gfs2_put_super(struct super_block *sb)
 	/*  At this point, we're through participating in the lockspace  */
 
 	gfs2_sys_fs_del(sdp);
-
 	vfree(sdp);
-
 	sb->s_fs_info = NULL;
 }
 

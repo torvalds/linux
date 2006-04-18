@@ -61,6 +61,7 @@
 #include <linux/sort.h>
 #include <linux/gfs2_ondisk.h>
 #include <linux/crc32.h>
+#include <linux/vmalloc.h>
 #include <asm/semaphore.h>
 
 #include "gfs2.h"
@@ -1290,7 +1291,7 @@ static int gfs2_dir_read_leaf(struct inode *inode, u64 *offset, void *opaque,
 		return 0;
 
 	error = -ENOMEM;
-	larr = kmalloc((leaves + entries) * sizeof(void*), GFP_KERNEL);
+	larr = vmalloc((leaves + entries) * sizeof(void*));
 	if (!larr)
 		goto out;
 	darr = (const struct gfs2_dirent **)(larr + leaves);
@@ -1323,7 +1324,7 @@ static int gfs2_dir_read_leaf(struct inode *inode, u64 *offset, void *opaque,
 out_kfree:
 	for(i = 0; i < leaf; i++)
 		brelse(larr[i]);
-	kfree(larr);
+	vfree(larr);
 out:
 	return error;
 }

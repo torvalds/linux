@@ -216,7 +216,7 @@ static int gfs2_readpage(struct file *file, struct page *page)
 	int error;
 
 	if (file != &gfs2_internal_file_sentinal) {
-		gfs2_holder_init(ip->i_gl, LM_ST_SHARED, GL_ATIME, &gh);
+		gfs2_holder_init(ip->i_gl, LM_ST_SHARED, GL_ATIME|GL_AOP, &gh);
 		error = gfs2_glock_nq_m_atime(1, &gh);
 		if (error)
 			goto out_unlock;
@@ -267,7 +267,7 @@ static int gfs2_prepare_write(struct file *file, struct page *page,
 	loff_t end = ((loff_t)page->index << PAGE_CACHE_SHIFT) + to;
 	struct gfs2_alloc *al;
 
-	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, GL_ATIME, &ip->i_gh);
+	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, GL_ATIME|GL_AOP, &ip->i_gh);
 	error = gfs2_glock_nq_m_atime(1, &ip->i_gh);
 	if (error)
 		goto out_uninit;

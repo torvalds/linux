@@ -742,8 +742,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 		if (error)
 			goto out_gunlock_q;
 
-		error = gfs2_trans_begin(sdp,
-					 sdp->sd_max_dirres +
+		error = gfs2_trans_begin(sdp, sdp->sd_max_dirres +
 					 al->al_rgd->rd_ri.ri_length +
 					 4 * RES_DINODE + 4 * RES_LEAF +
 					 RES_UNLINKED + RES_STATFS +

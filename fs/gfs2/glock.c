@@ -461,6 +461,9 @@ static void handle_recurse(struct gfs2_holder *gh)
 	struct gfs2_holder *tmp_gh, *safe;
 	int found = 0;
 
+	printk(KERN_INFO "recursion %016llx, %u\n", gl->gl_name.ln_number,
+		gl->gl_name.ln_type);
+
 	if (gfs2_assert_warn(sdp, gh->gh_owner))
 		return;
 

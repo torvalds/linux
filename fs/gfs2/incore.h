@@ -156,7 +156,7 @@ struct gfs2_holder {
 	struct gfs2_glock *gh_gl;
 	struct task_struct *gh_owner;
 	unsigned int gh_state;
-	int gh_flags;
+	unsigned gh_flags;
 
 	int gh_error;
 	unsigned long gh_iflags;

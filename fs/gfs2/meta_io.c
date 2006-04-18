@@ -881,7 +881,7 @@ void gfs2_meta_syncfs(struct gfs2_sbd *sdp)
 		gfs2_ail1_start(sdp, DIO_ALL);
 		if (gfs2_ail1_empty(sdp, DIO_ALL))
 			break;
-		msleep(100);
+		msleep(10);
 	}
 }
 
