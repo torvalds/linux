@@ -28,11 +28,6 @@ struct zl10353_config
 {
 	/* demodulator's I2C address */
 	u8 demod_address;
-
-	/* function which configures the PLL buffer (for secondary I2C
-	 * connected tuner) or tunes the PLL (for direct connected tuner) */
-	int (*pll_set)(struct dvb_frontend *fe,
-		       struct dvb_frontend_parameters *params, u8 *pllbuf);
 };
 
 extern struct dvb_frontend* zl10353_attach(const struct zl10353_config *config,

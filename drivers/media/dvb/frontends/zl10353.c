@@ -125,7 +125,6 @@ static int zl10353_sleep(struct dvb_frontend *fe)
 static int zl10353_set_parameters(struct dvb_frontend *fe,
 				  struct dvb_frontend_parameters *param)
 {
-	struct zl10353_state *state = fe->demodulator_priv;
 	u8 pllbuf[6] = { 0x67 };
 
 	/* These settings set "auto-everything" and start the FSM. */
@@ -142,8 +141,11 @@ static int zl10353_set_parameters(struct dvb_frontend *fe,
 	zl10353_single_write(fe, 0x66, 0xE9);
 	zl10353_single_write(fe, 0x62, 0x0A);
 
-	state->config.pll_set(fe, param, pllbuf + 1);
-	zl10353_write(fe, pllbuf, sizeof(pllbuf));
+	if (fe->ops->tuner_ops.pllbuf) {
+		fe->ops->tuner_ops.pllbuf(fe, param, pllbuf+1, 5);
+		pllbuf[1] <<= 1;
+		zl10353_write(fe, pllbuf, sizeof(pllbuf));
+	}
 
 	zl10353_single_write(fe, 0x70, 0x01);
 	udelay(250);
