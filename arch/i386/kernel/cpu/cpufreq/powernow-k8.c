@@ -905,13 +905,16 @@ static int powernowk8_target(struct cpufreq_policy *pol, unsigned targfreq, unsi
 {
 	cpumask_t oldmask = CPU_MASK_ALL;
 	struct powernow_k8_data *data = powernow_data[pol->cpu];
-	u32 checkfid = data->currfid;
-	u32 checkvid = data->currvid;
+	u32 checkfid;
+	u32 checkvid;
 	unsigned int newstate;
 	int ret = -EIO;
 
 	if (!data)
 		return -EINVAL;
+
+	checkfid = data->currfid;
+	checkvid = data->currvid;
 
 	/* only run on specific CPU from here on */
 	oldmask = current->cpus_allowed;
