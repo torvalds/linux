@@ -687,9 +687,6 @@ static int cx24123_initfe(struct dvb_frontend* fe)
 	for (i = 0; i < sizeof(cx24123_regdata) / sizeof(cx24123_regdata[0]); i++)
 		cx24123_writereg(state, cx24123_regdata[i].reg, cx24123_regdata[i].data);
 
-	if (state->config->pll_init)
-		state->config->pll_init(fe);
-
 	/* Configure the LNB for 14V */
 	if (state->config->use_isl6421)
 		cx24123_writelnbreg(state, 0x0, 0x2a);
