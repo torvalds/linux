@@ -104,7 +104,6 @@
 #include <linux/slab.h>
 #include <linux/gameport.h>
 #include <linux/moduleparam.h>
-#include <linux/dma-mapping.h>
 #include <linux/mutex.h>
 
 #include <sound/core.h>
