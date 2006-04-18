@@ -331,7 +331,6 @@ static int or51132_set_parameters(struct dvb_frontend* fe,
 				  struct dvb_frontend_parameters *param)
 {
 	int ret;
-	u8 buf[4];
 	struct or51132_state* state = fe->demodulator_priv;
 	const struct firmware *fw;
 	const char *fwname;
@@ -384,13 +383,10 @@ static int or51132_set_parameters(struct dvb_frontend* fe,
 		or51132_setmode(fe);
 	}
 
-	dvb_pll_configure(state->config->pll_desc, buf,
-			  param->frequency, 0);
-	dprintk("set_parameters tuner bytes: 0x%02x 0x%02x "
-		"0x%02x 0x%02x\n",buf[0],buf[1],buf[2],buf[3]);
-	if (i2c_writebytes(state, state->config->pll_address, buf, 4))
-		printk(KERN_WARNING "or51132: set_parameters error "
-		       "writing to tuner\n");
+	if (fe->ops->tuner_ops.set_params) {
+		fe->ops->tuner_ops.set_params(fe, param);
+		if (fe->ops->i2c_gate_ctrl) fe->ops->i2c_gate_ctrl(fe, 0);
+	}
 
 	/* Set to current mode */
 	or51132_setmode(fe);
