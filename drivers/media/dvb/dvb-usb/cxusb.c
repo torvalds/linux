@@ -27,6 +27,7 @@
 
 #include "cx22702.h"
 #include "lgdt330x.h"
+#include "fe_lgh06xf.h"
 #include "mt352.h"
 #include "mt352_priv.h"
 
@@ -326,30 +327,7 @@ static int cxusb_lgh064f_pll_set_i2c(struct dvb_frontend *fe,
 				     struct dvb_frontend_parameters *fep)
 {
 	struct dvb_usb_device *d = fe->dvb->priv;
-	int ret = 0;
-	u8 b[5];
-	struct i2c_msg msg = { .addr = d->pll_addr, .flags = 0,
-			       .buf = &b[1], .len = 4 };
-
-	dvb_usb_pll_set(fe,fep,b);
-
-	if (i2c_transfer (&d->i2c_adap, &msg, 1) != 1) {
-		err("tuner i2c write failed for pll_set.");
-		ret = -EREMOTEIO;
-	}
-	msleep(1);
-
-	/* Set the Auxiliary Byte. */
-	b[3] &= ~0x20;
-	b[3] |= 0x18;
-	b[4] = 0x50;
-	if (i2c_transfer(&d->i2c_adap, &msg, 1) != 1) {
-		err("tuner i2c write failed writing auxiliary byte.");
-		ret = -EREMOTEIO;
-	}
-	msleep(1);
-
-	return ret;
+	return lg_h06xf_pll_set(fe, &d->i2c_adap, fep);
 }
 
 static struct cx22702_config cxusb_cx22702_config = {
@@ -387,13 +365,6 @@ static int cxusb_fmd1216me_tuner_attach(struct dvb_usb_device *d)
 	d->pll_addr = 0x61;
 	memcpy(d->pll_init, bpll, 4);
 	d->pll_desc = &dvb_pll_fmd1216me;
-	return 0;
-}
-
-static int cxusb_lgh064f_tuner_attach(struct dvb_usb_device *d)
-{
-	d->pll_addr = 0x61;
-	d->pll_desc = &dvb_pll_tdvs_tua6034;
 	return 0;
 }
 
@@ -581,7 +552,6 @@ static struct dvb_usb_properties cxusb_bluebird_lgh064f_properties = {
 	.streaming_ctrl   = cxusb_streaming_ctrl,
 	.power_ctrl       = cxusb_bluebird_power_ctrl,
 	.frontend_attach  = cxusb_lgdt3303_frontend_attach,
-	.tuner_attach     = cxusb_lgh064f_tuner_attach,
 
 	.i2c_algo         = &cxusb_i2c_algo,
 
