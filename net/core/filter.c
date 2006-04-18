@@ -34,6 +34,7 @@
 #include <linux/timer.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
+#include <asm/unaligned.h>
 #include <linux/filter.h>
 
 /* No hurry in this branch */
@@ -177,7 +178,7 @@ unsigned int sk_run_filter(struct sk_buff *skb, struct sock_filter *filter, int 
 load_w:
 			ptr = load_pointer(skb, k, 4, &tmp);
 			if (ptr != NULL) {
-				A = ntohl(*(u32 *)ptr);
+				A = ntohl(get_unaligned((u32 *)ptr));
 				continue;
 			}
 			break;
@@ -186,7 +187,7 @@ load_w:
 load_h:
 			ptr = load_pointer(skb, k, 2, &tmp);
 			if (ptr != NULL) {
-				A = ntohs(*(u16 *)ptr);
+				A = ntohs(get_unaligned((u16 *)ptr));
 				continue;
 			}
 			break;
