@@ -277,12 +277,6 @@ static int mt312_initfe(struct dvb_frontend* fe)
 	if ((ret = mt312_writereg(state, CS_SW_LIM, 0x69)) < 0)
 		return ret;
 
-	if (state->config->pll_init) {
-		mt312_writereg(state, GPP_CTRL, 0x40);
-		state->config->pll_init(fe);
-		mt312_writereg(state, GPP_CTRL, 0x00);
-	}
-
 	return 0;
 }
 
@@ -529,9 +523,10 @@ static int mt312_set_frontend(struct dvb_frontend* fe,
 		return -EINVAL;
 	}
 
-	mt312_writereg(state, GPP_CTRL, 0x40);
-	state->config->pll_set(fe, p);
-	mt312_writereg(state, GPP_CTRL, 0x00);
+	if (fe->ops->tuner_ops.set_params) {
+		fe->ops->tuner_ops.set_params(fe, p);
+		if (fe->ops->i2c_gate_ctrl) fe->ops->i2c_gate_ctrl(fe, 0);
+	}
 
 	/* sr = (u16)(sr * 256.0 / 1000000.0) */
 	sr = mt312_div(p->u.qpsk.symbol_rate * 4, 15625);
@@ -576,6 +571,17 @@ static int mt312_get_frontend(struct dvb_frontend* fe,
 		return ret;
 
 	return 0;
+}
+
+static int mt312_i2c_gate_ctrl(struct dvb_frontend* fe, int enable)
+{
+	struct mt312_state* state = fe->demodulator_priv;
+
+	if (enable) {
+		return mt312_writereg(state, GPP_CTRL, 0x40);
+	} else {
+		return mt312_writereg(state, GPP_CTRL, 0x00);
+	}
 }
 
 static int mt312_sleep(struct dvb_frontend* fe)
@@ -633,6 +639,7 @@ static struct dvb_frontend_ops vp310_mt312_ops = {
 
 	.init = mt312_initfe,
 	.sleep = mt312_sleep,
+	.i2c_gate_ctrl = mt312_i2c_gate_ctrl,
 
 	.set_frontend = mt312_set_frontend,
 	.get_frontend = mt312_get_frontend,
