@@ -14,6 +14,7 @@
 #include "stv0297.h"
 #include "mt312.h"
 #include "lgdt330x.h"
+#include "fe_lgh06xf.h"
 #include "dvb-pll.h"
 
 /* lnb control */
@@ -301,38 +302,7 @@ static int lgdt3303_pll_set(struct dvb_frontend* fe,
 			    struct dvb_frontend_parameters* params)
 {
 	struct flexcop_device *fc = fe->dvb->priv;
-	u8 buf[4];
-	struct i2c_msg msg =
-		{ .addr = 0x61, .flags = 0, .buf = buf, .len = 4 };
-	int err;
-
-	dvb_pll_configure(&dvb_pll_tdvs_tua6034,buf, params->frequency, 0);
-	dprintk(1, "%s: tuner at 0x%02x bytes: 0x%02x 0x%02x 0x%02x 0x%02x\n",
-			__FUNCTION__, msg.addr, buf[0],buf[1],buf[2],buf[3]);
-	if ((err = i2c_transfer(&fc->i2c_adap, &msg, 1)) != 1) {
-		printk(KERN_WARNING "lgdt3303: %s error "
-			   "(addr %02x <- %02x, err = %i)\n",
-			   __FUNCTION__, buf[0], buf[1], err);
-		if (err < 0)
-			return err;
-		else
-			return -EREMOTEIO;
-	}
-
-	buf[0] = 0x86 | 0x18;
-	buf[1] = 0x50;
-	msg.len = 2;
-	if ((err = i2c_transfer(&fc->i2c_adap, &msg, 1)) != 1) {
-		printk(KERN_WARNING "lgdt3303: %s error "
-			   "(addr %02x <- %02x, err = %i)\n",
-			   __FUNCTION__, buf[0], buf[1], err);
-		if (err < 0)
-			return err;
-		else
-			return -EREMOTEIO;
-	}
-
-	return 0;
+	return lg_h06xf_pll_set(fe, &fc->i2c_adap, params);
 }
 
 static struct lgdt330x_config air2pc_atsc_hd5000_config = {
