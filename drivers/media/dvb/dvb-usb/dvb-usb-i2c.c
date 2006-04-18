@@ -46,7 +46,7 @@ int dvb_usb_i2c_exit(struct dvb_usb_device *d)
 	return 0;
 }
 
-int dvb_usb_pll_init_i2c(struct dvb_frontend *fe)
+int dvb_usb_tuner_init_i2c(struct dvb_frontend *fe)
 {
 	struct dvb_usb_device *d = fe->dvb->priv;
 	struct i2c_msg msg = { .addr = d->pll_addr, .flags = 0, .buf = d->pll_init, .len = 4 };
@@ -63,6 +63,8 @@ int dvb_usb_pll_init_i2c(struct dvb_frontend *fe)
 	deb_pll("pll-buf: %x %x %x %x\n",d->pll_init[0],d->pll_init[1],
 			d->pll_init[2],d->pll_init[3]);
 
+	if (fe->ops->i2c_gate_ctrl)
+		fe->ops->i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer (&d->i2c_adap, &msg, 1) != 1) {
 		err("tuner i2c write failed for pll_init.");
 		ret = -EREMOTEIO;
@@ -73,38 +75,42 @@ int dvb_usb_pll_init_i2c(struct dvb_frontend *fe)
 		d->tuner_pass_ctrl(fe,0,d->pll_addr);
 	return ret;
 }
-EXPORT_SYMBOL(dvb_usb_pll_init_i2c);
+EXPORT_SYMBOL(dvb_usb_tuner_init_i2c);
 
-int dvb_usb_pll_set(struct dvb_frontend *fe, struct dvb_frontend_parameters *fep, u8 b[5])
+int dvb_usb_tuner_pllbuf(struct dvb_frontend *fe, struct dvb_frontend_parameters *fep, u8 *b, int buf_len)
 {
 	struct dvb_usb_device *d = fe->dvb->priv;
 
+	if (buf_len != 5)
+		return -EINVAL;
 	if (d->pll_desc == NULL)
 		return 0;
 
 	deb_pll("pll addr: %x, freq: %d %p\n",d->pll_addr,fep->frequency,d->pll_desc);
 
-	b[0] = d->pll_addr << 1;
+	b[0] = d->pll_addr;
 	dvb_pll_configure(d->pll_desc,&b[1],fep->frequency,fep->u.ofdm.bandwidth);
 
 	deb_pll("pll-buf: %x %x %x %x %x\n",b[0],b[1],b[2],b[3],b[4]);
 
-	return 0;
+	return 5;
 }
-EXPORT_SYMBOL(dvb_usb_pll_set);
+EXPORT_SYMBOL(dvb_usb_tuner_pllbuf);
 
-int dvb_usb_pll_set_i2c(struct dvb_frontend *fe, struct dvb_frontend_parameters *fep)
+int dvb_usb_tuner_set_frequency_i2c(struct dvb_frontend *fe, struct dvb_frontend_parameters *fep)
 {
 	struct dvb_usb_device *d = fe->dvb->priv;
 	int ret = 0;
 	u8 b[5];
 	struct i2c_msg msg = { .addr = d->pll_addr, .flags = 0, .buf = &b[1], .len = 4 };
 
-	dvb_usb_pll_set(fe,fep,b);
+	dvb_usb_tuner_pllbuf(fe,fep,b,5);
 
 	if (d->tuner_pass_ctrl)
 		d->tuner_pass_ctrl(fe,1,d->pll_addr);
 
+	if (fe->ops->i2c_gate_ctrl)
+		fe->ops->i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer (&d->i2c_adap, &msg, 1) != 1) {
 		err("tuner i2c write failed for pll_set.");
 		ret = -EREMOTEIO;
@@ -116,4 +122,4 @@ int dvb_usb_pll_set_i2c(struct dvb_frontend *fe, struct dvb_frontend_parameters 
 
 	return ret;
 }
-EXPORT_SYMBOL(dvb_usb_pll_set_i2c);
+EXPORT_SYMBOL(dvb_usb_tuner_set_frequency_i2c);

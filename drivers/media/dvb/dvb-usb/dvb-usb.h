@@ -330,9 +330,9 @@ extern int dvb_usb_generic_write(struct dvb_usb_device *, u8 *, u16);
 extern int dvb_usb_nec_rc_key_to_event(struct dvb_usb_device *, u8[], u32 *, int *);
 
 /* commonly used pll init and set functions */
-extern int dvb_usb_pll_init_i2c(struct dvb_frontend *);
-extern int dvb_usb_pll_set(struct dvb_frontend *, struct dvb_frontend_parameters *, u8[]);
-extern int dvb_usb_pll_set_i2c(struct dvb_frontend *, struct dvb_frontend_parameters *);
+extern int dvb_usb_tuner_init_i2c(struct dvb_frontend *);
+extern int dvb_usb_tuner_pllbuf(struct dvb_frontend *, struct dvb_frontend_parameters *, u8 *buf, int buf_len);
+extern int dvb_usb_tuner_set_params_i2c(struct dvb_frontend *, struct dvb_frontend_parameters *);
 
 /* commonly used firmware download types and function */
 struct hexline {
