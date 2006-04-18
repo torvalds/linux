@@ -357,18 +357,20 @@ ixgb_probe(struct pci_dev *pdev,
 	if((err = pci_enable_device(pdev)))
 		return err;
 
-	if(!(err = pci_set_dma_mask(pdev, DMA_64BIT_MASK))) {
+	if(!(err = pci_set_dma_mask(pdev, DMA_64BIT_MASK)) &&
+	   !(err = pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK))) {
 		pci_using_dac = 1;
 	} else {
-		if((err = pci_set_dma_mask(pdev, DMA_32BIT_MASK))) {
+		if((err = pci_set_dma_mask(pdev, DMA_32BIT_MASK)) ||
+		   (err = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK))) {
 			IXGB_ERR("No usable DMA configuration, aborting\n");
-			return err;
+			goto err_dma_mask;
 		}
 		pci_using_dac = 0;
 	}
 
 	if((err = pci_request_regions(pdev, ixgb_driver_name)))
-		return err;
+		goto err_request_regions;
 
 	pci_set_master(pdev);
 
@@ -502,6 +504,9 @@ err_ioremap:
 	free_netdev(netdev);
 err_alloc_etherdev:
 	pci_release_regions(pdev);
+err_request_regions:
+err_dma_mask:
+	pci_disable_device(pdev);
 	return err;
 }
 

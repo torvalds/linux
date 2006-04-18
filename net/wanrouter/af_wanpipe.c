@@ -55,12 +55,10 @@
 #include <asm/uaccess.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/wanpipe.h>
 #include <linux/if_wanpipe.h>
 #include <linux/pkt_sched.h>
 #include <linux/tcp_states.h>
 #include <linux/if_wanpipe_common.h>
-#include <linux/sdla_x25.h>
 
 #ifdef CONFIG_INET
 #include <net/inet_common.h>

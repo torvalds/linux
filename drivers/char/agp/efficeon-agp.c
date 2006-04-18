@@ -64,6 +64,12 @@ static struct gatt_mask efficeon_generic_masks[] =
 	{.mask = 0x00000001, .type = 0}
 };
 
+/* This function does the same thing as mask_memory() for this chipset... */
+static inline unsigned long efficeon_mask_memory(unsigned long addr)
+{
+	return addr | 0x00000001;
+}
+
 static struct aper_size_info_lvl2 efficeon_generic_sizes[4] =
 {
 	{256, 65536, 0},
@@ -251,7 +257,7 @@ static int efficeon_insert_memory(struct agp_memory * mem, off_t pg_start, int t
 	last_page = NULL;
 	for (i = 0; i < count; i++) {
 		int index = pg_start + i;
-		unsigned long insert = mem->memory[i];
+		unsigned long insert = efficeon_mask_memory(mem->memory[i]);
 
 		page = (unsigned int *) efficeon_private.l1_table[index >> 10];
 

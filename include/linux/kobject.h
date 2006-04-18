@@ -24,6 +24,7 @@
 #include <linux/rwsem.h>
 #include <linux/kref.h>
 #include <linux/kernel.h>
+#include <linux/wait.h>
 #include <asm/atomic.h>
 
 #define KOBJ_NAME_LEN			20
@@ -56,6 +57,7 @@ struct kobject {
 	struct kset		* kset;
 	struct kobj_type	* ktype;
 	struct dentry		* dentry;
+	wait_queue_head_t	poll;
 };
 
 extern int kobject_set_name(struct kobject *, const char *, ...)

@@ -200,45 +200,41 @@ config USB_POWERMATE
 	  To compile this driver as a module, choose M here: the
 	  module will be called powermate.
 
-config USB_MTOUCH
-	tristate "MicroTouch USB Touchscreen Driver"
+config USB_TOUCHSCREEN
+	tristate "USB Touchscreen Driver"
 	depends on USB && INPUT
 	---help---
-	  Say Y here if you want to use a MicroTouch (Now 3M) USB 
-	  Touchscreen controller.
-
-	  See <file:Documentation/usb/mtouch.txt> for additional information.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called mtouchusb.
-
-config USB_ITMTOUCH
-	tristate "ITM Touch USB Touchscreen Driver"
-	depends on USB && INPUT
-	---help---
-	  Say Y here if you want to use a ITM Touch USB
-	  Touchscreen controller.
-
-	  This touchscreen is used in LG 1510SF monitors.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called itmtouch.
-
-config USB_EGALAX
-	tristate "eGalax TouchKit USB Touchscreen Driver"
-	depends on USB && INPUT
-	---help---
-	  Say Y here if you want to use a eGalax TouchKit USB
-	  Touchscreen controller.
-
-	  The driver has been tested on a Xenarc 700TSV monitor
-	  with eGalax touchscreen.
+	  USB Touchscreen driver for:
+	  - eGalax Touchkit USB
+	  - PanJit TouchSet USB
+	  - 3M MicroTouch USB
+	  - ITM
 
 	  Have a look at <http://linux.chapter7.ch/touchkit/> for
 	  a usage description and the required user-space stuff.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called touchkitusb.
+	  module will be called usbtouchscreen.
+
+config USB_TOUCHSCREEN_EGALAX
+	default y
+	bool "eGalax device support" if EMBEDDED
+	depends on USB_TOUCHSCREEN
+
+config USB_TOUCHSCREEN_PANJIT
+	default y
+	bool "PanJit device support" if EMBEDDED
+	depends on USB_TOUCHSCREEN
+
+config USB_TOUCHSCREEN_3M
+	default y
+	bool "3M/Microtouch device support" if EMBEDDED
+	depends on USB_TOUCHSCREEN
+
+config USB_TOUCHSCREEN_ITM
+	default y
+	bool "ITM device support" if EMBEDDED
+	depends on USB_TOUCHSCREEN
 
 config USB_YEALINK
 	tristate "Yealink usb-p1k voip phone"

@@ -562,14 +562,13 @@ int class_device_add(struct class_device *class_dev)
 	kobject_uevent(&class_dev->kobj, KOBJ_ADD);
 
 	/* notify any interfaces this device is now here */
-	if (parent_class) {
-		down(&parent_class->sem);
-		list_add_tail(&class_dev->node, &parent_class->children);
-		list_for_each_entry(class_intf, &parent_class->interfaces, node)
-			if (class_intf->add)
-				class_intf->add(class_dev, class_intf);
-		up(&parent_class->sem);
+	down(&parent_class->sem);
+	list_add_tail(&class_dev->node, &parent_class->children);
+	list_for_each_entry(class_intf, &parent_class->interfaces, node) {
+		if (class_intf->add)
+			class_intf->add(class_dev, class_intf);
 	}
+	up(&parent_class->sem);
 
  register_done:
 	if (error) {

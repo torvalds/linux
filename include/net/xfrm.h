@@ -143,6 +143,11 @@ struct xfrm_state
 	/* Replay detection state at the time we sent the last notification */
 	struct xfrm_replay_state preplay;
 
+	/* internal flag that only holds state for delayed aevent at the
+	 * moment
+	*/
+	u32			xflags;
+
 	/* Replay detection notification settings */
 	u32			replay_maxage;
 	u32			replay_maxdiff;
@@ -167,6 +172,9 @@ struct xfrm_state
 	 * interpreted by xfrm_type methods. */
 	void			*data;
 };
+
+/* xflags - make enum if more show up */
+#define XFRM_TIME_DEFER	1
 
 enum {
 	XFRM_STATE_VOID,

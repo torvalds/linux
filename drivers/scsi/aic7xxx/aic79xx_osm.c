@@ -782,6 +782,7 @@ ahd_linux_bus_reset(struct scsi_cmnd *cmd)
 {
 	struct ahd_softc *ahd;
 	int    found;
+	unsigned long flags;
 
 	ahd = *(struct ahd_softc **)cmd->device->host->hostdata;
 #ifdef AHD_DEBUG
@@ -789,8 +790,11 @@ ahd_linux_bus_reset(struct scsi_cmnd *cmd)
 		printf("%s: Bus reset called for cmd %p\n",
 		       ahd_name(ahd), cmd);
 #endif
+	ahd_lock(ahd, &flags);
+
 	found = ahd_reset_channel(ahd, scmd_channel(cmd) + 'A',
 				  /*initiate reset*/TRUE);
+	ahd_unlock(ahd, &flags);
 
 	if (bootverbose)
 		printf("%s: SCSI bus reset delivered. "

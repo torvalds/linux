@@ -885,7 +885,7 @@ static char *EqBandLabels[10] __devinitdata = {
 };
 
 /* ALSA driver entry points. Init and exit. */
-static int vortex_eq_init(vortex_t * vortex)
+static int __devinit vortex_eq_init(vortex_t * vortex)
 {
 	struct snd_kcontrol *kcontrol;
 	int err, i;

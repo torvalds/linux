@@ -747,7 +747,7 @@ static void mv_dump_all_regs(void __iomem *mmio_base, int port,
 	mv_dump_mem(mmio_base+0xf00, 0x4);
 	mv_dump_mem(mmio_base+0x1d00, 0x6c);
 	for (hc = start_hc; hc < start_hc + num_hcs; hc++) {
-		hc_base = mv_hc_base(mmio_base, port >> MV_PORT_HC_SHIFT);
+		hc_base = mv_hc_base(mmio_base, hc);
 		DPRINTK("HC regs (HC %i):\n", hc);
 		mv_dump_mem(hc_base, 0x1c);
 	}

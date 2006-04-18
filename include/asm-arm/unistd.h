@@ -360,6 +360,24 @@
 #define __ARM_NR_usr32			(__ARM_NR_BASE+4)
 #define __ARM_NR_set_tls		(__ARM_NR_BASE+5)
 
+/*
+ * The following syscalls are obsolete and no longer available for EABI.
+ */
+#if defined(__ARM_EABI__)
+#undef __NR_time
+#undef __NR_umount
+#undef __NR_stime
+#undef __NR_alarm
+#undef __NR_utime
+#undef __NR_getrlimit
+#undef __NR_select
+#undef __NR_readdir
+#undef __NR_mmap
+#undef __NR_socketcall
+#undef __NR_syscall
+#undef __NR_ipc
+#endif
+
 #define __sys2(x) #x
 #define __sys1(x) __sys2(x)
 

@@ -2734,7 +2734,7 @@ static void __do_SAK(void *arg)
 					printk(KERN_NOTICE "SAK: killed process %d"
 					    " (%s): fd#%d opened to the tty\n",
 					    p->pid, p->comm, i);
-					send_sig(SIGKILL, p, 1);
+					force_sig(SIGKILL, p);
 					break;
 				}
 			}

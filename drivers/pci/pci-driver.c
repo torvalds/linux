@@ -271,10 +271,12 @@ static int pci_device_suspend(struct device * dev, pm_message_t state)
 	struct pci_driver * drv = pci_dev->driver;
 	int i = 0;
 
-	if (drv && drv->suspend)
+	if (drv && drv->suspend) {
 		i = drv->suspend(pci_dev, state);
-	else
+		suspend_report_result(drv->suspend, i);
+	} else {
 		pci_save_state(pci_dev);
+	}
 	return i;
 }
 

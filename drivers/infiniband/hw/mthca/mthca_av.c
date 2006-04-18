@@ -42,6 +42,20 @@
 
 #include "mthca_dev.h"
 
+enum {
+      MTHCA_RATE_TAVOR_FULL   = 0,
+      MTHCA_RATE_TAVOR_1X     = 1,
+      MTHCA_RATE_TAVOR_4X     = 2,
+      MTHCA_RATE_TAVOR_1X_DDR = 3
+};
+
+enum {
+      MTHCA_RATE_MEMFREE_FULL    = 0,
+      MTHCA_RATE_MEMFREE_QUARTER = 1,
+      MTHCA_RATE_MEMFREE_EIGHTH  = 2,
+      MTHCA_RATE_MEMFREE_HALF    = 3
+};
+
 struct mthca_av {
 	__be32 port_pd;
 	u8     reserved1;
@@ -54,6 +68,90 @@ struct mthca_av {
 	__be32 sl_tclass_flowlabel;
 	__be32 dgid[4];
 };
+
+static enum ib_rate memfree_rate_to_ib(u8 mthca_rate, u8 port_rate)
+{
+	switch (mthca_rate) {
+	case MTHCA_RATE_MEMFREE_EIGHTH:
+		return mult_to_ib_rate(port_rate >> 3);
+	case MTHCA_RATE_MEMFREE_QUARTER:
+		return mult_to_ib_rate(port_rate >> 2);
+	case MTHCA_RATE_MEMFREE_HALF:
+		return mult_to_ib_rate(port_rate >> 1);
+	case MTHCA_RATE_MEMFREE_FULL:
+	default:
+		return mult_to_ib_rate(port_rate);
+	}
+}
+
+static enum ib_rate tavor_rate_to_ib(u8 mthca_rate, u8 port_rate)
+{
+	switch (mthca_rate) {
+	case MTHCA_RATE_TAVOR_1X:     return IB_RATE_2_5_GBPS;
+	case MTHCA_RATE_TAVOR_1X_DDR: return IB_RATE_5_GBPS;
+	case MTHCA_RATE_TAVOR_4X:     return IB_RATE_10_GBPS;
+	default:		      return port_rate;
+	}
+}
+
+enum ib_rate mthca_rate_to_ib(struct mthca_dev *dev, u8 mthca_rate, u8 port)
+{
+	if (mthca_is_memfree(dev)) {
+		/* Handle old Arbel FW */
+		if (dev->limits.stat_rate_support == 0x3 && mthca_rate)
+			return IB_RATE_2_5_GBPS;
+
+		return memfree_rate_to_ib(mthca_rate, dev->rate[port - 1]);
+	} else
+		return tavor_rate_to_ib(mthca_rate, dev->rate[port - 1]);
+}
+
+static u8 ib_rate_to_memfree(u8 req_rate, u8 cur_rate)
+{
+	if (cur_rate <= req_rate)
+		return 0;
+
+	/*
+	 * Inter-packet delay (IPD) to get from rate X down to a rate
+	 * no more than Y is (X - 1) / Y.
+	 */
+	switch ((cur_rate - 1) / req_rate) {
+	case 0:	 return MTHCA_RATE_MEMFREE_FULL;
+	case 1:	 return MTHCA_RATE_MEMFREE_HALF;
+	case 2:	 /* fall through */
+	case 3:	 return MTHCA_RATE_MEMFREE_QUARTER;
+	default: return MTHCA_RATE_MEMFREE_EIGHTH;
+	}
+}
+
+static u8 ib_rate_to_tavor(u8 static_rate)
+{
+	switch (static_rate) {
+	case IB_RATE_2_5_GBPS: return MTHCA_RATE_TAVOR_1X;
+	case IB_RATE_5_GBPS:   return MTHCA_RATE_TAVOR_1X_DDR;
+	case IB_RATE_10_GBPS:  return MTHCA_RATE_TAVOR_4X;
+	default:	       return MTHCA_RATE_TAVOR_FULL;
+	}
+}
+
+u8 mthca_get_rate(struct mthca_dev *dev, int static_rate, u8 port)
+{
+	u8 rate;
+
+	if (!static_rate || ib_rate_to_mult(static_rate) >= dev->rate[port - 1])
+		return 0;
+
+	if (mthca_is_memfree(dev))
+		rate = ib_rate_to_memfree(ib_rate_to_mult(static_rate),
+					  dev->rate[port - 1]);
+	else
+		rate = ib_rate_to_tavor(static_rate);
+
+	if (!(dev->limits.stat_rate_support & (1 << rate)))
+		rate = 1;
+
+	return rate;
+}
 
 int mthca_create_ah(struct mthca_dev *dev,
 		    struct mthca_pd *pd,
@@ -107,7 +205,7 @@ on_hca_fail:
 	av->g_slid  = ah_attr->src_path_bits;
 	av->dlid    = cpu_to_be16(ah_attr->dlid);
 	av->msg_sr  = (3 << 4) | /* 2K message */
-		ah_attr->static_rate;
+		mthca_get_rate(dev, ah_attr->static_rate, ah_attr->port_num);
 	av->sl_tclass_flowlabel = cpu_to_be32(ah_attr->sl << 28);
 	if (ah_attr->ah_flags & IB_AH_GRH) {
 		av->g_slid |= 0x80;

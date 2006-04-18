@@ -99,8 +99,6 @@ MODULE_PARM_DESC(disable_msi, "Disable Message Signaled Interrupt (MSI)");
 static const struct pci_device_id sky2_id_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_SYSKONNECT, 0x9000) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_SYSKONNECT, 0x9E00) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_DLINK, 0x4b00) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_DLINK, 0x4b01) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4340) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4341) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4342) },
@@ -579,8 +577,8 @@ static void sky2_mac_init(struct sky2_hw *hw, unsigned port)
 	reg = gma_read16(hw, port, GM_PHY_ADDR);
 	gma_write16(hw, port, GM_PHY_ADDR, reg | GM_PAR_MIB_CLR);
 
-	for (i = 0; i < GM_MIB_CNT_SIZE; i++)
-		gma_read16(hw, port, GM_MIB_CNT_BASE + 8 * i);
+	for (i = GM_MIB_CNT_BASE; i <= GM_MIB_CNT_END; i += 4)
+		gma_read16(hw, port, i);
 	gma_write16(hw, port, GM_PHY_ADDR, reg);
 
 	/* transmit control */

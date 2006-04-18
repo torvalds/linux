@@ -2311,6 +2311,7 @@ static void local_completions(void *data)
 		local = list_entry(mad_agent_priv->local_list.next,
 				   struct ib_mad_local_private,
 				   completion_list);
+		list_del(&local->completion_list);
 		spin_unlock_irqrestore(&mad_agent_priv->lock, flags);
 		if (local->mad_priv) {
 			recv_mad_agent = local->recv_mad_agent;
@@ -2362,7 +2363,6 @@ local_send_completion:
 						   &mad_send_wc);
 
 		spin_lock_irqsave(&mad_agent_priv->lock, flags);
-		list_del(&local->completion_list);
 		atomic_dec(&mad_agent_priv->refcount);
 		if (!recv)
 			kmem_cache_free(ib_mad_cache, local->mad_priv);

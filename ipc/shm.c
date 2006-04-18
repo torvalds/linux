@@ -162,6 +162,8 @@ static int shm_mmap(struct file * file, struct vm_area_struct * vma)
 	ret = shmem_mmap(file, vma);
 	if (ret == 0) {
 		vma->vm_ops = &shm_vm_ops;
+		if (!(vma->vm_flags & VM_WRITE))
+			vma->vm_flags &= ~VM_MAYWRITE;
 		shm_inc(file->f_dentry->d_inode->i_ino);
 	}
 

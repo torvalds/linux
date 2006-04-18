@@ -673,6 +673,7 @@ static int scsi_add_lun(struct scsi_device *sdev, char *inq_result, int *bflags)
 	case TYPE_MEDIUM_CHANGER:
 	case TYPE_ENCLOSURE:
 	case TYPE_COMM:
+	case TYPE_RAID:
 	case TYPE_RBC:
 		sdev->writeable = 1;
 		break;
@@ -736,6 +737,13 @@ static int scsi_add_lun(struct scsi_device *sdev, char *inq_result, int *bflags)
 	 */
 	if (*bflags & BLIST_SELECT_NO_ATN)
 		sdev->select_no_atn = 1;
+
+	/*
+	 * Maximum 512 sector transfer length
+	 * broken RA4x00 Compaq Disk Array
+	 */
+	if (*bflags & BLIST_MAX_512)
+		blk_queue_max_sectors(sdev->request_queue, 512);
 
 	/*
 	 * Some devices may not want to have a start command automatically
@@ -1123,10 +1131,13 @@ static int scsi_report_lun_scan(struct scsi_target *starget, int bflags,
 	 * Also allow SCSI-2 if BLIST_REPORTLUN2 is set and host adapter does
 	 * support more than 8 LUNs.
 	 */
-	if ((bflags & BLIST_NOREPORTLUN) || 
-	     starget->scsi_level < SCSI_2 ||
-	    (starget->scsi_level < SCSI_3 && 
-	     (!(bflags & BLIST_REPORTLUN2) || shost->max_lun <= 8)) )
+	if (bflags & BLIST_NOREPORTLUN)
+		return 1;
+	if (starget->scsi_level < SCSI_2 &&
+	    starget->scsi_level != SCSI_UNKNOWN)
+		return 1;
+	if (starget->scsi_level < SCSI_3 &&
+	    (!(bflags & BLIST_REPORTLUN2) || shost->max_lun <= 8))
 		return 1;
 	if (bflags & BLIST_NOLUN)
 		return 0;
