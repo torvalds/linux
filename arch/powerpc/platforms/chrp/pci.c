@@ -23,6 +23,8 @@
 #include <asm/grackle.h>
 #include <asm/rtas.h>
 
+#include "chrp.h"
+
 /* LongTrail */
 void __iomem *gg2_pci_config_base;
 
@@ -314,6 +316,6 @@ chrp_find_bridges(void)
 	}
 
 	/* Do not fixup interrupts from OF tree on pegasos */
-	if (is_pegasos == 0)
-		ppc_md.pcibios_fixup = chrp_pcibios_fixup;
+	if (is_pegasos)
+		ppc_md.pcibios_fixup = NULL;
 }

@@ -258,11 +258,11 @@ static int __init proc_rtas_init(void)
 	struct proc_dir_entry *entry;
 
 	if (!machine_is(pseries))
-		return 1;
+		return -ENODEV;
 
 	rtas_node = of_find_node_by_name(NULL, "rtas");
 	if (rtas_node == NULL)
-		return 1;
+		return -ENODEV;
 
 	entry = create_proc_entry("ppc64/rtas/progress", S_IRUGO|S_IWUSR, NULL);
 	if (entry)
