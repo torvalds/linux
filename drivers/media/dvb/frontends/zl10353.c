@@ -125,6 +125,8 @@ static int zl10353_sleep(struct dvb_frontend *fe)
 static int zl10353_set_parameters(struct dvb_frontend *fe,
 				  struct dvb_frontend_parameters *param)
 {
+	struct zl10353_state *state = fe->demodulator_priv;
+
 	u8 pllbuf[6] = { 0x67 };
 
 	/* These settings set "auto-everything" and start the FSM. */
@@ -141,11 +143,31 @@ static int zl10353_set_parameters(struct dvb_frontend *fe,
 	zl10353_single_write(fe, 0x66, 0xE9);
 	zl10353_single_write(fe, 0x62, 0x0A);
 
+	// if there is no attached secondary tuner, we call set_params to program
+	// a potential tuner attached somewhere else
+	if (state->config.no_tuner) {
+		if (fe->ops->tuner_ops.set_params) {
+			fe->ops->tuner_ops.set_params(fe, param);
+			if (fe->ops->i2c_gate_ctrl) fe->ops->i2c_gate_ctrl(fe, 0);
+		}
+	}
+
+	// if pllbuf is defined, retrieve the settings
 	if (fe->ops->tuner_ops.pllbuf) {
 		fe->ops->tuner_ops.pllbuf(fe, param, pllbuf+1, 5);
 		pllbuf[1] <<= 1;
-		zl10353_write(fe, pllbuf, sizeof(pllbuf));
+	} else {
+		// fake pllbuf settings
+		pllbuf[1] = 0x61 << 1;
+		pllbuf[2] = 0;
+		pllbuf[3] = 0;
+		pllbuf[3] = 0;
+		pllbuf[4] = 0;
 	}
+
+	// there is no call to _just_ start decoding, so we send the pllbuf anyway
+	// even if there isn't a PLL attached to the secondary bus
+	zl10353_write(fe, pllbuf, sizeof(pllbuf));
 
 	zl10353_single_write(fe, 0x70, 0x01);
 	udelay(250);

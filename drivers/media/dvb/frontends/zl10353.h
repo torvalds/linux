@@ -28,6 +28,9 @@ struct zl10353_config
 {
 	/* demodulator's I2C address */
 	u8 demod_address;
+
+	/* set if no pll is connected to the secondary i2c bus */
+	int no_tuner;
 };
 
 extern struct dvb_frontend* zl10353_attach(const struct zl10353_config *config,
