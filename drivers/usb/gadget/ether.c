@@ -2338,6 +2338,9 @@ autoconf_fail:
 		hs_subset_descriptors();
 	}
 
+	device_desc.bMaxPacketSize0 = gadget->ep0->maxpacket;
+	usb_gadget_set_selfpowered (gadget);
+
 	/* For now RNDIS is always a second config */
 	if (rndis)
 		device_desc.bNumConfigurations = 2;
@@ -2360,9 +2363,6 @@ autoconf_fail:
 				fs_status_desc.bEndpointAddress;
 #endif
 #endif	/* DUALSPEED */
-
-	device_desc.bMaxPacketSize0 = gadget->ep0->maxpacket;
-	usb_gadget_set_selfpowered (gadget);
 
 	if (gadget->is_otg) {
 		otg_descriptor.bmAttributes |= USB_OTG_HNP,

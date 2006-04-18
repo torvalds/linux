@@ -3,14 +3,11 @@
 			--------------------
 
 
-   $Id: driver,v 1.10 2002/07/22 15:27:30 rmk Exp $
-
-
 This document is meant as a brief overview of some aspects of the new serial
 driver.  It is not complete, any questions you have should be directed to
 <rmk@arm.linux.org.uk>
 
-The reference implementation is contained within serial_amba.c.
+The reference implementation is contained within amba_pl011.c.
 
 
 
@@ -30,6 +27,11 @@ Console Support
 The serial core provides a few helper functions.  This includes identifing
 the correct port structure (via uart_get_console) and decoding command line
 arguments (uart_parse_options).
+
+There is also a helper function (uart_write_console) which performs a
+character by character write, translating newlines to CRLF sequences.
+Driver writers are recommended to use this function rather than implementing
+their own version.
 
 
 Locking
@@ -86,6 +88,7 @@ hardware.
 		- TIOCM_DTR	DTR signal.
 		- TIOCM_OUT1	OUT1 signal.
 		- TIOCM_OUT2	OUT2 signal.
+		- TIOCM_LOOP	Set the port into loopback mode.
 	If the appropriate bit is set, the signal should be driven
 	active.  If the bit is clear, the signal should be driven
 	inactive.
@@ -141,6 +144,10 @@ hardware.
   enable_ms(port)
 	Enable the modem status interrupts.
 
+	This method may be called multiple times.  Modem status
+	interrupts should be disabled when the shutdown method is
+	called.
+
 	Locking: port->lock taken.
 	Interrupts: locally disabled.
 	This call must not sleep
@@ -160,6 +167,8 @@ hardware.
 	state.  Enable the port for reception.  It should not activate
 	RTS nor DTR; this will be done via a separate call to set_mctrl.
 
+	This method will only be called when the port is initially opened.
+
 	Locking: port_sem taken.
 	Interrupts: globally disabled.
 
@@ -168,6 +177,11 @@ hardware.
 	effect, and free any interrupt resources.  It should not disable
 	RTS nor DTR; this will have already been done via a separate
 	call to set_mctrl.
+
+	Drivers must not access port->info once this call has completed.
+
+	This method will only be called when there are no more users of
+	this port.
 
 	Locking: port_sem taken.
 	Interrupts: caller dependent.

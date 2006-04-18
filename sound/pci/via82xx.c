@@ -2333,6 +2333,7 @@ static int __devinit check_dxs_list(struct pci_dev *pci)
 		{ .subvendor = 0x1019, .subdevice = 0x0a81, .action = VIA_DXS_NO_VRA }, /* ECS K7VTA3 v8.0 */
 		{ .subvendor = 0x1019, .subdevice = 0x0a85, .action = VIA_DXS_NO_VRA }, /* ECS L7VMM2 */
 		{ .subvendor = 0x1019, .subdevice = 0xa101, .action = VIA_DXS_SRC },
+		{ .subvendor = 0x1019, .subdevice = 0xaa01, .action = VIA_DXS_SRC }, /* ECS K8T890-A */
 		{ .subvendor = 0x1025, .subdevice = 0x0033, .action = VIA_DXS_NO_VRA }, /* Acer Inspire 1353LM */
 		{ .subvendor = 0x1025, .subdevice = 0x0046, .action = VIA_DXS_SRC }, /* Acer Aspire 1524 WLMi */
 		{ .subvendor = 0x1043, .subdevice = 0x8095, .action = VIA_DXS_NO_VRA }, /* ASUS A7V8X (FIXME: possibly VIA_DXS_ENABLE?)*/

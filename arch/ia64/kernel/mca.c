@@ -963,7 +963,7 @@ no_mod:
  */
 
 static void
-ia64_wait_for_slaves(int monarch)
+ia64_wait_for_slaves(int monarch, const char *type)
 {
 	int c, wait = 0, missing = 0;
 	for_each_online_cpu(c) {
@@ -989,7 +989,7 @@ ia64_wait_for_slaves(int monarch)
 	}
 	if (!missing)
 		goto all_in;
-	printk(KERN_INFO "OS MCA slave did not rendezvous on cpu");
+	printk(KERN_INFO "OS %s slave did not rendezvous on cpu", type);
 	for_each_online_cpu(c) {
 		if (c == monarch)
 			continue;
@@ -1000,7 +1000,7 @@ ia64_wait_for_slaves(int monarch)
 	return;
 
 all_in:
-	printk(KERN_INFO "All OS MCA slaves have reached rendezvous\n");
+	printk(KERN_INFO "All OS %s slaves have reached rendezvous\n", type);
 	return;
 }
 
@@ -1038,7 +1038,7 @@ ia64_mca_handler(struct pt_regs *regs, struct switch_stack *sw,
 	if (notify_die(DIE_MCA_MONARCH_ENTER, "MCA", regs, (long)&nd, 0, 0)
 			== NOTIFY_STOP)
 		ia64_mca_spin(__FUNCTION__);
-	ia64_wait_for_slaves(cpu);
+	ia64_wait_for_slaves(cpu, "MCA");
 
 	/* Wakeup all the processors which are spinning in the rendezvous loop.
 	 * They will leave SAL, then spin in the OS with interrupts disabled
@@ -1429,7 +1429,7 @@ ia64_init_handler(struct pt_regs *regs, struct switch_stack *sw,
 	 */
 	printk("Delaying for 5 seconds...\n");
 	udelay(5*1000000);
-	ia64_wait_for_slaves(cpu);
+	ia64_wait_for_slaves(cpu, "INIT");
 	/* If nobody intercepts DIE_INIT_MONARCH_PROCESS then we drop through
 	 * to default_monarch_init_process() above and just print all the
 	 * tasks.

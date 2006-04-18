@@ -35,40 +35,7 @@
 #include <scsi/scsi_transport.h>
 #include <scsi/scsi_transport_sas.h>
 
-
-#define SAS_HOST_ATTRS		0
-#define SAS_PORT_ATTRS		17
-#define SAS_RPORT_ATTRS		7
-#define SAS_END_DEV_ATTRS	3
-#define SAS_EXPANDER_ATTRS	7
-
-struct sas_internal {
-	struct scsi_transport_template t;
-	struct sas_function_template *f;
-
-	struct class_device_attribute private_host_attrs[SAS_HOST_ATTRS];
-	struct class_device_attribute private_phy_attrs[SAS_PORT_ATTRS];
-	struct class_device_attribute private_rphy_attrs[SAS_RPORT_ATTRS];
-	struct class_device_attribute private_end_dev_attrs[SAS_END_DEV_ATTRS];
-	struct class_device_attribute private_expander_attrs[SAS_EXPANDER_ATTRS];
-
-	struct transport_container phy_attr_cont;
-	struct transport_container rphy_attr_cont;
-	struct transport_container end_dev_attr_cont;
-	struct transport_container expander_attr_cont;
-
-	/*
-	 * The array of null terminated pointers to attributes
-	 * needed by scsi_sysfs.c
-	 */
-	struct class_device_attribute *host_attrs[SAS_HOST_ATTRS + 1];
-	struct class_device_attribute *phy_attrs[SAS_PORT_ATTRS + 1];
-	struct class_device_attribute *rphy_attrs[SAS_RPORT_ATTRS + 1];
-	struct class_device_attribute *end_dev_attrs[SAS_END_DEV_ATTRS + 1];
-	struct class_device_attribute *expander_attrs[SAS_EXPANDER_ATTRS + 1];
-};
-#define to_sas_internal(tmpl)	container_of(tmpl, struct sas_internal, t)
-
+#include "scsi_sas_internal.h"
 struct sas_host_attrs {
 	struct list_head rphy_list;
 	struct mutex lock;
@@ -406,8 +373,6 @@ struct sas_phy *sas_phy_alloc(struct device *parent, int number)
 	if (!phy)
 		return NULL;
 
-	get_device(parent);
-
 	phy->number = number;
 
 	device_initialize(&phy->dev);
@@ -459,10 +424,7 @@ EXPORT_SYMBOL(sas_phy_add);
 void sas_phy_free(struct sas_phy *phy)
 {
 	transport_destroy_device(&phy->dev);
-	put_device(phy->dev.parent);
-	put_device(phy->dev.parent);
-	put_device(phy->dev.parent);
-	kfree(phy);
+	put_device(&phy->dev);
 }
 EXPORT_SYMBOL(sas_phy_free);
 
@@ -484,7 +446,7 @@ sas_phy_delete(struct sas_phy *phy)
 	transport_remove_device(dev);
 	device_del(dev);
 	transport_destroy_device(dev);
-	put_device(dev->parent);
+	put_device(dev);
 }
 EXPORT_SYMBOL(sas_phy_delete);
 
@@ -800,7 +762,6 @@ struct sas_rphy *sas_end_device_alloc(struct sas_phy *parent)
 
 	rdev = kzalloc(sizeof(*rdev), GFP_KERNEL);
 	if (!rdev) {
-		put_device(&parent->dev);
 		return NULL;
 	}
 
@@ -836,7 +797,6 @@ struct sas_rphy *sas_expander_alloc(struct sas_phy *parent,
 
 	rdev = kzalloc(sizeof(*rdev), GFP_KERNEL);
 	if (!rdev) {
-		put_device(&parent->dev);
 		return NULL;
 	}
 
@@ -885,6 +845,8 @@ int sas_rphy_add(struct sas_rphy *rphy)
 	    (identify->target_port_protocols &
 	     (SAS_PROTOCOL_SSP|SAS_PROTOCOL_STP|SAS_PROTOCOL_SATA)))
 		rphy->scsi_target_id = sas_host->next_target_id++;
+	else if (identify->device_type == SAS_END_DEVICE)
+		rphy->scsi_target_id = -1;
 	mutex_unlock(&sas_host->lock);
 
 	if (identify->device_type == SAS_END_DEVICE &&
@@ -910,6 +872,7 @@ EXPORT_SYMBOL(sas_rphy_add);
  */
 void sas_rphy_free(struct sas_rphy *rphy)
 {
+	struct device *dev = &rphy->dev;
 	struct Scsi_Host *shost = dev_to_shost(rphy->dev.parent->parent);
 	struct sas_host_attrs *sas_host = to_sas_host_attrs(shost);
 
@@ -917,21 +880,9 @@ void sas_rphy_free(struct sas_rphy *rphy)
 	list_del(&rphy->list);
 	mutex_unlock(&sas_host->lock);
 
-	transport_destroy_device(&rphy->dev);
-	put_device(rphy->dev.parent);
-	put_device(rphy->dev.parent);
-	put_device(rphy->dev.parent);
-	if (rphy->identify.device_type == SAS_END_DEVICE) {
-		struct sas_end_device *edev = rphy_to_end_device(rphy);
+	transport_destroy_device(dev);
 
-		kfree(edev);
-	} else {
-		/* must be expander */
-		struct sas_expander_device *edev =
-			rphy_to_expander_device(rphy);
-
-		kfree(edev);
-	}
+	put_device(dev);
 }
 EXPORT_SYMBOL(sas_rphy_free);
 
@@ -971,7 +922,7 @@ sas_rphy_delete(struct sas_rphy *rphy)
 
 	parent->rphy = NULL;
 
-	put_device(&parent->dev);
+	put_device(dev);
 }
 EXPORT_SYMBOL(sas_rphy_delete);
 

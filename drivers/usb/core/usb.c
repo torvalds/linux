@@ -1194,7 +1194,6 @@ EXPORT_SYMBOL(usb_disabled);
 EXPORT_SYMBOL_GPL(usb_get_intf);
 EXPORT_SYMBOL_GPL(usb_put_intf);
 
-EXPORT_SYMBOL(usb_alloc_dev);
 EXPORT_SYMBOL(usb_put_dev);
 EXPORT_SYMBOL(usb_get_dev);
 EXPORT_SYMBOL(usb_hub_tt_clear_buffer);
@@ -1208,7 +1207,6 @@ EXPORT_SYMBOL(usb_ifnum_to_if);
 EXPORT_SYMBOL(usb_altnum_to_altsetting);
 
 EXPORT_SYMBOL(usb_reset_device);
-EXPORT_SYMBOL(usb_disconnect);
 
 EXPORT_SYMBOL(__usb_get_extra_descriptor);
 

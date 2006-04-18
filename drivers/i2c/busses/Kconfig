@@ -286,7 +286,10 @@ config I2C_PARPORT
 	  This driver is a replacement for (and was inspired by) an older
 	  driver named i2c-philips-par.  The new driver supports more devices,
 	  and makes it easier to add support for new devices.
-	  
+
+	  An adapter type parameter is now mandatory.  Please read the file
+	  Documentation/i2c/busses/i2c-parport for details.
+
 	  Another driver exists, named i2c-parport-light, which doesn't depend
 	  on the parport driver.  This is meant for embedded systems. Don't say
 	  Y here if you intend to say Y or M there.

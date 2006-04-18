@@ -105,6 +105,7 @@ struct gendisk {
                                          * disks that can't be partitioned. */
 	char disk_name[32];		/* name of major driver */
 	struct hd_struct **part;	/* [indexed by minor] */
+	int part_uevent_suppress;
 	struct block_device_operations *fops;
 	struct request_queue *queue;
 	void *private_data;

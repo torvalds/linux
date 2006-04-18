@@ -298,7 +298,7 @@
 #define __NR_mq_notify		277
 #define __NR_mq_getsetattr	278
 #define __NR_waitid		279
-/*#define __NR_sys_setaltroot	280 available (was setaltroot) */
+#define __NR_tee		280
 #define __NR_add_key		281
 #define __NR_request_key	282
 #define __NR_keyctl		283

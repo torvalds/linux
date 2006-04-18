@@ -106,7 +106,7 @@ static int mthca_query_device(struct ib_device *ibdev,
 	props->max_res_rd_atom     = props->max_qp_rd_atom * props->max_qp;
 	props->max_srq             = mdev->limits.num_srqs - mdev->limits.reserved_srqs;
 	props->max_srq_wr          = mdev->limits.max_srq_wqes;
-	props->max_srq_sge         = mdev->limits.max_sg;
+	props->max_srq_sge         = mdev->limits.max_srq_sge;
 	props->local_ca_ack_delay  = mdev->limits.local_ca_ack_delay;
 	props->atomic_cap          = mdev->limits.flags & DEV_LIM_FLAG_ATOMIC ?
 					IB_ATOMIC_HCA : IB_ATOMIC_NONE;

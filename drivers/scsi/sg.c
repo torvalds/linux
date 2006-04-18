@@ -748,6 +748,7 @@ sg_common_write(Sg_fd * sfp, Sg_request * srp,
 		/*
 		 * most likely out of mem, but could also be a bad map
 		 */
+		sg_finish_rem_req(srp);
 		return -ENOMEM;
 	} else
 		return 0;
@@ -1044,7 +1045,7 @@ sg_ioctl(struct inode *inode, struct file *filp,
 			if (!sg_allow_access(opcode, sdp->device->type))
 				return -EPERM;
 		}
-		return scsi_ioctl_send_command(sdp->device, p);
+		return sg_scsi_ioctl(filp, sdp->device->request_queue, NULL, p);
 	case SG_SET_DEBUG:
 		result = get_user(val, ip);
 		if (result)
@@ -1798,8 +1799,10 @@ sg_build_direct(Sg_request * srp, Sg_fd * sfp, int dxfer_len)
 	res = st_map_user_pages(schp->buffer, mx_sc_elems,
 				(unsigned long)hp->dxferp, dxfer_len, 
 				(SG_DXFER_TO_DEV == hp->dxfer_direction) ? 1 : 0);
-	if (res <= 0)
+	if (res <= 0) {
+		sg_remove_scat(schp);
 		return 1;
+	}
 	schp->k_use_sg = res;
 	schp->dio_in_use = 1;
 	hp->info |= SG_INFO_DIRECT_IO;

@@ -1709,7 +1709,7 @@ static int __devexit at91udc_remove(struct platform_device *dev)
 }
 
 #ifdef CONFIG_PM
-static int at91udc_suspend(struct platform_device *dev, u32 state, u32 level)
+static int at91udc_suspend(struct platform_device *dev, pm_message_t mesg)
 {
 	struct at91_udc *udc = platform_get_drvdata(dev);
 
@@ -1731,7 +1731,7 @@ static int at91udc_suspend(struct platform_device *dev, u32 state, u32 level)
 	return 0;
 }
 
-static int at91udc_resume(struct platform_device *dev, u32 level)
+static int at91udc_resume(struct platform_device *dev)
 {
 	struct at91_udc *udc = platform_get_drvdata(dev);
 

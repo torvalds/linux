@@ -163,6 +163,7 @@ void md_new_event(mddev_t *mddev)
 {
 	atomic_inc(&md_event_count);
 	wake_up(&md_event_waiters);
+	sysfs_notify(&mddev->kobj, NULL, "sync_action");
 }
 EXPORT_SYMBOL_GPL(md_new_event);
 

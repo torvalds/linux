@@ -16,7 +16,7 @@
 
 #include <linux/config.h>
 #include <linux/kref.h>
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
 
 #define SERIAL_TTY_MAJOR	188	/* Nice legal number now */
 #define SERIAL_TTY_MINORS	255	/* loads of devices :) */
@@ -31,7 +31,7 @@
  * @serial: pointer back to the struct usb_serial owner of this port.
  * @tty: pointer to the corresponding tty for this port.
  * @lock: spinlock to grab when updating portions of this structure.
- * @sem: semaphore used to synchronize serial_open() and serial_close()
+ * @mutex: mutex used to synchronize serial_open() and serial_close()
  *	access for this port.
  * @number: the number of the port (the minor number).
  * @interrupt_in_buffer: pointer to the interrupt in buffer for this port.
@@ -63,7 +63,7 @@ struct usb_serial_port {
 	struct usb_serial *	serial;
 	struct tty_struct *	tty;
 	spinlock_t		lock;
-	struct semaphore        sem;
+	struct mutex            mutex;
 	unsigned char		number;
 
 	unsigned char *		interrupt_in_buffer;

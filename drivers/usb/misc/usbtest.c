@@ -381,6 +381,7 @@ alloc_sglist (int nents, int max, int vary)
 
 	for (i = 0; i < nents; i++) {
 		char		*buf;
+		unsigned	j;
 
 		buf = kzalloc (size, SLAB_KERNEL);
 		if (!buf) {
@@ -390,6 +391,16 @@ alloc_sglist (int nents, int max, int vary)
 
 		/* kmalloc pages are always physically contiguous! */
 		sg_init_one(&sg[i], buf, size);
+
+		switch (pattern) {
+		case 0:
+			/* already zeroed */
+			break;
+		case 1:
+			for (j = 0; j < size; j++)
+				*buf++ = (u8) (j % 63);
+			break;
+		}
 
 		if (vary) {
 			size += vary;
@@ -424,6 +435,8 @@ static int perform_sglist (
 			break;
 		usb_sg_wait (req);
 		retval = req->status;
+
+		/* FIXME check resulting data pattern */
 
 		/* FIXME if endpoint halted, clear halt (and log) */
 	}
