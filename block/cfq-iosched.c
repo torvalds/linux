@@ -1487,20 +1487,22 @@ cfq_cic_rb_lookup(struct cfq_data *cfqd, struct io_context *ioc)
 {
 	struct rb_node *n;
 	struct cfq_io_context *cic;
-	void *key = cfqd;
+	void *k, *key = cfqd;
 
 restart:
 	n = ioc->cic_root.rb_node;
 	while (n) {
 		cic = rb_entry(n, struct cfq_io_context, rb_node);
-		if (unlikely(!cic->key)) {
+		/* ->key must be copied to avoid race with cfq_exit_queue() */
+		k = cic->key;
+		if (unlikely(!k)) {
 			cfq_drop_dead_cic(ioc, cic);
 			goto restart;
 		}
 
-		if (key < cic->key)
+		if (key < k)
 			n = n->rb_left;
-		else if (key > cic->key)
+		else if (key > k)
 			n = n->rb_right;
 		else
 			return cic;
@@ -1516,6 +1518,7 @@ cfq_cic_link(struct cfq_data *cfqd, struct io_context *ioc,
 	struct rb_node **p;
 	struct rb_node *parent;
 	struct cfq_io_context *__cic;
+	void *k;
 
 	cic->ioc = ioc;
 	cic->key = cfqd;
@@ -1527,14 +1530,16 @@ restart:
 	while (*p) {
 		parent = *p;
 		__cic = rb_entry(parent, struct cfq_io_context, rb_node);
-		if (unlikely(!__cic->key)) {
+		/* ->key must be copied to avoid race with cfq_exit_queue() */
+		k = __cic->key;
+		if (unlikely(!k)) {
 			cfq_drop_dead_cic(ioc, cic);
 			goto restart;
 		}
 
-		if (cic->key < __cic->key)
+		if (cic->key < k)
 			p = &(*p)->rb_left;
-		else if (cic->key > __cic->key)
+		else if (cic->key > k)
 			p = &(*p)->rb_right;
 		else
 			BUG();
