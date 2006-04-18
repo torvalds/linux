@@ -89,12 +89,13 @@ static int alps_bsbe1_set_symbol_rate(struct dvb_frontend* fe, u32 srate, u32 ra
 	return 0;
 }
 
-static int alps_bsbe1_pll_set(struct dvb_frontend* fe, struct i2c_adapter *i2c, struct dvb_frontend_parameters* params)
+static int alps_bsbe1_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters *params)
 {
 	int ret;
 	u8 data[4];
 	u32 div;
 	struct i2c_msg msg = { .addr = 0x61, .flags = 0, .buf = data, .len = sizeof(data) };
+	struct i2c_adapter *i2c = fe->tuner_priv;
 
 	if ((params->frequency < 950000) || (params->frequency > 2150000))
 		return -EINVAL;
@@ -117,7 +118,6 @@ static struct stv0299_config alps_bsbe1_config = {
 	.skip_reinit = 0,
 	.min_delay_ms = 100,
 	.set_symbol_rate = alps_bsbe1_set_symbol_rate,
-	.pll_set = alps_bsbe1_pll_set,
 };
 
 #endif

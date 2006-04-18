@@ -101,11 +101,12 @@ static int alps_bsru6_set_symbol_rate(struct dvb_frontend *fe, u32 srate, u32 ra
 	return 0;
 }
 
-static int alps_bsru6_pll_set(struct dvb_frontend *fe, struct i2c_adapter *i2c, struct dvb_frontend_parameters *params)
+static int alps_bsru6_tuner_set_params(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
 {
 	u8 buf[4];
 	u32 div;
 	struct i2c_msg msg = { .addr = 0x61, .flags = 0, .buf = buf, .len = sizeof(buf) };
+	struct i2c_adapter *i2c = fe->tuner_priv;
 
 	if ((params->frequency < 950000) || (params->frequency > 2150000))
 		return -EINVAL;
@@ -134,7 +135,6 @@ static struct stv0299_config alps_bsru6_config = {
 	.volt13_op0_op1 = STV0299_VOLT13_OP1,
 	.min_delay_ms = 100,
 	.set_symbol_rate = alps_bsru6_set_symbol_rate,
-	.pll_set = alps_bsru6_pll_set,
 };
 
 #endif
