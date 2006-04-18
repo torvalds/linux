@@ -287,18 +287,32 @@ static int mt352_set_parameters(struct dvb_frontend* fe,
 	mt352_calc_nominal_rate(state, op->bandwidth, buf+4);
 	mt352_calc_input_freq(state, buf+6);
 
+	// if there is no secondary tuner, call set_params to set up a potential
+	// tuner attached elsewhere
+	if (state->config.no_tuner) {
+		if (fe->ops->tuner_ops.set_params) {
+			fe->ops->tuner_ops.set_params(fe, param);
+			if (fe->ops->i2c_gate_ctrl) fe->ops->i2c_gate_ctrl(fe, 0);
+		}
+
+		/* start decoding only */
+		mt352_write(fe, fsm_go, 2);
+	}
+
+	// retrieve the pllbuf - we do this even if there is no
+	// secondary tuner simply so we have a record of what was sent for
+	// debugging.
 	if (fe->ops->tuner_ops.pllbuf) {
 		fe->ops->tuner_ops.pllbuf(fe, param, buf+8, 5);
 		buf[8] <<= 1;
 		mt352_write(fe, buf, sizeof(buf));
 	}
-	if (state->config.no_tuner) {
-		/* start decoding */
-		mt352_write(fe, fsm_go, 2);
-	} else {
-		/* start tuning */
+
+	// send PLL and start tuning and then decoding
+	if (!state->config.no_tuner) {
 		mt352_write(fe, tuner_go, 2);
 	}
+
 	return 0;
 }
 
