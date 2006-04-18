@@ -372,6 +372,7 @@ static char *make_block_name(struct gendisk *disk)
 	char *name;
 	static char *block_str = "block:";
 	int size;
+	char *s;
 
 	size = strlen(block_str) + strlen(disk->disk_name) + 1;
 	name = kmalloc(size, GFP_KERNEL);
@@ -379,6 +380,10 @@ static char *make_block_name(struct gendisk *disk)
 		return NULL;
 	strcpy(name, block_str);
 	strcat(name, disk->disk_name);
+	/* ewww... some of these buggers have / in name... */
+	s = strchr(name, '/');
+	if (s)
+		*s = '!';
 	return name;
 }
 
