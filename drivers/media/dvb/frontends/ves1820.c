@@ -204,9 +204,6 @@ static int ves1820_init(struct dvb_frontend* fe)
 
 	ves1820_writereg(state, 0x34, state->pwm);
 
-	if (state->config->pll_init)
-		state->config->pll_init(fe);
-
 	return 0;
 }
 
@@ -223,7 +220,11 @@ static int ves1820_set_parameters(struct dvb_frontend* fe, struct dvb_frontend_p
 	if (real_qam < 0 || real_qam > 4)
 		return -EINVAL;
 
-	state->config->pll_set(fe, p);
+	if (fe->ops->tuner_ops.set_params) {
+		fe->ops->tuner_ops.set_params(fe, p);
+		if (fe->ops->i2c_gate_ctrl) fe->ops->i2c_gate_ctrl(fe, 0);
+	}
+
 	ves1820_set_symbolrate(state, p->u.qam.symbol_rate);
 	ves1820_writereg(state, 0x34, state->pwm);
 
