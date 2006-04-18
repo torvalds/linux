@@ -286,9 +286,12 @@ static int mt352_set_parameters(struct dvb_frontend* fe,
 
 	mt352_calc_nominal_rate(state, op->bandwidth, buf+4);
 	mt352_calc_input_freq(state, buf+6);
-	state->config.pll_set(fe, param, buf+8);
 
-	mt352_write(fe, buf, sizeof(buf));
+	if (fe->ops->tuner_ops.pllbuf) {
+		fe->ops->tuner_ops.pllbuf(fe, param, buf+8, 5);
+		buf[8] <<= 1;
+		mt352_write(fe, buf, sizeof(buf));
+	}
 	if (state->config.no_tuner) {
 		/* start decoding */
 		mt352_write(fe, fsm_go, 2);

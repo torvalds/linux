@@ -49,12 +49,6 @@ struct mt352_config
 
 	/* Initialise the demodulator and PLL. Cannot be NULL */
 	int (*demod_init)(struct dvb_frontend* fe);
-
-	/* PLL setup - fill out the supplied 5 byte buffer with your PLL settings.
-	 * byte0: Set to pll i2c address (nonlinux; left shifted by 1)
-	 * byte1-4: PLL configuration.
-	 */
-	int (*pll_set)(struct dvb_frontend* fe, struct dvb_frontend_parameters* params, u8* pllbuf);
 };
 
 extern struct dvb_frontend* mt352_attach(const struct mt352_config* config,
