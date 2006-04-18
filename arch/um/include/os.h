@@ -13,6 +13,7 @@
 #include "kern_util.h"
 #include "skas/mm_id.h"
 #include "irq_user.h"
+#include "sysdep/tls.h"
 
 #define OS_TYPE_FILE 1 
 #define OS_TYPE_DIR 2 
@@ -172,6 +173,7 @@ extern int os_fchange_dir(int fd);
 extern void os_early_checks(void);
 extern int can_do_skas(void);
 extern void os_check_bugs(void);
+extern void check_host_supports_tls(int *supports_tls, int *tls_min);
 
 /* Make sure they are clear when running in TT mode. Required by
  * SEGV_MAYBE_FIXABLE */
@@ -205,6 +207,8 @@ extern int os_map_memory(void *virt, int fd, unsigned long long off,
 extern int os_protect_memory(void *addr, unsigned long len, 
 			     int r, int w, int x);
 extern int os_unmap_memory(void *addr, int len);
+extern int os_drop_memory(void *addr, int length);
+extern int can_drop_memory(void);
 extern void os_flush_stdout(void);
 
 /* tt.c
@@ -234,8 +238,12 @@ extern int run_helper_thread(int (*proc)(void *), void *arg,
 			     int stack_order);
 extern int helper_wait(int pid);
 
-/* umid.c */
 
+/* tls.c */
+extern int os_set_thread_area(user_desc_t *info, int pid);
+extern int os_get_thread_area(user_desc_t *info, int pid);
+
+/* umid.c */
 extern int umid_file_name(char *name, char *buf, int len);
 extern int set_umid(char *name);
 extern char *get_umid(void);

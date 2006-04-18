@@ -331,7 +331,10 @@ out:
 
 asmlinkage long sys_ftruncate(unsigned int fd, unsigned long length)
 {
-	return do_sys_ftruncate(fd, length, 1);
+	long ret = do_sys_ftruncate(fd, length, 1);
+	/* avoid REGPARM breakage on x86: */
+	prevent_tail_call(ret);
+	return ret;
 }
 
 /* LFS versions of truncate are only needed on 32 bit machines */
@@ -343,7 +346,10 @@ asmlinkage long sys_truncate64(const char __user * path, loff_t length)
 
 asmlinkage long sys_ftruncate64(unsigned int fd, loff_t length)
 {
-	return do_sys_ftruncate(fd, length, 0);
+	long ret = do_sys_ftruncate(fd, length, 0);
+	/* avoid REGPARM breakage on x86: */
+	prevent_tail_call(ret);
+	return ret;
 }
 #endif
 
@@ -1093,20 +1099,30 @@ long do_sys_open(int dfd, const char __user *filename, int flags, int mode)
 
 asmlinkage long sys_open(const char __user *filename, int flags, int mode)
 {
+	long ret;
+
 	if (force_o_largefile())
 		flags |= O_LARGEFILE;
 
-	return do_sys_open(AT_FDCWD, filename, flags, mode);
+	ret = do_sys_open(AT_FDCWD, filename, flags, mode);
+	/* avoid REGPARM breakage on x86: */
+	prevent_tail_call(ret);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(sys_open);
 
 asmlinkage long sys_openat(int dfd, const char __user *filename, int flags,
 			   int mode)
 {
+	long ret;
+
 	if (force_o_largefile())
 		flags |= O_LARGEFILE;
 
-	return do_sys_open(dfd, filename, flags, mode);
+	ret = do_sys_open(dfd, filename, flags, mode);
+	/* avoid REGPARM breakage on x86: */
+	prevent_tail_call(ret);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(sys_openat);
 

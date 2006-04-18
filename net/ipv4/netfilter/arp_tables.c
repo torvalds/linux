@@ -646,7 +646,7 @@ static int translate_table(const char *name,
 	}
 
 	/* And one copy for every other CPU */
-	for_each_cpu(i) {
+	for_each_possible_cpu(i) {
 		if (newinfo->entries[i] && newinfo->entries[i] != entry0)
 			memcpy(newinfo->entries[i], entry0, newinfo->size);
 	}
@@ -696,7 +696,7 @@ static void get_counters(const struct xt_table_info *t,
 			   counters,
 			   &i);
 
-	for_each_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		if (cpu == curcpu)
 			continue;
 		i = 0;
@@ -1166,7 +1166,7 @@ static struct nf_sockopt_ops arpt_sockopts = {
 	.get		= do_arpt_get_ctl,
 };
 
-static int __init init(void)
+static int __init arp_tables_init(void)
 {
 	int ret;
 
@@ -1187,7 +1187,7 @@ static int __init init(void)
 	return 0;
 }
 
-static void __exit fini(void)
+static void __exit arp_tables_fini(void)
 {
 	nf_unregister_sockopt(&arpt_sockopts);
 	xt_proto_fini(NF_ARP);
@@ -1197,5 +1197,5 @@ EXPORT_SYMBOL(arpt_register_table);
 EXPORT_SYMBOL(arpt_unregister_table);
 EXPORT_SYMBOL(arpt_do_table);
 
-module_init(init);
-module_exit(fini);
+module_init(arp_tables_init);
+module_exit(arp_tables_fini);

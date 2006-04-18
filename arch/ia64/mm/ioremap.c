@@ -21,11 +21,11 @@ __ioremap (unsigned long offset, unsigned long size)
 void __iomem *
 ioremap (unsigned long offset, unsigned long size)
 {
-	if (efi_mem_attribute_range(offset, size, EFI_MEMORY_UC))
-		return __ioremap(offset, size);
-
 	if (efi_mem_attribute_range(offset, size, EFI_MEMORY_WB))
 		return phys_to_virt(offset);
+
+	if (efi_mem_attribute_range(offset, size, EFI_MEMORY_UC))
+		return __ioremap(offset, size);
 
 	/*
 	 * Someday this should check ACPI resources so we

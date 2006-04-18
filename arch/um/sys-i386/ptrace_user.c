@@ -14,6 +14,7 @@
 #include "sysdep/thread.h"
 #include "user.h"
 #include "os.h"
+#include "uml-config.h"
 
 int ptrace_getregs(long pid, unsigned long *regs_out)
 {
@@ -43,6 +44,7 @@ int ptrace_setfpregs(long pid, unsigned long *regs)
 	return 0;
 }
 
+/* All the below stuff is of interest for TT mode only */
 static void write_debugregs(int pid, unsigned long *regs)
 {
 	struct user *dummy;
@@ -55,7 +57,7 @@ static void write_debugregs(int pid, unsigned long *regs)
 		if(ptrace(PTRACE_POKEUSR, pid, &dummy->u_debugreg[i],
 			  regs[i]) < 0)
 			printk("write_debugregs - ptrace failed on "
-			       "register %d, value = 0x%x, errno = %d\n", i,
+			       "register %d, value = 0x%lx, errno = %d\n", i,
 			       regs[i], errno);
 	}
 }
@@ -75,7 +77,6 @@ static void read_debugregs(int pid, unsigned long *regs)
 
 /* Accessed only by the tracing thread */
 static unsigned long kernel_debugregs[8] = { [ 0 ... 7 ] = 0 };
-static int debugregs_seq = 0;
 
 void arch_enter_kernel(void *task, int pid)
 {
@@ -89,6 +90,11 @@ void arch_leave_kernel(void *task, int pid)
 	write_debugregs(pid, TASK_DEBUGREGS(task));
 }
 
+#ifdef UML_CONFIG_PT_PROXY
+/* Accessed only by the tracing thread */
+static int debugregs_seq;
+
+/* Only called by the ptrace proxy */
 void ptrace_pokeuser(unsigned long addr, unsigned long data)
 {
 	if((addr < offsetof(struct user, u_debugreg[0])) ||
@@ -109,6 +115,7 @@ static void update_debugregs_cb(void *arg)
 	write_debugregs(pid, kernel_debugregs);
 }
 
+/* Optimized out in its header when not defined */
 void update_debugregs(int seq)
 {
 	int me;
@@ -118,6 +125,7 @@ void update_debugregs(int seq)
 	me = os_getpid();
 	initial_thread_cb(update_debugregs_cb, &me);
 }
+#endif
 
 /*
  * Overrides for Emacs so that we follow Linus's tabbing style.

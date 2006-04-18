@@ -353,8 +353,10 @@ static __init void parse_cmdline_early (char ** cmdline_p)
 		if (fullarg(from, "enable_timer_pin_1"))
 			disable_timer_pin_1 = -1;
 
-		if (fullarg(from, "nolapic") || fullarg(from, "disableapic"))
+		if (fullarg(from, "nolapic") || fullarg(from, "disableapic")) {
+			clear_bit(X86_FEATURE_APIC, boot_cpu_data.x86_capability);
 			disable_apic = 1;
+		}
 
 		if (fullarg(from, "noapic"))
 			skip_ioapic_setup = 1;
@@ -540,7 +542,7 @@ void __init alternative_instructions(void)
 static int __init noreplacement_setup(char *s)
 { 
      no_replacement = 1; 
-     return 0; 
+     return 1;
 } 
 
 __setup("noreplacement", noreplacement_setup); 

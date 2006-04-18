@@ -12,15 +12,15 @@ endif
 
 obj-y				:= semaphore.o cputable.o ptrace.o syscalls.o \
 				   irq.o align.o signal_32.o pmc.o vdso.o \
-				   init_task.o process.o systbl.o
+				   init_task.o process.o systbl.o idle.o
 obj-y				+= vdso32/
 obj-$(CONFIG_PPC64)		+= setup_64.o binfmt_elf32.o sys_ppc32.o \
 				   signal_64.o ptrace32.o \
 				   paca.o cpu_setup_power4.o \
-				   firmware.o sysfs.o idle_64.o
+				   firmware.o sysfs.o
 obj-$(CONFIG_PPC64)		+= vdso64/
 obj-$(CONFIG_ALTIVEC)		+= vecemu.o vector.o
-obj-$(CONFIG_POWER4)		+= idle_power4.o
+obj-$(CONFIG_PPC_970_NAP)	+= idle_power4.o
 obj-$(CONFIG_PPC_OF)		+= of_device.o prom_parse.o
 procfs-$(CONFIG_PPC64)		:= proc_ppc64.o
 obj-$(CONFIG_PROC_FS)		+= $(procfs-y)
@@ -34,6 +34,11 @@ obj-$(CONFIG_IBMEBUS)           += ibmebus.o
 obj-$(CONFIG_GENERIC_TBSYNC)	+= smp-tbsync.o
 obj64-$(CONFIG_PPC_MULTIPLATFORM) += nvram_64.o
 obj-$(CONFIG_CRASH_DUMP)	+= crash_dump.o
+obj-$(CONFIG_6xx)		+= idle_6xx.o l2cr_6xx.o cpu_setup_6xx.o
+obj-$(CONFIG_TAU)		+= tau_6xx.o
+obj32-$(CONFIG_SOFTWARE_SUSPEND) += swsusp_32.o
+obj32-$(CONFIG_MODULES)		+= module_32.o
+obj-$(CONFIG_E500)		+= perfmon_fsl_booke.o
 
 ifeq ($(CONFIG_PPC_MERGE),y)
 
@@ -51,7 +56,6 @@ obj-$(CONFIG_PPC64)		+= misc_64.o dma_64.o iommu.o
 obj-$(CONFIG_PPC_MULTIPLATFORM)	+= prom_init.o
 obj-$(CONFIG_MODULES)		+= ppc_ksyms.o
 obj-$(CONFIG_BOOTX_TEXT)	+= btext.o
-obj-$(CONFIG_6xx)		+= idle_6xx.o
 obj-$(CONFIG_SMP)		+= smp.o
 obj-$(CONFIG_KPROBES)		+= kprobes.o
 obj-$(CONFIG_PPC_UDBG_16550)	+= legacy_serial.o udbg_16550.o
@@ -77,6 +81,7 @@ smpobj-$(CONFIG_SMP)		+= smp.o
 
 endif
 
+obj-$(CONFIG_PPC32)		+= $(obj32-y)
 obj-$(CONFIG_PPC64)		+= $(obj64-y)
 
 extra-$(CONFIG_PPC_FPU)		+= fpu.o

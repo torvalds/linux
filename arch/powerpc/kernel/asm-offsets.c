@@ -91,6 +91,7 @@ int main(void)
 #endif /* CONFIG_PPC64 */
 
 	DEFINE(TI_FLAGS, offsetof(struct thread_info, flags));
+	DEFINE(TI_LOCAL_FLAGS, offsetof(struct thread_info, local_flags));
 	DEFINE(TI_PREEMPT, offsetof(struct thread_info, preempt_count));
 	DEFINE(TI_TASK, offsetof(struct thread_info, task));
 #ifdef CONFIG_PPC32
@@ -105,8 +106,6 @@ int main(void)
 	DEFINE(ICACHEL1LINESIZE, offsetof(struct ppc64_caches, iline_size));
 	DEFINE(ICACHEL1LOGLINESIZE, offsetof(struct ppc64_caches, log_iline_size));
 	DEFINE(ICACHEL1LINESPERPAGE, offsetof(struct ppc64_caches, ilines_per_page));
-	DEFINE(PLATFORM_LPAR, PLATFORM_LPAR);
-
 	/* paca */
 	DEFINE(PACA_SIZE, sizeof(struct paca_struct));
 	DEFINE(PACAPACAINDEX, offsetof(struct paca_struct, paca_index));

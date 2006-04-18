@@ -170,7 +170,7 @@ err_out:
 	return -ENOMEM;
 }
 
-static void __devexit mthca_buddy_cleanup(struct mthca_buddy *buddy)
+static void mthca_buddy_cleanup(struct mthca_buddy *buddy)
 {
 	int i;
 
@@ -866,7 +866,7 @@ err_mtt_buddy:
 	return err;
 }
 
-void __devexit mthca_cleanup_mr_table(struct mthca_dev *dev)
+void mthca_cleanup_mr_table(struct mthca_dev *dev)
 {
 	/* XXX check if any MRs are still allocated? */
 	if (dev->limits.fmr_reserved_mtts)

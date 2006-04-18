@@ -106,7 +106,6 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 	struct rtable *rt;
 	u_int16_t tmp_port;
 	u_int32_t tmp_addr;
-	unsigned int tcplen;
 	int needs_ack;
 	int hh_len;
 
@@ -124,13 +123,7 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 		return;
 
 	/* Check checksum */
-	tcplen = oldskb->len - iph->ihl * 4;
-	if (((hook != NF_IP_LOCAL_IN && oldskb->ip_summed != CHECKSUM_HW) ||
-	     (hook == NF_IP_LOCAL_IN &&
-	      oldskb->ip_summed != CHECKSUM_UNNECESSARY)) &&
-	    csum_tcpudp_magic(iph->saddr, iph->daddr, tcplen, IPPROTO_TCP,
-	                      oldskb->ip_summed == CHECKSUM_HW ? oldskb->csum :
-	                      skb_checksum(oldskb, iph->ihl * 4, tcplen, 0)))
+	if (nf_ip_checksum(oldskb, hook, iph->ihl * 4, IPPROTO_TCP))
 		return;
 
 	if ((rt = route_reverse(oldskb, oth, hook)) == NULL)
@@ -313,15 +306,15 @@ static struct ipt_target ipt_reject_reg = {
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init ipt_reject_init(void)
 {
 	return ipt_register_target(&ipt_reject_reg);
 }
 
-static void __exit fini(void)
+static void __exit ipt_reject_fini(void)
 {
 	ipt_unregister_target(&ipt_reject_reg);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ipt_reject_init);
+module_exit(ipt_reject_fini);

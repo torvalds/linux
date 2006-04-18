@@ -213,11 +213,9 @@ int usb_hcd_pci_suspend (struct pci_dev *dev, pm_message_t message)
 
 	if (hcd->driver->suspend) {
 		retval = hcd->driver->suspend(hcd, message);
-		if (retval) {
-			dev_dbg (&dev->dev, "PCI pre-suspend fail, %d\n",
-				retval);
+		suspend_report_result(hcd->driver->suspend, retval);
+		if (retval)
 			goto done;
-		}
 	}
 	synchronize_irq(dev->irq);
 
@@ -263,6 +261,7 @@ int usb_hcd_pci_suspend (struct pci_dev *dev, pm_message_t message)
 		 * some device state (e.g. as part of clock reinit).
 		 */
 		retval = pci_set_power_state (dev, PCI_D3hot);
+		suspend_report_result(pci_set_power_state, retval);
 		if (retval == 0) {
 			int wake = device_can_wakeup(&hcd->self.root_hub->dev);
 
@@ -296,7 +295,7 @@ done:
 
 #ifdef CONFIG_PPC_PMAC
 		/* Disable ASIC clocks for USB */
-		if (_machine == _MACH_Pmac) {
+		if (machine_is(powermac)) {
 			struct device_node	*of_node;
 
 			of_node = pci_device_to_OF_node (dev);
@@ -331,7 +330,7 @@ int usb_hcd_pci_resume (struct pci_dev *dev)
 
 #ifdef CONFIG_PPC_PMAC
 	/* Reenable ASIC clocks for USB */
-	if (_machine == _MACH_Pmac) {
+	if (machine_is(powermac)) {
 		struct device_node *of_node;
 
 		of_node = pci_device_to_OF_node (dev);

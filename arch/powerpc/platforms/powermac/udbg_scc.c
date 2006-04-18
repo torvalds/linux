@@ -116,7 +116,7 @@ void udbg_scc_init(int force_scc)
 	/* Setup for 57600 8N1 */
 	if (ch == ch_a)
 		addr += 0x20;
-	sccc = (volatile u8 * __iomem) ioremap(addr & PAGE_MASK, PAGE_SIZE) ;
+	sccc = ioremap(addr & PAGE_MASK, PAGE_SIZE) ;
 	sccc += addr & ~PAGE_MASK;
 	sccd = sccc + 0x10;
 

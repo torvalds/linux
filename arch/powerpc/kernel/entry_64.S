@@ -617,6 +617,12 @@ _GLOBAL(enter_rtas)
 	mfsrr1	r10
 	std	r10,_SRR1(r1)
 
+	/* Temporary workaround to clear CR until RTAS can be modified to
+	 * ignore all bits.
+	 */
+	li	r0,0
+	mtcr	r0
+
 	/* There is no way it is acceptable to get here with interrupts enabled,
 	 * check it with the asm equivalent of WARN_ON
 	 */

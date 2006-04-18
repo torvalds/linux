@@ -125,16 +125,16 @@ static struct ebt_match filter_arp =
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init ebt_arp_init(void)
 {
 	return ebt_register_match(&filter_arp);
 }
 
-static void __exit fini(void)
+static void __exit ebt_arp_fini(void)
 {
 	ebt_unregister_match(&filter_arp);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ebt_arp_init);
+module_exit(ebt_arp_fini);
 MODULE_LICENSE("GPL");

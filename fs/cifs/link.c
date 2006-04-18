@@ -67,7 +67,7 @@ cifs_hardlink(struct dentry *old_file, struct inode *inode,
 					cifs_sb_target->local_nls, 
 					cifs_sb_target->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
-		if(rc == -EIO)
+		if((rc == -EIO) || (rc == -EINVAL))
 			rc = -EOPNOTSUPP;  
 	}
 

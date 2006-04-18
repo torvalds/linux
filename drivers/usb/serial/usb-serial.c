@@ -27,10 +27,10 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/spinlock.h>
+#include <linux/mutex.h>
 #include <linux/list.h>
 #include <linux/smp_lock.h>
 #include <asm/uaccess.h>
-#include <asm/semaphore.h>
 #include <linux/usb.h>
 #include "usb-serial.h"
 #include "pl2303.h"
@@ -192,7 +192,7 @@ static int serial_open (struct tty_struct *tty, struct file * filp)
 	if (!port)
 		return -ENODEV;
 
-	if (down_interruptible(&port->sem))
+	if (mutex_lock_interruptible(&port->mutex))
 		return -ERESTARTSYS;
 	 
 	++port->open_count;
@@ -219,7 +219,7 @@ static int serial_open (struct tty_struct *tty, struct file * filp)
 			goto bailout_module_put;
 	}
 
-	up(&port->sem);
+	mutex_unlock(&port->mutex);
 	return 0;
 
 bailout_module_put:
@@ -227,7 +227,7 @@ bailout_module_put:
 bailout_kref_put:
 	kref_put(&serial->kref, destroy_serial);
 	port->open_count = 0;
-	up(&port->sem);
+	mutex_unlock(&port->mutex);
 	return retval;
 }
 
@@ -240,10 +240,10 @@ static void serial_close(struct tty_struct *tty, struct file * filp)
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
-	down(&port->sem);
+	mutex_lock(&port->mutex);
 
 	if (port->open_count == 0) {
-		up(&port->sem);
+		mutex_unlock(&port->mutex);
 		return;
 	}
 
@@ -262,7 +262,7 @@ static void serial_close(struct tty_struct *tty, struct file * filp)
 		module_put(port->serial->type->driver.owner);
 	}
 
-	up(&port->sem);
+	mutex_unlock(&port->mutex);
 	kref_put(&port->serial->kref, destroy_serial);
 }
 
@@ -783,7 +783,7 @@ int usb_serial_probe(struct usb_interface *interface,
 		port->number = i + serial->minor;
 		port->serial = serial;
 		spin_lock_init(&port->lock);
-		sema_init(&port->sem, 1);
+		mutex_init(&port->mutex);
 		INIT_WORK(&port->work, usb_serial_port_softint, port);
 		serial->port[i] = port;
 	}

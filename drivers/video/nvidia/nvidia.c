@@ -30,6 +30,7 @@
 #include <asm/pci-bridge.h>
 #endif
 #ifdef CONFIG_PMAC_BACKLIGHT
+#include <asm/machdep.h>
 #include <asm/backlight.h>
 #endif
 
@@ -1355,7 +1356,7 @@ static int nvidiafb_blank(int blank, struct fb_info *info)
 	NVWriteCrtc(par, 0x1a, vesa);
 
 #ifdef CONFIG_PMAC_BACKLIGHT
-	if (par->FlatPanel && _machine == _MACH_Pmac) {
+	if (par->FlatPanel && machine_is(powermac)) {
 		set_backlight_enable(!blank);
 	}
 #endif
@@ -1741,7 +1742,7 @@ static int __devinit nvidiafb_probe(struct pci_dev *pd,
 	       info->fix.id,
 	       par->FbMapSize / (1024 * 1024), info->fix.smem_start);
 #ifdef CONFIG_PMAC_BACKLIGHT
-	if (par->FlatPanel && _machine == _MACH_Pmac)
+	if (par->FlatPanel && machine_is(powermac))
 		register_backlight_controller(&nvidia_backlight_controller,
 					      par, "mnca");
 #endif

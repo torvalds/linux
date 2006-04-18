@@ -53,6 +53,7 @@
 typedef unsigned int (*ata_xlat_func_t)(struct ata_queued_cmd *qc, const u8 *scsicmd);
 static struct ata_device *
 ata_scsi_find_dev(struct ata_port *ap, const struct scsi_device *scsidev);
+static void ata_scsi_error(struct Scsi_Host *host);
 enum scsi_eh_timer_return ata_scsi_timed_out(struct scsi_cmnd *cmd);
 
 #define RW_RECOVERY_MPAGE 0x1
@@ -99,6 +100,7 @@ static const u8 def_control_mpage[CONTROL_MPAGE_LEN] = {
  * It just needs the eh_timed_out hook.
  */
 struct scsi_transport_template ata_scsi_transport_template = {
+	.eh_strategy_handler	= ata_scsi_error,
 	.eh_timed_out		= ata_scsi_timed_out,
 };
 
@@ -772,12 +774,9 @@ enum scsi_eh_timer_return ata_scsi_timed_out(struct scsi_cmnd *cmd)
  *
  *	LOCKING:
  *	Inherited from SCSI layer (none, can sleep)
- *
- *	RETURNS:
- *	Zero.
  */
 
-int ata_scsi_error(struct Scsi_Host *host)
+static void ata_scsi_error(struct Scsi_Host *host)
 {
 	struct ata_port *ap;
 	unsigned long flags;
@@ -805,7 +804,6 @@ int ata_scsi_error(struct Scsi_Host *host)
 	spin_unlock_irqrestore(&ap->host_set->lock, flags);
 
 	DPRINTK("EXIT\n");
-	return 0;
 }
 
 static void ata_eh_scsidone(struct scsi_cmnd *scmd)
@@ -1431,9 +1429,7 @@ static void ata_scsi_translate(struct ata_port *ap, struct ata_device *dev,
 		goto early_finish;
 
 	/* select device, send command to hardware */
-	qc->err_mask = ata_qc_issue(qc);
-	if (qc->err_mask)
-		ata_qc_complete(qc);
+	ata_qc_issue(qc);
 
 	VPRINTK("EXIT\n");
 	return;
@@ -2199,9 +2195,7 @@ static void atapi_request_sense(struct ata_queued_cmd *qc)
 
 	qc->complete_fn = atapi_sense_complete;
 
-	qc->err_mask = ata_qc_issue(qc);
-	if (qc->err_mask)
-		ata_qc_complete(qc);
+	ata_qc_issue(qc);
 
 	DPRINTK("EXIT\n");
 }

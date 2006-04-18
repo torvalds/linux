@@ -3,7 +3,7 @@
  * Copyright (c) 2004 Infinicon Corporation.  All rights reserved.
  * Copyright (c) 2004 Intel Corporation.  All rights reserved.
  * Copyright (c) 2004 Topspin Corporation.  All rights reserved.
- * Copyright (c) 2004 Voltaire Corporation.  All rights reserved.
+ * Copyright (c) 2004-2006 Voltaire Corporation.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -55,6 +55,10 @@
 #define IB_MGMT_CLASS_DEVICE_MGMT		0x06
 #define IB_MGMT_CLASS_CM			0x07
 #define IB_MGMT_CLASS_SNMP			0x08
+#define IB_MGMT_CLASS_DEVICE_ADM		0x10
+#define IB_MGMT_CLASS_BOOT_MGMT			0x11
+#define IB_MGMT_CLASS_BIS			0x12
+#define IB_MGMT_CLASS_CONG_MGMT			0x21
 #define IB_MGMT_CLASS_VENDOR_RANGE2_START	0x30
 #define IB_MGMT_CLASS_VENDOR_RANGE2_END		0x4F
 
@@ -117,6 +121,8 @@ enum {
 	IB_MGMT_VENDOR_DATA = 216,
 	IB_MGMT_SA_HDR = 56,
 	IB_MGMT_SA_DATA = 200,
+	IB_MGMT_DEVICE_HDR = 64,
+	IB_MGMT_DEVICE_DATA = 192,
 };
 
 struct ib_mad_hdr {
@@ -601,6 +607,25 @@ struct ib_mad_send_buf * ib_create_send_mad(struct ib_mad_agent *mad_agent,
 					    int rmpp_active,
 					    int hdr_len, int data_len,
 					    gfp_t gfp_mask);
+
+/**
+ * ib_is_mad_class_rmpp - returns whether given management class
+ * supports RMPP.
+ * @mgmt_class: management class
+ *
+ * This routine returns whether the management class supports RMPP.
+ */
+int ib_is_mad_class_rmpp(u8 mgmt_class);
+
+/**
+ * ib_get_mad_data_offset - returns the data offset for a given
+ * management class.
+ * @mgmt_class: management class
+ *
+ * This routine returns the data offset in the MAD for the management
+ * class requested.
+ */
+int ib_get_mad_data_offset(u8 mgmt_class);
 
 /**
  * ib_get_rmpp_segment - returns the data buffer for a given RMPP segment.

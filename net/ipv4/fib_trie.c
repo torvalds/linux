@@ -50,7 +50,7 @@
  *		Patrick McHardy <kaber@trash.net>
  */
 
-#define VERSION "0.406"
+#define VERSION "0.407"
 
 #include <linux/config.h>
 #include <asm/uaccess.h>
@@ -314,11 +314,6 @@ static void __leaf_free_rcu(struct rcu_head *head)
 	kfree(container_of(head, struct leaf, rcu));
 }
 
-static inline void free_leaf(struct leaf *leaf)
-{
-	call_rcu(&leaf->rcu, __leaf_free_rcu);
-}
-
 static void __leaf_info_free_rcu(struct rcu_head *head)
 {
 	kfree(container_of(head, struct leaf_info, rcu));
@@ -357,7 +352,12 @@ static void __tnode_free_rcu(struct rcu_head *head)
 
 static inline void tnode_free(struct tnode *tn)
 {
-	call_rcu(&tn->rcu, __tnode_free_rcu);
+	if(IS_LEAF(tn)) {
+		struct leaf *l = (struct leaf *) tn;
+		call_rcu_bh(&l->rcu, __leaf_free_rcu);
+	}
+        else
+		call_rcu(&tn->rcu, __tnode_free_rcu);
 }
 
 static struct leaf *leaf_new(void)

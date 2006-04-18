@@ -263,7 +263,7 @@ V_FUNCTION_END(__kernel_sigtramp_rt64)
 .Lcie_start:
 	.long 0			/* CIE ID */
 	.byte 1			/* Version number */
-	.string "zR"		/* NUL-terminated augmentation string */
+	.string "zRS"		/* NUL-terminated augmentation string */
 	.uleb128 4		/* Code alignment factor */
 	.sleb128 -8		/* Data alignment factor */
 	.byte 67		/* Return address register column, ap */

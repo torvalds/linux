@@ -89,7 +89,7 @@ update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t pte)
 	if (pfn_valid(page_to_pfn(page)) && page_mapping(page) &&
 	    test_bit(PG_dcache_dirty, &page->flags)) {
 
-		flush_kernel_dcache_page(page_address(page));
+		flush_kernel_dcache_page(page);
 		clear_bit(PG_dcache_dirty, &page->flags);
 	}
 }
@@ -278,7 +278,7 @@ void flush_dcache_page(struct page *page)
 		return;
 	}
 
-	flush_kernel_dcache_page(page_address(page));
+	flush_kernel_dcache_page(page);
 
 	if (!mapping)
 		return;
@@ -317,7 +317,7 @@ EXPORT_SYMBOL(flush_dcache_page);
 
 /* Defined in arch/parisc/kernel/pacache.S */
 EXPORT_SYMBOL(flush_kernel_dcache_range_asm);
-EXPORT_SYMBOL(flush_kernel_dcache_page);
+EXPORT_SYMBOL(flush_kernel_dcache_page_asm);
 EXPORT_SYMBOL(flush_data_cache_local);
 EXPORT_SYMBOL(flush_kernel_icache_range_asm);
 

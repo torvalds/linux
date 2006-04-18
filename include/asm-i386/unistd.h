@@ -288,7 +288,7 @@
 #define __NR_mq_timedreceive	(__NR_mq_open+3)
 #define __NR_mq_notify		(__NR_mq_open+4)
 #define __NR_mq_getsetattr	(__NR_mq_open+5)
-#define __NR_sys_kexec_load	283
+#define __NR_kexec_load		283
 #define __NR_waitid		284
 /* #define __NR_sys_setaltroot	285 */
 #define __NR_add_key		286
@@ -318,8 +318,11 @@
 #define __NR_unshare		310
 #define __NR_set_robust_list	311
 #define __NR_get_robust_list	312
+#define __NR_splice		313
+#define __NR_sync_file_range	314
+#define __NR_tee		315
 
-#define NR_syscalls 313
+#define NR_syscalls 316
 
 /*
  * user-visible error numbers are in the range -1 - -128: see

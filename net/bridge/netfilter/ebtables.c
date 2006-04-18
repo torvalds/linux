@@ -824,12 +824,12 @@ static int translate_table(struct ebt_replace *repl,
 	if (udc_cnt) {
 		/* this will get free'd in do_replace()/ebt_register_table()
 		   if an error occurs */
-		newinfo->chainstack = (struct ebt_chainstack **)
-		   vmalloc((highest_possible_processor_id()+1) 
-				   		* sizeof(struct ebt_chainstack));
+		newinfo->chainstack =
+			vmalloc((highest_possible_processor_id()+1)
+				   	* sizeof(*(newinfo->chainstack)));
 		if (!newinfo->chainstack)
 			return -ENOMEM;
-		for_each_cpu(i) {
+		for_each_possible_cpu(i) {
 			newinfo->chainstack[i] =
 			   vmalloc(udc_cnt * sizeof(struct ebt_chainstack));
 			if (!newinfo->chainstack[i]) {
@@ -901,7 +901,7 @@ static void get_counters(struct ebt_counter *oldcounters,
 	       sizeof(struct ebt_counter) * nentries);
 
 	/* add other counters to those of cpu 0 */
-	for_each_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		if (cpu == 0)
 			continue;
 		counter_base = COUNTER_BASE(oldcounters, nentries, cpu);
@@ -1036,7 +1036,7 @@ static int do_replace(void __user *user, unsigned int len)
 
 	vfree(table->entries);
 	if (table->chainstack) {
-		for_each_cpu(i)
+		for_each_possible_cpu(i)
 			vfree(table->chainstack[i]);
 		vfree(table->chainstack);
 	}
@@ -1054,7 +1054,7 @@ free_counterstmp:
 	vfree(counterstmp);
 	/* can be initialized in translate_table() */
 	if (newinfo->chainstack) {
-		for_each_cpu(i)
+		for_each_possible_cpu(i)
 			vfree(newinfo->chainstack[i]);
 		vfree(newinfo->chainstack);
 	}
@@ -1201,7 +1201,7 @@ free_unlock:
 	mutex_unlock(&ebt_mutex);
 free_chainstack:
 	if (newinfo->chainstack) {
-		for_each_cpu(i)
+		for_each_possible_cpu(i)
 			vfree(newinfo->chainstack[i]);
 		vfree(newinfo->chainstack);
 	}
@@ -1224,7 +1224,7 @@ void ebt_unregister_table(struct ebt_table *table)
 	mutex_unlock(&ebt_mutex);
 	vfree(table->private->entries);
 	if (table->private->chainstack) {
-		for_each_cpu(i)
+		for_each_possible_cpu(i)
 			vfree(table->private->chainstack[i]);
 		vfree(table->private->chainstack);
 	}
@@ -1487,7 +1487,7 @@ static struct nf_sockopt_ops ebt_sockopts =
 	.get		= do_ebt_get_ctl,
 };
 
-static int __init init(void)
+static int __init ebtables_init(void)
 {
 	int ret;
 
@@ -1501,7 +1501,7 @@ static int __init init(void)
 	return 0;
 }
 
-static void __exit fini(void)
+static void __exit ebtables_fini(void)
 {
 	nf_unregister_sockopt(&ebt_sockopts);
 	printk(KERN_NOTICE "Ebtables v2.0 unregistered\n");
@@ -1516,6 +1516,6 @@ EXPORT_SYMBOL(ebt_unregister_watcher);
 EXPORT_SYMBOL(ebt_register_target);
 EXPORT_SYMBOL(ebt_unregister_target);
 EXPORT_SYMBOL(ebt_do_table);
-module_init(init);
-module_exit(fini);
+module_init(ebtables_init);
+module_exit(ebtables_fini);
 MODULE_LICENSE("GPL");

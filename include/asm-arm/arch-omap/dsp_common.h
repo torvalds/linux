@@ -27,11 +27,12 @@
 #ifndef ASM_ARCH_DSP_COMMON_H
 #define ASM_ARCH_DSP_COMMON_H
 
-void omap_dsp_pm_suspend(void);
-void omap_dsp_pm_resume(void);
-void omap_dsp_request_mpui(void);
-void omap_dsp_release_mpui(void);
-int omap_dsp_request_mem(void);
-int omap_dsp_release_mem(void);
+extern void omap_dsp_request_mpui(void);
+extern void omap_dsp_release_mpui(void);
+extern int omap_dsp_request_mem(void);
+extern int omap_dsp_release_mem(void);
+
+extern void (*omap_dsp_audio_pwr_up_request)(int stage);
+extern void (*omap_dsp_audio_pwr_down_request)(int stage);
 
 #endif /* ASM_ARCH_DSP_COMMON_H */

@@ -120,14 +120,27 @@ void (*dev_config) (struct ata_port *, struct ata_device *);
 	<programlisting>
 void (*set_piomode) (struct ata_port *, struct ata_device *);
 void (*set_dmamode) (struct ata_port *, struct ata_device *);
-void (*post_set_mode) (struct ata_port *ap);
+void (*post_set_mode) (struct ata_port *);
+unsigned int (*mode_filter) (struct ata_port *, struct ata_device *, unsigned int);
 	</programlisting>
 
 	<para>
 	Hooks called prior to the issue of SET FEATURES - XFER MODE
-	command.  dev->pio_mode is guaranteed to be valid when
-	->set_piomode() is called, and dev->dma_mode is guaranteed to be
-	valid when ->set_dmamode() is called.  ->post_set_mode() is
+	command.  The optional ->mode_filter() hook is called when libata
+	has built a mask of the possible modes. This is passed to the 
+	->mode_filter() function which should return a mask of valid modes
+	after filtering those unsuitable due to hardware limits. It is not
+	valid to use this interface to add modes.
+	</para>
+	<para>
+	dev->pio_mode and dev->dma_mode are guaranteed to be valid when
+	->set_piomode() and when ->set_dmamode() is called. The timings for
+	any other drive sharing the cable will also be valid at this point.
+	That is the library records the decisions for the modes of each
+	drive on a channel before it attempts to set any of them.
+	</para>
+	<para>
+	->post_set_mode() is
 	called unconditionally, after the SET FEATURES - XFER MODE
 	command completes successfully.
 	</para>
@@ -227,6 +240,32 @@ void (*dev_select)(struct ata_port *ap, unsigned int device);
 	support second drives on a port (such as SATA contollers) will
 	use ata_noop_dev_select().
 	</para>
+
+	</sect2>
+
+	<sect2><title>Private tuning method</title>
+	<programlisting>
+void (*set_mode) (struct ata_port *ap);
+	</programlisting>
+
+	<para>
+	By default libata performs drive and controller tuning in
+	accordance with the ATA timing rules and also applies blacklists
+	and cable limits. Some controllers need special handling and have
+	custom tuning rules, typically raid controllers that use ATA
+	commands but do not actually do drive timing.
+	</para>
+
+	<warning>
+	<para>
+	This hook should not be used to replace the standard controller
+	tuning logic when a controller has quirks. Replacing the default
+	tuning logic in that case would bypass handling for drive and
+	bridge quirks that may be important to data reliability. If a
+	controller needs to filter the mode selection it should use the
+	mode_filter hook instead.
+	</para>
+	</warning>
 
 	</sect2>
 
@@ -666,7 +705,7 @@ and other resources, etc.
 
 	<sect1><title>ata_scsi_error()</title>
 	<para>
-	ata_scsi_error() is the current hostt->eh_strategy_handler()
+	ata_scsi_error() is the current transportt->eh_strategy_handler()
 	for libata.  As discussed above, this will be entered in two
 	cases - timeout and ATAPI error completion.  This function
 	calls low level libata driver's eng_timeout() callback, the

@@ -831,8 +831,8 @@ struct snd_m3 {
 	struct snd_pcm *pcm;
 
 	struct pci_dev *pci;
-	struct m3_quirk *quirk;
-	struct m3_hv_quirk *hv_quirk;
+	const struct m3_quirk *quirk;
+	const struct m3_hv_quirk *hv_quirk;
 
 	int dacs_active;
 	int timer_users;
@@ -892,7 +892,7 @@ static struct pci_device_id snd_m3_ids[] = {
 
 MODULE_DEVICE_TABLE(pci, snd_m3_ids);
 
-static struct m3_quirk m3_quirk_list[] = {
+static const struct m3_quirk m3_quirk_list[] = {
 	/* panasonic CF-28 "toughbook" */
 	{
 		.name = "Panasonic CF-28",
@@ -950,7 +950,7 @@ static struct m3_quirk m3_quirk_list[] = {
 };
 
 /* These values came from the Windows driver. */
-static struct m3_hv_quirk m3_hv_quirk_list[] = {
+static const struct m3_hv_quirk m3_hv_quirk_list[] = {
 	/* Allegro chips */
 	{ 0x125D, 0x1988, 0x0E11, 0x002E, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD, 0 },
 	{ 0x125D, 0x1988, 0x0E11, 0x0094, HV_CTRL_ENABLE | HV_BUTTON_FROM_GD, 0 },
@@ -1361,7 +1361,7 @@ static void snd_m3_pcm_setup2(struct snd_m3 *chip, struct m3_dma *s,
 }
 
 
-static struct play_vals {
+static const struct play_vals {
 	u16 addr, val;
 } pv[] = {
 	{CDATA_LEFT_VOLUME, ARB_VOLUME},
@@ -1428,7 +1428,7 @@ snd_m3_playback_setup(struct snd_m3 *chip, struct m3_dma *s,
 /*
  *    Native record driver 
  */
-static struct rec_vals {
+static const struct rec_vals {
 	u16 addr, val;
 } rv[] = {
 	{CDATA_LEFT_VOLUME, ARB_VOLUME},
@@ -1598,12 +1598,26 @@ static void snd_m3_update_ptr(struct snd_m3 *chip, struct m3_dma *s)
 	if (! s->running)
 		return;
 
-	hwptr = snd_m3_get_pointer(chip, s, subs) % s->dma_size;
-	diff = (s->dma_size + hwptr - s->hwptr) % s->dma_size;
+	hwptr = snd_m3_get_pointer(chip, s, subs);
+
+	/* try to avoid expensive modulo divisions */
+	if (hwptr >= s->dma_size)
+		hwptr %= s->dma_size;
+
+	diff = s->dma_size + hwptr - s->hwptr;
+	if (diff >= s->dma_size)
+		diff %= s->dma_size;
+
 	s->hwptr = hwptr;
 	s->count += diff;
+
 	if (s->count >= (signed)s->period_size) {
-		s->count %= s->period_size;
+
+		if (s->count < 2 * (signed)s->period_size)
+			s->count -= (signed)s->period_size;
+		else
+			s->count %= s->period_size;
+
 		spin_unlock(&chip->reg_lock);
 		snd_pcm_period_elapsed(subs);
 		spin_lock(&chip->reg_lock);
@@ -1942,6 +1956,7 @@ static int snd_m3_ac97_wait(struct snd_m3 *chip)
 	do {
 		if (! (snd_m3_inb(chip, 0x30) & 1))
 			return 0;
+		cpu_relax();
 	} while (i-- > 0);
 
 	snd_printk(KERN_ERR "ac97 serial bus busy\n");
@@ -1953,16 +1968,18 @@ snd_m3_ac97_read(struct snd_ac97 *ac97, unsigned short reg)
 {
 	struct snd_m3 *chip = ac97->private_data;
 	unsigned long flags;
-	unsigned short data;
+	unsigned short data = 0xffff;
 
 	if (snd_m3_ac97_wait(chip))
-		return 0xffff;
+		goto fail;
 	spin_lock_irqsave(&chip->ac97_lock, flags);
 	snd_m3_outb(chip, 0x80 | (reg & 0x7f), CODEC_COMMAND);
 	if (snd_m3_ac97_wait(chip))
-		return 0xffff;
+		goto fail_unlock;
 	data = snd_m3_inw(chip, CODEC_DATA);
+fail_unlock:
 	spin_unlock_irqrestore(&chip->ac97_lock, flags);
+fail:
 	return data;
 }
 
@@ -2121,7 +2138,7 @@ static int __devinit snd_m3_mixer(struct snd_m3 *chip)
  * DSP Code images
  */
 
-static u16 assp_kernel_image[] __devinitdata = {
+static const u16 assp_kernel_image[] __devinitdata = {
     0x7980, 0x0030, 0x7980, 0x03B4, 0x7980, 0x03B4, 0x7980, 0x00FB, 0x7980, 0x00DD, 0x7980, 0x03B4, 
     0x7980, 0x0332, 0x7980, 0x0287, 0x7980, 0x03B4, 0x7980, 0x03B4, 0x7980, 0x03B4, 0x7980, 0x03B4, 
     0x7980, 0x031A, 0x7980, 0x03B4, 0x7980, 0x022F, 0x7980, 0x03B4, 0x7980, 0x03B4, 0x7980, 0x03B4, 
@@ -2208,7 +2225,7 @@ static u16 assp_kernel_image[] __devinitdata = {
  * Mini sample rate converter code image
  * that is to be loaded at 0x400 on the DSP.
  */
-static u16 assp_minisrc_image[] __devinitdata = {
+static const u16 assp_minisrc_image[] __devinitdata = {
 
     0xBF80, 0x101E, 0x906E, 0x006E, 0x8B88, 0x6980, 0xEF88, 0x906F, 0x0D6F, 0x6900, 0xEB08, 0x0412, 
     0xBC20, 0x696E, 0xB801, 0x906E, 0x7980, 0x0403, 0xB90E, 0x8807, 0xBE43, 0xBF01, 0xBE47, 0xBE41, 
@@ -2251,7 +2268,7 @@ static u16 assp_minisrc_image[] __devinitdata = {
  */
 
 #define MINISRC_LPF_LEN 10
-static u16 minisrc_lpf[MINISRC_LPF_LEN] __devinitdata = {
+static const u16 minisrc_lpf[MINISRC_LPF_LEN] __devinitdata = {
 	0X0743, 0X1104, 0X0A4C, 0XF88D, 0X242C,
 	0X1023, 0X1AA9, 0X0B60, 0XEFDD, 0X186F
 };
@@ -2358,7 +2375,7 @@ static int __devinit snd_m3_assp_client_init(struct snd_m3 *chip, struct m3_dma 
 	 */
 
 	/*
-	 * align instance address to 256 bytes so that it's
+	 * align instance address to 256 bytes so that its
 	 * shifted list address is aligned.
 	 * list address = (mem address >> 1) >> 7;
 	 */
@@ -2647,8 +2664,8 @@ snd_m3_create(struct snd_card *card, struct pci_dev *pci,
 {
 	struct snd_m3 *chip;
 	int i, err;
-	struct m3_quirk *quirk;
-	struct m3_hv_quirk *hv_quirk;
+	const struct m3_quirk *quirk;
+	const struct m3_hv_quirk *hv_quirk;
 	static struct snd_device_ops ops = {
 		.dev_free =	snd_m3_dev_free,
 	};
@@ -2843,12 +2860,12 @@ snd_m3_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 	}
 
 #if 0 /* TODO: not supported yet */
-	/* TODO enable midi irq and i/o */
+	/* TODO enable MIDI IRQ and I/O */
 	err = snd_mpu401_uart_new(chip->card, 0, MPU401_HW_MPU401,
 				  chip->iobase + MPU401_DATA_PORT, 1,
 				  chip->irq, 0, &chip->rmidi);
 	if (err < 0)
-		printk(KERN_WARNING "maestro3: no midi support.\n");
+		printk(KERN_WARNING "maestro3: no MIDI support.\n");
 #endif
 
 	pci_set_drvdata(pci, card);

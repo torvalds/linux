@@ -524,8 +524,6 @@ static int get_more_blocks(struct dio *dio)
 	 */
 	ret = dio->page_errors;
 	if (ret == 0) {
-		map_bh->b_state = 0;
-		map_bh->b_size = 0;
 		BUG_ON(dio->block_in_file >= dio->final_block_in_request);
 		fs_startblk = dio->block_in_file >> dio->blkfactor;
 		dio_count = dio->final_block_in_request - dio->block_in_file;
@@ -533,6 +531,9 @@ static int get_more_blocks(struct dio *dio)
 		blkmask = (1 << dio->blkfactor) - 1;
 		if (dio_count & blkmask)	
 			fs_count++;
+
+		map_bh->b_state = 0;
+		map_bh->b_size = fs_count << dio->inode->i_blkbits;
 
 		create = dio->rw == WRITE;
 		if (dio->lock_type == DIO_LOCKING) {
@@ -542,13 +543,13 @@ static int get_more_blocks(struct dio *dio)
 		} else if (dio->lock_type == DIO_NO_LOCKING) {
 			create = 0;
 		}
+
 		/*
 		 * For writes inside i_size we forbid block creations: only
 		 * overwrites are permitted.  We fall back to buffered writes
 		 * at a higher level for inside-i_size block-instantiating
 		 * writes.
 		 */
-		map_bh->b_size = fs_count << dio->blkbits;
 		ret = (*dio->get_block)(dio->inode, fs_startblk,
 						map_bh, create);
 	}
@@ -928,8 +929,7 @@ do_holes:
 			block_in_page += this_chunk_blocks;
 			dio->blocks_available -= this_chunk_blocks;
 next_block:
-			if (dio->block_in_file > dio->final_block_in_request)
-				BUG();
+			BUG_ON(dio->block_in_file > dio->final_block_in_request);
 			if (dio->block_in_file == dio->final_block_in_request)
 				break;
 		}

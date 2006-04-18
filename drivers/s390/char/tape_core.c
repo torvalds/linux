@@ -210,18 +210,14 @@ tape_state_set(struct tape_device *device, enum tape_state newstate)
 		return;
 	}
 	DBF_EVENT(4, "ts. dev:	%x\n", device->first_minor);
-	if (device->tape_state < TO_SIZE && device->tape_state >= 0)
-		str = tape_state_verbose[device->tape_state];
-	else
-		str = "UNKNOWN TS";
-	DBF_EVENT(4, "old ts:	%s\n", str);
-	if (device->tape_state < TO_SIZE && device->tape_state >=0 )
+	DBF_EVENT(4, "old ts:\t\n");
+	if (device->tape_state < TS_SIZE && device->tape_state >=0 )
 		str = tape_state_verbose[device->tape_state];
 	else
 		str = "UNKNOWN TS";
 	DBF_EVENT(4, "%s\n", str);
 	DBF_EVENT(4, "new ts:\t\n");
-	if (newstate < TO_SIZE && newstate >= 0)
+	if (newstate < TS_SIZE && newstate >= 0)
 		str = tape_state_verbose[newstate];
 	else
 		str = "UNKNOWN TS";

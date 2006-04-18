@@ -1033,17 +1033,13 @@ static struct file_operations nful_file_ops = {
 
 #endif /* PROC_FS */
 
-static int
-init_or_cleanup(int init)
+static int __init nfnetlink_log_init(void)
 {
 	int i, status = -ENOMEM;
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry *proc_nful;
 #endif
 	
-	if (!init)
-		goto cleanup;
-
 	for (i = 0; i < INSTANCE_BUCKETS; i++)
 		INIT_HLIST_HEAD(&instance_table[i]);
 	
@@ -1066,30 +1062,25 @@ init_or_cleanup(int init)
 		goto cleanup_subsys;
 	proc_nful->proc_fops = &nful_file_ops;
 #endif
-
 	return status;
 
-cleanup:
-	nf_log_unregister_logger(&nfulnl_logger);
 #ifdef CONFIG_PROC_FS
-	remove_proc_entry("nfnetlink_log", proc_net_netfilter);
 cleanup_subsys:
-#endif
 	nfnetlink_subsys_unregister(&nfulnl_subsys);
+#endif
 cleanup_netlink_notifier:
 	netlink_unregister_notifier(&nfulnl_rtnl_notifier);
 	return status;
 }
 
-static int __init init(void)
+static void __exit nfnetlink_log_fini(void)
 {
-	
-	return init_or_cleanup(1);
-}
-
-static void __exit fini(void)
-{
-	init_or_cleanup(0);
+	nf_log_unregister_logger(&nfulnl_logger);
+#ifdef CONFIG_PROC_FS
+	remove_proc_entry("nfnetlink_log", proc_net_netfilter);
+#endif
+	nfnetlink_subsys_unregister(&nfulnl_subsys);
+	netlink_unregister_notifier(&nfulnl_rtnl_notifier);
 }
 
 MODULE_DESCRIPTION("netfilter userspace logging");
@@ -1097,5 +1088,5 @@ MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_NFNL_SUBSYS(NFNL_SUBSYS_ULOG);
 
-module_init(init);
-module_exit(fini);
+module_init(nfnetlink_log_init);
+module_exit(nfnetlink_log_fini);

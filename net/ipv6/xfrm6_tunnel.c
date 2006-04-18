@@ -28,7 +28,6 @@
 #include <net/ip.h>
 #include <net/xfrm.h>
 #include <net/ipv6.h>
-#include <net/protocol.h>
 #include <linux/ipv6.h>
 #include <linux/icmpv6.h>
 #include <linux/mutex.h>
@@ -352,76 +351,23 @@ static int xfrm6_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
 	return 0;
 }
 
-static int xfrm6_tunnel_input(struct xfrm_state *x, struct xfrm_decap_state *decap, struct sk_buff *skb)
+static int xfrm6_tunnel_input(struct xfrm_state *x, struct sk_buff *skb)
 {
 	return 0;
 }
 
-static struct xfrm6_tunnel *xfrm6_tunnel_handler;
-static DEFINE_MUTEX(xfrm6_tunnel_mutex);
-
-int xfrm6_tunnel_register(struct xfrm6_tunnel *handler)
+static int xfrm6_tunnel_rcv(struct sk_buff *skb)
 {
-	int ret;
-
-	mutex_lock(&xfrm6_tunnel_mutex);
-	ret = 0;
-	if (xfrm6_tunnel_handler != NULL)
-		ret = -EINVAL;
-	if (!ret)
-		xfrm6_tunnel_handler = handler;
-	mutex_unlock(&xfrm6_tunnel_mutex);
-
-	return ret;
-}
-
-EXPORT_SYMBOL(xfrm6_tunnel_register);
-
-int xfrm6_tunnel_deregister(struct xfrm6_tunnel *handler)
-{
-	int ret;
-
-	mutex_lock(&xfrm6_tunnel_mutex);
-	ret = 0;
-	if (xfrm6_tunnel_handler != handler)
-		ret = -EINVAL;
-	if (!ret)
-		xfrm6_tunnel_handler = NULL;
-	mutex_unlock(&xfrm6_tunnel_mutex);
-
-	synchronize_net();
-
-	return ret;
-}
-
-EXPORT_SYMBOL(xfrm6_tunnel_deregister);
-
-static int xfrm6_tunnel_rcv(struct sk_buff **pskb)
-{
-	struct sk_buff *skb = *pskb;
-	struct xfrm6_tunnel *handler = xfrm6_tunnel_handler;
 	struct ipv6hdr *iph = skb->nh.ipv6h;
 	u32 spi;
 
-	/* device-like_ip6ip6_handler() */
-	if (handler && handler->handler(pskb) == 0)
-		return 0;
-
 	spi = xfrm6_tunnel_spi_lookup((xfrm_address_t *)&iph->saddr);
-	return xfrm6_rcv_spi(pskb, spi);
+	return xfrm6_rcv_spi(skb, spi);
 }
 
-static void xfrm6_tunnel_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
-			     int type, int code, int offset, __u32 info)
+static int xfrm6_tunnel_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
+			    int type, int code, int offset, __u32 info)
 {
-	struct xfrm6_tunnel *handler = xfrm6_tunnel_handler;
-
-	/* call here first for device-like ip6ip6 err handling */
-	if (handler) {
-		handler->err_handler(skb, opt, type, code, offset, info);
-		return;
-	}
-
 	/* xfrm6_tunnel native err handling */
 	switch (type) {
 	case ICMPV6_DEST_UNREACH: 
@@ -462,7 +408,8 @@ static void xfrm6_tunnel_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	default:
 		break;
 	}
-	return;
+
+	return 0;
 }
 
 static int xfrm6_tunnel_init_state(struct xfrm_state *x)
@@ -493,10 +440,10 @@ static struct xfrm_type xfrm6_tunnel_type = {
 	.output		= xfrm6_tunnel_output,
 };
 
-static struct inet6_protocol xfrm6_tunnel_protocol = {
+static struct xfrm6_tunnel xfrm6_tunnel_handler = {
 	.handler	= xfrm6_tunnel_rcv,
-	.err_handler	= xfrm6_tunnel_err, 
-	.flags          = INET6_PROTO_NOPOLICY|INET6_PROTO_FINAL,
+	.err_handler	= xfrm6_tunnel_err,
+	.priority	= 2,
 };
 
 static int __init xfrm6_tunnel_init(void)
@@ -508,16 +455,16 @@ static int __init xfrm6_tunnel_init(void)
 			   "xfrm6_tunnel init: can't add xfrm type\n");
 		return -EAGAIN;
 	}
-	if (inet6_add_protocol(&xfrm6_tunnel_protocol, IPPROTO_IPV6) < 0) {
+	if (xfrm6_tunnel_register(&xfrm6_tunnel_handler)) {
 		X6TPRINTK1(KERN_ERR
-			   "xfrm6_tunnel init(): can't add protocol\n");
+			   "xfrm6_tunnel init(): can't add handler\n");
 		xfrm_unregister_type(&xfrm6_tunnel_type, AF_INET6);
 		return -EAGAIN;
 	}
 	if (xfrm6_tunnel_spi_init() < 0) {
 		X6TPRINTK1(KERN_ERR
 			   "xfrm6_tunnel init: failed to initialize spi\n");
-		inet6_del_protocol(&xfrm6_tunnel_protocol, IPPROTO_IPV6);
+		xfrm6_tunnel_deregister(&xfrm6_tunnel_handler);
 		xfrm_unregister_type(&xfrm6_tunnel_type, AF_INET6);
 		return -EAGAIN;
 	}
@@ -529,9 +476,9 @@ static void __exit xfrm6_tunnel_fini(void)
 	X6TPRINTK3(KERN_DEBUG "%s()\n", __FUNCTION__);
 
 	xfrm6_tunnel_spi_fini();
-	if (inet6_del_protocol(&xfrm6_tunnel_protocol, IPPROTO_IPV6) < 0)
+	if (xfrm6_tunnel_deregister(&xfrm6_tunnel_handler))
 		X6TPRINTK1(KERN_ERR 
-			   "xfrm6_tunnel close: can't remove protocol\n");
+			   "xfrm6_tunnel close: can't remove handler\n");
 	if (xfrm_unregister_type(&xfrm6_tunnel_type, AF_INET6) < 0)
 		X6TPRINTK1(KERN_ERR
 			   "xfrm6_tunnel close: can't remove xfrm type\n");

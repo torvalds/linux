@@ -216,7 +216,8 @@ extern kmem_cache_t *ib_mad_cache;
 int ib_send_mad(struct ib_mad_send_wr_private *mad_send_wr);
 
 struct ib_mad_send_wr_private *
-ib_find_send_mad(struct ib_mad_agent_private *mad_agent_priv, __be64 tid);
+ib_find_send_mad(struct ib_mad_agent_private *mad_agent_priv,
+		 struct ib_mad_recv_wc *mad_recv_wc);
 
 void ib_mad_complete_send_wr(struct ib_mad_send_wr_private *mad_send_wr,
 			     struct ib_mad_send_wc *mad_send_wc);

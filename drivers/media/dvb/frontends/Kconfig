@@ -181,6 +181,11 @@ config DVB_OR51211
 	help
 	  An ATSC 8VSB tuner module. Say Y when you want to support this frontend.
 
+	  This driver needs external firmware. Please use the command
+	  "<kerneldir>/Documentation/dvb/get_dvb_firmware or51211" to
+	  download it, and then copy it to /usr/lib/hotplug/firmware
+	  or /lib/firmware (depending on configuration of firmware hotplug).
+
 config DVB_OR51132
 	tristate "Oren OR51132 based"
 	depends on DVB_CORE
@@ -188,6 +193,13 @@ config DVB_OR51132
 	help
 	  An ATSC 8VSB and QAM64/256 tuner module. Say Y when you want
 	  to support this frontend.
+
+	  This driver needs external firmware. Please use the commands
+	  "<kerneldir>/Documentation/dvb/get_dvb_firmware or51132_vsb" and/or
+	  "<kerneldir>/Documentation/dvb/get_dvb_firmware or51132_qam" to
+	  download firmwares for 8VSB and QAM64/256, respectively. Copy them to
+	  /usr/lib/hotplug/firmware or /lib/firmware (depending on
+	  configuration of firmware hotplug).
 
 config DVB_BCM3510
 	tristate "Broadcom BCM3510"

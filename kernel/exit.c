@@ -34,6 +34,7 @@
 #include <linux/mutex.h>
 #include <linux/futex.h>
 #include <linux/compat.h>
+#include <linux/pipe_fs_i.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -127,6 +128,11 @@ static void __exit_signal(struct task_struct *tsk)
 	}
 }
 
+static void delayed_put_task_struct(struct rcu_head *rhp)
+{
+	put_task_struct(container_of(rhp, struct task_struct, rcu));
+}
+
 void release_task(struct task_struct * p)
 {
 	int zap_leader;
@@ -168,7 +174,7 @@ repeat:
 	spin_unlock(&p->proc_lock);
 	proc_pid_flush(proc_dentry);
 	release_thread(p);
-	put_task_struct(p);
+	call_rcu(&p->rcu, delayed_put_task_struct);
 
 	p = leader;
 	if (unlikely(zap_leader))
@@ -935,6 +941,9 @@ fastcall NORET_TYPE void do_exit(long code)
 
 	if (tsk->io_context)
 		exit_io_context();
+
+	if (tsk->splice_pipe)
+		__free_pipe_info(tsk->splice_pipe);
 
 	/* PF_DEAD causes final put_task_struct after we schedule. */
 	preempt_disable();

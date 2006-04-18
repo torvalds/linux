@@ -2,6 +2,7 @@
  *
  * Copyright (C) 2002 David S. Miller (davem@redhat.com)
  * Fixed by Pekka Pietikainen (pp@ee.oulu.fi)
+ * Copyright (C) 2006 Broadcom Corporation.
  *
  * Distribute under GPL.
  */
@@ -28,8 +29,8 @@
 
 #define DRV_MODULE_NAME		"b44"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"0.97"
-#define DRV_MODULE_RELDATE	"Nov 30, 2005"
+#define DRV_MODULE_VERSION	"1.00"
+#define DRV_MODULE_RELDATE	"Apr 7, 2006"
 
 #define B44_DEF_MSG_ENABLE	  \
 	(NETIF_MSG_DRV		| \
@@ -136,7 +137,7 @@ static inline unsigned long br32(const struct b44 *bp, unsigned long reg)
 	return readl(bp->regs + reg);
 }
 
-static inline void bw32(const struct b44 *bp, 
+static inline void bw32(const struct b44 *bp,
 			unsigned long reg, unsigned long val)
 {
 	writel(val, bp->regs + reg);
@@ -286,13 +287,13 @@ static void __b44_cam_write(struct b44 *bp, unsigned char *data, int index)
 	val |= ((u32) data[4]) <<  8;
 	val |= ((u32) data[5]) <<  0;
 	bw32(bp, B44_CAM_DATA_LO, val);
-	val = (CAM_DATA_HI_VALID | 
+	val = (CAM_DATA_HI_VALID |
 	       (((u32) data[0]) << 8) |
 	       (((u32) data[1]) << 0));
 	bw32(bp, B44_CAM_DATA_HI, val);
 	bw32(bp, B44_CAM_CTRL, (CAM_CTRL_WRITE |
 			    (index << CAM_CTRL_INDEX_SHIFT)));
-	b44_wait_bit(bp, B44_CAM_CTRL, CAM_CTRL_BUSY, 100, 1);	
+	b44_wait_bit(bp, B44_CAM_CTRL, CAM_CTRL_BUSY, 100, 1);
 }
 
 static inline void __b44_disable_ints(struct b44 *bp)
@@ -410,25 +411,18 @@ static void __b44_set_flow_ctrl(struct b44 *bp, u32 pause_flags)
 
 static void b44_set_flow_ctrl(struct b44 *bp, u32 local, u32 remote)
 {
-	u32 pause_enab = bp->flags & (B44_FLAG_TX_PAUSE |
-				      B44_FLAG_RX_PAUSE);
+	u32 pause_enab = 0;
 
-	if (local & ADVERTISE_PAUSE_CAP) {
-		if (local & ADVERTISE_PAUSE_ASYM) {
-			if (remote & LPA_PAUSE_CAP)
-				pause_enab |= (B44_FLAG_TX_PAUSE |
-					       B44_FLAG_RX_PAUSE);
-			else if (remote & LPA_PAUSE_ASYM)
-				pause_enab |= B44_FLAG_RX_PAUSE;
-		} else {
-			if (remote & LPA_PAUSE_CAP)
-				pause_enab |= (B44_FLAG_TX_PAUSE |
-					       B44_FLAG_RX_PAUSE);
-		}
-	} else if (local & ADVERTISE_PAUSE_ASYM) {
-		if ((remote & LPA_PAUSE_CAP) &&
-		    (remote & LPA_PAUSE_ASYM))
-			pause_enab |= B44_FLAG_TX_PAUSE;
+	/* The driver supports only rx pause by default because
+	   the b44 mac tx pause mechanism generates excessive
+	   pause frames.
+	   Use ethtool to turn on b44 tx pause if necessary.
+	 */
+	if ((local & ADVERTISE_PAUSE_CAP) &&
+	    (local & ADVERTISE_PAUSE_ASYM)){
+		if ((remote & LPA_PAUSE_ASYM) &&
+		    !(remote & LPA_PAUSE_CAP))
+			pause_enab |= B44_FLAG_RX_PAUSE;
 	}
 
 	__b44_set_flow_ctrl(bp, pause_enab);
@@ -608,8 +602,7 @@ static void b44_tx(struct b44 *bp)
 		struct ring_info *rp = &bp->tx_buffers[cons];
 		struct sk_buff *skb = rp->skb;
 
-		if (unlikely(skb == NULL))
-			BUG();
+		BUG_ON(skb == NULL);
 
 		pci_unmap_single(bp->pdev,
 				 pci_unmap_addr(rp, mapping),
@@ -1064,7 +1057,7 @@ static int b44_change_mtu(struct net_device *dev, int new_mtu)
 	spin_unlock_irq(&bp->lock);
 
 	b44_enable_ints(bp);
-	
+
 	return 0;
 }
 
@@ -1339,6 +1332,9 @@ static int b44_set_mac_addr(struct net_device *dev, void *p)
 	if (netif_running(dev))
 		return -EBUSY;
 
+	if (!is_valid_ether_addr(addr->sa_data))
+		return -EINVAL;
+
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
 
 	spin_lock_irq(&bp->lock);
@@ -1379,7 +1375,7 @@ static void b44_init_hw(struct b44 *bp)
 	bw32(bp, B44_DMARX_ADDR, bp->rx_ring_dma + bp->dma_offset);
 
 	bw32(bp, B44_DMARX_PTR, bp->rx_pending);
-	bp->rx_prod = bp->rx_pending;	
+	bp->rx_prod = bp->rx_pending;
 
 	bw32(bp, B44_MIB_CTRL, MIB_CTRL_CLR_ON_READ);
 
@@ -1551,9 +1547,9 @@ static void __b44_set_rx_mode(struct net_device *dev)
 			val |= RXCONFIG_ALLMULTI;
 		else
 			i = __b44_load_mcast(bp, dev);
-		
+
 		for (; i < 64; i++) {
-			__b44_cam_write(bp, zero, i);			
+			__b44_cam_write(bp, zero, i);
 		}
 		bw32(bp, B44_RXCONFIG, val);
         	val = br32(bp, B44_CAM_CTRL);
@@ -1735,7 +1731,7 @@ static int b44_set_ringparam(struct net_device *dev,
 	spin_unlock_irq(&bp->lock);
 
 	b44_enable_ints(bp);
-	
+
 	return 0;
 }
 
@@ -1780,7 +1776,7 @@ static int b44_set_pauseparam(struct net_device *dev,
 	spin_unlock_irq(&bp->lock);
 
 	b44_enable_ints(bp);
-	
+
 	return 0;
 }
 
@@ -1876,6 +1872,12 @@ static int __devinit b44_get_invariants(struct b44 *bp)
 	bp->dev->dev_addr[3] = eeprom[80];
 	bp->dev->dev_addr[4] = eeprom[83];
 	bp->dev->dev_addr[5] = eeprom[82];
+
+	if (!is_valid_ether_addr(&bp->dev->dev_addr[0])){
+		printk(KERN_ERR PFX "Invalid MAC address found in EEPROM\n");
+		return -EINVAL;
+	}
+
 	memcpy(bp->dev->perm_addr, bp->dev->dev_addr, bp->dev->addr_len);
 
 	bp->phy_addr = eeprom[90] & 0x1f;
@@ -1890,7 +1892,7 @@ static int __devinit b44_get_invariants(struct b44 *bp)
 	bp->core_unit = ssb_core_unit(bp);
 	bp->dma_offset = SB_PCI_DMA;
 
-	/* XXX - really required? 
+	/* XXX - really required?
 	   bp->flags |= B44_FLAG_BUGGY_TXPTR;
          */
 out:
@@ -1938,7 +1940,7 @@ static int __devinit b44_init_one(struct pci_dev *pdev,
 		       "aborting.\n");
 		goto err_out_free_res;
 	}
-	
+
 	err = pci_set_consistent_dma_mask(pdev, (u64) B44_DMA_MASK);
 	if (err) {
 		printk(KERN_ERR PFX "No usable DMA configuration, "
@@ -2033,6 +2035,11 @@ static int __devinit b44_init_one(struct pci_dev *pdev,
 
 	pci_save_state(bp->pdev);
 
+	/* Chip reset provides power to the b44 MAC & PCI cores, which
+	 * is necessary for MAC register access.
+	 */
+	b44_chip_reset(bp);
+
 	printk(KERN_INFO "%s: Broadcom 4400 10/100BaseT Ethernet ", dev->name);
 	for (i = 0; i < 6; i++)
 		printk("%2.2x%c", dev->dev_addr[i],
@@ -2078,10 +2085,10 @@ static int b44_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	del_timer_sync(&bp->timer);
 
-	spin_lock_irq(&bp->lock); 
+	spin_lock_irq(&bp->lock);
 
 	b44_halt(bp);
-	netif_carrier_off(bp->dev); 
+	netif_carrier_off(bp->dev);
 	netif_device_detach(bp->dev);
 	b44_free_rings(bp);
 

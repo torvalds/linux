@@ -46,7 +46,8 @@ int sc_ioctl(int card, scs_ioctl *data)
 		pr_debug("%s: SCIOCRESET: ioctl received\n",
 			sc_adapter[card]->devicename);
 		sc_adapter[card]->StartOnReset = 0;
-		return (reset(card));
+		kfree(rcvmsg);
+		return reset(card);
 	}
 
 	case SCIOCLOAD:
@@ -183,7 +184,7 @@ int sc_ioctl(int card, scs_ioctl *data)
 				sc_adapter[card]->devicename);
 
 		spid = kmalloc(SCIOC_SPIDSIZE, GFP_KERNEL);
-		if(!spid) {
+		if (!spid) {
 			kfree(rcvmsg);
 			return -ENOMEM;
 		}
@@ -195,10 +196,10 @@ int sc_ioctl(int card, scs_ioctl *data)
 		if (!status) {
 			pr_debug("%s: SCIOCGETSPID: command successful\n",
 					sc_adapter[card]->devicename);
-		}
-		else {
+		} else {
 			pr_debug("%s: SCIOCGETSPID: command failed (status = %d)\n",
 				sc_adapter[card]->devicename, status);
+			kfree(spid);
 			kfree(rcvmsg);
 			return status;
 		}

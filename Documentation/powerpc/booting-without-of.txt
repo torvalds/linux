@@ -719,6 +719,11 @@ address which can extend beyond that limit.
     - model : this is your board name/model
     - #address-cells : address representation for "root" devices
     - #size-cells: the size representation for "root" devices
+    - device_type : This property shouldn't be necessary. However, if
+      you decide to create a device_type for your root node, make sure it
+      is _not_ "chrp" unless your platform is a pSeries or PAPR compliant
+      one for 64-bit, or a CHRP-type machine for 32-bit as this will
+      matched by the kernel this way.
 
   Additionally, some recommended properties are:
 

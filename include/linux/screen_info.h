@@ -41,7 +41,8 @@ struct screen_info {
 	u16 vesapm_off;		/* 0x30 */
 	u16 pages;		/* 0x32 */
 	u16 vesa_attributes;	/* 0x34 */
-				/* 0x36 -- 0x3f reserved for future expansion */
+	u32 capabilities;       /* 0x36 */
+				/* 0x3a -- 0x3f reserved for future expansion */
 };
 
 extern struct screen_info screen_info;

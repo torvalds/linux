@@ -2391,9 +2391,11 @@ static int __init alsa_card_es18xx_init(void)
 			continue;
 		device = platform_device_register_simple(ES18XX_DRIVER,
 							 i, NULL, 0);
-		if (IS_ERR(device)) {
-			err = PTR_ERR(device);
-			goto errout;
+		if (IS_ERR(device))
+	       		continue;
+		if (!platform_get_drvdata(device)) {
+			platform_device_unregister(device);
+			continue;
 		}
 		platform_devices[i] = device;
 		cards++;
@@ -2411,14 +2413,10 @@ static int __init alsa_card_es18xx_init(void)
 #ifdef MODULE
 		snd_printk(KERN_ERR "ESS AudioDrive ES18xx soundcard not found or device busy\n");
 #endif
-		err = -ENODEV;
-		goto errout;
+		snd_es18xx_unregister_all();
+		return -ENODEV;
 	}
 	return 0;
-
- errout:
-	snd_es18xx_unregister_all();
-	return err;
 }
 
 static void __exit alsa_card_es18xx_exit(void)

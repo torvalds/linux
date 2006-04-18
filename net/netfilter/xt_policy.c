@@ -71,7 +71,7 @@ match_policy_in(const struct sk_buff *skb, const struct xt_policy_info *info,
 			return 0;
 		e = &info->pol[pos];
 
-		if (match_xfrm_state(sp->x[i].xvec, e, family)) {
+		if (match_xfrm_state(sp->xvec[i], e, family)) {
 			if (!strict)
 				return 1;
 		} else if (strict)

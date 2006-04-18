@@ -249,155 +249,64 @@ static int cpuinfo_open(struct inode *inode, struct file *file)
 	return seq_open(file, &cpuinfo_op);
 }
 
-enum devinfo_states {
-	CHR_HDR,
-	CHR_LIST,
-	BLK_HDR,
-	BLK_LIST,
-	DEVINFO_DONE
-};
-
-struct devinfo_state {
-	void *chrdev;
-	void *blkdev;
-	unsigned int num_records;
-	unsigned int cur_record;
-	enum devinfo_states state;
-};
-
-static void *devinfo_start(struct seq_file *f, loff_t *pos)
-{
-	struct devinfo_state *info = f->private;
-
-	if (*pos) {
-		if ((info) && (*pos <= info->num_records))
-			return info;
-		return NULL;
-	}
-	info = kmalloc(sizeof(*info), GFP_KERNEL);
-	f->private = info;
-	info->chrdev = acquire_chrdev_list();
-	info->blkdev = acquire_blkdev_list();
-	info->state = CHR_HDR;
-	info->num_records = count_chrdev_list();
-	info->num_records += count_blkdev_list();
-	info->num_records += 2; /* Character and Block headers */
-	*pos = 1;
-	info->cur_record = *pos;
-	return info;
-}
-
-static void *devinfo_next(struct seq_file *f, void *v, loff_t *pos)
-{
-	int idummy;
-	char *ndummy;
-	struct devinfo_state *info = f->private;
-
-	switch (info->state) {
-		case CHR_HDR:
-			info->state = CHR_LIST;
-			(*pos)++;
-			/*fallthrough*/
-		case CHR_LIST:
-			if (get_chrdev_info(info->chrdev,&idummy,&ndummy)) {
-				/*
-				 * The character dev list is complete
-				 */
-				info->state = BLK_HDR;
-			} else {
-				info->chrdev = get_next_chrdev(info->chrdev);
-			}
-			(*pos)++;
-			break;
-		case BLK_HDR:
-			info->state = BLK_LIST;
-			(*pos)++;
-			/*fallthrough*/
-		case BLK_LIST:
-			if (get_blkdev_info(info->blkdev,&idummy,&ndummy)) {
-				/*
-				 * The block dev list is complete
-				 */
-				info->state = DEVINFO_DONE;
-			} else {
-				info->blkdev = get_next_blkdev(info->blkdev);
-			}
-			(*pos)++;
-			break;
-		case DEVINFO_DONE:
-			(*pos)++;
-			info->cur_record = *pos;
-			info = NULL;
-			break;
-		default:
-			break;
-	}
-	if (info)
-		info->cur_record = *pos;
-	return info;
-}
-
-static void devinfo_stop(struct seq_file *f, void *v)
-{
-	struct devinfo_state *info = f->private;
-
-	if (info) {
-		release_chrdev_list(info->chrdev);
-		release_blkdev_list(info->blkdev);
-		f->private = NULL;
-		kfree(info);
-	}
-}
-
-static int devinfo_show(struct seq_file *f, void *arg)
-{
-	int major;
-	char *name;
-	struct devinfo_state *info = f->private;
-
-	switch(info->state) {
-		case CHR_HDR:
-			seq_printf(f,"Character devices:\n");
-			/* fallthrough */
-		case CHR_LIST:
-			if (!get_chrdev_info(info->chrdev,&major,&name))
-				seq_printf(f,"%3d %s\n",major,name);
-			break;
-		case BLK_HDR:
-			seq_printf(f,"\nBlock devices:\n");
-			/* fallthrough */
-		case BLK_LIST:
-			if (!get_blkdev_info(info->blkdev,&major,&name))
-				seq_printf(f,"%3d %s\n",major,name);
-			break;
-		default:
-			break;
-	}
-
-	return 0;
-}
-
-static  struct seq_operations devinfo_op = {
-	.start  = devinfo_start,
-	.next   = devinfo_next,
-	.stop   = devinfo_stop,
-	.show   = devinfo_show,
-};
-
-static int devinfo_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &devinfo_op);
-}
-
-static struct file_operations proc_devinfo_operations = {
-	.open		= devinfo_open,
+static struct file_operations proc_cpuinfo_operations = {
+	.open		= cpuinfo_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= seq_release,
 };
 
-static struct file_operations proc_cpuinfo_operations = {
-	.open		= cpuinfo_open,
+static int devinfo_show(struct seq_file *f, void *v)
+{
+	int i = *(loff_t *) v;
+
+	if (i < CHRDEV_MAJOR_HASH_SIZE) {
+		if (i == 0)
+			seq_printf(f, "Character devices:\n");
+		chrdev_show(f, i);
+	} else {
+		i -= CHRDEV_MAJOR_HASH_SIZE;
+		if (i == 0)
+			seq_printf(f, "\nBlock devices:\n");
+		blkdev_show(f, i);
+	}
+	return 0;
+}
+
+static void *devinfo_start(struct seq_file *f, loff_t *pos)
+{
+	if (*pos < (BLKDEV_MAJOR_HASH_SIZE + CHRDEV_MAJOR_HASH_SIZE))
+		return pos;
+	return NULL;
+}
+
+static void *devinfo_next(struct seq_file *f, void *v, loff_t *pos)
+{
+	(*pos)++;
+	if (*pos >= (BLKDEV_MAJOR_HASH_SIZE + CHRDEV_MAJOR_HASH_SIZE))
+		return NULL;
+	return pos;
+}
+
+static void devinfo_stop(struct seq_file *f, void *v)
+{
+	/* Nothing to do */
+}
+
+static struct seq_operations devinfo_ops = {
+	.start = devinfo_start,
+	.next  = devinfo_next,
+	.stop  = devinfo_stop,
+	.show  = devinfo_show
+};
+
+static int devinfo_open(struct inode *inode, struct file *filp)
+{
+	return seq_open(filp, &devinfo_ops);
+}
+
+static struct file_operations proc_devinfo_operations = {
+	.open		= devinfo_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= seq_release,

@@ -401,7 +401,7 @@ unsigned long __init free_all_bootmem (void)
 	return(free_all_bootmem_core(NODE_DATA(0)));
 }
 
-void * __init __alloc_bootmem(unsigned long size, unsigned long align, unsigned long goal)
+void * __init __alloc_bootmem_nopanic(unsigned long size, unsigned long align, unsigned long goal)
 {
 	bootmem_data_t *bdata;
 	void *ptr;
@@ -409,7 +409,14 @@ void * __init __alloc_bootmem(unsigned long size, unsigned long align, unsigned 
 	list_for_each_entry(bdata, &bdata_list, list)
 		if ((ptr = __alloc_bootmem_core(bdata, size, align, goal, 0)))
 			return(ptr);
+	return NULL;
+}
 
+void * __init __alloc_bootmem(unsigned long size, unsigned long align, unsigned long goal)
+{
+	void *mem = __alloc_bootmem_nopanic(size,align,goal);
+	if (mem)
+		return mem;
 	/*
 	 * Whoops, we cannot satisfy the allocation request.
 	 */

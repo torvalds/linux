@@ -1109,6 +1109,9 @@ static unsigned int powernowk8_get (unsigned int cpu)
 	if (!data)
 		return -EINVAL;
 
+	if (!data)
+		return -EINVAL;
+
 	set_cpus_allowed(current, cpumask_of_cpu(cpu));
 	if (smp_processor_id() != cpu) {
 		printk(KERN_ERR PFX "limiting to CPU %d failed in powernowk8_get\n", cpu);

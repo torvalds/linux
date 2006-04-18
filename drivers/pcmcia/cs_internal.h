@@ -15,7 +15,7 @@
 #ifndef _LINUX_CS_INTERNAL_H
 #define _LINUX_CS_INTERNAL_H
 
-#include <linux/config.h>
+#include <linux/kref.h>
 
 /* Flags in client state */
 #define CLIENT_CONFIG_LOCKED	0x0001
@@ -23,7 +23,7 @@
 #define CLIENT_IO_REQ		0x0004
 #define CLIENT_UNBOUND		0x0008
 #define CLIENT_STALE		0x0010
-#define CLIENT_WIN_REQ(i)	(0x20<<(i))
+#define CLIENT_WIN_REQ(i)	(0x1<<(i))
 #define CLIENT_CARDBUS		0x8000
 
 #define REGION_MAGIC	0xE3C9
@@ -31,7 +31,7 @@ typedef struct region_t {
     u_short		region_magic;
     u_short		state;
     dev_info_t		dev_info;
-    client_handle_t	mtd;
+    struct pcmcia_device	*mtd;
     u_int		MediaID;
     region_info_t	info;
 } region_t;
@@ -40,12 +40,12 @@ typedef struct region_t {
 
 /* Each card function gets one of these guys */
 typedef struct config_t {
+	struct kref	ref;
     u_int		state;
     u_int		Attributes;
     u_int		IntType;
     u_int		ConfigBase;
     u_char		Status, Pin, Copy, Option, ExtStatus;
-    u_int		Present;
     u_int		CardValues;
     io_req_t		io;
     struct {
@@ -95,12 +95,6 @@ static inline void cs_socket_put(struct pcmcia_socket *skt)
 	}
 }
 
-#define CHECK_SOCKET(s) \
-    (((s) >= sockets) || (socket_table[s]->ops == NULL))
-
-#define SOCKET(h) (h->socket)
-#define CONFIG(h) (&SOCKET(h)->config[(h)->func])
-
 /* In cardbus.c */
 int cb_alloc(struct pcmcia_socket *s);
 void cb_free(struct pcmcia_socket *s);
@@ -133,10 +127,9 @@ extern struct class_interface pccard_sysfs_interface;
 extern struct rw_semaphore pcmcia_socket_list_rwsem;
 extern struct list_head pcmcia_socket_list;
 int pcmcia_get_window(struct pcmcia_socket *s, window_handle_t *handle, int idx, win_req_t *req);
-int pccard_get_configuration_info(struct pcmcia_socket *s, unsigned int function, config_info_t *config);
+int pccard_get_configuration_info(struct pcmcia_socket *s, struct pcmcia_device *p_dev, config_info_t *config);
 int pccard_reset_card(struct pcmcia_socket *skt);
-int pccard_get_status(struct pcmcia_socket *s, unsigned int function, cs_status_t *status);
-int pccard_access_configuration_register(struct pcmcia_socket *s, unsigned int function, conf_reg_t *reg);
+int pccard_get_status(struct pcmcia_socket *s, struct pcmcia_device *p_dev, cs_status_t *status);
 
 
 struct pcmcia_callback{

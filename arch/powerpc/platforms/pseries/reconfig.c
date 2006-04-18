@@ -17,8 +17,9 @@
 #include <linux/proc_fs.h>
 
 #include <asm/prom.h>
-#include <asm/pSeries_reconfig.h>
+#include <asm/machdep.h>
 #include <asm/uaccess.h>
+#include <asm/pSeries_reconfig.h>
 
 
 
@@ -508,7 +509,7 @@ static int proc_ppc64_create_ofdt(void)
 {
 	struct proc_dir_entry *ent;
 
-	if (!platform_is_pseries())
+	if (!machine_is(pseries))
 		return 0;
 
 	ent = create_proc_entry("ppc64/ofdt", S_IWUSR, NULL);

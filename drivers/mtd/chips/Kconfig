@@ -200,27 +200,6 @@ config MTD_CFI_AMDSTD
 	  provides support for one of those command sets, used on chips
 	  including the AMD Am29LV320.
 
-config MTD_CFI_AMDSTD_RETRY
-	int "Retry failed commands (erase/program)"
-	depends on MTD_CFI_AMDSTD
-	default "0"
-	help
-	  Some chips, when attached to a shared bus, don't properly filter
-	  bus traffic that is destined to other devices.  This broken
-	  behavior causes erase and program sequences to be aborted when
-	  the sequences are mixed with traffic for other devices.
-
-	  SST49LF040 (and related) chips are know to be broken.
-
-config MTD_CFI_AMDSTD_RETRY_MAX
-	int "Max retries of failed commands (erase/program)"
-	depends on MTD_CFI_AMDSTD_RETRY
-	default "0"
-	help
-	  If you have an SST49LF040 (or related chip) then this value should
-	  be set to at least 1.  This can also be adjusted at driver load
-	  time with the retry_cmd_max module parameter.
-
 config MTD_CFI_STAA
 	tristate "Support for ST (Advanced Architecture) flash chips"
 	depends on MTD_GEN_PROBE

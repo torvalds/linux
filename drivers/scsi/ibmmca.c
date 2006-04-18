@@ -2488,7 +2488,7 @@ static int option_setup(char *str)
 	}
 	ints[0] = i - 1;
 	internal_ibmmca_scsi_setup(cur, ints);
-	return 0;
+	return 1;
 }
 
 __setup("ibmmcascsi=", option_setup);

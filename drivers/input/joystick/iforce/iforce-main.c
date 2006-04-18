@@ -350,7 +350,7 @@ int iforce_init_device(struct iforce *iforce)
 
 	init_waitqueue_head(&iforce->wait);
 	spin_lock_init(&iforce->xmit_lock);
-	init_MUTEX(&iforce->mem_mutex);
+	mutex_init(&iforce->mem_mutex);
 	iforce->xmit.buf = iforce->xmit_data;
 	iforce->dev = input_dev;
 

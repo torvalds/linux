@@ -726,7 +726,7 @@ static __init int late_hpet_init(void)
 	unsigned int 		ntimer;
 
 	if (!vxtime.hpet_address)
-        	return -1;
+        	return 0;
 
 	memset(&hd, 0, sizeof (hd));
 
@@ -917,6 +917,8 @@ void __init time_init(void)
 		vxtime.hpet_address = 0;
 
 	if (hpet_use_timer) {
+		/* set tick_nsec to use the proper rate for HPET */
+	  	tick_nsec = TICK_NSEC_HPET;
 		cpu_khz = hpet_calibrate_tsc();
 		timename = "HPET";
 #ifdef CONFIG_X86_PM_TIMER
@@ -1306,7 +1308,7 @@ irqreturn_t hpet_rtc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 static int __init nohpet_setup(char *s) 
 { 
 	nohpet = 1;
-	return 0;
+	return 1;
 } 
 
 __setup("nohpet", nohpet_setup);
@@ -1314,7 +1316,7 @@ __setup("nohpet", nohpet_setup);
 int __init notsc_setup(char *s)
 {
 	notsc = 1;
-	return 0;
+	return 1;
 }
 
 __setup("notsc", notsc_setup);

@@ -506,7 +506,7 @@ static int __devinit snd_vortex_new_pcm(vortex_t * chip, int idx, int nr)
 	int i;
 	int err, nr_capt;
 
-	if ((chip == 0) || (idx < 0) || (idx > VORTEX_PCM_LAST))
+	if ((chip == 0) || (idx < 0) || (idx >= VORTEX_PCM_LAST))
 		return -ENODEV;
 
 	/* idx indicates which kind of PCM device. ADB, SPDIF, I2S and A3D share the 

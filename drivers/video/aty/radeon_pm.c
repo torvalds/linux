@@ -20,7 +20,7 @@
 #include <linux/agp_backend.h>
 
 #ifdef CONFIG_PPC_PMAC
-#include <asm/processor.h>
+#include <asm/machdep.h>
 #include <asm/prom.h>
 #include <asm/pmac_feature.h>
 #endif
@@ -2745,7 +2745,7 @@ void radeonfb_pm_init(struct radeonfb_info *rinfo, int dynclk)
 		rinfo->pm_mode |= radeon_pm_off;
 	}
 #if defined(CONFIG_PPC_PMAC)
-	if (_machine == _MACH_Pmac && rinfo->of_node) {
+	if (machine_is(powermac) && rinfo->of_node) {
 		if (rinfo->is_mobility && rinfo->pm_reg &&
 		    rinfo->family <= CHIP_FAMILY_RV250)
 			rinfo->pm_mode |= radeon_pm_d2;

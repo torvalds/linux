@@ -420,6 +420,7 @@ struct kmem_cache {
 	unsigned long max_freeable;
 	unsigned long node_allocs;
 	unsigned long node_frees;
+	unsigned long node_overflow;
 	atomic_t allochit;
 	atomic_t allocmiss;
 	atomic_t freehit;
@@ -465,6 +466,7 @@ struct kmem_cache {
 #define	STATS_INC_ERR(x)	((x)->errors++)
 #define	STATS_INC_NODEALLOCS(x)	((x)->node_allocs++)
 #define	STATS_INC_NODEFREES(x)	((x)->node_frees++)
+#define STATS_INC_ACOVERFLOW(x)   ((x)->node_overflow++)
 #define	STATS_SET_FREEABLE(x, i)					\
 	do {								\
 		if ((x)->max_freeable < i)				\
@@ -484,6 +486,7 @@ struct kmem_cache {
 #define	STATS_INC_ERR(x)	do { } while (0)
 #define	STATS_INC_NODEALLOCS(x)	do { } while (0)
 #define	STATS_INC_NODEFREES(x)	do { } while (0)
+#define STATS_INC_ACOVERFLOW(x)   do { } while (0)
 #define	STATS_SET_FREEABLE(x, i) do { } while (0)
 #define STATS_INC_ALLOCHIT(x)	do { } while (0)
 #define STATS_INC_ALLOCMISS(x)	do { } while (0)
@@ -1297,8 +1300,7 @@ void __init kmem_cache_init(void)
 		if (cache_cache.num)
 			break;
 	}
-	if (!cache_cache.num)
-		BUG();
+	BUG_ON(!cache_cache.num);
 	cache_cache.gfporder = order;
 	cache_cache.colour = left_over / cache_cache.colour_off;
 	cache_cache.slab_size = ALIGN(cache_cache.num * sizeof(kmem_bufctl_t) +
@@ -1454,7 +1456,14 @@ static void *kmem_getpages(struct kmem_cache *cachep, gfp_t flags, int nodeid)
 	int i;
 
 	flags |= cachep->gfpflags;
+#ifndef CONFIG_MMU
+	/* nommu uses slab's for process anonymous memory allocations, so
+	 * requires __GFP_COMP to properly refcount higher order allocations"
+	 */
+	page = alloc_pages_node(nodeid, (flags | __GFP_COMP), cachep->gfporder);
+#else
 	page = alloc_pages_node(nodeid, flags, cachep->gfporder);
+#endif
 	if (!page)
 		return NULL;
 	addr = page_address(page);
@@ -1974,8 +1983,7 @@ kmem_cache_create (const char *name, size_t size, size_t align,
 	 * Always checks flags, a caller might be expecting debug support which
 	 * isn't available.
 	 */
-	if (flags & ~CREATE_MASK)
-		BUG();
+	BUG_ON(flags & ~CREATE_MASK);
 
 	/*
 	 * Check that size is in terms of words.  This is needed to avoid
@@ -2206,8 +2214,7 @@ static int __node_shrink(struct kmem_cache *cachep, int node)
 
 		slabp = list_entry(l3->slabs_free.prev, struct slab, list);
 #if DEBUG
-		if (slabp->inuse)
-			BUG();
+		BUG_ON(slabp->inuse);
 #endif
 		list_del(&slabp->list);
 
@@ -2248,8 +2255,7 @@ static int __cache_shrink(struct kmem_cache *cachep)
  */
 int kmem_cache_shrink(struct kmem_cache *cachep)
 {
-	if (!cachep || in_interrupt())
-		BUG();
+	BUG_ON(!cachep || in_interrupt());
 
 	return __cache_shrink(cachep);
 }
@@ -2277,8 +2283,7 @@ int kmem_cache_destroy(struct kmem_cache *cachep)
 	int i;
 	struct kmem_list3 *l3;
 
-	if (!cachep || in_interrupt())
-		BUG();
+	BUG_ON(!cachep || in_interrupt());
 
 	/* Don't let CPUs to come and go */
 	lock_cpu_hotplug();
@@ -2323,13 +2328,15 @@ EXPORT_SYMBOL(kmem_cache_destroy);
 
 /* Get the memory for a slab management obj. */
 static struct slab *alloc_slabmgmt(struct kmem_cache *cachep, void *objp,
-				   int colour_off, gfp_t local_flags)
+				   int colour_off, gfp_t local_flags,
+				   int nodeid)
 {
 	struct slab *slabp;
 
 	if (OFF_SLAB(cachep)) {
 		/* Slab management obj is off-slab. */
-		slabp = kmem_cache_alloc(cachep->slabp_cache, local_flags);
+		slabp = kmem_cache_alloc_node(cachep->slabp_cache,
+					      local_flags, nodeid);
 		if (!slabp)
 			return NULL;
 	} else {
@@ -2339,6 +2346,7 @@ static struct slab *alloc_slabmgmt(struct kmem_cache *cachep, void *objp,
 	slabp->inuse = 0;
 	slabp->colouroff = colour_off;
 	slabp->s_mem = objp + colour_off;
+	slabp->nodeid = nodeid;
 	return slabp;
 }
 
@@ -2477,8 +2485,7 @@ static int cache_grow(struct kmem_cache *cachep, gfp_t flags, int nodeid)
 	 * Be lazy and only check for valid flags here,  keeping it out of the
 	 * critical path in kmem_cache_alloc().
 	 */
-	if (flags & ~(SLAB_DMA | SLAB_LEVEL_MASK | SLAB_NO_GROW))
-		BUG();
+	BUG_ON(flags & ~(SLAB_DMA | SLAB_LEVEL_MASK | SLAB_NO_GROW));
 	if (flags & SLAB_NO_GROW)
 		return 0;
 
@@ -2525,7 +2532,7 @@ static int cache_grow(struct kmem_cache *cachep, gfp_t flags, int nodeid)
 		goto failed;
 
 	/* Get slab management. */
-	slabp = alloc_slabmgmt(cachep, objp, offset, local_flags);
+	slabp = alloc_slabmgmt(cachep, objp, offset, local_flags, nodeid);
 	if (!slabp)
 		goto opps1;
 
@@ -3086,9 +3093,11 @@ static inline void __cache_free(struct kmem_cache *cachep, void *objp)
 			if (l3->alien && l3->alien[nodeid]) {
 				alien = l3->alien[nodeid];
 				spin_lock(&alien->lock);
-				if (unlikely(alien->avail == alien->limit))
+				if (unlikely(alien->avail == alien->limit)) {
+					STATS_INC_ACOVERFLOW(cachep);
 					__drain_alien_cache(cachep,
 							    alien, nodeid);
+				}
 				alien->entry[alien->avail++] = objp;
 				spin_unlock(&alien->lock);
 			} else {
@@ -3766,7 +3775,7 @@ static void print_slabinfo_header(struct seq_file *m)
 	seq_puts(m, " : slabdata <active_slabs> <num_slabs> <sharedavail>");
 #if STATS
 	seq_puts(m, " : globalstat <listallocs> <maxobjs> <grown> <reaped> "
-		 "<error> <maxfreeable> <nodeallocs> <remotefrees>");
+		 "<error> <maxfreeable> <nodeallocs> <remotefrees> <alienoverflow>");
 	seq_puts(m, " : cpustat <allochit> <allocmiss> <freehit> <freemiss>");
 #endif
 	seq_putc(m, '\n');
@@ -3880,11 +3889,12 @@ static int s_show(struct seq_file *m, void *p)
 		unsigned long max_freeable = cachep->max_freeable;
 		unsigned long node_allocs = cachep->node_allocs;
 		unsigned long node_frees = cachep->node_frees;
+		unsigned long overflows = cachep->node_overflow;
 
 		seq_printf(m, " : globalstat %7lu %6lu %5lu %4lu \
-				%4lu %4lu %4lu %4lu", allocs, high, grown,
+				%4lu %4lu %4lu %4lu %4lu", allocs, high, grown,
 				reaped, errors, max_freeable, node_allocs,
-				node_frees);
+				node_frees, overflows);
 	}
 	/* cpu stats */
 	{

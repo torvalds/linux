@@ -58,11 +58,15 @@ translating each of those pages back to a kernel address using
 something like __va().  [ EDIT: Update this when we integrate
 Gerd Knorr's generic code which does this. ]
 
-This rule also means that you may not use kernel image addresses
-(ie. items in the kernel's data/text/bss segment, or your driver's)
-nor may you use kernel stack addresses for DMA.  Both of these items
-might be mapped somewhere entirely different than the rest of physical
-memory.
+This rule also means that you may use neither kernel image addresses
+(items in data/text/bss segments), nor module image addresses, nor
+stack addresses for DMA.  These could all be mapped somewhere entirely
+different than the rest of physical memory.  Even if those classes of
+memory could physically work with DMA, you'd need to ensure the I/O
+buffers were cacheline-aligned.  Without that, you'd see cacheline
+sharing problems (data corruption) on CPUs with DMA-incoherent caches.
+(The CPU could write to one word, DMA would write to a different one
+in the same cache line, and one of them could be overwritten.)
 
 Also, this means that you cannot take the return of a kmap()
 call and DMA to/from that.  This is similar to vmalloc().
@@ -194,7 +198,7 @@ document for how to handle this case.
 Finally, if your device can only drive the low 24-bits of
 address during PCI bus mastering you might do something like:
 
-	if (pci_set_dma_mask(pdev, 0x00ffffff)) {
+	if (pci_set_dma_mask(pdev, DMA_24BIT_MASK)) {
 		printk(KERN_WARNING
 		       "mydev: 24-bit DMA addressing not available.\n");
 		goto ignore_this_device;
@@ -212,7 +216,7 @@ functions (for example a sound card provides playback and record
 functions) and the various different functions have _different_
 DMA addressing limitations, you may wish to probe each mask and
 only provide the functionality which the machine can handle.  It
-is important that the last call to pci_set_dma_mask() be for the 
+is important that the last call to pci_set_dma_mask() be for the
 most specific mask.
 
 Here is pseudo-code showing how this might be done:
@@ -284,6 +288,11 @@ There are two types of DMA mappings:
 
              in order to get correct behavior on all platforms.
 
+	     Also, on some platforms your driver may need to flush CPU write
+	     buffers in much the same way as it needs to flush write buffers
+	     found in PCI bridges (such as by reading a register's value
+	     after writing it).
+
 - Streaming DMA mappings which are usually mapped for one DMA transfer,
   unmapped right after it (unless you use pci_dma_sync_* below) and for which
   hardware can optimize for sequential accesses.
@@ -303,6 +312,9 @@ There are two types of DMA mappings:
 
 Neither type of DMA mapping has alignment restrictions that come
 from PCI, although some devices may have such restrictions.
+Also, systems with caches that aren't DMA-coherent will work better
+when the underlying buffers don't share cache lines with other data.
+
 
 		 Using Consistent DMA mappings.
 

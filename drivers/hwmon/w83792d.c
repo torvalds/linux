@@ -1161,7 +1161,7 @@ w83792d_detect(struct i2c_adapter *adapter, int address, int kind)
 	   bank. */
 	if (kind < 0) {
 		if (w83792d_read_value(client, W83792D_REG_CONFIG) & 0x80) {
-			dev_warn(dev, "Detection failed at step 3\n");
+			dev_dbg(dev, "Detection failed at step 1\n");
 			goto ERROR1;
 		}
 		val1 = w83792d_read_value(client, W83792D_REG_BANK);
@@ -1170,6 +1170,7 @@ w83792d_detect(struct i2c_adapter *adapter, int address, int kind)
 		if (!(val1 & 0x07)) {  /* is Bank0 */
 			if (((!(val1 & 0x80)) && (val2 != 0xa3)) ||
 			     ((val1 & 0x80) && (val2 != 0x5c))) {
+				dev_dbg(dev, "Detection failed at step 2\n");
 				goto ERROR1;
 			}
 		}
@@ -1177,7 +1178,7 @@ w83792d_detect(struct i2c_adapter *adapter, int address, int kind)
 		   should match */
 		if (w83792d_read_value(client,
 					W83792D_REG_I2C_ADDR) != address) {
-			dev_warn(dev, "Detection failed at step 5\n");
+			dev_dbg(dev, "Detection failed at step 3\n");
 			goto ERROR1;
 		}
 	}

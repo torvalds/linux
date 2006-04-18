@@ -673,8 +673,7 @@ xfs_vn_setattr(
 	if (ia_valid & ATTR_ATIME) {
 		vattr.va_mask |= XFS_AT_ATIME;
 		vattr.va_atime = attr->ia_atime;
-		if (ia_valid & ATTR_ATIME_SET)
-			inode->i_atime = attr->ia_atime;
+		inode->i_atime = attr->ia_atime;
 	}
 	if (ia_valid & ATTR_MTIME) {
 		vattr.va_mask |= XFS_AT_MTIME;
@@ -708,7 +707,7 @@ STATIC void
 xfs_vn_truncate(
 	struct inode	*inode)
 {
-	block_truncate_page(inode->i_mapping, inode->i_size, xfs_get_block);
+	block_truncate_page(inode->i_mapping, inode->i_size, xfs_get_blocks);
 }
 
 STATIC int

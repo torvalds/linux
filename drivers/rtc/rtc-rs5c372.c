@@ -151,9 +151,8 @@ static int rs5c372_rtc_proc(struct device *dev, struct seq_file *seq)
 {
 	int err, osc, trim;
 
-	seq_printf(seq, "24hr\t\t: yes\n");
-
-	if ((err = rs5c372_get_trim(to_i2c_client(dev), &osc, &trim)) == 0) {
+	err = rs5c372_get_trim(to_i2c_client(dev), &osc, &trim);
+	if (err == 0) {
 		seq_printf(seq, "%d.%03d KHz\n", osc / 1000, osc % 1000);
 		seq_printf(seq, "trim\t: %d\n", trim);
 	}
@@ -170,30 +169,31 @@ static struct rtc_class_ops rs5c372_rtc_ops = {
 static ssize_t rs5c372_sysfs_show_trim(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	int trim;
+	int err, trim;
 
-	if (rs5c372_get_trim(to_i2c_client(dev), NULL, &trim) == 0)
-		return sprintf(buf, "0x%2x\n", trim);
+	err = rs5c372_get_trim(to_i2c_client(dev), NULL, &trim);
+	if (err)
+		return err;
 
-	return 0;
+	return sprintf(buf, "0x%2x\n", trim);
 }
 static DEVICE_ATTR(trim, S_IRUGO, rs5c372_sysfs_show_trim, NULL);
 
 static ssize_t rs5c372_sysfs_show_osc(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	int osc;
+	int err, osc;
 
-	if (rs5c372_get_trim(to_i2c_client(dev), &osc, NULL) == 0)
-		return sprintf(buf, "%d.%03d KHz\n", osc / 1000, osc % 1000);
+	err = rs5c372_get_trim(to_i2c_client(dev), &osc, NULL);
+	if (err)
+		return err;
 
-	return 0;
+	return sprintf(buf, "%d.%03d KHz\n", osc / 1000, osc % 1000);
 }
 static DEVICE_ATTR(osc, S_IRUGO, rs5c372_sysfs_show_osc, NULL);
 
 static int rs5c372_attach(struct i2c_adapter *adapter)
 {
-	dev_dbg(&adapter->dev, "%s\n", __FUNCTION__);
 	return i2c_probe(adapter, &addr_data, rs5c372_probe);
 }
 
@@ -233,8 +233,6 @@ static int rs5c372_probe(struct i2c_adapter *adapter, int address, int kind)
 
 	if (IS_ERR(rtc)) {
 		err = PTR_ERR(rtc);
-		dev_err(&client->dev,
-			"unable to register the class device\n");
 		goto exit_detach;
 	}
 
@@ -259,8 +257,6 @@ static int rs5c372_detach(struct i2c_client *client)
 {
 	int err;
 	struct rtc_device *rtc = i2c_get_clientdata(client);
-
-	dev_dbg(&client->dev, "%s\n", __FUNCTION__);
 
 	if (rtc)
 		rtc_device_unregister(rtc);

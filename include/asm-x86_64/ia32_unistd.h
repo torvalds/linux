@@ -317,6 +317,4 @@
 #define __NR_ia32_ppoll			309
 #define __NR_ia32_unshare		310
 
-#define IA32_NR_syscalls 315	/* must be > than biggest syscall! */
-
 #endif /* _ASM_X86_64_IA32_UNISTD_H_ */

@@ -25,6 +25,7 @@
 #include <asm/hvcall.h>
 #include <asm/semaphore.h>
 #include <asm/machdep.h>
+#include <asm/firmware.h>
 #include <asm/page.h>
 #include <asm/param.h>
 #include <asm/system.h>
@@ -32,6 +33,7 @@
 #include <asm/uaccess.h>
 #include <asm/lmb.h>
 #include <asm/udbg.h>
+#include <asm/syscalls.h>
 
 struct rtas_t rtas = {
 	.lock = SPIN_LOCK_UNLOCKED
@@ -576,26 +578,26 @@ static void rtas_percpu_suspend_me(void *info)
 	 * We use "waiting" to indicate our state.  As long
 	 * as it is >0, we are still trying to all join up.
 	 * If it goes to 0, we have successfully joined up and
-	 * one thread got H_Continue.  If any error happens,
+	 * one thread got H_CONTINUE.  If any error happens,
 	 * we set it to <0.
 	 */
 	local_irq_save(flags);
 	do {
 		rc = plpar_hcall_norets(H_JOIN);
 		smp_rmb();
-	} while (rc == H_Success && data->waiting > 0);
-	if (rc == H_Success)
+	} while (rc == H_SUCCESS && data->waiting > 0);
+	if (rc == H_SUCCESS)
 		goto out;
 
-	if (rc == H_Continue) {
+	if (rc == H_CONTINUE) {
 		data->waiting = 0;
 		data->args->args[data->args->nargs] =
 			rtas_call(ibm_suspend_me_token, 0, 1, NULL);
-		for_each_cpu(i)
+		for_each_possible_cpu(i)
 			plpar_hcall_norets(H_PROD,i);
 	} else {
 		data->waiting = -EBUSY;
-		printk(KERN_ERR "Error on H_Join hypervisor call\n");
+		printk(KERN_ERR "Error on H_JOIN hypervisor call\n");
 	}
 
 out:
@@ -622,9 +624,9 @@ static int rtas_ibm_suspend_me(struct rtas_args *args)
 		printk(KERN_ERR "Error doing global join\n");
 
 	/* Prod each CPU.  This won't hurt, and will wake
-	 * anyone we successfully put to sleep with H_Join
+	 * anyone we successfully put to sleep with H_JOIN.
 	 */
-	for_each_cpu(i)
+	for_each_possible_cpu(i)
 		plpar_hcall_norets(H_PROD, i);
 
 	return data.waiting;
@@ -767,7 +769,7 @@ void __init rtas_initialize(void)
 	 * the stop-self token if any
 	 */
 #ifdef CONFIG_PPC64
-	if (_machine == PLATFORM_PSERIES_LPAR) {
+	if (machine_is(pseries) && firmware_has_feature(FW_FEATURE_LPAR)) {
 		rtas_region = min(lmb.rmo_size, RTAS_INSTANTIATE_MAX);
 		ibm_suspend_me_token = rtas_token("ibm,suspend-me");
 	}

@@ -527,6 +527,11 @@ config CPU_HAS_SR_RB
 	  See <file:Documentation/sh/register-banks.txt> for further
 	  information on SR.RB and register banking in the kernel in general.
 
+config NODES_SHIFT
+	int
+	default "1"
+	depends on NEED_MULTIPLE_NODES
+
 endmenu
 
 menu "Boot options"

@@ -873,7 +873,7 @@ static int __init cpia_pp_setup(char *str)
 		parport_nr[parport_ptr++] = PPCPIA_PARPORT_NONE;
 	}
 
-	return 0;
+	return 1;
 }
 
 __setup("cpia_pp=", cpia_pp_setup);

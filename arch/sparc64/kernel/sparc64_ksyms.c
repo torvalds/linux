@@ -276,7 +276,6 @@ EXPORT_SYMBOL(__prom_getsibling);
 EXPORT_SYMBOL(strlen);
 EXPORT_SYMBOL(__strlen_user);
 EXPORT_SYMBOL(__strnlen_user);
-EXPORT_SYMBOL(strpbrk);
 
 #ifdef CONFIG_SOLARIS_EMUL_MODULE
 EXPORT_SYMBOL(linux_sparc_syscall);

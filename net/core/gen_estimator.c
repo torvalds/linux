@@ -159,11 +159,10 @@ int gen_new_estimator(struct gnet_stats_basic *bstats,
 	if (parm->interval < -2 || parm->interval > 3)
 		return -EINVAL;
 
-	est = kmalloc(sizeof(*est), GFP_KERNEL);
+	est = kzalloc(sizeof(*est), GFP_KERNEL);
 	if (est == NULL)
 		return -ENOBUFS;
 
-	memset(est, 0, sizeof(*est));
 	est->interval = parm->interval + 2;
 	est->bstats = bstats;
 	est->rate_est = rate_est;

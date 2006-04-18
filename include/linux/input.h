@@ -421,7 +421,7 @@ struct input_absinfo {
 #define BTN_GEAR_UP		0x151
 
 #define KEY_OK			0x160
-#define KEY_SELECT 		0x161
+#define KEY_SELECT		0x161
 #define KEY_GOTO		0x162
 #define KEY_CLEAR		0x163
 #define KEY_POWER2		0x164
@@ -511,6 +511,15 @@ struct input_absinfo {
 #define KEY_FN_F		0x1e2
 #define KEY_FN_S		0x1e3
 #define KEY_FN_B		0x1e4
+
+#define KEY_BRL_DOT1		0x1f1
+#define KEY_BRL_DOT2		0x1f2
+#define KEY_BRL_DOT3		0x1f3
+#define KEY_BRL_DOT4		0x1f4
+#define KEY_BRL_DOT5		0x1f5
+#define KEY_BRL_DOT6		0x1f6
+#define KEY_BRL_DOT7		0x1f7
+#define KEY_BRL_DOT8		0x1f8
 
 /* We avoid low common keys in module aliases so they don't get huge. */
 #define KEY_MIN_INTERESTING	KEY_MUTE
@@ -929,7 +938,7 @@ struct input_dev {
 
 	struct input_handle *grab;
 
-	struct semaphore sem;	/* serializes open and close operations */
+	struct mutex mutex;	/* serializes open and close operations */
 	unsigned int users;
 
 	struct class_device cdev;
@@ -995,11 +1004,6 @@ static inline void init_input_dev(struct input_dev *dev)
 
 struct input_dev *input_allocate_device(void);
 
-static inline void input_free_device(struct input_dev *dev)
-{
-	kfree(dev);
-}
-
 static inline struct input_dev *input_get_device(struct input_dev *dev)
 {
 	return to_input_dev(class_device_get(&dev->cdev));
@@ -1008,6 +1012,11 @@ static inline struct input_dev *input_get_device(struct input_dev *dev)
 static inline void input_put_device(struct input_dev *dev)
 {
 	class_device_put(&dev->cdev);
+}
+
+static inline void input_free_device(struct input_dev *dev)
+{
+	input_put_device(dev);
 }
 
 int input_register_device(struct input_dev *);

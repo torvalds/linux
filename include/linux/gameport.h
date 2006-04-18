@@ -11,6 +11,7 @@
 
 #include <asm/io.h>
 #include <linux/list.h>
+#include <linux/mutex.h>
 #include <linux/device.h>
 #include <linux/timer.h>
 
@@ -40,7 +41,7 @@ struct gameport {
 	struct gameport *parent, *child;
 
 	struct gameport_driver *drv;
-	struct semaphore drv_sem;	/* protects serio->drv so attributes can pin driver */
+	struct mutex drv_mutex;		/* protects serio->drv so attributes can pin driver */
 
 	struct device dev;
 	unsigned int registered;	/* port has been fully registered with driver core */
@@ -137,12 +138,12 @@ static inline void gameport_set_drvdata(struct gameport *gameport, void *data)
  */
 static inline int gameport_pin_driver(struct gameport *gameport)
 {
-	return down_interruptible(&gameport->drv_sem);
+	return mutex_lock_interruptible(&gameport->drv_mutex);
 }
 
 static inline void gameport_unpin_driver(struct gameport *gameport)
 {
-	up(&gameport->drv_sem);
+	mutex_unlock(&gameport->drv_mutex);
 }
 
 void __gameport_register_driver(struct gameport_driver *drv, struct module *owner);

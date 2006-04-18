@@ -194,7 +194,7 @@ start_ldr:
 	/*
 	 * Start at the begining.
 	 */
-#ifdef CONFIG_PPC_MULTIPLATFORM
+#ifdef CONFIG_PPC_PREP
 	li	r9,0xc
 	mtlr	r9
 	/* tell kernel we're prep, by putting 0xdeadc0de at KERNELLOAD,

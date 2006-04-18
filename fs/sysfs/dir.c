@@ -43,6 +43,7 @@ static struct sysfs_dirent * sysfs_new_dirent(struct sysfs_dirent * parent_sd,
 
 	memset(sd, 0, sizeof(*sd));
 	atomic_set(&sd->s_count, 1);
+	atomic_set(&sd->s_event, 0);
 	INIT_LIST_HEAD(&sd->s_children);
 	list_add(&sd->s_sibling, &parent_sd->s_children);
 	sd->s_element = element;
@@ -50,7 +51,7 @@ static struct sysfs_dirent * sysfs_new_dirent(struct sysfs_dirent * parent_sd,
 	return sd;
 }
 
-/**
+/*
  *
  * Return -EEXIST if there is already a sysfs element with the same name for
  * the same parent.

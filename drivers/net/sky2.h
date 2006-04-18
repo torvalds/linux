@@ -1375,7 +1375,7 @@ enum {
 	GM_PHY_ADDR	= 0x0088,	/* 16 bit r/w	GPHY Address Register */
 /* MIB Counters */
 	GM_MIB_CNT_BASE	= 0x0100,	/* Base Address of MIB Counters */
-	GM_MIB_CNT_SIZE	= 256,
+	GM_MIB_CNT_END	= 0x025C,	/* Last MIB counter */
 };
 
 

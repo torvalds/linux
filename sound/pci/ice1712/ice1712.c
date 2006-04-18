@@ -2402,7 +2402,7 @@ static int __devinit snd_ice1712_chip_init(struct snd_ice1712 *ice)
 	if (ice->eeprom.subvendor == ICE1712_SUBDEVICE_DMX6FIRE && !ice->dxr_enable) {
                 /* Limit active ADCs and DACs to 6;  */
                 /* Note: DXR extension not supported */
-		pci_write_config_byte(ice->pci, 0x60, 0x0a);
+		pci_write_config_byte(ice->pci, 0x60, 0x2a);
 	} else {
 		pci_write_config_byte(ice->pci, 0x60, ice->eeprom.data[ICE_EEP1_CODEC]);
 	}

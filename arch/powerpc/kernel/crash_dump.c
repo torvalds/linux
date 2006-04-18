@@ -61,7 +61,7 @@ static int __init parse_elfcorehdr(char *p)
 	if (p)
 		elfcorehdr_addr = memparse(p, &p);
 
-	return 0;
+	return 1;
 }
 __setup("elfcorehdr=", parse_elfcorehdr);
 #endif
@@ -71,7 +71,7 @@ static int __init parse_savemaxmem(char *p)
 	if (p)
 		saved_max_pfn = (memparse(p, &p) >> PAGE_SHIFT) - 1;
 
-	return 0;
+	return 1;
 }
 __setup("savemaxmem=", parse_savemaxmem);
 

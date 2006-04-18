@@ -44,7 +44,6 @@
 
 #include <net/ip.h>
 #include <net/ipv6.h>
-#include <net/protocol.h>
 #include <net/ip6_route.h>
 #include <net/addrconf.h>
 #include <net/ip6_tunnel.h>
@@ -391,7 +390,7 @@ parse_tlv_tnl_enc_lim(struct sk_buff *skb, __u8 * raw)
  *   to the specifications in RFC 2473.
  **/
 
-static void 
+static int
 ip6ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	   int type, int code, int offset, __u32 info)
 {
@@ -402,6 +401,7 @@ ip6ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	int rel_code = ICMPV6_ADDR_UNREACH;
 	__u32 rel_info = 0;
 	__u16 len;
+	int err = -ENOENT;
 
 	/* If the packet doesn't contain the original IPv6 header we are 
 	   in trouble since we might need the source address for further 
@@ -410,6 +410,8 @@ ip6ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	read_lock(&ip6ip6_lock);
 	if ((t = ip6ip6_tnl_lookup(&ipv6h->daddr, &ipv6h->saddr)) == NULL)
 		goto out;
+
+	err = 0;
 
 	switch (type) {
 		__u32 teli;
@@ -492,6 +494,7 @@ ip6ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	}
 out:
 	read_unlock(&ip6ip6_lock);
+	return err;
 }
 
 static inline void ip6ip6_ecn_decapsulate(struct ipv6hdr *outer_iph,
@@ -511,14 +514,10 @@ static inline void ip6ip6_ecn_decapsulate(struct ipv6hdr *outer_iph,
  **/
 
 static int 
-ip6ip6_rcv(struct sk_buff **pskb)
+ip6ip6_rcv(struct sk_buff *skb)
 {
-	struct sk_buff *skb = *pskb;
 	struct ipv6hdr *ipv6h;
 	struct ip6_tnl *t;
-
-	if (!pskb_may_pull(skb, sizeof (*ipv6h)))
-		goto discard;
 
 	ipv6h = skb->nh.ipv6h;
 
@@ -527,8 +526,7 @@ ip6ip6_rcv(struct sk_buff **pskb)
 	if ((t = ip6ip6_tnl_lookup(&ipv6h->saddr, &ipv6h->daddr)) != NULL) {
 		if (!xfrm6_policy_check(NULL, XFRM_POLICY_IN, skb)) {
 			read_unlock(&ip6ip6_lock);
-			kfree_skb(skb);
-			return 0;
+			goto discard;
 		}
 
 		if (!(t->parms.flags & IP6_TNL_F_CAP_RCV)) {
@@ -555,9 +553,11 @@ ip6ip6_rcv(struct sk_buff **pskb)
 		return 0;
 	}
 	read_unlock(&ip6ip6_lock);
-	icmpv6_send(skb, ICMPV6_DEST_UNREACH, ICMPV6_ADDR_UNREACH, 0, skb->dev);
-discard:
 	return 1;
+
+discard:
+	kfree_skb(skb);
+	return 0;
 }
 
 static inline struct ipv6_txoptions *create_tel(__u8 encap_limit)
@@ -1112,38 +1112,11 @@ ip6ip6_fb_tnl_dev_init(struct net_device *dev)
 	return 0;
 }
 
-#ifdef CONFIG_INET6_TUNNEL
 static struct xfrm6_tunnel ip6ip6_handler = {
 	.handler	= ip6ip6_rcv,
 	.err_handler	= ip6ip6_err,
+	.priority	=	1,
 };
-
-static inline int ip6ip6_register(void)
-{
-	return xfrm6_tunnel_register(&ip6ip6_handler);
-}
-
-static inline int ip6ip6_unregister(void)
-{
-	return xfrm6_tunnel_deregister(&ip6ip6_handler);
-}
-#else
-static struct inet6_protocol xfrm6_tunnel_protocol = {
-	.handler	= ip6ip6_rcv,
-	.err_handler	= ip6ip6_err,
-	.flags		= INET6_PROTO_NOPOLICY|INET6_PROTO_FINAL,
-};
-
-static inline int ip6ip6_register(void)
-{
-	return inet6_add_protocol(&xfrm6_tunnel_protocol, IPPROTO_IPV6);
-}
-
-static inline int ip6ip6_unregister(void)
-{
-	return inet6_del_protocol(&xfrm6_tunnel_protocol, IPPROTO_IPV6);
-}
-#endif
 
 /**
  * ip6_tunnel_init - register protocol and reserve needed resources
@@ -1155,7 +1128,7 @@ static int __init ip6_tunnel_init(void)
 {
 	int  err;
 
-	if (ip6ip6_register() < 0) {
+	if (xfrm6_tunnel_register(&ip6ip6_handler)) {
 		printk(KERN_ERR "ip6ip6 init: can't register tunnel\n");
 		return -EAGAIN;
 	}
@@ -1174,7 +1147,7 @@ static int __init ip6_tunnel_init(void)
 	}
 	return 0;
 fail:
-	ip6ip6_unregister();
+	xfrm6_tunnel_deregister(&ip6ip6_handler);
 	return err;
 }
 
@@ -1184,7 +1157,7 @@ fail:
 
 static void __exit ip6_tunnel_cleanup(void)
 {
-	if (ip6ip6_unregister() < 0)
+	if (xfrm6_tunnel_deregister(&ip6ip6_handler))
 		printk(KERN_INFO "ip6ip6 close: can't deregister tunnel\n");
 
 	unregister_netdev(ip6ip6_fb_tnl_dev);

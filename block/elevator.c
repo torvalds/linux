@@ -145,7 +145,7 @@ static int __init elevator_setup(char *str)
 		strcpy(chosen_elevator, "anticipatory");
 	else
 		strncpy(chosen_elevator, str, sizeof(chosen_elevator) - 1);
-	return 0;
+	return 1;
 }
 
 __setup("elevator=", elevator_setup);

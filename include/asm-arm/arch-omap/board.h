@@ -21,9 +21,12 @@
 #define OMAP_TAG_LCD		0x4f05
 #define OMAP_TAG_GPIO_SWITCH	0x4f06
 #define OMAP_TAG_UART		0x4f07
+#define OMAP_TAG_FBMEM		0x4f08
+#define OMAP_TAG_STI_CONSOLE	0x4f09
 
 #define OMAP_TAG_BOOT_REASON    0x4f80
 #define OMAP_TAG_FLASH_PART	0x4f81
+#define OMAP_TAG_VERSION_STR	0x4f82
 
 struct omap_clock_config {
 	/* 0 for 12 MHz, 1 for 13 MHz and 2 for 19.2 MHz */
@@ -52,6 +55,11 @@ struct omap_mmc_config {
 struct omap_serial_console_config {
 	u8 console_uart;
 	u32 console_speed;
+};
+
+struct omap_sti_console_config {
+	unsigned enable:1;
+	u8 channel;
 };
 
 struct omap_usb_config {
@@ -87,6 +95,13 @@ struct omap_lcd_config {
 	char ctrl_name[16];
 };
 
+struct omap_fbmem_config {
+	u32 fb_sram_start;
+	u32 fb_sram_size;
+	u32 fb_sdram_start;
+	u32 fb_sdram_size;
+};
+
 /* Cover:
  *      high -> closed
  *      low  -> open
@@ -106,6 +121,12 @@ struct omap_gpio_switch_config {
 	int key_code:24; /* Linux key code */
 };
 
+struct omap_uart_config {
+	/* Bit field of UARTs present; bit 0 --> UART1 */
+	unsigned int enabled_uarts;
+};
+
+
 struct omap_flash_part_config {
 	char part_table[0];
 };
@@ -114,10 +135,13 @@ struct omap_boot_reason_config {
 	char reason_str[12];
 };
 
-struct omap_uart_config {
-	/* Bit field of UARTs present; bit 0 --> UART1 */
-	unsigned int enabled_uarts;
+struct omap_version_config {
+	char component[12];
+	char version[12];
 };
+
+
+#include <asm-arm/arch-omap/board-nokia.h>
 
 struct omap_board_config_entry {
 	u16 tag;

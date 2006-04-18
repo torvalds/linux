@@ -250,7 +250,7 @@
 #ifdef __KERNEL__
 #define __NR_time		231 /* Linux sparc32                               */
 #endif
-/* #define __NR_oldstat         232    Linux Specific                              */
+#define __NR_sys_splice         232 /* Linux Specific                              */
 #define __NR_stime              233 /* Linux Specific                              */
 #define __NR_statfs64           234 /* Linux Specific                              */
 #define __NR_fstatfs64          235 /* Linux Specific                              */
@@ -273,7 +273,7 @@
 #define __NR_getsid             252
 #define __NR_fdatasync          253
 #define __NR_nfsservctl         254
-#define __NR_aplib              255
+#define __NR_sys_sync_file_range 255
 #define __NR_clock_settime	256
 #define __NR_clock_gettime	257
 #define __NR_clock_getres	258
@@ -298,7 +298,7 @@
 #define __NR_mq_notify		277
 #define __NR_mq_getsetattr	278
 #define __NR_waitid		279
-/*#define __NR_sys_setaltroot	280 available (was setaltroot) */
+#define __NR_tee		280
 #define __NR_add_key		281
 #define __NR_request_key	282
 #define __NR_keyctl		283

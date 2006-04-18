@@ -43,11 +43,11 @@ config LCD_DEVICE
 	default y
 
 config BACKLIGHT_CORGI
-	tristate "Sharp Corgi Backlight Driver (SL-C7xx Series)"
+	tristate "Sharp Corgi Backlight Driver (SL Series)"
 	depends on BACKLIGHT_DEVICE && PXA_SHARPSL
 	default y
 	help
-	  If you have a Sharp Zaurus SL-C7xx, say y to enable the
+	  If you have a Sharp Zaurus SL-C7xx, SL-Cxx00 or SL-6000x say y to enable the
 	  backlight driver.
 
 config BACKLIGHT_HP680

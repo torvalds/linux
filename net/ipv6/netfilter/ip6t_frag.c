@@ -139,15 +139,15 @@ static struct ip6t_match frag_match = {
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init ip6t_frag_init(void)
 {
 	return ip6t_register_match(&frag_match);
 }
 
-static void __exit cleanup(void)
+static void __exit ip6t_frag_fini(void)
 {
 	ip6t_unregister_match(&frag_match);
 }
 
-module_init(init);
-module_exit(cleanup);
+module_init(ip6t_frag_init);
+module_exit(ip6t_frag_fini);

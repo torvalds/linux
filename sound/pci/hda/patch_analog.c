@@ -44,6 +44,7 @@ struct ad198x_spec {
 					 * dig_out_nid and hp_nid are optional
 					 */
 	unsigned int cur_eapd;
+	unsigned int need_dac_fix;
 
 	/* capture */
 	unsigned int num_adc_nids;
@@ -800,6 +801,10 @@ static struct hda_board_config ad1986a_cfg_tbl[] = {
 	  .config = AD1986A_LAPTOP_EAPD }, /* Samsung R65-T2300 Charis */
 	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x1213,
 	  .config = AD1986A_LAPTOP_EAPD }, /* ASUS A6J */
+	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x11f7,
+	  .config = AD1986A_LAPTOP_EAPD }, /* ASUS U5A */
+	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x30af,
+	  .config = AD1986A_LAPTOP_EAPD }, /* HP Compaq Presario B2800 */
 	{}
 };
 
@@ -836,10 +841,14 @@ static int patch_ad1986a(struct hda_codec *codec)
 	case AD1986A_3STACK:
 		spec->num_mixers = 2;
 		spec->mixers[1] = ad1986a_3st_mixers;
-		spec->num_init_verbs = 2;
+		spec->num_init_verbs = 3;
 		spec->init_verbs[1] = ad1986a_3st_init_verbs;
+		spec->init_verbs[2] = ad1986a_ch2_init;
 		spec->channel_mode = ad1986a_modes;
 		spec->num_channel_mode = ARRAY_SIZE(ad1986a_modes);
+		spec->need_dac_fix = 1;
+		spec->multiout.max_channels = 2;
+		spec->multiout.num_dacs = 1;
 		break;
 	case AD1986A_LAPTOP:
 		spec->mixers[0] = ad1986a_laptop_mixers;
@@ -1325,6 +1334,8 @@ static struct hda_board_config ad1981_cfg_tbl[] = {
 	  .config = AD1981_HP }, /* HP nx6320 */
 	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x309f,
 	  .config = AD1981_HP }, /* HP nx9420 AngelFire */
+	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x30a2,
+	  .config = AD1981_HP }, /* HP nx9420 AngelFire */
 	{ .modelname = "basic", .config = AD1981_BASIC },
 	{}
 };
@@ -1555,6 +1566,8 @@ static int ad198x_ch_mode_put(struct snd_kcontrol *kcontrol,
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct ad198x_spec *spec = codec->spec;
+	if (spec->need_dac_fix)
+		spec->multiout.num_dacs = spec->multiout.max_channels / 2;
 	return snd_hda_ch_mode_put(codec, ucontrol, spec->channel_mode,
 				   spec->num_channel_mode, &spec->multiout.max_channels);
 }

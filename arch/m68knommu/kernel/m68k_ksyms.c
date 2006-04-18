@@ -26,7 +26,6 @@ EXPORT_SYMBOL(__ioremap);
 EXPORT_SYMBOL(iounmap);
 EXPORT_SYMBOL(dump_fpu);
 EXPORT_SYMBOL(strnlen);
-EXPORT_SYMBOL(strpbrk);
 EXPORT_SYMBOL(strrchr);
 EXPORT_SYMBOL(strstr);
 EXPORT_SYMBOL(strchr);
@@ -56,8 +55,6 @@ EXPORT_SYMBOL(__down_failed);
 EXPORT_SYMBOL(__down_failed_interruptible);
 EXPORT_SYMBOL(__down_failed_trylock);
 EXPORT_SYMBOL(__up_wakeup);
-
-EXPORT_SYMBOL(get_wchan);
 
 /*
  * libgcc functions - functions that are used internally by the

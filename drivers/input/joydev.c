@@ -171,9 +171,8 @@ static int joydev_open(struct inode *inode, struct file *file)
 	if (i >= JOYDEV_MINORS || !joydev_table[i])
 		return -ENODEV;
 
-	if (!(list = kmalloc(sizeof(struct joydev_list), GFP_KERNEL)))
+	if (!(list = kzalloc(sizeof(struct joydev_list), GFP_KERNEL)))
 		return -ENOMEM;
-	memset(list, 0, sizeof(struct joydev_list));
 
 	list->joydev = joydev_table[i];
 	list_add_tail(&list->node, &joydev_table[i]->list);
@@ -457,9 +456,8 @@ static struct input_handle *joydev_connect(struct input_handler *handler, struct
 		return NULL;
 	}
 
-	if (!(joydev = kmalloc(sizeof(struct joydev), GFP_KERNEL)))
+	if (!(joydev = kzalloc(sizeof(struct joydev), GFP_KERNEL)))
 		return NULL;
-	memset(joydev, 0, sizeof(struct joydev));
 
 	INIT_LIST_HEAD(&joydev->list);
 	init_waitqueue_head(&joydev->wait);

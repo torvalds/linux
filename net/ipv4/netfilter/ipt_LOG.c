@@ -471,7 +471,7 @@ static struct nf_logger ipt_log_logger ={
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init ipt_log_init(void)
 {
 	if (ipt_register_target(&ipt_log_reg))
 		return -EINVAL;
@@ -485,11 +485,11 @@ static int __init init(void)
 	return 0;
 }
 
-static void __exit fini(void)
+static void __exit ipt_log_fini(void)
 {
 	nf_log_unregister_logger(&ipt_log_logger);
 	ipt_unregister_target(&ipt_log_reg);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ipt_log_init);
+module_exit(ipt_log_fini);

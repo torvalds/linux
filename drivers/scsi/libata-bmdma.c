@@ -703,6 +703,7 @@ ata_pci_init_native_mode(struct pci_dev *pdev, struct ata_port_info **port, int 
 	struct ata_probe_ent *probe_ent =
 		ata_probe_ent_alloc(pci_dev_to_dev(pdev), port[0]);
 	int p = 0;
+	unsigned long bmdma;
 
 	if (!probe_ent)
 		return NULL;
@@ -716,7 +717,12 @@ ata_pci_init_native_mode(struct pci_dev *pdev, struct ata_port_info **port, int 
 		probe_ent->port[p].altstatus_addr =
 		probe_ent->port[p].ctl_addr =
 			pci_resource_start(pdev, 1) | ATA_PCI_CTL_OFS;
-		probe_ent->port[p].bmdma_addr = pci_resource_start(pdev, 4);
+		bmdma = pci_resource_start(pdev, 4);
+		if (bmdma) {
+			if (inb(bmdma + 2) & 0x80)
+				probe_ent->host_set_flags |= ATA_HOST_SIMPLEX;
+			probe_ent->port[p].bmdma_addr = bmdma;
+		}
 		ata_std_ports(&probe_ent->port[p]);
 		p++;
 	}
@@ -726,7 +732,13 @@ ata_pci_init_native_mode(struct pci_dev *pdev, struct ata_port_info **port, int 
 		probe_ent->port[p].altstatus_addr =
 		probe_ent->port[p].ctl_addr =
 			pci_resource_start(pdev, 3) | ATA_PCI_CTL_OFS;
-		probe_ent->port[p].bmdma_addr = pci_resource_start(pdev, 4) + 8;
+		bmdma = pci_resource_start(pdev, 4);
+		if (bmdma) {
+			bmdma += 8;
+			if(inb(bmdma + 2) & 0x80)
+			probe_ent->host_set_flags |= ATA_HOST_SIMPLEX;
+			probe_ent->port[p].bmdma_addr = bmdma;
+		}
 		ata_std_ports(&probe_ent->port[p]);
 		p++;
 	}
@@ -740,6 +752,7 @@ static struct ata_probe_ent *ata_pci_init_legacy_port(struct pci_dev *pdev,
 				struct ata_port_info *port, int port_num)
 {
 	struct ata_probe_ent *probe_ent;
+	unsigned long bmdma;
 
 	probe_ent = ata_probe_ent_alloc(pci_dev_to_dev(pdev), port);
 	if (!probe_ent)
@@ -766,8 +779,13 @@ static struct ata_probe_ent *ata_pci_init_legacy_port(struct pci_dev *pdev,
 			break;
 	}
 
-	probe_ent->port[0].bmdma_addr =
-		pci_resource_start(pdev, 4) + 8 * port_num;
+	bmdma = pci_resource_start(pdev, 4);
+	if (bmdma != 0) {
+		bmdma += 8 * port_num;
+		probe_ent->port[0].bmdma_addr = bmdma;
+		if (inb(bmdma + 2) & 0x80)
+			probe_ent->host_set_flags |= ATA_HOST_SIMPLEX;
+	}
 	ata_std_ports(&probe_ent->port[0]);
 
 	return probe_ent;

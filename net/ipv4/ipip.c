@@ -114,7 +114,6 @@
 #include <net/sock.h>
 #include <net/ip.h>
 #include <net/icmp.h>
-#include <net/protocol.h>
 #include <net/ipip.h>
 #include <net/inet_ecn.h>
 #include <net/xfrm.h>
@@ -274,7 +273,7 @@ static void ipip_tunnel_uninit(struct net_device *dev)
 	dev_put(dev);
 }
 
-static void ipip_err(struct sk_buff *skb, u32 info)
+static int ipip_err(struct sk_buff *skb, u32 info)
 {
 #ifndef I_WISH_WORLD_WERE_PERFECT
 
@@ -286,21 +285,22 @@ static void ipip_err(struct sk_buff *skb, u32 info)
 	int type = skb->h.icmph->type;
 	int code = skb->h.icmph->code;
 	struct ip_tunnel *t;
+	int err;
 
 	switch (type) {
 	default:
 	case ICMP_PARAMETERPROB:
-		return;
+		return 0;
 
 	case ICMP_DEST_UNREACH:
 		switch (code) {
 		case ICMP_SR_FAILED:
 		case ICMP_PORT_UNREACH:
 			/* Impossible event. */
-			return;
+			return 0;
 		case ICMP_FRAG_NEEDED:
 			/* Soft state for pmtu is maintained by IP core. */
-			return;
+			return 0;
 		default:
 			/* All others are translated to HOST_UNREACH.
 			   rfc2003 contains "deep thoughts" about NET_UNREACH,
@@ -311,14 +311,18 @@ static void ipip_err(struct sk_buff *skb, u32 info)
 		break;
 	case ICMP_TIME_EXCEEDED:
 		if (code != ICMP_EXC_TTL)
-			return;
+			return 0;
 		break;
 	}
+
+	err = -ENOENT;
 
 	read_lock(&ipip_lock);
 	t = ipip_tunnel_lookup(iph->daddr, iph->saddr);
 	if (t == NULL || t->parms.iph.daddr == 0)
 		goto out;
+
+	err = 0;
 	if (t->parms.iph.ttl == 0 && type == ICMP_TIME_EXCEEDED)
 		goto out;
 
@@ -329,7 +333,7 @@ static void ipip_err(struct sk_buff *skb, u32 info)
 	t->err_time = jiffies;
 out:
 	read_unlock(&ipip_lock);
-	return;
+	return err;
 #else
 	struct iphdr *iph = (struct iphdr*)dp;
 	int hlen = iph->ihl<<2;
@@ -344,15 +348,15 @@ out:
 	struct rtable *rt;
 
 	if (len < hlen + sizeof(struct iphdr))
-		return;
+		return 0;
 	eiph = (struct iphdr*)(dp + hlen);
 
 	switch (type) {
 	default:
-		return;
+		return 0;
 	case ICMP_PARAMETERPROB:
 		if (skb->h.icmph->un.gateway < hlen)
-			return;
+			return 0;
 
 		/* So... This guy found something strange INSIDE encapsulated
 		   packet. Well, he is fool, but what can we do ?
@@ -366,16 +370,16 @@ out:
 		case ICMP_SR_FAILED:
 		case ICMP_PORT_UNREACH:
 			/* Impossible event. */
-			return;
+			return 0;
 		case ICMP_FRAG_NEEDED:
 			/* And it is the only really necessary thing :-) */
 			rel_info = ntohs(skb->h.icmph->un.frag.mtu);
 			if (rel_info < hlen+68)
-				return;
+				return 0;
 			rel_info -= hlen;
 			/* BSD 4.2 MORE DOES NOT EXIST IN NATURE. */
 			if (rel_info > ntohs(eiph->tot_len))
-				return;
+				return 0;
 			break;
 		default:
 			/* All others are translated to HOST_UNREACH.
@@ -389,14 +393,14 @@ out:
 		break;
 	case ICMP_TIME_EXCEEDED:
 		if (code != ICMP_EXC_TTL)
-			return;
+			return 0;
 		break;
 	}
 
 	/* Prepare fake skb to feed it to icmp_send */
 	skb2 = skb_clone(skb, GFP_ATOMIC);
 	if (skb2 == NULL)
-		return;
+		return 0;
 	dst_release(skb2->dst);
 	skb2->dst = NULL;
 	skb_pull(skb2, skb->data - (u8*)eiph);
@@ -409,7 +413,7 @@ out:
 	fl.proto = IPPROTO_IPIP;
 	if (ip_route_output_key(&rt, &key)) {
 		kfree_skb(skb2);
-		return;
+		return 0;
 	}
 	skb2->dev = rt->u.dst.dev;
 
@@ -424,14 +428,14 @@ out:
 		    rt->u.dst.dev->type != ARPHRD_TUNNEL) {
 			ip_rt_put(rt);
 			kfree_skb(skb2);
-			return;
+			return 0;
 		}
 	} else {
 		ip_rt_put(rt);
 		if (ip_route_input(skb2, eiph->daddr, eiph->saddr, eiph->tos, skb2->dev) ||
 		    skb2->dst->dev->type != ARPHRD_TUNNEL) {
 			kfree_skb(skb2);
-			return;
+			return 0;
 		}
 	}
 
@@ -439,7 +443,7 @@ out:
 	if (type == ICMP_DEST_UNREACH && code == ICMP_FRAG_NEEDED) {
 		if (rel_info > dst_mtu(skb2->dst)) {
 			kfree_skb(skb2);
-			return;
+			return 0;
 		}
 		skb2->dst->ops->update_pmtu(skb2->dst, rel_info);
 		rel_info = htonl(rel_info);
@@ -453,7 +457,7 @@ out:
 
 	icmp_send(skb2, rel_type, rel_code, rel_info);
 	kfree_skb(skb2);
-	return;
+	return 0;
 #endif
 }
 
@@ -469,9 +473,6 @@ static int ipip_rcv(struct sk_buff *skb)
 {
 	struct iphdr *iph;
 	struct ip_tunnel *tunnel;
-
-	if (!pskb_may_pull(skb, sizeof(struct iphdr)))
-		goto out;
 
 	iph = skb->nh.iph;
 
@@ -504,7 +505,6 @@ static int ipip_rcv(struct sk_buff *skb)
 	}
 	read_unlock(&ipip_lock);
 
-out:
 	return -1;
 }
 
@@ -855,38 +855,11 @@ static int __init ipip_fb_tunnel_init(struct net_device *dev)
 	return 0;
 }
 
-#ifdef CONFIG_INET_TUNNEL
 static struct xfrm_tunnel ipip_handler = {
 	.handler	=	ipip_rcv,
 	.err_handler	=	ipip_err,
+	.priority	=	1,
 };
-
-static inline int ipip_register(void)
-{
-	return xfrm4_tunnel_register(&ipip_handler);
-}
-
-static inline int ipip_unregister(void)
-{
-	return xfrm4_tunnel_deregister(&ipip_handler);
-}
-#else
-static struct net_protocol ipip_protocol = {
-	.handler	=	ipip_rcv,
-	.err_handler	=	ipip_err,
-	.no_policy	=	1,
-};
-
-static inline int ipip_register(void)
-{
-	return inet_add_protocol(&ipip_protocol, IPPROTO_IPIP);
-}
-
-static inline int ipip_unregister(void)
-{
-	return inet_del_protocol(&ipip_protocol, IPPROTO_IPIP);
-}
-#endif
 
 static char banner[] __initdata =
 	KERN_INFO "IPv4 over IPv4 tunneling driver\n";
@@ -897,7 +870,7 @@ static int __init ipip_init(void)
 
 	printk(banner);
 
-	if (ipip_register() < 0) {
+	if (xfrm4_tunnel_register(&ipip_handler)) {
 		printk(KERN_INFO "ipip init: can't register tunnel\n");
 		return -EAGAIN;
 	}
@@ -919,7 +892,7 @@ static int __init ipip_init(void)
  err2:
 	free_netdev(ipip_fb_tunnel_dev);
  err1:
-	ipip_unregister();
+	xfrm4_tunnel_deregister(&ipip_handler);
 	goto out;
 }
 
@@ -939,7 +912,7 @@ static void __exit ipip_destroy_tunnels(void)
 
 static void __exit ipip_fini(void)
 {
-	if (ipip_unregister() < 0)
+	if (xfrm4_tunnel_deregister(&ipip_handler))
 		printk(KERN_INFO "ipip close: can't deregister tunnel\n");
 
 	rtnl_lock();

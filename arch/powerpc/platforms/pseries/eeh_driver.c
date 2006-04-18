@@ -257,6 +257,7 @@ void handle_eeh_events (struct eeh_event *event)
 	struct pci_bus *frozen_bus;
 	int rc = 0;
 	enum pci_ers_result result = PCI_ERS_RESULT_NONE;
+	const char *pci_str, *drv_str;
 
 	frozen_dn = find_device_pe(event->dn);
 	frozen_bus = pcibios_find_pci_bus(frozen_dn);
@@ -291,9 +292,17 @@ void handle_eeh_events (struct eeh_event *event)
 
 	frozen_pdn = PCI_DN(frozen_dn);
 	frozen_pdn->eeh_freeze_count++;
+
+	if (frozen_pdn->pcidev) {
+		pci_str = pci_name (frozen_pdn->pcidev);
+		drv_str = pcid_name (frozen_pdn->pcidev);
+	} else {
+		pci_str = pci_name (event->dev);
+		drv_str = pcid_name (event->dev);
+	}
 	
 	if (frozen_pdn->eeh_freeze_count > EEH_MAX_ALLOWED_FREEZES)
-		goto hard_fail;
+		goto excess_failures;
 
 	/* If the reset state is a '5' and the time to reset is 0 (infinity)
 	 * or is more then 15 seconds, then mark this as a permanent failure.
@@ -306,9 +315,7 @@ void handle_eeh_events (struct eeh_event *event)
 	eeh_slot_error_detail(frozen_pdn, 1 /* Temporary Error */);
 	printk(KERN_WARNING
 	   "EEH: This PCI device has failed %d times since last reboot: %s - %s\n",
-		frozen_pdn->eeh_freeze_count,
-		pci_name (frozen_pdn->pcidev), 
-		pcid_name(frozen_pdn->pcidev));
+		frozen_pdn->eeh_freeze_count, drv_str, pci_str);
 
 	/* Walk the various device drivers attached to this slot through
 	 * a reset sequence, giving each an opportunity to do what it needs
@@ -350,7 +357,7 @@ void handle_eeh_events (struct eeh_event *event)
 
 	return;
 	
-hard_fail:
+excess_failures:
 	/*
 	 * About 90% of all real-life EEH failures in the field
 	 * are due to poorly seated PCI cards. Only 10% or so are
@@ -360,10 +367,16 @@ hard_fail:
 	   "EEH: PCI device %s - %s has failed %d times \n"
 	   "and has been permanently disabled.  Please try reseating\n"
 	   "this device or replacing it.\n",
-		pci_name (frozen_pdn->pcidev), 
-		pcid_name(frozen_pdn->pcidev), 
-		frozen_pdn->eeh_freeze_count);
+		drv_str, pci_str, frozen_pdn->eeh_freeze_count);
+	goto perm_error;
 
+hard_fail:
+	printk(KERN_ERR
+	   "EEH: Unable to recover from failure of PCI device %s - %s\n"
+	   "Please try reseating this device or replacing it.\n",
+		drv_str, pci_str);
+
+perm_error:
 	eeh_slot_error_detail(frozen_pdn, 2 /* Permanent Error */);
 
 	/* Notify all devices that they're about to go down. */

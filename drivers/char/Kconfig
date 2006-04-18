@@ -561,13 +561,30 @@ config TIPAR
 
 	  If unsure, say N.
 
+config HVC_DRIVER
+	bool
+	help
+	  Users of pSeries machines that want to utilize the hvc console front-end
+	  module for their backend console driver should select this option.
+	  It will automatically be selected if one of the back-end console drivers
+	  is selected.
+
+
 config HVC_CONSOLE
 	bool "pSeries Hypervisor Virtual Console support"
 	depends on PPC_PSERIES
+	select HVC_DRIVER
 	help
 	  pSeries machines when partitioned support a hypervisor virtual
 	  console. This driver allows each pSeries partition to have a console
 	  which is accessed via the HMC.
+
+config HVC_RTAS
+	bool "IBM RTAS Console support"
+	depends on PPC_RTAS
+	select HVC_DRIVER
+	help
+	  IBM Console device driver which makes use of RTAS
 
 config HVCS
 	tristate "IBM Hypervisor Virtual Console Server support"
@@ -787,10 +804,6 @@ config S3C2410_RTC
 	  RTC (Realtime Clock) driver for the clock inbuilt into the
 	  Samsung S3C2410. This can provide periodic interrupt rates
 	  from 1Hz to 64Hz for user programs, and wakeup from Alarm.
-
-config RTC_VR41XX
-	tristate "NEC VR4100 series Real Time Clock Support"
-	depends on CPU_VR41XX
 
 config COBALT_LCD
 	bool "Support for Cobalt LCD"

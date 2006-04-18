@@ -167,7 +167,7 @@ int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 		 * normal insert callback here.
 		 */
 #ifdef CONFIG_PPC_ISERIES
-		if (_machine == PLATFORM_ISERIES_LPAR)
+		if (machine_is(iseries))
 			ret = iSeries_hpte_insert(hpteg, va,
 						  paddr,
 						  tmp_mode,
@@ -176,7 +176,7 @@ int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 		else
 #endif
 #ifdef CONFIG_PPC_PSERIES
-		if (_machine & PLATFORM_LPAR)
+		if (machine_is(pseries) && firmware_has_feature(FW_FEATURE_LPAR))
 			ret = pSeries_lpar_hpte_insert(hpteg, va,
 						       paddr,
 						       tmp_mode,
@@ -295,8 +295,7 @@ static void __init htab_init_page_sizes(void)
 	 * Not in the device-tree, let's fallback on known size
 	 * list for 16M capable GP & GR
 	 */
-	if ((_machine != PLATFORM_ISERIES_LPAR) &&
-	    cpu_has_feature(CPU_FTR_16M_PAGE))
+	if (cpu_has_feature(CPU_FTR_16M_PAGE) && !machine_is(iseries))
 		memcpy(mmu_psize_defs, mmu_psize_defaults_gp,
 		       sizeof(mmu_psize_defaults_gp));
  found:

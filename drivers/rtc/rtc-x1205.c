@@ -19,7 +19,7 @@
 #include <linux/rtc.h>
 #include <linux/delay.h>
 
-#define DRV_VERSION "1.0.6"
+#define DRV_VERSION "1.0.7"
 
 /* Addresses to scan: none. This chip is located at
  * 0x6f and uses a two bytes register addressing.
@@ -451,8 +451,6 @@ static int x1205_rtc_proc(struct device *dev, struct seq_file *seq)
 {
 	int err, dtrim, atrim;
 
-	seq_printf(seq, "24hr\t\t: yes\n");
-
 	if ((err = x1205_get_dtrim(to_i2c_client(dev), &dtrim)) == 0)
 		seq_printf(seq, "digital_trim\t: %d ppm\n", dtrim);
 
@@ -473,30 +471,31 @@ static struct rtc_class_ops x1205_rtc_ops = {
 static ssize_t x1205_sysfs_show_atrim(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	int atrim;
+	int err, atrim;
 
-	if (x1205_get_atrim(to_i2c_client(dev), &atrim) == 0)
-		return sprintf(buf, "%d.%02d pF\n",
-			atrim / 1000, atrim % 1000);
-	return 0;
+	err = x1205_get_atrim(to_i2c_client(dev), &atrim);
+	if (err)
+		return err;
+
+	return sprintf(buf, "%d.%02d pF\n", atrim / 1000, atrim % 1000);
 }
 static DEVICE_ATTR(atrim, S_IRUGO, x1205_sysfs_show_atrim, NULL);
 
 static ssize_t x1205_sysfs_show_dtrim(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	int dtrim;
+	int err, dtrim;
 
-	if (x1205_get_dtrim(to_i2c_client(dev), &dtrim) == 0)
-		return sprintf(buf, "%d ppm\n", dtrim);
+	err = x1205_get_dtrim(to_i2c_client(dev), &dtrim);
+	if (err)
+		return err;
 
-	return 0;
+	return sprintf(buf, "%d ppm\n", dtrim);
 }
 static DEVICE_ATTR(dtrim, S_IRUGO, x1205_sysfs_show_dtrim, NULL);
 
 static int x1205_attach(struct i2c_adapter *adapter)
 {
-	dev_dbg(&adapter->dev, "%s\n", __FUNCTION__);
 	return i2c_probe(adapter, &addr_data, x1205_probe);
 }
 
@@ -545,8 +544,6 @@ static int x1205_probe(struct i2c_adapter *adapter, int address, int kind)
 
 	if (IS_ERR(rtc)) {
 		err = PTR_ERR(rtc);
-		dev_err(&client->dev,
-			"unable to register the class device\n");
 		goto exit_detach;
 	}
 
@@ -584,8 +581,6 @@ static int x1205_detach(struct i2c_client *client)
 {
 	int err;
 	struct rtc_device *rtc = i2c_get_clientdata(client);
-
-	dev_dbg(&client->dev, "%s\n", __FUNCTION__);
 
  	if (rtc)
 		rtc_device_unregister(rtc);

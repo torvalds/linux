@@ -848,7 +848,7 @@ xfs_setattr(
 	 * If this is a synchronous mount, make sure that the
 	 * transaction goes to disk before returning to the user.
 	 * This is slightly sub-optimal in that truncates require
-	 * two sync transactions instead of one for wsync filesytems.
+	 * two sync transactions instead of one for wsync filesystems.
 	 * One for the truncate and one for the timestamps since we
 	 * don't want to change the timestamps unless we're sure the
 	 * truncate worked.  Truncates are less than 1% of the laddis
@@ -1170,7 +1170,7 @@ xfs_fsync(
 
 		/*
 		 * If this inode is on the RT dev we need to flush that
-		 * cache aswell.
+		 * cache as well.
 		 */
 		if (ip->i_d.di_flags & XFS_DIFLAG_REALTIME)
 			xfs_blkdev_issue_flush(ip->i_mount->m_rtdev_targp);
@@ -1380,7 +1380,7 @@ xfs_inactive_symlink_rmt(
 	 */
 	ntp = xfs_trans_dup(tp);
 	/*
-	 * Commit the transaction containing extent freeing and EFD's.
+	 * Commit the transaction containing extent freeing and EFDs.
 	 * If we get an error on the commit here or on the reserve below,
 	 * we need to unlock the inode since the new transaction doesn't
 	 * have the inode attached.
@@ -2023,7 +2023,7 @@ xfs_create(
 	XFS_QM_DQRELE(mp, gdqp);
 
 	/*
-	 * Propogate the fact that the vnode changed after the
+	 * Propagate the fact that the vnode changed after the
 	 * xfs_inode locks have been released.
 	 */
 	VOP_VNODE_CHANGE(vp, VCHANGE_FLAGS_TRUNCATED, 3);
@@ -2370,7 +2370,7 @@ xfs_remove(
 	 * for a log reservation. Since we'll have to wait for the
 	 * inactive code to complete before returning from xfs_iget,
 	 * we need to make sure that we don't have log space reserved
-	 * when we call xfs_iget.  Instead we get an unlocked referece
+	 * when we call xfs_iget.  Instead we get an unlocked reference
 	 * to the inode before getting our log reservation.
 	 */
 	error = xfs_get_dir_entry(dentry, &ip);
@@ -3020,7 +3020,7 @@ xfs_rmdir(
 	 * for a log reservation.  Since we'll have to wait for the
 	 * inactive code to complete before returning from xfs_iget,
 	 * we need to make sure that we don't have log space reserved
-	 * when we call xfs_iget.  Instead we get an unlocked referece
+	 * when we call xfs_iget.  Instead we get an unlocked reference
 	 * to the inode before getting our log reservation.
 	 */
 	error = xfs_get_dir_entry(dentry, &cdp);
@@ -4648,6 +4648,10 @@ vnodeops_t xfs_vnodeops = {
 	.vop_read		= xfs_read,
 #ifdef HAVE_SENDFILE
 	.vop_sendfile		= xfs_sendfile,
+#endif
+#ifdef HAVE_SPLICE
+	.vop_splice_read	= xfs_splice_read,
+	.vop_splice_write	= xfs_splice_write,
 #endif
 	.vop_write		= xfs_write,
 	.vop_ioctl		= xfs_ioctl,

@@ -442,6 +442,9 @@ xfs_mount(
 	p = vfs_bhv_lookup(vfsp, VFS_POSITION_IO);
 	mp->m_io_ops = p ? *(xfs_ioops_t *) vfs_bhv_custom(p) : xfs_iocore_xfs;
 
+	if (args->flags & XFSMNT_QUIET)
+		flags |= XFS_MFSI_QUIET;
+
 	/*
 	 * Open real time and log devices - order is important.
 	 */
@@ -492,7 +495,7 @@ xfs_mount(
 	error = xfs_start_flags(vfsp, args, mp);
 	if (error)
 		goto error1;
-	error = xfs_readsb(mp);
+	error = xfs_readsb(mp, flags);
 	if (error)
 		goto error1;
 	error = xfs_finish_flags(vfsp, args, mp);
@@ -880,10 +883,10 @@ xfs_statvfs(
  *		       determine if they should be flushed sync, async, or
  *		       delwri.
  *      SYNC_CLOSE   - This flag is passed when the system is being
- *		       unmounted.  We should sync and invalidate everthing.
+ *		       unmounted.  We should sync and invalidate everything.
  *      SYNC_FSDATA  - This indicates that the caller would like to make
  *		       sure the superblock is safe on disk.  We can ensure
- *		       this by simply makeing sure the log gets flushed
+ *		       this by simply making sure the log gets flushed
  *		       if SYNC_BDFLUSH is set, and by actually writing it
  *		       out otherwise.
  *
@@ -908,7 +911,7 @@ xfs_sync(
  *
  * This routine supports all of the flags defined for the generic VFS_SYNC
  * interface as explained above under xfs_sync.  In the interests of not
- * changing interfaces within the 6.5 family, additional internallly-
+ * changing interfaces within the 6.5 family, additional internally-
  * required functions are specified within a separate xflags parameter,
  * only available by calling this routine.
  *
@@ -1090,7 +1093,7 @@ xfs_sync_inodes(
 		 * If this is just vfs_sync() or pflushd() calling
 		 * then we can skip inodes for which it looks like
 		 * there is nothing to do.  Since we don't have the
-		 * inode locked this is racey, but these are periodic
+		 * inode locked this is racy, but these are periodic
 		 * calls so it doesn't matter.  For the others we want
 		 * to know for sure, so we at least try to lock them.
 		 */
@@ -1429,7 +1432,7 @@ xfs_sync_inodes(
  *
  * This routine supports all of the flags defined for the generic VFS_SYNC
  * interface as explained above under xfs_sync.  In the interests of not
- * changing interfaces within the 6.5 family, additional internallly-
+ * changing interfaces within the 6.5 family, additional internally-
  * required functions are specified within a separate xflags parameter,
  * only available by calling this routine.
  *
@@ -1697,8 +1700,9 @@ xfs_parseargs(
 	int			dsunit, dswidth, vol_dsunit, vol_dswidth;
 	int			iosize;
 
-	args->flags2 |= XFSMNT2_COMPAT_IOSIZE;
 	args->flags |= XFSMNT_IDELETE;
+	args->flags |= XFSMNT_BARRIER;
+	args->flags2 |= XFSMNT2_COMPAT_IOSIZE;
 
 	if (!options)
 		goto done;
@@ -1947,8 +1951,6 @@ xfs_showargs(
 		seq_printf(m, "," MNTOPT_IKEEP);
 	if (!(mp->m_flags & XFS_MOUNT_COMPAT_IOSIZE))
 		seq_printf(m, "," MNTOPT_LARGEIO);
-	if (mp->m_flags & XFS_MOUNT_BARRIER)
-		seq_printf(m, "," MNTOPT_BARRIER);
 
 	if (!(vfsp->vfs_flag & VFS_32BITINODES))
 		seq_printf(m, "," MNTOPT_64BITINODE);

@@ -342,7 +342,7 @@ void __init mem_init(void)
 #ifdef CONFIG_NEED_MULTIPLE_NODES
         for_each_online_node(nid) {
 		if (NODE_DATA(nid)->node_spanned_pages != 0) {
-			printk("freeing bootmem node %x\n", nid);
+			printk("freeing bootmem node %d\n", nid);
 			totalram_pages +=
 				free_all_bootmem_node(NODE_DATA(nid));
 		}

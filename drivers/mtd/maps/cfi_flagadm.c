@@ -86,7 +86,7 @@ struct mtd_partition flagadm_parts[] = {
 	}
 };
 
-#define PARTITION_COUNT (sizeof(flagadm_parts)/sizeof(struct mtd_partition))
+#define PARTITION_COUNT ARRAY_SIZE(flagadm_parts)
 
 static struct mtd_info *mymtd;
 

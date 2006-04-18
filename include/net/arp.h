@@ -10,8 +10,6 @@
 extern struct neigh_table arp_tbl;
 
 extern void	arp_init(void);
-extern int	arp_rcv(struct sk_buff *skb, struct net_device *dev,
-			struct packet_type *pt, struct net_device *orig_dev);
 extern int	arp_find(unsigned char *haddr, struct sk_buff *skb);
 extern int	arp_ioctl(unsigned int cmd, void __user *arg);
 extern void     arp_send(int type, int ptype, u32 dest_ip, 

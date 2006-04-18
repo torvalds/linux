@@ -962,7 +962,7 @@ static struct ipt_match recent_match = {
 };
 
 /* Kernel module initialization. */
-static int __init init(void)
+static int __init ipt_recent_init(void)
 {
 	int err, count;
 
@@ -995,7 +995,7 @@ static int __init init(void)
 }
 
 /* Kernel module destruction. */
-static void __exit fini(void)
+static void __exit ipt_recent_fini(void)
 {
 	ipt_unregister_match(&recent_match);
 
@@ -1003,5 +1003,5 @@ static void __exit fini(void)
 }
 
 /* Register our module with the kernel. */
-module_init(init);
-module_exit(fini);
+module_init(ipt_recent_init);
+module_exit(ipt_recent_fini);

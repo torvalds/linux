@@ -92,8 +92,9 @@ config SND_SEQUENCER_OSS
 
 	  Many programs still use the OSS API, so say Y.
 
-	  To compile this driver as a module, choose M here: the module
-	  will be called snd-seq-oss.
+	  If you choose M in "Sequencer support" (SND_SEQUENCER),
+	  this will be compiled as a module. The module will be called
+	  snd-seq-oss.
 
 config SND_RTCTIMER
 	tristate "RTC Timer support"

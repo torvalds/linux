@@ -1324,7 +1324,7 @@ static struct ip_conntrack_helper snmp_trap_helper = {
  *
  *****************************************************************************/
  
-static int __init init(void)
+static int __init ip_nat_snmp_basic_init(void)
 {
 	int ret = 0;
 
@@ -1339,13 +1339,13 @@ static int __init init(void)
 	return ret;
 }
 
-static void __exit fini(void)
+static void __exit ip_nat_snmp_basic_fini(void)
 {
 	ip_conntrack_helper_unregister(&snmp_helper);
 	ip_conntrack_helper_unregister(&snmp_trap_helper);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ip_nat_snmp_basic_init);
+module_exit(ip_nat_snmp_basic_fini);
 
 module_param(debug, bool, 0600);

@@ -275,7 +275,7 @@ static int __init sti_setup(char *str)
 	if (str)
 		strlcpy (default_sti_path, str, sizeof (default_sti_path));
 	
-	return 0;
+	return 1;
 }
 
 /*	Assuming the machine has multiple STI consoles (=graphic cards) which
@@ -321,7 +321,7 @@ static int __init sti_font_setup(char *str)
 		i++;
 	}
 
-	return 0;
+	return 1;
 }
 
 /*	The optional linux kernel parameter "sti_font" defines which font
@@ -373,7 +373,7 @@ sti_dump_globcfg(struct sti_glob_cfg *glob_cfg, unsigned int sti_mem_request)
 		glob_cfg->save_addr));
 
 	/* dump extended cfg */ 
-	cfg = PTR_STI(glob_cfg->ext_ptr);
+	cfg = PTR_STI((unsigned long)glob_cfg->ext_ptr);
 	DPRINTK(( KERN_INFO
 		"monitor %d\n"
 		"in friendly mode: %d\n"
@@ -453,25 +453,11 @@ sti_init_glob_cfg(struct sti_struct *sti,
 		sti->regions_phys[i] =
 			REGION_OFFSET_TO_PHYS(sti->regions[i], newhpa);
 		
-		/* remap virtually */
-		/* FIXME: add BTLB support if btlb==1 */
 		len = sti->regions[i].region_desc.length * 4096;
-
-/* XXX: Enabling IOREMAP debugging causes a crash, so we must be passing
- * a virtual address to something expecting a physical address that doesn't
- * go through a readX macro */
-#if 0
-		if (len)
-		   glob_cfg->region_ptrs[i] = (unsigned long) (
-			sti->regions[i].region_desc.cache ?
-			ioremap(sti->regions_phys[i], len) :
-			ioremap_nocache(sti->regions_phys[i], len) );
-#else
 		if (len)
 			glob_cfg->region_ptrs[i] = sti->regions_phys[i];
-#endif
 		
-		DPRINTK(("region #%d: phys %08lx, virt %08x, len=%lukB, "
+		DPRINTK(("region #%d: phys %08lx, region_ptr %08x, len=%lukB, "
 			 "btlb=%d, sysonly=%d, cache=%d, last=%d\n",
 			i, sti->regions_phys[i], glob_cfg->region_ptrs[i],
 			len/1024,

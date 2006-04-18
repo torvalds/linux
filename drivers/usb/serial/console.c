@@ -54,7 +54,7 @@ static struct console usbcons;
  * serial.c code, except that the specifier is "ttyUSB" instead
  * of "ttyS".
  */
-static int __init usb_console_setup(struct console *co, char *options)
+static int usb_console_setup(struct console *co, char *options)
 {
 	struct usbcons_info *info = &usbcons_info;
 	int baud = 9600;

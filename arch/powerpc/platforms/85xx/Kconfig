@@ -7,6 +7,7 @@ choice
 
 config MPC8540_ADS
 	bool "Freescale MPC8540 ADS"
+	select DEFAULT_UIMAGE
 	help
 	  This option enables support for the MPC 8540 ADS board
 

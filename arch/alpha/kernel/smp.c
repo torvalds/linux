@@ -439,7 +439,7 @@ setup_smp(void)
 			if ((cpu->flags & 0x1cc) == 0x1cc) {
 				smp_num_probed++;
 				/* Assume here that "whami" == index */
-				cpu_set(i, cpu_possible_map);
+				cpu_set(i, cpu_present_mask);
 				cpu->pal_revision = boot_cpu_palrev;
 			}
 
@@ -450,9 +450,8 @@ setup_smp(void)
 		}
 	} else {
 		smp_num_probed = 1;
-		cpu_set(boot_cpuid, cpu_possible_map);
+		cpu_set(boot_cpuid, cpu_present_mask);
 	}
-	cpu_present_mask = cpumask_of_cpu(boot_cpuid);
 
 	printk(KERN_INFO "SMP: %d CPUs probed -- cpu_present_mask = %lx\n",
 	       smp_num_probed, cpu_possible_map.bits[0]);
@@ -488,9 +487,8 @@ void __devinit
 smp_prepare_boot_cpu(void)
 {
 	/*
-	 * Mark the boot cpu (current cpu) as both present and online
+	 * Mark the boot cpu (current cpu) as online
 	 */ 
-	cpu_set(smp_processor_id(), cpu_present_mask);
 	cpu_set(smp_processor_id(), cpu_online_map);
 }
 

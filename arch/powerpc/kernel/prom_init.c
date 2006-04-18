@@ -180,6 +180,16 @@ static unsigned long __initdata prom_tce_alloc_start;
 static unsigned long __initdata prom_tce_alloc_end;
 #endif
 
+/* Platforms codes are now obsolete in the kernel. Now only used within this
+ * file and ultimately gone too. Feel free to change them if you need, they
+ * are not shared with anything outside of this file anymore
+ */
+#define PLATFORM_PSERIES	0x0100
+#define PLATFORM_PSERIES_LPAR	0x0101
+#define PLATFORM_LPAR		0x0001
+#define PLATFORM_POWERMAC	0x0400
+#define PLATFORM_GENERIC	0x0500
+
 static int __initdata of_platform;
 
 static char __initdata prom_cmd_line[COMMAND_LINE_SIZE];
@@ -397,6 +407,11 @@ static void __init __attribute__((noreturn)) prom_panic(const char *reason)
 	reason = PTRRELOC(reason);
 #endif
 	prom_print(reason);
+	/* Do not call exit because it clears the screen on pmac
+	 * it also causes some sort of double-fault on early pmacs */
+	if (RELOC(of_platform) == PLATFORM_POWERMAC)
+		asm("trap\n");
+
 	/* ToDo: should put up an SRC here on p/iSeries */
 	call_prom("exit", 0, 0);
 
@@ -1487,7 +1502,10 @@ static int __init prom_find_machine_type(void)
 	int len, i = 0;
 #ifdef CONFIG_PPC64
 	phandle rtas;
+	int x;
 #endif
+
+	/* Look for a PowerMac */
 	len = prom_getprop(_prom->root, "compatible",
 			   compat, sizeof(compat)-1);
 	if (len > 0) {
@@ -1500,28 +1518,35 @@ static int __init prom_find_machine_type(void)
 			if (strstr(p, RELOC("Power Macintosh")) ||
 			    strstr(p, RELOC("MacRISC")))
 				return PLATFORM_POWERMAC;
-#ifdef CONFIG_PPC64
-			if (strstr(p, RELOC("Momentum,Maple")))
-				return PLATFORM_MAPLE;
-			if (strstr(p, RELOC("IBM,CPB")))
-				return PLATFORM_CELL;
-#endif
 			i += sl + 1;
 		}
 	}
 #ifdef CONFIG_PPC64
+	/* If not a mac, try to figure out if it's an IBM pSeries or any other
+	 * PAPR compliant platform. We assume it is if :
+	 *  - /device_type is "chrp" (please, do NOT use that for future
+	 *    non-IBM designs !
+	 *  - it has /rtas
+	 */
+	len = prom_getprop(_prom->root, "device_type",
+			   compat, sizeof(compat)-1);
+	if (len <= 0)
+		return PLATFORM_GENERIC;
+	if (strncmp(compat, RELOC("chrp"), 4))
+		return PLATFORM_GENERIC;
+
 	/* Default to pSeries. We need to know if we are running LPAR */
 	rtas = call_prom("finddevice", 1, 1, ADDR("/rtas"));
-	if (PHANDLE_VALID(rtas)) {
-		int x = prom_getproplen(rtas, "ibm,hypertas-functions");
-		if (x != PROM_ERROR) {
-			prom_printf("Hypertas detected, assuming LPAR !\n");
-			return PLATFORM_PSERIES_LPAR;
-		}
+	if (!PHANDLE_VALID(rtas))
+		return PLATFORM_GENERIC;
+	x = prom_getproplen(rtas, "ibm,hypertas-functions");
+	if (x != PROM_ERROR) {
+		prom_printf("Hypertas detected, assuming LPAR !\n");
+		return PLATFORM_PSERIES_LPAR;
 	}
 	return PLATFORM_PSERIES;
 #else
-	return PLATFORM_CHRP;
+	return PLATFORM_GENERIC;
 #endif
 }
 
@@ -2029,7 +2054,6 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 {	
        	struct prom_t *_prom;
 	unsigned long hdr;
-	u32 getprop_rval;
 	unsigned long offset = reloc_offset();
 
 #ifdef CONFIG_PPC32
@@ -2060,6 +2084,12 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	 */
 	prom_init_stdout();
 
+	/*
+	 * Get default machine type. At this point, we do not differentiate
+	 * between pSeries SMP and pSeries LPAR
+	 */
+	RELOC(of_platform) = prom_find_machine_type();
+
 	/* Bail if this is a kdump kernel. */
 	if (PHYSICAL_START > 0)
 		prom_panic("Error: You can't boot a kdump kernel from OF!\n");
@@ -2068,15 +2098,6 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	 * Check for an initrd
 	 */
 	prom_check_initrd(r3, r4);
-
-	/*
-	 * Get default machine type. At this point, we do not differentiate
-	 * between pSeries SMP and pSeries LPAR
-	 */
-	RELOC(of_platform) = prom_find_machine_type();
-	getprop_rval = RELOC(of_platform);
-	prom_setprop(_prom->chosen, "/chosen", "linux,platform",
-		     &getprop_rval, sizeof(getprop_rval));
 
 #ifdef CONFIG_PPC_PSERIES
 	/*

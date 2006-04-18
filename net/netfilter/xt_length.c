@@ -68,7 +68,7 @@ static struct xt_match length6_match = {
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init xt_length_init(void)
 {
 	int ret;
 	ret = xt_register_match(&length_match);
@@ -81,11 +81,11 @@ static int __init init(void)
 	return ret;
 }
 
-static void __exit fini(void)
+static void __exit xt_length_fini(void)
 {
 	xt_unregister_match(&length_match);
 	xt_unregister_match(&length6_match);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(xt_length_init);
+module_exit(xt_length_fini);

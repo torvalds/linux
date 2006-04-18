@@ -469,7 +469,7 @@ struct rhine_private {
 	struct sk_buff *tx_skbuff[TX_RING_SIZE];
 	dma_addr_t tx_skbuff_dma[TX_RING_SIZE];
 
-	/* Tx bounce buffers */
+	/* Tx bounce buffers (Rhine-I only) */
 	unsigned char *tx_buf[TX_RING_SIZE];
 	unsigned char *tx_bufs;
 	dma_addr_t tx_bufs_dma;
@@ -1043,7 +1043,8 @@ static void alloc_tbufs(struct net_device* dev)
 		rp->tx_ring[i].desc_length = cpu_to_le32(TXDESC);
 		next += sizeof(struct tx_desc);
 		rp->tx_ring[i].next_desc = cpu_to_le32(next);
-		rp->tx_buf[i] = &rp->tx_bufs[i * PKT_BUF_SZ];
+		if (rp->quirks & rqRhineI)
+			rp->tx_buf[i] = &rp->tx_bufs[i * PKT_BUF_SZ];
 	}
 	rp->tx_ring[i-1].next_desc = cpu_to_le32(rp->tx_ring_dma);
 
@@ -1085,6 +1086,25 @@ static void rhine_check_media(struct net_device *dev, unsigned int init_media)
 	else
 	    iowrite8(ioread8(ioaddr + ChipCmd1) & ~Cmd1FDuplex,
 		   ioaddr + ChipCmd1);
+	if (debug > 1)
+		printk(KERN_INFO "%s: force_media %d, carrier %d\n", dev->name,
+			rp->mii_if.force_media, netif_carrier_ok(dev));
+}
+
+/* Called after status of force_media possibly changed */
+static void rhine_set_carrier(struct mii_if_info *mii)
+{
+	if (mii->force_media) {
+		/* autoneg is off: Link is always assumed to be up */
+		if (!netif_carrier_ok(mii->dev))
+			netif_carrier_on(mii->dev);
+	}
+	else	/* Let MMI library update carrier status */
+		rhine_check_media(mii->dev, 0);
+	if (debug > 1)
+		printk(KERN_INFO "%s: force_media %d, carrier %d\n",
+		       mii->dev->name, mii->force_media,
+		       netif_carrier_ok(mii->dev));
 }
 
 static void rhine_check_media_task(struct net_device *dev)
@@ -1782,6 +1802,7 @@ static int netdev_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	spin_lock_irq(&rp->lock);
 	rc = mii_ethtool_sset(&rp->mii_if, cmd);
 	spin_unlock_irq(&rp->lock);
+	rhine_set_carrier(&rp->mii_if);
 
 	return rc;
 }
@@ -1869,6 +1890,7 @@ static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	spin_lock_irq(&rp->lock);
 	rc = generic_mii_ioctl(&rp->mii_if, if_mii(rq), cmd, NULL);
 	spin_unlock_irq(&rp->lock);
+	rhine_set_carrier(&rp->mii_if);
 
 	return rc;
 }

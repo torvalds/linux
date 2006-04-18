@@ -156,9 +156,25 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long sp,
 		unsigned long stack_top, struct task_struct * p, 
 		struct pt_regs *regs)
 {
+	int ret;
+
 	p->thread = (struct thread_struct) INIT_THREAD;
-	return(CHOOSE_MODE_PROC(copy_thread_tt, copy_thread_skas, nr, 
-				clone_flags, sp, stack_top, p, regs));
+	ret = CHOOSE_MODE_PROC(copy_thread_tt, copy_thread_skas, nr,
+				clone_flags, sp, stack_top, p, regs);
+
+	if (ret || !current->thread.forking)
+		goto out;
+
+	clear_flushed_tls(p);
+
+	/*
+	 * Set a new TLS for the child thread?
+	 */
+	if (clone_flags & CLONE_SETTLS)
+		ret = arch_copy_tls(p);
+
+out:
+	return ret;
 }
 
 void initial_thread_cb(void (*proc)(void *), void *arg)
@@ -184,10 +200,6 @@ int current_pid(void)
 void default_idle(void)
 {
 	CHOOSE_MODE(uml_idle_timer(), (void) 0);
-
-	atomic_inc(&init_mm.mm_count);
-	current->mm = &init_mm;
-	current->active_mm = &init_mm;
 
 	while(1){
 		/* endless idle loop with no priority at all */
@@ -407,7 +419,7 @@ static int proc_read_sysemu(char *buf, char **start, off_t offset, int size,int 
 	return strlen(buf);
 }
 
-static int proc_write_sysemu(struct file *file,const char *buf, unsigned long count,void *data)
+static int proc_write_sysemu(struct file *file,const char __user *buf, unsigned long count,void *data)
 {
 	char tmp[2];
 

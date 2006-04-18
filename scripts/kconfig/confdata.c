@@ -325,7 +325,7 @@ int conf_read(const char *name)
 				sym->flags |= e->right.sym->flags & SYMBOL_NEW;
 	}
 
-	sym_change_count = conf_warnings && conf_unsaved;
+	sym_change_count = conf_warnings || conf_unsaved;
 
 	return 0;
 }

@@ -202,11 +202,18 @@ struct fc_rport {	/* aka fc_starget_attrs */
 	/* internal data */
 	unsigned int channel;
 	u32 number;
+	u8 flags;
 	struct list_head peers;
 	struct device dev;
  	struct work_struct dev_loss_work;
  	struct work_struct scan_work;
+ 	struct work_struct stgt_delete_work;
+	struct work_struct rport_delete_work;
 } __attribute__((aligned(sizeof(unsigned long))));
+
+/* bit field values for struct fc_rport "flags" field: */
+#define FC_RPORT_DEVLOSS_PENDING	0x01
+#define FC_RPORT_SCAN_PENDING		0x02
 
 #define	dev_to_rport(d)				\
 	container_of(d, struct fc_rport, dev)
@@ -327,13 +334,16 @@ struct fc_host_attrs {
 	struct list_head rport_bindings;
 	u32 next_rport_number;
 	u32 next_target_id;
-	u8 flags;
- 	struct work_struct rport_del_work;
+
+	/* work queues for rport state manipulation */
+	char work_q_name[KOBJ_NAME_LEN];
+	struct workqueue_struct *work_q;
+	char devloss_work_q_name[KOBJ_NAME_LEN];
+	struct workqueue_struct *devloss_work_q;
 };
 
-/* values for struct fc_host_attrs "flags" field: */
-#define FC_SHOST_RPORT_DEL_SCHEDULED	0x01
-
+#define shost_to_fc_host(x) \
+	((struct fc_host_attrs *)(x)->shost_data)
 
 #define fc_host_node_name(x) \
 	(((struct fc_host_attrs *)(x)->shost_data)->node_name)
@@ -375,10 +385,14 @@ struct fc_host_attrs {
 	(((struct fc_host_attrs *)(x)->shost_data)->next_rport_number)
 #define fc_host_next_target_id(x) \
 	(((struct fc_host_attrs *)(x)->shost_data)->next_target_id)
-#define fc_host_flags(x) \
-	(((struct fc_host_attrs *)(x)->shost_data)->flags)
-#define fc_host_rport_del_work(x) \
-	(((struct fc_host_attrs *)(x)->shost_data)->rport_del_work)
+#define fc_host_work_q_name(x) \
+	(((struct fc_host_attrs *)(x)->shost_data)->work_q_name)
+#define fc_host_work_q(x) \
+	(((struct fc_host_attrs *)(x)->shost_data)->work_q)
+#define fc_host_devloss_work_q_name(x) \
+	(((struct fc_host_attrs *)(x)->shost_data)->devloss_work_q_name)
+#define fc_host_devloss_work_q(x) \
+	(((struct fc_host_attrs *)(x)->shost_data)->devloss_work_q)
 
 
 /* The functions by which the transport class and the driver communicate */
@@ -461,10 +475,15 @@ fc_remote_port_chkready(struct fc_rport *rport)
 
 	switch (rport->port_state) {
 	case FC_PORTSTATE_ONLINE:
-		result = 0;
+		if (rport->roles & FC_RPORT_ROLE_FCP_TARGET)
+			result = 0;
+		else if (rport->flags & FC_RPORT_DEVLOSS_PENDING)
+			result = DID_IMM_RETRY << 16;
+		else
+			result = DID_NO_CONNECT << 16;
 		break;
 	case FC_PORTSTATE_BLOCKED:
-		result = DID_BUS_BUSY << 16;
+		result = DID_IMM_RETRY << 16;
 		break;
 	default:
 		result = DID_NO_CONNECT << 16;

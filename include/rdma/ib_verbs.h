@@ -314,6 +314,34 @@ enum ib_ah_flags {
 	IB_AH_GRH	= 1
 };
 
+enum ib_rate {
+	IB_RATE_PORT_CURRENT = 0,
+	IB_RATE_2_5_GBPS = 2,
+	IB_RATE_5_GBPS   = 5,
+	IB_RATE_10_GBPS  = 3,
+	IB_RATE_20_GBPS  = 6,
+	IB_RATE_30_GBPS  = 4,
+	IB_RATE_40_GBPS  = 7,
+	IB_RATE_60_GBPS  = 8,
+	IB_RATE_80_GBPS  = 9,
+	IB_RATE_120_GBPS = 10
+};
+
+/**
+ * ib_rate_to_mult - Convert the IB rate enum to a multiple of the
+ * base rate of 2.5 Gbit/sec.  For example, IB_RATE_5_GBPS will be
+ * converted to 2, since 5 Gbit/sec is 2 * 2.5 Gbit/sec.
+ * @rate: rate to convert.
+ */
+int ib_rate_to_mult(enum ib_rate rate) __attribute_const__;
+
+/**
+ * mult_to_ib_rate - Convert a multiple of 2.5 Gbit/sec to an IB rate
+ * enum.
+ * @mult: multiple to convert.
+ */
+enum ib_rate mult_to_ib_rate(int mult) __attribute_const__;
+
 struct ib_ah_attr {
 	struct ib_global_route	grh;
 	u16			dlid;

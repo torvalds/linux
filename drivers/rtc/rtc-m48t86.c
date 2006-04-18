@@ -23,7 +23,7 @@
 #define M48T86_REG_SECALRM	0x01
 #define M48T86_REG_MIN		0x02
 #define M48T86_REG_MINALRM	0x03
-#define M48T86_REG_HOUR	0x04
+#define M48T86_REG_HOUR		0x04
 #define M48T86_REG_HOURALRM	0x05
 #define M48T86_REG_DOW		0x06 /* 1 = sunday */
 #define M48T86_REG_DOM		0x07
@@ -127,9 +127,6 @@ static int m48t86_rtc_proc(struct device *dev, struct seq_file *seq)
 
 	reg = ops->readb(M48T86_REG_B);
 
-	seq_printf(seq, "24hr\t\t: %s\n",
-		 (reg & M48T86_REG_B_H24) ? "yes" : "no");
-
 	seq_printf(seq, "mode\t\t: %s\n",
 		 (reg & M48T86_REG_B_DM) ? "binary" : "bcd");
 
@@ -154,10 +151,8 @@ static int __devinit m48t86_rtc_probe(struct platform_device *dev)
 	struct rtc_device *rtc = rtc_device_register("m48t86",
 				&dev->dev, &m48t86_rtc_ops, THIS_MODULE);
 
-	if (IS_ERR(rtc)) {
-		dev_err(&dev->dev, "unable to register\n");
+	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
-	}
 
 	platform_set_drvdata(dev, rtc);
 

@@ -46,6 +46,7 @@ extern int poke_user(struct task_struct * child, long addr, long data);
 long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 {
 	int i, ret;
+	unsigned long __user *p = (void __user *)(unsigned long)data;
 
 	switch (request) {
 		/* when I and D space are separate, these will need to be fixed. */
@@ -58,7 +59,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		copied = access_process_vm(child, addr, &tmp, sizeof(tmp), 0);
 		if (copied != sizeof(tmp))
 			break;
-		ret = put_user(tmp, (unsigned long __user *) data);
+		ret = put_user(tmp, p);
 		break;
 	}
 
@@ -136,15 +137,13 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 #ifdef PTRACE_GETREGS
 	case PTRACE_GETREGS: { /* Get all gp regs from the child. */
-	  	if (!access_ok(VERIFY_WRITE, (unsigned long *)data, 
-			       MAX_REG_OFFSET)) {
+		if (!access_ok(VERIFY_WRITE, p, MAX_REG_OFFSET)) {
 			ret = -EIO;
 			break;
 		}
 		for ( i = 0; i < MAX_REG_OFFSET; i += sizeof(long) ) {
-			__put_user(getreg(child, i),
-				   (unsigned long __user *) data);
-			data += sizeof(long);
+			__put_user(getreg(child, i), p);
+			p++;
 		}
 		ret = 0;
 		break;
@@ -153,15 +152,14 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 #ifdef PTRACE_SETREGS
 	case PTRACE_SETREGS: { /* Set all gp regs in the child. */
 		unsigned long tmp = 0;
-	  	if (!access_ok(VERIFY_READ, (unsigned *)data, 
-			       MAX_REG_OFFSET)) {
+		if (!access_ok(VERIFY_READ, p, MAX_REG_OFFSET)) {
 			ret = -EIO;
 			break;
 		}
 		for ( i = 0; i < MAX_REG_OFFSET; i += sizeof(long) ) {
-			__get_user(tmp, (unsigned long __user *) data);
+			__get_user(tmp, p);
 			putreg(child, i, tmp);
-			data += sizeof(long);
+			p++;
 		}
 		ret = 0;
 		break;
@@ -187,14 +185,23 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		ret = set_fpxregs(data, child);
 		break;
 #endif
+	case PTRACE_GET_THREAD_AREA:
+		ret = ptrace_get_thread_area(child, addr,
+					     (struct user_desc __user *) data);
+		break;
+
+	case PTRACE_SET_THREAD_AREA:
+		ret = ptrace_set_thread_area(child, addr,
+					     (struct user_desc __user *) data);
+		break;
+
 	case PTRACE_FAULTINFO: {
-                /* Take the info from thread->arch->faultinfo,
-                 * but transfer max. sizeof(struct ptrace_faultinfo).
-                 * On i386, ptrace_faultinfo is smaller!
-                 */
-                ret = copy_to_user((unsigned long __user *) data,
-                                   &child->thread.arch.faultinfo,
-                                   sizeof(struct ptrace_faultinfo));
+		/* Take the info from thread->arch->faultinfo,
+		 * but transfer max. sizeof(struct ptrace_faultinfo).
+		 * On i386, ptrace_faultinfo is smaller!
+		 */
+		ret = copy_to_user(p, &child->thread.arch.faultinfo,
+				   sizeof(struct ptrace_faultinfo));
 		if(ret)
 			break;
 		break;
@@ -204,8 +211,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	case PTRACE_LDT: {
 		struct ptrace_ldt ldt;
 
-		if(copy_from_user(&ldt, (unsigned long __user *) data,
-				  sizeof(ldt))){
+		if(copy_from_user(&ldt, p, sizeof(ldt))){
 			ret = -EIO;
 			break;
 		}

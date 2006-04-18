@@ -366,6 +366,7 @@ config PPC_PMAC64
 	select U3_DART
 	select MPIC_BROKEN_U3
 	select GENERIC_TBSYNC
+	select PPC_970_NAP
 	default y
 
 config PPC_PREP
@@ -383,6 +384,7 @@ config PPC_MAPLE
 	select MPIC_BROKEN_U3
 	select GENERIC_TBSYNC
 	select PPC_UDBG_16550
+	select PPC_970_NAP
 	default n
 	help
           This option enables support for the Maple 970FX Evaluation Board.
@@ -457,6 +459,10 @@ config PPC_MPC106
 	bool
 	default n
 
+config PPC_970_NAP
+	bool
+	default n
+
 source "drivers/cpufreq/Kconfig"
 
 config CPU_FREQ_PMAC
@@ -491,7 +497,7 @@ config PPC601_SYNC_FIX
 	  If in doubt, say Y here.
 
 config TAU
-	bool "Thermal Management Support"
+	bool "On-chip CPU temperature sensor support"
 	depends on 6xx
 	help
 	  G3 and G4 processors have an on-chip temperature sensor called the
@@ -500,7 +506,7 @@ config TAU
 	  on-die temperature in /proc/cpuinfo if the cpu supports it.
 
 	  Unfortunately, on some chip revisions, this sensor is very inaccurate
-	  and in some cases, does not work at all, so don't assume the cpu
+	  and in many cases, does not work at all, so don't assume the cpu
 	  temp is actually what /proc/cpuinfo says it is.
 
 config TAU_INT
@@ -648,6 +654,11 @@ config NUMA
 	bool "NUMA support"
 	depends on PPC64
 	default y if SMP && PPC_PSERIES
+
+config NODES_SHIFT
+	int
+	default "4"
+	depends on NEED_MULTIPLE_NODES
 
 config ARCH_SELECT_MEMORY_MODEL
 	def_bool y

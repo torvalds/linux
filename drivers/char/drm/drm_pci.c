@@ -37,6 +37,7 @@
  */
 
 #include <linux/pci.h>
+#include <linux/dma-mapping.h>
 #include "drmP.h"
 
 /**********************************************************************/
@@ -50,6 +51,10 @@ drm_dma_handle_t *drm_pci_alloc(drm_device_t * dev, size_t size, size_t align,
 				dma_addr_t maxaddr)
 {
 	drm_dma_handle_t *dmah;
+#if 1
+	unsigned long addr;
+	size_t sz;
+#endif
 #ifdef DRM_DEBUG_MEMORY
 	int area = DRM_MEM_DMA;
 
@@ -79,7 +84,7 @@ drm_dma_handle_t *drm_pci_alloc(drm_device_t * dev, size_t size, size_t align,
 		return NULL;
 
 	dmah->size = size;
-	dmah->vaddr = pci_alloc_consistent(dev->pdev, size, &dmah->busaddr);
+	dmah->vaddr = dma_alloc_coherent(&dev->pdev->dev, size, &dmah->busaddr, GFP_KERNEL | __GFP_COMP);
 
 #ifdef DRM_DEBUG_MEMORY
 	if (dmah->vaddr == NULL) {
@@ -104,18 +109,29 @@ drm_dma_handle_t *drm_pci_alloc(drm_device_t * dev, size_t size, size_t align,
 
 	memset(dmah->vaddr, 0, size);
 
+	/* XXX - Is virt_to_page() legal for consistent mem? */
+	/* Reserve */
+	for (addr = (unsigned long)dmah->vaddr, sz = size;
+	     sz > 0; addr += PAGE_SIZE, sz -= PAGE_SIZE) {
+		SetPageReserved(virt_to_page(addr));
+	}
+
 	return dmah;
 }
 
 EXPORT_SYMBOL(drm_pci_alloc);
 
 /**
- * \brief Free a PCI consistent memory block with freeing its descriptor.
+ * \brief Free a PCI consistent memory block without freeing its descriptor.
  *
  * This function is for internal use in the Linux-specific DRM core code.
  */
 void __drm_pci_free(drm_device_t * dev, drm_dma_handle_t * dmah)
 {
+#if 1
+	unsigned long addr;
+	size_t sz;
+#endif
 #ifdef DRM_DEBUG_MEMORY
 	int area = DRM_MEM_DMA;
 	int alloc_count;
@@ -127,8 +143,14 @@ void __drm_pci_free(drm_device_t * dev, drm_dma_handle_t * dmah)
 		DRM_MEM_ERROR(area, "Attempt to free address 0\n");
 #endif
 	} else {
-		pci_free_consistent(dev->pdev, dmah->size, dmah->vaddr,
-				    dmah->busaddr);
+		/* XXX - Is virt_to_page() legal for consistent mem? */
+		/* Unreserve */
+		for (addr = (unsigned long)dmah->vaddr, sz = dmah->size;
+		     sz > 0; addr += PAGE_SIZE, sz -= PAGE_SIZE) {
+			ClearPageReserved(virt_to_page(addr));
+		}
+		dma_free_coherent(&dev->pdev->dev, dmah->size, dmah->vaddr,
+				  dmah->busaddr);
 	}
 
 #ifdef DRM_DEBUG_MEMORY

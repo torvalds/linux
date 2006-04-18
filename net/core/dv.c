@@ -55,15 +55,12 @@ int alloc_divert_blk(struct net_device *dev)
 
 	dev->divert = NULL;
 	if (dev->type == ARPHRD_ETHER) {
-		dev->divert = (struct divert_blk *)
-			kmalloc(alloc_size, GFP_KERNEL);
+		dev->divert = kzalloc(alloc_size, GFP_KERNEL);
 		if (dev->divert == NULL) {
 			printk(KERN_INFO "divert: unable to allocate divert_blk for %s\n",
 			       dev->name);
 			return -ENOMEM;
 		}
-
-		memset(dev->divert, 0, sizeof(struct divert_blk));
 		dev_hold(dev);
 	}
 

@@ -2156,7 +2156,7 @@ static int find_planb(void)
 	struct pci_dev 		*pdev;
 	int rc;
 
-	if (_machine != _MACH_Pmac)
+	if (!machine_is(powermac))
 		return 0;
 
 	planb_devices = find_devices("planb");

@@ -115,6 +115,7 @@
 #include <asm/uaccess.h>
 
 #ifdef CONFIG_PPC_PMAC
+#include <asm/machdep.h>
 unsigned char nvram_read_byte(int);
 static int default_vmode = VMODE_NVRAM;
 static int default_cmode = CMODE_NVRAM;
@@ -1833,7 +1834,7 @@ static int initMatrox2(WPMINFO struct board* b){
 	/* FIXME: Where to move this?! */
 #if defined(CONFIG_PPC_PMAC)
 #ifndef MODULE
-	if (_machine == _MACH_Pmac) {
+	if (machine_is(powermac)) {
 		struct fb_var_screeninfo var;
 		if (default_vmode <= 0 || default_vmode > VMODE_MAX)
 			default_vmode = VMODE_640_480_60;

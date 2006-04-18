@@ -45,6 +45,7 @@
 #include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/time.h>
+#include <asm/syscalls.h>
 #ifdef CONFIG_PPC64
 #include <asm/firmware.h>
 #endif
@@ -362,7 +363,11 @@ static void show_instructions(struct pt_regs *regs)
 		if (!(i % 8))
 			printk("\n");
 
-		if (BAD_PC(pc) || __get_user(instr, (unsigned int *)pc)) {
+		/* We use __get_user here *only* to avoid an OOPS on a
+		 * bad address because the pc *should* only be a
+		 * kernel address.
+		 */
+		if (BAD_PC(pc) || __get_user(instr, (unsigned int __user *)pc)) {
 			printk("XXXXXXXX ");
 		} else {
 			if (regs->nip == pc)
@@ -765,7 +770,7 @@ out:
 	return error;
 }
 
-static int validate_sp(unsigned long sp, struct task_struct *p,
+int validate_sp(unsigned long sp, struct task_struct *p,
 		       unsigned long nbytes)
 {
 	unsigned long stack_page = (unsigned long)task_stack_page(p);
@@ -803,6 +808,8 @@ static int validate_sp(unsigned long sp, struct task_struct *p,
 #define FRAME_MARKER	2
 #endif
 
+EXPORT_SYMBOL(validate_sp);
+
 unsigned long get_wchan(struct task_struct *p)
 {
 	unsigned long ip, sp;
@@ -827,7 +834,6 @@ unsigned long get_wchan(struct task_struct *p)
 	} while (count++ < 16);
 	return 0;
 }
-EXPORT_SYMBOL(get_wchan);
 
 static int kstack_depth_to_print = 64;
 

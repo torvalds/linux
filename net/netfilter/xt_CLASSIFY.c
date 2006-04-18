@@ -62,7 +62,7 @@ static struct xt_target classify6_reg = {
 };
 
 
-static int __init init(void)
+static int __init xt_classify_init(void)
 {
 	int ret;
 
@@ -77,11 +77,11 @@ static int __init init(void)
 	return ret;
 }
 
-static void __exit fini(void)
+static void __exit xt_classify_fini(void)
 {
 	xt_unregister_target(&classify_reg);
 	xt_unregister_target(&classify6_reg);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(xt_classify_init);
+module_exit(xt_classify_fini);

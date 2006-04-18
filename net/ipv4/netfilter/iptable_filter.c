@@ -139,7 +139,7 @@ static struct nf_hook_ops ipt_ops[] = {
 static int forward = NF_ACCEPT;
 module_param(forward, bool, 0000);
 
-static int __init init(void)
+static int __init iptable_filter_init(void)
 {
 	int ret;
 
@@ -157,39 +157,22 @@ static int __init init(void)
 		return ret;
 
 	/* Register hooks */
-	ret = nf_register_hook(&ipt_ops[0]);
+	ret = nf_register_hooks(ipt_ops, ARRAY_SIZE(ipt_ops));
 	if (ret < 0)
 		goto cleanup_table;
 
-	ret = nf_register_hook(&ipt_ops[1]);
-	if (ret < 0)
-		goto cleanup_hook0;
-
-	ret = nf_register_hook(&ipt_ops[2]);
-	if (ret < 0)
-		goto cleanup_hook1;
-
 	return ret;
 
- cleanup_hook1:
-	nf_unregister_hook(&ipt_ops[1]);
- cleanup_hook0:
-	nf_unregister_hook(&ipt_ops[0]);
  cleanup_table:
 	ipt_unregister_table(&packet_filter);
-
 	return ret;
 }
 
-static void __exit fini(void)
+static void __exit iptable_filter_fini(void)
 {
-	unsigned int i;
-
-	for (i = 0; i < sizeof(ipt_ops)/sizeof(struct nf_hook_ops); i++)
-		nf_unregister_hook(&ipt_ops[i]);
-
+	nf_unregister_hooks(ipt_ops, ARRAY_SIZE(ipt_ops));
 	ipt_unregister_table(&packet_filter);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(iptable_filter_init);
+module_exit(iptable_filter_fini);

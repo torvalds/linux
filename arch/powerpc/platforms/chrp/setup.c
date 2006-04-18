@@ -35,6 +35,7 @@
 #include <linux/root_dev.h>
 #include <linux/initrd.h>
 #include <linux/module.h>
+#include <linux/timer.h>
 
 #include <asm/io.h>
 #include <asm/pgtable.h>
@@ -60,6 +61,10 @@ int _chrp_type;
 EXPORT_SYMBOL(_chrp_type);
 
 struct mpic *chrp_mpic;
+
+/* Used for doing CHRP event-scans */
+DEFINE_PER_CPU(struct timer_list, heartbeat_timer);
+unsigned long event_scan_interval;
 
 /*
  * XXX this should be in xmon.h, but putting it there means xmon.h
@@ -229,8 +234,6 @@ void __init chrp_setup_arch(void)
 {
 	struct device_node *root = find_path_device ("/");
 	char *machine = NULL;
-	struct device_node *device;
-	unsigned int *p = NULL;
 
 	/* init to some ~sane value until calibrate_delay() runs */
 	loops_per_jiffy = 50000000/HZ;
@@ -287,22 +290,11 @@ void __init chrp_setup_arch(void)
 	 */
 	sio_init();
 
-	/* Get the event scan rate for the rtas so we know how
-	 * often it expects a heartbeat. -- Cort
-	 */
-	device = find_devices("rtas");
-	if (device)
-		p = (unsigned int *) get_property
-			(device, "rtas-event-scan-rate", NULL);
-	if (p && *p) {
-		ppc_md.heartbeat = chrp_event_scan;
-		ppc_md.heartbeat_reset = HZ / (*p * 30) - 1;
-		ppc_md.heartbeat_count = 1;
-		printk("RTAS Event Scan Rate: %u (%lu jiffies)\n",
-		       *p, ppc_md.heartbeat_reset);
-	}
-
 	pci_create_OF_bus_map();
+
+#ifdef CONFIG_SMP
+	smp_ops = &chrp_smp_ops;
+#endif /* CONFIG_SMP */
 
 	/*
 	 * Print the banner, then scroll down so boot progress
@@ -312,7 +304,7 @@ void __init chrp_setup_arch(void)
 }
 
 void
-chrp_event_scan(void)
+chrp_event_scan(unsigned long unused)
 {
 	unsigned char log[1024];
 	int ret = 0;
@@ -320,7 +312,8 @@ chrp_event_scan(void)
 	/* XXX: we should loop until the hardware says no more error logs -- Cort */
 	rtas_call(rtas_token("event-scan"), 4, 1, &ret, 0xffffffff, 0,
 		  __pa(log), 1024);
-	ppc_md.heartbeat_count = ppc_md.heartbeat_reset;
+	mod_timer(&__get_cpu_var(heartbeat_timer),
+		  jiffies + event_scan_interval);
 }
 
 /*
@@ -447,8 +440,6 @@ void __init chrp_init_IRQ(void)
 
 	if (_chrp_type == _CHRP_Pegasos)
 		ppc_md.get_irq        = i8259_irq;
-	else
-		ppc_md.get_irq        = mpic_get_irq;
 
 #if defined(CONFIG_VT) && defined(CONFIG_INPUT_ADBHID) && defined(XMON)
 	/* see if there is a keyboard in the device tree
@@ -465,6 +456,9 @@ void __init chrp_init_IRQ(void)
 void __init
 chrp_init2(void)
 {
+	struct device_node *device;
+	unsigned int *p = NULL;
+
 #ifdef CONFIG_NVRAM
 	chrp_nvram_init();
 #endif
@@ -476,12 +470,53 @@ chrp_init2(void)
 	request_region(0x80,0x10,"dma page reg");
 	request_region(0xc0,0x20,"dma2");
 
+	/* Get the event scan rate for the rtas so we know how
+	 * often it expects a heartbeat. -- Cort
+	 */
+	device = find_devices("rtas");
+	if (device)
+		p = (unsigned int *) get_property
+			(device, "rtas-event-scan-rate", NULL);
+	if (p && *p) {
+		/*
+		 * Arrange to call chrp_event_scan at least *p times
+		 * per minute.  We use 59 rather than 60 here so that
+		 * the rate will be slightly higher than the minimum.
+		 * This all assumes we don't do hotplug CPU on any
+		 * machine that needs the event scans done.
+		 */
+		unsigned long interval, offset;
+		int cpu, ncpus;
+		struct timer_list *timer;
+
+		interval = HZ * 59 / *p;
+		offset = HZ;
+		ncpus = num_online_cpus();
+		event_scan_interval = ncpus * interval;
+		for (cpu = 0; cpu < ncpus; ++cpu) {
+			timer = &per_cpu(heartbeat_timer, cpu);
+			setup_timer(timer, chrp_event_scan, 0);
+			timer->expires = jiffies + offset;
+			add_timer_on(timer, cpu);
+			offset += interval;
+		}
+		printk("RTAS Event Scan Rate: %u (%lu jiffies)\n",
+		       *p, interval);
+	}
+
 	if (ppc_md.progress)
 		ppc_md.progress("  Have fun!    ", 0x7777);
 }
 
-void __init chrp_init(void)
+static int __init chrp_probe(void)
 {
+ 	char *dtype = of_get_flat_dt_prop(of_get_flat_dt_root(),
+ 					  "device_type", NULL);
+ 	if (dtype == NULL)
+ 		return 0;
+ 	if (strcmp(dtype, "chrp"))
+		return 0;
+
 	ISA_DMA_THRESHOLD = ~0L;
 	DMA_MODE_READ = 0x44;
 	DMA_MODE_WRITE = 0x48;
@@ -491,26 +526,24 @@ void __init chrp_init(void)
 	/* Assume we have an 8259... */
 	__irq_offset_value = NUM_ISA_INTERRUPTS;
 
-	ppc_md.setup_arch     = chrp_setup_arch;
-	ppc_md.show_cpuinfo   = chrp_show_cpuinfo;
-
-	ppc_md.init_IRQ       = chrp_init_IRQ;
-	ppc_md.init           = chrp_init2;
-
-	ppc_md.phys_mem_access_prot = pci_phys_mem_access_prot;
-
-	ppc_md.restart        = rtas_restart;
-	ppc_md.power_off      = rtas_power_off;
-	ppc_md.halt           = rtas_halt;
-
-	ppc_md.time_init      = chrp_time_init;
-	ppc_md.calibrate_decr = generic_calibrate_decr;
-
-	/* this may get overridden with rtas routines later... */
-	ppc_md.set_rtc_time   = chrp_set_rtc_time;
-	ppc_md.get_rtc_time   = chrp_get_rtc_time;
-
-#ifdef CONFIG_SMP
-	smp_ops = &chrp_smp_ops;
-#endif /* CONFIG_SMP */
+	return 1;
 }
+
+define_machine(chrp) {
+	.name			= "CHRP",
+	.probe			= chrp_probe,
+	.setup_arch		= chrp_setup_arch,
+	.init			= chrp_init2,
+	.show_cpuinfo		= chrp_show_cpuinfo,
+	.init_IRQ		= chrp_init_IRQ,
+	.get_irq		= mpic_get_irq,
+	.pcibios_fixup		= chrp_pcibios_fixup,
+	.restart		= rtas_restart,
+	.power_off		= rtas_power_off,
+	.halt			= rtas_halt,
+	.time_init		= chrp_time_init,
+	.set_rtc_time		= chrp_set_rtc_time,
+	.get_rtc_time		= chrp_get_rtc_time,
+	.calibrate_decr		= generic_calibrate_decr,
+	.phys_mem_access_prot	= pci_phys_mem_access_prot,
+};

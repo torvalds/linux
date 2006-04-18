@@ -12,7 +12,8 @@
 
 #include <asm/smp.h>
 
-#define NODEMAPSIZE 0xfff
+/* Should really switch to dynamic allocation at some point */
+#define NODEMAPSIZE 0x4fff
 
 /* Simple perfect hash to map physical addresses to node numbers */
 struct memnode {

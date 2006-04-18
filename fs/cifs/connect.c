@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/connect.c
  *
- *   Copyright (C) International Business Machines  Corp., 2002,2005
+ *   Copyright (C) International Business Machines  Corp., 2002,2006
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   This library is free software; you can redistribute it and/or modify
@@ -564,7 +564,7 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 	
 
 		dump_smb(smb_buffer, length);
-		if (checkSMB (smb_buffer, smb_buffer->Mid, total_read+4)) {
+		if (checkSMB(smb_buffer, smb_buffer->Mid, total_read+4)) {
 			cifs_dump_mem("Bad SMB: ", smb_buffer, 48);
 			continue;
 		}
@@ -1476,6 +1476,14 @@ ipv4_connect(struct sockaddr_in *psin_server, struct socket **csocket,
 			rc = smb_send(*csocket, smb_buf, 0x44,
 				(struct sockaddr *)psin_server);
 			kfree(ses_init_buf);
+			msleep(1); /* RFC1001 layer in at least one server 
+				      requires very short break before negprot
+				      presumably because not expecting negprot
+				      to follow so fast.  This is a simple
+				      solution that works without 
+				      complicating the code and causes no
+				      significant slowing down on mount
+				      for everyone else */
 		}
 		/* else the negprot may still work without this 
 		even though malloc failed */
@@ -1920,27 +1928,34 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 		cifs_sb->tcon = tcon;
 		tcon->ses = pSesInfo;
 
-		/* do not care if following two calls succeed - informational only */
+		/* do not care if following two calls succeed - informational */
 		CIFSSMBQFSDeviceInfo(xid, tcon);
 		CIFSSMBQFSAttributeInfo(xid, tcon);
+
 		if (tcon->ses->capabilities & CAP_UNIX) {
 			if(!CIFSSMBQFSUnixInfo(xid, tcon)) {
-				if(!volume_info.no_psx_acl) {
-					if(CIFS_UNIX_POSIX_ACL_CAP & 
-					   le64_to_cpu(tcon->fsUnixInfo.Capability))
-						cFYI(1,("server negotiated posix acl support"));
-						sb->s_flags |= MS_POSIXACL;
+				__u64 cap = 
+				       le64_to_cpu(tcon->fsUnixInfo.Capability);
+				cap &= CIFS_UNIX_CAP_MASK;
+				if(volume_info.no_psx_acl)
+					cap &= ~CIFS_UNIX_POSIX_ACL_CAP;
+				else if(CIFS_UNIX_POSIX_ACL_CAP & cap) {
+					cFYI(1,("negotiated posix acl support"));
+					sb->s_flags |= MS_POSIXACL;
 				}
 
-				/* Try and negotiate POSIX pathnames if we can. */
-				if (volume_info.posix_paths && (CIFS_UNIX_POSIX_PATHNAMES_CAP &
-				    le64_to_cpu(tcon->fsUnixInfo.Capability))) {
-					if (!CIFSSMBSetFSUnixInfo(xid, tcon, CIFS_UNIX_POSIX_PATHNAMES_CAP))  {
-						cFYI(1,("negotiated posix pathnames support"));
-						cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_POSIX_PATHS;
-					} else {
-						cFYI(1,("posix pathnames support requested but not supported"));
-					}
+				if(volume_info.posix_paths == 0)
+					cap &= ~CIFS_UNIX_POSIX_PATHNAMES_CAP;
+				else if(cap & CIFS_UNIX_POSIX_PATHNAMES_CAP) {
+					cFYI(1,("negotiate posix pathnames"));
+					cifs_sb->mnt_cifs_flags |= 
+						CIFS_MOUNT_POSIX_PATHS;
+				}
+					
+				cFYI(1,("Negotiate caps 0x%x",(int)cap));
+
+				if (CIFSSMBSetFSUnixInfo(xid, tcon, cap)) {
+					cFYI(1,("setting capabilities failed"));
 				}
 			}
 		}
@@ -2278,6 +2293,8 @@ CIFSSpnegoSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 	smb_buffer->Mid = GetNextMid(ses->server);
 	pSMB->req.hdr.Flags2 |= SMBFLG2_EXT_SEC;
 	pSMB->req.AndXCommand = 0xFF;
+	if(ses->server->maxBuf > 64*1024)
+		ses->server->maxBuf = (64*1023);
 	pSMB->req.MaxBufferSize = cpu_to_le16(ses->server->maxBuf);
 	pSMB->req.MaxMpxCount = cpu_to_le16(ses->server->maxReq);
 
@@ -2525,7 +2542,7 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 	__u32 negotiate_flags, capabilities;
 	__u16 count;
 
-	cFYI(1, ("In NTLMSSP sesssetup (negotiate) "));
+	cFYI(1, ("In NTLMSSP sesssetup (negotiate)"));
 	if(ses == NULL)
 		return -EINVAL;
 	domain = ses->domainName;
@@ -2575,7 +2592,8 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 	SecurityBlob->MessageType = NtLmNegotiate;
 	negotiate_flags =
 	    NTLMSSP_NEGOTIATE_UNICODE | NTLMSSP_NEGOTIATE_OEM |
-	    NTLMSSP_REQUEST_TARGET | NTLMSSP_NEGOTIATE_NTLM | 0x80000000 |
+	    NTLMSSP_REQUEST_TARGET | NTLMSSP_NEGOTIATE_NTLM |
+	    NTLMSSP_NEGOTIATE_56 |
 	    /* NTLMSSP_NEGOTIATE_ALWAYS_SIGN | */ NTLMSSP_NEGOTIATE_128;
 	if(sign_CIFS_PDUs)
 		negotiate_flags |= NTLMSSP_NEGOTIATE_SIGN;
@@ -2588,26 +2606,11 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 	SecurityBlob->WorkstationName.Length = 0;
 	SecurityBlob->WorkstationName.MaximumLength = 0;
 
-	if (domain == NULL) {
-		SecurityBlob->DomainName.Buffer = 0;
-		SecurityBlob->DomainName.Length = 0;
-		SecurityBlob->DomainName.MaximumLength = 0;
-	} else {
-		__u16 len;
-		negotiate_flags |= NTLMSSP_NEGOTIATE_DOMAIN_SUPPLIED;
-		strncpy(bcc_ptr, domain, 63);
-		len = strnlen(domain, 64);
-		SecurityBlob->DomainName.MaximumLength =
-		    cpu_to_le16(len);
-		SecurityBlob->DomainName.Buffer =
-		    cpu_to_le32((long) &SecurityBlob->
-				DomainString -
-				(long) &SecurityBlob->Signature);
-		bcc_ptr += len;
-		SecurityBlobLength += len;
-		SecurityBlob->DomainName.Length =
-		    cpu_to_le16(len);
-	}
+	/* Domain not sent on first Sesssetup in NTLMSSP, instead it is sent
+	along with username on auth request (ie the response to challenge) */
+	SecurityBlob->DomainName.Buffer = 0;
+	SecurityBlob->DomainName.Length = 0;
+	SecurityBlob->DomainName.MaximumLength = 0;
 	if (ses->capabilities & CAP_UNICODE) {
 		if ((long) bcc_ptr % 2) {
 			*bcc_ptr = 0;
@@ -2677,7 +2680,7 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 			      SecurityBlob2->MessageType));
 		} else if (ses) {
 			ses->Suid = smb_buffer_response->Uid; /* UID left in le format */ 
-			cFYI(1, ("UID = %d ", ses->Suid));
+			cFYI(1, ("UID = %d", ses->Suid));
 			if ((pSMBr->resp.hdr.WordCount == 3)
 			    || ((pSMBr->resp.hdr.WordCount == 4)
 				&& (blob_len <
@@ -2685,17 +2688,17 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 
 				if (pSMBr->resp.hdr.WordCount == 4) {
 					bcc_ptr += blob_len;
-					cFYI(1,
-					     ("Security Blob Length %d ",
+					cFYI(1, ("Security Blob Length %d",
 					      blob_len));
 				}
 
-				cFYI(1, ("NTLMSSP Challenge rcvd "));
+				cFYI(1, ("NTLMSSP Challenge rcvd"));
 
 				memcpy(ses->server->cryptKey,
 				       SecurityBlob2->Challenge,
 				       CIFS_CRYPTO_KEY_SIZE);
-				if(SecurityBlob2->NegotiateFlags & cpu_to_le32(NTLMSSP_NEGOTIATE_NTLMV2))
+				if(SecurityBlob2->NegotiateFlags & 
+					cpu_to_le32(NTLMSSP_NEGOTIATE_NTLMV2))
 					*pNTLMv2_flag = TRUE;
 
 				if((SecurityBlob2->NegotiateFlags & 
@@ -2818,7 +2821,7 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 						bcc_ptr++;
 					} else
 						cFYI(1,
-						     ("Variable field of length %d extends beyond end of smb ",
+						     ("Variable field of length %d extends beyond end of smb",
 						      len));
 				}
 			} else {
@@ -2830,7 +2833,7 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 		}
 	} else {
 		cERROR(1,
-		       (" Invalid Word count %d: ",
+		       (" Invalid Word count %d:",
 			smb_buffer_response->WordCount));
 		rc = -EIO;
 	}
@@ -3447,7 +3450,7 @@ int cifs_setup_session(unsigned int xid, struct cifsSesInfo *pSesInfo,
 		if (extended_security
 				&& (pSesInfo->capabilities & CAP_EXTENDED_SECURITY)
 				&& (pSesInfo->server->secType == NTLMSSP)) {
-			cFYI(1, ("New style sesssetup "));
+			cFYI(1, ("New style sesssetup"));
 			rc = CIFSSpnegoSessSetup(xid, pSesInfo,
 				NULL /* security blob */, 
 				0 /* blob length */,
@@ -3455,7 +3458,7 @@ int cifs_setup_session(unsigned int xid, struct cifsSesInfo *pSesInfo,
 		} else if (extended_security
 			   && (pSesInfo->capabilities & CAP_EXTENDED_SECURITY)
 			   && (pSesInfo->server->secType == RawNTLMSSP)) {
-			cFYI(1, ("NTLMSSP sesssetup "));
+			cFYI(1, ("NTLMSSP sesssetup"));
 			rc = CIFSNTLMSSPNegotiateSessSetup(xid,
 						pSesInfo,
 						&ntlmv2_flag,

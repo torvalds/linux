@@ -14,7 +14,12 @@
 #define MAX_REG_NR (UM_FRAME_SIZE / sizeof(unsigned long))
 #define MAX_REG_OFFSET (UM_FRAME_SIZE)
 
+#ifdef UML_CONFIG_PT_PROXY
 extern void update_debugregs(int seq);
+#else
+static inline void update_debugregs(int seq) {}
+#endif
+
 
 /* syscall emulation path in ptrace */
 

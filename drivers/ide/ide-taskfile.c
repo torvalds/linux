@@ -375,7 +375,13 @@ static void task_end_request(ide_drive_t *drive, struct request *rq, u8 stat)
 		}
 	}
 
-	ide_end_request(drive, 1, rq->hard_nr_sectors);
+	if (rq->rq_disk) {
+		ide_driver_t *drv;
+
+		drv = *(ide_driver_t **)rq->rq_disk->private_data;;
+		drv->end_request(drive, 1, rq->hard_nr_sectors);
+	} else
+		ide_end_request(drive, 1, rq->hard_nr_sectors);
 }
 
 /*

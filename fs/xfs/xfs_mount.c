@@ -213,7 +213,8 @@ xfs_mount_free(
 STATIC int
 xfs_mount_validate_sb(
 	xfs_mount_t	*mp,
-	xfs_sb_t	*sbp)
+	xfs_sb_t	*sbp,
+	int		flags)
 {
 	/*
 	 * If the log device and data device have the
@@ -223,33 +224,29 @@ xfs_mount_validate_sb(
 	 * a volume filesystem in a non-volume manner.
 	 */
 	if (sbp->sb_magicnum != XFS_SB_MAGIC) {
-		cmn_err(CE_WARN, "XFS: bad magic number");
+		xfs_fs_mount_cmn_err(flags, "bad magic number");
 		return XFS_ERROR(EWRONGFS);
 	}
 
 	if (!XFS_SB_GOOD_VERSION(sbp)) {
-		cmn_err(CE_WARN, "XFS: bad version");
+		xfs_fs_mount_cmn_err(flags, "bad version");
 		return XFS_ERROR(EWRONGFS);
 	}
 
 	if (unlikely(
 	    sbp->sb_logstart == 0 && mp->m_logdev_targp == mp->m_ddev_targp)) {
-		cmn_err(CE_WARN,
-	"XFS: filesystem is marked as having an external log; "
-	"specify logdev on the\nmount command line.");
-		XFS_CORRUPTION_ERROR("xfs_mount_validate_sb(1)",
-				     XFS_ERRLEVEL_HIGH, mp, sbp);
-		return XFS_ERROR(EFSCORRUPTED);
+		xfs_fs_mount_cmn_err(flags,
+			"filesystem is marked as having an external log; "
+			"specify logdev on the\nmount command line.");
+		return XFS_ERROR(EINVAL);
 	}
 
 	if (unlikely(
 	    sbp->sb_logstart != 0 && mp->m_logdev_targp != mp->m_ddev_targp)) {
-		cmn_err(CE_WARN,
-	"XFS: filesystem is marked as having an internal log; "
-	"don't specify logdev on\nthe mount command line.");
-		XFS_CORRUPTION_ERROR("xfs_mount_validate_sb(2)",
-				     XFS_ERRLEVEL_HIGH, mp, sbp);
-		return XFS_ERROR(EFSCORRUPTED);
+		xfs_fs_mount_cmn_err(flags,
+			"filesystem is marked as having an internal log; "
+			"do not specify logdev on\nthe mount command line.");
+		return XFS_ERROR(EINVAL);
 	}
 
 	/*
@@ -273,10 +270,8 @@ xfs_mount_validate_sb(
 	    (sbp->sb_blocklog - sbp->sb_inodelog != sbp->sb_inopblog)	||
 	    (sbp->sb_rextsize * sbp->sb_blocksize > XFS_MAX_RTEXTSIZE)	||
 	    (sbp->sb_rextsize * sbp->sb_blocksize < XFS_MIN_RTEXTSIZE)	||
-	    (sbp->sb_imax_pct > 100 || sbp->sb_imax_pct < 1))) {
-		cmn_err(CE_WARN, "XFS: SB sanity check 1 failed");
-		XFS_CORRUPTION_ERROR("xfs_mount_validate_sb(3)",
-				     XFS_ERRLEVEL_LOW, mp, sbp);
+	    (sbp->sb_imax_pct > 100 /* zero sb_imax_pct is valid */))) {
+		xfs_fs_mount_cmn_err(flags, "SB sanity check 1 failed");
 		return XFS_ERROR(EFSCORRUPTED);
 	}
 
@@ -289,9 +284,7 @@ xfs_mount_validate_sb(
 	     (xfs_drfsbno_t)sbp->sb_agcount * sbp->sb_agblocks ||
 	    sbp->sb_dblocks < (xfs_drfsbno_t)(sbp->sb_agcount - 1) *
 			      sbp->sb_agblocks + XFS_MIN_AG_BLOCKS)) {
-		cmn_err(CE_WARN, "XFS: SB sanity check 2 failed");
-		XFS_ERROR_REPORT("xfs_mount_validate_sb(4)",
-				 XFS_ERRLEVEL_LOW, mp);
+		xfs_fs_mount_cmn_err(flags, "SB sanity check 2 failed");
 		return XFS_ERROR(EFSCORRUPTED);
 	}
 
@@ -307,15 +300,13 @@ xfs_mount_validate_sb(
 	    (sbp->sb_dblocks << (sbp->sb_blocklog - BBSHIFT)) > UINT_MAX ||
 	    (sbp->sb_rblocks << (sbp->sb_blocklog - BBSHIFT)) > UINT_MAX)) {
 #endif
-		cmn_err(CE_WARN,
-	"XFS: File system is too large to be mounted on this system.");
+		xfs_fs_mount_cmn_err(flags,
+			"file system too large to be mounted on this system.");
 		return XFS_ERROR(E2BIG);
 	}
 
 	if (unlikely(sbp->sb_inprogress)) {
-		cmn_err(CE_WARN, "XFS: file system busy");
-		XFS_ERROR_REPORT("xfs_mount_validate_sb(5)",
-				 XFS_ERRLEVEL_LOW, mp);
+		xfs_fs_mount_cmn_err(flags, "file system busy");
 		return XFS_ERROR(EFSCORRUPTED);
 	}
 
@@ -323,8 +314,8 @@ xfs_mount_validate_sb(
 	 * Version 1 directory format has never worked on Linux.
 	 */
 	if (unlikely(!XFS_SB_VERSION_HASDIRV2(sbp))) {
-		cmn_err(CE_WARN,
-	"XFS: Attempted to mount file system using version 1 directory format");
+		xfs_fs_mount_cmn_err(flags,
+			"file system using version 1 directory format");
 		return XFS_ERROR(ENOSYS);
 	}
 
@@ -332,11 +323,11 @@ xfs_mount_validate_sb(
 	 * Until this is fixed only page-sized or smaller data blocks work.
 	 */
 	if (unlikely(sbp->sb_blocksize > PAGE_SIZE)) {
-		cmn_err(CE_WARN,
-		"XFS: Attempted to mount file system with blocksize %d bytes",
+		xfs_fs_mount_cmn_err(flags,
+			"file system with blocksize %d bytes",
 			sbp->sb_blocksize);
-		cmn_err(CE_WARN,
-		"XFS: Only page-sized (%ld) or less blocksizes currently work.",
+		xfs_fs_mount_cmn_err(flags,
+			"only pagesize (%ld) or less will currently work.",
 			PAGE_SIZE);
 		return XFS_ERROR(ENOSYS);
 	}
@@ -393,7 +384,7 @@ xfs_initialize_perag(
 				break;
 			}
 
-			/* This ag is prefered for inodes */
+			/* This ag is preferred for inodes */
 			pag = &mp->m_perag[index];
 			pag->pagi_inodeok = 1;
 			if (index < max_metadata)
@@ -484,7 +475,7 @@ xfs_xlatesb(
  * Does the initial read of the superblock.
  */
 int
-xfs_readsb(xfs_mount_t *mp)
+xfs_readsb(xfs_mount_t *mp, int flags)
 {
 	unsigned int	sector_size;
 	unsigned int	extra_flags;
@@ -506,7 +497,7 @@ xfs_readsb(xfs_mount_t *mp)
 	bp = xfs_buf_read_flags(mp->m_ddev_targp, XFS_SB_DADDR,
 				BTOBB(sector_size), extra_flags);
 	if (!bp || XFS_BUF_ISERROR(bp)) {
-		cmn_err(CE_WARN, "XFS: SB read failed");
+		xfs_fs_mount_cmn_err(flags, "SB read failed");
 		error = bp ? XFS_BUF_GETERROR(bp) : ENOMEM;
 		goto fail;
 	}
@@ -520,9 +511,9 @@ xfs_readsb(xfs_mount_t *mp)
 	sbp = XFS_BUF_TO_SBP(bp);
 	xfs_xlatesb(XFS_BUF_PTR(bp), &(mp->m_sb), 1, XFS_SB_ALL_BITS);
 
-	error = xfs_mount_validate_sb(mp, &(mp->m_sb));
+	error = xfs_mount_validate_sb(mp, &(mp->m_sb), flags);
 	if (error) {
-		cmn_err(CE_WARN, "XFS: SB validate failed");
+		xfs_fs_mount_cmn_err(flags, "SB validate failed");
 		goto fail;
 	}
 
@@ -530,8 +521,8 @@ xfs_readsb(xfs_mount_t *mp)
 	 * We must be able to do sector-sized and sector-aligned IO.
 	 */
 	if (sector_size > mp->m_sb.sb_sectsize) {
-		cmn_err(CE_WARN,
-			"XFS: device supports only %u byte sectors (not %u)",
+		xfs_fs_mount_cmn_err(flags,
+			"device supports only %u byte sectors (not %u)",
 			sector_size, mp->m_sb.sb_sectsize);
 		error = ENOSYS;
 		goto fail;
@@ -548,7 +539,7 @@ xfs_readsb(xfs_mount_t *mp)
 		bp = xfs_buf_read_flags(mp->m_ddev_targp, XFS_SB_DADDR,
 					BTOBB(sector_size), extra_flags);
 		if (!bp || XFS_BUF_ISERROR(bp)) {
-			cmn_err(CE_WARN, "XFS: SB re-read failed");
+			xfs_fs_mount_cmn_err(flags, "SB re-read failed");
 			error = bp ? XFS_BUF_GETERROR(bp) : ENOMEM;
 			goto fail;
 		}
@@ -678,7 +669,7 @@ xfs_mountfs(
 	int		error = 0;
 
 	if (mp->m_sb_bp == NULL) {
-		if ((error = xfs_readsb(mp))) {
+		if ((error = xfs_readsb(mp, mfsi_flags))) {
 			return error;
 		}
 	}
@@ -1728,7 +1719,7 @@ xfs_mount_log_sbunit(
  * We cannot use the hotcpu_register() function because it does
  * not allow notifier instances. We need a notifier per filesystem
  * as we need to be able to identify the filesystem to balance
- * the counters out. This is acheived by having a notifier block
+ * the counters out. This is achieved by having a notifier block
  * embedded in the xfs_mount_t and doing pointer magic to get the
  * mount pointer from the notifier block address.
  */

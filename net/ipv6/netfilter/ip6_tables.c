@@ -788,7 +788,7 @@ translate_table(const char *name,
 	}
 
 	/* And one copy for every other CPU */
-	for_each_cpu(i) {
+	for_each_possible_cpu(i) {
 		if (newinfo->entries[i] && newinfo->entries[i] != entry0)
 			memcpy(newinfo->entries[i], entry0, newinfo->size);
 	}
@@ -841,7 +841,7 @@ get_counters(const struct xt_table_info *t,
 			   counters,
 			   &i);
 
-	for_each_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		if (cpu == curcpu)
 			continue;
 		i = 0;
@@ -1406,7 +1406,7 @@ static struct ip6t_match icmp6_matchstruct = {
 	.family		= AF_INET6,
 };
 
-static int __init init(void)
+static int __init ip6_tables_init(void)
 {
 	int ret;
 
@@ -1429,7 +1429,7 @@ static int __init init(void)
 	return 0;
 }
 
-static void __exit fini(void)
+static void __exit ip6_tables_fini(void)
 {
 	nf_unregister_sockopt(&ip6t_sockopts);
 	xt_unregister_match(&icmp6_matchstruct);
@@ -1517,5 +1517,5 @@ EXPORT_SYMBOL(ip6t_do_table);
 EXPORT_SYMBOL(ip6t_ext_hdr);
 EXPORT_SYMBOL(ipv6_find_hdr);
 
-module_init(init);
-module_exit(fini);
+module_init(ip6_tables_init);
+module_exit(ip6_tables_fini);

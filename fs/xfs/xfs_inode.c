@@ -160,7 +160,7 @@ xfs_inotobp(
 	xfs_dinode_t	*dip;
 
 	/*
-	 * Call the space managment code to find the location of the
+	 * Call the space management code to find the location of the
 	 * inode on disk.
 	 */
 	imap.im_blkno = 0;
@@ -837,7 +837,7 @@ xfs_dic2xflags(
 
 /*
  * Given a mount structure and an inode number, return a pointer
- * to a newly allocated in-core inode coresponding to the given
+ * to a newly allocated in-core inode corresponding to the given
  * inode number.
  *
  * Initialize the inode's attributes and extent pointers if it
@@ -2723,7 +2723,7 @@ xfs_ipin(
 /*
  * Decrement the pin count of the given inode, and wake up
  * anyone in xfs_iwait_unpin() if the count goes to 0.  The
- * inode must have been previoulsy pinned with a call to xfs_ipin().
+ * inode must have been previously pinned with a call to xfs_ipin().
  */
 void
 xfs_iunpin(
@@ -2732,16 +2732,29 @@ xfs_iunpin(
 	ASSERT(atomic_read(&ip->i_pincount) > 0);
 
 	if (atomic_dec_and_test(&ip->i_pincount)) {
-		vnode_t	*vp = XFS_ITOV_NULL(ip);
+		/*
+		 * If the inode is currently being reclaimed, the
+		 * linux inode _and_ the xfs vnode may have been
+		 * freed so we cannot reference either of them safely.
+		 * Hence we should not try to do anything to them
+		 * if the xfs inode is currently in the reclaim
+		 * path.
+		 *
+		 * However, we still need to issue the unpin wakeup
+		 * call as the inode reclaim may be blocked waiting for
+		 * the inode to become unpinned.
+		 */
+		if (!(ip->i_flags & (XFS_IRECLAIM|XFS_IRECLAIMABLE))) {
+			vnode_t	*vp = XFS_ITOV_NULL(ip);
 
-		/* make sync come back and flush this inode */
-		if (vp) {
-			struct inode	*inode = vn_to_inode(vp);
+			/* make sync come back and flush this inode */
+			if (vp) {
+				struct inode	*inode = vn_to_inode(vp);
 
-			if (!(inode->i_state & I_NEW))
-				mark_inode_dirty_sync(inode);
+				if (!(inode->i_state & I_NEW))
+					mark_inode_dirty_sync(inode);
+			}
 		}
-
 		wake_up(&ip->i_ipin_wait);
 	}
 }
@@ -3690,7 +3703,7 @@ void
 xfs_iext_add(
 	xfs_ifork_t	*ifp,		/* inode fork pointer */
 	xfs_extnum_t	idx,		/* index to begin adding exts */
-	int		ext_diff)	/* nubmer of extents to add */
+	int		ext_diff)	/* number of extents to add */
 {
 	int		byte_diff;	/* new bytes being added */
 	int		new_size;	/* size of extents after adding */
@@ -4038,7 +4051,7 @@ xfs_iext_remove_indirect(
 	xfs_extnum_t	ext_diff;	/* extents to remove in current list */
 	xfs_extnum_t	nex1;		/* number of extents before idx */
 	xfs_extnum_t	nex2;		/* extents after idx + count */
-	int		nlists;		/* entries in indirecton array */
+	int		nlists;		/* entries in indirection array */
 	int		page_idx = idx;	/* index in target extent list */
 
 	ASSERT(ifp->if_flags & XFS_IFEXTIREC);
@@ -4291,9 +4304,9 @@ xfs_iext_bno_to_ext(
 	xfs_filblks_t	blockcount = 0;	/* number of blocks in extent */
 	xfs_bmbt_rec_t	*ep = NULL;	/* pointer to target extent */
 	xfs_ext_irec_t	*erp = NULL;	/* indirection array pointer */
-	int		high;		/* upper boundry in search */
+	int		high;		/* upper boundary in search */
 	xfs_extnum_t	idx = 0;	/* index of target extent */
-	int		low;		/* lower boundry in search */
+	int		low;		/* lower boundary in search */
 	xfs_extnum_t	nextents;	/* number of file extents */
 	xfs_fileoff_t	startoff = 0;	/* start offset of extent */
 

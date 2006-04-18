@@ -1479,6 +1479,8 @@ static inline int scsi_host_queue_ready(struct request_queue *q,
 static void scsi_kill_request(struct request *req, request_queue_t *q)
 {
 	struct scsi_cmnd *cmd = req->special;
+	struct scsi_device *sdev = cmd->device;
+	struct Scsi_Host *shost = sdev->host;
 
 	blkdev_dequeue_request(req);
 
@@ -1491,6 +1493,19 @@ static void scsi_kill_request(struct request *req, request_queue_t *q)
 	scsi_init_cmd_errh(cmd);
 	cmd->result = DID_NO_CONNECT << 16;
 	atomic_inc(&cmd->device->iorequest_cnt);
+
+	/*
+	 * SCSI request completion path will do scsi_device_unbusy(),
+	 * bump busy counts.  To bump the counters, we need to dance
+	 * with the locks as normal issue path does.
+	 */
+	sdev->device_busy++;
+	spin_unlock(sdev->request_queue->queue_lock);
+	spin_lock(shost->host_lock);
+	shost->host_busy++;
+	spin_unlock(shost->host_lock);
+	spin_lock(sdev->request_queue->queue_lock);
+
 	__scsi_done(cmd);
 }
 

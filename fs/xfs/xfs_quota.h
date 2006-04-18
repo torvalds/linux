@@ -31,7 +31,7 @@
 typedef __uint32_t	xfs_dqid_t;
 
 /*
- * Eventhough users may not have quota limits occupying all 64-bits,
+ * Even though users may not have quota limits occupying all 64-bits,
  * they may need 64-bit accounting. Hence, 64-bit quota-counters,
  * and quota-limits. This is a waste in the common case, but hey ...
  */
@@ -196,10 +196,11 @@ typedef struct xfs_qoff_logformat {
 #define XFS_QMOPT_QUOTAOFF	0x0000080 /* quotas are being turned off */
 #define XFS_QMOPT_UMOUNTING	0x0000100 /* filesys is being unmounted */
 #define XFS_QMOPT_DOLOG		0x0000200 /* log buf changes (in quotacheck) */
-#define XFS_QMOPT_DOWARN        0x0000400 /* increase warning cnt if necessary */
+#define XFS_QMOPT_DOWARN        0x0000400 /* increase warning cnt if needed */
 #define XFS_QMOPT_ILOCKED	0x0000800 /* inode is already locked (excl) */
-#define XFS_QMOPT_DQREPAIR	0x0001000 /* repair dquot, if damaged. */
+#define XFS_QMOPT_DQREPAIR	0x0001000 /* repair dquot if damaged */
 #define XFS_QMOPT_GQUOTA	0x0002000 /* group dquot requested */
+#define XFS_QMOPT_ENOSPC	0x0004000 /* enospc instead of edquot (prj) */
 
 /*
  * flags to xfs_trans_mod_dquot to indicate which field needs to be
@@ -246,7 +247,7 @@ typedef struct xfs_qoff_logformat {
 #ifdef __KERNEL__
 /*
  * This check is done typically without holding the inode lock;
- * that may seem racey, but it is harmless in the context that it is used.
+ * that may seem racy, but it is harmless in the context that it is used.
  * The inode cannot go inactive as long a reference is kept, and
  * therefore if dquot(s) were attached, they'll stay consistent.
  * If, for example, the ownership of the inode changes while

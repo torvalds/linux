@@ -77,6 +77,14 @@ config FIQ
 config ARCH_MTD_XIP
 	bool
 
+config VECTORS_BASE
+	hex
+	default 0xffff0000 if MMU
+	default DRAM_BASE if REMAP_VECTORS_TO_RAM
+	default 0x00000000
+	help
+	  The base address of exception vectors.
+
 source "init/Kconfig"
 
 menu "System Type"
@@ -504,6 +512,12 @@ config ARCH_DISCONTIGMEM_ENABLE
 	  or have huge holes in the physical address space for other reasons.
 	  See <file:Documentation/vm/numa> for more.
 
+config NODES_SHIFT
+	int
+	default "4" if ARCH_LH7A40X
+	default "2"
+	depends on NEED_MULTIPLE_NODES
+
 source "mm/Kconfig"
 
 config LEDS
@@ -838,6 +852,8 @@ source "drivers/hwmon/Kconfig"
 source "drivers/misc/Kconfig"
 
 source "drivers/mfd/Kconfig"
+
+source "drivers/leds/Kconfig"
 
 source "drivers/media/Kconfig"
 

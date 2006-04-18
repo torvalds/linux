@@ -1297,7 +1297,7 @@ static inline void setup_decr(struct spu_state *csa, struct spu *spu)
 		cycles_t resume_time = get_cycles();
 		cycles_t delta_time = resume_time - csa->suspend_time;
 
-		csa->lscsa->decr.slot[0] = delta_time;
+		csa->lscsa->decr.slot[0] -= delta_time;
 	}
 }
 
@@ -2145,7 +2145,8 @@ static void init_priv1(struct spu_state *csa)
 	csa->priv1.int_mask_class1_RW = CLASS1_ENABLE_SEGMENT_FAULT_INTR |
 	    CLASS1_ENABLE_STORAGE_FAULT_INTR;
 	csa->priv1.int_mask_class2_RW = CLASS2_ENABLE_SPU_STOP_INTR |
-	    CLASS2_ENABLE_SPU_HALT_INTR;
+	    CLASS2_ENABLE_SPU_HALT_INTR |
+	    CLASS2_ENABLE_SPU_DMA_TAG_GROUP_COMPLETE_INTR;
 }
 
 static void init_priv2(struct spu_state *csa)

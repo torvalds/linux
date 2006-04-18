@@ -206,76 +206,6 @@ void drm_free (void *pt, size_t size, int area) {
 	}
 }
 
-unsigned long drm_alloc_pages (int order, int area) {
-	unsigned long address;
-	unsigned long bytes = PAGE_SIZE << order;
-	unsigned long addr;
-	unsigned int sz;
-
-	spin_lock(&drm_mem_lock);
-	if ((drm_ram_used >> PAGE_SHIFT)
-	    > (DRM_RAM_PERCENT * drm_ram_available) / 100) {
-		spin_unlock(&drm_mem_lock);
-		return 0;
-	}
-	spin_unlock(&drm_mem_lock);
-
-	address = __get_free_pages(GFP_KERNEL|__GFP_COMP, order);
-	if (!address) {
-		spin_lock(&drm_mem_lock);
-		++drm_mem_stats[area].fail_count;
-		spin_unlock(&drm_mem_lock);
-		return 0;
-	}
-	spin_lock(&drm_mem_lock);
-	++drm_mem_stats[area].succeed_count;
-	drm_mem_stats[area].bytes_allocated += bytes;
-	drm_ram_used += bytes;
-	spin_unlock(&drm_mem_lock);
-
-	/* Zero outside the lock */
-	memset((void *)address, 0, bytes);
-
-	/* Reserve */
-	for (addr = address, sz = bytes;
-	     sz > 0; addr += PAGE_SIZE, sz -= PAGE_SIZE) {
-		SetPageReserved(virt_to_page(addr));
-	}
-
-	return address;
-}
-
-void drm_free_pages (unsigned long address, int order, int area) {
-	unsigned long bytes = PAGE_SIZE << order;
-	int alloc_count;
-	int free_count;
-	unsigned long addr;
-	unsigned int sz;
-
-	if (!address) {
-		DRM_MEM_ERROR(area, "Attempt to free address 0\n");
-	} else {
-		/* Unreserve */
-		for (addr = address, sz = bytes;
-		     sz > 0; addr += PAGE_SIZE, sz -= PAGE_SIZE) {
-			ClearPageReserved(virt_to_page(addr));
-		}
-		free_pages(address, order);
-	}
-
-	spin_lock(&drm_mem_lock);
-	free_count = ++drm_mem_stats[area].free_count;
-	alloc_count = drm_mem_stats[area].succeed_count;
-	drm_mem_stats[area].bytes_freed += bytes;
-	drm_ram_used -= bytes;
-	spin_unlock(&drm_mem_lock);
-	if (free_count > alloc_count) {
-		DRM_MEM_ERROR(area,
-			      "Excess frees: %d frees, %d allocs\n",
-			      free_count, alloc_count);
-	}
-}
-
 void *drm_ioremap (unsigned long offset, unsigned long size,
 		    drm_device_t * dev) {
 	void *pt;
@@ -299,6 +229,7 @@ void *drm_ioremap (unsigned long offset, unsigned long size,
 	return pt;
 }
 
+#if 0
 void *drm_ioremap_nocache (unsigned long offset, unsigned long size,
 			    drm_device_t * dev) {
 	void *pt;
@@ -321,6 +252,7 @@ void *drm_ioremap_nocache (unsigned long offset, unsigned long size,
 	spin_unlock(&drm_mem_lock);
 	return pt;
 }
+#endif  /*  0  */
 
 void drm_ioremapfree (void *pt, unsigned long size, drm_device_t * dev) {
 	int alloc_count;

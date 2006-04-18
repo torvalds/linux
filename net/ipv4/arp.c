@@ -928,7 +928,8 @@ static void parp_redo(struct sk_buff *skb)
  *	Receive an arp request from the device layer.
  */
 
-int arp_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev)
+static int arp_rcv(struct sk_buff *skb, struct net_device *dev,
+		   struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct arphdr *arp;
 
@@ -1417,7 +1418,6 @@ static int __init arp_proc_init(void)
 
 EXPORT_SYMBOL(arp_broken_ops);
 EXPORT_SYMBOL(arp_find);
-EXPORT_SYMBOL(arp_rcv);
 EXPORT_SYMBOL(arp_create);
 EXPORT_SYMBOL(arp_xmit);
 EXPORT_SYMBOL(arp_send);

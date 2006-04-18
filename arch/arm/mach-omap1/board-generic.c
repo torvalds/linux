@@ -88,7 +88,7 @@ static struct omap_board_config_kernel generic_config[] = {
 static void __init omap_generic_init(void)
 {
 #ifdef CONFIG_ARCH_OMAP15XX
-	if (cpu_is_omap1510()) {
+	if (cpu_is_omap15xx()) {
 		generic_config[0].data = &generic1510_usb_config;
 	}
 #endif

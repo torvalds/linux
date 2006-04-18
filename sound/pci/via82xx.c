@@ -2333,6 +2333,7 @@ static int __devinit check_dxs_list(struct pci_dev *pci)
 		{ .subvendor = 0x1019, .subdevice = 0x0a81, .action = VIA_DXS_NO_VRA }, /* ECS K7VTA3 v8.0 */
 		{ .subvendor = 0x1019, .subdevice = 0x0a85, .action = VIA_DXS_NO_VRA }, /* ECS L7VMM2 */
 		{ .subvendor = 0x1019, .subdevice = 0xa101, .action = VIA_DXS_SRC },
+		{ .subvendor = 0x1019, .subdevice = 0xaa01, .action = VIA_DXS_SRC }, /* ECS K8T890-A */
 		{ .subvendor = 0x1025, .subdevice = 0x0033, .action = VIA_DXS_NO_VRA }, /* Acer Inspire 1353LM */
 		{ .subvendor = 0x1025, .subdevice = 0x0046, .action = VIA_DXS_SRC }, /* Acer Aspire 1524 WLMi */
 		{ .subvendor = 0x1043, .subdevice = 0x8095, .action = VIA_DXS_NO_VRA }, /* ASUS A7V8X (FIXME: possibly VIA_DXS_ENABLE?)*/
@@ -2373,6 +2374,7 @@ static int __devinit check_dxs_list(struct pci_dev *pci)
 		{ .subvendor = 0x161f, .subdevice = 0x2032, .action = VIA_DXS_48K }, /* m680x machines */
 		{ .subvendor = 0x1631, .subdevice = 0xe004, .action = VIA_DXS_ENABLE }, /* Easy Note 3174, Packard Bell */
 		{ .subvendor = 0x1695, .subdevice = 0x3005, .action = VIA_DXS_ENABLE }, /* EPoX EP-8K9A */
+		{ .subvendor = 0x1695, .subdevice = 0x300c, .action = VIA_DXS_SRC }, /* EPoX EP-8KRAI */
 		{ .subvendor = 0x1695, .subdevice = 0x300e, .action = VIA_DXS_SRC }, /* EPoX 9HEAI */
 		{ .subvendor = 0x16f3, .subdevice = 0x6405, .action = VIA_DXS_SRC }, /* Jetway K8M8MS */
 		{ .subvendor = 0x1734, .subdevice = 0x1078, .action = VIA_DXS_SRC }, /* FSC Amilo L7300 */

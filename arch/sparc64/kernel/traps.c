@@ -1130,9 +1130,9 @@ static void cheetah_log_errors(struct pt_regs *regs, struct cheetah_err_info *in
 	       (recoverable ? KERN_WARNING : KERN_CRIT), smp_processor_id(),
 	       afsr, afar,
 	       (afsr & CHAFSR_TL1) ? 1 : 0);
-	printk("%s" "ERROR(%d): TPC[%016lx] TNPC[%016lx] TSTATE[%016lx]\n",
+	printk("%s" "ERROR(%d): TPC[%lx] TNPC[%lx] O7[%lx] TSTATE[%lx]\n",
 	       (recoverable ? KERN_WARNING : KERN_CRIT), smp_processor_id(),
-	       regs->tpc, regs->tnpc, regs->tstate);
+	       regs->tpc, regs->tnpc, regs->u_regs[UREG_I7], regs->tstate);
 	printk("%s" "ERROR(%d): M_SYND(%lx),  E_SYND(%lx)%s%s\n",
 	       (recoverable ? KERN_WARNING : KERN_CRIT), smp_processor_id(),
 	       (afsr & CHAFSR_M_SYNDROME) >> CHAFSR_M_SYNDROME_SHIFT,

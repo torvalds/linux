@@ -50,6 +50,11 @@ struct scsi_transport_template {
 	unsigned int create_work_queue : 1;
 
 	/*
+	 * Allows a transport to override the default error handler.
+	 */
+	void (* eh_strategy_handler)(struct Scsi_Host *);
+
+	/*
 	 * This is an optional routine that allows the transport to become
 	 * involved when a scsi io timer fires. The return value tells the
 	 * timer routine how to finish the io timeout handling:

@@ -17,8 +17,6 @@
 #include <linux/buffer_head.h>
 #include <linux/mutex.h>
 
-#define MAX_PROBE_HASH 255	/* random */
-
 static struct subsystem block_subsys;
 
 static DEFINE_MUTEX(block_subsys_lock);
@@ -31,108 +29,29 @@ static struct blk_major_name {
 	struct blk_major_name *next;
 	int major;
 	char name[16];
-} *major_names[MAX_PROBE_HASH];
+} *major_names[BLKDEV_MAJOR_HASH_SIZE];
 
 /* index in the above - for now: assume no multimajor ranges */
 static inline int major_to_index(int major)
 {
-	return major % MAX_PROBE_HASH;
+	return major % BLKDEV_MAJOR_HASH_SIZE;
 }
 
-struct blkdev_info {
-        int index;
-        struct blk_major_name *bd;
-};
+#ifdef CONFIG_PROC_FS
 
-/*
- * iterate over a list of blkdev_info structures.  allows
- * the major_names array to be iterated over from outside this file
- * must be called with the block_subsys_lock held
- */
-void *get_next_blkdev(void *dev)
+void blkdev_show(struct seq_file *f, off_t offset)
 {
-        struct blkdev_info *info;
+	struct blk_major_name *dp;
 
-        if (dev == NULL) {
-                info = kmalloc(sizeof(*info), GFP_KERNEL);
-                if (!info)
-                        goto out;
-                info->index=0;
-                info->bd = major_names[info->index];
-                if (info->bd)
-                        goto out;
-        } else {
-                info = dev;
-        }
-
-        while (info->index < ARRAY_SIZE(major_names)) {
-                if (info->bd)
-                        info->bd = info->bd->next;
-                if (info->bd)
-                        goto out;
-                /*
-                 * No devices on this chain, move to the next
-                 */
-                info->index++;
-                info->bd = (info->index < ARRAY_SIZE(major_names)) ?
-			major_names[info->index] : NULL;
-                if (info->bd)
-                        goto out;
-        }
-
-out:
-        return info;
-}
-
-void *acquire_blkdev_list(void)
-{
-        mutex_lock(&block_subsys_lock);
-        return get_next_blkdev(NULL);
-}
-
-void release_blkdev_list(void *dev)
-{
-        mutex_unlock(&block_subsys_lock);
-        kfree(dev);
-}
-
-
-/*
- * Count the number of records in the blkdev_list.
- * must be called with the block_subsys_lock held
- */
-int count_blkdev_list(void)
-{
-	struct blk_major_name *n;
-	int i, count;
-
-	count = 0;
-
-	for (i = 0; i < ARRAY_SIZE(major_names); i++) {
-		for (n = major_names[i]; n; n = n->next)
-				count++;
+	if (offset < BLKDEV_MAJOR_HASH_SIZE) {
+		mutex_lock(&block_subsys_lock);
+		for (dp = major_names[offset]; dp; dp = dp->next)
+			seq_printf(f, "%3d %s\n", dp->major, dp->name);
+		mutex_unlock(&block_subsys_lock);
 	}
-
-	return count;
 }
 
-/*
- * extract the major and name values from a blkdev_info struct
- * passed in as a void to *dev.  Must be called with
- * block_subsys_lock held
- */
-int get_blkdev_info(void *dev, int *major, char **name)
-{
-        struct blkdev_info *info = dev;
-
-        if (info->bd == NULL)
-                return 1;
-
-        *major = info->bd->major;
-        *name = info->bd->name;
-        return 0;
-}
-
+#endif /* CONFIG_PROC_FS */
 
 int register_blkdev(unsigned int major, const char *name)
 {

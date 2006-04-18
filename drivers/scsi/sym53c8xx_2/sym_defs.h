@@ -40,7 +40,7 @@
 #ifndef SYM_DEFS_H
 #define SYM_DEFS_H
 
-#define SYM_VERSION "2.2.2"
+#define SYM_VERSION "2.2.3"
 #define SYM_DRIVER_NAME	"sym-" SYM_VERSION
 
 /*

@@ -54,8 +54,10 @@ struct msp_state {
 	u8 has_radio;
 	u8 has_headphones;
 	u8 has_ntsc_jp_d_k3;
+	u8 has_scart2;
+	u8 has_scart3;
 	u8 has_scart4;
-	u8 has_scart23_in_scart2_out;
+	u8 has_scart2_out;
 	u8 has_scart2_out_volume;
 	u8 has_i2s_conf;
 	u8 has_subwoofer;
@@ -83,6 +85,7 @@ struct msp_state {
 	int volume, muted;
 	int balance, loudness;
 	int bass, treble;
+	int scan_in_progress;
 
 	/* thread */
 	struct task_struct   *kthread;
@@ -98,7 +101,6 @@ int msp_read_dem(struct i2c_client *client, int addr);
 int msp_read_dsp(struct i2c_client *client, int addr);
 int msp_reset(struct i2c_client *client);
 void msp_set_scart(struct i2c_client *client, int in, int out);
-void msp_set_mute(struct i2c_client *client);
 void msp_set_audio(struct i2c_client *client);
 int msp_sleep(struct msp_state *state, int timeout);
 

@@ -61,25 +61,21 @@ config 6xx
 	select PPC_FPU
 	help
 	  There are four types of PowerPC chips supported.  The more common
-	  types (601, 603, 604, 740, 750, 7400), the Motorola embedded
-	  versions (821, 823, 850, 855, 860, 52xx, 82xx, 83xx), the IBM
-	  embedded versions (403 and 405) and the POWER3 processor.
-	  (For support for more recent 64-bit processors, set ARCH=powerpc.)
+	  types (601, 603, 604, 740, 750, 7400), the older Freescale
+	  (formerly Motorola) embedded versions (821, 823, 850, 855, 860,
+	  52xx, 82xx, 83xx), the IBM embedded versions (403 and 405) and
+	  the Book E embedded processors from IBM (44x) and Freescale (85xx).
+	  For support for 64-bit processors, set ARCH=powerpc.
 	  Unless you are building a kernel for one of the embedded processor
-	  systems or a POWER3-based IBM RS/6000, choose 6xx.
-	  Note that the kernel runs in 32-bit mode even on 64-bit chips.
-	  Also note that because the 52xx, 82xx, & 83xx family has a 603e core,
-	  specific support for that chipset is asked later on.
+	  systems, choose 6xx.
+	  Also note that because the 52xx, 82xx, & 83xx family have a 603e
+	  core, specific support for that chipset is asked later on.
 
 config 40x
 	bool "40x"
 
 config 44x
 	bool "44x"
-
-config POWER3
-	select PPC_FPU
-	bool "POWER3"
 
 config 8xx
 	bool "8xx"
@@ -252,14 +248,9 @@ config PPC601_SYNC_FIX
 source arch/ppc/platforms/4xx/Kconfig
 source arch/ppc/platforms/85xx/Kconfig
 
-config PPC64BRIDGE
-	bool
-	depends on POWER3
-	default y
-
 config PPC_STD_MMU
 	bool
-	depends on 6xx || POWER3
+	depends on 6xx
 	default y
 
 config NOT_COHERENT_CACHE
@@ -534,8 +525,8 @@ endmenu
 
 choice
 	prompt "Machine Type"
-	depends on 6xx || POWER3
-	default PPC_MULTIPLATFORM
+	depends on 6xx
+	default PPC_PREP
 	---help---
 	  Linux currently supports several different kinds of PowerPC-based
 	  machines: Apple Power Macintoshes and clones (such as the Motorola
@@ -545,15 +536,14 @@ choice
 	  Platform) machines (including all of the recent IBM RS/6000 and
 	  pSeries machines), and several embedded PowerPC systems containing
 	  4xx, 6xx, 7xx, 8xx, 74xx, and 82xx processors.  Currently, the
-	  default option is to build a kernel which works on PReP and CHRP.
+	  default option is to build a kernel which works on PReP.
 
-	  Note that support for Apple machines is now only available with
-	  ARCH=powerpc, and has been removed from this menu.  If you wish
-	  to build a kernel for an Apple machine, exit this configuration
-	  process and re-run it with ARCH=powerpc.
+	  Note that support for Apple and CHRP machines is now only available
+	  with ARCH=powerpc, and has been removed from this menu.  If you
+	  wish to build a kernel for an Apple or CHRP machine, exit this
+	  configuration process and re-run it with ARCH=powerpc.
 
-	  Select CHRP/PReP if configuring for an IBM RS/6000 or
-	  pSeries machine, or a PReP machine.
+	  Select PReP if configuring for a PReP machine.
 
 	  Select Gemini if configuring for a Synergy Microsystems' Gemini
 	  series Single Board Computer.  More information is available at:
@@ -562,8 +552,8 @@ choice
 	  Select APUS if configuring for a PowerUP Amiga.  More information is
 	  available at: <http://linux-apus.sourceforge.net/>.
 
-config PPC_MULTIPLATFORM
-	bool "CHRP/PReP"
+config PPC_PREP
+	bool "PReP"
 
 config APUS
 	bool "Amiga-APUS"
@@ -715,6 +705,13 @@ config LITE5200
 	  much but it's only been tested on this board version. I think this
 	  board is also known as IceCube.
 
+config LITE5200B
+	bool "Freescale LITE5200B"
+	depends LITE5200
+	help
+	  Support for the LITE5200B dev board for the MPC5200 from Freescale.
+	  This is the new board with 2 PCI slots.
+
 config MPC834x_SYS
 	bool "Freescale MPC834x SYS"
 	help
@@ -799,25 +796,6 @@ config CPM2
 	  embedded CPUs made by Motorola.  Selecting this option means that
 	  you wish to build a kernel for a machine with a CPM2 coprocessor
 	  on it (826x, 827x, 8560).
-
-config PPC_CHRP
-	bool "Support for CHRP (Common Hardware Reference Platform) machines"
-	depends on PPC_MULTIPLATFORM
-	select PPC_I8259
-	select PPC_INDIRECT_PCI
-	default y
-
-config PPC_PREP
-	bool "Support for PReP (PowerPC Reference Platform) machines"
-	depends on PPC_MULTIPLATFORM
-	select PPC_I8259
-	select PPC_INDIRECT_PCI
-	default y
-
-config PPC_OF
-	bool
-	depends on PPC_CHRP
-	default y
 
 config PPC_GEN550
 	bool
@@ -976,14 +954,6 @@ source kernel/Kconfig.preempt
 source "mm/Kconfig"
 
 source "fs/Kconfig.binfmt"
-
-config PROC_DEVICETREE
-	bool "Support for Open Firmware device tree in /proc"
-	depends on PPC_OF && PROC_FS
-	help
-	  This option adds a device-tree directory under /proc which contains
-	  an image of the device tree that the kernel copies from Open
-	  Firmware. If unsure, say Y here.
 
 config PREP_RESIDUAL
 	bool "Support for PReP Residual Data"
@@ -1177,8 +1147,7 @@ menu "Bus options"
 
 config ISA
 	bool "Support for ISA-bus hardware"
-	depends on PPC_PREP || PPC_CHRP
-	select PPC_I8259
+	depends on PPC_PREP
 	help
 	  Find out whether you have ISA slots on your motherboard.  ISA is the
 	  name of a bus system, i.e. the way the CPU talks to the other stuff
@@ -1188,18 +1157,18 @@ config ISA
 
 config GENERIC_ISA_DMA
 	bool
-	depends on POWER3 || 6xx && !CPM2
+	depends on 6xx && !CPM2
 	default y
 
 config PPC_I8259
 	bool
-	default y if 85xx
+	default y if 85xx || PPC_PREP
 	default n
 
 config PPC_INDIRECT_PCI
 	bool
 	depends on PCI
-	default y if 40x || 44x || 85xx || 83xx
+	default y if 40x || 44x || 85xx || 83xx || PPC_PREP
 	default n
 
 config EISA
@@ -1390,7 +1359,7 @@ config CONSISTENT_SIZE
 
 config BOOT_LOAD_BOOL
 	bool "Set the boot link/load address"
-	depends on ADVANCED_OPTIONS && !PPC_MULTIPLATFORM
+	depends on ADVANCED_OPTIONS && !PPC_PREP
 	help
 	  This option allows you to set the initial load address of the zImage
 	  or zImage.initrd file.  This can be useful if you are on a board

@@ -102,8 +102,6 @@ EXPORT_SYMBOL(cpu_callout_map);
 EXPORT_SYMBOL(screen_info);
 #endif
 
-EXPORT_SYMBOL(get_wchan);
-
 EXPORT_SYMBOL(rtc_lock);
 
 EXPORT_SYMBOL_GPL(set_nmi_callback);
@@ -114,7 +112,6 @@ EXPORT_SYMBOL_GPL(unset_nmi_callback);
 #undef memcpy
 #undef memset
 #undef memmove
-#undef strlen
 
 extern void * memset(void *,int,__kernel_size_t);
 extern size_t strlen(const char *);
@@ -123,8 +120,6 @@ extern void * memcpy(void *,const void *,__kernel_size_t);
 extern void * __memcpy(void *,const void *,__kernel_size_t);
 
 EXPORT_SYMBOL(memset);
-EXPORT_SYMBOL(strlen);
-EXPORT_SYMBOL(strpbrk);
 EXPORT_SYMBOL(memmove);
 EXPORT_SYMBOL(memcpy);
 EXPORT_SYMBOL(__memcpy);

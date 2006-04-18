@@ -48,13 +48,14 @@ build_path_from_dentry(struct dentry *direntry)
 	struct dentry *temp;
 	int namelen = 0;
 	char *full_path;
-	char dirsep = CIFS_DIR_SEP(CIFS_SB(direntry->d_sb));
+	char dirsep;
 
 	if(direntry == NULL)
 		return NULL;  /* not much we can do if dentry is freed and
 		we need to reopen the file after it was closed implicitly
 		when the server crashed */
 
+	dirsep = CIFS_DIR_SEP(CIFS_SB(direntry->d_sb));
 cifs_bp_rename_retry:
 	for (temp = direntry; !IS_ROOT(temp);) {
 		namelen += (1 + temp->d_name.len);
@@ -255,12 +256,10 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 			CIFSSMBClose(xid, pTcon, fileHandle);
 		} else if(newinode) {
 			pCifsFile =
-			   kmalloc(sizeof (struct cifsFileInfo), GFP_KERNEL);
+			   kzalloc(sizeof (struct cifsFileInfo), GFP_KERNEL);
 			
 			if(pCifsFile == NULL)
 				goto cifs_create_out;
-			memset((char *)pCifsFile, 0,
-			       sizeof (struct cifsFileInfo));
 			pCifsFile->netfid = fileHandle;
 			pCifsFile->pid = current->tgid;
 			pCifsFile->pInode = newinode;

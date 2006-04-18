@@ -437,6 +437,7 @@ EXPORT_SYMBOL(keyring_search);
 /*
  * search the given keyring only (no recursion)
  * - keyring must be locked by caller
+ * - caller must guarantee that the keyring is a keyring
  */
 key_ref_t __keyring_search_one(key_ref_t keyring_ref,
 			       const struct key_type *ktype,

@@ -119,6 +119,8 @@ const struct file_operations ext3_file_operations = {
 	.release	= ext3_release_file,
 	.fsync		= ext3_sync_file,
 	.sendfile	= generic_file_sendfile,
+	.splice_read	= generic_file_splice_read,
+	.splice_write	= generic_file_splice_write,
 };
 
 struct inode_operations ext3_file_inode_operations = {

@@ -91,34 +91,6 @@ enum ib_sa_selector {
 	IB_SA_BEST = 3
 };
 
-enum ib_sa_rate {
-	IB_SA_RATE_2_5_GBPS = 2,
-	IB_SA_RATE_5_GBPS   = 5,
-	IB_SA_RATE_10_GBPS  = 3,
-	IB_SA_RATE_20_GBPS  = 6,
-	IB_SA_RATE_30_GBPS  = 4,
-	IB_SA_RATE_40_GBPS  = 7,
-	IB_SA_RATE_60_GBPS  = 8,
-	IB_SA_RATE_80_GBPS  = 9,
-	IB_SA_RATE_120_GBPS = 10
-};
-
-static inline int ib_sa_rate_enum_to_int(enum ib_sa_rate rate)
-{
-	switch (rate) {
-	case IB_SA_RATE_2_5_GBPS: return  1;
-	case IB_SA_RATE_5_GBPS:   return  2;
-	case IB_SA_RATE_10_GBPS:  return  4;
-	case IB_SA_RATE_20_GBPS:  return  8;
-	case IB_SA_RATE_30_GBPS:  return 12;
-	case IB_SA_RATE_40_GBPS:  return 16;
-	case IB_SA_RATE_60_GBPS:  return 24;
-	case IB_SA_RATE_80_GBPS:  return 32;
-	case IB_SA_RATE_120_GBPS: return 48;
-	default: 	          return -1;
-	}
-}
-
 /*
  * Structures for SA records are named "struct ib_sa_xxx_rec."  No
  * attempt is made to pack structures to match the physical layout of

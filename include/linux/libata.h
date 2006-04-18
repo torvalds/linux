@@ -160,8 +160,10 @@ enum {
 	ATA_QCFLAG_DMAMAP	= ATA_QCFLAG_SG | ATA_QCFLAG_SINGLE,
 	ATA_QCFLAG_EH_SCHEDULED = (1 << 5), /* EH scheduled */
 
+	/* host set flags */
+	ATA_HOST_SIMPLEX	= (1 << 0),	/* Host is simplex, one DMA channel per host_set only */
+	
 	/* various lengths of time */
-	ATA_TMOUT_EDD		= 5 * HZ,	/* heuristic */
 	ATA_TMOUT_PIO		= 30 * HZ,
 	ATA_TMOUT_BOOT		= 30 * HZ,	/* heuristic */
 	ATA_TMOUT_BOOT_QUICK	= 7 * HZ,	/* heuristic */
@@ -279,6 +281,7 @@ struct ata_probe_ent {
 	unsigned long		irq;
 	unsigned int		irq_flags;
 	unsigned long		host_flags;
+	unsigned long		host_set_flags;
 	void __iomem		*mmio_base;
 	void			*private_data;
 };
@@ -291,6 +294,9 @@ struct ata_host_set {
 	unsigned int		n_ports;
 	void			*private_data;
 	const struct ata_port_operations *ops;
+	unsigned long		flags;
+	int			simplex_claimed;	/* Keep seperate in case we
+							   ever need to do this locked */
 	struct ata_port *	ports[0];
 };
 
@@ -420,6 +426,7 @@ struct ata_port_operations {
 
 	void (*set_piomode) (struct ata_port *, struct ata_device *);
 	void (*set_dmamode) (struct ata_port *, struct ata_device *);
+	unsigned long (*mode_filter) (const struct ata_port *, struct ata_device *, unsigned long);
 
 	void (*tf_load) (struct ata_port *ap, const struct ata_taskfile *tf);
 	void (*tf_read) (struct ata_port *ap, struct ata_taskfile *tf);
@@ -430,6 +437,7 @@ struct ata_port_operations {
 	void (*dev_select)(struct ata_port *ap, unsigned int device);
 
 	void (*phy_reset) (struct ata_port *ap); /* obsolete */
+	void (*set_mode) (struct ata_port *ap);
 	int (*probe_reset) (struct ata_port *ap, unsigned int *classes);
 
 	void (*post_set_mode) (struct ata_port *ap);
@@ -515,7 +523,6 @@ extern void ata_host_set_remove(struct ata_host_set *host_set);
 extern int ata_scsi_detect(struct scsi_host_template *sht);
 extern int ata_scsi_ioctl(struct scsi_device *dev, int cmd, void __user *arg);
 extern int ata_scsi_queuecmd(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *));
-extern int ata_scsi_error(struct Scsi_Host *host);
 extern void ata_eh_qc_complete(struct ata_queued_cmd *qc);
 extern void ata_eh_qc_retry(struct ata_queued_cmd *qc);
 extern int ata_scsi_release(struct Scsi_Host *host);

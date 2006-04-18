@@ -30,6 +30,7 @@
 #include <linux/moduleparam.h>
 #include <linux/nmi.h>
 #include <linux/kprobes.h>
+#include <linux/kexec.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -433,6 +434,8 @@ void __kprobes __die(const char * str, struct pt_regs * regs, long err)
 	printk(KERN_ALERT "RIP ");
 	printk_address(regs->rip); 
 	printk(" RSP <%016lx>\n", regs->rsp); 
+	if (kexec_should_crash(current))
+		crash_kexec(regs);
 }
 
 void die(const char * str, struct pt_regs * regs, long err)
@@ -455,6 +458,8 @@ void __kprobes die_nmi(char *str, struct pt_regs *regs)
 	 */
 	printk(str, safe_smp_processor_id());
 	show_registers(regs);
+	if (kexec_should_crash(current))
+		crash_kexec(regs);
 	if (panic_on_timeout || panic_on_oops)
 		panic("nmi watchdog");
 	printk("console shuts up ...\n");
@@ -973,14 +978,14 @@ void __init trap_init(void)
 static int __init oops_dummy(char *s)
 { 
 	panic_on_oops = 1;
-	return -1; 
+	return 1;
 } 
 __setup("oops=", oops_dummy); 
 
 static int __init kstack_setup(char *s)
 {
 	kstack_depth_to_print = simple_strtoul(s,NULL,0);
-	return 0;
+	return 1;
 }
 __setup("kstack=", kstack_setup);
 

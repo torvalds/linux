@@ -94,15 +94,15 @@ static struct ipt_target ipt_TTL = {
 	.me 		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init ipt_ttl_init(void)
 {
 	return ipt_register_target(&ipt_TTL);
 }
 
-static void __exit fini(void)
+static void __exit ipt_ttl_fini(void)
 {
 	ipt_unregister_target(&ipt_TTL);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ipt_ttl_init);
+module_exit(ipt_ttl_fini);

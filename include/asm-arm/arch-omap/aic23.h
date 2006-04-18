@@ -57,6 +57,7 @@
 #define LHV_MIN				0x0000
 
 // Analog audio path control register
+#define STA_REG(x)			((x)<<6)
 #define STE_ENABLED			0x0020
 #define DAC_SELECTED			0x0010
 #define BYPASS_ON			0x0008
@@ -108,5 +109,8 @@
 
 #define TLV320AIC23ID1                  (0x1a)	// cs low
 #define TLV320AIC23ID2                  (0x1b)	// cs high
+
+void tlv320aic23_power_up(void);
+void tlv320aic23_power_down(void);
 
 #endif /* __ASM_ARCH_AIC23_H */

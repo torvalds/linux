@@ -27,7 +27,6 @@ EXPORT_SYMBOL(__ioremap);
 EXPORT_SYMBOL(iounmap);
 
 EXPORT_SYMBOL(strnlen);
-EXPORT_SYMBOL(strpbrk);
 EXPORT_SYMBOL(strrchr);
 EXPORT_SYMBOL(strstr);
 EXPORT_SYMBOL(strchr);
@@ -78,8 +77,6 @@ EXPORT_SYMBOL(memmove);
 
 EXPORT_SYMBOL(__outsl_ns);
 EXPORT_SYMBOL(__insl_ns);
-
-EXPORT_SYMBOL(get_wchan);
 
 #ifdef CONFIG_FRV_OUTOFLINE_ATOMIC_OPS
 EXPORT_SYMBOL(atomic_test_and_ANDNOT_mask);

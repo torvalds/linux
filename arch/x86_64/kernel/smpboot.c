@@ -353,7 +353,7 @@ static void __cpuinit tsc_sync_wait(void)
 static __init int notscsync_setup(char *s)
 {
 	notscsync = 1;
-	return 0;
+	return 1;
 }
 __setup("notscsync", notscsync_setup);
 

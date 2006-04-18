@@ -289,4 +289,9 @@ static inline void pcibios_add_platform_entries(struct pci_dev *dev)
 {
 }
 
+static inline void pcibios_penalize_isa_irq(int irq, int active)
+{
+	/* We don't need to penalize isa irq's */
+}
+
 #endif /* __ASM_PARISC_PCI_H */
