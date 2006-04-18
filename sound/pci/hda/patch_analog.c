@@ -1371,7 +1371,7 @@ static struct hda_board_config ad1981_cfg_tbl[] = {
 	{ .modelname = "thinkpad", .config = AD1981_THINKPAD },
 	/* Lenovo Thinkpad T60/X60/Z6xx */
 	{ .pci_subvendor = 0x17aa, .config = AD1981_THINKPAD },
-	{ .pci_subvendor = 0x1014, .pci_subsystem = 0x0597,
+	{ .pci_subvendor = 0x1014, .pci_subdevice = 0x0597,
 	  .config = AD1981_THINKPAD }, /* Z60m/t */
 	{ .modelname = "basic", .config = AD1981_BASIC },
 	{}
