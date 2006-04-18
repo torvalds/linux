@@ -193,7 +193,7 @@ _decode_session6(struct sk_buff *skb, struct flowi *fl)
 {
 	u16 offset = sizeof(struct ipv6hdr);
 	struct ipv6hdr *hdr = skb->nh.ipv6h;
-	struct ipv6_opt_hdr *exthdr = (struct ipv6_opt_hdr*)(skb->nh.raw + offset);
+	struct ipv6_opt_hdr *exthdr;
 	u8 nexthdr = skb->nh.ipv6h->nexthdr;
 
 	memset(fl, 0, sizeof(struct flowi));
@@ -201,6 +201,8 @@ _decode_session6(struct sk_buff *skb, struct flowi *fl)
 	ipv6_addr_copy(&fl->fl6_src, &hdr->saddr);
 
 	while (pskb_may_pull(skb, skb->nh.raw + offset + 1 - skb->data)) {
+		exthdr = (struct ipv6_opt_hdr*)(skb->nh.raw + offset);
+
 		switch (nexthdr) {
 		case NEXTHDR_ROUTING:
 		case NEXTHDR_HOP:
