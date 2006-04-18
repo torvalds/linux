@@ -237,7 +237,7 @@ sharpsl_nand_init(void)
 		nr_partitions = DEFAULT_NUM_PARTITIONS;
 		sharpsl_partition_info = sharpsl_nand_default_partition_info;
 		if (machine_is_poodle()) {
-			sharpsl_partition_info[1].size=30 * 1024 * 1024;
+			sharpsl_partition_info[1].size=22 * 1024 * 1024;
 		} else if (machine_is_corgi() || machine_is_shepherd()) {
 			sharpsl_partition_info[1].size=25 * 1024 * 1024;
 		} else if (machine_is_husky()) {
