@@ -49,6 +49,115 @@ struct dvb_frontend_tune_settings {
 
 struct dvb_frontend;
 
+struct dvb_tuner_info {
+	char name[128];
+
+	u32 frequency_min;
+	u32 frequency_max;
+	u32 frequency_step;
+
+	u32 bandwidth_min;
+	u32 bandwidth_max;
+	u32 bandwidth_step;
+};
+
+struct dvb_tuner_ops {
+	/**
+	 * Description of the tuner.
+	 */
+	struct dvb_tuner_info info;
+
+	/**
+	 * Cleanup an attached tuner.
+	 *
+	 * @param fe dvb_frontend structure to clean it up from.
+	 * @return 0 on success, <0 on failure.
+	 */
+	int (*release)(struct dvb_frontend *fe);
+
+	/**
+	 * Initialise a tuner.
+	 *
+	 * @param fe dvb_frontend structure.
+	 * @return 0 on success, <0 on failure.
+	 */
+	int (*init)(struct dvb_frontend *fe);
+
+	/**
+	 * Set a tuner into low power mode.
+	 *
+	 * @param fe dvb_frontend structure.
+	 * @return 0 on success, <0 on failure.
+	 */
+	int (*sleep)(struct dvb_frontend *fe);
+
+	/**
+	 * This is for simple PLLs - set all parameters in one go.
+	 *
+	 * @param fe The dvb_frontend structure.
+	 * @param p The parameters to set.
+	 * @return 0 on success, <0 on failure.
+	 */
+	int (*set_params)(struct dvb_frontend *fe, struct dvb_frontend_parameters *p);
+
+	/**
+	 * This is support for demods like the mt352 - fills out the supplied buffer with what to write.
+	 *
+	 * @param fe The dvb_frontend structure.
+	 * @param p The parameters to set.
+	 * @param buf The buffer to fill with data. For an i2c tuner, the first byte should be the tuner i2c address in linux format.
+	 * @param buf_len Size of buffer in bytes.
+	 * @return Number of bytes used, or <0 on failure.
+	 */
+	int (*pllbuf)(struct dvb_frontend *fe, struct dvb_frontend_parameters *p, u8 *buf, int buf_len);
+
+	/**
+	 * Get the frequency the tuner was actually set to.
+	 *
+	 * @param fe The dvb_frontend structure.
+	 * @param frequency Where to put it.
+	 * @return 0 on success, or <0 on failure.
+	 */
+	int (*get_frequency)(struct dvb_frontend *fe, u32 *frequency);
+
+	/**
+	 * Get the bandwidth the tuner was actually set to.
+	 *
+	 * @param fe The dvb_frontend structure.
+	 * @param bandwidth Where to put it.
+	 * @return 0 on success, or <0 on failure.
+	 */
+	int (*get_bandwidth)(struct dvb_frontend *fe, u32 *bandwidth);
+
+	/**
+	 * Get the tuner's status.
+	 *
+	 * @param fe The dvb_frontend structure.
+	 * @param status Where to put it.
+	 * @return 0 on success, or <0 on failure.
+	 */
+#define TUNER_STATUS_LOCKED 1
+	int (*get_status)(struct dvb_frontend *fe, u32 *status);
+
+	/**
+	 * Set the frequency of the tuner - for complex tuners.
+	 *
+	 * @param fe The dvb_frontend structure.
+	 * @param frequency What to set.
+	 * @return 0 on success, or <0 on failure.
+	 */
+	int (*set_frequency)(struct dvb_frontend *fe, u32 frequency);
+
+	/**
+	 * Set the bandwidth of the tuner - for complex tuners.
+	 *
+	 * @param fe The dvb_frontend structure.
+	 * @param bandwidth  What to set.
+	 * @return 0 on success, or <0 on failure.
+	 */
+	int (*set_bandwidth)(struct dvb_frontend *fe, u32 bandwidth);
+};
+
 struct dvb_frontend_ops {
 
 	struct dvb_frontend_info info;
@@ -86,6 +195,8 @@ struct dvb_frontend_ops {
 	int (*enable_high_lnb_voltage)(struct dvb_frontend* fe, long arg);
 	int (*dishnetwork_send_legacy_command)(struct dvb_frontend* fe, unsigned long cmd);
 	int (*i2c_gate_ctrl)(struct dvb_frontend* fe, int enable);
+
+	struct dvb_tuner_ops tuner_ops;
 };
 
 #define MAX_EVENT 8
@@ -103,6 +214,7 @@ struct dvb_frontend {
 	struct dvb_frontend_ops* ops;
 	struct dvb_adapter *dvb;
 	void* demodulator_priv;
+	void* tuner_priv;
 	void* frontend_priv;
 	void* misc_priv;
 };
