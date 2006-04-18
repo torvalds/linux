@@ -3585,8 +3585,7 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 				buffer_info->skb = skb;
 				goto next_desc;
 			}
-		} else
-			skb_put(skb, length);
+		}
 
 		/* code added for copybreak, this should improve
 		 * performance for small packets with large amounts
