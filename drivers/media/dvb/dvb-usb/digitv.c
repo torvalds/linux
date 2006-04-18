@@ -112,27 +112,30 @@ static int digitv_mt352_demod_init(struct dvb_frontend *fe)
 
 static struct mt352_config digitv_mt352_config = {
 	.demod_init = digitv_mt352_demod_init,
-	.pll_set = dvb_usb_pll_set,
 };
 
-static int digitv_nxt6000_pll_set(struct dvb_frontend *fe, struct dvb_frontend_parameters *fep)
+static int digitv_nxt6000_tuner_set_params(struct dvb_frontend *fe, struct dvb_frontend_parameters *fep)
 {
 	struct dvb_usb_device *d = fe->dvb->priv;
 	u8 b[5];
-	dvb_usb_pll_set(fe,fep,b);
+	dvb_usb_tuner_pllbuf(fe,fep,b, 5);
 	return digitv_ctrl_msg(d,USB_WRITE_TUNER,0,&b[1],4,NULL,0);
 }
 
 static struct nxt6000_config digitv_nxt6000_config = {
 	.clock_inversion = 1,
-	.pll_set = digitv_nxt6000_pll_set,
 };
 
 static int digitv_frontend_attach(struct dvb_usb_device *d)
 {
-	if ((d->fe = mt352_attach(&digitv_mt352_config, &d->i2c_adap)) != NULL ||
-		(d->fe = nxt6000_attach(&digitv_nxt6000_config, &d->i2c_adap)) != NULL)
+	if ((d->fe = mt352_attach(&digitv_mt352_config, &d->i2c_adap)) != NULL) {
+		d->fe->ops->tuner_ops.pllbuf = dvb_usb_tuner_pllbuf;
 		return 0;
+	}
+	if ((d->fe = nxt6000_attach(&digitv_nxt6000_config, &d->i2c_adap)) != NULL) {
+		d->fe->ops->tuner_ops.set_params = digitv_nxt6000_tuner_set_params;
+		return 0;
+	}
 	return -EIO;
 }
 
