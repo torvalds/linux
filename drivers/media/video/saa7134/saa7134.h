@@ -531,6 +531,7 @@ struct saa7134_dev {
 
 	/* SAA7134_MPEG_DVB only */
 	struct videobuf_dvb        dvb;
+	int (*original_demod_sleep)(struct dvb_frontend* fe);
 };
 
 /* ----------------------------------------------------------- */
