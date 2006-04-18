@@ -78,6 +78,9 @@ static struct dentry *jffs2_lookup(struct inode *dir_i, struct dentry *target,
 
 	D1(printk(KERN_DEBUG "jffs2_lookup()\n"));
 
+	if (target->d_name.len > JFFS2_MAX_NAME_LEN)
+		return ERR_PTR(-ENAMETOOLONG);
+
 	dir_f = JFFS2_INODE_INFO(dir_i);
 	c = JFFS2_SB_INFO(dir_i->i_sb);
 
