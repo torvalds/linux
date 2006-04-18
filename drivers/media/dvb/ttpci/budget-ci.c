@@ -620,10 +620,10 @@ static int philips_su1278_tt_set_symbol_rate(struct dvb_frontend *fe, u32 srate,
 	return 0;
 }
 
-static int philips_su1278_tt_pll_set(struct dvb_frontend *fe,
-				     struct i2c_adapter *i2c,
-				     struct dvb_frontend_parameters *params)
+static int philips_su1278_tt_tuner_set_params(struct dvb_frontend *fe,
+					   struct dvb_frontend_parameters *params)
 {
+	struct budget_ci *budget_ci = (struct budget_ci *) fe->dvb->priv;
 	u32 div;
 	u8 buf[4];
 	struct i2c_msg msg = {.addr = 0x60,.flags = 0,.buf = buf,.len = sizeof(buf) };
@@ -649,7 +649,9 @@ static int philips_su1278_tt_pll_set(struct dvb_frontend *fe,
 	else if (params->frequency < 2150000)
 		buf[3] |= 0xC0;
 
-	if (i2c_transfer(i2c, &msg, 1) != 1)
+	if (fe->ops->i2c_gate_ctrl)
+		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (i2c_transfer(&budget_ci->budget.i2c_adap, &msg, 1) != 1)
 		return -EIO;
 	return 0;
 }
@@ -665,12 +667,11 @@ static struct stv0299_config philips_su1278_tt_config = {
 	.volt13_op0_op1 = STV0299_VOLT13_OP1,
 	.min_delay_ms = 50,
 	.set_symbol_rate = philips_su1278_tt_set_symbol_rate,
-	.pll_set = philips_su1278_tt_pll_set,
 };
 
 
 
-static int philips_tdm1316l_pll_init(struct dvb_frontend *fe)
+static int philips_tdm1316l_tuner_init(struct dvb_frontend *fe)
 {
 	struct budget_ci *budget_ci = (struct budget_ci *) fe->dvb->priv;
 	static u8 td1316_init[] = { 0x0b, 0xf5, 0x85, 0xab };
@@ -679,6 +680,8 @@ static int philips_tdm1316l_pll_init(struct dvb_frontend *fe)
 			sizeof(td1316_init) };
 
 	// setup PLL configuration
+	if (fe->ops->i2c_gate_ctrl)
+		fe->ops->i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&budget_ci->budget.i2c_adap, &tuner_msg, 1) != 1)
 		return -EIO;
 	msleep(1);
@@ -687,14 +690,18 @@ static int philips_tdm1316l_pll_init(struct dvb_frontend *fe)
 	tuner_msg.addr = 0x65;
 	tuner_msg.buf = disable_mc44BC374c;
 	tuner_msg.len = sizeof(disable_mc44BC374c);
+	if (fe->ops->i2c_gate_ctrl)
+		fe->ops->i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&budget_ci->budget.i2c_adap, &tuner_msg, 1) != 1) {
+		if (fe->ops->i2c_gate_ctrl)
+			fe->ops->i2c_gate_ctrl(fe, 1);
 		i2c_transfer(&budget_ci->budget.i2c_adap, &tuner_msg, 1);
 	}
 
 	return 0;
 }
 
-static int philips_tdm1316l_pll_set(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
+static int philips_tdm1316l_tuner_set_params(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
 {
 	struct budget_ci *budget_ci = (struct budget_ci *) fe->dvb->priv;
 	u8 tuner_buf[4];
@@ -770,6 +777,8 @@ static int philips_tdm1316l_pll_set(struct dvb_frontend *fe, struct dvb_frontend
 	tuner_buf[2] = 0xca;
 	tuner_buf[3] = (cp << 5) | (filter << 3) | band;
 
+	if (fe->ops->i2c_gate_ctrl)
+		fe->ops->i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&budget_ci->budget.i2c_adap, &tuner_msg, 1) != 1)
 		return -EIO;
 
@@ -793,13 +802,10 @@ static struct tda1004x_config philips_tdm1316l_config = {
 	.xtal_freq = TDA10046_XTAL_4M,
 	.agc_config = TDA10046_AGC_DEFAULT,
 	.if_freq = TDA10046_FREQ_3617,
-	.pll_init = philips_tdm1316l_pll_init,
-	.pll_set = philips_tdm1316l_pll_set,
-	.pll_sleep = NULL,
 	.request_firmware = philips_tdm1316l_request_firmware,
 };
 
-static int dvbc_philips_tdm1316l_pll_set(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
+static int dvbc_philips_tdm1316l_tuner_set_params(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
 {
 	struct budget_ci *budget_ci = (struct budget_ci *) fe->dvb->priv;
 	u8 tuner_buf[5];
@@ -857,13 +863,15 @@ static int dvbc_philips_tdm1316l_pll_set(struct dvb_frontend *fe, struct dvb_fro
 	tuner_buf[3] = (cp << 5) | (filter << 3) | band;
 	tuner_buf[4] = 0x80;
 
-	stv0297_enable_plli2c(fe);
+	if (fe->ops->i2c_gate_ctrl)
+		fe->ops->i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&budget_ci->budget.i2c_adap, &tuner_msg, 1) != 1)
 		return -EIO;
 
 	msleep(50);
 
-	stv0297_enable_plli2c(fe);
+	if (fe->ops->i2c_gate_ctrl)
+		fe->ops->i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&budget_ci->budget.i2c_adap, &tuner_msg, 1) != 1)
 		return -EIO;
 
@@ -969,7 +977,6 @@ static struct stv0297_config dvbc_philips_tdm1316l_config = {
 	.demod_address = 0x1c,
 	.inittab = dvbc_philips_tdm1316l_inittab,
 	.invert = 0,
-	.pll_set = dvbc_philips_tdm1316l_pll_set,
 };
 
 
@@ -982,6 +989,8 @@ static void frontend_init(struct budget_ci *budget_ci)
 		budget_ci->budget.dvb_frontend =
 			stv0299_attach(&alps_bsru6_config, &budget_ci->budget.i2c_adap);
 		if (budget_ci->budget.dvb_frontend) {
+			budget_ci->budget.dvb_frontend->ops->tuner_ops.set_params = alps_bsru6_tuner_set_params;
+			budget_ci->budget.dvb_frontend->tuner_priv = &budget_ci->budget.i2c_adap;
 			break;
 		}
 		break;
@@ -990,6 +999,7 @@ static void frontend_init(struct budget_ci *budget_ci)
 		budget_ci->budget.dvb_frontend =
 			stv0299_attach(&philips_su1278_tt_config, &budget_ci->budget.i2c_adap);
 		if (budget_ci->budget.dvb_frontend) {
+			budget_ci->budget.dvb_frontend->ops->tuner_ops.set_params = philips_su1278_tt_tuner_set_params;
 			break;
 		}
 		break;
@@ -999,6 +1009,7 @@ static void frontend_init(struct budget_ci *budget_ci)
 		budget_ci->budget.dvb_frontend =
 			stv0297_attach(&dvbc_philips_tdm1316l_config, &budget_ci->budget.i2c_adap);
 		if (budget_ci->budget.dvb_frontend) {
+			budget_ci->budget.dvb_frontend->ops->tuner_ops.set_params = dvbc_philips_tdm1316l_tuner_set_params;
 			break;
 		}
 		break;
@@ -1008,6 +1019,8 @@ static void frontend_init(struct budget_ci *budget_ci)
 		budget_ci->budget.dvb_frontend =
 			tda10045_attach(&philips_tdm1316l_config, &budget_ci->budget.i2c_adap);
 		if (budget_ci->budget.dvb_frontend) {
+			budget_ci->budget.dvb_frontend->ops->tuner_ops.init = philips_tdm1316l_tuner_init;
+			budget_ci->budget.dvb_frontend->ops->tuner_ops.set_params = philips_tdm1316l_tuner_set_params;
 			break;
 		}
 		break;
@@ -1017,6 +1030,8 @@ static void frontend_init(struct budget_ci *budget_ci)
 		budget_ci->budget.dvb_frontend =
 			tda10046_attach(&philips_tdm1316l_config, &budget_ci->budget.i2c_adap);
 		if (budget_ci->budget.dvb_frontend) {
+			budget_ci->budget.dvb_frontend->ops->tuner_ops.init = philips_tdm1316l_tuner_init;
+			budget_ci->budget.dvb_frontend->ops->tuner_ops.set_params = philips_tdm1316l_tuner_set_params;
 			break;
 		}
 		break;
@@ -1024,6 +1039,9 @@ static void frontend_init(struct budget_ci *budget_ci)
 	case 0x1017:		// TT S-1500 PCI
 		budget_ci->budget.dvb_frontend = stv0299_attach(&alps_bsbe1_config, &budget_ci->budget.i2c_adap);
 		if (budget_ci->budget.dvb_frontend) {
+			budget_ci->budget.dvb_frontend->ops->tuner_ops.set_params = alps_bsbe1_tuner_set_params;
+			budget_ci->budget.dvb_frontend->tuner_priv = &budget_ci->budget.i2c_adap;
+
 			budget_ci->budget.dvb_frontend->ops->dishnetwork_send_legacy_command = NULL;
 			if (lnbp21_init(budget_ci->budget.dvb_frontend, &budget_ci->budget.i2c_adap, LNBP21_LLC, 0)) {
 				printk("%s: No LNBP21 found!\n", __FUNCTION__);
