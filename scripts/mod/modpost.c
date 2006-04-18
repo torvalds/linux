@@ -492,17 +492,19 @@ static int strrcmp(const char *s, const char *sub)
  *   These functions may often be marked __init and we do not want to
  *   warn here.
  *   the pattern is identified by:
- *   tosec   = .init.text | .exit.text
+ *   tosec   = .init.text | .exit.text | .init.data
  *   fromsec = .data
- *   atsym = *_driver, *_ops, *_probe, *probe_one
+ *   atsym = *_driver, *_template, *_sht, *_ops, *_probe, *probe_one
  **/
 static int secref_whitelist(const char *tosec, const char *fromsec,
-			  const char *atsym)
+			    const char *atsym)
 {
 	int f1 = 1, f2 = 1;
 	const char **s;
 	const char *pat2sym[] = {
 		"_driver",
+		"_template", /* scsi uses *_template a lot */
+		"_sht",      /* scsi also used *_sht to some extent */
 		"_ops",
 		"_probe",
 		"_probe_one",
@@ -522,7 +524,8 @@ static int secref_whitelist(const char *tosec, const char *fromsec,
 
 	/* Check for pattern 2 */
 	if ((strcmp(tosec, ".init.text") != 0) &&
-	    (strcmp(tosec, ".exit.text") != 0))
+	    (strcmp(tosec, ".exit.text") != 0) &&
+	    (strcmp(tosec, ".init.data") != 0))
 		f2 = 0;
 	if (strcmp(fromsec, ".data") != 0)
 		f2 = 0;
@@ -820,6 +823,7 @@ static int exit_section(const char *name)
  * For our future {in}sanity, add a comment that this is the ppc .opd
  * section, not the ia64 .opd section.
  * ia64 .opd should not point to discarded sections.
+ * [.rodata] like for .init.text we ignore .rodata references -same reason
  **/
 static int exit_section_ref_ok(const char *name)
 {
@@ -829,6 +833,7 @@ static int exit_section_ref_ok(const char *name)
 		".exit.text",
 		".exit.data",
 		".init.text",
+		".rodata",
 		".opd", /* See comment [OPD] */
 		".toc1",  /* used by ppc64 */
 		".altinstructions",

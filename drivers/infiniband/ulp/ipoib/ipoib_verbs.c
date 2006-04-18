@@ -159,8 +159,8 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ib_qp_init_attr init_attr = {
 		.cap = {
-			.max_send_wr  = IPOIB_TX_RING_SIZE,
-			.max_recv_wr  = IPOIB_RX_RING_SIZE,
+			.max_send_wr  = ipoib_sendq_size,
+			.max_recv_wr  = ipoib_recvq_size,
 			.max_send_sge = 1,
 			.max_recv_sge = 1
 		},
@@ -175,7 +175,7 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 	}
 
 	priv->cq = ib_create_cq(priv->ca, ipoib_ib_completion, NULL, dev,
-				IPOIB_TX_RING_SIZE + IPOIB_RX_RING_SIZE + 1);
+				ipoib_sendq_size + ipoib_recvq_size + 1);
 	if (IS_ERR(priv->cq)) {
 		printk(KERN_WARNING "%s: failed to create CQ\n", ca->name);
 		goto out_free_pd;

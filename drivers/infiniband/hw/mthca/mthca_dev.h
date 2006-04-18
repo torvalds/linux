@@ -151,6 +151,7 @@ struct mthca_limits {
 	int      reserved_qps;
 	int      num_srqs;
 	int      max_srq_wqes;
+	int      max_srq_sge;
 	int      reserved_srqs;
 	int      num_eecs;
 	int      reserved_eecs;
@@ -172,6 +173,7 @@ struct mthca_limits {
 	int      reserved_pds;
 	u32      page_size_cap;
 	u32      flags;
+	u16      stat_rate_support;
 	u8       port_width_cap;
 };
 
@@ -353,10 +355,24 @@ struct mthca_dev {
 	struct ib_mad_agent  *send_agent[MTHCA_MAX_PORTS][2];
 	struct ib_ah         *sm_ah[MTHCA_MAX_PORTS];
 	spinlock_t            sm_lock;
+	u8                    rate[MTHCA_MAX_PORTS];
 };
 
-#define mthca_dbg(mdev, format, arg...) \
-	dev_dbg(&mdev->pdev->dev, format, ## arg)
+#ifdef CONFIG_INFINIBAND_MTHCA_DEBUG
+extern int mthca_debug_level;
+
+#define mthca_dbg(mdev, format, arg...)					\
+	do {								\
+		if (mthca_debug_level)					\
+			dev_printk(KERN_DEBUG, &mdev->pdev->dev, format, ## arg); \
+	} while (0)
+
+#else /* CONFIG_INFINIBAND_MTHCA_DEBUG */
+
+#define mthca_dbg(mdev, format, arg...) do { (void) mdev; } while (0)
+
+#endif /* CONFIG_INFINIBAND_MTHCA_DEBUG */
+
 #define mthca_err(mdev, format, arg...) \
 	dev_err(&mdev->pdev->dev, format, ## arg)
 #define mthca_info(mdev, format, arg...) \
@@ -492,6 +508,7 @@ void mthca_free_srq(struct mthca_dev *dev, struct mthca_srq *srq);
 int mthca_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 		     enum ib_srq_attr_mask attr_mask);
 int mthca_query_srq(struct ib_srq *srq, struct ib_srq_attr *srq_attr);
+int mthca_max_srq_sge(struct mthca_dev *dev);
 void mthca_srq_event(struct mthca_dev *dev, u32 srqn,
 		     enum ib_event_type event_type);
 void mthca_free_srq_wqe(struct mthca_srq *srq, u32 wqe_addr);
@@ -542,6 +559,8 @@ int mthca_read_ah(struct mthca_dev *dev, struct mthca_ah *ah,
 		  struct ib_ud_header *header);
 int mthca_ah_query(struct ib_ah *ibah, struct ib_ah_attr *attr);
 int mthca_ah_grh_present(struct mthca_ah *ah);
+u8 mthca_get_rate(struct mthca_dev *dev, int static_rate, u8 port);
+enum ib_rate mthca_rate_to_ib(struct mthca_dev *dev, u8 mthca_rate, u8 port);
 
 int mthca_multicast_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid);
 int mthca_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid);

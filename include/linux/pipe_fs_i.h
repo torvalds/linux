@@ -21,6 +21,7 @@ struct pipe_buf_operations {
 	void (*unmap)(struct pipe_inode_info *, struct pipe_buffer *);
 	void (*release)(struct pipe_inode_info *, struct pipe_buffer *);
 	int (*steal)(struct pipe_inode_info *, struct pipe_buffer *);
+	void (*get)(struct pipe_inode_info *, struct pipe_buffer *);
 };
 
 struct pipe_inode_info {

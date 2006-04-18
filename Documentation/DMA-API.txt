@@ -33,7 +33,9 @@ pci_alloc_consistent(struct pci_dev *dev, size_t size,
 
 Consistent memory is memory for which a write by either the device or
 the processor can immediately be read by the processor or device
-without having to worry about caching effects.
+without having to worry about caching effects.  (You may however need
+to make sure to flush the processor's write buffers before telling
+devices to read that memory.)
 
 This routine allocates a region of <size> bytes of consistent memory.
 it also returns a <dma_handle> which may be cast to an unsigned
@@ -304,12 +306,12 @@ dma address with dma_mapping_error(). A non zero return value means the mapping
 could not be created and the driver should take appropriate action (eg
 reduce current DMA mapping usage or delay and try again later).
 
-int
-dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
-	   enum dma_data_direction direction)
-int
-pci_map_sg(struct pci_dev *hwdev, struct scatterlist *sg,
-	   int nents, int direction)
+	int
+	dma_map_sg(struct device *dev, struct scatterlist *sg,
+		int nents, enum dma_data_direction direction)
+	int
+	pci_map_sg(struct pci_dev *hwdev, struct scatterlist *sg,
+		int nents, int direction)
 
 Maps a scatter gather list from the block layer.
 
@@ -327,12 +329,33 @@ critical that the driver do something, in the case of a block driver
 aborting the request or even oopsing is better than doing nothing and
 corrupting the filesystem.
 
-void
-dma_unmap_sg(struct device *dev, struct scatterlist *sg, int nhwentries,
-	     enum dma_data_direction direction)
-void
-pci_unmap_sg(struct pci_dev *hwdev, struct scatterlist *sg,
-	     int nents, int direction)
+With scatterlists, you use the resulting mapping like this:
+
+	int i, count = dma_map_sg(dev, sglist, nents, direction);
+	struct scatterlist *sg;
+
+	for (i = 0, sg = sglist; i < count; i++, sg++) {
+		hw_address[i] = sg_dma_address(sg);
+		hw_len[i] = sg_dma_len(sg);
+	}
+
+where nents is the number of entries in the sglist.
+
+The implementation is free to merge several consecutive sglist entries
+into one (e.g. with an IOMMU, or if several pages just happen to be
+physically contiguous) and returns the actual number of sg entries it
+mapped them to. On failure 0, is returned.
+
+Then you should loop count times (note: this can be less than nents times)
+and use sg_dma_address() and sg_dma_len() macros where you previously
+accessed sg->address and sg->length as shown above.
+
+	void
+	dma_unmap_sg(struct device *dev, struct scatterlist *sg,
+		int nhwentries, enum dma_data_direction direction)
+	void
+	pci_unmap_sg(struct pci_dev *hwdev, struct scatterlist *sg,
+		int nents, int direction)
 
 unmap the previously mapped scatter/gather list.  All the parameters
 must be the same as those and passed in to the scatter/gather mapping

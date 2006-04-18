@@ -121,6 +121,10 @@ static __inline__ void fq_unlink(struct frag_queue *fq)
 	write_unlock(&ip6_frag_lock);
 }
 
+/*
+ * callers should be careful not to use the hash value outside the ipfrag_lock
+ * as doing so could race with ipfrag_hash_rnd being recalculated.
+ */
 static unsigned int ip6qhashfn(u32 id, struct in6_addr *saddr,
 			       struct in6_addr *daddr)
 {
@@ -324,15 +328,16 @@ out:
 /* Creation primitives. */
 
 
-static struct frag_queue *ip6_frag_intern(unsigned int hash,
-					  struct frag_queue *fq_in)
+static struct frag_queue *ip6_frag_intern(struct frag_queue *fq_in)
 {
 	struct frag_queue *fq;
+	unsigned int hash;
 #ifdef CONFIG_SMP
 	struct hlist_node *n;
 #endif
 
 	write_lock(&ip6_frag_lock);
+	hash = ip6qhashfn(fq_in->id, &fq_in->saddr, &fq_in->daddr);
 #ifdef CONFIG_SMP
 	hlist_for_each_entry(fq, n, &ip6_frag_hash[hash], list) {
 		if (fq->id == fq_in->id && 
@@ -362,7 +367,7 @@ static struct frag_queue *ip6_frag_intern(unsigned int hash,
 
 
 static struct frag_queue *
-ip6_frag_create(unsigned int hash, u32 id, struct in6_addr *src, struct in6_addr *dst)
+ip6_frag_create(u32 id, struct in6_addr *src, struct in6_addr *dst)
 {
 	struct frag_queue *fq;
 
@@ -379,7 +384,7 @@ ip6_frag_create(unsigned int hash, u32 id, struct in6_addr *src, struct in6_addr
 	spin_lock_init(&fq->lock);
 	atomic_set(&fq->refcnt, 1);
 
-	return ip6_frag_intern(hash, fq);
+	return ip6_frag_intern(fq);
 
 oom:
 	IP6_INC_STATS_BH(IPSTATS_MIB_REASMFAILS);
@@ -391,9 +396,10 @@ fq_find(u32 id, struct in6_addr *src, struct in6_addr *dst)
 {
 	struct frag_queue *fq;
 	struct hlist_node *n;
-	unsigned int hash = ip6qhashfn(id, src, dst);
+	unsigned int hash;
 
 	read_lock(&ip6_frag_lock);
+	hash = ip6qhashfn(id, src, dst);
 	hlist_for_each_entry(fq, n, &ip6_frag_hash[hash], list) {
 		if (fq->id == id && 
 		    ipv6_addr_equal(src, &fq->saddr) &&
@@ -405,7 +411,7 @@ fq_find(u32 id, struct in6_addr *src, struct in6_addr *dst)
 	}
 	read_unlock(&ip6_frag_lock);
 
-	return ip6_frag_create(hash, id, src, dst);
+	return ip6_frag_create(id, src, dst);
 }
 
 

@@ -59,9 +59,6 @@ int sysctl_tcp_tso_win_divisor = 3;
 int sysctl_tcp_mtu_probing = 0;
 int sysctl_tcp_base_mss = 512;
 
-EXPORT_SYMBOL(sysctl_tcp_mtu_probing);
-EXPORT_SYMBOL(sysctl_tcp_base_mss);
-
 static void update_send_head(struct sock *sk, struct tcp_sock *tp,
 			     struct sk_buff *skb)
 {

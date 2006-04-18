@@ -92,48 +92,50 @@ struct fuse_req *fuse_get_req(struct fuse_conn *fc)
 {
 	struct fuse_req *req;
 	sigset_t oldset;
+	int intr;
 	int err;
 
+	atomic_inc(&fc->num_waiting);
 	block_sigs(&oldset);
-	err = wait_event_interruptible(fc->blocked_waitq, !fc->blocked);
+	intr = wait_event_interruptible(fc->blocked_waitq, !fc->blocked);
 	restore_sigs(&oldset);
-	if (err)
-		return ERR_PTR(-EINTR);
+	err = -EINTR;
+	if (intr)
+		goto out;
 
 	req = fuse_request_alloc();
+	err = -ENOMEM;
 	if (!req)
-		return ERR_PTR(-ENOMEM);
+		goto out;
 
-	atomic_inc(&fc->num_waiting);
-	fuse_request_init(req);
 	req->in.h.uid = current->fsuid;
 	req->in.h.gid = current->fsgid;
 	req->in.h.pid = current->pid;
+	req->waiting = 1;
 	return req;
+
+ out:
+	atomic_dec(&fc->num_waiting);
+	return ERR_PTR(err);
 }
 
 void fuse_put_request(struct fuse_conn *fc, struct fuse_req *req)
 {
 	if (atomic_dec_and_test(&req->count)) {
-		atomic_dec(&fc->num_waiting);
+		if (req->waiting)
+			atomic_dec(&fc->num_waiting);
 		fuse_request_free(req);
 	}
 }
 
-void fuse_release_background(struct fuse_conn *fc, struct fuse_req *req)
+void fuse_remove_background(struct fuse_conn *fc, struct fuse_req *req)
 {
-	iput(req->inode);
-	iput(req->inode2);
-	if (req->file)
-		fput(req->file);
-	spin_lock(&fc->lock);
-	list_del(&req->bg_entry);
+	list_del_init(&req->bg_entry);
 	if (fc->num_background == FUSE_MAX_BACKGROUND) {
 		fc->blocked = 0;
 		wake_up_all(&fc->blocked_waitq);
 	}
 	fc->num_background--;
-	spin_unlock(&fc->lock);
 }
 
 /*
@@ -163,17 +165,27 @@ static void request_end(struct fuse_conn *fc, struct fuse_req *req)
 		wake_up(&req->waitq);
 		fuse_put_request(fc, req);
 	} else {
+		struct inode *inode = req->inode;
+		struct inode *inode2 = req->inode2;
+		struct file *file = req->file;
 		void (*end) (struct fuse_conn *, struct fuse_req *) = req->end;
 		req->end = NULL;
+		req->inode = NULL;
+		req->inode2 = NULL;
+		req->file = NULL;
+		if (!list_empty(&req->bg_entry))
+			fuse_remove_background(fc, req);
 		spin_unlock(&fc->lock);
-		down_read(&fc->sbput_sem);
-		if (fc->mounted)
-			fuse_release_background(fc, req);
-		up_read(&fc->sbput_sem);
+
 		if (end)
 			end(fc, req);
 		else
 			fuse_put_request(fc, req);
+
+		if (file)
+			fput(file);
+		iput(inode);
+		iput(inode2);
 	}
 }
 
@@ -277,6 +289,10 @@ static void queue_request(struct fuse_conn *fc, struct fuse_req *req)
 		len_args(req->in.numargs, (struct fuse_arg *) req->in.args);
 	list_add_tail(&req->list, &fc->pending);
 	req->state = FUSE_REQ_PENDING;
+	if (!req->waiting) {
+		req->waiting = 1;
+		atomic_inc(&fc->num_waiting);
+	}
 	wake_up(&fc->waitq);
 	kill_fasync(&fc->fasync, SIGIO, POLL_IN);
 }

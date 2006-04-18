@@ -27,7 +27,7 @@ static char * __init dmi_string(struct dmi_header *dm, u8 s)
 			else
 				printk(KERN_ERR "dmi_string: out of memory.\n");
 		}
- 	}
+	}
 
 	return str;
 }
@@ -41,7 +41,7 @@ static int __init dmi_table(u32 base, int len, int num,
 {
 	u8 *buf, *data;
 	int i = 0;
-		
+
 	buf = dmi_ioremap(base, len);
 	if (buf == NULL)
 		return -1;
@@ -49,9 +49,9 @@ static int __init dmi_table(u32 base, int len, int num,
 	data = buf;
 
 	/*
- 	 *	Stop when we see all the items the table claimed to have
- 	 *	OR we run off the end of the table (also happens)
- 	 */
+	 *	Stop when we see all the items the table claimed to have
+	 *	OR we run off the end of the table (also happens)
+	 */
 	while ((i < num) && (data - buf + sizeof(struct dmi_header)) <= len) {
 		struct dmi_header *dm = (struct dmi_header *)data;
 		/*
@@ -75,7 +75,7 @@ static int __init dmi_checksum(u8 *buf)
 {
 	u8 sum = 0;
 	int a;
-	
+
 	for (a = 0; a < 15; a++)
 		sum += buf[a];
 

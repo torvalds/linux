@@ -38,6 +38,8 @@
 #include <linux/completion.h>
 #include <linux/dma-mapping.h>
 #include <linux/blkdev.h>
+#include <linux/delay.h>
+#include <linux/kthread.h>
 #include <asm/semaphore.h>
 #include <asm/uaccess.h>
 
@@ -293,6 +295,16 @@ return_fib:
 		status = 0;
 	} else {
 		spin_unlock_irqrestore(&dev->fib_lock, flags);
+		/* If someone killed the AIF aacraid thread, restart it */
+		status = !dev->aif_thread;
+		if (status && dev->queues && dev->fsa_dev) {
+			/* Be paranoid, be very paranoid! */
+			kthread_stop(dev->thread);
+			ssleep(1);
+			dev->aif_thread = 0;
+			dev->thread = kthread_run(aac_command_thread, dev, dev->name);
+			ssleep(1);
+		}
 		if (f.wait) {
 			if(down_interruptible(&fibctx->wait_sem) < 0) {
 				status = -EINTR;

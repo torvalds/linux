@@ -904,7 +904,7 @@ alloc_new_skb:
 			 * because we have no idea what fragment will be
 			 * the last.
 			 */
-			if (datalen == length)
+			if (datalen == length + fraggap)
 				alloclen += rt->u.dst.trailer_len;
 
 			if (transhdrlen) {

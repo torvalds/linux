@@ -33,7 +33,22 @@
 /*****************************************************************************/
 #ifndef VIOSRP_H
 #define VIOSRP_H
-#include "srp.h"
+#include <scsi/srp.h>
+
+#define SRP_VERSION "16.a"
+#define SRP_MAX_IU_LEN	256
+
+union srp_iu {
+	struct srp_login_req login_req;
+	struct srp_login_rsp login_rsp;
+	struct srp_login_rej login_rej;
+	struct srp_i_logout i_logout;
+	struct srp_t_logout t_logout;
+	struct srp_tsk_mgmt tsk_mgmt;
+	struct srp_cmd cmd;
+	struct srp_rsp rsp;
+	u8 reserved[SRP_MAX_IU_LEN];
+};
 
 enum viosrp_crq_formats {
 	VIOSRP_SRP_FORMAT = 0x01,

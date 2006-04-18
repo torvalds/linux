@@ -69,11 +69,11 @@ choice
 	   often need board-specific hooks.
 
 config USB_GADGET_NET2280
-	boolean "NetChip 2280"
+	boolean "NetChip 228x"
 	depends on PCI
 	select USB_GADGET_DUALSPEED
 	help
-	   NetChip 2280 is a PCI based USB peripheral controller which
+	   NetChip 2280 / 2282 is a PCI based USB peripheral controller which
 	   supports both full and high speed USB 2.0 data transfers.  
 	   
 	   It has six configurable endpoints, as well as endpoint zero

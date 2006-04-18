@@ -824,9 +824,9 @@ static int translate_table(struct ebt_replace *repl,
 	if (udc_cnt) {
 		/* this will get free'd in do_replace()/ebt_register_table()
 		   if an error occurs */
-		newinfo->chainstack = (struct ebt_chainstack **)
-		   vmalloc((highest_possible_processor_id()+1) 
-				   		* sizeof(struct ebt_chainstack));
+		newinfo->chainstack =
+			vmalloc((highest_possible_processor_id()+1)
+				   	* sizeof(*(newinfo->chainstack)));
 		if (!newinfo->chainstack)
 			return -ENOMEM;
 		for_each_possible_cpu(i) {

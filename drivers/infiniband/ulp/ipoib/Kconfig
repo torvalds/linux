@@ -10,8 +10,9 @@ config INFINIBAND_IPOIB
 	  group: <http://www.ietf.org/html.charters/ipoib-charter.html>.
 
 config INFINIBAND_IPOIB_DEBUG
-	bool "IP-over-InfiniBand debugging"
+	bool "IP-over-InfiniBand debugging" if EMBEDDED
 	depends on INFINIBAND_IPOIB
+	default y
 	---help---
 	  This option causes debugging code to be compiled into the
 	  IPoIB driver.  The output can be turned on via the

@@ -36,8 +36,8 @@
 /*
  * Literals
  */
-#define IPR_DRIVER_VERSION "2.1.2"
-#define IPR_DRIVER_DATE "(February 8, 2006)"
+#define IPR_DRIVER_VERSION "2.1.3"
+#define IPR_DRIVER_DATE "(March 29, 2006)"
 
 /*
  * IPR_MAX_CMD_PER_LUN: This defines the maximum number of outstanding
@@ -133,6 +133,7 @@
 #define IPR_MAX_SCSI_RATE(width) ((320 * 10) / ((width) / 8))
 
 #define IPR_IOA_RES_HANDLE				0xffffffff
+#define IPR_INVALID_RES_HANDLE			0
 #define IPR_IOA_RES_ADDR				0x00ffffff
 
 /*
@@ -1191,30 +1192,17 @@ struct ipr_ucode_image_header {
  */
 #define ipr_err(...) printk(KERN_ERR IPR_NAME ": "__VA_ARGS__)
 #define ipr_info(...) printk(KERN_INFO IPR_NAME ": "__VA_ARGS__)
-#define ipr_crit(...) printk(KERN_CRIT IPR_NAME ": "__VA_ARGS__)
-#define ipr_warn(...) printk(KERN_WARNING IPR_NAME": "__VA_ARGS__)
 #define ipr_dbg(...) IPR_DBG_CMD(printk(KERN_INFO IPR_NAME ": "__VA_ARGS__))
 
-#define ipr_sdev_printk(level, sdev, fmt, args...) \
-	sdev_printk(level, sdev, fmt, ## args)
+#define ipr_ra_printk(level, ioa_cfg, ra, fmt, ...) \
+	printk(level IPR_NAME ": %d:%d:%d:%d: " fmt, (ioa_cfg)->host->host_no, \
+		(ra).bus, (ra).target, (ra).lun, ##__VA_ARGS__)
 
-#define ipr_sdev_err(sdev, fmt, ...) \
-	ipr_sdev_printk(KERN_ERR, sdev, fmt, ##__VA_ARGS__)
-
-#define ipr_sdev_info(sdev, fmt, ...) \
-	ipr_sdev_printk(KERN_INFO, sdev, fmt, ##__VA_ARGS__)
-
-#define ipr_sdev_dbg(sdev, fmt, ...) \
-	IPR_DBG_CMD(ipr_sdev_printk(KERN_INFO, sdev, fmt, ##__VA_ARGS__))
-
-#define ipr_res_printk(level, ioa_cfg, res, fmt, ...) \
-	printk(level IPR_NAME ": %d:%d:%d:%d: " fmt, ioa_cfg->host->host_no, \
-		res.bus, res.target, res.lun, ##__VA_ARGS__)
+#define ipr_ra_err(ioa_cfg, ra, fmt, ...) \
+	ipr_ra_printk(KERN_ERR, ioa_cfg, ra, fmt, ##__VA_ARGS__)
 
 #define ipr_res_err(ioa_cfg, res, fmt, ...) \
-	ipr_res_printk(KERN_ERR, ioa_cfg, res, fmt, ##__VA_ARGS__)
-#define ipr_res_dbg(ioa_cfg, res, fmt, ...) \
-	IPR_DBG_CMD(ipr_res_printk(KERN_INFO, ioa_cfg, res, fmt, ##__VA_ARGS__))
+	ipr_ra_err(ioa_cfg, (res)->cfgte.res_addr, fmt, ##__VA_ARGS__)
 
 #define ipr_phys_res_err(ioa_cfg, res, fmt, ...)			\
 {									\
@@ -1298,6 +1286,22 @@ static inline int ipr_is_gscsi(struct ipr_resource_entry *res)
 {
 	if (!ipr_is_ioa_resource(res) &&
 	    IPR_RES_SUBTYPE(res) == IPR_SUBTYPE_GENERIC_SCSI)
+		return 1;
+	else
+		return 0;
+}
+
+/**
+ * ipr_is_scsi_disk - Determine if a resource is a SCSI disk
+ * @res:	resource entry struct
+ *
+ * Return value:
+ * 	1 if SCSI disk / 0 if not SCSI disk
+ **/
+static inline int ipr_is_scsi_disk(struct ipr_resource_entry *res)
+{
+	if (ipr_is_af_dasd_device(res) ||
+	    (ipr_is_gscsi(res) && IPR_IS_DASD_DEVICE(res->cfgte.std_inq_data)))
 		return 1;
 	else
 		return 0;

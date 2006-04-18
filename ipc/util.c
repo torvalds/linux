@@ -183,8 +183,7 @@ static int grow_ary(struct ipc_ids* ids, int newsize)
 	if(new == NULL)
 		return size;
 	new->size = newsize;
-	memcpy(new->p, ids->entries->p, sizeof(struct kern_ipc_perm *)*size +
-					sizeof(struct ipc_id_ary));
+	memcpy(new->p, ids->entries->p, sizeof(struct kern_ipc_perm *)*size);
 	for(i=size;i<newsize;i++) {
 		new->p[i] = NULL;
 	}

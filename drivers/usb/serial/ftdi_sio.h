@@ -399,6 +399,21 @@
 #define FTDI_WESTREX_MODEL_777_PID	0xDC00	/* Model 777 */
 #define FTDI_WESTREX_MODEL_8900F_PID	0xDC01	/* Model 8900F */
 
+/*
+ * Eclo (http://www.eclo.pt/) product IDs.
+ * PID 0xEA90 submitted by Martin Grill.
+ */
+#define FTDI_ECLO_COM_1WIRE_PID	0xEA90	/* COM to 1-Wire USB adaptor */
+
+/*
+ * Papouch products (http://www.papouch.com/)
+ * Submitted by Folkert van Heusden
+ */
+
+#define PAPOUCH_VID			0x5050	/* Vendor ID */
+#define PAPOUCH_TMU_PID			0x0400	/* TMU USB Thermometer */
+
+
 /* Commands */
 #define FTDI_SIO_RESET 		0 /* Reset the port */
 #define FTDI_SIO_MODEM_CTRL 	1 /* Set the modem control register */

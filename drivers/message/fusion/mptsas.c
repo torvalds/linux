@@ -366,7 +366,15 @@ mptsas_sas_enclosure_pg0(MPT_ADAPTER *ioc, struct mptsas_enclosure *enclosure,
 static int
 mptsas_slave_configure(struct scsi_device *sdev)
 {
-	sas_read_port_mode_page(sdev);
+	struct Scsi_Host	*host = sdev->host;
+	MPT_SCSI_HOST		*hd = (MPT_SCSI_HOST *)host->hostdata;
+
+	/*
+	 * RAID volumes placed beyond the last expected port.
+	 * Ignore sending sas mode pages in that case..
+	 */
+	if (sdev->channel < hd->ioc->num_ports)
+		sas_read_port_mode_page(sdev);
 
 	return mptscsih_slave_configure(sdev);
 }

@@ -34,12 +34,6 @@
 
 #include "hid.h"
 
-/* Drivers' initializing functions */
-extern int hid_lgff_init(struct hid_device* hid);
-extern int hid_lg3d_init(struct hid_device* hid);
-extern int hid_pid_init(struct hid_device* hid);
-extern int hid_tmff_init(struct hid_device* hid);
-
 /*
  * This table contains pointers to initializers. To add support for new
  * devices, you need to add the USB vendor and product ids here.

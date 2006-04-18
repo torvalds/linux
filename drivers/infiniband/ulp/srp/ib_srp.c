@@ -1434,6 +1434,7 @@ static int srp_parse_options(const char *buf, struct srp_target_port *target)
 			p = match_strdup(args);
 			if (strlen(p) != 32) {
 				printk(KERN_WARNING PFX "bad dest GID parameter '%s'\n", p);
+				kfree(p);
 				goto out;
 			}
 
