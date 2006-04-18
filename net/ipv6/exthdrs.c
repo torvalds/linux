@@ -485,7 +485,7 @@ static struct tlvtype_proc tlvprochopopt_lst[] = {
 	{ -1, }
 };
 
-int ipv6_parse_hopopts(struct sk_buff *skb, int nhoff)
+int ipv6_parse_hopopts(struct sk_buff *skb)
 {
 	struct inet6_skb_parm *opt = IP6CB(skb);
 
@@ -505,7 +505,7 @@ int ipv6_parse_hopopts(struct sk_buff *skb, int nhoff)
 	if (ip6_parse_tlv(tlvprochopopt_lst, skb)) {
 		skb->h.raw += (skb->h.raw[1]+1)<<3;
 		opt->nhoff = sizeof(struct ipv6hdr);
-		return sizeof(struct ipv6hdr);
+		return 1;
 	}
 	return -1;
 }
