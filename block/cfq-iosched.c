@@ -1472,15 +1472,31 @@ out:
 	return cfqq;
 }
 
+static void
+cfq_drop_dead_cic(struct io_context *ioc, struct cfq_io_context *cic)
+{
+	read_lock(&cfq_exit_lock);
+	rb_erase(&cic->rb_node, &ioc->cic_root);
+	read_unlock(&cfq_exit_lock);
+	kmem_cache_free(cfq_ioc_pool, cic);
+	atomic_dec(&ioc_count);
+}
+
 static struct cfq_io_context *
 cfq_cic_rb_lookup(struct cfq_data *cfqd, struct io_context *ioc)
 {
-	struct rb_node *n = ioc->cic_root.rb_node;
+	struct rb_node *n;
 	struct cfq_io_context *cic;
 	void *key = cfqd;
 
+restart:
+	n = ioc->cic_root.rb_node;
 	while (n) {
 		cic = rb_entry(n, struct cfq_io_context, rb_node);
+		if (unlikely(!cic->key)) {
+			cfq_drop_dead_cic(ioc, cic);
+			goto restart;
+		}
 
 		if (key < cic->key)
 			n = n->rb_left;
@@ -1497,20 +1513,24 @@ static inline void
 cfq_cic_link(struct cfq_data *cfqd, struct io_context *ioc,
 	     struct cfq_io_context *cic)
 {
-	struct rb_node **p = &ioc->cic_root.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_node **p;
+	struct rb_node *parent;
 	struct cfq_io_context *__cic;
-
-	read_lock(&cfq_exit_lock);
 
 	cic->ioc = ioc;
 	cic->key = cfqd;
 
 	ioc->set_ioprio = cfq_ioc_set_ioprio;
-
+restart:
+	parent = NULL;
+	p = &ioc->cic_root.rb_node;
 	while (*p) {
 		parent = *p;
 		__cic = rb_entry(parent, struct cfq_io_context, rb_node);
+		if (unlikely(!__cic->key)) {
+			cfq_drop_dead_cic(ioc, cic);
+			goto restart;
+		}
 
 		if (cic->key < __cic->key)
 			p = &(*p)->rb_left;
@@ -1520,6 +1540,7 @@ cfq_cic_link(struct cfq_data *cfqd, struct io_context *ioc,
 			BUG();
 	}
 
+	read_lock(&cfq_exit_lock);
 	rb_link_node(&cic->rb_node, parent, p);
 	rb_insert_color(&cic->rb_node, &ioc->cic_root);
 	list_add(&cic->queue_list, &cfqd->cic_list);
