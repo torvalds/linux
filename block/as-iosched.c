@@ -1844,9 +1844,10 @@ static void __exit as_exit(void)
 	DECLARE_COMPLETION(all_gone);
 	elv_unregister(&iosched_as);
 	ioc_gone = &all_gone;
-	barrier();
+	/* ioc_gone's update must be visible before reading ioc_count */
+	smp_wmb();
 	if (atomic_read(&ioc_count))
-		complete(ioc_gone);
+		wait_for_completion(ioc_gone);
 	synchronize_rcu();
 	kmem_cache_destroy(arq_pool);
 }
