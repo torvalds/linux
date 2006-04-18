@@ -715,7 +715,7 @@ static int get_gsi_base(acpi_handle handle, u32 *gsi_base)
 		break;
 	}
  out:
-	acpi_os_free(buffer.pointer);
+	kfree(buffer.pointer);
 	return result;
 }
 

@@ -58,7 +58,7 @@ acpi_run_hpp(acpi_handle handle, struct hotplug_params *hpp)
 		if (!ret_buf.pointer) {
 			printk(KERN_ERR "%s:%s alloc for _HPP fail\n",
 				__FUNCTION__, (char *)string.pointer);
-			acpi_os_free(string.pointer);
+			kfree(string.pointer);
 			return AE_NO_MEMORY;
 		}
 		status = acpi_evaluate_object(handle, METHOD_NAME__HPP,
@@ -69,7 +69,7 @@ acpi_run_hpp(acpi_handle handle, struct hotplug_params *hpp)
 		if (ACPI_FAILURE(status)) {
 			pr_debug("%s:%s _HPP fail=0x%x\n", __FUNCTION__,
 				(char *)string.pointer, status);
-			acpi_os_free(string.pointer);
+			kfree(string.pointer);
 			return status;
 		}
 	}
@@ -109,8 +109,8 @@ acpi_run_hpp(acpi_handle handle, struct hotplug_params *hpp)
 	pr_debug("  _HPP: enable PERR    =0x%x\n", hpp->enable_perr);
 
 free_and_return:
-	acpi_os_free(string.pointer);
-	acpi_os_free(ret_buf.pointer);
+	kfree(string.pointer);
+	kfree(ret_buf.pointer);
 	return status;
 }
 
@@ -136,7 +136,7 @@ acpi_status acpi_run_oshp(acpi_handle handle)
 		pr_debug("%s:%s OSHP passes\n", __FUNCTION__,
 			(char *)string.pointer);
 
-	acpi_os_free(string.pointer);
+	kfree(string.pointer);
 	return status;
 }
 EXPORT_SYMBOL_GPL(acpi_run_oshp);
@@ -192,19 +192,19 @@ int acpi_root_bridge(acpi_handle handle)
 		if ((info->valid & ACPI_VALID_HID) &&
 			!strcmp(PCI_ROOT_HID_STRING,
 					info->hardware_id.value)) {
-			acpi_os_free(buffer.pointer);
+			kfree(buffer.pointer);
 			return 1;
 		}
 		if (info->valid & ACPI_VALID_CID) {
 			for (i=0; i < info->compatibility_id.count; i++) {
 				if (!strcmp(PCI_ROOT_HID_STRING,
 					info->compatibility_id.id[i].value)) {
-					acpi_os_free(buffer.pointer);
+					kfree(buffer.pointer);
 					return 1;
 				}
 			}
 		}
-		acpi_os_free(buffer.pointer);
+		kfree(buffer.pointer);
 	}
 	return 0;
 }

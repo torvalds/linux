@@ -1288,7 +1288,7 @@ int pciehp_acpi_get_hp_hw_control_from_firmware(struct pci_dev *dev)
 		if (ACPI_SUCCESS(status)) {
 			dbg("Gained control for hotplug HW for pci %s (%s)\n",
 				pci_name(dev), (char *)string.pointer);
-			acpi_os_free(string.pointer);
+			kfree(string.pointer);
 			return 0;
 		}
 		if (acpi_root_bridge(handle))
@@ -1302,7 +1302,7 @@ int pciehp_acpi_get_hp_hw_control_from_firmware(struct pci_dev *dev)
 	err("Cannot get control of hotplug hardware for pci %s\n",
 			pci_name(dev));
 
-	acpi_os_free(string.pointer);
+	kfree(string.pointer);
 	return -1;
 }
 #endif
