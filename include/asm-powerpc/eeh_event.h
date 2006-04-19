@@ -18,8 +18,8 @@
  * Copyright (c) 2005 Linas Vepstas <linas@linas.org>
  */
 
-#ifndef ASM_PPC64_EEH_EVENT_H
-#define ASM_PPC64_EEH_EVENT_H
+#ifndef ASM_POWERPC_EEH_EVENT_H
+#define ASM_POWERPC_EEH_EVENT_H
 #ifdef __KERNEL__
 
 /** EEH event -- structure holding pci controller data that describes
@@ -39,7 +39,7 @@ struct eeh_event {
  * @dev pci device
  *
  * This routine builds a PCI error event which will be delivered
- * to all listeners on the peh_notifier_chain.
+ * to all listeners on the eeh_notifier_chain.
  *
  * This routine can be called within an interrupt context;
  * the actual event will be delivered in a normal context
@@ -51,7 +51,7 @@ int eeh_send_failure_event (struct device_node *dn,
                             int time_unavail);
 
 /* Main recovery function */
-void handle_eeh_events (struct eeh_event *);
+struct pci_dn * handle_eeh_events (struct eeh_event *);
 
 #endif /* __KERNEL__ */
-#endif /* ASM_PPC64_EEH_EVENT_H */
+#endif /* ASM_POWERPC_EEH_EVENT_H */

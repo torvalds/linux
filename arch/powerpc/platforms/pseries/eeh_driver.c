@@ -23,9 +23,8 @@
  *
  */
 #include <linux/delay.h>
-#include <linux/irq.h>
 #include <linux/interrupt.h>
-#include <linux/notifier.h>
+#include <linux/irq.h>
 #include <linux/pci.h>
 #include <asm/eeh.h>
 #include <asm/eeh_event.h>
@@ -250,7 +249,7 @@ static int eeh_reset_device (struct pci_dn *pe_dn, struct pci_bus *bus)
  */
 #define MAX_WAIT_FOR_RECOVERY 15
 
-void handle_eeh_events (struct eeh_event *event)
+struct pci_dn * handle_eeh_events (struct eeh_event *event)
 {
 	struct device_node *frozen_dn;
 	struct pci_dn *frozen_pdn;
@@ -265,7 +264,7 @@ void handle_eeh_events (struct eeh_event *event)
 	if (!frozen_dn) {
 		printk(KERN_ERR "EEH: Error: Cannot find partition endpoint for %s\n",
 		        pci_name(event->dev));
-		return;
+		return NULL;
 	}
 
 	/* There are two different styles for coming up with the PE.
@@ -280,7 +279,7 @@ void handle_eeh_events (struct eeh_event *event)
 	if (!frozen_bus) {
 		printk(KERN_ERR "EEH: Cannot find PCI bus for %s\n",
 		        frozen_dn->full_name);
-		return;
+		return NULL;
 	}
 
 #if 0
@@ -355,7 +354,7 @@ void handle_eeh_events (struct eeh_event *event)
 	/* Tell all device drivers that they can resume operations */
 	pci_walk_bus(frozen_bus, eeh_report_resume, NULL);
 
-	return;
+	return frozen_pdn;
 	
 excess_failures:
 	/*
@@ -384,6 +383,8 @@ perm_error:
 
 	/* Shut down the device drivers for good. */
 	pcibios_remove_pci_devices(frozen_bus);
+
+	return NULL;
 }
 
 /* ---------- end of file ---------- */
