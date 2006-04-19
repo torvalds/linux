@@ -1012,7 +1012,9 @@ static int link_pipe(struct pipe_inode_info *ipipe,
 		     size_t len, unsigned int flags)
 {
 	struct pipe_buffer *ibuf, *obuf;
-	int ret = 0, do_wakeup = 0, i;
+	int ret, do_wakeup, i, ipipe_first;
+
+	ret = do_wakeup = ipipe_first = 0;
 
 	/*
 	 * Potential ABBA deadlock, work around it by ordering lock
@@ -1020,6 +1022,7 @@ static int link_pipe(struct pipe_inode_info *ipipe,
 	 * could deadlock (one doing tee from A -> B, the other from B -> A).
 	 */
 	if (ipipe->inode < opipe->inode) {
+		ipipe_first = 1;
 		mutex_lock(&ipipe->inode->i_mutex);
 		mutex_lock(&opipe->inode->i_mutex);
 	} else {
@@ -1068,9 +1071,11 @@ static int link_pipe(struct pipe_inode_info *ipipe,
 
 			/*
 			 * We have input available, but no output room.
-			 * If we already copied data, return that.
+			 * If we already copied data, return that. If we
+			 * need to drop the opipe lock, it must be ordered
+			 * last to avoid deadlocks.
 			 */
-			if (flags & SPLICE_F_NONBLOCK) {
+			if ((flags & SPLICE_F_NONBLOCK) || !ipipe_first) {
 				if (!ret)
 					ret = -EAGAIN;
 				break;
@@ -1104,7 +1109,12 @@ static int link_pipe(struct pipe_inode_info *ipipe,
 			if (ret)
 				break;
 		}
-		if (flags & SPLICE_F_NONBLOCK) {
+		/*
+		 * pipe_wait() drops the ipipe mutex. To avoid deadlocks
+		 * with another process, we can only safely do that if
+		 * the ipipe lock is ordered last.
+		 */
+		if ((flags & SPLICE_F_NONBLOCK) || ipipe_first) {
 			if (!ret)
 				ret = -EAGAIN;
 			break;
