@@ -373,7 +373,7 @@ static struct mt352_config cxusb_dee1601_config = {
 	.pll_set       = dvb_usb_pll_set,
 };
 
-struct mt352_config cxusb_mt352_config = {
+static struct mt352_config cxusb_mt352_config = {
 	/* used in both lgz201 and th7579 */
 	.demod_address = 0x0f,
 	.demod_init    = cxusb_mt352_demod_init,
