@@ -153,8 +153,8 @@ static int zl10353_set_parameters(struct dvb_frontend *fe,
 	}
 
 	// if pllbuf is defined, retrieve the settings
-	if (fe->ops->tuner_ops.pllbuf) {
-		fe->ops->tuner_ops.pllbuf(fe, param, pllbuf+1, 5);
+	if (fe->ops->tuner_ops.calc_regs) {
+		fe->ops->tuner_ops.calc_regs(fe, param, pllbuf+1, 5);
 		pllbuf[1] <<= 1;
 	} else {
 		// fake pllbuf settings

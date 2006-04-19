@@ -302,8 +302,8 @@ static int mt352_set_parameters(struct dvb_frontend* fe,
 	// retrieve the pllbuf - we do this even if there is no
 	// secondary tuner simply so we have a record of what was sent for
 	// debugging.
-	if (fe->ops->tuner_ops.pllbuf) {
-		fe->ops->tuner_ops.pllbuf(fe, param, buf+8, 5);
+	if (fe->ops->tuner_ops.calc_regs) {
+		fe->ops->tuner_ops.calc_regs(fe, param, buf+8, 5);
 		buf[8] <<= 1;
 		mt352_write(fe, buf, sizeof(buf));
 	}

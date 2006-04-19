@@ -555,7 +555,7 @@ static int dvb_pll_set_params(struct dvb_frontend *fe, struct dvb_frontend_param
 	return 0;
 }
 
-static int dvb_pll_pllbuf(struct dvb_frontend *fe, struct dvb_frontend_parameters *params, u8 *buf, int buf_len)
+static int dvb_pll_calc_regs(struct dvb_frontend *fe, struct dvb_frontend_parameters *params, u8 *buf, int buf_len)
 {
 	struct dvb_pll_priv *priv = fe->tuner_priv;
 	int result;
@@ -606,7 +606,7 @@ static struct dvb_tuner_ops dvb_pll_tuner_ops = {
 	.release = dvb_pll_release,
 	.sleep = dvb_pll_sleep,
 	.set_params = dvb_pll_set_params,
-	.pllbuf = dvb_pll_pllbuf,
+	.calc_regs = dvb_pll_calc_regs,
 	.get_frequency = dvb_pll_get_frequency,
 	.get_bandwidth = dvb_pll_get_bandwidth,
 };

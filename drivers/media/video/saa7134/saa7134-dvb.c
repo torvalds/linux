@@ -132,7 +132,7 @@ static int mt352_aver777_init(struct dvb_frontend* fe)
 	return 0;
 }
 
-static int mt352_pinnacle_tuner_pllbuf(struct dvb_frontend* fe,
+static int mt352_pinnacle_tuner_calc_regs(struct dvb_frontend* fe,
 				       struct dvb_frontend_parameters* params,
 				       u8* pllbuf, int buf_len)
 {
@@ -167,7 +167,7 @@ static int mt352_pinnacle_tuner_pllbuf(struct dvb_frontend* fe,
 	return 5;
 }
 
-static int mt352_aver777_tuner_pllbuf(struct dvb_frontend *fe, struct dvb_frontend_parameters *params, u8* pllbuf, int buf_len)
+static int mt352_aver777_tuner_calc_regs(struct dvb_frontend *fe, struct dvb_frontend_parameters *params, u8* pllbuf, int buf_len)
 {
 	if (buf_len < 5)
 		return -EINVAL;
@@ -1020,14 +1020,14 @@ static int dvb_init(struct saa7134_dev *dev)
 		printk("%s: pinnacle 300i dvb setup\n",dev->name);
 		dev->dvb.frontend = mt352_attach(&pinnacle_300i,
 						 &dev->i2c_adap);
-		dev->dvb.frontend->ops->tuner_ops.pllbuf = mt352_pinnacle_tuner_pllbuf;
+		dev->dvb.frontend->ops->tuner_ops.calc_regs = mt352_pinnacle_tuner_calc_regs;
 		break;
 
 	case SAA7134_BOARD_AVERMEDIA_777:
 		printk("%s: avertv 777 dvb setup\n",dev->name);
 		dev->dvb.frontend = mt352_attach(&avermedia_777,
 						 &dev->i2c_adap);
-		dev->dvb.frontend->ops->tuner_ops.pllbuf = mt352_aver777_tuner_pllbuf;
+		dev->dvb.frontend->ops->tuner_ops.calc_regs = mt352_aver777_tuner_calc_regs;
 		break;
 #endif
 #ifdef HAVE_TDA1004X

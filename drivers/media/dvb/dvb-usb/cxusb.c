@@ -423,7 +423,7 @@ static int cxusb_mt352_frontend_attach(struct dvb_usb_device *d)
 	cxusb_ctrl_msg(d,CMD_DIGITAL, NULL, 0, NULL, 0);
 
 	if ((d->fe = mt352_attach(&cxusb_mt352_config, &d->i2c_adap)) != NULL) {
-		d->fe->ops->tuner_ops.pllbuf = dvb_usb_tuner_pllbuf;
+		d->fe->ops->tuner_ops.calc_regs = dvb_usb_tuner_calc_regs;
 		return 0;
 	}
 
@@ -438,7 +438,7 @@ static int cxusb_dee1601_frontend_attach(struct dvb_usb_device *d)
 	cxusb_ctrl_msg(d,CMD_DIGITAL, NULL, 0, NULL, 0);
 
 	if ((d->fe = mt352_attach(&cxusb_dee1601_config, &d->i2c_adap)) != NULL) {
-		d->fe->ops->tuner_ops.pllbuf = dvb_usb_tuner_pllbuf;
+		d->fe->ops->tuner_ops.calc_regs = dvb_usb_tuner_calc_regs;
 		return 0;
 	}
 

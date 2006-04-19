@@ -548,8 +548,8 @@ static int nxt200x_setup_frontend_parameters (struct dvb_frontend* fe,
 	}
 
 	/* get tuning information */
-	if (fe->ops->tuner_ops.pllbuf) {
-		fe->ops->tuner_ops.pllbuf(fe, p, buf, 5);
+	if (fe->ops->tuner_ops.calc_regs) {
+		fe->ops->tuner_ops.calc_regs(fe, p, buf, 5);
 	}
 
 	/* set additional params */

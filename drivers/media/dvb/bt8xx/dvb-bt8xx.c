@@ -147,7 +147,7 @@ static int thomson_dtt7579_demod_init(struct dvb_frontend* fe)
 	return 0;
 }
 
-static int thomson_dtt7579_tuner_pllbuf(struct dvb_frontend* fe, struct dvb_frontend_parameters* params, u8* pllbuf, int buf_len)
+static int thomson_dtt7579_tuner_calc_regs(struct dvb_frontend* fe, struct dvb_frontend_parameters* params, u8* pllbuf, int buf_len)
 {
 	u32 div;
 	unsigned char bs = 0;
@@ -341,7 +341,7 @@ static int advbt771_samsung_tdtc9251dh0_demod_init(struct dvb_frontend* fe)
 	return 0;
 }
 
-static int advbt771_samsung_tdtc9251dh0_tuner_pllbuf(struct dvb_frontend* fe, struct dvb_frontend_parameters* params, u8* pllbuf, int buf_len)
+static int advbt771_samsung_tdtc9251dh0_tuner_calc_regs(struct dvb_frontend* fe, struct dvb_frontend_parameters* params, u8* pllbuf, int buf_len)
 {
 	u32 div;
 	unsigned char bs = 0;
@@ -512,7 +512,7 @@ static int digitv_alps_tded4_demod_init(struct dvb_frontend* fe)
 	return 0;
 }
 
-static int digitv_alps_tded4_tuner_pllbuf(struct dvb_frontend* fe, struct dvb_frontend_parameters* params, u8* pllbuf, int buf_len)
+static int digitv_alps_tded4_tuner_calc_regs(struct dvb_frontend* fe, struct dvb_frontend_parameters* params, u8* pllbuf, int buf_len)
 {
 	u32 div;
 	struct dvb_ofdm_parameters *op = &params->u.ofdm;
@@ -607,7 +607,7 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 						  card->i2c_adapter);
 
 		if (card->fe != NULL) {
-			card->fe->ops->tuner_ops.pllbuf = thomson_dtt7579_tuner_pllbuf;
+			card->fe->ops->tuner_ops.calc_regs = thomson_dtt7579_tuner_calc_regs;
 			card->fe->ops->info.frequency_min = 174000000;
 			card->fe->ops->info.frequency_max = 862000000;
 		}
@@ -642,7 +642,7 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 		card->fe = mt352_attach(&digitv_alps_tded4_config, card->i2c_adapter);
 
 		if (card->fe != NULL) {
-			card->fe->ops->tuner_ops.pllbuf = digitv_alps_tded4_tuner_pllbuf;
+			card->fe->ops->tuner_ops.calc_regs = digitv_alps_tded4_tuner_calc_regs;
 			dprintk ("dvb_bt8xx: an mt352 was detected on your digitv card\n");
 		}
 		break;
@@ -657,7 +657,7 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 	case BTTV_BOARD_AVDVBT_771:
 		card->fe = mt352_attach(&advbt771_samsung_tdtc9251dh0_config, card->i2c_adapter);
 		if (card->fe != NULL) {
-			card->fe->ops->tuner_ops.pllbuf = advbt771_samsung_tdtc9251dh0_tuner_pllbuf;
+			card->fe->ops->tuner_ops.calc_regs = advbt771_samsung_tdtc9251dh0_tuner_calc_regs;
 			card->fe->ops->info.frequency_min = 174000000;
 			card->fe->ops->info.frequency_max = 862000000;
 		}
