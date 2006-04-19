@@ -41,7 +41,7 @@
 /* Not static, because we don't want the compiler removing it */
 const char ipath_verbs_version[] = "ipath_verbs " IPATH_IDSTR;
 
-unsigned int ib_ipath_qp_table_size = 251;
+static unsigned int ib_ipath_qp_table_size = 251;
 module_param_named(qp_table_size, ib_ipath_qp_table_size, uint, S_IRUGO);
 MODULE_PARM_DESC(qp_table_size, "QP table size");
 
@@ -87,7 +87,7 @@ const enum ib_wc_opcode ib_ipath_wc_opcode[] = {
 /*
  * System image GUID.
  */
-__be64 sys_image_guid;
+static __be64 sys_image_guid;
 
 /**
  * ipath_copy_sge - copy data to SGE memory
@@ -1110,7 +1110,7 @@ static void ipath_unregister_ib_device(void *arg)
 	ib_dealloc_device(ibdev);
 }
 
-int __init ipath_verbs_init(void)
+static int __init ipath_verbs_init(void)
 {
 	return ipath_verbs_register(ipath_register_ib_device,
 				    ipath_unregister_ib_device,
@@ -1118,7 +1118,7 @@ int __init ipath_verbs_init(void)
 				    ipath_ib_timer);
 }
 
-void __exit ipath_verbs_cleanup(void)
+static void __exit ipath_verbs_cleanup(void)
 {
 	ipath_verbs_unregister();
 }
