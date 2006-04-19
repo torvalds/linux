@@ -4,7 +4,7 @@
  * block2mtd.c - create an mtd from a block device
  *
  * Copyright (C) 2001,2002	Simon Evans <spse@secret.org.uk>
- * Copyright (C) 2004,2005	Jörn Engel <joern@wh.fh-wedel.de>
+ * Copyright (C) 2004-2006	Jörn Engel <joern@wh.fh-wedel.de>
  *
  * Licence: GPL
  */
@@ -351,6 +351,12 @@ devinit_err:
 }
 
 
+/* This function works similar to reguler strtoul.  In addition, it
+ * allows some suffixes for a more human-readable number format:
+ * ki, Ki, kiB, KiB	- multiply result with 1024
+ * Mi, MiB		- multiply result with 1024^2
+ * Gi, GiB		- multiply result with 1024^3
+ */
 static int ustrtoul(const char *cp, char **endp, unsigned int base)
 {
 	unsigned long result = simple_strtoul(cp, endp, base);
@@ -359,11 +365,16 @@ static int ustrtoul(const char *cp, char **endp, unsigned int base)
 		result *= 1024;
 	case 'M':
 		result *= 1024;
+	case 'K':
 	case 'k':
 		result *= 1024;
 	/* By dwmw2 editorial decree, "ki", "Mi" or "Gi" are to be used. */
-		if ((*endp)[1] == 'i')
-			(*endp) += 2;
+		if ((*endp)[1] == 'i') {
+			if ((*endp)[2] == 'B')
+				(*endp) += 3;
+			else
+				(*endp) += 2;
+		}
 	}
 	return result;
 }
