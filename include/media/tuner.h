@@ -119,6 +119,7 @@
 #define TUNER_XCEIVE_XC3028		71
 
 #define TUNER_THOMSON_FE6600		72	/* DViCO FusionHDTV DVB-T Hybrid */
+#define TUNER_SAMSUNG_TCPG_6121P30A     73 	/* Hauppauge PVR-500 PAL */
 
 /* tv card specific */
 #define TDA9887_PRESENT 		(1<<0)

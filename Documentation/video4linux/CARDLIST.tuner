@@ -71,3 +71,4 @@ tuner=69 - Tena TNF 5335 and similar models
 tuner=70 - Samsung TCPN 2121P30A
 tuner=71 - Xceive xc3028
 tuner=72 - Thomson FE6600
+tuner=73 - Samsung TCPG 6121P30A

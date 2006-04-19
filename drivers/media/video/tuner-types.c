@@ -1024,6 +1024,22 @@ static struct tuner_params tuner_thomson_fe6600_params[] = {
 	},
 };
 
+/* ------------ TUNER_SAMSUNG_TCPG_6121P30A - Samsung PAL ------------ */
+
+static struct tuner_range tuner_samsung_tcpg_6121p30a_pal_ranges[] = {
+	{ 16 * 146.25 /*MHz*/, 0xce, 0x01, },
+	{ 16 * 428.50 /*MHz*/, 0xce, 0x02, },
+	{ 16 * 999.99        , 0xce, 0x08, },
+};
+
+static struct tuner_params tuner_samsung_tcpg_6121p30a_params[] = {
+	{
+		.type   = TUNER_PARAM_TYPE_PAL,
+		.ranges = tuner_samsung_tcpg_6121p30a_pal_ranges,
+		.count  = ARRAY_SIZE(tuner_samsung_tcpg_6121p30a_pal_ranges),
+	},
+};
+
 /* --------------------------------------------------------------------- */
 
 struct tunertype tuners[] = {
@@ -1399,6 +1415,11 @@ struct tunertype tuners[] = {
 		.name   = "Thomson FE6600",
 		.params = tuner_thomson_fe6600_params,
 		.count  = ARRAY_SIZE(tuner_thomson_fe6600_params),
+	},
+	[TUNER_SAMSUNG_TCPG_6121P30A] = { /* Samsung PAL */
+		.name   = "Samsung TCPG 6121P30A",
+		.params = tuner_samsung_tcpg_6121p30a_params,
+		.count  = ARRAY_SIZE(tuner_samsung_tcpg_6121p30a_params),
 	},
 };
 
