@@ -2375,7 +2375,8 @@ void *scsi_kmap_atomic_sg(struct scatterlist *sg, int sg_count,
 	}
 
 	if (unlikely(i == sg_count)) {
-		printk(KERN_ERR "%s: Bytes in sg: %u, requested offset %u, elements %d\n",
+		printk(KERN_ERR "%s: Bytes in sg: %zu, requested offset %zu, "
+			"elements %d\n",
 		       __FUNCTION__, sg_len, *offset, sg_count);
 		WARN_ON(1);
 		return NULL;
