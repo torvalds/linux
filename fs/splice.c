@@ -145,8 +145,8 @@ static struct pipe_buf_operations page_cache_pipe_buf_ops = {
  * pipe buffer operations. Otherwise very similar to the regular pipe_writev().
  */
 static ssize_t move_to_pipe(struct pipe_inode_info *pipe, struct page **pages,
-			    int nr_pages, unsigned long offset,
-			    unsigned long len, unsigned int flags)
+			    int nr_pages, unsigned long len,
+			    unsigned int offset, unsigned int flags)
 {
 	int ret, do_wakeup, i;
 
@@ -243,14 +243,16 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 			   unsigned int flags)
 {
 	struct address_space *mapping = in->f_mapping;
-	unsigned int offset, nr_pages;
+	unsigned int loff, offset, nr_pages;
 	struct page *pages[PIPE_BUFFERS];
 	struct page *page;
-	pgoff_t index;
+	pgoff_t index, end_index;
+	loff_t isize;
+	size_t bytes;
 	int i, error;
 
 	index = *ppos >> PAGE_CACHE_SHIFT;
-	offset = *ppos & ~PAGE_CACHE_MASK;
+	loff = offset = *ppos & ~PAGE_CACHE_MASK;
 	nr_pages = (len + offset + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
 
 	if (nr_pages > PIPE_BUFFERS)
@@ -268,6 +270,7 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 	 * Now fill in the holes:
 	 */
 	error = 0;
+	bytes = 0;
 	for (i = 0; i < nr_pages; i++, index++) {
 find_page:
 		/*
@@ -336,13 +339,41 @@ readpage:
 					goto find_page;
 				break;
 			}
+
+			/*
+			 * i_size must be checked after ->readpage().
+			 */
+			isize = i_size_read(mapping->host);
+			end_index = (isize - 1) >> PAGE_CACHE_SHIFT;
+			if (unlikely(!isize || index > end_index)) {
+				page_cache_release(page);
+				break;
+			}
+
+			/*
+			 * if this is the last page, see if we need to shrink
+			 * the length and stop
+			 */
+			if (end_index == index) {
+				loff = PAGE_CACHE_SIZE - (isize & ~PAGE_CACHE_MASK);
+				if (bytes + loff > isize) {
+					page_cache_release(page);
+					break;
+				}
+				/*
+				 * force quit after adding this page
+				 */
+				nr_pages = i;
+			}
 		}
 fill_it:
 		pages[i] = page;
+		bytes += PAGE_CACHE_SIZE - loff;
+		loff = 0;
 	}
 
 	if (i)
-		return move_to_pipe(pipe, pages, i, offset, len, flags);
+		return move_to_pipe(pipe, pages, i, bytes, offset, flags);
 
 	return error;
 }
