@@ -423,6 +423,12 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 	if (tmr_atboot && started == 0) {
 		printk(KERN_INFO PFX "Starting Watchdog Timer\n");
 		s3c2410wdt_start();
+	} else if (!tmr_atboot) {
+		/* if we're not enabling the watchdog, then ensure it is
+		 * disabled if it has been left running from the bootloader
+		 * or other source */
+
+		s3c2410wdt_stop();
 	}
 
 	return 0;
