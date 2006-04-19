@@ -266,11 +266,11 @@ void init_new_thread_signals(int altstack)
 
 int run_kernel_thread(int (*fn)(void *), void *arg, void **jmp_ptr)
 {
-	sigjmp_buf buf;
+	jmp_buf buf;
 	int n, enable;
 
 	*jmp_ptr = &buf;
-	n = UML_SIGSETJMP(&buf, enable);
+	n = UML_SETJMP(&buf, enable);
 	if(n != 0)
 		return(n);
 	(*fn)(arg);
