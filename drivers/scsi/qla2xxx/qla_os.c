@@ -1700,8 +1700,8 @@ qla2x00_free_device(scsi_qla_host_t *ha)
 	ha->flags.online = 0;
 
 	/* Detach interrupts */
-	if (ha->pdev->irq)
-		free_irq(ha->pdev->irq, ha);
+	if (ha->host->irq)
+		free_irq(ha->host->irq, ha);
 
 	/* release io space registers  */
 	if (ha->iobase)
