@@ -132,7 +132,7 @@ VM_MASK		= 0x00020000
 #endif
 
 ENTRY(ret_from_fork)
-	ld	r0, @sp+
+	pop	r0
 	bl	schedule_tail
 	GET_THREAD_INFO(r8)
 	bra	syscall_exit
@@ -310,7 +310,7 @@ ENTRY(ei_handler)
 ;    GET_ICU_STATUS;
 	seth	r0, #shigh(M32R_ICU_ISTS_ADDR)
 	ld	r0, @(low(M32R_ICU_ISTS_ADDR),r0)
-	st	r0, @-sp
+	push	r0
 #if defined(CONFIG_SMP)
 	/*
 	 * If IRQ == 0      --> Nothing to do,  Not write IMASK
@@ -547,7 +547,7 @@ check_end:
 #endif  /* CONFIG_PLAT_M32104UT */
 	bl	do_IRQ
 #endif  /* CONFIG_SMP */
-	ld	r14, @sp+
+	pop	r14
 	seth	r0, #shigh(M32R_ICU_IMASK_ADDR)
 	st	r14, @(low(M32R_ICU_IMASK_ADDR),r0)
 #else
