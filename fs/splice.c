@@ -279,14 +279,6 @@ find_page:
 		page = find_get_page(mapping, index);
 		if (!page) {
 			/*
-			 * If in nonblock mode then dont block on
-			 * readpage (we've kicked readahead so there
-			 * will be asynchronous progress):
-			 */
-			if (flags & SPLICE_F_NONBLOCK)
-				break;
-
-			/*
 			 * page didn't exist, allocate one
 			 */
 			page = page_cache_alloc_cold(mapping);
@@ -307,6 +299,13 @@ find_page:
 		 * If the page isn't uptodate, we may need to start io on it
 		 */
 		if (!PageUptodate(page)) {
+			/*
+			 * If in nonblock mode then dont block on waiting
+			 * for an in-flight io page
+			 */
+			if (flags & SPLICE_F_NONBLOCK)
+				break;
+
 			lock_page(page);
 
 			/*
@@ -400,17 +399,20 @@ ssize_t generic_file_splice_read(struct file *in, loff_t *ppos,
 	while (len) {
 		ret = __generic_file_splice_read(in, ppos, pipe, len, flags);
 
-		if (ret <= 0)
+		if (ret < 0)
 			break;
+		else if (!ret) {
+			if (spliced)
+				break;
+			if (flags & SPLICE_F_NONBLOCK) {
+				ret = -EAGAIN;
+				break;
+			}
+		}
 
 		*ppos += ret;
 		len -= ret;
 		spliced += ret;
-
-		if (!(flags & SPLICE_F_NONBLOCK))
-			continue;
-		ret = -EAGAIN;
-		break;
 	}
 
 	if (spliced)
