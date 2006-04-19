@@ -172,8 +172,8 @@ static void handle_e_ibstatuschanged(struct ipath_devdata *dd,
 				   "was %s\n", dd->ipath_unit,
 				   ib_linkstate(lstate),
 				   ib_linkstate((unsigned)
-				   		dd->ipath_lastibcstat
-				   		& IPATH_IBSTATE_MASK));
+						dd->ipath_lastibcstat
+						& IPATH_IBSTATE_MASK));
 	}
 	else {
 		lstate = dd->ipath_lastibcstat & IPATH_IBSTATE_MASK;
