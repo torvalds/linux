@@ -1204,7 +1204,7 @@ static task_t *copy_process(unsigned long clone_flags,
 			attach_pid(p, PIDTYPE_PGID, process_group(p));
 			attach_pid(p, PIDTYPE_SID, p->signal->session);
 
-			list_add_tail(&p->tasks, &init_task.tasks);
+			list_add_tail_rcu(&p->tasks, &init_task.tasks);
 			__get_cpu_var(process_counts)++;
 		}
 		attach_pid(p, PIDTYPE_PID, p->pid);
