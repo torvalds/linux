@@ -461,9 +461,19 @@ int
 pci_restore_state(struct pci_dev *dev)
 {
 	int i;
+	int val;
 
-	for (i = 0; i < 16; i++)
-		pci_write_config_dword(dev,i * 4, dev->saved_config_space[i]);
+	for (i = 0; i < 16; i++) {
+		pci_read_config_dword(dev, i * 4, &val);
+		if (val != dev->saved_config_space[i]) {
+			printk(KERN_DEBUG "PM: Writing back config space on "
+				"device %s at offset %x (was %x, writing %x)\n",
+				pci_name(dev), i,
+				val, (int)dev->saved_config_space[i]);
+			pci_write_config_dword(dev,i * 4,
+				dev->saved_config_space[i]);
+		}
+	}
 	pci_restore_msi_state(dev);
 	pci_restore_msix_state(dev);
 	return 0;
