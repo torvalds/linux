@@ -43,7 +43,7 @@ DEFINE_PER_CPU(struct kprobe *, current_kprobe) = NULL;
 DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
 
 /* insert a jmp code */
-static inline void set_jmp_op(void *from, void *to)
+static __always_inline void set_jmp_op(void *from, void *to)
 {
 	struct __arch_jmp_op {
 		char op;
@@ -57,7 +57,7 @@ static inline void set_jmp_op(void *from, void *to)
 /*
  * returns non-zero if opcodes can be boosted.
  */
-static inline int can_boost(kprobe_opcode_t opcode)
+static __always_inline int can_boost(kprobe_opcode_t opcode)
 {
 	switch (opcode & 0xf0 ) {
 	case 0x70:
@@ -88,7 +88,7 @@ static inline int can_boost(kprobe_opcode_t opcode)
 /*
  * returns non-zero if opcode modifies the interrupt flag.
  */
-static inline int is_IF_modifier(kprobe_opcode_t opcode)
+static int __kprobes is_IF_modifier(kprobe_opcode_t opcode)
 {
 	switch (opcode) {
 	case 0xfa:		/* cli */
@@ -138,7 +138,7 @@ void __kprobes arch_remove_kprobe(struct kprobe *p)
 	mutex_unlock(&kprobe_mutex);
 }
 
-static inline void save_previous_kprobe(struct kprobe_ctlblk *kcb)
+static void __kprobes save_previous_kprobe(struct kprobe_ctlblk *kcb)
 {
 	kcb->prev_kprobe.kp = kprobe_running();
 	kcb->prev_kprobe.status = kcb->kprobe_status;
@@ -146,7 +146,7 @@ static inline void save_previous_kprobe(struct kprobe_ctlblk *kcb)
 	kcb->prev_kprobe.saved_eflags = kcb->kprobe_saved_eflags;
 }
 
-static inline void restore_previous_kprobe(struct kprobe_ctlblk *kcb)
+static void __kprobes restore_previous_kprobe(struct kprobe_ctlblk *kcb)
 {
 	__get_cpu_var(current_kprobe) = kcb->prev_kprobe.kp;
 	kcb->kprobe_status = kcb->prev_kprobe.status;
@@ -154,7 +154,7 @@ static inline void restore_previous_kprobe(struct kprobe_ctlblk *kcb)
 	kcb->kprobe_saved_eflags = kcb->prev_kprobe.saved_eflags;
 }
 
-static inline void set_current_kprobe(struct kprobe *p, struct pt_regs *regs,
+static void __kprobes set_current_kprobe(struct kprobe *p, struct pt_regs *regs,
 				struct kprobe_ctlblk *kcb)
 {
 	__get_cpu_var(current_kprobe) = p;
@@ -164,7 +164,7 @@ static inline void set_current_kprobe(struct kprobe *p, struct pt_regs *regs,
 		kcb->kprobe_saved_eflags &= ~IF_MASK;
 }
 
-static inline void prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
+static void __kprobes prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
 {
 	regs->eflags |= TF_MASK;
 	regs->eflags &= ~IF_MASK;
@@ -507,7 +507,7 @@ no_change:
  * Interrupts are disabled on entry as trap1 is an interrupt gate and they
  * remain disabled thoroughout this function.
  */
-static inline int post_kprobe_handler(struct pt_regs *regs)
+static int __kprobes post_kprobe_handler(struct pt_regs *regs)
 {
 	struct kprobe *cur = kprobe_running();
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
@@ -543,7 +543,7 @@ out:
 	return 1;
 }
 
-static inline int kprobe_fault_handler(struct pt_regs *regs, int trapnr)
+static int __kprobes kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 {
 	struct kprobe *cur = kprobe_running();
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
