@@ -720,22 +720,26 @@ generic_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 	ssize_t ret;
 
 	ret = move_from_pipe(pipe, out, ppos, len, flags, pipe_to_file);
-
-	/*
-	 * If file or inode is SYNC and we actually wrote some data, sync it.
-	 */
-	if (unlikely((out->f_flags & O_SYNC) || IS_SYNC(mapping->host))
-	    && ret > 0) {
+	if (ret > 0) {
 		struct inode *inode = mapping->host;
-		int err;
 
-		mutex_lock(&inode->i_mutex);
-		err = generic_osync_inode(mapping->host, mapping,
-					  OSYNC_METADATA|OSYNC_DATA);
-		mutex_unlock(&inode->i_mutex);
+		*ppos += ret;
 
-		if (err)
-			ret = err;
+		/*
+		 * If file or inode is SYNC and we actually wrote some data,
+		 * sync it.
+		 */
+		if (unlikely((out->f_flags & O_SYNC) || IS_SYNC(inode))) {
+			int err;
+
+			mutex_lock(&inode->i_mutex);
+			err = generic_osync_inode(inode, mapping,
+						  OSYNC_METADATA|OSYNC_DATA);
+			mutex_unlock(&inode->i_mutex);
+
+			if (err)
+				ret = err;
+		}
 	}
 
 	return ret;
@@ -937,6 +941,7 @@ static long do_splice(struct file *in, loff_t __user *off_in,
 {
 	struct pipe_inode_info *pipe;
 	loff_t offset, *off;
+	long ret;
 
 	pipe = in->f_dentry->d_inode->i_pipe;
 	if (pipe) {
@@ -951,7 +956,12 @@ static long do_splice(struct file *in, loff_t __user *off_in,
 		} else
 			off = &out->f_pos;
 
-		return do_splice_from(pipe, out, off, len, flags);
+		ret = do_splice_from(pipe, out, off, len, flags);
+
+		if (off_out && copy_to_user(off_out, off, sizeof(loff_t)))
+			ret = -EFAULT;
+
+		return ret;
 	}
 
 	pipe = out->f_dentry->d_inode->i_pipe;
@@ -967,7 +977,12 @@ static long do_splice(struct file *in, loff_t __user *off_in,
 		} else
 			off = &in->f_pos;
 
-		return do_splice_to(in, off, pipe, len, flags);
+		ret = do_splice_to(in, off, pipe, len, flags);
+
+		if (off_in && copy_to_user(off_in, off, sizeof(loff_t)))
+			ret = -EFAULT;
+
+		return ret;
 	}
 
 	return -EINVAL;
