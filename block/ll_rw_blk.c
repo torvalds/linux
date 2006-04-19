@@ -1554,7 +1554,7 @@ void blk_plug_device(request_queue_t *q)
 	 * don't plug a stopped queue, it must be paired with blk_start_queue()
 	 * which will restart the queueing
 	 */
-	if (test_bit(QUEUE_FLAG_STOPPED, &q->queue_flags))
+	if (blk_queue_stopped(q))
 		return;
 
 	if (!test_and_set_bit(QUEUE_FLAG_PLUGGED, &q->queue_flags)) {
@@ -1587,7 +1587,7 @@ EXPORT_SYMBOL(blk_remove_plug);
  */
 void __generic_unplug_device(request_queue_t *q)
 {
-	if (unlikely(test_bit(QUEUE_FLAG_STOPPED, &q->queue_flags)))
+	if (unlikely(blk_queue_stopped(q)))
 		return;
 
 	if (!blk_remove_plug(q))
