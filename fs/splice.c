@@ -50,7 +50,8 @@ static int page_cache_pipe_buf_steal(struct pipe_inode_info *info,
 	struct page *page = buf->page;
 	struct address_space *mapping = page_mapping(page);
 
-	WARN_ON(!PageLocked(page));
+	lock_page(page);
+
 	WARN_ON(!PageUptodate(page));
 
 	/*
@@ -65,8 +66,10 @@ static int page_cache_pipe_buf_steal(struct pipe_inode_info *info,
 	if (PagePrivate(page))
 		try_to_release_page(page, mapping_gfp_mask(mapping));
 
-	if (!remove_mapping(mapping, page))
+	if (!remove_mapping(mapping, page)) {
+		unlock_page(page);
 		return 1;
+	}
 
 	buf->flags |= PIPE_BUF_FLAG_STOLEN | PIPE_BUF_FLAG_LRU;
 	return 0;
@@ -507,14 +510,12 @@ static int pipe_to_file(struct pipe_inode_info *info, struct pipe_buffer *buf,
 	if (sd->flags & SPLICE_F_MOVE) {
 		/*
 		 * If steal succeeds, buf->page is now pruned from the vm
-		 * side (LRU and page cache) and we can reuse it.
+		 * side (LRU and page cache) and we can reuse it. The page
+		 * will also be looked on successful return.
 		 */
 		if (buf->ops->steal(info, buf))
 			goto find_page;
 
-		/*
-		 * this will also set the page locked
-		 */
 		page = buf->page;
 		if (add_to_page_cache(page, mapping, index, gfp_mask))
 			goto find_page;
@@ -523,15 +524,27 @@ static int pipe_to_file(struct pipe_inode_info *info, struct pipe_buffer *buf,
 			lru_cache_add(page);
 	} else {
 find_page:
-		ret = -ENOMEM;
-		page = find_or_create_page(mapping, index, gfp_mask);
-		if (!page)
-			goto out_nomem;
+		page = find_lock_page(mapping, index);
+		if (!page) {
+			ret = -ENOMEM;
+			page = page_cache_alloc_cold(mapping);
+			if (unlikely(!page))
+				goto out_nomem;
+
+			/*
+			 * This will also lock the page
+			 */
+			ret = add_to_page_cache_lru(page, mapping, index,
+						    gfp_mask);
+			if (unlikely(ret))
+				goto out;
+		}
 
 		/*
-		 * If the page is uptodate, it is also locked. If it isn't
-		 * uptodate, we can mark it uptodate if we are filling the
-		 * full page. Otherwise we need to read it in first...
+		 * We get here with the page locked. If the page is also
+		 * uptodate, we don't need to do more. If it isn't, we
+		 * may need to bring it in if we are not going to overwrite
+		 * the full page.
 		 */
 		if (!PageUptodate(page)) {
 			if (sd->len < PAGE_CACHE_SIZE) {
@@ -553,10 +566,8 @@ find_page:
 					ret = -EIO;
 					goto out;
 				}
-			} else {
-				WARN_ON(!PageLocked(page));
+			} else
 				SetPageUptodate(page);
-			}
 		}
 	}
 
@@ -585,10 +596,10 @@ find_page:
 	mark_page_accessed(page);
 	balance_dirty_pages_ratelimited(mapping);
 out:
-	if (!(buf->flags & PIPE_BUF_FLAG_STOLEN)) {
+	if (!(buf->flags & PIPE_BUF_FLAG_STOLEN))
 		page_cache_release(page);
-		unlock_page(page);
-	}
+
+	unlock_page(page);
 out_nomem:
 	buf->ops->unmap(info, buf);
 	return ret;
