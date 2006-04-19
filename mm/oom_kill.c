@@ -254,17 +254,24 @@ static void __oom_kill_task(task_t *p, const char *message)
 	force_sig(SIGKILL, p);
 }
 
-static struct mm_struct *oom_kill_task(task_t *p, const char *message)
+static int oom_kill_task(task_t *p, const char *message)
 {
-	struct mm_struct *mm = get_task_mm(p);
+	struct mm_struct *mm;
 	task_t * g, * q;
 
-	if (!mm)
-		return NULL;
-	if (mm == &init_mm) {
-		mmput(mm);
-		return NULL;
-	}
+	mm = p->mm;
+
+	/* WARNING: mm may not be dereferenced since we did not obtain its
+	 * value from get_task_mm(p).  This is OK since all we need to do is
+	 * compare mm to q->mm below.
+	 *
+	 * Furthermore, even if mm contains a non-NULL value, p->mm may
+	 * change to NULL at any time since we do not hold task_lock(p).
+	 * However, this is of no concern to us.
+	 */
+
+	if (mm == NULL || mm == &init_mm)
+		return 1;
 
 	__oom_kill_task(p, message);
 	/*
@@ -276,13 +283,12 @@ static struct mm_struct *oom_kill_task(task_t *p, const char *message)
 			__oom_kill_task(q, message);
 	while_each_thread(g, q);
 
-	return mm;
+	return 0;
 }
 
-static struct mm_struct *oom_kill_process(struct task_struct *p,
-				unsigned long points, const char *message)
+static int oom_kill_process(struct task_struct *p, unsigned long points,
+		const char *message)
 {
- 	struct mm_struct *mm;
 	struct task_struct *c;
 	struct list_head *tsk;
 
@@ -293,9 +299,8 @@ static struct mm_struct *oom_kill_process(struct task_struct *p,
 		c = list_entry(tsk, struct task_struct, sibling);
 		if (c->mm == p->mm)
 			continue;
-		mm = oom_kill_task(c, message);
-		if (mm)
-			return mm;
+		if (!oom_kill_task(c, message))
+			return 0;
 	}
 	return oom_kill_task(p, message);
 }
@@ -310,7 +315,6 @@ static struct mm_struct *oom_kill_process(struct task_struct *p,
  */
 void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask, int order)
 {
-	struct mm_struct *mm = NULL;
 	task_t *p;
 	unsigned long points = 0;
 
@@ -330,12 +334,12 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask, int order)
 	 */
 	switch (constrained_alloc(zonelist, gfp_mask)) {
 	case CONSTRAINT_MEMORY_POLICY:
-		mm = oom_kill_process(current, points,
+		oom_kill_process(current, points,
 				"No available memory (MPOL_BIND)");
 		break;
 
 	case CONSTRAINT_CPUSET:
-		mm = oom_kill_process(current, points,
+		oom_kill_process(current, points,
 				"No available memory in cpuset");
 		break;
 
@@ -357,8 +361,7 @@ retry:
 			panic("Out of memory and no killable processes...\n");
 		}
 
-		mm = oom_kill_process(p, points, "Out of memory");
-		if (!mm)
+		if (oom_kill_process(p, points, "Out of memory"))
 			goto retry;
 
 		break;
@@ -367,8 +370,6 @@ retry:
 out:
 	read_unlock(&tasklist_lock);
 	cpuset_unlock();
-	if (mm)
-		mmput(mm);
 
 	/*
 	 * Give "p" a good chance of killing itself before we
