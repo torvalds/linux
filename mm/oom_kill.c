@@ -46,15 +46,25 @@
 unsigned long badness(struct task_struct *p, unsigned long uptime)
 {
 	unsigned long points, cpu_time, run_time, s;
-	struct list_head *tsk;
+	struct mm_struct *mm;
+	struct task_struct *child;
 
-	if (!p->mm)
+	task_lock(p);
+	mm = p->mm;
+	if (!mm) {
+		task_unlock(p);
 		return 0;
+	}
 
 	/*
 	 * The memory size of the process is the basis for the badness.
 	 */
-	points = p->mm->total_vm;
+	points = mm->total_vm;
+
+	/*
+	 * After this unlock we can no longer dereference local variable `mm'
+	 */
+	task_unlock(p);
 
 	/*
 	 * Processes which fork a lot of child processes are likely
@@ -64,11 +74,11 @@ unsigned long badness(struct task_struct *p, unsigned long uptime)
 	 * child is eating the vast majority of memory, adding only half
 	 * to the parents will make the child our kill candidate of choice.
 	 */
-	list_for_each(tsk, &p->children) {
-		struct task_struct *chld;
-		chld = list_entry(tsk, struct task_struct, sibling);
-		if (chld->mm != p->mm && chld->mm)
-			points += chld->mm->total_vm/2 + 1;
+	list_for_each_entry(child, &p->children, sibling) {
+		task_lock(child);
+		if (child->mm != mm && child->mm)
+			points += child->mm->total_vm/2 + 1;
+		task_unlock(child);
 	}
 
 	/*
