@@ -411,6 +411,7 @@ AX.25 NETWORK LAYER
 P:	Ralf Baechle
 M:	ralf@linux-mips.org
 L:	linux-hams@vger.kernel.org
+W:	http://www.linux-ax25.org/
 S:	Maintained
 
 BAYCOM/HDLCDRV DRIVERS FOR AX.25
@@ -1869,6 +1870,7 @@ NETROM NETWORK LAYER
 P:	Ralf Baechle
 M:	ralf@linux-mips.org
 L:	linux-hams@vger.kernel.org
+W:	http://www.linux-ax25.org/
 S:	Maintained
 
 NETWORK BLOCK DEVICE
@@ -2260,6 +2262,7 @@ ROSE NETWORK LAYER
 P:	Ralf Baechle
 M:	ralf@linux-mips.org
 L:	linux-hams@vger.kernel.org
+W:	http://www.linux-ax25.org/
 S:	Maintained
 
 RISCOM8 DRIVER
