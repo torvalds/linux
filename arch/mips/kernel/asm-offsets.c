@@ -69,6 +69,9 @@ void output_ptreg_defines(void)
 	offset("#define PT_BVADDR ", struct pt_regs, cp0_badvaddr);
 	offset("#define PT_STATUS ", struct pt_regs, cp0_status);
 	offset("#define PT_CAUSE  ", struct pt_regs, cp0_cause);
+#ifdef CONFIG_MIPS_MT_SMTC
+	offset("#define PT_TCSTATUS  ", struct pt_regs, cp0_tcstatus);
+#endif /* CONFIG_MIPS_MT_SMTC */
 	size("#define PT_SIZE   ", struct pt_regs);
 	linefeed;
 }

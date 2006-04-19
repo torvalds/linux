@@ -1,8 +1,4 @@
 /*
- * Copyright (C) 2004, 2005 MIPS Technologies, Inc.  All rights reserved.
- *
- *  Elizabeth Clarke (beth@mips.com)
- *
  *  This program is free software; you can distribute it and/or modify it
  *  under the terms of the GNU General Public License (Version 2) as
  *  published by the Free Software Foundation.
@@ -16,6 +12,10 @@
  *  with this program; if not, write to the Free Software Foundation, Inc.,
  *  59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
  *
+ * Copyright (C) 2004, 05, 06 MIPS Technologies, Inc.
+ *    Elizabeth Clarke (beth@mips.com)
+ *    Ralf Baechle (ralf@linux-mips.org)
+ * Copyright (C) 2006 Ralf Baechle (ralf@linux-mips.org)
  */
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -24,6 +24,7 @@
 #include <linux/compiler.h>
 
 #include <asm/atomic.h>
+#include <asm/cacheflush.h>
 #include <asm/cpu.h>
 #include <asm/processor.h>
 #include <asm/system.h>
@@ -33,8 +34,8 @@
 #include <asm/time.h>
 #include <asm/mipsregs.h>
 #include <asm/mipsmtregs.h>
-#include <asm/cacheflush.h>
-#include <asm/mips-boards/maltaint.h>
+#include <asm/mips_mt.h>
+#include <asm/mips-boards/maltaint.h>  /* This is f*cking wrong */
 
 #define MIPS_CPU_IPI_RESCHED_IRQ 0
 #define MIPS_CPU_IPI_CALL_IRQ 1
@@ -66,6 +67,7 @@ void __init sanitize_tlb_entries(void)
 	if (!cpu_has_mipsmt)
 		return;
 
+	/* Enable VPC */
 	set_c0_mvpcontrol(MVPCONTROL_VPC);
 
 	back_to_back_c0_hazard();
@@ -106,12 +108,12 @@ void __init sanitize_tlb_entries(void)
 
 static void ipi_resched_dispatch (struct pt_regs *regs)
 {
-	do_IRQ(MIPS_CPU_IPI_RESCHED_IRQ, regs);
+	do_IRQ(MIPSCPU_INT_BASE + MIPS_CPU_IPI_RESCHED_IRQ, regs);
 }
 
 static void ipi_call_dispatch (struct pt_regs *regs)
 {
-	do_IRQ(MIPS_CPU_IPI_CALL_IRQ, regs);
+	do_IRQ(MIPSCPU_INT_BASE + MIPS_CPU_IPI_CALL_IRQ, regs);
 }
 
 irqreturn_t ipi_resched_interrupt(int irq, void *dev_id, struct pt_regs *regs)
@@ -148,12 +150,19 @@ void plat_smp_setup(void)
 	unsigned long val;
 	int i, num;
 
+#ifdef CONFIG_MIPS_MT_FPAFF
+	/* If we have an FPU, enroll ourselves in the FPU-full mask */
+	if (cpu_has_fpu)
+		cpu_set(0, mt_fpu_cpumask);
+#endif /* CONFIG_MIPS_MT_FPAFF */
 	if (!cpu_has_mipsmt)
 		return;
 
 	/* disable MT so we can configure */
 	dvpe();
 	dmt();
+
+	mips_mt_set_cpuoptions();
 
 	/* Put MVPE's into 'configuration state' */
 	set_c0_mvpcontrol(MVPCONTROL_VPC);
@@ -189,10 +198,12 @@ void plat_smp_setup(void)
 
 			if (i != 0) {
 				write_vpe_c0_status((read_c0_status() & ~(ST0_IM | ST0_IE | ST0_KSU)) | ST0_CU0);
-				write_vpe_c0_cause(read_vpe_c0_cause() & ~CAUSEF_IP);
 
 				/* set config to be the same as vpe0, particularly kseg0 coherency alg */
 				write_vpe_c0_config( read_c0_config());
+
+				/* make sure there are no software interrupts pending */
+				write_vpe_c0_cause(read_vpe_c0_cause() & ~(C_SW1|C_SW0));
 
 				/* Propagate Config7 */
 				write_vpe_c0_config7(read_c0_config7());
@@ -233,16 +244,16 @@ void plat_smp_setup(void)
 	/* We'll wait until starting the secondaries before starting MVPE */
 
 	printk(KERN_INFO "Detected %i available secondary CPU(s)\n", num);
+}
 
+void __init plat_prepare_cpus(unsigned int max_cpus)
+{
 	/* set up ipi interrupts */
 	if (cpu_has_vint) {
 		set_vi_handler (MIPS_CPU_IPI_RESCHED_IRQ, ipi_resched_dispatch);
 		set_vi_handler (MIPS_CPU_IPI_CALL_IRQ, ipi_call_dispatch);
 	}
-}
 
-void __init plat_prepare_cpus(unsigned int max_cpus)
-{
 	cpu_ipi_resched_irq = MIPSCPU_INT_BASE + MIPS_CPU_IPI_RESCHED_IRQ;
 	cpu_ipi_call_irq = MIPSCPU_INT_BASE + MIPS_CPU_IPI_CALL_IRQ;
 
@@ -287,7 +298,8 @@ void prom_boot_secondary(int cpu, struct task_struct *idle)
 	/* global pointer */
 	write_tc_gpr_gp((unsigned long)gp);
 
-	flush_icache_range((unsigned long)gp, (unsigned long)(gp + 1));
+	flush_icache_range((unsigned long)gp,
+	                   (unsigned long)(gp + sizeof(struct thread_info)));
 
 	/* finally out of configuration and into chaos */
 	clear_c0_mvpcontrol(MVPCONTROL_VPC);
@@ -304,6 +316,12 @@ void prom_init_secondary(void)
 void prom_smp_finish(void)
 {
 	write_c0_compare(read_c0_count() + (8* mips_hpt_frequency/HZ));
+
+#ifdef CONFIG_MIPS_MT_FPAFF
+	/* If we have an FPU, enroll ourselves in the FPU-full mask */
+	if (cpu_has_fpu)
+		cpu_set(smp_processor_id(), mt_fpu_cpumask);
+#endif /* CONFIG_MIPS_MT_FPAFF */
 
 	local_irq_enable();
 }

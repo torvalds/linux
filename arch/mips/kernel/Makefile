@@ -34,8 +34,11 @@ obj-$(CONFIG_CPU_R6000)		+= r6000_fpu.o r4k_switch.o
 
 obj-$(CONFIG_SMP)		+= smp.o
 
-obj-$(CONFIG_MIPS_MT_SMP)	+= smp_mt.o
+obj-$(CONFIG_MIPS_MT)		+= mips-mt.o
+obj-$(CONFIG_MIPS_MT_SMTC)	+= smtc.o smtc-asm.o smtc-proc.o
+obj-$(CONFIG_MIPS_MT_SMP)	+= smp-mt.o
 
+obj-$(CONFIG_MIPS_APSP_KSPD)	+= kspd.o
 obj-$(CONFIG_MIPS_VPE_LOADER)	+= vpe.o
 obj-$(CONFIG_MIPS_VPE_APSP_API)	+= rtlx.o
 

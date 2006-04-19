@@ -19,8 +19,6 @@
 
 DEFINE_SPINLOCK(pciasic_lock);
 
-extern asmlinkage void sni_rm200_pci_handle_int(void);
-
 static void enable_pciasic_irq(unsigned int irq)
 {
 	unsigned int mask = 1 << (irq - PCIMT_IRQ_INT2);
@@ -71,20 +69,20 @@ static struct hw_interrupt_type pciasic_irq_type = {
  * hwint0 should deal with MP agent, ASIC PCI, EISA NMI and debug
  * button interrupts.  Later ...
  */
-void pciasic_hwint0(struct pt_regs *regs)
+static void pciasic_hwint0(struct pt_regs *regs)
 {
 	panic("Received int0 but no handler yet ...");
 }
 
 /* This interrupt was used for the com1 console on the first prototypes.  */
-void pciasic_hwint2(struct pt_regs *regs)
+static void pciasic_hwint2(struct pt_regs *regs)
 {
 	/* I think this shouldn't happen on production machines.  */
 	panic("hwint2 and no handler yet");
 }
 
 /* hwint5 is the r4k count / compare interrupt  */
-void pciasic_hwint5(struct pt_regs *regs)
+static void pciasic_hwint5(struct pt_regs *regs)
 {
 	panic("hwint5 and no handler yet");
 }
@@ -105,7 +103,7 @@ static unsigned int ls1bit8(unsigned int x)
  *
  * The EISA_INT bit in CSITPEND is high active, all others are low active.
  */
-void pciasic_hwint1(struct pt_regs *regs)
+static void pciasic_hwint1(struct pt_regs *regs)
 {
 	u8 pend = *(volatile char *)PCIMT_CSITPEND;
 	unsigned long flags;
@@ -135,7 +133,7 @@ void pciasic_hwint1(struct pt_regs *regs)
 /*
  * hwint 3 should deal with the PCI A - D interrupts,
  */
-void pciasic_hwint3(struct pt_regs *regs)
+static void pciasic_hwint3(struct pt_regs *regs)
 {
 	u8 pend = *(volatile char *)PCIMT_CSITPEND;
 	int irq;
@@ -150,11 +148,32 @@ void pciasic_hwint3(struct pt_regs *regs)
 /*
  * hwint 4 is used for only the onboard PCnet 32.
  */
-void pciasic_hwint4(struct pt_regs *regs)
+static void pciasic_hwint4(struct pt_regs *regs)
 {
 	clear_c0_status(IE_IRQ4);
 	do_IRQ(PCIMT_IRQ_ETHERNET, regs);
 	set_c0_status(IE_IRQ4);
+}
+
+asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+{
+	unsigned int pending = read_c0_status() & read_c0_cause();
+	static unsigned char led_cache;
+
+	*(volatile unsigned char *) PCIMT_CSLED = ++led_cache;
+
+	if (pending & 0x0800)
+		pciasic_hwint1(regs);
+	else if (pending & 0x4000)
+		pciasic_hwint4(regs);
+	else if (pending & 0x2000)
+		pciasic_hwint3(regs);
+	else if (pending & 0x1000)
+		pciasic_hwint2(regs);
+	else if (pending & 0x8000)
+		pciasic_hwint5(regs);
+	else if (pending & 0x0400)
+		pciasic_hwint0(regs);
 }
 
 void __init init_pciasic(void)
@@ -175,8 +194,6 @@ void __init init_pciasic(void)
 void __init arch_init_irq(void)
 {
 	int i;
-
-	set_except_vector(0, sni_rm200_pci_handle_int);
 
 	init_i8259_irqs();			/* Integrated i8259  */
 	init_pciasic();

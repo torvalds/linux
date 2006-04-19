@@ -37,7 +37,6 @@ static char lc1msk_to_irqnr[256];
 static char lc2msk_to_irqnr[256];
 static char lc3msk_to_irqnr[256];
 
-extern asmlinkage void indyIRQ(void);
 extern int ip22_eisa_init(void);
 
 static void enable_local0_irq(unsigned int irq)
@@ -224,7 +223,7 @@ static struct hw_interrupt_type ip22_local3_irq_type = {
 	.end		= end_local3_irq,
 };
 
-void indy_local0_irqdispatch(struct pt_regs *regs)
+static void indy_local0_irqdispatch(struct pt_regs *regs)
 {
 	u8 mask = sgint->istat0 & sgint->imask0;
 	u8 mask2;
@@ -242,7 +241,7 @@ void indy_local0_irqdispatch(struct pt_regs *regs)
 	return;
 }
 
-void indy_local1_irqdispatch(struct pt_regs *regs)
+static void indy_local1_irqdispatch(struct pt_regs *regs)
 {
 	u8 mask = sgint->istat1 & sgint->imask1;
 	u8 mask2;
@@ -262,7 +261,7 @@ void indy_local1_irqdispatch(struct pt_regs *regs)
 
 extern void ip22_be_interrupt(int irq, struct pt_regs *regs);
 
-void indy_buserror_irq(struct pt_regs *regs)
+static void indy_buserror_irq(struct pt_regs *regs)
 {
 	int irq = SGI_BUSERR_IRQ;
 
@@ -306,6 +305,56 @@ static struct irqaction map1_cascade = {
 #else
 #define SGI_INTERRUPTS	SGINT_LOCAL3
 #endif
+
+extern void indy_r4k_timer_interrupt(struct pt_regs *regs);
+extern void indy_8254timer_irq(struct pt_regs *regs);
+
+/*
+ * IRQs on the INDY look basically (barring software IRQs which we don't use
+ * at all) like:
+ *
+ *	MIPS IRQ	Source
+ *      --------        ------
+ *             0	Software (ignored)
+ *             1        Software (ignored)
+ *             2        Local IRQ level zero
+ *             3        Local IRQ level one
+ *             4        8254 Timer zero
+ *             5        8254 Timer one
+ *             6        Bus Error
+ *             7        R4k timer (what we use)
+ *
+ * We handle the IRQ according to _our_ priority which is:
+ *
+ * Highest ----     R4k Timer
+ *                  Local IRQ zero
+ *                  Local IRQ one
+ *                  Bus Error
+ *                  8254 Timer zero
+ * Lowest  ----     8254 Timer one
+ *
+ * then we just return, if multiple IRQs are pending then we will just take
+ * another exception, big deal.
+ */
+
+asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+{
+	unsigned int pending = read_c0_cause();
+
+	/*
+	 * First we check for r4k counter/timer IRQ.
+	 */
+	if (pending & CAUSEF_IP7)
+		indy_r4k_timer_interrupt(regs);
+	else if (pending & CAUSEF_IP2)
+		indy_local0_irqdispatch(regs);
+	else if (pending & CAUSEF_IP3)
+		indy_local1_irqdispatch(regs);
+	else if (pending & CAUSEF_IP6)
+		indy_buserror_irq(regs);
+	else if (pending & (CAUSEF_IP4 | CAUSEF_IP5))
+		indy_8254timer_irq(regs);
+}
 
 extern void mips_cpu_irq_init(unsigned int irq_base);
 
@@ -368,8 +417,6 @@ void __init arch_init_irq(void)
 	sgint->imask1 = 0;
 	sgint->cmeimask0 = 0;
 	sgint->cmeimask1 = 0;
-
-	set_except_vector(0, indyIRQ);
 
 	/* init CPU irqs */
 	mips_cpu_irq_init(SGINT_CPU);

@@ -130,7 +130,7 @@ static int ms1bit(unsigned long x)
  * Kanoj 05.13.00
  */
 
-void ip27_do_irq_mask0(struct pt_regs *regs)
+static void ip27_do_irq_mask0(struct pt_regs *regs)
 {
 	int irq, swlevel;
 	hubreg_t pend0, mask0;
@@ -171,7 +171,7 @@ void ip27_do_irq_mask0(struct pt_regs *regs)
 	LOCAL_HUB_L(PI_INT_PEND0);
 }
 
-void ip27_do_irq_mask1(struct pt_regs *regs)
+static void ip27_do_irq_mask1(struct pt_regs *regs)
 {
 	int irq, swlevel;
 	hubreg_t pend1, mask1;
@@ -196,12 +196,12 @@ void ip27_do_irq_mask1(struct pt_regs *regs)
 	LOCAL_HUB_L(PI_INT_PEND1);
 }
 
-void ip27_prof_timer(struct pt_regs *regs)
+static void ip27_prof_timer(struct pt_regs *regs)
 {
 	panic("CPU %d got a profiling interrupt", smp_processor_id());
 }
 
-void ip27_hub_error(struct pt_regs *regs)
+static void ip27_hub_error(struct pt_regs *regs)
 {
 	panic("CPU %d got a hub error interrupt", smp_processor_id());
 }
@@ -421,9 +421,26 @@ int __devinit request_bridge_irq(struct bridge_controller *bc)
 	return irq;
 }
 
+extern void ip27_rt_timer_interrupt(struct pt_regs *regs);
+
+asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+{
+	unsigned long pending = read_c0_cause() & read_c0_status();
+
+	if (pending & CAUSEF_IP4)
+		ip27_rt_timer_interrupt(regs);
+	else if (pending & CAUSEF_IP2)	/* PI_INT_PEND_0 or CC_PEND_{A|B} */
+		ip27_do_irq_mask0(regs);
+	else if (pending & CAUSEF_IP3)	/* PI_INT_PEND_1 */
+		ip27_do_irq_mask1(regs);
+	else if (pending & CAUSEF_IP5)
+		ip27_prof_timer(regs);
+	else if (pending & CAUSEF_IP6)
+		ip27_hub_error(regs);
+}
+
 void __init arch_init_irq(void)
 {
-	set_except_vector(0, ip27_irq);
 }
 
 void install_ipi(void)

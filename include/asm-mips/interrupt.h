@@ -19,7 +19,12 @@ __asm__ (
 	"	.set	push						\n"
 	"	.set	reorder						\n"
 	"	.set	noat						\n"
-#ifdef CONFIG_CPU_MIPSR2
+#ifdef CONFIG_MIPS_MT_SMTC
+	"	mfc0	$1, $2, 1	# SMTC - clear TCStatus.IXMT	\n"
+	"	ori	$1, 0x400					\n"
+	"	xori	$1, 0x400					\n"
+	"	mtc0	$1, $2, 1					\n"
+#elif defined(CONFIG_CPU_MIPSR2)
 	"	ei							\n"
 #else
 	"	mfc0	$1,$12						\n"
@@ -62,7 +67,12 @@ __asm__ (
 	"	.macro	local_irq_disable\n"
 	"	.set	push						\n"
 	"	.set	noat						\n"
-#ifdef CONFIG_CPU_MIPSR2
+#ifdef CONFIG_MIPS_MT_SMTC
+	"	mfc0	$1, $2, 1					\n"
+	"	ori	$1, 0x400					\n"
+	"	.set	noreorder					\n"
+	"	mtc0	$1, $2, 1					\n"
+#elif defined(CONFIG_CPU_MIPSR2)
 	"	di							\n"
 #else
 	"	mfc0	$1,$12						\n"
@@ -88,7 +98,11 @@ __asm__ (
 	"	.macro	local_save_flags flags				\n"
 	"	.set	push						\n"
 	"	.set	reorder						\n"
+#ifdef CONFIG_MIPS_MT_SMTC
+	"	mfc0	\\flags, $2, 1					\n"
+#else
 	"	mfc0	\\flags, $12					\n"
+#endif
 	"	.set	pop						\n"
 	"	.endm							\n");
 
@@ -102,7 +116,13 @@ __asm__ (
 	"	.set	push						\n"
 	"	.set	reorder						\n"
 	"	.set	noat						\n"
-#ifdef CONFIG_CPU_MIPSR2
+#ifdef CONFIG_MIPS_MT_SMTC
+	"	mfc0	\\result, $2, 1					\n"
+	"	ori	$1, \\result, 0x400				\n"
+	"	.set	noreorder					\n"
+	"	mtc0	$1, $2, 1					\n"
+	"	andi	\\result, \\result, 0x400			\n"
+#elif defined(CONFIG_CPU_MIPSR2)
 	"	di	\\result					\n"
 	"	andi	\\result, 1					\n"
 #else
@@ -128,7 +148,14 @@ __asm__ (
 	"	.set	push						\n"
 	"	.set	noreorder					\n"
 	"	.set	noat						\n"
-#if defined(CONFIG_CPU_MIPSR2) && defined(CONFIG_IRQ_CPU)
+#ifdef CONFIG_MIPS_MT_SMTC
+	"mfc0	$1, $2, 1						\n"
+	"andi	\\flags, 0x400						\n"
+	"ori	$1, 0x400						\n"
+	"xori	$1, 0x400						\n"
+	"or	\\flags, $1						\n"
+	"mtc0	\\flags, $2, 1						\n"
+#elif defined(CONFIG_CPU_MIPSR2) && defined(CONFIG_IRQ_CPU)
 	/*
 	 * Slow, but doesn't suffer from a relativly unlikely race
 	 * condition we're having since days 1.
@@ -167,11 +194,29 @@ do {									\
 		: "memory");						\
 } while(0)
 
-#define irqs_disabled()							\
-({									\
-	unsigned long flags;						\
-	local_save_flags(flags);					\
-	!(flags & 1);							\
-})
+static inline int irqs_disabled(void)
+{
+#ifdef CONFIG_MIPS_MT_SMTC
+	/*
+	 * SMTC model uses TCStatus.IXMT to disable interrupts for a thread/CPU
+	 */
+	unsigned long __result;
+
+	__asm__ __volatile__(
+	"	.set	noreorder					\n"
+	"	mfc0	%0, $2, 1					\n"
+	"	andi	%0, 0x400					\n"
+	"	slt	%0, $0, %0					\n"
+	"	.set	reorder						\n"
+	: "=r" (__result));
+
+	return __result;
+#else
+	unsigned long flags;
+	local_save_flags(flags);
+
+	return !(flags & 1);
+#endif
+}
 
 #endif /* _ASM_INTERRUPT_H */
