@@ -1218,7 +1218,7 @@ out:
 	return status;
 }
 
-static void nfs4_intent_set_file(struct nameidata *nd, struct dentry *dentry, struct nfs4_state *state)
+static int nfs4_intent_set_file(struct nameidata *nd, struct dentry *dentry, struct nfs4_state *state)
 {
 	struct file *filp;
 
@@ -1227,8 +1227,10 @@ static void nfs4_intent_set_file(struct nameidata *nd, struct dentry *dentry, st
 		struct nfs_open_context *ctx;
 		ctx = (struct nfs_open_context *)filp->private_data;
 		ctx->state = state;
-	} else
-		nfs4_close_state(state, nd->intent.open.flags);
+		return 0;
+	}
+	nfs4_close_state(state, nd->intent.open.flags);
+	return PTR_ERR(filp);
 }
 
 struct dentry *
@@ -1835,7 +1837,7 @@ nfs4_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 			nfs_setattr_update_inode(state->inode, sattr);
 	}
 	if (status == 0 && nd != NULL && (nd->flags & LOOKUP_OPEN))
-		nfs4_intent_set_file(nd, dentry, state);
+		status = nfs4_intent_set_file(nd, dentry, state);
 	else
 		nfs4_close_state(state, flags);
 out:

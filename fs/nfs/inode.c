@@ -700,11 +700,8 @@ static int nfs_show_stats(struct seq_file *m, struct vfsmount *mnt)
 	/*
 	 * Display superblock I/O counters
 	 */
-	for (cpu = 0; cpu < NR_CPUS; cpu++) {
+	for_each_possible_cpu(cpu) {
 		struct nfs_iostats *stats;
-
-		if (!cpu_possible(cpu))
-			continue;
 
 		preempt_disable();
 		stats = per_cpu_ptr(nfss->io_stats, cpu);
