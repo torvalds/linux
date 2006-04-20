@@ -158,6 +158,7 @@ int gfs2_glock_put(struct gfs2_glock *gl)
 	if (kref_put(&gl->gl_ref, kill_glock)) {
 		list_del_init(&gl->gl_list);
 		write_unlock(&bucket->hb_lock);
+		BUG_ON(spin_is_locked(&gl->gl_spin));
 		glock_free(gl);
 		rv = 1;
 		goto out;
@@ -353,13 +354,14 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, uint64_t number,
  *
  */
 
-void gfs2_holder_init(struct gfs2_glock *gl, unsigned int state, int flags,
+void gfs2_holder_init(struct gfs2_glock *gl, unsigned int state, unsigned flags,
 		      struct gfs2_holder *gh)
 {
+	flags |= GL_NEVER_RECURSE;
 	INIT_LIST_HEAD(&gh->gh_list);
 	gh->gh_gl = gl;
 	gh->gh_ip = (unsigned long)__builtin_return_address(0);
-	gh->gh_owner = (flags & GL_NEVER_RECURSE) ? NULL : current;
+	gh->gh_owner = current;
 	gh->gh_state = state;
 	gh->gh_flags = flags;
 	gh->gh_error = 0;
@@ -382,10 +384,10 @@ void gfs2_holder_init(struct gfs2_glock *gl, unsigned int state, int flags,
  *
  */
 
-void gfs2_holder_reinit(unsigned int state, int flags, struct gfs2_holder *gh)
+void gfs2_holder_reinit(unsigned int state, unsigned flags, struct gfs2_holder *gh)
 {
 	gh->gh_state = state;
-	gh->gh_flags = flags;
+	gh->gh_flags = flags | GL_NEVER_RECURSE;
 	if (gh->gh_state == LM_ST_EXCLUSIVE)
 		gh->gh_flags |= GL_LOCAL_EXCL;
 
@@ -461,6 +463,8 @@ static void handle_recurse(struct gfs2_holder *gh)
 	struct gfs2_holder *tmp_gh, *safe;
 	int found = 0;
 
+	BUG_ON(!spin_is_locked(&gl->gl_spin));
+
 	printk(KERN_INFO "recursion %016llx, %u\n", gl->gl_name.ln_number,
 		gl->gl_name.ln_type);
 
@@ -501,6 +505,8 @@ static void do_unrecurse(struct gfs2_holder *gh)
 	struct gfs2_sbd *sdp = gl->gl_sbd;
 	struct gfs2_holder *tmp_gh, *last_gh = NULL;
 	int found = 0;
+
+	BUG_ON(!spin_is_locked(&gl->gl_spin));
 
 	if (gfs2_assert_warn(sdp, gh->gh_owner))
 		return;
@@ -676,7 +682,6 @@ static int rq_greedy(struct gfs2_holder *gh)
  * @gl: the glock
  *
  */
-
 static void run_queue(struct gfs2_glock *gl)
 {
 	struct gfs2_holder *gh;
@@ -779,6 +784,7 @@ void gfs2_glmutex_unlock(struct gfs2_glock *gl)
 	spin_lock(&gl->gl_spin);
 	clear_bit(GLF_LOCK, &gl->gl_flags);
 	run_queue(gl);
+	BUG_ON(!spin_is_locked(&gl->gl_spin));
 	spin_unlock(&gl->gl_spin);
 }
 
@@ -1244,7 +1250,7 @@ static int recurse_check(struct gfs2_holder *existing, struct gfs2_holder *new,
 
 	return 0;
 
- fail:
+fail:
 	print_symbol(KERN_WARNING "GFS2: Existing holder from %s\n",
 		     existing->gh_ip);
 	print_symbol(KERN_WARNING "GFS2: New holder from %s\n", new->gh_ip);
@@ -1262,6 +1268,8 @@ static void add_to_queue(struct gfs2_holder *gh)
 {
 	struct gfs2_glock *gl = gh->gh_gl;
 	struct gfs2_holder *existing;
+
+	BUG_ON(!gh->gh_owner);
 
 	if (!gh->gh_owner)
 		goto out;
@@ -1331,7 +1339,7 @@ int gfs2_glock_nq(struct gfs2_holder *gh)
 	if (!(gh->gh_flags & GL_ASYNC)) {
 		error = glock_wait_internal(gh);
 		if (error == GLR_CANCELED) {
-			msleep(1000);
+			msleep(100);
 			goto restart;
 		}
 	}
@@ -1360,7 +1368,7 @@ int gfs2_glock_poll(struct gfs2_holder *gh)
 	else if (list_empty(&gh->gh_list)) {
 		if (gh->gh_error == GLR_CANCELED) {
 			spin_unlock(&gl->gl_spin);
-			msleep(1000);
+			msleep(100);
 			if (gfs2_glock_nq(gh))
 				return 1;
 			return 0;
@@ -1386,7 +1394,7 @@ int gfs2_glock_wait(struct gfs2_holder *gh)
 
 	error = glock_wait_internal(gh);
 	if (error == GLR_CANCELED) {
-		msleep(1000);
+		msleep(100);
 		gh->gh_flags &= ~GL_ASYNC;
 		error = gfs2_glock_nq(gh);
 	}
@@ -2217,10 +2225,12 @@ static void clear_glock(struct gfs2_glock *gl)
 	if (!list_empty(&gl->gl_reclaim)) {
 		list_del_init(&gl->gl_reclaim);
 		atomic_dec(&sdp->sd_reclaim_count);
+		spin_unlock(&sdp->sd_reclaim_lock);
 		released = gfs2_glock_put(gl);
 		gfs2_assert(sdp, !released);
+	} else {
+		spin_unlock(&sdp->sd_reclaim_lock);
 	}
-	spin_unlock(&sdp->sd_reclaim_lock);
 
 	if (gfs2_glmutex_trylock(gl)) {
 		if (gl->gl_ops == &gfs2_inode_glops) {

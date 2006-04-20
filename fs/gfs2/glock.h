@@ -81,10 +81,10 @@ int gfs2_glock_get(struct gfs2_sbd *sdp,
 		   int create, struct gfs2_glock **glp);
 void gfs2_glock_hold(struct gfs2_glock *gl);
 int gfs2_glock_put(struct gfs2_glock *gl);
-
-void gfs2_holder_init(struct gfs2_glock *gl, unsigned int state, int flags,
+void gfs2_holder_init(struct gfs2_glock *gl, unsigned int state, unsigned flags,
 		      struct gfs2_holder *gh);
-void gfs2_holder_reinit(unsigned int state, int flags, struct gfs2_holder *gh);
+void gfs2_holder_reinit(unsigned int state, unsigned flags,
+			struct gfs2_holder *gh);
 void gfs2_holder_uninit(struct gfs2_holder *gh);
 struct gfs2_holder *gfs2_holder_get(struct gfs2_glock *gl, unsigned int state,
 				    int flags, gfp_t gfp_flags);

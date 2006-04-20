@@ -409,8 +409,8 @@ void gfs2_inode_destroy(struct gfs2_inode *ip)
 
 	spin_lock(&io_gl->gl_spin);
 	io_gl->gl_object = NULL;
-	gfs2_glock_put(i_gl);
 	spin_unlock(&io_gl->gl_spin);
+	gfs2_glock_put(i_gl);
 
 	gfs2_glock_dq_uninit(&ip->i_iopen_gh);
 
