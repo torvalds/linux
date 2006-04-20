@@ -275,6 +275,15 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 	error = 0;
 	bytes = 0;
 	for (i = 0; i < nr_pages; i++, index++) {
+		unsigned int this_len;
+
+		if (!len)
+			break;
+
+		/*
+		 * this_len is the max we'll use from this page
+		 */
+		this_len = min(len, PAGE_CACHE_SIZE - loff);
 find_page:
 		/*
 		 * lookup the page for this index
@@ -366,11 +375,13 @@ readpage:
 				 * force quit after adding this page
 				 */
 				nr_pages = i;
+				this_len = min(this_len, loff);
 			}
 		}
 fill_it:
 		pages[i] = page;
-		bytes += PAGE_CACHE_SIZE - loff;
+		bytes += this_len;
+		len -= this_len;
 		loff = 0;
 	}
 

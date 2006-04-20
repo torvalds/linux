@@ -180,6 +180,7 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
 	atomic_set(&tsk->usage,2);
 	atomic_set(&tsk->fs_excl, 0);
 	tsk->btrace_seq = 0;
+	tsk->splice_pipe = NULL;
 	return tsk;
 }
 
