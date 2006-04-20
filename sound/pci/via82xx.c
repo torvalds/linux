@@ -863,16 +863,14 @@ static snd_pcm_uframes_t snd_via8233_pcm_pointer(struct snd_pcm_substream *subst
 	if (!status)
 		status = inb(VIADEV_REG(viadev, OFFSET_STATUS));
 
+	/* An apparent bug in the 8251 is worked around by sending a 
+	 * REG_CTRL_START. */
+	if (chip->revision == VIA_REV_8251 && (status & VIA_REG_STAT_EOL))
+		snd_via82xx_pcm_trigger(substream, SNDRV_PCM_TRIGGER_START);
+
 	if (!(status & VIA_REG_STAT_ACTIVE)) {
-		/* An apparent bug in the 8251 is worked around by sending
-		 * a REG_CTRL_START. */
-		if (chip->revision == VIA_REV_8251)
-			snd_via82xx_pcm_trigger(substream,
-						SNDRV_PCM_TRIGGER_START);
-		else {
-			res = 0;
-			goto unlock;
-		}
+		res = 0;
+		goto unlock;
 	}
 	if (count & 0xffffff) {
 		idx = count >> 24;
