@@ -5,23 +5,9 @@
 #
 # Prompt user for primary drivers.
 
-config OBSOLETE_OSS_DRIVER
-	bool "Obsolete OSS drivers"
-	depends on SOUND_PRIME
-	help
-	  This option enables support for obsolete OSS drivers that
-	  are scheduled for removal in the near future since there
-	  are ALSA drivers for the same hardware.
-
-	  Please contact Adrian Bunk <bunk@stusta.de> if you had to
-	  say Y here because your soundcard is not properly supported
-	  by ALSA.
-
-	  If unsure, say N.
-
 config SOUND_BT878
 	tristate "BT878 audio dma"
-	depends on SOUND_PRIME && PCI && OBSOLETE_OSS_DRIVER
+	depends on SOUND_PRIME && PCI
 	---help---
 	  Audio DMA support for bt878 based grabber boards.  As you might have
 	  already noticed, bt878 is listed with two functions in /proc/pci.
@@ -35,48 +21,9 @@ config SOUND_BT878
 	  To compile this driver as a module, choose M here: the module will
 	  be called btaudio.
 
-config SOUND_CMPCI
-	tristate "C-Media PCI (CMI8338/8738)"
-	depends on SOUND_PRIME && PCI && OBSOLETE_OSS_DRIVER
-	help
-	  Say Y or M if you have a PCI sound card using the CMI8338
-	  or the CMI8738 chipset.  Data on these chips are available at
-	  <http://www.cmedia.com.tw/>.
-
-	  A userspace utility to control some internal registers of these
-	  chips is available at
-	  <http://member.nifty.ne.jp/Breeze/softwares/unix/cmictl-e.html>.
-
-config SOUND_CMPCI_FM
-	bool "Enable legacy FM"
-	depends on SOUND_CMPCI && X86
-	help
-	  Say Y here to enable the legacy FM (frequency-modulation) synthesizer
-	  support on a card using the CMI8338 or CMI8378 chipset. Even it is
-	  enabled, you need to set fmio as proper value to enable it.
-	  Say N here if you don't need this.
-
-config SOUND_CMPCI_MIDI
-	bool "Enable legacy MPU-401"
-	depends on SOUND_CMPCI && X86
-	help
-	  Say Y here to enable the legacy MPU401 MIDI synthesizer support on a
-	  card using the CMI8338 or CMI8378 chipset. Even it is enabled,
-	  you need to set mpuio as proper value to enable it.
-	  Say N here if you don't need this.
-
-config SOUND_CMPCI_JOYSTICK
-	bool "Enable joystick"
-	depends on SOUND_CMPCI && X86 && (GAMEPORT=y || SOUND_CMPCI=GAMEPORT)
-	help
-	  Say Y here in order to enable the joystick port on a sound card using
-	  the CMI8338 or the CMI8738 chipset.  You need to config the
-	  gameport support and set joystick parameter as 1 to use it.
-	  Say N here if you don't need this.
-
 config SOUND_EMU10K1
 	tristate "Creative SBLive! (EMU10K1)"
-	depends on SOUND_PRIME && PCI && OBSOLETE_OSS_DRIVER
+	depends on SOUND_PRIME && PCI
 	---help---
 	  Say Y or M if you have a PCI sound card using the EMU10K1 chipset,
 	  such as the Creative SBLive!, SB PCI512 or Emu-APS.
@@ -108,13 +55,6 @@ config SOUND_FUSION
 	  series) when wired as native sound drivers with AC97 codecs.  If
 	  this driver does not work try the CS4232 driver.
 
-config SOUND_CS4281
-	tristate "Crystal Sound CS4281"
-	depends on SOUND_PRIME && PCI && OBSOLETE_OSS_DRIVER
-	help
-	  Picture and feature list at
-	  <http://www.pcbroker.com/crystal4281.html>.
-
 config SOUND_BCM_CS4297A
 	tristate "Crystal Sound CS4297a (for Swarm)"
 	depends on SOUND_PRIME && SIBYTE_SWARM
@@ -125,22 +65,9 @@ config SOUND_BCM_CS4297A
 	  note that CONFIG_KGDB should not be enabled at the same
 	  time, since it also attempts to use this UART port.
 
-config SOUND_ES1370
-	tristate "Ensoniq AudioPCI (ES1370)"
-	depends on SOUND_PRIME && PCI && OBSOLETE_OSS_DRIVER
-	help
-	  Say Y or M if you have a PCI sound card utilizing the Ensoniq
-	  ES1370 chipset, such as Ensoniq's AudioPCI (non-97). To find
-	  out if your sound card uses an ES1370 without removing your
-	  computer's cover, use lspci -n and look for the PCI ID
-	  1274:5000. Since Ensoniq was bought by Creative Labs,
-	  Sound Blaster 64/PCI models are either ES1370 or ES1371 based.
-	  This driver differs slightly from OSS/Free, so PLEASE READ
-	  <file:Documentation/sound/oss/es1370>.
-
 config SOUND_ES1371
 	tristate "Creative Ensoniq AudioPCI 97 (ES1371)"
-	depends on SOUND_PRIME && PCI && OBSOLETE_OSS_DRIVER
+	depends on SOUND_PRIME && PCI
 	help
 	  Say Y or M if you have a PCI sound card utilizing the Ensoniq
 	  ES1371 chipset, such as Ensoniq's AudioPCI97. To find out if
@@ -151,57 +78,12 @@ config SOUND_ES1371
 	  slightly from OSS/Free, so PLEASE READ
 	  <file:Documentation/sound/oss/es1371>.
 
-config SOUND_ESSSOLO1
-	tristate "ESS Technology Solo1" 
-	depends on SOUND_PRIME && PCI && OBSOLETE_OSS_DRIVER
-	help
-	  Say Y or M if you have a PCI sound card utilizing the ESS Technology
-	  Solo1 chip. To find out if your sound card uses a
-	  Solo1 chip without removing your computer's cover, use
-	  lspci -n and look for the PCI ID 125D:1969. This driver
-	  differs slightly from OSS/Free, so PLEASE READ
-	  <file:Documentation/sound/oss/solo1>.
-
-config SOUND_MAESTRO
-	tristate "ESS Maestro, Maestro2, Maestro2E driver"
-	depends on SOUND_PRIME && PCI && OBSOLETE_OSS_DRIVER
-	help
-	  Say Y or M if you have a sound system driven by ESS's Maestro line
-	  of PCI sound chips.  These include the Maestro 1, Maestro 2, and
-	  Maestro 2E.  See <file:Documentation/sound/oss/Maestro> for more
-	  details.
-
-config SOUND_MAESTRO3
-	tristate "ESS Maestro3/Allegro driver (EXPERIMENTAL)"
-	depends on SOUND_PRIME && PCI && EXPERIMENTAL && OBSOLETE_OSS_DRIVER
-	help
-	  Say Y or M if you have a sound system driven by ESS's Maestro 3
-	  PCI sound chip.
-
 config SOUND_ICH
 	tristate "Intel ICH (i8xx) audio support"
 	depends on SOUND_PRIME && PCI
 	help
 	  Support for integral audio in Intel's I/O Controller Hub (ICH)
 	  chipset, as used on the 810/820/840 motherboards.
-
-config SOUND_HARMONY
-	tristate "PA Harmony audio driver"
-	depends on GSC_LASI && SOUND_PRIME && OBSOLETE_OSS_DRIVER
-	help
-	  Say 'Y' or 'M' to include support for Harmony soundchip
-	  on HP 712, 715/new and many other GSC based machines.
-
-config SOUND_SONICVIBES
-	tristate "S3 SonicVibes"
-	depends on SOUND_PRIME && PCI && OBSOLETE_OSS_DRIVER
-	help
-	  Say Y or M if you have a PCI sound card utilizing the S3
-	  SonicVibes chipset. To find out if your sound card uses a
-	  SonicVibes chip without removing your computer's cover, use
-	  lspci -n and look for the PCI ID 5333:CA00. This driver
-	  differs slightly from OSS/Free, so PLEASE READ
-	  <file:Documentation/sound/oss/sonicvibes>.
 
 config SOUND_VWSND
 	tristate "SGI Visual Workstation Sound"
@@ -230,10 +112,6 @@ config SOUND_VRC5477
 	  Say Y here to enable sound support for the NEC Vrc5477 chip, an
 	  integrated, multi-function controller chip for MIPS CPUs.  Works
 	  with the AC97 codec.
-
-config SOUND_AU1000
-	tristate "Au1000 Sound"
-	depends on SOUND_PRIME && (SOC_AU1000 || SOC_AU1100 || SOC_AU1500) && OBSOLETE_OSS_DRIVER
 
 config SOUND_AU1550_AC97
 	tristate "Au1550 AC97 Sound"
@@ -505,26 +383,6 @@ config MSND_FIFOSIZE
 	  and Pinnacle). Larger values reduce the chance of data overruns at
 	  the expense of overall latency. If unsure, use the default.
 
-config SOUND_VIA82CXXX
-	tristate "VIA 82C686 Audio Codec"
-	depends on SOUND_PRIME && PCI && OBSOLETE_OSS_DRIVER
-	help
-	  Say Y here to include support for the audio codec found on VIA
-	  82Cxxx-based chips. Typically these are built into a motherboard.
-
-	  DO NOT select Sound Blaster or Adlib with this driver, unless
-	  you have a Sound Blaster or Adlib card in addition to your VIA
-	  audio chip.
-
-config MIDI_VIA82CXXX
-	bool "VIA 82C686 MIDI"
-	depends on SOUND_VIA82CXXX && ISA_DMA_API
-	help
-	  Answer Y to use the MIDI interface of the Via686. You may need to
-	  enable this in the BIOS before it will work. This is for connection
-	  to external MIDI hardware, and is not required for software playback
-	  of MIDI files.
-
 config SOUND_OSS
 	tristate "OSS sound modules"
 	depends on SOUND_PRIME && ISA_DMA_API
@@ -576,18 +434,6 @@ config SOUND_AD1889
 	  Say M here if you have a sound card based on the Analog Devices
 	  AD1889 chip.
 
-config SOUND_SGALAXY
-	tristate "Aztech Sound Galaxy (non-PnP) cards"
-	depends on SOUND_OSS && OBSOLETE_OSS_DRIVER
-	help
-	  This module initializes the older non Plug and Play sound galaxy
-	  cards from Aztech. It supports the Waverider Pro 32 - 3D and the
-	  Galaxy Washington 16.
-
-	  If you compile the driver into the kernel, you have to add
-	  "sgalaxy=<io>,<irq>,<dma>,<dma2>,<sgbase>" to the kernel command
-	  line.
-
 config SOUND_ADLIB
 	tristate "Adlib Cards"
 	depends on SOUND_OSS
@@ -611,56 +457,6 @@ config SOUND_ACI_MIXER
 	  devices" -> "Radio Adapters").
 
 	  This driver is also available as a module and will be called aci.
-
-config SOUND_CS4232
-	tristate "Crystal CS4232 based (PnP) cards"
-	depends on SOUND_OSS && OBSOLETE_OSS_DRIVER
-	help
-	  Say Y here if you have a card based on the Crystal CS4232 chip set,
-	  which uses its own Plug and Play protocol.
-
-	  If you compile the driver into the kernel, you have to add
-	  "cs4232=<io>,<irq>,<dma>,<dma2>,<mpuio>,<mpuirq>" to the kernel
-	  command line.
-
-	  See <file:Documentation/sound/oss/CS4232> for more information on
-	  configuring this card.
-
-config SOUND_SSCAPE
-	tristate "Ensoniq SoundScape support"
-	depends on SOUND_OSS && OBSOLETE_OSS_DRIVER
-	help
-	  Answer Y if you have a sound card based on the Ensoniq SoundScape
-	  chipset. Such cards are being manufactured at least by Ensoniq, Spea
-	  and Reveal (Reveal makes also other cards).
-
-	  If you compile the driver into the kernel, you have to add
-	  "sscape=<io>,<irq>,<dma>,<mpuio>,<mpuirq>" to the kernel command
-	  line.
-
-config SOUND_GUS
-	tristate "Gravis Ultrasound support"
-	depends on SOUND_OSS && OBSOLETE_OSS_DRIVER
-	help
-	  Say Y here for any type of Gravis Ultrasound card, including the GUS
-	  or GUS MAX.  See also <file:Documentation/sound/oss/ultrasound> for more
-	  information on configuring this card with modules.
-
-	  If you compile the driver into the kernel, you have to add
-	  "gus=<io>,<irq>,<dma>,<dma2>" to the kernel command line.
-
-config SOUND_GUS16
-	bool "16 bit sampling option of GUS (_NOT_ GUS MAX)"
-	depends on SOUND_GUS
-	help
-	  Support for Gravis Ulstrasound (GUS) cards (other than the GUS),
-	  sampling at 16-bit width.
-
-config SOUND_GUSMAX
-	bool "GUS MAX support"
-	depends on SOUND_GUS
-	help
-	  Support for Gravis Ulstrasound MAX.
 
 config SOUND_VMIDI
 	tristate "Loopback MIDI device support"
@@ -742,7 +538,7 @@ config SOUND_MPU401
 
 config SOUND_NM256
 	tristate "NM256AV/NM256ZX audio support"
-	depends on SOUND_OSS && OBSOLETE_OSS_DRIVER
+	depends on SOUND_OSS
 	help
 	  Say M here to include audio support for the NeoMagic 256AV/256ZX
 	  chipsets. These are the audio chipsets found in the Sony
@@ -751,35 +547,6 @@ config SOUND_NM256
 	  apparently proprietary sound engine.
 
 	  See <file:Documentation/sound/oss/NM256> for further information.
-
-config SOUND_MAD16
-	tristate "OPTi MAD16 and/or Mozart based cards"
-	depends on SOUND_OSS && OBSOLETE_OSS_DRIVER
-	---help---
-	  Answer Y if your card has a Mozart (OAK OTI-601) or MAD16 (OPTi
-	  82C928 or 82C929 or 82C931) audio interface chip. These chips are
-	  quite common so it's possible that many no-name cards have one of
-	  them. In addition the MAD16 chip is used in some cards made by known
-	  manufacturers such as Turtle Beach (Tropez), Reveal (some models)
-	  and Diamond (latest ones). Note however that the Tropez sound cards
-	  have their own driver; if you have one of those, say N here and Y or
-	  M to "Full support for Turtle Beach WaveFront", below.
-
-	  If you compile the driver into the kernel, you have to add
-	  "mad16=<io>,<irq>,<dma>,<dma2>,<mpuio>,<mpuirq>" to the
-	  kernel command line.
-
-	  See also <file:Documentation/sound/oss/Opti> and
-	  <file:Documentation/sound/oss/MAD16> for more information on setting
-	  these cards up as modules.
-
-config MAD16_OLDCARD
-	bool "Support MIDI in older MAD16 based cards (requires SB)"
-	depends on SOUND_MAD16
-	help
-	  Answer Y (or M) if you have an older card based on the C928 or
-	  Mozart chipset and you want to have MIDI support. If you enable this
-	  option you also need to enable support for Sound Blaster.
 
 config SOUND_PAS
 	tristate "ProAudioSpectrum 16 support"
@@ -873,53 +640,9 @@ config SOUND_SB
 	  You can say M here to compile this driver as a module; the module is
 	  called sb.
 
-config SOUND_AWE32_SYNTH
-	tristate "AWE32 synth"
-	depends on SOUND_OSS && OBSOLETE_OSS_DRIVER
-	help
-	  Say Y here if you have a Sound Blaster SB32, AWE32-PnP, SB AWE64 or
-	  similar sound card. See <file:Documentation/sound/oss/README.awe>,
-	  <file:Documentation/sound/oss/AWE32> and the Soundblaster-AWE
-	  mini-HOWTO, available from <http://www.tldp.org/docs.html#howto>
-	  for more info.
-
-config SOUND_WAVEFRONT
-	tristate "Full support for Turtle Beach WaveFront (Tropez Plus, Tropez, Maui) synth/soundcards"
-	depends on SOUND_OSS && m && OBSOLETE_OSS_DRIVER
-	help
-	  Answer Y or M if you have a Tropez Plus, Tropez or Maui sound card
-	  and read the files <file:Documentation/sound/oss/Wavefront> and
-	  <file:Documentation/sound/oss/Tropez+>.
-
-config SOUND_MAUI
-	tristate "Limited support for Turtle Beach Wave Front (Maui, Tropez) synthesizers"
-	depends on SOUND_OSS && OBSOLETE_OSS_DRIVER
-	help
-	  Say Y here if you have a Turtle Beach Wave Front, Maui, or Tropez
-	  sound card.
-
-	  If you compile the driver into the kernel, you have to add
-	  "maui=<io>,<irq>" to the kernel command line.
-
-config MAUI_HAVE_BOOT
-	bool "Have OSWF.MOT firmware file"
-	depends on SOUND_MAUI=y && !STANDALONE
-	help
-	  Turtle Beach Maui and Tropez sound cards have a microcontroller
-	  which needs to be initialized prior to use. OSWF.MOT is a file
-	  distributed with the card's DOS/Windows drivers. Answer Y if you
-	  have this file.
-
-config MAUI_BOOT_FILE
-	string "Full pathname of OSWF.MOT firmware file"
-	depends on MAUI_HAVE_BOOT
-	default "/etc/sound/oswf.mot"
-	help
-	  Enter the full pathname of your OSWF.MOT file, starting from /.
-
 config SOUND_YM3812
 	tristate "Yamaha FM synthesizer (YM3812/OPL-3) support"
-	depends on SOUND_OSS && OBSOLETE_OSS_DRIVER
+	depends on SOUND_OSS
 	---help---
 	  Answer Y if your card has a FM chip made by Yamaha (OPL2/OPL3/OPL4).
 	  Answering Y is usually a safe and recommended choice, however some
@@ -932,18 +655,6 @@ config SOUND_YM3812
 	  "opl3=<io>" to the kernel command line.
 
 	  If unsure, say Y.
-
-config SOUND_OPL3SA1
-	tristate "Yamaha OPL3-SA1 audio controller"
-	depends on SOUND_OSS && OBSOLETE_OSS_DRIVER
-	help
-	  Say Y or M if you have a Yamaha OPL3-SA1 sound chip, which is
-	  usually built into motherboards. Read
-	  <file:Documentation/sound/oss/OPL3-SA> for details.
-
-	  If you compile the driver into the kernel, you have to add
-	  "opl3sa=<io>,<irq>,<dma>,<dma2>,<mpuio>,<mpuirq>" to the kernel
-	  command line.
 
 config SOUND_OPL3SA2
 	tristate "Yamaha OPL3-SA2 and SA3 based PnP cards"
@@ -958,19 +669,6 @@ config SOUND_OPL3SA2
 	  configure in the optional ISA PnP support, you will have to add
 	  "opl3sa2=<io>,<irq>,<dma>,<dma2>,<mssio>,<mpuio>" to the kernel
 	  command line.
-
-config SOUND_YMFPCI
-	tristate "Yamaha YMF7xx PCI audio (native mode)"
-	depends on SOUND_OSS && PCI && OBSOLETE_OSS_DRIVER
-	help
-	  Support for Yamaha cards including the YMF711, YMF715, YMF718,
-	  YMF719, YMF724, Waveforce 192XG, and Waveforce 192 Digital.
-
-config SOUND_YMFPCI_LEGACY
-	bool "Yamaha PCI legacy ports support"
-	depends on SOUND_YMFPCI
-	help
-	  Support for YMF7xx PCI cards emulating an MP401.
 
 config SOUND_UART6850
 	tristate "6850 UART support"
@@ -1100,30 +798,6 @@ config SOUND_TVMIXER
 config SOUND_KAHLUA
 	tristate "XpressAudio Sound Blaster emulation"
 	depends on SOUND_SB
-
-config SOUND_ALI5455
-	tristate "ALi5455 audio support"
-	depends on SOUND_PRIME && PCI && OBSOLETE_OSS_DRIVER
-
-config SOUND_FORTE
-	tristate "ForteMedia FM801 driver"
-	depends on SOUND_PRIME && PCI && OBSOLETE_OSS_DRIVER
-	help
-	  Say Y or M if you want driver support for the ForteMedia FM801 PCI
-	  audio controller (Abit AU10, Genius Sound Maker, HP Workstation
-	  zx2000, and others).
-
-config SOUND_RME96XX
-	tristate "RME Hammerfall (RME96XX) support"
-	depends on SOUND_PRIME && PCI && OBSOLETE_OSS_DRIVER
-	help
-	  Say Y or M if you have a Hammerfall or Hammerfall light
-	  multichannel card from RME. If you want to access advanced
-	  features of the card, read <file:Documentation/sound/oss/rme96xx>.
-
-config SOUND_AD1980
-	tristate "AD1980 front/back switch plugin"
-	depends on SOUND_PRIME && OBSOLETE_OSS_DRIVER
 
 config SOUND_SH_DAC_AUDIO
 	tristate "SuperH DAC audio support"
