@@ -831,7 +831,7 @@ static int translate_table(struct ebt_replace *repl,
 			return -ENOMEM;
 		for_each_possible_cpu(i) {
 			newinfo->chainstack[i] =
-			   vmalloc(udc_cnt * sizeof(struct ebt_chainstack));
+			  vmalloc(udc_cnt * sizeof(*(newinfo->chainstack[0])));
 			if (!newinfo->chainstack[i]) {
 				while (i)
 					vfree(newinfo->chainstack[--i]);
@@ -841,8 +841,7 @@ static int translate_table(struct ebt_replace *repl,
 			}
 		}
 
-		cl_s = (struct ebt_cl_stack *)
-		   vmalloc(udc_cnt * sizeof(struct ebt_cl_stack));
+		cl_s = vmalloc(udc_cnt * sizeof(*cl_s));
 		if (!cl_s)
 			return -ENOMEM;
 		i = 0; /* the i'th udc */
@@ -944,8 +943,7 @@ static int do_replace(void __user *user, unsigned int len)
 
 	countersize = COUNTER_OFFSET(tmp.nentries) * 
 					(highest_possible_processor_id()+1);
-	newinfo = (struct ebt_table_info *)
-	   vmalloc(sizeof(struct ebt_table_info) + countersize);
+	newinfo = vmalloc(sizeof(*newinfo) + countersize);
 	if (!newinfo)
 		return -ENOMEM;
 
@@ -967,8 +965,7 @@ static int do_replace(void __user *user, unsigned int len)
 	/* the user wants counters back
 	   the check on the size is done later, when we have the lock */
 	if (tmp.num_counters) {
-		counterstmp = (struct ebt_counter *)
-		   vmalloc(tmp.num_counters * sizeof(struct ebt_counter));
+		counterstmp = vmalloc(tmp.num_counters * sizeof(*counterstmp));
 		if (!counterstmp) {
 			ret = -ENOMEM;
 			goto free_entries;
@@ -1148,8 +1145,7 @@ int ebt_register_table(struct ebt_table *table)
 
 	countersize = COUNTER_OFFSET(table->table->nentries) *
 					(highest_possible_processor_id()+1);
-	newinfo = (struct ebt_table_info *)
-	   vmalloc(sizeof(struct ebt_table_info) + countersize);
+	newinfo = vmalloc(sizeof(*newinfo) + countersize);
 	ret = -ENOMEM;
 	if (!newinfo)
 		return -ENOMEM;
@@ -1247,8 +1243,7 @@ static int update_counters(void __user *user, unsigned int len)
 	if (hlp.num_counters == 0)
 		return -EINVAL;
 
-	if ( !(tmp = (struct ebt_counter *)
-	   vmalloc(hlp.num_counters * sizeof(struct ebt_counter))) ){
+	if (!(tmp = vmalloc(hlp.num_counters * sizeof(*tmp)))) {
 		MEMPRINT("Update_counters && nomemory\n");
 		return -ENOMEM;
 	}
@@ -1377,8 +1372,7 @@ static int copy_everything_to_user(struct ebt_table *t, void __user *user,
 			BUGPRINT("Num_counters wrong\n");
 			return -EINVAL;
 		}
-		counterstmp = (struct ebt_counter *)
-		   vmalloc(nentries * sizeof(struct ebt_counter));
+		counterstmp = vmalloc(nentries * sizeof(*counterstmp));
 		if (!counterstmp) {
 			MEMPRINT("Couldn't copy counters, out of memory\n");
 			return -ENOMEM;
