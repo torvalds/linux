@@ -101,6 +101,7 @@ ieee80211softmac_disassoc(struct ieee80211softmac_device *mac, u16 reason)
 	/* Do NOT clear bssvalid as that will break ieee80211softmac_assoc_work! */
 	mac->associated = 0;
 	mac->associnfo.associating = 0;
+	ieee80211softmac_call_events_locked(mac, IEEE80211SOFTMAC_EVENT_DISASSOCIATED, NULL);
 	spin_unlock_irqrestore(&mac->lock, flags);
 }
 
@@ -373,6 +374,7 @@ ieee80211softmac_handle_disassoc(struct net_device * dev,
 	spin_lock_irqsave(&mac->lock, flags);
 	mac->associnfo.bssvalid = 0;
 	mac->associated = 0;
+	ieee80211softmac_call_events_locked(mac, IEEE80211SOFTMAC_EVENT_DISASSOCIATED, NULL);
 	schedule_work(&mac->associnfo.work);
 	spin_unlock_irqrestore(&mac->lock, flags);
 	
@@ -391,6 +393,7 @@ ieee80211softmac_handle_reassoc_req(struct net_device * dev,
 		dprintkl(KERN_INFO PFX "reassoc request from unknown network\n");
 		return 0;
 	}
-	ieee80211softmac_assoc(mac, network);
+	schedule_work(&mac->associnfo.work);
+
 	return 0;
 }
