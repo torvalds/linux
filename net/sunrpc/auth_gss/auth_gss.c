@@ -794,7 +794,6 @@ gss_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
 
 out_err:
 	dprintk("RPC:      gss_create_cred failed with error %d\n", err);
-	if (cred) gss_destroy_cred(&cred->gc_base);
 	return ERR_PTR(err);
 }
 

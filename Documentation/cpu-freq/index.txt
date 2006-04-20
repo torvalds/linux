@@ -53,4 +53,4 @@ the CPUFreq Mailing list:
 * http://lists.linux.org.uk/mailman/listinfo/cpufreq
 
 Clock and voltage scaling for the SA-1100:
-* http://www.lart.tudelft.nl/projects/scaling
+* http://www.lartmaker.nl/projects/scaling

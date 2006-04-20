@@ -305,8 +305,8 @@ static const struct ipath_cregs ipath_pe_cregs = {
  * we'll print them and continue.  We reuse the same message buffer as
  * ipath_handle_errors() to avoid excessive stack usage.
  */
-void ipath_pe_handle_hwerrors(struct ipath_devdata *dd, char *msg,
-	size_t msgl)
+static void ipath_pe_handle_hwerrors(struct ipath_devdata *dd, char *msg,
+				     size_t msgl)
 {
 	ipath_err_t hwerrs;
 	u32 bits, ctrl;
@@ -552,7 +552,7 @@ static int ipath_pe_boardname(struct ipath_devdata *dd, char *name,
  * freeze mode), and enable hardware errors as errors (along with
  * everything else) in errormask
  */
-void ipath_pe_init_hwerrors(struct ipath_devdata *dd)
+static void ipath_pe_init_hwerrors(struct ipath_devdata *dd)
 {
 	ipath_err_t val;
 	u64 extsval;
@@ -577,7 +577,7 @@ void ipath_pe_init_hwerrors(struct ipath_devdata *dd)
  * ipath_pe_bringup_serdes - bring up the serdes
  * @dd: the infinipath device
  */
-int ipath_pe_bringup_serdes(struct ipath_devdata *dd)
+static int ipath_pe_bringup_serdes(struct ipath_devdata *dd)
 {
 	u64 val, tmp, config1;
 	int ret = 0, change = 0;
@@ -694,7 +694,7 @@ int ipath_pe_bringup_serdes(struct ipath_devdata *dd)
  * @dd: the infinipath device
  * Called when driver is being unloaded
  */
-void ipath_pe_quiet_serdes(struct ipath_devdata *dd)
+static void ipath_pe_quiet_serdes(struct ipath_devdata *dd)
 {
 	u64 val = ipath_read_kreg64(dd, dd->ipath_kregs->kr_serdesconfig0);
 

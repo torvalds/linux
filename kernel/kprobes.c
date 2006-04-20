@@ -585,6 +585,9 @@ int __kprobes register_kretprobe(struct kretprobe *rp)
 	int i;
 
 	rp->kp.pre_handler = pre_handler_kretprobe;
+	rp->kp.post_handler = NULL;
+	rp->kp.fault_handler = NULL;
+	rp->kp.break_handler = NULL;
 
 	/* Pre-allocate memory for max kretprobe instances */
 	if (rp->maxactive <= 0) {

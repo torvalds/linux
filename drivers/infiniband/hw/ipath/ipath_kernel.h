@@ -528,7 +528,6 @@ extern spinlock_t ipath_devs_lock;
 extern struct ipath_devdata *ipath_lookup(int unit);
 
 extern u16 ipath_layer_rcv_opcode;
-extern int ipath_verbs_registered;
 extern int __ipath_layer_intr(struct ipath_devdata *, u32);
 extern int ipath_layer_intr(struct ipath_devdata *, u32);
 extern int __ipath_layer_rcv(struct ipath_devdata *, void *,

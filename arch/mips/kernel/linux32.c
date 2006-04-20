@@ -1182,6 +1182,16 @@ asmlinkage ssize_t sys32_readahead(int fd, u32 pad0, u64 a2, u64 a3,
 	return sys_readahead(fd, merge_64(a2, a3), count);
 }
 
+asmlinkage long sys32_sync_file_range(int fd, int __pad,
+	unsigned long a2, unsigned long a3,
+	unsigned long a4, unsigned long a5,
+	int flags)
+{
+	return sys_sync_file_range(fd,
+			merge_64(a2, a3), merge_64(a4, a5),
+			flags);
+}
+
 /* Argument list sizes for sys_socketcall */
 #define AL(x) ((x) * sizeof(unsigned int))
 static unsigned char socketcall_nargs[18]={AL(0),AL(3),AL(3),AL(3),AL(2),AL(3),

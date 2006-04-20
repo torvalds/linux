@@ -72,6 +72,23 @@ extern int set_fpregs(struct task_struct *tsk,
 #define set_fpu_swd(t,val) ((t)->thread.i387.fxsave.swd = (val))
 #define set_fpu_fxsr_twd(t,val) ((t)->thread.i387.fxsave.twd = (val))
 
+#define X87_FSW_ES (1 << 7)	/* Exception Summary */
+
+/* AMD CPUs don't save/restore FDP/FIP/FOP unless an exception
+   is pending. Clear the x87 state here by setting it to fixed
+   values. The kernel data segment can be sometimes 0 and sometimes
+   new user value. Both should be ok.
+   Use the PDA as safe address because it should be already in L1. */
+static inline void clear_fpu_state(struct i387_fxsave_struct *fx)
+{
+	if (unlikely(fx->swd & X87_FSW_ES))
+		 asm volatile("fnclex");
+	alternative_input(ASM_NOP8 ASM_NOP2,
+	     	     "    emms\n"		/* clear stack tags */
+	     	     "    fildl %%gs:0",	/* load to clear state */
+		     X86_FEATURE_FXSAVE_LEAK);
+}
+
 static inline int restore_fpu_checking(struct i387_fxsave_struct *fx) 
 { 
 	int err;
@@ -119,6 +136,7 @@ static inline int save_i387_checking(struct i387_fxsave_struct __user *fx)
 #endif
 	if (unlikely(err))
 		__clear_user(fx, sizeof(struct i387_fxsave_struct));
+	/* No need to clear here because the caller clears USED_MATH */
 	return err;
 } 
 
@@ -149,7 +167,7 @@ static inline void __fxsave_clear(struct task_struct *tsk)
 				"i" (offsetof(__typeof__(*tsk),
 					      thread.i387.fxsave)));
 #endif
-	__asm__ __volatile__("fnclex");
+	clear_fpu_state(&tsk->thread.i387.fxsave);
 }
 
 static inline void kernel_fpu_begin(void)

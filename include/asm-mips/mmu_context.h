@@ -17,6 +17,10 @@
 #include <linux/slab.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
+#ifdef CONFIG_MIPS_MT_SMTC
+#include <asm/mipsmtregs.h>
+#include <asm/smtc.h>
+#endif /* SMTC */
 
 /*
  * For the fast tlb miss handlers, we keep a per cpu array of pointers
@@ -54,6 +58,14 @@ extern unsigned long pgd_current[];
 #define ASID_INC	0x1
 #define ASID_MASK	0xfff
 
+/* SMTC/34K debug hack - but maybe we'll keep it */
+#elif defined(CONFIG_MIPS_MT_SMTC)
+
+#define ASID_INC	0x1
+extern unsigned long smtc_asid_mask;
+#define ASID_MASK	(smtc_asid_mask)
+#define	HW_ASID_MASK	0xff
+/* End SMTC/34K debug hack */
 #else /* FIXME: not correct for R6000 */
 
 #define ASID_INC	0x1
@@ -76,6 +88,8 @@ static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 #define ASID_VERSION_MASK  ((unsigned long)~(ASID_MASK|(ASID_MASK-1)))
 #define ASID_FIRST_VERSION ((unsigned long)(~ASID_VERSION_MASK) + 1)
 
+#ifndef CONFIG_MIPS_MT_SMTC
+/* Normal, classic MIPS get_new_mmu_context */
 static inline void
 get_new_mmu_context(struct mm_struct *mm, unsigned long cpu)
 {
@@ -90,6 +104,12 @@ get_new_mmu_context(struct mm_struct *mm, unsigned long cpu)
 	}
 	cpu_context(cpu, mm) = asid_cache(cpu) = asid;
 }
+
+#else /* CONFIG_MIPS_MT_SMTC */
+
+#define get_new_mmu_context(mm,cpu) smtc_get_new_mmu_context((mm),(cpu))
+
+#endif /* CONFIG_MIPS_MT_SMTC */
 
 /*
  * Initialize the context related info for a new mm_struct
@@ -111,14 +131,46 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 {
 	unsigned int cpu = smp_processor_id();
 	unsigned long flags;
-
+#ifdef CONFIG_MIPS_MT_SMTC
+	unsigned long oldasid;
+	unsigned long mtflags;
+	int mytlb = (smtc_status & SMTC_TLB_SHARED) ? 0 : cpu_data[cpu].vpe_id;
 	local_irq_save(flags);
+	mtflags = dvpe();
+#else /* Not SMTC */
+	local_irq_save(flags);
+#endif /* CONFIG_MIPS_MT_SMTC */
 
 	/* Check if our ASID is of an older version and thus invalid */
 	if ((cpu_context(cpu, next) ^ asid_cache(cpu)) & ASID_VERSION_MASK)
 		get_new_mmu_context(next, cpu);
-
+#ifdef CONFIG_MIPS_MT_SMTC
+	/*
+	 * If the EntryHi ASID being replaced happens to be
+	 * the value flagged at ASID recycling time as having
+	 * an extended life, clear the bit showing it being
+	 * in use by this "CPU", and if that's the last bit,
+	 * free up the ASID value for use and flush any old
+	 * instances of it from the TLB.
+	 */
+	oldasid = (read_c0_entryhi() & ASID_MASK);
+	if(smtc_live_asid[mytlb][oldasid]) {
+		smtc_live_asid[mytlb][oldasid] &= ~(0x1 << cpu);
+		if(smtc_live_asid[mytlb][oldasid] == 0)
+			smtc_flush_tlb_asid(oldasid);
+	}
+	/*
+	 * Tread softly on EntryHi, and so long as we support
+	 * having ASID_MASK smaller than the hardware maximum,
+	 * make sure no "soft" bits become "hard"...
+	 */
+	write_c0_entryhi((read_c0_entryhi() & ~HW_ASID_MASK)
+			| (cpu_context(cpu, next) & ASID_MASK));
+	ehb(); /* Make sure it propagates to TCStatus */
+	evpe(mtflags);
+#else
 	write_c0_entryhi(cpu_context(cpu, next));
+#endif /* CONFIG_MIPS_MT_SMTC */
 	TLBMISS_HANDLER_SETUP_PGD(next->pgd);
 
 	/*
@@ -151,12 +203,34 @@ activate_mm(struct mm_struct *prev, struct mm_struct *next)
 	unsigned long flags;
 	unsigned int cpu = smp_processor_id();
 
+#ifdef CONFIG_MIPS_MT_SMTC
+	unsigned long oldasid;
+	unsigned long mtflags;
+	int mytlb = (smtc_status & SMTC_TLB_SHARED) ? 0 : cpu_data[cpu].vpe_id;
+#endif /* CONFIG_MIPS_MT_SMTC */
+
 	local_irq_save(flags);
 
 	/* Unconditionally get a new ASID.  */
 	get_new_mmu_context(next, cpu);
 
+#ifdef CONFIG_MIPS_MT_SMTC
+	/* See comments for similar code above */
+	mtflags = dvpe();
+	oldasid = read_c0_entryhi() & ASID_MASK;
+	if(smtc_live_asid[mytlb][oldasid]) {
+		smtc_live_asid[mytlb][oldasid] &= ~(0x1 << cpu);
+       		if(smtc_live_asid[mytlb][oldasid] == 0)
+               		 smtc_flush_tlb_asid(oldasid);
+	}
+	/* See comments for similar code above */
+	write_c0_entryhi((read_c0_entryhi() & ~HW_ASID_MASK) |
+	                 (cpu_context(cpu, next) & ASID_MASK));
+	ehb(); /* Make sure it propagates to TCStatus */
+	evpe(mtflags);
+#else
 	write_c0_entryhi(cpu_context(cpu, next));
+#endif /* CONFIG_MIPS_MT_SMTC */
 	TLBMISS_HANDLER_SETUP_PGD(next->pgd);
 
 	/* mark mmu ownership change */
@@ -174,17 +248,49 @@ static inline void
 drop_mmu_context(struct mm_struct *mm, unsigned cpu)
 {
 	unsigned long flags;
+#ifdef CONFIG_MIPS_MT_SMTC
+	unsigned long oldasid;
+	/* Can't use spinlock because called from TLB flush within DVPE */
+	unsigned int prevvpe;
+	int mytlb = (smtc_status & SMTC_TLB_SHARED) ? 0 : cpu_data[cpu].vpe_id;
+#endif /* CONFIG_MIPS_MT_SMTC */
 
 	local_irq_save(flags);
 
 	if (cpu_isset(cpu, mm->cpu_vm_mask))  {
 		get_new_mmu_context(mm, cpu);
+#ifdef CONFIG_MIPS_MT_SMTC
+		/* See comments for similar code above */
+		prevvpe = dvpe();
+		oldasid = (read_c0_entryhi() & ASID_MASK);
+		if(smtc_live_asid[mytlb][oldasid]) {
+		  smtc_live_asid[mytlb][oldasid] &= ~(0x1 << cpu);
+		  if(smtc_live_asid[mytlb][oldasid] == 0)
+			smtc_flush_tlb_asid(oldasid);
+		}
+		/* See comments for similar code above */
+		write_c0_entryhi((read_c0_entryhi() & ~HW_ASID_MASK)
+				| cpu_asid(cpu, mm));
+		ehb(); /* Make sure it propagates to TCStatus */
+		evpe(prevvpe);
+#else /* not CONFIG_MIPS_MT_SMTC */
 		write_c0_entryhi(cpu_asid(cpu, mm));
+#endif /* CONFIG_MIPS_MT_SMTC */
 	} else {
 		/* will get a new context next time */
+#ifndef CONFIG_MIPS_MT_SMTC
 		cpu_context(cpu, mm) = 0;
-	}
+#else /* SMTC */
+		int i;
 
+		/* SMTC shares the TLB (and ASIDs) across VPEs */
+		for (i = 0; i < num_online_cpus(); i++) {
+	    	    if((smtc_status & SMTC_TLB_SHARED)
+	    	    || (cpu_data[i].vpe_id == cpu_data[cpu].vpe_id))
+			cpu_context(i, mm) = 0;
+		}
+#endif /* CONFIG_MIPS_MT_SMTC */
+	}
 	local_irq_restore(flags);
 }
 

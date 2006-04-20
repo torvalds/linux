@@ -815,8 +815,6 @@ extern int drm_mem_info(char *buf, char **start, off_t offset,
 extern void *drm_realloc(void *oldpt, size_t oldsize, size_t size, int area);
 extern void *drm_ioremap(unsigned long offset, unsigned long size,
 			 drm_device_t * dev);
-extern void *drm_ioremap_nocache(unsigned long offset, unsigned long size,
-				 drm_device_t * dev);
 extern void drm_ioremapfree(void *pt, unsigned long size, drm_device_t * dev);
 
 extern DRM_AGP_MEM *drm_alloc_agp(drm_device_t * dev, int pages, u32 type);
@@ -1022,11 +1020,13 @@ static __inline__ void drm_core_ioremap(struct drm_map *map,
 	map->handle = drm_ioremap(map->offset, map->size, dev);
 }
 
+#if 0
 static __inline__ void drm_core_ioremap_nocache(struct drm_map *map,
 						struct drm_device *dev)
 {
 	map->handle = drm_ioremap_nocache(map->offset, map->size, dev);
 }
+#endif  /*  0  */
 
 static __inline__ void drm_core_ioremapfree(struct drm_map *map,
 					    struct drm_device *dev)

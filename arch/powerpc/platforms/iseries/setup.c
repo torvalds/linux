@@ -54,6 +54,7 @@
 #include <asm/iseries/hv_lp_event.h>
 #include <asm/iseries/lpar_map.h>
 #include <asm/udbg.h>
+#include <asm/irq.h>
 
 #include "naca.h"
 #include "setup.h"
@@ -683,6 +684,12 @@ static int __init iseries_probe(void)
 
 	powerpc_firmware_features |= FW_FEATURE_ISERIES;
 	powerpc_firmware_features |= FW_FEATURE_LPAR;
+
+	/*
+	 * The Hypervisor only allows us up to 256 interrupt
+	 * sources (the irq number is passed in a u8).
+	 */
+	virt_irq_max = 255;
 
 	return 1;
 }

@@ -2265,7 +2265,7 @@ static struct bin_attribute edid2_attr = {
 };
 
 
-static int radeonfb_pci_register (struct pci_dev *pdev,
+static int __devinit radeonfb_pci_register (struct pci_dev *pdev,
 				  const struct pci_device_id *ent)
 {
 	struct fb_info *info;

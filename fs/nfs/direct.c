@@ -112,10 +112,9 @@ static void nfs_direct_write_complete(struct nfs_direct_req *dreq, struct inode 
  */
 ssize_t nfs_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov, loff_t pos, unsigned long nr_segs)
 {
-	struct dentry *dentry = iocb->ki_filp->f_dentry;
-
 	dprintk("NFS: nfs_direct_IO (%s) off/no(%Ld/%lu) EINVAL\n",
-			dentry->d_name.name, (long long) pos, nr_segs);
+			iocb->ki_filp->f_dentry->d_name.name,
+			(long long) pos, nr_segs);
 
 	return -EINVAL;
 }
@@ -468,7 +467,6 @@ static const struct rpc_call_ops nfs_commit_direct_ops = {
 static void nfs_direct_commit_schedule(struct nfs_direct_req *dreq)
 {
 	struct nfs_write_data *data = dreq->commit_data;
-	struct rpc_task *task = &data->task;
 
 	data->inode = dreq->inode;
 	data->cred = dreq->ctx->cred;
@@ -489,7 +487,7 @@ static void nfs_direct_commit_schedule(struct nfs_direct_req *dreq)
 	/* Note: task.tk_ops->rpc_release will free dreq->commit_data */
 	dreq->commit_data = NULL;
 
-	dprintk("NFS: %5u initiated commit call\n", task->tk_pid);
+	dprintk("NFS: %5u initiated commit call\n", data->task.tk_pid);
 
 	lock_kernel();
 	rpc_execute(&data->task);

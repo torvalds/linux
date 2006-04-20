@@ -45,6 +45,10 @@ struct pt_regs {
 	unsigned long cp0_badvaddr;
 	unsigned long cp0_cause;
 	unsigned long cp0_epc;
+#ifdef CONFIG_MIPS_MT_SMTC
+	unsigned long cp0_tcstatus;
+	unsigned long smtc_pad;
+#endif /* CONFIG_MIPS_MT_SMTC */
 };
 
 /* Arbitrarily choose the same ptrace numbers as used by the Sparc code. */

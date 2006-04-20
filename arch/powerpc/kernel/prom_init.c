@@ -1528,12 +1528,11 @@ static int __init prom_find_machine_type(void)
 	 *    non-IBM designs !
 	 *  - it has /rtas
 	 */
-	len = prom_getprop(_prom->root, "model",
+	len = prom_getprop(_prom->root, "device_type",
 			   compat, sizeof(compat)-1);
 	if (len <= 0)
 		return PLATFORM_GENERIC;
-	compat[len] = 0;
-	if (strcmp(compat, "chrp"))
+	if (strncmp(compat, RELOC("chrp"), 4))
 		return PLATFORM_GENERIC;
 
 	/* Default to pSeries. We need to know if we are running LPAR */

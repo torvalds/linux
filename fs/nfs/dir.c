@@ -128,15 +128,14 @@ struct inode_operations nfs4_dir_inode_operations = {
 static int
 nfs_opendir(struct inode *inode, struct file *filp)
 {
-	int res = 0;
+	int res;
 
 	dfprintk(VFS, "NFS: opendir(%s/%ld)\n",
 			inode->i_sb->s_id, inode->i_ino);
 
 	lock_kernel();
 	/* Call generic open code in order to cache credentials */
-	if (!res)
-		res = nfs_open(inode, filp);
+	res = nfs_open(inode, filp);
 	unlock_kernel();
 	return res;
 }

@@ -27,6 +27,6 @@ stub_segv_handler(int sig)
 	 * the stack in its original form when we do the sigreturn here, by
 	 * hand.
 	 */
-	__asm__("mov %0,%%esp ; movl %1, %%eax ; "
-		"int $0x80" : : "a" (sc), "g" (__NR_sigreturn));
+	__asm__ __volatile__("mov %0,%%esp ; movl %1, %%eax ; "
+			     "int $0x80" : : "a" (sc), "g" (__NR_sigreturn));
 }

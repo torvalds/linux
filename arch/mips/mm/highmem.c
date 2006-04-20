@@ -83,6 +83,7 @@ void __kunmap_atomic(void *kvaddr, enum km_type type)
 	preempt_check_resched();
 }
 
+#ifndef CONFIG_LIMITED_DMA
 /*
  * This is the same as kmap_atomic() but can map memory that doesn't
  * have a struct page associated with it.
@@ -101,6 +102,7 @@ void *kmap_atomic_pfn(unsigned long pfn, enum km_type type)
 
 	return (void*) vaddr;
 }
+#endif /* CONFIG_LIMITED_DMA */
 
 struct page *__kmap_atomic_to_page(void *ptr)
 {

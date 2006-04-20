@@ -191,16 +191,18 @@ error:
 static inline void
 _decode_session6(struct sk_buff *skb, struct flowi *fl)
 {
-	u16 offset = sizeof(struct ipv6hdr);
+	u16 offset = skb->h.raw - skb->nh.raw;
 	struct ipv6hdr *hdr = skb->nh.ipv6h;
-	struct ipv6_opt_hdr *exthdr = (struct ipv6_opt_hdr*)(skb->nh.raw + offset);
-	u8 nexthdr = skb->nh.ipv6h->nexthdr;
+	struct ipv6_opt_hdr *exthdr;
+	u8 nexthdr = skb->nh.raw[IP6CB(skb)->nhoff];
 
 	memset(fl, 0, sizeof(struct flowi));
 	ipv6_addr_copy(&fl->fl6_dst, &hdr->daddr);
 	ipv6_addr_copy(&fl->fl6_src, &hdr->saddr);
 
 	while (pskb_may_pull(skb, skb->nh.raw + offset + 1 - skb->data)) {
+		exthdr = (struct ipv6_opt_hdr*)(skb->nh.raw + offset);
+
 		switch (nexthdr) {
 		case NEXTHDR_ROUTING:
 		case NEXTHDR_HOP:

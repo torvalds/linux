@@ -731,6 +731,8 @@ static unsigned int __devinit ata66_ali15x3 (ide_hwif_t *hwif)
 	
 	if(m5229_revision <= 0x20)
 		tmpbyte = (tmpbyte & (~0x02)) | 0x01;
+	else if (m5229_revision == 0xc7)
+		tmpbyte |= 0x03;
 	else
 		tmpbyte |= 0x01;
 

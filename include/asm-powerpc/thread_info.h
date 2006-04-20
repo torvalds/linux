@@ -37,6 +37,8 @@ struct thread_info {
 	int		preempt_count;		/* 0 => preemptable,
 						   <0 => BUG */
 	struct restart_block restart_block;
+	unsigned long	local_flags;		/* private flags for thread */
+
 	/* low level flags - has atomic operations done on it */
 	unsigned long	flags ____cacheline_aligned_in_smp;
 };
@@ -142,6 +144,12 @@ static inline struct thread_info *current_thread_info(void)
 #define _TIF_USER_WORK_MASK	(_TIF_NOTIFY_RESUME | _TIF_SIGPENDING | \
 				 _TIF_NEED_RESCHED | _TIF_RESTORE_SIGMASK)
 #define _TIF_PERSYSCALL_MASK	(_TIF_RESTOREALL|_TIF_NOERROR)
+
+/* Bits in local_flags */
+/* Don't move TLF_NAPPING without adjusting the code in entry_32.S */
+#define TLF_NAPPING		0	/* idle thread enabled NAP mode */
+
+#define _TLF_NAPPING		(1 << TLF_NAPPING)
 
 #endif /* __KERNEL__ */
 

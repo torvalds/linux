@@ -140,6 +140,7 @@
 #include <asm/system.h>
 #include <asm/gdb-stub.h>
 #include <asm/inst.h>
+#include <asm/smp.h>
 
 /*
  * external low-level support routines
@@ -669,6 +670,64 @@ static void kgdb_wait(void *arg)
 	local_irq_restore(flags);
 }
 
+/*
+ * GDB stub needs to call kgdb_wait on all processor with interrupts
+ * disabled, so it uses it's own special variant.
+ */
+static int kgdb_smp_call_kgdb_wait(void)
+{
+#ifdef CONFIG_SMP
+	struct call_data_struct data;
+	int i, cpus = num_online_cpus() - 1;
+	int cpu = smp_processor_id();
+
+	/*
+	 * Can die spectacularly if this CPU isn't yet marked online
+	 */
+	BUG_ON(!cpu_online(cpu));
+
+	if (!cpus)
+		return 0;
+
+	if (spin_is_locked(&smp_call_lock)) {
+		/*
+		 * Some other processor is trying to make us do something
+		 * but we're not going to respond... give up
+		 */
+		return -1;
+		}
+
+	/*
+	 * We will continue here, accepting the fact that
+	 * the kernel may deadlock if another CPU attempts
+	 * to call smp_call_function now...
+	 */
+
+	data.func = kgdb_wait;
+	data.info = NULL;
+	atomic_set(&data.started, 0);
+	data.wait = 0;
+
+	spin_lock(&smp_call_lock);
+	call_data = &data;
+	mb();
+
+	/* Send a message to all other CPUs and wait for them to respond */
+	for (i = 0; i < NR_CPUS; i++)
+		if (cpu_online(i) && i != cpu)
+			core_send_ipi(i, SMP_CALL_FUNCTION);
+
+	/* Wait for response */
+	/* FIXME: lock-up detection, backtrace on lock-up */
+	while (atomic_read(&data.started) != cpus)
+		barrier();
+
+	call_data = NULL;
+	spin_unlock(&smp_call_lock);
+#endif
+
+	return 0;
+}
 
 /*
  * This function does all command processing for interfacing to gdb.  It
@@ -718,7 +777,7 @@ void handle_exception (struct gdb_regs *regs)
 	/*
 	 * force other cpus to enter kgdb
 	 */
-	smp_call_function(kgdb_wait, NULL, 0, 0);
+	kgdb_smp_call_kgdb_wait();
 
 	/*
 	 * If we're in breakpoint() increment the PC

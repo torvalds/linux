@@ -220,7 +220,6 @@ void __init kgdb_config (void)
 				generic_putDebugChar (*s++);
 		}
 
-		kgdb_enabled = 1;
 		/* Breakpoint is invoked after interrupts are initialised */
 	}
 }

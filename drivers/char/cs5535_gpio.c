@@ -241,9 +241,10 @@ static int __init cs5535_gpio_init(void)
 static void __exit cs5535_gpio_cleanup(void)
 {
 	dev_t dev_id = MKDEV(major, 0);
+
+	cdev_del(&cs5535_gpio_cdev);
 	unregister_chrdev_region(dev_id, CS5535_GPIO_COUNT);
-	if (gpio_base != 0)
-		release_region(gpio_base, CS5535_GPIO_SIZE);
+	release_region(gpio_base, CS5535_GPIO_SIZE);
 }
 
 module_init(cs5535_gpio_init);
