@@ -176,6 +176,7 @@ void sk_stream_rfree(struct sk_buff *skb)
 {
 	struct sock *sk = skb->sk;
 
+	skb_truesize_check(skb);
 	atomic_sub(skb->truesize, &sk->sk_rmem_alloc);
 	sk->sk_forward_alloc += skb->truesize;
 }
