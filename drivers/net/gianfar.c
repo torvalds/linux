@@ -210,7 +210,8 @@ static int gfar_probe(struct platform_device *pdev)
 		goto regs_fail;
 	}
 
-	spin_lock_init(&priv->lock);
+	spin_lock_init(&priv->txlock);
+	spin_lock_init(&priv->rxlock);
 
 	platform_set_drvdata(pdev, dev);
 
@@ -515,11 +516,13 @@ void stop_gfar(struct net_device *dev)
 	phy_stop(priv->phydev);
 
 	/* Lock it down */
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irqsave(&priv->txlock, flags);
+	spin_lock(&priv->rxlock);
 
 	gfar_halt(dev);
 
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock(&priv->rxlock);
+	spin_unlock_irqrestore(&priv->txlock, flags);
 
 	/* Free the IRQs */
 	if (priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_MULTI_INTR) {
@@ -605,13 +608,14 @@ void gfar_start(struct net_device *dev)
 	tempval |= DMACTRL_INIT_SETTINGS;
 	gfar_write(&priv->regs->dmactrl, tempval);
 
-	/* Clear THLT, so that the DMA starts polling now */
-	gfar_write(&regs->tstat, TSTAT_CLEAR_THALT);
-
 	/* Make sure we aren't stopped */
 	tempval = gfar_read(&priv->regs->dmactrl);
 	tempval &= ~(DMACTRL_GRS | DMACTRL_GTS);
 	gfar_write(&priv->regs->dmactrl, tempval);
+
+	/* Clear THLT/RHLT, so that the DMA starts polling now */
+	gfar_write(&regs->tstat, TSTAT_CLEAR_THALT);
+	gfar_write(&regs->rstat, RSTAT_CLEAR_RHALT);
 
 	/* Unmask the interrupts we look for */
 	gfar_write(&regs->imask, IMASK_DEFAULT);
@@ -928,12 +932,13 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct txfcb *fcb = NULL;
 	struct txbd8 *txbdp;
 	u16 status;
+	unsigned long flags;
 
 	/* Update transmit stats */
 	priv->stats.tx_bytes += skb->len;
 
 	/* Lock priv now */
-	spin_lock_irq(&priv->lock);
+	spin_lock_irqsave(&priv->txlock, flags);
 
 	/* Point at the first free tx descriptor */
 	txbdp = priv->cur_tx;
@@ -1004,7 +1009,7 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	gfar_write(&priv->regs->tstat, TSTAT_CLEAR_THALT);
 
 	/* Unlock priv */
-	spin_unlock_irq(&priv->lock);
+	spin_unlock_irqrestore(&priv->txlock, flags);
 
 	return 0;
 }
@@ -1049,7 +1054,7 @@ static void gfar_vlan_rx_register(struct net_device *dev,
 	unsigned long flags;
 	u32 tempval;
 
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irqsave(&priv->rxlock, flags);
 
 	priv->vlgrp = grp;
 
@@ -1076,7 +1081,7 @@ static void gfar_vlan_rx_register(struct net_device *dev,
 		gfar_write(&priv->regs->rctrl, tempval);
 	}
 
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&priv->rxlock, flags);
 }
 
 
@@ -1085,12 +1090,12 @@ static void gfar_vlan_rx_kill_vid(struct net_device *dev, uint16_t vid)
 	struct gfar_private *priv = netdev_priv(dev);
 	unsigned long flags;
 
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irqsave(&priv->rxlock, flags);
 
 	if (priv->vlgrp)
 		priv->vlgrp->vlan_devices[vid] = NULL;
 
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&priv->rxlock, flags);
 }
 
 
@@ -1179,7 +1184,7 @@ static irqreturn_t gfar_transmit(int irq, void *dev_id, struct pt_regs *regs)
 	gfar_write(&priv->regs->ievent, IEVENT_TX_MASK);
 
 	/* Lock priv */
-	spin_lock(&priv->lock);
+	spin_lock(&priv->txlock);
 	bdp = priv->dirty_tx;
 	while ((bdp->status & TXBD_READY) == 0) {
 		/* If dirty_tx and cur_tx are the same, then either the */
@@ -1224,7 +1229,7 @@ static irqreturn_t gfar_transmit(int irq, void *dev_id, struct pt_regs *regs)
 	else
 		gfar_write(&priv->regs->txic, 0);
 
-	spin_unlock(&priv->lock);
+	spin_unlock(&priv->txlock);
 
 	return IRQ_HANDLED;
 }
@@ -1305,9 +1310,10 @@ irqreturn_t gfar_receive(int irq, void *dev_id, struct pt_regs *regs)
 {
 	struct net_device *dev = (struct net_device *) dev_id;
 	struct gfar_private *priv = netdev_priv(dev);
-
 #ifdef CONFIG_GFAR_NAPI
 	u32 tempval;
+#else
+	unsigned long flags;
 #endif
 
 	/* Clear IEVENT, so rx interrupt isn't called again
@@ -1330,7 +1336,7 @@ irqreturn_t gfar_receive(int irq, void *dev_id, struct pt_regs *regs)
 	}
 #else
 
-	spin_lock(&priv->lock);
+	spin_lock_irqsave(&priv->rxlock, flags);
 	gfar_clean_rx_ring(dev, priv->rx_ring_size);
 
 	/* If we are coalescing interrupts, update the timer */
@@ -1341,7 +1347,7 @@ irqreturn_t gfar_receive(int irq, void *dev_id, struct pt_regs *regs)
 	else
 		gfar_write(&priv->regs->rxic, 0);
 
-	spin_unlock(&priv->lock);
+	spin_unlock_irqrestore(&priv->rxlock, flags);
 #endif
 
 	return IRQ_HANDLED;
@@ -1490,13 +1496,6 @@ int gfar_clean_rx_ring(struct net_device *dev, int rx_work_limit)
 	/* Update the current rxbd pointer to be the next one */
 	priv->cur_rx = bdp;
 
-	/* If no packets have arrived since the
-	 * last one we processed, clear the IEVENT RX and
-	 * BSY bits so that another interrupt won't be
-	 * generated when we set IMASK */
-	if (bdp->status & RXBD_EMPTY)
-		gfar_write(&priv->regs->ievent, IEVENT_RX_MASK);
-
 	return howmany;
 }
 
@@ -1516,7 +1515,7 @@ static int gfar_poll(struct net_device *dev, int *budget)
 	rx_work_limit -= howmany;
 	*budget -= howmany;
 
-	if (rx_work_limit >= 0) {
+	if (rx_work_limit > 0) {
 		netif_rx_complete(dev);
 
 		/* Clear the halt bit in RSTAT */
@@ -1533,7 +1532,8 @@ static int gfar_poll(struct net_device *dev, int *budget)
 			gfar_write(&priv->regs->rxic, 0);
 	}
 
-	return (rx_work_limit < 0) ? 1 : 0;
+	/* Return 1 if there's more work to do */
+	return (rx_work_limit > 0) ? 0 : 1;
 }
 #endif
 
@@ -1629,7 +1629,7 @@ static void adjust_link(struct net_device *dev)
 	struct phy_device *phydev = priv->phydev;
 	int new_state = 0;
 
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irqsave(&priv->txlock, flags);
 	if (phydev->link) {
 		u32 tempval = gfar_read(&regs->maccfg2);
 		u32 ecntrl = gfar_read(&regs->ecntrl);
@@ -1694,7 +1694,7 @@ static void adjust_link(struct net_device *dev)
 	if (new_state && netif_msg_link(priv))
 		phy_print_status(phydev);
 
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&priv->txlock, flags);
 }
 
 /* Update the hash table based on the current list of multicast
