@@ -3585,8 +3585,7 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 				buffer_info->skb = skb;
 				goto next_desc;
 			}
-		} else
-			skb_put(skb, length);
+		}
 
 		/* code added for copybreak, this should improve
 		 * performance for small packets with large amounts
@@ -4174,7 +4173,7 @@ e1000_mii_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 			spin_unlock_irqrestore(&adapter->stats_lock, flags);
 			return -EIO;
 		}
-		if (adapter->hw.phy_type == e1000_media_type_copper) {
+		if (adapter->hw.media_type == e1000_media_type_copper) {
 			switch (data->reg_num) {
 			case PHY_CTRL:
 				if (mii_reg & MII_CR_POWER_DOWN)
