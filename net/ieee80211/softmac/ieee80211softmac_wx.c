@@ -41,13 +41,23 @@ ieee80211softmac_wx_trigger_scan(struct net_device *net_dev,
 EXPORT_SYMBOL_GPL(ieee80211softmac_wx_trigger_scan);
 
 
+/* if we're still scanning, return -EAGAIN so that userspace tools
+ * can get the complete scan results, otherwise return 0. */
 int
 ieee80211softmac_wx_get_scan_results(struct net_device *net_dev,
 				     struct iw_request_info *info,
 				     union iwreq_data *data,
 				     char *extra)
 {
+	unsigned long flags;
 	struct ieee80211softmac_device *sm = ieee80211_priv(net_dev);
+
+	spin_lock_irqsave(&sm->lock, flags);
+	if (sm->scanning) {
+		spin_unlock_irqrestore(&sm->lock, flags);
+		return -EAGAIN;
+	}
+	spin_unlock_irqrestore(&sm->lock, flags);
 	return ieee80211_wx_get_scan(sm->ieee, info, data, extra);
 }
 EXPORT_SYMBOL_GPL(ieee80211softmac_wx_get_scan_results);
