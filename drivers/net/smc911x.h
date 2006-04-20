@@ -73,13 +73,13 @@
 #if	 SMC_USE_PXA_DMA
 #define SMC_USE_DMA
 
-/* 
- * Define the request and free functions 
+/*
+ * Define the request and free functions
  * These are unfortunately architecture specific as no generic allocation
  * mechanism exits
  */
 #define SMC_DMA_REQUEST(dev, handler) \
-	 pxa_request_dma(dev->name, DMA_PRIO_LOW, handler, dev)	   
+	 pxa_request_dma(dev->name, DMA_PRIO_LOW, handler, dev)
 
 #define SMC_DMA_FREE(dev, dma) \
 	 pxa_free_dma(dma)
@@ -101,14 +101,14 @@
 
 static dma_addr_t rx_dmabuf, tx_dmabuf;
 static int rx_dmalen, tx_dmalen;
- 
+
 #ifdef SMC_insl
 #undef SMC_insl
 #define SMC_insl(a, r, p, l) \
 	smc_pxa_dma_insl(lp->dev, a, lp->physaddr, r, lp->rxdma, p, l)
 
 static inline void
-smc_pxa_dma_insl(struct device *dev, u_long ioaddr, u_long physaddr, 
+smc_pxa_dma_insl(struct device *dev, u_long ioaddr, u_long physaddr,
 		int reg, int dma, u_char *buf, int len)
 {
 	/* 64 bit alignment is required for memory to memory DMA */
@@ -136,7 +136,7 @@ smc_pxa_dma_insl(struct device *dev, u_long ioaddr, u_long physaddr,
 	smc_pxa_dma_insw(lp->dev, a, lp->physaddr, r, lp->rxdma, p, l)
 
 static inline void
-smc_pxa_dma_insw(struct device *dev, u_long ioaddr, u_long physaddr, 
+smc_pxa_dma_insw(struct device *dev, u_long ioaddr, u_long physaddr,
 		int reg, int dma, u_char *buf, int len)
 {
 	/* 64 bit alignment is required for memory to memory DMA */
@@ -164,7 +164,7 @@ smc_pxa_dma_insw(struct device *dev, u_long ioaddr, u_long physaddr,
 	 smc_pxa_dma_outsl(lp->dev, a, lp->physaddr, r, lp->txdma, p, l)
 
 static inline void
-smc_pxa_dma_outsl(struct device *dev, u_long ioaddr, u_long physaddr, 
+smc_pxa_dma_outsl(struct device *dev, u_long ioaddr, u_long physaddr,
 		int reg, int dma, u_char *buf, int len)
 {
 	/* 64 bit alignment is required for memory to memory DMA */
@@ -192,7 +192,7 @@ smc_pxa_dma_outsl(struct device *dev, u_long ioaddr, u_long physaddr,
 	smc_pxa_dma_outsw(lp->dev, a, lp->physaddr, r, lp->txdma, p, l)
 
 static inline void
-smc_pxa_dma_outsw(struct device *dev, u_long ioaddr, u_long physaddr, 
+smc_pxa_dma_outsw(struct device *dev, u_long ioaddr, u_long physaddr,
 		  int reg, int dma, u_char *buf, int len)
 {
 	/* 64 bit alignment is required for memory to memory DMA */
@@ -607,7 +607,7 @@ struct chip_id {
 	u16 id;
 	char *name;
 };
- 
+
 static const struct chip_id chip_ids[] =  {
 	{ CHIP_9115, "LAN9115" },
 	{ CHIP_9116, "LAN9116" },
