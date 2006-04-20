@@ -407,7 +407,7 @@ static void __init early_initrd(char **p)
 }
 __early_param("initrd=", early_initrd);
 
-static void __init add_memory(unsigned long start, unsigned long size)
+static void __init arm_add_memory(unsigned long start, unsigned long size)
 {
 	/*
 	 * Ensure that start/size are aligned to a page boundary.
@@ -445,7 +445,7 @@ static void __init early_mem(char **p)
 	if (**p == '@')
 		start = memparse(*p + 1, p);
 
-	add_memory(start, size);
+	arm_add_memory(start, size);
 }
 __early_param("mem=", early_mem);
 
@@ -587,7 +587,7 @@ static int __init parse_tag_mem32(const struct tag *tag)
 			tag->u.mem.start, tag->u.mem.size / 1024);
 		return -EINVAL;
 	}
-	add_memory(tag->u.mem.start, tag->u.mem.size);
+	arm_add_memory(tag->u.mem.start, tag->u.mem.size);
 	return 0;
 }
 
