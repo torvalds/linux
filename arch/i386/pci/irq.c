@@ -591,7 +591,6 @@ static __init int via_router_probe(struct irq_router *r,
 	case PCI_DEVICE_ID_VIA_8233A:
 	case PCI_DEVICE_ID_VIA_8235:
 	case PCI_DEVICE_ID_VIA_8237:
-	case PCI_DEVICE_ID_VIA_8237_SATA:
 		/* FIXME: add new ones for 8233/5 */
 		r->name = "VIA";
 		r->get = pirq_via_get;
