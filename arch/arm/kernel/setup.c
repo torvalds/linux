@@ -807,7 +807,7 @@ static int __init topology_init(void)
 {
 	int cpu;
 
-	for_each_cpu(cpu)
+	for_each_possible_cpu(cpu)
 		register_cpu(&per_cpu(cpu_data, cpu).cpu, cpu, NULL);
 
 	return 0;
