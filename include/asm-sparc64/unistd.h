@@ -250,7 +250,7 @@
 #ifdef __KERNEL__
 #define __NR_time		231 /* Linux sparc32                               */
 #endif
-#define __NR_sys_splice         232 /* Linux Specific                              */
+#define __NR_splice             232 /* Linux Specific                              */
 #define __NR_stime              233 /* Linux Specific                              */
 #define __NR_statfs64           234 /* Linux Specific                              */
 #define __NR_fstatfs64          235 /* Linux Specific                              */
