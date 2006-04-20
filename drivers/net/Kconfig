@@ -865,6 +865,22 @@ config DM9000
 	  <file:Documentation/networking/net-modules.txt>.  The module will be
 	  called dm9000.
 
+config SMC911X
+	tristate "SMSC LAN911[5678] support"
+	select CRC32
+	select MII
+	depends on NET_ETHERNET
+	help
+	  This is a driver for SMSC's LAN911x series of Ethernet chipsets
+	  including the new LAN9115, LAN9116, LAN9117, and LAN9118.
+	  Say Y if you want it compiled into the kernel, 
+	  and read the Ethernet-HOWTO, available from
+	  <http://www.linuxdoc.org/docs.html#howto>.
+
+	  This driver is also available as a module. The module will be 
+	  called smc911x.  If you want to compile it as a module, say M 
+	  here and read <file:Documentation/modules.txt>
+
 config NET_VENDOR_RACAL
 	bool "Racal-Interlan (Micom) NI cards"
 	depends on NET_ETHERNET && ISA
