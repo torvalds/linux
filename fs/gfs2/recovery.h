@@ -25,7 +25,7 @@ void gfs2_revoke_clean(struct gfs2_sbd *sdp);
 
 int gfs2_find_jhead(struct gfs2_jdesc *jd,
 		    struct gfs2_log_header *head);
-int gfs2_recover_journal(struct gfs2_jdesc *gfs2_jd, int wait);
+int gfs2_recover_journal(struct gfs2_jdesc *gfs2_jd);
 void gfs2_check_journals(struct gfs2_sbd *sdp);
 
 #endif /* __RECOVERY_DOT_H__ */

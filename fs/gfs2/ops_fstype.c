@@ -444,8 +444,7 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 	if (sdp->sd_lockstruct.ls_first) {
 		unsigned int x;
 		for (x = 0; x < sdp->sd_journals; x++) {
-			error = gfs2_recover_journal(gfs2_jdesc_find(sdp, x),
-						     WAIT);
+			error = gfs2_recover_journal(gfs2_jdesc_find(sdp, x));
 			if (error) {
 				fs_err(sdp, "error recovering journal %u: %d\n",
 				       x, error);
@@ -455,7 +454,7 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 
 		gfs2_lm_others_may_mount(sdp);
 	} else if (!sdp->sd_args.ar_spectator) {
-		error = gfs2_recover_journal(sdp->sd_jdesc, WAIT);
+		error = gfs2_recover_journal(sdp->sd_jdesc);
 		if (error) {
 			fs_err(sdp, "error recovering my journal: %d\n", error);
 			goto fail_jinode_gh;

@@ -418,7 +418,6 @@ static int clean_journal(struct gfs2_jdesc *jd, struct gfs2_log_header *head)
 /**
  * gfs2_recover_journal - recovery a given journal
  * @jd: the struct gfs2_jdesc describing the journal
- * @wait: Don't return until the journal is clean (or an error is encountered)
  *
  * Acquire the journal's lock, check to see if the journal is clean, and
  * do recovery if necessary.
@@ -426,7 +425,7 @@ static int clean_journal(struct gfs2_jdesc *jd, struct gfs2_log_header *head)
  * Returns: errno
  */
 
-int gfs2_recover_journal(struct gfs2_jdesc *jd, int wait)
+int gfs2_recover_journal(struct gfs2_jdesc *jd)
 {
 	struct gfs2_inode *ip = jd->jd_inode->u.generic_ip;
 	struct gfs2_sbd *sdp = ip->i_sbd;
@@ -441,12 +440,10 @@ int gfs2_recover_journal(struct gfs2_jdesc *jd, int wait)
 
 	/* Aquire the journal lock so we can do recovery */
 
-	error = gfs2_glock_nq_num(sdp,
-				  jd->jd_jid, &gfs2_journal_glops,
+	error = gfs2_glock_nq_num(sdp, jd->jd_jid, &gfs2_journal_glops,
 				  LM_ST_EXCLUSIVE,
-				  LM_FLAG_NOEXP |
-				  ((wait) ? 0 : LM_FLAG_TRY) |
-				  GL_NOCACHE, &j_gh);
+				  LM_FLAG_NOEXP | LM_FLAG_TRY | GL_NOCACHE,
+				  &j_gh);
 	switch (error) {
 	case 0:
 		break;
@@ -574,7 +571,7 @@ void gfs2_check_journals(struct gfs2_sbd *sdp)
 			break;
 
 		if (jd != sdp->sd_jdesc)
-			gfs2_recover_journal(jd, NO_WAIT);
+			gfs2_recover_journal(jd);
 	}
 }
 
