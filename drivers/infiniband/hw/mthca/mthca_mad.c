@@ -49,7 +49,7 @@ enum {
 	MTHCA_VENDOR_CLASS2 = 0xa
 };
 
-int mthca_update_rate(struct mthca_dev *dev, u8 port_num)
+static int mthca_update_rate(struct mthca_dev *dev, u8 port_num)
 {
 	struct ib_port_attr *tprops = NULL;
 	int                  ret;

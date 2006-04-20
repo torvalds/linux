@@ -216,6 +216,11 @@ static void tx39_flush_cache_page(struct vm_area_struct *vma, unsigned long page
 		tx39_blast_icache_page_indexed(page);
 }
 
+static void local_tx39_flush_data_cache_page(void * addr)
+{
+	tx39_blast_dcache_page(addr);
+}
+
 static void tx39_flush_data_cache_page(unsigned long addr)
 {
 	tx39_blast_dcache_page(addr);
@@ -381,6 +386,7 @@ void __init tx39_cache_init(void)
 		flush_icache_range	= (void *) tx39h_flush_icache_all;
 
 		flush_cache_sigtramp	= (void *) tx39h_flush_icache_all;
+		local_flush_data_cache_page	= (void *) tx39h_flush_icache_all;
 		flush_data_cache_page	= (void *) tx39h_flush_icache_all;
 
 		_dma_cache_wback_inv	= tx39h_dma_cache_wback_inv;
@@ -406,6 +412,7 @@ void __init tx39_cache_init(void)
 		flush_icache_range = tx39_flush_icache_range;
 
 		flush_cache_sigtramp = tx39_flush_cache_sigtramp;
+		local_flush_data_cache_page = local_tx39_flush_data_cache_page;
 		flush_data_cache_page = tx39_flush_data_cache_page;
 
 		_dma_cache_wback_inv = tx39_dma_cache_wback_inv;

@@ -48,7 +48,6 @@
 #include <asm/mipsregs.h>
 #include <asm/system.h>
 
-extern asmlinkage void ocelot_handle_int(void);
 extern void uart_irq_init(void);
 extern void cpci_irq_init(void);
 
@@ -60,6 +59,33 @@ static struct irqaction cascade_mv64340 = {
 	no_action, SA_INTERRUPT, CPU_MASK_NONE, "cascade via MV64340", NULL, NULL
 };
 
+extern void ll_uart_irq(struct pt_regs *regs);
+extern void ll_cpci_irq(struct pt_regs *regs);
+
+asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+{
+	unsigned int pending = read_c0_cause() & read_c0_status();
+
+	if (pending & STATUSF_IP0)
+		do_IRQ(0, regs);
+	else if (pending & STATUSF_IP1)
+		do_IRQ(1, regs);
+	else if (pending & STATUSF_IP2)
+		do_IRQ(2, regs);
+	else if (pending & STATUSF_IP3)
+		ll_uart_irq(regs);
+	else if (pending & STATUSF_IP4)
+		do_IRQ(4, regs);
+	else if (pending & STATUSF_IP5)
+		ll_cpci_irq(regs);
+	else if (pending & STATUSF_IP6)
+		ll_mv64340_irq(regs);
+	else if (pending & STATUSF_IP7)
+		do_IRQ(7, regs);
+	else
+		spurious_interrupt(regs);
+}
+
 void __init arch_init_irq(void)
 {
 	/*
@@ -68,8 +94,6 @@ void __init arch_init_irq(void)
 	 */
 	clear_c0_status(ST0_IM);
 
-	/* Sets the first-level interrupt dispatcher. */
-	set_except_vector(0, ocelot_handle_int);
 	mips_cpu_irq_init(0);
 
 	/* set up the cascading interrupts */

@@ -196,12 +196,9 @@ static int __init corgi_ssp_probe(struct platform_device *dev)
 	int ret;
 
 	/* Chip Select - Disable All */
-	GPDR(ssp_machinfo->cs_lcdcon) |= GPIO_bit(ssp_machinfo->cs_lcdcon); /* output */
-	GPSR(ssp_machinfo->cs_lcdcon) = GPIO_bit(ssp_machinfo->cs_lcdcon);  /* High - Disable LCD Control/Timing Gen */
-	GPDR(ssp_machinfo->cs_max1111) |= GPIO_bit(ssp_machinfo->cs_max1111); /* output */
-	GPSR(ssp_machinfo->cs_max1111) = GPIO_bit(ssp_machinfo->cs_max1111);  /* High - Disable MAX1111*/
-	GPDR(ssp_machinfo->cs_ads7846) |= GPIO_bit(ssp_machinfo->cs_ads7846);  /* output */
-	GPSR(ssp_machinfo->cs_ads7846) = GPIO_bit(ssp_machinfo->cs_ads7846);   /* High - Disable ADS7846*/
+	pxa_gpio_mode(ssp_machinfo->cs_lcdcon  | GPIO_OUT | GPIO_DFLT_HIGH);
+        pxa_gpio_mode(ssp_machinfo->cs_max1111 | GPIO_OUT | GPIO_DFLT_HIGH);
+        pxa_gpio_mode(ssp_machinfo->cs_ads7846 | GPIO_OUT | GPIO_DFLT_HIGH);
 
 	ret = ssp_init(&corgi_ssp_dev, ssp_machinfo->port, 0);
 

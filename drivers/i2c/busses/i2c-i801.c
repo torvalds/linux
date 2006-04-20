@@ -478,6 +478,11 @@ static s32 i801_access(struct i2c_adapter * adap, u16 addr,
 		ret = i801_transaction();
 	}
 
+	/* Some BIOSes don't like it when PEC is enabled at reboot or resume
+	   time, so we forcibly disable it after every transaction. */
+	if (hwpec)
+		outb_p(0, SMBAUXCTL);
+
 	if(block)
 		return ret;
 	if(ret)

@@ -188,8 +188,8 @@ static void free_qpn(struct ipath_qp_table *qpt, u32 qpn)
  * Allocate the next available QPN and put the QP into the hash table.
  * The hash table holds a reference to the QP.
  */
-int ipath_alloc_qpn(struct ipath_qp_table *qpt, struct ipath_qp *qp,
-		    enum ib_qp_type type)
+static int ipath_alloc_qpn(struct ipath_qp_table *qpt, struct ipath_qp *qp,
+			   enum ib_qp_type type)
 {
 	unsigned long flags;
 	u32 qpn;
@@ -232,7 +232,7 @@ bail:
  * Remove the QP from the table so it can't be found asynchronously by
  * the receive interrupt routine.
  */
-void ipath_free_qp(struct ipath_qp_table *qpt, struct ipath_qp *qp)
+static void ipath_free_qp(struct ipath_qp_table *qpt, struct ipath_qp *qp)
 {
 	struct ipath_qp *q, **qpp;
 	unsigned long flags;
@@ -355,6 +355,65 @@ static void ipath_reset_qp(struct ipath_qp *qp)
 	qp->r_rq.head = 0;
 	qp->r_rq.tail = 0;
 	qp->r_reuse_sge = 0;
+}
+
+/**
+ * ipath_error_qp - put a QP into an error state
+ * @qp: the QP to put into an error state
+ *
+ * Flushes both send and receive work queues.
+ * QP r_rq.lock and s_lock should be held.
+ */
+
+static void ipath_error_qp(struct ipath_qp *qp)
+{
+	struct ipath_ibdev *dev = to_idev(qp->ibqp.device);
+	struct ib_wc wc;
+
+	_VERBS_INFO("QP%d/%d in error state\n",
+		    qp->ibqp.qp_num, qp->remote_qpn);
+
+	spin_lock(&dev->pending_lock);
+	/* XXX What if its already removed by the timeout code? */
+	if (qp->timerwait.next != LIST_POISON1)
+		list_del(&qp->timerwait);
+	if (qp->piowait.next != LIST_POISON1)
+		list_del(&qp->piowait);
+	spin_unlock(&dev->pending_lock);
+
+	wc.status = IB_WC_WR_FLUSH_ERR;
+	wc.vendor_err = 0;
+	wc.byte_len = 0;
+	wc.imm_data = 0;
+	wc.qp_num = qp->ibqp.qp_num;
+	wc.src_qp = 0;
+	wc.wc_flags = 0;
+	wc.pkey_index = 0;
+	wc.slid = 0;
+	wc.sl = 0;
+	wc.dlid_path_bits = 0;
+	wc.port_num = 0;
+
+	while (qp->s_last != qp->s_head) {
+		struct ipath_swqe *wqe = get_swqe_ptr(qp, qp->s_last);
+
+		wc.wr_id = wqe->wr.wr_id;
+		wc.opcode = ib_ipath_wc_opcode[wqe->wr.opcode];
+		if (++qp->s_last >= qp->s_size)
+			qp->s_last = 0;
+		ipath_cq_enter(to_icq(qp->ibqp.send_cq), &wc, 1);
+	}
+	qp->s_cur = qp->s_tail = qp->s_head;
+	qp->s_hdrwords = 0;
+	qp->s_ack_state = IB_OPCODE_RC_ACKNOWLEDGE;
+
+	wc.opcode = IB_WC_RECV;
+	while (qp->r_rq.tail != qp->r_rq.head) {
+		wc.wr_id = get_rwqe_ptr(&qp->r_rq, qp->r_rq.tail)->wr_id;
+		if (++qp->r_rq.tail >= qp->r_rq.size)
+			qp->r_rq.tail = 0;
+		ipath_cq_enter(to_icq(qp->ibqp.recv_cq), &wc, 1);
+	}
 }
 
 /**
@@ -818,65 +877,6 @@ void ipath_sqerror_qp(struct ipath_qp *qp, struct ib_wc *wc)
 	}
 	qp->s_cur = qp->s_tail = qp->s_head;
 	qp->state = IB_QPS_SQE;
-}
-
-/**
- * ipath_error_qp - put a QP into an error state
- * @qp: the QP to put into an error state
- *
- * Flushes both send and receive work queues.
- * QP r_rq.lock and s_lock should be held.
- */
-
-void ipath_error_qp(struct ipath_qp *qp)
-{
-	struct ipath_ibdev *dev = to_idev(qp->ibqp.device);
-	struct ib_wc wc;
-
-	_VERBS_INFO("QP%d/%d in error state\n",
-		    qp->ibqp.qp_num, qp->remote_qpn);
-
-	spin_lock(&dev->pending_lock);
-	/* XXX What if its already removed by the timeout code? */
-	if (qp->timerwait.next != LIST_POISON1)
-		list_del(&qp->timerwait);
-	if (qp->piowait.next != LIST_POISON1)
-		list_del(&qp->piowait);
-	spin_unlock(&dev->pending_lock);
-
-	wc.status = IB_WC_WR_FLUSH_ERR;
-	wc.vendor_err = 0;
-	wc.byte_len = 0;
-	wc.imm_data = 0;
-	wc.qp_num = qp->ibqp.qp_num;
-	wc.src_qp = 0;
-	wc.wc_flags = 0;
-	wc.pkey_index = 0;
-	wc.slid = 0;
-	wc.sl = 0;
-	wc.dlid_path_bits = 0;
-	wc.port_num = 0;
-
-	while (qp->s_last != qp->s_head) {
-		struct ipath_swqe *wqe = get_swqe_ptr(qp, qp->s_last);
-
-		wc.wr_id = wqe->wr.wr_id;
-		wc.opcode = ib_ipath_wc_opcode[wqe->wr.opcode];
-		if (++qp->s_last >= qp->s_size)
-			qp->s_last = 0;
-		ipath_cq_enter(to_icq(qp->ibqp.send_cq), &wc, 1);
-	}
-	qp->s_cur = qp->s_tail = qp->s_head;
-	qp->s_hdrwords = 0;
-	qp->s_ack_state = IB_OPCODE_RC_ACKNOWLEDGE;
-
-	wc.opcode = IB_WC_RECV;
-	while (qp->r_rq.tail != qp->r_rq.head) {
-		wc.wr_id = get_rwqe_ptr(&qp->r_rq, qp->r_rq.tail)->wr_id;
-		if (++qp->r_rq.tail >= qp->r_rq.size)
-			qp->r_rq.tail = 0;
-		ipath_cq_enter(to_icq(qp->ibqp.recv_cq), &wc, 1);
-	}
 }
 
 /**

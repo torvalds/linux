@@ -13,6 +13,7 @@
 
 #include <linux/sched.h>
 #include <linux/init.h>
+#include <linux/kernel_stat.h>
 #include <asm/processor.h>
 #include <asm/sigcontext.h>
 #include <asm/user.h>
@@ -38,17 +39,38 @@ extern void init_fpu(struct task_struct *);
 extern void kernel_fpu_begin(void);
 #define kernel_fpu_end() do { stts(); preempt_enable(); } while(0)
 
+/* We need a safe address that is cheap to find and that is already
+   in L1 during context switch. The best choices are unfortunately
+   different for UP and SMP */
+#ifdef CONFIG_SMP
+#define safe_address (__per_cpu_offset[0])
+#else
+#define safe_address (kstat_cpu(0).cpustat.user)
+#endif
+
 /*
  * These must be called with preempt disabled
  */
 static inline void __save_init_fpu( struct task_struct *tsk )
 {
+	/* Use more nops than strictly needed in case the compiler
+	   varies code */
 	alternative_input(
-		"fnsave %1 ; fwait ;" GENERIC_NOP2,
-		"fxsave %1 ; fnclex",
+		"fnsave %[fx] ;fwait;" GENERIC_NOP8 GENERIC_NOP4,
+		"fxsave %[fx]\n"
+		"bt $7,%[fsw] ; jc 1f ; fnclex\n1:",
 		X86_FEATURE_FXSR,
-		"m" (tsk->thread.i387.fxsave)
-		:"memory");
+		[fx] "m" (tsk->thread.i387.fxsave),
+		[fsw] "m" (tsk->thread.i387.fxsave.swd) : "memory");
+	/* AMD K7/K8 CPUs don't save/restore FDP/FIP/FOP unless an exception
+	   is pending.  Clear the x87 state here by setting it to fixed
+   	   values. __per_cpu_offset[0] is a random variable that should be in L1 */
+	alternative_input(
+		GENERIC_NOP8 GENERIC_NOP2,
+		"emms\n\t"	  	/* clear stack tags */
+		"fildl %[addr]", 	/* set F?P to defined value */
+		X86_FEATURE_FXSAVE_LEAK,
+		[addr] "m" (safe_address));
 	task_thread_info(tsk)->status &= ~TS_USEDFPU;
 }
 

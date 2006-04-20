@@ -411,6 +411,7 @@ AX.25 NETWORK LAYER
 P:	Ralf Baechle
 M:	ralf@linux-mips.org
 L:	linux-hams@vger.kernel.org
+W:	http://www.linux-ax25.org/
 S:	Maintained
 
 BAYCOM/HDLCDRV DRIVERS FOR AX.25
@@ -1457,6 +1458,13 @@ M:	support@pathscale.com
 L:	openib-general@openib.org
 S:	Supported
 
+IPMI SUBSYSTEM
+P:	Corey Minyard
+M:	minyard@acm.org
+L:	openipmi-developer@lists.sourceforge.net
+W:	http://openipmi.sourceforge.net/
+S:	Supported
+
 IPX NETWORK LAYER
 P:	Arnaldo Carvalho de Melo
 M:	acme@conectiva.com.br
@@ -1869,6 +1877,7 @@ NETROM NETWORK LAYER
 P:	Ralf Baechle
 M:	ralf@linux-mips.org
 L:	linux-hams@vger.kernel.org
+W:	http://www.linux-ax25.org/
 S:	Maintained
 
 NETWORK BLOCK DEVICE
@@ -2260,6 +2269,7 @@ ROSE NETWORK LAYER
 P:	Ralf Baechle
 M:	ralf@linux-mips.org
 L:	linux-hams@vger.kernel.org
+W:	http://www.linux-ax25.org/
 S:	Maintained
 
 RISCOM8 DRIVER

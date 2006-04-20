@@ -21,8 +21,6 @@
 #include <asm/ddb5xxx/ddb5074.h>
 
 
-extern asmlinkage void ddbIRQ(void);
-
 static struct irqaction irq_cascade = { no_action, 0, CPU_MASK_NONE, "cascade", NULL, NULL };
 
 #define M1543_PNP_CONFIG	0x03f0	/* PnP Config Port */
@@ -90,7 +88,7 @@ static void m1543_irq_setup(void)
 
 }
 
-void ddb_local0_irqdispatch(struct pt_regs *regs)
+static void ddb_local0_irqdispatch(struct pt_regs *regs)
 {
 	u32 mask;
 	int nile4_irq;
@@ -118,19 +116,33 @@ void ddb_local0_irqdispatch(struct pt_regs *regs)
 		}
 }
 
-void ddb_local1_irqdispatch(void)
+static void ddb_local1_irqdispatch(void)
 {
 	printk("ddb_local1_irqdispatch called\n");
 }
 
-void ddb_buserror_irq(void)
+static void ddb_buserror_irq(void)
 {
 	printk("ddb_buserror_irq called\n");
 }
 
-void ddb_8254timer_irq(void)
+static void ddb_8254timer_irq(void)
 {
 	printk("ddb_8254timer_irq called\n");
+}
+
+asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+{
+	unsigned int pending = read_c0_cause() & read_c0_status();
+
+	if (pending & CAUSEF_IP2)
+		ddb_local0_irqdispatch(regs);
+	else if (pending & CAUSEF_IP3)
+		ddb_local1_irqdispatch();
+	else if (pending & CAUSEF_IP6)
+		ddb_buserror_irq();
+	else if (pending & (CAUSEF_IP4 | CAUSEF_IP5))
+		ddb_8254timer_irq();
 }
 
 void __init arch_init_irq(void)
@@ -138,8 +150,6 @@ void __init arch_init_irq(void)
 	/* setup cascade interrupts */
 	setup_irq(NILE4_IRQ_BASE  + NILE4_INT_INTE, &irq_cascade);
 	setup_irq(CPU_IRQ_BASE + CPU_NILE4_CASCADE, &irq_cascade);
-
-	set_except_vector(0, ddbIRQ);
 
 	nile4_irq_setup(NILE4_IRQ_BASE);
 	m1543_irq_setup();

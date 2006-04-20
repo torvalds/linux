@@ -120,7 +120,6 @@ static struct resource qic_res = {
  * It writes num_bits of the data buffer in msg starting at start_bit.
  * Note: This function assumes that any unused bit in the data stream
  * is set to zero so that the ors will work correctly */
-#define BITS_PER_BYTE 8
 static void
 cat_pack(__u8 *msg, const __u16 start_bit, __u8 *data, const __u16 num_bits)
 {

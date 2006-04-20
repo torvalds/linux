@@ -21,6 +21,10 @@
 #include <asm/processor.h>
 #include <asm/current.h>
 
+#ifdef CONFIG_MIPS_MT_FPAFF
+#include <asm/mips_mt.h>
+#endif
+
 struct sigcontext;
 struct sigcontext32;
 

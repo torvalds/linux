@@ -32,7 +32,16 @@ The output of "cat /proc/meminfo" will have lines like:
 .....
 HugePages_Total: xxx
 HugePages_Free:  yyy
-Hugepagesize:    zzz KB
+HugePages_Rsvd:  www
+Hugepagesize:    zzz kB
+
+where:
+HugePages_Total is the size of the pool of hugepages.
+HugePages_Free is the number of hugepages in the pool that are not yet
+allocated.
+HugePages_Rsvd is short for "reserved," and is the number of hugepages
+for which a commitment to allocate from the pool has been made, but no
+allocation has yet been made. It's vaguely analogous to overcommit.
 
 /proc/filesystems should also show a filesystem of type "hugetlbfs" configured
 in the kernel.

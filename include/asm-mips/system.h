@@ -155,6 +155,37 @@ extern asmlinkage void *resume(void *last, void *next, void *next_ti);
 
 struct task_struct;
 
+#ifdef CONFIG_MIPS_MT_FPAFF
+
+/*
+ * Handle the scheduler resume end of FPU affinity management.  We do this
+ * inline to try to keep the overhead down. If we have been forced to run on
+ * a "CPU" with an FPU because of a previous high level of FP computation,
+ * but did not actually use the FPU during the most recent time-slice (CU1
+ * isn't set), we undo the restriction on cpus_allowed.
+ *
+ * We're not calling set_cpus_allowed() here, because we have no need to
+ * force prompt migration - we're already switching the current CPU to a
+ * different thread.
+ */
+
+#define switch_to(prev,next,last)					\
+do {									\
+	if (cpu_has_fpu &&						\
+	    (prev->thread.mflags & MF_FPUBOUND) &&			\
+	     (!(KSTK_STATUS(prev) & ST0_CU1))) {			\
+		prev->thread.mflags &= ~MF_FPUBOUND;			\
+		prev->cpus_allowed = prev->thread.user_cpus_allowed;	\
+	}								\
+	if (cpu_has_dsp)						\
+		__save_dsp(prev);					\
+	next->thread.emulated_fp = 0;					\
+	(last) = resume(prev, next, next->thread_info);			\
+	if (cpu_has_dsp)						\
+		__restore_dsp(current);					\
+} while(0)
+
+#else
 #define switch_to(prev,next,last)					\
 do {									\
 	if (cpu_has_dsp)						\
@@ -163,6 +194,7 @@ do {									\
 	if (cpu_has_dsp)						\
 		__restore_dsp(current);					\
 } while(0)
+#endif
 
 /*
  * On SMP systems, when the scheduler does migration-cost autodetection,
@@ -440,8 +472,8 @@ static inline unsigned long __cmpxchg(volatile void * ptr, unsigned long old,
 extern void set_handler (unsigned long offset, void *addr, unsigned long len);
 extern void set_uncached_handler (unsigned long offset, void *addr, unsigned long len);
 extern void *set_vi_handler (int n, void *addr);
-extern void *set_vi_srs_handler (int n, void *addr, int regset);
 extern void *set_except_vector(int n, void *addr);
+extern unsigned long ebase;
 extern void per_cpu_trap_init(void);
 
 extern NORET_TYPE void die(const char *, struct pt_regs *);

@@ -130,8 +130,6 @@ struct irqaction memerr_irq = { crime_memerr_intr, SA_INTERRUPT,
 struct irqaction cpuerr_irq = { crime_cpuerr_intr, SA_INTERRUPT,
 			CPU_MASK_NONE, "CRIME CPU error", NULL, NULL };
 
-extern void ip32_handle_int(void);
-
 /*
  * For interrupts wired from a single device to the CPU.  Only the clock
  * uses this it seems, which is IRQ 0 and IP7.
@@ -503,7 +501,7 @@ static void ip32_unknown_interrupt(struct pt_regs *regs)
 
 /* CRIME 1.1 appears to deliver all interrupts to this one pin. */
 /* change this to loop over all edge-triggered irqs, exception masked out ones */
-void ip32_irq0(struct pt_regs *regs)
+static void ip32_irq0(struct pt_regs *regs)
 {
 	uint64_t crime_int;
 	int irq = 0;
@@ -520,29 +518,47 @@ void ip32_irq0(struct pt_regs *regs)
 	do_IRQ(irq, regs);
 }
 
-void ip32_irq1(struct pt_regs *regs)
+static void ip32_irq1(struct pt_regs *regs)
 {
 	ip32_unknown_interrupt(regs);
 }
 
-void ip32_irq2(struct pt_regs *regs)
+static void ip32_irq2(struct pt_regs *regs)
 {
 	ip32_unknown_interrupt(regs);
 }
 
-void ip32_irq3(struct pt_regs *regs)
+static void ip32_irq3(struct pt_regs *regs)
 {
 	ip32_unknown_interrupt(regs);
 }
 
-void ip32_irq4(struct pt_regs *regs)
+static void ip32_irq4(struct pt_regs *regs)
 {
 	ip32_unknown_interrupt(regs);
 }
 
-void ip32_irq5(struct pt_regs *regs)
+static void ip32_irq5(struct pt_regs *regs)
 {
 	ll_timer_interrupt(IP32_R4K_TIMER_IRQ, regs);
+}
+
+asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+{
+	unsigned int pending = read_c0_cause();
+
+	if (likely(pending & IE_IRQ0))
+		ip32_irq0(regs);
+	else if (unlikely(pending & IE_IRQ1))
+		ip32_irq1(regs);
+	else if (unlikely(pending & IE_IRQ2))
+		ip32_irq2(regs);
+	else if (unlikely(pending & IE_IRQ3))
+		ip32_irq3(regs);
+	else if (unlikely(pending & IE_IRQ4))
+		ip32_irq4(regs);
+	else if (likely(pending & IE_IRQ5))
+		ip32_irq5(regs);
 }
 
 void __init arch_init_irq(void)
@@ -556,7 +572,6 @@ void __init arch_init_irq(void)
 	crime->soft_int = 0;
 	mace->perif.ctrl.istat = 0;
 	mace->perif.ctrl.imask = 0;
-	set_except_vector(0, ip32_handle_int);
 
 	for (irq = 0; irq <= IP32_IRQ_MAX; irq++) {
 		hw_irq_controller *controller;

@@ -251,7 +251,7 @@ static int msr_class_device_create(int i)
 	return err;
 }
 
-static int __devinit msr_class_cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
+static int msr_class_cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned long)hcpu;
 

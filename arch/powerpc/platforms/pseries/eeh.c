@@ -957,8 +957,10 @@ static void eeh_remove_device(struct pci_dev *dev)
 	pci_addr_cache_remove_device(dev);
 
 	dn = pci_device_to_OF_node(dev);
-	PCI_DN(dn)->pcidev = NULL;
-	pci_dev_put (dev);
+	if (PCI_DN(dn)->pcidev) {
+		PCI_DN(dn)->pcidev = NULL;
+		pci_dev_put (dev);
+	}
 }
 
 void eeh_remove_bus_device(struct pci_dev *dev)
