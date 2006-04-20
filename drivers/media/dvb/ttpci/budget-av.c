@@ -1113,6 +1113,10 @@ static void frontend_init(struct budget_av *budget_av)
 	case SUBID_DVBT_CINERGY1200:
 		fe = tda10046_attach(&philips_tu1216_config,
 				     &budget_av->budget.i2c_adap);
+		if (fe) {
+			fe->ops->tuner_ops.init = philips_tu1216_tuner_init;
+			fe->ops->tuner_ops.set_params = philips_tu1216_tuner_set_params;
+		}
 		break;
 	}
 

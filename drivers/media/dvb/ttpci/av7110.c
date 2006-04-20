@@ -2083,7 +2083,9 @@ static int frontend_init(struct av7110 *av7110)
 		case 0x0000: // Fujitsu/Siemens DVB-Cable (ves1820/Philips CD1516(??))
 			av7110->fe = ves1820_attach(&philips_cd1516_config,
 						    &av7110->i2c_adap, read_pwm(av7110));
-			av7110->fe->ops->tuner_ops.set_params = philips_cd1516_tuner_set_params;
+			if (av7110->fe) {
+				av7110->fe->ops->tuner_ops.set_params = philips_cd1516_tuner_set_params;
+			}
 			break;
 		}
 
@@ -2134,13 +2136,17 @@ static int frontend_init(struct av7110 *av7110)
 				/* Siemens DVB-C (full-length card) VES1820/Philips CD1516 */
 				av7110->fe = ves1820_attach(&philips_cd1516_config, &av7110->i2c_adap,
 							read_pwm(av7110));
-				av7110->fe->ops->tuner_ops.set_params = philips_cd1516_tuner_set_params;
+				if (av7110->fe) {
+					av7110->fe->ops->tuner_ops.set_params = philips_cd1516_tuner_set_params;
+				}
 				break;
 			case 0x0003:
 				/* Hauppauge DVB-C 2.1 VES1820/ALPS TDBE2 */
 				av7110->fe = ves1820_attach(&alps_tdbe2_config, &av7110->i2c_adap,
 							read_pwm(av7110));
-				av7110->fe->ops->tuner_ops.set_params = alps_tdbe2_tuner_set_params;
+				if (av7110->fe) {
+					av7110->fe->ops->tuner_ops.set_params = alps_tdbe2_tuner_set_params;
+				}
 				break;
 			}
 			break;
@@ -2149,13 +2155,17 @@ static int frontend_init(struct av7110 *av7110)
 
 			// ALPS TDLB7
 			av7110->fe = sp8870_attach(&alps_tdlb7_config, &av7110->i2c_adap);
-			av7110->fe->ops->tuner_ops.set_params = alps_tdlb7_tuner_set_params;
+			if (av7110->fe) {
+				av7110->fe->ops->tuner_ops.set_params = alps_tdlb7_tuner_set_params;
+			}
 			break;
 
 		case 0x0002: // Hauppauge/TT DVB-C premium rev2.X
 
 			av7110->fe = ves1820_attach(&alps_tdbe2_config, &av7110->i2c_adap, read_pwm(av7110));
-			av7110->fe->ops->tuner_ops.set_params = alps_tdbe2_tuner_set_params;
+			if (av7110->fe) {
+				av7110->fe->ops->tuner_ops.set_params = alps_tdbe2_tuner_set_params;
+			}
 			break;
 
 		case 0x0004: // Galaxis DVB-S rev1.3
@@ -2185,7 +2195,9 @@ static int frontend_init(struct av7110 *av7110)
 		case 0x0008: // Hauppauge/TT DVB-T
 
 			av7110->fe = l64781_attach(&grundig_29504_401_config, &av7110->i2c_adap);
-			av7110->fe->ops->tuner_ops.set_params = grundig_29504_401_tuner_set_params;
+			if (av7110->fe) {
+				av7110->fe->ops->tuner_ops.set_params = grundig_29504_401_tuner_set_params;
+			}
 			break;
 
 		case 0x000A: // Hauppauge/TT Nexus-CA rev1.X
