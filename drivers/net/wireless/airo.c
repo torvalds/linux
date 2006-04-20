@@ -3139,6 +3139,7 @@ static irqreturn_t airo_interrupt ( int irq, void* dev_id, struct pt_regs *regs)
 		}
 		if ( status & EV_LINK ) {
 			union iwreq_data	wrqu;
+			int scan_forceloss = 0;
 			/* The link status has changed, if you want to put a
 			   monitor hook in, do it here.  (Remember that
 			   interrupts are still disabled!)
@@ -3157,7 +3158,8 @@ static irqreturn_t airo_interrupt ( int irq, void* dev_id, struct pt_regs *regs)
 			  code) */
 #define AUTHFAIL 0x0300 /* Authentication failure (low byte is reason
 			   code) */
-#define ASSOCIATED 0x0400 /* Assocatied */
+#define ASSOCIATED 0x0400 /* Associated */
+#define REASSOCIATED 0x0600 /* Reassociated?  Only on firmware >= 5.30.17 */
 #define RC_RESERVED 0 /* Reserved return code */
 #define RC_NOREASON 1 /* Unspecified reason */
 #define RC_AUTHINV 2 /* Previous authentication invalid */
@@ -3174,44 +3176,30 @@ static irqreturn_t airo_interrupt ( int irq, void* dev_id, struct pt_regs *regs)
 			  leaving BSS */
 #define RC_NOAUTH 9 /* Station requesting (Re)Association is not
 		       Authenticated with the responding station */
-			if (newStatus != ASSOCIATED) {
-				if (auto_wep && !apriv->expires) {
-					apriv->expires = RUN_AT(3*HZ);
-					wake_up_interruptible(&apriv->thr_wait);
-				}
-			} else {
-				struct task_struct *task = apriv->task;
+			if (newStatus == FORCELOSS && apriv->scan_timeout > 0)
+				scan_forceloss = 1;
+			if(newStatus == ASSOCIATED || newStatus == REASSOCIATED) {
 				if (auto_wep)
 					apriv->expires = 0;
-				if (task)
-					wake_up_process (task);
+				if (apriv->task)
+					wake_up_process (apriv->task);
 				set_bit(FLAG_UPDATE_UNI, &apriv->flags);
 				set_bit(FLAG_UPDATE_MULTI, &apriv->flags);
-			}
-			/* Question : is ASSOCIATED the only status
-			 * that is valid ? We want to catch handover
-			 * and reassociations as valid status
-			 * Jean II */
-			if(newStatus == ASSOCIATED) {
-#if 0
-				/* FIXME: Grabbing scan results here
-				 * seems to be too early???  Just wait for
-				 * timeout instead. */
-				if (apriv->scan_timeout > 0) {
-					set_bit(JOB_SCAN_RESULTS, &apriv->flags);
-					wake_up_interruptible(&apriv->thr_wait);
-				}
-#endif
+
 				if (down_trylock(&apriv->sem) != 0) {
 					set_bit(JOB_EVENT, &apriv->flags);
 					wake_up_interruptible(&apriv->thr_wait);
 				} else
 					airo_send_event(dev);
-			} else {
-				memset(wrqu.ap_addr.sa_data, '\0', ETH_ALEN);
-				wrqu.ap_addr.sa_family = ARPHRD_ETHER;
+			} else if (!scan_forceloss) {
+				if (auto_wep && !apriv->expires) {
+					apriv->expires = RUN_AT(3*HZ);
+					wake_up_interruptible(&apriv->thr_wait);
+				}
 
 				/* Send event to user space */
+				memset(wrqu.ap_addr.sa_data, '\0', ETH_ALEN);
+				wrqu.ap_addr.sa_family = ARPHRD_ETHER;
 				wireless_send_event(dev, SIOCGIWAP, &wrqu,NULL);
 			}
 		}
@@ -7136,10 +7124,10 @@ static int airo_set_scan(struct net_device *dev,
 		goto out;
 
 	/* Initiate a scan command */
+	ai->scan_timeout = RUN_AT(3*HZ);
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.cmd=CMD_LISTBSS;
 	issuecommand(ai, &cmd, &rsp);
-	ai->scan_timeout = RUN_AT(3*HZ);
 	wake = 1;
 
 out:

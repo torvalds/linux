@@ -180,9 +180,21 @@ ieee80211softmac_assoc_req(struct ieee80211_assoc_request **pkt,
 	ieee80211softmac_hdr_3addr(mac, &((*pkt)->header), IEEE80211_STYPE_ASSOC_REQ, net->bssid, net->bssid);
 
 	/* Fill in capability Info */
-	(*pkt)->capability = (mac->ieee->iw_mode == IW_MODE_MASTER) || (mac->ieee->iw_mode == IW_MODE_INFRA) ?
-		cpu_to_le16(WLAN_CAPABILITY_ESS) :
-		cpu_to_le16(WLAN_CAPABILITY_IBSS);
+	switch (mac->ieee->iw_mode) {
+	case IW_MODE_INFRA:
+		(*pkt)->capability = cpu_to_le16(WLAN_CAPABILITY_ESS);
+		break;
+	case IW_MODE_ADHOC:
+		(*pkt)->capability = cpu_to_le16(WLAN_CAPABILITY_IBSS);
+		break;
+	case IW_MODE_AUTO:
+		(*pkt)->capability = net->capabilities & (WLAN_CAPABILITY_ESS|WLAN_CAPABILITY_IBSS);
+		break;
+	default:
+		/* bleh. we don't ever go to these modes */
+		printk(KERN_ERR PFX "invalid iw_mode!\n");
+		break;
+	}
 	/* Need to add this
 	(*pkt)->capability |= mac->ieee->short_slot ? 
 			cpu_to_le16(WLAN_CAPABILITY_SHORT_SLOT_TIME) : 0;

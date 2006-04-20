@@ -267,8 +267,9 @@ extern void ieee80211softmac_stop(struct net_device *dev);
 #define IEEE80211SOFTMAC_EVENT_AUTH_FAILED		5
 #define IEEE80211SOFTMAC_EVENT_AUTH_TIMEOUT		6
 #define IEEE80211SOFTMAC_EVENT_ASSOCIATE_NET_NOT_FOUND	7
+#define IEEE80211SOFTMAC_EVENT_DISASSOCIATED		8
 /* keep this updated! */
-#define IEEE80211SOFTMAC_EVENT_LAST			7
+#define IEEE80211SOFTMAC_EVENT_LAST			8
 /*
  * If you want to be notified of certain events, you can call
  * ieee80211softmac_notify[_atomic] with

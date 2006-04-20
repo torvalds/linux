@@ -47,6 +47,7 @@ ieee80211softmac_start_scan(struct ieee80211softmac_device *sm)
 	sm->scanning = 1;
 	spin_unlock_irqrestore(&sm->lock, flags);
 
+	netif_tx_disable(sm->ieee->dev);
 	ret = sm->start_scan(sm->dev);
 	if (ret) {
 		spin_lock_irqsave(&sm->lock, flags);
@@ -239,6 +240,7 @@ void ieee80211softmac_scan_finished(struct ieee80211softmac_device *sm)
 		if (net)
 			sm->set_channel(sm->dev, net->channel);
 	}
+	netif_wake_queue(sm->ieee->dev);
 	ieee80211softmac_call_events(sm, IEEE80211SOFTMAC_EVENT_SCAN_FINISHED, NULL);
 }
 EXPORT_SYMBOL_GPL(ieee80211softmac_scan_finished);
