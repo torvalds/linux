@@ -533,6 +533,7 @@ int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len, unsigned int mss
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *buff;
 	int nsize, old_factor;
+	int nlen;
 	u16 flags;
 
 	BUG_ON(len > skb->len);
@@ -552,8 +553,10 @@ int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len, unsigned int mss
 	if (buff == NULL)
 		return -ENOMEM; /* We'll just try again later. */
 
-	buff->truesize = skb->len - len;
-	skb->truesize -= buff->truesize;
+	sk_charge_skb(sk, buff);
+	nlen = skb->len - len - nsize;
+	buff->truesize += nlen;
+	skb->truesize -= nlen;
 
 	/* Correct the sequence numbers. */
 	TCP_SKB_CB(buff)->seq = TCP_SKB_CB(skb)->seq + len;
@@ -1039,7 +1042,8 @@ static int tso_fragment(struct sock *sk, struct sk_buff *skb, unsigned int len, 
 	if (unlikely(buff == NULL))
 		return -ENOMEM;
 
-	buff->truesize = nlen;
+	sk_charge_skb(sk, buff);
+	buff->truesize += nlen;
 	skb->truesize -= nlen;
 
 	/* Correct the sequence numbers. */
