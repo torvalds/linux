@@ -31,6 +31,8 @@
 #define SUCCESS 0
 #define FAILURE -1
 
+#define CHECKBIT(value, nbit) (value & (1 << nbit))
+
 /* Maximum time to flicker LED when asked to identify NIC using ethtool */
 #define MAX_FLICKER_TIME	60000 /* 60 Secs */
 
@@ -78,6 +80,11 @@ static int debug_level = ERR_DBG;
 typedef struct {
 	unsigned long long single_ecc_errs;
 	unsigned long long double_ecc_errs;
+	unsigned long long parity_err_cnt;
+	unsigned long long serious_err_cnt;
+	unsigned long long soft_reset_cnt;
+	unsigned long long fifo_full_cnt;
+	unsigned long long ring_full_cnt;
 	/* LRO statistics */
 	unsigned long long clubbed_frms_cnt;
 	unsigned long long sending_both;
@@ -86,6 +93,25 @@ typedef struct {
 	unsigned long long sum_avg_pkts_aggregated;
 	unsigned long long num_aggregations;
 } swStat_t;
+
+/* Xpak releated alarm and warnings */
+typedef struct {
+	u64 alarm_transceiver_temp_high;
+	u64 alarm_transceiver_temp_low;
+	u64 alarm_laser_bias_current_high;
+	u64 alarm_laser_bias_current_low;
+	u64 alarm_laser_output_power_high;
+	u64 alarm_laser_output_power_low;
+	u64 warn_transceiver_temp_high;
+	u64 warn_transceiver_temp_low;
+	u64 warn_laser_bias_current_high;
+	u64 warn_laser_bias_current_low;
+	u64 warn_laser_output_power_high;
+	u64 warn_laser_output_power_low;
+	u64 xpak_regs_stat;
+	u32 xpak_timer_count;
+} xpakStat_t;
+
 
 /* The statistics block of Xena */
 typedef struct stat_block {
@@ -263,7 +289,9 @@ typedef struct stat_block {
 	u32 rmac_accepted_ip_oflow;
 	u32 reserved_14;
 	u32 link_fault_cnt;
+	u8  buffer[20];
 	swStat_t sw_stat;
+	xpakStat_t xpak_stat;
 } StatInfo_t;
 
 /*

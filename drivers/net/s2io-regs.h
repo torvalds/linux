@@ -167,6 +167,7 @@ typedef struct _XENA_dev_config {
 	u8 unused4[0x08];
 
 	u64 gpio_int_reg;
+#define GPIO_INT_REG_DP_ERR_INT                BIT(0)
 #define GPIO_INT_REG_LINK_DOWN                 BIT(1)
 #define GPIO_INT_REG_LINK_UP                   BIT(2)
 	u64 gpio_int_mask;
@@ -267,6 +268,21 @@ typedef struct _XENA_dev_config {
 
 	/* General Configuration */
 	u64 mdio_control;
+#define MDIO_MMD_INDX_ADDR(val)		vBIT(val, 0, 16)
+#define MDIO_MMD_DEV_ADDR(val)		vBIT(val, 19, 5)
+#define MDIO_MMD_PMA_DEV_ADDR		0x1
+#define MDIO_MMD_PMD_DEV_ADDR		0x1
+#define MDIO_MMD_WIS_DEV_ADDR		0x2
+#define MDIO_MMD_PCS_DEV_ADDR		0x3
+#define MDIO_MMD_PHYXS_DEV_ADDR		0x4
+#define MDIO_MMS_PRT_ADDR(val)		vBIT(val, 27, 5)
+#define MDIO_CTRL_START_TRANS(val)	vBIT(val, 56, 4)
+#define MDIO_OP(val)			vBIT(val, 60, 2)
+#define MDIO_OP_ADDR_TRANS		0x0
+#define MDIO_OP_WRITE_TRANS		0x1
+#define MDIO_OP_READ_POST_INC_TRANS	0x2
+#define MDIO_OP_READ_TRANS		0x3
+#define MDIO_MDIO_DATA(val)		vBIT(val, 32, 16)
 
 	u64 dtx_control;
 
@@ -546,7 +562,12 @@ typedef struct _XENA_dev_config {
 #define RX_PA_CFG_IGNORE_LLC_CTRL          BIT(3)
 #define RX_PA_CFG_IGNORE_L2_ERR            BIT(6)
 
-	u8 unused12[0x700 - 0x1D8];
+	u64 unused_11_1;
+
+	u64 ring_bump_counter1;
+	u64 ring_bump_counter2;
+
+	u8 unused12[0x700 - 0x1F0];
 
 	u64 rxdma_debug_ctrl;
 
