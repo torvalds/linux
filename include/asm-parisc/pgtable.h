@@ -506,13 +506,13 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, 
 
 /* TLB page size encoding - see table 3-1 in parisc20.pdf */
 #define _PAGE_SIZE_ENCODING_4K		0
-#define _PAGE_SIZE_ENCODING_16K	1
-#define _PAGE_SIZE_ENCODING_64K	2
+#define _PAGE_SIZE_ENCODING_16K		1
+#define _PAGE_SIZE_ENCODING_64K		2
 #define _PAGE_SIZE_ENCODING_256K	3
 #define _PAGE_SIZE_ENCODING_1M		4
 #define _PAGE_SIZE_ENCODING_4M		5
-#define _PAGE_SIZE_ENCODING_16M	6
-#define _PAGE_SIZE_ENCODING_64M	7
+#define _PAGE_SIZE_ENCODING_16M		6
+#define _PAGE_SIZE_ENCODING_64M		7
 
 #if defined(CONFIG_PARISC_PAGE_SIZE_4KB)
 # define _PAGE_SIZE_ENCODING_DEFAULT _PAGE_SIZE_ENCODING_4K
