@@ -99,27 +99,34 @@ static inline struct page * rb_insert_page_cache(struct inode * inode,
 
 struct rb_node
 {
-	struct rb_node *rb_parent;
-	int rb_color;
+	unsigned long  rb_parent_colour;
 #define	RB_RED		0
 #define	RB_BLACK	1
 	struct rb_node *rb_right;
 	struct rb_node *rb_left;
 };
 
-#define rb_parent(r)		((r)->rb_parent)
-#define rb_set_parent(r,p)	do { (r)->rb_parent = p; } while (0)
-#define rb_colour(r)		((r)->rb_colour)
-#define rb_is_red(r)		((r)->colour == RB_RED)
-#define rb_is_black(r)		((r)->colour == RB_BLACK)
-#define rb_set_red(r)		do { (r)->colour = RB_RED; } while (0)
-#define rb_set_black(r)		do { (r)->colour = RB_BLACK; } while (0)
-#define rb_set_colour(r,c)	do { (r)->colour = (c); } while (0)
-
 struct rb_root
 {
 	struct rb_node *rb_node;
 };
+
+
+#define rb_parent(r)   ((struct rb_node *)((r)->rb_parent_colour & ~3))
+#define rb_colour(r)   ((r)->rb_parent_colour & 1)
+#define rb_is_red(r)   (!rb_colour(r))
+#define rb_is_black(r) rb_colour(r)
+#define rb_set_red(r)  do { (r)->rb_parent_colour &= ~1; } while (0)
+#define rb_set_black(r)  do { (r)->rb_parent_colour |= 1; } while (0)
+
+static inline void rb_set_parent(struct rb_node *rb, struct rb_node *p)
+{
+	rb->rb_parent_colour = (rb->rb_parent_colour & 3) | (unsigned long)p;
+}
+static inline void rb_set_colour(struct rb_node *rb, int colour)
+{
+	rb->rb_parent_colour = (rb->rb_parent_colour & ~1) | colour;
+}
 
 #define RB_ROOT	(struct rb_root) { NULL, }
 #define	rb_entry(ptr, type, member) container_of(ptr, type, member)
@@ -140,8 +147,7 @@ extern void rb_replace_node(struct rb_node *victim, struct rb_node *new,
 static inline void rb_link_node(struct rb_node * node, struct rb_node * parent,
 				struct rb_node ** rb_link)
 {
-	node->rb_parent = parent;
-	node->rb_color = RB_RED;
+	node->rb_parent_colour = (unsigned long )parent;
 	node->rb_left = node->rb_right = NULL;
 
 	*rb_link = node;
