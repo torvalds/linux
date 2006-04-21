@@ -104,7 +104,8 @@ struct rb_node
 #define	RB_BLACK	1
 	struct rb_node *rb_right;
 	struct rb_node *rb_left;
-};
+} __attribute__((aligned(sizeof(long))));
+    /* The alignment might seem pointless, but allegedly CRIS needs it */
 
 struct rb_root
 {
