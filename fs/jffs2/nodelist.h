@@ -299,7 +299,6 @@ static inline struct jffs2_node_frag *frag_last(struct rb_root *root)
 	return rb_entry(node, struct jffs2_node_frag, rb);
 }
 
-#define rb_parent(rb) ((rb)->rb_parent)
 #define frag_next(frag) rb_entry(rb_next(&(frag)->rb), struct jffs2_node_frag, rb)
 #define frag_prev(frag) rb_entry(rb_prev(&(frag)->rb), struct jffs2_node_frag, rb)
 #define frag_parent(frag) rb_entry(rb_parent(&(frag)->rb), struct jffs2_node_frag, rb)
