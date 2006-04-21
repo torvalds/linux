@@ -320,8 +320,8 @@ snd_seq_midisynth_register_port(struct snd_seq_device *dev)
 		}
 		client->seq_client =
 			snd_seq_create_kernel_client(
-				card, 0, "%s", info->name[0] ?
-				(const char *)info->name : "External MIDI");
+				card, 0, "%s", card->shortname[0] ?
+				(const char *)card->shortname : "External MIDI");
 		if (client->seq_client < 0) {
 			kfree(client);
 			mutex_unlock(&register_mutex);
