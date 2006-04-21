@@ -30,6 +30,7 @@ void gfs2_assert_i(struct gfs2_sbd *sdp);
 do { \
 	if (unlikely(!(assertion))) { \
 		gfs2_assert_i(sdp); \
+		BUG(); \
         } \
 } while (0)
 
