@@ -211,12 +211,12 @@ static inline void key_alloc_serial(struct key *key)
 			key->serial = 2;
 		key_serial_next = key->serial + 1;
 
-		if (!parent->rb_parent)
+		if (!rb_parent(parent))
 			p = &key_serial_tree.rb_node;
-		else if (parent->rb_parent->rb_left == parent)
-			p = &parent->rb_parent->rb_left;
+		else if (rb_parent(parent)->rb_left == parent)
+			p = &(rb_parent(parent)->rb_left);
 		else
-			p = &parent->rb_parent->rb_right;
+			p = &(rb_parent(parent)->rb_right);
 
 		parent = rb_next(parent);
 		if (!parent)
