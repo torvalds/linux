@@ -337,20 +337,20 @@ static inline int ep_cmp_ffd(struct epoll_filefd *p1,
 /* Special initialization for the rb-tree node to detect linkage */
 static inline void ep_rb_initnode(struct rb_node *n)
 {
-	n->rb_parent = n;
+	rb_set_parent(n, n);
 }
 
 /* Removes a node from the rb-tree and marks it for a fast is-linked check */
 static inline void ep_rb_erase(struct rb_node *n, struct rb_root *r)
 {
 	rb_erase(n, r);
-	n->rb_parent = n;
+	rb_set_parent(n, n);
 }
 
 /* Fast check to verify that the item is linked to the main rb-tree */
 static inline int ep_rb_linked(struct rb_node *n)
 {
-	return n->rb_parent != n;
+	return rb_parent(n) != n;
 }
 
 /*
