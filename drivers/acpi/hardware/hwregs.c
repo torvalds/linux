@@ -66,7 +66,7 @@ acpi_status acpi_hw_clear_acpi_status(u32 flags)
 {
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("hw_clear_acpi_status");
+	ACPI_FUNCTION_TRACE(hw_clear_acpi_status);
 
 	ACPI_DEBUG_PRINT((ACPI_DB_IO, "About to write %04X to %04X\n",
 			  ACPI_BITMASK_ALL_FIXED_STATUS,
@@ -130,7 +130,7 @@ acpi_get_sleep_type_data(u8 sleep_state, u8 * sleep_type_a, u8 * sleep_type_b)
 	struct acpi_parameter_info info;
 	char *sleep_state_name;
 
-	ACPI_FUNCTION_TRACE("acpi_get_sleep_type_data");
+	ACPI_FUNCTION_TRACE(acpi_get_sleep_type_data);
 
 	/* Validate parameters */
 
@@ -148,7 +148,7 @@ acpi_get_sleep_type_data(u8 sleep_state, u8 * sleep_type_a, u8 * sleep_type_b)
 	status = acpi_ns_evaluate_by_name(sleep_state_name, &info);
 	if (ACPI_FAILURE(status)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-				  "%s while evaluating sleep_state [%s]\n",
+				  "%s while evaluating SleepState [%s]\n",
 				  acpi_format_exception(status),
 				  sleep_state_name));
 
@@ -208,7 +208,7 @@ acpi_get_sleep_type_data(u8 sleep_state, u8 * sleep_type_a, u8 * sleep_type_b)
 
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status,
-				"While evaluating sleep_state [%s], bad Sleep object %p type %s",
+				"While evaluating SleepState [%s], bad Sleep object %p type %s",
 				sleep_state_name, info.return_object,
 				acpi_ut_get_object_type_name(info.
 							     return_object)));
@@ -236,7 +236,7 @@ struct acpi_bit_register_info *acpi_hw_get_bit_register_info(u32 register_id)
 	ACPI_FUNCTION_ENTRY();
 
 	if (register_id > ACPI_BITREG_MAX) {
-		ACPI_ERROR((AE_INFO, "Invalid bit_register ID: %X",
+		ACPI_ERROR((AE_INFO, "Invalid BitRegister ID: %X",
 			    register_id));
 		return (NULL);
 	}
@@ -265,7 +265,7 @@ acpi_status acpi_get_register(u32 register_id, u32 * return_value, u32 flags)
 	struct acpi_bit_register_info *bit_reg_info;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("acpi_get_register");
+	ACPI_FUNCTION_TRACE(acpi_get_register);
 
 	/* Get the info structure corresponding to the requested ACPI Register */
 
@@ -331,13 +331,13 @@ acpi_status acpi_set_register(u32 register_id, u32 value, u32 flags)
 	struct acpi_bit_register_info *bit_reg_info;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE_U32("acpi_set_register", register_id);
+	ACPI_FUNCTION_TRACE_U32(acpi_set_register, register_id);
 
 	/* Get the info structure corresponding to the requested ACPI Register */
 
 	bit_reg_info = acpi_hw_get_bit_register_info(register_id);
 	if (!bit_reg_info) {
-		ACPI_ERROR((AE_INFO, "Bad ACPI HW register_id: %X",
+		ACPI_ERROR((AE_INFO, "Bad ACPI HW RegisterId: %X",
 			    register_id));
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
@@ -494,7 +494,7 @@ acpi_hw_register_read(u8 use_lock, u32 register_id, u32 * return_value)
 	u32 value2 = 0;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("hw_register_read");
+	ACPI_FUNCTION_TRACE(hw_register_read);
 
 	if (ACPI_MTX_LOCK == use_lock) {
 		status = acpi_ut_acquire_mutex(ACPI_MTX_HARDWARE);
@@ -607,7 +607,7 @@ acpi_status acpi_hw_register_write(u8 use_lock, u32 register_id, u32 value)
 {
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("hw_register_write");
+	ACPI_FUNCTION_TRACE(hw_register_write);
 
 	if (ACPI_MTX_LOCK == use_lock) {
 		status = acpi_ut_acquire_mutex(ACPI_MTX_HARDWARE);
@@ -729,7 +729,7 @@ acpi_hw_low_level_read(u32 width, u32 * value, struct acpi_generic_address *reg)
 	u64 address;
 	acpi_status status;
 
-	ACPI_FUNCTION_NAME("hw_low_level_read");
+	ACPI_FUNCTION_NAME(hw_low_level_read);
 
 	/*
 	 * Must have a valid pointer to a GAS structure, and
@@ -801,7 +801,7 @@ acpi_hw_low_level_write(u32 width, u32 value, struct acpi_generic_address * reg)
 	u64 address;
 	acpi_status status;
 
-	ACPI_FUNCTION_NAME("hw_low_level_write");
+	ACPI_FUNCTION_NAME(hw_low_level_write);
 
 	/*
 	 * Must have a valid pointer to a GAS structure, and

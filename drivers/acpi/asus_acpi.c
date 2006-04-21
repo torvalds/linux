@@ -970,7 +970,7 @@ static int __init asus_hotk_get_info(void)
 	 * HID), this bit will be moved. A global variable asus_info contains
 	 * the DSDT header.
 	 */
-	status = acpi_get_table(ACPI_TABLE_DSDT, 1, &dsdt);
+	status = acpi_get_table(ACPI_TABLE_ID_DSDT, 1, &dsdt);
 	if (ACPI_FAILURE(status))
 		printk(KERN_WARNING "  Couldn't get the DSDT table header\n");
 	else

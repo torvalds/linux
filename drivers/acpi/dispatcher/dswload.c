@@ -127,7 +127,7 @@ acpi_ds_load1_begin_op(struct acpi_walk_state * walk_state,
 	char *path;
 	u32 flags;
 
-	ACPI_FUNCTION_TRACE("ds_load1_begin_op");
+	ACPI_FUNCTION_TRACE(ds_load1_begin_op);
 
 	op = walk_state->op;
 	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH, "Op=%p State=%p\n", op,
@@ -361,7 +361,7 @@ acpi_status acpi_ds_load1_end_op(struct acpi_walk_state *walk_state)
 	acpi_object_type object_type;
 	acpi_status status = AE_OK;
 
-	ACPI_FUNCTION_TRACE("ds_load1_end_op");
+	ACPI_FUNCTION_TRACE(ds_load1_end_op);
 
 	op = walk_state->op;
 	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH, "Op=%p State=%p\n", op,
@@ -448,7 +448,7 @@ acpi_status acpi_ds_load1_end_op(struct acpi_walk_state *walk_state)
 			 * arguments.)
 			 */
 			ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
-					  "LOADING-Method: State=%p Op=%p named_obj=%p\n",
+					  "LOADING-Method: State=%p Op=%p NamedObj=%p\n",
 					  walk_state, op, op->named.node));
 
 			if (!acpi_ns_get_attached_object(op->named.node)) {
@@ -514,7 +514,7 @@ acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
 	acpi_object_type object_type;
 	char *buffer_ptr;
 
-	ACPI_FUNCTION_TRACE("ds_load2_begin_op");
+	ACPI_FUNCTION_TRACE(ds_load2_begin_op);
 
 	op = walk_state->op;
 	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH, "Op=%p State=%p\n", op,
@@ -785,7 +785,7 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 	u32 i;
 #endif
 
-	ACPI_FUNCTION_TRACE("ds_load2_end_op");
+	ACPI_FUNCTION_TRACE(ds_load2_end_op);
 
 	op = walk_state->op;
 	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH, "Opcode [%s] Op %p State %p\n",
@@ -879,7 +879,7 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 	 */
 
 	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
-			  "Create-Load [%s] State=%p Op=%p named_obj=%p\n",
+			  "Create-Load [%s] State=%p Op=%p NamedObj=%p\n",
 			  acpi_ps_get_opcode_name(op->common.aml_opcode),
 			  walk_state, op, node));
 
@@ -1054,7 +1054,7 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 			 * arguments.)
 			 */
 			ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
-					  "LOADING-Method: State=%p Op=%p named_obj=%p\n",
+					  "LOADING-Method: State=%p Op=%p NamedObj=%p\n",
 					  walk_state, op, op->named.node));
 
 			if (!acpi_ns_get_attached_object(op->named.node)) {
@@ -1099,7 +1099,7 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 	case AML_CLASS_METHOD_CALL:
 
 		ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
-				  "RESOLVING-method_call: State=%p Op=%p named_obj=%p\n",
+				  "RESOLVING-MethodCall: State=%p Op=%p NamedObj=%p\n",
 				  walk_state, op, node));
 
 		/*

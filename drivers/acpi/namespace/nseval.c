@@ -85,7 +85,7 @@ acpi_ns_evaluate_relative(char *pathname, struct acpi_parameter_info *info)
 	union acpi_generic_state *scope_info;
 	char *internal_path = NULL;
 
-	ACPI_FUNCTION_TRACE("ns_evaluate_relative");
+	ACPI_FUNCTION_TRACE(ns_evaluate_relative);
 
 	/*
 	 * Must have a valid object handle
@@ -182,7 +182,7 @@ acpi_ns_evaluate_by_name(char *pathname, struct acpi_parameter_info *info)
 	acpi_status status;
 	char *internal_path = NULL;
 
-	ACPI_FUNCTION_TRACE("ns_evaluate_by_name");
+	ACPI_FUNCTION_TRACE(ns_evaluate_by_name);
 
 	/* Build an internal name string for the method */
 
@@ -262,7 +262,7 @@ acpi_status acpi_ns_evaluate_by_handle(struct acpi_parameter_info *info)
 {
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("ns_evaluate_by_handle");
+	ACPI_FUNCTION_TRACE(ns_evaluate_by_handle);
 
 	/* Check if namespace has been initialized */
 
@@ -368,7 +368,7 @@ acpi_ns_execute_control_method(struct acpi_parameter_info *info)
 {
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("ns_execute_control_method");
+	ACPI_FUNCTION_TRACE(ns_execute_control_method);
 
 	/* Verify that there is a method associated with this object */
 
@@ -436,7 +436,7 @@ static acpi_status acpi_ns_get_object_value(struct acpi_parameter_info *info)
 	acpi_status status = AE_OK;
 	struct acpi_namespace_node *resolved_node = info->node;
 
-	ACPI_FUNCTION_TRACE("ns_get_object_value");
+	ACPI_FUNCTION_TRACE(ns_get_object_value);
 
 	/*
 	 * Objects require additional resolution steps (e.g., the Node may be a

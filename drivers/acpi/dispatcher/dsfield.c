@@ -87,7 +87,7 @@ acpi_ds_create_buffer_field(union acpi_parse_object *op,
 	union acpi_operand_object *second_desc = NULL;
 	u32 flags;
 
-	ACPI_FUNCTION_TRACE("ds_create_buffer_field");
+	ACPI_FUNCTION_TRACE(ds_create_buffer_field);
 
 	/* Get the name_string argument */
 
@@ -210,7 +210,7 @@ acpi_ds_get_field_names(struct acpi_create_field_info *info,
 	acpi_status status;
 	acpi_integer position;
 
-	ACPI_FUNCTION_TRACE_PTR("ds_get_field_names", info);
+	ACPI_FUNCTION_TRACE_PTR(ds_get_field_names, info);
 
 	/* First field starts at bit zero */
 
@@ -342,7 +342,7 @@ acpi_ds_create_field(union acpi_parse_object *op,
 	union acpi_parse_object *arg;
 	struct acpi_create_field_info info;
 
-	ACPI_FUNCTION_TRACE_PTR("ds_create_field", op);
+	ACPI_FUNCTION_TRACE_PTR(ds_create_field, op);
 
 	/* First arg is the name of the parent op_region (must already exist) */
 
@@ -399,7 +399,7 @@ acpi_ds_init_field_objects(union acpi_parse_object *op,
 	struct acpi_namespace_node *node;
 	u8 type = 0;
 
-	ACPI_FUNCTION_TRACE_PTR("ds_init_field_objects", op);
+	ACPI_FUNCTION_TRACE_PTR(ds_init_field_objects, op);
 
 	switch (walk_state->opcode) {
 	case AML_FIELD_OP:
@@ -482,7 +482,7 @@ acpi_ds_create_bank_field(union acpi_parse_object *op,
 	union acpi_parse_object *arg;
 	struct acpi_create_field_info info;
 
-	ACPI_FUNCTION_TRACE_PTR("ds_create_bank_field", op);
+	ACPI_FUNCTION_TRACE_PTR(ds_create_bank_field, op);
 
 	/* First arg is the name of the parent op_region (must already exist) */
 
@@ -555,7 +555,7 @@ acpi_ds_create_index_field(union acpi_parse_object *op,
 	union acpi_parse_object *arg;
 	struct acpi_create_field_info info;
 
-	ACPI_FUNCTION_TRACE_PTR("ds_create_index_field", op);
+	ACPI_FUNCTION_TRACE_PTR(ds_create_index_field, op);
 
 	/* First arg is the name of the Index register (must already exist) */
 

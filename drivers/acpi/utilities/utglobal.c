@@ -181,30 +181,6 @@ const char *acpi_gbl_highest_dstate_names[4] = {
 	"_S4D"
 };
 
-/*
- * Strings supported by the _OSI predefined (internal) method.
- * When adding strings, be sure to update ACPI_NUM_OSI_STRINGS.
- */
-const char *acpi_gbl_valid_osi_strings[ACPI_NUM_OSI_STRINGS] = {
-	/* Operating System Vendor Strings */
-
-	"Linux",
-	"Windows 2000",
-	"Windows 2001",
-	"Windows 2001 SP0",
-	"Windows 2001 SP1",
-	"Windows 2001 SP2",
-	"Windows 2001 SP3",
-	"Windows 2001 SP4",
-	"Windows 2001.1",
-	"Windows 2001.1 SP1",	/* Added 03/2006 */
-	"Windows 2006",		/* Added 03/2006 */
-
-	/* Feature Group Strings */
-
-	"Extended Address Space Descriptor"
-};
-
 /*******************************************************************************
  *
  * Namespace globals
@@ -317,9 +293,9 @@ char acpi_ut_hex_to_ascii_char(acpi_integer integer, u32 position)
  *
  ******************************************************************************/
 
-struct acpi_table_list acpi_gbl_table_lists[NUM_ACPI_TABLE_TYPES];
+struct acpi_table_list acpi_gbl_table_lists[ACPI_TABLE_ID_MAX + 1];
 
-struct acpi_table_support acpi_gbl_table_data[NUM_ACPI_TABLE_TYPES] = {
+struct acpi_table_support acpi_gbl_table_data[ACPI_TABLE_ID_MAX + 1] = {
 	/***********    Name,   Signature, Global typed pointer     Signature size,      Type                  How many allowed?,    Contains valid AML? */
 
 	/* RSDP 0 */ {RSDP_NAME, RSDP_SIG, NULL, sizeof(RSDP_SIG) - 1,
@@ -483,9 +459,9 @@ char *acpi_ut_get_region_name(u8 space_id)
 {
 
 	if (space_id >= ACPI_USER_REGION_BEGIN) {
-		return ("user_defined_region");
+		return ("UserDefinedRegion");
 	} else if (space_id >= ACPI_NUM_PREDEFINED_REGIONS) {
-		return ("invalid_space_id");
+		return ("InvalidSpaceId");
 	}
 
 	return (ACPI_CAST_PTR(char, acpi_gbl_region_types[space_id]));
@@ -519,7 +495,7 @@ char *acpi_ut_get_event_name(u32 event_id)
 {
 
 	if (event_id > ACPI_EVENT_MAX) {
-		return ("invalid_event_iD");
+		return ("InvalidEventID");
 	}
 
 	return (ACPI_CAST_PTR(char, acpi_gbl_event_types[event_id]));
@@ -774,7 +750,7 @@ void acpi_ut_init_globals(void)
 	acpi_status status;
 	u32 i;
 
-	ACPI_FUNCTION_TRACE("ut_init_globals");
+	ACPI_FUNCTION_TRACE(ut_init_globals);
 
 	/* Create all memory caches */
 
@@ -785,7 +761,7 @@ void acpi_ut_init_globals(void)
 
 	/* ACPI table structure */
 
-	for (i = 0; i < NUM_ACPI_TABLE_TYPES; i++) {
+	for (i = 0; i < (ACPI_TABLE_ID_MAX + 1); i++) {
 		acpi_gbl_table_lists[i].next = NULL;
 		acpi_gbl_table_lists[i].count = 0;
 	}

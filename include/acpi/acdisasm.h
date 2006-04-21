@@ -124,12 +124,12 @@ struct acpi_resource_tag {
 
 /* Strings used for decoding flags to ASL keywords */
 
-extern const char *acpi_gbl_word_decode[4];
-extern const char *acpi_gbl_irq_decode[2];
-extern const char *acpi_gbl_lock_rule[ACPI_NUM_LOCK_RULES];
-extern const char *acpi_gbl_access_types[ACPI_NUM_ACCESS_TYPES];
-extern const char *acpi_gbl_update_rules[ACPI_NUM_UPDATE_RULES];
-extern const char *acpi_gbl_match_ops[ACPI_NUM_MATCH_OPS];
+extern const char *acpi_gbl_word_decode[];
+extern const char *acpi_gbl_irq_decode[];
+extern const char *acpi_gbl_lock_rule[];
+extern const char *acpi_gbl_access_types[];
+extern const char *acpi_gbl_update_rules[];
+extern const char *acpi_gbl_match_ops[];
 
 extern struct acpi_dmtable_info acpi_dm_table_info_asf0[];
 extern struct acpi_dmtable_info acpi_dm_table_info_asf1[];

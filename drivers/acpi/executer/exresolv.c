@@ -78,7 +78,7 @@ acpi_ex_resolve_to_value(union acpi_operand_object **stack_ptr,
 {
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE_PTR("ex_resolve_to_value", stack_ptr);
+	ACPI_FUNCTION_TRACE_PTR(ex_resolve_to_value, stack_ptr);
 
 	if (!stack_ptr || !*stack_ptr) {
 		ACPI_ERROR((AE_INFO, "Internal - null pointer"));
@@ -144,7 +144,7 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 	union acpi_operand_object *obj_desc;
 	u16 opcode;
 
-	ACPI_FUNCTION_TRACE("ex_resolve_object_to_value");
+	ACPI_FUNCTION_TRACE(ex_resolve_object_to_value);
 
 	stack_desc = *stack_ptr;
 
@@ -190,7 +190,7 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 			}
 
 			ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-					  "[Arg/Local %X] value_obj is %p\n",
+					  "[Arg/Local %X] ValueObj is %p\n",
 					  stack_desc->reference.offset,
 					  obj_desc));
 
@@ -239,7 +239,7 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 				/* Invalid reference object */
 
 				ACPI_ERROR((AE_INFO,
-					    "Unknown target_type %X in Index/Reference obj %p",
+					    "Unknown TargetType %X in Index/Reference obj %p",
 					    stack_desc->reference.target_type,
 					    stack_desc));
 				status = AE_AML_INTERNAL;
@@ -293,7 +293,7 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 	case ACPI_TYPE_LOCAL_INDEX_FIELD:
 
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-				  "field_read source_desc=%p Type=%X\n",
+				  "FieldRead SourceDesc=%p Type=%X\n",
 				  stack_desc,
 				  ACPI_GET_OBJECT_TYPE(stack_desc)));
 
@@ -337,7 +337,7 @@ acpi_ex_resolve_multiple(struct acpi_walk_state *walk_state,
 	acpi_object_type type;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("acpi_ex_resolve_multiple");
+	ACPI_FUNCTION_TRACE(acpi_ex_resolve_multiple);
 
 	/* Operand can be either a namespace node or an operand descriptor */
 
@@ -488,7 +488,7 @@ acpi_ex_resolve_multiple(struct acpi_walk_state *walk_state,
 
 		case AML_DEBUG_OP:
 
-			/* The Debug Object is of type "debug_object" */
+			/* The Debug Object is of type "DebugObject" */
 
 			type = ACPI_TYPE_DEBUG_OBJECT;
 			goto exit;

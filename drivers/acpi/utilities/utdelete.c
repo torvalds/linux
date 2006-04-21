@@ -76,7 +76,7 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 	union acpi_operand_object *second_desc;
 	union acpi_operand_object *next_desc;
 
-	ACPI_FUNCTION_TRACE_PTR("ut_delete_internal_obj", object);
+	ACPI_FUNCTION_TRACE_PTR(ut_delete_internal_obj, object);
 
 	if (!object) {
 		return_VOID;
@@ -276,7 +276,7 @@ void acpi_ut_delete_internal_object_list(union acpi_operand_object **obj_list)
 {
 	union acpi_operand_object **internal_obj;
 
-	ACPI_FUNCTION_TRACE("ut_delete_internal_object_list");
+	ACPI_FUNCTION_TRACE(ut_delete_internal_object_list);
 
 	/* Walk the null-terminated internal list */
 
@@ -309,7 +309,7 @@ acpi_ut_update_ref_count(union acpi_operand_object *object, u32 action)
 	u16 count;
 	u16 new_count;
 
-	ACPI_FUNCTION_NAME("ut_update_ref_count");
+	ACPI_FUNCTION_NAME(ut_update_ref_count);
 
 	if (!object) {
 		return;
@@ -425,7 +425,7 @@ acpi_ut_update_object_reference(union acpi_operand_object * object, u16 action)
 	union acpi_generic_state *state;
 	acpi_native_uint i;
 
-	ACPI_FUNCTION_TRACE_PTR("ut_update_object_reference", object);
+	ACPI_FUNCTION_TRACE_PTR(ut_update_object_reference, object);
 
 	while (object) {
 
@@ -570,7 +570,7 @@ acpi_ut_update_object_reference(union acpi_operand_object * object, u16 action)
 void acpi_ut_add_reference(union acpi_operand_object *object)
 {
 
-	ACPI_FUNCTION_TRACE_PTR("ut_add_reference", object);
+	ACPI_FUNCTION_TRACE_PTR(ut_add_reference, object);
 
 	/* Ensure that we have a valid object */
 
@@ -603,7 +603,7 @@ void acpi_ut_add_reference(union acpi_operand_object *object)
 void acpi_ut_remove_reference(union acpi_operand_object *object)
 {
 
-	ACPI_FUNCTION_TRACE_PTR("ut_remove_reference", object);
+	ACPI_FUNCTION_TRACE_PTR(ut_remove_reference, object);
 
 	/*
 	 * Allow a NULL pointer to be passed in, just ignore it.  This saves

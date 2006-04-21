@@ -115,7 +115,7 @@ ACPI_EXTERN u8 ACPI_INIT_GLOBAL(acpi_gbl_enable_interpreter_slack, FALSE);
  * Automatically serialize ALL control methods? Default is FALSE, meaning
  * to use the Serialized/not_serialized method flags on a per method basis.
  * Only change this if the ASL code is poorly written and cannot handle
- * reentrancy even though methods are marked "not_serialized".
+ * reentrancy even though methods are marked "NotSerialized".
  */
 ACPI_EXTERN u8 ACPI_INIT_GLOBAL(acpi_gbl_all_methods_serialized, FALSE);
 
@@ -178,8 +178,8 @@ ACPI_EXTERN u8 acpi_gbl_integer_nybble_width;
 /*
  * ACPI Table info arrays
  */
-extern struct acpi_table_list acpi_gbl_table_lists[NUM_ACPI_TABLE_TYPES];
-extern struct acpi_table_support acpi_gbl_table_data[NUM_ACPI_TABLE_TYPES];
+extern struct acpi_table_list acpi_gbl_table_lists[ACPI_TABLE_ID_MAX + 1];
+extern struct acpi_table_support acpi_gbl_table_data[ACPI_TABLE_ID_MAX + 1];
 
 /*
  * Predefined mutex objects.  This array contains the
@@ -246,7 +246,6 @@ extern const char *acpi_gbl_sleep_state_names[ACPI_S_STATE_COUNT];
 extern const char *acpi_gbl_highest_dstate_names[4];
 extern const struct acpi_opcode_info acpi_gbl_aml_op_info[AML_NUM_OPCODES];
 extern const char *acpi_gbl_region_types[ACPI_NUM_PREDEFINED_REGIONS];
-extern const char *acpi_gbl_valid_osi_strings[ACPI_NUM_OSI_STRINGS];
 
 /*****************************************************************************
  *

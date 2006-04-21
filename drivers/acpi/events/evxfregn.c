@@ -73,7 +73,7 @@ acpi_install_address_space_handler(acpi_handle device,
 	struct acpi_namespace_node *node;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("acpi_install_address_space_handler");
+	ACPI_FUNCTION_TRACE(acpi_install_address_space_handler);
 
 	/* Parameter validation */
 
@@ -139,7 +139,7 @@ acpi_remove_address_space_handler(acpi_handle device,
 	struct acpi_namespace_node *node;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("acpi_remove_address_space_handler");
+	ACPI_FUNCTION_TRACE(acpi_remove_address_space_handler);
 
 	/* Parameter validation */
 
@@ -228,7 +228,7 @@ acpi_remove_address_space_handler(acpi_handle device,
 	/* The handler does not exist */
 
 	ACPI_DEBUG_PRINT((ACPI_DB_OPREGION,
-			  "Unable to remove address handler %p for %s(%X), dev_node %p, obj %p\n",
+			  "Unable to remove address handler %p for %s(%X), DevNode %p, obj %p\n",
 			  handler, acpi_ut_get_region_name(space_id), space_id,
 			  node, obj_desc));
 

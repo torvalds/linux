@@ -70,7 +70,7 @@ acpi_status acpi_ns_root_initialize(void)
 	union acpi_operand_object *obj_desc;
 	acpi_string val = NULL;
 
-	ACPI_FUNCTION_TRACE("ns_root_initialize");
+	ACPI_FUNCTION_TRACE(ns_root_initialize);
 
 	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
 	if (ACPI_FAILURE(status)) {
@@ -314,7 +314,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 	u32 local_flags = flags & ~(ACPI_NS_ERROR_IF_FOUND |
 				    ACPI_NS_SEARCH_PARENT);
 
-	ACPI_FUNCTION_TRACE("ns_lookup");
+	ACPI_FUNCTION_TRACE(ns_lookup);
 
 	if (!return_node) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
@@ -615,7 +615,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 			/* Complain about a type mismatch */
 
 			ACPI_WARNING((AE_INFO,
-				      "ns_lookup: Type mismatch on %4.4s (%s), searching for (%s)",
+				      "NsLookup: Type mismatch on %4.4s (%s), searching for (%s)",
 				      ACPI_CAST_PTR(char, &simple_name),
 				      acpi_ut_get_type_name(this_node->type),
 				      acpi_ut_get_type_name

@@ -241,7 +241,7 @@ static u8 acpi_ns_valid_path_separator(char sep)
 
 acpi_object_type acpi_ns_get_type(struct acpi_namespace_node * node)
 {
-	ACPI_FUNCTION_TRACE("ns_get_type");
+	ACPI_FUNCTION_TRACE(ns_get_type);
 
 	if (!node) {
 		ACPI_WARNING((AE_INFO, "Null Node parameter"));
@@ -266,7 +266,7 @@ acpi_object_type acpi_ns_get_type(struct acpi_namespace_node * node)
 
 u32 acpi_ns_local(acpi_object_type type)
 {
-	ACPI_FUNCTION_TRACE("ns_local");
+	ACPI_FUNCTION_TRACE(ns_local);
 
 	if (!acpi_ut_valid_object_type(type)) {
 
@@ -366,7 +366,7 @@ acpi_status acpi_ns_build_internal_name(struct acpi_namestring_info *info)
 	char *result = NULL;
 	acpi_native_uint i;
 
-	ACPI_FUNCTION_TRACE("ns_build_internal_name");
+	ACPI_FUNCTION_TRACE(ns_build_internal_name);
 
 	/* Setup the correct prefixes, counts, and pointers */
 
@@ -477,7 +477,7 @@ acpi_status acpi_ns_internalize_name(char *external_name, char **converted_name)
 	struct acpi_namestring_info info;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("ns_internalize_name");
+	ACPI_FUNCTION_TRACE(ns_internalize_name);
 
 	if ((!external_name) || (*external_name == 0) || (!converted_name)) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
@@ -537,7 +537,7 @@ acpi_ns_externalize_name(u32 internal_name_length,
 	acpi_native_uint i = 0;
 	acpi_native_uint j = 0;
 
-	ACPI_FUNCTION_TRACE("ns_externalize_name");
+	ACPI_FUNCTION_TRACE(ns_externalize_name);
 
 	if (!internal_name_length || !internal_name || !converted_name) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
@@ -756,7 +756,7 @@ void acpi_ns_terminate(void)
 {
 	union acpi_operand_object *obj_desc;
 
-	ACPI_FUNCTION_TRACE("ns_terminate");
+	ACPI_FUNCTION_TRACE(ns_terminate);
 
 	/*
 	 * 1) Free the entire namespace -- all nodes and objects
@@ -796,7 +796,7 @@ void acpi_ns_terminate(void)
 
 u32 acpi_ns_opens_scope(acpi_object_type type)
 {
-	ACPI_FUNCTION_TRACE_STR("ns_opens_scope", acpi_ut_get_type_name(type));
+	ACPI_FUNCTION_TRACE_STR(ns_opens_scope, acpi_ut_get_type_name(type));
 
 	if (!acpi_ut_valid_object_type(type)) {
 
@@ -840,7 +840,7 @@ acpi_ns_get_node_by_path(char *pathname,
 	acpi_status status;
 	char *internal_path = NULL;
 
-	ACPI_FUNCTION_TRACE_PTR("ns_get_node_by_path", pathname);
+	ACPI_FUNCTION_TRACE_PTR(ns_get_node_by_path, pathname);
 
 	if (pathname) {
 
@@ -966,7 +966,7 @@ acpi_name acpi_ns_find_parent_name(struct acpi_namespace_node * child_node)
 {
 	struct acpi_namespace_node *parent_node;
 
-	ACPI_FUNCTION_TRACE("ns_find_parent_name");
+	ACPI_FUNCTION_TRACE(ns_find_parent_name);
 
 	if (child_node) {
 

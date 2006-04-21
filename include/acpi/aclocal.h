@@ -105,14 +105,14 @@ static char *acpi_gbl_mutex_names[] = {
 	"ACPI_MTX_Parser",
 	"ACPI_MTX_Dispatcher",
 	"ACPI_MTX_Tables",
-	"ACPI_MTX_op_regions",
+	"ACPI_MTX_OpRegions",
 	"ACPI_MTX_Namespace",
 	"ACPI_MTX_Events",
 	"ACPI_MTX_Hardware",
 	"ACPI_MTX_Caches",
 	"ACPI_MTX_Memory",
-	"ACPI_MTX_debug_cmd_complete",
-	"ACPI_MTX_debug_cmd_ready",
+	"ACPI_MTX_DebugCmdComplete",
+	"ACPI_MTX_DebugCmdReady",
 };
 
 #endif
@@ -205,9 +205,12 @@ struct acpi_namespace_node {
 #define ANOBJ_DATA_WIDTH_32             0x02	/* Parent table uses 32-bit math */
 #define ANOBJ_METHOD_ARG                0x04	/* Node is a method argument */
 #define ANOBJ_METHOD_LOCAL              0x08	/* Node is a method local */
+#define ANOBJ_SUBTREE_HAS_INI           0x10	/* Used to optimize device initialization */
+
 #define ANOBJ_METHOD_NO_RETVal          0x10	/* i_aSL only: Method has no return value */
 #define ANOBJ_METHOD_SOME_NO_RETVal     0x20	/* i_aSL only: Method has at least one return value */
 #define ANOBJ_IS_BIT_OFFSet             0x40	/* i_aSL only: Reference is a bit offset */
+#define ANOBJ_IS_REFERENCed             0x80	/* i_aSL only: Object was referenced */
 
 /*
  * ACPI Table Descriptor.  One per ACPI table

@@ -66,7 +66,7 @@ acpi_status acpi_load_tables(void)
 	struct acpi_pointer rsdp_address;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("acpi_load_tables");
+	ACPI_FUNCTION_TRACE(acpi_load_tables);
 
 	/* Get the RSDP */
 
@@ -145,7 +145,7 @@ acpi_status acpi_load_table(struct acpi_table_header *table_ptr)
 	struct acpi_table_desc table_info;
 	struct acpi_pointer address;
 
-	ACPI_FUNCTION_TRACE("acpi_load_table");
+	ACPI_FUNCTION_TRACE(acpi_load_table);
 
 	if (!table_ptr) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
@@ -188,12 +188,12 @@ acpi_status acpi_load_table(struct acpi_table_header *table_ptr)
 	/* Convert the table to common format if necessary */
 
 	switch (table_info.type) {
-	case ACPI_TABLE_FADT:
+	case ACPI_TABLE_ID_FADT:
 
 		status = acpi_tb_convert_table_fadt();
 		break;
 
-	case ACPI_TABLE_FACS:
+	case ACPI_TABLE_ID_FACS:
 
 		status = acpi_tb_build_common_facs(&table_info);
 		break;
@@ -234,11 +234,11 @@ acpi_status acpi_unload_table(acpi_table_type table_type)
 {
 	struct acpi_table_desc *table_desc;
 
-	ACPI_FUNCTION_TRACE("acpi_unload_table");
+	ACPI_FUNCTION_TRACE(acpi_unload_table);
 
 	/* Parameter validation */
 
-	if (table_type > ACPI_TABLE_MAX) {
+	if (table_type > ACPI_TABLE_ID_MAX) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
@@ -292,16 +292,16 @@ acpi_get_table_header(acpi_table_type table_type,
 	struct acpi_table_header *tbl_ptr;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("acpi_get_table_header");
+	ACPI_FUNCTION_TRACE(acpi_get_table_header);
 
 	if ((instance == 0) ||
-	    (table_type == ACPI_TABLE_RSDP) || (!out_table_header)) {
+	    (table_type == ACPI_TABLE_ID_RSDP) || (!out_table_header)) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	/* Check the table type and instance */
 
-	if ((table_type > ACPI_TABLE_MAX) ||
+	if ((table_type > ACPI_TABLE_ID_MAX) ||
 	    (ACPI_IS_SINGLE_TABLE(acpi_gbl_table_data[table_type].flags) &&
 	     instance > 1)) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
@@ -361,7 +361,7 @@ acpi_get_table(acpi_table_type table_type,
 	acpi_status status;
 	acpi_size table_length;
 
-	ACPI_FUNCTION_TRACE("acpi_get_table");
+	ACPI_FUNCTION_TRACE(acpi_get_table);
 
 	/* Parameter validation */
 
@@ -376,7 +376,7 @@ acpi_get_table(acpi_table_type table_type,
 
 	/* Check the table type and instance */
 
-	if ((table_type > ACPI_TABLE_MAX) ||
+	if ((table_type > ACPI_TABLE_ID_MAX) ||
 	    (ACPI_IS_SINGLE_TABLE(acpi_gbl_table_data[table_type].flags) &&
 	     instance > 1)) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
@@ -399,7 +399,7 @@ acpi_get_table(acpi_table_type table_type,
 
 	/* Get the table length */
 
-	if (table_type == ACPI_TABLE_RSDP) {
+	if (table_type == ACPI_TABLE_ID_RSDP) {
 
 		/* RSD PTR is the only "table" without a header */
 

@@ -138,7 +138,7 @@ acpi_ps_complete_this_op(struct acpi_walk_state * walk_state,
 	const struct acpi_opcode_info *parent_info;
 	union acpi_parse_object *replacement_op = NULL;
 
-	ACPI_FUNCTION_TRACE_PTR("ps_complete_this_op", op);
+	ACPI_FUNCTION_TRACE_PTR(ps_complete_this_op, op);
 
 	/* Check for null Op, can happen if AML code is corrupt */
 
@@ -333,7 +333,7 @@ acpi_ps_next_parse_state(struct acpi_walk_state *walk_state,
 	struct acpi_parse_state *parser_state = &walk_state->parser_state;
 	acpi_status status = AE_CTRL_PENDING;
 
-	ACPI_FUNCTION_TRACE_PTR("ps_next_parse_state", op);
+	ACPI_FUNCTION_TRACE_PTR(ps_next_parse_state, op);
 
 	switch (callback_status) {
 	case AE_CTRL_TERMINATE:
@@ -453,10 +453,10 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 	struct acpi_thread_state *prev_walk_list = acpi_gbl_current_walk_list;
 	struct acpi_walk_state *previous_walk_state;
 
-	ACPI_FUNCTION_TRACE("ps_parse_aml");
+	ACPI_FUNCTION_TRACE(ps_parse_aml);
 
 	ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
-			  "Entered with walk_state=%p Aml=%p size=%X\n",
+			  "Entered with WalkState=%p Aml=%p size=%X\n",
 			  walk_state, walk_state->parser_state.aml,
 			  walk_state->parser_state.aml_size));
 
@@ -555,21 +555,9 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 		 */
 		if (((walk_state->parse_flags & ACPI_PARSE_MODE_MASK) ==
 		     ACPI_PARSE_EXECUTE) || (ACPI_FAILURE(status))) {
-			if (walk_state->method_desc) {
-
-				/* Decrement the thread count on the method parse tree */
-
-				if (walk_state->method_desc->method.
-				    thread_count) {
-					walk_state->method_desc->method.
-					    thread_count--;
-				} else {
-					ACPI_ERROR((AE_INFO,
-						    "Invalid zero thread count in method"));
-				}
-			}
-
-			acpi_ds_terminate_control_method(walk_state);
+			acpi_ds_terminate_control_method(walk_state->
+							 method_desc,
+							 walk_state);
 		}
 
 		/* Delete this walk state and all linked control states */
@@ -578,7 +566,7 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 		previous_walk_state = walk_state;
 
 		ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
-				  "return_value=%p, implicit_value=%p State=%p\n",
+				  "ReturnValue=%p, ImplicitValue=%p State=%p\n",
 				  walk_state->return_desc,
 				  walk_state->implicit_return_obj, walk_state));
 

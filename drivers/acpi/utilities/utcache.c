@@ -244,7 +244,7 @@ void *acpi_os_acquire_object(struct acpi_memory_list *cache)
 	acpi_status status;
 	void *object;
 
-	ACPI_FUNCTION_NAME("os_acquire_object");
+	ACPI_FUNCTION_NAME(os_acquire_object);
 
 	if (!cache) {
 		return (NULL);

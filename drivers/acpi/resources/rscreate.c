@@ -77,9 +77,9 @@ acpi_rs_create_resource_list(union acpi_operand_object *aml_buffer,
 	u32 aml_buffer_length;
 	void *resource;
 
-	ACPI_FUNCTION_TRACE("rs_create_resource_list");
+	ACPI_FUNCTION_TRACE(rs_create_resource_list);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "aml_buffer = %p\n", aml_buffer));
+	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "AmlBuffer = %p\n", aml_buffer));
 
 	/* Params already validated, so we don't re-validate here */
 
@@ -93,7 +93,7 @@ acpi_rs_create_resource_list(union acpi_operand_object *aml_buffer,
 	status = acpi_rs_get_list_length(aml_start, aml_buffer_length,
 					 &list_size_needed);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Status=%X list_size_needed=%X\n",
+	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Status=%X ListSizeNeeded=%X\n",
 			  status, (u32) list_size_needed));
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
@@ -116,7 +116,7 @@ acpi_rs_create_resource_list(union acpi_operand_object *aml_buffer,
 		return_ACPI_STATUS(status);
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "output_buffer %p Length %X\n",
+	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "OutputBuffer %p Length %X\n",
 			  output_buffer->pointer, (u32) output_buffer->length));
 	return_ACPI_STATUS(AE_OK);
 }
@@ -158,7 +158,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 	acpi_status status;
 	struct acpi_buffer path_buffer;
 
-	ACPI_FUNCTION_TRACE("rs_create_pci_routing_table");
+	ACPI_FUNCTION_TRACE(rs_create_pci_routing_table);
 
 	/* Params already validated, so we don't re-validate here */
 
@@ -170,7 +170,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 		return_ACPI_STATUS(status);
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "buffer_size_needed = %X\n",
+	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "BufferSizeNeeded = %X\n",
 			  (u32) buffer_size_needed));
 
 	/* Validate/Allocate/Clear caller buffer */
@@ -344,7 +344,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 			user_prt->source_index = (u32) obj_desc->integer.value;
 		} else {
 			ACPI_ERROR((AE_INFO,
-				    "(PRT[%X].source_index) Need Integer, found %s",
+				    "(PRT[%X].SourceIndex) Need Integer, found %s",
 				    index,
 				    acpi_ut_get_object_type_name(obj_desc)));
 			return_ACPI_STATUS(AE_BAD_DATA);
@@ -355,7 +355,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 		top_object_list++;
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "output_buffer %p Length %X\n",
+	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "OutputBuffer %p Length %X\n",
 			  output_buffer->pointer, (u32) output_buffer->length));
 	return_ACPI_STATUS(AE_OK);
 }
@@ -385,9 +385,9 @@ acpi_rs_create_aml_resources(struct acpi_resource *linked_list_buffer,
 	acpi_status status;
 	acpi_size aml_size_needed = 0;
 
-	ACPI_FUNCTION_TRACE("rs_create_aml_resources");
+	ACPI_FUNCTION_TRACE(rs_create_aml_resources);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "linked_list_buffer = %p\n",
+	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "LinkedListBuffer = %p\n",
 			  linked_list_buffer));
 
 	/*
@@ -398,7 +398,7 @@ acpi_rs_create_aml_resources(struct acpi_resource *linked_list_buffer,
 	 */
 	status = acpi_rs_get_aml_length(linked_list_buffer, &aml_size_needed);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "aml_size_needed=%X, %s\n",
+	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "AmlSizeNeeded=%X, %s\n",
 			  (u32) aml_size_needed,
 			  acpi_format_exception(status)));
 	if (ACPI_FAILURE(status)) {
@@ -422,7 +422,7 @@ acpi_rs_create_aml_resources(struct acpi_resource *linked_list_buffer,
 		return_ACPI_STATUS(status);
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "output_buffer %p Length %X\n",
+	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "OutputBuffer %p Length %X\n",
 			  output_buffer->pointer, (u32) output_buffer->length));
 	return_ACPI_STATUS(AE_OK);
 }

@@ -619,7 +619,7 @@ void __init acpi_early_init(void)
 	/*
 	 * Get a separate copy of the FADT for use by other drivers.
 	 */
-	status = acpi_get_table(ACPI_TABLE_FADT, 1, &buffer);
+	status = acpi_get_table(ACPI_TABLE_ID_FADT, 1, &buffer);
 	if (ACPI_FAILURE(status)) {
 		printk(KERN_ERR PREFIX "Unable to get the FADT\n");
 		goto error0;

@@ -132,7 +132,7 @@ char *acpi_ns_get_external_pathname(struct acpi_namespace_node *node)
 	char *name_buffer;
 	acpi_size size;
 
-	ACPI_FUNCTION_TRACE_PTR("ns_get_external_pathname", node);
+	ACPI_FUNCTION_TRACE_PTR(ns_get_external_pathname, node);
 
 	/* Calculate required buffer size based on depth below root */
 
@@ -213,7 +213,7 @@ acpi_ns_handle_to_pathname(acpi_handle target_handle,
 	struct acpi_namespace_node *node;
 	acpi_size required_size;
 
-	ACPI_FUNCTION_TRACE_PTR("ns_handle_to_pathname", target_handle);
+	ACPI_FUNCTION_TRACE_PTR(ns_handle_to_pathname, target_handle);
 
 	node = acpi_ns_map_handle_to_node(target_handle);
 	if (!node) {

@@ -176,7 +176,7 @@ static void acpi_ut_terminate(void)
 	struct acpi_gpe_xrupt_info *gpe_xrupt_info;
 	struct acpi_gpe_xrupt_info *next_gpe_xrupt_info;
 
-	ACPI_FUNCTION_TRACE("ut_terminate");
+	ACPI_FUNCTION_TRACE(ut_terminate);
 
 	/* Free global tables, etc. */
 	/* Free global GPE blocks and related info structures */
@@ -216,7 +216,7 @@ static void acpi_ut_terminate(void)
 void acpi_ut_subsystem_shutdown(void)
 {
 
-	ACPI_FUNCTION_TRACE("ut_subsystem_shutdown");
+	ACPI_FUNCTION_TRACE(ut_subsystem_shutdown);
 
 	/* Just exit if subsystem is already shutdown */
 

@@ -164,7 +164,7 @@ acpi_ns_walk_namespace(acpi_object_type type,
 	acpi_object_type child_type;
 	u32 level;
 
-	ACPI_FUNCTION_TRACE("ns_walk_namespace");
+	ACPI_FUNCTION_TRACE(ns_walk_namespace);
 
 	/* Special case for the namespace Root Node */
 

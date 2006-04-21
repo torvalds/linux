@@ -68,7 +68,7 @@ acpi_status acpi_ex_system_wait_semaphore(acpi_handle semaphore, u16 timeout)
 	acpi_status status;
 	acpi_status status2;
 
-	ACPI_FUNCTION_TRACE("ex_system_wait_semaphore");
+	ACPI_FUNCTION_TRACE(ex_system_wait_semaphore);
 
 	status = acpi_os_wait_semaphore(semaphore, 1, 0);
 	if (ACPI_SUCCESS(status)) {
@@ -193,7 +193,7 @@ acpi_ex_system_acquire_mutex(union acpi_operand_object * time_desc,
 {
 	acpi_status status = AE_OK;
 
-	ACPI_FUNCTION_TRACE_PTR("ex_system_acquire_mutex", obj_desc);
+	ACPI_FUNCTION_TRACE_PTR(ex_system_acquire_mutex, obj_desc);
 
 	if (!obj_desc) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
@@ -231,7 +231,7 @@ acpi_status acpi_ex_system_release_mutex(union acpi_operand_object *obj_desc)
 {
 	acpi_status status = AE_OK;
 
-	ACPI_FUNCTION_TRACE("ex_system_release_mutex");
+	ACPI_FUNCTION_TRACE(ex_system_release_mutex);
 
 	if (!obj_desc) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
@@ -265,7 +265,7 @@ acpi_status acpi_ex_system_signal_event(union acpi_operand_object *obj_desc)
 {
 	acpi_status status = AE_OK;
 
-	ACPI_FUNCTION_TRACE("ex_system_signal_event");
+	ACPI_FUNCTION_TRACE(ex_system_signal_event);
 
 	if (obj_desc) {
 		status = acpi_os_signal_semaphore(obj_desc->event.semaphore, 1);
@@ -295,7 +295,7 @@ acpi_ex_system_wait_event(union acpi_operand_object *time_desc,
 {
 	acpi_status status = AE_OK;
 
-	ACPI_FUNCTION_TRACE("ex_system_wait_event");
+	ACPI_FUNCTION_TRACE(ex_system_wait_event);
 
 	if (obj_desc) {
 		status =

@@ -45,113 +45,113 @@
 #include <acpi/amlresrc.h>
 
 #define _COMPONENT          ACPI_UTILITIES
-ACPI_MODULE_NAME("utmisc")
+ACPI_MODULE_NAME("utresrc")
 
 #if defined(ACPI_DISASSEMBLER) || defined (ACPI_DEBUGGER)
 /*
  * Strings used to decode resource descriptors.
  * Used by both the disasssembler and the debugger resource dump routines
  */
-const char *acpi_gbl_BMdecode[2] = {
-	"not_bus_master",
-	"bus_master"
+const char *acpi_gbl_bm_decode[] = {
+	"NotBusMaster",
+	"BusMaster"
 };
 
-const char *acpi_gbl_config_decode[4] = {
+const char *acpi_gbl_config_decode[] = {
 	"0 - Good Configuration",
 	"1 - Acceptable Configuration",
 	"2 - Suboptimal Configuration",
 	"3 - ***Invalid Configuration***",
 };
 
-const char *acpi_gbl_consume_decode[2] = {
-	"resource_producer",
-	"resource_consumer"
+const char *acpi_gbl_consume_decode[] = {
+	"ResourceProducer",
+	"ResourceConsumer"
 };
 
-const char *acpi_gbl_DECdecode[2] = {
-	"pos_decode",
-	"sub_decode"
+const char *acpi_gbl_dec_decode[] = {
+	"PosDecode",
+	"SubDecode"
 };
 
-const char *acpi_gbl_HEdecode[2] = {
+const char *acpi_gbl_he_decode[] = {
 	"Level",
 	"Edge"
 };
 
-const char *acpi_gbl_io_decode[2] = {
+const char *acpi_gbl_io_decode[] = {
 	"Decode10",
 	"Decode16"
 };
 
-const char *acpi_gbl_LLdecode[2] = {
-	"active_high",
-	"active_low"
+const char *acpi_gbl_ll_decode[] = {
+	"ActiveHigh",
+	"ActiveLow"
 };
 
-const char *acpi_gbl_max_decode[2] = {
-	"max_not_fixed",
-	"max_fixed"
+const char *acpi_gbl_max_decode[] = {
+	"MaxNotFixed",
+	"MaxFixed"
 };
 
-const char *acpi_gbl_MEMdecode[4] = {
-	"non_cacheable",
+const char *acpi_gbl_mem_decode[] = {
+	"NonCacheable",
 	"Cacheable",
-	"write_combining",
+	"WriteCombining",
 	"Prefetchable"
 };
 
-const char *acpi_gbl_min_decode[2] = {
-	"min_not_fixed",
-	"min_fixed"
+const char *acpi_gbl_min_decode[] = {
+	"MinNotFixed",
+	"MinFixed"
 };
 
-const char *acpi_gbl_MTPdecode[4] = {
-	"address_range_memory",
-	"address_range_reserved",
-	"address_range_aCPI",
-	"address_range_nVS"
+const char *acpi_gbl_mtp_decode[] = {
+	"AddressRangeMemory",
+	"AddressRangeReserved",
+	"AddressRangeACPI",
+	"AddressRangeNVS"
 };
 
-const char *acpi_gbl_RNGdecode[4] = {
-	"invalid_ranges",
-	"non_iSAonly_ranges",
-	"ISAonly_ranges",
-	"entire_range"
+const char *acpi_gbl_rng_decode[] = {
+	"InvalidRanges",
+	"NonISAOnlyRanges",
+	"ISAOnlyRanges",
+	"EntireRange"
 };
 
-const char *acpi_gbl_RWdecode[2] = {
-	"read_only",
-	"read_write"
+const char *acpi_gbl_rw_decode[] = {
+	"ReadOnly",
+	"ReadWrite"
 };
 
-const char *acpi_gbl_SHRdecode[2] = {
+const char *acpi_gbl_shr_decode[] = {
 	"Exclusive",
 	"Shared"
 };
 
-const char *acpi_gbl_SIZdecode[4] = {
+const char *acpi_gbl_siz_decode[] = {
 	"Transfer8",
 	"Transfer8_16",
 	"Transfer16",
-	"invalid_size"
+	"InvalidSize"
 };
 
-const char *acpi_gbl_TRSdecode[2] = {
-	"dense_translation",
-	"sparse_translation"
+const char *acpi_gbl_trs_decode[] = {
+	"DenseTranslation",
+	"SparseTranslation"
 };
 
-const char *acpi_gbl_TTPdecode[2] = {
-	"type_static",
-	"type_translation"
+const char *acpi_gbl_ttp_decode[] = {
+	"TypeStatic",
+	"TypeTranslation"
 };
 
-const char *acpi_gbl_TYPdecode[4] = {
+const char *acpi_gbl_typ_decode[] = {
 	"Compatibility",
-	"type_a",
-	"type_b",
-	"type_f"
+	"TypeA",
+	"TypeB",
+	"TypeF"
 };
 
 #endif
@@ -266,7 +266,7 @@ acpi_ut_walk_aml_resources(u8 * aml,
 	u32 length;
 	u32 offset = 0;
 
-	ACPI_FUNCTION_TRACE("ut_walk_aml_resources");
+	ACPI_FUNCTION_TRACE(ut_walk_aml_resources);
 
 	/* The absolute minimum resource template is one end_tag descriptor */
 
@@ -597,7 +597,7 @@ acpi_ut_get_resource_end_tag(union acpi_operand_object * obj_desc,
 {
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("ut_get_resource_end_tag");
+	ACPI_FUNCTION_TRACE(ut_get_resource_end_tag);
 
 	/* Allow a buffer length of zero */
 

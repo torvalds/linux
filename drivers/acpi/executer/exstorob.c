@@ -67,7 +67,7 @@ acpi_ex_store_buffer_to_buffer(union acpi_operand_object *source_desc,
 	u32 length;
 	u8 *buffer;
 
-	ACPI_FUNCTION_TRACE_PTR("ex_store_buffer_to_buffer", source_desc);
+	ACPI_FUNCTION_TRACE_PTR(ex_store_buffer_to_buffer, source_desc);
 
 	/* We know that source_desc is a buffer by now */
 
@@ -158,7 +158,7 @@ acpi_ex_store_string_to_string(union acpi_operand_object *source_desc,
 	u32 length;
 	u8 *buffer;
 
-	ACPI_FUNCTION_TRACE_PTR("ex_store_string_to_string", source_desc);
+	ACPI_FUNCTION_TRACE_PTR(ex_store_string_to_string, source_desc);
 
 	/* We know that source_desc is a string by now */
 

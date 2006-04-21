@@ -119,7 +119,7 @@ acpi_tb_find_table(char *signature,
 	acpi_status status;
 	struct acpi_table_header *table;
 
-	ACPI_FUNCTION_TRACE("tb_find_table");
+	ACPI_FUNCTION_TRACE(tb_find_table);
 
 	/* Validate string lengths */
 
@@ -129,7 +129,7 @@ acpi_tb_find_table(char *signature,
 		return_ACPI_STATUS(AE_AML_STRING_LIMIT);
 	}
 
-	if (!ACPI_STRNCMP(signature, DSDT_SIG, ACPI_NAME_SIZE)) {
+	if (ACPI_COMPARE_NAME(signature, DSDT_SIG)) {
 		/*
 		 * The DSDT pointer is contained in the FADT, not the RSDT.
 		 * This code should suffice, because the only code that would perform
@@ -154,10 +154,12 @@ acpi_tb_find_table(char *signature,
 
 	/* Check oem_id and oem_table_id */
 
-	if ((oem_id[0] && ACPI_STRNCMP(oem_id, table->oem_id,
-				       sizeof(table->oem_id))) ||
-	    (oem_table_id[0] && ACPI_STRNCMP(oem_table_id, table->oem_table_id,
-					     sizeof(table->oem_table_id)))) {
+	if ((oem_id[0] &&
+	     ACPI_STRNCMP(oem_id, table->oem_id,
+			  sizeof(table->oem_id))) ||
+	    (oem_table_id[0] &&
+	     ACPI_STRNCMP(oem_table_id, table->oem_table_id,
+			  sizeof(table->oem_table_id)))) {
 		return_ACPI_STATUS(AE_AML_NAME_NOT_FOUND);
 	}
 
@@ -201,7 +203,7 @@ acpi_get_firmware_table(acpi_string signature,
 	u32 i;
 	u32 j;
 
-	ACPI_FUNCTION_TRACE("acpi_get_firmware_table");
+	ACPI_FUNCTION_TRACE(acpi_get_firmware_table);
 
 	/*
 	 * Ensure that at least the table manager is initialized.  We don't
@@ -325,7 +327,7 @@ acpi_get_firmware_table(acpi_string signature,
 
 		/* Compare table signatures and table instance */
 
-		if (!ACPI_STRNCMP(header->signature, signature, ACPI_NAME_SIZE)) {
+		if (ACPI_COMPARE_NAME(header->signature, signature)) {
 
 			/* An instance of the table was found */
 
@@ -388,7 +390,7 @@ acpi_status acpi_find_root_pointer(u32 flags, struct acpi_pointer *rsdp_address)
 	struct acpi_table_desc table_info;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("acpi_find_root_pointer");
+	ACPI_FUNCTION_TRACE(acpi_find_root_pointer);
 
 	/* Get the RSDP */
 
@@ -425,7 +427,7 @@ static u8 *acpi_tb_scan_memory_for_rsdp(u8 * start_address, u32 length)
 	u8 *mem_rover;
 	u8 *end_address;
 
-	ACPI_FUNCTION_TRACE("tb_scan_memory_for_rsdp");
+	ACPI_FUNCTION_TRACE(tb_scan_memory_for_rsdp);
 
 	end_address = start_address + length;
 
@@ -490,7 +492,7 @@ acpi_tb_find_rsdp(struct acpi_table_desc *table_info, u32 flags)
 	u32 physical_address;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("tb_find_rsdp");
+	ACPI_FUNCTION_TRACE(tb_find_rsdp);
 
 	/*
 	 * Scan supports either logical addressing or physical addressing

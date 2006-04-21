@@ -66,7 +66,7 @@ acpi_status acpi_install_exception_handler(acpi_exception_handler handler)
 {
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("acpi_install_exception_handler");
+	ACPI_FUNCTION_TRACE(acpi_install_exception_handler);
 
 	status = acpi_ut_acquire_mutex(ACPI_MTX_EVENTS);
 	if (ACPI_FAILURE(status)) {
@@ -113,7 +113,7 @@ acpi_install_fixed_event_handler(u32 event,
 {
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("acpi_install_fixed_event_handler");
+	ACPI_FUNCTION_TRACE(acpi_install_fixed_event_handler);
 
 	/* Parameter validation */
 
@@ -179,7 +179,7 @@ acpi_remove_fixed_event_handler(u32 event, acpi_event_handler handler)
 {
 	acpi_status status = AE_OK;
 
-	ACPI_FUNCTION_TRACE("acpi_remove_fixed_event_handler");
+	ACPI_FUNCTION_TRACE(acpi_remove_fixed_event_handler);
 
 	/* Parameter validation */
 
@@ -243,7 +243,7 @@ acpi_install_notify_handler(acpi_handle device,
 	struct acpi_namespace_node *node;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("acpi_install_notify_handler");
+	ACPI_FUNCTION_TRACE(acpi_install_notify_handler);
 
 	/* Parameter validation */
 
@@ -408,7 +408,7 @@ acpi_remove_notify_handler(acpi_handle device,
 	struct acpi_namespace_node *node;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("acpi_remove_notify_handler");
+	ACPI_FUNCTION_TRACE(acpi_remove_notify_handler);
 
 	/* Parameter validation */
 
@@ -563,7 +563,7 @@ acpi_install_gpe_handler(acpi_handle gpe_device,
 	acpi_status status;
 	acpi_cpu_flags flags;
 
-	ACPI_FUNCTION_TRACE("acpi_install_gpe_handler");
+	ACPI_FUNCTION_TRACE(acpi_install_gpe_handler);
 
 	/* Parameter validation */
 
@@ -653,7 +653,7 @@ acpi_remove_gpe_handler(acpi_handle gpe_device,
 	acpi_status status;
 	acpi_cpu_flags flags;
 
-	ACPI_FUNCTION_TRACE("acpi_remove_gpe_handler");
+	ACPI_FUNCTION_TRACE(acpi_remove_gpe_handler);
 
 	/* Parameter validation */
 

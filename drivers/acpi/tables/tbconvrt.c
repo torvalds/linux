@@ -492,7 +492,7 @@ acpi_status acpi_tb_convert_table_fadt(void)
 	struct fadt_descriptor *local_fadt;
 	struct acpi_table_desc *table_desc;
 
-	ACPI_FUNCTION_TRACE("tb_convert_table_fadt");
+	ACPI_FUNCTION_TRACE(tb_convert_table_fadt);
 
 	/*
 	 * acpi_gbl_FADT is valid. Validate the FADT length. The table must be
@@ -541,7 +541,7 @@ acpi_status acpi_tb_convert_table_fadt(void)
 
 	/* Free the original table */
 
-	table_desc = acpi_gbl_table_lists[ACPI_TABLE_FADT].next;
+	table_desc = acpi_gbl_table_lists[ACPI_TABLE_ID_FADT].next;
 	acpi_tb_delete_single_table(table_desc);
 
 	/* Install the new table */
@@ -579,7 +579,7 @@ acpi_status acpi_tb_convert_table_fadt(void)
 acpi_status acpi_tb_build_common_facs(struct acpi_table_desc *table_info)
 {
 
-	ACPI_FUNCTION_TRACE("tb_build_common_facs");
+	ACPI_FUNCTION_TRACE(tb_build_common_facs);
 
 	/* Absolute minimum length is 24, but the ACPI spec says 64 */
 

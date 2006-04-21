@@ -106,7 +106,7 @@ acpi_ps_init_scope(struct acpi_parse_state * parser_state,
 {
 	union acpi_generic_state *scope;
 
-	ACPI_FUNCTION_TRACE_PTR("ps_init_scope", root_op);
+	ACPI_FUNCTION_TRACE_PTR(ps_init_scope, root_op);
 
 	scope = acpi_ut_create_generic_state();
 	if (!scope) {
@@ -147,7 +147,7 @@ acpi_ps_push_scope(struct acpi_parse_state *parser_state,
 {
 	union acpi_generic_state *scope;
 
-	ACPI_FUNCTION_TRACE_PTR("ps_push_scope", op);
+	ACPI_FUNCTION_TRACE_PTR(ps_push_scope, op);
 
 	scope = acpi_ut_create_generic_state();
 	if (!scope) {
@@ -200,7 +200,7 @@ acpi_ps_pop_scope(struct acpi_parse_state *parser_state,
 {
 	union acpi_generic_state *scope = parser_state->scope;
 
-	ACPI_FUNCTION_TRACE("ps_pop_scope");
+	ACPI_FUNCTION_TRACE(ps_pop_scope);
 
 	/* Only pop the scope if there is in fact a next scope */
 
@@ -247,7 +247,7 @@ void acpi_ps_cleanup_scope(struct acpi_parse_state *parser_state)
 {
 	union acpi_generic_state *scope;
 
-	ACPI_FUNCTION_TRACE_PTR("ps_cleanup_scope", parser_state);
+	ACPI_FUNCTION_TRACE_PTR(ps_cleanup_scope, parser_state);
 
 	if (!parser_state) {
 		return_VOID;

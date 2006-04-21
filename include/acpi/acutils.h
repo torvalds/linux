@@ -50,24 +50,24 @@ extern const u8 acpi_gbl_resource_aml_sizes[];
 
 #if defined(ACPI_DISASSEMBLER) || defined (ACPI_DEBUGGER)
 
-extern const char *acpi_gbl_BMdecode[2];
-extern const char *acpi_gbl_config_decode[4];
-extern const char *acpi_gbl_consume_decode[2];
-extern const char *acpi_gbl_DECdecode[2];
-extern const char *acpi_gbl_HEdecode[2];
-extern const char *acpi_gbl_io_decode[2];
-extern const char *acpi_gbl_LLdecode[2];
-extern const char *acpi_gbl_max_decode[2];
-extern const char *acpi_gbl_MEMdecode[4];
-extern const char *acpi_gbl_min_decode[2];
-extern const char *acpi_gbl_MTPdecode[4];
-extern const char *acpi_gbl_RNGdecode[4];
-extern const char *acpi_gbl_RWdecode[2];
-extern const char *acpi_gbl_SHRdecode[2];
-extern const char *acpi_gbl_SIZdecode[4];
-extern const char *acpi_gbl_TRSdecode[2];
-extern const char *acpi_gbl_TTPdecode[2];
-extern const char *acpi_gbl_TYPdecode[4];
+extern const char *acpi_gbl_bm_decode[];
+extern const char *acpi_gbl_config_decode[];
+extern const char *acpi_gbl_consume_decode[];
+extern const char *acpi_gbl_dec_decode[];
+extern const char *acpi_gbl_he_decode[];
+extern const char *acpi_gbl_io_decode[];
+extern const char *acpi_gbl_ll_decode[];
+extern const char *acpi_gbl_max_decode[];
+extern const char *acpi_gbl_mem_decode[];
+extern const char *acpi_gbl_min_decode[];
+extern const char *acpi_gbl_mtp_decode[];
+extern const char *acpi_gbl_rng_decode[];
+extern const char *acpi_gbl_rw_decode[];
+extern const char *acpi_gbl_shr_decode[];
+extern const char *acpi_gbl_siz_decode[];
+extern const char *acpi_gbl_trs_decode[];
+extern const char *acpi_gbl_ttp_decode[];
+extern const char *acpi_gbl_typ_decode[];
 #endif
 
 /* Types for Resource descriptor entries */
@@ -81,7 +81,7 @@ typedef
 acpi_status(*acpi_walk_aml_callback) (u8 * aml,
 				      u32 length,
 				      u32 offset,
-				      u8 resource_index, void *context);
+				      u8 resource_index, void **context);
 
 typedef
 acpi_status(*acpi_pkg_callback) (u8 object_type,

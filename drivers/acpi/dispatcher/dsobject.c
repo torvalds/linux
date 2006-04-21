@@ -81,7 +81,7 @@ acpi_ds_build_internal_object(struct acpi_walk_state *walk_state,
 	union acpi_operand_object *obj_desc;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("ds_build_internal_object");
+	ACPI_FUNCTION_TRACE(ds_build_internal_object);
 
 	*obj_desc_ptr = NULL;
 	if (op->common.aml_opcode == AML_INT_NAMEPATH_OP) {
@@ -187,7 +187,7 @@ acpi_ds_build_internal_buffer_obj(struct acpi_walk_state *walk_state,
 	union acpi_parse_object *byte_list;
 	u32 byte_list_length = 0;
 
-	ACPI_FUNCTION_TRACE("ds_build_internal_buffer_obj");
+	ACPI_FUNCTION_TRACE(ds_build_internal_buffer_obj);
 
 	/*
 	 * If we are evaluating a Named buffer object "Name (xxxx, Buffer)".
@@ -293,7 +293,7 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 	acpi_status status = AE_OK;
 	acpi_native_uint i;
 
-	ACPI_FUNCTION_TRACE("ds_build_internal_package_obj");
+	ACPI_FUNCTION_TRACE(ds_build_internal_package_obj);
 
 	/* Find the parent of a possibly nested package */
 
@@ -400,7 +400,7 @@ acpi_ds_create_node(struct acpi_walk_state *walk_state,
 	acpi_status status;
 	union acpi_operand_object *obj_desc;
 
-	ACPI_FUNCTION_TRACE_PTR("ds_create_node", op);
+	ACPI_FUNCTION_TRACE_PTR(ds_create_node, op);
 
 	/*
 	 * Because of the execution pass through the non-control-method
@@ -469,7 +469,7 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 	union acpi_operand_object *obj_desc;
 	acpi_status status = AE_OK;
 
-	ACPI_FUNCTION_TRACE("ds_init_object_from_op");
+	ACPI_FUNCTION_TRACE(ds_init_object_from_op);
 
 	obj_desc = *ret_obj_desc;
 	op_info = acpi_ps_get_opcode_info(opcode);

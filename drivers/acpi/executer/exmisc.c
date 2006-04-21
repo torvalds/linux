@@ -72,7 +72,7 @@ acpi_ex_get_object_reference(union acpi_operand_object *obj_desc,
 	union acpi_operand_object *reference_obj;
 	union acpi_operand_object *referenced_obj;
 
-	ACPI_FUNCTION_TRACE_PTR("ex_get_object_reference", obj_desc);
+	ACPI_FUNCTION_TRACE_PTR(ex_get_object_reference, obj_desc);
 
 	*return_desc = NULL;
 
@@ -168,7 +168,7 @@ acpi_ex_concat_template(union acpi_operand_object *operand0,
 	acpi_size length1;
 	acpi_size new_length;
 
-	ACPI_FUNCTION_TRACE("ex_concat_template");
+	ACPI_FUNCTION_TRACE(ex_concat_template);
 
 	/*
 	 * Find the end_tag descriptor in each resource template.
@@ -250,7 +250,7 @@ acpi_ex_do_concatenate(union acpi_operand_object *operand0,
 	char *new_buf;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("ex_do_concatenate");
+	ACPI_FUNCTION_TRACE(ex_do_concatenate);
 
 	/*
 	 * Convert the second operand if necessary.  The first operand
@@ -489,7 +489,7 @@ acpi_ex_do_logical_numeric_op(u16 opcode,
 	acpi_status status = AE_OK;
 	u8 local_result = FALSE;
 
-	ACPI_FUNCTION_TRACE("ex_do_logical_numeric_op");
+	ACPI_FUNCTION_TRACE(ex_do_logical_numeric_op);
 
 	switch (opcode) {
 	case AML_LAND_OP:	/* LAnd (Integer0, Integer1) */
@@ -557,7 +557,7 @@ acpi_ex_do_logical_op(u16 opcode,
 	u8 local_result = FALSE;
 	int compare;
 
-	ACPI_FUNCTION_TRACE("ex_do_logical_op");
+	ACPI_FUNCTION_TRACE(ex_do_logical_op);
 
 	/*
 	 * Convert the second operand if necessary.  The first operand

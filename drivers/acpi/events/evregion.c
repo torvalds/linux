@@ -83,7 +83,7 @@ acpi_status acpi_ev_install_region_handlers(void)
 	acpi_status status;
 	acpi_native_uint i;
 
-	ACPI_FUNCTION_TRACE("ev_install_region_handlers");
+	ACPI_FUNCTION_TRACE(ev_install_region_handlers);
 
 	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
 	if (ACPI_FAILURE(status)) {
@@ -153,7 +153,7 @@ acpi_status acpi_ev_initialize_op_regions(void)
 	acpi_status status;
 	acpi_native_uint i;
 
-	ACPI_FUNCTION_TRACE("ev_initialize_op_regions");
+	ACPI_FUNCTION_TRACE(ev_initialize_op_regions);
 
 	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
 	if (ACPI_FAILURE(status)) {
@@ -198,7 +198,7 @@ acpi_ev_execute_reg_method(union acpi_operand_object *region_obj, u32 function)
 	union acpi_operand_object *region_obj2;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("ev_execute_reg_method");
+	ACPI_FUNCTION_TRACE(ev_execute_reg_method);
 
 	region_obj2 = acpi_ns_get_secondary_object(region_obj);
 	if (!region_obj2) {
@@ -284,7 +284,7 @@ acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
 	union acpi_operand_object *region_obj2;
 	void *region_context = NULL;
 
-	ACPI_FUNCTION_TRACE("ev_address_space_dispatch");
+	ACPI_FUNCTION_TRACE(ev_address_space_dispatch);
 
 	region_obj2 = acpi_ns_get_secondary_object(region_obj);
 	if (!region_obj2) {
@@ -451,7 +451,7 @@ acpi_ev_detach_region(union acpi_operand_object *region_obj,
 	union acpi_operand_object *region_obj2;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("ev_detach_region");
+	ACPI_FUNCTION_TRACE(ev_detach_region);
 
 	region_obj2 = acpi_ns_get_secondary_object(region_obj);
 	if (!region_obj2) {
@@ -585,7 +585,7 @@ acpi_ev_attach_region(union acpi_operand_object *handler_obj,
 		      u8 acpi_ns_is_locked)
 {
 
-	ACPI_FUNCTION_TRACE("ev_attach_region");
+	ACPI_FUNCTION_TRACE(ev_attach_region);
 
 	ACPI_DEBUG_PRINT((ACPI_DB_OPREGION,
 			  "Adding Region [%4.4s] %p to address handler %p [%s]\n",
@@ -638,7 +638,7 @@ acpi_ev_install_handler(acpi_handle obj_handle,
 	struct acpi_namespace_node *node;
 	acpi_status status;
 
-	ACPI_FUNCTION_NAME("ev_install_handler");
+	ACPI_FUNCTION_NAME(ev_install_handler);
 
 	handler_obj = (union acpi_operand_object *)context;
 
@@ -771,7 +771,7 @@ acpi_ev_install_space_handler(struct acpi_namespace_node * node,
 	acpi_object_type type;
 	u8 flags = 0;
 
-	ACPI_FUNCTION_TRACE("ev_install_space_handler");
+	ACPI_FUNCTION_TRACE(ev_install_space_handler);
 
 	/*
 	 * This registration is valid for only the types below
@@ -985,7 +985,7 @@ acpi_ev_execute_reg_methods(struct acpi_namespace_node *node,
 {
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("ev_execute_reg_methods");
+	ACPI_FUNCTION_TRACE(ev_execute_reg_methods);
 
 	/*
 	 * Run all _REG methods for all Operation Regions for this

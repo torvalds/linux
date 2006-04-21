@@ -461,7 +461,7 @@ acpi_rs_get_prt_method_data(acpi_handle handle, struct acpi_buffer * ret_buffer)
 	union acpi_operand_object *obj_desc;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("rs_get_prt_method_data");
+	ACPI_FUNCTION_TRACE(rs_get_prt_method_data);
 
 	/* Parameters guaranteed valid by caller */
 
@@ -509,7 +509,7 @@ acpi_rs_get_crs_method_data(acpi_handle handle, struct acpi_buffer *ret_buffer)
 	union acpi_operand_object *obj_desc;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("rs_get_crs_method_data");
+	ACPI_FUNCTION_TRACE(rs_get_crs_method_data);
 
 	/* Parameters guaranteed valid by caller */
 
@@ -559,7 +559,7 @@ acpi_rs_get_prs_method_data(acpi_handle handle, struct acpi_buffer *ret_buffer)
 	union acpi_operand_object *obj_desc;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("rs_get_prs_method_data");
+	ACPI_FUNCTION_TRACE(rs_get_prs_method_data);
 
 	/* Parameters guaranteed valid by caller */
 
@@ -611,7 +611,7 @@ acpi_rs_get_method_data(acpi_handle handle,
 	union acpi_operand_object *obj_desc;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("rs_get_method_data");
+	ACPI_FUNCTION_TRACE(rs_get_method_data);
 
 	/* Parameters guaranteed valid by caller */
 
@@ -662,7 +662,7 @@ acpi_rs_set_srs_method_data(acpi_handle handle, struct acpi_buffer *in_buffer)
 	acpi_status status;
 	struct acpi_buffer buffer;
 
-	ACPI_FUNCTION_TRACE("rs_set_srs_method_data");
+	ACPI_FUNCTION_TRACE(rs_set_srs_method_data);
 
 	/* Parameters guaranteed valid by caller */
 

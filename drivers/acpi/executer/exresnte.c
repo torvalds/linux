@@ -87,7 +87,7 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 	struct acpi_namespace_node *node;
 	acpi_object_type entry_type;
 
-	ACPI_FUNCTION_TRACE("ex_resolve_node_to_value");
+	ACPI_FUNCTION_TRACE(ex_resolve_node_to_value);
 
 	/*
 	 * The stack pointer points to a struct acpi_namespace_node (Node).  Get the
@@ -97,7 +97,7 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 	source_desc = acpi_ns_get_attached_object(node);
 	entry_type = acpi_ns_get_type((acpi_handle) node);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Entry=%p source_desc=%p [%s]\n",
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Entry=%p SourceDesc=%p [%s]\n",
 			  node, source_desc,
 			  acpi_ut_get_type_name(entry_type)));
 
@@ -202,7 +202,7 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 	case ACPI_TYPE_LOCAL_INDEX_FIELD:
 
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-				  "field_read Node=%p source_desc=%p Type=%X\n",
+				  "FieldRead Node=%p SourceDesc=%p Type=%X\n",
 				  node, source_desc, entry_type));
 
 		status =

@@ -63,7 +63,7 @@ acpi_status
 acpi_set_firmware_waking_vector(acpi_physical_address physical_address)
 {
 
-	ACPI_FUNCTION_TRACE("acpi_set_firmware_waking_vector");
+	ACPI_FUNCTION_TRACE(acpi_set_firmware_waking_vector);
 
 	/* Set the vector */
 
@@ -98,7 +98,7 @@ acpi_status
 acpi_get_firmware_waking_vector(acpi_physical_address * physical_address)
 {
 
-	ACPI_FUNCTION_TRACE("acpi_get_firmware_waking_vector");
+	ACPI_FUNCTION_TRACE(acpi_get_firmware_waking_vector);
 
 	if (!physical_address) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
@@ -142,7 +142,7 @@ acpi_status acpi_enter_sleep_state_prep(u8 sleep_state)
 	struct acpi_object_list arg_list;
 	union acpi_object arg;
 
-	ACPI_FUNCTION_TRACE("acpi_enter_sleep_state_prep");
+	ACPI_FUNCTION_TRACE(acpi_enter_sleep_state_prep);
 
 	/*
 	 * _PSW methods could be run here to enable wake-on keyboard, LAN, etc.
@@ -230,7 +230,7 @@ acpi_status asmlinkage acpi_enter_sleep_state(u8 sleep_state)
 	u32 in_value;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("acpi_enter_sleep_state");
+	ACPI_FUNCTION_TRACE(acpi_enter_sleep_state);
 
 	if ((acpi_gbl_sleep_type_a > ACPI_SLEEP_TYPE_MAX) ||
 	    (acpi_gbl_sleep_type_b > ACPI_SLEEP_TYPE_MAX)) {
@@ -399,7 +399,7 @@ acpi_status asmlinkage acpi_enter_sleep_state_s4bios(void)
 	u32 in_value;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("acpi_enter_sleep_state_s4bios");
+	ACPI_FUNCTION_TRACE(acpi_enter_sleep_state_s4bios);
 
 	status =
 	    acpi_set_register(ACPI_BITREG_WAKE_STATUS, 1, ACPI_MTX_DO_NOT_LOCK);
@@ -468,7 +468,7 @@ acpi_status acpi_leave_sleep_state(u8 sleep_state)
 	u32 PM1Acontrol;
 	u32 PM1Bcontrol;
 
-	ACPI_FUNCTION_TRACE("acpi_leave_sleep_state");
+	ACPI_FUNCTION_TRACE(acpi_leave_sleep_state);
 
 	/*
 	 * Set SLP_TYPE and SLP_EN to state S0.

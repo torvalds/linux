@@ -56,6 +56,10 @@
 #define ACPI_CLEAR_BIT(target,bit)      ((target) &= ~(bit))
 #define ACPI_MIN(a,b)                   (((a)<(b))?(a):(b))
 
+/* Size calculation */
+
+#define ACPI_ARRAY_LENGTH(x)            (sizeof(x) / sizeof((x)[0]))
+
 #if ACPI_MACHINE_WIDTH == 16
 
 /*
@@ -143,7 +147,7 @@
 #ifndef ACPI_MISALIGNMENT_NOT_SUPPORTED
 #define ACPI_COMPARE_NAME(a,b)          (*ACPI_CAST_PTR (u32,(a)) == *ACPI_CAST_PTR (u32,(b)))
 #else
-#define ACPI_COMPARE_NAME(a,b)          (!ACPI_STRNCMP (ACPI_CAST_PTR (char,(a)), ACPI_CAST_PTR (char,(b)), 4))
+#define ACPI_COMPARE_NAME(a,b)          (!ACPI_STRNCMP (ACPI_CAST_PTR (char,(a)), ACPI_CAST_PTR (char,(b)), ACPI_NAME_SIZE))
 #endif
 
 /*
@@ -522,12 +526,12 @@
 #define ACPI_GET_FUNCTION_NAME          _acpi_function_name
 /*
  * The Name parameter should be the procedure name as a quoted string.
- * This is declared as a local string ("my_function_name") so that it can
+ * This is declared as a local string ("MyFunctionName") so that it can
  * be also used by the function exit macros below.
  * Note: (const char) is used to be compatible with the debug interfaces
  * and macros such as __FUNCTION__.
  */
-#define ACPI_FUNCTION_NAME(name)        const char *_acpi_function_name = name;
+#define ACPI_FUNCTION_NAME(name)        const char *_acpi_function_name = #name;
 
 #else
 /* Compiler supports __FUNCTION__ (or equivalent) -- Ignore this macro */
@@ -551,7 +555,7 @@
  * WARNING: These macros include a return statement.  This is usually considered
  * bad form, but having a separate exit macro is very ugly and difficult to maintain.
  * One of the FUNCTION_TRACE macros above must be used in conjunction with these macros
- * so that "_acpi_function_name" is defined.
+ * so that "_AcpiFunctionName" is defined.
  *
  * Note: the DO_WHILE0 macro is used to prevent some compilers from complaining
  * about these constructs.

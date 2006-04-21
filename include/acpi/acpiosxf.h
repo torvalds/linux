@@ -212,6 +212,13 @@ acpi_os_derive_pci_id(acpi_handle rhandle,
 /*
  * Miscellaneous
  */
+
+acpi_status acpi_os_validate_interface(char *interface);
+
+acpi_status
+acpi_os_validate_address(u8 space_id,
+			 acpi_physical_address address, acpi_size length);
+
 u8 acpi_os_readable(void *pointer, acpi_size length);
 
 #ifdef ACPI_FUTURE_USAGE

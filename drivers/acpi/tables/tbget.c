@@ -78,7 +78,7 @@ acpi_tb_get_table(struct acpi_pointer *address,
 	acpi_status status;
 	struct acpi_table_header header;
 
-	ACPI_FUNCTION_TRACE("tb_get_table");
+	ACPI_FUNCTION_TRACE(tb_get_table);
 
 	/* Get the header in order to get signature and table size */
 
@@ -124,7 +124,7 @@ acpi_tb_get_table_header(struct acpi_pointer *address,
 	acpi_status status = AE_OK;
 	struct acpi_table_header *header = NULL;
 
-	ACPI_FUNCTION_TRACE("tb_get_table_header");
+	ACPI_FUNCTION_TRACE(tb_get_table_header);
 
 	/*
 	 * Flags contains the current processor mode (Virtual or Physical
@@ -202,7 +202,7 @@ acpi_tb_get_table_body(struct acpi_pointer *address,
 {
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("tb_get_table_body");
+	ACPI_FUNCTION_TRACE(tb_get_table_body);
 
 	if (!table_info || !address) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
@@ -246,7 +246,7 @@ acpi_tb_table_override(struct acpi_table_header *header,
 	acpi_status status;
 	struct acpi_pointer address;
 
-	ACPI_FUNCTION_TRACE("tb_table_override");
+	ACPI_FUNCTION_TRACE(tb_table_override);
 
 	/*
 	 * The OSL will examine the header and decide whether to override this
@@ -318,7 +318,7 @@ acpi_tb_get_this_table(struct acpi_pointer *address,
 	u8 allocation;
 	acpi_status status = AE_OK;
 
-	ACPI_FUNCTION_TRACE("tb_get_this_table");
+	ACPI_FUNCTION_TRACE(tb_get_this_table);
 
 	/*
 	 * Flags contains the current processor mode (Virtual or Physical
@@ -383,7 +383,7 @@ acpi_tb_get_this_table(struct acpi_pointer *address,
 	 * Validate checksum for _most_ tables,
 	 * even the ones whose signature we don't recognize
 	 */
-	if (table_info->type != ACPI_TABLE_FACS) {
+	if (table_info->type != ACPI_TABLE_ID_FACS) {
 		status = acpi_tb_verify_table_checksum(full_table);
 
 #if (!ACPI_CHECKSUM_ABORT)
@@ -433,13 +433,13 @@ acpi_tb_get_table_ptr(acpi_table_type table_type,
 	struct acpi_table_desc *table_desc;
 	u32 i;
 
-	ACPI_FUNCTION_TRACE("tb_get_table_ptr");
+	ACPI_FUNCTION_TRACE(tb_get_table_ptr);
 
 	if (!acpi_gbl_DSDT) {
 		return_ACPI_STATUS(AE_NO_ACPI_TABLES);
 	}
 
-	if (table_type > ACPI_TABLE_MAX) {
+	if (table_type > ACPI_TABLE_ID_MAX) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 

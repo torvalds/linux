@@ -95,7 +95,7 @@ acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id)
 	acpi_native_uint k;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("ut_allocate_owner_id");
+	ACPI_FUNCTION_TRACE(ut_allocate_owner_id);
 
 	/* Guard against multiple allocations of ID to the same location */
 
@@ -152,7 +152,7 @@ acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id)
 				    (acpi_owner_id) ((k + 1) + ACPI_MUL_32(j));
 
 				ACPI_DEBUG_PRINT((ACPI_DB_VALUES,
-						  "Allocated owner_id: %2.2X\n",
+						  "Allocated OwnerId: %2.2X\n",
 						  (unsigned int)*owner_id));
 				goto exit;
 			}
@@ -173,7 +173,7 @@ acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id)
 	 */
 	status = AE_OWNER_ID_LIMIT;
 	ACPI_ERROR((AE_INFO,
-		    "Could not allocate new owner_id (255 max), AE_OWNER_ID_LIMIT"));
+		    "Could not allocate new OwnerId (255 max), AE_OWNER_ID_LIMIT"));
 
       exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_CACHES);
@@ -201,7 +201,7 @@ void acpi_ut_release_owner_id(acpi_owner_id * owner_id_ptr)
 	acpi_native_uint index;
 	u32 bit;
 
-	ACPI_FUNCTION_TRACE_U32("ut_release_owner_id", owner_id);
+	ACPI_FUNCTION_TRACE_U32(ut_release_owner_id, owner_id);
 
 	/* Always clear the input owner_id (zero is an invalid ID) */
 
@@ -210,7 +210,7 @@ void acpi_ut_release_owner_id(acpi_owner_id * owner_id_ptr)
 	/* Zero is not a valid owner_iD */
 
 	if (owner_id == 0) {
-		ACPI_ERROR((AE_INFO, "Invalid owner_id: %2.2X", owner_id));
+		ACPI_ERROR((AE_INFO, "Invalid OwnerId: %2.2X", owner_id));
 		return_VOID;
 	}
 
@@ -236,7 +236,7 @@ void acpi_ut_release_owner_id(acpi_owner_id * owner_id_ptr)
 		acpi_gbl_owner_id_mask[index] ^= bit;
 	} else {
 		ACPI_ERROR((AE_INFO,
-			    "Release of non-allocated owner_id: %2.2X",
+			    "Release of non-allocated OwnerId: %2.2X",
 			    owner_id + 1));
 	}
 
@@ -618,7 +618,7 @@ acpi_ut_strtoul64(char *string, u32 base, acpi_integer * ret_integer)
 	acpi_integer return_value = 0;
 	acpi_integer quotient;
 
-	ACPI_FUNCTION_TRACE("ut_stroul64");
+	ACPI_FUNCTION_TRACE(ut_stroul64);
 
 	if ((!string) || !(*string)) {
 		goto error_exit;
@@ -794,7 +794,7 @@ acpi_ut_walk_package_tree(union acpi_operand_object * source_object,
 	u32 this_index;
 	union acpi_operand_object *this_source_obj;
 
-	ACPI_FUNCTION_TRACE("ut_walk_package_tree");
+	ACPI_FUNCTION_TRACE(ut_walk_package_tree);
 
 	state = acpi_ut_create_pkg_state(source_object, target_object, 0);
 	if (!state) {

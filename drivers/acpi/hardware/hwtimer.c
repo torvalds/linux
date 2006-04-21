@@ -60,7 +60,7 @@ ACPI_MODULE_NAME("hwtimer")
  ******************************************************************************/
 acpi_status acpi_get_timer_resolution(u32 * resolution)
 {
-	ACPI_FUNCTION_TRACE("acpi_get_timer_resolution");
+	ACPI_FUNCTION_TRACE(acpi_get_timer_resolution);
 
 	if (!resolution) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
@@ -92,7 +92,7 @@ acpi_status acpi_get_timer(u32 * ticks)
 {
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("acpi_get_timer");
+	ACPI_FUNCTION_TRACE(acpi_get_timer);
 
 	if (!ticks) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
@@ -140,7 +140,7 @@ acpi_get_timer_duration(u32 start_ticks, u32 end_ticks, u32 * time_elapsed)
 	u32 delta_ticks;
 	acpi_integer quotient;
 
-	ACPI_FUNCTION_TRACE("acpi_get_timer_duration");
+	ACPI_FUNCTION_TRACE(acpi_get_timer_duration);
 
 	if (!time_elapsed) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);

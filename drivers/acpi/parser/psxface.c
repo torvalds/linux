@@ -216,7 +216,7 @@ acpi_status acpi_ps_execute_method(struct acpi_parameter_info *info)
 {
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("ps_execute_method");
+	ACPI_FUNCTION_TRACE(ps_execute_method);
 
 	/* Validate the Info and method Node */
 
@@ -286,8 +286,7 @@ acpi_status acpi_ps_execute_method(struct acpi_parameter_info *info)
 	 * a control exception code
 	 */
 	if (info->return_object) {
-		ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
-				  "Method returned obj_desc=%p\n",
+		ACPI_DEBUG_PRINT((ACPI_DB_PARSE, "Method returned ObjDesc=%p\n",
 				  info->return_object));
 		ACPI_DUMP_STACK_ENTRY(info->return_object);
 
@@ -350,7 +349,7 @@ static acpi_status acpi_ps_execute_pass(struct acpi_parameter_info *info)
 	union acpi_parse_object *op;
 	struct acpi_walk_state *walk_state;
 
-	ACPI_FUNCTION_TRACE("ps_execute_pass");
+	ACPI_FUNCTION_TRACE(ps_execute_pass);
 
 	/* Create and init a Root Node */
 

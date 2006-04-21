@@ -725,7 +725,7 @@ static const u8 acpi_gbl_long_op_index[NUM_EXTENDED_OPCODE] = {
 
 const struct acpi_opcode_info *acpi_ps_get_opcode_info(u16 opcode)
 {
-	ACPI_FUNCTION_NAME("ps_get_opcode_info");
+	ACPI_FUNCTION_NAME(ps_get_opcode_info);
 
 	/*
 	 * Detect normal 8-bit opcode or extended 16-bit opcode
@@ -781,7 +781,7 @@ char *acpi_ps_get_opcode_name(u16 opcode)
 	return (op->name);
 
 #else
-	return ("AE_NOT_CONFIGURED");
+	return ("OpcodeName unavailable");
 
 #endif
 }

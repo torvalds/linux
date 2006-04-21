@@ -124,7 +124,7 @@ acpi_ev_queue_notify_request(struct acpi_namespace_node * node,
 	union acpi_generic_state *notify_info;
 	acpi_status status = AE_OK;
 
-	ACPI_FUNCTION_NAME("ev_queue_notify_request");
+	ACPI_FUNCTION_NAME(ev_queue_notify_request);
 
 	/*
 	 * For value 3 (Ejection Request), some device method may need to be run.
@@ -376,7 +376,7 @@ acpi_status acpi_ev_init_global_lock_handler(void)
 {
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("ev_init_global_lock_handler");
+	ACPI_FUNCTION_TRACE(ev_init_global_lock_handler);
 
 	acpi_gbl_global_lock_present = TRUE;
 	status = acpi_install_fixed_event_handler(ACPI_EVENT_GLOBAL,
@@ -418,7 +418,7 @@ acpi_status acpi_ev_acquire_global_lock(u16 timeout)
 	acpi_status status = AE_OK;
 	u8 acquired = FALSE;
 
-	ACPI_FUNCTION_TRACE("ev_acquire_global_lock");
+	ACPI_FUNCTION_TRACE(ev_acquire_global_lock);
 
 #ifndef ACPI_APPLICATION
 	/* Make sure that we actually have a global lock */
@@ -486,7 +486,7 @@ acpi_status acpi_ev_release_global_lock(void)
 	u8 pending = FALSE;
 	acpi_status status = AE_OK;
 
-	ACPI_FUNCTION_TRACE("ev_release_global_lock");
+	ACPI_FUNCTION_TRACE(ev_release_global_lock);
 
 	if (!acpi_gbl_global_lock_thread_count) {
 		ACPI_WARNING((AE_INFO,
@@ -540,7 +540,7 @@ void acpi_ev_terminate(void)
 	acpi_native_uint i;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("ev_terminate");
+	ACPI_FUNCTION_TRACE(ev_terminate);
 
 	if (acpi_gbl_events_initialized) {
 		/*
@@ -580,7 +580,7 @@ void acpi_ev_terminate(void)
 	if (acpi_gbl_original_mode == ACPI_SYS_MODE_LEGACY) {
 		status = acpi_disable();
 		if (ACPI_FAILURE(status)) {
-			ACPI_WARNING((AE_INFO, "acpi_disable failed"));
+			ACPI_WARNING((AE_INFO, "AcpiDisable failed"));
 		}
 	}
 	return_VOID;

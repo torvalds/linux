@@ -89,6 +89,7 @@
 #define AOPOBJ_OBJECT_INITIALIZED   0x08
 #define AOPOBJ_SETUP_COMPLETE       0x10
 #define AOPOBJ_SINGLE_DATUM         0x20
+#define AOPOBJ_INVALID              0x40	/* Used if host OS won't allow an op_region address */
 
 /******************************************************************************
  *
@@ -248,7 +249,7 @@ struct acpi_object_bank_field {
 struct acpi_object_index_field {
 	ACPI_OBJECT_COMMON_HEADER ACPI_COMMON_FIELD_INFO
 	    /*
-	     * No "region_obj" pointer needed since the Index and Data registers
+	     * No "RegionObj" pointer needed since the Index and Data registers
 	     * are each field definitions unto themselves.
 	     */
 	union acpi_operand_object *index_obj;	/* Index register */

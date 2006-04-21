@@ -95,7 +95,7 @@ acpi_get_irq_routing_table(acpi_handle device_handle,
 {
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("acpi_get_irq_routing_table ");
+	ACPI_FUNCTION_TRACE(acpi_get_irq_routing_table);
 
 	/*
 	 * Must have a valid handle and buffer, So we have to have a handle
@@ -147,7 +147,7 @@ acpi_get_current_resources(acpi_handle device_handle,
 {
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("acpi_get_current_resources");
+	ACPI_FUNCTION_TRACE(acpi_get_current_resources);
 
 	/*
 	 * Must have a valid handle and buffer, So we have to have a handle
@@ -197,7 +197,7 @@ acpi_get_possible_resources(acpi_handle device_handle,
 {
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("acpi_get_possible_resources");
+	ACPI_FUNCTION_TRACE(acpi_get_possible_resources);
 
 	/*
 	 * Must have a valid handle and buffer, So we have to have a handle
@@ -249,13 +249,13 @@ acpi_walk_resources(acpi_handle device_handle,
 	struct acpi_resource *resource;
 	struct acpi_resource *resource_end;
 
-	ACPI_FUNCTION_TRACE("acpi_walk_resources");
+	ACPI_FUNCTION_TRACE(acpi_walk_resources);
 
 	/* Parameter validation */
 
 	if (!device_handle || !user_function || !name ||
-	    (ACPI_STRNCMP(name, METHOD_NAME__CRS, sizeof(METHOD_NAME__CRS)) &&
-	     ACPI_STRNCMP(name, METHOD_NAME__PRS, sizeof(METHOD_NAME__PRS)))) {
+	    (!ACPI_COMPARE_NAME(name, METHOD_NAME__CRS) &&
+	     !ACPI_COMPARE_NAME(name, METHOD_NAME__PRS))) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
@@ -339,7 +339,7 @@ acpi_set_current_resources(acpi_handle device_handle,
 {
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("acpi_set_current_resources");
+	ACPI_FUNCTION_TRACE(acpi_set_current_resources);
 
 	/* Must have a valid handle and buffer */
 

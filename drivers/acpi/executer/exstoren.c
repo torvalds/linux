@@ -72,7 +72,7 @@ acpi_ex_resolve_object(union acpi_operand_object **source_desc_ptr,
 	union acpi_operand_object *source_desc = *source_desc_ptr;
 	acpi_status status = AE_OK;
 
-	ACPI_FUNCTION_TRACE("ex_resolve_object");
+	ACPI_FUNCTION_TRACE(ex_resolve_object);
 
 	/* Ensure we have a Target that can be stored to */
 
@@ -201,7 +201,7 @@ acpi_ex_store_object_to_object(union acpi_operand_object *source_desc,
 	union acpi_operand_object *actual_src_desc;
 	acpi_status status = AE_OK;
 
-	ACPI_FUNCTION_TRACE_PTR("ex_store_object_to_object", source_desc);
+	ACPI_FUNCTION_TRACE_PTR(ex_store_object_to_object, source_desc);
 
 	actual_src_desc = source_desc;
 	if (!dest_desc) {

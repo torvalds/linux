@@ -109,7 +109,7 @@ acpi_ut_copy_isimple_to_esimple(union acpi_operand_object *internal_object,
 {
 	acpi_status status = AE_OK;
 
-	ACPI_FUNCTION_TRACE("ut_copy_isimple_to_esimple");
+	ACPI_FUNCTION_TRACE(ut_copy_isimple_to_esimple);
 
 	*buffer_space_used = 0;
 
@@ -325,7 +325,7 @@ acpi_ut_copy_ipackage_to_epackage(union acpi_operand_object *internal_object,
 	acpi_status status;
 	struct acpi_pkg_info info;
 
-	ACPI_FUNCTION_TRACE("ut_copy_ipackage_to_epackage");
+	ACPI_FUNCTION_TRACE(ut_copy_ipackage_to_epackage);
 
 	/*
 	 * First package at head of the buffer
@@ -383,7 +383,7 @@ acpi_ut_copy_iobject_to_eobject(union acpi_operand_object *internal_object,
 {
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("ut_copy_iobject_to_eobject");
+	ACPI_FUNCTION_TRACE(ut_copy_iobject_to_eobject);
 
 	if (ACPI_GET_OBJECT_TYPE(internal_object) == ACPI_TYPE_PACKAGE) {
 		/*
@@ -442,7 +442,7 @@ acpi_ut_copy_esimple_to_isimple(union acpi_object *external_object,
 {
 	union acpi_operand_object *internal_object;
 
-	ACPI_FUNCTION_TRACE("ut_copy_esimple_to_isimple");
+	ACPI_FUNCTION_TRACE(ut_copy_esimple_to_isimple);
 
 	/*
 	 * Simple types supported are: String, Buffer, Integer
@@ -552,7 +552,7 @@ acpi_ut_copy_epackage_to_ipackage(union acpi_operand_object *internal_object,
 	union acpi_operand_object *this_internal_obj;
 	union acpi_object *this_external_obj;
 
-	ACPI_FUNCTION_TRACE("ut_copy_epackage_to_ipackage");
+	ACPI_FUNCTION_TRACE(ut_copy_epackage_to_ipackage);
 
 	/*
 	 * First package at head of the buffer
@@ -600,7 +600,7 @@ acpi_ut_copy_eobject_to_iobject(union acpi_object *external_object,
 {
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("ut_copy_eobject_to_iobject");
+	ACPI_FUNCTION_TRACE(ut_copy_eobject_to_iobject);
 
 	if (external_object->type == ACPI_TYPE_PACKAGE) {
 		/*
@@ -854,7 +854,7 @@ acpi_ut_copy_ipackage_to_ipackage(union acpi_operand_object *source_obj,
 {
 	acpi_status status = AE_OK;
 
-	ACPI_FUNCTION_TRACE("ut_copy_ipackage_to_ipackage");
+	ACPI_FUNCTION_TRACE(ut_copy_ipackage_to_ipackage);
 
 	dest_obj->common.type = ACPI_GET_OBJECT_TYPE(source_obj);
 	dest_obj->common.flags = source_obj->common.flags;
@@ -910,7 +910,7 @@ acpi_ut_copy_iobject_to_iobject(union acpi_operand_object *source_desc,
 {
 	acpi_status status = AE_OK;
 
-	ACPI_FUNCTION_TRACE("ut_copy_iobject_to_iobject");
+	ACPI_FUNCTION_TRACE(ut_copy_iobject_to_iobject);
 
 	/* Create the top level object */
 

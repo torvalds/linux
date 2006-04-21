@@ -82,7 +82,7 @@ acpi_ex_add_table(struct acpi_table_header *table,
 	struct acpi_table_desc table_info;
 	union acpi_operand_object *obj_desc;
 
-	ACPI_FUNCTION_TRACE("ex_add_table");
+	ACPI_FUNCTION_TRACE(ex_add_table);
 
 	/* Create an object to be the table handle */
 
@@ -100,7 +100,7 @@ acpi_ex_add_table(struct acpi_table_header *table,
 
 	ACPI_MEMSET(&table_info, 0, sizeof(struct acpi_table_desc));
 
-	table_info.type = ACPI_TABLE_SSDT;
+	table_info.type = ACPI_TABLE_ID_SSDT;
 	table_info.pointer = table;
 	table_info.length = (acpi_size) table->length;
 	table_info.allocation = ACPI_MEM_ALLOCATED;
@@ -162,7 +162,7 @@ acpi_ex_load_table_op(struct acpi_walk_state *walk_state,
 	struct acpi_namespace_node *parameter_node = NULL;
 	union acpi_operand_object *ddb_handle;
 
-	ACPI_FUNCTION_TRACE("ex_load_table_op");
+	ACPI_FUNCTION_TRACE(ex_load_table_op);
 
 #if 0
 	/*
@@ -300,7 +300,7 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 	struct acpi_table_header table_header;
 	u32 i;
 
-	ACPI_FUNCTION_TRACE("ex_load_op");
+	ACPI_FUNCTION_TRACE(ex_load_op);
 
 	/* Object can be either an op_region or a Field */
 
@@ -411,12 +411,8 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 
 	/* The table must be either an SSDT or a PSDT */
 
-	if ((!ACPI_STRNCMP(table_ptr->signature,
-			   acpi_gbl_table_data[ACPI_TABLE_PSDT].signature,
-			   acpi_gbl_table_data[ACPI_TABLE_PSDT].sig_length)) &&
-	    (!ACPI_STRNCMP(table_ptr->signature,
-			   acpi_gbl_table_data[ACPI_TABLE_SSDT].signature,
-			   acpi_gbl_table_data[ACPI_TABLE_SSDT].sig_length))) {
+	if ((!ACPI_COMPARE_NAME(table_ptr->signature, PSDT_SIG)) &&
+	    (!ACPI_COMPARE_NAME(table_ptr->signature, SSDT_SIG))) {
 		ACPI_ERROR((AE_INFO,
 			    "Table has invalid signature [%4.4s], must be SSDT or PSDT",
 			    table_ptr->signature));
@@ -470,7 +466,7 @@ acpi_status acpi_ex_unload_table(union acpi_operand_object *ddb_handle)
 	union acpi_operand_object *table_desc = ddb_handle;
 	struct acpi_table_desc *table_info;
 
-	ACPI_FUNCTION_TRACE("ex_unload_table");
+	ACPI_FUNCTION_TRACE(ex_unload_table);
 
 	/*
 	 * Validate the handle

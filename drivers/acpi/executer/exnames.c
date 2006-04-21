@@ -77,7 +77,7 @@ static char *acpi_ex_allocate_name_string(u32 prefix_count, u32 num_name_segs)
 	char *name_string;
 	u32 size_needed;
 
-	ACPI_FUNCTION_TRACE("ex_allocate_name_string");
+	ACPI_FUNCTION_TRACE(ex_allocate_name_string);
 
 	/*
 	 * Allow room for all \ and ^ prefixes, all segments and a multi_name_prefix.
@@ -162,7 +162,7 @@ static acpi_status acpi_ex_name_segment(u8 ** in_aml_address, char *name_string)
 	u32 index;
 	char char_buf[5];
 
-	ACPI_FUNCTION_TRACE("ex_name_segment");
+	ACPI_FUNCTION_TRACE(ex_name_segment);
 
 	/*
 	 * If first character is a digit, then we know that we aren't looking at a
@@ -253,7 +253,7 @@ acpi_ex_get_name_string(acpi_object_type data_type,
 	u32 prefix_count = 0;
 	u8 has_prefix = FALSE;
 
-	ACPI_FUNCTION_TRACE_PTR("ex_get_name_string", aml_address);
+	ACPI_FUNCTION_TRACE_PTR(ex_get_name_string, aml_address);
 
 	if (ACPI_TYPE_LOCAL_REGION_FIELD == data_type ||
 	    ACPI_TYPE_LOCAL_BANK_FIELD == data_type ||
@@ -277,7 +277,7 @@ acpi_ex_get_name_string(acpi_object_type data_type,
 		case AML_ROOT_PREFIX:
 
 			ACPI_DEBUG_PRINT((ACPI_DB_LOAD,
-					  "root_prefix(\\) at %p\n",
+					  "RootPrefix(\\) at %p\n",
 					  aml_address));
 
 			/*
@@ -295,7 +295,7 @@ acpi_ex_get_name_string(acpi_object_type data_type,
 
 			do {
 				ACPI_DEBUG_PRINT((ACPI_DB_LOAD,
-						  "parent_prefix (^) at %p\n",
+						  "ParentPrefix (^) at %p\n",
 						  aml_address));
 
 				aml_address++;
@@ -319,7 +319,7 @@ acpi_ex_get_name_string(acpi_object_type data_type,
 		case AML_DUAL_NAME_PREFIX:
 
 			ACPI_DEBUG_PRINT((ACPI_DB_LOAD,
-					  "dual_name_prefix at %p\n",
+					  "DualNamePrefix at %p\n",
 					  aml_address));
 
 			aml_address++;
@@ -346,7 +346,7 @@ acpi_ex_get_name_string(acpi_object_type data_type,
 		case AML_MULTI_NAME_PREFIX_OP:
 
 			ACPI_DEBUG_PRINT((ACPI_DB_LOAD,
-					  "multi_name_prefix at %p\n",
+					  "MultiNamePrefix at %p\n",
 					  aml_address));
 
 			/* Fetch count of segments remaining in name path */
@@ -382,7 +382,7 @@ acpi_ex_get_name_string(acpi_object_type data_type,
 
 			if (prefix_count == ACPI_UINT32_MAX) {
 				ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-						  "name_seg is \"\\\" followed by NULL\n"));
+						  "NameSeg is \"\\\" followed by NULL\n"));
 			}
 
 			/* Consume the NULL byte */

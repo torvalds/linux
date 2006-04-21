@@ -123,7 +123,7 @@ static struct acpi_exdump_info acpi_ex_dump_event[2] = {
 
 static struct acpi_exdump_info acpi_ex_dump_method[8] = {
 	{ACPI_EXD_INIT, ACPI_EXD_TABLE_SIZE(acpi_ex_dump_method), NULL},
-	{ACPI_EXD_UINT8, ACPI_EXD_OFFSET(method.param_count), "param_count"},
+	{ACPI_EXD_UINT8, ACPI_EXD_OFFSET(method.param_count), "ParamCount"},
 	{ACPI_EXD_UINT8, ACPI_EXD_OFFSET(method.concurrency), "Concurrency"},
 	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(method.semaphore), "Semaphore"},
 	{ACPI_EXD_UINT8, ACPI_EXD_OFFSET(method.owner_id), "Owner Id"},
@@ -332,7 +332,7 @@ acpi_ex_dump_object(union acpi_operand_object *obj_desc,
 
 	if (!info) {
 		acpi_os_printf
-		    ("ex_dump_object: Display not implemented for object type %s\n",
+		    ("ExDumpObject: Display not implemented for object type %s\n",
 		     acpi_ut_get_object_type_name(obj_desc));
 		return;
 	}
@@ -456,7 +456,7 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 	u32 length;
 	u32 index;
 
-	ACPI_FUNCTION_NAME("ex_dump_operand")
+	ACPI_FUNCTION_NAME(ex_dump_operand)
 
 	    if (!
 		((ACPI_LV_EXEC & acpi_dbg_level)
@@ -525,7 +525,7 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 
 		case AML_REF_OF_OP:
 
-			acpi_os_printf("Reference: (ref_of) %p\n",
+			acpi_os_printf("Reference: (RefOf) %p\n",
 				       obj_desc->reference.object);
 			break;
 
@@ -614,7 +614,7 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 
 	case ACPI_TYPE_PACKAGE:
 
-		acpi_os_printf("Package [Len %X] element_array %p\n",
+		acpi_os_printf("Package [Len %X] ElementArray %p\n",
 			       obj_desc->package.count,
 			       obj_desc->package.elements);
 
@@ -666,13 +666,13 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 
 	case ACPI_TYPE_LOCAL_BANK_FIELD:
 
-		acpi_os_printf("bank_field\n");
+		acpi_os_printf("BankField\n");
 		break;
 
 	case ACPI_TYPE_LOCAL_REGION_FIELD:
 
 		acpi_os_printf
-		    ("region_field: Bits=%X acc_width=%X Lock=%X Update=%X at byte=%X bit=%X of below:\n",
+		    ("RegionField: Bits=%X AccWidth=%X Lock=%X Update=%X at byte=%X bit=%X of below:\n",
 		     obj_desc->field.bit_length,
 		     obj_desc->field.access_byte_width,
 		     obj_desc->field.field_flags & AML_FIELD_LOCK_RULE_MASK,
@@ -685,12 +685,12 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 
 	case ACPI_TYPE_LOCAL_INDEX_FIELD:
 
-		acpi_os_printf("index_field\n");
+		acpi_os_printf("IndexField\n");
 		break;
 
 	case ACPI_TYPE_BUFFER_FIELD:
 
-		acpi_os_printf("buffer_field: %X bits at byte %X bit %X of\n",
+		acpi_os_printf("BufferField: %X bits at byte %X bit %X of\n",
 			       obj_desc->buffer_field.bit_length,
 			       obj_desc->buffer_field.base_byte_offset,
 			       obj_desc->buffer_field.start_field_bit_offset);
@@ -781,7 +781,7 @@ acpi_ex_dump_operands(union acpi_operand_object **operands,
 {
 	acpi_native_uint i;
 
-	ACPI_FUNCTION_NAME("ex_dump_operands");
+	ACPI_FUNCTION_NAME(ex_dump_operands);
 
 	if (!ident) {
 		ident = "?";
@@ -1021,7 +1021,7 @@ acpi_ex_dump_package_obj(union acpi_operand_object *obj_desc,
 void
 acpi_ex_dump_object_descriptor(union acpi_operand_object *obj_desc, u32 flags)
 {
-	ACPI_FUNCTION_TRACE("ex_dump_object_descriptor");
+	ACPI_FUNCTION_TRACE(ex_dump_object_descriptor);
 
 	if (!obj_desc) {
 		return_VOID;
@@ -1050,7 +1050,7 @@ acpi_ex_dump_object_descriptor(union acpi_operand_object *obj_desc, u32 flags)
 
 	if (ACPI_GET_DESCRIPTOR_TYPE(obj_desc) != ACPI_DESC_TYPE_OPERAND) {
 		acpi_os_printf
-		    ("ex_dump_object_descriptor: %p is not an ACPI operand object: [%s]\n",
+		    ("ExDumpObjectDescriptor: %p is not an ACPI operand object: [%s]\n",
 		     obj_desc, acpi_ut_get_descriptor_name(obj_desc));
 		return_VOID;
 	}

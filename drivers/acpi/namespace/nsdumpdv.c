@@ -74,7 +74,7 @@ acpi_ns_dump_one_device(acpi_handle obj_handle,
 	acpi_status status;
 	u32 i;
 
-	ACPI_FUNCTION_NAME("ns_dump_one_device");
+	ACPI_FUNCTION_NAME(ns_dump_one_device);
 
 	status =
 	    acpi_ns_dump_one_object(obj_handle, level, context, return_value);
@@ -115,7 +115,7 @@ void acpi_ns_dump_root_devices(void)
 	acpi_handle sys_bus_handle;
 	acpi_status status;
 
-	ACPI_FUNCTION_NAME("ns_dump_root_devices");
+	ACPI_FUNCTION_NAME(ns_dump_root_devices);
 
 	/* Only dump the table if tracing is enabled */
 

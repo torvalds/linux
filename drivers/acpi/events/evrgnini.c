@@ -71,7 +71,7 @@ acpi_ev_system_memory_region_setup(acpi_handle handle,
 	    (union acpi_operand_object *)handle;
 	struct acpi_mem_space_context *local_region_context;
 
-	ACPI_FUNCTION_TRACE("ev_system_memory_region_setup");
+	ACPI_FUNCTION_TRACE(ev_system_memory_region_setup);
 
 	if (function == ACPI_REGION_DEACTIVATE) {
 		if (*region_context) {
@@ -129,7 +129,7 @@ acpi_ev_io_space_region_setup(acpi_handle handle,
 			      u32 function,
 			      void *handler_context, void **region_context)
 {
-	ACPI_FUNCTION_TRACE("ev_io_space_region_setup");
+	ACPI_FUNCTION_TRACE(ev_io_space_region_setup);
 
 	if (function == ACPI_REGION_DEACTIVATE) {
 		*region_context = NULL;
@@ -172,7 +172,7 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 	    (union acpi_operand_object *)handle;
 	struct acpi_device_id object_hID;
 
-	ACPI_FUNCTION_TRACE("ev_pci_config_region_setup");
+	ACPI_FUNCTION_TRACE(ev_pci_config_region_setup);
 
 	handler_obj = region_obj->region.handler;
 	if (!handler_obj) {
@@ -248,7 +248,7 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 						} else {
 							ACPI_EXCEPTION((AE_INFO,
 									status,
-									"Could not install pci_config handler for Root Bridge %4.4s",
+									"Could not install PciConfig handler for Root Bridge %4.4s",
 									acpi_ut_get_node_name
 									(pci_root_node)));
 						}
@@ -350,7 +350,7 @@ acpi_ev_pci_bar_region_setup(acpi_handle handle,
 			     u32 function,
 			     void *handler_context, void **region_context)
 {
-	ACPI_FUNCTION_TRACE("ev_pci_bar_region_setup");
+	ACPI_FUNCTION_TRACE(ev_pci_bar_region_setup);
 
 	return_ACPI_STATUS(AE_OK);
 }
@@ -377,7 +377,7 @@ acpi_ev_cmos_region_setup(acpi_handle handle,
 			  u32 function,
 			  void *handler_context, void **region_context)
 {
-	ACPI_FUNCTION_TRACE("ev_cmos_region_setup");
+	ACPI_FUNCTION_TRACE(ev_cmos_region_setup);
 
 	return_ACPI_STATUS(AE_OK);
 }
@@ -402,7 +402,7 @@ acpi_ev_default_region_setup(acpi_handle handle,
 			     u32 function,
 			     void *handler_context, void **region_context)
 {
-	ACPI_FUNCTION_TRACE("ev_default_region_setup");
+	ACPI_FUNCTION_TRACE(ev_default_region_setup);
 
 	if (function == ACPI_REGION_DEACTIVATE) {
 		*region_context = NULL;
@@ -448,7 +448,7 @@ acpi_ev_initialize_region(union acpi_operand_object *region_obj,
 	acpi_name *reg_name_ptr = (acpi_name *) METHOD_NAME__REG;
 	union acpi_operand_object *region_obj2;
 
-	ACPI_FUNCTION_TRACE_U32("ev_initialize_region", acpi_ns_locked);
+	ACPI_FUNCTION_TRACE_U32(ev_initialize_region, acpi_ns_locked);
 
 	if (!region_obj) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
@@ -588,7 +588,7 @@ acpi_ev_initialize_region(union acpi_operand_object *region_obj,
 	/* If we get here, there is no handler for this region */
 
 	ACPI_DEBUG_PRINT((ACPI_DB_OPREGION,
-			  "No handler for region_type %s(%X) (region_obj %p)\n",
+			  "No handler for RegionType %s(%X) (RegionObj %p)\n",
 			  acpi_ut_get_region_name(space_id), space_id,
 			  region_obj));
 

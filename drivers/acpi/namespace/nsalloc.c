@@ -62,7 +62,7 @@ struct acpi_namespace_node *acpi_ns_create_node(u32 name)
 {
 	struct acpi_namespace_node *node;
 
-	ACPI_FUNCTION_TRACE("ns_create_node");
+	ACPI_FUNCTION_TRACE(ns_create_node);
 
 	node = acpi_os_acquire_object(acpi_gbl_namespace_cache);
 	if (!node) {
@@ -94,7 +94,7 @@ void acpi_ns_delete_node(struct acpi_namespace_node *node)
 	struct acpi_namespace_node *prev_node;
 	struct acpi_namespace_node *next_node;
 
-	ACPI_FUNCTION_TRACE_PTR("ns_delete_node", node);
+	ACPI_FUNCTION_TRACE_PTR(ns_delete_node, node);
 
 	parent_node = acpi_ns_get_parent_node(node);
 
@@ -167,7 +167,7 @@ void acpi_ns_install_node(struct acpi_walk_state *walk_state, struct acpi_namesp
 	acpi_owner_id owner_id = 0;
 	struct acpi_namespace_node *child_node;
 
-	ACPI_FUNCTION_TRACE("ns_install_node");
+	ACPI_FUNCTION_TRACE(ns_install_node);
 
 	/*
 	 * Get the owner ID from the Walk state
@@ -234,7 +234,7 @@ void acpi_ns_delete_children(struct acpi_namespace_node *parent_node)
 	struct acpi_namespace_node *next_node;
 	u8 flags;
 
-	ACPI_FUNCTION_TRACE_PTR("ns_delete_children", parent_node);
+	ACPI_FUNCTION_TRACE_PTR(ns_delete_children, parent_node);
 
 	if (!parent_node) {
 		return_VOID;
@@ -313,7 +313,7 @@ void acpi_ns_delete_namespace_subtree(struct acpi_namespace_node *parent_node)
 	struct acpi_namespace_node *child_node = NULL;
 	u32 level = 1;
 
-	ACPI_FUNCTION_TRACE("ns_delete_namespace_subtree");
+	ACPI_FUNCTION_TRACE(ns_delete_namespace_subtree);
 
 	if (!parent_node) {
 		return_VOID;
@@ -395,7 +395,7 @@ void acpi_ns_delete_namespace_by_owner(acpi_owner_id owner_id)
 	u32 level;
 	struct acpi_namespace_node *parent_node;
 
-	ACPI_FUNCTION_TRACE_U32("ns_delete_namespace_by_owner", owner_id);
+	ACPI_FUNCTION_TRACE_U32(ns_delete_namespace_by_owner, owner_id);
 
 	if (owner_id == 0) {
 		return_VOID;

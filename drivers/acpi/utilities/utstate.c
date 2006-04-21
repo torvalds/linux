@@ -96,7 +96,7 @@ void
 acpi_ut_push_generic_state(union acpi_generic_state **list_head,
 			   union acpi_generic_state *state)
 {
-	ACPI_FUNCTION_TRACE("ut_push_generic_state");
+	ACPI_FUNCTION_TRACE(ut_push_generic_state);
 
 	/* Push the state object onto the front of the list (stack) */
 
@@ -123,7 +123,7 @@ union acpi_generic_state *acpi_ut_pop_generic_state(union acpi_generic_state
 {
 	union acpi_generic_state *state;
 
-	ACPI_FUNCTION_TRACE("ut_pop_generic_state");
+	ACPI_FUNCTION_TRACE(ut_pop_generic_state);
 
 	/* Remove the state object at the head of the list (stack) */
 
@@ -185,7 +185,7 @@ struct acpi_thread_state *acpi_ut_create_thread_state(void)
 {
 	union acpi_generic_state *state;
 
-	ACPI_FUNCTION_TRACE("ut_create_thread_state");
+	ACPI_FUNCTION_TRACE(ut_create_thread_state);
 
 	/* Create the generic state object */
 
@@ -222,7 +222,7 @@ union acpi_generic_state *acpi_ut_create_update_state(union acpi_operand_object
 {
 	union acpi_generic_state *state;
 
-	ACPI_FUNCTION_TRACE_PTR("ut_create_update_state", object);
+	ACPI_FUNCTION_TRACE_PTR(ut_create_update_state, object);
 
 	/* Create the generic state object */
 
@@ -259,7 +259,7 @@ union acpi_generic_state *acpi_ut_create_pkg_state(void *internal_object,
 {
 	union acpi_generic_state *state;
 
-	ACPI_FUNCTION_TRACE_PTR("ut_create_pkg_state", internal_object);
+	ACPI_FUNCTION_TRACE_PTR(ut_create_pkg_state, internal_object);
 
 	/* Create the generic state object */
 
@@ -296,7 +296,7 @@ union acpi_generic_state *acpi_ut_create_control_state(void)
 {
 	union acpi_generic_state *state;
 
-	ACPI_FUNCTION_TRACE("ut_create_control_state");
+	ACPI_FUNCTION_TRACE(ut_create_control_state);
 
 	/* Create the generic state object */
 
@@ -328,7 +328,7 @@ union acpi_generic_state *acpi_ut_create_control_state(void)
 
 void acpi_ut_delete_generic_state(union acpi_generic_state *state)
 {
-	ACPI_FUNCTION_TRACE("ut_delete_generic_state");
+	ACPI_FUNCTION_TRACE(ut_delete_generic_state);
 
 	/* Ignore null state */
 

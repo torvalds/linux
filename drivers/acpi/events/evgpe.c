@@ -69,7 +69,7 @@ acpi_ev_set_gpe_type(struct acpi_gpe_event_info *gpe_event_info, u8 type)
 {
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("ev_set_gpe_type");
+	ACPI_FUNCTION_TRACE(ev_set_gpe_type);
 
 	/* Validate type and update register enable masks */
 
@@ -115,7 +115,7 @@ acpi_ev_update_gpe_enable_masks(struct acpi_gpe_event_info *gpe_event_info,
 	struct acpi_gpe_register_info *gpe_register_info;
 	u8 register_bit;
 
-	ACPI_FUNCTION_TRACE("ev_update_gpe_enable_masks");
+	ACPI_FUNCTION_TRACE(ev_update_gpe_enable_masks);
 
 	gpe_register_info = gpe_event_info->register_info;
 	if (!gpe_register_info) {
@@ -178,7 +178,7 @@ acpi_ev_enable_gpe(struct acpi_gpe_event_info *gpe_event_info,
 {
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("ev_enable_gpe");
+	ACPI_FUNCTION_TRACE(ev_enable_gpe);
 
 	/* Make sure HW enable masks are updated */
 
@@ -244,7 +244,7 @@ acpi_status acpi_ev_disable_gpe(struct acpi_gpe_event_info *gpe_event_info)
 {
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("ev_disable_gpe");
+	ACPI_FUNCTION_TRACE(ev_disable_gpe);
 
 	if (!(gpe_event_info->flags & ACPI_GPE_ENABLE_MASK)) {
 		return_ACPI_STATUS(AE_OK);
@@ -385,7 +385,7 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info * gpe_xrupt_list)
 	acpi_native_uint i;
 	acpi_native_uint j;
 
-	ACPI_FUNCTION_NAME("ev_gpe_detect");
+	ACPI_FUNCTION_NAME(ev_gpe_detect);
 
 	/* Check for the case where there are no GPEs */
 
@@ -504,7 +504,7 @@ static void ACPI_SYSTEM_XFACE acpi_ev_asynch_execute_gpe_method(void *context)
 	struct acpi_gpe_event_info local_gpe_event_info;
 	struct acpi_parameter_info info;
 
-	ACPI_FUNCTION_TRACE("ev_asynch_execute_gpe_method");
+	ACPI_FUNCTION_TRACE(ev_asynch_execute_gpe_method);
 
 	status = acpi_ut_acquire_mutex(ACPI_MTX_EVENTS);
 	if (ACPI_FAILURE(status)) {
@@ -598,7 +598,7 @@ acpi_ev_gpe_dispatch(struct acpi_gpe_event_info *gpe_event_info, u32 gpe_number)
 {
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("ev_gpe_dispatch");
+	ACPI_FUNCTION_TRACE(ev_gpe_dispatch);
 
 	/*
 	 * If edge-triggered, clear the GPE status bit now.  Note that
@@ -721,7 +721,7 @@ acpi_ev_gpe_dispatch(struct acpi_gpe_event_info *gpe_event_info, u32 gpe_number)
  *
  * DESCRIPTION: Determine if a a GPE is "wake-only".
  *
- *              Called from Notify() code in interpreter when a "device_wake"
+ *              Called from Notify() code in interpreter when a "DeviceWake"
  *              Notify comes in.
  *
  ******************************************************************************/
@@ -731,7 +731,7 @@ acpi_ev_check_for_wake_only_gpe(struct acpi_gpe_event_info *gpe_event_info)
 {
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("ev_check_for_wake_only_gpe");
+	ACPI_FUNCTION_TRACE(ev_check_for_wake_only_gpe);
 
 	if ((gpe_event_info) &&	/* Only >0 for _Lxx/_Exx */
 	    ((gpe_event_info->flags & ACPI_GPE_SYSTEM_MASK) == ACPI_GPE_SYSTEM_RUNNING)) {	/* System state at GPE time */

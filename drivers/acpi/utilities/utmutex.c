@@ -68,7 +68,7 @@ acpi_status acpi_ut_mutex_initialize(void)
 	u32 i;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("ut_mutex_initialize");
+	ACPI_FUNCTION_TRACE(ut_mutex_initialize);
 
 	/*
 	 * Create each of the predefined mutex objects
@@ -100,7 +100,7 @@ void acpi_ut_mutex_terminate(void)
 {
 	u32 i;
 
-	ACPI_FUNCTION_TRACE("ut_mutex_terminate");
+	ACPI_FUNCTION_TRACE(ut_mutex_terminate);
 
 	/*
 	 * Delete each predefined mutex object
@@ -129,7 +129,7 @@ static acpi_status acpi_ut_create_mutex(acpi_mutex_handle mutex_id)
 {
 	acpi_status status = AE_OK;
 
-	ACPI_FUNCTION_TRACE_U32("ut_create_mutex", mutex_id);
+	ACPI_FUNCTION_TRACE_U32(ut_create_mutex, mutex_id);
 
 	if (mutex_id > MAX_MUTEX) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
@@ -163,7 +163,7 @@ static acpi_status acpi_ut_delete_mutex(acpi_mutex_handle mutex_id)
 {
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE_U32("ut_delete_mutex", mutex_id);
+	ACPI_FUNCTION_TRACE_U32(ut_delete_mutex, mutex_id);
 
 	if (mutex_id > MAX_MUTEX) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
@@ -194,7 +194,7 @@ acpi_status acpi_ut_acquire_mutex(acpi_mutex_handle mutex_id)
 	acpi_status status;
 	acpi_thread_id this_thread_id;
 
-	ACPI_FUNCTION_NAME("ut_acquire_mutex");
+	ACPI_FUNCTION_NAME(ut_acquire_mutex);
 
 	if (mutex_id > MAX_MUTEX) {
 		return (AE_BAD_PARAMETER);
@@ -277,7 +277,7 @@ acpi_status acpi_ut_release_mutex(acpi_mutex_handle mutex_id)
 	acpi_status status;
 	acpi_thread_id this_thread_id;
 
-	ACPI_FUNCTION_NAME("ut_release_mutex");
+	ACPI_FUNCTION_NAME(ut_release_mutex);
 
 	this_thread_id = acpi_os_get_thread_id();
 	ACPI_DEBUG_PRINT((ACPI_DB_MUTEX,

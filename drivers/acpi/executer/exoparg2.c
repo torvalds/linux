@@ -92,7 +92,7 @@ acpi_status acpi_ex_opcode_2A_0T_0R(struct acpi_walk_state *walk_state)
 	u32 value;
 	acpi_status status = AE_OK;
 
-	ACPI_FUNCTION_TRACE_STR("ex_opcode_2A_0T_0R",
+	ACPI_FUNCTION_TRACE_STR(ex_opcode_2A_0T_0R,
 				acpi_ps_get_opcode_name(walk_state->opcode));
 
 	/* Examine the opcode */
@@ -121,7 +121,7 @@ acpi_status acpi_ex_opcode_2A_0T_0R(struct acpi_walk_state *walk_state)
 #ifdef ACPI_GPE_NOTIFY_CHECK
 		/*
 		 * GPE method wake/notify check.  Here, we want to ensure that we
-		 * don't receive any "device_wake" Notifies from a GPE _Lxx or _Exx
+		 * don't receive any "DeviceWake" Notifies from a GPE _Lxx or _Exx
 		 * GPE method during system runtime.  If we do, the GPE is marked
 		 * as "wake-only" and disabled.
 		 *
@@ -186,7 +186,7 @@ acpi_status acpi_ex_opcode_2A_2T_1R(struct acpi_walk_state *walk_state)
 	union acpi_operand_object *return_desc2 = NULL;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE_STR("ex_opcode_2A_2T_1R",
+	ACPI_FUNCTION_TRACE_STR(ex_opcode_2A_2T_1R,
 				acpi_ps_get_opcode_name(walk_state->opcode));
 
 	/* Execute the opcode */
@@ -283,7 +283,7 @@ acpi_status acpi_ex_opcode_2A_1T_1R(struct acpi_walk_state *walk_state)
 	acpi_status status = AE_OK;
 	acpi_size length;
 
-	ACPI_FUNCTION_TRACE_STR("ex_opcode_2A_1T_1R",
+	ACPI_FUNCTION_TRACE_STR(ex_opcode_2A_1T_1R,
 				acpi_ps_get_opcode_name(walk_state->opcode));
 
 	/* Execute the opcode */
@@ -514,7 +514,7 @@ acpi_status acpi_ex_opcode_2A_0T_1R(struct acpi_walk_state *walk_state)
 	acpi_status status = AE_OK;
 	u8 logical_result = FALSE;
 
-	ACPI_FUNCTION_TRACE_STR("ex_opcode_2A_0T_1R",
+	ACPI_FUNCTION_TRACE_STR(ex_opcode_2A_0T_1R,
 				acpi_ps_get_opcode_name(walk_state->opcode));
 
 	/* Create the internal return object */

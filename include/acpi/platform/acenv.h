@@ -49,29 +49,11 @@
  */
 
 #ifdef ACPI_LIBRARY
+/*
+ * Note: The non-debug version of the acpi_library does not contain any
+ * debug support, for minimimal size. The debug version uses ACPI_FULL_DEBUG
+ */
 #define ACPI_USE_LOCAL_CACHE
-#endif
-
-#ifdef ACPI_DUMP_APP
-#ifndef MSDOS
-#define ACPI_DEBUG_OUTPUT
-#endif
-#define ACPI_APPLICATION
-#define ACPI_DISASSEMBLER
-#define ACPI_NO_METHOD_EXECUTION
-#define ACPI_LARGE_NAMESPACE_NODE
-#define ACPI_DATA_TABLE_DISASSEMBLY
-#endif
-
-#ifdef ACPI_EXEC_APP
-#undef DEBUGGER_THREADING
-#define DEBUGGER_THREADING      DEBUGGER_SINGLE_THREADED
-#define ACPI_DEBUG_OUTPUT
-#define ACPI_APPLICATION
-#define ACPI_DEBUGGER
-#define ACPI_DISASSEMBLER
-#define ACPI_MUTEX_DEBUG
-#define ACPI_DBG_TRACK_ALLOCATIONS
 #endif
 
 #ifdef ACPI_ASL_COMPILER
@@ -83,9 +65,36 @@
 #define ACPI_DATA_TABLE_DISASSEMBLY
 #endif
 
+#ifdef ACPI_EXEC_APP
+#undef DEBUGGER_THREADING
+#define DEBUGGER_THREADING      DEBUGGER_SINGLE_THREADED
+#define ACPI_FULL_DEBUG
+#define ACPI_APPLICATION
+#define ACPI_DEBUGGER
+#define ACPI_MUTEX_DEBUG
+#define ACPI_DBG_TRACK_ALLOCATIONS
+#endif
+
+#ifdef ACPI_DASM_APP
+#ifndef MSDOS
+#define ACPI_DEBUG_OUTPUT
+#endif
+#define ACPI_APPLICATION
+#define ACPI_DISASSEMBLER
+#define ACPI_NO_METHOD_EXECUTION
+#define ACPI_LARGE_NAMESPACE_NODE
+#define ACPI_DATA_TABLE_DISASSEMBLY
+#endif
+
 #ifdef ACPI_APPLICATION
 #define ACPI_USE_SYSTEM_CLIBRARY
 #define ACPI_USE_LOCAL_CACHE
+#endif
+
+#ifdef ACPI_FULL_DEBUG
+#define ACPI_DEBUGGER
+#define ACPI_DEBUG_OUTPUT
+#define ACPI_DISASSEMBLER
 #endif
 
 /*

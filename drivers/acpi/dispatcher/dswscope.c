@@ -63,7 +63,7 @@ void acpi_ds_scope_stack_clear(struct acpi_walk_state *walk_state)
 {
 	union acpi_generic_state *scope_info;
 
-	ACPI_FUNCTION_NAME("ds_scope_stack_clear");
+	ACPI_FUNCTION_NAME(ds_scope_stack_clear);
 
 	while (walk_state->scope_info) {
 
@@ -103,7 +103,7 @@ acpi_ds_scope_stack_push(struct acpi_namespace_node *node,
 	union acpi_generic_state *scope_info;
 	union acpi_generic_state *old_scope_info;
 
-	ACPI_FUNCTION_TRACE("ds_scope_stack_push");
+	ACPI_FUNCTION_TRACE(ds_scope_stack_push);
 
 	if (!node) {
 
@@ -178,7 +178,7 @@ acpi_status acpi_ds_scope_stack_pop(struct acpi_walk_state *walk_state)
 	union acpi_generic_state *scope_info;
 	union acpi_generic_state *new_scope_info;
 
-	ACPI_FUNCTION_TRACE("ds_scope_stack_pop");
+	ACPI_FUNCTION_TRACE(ds_scope_stack_pop);
 
 	/*
 	 * Pop scope info object off the stack.

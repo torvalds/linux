@@ -73,11 +73,11 @@ acpi_tb_match_signature(char *signature,
 {
 	acpi_native_uint i;
 
-	ACPI_FUNCTION_TRACE("tb_match_signature");
+	ACPI_FUNCTION_TRACE(tb_match_signature);
 
 	/* Search for a signature match among the known table types */
 
-	for (i = 0; i < NUM_ACPI_TABLE_TYPES; i++) {
+	for (i = 0; i < (ACPI_TABLE_ID_MAX + 1); i++) {
 		if (!(acpi_gbl_table_data[i].flags & search_type)) {
 			continue;
 		}
@@ -123,7 +123,7 @@ acpi_status acpi_tb_install_table(struct acpi_table_desc *table_info)
 {
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("tb_install_table");
+	ACPI_FUNCTION_TRACE(tb_install_table);
 
 	/* Lock tables while installing */
 
@@ -188,7 +188,7 @@ acpi_tb_recognize_table(struct acpi_table_desc *table_info, u8 search_type)
 	struct acpi_table_header *table_header;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("tb_recognize_table");
+	ACPI_FUNCTION_TRACE(tb_recognize_table);
 
 	/* Ensure that we have a valid table pointer */
 
@@ -219,7 +219,6 @@ acpi_tb_recognize_table(struct acpi_table_desc *table_info, u8 search_type)
 	/* Return the table type and length via the info struct */
 
 	table_info->length = (acpi_size) table_header->length;
-
 	return_ACPI_STATUS(status);
 }
 
@@ -244,7 +243,7 @@ acpi_tb_init_table_descriptor(acpi_table_type table_type,
 	struct acpi_table_desc *table_desc;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE_U32("tb_init_table_descriptor", table_type);
+	ACPI_FUNCTION_TRACE_U32(tb_init_table_descriptor, table_type);
 
 	/* Allocate a descriptor for this table */
 
@@ -313,15 +312,14 @@ acpi_tb_init_table_descriptor(acpi_table_type table_type,
 
 	/* Finish initialization of the table descriptor */
 
+	table_desc->loaded_into_namespace = FALSE;
 	table_desc->type = (u8) table_type;
 	table_desc->pointer = table_info->pointer;
 	table_desc->length = table_info->length;
 	table_desc->allocation = table_info->allocation;
 	table_desc->aml_start = (u8 *) (table_desc->pointer + 1),
-	    table_desc->aml_length = (u32) (table_desc->length -
-					    (u32) sizeof(struct
-							 acpi_table_header));
-	table_desc->loaded_into_namespace = FALSE;
+	    table_desc->aml_length = (u32)
+	    (table_desc->length - (u32) sizeof(struct acpi_table_header));
 
 	/*
 	 * Set the appropriate global pointer (if there is one) to point to the
@@ -336,7 +334,6 @@ acpi_tb_init_table_descriptor(acpi_table_type table_type,
 
 	table_info->owner_id = table_desc->owner_id;
 	table_info->installed_desc = table_desc;
-
 	return_ACPI_STATUS(AE_OK);
 }
 
@@ -360,7 +357,7 @@ void acpi_tb_delete_all_tables(void)
 	 * Free memory allocated for ACPI tables
 	 * Memory can either be mapped or allocated
 	 */
-	for (type = 0; type < NUM_ACPI_TABLE_TYPES; type++) {
+	for (type = 0; type < (ACPI_TABLE_ID_MAX + 1); type++) {
 		acpi_tb_delete_tables_by_type(type);
 	}
 }
@@ -384,9 +381,9 @@ void acpi_tb_delete_tables_by_type(acpi_table_type type)
 	u32 count;
 	u32 i;
 
-	ACPI_FUNCTION_TRACE_U32("tb_delete_tables_by_type", type);
+	ACPI_FUNCTION_TRACE_U32(tb_delete_tables_by_type, type);
 
-	if (type > ACPI_TABLE_MAX) {
+	if (type > ACPI_TABLE_ID_MAX) {
 		return_VOID;
 	}
 
@@ -397,28 +394,28 @@ void acpi_tb_delete_tables_by_type(acpi_table_type type)
 	/* Clear the appropriate "typed" global table pointer */
 
 	switch (type) {
-	case ACPI_TABLE_RSDP:
+	case ACPI_TABLE_ID_RSDP:
 		acpi_gbl_RSDP = NULL;
 		break;
 
-	case ACPI_TABLE_DSDT:
+	case ACPI_TABLE_ID_DSDT:
 		acpi_gbl_DSDT = NULL;
 		break;
 
-	case ACPI_TABLE_FADT:
+	case ACPI_TABLE_ID_FADT:
 		acpi_gbl_FADT = NULL;
 		break;
 
-	case ACPI_TABLE_FACS:
+	case ACPI_TABLE_ID_FACS:
 		acpi_gbl_FACS = NULL;
 		break;
 
-	case ACPI_TABLE_XSDT:
+	case ACPI_TABLE_ID_XSDT:
 		acpi_gbl_XSDT = NULL;
 		break;
 
-	case ACPI_TABLE_SSDT:
-	case ACPI_TABLE_PSDT:
+	case ACPI_TABLE_ID_SSDT:
+	case ACPI_TABLE_ID_PSDT:
 	default:
 		break;
 	}
@@ -504,7 +501,7 @@ struct acpi_table_desc *acpi_tb_uninstall_table(struct acpi_table_desc
 {
 	struct acpi_table_desc *next_desc;
 
-	ACPI_FUNCTION_TRACE_PTR("tb_uninstall_table", table_desc);
+	ACPI_FUNCTION_TRACE_PTR(tb_uninstall_table, table_desc);
 
 	if (!table_desc) {
 		return_PTR(NULL);

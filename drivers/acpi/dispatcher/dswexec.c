@@ -92,7 +92,7 @@ acpi_ds_get_predicate_value(struct acpi_walk_state *walk_state,
 	union acpi_operand_object *obj_desc;
 	union acpi_operand_object *local_obj_desc = NULL;
 
-	ACPI_FUNCTION_TRACE_PTR("ds_get_predicate_value", walk_state);
+	ACPI_FUNCTION_TRACE_PTR(ds_get_predicate_value, walk_state);
 
 	walk_state->control_state->common.state = 0;
 
@@ -122,7 +122,7 @@ acpi_ds_get_predicate_value(struct acpi_walk_state *walk_state,
 
 	if (!obj_desc) {
 		ACPI_ERROR((AE_INFO,
-			    "No predicate obj_desc=%p State=%p",
+			    "No predicate ObjDesc=%p State=%p",
 			    obj_desc, walk_state));
 
 		return_ACPI_STATUS(AE_AML_NO_OPERAND);
@@ -139,7 +139,7 @@ acpi_ds_get_predicate_value(struct acpi_walk_state *walk_state,
 
 	if (ACPI_GET_OBJECT_TYPE(local_obj_desc) != ACPI_TYPE_INTEGER) {
 		ACPI_ERROR((AE_INFO,
-			    "Bad predicate (not an integer) obj_desc=%p State=%p Type=%X",
+			    "Bad predicate (not an integer) ObjDesc=%p State=%p Type=%X",
 			    obj_desc, walk_state,
 			    ACPI_GET_OBJECT_TYPE(obj_desc)));
 
@@ -213,7 +213,7 @@ acpi_ds_exec_begin_op(struct acpi_walk_state *walk_state,
 	acpi_status status = AE_OK;
 	u32 opcode_class;
 
-	ACPI_FUNCTION_TRACE_PTR("ds_exec_begin_op", walk_state);
+	ACPI_FUNCTION_TRACE_PTR(ds_exec_begin_op, walk_state);
 
 	op = walk_state->op;
 	if (!op) {
@@ -353,7 +353,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 	union acpi_parse_object *next_op;
 	union acpi_parse_object *first_arg;
 
-	ACPI_FUNCTION_TRACE_PTR("ds_exec_end_op", walk_state);
+	ACPI_FUNCTION_TRACE_PTR(ds_exec_end_op, walk_state);
 
 	op = walk_state->op;
 	op_type = walk_state->op_info->type;
@@ -423,7 +423,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 						   acpi_ps_get_opcode_name
 						   (walk_state->opcode),
 						   walk_state->num_operands,
-						   "after ex_resolve_operands");
+						   "after ExResolveOperands");
 			}
 		}
 
@@ -437,7 +437,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 			    acpi_gbl_op_type_dispatch[op_type] (walk_state);
 		} else {
 			/*
-			 * Treat constructs of the form "Store(local_x,local_x)" as noops when the
+			 * Treat constructs of the form "Store(LocalX,LocalX)" as noops when the
 			 * Local is uninitialized.
 			 */
 			if ((status == AE_AML_UNINITIALIZED_LOCAL) &&
@@ -570,7 +570,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 		case AML_TYPE_CREATE_FIELD:
 
 			ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-					  "Executing create_field Buffer/Index Op=%p\n",
+					  "Executing CreateField Buffer/Index Op=%p\n",
 					  op));
 
 			status = acpi_ds_load2_end_op(walk_state);
@@ -585,7 +585,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 		case AML_TYPE_CREATE_OBJECT:
 
 			ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-					  "Executing create_object (Buffer/Package) Op=%p\n",
+					  "Executing CreateObject (Buffer/Package) Op=%p\n",
 					  op));
 
 			switch (op->common.parent->common.aml_opcode) {
@@ -658,7 +658,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 
 			if (op->common.aml_opcode == AML_REGION_OP) {
 				ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-						  "Executing op_region Address/Length Op=%p\n",
+						  "Executing OpRegion Address/Length Op=%p\n",
 						  op));
 
 				status =

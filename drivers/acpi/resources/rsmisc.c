@@ -81,7 +81,7 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 	u16 item_count = 0;
 	u16 temp16 = 0;
 
-	ACPI_FUNCTION_TRACE("rs_convert_aml_to_resource");
+	ACPI_FUNCTION_TRACE(rs_convert_aml_to_resource);
 
 	if (((acpi_native_uint) resource) & 0x3) {
 
@@ -332,7 +332,7 @@ acpi_rs_convert_resource_to_aml(struct acpi_resource *resource,
 	u16 temp16 = 0;
 	u16 item_count = 0;
 
-	ACPI_FUNCTION_TRACE("rs_convert_resource_to_aml");
+	ACPI_FUNCTION_TRACE(rs_convert_resource_to_aml);
 
 	/*
 	 * First table entry must be ACPI_RSC_INITxxx and must contain the

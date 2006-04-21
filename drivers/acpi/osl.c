@@ -1042,12 +1042,12 @@ void acpi_os_release_lock(acpi_handle handle, acpi_cpu_flags flags)
  *
  * FUNCTION:    acpi_os_create_cache
  *
- * PARAMETERS:  CacheName       - Ascii name for the cache
- *              ObjectSize      - Size of each cached object
- *              MaxDepth        - Maximum depth of the cache (in objects)
- *              ReturnCache     - Where the new cache object is returned
+ * PARAMETERS:  name      - Ascii name for the cache
+ *              size      - Size of each cached object
+ *              depth     - Maximum depth of the cache (in objects) <ignored>
+ *              cache     - Where the new cache object is returned
  *
- * RETURN:      Status
+ * RETURN:      status
  *
  * DESCRIPTION: Create a cache object
  *
@@ -1057,7 +1057,10 @@ acpi_status
 acpi_os_create_cache(char *name, u16 size, u16 depth, acpi_cache_t ** cache)
 {
 	*cache = kmem_cache_create(name, size, 0, 0, NULL, NULL);
-	return AE_OK;
+	if (cache == NULL)
+		return AE_ERROR;
+	else
+		return AE_OK;
 }
 
 /*******************************************************************************
@@ -1136,5 +1139,53 @@ void *acpi_os_acquire_object(acpi_cache_t * cache)
 	WARN_ON(!object);
 	return object;
 }
+
+/******************************************************************************
+ *
+ * FUNCTION:    acpi_os_validate_interface
+ *
+ * PARAMETERS:  interface           - Requested interface to be validated
+ *
+ * RETURN:      AE_OK if interface is supported, AE_SUPPORT otherwise
+ *
+ * DESCRIPTION: Match an interface string to the interfaces supported by the
+ *              host. Strings originate from an AML call to the _OSI method.
+ *
+ *****************************************************************************/
+
+acpi_status
+acpi_os_validate_interface (char *interface)
+{
+
+    return AE_SUPPORT;
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    acpi_os_validate_address
+ *
+ * PARAMETERS:  space_id             - ACPI space ID
+ *              address             - Physical address
+ *              length              - Address length
+ *
+ * RETURN:      AE_OK if address/length is valid for the space_id. Otherwise,
+ *              should return AE_AML_ILLEGAL_ADDRESS.
+ *
+ * DESCRIPTION: Validate a system address via the host OS. Used to validate
+ *              the addresses accessed by AML operation regions.
+ *
+ *****************************************************************************/
+
+acpi_status
+acpi_os_validate_address (
+    u8                   space_id,
+    acpi_physical_address   address,
+    acpi_size               length)
+{
+
+    return AE_OK;
+}
+
 
 #endif

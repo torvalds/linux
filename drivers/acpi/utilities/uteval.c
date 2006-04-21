@@ -56,6 +56,34 @@ static acpi_status
 acpi_ut_translate_one_cid(union acpi_operand_object *obj_desc,
 			  struct acpi_compatible_id *one_cid);
 
+/*
+ * Strings supported by the _OSI predefined (internal) method.
+ */
+static const char *acpi_interfaces_supported[] = {
+	/* Operating System Vendor Strings */
+
+	"Linux",
+	"Windows 2000",
+	"Windows 2001",
+	"Windows 2001 SP0",
+	"Windows 2001 SP1",
+	"Windows 2001 SP2",
+	"Windows 2001 SP3",
+	"Windows 2001 SP4",
+	"Windows 2001.1",
+	"Windows 2001.1 SP1",	/* Added 03/2006 */
+	"Windows 2006",		/* Added 03/2006 */
+
+	/* Feature Group Strings */
+
+	"Extended Address Space Descriptor"
+	    /*
+	     * All "optional" feature group strings (features that are implemented
+	     * by the host) should be implemented in the host version of
+	     * acpi_os_validate_interface and should not be added here.
+	     */
+};
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ut_osi_implementation
@@ -64,18 +92,18 @@ acpi_ut_translate_one_cid(union acpi_operand_object *obj_desc,
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Implementation of _OSI predefined control method
- *              Supported = _OSI (String)
+ * DESCRIPTION: Implementation of the _OSI predefined control method
  *
  ******************************************************************************/
 
 acpi_status acpi_ut_osi_implementation(struct acpi_walk_state *walk_state)
 {
+	acpi_status status;
 	union acpi_operand_object *string_desc;
 	union acpi_operand_object *return_desc;
 	acpi_native_uint i;
 
-	ACPI_FUNCTION_TRACE("ut_osi_implementation");
+	ACPI_FUNCTION_TRACE(ut_osi_implementation);
 
 	/* Validate the string input argument */
 
@@ -84,29 +112,47 @@ acpi_status acpi_ut_osi_implementation(struct acpi_walk_state *walk_state)
 		return_ACPI_STATUS(AE_TYPE);
 	}
 
-	/* Create a return object (Default value = 0) */
+	/* Create a return object */
 
 	return_desc = acpi_ut_create_internal_object(ACPI_TYPE_INTEGER);
 	if (!return_desc) {
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
-	/* Compare input string to table of supported strings */
+	/* Default return value is SUPPORTED */
 
-	for (i = 0; i < ACPI_NUM_OSI_STRINGS; i++) {
-		if (!ACPI_STRCMP(string_desc->string.pointer,
-				 ACPI_CAST_PTR(char,
-					       acpi_gbl_valid_osi_strings[i])))
-		{
+	return_desc->integer.value = ACPI_UINT32_MAX;
+	walk_state->return_desc = return_desc;
 
-			/* This string is supported */
+	/* Compare input string to static table of supported interfaces */
 
-			return_desc->integer.value = 0xFFFFFFFF;
-			break;
+	for (i = 0; i < ACPI_ARRAY_LENGTH(acpi_interfaces_supported); i++) {
+		if (!ACPI_STRCMP
+		    (string_desc->string.pointer,
+		     acpi_interfaces_supported[i])) {
+
+			/* The interface is supported */
+
+			return_ACPI_STATUS(AE_CTRL_TERMINATE);
 		}
 	}
 
-	walk_state->return_desc = return_desc;
+	/*
+	 * Did not match the string in the static table, call the host OSL to
+	 * check for a match with one of the optional strings (such as
+	 * "Module Device", "3.0 Thermal Model", etc.)
+	 */
+	status = acpi_os_validate_interface(string_desc->string.pointer);
+	if (ACPI_SUCCESS(status)) {
+
+		/* The interface is supported */
+
+		return_ACPI_STATUS(AE_CTRL_TERMINATE);
+	}
+
+	/* The interface is not supported */
+
+	return_desc->integer.value = 0;
 	return_ACPI_STATUS(AE_CTRL_TERMINATE);
 }
 
@@ -139,7 +185,7 @@ acpi_ut_evaluate_object(struct acpi_namespace_node *prefix_node,
 	acpi_status status;
 	u32 return_btype;
 
-	ACPI_FUNCTION_TRACE("ut_evaluate_object");
+	ACPI_FUNCTION_TRACE(ut_evaluate_object);
 
 	info.node = prefix_node;
 	info.parameters = NULL;
@@ -258,7 +304,7 @@ acpi_ut_evaluate_numeric_object(char *object_name,
 	union acpi_operand_object *obj_desc;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("ut_evaluate_numeric_object");
+	ACPI_FUNCTION_TRACE(ut_evaluate_numeric_object);
 
 	status = acpi_ut_evaluate_object(device_node, object_name,
 					 ACPI_BTYPE_INTEGER, &obj_desc);
@@ -334,7 +380,7 @@ acpi_ut_execute_HID(struct acpi_namespace_node *device_node,
 	union acpi_operand_object *obj_desc;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("ut_execute_HID");
+	ACPI_FUNCTION_TRACE(ut_execute_HID);
 
 	status = acpi_ut_evaluate_object(device_node, METHOD_NAME__HID,
 					 ACPI_BTYPE_INTEGER | ACPI_BTYPE_STRING,
@@ -438,7 +484,7 @@ acpi_ut_execute_CID(struct acpi_namespace_node * device_node,
 	struct acpi_compatible_id_list *cid_list;
 	acpi_native_uint i;
 
-	ACPI_FUNCTION_TRACE("ut_execute_CID");
+	ACPI_FUNCTION_TRACE(ut_execute_CID);
 
 	/* Evaluate the _CID method for this device */
 
@@ -536,7 +582,7 @@ acpi_ut_execute_UID(struct acpi_namespace_node *device_node,
 	union acpi_operand_object *obj_desc;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("ut_execute_UID");
+	ACPI_FUNCTION_TRACE(ut_execute_UID);
 
 	status = acpi_ut_evaluate_object(device_node, METHOD_NAME__UID,
 					 ACPI_BTYPE_INTEGER | ACPI_BTYPE_STRING,
@@ -586,7 +632,7 @@ acpi_ut_execute_STA(struct acpi_namespace_node *device_node, u32 * flags)
 	union acpi_operand_object *obj_desc;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("ut_execute_STA");
+	ACPI_FUNCTION_TRACE(ut_execute_STA);
 
 	status = acpi_ut_evaluate_object(device_node, METHOD_NAME__STA,
 					 ACPI_BTYPE_INTEGER, &obj_desc);
@@ -636,7 +682,7 @@ acpi_ut_execute_sxds(struct acpi_namespace_node *device_node, u8 * highest)
 	acpi_status status;
 	u32 i;
 
-	ACPI_FUNCTION_TRACE("ut_execute_Sxds");
+	ACPI_FUNCTION_TRACE(ut_execute_sxds);
 
 	for (i = 0; i < 4; i++) {
 		highest[i] = 0xFF;

@@ -108,7 +108,7 @@ acpi_status acpi_ut_create_caches(void)
 	}
 
 	status =
-	    acpi_os_create_cache("Acpi-parse_ext",
+	    acpi_os_create_cache("Acpi-ParseExt",
 				 sizeof(struct acpi_parse_obj_named),
 				 ACPI_MAX_EXTPARSE_CACHE_DEPTH,
 				 &acpi_gbl_ps_node_ext_cache);
@@ -289,7 +289,7 @@ void *acpi_ut_allocate(acpi_size size, u32 component, char *module, u32 line)
 {
 	void *allocation;
 
-	ACPI_FUNCTION_TRACE_U32("ut_allocate", size);
+	ACPI_FUNCTION_TRACE_U32(ut_allocate, size);
 
 	/* Check for an inadvertent size of zero bytes */
 

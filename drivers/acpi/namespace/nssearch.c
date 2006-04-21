@@ -89,7 +89,7 @@ acpi_ns_search_node(u32 target_name,
 {
 	struct acpi_namespace_node *next_node;
 
-	ACPI_FUNCTION_TRACE("ns_search_node");
+	ACPI_FUNCTION_TRACE(ns_search_node);
 
 #ifdef ACPI_DEBUG_OUTPUT
 	if (ACPI_LV_NAMES & acpi_dbg_level) {
@@ -203,7 +203,7 @@ acpi_ns_search_parent_tree(u32 target_name,
 	acpi_status status;
 	struct acpi_namespace_node *parent_node;
 
-	ACPI_FUNCTION_TRACE("ns_search_parent_tree");
+	ACPI_FUNCTION_TRACE(ns_search_parent_tree);
 
 	parent_node = acpi_ns_get_parent_node(node);
 
@@ -293,13 +293,13 @@ acpi_ns_search_and_enter(u32 target_name,
 	acpi_status status;
 	struct acpi_namespace_node *new_node;
 
-	ACPI_FUNCTION_TRACE("ns_search_and_enter");
+	ACPI_FUNCTION_TRACE(ns_search_and_enter);
 
 	/* Parameter validation */
 
 	if (!node || !target_name || !return_node) {
 		ACPI_ERROR((AE_INFO,
-			    "Null param: Node %p Name %X return_node %p",
+			    "Null param: Node %p Name %X ReturnNode %p",
 			    node, target_name, return_node));
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}

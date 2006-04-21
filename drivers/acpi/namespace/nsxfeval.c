@@ -80,7 +80,7 @@ acpi_evaluate_object_typed(acpi_handle handle,
 	acpi_status status;
 	u8 must_free = FALSE;
 
-	ACPI_FUNCTION_TRACE("acpi_evaluate_object_typed");
+	ACPI_FUNCTION_TRACE(acpi_evaluate_object_typed);
 
 	/* Return buffer must be valid */
 
@@ -175,7 +175,7 @@ acpi_evaluate_object(acpi_handle handle,
 	acpi_size buffer_space_needed;
 	u32 i;
 
-	ACPI_FUNCTION_TRACE("acpi_evaluate_object");
+	ACPI_FUNCTION_TRACE(acpi_evaluate_object);
 
 	info.node = handle;
 	info.parameters = NULL;
@@ -395,7 +395,7 @@ acpi_walk_namespace(acpi_object_type type,
 {
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("acpi_walk_namespace");
+	ACPI_FUNCTION_TRACE(acpi_walk_namespace);
 
 	/* Parameter validation */
 
@@ -553,7 +553,7 @@ acpi_get_devices(char *HID,
 	acpi_status status;
 	struct acpi_get_devices_info info;
 
-	ACPI_FUNCTION_TRACE("acpi_get_devices");
+	ACPI_FUNCTION_TRACE(acpi_get_devices);
 
 	/* Parameter validation */
 

@@ -490,15 +490,15 @@ typedef u64 acpi_integer;
  */
 typedef u32 acpi_table_type;
 
-#define ACPI_TABLE_RSDP                 (acpi_table_type) 0
-#define ACPI_TABLE_DSDT                 (acpi_table_type) 1
-#define ACPI_TABLE_FADT                 (acpi_table_type) 2
-#define ACPI_TABLE_FACS                 (acpi_table_type) 3
-#define ACPI_TABLE_PSDT                 (acpi_table_type) 4
-#define ACPI_TABLE_SSDT                 (acpi_table_type) 5
-#define ACPI_TABLE_XSDT                 (acpi_table_type) 6
-#define ACPI_TABLE_MAX                  6
-#define NUM_ACPI_TABLE_TYPES            (ACPI_TABLE_MAX+1)
+#define ACPI_TABLE_ID_RSDP              (acpi_table_type) 0
+#define ACPI_TABLE_ID_DSDT              (acpi_table_type) 1
+#define ACPI_TABLE_ID_FADT              (acpi_table_type) 2
+#define ACPI_TABLE_ID_FACS              (acpi_table_type) 3
+#define ACPI_TABLE_ID_PSDT              (acpi_table_type) 4
+#define ACPI_TABLE_ID_SSDT              (acpi_table_type) 5
+#define ACPI_TABLE_ID_XSDT              (acpi_table_type) 6
+#define ACPI_TABLE_ID_MAX               6
+#define ACPI_NUM_TABLE_TYPES            (ACPI_TABLE_ID_MAX+1)
 
 /*
  * Types associated with ACPI names and objects.  The first group of
@@ -829,7 +829,7 @@ struct acpi_system_info {
 	u32 debug_level;
 	u32 debug_layer;
 	u32 num_table_types;
-	struct acpi_table_info table_info[NUM_ACPI_TABLE_TYPES];
+	struct acpi_table_info table_info[ACPI_TABLE_ID_MAX + 1];
 };
 
 /*
@@ -924,7 +924,8 @@ struct acpi_compatible_id_list {
 #define ACPI_STA_DEVICE_PRESENT         0x01
 #define ACPI_STA_DEVICE_ENABLED         0x02
 #define ACPI_STA_DEVICE_UI              0x04
-#define ACPI_STA_DEVICE_OK              0x08
+#define ACPI_STA_DEVICE_FUNCTIONING     0x08
+#define ACPI_STA_DEVICE_OK              0x08	/* Synonym */
 #define ACPI_STA_BATTERY_PRESENT        0x10
 
 #define ACPI_COMMON_OBJ_INFO \

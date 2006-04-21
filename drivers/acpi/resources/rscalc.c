@@ -190,7 +190,7 @@ acpi_rs_get_aml_length(struct acpi_resource * resource, acpi_size * size_needed)
 	acpi_size aml_size_needed = 0;
 	acpi_rs_length total_size;
 
-	ACPI_FUNCTION_TRACE("rs_get_aml_length");
+	ACPI_FUNCTION_TRACE(rs_get_aml_length);
 
 	/* Traverse entire list of internal resource descriptors */
 
@@ -345,7 +345,7 @@ acpi_rs_get_list_length(u8 * aml_buffer,
 	u8 resource_index;
 	u8 minimum_aml_resource_length;
 
-	ACPI_FUNCTION_TRACE("rs_get_list_length");
+	ACPI_FUNCTION_TRACE(rs_get_list_length);
 
 	*size_needed = 0;
 	end_aml = aml_buffer + aml_buffer_length;
@@ -456,7 +456,7 @@ acpi_rs_get_list_length(u8 * aml_buffer,
 		*size_needed += buffer_size;
 
 		ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES,
-				  "Type %.2X, aml_length %.2X internal_length %.2X\n",
+				  "Type %.2X, AmlLength %.2X InternalLength %.2X\n",
 				  acpi_ut_get_resource_type(aml_buffer),
 				  acpi_ut_get_descriptor_length(aml_buffer),
 				  buffer_size));
@@ -503,7 +503,7 @@ acpi_rs_get_pci_routing_table_length(union acpi_operand_object *package_object,
 	u8 name_found;
 	u32 table_index;
 
-	ACPI_FUNCTION_TRACE("rs_get_pci_routing_table_length");
+	ACPI_FUNCTION_TRACE(rs_get_pci_routing_table_length);
 
 	number_of_elements = package_object->package.count;
 

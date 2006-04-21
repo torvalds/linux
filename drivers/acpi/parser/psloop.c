@@ -83,7 +83,7 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 	struct acpi_parse_state *parser_state;
 	u8 *aml_op_start = NULL;
 
-	ACPI_FUNCTION_TRACE_PTR("ps_parse_loop", walk_state);
+	ACPI_FUNCTION_TRACE_PTR(ps_parse_loop, walk_state);
 
 	if (walk_state->descending_callback == NULL) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
@@ -129,7 +129,7 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 
 					}
 					ACPI_EXCEPTION((AE_INFO, status,
-							"get_predicate Failed"));
+							"GetPredicate Failed"));
 					return_ACPI_STATUS(status);
 				}
 
@@ -375,7 +375,7 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 
 			if (walk_state->op_info) {
 				ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
-						  "Opcode %4.4X [%s] Op %p Aml %p aml_offset %5.5X\n",
+						  "Opcode %4.4X [%s] Op %p Aml %p AmlOffset %5.5X\n",
 						  (u32) op->common.aml_opcode,
 						  walk_state->op_info->name, op,
 						  parser_state->aml,

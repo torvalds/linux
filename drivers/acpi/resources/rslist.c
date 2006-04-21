@@ -71,7 +71,7 @@ acpi_rs_convert_aml_to_resources(u8 * aml,
 	struct acpi_resource *resource;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("rs_convert_aml_to_resources");
+	ACPI_FUNCTION_TRACE(rs_convert_aml_to_resources);
 
 	/*
 	 * Check that the input buffer and all subsequent pointers into it
@@ -99,7 +99,7 @@ acpi_rs_convert_aml_to_resources(u8 * aml,
 	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES,
-			  "Type %.2X, aml_length %.2X internal_length %.2X\n",
+			  "Type %.2X, AmlLength %.2X InternalLength %.2X\n",
 			  acpi_ut_get_resource_type(aml), length,
 			  resource->length));
 
@@ -136,7 +136,7 @@ acpi_rs_convert_resources_to_aml(struct acpi_resource *resource,
 	u8 *end_aml = output_buffer + aml_size_needed;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("rs_convert_resources_to_aml");
+	ACPI_FUNCTION_TRACE(rs_convert_resources_to_aml);
 
 	/* Walk the resource descriptor list, convert each descriptor */
 

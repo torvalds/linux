@@ -82,7 +82,7 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 {
 	u32 i;
 
-	ACPI_FUNCTION_TRACE_PTR("ex_do_debug_object", source_desc);
+	ACPI_FUNCTION_TRACE_PTR(ex_do_debug_object, source_desc);
 
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_DEBUG_OBJECT, "[ACPI Debug] %*s",
 			      level, " "));
@@ -245,7 +245,7 @@ acpi_ex_store(union acpi_operand_object *source_desc,
 	acpi_status status = AE_OK;
 	union acpi_operand_object *ref_desc = dest_desc;
 
-	ACPI_FUNCTION_TRACE_PTR("ex_store", dest_desc);
+	ACPI_FUNCTION_TRACE_PTR(ex_store, dest_desc);
 
 	/* Validate parameters */
 
@@ -297,7 +297,7 @@ acpi_ex_store(union acpi_operand_object *source_desc,
 
 		ACPI_DUMP_STACK_ENTRY(source_desc);
 		ACPI_DUMP_STACK_ENTRY(dest_desc);
-		ACPI_DUMP_OPERANDS(&dest_desc, ACPI_IMODE_EXECUTE, "ex_store",
+		ACPI_DUMP_OPERANDS(&dest_desc, ACPI_IMODE_EXECUTE, "ExStore",
 				   2,
 				   "Target is not a Reference or Constant object");
 
@@ -396,7 +396,7 @@ acpi_ex_store_object_to_index(union acpi_operand_object *source_desc,
 	u8 value = 0;
 	u32 i;
 
-	ACPI_FUNCTION_TRACE("ex_store_object_to_index");
+	ACPI_FUNCTION_TRACE(ex_store_object_to_index);
 
 	/*
 	 * Destination must be a reference pointer, and
@@ -503,8 +503,7 @@ acpi_ex_store_object_to_index(union acpi_operand_object *source_desc,
 		break;
 
 	default:
-		ACPI_ERROR((AE_INFO,
-			    "Target is not a Package or buffer_field"));
+		ACPI_ERROR((AE_INFO, "Target is not a Package or BufferField"));
 		status = AE_AML_OPERAND_TYPE;
 		break;
 	}
@@ -549,7 +548,7 @@ acpi_ex_store_object_to_node(union acpi_operand_object *source_desc,
 	union acpi_operand_object *new_desc;
 	acpi_object_type target_type;
 
-	ACPI_FUNCTION_TRACE_PTR("ex_store_object_to_node", source_desc);
+	ACPI_FUNCTION_TRACE_PTR(ex_store_object_to_node, source_desc);
 
 	/* Get current type of the node, and object attached to Node */
 

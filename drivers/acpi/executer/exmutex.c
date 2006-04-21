@@ -61,7 +61,7 @@ acpi_ex_link_mutex(union acpi_operand_object *obj_desc,
  *
  * RETURN:      None
  *
- * DESCRIPTION: Remove a mutex from the "acquired_mutex" list
+ * DESCRIPTION: Remove a mutex from the "AcquiredMutex" list
  *
  ******************************************************************************/
 
@@ -95,7 +95,7 @@ void acpi_ex_unlink_mutex(union acpi_operand_object *obj_desc)
  *
  * RETURN:      None
  *
- * DESCRIPTION: Add a mutex to the "acquired_mutex" list for this walk
+ * DESCRIPTION: Add a mutex to the "AcquiredMutex" list for this walk
  *
  ******************************************************************************/
 
@@ -144,7 +144,7 @@ acpi_ex_acquire_mutex(union acpi_operand_object *time_desc,
 {
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE_PTR("ex_acquire_mutex", obj_desc);
+	ACPI_FUNCTION_TRACE_PTR(ex_acquire_mutex, obj_desc);
 
 	if (!obj_desc) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
@@ -165,7 +165,7 @@ acpi_ex_acquire_mutex(union acpi_operand_object *time_desc,
 	 */
 	if (walk_state->thread->current_sync_level > obj_desc->mutex.sync_level) {
 		ACPI_ERROR((AE_INFO,
-			    "Cannot acquire Mutex [%4.4s], incorrect sync_level",
+			    "Cannot acquire Mutex [%4.4s], incorrect SyncLevel",
 			    acpi_ut_get_node_name(obj_desc->mutex.node)));
 		return_ACPI_STATUS(AE_AML_MUTEX_ORDER);
 	}
@@ -234,7 +234,7 @@ acpi_ex_release_mutex(union acpi_operand_object *obj_desc,
 {
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE("ex_release_mutex");
+	ACPI_FUNCTION_TRACE(ex_release_mutex);
 
 	if (!obj_desc) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
@@ -279,7 +279,7 @@ acpi_ex_release_mutex(union acpi_operand_object *obj_desc,
 	 */
 	if (obj_desc->mutex.sync_level > walk_state->thread->current_sync_level) {
 		ACPI_ERROR((AE_INFO,
-			    "Cannot release Mutex [%4.4s], incorrect sync_level",
+			    "Cannot release Mutex [%4.4s], incorrect SyncLevel",
 			    acpi_ut_get_node_name(obj_desc->mutex.node)));
 		return_ACPI_STATUS(AE_AML_MUTEX_ORDER);
 	}

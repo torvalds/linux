@@ -87,7 +87,7 @@ acpi_ex_setup_region(union acpi_operand_object *obj_desc,
 	acpi_status status = AE_OK;
 	union acpi_operand_object *rgn_desc;
 
-	ACPI_FUNCTION_TRACE_U32("ex_setup_region", field_datum_byte_offset);
+	ACPI_FUNCTION_TRACE_U32(ex_setup_region, field_datum_byte_offset);
 
 	rgn_desc = obj_desc->common_field.region_obj;
 
@@ -112,6 +112,16 @@ acpi_ex_setup_region(union acpi_operand_object *obj_desc,
 		}
 	}
 
+	/* Exit if Address/Length have been disallowed by the host OS */
+
+	if (rgn_desc->common.flags & AOPOBJ_INVALID) {
+		return_ACPI_STATUS(AE_AML_ILLEGAL_ADDRESS);
+	}
+
+	/*
+	 * Exit now for SMBus address space, it has a non-linear address space
+	 * and the request cannot be directly validated
+	 */
 	if (rgn_desc->region.space_id == ACPI_ADR_SPACE_SMBUS) {
 
 		/* SMBus has a non-linear address space */
@@ -218,7 +228,7 @@ acpi_ex_access_region(union acpi_operand_object *obj_desc,
 	union acpi_operand_object *rgn_desc;
 	acpi_physical_address address;
 
-	ACPI_FUNCTION_TRACE("ex_access_region");
+	ACPI_FUNCTION_TRACE(ex_access_region);
 
 	/*
 	 * Ensure that the region operands are fully evaluated and verify
@@ -247,7 +257,7 @@ acpi_ex_access_region(union acpi_operand_object *obj_desc,
 	}
 
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_BFIELD,
-			      " Region [%s:%X], Width %X, byte_base %X, Offset %X at %8.8X%8.8X\n",
+			      " Region [%s:%X], Width %X, ByteBase %X, Offset %X at %8.8X%8.8X\n",
 			      acpi_ut_get_region_name(rgn_desc->region.
 						      space_id),
 			      rgn_desc->region.space_id,
@@ -353,7 +363,7 @@ acpi_ex_field_datum_io(union acpi_operand_object *obj_desc,
 	acpi_status status;
 	acpi_integer local_value;
 
-	ACPI_FUNCTION_TRACE_U32("ex_field_datum_io", field_datum_byte_offset);
+	ACPI_FUNCTION_TRACE_U32(ex_field_datum_io, field_datum_byte_offset);
 
 	if (read_write == ACPI_READ) {
 		if (!value) {
@@ -488,7 +498,7 @@ acpi_ex_field_datum_io(union acpi_operand_object *obj_desc,
 		}
 
 		ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
-				  "I/O to Data Register: value_ptr %p\n",
+				  "I/O to Data Register: ValuePtr %p\n",
 				  value));
 
 		if (read_write == ACPI_READ) {
@@ -561,7 +571,7 @@ acpi_ex_write_with_update_rule(union acpi_operand_object *obj_desc,
 	acpi_integer merged_value;
 	acpi_integer current_value;
 
-	ACPI_FUNCTION_TRACE_U32("ex_write_with_update_rule", mask);
+	ACPI_FUNCTION_TRACE_U32(ex_write_with_update_rule, mask);
 
 	/* Start with the new bits  */
 
@@ -617,7 +627,7 @@ acpi_ex_write_with_update_rule(union acpi_operand_object *obj_desc,
 		default:
 
 			ACPI_ERROR((AE_INFO,
-				    "Unknown update_rule value: %X",
+				    "Unknown UpdateRule value: %X",
 				    (obj_desc->common_field.
 				     field_flags &
 				     AML_FIELD_UPDATE_RULE_MASK)));
@@ -626,7 +636,7 @@ acpi_ex_write_with_update_rule(union acpi_operand_object *obj_desc,
 	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
-			  "Mask %8.8X%8.8X, datum_offset %X, Width %X, Value %8.8X%8.8X, merged_value %8.8X%8.8X\n",
+			  "Mask %8.8X%8.8X, DatumOffset %X, Width %X, Value %8.8X%8.8X, MergedValue %8.8X%8.8X\n",
 			  ACPI_FORMAT_UINT64(mask),
 			  field_datum_byte_offset,
 			  obj_desc->common_field.access_byte_width,
@@ -669,7 +679,7 @@ acpi_ex_extract_from_field(union acpi_operand_object *obj_desc,
 	u32 field_datum_count;
 	u32 i;
 
-	ACPI_FUNCTION_TRACE("ex_extract_from_field");
+	ACPI_FUNCTION_TRACE(ex_extract_from_field);
 
 	/* Validate target buffer and clear it */
 
@@ -784,7 +794,7 @@ acpi_ex_insert_into_field(union acpi_operand_object *obj_desc,
 	u32 field_datum_count;
 	u32 i;
 
-	ACPI_FUNCTION_TRACE("ex_insert_into_field");
+	ACPI_FUNCTION_TRACE(ex_insert_into_field);
 
 	/* Validate input buffer */
 

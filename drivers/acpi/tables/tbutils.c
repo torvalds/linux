@@ -71,7 +71,7 @@ acpi_status acpi_tb_is_table_installed(struct acpi_table_desc *new_table_desc)
 {
 	struct acpi_table_desc *table_desc;
 
-	ACPI_FUNCTION_TRACE("tb_is_table_installed");
+	ACPI_FUNCTION_TRACE(tb_is_table_installed);
 
 	/* Get the list descriptor and first table descriptor */
 
@@ -100,7 +100,7 @@ acpi_status acpi_tb_is_table_installed(struct acpi_table_desc *new_table_desc)
 			/* Match: this table is already installed */
 
 			ACPI_DEBUG_PRINT((ACPI_DB_TABLES,
-					  "Table [%4.4s] already installed: Rev %X oem_table_id [%8.8s]\n",
+					  "Table [%4.4s] already installed: Rev %X OemTableId [%8.8s]\n",
 					  new_table_desc->pointer->signature,
 					  new_table_desc->pointer->revision,
 					  new_table_desc->pointer->
@@ -288,7 +288,7 @@ acpi_tb_verify_table_checksum(struct acpi_table_header *table_header)
 {
 	u8 checksum;
 
-	ACPI_FUNCTION_TRACE("tb_verify_table_checksum");
+	ACPI_FUNCTION_TRACE(tb_verify_table_checksum);
 
 	/* Compute the checksum on the table */
 
@@ -329,7 +329,7 @@ acpi_tb_handle_to_object(u16 table_id,
 	u32 i;
 	struct acpi_table_desc *table_desc;
 
-	ACPI_FUNCTION_NAME("tb_handle_to_object");
+	ACPI_FUNCTION_NAME(tb_handle_to_object);
 
 	for (i = 0; i < ACPI_TABLE_MAX; i++) {
 		table_desc = acpi_gbl_table_lists[i].next;
@@ -343,7 +343,7 @@ acpi_tb_handle_to_object(u16 table_id,
 		}
 	}
 
-	ACPI_ERROR((AE_INFO, "table_id=%X does not exist", table_id));
+	ACPI_ERROR((AE_INFO, "TableId=%X does not exist", table_id));
 	return (AE_BAD_PARAMETER);
 }
 #endif

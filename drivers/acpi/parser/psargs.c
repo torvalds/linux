@@ -79,7 +79,7 @@ acpi_ps_get_next_package_length(struct acpi_parse_state *parser_state)
 	acpi_native_uint byte_count;
 	u8 byte_zero_mask = 0x3F;	/* Default [0:5] */
 
-	ACPI_FUNCTION_TRACE("ps_get_next_package_length");
+	ACPI_FUNCTION_TRACE(ps_get_next_package_length);
 
 	/*
 	 * Byte 0 bits [6:7] contain the number of additional bytes
@@ -128,7 +128,7 @@ u8 *acpi_ps_get_next_package_end(struct acpi_parse_state *parser_state)
 	u8 *start = parser_state->aml;
 	u32 package_length;
 
-	ACPI_FUNCTION_TRACE("ps_get_next_package_end");
+	ACPI_FUNCTION_TRACE(ps_get_next_package_end);
 
 	/* Function below updates parser_state->Aml */
 
@@ -157,7 +157,7 @@ char *acpi_ps_get_next_namestring(struct acpi_parse_state *parser_state)
 	u8 *start = parser_state->aml;
 	u8 *end = parser_state->aml;
 
-	ACPI_FUNCTION_TRACE("ps_get_next_namestring");
+	ACPI_FUNCTION_TRACE(ps_get_next_namestring);
 
 	/* Point past any namestring prefix characters (backslash or carat) */
 
@@ -237,7 +237,7 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 	struct acpi_namespace_node *node;
 	union acpi_generic_state scope_info;
 
-	ACPI_FUNCTION_TRACE("ps_get_next_namepath");
+	ACPI_FUNCTION_TRACE(ps_get_next_namepath);
 
 	path = acpi_ps_get_next_namestring(parser_state);
 	acpi_ps_init_op(arg, AML_INT_NAMEPATH_OP);
@@ -391,7 +391,7 @@ acpi_ps_get_next_simple_arg(struct acpi_parse_state *parser_state,
 	u16 opcode;
 	u8 *aml = parser_state->aml;
 
-	ACPI_FUNCTION_TRACE_U32("ps_get_next_simple_arg", arg_type);
+	ACPI_FUNCTION_TRACE_U32(ps_get_next_simple_arg, arg_type);
 
 	switch (arg_type) {
 	case ARGP_BYTEDATA:
@@ -456,7 +456,7 @@ acpi_ps_get_next_simple_arg(struct acpi_parse_state *parser_state,
 
 	default:
 
-		ACPI_ERROR((AE_INFO, "Invalid arg_type %X", arg_type));
+		ACPI_ERROR((AE_INFO, "Invalid ArgType %X", arg_type));
 		return_VOID;
 	}
 
@@ -487,7 +487,7 @@ static union acpi_parse_object *acpi_ps_get_next_field(struct acpi_parse_state
 	u16 opcode;
 	u32 name;
 
-	ACPI_FUNCTION_TRACE("ps_get_next_field");
+	ACPI_FUNCTION_TRACE(ps_get_next_field);
 
 	/* Determine field type */
 
@@ -593,7 +593,7 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 	u32 subop;
 	acpi_status status = AE_OK;
 
-	ACPI_FUNCTION_TRACE_PTR("ps_get_next_arg", parser_state);
+	ACPI_FUNCTION_TRACE_PTR(ps_get_next_arg, parser_state);
 
 	switch (arg_type) {
 	case ARGP_BYTEDATA:
@@ -718,7 +718,7 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 
 	default:
 
-		ACPI_ERROR((AE_INFO, "Invalid arg_type: %X", arg_type));
+		ACPI_ERROR((AE_INFO, "Invalid ArgType: %X", arg_type));
 		status = AE_AML_OPERAND_TYPE;
 		break;
 	}

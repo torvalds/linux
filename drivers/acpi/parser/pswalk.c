@@ -64,7 +64,7 @@ void acpi_ps_delete_parse_tree(union acpi_parse_object *subtree_root)
 	union acpi_parse_object *next = NULL;
 	union acpi_parse_object *parent = NULL;
 
-	ACPI_FUNCTION_TRACE_PTR("ps_delete_parse_tree", subtree_root);
+	ACPI_FUNCTION_TRACE_PTR(ps_delete_parse_tree, subtree_root);
 
 	/* Visit all nodes in the subtree */
 

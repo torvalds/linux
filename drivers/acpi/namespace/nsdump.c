@@ -75,7 +75,7 @@ void acpi_ns_print_pathname(u32 num_segments, char *pathname)
 {
 	acpi_native_uint i;
 
-	ACPI_FUNCTION_NAME("ns_print_pathname");
+	ACPI_FUNCTION_NAME(ns_print_pathname);
 
 	if (!(acpi_dbg_level & ACPI_LV_NAMES)
 	    || !(acpi_dbg_layer & ACPI_NAMESPACE)) {
@@ -123,7 +123,7 @@ void
 acpi_ns_dump_pathname(acpi_handle handle, char *msg, u32 level, u32 component)
 {
 
-	ACPI_FUNCTION_TRACE("ns_dump_pathname");
+	ACPI_FUNCTION_TRACE(ns_dump_pathname);
 
 	/* Do this only if the requested debug level and component are enabled */
 
@@ -167,7 +167,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 	u32 dbg_level;
 	u32 i;
 
-	ACPI_FUNCTION_NAME("ns_dump_one_object");
+	ACPI_FUNCTION_NAME(ns_dump_one_object);
 
 	/* Is output enabled? */
 
@@ -675,7 +675,7 @@ void acpi_ns_dump_tables(acpi_handle search_base, u32 max_depth)
 {
 	acpi_handle search_handle = search_base;
 
-	ACPI_FUNCTION_TRACE("ns_dump_tables");
+	ACPI_FUNCTION_TRACE(ns_dump_tables);
 
 	if (!acpi_gbl_root_node) {
 		/*

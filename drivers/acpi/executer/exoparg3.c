@@ -88,14 +88,14 @@ acpi_status acpi_ex_opcode_3A_0T_0R(struct acpi_walk_state *walk_state)
 	struct acpi_signal_fatal_info *fatal;
 	acpi_status status = AE_OK;
 
-	ACPI_FUNCTION_TRACE_STR("ex_opcode_3A_0T_0R",
+	ACPI_FUNCTION_TRACE_STR(ex_opcode_3A_0T_0R,
 				acpi_ps_get_opcode_name(walk_state->opcode));
 
 	switch (walk_state->opcode) {
 	case AML_FATAL_OP:	/* Fatal (fatal_type fatal_code fatal_arg) */
 
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "fatal_op: Type %X Code %X Arg %X <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n",
+				  "FatalOp: Type %X Code %X Arg %X <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n",
 				  (u32) operand[0]->integer.value,
 				  (u32) operand[1]->integer.value,
 				  (u32) operand[2]->integer.value));
@@ -150,7 +150,7 @@ acpi_status acpi_ex_opcode_3A_1T_1R(struct acpi_walk_state *walk_state)
 	acpi_integer index;
 	acpi_size length;
 
-	ACPI_FUNCTION_TRACE_STR("ex_opcode_3A_1T_1R",
+	ACPI_FUNCTION_TRACE_STR(ex_opcode_3A_1T_1R,
 				acpi_ps_get_opcode_name(walk_state->opcode));
 
 	switch (walk_state->opcode) {
