@@ -107,6 +107,15 @@ struct rb_node
 	struct rb_node *rb_left;
 };
 
+#define rb_parent(r)		((r)->rb_parent)
+#define rb_set_parent(r,p)	do { (r)->rb_parent = p; } while (0)
+#define rb_colour(r)		((r)->rb_colour)
+#define rb_is_red(r)		((r)->colour == RB_RED)
+#define rb_is_black(r)		((r)->colour == RB_BLACK)
+#define rb_set_red(r)		do { (r)->colour = RB_RED; } while (0)
+#define rb_set_black(r)		do { (r)->colour = RB_BLACK; } while (0)
+#define rb_set_colour(r,c)	do { (r)->colour = (c); } while (0)
+
 struct rb_root
 {
 	struct rb_node *rb_node;
