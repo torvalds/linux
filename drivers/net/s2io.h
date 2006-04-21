@@ -661,8 +661,8 @@ typedef struct {
 /* Default Tunable parameters of the NIC. */
 #define DEFAULT_FIFO_0_LEN 4096
 #define DEFAULT_FIFO_1_7_LEN 512
-#define SMALL_BLK_CNT   30
-#define LARGE_BLK_CNT   100
+#define SMALL_BLK_CNT	30
+#define LARGE_BLK_CNT	100
 
 /*
  * Structure to keep track of the MSI-X vectors and the corresponding
@@ -733,7 +733,7 @@ struct s2io_nic {
 	int device_close_flag;
 	int device_enabled_once;
 
-	char name[50];
+	char name[60];
 	struct tasklet_struct task;
 	volatile unsigned long tasklet_status;
 
@@ -804,6 +804,8 @@ struct s2io_nic {
 	char desc1[35];
 	char desc2[35];
 
+	int avail_msix_vectors; /* No. of MSI-X vectors granted by system */
+
 	struct msix_info_st msix_info[0x3f];
 
 #define XFRAME_I_DEVICE		1
@@ -851,28 +853,32 @@ static inline void writeq(u64 val, void __iomem *addr)
 	writel((u32) (val), addr);
 	writel((u32) (val >> 32), (addr + 4));
 }
+#endif
 
-/* In 32 bit modes, some registers have to be written in a
- * particular order to expect correct hardware operation. The
- * macro SPECIAL_REG_WRITE is used to perform such ordered
- * writes. Defines UF (Upper First) and LF (Lower First) will
- * be used to specify the required write order.
+/* 
+ * Some registers have to be written in a particular order to 
+ * expect correct hardware operation. The macro SPECIAL_REG_WRITE 
+ * is used to perform such ordered writes. Defines UF (Upper First) 
+ * and LF (Lower First) will be used to specify the required write order.
  */
 #define UF	1
 #define LF	2
 static inline void SPECIAL_REG_WRITE(u64 val, void __iomem *addr, int order)
 {
+	u32 ret;
+
 	if (order == LF) {
 		writel((u32) (val), addr);
+		ret = readl(addr);
 		writel((u32) (val >> 32), (addr + 4));
+		ret = readl(addr + 4);
 	} else {
 		writel((u32) (val >> 32), (addr + 4));
+		ret = readl(addr + 4);
 		writel((u32) (val), addr);
+		ret = readl(addr);
 	}
 }
-#else
-#define SPECIAL_REG_WRITE(val, addr, dummy) writeq(val, addr)
-#endif
 
 /*  Interrupt related values of Xena */
 
@@ -968,7 +974,7 @@ static int verify_xena_quiescence(nic_t *sp, u64 val64, int flag);
 static struct ethtool_ops netdev_ethtool_ops;
 static void s2io_set_link(unsigned long data);
 static int s2io_set_swapper(nic_t * sp);
-static void s2io_card_down(nic_t *nic);
+static void s2io_card_down(nic_t *nic, int flag);
 static int s2io_card_up(nic_t *nic);
 static int get_xena_rev_id(struct pci_dev *pdev);
 static void restore_xmsi_data(nic_t *nic);
