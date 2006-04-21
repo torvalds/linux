@@ -28,7 +28,7 @@ struct lmh_wrapper {
    of them by name at mount time, e.g. lock_nolock, lock_dlm. */
 
 static struct list_head lmh_list;
-static struct semaphore lmh_lock;
+static struct mutex lmh_lock;
 
 /**
  * gfs_register_lockproto - Register a low-level locking protocol
@@ -41,11 +41,11 @@ int gfs_register_lockproto(struct lm_lockops *proto)
 {
 	struct lmh_wrapper *lw;
 
-	down(&lmh_lock);
+	mutex_lock(&lmh_lock);
 
 	list_for_each_entry(lw, &lmh_list, lw_list) {
 		if (!strcmp(lw->lw_ops->lm_proto_name, proto->lm_proto_name)) {
-			up(&lmh_lock);
+			mutex_unlock(&lmh_lock);
 			printk(KERN_INFO "GFS2: protocol %s already exists\n",
 			       proto->lm_proto_name);
 			return -EEXIST;
@@ -54,14 +54,14 @@ int gfs_register_lockproto(struct lm_lockops *proto)
 
 	lw = kzalloc(sizeof(struct lmh_wrapper), GFP_KERNEL);
 	if (!lw) {
-		up(&lmh_lock);
+		mutex_unlock(&lmh_lock);
 		return -ENOMEM;
 	}
 
 	lw->lw_ops = proto;
 	list_add(&lw->lw_list, &lmh_list);
 
-	up(&lmh_lock);
+	mutex_unlock(&lmh_lock);
 
 	return 0;
 }
@@ -76,18 +76,18 @@ void gfs_unregister_lockproto(struct lm_lockops *proto)
 {
 	struct lmh_wrapper *lw;
 
-	down(&lmh_lock);
+	mutex_lock(&lmh_lock);
 
 	list_for_each_entry(lw, &lmh_list, lw_list) {
 		if (!strcmp(lw->lw_ops->lm_proto_name, proto->lm_proto_name)) {
 			list_del(&lw->lw_list);
-			up(&lmh_lock);
+			mutex_unlock(&lmh_lock);
 			kfree(lw);
 			return;
 		}
 	}
 
-	up(&lmh_lock);
+	mutex_unlock(&lmh_lock);
 
 	printk(KERN_WARNING "GFS2: can't unregister lock protocol %s\n",
 	       proto->lm_proto_name);
@@ -118,7 +118,7 @@ int gfs2_mount_lockproto(char *proto_name, char *table_name, char *host_data,
 	int error, found;
 
  retry:
-	down(&lmh_lock);
+	mutex_lock(&lmh_lock);
 
 	found = 0;
 	list_for_each_entry(lw, &lmh_list, lw_list) {
@@ -131,7 +131,7 @@ int gfs2_mount_lockproto(char *proto_name, char *table_name, char *host_data,
 	if (!found) {
 		if (!try && capable(CAP_SYS_MODULE)) {
 			try = 1;
-			up(&lmh_lock);
+			mutex_unlock(&lmh_lock);
 			request_module(proto_name);
 			goto retry;
 		}
@@ -142,7 +142,7 @@ int gfs2_mount_lockproto(char *proto_name, char *table_name, char *host_data,
 
 	if (!try_module_get(lw->lw_ops->lm_owner)) {
 		try = 0;
-		up(&lmh_lock);
+		mutex_unlock(&lmh_lock);
 		msleep(1000);
 		goto retry;
 	}
@@ -152,17 +152,17 @@ int gfs2_mount_lockproto(char *proto_name, char *table_name, char *host_data,
 	if (error)
 		module_put(lw->lw_ops->lm_owner);
  out:
-	up(&lmh_lock);
+	mutex_unlock(&lmh_lock);
 	return error;
 }
 
 void gfs2_unmount_lockproto(struct lm_lockstruct *lockstruct)
 {
-	down(&lmh_lock);
+	mutex_lock(&lmh_lock);
 	lockstruct->ls_ops->lm_unmount(lockstruct->ls_lockspace);
 	if (lockstruct->ls_ops->lm_owner)
 		module_put(lockstruct->ls_ops->lm_owner);
-	up(&lmh_lock);
+	mutex_unlock(&lmh_lock);
 }
 
 /**
@@ -173,16 +173,16 @@ void gfs2_unmount_lockproto(struct lm_lockstruct *lockstruct)
 
 void gfs2_withdraw_lockproto(struct lm_lockstruct *lockstruct)
 {
-	down(&lmh_lock);
+	mutex_lock(&lmh_lock);
 	lockstruct->ls_ops->lm_withdraw(lockstruct->ls_lockspace);
 	if (lockstruct->ls_ops->lm_owner)
 		module_put(lockstruct->ls_ops->lm_owner);
-	up(&lmh_lock);
+	mutex_unlock(&lmh_lock);
 }
 
 void __init gfs2_init_lmh(void)
 {
-	init_MUTEX(&lmh_lock);
+	mutex_init(&lmh_lock);
 	INIT_LIST_HEAD(&lmh_list);
 }
 

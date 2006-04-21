@@ -587,10 +587,9 @@ void gfs2_log_shutdown(struct gfs2_sbd *sdp)
 	log_write_header(sdp, GFS2_LOG_HEAD_UNMOUNT, 0);
 
 	/* printk(KERN_INFO "sd_log_blks_free %u, sd_jdesc->jd_blocks %u\n", sdp->sd_log_blks_free, sdp->sd_jdesc->jd_blocks); */
-	gfs2_assert_withdraw(sdp, sdp->sd_log_blks_free ==
-			     sdp->sd_jdesc->jd_blocks);
-	gfs2_assert_withdraw(sdp, sdp->sd_log_head == sdp->sd_log_tail);
-	gfs2_assert_withdraw(sdp, list_empty(&sdp->sd_ail2_list));
+	gfs2_assert_warn(sdp, sdp->sd_log_blks_free == sdp->sd_jdesc->jd_blocks);
+	gfs2_assert_warn(sdp, sdp->sd_log_head == sdp->sd_log_tail);
+	gfs2_assert_warn(sdp, list_empty(&sdp->sd_ail2_list));
 
 	sdp->sd_log_head = sdp->sd_log_flush_head;
 	sdp->sd_log_tail = sdp->sd_log_head;
