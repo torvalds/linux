@@ -32,6 +32,7 @@ void gfs2_assert_i(struct gfs2_sbd *sdp)
 {
 	printk(KERN_EMERG "GFS2: fsid=%s: fatal assertion failed\n",
 	       sdp->sd_fsname);
+	BUG();
 }
 
 /**
