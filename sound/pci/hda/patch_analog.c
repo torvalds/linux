@@ -2621,5 +2621,6 @@ struct hda_codec_preset snd_hda_preset_analog[] = {
 	{ .id = 0x11d41983, .name = "AD1983", .patch = patch_ad1983 },
 	{ .id = 0x11d41986, .name = "AD1986A", .patch = patch_ad1986a },
 	{ .id = 0x11d41988, .name = "AD1988", .patch = patch_ad1988 },
+	{ .id = 0x11d4198b, .name = "AD1988B", .patch = patch_ad1988 },
 	{} /* terminator */
 };
