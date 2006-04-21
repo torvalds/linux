@@ -436,6 +436,20 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry, struct name
 	cifs_sb = CIFS_SB(parent_dir_inode->i_sb);
 	pTcon = cifs_sb->tcon;
 
+	/*
+	 * Don't allow the separator character in a path component.
+	 * The VFS will not allow "/", but "\" is allowed by posix.
+	 */
+	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS)) {
+		int i;
+		for (i = 0; i < direntry->d_name.len; i++)
+			if (direntry->d_name.name[i] == '\\') {
+				cFYI(1, ("Invalid file name"));
+				FreeXid(xid);
+				return ERR_PTR(-EINVAL);
+			}
+	}
+
 	/* can not grab the rename sem here since it would
 	deadlock in the cases (beginning of sys_rename itself)
 	in which we already have the sb rename sem */
