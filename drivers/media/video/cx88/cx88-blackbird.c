@@ -1569,6 +1569,7 @@ static int mpeg_release(struct inode *inode, struct file *file)
 			BLACKBIRD_RAW_BITS_NONE
 		);
 
+	cx8802_cancel_buffers(fh->dev);
 	/* stop mpeg capture */
 	if (fh->mpegq.streaming)
 		videobuf_streamoff(&fh->mpegq);
