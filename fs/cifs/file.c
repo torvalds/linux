@@ -203,9 +203,7 @@ int cifs_open(struct inode *inode, struct file *file)
 		}
 	}
 
-	mutex_lock(&inode->i_sb->s_vfs_rename_mutex);
 	full_path = build_path_from_dentry(file->f_dentry);
-	mutex_unlock(&inode->i_sb->s_vfs_rename_mutex);
 	if (full_path == NULL) {
 		FreeXid(xid);
 		return -ENOMEM;

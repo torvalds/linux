@@ -404,9 +404,7 @@ static int initiate_cifs_search(const int xid, struct file *file)
 	if(pTcon == NULL)
 		return -EINVAL;
 
-	mutex_lock(&file->f_dentry->d_sb->s_vfs_rename_mutex);
 	full_path = build_path_from_dentry(file->f_dentry);
-	mutex_unlock(&file->f_dentry->d_sb->s_vfs_rename_mutex);
 
 	if(full_path == NULL) {
 		return -ENOMEM;
