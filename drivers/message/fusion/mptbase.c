@@ -1189,7 +1189,6 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 	ioc->diagPending = 0;
 	spin_lock_init(&ioc->diagLock);
 	spin_lock_init(&ioc->fc_rescan_work_lock);
-	spin_lock_init(&ioc->fc_rport_lock);
 	spin_lock_init(&ioc->initializing_hba_lock);
 
 	/* Initialize the event logging.

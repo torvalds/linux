@@ -76,8 +76,8 @@
 #define COPYRIGHT	"Copyright (c) 1999-2005 " MODULEAUTHOR
 #endif
 
-#define MPT_LINUX_VERSION_COMMON	"3.03.08"
-#define MPT_LINUX_PACKAGE_NAME		"@(#)mptlinux-3.03.08"
+#define MPT_LINUX_VERSION_COMMON	"3.03.09"
+#define MPT_LINUX_PACKAGE_NAME		"@(#)mptlinux-3.03.09"
 #define WHAT_MAGIC_STRING		"@" "(" "#" ")"
 
 #define show_mptmod_ver(s,ver)  \
@@ -489,7 +489,6 @@ typedef	struct _RaidCfgData {
 
 #define MPT_RPORT_INFO_FLAGS_REGISTERED	0x01	/* rport registered */
 #define MPT_RPORT_INFO_FLAGS_MISSING	0x02	/* missing from DevPage0 scan */
-#define MPT_RPORT_INFO_FLAGS_MAPPED_VDEV 0x04	/* target mapped in vdev */
 
 /*
  * data allocated for each fc rport device
@@ -501,7 +500,6 @@ struct mptfc_rport_info
 	struct scsi_target *starget;
 	FCDevicePage0_t pg0;
 	u8		flags;
-	u8		remap_needed;
 };
 
 /*
@@ -628,11 +626,11 @@ typedef struct _MPT_ADAPTER
 	struct work_struct	 mptscsih_persistTask;
 
 	struct list_head	 fc_rports;
-	spinlock_t		 fc_rport_lock; /* list and ri flags */
 	spinlock_t		 fc_rescan_work_lock;
 	int			 fc_rescan_work_count;
 	struct work_struct	 fc_rescan_work;
-
+	char			 fc_rescan_work_q_name[KOBJ_NAME_LEN];
+	struct workqueue_struct *fc_rescan_work_q;
 } MPT_ADAPTER;
 
 /*
