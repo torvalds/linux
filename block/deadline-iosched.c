@@ -165,10 +165,9 @@ deadline_find_drq_hash(struct deadline_data *dd, sector_t offset)
 /*
  * rb tree support functions
  */
-#define RB_NONE		(2)
 #define RB_EMPTY(root)	((root)->rb_node == NULL)
-#define ON_RB(node)	((node)->rb_color != RB_NONE)
-#define RB_CLEAR(node)	((node)->rb_color = RB_NONE)
+#define ON_RB(node)	(rb_parent(node) != node)
+#define RB_CLEAR(node)	(rb_set_parent(node, node))
 #define rb_entry_drq(node)	rb_entry((node), struct deadline_rq, rb_node)
 #define DRQ_RB_ROOT(dd, drq)	(&(dd)->sort_list[rq_data_dir((drq)->request)])
 #define rq_rb_key(rq)		(rq)->sector
