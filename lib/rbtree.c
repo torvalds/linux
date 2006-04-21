@@ -243,18 +243,13 @@ void rb_erase(struct rb_node *node, struct rb_root *root)
 
 		if (child)
 			child->rb_parent = parent;
-		if (parent)
-		{
-			if (parent->rb_left == node)
-				parent->rb_left = child;
-			else
-				parent->rb_right = child;
-		}
-		else
-			root->rb_node = child;
 
-		if (node->rb_parent == old)
+		if (node->rb_parent == old) {
+			parent->rb_right = child;
 			parent = node;
+		} else			
+			parent->rb_left = child;
+
 		node->rb_parent = old->rb_parent;
 		node->rb_color = old->rb_color;
 		node->rb_right = old->rb_right;
