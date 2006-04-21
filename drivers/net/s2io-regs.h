@@ -187,7 +187,7 @@ typedef struct _XENA_dev_config {
 /* PIC Control registers */
 	u64 pic_control;
 #define PIC_CNTL_RX_ALARM_MAP_1                BIT(0)
-#define PIC_CNTL_SHARED_SPLITS(n)              vBIT(n,11,4)
+#define PIC_CNTL_SHARED_SPLITS(n)              vBIT(n,11,5)
 
 	u64 swapper_ctrl;
 #define SWAPPER_CTRL_PIF_R_FE                  BIT(0)
@@ -284,9 +284,13 @@ typedef struct _XENA_dev_config {
 	u64 gpio_control;
 #define GPIO_CTRL_GPIO_0		BIT(8)
 	u64 misc_control;
+#define EXT_REQ_EN			BIT(1)
 #define MISC_LINK_STABILITY_PRD(val)   vBIT(val,29,3)
 
-	u8 unused7_1[0x240 - 0x208];
+	u8 unused7_1[0x230 - 0x208];
+
+	u64 pic_control2;
+	u64 ini_dperr_ctrl;
 
 	u64 wreq_split_mask;
 #define	WREQ_SPLIT_MASK_SET_MASK(val)	vBIT(val, 52, 12)
@@ -493,6 +497,7 @@ typedef struct _XENA_dev_config {
 #define PRC_CTRL_NO_SNOOP_DESC                 BIT(22)
 #define PRC_CTRL_NO_SNOOP_BUFF                 BIT(23)
 #define PRC_CTRL_BIMODAL_INTERRUPT             BIT(37)
+#define PRC_CTRL_GROUP_READS                   BIT(38)
 #define PRC_CTRL_RXD_BACKOFF_INTERVAL(val)     vBIT(val,40,24)
 
 	u64 prc_alarm_action;
