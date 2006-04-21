@@ -659,9 +659,10 @@ typedef struct {
 } usr_addr_t;
 
 /* Default Tunable parameters of the NIC. */
-#define DEFAULT_FIFO_LEN 4096
-#define SMALL_BLK_CNT	30
-#define LARGE_BLK_CNT	100
+#define DEFAULT_FIFO_0_LEN 4096
+#define DEFAULT_FIFO_1_7_LEN 512
+#define SMALL_BLK_CNT   30
+#define LARGE_BLK_CNT   100
 
 /*
  * Structure to keep track of the MSI-X vectors and the corresponding
@@ -824,6 +825,8 @@ struct s2io_nic {
 	spinlock_t	rx_lock;
 	atomic_t	isr_cnt;
 	u64 *ufo_in_band_v;
+#define VPD_PRODUCT_NAME_LEN 50
+	u8  product_name[VPD_PRODUCT_NAME_LEN];
 };
 
 #define RESET_ERROR 1;
