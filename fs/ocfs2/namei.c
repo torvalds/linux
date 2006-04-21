@@ -56,6 +56,7 @@
 #include "journal.h"
 #include "namei.h"
 #include "suballoc.h"
+#include "super.h"
 #include "symlink.h"
 #include "sysfile.h"
 #include "uptodate.h"
@@ -1962,13 +1963,8 @@ restart:
 				}
 				num++;
 
-				/* XXX: questionable readahead stuff here */
 				bh = ocfs2_bread(dir, b++, &err, 1);
 				bh_use[ra_max] = bh;
-#if 0		// ???
-				if (bh)
-					ll_rw_block(READ, 1, &bh);
-#endif
 			}
 		}
 		if ((bh = bh_use[ra_ptr++]) == NULL)
@@ -1976,6 +1972,10 @@ restart:
 		wait_on_buffer(bh);
 		if (!buffer_uptodate(bh)) {
 			/* read error, skip block & hope for the best */
+			ocfs2_error(dir->i_sb, "reading directory %llu, "
+				    "offset %lu\n",
+				    (unsigned long long)OCFS2_I(dir)->ip_blkno,
+				    block);
 			brelse(bh);
 			goto next;
 		}

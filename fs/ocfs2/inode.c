@@ -1050,12 +1050,8 @@ struct buffer_head *ocfs2_bread(struct inode *inode,
 	u64 p_blkno;
 	int readflags = OCFS2_BH_CACHED;
 
-#if 0
-	/* only turn this on if we know we can deal with read_block
-	 * returning nothing */
 	if (reada)
 		readflags |= OCFS2_BH_READAHEAD;
-#endif
 
 	if (((u64)block << inode->i_sb->s_blocksize_bits) >=
 	    i_size_read(inode)) {
