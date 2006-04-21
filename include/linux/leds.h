@@ -19,39 +19,38 @@ struct class_device;
  */
 
 enum led_brightness {
-	LED_OFF = 0,
-	LED_HALF = 127,
-	LED_FULL = 255,
+	LED_OFF		= 0,
+	LED_HALF	= 127,
+	LED_FULL	= 255,
 };
 
 struct led_classdev {
-	const char *name;
-	int brightness;
-	int flags;
-#define LED_SUSPENDED       (1 << 0)
+	const char		*name;
+	int			 brightness;
+	int			 flags;
 
-	/* A function to set the brightness of the led */
-	void (*brightness_set)(struct led_classdev *led_cdev,
-				enum led_brightness brightness);
+#define LED_SUSPENDED		(1 << 0)
 
-	struct class_device *class_dev;
-	/* LED Device linked list */
-	struct list_head node;
+	/* Set LED brightness level */
+	void		(*brightness_set)(struct led_classdev *led_cdev,
+					  enum led_brightness brightness);
 
-	/* Trigger data */
-	char *default_trigger;
+	struct class_device	*class_dev;
+	struct list_head	 node;			/* LED Device list */
+	char			*default_trigger;	/* Trigger to use */
+
 #ifdef CONFIG_LEDS_TRIGGERS
-	rwlock_t trigger_lock;
 	/* Protects the trigger data below */
+	rwlock_t		 trigger_lock;
 
-	struct led_trigger *trigger;
-	struct list_head trig_list;
-	void *trigger_data;
+	struct led_trigger	*trigger;
+	struct list_head	 trig_list;
+	void			*trigger_data;
 #endif
 };
 
 extern int led_classdev_register(struct device *parent,
-				struct led_classdev *led_cdev);
+				 struct led_classdev *led_cdev);
 extern void led_classdev_unregister(struct led_classdev *led_cdev);
 extern void led_classdev_suspend(struct led_classdev *led_cdev);
 extern void led_classdev_resume(struct led_classdev *led_cdev);
@@ -65,16 +64,16 @@ extern void led_classdev_resume(struct led_classdev *led_cdev);
 
 struct led_trigger {
 	/* Trigger Properties */
-	const char *name;
-	void (*activate)(struct led_classdev *led_cdev);
-	void (*deactivate)(struct led_classdev *led_cdev);
+	const char	 *name;
+	void		(*activate)(struct led_classdev *led_cdev);
+	void		(*deactivate)(struct led_classdev *led_cdev);
 
 	/* LEDs under control by this trigger (for simple triggers) */
-	rwlock_t leddev_list_lock;
-	struct list_head led_cdevs;
+	rwlock_t	  leddev_list_lock;
+	struct list_head  led_cdevs;
 
 	/* Link to next registered trigger */
-	struct list_head next_trig;
+	struct list_head  next_trig;
 };
 
 /* Registration functions for complex triggers */

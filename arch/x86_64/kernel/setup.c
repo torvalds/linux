@@ -353,8 +353,10 @@ static __init void parse_cmdline_early (char ** cmdline_p)
 		if (fullarg(from, "enable_timer_pin_1"))
 			disable_timer_pin_1 = -1;
 
-		if (fullarg(from, "nolapic") || fullarg(from, "disableapic"))
+		if (fullarg(from, "nolapic") || fullarg(from, "disableapic")) {
+			clear_bit(X86_FEATURE_APIC, boot_cpu_data.x86_capability);
 			disable_apic = 1;
+		}
 
 		if (fullarg(from, "noapic"))
 			skip_ioapic_setup = 1;
@@ -927,6 +929,10 @@ static int __init init_amd(struct cpuinfo_x86 *c)
 	level = cpuid_eax(1);
 	if (c->x86 == 15 && ((level >= 0x0f48 && level < 0x0f50) || level >= 0x0f58))
 		set_bit(X86_FEATURE_REP_GOOD, &c->x86_capability);
+
+	/* Enable workaround for FXSAVE leak */
+	if (c->x86 >= 6)
+		set_bit(X86_FEATURE_FXSAVE_LEAK, &c->x86_capability);
 
 	r = get_model_name(c);
 	if (!r) { 

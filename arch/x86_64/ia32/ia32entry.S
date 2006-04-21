@@ -15,6 +15,8 @@
 #include <asm/vsyscall32.h>
 #include <linux/linkage.h>
 
+#define IA32_NR_syscalls ((ia32_syscall_end - ia32_sys_call_table)/8)
+
 	.macro IA32_ARG_FIXUP noebp=0
 	movl	%edi,%r8d
 	.if \noebp
@@ -109,8 +111,8 @@ ENTRY(ia32_sysenter_target)
 	CFI_REMEMBER_STATE
 	jnz  sysenter_tracesys
 sysenter_do_call:	
-	cmpl	$(IA32_NR_syscalls),%eax
-	jae	ia32_badsys
+	cmpl	$(IA32_NR_syscalls-1),%eax
+	ja	ia32_badsys
 	IA32_ARG_FIXUP 1
 	call	*ia32_sys_call_table(,%rax,8)
 	movq	%rax,RAX-ARGOFFSET(%rsp)
@@ -210,8 +212,8 @@ ENTRY(ia32_cstar_target)
 	CFI_REMEMBER_STATE
 	jnz   cstar_tracesys
 cstar_do_call:	
-	cmpl $IA32_NR_syscalls,%eax
-	jae  ia32_badsys
+	cmpl $IA32_NR_syscalls-1,%eax
+	ja  ia32_badsys
 	IA32_ARG_FIXUP 1
 	call *ia32_sys_call_table(,%rax,8)
 	movq %rax,RAX-ARGOFFSET(%rsp)
@@ -296,8 +298,8 @@ ENTRY(ia32_syscall)
 	testl $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SECCOMP),threadinfo_flags(%r10)
 	jnz ia32_tracesys
 ia32_do_syscall:	
-	cmpl $(IA32_NR_syscalls),%eax
-	jae  ia32_badsys
+	cmpl $(IA32_NR_syscalls-1),%eax
+	ja  ia32_badsys
 	IA32_ARG_FIXUP
 	call *ia32_sys_call_table(,%rax,8) # xxx: rip relative
 ia32_sysret:
@@ -685,12 +687,12 @@ ia32_sys_call_table:
 	.quad sys_readlinkat		/* 305 */
 	.quad sys_fchmodat
 	.quad sys_faccessat
-	.quad sys_ni_syscall		/* pselect6 for now */
-	.quad sys_ni_syscall		/* ppoll for now */
+	.quad quiet_ni_syscall		/* pselect6 for now */
+	.quad quiet_ni_syscall		/* ppoll for now */
 	.quad sys_unshare		/* 310 */
 	.quad compat_sys_set_robust_list
 	.quad compat_sys_get_robust_list
+	.quad sys_splice
+	.quad sys_sync_file_range
+	.quad sys_tee
 ia32_syscall_end:		
-	.rept IA32_NR_syscalls-(ia32_syscall_end-ia32_sys_call_table)/8
-		.quad ni_syscall
-	.endr

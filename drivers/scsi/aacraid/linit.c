@@ -27,12 +27,6 @@
  * Abstract: Linux Driver entry module for Adaptec RAID Array Controller
  */
 
-#define AAC_DRIVER_VERSION		"1.1-4"
-#ifndef AAC_DRIVER_BRANCH
-#define AAC_DRIVER_BRANCH		""
-#endif
-#define AAC_DRIVER_BUILD_DATE		__DATE__ " " __TIME__
-#define AAC_DRIVERNAME			"aacraid"
 
 #include <linux/compat.h>
 #include <linux/blkdev.h>
@@ -62,6 +56,13 @@
 
 #include "aacraid.h"
 
+#define AAC_DRIVER_VERSION		"1.1-5"
+#ifndef AAC_DRIVER_BRANCH
+#define AAC_DRIVER_BRANCH		""
+#endif
+#define AAC_DRIVER_BUILD_DATE		__DATE__ " " __TIME__
+#define AAC_DRIVERNAME			"aacraid"
+
 #ifdef AAC_DRIVER_BUILD
 #define _str(x) #x
 #define str(x) _str(x)
@@ -73,7 +74,7 @@
 MODULE_AUTHOR("Red Hat Inc and Adaptec");
 MODULE_DESCRIPTION("Dell PERC2, 2/Si, 3/Si, 3/Di, "
 		   "Adaptec Advanced Raid Products, "
-		   "and HP NetRAID-4M SCSI driver");
+		   "HP NetRAID-4M, IBM ServeRAID & ICP SCSI driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(AAC_DRIVER_FULL_VERSION);
 
@@ -243,6 +244,7 @@ static struct aac_driver_ident aac_drivers[] = {
 static int aac_queuecommand(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 {
 	cmd->scsi_done = done;
+	cmd->SCp.phase = AAC_OWNER_LOWLEVEL;
 	return (aac_scsi_cmd(cmd) ? FAILED : 0);
 } 
 
@@ -471,7 +473,8 @@ static int aac_eh_reset(struct scsi_cmnd* cmd)
 		__shost_for_each_device(dev, host) {
 			spin_lock_irqsave(&dev->list_lock, flags);
 			list_for_each_entry(command, &dev->cmd_list, list) {
-				if (command->serial_number) {
+				if ((command != cmd) &&
+				    (command->SCp.phase == AAC_OWNER_FIRMWARE)) {
 					active++;
 					break;
 				}
@@ -569,12 +572,12 @@ static long aac_compat_do_ioctl(struct aac_dev *dev, unsigned cmd, unsigned long
 		
 		f = compat_alloc_user_space(sizeof(*f));
 		ret = 0;
-		if (clear_user(f, sizeof(*f) != sizeof(*f)))
+		if (clear_user(f, sizeof(*f)) != sizeof(*f))
 			ret = -EFAULT;
 		if (copy_in_user(f, (void __user *)arg, sizeof(struct fib_ioctl) - sizeof(u32)))
 			ret = -EFAULT;
 		if (!ret)
-			ret = aac_do_ioctl(dev, cmd, (void __user *)arg);
+			ret = aac_do_ioctl(dev, cmd, f);
 		break;
 	}
 
@@ -687,6 +690,18 @@ static ssize_t aac_show_serial_number(struct class_device *class_dev,
 	return len;
 }
 
+static ssize_t aac_show_max_channel(struct class_device *class_dev, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+	  class_to_shost(class_dev)->max_channel);
+}
+
+static ssize_t aac_show_max_id(struct class_device *class_dev, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+	  class_to_shost(class_dev)->max_id);
+}
+
 
 static struct class_device_attribute aac_model = {
 	.attr = {
@@ -730,6 +745,20 @@ static struct class_device_attribute aac_serial_number = {
 	},
 	.show = aac_show_serial_number,
 };
+static struct class_device_attribute aac_max_channel = {
+	.attr = {
+		.name = "max_channel",
+		.mode = S_IRUGO,
+	},
+	.show = aac_show_max_channel,
+};
+static struct class_device_attribute aac_max_id = {
+	.attr = {
+		.name = "max_id",
+		.mode = S_IRUGO,
+	},
+	.show = aac_show_max_id,
+};
 
 static struct class_device_attribute *aac_attrs[] = {
 	&aac_model,
@@ -738,6 +767,8 @@ static struct class_device_attribute *aac_attrs[] = {
 	&aac_monitor_version,
 	&aac_bios_version,
 	&aac_serial_number,
+	&aac_max_channel,
+	&aac_max_id,
 	NULL
 };
 
@@ -775,6 +806,7 @@ static struct scsi_host_template aac_driver_template = {
 	.cmd_per_lun    		= AAC_NUM_IO_FIB, 
 #endif	
 	.use_clustering			= ENABLE_CLUSTERING,
+	.emulated                       = 1,
 };
 
 
@@ -798,10 +830,11 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 	error = pci_enable_device(pdev);
 	if (error)
 		goto out;
+	error = -ENODEV;
 
 	if (pci_set_dma_mask(pdev, DMA_32BIT_MASK) || 
 			pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK))
-		goto out;
+		goto out_disable_pdev;
 	/*
 	 * If the quirk31 bit is set, the adapter needs adapter
 	 * to driver communication memory to be allocated below 2gig
@@ -809,7 +842,7 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 	if (aac_drivers[index].quirks & AAC_QUIRK_31BIT) 
 		if (pci_set_dma_mask(pdev, DMA_31BIT_MASK) ||
 				pci_set_consistent_dma_mask(pdev, DMA_31BIT_MASK))
-			goto out;
+			goto out_disable_pdev;
 	
 	pci_set_master(pdev);
 
@@ -904,9 +937,9 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 	 * physical channels are address by their actual physical number+1
 	 */
 	if (aac->nondasd_support == 1)
-		shost->max_channel = aac->maximum_num_channels + 1;
+		shost->max_channel = aac->maximum_num_channels;
 	else
-		shost->max_channel = 1;
+		shost->max_channel = 0;
 
 	aac_get_config_status(aac);
 	aac_get_containers(aac);
@@ -1020,7 +1053,8 @@ static int __init aac_init(void)
 
 static void __exit aac_exit(void)
 {
-	unregister_chrdev(aac_cfg_major, "aac");
+	if (aac_cfg_major > -1)
+		unregister_chrdev(aac_cfg_major, "aac");
 	pci_unregister_driver(&aac_pci_driver);
 }
 

@@ -15,6 +15,7 @@
 #include <asm/asm.h>
 #include <asm/cacheops.h>
 #include <asm/cpu-features.h>
+#include <asm/mipsmtregs.h>
 
 /*
  * This macro return a properly sign-extended address suitable as base address
@@ -37,16 +38,120 @@
 	"	cache	%0, %1					\n"	\
 	"	.set	pop					\n"	\
 	:								\
-	: "i" (op), "m" (*(unsigned char *)(addr)))
+	: "i" (op), "R" (*(unsigned char *)(addr)))
+
+#ifdef CONFIG_MIPS_MT
+/*
+ * Temporary hacks for SMTC debug. Optionally force single-threaded
+ * execution during I-cache flushes.
+ */
+
+#define PROTECT_CACHE_FLUSHES 1
+
+#ifdef PROTECT_CACHE_FLUSHES
+
+extern int mt_protiflush;
+extern int mt_protdflush;
+extern void mt_cflush_lockdown(void);
+extern void mt_cflush_release(void);
+
+#define BEGIN_MT_IPROT \
+	unsigned long flags = 0;			\
+	unsigned long mtflags = 0;			\
+	if(mt_protiflush) {				\
+		local_irq_save(flags);			\
+		ehb();					\
+		mtflags = dvpe();			\
+		mt_cflush_lockdown();			\
+	}
+
+#define END_MT_IPROT \
+	if(mt_protiflush) {				\
+		mt_cflush_release();			\
+		evpe(mtflags);				\
+		local_irq_restore(flags);		\
+	}
+
+#define BEGIN_MT_DPROT \
+	unsigned long flags = 0;			\
+	unsigned long mtflags = 0;			\
+	if(mt_protdflush) {				\
+		local_irq_save(flags);			\
+		ehb();					\
+		mtflags = dvpe();			\
+		mt_cflush_lockdown();			\
+	}
+
+#define END_MT_DPROT \
+	if(mt_protdflush) {				\
+		mt_cflush_release();			\
+		evpe(mtflags);				\
+		local_irq_restore(flags);		\
+	}
+
+#else
+
+#define BEGIN_MT_IPROT
+#define BEGIN_MT_DPROT
+#define END_MT_IPROT
+#define END_MT_DPROT
+
+#endif /* PROTECT_CACHE_FLUSHES */
+
+#define __iflush_prologue						\
+	unsigned long redundance;					\
+	extern int mt_n_iflushes;					\
+	BEGIN_MT_IPROT							\
+	for (redundance = 0; redundance < mt_n_iflushes; redundance++) {
+
+#define __iflush_epilogue						\
+	END_MT_IPROT							\
+	}
+
+#define __dflush_prologue						\
+	unsigned long redundance;					\
+	extern int mt_n_dflushes;					\
+	BEGIN_MT_DPROT							\
+	for (redundance = 0; redundance < mt_n_dflushes; redundance++) {
+
+#define __dflush_epilogue \
+	END_MT_DPROT	 \
+	}
+
+#define __inv_dflush_prologue __dflush_prologue
+#define __inv_dflush_epilogue __dflush_epilogue
+#define __sflush_prologue {
+#define __sflush_epilogue }
+#define __inv_sflush_prologue __sflush_prologue
+#define __inv_sflush_epilogue __sflush_epilogue
+
+#else /* CONFIG_MIPS_MT */
+
+#define __iflush_prologue {
+#define __iflush_epilogue }
+#define __dflush_prologue {
+#define __dflush_epilogue }
+#define __inv_dflush_prologue {
+#define __inv_dflush_epilogue }
+#define __sflush_prologue {
+#define __sflush_epilogue }
+#define __inv_sflush_prologue {
+#define __inv_sflush_epilogue }
+
+#endif /* CONFIG_MIPS_MT */
 
 static inline void flush_icache_line_indexed(unsigned long addr)
 {
+	__iflush_prologue
 	cache_op(Index_Invalidate_I, addr);
+	__iflush_epilogue
 }
 
 static inline void flush_dcache_line_indexed(unsigned long addr)
 {
+	__dflush_prologue
 	cache_op(Index_Writeback_Inv_D, addr);
+	__dflush_epilogue
 }
 
 static inline void flush_scache_line_indexed(unsigned long addr)
@@ -56,17 +161,23 @@ static inline void flush_scache_line_indexed(unsigned long addr)
 
 static inline void flush_icache_line(unsigned long addr)
 {
+	__iflush_prologue
 	cache_op(Hit_Invalidate_I, addr);
+	__iflush_epilogue
 }
 
 static inline void flush_dcache_line(unsigned long addr)
 {
+	__dflush_prologue
 	cache_op(Hit_Writeback_Inv_D, addr);
+	__dflush_epilogue
 }
 
 static inline void invalidate_dcache_line(unsigned long addr)
 {
+	__dflush_prologue
 	cache_op(Hit_Invalidate_D, addr);
+	__dflush_epilogue
 }
 
 static inline void invalidate_scache_line(unsigned long addr)
@@ -239,9 +350,13 @@ static inline void blast_##pfx##cache##lsize(void)			\
 	                       current_cpu_data.desc.waybit;		\
 	unsigned long ws, addr;						\
 									\
+	__##pfx##flush_prologue						\
+									\
 	for (ws = 0; ws < ws_end; ws += ws_inc)				\
 		for (addr = start; addr < end; addr += lsize * 32)	\
 			cache##lsize##_unroll32(addr|ws,indexop);	\
+									\
+	__##pfx##flush_epilogue						\
 }									\
 									\
 static inline void blast_##pfx##cache##lsize##_page(unsigned long page)	\
@@ -249,10 +364,14 @@ static inline void blast_##pfx##cache##lsize##_page(unsigned long page)	\
 	unsigned long start = page;					\
 	unsigned long end = page + PAGE_SIZE;				\
 									\
+	__##pfx##flush_prologue						\
+									\
 	do {								\
 		cache##lsize##_unroll32(start,hitop);			\
 		start += lsize * 32;					\
 	} while (start < end);						\
+									\
+	__##pfx##flush_epilogue						\
 }									\
 									\
 static inline void blast_##pfx##cache##lsize##_page_indexed(unsigned long page) \
@@ -265,9 +384,13 @@ static inline void blast_##pfx##cache##lsize##_page_indexed(unsigned long page) 
 	                       current_cpu_data.desc.waybit;		\
 	unsigned long ws, addr;						\
 									\
+	__##pfx##flush_prologue						\
+									\
 	for (ws = 0; ws < ws_end; ws += ws_inc)				\
 		for (addr = start; addr < end; addr += lsize * 32)	\
 			cache##lsize##_unroll32(addr|ws,indexop);	\
+									\
+	__##pfx##flush_epilogue						\
 }
 
 __BUILD_BLAST_CACHE(d, dcache, Index_Writeback_Inv_D, Hit_Writeback_Inv_D, 16)
@@ -288,12 +411,17 @@ static inline void prot##blast_##pfx##cache##_range(unsigned long start, \
 	unsigned long lsize = cpu_##desc##_line_size();			\
 	unsigned long addr = start & ~(lsize - 1);			\
 	unsigned long aend = (end - 1) & ~(lsize - 1);			\
+									\
+	__##pfx##flush_prologue						\
+									\
 	while (1) {							\
 		prot##cache_op(hitop, addr);				\
 		if (addr == aend)					\
 			break;						\
 		addr += lsize;						\
 	}								\
+									\
+	__##pfx##flush_epilogue						\
 }
 
 __BUILD_BLAST_CACHE_RANGE(d, dcache, Hit_Writeback_Inv_D, protected_)

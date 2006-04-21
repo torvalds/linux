@@ -365,15 +365,3 @@ static ssize_t ipath_diag_write(struct file *fp, const char __user *data,
 bail:
 	return ret;
 }
-
-void ipath_diag_bringup_link(struct ipath_devdata *dd)
-{
-	if (diag_set_link || (dd->ipath_flags & IPATH_LINKACTIVE))
-		return;
-
-	diag_set_link = 1;
-	ipath_cdbg(VERBOSE, "Trying to set to set link active for "
-		   "diag pkt\n");
-	ipath_layer_set_linkstate(dd, IPATH_IB_LINKARM);
-	ipath_layer_set_linkstate(dd, IPATH_IB_LINKACTIVE);
-}

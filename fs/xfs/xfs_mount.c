@@ -270,7 +270,7 @@ xfs_mount_validate_sb(
 	    (sbp->sb_blocklog - sbp->sb_inodelog != sbp->sb_inopblog)	||
 	    (sbp->sb_rextsize * sbp->sb_blocksize > XFS_MAX_RTEXTSIZE)	||
 	    (sbp->sb_rextsize * sbp->sb_blocksize < XFS_MIN_RTEXTSIZE)	||
-	    (sbp->sb_imax_pct > 100 || sbp->sb_imax_pct < 1))) {
+	    (sbp->sb_imax_pct > 100 /* zero sb_imax_pct is valid */))) {
 		xfs_fs_mount_cmn_err(flags, "SB sanity check 1 failed");
 		return XFS_ERROR(EFSCORRUPTED);
 	}

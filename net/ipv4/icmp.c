@@ -1107,7 +1107,7 @@ void __init icmp_init(struct net_proto_family *ops)
 	struct inet_sock *inet;
 	int i;
 
-	for_each_cpu(i) {
+	for_each_possible_cpu(i) {
 		int err;
 
 		err = sock_create_kern(PF_INET, SOCK_RAW, IPPROTO_ICMP,

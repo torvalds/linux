@@ -61,7 +61,7 @@
  * will be available after a crash.
  */
 asmlinkage long sys_sync_file_range(int fd, loff_t offset, loff_t nbytes,
-					int flags)
+					unsigned int flags)
 {
 	int ret;
 	struct file *file;
@@ -126,7 +126,7 @@ out:
  * `endbyte' is inclusive
  */
 int do_sync_file_range(struct file *file, loff_t offset, loff_t endbyte,
-			int flags)
+			unsigned int flags)
 {
 	int ret;
 	struct address_space *mapping;

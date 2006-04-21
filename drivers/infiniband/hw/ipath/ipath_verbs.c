@@ -41,7 +41,7 @@
 /* Not static, because we don't want the compiler removing it */
 const char ipath_verbs_version[] = "ipath_verbs " IPATH_IDSTR;
 
-unsigned int ib_ipath_qp_table_size = 251;
+static unsigned int ib_ipath_qp_table_size = 251;
 module_param_named(qp_table_size, ib_ipath_qp_table_size, uint, S_IRUGO);
 MODULE_PARM_DESC(qp_table_size, "QP table size");
 
@@ -87,7 +87,7 @@ const enum ib_wc_opcode ib_ipath_wc_opcode[] = {
 /*
  * System image GUID.
  */
-__be64 sys_image_guid;
+static __be64 sys_image_guid;
 
 /**
  * ipath_copy_sge - copy data to SGE memory
@@ -1110,7 +1110,7 @@ static void ipath_unregister_ib_device(void *arg)
 	ib_dealloc_device(ibdev);
 }
 
-int __init ipath_verbs_init(void)
+static int __init ipath_verbs_init(void)
 {
 	return ipath_verbs_register(ipath_register_ib_device,
 				    ipath_unregister_ib_device,
@@ -1118,33 +1118,33 @@ int __init ipath_verbs_init(void)
 				    ipath_ib_timer);
 }
 
-void __exit ipath_verbs_cleanup(void)
+static void __exit ipath_verbs_cleanup(void)
 {
 	ipath_verbs_unregister();
 }
 
 static ssize_t show_rev(struct class_device *cdev, char *buf)
 {
-        struct ipath_ibdev *dev =
-                container_of(cdev, struct ipath_ibdev, ibdev.class_dev);
-        int vendor, boardrev, majrev, minrev;
+	struct ipath_ibdev *dev =
+		container_of(cdev, struct ipath_ibdev, ibdev.class_dev);
+	int vendor, boardrev, majrev, minrev;
 
-        ipath_layer_query_device(dev->dd, &vendor, &boardrev,
-                                 &majrev, &minrev);
-        return sprintf(buf, "%d.%d\n", majrev, minrev);
+	ipath_layer_query_device(dev->dd, &vendor, &boardrev,
+				 &majrev, &minrev);
+	return sprintf(buf, "%d.%d\n", majrev, minrev);
 }
 
 static ssize_t show_hca(struct class_device *cdev, char *buf)
 {
-        struct ipath_ibdev *dev =
-                container_of(cdev, struct ipath_ibdev, ibdev.class_dev);
-        int ret;
+	struct ipath_ibdev *dev =
+		container_of(cdev, struct ipath_ibdev, ibdev.class_dev);
+	int ret;
 
-        ret = ipath_layer_get_boardname(dev->dd, buf, 128);
-        if (ret < 0)
-                goto bail;
-        strcat(buf, "\n");
-        ret = strlen(buf);
+	ret = ipath_layer_get_boardname(dev->dd, buf, 128);
+	if (ret < 0)
+		goto bail;
+	strcat(buf, "\n");
+	ret = strlen(buf);
 
 bail:
 	return ret;
@@ -1152,40 +1152,40 @@ bail:
 
 static ssize_t show_stats(struct class_device *cdev, char *buf)
 {
-        struct ipath_ibdev *dev =
-                container_of(cdev, struct ipath_ibdev, ibdev.class_dev);
-        int i;
-        int len;
+	struct ipath_ibdev *dev =
+		container_of(cdev, struct ipath_ibdev, ibdev.class_dev);
+	int i;
+	int len;
 
-        len = sprintf(buf,
-                      "RC resends  %d\n"
-                      "RC QACKs    %d\n"
-                      "RC ACKs     %d\n"
-                      "RC SEQ NAKs %d\n"
-                      "RC RDMA seq %d\n"
-                      "RC RNR NAKs %d\n"
-                      "RC OTH NAKs %d\n"
-                      "RC timeouts %d\n"
-                      "RC RDMA dup %d\n"
-                      "piobuf wait %d\n"
-                      "no piobuf   %d\n"
-                      "PKT drops   %d\n"
-                      "WQE errs    %d\n",
-                      dev->n_rc_resends, dev->n_rc_qacks, dev->n_rc_acks,
-                      dev->n_seq_naks, dev->n_rdma_seq, dev->n_rnr_naks,
-                      dev->n_other_naks, dev->n_timeouts,
-                      dev->n_rdma_dup_busy, dev->n_piowait,
-                      dev->n_no_piobuf, dev->n_pkt_drops, dev->n_wqe_errs);
-        for (i = 0; i < ARRAY_SIZE(dev->opstats); i++) {
+	len = sprintf(buf,
+		      "RC resends  %d\n"
+		      "RC QACKs    %d\n"
+		      "RC ACKs     %d\n"
+		      "RC SEQ NAKs %d\n"
+		      "RC RDMA seq %d\n"
+		      "RC RNR NAKs %d\n"
+		      "RC OTH NAKs %d\n"
+		      "RC timeouts %d\n"
+		      "RC RDMA dup %d\n"
+		      "piobuf wait %d\n"
+		      "no piobuf   %d\n"
+		      "PKT drops   %d\n"
+		      "WQE errs    %d\n",
+		      dev->n_rc_resends, dev->n_rc_qacks, dev->n_rc_acks,
+		      dev->n_seq_naks, dev->n_rdma_seq, dev->n_rnr_naks,
+		      dev->n_other_naks, dev->n_timeouts,
+		      dev->n_rdma_dup_busy, dev->n_piowait,
+		      dev->n_no_piobuf, dev->n_pkt_drops, dev->n_wqe_errs);
+	for (i = 0; i < ARRAY_SIZE(dev->opstats); i++) {
 		const struct ipath_opcode_stats *si = &dev->opstats[i];
 
-                if (!si->n_packets && !si->n_bytes)
-                        continue;
-                len += sprintf(buf + len, "%02x %llu/%llu\n", i,
+		if (!si->n_packets && !si->n_bytes)
+			continue;
+		len += sprintf(buf + len, "%02x %llu/%llu\n", i,
 			       (unsigned long long) si->n_packets,
-                               (unsigned long long) si->n_bytes);
-        }
-        return len;
+			       (unsigned long long) si->n_bytes);
+	}
+	return len;
 }
 
 static CLASS_DEVICE_ATTR(hw_rev, S_IRUGO, show_rev, NULL);
@@ -1194,25 +1194,25 @@ static CLASS_DEVICE_ATTR(board_id, S_IRUGO, show_hca, NULL);
 static CLASS_DEVICE_ATTR(stats, S_IRUGO, show_stats, NULL);
 
 static struct class_device_attribute *ipath_class_attributes[] = {
-        &class_device_attr_hw_rev,
-        &class_device_attr_hca_type,
-        &class_device_attr_board_id,
-        &class_device_attr_stats
+	&class_device_attr_hw_rev,
+	&class_device_attr_hca_type,
+	&class_device_attr_board_id,
+	&class_device_attr_stats
 };
 
 static int ipath_verbs_register_sysfs(struct ib_device *dev)
 {
-        int i;
+	int i;
 	int ret;
 
-        for (i = 0; i < ARRAY_SIZE(ipath_class_attributes); ++i)
-                if (class_device_create_file(&dev->class_dev,
-                                             ipath_class_attributes[i])) {
-                        ret = 1;
+	for (i = 0; i < ARRAY_SIZE(ipath_class_attributes); ++i)
+		if (class_device_create_file(&dev->class_dev,
+					     ipath_class_attributes[i])) {
+			ret = 1;
 			goto bail;
 		}
 
-        ret = 0;
+	ret = 0;
 
 bail:
 	return ret;

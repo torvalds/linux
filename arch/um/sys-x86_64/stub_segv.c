@@ -33,7 +33,7 @@ stub_segv_handler(int sig)
 	struct ucontext *uc;
         int pid;
 
-	__asm__("movq %%rdx, %0" : "=g" (uc) :);
+	__asm__ __volatile__("movq %%rdx, %0" : "=g" (uc) :);
 	GET_FAULTINFO_FROM_SC(*((struct faultinfo *) UML_CONFIG_STUB_DATA),
 			      &uc->uc_mcontext);
 
@@ -44,8 +44,8 @@ stub_segv_handler(int sig)
 	 * the signal frame.  So, we use the ucontext pointer, which we know
 	 * already, to get the signal frame pointer, and add 8 to that.
 	 */
-	__asm__("movq %0, %%rsp; movq %1, %%rax ; syscall": :
-		"g" ((unsigned long) container_of(uc, struct rt_sigframe, 
-						  uc) + 8),
-                "g" (__NR_rt_sigreturn));
+	__asm__ __volatile__("movq %0, %%rsp; movq %1, %%rax ; syscall": :
+                             "g" ((unsigned long)
+                                  container_of(uc, struct rt_sigframe, uc) + 8),
+                             "g" (__NR_rt_sigreturn));
 }

@@ -2198,11 +2198,11 @@ static inline void wait_for_timer_and_thread(struct smi_info *smi_info)
 	}
 }
 
-static struct ipmi_default_vals
+static __devinitdata struct ipmi_default_vals
 {
 	int type;
 	int port;
-} __devinit ipmi_defaults[] =
+} ipmi_defaults[] =
 {
 	{ .type = SI_KCS, .port = 0xca2 },
 	{ .type = SI_SMIC, .port = 0xca9 },

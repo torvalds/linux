@@ -327,7 +327,7 @@ static ssize_t store_received_ref_clk3a(struct device *d,
 	return strnlen(buf, count);
 }
 
-static DEVICE_ATTR(received_ref_clk3a, S_IWUGO, NULL,
+static DEVICE_ATTR(received_ref_clk3a, (S_IWUSR|S_IWGRP), NULL,
 		store_received_ref_clk3a);
 
 
@@ -349,7 +349,7 @@ static ssize_t store_received_ref_clk3b(struct device *d,
 	return strnlen(buf, count);
 }
 
-static DEVICE_ATTR(received_ref_clk3b, S_IWUGO, NULL,
+static DEVICE_ATTR(received_ref_clk3b, (S_IWUSR|S_IWGRP), NULL,
 		store_received_ref_clk3b);
 
 
@@ -371,7 +371,7 @@ static ssize_t store_enable_clk3b_output(struct device *d,
 	return strnlen(buf, count);
 }
 
-static DEVICE_ATTR(enable_clk3b_output, S_IWUGO, NULL,
+static DEVICE_ATTR(enable_clk3b_output, (S_IWUSR|S_IWGRP), NULL,
 		store_enable_clk3b_output);
 
 static ssize_t store_enable_clk3a_output(struct device *d,
@@ -392,7 +392,7 @@ static ssize_t store_enable_clk3a_output(struct device *d,
 	return strnlen(buf, count);
 }
 
-static DEVICE_ATTR(enable_clk3a_output, S_IWUGO, NULL,
+static DEVICE_ATTR(enable_clk3a_output, (S_IWUSR|S_IWGRP), NULL,
 		store_enable_clk3a_output);
 
 static ssize_t store_enable_clkb1_output(struct device *d,
@@ -413,7 +413,7 @@ static ssize_t store_enable_clkb1_output(struct device *d,
 	return strnlen(buf, count);
 }
 
-static DEVICE_ATTR(enable_clkb1_output, S_IWUGO, NULL,
+static DEVICE_ATTR(enable_clkb1_output, (S_IWUSR|S_IWGRP), NULL,
 		store_enable_clkb1_output);
 
 
@@ -435,7 +435,7 @@ static ssize_t store_enable_clka1_output(struct device *d,
 	return strnlen(buf, count);
 }
 
-static DEVICE_ATTR(enable_clka1_output, S_IWUGO, NULL,
+static DEVICE_ATTR(enable_clka1_output, (S_IWUSR|S_IWGRP), NULL,
 		store_enable_clka1_output);
 
 static ssize_t store_enable_clkb0_output(struct device *d,
@@ -456,7 +456,7 @@ static ssize_t store_enable_clkb0_output(struct device *d,
 	return strnlen(buf, count);
 }
 
-static DEVICE_ATTR(enable_clkb0_output, S_IWUGO, NULL,
+static DEVICE_ATTR(enable_clkb0_output, (S_IWUSR|S_IWGRP), NULL,
 		store_enable_clkb0_output);
 
 static ssize_t store_enable_clka0_output(struct device *d,
@@ -477,7 +477,7 @@ static ssize_t store_enable_clka0_output(struct device *d,
 	return strnlen(buf, count);
 }
 
-static DEVICE_ATTR(enable_clka0_output, S_IWUGO, NULL,
+static DEVICE_ATTR(enable_clka0_output, (S_IWUSR|S_IWGRP), NULL,
 		store_enable_clka0_output);
 
 static ssize_t store_select_amcb2_transmit_clock(struct device *d,
@@ -519,7 +519,7 @@ static ssize_t store_select_amcb2_transmit_clock(struct device *d,
 	return strnlen(buf, count);
 }
 
-static DEVICE_ATTR(select_amcb2_transmit_clock, S_IWUGO, NULL,
+static DEVICE_ATTR(select_amcb2_transmit_clock, (S_IWUSR|S_IWGRP), NULL,
 	store_select_amcb2_transmit_clock);
 
 static ssize_t store_select_amcb1_transmit_clock(struct device *d,
@@ -560,7 +560,7 @@ static ssize_t store_select_amcb1_transmit_clock(struct device *d,
 	return strnlen(buf, count);
 }
 
-static DEVICE_ATTR(select_amcb1_transmit_clock, S_IWUGO, NULL,
+static DEVICE_ATTR(select_amcb1_transmit_clock, (S_IWUSR|S_IWGRP), NULL,
 		store_select_amcb1_transmit_clock);
 
 static ssize_t store_select_redundant_clock(struct device *d,
@@ -581,7 +581,7 @@ static ssize_t store_select_redundant_clock(struct device *d,
 	return strnlen(buf, count);
 }
 
-static DEVICE_ATTR(select_redundant_clock, S_IWUGO, NULL,
+static DEVICE_ATTR(select_redundant_clock, (S_IWUSR|S_IWGRP), NULL,
 		store_select_redundant_clock);
 
 static ssize_t store_select_ref_frequency(struct device *d,
@@ -602,7 +602,7 @@ static ssize_t store_select_ref_frequency(struct device *d,
 	return strnlen(buf, count);
 }
 
-static DEVICE_ATTR(select_ref_frequency, S_IWUGO, NULL,
+static DEVICE_ATTR(select_ref_frequency, (S_IWUSR|S_IWGRP), NULL,
 		store_select_ref_frequency);
 
 static ssize_t store_filter_select(struct device *d,
@@ -623,7 +623,7 @@ static ssize_t store_filter_select(struct device *d,
 	return strnlen(buf, count);
 }
 
-static DEVICE_ATTR(filter_select, S_IWUGO, NULL, store_filter_select);
+static DEVICE_ATTR(filter_select, (S_IWUSR|S_IWGRP), NULL, store_filter_select);
 
 static ssize_t store_hardware_switching_mode(struct device *d,
 		 struct device_attribute *attr, const char *buf, size_t count)
@@ -643,7 +643,7 @@ static ssize_t store_hardware_switching_mode(struct device *d,
 	return strnlen(buf, count);
 }
 
-static DEVICE_ATTR(hardware_switching_mode, S_IWUGO, NULL,
+static DEVICE_ATTR(hardware_switching_mode, (S_IWUSR|S_IWGRP), NULL,
 		store_hardware_switching_mode);
 
 static ssize_t store_hardware_switching(struct device *d,
@@ -664,7 +664,7 @@ static ssize_t store_hardware_switching(struct device *d,
 	return strnlen(buf, count);
 }
 
-static DEVICE_ATTR(hardware_switching, S_IWUGO, NULL,
+static DEVICE_ATTR(hardware_switching, (S_IWUSR|S_IWGRP), NULL,
 		store_hardware_switching);
 
 static ssize_t store_refalign (struct device *d,
@@ -684,7 +684,7 @@ static ssize_t store_refalign (struct device *d,
 	return strnlen(buf, count);
 }
 
-static DEVICE_ATTR(refalign, S_IWUGO, NULL, store_refalign);
+static DEVICE_ATTR(refalign, (S_IWUSR|S_IWGRP), NULL, store_refalign);
 
 static ssize_t store_mode_select (struct device *d,
 		 struct device_attribute *attr, const char *buf, size_t count)
@@ -704,7 +704,7 @@ static ssize_t store_mode_select (struct device *d,
 	return strnlen(buf, count);
 }
 
-static DEVICE_ATTR(mode_select, S_IWUGO, NULL, store_mode_select);
+static DEVICE_ATTR(mode_select, (S_IWUSR|S_IWGRP), NULL, store_mode_select);
 
 static ssize_t store_reset (struct device *d,
 		 struct device_attribute *attr, const char *buf, size_t count)
@@ -724,7 +724,7 @@ static ssize_t store_reset (struct device *d,
 	return strnlen(buf, count);
 }
 
-static DEVICE_ATTR(reset, S_IWUGO, NULL, store_reset);
+static DEVICE_ATTR(reset, (S_IWUSR|S_IWGRP), NULL, store_reset);
 
 static struct attribute *tlclk_sysfs_entries[] = {
 	&dev_attr_current_ref.attr,

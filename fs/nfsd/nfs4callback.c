@@ -441,8 +441,9 @@ nfsd4_probe_callback(struct nfs4_client *clp)
 		goto out_clnt;
 	}
 
-	/* the task holds a reference to the nfs4_client struct */
 	cb->cb_client = clnt;
+
+	/* the task holds a reference to the nfs4_client struct */
 	atomic_inc(&clp->cl_count);
 
 	msg.rpc_cred = nfsd4_lookupcred(clp,0);
@@ -460,13 +461,12 @@ nfsd4_probe_callback(struct nfs4_client *clp)
 out_rpciod:
 	atomic_dec(&clp->cl_count);
 	rpciod_down();
+	cb->cb_client = NULL;
 out_clnt:
 	rpc_shutdown_client(clnt);
-	goto out_err;
 out_err:
 	dprintk("NFSD: warning: no callback path to client %.*s\n",
 		(int)clp->cl_name.len, clp->cl_name.data);
-	cb->cb_client = NULL;
 }
 
 static void

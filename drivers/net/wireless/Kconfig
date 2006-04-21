@@ -6,7 +6,7 @@ menu "Wireless LAN (non-hamradio)"
 	depends on NETDEVICES
 
 config NET_RADIO
-	bool "Wireless LAN drivers (non-hamradio)"
+	bool "Wireless LAN drivers (non-hamradio) & Wireless Extensions"
 	select WIRELESS_EXT
 	---help---
 	  Support for wireless LANs and everything having to do with radio,

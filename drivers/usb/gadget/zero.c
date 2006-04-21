@@ -572,9 +572,10 @@ static void source_sink_complete (struct usb_ep *ep, struct usb_request *req)
 	switch (status) {
 
 	case 0: 			/* normal completion? */
-		if (ep == dev->out_ep)
+		if (ep == dev->out_ep) {
 			check_read_data (dev, ep, req);
-		else
+			memset (req->buf, 0x55, req->length);
+		} else
 			reinit_write_data (dev, ep, req);
 		break;
 
@@ -626,6 +627,8 @@ source_sink_start_ep (struct usb_ep *ep, gfp_t gfp_flags)
 
 	if (strcmp (ep->name, EP_IN_NAME) == 0)
 		reinit_write_data (ep->driver_data, ep, req);
+	else
+		memset (req->buf, 0x55, req->length);
 
 	status = usb_ep_queue (ep, req, gfp_flags);
 	if (status) {

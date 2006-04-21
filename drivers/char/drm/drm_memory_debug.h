@@ -229,6 +229,7 @@ void *drm_ioremap (unsigned long offset, unsigned long size,
 	return pt;
 }
 
+#if 0
 void *drm_ioremap_nocache (unsigned long offset, unsigned long size,
 			    drm_device_t * dev) {
 	void *pt;
@@ -251,6 +252,7 @@ void *drm_ioremap_nocache (unsigned long offset, unsigned long size,
 	spin_unlock(&drm_mem_lock);
 	return pt;
 }
+#endif  /*  0  */
 
 void drm_ioremapfree (void *pt, unsigned long size, drm_device_t * dev) {
 	int alloc_count;

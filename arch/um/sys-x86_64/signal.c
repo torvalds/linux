@@ -137,7 +137,7 @@ int copy_sc_to_user_tt(struct sigcontext *to, struct _fpstate *fp,
 	 * delivery.  The sp passed in is the original, and this needs
 	 * to be restored, so we stick it in separately.
 	 */
-	err |= copy_to_user(&SC_SP(to), sp, sizeof(sp));
+	err |= copy_to_user(&SC_SP(to), &sp, sizeof(sp));
 
 	if(from_fp != NULL){
 		err |= copy_to_user(&to->fpstate, &to_fp, sizeof(to->fpstate));

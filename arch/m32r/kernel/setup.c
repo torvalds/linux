@@ -9,6 +9,7 @@
 
 #include <linux/config.h>
 #include <linux/init.h>
+#include <linux/kernel.h>
 #include <linux/stddef.h>
 #include <linux/fs.h>
 #include <linux/sched.h>
@@ -219,8 +220,6 @@ static unsigned long __init setup_memory(void)
 extern unsigned long setup_memory(void);
 #endif	/* CONFIG_DISCONTIGMEM */
 
-#define M32R_PCC_PCATCR	0x00ef7014	/* will move to m32r.h */
-
 void __init setup_arch(char **cmdline_p)
 {
 	ROOT_DEV = old_decode_dev(ORIG_ROOT_DEV);
@@ -269,15 +268,14 @@ void __init setup_arch(char **cmdline_p)
 	paging_init();
 }
 
-static struct cpu cpu[NR_CPUS];
+static struct cpu cpu_devices[NR_CPUS];
 
 static int __init topology_init(void)
 {
-	int cpu_id;
+	int i;
 
-	for (cpu_id = 0; cpu_id < NR_CPUS; cpu_id++)
-		if (cpu_possible(cpu_id))
-			register_cpu(&cpu[cpu_id], cpu_id, NULL);
+	for_each_present_cpu(i)
+		register_cpu(&cpu_devices[i], i, NULL);
 
 	return 0;
 }

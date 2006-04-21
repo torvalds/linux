@@ -129,8 +129,8 @@ config MTDRAM_ABS_POS
 	  allocating space from Linux's available memory. Otherwise, leave
 	  this set to zero. Most people will want to leave this as zero.
 
-config MTD_BLKMTD
-	tristate "MTD emulation using block device"
+config MTD_BLOCK2MTD
+	tristate "MTD using block device"
 	depends on MTD
 	help
 	  This driver allows a block device to appear as an MTD. It would
@@ -140,15 +140,6 @@ config MTD_BLKMTD
 	  the system as an ATA drive.
 	  Testing MTD users (eg JFFS2) on large media and media that might
 	  be removed during a write (using the floppy drive).
-
-config MTD_BLOCK2MTD
-	tristate "MTD using block device (rewrite)"
-	depends on MTD && EXPERIMENTAL
-	help
-	  This driver is basically the same at MTD_BLKMTD above, but
-	  experienced some interface changes plus serious speedups.  In
-	  the long term, it should replace MTD_BLKMTD.  Right now, you
-	  shouldn't entrust important data to it yet.
 
 comment "Disk-On-Chip Device Drivers"
 

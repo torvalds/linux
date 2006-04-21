@@ -805,10 +805,6 @@ config S3C2410_RTC
 	  Samsung S3C2410. This can provide periodic interrupt rates
 	  from 1Hz to 64Hz for user programs, and wakeup from Alarm.
 
-config RTC_VR41XX
-	tristate "NEC VR4100 series Real Time Clock Support"
-	depends on CPU_VR41XX
-
 config COBALT_LCD
 	bool "Support for Cobalt LCD"
 	depends on MIPS_COBALT

@@ -182,7 +182,9 @@ static int change_tramp(char **argv, char *output, int output_len)
 	pe_data.stdout = fds[1];
 	pid = run_helper(change_pre_exec, &pe_data, argv, NULL);
 
-	read_output(fds[0], output, output_len);
+	if (pid > 0)	/* Avoid hang as we won't get data in failure case. */
+		read_output(fds[0], output, output_len);
+
 	os_close_file(fds[0]);
 	os_close_file(fds[1]);
 

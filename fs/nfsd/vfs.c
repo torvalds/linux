@@ -371,7 +371,6 @@ out_nfserr:
 static ssize_t nfsd_getxattr(struct dentry *dentry, char *key, void **buf)
 {
 	ssize_t buflen;
-	int error;
 
 	buflen = vfs_getxattr(dentry, key, NULL, 0);
 	if (buflen <= 0)
@@ -381,10 +380,7 @@ static ssize_t nfsd_getxattr(struct dentry *dentry, char *key, void **buf)
 	if (!*buf)
 		return -ENOMEM;
 
-	error = vfs_getxattr(dentry, key, *buf, buflen);
-	if (error < 0)
-		return error;
-	return buflen;
+	return vfs_getxattr(dentry, key, *buf, buflen);
 }
 #endif
 

@@ -194,13 +194,23 @@ void __init at91_add_device_eth(struct at91_eth_data *data) {}
 #if defined(CONFIG_AT91_CF) || defined(CONFIG_AT91_CF_MODULE)
 static struct at91_cf_data cf_data;
 
+static struct resource at91_cf_resources[] = {
+	[0] = {
+		.start	= AT91_CF_BASE,
+		/* ties up CS4, CS5, and CS6 */
+		.end	= AT91_CF_BASE + (0x30000000 - 1),
+		.flags	= IORESOURCE_MEM | IORESOURCE_MEM_8AND16BIT,
+	},
+};
+
 static struct platform_device at91rm9200_cf_device = {
 	.name		= "at91_cf",
 	.id		= -1,
 	.dev		= {
 				.platform_data		= &cf_data,
 	},
-	.num_resources	= 0,
+	.resource	= at91_cf_resources,
+	.num_resources	= ARRAY_SIZE(at91_cf_resources),
 };
 
 void __init at91_add_device_cf(struct at91_cf_data *data)

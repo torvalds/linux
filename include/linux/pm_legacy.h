@@ -16,11 +16,6 @@ struct pm_dev __deprecated *
 pm_register(pm_dev_t type, unsigned long id, pm_callback callback);
 
 /*
- * Unregister a device with power management
- */
-void __deprecated pm_unregister(struct pm_dev *dev);
-
-/*
  * Unregister all devices with matching callback
  */
 void __deprecated pm_unregister_all(pm_callback callback);
@@ -40,8 +35,6 @@ static inline struct pm_dev *pm_register(pm_dev_t type,
 {
 	return NULL;
 }
-
-static inline void pm_unregister(struct pm_dev *dev) {}
 
 static inline void pm_unregister_all(pm_callback callback) {}
 

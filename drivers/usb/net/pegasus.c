@@ -262,7 +262,7 @@ static int set_register(pegasus_t * pegasus, __u16 indx, __u8 data)
 	usb_fill_control_urb(pegasus->ctrl_urb, pegasus->usb,
 			     usb_sndctrlpipe(pegasus->usb, 0),
 			     (char *) &pegasus->dr,
-			     &tmp, 1, ctrl_callback, pegasus);
+			     tmp, 1, ctrl_callback, pegasus);
 
 	add_wait_queue(&pegasus->ctrl_wait, &wait);
 	set_current_state(TASK_UNINTERRUPTIBLE);

@@ -14,8 +14,13 @@
 #include <linux/threads.h>
 
 #include <asm/asm.h>
+#include <asm/asmmacro.h>
 #include <asm/mipsregs.h>
 #include <asm/asm-offsets.h>
+
+#ifdef CONFIG_MIPS_MT_SMTC
+#include <asm/mipsmtregs.h>
+#endif /* CONFIG_MIPS_MT_SMTC */
 
 		.macro	SAVE_AT
 		.set	push
@@ -57,13 +62,30 @@
 #ifdef CONFIG_SMP
 		.macro	get_saved_sp	/* SMP variation */
 #ifdef CONFIG_32BIT
+#ifdef CONFIG_MIPS_MT_SMTC
+		.set	mips32
+		mfc0	k0, CP0_TCBIND;
+		.set	mips0
+		lui	k1, %hi(kernelsp)
+		srl	k0, k0, 19
+		/* No need to shift down and up to clear bits 0-1 */
+#else
 		mfc0	k0, CP0_CONTEXT
 		lui	k1, %hi(kernelsp)
 		srl	k0, k0, 23
+#endif
 		addu	k1, k0
 		LONG_L	k1, %lo(kernelsp)(k1)
 #endif
 #ifdef CONFIG_64BIT
+#ifdef CONFIG_MIPS_MT_SMTC
+		.set	mips64
+		mfc0	k0, CP0_TCBIND;
+		.set	mips0
+		lui	k0, %highest(kernelsp)
+		dsrl	k1, 19
+		/* No need to shift down and up to clear bits 0-2 */
+#else
 		MFC0	k1, CP0_CONTEXT
 		lui	k0, %highest(kernelsp)
 		dsrl	k1, 23
@@ -71,19 +93,30 @@
 		dsll	k0, k0, 16
 		daddiu	k0, %hi(kernelsp)
 		dsll	k0, k0, 16
+#endif /* CONFIG_MIPS_MT_SMTC */
 		daddu	k1, k1, k0
 		LONG_L	k1, %lo(kernelsp)(k1)
-#endif
+#endif /* CONFIG_64BIT */
 		.endm
 
 		.macro	set_saved_sp stackp temp temp2
 #ifdef CONFIG_32BIT
+#ifdef CONFIG_MIPS_MT_SMTC
+		mfc0	\temp, CP0_TCBIND
+		srl	\temp, 19
+#else
 		mfc0	\temp, CP0_CONTEXT
 		srl	\temp, 23
 #endif
+#endif
 #ifdef CONFIG_64BIT
+#ifdef CONFIG_MIPS_MT_SMTC
+		mfc0	\temp, CP0_TCBIND
+		dsrl	\temp, 19
+#else
 		MFC0	\temp, CP0_CONTEXT
 		dsrl	\temp, 23
+#endif
 #endif
 		LONG_S	\stackp, kernelsp(\temp)
 		.endm
@@ -122,10 +155,25 @@
 		PTR_SUBU sp, k1, PT_SIZE
 		LONG_S	k0, PT_R29(sp)
 		LONG_S	$3, PT_R3(sp)
+		/*
+		 * You might think that you don't need to save $0,
+		 * but the FPU emulator and gdb remote debug stub
+		 * need it to operate correctly
+		 */
 		LONG_S	$0, PT_R0(sp)
 		mfc0	v1, CP0_STATUS
 		LONG_S	$2, PT_R2(sp)
 		LONG_S	v1, PT_STATUS(sp)
+#ifdef CONFIG_MIPS_MT_SMTC
+		/*
+		 * Ideally, these instructions would be shuffled in
+		 * to cover the pipeline delay.
+		 */
+		.set	mips32
+		mfc0	v1, CP0_TCSTATUS
+		.set	mips0
+		LONG_S	v1, PT_TCSTATUS(sp)
+#endif /* CONFIG_MIPS_MT_SMTC */
 		LONG_S	$4, PT_R4(sp)
 		mfc0	v1, CP0_CAUSE
 		LONG_S	$5, PT_R5(sp)
@@ -234,14 +282,36 @@
 		.endm
 
 #else
+/*
+ * For SMTC kernel, global IE should be left set, and interrupts
+ * controlled exclusively via IXMT.
+ */
 
+#ifdef CONFIG_MIPS_MT_SMTC
+#define STATMASK 0x1e
+#else
+#define STATMASK 0x1f
+#endif
 		.macro	RESTORE_SOME
 		.set	push
 		.set	reorder
 		.set	noat
+#ifdef CONFIG_MIPS_MT_SMTC
+		.set	mips32r2
+		/*
+		 * This may not really be necessary if ints are already
+		 * inhibited here.
+		 */
+		mfc0	v0, CP0_TCSTATUS
+		ori	v0, TCSTATUS_IXMT
+		mtc0	v0, CP0_TCSTATUS
+		ehb
+		DMT	5				# dmt a1
+		jal	mips_ihb
+#endif /* CONFIG_MIPS_MT_SMTC */
 		mfc0	a0, CP0_STATUS
-		ori	a0, 0x1f
-		xori	a0, 0x1f
+		ori	a0, STATMASK
+		xori	a0, STATMASK
 		mtc0	a0, CP0_STATUS
 		li	v1, 0xff00
 		and	a0, v1
@@ -250,6 +320,26 @@
 		and	v0, v1
 		or	v0, a0
 		mtc0	v0, CP0_STATUS
+#ifdef CONFIG_MIPS_MT_SMTC
+/*
+ * Only after EXL/ERL have been restored to status can we
+ * restore TCStatus.IXMT.
+ */
+		LONG_L	v1, PT_TCSTATUS(sp)
+		ehb
+		mfc0	v0, CP0_TCSTATUS
+		andi	v1, TCSTATUS_IXMT
+		/* We know that TCStatua.IXMT should be set from above */
+		xori	v0, v0, TCSTATUS_IXMT
+		or	v0, v0, v1
+		mtc0	v0, CP0_TCSTATUS
+		ehb
+		andi	a1, a1, VPECONTROL_TE
+		beqz	a1, 1f
+		emt
+1:
+		.set	mips0
+#endif /* CONFIG_MIPS_MT_SMTC */
 		LONG_L	v1, PT_EPC(sp)
 		MTC0	v1, CP0_EPC
 		LONG_L	$31, PT_R31(sp)
@@ -302,11 +392,33 @@
  * Set cp0 enable bit as sign that we're running on the kernel stack
  */
 		.macro	CLI
+#if !defined(CONFIG_MIPS_MT_SMTC)
 		mfc0	t0, CP0_STATUS
 		li	t1, ST0_CU0 | 0x1f
 		or	t0, t1
 		xori	t0, 0x1f
 		mtc0	t0, CP0_STATUS
+#else /* CONFIG_MIPS_MT_SMTC */
+		/*
+		 * For SMTC, we need to set privilege
+		 * and disable interrupts only for the
+		 * current TC, using the TCStatus register.
+		 */
+		mfc0	t0,CP0_TCSTATUS
+		/* Fortunately CU 0 is in the same place in both registers */
+		/* Set TCU0, TMX, TKSU (for later inversion) and IXMT */
+		li	t1, ST0_CU0 | 0x08001c00
+		or	t0,t1
+		/* Clear TKSU, leave IXMT */
+		xori	t0, 0x00001800
+		mtc0	t0, CP0_TCSTATUS
+		ehb
+		/* We need to leave the global IE bit set, but clear EXL...*/
+		mfc0	t0, CP0_STATUS
+		ori	t0, ST0_EXL | ST0_ERL
+		xori	t0, ST0_EXL | ST0_ERL
+		mtc0	t0, CP0_STATUS
+#endif /* CONFIG_MIPS_MT_SMTC */
 		irq_disable_hazard
 		.endm
 
@@ -315,11 +427,35 @@
  * Set cp0 enable bit as sign that we're running on the kernel stack
  */
 		.macro	STI
+#if !defined(CONFIG_MIPS_MT_SMTC)
 		mfc0	t0, CP0_STATUS
 		li	t1, ST0_CU0 | 0x1f
 		or	t0, t1
 		xori	t0, 0x1e
 		mtc0	t0, CP0_STATUS
+#else /* CONFIG_MIPS_MT_SMTC */
+		/*
+		 * For SMTC, we need to set privilege
+		 * and enable interrupts only for the
+		 * current TC, using the TCStatus register.
+		 */
+		ehb
+		mfc0	t0,CP0_TCSTATUS
+		/* Fortunately CU 0 is in the same place in both registers */
+		/* Set TCU0, TKSU (for later inversion) and IXMT */
+		li	t1, ST0_CU0 | 0x08001c00
+		or	t0,t1
+		/* Clear TKSU *and* IXMT */
+		xori	t0, 0x00001c00
+		mtc0	t0, CP0_TCSTATUS
+		ehb
+		/* We need to leave the global IE bit set, but clear EXL...*/
+		mfc0	t0, CP0_STATUS
+		ori	t0, ST0_EXL
+		xori	t0, ST0_EXL
+		mtc0	t0, CP0_STATUS
+		/* irq_enable_hazard below should expand to EHB for 24K/34K cpus */
+#endif /* CONFIG_MIPS_MT_SMTC */
 		irq_enable_hazard
 		.endm
 
@@ -328,11 +464,56 @@
  * Set cp0 enable bit as sign that we're running on the kernel stack
  */
 		.macro	KMODE
+#ifdef CONFIG_MIPS_MT_SMTC
+		/*
+		 * This gets baroque in SMTC.  We want to
+		 * protect the non-atomic clearing of EXL
+		 * with DMT/EMT, but we don't want to take
+		 * an interrupt while DMT is still in effect.
+		 */
+
+		/* KMODE gets invoked from both reorder and noreorder code */
+		.set	push
+		.set	mips32r2
+		.set	noreorder
+		mfc0	v0, CP0_TCSTATUS
+		andi	v1, v0, TCSTATUS_IXMT
+		ori	v0, TCSTATUS_IXMT
+		mtc0	v0, CP0_TCSTATUS
+		ehb
+		DMT	2				# dmt	v0
+		/*
+		 * We don't know a priori if ra is "live"
+		 */
+		move	t0, ra
+		jal	mips_ihb
+		nop	/* delay slot */
+		move	ra, t0
+#endif /* CONFIG_MIPS_MT_SMTC */
 		mfc0	t0, CP0_STATUS
 		li	t1, ST0_CU0 | 0x1e
 		or	t0, t1
 		xori	t0, 0x1e
 		mtc0	t0, CP0_STATUS
+#ifdef CONFIG_MIPS_MT_SMTC
+		ehb
+		andi	v0, v0, VPECONTROL_TE
+		beqz	v0, 2f
+		nop	/* delay slot */
+		emt
+2:
+		mfc0	v0, CP0_TCSTATUS
+		/* Clear IXMT, then OR in previous value */
+		ori	v0, TCSTATUS_IXMT
+		xori	v0, TCSTATUS_IXMT
+		or	v0, v1, v0
+		mtc0	v0, CP0_TCSTATUS
+		/*
+		 * irq_disable_hazard below should expand to EHB
+		 * on 24K/34K CPUS
+		 */
+		.set pop
+#endif /* CONFIG_MIPS_MT_SMTC */
 		irq_disable_hazard
 		.endm
 

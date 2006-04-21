@@ -1436,8 +1436,11 @@ static int __init alsa_card_miro_init(void)
 	if ((error = platform_driver_register(&snd_miro_driver)) < 0)
 		return error;
 	device = platform_device_register_simple(DRIVER_NAME, -1, NULL, 0);
-	if (! IS_ERR(device))
-		return 0;
+	if (! IS_ERR(device)) {
+		if (platform_get_drvdata(device))
+			return 0;
+		platform_device_unregister(device);
+	}
 #ifdef MODULE
 	printk(KERN_ERR "no miro soundcard found\n");
 #endif

@@ -25,6 +25,7 @@
 #include <linux/rtc.h>
 #include <linux/bcd.h>
 #include <linux/mutex.h>
+#include <linux/workqueue.h>
 
 #include <asm/time.h>
 #include <asm/rtc.h>
@@ -111,7 +112,7 @@ m41t00_get_rtc_time(void)
 }
 
 static void
-m41t00_set_tlet(ulong arg)
+m41t00_set(void *arg)
 {
 	struct rtc_time	tm;
 	ulong	nowtime = *(ulong *)arg;
@@ -130,13 +131,13 @@ m41t00_set_tlet(ulong arg)
 	if ((i2c_smbus_write_byte_data(save_client, 0, tm.tm_sec & 0x7f) < 0)
 		|| (i2c_smbus_write_byte_data(save_client, 1, tm.tm_min & 0x7f)
 			< 0)
-		|| (i2c_smbus_write_byte_data(save_client, 2, tm.tm_hour & 0x7f)
+		|| (i2c_smbus_write_byte_data(save_client, 2, tm.tm_hour & 0x3f)
 			< 0)
-		|| (i2c_smbus_write_byte_data(save_client, 4, tm.tm_mday & 0x7f)
+		|| (i2c_smbus_write_byte_data(save_client, 4, tm.tm_mday & 0x3f)
 			< 0)
-		|| (i2c_smbus_write_byte_data(save_client, 5, tm.tm_mon & 0x7f)
+		|| (i2c_smbus_write_byte_data(save_client, 5, tm.tm_mon & 0x1f)
 			< 0)
-		|| (i2c_smbus_write_byte_data(save_client, 6, tm.tm_year & 0x7f)
+		|| (i2c_smbus_write_byte_data(save_client, 6, tm.tm_year & 0xff)
 			< 0))
 
 		dev_warn(&save_client->dev,"m41t00: can't write to rtc chip\n");
@@ -145,9 +146,9 @@ m41t00_set_tlet(ulong arg)
 	return;
 }
 
-static ulong	new_time;
-
-DECLARE_TASKLET_DISABLED(m41t00_tasklet, m41t00_set_tlet, (ulong)&new_time);
+static ulong new_time;
+static struct workqueue_struct *m41t00_wq;
+static DECLARE_WORK(m41t00_work, m41t00_set, &new_time);
 
 int
 m41t00_set_rtc_time(ulong nowtime)
@@ -155,9 +156,9 @@ m41t00_set_rtc_time(ulong nowtime)
 	new_time = nowtime;
 
 	if (in_interrupt())
-		tasklet_schedule(&m41t00_tasklet);
+		queue_work(m41t00_wq, &m41t00_work);
 	else
-		m41t00_set_tlet((ulong)&new_time);
+		m41t00_set(&new_time);
 
 	return 0;
 }
@@ -189,6 +190,7 @@ m41t00_probe(struct i2c_adapter *adap, int addr, int kind)
 		return rc;
 	}
 
+	m41t00_wq = create_singlethread_workqueue("m41t00");
 	save_client = client;
 	return 0;
 }
@@ -206,7 +208,7 @@ m41t00_detach(struct i2c_client *client)
 
 	if ((rc = i2c_detach_client(client)) == 0) {
 		kfree(client);
-		tasklet_kill(&m41t00_tasklet);
+		destroy_workqueue(m41t00_wq);
 	}
 	return rc;
 }

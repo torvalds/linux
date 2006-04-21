@@ -39,6 +39,20 @@
  * RNDIS is NDIS remoted over USB.  It's a MSFT variant of CDC ACM ... of
  * course ACM was intended for modems, not Ethernet links!  USB's standard
  * for Ethernet links is "CDC Ethernet", which is significantly simpler.
+ *
+ * NOTE that Microsoft's "RNDIS 1.0" specification is incomplete.  Issues
+ * include:
+ *    - Power management in particular relies on information that's scattered
+ *	through other documentation, and which is incomplete or incorrect even
+ *	there.
+ *    - There are various undocumented protocol requirements, such as the
+ *	need to send unused garbage in control-OUT messages.
+ *    - In some cases, MS-Windows will emit undocumented requests; this
+ *	matters more to peripheral implementations than host ones.
+ *
+ * For these reasons and others, ** USE OF RNDIS IS STRONGLY DISCOURAGED ** in
+ * favor of such non-proprietary alternatives as CDC Ethernet or the newer (and
+ * currently rare) "Ethernet Emulation Model" (EEM).
  */
 
 /*
@@ -72,17 +86,17 @@ struct rndis_msg_hdr {
  */
 #define RNDIS_MSG_PACKET	ccpu2(0x00000001)	/* 1-N packets */
 #define RNDIS_MSG_INIT		ccpu2(0x00000002)
-#define RNDIS_MSG_INIT_C 	(RNDIS_MSG_INIT|RNDIS_MSG_COMPLETION)
+#define RNDIS_MSG_INIT_C	(RNDIS_MSG_INIT|RNDIS_MSG_COMPLETION)
 #define RNDIS_MSG_HALT		ccpu2(0x00000003)
 #define RNDIS_MSG_QUERY		ccpu2(0x00000004)
-#define RNDIS_MSG_QUERY_C 	(RNDIS_MSG_QUERY|RNDIS_MSG_COMPLETION)
+#define RNDIS_MSG_QUERY_C	(RNDIS_MSG_QUERY|RNDIS_MSG_COMPLETION)
 #define RNDIS_MSG_SET		ccpu2(0x00000005)
-#define RNDIS_MSG_SET_C 	(RNDIS_MSG_SET|RNDIS_MSG_COMPLETION)
+#define RNDIS_MSG_SET_C		(RNDIS_MSG_SET|RNDIS_MSG_COMPLETION)
 #define RNDIS_MSG_RESET		ccpu2(0x00000006)
-#define RNDIS_MSG_RESET_C 	(RNDIS_MSG_RESET|RNDIS_MSG_COMPLETION)
+#define RNDIS_MSG_RESET_C	(RNDIS_MSG_RESET|RNDIS_MSG_COMPLETION)
 #define RNDIS_MSG_INDICATE	ccpu2(0x00000007)
 #define RNDIS_MSG_KEEPALIVE	ccpu2(0x00000008)
-#define RNDIS_MSG_KEEPALIVE_C 	(RNDIS_MSG_KEEPALIVE|RNDIS_MSG_COMPLETION)
+#define RNDIS_MSG_KEEPALIVE_C	(RNDIS_MSG_KEEPALIVE|RNDIS_MSG_COMPLETION)
 
 /* codes for "status" field of completion messages */
 #define	RNDIS_STATUS_SUCCESS		ccpu2(0x00000000)
@@ -596,13 +610,13 @@ static struct usb_driver rndis_driver = {
 
 static int __init rndis_init(void)
 {
- 	return usb_register(&rndis_driver);
+	return usb_register(&rndis_driver);
 }
 module_init(rndis_init);
 
 static void __exit rndis_exit(void)
 {
- 	usb_deregister(&rndis_driver);
+	usb_deregister(&rndis_driver);
 }
 module_exit(rndis_exit);
 

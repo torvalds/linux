@@ -80,7 +80,7 @@ static int __init aperture_valid(char *name, u64 aper_base, u32 aper_size)
 		printk("Aperture from %s beyond 4GB. Ignoring.\n",name);
 		return 0; 
 	}
-	if (e820_mapped(aper_base, aper_base + aper_size, E820_RAM)) {  
+	if (e820_any_mapped(aper_base, aper_base + aper_size, E820_RAM)) {
 		printk("Aperture from %s pointing to e820 RAM. Ignoring.\n",name);
 		return 0; 
 	} 

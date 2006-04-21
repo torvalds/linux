@@ -1726,6 +1726,14 @@ int wireless_rtnetlink_get(struct net_device *	dev,
 	if(!IW_IS_GET(request->cmd))
 		return -EOPNOTSUPP;
 
+	/* If command is `get the encoding parameters', check if
+	 * the user has the right to do it */
+	if (request->cmd == SIOCGIWENCODE ||
+	    request->cmd == SIOCGIWENCODEEXT) {
+		if (!capable(CAP_NET_ADMIN))
+			return -EPERM;
+	}
+
 	/* Special cases */
 	if(request->cmd == SIOCGIWSTATS)
 		/* Get Wireless Stats */

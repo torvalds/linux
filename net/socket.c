@@ -119,10 +119,6 @@ static ssize_t sock_writev(struct file *file, const struct iovec *vector,
 static ssize_t sock_sendpage(struct file *file, struct page *page,
 			     int offset, size_t size, loff_t *ppos, int more);
 
-extern ssize_t generic_splice_sendpage(struct inode *inode, struct file *out,
-				size_t len, unsigned int flags);
-
-
 /*
  *	Socket files have a set of 'special' operations as well as the generic file ones. These don't appear
  *	in the operation structures but are done directly via the socketcall() multiplexor.
@@ -494,6 +490,7 @@ static struct socket *sockfd_lookup_light(int fd, int *err, int *fput_needed)
 	struct file *file;
 	struct socket *sock;
 
+	*err = -EBADF;
 	file = fget_light(fd, fput_needed);
 	if (file) {
 		sock = sock_from_file(file, err);
@@ -2136,7 +2133,7 @@ void socket_seq_show(struct seq_file *seq)
 	int cpu;
 	int counter = 0;
 
-	for_each_cpu(cpu)
+	for_each_possible_cpu(cpu)
 		counter += per_cpu(sockets_in_use, cpu);
 
 	/* It can be negative, by the way. 8) */

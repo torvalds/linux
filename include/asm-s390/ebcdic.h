@@ -14,12 +14,12 @@
 #include <types.h>
 #endif
 
-extern __u8 _ascebc_500[];   /* ASCII -> EBCDIC 500 conversion table */
-extern __u8 _ebcasc_500[];   /* EBCDIC 500 -> ASCII conversion table */
-extern __u8 _ascebc[];   /* ASCII -> EBCDIC conversion table */
-extern __u8 _ebcasc[];   /* EBCDIC -> ASCII conversion table */
-extern __u8 _ebc_tolower[]; /* EBCDIC -> lowercase */
-extern __u8 _ebc_toupper[]; /* EBCDIC -> uppercase */
+extern __u8 _ascebc_500[256];   /* ASCII -> EBCDIC 500 conversion table */
+extern __u8 _ebcasc_500[256];   /* EBCDIC 500 -> ASCII conversion table */
+extern __u8 _ascebc[256];   /* ASCII -> EBCDIC conversion table */
+extern __u8 _ebcasc[256];   /* EBCDIC -> ASCII conversion table */
+extern __u8 _ebc_tolower[256]; /* EBCDIC -> lowercase */
+extern __u8 _ebc_toupper[256]; /* EBCDIC -> uppercase */
 
 static inline void
 codepage_convert(const __u8 *codepage, volatile __u8 * addr, unsigned long nr)

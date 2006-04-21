@@ -20,7 +20,7 @@
 #include <asm/arch/board.h>
 
 #ifndef CONFIG_ARCH_AT91RM9200
-#error "This file is AT91RM9200 bus glue.  CONFIG_ARCH_AT91RM9200 must be defined."
+#error "CONFIG_ARCH_AT91RM9200 must be defined."
 #endif
 
 /* interface and function clocks */
@@ -84,8 +84,6 @@ static int usb_hcd_at91_remove (struct usb_hcd *, struct platform_device *);
  * Allocates basic resources for this USB host controller, and
  * then invokes the start() method for the HCD associated with it
  * through the hotplug entry's driver_data.
- *
- * Store this function in the HCD's struct pci_driver as probe().
  */
 int usb_hcd_at91_probe (const struct hc_driver *driver, struct platform_device *pdev)
 {
@@ -148,7 +146,6 @@ int usb_hcd_at91_probe (const struct hc_driver *driver, struct platform_device *
 }
 
 
-/* may be called without controller electrically present */
 /* may be called with controller, bus, and devices active */
 
 /**
@@ -166,11 +163,11 @@ static int usb_hcd_at91_remove (struct usb_hcd *hcd, struct platform_device *pde
 	usb_remove_hcd(hcd);
 	at91_stop_hc(pdev);
 	iounmap(hcd->regs);
- 	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
+	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 
- 	clk_put(fclk);
- 	clk_put(iclk);
- 	fclk = iclk = NULL;
+	clk_put(fclk);
+	clk_put(iclk);
+	fclk = iclk = NULL;
 
 	dev_set_drvdata(&pdev->dev, NULL);
 	return 0;
@@ -235,8 +232,8 @@ static const struct hc_driver ohci_at91_hc_driver = {
 	.hub_control =		ohci_hub_control,
 
 #ifdef CONFIG_PM
-	.hub_suspend =		ohci_hub_suspend,
-	.hub_resume =		ohci_hub_resume,
+	.bus_suspend =		ohci_bus_suspend,
+	.bus_resume =		ohci_bus_resume,
 #endif
 	.start_port_reset =	ohci_start_port_reset,
 };
@@ -254,21 +251,21 @@ static int ohci_hcd_at91_drv_remove(struct platform_device *dev)
 }
 
 #ifdef CONFIG_PM
-static int ohci_hcd_at91_drv_suspend(struct platform_device *dev, u32 state, u32 level)
-{
-	printk("%s(%s:%d): not implemented yet\n",
-		__func__, __FILE__, __LINE__);
 
+/* REVISIT suspend/resume look "too" simple here */
+
+static int
+ohci_hcd_at91_drv_suspend(struct platform_device *dev, pm_message_t mesg)
+{
 	clk_disable(fclk);
+	clk_disable(iclk);
 
 	return 0;
 }
 
-static int ohci_hcd_at91_drv_resume(struct platform_device *dev, u32 state)
+static int ohci_hcd_at91_drv_resume(struct platform_device *dev)
 {
-	printk("%s(%s:%d): not implemented yet\n",
-		__func__, __FILE__, __LINE__);
-
+	clk_enable(iclk);
 	clk_enable(fclk);
 
 	return 0;
@@ -277,6 +274,8 @@ static int ohci_hcd_at91_drv_resume(struct platform_device *dev, u32 state)
 #define ohci_hcd_at91_drv_suspend NULL
 #define ohci_hcd_at91_drv_resume  NULL
 #endif
+
+MODULE_ALIAS("at91rm9200-ohci");
 
 static struct platform_driver ohci_hcd_at91_driver = {
 	.probe		= ohci_hcd_at91_drv_probe,

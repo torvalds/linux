@@ -233,20 +233,12 @@ icmpv6_error(struct sk_buff *skb, unsigned int dataoff,
 		return -NF_ACCEPT;
 	}
 
-	if (hooknum != NF_IP6_PRE_ROUTING)
-		goto skipped;
-
-	/* Ignore it if the checksum's bogus. */
-	if (csum_ipv6_magic(&skb->nh.ipv6h->saddr, &skb->nh.ipv6h->daddr,
-			    skb->len - dataoff, IPPROTO_ICMPV6,
-			    skb_checksum(skb, dataoff,
-					 skb->len - dataoff, 0))) {
+	if (hooknum == NF_IP6_PRE_ROUTING &&
+	    nf_ip6_checksum(skb, hooknum, dataoff, IPPROTO_ICMPV6)) {
 		nf_log_packet(PF_INET6, 0, skb, NULL, NULL, NULL,
 			      "nf_ct_icmpv6: ICMPv6 checksum failed\n");
 		return -NF_ACCEPT;
 	}
-
-skipped:
 
 	/* is not error message ? */
 	if (icmp6h->icmp6_type >= 128)

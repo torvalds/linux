@@ -745,12 +745,21 @@ struct call_data_struct {
 	int wait;
 };
 
-static DEFINE_SPINLOCK(call_lock);
+static __cacheline_aligned_in_smp DEFINE_SPINLOCK(call_lock);
 static struct call_data_struct *call_data;
 
 extern unsigned long xcall_call_function;
 
-/*
+/**
+ * smp_call_function(): Run a function on all other CPUs.
+ * @func: The function to run. This must be fast and non-blocking.
+ * @info: An arbitrary pointer to pass to the function.
+ * @nonatomic: currently unused.
+ * @wait: If true, wait (atomically) until function has completed on other CPUs.
+ *
+ * Returns 0 on success, else a negative status code. Does not return until
+ * remote CPUs are nearly ready to execute <<func>> or are or have executed.
+ *
  * You must not call this function with disabled interrupts or from a
  * hardware interrupt handler or from a bottom half handler.
  */
@@ -759,7 +768,6 @@ static int smp_call_function_mask(void (*func)(void *info), void *info,
 {
 	struct call_data_struct data;
 	int cpus;
-	long timeout;
 
 	/* Can deadlock when called with interrupts disabled */
 	WARN_ON(irqs_disabled());
@@ -777,30 +785,17 @@ static int smp_call_function_mask(void (*func)(void *info), void *info,
 		goto out_unlock;
 
 	call_data = &data;
+	mb();
 
 	smp_cross_call_masked(&xcall_call_function, 0, 0, 0, mask);
 
-	/* 
-	 * Wait for other cpus to complete function or at
-	 * least snap the call data.
-	 */
-	timeout = 1000000;
-	while (atomic_read(&data.finished) != cpus) {
-		if (--timeout <= 0)
-			goto out_timeout;
-		barrier();
-		udelay(1);
-	}
+	/* Wait for response */
+	while (atomic_read(&data.finished) != cpus)
+		cpu_relax();
 
 out_unlock:
 	spin_unlock(&call_lock);
 
-	return 0;
-
-out_timeout:
-	spin_unlock(&call_lock);
-	printk("XCALL: Remote cpus not responding, ncpus=%d finished=%d\n",
-	       cpus, atomic_read(&data.finished));
 	return 0;
 }
 
@@ -1285,7 +1280,7 @@ int setup_profiling_timer(unsigned int multiplier)
 		return -EINVAL;
 
 	spin_lock_irqsave(&prof_setup_lock, flags);
-	for_each_cpu(i)
+	for_each_possible_cpu(i)
 		prof_multiplier(i) = multiplier;
 	current_tick_offset = (timer_tick_offset / multiplier);
 	spin_unlock_irqrestore(&prof_setup_lock, flags);
@@ -1313,12 +1308,12 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 		}
 	}
 
-	for_each_cpu(i) {
+	for_each_possible_cpu(i) {
 		if (tlb_type == hypervisor) {
 			int j;
 
 			/* XXX get this mapping from machine description */
-			for_each_cpu(j) {
+			for_each_possible_cpu(j) {
 				if ((j >> 2) == (i >> 2))
 					cpu_set(j, cpu_sibling_map[i]);
 			}

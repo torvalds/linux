@@ -177,6 +177,11 @@ config ARCH_DISCONTIGMEM_DEFAULT
 	def_bool y
 	depends on ARCH_DISCONTIGMEM_ENABLE
 
+config NODES_SHIFT
+	int
+	default "3"
+	depends on NEED_MULTIPLE_NODES
+
 source "kernel/Kconfig.preempt"
 source "kernel/Kconfig.hz"
 source "mm/Kconfig"

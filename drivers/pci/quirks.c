@@ -592,7 +592,7 @@ static void __init quirk_amd_8131_ioapic(struct pci_dev *dev)
                 pci_write_config_byte( dev, AMD8131_MISC, tmp);
         }
 } 
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_8131_APIC,         quirk_amd_8131_ioapic ); 
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_8131_BRIDGE, quirk_amd_8131_ioapic);
 
 static void __init quirk_svw_msi(struct pci_dev *dev)
 {
@@ -865,6 +865,35 @@ static void __init quirk_eisa_bridge(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82375,	quirk_eisa_bridge );
 
 /*
+ * On the MSI-K8T-Neo2Fir Board, the internal Soundcard is disabled
+ * when a PCI-Soundcard is added. The BIOS only gives Options
+ * "Disabled" and "AUTO". This Quirk Sets the corresponding
+ * Register-Value to enable the Soundcard.
+ */
+static void __init k8t_sound_hostbridge(struct pci_dev *dev)
+{
+	unsigned char val;
+
+	printk(KERN_INFO "PCI: Quirk-MSI-K8T Soundcard On\n");
+	pci_read_config_byte(dev, 0x50, &val);
+	if (val == 0x88 || val == 0xc8) {
+		pci_write_config_byte(dev, 0x50, val & (~0x40));
+
+		/* Verify the Change for Status output */
+		pci_read_config_byte(dev, 0x50, &val);
+		if (val & 0x40)
+			printk(KERN_INFO "PCI: MSI-K8T soundcard still off\n");
+		else
+			printk(KERN_INFO "PCI: MSI-K8T soundcard on\n");
+	} else {
+		printk(KERN_INFO "PCI: Unexpected Value in PCI-Register: "
+					"no Change!\n");
+	}
+
+}
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8237, k8t_sound_hostbridge);
+
+/*
  * On ASUS P4B boards, the SMBus PCI Device within the ICH2/4 southbridge
  * is not activated. The myth is that Asus said that they do not want the
  * users to be irritated by just another PCI Device in the Win98 device
@@ -921,6 +950,7 @@ static void __init asus_hides_smbus_hostbridge(struct pci_dev *dev)
 		if (dev->device == PCI_DEVICE_ID_INTEL_82915GM_HB) {
 			switch (dev->subsystem_device) {
 			case 0x1882: /* M6V notebook */
+			case 0x1977: /* A6VA notebook */
 				asus_hides_smbus = 1;
 			}
 		}
@@ -999,6 +1029,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82801BA_0,	asu
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82801CA_12,	asus_hides_smbus_lpc );
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82801DB_12,	asus_hides_smbus_lpc );
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82801EB_0,	asus_hides_smbus_lpc );
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_ICH6_1,	asus_hides_smbus_lpc );
 
 static void __init asus_hides_smbus_lpc_ich6(struct pci_dev *dev)
 {

@@ -37,6 +37,7 @@
 
 #include <asm/arch/nand.h>
 
+#include "common-smdk.h"
 #include "devs.h"
 #include "pm.h"
 
@@ -49,7 +50,7 @@ static struct mtd_partition smdk_default_nand_part[] = {
 		.offset	= 0,
 	},
 	[1] = {
-		.name	= "S3C2410 flash parition 1",
+		.name	= "S3C2410 flash partition 1",
 		.offset = 0,
 		.size	= SZ_2M,
 	},

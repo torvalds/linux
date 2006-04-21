@@ -54,7 +54,7 @@ kbd_alloc(void) {
 	if (!kbd)
 		goto out;
 	kbd->key_maps = kzalloc(sizeof(key_maps), GFP_KERNEL);
-	if (!key_maps)
+	if (!kbd->key_maps)
 		goto out_kbd;
 	for (i = 0; i < ARRAY_SIZE(key_maps); i++) {
 		if (key_maps[i]) {

@@ -290,11 +290,8 @@ static void ipcomp_free_scratches(void)
 	if (!scratches)
 		return;
 
-	for_each_cpu(i) {
-		void *scratch = *per_cpu_ptr(scratches, i);
-		if (scratch)
-			vfree(scratch);
-	}
+	for_each_possible_cpu(i)
+		vfree(*per_cpu_ptr(scratches, i));
 
 	free_percpu(scratches);
 }
@@ -313,7 +310,7 @@ static void **ipcomp_alloc_scratches(void)
 
 	ipcomp_scratches = scratches;
 
-	for_each_cpu(i) {
+	for_each_possible_cpu(i) {
 		void *scratch = vmalloc(IPCOMP_SCRATCH_SIZE);
 		if (!scratch)
 			return NULL;
@@ -344,7 +341,7 @@ static void ipcomp_free_tfms(struct crypto_tfm **tfms)
 	if (!tfms)
 		return;
 
-	for_each_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		struct crypto_tfm *tfm = *per_cpu_ptr(tfms, cpu);
 		crypto_free_tfm(tfm);
 	}
@@ -384,7 +381,7 @@ static struct crypto_tfm **ipcomp_alloc_tfms(const char *alg_name)
 	if (!tfms)
 		goto error;
 
-	for_each_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		struct crypto_tfm *tfm = crypto_alloc_tfm(alg_name, 0);
 		if (!tfm)
 			goto error;

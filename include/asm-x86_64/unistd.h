@@ -611,8 +611,12 @@ __SYSCALL(__NR_set_robust_list, sys_set_robust_list)
 __SYSCALL(__NR_get_robust_list, sys_get_robust_list)
 #define __NR_splice		275
 __SYSCALL(__NR_splice, sys_splice)
+#define __NR_tee		276
+__SYSCALL(__NR_tee, sys_tee)
+#define __NR_sync_file_range	277
+__SYSCALL(__NR_sync_file_range, sys_sync_file_range)
 
-#define __NR_syscall_max __NR_splice
+#define __NR_syscall_max __NR_sync_file_range
 
 #ifndef __NO_STUBS
 

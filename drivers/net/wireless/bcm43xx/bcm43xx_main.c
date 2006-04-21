@@ -52,6 +52,7 @@
 #include "bcm43xx_wx.h"
 #include "bcm43xx_ethtool.h"
 #include "bcm43xx_xmit.h"
+#include "bcm43xx_sysfs.h"
 
 
 MODULE_DESCRIPTION("Broadcom BCM43xx wireless driver");
@@ -3522,6 +3523,7 @@ static inline int bcm43xx_tx(struct bcm43xx_private *bcm,
 		err = bcm43xx_pio_tx(bcm, txb);
 	else
 		err = bcm43xx_dma_tx(bcm, txb);
+	bcm->net_dev->trans_start = jiffies;
 
 	return err;
 }

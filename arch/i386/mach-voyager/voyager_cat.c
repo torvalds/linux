@@ -106,15 +106,20 @@ voyager_module_t *voyager_cat_list;
 
 /* the I/O port assignments for the VIC and QIC */
 static struct resource vic_res = {
-	"Voyager Interrupt Controller", 0xFC00, 0xFC6F };
+	.name	= "Voyager Interrupt Controller",
+	.start	= 0xFC00,
+	.end	= 0xFC6F
+};
 static struct resource qic_res = {
-	"Quad Interrupt Controller", 0xFC70, 0xFCFF };
+	.name	= "Quad Interrupt Controller",
+	.start	= 0xFC70,
+	.end	= 0xFCFF
+};
 
 /* This function is used to pack a data bit stream inside a message.
  * It writes num_bits of the data buffer in msg starting at start_bit.
  * Note: This function assumes that any unused bit in the data stream
  * is set to zero so that the ors will work correctly */
-#define BITS_PER_BYTE 8
 static void
 cat_pack(__u8 *msg, const __u16 start_bit, __u8 *data, const __u16 num_bits)
 {

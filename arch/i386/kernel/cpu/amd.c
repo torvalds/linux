@@ -207,13 +207,13 @@ static void __init init_amd(struct cpuinfo_x86 *c)
 		set_bit(X86_FEATURE_K7, c->x86_capability); 
 		break;
 	}
+	if (c->x86 >= 6)
+		set_bit(X86_FEATURE_FXSAVE_LEAK, c->x86_capability);
 
 	display_cacheinfo(c);
 
 	if (cpuid_eax(0x80000000) >= 0x80000008) {
 		c->x86_max_cores = (cpuid_ecx(0x80000008) & 0xff) + 1;
-		if (c->x86_max_cores & (c->x86_max_cores - 1))
-			c->x86_max_cores = 1;
 	}
 
 	if (cpuid_eax(0x80000000) >= 0x80000007) {

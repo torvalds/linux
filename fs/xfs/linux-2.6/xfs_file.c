@@ -252,56 +252,60 @@ xfs_file_sendfile_invis(
 STATIC ssize_t
 xfs_file_splice_read(
 	struct file		*infilp,
-	struct inode		*pipe,
+	loff_t			*ppos,
+	struct pipe_inode_info	*pipe,
 	size_t			len,
 	unsigned int		flags)
 {
 	vnode_t			*vp = vn_from_inode(infilp->f_dentry->d_inode);
 	ssize_t			rval;
 
-	VOP_SPLICE_READ(vp, infilp, pipe, len, flags, 0, NULL, rval);
+	VOP_SPLICE_READ(vp, infilp, ppos, pipe, len, flags, 0, NULL, rval);
 	return rval;
 }
 
 STATIC ssize_t
 xfs_file_splice_read_invis(
 	struct file		*infilp,
-	struct inode		*pipe,
+	loff_t			*ppos,
+	struct pipe_inode_info	*pipe,
 	size_t			len,
 	unsigned int		flags)
 {
 	vnode_t			*vp = vn_from_inode(infilp->f_dentry->d_inode);
 	ssize_t			rval;
 
-	VOP_SPLICE_READ(vp, infilp, pipe, len, flags, IO_INVIS, NULL, rval);
+	VOP_SPLICE_READ(vp, infilp, ppos, pipe, len, flags, IO_INVIS, NULL, rval);
 	return rval;
 }
 
 STATIC ssize_t
 xfs_file_splice_write(
-	struct inode		*pipe,
+	struct pipe_inode_info	*pipe,
 	struct file		*outfilp,
+	loff_t			*ppos,
 	size_t			len,
 	unsigned int		flags)
 {
 	vnode_t			*vp = vn_from_inode(outfilp->f_dentry->d_inode);
 	ssize_t			rval;
 
-	VOP_SPLICE_WRITE(vp, pipe, outfilp, len, flags, 0, NULL, rval);
+	VOP_SPLICE_WRITE(vp, pipe, outfilp, ppos, len, flags, 0, NULL, rval);
 	return rval;
 }
 
 STATIC ssize_t
 xfs_file_splice_write_invis(
-	struct inode		*pipe,
+	struct pipe_inode_info	*pipe,
 	struct file		*outfilp,
+	loff_t			*ppos,
 	size_t			len,
 	unsigned int		flags)
 {
 	vnode_t			*vp = vn_from_inode(outfilp->f_dentry->d_inode);
 	ssize_t			rval;
 
-	VOP_SPLICE_WRITE(vp, pipe, outfilp, len, flags, IO_INVIS, NULL, rval);
+	VOP_SPLICE_WRITE(vp, pipe, outfilp, ppos, len, flags, IO_INVIS, NULL, rval);
 	return rval;
 }
 

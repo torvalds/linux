@@ -10,7 +10,7 @@
 
 #include <linux/serial_reg.h>
 
-#define SERIAL_BASE	((unsigned char *)0xfe000be0)
+#define SERIAL_BASE	((unsigned char *)0xf0000be0)
 
 /*
  * This does not append a newline

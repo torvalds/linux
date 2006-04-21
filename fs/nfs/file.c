@@ -534,10 +534,9 @@ static int nfs_lock(struct file *filp, int cmd, struct file_lock *fl)
  */
 static int nfs_flock(struct file *filp, int cmd, struct file_lock *fl)
 {
-	struct inode * inode = filp->f_mapping->host;
-
 	dprintk("NFS: nfs_flock(f=%s/%ld, t=%x, fl=%x)\n",
-			inode->i_sb->s_id, inode->i_ino,
+			filp->f_dentry->d_inode->i_sb->s_id,
+			filp->f_dentry->d_inode->i_ino,
 			fl->fl_type, fl->fl_flags);
 
 	/*

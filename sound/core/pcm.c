@@ -196,7 +196,7 @@ static char *snd_pcm_format_names[] = {
 	FORMAT(U18_3BE),
 };
 
-const char *snd_pcm_format_name(snd_pcm_format_t format)
+static const char *snd_pcm_format_name(snd_pcm_format_t format)
 {
 	return snd_pcm_format_names[format];
 }

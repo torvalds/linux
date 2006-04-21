@@ -138,19 +138,29 @@ Reading MTRRs from a C program using ioctl()'s:
 
 */
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <errno.h>
-#define MTRR_NEED_STRINGS
 #include <asm/mtrr.h>
 
 #define TRUE 1
 #define FALSE 0
 #define ERRSTRING strerror (errno)
 
+static char *mtrr_strings[MTRR_NUM_TYPES] =
+{
+    "uncachable",               /* 0 */
+    "write-combining",          /* 1 */
+    "?",                        /* 2 */
+    "?",                        /* 3 */
+    "write-through",            /* 4 */
+    "write-protect",            /* 5 */
+    "write-back",               /* 6 */
+};
 
 int main ()
 {
@@ -232,13 +242,22 @@ Creating MTRRs from a C programme using ioctl()'s:
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <errno.h>
-#define MTRR_NEED_STRINGS
 #include <asm/mtrr.h>
 
 #define TRUE 1
 #define FALSE 0
 #define ERRSTRING strerror (errno)
 
+static char *mtrr_strings[MTRR_NUM_TYPES] =
+{
+    "uncachable",               /* 0 */
+    "write-combining",          /* 1 */
+    "?",                        /* 2 */
+    "?",                        /* 3 */
+    "write-through",            /* 4 */
+    "write-protect",            /* 5 */
+    "write-back",               /* 6 */
+};
 
 int main (int argc, char **argv)
 {

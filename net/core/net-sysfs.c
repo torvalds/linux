@@ -165,7 +165,7 @@ static ssize_t show_operstate(struct class_device *dev, char *buf)
 		operstate = IF_OPER_DOWN;
 	read_unlock(&dev_base_lock);
 
-	if (operstate >= sizeof(operstates))
+	if (operstate >= ARRAY_SIZE(operstates))
 		return -EINVAL; /* should not happen */
 
 	return sprintf(buf, "%s\n", operstates[operstate]);

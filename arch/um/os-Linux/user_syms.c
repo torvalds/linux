@@ -18,13 +18,18 @@ extern void *memmove(void *, const void *, size_t);
 extern void *memset(void *, int, size_t);
 extern int printf(const char *, ...);
 
+/* If they're not defined, the export is included in lib/string.c.*/
+#ifdef __HAVE_ARCH_STRLEN
 EXPORT_SYMBOL(strlen);
+#endif
+#ifdef __HAVE_ARCH_STRSTR
+EXPORT_SYMBOL(strstr);
+#endif
+
 EXPORT_SYMBOL(memcpy);
 EXPORT_SYMBOL(memmove);
 EXPORT_SYMBOL(memset);
 EXPORT_SYMBOL(printf);
-
-EXPORT_SYMBOL(strstr);
 
 /* Here, instead, I can provide a fake prototype. Yes, someone cares: genksyms.
  * However, the modules will use the CRC defined *here*, no matter if it is

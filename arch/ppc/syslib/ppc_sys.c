@@ -156,12 +156,13 @@ void platform_notify_map(const struct platform_notify_dev_map *map,
 	while (map->bus_id != NULL) {
 		idx = -1;
 		s = strrchr(dev->bus_id, '.');
-		if (s != NULL)
+		if (s != NULL) {
 			idx = (int)simple_strtol(s + 1, NULL, 10);
-		else
+			len = s - dev->bus_id;
+		} else {
 			s = dev->bus_id;
-
-		len = s - dev->bus_id;
+			len = strlen(dev->bus_id);
+		}
 
 		if (!strncmp(dev->bus_id, map->bus_id, len)) {
 			pdev = container_of(dev, struct platform_device, dev);

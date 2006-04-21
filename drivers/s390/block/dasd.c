@@ -1257,25 +1257,28 @@ __dasd_start_head(struct dasd_device * device)
 	if (list_empty(&device->ccw_queue))
 		return;
 	cqr = list_entry(device->ccw_queue.next, struct dasd_ccw_req, list);
-        /* check FAILFAST */
+	if (cqr->status != DASD_CQR_QUEUED)
+		return;
+	/* Non-temporary stop condition will trigger fail fast */
 	if (device->stopped & ~DASD_STOPPED_PENDING &&
 	    test_bit(DASD_CQR_FLAGS_FAILFAST, &cqr->flags) &&
 	    (!dasd_eer_enabled(device))) {
 		cqr->status = DASD_CQR_FAILED;
 		dasd_schedule_bh(device);
+		return;
 	}
-	if ((cqr->status == DASD_CQR_QUEUED) &&
-	    (!device->stopped)) {
-		/* try to start the first I/O that can be started */
-		rc = device->discipline->start_IO(cqr);
-		if (rc == 0)
-			dasd_set_timer(device, cqr->expires);
-		else if (rc == -EACCES) {
-			dasd_schedule_bh(device);
-		} else
-			/* Hmpf, try again in 1/2 sec */
-			dasd_set_timer(device, 50);
-	}
+	/* Don't try to start requests if device is stopped */
+	if (device->stopped)
+		return;
+
+	rc = device->discipline->start_IO(cqr);
+	if (rc == 0)
+		dasd_set_timer(device, cqr->expires);
+	else if (rc == -EACCES) {
+		dasd_schedule_bh(device);
+	} else
+		/* Hmpf, try again in 1/2 sec */
+		dasd_set_timer(device, 50);
 }
 
 /*
@@ -1968,7 +1971,7 @@ int
 dasd_generic_set_offline (struct ccw_device *cdev)
 {
 	struct dasd_device *device;
-	int max_count;
+	int max_count, open_count;
 
 	device = dasd_device_from_cdev(cdev);
 	if (IS_ERR(device))
@@ -1985,10 +1988,16 @@ dasd_generic_set_offline (struct ccw_device *cdev)
 	 * in the other openers.
 	 */
 	max_count = device->bdev ? 0 : -1;
-	if (atomic_read(&device->open_count) > max_count) {
-		printk (KERN_WARNING "Can't offline dasd device with open"
-			" count = %i.\n",
-			atomic_read(&device->open_count));
+	open_count = (int) atomic_read(&device->open_count);
+	if (open_count > max_count) {
+		if (open_count > 0)
+			printk (KERN_WARNING "Can't offline dasd device with "
+				"open count = %i.\n",
+				open_count);
+		else
+			printk (KERN_WARNING "%s",
+				"Can't offline dasd device due to internal "
+				"use\n");
 		clear_bit(DASD_FLAG_OFFLINE, &device->flags);
 		dasd_put_device(device);
 		return -EBUSY;

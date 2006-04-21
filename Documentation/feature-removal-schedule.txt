@@ -25,8 +25,9 @@ Who:	Adrian Bunk <bunk@stusta.de>
 
 ---------------------------
 
-What:	drivers depending on OBSOLETE_OSS_DRIVER
-When:	January 2006
+What:	drivers that were depending on OBSOLETE_OSS_DRIVER
+        (config options already removed)
+When:	before 2.6.19
 Why:	OSS drivers with ALSA replacements
 Who:	Adrian Bunk <bunk@stusta.de>
 
@@ -68,14 +69,6 @@ Why:	V4L1 AP1 was replaced by V4L2 API. during migration from 2.4 to 2.6
 	communicate with video decoders. This should also be improved to allow
 	V4L2 calls being translated into compatible internal ioctls.
 Who:	Mauro Carvalho Chehab <mchehab@brturbo.com.br>
-
----------------------------
-
-What:	remove EXPORT_SYMBOL(panic_timeout)
-When:	April 2006
-Files:	kernel/panic.c
-Why:	No modular usage in the kernel.
-Who:	Adrian Bunk <bunk@stusta.de>
 
 ---------------------------
 

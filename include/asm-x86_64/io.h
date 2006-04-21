@@ -177,7 +177,7 @@ static inline __u16 __readw(const volatile void __iomem *addr)
 {
 	return *(__force volatile __u16 *)addr;
 }
-static inline __u32 __readl(const volatile void __iomem *addr)
+static __always_inline __u32 __readl(const volatile void __iomem *addr)
 {
 	return *(__force volatile __u32 *)addr;
 }

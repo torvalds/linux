@@ -146,6 +146,7 @@ struct mthca_dev_lim {
 	int max_vl;
 	int num_ports;
 	int max_gids;
+	u16 stat_rate_support;
 	int max_pkeys;
 	u32 flags;
 	int reserved_uars;

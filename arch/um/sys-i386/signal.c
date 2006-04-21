@@ -57,7 +57,7 @@ static int copy_sc_from_user_skas(struct pt_regs *regs,
 	return(0);
 }
 
-int copy_sc_to_user_skas(struct sigcontext *to, struct _fpstate __user *to_fp,
+int copy_sc_to_user_skas(struct sigcontext __user *to, struct _fpstate __user *to_fp,
                          struct pt_regs *regs, unsigned long sp)
 {
   	struct sigcontext sc;
@@ -132,7 +132,7 @@ int copy_sc_from_user_tt(struct sigcontext *to, struct sigcontext __user *from,
 	return(err);
 }
 
-int copy_sc_to_user_tt(struct sigcontext *to, struct _fpstate __user *fp,
+int copy_sc_to_user_tt(struct sigcontext __user *to, struct _fpstate __user *fp,
 		       struct sigcontext *from, int fpsize, unsigned long sp)
 {
 	struct _fpstate __user *to_fp;
@@ -147,7 +147,7 @@ int copy_sc_to_user_tt(struct sigcontext *to, struct _fpstate __user *fp,
 	 * delivery.  The sp passed in is the original, and this needs
 	 * to be restored, so we stick it in separately.
 	 */
-	err |= copy_to_user(&SC_SP(to), sp, sizeof(sp));
+	err |= copy_to_user(&SC_SP(to), &sp, sizeof(sp));
 
 	if(from_fp != NULL){
 		err |= copy_to_user(&to->fpstate, &to_fp, sizeof(to->fpstate));
@@ -167,7 +167,7 @@ static int copy_sc_from_user(struct pt_regs *to, void __user *from)
 	return(ret);
 }
 
-static int copy_sc_to_user(struct sigcontext *to, struct _fpstate __user *fp,
+static int copy_sc_to_user(struct sigcontext __user *to, struct _fpstate __user *fp,
 			   struct pt_regs *from, unsigned long sp)
 {
 	return(CHOOSE_MODE(copy_sc_to_user_tt(to, fp, UPT_SC(&from->regs),

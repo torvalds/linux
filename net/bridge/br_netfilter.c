@@ -765,6 +765,15 @@ out:
 	return NF_STOLEN;
 }
 
+static int br_nf_dev_queue_xmit(struct sk_buff *skb)
+{
+	if (skb->protocol == htons(ETH_P_IP) &&
+	    skb->len > skb->dev->mtu &&
+	    !(skb_shinfo(skb)->ufo_size || skb_shinfo(skb)->tso_size))
+		return ip_fragment(skb, br_dev_queue_push_xmit);
+	else
+		return br_dev_queue_push_xmit(skb);
+}
 
 /* PF_BRIDGE/POST_ROUTING ********************************************/
 static unsigned int br_nf_post_routing(unsigned int hook, struct sk_buff **pskb,
@@ -824,7 +833,7 @@ static unsigned int br_nf_post_routing(unsigned int hook, struct sk_buff **pskb,
 		realoutdev = nf_bridge->netoutdev;
 #endif
 	NF_HOOK(pf, NF_IP_POST_ROUTING, skb, NULL, realoutdev,
-		br_dev_queue_push_xmit);
+		br_nf_dev_queue_xmit);
 
 	return NF_STOLEN;
 
@@ -869,7 +878,7 @@ static unsigned int ip_sabotage_out(unsigned int hook, struct sk_buff **pskb,
 
 	if ((out->hard_start_xmit == br_dev_xmit &&
 	     okfn != br_nf_forward_finish &&
-	     okfn != br_nf_local_out_finish && okfn != br_dev_queue_push_xmit)
+	     okfn != br_nf_local_out_finish && okfn != br_nf_dev_queue_xmit)
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
 	    || ((out->priv_flags & IFF_802_1Q_VLAN) &&
 		VLAN_DEV_INFO(out)->real_dev->hard_start_xmit == br_dev_xmit)

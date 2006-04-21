@@ -26,22 +26,7 @@
  * the cache line size of the I and D cache
  */
 #define DCACHELINESIZE	32
-#define FLUSH_OFFSET	32768
 
-	.macro flush_110_dcache	rd, ra, re
-	ldr	\rd, =flush_base
-	ldr	\ra, [\rd]
-	eor	\ra, \ra, #FLUSH_OFFSET
-	str	\ra, [\rd]
-	add	\re, \ra, #16384		@ only necessary for 16k
-1001:	ldr	\rd, [\ra], #DCACHELINESIZE
-	teq	\re, \ra
-	bne	1001b
-	.endm
-
-	.data
-flush_base:
-	.long	FLUSH_BASE
 	.text
 
 /*
@@ -145,13 +130,11 @@ ENTRY(cpu_sa110_dcache_clean_area)
  */
 	.align	5
 ENTRY(cpu_sa110_switch_mm)
-	flush_110_dcache	r3, ip, r1
-	mov	r1, #0
-	mcr	p15, 0, r1, c7, c5, 0		@ invalidate I cache
-	mcr	p15, 0, r1, c7, c10, 4		@ drain WB
+	str	lr, [sp, #-4]!
+	bl	v4wb_flush_kern_cache_all	@ clears IP
 	mcr	p15, 0, r0, c2, c0, 0		@ load page table pointer
-	mcr	p15, 0, r1, c8, c7, 0		@ invalidate I & D TLBs
-	mov	pc, lr
+	mcr	p15, 0, ip, c8, c7, 0		@ invalidate I & D TLBs
+	ldr	pc, [sp], #4
 
 /*
  * cpu_sa110_set_pte(ptep, pte)

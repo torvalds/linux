@@ -19,9 +19,9 @@ TABLE OF CONTENTS
 	[2-1-1] Overview
 	[2-1-2] Flow of scmds through EH
 	[2-1-3] Flow of control
-    [2-2] EH through hostt->eh_strategy_handler()
-	[2-2-1] Pre hostt->eh_strategy_handler() SCSI midlayer conditions
-	[2-2-2] Post hostt->eh_strategy_handler() SCSI midlayer conditions
+    [2-2] EH through transportt->eh_strategy_handler()
+	[2-2-1] Pre transportt->eh_strategy_handler() SCSI midlayer conditions
+	[2-2-2] Post transportt->eh_strategy_handler() SCSI midlayer conditions
 	[2-2-3] Things to consider
 
 
@@ -413,9 +413,9 @@ scmd->allowed.
 	    layer of failure of the scmds.
 
 
-[2-2] EH through hostt->eh_strategy_handler()
+[2-2] EH through transportt->eh_strategy_handler()
 
- hostt->eh_strategy_handler() is invoked in the place of
+ transportt->eh_strategy_handler() is invoked in the place of
 scsi_unjam_host() and it is responsible for whole recovery process.
 On completion, the handler should have made lower layers forget about
 all failed scmds and either ready for new commands or offline.  Also,
@@ -424,7 +424,7 @@ SCSI midlayer.  IOW, of the steps described in [2-1-2], all steps
 except for #1 must be implemented by eh_strategy_handler().
 
 
-[2-2-1] Pre hostt->eh_strategy_handler() SCSI midlayer conditions
+[2-2-1] Pre transportt->eh_strategy_handler() SCSI midlayer conditions
 
  The following conditions are true on entry to the handler.
 
@@ -437,7 +437,7 @@ except for #1 must be implemented by eh_strategy_handler().
  - shost->host_failed == shost->host_busy
 
 
-[2-2-2] Post hostt->eh_strategy_handler() SCSI midlayer conditions
+[2-2-2] Post transportt->eh_strategy_handler() SCSI midlayer conditions
 
  The following conditions must be true on exit from the handler.
 

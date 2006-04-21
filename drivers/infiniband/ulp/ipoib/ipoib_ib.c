@@ -161,7 +161,7 @@ static int ipoib_ib_post_receives(struct net_device *dev)
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	int i;
 
-	for (i = 0; i < IPOIB_RX_RING_SIZE; ++i) {
+	for (i = 0; i < ipoib_recvq_size; ++i) {
 		if (ipoib_alloc_rx_skb(dev, i)) {
 			ipoib_warn(priv, "failed to allocate receive buffer %d\n", i);
 			return -ENOMEM;
@@ -187,7 +187,7 @@ static void ipoib_ib_handle_wc(struct net_device *dev,
 	if (wr_id & IPOIB_OP_RECV) {
 		wr_id &= ~IPOIB_OP_RECV;
 
-		if (wr_id < IPOIB_RX_RING_SIZE) {
+		if (wr_id < ipoib_recvq_size) {
 			struct sk_buff *skb  = priv->rx_ring[wr_id].skb;
 			dma_addr_t      addr = priv->rx_ring[wr_id].mapping;
 
@@ -252,9 +252,9 @@ static void ipoib_ib_handle_wc(struct net_device *dev,
 		struct ipoib_tx_buf *tx_req;
 		unsigned long flags;
 
-		if (wr_id >= IPOIB_TX_RING_SIZE) {
+		if (wr_id >= ipoib_sendq_size) {
 			ipoib_warn(priv, "completion event with wrid %d (> %d)\n",
-				   wr_id, IPOIB_TX_RING_SIZE);
+				   wr_id, ipoib_sendq_size);
 			return;
 		}
 
@@ -275,7 +275,7 @@ static void ipoib_ib_handle_wc(struct net_device *dev,
 		spin_lock_irqsave(&priv->tx_lock, flags);
 		++priv->tx_tail;
 		if (netif_queue_stopped(dev) &&
-		    priv->tx_head - priv->tx_tail <= IPOIB_TX_RING_SIZE / 2)
+		    priv->tx_head - priv->tx_tail <= ipoib_sendq_size >> 1)
 			netif_wake_queue(dev);
 		spin_unlock_irqrestore(&priv->tx_lock, flags);
 
@@ -344,13 +344,13 @@ void ipoib_send(struct net_device *dev, struct sk_buff *skb,
 	 * means we have to make sure everything is properly recorded and
 	 * our state is consistent before we call post_send().
 	 */
-	tx_req = &priv->tx_ring[priv->tx_head & (IPOIB_TX_RING_SIZE - 1)];
+	tx_req = &priv->tx_ring[priv->tx_head & (ipoib_sendq_size - 1)];
 	tx_req->skb = skb;
 	addr = dma_map_single(priv->ca->dma_device, skb->data, skb->len,
 			      DMA_TO_DEVICE);
 	pci_unmap_addr_set(tx_req, mapping, addr);
 
-	if (unlikely(post_send(priv, priv->tx_head & (IPOIB_TX_RING_SIZE - 1),
+	if (unlikely(post_send(priv, priv->tx_head & (ipoib_sendq_size - 1),
 			       address->ah, qpn, addr, skb->len))) {
 		ipoib_warn(priv, "post_send failed\n");
 		++priv->stats.tx_errors;
@@ -363,7 +363,7 @@ void ipoib_send(struct net_device *dev, struct sk_buff *skb,
 		address->last_send = priv->tx_head;
 		++priv->tx_head;
 
-		if (priv->tx_head - priv->tx_tail == IPOIB_TX_RING_SIZE) {
+		if (priv->tx_head - priv->tx_tail == ipoib_sendq_size) {
 			ipoib_dbg(priv, "TX ring full, stopping kernel net queue\n");
 			netif_stop_queue(dev);
 		}
@@ -488,7 +488,7 @@ static int recvs_pending(struct net_device *dev)
 	int pending = 0;
 	int i;
 
-	for (i = 0; i < IPOIB_RX_RING_SIZE; ++i)
+	for (i = 0; i < ipoib_recvq_size; ++i)
 		if (priv->rx_ring[i].skb)
 			++pending;
 
@@ -527,7 +527,7 @@ int ipoib_ib_dev_stop(struct net_device *dev)
 			 */
 			while ((int) priv->tx_tail - (int) priv->tx_head < 0) {
 				tx_req = &priv->tx_ring[priv->tx_tail &
-							(IPOIB_TX_RING_SIZE - 1)];
+							(ipoib_sendq_size - 1)];
 				dma_unmap_single(priv->ca->dma_device,
 						 pci_unmap_addr(tx_req, mapping),
 						 tx_req->skb->len,
@@ -536,7 +536,7 @@ int ipoib_ib_dev_stop(struct net_device *dev)
 				++priv->tx_tail;
 			}
 
-			for (i = 0; i < IPOIB_RX_RING_SIZE; ++i)
+			for (i = 0; i < ipoib_recvq_size; ++i)
 				if (priv->rx_ring[i].skb) {
 					dma_unmap_single(priv->ca->dma_device,
 							 pci_unmap_addr(&priv->rx_ring[i],

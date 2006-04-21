@@ -26,14 +26,6 @@
 #include <asm/arch/gpio.h>
 #include <asm/arch/menelaus.h>
 
-
-void omap_nop_release(struct device *dev)
-{
-        /* Nothing */
-}
-
-/*-------------------------------------------------------------------------*/
-
 #if 	defined(CONFIG_I2C_OMAP) || defined(CONFIG_I2C_OMAP_MODULE)
 
 #define	OMAP1_I2C_BASE		0xfffb3800
@@ -59,9 +51,6 @@ static struct resource i2c_resources1[] = {
 static struct platform_device omap_i2c_device1 = {
         .name           = "i2c_omap",
         .id             = 1,
-        .dev = {
-                .release        = omap_nop_release,
-        },
 	.num_resources	= ARRAY_SIZE(i2c_resources1),
 	.resource	= i2c_resources1,
 };
@@ -187,7 +176,6 @@ static struct platform_device mmc_omap_device1 = {
 	.name		= "mmci-omap",
 	.id		= 1,
 	.dev = {
-		.release	= omap_nop_release,
 		.dma_mask	= &mmc1_dmamask,
 		.platform_data	= &mmc1_conf,
 	},
@@ -217,7 +205,6 @@ static struct platform_device mmc_omap_device2 = {
 	.name		= "mmci-omap",
 	.id		= 2,
 	.dev = {
-		.release	= omap_nop_release,
 		.dma_mask	= &mmc2_dmamask,
 		.platform_data	= &mmc2_conf,
 	},
@@ -321,9 +308,6 @@ static struct resource uwire_resources[] = {
 static struct platform_device omap_uwire_device = {
 	.name	   = "omap_uwire",
 	.id	     = -1,
-	.dev = {
-		.release	= omap_nop_release,
-	},
 	.num_resources	= ARRAY_SIZE(uwire_resources),
 	.resource	= uwire_resources,
 };
@@ -365,9 +349,6 @@ static struct resource wdt_resources[] = {
 static struct platform_device omap_wdt_device = {
 	.name	   = "omap_wdt",
 	.id	     = -1,
-	.dev = {
-		.release	= omap_nop_release,
-	},
 	.num_resources	= ARRAY_SIZE(wdt_resources),
 	.resource	= wdt_resources,
 };
@@ -401,9 +382,6 @@ static struct resource rng_resources[] = {
 static struct platform_device omap_rng_device = {
 	.name	   = "omap_rng",
 	.id	     = -1,
-	.dev = {
-		.release	= omap_nop_release,
-	},
 	.num_resources	= ARRAY_SIZE(rng_resources),
 	.resource	= rng_resources,
 };

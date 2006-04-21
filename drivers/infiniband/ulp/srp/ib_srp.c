@@ -617,6 +617,14 @@ static void srp_unmap_data(struct scsi_cmnd *scmnd,
 		     scmnd->sc_data_direction);
 }
 
+static void srp_remove_req(struct srp_target_port *target, struct srp_request *req,
+			   int index)
+{
+	list_del(&req->list);
+	req->next = target->req_head;
+	target->req_head = index;
+}
+
 static void srp_process_rsp(struct srp_target_port *target, struct srp_rsp *rsp)
 {
 	struct srp_request *req;
@@ -664,9 +672,7 @@ static void srp_process_rsp(struct srp_target_port *target, struct srp_rsp *rsp)
 			scmnd->host_scribble = (void *) -1L;
 			scmnd->scsi_done(scmnd);
 
-			list_del(&req->list);
-			req->next = target->req_head;
-			target->req_head = rsp->tag & ~SRP_TAG_TSK_MGMT;
+			srp_remove_req(target, req, rsp->tag & ~SRP_TAG_TSK_MGMT);
 		} else
 			req->cmd_done = 1;
 	}
@@ -1188,12 +1194,10 @@ static int srp_send_tsk_mgmt(struct scsi_cmnd *scmnd, u8 func)
 	spin_lock_irq(target->scsi_host->host_lock);
 
 	if (req->cmd_done) {
-		list_del(&req->list);
-		req->next = target->req_head;
-		target->req_head = req_index;
-
+		srp_remove_req(target, req, req_index);
 		scmnd->scsi_done(scmnd);
 	} else if (!req->tsk_status) {
+		srp_remove_req(target, req, req_index);
 		scmnd->result = DID_ABORT << 16;
 		ret = SUCCESS;
 	}
@@ -1434,6 +1438,7 @@ static int srp_parse_options(const char *buf, struct srp_target_port *target)
 			p = match_strdup(args);
 			if (strlen(p) != 32) {
 				printk(KERN_WARNING PFX "bad dest GID parameter '%s'\n", p);
+				kfree(p);
 				goto out;
 			}
 
