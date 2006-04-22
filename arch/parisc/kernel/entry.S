@@ -1638,7 +1638,7 @@ dbit_trap_20w:
 	load32		PA(pa_dbit_lock),t0
 
 dbit_spin_20w:
-	ldcw            0(t0),t1
+	LDCW		0(t0),t1
 	cmpib,=         0,t1,dbit_spin_20w
 	nop
 
@@ -1674,7 +1674,7 @@ dbit_trap_11:
 	load32		PA(pa_dbit_lock),t0
 
 dbit_spin_11:
-	ldcw            0(t0),t1
+	LDCW		0(t0),t1
 	cmpib,=         0,t1,dbit_spin_11
 	nop
 
@@ -1714,7 +1714,7 @@ dbit_trap_20:
 	load32		PA(pa_dbit_lock),t0
 
 dbit_spin_20:
-	ldcw            0(t0),t1
+	LDCW		0(t0),t1
 	cmpib,=         0,t1,dbit_spin_20
 	nop
 

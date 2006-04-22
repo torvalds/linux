@@ -541,7 +541,7 @@ cas_nocontend:
 # endif
 /* ENABLE_LWS_DEBUG */
 
-	ldcw	0(%sr2,%r20), %r28			/* Try to acquire the lock */
+	LDCW	0(%sr2,%r20), %r28			/* Try to acquire the lock */
 	cmpb,<>,n	%r0, %r28, cas_action		/* Did we get it? */
 cas_wouldblock:
 	ldo	2(%r0), %r28				/* 2nd case */
