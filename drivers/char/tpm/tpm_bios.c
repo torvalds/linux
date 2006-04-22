@@ -306,6 +306,7 @@ static int tpm_binary_bios_measurements_show(struct seq_file *m, void *v)
 	/* 5th: delimiter */
 	seq_putc(m, '\0');
 
+	kfree(eventname);
 	return 0;
 }
 
@@ -353,6 +354,7 @@ static int tpm_ascii_bios_measurements_show(struct seq_file *m, void *v)
 	/* 4th: eventname <= max + \'0' delimiter */
 	seq_printf(m, " %s\n", eventname);
 
+	kfree(eventname);
 	return 0;
 }
 
