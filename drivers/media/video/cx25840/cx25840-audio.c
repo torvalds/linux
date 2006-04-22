@@ -31,7 +31,8 @@ static int set_audclk_freq(struct i2c_client *client, u32 freq)
 		return -EINVAL;
 
 	/* assert soft reset */
-	cx25840_and_or(client, 0x810, ~0x1, 0x01);
+	if (!state->is_cx25836)
+		cx25840_and_or(client, 0x810, ~0x1, 0x01);
 
 	/* common for all inputs and rates */
 	/* SA_MCLK_SEL=1, SA_MCLK_DIV=0x10 */
@@ -46,6 +47,9 @@ static int set_audclk_freq(struct i2c_client *client, u32 freq)
 			/* AUX_PLL_FRAC */
 			cx25840_write4(client, 0x110, 0xee39bb01);
 
+			if (state->is_cx25836)
+				break;
+
 			/* src3/4/6_ctl = 0x0801f77f */
 			cx25840_write4(client, 0x900, 0x7ff70108);
 			cx25840_write4(client, 0x904, 0x7ff70108);
@@ -59,6 +63,9 @@ static int set_audclk_freq(struct i2c_client *client, u32 freq)
 			/* AUX_PLL_FRAC */
 			cx25840_write4(client, 0x110, 0xd66bec00);
 
+			if (state->is_cx25836)
+				break;
+
 			/* src3/4/6_ctl = 0x08016d59 */
 			cx25840_write4(client, 0x900, 0x596d0108);
 			cx25840_write4(client, 0x904, 0x596d0108);
@@ -71,6 +78,9 @@ static int set_audclk_freq(struct i2c_client *client, u32 freq)
 
 			/* AUX_PLL_FRAC */
 			cx25840_write4(client, 0x110, 0xe5d69800);
+
+			if (state->is_cx25836)
+				break;
 
 			/* src3/4/6_ctl = 0x08014faa */
 			cx25840_write4(client, 0x900, 0xaa4f0108);
@@ -86,6 +96,9 @@ static int set_audclk_freq(struct i2c_client *client, u32 freq)
 
 			/* AUX_PLL_FRAC */
 			cx25840_write4(client, 0x110, 0x69082a01);
+
+			if (state->is_cx25836)
+				break;
 
 			/* src1_ctl = 0x08010000 */
 			cx25840_write4(client, 0x8f8, 0x00000108);
@@ -106,6 +119,9 @@ static int set_audclk_freq(struct i2c_client *client, u32 freq)
 			/* AUX_PLL_FRAC */
 			cx25840_write4(client, 0x110, 0xd66bec00);
 
+			if (state->is_cx25836)
+				break;
+
 			/* src1_ctl = 0x08010000 */
 			cx25840_write4(client, 0x8f8, 0xcd600108);
 
@@ -122,6 +138,9 @@ static int set_audclk_freq(struct i2c_client *client, u32 freq)
 			/* AUX_PLL_FRAC */
 			cx25840_write4(client, 0x110, 0xe5d69800);
 
+			if (state->is_cx25836)
+				break;
+
 			/* src1_ctl = 0x08010000 */
 			cx25840_write4(client, 0x8f8, 0x00800108);
 
@@ -134,7 +153,8 @@ static int set_audclk_freq(struct i2c_client *client, u32 freq)
 	}
 
 	/* deassert soft reset */
-	cx25840_and_or(client, 0x810, ~0x1, 0x00);
+	if (!state->is_cx25836)
+		cx25840_and_or(client, 0x810, ~0x1, 0x00);
 
 	state->audclk_freq = freq;
 
