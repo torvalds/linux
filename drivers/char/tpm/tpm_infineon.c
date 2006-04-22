@@ -15,6 +15,7 @@
  * License.
  */
 
+#include <linux/init.h>
 #include <linux/pnp.h>
 #include "tpm.h"
 
@@ -520,7 +521,7 @@ static struct pnp_driver tpm_inf_pnp = {
 	},
 	.id_table = tpm_pnp_tbl,
 	.probe = tpm_inf_pnp_probe,
-	.remove = tpm_inf_pnp_remove,
+	.remove = __devexit_p(tpm_inf_pnp_remove),
 };
 
 static int __init init_inf(void)
