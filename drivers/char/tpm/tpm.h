@@ -42,8 +42,18 @@ extern ssize_t tpm_show_pcrs(struct device *, struct device_attribute *attr,
 				char *);
 extern ssize_t tpm_show_caps(struct device *, struct device_attribute *attr,
 				char *);
+extern ssize_t tpm_show_caps_1_2(struct device *, struct device_attribute *attr,
+				char *);
 extern ssize_t tpm_store_cancel(struct device *, struct device_attribute *attr,
 				const char *, size_t);
+extern ssize_t tpm_show_enabled(struct device *, struct device_attribute *attr,
+				char *);
+extern ssize_t tpm_show_active(struct device *, struct device_attribute *attr,
+				char *);
+extern ssize_t tpm_show_owned(struct device *, struct device_attribute *attr,
+				char *);
+extern ssize_t tpm_show_temp_deactivated(struct device *,
+					 struct device_attribute *attr, char *);
 
 struct tpm_chip;
 
@@ -63,6 +73,7 @@ struct tpm_vendor_specific {
 	u8 (*status) (struct tpm_chip *);
 	struct miscdevice miscdev;
 	struct attribute_group *attr_group;
+	u32 timeout_a, timeout_b, timeout_c, timeout_d;
 	u32 duration[3];
 };
 
@@ -101,6 +112,9 @@ static inline void tpm_write_index(int base, int index, int value)
 	outb(value & 0xFF, base+1);
 }
 
+extern void tpm_get_timeouts(struct tpm_chip *);
+extern void tpm_gen_interrupt(struct tpm_chip *);
+extern void tpm_continue_selftest(struct tpm_chip *);
 extern unsigned long tpm_calc_ordinal_duration(struct tpm_chip *, u32);
 extern struct tpm_chip* tpm_register_hardware(struct device *,
 				 const struct tpm_vendor_specific *);
