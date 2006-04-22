@@ -32,7 +32,6 @@ enum tpm_const {
 	TPM_MINOR = 224,	/* officially assigned */
 	TPM_BUFSIZE = 2048,
 	TPM_NUM_DEVICES = 256,
-	TPM_NUM_MASK_ENTRIES = TPM_NUM_DEVICES / (8 * sizeof(int))
 };
 
 enum tpm_duration {
@@ -48,7 +47,7 @@ enum tpm_duration {
 
 static LIST_HEAD(tpm_chip_list);
 static DEFINE_SPINLOCK(driver_lock);
-static int dev_mask[TPM_NUM_MASK_ENTRIES];
+static DECLARE_BITMAP(dev_mask, TPM_NUM_DEVICES);
 
 /*
  * Array with one entry per ordinal defining the maximum amount
@@ -1038,8 +1037,7 @@ void tpm_remove_hardware(struct device *dev)
 	sysfs_remove_group(&dev->kobj, chip->vendor.attr_group);
 	tpm_bios_log_teardown(chip->bios_dir);
 
-	dev_mask[chip->dev_num / TPM_NUM_MASK_ENTRIES] &=
-	    ~(1 << (chip->dev_num % TPM_NUM_MASK_ENTRIES));
+	clear_bit(chip->dev_num, dev_mask);
 
 	kfree(chip);
 
@@ -1097,7 +1095,6 @@ struct tpm_chip *tpm_register_hardware(struct device *dev, const struct tpm_vend
 
 	char *devname;
 	struct tpm_chip *chip;
-	int i, j;
 
 	/* Driver specific per-device data */
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
@@ -1116,19 +1113,9 @@ struct tpm_chip *tpm_register_hardware(struct device *dev, const struct tpm_vend
 
 	memcpy(&chip->vendor, entry, sizeof(struct tpm_vendor_specific));
 
-	chip->dev_num = -1;
+	chip->dev_num = find_first_zero_bit(dev_mask, TPM_NUM_DEVICES);
 
-	for (i = 0; i < TPM_NUM_MASK_ENTRIES; i++)
-		for (j = 0; j < 8 * sizeof(int); j++)
-			if ((dev_mask[i] & (1 << j)) == 0) {
-				chip->dev_num =
-				    i * TPM_NUM_MASK_ENTRIES + j;
-				dev_mask[i] |= 1 << j;
-				goto dev_num_search_complete;
-			}
-
-dev_num_search_complete:
-	if (chip->dev_num < 0) {
+	if (chip->dev_num >= TPM_NUM_DEVICES) {
 		dev_err(dev, "No available tpm device numbers\n");
 		kfree(chip);
 		return NULL;
@@ -1136,6 +1123,8 @@ dev_num_search_complete:
 		chip->vendor.miscdev.minor = TPM_MINOR;
 	else
 		chip->vendor.miscdev.minor = MISC_DYNAMIC_MINOR;
+
+	set_bit(chip->dev_num, dev_mask);
 
 	devname = kmalloc(DEVNAME_SIZE, GFP_KERNEL);
 	scnprintf(devname, DEVNAME_SIZE, "%s%d", "tpm", chip->dev_num);
@@ -1150,8 +1139,8 @@ dev_num_search_complete:
 			chip->vendor.miscdev.name,
 			chip->vendor.miscdev.minor);
 		put_device(dev);
+		clear_bit(chip->dev_num, dev_mask);
 		kfree(chip);
-		dev_mask[i] &= !(1 << j);
 		return NULL;
 	}
 
