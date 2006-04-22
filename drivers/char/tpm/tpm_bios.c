@@ -29,6 +29,11 @@
 #define MAX_TEXT_EVENT		1000	/* Max event string length */
 #define ACPI_TCPA_SIG		"TCPA"	/* 0x41504354 /'TCPA' */
 
+enum bios_platform_class {
+	BIOS_CLIENT = 0x00,
+	BIOS_SERVER = 0x01,
+};
+
 struct tpm_bios_log {
 	void *bios_event_log;
 	void *bios_event_log_end;
@@ -36,9 +41,18 @@ struct tpm_bios_log {
 
 struct acpi_tcpa {
 	struct acpi_table_header hdr;
-	u16 reserved;
-	u32 log_max_len __attribute__ ((packed));
-	u32 log_start_addr __attribute__ ((packed));
+	u16 platform_class;
+	union {
+		struct client_hdr {
+			u32 log_max_len __attribute__ ((packed));
+			u64 log_start_addr __attribute__ ((packed));
+		} client;
+		struct server_hdr {
+			u16 reserved;
+			u64 log_max_len __attribute__ ((packed));
+			u64 log_start_addr __attribute__ ((packed));
+		} server;
+	};
 };
 
 struct tcpa_event {
@@ -379,6 +393,7 @@ static int read_log(struct tpm_bios_log *log)
 	struct acpi_tcpa *buff;
 	acpi_status status;
 	struct acpi_table_header *virt;
+	u64 len, start;
 
 	if (log->bios_event_log != NULL) {
 		printk(KERN_ERR
@@ -399,27 +414,37 @@ static int read_log(struct tpm_bios_log *log)
 		return -EIO;
 	}
 
-	if (buff->log_max_len == 0) {
+	switch(buff->platform_class) {
+	case BIOS_SERVER:
+		len = buff->server.log_max_len;
+		start = buff->server.log_start_addr;
+		break;
+	case BIOS_CLIENT:
+	default:
+		len = buff->client.log_max_len;
+		start = buff->client.log_start_addr;
+		break;
+	}
+	if (!len) {
 		printk(KERN_ERR "%s: ERROR - TCPA log area empty\n", __func__);
 		return -EIO;
 	}
 
 	/* malloc EventLog space */
-	log->bios_event_log = kmalloc(buff->log_max_len, GFP_KERNEL);
+	log->bios_event_log = kmalloc(len, GFP_KERNEL);
 	if (!log->bios_event_log) {
-		printk
-		    ("%s: ERROR - Not enough  Memory for BIOS measurements\n",
-		     __func__);
+		printk("%s: ERROR - Not enough  Memory for BIOS measurements\n",
+			__func__);
 		return -ENOMEM;
 	}
 
-	log->bios_event_log_end = log->bios_event_log + buff->log_max_len;
+	log->bios_event_log_end = log->bios_event_log + len;
 
-	acpi_os_map_memory(buff->log_start_addr, buff->log_max_len, (void *) &virt);
+	acpi_os_map_memory(start, len, (void *) &virt);
 
-	memcpy(log->bios_event_log, virt, buff->log_max_len);
+	memcpy(log->bios_event_log, virt, len);
 
-	acpi_os_unmap_memory(virt, buff->log_max_len);
+	acpi_os_unmap_memory(virt, len);
 	return 0;
 }
 
