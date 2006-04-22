@@ -354,7 +354,7 @@ unsigned long tpm_calc_ordinal_duration(struct tpm_chip *chip,
 						   TPM_PROTECTED_ORDINAL_MASK];
 
 	if (duration_idx != TPM_UNDEFINED)
-		duration = chip->vendor.duration[duration_idx] * HZ / 1000;
+		duration = chip->vendor.duration[duration_idx];
 	if (duration <= 0)
 		return 2 * 60 * HZ;
 	else
@@ -524,19 +524,19 @@ void tpm_get_timeouts(struct tpm_chip *chip)
 	timeout =
 	    be32_to_cpu(*((__be32 *) (data + TPM_GET_CAP_RET_UINT32_1_IDX)));
 	if (timeout)
-		chip->vendor.timeout_a = timeout;
+		chip->vendor.timeout_a = msecs_to_jiffies(timeout);
 	timeout =
 	    be32_to_cpu(*((__be32 *) (data + TPM_GET_CAP_RET_UINT32_2_IDX)));
 	if (timeout)
-		chip->vendor.timeout_b = timeout;
+		chip->vendor.timeout_b = msecs_to_jiffies(timeout);
 	timeout =
 	    be32_to_cpu(*((__be32 *) (data + TPM_GET_CAP_RET_UINT32_3_IDX)));
 	if (timeout)
-		chip->vendor.timeout_c = timeout;
+		chip->vendor.timeout_c = msecs_to_jiffies(timeout);
 	timeout =
 	    be32_to_cpu(*((__be32 *) (data + TPM_GET_CAP_RET_UINT32_4_IDX)));
 	if (timeout)
-		chip->vendor.timeout_d = timeout;
+		chip->vendor.timeout_d = msecs_to_jiffies(timeout);
 
 duration:
 	memcpy(data, tpm_cap, sizeof(tpm_cap));
@@ -553,11 +553,17 @@ duration:
 		return;
 
 	chip->vendor.duration[TPM_SHORT] =
-	    be32_to_cpu(*((__be32 *) (data + TPM_GET_CAP_RET_UINT32_1_IDX)));
+	    msecs_to_jiffies(be32_to_cpu
+			     (*((__be32 *) (data +
+					    TPM_GET_CAP_RET_UINT32_1_IDX))));
 	chip->vendor.duration[TPM_MEDIUM] =
-	    be32_to_cpu(*((__be32 *) (data + TPM_GET_CAP_RET_UINT32_2_IDX)));
+	    msecs_to_jiffies(be32_to_cpu
+			     (*((__be32 *) (data +
+					    TPM_GET_CAP_RET_UINT32_2_IDX))));
 	chip->vendor.duration[TPM_LONG] =
-	    be32_to_cpu(*((__be32 *) (data + TPM_GET_CAP_RET_UINT32_3_IDX)));
+	    msecs_to_jiffies(be32_to_cpu
+			     (*((__be32 *) (data +
+					    TPM_GET_CAP_RET_UINT32_3_IDX))));
 }
 EXPORT_SYMBOL_GPL(tpm_get_timeouts);
 

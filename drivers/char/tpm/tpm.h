@@ -77,8 +77,8 @@ struct tpm_vendor_specific {
 	struct attribute_group *attr_group;
 	struct list_head list;
 	int locality;
-	u32 timeout_a, timeout_b, timeout_c, timeout_d;
-	u32 duration[3];
+	unsigned long timeout_a, timeout_b, timeout_c, timeout_d; /* jiffies */
+	unsigned long duration[3]; /* jiffies */
 
 	wait_queue_head_t read_queue;
 	wait_queue_head_t int_queue;

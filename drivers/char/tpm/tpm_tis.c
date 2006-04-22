@@ -51,6 +51,11 @@ enum tis_int_flags {
 	TPM_INTF_DATA_AVAIL_INT = 0x001,
 };
 
+enum tis_defaults {
+	TIS_SHORT_TIMEOUT = 750, /* ms */
+	TIS_LONG_TIMEOUT = 2000, /* 2 sec */
+};
+
 #define	TPM_ACCESS(l)			(0x0000 | ((l) << 12))
 #define	TPM_INT_ENABLE(l)		(0x0008 | ((l) << 12))
 #define	TPM_INT_VECTOR(l)		(0x000C | ((l) << 12))
@@ -96,19 +101,16 @@ static int request_locality(struct tpm_chip *chip, int l)
 		 chip->vendor.iobase + TPM_ACCESS(l));
 
 	if (chip->vendor.irq) {
-		rc = wait_event_interruptible_timeout(chip->vendor.
-						      int_queue,
+		rc = wait_event_interruptible_timeout(chip->vendor.int_queue,
 						      (check_locality
 						       (chip, l) >= 0),
-						      msecs_to_jiffies
-						      (chip->vendor.
-						       timeout_a));
+						      chip->vendor.timeout_a);
 		if (rc > 0)
 			return l;
 
 	} else {
 		/* wait for burstcount */
-		stop = jiffies + (HZ * chip->vendor.timeout_a / 1000);
+		stop = jiffies + chip->vendor.timeout_a;
 		do {
 			if (check_locality(chip, l) >= 0)
 				return l;
@@ -139,7 +141,7 @@ static int get_burstcount(struct tpm_chip *chip)
 
 	/* wait for burstcount */
 	/* which timeout value, spec has 2 answers (c & d) */
-	stop = jiffies + (HZ * chip->vendor.timeout_d / 1000);
+	stop = jiffies + chip->vendor.timeout_d;
 	do {
 		burstcnt = ioread8(chip->vendor.iobase +
 				   TPM_STS(chip->vendor.locality) + 1);
@@ -153,7 +155,7 @@ static int get_burstcount(struct tpm_chip *chip)
 	return -EBUSY;
 }
 
-static int wait_for_stat(struct tpm_chip *chip, u8 mask, u32 timeout,
+static int wait_for_stat(struct tpm_chip *chip, u8 mask, unsigned long timeout,
 			 wait_queue_head_t *queue)
 {
 	unsigned long stop;
@@ -169,13 +171,11 @@ static int wait_for_stat(struct tpm_chip *chip, u8 mask, u32 timeout,
 		rc = wait_event_interruptible_timeout(*queue,
 						      ((tpm_tis_status
 							(chip) & mask) ==
-						       mask),
-						      msecs_to_jiffies
-						      (timeout));
+						       mask), timeout);
 		if (rc > 0)
 			return 0;
 	} else {
-		stop = jiffies + (HZ * timeout / 1000);
+		stop = jiffies + timeout;
 		do {
 			msleep(TPM_TIMEOUT);
 			status = tpm_tis_status(chip);
@@ -453,10 +453,10 @@ static int __devinit tpm_tis_pnp_init(struct pnp_dev
 	}
 
 	/* Default timeouts */
-	chip->vendor.timeout_a = 750;	/* ms */
-	chip->vendor.timeout_b = 2000;	/* 2 sec */
-	chip->vendor.timeout_c = 750;	/* ms */
-	chip->vendor.timeout_d = 750;	/* ms */
+	chip->vendor.timeout_a = msecs_to_jiffies(TIS_SHORT_TIMEOUT);
+	chip->vendor.timeout_b = msecs_to_jiffies(TIS_LONG_TIMEOUT);
+	chip->vendor.timeout_c = msecs_to_jiffies(TIS_SHORT_TIMEOUT);
+	chip->vendor.timeout_d = msecs_to_jiffies(TIS_SHORT_TIMEOUT);
 
 	dev_info(&pnp_dev->dev,
 		 "1.2 TPM (device-id 0x%X, rev-id %d)\n",
