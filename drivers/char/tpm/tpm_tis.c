@@ -610,7 +610,13 @@ static int tpm_tis_pnp_resume(struct pnp_dev *dev)
 
 static struct pnp_device_id tpm_pnp_tbl[] __devinitdata = {
 	{"PNP0C31", 0},		/* TPM */
-	{"", 0}
+	{"ATM1200", 0},		/* Atmel */
+	{"IFX0102", 0},		/* Infineon */
+	{"BCM0101", 0},		/* Broadcom */
+	{"NSC1200", 0},		/* National */
+	/* Add new here */
+	{"", 0},		/* User Specified */
+	{"", 0}			/* Terminator */
 };
 
 static struct pnp_driver tis_pnp_driver = {
@@ -620,6 +626,11 @@ static struct pnp_driver tis_pnp_driver = {
 	.suspend = tpm_tis_pnp_suspend,
 	.resume = tpm_tis_pnp_resume,
 };
+
+#define TIS_HID_USR_IDX sizeof(tpm_pnp_tbl)/sizeof(struct pnp_device_id) -2
+module_param_string(hid, tpm_pnp_tbl[TIS_HID_USR_IDX].id,
+		    sizeof(tpm_pnp_tbl[TIS_HID_USR_IDX].id), 0444);
+MODULE_PARM_DESC(hid, "Set additional specific HID for this driver to probe");
 
 static int __init init_tis(void)
 {
