@@ -120,6 +120,7 @@ static const char* tcpa_pc_event_id_strings[] = {
 	"S-CRTM Version",
 	"S-CRTM Contents",
 	"S-CRTM POST Contents",
+	"POST Contents",
 };
 
 /* returns pointer to start of pos. entry of tcg log */
