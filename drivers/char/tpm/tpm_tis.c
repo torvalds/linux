@@ -52,6 +52,8 @@ enum tis_int_flags {
 };
 
 enum tis_defaults {
+	TIS_MEM_BASE = 0xFED4000,
+	TIS_MEM_LEN = 0x5000,
 	TIS_SHORT_TIMEOUT = 750, /* ms */
 	TIS_LONG_TIMEOUT = 2000, /* 2 sec */
 };
@@ -436,6 +438,11 @@ static int __devinit tpm_tis_pnp_init(struct pnp_dev
 
 	start = pnp_mem_start(pnp_dev, 0);
 	len = pnp_mem_len(pnp_dev, 0);
+
+	if (!start)
+		start = TIS_MEM_BASE;
+	if (!len)
+		len = TIS_MEM_LEN;
 
 	if (!(chip = tpm_register_hardware(&pnp_dev->dev, &tpm_tis)))
 		return -ENODEV;
