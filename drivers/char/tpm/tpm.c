@@ -544,7 +544,8 @@ EXPORT_SYMBOL_GPL(tpm_pm_resume);
  * upon errant exit from this function specific probe function should call
  * pci_disable_device
  */
-int tpm_register_hardware(struct device *dev, struct tpm_vendor_specific *entry)
+struct tpm_chip *tpm_register_hardware(struct device *dev, const struct tpm_vendor_specific
+				       *entry)
 {
 #define DEVNAME_SIZE 7
 
@@ -555,7 +556,7 @@ int tpm_register_hardware(struct device *dev, struct tpm_vendor_specific *entry)
 	/* Driver specific per-device data */
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL)
-		return -ENOMEM;
+		return NULL;
 
 	init_MUTEX(&chip->buffer_mutex);
 	init_MUTEX(&chip->tpm_mutex);
@@ -584,7 +585,7 @@ dev_num_search_complete:
 	if (chip->dev_num < 0) {
 		dev_err(dev, "No available tpm device numbers\n");
 		kfree(chip);
-		return -ENODEV;
+		return NULL;
 	} else if (chip->dev_num == 0)
 		chip->vendor.miscdev.minor = TPM_MINOR;
 	else
@@ -605,7 +606,7 @@ dev_num_search_complete:
 		put_device(dev);
 		kfree(chip);
 		dev_mask[i] &= !(1 << j);
-		return -ENODEV;
+		return NULL;
 	}
 
 	spin_lock(&driver_lock);
@@ -620,7 +621,7 @@ dev_num_search_complete:
 
 	chip->bios_dir = tpm_bios_log_setup(devname);
 
-	return 0;
+	return chip;
 }
 EXPORT_SYMBOL_GPL(tpm_register_hardware);
 

@@ -48,9 +48,9 @@ extern ssize_t tpm_store_cancel(struct device *, struct device_attribute *attr,
 struct tpm_chip;
 
 struct tpm_vendor_specific {
-	u8 req_complete_mask;
-	u8 req_complete_val;
-	u8 req_canceled;
+	const u8 req_complete_mask;
+	const u8 req_complete_val;
+	const u8 req_canceled;
 	void __iomem *iobase;		/* ioremapped address */
 	unsigned long base;		/* TPM base address */
 
@@ -100,8 +100,8 @@ static inline void tpm_write_index(int base, int index, int value)
 	outb(value & 0xFF, base+1);
 }
 
-extern int tpm_register_hardware(struct device *,
-				 struct tpm_vendor_specific *);
+extern struct tpm_chip* tpm_register_hardware(struct device *,
+				 const struct tpm_vendor_specific *);
 extern int tpm_open(struct inode *, struct file *);
 extern int tpm_release(struct inode *, struct file *);
 extern ssize_t tpm_write(struct file *, const char __user *, size_t,

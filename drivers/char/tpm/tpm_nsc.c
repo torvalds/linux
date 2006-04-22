@@ -250,7 +250,7 @@ static struct attribute * nsc_attrs[] = {
 
 static struct attribute_group nsc_attr_grp = { .attrs = nsc_attrs };
 
-static struct tpm_vendor_specific tpm_nsc = {
+static const struct tpm_vendor_specific tpm_nsc = {
 	.recv = tpm_nsc_recv,
 	.send = tpm_nsc_send,
 	.cancel = tpm_nsc_cancel,
@@ -286,7 +286,8 @@ static int __init init_nsc(void)
 	int rc = 0;
 	int lo, hi;
 	int nscAddrBase = TPM_ADDR;
-
+	struct tpm_chip *chip;
+	unsigned long base;
 
 	/* verify that it is a National part (SID) */
 	if (tpm_read_index(TPM_ADDR, NSC_SID_INDEX) != 0xEF) {
@@ -300,7 +301,7 @@ static int __init init_nsc(void)
 
 	hi = tpm_read_index(nscAddrBase, TPM_NSC_BASE0_HI);
 	lo = tpm_read_index(nscAddrBase, TPM_NSC_BASE0_LO);
-	tpm_nsc.base = (hi<<8) | lo;
+	base = (hi<<8) | lo;
 
 	/* enable the DPM module */
 	tpm_write_index(nscAddrBase, NSC_LDC_INDEX, 0x01);
@@ -320,13 +321,15 @@ static int __init init_nsc(void)
 	if ((rc = platform_device_register(pdev)) < 0)
 		goto err_free_dev;
 
-	if (request_region(tpm_nsc.base, 2, "tpm_nsc0") == NULL ) {
+	if (request_region(base, 2, "tpm_nsc0") == NULL ) {
 		rc = -EBUSY;
 		goto err_unreg_dev;
 	}
 
-	if ((rc = tpm_register_hardware(&pdev->dev, &tpm_nsc)) < 0)
+	if (!(chip = tpm_register_hardware(&pdev->dev, &tpm_nsc))) {
+		rc = -ENODEV;
 		goto err_rel_reg;
+	}
 
 	dev_dbg(&pdev->dev, "NSC TPM detected\n");
 	dev_dbg(&pdev->dev,
@@ -361,10 +364,12 @@ static int __init init_nsc(void)
 		 "NSC TPM revision %d\n",
 		 tpm_read_index(nscAddrBase, 0x27) & 0x1F);
 
+	chip->vendor.base = base;
+
 	return 0;
 
 err_rel_reg:
-	release_region(tpm_nsc.base, 2);
+	release_region(base, 2);
 err_unreg_dev:
 	platform_device_unregister(pdev);
 err_free_dev:

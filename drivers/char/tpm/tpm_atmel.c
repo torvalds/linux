@@ -140,7 +140,7 @@ static struct attribute* atmel_attrs[] = {
 
 static struct attribute_group atmel_attr_grp = { .attrs = atmel_attrs };
 
-static struct tpm_vendor_specific tpm_atmel = {
+static const struct tpm_vendor_specific tpm_atmel = {
 	.recv = tpm_atml_recv,
 	.send = tpm_atml_send,
 	.cancel = tpm_atml_cancel,
@@ -179,18 +179,22 @@ static struct device_driver atml_drv = {
 static int __init init_atmel(void)
 {
 	int rc = 0;
+	void __iomem *iobase = NULL;
+	int have_region, region_size;
+	unsigned long base;
+	struct  tpm_chip *chip;
 
 	driver_register(&atml_drv);
 
-	if ((tpm_atmel.iobase = atmel_get_base_addr(&tpm_atmel)) == NULL) {
+	if ((iobase = atmel_get_base_addr(&base, &region_size)) == NULL) {
 		rc = -ENODEV;
 		goto err_unreg_drv;
 	}
 
-	tpm_atmel.have_region =
+	have_region =
 	    (atmel_request_region
-	     (tpm_atmel.base, tpm_atmel.region_size,
-	      "tpm_atmel0") == NULL) ? 0 : 1;
+	     (tpm_atmel.base, region_size, "tpm_atmel0") == NULL) ? 0 : 1;
+
 
 	if (IS_ERR
 	    (pdev =
@@ -199,17 +203,25 @@ static int __init init_atmel(void)
 		goto err_rel_reg;
 	}
 
-	if ((rc = tpm_register_hardware(&pdev->dev, &tpm_atmel)) < 0)
+	if (!(chip = tpm_register_hardware(&pdev->dev, &tpm_atmel))) {
+		rc = -ENODEV;
 		goto err_unreg_dev;
+	}
+
+	chip->vendor.iobase = iobase;
+	chip->vendor.base = base;
+	chip->vendor.have_region = have_region;
+	chip->vendor.region_size = region_size;
+
 	return 0;
 
 err_unreg_dev:
 	platform_device_unregister(pdev);
 err_rel_reg:
-	atmel_put_base_addr(&tpm_atmel);
-	if (tpm_atmel.have_region)
-		atmel_release_region(tpm_atmel.base,
-				     tpm_atmel.region_size);
+	atmel_put_base_addr(iobase);
+	if (have_region)
+		atmel_release_region(base,
+				     region_size);
 err_unreg_drv:
 	driver_unregister(&atml_drv);
 	return rc;
