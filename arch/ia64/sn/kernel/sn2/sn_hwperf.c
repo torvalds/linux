@@ -493,7 +493,7 @@ static int sn_topology_show(struct seq_file *s, void *d)
 		 * numalink ports
 		 */
 		sz = obj->ports * sizeof(struct sn_hwperf_port_info);
-		if ((ptdata = vmalloc(sz)) == NULL)
+		if ((ptdata = kmalloc(sz, GFP_KERNEL)) == NULL)
 			return -ENOMEM;
 		e = ia64_sn_hwperf_op(sn_hwperf_master_nasid,
 				      SN_HWPERF_ENUM_PORTS, obj->id, sz,
@@ -541,7 +541,7 @@ static int sn_topology_show(struct seq_file *s, void *d)
 				(SN_HWPERF_IS_NL3ROUTER(obj) ||
 				SN_HWPERF_IS_NL3ROUTER(p)) ?  "LLP3" : "LLP4");
 		}
-		vfree(ptdata);
+		kfree(ptdata);
 	}
 
 	return 0;
