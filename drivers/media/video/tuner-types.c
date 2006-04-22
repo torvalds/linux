@@ -1371,7 +1371,7 @@ struct tunertype tuners[] = {
 		.count  = ARRAY_SIZE(tuner_philips_fmd1216me_mk3_params),
 	},
 	[TUNER_LG_TDVS_H062F] = { /* LGINNOTEK ATSC */
-		.name   = "LG TDVS-H062F/TUA6034",
+		.name   = "LG TDVS-H06xF", /* H061F, H062F & H064F */
 		.params = tuner_tua6034_params,
 		.count  = ARRAY_SIZE(tuner_tua6034_params),
 	},
