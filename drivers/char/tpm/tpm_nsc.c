@@ -71,7 +71,7 @@ static int wait_for_stat(struct tpm_chip *chip, u8 mask, u8 val, u8 * data)
 	unsigned long stop;
 
 	/* status immediately available check */
-	*data = inb(chip->vendor->base + NSC_STATUS);
+	*data = inb(chip->vendor.base + NSC_STATUS);
 	if ((*data & mask) == val)
 		return 0;
 
@@ -79,7 +79,7 @@ static int wait_for_stat(struct tpm_chip *chip, u8 mask, u8 val, u8 * data)
 	stop = jiffies + 10 * HZ;
 	do {
 		msleep(TPM_TIMEOUT);
-		*data = inb(chip->vendor->base + 1);
+		*data = inb(chip->vendor.base + 1);
 		if ((*data & mask) == val)
 			return 0;
 	}
@@ -94,9 +94,9 @@ static int nsc_wait_for_ready(struct tpm_chip *chip)
 	unsigned long stop;
 
 	/* status immediately available check */
-	status = inb(chip->vendor->base + NSC_STATUS);
+	status = inb(chip->vendor.base + NSC_STATUS);
 	if (status & NSC_STATUS_OBF)
-		status = inb(chip->vendor->base + NSC_DATA);
+		status = inb(chip->vendor.base + NSC_DATA);
 	if (status & NSC_STATUS_RDY)
 		return 0;
 
@@ -104,9 +104,9 @@ static int nsc_wait_for_ready(struct tpm_chip *chip)
 	stop = jiffies + 100;
 	do {
 		msleep(TPM_TIMEOUT);
-		status = inb(chip->vendor->base + NSC_STATUS);
+		status = inb(chip->vendor.base + NSC_STATUS);
 		if (status & NSC_STATUS_OBF)
-			status = inb(chip->vendor->base + NSC_DATA);
+			status = inb(chip->vendor.base + NSC_DATA);
 		if (status & NSC_STATUS_RDY)
 			return 0;
 	}
@@ -132,7 +132,7 @@ static int tpm_nsc_recv(struct tpm_chip *chip, u8 * buf, size_t count)
 		return -EIO;
 	}
 	if ((data =
-	     inb(chip->vendor->base + NSC_DATA)) != NSC_COMMAND_NORMAL) {
+	     inb(chip->vendor.base + NSC_DATA)) != NSC_COMMAND_NORMAL) {
 		dev_err(chip->dev, "not in normal mode (0x%x)\n",
 			data);
 		return -EIO;
@@ -148,7 +148,7 @@ static int tpm_nsc_recv(struct tpm_chip *chip, u8 * buf, size_t count)
 		}
 		if (data & NSC_STATUS_F0)
 			break;
-		*p = inb(chip->vendor->base + NSC_DATA);
+		*p = inb(chip->vendor.base + NSC_DATA);
 	}
 
 	if ((data & NSC_STATUS_F0) == 0 &&
@@ -156,7 +156,7 @@ static int tpm_nsc_recv(struct tpm_chip *chip, u8 * buf, size_t count)
 		dev_err(chip->dev, "F0 not set\n");
 		return -EIO;
 	}
-	if ((data = inb(chip->vendor->base + NSC_DATA)) != NSC_COMMAND_EOC) {
+	if ((data = inb(chip->vendor.base + NSC_DATA)) != NSC_COMMAND_EOC) {
 		dev_err(chip->dev,
 			"expected end of command(0x%x)\n", data);
 		return -EIO;
@@ -182,7 +182,7 @@ static int tpm_nsc_send(struct tpm_chip *chip, u8 * buf, size_t count)
 	 * fix it. Not sure why this is needed, we followed the flow
 	 * chart in the manual to the letter.
 	 */
-	outb(NSC_COMMAND_CANCEL, chip->vendor->base + NSC_COMMAND);
+	outb(NSC_COMMAND_CANCEL, chip->vendor.base + NSC_COMMAND);
 
 	if (nsc_wait_for_ready(chip) != 0)
 		return -EIO;
@@ -192,7 +192,7 @@ static int tpm_nsc_send(struct tpm_chip *chip, u8 * buf, size_t count)
 		return -EIO;
 	}
 
-	outb(NSC_COMMAND_NORMAL, chip->vendor->base + NSC_COMMAND);
+	outb(NSC_COMMAND_NORMAL, chip->vendor.base + NSC_COMMAND);
 	if (wait_for_stat(chip, NSC_STATUS_IBR, NSC_STATUS_IBR, &data) < 0) {
 		dev_err(chip->dev, "IBR timeout\n");
 		return -EIO;
@@ -204,26 +204,26 @@ static int tpm_nsc_send(struct tpm_chip *chip, u8 * buf, size_t count)
 				"IBF timeout (while writing data)\n");
 			return -EIO;
 		}
-		outb(buf[i], chip->vendor->base + NSC_DATA);
+		outb(buf[i], chip->vendor.base + NSC_DATA);
 	}
 
 	if (wait_for_stat(chip, NSC_STATUS_IBF, 0, &data) < 0) {
 		dev_err(chip->dev, "IBF timeout\n");
 		return -EIO;
 	}
-	outb(NSC_COMMAND_EOC, chip->vendor->base + NSC_COMMAND);
+	outb(NSC_COMMAND_EOC, chip->vendor.base + NSC_COMMAND);
 
 	return count;
 }
 
 static void tpm_nsc_cancel(struct tpm_chip *chip)
 {
-	outb(NSC_COMMAND_CANCEL, chip->vendor->base + NSC_COMMAND);
+	outb(NSC_COMMAND_CANCEL, chip->vendor.base + NSC_COMMAND);
 }
 
 static u8 tpm_nsc_status(struct tpm_chip *chip)
 {
-	return inb(chip->vendor->base + NSC_STATUS);
+	return inb(chip->vendor.base + NSC_STATUS);
 }
 
 static struct file_operations nsc_ops = {
@@ -268,7 +268,7 @@ static void __devexit tpm_nsc_remove(struct device *dev)
 {
 	struct tpm_chip *chip = dev_get_drvdata(dev);
 	if ( chip ) {
-		release_region(chip->vendor->base, 2);
+		release_region(chip->vendor.base, 2);
 		tpm_remove_hardware(chip->dev);
 	}
 }

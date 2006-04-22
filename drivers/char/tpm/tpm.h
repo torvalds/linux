@@ -81,7 +81,7 @@ struct tpm_chip {
 	struct work_struct work;
 	struct semaphore tpm_mutex;	/* tpm is processing */
 
-	struct tpm_vendor_specific *vendor;
+	struct tpm_vendor_specific vendor;
 
 	struct dentry **bios_dir;
 

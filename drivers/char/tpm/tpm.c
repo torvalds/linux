@@ -78,7 +78,7 @@ static ssize_t tpm_transmit(struct tpm_chip *chip, const char *buf,
 
 	down(&chip->tpm_mutex);
 
-	if ((rc = chip->vendor->send(chip, (u8 *) buf, count)) < 0) {
+	if ((rc = chip->vendor.send(chip, (u8 *) buf, count)) < 0) {
 		dev_err(chip->dev,
 			"tpm_transmit: tpm_send: error %zd\n", rc);
 		goto out;
@@ -86,13 +86,12 @@ static ssize_t tpm_transmit(struct tpm_chip *chip, const char *buf,
 
 	stop = jiffies + 2 * 60 * HZ;
 	do {
-		u8 status = chip->vendor->status(chip);
-		if ((status & chip->vendor->req_complete_mask) ==
-		    chip->vendor->req_complete_val) {
+		u8 status = chip->vendor.status(chip);
+		if ((status & chip->vendor.req_complete_mask) ==
+		    chip->vendor.req_complete_val)
 			goto out_recv;
-		}
 
-		if ((status == chip->vendor->req_canceled)) {
+		if ((status == chip->vendor.req_canceled)) {
 			dev_err(chip->dev, "Operation Canceled\n");
 			rc = -ECANCELED;
 			goto out;
@@ -102,14 +101,13 @@ static ssize_t tpm_transmit(struct tpm_chip *chip, const char *buf,
 		rmb();
 	} while (time_before(jiffies, stop));
 
-
-	chip->vendor->cancel(chip);
+	chip->vendor.cancel(chip);
 	dev_err(chip->dev, "Operation Timed out\n");
 	rc = -ETIME;
 	goto out;
 
 out_recv:
-	rc = chip->vendor->recv(chip, (u8 *) buf, bufsiz);
+	rc = chip->vendor.recv(chip, (u8 *) buf, bufsiz);
 	if (rc < 0)
 		dev_err(chip->dev,
 			"tpm_transmit: tpm_recv: error %zd\n", rc);
@@ -340,7 +338,7 @@ ssize_t tpm_store_cancel(struct device *dev, struct device_attribute *attr,
 	if (chip == NULL)
 		return 0;
 
-	chip->vendor->cancel(chip);
+	chip->vendor.cancel(chip);
 	return count;
 }
 EXPORT_SYMBOL_GPL(tpm_store_cancel);
@@ -356,7 +354,7 @@ int tpm_open(struct inode *inode, struct file *file)
 	spin_lock(&driver_lock);
 
 	list_for_each_entry(pos, &tpm_chip_list, list) {
-		if (pos->vendor->miscdev.minor == minor) {
+		if (pos->vendor.miscdev.minor == minor) {
 			chip = pos;
 			break;
 		}
@@ -488,14 +486,14 @@ void tpm_remove_hardware(struct device *dev)
 	spin_unlock(&driver_lock);
 
 	dev_set_drvdata(dev, NULL);
-	misc_deregister(&chip->vendor->miscdev);
-	kfree(chip->vendor->miscdev.name);
+	misc_deregister(&chip->vendor.miscdev);
+	kfree(chip->vendor.miscdev.name);
 
-	sysfs_remove_group(&dev->kobj, chip->vendor->attr_group);
+	sysfs_remove_group(&dev->kobj, chip->vendor.attr_group);
 	tpm_bios_log_teardown(chip->bios_dir);
 
-	dev_mask[chip->dev_num / TPM_NUM_MASK_ENTRIES ] &=
-		~(1 << (chip->dev_num % TPM_NUM_MASK_ENTRIES));
+	dev_mask[chip->dev_num / TPM_NUM_MASK_ENTRIES] &=
+	    ~(1 << (chip->dev_num % TPM_NUM_MASK_ENTRIES));
 
 	kfree(chip);
 
@@ -569,7 +567,7 @@ int tpm_register_hardware(struct device *dev, struct tpm_vendor_specific *entry)
 	chip->user_read_timer.function = user_reader_timeout;
 	chip->user_read_timer.data = (unsigned long) chip;
 
-	chip->vendor = entry;
+	memcpy(&chip->vendor, entry, sizeof(struct tpm_vendor_specific));
 
 	chip->dev_num = -1;
 
@@ -588,22 +586,22 @@ dev_num_search_complete:
 		kfree(chip);
 		return -ENODEV;
 	} else if (chip->dev_num == 0)
-		chip->vendor->miscdev.minor = TPM_MINOR;
+		chip->vendor.miscdev.minor = TPM_MINOR;
 	else
-		chip->vendor->miscdev.minor = MISC_DYNAMIC_MINOR;
+		chip->vendor.miscdev.minor = MISC_DYNAMIC_MINOR;
 
 	devname = kmalloc(DEVNAME_SIZE, GFP_KERNEL);
 	scnprintf(devname, DEVNAME_SIZE, "%s%d", "tpm", chip->dev_num);
-	chip->vendor->miscdev.name = devname;
+	chip->vendor.miscdev.name = devname;
 
-	chip->vendor->miscdev.dev = dev;
+	chip->vendor.miscdev.dev = dev;
 	chip->dev = get_device(dev);
 
-	if (misc_register(&chip->vendor->miscdev)) {
+	if (misc_register(&chip->vendor.miscdev)) {
 		dev_err(chip->dev,
 			"unable to misc_register %s, minor %d\n",
-			chip->vendor->miscdev.name,
-			chip->vendor->miscdev.minor);
+			chip->vendor.miscdev.name,
+			chip->vendor.miscdev.minor);
 		put_device(dev);
 		kfree(chip);
 		dev_mask[i] &= !(1 << j);
@@ -618,7 +616,7 @@ dev_num_search_complete:
 
 	spin_unlock(&driver_lock);
 
-	sysfs_create_group(&dev->kobj, chip->vendor->attr_group);
+	sysfs_create_group(&dev->kobj, chip->vendor.attr_group);
 
 	chip->bios_dir = tpm_bios_log_setup(devname);
 

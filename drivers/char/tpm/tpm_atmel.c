@@ -47,12 +47,12 @@ static int tpm_atml_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 		return -EIO;
 
 	for (i = 0; i < 6; i++) {
-		status = ioread8(chip->vendor->iobase + 1);
+		status = ioread8(chip->vendor.iobase + 1);
 		if ((status & ATML_STATUS_DATA_AVAIL) == 0) {
 			dev_err(chip->dev, "error reading header\n");
 			return -EIO;
 		}
-		*buf++ = ioread8(chip->vendor->iobase);
+		*buf++ = ioread8(chip->vendor.iobase);
 	}
 
 	/* size of the data received */
@@ -63,7 +63,7 @@ static int tpm_atml_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 		dev_err(chip->dev,
 			"Recv size(%d) less than available space\n", size);
 		for (; i < size; i++) {	/* clear the waiting data anyway */
-			status = ioread8(chip->vendor->iobase + 1);
+			status = ioread8(chip->vendor.iobase + 1);
 			if ((status & ATML_STATUS_DATA_AVAIL) == 0) {
 				dev_err(chip->dev, "error reading data\n");
 				return -EIO;
@@ -74,16 +74,16 @@ static int tpm_atml_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 
 	/* read all the data available */
 	for (; i < size; i++) {
-		status = ioread8(chip->vendor->iobase + 1);
+		status = ioread8(chip->vendor.iobase + 1);
 		if ((status & ATML_STATUS_DATA_AVAIL) == 0) {
 			dev_err(chip->dev, "error reading data\n");
 			return -EIO;
 		}
-		*buf++ = ioread8(chip->vendor->iobase);
+		*buf++ = ioread8(chip->vendor.iobase);
 	}
 
 	/* make sure data available is gone */
-	status = ioread8(chip->vendor->iobase + 1);
+	status = ioread8(chip->vendor.iobase + 1);
 
 	if (status & ATML_STATUS_DATA_AVAIL) {
 		dev_err(chip->dev, "data available is stuck\n");
@@ -100,7 +100,7 @@ static int tpm_atml_send(struct tpm_chip *chip, u8 *buf, size_t count)
 	dev_dbg(chip->dev, "tpm_atml_send:\n");
 	for (i = 0; i < count; i++) {
 		dev_dbg(chip->dev, "%d 0x%x(%d)\n",  i, buf[i], buf[i]);
- 		iowrite8(buf[i], chip->vendor->iobase);
+ 		iowrite8(buf[i], chip->vendor.iobase);
 	}
 
 	return count;
@@ -108,12 +108,12 @@ static int tpm_atml_send(struct tpm_chip *chip, u8 *buf, size_t count)
 
 static void tpm_atml_cancel(struct tpm_chip *chip)
 {
-	iowrite8(ATML_STATUS_ABORT, chip->vendor->iobase + 1);
+	iowrite8(ATML_STATUS_ABORT, chip->vendor.iobase + 1);
 }
 
 static u8 tpm_atml_status(struct tpm_chip *chip)
 {
-	return ioread8(chip->vendor->iobase + 1);
+	return ioread8(chip->vendor.iobase + 1);
 }
 
 static struct file_operations atmel_ops = {
@@ -159,10 +159,10 @@ static void atml_plat_remove(void)
 	struct tpm_chip *chip = dev_get_drvdata(&pdev->dev);
 
 	if (chip) {
-		if (chip->vendor->have_region)
-			atmel_release_region(chip->vendor->base,
-					     chip->vendor->region_size);
-		atmel_put_base_addr(chip->vendor);
+		if (chip->vendor.have_region)
+			atmel_release_region(chip->vendor.base,
+					     chip->vendor.region_size);
+		atmel_put_base_addr(chip->vendor.iobase);
 		tpm_remove_hardware(chip->dev);
 		platform_device_unregister(pdev);
 	}
