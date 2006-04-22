@@ -16,6 +16,9 @@
  * published by the Free Software Foundation, version 2 of the
  * License.
  */
+#include <linux/init.h>
+#include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/pnp.h>
 #include <linux/interrupt.h>
 #include <linux/wait.h>
@@ -424,6 +427,10 @@ static irqreturn_t tis_int_handler(int irq, void *dev_id, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
+static int interrupts = 1;
+module_param(interrupts, bool, 0444);
+MODULE_PARM_DESC(interrupts, "Enable interrupts");
+
 static int __devinit tpm_tis_pnp_init(struct pnp_dev *pnp_dev,
 				      const struct pnp_device_id *pnp_id)
 {
@@ -510,44 +517,44 @@ static int __devinit tpm_tis_pnp_init(struct pnp_dev *pnp_dev,
 	iowrite32(intmask,
 		  chip->vendor.iobase +
 		  TPM_INT_ENABLE(chip->vendor.locality));
+	if (interrupts) {
+		chip->vendor.irq =
+		    ioread8(chip->vendor.iobase +
+			    TPM_INT_VECTOR(chip->vendor.locality));
 
-	chip->vendor.irq =
-	    ioread8(chip->vendor.iobase +
-		    TPM_INT_VECTOR(chip->vendor.locality));
+		for (i = 3; i < 16 && chip->vendor.irq == 0; i++) {
+			iowrite8(i, chip->vendor.iobase +
+				    TPM_INT_VECTOR(chip->vendor.locality));
+			if (request_irq
+			    (i, tis_int_probe, SA_SHIRQ,
+			     chip->vendor.miscdev.name, chip) != 0) {
+				dev_info(chip->dev,
+					 "Unable to request irq: %d for probe\n",
+					 i);
+				continue;
+			}
 
-	for (i = 3; i < 16 && chip->vendor.irq == 0; i++) {
-		iowrite8(i,
-			 chip->vendor.iobase +
-			 TPM_INT_VECTOR(chip->vendor.locality));
-		if (request_irq
-		    (i, tis_int_probe, SA_SHIRQ,
-		     chip->vendor.miscdev.name, chip) != 0) {
-			dev_info(chip->dev,
-				 "Unable to request irq: %d for probe\n",
-				 i);
-			continue;
+			/* Clear all existing */
+			iowrite32(ioread32
+				  (chip->vendor.iobase +
+				   TPM_INT_STATUS(chip->vendor.locality)),
+				  chip->vendor.iobase +
+				  TPM_INT_STATUS(chip->vendor.locality));
+
+			/* Turn on */
+			iowrite32(intmask | TPM_GLOBAL_INT_ENABLE,
+				  chip->vendor.iobase +
+				  TPM_INT_ENABLE(chip->vendor.locality));
+
+			/* Generate Interrupts */
+			tpm_gen_interrupt(chip);
+
+			/* Turn off */
+			iowrite32(intmask,
+				  chip->vendor.iobase +
+				  TPM_INT_ENABLE(chip->vendor.locality));
+			free_irq(i, chip);
 		}
-
-		/* Clear all existing */
-		iowrite32(ioread32
-			  (chip->vendor.iobase +
-			   TPM_INT_STATUS(chip->vendor.locality)),
-			  chip->vendor.iobase +
-			  TPM_INT_STATUS(chip->vendor.locality));
-
-		/* Turn on */
-		iowrite32(intmask | TPM_GLOBAL_INT_ENABLE,
-			  chip->vendor.iobase +
-			  TPM_INT_ENABLE(chip->vendor.locality));
-
-		/* Generate Interrupts */
-		tpm_gen_interrupt(chip);
-
-		/* Turn off */
-		iowrite32(intmask,
-			  chip->vendor.iobase +
-			  TPM_INT_ENABLE(chip->vendor.locality));
-		free_irq(i, chip);
 	}
 	if (chip->vendor.irq) {
 		iowrite8(chip->vendor.irq,
@@ -557,7 +564,8 @@ static int __devinit tpm_tis_pnp_init(struct pnp_dev *pnp_dev,
 		    (chip->vendor.irq, tis_int_handler, SA_SHIRQ,
 		     chip->vendor.miscdev.name, chip) != 0) {
 			dev_info(chip->dev,
-				 "Unable to request irq: %d for use\n", i);
+				 "Unable to request irq: %d for use\n",
+				 chip->vendor.irq);
 			chip->vendor.irq = 0;
 		} else {
 			/* Clear all existing */
