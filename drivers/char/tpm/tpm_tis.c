@@ -54,8 +54,8 @@ enum tis_int_flags {
 enum tis_defaults {
 	TIS_MEM_BASE = 0xFED4000,
 	TIS_MEM_LEN = 0x5000,
-	TIS_SHORT_TIMEOUT = 750, /* ms */
-	TIS_LONG_TIMEOUT = 2000, /* 2 sec */
+	TIS_SHORT_TIMEOUT = 750,	/* ms */
+	TIS_LONG_TIMEOUT = 2000,	/* 2 sec */
 };
 
 #define	TPM_ACCESS(l)			(0x0000 | ((l) << 12))
@@ -188,7 +188,7 @@ static int wait_for_stat(struct tpm_chip *chip, u8 mask, unsigned long timeout,
 	return -ETIME;
 }
 
-static int recv_data(struct tpm_chip *chip, u8 * buf, size_t count)
+static int recv_data(struct tpm_chip *chip, u8 *buf, size_t count)
 {
 	int size = 0, burstcnt;
 	while (size < count &&
@@ -206,7 +206,7 @@ static int recv_data(struct tpm_chip *chip, u8 * buf, size_t count)
 	return size;
 }
 
-static int tpm_tis_recv(struct tpm_chip *chip, u8 * buf, size_t count)
+static int tpm_tis_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 {
 	int size = 0;
 	int expected, status;
@@ -257,7 +257,7 @@ out:
  * tpm.c can skip polling for the data to be available as the interrupt is
  * waited for here
  */
-static int tpm_tis_send(struct tpm_chip *chip, u8 * buf, size_t len)
+static int tpm_tis_send(struct tpm_chip *chip, u8 *buf, size_t len)
 {
 	int rc, status, burstcnt;
 	size_t count = 0;
@@ -374,8 +374,7 @@ static struct tpm_vendor_specific tpm_tis = {
 		    .fops = &tis_ops,},
 };
 
-static irqreturn_t tis_int_probe(int irq, void *dev_id, struct pt_regs
-				 *regs)
+static irqreturn_t tis_int_probe(int irq, void *dev_id, struct pt_regs *regs)
 {
 	struct tpm_chip *chip = (struct tpm_chip *) dev_id;
 	u32 interrupt;
@@ -395,8 +394,7 @@ static irqreturn_t tis_int_probe(int irq, void *dev_id, struct pt_regs
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t tis_int_handler(int irq, void *dev_id, struct pt_regs
-				   *regs)
+static irqreturn_t tis_int_handler(int irq, void *dev_id, struct pt_regs *regs)
 {
 	struct tpm_chip *chip = (struct tpm_chip *) dev_id;
 	u32 interrupt;
@@ -426,10 +424,8 @@ static irqreturn_t tis_int_handler(int irq, void *dev_id, struct pt_regs
 	return IRQ_HANDLED;
 }
 
-static int __devinit tpm_tis_pnp_init(struct pnp_dev
-				      *pnp_dev, const struct
-				      pnp_device_id
-				      *pnp_id)
+static int __devinit tpm_tis_pnp_init(struct pnp_dev *pnp_dev,
+				      const struct pnp_device_id *pnp_id)
 {
 	u32 vendor, intfcaps, intmask;
 	int rc, i;
