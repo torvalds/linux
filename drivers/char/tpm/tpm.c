@@ -46,7 +46,7 @@ static void user_reader_timeout(unsigned long ptr)
 	schedule_work(&chip->work);
 }
 
-static void timeout_work(void * ptr)
+static void timeout_work(void *ptr)
 {
 	struct tpm_chip *chip = ptr;
 
@@ -387,7 +387,7 @@ int tpm_release(struct inode *inode, struct file *file)
 EXPORT_SYMBOL_GPL(tpm_release);
 
 ssize_t tpm_write(struct file *file, const char __user *buf,
-		  size_t size, loff_t * off)
+		  size_t size, loff_t *off)
 {
 	struct tpm_chip *chip = file->private_data;
 	int in_size = size, out_size;
@@ -419,11 +419,10 @@ ssize_t tpm_write(struct file *file, const char __user *buf,
 
 	return in_size;
 }
-
 EXPORT_SYMBOL_GPL(tpm_write);
 
-ssize_t tpm_read(struct file * file, char __user *buf,
-		 size_t size, loff_t * off)
+ssize_t tpm_read(struct file *file, char __user *buf,
+		 size_t size, loff_t *off)
 {
 	struct tpm_chip *chip = file->private_data;
 	int ret_size;
