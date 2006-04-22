@@ -904,8 +904,7 @@ static ssize_t cifs_write(struct file *file, const char *write_data,
 				if (rc != 0)
 					break;
 			}
-			/* BB FIXME We can not sign across two buffers yet */
-			if((pTcon->ses->server->secMode & 
+			if(experimEnabled || (pTcon->ses->server->secMode & 
 			 (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED)) == 0) {
 				struct kvec iov[2];
 				unsigned int len;
@@ -921,13 +920,13 @@ static ssize_t cifs_write(struct file *file, const char *write_data,
 						*poffset, &bytes_written,
 						iov, 1, long_op);
 			} else
-			/* BB FIXME fixup indentation of line below */
-			rc = CIFSSMBWrite(xid, pTcon,
-				 open_file->netfid,
-				 min_t(const int, cifs_sb->wsize, 
-				       write_size - total_written),
-				 *poffset, &bytes_written,
-				 write_data + total_written, NULL, long_op);
+				rc = CIFSSMBWrite(xid, pTcon,
+					 open_file->netfid,
+					 min_t(const int, cifs_sb->wsize,
+					       write_size - total_written),
+					 *poffset, &bytes_written,
+					 write_data + total_written,
+					 NULL, long_op);
 		}
 		if (rc || (bytes_written == 0)) {
 			if (total_written)
@@ -965,6 +964,16 @@ struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *cifs_inode)
 {
 	struct cifsFileInfo *open_file;
 	int rc;
+
+	/* Having a null inode here (because mapping->host was set to zero by
+	the VFS or MM) should not happen but we had reports of on oops (due to
+	it being zero) during stress testcases so we need to check for it */
+
+	if(cifs_inode == NULL) {
+		cERROR(1,("Null inode passed to cifs_writeable_file"));
+		dump_stack();
+		return NULL;
+	}
 
 	read_lock(&GlobalSMBSeslock);
 	list_for_each_entry(open_file, &cifs_inode->openFileList, flist) {
@@ -1091,12 +1100,11 @@ static int cifs_writepages(struct address_space *mapping,
 	if (cifs_sb->wsize < PAGE_CACHE_SIZE)
 		return generic_writepages(mapping, wbc);
 
-	/* BB FIXME we do not have code to sign across multiple buffers yet,
-	   so go to older writepage style write which we can sign if needed */
 	if((cifs_sb->tcon->ses) && (cifs_sb->tcon->ses->server))
 		if(cifs_sb->tcon->ses->server->secMode &
                           (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED))
-			return generic_writepages(mapping, wbc);
+			if(!experimEnabled)
+				return generic_writepages(mapping, wbc);
 
 	/*
 	 * BB: Is this meaningful for a non-block-device file system?
