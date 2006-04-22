@@ -390,6 +390,9 @@ static ssize_t tpm_transmit(struct tpm_chip *chip, const char *buf,
 		goto out;
 	}
 
+	if (chip->vendor.irq)
+		goto out_recv;
+
 	stop = jiffies + tpm_calc_ordinal_duration(chip, ordinal);
 	do {
 		u8 status = chip->vendor.status(chip);

@@ -64,6 +64,8 @@ struct tpm_vendor_specific {
 	void __iomem *iobase;		/* ioremapped address */
 	unsigned long base;		/* TPM base address */
 
+	int irq;
+
 	int region_size;
 	int have_region;
 
@@ -73,8 +75,13 @@ struct tpm_vendor_specific {
 	u8 (*status) (struct tpm_chip *);
 	struct miscdevice miscdev;
 	struct attribute_group *attr_group;
+	struct list_head list;
+	int locality;
 	u32 timeout_a, timeout_b, timeout_c, timeout_d;
 	u32 duration[3];
+
+	wait_queue_head_t read_queue;
+	wait_queue_head_t int_queue;
 };
 
 struct tpm_chip {
@@ -99,6 +106,8 @@ struct tpm_chip {
 
 	struct list_head list;
 };
+
+#define to_tpm_chip(n) container_of(n, struct tpm_chip, vendor)
 
 static inline int tpm_read_index(int base, int index)
 {
