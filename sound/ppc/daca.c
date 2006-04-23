@@ -255,7 +255,7 @@ int __init snd_pmac_daca_init(struct snd_pmac *chip)
 
 #ifdef CONFIG_KMOD
 	if (current->fs->root)
-		request_module("i2c-keywest");
+		request_module("i2c-powermac");
 #endif /* CONFIG_KMOD */	
 
 	mix = kmalloc(sizeof(*mix), GFP_KERNEL);
