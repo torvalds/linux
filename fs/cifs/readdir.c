@@ -766,7 +766,7 @@ static int cifs_filldir(char *pfindEntry, struct file *file,
 	if(file->f_dentry == NULL)
 		return -ENOENT;
 
-	rc = cifs_entry_is_dot(pfindEntry,cifsF);
+	rc = cifs_entry_is_dot(pfindEntry,pCifsF);
 	/* skip . and .. since we added them first */
 	if(rc != 0) 
 		return 0;
