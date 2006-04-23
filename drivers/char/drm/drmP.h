@@ -889,7 +889,6 @@ extern int drm_lock_free(drm_device_t * dev,
 				/* Buffer management support (drm_bufs.h) */
 extern int drm_addbufs_agp(drm_device_t * dev, drm_buf_desc_t * request);
 extern int drm_addbufs_pci(drm_device_t * dev, drm_buf_desc_t * request);
-extern int drm_addbufs_fb(drm_device_t *dev, drm_buf_desc_t *request);
 extern int drm_addmap(drm_device_t * dev, unsigned int offset,
 		      unsigned int size, drm_map_type_t type,
 		      drm_map_flags_t flags, drm_local_map_t ** map_ptr);
