@@ -568,7 +568,7 @@ static void snd_hammerfall_free_buffer(struct snd_dma_buffer *dmab, struct pci_d
 }
 
 
-static struct pci_device_id snd_hdsp_ids[] = {
+static struct pci_device_id snd_hdsp_ids[] __devinitdata = {
 	{
 		.vendor = PCI_VENDOR_ID_XILINX,
 		.device = PCI_DEVICE_ID_XILINX_HAMMERFALL_DSP, 

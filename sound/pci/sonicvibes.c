@@ -243,7 +243,7 @@ struct sonicvibes {
 #endif
 };
 
-static struct pci_device_id snd_sonic_ids[] = {
+static struct pci_device_id snd_sonic_ids[] __devinitdata = {
 	{ 0x5333, 0xca00, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, },
         { 0, }
 };

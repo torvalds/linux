@@ -413,7 +413,7 @@ struct intel8x0 {
 	u32 int_sta_mask;		/* interrupt status mask */
 };
 
-static struct pci_device_id snd_intel8x0_ids[] = {
+static struct pci_device_id snd_intel8x0_ids[] __devinitdata = {
 	{ 0x8086, 0x2415, PCI_ANY_ID, PCI_ANY_ID, 0, 0, DEVICE_INTEL },	/* 82801AA */
 	{ 0x8086, 0x2425, PCI_ANY_ID, PCI_ANY_ID, 0, 0, DEVICE_INTEL },	/* 82901AB */
 	{ 0x8086, 0x2445, PCI_ANY_ID, PCI_ANY_ID, 0, 0, DEVICE_INTEL },	/* 82801BA */

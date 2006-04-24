@@ -396,7 +396,7 @@ struct via82xx {
 #endif
 };
 
-static struct pci_device_id snd_via82xx_ids[] = {
+static struct pci_device_id snd_via82xx_ids[] __devinitdata = {
 	/* 0x1106, 0x3058 */
 	{ PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C686_5, PCI_ANY_ID, PCI_ANY_ID, 0, 0, TYPE_CARD_VIA686, },	/* 686A */
 	/* 0x1106, 0x3059 */
