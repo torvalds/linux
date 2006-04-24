@@ -111,7 +111,7 @@ int gfs2_unstuff_dinode(struct gfs2_inode *ip, gfs2_unstuffer_t unstuffer,
 		if (isdir) {
 			block = gfs2_alloc_meta(ip);
 
-			error = gfs2_dir_get_buffer(ip, block, 1, &bh);
+			error = gfs2_dir_get_new_buffer(ip, block, &bh);
 			if (error)
 				goto out_brelse;
 			gfs2_buffer_copy_tail(bh,

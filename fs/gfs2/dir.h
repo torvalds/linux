@@ -41,8 +41,8 @@ int gfs2_dir_exhash_dealloc(struct gfs2_inode *dip);
 
 int gfs2_diradd_alloc_required(struct inode *dir,
 			       const struct qstr *filename);
-int gfs2_dir_get_buffer(struct gfs2_inode *ip, uint64_t block, int new,
-                        struct buffer_head **bhp);
+int gfs2_dir_get_new_buffer(struct gfs2_inode *ip, uint64_t block,
+			    struct buffer_head **bhp);
 
 static inline uint32_t gfs2_disk_hash(const char *data, int len)
 {

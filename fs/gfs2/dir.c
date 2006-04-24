@@ -8,61 +8,59 @@
  */
 
 /*
-* Implements Extendible Hashing as described in:
-*   "Extendible Hashing" by Fagin, et al in
-*     __ACM Trans. on Database Systems__, Sept 1979.
-*
-*
-* Here's the layout of dirents which is essentially the same as that of ext2
-* within a single block. The field de_name_len is the number of bytes
-* actually required for the name (no null terminator). The field de_rec_len
-* is the number of bytes allocated to the dirent. The offset of the next
-* dirent in the block is (dirent + dirent->de_rec_len). When a dirent is
-* deleted, the preceding dirent inherits its allocated space, ie
-* prev->de_rec_len += deleted->de_rec_len. Since the next dirent is obtained
-* by adding de_rec_len to the current dirent, this essentially causes the
-* deleted dirent to get jumped over when iterating through all the dirents.
-*
-* When deleting the first dirent in a block, there is no previous dirent so
-* the field de_ino is set to zero to designate it as deleted. When allocating
-* a dirent, gfs2_dirent_alloc iterates through the dirents in a block. If the
-* first dirent has (de_ino == 0) and de_rec_len is large enough, this first
-* dirent is allocated. Otherwise it must go through all the 'used' dirents
-* searching for one in which the amount of total space minus the amount of
-* used space will provide enough space for the new dirent.
-*
-* There are two types of blocks in which dirents reside. In a stuffed dinode,
-* the dirents begin at offset sizeof(struct gfs2_dinode) from the beginning of
-* the block.  In leaves, they begin at offset sizeof(struct gfs2_leaf) from the
-* beginning of the leaf block. The dirents reside in leaves when
-*
-* dip->i_di.di_flags & GFS2_DIF_EXHASH is true
-*
-* Otherwise, the dirents are "linear", within a single stuffed dinode block.
-*
-* When the dirents are in leaves, the actual contents of the directory file are
-* used as an array of 64-bit block pointers pointing to the leaf blocks. The
-* dirents are NOT in the directory file itself. There can be more than one block
-* pointer in the array that points to the same leaf. In fact, when a directory
-* is first converted from linear to exhash, all of the pointers point to the
-* same leaf.
-*
-* When a leaf is completely full, the size of the hash table can be
-* doubled unless it is already at the maximum size which is hard coded into
-* GFS2_DIR_MAX_DEPTH. After that, leaves are chained together in a linked list,
-* but never before the maximum hash table size has been reached.
-*/
+ * Implements Extendible Hashing as described in:
+ *   "Extendible Hashing" by Fagin, et al in
+ *     __ACM Trans. on Database Systems__, Sept 1979.
+ *
+ *
+ * Here's the layout of dirents which is essentially the same as that of ext2
+ * within a single block. The field de_name_len is the number of bytes
+ * actually required for the name (no null terminator). The field de_rec_len
+ * is the number of bytes allocated to the dirent. The offset of the next
+ * dirent in the block is (dirent + dirent->de_rec_len). When a dirent is
+ * deleted, the preceding dirent inherits its allocated space, ie
+ * prev->de_rec_len += deleted->de_rec_len. Since the next dirent is obtained
+ * by adding de_rec_len to the current dirent, this essentially causes the
+ * deleted dirent to get jumped over when iterating through all the dirents.
+ *
+ * When deleting the first dirent in a block, there is no previous dirent so
+ * the field de_ino is set to zero to designate it as deleted. When allocating
+ * a dirent, gfs2_dirent_alloc iterates through the dirents in a block. If the
+ * first dirent has (de_ino == 0) and de_rec_len is large enough, this first
+ * dirent is allocated. Otherwise it must go through all the 'used' dirents
+ * searching for one in which the amount of total space minus the amount of
+ * used space will provide enough space for the new dirent.
+ *
+ * There are two types of blocks in which dirents reside. In a stuffed dinode,
+ * the dirents begin at offset sizeof(struct gfs2_dinode) from the beginning of
+ * the block.  In leaves, they begin at offset sizeof(struct gfs2_leaf) from the
+ * beginning of the leaf block. The dirents reside in leaves when
+ *
+ * dip->i_di.di_flags & GFS2_DIF_EXHASH is true
+ *
+ * Otherwise, the dirents are "linear", within a single stuffed dinode block.
+ *
+ * When the dirents are in leaves, the actual contents of the directory file are
+ * used as an array of 64-bit block pointers pointing to the leaf blocks. The
+ * dirents are NOT in the directory file itself. There can be more than one
+ * block pointer in the array that points to the same leaf. In fact, when a
+ * directory is first converted from linear to exhash, all of the pointers
+ * point to the same leaf.
+ *
+ * When a leaf is completely full, the size of the hash table can be
+ * doubled unless it is already at the maximum size which is hard coded into
+ * GFS2_DIR_MAX_DEPTH. After that, leaves are chained together in a linked list,
+ * but never before the maximum hash table size has been reached.
+ */
 
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <linux/completion.h>
 #include <linux/buffer_head.h>
 #include <linux/sort.h>
 #include <linux/gfs2_ondisk.h>
 #include <linux/crc32.h>
 #include <linux/vmalloc.h>
-#include <asm/semaphore.h>
 
 #include "gfs2.h"
 #include "lm_interface.h"
@@ -92,33 +90,36 @@ typedef int (*leaf_call_t) (struct gfs2_inode *dip,
 			    uint32_t index, uint32_t len, uint64_t leaf_no,
 			    void *data);
 
-int gfs2_dir_get_buffer(struct gfs2_inode *ip, uint64_t block, int new,
-		         struct buffer_head **bhp)
+
+int gfs2_dir_get_new_buffer(struct gfs2_inode *ip, uint64_t block,
+			    struct buffer_head **bhp)
 {
 	struct buffer_head *bh;
-	int error = 0;
 
-	if (new) {
-		bh = gfs2_meta_new(ip->i_gl, block);
-		gfs2_trans_add_bh(ip->i_gl, bh, 1);
-		gfs2_metatype_set(bh, GFS2_METATYPE_JD, GFS2_FORMAT_JD);
-		gfs2_buffer_clear_tail(bh, sizeof(struct gfs2_meta_header));
-	} else {
-		error = gfs2_meta_read(ip->i_gl, block, DIO_START | DIO_WAIT,
-				       &bh);
-		if (error)
-			return error;
-		if (gfs2_metatype_check(ip->i_sbd, bh, GFS2_METATYPE_JD)) {
-			brelse(bh);
-			return -EIO;
-		}
-	}
-
+	bh = gfs2_meta_new(ip->i_gl, block);
+	gfs2_trans_add_bh(ip->i_gl, bh, 1);
+	gfs2_metatype_set(bh, GFS2_METATYPE_JD, GFS2_FORMAT_JD);
+	gfs2_buffer_clear_tail(bh, sizeof(struct gfs2_meta_header));
 	*bhp = bh;
 	return 0;
 }
 
+static int gfs2_dir_get_existing_buffer(struct gfs2_inode *ip, uint64_t block,
+					struct buffer_head **bhp)
+{
+	struct buffer_head *bh;
+	int error;
 
+	error = gfs2_meta_read(ip->i_gl, block, DIO_START | DIO_WAIT, &bh);
+	if (error)
+		return error;
+	if (gfs2_metatype_check(ip->i_sbd, bh, GFS2_METATYPE_JD)) {
+		brelse(bh);
+		return -EIO;
+	}
+	*bhp = bh;
+	return 0;
+}
 
 static int gfs2_dir_write_stuffed(struct gfs2_inode *ip, const char *buf,
 				  unsigned int offset, unsigned int size)
@@ -205,9 +206,11 @@ static int gfs2_dir_write_data(struct gfs2_inode *ip, const char *buf,
 				goto fail;
 		}
 
-		error = gfs2_dir_get_buffer(ip, dblock,
-					    (amount == sdp->sd_jbsize) ?
-					    1 : new, &bh);
+		if (amount == sdp->sd_jbsize || new)
+			error = gfs2_dir_get_new_buffer(ip, dblock, &bh);
+		else
+			error = gfs2_dir_get_existing_buffer(ip, dblock, &bh);
+
 		if (error)
 			goto fail;
 
@@ -321,7 +324,10 @@ static int gfs2_dir_read_data(struct gfs2_inode *ip, char *buf,
 			gfs2_meta_ra(ip->i_gl, dblock, extlen);
 
 		if (dblock) {
-			error = gfs2_dir_get_buffer(ip, dblock, new, &bh);
+			if (new)
+				error = gfs2_dir_get_new_buffer(ip, dblock, &bh);
+			else
+				error = gfs2_dir_get_existing_buffer(ip, dblock, &bh);
 			if (error)
 				goto fail;
 			dblock++;
