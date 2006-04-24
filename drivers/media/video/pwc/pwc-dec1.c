@@ -1,4 +1,5 @@
-/* (C) 1999-2003 Nemosoft Unv.
+/* Linux driver for Philips webcam
+   Decompression for chipset version 1
    (C) 2004-2006 Luc Saillard (luc@saillard.org)
 
    NOTE: this version of pwc is an unofficial (modified) release of pwc & pcwx
@@ -22,20 +23,28 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-/* This file is the bridge between the kernel module and the plugin; it
-   describes the structures and datatypes used in both modules. Any
-   significant change should be reflected by increasing the
-   pwc_decompressor_version major number.
- */
-#ifndef PWC_UNCOMPRESS_H
-#define PWC_UNCOMPRESS_H
 
-#include <linux/config.h>
 
-#include <media/pwc-ioctl.h>
+#include "pwc-dec1.h"
 
-/* from pwc-dec.h */
-#define PWCX_FLAG_PLANAR        0x0001
-/* */
 
-#endif
+void pwc_dec1_init(int type, int release, void *buffer, void *table)
+{
+
+}
+
+void pwc_dec1_exit(void)
+{
+
+
+
+}
+
+int pwc_dec1_alloc(struct pwc_device *pwc)
+{
+	pwc->decompress_data = kmalloc(sizeof(struct pwc_dec1_private), GFP_KERNEL);
+	if (pwc->decompress_data == NULL)
+		return -ENOMEM;
+	return 0;
+}
+
