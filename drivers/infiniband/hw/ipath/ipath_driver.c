@@ -1959,7 +1959,7 @@ int ipath_reset_device(int unit)
 	}
 
 	if (dd->ipath_pd)
-		for (i = 1; i < dd->ipath_portcnt; i++) {
+		for (i = 1; i < dd->ipath_cfgports; i++) {
 			if (dd->ipath_pd[i] && dd->ipath_pd[i]->port_cnt) {
 				ipath_dbg("unit %u port %d is in use "
 					  "(PID %u cmd %s), can't reset\n",
