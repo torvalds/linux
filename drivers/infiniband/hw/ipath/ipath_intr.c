@@ -665,14 +665,14 @@ static void handle_layer_pioavail(struct ipath_devdata *dd)
 
 	ret = __ipath_layer_intr(dd, IPATH_LAYER_INT_SEND_CONTINUE);
 	if (ret > 0)
-		goto clear;
+		goto set;
 
 	ret = __ipath_verbs_piobufavail(dd);
 	if (ret > 0)
-		goto clear;
+		goto set;
 
 	return;
-clear:
+set:
 	set_bit(IPATH_S_PIOINTBUFAVAIL, &dd->ipath_sendctrl);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
 			 dd->ipath_sendctrl);
