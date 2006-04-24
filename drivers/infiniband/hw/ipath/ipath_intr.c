@@ -719,11 +719,24 @@ static void handle_rcv(struct ipath_devdata *dd, u32 istat)
 irqreturn_t ipath_intr(int irq, void *data, struct pt_regs *regs)
 {
 	struct ipath_devdata *dd = data;
-	u32 istat = ipath_read_kreg32(dd, dd->ipath_kregs->kr_intstatus);
+	u32 istat;
 	ipath_err_t estat = 0;
 	static unsigned unexpected = 0;
 	irqreturn_t ret;
 
+	if(!(dd->ipath_flags & IPATH_PRESENT)) {
+		/* this is mostly so we don't try to touch the chip while
+		 * it is being reset */
+		/*
+		 * This return value is perhaps odd, but we do not want the
+		 * interrupt core code to remove our interrupt handler
+		 * because we don't appear to be handling an interrupt
+		 * during a chip reset.
+		 */
+		return IRQ_HANDLED;
+	}
+
+	istat = ipath_read_kreg32(dd, dd->ipath_kregs->kr_intstatus);
 	if (unlikely(!istat)) {
 		ipath_stats.sps_nullintr++;
 		ret = IRQ_NONE; /* not our interrupt, or already handled */
