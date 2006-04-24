@@ -45,7 +45,7 @@
 
 int gfs2_scand(void *data)
 {
-	struct gfs2_sbd *sdp = (struct gfs2_sbd *)data;
+	struct gfs2_sbd *sdp = data;
 	unsigned long t;
 
 	while (!kthread_should_stop()) {
@@ -67,20 +67,15 @@ int gfs2_scand(void *data)
 
 int gfs2_glockd(void *data)
 {
-	struct gfs2_sbd *sdp = (struct gfs2_sbd *)data;
-	DECLARE_WAITQUEUE(wait_chan, current);
+	struct gfs2_sbd *sdp = data;
 
 	while (!kthread_should_stop()) {
 		while (atomic_read(&sdp->sd_reclaim_count))
 			gfs2_reclaim_glock(sdp);
 
-		set_current_state(TASK_INTERRUPTIBLE);
-		add_wait_queue(&sdp->sd_reclaim_wq, &wait_chan);
-		if (!atomic_read(&sdp->sd_reclaim_count) &&
-		    !kthread_should_stop())
-			schedule();
-		remove_wait_queue(&sdp->sd_reclaim_wq, &wait_chan);
-		set_current_state(TASK_RUNNING);
+		wait_event_interruptible(sdp->sd_reclaim_wq,
+					 (atomic_read(&sdp->sd_reclaim_count) ||
+					 kthread_should_stop()));
 	}
 
 	return 0;
@@ -94,7 +89,7 @@ int gfs2_glockd(void *data)
 
 int gfs2_recoverd(void *data)
 {
-	struct gfs2_sbd *sdp = (struct gfs2_sbd *)data;
+	struct gfs2_sbd *sdp = data;
 	unsigned long t;
 
 	while (!kthread_should_stop()) {
@@ -116,7 +111,7 @@ int gfs2_recoverd(void *data)
 
 int gfs2_logd(void *data)
 {
-	struct gfs2_sbd *sdp = (struct gfs2_sbd *)data;
+	struct gfs2_sbd *sdp = data;
 	struct gfs2_holder ji_gh;
 	unsigned long t;
 
@@ -159,7 +154,7 @@ int gfs2_logd(void *data)
 
 int gfs2_quotad(void *data)
 {
-	struct gfs2_sbd *sdp = (struct gfs2_sbd *)data;
+	struct gfs2_sbd *sdp = data;
 	unsigned long t;
 	int error;
 
@@ -209,7 +204,7 @@ int gfs2_quotad(void *data)
 
 int gfs2_inoded(void *data)
 {
-	struct gfs2_sbd *sdp = (struct gfs2_sbd *)data;
+	struct gfs2_sbd *sdp = data;
 	unsigned long t;
 	int error;
 
