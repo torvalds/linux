@@ -27,7 +27,7 @@ static int op_mips_setup(void)
 	model->reg_setup(ctr);
 
 	/* Configure the registers on all cpus.  */
-	on_each_cpu(model->cpu_setup, 0, 0, 1);
+	on_each_cpu(model->cpu_setup, NULL, 0, 1);
 
         return 0;
 }
