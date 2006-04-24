@@ -418,9 +418,19 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 
 	ret = pci_set_dma_mask(pdev, DMA_64BIT_MASK);
 	if (ret) {
-		dev_info(&pdev->dev, "pci_set_dma_mask unit %u "
-			 "fails: %d\n", dd->ipath_unit, ret);
-		goto bail_regions;
+		/*
+		 * if the 64 bit setup fails, try 32 bit.  Some systems
+		 * do not setup 64 bit maps on systems with 2GB or less
+		 * memory installed.
+		 */
+		ret = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+		if (ret) {
+			dev_info(&pdev->dev, "pci_set_dma_mask unit %u "
+				 "fails: %d\n", dd->ipath_unit, ret);
+			goto bail_regions;
+		}
+		else
+			ipath_dbg("No 64bit DMA mask, used 32 bit mask\n");
 	}
 
 	pci_set_master(pdev);
