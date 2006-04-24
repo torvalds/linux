@@ -30,8 +30,7 @@ static const int deadline_hash_shift = 5;
 #define DL_HASH_FN(sec)		(hash_long(DL_HASH_BLOCK((sec)), deadline_hash_shift))
 #define DL_HASH_ENTRIES		(1 << deadline_hash_shift)
 #define rq_hash_key(rq)		((rq)->sector + (rq)->nr_sectors)
-#define list_entry_hash(ptr)	list_entry((ptr), struct deadline_rq, hash)
-#define ON_HASH(drq)		(drq)->on_hash
+#define ON_HASH(drq)		(!hlist_unhashed(&(drq)->hash))
 
 struct deadline_data {
 	/*
@@ -48,7 +47,7 @@ struct deadline_data {
 	 * next in sort order. read, write or both are NULL
 	 */
 	struct deadline_rq *next_drq[2];
-	struct list_head *hash;		/* request hash */
+	struct hlist_head *hash;	/* request hash */
 	unsigned int batching;		/* number of sequential requests made */
 	sector_t last_sector;		/* head position */
 	unsigned int starved;		/* times reads have starved writes */
@@ -79,8 +78,7 @@ struct deadline_rq {
 	/*
 	 * request hash, key is the ending offset (for back merge lookup)
 	 */
-	struct list_head hash;
-	char on_hash;
+	struct hlist_node hash;
 
 	/*
 	 * expire fifo
@@ -100,8 +98,7 @@ static kmem_cache_t *drq_pool;
  */
 static inline void __deadline_del_drq_hash(struct deadline_rq *drq)
 {
-	drq->on_hash = 0;
-	list_del_init(&drq->hash);
+	hlist_del_init(&drq->hash);
 }
 
 static inline void deadline_del_drq_hash(struct deadline_rq *drq)
@@ -117,8 +114,7 @@ deadline_add_drq_hash(struct deadline_data *dd, struct deadline_rq *drq)
 
 	BUG_ON(ON_HASH(drq));
 
-	drq->on_hash = 1;
-	list_add(&drq->hash, &dd->hash[DL_HASH_FN(rq_hash_key(rq))]);
+	hlist_add_head(&drq->hash, &dd->hash[DL_HASH_FN(rq_hash_key(rq))]);
 }
 
 /*
@@ -128,26 +124,24 @@ static inline void
 deadline_hot_drq_hash(struct deadline_data *dd, struct deadline_rq *drq)
 {
 	struct request *rq = drq->request;
-	struct list_head *head = &dd->hash[DL_HASH_FN(rq_hash_key(rq))];
+	struct hlist_head *head = &dd->hash[DL_HASH_FN(rq_hash_key(rq))];
 
-	if (ON_HASH(drq) && drq->hash.prev != head) {
-		list_del(&drq->hash);
-		list_add(&drq->hash, head);
+	if (ON_HASH(drq) && &drq->hash != head->first) {
+		hlist_del(&drq->hash);
+		hlist_add_head(&drq->hash, head);
 	}
 }
 
 static struct request *
 deadline_find_drq_hash(struct deadline_data *dd, sector_t offset)
 {
-	struct list_head *hash_list = &dd->hash[DL_HASH_FN(offset)];
-	struct list_head *entry, *next = hash_list->next;
+	struct hlist_head *hash_list = &dd->hash[DL_HASH_FN(offset)];
+	struct hlist_node *entry, *next;
+	struct deadline_rq *drq;
 
-	while ((entry = next) != hash_list) {
-		struct deadline_rq *drq = list_entry_hash(entry);
+	hlist_for_each_entry_safe(drq, entry, next, hash_list, hash) {
 		struct request *__rq = drq->request;
 
-		next = entry->next;
-		
 		BUG_ON(!ON_HASH(drq));
 
 		if (!rq_mergeable(__rq)) {
@@ -625,7 +619,7 @@ static void *deadline_init_queue(request_queue_t *q, elevator_t *e)
 		return NULL;
 	memset(dd, 0, sizeof(*dd));
 
-	dd->hash = kmalloc_node(sizeof(struct list_head)*DL_HASH_ENTRIES,
+	dd->hash = kmalloc_node(sizeof(struct hlist_head)*DL_HASH_ENTRIES,
 				GFP_KERNEL, q->node);
 	if (!dd->hash) {
 		kfree(dd);
@@ -641,7 +635,7 @@ static void *deadline_init_queue(request_queue_t *q, elevator_t *e)
 	}
 
 	for (i = 0; i < DL_HASH_ENTRIES; i++)
-		INIT_LIST_HEAD(&dd->hash[i]);
+		INIT_HLIST_HEAD(&dd->hash[i]);
 
 	INIT_LIST_HEAD(&dd->fifo_list[READ]);
 	INIT_LIST_HEAD(&dd->fifo_list[WRITE]);
@@ -677,8 +671,7 @@ deadline_set_request(request_queue_t *q, struct request *rq, struct bio *bio,
 		RB_CLEAR(&drq->rb_node);
 		drq->request = rq;
 
-		INIT_LIST_HEAD(&drq->hash);
-		drq->on_hash = 0;
+		INIT_HLIST_NODE(&drq->hash);
 
 		INIT_LIST_HEAD(&drq->fifo);
 

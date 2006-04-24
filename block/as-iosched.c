@@ -96,7 +96,7 @@ struct as_data {
 
 	struct as_rq *next_arq[2];	/* next in sort order */
 	sector_t last_sector[2];	/* last REQ_SYNC & REQ_ASYNC sectors */
-	struct list_head *hash;		/* request hash */
+	struct hlist_head *hash;	/* request hash */
 
 	unsigned long exit_prob;	/* probability a task will exit while
 					   being waited on */
@@ -165,8 +165,7 @@ struct as_rq {
 	/*
 	 * request hash, key is the ending offset (for back merge lookup)
 	 */
-	struct list_head hash;
-	unsigned int on_hash;
+	struct hlist_node hash;
 
 	/*
 	 * expire fifo
@@ -282,17 +281,15 @@ static const int as_hash_shift = 6;
 #define AS_HASH_FN(sec)		(hash_long(AS_HASH_BLOCK((sec)), as_hash_shift))
 #define AS_HASH_ENTRIES		(1 << as_hash_shift)
 #define rq_hash_key(rq)		((rq)->sector + (rq)->nr_sectors)
-#define list_entry_hash(ptr)	list_entry((ptr), struct as_rq, hash)
 
 static inline void __as_del_arq_hash(struct as_rq *arq)
 {
-	arq->on_hash = 0;
-	list_del_init(&arq->hash);
+	hlist_del_init(&arq->hash);
 }
 
 static inline void as_del_arq_hash(struct as_rq *arq)
 {
-	if (arq->on_hash)
+	if (!hlist_unhashed(&arq->hash))
 		__as_del_arq_hash(arq);
 }
 
@@ -300,10 +297,9 @@ static void as_add_arq_hash(struct as_data *ad, struct as_rq *arq)
 {
 	struct request *rq = arq->request;
 
-	BUG_ON(arq->on_hash);
+	BUG_ON(!hlist_unhashed(&arq->hash));
 
-	arq->on_hash = 1;
-	list_add(&arq->hash, &ad->hash[AS_HASH_FN(rq_hash_key(rq))]);
+	hlist_add_head(&arq->hash, &ad->hash[AS_HASH_FN(rq_hash_key(rq))]);
 }
 
 /*
@@ -312,31 +308,29 @@ static void as_add_arq_hash(struct as_data *ad, struct as_rq *arq)
 static inline void as_hot_arq_hash(struct as_data *ad, struct as_rq *arq)
 {
 	struct request *rq = arq->request;
-	struct list_head *head = &ad->hash[AS_HASH_FN(rq_hash_key(rq))];
+	struct hlist_head *head = &ad->hash[AS_HASH_FN(rq_hash_key(rq))];
 
-	if (!arq->on_hash) {
+	if (hlist_unhashed(&arq->hash)) {
 		WARN_ON(1);
 		return;
 	}
 
-	if (arq->hash.prev != head) {
-		list_del(&arq->hash);
-		list_add(&arq->hash, head);
+	if (&arq->hash != head->first) {
+		hlist_del(&arq->hash);
+		hlist_add_head(&arq->hash, head);
 	}
 }
 
 static struct request *as_find_arq_hash(struct as_data *ad, sector_t offset)
 {
-	struct list_head *hash_list = &ad->hash[AS_HASH_FN(offset)];
-	struct list_head *entry, *next = hash_list->next;
+	struct hlist_head *hash_list = &ad->hash[AS_HASH_FN(offset)];
+	struct hlist_node *entry, *next;
+	struct as_rq *arq;
 
-	while ((entry = next) != hash_list) {
-		struct as_rq *arq = list_entry_hash(entry);
+	hlist_for_each_entry_safe(arq, entry, next, hash_list, hash) {
 		struct request *__rq = arq->request;
 
-		next = entry->next;
-
-		BUG_ON(!arq->on_hash);
+		BUG_ON(hlist_unhashed(&arq->hash));
 
 		if (!rq_mergeable(__rq)) {
 			as_del_arq_hash(arq);
@@ -1601,8 +1595,7 @@ static int as_set_request(request_queue_t *q, struct request *rq,
 		arq->request = rq;
 		arq->state = AS_RQ_PRESCHED;
 		arq->io_context = NULL;
-		INIT_LIST_HEAD(&arq->hash);
-		arq->on_hash = 0;
+		INIT_HLIST_NODE(&arq->hash);
 		INIT_LIST_HEAD(&arq->fifo);
 		rq->elevator_private = arq;
 		return 0;
@@ -1662,7 +1655,7 @@ static void *as_init_queue(request_queue_t *q, elevator_t *e)
 
 	ad->q = q; /* Identify what queue the data belongs to */
 
-	ad->hash = kmalloc_node(sizeof(struct list_head)*AS_HASH_ENTRIES,
+	ad->hash = kmalloc_node(sizeof(struct hlist_head)*AS_HASH_ENTRIES,
 				GFP_KERNEL, q->node);
 	if (!ad->hash) {
 		kfree(ad);
@@ -1684,7 +1677,7 @@ static void *as_init_queue(request_queue_t *q, elevator_t *e)
 	INIT_WORK(&ad->antic_work, as_work_handler, q);
 
 	for (i = 0; i < AS_HASH_ENTRIES; i++)
-		INIT_LIST_HEAD(&ad->hash[i]);
+		INIT_HLIST_HEAD(&ad->hash[i]);
 
 	INIT_LIST_HEAD(&ad->fifo_list[REQ_SYNC]);
 	INIT_LIST_HEAD(&ad->fifo_list[REQ_ASYNC]);
