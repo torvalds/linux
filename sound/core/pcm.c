@@ -436,7 +436,7 @@ static void snd_pcm_substream_proc_status_read(struct snd_info_entry *entry,
 	snd_iprintf(buffer, "appl_ptr    : %ld\n", runtime->control->appl_ptr);
 }
 
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_PCM_XRUN_DEBUG
 static void snd_pcm_xrun_debug_read(struct snd_info_entry *entry,
 				    struct snd_info_buffer *buffer)
 {
@@ -480,7 +480,7 @@ static int snd_pcm_stream_proc_init(struct snd_pcm_str *pstr)
 	}
 	pstr->proc_info_entry = entry;
 
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_PCM_XRUN_DEBUG
 	if ((entry = snd_info_create_card_entry(pcm->card, "xrun_debug",
 						pstr->proc_root)) != NULL) {
 		entry->c.text.read_size = 64;
@@ -501,7 +501,7 @@ static int snd_pcm_stream_proc_init(struct snd_pcm_str *pstr)
 
 static int snd_pcm_stream_proc_done(struct snd_pcm_str *pstr)
 {
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_PCM_XRUN_DEBUG
 	if (pstr->proc_xrun_debug_entry) {
 		snd_info_unregister(pstr->proc_xrun_debug_entry);
 		pstr->proc_xrun_debug_entry = NULL;
