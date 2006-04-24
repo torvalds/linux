@@ -1,9 +1,9 @@
 
-                    ZC0301 Image Processor and Control Chip
-                                Driver for Linux
-                    =======================================
+	      ZC0301 and ZC0301P Image Processor and Control Chip
+				Driver for Linux
+	      ===================================================
 
-                               - Documentation -
+			       - Documentation -
 
 
 Index
@@ -51,13 +51,13 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 4. Overview and features
 ========================
-This driver supports the video interface of the devices mounting the ZC0301
-Image Processor and Control Chip.
+This driver supports the video interface of the devices mounting the ZC0301 or
+ZC0301P Image Processors and Control Chips.
 
 The driver relies on the Video4Linux2 and USB core modules. It has been
 designed to run properly on SMP systems as well.
 
-The latest version of the ZC0301 driver can be found at the following URL:
+The latest version of the ZC0301[P] driver can be found at the following URL:
 http://www.linux-projects.org/
 
 Some of the features of the driver are:
@@ -117,7 +117,7 @@ supported by the USB Audio driver thanks to the ALSA API:
 
 And finally:
 
-	# USB Multimedia devices
+	# V4L USB devices
 	#
 	CONFIG_USB_ZC0301=m
 
@@ -146,46 +146,46 @@ Name:           video_nr
 Type:           short array (min = 0, max = 64)
 Syntax:         <-1|n[,...]>
 Description:    Specify V4L2 minor mode number:
-                -1 = use next available
-                 n = use minor number n
-                You can specify up to 64 cameras this way.
-                For example:
-                video_nr=-1,2,-1 would assign minor number 2 to the second
-                registered camera and use auto for the first one and for every
-                other camera.
+		-1 = use next available
+		 n = use minor number n
+		You can specify up to 64 cameras this way.
+		For example:
+		video_nr=-1,2,-1 would assign minor number 2 to the second
+		registered camera and use auto for the first one and for every
+		other camera.
 Default:        -1
 -------------------------------------------------------------------------------
 Name:           force_munmap
 Type:           bool array (min = 0, max = 64)
 Syntax:         <0|1[,...]>
 Description:    Force the application to unmap previously mapped buffer memory
-                before calling any VIDIOC_S_CROP or VIDIOC_S_FMT ioctl's. Not
-                all the applications support this feature. This parameter is
-                specific for each detected camera.
-                0 = do not force memory unmapping
-                1 = force memory unmapping (save memory)
+		before calling any VIDIOC_S_CROP or VIDIOC_S_FMT ioctl's. Not
+		all the applications support this feature. This parameter is
+		specific for each detected camera.
+		0 = do not force memory unmapping
+		1 = force memory unmapping (save memory)
 Default:        0
 -------------------------------------------------------------------------------
 Name:           frame_timeout
 Type:           uint array (min = 0, max = 64)
 Syntax:         <n[,...]>
 Description:    Timeout for a video frame in seconds. This parameter is
-                specific for each detected camera. This parameter can be
-                changed at runtime thanks to the /sys filesystem interface.
+		specific for each detected camera. This parameter can be
+		changed at runtime thanks to the /sys filesystem interface.
 Default:        2
 -------------------------------------------------------------------------------
 Name:           debug
 Type:           ushort
 Syntax:         <n>
 Description:    Debugging information level, from 0 to 3:
-                0 = none (use carefully)
-                1 = critical errors
-                2 = significant informations
-                3 = more verbose messages
-                Level 3 is useful for testing only, when only one device
-                is used at the same time. It also shows some more informations
-                about the hardware being detected. This module parameter can be
-                changed at runtime thanks to the /sys filesystem interface.
+		0 = none (use carefully)
+		1 = critical errors
+		2 = significant informations
+		3 = more verbose messages
+		Level 3 is useful for testing only, when only one device
+		is used at the same time. It also shows some more informations
+		about the hardware being detected. This module parameter can be
+		changed at runtime thanks to the /sys filesystem interface.
 Default:        2
 -------------------------------------------------------------------------------
 
@@ -204,11 +204,25 @@ Vendor ID  Product ID
 0x041e     0x4017
 0x041e     0x401c
 0x041e     0x401e
+0x041e     0x401f
+0x041e     0x4022
 0x041e     0x4034
 0x041e     0x4035
+0x041e     0x4036
+0x041e     0x403a
+0x0458     0x7007
+0x0458     0x700C
+0x0458     0x700f
+0x046d     0x08ae
+0x055f     0xd003
+0x055f     0xd004
 0x046d     0x08ae
 0x0ac8     0x0301
+0x0ac8     0x301b
+0x0ac8     0x303b
+0x10fd     0x0128
 0x10fd     0x8050
+0x10fd     0x804e
 
 The list above does not imply that all those devices work with this driver: up
 until now only the ones that mount the following image sensors are supported;
@@ -217,6 +231,7 @@ kernel messages will always tell you whether this is the case:
 Model       Manufacturer
 -----       ------------
 PAS202BCB   PixArt Imaging, Inc.
+PB-0330     Photobit Corporation
 
 
 9. Notes for V4L2 application developers
@@ -250,5 +265,6 @@ the fingerprint is: '88E8 F32F 7244 68BA 3958  5D40 99DA 5D2A FCE6 35A4'.
   been taken from the documentation of the ZC030x Video4Linux1 driver written
   by Andrew Birkett <andy@nobugs.org>;
 - The initialization values of the ZC0301 controller connected to the PAS202BCB
-  image sensor have been taken from the SPCA5XX driver maintained by
-  Michel Xhaard <mxhaard@magic.fr>.
+  and PB-0330 image sensors have been taken from the SPCA5XX driver maintained
+  by Michel Xhaard <mxhaard@magic.fr>;
+- Stanislav Lechev donated one camera.

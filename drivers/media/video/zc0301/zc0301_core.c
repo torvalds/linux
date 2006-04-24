@@ -52,8 +52,8 @@
 #define ZC0301_MODULE_AUTHOR  "(C) 2006 Luca Risolia"
 #define ZC0301_AUTHOR_EMAIL   "<luca.risolia@studio.unibo.it>"
 #define ZC0301_MODULE_LICENSE "GPL"
-#define ZC0301_MODULE_VERSION "1:1.03"
-#define ZC0301_MODULE_VERSION_CODE  KERNEL_VERSION(1, 0, 3)
+#define ZC0301_MODULE_VERSION "1:1.04"
+#define ZC0301_MODULE_VERSION_CODE  KERNEL_VERSION(1, 0, 4)
 
 /*****************************************************************************/
 
