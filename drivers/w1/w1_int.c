@@ -27,6 +27,7 @@
 #include "w1.h"
 #include "w1_log.h"
 #include "w1_netlink.h"
+#include "w1_int.h"
 
 static u32 w1_ids = 1;
 

@@ -50,7 +50,7 @@ static u8 w1_crc8_table[] = {
 	116, 42, 200, 150, 21, 75, 169, 247, 182, 232, 10, 84, 215, 137, 107, 53
 };
 
-void w1_delay(unsigned long tm)
+static void w1_delay(unsigned long tm)
 {
 	udelay(tm * w1_delay_parm);
 }
@@ -61,7 +61,7 @@ static u8 w1_read_bit(struct w1_master *dev);
 /**
  * Generates a write-0 or write-1 cycle and samples the level.
  */
-u8 w1_touch_bit(struct w1_master *dev, int bit)
+static u8 w1_touch_bit(struct w1_master *dev, int bit)
 {
 	if (dev->bus_master->touch_bit)
 		return dev->bus_master->touch_bit(dev->bus_master->data, bit);
@@ -177,7 +177,7 @@ u8 w1_triplet(struct w1_master *dev, int bdir)
  * @param dev     the master device
  * @return        the byte read
  */
-u8 w1_read_8(struct w1_master * dev)
+static u8 w1_read_8(struct w1_master * dev)
 {
 	int i;
 	u8 res = 0;
