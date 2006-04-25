@@ -537,7 +537,7 @@ static int __devinit rcu_cpu_notify(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block __devinitdata rcu_nb = {
+static struct notifier_block rcu_nb = {
 	.notifier_call	= rcu_cpu_notify,
 };
 
