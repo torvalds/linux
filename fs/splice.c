@@ -283,7 +283,7 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 		/*
 		 * this_len is the max we'll use from this page
 		 */
-		this_len = min(len, PAGE_CACHE_SIZE - loff);
+		this_len = min_t(unsigned long, len, PAGE_CACHE_SIZE - loff);
 find_page:
 		/*
 		 * lookup the page for this index
