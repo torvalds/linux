@@ -16,6 +16,10 @@ config HWMON
 	  should say Y here and also to the specific driver(s) for your
 	  sensors chip(s) below.
 
+	  To find out which specific driver(s) you need, use the
+	  sensors-detect script from the lm_sensors package.  Read
+	  <file:Documentation/hwmon/userspace-tools> for details.
+
 	  This support can also be built as a module.  If so, the module
 	  will be called hwmon.
 
