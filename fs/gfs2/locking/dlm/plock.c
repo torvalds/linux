@@ -70,7 +70,7 @@ int gdlm_plock(lm_lockspace_t *lockspace, struct lm_lockname *name,
 		return -ENOMEM;
 
 	op->info.optype		= GDLM_PLOCK_OP_LOCK;
-	op->info.pid		= (uint32_t) fl->fl_owner;
+	op->info.pid		= fl->fl_pid;
 	op->info.ex		= (fl->fl_type == F_WRLCK);
 	op->info.wait		= IS_SETLKW(cmd);
 	op->info.fsid		= ls->id;
@@ -116,7 +116,7 @@ int gdlm_punlock(lm_lockspace_t *lockspace, struct lm_lockname *name,
 			  name->ln_type, name->ln_number);
 
 	op->info.optype		= GDLM_PLOCK_OP_UNLOCK;
-	op->info.pid		= (uint32_t) fl->fl_owner;
+	op->info.pid		= fl->fl_pid;
 	op->info.fsid		= ls->id;
 	op->info.number		= name->ln_number;
 	op->info.start		= fl->fl_start;
@@ -150,7 +150,7 @@ int gdlm_plock_get(lm_lockspace_t *lockspace, struct lm_lockname *name,
 		return -ENOMEM;
 
 	op->info.optype		= GDLM_PLOCK_OP_GET;
-	op->info.pid		= (uint32_t) fl->fl_owner;
+	op->info.pid		= fl->fl_pid;
 	op->info.ex		= (fl->fl_type == F_WRLCK);
 	op->info.fsid		= ls->id;
 	op->info.number		= name->ln_number;
