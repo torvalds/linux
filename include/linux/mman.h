@@ -1,10 +1,6 @@
 #ifndef _LINUX_MMAN_H
 #define _LINUX_MMAN_H
 
-#include <linux/config.h>
-#include <linux/mm.h>
-
-#include <asm/atomic.h>
 #include <asm/mman.h>
 
 #define MREMAP_MAYMOVE	1
@@ -13,6 +9,13 @@
 #define OVERCOMMIT_GUESS		0
 #define OVERCOMMIT_ALWAYS		1
 #define OVERCOMMIT_NEVER		2
+
+#ifdef __KERNEL__
+#include <linux/config.h>
+#include <linux/mm.h>
+
+#include <asm/atomic.h>
+
 extern int sysctl_overcommit_memory;
 extern int sysctl_overcommit_ratio;
 extern atomic_t vm_committed_space;
@@ -63,5 +66,5 @@ calc_vm_flag_bits(unsigned long flags)
 	       _calc_vm_trans(flags, MAP_EXECUTABLE, VM_EXECUTABLE) |
 	       _calc_vm_trans(flags, MAP_LOCKED,     VM_LOCKED    );
 }
-
+#endif /* __KERNEL__ */
 #endif /* _LINUX_MMAN_H */
