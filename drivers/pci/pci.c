@@ -463,7 +463,11 @@ pci_restore_state(struct pci_dev *dev)
 	int i;
 	int val;
 
-	for (i = 0; i < 16; i++) {
+	/*
+	 * The Base Address register should be programmed before the command
+	 * register(s)
+	 */
+	for (i = 15; i >= 0; i--) {
 		pci_read_config_dword(dev, i * 4, &val);
 		if (val != dev->saved_config_space[i]) {
 			printk(KERN_DEBUG "PM: Writing back config space on "
