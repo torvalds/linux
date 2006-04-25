@@ -1,9 +1,9 @@
 #ifndef _LINUX_SCHED_H
 #define _LINUX_SCHED_H
 
+#ifdef __KERNEL__
 #include <asm/param.h>	/* for HZ */
 
-#include <linux/config.h>
 #include <linux/capability.h>
 #include <linux/threads.h>
 #include <linux/kernel.h>
@@ -36,6 +36,15 @@
 #include <linux/seccomp.h>
 #include <linux/rcupdate.h>
 #include <linux/futex.h>
+
+#include <linux/time.h>
+#include <linux/param.h>
+#include <linux/resource.h>
+#include <linux/timer.h>
+#include <linux/hrtimer.h>
+
+#include <asm/processor.h>
+#endif
 
 #include <linux/auxvec.h>	/* For AT_VECTOR_SIZE */
 
@@ -103,13 +112,6 @@ extern unsigned long nr_uninterruptible(void);
 extern unsigned long nr_active(void);
 extern unsigned long nr_iowait(void);
 
-#include <linux/time.h>
-#include <linux/param.h>
-#include <linux/resource.h>
-#include <linux/timer.h>
-#include <linux/hrtimer.h>
-
-#include <asm/processor.h>
 
 /*
  * Task state bitmask. NOTE! These bits are also
