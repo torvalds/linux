@@ -77,7 +77,7 @@ int dvb_usb_tuner_init_i2c(struct dvb_frontend *fe)
 }
 EXPORT_SYMBOL(dvb_usb_tuner_init_i2c);
 
-int dvb_usb_tuner_pllbuf(struct dvb_frontend *fe, struct dvb_frontend_parameters *fep, u8 *b, int buf_len)
+int dvb_usb_tuner_calc_regs(struct dvb_frontend *fe, struct dvb_frontend_parameters *fep, u8 *b, int buf_len)
 {
 	struct dvb_usb_device *d = fe->dvb->priv;
 
@@ -95,16 +95,16 @@ int dvb_usb_tuner_pllbuf(struct dvb_frontend *fe, struct dvb_frontend_parameters
 
 	return 5;
 }
-EXPORT_SYMBOL(dvb_usb_tuner_pllbuf);
+EXPORT_SYMBOL(dvb_usb_tuner_calc_regs);
 
-int dvb_usb_tuner_set_frequency_i2c(struct dvb_frontend *fe, struct dvb_frontend_parameters *fep)
+int dvb_usb_tuner_set_params_i2c(struct dvb_frontend *fe, struct dvb_frontend_parameters *fep)
 {
 	struct dvb_usb_device *d = fe->dvb->priv;
 	int ret = 0;
 	u8 b[5];
 	struct i2c_msg msg = { .addr = d->pll_addr, .flags = 0, .buf = &b[1], .len = 4 };
 
-	dvb_usb_tuner_pllbuf(fe,fep,b,5);
+	dvb_usb_tuner_calc_regs(fe,fep,b,5);
 
 	if (d->tuner_pass_ctrl)
 		d->tuner_pass_ctrl(fe,1,d->pll_addr);
@@ -122,4 +122,4 @@ int dvb_usb_tuner_set_frequency_i2c(struct dvb_frontend *fe, struct dvb_frontend
 
 	return ret;
 }
-EXPORT_SYMBOL(dvb_usb_tuner_set_frequency_i2c);
+EXPORT_SYMBOL(dvb_usb_tuner_set_params_i2c);
