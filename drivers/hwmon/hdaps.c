@@ -522,13 +522,15 @@ static int __init hdaps_init(void)
 {
 	int ret;
 
-	/* Note that DMI_MATCH(...,"ThinkPad T42") will match "ThinkPad T42p" */
+	/* Note that HDAPS_DMI_MATCH_NORMAL("ThinkPad T42") would match
+	  "ThinkPad T42p", so the order of the entries matters */
 	struct dmi_system_id hdaps_whitelist[] = {
 		HDAPS_DMI_MATCH_NORMAL("ThinkPad H"),
 		HDAPS_DMI_MATCH_INVERT("ThinkPad R50p"),
 		HDAPS_DMI_MATCH_NORMAL("ThinkPad R50"),
 		HDAPS_DMI_MATCH_NORMAL("ThinkPad R51"),
 		HDAPS_DMI_MATCH_NORMAL("ThinkPad R52"),
+		HDAPS_DMI_MATCH_NORMAL("ThinkPad H"),	 /* R52 (1846AQG) */
 		HDAPS_DMI_MATCH_INVERT("ThinkPad T41p"),
 		HDAPS_DMI_MATCH_NORMAL("ThinkPad T41"),
 		HDAPS_DMI_MATCH_INVERT("ThinkPad T42p"),
@@ -536,9 +538,9 @@ static int __init hdaps_init(void)
 		HDAPS_DMI_MATCH_NORMAL("ThinkPad T43"),
 		HDAPS_DMI_MATCH_LENOVO("ThinkPad T60p"),
 		HDAPS_DMI_MATCH_NORMAL("ThinkPad X40"),
-		HDAPS_DMI_MATCH_NORMAL("ThinkPad X41 Tablet"),
 		HDAPS_DMI_MATCH_NORMAL("ThinkPad X41"),
 		HDAPS_DMI_MATCH_LENOVO("ThinkPad X60"),
+		HDAPS_DMI_MATCH_NORMAL("ThinkPad Z60m"),
 		{ .ident = NULL }
 	};
 
