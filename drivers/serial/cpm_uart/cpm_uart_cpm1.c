@@ -81,58 +81,11 @@ void cpm_line_cr_cmd(int line, int cmd)
 
 void smc1_lineif(struct uart_cpm_port *pinfo)
 {
-	volatile cpm8xx_t *cp = cpmp;
-
-	(void)cp;	/* fix warning */
-#if defined (CONFIG_MPC885ADS)
-	/* Enable SMC1 transceivers */
-	{
-		cp->cp_pepar |= 0x000000c0;
-		cp->cp_pedir &= ~0x000000c0;
-		cp->cp_peso &= ~0x00000040;
-		cp->cp_peso |= 0x00000080;
-	}
-#elif defined (CONFIG_MPC86XADS)
-	unsigned int iobits = 0x000000c0;
-
-	if (!pinfo->is_portb) {
-		cp->cp_pbpar |= iobits;
-		cp->cp_pbdir &= ~iobits;
-		cp->cp_pbodr &= ~iobits;
-	} else {
-		((immap_t *)IMAP_ADDR)->im_ioport.iop_papar |= iobits;
-		((immap_t *)IMAP_ADDR)->im_ioport.iop_padir &= ~iobits;
-		((immap_t *)IMAP_ADDR)->im_ioport.iop_paodr &= ~iobits;
-	}
-#endif
 	pinfo->brg = 1;
 }
 
 void smc2_lineif(struct uart_cpm_port *pinfo)
 {
-	volatile cpm8xx_t *cp = cpmp;
-
-	(void)cp;	/* fix warning */
-#if defined (CONFIG_MPC885ADS)
-	cp->cp_pepar |= 0x00000c00;
-	cp->cp_pedir &= ~0x00000c00;
-	cp->cp_peso &= ~0x00000400;
-	cp->cp_peso |= 0x00000800;
-#elif defined (CONFIG_MPC86XADS)
-	unsigned int iobits = 0x00000c00;
-
-	if (!pinfo->is_portb) {
-		cp->cp_pbpar |= iobits;
-		cp->cp_pbdir &= ~iobits;
-		cp->cp_pbodr &= ~iobits;
-	} else {
-		((immap_t *)IMAP_ADDR)->im_ioport.iop_papar |= iobits;
-		((immap_t *)IMAP_ADDR)->im_ioport.iop_padir &= ~iobits;
-		((immap_t *)IMAP_ADDR)->im_ioport.iop_paodr &= ~iobits;
-	}
-
-#endif
-
 	pinfo->brg = 2;
 }
 

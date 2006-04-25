@@ -10,6 +10,8 @@
 #define CPM_UART_H
 
 #include <linux/config.h>
+#include <linux/platform_device.h>
+#include <linux/fs_uart_pd.h>
 
 #if defined(CONFIG_CPM2)
 #include "cpm_uart_cpm2.h"
@@ -26,14 +28,14 @@
 #define FLAG_SMC	0x00000002
 #define FLAG_CONSOLE	0x00000001
 
-#define UART_SMC1	0
-#define UART_SMC2	1
-#define UART_SCC1	2
-#define UART_SCC2	3
-#define UART_SCC3	4
-#define UART_SCC4	5
+#define UART_SMC1	fsid_smc1_uart
+#define UART_SMC2	fsid_smc2_uart
+#define UART_SCC1	fsid_scc1_uart
+#define UART_SCC2	fsid_scc2_uart
+#define UART_SCC3	fsid_scc3_uart
+#define UART_SCC4	fsid_scc4_uart
 
-#define UART_NR	6
+#define UART_NR		fs_uart_nr
 
 #define RX_NUM_FIFO	4
 #define RX_BUF_SIZE	32
