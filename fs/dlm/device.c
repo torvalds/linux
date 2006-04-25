@@ -79,7 +79,7 @@ struct lock_info {
 	struct list_head li_ownerqueue;
 	struct file_info *li_file;
 	struct dlm_lksb __user *li_user_lksb;
-	struct semaphore li_firstlock;
+	struct completion li_firstcomp;
 };
 
 /* A queued AST no less */
@@ -376,8 +376,7 @@ static void ast_routine(void *param)
 		    li->li_lksb.sb_status != 0) {
 
 			/* Wait till dlm_lock() has finished */
-			down(&li->li_firstlock);
-			up(&li->li_firstlock);
+			wait_for_completion(&li->li_firstcomp);
 
 			spin_lock(&li->li_file->fi_li_lock);
 			list_del(&li->li_ownerqueue);
@@ -808,10 +807,10 @@ static int do_user_lock(struct file_info *fi, uint8_t cmd,
 			li->li_castaddr  = kparams->castaddr;
 			li->li_castparam = kparams->castparam;
 
-			/* OK, this isn;t exactly a FIRSTLOCK but it is the
+			/* OK, this isn't exactly a FIRSTLOCK but it is the
 			   first time we've used this lockinfo, and if things
 			   fail we want rid of it */
-			init_MUTEX_LOCKED(&li->li_firstlock);
+			init_completion(&li->li_firstcomp);
 			set_bit(LI_FLAG_FIRSTLOCK, &li->li_flags);
 			add_lockinfo(li);
 
@@ -839,10 +838,10 @@ static int do_user_lock(struct file_info *fi, uint8_t cmd,
 		if (!li)
 			return -ENOMEM;
 
-		/* semaphore to allow us to complete our work before
+		/* Allow us to complete our work before
   		   the AST routine runs. In fact we only need (and use) this
 		   when the initial lock fails */
-		init_MUTEX_LOCKED(&li->li_firstlock);
+		init_completion(&li->li_firstcomp);
 		set_bit(LI_FLAG_FIRSTLOCK, &li->li_flags);
 	}
 
@@ -892,7 +891,7 @@ static int do_user_lock(struct file_info *fi, uint8_t cmd,
 		if (add_lockinfo(li))
 			printk(KERN_WARNING "Add lockinfo failed\n");
 
-		up(&li->li_firstlock);
+		complete(&li->li_firstcomp);
 	}
 
 	/* Return the lockid as the user needs it /now/ */
@@ -936,8 +935,7 @@ static int do_user_unlock(struct file_info *fi, uint8_t cmd,
 
 	/* Wait until dlm_lock() has completed */
 	if (!test_bit(LI_FLAG_ONLIST, &li->li_flags)) {
-		down(&li->li_firstlock);
-		up(&li->li_firstlock);
+		wait_for_completion(&li->li_firstcomp);
 	}
 
 	/* dlm_unlock() passes a 0 for castaddr which means don't overwrite
