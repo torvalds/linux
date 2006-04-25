@@ -17,11 +17,6 @@
 #define _LINUX_EXT3_FS_H
 
 #include <linux/types.h>
-#include <linux/ext3_fs_i.h>
-#include <linux/ext3_fs_sb.h>
-
-
-struct statfs;
 
 /*
  * The second extended filesystem constants/structures
@@ -487,6 +482,8 @@ struct ext3_super_block {
 };
 
 #ifdef __KERNEL__
+#include <linux/ext3_fs_i.h>
+#include <linux/ext3_fs_sb.h>
 static inline struct ext3_sb_info * EXT3_SB(struct super_block *sb)
 {
 	return sb->s_fs_info;
