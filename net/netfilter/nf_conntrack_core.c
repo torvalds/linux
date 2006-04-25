@@ -178,9 +178,6 @@ static struct {
 	/* allocated slab cache + modules which uses this slab cache */
 	int use;
 
-	/* Initialization */
-	int (*init_conntrack)(struct nf_conn *, u_int32_t);
-
 } nf_ct_cache[NF_CT_F_NUM];
 
 /* protect members of nf_ct_cache except of "use" */
