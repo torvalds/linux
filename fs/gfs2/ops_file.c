@@ -545,8 +545,6 @@ static const u32 iflags_to_gfs2[32] = {
 	[iflag_Index] = GFS2_DIF_EXHASH,
 	[iflag_JournalData] = GFS2_DIF_JDATA,
 	[iflag_DirectIO] = GFS2_DIF_DIRECTIO,
-	[iflag_InheritDirectIO] = GFS2_DIF_INHERIT_DIRECTIO,
-	[iflag_InheritJdata] = GFS2_DIF_INHERIT_JDATA,
 };
 
 static const u32 gfs2_to_iflags[32] = {
@@ -557,8 +555,8 @@ static const u32 gfs2_to_iflags[32] = {
 	[gfs2fl_ExHash] = IFLAG_INDEX,
 	[gfs2fl_Jdata] = IFLAG_JOURNAL_DATA,
 	[gfs2fl_Directio] = IFLAG_DIRECTIO,
-	[gfs2fl_InheritDirectio] = IFLAG_INHERITDIRECTIO,
-	[gfs2fl_InheritJdata] = IFLAG_INHERITJDATA,
+	[gfs2fl_InheritDirectio] = IFLAG_DIRECTIO,
+	[gfs2fl_InheritJdata] = IFLAG_JOURNAL_DATA,
 };
 
 static int gfs2_get_flags(struct file *filp, u32 __user *ptr)
@@ -621,18 +619,15 @@ static int do_gfs2_set_flags(struct file *filp, u32 reqflags, u32 mask)
 	if ((new_flags ^ flags) == 0)
 		goto out;
 
+	if (S_ISDIR(inode->i_mode)) {
+		if ((new_flags ^ flags) & GFS2_DIF_JDATA)
+			new_flags ^= (GFS2_DIF_JDATA|GFS2_DIF_INHERIT_JDATA);
+		if ((new_flags ^ flags) & GFS2_DIF_DIRECTIO)
+			new_flags ^= (GFS2_DIF_DIRECTIO|GFS2_DIF_INHERIT_DIRECTIO);
+	}
+
 	error = -EINVAL;
 	if ((new_flags ^ flags) & ~GFS2_FLAGS_USER_SET)
-		goto out;
-
-	if (S_ISDIR(inode->i_mode)) {
-		if ((new_flags ^ flags) & (GFS2_DIF_JDATA | GFS2_DIF_DIRECTIO))
-			goto out;
-	} else if (S_ISREG(inode->i_mode)) {
-		if ((new_flags ^ flags) & (GFS2_DIF_INHERIT_DIRECTIO|
-					   GFS2_DIF_INHERIT_JDATA))
-			goto out;
-	} else
 		goto out;
 
 	error = -EPERM;

@@ -46,9 +46,8 @@ enum {
 	iflag_NoTail		= 15,	/* file tail should not be merged */
 	iflag_DirSync		= 16,	/* dirsync behaviour */
 	iflag_TopDir		= 17,	/* Top of directory hierarchies */
-	iflag_DirectIO		= 18,	/* Always use direct I/O on this file */
-	iflag_InheritDirectIO	= 19,	/* Set DirectIO on new files in dir */
-	iflag_InheritJdata	= 20,	/* Set JournalData on create in dir */
+	iflag_Extent		= 19,	/* Extents */
+	iflag_DirectIO		= 20,	/* Always use direct I/O on this file */
 	iflag_Reserved		= 31	/* reserved for ext2/3 lib */
 };
 
@@ -72,9 +71,8 @@ enum {
 #define IFLAG_NOTAIL		__IFL(NoTail)		/* 0x00008000 */
 #define IFLAG_DIRSYNC		__IFL(DirSync)		/* 0x00010000 */
 #define IFLAG_TOPDIR		__IFL(TopDir)		/* 0x00020000 */
-#define IFLAG_DIRECTIO		__IFL(DirectIO)		/* 0x00040000 */
-#define IFLAG_INHERITDIRECTIO	__IFL(InheritDirectIO)	/* 0x00080000 */
-#define IFLAG_INHERITJDATA	__IFL(InheritJdata)	/* 0x00100000 */
+#define IFLAG_EXTENT		__IFL(Extent)		/* 0x00080000 */
+#define IFLAG_DIRECTIO		__IFL(DirectIO)		/* 0x00100000 */
 #define IFLAG_RESERVED		__IFL(Reserved)		/* 0x80000000 */
 
 #ifdef __KERNEL__
