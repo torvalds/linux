@@ -248,13 +248,16 @@ extern int ezusb_set_reset (struct usb_serial *serial, unsigned char reset_bit);
 #ifdef CONFIG_USB_SERIAL_CONSOLE
 extern void usb_serial_console_init (int debug, int minor);
 extern void usb_serial_console_exit (void);
+extern void usb_serial_console_disconnect(struct usb_serial *serial);
 #else
 static inline void usb_serial_console_init (int debug, int minor) { }
 static inline void usb_serial_console_exit (void) { }
+static inline void usb_serial_console_disconnect(struct usb_serial *serial) {}
 #endif
 
 /* Functions needed by other parts of the usbserial core */
 extern struct usb_serial *usb_serial_get_by_index (unsigned int minor);
+extern void usb_serial_put(struct usb_serial *serial);
 extern int usb_serial_generic_open (struct usb_serial_port *port, struct file *filp);
 extern int usb_serial_generic_write (struct usb_serial_port *port, const unsigned char *buf, int count);
 extern void usb_serial_generic_close (struct usb_serial_port *port, struct file *filp);

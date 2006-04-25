@@ -202,7 +202,7 @@ static void usb_console_write(struct console *co, const char *buf, unsigned coun
 	struct usb_serial *serial;
 	int retval = -ENODEV;
 
-	if (!port)
+	if (!port || port->serial->dev->state == USB_STATE_NOTATTACHED)
 		return;
 	serial = port->serial;
 
@@ -255,6 +255,14 @@ static struct console usbcons = {
 	.index =	-1,
 };
 
+void usb_serial_console_disconnect(struct usb_serial *serial)
+{
+	if (serial && serial->port && serial->port[0] && serial->port[0] == usbcons_info.port) {
+		usb_serial_console_exit();
+		usb_serial_put(serial);
+	}
+}
+
 void usb_serial_console_init (int serial_debug, int minor)
 {
 	debug = serial_debug;
@@ -280,6 +288,11 @@ void usb_serial_console_init (int serial_debug, int minor)
 
 void usb_serial_console_exit (void)
 {
-	unregister_console(&usbcons);
+	if (usbcons_info.port) {
+		unregister_console(&usbcons);
+		if (usbcons_info.port->open_count)
+			usbcons_info.port->open_count--;
+		usbcons_info.port = NULL;
+	}
 }
 

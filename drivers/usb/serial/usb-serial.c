@@ -168,6 +168,11 @@ static void destroy_serial(struct kref *kref)
 	kfree (serial);
 }
 
+void usb_serial_put(struct usb_serial *serial)
+{
+	kref_put(&serial->kref, destroy_serial);
+}
+
 /*****************************************************************************
  * Driver tty interface functions
  *****************************************************************************/
@@ -232,7 +237,7 @@ bailout_mutex_unlock:
 	port->open_count = 0;
 	mutex_unlock(&port->mutex);
 bailout_kref_put:
-	kref_put(&serial->kref, destroy_serial);
+	usb_serial_put(serial);
 	return retval;
 }
 
@@ -268,7 +273,7 @@ static void serial_close(struct tty_struct *tty, struct file * filp)
 	}
 
 	mutex_unlock(&port->mutex);
-	kref_put(&port->serial->kref, destroy_serial);
+	usb_serial_put(port->serial);
 }
 
 static int serial_write (struct tty_struct * tty, const unsigned char *buf, int count)
@@ -276,7 +281,7 @@ static int serial_write (struct tty_struct * tty, const unsigned char *buf, int 
 	struct usb_serial_port *port = tty->driver_data;
 	int retval = -EINVAL;
 
-	if (!port)
+	if (!port || port->serial->dev->state == USB_STATE_NOTATTACHED)
 		goto exit;
 
 	dbg("%s - port %d, %d byte(s)", __FUNCTION__, port->number, count);
@@ -473,7 +478,7 @@ static int serial_read_proc (char *page, char **start, off_t off, int count, int
 			begin += length;
 			length = 0;
 		}
-		kref_put(&serial->kref, destroy_serial);
+		usb_serial_put(serial);
 	}
 	*eof = 1;
 done:
@@ -985,6 +990,7 @@ void usb_serial_disconnect(struct usb_interface *interface)
 	struct device *dev = &interface->dev;
 	struct usb_serial_port *port;
 
+	usb_serial_console_disconnect(serial);
 	dbg ("%s", __FUNCTION__);
 
 	usb_set_intfdata (interface, NULL);
@@ -996,7 +1002,7 @@ void usb_serial_disconnect(struct usb_interface *interface)
 		}
 		/* let the last holder of this object 
 		 * cause it to be cleaned up */
-		kref_put(&serial->kref, destroy_serial);
+		usb_serial_put(serial);
 	}
 	dev_info(dev, "device disconnected\n");
 }
