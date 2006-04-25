@@ -2093,6 +2093,7 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 	int work_done = 0;
 	u32 status = sky2_read32(hw, B0_Y2_SP_EISR);
 
+ restart_poll:
 	if (unlikely(status & ~Y2_IS_STAT_BMU)) {
 		if (status & Y2_IS_HW_ERR)
 			sky2_hw_intr(hw);
@@ -2123,7 +2124,7 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 	}
 
 	if (status & Y2_IS_STAT_BMU) {
-		work_done = sky2_status_intr(hw, work_limit);
+		work_done += sky2_status_intr(hw, work_limit - work_done);
 		*budget -= work_done;
 		dev0->quota -= work_done;
 
@@ -2133,9 +2134,22 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 		sky2_write32(hw, STAT_CTRL, SC_STAT_CLR_IRQ);
 	}
 
-	netif_rx_complete(dev0);
+	local_irq_disable();
+	__netif_rx_complete(dev0);
 
 	status = sky2_read32(hw, B0_Y2_SP_LISR);
+
+	if (unlikely(status)) {
+		/* More work pending, try and keep going */
+		if (__netif_rx_schedule_prep(dev0)) {
+			__netif_rx_reschedule(dev0, work_done);
+			status = sky2_read32(hw, B0_Y2_SP_EISR);
+			local_irq_enable();
+			goto restart_poll;
+		}
+	}
+
+	local_irq_enable();
 	return 0;
 }
 
@@ -2153,8 +2167,6 @@ static irqreturn_t sky2_intr(int irq, void *dev_id, struct pt_regs *regs)
 	prefetch(&hw->st_le[hw->st_idx]);
 	if (likely(__netif_rx_schedule_prep(dev0)))
 		__netif_rx_schedule(dev0);
-	else
-		printk(KERN_DEBUG PFX "irq race detected\n");
 
 	return IRQ_HANDLED;
 }
