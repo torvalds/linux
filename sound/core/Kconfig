@@ -142,7 +142,7 @@ config SND_SUPPORT_OLD_API
 
 config SND_VERBOSE_PROCFS
 	bool "Verbose procfs contents"
-	depends on SND
+	depends on SND && PROC_FS
 	default y
 	help
 	  Say Y here to include code for verbose procfs contents (provides
@@ -175,7 +175,7 @@ config SND_DEBUG_DETECT
 config SND_PCM_XRUN_DEBUG
 	bool "Enable PCM ring buffer overrun/underrun debugging"
 	default n
-	depends on SND_DEBUG
+	depends on SND_DEBUG && SND_VERBOSE_PROCFS
 	help
 	  Say Y to enable the PCM ring buffer overrun/underrun debugging.
 	  It is usually not required, but if you have trouble with

@@ -142,7 +142,7 @@ static int snd_pcm_control_ioctl(struct snd_card *card,
 	return -ENOIOCTLCMD;
 }
 
-#if defined(CONFIG_PROC_FS) && defined(CONFIG_SND_VERBOSE_PROCFS)
+#ifdef CONFIG_SND_VERBOSE_PROCFS
 
 #define STATE(v) [SNDRV_PCM_STATE_##v] = #v
 #define STREAM(v) [SNDRV_PCM_STREAM_##v] = #v
@@ -599,12 +599,12 @@ static int snd_pcm_substream_proc_done(struct snd_pcm_substream *substream)
 	}
 	return 0;
 }
-#else /* !CONFIG_PROC_FS */
+#else /* !CONFIG_SND_VERBOSE_PROCFS */
 static inline int snd_pcm_stream_proc_init(struct snd_pcm_str *pstr) { return 0; }
 static inline int snd_pcm_stream_proc_done(struct snd_pcm_str *pstr) { return 0; }
 static inline int snd_pcm_substream_proc_init(struct snd_pcm_substream *substream) { return 0; }
 static inline int snd_pcm_substream_proc_done(struct snd_pcm_substream *substream) { return 0; }
-#endif /* CONFIG_PROC_FS */
+#endif /* CONFIG_SND_VERBOSE_PROCFS */
 
 /**
  * snd_pcm_new_stream - create a new PCM stream
