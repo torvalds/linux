@@ -43,8 +43,8 @@ strncpy:
 
 	.align	4
 $multiword:
-	subq	$24, 1, $2	# clear the final bits in the prev word
-	or	$2, $24, $2
+	subq	$27, 1, $2	# clear the final bits in the prev word
+	or	$2, $27, $2
 	zapnot	$1, $2, $1
 	subq	$18, 1, $18
 
@@ -70,8 +70,8 @@ $multiword:
 	bne	$18, 0b
 
 1:	ldq_u	$1, 0($16)	# clear the leading bits in the final word
-	subq	$27, 1, $2
-	or	$2, $27, $2
+	subq	$24, 1, $2
+	or	$2, $24, $2
 
 	zap	$1, $2, $1
 	stq_u	$1, 0($16)
