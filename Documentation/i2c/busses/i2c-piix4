@@ -82,3 +82,17 @@ the SMI mode.
 
 Please note that you don't need to do that in all cases, just when the SMBus is
 not working properly.
+
+
+Hardware-specific issues
+------------------------
+
+This driver will refuse to load on IBM systems with an Intel PIIX4 SMBus.
+Some of these machines have an RFID EEPROM (24RF08) connected to the SMBus,
+which can easily get corrupted due to a state machine bug. These are mostly
+Thinkpad laptops, but desktop systems may also be affected. We have no list
+of all affected systems, so the only safe solution was to prevent access to
+the SMBus on all IBM systems (detected using DMI data.)
+
+For additional information, read:
+http://www2.lm-sensors.nu/~lm78/cvs/lm_sensors2/README.thinkpad

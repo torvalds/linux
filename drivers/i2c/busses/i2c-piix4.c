@@ -130,7 +130,7 @@ static int __devinit piix4_setup(struct pci_dev *PIIX4_dev,
 	/* Don't access SMBus on IBM systems which get corrupted eeproms */
 	if (dmi_check_system(piix4_dmi_table) &&
 			PIIX4_dev->vendor == PCI_VENDOR_ID_INTEL) {
-		dev_err(&PIIX4_dev->dev, "IBM Laptop detected; this module "
+		dev_err(&PIIX4_dev->dev, "IBM system detected; this module "
 			"may corrupt your serial eeprom! Refusing to load "
 			"module!\n");
 		return -EPERM;
