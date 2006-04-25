@@ -72,19 +72,6 @@ static void cpm_uart_initbd(struct uart_cpm_port *pinfo);
 
 /**************************************************************/
 
-static inline unsigned long cpu2cpm_addr(void *addr)
-{
-	if ((unsigned long)addr >= CPM_ADDR)
-		return (unsigned long)addr;
-	return virt_to_bus(addr);
-}
-
-static inline void *cpm2cpu_addr(unsigned long addr)
-{
-	if (addr >= CPM_ADDR)
-		return (void *)addr;
-	return bus_to_virt(addr);
-}
 
 /* Place-holder for board-specific stuff */
 struct platform_device* __attribute__ ((weak)) __init
@@ -290,7 +277,7 @@ static void cpm_uart_int_rx(struct uart_port *port, struct pt_regs *regs)
 		}
 
 		/* get pointer */
-		cp = cpm2cpu_addr(bdp->cbd_bufaddr);
+		cp = cpm2cpu_addr(bdp->cbd_bufaddr, pinfo);
 
 		/* loop through the buffer */
 		while (i-- > 0) {
@@ -633,7 +620,7 @@ static int cpm_uart_tx_pump(struct uart_port *port)
 		/* Pick next descriptor and fill from buffer */
 		bdp = pinfo->tx_cur;
 
-		p = cpm2cpu_addr(bdp->cbd_bufaddr);
+		p = cpm2cpu_addr(bdp->cbd_bufaddr, pinfo);
 
 		*p++ = port->x_char;
 		bdp->cbd_datlen = 1;
@@ -660,7 +647,7 @@ static int cpm_uart_tx_pump(struct uart_port *port)
 
 	while (!(bdp->cbd_sc & BD_SC_READY) && (xmit->tail != xmit->head)) {
 		count = 0;
-		p = cpm2cpu_addr(bdp->cbd_bufaddr);
+		p = cpm2cpu_addr(bdp->cbd_bufaddr, pinfo);
 		while (count < pinfo->tx_fifosize) {
 			*p++ = xmit->buf[xmit->tail];
 			xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
@@ -709,12 +696,12 @@ static void cpm_uart_initbd(struct uart_cpm_port *pinfo)
 	mem_addr = pinfo->mem_addr;
 	bdp = pinfo->rx_cur = pinfo->rx_bd_base;
 	for (i = 0; i < (pinfo->rx_nrfifos - 1); i++, bdp++) {
-		bdp->cbd_bufaddr = cpu2cpm_addr(mem_addr);
+		bdp->cbd_bufaddr = cpu2cpm_addr(mem_addr, pinfo);
 		bdp->cbd_sc = BD_SC_EMPTY | BD_SC_INTRPT;
 		mem_addr += pinfo->rx_fifosize;
 	}
 
-	bdp->cbd_bufaddr = cpu2cpm_addr(mem_addr);
+	bdp->cbd_bufaddr = cpu2cpm_addr(mem_addr, pinfo);
 	bdp->cbd_sc = BD_SC_WRAP | BD_SC_EMPTY | BD_SC_INTRPT;
 
 	/* Set the physical address of the host memory
@@ -724,12 +711,12 @@ static void cpm_uart_initbd(struct uart_cpm_port *pinfo)
 	mem_addr = pinfo->mem_addr + L1_CACHE_ALIGN(pinfo->rx_nrfifos * pinfo->rx_fifosize);
 	bdp = pinfo->tx_cur = pinfo->tx_bd_base;
 	for (i = 0; i < (pinfo->tx_nrfifos - 1); i++, bdp++) {
-		bdp->cbd_bufaddr = cpu2cpm_addr(mem_addr);
+		bdp->cbd_bufaddr = cpu2cpm_addr(mem_addr, pinfo);
 		bdp->cbd_sc = BD_SC_INTRPT;
 		mem_addr += pinfo->tx_fifosize;
 	}
 
-	bdp->cbd_bufaddr = cpu2cpm_addr(mem_addr);
+	bdp->cbd_bufaddr = cpu2cpm_addr(mem_addr, pinfo);
 	bdp->cbd_sc = BD_SC_WRAP | BD_SC_INTRPT;
 }
 
@@ -1099,7 +1086,7 @@ static void cpm_uart_console_write(struct console *co, const char *s,
 		 * If the buffer address is in the CPM DPRAM, don't
 		 * convert it.
 		 */
-		cp = cpm2cpu_addr(bdp->cbd_bufaddr);
+		cp = cpm2cpu_addr(bdp->cbd_bufaddr, pinfo);
 
 		*cp = *s;
 
@@ -1116,7 +1103,7 @@ static void cpm_uart_console_write(struct console *co, const char *s,
 			while ((bdp->cbd_sc & BD_SC_READY) != 0)
 				;
 
-			cp = cpm2cpu_addr(bdp->cbd_bufaddr);
+			cp = cpm2cpu_addr(bdp->cbd_bufaddr, pinfo);
 
 			*cp = 13;
 			bdp->cbd_datlen = 1;

@@ -144,7 +144,7 @@ int cpm_uart_allocbuf(struct uart_cpm_port *pinfo, unsigned int is_con)
 		/* was hostalloc but changed cause it blows away the */
 		/* large tlb mapping when pinning the kernel area    */
 		mem_addr = (u8 *) cpm_dpram_addr(cpm_dpalloc(memsz, 8));
-		dma_addr = 0;
+		dma_addr = (u32)mem_addr;
 	} else
 		mem_addr = dma_alloc_coherent(NULL, memsz, &dma_addr,
 					      GFP_KERNEL);
@@ -157,8 +157,9 @@ int cpm_uart_allocbuf(struct uart_cpm_port *pinfo, unsigned int is_con)
 	}
 
 	pinfo->dp_addr = dp_offset;
-	pinfo->mem_addr = mem_addr;
-	pinfo->dma_addr = dma_addr;
+	pinfo->mem_addr = mem_addr;             /*  virtual address*/
+	pinfo->dma_addr = dma_addr;             /*  physical address*/
+	pinfo->mem_size = memsz;
 
 	pinfo->rx_buf = mem_addr;
 	pinfo->tx_buf = pinfo->rx_buf + L1_CACHE_ALIGN(pinfo->rx_nrfifos

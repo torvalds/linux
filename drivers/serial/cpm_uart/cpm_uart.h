@@ -66,6 +66,7 @@ struct uart_cpm_port {
 	uint			 dp_addr;
 	void			*mem_addr;
 	dma_addr_t		 dma_addr;
+	u32			mem_size;
 	/* helpers */
 	int			 baud;
 	int			 bits;
@@ -91,5 +92,37 @@ void scc1_lineif(struct uart_cpm_port *pinfo);
 void scc2_lineif(struct uart_cpm_port *pinfo);
 void scc3_lineif(struct uart_cpm_port *pinfo);
 void scc4_lineif(struct uart_cpm_port *pinfo);
+
+/*
+   virtual to phys transtalion
+*/
+static inline unsigned long cpu2cpm_addr(void* addr, struct uart_cpm_port *pinfo)
+{
+	int offset;
+	u32 val = (u32)addr;
+	/* sane check */
+	if ((val >= (u32)pinfo->mem_addr) &&
+			(val<((u32)pinfo->mem_addr + pinfo->mem_size))) {
+		offset = val - (u32)pinfo->mem_addr;
+		return pinfo->dma_addr+offset;
+	}
+	printk("%s(): address %x to translate out of range!\n", __FUNCTION__, val);
+	return 0;
+}
+
+static inline void *cpm2cpu_addr(unsigned long addr, struct uart_cpm_port *pinfo)
+{
+	int offset;
+	u32 val = addr;
+	/* sane check */
+	if ((val >= pinfo->dma_addr) &&
+			(val<(pinfo->dma_addr + pinfo->mem_size))) {
+		offset = val - (u32)pinfo->dma_addr;
+		return (void*)(pinfo->mem_addr+offset);
+	}
+	printk("%s(): address %x to translate out of range!\n", __FUNCTION__, val);
+	return 0;
+}
+
 
 #endif /* CPM_UART_H */
