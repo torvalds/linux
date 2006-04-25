@@ -3,7 +3,6 @@
 */
 
 #include <linux/config.h>
-#include <linux/init.h>
 #include <linux/xattr.h>
 
 /* Magic value in header */
@@ -15,6 +14,7 @@ struct reiserfs_xattr_header {
 };
 
 #ifdef __KERNEL__
+#include <linux/init.h>
 
 struct reiserfs_xattr_handler {
 	char *prefix;
