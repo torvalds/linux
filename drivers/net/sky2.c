@@ -2086,6 +2086,20 @@ static void sky2_descriptor_error(struct sky2_hw *hw, unsigned port,
 	}
 }
 
+/* If idle then force a fake soft NAPI poll once a second
+ * to work around cases where sharing an edge triggered interrupt.
+ */
+static void sky2_idle(unsigned long arg)
+{
+	struct net_device *dev = (struct net_device *) arg;
+
+	local_irq_disable();
+	if (__netif_rx_schedule_prep(dev))
+		__netif_rx_schedule(dev);
+	local_irq_enable();
+}
+
+
 static int sky2_poll(struct net_device *dev0, int *budget)
 {
 	struct sky2_hw *hw = ((struct sky2_port *) netdev_priv(dev0))->hw;
@@ -2133,6 +2147,8 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 
 		sky2_write32(hw, STAT_CTRL, SC_STAT_CLR_IRQ);
 	}
+
+	mod_timer(&hw->idle_timer, jiffies + HZ);
 
 	local_irq_disable();
 	__netif_rx_complete(dev0);
@@ -3288,6 +3304,8 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 
 	sky2_write32(hw, B0_IMSK, Y2_IS_BASE);
 
+	setup_timer(&hw->idle_timer, sky2_idle, (unsigned long) dev);
+
 	pci_set_drvdata(pdev, hw);
 
 	return 0;
@@ -3323,13 +3341,15 @@ static void __devexit sky2_remove(struct pci_dev *pdev)
 	if (!hw)
 		return;
 
+	del_timer_sync(&hw->idle_timer);
+
+	sky2_write32(hw, B0_IMSK, 0);
 	dev0 = hw->dev[0];
 	dev1 = hw->dev[1];
 	if (dev1)
 		unregister_netdev(dev1);
 	unregister_netdev(dev0);
 
-	sky2_write32(hw, B0_IMSK, 0);
 	sky2_set_power_state(hw, PCI_D3hot);
 	sky2_write16(hw, B0_Y2LED, LED_STAT_OFF);
 	sky2_write8(hw, B0_CTST, CS_RST_SET);
