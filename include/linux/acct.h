@@ -16,7 +16,6 @@
 #define _LINUX_ACCT_H
 
 #include <linux/types.h>
-#include <linux/jiffies.h>
 
 #include <asm/param.h>
 #include <asm/byteorder.h>
@@ -165,6 +164,7 @@ typedef struct acct acct_t;
 #endif	/* __KERNEL */
 
 #ifdef __KERNEL__
+#include <linux/jiffies.h>
 /*
  * Yet another set of HZ to *HZ helper functions.
  * See <linux/jiffies.h> for the original.
