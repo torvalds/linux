@@ -39,6 +39,8 @@
 #error "need definition of ppc_sys_devices"
 #endif
 
+#define PPC_SYS_IORESOURCE_FIXUPPED	0x00000001	
+
 struct ppc_sys_spec {
 	/* PPC sys is matched via (ID & mask) == value, id could be
 	 * PVR, SVR, IMMR, * etc. */
