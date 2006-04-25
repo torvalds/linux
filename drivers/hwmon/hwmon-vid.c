@@ -70,6 +70,7 @@ int vid_from_reg(int val, u8 vrm)
 	switch(vrm) {
 
 	case 100:               /* VRD 10.0 */
+		val &= 0x3f;
 		if((val & 0x1f) == 0x1f)
 			return 0;
 		if((val & 0x1f) <= 0x09 || val == 0x0a)
@@ -82,14 +83,17 @@ int vid_from_reg(int val, u8 vrm)
 		return vid;
 
 	case 24:                /* Opteron processor */
+		val &= 0x1f;
 		return(val == 0x1f ? 0 : 1550 - val * 25);
 
 	case 91:		/* VRM 9.1 */
 	case 90:		/* VRM 9.0 */
+		val &= 0x1f;
 		return(val == 0x1f ? 0 :
 		                       1850 - val * 25);
 
 	case 85:		/* VRM 8.5 */
+		val &= 0x1f;
 		return((val & 0x10  ? 25 : 0) +
 		       ((val & 0x0f) > 0x04 ? 2050 : 1250) -
 		       ((val & 0x0f) * 50));
@@ -98,14 +102,17 @@ int vid_from_reg(int val, u8 vrm)
 		val &= 0x0f;
 				/* fall through */
 	case 82:		/* VRM 8.2 */
+		val &= 0x1f;
 		return(val == 0x1f ? 0 :
 		       val & 0x10  ? 5100 - (val) * 100 :
 		                     2050 - (val) * 50);
 	case 17:		/* Intel IMVP-II */
+		val &= 0x1f;
 		return(val & 0x10 ? 975 - (val & 0xF) * 25 :
 				    1750 - val * 50);
 	case 13:
-		return(1708 - (val & 0x3f) * 16);
+		val &= 0x3f;
+		return(1708 - val * 16);
 	default:		/* report 0 for unknown */
 		printk(KERN_INFO "hwmon-vid: requested unknown VRM version\n");
 		return 0;
