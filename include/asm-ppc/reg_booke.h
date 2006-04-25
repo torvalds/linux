@@ -237,6 +237,7 @@ do {						\
 #endif
 
 /* Bit definitions for CCR1. */
+#define	CCR1_DPC	0x00000100 /* Disable L1 I-Cache/D-Cache parity checking */
 #define	CCR1_TCS	0x00000080 /* Timer Clock Select */
 
 /* Bit definitions for the MCSR. */
