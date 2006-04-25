@@ -69,6 +69,11 @@ ipt_init_target(struct ipt_entry_target *t, char *table, unsigned int hook)
 	DPRINTK("ipt_init_target: found %s\n", target->name);
 	t->u.kernel.target = target;
 
+	ret = xt_check_target(target, AF_INET, t->u.target_size - sizeof(*t),
+			      table, hook, 0, 0);
+	if (ret)
+		return ret;
+
 	if (t->u.kernel.target->checkentry
 	    && !t->u.kernel.target->checkentry(table, NULL,
 		    			       t->u.kernel.target, t->data,
