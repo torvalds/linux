@@ -925,8 +925,7 @@ static inline struct sk_buff *sky2_alloc_skb(unsigned int size, gfp_t gfp_mask)
 	skb = alloc_skb(size + RX_SKB_ALIGN, gfp_mask);
 	if (likely(skb)) {
 		unsigned long p	= (unsigned long) skb->data;
-		skb_reserve(skb,
-			((p + RX_SKB_ALIGN - 1) & ~(RX_SKB_ALIGN - 1)) - p);
+		skb_reserve(skb, ALIGN(p, RX_SKB_ALIGN) - p);
 	}
 
 	return skb;
@@ -1686,13 +1685,12 @@ static void sky2_tx_timeout(struct net_device *dev)
 }
 
 
-#define roundup(x, y)   ((((x)+((y)-1))/(y))*(y))
 /* Want receive buffer size to be multiple of 64 bits
  * and incl room for vlan and truncation
  */
 static inline unsigned sky2_buf_size(int mtu)
 {
-	return roundup(mtu + ETH_HLEN + VLAN_HLEN, 8) + 8;
+	return ALIGN(mtu + ETH_HLEN + VLAN_HLEN, 8) + 8;
 }
 
 static int sky2_change_mtu(struct net_device *dev, int new_mtu)
