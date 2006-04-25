@@ -439,14 +439,13 @@ EXPORT_SYMBOL(generic_file_splice_read);
 
 /*
  * Send 'sd->len' bytes to socket from 'sd->file' at position 'sd->pos'
- * using sendpage().
+ * using sendpage(). Return the number of bytes sent.
  */
 static int pipe_to_sendpage(struct pipe_inode_info *info,
 			    struct pipe_buffer *buf, struct splice_desc *sd)
 {
 	struct file *file = sd->file;
 	loff_t pos = sd->pos;
-	unsigned int offset;
 	ssize_t ret;
 	void *ptr;
 	int more;
@@ -461,16 +460,13 @@ static int pipe_to_sendpage(struct pipe_inode_info *info,
 	if (IS_ERR(ptr))
 		return PTR_ERR(ptr);
 
-	offset = pos & ~PAGE_CACHE_MASK;
 	more = (sd->flags & SPLICE_F_MORE) || sd->len < sd->total_len;
 
-	ret = file->f_op->sendpage(file, buf->page, offset, sd->len, &pos,more);
+	ret = file->f_op->sendpage(file, buf->page, buf->offset, sd->len,
+				   &pos, more);
 
 	buf->ops->unmap(info, buf);
-	if (ret == sd->len)
-		return 0;
-
-	return -EIO;
+	return ret;
 }
 
 /*
@@ -499,7 +495,7 @@ static int pipe_to_file(struct pipe_inode_info *info, struct pipe_buffer *buf,
 	struct file *file = sd->file;
 	struct address_space *mapping = file->f_mapping;
 	gfp_t gfp_mask = mapping_gfp_mask(mapping);
-	unsigned int offset;
+	unsigned int offset, this_len;
 	struct page *page;
 	pgoff_t index;
 	char *src;
@@ -514,6 +510,10 @@ static int pipe_to_file(struct pipe_inode_info *info, struct pipe_buffer *buf,
 
 	index = sd->pos >> PAGE_CACHE_SHIFT;
 	offset = sd->pos & ~PAGE_CACHE_MASK;
+
+	this_len = sd->len;
+	if (this_len + offset > PAGE_CACHE_SIZE)
+		this_len = PAGE_CACHE_SIZE - offset;
 
 	/*
 	 * Reuse buf page, if SPLICE_F_MOVE is set.
@@ -558,7 +558,7 @@ find_page:
 		 * the full page.
 		 */
 		if (!PageUptodate(page)) {
-			if (sd->len < PAGE_CACHE_SIZE) {
+			if (this_len < PAGE_CACHE_SIZE) {
 				ret = mapping->a_ops->readpage(file, page);
 				if (unlikely(ret))
 					goto out;
@@ -582,7 +582,7 @@ find_page:
 		}
 	}
 
-	ret = mapping->a_ops->prepare_write(file, page, 0, sd->len);
+	ret = mapping->a_ops->prepare_write(file, page, offset, offset+this_len);
 	if (ret == AOP_TRUNCATED_PAGE) {
 		page_cache_release(page);
 		goto find_page;
@@ -592,18 +592,22 @@ find_page:
 	if (!(buf->flags & PIPE_BUF_FLAG_STOLEN)) {
 		char *dst = kmap_atomic(page, KM_USER0);
 
-		memcpy(dst + offset, src + buf->offset, sd->len);
+		memcpy(dst + offset, src + buf->offset, this_len);
 		flush_dcache_page(page);
 		kunmap_atomic(dst, KM_USER0);
 	}
 
-	ret = mapping->a_ops->commit_write(file, page, 0, sd->len);
+	ret = mapping->a_ops->commit_write(file, page, offset, offset+this_len);
 	if (ret == AOP_TRUNCATED_PAGE) {
 		page_cache_release(page);
 		goto find_page;
 	} else if (ret)
 		goto out;
 
+	/*
+	 * Return the number of bytes written.
+	 */
+	ret = this_len;
 	mark_page_accessed(page);
 	balance_dirty_pages_ratelimited(mapping);
 out:
@@ -652,16 +656,22 @@ static ssize_t move_from_pipe(struct pipe_inode_info *pipe, struct file *out,
 				sd.len = sd.total_len;
 
 			err = actor(pipe, buf, &sd);
-			if (err) {
+			if (err <= 0) {
 				if (!ret && err != -ENODATA)
 					ret = err;
 
 				break;
 			}
 
-			ret += sd.len;
-			buf->offset += sd.len;
-			buf->len -= sd.len;
+			ret += err;
+			buf->offset += err;
+			buf->len -= err;
+
+			sd.len -= err;
+			sd.pos += err;
+			sd.total_len -= err;
+			if (sd.len)
+				continue;
 
 			if (!buf->len) {
 				buf->ops = NULL;
@@ -672,8 +682,6 @@ static ssize_t move_from_pipe(struct pipe_inode_info *pipe, struct file *out,
 					do_wakeup = 1;
 			}
 
-			sd.pos += sd.len;
-			sd.total_len -= sd.len;
 			if (!sd.total_len)
 				break;
 		}
