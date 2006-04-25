@@ -529,6 +529,7 @@ int xt_register_table(struct xt_table *table,
 
 	/* Simplifies replace_table code. */
 	table->private = bootstrap;
+	rwlock_init(&table->lock);
 	if (!xt_replace_table(table, 0, newinfo, &ret))
 		goto unlock;
 
@@ -538,7 +539,6 @@ int xt_register_table(struct xt_table *table,
 	/* save number of initial entries */
 	private->initial_entries = private->number;
 
-	rwlock_init(&table->lock);
 	list_prepend(&xt[table->af].tables, table);
 
 	ret = 0;
