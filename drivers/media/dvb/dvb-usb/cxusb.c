@@ -27,7 +27,7 @@
 
 #include "cx22702.h"
 #include "lgdt330x.h"
-#include "fe_lgh06xf.h"
+#include "lg_h06xf.h"
 #include "mt352.h"
 #include "mt352_priv.h"
 

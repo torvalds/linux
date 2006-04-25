@@ -14,7 +14,7 @@
 #include "stv0297.h"
 #include "mt312.h"
 #include "lgdt330x.h"
-#include "fe_lgh06xf.h"
+#include "lg_h06xf.h"
 #include "dvb-pll.h"
 
 /* lnb control */

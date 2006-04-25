@@ -1,5 +1,5 @@
 /*
- *  fe_lgh06xf.h - ATSC Tuner support for LG TDVS H06xF
+ *  lg_h06xf.h - ATSC Tuner support for LG TDVS-H06xF
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,8 +16,8 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#ifndef FE_LGH06XF_H
-#define FE_LGH06XF_H
+#ifndef _LG_H06XF_H_
+#define _LG_H06XF_H_
 #include "dvb-pll.h"
 
 static int lg_h06xf_pll_set(struct dvb_frontend* fe, struct i2c_adapter* i2c_adap,
