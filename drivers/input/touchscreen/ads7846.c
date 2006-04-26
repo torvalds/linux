@@ -71,6 +71,7 @@ struct ts_event {
 	__be16 x;
 	__be16 y;
 	__be16 z1, z2;
+	int    ignore;
 };
 
 struct ads7846 {
@@ -81,6 +82,7 @@ struct ads7846 {
 	u16			model;
 	u16			vref_delay_usecs;
 	u16			x_plate_ohms;
+	u16			pressure_max;
 
 	u8			read_x, read_y, read_z1, read_z2, pwrdown;
 	u16			dummy;		/* for the pwrdown read */
@@ -88,12 +90,15 @@ struct ads7846 {
 
 	struct spi_transfer	xfer[10];
 	struct spi_message	msg[5];
+	struct spi_message	*last_msg;
 	int			msg_idx;
 	int			read_cnt;
+	int			read_rep;
 	int			last_read;
 
 	u16			debounce_max;
 	u16			debounce_tol;
+	u16			debounce_rep;
 
 	spinlock_t		lock;
 	struct timer_list	timer;		/* P: lock */
@@ -354,6 +359,14 @@ static void ads7846_rx(void *ads)
 	} else
 		Rt = 0;
 
+	/* Sample found inconsistent by debouncing or pressure is beyond
+	* the maximum. Don't report it to user space, repeat at least
+	* once more the measurement */
+	if (ts->tc.ignore || Rt > ts->pressure_max) {
+		mod_timer(&ts->timer, jiffies + TS_POLL_PERIOD);
+		return;
+	}
+
 	/* NOTE:  "pendown" is inferred from pressure; we don't rely on
 	 * being able to check nPENIRQ status, or "friendly" trigger modes
 	 * (both-edges is much better than just-falling or low-level).
@@ -402,25 +415,45 @@ static void ads7846_debounce(void *ads)
 	struct ads7846		*ts = ads;
 	struct spi_message	*m;
 	struct spi_transfer	*t;
-	u16			val;
+	int			val;
 	int			status;
 
 	m = &ts->msg[ts->msg_idx];
 	t = list_entry(m->transfers.prev, struct spi_transfer, transfer_list);
 	val = (*(u16 *)t->rx_buf) >> 3;
-
-	if (!ts->read_cnt || (abs(ts->last_read - val) > ts->debounce_tol
-				&& ts->read_cnt < ts->debounce_max)) {
-		/* Repeat it, if this was the first read or the read wasn't
-		 * consistent enough
-		 */
-		ts->read_cnt++;
-		ts->last_read = val;
+	if (!ts->read_cnt || (abs(ts->last_read - val) > ts->debounce_tol)) {
+		/* Repeat it, if this was the first read or the read
+		 * wasn't consistent enough. */
+		if (ts->read_cnt < ts->debounce_max) {
+			ts->last_read = val;
+			ts->read_cnt++;
+		} else {
+			/* Maximum number of debouncing reached and still
+			 * not enough number of consistent readings. Abort
+			 * the whole sample, repeat it in the next sampling
+			 * period.
+			 */
+			ts->tc.ignore = 1;
+			ts->read_cnt = 0;
+			/* Last message will contain ads7846_rx() as the
+			 * completion function.
+			 */
+			m = ts->last_msg;
+		}
+		/* Start over collecting consistent readings. */
+		ts->read_rep = 0;
 	} else {
-		/* Go for the next read */
-		ts->msg_idx++;
-		ts->read_cnt = 0;
-		m++;
+		if (++ts->read_rep > ts->debounce_rep) {
+			/* Got a good reading for this coordinate,
+			 * go for the next one. */
+			ts->tc.ignore = 0;
+			ts->msg_idx++;
+			ts->read_cnt = 0;
+			ts->read_rep = 0;
+			m++;
+		} else
+			/* Read more values that are consistent. */
+			ts->read_cnt++;
 	}
 	status = spi_async(ts->spi, m);
 	if (status)
@@ -609,8 +642,15 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 	ts->model = pdata->model ? : 7846;
 	ts->vref_delay_usecs = pdata->vref_delay_usecs ? : 100;
 	ts->x_plate_ohms = pdata->x_plate_ohms ? : 400;
-	ts->debounce_max = pdata->debounce_max ? : 1;
-	ts->debounce_tol = pdata->debounce_tol ? : 10;
+	ts->pressure_max = pdata->pressure_max ? : ~0;
+	if (pdata->debounce_max) {
+		ts->debounce_max = pdata->debounce_max;
+		ts->debounce_tol = pdata->debounce_tol;
+		ts->debounce_rep = pdata->debounce_rep;
+		if (ts->debounce_rep > ts->debounce_max + 1)
+			ts->debounce_rep = ts->debounce_max - 1;
+	} else
+		ts->debounce_tol = ~0;
 	ts->get_pendown_state = pdata->get_pendown_state;
 
 	snprintf(ts->phys, sizeof(ts->phys), "%s/input0", spi->dev.bus_id);
@@ -727,6 +767,8 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 
 	m->complete = ads7846_rx;
 	m->context = ts;
+
+	ts->last_msg = m;
 
 	if (request_irq(spi->irq, ads7846_irq,
 			SA_SAMPLE_RANDOM | SA_TRIGGER_FALLING,
