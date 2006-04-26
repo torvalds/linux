@@ -24,8 +24,7 @@
 #ifndef _LINUX_AUDIT_H_
 #define _LINUX_AUDIT_H_
 
-#include <linux/sched.h>
-#include <linux/elf.h>
+#include <linux/elf-em.h>
 
 /* The netlink messages for the audit system is divided into blocks:
  * 1000 - 1099 are for commanding the audit system
@@ -267,6 +266,7 @@ struct audit_rule {		/* for AUDIT_LIST, AUDIT_ADD, and AUDIT_DEL */
 };
 
 #ifdef __KERNEL__
+#include <linux/sched.h>
 
 struct audit_sig_info {
 	uid_t		uid;
