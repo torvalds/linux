@@ -115,7 +115,6 @@ struct acct_v3
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 
 #ifdef CONFIG_BSD_PROCESS_ACCT
 struct vfsmount;

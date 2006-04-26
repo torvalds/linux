@@ -16,7 +16,6 @@
 
 #ifndef __LINUX_MTD_PHYSMAP__
 
-#include <linux/config.h>
 
 #if defined(CONFIG_MTD_PHYSMAP)
 

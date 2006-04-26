@@ -11,7 +11,6 @@
 #ifndef _ASM_SN_SN0_ARCH_H
 #define _ASM_SN_SN0_ARCH_H
 
-#include <linux/config.h>
 
 #ifndef SABLE
 

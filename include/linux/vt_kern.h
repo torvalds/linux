@@ -6,7 +6,6 @@
  * with information needed by the vt package
  */
 
-#include <linux/config.h>
 #include <linux/vt.h>
 #include <linux/kd.h>
 #include <linux/tty.h>

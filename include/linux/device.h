@@ -11,7 +11,6 @@
 #ifndef _DEVICE_H_
 #define _DEVICE_H_
 
-#include <linux/config.h>
 #include <linux/ioport.h>
 #include <linux/kobject.h>
 #include <linux/klist.h>

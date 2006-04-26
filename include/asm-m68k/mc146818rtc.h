@@ -4,7 +4,6 @@
 #ifndef _ASM_MC146818RTC_H
 #define _ASM_MC146818RTC_H
 
-#include <linux/config.h>
 
 #ifdef CONFIG_ATARI
 /* RTC in Atari machines */

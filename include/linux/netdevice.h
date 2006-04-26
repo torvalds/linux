@@ -34,7 +34,6 @@
 #include <asm/cache.h>
 #include <asm/byteorder.h>
 
-#include <linux/config.h>
 #include <linux/device.h>
 #include <linux/percpu.h>
 

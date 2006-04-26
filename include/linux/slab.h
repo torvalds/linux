@@ -11,7 +11,6 @@
 
 typedef struct kmem_cache kmem_cache_t;
 
-#include	<linux/config.h>	/* kmalloc_sizes.h needs CONFIG_ options */
 #include	<linux/gfp.h>
 #include	<linux/init.h>
 #include	<linux/types.h>

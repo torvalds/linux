@@ -6,7 +6,6 @@
  * Rewritten by Richard Henderson <rth@tamu.edu> Dec 1996
  * Rewritten again by Rusty Russell, 2002
  */
-#include <linux/config.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/list.h>

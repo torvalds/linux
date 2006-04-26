@@ -11,7 +11,6 @@
 #define	m528xsim_h
 /****************************************************************************/
 
-#include <linux/config.h>
 
 /*
  *	Define the 5280/5282 SIM register set addresses.

@@ -1,7 +1,6 @@
 #ifndef _M68KNOMMU_SYSTEM_H
 #define _M68KNOMMU_SYSTEM_H
 
-#include <linux/config.h> /* get configuration macros */
 #include <linux/linkage.h>
 #include <asm/segment.h>
 #include <asm/entry.h>

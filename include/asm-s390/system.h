@@ -11,7 +11,6 @@
 #ifndef __ASM_SYSTEM_H
 #define __ASM_SYSTEM_H
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <asm/types.h>
 #include <asm/ptrace.h>

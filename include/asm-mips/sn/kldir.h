@@ -11,7 +11,6 @@
 #ifndef _ASM_SN_KLDIR_H
 #define _ASM_SN_KLDIR_H
 
-#include <linux/config.h>
 
 #if defined(CONFIG_SGI_IO)
 #include <asm/hack.h>

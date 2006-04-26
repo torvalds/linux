@@ -8,7 +8,6 @@
 #ifndef _ASM_WAR_H
 #define _ASM_WAR_H
 
-#include <linux/config.h>
 
 /*
  * Another R4600 erratum.  Due to the lack of errata information the exact

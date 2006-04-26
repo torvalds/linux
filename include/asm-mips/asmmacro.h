@@ -8,7 +8,6 @@
 #ifndef _ASM_ASMMACRO_H
 #define _ASM_ASMMACRO_H
 
-#include <linux/config.h>
 #include <asm/hazards.h>
 
 #ifdef CONFIG_32BIT

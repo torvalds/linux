@@ -24,7 +24,6 @@
 #ifndef _PROTOCOL_H
 #define _PROTOCOL_H
 
-#include <linux/config.h>
 #include <linux/in6.h>
 #if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
 #include <linux/ipv6.h>

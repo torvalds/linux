@@ -1,7 +1,6 @@
 #ifndef _X86_64_PAGE_H
 #define _X86_64_PAGE_H
 
-#include <linux/config.h>
 
 /* PAGE_SHIFT determines the page size */
 #define PAGE_SHIFT	12

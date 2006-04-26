@@ -3,7 +3,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 
 #define CPU_ARCH_UNKNOWN	0
 #define CPU_ARCH_ARMv3		1

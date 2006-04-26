@@ -17,7 +17,6 @@
 #ifndef __ASM_ASM_H
 #define __ASM_ASM_H
 
-#include <linux/config.h>
 #include <asm/sgidefs.h>
 
 #ifndef CAT

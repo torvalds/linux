@@ -22,7 +22,6 @@
 #define _ASM_IOMMU_H
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 #include <asm/types.h>
 #include <linux/spinlock.h>
 #include <linux/device.h>

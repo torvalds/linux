@@ -132,7 +132,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 #include <linux/compiler.h>
 #include <linux/interrupt.h>
 #include <linux/circ_buf.h>

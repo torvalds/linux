@@ -11,7 +11,6 @@
 #define OVERCOMMIT_NEVER		2
 
 #ifdef __KERNEL__
-#include <linux/config.h>
 #include <linux/mm.h>
 
 #include <asm/atomic.h>

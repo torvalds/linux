@@ -8,7 +8,6 @@
  */
 
 #include <linux/linkage.h>
-#include <linux/config.h>
 
 #if   defined(CONFIG_ALPHA_GENERIC)
 

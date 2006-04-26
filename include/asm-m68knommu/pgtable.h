@@ -7,7 +7,6 @@
  * (C) Copyright 2000-2002, Greg Ungerer <gerg@snapgear.com>
  */
 
-#include <linux/config.h>
 #include <linux/slab.h>
 #include <asm/processor.h>
 #include <asm/page.h>

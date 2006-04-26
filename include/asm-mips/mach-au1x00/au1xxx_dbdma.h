@@ -34,7 +34,6 @@
 #ifndef _AU1000_DBDMA_H_
 #define _AU1000_DBDMA_H_
 
-#include <linux/config.h>
 
 #ifndef _LANGUAGE_ASSEMBLY
 

@@ -13,7 +13,6 @@
 #ifndef _S390_IDALS_H
 #define _S390_IDALS_H
 
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/types.h>

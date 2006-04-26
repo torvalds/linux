@@ -9,7 +9,6 @@
  * Thanks. --rmk
  */
 
-#include <linux/config.h>
 #include <linux/smp.h>
 
 #if !defined(CONFIG_S390)

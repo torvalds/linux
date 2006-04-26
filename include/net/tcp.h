@@ -21,7 +21,6 @@
 #define TCP_DEBUG 1
 #define FASTRETRANS_DEBUG 1
 
-#include <linux/config.h>
 #include <linux/list.h>
 #include <linux/tcp.h>
 #include <linux/slab.h>

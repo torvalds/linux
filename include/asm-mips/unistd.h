@@ -1170,7 +1170,6 @@ type name (atype a,btype b,ctype c,dtype d,etype e,ftype f) \
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_OLD_READDIR

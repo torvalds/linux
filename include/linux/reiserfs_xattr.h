@@ -2,7 +2,6 @@
   File: linux/reiserfs_xattr.h
 */
 
-#include <linux/config.h>
 #include <linux/xattr.h>
 
 /* Magic value in header */

@@ -5,7 +5,6 @@
    hardware ignores reprogramming.  We also need userland buy-in to the 
    change in HZ, since this is visible in the wait4 resources etc.  */
 
-#include <linux/config.h>
 
 #ifndef HZ
 # ifndef CONFIG_ALPHA_RAWHIDE

@@ -2,7 +2,6 @@
 #ifndef _ASM_M32R_IRQ_H
 #define _ASM_M32R_IRQ_H
 
-#include <linux/config.h>
 
 #if defined(CONFIG_PLAT_M32700UT_Alpha) || defined(CONFIG_PLAT_USRV)
 /*

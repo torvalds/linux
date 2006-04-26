@@ -18,7 +18,6 @@
 #ifndef __ASM_ARCH_IRQS_H
 #define __ASM_ARCH_IRQS_H
 
-#include <linux/config.h>
 
 #define FIQ_START	80
 

@@ -11,7 +11,6 @@
 
 #include <asm-generic/4level-fixup.h>
 
-#include <linux/config.h>
 #include <linux/spinlock.h>
 #include <linux/swap.h>
 #include <asm/types.h>

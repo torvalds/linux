@@ -53,7 +53,6 @@ struct mq_attr;
 struct compat_stat;
 struct compat_timeval;
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/aio_abi.h>
 #include <linux/capability.h>

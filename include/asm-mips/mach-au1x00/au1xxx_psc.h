@@ -33,7 +33,6 @@
 #ifndef _AU1000_PSC_H_
 #define _AU1000_PSC_H_
 
-#include <linux/config.h>
 
 /* The PSC base addresses.  */
 #ifdef CONFIG_SOC_AU1550

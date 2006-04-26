@@ -8,7 +8,6 @@
 #ifndef _ASM_BYTEORDER_H
 #define _ASM_BYTEORDER_H
 
-#include <linux/config.h>
 #include <linux/compiler.h>
 #include <asm/types.h>
 

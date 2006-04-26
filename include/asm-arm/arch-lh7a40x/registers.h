@@ -9,7 +9,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <asm/arch/constants.h>
 
 #ifndef __ASM_ARCH_REGISTERS_H

@@ -27,7 +27,6 @@
 #define RPCDBG_ALL		0x7fff
 
 #ifdef __KERNEL__
-#include <linux/config.h>
 
 #include <linux/timer.h>
 #include <linux/workqueue.h>

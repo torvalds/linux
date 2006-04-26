@@ -10,7 +10,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/config.h>
 
 #ifdef CONFIG_PXA27x
 #define PXA_IRQ_SKIP	0

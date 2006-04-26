@@ -1,7 +1,6 @@
 #ifndef _M68K_BUG_H
 #define _M68K_BUG_H
 
-#include <linux/config.h>
 
 #ifdef CONFIG_BUG
 #ifdef CONFIG_DEBUG_BUGVERBOSE

@@ -1,7 +1,6 @@
 #ifndef _ASM_SPARC64_DMA_MAPPING_H
 #define _ASM_SPARC64_DMA_MAPPING_H
 
-#include <linux/config.h>
 
 #ifdef CONFIG_PCI
 #include <asm-generic/dma-mapping.h>

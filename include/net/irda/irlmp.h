@@ -29,7 +29,6 @@
 
 #include <asm/param.h>  /* for HZ */
 
-#include <linux/config.h>
 #include <linux/types.h>
 
 #include <net/irda/irda.h>

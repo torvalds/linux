@@ -12,7 +12,6 @@
  */
 
 
-#include <linux/config.h>
 #include <asm/sal.h>
 #include <asm/sn/sn_cpuid.h>
 #include <asm/sn/arch.h>

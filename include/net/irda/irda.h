@@ -26,7 +26,6 @@
 #ifndef NET_IRDA_H
 #define NET_IRDA_H
 
-#include <linux/config.h>
 #include <linux/skbuff.h>		/* struct sk_buff */
 #include <linux/kernel.h>
 #include <linux/if.h>			/* sa_family_t in <linux/irda.h> */

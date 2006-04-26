@@ -24,7 +24,6 @@
 #define _SPU_H
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 #include <linux/kref.h>
 #include <linux/workqueue.h>
 

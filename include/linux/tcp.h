@@ -159,7 +159,6 @@ struct tcp_info
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 #include <linux/skbuff.h>
 #include <net/sock.h>
 #include <net/inet_connection_sock.h>

@@ -21,7 +21,6 @@ struct sock_extended_err
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 #include <net/ip.h>
 #if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
 #include <linux/ipv6.h>

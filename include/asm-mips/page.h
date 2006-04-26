@@ -9,7 +9,6 @@
 #ifndef _ASM_PAGE_H
 #define _ASM_PAGE_H
 
-#include <linux/config.h>
 
 #ifdef __KERNEL__
 

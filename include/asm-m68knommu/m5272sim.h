@@ -12,7 +12,6 @@
 #define	m5272sim_h
 /****************************************************************************/
 
-#include <linux/config.h>
 
 /*
  *	Define the 5272 SIM register set addresses.

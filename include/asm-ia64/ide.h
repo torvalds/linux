@@ -13,7 +13,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 
 #include <linux/irq.h>
 

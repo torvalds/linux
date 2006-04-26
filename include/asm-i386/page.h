@@ -12,7 +12,6 @@
 #ifdef __KERNEL__
 #ifndef __ASSEMBLY__
 
-#include <linux/config.h>
 
 #ifdef CONFIG_X86_USE_3DNOW
 

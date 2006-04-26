@@ -24,7 +24,6 @@
 #ifndef _FRAD_H_
 #define _FRAD_H_
 
-#include <linux/config.h>
 #include <linux/if.h>
 
 #if defined(CONFIG_DLCI) || defined(CONFIG_DLCI_MODULE)

@@ -13,7 +13,6 @@
 #error This is a kernel header. Perhaps include mtd-user.h instead?
 #endif
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/uio.h>

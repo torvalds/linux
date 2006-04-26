@@ -12,7 +12,6 @@
  *	<tomsoft@informatik.tu-chemnitz.de>
  */
 
-#include <linux/config.h>
 #include <linux/profile.h>
 #include <asm/atomic.h>
 #include <asm/irq.h>

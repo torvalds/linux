@@ -1,7 +1,6 @@
 #ifndef _ASM_POWERPC_ISERIES_ISERIES_IO_H
 #define _ASM_POWERPC_ISERIES_ISERIES_IO_H
 
-#include <linux/config.h>
 
 #ifdef CONFIG_PPC_ISERIES
 #include <linux/types.h>

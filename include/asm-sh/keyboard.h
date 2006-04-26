@@ -5,7 +5,6 @@
  */
 
 #include <linux/kd.h>
-#include <linux/config.h>
 #include <asm/machvec.h>
 
 #ifdef CONFIG_SH_MPC1211

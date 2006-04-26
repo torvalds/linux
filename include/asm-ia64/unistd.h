@@ -293,7 +293,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 
 #define NR_syscalls			278 /* length of syscall table */
 
