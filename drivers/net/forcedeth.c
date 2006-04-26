@@ -105,6 +105,7 @@
  *	0.50: 20 Jan 2006: Add 8021pq tagging support.
  *	0.51: 20 Jan 2006: Add 64bit consistent memory allocation for rings.
  *	0.52: 20 Jan 2006: Add MSI/MSIX support.
+ *	0.53: 19 Mar 2006: Fix init from low power mode and add hw reset.
  *
  * Known bugs:
  * We suspect that on some hardware no TX done interrupts are generated.
@@ -116,7 +117,7 @@
  * DEV_NEED_TIMERIRQ will not harm you on sane hardware, only generating a few
  * superfluous timer interrupts from the nic.
  */
-#define FORCEDETH_VERSION		"0.52"
+#define FORCEDETH_VERSION		"0.53"
 #define DRV_NAME			"forcedeth"
 
 #include <linux/module.h>
@@ -160,6 +161,7 @@
 #define DEV_HAS_VLAN            0x0020  /* device supports vlan tagging and striping */
 #define DEV_HAS_MSI             0x0040  /* device supports MSI */
 #define DEV_HAS_MSI_X           0x0080  /* device supports MSI-X */
+#define DEV_HAS_POWER_CNTRL     0x0100  /* device supports power savings */
 
 enum {
 	NvRegIrqStatus = 0x000,
@@ -203,6 +205,8 @@ enum {
 #define NVREG_MISC1_HD		0x02
 #define NVREG_MISC1_FORCE	0x3b0f3c
 
+	NvRegMacReset = 0x3c,
+#define NVREG_MAC_RESET_ASSERT	0x0F3
 	NvRegTransmitterControl = 0x084,
 #define NVREG_XMITCTL_START	0x01
 	NvRegTransmitterStatus = 0x088,
@@ -326,6 +330,10 @@ enum {
 	NvRegMSIXMap0 = 0x3e0,
 	NvRegMSIXMap1 = 0x3e4,
 	NvRegMSIXIrqStatus = 0x3f0,
+
+	NvRegPowerState2 = 0x600,
+#define NVREG_POWERSTATE2_POWERUP_MASK		0x0F11
+#define NVREG_POWERSTATE2_POWERUP_REV_A3	0x0001
 };
 
 /* Big endian: should work, but is untested */
@@ -414,7 +422,8 @@ typedef union _ring_type {
 #define NV_RX3_VLAN_TAG_MASK	(0x0000FFFF)
 
 /* Miscelaneous hardware related defines: */
-#define NV_PCI_REGSZ		0x270
+#define NV_PCI_REGSZ_VER1      	0x270
+#define NV_PCI_REGSZ_VER2      	0x604
 
 /* various timeout delays: all in usec */
 #define NV_TXRX_RESET_DELAY	4
@@ -431,6 +440,7 @@ typedef union _ring_type {
 #define NV_MIIBUSY_DELAY	50
 #define NV_MIIPHY_DELAY	10
 #define NV_MIIPHY_DELAYMAX	10000
+#define NV_MAC_RESET_DELAY	64
 
 #define NV_WAKEUPPATTERNS	5
 #define NV_WAKEUPMASKENTRIES	4
@@ -552,6 +562,8 @@ struct fe_priv {
 	u32 desc_ver;
 	u32 txrxctl_bits;
 	u32 vlanctl_bits;
+	u32 driver_data;
+	u32 register_size;
 
 	void __iomem *base;
 
@@ -915,6 +927,24 @@ static void nv_txrx_reset(struct net_device *dev)
 	writel(NVREG_TXRXCTL_BIT2 | NVREG_TXRXCTL_RESET | np->txrxctl_bits, base + NvRegTxRxControl);
 	pci_push(base);
 	udelay(NV_TXRX_RESET_DELAY);
+	writel(NVREG_TXRXCTL_BIT2 | np->txrxctl_bits, base + NvRegTxRxControl);
+	pci_push(base);
+}
+
+static void nv_mac_reset(struct net_device *dev)
+{
+	struct fe_priv *np = netdev_priv(dev);
+	u8 __iomem *base = get_hwbase(dev);
+
+	dprintk(KERN_DEBUG "%s: nv_mac_reset\n", dev->name);
+	writel(NVREG_TXRXCTL_BIT2 | NVREG_TXRXCTL_RESET | np->txrxctl_bits, base + NvRegTxRxControl);
+	pci_push(base);
+	writel(NVREG_MAC_RESET_ASSERT, base + NvRegMacReset);
+	pci_push(base);
+	udelay(NV_MAC_RESET_DELAY);
+	writel(0, base + NvRegMacReset);
+	pci_push(base);
+	udelay(NV_MAC_RESET_DELAY);
 	writel(NVREG_TXRXCTL_BIT2 | np->txrxctl_bits, base + NvRegTxRxControl);
 	pci_push(base);
 }
@@ -1331,7 +1361,7 @@ static void nv_tx_timeout(struct net_device *dev)
 				dev->name, (unsigned long)np->ring_addr,
 				np->next_tx, np->nic_tx);
 		printk(KERN_INFO "%s: Dumping tx registers\n", dev->name);
-		for (i=0;i<0x400;i+= 32) {
+		for (i=0;i<=np->register_size;i+= 32) {
 			printk(KERN_INFO "%3x: %08x %08x %08x %08x %08x %08x %08x %08x\n",
 					i,
 					readl(base + i + 0), readl(base + i + 4),
@@ -2488,11 +2518,11 @@ static int nv_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 }
 
 #define FORCEDETH_REGS_VER	1
-#define FORCEDETH_REGS_SIZE	0x400 /* 256 32-bit registers */
 
 static int nv_get_regs_len(struct net_device *dev)
 {
-	return FORCEDETH_REGS_SIZE;
+	struct fe_priv *np = netdev_priv(dev);
+	return np->register_size;
 }
 
 static void nv_get_regs(struct net_device *dev, struct ethtool_regs *regs, void *buf)
@@ -2504,7 +2534,7 @@ static void nv_get_regs(struct net_device *dev, struct ethtool_regs *regs, void 
 
 	regs->version = FORCEDETH_REGS_VER;
 	spin_lock_irq(&np->lock);
-	for (i=0;i<FORCEDETH_REGS_SIZE/sizeof(u32);i++)
+	for (i = 0;i <= np->register_size/sizeof(u32); i++)
 		rbuf[i] = readl(base + i*sizeof(u32));
 	spin_unlock_irq(&np->lock);
 }
@@ -2608,6 +2638,8 @@ static int nv_open(struct net_device *dev)
 	dprintk(KERN_DEBUG "nv_open: begin\n");
 
 	/* 1) erase previous misconfiguration */
+	if (np->driver_data & DEV_HAS_POWER_CNTRL)
+		nv_mac_reset(dev);
 	/* 4.1-1: stop adapter: ignored, 4.3 seems to be overkill */
 	writel(NVREG_MCASTADDRA_FORCE, base + NvRegMulticastAddrA);
 	writel(0, base + NvRegMulticastAddrB);
@@ -2878,6 +2910,7 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 	unsigned long addr;
 	u8 __iomem *base;
 	int err, i;
+	u32 powerstate;
 
 	dev = alloc_etherdev(sizeof(struct fe_priv));
 	err = -ENOMEM;
@@ -2910,6 +2943,11 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 	if (err < 0)
 		goto out_disable;
 
+	if (id->driver_data & (DEV_HAS_VLAN|DEV_HAS_MSI_X|DEV_HAS_POWER_CNTRL))
+		np->register_size = NV_PCI_REGSZ_VER2;
+	else
+		np->register_size = NV_PCI_REGSZ_VER1;
+
 	err = -EINVAL;
 	addr = 0;
 	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
@@ -2918,7 +2956,7 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 				pci_resource_len(pci_dev, i),
 				pci_resource_flags(pci_dev, i));
 		if (pci_resource_flags(pci_dev, i) & IORESOURCE_MEM &&
-				pci_resource_len(pci_dev, i) >= NV_PCI_REGSZ) {
+				pci_resource_len(pci_dev, i) >= np->register_size) {
 			addr = pci_resource_start(pci_dev, i);
 			break;
 		}
@@ -2928,6 +2966,9 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 					pci_name(pci_dev));
 		goto out_relreg;
 	}
+
+	/* copy of driver data */
+	np->driver_data = id->driver_data;
 
 	/* handle different descriptor versions */
 	if (id->driver_data & DEV_HAS_HIGH_DMA) {
@@ -2986,7 +3027,7 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 	}
 
 	err = -ENOMEM;
-	np->base = ioremap(addr, NV_PCI_REGSZ);
+	np->base = ioremap(addr, np->register_size);
 	if (!np->base)
 		goto out_relreg;
 	dev->base_addr = (unsigned long)np->base;
@@ -3061,6 +3102,20 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 	/* disable WOL */
 	writel(0, base + NvRegWakeUpFlags);
 	np->wolenabled = 0;
+
+	if (id->driver_data & DEV_HAS_POWER_CNTRL) {
+		u8 revision_id;
+		pci_read_config_byte(pci_dev, PCI_REVISION_ID, &revision_id);
+
+		/* take phy and nic out of low power mode */
+		powerstate = readl(base + NvRegPowerState2);
+		powerstate &= ~NVREG_POWERSTATE2_POWERUP_MASK;
+		if ((id->device == PCI_DEVICE_ID_NVIDIA_NVENET_12 ||
+		     id->device == PCI_DEVICE_ID_NVIDIA_NVENET_13) &&
+		    revision_id >= 0xA3)
+			powerstate |= NVREG_POWERSTATE2_POWERUP_REV_A3;
+		writel(powerstate, base + NvRegPowerState2);
+	}
 
 	if (np->desc_ver == DESC_VER_1) {
 		np->tx_flags = NV_TX_VALID;
@@ -3223,19 +3278,19 @@ static struct pci_device_id pci_tbl[] = {
 	},
 	{	/* MCP51 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_12),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL,
 	},
 	{	/* MCP51 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_13),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_HIGH_DMA|DEV_HAS_POWER_CNTRL,
 	},
 	{	/* MCP55 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_14),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_VLAN|DEV_HAS_MSI|DEV_HAS_MSI_X,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_VLAN|DEV_HAS_MSI|DEV_HAS_MSI_X|DEV_HAS_POWER_CNTRL,
 	},
 	{	/* MCP55 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_15),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_VLAN|DEV_HAS_MSI|DEV_HAS_MSI_X,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_VLAN|DEV_HAS_MSI|DEV_HAS_MSI_X|DEV_HAS_POWER_CNTRL,
 	},
 	{0,},
 };

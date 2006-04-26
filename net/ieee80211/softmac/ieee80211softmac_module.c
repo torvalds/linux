@@ -45,6 +45,8 @@ struct net_device *alloc_ieee80211softmac(int sizeof_priv)
 	softmac->ieee->handle_disassoc = ieee80211softmac_handle_disassoc;
 	softmac->scaninfo = NULL;
 
+	softmac->associnfo.scan_retry = IEEE80211SOFTMAC_ASSOC_SCAN_RETRY_LIMIT;
+
 	/* TODO: initialise all the other callbacks in the ieee struct
 	 *	 (once they're written)
 	 */
