@@ -375,11 +375,13 @@ static void ads7846_rx(void *ads)
 	if (Rt) {
 		input_report_abs(input_dev, ABS_X, x);
 		input_report_abs(input_dev, ABS_Y, y);
-		input_report_abs(input_dev, ABS_PRESSURE, Rt);
 		sync = 1;
 	}
-	if (sync)
+
+	if (sync) {
+		input_report_abs(input_dev, ABS_PRESSURE, Rt);
 		input_sync(input_dev);
+	}
 
 #ifdef	VERBOSE
 	if (Rt || ts->pendown)
