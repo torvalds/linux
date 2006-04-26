@@ -42,17 +42,29 @@ extern ssize_t tpm_show_pcrs(struct device *, struct device_attribute *attr,
 				char *);
 extern ssize_t tpm_show_caps(struct device *, struct device_attribute *attr,
 				char *);
+extern ssize_t tpm_show_caps_1_2(struct device *, struct device_attribute *attr,
+				char *);
 extern ssize_t tpm_store_cancel(struct device *, struct device_attribute *attr,
 				const char *, size_t);
+extern ssize_t tpm_show_enabled(struct device *, struct device_attribute *attr,
+				char *);
+extern ssize_t tpm_show_active(struct device *, struct device_attribute *attr,
+				char *);
+extern ssize_t tpm_show_owned(struct device *, struct device_attribute *attr,
+				char *);
+extern ssize_t tpm_show_temp_deactivated(struct device *,
+					 struct device_attribute *attr, char *);
 
 struct tpm_chip;
 
 struct tpm_vendor_specific {
-	u8 req_complete_mask;
-	u8 req_complete_val;
-	u8 req_canceled;
+	const u8 req_complete_mask;
+	const u8 req_complete_val;
+	const u8 req_canceled;
 	void __iomem *iobase;		/* ioremapped address */
 	unsigned long base;		/* TPM base address */
+
+	int irq;
 
 	int region_size;
 	int have_region;
@@ -63,6 +75,13 @@ struct tpm_vendor_specific {
 	u8 (*status) (struct tpm_chip *);
 	struct miscdevice miscdev;
 	struct attribute_group *attr_group;
+	struct list_head list;
+	int locality;
+	unsigned long timeout_a, timeout_b, timeout_c, timeout_d; /* jiffies */
+	unsigned long duration[3]; /* jiffies */
+
+	wait_queue_head_t read_queue;
+	wait_queue_head_t int_queue;
 };
 
 struct tpm_chip {
@@ -81,12 +100,14 @@ struct tpm_chip {
 	struct work_struct work;
 	struct semaphore tpm_mutex;	/* tpm is processing */
 
-	struct tpm_vendor_specific *vendor;
+	struct tpm_vendor_specific vendor;
 
 	struct dentry **bios_dir;
 
 	struct list_head list;
 };
+
+#define to_tpm_chip(n) container_of(n, struct tpm_chip, vendor)
 
 static inline int tpm_read_index(int base, int index)
 {
@@ -100,8 +121,12 @@ static inline void tpm_write_index(int base, int index, int value)
 	outb(value & 0xFF, base+1);
 }
 
-extern int tpm_register_hardware(struct device *,
-				 struct tpm_vendor_specific *);
+extern void tpm_get_timeouts(struct tpm_chip *);
+extern void tpm_gen_interrupt(struct tpm_chip *);
+extern void tpm_continue_selftest(struct tpm_chip *);
+extern unsigned long tpm_calc_ordinal_duration(struct tpm_chip *, u32);
+extern struct tpm_chip* tpm_register_hardware(struct device *,
+				 const struct tpm_vendor_specific *);
 extern int tpm_open(struct inode *, struct file *);
 extern int tpm_release(struct inode *, struct file *);
 extern ssize_t tpm_write(struct file *, const char __user *, size_t,

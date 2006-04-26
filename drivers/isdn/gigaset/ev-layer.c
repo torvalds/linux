@@ -373,6 +373,9 @@ struct reply_t gigaset_tab_cid_m10x[] = /* for M10x */
 
 	{EV_TIMEOUT,  750,750, -1,                  0, 0, {ACT_CONNTIMEOUT}},
 
+	/* B channel closed (general case) */
+	{EV_BC_CLOSED, -1, -1, -1,                 -1,-1, {ACT_NOTIFY_BC_DOWN}}, //FIXME
+
 	/* misc. */
 	{EV_PROTO_L2,  -1, -1, -1,                 -1,-1, {ACT_PROTO_L2}}, //FIXME
 

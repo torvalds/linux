@@ -178,6 +178,11 @@ extern struct proc_dir_entry * proc_mckinley_root;
 #define ROPE6_CTL	0x230
 #define ROPE7_CTL	0x238
 
+#define IOC_ROPE0_CFG	0x500	/* pluto only */
+#define   IOC_ROPE_AO	  0x10	/* Allow "Relaxed Ordering" */
+
+
+
 #define HF_ENABLE	0x40
 
 
@@ -1759,19 +1764,33 @@ printk("sba_hw_init(): mem_boot 0x%x 0x%x 0x%x 0x%x\n", PAGE0->mem_boot.hpa,
 
 	sba_dev->num_ioc = num_ioc;
 	for (i = 0; i < num_ioc; i++) {
-		/*
-		** Make sure the box crashes if we get any errors on a rope.
-		*/
-		WRITE_REG(HF_ENABLE, sba_dev->ioc[i].ioc_hpa + ROPE0_CTL);
-		WRITE_REG(HF_ENABLE, sba_dev->ioc[i].ioc_hpa + ROPE1_CTL);
-		WRITE_REG(HF_ENABLE, sba_dev->ioc[i].ioc_hpa + ROPE2_CTL);
-		WRITE_REG(HF_ENABLE, sba_dev->ioc[i].ioc_hpa + ROPE3_CTL);
-		WRITE_REG(HF_ENABLE, sba_dev->ioc[i].ioc_hpa + ROPE4_CTL);
-		WRITE_REG(HF_ENABLE, sba_dev->ioc[i].ioc_hpa + ROPE5_CTL);
-		WRITE_REG(HF_ENABLE, sba_dev->ioc[i].ioc_hpa + ROPE6_CTL);
-		WRITE_REG(HF_ENABLE, sba_dev->ioc[i].ioc_hpa + ROPE7_CTL);
+		unsigned long ioc_hpa = sba_dev->ioc[i].ioc_hpa;
+		unsigned int j;
 
-		/* flush out the writes */
+		for (j=0; j < sizeof(u64) * ROPES_PER_IOC; j+=sizeof(u64)) {
+
+			/*
+			 * Clear ROPE(N)_CONFIG AO bit.
+			 * Disables "NT Ordering" (~= !"Relaxed Ordering")
+			 * Overrides bit 1 in DMA Hint Sets.
+			 * Improves netperf UDP_STREAM by ~10% for bcm5701.
+			 */
+			if (IS_PLUTO(sba_dev->iodc)) {
+				unsigned long rope_cfg, cfg_val;
+
+				rope_cfg = ioc_hpa + IOC_ROPE0_CFG + j;
+				cfg_val = READ_REG(rope_cfg);
+				cfg_val &= ~IOC_ROPE_AO;
+				WRITE_REG(cfg_val, rope_cfg);
+			}
+
+			/*
+			** Make sure the box crashes on rope errors.
+			*/
+			WRITE_REG(HF_ENABLE, ioc_hpa + ROPE0_CTL + j);
+		}
+
+		/* flush out the last writes */
 		READ_REG(sba_dev->ioc[i].ioc_hpa + ROPE7_CTL);
 
 		DBG_INIT("	ioc[%d] ROPE_CFG 0x%Lx  ROPE_DBG 0x%Lx\n",

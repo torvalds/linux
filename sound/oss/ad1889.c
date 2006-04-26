@@ -75,7 +75,7 @@ static inline void ad1889_set_wav_rate(ad1889_dev_t *dev, int rate)
 
 	DBG("Setting WAV rate to %d\n", rate);
 	dev->state[AD_WAV_STATE].dmabuf.rate = rate;
-	AD1889_WRITEW(dev, AD_DSWAS, rate);
+	AD1889_WRITEW(dev, AD_DS_WAS, rate);
 
 	/* Cycle the DAC to enable the new rate */
 	ac97_codec->codec_write(dev->ac97_codec, AC97_POWER_CONTROL, 0x0200);
@@ -89,14 +89,14 @@ static inline void ad1889_set_wav_fmt(ad1889_dev_t *dev, int fmt)
 
 	DBG("Setting WAV format to 0x%x\n", fmt);
 
-	tmp = AD1889_READW(ad1889_dev, AD_DSWSMC);
+	tmp = AD1889_READW(ad1889_dev, AD_DS_WSMC);
 	if (fmt & AFMT_S16_LE) {
 		//tmp |= 0x0100; /* set WA16 */
 		tmp |= 0x0300; /* set WA16 stereo */
 	} else if (fmt & AFMT_U8) {
 		tmp &= ~0x0100; /* clear WA16 */
 	} 
-	AD1889_WRITEW(ad1889_dev, AD_DSWSMC, tmp);
+	AD1889_WRITEW(ad1889_dev, AD_DS_WSMC, tmp);
 }
 
 static inline void ad1889_set_adc_fmt(ad1889_dev_t *dev, int fmt)
@@ -105,13 +105,13 @@ static inline void ad1889_set_adc_fmt(ad1889_dev_t *dev, int fmt)
 
 	DBG("Setting ADC format to 0x%x\n", fmt);
 
-	tmp = AD1889_READW(ad1889_dev, AD_DSRAMC);
+	tmp = AD1889_READW(ad1889_dev, AD_DS_RAMC);
 	if (fmt & AFMT_S16_LE) {
 		tmp |= 0x0100; /* set WA16 */
 	} else if (fmt & AFMT_U8) {
 		tmp &= ~0x0100; /* clear WA16 */
 	} 
-	AD1889_WRITEW(ad1889_dev, AD_DSRAMC, tmp);
+	AD1889_WRITEW(ad1889_dev, AD_DS_RAMC, tmp);
 }
 
 static void ad1889_start_wav(ad1889_state_t *state)
@@ -145,21 +145,21 @@ static void ad1889_start_wav(ad1889_state_t *state)
 	    dmabuf->rd_ptr, dmabuf->dma_len);
 
         /* load up the current register set */
-	AD1889_WRITEL(ad1889_dev, AD_DMAWAVCC, cnt);
-	AD1889_WRITEL(ad1889_dev, AD_DMAWAVICC, cnt);
-	AD1889_WRITEL(ad1889_dev, AD_DMAWAVCA, dmabuf->dma_handle);
+	AD1889_WRITEL(ad1889_dev, AD_DMA_WAVCC, cnt);
+	AD1889_WRITEL(ad1889_dev, AD_DMA_WAVICC, cnt);
+	AD1889_WRITEL(ad1889_dev, AD_DMA_WAVCA, dmabuf->dma_handle);
 
 	/* TODO: for now we load the base registers with the same thing */
-	AD1889_WRITEL(ad1889_dev, AD_DMAWAVBC, cnt);
-	AD1889_WRITEL(ad1889_dev, AD_DMAWAVIBC, cnt);
-	AD1889_WRITEL(ad1889_dev, AD_DMAWAVBA, dmabuf->dma_handle);
+	AD1889_WRITEL(ad1889_dev, AD_DMA_WAVBC, cnt);
+	AD1889_WRITEL(ad1889_dev, AD_DMA_WAVIBC, cnt);
+	AD1889_WRITEL(ad1889_dev, AD_DMA_WAVBA, dmabuf->dma_handle);
 
 	/* and we're off to the races... */
-	AD1889_WRITEL(ad1889_dev, AD_DMACHSS, 0x8);
-	tmp = AD1889_READW(ad1889_dev, AD_DSWSMC);
+	AD1889_WRITEL(ad1889_dev, AD_DMA_CHSS, 0x8);
+	tmp = AD1889_READW(ad1889_dev, AD_DS_WSMC);
 	tmp |= 0x0400; /* set WAEN */
-	AD1889_WRITEW(ad1889_dev, AD_DSWSMC, tmp);
-	(void) AD1889_READW(ad1889_dev, AD_DSWSMC); /* flush posted PCI write */
+	AD1889_WRITEW(ad1889_dev, AD_DS_WSMC, tmp);
+	(void) AD1889_READW(ad1889_dev, AD_DS_WSMC); /* flush posted PCI write */
 
 	dmabuf->enable |= DAC_RUNNING;
 
@@ -179,10 +179,10 @@ static void ad1889_stop_wav(ad1889_state_t *state)
 		u16 tmp;
 		unsigned long cnt = dmabuf->dma_len;
 
-		tmp = AD1889_READW(ad1889_dev, AD_DSWSMC);
+		tmp = AD1889_READW(ad1889_dev, AD_DS_WSMC);
 		tmp &= ~0x0400; /* clear WAEN */
-		AD1889_WRITEW(ad1889_dev, AD_DSWSMC, tmp);
-		(void) AD1889_READW(ad1889_dev, AD_DSWSMC); /* flush posted PCI write */
+		AD1889_WRITEW(ad1889_dev, AD_DS_WSMC, tmp);
+		(void) AD1889_READW(ad1889_dev, AD_DS_WSMC); /* flush posted PCI write */
 		pci_unmap_single(ad1889_dev->pci, dmabuf->dma_handle, 
 				cnt, PCI_DMA_TODEVICE);
 
@@ -211,7 +211,7 @@ static void ad1889_startstop_adc(ad1889_state_t *state, int start)
 
 	spin_lock_irqsave(&state->card->lock, flags);
 	
-	tmp = AD1889_READW(ad1889_dev, AD_DSRAMC);
+	tmp = AD1889_READW(ad1889_dev, AD_DS_RAMC);
 	if (start) {
 		state->dmabuf.enable |= ADC_RUNNING;
 		tmp |= 0x0004; /* set ADEN */
@@ -219,7 +219,7 @@ static void ad1889_startstop_adc(ad1889_state_t *state, int start)
 		state->dmabuf.enable &= ~ADC_RUNNING;
 		tmp &= ~0x0004; /* clear ADEN */
 	}
-	AD1889_WRITEW(ad1889_dev, AD_DSRAMC, tmp);
+	AD1889_WRITEW(ad1889_dev, AD_DS_RAMC, tmp);
 
 	spin_unlock_irqrestore(&state->card->lock, flags);
 }
@@ -301,53 +301,53 @@ static int ad1889_read_proc (char *page, char **start, off_t off,
 	int len, i;
 	ad1889_dev_t *dev = data;
 	ad1889_reg_t regs[] = {
-		{ "WSMC", AD_DSWSMC, 16 },
-		{ "RAMC", AD_DSRAMC, 16 },
-		{ "WADA", AD_DSWADA, 16 },
-		{ "SYDA", AD_DSSYDA, 16 },
-		{ "WAS", AD_DSWAS, 16 },
-		{ "RES", AD_DSRES, 16 },
-		{ "CCS", AD_DSCCS, 16 },
-		{ "ADCBA", AD_DMAADCBA, 32 },
-		{ "ADCCA", AD_DMAADCCA, 32 },
-		{ "ADCBC", AD_DMAADCBC, 32 },
-		{ "ADCCC", AD_DMAADCCC, 32 },
-		{ "ADCIBC", AD_DMAADCIBC, 32 },
-		{ "ADCICC", AD_DMAADCICC, 32 },
-		{ "ADCCTRL", AD_DMAADCCTRL, 16 },
-		{ "WAVBA", AD_DMAWAVBA, 32 },
-		{ "WAVCA", AD_DMAWAVCA, 32 },
-		{ "WAVBC", AD_DMAWAVBC, 32 },
-		{ "WAVCC", AD_DMAWAVCC, 32 },
-		{ "WAVIBC", AD_DMAWAVIBC, 32 },
-		{ "WAVICC", AD_DMAWAVICC, 32 },
-		{ "WAVCTRL", AD_DMAWAVCTRL, 16 },
-		{ "DISR", AD_DMADISR, 32 },
-		{ "CHSS", AD_DMACHSS, 32 },
-		{ "IPC", AD_GPIOIPC, 16 },
-		{ "OP", AD_GPIOOP, 16 },
-		{ "IP", AD_GPIOIP, 16 },
-		{ "ACIC", AD_ACIC, 16 },
-		{ "AC97_RESET", 0x100 + AC97_RESET, 16 },
-		{ "AC97_MASTER_VOL_STEREO", 0x100 + AC97_MASTER_VOL_STEREO, 16 },
-		{ "AC97_HEADPHONE_VOL", 0x100 + AC97_HEADPHONE_VOL, 16 },
-		{ "AC97_MASTER_VOL_MONO", 0x100 + AC97_MASTER_VOL_MONO, 16 },
-		{ "AC97_MASTER_TONE", 0x100 + AC97_MASTER_TONE, 16 },
-		{ "AC97_PCBEEP_VOL", 0x100 + AC97_PCBEEP_VOL, 16 },
-		{ "AC97_PHONE_VOL", 0x100 + AC97_PHONE_VOL, 16 },
-		{ "AC97_MIC_VOL", 0x100 + AC97_MIC_VOL, 16 },
-		{ "AC97_LINEIN_VOL", 0x100 + AC97_LINEIN_VOL, 16 },
-		{ "AC97_CD_VOL", 0x100 + AC97_CD_VOL, 16 },
-		{ "AC97_VIDEO_VOL", 0x100 + AC97_VIDEO_VOL, 16 },
-		{ "AC97_AUX_VOL", 0x100 + AC97_AUX_VOL, 16 },
-		{ "AC97_PCMOUT_VOL", 0x100 + AC97_PCMOUT_VOL, 16 },
-		{ "AC97_RECORD_SELECT", 0x100 + AC97_RECORD_SELECT, 16 },
-		{ "AC97_RECORD_GAIN", 0x100 + AC97_RECORD_GAIN, 16 },
-		{ "AC97_RECORD_GAIN_MIC", 0x100 + AC97_RECORD_GAIN_MIC, 16 },
-		{ "AC97_GENERAL_PURPOSE", 0x100 + AC97_GENERAL_PURPOSE, 16 },
-		{ "AC97_3D_CONTROL", 0x100 + AC97_3D_CONTROL, 16 },
-		{ "AC97_MODEM_RATE", 0x100 + AC97_MODEM_RATE, 16 },
-		{ "AC97_POWER_CONTROL", 0x100 + AC97_POWER_CONTROL, 16 },
+		{ "WSMC", AD_DS_WSMC, 16 },
+		{ "RAMC", AD_DS_RAMC, 16 },
+		{ "WADA", AD_DS_WADA, 16 },
+		{ "SYDA", AD_DS_SYDA, 16 },
+		{ "WAS", AD_DS_WAS, 16 },
+		{ "RES", AD_DS_RES, 16 },
+		{ "CCS", AD_DS_CCS, 16 },
+		{ "ADCBA", AD_DMA_ADCBA, 32 },
+		{ "ADCCA", AD_DMA_ADCCA, 32 },
+		{ "ADCBC", AD_DMA_ADCBC, 32 },
+		{ "ADCCC", AD_DMA_ADCCC, 32 },
+		{ "ADCIBC", AD_DMA_ADCIBC, 32 },
+		{ "ADCICC", AD_DMA_ADCICC, 32 },
+		{ "ADCCTRL", AD_DMA_ADCCTRL, 16 },
+		{ "WAVBA", AD_DMA_WAVBA, 32 },
+		{ "WAVCA", AD_DMA_WAVCA, 32 },
+		{ "WAVBC", AD_DMA_WAVBC, 32 },
+		{ "WAVCC", AD_DMA_WAVCC, 32 },
+		{ "WAVIBC", AD_DMA_WAVIBC, 32 },
+		{ "WAVICC", AD_DMA_WAVICC, 32 },
+		{ "WAVCTRL", AD_DMA_WAVCTRL, 16 },
+		{ "DISR", AD_DMA_DISR, 32 },
+		{ "CHSS", AD_DMA_CHSS, 32 },
+		{ "IPC", AD_GPIO_IPC, 16 },
+		{ "OP", AD_GPIO_OP, 16 },
+		{ "IP", AD_GPIO_IP, 16 },
+		{ "ACIC", AD_AC97_ACIC, 16 },
+		{ "AC97_RESET", AD_AC97_BASE + AC97_RESET, 16 },
+		{ "AC97_MASTER_VOL_STEREO", AD_AC97_BASE + AC97_MASTER_VOL_STEREO, 16 },
+		{ "AC97_HEADPHONE_VOL", AD_AC97_BASE + AC97_HEADPHONE_VOL, 16 },
+		{ "AC97_MASTER_VOL_MONO", AD_AC97_BASE + AC97_MASTER_VOL_MONO, 16 },
+		{ "AC97_MASTER_TONE", AD_AC97_BASE + AC97_MASTER_TONE, 16 },
+		{ "AC97_PCBEEP_VOL", AD_AC97_BASE + AC97_PCBEEP_VOL, 16 },
+		{ "AC97_PHONE_VOL", AD_AC97_BASE + AC97_PHONE_VOL, 16 },
+		{ "AC97_MIC_VOL", AD_AC97_BASE + AC97_MIC_VOL, 16 },
+		{ "AC97_LINEIN_VOL", AD_AC97_BASE + AC97_LINEIN_VOL, 16 },
+		{ "AC97_CD_VOL", AD_AC97_BASE + AC97_CD_VOL, 16 },
+		{ "AC97_VIDEO_VOL", AD_AC97_BASE + AC97_VIDEO_VOL, 16 },
+		{ "AC97_AUX_VOL", AD_AC97_BASE + AC97_AUX_VOL, 16 },
+		{ "AC97_PCMOUT_VOL", AD_AC97_BASE + AC97_PCMOUT_VOL, 16 },
+		{ "AC97_RECORD_SELECT", AD_AC97_BASE + AC97_RECORD_SELECT, 16 },
+		{ "AC97_RECORD_GAIN", AD_AC97_BASE + AC97_RECORD_GAIN, 16 },
+		{ "AC97_RECORD_GAIN_MIC", AD_AC97_BASE + AC97_RECORD_GAIN_MIC, 16 },
+		{ "AC97_GENERAL_PURPOSE", AD_AC97_BASE + AC97_GENERAL_PURPOSE, 16 },
+		{ "AC97_3D_CONTROL", AD_AC97_BASE + AC97_3D_CONTROL, 16 },
+		{ "AC97_MODEM_RATE", AD_AC97_BASE + AC97_MODEM_RATE, 16 },
+		{ "AC97_POWER_CONTROL", AD_AC97_BASE + AC97_POWER_CONTROL, 16 },
 		{ NULL }
 	};
 
@@ -400,9 +400,9 @@ static inline unsigned long ad1889_get_dma_addr(ad1889_state_t *state)
 	}
 	
 	if (dmabuf->enable & DAC_RUNNING)
-		offset = le32_to_cpu(AD1889_READL(state->card, AD_DMAWAVBA));
+		offset = le32_to_cpu(AD1889_READL(state->card, AD_DMA_WAVBA));
 	else
-		offset = le32_to_cpu(AD1889_READL(state->card, AD_DMAADCBA));
+		offset = le32_to_cpu(AD1889_READL(state->card, AD_DMA_ADCBA));
 
 	return (unsigned long)bus_to_virt((unsigned long)offset) - (unsigned long)dmabuf->rawbuf;
 }
@@ -639,9 +639,9 @@ static int ad1889_ioctl(struct inode *inode, struct file *file, unsigned int cmd
 		if (val > 5400 && val < 48000)
 		{
 			if (file->f_mode & FMODE_WRITE)
-				AD1889_WRITEW(ad1889_dev, AD_DSWAS, val);
+				AD1889_WRITEW(ad1889_dev, AD_DS_WAS, val);
 			if (file->f_mode & FMODE_READ)
-				AD1889_WRITEW(ad1889_dev, AD_DSRES, val);
+				AD1889_WRITEW(ad1889_dev, AD_DS_RES, val);
 		}
 		return 0;
 
@@ -649,22 +649,22 @@ static int ad1889_ioctl(struct inode *inode, struct file *file, unsigned int cmd
 		if (get_user(val, p))
 			return -EFAULT;
 		if (file->f_mode & FMODE_READ) {
-			val = AD1889_READW(ad1889_dev, AD_DSWSMC);
+			val = AD1889_READW(ad1889_dev, AD_DS_WSMC);
 			if (val) {
 				val |= 0x0200;  /* set WAST */
 			} else {
 				val &= ~0x0200; /* clear WAST */
 			}
-			AD1889_WRITEW(ad1889_dev, AD_DSWSMC, val);
+			AD1889_WRITEW(ad1889_dev, AD_DS_WSMC, val);
 		}
 		if (file->f_mode & FMODE_WRITE) {
-			val = AD1889_READW(ad1889_dev, AD_DSRAMC);
+			val = AD1889_READW(ad1889_dev, AD_DS_RAMC);
 			if (val) {
 				val |= 0x0002;  /* set ADST */
 			} else {
 				val &= ~0x0002; /* clear ADST */
 			}
-			AD1889_WRITEW(ad1889_dev, AD_DSRAMC, val);
+			AD1889_WRITEW(ad1889_dev, AD_DS_RAMC, val);
 		}
 
 		return 0;
@@ -739,7 +739,7 @@ static int ad1889_ioctl(struct inode *inode, struct file *file, unsigned int cmd
 		break;
 
 	case SOUND_PCM_READ_RATE:
-		return put_user(AD1889_READW(ad1889_dev, AD_DSWAS), p);
+		return put_user(AD1889_READW(ad1889_dev, AD_DS_WAS), p);
 
 	case SOUND_PCM_READ_CHANNELS:
 	case SOUND_PCM_READ_BITS:
@@ -769,7 +769,7 @@ static int ad1889_open(struct inode *inode, struct file *file)
 
 	ad1889_set_wav_rate(ad1889_dev, 48000);
 	ad1889_set_wav_fmt(ad1889_dev, AFMT_S16_LE);
-	AD1889_WRITEW(ad1889_dev, AD_DSWADA, 0x0404); /* attenuation */
+	AD1889_WRITEW(ad1889_dev, AD_DS_WADA, 0x0404); /* attenuation */
 	return nonseekable_open(inode, file);
 }
 
@@ -826,15 +826,15 @@ static void ad1889_codec_write(struct ac97_codec *ac97, u8 reg, u16 val)
 {
 	ad1889_dev_t *dev = ac97->private_data;
 
-	//DBG("Writing 0x%x to 0x%lx\n", val, dev->regbase + 0x100 + reg);
-	AD1889_WRITEW(dev, 0x100 + reg, val);
+	//DBG("Writing 0x%x to 0x%lx\n", val, dev->regbase + AD_AC97_BASE + reg);
+	AD1889_WRITEW(dev, AD_AC97_BASE + reg, val);
 }
 
 static u16 ad1889_codec_read(struct ac97_codec *ac97, u8 reg)
 {
 	ad1889_dev_t *dev = ac97->private_data;
-	//DBG("Reading from 0x%lx\n", dev->regbase + 0x100 + reg);
-	return AD1889_READW(dev, 0x100 + reg);
+	//DBG("Reading from 0x%lx\n", dev->regbase + AD_AC97_BASE + reg);
+	return AD1889_READW(dev, AD_AC97_BASE + reg);
 }	
 
 static int ad1889_ac97_init(ad1889_dev_t *dev, int id)
@@ -883,24 +883,24 @@ static int ad1889_aclink_reset(struct pci_dev * pcidev)
 	int retry = 200;
 	ad1889_dev_t *dev = pci_get_drvdata(pcidev);
 
-	AD1889_WRITEW(dev, AD_DSCCS, 0x8000); /* turn on clock */
-	AD1889_READW(dev, AD_DSCCS); 
+	AD1889_WRITEW(dev, AD_DS_CCS, 0x8000); /* turn on clock */
+	AD1889_READW(dev, AD_DS_CCS);
 
 	WAIT_10MS();
 
-	stat = AD1889_READW(dev, AD_ACIC);
+	stat = AD1889_READW(dev, AD_AC97_ACIC);
 	stat |= 0x0002;				/* Reset Disable */
-	AD1889_WRITEW(dev, AD_ACIC, stat);
-	(void) AD1889_READW(dev, AD_ACIC);	/* flush posted write */
+	AD1889_WRITEW(dev, AD_AC97_ACIC, stat);
+	(void) AD1889_READW(dev, AD_AC97_ACIC);	/* flush posted write */
 
 	udelay(10);
 
-	stat = AD1889_READW(dev, AD_ACIC);
+	stat = AD1889_READW(dev, AD_AC97_ACIC);
 	stat |= 0x0001;				/* Interface Enable */
-	AD1889_WRITEW(dev, AD_ACIC, stat);
+	AD1889_WRITEW(dev, AD_AC97_ACIC, stat);
 
 	do {
-		if (AD1889_READW(dev, AD_ACIC) & 0x8000)	/* Ready */
+		if (AD1889_READW(dev, AD_AC97_ACIC) & 0x8000)	/* Ready */
 			break;
 		WAIT_10MS();
 		retry--;
@@ -908,16 +908,16 @@ static int ad1889_aclink_reset(struct pci_dev * pcidev)
 
 	if (!retry) {
 		printk(KERN_ERR "ad1889_aclink_reset: codec is not ready [0x%x]\n",
-			    AD1889_READW(dev, AD_ACIC));
+			    AD1889_READW(dev, AD_AC97_ACIC));
 		return -EBUSY;
 	}
 
 	/* TODO reset AC97 codec */
 	/* TODO set wave/adc pci ctrl status */
 
-	stat = AD1889_READW(dev, AD_ACIC);
+	stat = AD1889_READW(dev, AD_AC97_ACIC);
 	stat |= 0x0004;				/* Audio Stream Output Enable */
-	AD1889_WRITEW(dev, AD_ACIC, stat);
+	AD1889_WRITEW(dev, AD_AC97_ACIC, stat);
 	return 0;
 }
 
@@ -935,10 +935,10 @@ static irqreturn_t ad1889_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	u32 stat;
 	ad1889_dev_t *dev = (ad1889_dev_t *)dev_id;
 
-	stat = AD1889_READL(dev, AD_DMADISR);
+	stat = AD1889_READL(dev, AD_DMA_DISR);
 
 	/* clear ISR */
-	AD1889_WRITEL(dev, AD_DMADISR, stat);
+	AD1889_WRITEL(dev, AD_DMA_DISR, stat);
 
 	if (stat & 0x8) {		/* WAVI */
 		DBG("WAV interrupt\n");
@@ -964,15 +964,15 @@ static void ad1889_initcfg(ad1889_dev_t *dev)
 	u32 tmp32;
 
 	/* make sure the interrupt bits are setup the way we want */
-	tmp32 = AD1889_READL(dev, AD_DMAWAVCTRL);
+	tmp32 = AD1889_READL(dev, AD_DMA_WAVCTRL);
 	tmp32 &= ~0xff; /* flat dma, no sg, mask out the intr bits */
 	tmp32 |= 0x6;  /* intr on count, loop */
-	AD1889_WRITEL(dev, AD_DMAWAVCTRL, tmp32);
+	AD1889_WRITEL(dev, AD_DMA_WAVCTRL, tmp32);
 
 	/* unmute... */
-	tmp16 = AD1889_READW(dev, AD_DSWADA);
+	tmp16 = AD1889_READW(dev, AD_DS_WADA);
 	tmp16 &= ~0x8080;
-	AD1889_WRITEW(dev, AD_DSWADA, tmp16);
+	AD1889_WRITEW(dev, AD_DS_WADA, tmp16);
 }
 
 static int __devinit ad1889_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
@@ -1005,7 +1005,7 @@ static int __devinit ad1889_probe(struct pci_dev *pcidev, const struct pci_devic
 		goto out1;
 	}
 
-	dev->regbase = ioremap_nocache(bar, AD_DSIOMEMSIZE);
+	dev->regbase = ioremap_nocache(bar, AD_DS_IOMEMSIZE);
 	if (!dev->regbase) {
 		printk(KERN_ERR DEVNAME ": unable to remap iomem\n");
 		goto out2;
