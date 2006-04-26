@@ -1016,7 +1016,8 @@ static inline void input_put_device(struct input_dev *dev)
 
 static inline void input_free_device(struct input_dev *dev)
 {
-	input_put_device(dev);
+	if (dev)
+		input_put_device(dev);
 }
 
 int input_register_device(struct input_dev *);
