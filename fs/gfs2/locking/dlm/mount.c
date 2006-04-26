@@ -203,6 +203,7 @@ static void gdlm_recovery_done(lm_lockspace_t *lockspace, unsigned int jid,
 {
 	struct gdlm_ls *ls = (struct gdlm_ls *) lockspace;
 	ls->recover_jid_done = jid;
+	ls->recover_jid_status = message;
 	kobject_uevent(&ls->kobj, KOBJ_CHANGE);
 }
 

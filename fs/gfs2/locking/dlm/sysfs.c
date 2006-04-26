@@ -110,6 +110,11 @@ static ssize_t recover_done_show(struct gdlm_ls *ls, char *buf)
 	return sprintf(buf, "%d\n", ls->recover_jid_done);
 }
 
+static ssize_t recover_status_show(struct gdlm_ls *ls, char *buf)
+{
+	return sprintf(buf, "%d\n", ls->recover_jid_status);
+}
+
 struct gdlm_attr {
 	struct attribute attr;
 	ssize_t (*show)(struct gdlm_ls *, char *);
@@ -119,15 +124,16 @@ struct gdlm_attr {
 #define GDLM_ATTR(_name,_mode,_show,_store) \
 static struct gdlm_attr gdlm_attr_##_name = __ATTR(_name,_mode,_show,_store)
 
-GDLM_ATTR(proto_name,   0444, proto_name_show,   NULL);
-GDLM_ATTR(block,        0644, block_show,        block_store);
-GDLM_ATTR(withdraw,     0644, withdraw_show,     withdraw_store);
-GDLM_ATTR(id,           0444, id_show,           NULL);
-GDLM_ATTR(jid,          0444, jid_show,          NULL);
-GDLM_ATTR(first,        0444, first_show,        NULL);
-GDLM_ATTR(first_done,   0444, first_done_show,   NULL);
-GDLM_ATTR(recover,      0644, recover_show,      recover_store);
-GDLM_ATTR(recover_done, 0444, recover_done_show, NULL);
+GDLM_ATTR(proto_name,     0444, proto_name_show,     NULL);
+GDLM_ATTR(block,          0644, block_show,          block_store);
+GDLM_ATTR(withdraw,       0644, withdraw_show,       withdraw_store);
+GDLM_ATTR(id,             0444, id_show,             NULL);
+GDLM_ATTR(jid,            0444, jid_show,            NULL);
+GDLM_ATTR(first,          0444, first_show,          NULL);
+GDLM_ATTR(first_done,     0444, first_done_show,     NULL);
+GDLM_ATTR(recover,        0644, recover_show,        recover_store);
+GDLM_ATTR(recover_done,   0444, recover_done_show,   NULL);
+GDLM_ATTR(recover_status, 0444, recover_status_show, NULL);
 
 static struct attribute *gdlm_attrs[] = {
 	&gdlm_attr_proto_name.attr,
@@ -139,6 +145,7 @@ static struct attribute *gdlm_attrs[] = {
 	&gdlm_attr_first_done.attr,
 	&gdlm_attr_recover.attr,
 	&gdlm_attr_recover_done.attr,
+	&gdlm_attr_recover_status.attr,
 	NULL,
 };
 
