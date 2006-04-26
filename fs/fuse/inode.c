@@ -204,26 +204,17 @@ static void fuse_put_super(struct super_block *sb)
 {
 	struct fuse_conn *fc = get_fuse_conn_super(sb);
 
+	down_write(&fc->sbput_sem);
+	while (!list_empty(&fc->background))
+		fuse_release_background(fc,
+					list_entry(fc->background.next,
+						   struct fuse_req, bg_entry));
+
 	spin_lock(&fc->lock);
+	fc->mounted = 0;
 	fc->connected = 0;
-	while (!list_empty(&fc->background)) {
-		struct fuse_req *req = list_entry(fc->background.next,
-						  struct fuse_req, bg_entry);
-		struct inode *inode = req->inode;
-		struct inode *inode2 = req->inode2;
-
-		/* File would hold a reference to vfsmount */
-		BUG_ON(req->file);
-		req->inode = NULL;
-		req->inode2 = NULL;
-		fuse_remove_background(fc, req);
-
-		spin_unlock(&fc->lock);
-		iput(inode);
-		iput(inode2);
-		spin_lock(&fc->lock);
-	}
 	spin_unlock(&fc->lock);
+	up_write(&fc->sbput_sem);
 	/* Flush all readers on this fs */
 	kill_fasync(&fc->fasync, SIGIO, POLL_IN);
 	wake_up_all(&fc->waitq);
@@ -395,6 +386,7 @@ static struct fuse_conn *new_conn(void)
 		INIT_LIST_HEAD(&fc->processing);
 		INIT_LIST_HEAD(&fc->io);
 		INIT_LIST_HEAD(&fc->background);
+		init_rwsem(&fc->sbput_sem);
 		kobj_set_kset_s(fc, connections_subsys);
 		kobject_init(&fc->kobj);
 		atomic_set(&fc->num_waiting, 0);
@@ -549,6 +541,7 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 		goto err_free_req;
 
 	sb->s_root = root_dentry;
+	fc->mounted = 1;
 	fc->connected = 1;
 	kobject_get(&fc->kobj);
 	file->private_data = fc;
