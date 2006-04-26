@@ -495,6 +495,8 @@ struct snd_ice1712_card_info {
 	int (*chip_init)(struct snd_ice1712 *);
 	int (*build_controls)(struct snd_ice1712 *);
 	unsigned int no_mpu401: 1;
+	const char *mpu401_1_name;
+	const char *mpu401_2_name;
 	unsigned int eeprom_size;
 	unsigned char *eeprom_data;
 };

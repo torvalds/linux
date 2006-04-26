@@ -2743,8 +2743,14 @@ static int __devinit snd_ice1712_probe(struct pci_dev *pci,
 			snd_card_free(card);
 			return err;
 		}
+		if (c->mpu401_1_name)
+			/*  Prefered name available in card_info */
+			snprintf(ice->rmidi[0]->name,
+				 sizeof(ice->rmidi[0]->name),
+				 "%s %d", c->mpu401_1_name, card->number);
 
-		if (ice->eeprom.data[ICE_EEP1_CODEC] & ICE1712_CFG_2xMPU401)
+		if (ice->eeprom.data[ICE_EEP1_CODEC] & ICE1712_CFG_2xMPU401) {
+			/*  2nd port used  */
 			if ((err = snd_mpu401_uart_new(card, 1, MPU401_HW_ICE1712,
 						       ICEREG(ice, MPU2_CTRL), 1,
 						       ice->irq, 0,
@@ -2752,6 +2758,13 @@ static int __devinit snd_ice1712_probe(struct pci_dev *pci,
 				snd_card_free(card);
 				return err;
 			}
+			if (c->mpu401_2_name)
+				/*  Prefered name available in card_info */
+				snprintf(ice->rmidi[1]->name,
+					 sizeof(ice->rmidi[1]->name),
+					 "%s %d", c->mpu401_2_name,
+					 card->number);
+		}
 	}
 
 	snd_ice1712_set_input_clock_source(ice, 0);

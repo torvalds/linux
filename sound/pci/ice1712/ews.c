@@ -1031,6 +1031,8 @@ struct snd_ice1712_card_info snd_ice1712_ews_cards[] __devinitdata = {
 		.model = "dmx6fire",
 		.chip_init = snd_ice1712_ews_init,
 		.build_controls = snd_ice1712_ews_add_controls,
+		.mpu401_1_name = "MIDI-Front DMX6fire",
+		.mpu401_2_name = "Wavetable DMX6fire",
 	},
 	{ } /* terminator */
 };
