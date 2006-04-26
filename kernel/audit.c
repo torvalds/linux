@@ -1026,18 +1026,20 @@ void audit_log_hex(struct audit_buffer *ab, const unsigned char *buf,
  * or a space. Unescaped strings will start and end with a double quote mark.
  * Strings that are escaped are printed in hex (2 digits per char).
  */
-void audit_log_untrustedstring(struct audit_buffer *ab, const char *string)
+const char *audit_log_untrustedstring(struct audit_buffer *ab, const char *string)
 {
 	const unsigned char *p = string;
+	size_t len = strlen(string);
 
 	while (*p) {
 		if (*p == '"' || *p < 0x21 || *p > 0x7f) {
-			audit_log_hex(ab, string, strlen(string));
-			return;
+			audit_log_hex(ab, string, len);
+			return string + len + 1;
 		}
 		p++;
 	}
 	audit_log_format(ab, "\"%s\"", string);
+	return p + 1;
 }
 
 /* This is a helper-function to print the escaped d_path */

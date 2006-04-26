@@ -59,6 +59,7 @@
 #include <linux/list.h>
 #include <linux/tty.h>
 #include <linux/selinux.h>
+#include <linux/binfmts.h>
 
 #include "audit.h"
 
@@ -108,6 +109,13 @@ struct audit_aux_data_ipcctl {
 	gid_t			gid;
 	mode_t			mode;
 	u32			osid;
+};
+
+struct audit_aux_data_execve {
+	struct audit_aux_data	d;
+	int argc;
+	int envc;
+	char mem[0];
 };
 
 struct audit_aux_data_socketcall {
@@ -665,6 +673,16 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 				} else
 					audit_log_format(ab, " obj=%s", ctx);
 				kfree(ctx);
+			}
+			break; }
+		case AUDIT_EXECVE: {
+			struct audit_aux_data_execve *axi = (void *)aux;
+			int i;
+			const char *p;
+			for (i = 0, p = axi->mem; i < axi->argc; i++) {
+				audit_log_format(ab, "a%d=", i);
+				p = audit_log_untrustedstring(ab, p);
+				audit_log_format(ab, "\n");
 			}
 			break; }
 
@@ -1230,6 +1248,39 @@ int audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode, 
 	context->aux = (void *)ax;
 	return 0;
 }
+
+int audit_bprm(struct linux_binprm *bprm)
+{
+	struct audit_aux_data_execve *ax;
+	struct audit_context *context = current->audit_context;
+	unsigned long p, next;
+	void *to;
+
+	if (likely(!audit_enabled || !context))
+		return 0;
+
+	ax = kmalloc(sizeof(*ax) + PAGE_SIZE * MAX_ARG_PAGES - bprm->p,
+				GFP_KERNEL);
+	if (!ax)
+		return -ENOMEM;
+
+	ax->argc = bprm->argc;
+	ax->envc = bprm->envc;
+	for (p = bprm->p, to = ax->mem; p < MAX_ARG_PAGES*PAGE_SIZE; p = next) {
+		struct page *page = bprm->page[p / PAGE_SIZE];
+		void *kaddr = kmap(page);
+		next = (p + PAGE_SIZE) & ~(PAGE_SIZE - 1);
+		memcpy(to, kaddr + (p & (PAGE_SIZE - 1)), next - p);
+		to += next - p;
+		kunmap(page);
+	}
+
+	ax->d.type = AUDIT_EXECVE;
+	ax->d.next = context->aux;
+	context->aux = (void *)ax;
+	return 0;
+}
+
 
 /**
  * audit_socketcall - record audit data for sys_socketcall

@@ -83,6 +83,7 @@
 #define AUDIT_CONFIG_CHANGE	1305	/* Audit system configuration change */
 #define AUDIT_SOCKADDR		1306	/* sockaddr copied as syscall arg */
 #define AUDIT_CWD		1307	/* Current working directory */
+#define AUDIT_EXECVE		1309	/* execve arguments */
 #define AUDIT_IPC_SET_PERM	1311	/* IPC new permissions record type */
 
 #define AUDIT_AVC		1400	/* SE Linux avc denial or grant */
@@ -283,6 +284,7 @@ struct audit_buffer;
 struct audit_context;
 struct inode;
 struct netlink_skb_parms;
+struct linux_binprm;
 
 #define AUDITSC_INVALID 0
 #define AUDITSC_SUCCESS 1
@@ -322,6 +324,7 @@ extern int  audit_set_loginuid(struct task_struct *task, uid_t loginuid);
 extern uid_t audit_get_loginuid(struct audit_context *ctx);
 extern int audit_ipc_obj(struct kern_ipc_perm *ipcp);
 extern int audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode, struct kern_ipc_perm *ipcp);
+extern int audit_bprm(struct linux_binprm *bprm);
 extern int audit_socketcall(int nargs, unsigned long *args);
 extern int audit_sockaddr(int len, void *addr);
 extern int audit_avc_path(struct dentry *dentry, struct vfsmount *mnt);
@@ -342,6 +345,7 @@ extern int audit_set_macxattr(const char *name);
 #define audit_get_loginuid(c) ({ -1; })
 #define audit_ipc_obj(i) ({ 0; })
 #define audit_ipc_set_perm(q,u,g,m,i) ({ 0; })
+#define audit_bprm(p) ({ 0; })
 #define audit_socketcall(n,a) ({ 0; })
 #define audit_sockaddr(len, addr) ({ 0; })
 #define audit_avc_path(dentry, mnt) ({ 0; })
@@ -364,7 +368,7 @@ extern void		    audit_log_end(struct audit_buffer *ab);
 extern void		    audit_log_hex(struct audit_buffer *ab,
 					  const unsigned char *buf,
 					  size_t len);
-extern void		    audit_log_untrustedstring(struct audit_buffer *ab,
+extern const char *	    audit_log_untrustedstring(struct audit_buffer *ab,
 						      const char *string);
 extern void		    audit_log_d_path(struct audit_buffer *ab,
 					     const char *prefix,
