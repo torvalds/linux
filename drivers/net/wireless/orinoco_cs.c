@@ -178,12 +178,9 @@ orinoco_cs_config(struct pcmcia_device *link)
 	int last_fn, last_ret;
 	u_char buf[64];
 	config_info_t conf;
-	cisinfo_t info;
 	tuple_t tuple;
 	cisparse_t parse;
 	void __iomem *mem;
-
-	CS_CHECK(ValidateCIS, pcmcia_validate_cis(link, &info));
 
 	/*
 	 * This reads the card's CONFIG tuple to find its
@@ -233,12 +230,6 @@ orinoco_cs_config(struct pcmcia_device *link)
 		if (cfg->index == 0)
 			goto next_entry;
 		link->conf.ConfigIndex = cfg->index;
-
-		/* Does this card need audio output? */
-		if (cfg->flags & CISTPL_CFTABLE_AUDIO) {
-			link->conf.Attributes |= CONF_ENABLE_SPKR;
-			link->conf.Status = CCSR_AUDIO_ENA;
-		}
 
 		/* Use power settings for Vcc and Vpp if present */
 		/* Note that the CIS values need to be rescaled */

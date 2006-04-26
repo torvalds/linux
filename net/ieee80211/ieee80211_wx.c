@@ -50,7 +50,8 @@ static char *ieee80211_translate_scan(struct ieee80211_device *ieee,
 	char *p;
 	struct iw_event iwe;
 	int i, j;
-	u8 max_rate, rate;
+	char *current_val;	/* For rates */
+	u8 rate;
 
 	/* First entry *MUST* be the AP MAC address */
 	iwe.cmd = SIOCGIWAP;
@@ -107,9 +108,13 @@ static char *ieee80211_translate_scan(struct ieee80211_device *ieee,
 	start = iwe_stream_add_point(start, stop, &iwe, network->ssid);
 
 	/* Add basic and extended rates */
-	max_rate = 0;
-	p = custom;
-	p += snprintf(p, MAX_CUSTOM_LEN - (p - custom), " Rates (Mb/s): ");
+	/* Rate : stuffing multiple values in a single event require a bit
+	 * more of magic - Jean II */
+	current_val = start + IW_EV_LCP_LEN;
+	iwe.cmd = SIOCGIWRATE;
+	/* Those two flags are ignored... */
+	iwe.u.bitrate.fixed = iwe.u.bitrate.disabled = 0;
+
 	for (i = 0, j = 0; i < network->rates_len;) {
 		if (j < network->rates_ex_len &&
 		    ((network->rates_ex[j] & 0x7F) <
@@ -117,28 +122,21 @@ static char *ieee80211_translate_scan(struct ieee80211_device *ieee,
 			rate = network->rates_ex[j++] & 0x7F;
 		else
 			rate = network->rates[i++] & 0x7F;
-		if (rate > max_rate)
-			max_rate = rate;
-		p += snprintf(p, MAX_CUSTOM_LEN - (p - custom),
-			      "%d%s ", rate >> 1, (rate & 1) ? ".5" : "");
+		/* Bit rate given in 500 kb/s units (+ 0x80) */
+		iwe.u.bitrate.value = ((rate & 0x7f) * 500000);
+		/* Add new value to event */
+		current_val = iwe_stream_add_value(start, current_val, stop, &iwe, IW_EV_PARAM_LEN);
 	}
 	for (; j < network->rates_ex_len; j++) {
 		rate = network->rates_ex[j] & 0x7F;
-		p += snprintf(p, MAX_CUSTOM_LEN - (p - custom),
-			      "%d%s ", rate >> 1, (rate & 1) ? ".5" : "");
-		if (rate > max_rate)
-			max_rate = rate;
+		/* Bit rate given in 500 kb/s units (+ 0x80) */
+		iwe.u.bitrate.value = ((rate & 0x7f) * 500000);
+		/* Add new value to event */
+		current_val = iwe_stream_add_value(start, current_val, stop, &iwe, IW_EV_PARAM_LEN);
 	}
-
-	iwe.cmd = SIOCGIWRATE;
-	iwe.u.bitrate.fixed = iwe.u.bitrate.disabled = 0;
-	iwe.u.bitrate.value = max_rate * 500000;
-	start = iwe_stream_add_event(start, stop, &iwe, IW_EV_PARAM_LEN);
-
-	iwe.cmd = IWEVCUSTOM;
-	iwe.u.data.length = p - custom;
-	if (iwe.u.data.length)
-		start = iwe_stream_add_point(start, stop, &iwe, custom);
+	/* Check if we added any rate */
+	if((current_val - start) > IW_EV_LCP_LEN)
+		start = current_val;
 
 	/* Add quality statistics */
 	iwe.cmd = IWEVQUAL;

@@ -1,5 +1,5 @@
 /* orinoco_tmd.c
- * 
+ *
  * Driver for Prism II devices which would usually be driven by orinoco_cs,
  * but are connected to the PCI bus by a TMD7160. 
  *
@@ -26,25 +26,13 @@
  * other provisions required by the GPL.  If you do not delete the
  * provisions above, a recipient may use your version of this file
  * under either the MPL or the GPL.
-
- * Caution: this is experimental and probably buggy.  For success and
- * failure reports for different cards and adaptors, see
- * orinoco_tmd_pci_id_table near the end of the file.  If you have a
- * card we don't have the PCI id for, and looks like it should work,
- * drop me mail with the id and "it works"/"it doesn't work".
- *
- * Note: if everything gets detected fine but it doesn't actually send
- * or receive packets, your first port of call should probably be to   
- * try newer firmware in the card.  Especially if you're doing Ad-Hoc
- * modes
  *
  * The actual driving is done by orinoco.c, this is just resource
  * allocation stuff.
  *
  * This driver is modeled after the orinoco_plx driver. The main
- * difference is that the TMD chip has only IO port ranges and no
- * memory space, i.e.  no access to the CIS. Compared to the PLX chip,
- * the io range functionalities are exchanged.
+ * difference is that the TMD chip has only IO port ranges and doesn't
+ * provide access to the PCMCIA attribute space.
  *
  * Pheecom sells cards with the TMD chip as "ASIC version"
  */
@@ -61,16 +49,11 @@
 #include <pcmcia/cisreg.h>
 
 #include "orinoco.h"
+#include "orinoco_pci.h"
 
 #define COR_VALUE	(COR_LEVEL_REQ | COR_FUNC_ENA) /* Enable PC card with interrupt in level trigger */
 #define COR_RESET     (0x80)	/* reset bit in the COR register */
 #define TMD_RESET_TIME	(500)	/* milliseconds */
-
-/* Orinoco TMD specific data */
-struct orinoco_tmd_card {
-	u32 tmd_io;
-};
-
 
 /*
  * Do a soft reset of the card using the Configuration Option Register
@@ -78,15 +61,14 @@ struct orinoco_tmd_card {
 static int orinoco_tmd_cor_reset(struct orinoco_private *priv)
 {
 	hermes_t *hw = &priv->hw;
-	struct orinoco_tmd_card *card = priv->card;
-	u32 addr = card->tmd_io;
+	struct orinoco_pci_card *card = priv->card;
 	unsigned long timeout;
 	u16 reg;
 
-	outb(COR_VALUE | COR_RESET, addr);
+	iowrite8(COR_VALUE | COR_RESET, card->bridge_io);
 	mdelay(1);
 
-	outb(COR_VALUE, addr);
+	iowrite8(COR_VALUE, card->bridge_io);
 	mdelay(1);
 
 	/* Just in case, wait more until the card is no longer busy */
@@ -97,7 +79,7 @@ static int orinoco_tmd_cor_reset(struct orinoco_private *priv)
 		reg = hermes_read_regn(hw, CMD);
 	}
 
-	/* Did we timeout ? */
+	/* Still busy? */
 	if (reg & HERMES_CMD_BUSY) {
 		printk(KERN_ERR PFX "Busy timeout\n");
 		return -ETIMEDOUT;
@@ -110,11 +92,11 @@ static int orinoco_tmd_cor_reset(struct orinoco_private *priv)
 static int orinoco_tmd_init_one(struct pci_dev *pdev,
 				const struct pci_device_id *ent)
 {
-	int err = 0;
-	struct orinoco_private *priv = NULL;
-	struct orinoco_tmd_card *card;
-	struct net_device *dev = NULL;
-	void __iomem *mem;
+	int err;
+	struct orinoco_private *priv;
+	struct orinoco_pci_card *card;
+	struct net_device *dev;
+	void __iomem *hermes_io, *bridge_io;
 
 	err = pci_enable_device(pdev);
 	if (err) {
@@ -123,20 +105,28 @@ static int orinoco_tmd_init_one(struct pci_dev *pdev,
 	}
 
 	err = pci_request_regions(pdev, DRIVER_NAME);
-	if (err != 0) {
+	if (err) {
 		printk(KERN_ERR PFX "Cannot obtain PCI resources\n");
 		goto fail_resources;
 	}
 
-	mem = pci_iomap(pdev, 2, 0);
-	if (! mem) {
-		err = -ENOMEM;
-		goto fail_iomap;
+	bridge_io = pci_iomap(pdev, 1, 0);
+	if (!bridge_io) {
+		printk(KERN_ERR PFX "Cannot map bridge registers\n");
+		err = -EIO;
+		goto fail_map_bridge;
+	}
+
+	hermes_io = pci_iomap(pdev, 2, 0);
+	if (!hermes_io) {
+		printk(KERN_ERR PFX "Cannot map chipset registers\n");
+		err = -EIO;
+		goto fail_map_hermes;
 	}
 
 	/* Allocate network device */
 	dev = alloc_orinocodev(sizeof(*card), orinoco_tmd_cor_reset);
-	if (! dev) {
+	if (!dev) {
 		printk(KERN_ERR PFX "Cannot allocate network device\n");
 		err = -ENOMEM;
 		goto fail_alloc;
@@ -144,16 +134,11 @@ static int orinoco_tmd_init_one(struct pci_dev *pdev,
 
 	priv = netdev_priv(dev);
 	card = priv->card;
-	card->tmd_io = pci_resource_start(pdev, 1);
-	dev->base_addr = pci_resource_start(pdev, 2);
+	card->bridge_io = bridge_io;
 	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
-	hermes_struct_init(&priv->hw, mem, HERMES_16BIT_REGSPACING);
-
-	printk(KERN_DEBUG PFX "Detected Orinoco/Prism2 TMD device "
-	       "at %s irq:%d, io addr:0x%lx\n", pci_name(pdev), pdev->irq,
-	       dev->base_addr);
+	hermes_struct_init(&priv->hw, hermes_io, HERMES_16BIT_REGSPACING);
 
 	err = request_irq(pdev->irq, orinoco_interrupt, SA_SHIRQ,
 			  dev->name, dev);
@@ -162,7 +147,7 @@ static int orinoco_tmd_init_one(struct pci_dev *pdev,
 		err = -EBUSY;
 		goto fail_irq;
 	}
-	dev->irq = pdev->irq;
+	orinoco_pci_setup_netdev(dev, pdev, 2);
 
 	err = orinoco_tmd_cor_reset(priv);
 	if (err) {
@@ -188,9 +173,12 @@ static int orinoco_tmd_init_one(struct pci_dev *pdev,
 	free_orinocodev(dev);
 
  fail_alloc:
-	pci_iounmap(pdev, mem);
+	pci_iounmap(pdev, hermes_io);
 
- fail_iomap:
+ fail_map_hermes:
+	pci_iounmap(pdev, bridge_io);
+
+ fail_map_bridge:
 	pci_release_regions(pdev);
 
  fail_resources:
@@ -203,31 +191,32 @@ static void __devexit orinoco_tmd_remove_one(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct orinoco_private *priv = dev->priv;
-
-	BUG_ON(! dev);
+	struct orinoco_pci_card *card = priv->card;
 
 	unregister_netdev(dev);
 	free_irq(dev->irq, dev);
 	pci_set_drvdata(pdev, NULL);
 	free_orinocodev(dev);
 	pci_iounmap(pdev, priv->hw.iobase);
+	pci_iounmap(pdev, card->bridge_io);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 }
 
-
-static struct pci_device_id orinoco_tmd_pci_id_table[] = {
+static struct pci_device_id orinoco_tmd_id_table[] = {
 	{0x15e8, 0x0131, PCI_ANY_ID, PCI_ANY_ID,},      /* NDC and OEMs, e.g. pheecom */
 	{0,},
 };
 
-MODULE_DEVICE_TABLE(pci, orinoco_tmd_pci_id_table);
+MODULE_DEVICE_TABLE(pci, orinoco_tmd_id_table);
 
 static struct pci_driver orinoco_tmd_driver = {
 	.name		= DRIVER_NAME,
-	.id_table	= orinoco_tmd_pci_id_table,
+	.id_table	= orinoco_tmd_id_table,
 	.probe		= orinoco_tmd_init_one,
 	.remove		= __devexit_p(orinoco_tmd_remove_one),
+	.suspend	= orinoco_pci_suspend,
+	.resume		= orinoco_pci_resume,
 };
 
 static char version[] __initdata = DRIVER_NAME " " DRIVER_VERSION
@@ -245,7 +234,6 @@ static int __init orinoco_tmd_init(void)
 static void __exit orinoco_tmd_exit(void)
 {
 	pci_unregister_driver(&orinoco_tmd_driver);
-	ssleep(1);
 }
 
 module_init(orinoco_tmd_init);

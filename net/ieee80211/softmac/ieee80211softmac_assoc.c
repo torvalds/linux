@@ -82,7 +82,7 @@ ieee80211softmac_assoc_timeout(void *d)
 }
 
 /* Sends out a disassociation request to the desired AP */
-static void
+void
 ieee80211softmac_disassoc(struct ieee80211softmac_device *mac, u16 reason)
 {
 	unsigned long flags;

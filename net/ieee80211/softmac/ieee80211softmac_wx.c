@@ -431,3 +431,35 @@ ieee80211softmac_wx_get_genie(struct net_device *dev,
 }
 EXPORT_SYMBOL_GPL(ieee80211softmac_wx_get_genie);
 
+int
+ieee80211softmac_wx_set_mlme(struct net_device *dev,
+			     struct iw_request_info *info,
+			     union iwreq_data *wrqu,
+			     char *extra)
+{
+	struct ieee80211softmac_device *mac = ieee80211_priv(dev);
+	struct iw_mlme *mlme = (struct iw_mlme *)extra;
+	u16 reason = cpu_to_le16(mlme->reason_code);
+	struct ieee80211softmac_network *net;
+
+	if (memcmp(mac->associnfo.bssid, mlme->addr.sa_data, ETH_ALEN)) {
+		printk(KERN_DEBUG PFX "wx_set_mlme: requested operation on net we don't use\n");
+		return -EINVAL;
+	}
+
+	switch (mlme->cmd) {
+	case IW_MLME_DEAUTH:
+		net = ieee80211softmac_get_network_by_bssid_locked(mac, mlme->addr.sa_data);
+		if (!net) {
+			printk(KERN_DEBUG PFX "wx_set_mlme: we should know the net here...\n");
+			return -EINVAL;
+		}
+		return ieee80211softmac_deauth_req(mac, net, reason);
+	case IW_MLME_DISASSOC:
+		ieee80211softmac_disassoc(mac, reason);
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+EXPORT_SYMBOL_GPL(ieee80211softmac_wx_set_mlme);

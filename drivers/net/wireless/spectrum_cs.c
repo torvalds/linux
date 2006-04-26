@@ -1,6 +1,6 @@
 /*
  * Driver for 802.11b cards using RAM-loadable Symbol firmware, such as
- * Symbol Wireless Networker LA4100, CompactFlash cards by Socket
+ * Symbol Wireless Networker LA4137, CompactFlash cards by Socket
  * Communications and Intel PRO/Wireless 2011B.
  *
  * The driver implements Symbol firmware download.  The rest is handled
@@ -120,8 +120,8 @@ static void spectrum_cs_release(struct pcmcia_device *link);
  * Each block has the following structure.
  */
 struct dblock {
-	__le32 _addr;		/* adapter address where to write the block */
-	__le16 _len;		/* length of the data only, in bytes */
+	__le32 addr;		/* adapter address where to write the block */
+	__le16 len;		/* length of the data only, in bytes */
 	char data[0];		/* data to be written */
 } __attribute__ ((packed));
 
@@ -131,9 +131,9 @@ struct dblock {
  * items with matching ID should be written.
  */
 struct pdr {
-	__le32 _id;		/* record ID */
-	__le32 _addr;		/* adapter address where to write the data */
-	__le32 _len;		/* expected length of the data, in bytes */
+	__le32 id;		/* record ID */
+	__le32 addr;		/* adapter address where to write the data */
+	__le32 len;		/* expected length of the data, in bytes */
 	char next[0];		/* next PDR starts here */
 } __attribute__ ((packed));
 
@@ -144,8 +144,8 @@ struct pdr {
  * be plugged into the secondary firmware.
  */
 struct pdi {
-	__le16 _len;		/* length of ID and data, in words */
-	__le16 _id;		/* record ID */
+	__le16 len;		/* length of ID and data, in words */
+	__le16 id;		/* record ID */
 	char data[0];		/* plug data */
 } __attribute__ ((packed));
 
@@ -154,44 +154,44 @@ struct pdi {
 static inline u32
 dblock_addr(const struct dblock *blk)
 {
-	return le32_to_cpu(blk->_addr);
+	return le32_to_cpu(blk->addr);
 }
 
 static inline u32
 dblock_len(const struct dblock *blk)
 {
-	return le16_to_cpu(blk->_len);
+	return le16_to_cpu(blk->len);
 }
 
 static inline u32
 pdr_id(const struct pdr *pdr)
 {
-	return le32_to_cpu(pdr->_id);
+	return le32_to_cpu(pdr->id);
 }
 
 static inline u32
 pdr_addr(const struct pdr *pdr)
 {
-	return le32_to_cpu(pdr->_addr);
+	return le32_to_cpu(pdr->addr);
 }
 
 static inline u32
 pdr_len(const struct pdr *pdr)
 {
-	return le32_to_cpu(pdr->_len);
+	return le32_to_cpu(pdr->len);
 }
 
 static inline u32
 pdi_id(const struct pdi *pdi)
 {
-	return le16_to_cpu(pdi->_id);
+	return le16_to_cpu(pdi->id);
 }
 
 /* Return length of the data only, in bytes */
 static inline u32
 pdi_len(const struct pdi *pdi)
 {
-	return 2 * (le16_to_cpu(pdi->_len) - 1);
+	return 2 * (le16_to_cpu(pdi->len) - 1);
 }
 
 
@@ -343,8 +343,7 @@ spectrum_plug_pdi(hermes_t *hw, struct pdr *first_pdr, struct pdi *pdi)
 
 	/* do the actual plugging */
 	spectrum_aux_setaddr(hw, pdr_addr(pdr));
-	hermes_write_words(hw, HERMES_AUXDATA, pdi->data,
-			   pdi_len(pdi) / 2);
+	hermes_write_bytes(hw, HERMES_AUXDATA, pdi->data, pdi_len(pdi));
 
 	return 0;
 }
@@ -424,8 +423,8 @@ spectrum_load_blocks(hermes_t *hw, const struct dblock *first_block)
 
 	while (dblock_addr(blk) != BLOCK_END) {
 		spectrum_aux_setaddr(hw, blkaddr);
-		hermes_write_words(hw, HERMES_AUXDATA, blk->data,
-				   blklen / 2);
+		hermes_write_bytes(hw, HERMES_AUXDATA, blk->data,
+				   blklen);
 
 		blk = (struct dblock *) &blk->data[blklen];
 		blkaddr = dblock_addr(blk);
@@ -653,12 +652,9 @@ spectrum_cs_config(struct pcmcia_device *link)
 	int last_fn, last_ret;
 	u_char buf[64];
 	config_info_t conf;
-	cisinfo_t info;
 	tuple_t tuple;
 	cisparse_t parse;
 	void __iomem *mem;
-
-	CS_CHECK(ValidateCIS, pcmcia_validate_cis(link, &info));
 
 	/*
 	 * This reads the card's CONFIG tuple to find its
@@ -708,12 +704,6 @@ spectrum_cs_config(struct pcmcia_device *link)
 		if (cfg->index == 0)
 			goto next_entry;
 		link->conf.ConfigIndex = cfg->index;
-
-		/* Does this card need audio output? */
-		if (cfg->flags & CISTPL_CFTABLE_AUDIO) {
-			link->conf.Attributes |= CONF_ENABLE_SPKR;
-			link->conf.Status = CCSR_AUDIO_ENA;
-		}
 
 		/* Use power settings for Vcc and Vpp if present */
 		/* Note that the CIS values need to be rescaled */
@@ -932,7 +922,7 @@ static char version[] __initdata = DRIVER_NAME " " DRIVER_VERSION
 	" David Gibson <hermes@gibson.dropbear.id.au>, et al)";
 
 static struct pcmcia_device_id spectrum_cs_ids[] = {
-	PCMCIA_DEVICE_MANF_CARD(0x026c, 0x0001), /* Symbol Spectrum24 LA4100 */
+	PCMCIA_DEVICE_MANF_CARD(0x026c, 0x0001), /* Symbol Spectrum24 LA4137 */
 	PCMCIA_DEVICE_MANF_CARD(0x0104, 0x0001), /* Socket Communications CF */
 	PCMCIA_DEVICE_PROD_ID12("Intel", "PRO/Wireless LAN PC Card", 0x816cc815, 0x6fbf459a), /* 2011B, not 2011 */
 	PCMCIA_DEVICE_NULL,

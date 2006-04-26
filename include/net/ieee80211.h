@@ -29,7 +29,7 @@
 #include <linux/kernel.h>	/* ARRAY_SIZE */
 #include <linux/wireless.h>
 
-#define IEEE80211_VERSION "git-1.1.7"
+#define IEEE80211_VERSION "git-1.1.13"
 
 #define IEEE80211_DATA_LEN		2304
 /* Maximum size for the MA-UNITDATA primitive, 802.11 standard section
@@ -103,6 +103,9 @@
 
 #define IEEE80211_SCTL_FRAG		0x000F
 #define IEEE80211_SCTL_SEQ		0xFFF0
+
+/* QOS control */
+#define IEEE80211_QCTL_TID		0x000F
 
 /* debug macros */
 
@@ -1073,6 +1076,7 @@ struct ieee80211_device {
 
 	int (*handle_management) (struct net_device * dev,
 				  struct ieee80211_network * network, u16 type);
+	int (*is_qos_active) (struct net_device *dev, struct sk_buff *skb);
 
 	/* Typical STA methods */
 	int (*handle_auth) (struct net_device * dev,
