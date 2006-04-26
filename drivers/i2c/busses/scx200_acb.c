@@ -524,6 +524,9 @@ static int __init scx200_acb_init(void)
 	} else if (pci_dev_present(divil_pci))
 		rc = scx200_add_cs553x();
 
+	/* If at least one bus was created, init must succeed */
+	if (scx200_acb_list)
+		return 0;
 	return rc;
 }
 
