@@ -146,7 +146,6 @@ enum {
 	HIF_DEALLOC		= 5,
 	HIF_HOLDER		= 6,
 	HIF_FIRST		= 7,
-	HIF_RECURSE		= 8,
 	HIF_ABORTED		= 9,
 };
 

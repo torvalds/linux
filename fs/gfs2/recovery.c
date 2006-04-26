@@ -436,30 +436,35 @@ int gfs2_recover_journal(struct gfs2_jdesc *jd)
 	unsigned int pass;
 	int error;
 
-	fs_info(sdp, "jid=%u: Trying to acquire journal lock...\n", jd->jd_jid);
+	if (jd->jd_jid != sdp->sd_lockstruct.ls_jid) {
+		fs_info(sdp, "jid=%u: Trying to acquire journal lock...\n",
+			jd->jd_jid);
 
-	/* Aquire the journal lock so we can do recovery */
+		/* Aquire the journal lock so we can do recovery */
 
-	error = gfs2_glock_nq_num(sdp, jd->jd_jid, &gfs2_journal_glops,
-				  LM_ST_EXCLUSIVE,
-				  LM_FLAG_NOEXP | LM_FLAG_TRY | GL_NOCACHE,
-				  &j_gh);
-	switch (error) {
-	case 0:
-		break;
+		error = gfs2_glock_nq_num(sdp, jd->jd_jid, &gfs2_journal_glops,
+					  LM_ST_EXCLUSIVE,
+					  LM_FLAG_NOEXP | LM_FLAG_TRY | GL_NOCACHE,
+					  &j_gh);
+		switch (error) {
+		case 0:
+			break;
+	
+		case GLR_TRYFAILED:
+			fs_info(sdp, "jid=%u: Busy\n", jd->jd_jid);
+			error = 0;
+	
+		default:
+			goto fail;
+		};
 
-	case GLR_TRYFAILED:
-		fs_info(sdp, "jid=%u: Busy\n", jd->jd_jid);
-		error = 0;
-
-	default:
-		goto fail;
-	};
-
-	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED,
-				   LM_FLAG_NOEXP, &ji_gh);
-	if (error)
-		goto fail_gunlock_j;
+		error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED,
+					   LM_FLAG_NOEXP, &ji_gh);
+		if (error)
+			goto fail_gunlock_j;
+	} else {
+		fs_info(sdp, "jid=%u, already locked for use\n", jd->jd_jid);
+	}
 
 	fs_info(sdp, "jid=%u: Looking at journal...\n", jd->jd_jid);
 
@@ -481,10 +486,8 @@ int gfs2_recover_journal(struct gfs2_jdesc *jd)
 
 		error = gfs2_glock_nq_init(sdp->sd_trans_gl,
 					   LM_ST_SHARED,
-					   LM_FLAG_NOEXP |
-					   LM_FLAG_PRIORITY |
-					   GL_NEVER_RECURSE |
-					   GL_NOCANCEL |
+					   LM_FLAG_NOEXP | LM_FLAG_PRIORITY |
+					   GL_NEVER_RECURSE | GL_NOCANCEL |
 					   GL_NOCACHE,
 					   &t_gh);
 		if (error)
@@ -521,37 +524,35 @@ int gfs2_recover_journal(struct gfs2_jdesc *jd)
 			goto fail_gunlock_tr;
 
 		gfs2_glock_dq_uninit(&t_gh);
-
 		t = DIV_ROUND_UP(jiffies - t, HZ);
-		
 		fs_info(sdp, "jid=%u: Journal replayed in %lus\n",
 			jd->jd_jid, t);
 	}
 
-	gfs2_glock_dq_uninit(&ji_gh);
+	if (jd->jd_jid != sdp->sd_lockstruct.ls_jid)
+		gfs2_glock_dq_uninit(&ji_gh);
 
 	gfs2_lm_recovery_done(sdp, jd->jd_jid, LM_RD_SUCCESS);
 
-	gfs2_glock_dq_uninit(&j_gh);
+	if (jd->jd_jid != sdp->sd_lockstruct.ls_jid)
+		gfs2_glock_dq_uninit(&j_gh);
 
 	fs_info(sdp, "jid=%u: Done\n", jd->jd_jid);
-
 	return 0;
 
- fail_gunlock_tr:
+fail_gunlock_tr:
 	gfs2_glock_dq_uninit(&t_gh);
-
- fail_gunlock_ji:
-	gfs2_glock_dq_uninit(&ji_gh);
-
- fail_gunlock_j:
-	gfs2_glock_dq_uninit(&j_gh);
+fail_gunlock_ji:
+	if (jd->jd_jid != sdp->sd_lockstruct.ls_jid) {
+		gfs2_glock_dq_uninit(&ji_gh);
+fail_gunlock_j:
+		gfs2_glock_dq_uninit(&j_gh);
+	}
 
 	fs_info(sdp, "jid=%u: %s\n", jd->jd_jid, (error) ? "Failed" : "Done");
 
- fail:
+fail:
 	gfs2_lm_recovery_done(sdp, jd->jd_jid, LM_RD_GAVEUP);
-
 	return error;
 }
 

@@ -450,86 +450,6 @@ void gfs2_holder_put(struct gfs2_holder *gh)
 }
 
 /**
- * handle_recurse - put other holder structures (marked recursive)
- *                  into the holders list
- * @gh: the holder structure
- *
- */
-
-static void handle_recurse(struct gfs2_holder *gh)
-{
-	struct gfs2_glock *gl = gh->gh_gl;
-	struct gfs2_sbd *sdp = gl->gl_sbd;
-	struct gfs2_holder *tmp_gh, *safe;
-	int found = 0;
-
-	BUG_ON(!spin_is_locked(&gl->gl_spin));
-
-	printk(KERN_INFO "recursion %016llx, %u\n", gl->gl_name.ln_number,
-		gl->gl_name.ln_type);
-
-	if (gfs2_assert_warn(sdp, gh->gh_owner))
-		return;
-
-	list_for_each_entry_safe(tmp_gh, safe, &gl->gl_waiters3, gh_list) {
-		if (tmp_gh->gh_owner != gh->gh_owner)
-			continue;
-
-		gfs2_assert_warn(sdp,
-				 test_bit(HIF_RECURSE, &tmp_gh->gh_iflags));
-
-		list_move_tail(&tmp_gh->gh_list, &gl->gl_holders);
-		tmp_gh->gh_error = 0;
-		set_bit(HIF_HOLDER, &tmp_gh->gh_iflags);
-
-		complete(&tmp_gh->gh_wait);
-
-		found = 1;
-	}
-
-	gfs2_assert_warn(sdp, found);
-}
-
-/**
- * do_unrecurse - a recursive holder was just dropped of the waiters3 list
- * @gh: the holder
- *
- * If there is only one other recursive holder, clear its HIF_RECURSE bit.
- * If there is more than one, leave them alone.
- *
- */
-
-static void do_unrecurse(struct gfs2_holder *gh)
-{
-	struct gfs2_glock *gl = gh->gh_gl;
-	struct gfs2_sbd *sdp = gl->gl_sbd;
-	struct gfs2_holder *tmp_gh, *last_gh = NULL;
-	int found = 0;
-
-	BUG_ON(!spin_is_locked(&gl->gl_spin));
-
-	if (gfs2_assert_warn(sdp, gh->gh_owner))
-		return;
-
-	list_for_each_entry(tmp_gh, &gl->gl_waiters3, gh_list) {
-		if (tmp_gh->gh_owner != gh->gh_owner)
-			continue;
-
-		gfs2_assert_warn(sdp,
-				 test_bit(HIF_RECURSE, &tmp_gh->gh_iflags));
-
-		if (found)
-			return;
-
-		found = 1;
-		last_gh = tmp_gh;
-	}
-
-	if (!gfs2_assert_warn(sdp, found))
-		clear_bit(HIF_RECURSE, &last_gh->gh_iflags);
-}
-
-/**
  * rq_mutex - process a mutex request in the queue
  * @gh: the glock holder
  *
@@ -562,7 +482,6 @@ static int rq_promote(struct gfs2_holder *gh)
 	struct gfs2_glock *gl = gh->gh_gl;
 	struct gfs2_sbd *sdp = gl->gl_sbd;
 	struct gfs2_glock_operations *glops = gl->gl_ops;
-	int recurse;
 
 	if (!relaxed_state_ok(gl->gl_state, gh->gh_state, gh->gh_flags)) {
 		if (list_empty(&gl->gl_holders)) {
@@ -588,7 +507,6 @@ static int rq_promote(struct gfs2_holder *gh)
 	if (list_empty(&gl->gl_holders)) {
 		set_bit(HIF_FIRST, &gh->gh_iflags);
 		set_bit(GLF_LOCK, &gl->gl_flags);
-		recurse = 0;
 	} else {
 		struct gfs2_holder *next_gh;
 		if (gh->gh_flags & GL_LOCAL_EXCL)
@@ -597,15 +515,11 @@ static int rq_promote(struct gfs2_holder *gh)
 				     gh_list);
 		if (next_gh->gh_flags & GL_LOCAL_EXCL)
 			 return 1;
-		recurse = test_bit(HIF_RECURSE, &gh->gh_iflags);
 	}
 
 	list_move_tail(&gh->gh_list, &gl->gl_holders);
 	gh->gh_error = 0;
 	set_bit(HIF_HOLDER, &gh->gh_iflags);
-
-	if (recurse)
-		handle_recurse(gh);
 
 	complete(&gh->gh_wait);
 
@@ -897,8 +811,6 @@ static void xmote_bh(struct gfs2_glock *gl, unsigned int ret)
 		spin_lock(&gl->gl_spin);
 		list_del_init(&gh->gh_list);
 		gh->gh_error = -EIO;
-		if (test_bit(HIF_RECURSE, &gh->gh_iflags))
-			do_unrecurse(gh);
 		spin_unlock(&gl->gl_spin);
 
 	} else if (test_bit(HIF_DEMOTE, &gh->gh_iflags)) {
@@ -922,8 +834,6 @@ static void xmote_bh(struct gfs2_glock *gl, unsigned int ret)
 		spin_lock(&gl->gl_spin);
 		list_del_init(&gh->gh_list);
 		gh->gh_error = GLR_CANCELED;
-		if (test_bit(HIF_RECURSE, &gh->gh_iflags))
-			do_unrecurse(gh);
 		spin_unlock(&gl->gl_spin);
 
 	} else if (relaxed_state_ok(gl->gl_state, gh->gh_state, gh->gh_flags)) {
@@ -941,8 +851,6 @@ static void xmote_bh(struct gfs2_glock *gl, unsigned int ret)
 		spin_lock(&gl->gl_spin);
 		list_del_init(&gh->gh_list);
 		gh->gh_error = GLR_TRYFAILED;
-		if (test_bit(HIF_RECURSE, &gh->gh_iflags))
-			do_unrecurse(gh);
 		spin_unlock(&gl->gl_spin);
 
 	} else {
@@ -1161,8 +1069,6 @@ static int glock_wait_internal(struct gfs2_holder *gh)
 		    !list_empty(&gh->gh_list)) {
 			list_del_init(&gh->gh_list);
 			gh->gh_error = GLR_TRYFAILED;
-			if (test_bit(HIF_RECURSE, &gh->gh_iflags))
-				do_unrecurse(gh);
 			run_queue(gl);
 			spin_unlock(&gl->gl_spin);
 			return gh->gh_error;
@@ -1191,9 +1097,6 @@ static int glock_wait_internal(struct gfs2_holder *gh)
 			if (gh->gh_error) {
 				spin_lock(&gl->gl_spin);
 				list_del_init(&gh->gh_list);
-				if (test_and_clear_bit(HIF_RECURSE,
-						       &gh->gh_iflags))
-					do_unrecurse(gh);
 				spin_unlock(&gl->gl_spin);
 			}
 		}
@@ -1202,8 +1105,6 @@ static int glock_wait_internal(struct gfs2_holder *gh)
 		gl->gl_req_gh = NULL;
 		gl->gl_req_bh = NULL;
 		clear_bit(GLF_LOCK, &gl->gl_flags);
-		if (test_bit(HIF_RECURSE, &gh->gh_iflags))
-			handle_recurse(gh);
 		run_queue(gl);
 		spin_unlock(&gl->gl_spin);
 	}
@@ -1225,40 +1126,6 @@ find_holder_by_owner(struct list_head *head, struct task_struct *owner)
 }
 
 /**
- * recurse_check -
- *
- * Make sure the new holder is compatible with the pre-existing one.
- *
- */
-
-static int recurse_check(struct gfs2_holder *existing, struct gfs2_holder *new,
-			 unsigned int state)
-{
-	struct gfs2_sbd *sdp = existing->gh_gl->gl_sbd;
-
-	if (gfs2_assert_warn(sdp, (new->gh_flags & LM_FLAG_ANY) ||
-			          !(existing->gh_flags & LM_FLAG_ANY)))
-		goto fail;
-
-	if (gfs2_assert_warn(sdp, (existing->gh_flags & GL_LOCAL_EXCL) ||
-				  !(new->gh_flags & GL_LOCAL_EXCL)))
-		goto fail;
-
-	if (gfs2_assert_warn(sdp, relaxed_state_ok(state, new->gh_state,
-						   new->gh_flags)))
-		goto fail;
-
-	return 0;
-
-fail:
-	print_symbol(KERN_WARNING "GFS2: Existing holder from %s\n",
-		     existing->gh_ip);
-	print_symbol(KERN_WARNING "GFS2: New holder from %s\n", new->gh_ip);
-	set_bit(HIF_ABORTED, &new->gh_iflags);
-	return -EINVAL;
-}
-
-/**
  * add_to_queue - Add a holder to the wait queue (but look for recursion)
  * @gh: the holder structure to add
  *
@@ -1271,37 +1138,20 @@ static void add_to_queue(struct gfs2_holder *gh)
 
 	BUG_ON(!gh->gh_owner);
 
-	if (!gh->gh_owner)
-		goto out;
-
 	existing = find_holder_by_owner(&gl->gl_holders, gh->gh_owner);
 	if (existing) {
-		if (recurse_check(existing, gh, gl->gl_state))
-			return;
-
-		list_add_tail(&gh->gh_list, &gl->gl_holders);
-		set_bit(HIF_HOLDER, &gh->gh_iflags);
-
-		gh->gh_error = 0;
-		complete(&gh->gh_wait);
-
-		return;
+		print_symbol(KERN_WARNING "original: %s\n", existing->gh_ip);
+		print_symbol(KERN_WARNING "new: %s\n", gh->gh_ip);
+		BUG();
 	}
 
 	existing = find_holder_by_owner(&gl->gl_waiters3, gh->gh_owner);
 	if (existing) {
-		if (recurse_check(existing, gh, existing->gh_state))
-			return;
-
-		set_bit(HIF_RECURSE, &gh->gh_iflags);
-		set_bit(HIF_RECURSE, &existing->gh_iflags);
-
-		list_add_tail(&gh->gh_list, &gl->gl_waiters3);
-
-		return;
+		print_symbol(KERN_WARNING "original: %s\n", existing->gh_ip);
+		print_symbol(KERN_WARNING "new: %s\n", gh->gh_ip);
+		BUG();
 	}
 
- out:
 	if (gh->gh_flags & LM_FLAG_PRIORITY)
 		list_add(&gh->gh_list, &gl->gl_waiters3);
 	else
