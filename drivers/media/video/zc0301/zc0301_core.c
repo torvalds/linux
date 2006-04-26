@@ -1,5 +1,5 @@
 /***************************************************************************
- * Video4Linux2 driver for ZC0301 Image Processor and Control Chip         *
+ * Video4Linux2 driver for ZC0301[P] Image Processor and Control Chip      *
  *                                                                         *
  * Copyright (C) 2006 by Luca Risolia <luca.risolia@studio.unibo.it>       *
  *                                                                         *
@@ -47,13 +47,13 @@
 
 /*****************************************************************************/
 
-#define ZC0301_MODULE_NAME    "V4L2 driver for ZC0301 "                       \
+#define ZC0301_MODULE_NAME    "V4L2 driver for ZC0301[P] "                    \
 			      "Image Processor and Control Chip"
 #define ZC0301_MODULE_AUTHOR  "(C) 2006 Luca Risolia"
 #define ZC0301_AUTHOR_EMAIL   "<luca.risolia@studio.unibo.it>"
 #define ZC0301_MODULE_LICENSE "GPL"
-#define ZC0301_MODULE_VERSION "1:1.04"
-#define ZC0301_MODULE_VERSION_CODE  KERNEL_VERSION(1, 0, 4)
+#define ZC0301_MODULE_VERSION "1:1.05"
+#define ZC0301_MODULE_VERSION_CODE  KERNEL_VERSION(1, 0, 5)
 
 /*****************************************************************************/
 
@@ -427,10 +427,11 @@ resubmit_urb:
 static int zc0301_start_transfer(struct zc0301_device* cam)
 {
 	struct usb_device *udev = cam->usbdev;
+	struct usb_host_interface* altsetting = usb_altnum_to_altsetting(
+						     usb_ifnum_to_if(udev, 0),
+						     ZC0301_ALTERNATE_SETTING);
+	const unsigned int psz = altsetting->endpoint[0].desc.wMaxPacketSize;
 	struct urb* urb;
-	const unsigned int wMaxPacketSize[] = {0, 128, 192, 256, 384,
-					       512, 768, 1023};
-	const unsigned int psz = wMaxPacketSize[ZC0301_ALTERNATE_SETTING];
 	s8 i, j;
 	int err = 0;
 
@@ -1914,7 +1915,7 @@ zc0301_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 
 	mutex_init(&cam->dev_mutex);
 
-	DBG(2, "ZC0301 Image Processor and Control Chip detected "
+	DBG(2, "ZC0301[P] Image Processor and Control Chip detected "
 	       "(vid/pid 0x%04X/0x%04X)",id->idVendor, id->idProduct);
 
 	for  (i = 0; zc0301_sensor_table[i]; i++) {
@@ -1936,7 +1937,7 @@ zc0301_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 		cam->state |= DEV_MISCONFIGURED;
 	}
 
-	strcpy(cam->v4ldev->name, "ZC0301 PC Camera");
+	strcpy(cam->v4ldev->name, "ZC0301[P] PC Camera");
 	cam->v4ldev->owner = THIS_MODULE;
 	cam->v4ldev->type = VID_TYPE_CAPTURE | VID_TYPE_SCALES;
 	cam->v4ldev->hardware = 0;
