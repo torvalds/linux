@@ -415,7 +415,6 @@ static int  __init scx200_acb_create(const char *text, int base, int index)
 	struct scx200_acb_iface *iface;
 	struct i2c_adapter *adapter;
 	int rc;
-	char description[64];
 
 	iface = kzalloc(sizeof(*iface), GFP_KERNEL);
 	if (!iface) {
@@ -434,10 +433,7 @@ static int  __init scx200_acb_create(const char *text, int base, int index)
 
 	mutex_init(&iface->mutex);
 
-	snprintf(description, sizeof(description), "%s ACCESS.bus [%s]",
-		 text, adapter->name);
-
-	if (request_region(base, 8, description) == 0) {
+	if (!request_region(base, 8, adapter->name)) {
 		printk(KERN_ERR NAME ": can't allocate io 0x%x-0x%x\n",
 			base, base + 8-1);
 		rc = -EBUSY;
