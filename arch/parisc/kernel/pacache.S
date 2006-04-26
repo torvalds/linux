@@ -65,7 +65,7 @@ flush_tlb_all_local:
 	 */
 
 	/* pcxt_ssm_bug	- relied upon translation! PA 2.0 Arch. F-4 and F-5 */
-	rsm	PSW_SM_I, %r19		/* save I-bit state */
+	rsm		PSW_SM_I, %r19		/* save I-bit state */
 	load32		PA(1f), %r1
 	nop
 	nop
@@ -84,8 +84,7 @@ flush_tlb_all_local:
 	rfi
 	nop
 
-1:      ldil		L%PA(cache_info), %r1
-	ldo		R%PA(cache_info)(%r1), %r1
+1:      load32		PA(cache_info), %r1
 
 	/* Flush Instruction Tlb */
 
@@ -212,8 +211,7 @@ flush_instruction_cache_local:
 	.entry
 
 	mtsp		%r0, %sr1
-	ldil		L%cache_info, %r1
-	ldo		R%cache_info(%r1), %r1
+	load32		cache_info, %r1
 
 	/* Flush Instruction Cache */
 
@@ -254,8 +252,7 @@ flush_data_cache_local:
 	.entry
 
 	mtsp		%r0, %sr1
-	ldil		L%cache_info, %r1
-	ldo		R%cache_info(%r1), %r1
+	load32 		cache_info, %r1
 
 	/* Flush Data Cache */
 
@@ -303,7 +300,8 @@ copy_user_page_asm:
 	 */
 
 	ldd		0(%r25), %r19
-	ldi		32, %r1                 /* PAGE_SIZE/128 == 32 */
+	ldi		ASM_PAGE_SIZE_DIV128, %r1
+
 	ldw		64(%r25), %r0		/* prefetch 1 cacheline ahead */
 	ldw		128(%r25), %r0		/* prefetch 2 */
 
@@ -368,7 +366,7 @@ copy_user_page_asm:
 	 * use ldd/std on a 32 bit kernel.
 	 */
 	ldw		0(%r25), %r19
-	ldi		64, %r1		/* PAGE_SIZE/64 == 64 */
+	ldi		ASM_PAGE_SIZE_DIV64, %r1
 
 1:
 	ldw		4(%r25), %r20
@@ -461,6 +459,7 @@ copy_user_page_asm:
 	sub		%r25, %r1, %r23		/* move physical addr into non shadowed reg */
 
 	ldil		L%(TMPALIAS_MAP_START), %r28
+	/* FIXME for different page sizes != 4k */
 #ifdef CONFIG_64BIT
 	extrd,u		%r26,56,32, %r26		/* convert phys addr to tlb insert format */
 	extrd,u		%r23,56,32, %r23		/* convert phys addr to tlb insert format */
@@ -551,6 +550,7 @@ __clear_user_page_asm:
 #ifdef CONFIG_64BIT
 #if (TMPALIAS_MAP_START >= 0x80000000)
 	depdi		0, 31,32, %r28		/* clear any sign extension */
+	/* FIXME: page size dependend */
 #endif
 	extrd,u		%r26, 56,32, %r26	/* convert phys addr to tlb insert format */
 	depd		%r25, 63,22, %r28	/* Form aliased virtual address 'to' */
@@ -566,10 +566,10 @@ __clear_user_page_asm:
 	pdtlb		0(%r28)
 
 #ifdef CONFIG_64BIT
-	ldi		32, %r1			/* PAGE_SIZE/128 == 32 */
+	ldi		ASM_PAGE_SIZE_DIV128, %r1
 
 	/* PREFETCH (Write) has not (yet) been proven to help here */
-/* #define	PREFETCHW_OP	ldd		256(%0), %r0 */
+	/* #define	PREFETCHW_OP	ldd		256(%0), %r0 */
 
 1:	std		%r0, 0(%r28)
 	std		%r0, 8(%r28)
@@ -591,8 +591,7 @@ __clear_user_page_asm:
 	ldo		128(%r28), %r28
 
 #else	/* ! CONFIG_64BIT */
-
-	ldi		64, %r1			/* PAGE_SIZE/64 == 64 */
+	ldi		ASM_PAGE_SIZE_DIV64, %r1
 
 1:
 	stw		%r0, 0(%r28)

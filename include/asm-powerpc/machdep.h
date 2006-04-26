@@ -253,7 +253,11 @@ extern struct machdep_calls *machine_id;
 
 #define __machine_desc __attribute__ ((__section__ (".machine.desc")))
 
-#define define_machine(name) struct machdep_calls mach_##name __machine_desc =
+#define define_machine(name)					\
+	extern struct machdep_calls mach_##name;		\
+	EXPORT_SYMBOL(mach_##name);				\
+	struct machdep_calls mach_##name __machine_desc =
+
 #define machine_is(name) \
 	({ \
 		extern struct machdep_calls mach_##name \

@@ -88,7 +88,6 @@ static int alloc_io_space(struct pcmcia_socket *s, u_int attr, ioaddr_t *base,
 	}
 	if ((s->features & SS_CAP_STATIC_MAP) && s->io_offset) {
 		*base = s->io_offset | (*base & 0x0fff);
-		s->io[0].res->flags = (s->io[0].res->flags & ~IORESOURCE_BITS) | (attr & IORESOURCE_BITS);
 		return 0;
 	}
 	/* Check for an already-allocated window that must conflict with
@@ -209,7 +208,6 @@ int pccard_get_configuration_info(struct pcmcia_socket *s,
 	if (!(s->state & SOCKET_PRESENT))
 		return CS_NO_CARD;
 
-	config->Function = p_dev->func;
 
 #ifdef CONFIG_CARDBUS
 	if (s->state & SOCKET_CARDBUS) {
@@ -223,14 +221,22 @@ int pccard_get_configuration_info(struct pcmcia_socket *s,
 			config->AssignedIRQ = s->irq.AssignedIRQ;
 			if (config->AssignedIRQ)
 				config->Attributes |= CONF_ENABLE_IRQ;
-			config->BasePort1 = s->io[0].res->start;
-			config->NumPorts1 = s->io[0].res->end - config->BasePort1 + 1;
+			if (s->io[0].res) {
+				config->BasePort1 = s->io[0].res->start;
+				config->NumPorts1 = s->io[0].res->end - config->BasePort1 + 1;
+			}
 		}
 		return CS_SUCCESS;
 	}
 #endif
 
-	c = (p_dev) ? p_dev->function_config : NULL;
+	if (p_dev) {
+		c = p_dev->function_config;
+		config->Function = p_dev->func;
+	} else {
+		c = NULL;
+		config->Function = 0;
+	}
 
 	if ((c == NULL) || !(c->state & CONFIG_LOCKED)) {
 		config->Attributes = 0;
@@ -947,7 +953,5 @@ void pcmcia_disable_device(struct pcmcia_device *p_dev) {
 	pcmcia_release_irq(p_dev, &p_dev->irq);
 	if (&p_dev->win)
 		pcmcia_release_window(p_dev->win);
-
-	p_dev->dev_node = NULL;
 }
 EXPORT_SYMBOL(pcmcia_disable_device);

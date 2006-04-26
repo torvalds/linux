@@ -3447,6 +3447,12 @@ int cifs_setup_session(unsigned int xid, struct cifsSesInfo *pSesInfo,
 			pSesInfo->server->secMode,
 			pSesInfo->server->capabilities,
 			pSesInfo->server->timeZone));
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+		if(experimEnabled > 1)
+			rc = CIFS_SessSetup(xid, pSesInfo, CIFS_NTLM /* type */,
+					    &ntlmv2_flag, nls_info);	
+		else
+#endif
 		if (extended_security
 				&& (pSesInfo->capabilities & CAP_EXTENDED_SECURITY)
 				&& (pSesInfo->server->secType == NTLMSSP)) {

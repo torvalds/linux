@@ -2065,8 +2065,12 @@ P:	Matthew Wilcox
 M:	matthew@wil.cx
 P:	Grant Grundler
 M:	grundler@parisc-linux.org
+P:	Kyle McMartin
+M:	kyle@parisc-linux.org
 L:	parisc-linux@parisc-linux.org
 W:	http://www.parisc-linux.org/
+T:	git kernel.org:/pub/scm/linux/kernel/git/kyle/parisc-2.6.git
+T:	cvs cvs.parisc-linux.org:/var/cvs/linux-2.6
 S:	Maintained
 
 PCI ERROR RECOVERY
