@@ -265,7 +265,7 @@ static int nforce2_target(struct cpufreq_policy *policy,
 	if (freqs.old == freqs.new)
 		return 0;
 
-	dprintk(KERN_INFO "cpufreq: Old CPU frequency %d kHz, new %d kHz\n",
+	dprintk("Old CPU frequency %d kHz, new %d kHz\n",
 	       freqs.old, freqs.new);
 
 	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
@@ -277,7 +277,7 @@ static int nforce2_target(struct cpufreq_policy *policy,
 		printk(KERN_ERR "cpufreq: Changing FSB to %d failed\n",
                        target_fsb);
 	else
-		dprintk(KERN_INFO "cpufreq: Changed FSB successfully to %d\n",
+		dprintk("Changed FSB successfully to %d\n",
                        target_fsb);
 
 	/* Enable IRQs */
