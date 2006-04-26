@@ -290,12 +290,13 @@
 #define __NR_get_robust_list		1299
 #define __NR_sync_file_range		1300
 #define __NR_tee			1301
+#define __NR_vmsplice			1302
 
 #ifdef __KERNEL__
 
 #include <linux/config.h>
 
-#define NR_syscalls			278 /* length of syscall table */
+#define NR_syscalls			279 /* length of syscall table */
 
 #define __ARCH_WANT_SYS_RT_SIGACTION
 
