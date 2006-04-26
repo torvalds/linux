@@ -27,7 +27,8 @@
 #include "ieee80211softmac_priv.h"
 
 #include <net/iw_handler.h>
-
+/* for is_broadcast_ether_addr and is_zero_ether_addr */
+#include <linux/etherdevice.h>
 
 int
 ieee80211softmac_wx_trigger_scan(struct net_device *net_dev,
@@ -83,7 +84,6 @@ ieee80211softmac_wx_set_essid(struct net_device *net_dev,
 			sm->associnfo.static_essid = 1;
 		}
 	}
-	sm->associnfo.scan_retry = IEEE80211SOFTMAC_ASSOC_SCAN_RETRY_LIMIT;
 
 	/* set our requested ESSID length.
 	 * If applicable, we have already copied the data in */
@@ -310,8 +310,6 @@ ieee80211softmac_wx_set_wap(struct net_device *net_dev,
 			    char *extra)
 {
 	struct ieee80211softmac_device *mac = ieee80211_priv(net_dev);
-	static const unsigned char any[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-	static const unsigned char off[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 	unsigned long flags;
 
 	/* sanity check */
@@ -320,10 +318,17 @@ ieee80211softmac_wx_set_wap(struct net_device *net_dev,
 	}
 
 	spin_lock_irqsave(&mac->lock, flags);
-	if (!memcmp(any, data->ap_addr.sa_data, ETH_ALEN) ||
-	    !memcmp(off, data->ap_addr.sa_data, ETH_ALEN)) {
-		schedule_work(&mac->associnfo.work);
-		goto out;
+	if (is_broadcast_ether_addr(data->ap_addr.sa_data)) {
+		/* the bssid we have is not to be fixed any longer,
+		 * and we should reassociate to the best AP. */
+		mac->associnfo.bssfixed = 0;
+		/* force reassociation */
+		mac->associnfo.bssvalid = 0;
+		if (mac->associated)
+			schedule_work(&mac->associnfo.work);
+	} else if (is_zero_ether_addr(data->ap_addr.sa_data)) {
+		/* the bssid we have is no longer fixed */
+		mac->associnfo.bssfixed = 0;
         } else {
 		if (!memcmp(mac->associnfo.bssid, data->ap_addr.sa_data, ETH_ALEN)) {
 			if (mac->associnfo.associating || mac->associated) {
@@ -333,12 +338,14 @@ ieee80211softmac_wx_set_wap(struct net_device *net_dev,
 		} else {
 			/* copy new value in data->ap_addr.sa_data to bssid */
 			memcpy(mac->associnfo.bssid, data->ap_addr.sa_data, ETH_ALEN);
-		}	
+		}
+		/* tell the other code that this bssid should be used no matter what */
+		mac->associnfo.bssfixed = 1;
 		/* queue associate if new bssid or (old one again and not associated) */
 		schedule_work(&mac->associnfo.work);
         }
 
-out:
+ out:
 	spin_unlock_irqrestore(&mac->lock, flags);
 	return 0;
 }
