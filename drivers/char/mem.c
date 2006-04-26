@@ -27,6 +27,7 @@
 #include <linux/crash_dump.h>
 #include <linux/backing-dev.h>
 #include <linux/bootmem.h>
+#include <linux/pipe_fs_i.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -578,6 +579,18 @@ static ssize_t write_null(struct file * file, const char __user * buf,
 	return count;
 }
 
+static int pipe_to_null(struct pipe_inode_info *info, struct pipe_buffer *buf,
+			struct splice_desc *sd)
+{
+	return sd->len;
+}
+
+static ssize_t splice_write_null(struct pipe_inode_info *pipe,struct file *out,
+				 loff_t *ppos, size_t len, unsigned int flags)
+{
+	return splice_from_pipe(pipe, out, ppos, len, flags, pipe_to_null);
+}
+
 #ifdef CONFIG_MMU
 /*
  * For fun, we are using the MMU for this.
@@ -785,6 +798,7 @@ static struct file_operations null_fops = {
 	.llseek		= null_lseek,
 	.read		= read_null,
 	.write		= write_null,
+	.splice_write	= splice_write_null,
 };
 
 #if defined(CONFIG_ISA) || !defined(__mc68000__)
