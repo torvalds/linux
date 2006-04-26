@@ -128,12 +128,16 @@ void fuse_put_request(struct fuse_conn *fc, struct fuse_req *req)
 	}
 }
 
+/*
+ * Called with sbput_sem held for read (request_end) or write
+ * (fuse_put_super).  By the time fuse_put_super() is finished, all
+ * inodes belonging to background requests must be released, so the
+ * iputs have to be done within the locked region.
+ */
 void fuse_release_background(struct fuse_conn *fc, struct fuse_req *req)
 {
 	iput(req->inode);
 	iput(req->inode2);
-	if (req->file)
-		fput(req->file);
 	spin_lock(&fc->lock);
 	list_del(&req->bg_entry);
 	if (fc->num_background == FUSE_MAX_BACKGROUND) {
@@ -178,6 +182,11 @@ static void request_end(struct fuse_conn *fc, struct fuse_req *req)
 		if (fc->mounted)
 			fuse_release_background(fc, req);
 		up_read(&fc->sbput_sem);
+
+		/* fput must go outside sbput_sem, otherwise it can deadlock */
+		if (req->file)
+			fput(req->file);
+
 		if (end)
 			end(fc, req);
 		else
