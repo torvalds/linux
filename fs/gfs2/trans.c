@@ -50,8 +50,7 @@ int gfs2_trans_begin(struct gfs2_sbd *sdp, unsigned int blocks,
 						   sizeof(uint64_t));
 	INIT_LIST_HEAD(&tr->tr_list_buf);
 
-	gfs2_holder_init(sdp->sd_trans_gl, LM_ST_SHARED,
-			 GL_NEVER_RECURSE, &tr->tr_t_gh);
+	gfs2_holder_init(sdp->sd_trans_gl, LM_ST_SHARED, 0, &tr->tr_t_gh);
 
 	error = gfs2_glock_nq(&tr->tr_t_gh);
 	if (error)

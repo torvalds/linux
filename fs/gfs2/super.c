@@ -469,7 +469,7 @@ int gfs2_make_fs_rw(struct gfs2_sbd *sdp)
 	int error;
 
 	error = gfs2_glock_nq_init(sdp->sd_trans_gl, LM_ST_SHARED,
-				   GL_LOCAL_EXCL | GL_NEVER_RECURSE, &t_gh);
+				   GL_LOCAL_EXCL, &t_gh);
 	if (error)
 		return error;
 
@@ -530,7 +530,7 @@ int gfs2_make_fs_ro(struct gfs2_sbd *sdp)
 	gfs2_statfs_sync(sdp);
 
 	error = gfs2_glock_nq_init(sdp->sd_trans_gl, LM_ST_SHARED,
-				GL_LOCAL_EXCL | GL_NEVER_RECURSE | GL_NOCACHE,
+				GL_LOCAL_EXCL | GL_NOCACHE,
 				&t_gh);
 	if (error && !test_bit(SDF_SHUTDOWN, &sdp->sd_flags))
 		return error;
@@ -869,7 +869,7 @@ int gfs2_lock_fs_check_clean(struct gfs2_sbd *sdp, struct gfs2_holder *t_gh)
 	}
 
 	error = gfs2_glock_nq_init(sdp->sd_trans_gl, LM_ST_DEFERRED,
-			       LM_FLAG_PRIORITY | GL_NEVER_RECURSE | GL_NOCACHE,
+			       LM_FLAG_PRIORITY | GL_NOCACHE,
 			       t_gh);
 
 	list_for_each_entry(jd, &sdp->sd_jindex_list, jd_list) {

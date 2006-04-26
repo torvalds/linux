@@ -223,7 +223,7 @@ static int init_locking(struct gfs2_sbd *sdp, struct gfs2_holder *mount_gh,
 	error = gfs2_glock_nq_num(sdp,
 				  GFS2_LIVE_LOCK, &gfs2_nondisk_glops,
 				  LM_ST_SHARED,
-				  LM_FLAG_NOEXP | GL_EXACT | GL_NEVER_RECURSE,
+				  LM_FLAG_NOEXP | GL_EXACT,
 				  &sdp->sd_live_gh);
 	if (error) {
 		fs_err(sdp, "can't acquire live glock: %d\n", error);
@@ -638,7 +638,7 @@ static int init_per_node(struct gfs2_sbd *sdp, int undo)
 
 	ip = sdp->sd_ir_inode->u.generic_ip;
 	error = gfs2_glock_nq_init(ip->i_gl,
-				   LM_ST_EXCLUSIVE, GL_NEVER_RECURSE,
+				   LM_ST_EXCLUSIVE, 0,
 				   &sdp->sd_ir_gh);
 	if (error) {
 		fs_err(sdp, "can't lock local \"ir\" file: %d\n", error);
@@ -647,7 +647,7 @@ static int init_per_node(struct gfs2_sbd *sdp, int undo)
 
 	ip = sdp->sd_sc_inode->u.generic_ip;
 	error = gfs2_glock_nq_init(ip->i_gl,
-				   LM_ST_EXCLUSIVE, GL_NEVER_RECURSE,
+				   LM_ST_EXCLUSIVE, 0,
 				   &sdp->sd_sc_gh);
 	if (error) {
 		fs_err(sdp, "can't lock local \"sc\" file: %d\n", error);
@@ -656,7 +656,7 @@ static int init_per_node(struct gfs2_sbd *sdp, int undo)
 
 	ip = sdp->sd_ut_inode->u.generic_ip;
 	error = gfs2_glock_nq_init(ip->i_gl,
-				   LM_ST_EXCLUSIVE, GL_NEVER_RECURSE,
+				   LM_ST_EXCLUSIVE, 0,
 				   &sdp->sd_ut_gh);
 	if (error) {
 		fs_err(sdp, "can't lock local \"ut\" file: %d\n", error);
@@ -665,7 +665,7 @@ static int init_per_node(struct gfs2_sbd *sdp, int undo)
 
 	ip = sdp->sd_qc_inode->u.generic_ip;
 	error = gfs2_glock_nq_init(ip->i_gl,
-				   LM_ST_EXCLUSIVE, GL_NEVER_RECURSE,
+				   LM_ST_EXCLUSIVE, 0,
 				   &sdp->sd_qc_gh);
 	if (error) {
 		fs_err(sdp, "can't lock local \"qc\" file: %d\n", error);

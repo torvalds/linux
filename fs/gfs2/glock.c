@@ -357,7 +357,6 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, uint64_t number,
 void gfs2_holder_init(struct gfs2_glock *gl, unsigned int state, unsigned flags,
 		      struct gfs2_holder *gh)
 {
-	flags |= GL_NEVER_RECURSE;
 	INIT_LIST_HEAD(&gh->gh_list);
 	gh->gh_gl = gl;
 	gh->gh_ip = (unsigned long)__builtin_return_address(0);
@@ -387,7 +386,7 @@ void gfs2_holder_init(struct gfs2_glock *gl, unsigned int state, unsigned flags,
 void gfs2_holder_reinit(unsigned int state, unsigned flags, struct gfs2_holder *gh)
 {
 	gh->gh_state = state;
-	gh->gh_flags = flags | GL_NEVER_RECURSE;
+	gh->gh_flags = flags;
 	if (gh->gh_state == LM_ST_EXCLUSIVE)
 		gh->gh_flags |= GL_LOCAL_EXCL;
 
@@ -731,8 +730,7 @@ static void handle_callback(struct gfs2_glock *gl, unsigned int state)
 	} else {
 		spin_unlock(&gl->gl_spin);
 
-		new_gh = gfs2_holder_get(gl, state,
-					 LM_FLAG_TRY | GL_NEVER_RECURSE,
+		new_gh = gfs2_holder_get(gl, state, LM_FLAG_TRY,
 					 GFP_KERNEL | __GFP_NOFAIL),
 		set_bit(HIF_DEMOTE, &new_gh->gh_iflags);
 		set_bit(HIF_DEALLOC, &new_gh->gh_iflags);
@@ -1336,7 +1334,7 @@ void gfs2_glock_force_drop(struct gfs2_glock *gl)
 {
 	struct gfs2_holder gh;
 
-	gfs2_holder_init(gl, LM_ST_UNLOCKED, GL_NEVER_RECURSE, &gh);
+	gfs2_holder_init(gl, LM_ST_UNLOCKED, 0, &gh);
 	set_bit(HIF_DEMOTE, &gh.gh_iflags);
 
 	spin_lock(&gl->gl_spin);
@@ -1401,7 +1399,7 @@ int gfs2_glock_be_greedy(struct gfs2_glock *gl, unsigned int time)
 	}
 	gh = &gr->gr_gh;
 
-	gfs2_holder_init(gl, 0, GL_NEVER_RECURSE, gh);
+	gfs2_holder_init(gl, 0, 0, gh);
 	set_bit(HIF_GREEDY, &gh->gh_iflags);
 	INIT_WORK(&gr->gr_work, greedy_work, gr);
 
