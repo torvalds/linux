@@ -29,23 +29,13 @@
 #include <linux/syscalls.h>
 #include <linux/uio.h>
 
-/*
- * Passed to the actors
- */
-struct splice_desc {
-	unsigned int len, total_len;	/* current and remaining length */
-	unsigned int flags;		/* splice flags */
-	struct file *file;		/* file to read/write */
-	loff_t pos;			/* file position */
-};
-
 struct partial_page {
 	unsigned int offset;
 	unsigned int len;
 };
 
 /*
- * Passed to move_to_pipe
+ * Passed to splice_to_pipe
  */
 struct splice_pipe_desc {
 	struct page **pages;		/* page map */
@@ -192,8 +182,8 @@ static struct pipe_buf_operations user_page_pipe_buf_ops = {
  * Pipe output worker. This sets up our pipe format with the page cache
  * pipe buffer operations. Otherwise very similar to the regular pipe_writev().
  */
-static ssize_t move_to_pipe(struct pipe_inode_info *pipe,
-			    struct splice_pipe_desc *spd)
+static ssize_t splice_to_pipe(struct pipe_inode_info *pipe,
+			      struct splice_pipe_desc *spd)
 {
 	int ret, do_wakeup, page_nr;
 
@@ -432,7 +422,7 @@ fill_it:
 	}
 
 	if (spd.nr_pages)
-		return move_to_pipe(pipe, &spd);
+		return splice_to_pipe(pipe, &spd);
 
 	return error;
 }
@@ -666,17 +656,14 @@ out_nomem:
 	return ret;
 }
 
-typedef int (splice_actor)(struct pipe_inode_info *, struct pipe_buffer *,
-			   struct splice_desc *);
-
 /*
  * Pipe input worker. Most of this logic works like a regular pipe, the
  * key here is the 'actor' worker passed in that actually moves the data
  * to the wanted destination. See pipe_to_file/pipe_to_sendpage above.
  */
-static ssize_t move_from_pipe(struct pipe_inode_info *pipe, struct file *out,
-			      loff_t *ppos, size_t len, unsigned int flags,
-			      splice_actor *actor)
+ssize_t splice_from_pipe(struct pipe_inode_info *pipe, struct file *out,
+			 loff_t *ppos, size_t len, unsigned int flags,
+			 splice_actor *actor)
 {
 	int ret, do_wakeup, err;
 	struct splice_desc sd;
@@ -795,7 +782,7 @@ generic_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 	struct address_space *mapping = out->f_mapping;
 	ssize_t ret;
 
-	ret = move_from_pipe(pipe, out, ppos, len, flags, pipe_to_file);
+	ret = splice_from_pipe(pipe, out, ppos, len, flags, pipe_to_file);
 	if (ret > 0) {
 		struct inode *inode = mapping->host;
 
@@ -837,7 +824,7 @@ EXPORT_SYMBOL(generic_file_splice_write);
 ssize_t generic_splice_sendpage(struct pipe_inode_info *pipe, struct file *out,
 				loff_t *ppos, size_t len, unsigned int flags)
 {
-	return move_from_pipe(pipe, out, ppos, len, flags, pipe_to_sendpage);
+	return splice_from_pipe(pipe, out, ppos, len, flags, pipe_to_sendpage);
 }
 
 EXPORT_SYMBOL(generic_splice_sendpage);
@@ -924,7 +911,7 @@ long do_splice_direct(struct file *in, loff_t *ppos, struct file *out,
 
 		/*
 		 * We don't have an immediate reader, but we'll read the stuff
-		 * out of the pipe right after the move_to_pipe(). So set
+		 * out of the pipe right after the splice_to_pipe(). So set
 		 * PIPE_READERS appropriately.
 		 */
 		pipe->readers = 1;
@@ -1210,7 +1197,7 @@ static long do_vmsplice(struct file *file, const struct iovec __user *iov,
 	if (spd.nr_pages <= 0)
 		return spd.nr_pages;
 
-	return move_to_pipe(pipe, &spd);
+	return splice_to_pipe(pipe, &spd);
 }
 
 asmlinkage long sys_vmsplice(int fd, const struct iovec __user *iov,
