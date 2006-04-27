@@ -951,6 +951,7 @@ void dt_vdevices(struct iseries_flat_dt *dt)
 		dt_prop_str(dt, "device_type", "vlan");
 		dt_prop_empty(dt, "compatible");
 		dt_prop_u32(dt, "reg", reg + i);
+		dt_prop_u32(dt, "linux,unit_address", i);
 
 		mac_addr[0] = 0x02;
 		mac_addr[1] = 0x01;
@@ -971,6 +972,7 @@ void dt_vdevices(struct iseries_flat_dt *dt)
 		dt_prop_str(dt, "device_type", "viodasd");
 		dt_prop_empty(dt, "compatible");
 		dt_prop_u32(dt, "reg", reg + i);
+		dt_prop_u32(dt, "linux,unit_address", i);
 		dt_end_node(dt);
 	}
 	reg += HVMAXARCHITECTEDVIRTUALDISKS;
@@ -980,6 +982,7 @@ void dt_vdevices(struct iseries_flat_dt *dt)
 		dt_prop_str(dt, "device_type", "viocd");
 		dt_prop_empty(dt, "compatible");
 		dt_prop_u32(dt, "reg", reg + i);
+		dt_prop_u32(dt, "linux,unit_address", i);
 		dt_end_node(dt);
 	}
 	reg += HVMAXARCHITECTEDVIRTUALCDROMS;
@@ -989,6 +992,7 @@ void dt_vdevices(struct iseries_flat_dt *dt)
 		dt_prop_str(dt, "device_type", "viotape");
 		dt_prop_empty(dt, "compatible");
 		dt_prop_u32(dt, "reg", reg + i);
+		dt_prop_u32(dt, "linux,unit_address", i);
 		dt_end_node(dt);
 	}
 

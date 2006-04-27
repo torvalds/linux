@@ -22,9 +22,7 @@
 #include <asm/dma.h>
 #include <asm/vio.h>
 #include <asm/prom.h>
-
-static const struct vio_device_id *vio_match_device(
-		const struct vio_device_id *, const struct vio_dev *);
+#include <asm/firmware.h>
 
 struct vio_dev vio_bus_device  = { /* fake "parent" device */
 	.name = vio_bus_device.dev.bus_id,
@@ -34,6 +32,27 @@ struct vio_dev vio_bus_device  = { /* fake "parent" device */
 };
 
 static struct vio_bus_ops vio_bus_ops;
+
+/**
+ * vio_match_device: - Tell if a VIO device has a matching
+ *			VIO device id structure.
+ * @ids:	array of VIO device id structures to search in
+ * @dev:	the VIO device structure to match against
+ *
+ * Used by a driver to check whether a VIO device present in the
+ * system is in its list of supported devices. Returns the matching
+ * vio_device_id structure or NULL if there is no match.
+ */
+static const struct vio_device_id *vio_match_device(
+		const struct vio_device_id *ids, const struct vio_dev *dev)
+{
+	while (ids->type[0] != '\0') {
+		if (vio_bus_ops.match(ids, dev))
+			return ids;
+		ids++;
+	}
+	return NULL;
+}
 
 /*
  * Convert from struct device to struct vio_dev and pass to driver.
@@ -107,25 +126,76 @@ void vio_unregister_driver(struct vio_driver *viodrv)
 EXPORT_SYMBOL(vio_unregister_driver);
 
 /**
- * vio_match_device: - Tell if a VIO device has a matching
- *			VIO device id structure.
- * @ids:	array of VIO device id structures to search in
- * @dev:	the VIO device structure to match against
+ * vio_register_device_node: - Register a new vio device.
+ * @of_node:	The OF node for this device.
  *
- * Used by a driver to check whether a VIO device present in the
- * system is in its list of supported devices. Returns the matching
- * vio_device_id structure or NULL if there is no match.
+ * Creates and initializes a vio_dev structure from the data in
+ * of_node (dev.platform_data) and adds it to the list of virtual devices.
+ * Returns a pointer to the created vio_dev or NULL if node has
+ * NULL device_type or compatible fields.
  */
-static const struct vio_device_id *vio_match_device(
-		const struct vio_device_id *ids, const struct vio_dev *dev)
+struct vio_dev * __devinit vio_register_device_node(struct device_node *of_node)
 {
-	while (ids->type[0] != '\0') {
-		if (vio_bus_ops.match(ids, dev))
-			return ids;
-		ids++;
+	struct vio_dev *viodev;
+	unsigned int *unit_address;
+	unsigned int *irq_p;
+
+	/* we need the 'device_type' property, in order to match with drivers */
+	if (of_node->type == NULL) {
+		printk(KERN_WARNING "%s: node %s missing 'device_type'\n",
+				__FUNCTION__,
+				of_node->name ? of_node->name : "<unknown>");
+		return NULL;
 	}
-	return NULL;
+
+	unit_address = (unsigned int *)get_property(of_node, "reg", NULL);
+	if (unit_address == NULL) {
+		printk(KERN_WARNING "%s: node %s missing 'reg'\n",
+				__FUNCTION__,
+				of_node->name ? of_node->name : "<unknown>");
+		return NULL;
+	}
+
+	/* allocate a vio_dev for this node */
+	viodev = kzalloc(sizeof(struct vio_dev), GFP_KERNEL);
+	if (viodev == NULL)
+		return NULL;
+
+	viodev->dev.platform_data = of_node_get(of_node);
+
+	viodev->irq = NO_IRQ;
+	irq_p = (unsigned int *)get_property(of_node, "interrupts", NULL);
+	if (irq_p) {
+		int virq = virt_irq_create_mapping(*irq_p);
+		if (virq == NO_IRQ) {
+			printk(KERN_ERR "Unable to allocate interrupt "
+			       "number for %s\n", of_node->full_name);
+		} else
+			viodev->irq = irq_offset_up(virq);
+	}
+
+	snprintf(viodev->dev.bus_id, BUS_ID_SIZE, "%x", *unit_address);
+	viodev->name = of_node->name;
+	viodev->type = of_node->type;
+	viodev->unit_address = *unit_address;
+	if (firmware_has_feature(FW_FEATURE_ISERIES)) {
+		unit_address = (unsigned int *)get_property(of_node,
+				"linux,unit_address", NULL);
+		if (unit_address != NULL)
+			viodev->unit_address = *unit_address;
+	}
+	viodev->iommu_table = vio_bus_ops.build_iommu_table(viodev);
+
+	/* register with generic device framework */
+	if (vio_register_device(viodev) == NULL) {
+		/* XXX free TCE table */
+		kfree(viodev);
+		return NULL;
+	}
+
+	return viodev;
 }
+EXPORT_SYMBOL(vio_register_device_node);
 
 /**
  * vio_bus_init: - Initialize the virtual IO bus
@@ -133,6 +203,7 @@ static const struct vio_device_id *vio_match_device(
 int __init vio_bus_init(struct vio_bus_ops *ops)
 {
 	int err;
+	struct device_node *node_vroot;
 
 	vio_bus_ops = *ops;
 
@@ -153,23 +224,54 @@ int __init vio_bus_init(struct vio_bus_ops *ops)
 		return err;
 	}
 
+	node_vroot = find_devices("vdevice");
+	if (node_vroot) {
+		struct device_node *of_node;
+
+		/*
+		 * Create struct vio_devices for each virtual device in
+		 * the device tree. Drivers will associate with them later.
+		 */
+		for (of_node = node_vroot->child; of_node != NULL;
+				of_node = of_node->sibling) {
+			printk(KERN_DEBUG "%s: processing %p\n",
+					__FUNCTION__, of_node);
+			vio_register_device_node(of_node);
+		}
+	}
+
 	return 0;
 }
 
 /* vio_dev refcount hit 0 */
 static void __devinit vio_dev_release(struct device *dev)
 {
-	if (vio_bus_ops.release_device)
-		vio_bus_ops.release_device(dev);
+	if (dev->platform_data) {
+		/* XXX free TCE table */
+		of_node_put(dev->platform_data);
+	}
 	kfree(to_vio_dev(dev));
 }
 
-static ssize_t viodev_show_name(struct device *dev,
+static ssize_t name_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%s\n", to_vio_dev(dev)->name);
 }
-DEVICE_ATTR(name, S_IRUSR | S_IRGRP | S_IROTH, viodev_show_name, NULL);
+
+static ssize_t devspec_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct device_node *of_node = dev->platform_data;
+
+	return sprintf(buf, "%s\n", of_node ? of_node->full_name : "none");
+}
+
+static struct device_attribute vio_dev_attrs[] = {
+	__ATTR_RO(name),
+	__ATTR_RO(devspec),
+	__ATTR_NULL
+};
 
 struct vio_dev * __devinit vio_register_device(struct vio_dev *viodev)
 {
@@ -184,16 +286,12 @@ struct vio_dev * __devinit vio_register_device(struct vio_dev *viodev)
 				__FUNCTION__, viodev->dev.bus_id);
 		return NULL;
 	}
-	device_create_file(&viodev->dev, &dev_attr_name);
 
 	return viodev;
 }
 
 void __devinit vio_unregister_device(struct vio_dev *viodev)
 {
-	if (vio_bus_ops.unregister_device)
-		vio_bus_ops.unregister_device(viodev);
-	device_remove_file(&viodev->dev, &dev_attr_name);
 	device_unregister(&viodev->dev);
 }
 EXPORT_SYMBOL(vio_unregister_device);
@@ -267,22 +365,23 @@ static int vio_hotplug(struct device *dev, char **envp, int num_envp,
 			char *buffer, int buffer_size)
 {
 	const struct vio_dev *vio_dev = to_vio_dev(dev);
+	struct device_node *dn = dev->platform_data;
 	char *cp;
 	int length;
 
 	if (!num_envp)
 		return -ENOMEM;
 
-	if (!vio_dev->dev.platform_data)
+	if (!dn)
 		return -ENODEV;
-	cp = (char *)get_property(vio_dev->dev.platform_data, "compatible", &length);
+	cp = (char *)get_property(dn, "compatible", &length);
 	if (!cp)
 		return -ENODEV;
 
 	envp[0] = buffer;
 	length = scnprintf(buffer, buffer_size, "MODALIAS=vio:T%sS%s",
 				vio_dev->type, cp);
-	if (buffer_size - length <= 0)
+	if ((buffer_size - length) <= 0)
 		return -ENOMEM;
 	envp[1] = NULL;
 	return 0;
@@ -290,9 +389,25 @@ static int vio_hotplug(struct device *dev, char **envp, int num_envp,
 
 struct bus_type vio_bus_type = {
 	.name = "vio",
+	.dev_attrs = vio_dev_attrs,
 	.uevent = vio_hotplug,
 	.match = vio_bus_match,
 	.probe = vio_bus_probe,
 	.remove = vio_bus_remove,
 	.shutdown = vio_bus_shutdown,
 };
+
+/**
+ * vio_get_attribute: - get attribute for virtual device
+ * @vdev:	The vio device to get property.
+ * @which:	The property/attribute to be extracted.
+ * @length:	Pointer to length of returned data size (unused if NULL).
+ *
+ * Calls prom.c's get_property() to return the value of the
+ * attribute specified by @which
+*/
+const void *vio_get_attribute(struct vio_dev *vdev, char *which, int *length)
+{
+	return get_property(vdev->dev.platform_data, which, length);
+}
+EXPORT_SYMBOL(vio_get_attribute);
