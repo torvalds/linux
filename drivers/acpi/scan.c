@@ -142,7 +142,7 @@ static void acpi_device_register(struct acpi_device *device,
 	create_sysfs_device_files(device);
 }
 
-static int acpi_device_unregister(struct acpi_device *device, int type)
+static void acpi_device_unregister(struct acpi_device *device, int type)
 {
 	spin_lock(&acpi_device_lock);
 	if (device->parent) {
@@ -158,7 +158,6 @@ static int acpi_device_unregister(struct acpi_device *device, int type)
 	acpi_detach_data(device->handle, acpi_bus_data_handler);
 	remove_sysfs_device_files(device);
 	kobject_unregister(&device->kobj);
-	return 0;
 }
 
 void acpi_bus_data_handler(acpi_handle handle, u32 function, void *context)
@@ -577,7 +576,7 @@ static void acpi_driver_attach(struct acpi_driver *drv)
 	spin_unlock(&acpi_device_lock);
 }
 
-static int acpi_driver_detach(struct acpi_driver *drv)
+static void acpi_driver_detach(struct acpi_driver *drv)
 {
 	struct list_head *node, *next;
 
@@ -599,7 +598,6 @@ static int acpi_driver_detach(struct acpi_driver *drv)
 		}
 	}
 	spin_unlock(&acpi_device_lock);
-	return_VALUE(0);
 }
 
 /**
@@ -616,9 +614,6 @@ int acpi_bus_register_driver(struct acpi_driver *driver)
 
 	if (acpi_disabled)
 		return_VALUE(-ENODEV);
-
-	if (!driver)
-		return_VALUE(-EINVAL);
 
 	spin_lock(&acpi_device_lock);
 	list_add_tail(&driver->node, &acpi_bus_drivers);
@@ -637,23 +632,16 @@ EXPORT_SYMBOL(acpi_bus_register_driver);
  * Unregisters a driver with the ACPI bus.  Searches the namespace for all
  * devices that match the driver's criteria and unbinds.
  */
-int acpi_bus_unregister_driver(struct acpi_driver *driver)
+void acpi_bus_unregister_driver(struct acpi_driver *driver)
 {
-	int error = 0;
+	acpi_driver_detach(driver);
 
-	ACPI_FUNCTION_TRACE("acpi_bus_unregister_driver");
-
-	if (driver) {
-		acpi_driver_detach(driver);
-
-		if (!atomic_read(&driver->references)) {
-			spin_lock(&acpi_device_lock);
-			list_del_init(&driver->node);
-			spin_unlock(&acpi_device_lock);
-		}
-	} else
-		error = -EINVAL;
-	return_VALUE(error);
+	if (!atomic_read(&driver->references)) {
+		spin_lock(&acpi_device_lock);
+		list_del_init(&driver->node);
+		spin_unlock(&acpi_device_lock);
+	}
+	return;
 }
 
 EXPORT_SYMBOL(acpi_bus_unregister_driver);
