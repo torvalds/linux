@@ -112,6 +112,8 @@
 #define I2C_DRIVERID_X1205	82	/* Xicor/Intersil X1205 RTC	*/
 #define I2C_DRIVERID_PCF8563	83	/* Philips PCF8563 RTC		*/
 #define I2C_DRIVERID_RS5C372	84	/* Ricoh RS5C372 RTC		*/
+#define I2C_DRIVERID_BT866	85	/* Conexant bt866 video encoder */
+#define I2C_DRIVERID_KS0127	86	/* Samsung ks0127 video decoder */
 
 #define I2C_DRIVERID_I2CDEV	900
 #define I2C_DRIVERID_ARP        902    /* SMBus ARP Client              */

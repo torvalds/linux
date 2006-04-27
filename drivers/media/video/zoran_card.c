@@ -27,6 +27,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include <linux/delay.h>
+
 #include <linux/config.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -92,6 +94,11 @@ static int default_input = 0;	/* 0=Composite, 1=S-Video */
 module_param(default_input, int, 0);
 MODULE_PARM_DESC(default_input,
 		 "Default input (0=Composite, 1=S-Video, 2=Internal)");
+
+static int default_mux = 1;	/* 6 Eyes input selection */
+module_param(default_mux, int, 0);
+MODULE_PARM_DESC(default_mux,
+		 "Default 6 Eyes mux setting (Input selection)");
 
 static int default_norm = 0;	/* 0=PAL, 1=NTSC 2=SECAM */
 module_param(default_norm, int, 0);
@@ -301,6 +308,30 @@ lml33_init (struct zoran *zr)
 	GPIO(zr, 2, 1);		// Set Composite input/output
 }
 
+static void
+avs6eyes_init (struct zoran *zr)
+{
+	// AverMedia 6-Eyes original driver by Christer Weinigel
+
+	// Lifted straight from Christer's old driver and
+	// modified slightly by Martin Samuelsson.
+
+	int mux = default_mux; /* 1 = BT866, 7 = VID1 */
+
+	GPIO(zr, 4, 1); /* Bt866 SLEEP on */
+	udelay(2);
+
+	GPIO(zr, 0, 1); /* ZR36060 /RESET on */
+	GPIO(zr, 1, 0); /* ZR36060 /SLEEP on */
+	GPIO(zr, 2, mux & 1);   /* MUX S0 */
+	GPIO(zr, 3, 0); /* /FRAME on */
+	GPIO(zr, 4, 0); /* Bt866 SLEEP off */
+	GPIO(zr, 5, mux & 2);   /* MUX S1 */
+	GPIO(zr, 6, 0); /* ? */
+	GPIO(zr, 7, mux & 4);   /* MUX S2 */
+
+}
+
 static char *
 i2cid_to_modulename (u16 i2c_id)
 {
@@ -391,6 +422,14 @@ static struct tvnorm f60sqpixel_dc10 = { 780, 640, 0, 716, 525, 480, 12 };
 static struct tvnorm f50ccir601_lm33r10 = { 864, 720, 74+54, 804, 625, 576, 18 };
 static struct tvnorm f60ccir601_lm33r10 = { 858, 720, 56+54, 788, 525, 480, 16 };
 
+/* FIXME: The ks0127 seem incapable of swapping U and V, too, which is why I
+ * copy Maxim's left shift hack for the 6 Eyes.
+ *
+ * Christer's driver used the unshifted norms, though...
+ * /Sam  */
+static struct tvnorm f50ccir601_avs6eyes = { 864, 720, 74, 804, 625, 576, 18 };
+static struct tvnorm f60ccir601_avs6eyes = { 858, 720, 56, 788, 525, 480, 16 };
+
 static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 	{
 		.type = DC10_old,
@@ -419,6 +458,7 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 		.gpcs = { -1, 0 },
 		.vfe_pol = { 0, 0, 0, 0, 0, 0, 0, 0 },
 		.gws_not_connected = 0,
+		.input_mux = 0,
 		.init = &dc10_init,
 	}, {
 		.type = DC10_new,
@@ -445,6 +485,7 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 		.gpcs = { -1, 1},
 		.vfe_pol = { 1, 1, 1, 1, 0, 0, 0, 0 },
 		.gws_not_connected = 0,
+		.input_mux = 0,
 		.init = &dc10plus_init,
 	}, {
 		.type = DC10plus,
@@ -474,6 +515,7 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 		.gpcs = { -1, 1 },
 		.vfe_pol = { 1, 1, 1, 1, 0, 0, 0, 0 },
 		.gws_not_connected = 0,
+		.input_mux = 0,
 		.init = &dc10plus_init,
 	}, {
 		.type = DC30,
@@ -502,6 +544,7 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 		.gpcs = { -1, 0 },
 		.vfe_pol = { 0, 0, 0, 0, 0, 0, 0, 0 },
 		.gws_not_connected = 0,
+		.input_mux = 0,
 		.init = &dc10_init,
 	}, {
 		.type = DC30plus,
@@ -532,6 +575,7 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 		.gpcs = { -1, 0 },
 		.vfe_pol = { 0, 0, 0, 0, 0, 0, 0, 0 },
 		.gws_not_connected = 0,
+		.input_mux = 0,
 		.init = &dc10_init,
 	}, {
 		.type = LML33,
@@ -558,6 +602,7 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 		.gpcs = { 3, 1 },
 		.vfe_pol = { 1, 1, 0, 0, 0, 1, 0, 0 },
 		.gws_not_connected = 1,
+		.input_mux = 0,
 		.init = &lml33_init,
 	}, {
 		.type = LML33R10,
@@ -586,6 +631,7 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 		.gpcs = { 3, 1 },
 		.vfe_pol = { 1, 1, 0, 0, 0, 1, 0, 0 },
 		.gws_not_connected = 1,
+		.input_mux = 0,
 		.init = &lml33_init,
 	}, {
 		.type = BUZ,
@@ -614,8 +660,49 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 		.gpcs = { 3, 1 },
 		.vfe_pol = { 1, 1, 0, 0, 0, 1, 0, 0 },
 		.gws_not_connected = 1,
+		.input_mux = 0,
 		.init = &buz_init,
+	}, {
+		.type = AVS6EYES,
+		.name = "6-Eyes",
+		/* AverMedia chose not to brand the 6-Eyes. Thus it
+		   can't be autodetected, and requires card=x. */
+		.vendor_id = -1,
+		.device_id = -1,
+		.i2c_decoder = I2C_DRIVERID_KS0127,
+		.i2c_encoder = I2C_DRIVERID_BT866,
+		.video_codec = CODEC_TYPE_ZR36060,
+
+		.inputs = 10,
+		.input = {
+			{ 0, "Composite 1" },
+			{ 1, "Composite 2" },
+			{ 2, "Composite 3" },
+			{ 4, "Composite 4" },
+			{ 5, "Composite 5" },
+			{ 6, "Composite 6" },
+			{ 8, "S-Video 1" },
+			{ 9, "S-Video 2" },
+			{10, "S-Video 3" },
+			{15, "YCbCr" }
+		},
+		.norms = 2,
+		.tvn = {
+			&f50ccir601_avs6eyes,
+			&f60ccir601_avs6eyes,
+			NULL
+		},
+		.jpeg_int = ZR36057_ISR_GIRQ1,
+		.vsync_int = ZR36057_ISR_GIRQ0,
+		.gpio = { 1, 0, 3, -1, -1, -1, -1, -1 },// Validity unknown /Sam
+		.gpio_pol = { 0, 0, 0, 0, 0, 0, 0, 0 }, // Validity unknown /Sam
+		.gpcs = { 3, 1 },			// Validity unknown /Sam
+		.vfe_pol = { 1, 0, 0, 0, 0, 1, 0, 0 },  // Validity unknown /Sam
+		.gws_not_connected = 1,
+		.input_mux = 1,
+		.init = &avs6eyes_init,
 	}
+
 };
 
 /*

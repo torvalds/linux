@@ -224,6 +224,12 @@ config VIDEO_ZORAN_LML33R10
 	  support for the Linux Media Labs LML33R10 MJPEG capture/playback
 	  card.
 
+config VIDEO_ZORAN_AVS6EYES
+	tristate "AverMedia 6 Eyes support (EXPERIMENTAL)"
+	depends on VIDEO_ZORAN && EXPERIMENTAL && VIDEO_V4L1
+	help
+	  Support for the AverMedia 6 Eyes video surveillance card.
+
 config VIDEO_ZR36120
 	tristate "Zoran ZR36120/36125 Video For Linux"
 	depends on PCI && I2C && VIDEO_V4L1 && BROKEN

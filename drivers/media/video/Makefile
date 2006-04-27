@@ -33,6 +33,7 @@ obj-$(CONFIG_VIDEO_ZORAN_DC30) += adv7175.o vpx3220.o zr36050.o \
 	zr36016.o
 obj-$(CONFIG_VIDEO_ZORAN_LML33) += bt819.o bt856.o zr36060.o
 obj-$(CONFIG_VIDEO_ZORAN_LML33R10) += saa7114.o adv7170.o zr36060.o
+obj-$(CONFIG_VIDEO_ZORAN_AVS6EYES) += bt866.o ks0127.o zr36060.o
 obj-$(CONFIG_VIDEO_ZORAN) += zr36067.o videocodec.o
 obj-$(CONFIG_VIDEO_PMS) += pms.o
 obj-$(CONFIG_VIDEO_PLANB) += planb.o
