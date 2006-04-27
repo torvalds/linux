@@ -299,8 +299,8 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 	 * read-ahead if this is a non-zero offset (we are likely doing small
 	 * chunk splice and the page is already there) for a single page.
 	 */
-	if (!loff || spd.nr_pages > 1)
-		do_page_cache_readahead(mapping, in, index, spd.nr_pages);
+	if (!loff || nr_pages > 1)
+		page_cache_readahead(mapping, &in->f_ra, in, index, nr_pages);
 
 	/*
 	 * Now fill in the holes:
