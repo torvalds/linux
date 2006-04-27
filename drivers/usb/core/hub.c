@@ -432,15 +432,22 @@ static void hub_power_on(struct usb_hub *hub)
 {
 	int port1;
 	unsigned pgood_delay = hub->descriptor->bPwrOn2PwrGood * 2;
-	u16 wHubCharacteristics = le16_to_cpu(hub->descriptor->wHubCharacteristics);
+	u16 wHubCharacteristics =
+			le16_to_cpu(hub->descriptor->wHubCharacteristics);
 
-	/* if hub supports power switching, enable power on each port */
-	if ((wHubCharacteristics & HUB_CHAR_LPSM) < 2) {
+	/* Enable power on each port.  Some hubs have reserved values
+	 * of LPSM (> 2) in their descriptors, even though they are
+	 * USB 2.0 hubs.  Some hubs do not implement port-power switching
+	 * but only emulate it.  In all cases, the ports won't work
+	 * unless we send these messages to the hub.
+	 */
+	if ((wHubCharacteristics & HUB_CHAR_LPSM) < 2)
 		dev_dbg(hub->intfdev, "enabling power on all ports\n");
-		for (port1 = 1; port1 <= hub->descriptor->bNbrPorts; port1++)
-			set_port_feature(hub->hdev, port1,
-					USB_PORT_FEAT_POWER);
-	}
+	else
+		dev_dbg(hub->intfdev, "trying to enable port power on "
+				"non-switchable hub\n");
+	for (port1 = 1; port1 <= hub->descriptor->bNbrPorts; port1++)
+		set_port_feature(hub->hdev, port1, USB_PORT_FEAT_POWER);
 
 	/* Wait at least 100 msec for power to become stable */
 	msleep(max(pgood_delay, (unsigned) 100));
