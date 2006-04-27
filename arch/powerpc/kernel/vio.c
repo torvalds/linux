@@ -47,7 +47,8 @@ static const struct vio_device_id *vio_match_device(
 		const struct vio_device_id *ids, const struct vio_dev *dev)
 {
 	while (ids->type[0] != '\0') {
-		if (vio_bus_ops.match(ids, dev))
+		if ((strncmp(dev->type, ids->type, strlen(ids->type)) == 0) &&
+		    device_is_compatible(dev->dev.platform_data, ids->compat))
 			return ids;
 		ids++;
 	}

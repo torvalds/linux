@@ -65,7 +65,6 @@ struct vio_driver {
 };
 
 struct vio_bus_ops {
-	int (*match)(const struct vio_device_id *id, const struct vio_dev *dev);
 	struct iommu_table *(*build_iommu_table)(struct vio_dev *dev);
 };
 

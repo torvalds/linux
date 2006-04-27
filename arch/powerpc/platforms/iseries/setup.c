@@ -927,7 +927,7 @@ void dt_vdevices(struct iseries_flat_dt *dt)
 	snprintf(buf, sizeof(buf), "viocons@%08x", reg);
 	dt_start_node(dt, buf);
 	dt_prop_str(dt, "device_type", "serial");
-	dt_prop_empty(dt, "compatible");
+	dt_prop_str(dt, "compatible", "");
 	dt_prop_u32(dt, "reg", reg);
 	dt_end_node(dt);
 	reg++;
@@ -949,7 +949,7 @@ void dt_vdevices(struct iseries_flat_dt *dt)
 		snprintf(buf, 32, "vlan@%08x", reg + i);
 		dt_start_node(dt, buf);
 		dt_prop_str(dt, "device_type", "vlan");
-		dt_prop_empty(dt, "compatible");
+		dt_prop_str(dt, "compatible", "");
 		dt_prop_u32(dt, "reg", reg + i);
 		dt_prop_u32(dt, "linux,unit_address", i);
 
@@ -970,7 +970,7 @@ void dt_vdevices(struct iseries_flat_dt *dt)
 		snprintf(buf, 32, "viodasd@%08x", reg + i);
 		dt_start_node(dt, buf);
 		dt_prop_str(dt, "device_type", "viodasd");
-		dt_prop_empty(dt, "compatible");
+		dt_prop_str(dt, "compatible", "");
 		dt_prop_u32(dt, "reg", reg + i);
 		dt_prop_u32(dt, "linux,unit_address", i);
 		dt_end_node(dt);
@@ -980,7 +980,7 @@ void dt_vdevices(struct iseries_flat_dt *dt)
 		snprintf(buf, 32, "viocd@%08x", reg + i);
 		dt_start_node(dt, buf);
 		dt_prop_str(dt, "device_type", "viocd");
-		dt_prop_empty(dt, "compatible");
+		dt_prop_str(dt, "compatible", "");
 		dt_prop_u32(dt, "reg", reg + i);
 		dt_prop_u32(dt, "linux,unit_address", i);
 		dt_end_node(dt);
@@ -990,7 +990,7 @@ void dt_vdevices(struct iseries_flat_dt *dt)
 		snprintf(buf, 32, "viotape@%08x", reg + i);
 		dt_start_node(dt, buf);
 		dt_prop_str(dt, "device_type", "viotape");
-		dt_prop_empty(dt, "compatible");
+		dt_prop_str(dt, "compatible", "");
 		dt_prop_u32(dt, "reg", reg + i);
 		dt_prop_u32(dt, "linux,unit_address", i);
 		dt_end_node(dt);

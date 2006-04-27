@@ -27,17 +27,6 @@
 extern struct subsystem devices_subsys; /* needed for vio_find_name() */
 
 /**
- * vio_match_device_pseries: - Tell if a pSeries VIO device matches a
- *	vio_device_id
- */
-static int vio_match_device_pseries(const struct vio_device_id *id,
-		const struct vio_dev *dev)
-{
-	return (strncmp(dev->type, id->type, strlen(id->type)) == 0) &&
-			device_is_compatible(dev->dev.platform_data, id->compat);
-}
-
-/**
  * vio_build_iommu_table: - gets the dma information from OF and
  *	builds the TCE tree.
  * @dev: the virtual device.
@@ -76,7 +65,6 @@ static struct iommu_table *vio_build_iommu_table(struct vio_dev *dev)
 }
 
 static struct vio_bus_ops vio_bus_ops_pseries = {
-	.match = vio_match_device_pseries,
 	.build_iommu_table = vio_build_iommu_table,
 };
 

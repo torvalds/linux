@@ -50,18 +50,7 @@ static struct iommu_table *vio_build_iommu_table(struct vio_dev *dev)
 	return &vio_iommu_table;
 }
 
-/**
- * vio_match_device_iseries: - Tell if a iSeries VIO device matches a
- *	vio_device_id
- */
-static int vio_match_device_iseries(const struct vio_device_id *id,
-		const struct vio_dev *dev)
-{
-	return strncmp(dev->type, id->type, strlen(id->type)) == 0;
-}
-
 static struct vio_bus_ops vio_bus_ops_iseries = {
-	.match = vio_match_device_iseries,
 	.build_iommu_table = vio_build_iommu_table,
 };
 
@@ -75,5 +64,4 @@ static int __init vio_bus_init_iseries(void)
 	iSeries_vio_dev = &vio_bus_device.dev;
 	return vio_bus_init(&vio_bus_ops_iseries);
 }
-
 __initcall(vio_bus_init_iseries);
