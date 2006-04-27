@@ -112,6 +112,14 @@ void skb_under_panic(struct sk_buff *skb, int sz, void *here)
 	BUG();
 }
 
+void skb_truesize_bug(struct sk_buff *skb)
+{
+	printk(KERN_ERR "SKB BUG: Invalid truesize (%u) "
+	       "len=%u, sizeof(sk_buff)=%Zd\n",
+	       skb->truesize, skb->len, sizeof(struct sk_buff));
+}
+EXPORT_SYMBOL(skb_truesize_bug);
+
 /* 	Allocate a new skbuff. We do this ourselves so we can fill in a few
  *	'private' fields and also do memory statistics to find all the
  *	[BEEP] leaks.

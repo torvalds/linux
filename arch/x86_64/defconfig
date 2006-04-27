@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.17-rc1
-# Mon Apr  3 16:11:14 2006
+# Linux kernel version: 2.6.17-rc1-git11
+# Sun Apr 16 07:22:36 2006
 #
 CONFIG_X86_64=y
 CONFIG_64BIT=y
@@ -57,6 +57,7 @@ CONFIG_FUTEX=y
 CONFIG_EPOLL=y
 CONFIG_SHMEM=y
 CONFIG_SLAB=y
+CONFIG_DOUBLEFAULT=y
 # CONFIG_TINY_SHMEM is not set
 CONFIG_BASE_SMALL=0
 # CONFIG_SLOB is not set
@@ -121,6 +122,7 @@ CONFIG_PREEMPT_VOLUNTARY=y
 CONFIG_PREEMPT_BKL=y
 CONFIG_NUMA=y
 CONFIG_K8_NUMA=y
+CONFIG_NODES_SHIFT=6
 CONFIG_X86_64_ACPI_NUMA=y
 CONFIG_NUMA_EMU=y
 CONFIG_ARCH_DISCONTIGMEM_ENABLE=y
@@ -544,7 +546,6 @@ CONFIG_SCSI_SATA_INTEL_COMBINED=y
 # CONFIG_SCSI_INIA100 is not set
 # CONFIG_SCSI_SYM53C8XX_2 is not set
 # CONFIG_SCSI_IPR is not set
-# CONFIG_SCSI_QLOGIC_FC is not set
 # CONFIG_SCSI_QLOGIC_1280 is not set
 # CONFIG_SCSI_QLA_FC is not set
 # CONFIG_SCSI_LPFC is not set
@@ -1045,9 +1046,7 @@ CONFIG_USB_HIDINPUT=y
 # CONFIG_USB_ACECAD is not set
 # CONFIG_USB_KBTAB is not set
 # CONFIG_USB_POWERMATE is not set
-# CONFIG_USB_MTOUCH is not set
-# CONFIG_USB_ITMTOUCH is not set
-# CONFIG_USB_EGALAX is not set
+# CONFIG_USB_TOUCHSCREEN is not set
 # CONFIG_USB_YEALINK is not set
 # CONFIG_USB_XPAD is not set
 # CONFIG_USB_ATI_REMOTE is not set
@@ -1116,6 +1115,14 @@ CONFIG_USB_MON=y
 # LED devices
 #
 # CONFIG_NEW_LEDS is not set
+
+#
+# LED drivers
+#
+
+#
+# LED Triggers
+#
 
 #
 # InfiniBand support

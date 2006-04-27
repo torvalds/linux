@@ -75,7 +75,6 @@ set_pci_int_attr(u32 pci, u32 intn, u32 active, u32 trigger)
 
 extern void vrc5477_irq_init(u32 base);
 extern void mips_cpu_irq_init(u32 base);
-extern asmlinkage void ddb5477_handle_int(void);
 extern int setup_irq(unsigned int irq, struct irqaction *irqaction);
 static struct irqaction irq_cascade = { no_action, 0, CPU_MASK_NONE, "cascade", NULL, NULL };
 
@@ -135,9 +134,6 @@ void __init arch_init_irq(void)
 	/* setup cascade interrupts */
 	setup_irq(VRC5477_IRQ_BASE + VRC5477_I8259_CASCADE, &irq_cascade);
 	setup_irq(CPU_IRQ_BASE + CPU_VRC5477_CASCADE, &irq_cascade);
-
-	/* hook up the first-level interrupt handler */
-	set_except_vector(0, ddb5477_handle_int);
 }
 
 u8 i8259_interrupt_ack(void)
@@ -159,7 +155,7 @@ u8 i8259_interrupt_ack(void)
  * the first level int-handler will jump here if it is a vrc5477 irq
  */
 #define	NUM_5477_IRQS	32
-asmlinkage void
+static void
 vrc5477_irq_dispatch(struct pt_regs *regs)
 {
 	u32 intStatus;
@@ -196,4 +192,22 @@ vrc5477_irq_dispatch(struct pt_regs *regs)
 			return;
 		}
 	}
+}
+
+#define VR5477INTS (STATUSF_IP2|STATUSF_IP3|STATUSF_IP4|STATUSF_IP5|STATUSF_IP6)
+
+asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+{
+	unsigned int pending = read_c0_cause() & read_c0_status();
+
+	if (pending & STATUSF_IP7)
+		do_IRQ(CPU_IRQ_BASE + 7, regs);
+	else if (pending & VR5477INTS)
+		vrc5477_irq_dispatch(regs);
+	else if (pending & STATUSF_IP0)
+		do_IRQ(CPU_IRQ_BASE, regs);
+	else if (pending & STATUSF_IP1)
+		do_IRQ(CPU_IRQ_BASE + 1, regs);
+	else
+		spurious_interrupt(regs);
 }

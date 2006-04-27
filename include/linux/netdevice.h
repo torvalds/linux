@@ -829,19 +829,21 @@ static inline void netif_rx_schedule(struct net_device *dev)
 		__netif_rx_schedule(dev);
 }
 
-/* Try to reschedule poll. Called by dev->poll() after netif_rx_complete().
- * Do not inline this?
- */
+
+static inline void  __netif_rx_reschedule(struct net_device *dev, int undo)
+{
+	dev->quota += undo;
+	list_add_tail(&dev->poll_list, &__get_cpu_var(softnet_data).poll_list);
+	__raise_softirq_irqoff(NET_RX_SOFTIRQ);
+}
+
+/* Try to reschedule poll. Called by dev->poll() after netif_rx_complete(). */
 static inline int netif_rx_reschedule(struct net_device *dev, int undo)
 {
 	if (netif_rx_schedule_prep(dev)) {
 		unsigned long flags;
-
-		dev->quota += undo;
-
 		local_irq_save(flags);
-		list_add_tail(&dev->poll_list, &__get_cpu_var(softnet_data).poll_list);
-		__raise_softirq_irqoff(NET_RX_SOFTIRQ);
+		__netif_rx_reschedule(dev, undo);
 		local_irq_restore(flags);
 		return 1;
 	}

@@ -165,7 +165,7 @@ static int bt_start_transaction(struct si_sm_data *bt,
 {
 	unsigned int i;
 
-	if ((size < 2) || (size > IPMI_MAX_MSG_LENGTH))
+	if ((size < 2) || (size > (IPMI_MAX_MSG_LENGTH - 2)))
 	       return -1;
 
 	if ((bt->state != BT_STATE_IDLE) && (bt->state != BT_STATE_HOSED))

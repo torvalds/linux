@@ -816,6 +816,10 @@ config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
 
+config SCHED_NO_NO_OMIT_FRAME_POINTER
+	bool
+	default y
+
 #
 # Select some configuration options automatically based on user selections.
 #
@@ -1443,6 +1447,10 @@ choice
 	prompt "MIPS MT options"
 	depends on MIPS_MT
 
+config MIPS_MT_SMTC
+	bool "SMTC: Use all TCs on all VPEs for SMP"
+	select SMP
+
 config MIPS_MT_SMP
 	bool "Use 1 TC on each available VPE for SMP"
 	select SMP
@@ -1455,6 +1463,11 @@ config MIPS_VPE_LOADER
 	  onto another VPE and running it.
 
 endchoice
+
+config MIPS_MT_FPAFF
+	bool "Dynamic FPU affinity for FP-intensive threads"
+	depends on MIPS_MT
+	default y
 
 config MIPS_VPE_LOADER_TOM
 	bool "Load VPE program into memory hidden from linux"
@@ -1471,6 +1484,16 @@ config MIPS_VPE_APSP_API
 	bool "Enable support for AP/SP API (RTLX)"
 	depends on MIPS_VPE_LOADER
 	help
+
+config MIPS_APSP_KSPD
+	bool "Enable KSPD"
+	depends on MIPS_VPE_APSP_API
+	default y
+	help
+	  KSPD is a kernel daemon that accepts syscall requests from the SP
+	  side, actions them and returns the results. It also handles the
+	  "exit" syscall notifying other kernel modules the SP program is
+	  exiting.  You probably want to say yes here.
 
 config SB1_PASS_1_WORKAROUNDS
 	bool
@@ -1599,7 +1622,7 @@ source "mm/Kconfig"
 
 config SMP
 	bool "Multi-Processing support"
-	depends on CPU_RM9000 || ((SIBYTE_BCM1x80 || SIBYTE_BCM1x55 || SIBYTE_SB1250 || QEMU) && !SIBYTE_STANDALONE) || SGI_IP27 || MIPS_MT_SMP
+	depends on CPU_RM9000 || ((SIBYTE_BCM1x80 || SIBYTE_BCM1x55 || SIBYTE_SB1250 || QEMU) && !SIBYTE_STANDALONE) || SGI_IP27 || MIPS_MT_SMP || MIPS_MT_SMTC
 	---help---
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, like most personal computers, say N. If

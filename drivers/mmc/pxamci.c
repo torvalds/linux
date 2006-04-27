@@ -65,11 +65,6 @@ struct pxamci_host {
 	unsigned int		dma_dir;
 };
 
-static inline unsigned int ns_to_clocks(unsigned int ns)
-{
-	return (ns * (CLOCKRATE / 1000000) + 999) / 1000;
-}
-
 static void pxamci_stop_clock(struct pxamci_host *host)
 {
 	if (readl(host->base + MMC_STAT) & STAT_CLK_EN) {
@@ -113,6 +108,7 @@ static void pxamci_disable_irq(struct pxamci_host *host, unsigned int mask)
 static void pxamci_setup_data(struct pxamci_host *host, struct mmc_data *data)
 {
 	unsigned int nob = data->blocks;
+	unsigned long long clks;
 	unsigned int timeout;
 	u32 dcmd;
 	int i;
@@ -125,7 +121,9 @@ static void pxamci_setup_data(struct pxamci_host *host, struct mmc_data *data)
 	writel(nob, host->base + MMC_NOB);
 	writel(1 << data->blksz_bits, host->base + MMC_BLKLEN);
 
-	timeout = ns_to_clocks(data->timeout_ns) + data->timeout_clks;
+	clks = (unsigned long long)data->timeout_ns * CLOCKRATE;
+	do_div(clks, 1000000000UL);
+	timeout = (unsigned int)clks + (data->timeout_clks << host->clkrt);
 	writel((timeout + 255) / 256, host->base + MMC_RDTO);
 
 	if (data->flags & MMC_DATA_READ) {

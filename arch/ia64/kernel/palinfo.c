@@ -959,7 +959,7 @@ remove_palinfo_proc_entries(unsigned int hcpu)
 	}
 }
 
-static int __devinit palinfo_cpu_callback(struct notifier_block *nfb,
+static int palinfo_cpu_callback(struct notifier_block *nfb,
 								unsigned long action,
 								void *hcpu)
 {

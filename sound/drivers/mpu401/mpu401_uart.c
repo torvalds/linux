@@ -183,7 +183,8 @@ static void snd_mpu401_uart_remove_timer (struct snd_mpu401 *mpu, int input)
 
  */
 
-static void snd_mpu401_uart_cmd(struct snd_mpu401 * mpu, unsigned char cmd, int ack)
+static int snd_mpu401_uart_cmd(struct snd_mpu401 * mpu, unsigned char cmd,
+		int ack)
 {
 	unsigned long flags;
 	int timeout, ok;
@@ -218,9 +219,11 @@ static void snd_mpu401_uart_cmd(struct snd_mpu401 * mpu, unsigned char cmd, int 
 		ok = 1;
 	}
 	spin_unlock_irqrestore(&mpu->input_lock, flags);
-	if (! ok)
+	if (!ok) {
 		snd_printk("cmd: 0x%x failed at 0x%lx (status = 0x%x, data = 0x%x)\n", cmd, mpu->port, mpu->read(mpu, MPU401C(mpu)), mpu->read(mpu, MPU401D(mpu)));
-	// snd_printk("cmd: 0x%x at 0x%lx (status = 0x%x, data = 0x%x)\n", cmd, mpu->port, mpu->read(mpu, MPU401C(mpu)), mpu->read(mpu, MPU401D(mpu)));
+		return 1;
+	}
+	return 0;
 }
 
 /*
@@ -235,12 +238,19 @@ static int snd_mpu401_uart_input_open(struct snd_rawmidi_substream *substream)
 	if (mpu->open_input && (err = mpu->open_input(mpu)) < 0)
 		return err;
 	if (! test_bit(MPU401_MODE_BIT_OUTPUT, &mpu->mode)) {
-		snd_mpu401_uart_cmd(mpu, MPU401_RESET, 1);
-		snd_mpu401_uart_cmd(mpu, MPU401_ENTER_UART, 1);
+		if (snd_mpu401_uart_cmd(mpu, MPU401_RESET, 1))
+			goto error_out;
+		if (snd_mpu401_uart_cmd(mpu, MPU401_ENTER_UART, 1))
+			goto error_out;
 	}
 	mpu->substream_input = substream;
 	set_bit(MPU401_MODE_BIT_INPUT, &mpu->mode);
 	return 0;
+
+error_out:
+	if (mpu->open_input && mpu->close_input)
+		mpu->close_input(mpu);
+	return -EIO;
 }
 
 static int snd_mpu401_uart_output_open(struct snd_rawmidi_substream *substream)
@@ -252,39 +262,52 @@ static int snd_mpu401_uart_output_open(struct snd_rawmidi_substream *substream)
 	if (mpu->open_output && (err = mpu->open_output(mpu)) < 0)
 		return err;
 	if (! test_bit(MPU401_MODE_BIT_INPUT, &mpu->mode)) {
-		snd_mpu401_uart_cmd(mpu, MPU401_RESET, 1);
-		snd_mpu401_uart_cmd(mpu, MPU401_ENTER_UART, 1);
+		if (snd_mpu401_uart_cmd(mpu, MPU401_RESET, 1))
+			goto error_out;
+		if (snd_mpu401_uart_cmd(mpu, MPU401_ENTER_UART, 1))
+			goto error_out;
 	}
 	mpu->substream_output = substream;
 	set_bit(MPU401_MODE_BIT_OUTPUT, &mpu->mode);
 	return 0;
+
+error_out:
+	if (mpu->open_output && mpu->close_output)
+		mpu->close_output(mpu);
+	return -EIO;
 }
 
 static int snd_mpu401_uart_input_close(struct snd_rawmidi_substream *substream)
 {
 	struct snd_mpu401 *mpu;
+	int err = 0;
 
 	mpu = substream->rmidi->private_data;
 	clear_bit(MPU401_MODE_BIT_INPUT, &mpu->mode);
 	mpu->substream_input = NULL;
 	if (! test_bit(MPU401_MODE_BIT_OUTPUT, &mpu->mode))
-		snd_mpu401_uart_cmd(mpu, MPU401_RESET, 0);
+		err = snd_mpu401_uart_cmd(mpu, MPU401_RESET, 0);
 	if (mpu->close_input)
 		mpu->close_input(mpu);
+	if (err)
+		return -EIO;
 	return 0;
 }
 
 static int snd_mpu401_uart_output_close(struct snd_rawmidi_substream *substream)
 {
 	struct snd_mpu401 *mpu;
+	int err = 0;
 
 	mpu = substream->rmidi->private_data;
 	clear_bit(MPU401_MODE_BIT_OUTPUT, &mpu->mode);
 	mpu->substream_output = NULL;
 	if (! test_bit(MPU401_MODE_BIT_INPUT, &mpu->mode))
-		snd_mpu401_uart_cmd(mpu, MPU401_RESET, 0);
+		err = snd_mpu401_uart_cmd(mpu, MPU401_RESET, 0);
 	if (mpu->close_output)
 		mpu->close_output(mpu);
+	if (err)
+		return -EIO;
 	return 0;
 }
 
@@ -316,6 +339,7 @@ static void snd_mpu401_uart_input_trigger(struct snd_rawmidi_substream *substrea
 			snd_mpu401_uart_remove_timer(mpu, 1);
 		clear_bit(MPU401_MODE_BIT_INPUT_TRIGGER, &mpu->mode);
 	}
+
 }
 
 /*

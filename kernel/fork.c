@@ -180,6 +180,7 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
 	atomic_set(&tsk->usage,2);
 	atomic_set(&tsk->fs_excl, 0);
 	tsk->btrace_seq = 0;
+	tsk->splice_pipe = NULL;
 	return tsk;
 }
 
@@ -1204,7 +1205,7 @@ static task_t *copy_process(unsigned long clone_flags,
 			attach_pid(p, PIDTYPE_PGID, process_group(p));
 			attach_pid(p, PIDTYPE_SID, p->signal->session);
 
-			list_add_tail(&p->tasks, &init_task.tasks);
+			list_add_tail_rcu(&p->tasks, &init_task.tasks);
 			__get_cpu_var(process_counts)++;
 		}
 		attach_pid(p, PIDTYPE_PID, p->pid);

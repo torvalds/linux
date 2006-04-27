@@ -1472,19 +1472,37 @@ out:
 	return cfqq;
 }
 
+static void
+cfq_drop_dead_cic(struct io_context *ioc, struct cfq_io_context *cic)
+{
+	read_lock(&cfq_exit_lock);
+	rb_erase(&cic->rb_node, &ioc->cic_root);
+	read_unlock(&cfq_exit_lock);
+	kmem_cache_free(cfq_ioc_pool, cic);
+	atomic_dec(&ioc_count);
+}
+
 static struct cfq_io_context *
 cfq_cic_rb_lookup(struct cfq_data *cfqd, struct io_context *ioc)
 {
-	struct rb_node *n = ioc->cic_root.rb_node;
+	struct rb_node *n;
 	struct cfq_io_context *cic;
-	void *key = cfqd;
+	void *k, *key = cfqd;
 
+restart:
+	n = ioc->cic_root.rb_node;
 	while (n) {
 		cic = rb_entry(n, struct cfq_io_context, rb_node);
+		/* ->key must be copied to avoid race with cfq_exit_queue() */
+		k = cic->key;
+		if (unlikely(!k)) {
+			cfq_drop_dead_cic(ioc, cic);
+			goto restart;
+		}
 
-		if (key < cic->key)
+		if (key < k)
 			n = n->rb_left;
-		else if (key > cic->key)
+		else if (key > k)
 			n = n->rb_right;
 		else
 			return cic;
@@ -1497,29 +1515,37 @@ static inline void
 cfq_cic_link(struct cfq_data *cfqd, struct io_context *ioc,
 	     struct cfq_io_context *cic)
 {
-	struct rb_node **p = &ioc->cic_root.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_node **p;
+	struct rb_node *parent;
 	struct cfq_io_context *__cic;
-
-	read_lock(&cfq_exit_lock);
+	void *k;
 
 	cic->ioc = ioc;
 	cic->key = cfqd;
 
 	ioc->set_ioprio = cfq_ioc_set_ioprio;
-
+restart:
+	parent = NULL;
+	p = &ioc->cic_root.rb_node;
 	while (*p) {
 		parent = *p;
 		__cic = rb_entry(parent, struct cfq_io_context, rb_node);
+		/* ->key must be copied to avoid race with cfq_exit_queue() */
+		k = __cic->key;
+		if (unlikely(!k)) {
+			cfq_drop_dead_cic(ioc, cic);
+			goto restart;
+		}
 
-		if (cic->key < __cic->key)
+		if (cic->key < k)
 			p = &(*p)->rb_left;
-		else if (cic->key > __cic->key)
+		else if (cic->key > k)
 			p = &(*p)->rb_right;
 		else
 			BUG();
 	}
 
+	read_lock(&cfq_exit_lock);
 	rb_link_node(&cic->rb_node, parent, p);
 	rb_insert_color(&cic->rb_node, &ioc->cic_root);
 	list_add(&cic->queue_list, &cfqd->cic_list);
@@ -2439,9 +2465,10 @@ static void __exit cfq_exit(void)
 	DECLARE_COMPLETION(all_gone);
 	elv_unregister(&iosched_cfq);
 	ioc_gone = &all_gone;
-	barrier();
+	/* ioc_gone's update must be visible before reading ioc_count */
+	smp_wmb();
 	if (atomic_read(&ioc_count))
-		complete(ioc_gone);
+		wait_for_completion(ioc_gone);
 	synchronize_rcu();
 	cfq_slab_kill();
 }

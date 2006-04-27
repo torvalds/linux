@@ -20,8 +20,6 @@
 
 #include <asm/mach-cobalt/cobalt.h>
 
-extern void cobalt_handle_int(void);
-
 /*
  * We have two types of interrupts that we handle, ones that come in through
  * the CPU interrupt lines, and ones that come in on the via chip. The CPU
@@ -79,7 +77,7 @@ static inline void via_pic_irq(struct pt_regs *regs)
 		do_IRQ(irq, regs);
 }
 
-asmlinkage void cobalt_irq(struct pt_regs *regs)
+asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
 {
 	unsigned pending;
 
@@ -121,8 +119,6 @@ void __init arch_init_irq(void)
 	 * handler is set in cobalt_timer_setup()
 	 */
 	GALILEO_OUTL(0, GT_INTRMASK_OFS);
-
-	set_except_vector(0, cobalt_handle_int);
 
 	init_i8259_irqs();				/*  0 ... 15 */
 	mips_cpu_irq_init(COBALT_CPU_IRQ);		/* 16 ... 23 */

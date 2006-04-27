@@ -76,16 +76,16 @@ $bss_loop:
 	mtctl		%r4,%cr24	/* Initialize kernel root pointer */
 	mtctl		%r4,%cr25	/* Initialize user root pointer */
 
-#ifdef CONFIG_64BIT
+#if PT_NLEVELS == 3
 	/* Set pmd in pgd */
 	load32		PA(pmd0),%r5
 	shrd            %r5,PxD_VALUE_SHIFT,%r3	
-        ldo             (PxD_FLAG_PRESENT+PxD_FLAG_VALID)(%r3),%r3	
+	ldo		(PxD_FLAG_PRESENT+PxD_FLAG_VALID)(%r3),%r3
 	stw		%r3,ASM_PGD_ENTRY*ASM_PGD_ENTRY_SIZE(%r4)
 	ldo		ASM_PMD_ENTRY*ASM_PMD_ENTRY_SIZE(%r5),%r4
 #else
 	/* 2-level page table, so pmd == pgd */
-        ldo             ASM_PGD_ENTRY*ASM_PGD_ENTRY_SIZE(%r4),%r4
+	ldo		ASM_PGD_ENTRY*ASM_PGD_ENTRY_SIZE(%r4),%r4
 #endif
 
 	/* Fill in pmd with enough pte directories */
@@ -99,7 +99,7 @@ $bss_loop:
 	stw		%r3,0(%r4)
 	ldo		(ASM_PAGE_SIZE >> PxD_VALUE_SHIFT)(%r3),%r3
 	addib,>		-1,%r1,1b
-#ifdef CONFIG_64BIT
+#if PT_NLEVELS == 3
 	ldo             ASM_PMD_ENTRY_SIZE(%r4),%r4
 #else
 	ldo             ASM_PGD_ENTRY_SIZE(%r4),%r4
@@ -107,13 +107,14 @@ $bss_loop:
 
 
 	/* Now initialize the PTEs themselves */
-	ldo		_PAGE_KERNEL(%r0),%r3 /* Hardwired 0 phys addr start */
+	ldo		0+_PAGE_KERNEL(%r0),%r3 /* Hardwired 0 phys addr start */
+	ldi		(1<<(KERNEL_INITIAL_ORDER-PAGE_SHIFT)),%r11 /* PFN count */
 	load32		PA(pg0),%r1
 
 $pgt_fill_loop:
 	STREGM          %r3,ASM_PTE_ENTRY_SIZE(%r1)
-	ldo		ASM_PAGE_SIZE(%r3),%r3
-	bb,>=		%r3,31-KERNEL_INITIAL_ORDER,$pgt_fill_loop
+	ldo		(1<<PFN_PTE_SHIFT)(%r3),%r3 /* add one PFN */
+	addib,>		-1,%r11,$pgt_fill_loop
 	nop
 
 	/* Load the return address...er...crash 'n burn */

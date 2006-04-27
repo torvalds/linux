@@ -231,6 +231,14 @@ static u8 kw_i2c_wait_interrupt(struct pmac_i2c_host_kw *host)
 	return isr;
 }
 
+static void kw_i2c_do_stop(struct pmac_i2c_host_kw *host, int result)
+{
+	kw_write_reg(reg_control, KW_I2C_CTL_STOP);
+	host->state = state_stop;
+	host->result = result;
+}
+
+
 static void kw_i2c_handle_interrupt(struct pmac_i2c_host_kw *host, u8 isr)
 {
 	u8 ack;
@@ -246,42 +254,36 @@ static void kw_i2c_handle_interrupt(struct pmac_i2c_host_kw *host, u8 isr)
 	}
 
 	if (isr == 0) {
+		printk(KERN_WARNING "low_i2c: Timeout in i2c transfer"
+		       " on keywest !\n");
 		if (host->state != state_stop) {
-			DBG_LOW("KW: Timeout !\n");
-			host->result = -EIO;
-			goto stop;
+			kw_i2c_do_stop(host, -EIO);
+			return;
 		}
-		if (host->state == state_stop) {
-			ack = kw_read_reg(reg_status);
-			if (ack & KW_I2C_STAT_BUSY)
-				kw_write_reg(reg_status, 0);
-			host->state = state_idle;
-			kw_write_reg(reg_ier, 0x00);
-			if (!host->polled)
-				complete(&host->complete);
-		}
+		ack = kw_read_reg(reg_status);
+		if (ack & KW_I2C_STAT_BUSY)
+			kw_write_reg(reg_status, 0);
+		host->state = state_idle;
+		kw_write_reg(reg_ier, 0x00);
+		if (!host->polled)
+			complete(&host->complete);
 		return;
 	}
 
 	if (isr & KW_I2C_IRQ_ADDR) {
 		ack = kw_read_reg(reg_status);
 		if (host->state != state_addr) {
-			kw_write_reg(reg_isr, KW_I2C_IRQ_ADDR);
 			WRONG_STATE("KW_I2C_IRQ_ADDR"); 
-			host->result = -EIO;
-			goto stop;
+			kw_i2c_do_stop(host, -EIO);
 		}
 		if ((ack & KW_I2C_STAT_LAST_AAK) == 0) {
-			host->result = -ENODEV;
-			DBG_LOW("KW: NAK on address\n");
+			host->result = -ENXIO;
 			host->state = state_stop;
-			return;
+			DBG_LOW("KW: NAK on address\n");
 		} else {
-			if (host->len == 0) {
-				kw_write_reg(reg_isr, KW_I2C_IRQ_ADDR);
-				goto stop;
-			}
-			if (host->rw) {
+			if (host->len == 0)
+				kw_i2c_do_stop(host, 0);
+			else if (host->rw) {
 				host->state = state_read;
 				if (host->len > 1)
 					kw_write_reg(reg_control,
@@ -308,25 +310,19 @@ static void kw_i2c_handle_interrupt(struct pmac_i2c_host_kw *host, u8 isr)
 			ack = kw_read_reg(reg_status);
 			if ((ack & KW_I2C_STAT_LAST_AAK) == 0) {
 				DBG_LOW("KW: nack on data write\n");
-				host->result = -EIO;
-				goto stop;
+				host->result = -EFBIG;
+				host->state = state_stop;
 			} else if (host->len) {
 				kw_write_reg(reg_data, *(host->data++));
 				host->len--;
-			} else {
-				kw_write_reg(reg_control, KW_I2C_CTL_STOP);
-				host->state = state_stop;
-				host->result = 0;
-			}
-			kw_write_reg(reg_isr, KW_I2C_IRQ_DATA);
+			} else
+				kw_i2c_do_stop(host, 0);
 		} else {
-			kw_write_reg(reg_isr, KW_I2C_IRQ_DATA);
 			WRONG_STATE("KW_I2C_IRQ_DATA"); 
-			if (host->state != state_stop) {
-				host->result = -EIO;
-				goto stop;
-			}
+			if (host->state != state_stop)
+				kw_i2c_do_stop(host, -EIO);
 		}
+		kw_write_reg(reg_isr, KW_I2C_IRQ_DATA);
 	}
 
 	if (isr & KW_I2C_IRQ_STOP) {
@@ -340,14 +336,10 @@ static void kw_i2c_handle_interrupt(struct pmac_i2c_host_kw *host, u8 isr)
 			complete(&host->complete);
 	}
 
+	/* Below should only happen in manual mode which we don't use ... */
 	if (isr & KW_I2C_IRQ_START)
 		kw_write_reg(reg_isr, KW_I2C_IRQ_START);
 
-	return;
- stop:
-	kw_write_reg(reg_control, KW_I2C_CTL_STOP);	
-	host->state = state_stop;
-	return;
 }
 
 /* Interrupt handler */
@@ -544,11 +536,11 @@ static struct pmac_i2c_host_kw *__init kw_i2c_host_init(struct device_node *np)
 		return NULL;
 	}
 
-	/* Make sure IRA is disabled */
+	/* Make sure IRQ is disabled */
 	kw_write_reg(reg_ier, 0);
 
 	/* Request chip interrupt */
-	if (request_irq(host->irq, kw_i2c_irq, SA_SHIRQ, "keywest i2c", host))
+	if (request_irq(host->irq, kw_i2c_irq, 0, "keywest i2c", host))
 		host->irq = NO_IRQ;
 
 	printk(KERN_INFO "KeyWest i2c @0x%08x irq %d %s\n",

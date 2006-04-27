@@ -22,8 +22,6 @@
 #include <asm/ppc_asm.h>
 #include <asm/asm-offsets.h>
 
-#undef DEBUG
-
 	.text
 
 /*
@@ -109,12 +107,6 @@ BEGIN_FTR_SECTION
 	dcbf	0,r4
 	dcbf	0,r4
 END_FTR_SECTION_IFSET(CPU_FTR_NAP_DISABLE_L2_PR)
-#ifdef DEBUG
-	lis	r6,nap_enter_count@ha
-	lwz	r4,nap_enter_count@l(r6)
-	addi	r4,r4,1
-	stw	r4,nap_enter_count@l(r6)
-#endif	
 2:
 BEGIN_FTR_SECTION
 	/* Go to low speed mode on some 750FX */
@@ -144,48 +136,42 @@ BEGIN_FTR_SECTION
 	DSSALL
 	sync
 END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
+	rlwinm	r9,r1,0,0,31-THREAD_SHIFT	/* current thread_info */
+	lwz	r8,TI_LOCAL_FLAGS(r9)	/* set napping bit */
+	ori	r8,r8,_TLF_NAPPING	/* so when we take an exception */
+	stw	r8,TI_LOCAL_FLAGS(r9)	/* it will return to our caller */
 	mfmsr	r7
 	ori	r7,r7,MSR_EE
 	oris	r7,r7,MSR_POW@h
-	sync
-	isync
+1:	sync
 	mtmsr	r7
 	isync
-	sync
-	blr
-	
+	b	1b
+
 /*
  * Return from NAP/DOZE mode, restore some CPU specific registers,
  * we are called with DR/IR still off and r2 containing physical
- * address of current.
+ * address of current.  R11 points to the exception frame (physical
+ * address).  We have to preserve r10.
  */
 _GLOBAL(power_save_6xx_restore)
-	mfspr	r11,SPRN_HID0
-	rlwinm.	r11,r11,0,10,8	/* Clear NAP & copy NAP bit !state to cr1 EQ */
-	cror	4*cr1+eq,4*cr0+eq,4*cr0+eq
-BEGIN_FTR_SECTION
-	rlwinm	r11,r11,0,9,7	/* Clear DOZE */
-END_FTR_SECTION_IFSET(CPU_FTR_CAN_DOZE)
-	mtspr	SPRN_HID0, r11
+	lwz	r9,_LINK(r11)		/* interrupted in ppc6xx_idle: */
+	stw	r9,_NIP(r11)		/* make it do a blr */
 
-#ifdef DEBUG
-	beq	cr1,1f
-	lis	r11,(nap_return_count-KERNELBASE)@ha
-	lwz	r9,nap_return_count@l(r11)
-	addi	r9,r9,1
-	stw	r9,nap_return_count@l(r11)
-1:
-#endif
-	
-	rlwinm	r9,r1,0,0,18
-	tophys(r9,r9)
-	lwz	r11,TI_CPU(r9)
+#ifdef CONFIG_SMP
+	mfspr	r12,SPRN_SPRG3
+	lwz	r11,TI_CPU(r12)		/* get cpu number * 4 */
 	slwi	r11,r11,2
+#else
+	li	r11,0
+#endif
 	/* Todo make sure all these are in the same page
-	 * and load r22 (@ha part + CPU offset) only once
+	 * and load r11 (@ha part + CPU offset) only once
 	 */
 BEGIN_FTR_SECTION
-	beq	cr1,1f
+	mfspr	r9,SPRN_HID0
+	andis.	r9,r9,HID0_NAP@h
+	beq	1f
 	addis	r9,r11,(nap_save_msscr0-KERNELBASE)@ha
 	lwz	r9,nap_save_msscr0@l(r9)
 	mtspr	SPRN_MSSCR0, r9
@@ -210,10 +196,3 @@ _GLOBAL(nap_save_hid1)
 
 _GLOBAL(powersave_lowspeed)
 	.long	0
-
-#ifdef DEBUG
-_GLOBAL(nap_enter_count)
-	.space	4
-_GLOBAL(nap_return_count)
-	.space	4
-#endif

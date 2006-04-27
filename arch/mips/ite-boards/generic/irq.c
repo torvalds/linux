@@ -62,12 +62,8 @@
 
 #define ALLINTS_NOTIMER (IE_IRQ0 | IE_IRQ1 | IE_IRQ2 | IE_IRQ3 | IE_IRQ4)
 
-void disable_it8172_irq(unsigned int irq_nr);
-void enable_it8172_irq(unsigned int irq_nr);
-
 extern void set_debug_traps(void);
 extern void mips_timer_interrupt(int irq, struct pt_regs *regs);
-extern asmlinkage void it8172_IRQ(void);
 
 struct it8172_intc_regs volatile *it8172_hw0_icregs =
 	(struct it8172_intc_regs volatile *)(KSEG1ADDR(IT8172_PCI_IO_BASE + IT_INTC_BASE));
@@ -181,8 +177,6 @@ void __init arch_init_irq(void)
 	int i;
         unsigned long flags;
 
-        set_except_vector(0, it8172_IRQ);
-
 	/* mask all interrupts */
 	it8172_hw0_icregs->lb_mask  = 0xffff;
 	it8172_hw0_icregs->lpc_mask = 0xffff;
@@ -280,6 +274,18 @@ void it8172_hw0_irqdispatch(struct pt_regs *regs)
 		return;
 
 	do_IRQ(irq, regs);
+}
+
+asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+{
+	unsigned int pending = read_c0_cause() & read_c0_status() & ST0_IM;
+
+	if (!pending)
+		mips_spurious_interrupt(regs);
+	else if (pending & CAUSEF_IP7)
+		ll_timer_interrupt(127, regs);
+	else if (pending & CAUSEF_IP2)
+		it8172_hw0_irqdispatch(regs);
 }
 
 void show_pending_irqs(void)

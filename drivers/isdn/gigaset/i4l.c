@@ -73,7 +73,7 @@ static int writebuf_from_LL(int driverID, int channel, int ack,
 		len, skblen, (unsigned) skb->head[0], (unsigned) skb->head[1]);
 
 	/* pass to device-specific module */
-	return cs->ops->send_skb(bcs, skb); //FIXME cs->ops->send_skb() must handle !cs->connected correctly
+	return cs->ops->send_skb(bcs, skb);
 }
 
 void gigaset_skb_sent(struct bc_state *bcs, struct sk_buff *skb)

@@ -303,8 +303,9 @@
 #define __NR_unshare		282
 #define __NR_splice		283
 #define __NR_tee		284
+#define __NR_vmsplice		285
 
-#define __NR_syscalls		285
+#define __NR_syscalls		286
 
 #ifdef __KERNEL__
 #define __NR__exit __NR_exit

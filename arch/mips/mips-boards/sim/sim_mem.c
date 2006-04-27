@@ -18,9 +18,11 @@
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/bootmem.h>
+#include <linux/pfn.h>
 
 #include <asm/bootinfo.h>
 #include <asm/page.h>
+#include <asm/sections.h>
 
 #include <asm/mips-boards/prom.h>
 
@@ -38,9 +40,6 @@ static char *mtypes[3] = {
 	"SIM free memory",
 };
 #endif
-
-/* References to section boundaries */
-extern char _end;
 
 struct prom_pmemblock * __init prom_getmdesc(void)
 {
@@ -61,10 +60,10 @@ struct prom_pmemblock * __init prom_getmdesc(void)
 
 	mdesc[2].type = simmem_reserved;
 	mdesc[2].base = 0x00100000;
-	mdesc[2].size = CPHYSADDR(PAGE_ALIGN(&_end)) - mdesc[2].base;
+	mdesc[2].size = CPHYSADDR(PFN_ALIGN(&_end)) - mdesc[2].base;
 
 	mdesc[3].type = simmem_free;
-	mdesc[3].base = CPHYSADDR(PAGE_ALIGN(&_end));
+	mdesc[3].base = CPHYSADDR(PFN_ALIGN(&_end));
 	mdesc[3].size = memsize - mdesc[3].base;
 
 	return &mdesc[0];

@@ -15,8 +15,6 @@
 #include <asm/io.h>
 #include <asm/jazz.h>
 
-extern asmlinkage void jazz_handle_int(void);
-
 static DEFINE_SPINLOCK(r4030_lock);
 
 static void enable_r4030_irq(unsigned int irq)
@@ -90,10 +88,82 @@ void __init init_r4030_ints(void)
  */
 void __init arch_init_irq(void)
 {
-	set_except_vector(0, jazz_handle_int);
-
 	init_i8259_irqs();			/* Integrated i8259  */
 	init_r4030_ints();
 
 	change_c0_status(ST0_IM, IE_IRQ4 | IE_IRQ3 | IE_IRQ2 | IE_IRQ1);
+}
+
+static void loc_call(unsigned int irq, struct pt_regs *regs, unsigned int mask)
+{
+	r4030_write_reg16(JAZZ_IO_IRQ_ENABLE,
+	                  r4030_read_reg16(JAZZ_IO_IRQ_ENABLE) & mask);
+	do_IRQ(irq, regs);
+	r4030_write_reg16(JAZZ_IO_IRQ_ENABLE,
+	                  r4030_read_reg16(JAZZ_IO_IRQ_ENABLE) | mask);
+}
+
+static void ll_local_dev(struct pt_regs *regs)
+{
+	switch (r4030_read_reg32(JAZZ_IO_IRQ_SOURCE)) {
+	case 0:
+		panic("Unimplemented loc_no_irq handler");
+		break;
+	case 4:
+		loc_call(JAZZ_PARALLEL_IRQ, regs, JAZZ_IE_PARALLEL);
+		break;
+	case 8:
+		loc_call(JAZZ_PARALLEL_IRQ, regs, JAZZ_IE_FLOPPY);
+		break;
+	case 12:
+		panic("Unimplemented loc_sound handler");
+		break;
+	case 16:
+		panic("Unimplemented loc_video handler");
+		break;
+	case 20:
+		loc_call(JAZZ_ETHERNET_IRQ, regs, JAZZ_IE_ETHERNET);
+		break;
+	case 24:
+		loc_call(JAZZ_SCSI_IRQ, regs, JAZZ_IE_SCSI);
+		break;
+	case 28:
+		loc_call(JAZZ_KEYBOARD_IRQ, regs, JAZZ_IE_KEYBOARD);
+		break;
+	case 32:
+		loc_call(JAZZ_MOUSE_IRQ, regs, JAZZ_IE_MOUSE);
+		break;
+	case 36:
+		loc_call(JAZZ_SERIAL1_IRQ, regs, JAZZ_IE_SERIAL1);
+		break;
+	case 40:
+		loc_call(JAZZ_SERIAL2_IRQ, regs, JAZZ_IE_SERIAL2);
+		break;
+	}
+}
+
+asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+{
+	unsigned int pending = read_c0_cause() & read_c0_status() & ST0_IM;
+
+	if (pending & IE_IRQ5)
+		write_c0_compare(0);
+	else if (pending & IE_IRQ4) {
+		r4030_read_reg32(JAZZ_TIMER_REGISTER);
+		do_IRQ(JAZZ_TIMER_IRQ, regs);
+	} else if (pending & IE_IRQ3)
+		panic("Unimplemented ISA NMI handler");
+	else if (pending & IE_IRQ2)
+		do_IRQ(r4030_read_reg32(JAZZ_EISA_IRQ_ACK), regs);
+	else if (pending & IE_IRQ1) {
+		ll_local_dev(regs);
+	} else if (unlikely(pending & IE_IRQ0))
+		panic("Unimplemented local_dma handler");
+	else if (pending & IE_SW1) {
+		clear_c0_cause(IE_SW1);
+		panic("Unimplemented sw1 handler");
+	} else if (pending & IE_SW0) {
+		clear_c0_cause(IE_SW0);
+		panic("Unimplemented sw0 handler");
+	}
 }

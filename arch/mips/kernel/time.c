@@ -116,8 +116,7 @@ static void c0_timer_ack(void)
 	write_c0_compare(expirelo);
 
 	/* Check to see if we have missed any timer interrupts.  */
-	count = read_c0_count();
-	if ((count - expirelo) < 0x7fffffff) {
+	while (((count = read_c0_count()) - expirelo) < 0x7fffffff) {
 		/* missed_timer_count++; */
 		expirelo = count + cycles_per_jiffy;
 		write_c0_compare(expirelo);

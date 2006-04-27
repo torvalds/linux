@@ -53,8 +53,6 @@
 #include <asm/mipsregs.h>
 #include <asm/system.h>
 
-extern asmlinkage void ocelot3_handle_int(void);
-
 static struct irqaction cascade_mv64340 = {
 	no_action, SA_INTERRUPT, CPU_MASK_NONE, "MV64340-Cascade", NULL, NULL
 };
@@ -67,9 +65,6 @@ void __init arch_init_irq(void)
 	 */
 	clear_c0_status(ST0_IM | ST0_BEV);
 
-	/* Sets the first-level interrupt dispatcher. */
-	set_except_vector(0, ocelot3_handle_int);
-	mips_cpu_irq_init(0);
 	rm7k_cpu_irq_init(8);
 
 	/* set up the cascading interrupts */
@@ -78,4 +73,37 @@ void __init arch_init_irq(void)
 
 	set_c0_status(ST0_IM); /* IE in the status register */
 
+}
+
+asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+{
+	unsigned int pending = read_c0_cause() & read_c0_status();
+
+	if (pending & STATUSF_IP0)
+		do_IRQ(0, regs);
+	else if (pending & STATUSF_IP1)
+		do_IRQ(1, regs);
+	else if (pending & STATUSF_IP2)
+		do_IRQ(2, regs);
+	else if (pending & STATUSF_IP3)
+		do_IRQ(3, regs);
+	else if (pending & STATUSF_IP4)
+		do_IRQ(4, regs);
+	else if (pending & STATUSF_IP5)
+		do_IRQ(5, regs);
+	else if (pending & STATUSF_IP6)
+		do_IRQ(6, regs);
+	else if (pending & STATUSF_IP7)
+		do_IRQ(7, regs);
+	else {
+		/*
+		 * Now look at the extended interrupts
+		 */
+		pending = (read_c0_cause() & (read_c0_intcontrol() << 8)) >> 16;
+
+		if (pending & STATUSF_IP8)
+			ll_mv64340_irq(regs);
+		else
+			spurious_interrupt(regs);
+	}
 }

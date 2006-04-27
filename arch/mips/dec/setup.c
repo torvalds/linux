@@ -48,8 +48,6 @@ extern void dec_machine_halt(void);
 extern void dec_machine_power_off(void);
 extern irqreturn_t dec_intr_halt(int irq, void *dev_id, struct pt_regs *regs);
 
-extern asmlinkage void decstation_handle_int(void);
-
 unsigned long dec_kn_slot_base, dec_kn_slot_size;
 
 EXPORT_SYMBOL(dec_kn_slot_base);
@@ -744,7 +742,6 @@ void __init arch_init_irq(void)
 		panic("Don't know how to set this up!");
 		break;
 	}
-	set_except_vector(0, decstation_handle_int);
 
 	/* Free the FPU interrupt if the exception is present. */
 	if (!cpu_has_nofpuex) {

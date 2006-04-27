@@ -168,7 +168,7 @@ int __init acpi_parse_mcfg(unsigned long phys_addr, unsigned long size)
 	unsigned long i;
 	int config_size;
 
-	if (!phys_addr || !size || !cpu_has_apic)
+	if (!phys_addr || !size)
 		return -EINVAL;
 
 	mcfg = (struct acpi_table_mcfg *)__acpi_map_table(phys_addr, size);
@@ -1101,6 +1101,9 @@ int __init acpi_boot_table_init(void)
 #ifdef __i386__
 	dmi_check_system(acpi_dmi_table);
 #endif
+
+	if (!cpu_has_apic)
+		return -ENODEV;
 
 	/*
 	 * If acpi_disabled, bail out

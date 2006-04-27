@@ -53,16 +53,14 @@
 /* Power Control of MMC and CF */
 #define PLD_CPCR		__reg16(PLD_BASE + 0x14000)
 
-
-/*==== ICU ====*/
-#define  M32R_IRQ_PC104        (5)   /* INT4(PC/104) */
-#define  M32R_IRQ_I2C          (28)  /* I2C-BUS     */
-#define  PLD_IRQ_CFIREQ       (6)  /* INT5 CFC Card Interrupt */
-#define  PLD_IRQ_CFC_INSERT   (7)  /* INT6 CFC Card Insert */
-#define  PLD_IRQ_IDEIREQ      (8)  /* INT7 IDE Interrupt   */
-#define  PLD_IRQ_MMCCARD      (43)  /* MMC Card Insert */
-#define  PLD_IRQ_MMCIRQ       (44)  /* MMC Transfer Done */
-
+/* ICU */
+#define M32R_IRQ_PC104		(5)	/* INT4(PC/104) */
+#define M32R_IRQ_I2C		(28)	/* I2C-BUS */
+#define PLD_IRQ_CFIREQ		(6)	/* INT5 CFC Card Interrupt */
+#define PLD_IRQ_CFC_INSERT	(7)	/* INT6 CFC Card Insert & Eject */
+#define PLD_IRQ_IDEIREQ		(8)	/* INT7 IDE Interrupt */
+#define PLD_IRQ_MMCCARD		(43)	/* MMC Card Insert */
+#define PLD_IRQ_MMCIRQ		(44)	/* MMC Transfer Done */
 
 #if 0
 /* LED Control
@@ -96,7 +94,6 @@
 #define PLD_CRC16INDATA		__reg16(PLD_BASE + 0x18006)
 #define PLD_CRC16ADATA		__reg16(PLD_BASE + 0x18008)
 #define PLD_CRC16AINDATA	__reg16(PLD_BASE + 0x1800a)
-
 
 #if 0
 /* RTC */
@@ -139,5 +136,8 @@
 #define PLD_SCRXB		__reg16(PLD_BASE + 0x3800e)
 
 #endif
+
+/* Reset Control */
+#define PLD_REBOOT		__reg16(PLD_BASE + 0x38000)
 
 #endif	/* _MAPPI3_PLD.H */

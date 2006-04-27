@@ -781,8 +781,7 @@ error:	if (cs)
 }
 EXPORT_SYMBOL_GPL(gigaset_initcs);
 
-/* ReInitialize the b-channel structure */
-/* e.g. called on hangup, disconnect */
+/* ReInitialize the b-channel structure on hangup */
 void gigaset_bcs_reinit(struct bc_state *bcs)
 {
 	struct sk_buff *skb;

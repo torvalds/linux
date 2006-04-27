@@ -240,14 +240,15 @@ static void copy_data_pages(struct pbe *pblist)
  *	free_pagedir - free pages allocated with alloc_pagedir()
  */
 
-static void free_pagedir(struct pbe *pblist)
+static void free_pagedir(struct pbe *pblist, int clear_nosave_free)
 {
 	struct pbe *pbe;
 
 	while (pblist) {
 		pbe = (pblist + PB_PAGE_SKIP)->next;
 		ClearPageNosave(virt_to_page(pblist));
-		ClearPageNosaveFree(virt_to_page(pblist));
+		if (clear_nosave_free)
+			ClearPageNosaveFree(virt_to_page(pblist));
 		free_page((unsigned long)pblist);
 		pblist = pbe;
 	}
@@ -389,7 +390,7 @@ struct pbe *alloc_pagedir(unsigned int nr_pages, gfp_t gfp_mask, int safe_needed
 		pbe->next = alloc_image_page(gfp_mask, safe_needed);
 	}
 	if (!pbe) { /* get_zeroed_page() failed */
-		free_pagedir(pblist);
+		free_pagedir(pblist, 1);
 		pblist = NULL;
         } else
 		create_pbe_list(pblist, nr_pages);
@@ -736,7 +737,7 @@ static int create_image(struct snapshot_handle *handle)
 		pblist = alloc_pagedir(nr_copy_pages, GFP_ATOMIC, 1);
 		if (pblist)
 			copy_page_backup_list(pblist, p);
-		free_pagedir(p);
+		free_pagedir(p, 0);
 		if (!pblist)
 			error = -ENOMEM;
 	}

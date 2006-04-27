@@ -3,6 +3,6 @@
 # under Linux.
 #
 
-obj-y			+= setup.o irq.o int-handler.o nile4_pic.o
+obj-y			+= setup.o irq.o nile4_pic.o
 
 EXTRA_AFLAGS := $(CFLAGS)
