@@ -211,7 +211,6 @@ static inline struct w1_master* dev_to_w1_master(struct device *dev)
 }
 
 extern struct device_driver w1_master_driver;
-extern struct bus_type w1_bus_type;
 extern struct device w1_master_device;
 extern int w1_max_slave_count;
 extern int w1_max_slave_ttl;
