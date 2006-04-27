@@ -968,6 +968,7 @@ static void __init probe_pcache(void)
 	case CPU_SB1:
 		break;
 	case CPU_24K:
+	case CPU_34K:
 		if (!(read_c0_config7() & (1 << 16)))
 	default:
 			if (c->dcache.waysize > PAGE_SIZE)
