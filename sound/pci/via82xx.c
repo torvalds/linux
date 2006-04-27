@@ -2332,7 +2332,7 @@ struct dxs_whitelist {
 	short action;	/* new dxs_support value */
 };
 
-static int __devinit check_dxs_list(struct pci_dev *pci)
+static int __devinit check_dxs_list(struct pci_dev *pci, int revision)
 {
 	static struct dxs_whitelist whitelist[] = {
 		{ .subvendor = 0x1005, .subdevice = 0x4710, .action = VIA_DXS_ENABLE }, /* Avance Logic Mobo */
@@ -2413,6 +2413,10 @@ static int __devinit check_dxs_list(struct pci_dev *pci)
 		}
 	}
 
+	/* for newer revision, default to DXS_SRC */
+	if (revision >= VIA_REV_8235)
+		return VIA_DXS_SRC;
+
 	/*
 	 * not detected, try 48k rate only to be sure.
 	 */
@@ -2457,7 +2461,7 @@ static int __devinit snd_via82xx_probe(struct pci_dev *pci,
 		}
 		if (chip_type != TYPE_VIA8233A) {
 			if (dxs_support == VIA_DXS_AUTO)
-				dxs_support = check_dxs_list(pci);
+				dxs_support = check_dxs_list(pci, revision);
 			/* force to use VIA8233 or 8233A model according to
 			 * dxs_support module option
 			 */
