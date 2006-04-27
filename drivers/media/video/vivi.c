@@ -26,6 +26,7 @@
 #include <linux/random.h>
 #include <linux/version.h>
 #include <linux/videodev2.h>
+#include <linux/dma-mapping.h>
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
 /* Include V4L1 specific functions. Should be removed soon */
 #include <linux/videodev.h>
