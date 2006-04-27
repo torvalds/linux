@@ -1072,7 +1072,7 @@ static int vpe_open(struct inode *inode, struct file *filp)
 	struct vpe_notifications *not;
 
 	/* assume only 1 device at the mo. */
-	if ((minor = MINOR(inode->i_rdev)) != 1) {
+	if ((minor = iminor(inode)) != 1) {
 		printk(KERN_WARNING "VPE loader: only vpe1 is supported\n");
 		return -ENODEV;
 	}
@@ -1133,7 +1133,7 @@ static int vpe_release(struct inode *inode, struct file *filp)
 	struct vpe *v;
 	Elf_Ehdr *hdr;
 
-	minor = MINOR(inode->i_rdev);
+	minor = iminor(inode);
 	if ((v = get_vpe(minor)) == NULL)
 		return -ENODEV;
 
@@ -1174,7 +1174,7 @@ static ssize_t vpe_write(struct file *file, const char __user * buffer,
 	size_t ret = count;
 	struct vpe *v;
 
-	minor = MINOR(file->f_dentry->d_inode->i_rdev);
+	minor = iminor(file->f_dentry->d_inode);
 	if ((v = get_vpe(minor)) == NULL)
 		return -ENODEV;
 
