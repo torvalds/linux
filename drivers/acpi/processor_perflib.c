@@ -628,7 +628,7 @@ int acpi_processor_preregister_performance(
 	retval = 0;
 
 	/* Call _PSD for all CPUs */
-	for_each_cpu(i) {
+	for_each_possible_cpu(i) {
 		pr = processors[i];
 		if (!pr) {
 			/* Look only at processors in ACPI namespace */
@@ -659,7 +659,7 @@ int acpi_processor_preregister_performance(
 	 * Now that we have _PSD data from all CPUs, lets setup P-state 
 	 * domain info.
 	 */
-	for_each_cpu(i) {
+	for_each_possible_cpu(i) {
 		pr = processors[i];
 		if (!pr)
 			continue;
@@ -680,7 +680,7 @@ int acpi_processor_preregister_performance(
 	}
 
 	cpus_clear(covered_cpus);
-	for_each_cpu(i) {
+	for_each_possible_cpu(i) {
 		pr = processors[i];
 		if (!pr)
 			continue;
@@ -704,7 +704,7 @@ int acpi_processor_preregister_performance(
 			pr->performance->shared_type = CPUFREQ_SHARED_TYPE_ANY;
 		}
 
-		for_each_cpu(j) {
+		for_each_possible_cpu(j) {
 			if (i == j)
 				continue;
 
@@ -733,7 +733,7 @@ int acpi_processor_preregister_performance(
 			count++;
 		}
 
-		for_each_cpu(j) {
+		for_each_possible_cpu(j) {
 			if (i == j)
 				continue;
 
@@ -757,7 +757,7 @@ err_ret:
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Error while parsing _PSD domain information. Assuming no coordination\n"));
 	}
 
-	for_each_cpu(i) {
+	for_each_possible_cpu(i) {
 		pr = processors[i];
 		if (!pr || !pr->performance)
 			continue;
