@@ -299,7 +299,7 @@ out:
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-static int __devinit profile_cpu_callback(struct notifier_block *info,
+static int profile_cpu_callback(struct notifier_block *info,
 					unsigned long action, void *__cpu)
 {
 	int node, cpu = (unsigned long)__cpu;

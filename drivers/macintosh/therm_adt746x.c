@@ -627,8 +627,8 @@ thermostat_init(void)
 	if(therm_type == ADT7460)
 		device_create_file(&of_dev->dev, &dev_attr_sensor2_fan_speed);
 
-#ifndef CONFIG_I2C_KEYWEST
-	request_module("i2c-keywest");
+#ifndef CONFIG_I2C_POWERMAC
+	request_module("i2c-powermac");
 #endif
 
 	return i2c_add_driver(&thermostat_driver);

@@ -13,7 +13,7 @@
  *    Copyright (C) 2001 Helge Deller <deller at parisc-linux.org>
  *    Copyright (C) 2000-2001 Thomas Bogendoerfer <tsbogend at parisc-linux.org>
  *    Copyright (C) 2002 Randolph Chung <tausq with parisc-linux.org>
- *
+ *    Copyright (C) 2005-2006 Kyle McMartin <kyle at parisc-linux.org>
  *
  *    This program is free software; you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -393,5 +393,11 @@
 	ENTRY_SAME(readlinkat)		/* 285 */
 	ENTRY_SAME(fchmodat)
 	ENTRY_SAME(faccessat)
+	ENTRY_SAME(unshare)
+	ENTRY_COMP(set_robust_list)
+	ENTRY_COMP(get_robust_list)	/* 290 */
+	ENTRY_SAME(splice)
+	ENTRY_OURS(sync_file_range)
+	ENTRY_SAME(tee)
 	/* Nothing yet */
 

@@ -188,11 +188,13 @@ void __init setup_node_zones(int nodeid)
 	   memory. */
 	memmapsize = sizeof(struct page) * (end_pfn-start_pfn);
 	limit = end_pfn << PAGE_SHIFT;
+#ifdef CONFIG_FLAT_NODE_MEM_MAP
 	NODE_DATA(nodeid)->node_mem_map = 
 		__alloc_bootmem_core(NODE_DATA(nodeid)->bdata, 
 				memmapsize, SMP_CACHE_BYTES, 
 				round_down(limit - memmapsize, PAGE_SIZE), 
 				limit);
+#endif
 
 	size_zones(zones, holes, start_pfn, end_pfn);
 	free_area_init_node(nodeid, NODE_DATA(nodeid), zones,

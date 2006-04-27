@@ -33,6 +33,7 @@
 #include <linux/vfs.h>
 #include <linux/mempool.h>
 #include <linux/delay.h>
+#include <linux/kthread.h>
 #include "cifsfs.h"
 #include "cifspdu.h"
 #define DECLARE_GLOBALS_HERE
@@ -74,9 +75,6 @@ MODULE_PARM_DESC(cifs_min_small,"Small network buffers in pool. Default: 30 Rang
 unsigned int cifs_max_pending = CIFS_MAX_REQ;
 module_param(cifs_max_pending, int, 0);
 MODULE_PARM_DESC(cifs_max_pending,"Simultaneous requests to server. Default: 50 Range: 2 to 256");
-
-static DECLARE_COMPLETION(cifs_oplock_exited);
-static DECLARE_COMPLETION(cifs_dnotify_exited);
 
 extern mempool_t *cifs_sm_req_poolp;
 extern mempool_t *cifs_req_poolp;
@@ -841,10 +839,6 @@ static int cifs_oplock_thread(void * dummyarg)
 	__u16  netfid;
 	int rc;
 
-	daemonize("cifsoplockd");
-	allow_signal(SIGTERM);
-
-	oplockThread = current;
 	do {
 		if (try_to_freeze()) 
 			continue;
@@ -900,9 +894,9 @@ static int cifs_oplock_thread(void * dummyarg)
 			set_current_state(TASK_INTERRUPTIBLE);
 			schedule_timeout(1);  /* yield in case q were corrupt */
 		}
-	} while(!signal_pending(current));
-	oplockThread = NULL;
-	complete_and_exit (&cifs_oplock_exited, 0);
+	} while (!kthread_should_stop());
+
+	return 0;
 }
 
 static int cifs_dnotify_thread(void * dummyarg)
@@ -910,10 +904,6 @@ static int cifs_dnotify_thread(void * dummyarg)
 	struct list_head *tmp;
 	struct cifsSesInfo *ses;
 
-	daemonize("cifsdnotifyd");
-	allow_signal(SIGTERM);
-
-	dnotifyThread = current;
 	do {
 		if(try_to_freeze())
 			continue;
@@ -931,8 +921,9 @@ static int cifs_dnotify_thread(void * dummyarg)
 				wake_up_all(&ses->server->response_q);
 		}
 		read_unlock(&GlobalSMBSeslock);
-	} while(!signal_pending(current));
-	complete_and_exit (&cifs_dnotify_exited, 0);
+	} while (!kthread_should_stop());
+
+	return 0;
 }
 
 static int __init
@@ -982,32 +973,48 @@ init_cifs(void)
 	}
 
 	rc = cifs_init_inodecache();
-	if (!rc) {
-		rc = cifs_init_mids();
-		if (!rc) {
-			rc = cifs_init_request_bufs();
-			if (!rc) {
-				rc = register_filesystem(&cifs_fs_type);
-				if (!rc) {                
-					rc = (int)kernel_thread(cifs_oplock_thread, NULL, 
-						CLONE_FS | CLONE_FILES | CLONE_VM);
-					if(rc > 0) {
-						rc = (int)kernel_thread(cifs_dnotify_thread, NULL,
-							CLONE_FS | CLONE_FILES | CLONE_VM);
-						if(rc > 0)
-							return 0;
-						else
-							cERROR(1,("error %d create dnotify thread", rc));
-					} else {
-						cERROR(1,("error %d create oplock thread",rc));
-					}
-				}
-				cifs_destroy_request_bufs();
-			}
-			cifs_destroy_mids();
-		}
-		cifs_destroy_inodecache();
+	if (rc)
+		goto out_clean_proc;
+
+	rc = cifs_init_mids();
+	if (rc)
+		goto out_destroy_inodecache;
+
+	rc = cifs_init_request_bufs();
+	if (rc)
+		goto out_destroy_mids;
+
+	rc = register_filesystem(&cifs_fs_type);
+	if (rc)
+		goto out_destroy_request_bufs;
+
+	oplockThread = kthread_run(cifs_oplock_thread, NULL, "cifsoplockd");
+	if (IS_ERR(oplockThread)) {
+		rc = PTR_ERR(oplockThread);
+		cERROR(1,("error %d create oplock thread", rc));
+		goto out_unregister_filesystem;
 	}
+
+	dnotifyThread = kthread_run(cifs_dnotify_thread, NULL, "cifsdnotifyd");
+	if (IS_ERR(dnotifyThread)) {
+		rc = PTR_ERR(dnotifyThread);
+		cERROR(1,("error %d create dnotify thread", rc));
+		goto out_stop_oplock_thread;
+	}
+
+	return 0;
+
+ out_stop_oplock_thread:
+	kthread_stop(oplockThread);
+ out_unregister_filesystem:
+	unregister_filesystem(&cifs_fs_type);
+ out_destroy_request_bufs:
+	cifs_destroy_request_bufs();
+ out_destroy_mids:
+	cifs_destroy_mids();
+ out_destroy_inodecache:
+	cifs_destroy_inodecache();
+ out_clean_proc:
 #ifdef CONFIG_PROC_FS
 	cifs_proc_clean();
 #endif
@@ -1025,14 +1032,8 @@ exit_cifs(void)
 	cifs_destroy_inodecache();
 	cifs_destroy_mids();
 	cifs_destroy_request_bufs();
-	if(oplockThread) {
-		send_sig(SIGTERM, oplockThread, 1);
-		wait_for_completion(&cifs_oplock_exited);
-	}
-	if(dnotifyThread) {
-		send_sig(SIGTERM, dnotifyThread, 1);
-		wait_for_completion(&cifs_dnotify_exited);
-	}
+	kthread_stop(oplockThread);
+	kthread_stop(dnotifyThread);
 }
 
 MODULE_AUTHOR("Steve French <sfrench@us.ibm.com>");

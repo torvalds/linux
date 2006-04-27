@@ -535,7 +535,7 @@ pdcs_auto_read(struct subsystem *entry, char *buf, int knob)
 {
 	char *out = buf;
 	struct pdcspath_entry *pathentry;
-	
+
 	if (!entry || !buf)
 		return -EINVAL;
 

@@ -345,7 +345,7 @@ config IP_NF_TARGET_LOG
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 config IP_NF_TARGET_ULOG
-	tristate "ULOG target support (OBSOLETE)"
+	tristate "ULOG target support"
 	depends on IP_NF_IPTABLES
 	---help---
 

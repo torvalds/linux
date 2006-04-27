@@ -126,23 +126,16 @@ static inline void gsc_writeq(unsigned long long val, unsigned long addr)
 
 extern void __iomem * __ioremap(unsigned long offset, unsigned long size, unsigned long flags);
 
+/* Most machines react poorly to I/O-space being cacheable... Instead let's
+ * define ioremap() in terms of ioremap_nocache().
+ */
 extern inline void __iomem * ioremap(unsigned long offset, unsigned long size)
 {
-	return __ioremap(offset, size, 0);
+	return __ioremap(offset, size, _PAGE_NO_CACHE);
 }
-
-/*
- * This one maps high address device memory and turns off caching for that area.
- * it's useful if some control registers are in such an area and write combining
- * or read caching is not desirable:
- */
-extern inline void * ioremap_nocache(unsigned long offset, unsigned long size)
-{
-        return __ioremap(offset, size, _PAGE_NO_CACHE /* _PAGE_PCD */);
-}
+#define ioremap_nocache(off, sz)	ioremap((off), (sz))
 
 extern void iounmap(void __iomem *addr);
-
 
 static inline unsigned char __raw_readb(const volatile void __iomem *addr)
 {

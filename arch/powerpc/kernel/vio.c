@@ -202,7 +202,7 @@ static dma_addr_t vio_map_single(struct device *dev, void *vaddr,
 			  size_t size, enum dma_data_direction direction)
 {
 	return iommu_map_single(to_vio_dev(dev)->iommu_table, vaddr, size,
-			direction);
+			~0ul, direction);
 }
 
 static void vio_unmap_single(struct device *dev, dma_addr_t dma_handle,
@@ -216,7 +216,7 @@ static int vio_map_sg(struct device *dev, struct scatterlist *sglist,
 		int nelems, enum dma_data_direction direction)
 {
 	return iommu_map_sg(dev, to_vio_dev(dev)->iommu_table, sglist,
-			nelems, direction);
+			nelems, ~0ul, direction);
 }
 
 static void vio_unmap_sg(struct device *dev, struct scatterlist *sglist,
@@ -229,7 +229,7 @@ static void *vio_alloc_coherent(struct device *dev, size_t size,
 			   dma_addr_t *dma_handle, gfp_t flag)
 {
 	return iommu_alloc_coherent(to_vio_dev(dev)->iommu_table, size,
-			dma_handle, flag);
+			dma_handle, ~0ul, flag);
 }
 
 static void vio_free_coherent(struct device *dev, size_t size,

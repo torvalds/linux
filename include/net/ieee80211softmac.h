@@ -96,10 +96,13 @@ struct ieee80211softmac_assoc_info {
 	 *
 	 * bssvalid is true if we found a matching network
 	 * and saved it's BSSID into the bssid above.
+	 *
+	 * bssfixed is used for SIOCSIWAP.
 	 */
 	u8 static_essid:1,
 	   associating:1,
-	   bssvalid:1;
+	   bssvalid:1,
+	   bssfixed:1;
 
 	/* Scan retries remaining */
 	int scan_retry;

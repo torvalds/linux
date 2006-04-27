@@ -197,7 +197,7 @@ u32 vfp_double_normaliseround(int dd, struct vfp_double *vd, u32 fpscr, u32 exce
 			 dd, d, exceptions);
 		vfp_put_double(dd, d);
 	}
-	return exceptions & ~VFP_NAN_FLAG;
+	return exceptions;
 }
 
 /*
