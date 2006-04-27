@@ -135,9 +135,9 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 
 #define __HAVE_ARCH_GATE_AREA 1	
 
-#endif /* __KERNEL__ */
-
 #include <asm-generic/memory_model.h>
 #include <asm-generic/page.h>
+
+#endif /* __KERNEL__ */
 
 #endif /* _X86_64_PAGE_H */
