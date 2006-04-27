@@ -2745,7 +2745,7 @@ struct tvcard bttv_tvcards[] = {
 		/* Michael Krufky <mkrufky@m1k.net> */
 		.name           = "DViCO FusionHDTV 5 Lite",
 		.tuner          = 0,
-		.tuner_type     = TUNER_LG_TDVS_H062F,
+		.tuner_type     = TUNER_LG_TDVS_H06XF, /* TDVS-H064F */
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.video_inputs   = 3,

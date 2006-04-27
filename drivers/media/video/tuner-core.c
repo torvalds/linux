@@ -199,7 +199,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		i2c_master_send(c, buffer, 4);
 		default_tuner_init(c);
 		break;
-	case TUNER_LG_TDVS_H062F:
+	case TUNER_LG_TDVS_H06XF:
 		/* Set the Auxiliary Byte. */
 		buffer[2] &= ~0x20;
 		buffer[2] |= 0x18;

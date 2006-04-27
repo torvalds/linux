@@ -874,7 +874,7 @@ static struct tuner_params tuner_philips_fmd1216me_mk3_params[] = {
 };
 
 
-/* ------------ TUNER_LG_TDVS_H062F - INFINEON ATSC ------------ */
+/* ------ TUNER_LG_TDVS_H06XF - LG INNOTEK / INFINEON ATSC ----- */
 
 static struct tuner_range tuner_tua6034_ntsc_ranges[] = {
 	{ 16 * 165.00 /*MHz*/, 0x8e, 0x01 },
@@ -883,7 +883,7 @@ static struct tuner_range tuner_tua6034_ntsc_ranges[] = {
 };
 
 
-static struct tuner_params tuner_tua6034_params[] = {
+static struct tuner_params tuner_lg_tdvs_h06xf_params[] = {
 	{
 		.type   = TUNER_PARAM_TYPE_NTSC,
 		.ranges = tuner_tua6034_ntsc_ranges,
@@ -1370,10 +1370,10 @@ struct tunertype tuners[] = {
 		.params = tuner_philips_fmd1216me_mk3_params,
 		.count  = ARRAY_SIZE(tuner_philips_fmd1216me_mk3_params),
 	},
-	[TUNER_LG_TDVS_H062F] = { /* LGINNOTEK ATSC */
+	[TUNER_LG_TDVS_H06XF] = { /* LGINNOTEK ATSC */
 		.name   = "LG TDVS-H06xF", /* H061F, H062F & H064F */
-		.params = tuner_tua6034_params,
-		.count  = ARRAY_SIZE(tuner_tua6034_params),
+		.params = tuner_lg_tdvs_h06xf_params,
+		.count  = ARRAY_SIZE(tuner_lg_tdvs_h06xf_params),
 	},
 	[TUNER_YMEC_TVF66T5_B_DFF] = { /* Philips PAL */
 		.name   = "Ymec TVF66T5-B/DFF",

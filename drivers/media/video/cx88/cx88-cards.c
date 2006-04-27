@@ -759,7 +759,7 @@ struct cx88_board cx88_boards[] = {
 	},
 	[CX88_BOARD_DVICO_FUSIONHDTV_5_GOLD] = {
 		.name           = "DViCO FusionHDTV 5 Gold",
-		.tuner_type     = TUNER_LG_TDVS_H062F,
+		.tuner_type     = TUNER_LG_TDVS_H06XF, /* TDVS-H062F */
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
@@ -1096,7 +1096,7 @@ struct cx88_board cx88_boards[] = {
 	},
 	[CX88_BOARD_PCHDTV_HD5500] = {
 		.name           = "pcHDTV HD5500 HDTV",
-		.tuner_type     = TUNER_LG_TDVS_H062F,
+		.tuner_type     = TUNER_LG_TDVS_H06XF, /* TDVS-H064F */
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
