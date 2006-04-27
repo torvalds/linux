@@ -12,7 +12,7 @@ config W1
 	  will be called wire.ko.
 
 config W1_CON
-	depends on CONNECTOR
+	depends on CONNECTOR && W1
 	bool "Userspace communication over connector"
 	default y
 	--- help ---
