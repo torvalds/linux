@@ -642,10 +642,9 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 
 	ocfs2_complete_mount_recovery(osb);
 
-	printk("ocfs2: Mounting device (%u,%u) on (node %d, slot %d) with %s "
-	       "data mode.\n",
-	       MAJOR(sb->s_dev), MINOR(sb->s_dev), osb->node_num,
-	       osb->slot_num,
+	printk(KERN_INFO "ocfs2: Mounting device (%s) on (node %d, slot %d) "
+	       "with %s data mode.\n",
+	       osb->dev_str, osb->node_num, osb->slot_num,
 	       osb->s_mount_opt & OCFS2_MOUNT_DATA_WRITEBACK ? "writeback" :
 	       "ordered");
 
@@ -1020,7 +1019,7 @@ static int ocfs2_fill_local_node_info(struct ocfs2_super *osb)
 		goto bail;
 	}
 
-	mlog(ML_NOTICE, "I am node %d\n", osb->node_num);
+	mlog(0, "I am node %d\n", osb->node_num);
 
 	status = 0;
 bail:
@@ -1191,8 +1190,8 @@ static void ocfs2_dismount_volume(struct super_block *sb, int mnt_err)
 
 	atomic_set(&osb->vol_state, VOLUME_DISMOUNTED);
 
-	printk("ocfs2: Unmounting device (%u,%u) on (node %d)\n",
-	       MAJOR(osb->sb->s_dev), MINOR(osb->sb->s_dev), osb->node_num);
+	printk(KERN_INFO "ocfs2: Unmounting device (%s) on (node %d)\n",
+	       osb->dev_str, osb->node_num);
 
 	ocfs2_delete_osb(osb);
 	kfree(osb);
@@ -1327,7 +1326,7 @@ static int ocfs2_initialize_super(struct super_block *sb,
 		status = -EINVAL;
 		goto bail;
 	}
-	mlog(ML_NOTICE, "max_slots for this device: %u\n", osb->max_slots);
+	mlog(0, "max_slots for this device: %u\n", osb->max_slots);
 
 	init_waitqueue_head(&osb->osb_wipe_event);
 	osb->osb_orphan_wipes = kcalloc(osb->max_slots,
