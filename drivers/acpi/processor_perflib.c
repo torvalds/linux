@@ -34,6 +34,7 @@
 #ifdef CONFIG_X86_ACPI_CPUFREQ_PROC_INTF
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/mutex.h>
 
 #include <asm/uaccess.h>
 #endif
@@ -48,7 +49,7 @@
 #define _COMPONENT		ACPI_PROCESSOR_COMPONENT
 ACPI_MODULE_NAME("acpi_processor")
 
-static DECLARE_MUTEX(performance_sem);
+static DEFINE_MUTEX(performance_mutex);
 
 /*
  * _PPC support is implemented as a CPUfreq policy notifier:
@@ -72,7 +73,7 @@ static int acpi_processor_ppc_notifier(struct notifier_block *nb,
 	struct acpi_processor *pr;
 	unsigned int ppc = 0;
 
-	down(&performance_sem);
+	mutex_lock(&performance_mutex);
 
 	if (event != CPUFREQ_INCOMPATIBLE)
 		goto out;
@@ -93,7 +94,7 @@ static int acpi_processor_ppc_notifier(struct notifier_block *nb,
 				     core_frequency * 1000);
 
       out:
-	up(&performance_sem);
+	mutex_unlock(&performance_mutex);
 
 	return 0;
 }
@@ -564,16 +565,16 @@ acpi_processor_register_performance(struct acpi_processor_performance
 	if (!(acpi_processor_ppc_status & PPC_REGISTERED))
 		return_VALUE(-EINVAL);
 
-	down(&performance_sem);
+	mutex_lock(&performance_mutex);
 
 	pr = processors[cpu];
 	if (!pr) {
-		up(&performance_sem);
+		mutex_unlock(&performance_mutex);
 		return_VALUE(-ENODEV);
 	}
 
 	if (pr->performance) {
-		up(&performance_sem);
+		mutex_unlock(&performance_mutex);
 		return_VALUE(-EBUSY);
 	}
 
@@ -581,13 +582,13 @@ acpi_processor_register_performance(struct acpi_processor_performance
 
 	if (acpi_processor_get_performance_info(pr)) {
 		pr->performance = NULL;
-		up(&performance_sem);
+		mutex_unlock(&performance_mutex);
 		return_VALUE(-EIO);
 	}
 
 	acpi_cpufreq_add_file(pr);
 
-	up(&performance_sem);
+	mutex_unlock(&performance_mutex);
 	return_VALUE(0);
 }
 
@@ -601,11 +602,11 @@ acpi_processor_unregister_performance(struct acpi_processor_performance
 
 	ACPI_FUNCTION_TRACE("acpi_processor_unregister_performance");
 
-	down(&performance_sem);
+	mutex_lock(&performance_mutex);
 
 	pr = processors[cpu];
 	if (!pr) {
-		up(&performance_sem);
+		mutex_unlock(&performance_mutex);
 		return_VOID;
 	}
 
@@ -614,7 +615,7 @@ acpi_processor_unregister_performance(struct acpi_processor_performance
 
 	acpi_cpufreq_remove_file(pr);
 
-	up(&performance_sem);
+	mutex_unlock(&performance_mutex);
 
 	return_VOID;
 }
