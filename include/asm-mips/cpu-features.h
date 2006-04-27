@@ -40,7 +40,7 @@
 #define cpu_has_sb1_cache	(cpu_data[0].options & MIPS_CPU_SB1_CACHE)
 #endif
 #ifndef cpu_has_fpu
-#define cpu_has_fpu		(cpu_data[0].options & MIPS_CPU_FPU)
+#define cpu_has_fpu		(current_cpu_data.options & MIPS_CPU_FPU)
 #endif
 #ifndef cpu_has_32fpr
 #define cpu_has_32fpr		(cpu_data[0].options & MIPS_CPU_32FPR)

@@ -176,7 +176,8 @@ void rpc_count_iostats(struct rpc_task *task)
 	op_metrics->om_execute += execute;
 }
 
-void _print_name(struct seq_file *seq, unsigned int op, struct rpc_procinfo *procs)
+static void _print_name(struct seq_file *seq, unsigned int op,
+			struct rpc_procinfo *procs)
 {
 	if (procs[op].p_name)
 		seq_printf(seq, "\t%12s: ", procs[op].p_name);

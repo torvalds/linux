@@ -40,8 +40,6 @@
 #include <linux/interrupt.h>
 #include <asm/irq_cpu.h>
 
-extern asmlinkage void ev96100IRQ(void);
-
 static inline unsigned int ffz8(unsigned int word)
 {
 	unsigned long k;
@@ -54,13 +52,26 @@ static inline unsigned int ffz8(unsigned int word)
 	return k;
 }
 
-asmlinkage void ev96100_cpu_irq(unsigned int pendin)
+extern void mips_timer_interrupt(struct pt_regs *regs);
+
+asmlinkage void ev96100_cpu_irq(unsigned int pending, struct pt_regs *regs)
 {
 	do_IRQ(ffz8(pending >> 8), regs);
 }
 
+asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+{
+	unsigned int pending = read_c0_cause() & read_c0_status() & ST0_IM;
+
+	if (pending & CAUSEF_IP7)
+		mips_timer_interrupt(regs);
+	else if (pending)
+		ev96100_cpu_irq(pending, regs);
+	else
+		spurious_interrupt(regs);
+}
+
 void __init arch_init_irq(void)
 {
-	set_except_vector(0, ev96100IRQ);
 	mips_cpu_irq_init(0);
 }

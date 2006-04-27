@@ -503,8 +503,6 @@ int drm_agp_bind_memory(DRM_AGP_MEM * handle, off_t start)
 	return agp_bind_memory(handle, start);
 }
 
-EXPORT_SYMBOL(drm_agp_bind_memory);
-
 /** Calls agp_unbind_memory() */
 int drm_agp_unbind_memory(DRM_AGP_MEM * handle)
 {

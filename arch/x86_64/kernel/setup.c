@@ -930,6 +930,10 @@ static int __init init_amd(struct cpuinfo_x86 *c)
 	if (c->x86 == 15 && ((level >= 0x0f48 && level < 0x0f50) || level >= 0x0f58))
 		set_bit(X86_FEATURE_REP_GOOD, &c->x86_capability);
 
+	/* Enable workaround for FXSAVE leak */
+	if (c->x86 >= 6)
+		set_bit(X86_FEATURE_FXSAVE_LEAK, &c->x86_capability);
+
 	r = get_model_name(c);
 	if (!r) { 
 		switch (c->x86) { 

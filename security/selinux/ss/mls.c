@@ -264,7 +264,7 @@ int mls_context_to_sid(char oldc,
 
 	if (!selinux_mls_enabled) {
 		if (def_sid != SECSID_NULL && oldc)
-			*scontext += strlen(*scontext);
+			*scontext += strlen(*scontext)+1;
 		return 0;
 	}
 

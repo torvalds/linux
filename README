@@ -165,10 +165,31 @@ CONFIGURING the kernel:
 	"make xconfig"     X windows (Qt) based configuration tool.
 	"make gconfig"     X windows (Gtk) based configuration tool.
 	"make oldconfig"   Default all questions based on the contents of
-			   your existing ./.config file.
+			   your existing ./.config file and asking about
+			   new config symbols.
 	"make silentoldconfig"
 			   Like above, but avoids cluttering the screen
 			   with questions already answered.
+	"make defconfig"   Create a ./.config file by using the default
+			   symbol values from arch/$ARCH/defconfig.
+	"make allyesconfig"
+			   Create a ./.config file by setting symbol
+			   values to 'y' as much as possible.
+	"make allmodconfig"
+			   Create a ./.config file by setting symbol
+			   values to 'm' as much as possible.
+	"make allnoconfig" Create a ./.config file by setting symbol
+			   values to 'n' as much as possible.
+	"make randconfig"  Create a ./.config file by setting symbol
+			   values to random values.
+
+   The allyesconfig/allmodconfig/allnoconfig/randconfig variants can
+   also use the environment variable KCONFIG_ALLCONFIG to specify a
+   filename that contains config options that the user requires to be
+   set to a specific value.  If KCONFIG_ALLCONFIG=filename is not used,
+   "make *config" checks for a file named "all{yes/mod/no/random}.config"
+   for symbol values that are to be forced.  If this file is not found,
+   it checks for a file named "all.config" to contain forced values.
    
 	NOTES on "make config":
 	- having unnecessary drivers will make the kernel bigger, and can

@@ -25,8 +25,9 @@ Who:	Adrian Bunk <bunk@stusta.de>
 
 ---------------------------
 
-What:	drivers depending on OBSOLETE_OSS_DRIVER
-When:	January 2006
+What:	drivers that were depending on OBSOLETE_OSS_DRIVER
+        (config options already removed)
+When:	before 2.6.19
 Why:	OSS drivers with ALSA replacements
 Who:	Adrian Bunk <bunk@stusta.de>
 

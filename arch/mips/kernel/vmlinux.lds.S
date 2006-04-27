@@ -2,7 +2,7 @@
 #include <asm/asm-offsets.h>
 #include <asm-generic/vmlinux.lds.h>
 
-#undef mips		/* CPP really sucks for this job  */
+#undef mips
 #define mips mips
 OUTPUT_ARCH(mips)
 ENTRY(kernel_entry)

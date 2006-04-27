@@ -33,6 +33,15 @@
 
 #include <linux/types.h>
 
+/* Clock sources */
+enum {
+	/* PCI clock */
+	BCM43xx_PCTL_CLKSRC_PCI,
+	/* Crystal slow clock oscillator */
+	BCM43xx_PCTL_CLKSRC_XTALOS,
+	/* Low power oscillator */
+	BCM43xx_PCTL_CLKSRC_LOPWROS,
+};
 
 struct bcm43xx_private;
 

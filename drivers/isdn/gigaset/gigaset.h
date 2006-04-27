@@ -75,7 +75,7 @@ extern int gigaset_debuglevel;	/* "needs" cast to (enum debuglevel) */
  * e.g. 'insmod usb_gigaset.o debug=0x2c' will set DEBUG_OPEN, DEBUG_CMD and
  * DEBUG_INTR.
  */
-enum debuglevel { /* up to 24 bits (atomic_t) */
+enum debuglevel {
 	DEBUG_REG	  = 0x0002, /* serial port I/O register operations */
 	DEBUG_OPEN	  = 0x0004, /* open/close serial port */
 	DEBUG_INTR	  = 0x0008, /* interrupt processing */
@@ -141,7 +141,7 @@ enum debuglevel { /* up to 24 bits (atomic_t) */
 			printk(KERN_DEBUG KBUILD_MODNAME ": " format "\n", \
 			       ## arg); \
 	} while (0)
-#define DEBUG_DEFAULT (DEBUG_INIT | DEBUG_TRANSCMD | DEBUG_CMD | DEBUG_USBREQ)
+#define DEBUG_DEFAULT (DEBUG_TRANSCMD | DEBUG_CMD | DEBUG_USBREQ)
 
 #else
 
@@ -627,8 +627,7 @@ struct gigaset_ops {
 	/* Called by gigaset_freecs() for freeing bcs->hw.xxx */
 	int (*freebcshw)(struct bc_state *bcs);
 
-	/* Called by gigaset_stop() or gigaset_bchannel_down() for resetting
-	   bcs->hw.xxx */
+	/* Called by gigaset_bchannel_down() for resetting bcs->hw.xxx */
 	void (*reinitbcshw)(struct bc_state *bcs);
 
 	/* Called by gigaset_initcs() for setting up cs->hw.xxx */

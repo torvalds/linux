@@ -128,29 +128,26 @@ transfer_to_handler:
 	stw	r12,4(r11)
 #endif
 	b	3f
+
 2:	/* if from kernel, check interrupted DOZE/NAP mode and
          * check for stack overflow
          */
+	lwz	r9,THREAD_INFO-THREAD(r12)
+	cmplw	r1,r9			/* if r1 <= current->thread_info */
+	ble-	stack_ovf		/* then the kernel stack overflowed */
+5:
 #ifdef CONFIG_6xx
-	mfspr	r11,SPRN_HID0
-	mtcr	r11
-BEGIN_FTR_SECTION
-	bt-	8,4f			/* Check DOZE */
-END_FTR_SECTION_IFSET(CPU_FTR_CAN_DOZE)
-BEGIN_FTR_SECTION
-	bt-	9,4f			/* Check NAP */
-END_FTR_SECTION_IFSET(CPU_FTR_CAN_NAP)
+	tophys(r9,r9)			/* check local flags */
+	lwz	r12,TI_LOCAL_FLAGS(r9)
+	mtcrf	0x01,r12
+	bt-	31-TLF_NAPPING,4f
 #endif /* CONFIG_6xx */
 	.globl transfer_to_handler_cont
 transfer_to_handler_cont:
-	lwz	r11,THREAD_INFO-THREAD(r12)
-	cmplw	r1,r11			/* if r1 <= current->thread_info */
-	ble-	stack_ovf		/* then the kernel stack overflowed */
 3:
 	mflr	r9
 	lwz	r11,0(r9)		/* virtual address of handler */
 	lwz	r9,4(r9)		/* where to go when done */
-	FIX_SRR1(r10,r12)
 	mtspr	SPRN_SRR0,r11
 	mtspr	SPRN_SRR1,r10
 	mtlr	r9
@@ -158,7 +155,9 @@ transfer_to_handler_cont:
 	RFI				/* jump to handler, enable MMU */
 
 #ifdef CONFIG_6xx
-4:	b	power_save_6xx_restore
+4:	rlwinm	r12,r12,0,~_TLF_NAPPING
+	stw	r12,TI_LOCAL_FLAGS(r9)
+	b	power_save_6xx_restore
 #endif
 
 /*
@@ -167,10 +166,10 @@ transfer_to_handler_cont:
  */
 stack_ovf:
 	/* sometimes we use a statically-allocated stack, which is OK. */
-	lis	r11,_end@h
-	ori	r11,r11,_end@l
-	cmplw	r1,r11
-	ble	3b			/* r1 <= &_end is OK */
+	lis	r12,_end@h
+	ori	r12,r12,_end@l
+	cmplw	r1,r12
+	ble	5b			/* r1 <= &_end is OK */
 	SAVE_NVGPRS(r11)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	lis	r1,init_thread_union@ha

@@ -390,7 +390,7 @@ static struct iw_statistics *orinoco_get_wireless_stats(struct net_device *dev)
 		}
 	} else {
 		struct {
-			__le16 qual, signal, noise;
+			__le16 qual, signal, noise, unused;
 		} __attribute__ ((packed)) cq;
 
 		err = HERMES_READ_RECORD(hw, USER_BAP,

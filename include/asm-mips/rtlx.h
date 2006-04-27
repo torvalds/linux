@@ -3,32 +3,46 @@
  *
  */
 
-#ifndef _RTLX_H
-#define _RTLX_H_
+#ifndef __ASM_RTLX_H
+#define __ASM_RTLX_H_
 
 #define LX_NODE_BASE 10
 
 #define MIPSCPU_INT_BASE       16
 #define MIPS_CPU_RTLX_IRQ 0
 
-#define RTLX_VERSION 1
+#define RTLX_VERSION 2
 #define RTLX_xID 0x12345600
 #define RTLX_ID (RTLX_xID | RTLX_VERSION)
 #define RTLX_CHANNELS 8
 
-#define RTLX_BUFFER_SIZE 1024
+#define RTLX_CHANNEL_STDIO	0
+#define RTLX_CHANNEL_DBG	1
+#define RTLX_CHANNEL_SYSIO	2
 
-/*
- * lx_state bits
- */
-#define RTLX_STATE_OPENED 1UL
+extern int rtlx_open(int index, int can_sleep);
+extern int rtlx_release(int index);
+extern ssize_t rtlx_read(int index, void *buff, size_t count, int user);
+extern ssize_t rtlx_write(int index, void *buffer, size_t count, int user);
+extern unsigned int rtlx_read_poll(int index, int can_sleep);
+extern unsigned int rtlx_write_poll(int index);
+
+enum rtlx_state {
+	RTLX_STATE_UNUSED,
+	RTLX_STATE_INITIALISED,
+	RTLX_STATE_REMOTE_READY,
+	RTLX_STATE_OPENED
+};
+
+#define RTLX_BUFFER_SIZE 1024
 
 /* each channel supports read and write.
    linux (vpe0) reads lx_buffer  and writes rt_buffer
    SP (vpe1) reads rt_buffer and writes lx_buffer
 */
 struct rtlx_channel {
-	unsigned long lx_state;
+	enum rtlx_state rt_state;
+	enum rtlx_state lx_state;
 
 	int buffer_size;
 
@@ -38,15 +52,13 @@ struct rtlx_channel {
 
 	int lx_write, lx_read;
 	char *lx_buffer;
-
-	void *queues;
-
 };
 
 struct rtlx_info {
 	unsigned long id;
+	enum rtlx_state state;
 
 	struct rtlx_channel channel[RTLX_CHANNELS];
 };
 
-#endif /* _RTLX_H_ */
+#endif /* __ASM_RTLX_H_ */

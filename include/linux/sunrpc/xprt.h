@@ -53,6 +53,7 @@ struct rpc_timeout {
 
 struct rpc_task;
 struct rpc_xprt;
+struct seq_file;
 
 /*
  * This describes a complete RPC request

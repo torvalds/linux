@@ -1729,7 +1729,7 @@ void ipath_free_pddata(struct ipath_devdata *dd, u32 port, int freehdrq)
 	}
 }
 
-int __init infinipath_init(void)
+static int __init infinipath_init(void)
 {
 	int ret;
 

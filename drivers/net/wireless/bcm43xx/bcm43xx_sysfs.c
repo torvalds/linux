@@ -71,14 +71,46 @@ static int get_boolean(const char *buf, size_t count)
 	return -EINVAL;
 }
 
+static int sprom2hex(const u16 *sprom, char *buf, size_t buf_len)
+{
+	int i, pos = 0;
+
+	for (i = 0; i < BCM43xx_SPROM_SIZE; i++) {
+		pos += snprintf(buf + pos, buf_len - pos - 1,
+				"%04X", swab16(sprom[i]) & 0xFFFF);
+	}
+	pos += snprintf(buf + pos, buf_len - pos - 1, "\n");
+
+	return pos + 1;
+}
+
+static int hex2sprom(u16 *sprom, const char *dump, size_t len)
+{
+	char tmp[5] = { 0 };
+	int cnt = 0;
+	unsigned long parsed;
+
+	if (len < BCM43xx_SPROM_SIZE * sizeof(u16) * 2)
+		return -EINVAL;
+
+	while (cnt < BCM43xx_SPROM_SIZE) {
+		memcpy(tmp, dump, 4);
+		dump += 4;
+		parsed = simple_strtoul(tmp, NULL, 16);
+		sprom[cnt++] = swab16((u16)parsed);
+	}
+
+	return 0;
+}
+
 static ssize_t bcm43xx_attr_sprom_show(struct device *dev,
 				       struct device_attribute *attr,
 				       char *buf)
 {
-	struct bcm43xx_private *bcm = devattr_to_bcm(attr, attr_sprom);
+	struct bcm43xx_private *bcm = dev_to_bcm(dev);
 	u16 *sprom;
 	unsigned long flags;
-	int i, err;
+	int err;
 
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
@@ -91,55 +123,53 @@ static ssize_t bcm43xx_attr_sprom_show(struct device *dev,
 	bcm43xx_lock_mmio(bcm, flags);
 	assert(bcm->initialized);
 	err = bcm43xx_sprom_read(bcm, sprom);
-	if (!err) {
-		for (i = 0; i < BCM43xx_SPROM_SIZE; i++) {
-			buf[i * 2] = sprom[i] & 0x00FF;
-			buf[i * 2 + 1] = (sprom[i] & 0xFF00) >> 8;
-		}
-	}
+	if (!err)
+		err = sprom2hex(sprom, buf, PAGE_SIZE);
 	bcm43xx_unlock_mmio(bcm, flags);
 	kfree(sprom);
 
-	return err ? err : BCM43xx_SPROM_SIZE * sizeof(u16);
+	return err;
 }
 
 static ssize_t bcm43xx_attr_sprom_store(struct device *dev,
 					struct device_attribute *attr,
 					const char *buf, size_t count)
 {
-	struct bcm43xx_private *bcm = devattr_to_bcm(attr, attr_sprom);
+	struct bcm43xx_private *bcm = dev_to_bcm(dev);
 	u16 *sprom;
 	unsigned long flags;
-	int i, err;
+	int err;
 
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
 
-	if (count != BCM43xx_SPROM_SIZE * sizeof(u16))
-		return -EINVAL;
 	sprom = kmalloc(BCM43xx_SPROM_SIZE * sizeof(*sprom),
 			GFP_KERNEL);
 	if (!sprom)
 		return -ENOMEM;
-	for (i = 0; i < BCM43xx_SPROM_SIZE; i++) {
-		sprom[i] = buf[i * 2] & 0xFF;
-		sprom[i] |= ((u16)(buf[i * 2 + 1] & 0xFF)) << 8;
-	}
+	err = hex2sprom(sprom, buf, count);
+	if (err)
+		goto out_kfree;
 	bcm43xx_lock_mmio(bcm, flags);
 	assert(bcm->initialized);
 	err = bcm43xx_sprom_write(bcm, sprom);
 	bcm43xx_unlock_mmio(bcm, flags);
+out_kfree:
 	kfree(sprom);
 
 	return err ? err : count;
 
 }
 
+static DEVICE_ATTR(sprom, 0600,
+		   bcm43xx_attr_sprom_show,
+		   bcm43xx_attr_sprom_store);
+
 static ssize_t bcm43xx_attr_interfmode_show(struct device *dev,
 					    struct device_attribute *attr,
 					    char *buf)
 {
-	struct bcm43xx_private *bcm = devattr_to_bcm(attr, attr_interfmode);
+	struct bcm43xx_private *bcm = dev_to_bcm(dev);
 	unsigned long flags;
 	int err;
 	ssize_t count = 0;
@@ -175,7 +205,7 @@ static ssize_t bcm43xx_attr_interfmode_store(struct device *dev,
 					     struct device_attribute *attr,
 					     const char *buf, size_t count)
 {
-	struct bcm43xx_private *bcm = devattr_to_bcm(attr, attr_interfmode);
+	struct bcm43xx_private *bcm = dev_to_bcm(dev);
 	unsigned long flags;
 	int err;
 	int mode;
@@ -215,11 +245,15 @@ static ssize_t bcm43xx_attr_interfmode_store(struct device *dev,
 	return err ? err : count;
 }
 
+static DEVICE_ATTR(interference, 0644,
+		   bcm43xx_attr_interfmode_show,
+		   bcm43xx_attr_interfmode_store);
+
 static ssize_t bcm43xx_attr_preamble_show(struct device *dev,
 					  struct device_attribute *attr,
 					  char *buf)
 {
-	struct bcm43xx_private *bcm = devattr_to_bcm(attr, attr_preamble);
+	struct bcm43xx_private *bcm = dev_to_bcm(dev);
 	unsigned long flags;
 	int err;
 	ssize_t count;
@@ -245,7 +279,7 @@ static ssize_t bcm43xx_attr_preamble_store(struct device *dev,
 					   struct device_attribute *attr,
 					   const char *buf, size_t count)
 {
-	struct bcm43xx_private *bcm = devattr_to_bcm(attr, attr_preamble);
+	struct bcm43xx_private *bcm = dev_to_bcm(dev);
 	unsigned long flags;
 	int err;
 	int value;
@@ -267,56 +301,41 @@ static ssize_t bcm43xx_attr_preamble_store(struct device *dev,
 	return err ? err : count;
 }
 
+static DEVICE_ATTR(shortpreamble, 0644,
+		   bcm43xx_attr_preamble_show,
+		   bcm43xx_attr_preamble_store);
+
 int bcm43xx_sysfs_register(struct bcm43xx_private *bcm)
 {
 	struct device *dev = &bcm->pci_dev->dev;
-	struct bcm43xx_sysfs *sysfs = &bcm->sysfs;
 	int err;
 
 	assert(bcm->initialized);
 
-	sysfs->attr_sprom.attr.name = "sprom";
-	sysfs->attr_sprom.attr.owner = THIS_MODULE;
-	sysfs->attr_sprom.attr.mode = 0600;
-	sysfs->attr_sprom.show = bcm43xx_attr_sprom_show;
-	sysfs->attr_sprom.store = bcm43xx_attr_sprom_store;
-	err = device_create_file(dev, &sysfs->attr_sprom);
+	err = device_create_file(dev, &dev_attr_sprom);
 	if (err)
 		goto out;
-
-	sysfs->attr_interfmode.attr.name = "interference";
-	sysfs->attr_interfmode.attr.owner = THIS_MODULE;
-	sysfs->attr_interfmode.attr.mode = 0600;
-	sysfs->attr_interfmode.show = bcm43xx_attr_interfmode_show;
-	sysfs->attr_interfmode.store = bcm43xx_attr_interfmode_store;
-	err = device_create_file(dev, &sysfs->attr_interfmode);
+	err = device_create_file(dev, &dev_attr_interference);
 	if (err)
 		goto err_remove_sprom;
-
-	sysfs->attr_preamble.attr.name = "shortpreamble";
-	sysfs->attr_preamble.attr.owner = THIS_MODULE;
-	sysfs->attr_preamble.attr.mode = 0600;
-	sysfs->attr_preamble.show = bcm43xx_attr_preamble_show;
-	sysfs->attr_preamble.store = bcm43xx_attr_preamble_store;
-	err = device_create_file(dev, &sysfs->attr_preamble);
+	err = device_create_file(dev, &dev_attr_shortpreamble);
 	if (err)
 		goto err_remove_interfmode;
 
 out:
 	return err;
 err_remove_interfmode:
-	device_remove_file(dev, &sysfs->attr_interfmode);
+	device_remove_file(dev, &dev_attr_interference);
 err_remove_sprom:
-	device_remove_file(dev, &sysfs->attr_sprom);
+	device_remove_file(dev, &dev_attr_sprom);
 	goto out;
 }
 
 void bcm43xx_sysfs_unregister(struct bcm43xx_private *bcm)
 {
 	struct device *dev = &bcm->pci_dev->dev;
-	struct bcm43xx_sysfs *sysfs = &bcm->sysfs;
 
-	device_remove_file(dev, &sysfs->attr_preamble);
-	device_remove_file(dev, &sysfs->attr_interfmode);
-	device_remove_file(dev, &sysfs->attr_sprom);
+	device_remove_file(dev, &dev_attr_shortpreamble);
+	device_remove_file(dev, &dev_attr_interference);
+	device_remove_file(dev, &dev_attr_sprom);
 }

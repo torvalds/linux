@@ -35,7 +35,7 @@ void os_fill_handlinfo(struct kern_handlers h)
 
 void do_longjmp(void *b, int val)
 {
-	sigjmp_buf *buf = b;
+	jmp_buf *buf = b;
 
-	UML_SIGLONGJMP(buf, val);
+	UML_LONGJMP(buf, val);
 }

@@ -20,7 +20,7 @@
  * Stack layout in 'ret_from_system_call':
  * 	ptrace needs to have all regs on the stack.
  *	if the order here is changed, it needs to be
- *	updated in fork.c:copy_process, signal.c:do_signal,
+ *	updated in fork.c:copy_thread, signal.c:do_signal,
  *	ptrace.c and ptrace.h
  *
  * M32Rx/M32R2				M32R
@@ -41,18 +41,17 @@
  *       @(0x38,sp) - syscall_nr	ditto
  *       @(0x3c,sp) - acc0h		@(0x3c,sp) - acch
  *       @(0x40,sp) - acc0l		@(0x40,sp) - accl
- *       @(0x44,sp) - acc1h		@(0x44,sp) - psw
- *       @(0x48,sp) - acc1l		@(0x48,sp) - bpc
- *       @(0x4c,sp) - psw		@(0x4c,sp) - bbpsw
- *       @(0x50,sp) - bpc		@(0x50,sp) - bbpc
- *       @(0x54,sp) - bbpsw		@(0x54,sp) - spu (cr3)
- *       @(0x58,sp) - bbpc		@(0x58,sp) - fp (r13)
- *       @(0x5c,sp) - spu (cr3)		@(0x5c,sp) - lr (r14)
- *       @(0x60,sp) - fp (r13)		@(0x60,sp) - spi (cr12)
- *       @(0x64,sp) - lr (r14)		@(0x64,sp) - orig_r0
- *       @(0x68,sp) - spi (cr2)
- *       @(0x6c,sp) - orig_r0
- *
+ *       @(0x44,sp) - acc1h		@(0x44,sp) - dummy_acc1h
+ *       @(0x48,sp) - acc1l		@(0x48,sp) - dummy_acc1l
+ *       @(0x4c,sp) - psw		ditto
+ *       @(0x50,sp) - bpc		ditto
+ *       @(0x54,sp) - bbpsw		ditto
+ *       @(0x58,sp) - bbpc		ditto
+ *       @(0x5c,sp) - spu (cr3)		ditto
+ *       @(0x60,sp) - fp (r13)		ditto
+ *       @(0x64,sp) - lr (r14)		ditto
+ *       @(0x68,sp) - spi (cr2)		ditto
+ *       @(0x6c,sp) - orig_r0		ditto
  */
 
 #include <linux/config.h>
@@ -102,6 +101,12 @@
 #define ACC0L(reg)		@(0x40,reg)
 #define ACC1H(reg)		@(0x44,reg)
 #define ACC1L(reg)		@(0x48,reg)
+#elif defined(CONFIG_ISA_M32R2) || defined(CONFIG_ISA_M32R)
+#define ACCH(reg)		@(0x3C,reg)
+#define ACCL(reg)		@(0x40,reg)
+#else
+#error unknown isa configuration
+#endif
 #define PSW(reg)		@(0x4C,reg)
 #define BPC(reg)		@(0x50,reg)
 #define BBPSW(reg)		@(0x54,reg)
@@ -111,21 +116,6 @@
 #define LR(reg)			@(0x64,reg)
 #define SP(reg)			@(0x68,reg)
 #define ORIG_R0(reg)		@(0x6C,reg)
-#elif defined(CONFIG_ISA_M32R2) || defined(CONFIG_ISA_M32R)
-#define ACCH(reg)		@(0x3C,reg)
-#define ACCL(reg)		@(0x40,reg)
-#define PSW(reg)		@(0x44,reg)
-#define BPC(reg)		@(0x48,reg)
-#define BBPSW(reg)		@(0x4C,reg)
-#define BBPC(reg)		@(0x50,reg)
-#define SPU(reg)		@(0x54,reg)
-#define FP(reg)			@(0x58,reg)  /* FP = R13 */
-#define LR(reg)			@(0x5C,reg)
-#define SP(reg)			@(0x60,reg)
-#define ORIG_R0(reg)		@(0x64,reg)
-#else
-#error unknown isa configuration
-#endif
 
 CF_MASK		= 0x00000001
 TF_MASK		= 0x00000100
@@ -142,7 +132,7 @@ VM_MASK		= 0x00020000
 #endif
 
 ENTRY(ret_from_fork)
-	ld	r0, @sp+
+	pop	r0
 	bl	schedule_tail
 	GET_THREAD_INFO(r8)
 	bra	syscall_exit
@@ -231,7 +221,7 @@ restore_all:
 	RESTORE_ALL
 
 	# perform work that needs to be done immediately before resumption
-	# r9 : frags
+	# r9 : flags
 	ALIGN
 work_pending:
 	and3	r4, r9, #_TIF_NEED_RESCHED
@@ -320,7 +310,7 @@ ENTRY(ei_handler)
 ;    GET_ICU_STATUS;
 	seth	r0, #shigh(M32R_ICU_ISTS_ADDR)
 	ld	r0, @(low(M32R_ICU_ISTS_ADDR),r0)
-	st	r0, @-sp
+	push	r0
 #if defined(CONFIG_SMP)
 	/*
 	 * If IRQ == 0      --> Nothing to do,  Not write IMASK
@@ -557,7 +547,7 @@ check_end:
 #endif  /* CONFIG_PLAT_M32104UT */
 	bl	do_IRQ
 #endif  /* CONFIG_SMP */
-	ld	r14, @sp+
+	pop	r14
 	seth	r0, #shigh(M32R_ICU_IMASK_ADDR)
 	st	r14, @(low(M32R_ICU_IMASK_ADDR),r0)
 #else
@@ -1015,4 +1005,3 @@ ENTRY(sys_call_table)
 	.long sys_waitid
 
 syscall_table_size=(.-sys_call_table)
-

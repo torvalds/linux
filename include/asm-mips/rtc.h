@@ -32,7 +32,7 @@ static inline unsigned int get_rtc_time(struct rtc_time *time)
 {
 	unsigned long nowtime;
 
-	nowtime = rtc_get_time();
+	nowtime = rtc_mips_get_time();
 	to_tm(nowtime, time);
 	time->tm_year -= 1900;
 
@@ -47,7 +47,7 @@ static inline int set_rtc_time(struct rtc_time *time)
 	nowtime = mktime(time->tm_year+1900, time->tm_mon+1,
 			time->tm_mday, time->tm_hour, time->tm_min,
 			time->tm_sec);
-	ret = rtc_set_time(nowtime);
+	ret = rtc_mips_set_time(nowtime);
 
 	return ret;
 }

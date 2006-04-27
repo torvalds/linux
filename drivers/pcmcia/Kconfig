@@ -250,7 +250,7 @@ config M32R_CFC_NUM
 
 config PCMCIA_VRC4171
 	tristate "NEC VRC4171 Card Controllers support"
-	depends on VRC4171 && PCMCIA
+	depends on CPU_VR41XX && ISA && PCMCIA
 
 config PCMCIA_VRC4173
 	tristate "NEC VRC4173 CARDU support"

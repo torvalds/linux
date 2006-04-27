@@ -11,6 +11,9 @@
 
 #include <linux/config.h>
 #include <linux/linkage.h>
+
+#include <asm/mipsmtregs.h>
+
 #include <irq.h>
 
 #ifdef CONFIG_I8259
@@ -26,6 +29,23 @@ struct pt_regs;
 
 extern asmlinkage unsigned int do_IRQ(unsigned int irq, struct pt_regs *regs);
 
+#ifdef CONFIG_MIPS_MT_SMTC
+/*
+ * Clear interrupt mask handling "backstop" if irq_hwmask
+ * entry so indicates. This implies that the ack() or end()
+ * functions will take over re-enabling the low-level mask.
+ * Otherwise it will be done on return from exception.
+ */
+#define __DO_IRQ_SMTC_HOOK()						\
+do {									\
+	if (irq_hwmask[irq] & 0x0000ff00)				\
+		write_c0_tccontext(read_c0_tccontext() &		\
+		                   ~(irq_hwmask[irq] & 0x0000ff00));	\
+} while (0)
+#else
+#define __DO_IRQ_SMTC_HOOK() do { } while (0)
+#endif
+
 #ifdef CONFIG_PREEMPT
 
 /*
@@ -39,6 +59,7 @@ extern asmlinkage unsigned int do_IRQ(unsigned int irq, struct pt_regs *regs);
 #define do_IRQ(irq, regs)						\
 do {									\
 	irq_enter();							\
+	__DO_IRQ_SMTC_HOOK();						\
 	__do_IRQ((irq), (regs));					\
 	irq_exit();							\
 } while (0)
@@ -46,5 +67,14 @@ do {									\
 #endif
 
 extern void arch_init_irq(void);
+extern void spurious_interrupt(struct pt_regs *regs);
+
+#ifdef CONFIG_MIPS_MT_SMTC
+struct irqaction;
+
+extern unsigned long irq_hwmask[];
+extern int setup_irq_smtc(unsigned int irq, struct irqaction * new,
+                          unsigned long hwmask);
+#endif /* CONFIG_MIPS_MT_SMTC */
 
 #endif /* _ASM_IRQ_H */

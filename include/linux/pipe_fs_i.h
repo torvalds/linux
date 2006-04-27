@@ -61,4 +61,21 @@ void __free_pipe_info(struct pipe_inode_info *);
 				 /* from/to, of course */
 #define SPLICE_F_MORE	(0x04)	/* expect more data */
 
+/*
+ * Passed to the actors
+ */
+struct splice_desc {
+	unsigned int len, total_len;	/* current and remaining length */
+	unsigned int flags;		/* splice flags */
+	struct file *file;		/* file to read/write */
+	loff_t pos;			/* file position */
+};
+
+typedef int (splice_actor)(struct pipe_inode_info *, struct pipe_buffer *,
+			   struct splice_desc *);
+
+extern ssize_t splice_from_pipe(struct pipe_inode_info *, struct file *,
+				loff_t *, size_t, unsigned int,
+				splice_actor *);
+
 #endif

@@ -275,7 +275,7 @@ static int bcm5411_init(struct mii_phy* phy)
 	return 0;
 }
 
-static int bcm5411_suspend(struct mii_phy* phy)
+static int generic_suspend(struct mii_phy* phy)
 {
 	phy_write(phy, MII_BMCR, BMCR_PDOWN);
 
@@ -738,7 +738,7 @@ static struct mii_phy_def bcm5401_phy_def = {
 /* Broadcom BCM 5411 */
 static struct mii_phy_ops bcm5411_phy_ops = {
 	.init		= bcm5411_init,
-	.suspend	= bcm5411_suspend,
+	.suspend	= generic_suspend,
 	.setup_aneg	= bcm54xx_setup_aneg,
 	.setup_forced	= bcm54xx_setup_forced,
 	.poll_link	= genmii_poll_link,
@@ -757,7 +757,7 @@ static struct mii_phy_def bcm5411_phy_def = {
 /* Broadcom BCM 5421 */
 static struct mii_phy_ops bcm5421_phy_ops = {
 	.init		= bcm5421_init,
-	.suspend	= bcm5411_suspend,
+	.suspend	= generic_suspend,
 	.setup_aneg	= bcm54xx_setup_aneg,
 	.setup_forced	= bcm54xx_setup_forced,
 	.poll_link	= genmii_poll_link,
@@ -776,7 +776,7 @@ static struct mii_phy_def bcm5421_phy_def = {
 /* Broadcom BCM 5421 built-in K2 */
 static struct mii_phy_ops bcm5421k2_phy_ops = {
 	.init		= bcm5421_init,
-	.suspend	= bcm5411_suspend,
+	.suspend	= generic_suspend,
 	.setup_aneg	= bcm54xx_setup_aneg,
 	.setup_forced	= bcm54xx_setup_forced,
 	.poll_link	= genmii_poll_link,
@@ -795,7 +795,7 @@ static struct mii_phy_def bcm5421k2_phy_def = {
 /* Broadcom BCM 5462 built-in Vesta */
 static struct mii_phy_ops bcm5462V_phy_ops = {
 	.init		= bcm5421_init,
-	.suspend	= bcm5411_suspend,
+	.suspend	= generic_suspend,
 	.setup_aneg	= bcm54xx_setup_aneg,
 	.setup_forced	= bcm54xx_setup_forced,
 	.poll_link	= genmii_poll_link,
@@ -816,6 +816,7 @@ static struct mii_phy_def bcm5462V_phy_def = {
  * would be useful here) --BenH.
  */
 static struct mii_phy_ops marvell_phy_ops = {
+	.suspend	= generic_suspend,
 	.setup_aneg	= marvell_setup_aneg,
 	.setup_forced	= marvell_setup_forced,
 	.poll_link	= genmii_poll_link,

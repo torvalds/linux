@@ -51,7 +51,7 @@
 #include "sky2.h"
 
 #define DRV_NAME		"sky2"
-#define DRV_VERSION		"1.1"
+#define DRV_VERSION		"1.2"
 #define PFX			DRV_NAME " "
 
 /*
@@ -925,8 +925,7 @@ static inline struct sk_buff *sky2_alloc_skb(unsigned int size, gfp_t gfp_mask)
 	skb = alloc_skb(size + RX_SKB_ALIGN, gfp_mask);
 	if (likely(skb)) {
 		unsigned long p	= (unsigned long) skb->data;
-		skb_reserve(skb,
-			((p + RX_SKB_ALIGN - 1) & ~(RX_SKB_ALIGN - 1)) - p);
+		skb_reserve(skb, ALIGN(p, RX_SKB_ALIGN) - p);
 	}
 
 	return skb;
@@ -1686,13 +1685,12 @@ static void sky2_tx_timeout(struct net_device *dev)
 }
 
 
-#define roundup(x, y)   ((((x)+((y)-1))/(y))*(y))
 /* Want receive buffer size to be multiple of 64 bits
  * and incl room for vlan and truncation
  */
 static inline unsigned sky2_buf_size(int mtu)
 {
-	return roundup(mtu + ETH_HLEN + VLAN_HLEN, 8) + 8;
+	return ALIGN(mtu + ETH_HLEN + VLAN_HLEN, 8) + 8;
 }
 
 static int sky2_change_mtu(struct net_device *dev, int new_mtu)
@@ -2086,6 +2084,20 @@ static void sky2_descriptor_error(struct sky2_hw *hw, unsigned port,
 	}
 }
 
+/* If idle then force a fake soft NAPI poll once a second
+ * to work around cases where sharing an edge triggered interrupt.
+ */
+static void sky2_idle(unsigned long arg)
+{
+	struct net_device *dev = (struct net_device *) arg;
+
+	local_irq_disable();
+	if (__netif_rx_schedule_prep(dev))
+		__netif_rx_schedule(dev);
+	local_irq_enable();
+}
+
+
 static int sky2_poll(struct net_device *dev0, int *budget)
 {
 	struct sky2_hw *hw = ((struct sky2_port *) netdev_priv(dev0))->hw;
@@ -2093,6 +2105,7 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 	int work_done = 0;
 	u32 status = sky2_read32(hw, B0_Y2_SP_EISR);
 
+ restart_poll:
 	if (unlikely(status & ~Y2_IS_STAT_BMU)) {
 		if (status & Y2_IS_HW_ERR)
 			sky2_hw_intr(hw);
@@ -2123,7 +2136,7 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 	}
 
 	if (status & Y2_IS_STAT_BMU) {
-		work_done = sky2_status_intr(hw, work_limit);
+		work_done += sky2_status_intr(hw, work_limit - work_done);
 		*budget -= work_done;
 		dev0->quota -= work_done;
 
@@ -2133,9 +2146,24 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 		sky2_write32(hw, STAT_CTRL, SC_STAT_CLR_IRQ);
 	}
 
-	netif_rx_complete(dev0);
+	mod_timer(&hw->idle_timer, jiffies + HZ);
+
+	local_irq_disable();
+	__netif_rx_complete(dev0);
 
 	status = sky2_read32(hw, B0_Y2_SP_LISR);
+
+	if (unlikely(status)) {
+		/* More work pending, try and keep going */
+		if (__netif_rx_schedule_prep(dev0)) {
+			__netif_rx_reschedule(dev0, work_done);
+			status = sky2_read32(hw, B0_Y2_SP_EISR);
+			local_irq_enable();
+			goto restart_poll;
+		}
+	}
+
+	local_irq_enable();
 	return 0;
 }
 
@@ -2153,8 +2181,6 @@ static irqreturn_t sky2_intr(int irq, void *dev_id, struct pt_regs *regs)
 	prefetch(&hw->st_le[hw->st_idx]);
 	if (likely(__netif_rx_schedule_prep(dev0)))
 		__netif_rx_schedule(dev0);
-	else
-		printk(KERN_DEBUG PFX "irq race detected\n");
 
 	return IRQ_HANDLED;
 }
@@ -2193,7 +2219,7 @@ static inline u32 sky2_clk2us(const struct sky2_hw *hw, u32 clk)
 }
 
 
-static int sky2_reset(struct sky2_hw *hw)
+static int __devinit sky2_reset(struct sky2_hw *hw)
 {
 	u16 status;
 	u8 t8, pmd_type;
@@ -3276,6 +3302,8 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 
 	sky2_write32(hw, B0_IMSK, Y2_IS_BASE);
 
+	setup_timer(&hw->idle_timer, sky2_idle, (unsigned long) dev);
+
 	pci_set_drvdata(pdev, hw);
 
 	return 0;
@@ -3311,13 +3339,15 @@ static void __devexit sky2_remove(struct pci_dev *pdev)
 	if (!hw)
 		return;
 
+	del_timer_sync(&hw->idle_timer);
+
+	sky2_write32(hw, B0_IMSK, 0);
 	dev0 = hw->dev[0];
 	dev1 = hw->dev[1];
 	if (dev1)
 		unregister_netdev(dev1);
 	unregister_netdev(dev0);
 
-	sky2_write32(hw, B0_IMSK, 0);
 	sky2_set_power_state(hw, PCI_D3hot);
 	sky2_write16(hw, B0_Y2LED, LED_STAT_OFF);
 	sky2_write8(hw, B0_CTST, CS_RST_SET);

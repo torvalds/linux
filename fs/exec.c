@@ -712,7 +712,7 @@ static int de_thread(struct task_struct *tsk)
 		attach_pid(current, PIDTYPE_PID,  current->pid);
 		attach_pid(current, PIDTYPE_PGID, current->signal->pgrp);
 		attach_pid(current, PIDTYPE_SID,  current->signal->session);
-		list_add_tail(&current->tasks, &init_task.tasks);
+		list_add_tail_rcu(&current->tasks, &init_task.tasks);
 
 		current->group_leader = current;
 		leader->group_leader = current;

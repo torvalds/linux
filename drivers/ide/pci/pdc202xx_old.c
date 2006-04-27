@@ -798,7 +798,6 @@ static ide_pci_device_t pdc202xx_chipsets[] __devinitdata = {
 		.autodma	= AUTODMA,
 		.bootable	= OFF_BOARD,
 		.extra		= 48,
-		.flags		= IDEPCI_FLAG_FORCE_PDC,
 	},{	/* 2 */
 		.name		= "PDC20263",
 		.init_setup	= init_setup_pdc202ata4,
@@ -819,7 +818,6 @@ static ide_pci_device_t pdc202xx_chipsets[] __devinitdata = {
 		.autodma	= AUTODMA,
 		.bootable	= OFF_BOARD,
 		.extra		= 48,
-		.flags		= IDEPCI_FLAG_FORCE_PDC,
 	},{	/* 4 */
 		.name		= "PDC20267",
 		.init_setup	= init_setup_pdc202xx,

@@ -186,7 +186,7 @@ good_area:
 		break;
 	      case VM_FAULT_SIGBUS:
 		/*
-		 * We hit a hared mapping outside of the file, or some
+		 * We hit a shared mapping outside of the file, or some
 		 * other thing happened to us that made us unable to
 		 * handle the page fault gracefully.
 		 */
