@@ -15,7 +15,7 @@ EXTRA_CFLAGS = -Idrivers/media/dvb/dvb-core/ -Idrivers/media/dvb/frontends/
 
 hostprogs-y	:= fdump
 
-ifdef CONFIG_DVB_AV7110_FIRMWARE
+ifeq (CONFIG_DVB_AV7110_FIRMWARE,y)
 $(obj)/av7110.o: $(obj)/fdump $(obj)/av7110_firm.h
 
 $(obj)/av7110_firm.h:
