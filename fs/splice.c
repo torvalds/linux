@@ -279,7 +279,7 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 	pgoff_t index, end_index;
 	loff_t isize;
 	size_t total_len;
-	int error;
+	int error, page_nr;
 	struct splice_pipe_desc spd = {
 		.pages = pages,
 		.partial = partial,
@@ -307,7 +307,56 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 	 */
 	error = 0;
 	total_len = 0;
-	for (spd.nr_pages = 0; spd.nr_pages < nr_pages; spd.nr_pages++, index++) {
+
+	/*
+	 * Lookup the (hopefully) full range of pages we need.
+	 */
+	spd.nr_pages = find_get_pages_contig(mapping, index, nr_pages, pages);
+
+	/*
+	 * If find_get_pages_contig() returned fewer pages than we needed,
+	 * allocate the rest.
+	 */
+	index += spd.nr_pages;
+	while (spd.nr_pages < nr_pages) {
+		/*
+		 * Page could be there, find_get_pages_contig() breaks on
+		 * the first hole.
+		 */
+		page = find_get_page(mapping, index);
+		if (!page) {
+			/*
+			 * page didn't exist, allocate one.
+			 */
+			page = page_cache_alloc_cold(mapping);
+			if (!page)
+				break;
+
+			error = add_to_page_cache_lru(page, mapping, index,
+					      mapping_gfp_mask(mapping));
+			if (unlikely(error)) {
+				page_cache_release(page);
+				break;
+			}
+			/*
+			 * add_to_page_cache() locks the page, unlock it
+			 * to avoid convoluting the logic below even more.
+			 */
+			unlock_page(page);
+		}
+
+		pages[spd.nr_pages++] = page;
+		index++;
+	}
+
+	/*
+	 * Now loop over the map and see if we need to start IO on any
+	 * pages, fill in the partial map, etc.
+	 */
+	index = *ppos >> PAGE_CACHE_SHIFT;
+	nr_pages = spd.nr_pages;
+	spd.nr_pages = 0;
+	for (page_nr = 0; page_nr < nr_pages; page_nr++) {
 		unsigned int this_len;
 
 		if (!len)
@@ -317,28 +366,7 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 		 * this_len is the max we'll use from this page
 		 */
 		this_len = min_t(unsigned long, len, PAGE_CACHE_SIZE - loff);
-find_page:
-		/*
-		 * lookup the page for this index
-		 */
-		page = find_get_page(mapping, index);
-		if (!page) {
-			/*
-			 * page didn't exist, allocate one
-			 */
-			page = page_cache_alloc_cold(mapping);
-			if (!page)
-				break;
-
-			error = add_to_page_cache_lru(page, mapping, index,
-						mapping_gfp_mask(mapping));
-			if (unlikely(error)) {
-				page_cache_release(page);
-				break;
-			}
-
-			goto readpage;
-		}
+		page = pages[page_nr];
 
 		/*
 		 * If the page isn't uptodate, we may need to start io on it
@@ -360,7 +388,6 @@ find_page:
 			 */
 			if (!page->mapping) {
 				unlock_page(page);
-				page_cache_release(page);
 				break;
 			}
 			/*
@@ -371,16 +398,20 @@ find_page:
 				goto fill_it;
 			}
 
-readpage:
 			/*
 			 * need to read in the page
 			 */
 			error = mapping->a_ops->readpage(in, page);
-
 			if (unlikely(error)) {
-				page_cache_release(page);
+				/*
+				 * We really should re-lookup the page here,
+				 * but it complicates things a lot. Instead
+				 * lets just do what we already stored, and
+				 * we'll get it the next time we are called.
+				 */
 				if (error == AOP_TRUNCATED_PAGE)
-					goto find_page;
+					error = 0;
+
 				break;
 			}
 
@@ -389,10 +420,8 @@ readpage:
 			 */
 			isize = i_size_read(mapping->host);
 			end_index = (isize - 1) >> PAGE_CACHE_SHIFT;
-			if (unlikely(!isize || index > end_index)) {
-				page_cache_release(page);
+			if (unlikely(!isize || index > end_index))
 				break;
-			}
 
 			/*
 			 * if this is the last page, see if we need to shrink
@@ -400,26 +429,32 @@ readpage:
 			 */
 			if (end_index == index) {
 				loff = PAGE_CACHE_SIZE - (isize & ~PAGE_CACHE_MASK);
-				if (total_len + loff > isize) {
-					page_cache_release(page);
+				if (total_len + loff > isize)
 					break;
-				}
 				/*
 				 * force quit after adding this page
 				 */
-				nr_pages = spd.nr_pages;
+				len = this_len;
 				this_len = min(this_len, loff);
 				loff = 0;
 			}
 		}
 fill_it:
-		pages[spd.nr_pages] = page;
-		partial[spd.nr_pages].offset = loff;
-		partial[spd.nr_pages].len = this_len;
+		partial[page_nr].offset = loff;
+		partial[page_nr].len = this_len;
 		len -= this_len;
 		total_len += this_len;
 		loff = 0;
+		spd.nr_pages++;
+		index++;
 	}
+
+	/*
+	 * Release any pages at the end, if we quit early. 'i' is how far
+	 * we got, 'nr_pages' is how many pages are in the map.
+	 */
+	while (page_nr < nr_pages)
+		page_cache_release(pages[page_nr++]);
 
 	if (spd.nr_pages)
 		return splice_to_pipe(pipe, &spd);
