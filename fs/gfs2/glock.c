@@ -1348,7 +1348,7 @@ void gfs2_glock_force_drop(struct gfs2_glock *gl)
 
 static void greedy_work(void *data)
 {
-	struct greedy *gr = (struct greedy *)data;
+	struct greedy *gr = data;
 	struct gfs2_holder *gh = &gr->gr_gh;
 	struct gfs2_glock *gl = gh->gh_gl;
 	struct gfs2_glock_operations *glops = gl->gl_ops;
@@ -1745,19 +1745,19 @@ void gfs2_glock_cb(lm_fsdata_t *fsdata, unsigned int type, void *data)
 
 	switch (type) {
 	case LM_CB_NEED_E:
-		blocking_cb(sdp, (struct lm_lockname *)data, LM_ST_UNLOCKED);
+		blocking_cb(sdp, data, LM_ST_UNLOCKED);
 		return;
 
 	case LM_CB_NEED_D:
-		blocking_cb(sdp, (struct lm_lockname *)data, LM_ST_DEFERRED);
+		blocking_cb(sdp, data, LM_ST_DEFERRED);
 		return;
 
 	case LM_CB_NEED_S:
-		blocking_cb(sdp, (struct lm_lockname *)data, LM_ST_SHARED);
+		blocking_cb(sdp, data, LM_ST_SHARED);
 		return;
 
 	case LM_CB_ASYNC: {
-		struct lm_async_cb *async = (struct lm_async_cb *)data;
+		struct lm_async_cb *async = data;
 		struct gfs2_glock *gl;
 
 		gl = gfs2_glock_find(sdp, &async->lc_name);
@@ -1766,7 +1766,6 @@ void gfs2_glock_cb(lm_fsdata_t *fsdata, unsigned int type, void *data)
 		if (!gfs2_assert_warn(sdp, gl->gl_req_bh))
 			gl->gl_req_bh(gl, async->lc_ret);
 		gfs2_glock_put(gl);
-
 		return;
 	}
 

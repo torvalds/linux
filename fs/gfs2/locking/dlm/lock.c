@@ -25,7 +25,7 @@ static void queue_complete(struct gdlm_lock *lp)
 
 static inline void gdlm_ast(void *astarg)
 {
-	queue_complete((struct gdlm_lock *) astarg);
+	queue_complete(astarg);
 }
 
 static inline void gdlm_bast(void *astarg, int mode)
@@ -257,7 +257,7 @@ unsigned int gdlm_do_lock(struct gdlm_lock *lp)
 		  lp->cur, lp->req, lp->lkf);
 
 	error = dlm_lock(ls->dlm_lockspace, lp->req, &lp->lksb, lp->lkf,
-			 str.name, str.namelen, 0, gdlm_ast, (void *) lp,
+			 str.name, str.namelen, 0, gdlm_ast, lp,
 			 bast ? gdlm_bast : NULL);
 
 	if ((error == -EAGAIN) && (lp->lkf & DLM_LKF_NOQUEUE)) {
