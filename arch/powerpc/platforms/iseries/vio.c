@@ -71,7 +71,7 @@ static struct vio_dev *__init vio_register_device_iseries(char *type,
 	return viodev;
 }
 
-void __init probe_bus_iseries(void)
+static void __init probe_bus_iseries(void)
 {
 	HvLpIndexMap vlan_map;
 	struct vio_dev *viodev;
