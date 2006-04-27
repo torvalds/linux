@@ -508,6 +508,7 @@ no_firmware:
 	err("%s: Unable to retrieve firmware version, try replugging\n", serial->type->description);
 	err("%s: If the firmware is not running (status led not blinking)\n", serial->type->description);
 	err("%s: please contact support@connecttech.com\n", serial->type->description);
+	kfree(result);
 	return -ENODEV;
 
 no_command_private:
