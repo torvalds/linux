@@ -251,7 +251,7 @@ static int audit_set_rate_limit(int limit, uid_t loginuid, u32 sid)
 			"audit_rate_limit=%d old=%d by auid=%u",
 			limit, old, loginuid);
 	audit_rate_limit = limit;
-	return old;
+	return 0;
 }
 
 static int audit_set_backlog_limit(int limit, uid_t loginuid, u32 sid)
@@ -274,7 +274,7 @@ static int audit_set_backlog_limit(int limit, uid_t loginuid, u32 sid)
 			"audit_backlog_limit=%d old=%d by auid=%u",
 			limit, old, loginuid);
 	audit_backlog_limit = limit;
-	return old;
+	return 0;
 }
 
 static int audit_set_enabled(int state, uid_t loginuid, u32 sid)
@@ -300,7 +300,7 @@ static int audit_set_enabled(int state, uid_t loginuid, u32 sid)
 			"audit_enabled=%d old=%d by auid=%u",
 			state, old, loginuid);
 	audit_enabled = state;
-	return old;
+	return 0;
 }
 
 static int audit_set_failure(int state, uid_t loginuid, u32 sid)
@@ -328,7 +328,7 @@ static int audit_set_failure(int state, uid_t loginuid, u32 sid)
 			"audit_failure=%d old=%d by auid=%u",
 			state, old, loginuid);
 	audit_failure = state;
-	return old;
+	return 0;
 }
 
 static int kauditd_thread(void *dummy)
@@ -364,7 +364,6 @@ static int kauditd_thread(void *dummy)
 			remove_wait_queue(&kauditd_wait, &wait);
 		}
 	}
-	return 0;
 }
 
 int audit_send_list(void *_dest)
@@ -551,10 +550,10 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 			audit_pid = status_get->pid;
 		}
 		if (status_get->mask & AUDIT_STATUS_RATE_LIMIT)
-			audit_set_rate_limit(status_get->rate_limit,
+			err = audit_set_rate_limit(status_get->rate_limit,
 							 loginuid, sid);
 		if (status_get->mask & AUDIT_STATUS_BACKLOG_LIMIT)
-			audit_set_backlog_limit(status_get->backlog_limit,
+			err = audit_set_backlog_limit(status_get->backlog_limit,
 							loginuid, sid);
 		break;
 	case AUDIT_USER:
@@ -727,10 +726,12 @@ static void audit_buffer_free(struct audit_buffer *ab)
 		kfree_skb(ab->skb);
 
 	spin_lock_irqsave(&audit_freelist_lock, flags);
-	if (++audit_freelist_count > AUDIT_MAXFREE)
+	if (audit_freelist_count > AUDIT_MAXFREE)
 		kfree(ab);
-	else
+	else {
+		audit_freelist_count++;
 		list_add(&ab->list, &audit_freelist);
+	}
 	spin_unlock_irqrestore(&audit_freelist_lock, flags);
 }
 
