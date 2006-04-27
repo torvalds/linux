@@ -34,7 +34,7 @@ extern struct dvb_pll_desc dvb_pll_unknown_1;
 extern struct dvb_pll_desc dvb_pll_tua6010xs;
 extern struct dvb_pll_desc dvb_pll_env57h1xd5;
 extern struct dvb_pll_desc dvb_pll_tua6034;
-extern struct dvb_pll_desc dvb_pll_tdvs_tua6034;
+extern struct dvb_pll_desc dvb_pll_lg_tdvs_h06xf;
 extern struct dvb_pll_desc dvb_pll_tda665x;
 extern struct dvb_pll_desc dvb_pll_fmd1216me;
 extern struct dvb_pll_desc dvb_pll_tded4;

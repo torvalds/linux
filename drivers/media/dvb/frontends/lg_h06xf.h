@@ -28,7 +28,7 @@ static int lg_h06xf_pll_set(struct dvb_frontend* fe, struct i2c_adapter* i2c_ada
 			       .buf = buf, .len = sizeof(buf) };
 	int err;
 
-	dvb_pll_configure(&dvb_pll_tdvs_tua6034, buf, params->frequency, 0);
+	dvb_pll_configure(&dvb_pll_lg_tdvs_h06xf, buf, params->frequency, 0);
 	if ((err = i2c_transfer(i2c_adap, &msg, 1)) != 1) {
 		printk(KERN_WARNING "lg_h06xf: %s error "
 			"(addr %02x <- %02x, err = %i)\n",
