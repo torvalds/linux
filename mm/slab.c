@@ -1036,7 +1036,7 @@ static inline void free_alien_cache(struct array_cache **ac_ptr)
 
 #endif
 
-static int __devinit cpuup_callback(struct notifier_block *nfb,
+static int cpuup_callback(struct notifier_block *nfb,
 				    unsigned long action, void *hcpu)
 {
 	long cpu = (long)hcpu;

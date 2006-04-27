@@ -547,7 +547,7 @@ static void take_over_work(struct workqueue_struct *wq, unsigned int cpu)
 }
 
 /* We're holding the cpucontrol mutex here */
-static int __devinit workqueue_cpu_callback(struct notifier_block *nfb,
+static int workqueue_cpu_callback(struct notifier_block *nfb,
 				  unsigned long action,
 				  void *hcpu)
 {
