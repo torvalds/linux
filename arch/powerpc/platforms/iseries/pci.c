@@ -37,13 +37,13 @@
 
 #include <asm/iseries/hv_call_xm.h>
 #include <asm/iseries/mf.h>
+#include <asm/iseries/iommu.h>
 
 #include <asm/ppc-pci.h>
 
 #include "irq.h"
 #include "pci.h"
 #include "call_pci.h"
-#include "iommu.h"
 
 /*
  * Forward declares of prototypes.

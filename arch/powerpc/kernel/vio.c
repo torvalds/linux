@@ -13,25 +13,102 @@
  *      2 of the License, or (at your option) any later version.
  */
 
+#include <linux/types.h>
+#include <linux/device.h>
 #include <linux/init.h>
 #include <linux/console.h>
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/dma-mapping.h>
+#include <linux/kobject.h>
+
 #include <asm/iommu.h>
 #include <asm/dma.h>
 #include <asm/vio.h>
 #include <asm/prom.h>
 #include <asm/firmware.h>
+#include <asm/tce.h>
+#include <asm/abs_addr.h>
+#include <asm/page.h>
+#include <asm/hvcall.h>
+#include <asm/iseries/vio.h>
+#include <asm/iseries/hv_types.h>
+#include <asm/iseries/hv_lp_config.h>
+#include <asm/iseries/hv_call_xm.h>
+#include <asm/iseries/iommu.h>
 
-struct vio_dev vio_bus_device  = { /* fake "parent" device */
+extern struct subsystem devices_subsys; /* needed for vio_find_name() */
+
+static struct vio_dev vio_bus_device  = { /* fake "parent" device */
 	.name = vio_bus_device.dev.bus_id,
 	.type = "",
 	.dev.bus_id = "vio",
 	.dev.bus = &vio_bus_type,
 };
 
-static struct vio_bus_ops vio_bus_ops;
+#ifdef CONFIG_PPC_ISERIES
+struct device *iSeries_vio_dev = &vio_bus_device.dev;
+EXPORT_SYMBOL(iSeries_vio_dev);
+
+static struct iommu_table veth_iommu_table;
+static struct iommu_table vio_iommu_table;
+
+static void __init iommu_vio_init(void)
+{
+	iommu_table_getparms_iSeries(255, 0, 0xff, &veth_iommu_table);
+	veth_iommu_table.it_size /= 2;
+	vio_iommu_table = veth_iommu_table;
+	vio_iommu_table.it_offset += veth_iommu_table.it_size;
+
+	if (!iommu_init_table(&veth_iommu_table))
+		printk("Virtual Bus VETH TCE table failed.\n");
+	if (!iommu_init_table(&vio_iommu_table))
+		printk("Virtual Bus VIO TCE table failed.\n");
+}
+#endif
+
+static struct iommu_table *vio_build_iommu_table(struct vio_dev *dev)
+{
+#ifdef CONFIG_PPC_ISERIES
+	if (firmware_has_feature(FW_FEATURE_ISERIES)) {
+		if (strcmp(dev->type, "vlan") == 0)
+			return &veth_iommu_table;
+		return &vio_iommu_table;
+	} else
+#endif
+	{
+		unsigned int *dma_window;
+		struct iommu_table *newTceTable;
+		unsigned long offset;
+		int dma_window_property_size;
+
+		dma_window = (unsigned int *)get_property(
+				dev->dev.platform_data, "ibm,my-dma-window",
+				&dma_window_property_size);
+		if (!dma_window)
+			return NULL;
+
+		newTceTable = kmalloc(sizeof(struct iommu_table), GFP_KERNEL);
+
+		/*
+		 * There should be some code to extract the phys-encoded
+		 * offset using prom_n_addr_cells(). However, according to
+		 * a comment on earlier versions, it's always zero, so we
+		 * don't bother
+		 */
+		offset = dma_window[1] >>  PAGE_SHIFT;
+
+		/* TCE table size - measured in tce entries */
+		newTceTable->it_size = dma_window[4] >> PAGE_SHIFT;
+		/* offset for VIO should always be 0 */
+		newTceTable->it_offset = offset;
+		newTceTable->it_busno = 0;
+		newTceTable->it_index = (unsigned long)dma_window[0];
+		newTceTable->it_type = TCE_VB;
+
+		return iommu_init_table(newTceTable);
+	}
+}
 
 /**
  * vio_match_device: - Tell if a VIO device has a matching
@@ -126,6 +203,16 @@ void vio_unregister_driver(struct vio_driver *viodrv)
 }
 EXPORT_SYMBOL(vio_unregister_driver);
 
+/* vio_dev refcount hit 0 */
+static void __devinit vio_dev_release(struct device *dev)
+{
+	if (dev->platform_data) {
+		/* XXX free TCE table */
+		of_node_put(dev->platform_data);
+	}
+	kfree(to_vio_dev(dev));
+}
+
 /**
  * vio_register_device_node: - Register a new vio device.
  * @of_node:	The OF node for this device.
@@ -185,10 +272,17 @@ struct vio_dev * __devinit vio_register_device_node(struct device_node *of_node)
 		if (unit_address != NULL)
 			viodev->unit_address = *unit_address;
 	}
-	viodev->iommu_table = vio_bus_ops.build_iommu_table(viodev);
+	viodev->iommu_table = vio_build_iommu_table(viodev);
+
+	/* init generic 'struct device' fields: */
+	viodev->dev.parent = &vio_bus_device.dev;
+	viodev->dev.bus = &vio_bus_type;
+	viodev->dev.release = vio_dev_release;
 
 	/* register with generic device framework */
-	if (vio_register_device(viodev) == NULL) {
+	if (device_register(&viodev->dev)) {
+		printk(KERN_ERR "%s: failed to register device %s\n",
+				__FUNCTION__, viodev->dev.bus_id);
 		/* XXX free TCE table */
 		kfree(viodev);
 		return NULL;
@@ -201,12 +295,18 @@ EXPORT_SYMBOL(vio_register_device_node);
 /**
  * vio_bus_init: - Initialize the virtual IO bus
  */
-int __init vio_bus_init(struct vio_bus_ops *ops)
+static int __init vio_bus_init(void)
 {
 	int err;
 	struct device_node *node_vroot;
 
-	vio_bus_ops = *ops;
+#ifdef CONFIG_PPC_ISERIES
+	if (firmware_has_feature(FW_FEATURE_ISERIES)) {
+		iommu_vio_init();
+		vio_bus_device.iommu_table = &vio_iommu_table;
+		iSeries_vio_dev = &vio_bus_device.dev;
+	}
+#endif
 
 	err = bus_register(&vio_bus_type);
 	if (err) {
@@ -243,16 +343,7 @@ int __init vio_bus_init(struct vio_bus_ops *ops)
 
 	return 0;
 }
-
-/* vio_dev refcount hit 0 */
-static void __devinit vio_dev_release(struct device *dev)
-{
-	if (dev->platform_data) {
-		/* XXX free TCE table */
-		of_node_put(dev->platform_data);
-	}
-	kfree(to_vio_dev(dev));
-}
+__initcall(vio_bus_init);
 
 static ssize_t name_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -273,23 +364,6 @@ static struct device_attribute vio_dev_attrs[] = {
 	__ATTR_RO(devspec),
 	__ATTR_NULL
 };
-
-struct vio_dev * __devinit vio_register_device(struct vio_dev *viodev)
-{
-	/* init generic 'struct device' fields: */
-	viodev->dev.parent = &vio_bus_device.dev;
-	viodev->dev.bus = &vio_bus_type;
-	viodev->dev.release = vio_dev_release;
-
-	/* register with generic device framework */
-	if (device_register(&viodev->dev)) {
-		printk(KERN_ERR "%s: failed to register device %s\n",
-				__FUNCTION__, viodev->dev.bus_id);
-		return NULL;
-	}
-
-	return viodev;
-}
 
 void __devinit vio_unregister_device(struct vio_dev *viodev)
 {
@@ -412,3 +486,59 @@ const void *vio_get_attribute(struct vio_dev *vdev, char *which, int *length)
 	return get_property(vdev->dev.platform_data, which, length);
 }
 EXPORT_SYMBOL(vio_get_attribute);
+
+#ifdef CONFIG_PPC_PSERIES
+/* vio_find_name() - internal because only vio.c knows how we formatted the
+ * kobject name
+ * XXX once vio_bus_type.devices is actually used as a kset in
+ * drivers/base/bus.c, this function should be removed in favor of
+ * "device_find(kobj_name, &vio_bus_type)"
+ */
+static struct vio_dev *vio_find_name(const char *kobj_name)
+{
+	struct kobject *found;
+
+	found = kset_find_obj(&devices_subsys.kset, kobj_name);
+	if (!found)
+		return NULL;
+
+	return to_vio_dev(container_of(found, struct device, kobj));
+}
+
+/**
+ * vio_find_node - find an already-registered vio_dev
+ * @vnode: device_node of the virtual device we're looking for
+ */
+struct vio_dev *vio_find_node(struct device_node *vnode)
+{
+	uint32_t *unit_address;
+	char kobj_name[BUS_ID_SIZE];
+
+	/* construct the kobject name from the device node */
+	unit_address = (uint32_t *)get_property(vnode, "reg", NULL);
+	if (!unit_address)
+		return NULL;
+	snprintf(kobj_name, BUS_ID_SIZE, "%x", *unit_address);
+
+	return vio_find_name(kobj_name);
+}
+EXPORT_SYMBOL(vio_find_node);
+
+int vio_enable_interrupts(struct vio_dev *dev)
+{
+	int rc = h_vio_signal(dev->unit_address, VIO_IRQ_ENABLE);
+	if (rc != H_SUCCESS)
+		printk(KERN_ERR "vio: Error 0x%x enabling interrupts\n", rc);
+	return rc;
+}
+EXPORT_SYMBOL(vio_enable_interrupts);
+
+int vio_disable_interrupts(struct vio_dev *dev)
+{
+	int rc = h_vio_signal(dev->unit_address, VIO_IRQ_DISABLE);
+	if (rc != H_SUCCESS)
+		printk(KERN_ERR "vio: Error 0x%x disabling interrupts\n", rc);
+	return rc;
+}
+EXPORT_SYMBOL(vio_disable_interrupts);
+#endif /* CONFIG_PPC_PSERIES */

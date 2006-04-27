@@ -64,21 +64,13 @@ struct vio_driver {
 	struct device_driver driver;
 };
 
-struct vio_bus_ops {
-	struct iommu_table *(*build_iommu_table)(struct vio_dev *dev);
-};
-
 extern struct dma_mapping_ops vio_dma_ops;
 extern struct bus_type vio_bus_type;
-extern struct vio_dev vio_bus_device;
 
 extern int vio_register_driver(struct vio_driver *drv);
 extern void vio_unregister_driver(struct vio_driver *drv);
 
-extern struct vio_dev * __devinit vio_register_device(struct vio_dev *viodev);
 extern void __devinit vio_unregister_device(struct vio_dev *dev);
-
-extern int vio_bus_init(struct vio_bus_ops *);
 
 struct device_node;
 

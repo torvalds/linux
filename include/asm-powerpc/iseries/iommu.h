@@ -1,5 +1,5 @@
-#ifndef _PLATFORMS_ISERIES_IOMMU_H
-#define _PLATFORMS_ISERIES_IOMMU_H
+#ifndef _ASM_POWERPC_ISERIES_IOMMU_H
+#define _ASM_POWERPC_ISERIES_IOMMU_H
 
 /*
  * Copyright (C) 2005  Stephen Rothwell, IBM Corporation
@@ -32,4 +32,4 @@ extern void iommu_table_getparms_iSeries(unsigned long busno,
 		unsigned char slotno, unsigned char virtbus,
 		struct iommu_table *tbl);
 
-#endif /* _PLATFORMS_ISERIES_IOMMU_H */
+#endif /* _ASM_POWERPC_ISERIES_IOMMU_H */
