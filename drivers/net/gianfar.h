@@ -656,43 +656,62 @@ struct gfar {
  * the buffer descriptor determines the actual condition.
  */
 struct gfar_private {
-	/* pointers to arrays of skbuffs for tx and rx */
+	/* Fields controlled by TX lock */
+	spinlock_t txlock;
+
+	/* Pointer to the array of skbuffs */
 	struct sk_buff ** tx_skbuff;
-	struct sk_buff ** rx_skbuff;
 
-	/* indices pointing to the next free sbk in skb arrays */
+	/* next free skb in the array */
 	u16 skb_curtx;
-	u16 skb_currx;
 
-	/* index of the first skb which hasn't been transmitted
-	 * yet. */
+	/* First skb in line to be transmitted */
 	u16 skb_dirtytx;
 
 	/* Configuration info for the coalescing features */
 	unsigned char txcoalescing;
 	unsigned short txcount;
 	unsigned short txtime;
+
+	/* Buffer descriptor pointers */
+	struct txbd8 *tx_bd_base;	/* First tx buffer descriptor */
+	struct txbd8 *cur_tx;	        /* Next free ring entry */
+	struct txbd8 *dirty_tx;		/* First buffer in line
+					   to be transmitted */
+	unsigned int tx_ring_size;
+
+	/* RX Locked fields */
+	spinlock_t rxlock;
+
+	/* skb array and index */
+	struct sk_buff ** rx_skbuff;
+	u16 skb_currx;
+
+	/* RX Coalescing values */
 	unsigned char rxcoalescing;
 	unsigned short rxcount;
 	unsigned short rxtime;
 
-	/* GFAR addresses */
-	struct rxbd8 *rx_bd_base;	/* Base addresses of Rx and Tx Buffers */
-	struct txbd8 *tx_bd_base;
+	struct rxbd8 *rx_bd_base;	/* First Rx buffers */
 	struct rxbd8 *cur_rx;           /* Next free rx ring entry */
-	struct txbd8 *cur_tx;	        /* Next free ring entry */
-	struct txbd8 *dirty_tx;		/* The Ring entry to be freed. */
-	struct gfar __iomem *regs;	/* Pointer to the GFAR memory mapped Registers */
-	u32 __iomem *hash_regs[16];
-	int hash_width;
-	struct net_device_stats stats; /* linux network statistics */
-	struct gfar_extra_stats extra_stats;
-	spinlock_t lock;
+
+	/* RX parameters */
+	unsigned int rx_ring_size;
 	unsigned int rx_buffer_size;
 	unsigned int rx_stash_size;
 	unsigned int rx_stash_index;
-	unsigned int tx_ring_size;
-	unsigned int rx_ring_size;
+
+	struct vlan_group *vlgrp;
+
+	/* Unprotected fields */
+	/* Pointer to the GFAR memory mapped Registers */
+	struct gfar __iomem *regs;
+
+	/* Hash registers and their width */
+	u32 __iomem *hash_regs[16];
+	int hash_width;
+
+	/* global parameters */
 	unsigned int fifo_threshold;
 	unsigned int fifo_starve;
 	unsigned int fifo_starve_off;
@@ -702,13 +721,15 @@ struct gfar_private {
 		extended_hash:1,
 		bd_stash_en:1;
 	unsigned short padding;
-	struct vlan_group *vlgrp;
-	/* Info structure initialized by board setup code */
+
 	unsigned int interruptTransmit;
 	unsigned int interruptReceive;
 	unsigned int interruptError;
+
+	/* info structure initialized by platform code */
 	struct gianfar_platform_data *einfo;
 
+	/* PHY stuff */
 	struct phy_device *phydev;
 	struct mii_bus *mii_bus;
 	int oldspeed;
@@ -716,6 +737,10 @@ struct gfar_private {
 	int oldlink;
 
 	uint32_t msg_enable;
+
+	/* Network Statistics */
+	struct net_device_stats stats;
+	struct gfar_extra_stats extra_stats;
 };
 
 static inline u32 gfar_read(volatile unsigned __iomem *addr)

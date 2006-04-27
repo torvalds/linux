@@ -59,6 +59,25 @@ static inline struct iommu_table *devnode_table(struct device *dev)
 }
 
 
+static inline unsigned long device_to_mask(struct device *hwdev)
+{
+	struct pci_dev *pdev;
+
+	if (!hwdev) {
+		pdev = ppc64_isabridge_dev;
+		if (!pdev) /* This is the best guess we can do */
+			return 0xfffffffful;
+	} else
+		pdev = to_pci_dev(hwdev);
+
+	if (pdev->dma_mask)
+		return pdev->dma_mask;
+
+	/* Assume devices without mask can take 32 bit addresses */
+	return 0xfffffffful;
+}
+
+
 /* Allocates a contiguous real buffer and creates mappings over it.
  * Returns the virtual address of the buffer and sets dma_handle
  * to the dma address (mapping) of the first page.
@@ -67,7 +86,7 @@ static void *pci_iommu_alloc_coherent(struct device *hwdev, size_t size,
 			   dma_addr_t *dma_handle, gfp_t flag)
 {
 	return iommu_alloc_coherent(devnode_table(hwdev), size, dma_handle,
-			flag);
+			device_to_mask(hwdev), flag);
 }
 
 static void pci_iommu_free_coherent(struct device *hwdev, size_t size,
@@ -85,7 +104,8 @@ static void pci_iommu_free_coherent(struct device *hwdev, size_t size,
 static dma_addr_t pci_iommu_map_single(struct device *hwdev, void *vaddr,
 		size_t size, enum dma_data_direction direction)
 {
-	return iommu_map_single(devnode_table(hwdev), vaddr, size, direction);
+	return iommu_map_single(devnode_table(hwdev), vaddr, size,
+			        device_to_mask(hwdev), direction);
 }
 
 
@@ -100,7 +120,7 @@ static int pci_iommu_map_sg(struct device *pdev, struct scatterlist *sglist,
 		int nelems, enum dma_data_direction direction)
 {
 	return iommu_map_sg(pdev, devnode_table(pdev), sglist,
-			nelems, direction);
+			nelems, device_to_mask(pdev), direction);
 }
 
 static void pci_iommu_unmap_sg(struct device *pdev, struct scatterlist *sglist,
@@ -112,7 +132,19 @@ static void pci_iommu_unmap_sg(struct device *pdev, struct scatterlist *sglist,
 /* We support DMA to/from any memory page via the iommu */
 static int pci_iommu_dma_supported(struct device *dev, u64 mask)
 {
-	return 1;
+	struct iommu_table *tbl = devnode_table(dev);
+
+	if (!tbl || tbl->it_offset > mask) {
+		printk(KERN_INFO "Warning: IOMMU table offset too big for device mask\n");
+		if (tbl)
+			printk(KERN_INFO "mask: 0x%08lx, table offset: 0x%08lx\n",
+				mask, tbl->it_offset);
+		else
+			printk(KERN_INFO "mask: 0x%08lx, table unavailable\n",
+				mask);
+		return 0;
+	} else
+		return 1;
 }
 
 void pci_iommu_init(void)

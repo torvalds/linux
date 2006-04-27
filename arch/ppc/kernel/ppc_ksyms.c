@@ -94,6 +94,7 @@ EXPORT_SYMBOL(strcat);
 EXPORT_SYMBOL(strlen);
 EXPORT_SYMBOL(strcmp);
 EXPORT_SYMBOL(strcasecmp);
+EXPORT_SYMBOL(strncasecmp);
 EXPORT_SYMBOL(__div64_32);
 
 EXPORT_SYMBOL(csum_partial);

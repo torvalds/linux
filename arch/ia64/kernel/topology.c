@@ -429,7 +429,7 @@ static int __cpuinit cache_remove_dev(struct sys_device * sys_dev)
  * When a cpu is hot-plugged, do a check and initiate
  * cache kobject if necessary
  */
-static int __cpuinit cache_cpu_callback(struct notifier_block *nfb,
+static int cache_cpu_callback(struct notifier_block *nfb,
 		unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned long)hcpu;

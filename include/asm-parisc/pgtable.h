@@ -59,16 +59,15 @@
 #define  ISTACK_SIZE  32768 /* Interrupt Stack Size */
 #define  ISTACK_ORDER 3
 
-/* This is the size of the initially mapped kernel memory (i.e. currently
- * 0 to 1<<23 == 8MB */
+/* This is the size of the initially mapped kernel memory */
 #ifdef CONFIG_64BIT
-#define KERNEL_INITIAL_ORDER	24
+#define KERNEL_INITIAL_ORDER	24	/* 0 to 1<<24 = 16MB */
 #else
-#define KERNEL_INITIAL_ORDER	23
+#define KERNEL_INITIAL_ORDER	23	/* 0 to 1<<23 = 8MB */
 #endif
 #define KERNEL_INITIAL_SIZE	(1 << KERNEL_INITIAL_ORDER)
 
-#ifdef CONFIG_64BIT
+#if defined(CONFIG_64BIT) && defined(CONFIG_PARISC_PAGE_SIZE_4KB)
 #define PT_NLEVELS	3
 #define PGD_ORDER	1 /* Number of pages per pgd */
 #define PMD_ORDER	1 /* Number of pages per pmd */
@@ -111,11 +110,15 @@
 #define MAX_ADDRBITS	(PGDIR_SHIFT + BITS_PER_PGD)
 #define MAX_ADDRESS	(1UL << MAX_ADDRBITS)
 
-#define SPACEID_SHIFT (MAX_ADDRBITS - 32)
+#define SPACEID_SHIFT	(MAX_ADDRBITS - 32)
 
 /* This calculates the number of initial pages we need for the initial
  * page tables */
-#define PT_INITIAL	(1 << (KERNEL_INITIAL_ORDER - PMD_SHIFT))
+#if (KERNEL_INITIAL_ORDER) >= (PMD_SHIFT)
+# define PT_INITIAL	(1 << (KERNEL_INITIAL_ORDER - PMD_SHIFT))
+#else
+# define PT_INITIAL	(1)  /* all initial PTEs fit into one page */
+#endif
 
 /*
  * pgd entries used up by user/kernel:
@@ -160,6 +163,10 @@ extern  void *vmalloc_start;
  * to zero */
 #define PTE_SHIFT	   	xlate_pabit(_PAGE_USER_BIT)
 
+/* PFN_PTE_SHIFT defines the shift of a PTE value to access the PFN field */
+#define PFN_PTE_SHIFT		12
+
+
 /* this is how many bits may be used by the file functions */
 #define PTE_FILE_MAX_BITS	(BITS_PER_LONG - PTE_SHIFT)
 
@@ -188,7 +195,8 @@ extern  void *vmalloc_start;
 /* The pgd/pmd contains a ptr (in phys addr space); since all pgds/pmds
  * are page-aligned, we don't care about the PAGE_OFFSET bits, except
  * for a few meta-information bits, so we shift the address to be
- * able to effectively address 40-bits of physical address space. */
+ * able to effectively address 40/42/44-bits of physical address space
+ * depending on 4k/16k/64k PAGE_SIZE */
 #define _PxD_PRESENT_BIT   31
 #define _PxD_ATTACHED_BIT  30
 #define _PxD_VALID_BIT     29
@@ -198,7 +206,7 @@ extern  void *vmalloc_start;
 #define PxD_FLAG_VALID    (1 << xlate_pabit(_PxD_VALID_BIT))
 #define PxD_FLAG_MASK     (0xf)
 #define PxD_FLAG_SHIFT    (4)
-#define PxD_VALUE_SHIFT   (8)
+#define PxD_VALUE_SHIFT   (8) /* (PAGE_SHIFT-PxD_FLAG_SHIFT) */
 
 #ifndef __ASSEMBLY__
 
@@ -246,6 +254,7 @@ extern  void *vmalloc_start;
 #define __S110  PAGE_RWX
 #define __S111  PAGE_RWX
 
+
 extern pgd_t swapper_pg_dir[]; /* declared in init_task.c */
 
 /* initial page tables for 0-8MB for kernel */
@@ -272,7 +281,7 @@ extern unsigned long *empty_zero_page;
 #define pgd_flag(x)	(pgd_val(x) & PxD_FLAG_MASK)
 #define pgd_address(x)	((unsigned long)(pgd_val(x) &~ PxD_FLAG_MASK) << PxD_VALUE_SHIFT)
 
-#ifdef CONFIG_64BIT
+#if PT_NLEVELS == 3
 /* The first entry of the permanent pmd is not there if it contains
  * the gateway marker */
 #define pmd_none(x)	(!pmd_val(x) || pmd_flag(x) == PxD_FLAG_ATTACHED)
@@ -282,7 +291,7 @@ extern unsigned long *empty_zero_page;
 #define pmd_bad(x)	(!(pmd_flag(x) & PxD_FLAG_VALID))
 #define pmd_present(x)	(pmd_flag(x) & PxD_FLAG_PRESENT)
 static inline void pmd_clear(pmd_t *pmd) {
-#ifdef CONFIG_64BIT
+#if PT_NLEVELS == 3
 	if (pmd_flag(*pmd) & PxD_FLAG_ATTACHED)
 		/* This is the entry pointing to the permanent pmd
 		 * attached to the pgd; cannot clear it */
@@ -303,7 +312,7 @@ static inline void pmd_clear(pmd_t *pmd) {
 #define pgd_bad(x)      (!(pgd_flag(x) & PxD_FLAG_VALID))
 #define pgd_present(x)  (pgd_flag(x) & PxD_FLAG_PRESENT)
 static inline void pgd_clear(pgd_t *pgd) {
-#ifdef CONFIG_64BIT
+#if PT_NLEVELS == 3
 	if(pgd_flag(*pgd) & PxD_FLAG_ATTACHED)
 		/* This is the permanent pmd attached to the pgd; cannot
 		 * free it */
@@ -351,7 +360,7 @@ extern inline pte_t pte_mkwrite(pte_t pte)	{ pte_val(pte) |= _PAGE_WRITE; return
 ({									\
 	pte_t __pte;							\
 									\
-	pte_val(__pte) = ((addr)+pgprot_val(pgprot));			\
+	pte_val(__pte) = ((((addr)>>PAGE_SHIFT)<<PFN_PTE_SHIFT) + pgprot_val(pgprot));	\
 									\
 	__pte;								\
 })
@@ -361,20 +370,16 @@ extern inline pte_t pte_mkwrite(pte_t pte)	{ pte_val(pte) |= _PAGE_WRITE; return
 static inline pte_t pfn_pte(unsigned long pfn, pgprot_t pgprot)
 {
 	pte_t pte;
-	pte_val(pte) = (pfn << PAGE_SHIFT) | pgprot_val(pgprot);
+	pte_val(pte) = (pfn << PFN_PTE_SHIFT) | pgprot_val(pgprot);
 	return pte;
 }
-
-/* This takes a physical page address that is used by the remapping functions */
-#define mk_pte_phys(physpage, pgprot) \
-({ pte_t __pte; pte_val(__pte) = physpage + pgprot_val(pgprot); __pte; })
 
 extern inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 { pte_val(pte) = (pte_val(pte) & _PAGE_CHG_MASK) | pgprot_val(newprot); return pte; }
 
 /* Permanent address of a page.  On parisc we don't have highmem. */
 
-#define pte_pfn(x) (pte_val(x) >> PAGE_SHIFT)
+#define pte_pfn(x)		(pte_val(x) >> PFN_PTE_SHIFT)
 
 #define pte_page(pte)		(pfn_to_page(pte_pfn(pte)))
 
@@ -498,6 +503,26 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, 
 #define pte_same(A,B)	(pte_val(A) == pte_val(B))
 
 #endif /* !__ASSEMBLY__ */
+
+
+/* TLB page size encoding - see table 3-1 in parisc20.pdf */
+#define _PAGE_SIZE_ENCODING_4K		0
+#define _PAGE_SIZE_ENCODING_16K	1
+#define _PAGE_SIZE_ENCODING_64K	2
+#define _PAGE_SIZE_ENCODING_256K	3
+#define _PAGE_SIZE_ENCODING_1M		4
+#define _PAGE_SIZE_ENCODING_4M		5
+#define _PAGE_SIZE_ENCODING_16M	6
+#define _PAGE_SIZE_ENCODING_64M	7
+
+#if defined(CONFIG_PARISC_PAGE_SIZE_4KB)
+# define _PAGE_SIZE_ENCODING_DEFAULT _PAGE_SIZE_ENCODING_4K
+#elif defined(CONFIG_PARISC_PAGE_SIZE_16KB)
+# define _PAGE_SIZE_ENCODING_DEFAULT _PAGE_SIZE_ENCODING_16K
+#elif defined(CONFIG_PARISC_PAGE_SIZE_64KB)
+# define _PAGE_SIZE_ENCODING_DEFAULT _PAGE_SIZE_ENCODING_64K
+#endif
+
 
 #define io_remap_pfn_range(vma, vaddr, pfn, size, prot)		\
 		remap_pfn_range(vma, vaddr, pfn, size, prot)

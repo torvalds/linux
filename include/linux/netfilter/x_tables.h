@@ -361,7 +361,11 @@ struct compat_xt_entry_target
 
 struct compat_xt_counters
 {
+#if defined(CONFIG_X86_64) || defined(CONFIG_IA64)
 	u_int32_t cnt[4];
+#else
+	u_int64_t cnt[2];
+#endif
 };
 
 struct compat_xt_counters_info

@@ -27,5 +27,5 @@ $(obj)/vsyscall-sysenter.so $(obj)/vsyscall-syscall.so: \
 $(obj)/vsyscall-%.so: $(src)/vsyscall.lds $(obj)/vsyscall-%.o FORCE
 	$(call if_changed,syscall)
 
-AFLAGS_vsyscall-sysenter.o = -m32
-AFLAGS_vsyscall-syscall.o = -m32
+AFLAGS_vsyscall-sysenter.o = -m32 -Wa,-32
+AFLAGS_vsyscall-syscall.o = -m32 -Wa,-32

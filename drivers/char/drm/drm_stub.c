@@ -229,8 +229,6 @@ int drm_get_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
 	return ret;
 }
 
-EXPORT_SYMBOL(drm_get_dev);
-
 /**
  * Put a device minor number.
  *

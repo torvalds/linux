@@ -780,8 +780,14 @@
 #define __NR_readlinkat		(__NR_Linux + 285)
 #define __NR_fchmodat		(__NR_Linux + 286)
 #define __NR_faccessat		(__NR_Linux + 287)
+#define __NR_unshare		(__NR_Linux + 288)
+#define __NR_set_robust_list	(__NR_Linux + 289)
+#define __NR_get_robust_list	(__NR_Linux + 290)
+#define __NR_splice		(__NR_Linux + 291)
+#define __NR_sync_file_range	(__NR_Linux + 292)
+#define __NR_tee		(__NR_Linux + 293)
 
-#define __NR_Linux_syscalls     288
+#define __NR_Linux_syscalls     294
 
 #define HPUX_GATEWAY_ADDR       0xC0000004
 #define LINUX_GATEWAY_ADDR      0x100
