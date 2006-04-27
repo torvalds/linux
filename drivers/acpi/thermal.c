@@ -1342,7 +1342,7 @@ static int acpi_thermal_add(struct acpi_device *device)
 
 	result = acpi_thermal_add_fs(device);
 	if (result)
-		return_VALUE(result);
+		goto end;
 
 	init_timer(&tz->timer);
 
