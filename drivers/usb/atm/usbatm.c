@@ -99,11 +99,11 @@ static const char usbatm_driver_name[] = "usbatm";
 
 #define UDSL_MAX_RCV_URBS		16
 #define UDSL_MAX_SND_URBS		16
-#define UDSL_MAX_BUF_SIZE		64 * 1024	/* bytes */
+#define UDSL_MAX_BUF_SIZE		65536
 #define UDSL_DEFAULT_RCV_URBS		4
 #define UDSL_DEFAULT_SND_URBS		4
-#define UDSL_DEFAULT_RCV_BUF_SIZE	64 * ATM_CELL_SIZE	/* bytes */
-#define UDSL_DEFAULT_SND_BUF_SIZE	64 * ATM_CELL_SIZE	/* bytes */
+#define UDSL_DEFAULT_RCV_BUF_SIZE	3392	/* 64 * ATM_CELL_SIZE */
+#define UDSL_DEFAULT_SND_BUF_SIZE	3392	/* 64 * ATM_CELL_SIZE */
 
 #define ATM_CELL_HEADER			(ATM_CELL_SIZE - ATM_CELL_PAYLOAD)
 
@@ -135,7 +135,7 @@ MODULE_PARM_DESC(rcv_buf_bytes,
 module_param(snd_buf_bytes, uint, S_IRUGO);
 MODULE_PARM_DESC(snd_buf_bytes,
 		 "Size of the buffers used for transmission, in bytes (range: 1-"
-		 __MODULE_STRING(UDSL_MAX_SND_BUF_SIZE) ", default: "
+		 __MODULE_STRING(UDSL_MAX_BUF_SIZE) ", default: "
 		 __MODULE_STRING(UDSL_DEFAULT_SND_BUF_SIZE) ")");
 
 
