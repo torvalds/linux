@@ -449,6 +449,8 @@ config PCI_DOMAINS
 	bool
 	default PCI
 
+source "drivers/pci/pcie/Kconfig"
+
 source "drivers/pci/Kconfig"
 
 source "drivers/pci/hotplug/Kconfig"
