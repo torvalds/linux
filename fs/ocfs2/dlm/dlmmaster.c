@@ -130,15 +130,30 @@ static inline int dlm_mle_equal(struct dlm_ctxt *dlm,
 #if 0
 /* Code here is included but defined out as it aids debugging */
 
+#define dlm_print_nodemap(m)  _dlm_print_nodemap(m,#m)
+void _dlm_print_nodemap(unsigned long *map, const char *mapname)
+{
+	int i;
+	printk("%s=[ ", mapname);
+	for (i=0; i<O2NM_MAX_NODES; i++)
+		if (test_bit(i, map))
+			printk("%d ", i);
+	printk("]");
+}
+
 void dlm_print_one_mle(struct dlm_master_list_entry *mle)
 {
-	int i = 0, refs;
+	int refs;
 	char *type;
 	char attached;
 	u8 master;
 	unsigned int namelen;
 	const char *name;
 	struct kref *k;
+	unsigned long *maybe = mle->maybe_map,
+		      *vote = mle->vote_map,
+		      *resp = mle->response_map,
+		      *node = mle->node_map;
 
 	k = &mle->mle_refs;
 	if (mle->type == DLM_MLE_BLOCK)
@@ -159,9 +174,18 @@ void dlm_print_one_mle(struct dlm_master_list_entry *mle)
 		name = mle->u.res->lockname.name;
 	}
 
-	mlog(ML_NOTICE, "  #%3d: %3s  %3d  %3u   %3u %c    (%d)%.*s\n",
-		  i, type, refs, master, mle->new_master, attached,
-		  namelen, namelen, name);
+	mlog(ML_NOTICE, "%.*s: %3s refs=%3d mas=%3u new=%3u evt=%c inuse=%d ",
+		  namelen, name, type, refs, master, mle->new_master, attached,
+		  mle->inuse);
+	dlm_print_nodemap(maybe);
+	printk(", ");
+	dlm_print_nodemap(vote);
+	printk(", ");
+	dlm_print_nodemap(resp);
+	printk(", ");
+	dlm_print_nodemap(node);
+	printk(", ");
+	printk("\n");
 }
 
 static void dlm_dump_mles(struct dlm_ctxt *dlm)
@@ -170,7 +194,6 @@ static void dlm_dump_mles(struct dlm_ctxt *dlm)
 	struct list_head *iter;
 	
 	mlog(ML_NOTICE, "dumping all mles for domain %s:\n", dlm->name);
-	mlog(ML_NOTICE, "  ####: type refs owner new events? lockname nodemap votemap respmap maybemap\n");
 	spin_lock(&dlm->master_lock);
 	list_for_each(iter, &dlm->master_list) {
 		mle = list_entry(iter, struct dlm_master_list_entry, list);
