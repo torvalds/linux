@@ -58,9 +58,11 @@ SECTIONS
   . = ALIGN(4096);
   .data.page_aligned : { *(.data.idt) }
 
-  . = ALIGN(32);
+  . = ALIGN(256);
   .data.cacheline_aligned : { *(.data.cacheline_aligned) }
 
+  . = ALIGN(256);
+  .data.read_mostly : { *(.data.read_mostly) }
   _edata = .;			/* End of data section */
 
   . = ALIGN(8192);		/* init_task */
