@@ -371,9 +371,14 @@ static void __dlm_put_mle(struct dlm_master_list_entry *mle)
 
 	assert_spin_locked(&dlm->spinlock);
 	assert_spin_locked(&dlm->master_lock);
-	BUG_ON(!atomic_read(&mle->mle_refs.refcount));
-
-	kref_put(&mle->mle_refs, dlm_mle_release);
+	if (!atomic_read(&mle->mle_refs.refcount)) {
+		/* this may or may not crash, but who cares.
+		 * it's a BUG. */
+		mlog(ML_ERROR, "bad mle: %p\n", mle);
+		dlm_print_one_mle(mle);
+		BUG();
+	} else
+		kref_put(&mle->mle_refs, dlm_mle_release);
 }
 
 
@@ -1008,6 +1013,12 @@ recheck:
 		     "rechecking now\n", dlm->name, res->lockname.len,
 		     res->lockname.name);
 		goto recheck;
+	} else {
+		if (!voting_done) {
+			mlog(0, "map not changed and voting not done "
+			     "for %s:%.*s\n", dlm->name, res->lockname.len,
+			     res->lockname.name);
+		}
 	}
 
 	if (m != O2NM_MAX_NODES) {
@@ -1691,7 +1702,7 @@ int dlm_assert_master_handler(struct o2net_msg *msg, u32 len, void *data)
 		if (bit >= O2NM_MAX_NODES) {
 			/* not necessarily an error, though less likely.
 			 * could be master just re-asserting. */
-			mlog(ML_ERROR, "no bits set in the maybe_map, but %u "
+			mlog(0, "no bits set in the maybe_map, but %u "
 			     "is asserting! (%.*s)\n", assert->node_idx,
 			     namelen, name);
 		} else if (bit != assert->node_idx) {
@@ -1703,7 +1714,7 @@ int dlm_assert_master_handler(struct o2net_msg *msg, u32 len, void *data)
 				 * number winning the mastery will respond
 				 * YES to mastery requests, but this node
 				 * had no way of knowing.  let it pass. */
-				mlog(ML_ERROR, "%u is the lowest node, "
+				mlog(0, "%u is the lowest node, "
 				     "%u is asserting. (%.*s)  %u must "
 				     "have begun after %u won.\n", bit,
 				     assert->node_idx, namelen, name, bit,
@@ -2268,8 +2279,8 @@ fail:
 			/* avoid hang during shutdown when migrating lockres 
 			 * to a node which also goes down */
 			if (dlm_is_node_dead(dlm, target)) {
-				mlog(0, "%s:%.*s: expected migration target %u "
-				     "is no longer up.  restarting.\n",
+				mlog(0, "%s:%.*s: expected migration "
+				     "target %u is no longer up, restarting\n",
 				     dlm->name, res->lockname.len,
 				     res->lockname.name, target);
 				ret = -ERESTARTSYS;
@@ -2790,8 +2801,8 @@ top:
 		spin_unlock(&mle->spinlock);
 		wake_up(&mle->wq);
 
-		mlog(0, "node %u died during migration from "
-		     "%u to %u!\n", dead_node,
+		mlog(0, "%s: node %u died during migration from "
+		     "%u to %u!\n", dlm->name, dead_node,
 		     mle->master, mle->new_master);
 		/* if there is a lockres associated with this
 	 	 * mle, find it and set its owner to UNKNOWN */
