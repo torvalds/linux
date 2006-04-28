@@ -313,7 +313,9 @@ static void __init synchronize_tsc_bp (void)
 			if (tsc_values[i] < avg)
 				realdelta = -realdelta;
 
-			printk(KERN_INFO "CPU#%d had %ld usecs TSC skew, fixed it up.\n", i, realdelta);
+			if (realdelta > 0)
+				printk(KERN_INFO "CPU#%d had %ld usecs TSC "
+					"skew, fixed it up.\n", i, realdelta);
 		}
 
 		sum += delta;
