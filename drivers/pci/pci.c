@@ -517,7 +517,12 @@ pci_enable_device_bars(struct pci_dev *dev, int bars)
 int
 pci_enable_device(struct pci_dev *dev)
 {
-	int err = pci_enable_device_bars(dev, (1 << PCI_NUM_RESOURCES) - 1);
+	int err;
+
+	if (dev->is_enabled)
+		return 0;
+
+	err = pci_enable_device_bars(dev, (1 << PCI_NUM_RESOURCES) - 1);
 	if (err)
 		return err;
 	pci_fixup_device(pci_fixup_enable, dev);
