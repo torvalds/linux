@@ -239,6 +239,52 @@ void dlm_complete_recovery_thread(struct dlm_ctxt *dlm)
  *
  */
 
+static void dlm_print_reco_node_status(struct dlm_ctxt *dlm)
+{
+	struct dlm_reco_node_data *ndata;
+	struct dlm_lock_resource *res;
+
+	mlog(ML_NOTICE, "%s(%d): recovery info, state=%s, dead=%u, master=%u\n",
+	     dlm->name, dlm->dlm_reco_thread_task->pid,
+	     dlm->reco.state & DLM_RECO_STATE_ACTIVE ? "ACTIVE" : "inactive",
+	     dlm->reco.dead_node, dlm->reco.new_master);
+
+	list_for_each_entry(ndata, &dlm->reco.node_data, list) {
+		char *st = "unknown";
+		switch (ndata->state) {
+			case DLM_RECO_NODE_DATA_INIT:
+				st = "init";
+				break;
+			case DLM_RECO_NODE_DATA_REQUESTING:
+				st = "requesting";
+				break;
+			case DLM_RECO_NODE_DATA_DEAD:
+				st = "dead";
+				break;
+			case DLM_RECO_NODE_DATA_RECEIVING:
+				st = "receiving";
+				break;
+			case DLM_RECO_NODE_DATA_REQUESTED:
+				st = "requested";
+				break;
+			case DLM_RECO_NODE_DATA_DONE:
+				st = "done";
+				break;
+			case DLM_RECO_NODE_DATA_FINALIZE_SENT:
+				st = "finalize-sent";
+				break;
+			default:
+				st = "bad";
+				break;
+		}
+		mlog(ML_NOTICE, "%s: reco state, node %u, state=%s\n",
+		     dlm->name, ndata->node_num, st);
+	}
+	list_for_each_entry(res, &dlm->reco.resources, recovering) {
+		mlog(ML_NOTICE, "%s: lockres %.*s on recovering list\n",
+		     dlm->name, res->lockname.len, res->lockname.name);
+	}
+}
 
 #define DLM_RECO_THREAD_TIMEOUT_MS (5 * 1000)
 
@@ -385,7 +431,8 @@ static int dlm_do_recovery(struct dlm_ctxt *dlm)
 		/* return to main thread loop and sleep. */
 		return 0;
 	}
-	mlog(0, "recovery thread found node %u in the recovery map!\n",
+	mlog(0, "%s(%d):recovery thread found node %u in the recovery map!\n",
+	     dlm->name, dlm->dlm_reco_thread_task->pid,
 	     dlm->reco.dead_node);
 	spin_unlock(&dlm->spinlock);
 
@@ -408,8 +455,8 @@ static int dlm_do_recovery(struct dlm_ctxt *dlm)
 		}
 		mlog(0, "another node will master this recovery session.\n");
 	}
-	mlog(0, "dlm=%s, new_master=%u, this node=%u, dead_node=%u\n",
-	     dlm->name, dlm->reco.new_master,
+	mlog(0, "dlm=%s (%d), new_master=%u, this node=%u, dead_node=%u\n",
+	     dlm->name, dlm->dlm_reco_thread_task->pid, dlm->reco.new_master,
 	     dlm->node_num, dlm->reco.dead_node);
 
 	/* it is safe to start everything back up here
@@ -421,7 +468,8 @@ static int dlm_do_recovery(struct dlm_ctxt *dlm)
 	return 0;
 
 master_here:
-	mlog(0, "mastering recovery of %s:%u here(this=%u)!\n",
+	mlog(0, "(%d) mastering recovery of %s:%u here(this=%u)!\n",
+	     dlm->dlm_reco_thread_task->pid,
 	     dlm->name, dlm->reco.dead_node, dlm->node_num);
 
 	status = dlm_remaster_locks(dlm, dlm->reco.dead_node);
@@ -563,11 +611,19 @@ static int dlm_remaster_locks(struct dlm_ctxt *dlm, u8 dead_node)
 					goto leave;
 				case DLM_RECO_NODE_DATA_RECEIVING:
 				case DLM_RECO_NODE_DATA_REQUESTED:
+					mlog(0, "%s: node %u still in state %s\n",
+					     dlm->name, ndata->node_num,
+					     ndata->state==DLM_RECO_NODE_DATA_RECEIVING ?
+					     "receiving" : "requested");
 					all_nodes_done = 0;
 					break;
 				case DLM_RECO_NODE_DATA_DONE:
+					mlog(0, "%s: node %u state is done\n",
+					     dlm->name, ndata->node_num);
 					break;
 				case DLM_RECO_NODE_DATA_FINALIZE_SENT:
+					mlog(0, "%s: node %u state is finalize\n",
+					     dlm->name, ndata->node_num);
 					break;
 			}
 		}
@@ -714,6 +770,7 @@ int dlm_request_all_locks_handler(struct o2net_msg *msg, u32 len, void *data)
 		mlog(ML_ERROR, "%s: node %u sent dead_node=%u, but local "
 		     "dead_node is %u\n", dlm->name, lr->node_idx,
 		     lr->dead_node, dlm->reco.dead_node);
+		dlm_print_reco_node_status(dlm);
 		/* this is a hack */
 		dlm_put(dlm);
 		return -ENOMEM;
@@ -764,6 +821,9 @@ static void dlm_request_all_locks_worker(struct dlm_work_item *item, void *data)
 	reco_master = item->u.ral.reco_master;
 	mres = (struct dlm_migratable_lockres *)data;
 
+	mlog(0, "%s: recovery worker started, dead=%u, master=%u\n",
+	     dlm->name, dead_node, reco_master);
+
 	if (dead_node != dlm->reco.dead_node ||
 	    reco_master != dlm->reco.new_master) {
 		/* show extra debug info if the recovery state is messed */
@@ -802,7 +862,9 @@ static void dlm_request_all_locks_worker(struct dlm_work_item *item, void *data)
 		ret = dlm_send_one_lockres(dlm, res, mres, reco_master,
 				   	DLM_MRES_RECOVERY);
 		if (ret < 0) {
-			mlog_errno(ret);
+			mlog(ML_ERROR, "%s: node %u went down while sending "
+			     "recovery state for dead node %u, ret=%d\n", dlm->name,
+			     reco_master, dead_node, ret);
 			skip_all_done = 1;
 			break;
 		}
@@ -816,7 +878,9 @@ static void dlm_request_all_locks_worker(struct dlm_work_item *item, void *data)
 	if (!skip_all_done) {
 		ret = dlm_send_all_done_msg(dlm, dead_node, reco_master);
 		if (ret < 0) {
-			mlog_errno(ret);
+			mlog(ML_ERROR, "%s: node %u went down while sending "
+			     "recovery all-done for dead node %u, ret=%d\n",
+			     dlm->name, reco_master, dead_node, ret);
 		}
 	}
 
@@ -865,7 +929,11 @@ int dlm_reco_data_done_handler(struct o2net_msg *msg, u32 len, void *data)
 	mlog(0, "got DATA DONE: dead_node=%u, reco.dead_node=%u, "
 	     "node_idx=%u, this node=%u\n", done->dead_node,
 	     dlm->reco.dead_node, done->node_idx, dlm->node_num);
-	BUG_ON(done->dead_node != dlm->reco.dead_node);
+
+	mlog_bug_on_msg((done->dead_node != dlm->reco.dead_node),
+			"Got DATA DONE: dead_node=%u, reco.dead_node=%u, "
+			"node_idx=%u, this node=%u\n", done->dead_node,
+			dlm->reco.dead_node, done->node_idx, dlm->node_num);
 
 	spin_lock(&dlm_reco_state_lock);
 	list_for_each(iter, &dlm->reco.node_data) {
@@ -2228,7 +2296,7 @@ static int dlm_send_begin_reco_message(struct dlm_ctxt *dlm, u8 dead_node)
 
 	mlog_entry("%u\n", dead_node);
 
-	mlog(0, "dead node is %u\n", dead_node);
+	mlog(0, "%s: dead node is %u\n", dlm->name, dead_node);
 
 	spin_lock(&dlm->spinlock);
 	dlm_node_iter_init(dlm->domain_map, &iter);
@@ -2301,8 +2369,9 @@ int dlm_begin_reco_handler(struct o2net_msg *msg, u32 len, void *data)
 	if (!dlm_grab(dlm))
 		return 0;
 
-	mlog(0, "node %u wants to recover node %u\n",
-		  br->node_idx, br->dead_node);
+	mlog(0, "%s: node %u wants to recover node %u (%u:%u)\n",
+	     dlm->name, br->node_idx, br->dead_node,
+	     dlm->reco.dead_node, dlm->reco.new_master);
 
 	dlm_fire_domain_eviction_callbacks(dlm, br->dead_node);
 
@@ -2344,6 +2413,11 @@ int dlm_begin_reco_handler(struct o2net_msg *msg, u32 len, void *data)
 	spin_unlock(&dlm->spinlock);
 
 	dlm_kick_recovery_thread(dlm);
+
+	mlog(0, "%s: recovery started by node %u, for %u (%u:%u)\n",
+	     dlm->name, br->node_idx, br->dead_node,
+	     dlm->reco.dead_node, dlm->reco.new_master);
+
 	dlm_put(dlm);
 	return 0;
 }
@@ -2401,8 +2475,9 @@ int dlm_finalize_reco_handler(struct o2net_msg *msg, u32 len, void *data)
 	if (!dlm_grab(dlm))
 		return 0;
 
-	mlog(0, "node %u finalizing recovery of node %u\n",
-	     fr->node_idx, fr->dead_node);
+	mlog(0, "%s: node %u finalizing recovery of node %u (%u:%u)\n",
+	     dlm->name, fr->node_idx, fr->dead_node,
+	     dlm->reco.dead_node, dlm->reco.new_master);
 
 	spin_lock(&dlm->spinlock);
 
@@ -2426,6 +2501,9 @@ int dlm_finalize_reco_handler(struct o2net_msg *msg, u32 len, void *data)
 	dlm_reset_recovery(dlm);
 
 	dlm_kick_recovery_thread(dlm);
+	mlog(0, "%s: recovery done, reco master was %u, dead now %u, master now %u\n",
+	     dlm->name, fr->node_idx, dlm->reco.dead_node, dlm->reco.new_master);
+
 	dlm_put(dlm);
 	return 0;
 }
