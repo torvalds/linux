@@ -1251,7 +1251,7 @@ int xfrm_policy_register_afinfo(struct xfrm_policy_afinfo *afinfo)
 		return -EINVAL;
 	if (unlikely(afinfo->family >= NPROTO))
 		return -EAFNOSUPPORT;
-	write_lock(&xfrm_policy_afinfo_lock);
+	write_lock_bh(&xfrm_policy_afinfo_lock);
 	if (unlikely(xfrm_policy_afinfo[afinfo->family] != NULL))
 		err = -ENOBUFS;
 	else {
@@ -1268,7 +1268,7 @@ int xfrm_policy_register_afinfo(struct xfrm_policy_afinfo *afinfo)
 			afinfo->garbage_collect = __xfrm_garbage_collect;
 		xfrm_policy_afinfo[afinfo->family] = afinfo;
 	}
-	write_unlock(&xfrm_policy_afinfo_lock);
+	write_unlock_bh(&xfrm_policy_afinfo_lock);
 	return err;
 }
 EXPORT_SYMBOL(xfrm_policy_register_afinfo);
@@ -1280,7 +1280,7 @@ int xfrm_policy_unregister_afinfo(struct xfrm_policy_afinfo *afinfo)
 		return -EINVAL;
 	if (unlikely(afinfo->family >= NPROTO))
 		return -EAFNOSUPPORT;
-	write_lock(&xfrm_policy_afinfo_lock);
+	write_lock_bh(&xfrm_policy_afinfo_lock);
 	if (likely(xfrm_policy_afinfo[afinfo->family] != NULL)) {
 		if (unlikely(xfrm_policy_afinfo[afinfo->family] != afinfo))
 			err = -EINVAL;
@@ -1294,7 +1294,7 @@ int xfrm_policy_unregister_afinfo(struct xfrm_policy_afinfo *afinfo)
 			afinfo->garbage_collect = NULL;
 		}
 	}
-	write_unlock(&xfrm_policy_afinfo_lock);
+	write_unlock_bh(&xfrm_policy_afinfo_lock);
 	return err;
 }
 EXPORT_SYMBOL(xfrm_policy_unregister_afinfo);
