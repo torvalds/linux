@@ -39,6 +39,8 @@
 
 static int major = CONFIG_SND_MAJOR;
 int snd_major;
+EXPORT_SYMBOL(snd_major);
+
 static int cards_limit = 1;
 static int device_mode = S_IFCHR | S_IRUGO | S_IWUGO;
 
@@ -60,6 +62,7 @@ MODULE_ALIAS_CHARDEV_MAJOR(CONFIG_SND_MAJOR);
  * modules are loaded manually, this limit number increases, too.
  */
 int snd_ecards_limit;
+EXPORT_SYMBOL(snd_ecards_limit);
 
 static struct snd_minor *snd_minors[SNDRV_OS_MINORS];
 static DEFINE_MUTEX(sound_mutex);
@@ -91,6 +94,8 @@ void snd_request_card(int card)
 		return;
 	request_module("snd-card-%i", card);
 }
+
+EXPORT_SYMBOL(snd_request_card);
 
 static void snd_request_other(int minor)
 {
@@ -132,6 +137,8 @@ void *snd_lookup_minor_data(unsigned int minor, int type)
 	mutex_unlock(&sound_mutex);
 	return private_data;
 }
+
+EXPORT_SYMBOL(snd_lookup_minor_data);
 
 static int snd_open(struct inode *inode, struct file *file)
 {
@@ -281,6 +288,8 @@ int snd_register_device(int type, struct snd_card *card, int dev,
 	return 0;
 }
 
+EXPORT_SYMBOL(snd_register_device);
+
 /**
  * snd_unregister_device - unregister the device on the given card
  * @type: the device type, SNDRV_DEVICE_TYPE_XXX
@@ -320,6 +329,8 @@ int snd_unregister_device(int type, struct snd_card *card, int dev)
 	kfree(mptr);
 	return 0;
 }
+
+EXPORT_SYMBOL(snd_unregister_device);
 
 #ifdef CONFIG_PROC_FS
 /*
@@ -446,91 +457,3 @@ static void __exit alsa_sound_exit(void)
 
 module_init(alsa_sound_init)
 module_exit(alsa_sound_exit)
-
-  /* sound.c */
-EXPORT_SYMBOL(snd_major);
-EXPORT_SYMBOL(snd_ecards_limit);
-#if defined(CONFIG_KMOD)
-EXPORT_SYMBOL(snd_request_card);
-#endif
-EXPORT_SYMBOL(snd_register_device);
-EXPORT_SYMBOL(snd_unregister_device);
-EXPORT_SYMBOL(snd_lookup_minor_data);
-#if defined(CONFIG_SND_OSSEMUL)
-EXPORT_SYMBOL(snd_register_oss_device);
-EXPORT_SYMBOL(snd_unregister_oss_device);
-EXPORT_SYMBOL(snd_lookup_oss_minor_data);
-#endif
-  /* memory.c */
-EXPORT_SYMBOL(copy_to_user_fromio);
-EXPORT_SYMBOL(copy_from_user_toio);
-  /* init.c */
-EXPORT_SYMBOL(snd_cards);
-#if defined(CONFIG_SND_MIXER_OSS) || defined(CONFIG_SND_MIXER_OSS_MODULE)
-EXPORT_SYMBOL(snd_mixer_oss_notify_callback);
-#endif
-EXPORT_SYMBOL(snd_card_new);
-EXPORT_SYMBOL(snd_card_disconnect);
-EXPORT_SYMBOL(snd_card_free);
-EXPORT_SYMBOL(snd_card_free_in_thread);
-EXPORT_SYMBOL(snd_card_register);
-EXPORT_SYMBOL(snd_component_add);
-EXPORT_SYMBOL(snd_card_file_add);
-EXPORT_SYMBOL(snd_card_file_remove);
-#ifdef CONFIG_PM
-EXPORT_SYMBOL(snd_power_wait);
-#endif
-  /* device.c */
-EXPORT_SYMBOL(snd_device_new);
-EXPORT_SYMBOL(snd_device_register);
-EXPORT_SYMBOL(snd_device_free);
-  /* isadma.c */
-#ifdef CONFIG_ISA_DMA_API
-EXPORT_SYMBOL(snd_dma_program);
-EXPORT_SYMBOL(snd_dma_disable);
-EXPORT_SYMBOL(snd_dma_pointer);
-#endif
-  /* info.c */
-#ifdef CONFIG_PROC_FS
-EXPORT_SYMBOL(snd_seq_root);
-EXPORT_SYMBOL(snd_iprintf);
-EXPORT_SYMBOL(snd_info_get_line);
-EXPORT_SYMBOL(snd_info_get_str);
-EXPORT_SYMBOL(snd_info_create_module_entry);
-EXPORT_SYMBOL(snd_info_create_card_entry);
-EXPORT_SYMBOL(snd_info_free_entry);
-EXPORT_SYMBOL(snd_info_register);
-EXPORT_SYMBOL(snd_info_unregister);
-EXPORT_SYMBOL(snd_card_proc_new);
-#endif
-  /* info_oss.c */
-#if defined(CONFIG_SND_OSSEMUL) && defined(CONFIG_PROC_FS)
-EXPORT_SYMBOL(snd_oss_info_register);
-#endif
-  /* control.c */
-EXPORT_SYMBOL(snd_ctl_new);
-EXPORT_SYMBOL(snd_ctl_new1);
-EXPORT_SYMBOL(snd_ctl_free_one);
-EXPORT_SYMBOL(snd_ctl_add);
-EXPORT_SYMBOL(snd_ctl_remove);
-EXPORT_SYMBOL(snd_ctl_remove_id);
-EXPORT_SYMBOL(snd_ctl_rename_id);
-EXPORT_SYMBOL(snd_ctl_find_numid);
-EXPORT_SYMBOL(snd_ctl_find_id);
-EXPORT_SYMBOL(snd_ctl_notify);
-EXPORT_SYMBOL(snd_ctl_register_ioctl);
-EXPORT_SYMBOL(snd_ctl_unregister_ioctl);
-#ifdef CONFIG_COMPAT
-EXPORT_SYMBOL(snd_ctl_register_ioctl_compat);
-EXPORT_SYMBOL(snd_ctl_unregister_ioctl_compat);
-#endif
-EXPORT_SYMBOL(snd_ctl_elem_read);
-EXPORT_SYMBOL(snd_ctl_elem_write);
-  /* misc.c */
-EXPORT_SYMBOL(release_and_free_resource);
-#ifdef CONFIG_SND_VERBOSE_PRINTK
-EXPORT_SYMBOL(snd_verbose_printk);
-#endif
-#if defined(CONFIG_SND_DEBUG) && defined(CONFIG_SND_VERBOSE_PRINTK)
-EXPORT_SYMBOL(snd_verbose_printd);
-#endif
