@@ -1710,6 +1710,23 @@ int dlm_assert_master_handler(struct o2net_msg *msg, u32 len, void *data)
 				     assert->node_idx);
 			}
 		}
+		if (mle->type == DLM_MLE_MIGRATION) {
+			if (flags & DLM_ASSERT_MASTER_MLE_CLEANUP) {
+				mlog(0, "%s:%.*s: got cleanup assert"
+				     " from %u for migration\n",
+				     dlm->name, namelen, name,
+				     assert->node_idx);
+			} else if (!(flags & DLM_ASSERT_MASTER_FINISH_MIGRATION)) {
+				mlog(0, "%s:%.*s: got unrelated assert"
+				     " from %u for migration, ignoring\n",
+				     dlm->name, namelen, name,
+				     assert->node_idx);
+				__dlm_put_mle(mle);
+				spin_unlock(&dlm->master_lock);
+				spin_unlock(&dlm->spinlock);
+				goto done;
+			}	
+		}
 	}
 	spin_unlock(&dlm->master_lock);
 
