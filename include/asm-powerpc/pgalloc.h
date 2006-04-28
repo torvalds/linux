@@ -17,11 +17,13 @@ extern kmem_cache_t *pgtable_cache[];
 #define PTE_CACHE_NUM	0
 #define PMD_CACHE_NUM	1
 #define PGD_CACHE_NUM	2
+#define HUGEPTE_CACHE_NUM 3
 #else
 #define PTE_CACHE_NUM	0
 #define PMD_CACHE_NUM	1
 #define PUD_CACHE_NUM	1
 #define PGD_CACHE_NUM	0
+#define HUGEPTE_CACHE_NUM 2
 #endif
 
 /*

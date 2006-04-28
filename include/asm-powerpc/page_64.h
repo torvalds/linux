@@ -101,6 +101,7 @@ extern unsigned int HPAGE_SHIFT;
 		                      - (1U << GET_HTLB_AREA(addr))) & 0xffff)
 
 #define ARCH_HAS_HUGEPAGE_ONLY_RANGE
+#define ARCH_HAS_HUGETLB_FREE_PGD_RANGE
 #define ARCH_HAS_PREPARE_HUGEPAGE_RANGE
 #define ARCH_HAS_SETCLEAR_HUGE_PTE
 
