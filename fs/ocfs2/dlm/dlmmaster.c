@@ -1741,7 +1741,8 @@ int dlm_assert_master_handler(struct o2net_msg *msg, u32 len, void *data)
 			goto kill;
 		}
 		if (!mle) {
-			if (res->owner != assert->node_idx) {
+			if (res->owner != DLM_LOCK_RES_OWNER_UNKNOWN &&
+			    res->owner != assert->node_idx) {
 				mlog(ML_ERROR, "assert_master from "
 					  "%u, but current owner is "
 					  "%u! (%.*s)\n",
