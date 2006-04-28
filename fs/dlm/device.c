@@ -626,7 +626,7 @@ static int do_user_remove_lockspace(struct file_info *fi, uint8_t cmd,
 	}
 
 	if (kparams->flags & DLM_USER_LSFLG_FORCEFREE)
-		force = 2;
+		force = 3;
 
 	status = unregister_lockspace(lsinfo, force);
 	mutex_unlock(&user_ls_lock);
