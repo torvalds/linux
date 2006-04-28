@@ -636,10 +636,95 @@ static void __init early_cmdline_parse(void)
 
 #ifdef CONFIG_PPC_PSERIES
 /*
- * To tell the firmware what our capabilities are, we have to pass
- * it a fake 32-bit ELF header containing a couple of PT_NOTE sections
- * that contain structures that contain the actual values.
+ * There are two methods for telling firmware what our capabilities are.
+ * Newer machines have an "ibm,client-architecture-support" method on the
+ * root node.  For older machines, we have to call the "process-elf-header"
+ * method in the /packages/elf-loader node, passing it a fake 32-bit
+ * ELF header containing a couple of PT_NOTE sections that contain
+ * structures that contain various information.
  */
+
+/*
+ * New method - extensible architecture description vector.
+ *
+ * Because the description vector contains a mix of byte and word
+ * values, we declare it as an unsigned char array, and use this
+ * macro to put word values in.
+ */
+#define W(x)	((x) >> 24) & 0xff, ((x) >> 16) & 0xff, \
+		((x) >> 8) & 0xff, (x) & 0xff
+
+/* Option vector bits - generic bits in byte 1 */
+#define OV_IGNORE		0x80	/* ignore this vector */
+#define OV_CESSATION_POLICY	0x40	/* halt if unsupported option present*/
+
+/* Option vector 1: processor architectures supported */
+#define OV1_PPC_2_00		0x80	/* set if we support PowerPC 2.00 */
+#define OV1_PPC_2_01		0x40	/* set if we support PowerPC 2.01 */
+#define OV1_PPC_2_02		0x20	/* set if we support PowerPC 2.02 */
+#define OV1_PPC_2_03		0x10	/* set if we support PowerPC 2.03 */
+#define OV1_PPC_2_04		0x08	/* set if we support PowerPC 2.04 */
+#define OV1_PPC_2_05		0x04	/* set if we support PowerPC 2.05 */
+
+/* Option vector 2: Open Firmware options supported */
+#define OV2_REAL_MODE		0x20	/* set if we want OF in real mode */
+
+/* Option vector 3: processor options supported */
+#define OV3_FP			0x80	/* floating point */
+#define OV3_VMX			0x40	/* VMX/Altivec */
+
+/* Option vector 5: PAPR/OF options supported */
+#define OV5_LPAR		0x80	/* logical partitioning supported */
+#define OV5_SPLPAR		0x40	/* shared-processor LPAR supported */
+/* ibm,dynamic-reconfiguration-memory property supported */
+#define OV5_DRCONF_MEMORY	0x20
+#define OV5_LARGE_PAGES		0x10	/* large pages supported */
+
+/*
+ * The architecture vector has an array of PVR mask/value pairs,
+ * followed by # option vectors - 1, followed by the option vectors.
+ */
+static unsigned char ibm_architecture_vec[] = {
+	W(0xfffe0000), W(0x003a0000),	/* POWER5/POWER5+ */
+	W(0xfffffffe), W(0x0f000001),	/* all 2.04-compliant and earlier */
+	5 - 1,				/* 5 option vectors */
+
+	/* option vector 1: processor architectures supported */
+	3 - 1,				/* length */
+	0,				/* don't ignore, don't halt */
+	OV1_PPC_2_00 | OV1_PPC_2_01 | OV1_PPC_2_02 | OV1_PPC_2_03 |
+	OV1_PPC_2_04 | OV1_PPC_2_05,
+
+	/* option vector 2: Open Firmware options supported */
+	34 - 1,				/* length */
+	OV2_REAL_MODE,
+	0, 0,
+	W(0xffffffff),			/* real_base */
+	W(0xffffffff),			/* real_size */
+	W(0xffffffff),			/* virt_base */
+	W(0xffffffff),			/* virt_size */
+	W(0xffffffff),			/* load_base */
+	W(64),				/* 128MB min RMA */
+	W(0xffffffff),			/* full client load */
+	0,				/* min RMA percentage of total RAM */
+	48,				/* max log_2(hash table size) */
+
+	/* option vector 3: processor options supported */
+	3 - 1,				/* length */
+	0,				/* don't ignore, don't halt */
+	OV3_FP | OV3_VMX,
+
+	/* option vector 4: IBM PAPR implementation */
+	2 - 1,				/* length */
+	0,				/* don't halt */
+
+	/* option vector 5: PAPR/OF options */
+	3 - 1,				/* length */
+	0,				/* don't ignore, don't halt */
+	OV5_LPAR | OV5_SPLPAR | OV5_LARGE_PAGES,
+};
+
+/* Old method - ELF header with PT_NOTE sections */
 static struct fake_elf {
 	Elf32_Ehdr	elfhdr;
 	Elf32_Phdr	phdr[2];
@@ -728,8 +813,26 @@ static struct fake_elf {
 
 static void __init prom_send_capabilities(void)
 {
-	ihandle elfloader;
+	ihandle elfloader, root;
+	prom_arg_t ret;
 
+	root = call_prom("open", 1, 1, ADDR("/"));
+	if (root != 0) {
+		/* try calling the ibm,client-architecture-support method */
+		if (call_prom_ret("call-method", 3, 2, &ret,
+				  ADDR("ibm,client-architecture-support"),
+				  ADDR(ibm_architecture_vec)) == 0) {
+			/* the call exists... */
+			if (ret)
+				prom_printf("WARNING: ibm,client-architecture"
+					    "-support call FAILED!\n");
+			call_prom("close", 1, 0, root);
+			return;
+		}
+		call_prom("close", 1, 0, root);
+	}
+
+	/* no ibm,client-architecture-support call, try the old way */
 	elfloader = call_prom("open", 1, 1, ADDR("/packages/elf-loader"));
 	if (elfloader == 0) {
 		prom_printf("couldn't open /packages/elf-loader\n");
