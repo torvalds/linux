@@ -267,7 +267,7 @@ int dlm_is_node_dead(struct dlm_ctxt *dlm, u8 node)
 {
 	int dead;
 	spin_lock(&dlm->spinlock);
-	dead = test_bit(node, dlm->domain_map);
+	dead = !test_bit(node, dlm->domain_map);
 	spin_unlock(&dlm->spinlock);
 	return dead;
 }
