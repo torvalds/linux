@@ -15,7 +15,6 @@
 #include "member.h"
 #include "recoverd.h"
 #include "recover.h"
-#include "lowcomms.h"
 #include "rcom.h"
 #include "config.h"
 

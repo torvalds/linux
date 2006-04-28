@@ -18,6 +18,7 @@ int dlm_lowcomms_init(void);
 void dlm_lowcomms_exit(void);
 int dlm_lowcomms_start(void);
 void dlm_lowcomms_stop(void);
+int dlm_lowcomms_close(int nodeid);
 void *dlm_lowcomms_get_buffer(int nodeid, int len, int allocation, char **ppc);
 void dlm_lowcomms_commit_buffer(void *mh);
 

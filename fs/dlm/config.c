@@ -17,6 +17,7 @@
 #include <net/sock.h>
 
 #include "config.h"
+#include "lowcomms.h"
 
 /*
  * /config/dlm/<cluster>/spaces/<space>/nodes/<node>/nodeid
@@ -429,6 +430,7 @@ static void drop_comm(struct config_group *g, struct config_item *i)
 	struct comm *cm = to_comm(i);
 	if (local_comm == cm)
 		local_comm = NULL;
+	dlm_lowcomms_close(cm->nodeid);
 	while (cm->addr_count--)
 		kfree(cm->addr[cm->addr_count]);
 	config_item_put(i);

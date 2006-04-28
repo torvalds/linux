@@ -1063,6 +1063,27 @@ static void dealloc_nodeinfo(void)
 	}
 }
 
+int dlm_lowcomms_close(int nodeid)
+{
+	struct nodeinfo *ni;
+
+	ni = nodeid2nodeinfo(nodeid, 0);
+	if (!ni)
+		return -1;
+
+	spin_lock(&ni->lock);
+	if (ni->assoc_id) {
+		ni->assoc_id = 0;
+		/* Don't send shutdown here, sctp will just queue it
+		   till the node comes back up! */
+	}
+	spin_unlock(&ni->lock);
+
+	clean_one_writequeue(ni);
+	clear_bit(NI_INIT_PENDING, &ni->flags);
+	return 0;
+}
+
 static int write_list_empty(void)
 {
 	int status;
