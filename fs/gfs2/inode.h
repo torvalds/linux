@@ -39,7 +39,7 @@ int gfs2_inode_get(struct gfs2_glock *i_gl,
 		   struct gfs2_inode **ipp);
 void gfs2_inode_hold(struct gfs2_inode *ip);
 void gfs2_inode_put(struct gfs2_inode *ip);
-void gfs2_inode_destroy(struct gfs2_inode *ip);
+void gfs2_inode_destroy(struct gfs2_inode *ip, int unlock);
 
 int gfs2_inode_dealloc(struct gfs2_sbd *sdp, struct gfs2_unlinked *ul);
 

@@ -1814,7 +1814,7 @@ void gfs2_try_toss_inode(struct gfs2_sbd *sdp, struct gfs2_inum *inum)
 	if (atomic_read(&ip->i_count))
 		goto out_unlock;
 
-	gfs2_inode_destroy(ip);
+	gfs2_inode_destroy(ip, 1);
 
  out_unlock:
 	gfs2_glmutex_unlock(gl);
@@ -1940,7 +1940,7 @@ void gfs2_reclaim_glock(struct gfs2_sbd *sdp)
 		if (gl->gl_ops == &gfs2_inode_glops) {
 			struct gfs2_inode *ip = gl->gl_object;
 			if (ip && !atomic_read(&ip->i_count))
-				gfs2_inode_destroy(ip);
+				gfs2_inode_destroy(ip, 1);
 		}
 		if (queue_empty(gl, &gl->gl_holders) &&
 		    gl->gl_state != LM_ST_UNLOCKED &&
@@ -2083,7 +2083,7 @@ static void clear_glock(struct gfs2_glock *gl)
 		if (gl->gl_ops == &gfs2_inode_glops) {
 			struct gfs2_inode *ip = gl->gl_object;
 			if (ip && !atomic_read(&ip->i_count))
-				gfs2_inode_destroy(ip);
+				gfs2_inode_destroy(ip, 1);
 		}
 		if (queue_empty(gl, &gl->gl_holders) &&
 		    gl->gl_state != LM_ST_UNLOCKED)
