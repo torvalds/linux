@@ -1633,6 +1633,8 @@ again:
 	dlm_node_iter_init(nodemap, &iter);
 	while ((to = dlm_node_iter_next(&iter)) >= 0) {
 		int r = 0;
+		struct dlm_master_list_entry *mle = NULL;
+
 		mlog(0, "sending assert master to %d (%.*s)\n", to,
 		     namelen, lockname);
 		memset(&assert, 0, sizeof(assert));
@@ -1657,7 +1659,15 @@ again:
 			/* ok, something horribly messed.  kill thyself. */
 			mlog(ML_ERROR,"during assert master of %.*s to %u, "
 			     "got %d.\n", namelen, lockname, to, r);
-			dlm_dump_lock_resources(dlm);
+			spin_lock(&dlm->spinlock);
+			spin_lock(&dlm->master_lock);
+			if (dlm_find_mle(dlm, &mle, (char *)lockname,
+					 namelen)) {
+				dlm_print_one_mle(mle);
+				__dlm_put_mle(mle);
+			}
+			spin_unlock(&dlm->master_lock);
+			spin_unlock(&dlm->spinlock);
 			BUG();
 		} else if (r == EAGAIN) {
 			mlog(0, "%.*s: node %u create mles on other "
@@ -1922,12 +1932,12 @@ done:
 
 kill:
 	/* kill the caller! */
+	mlog(ML_ERROR, "Bad message received from another node.  Dumping state "
+	     "and killing the other node now!  This node is OK and can continue.\n");
+	__dlm_print_one_lock_resource(res);
 	spin_unlock(&res->spinlock);
 	spin_unlock(&dlm->spinlock);
 	dlm_lockres_put(res);
-	mlog(ML_ERROR, "Bad message received from another node.  Dumping state "
-	     "and killing the other node now!  This node is OK and can continue.\n");
-	dlm_dump_lock_resources(dlm);
 	dlm_put(dlm);
 	return -EINVAL;
 }
