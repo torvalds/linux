@@ -73,8 +73,6 @@ static inline int gfs2_glock_is_blocking(struct gfs2_glock *gl)
 	return ret;
 }
 
-struct gfs2_glock *gfs2_glock_find(struct gfs2_sbd *sdp,
-				   struct lm_lockname *name);
 int gfs2_glock_get(struct gfs2_sbd *sdp,
 		   uint64_t number, struct gfs2_glock_operations *glops,
 		   int create, struct gfs2_glock **glp);
@@ -85,24 +83,17 @@ void gfs2_holder_init(struct gfs2_glock *gl, unsigned int state, unsigned flags,
 void gfs2_holder_reinit(unsigned int state, unsigned flags,
 			struct gfs2_holder *gh);
 void gfs2_holder_uninit(struct gfs2_holder *gh);
-struct gfs2_holder *gfs2_holder_get(struct gfs2_glock *gl, unsigned int state,
-				    int flags, gfp_t gfp_flags);
-void gfs2_holder_put(struct gfs2_holder *gh);
 
 void gfs2_glock_xmote_th(struct gfs2_glock *gl, unsigned int state, int flags);
 void gfs2_glock_drop_th(struct gfs2_glock *gl);
 
 void gfs2_glmutex_lock(struct gfs2_glock *gl);
-int gfs2_glmutex_trylock(struct gfs2_glock *gl);
 void gfs2_glmutex_unlock(struct gfs2_glock *gl);
 
 int gfs2_glock_nq(struct gfs2_holder *gh);
 int gfs2_glock_poll(struct gfs2_holder *gh);
 int gfs2_glock_wait(struct gfs2_holder *gh);
 void gfs2_glock_dq(struct gfs2_holder *gh);
-
-void gfs2_glock_prefetch(struct gfs2_glock *gl, unsigned int state, int flags);
-void gfs2_glock_force_drop(struct gfs2_glock *gl);
 
 int gfs2_glock_be_greedy(struct gfs2_glock *gl, unsigned int time);
 
@@ -148,7 +139,6 @@ static inline int gfs2_glock_nq_init(struct gfs2_glock *gl,
 
 int gfs2_lvb_hold(struct gfs2_glock *gl);
 void gfs2_lvb_unhold(struct gfs2_glock *gl);
-void gfs2_lvb_sync(struct gfs2_glock *gl);
 
 void gfs2_glock_cb(lm_fsdata_t *fsdata, unsigned int type, void *data);
 
@@ -160,7 +150,5 @@ void gfs2_reclaim_glock(struct gfs2_sbd *sdp);
 
 void gfs2_scand_internal(struct gfs2_sbd *sdp);
 void gfs2_gl_hash_clear(struct gfs2_sbd *sdp, int wait);
-
-int gfs2_dump_lockstate(struct gfs2_sbd *sdp);
 
 #endif /* __GLOCK_DOT_H__ */

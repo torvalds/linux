@@ -21,7 +21,6 @@ struct gfs2_eattr_operations {
 
 unsigned int gfs2_ea_name2type(const char *name, char **truncated_name);
 
-extern struct gfs2_eattr_operations gfs2_user_eaops;
 extern struct gfs2_eattr_operations gfs2_system_eaops;
 
 extern struct gfs2_eattr_operations *gfs2_ea_ops[];

@@ -158,8 +158,8 @@ static inline void make_strname(struct lm_lockname *lockname,
 	str->namelen = GDLM_STRNAME_BYTES;
 }
 
-int gdlm_create_lp(struct gdlm_ls *ls, struct lm_lockname *name,
-		   struct gdlm_lock **lpp)
+static int gdlm_create_lp(struct gdlm_ls *ls, struct lm_lockname *name,
+			  struct gdlm_lock **lpp)
 {
 	struct gdlm_lock *lp;
 
@@ -276,7 +276,7 @@ unsigned int gdlm_do_lock(struct gdlm_lock *lp)
 	return LM_OUT_ASYNC;
 }
 
-unsigned int gdlm_do_unlock(struct gdlm_lock *lp)
+static unsigned int gdlm_do_unlock(struct gdlm_lock *lp)
 {
 	struct gdlm_ls *ls = lp->ls;
 	unsigned int lkf = 0;
@@ -378,7 +378,7 @@ void gdlm_cancel(lm_lock_t *lock)
 		clear_bit(LFL_DLM_CANCEL, &lp->flags);
 }
 
-int gdlm_add_lvb(struct gdlm_lock *lp)
+static int gdlm_add_lvb(struct gdlm_lock *lp)
 {
 	char *lvb;
 
@@ -391,7 +391,7 @@ int gdlm_add_lvb(struct gdlm_lock *lp)
 	return 0;
 }
 
-void gdlm_del_lvb(struct gdlm_lock *lp)
+static void gdlm_del_lvb(struct gdlm_lock *lp)
 {
 	kfree(lp->lvb);
 	lp->lvb = NULL;

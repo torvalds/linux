@@ -188,11 +188,13 @@ void gfs2_lm_unhold_lvb(struct gfs2_sbd *sdp, lm_lock_t *lock, char *lvb)
 		sdp->sd_lockstruct.ls_ops->lm_unhold_lvb(lock, lvb);
 }
 
+#if 0
 void gfs2_lm_sync_lvb(struct gfs2_sbd *sdp, lm_lock_t *lock, char *lvb)
 {
 	if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
 		sdp->sd_lockstruct.ls_ops->lm_sync_lvb(lock, lvb);
 }
+#endif  /*  0  */
 
 int gfs2_lm_plock_get(struct gfs2_sbd *sdp, struct lm_lockname *name,
 		      struct file *file, struct file_lock *fl)

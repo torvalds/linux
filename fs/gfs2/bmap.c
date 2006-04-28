@@ -59,7 +59,7 @@ struct strip_mine {
  *
  * Returns: errno
  */
-
+#if 0
 int gfs2_unstuffer_sync(struct gfs2_inode *ip, struct buffer_head *dibh,
 			uint64_t block, void *private)
 {
@@ -77,6 +77,7 @@ int gfs2_unstuffer_sync(struct gfs2_inode *ip, struct buffer_head *dibh,
 
 	return error;
 }
+#endif  /*  0  */
 
 /**
  * gfs2_unstuff_dinode - Unstuff a dinode when the data has grown too big

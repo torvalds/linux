@@ -47,6 +47,8 @@ struct greedy {
 
 typedef void (*glock_examiner) (struct gfs2_glock * gl);
 
+static int gfs2_dump_lockstate(struct gfs2_sbd *sdp);
+
 /**
  * relaxed_state_ok - is a requested lock compatible with the current lock mode?
  * @actual: the current state of the lock
@@ -228,8 +230,8 @@ static struct gfs2_glock *search_bucket(struct gfs2_gl_hash_bucket *bucket,
  * Returns: NULL, or the struct gfs2_glock with the requested number
  */
 
-struct gfs2_glock *gfs2_glock_find(struct gfs2_sbd *sdp,
-				   struct lm_lockname *name)
+static struct gfs2_glock *gfs2_glock_find(struct gfs2_sbd *sdp,
+					  struct lm_lockname *name)
 {
 	struct gfs2_gl_hash_bucket *bucket = &sdp->sd_gl_hash[gl_hash(name)];
 	struct gfs2_glock *gl;
@@ -421,8 +423,9 @@ void gfs2_holder_uninit(struct gfs2_holder *gh)
  * Returns: the holder structure, NULL on ENOMEM
  */
 
-struct gfs2_holder *gfs2_holder_get(struct gfs2_glock *gl, unsigned int state,
-				    int flags, gfp_t gfp_flags)
+static struct gfs2_holder *gfs2_holder_get(struct gfs2_glock *gl,
+					   unsigned int state,
+					   int flags, gfp_t gfp_flags)
 {
 	struct gfs2_holder *gh;
 
@@ -442,7 +445,7 @@ struct gfs2_holder *gfs2_holder_get(struct gfs2_glock *gl, unsigned int state,
  *
  */
 
-void gfs2_holder_put(struct gfs2_holder *gh)
+static void gfs2_holder_put(struct gfs2_holder *gh)
 {
 	gfs2_holder_uninit(gh);
 	kfree(gh);
@@ -674,7 +677,7 @@ void gfs2_glmutex_lock(struct gfs2_glock *gl)
  * Returns: 1 if the glock is acquired
  */
 
-int gfs2_glmutex_trylock(struct gfs2_glock *gl)
+static int gfs2_glmutex_trylock(struct gfs2_glock *gl)
 {
 	int acquired = 1;
 
@@ -1301,7 +1304,8 @@ void gfs2_glock_dq(struct gfs2_holder *gh)
  *
  */
 
-void gfs2_glock_prefetch(struct gfs2_glock *gl, unsigned int state, int flags)
+static void gfs2_glock_prefetch(struct gfs2_glock *gl, unsigned int state,
+				int flags)
 {
 	struct gfs2_glock_operations *glops = gl->gl_ops;
 
@@ -1329,7 +1333,7 @@ void gfs2_glock_prefetch(struct gfs2_glock *gl, unsigned int state, int flags)
  * @gl: the glock
  *
  */
-
+#if 0
 void gfs2_glock_force_drop(struct gfs2_glock *gl)
 {
 	struct gfs2_holder gh;
@@ -1345,6 +1349,7 @@ void gfs2_glock_force_drop(struct gfs2_glock *gl)
 	wait_for_completion(&gh.gh_wait);
 	gfs2_holder_uninit(&gh);
 }
+#endif  /*  0  */
 
 static void greedy_work(void *data)
 {
@@ -1697,6 +1702,7 @@ void gfs2_lvb_unhold(struct gfs2_glock *gl)
 	gfs2_glock_put(gl);
 }
 
+#if 0
 void gfs2_lvb_sync(struct gfs2_glock *gl)
 {
 	gfs2_glmutex_lock(gl);
@@ -1707,6 +1713,7 @@ void gfs2_lvb_sync(struct gfs2_glock *gl)
 
 	gfs2_glmutex_unlock(gl);
 }
+#endif  /*  0  */
 
 static void blocking_cb(struct gfs2_sbd *sdp, struct lm_lockname *name,
 			unsigned int state)
@@ -2307,7 +2314,7 @@ static int dump_glock(struct gfs2_glock *gl)
  *
  */
 
-int gfs2_dump_lockstate(struct gfs2_sbd *sdp)
+static int gfs2_dump_lockstate(struct gfs2_sbd *sdp)
 {
 	struct gfs2_gl_hash_bucket *bucket;
 	struct gfs2_glock *gl;

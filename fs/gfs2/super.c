@@ -264,11 +264,6 @@ int gfs2_read_sb(struct gfs2_sbd *sdp, struct gfs2_glock *gl, int silent)
 	return 0;
 }
 
-int gfs2_do_upgrade(struct gfs2_sbd *sdp, struct gfs2_glock *sb_gl)
-{
-	return 0;
-}
-
 /**
  * gfs2_jindex_hold - Grab a lock on the jindex
  * @sdp: The GFS2 superblock
@@ -837,7 +832,8 @@ struct lfcc {
  * Returns: errno
  */
 
-int gfs2_lock_fs_check_clean(struct gfs2_sbd *sdp, struct gfs2_holder *t_gh)
+static int gfs2_lock_fs_check_clean(struct gfs2_sbd *sdp,
+				    struct gfs2_holder *t_gh)
 {
 	struct gfs2_inode *ip;
 	struct gfs2_holder ji_gh;

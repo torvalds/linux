@@ -162,12 +162,8 @@ int16_t gdlm_make_lmstate(int16_t);
 void gdlm_queue_delayed(struct gdlm_lock *);
 void gdlm_submit_delayed(struct gdlm_ls *);
 int gdlm_release_all_locks(struct gdlm_ls *);
-int gdlm_create_lp(struct gdlm_ls *, struct lm_lockname *, struct gdlm_lock **);
 void gdlm_delete_lp(struct gdlm_lock *);
-int gdlm_add_lvb(struct gdlm_lock *);
-void gdlm_del_lvb(struct gdlm_lock *);
 unsigned int gdlm_do_lock(struct gdlm_lock *);
-unsigned int gdlm_do_unlock(struct gdlm_lock *);
 
 int gdlm_get_lock(lm_lockspace_t *, struct lm_lockname *, lm_lock_t **);
 void gdlm_put_lock(lm_lock_t *);

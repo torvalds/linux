@@ -43,6 +43,7 @@ void gfs2_quota_lvb_out(struct gfs2_quota_lvb *qb, char *lvb)
 	str->qb_value = cpu_to_be64(qb->qb_value);
 }
 
+#if 0
 void gfs2_quota_lvb_print(struct gfs2_quota_lvb *qb)
 {
 	pv(qb, qb_magic, "%u");
@@ -50,4 +51,5 @@ void gfs2_quota_lvb_print(struct gfs2_quota_lvb *qb)
 	pv(qb, qb_warn, "%llu");
 	pv(qb, qb_value, "%lld");
 }
+#endif  /*  0  */
 

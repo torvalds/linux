@@ -24,8 +24,6 @@ void gfs2_quota_change(struct gfs2_inode *ip, int64_t change,
 
 int gfs2_quota_sync(struct gfs2_sbd *sdp);
 int gfs2_quota_refresh(struct gfs2_sbd *sdp, int user, uint32_t id);
-int gfs2_quota_read(struct gfs2_sbd *sdp, int user, uint32_t id,
-		    struct gfs2_quota *q);
 
 int gfs2_quota_init(struct gfs2_sbd *sdp);
 void gfs2_quota_scan(struct gfs2_sbd *sdp);

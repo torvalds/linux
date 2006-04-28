@@ -61,8 +61,6 @@ struct gfs2_ea_location {
 	struct gfs2_ea_header *el_prev;
 };
 
-int gfs2_ea_repack(struct gfs2_inode *ip);
-
 int gfs2_ea_get_i(struct gfs2_inode *ip, struct gfs2_ea_request *er);
 int gfs2_ea_set_i(struct gfs2_inode *ip, struct gfs2_ea_request *er);
 int gfs2_ea_remove_i(struct gfs2_inode *ip, struct gfs2_ea_request *er);

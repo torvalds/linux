@@ -28,7 +28,7 @@
  * @count: the number of bytes
  *
  */
-
+#if 0
 static void print_array(char *title, char *buf, int count)
 {
 	int x;
@@ -42,6 +42,7 @@ static void print_array(char *title, char *buf, int count)
 	if (x % 16)
 		printk("\n");
 }
+#endif  /*  0  */
 
 /*
  * gfs2_xxx_in - read in an xxx struct
@@ -72,7 +73,7 @@ void gfs2_inum_out(const struct gfs2_inum *no, char *buf)
 	str->no_addr = cpu_to_be64(no->no_addr);
 }
 
-void gfs2_inum_print(struct gfs2_inum *no)
+static void gfs2_inum_print(struct gfs2_inum *no)
 {
 	pv(no, no_formal_ino, "%llu");
 	pv(no, no_addr, "%llu");
@@ -96,7 +97,7 @@ static void gfs2_meta_header_out(struct gfs2_meta_header *mh, char *buf)
 	str->mh_format = cpu_to_be32(mh->mh_format);
 }
 
-void gfs2_meta_header_print(struct gfs2_meta_header *mh)
+static void gfs2_meta_header_print(struct gfs2_meta_header *mh)
 {
 	pv(mh, mh_magic, "0x%.8X");
 	pv(mh, mh_type, "%u");
@@ -121,6 +122,7 @@ void gfs2_sb_in(struct gfs2_sb *sb, char *buf)
 	memcpy(sb->sb_locktable, str->sb_locktable, GFS2_LOCKNAME_LEN);
 }
 
+#if 0
 void gfs2_sb_print(struct gfs2_sb *sb)
 {
 	gfs2_meta_header_print(&sb->sb_header);
@@ -136,6 +138,7 @@ void gfs2_sb_print(struct gfs2_sb *sb)
 	pv(sb, sb_lockproto, "%s");
 	pv(sb, sb_locktable, "%s");
 }
+#endif  /*  0  */
 
 void gfs2_rindex_in(struct gfs2_rindex *ri, char *buf)
 {
@@ -149,6 +152,7 @@ void gfs2_rindex_in(struct gfs2_rindex *ri, char *buf)
 
 }
 
+#if 0
 void gfs2_rindex_out(struct gfs2_rindex *ri, char *buf)
 {
 	struct gfs2_rindex *str = (struct gfs2_rindex *)buf;
@@ -162,6 +166,8 @@ void gfs2_rindex_out(struct gfs2_rindex *ri, char *buf)
 	str->ri_bitbytes = cpu_to_be32(ri->ri_bitbytes);
 	memset(str->ri_reserved, 0, sizeof(str->ri_reserved));
 }
+
+#endif  /*  0  */
 
 void gfs2_rindex_print(struct gfs2_rindex *ri)
 {
@@ -196,6 +202,7 @@ void gfs2_rgrp_out(struct gfs2_rgrp *rg, char *buf)
 	memset(&str->rg_reserved, 0, sizeof(str->rg_reserved));
 }
 
+#if 0
 void gfs2_rgrp_print(struct gfs2_rgrp *rg)
 {
 	gfs2_meta_header_print(&rg->rg_header);
@@ -205,6 +212,7 @@ void gfs2_rgrp_print(struct gfs2_rgrp *rg)
 
 	pa(rg, rg_reserved, 36);
 }
+#endif  /*  0  */
 
 void gfs2_quota_in(struct gfs2_quota *qu, char *buf)
 {
@@ -214,6 +222,8 @@ void gfs2_quota_in(struct gfs2_quota *qu, char *buf)
 	qu->qu_warn = be64_to_cpu(str->qu_warn);
 	qu->qu_value = be64_to_cpu(str->qu_value);
 }
+
+#if 0
 
 void gfs2_quota_out(struct gfs2_quota *qu, char *buf)
 {
@@ -230,6 +240,8 @@ void gfs2_quota_print(struct gfs2_quota *qu)
 	pv(qu, qu_warn, "%llu");
 	pv(qu, qu_value, "%lld");
 }
+
+#endif  /*  0  */
 
 void gfs2_dinode_in(struct gfs2_dinode *di, char *buf)
 {
@@ -327,6 +339,8 @@ void gfs2_dinode_print(struct gfs2_dinode *di)
 	pv(di, di_eattr, "%llu");
 }
 
+#if 0
+
 void gfs2_dirent_print(struct gfs2_dirent *de, char *name)
 {
 	char buf[GFS2_FNAMESIZE + 1];
@@ -394,6 +408,8 @@ void gfs2_ea_header_print(struct gfs2_ea_header *ea, char *name)
 	printk(KERN_INFO "  name = %s\n", buf);
 }
 
+#endif  /*  0  */
+
 void gfs2_log_header_in(struct gfs2_log_header *lh, char *buf)
 {
 	struct gfs2_log_header *str = (struct gfs2_log_header *)buf;
@@ -405,6 +421,8 @@ void gfs2_log_header_in(struct gfs2_log_header *lh, char *buf)
 	lh->lh_blkno = be32_to_cpu(str->lh_blkno);
 	lh->lh_hash = be32_to_cpu(str->lh_hash);
 }
+
+#if 0
 
 void gfs2_log_header_print(struct gfs2_log_header *lh)
 {
@@ -427,6 +445,8 @@ void gfs2_log_descriptor_print(struct gfs2_log_descriptor *ld)
 	pa(ld, ld_reserved, 32);
 }
 
+#endif  /*  0  */
+
 void gfs2_inum_range_in(struct gfs2_inum_range *ir, char *buf)
 {
 	struct gfs2_inum_range *str = (struct gfs2_inum_range *)buf;
@@ -443,11 +463,13 @@ void gfs2_inum_range_out(struct gfs2_inum_range *ir, char *buf)
 	str->ir_length = cpu_to_be64(ir->ir_length);
 }
 
+#if 0
 void gfs2_inum_range_print(struct gfs2_inum_range *ir)
 {
 	pv(ir, ir_start, "%llu");
 	pv(ir, ir_length, "%llu");
 }
+#endif  /*  0  */
 
 void gfs2_statfs_change_in(struct gfs2_statfs_change *sc, char *buf)
 {
@@ -467,12 +489,14 @@ void gfs2_statfs_change_out(struct gfs2_statfs_change *sc, char *buf)
 	str->sc_dinodes = cpu_to_be64(sc->sc_dinodes);
 }
 
+#if 0
 void gfs2_statfs_change_print(struct gfs2_statfs_change *sc)
 {
 	pv(sc, sc_total, "%lld");
 	pv(sc, sc_free, "%lld");
 	pv(sc, sc_dinodes, "%lld");
 }
+#endif  /*  0  */
 
 void gfs2_unlinked_tag_in(struct gfs2_unlinked_tag *ut, char *buf)
 {
@@ -491,11 +515,15 @@ void gfs2_unlinked_tag_out(struct gfs2_unlinked_tag *ut, char *buf)
 	str->__pad = 0;
 }
 
+#if 0
+
 void gfs2_unlinked_tag_print(struct gfs2_unlinked_tag *ut)
 {
 	gfs2_inum_print(&ut->ut_inum);
 	pv(ut, ut_flags, "%u");
 }
+
+#endif  /*  0  */
 
 void gfs2_quota_change_in(struct gfs2_quota_change *qc, char *buf)
 {
@@ -506,6 +534,8 @@ void gfs2_quota_change_in(struct gfs2_quota_change *qc, char *buf)
 	qc->qc_id = be32_to_cpu(str->qc_id);
 }
 
+#if 0
+
 void gfs2_quota_change_print(struct gfs2_quota_change *qc)
 {
 	pv(qc, qc_change, "%lld");
@@ -513,5 +543,5 @@ void gfs2_quota_change_print(struct gfs2_quota_change *qc)
 	pv(qc, qc_id, "%u");
 }
 
-
+#endif  /*  0  */
 

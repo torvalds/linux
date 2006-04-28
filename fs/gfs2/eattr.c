@@ -358,6 +358,7 @@ static int ea_remove_unstuffed(struct gfs2_inode *ip, struct buffer_head *bh,
 	return error;
 }
 
+#if 0
 
 static int gfs2_ea_repack_i(struct gfs2_inode *ip)
 {
@@ -381,6 +382,8 @@ int gfs2_ea_repack(struct gfs2_inode *ip)
 
 	return error;
 }
+
+#endif  /*  0  */
 
 struct ea_list {
 	struct gfs2_ea_request *ei_er;

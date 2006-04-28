@@ -26,7 +26,6 @@ unsigned int gfs2_lm_unlock(struct gfs2_sbd *sdp, lm_lock_t *lock,
 void gfs2_lm_cancel(struct gfs2_sbd *sdp, lm_lock_t *lock);
 int gfs2_lm_hold_lvb(struct gfs2_sbd *sdp, lm_lock_t *lock, char **lvbp);
 void gfs2_lm_unhold_lvb(struct gfs2_sbd *sdp, lm_lock_t *lock, char *lvb);
-void gfs2_lm_sync_lvb(struct gfs2_sbd *sdp, lm_lock_t *lock, char *lvb);
 int gfs2_lm_plock_get(struct gfs2_sbd *sdp,
 		     struct lm_lockname *name,
 		     struct file *file, struct file_lock *fl);

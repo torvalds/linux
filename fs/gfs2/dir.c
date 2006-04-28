@@ -669,10 +669,10 @@ static void dirent_del(struct gfs2_inode *dip, struct buffer_head *bh,
  * Takes a dent from which to grab space as an argument. Returns the
  * newly created dent.
  */
-struct gfs2_dirent *gfs2_init_dirent(struct inode *inode,
-				     struct gfs2_dirent *dent,
-				     const struct qstr *name,
-				     struct buffer_head *bh)
+static struct gfs2_dirent *gfs2_init_dirent(struct inode *inode,
+					    struct gfs2_dirent *dent,
+					    const struct qstr *name,
+					    struct buffer_head *bh)
 {
 	struct gfs2_inode *ip = inode->u.generic_ip;
 	struct gfs2_dirent *ndent;

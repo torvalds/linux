@@ -450,22 +450,8 @@ extern void gfs2_quota_change_in(struct gfs2_quota_change *qc, char *buf);
 
 /* Printing functions */
 
-extern void gfs2_inum_print(struct gfs2_inum *no);
-extern void gfs2_meta_header_print(struct gfs2_meta_header *mh);
-extern void gfs2_sb_print(struct gfs2_sb *sb);
 extern void gfs2_rindex_print(struct gfs2_rindex *ri);
-extern void gfs2_rgrp_print(struct gfs2_rgrp *rg);
-extern void gfs2_quota_print(struct gfs2_quota *qu);
 extern void gfs2_dinode_print(struct gfs2_dinode *di);
-extern void gfs2_dirent_print(struct gfs2_dirent *de, char *name);
-extern void gfs2_leaf_print(struct gfs2_leaf *lf);
-extern void gfs2_ea_header_print(struct gfs2_ea_header *ea, char *name);
-extern void gfs2_log_header_print(struct gfs2_log_header *lh);
-extern void gfs2_log_descriptor_print(struct gfs2_log_descriptor *ld);
-extern void gfs2_inum_range_print(struct gfs2_inum_range *ir);
-extern void gfs2_statfs_change_print(struct gfs2_statfs_change *sc);
-extern void gfs2_unlinked_tag_print(struct gfs2_unlinked_tag *ut);
-extern void gfs2_quota_change_print(struct gfs2_quota_change *qc);
 
 #endif /* __KERNEL__ */
 

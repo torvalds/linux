@@ -21,7 +21,7 @@ struct nolock_lockspace {
 	unsigned int nl_lvb_size;
 };
 
-struct lm_lockops nolock_ops;
+static struct lm_lockops nolock_ops;
 
 static int nolock_mount(char *table_name, char *host_data,
 			lm_callback_t cb, lm_fsdata_t *fsdata,
@@ -208,7 +208,7 @@ static void nolock_recovery_done(lm_lockspace_t *lockspace, unsigned int jid,
 {
 }
 
-struct lm_lockops nolock_ops = {
+static struct lm_lockops nolock_ops = {
 	.lm_proto_name = "lock_nolock",
 	.lm_mount = nolock_mount,
 	.lm_others_may_mount = nolock_others_may_mount,
@@ -229,7 +229,7 @@ struct lm_lockops nolock_ops = {
 	.lm_owner = THIS_MODULE,
 };
 
-int __init init_nolock(void)
+static int __init init_nolock(void)
 {
 	int error;
 
@@ -245,7 +245,7 @@ int __init init_nolock(void)
 	return 0;
 }
 
-void __exit exit_nolock(void)
+static void __exit exit_nolock(void)
 {
 	gfs_unregister_lockproto(&nolock_ops);
 }

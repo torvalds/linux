@@ -1086,6 +1086,7 @@ int gfs2_quota_refresh(struct gfs2_sbd *sdp, int user, uint32_t id)
 	return error;
 }
 
+#if 0
 int gfs2_quota_read(struct gfs2_sbd *sdp, int user, uint32_t id,
 		    struct gfs2_quota *q)
 {
@@ -1121,6 +1122,7 @@ int gfs2_quota_read(struct gfs2_sbd *sdp, int user, uint32_t id,
 
 	return error;
 }
+#endif  /*  0  */
 
 int gfs2_quota_init(struct gfs2_sbd *sdp)
 {

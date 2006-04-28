@@ -16,7 +16,7 @@ extern int gdlm_drop_period;
 
 extern struct lm_lockops gdlm_ops;
 
-int __init init_lock_dlm(void)
+static int __init init_lock_dlm(void)
 {
 	int error;
 
@@ -48,7 +48,7 @@ int __init init_lock_dlm(void)
 	return 0;
 }
 
-void __exit exit_lock_dlm(void)
+static void __exit exit_lock_dlm(void)
 {
 	gdlm_plock_exit();
 	gdlm_sysfs_exit();
