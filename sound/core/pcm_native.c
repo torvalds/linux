@@ -372,7 +372,7 @@ static int snd_pcm_hw_params(struct snd_pcm_substream *substream,
 #if defined(CONFIG_SND_PCM_OSS) || defined(CONFIG_SND_PCM_OSS_MODULE)
 	if (!substream->oss.oss)
 #endif
-		if (atomic_read(&runtime->mmap_count))
+		if (atomic_read(&substream->mmap_count))
 			return -EBADFD;
 
 	params->rmask = ~0U;
@@ -485,7 +485,7 @@ static int snd_pcm_hw_free(struct snd_pcm_substream *substream)
 		return -EBADFD;
 	}
 	snd_pcm_stream_unlock_irq(substream);
-	if (atomic_read(&runtime->mmap_count))
+	if (atomic_read(&substream->mmap_count))
 		return -EBADFD;
 	if (substream->ops->hw_free)
 		result = substream->ops->hw_free(substream);
@@ -2207,7 +2207,7 @@ static int snd_pcm_release(struct inode *inode, struct file *file)
 	pcm_file = file->private_data;
 	substream = pcm_file->substream;
 	snd_assert(substream != NULL, return -ENXIO);
-	snd_assert(!atomic_read(&substream->runtime->mmap_count), );
+	snd_assert(!atomic_read(&substream->mmap_count), );
 	pcm = substream->pcm;
 	fasync_helper(-1, file, 0, &substream->runtime->fasync);
 	mutex_lock(&pcm->open_mutex);
@@ -3178,7 +3178,7 @@ static int snd_pcm_default_mmap(struct snd_pcm_substream *substream,
 	area->vm_ops = &snd_pcm_vm_ops_data;
 	area->vm_private_data = substream;
 	area->vm_flags |= VM_RESERVED;
-	atomic_inc(&substream->runtime->mmap_count);
+	atomic_inc(&substream->mmap_count);
 	return 0;
 }
 
@@ -3210,7 +3210,7 @@ int snd_pcm_lib_mmap_iomem(struct snd_pcm_substream *substream,
 				(substream->runtime->dma_addr + offset) >> PAGE_SHIFT,
 				size, area->vm_page_prot))
 		return -EAGAIN;
-	atomic_inc(&substream->runtime->mmap_count);
+	atomic_inc(&substream->mmap_count);
 	return 0;
 }
 

@@ -662,6 +662,7 @@ int snd_pcm_new_stream(struct snd_pcm *pcm, int stream, int substream_count)
 		INIT_LIST_HEAD(&substream->self_group.substreams);
 		list_add_tail(&substream->link_list, &substream->self_group.substreams);
 		spin_lock_init(&substream->timer_lock);
+		atomic_set(&substream->mmap_count, 0);
 		prev = substream;
 	}
 	return 0;
@@ -884,7 +885,6 @@ int snd_pcm_attach_substream(struct snd_pcm *pcm, int stream,
 	memset((void*)runtime->control, 0, size);
 
 	init_waitqueue_head(&runtime->sleep);
-	atomic_set(&runtime->mmap_count, 0);
 	init_timer(&runtime->tick_timer);
 	runtime->tick_timer.function = snd_pcm_tick_timer_func;
 	runtime->tick_timer.data = (unsigned long) substream;

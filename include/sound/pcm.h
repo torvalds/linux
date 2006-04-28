@@ -300,7 +300,6 @@ struct snd_pcm_runtime {
 	/* -- mmap -- */
 	volatile struct snd_pcm_mmap_status *status;
 	volatile struct snd_pcm_mmap_control *control;
-	atomic_t mmap_count;
 
 	/* -- locking / scheduling -- */
 	wait_queue_head_t sleep;
@@ -369,6 +368,7 @@ struct snd_pcm_substream {
 	/* -- assigned files -- */
 	void *file;
 	int ref_count;
+	atomic_t mmap_count;
 	unsigned int f_flags;
 	void (*pcm_release)(struct snd_pcm_substream *);
 #if defined(CONFIG_SND_PCM_OSS) || defined(CONFIG_SND_PCM_OSS_MODULE)
@@ -972,13 +972,13 @@ struct page *snd_pcm_sgbuf_ops_page(struct snd_pcm_substream *substream, unsigne
 static inline void snd_pcm_mmap_data_open(struct vm_area_struct *area)
 {
 	struct snd_pcm_substream *substream = (struct snd_pcm_substream *)area->vm_private_data;
-	atomic_inc(&substream->runtime->mmap_count);
+	atomic_inc(&substream->mmap_count);
 }
 
 static inline void snd_pcm_mmap_data_close(struct vm_area_struct *area)
 {
 	struct snd_pcm_substream *substream = (struct snd_pcm_substream *)area->vm_private_data;
-	atomic_dec(&substream->runtime->mmap_count);
+	atomic_dec(&substream->mmap_count);
 }
 
 /* mmap for io-memory area */

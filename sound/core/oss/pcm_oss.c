@@ -684,7 +684,7 @@ static int snd_pcm_oss_period_size(struct snd_pcm_substream *substream,
 	oss_buffer_size = snd_pcm_plug_client_size(substream,
 						   snd_pcm_hw_param_value_max(slave_params, SNDRV_PCM_HW_PARAM_BUFFER_SIZE, NULL)) * oss_frame_size;
 	oss_buffer_size = 1 << ld2(oss_buffer_size);
-	if (atomic_read(&runtime->mmap_count)) {
+	if (atomic_read(&substream->mmap_count)) {
 		if (oss_buffer_size > runtime->oss.mmap_bytes)
 			oss_buffer_size = runtime->oss.mmap_bytes;
 	}
@@ -819,7 +819,7 @@ static int snd_pcm_oss_change_params(struct snd_pcm_substream *substream)
 		goto failure;
 	}
 
-	if (atomic_read(&runtime->mmap_count))
+	if (atomic_read(&substream->mmap_count))
 		direct = 1;
 	else
 		direct = substream->oss.setup.direct;
@@ -828,7 +828,7 @@ static int snd_pcm_oss_change_params(struct snd_pcm_substream *substream)
 	_snd_pcm_hw_param_setinteger(sparams, SNDRV_PCM_HW_PARAM_PERIODS);
 	_snd_pcm_hw_param_min(sparams, SNDRV_PCM_HW_PARAM_PERIODS, 2, 0);
 	snd_mask_none(&mask);
-	if (atomic_read(&runtime->mmap_count))
+	if (atomic_read(&substream->mmap_count))
 		snd_mask_set(&mask, SNDRV_PCM_ACCESS_MMAP_INTERLEAVED);
 	else {
 		snd_mask_set(&mask, SNDRV_PCM_ACCESS_RW_INTERLEAVED);
@@ -947,7 +947,8 @@ static int snd_pcm_oss_change_params(struct snd_pcm_substream *substream)
 	} else {
 		sw_params->start_threshold = runtime->boundary;
 	}
-	if (atomic_read(&runtime->mmap_count) || substream->stream == SNDRV_PCM_STREAM_CAPTURE)
+	if (atomic_read(&substream->mmap_count) ||
+	    substream->stream == SNDRV_PCM_STREAM_CAPTURE)
 		sw_params->stop_threshold = runtime->boundary;
 	else
 		sw_params->stop_threshold = runtime->buffer_size;
@@ -957,7 +958,7 @@ static int snd_pcm_oss_change_params(struct snd_pcm_substream *substream)
 	sw_params->avail_min = substream->stream == SNDRV_PCM_STREAM_PLAYBACK ?
 		1 : runtime->period_size;
 	sw_params->xfer_align = 1;
-	if (atomic_read(&runtime->mmap_count) ||
+	if (atomic_read(&substream->mmap_count) ||
 	    substream->oss.setup.nosilence) {
 		sw_params->silence_threshold = 0;
 		sw_params->silence_size = 0;
@@ -1301,7 +1302,7 @@ static ssize_t snd_pcm_oss_write1(struct snd_pcm_substream *substream, const cha
 	ssize_t tmp;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
-	if (atomic_read(&runtime->mmap_count))
+	if (atomic_read(&substream->mmap_count))
 		return -ENXIO;
 
 	if ((tmp = snd_pcm_oss_make_ready(substream)) < 0)
@@ -1391,7 +1392,7 @@ static ssize_t snd_pcm_oss_read1(struct snd_pcm_substream *substream, char __use
 	ssize_t tmp;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
-	if (atomic_read(&runtime->mmap_count))
+	if (atomic_read(&substream->mmap_count))
 		return -ENXIO;
 
 	if ((tmp = snd_pcm_oss_make_ready(substream)) < 0)
@@ -1521,7 +1522,7 @@ static int snd_pcm_oss_sync(struct snd_pcm_oss_file *pcm_oss_file)
 	substream = pcm_oss_file->streams[SNDRV_PCM_STREAM_PLAYBACK];
 	if (substream != NULL) {
 		runtime = substream->runtime;
-		if (atomic_read(&runtime->mmap_count))
+		if (atomic_read(&substream->mmap_count))
 			goto __direct;
 		if ((err = snd_pcm_oss_make_ready(substream)) < 0)
 			return err;
@@ -1690,7 +1691,7 @@ static int snd_pcm_oss_get_formats(struct snd_pcm_oss_file *pcm_oss_file)
 
 	if ((err = snd_pcm_oss_get_active_substream(pcm_oss_file, &substream)) < 0)
 		return err;
-	if (atomic_read(&substream->runtime->mmap_count))
+	if (atomic_read(&substream->mmap_count))
 		direct = 1;
 	else
 		direct = substream->oss.setup.direct;
@@ -1900,7 +1901,7 @@ static int snd_pcm_oss_set_trigger(struct snd_pcm_oss_file *pcm_oss_file, int tr
 		if (trigger & PCM_ENABLE_OUTPUT) {
 			if (runtime->oss.trigger)
 				goto _skip1;
-			if (atomic_read(&psubstream->runtime->mmap_count))
+			if (atomic_read(&psubstream->mmap_count))
 				snd_pcm_oss_simulate_fill(psubstream, runtime->hw_ptr_interrupt);
 			runtime->oss.trigger = 1;
 			runtime->start_threshold = 1;
@@ -2018,7 +2019,7 @@ static int snd_pcm_oss_get_ptr(struct snd_pcm_oss_file *pcm_oss_file, int stream
 	if (err < 0)
 		return err;
 	info.ptr = snd_pcm_oss_bytes(substream, runtime->status->hw_ptr % runtime->buffer_size);
-	if (atomic_read(&runtime->mmap_count)) {
+	if (atomic_read(&substream->mmap_count)) {
 		snd_pcm_sframes_t n;
 		n = (delay = runtime->hw_ptr_interrupt) - runtime->oss.prev_hw_ptr_interrupt;
 		if (n < 0)
@@ -2574,7 +2575,7 @@ static ssize_t snd_pcm_oss_write(struct file *file, const char __user *buf, size
 static int snd_pcm_oss_playback_ready(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	if (atomic_read(&runtime->mmap_count))
+	if (atomic_read(&substream->mmap_count))
 		return runtime->oss.prev_hw_ptr_interrupt != runtime->hw_ptr_interrupt;
 	else
 		return snd_pcm_playback_avail(runtime) >= runtime->oss.period_frames;
@@ -2583,7 +2584,7 @@ static int snd_pcm_oss_playback_ready(struct snd_pcm_substream *substream)
 static int snd_pcm_oss_capture_ready(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	if (atomic_read(&runtime->mmap_count))
+	if (atomic_read(&substream->mmap_count))
 		return runtime->oss.prev_hw_ptr_interrupt != runtime->hw_ptr_interrupt;
 	else
 		return snd_pcm_capture_avail(runtime) >= runtime->oss.period_frames;
