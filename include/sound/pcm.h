@@ -368,7 +368,8 @@ struct snd_pcm_substream {
 	struct snd_pcm_group *group;		/* pointer to current group */
 	/* -- assigned files -- */
 	void *file;
-	struct file *ffile;
+	int ref_count;
+	unsigned int f_flags;
 	void (*pcm_release)(struct snd_pcm_substream *);
 #if defined(CONFIG_SND_PCM_OSS) || defined(CONFIG_SND_PCM_OSS_MODULE)
 	/* -- OSS things -- */
@@ -387,7 +388,7 @@ struct snd_pcm_substream {
 	unsigned int hw_opened: 1;
 };
 
-#define SUBSTREAM_BUSY(substream) ((substream)->file != NULL)
+#define SUBSTREAM_BUSY(substream) ((substream)->ref_count > 0)
 
 
 struct snd_pcm_str {

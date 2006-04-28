@@ -829,6 +829,26 @@ int snd_pcm_attach_substream(struct snd_pcm *pcm, int stream,
 		return -EINVAL;
 	}
 
+	if (file->f_flags & O_APPEND) {
+		if (prefer_subdevice < 0) {
+			if (pstr->substream_count > 1)
+				return -EINVAL; /* must be unique */
+			substream = pstr->substream;
+		} else {
+			for (substream = pstr->substream; substream;
+			     substream = substream->next)
+				if (substream->number == prefer_subdevice)
+					break;
+		}
+		if (! substream)
+			return -ENODEV;
+		if (! SUBSTREAM_BUSY(substream))
+			return -EBADFD;
+		substream->ref_count++;
+		*rsubstream = substream;
+		return 0;
+	}
+
 	if (prefer_subdevice >= 0) {
 		for (substream = pstr->substream; substream; substream = substream->next)
 			if (!SUBSTREAM_BUSY(substream) && substream->number == prefer_subdevice)
@@ -873,7 +893,8 @@ int snd_pcm_attach_substream(struct snd_pcm *pcm, int stream,
 
 	substream->runtime = runtime;
 	substream->private_data = pcm->private_data;
-	substream->ffile = file;
+	substream->ref_count = 1;
+	substream->f_flags = file->f_flags;
 	pstr->substream_opened++;
 	*rsubstream = substream;
 	return 0;
@@ -882,7 +903,7 @@ int snd_pcm_attach_substream(struct snd_pcm *pcm, int stream,
 void snd_pcm_detach_substream(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime;
-	substream->file = NULL;
+
 	runtime = substream->runtime;
 	snd_assert(runtime != NULL, return);
 	if (runtime->private_free != NULL)

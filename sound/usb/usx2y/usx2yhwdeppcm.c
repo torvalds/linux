@@ -632,7 +632,7 @@ static int usX2Y_pcms_lock_check(struct snd_card *card)
 		for (s = 0; s < 2; ++s) {
 			struct snd_pcm_substream *substream;
 			substream = pcm->streams[s].substream;
-			if (substream && substream->ffile != NULL)
+			if (SUBSTREAM_BUSY(substream))
 				err = -EBUSY;
 		}
 	}

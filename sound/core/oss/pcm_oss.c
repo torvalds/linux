@@ -1331,7 +1331,7 @@ static ssize_t snd_pcm_oss_write1(struct snd_pcm_substream *substream, const cha
 				if (runtime->oss.period_ptr == 0 ||
 				    runtime->oss.period_ptr == runtime->oss.buffer_used)
 					runtime->oss.buffer_used = 0;
-				else if ((substream->ffile->f_flags & O_NONBLOCK) != 0)
+				else if ((substream->f_flags & O_NONBLOCK) != 0)
 					return xfer > 0 ? xfer : -EAGAIN;
 			}
 		} else {
@@ -1344,7 +1344,7 @@ static ssize_t snd_pcm_oss_write1(struct snd_pcm_substream *substream, const cha
 			buf += tmp;
 			bytes -= tmp;
 			xfer += tmp;
-			if ((substream->ffile->f_flags & O_NONBLOCK) != 0 &&
+			if ((substream->f_flags & O_NONBLOCK) != 0 &&
 			    tmp != runtime->oss.period_bytes)
 				break;
 		}
@@ -1582,10 +1582,10 @@ static int snd_pcm_oss_sync(struct snd_pcm_oss_file *pcm_oss_file)
 		 * finish sync: drain the buffer
 		 */
 	      __direct:
-		saved_f_flags = substream->ffile->f_flags;
-		substream->ffile->f_flags &= ~O_NONBLOCK;
+		saved_f_flags = substream->f_flags;
+		substream->f_flags &= ~O_NONBLOCK;
 		err = snd_pcm_kernel_ioctl(substream, SNDRV_PCM_IOCTL_DRAIN, NULL);
-		substream->ffile->f_flags = saved_f_flags;
+		substream->f_flags = saved_f_flags;
 		if (err < 0)
 			return err;
 		runtime->oss.prepare = 1;
@@ -2164,9 +2164,9 @@ static void snd_pcm_oss_init_substream(struct snd_pcm_substream *substream,
 	substream->oss.oss = 1;
 	substream->oss.setup = *setup;
 	if (setup->nonblock)
-		substream->ffile->f_flags |= O_NONBLOCK;
+		substream->f_flags |= O_NONBLOCK;
 	else if (setup->block)
-		substream->ffile->f_flags &= ~O_NONBLOCK;
+		substream->f_flags &= ~O_NONBLOCK;
 	runtime = substream->runtime;
 	runtime->oss.params = 1;
 	runtime->oss.trigger = 1;
@@ -2223,6 +2223,7 @@ static int snd_pcm_oss_open_file(struct file *file,
 	    (pcm->info_flags & SNDRV_PCM_INFO_HALF_DUPLEX))
 		f_mode = FMODE_WRITE;
 
+	file->f_flags &= ~O_APPEND;
 	for (idx = 0; idx < 2; idx++) {
 		if (setup[idx].disable)
 			continue;
@@ -2540,6 +2541,7 @@ static ssize_t snd_pcm_oss_read(struct file *file, char __user *buf, size_t coun
 	substream = pcm_oss_file->streams[SNDRV_PCM_STREAM_CAPTURE];
 	if (substream == NULL)
 		return -ENXIO;
+	substream->f_flags = file->f_flags & O_NONBLOCK;
 #ifndef OSS_DEBUG
 	return snd_pcm_oss_read1(substream, buf, count);
 #else
@@ -2561,6 +2563,7 @@ static ssize_t snd_pcm_oss_write(struct file *file, const char __user *buf, size
 	substream = pcm_oss_file->streams[SNDRV_PCM_STREAM_PLAYBACK];
 	if (substream == NULL)
 		return -ENXIO;
+	substream->f_flags = file->f_flags & O_NONBLOCK;
 	result = snd_pcm_oss_write1(substream, buf, count);
 #ifdef OSS_DEBUG
 	printk("pcm_oss: write %li bytes (wrote %li bytes)\n", (long)count, (long)result);
