@@ -1021,8 +1021,9 @@ static int dlm_add_lock_to_array(struct dlm_lock *lock,
 		    ml->type == LKM_PRMODE) {
 			/* if it is already set, this had better be a PR
 			 * and it has to match */
-			if (mres->lvb[0] && (ml->type == LKM_EXMODE ||
-			    memcmp(mres->lvb, lock->lksb->lvb, DLM_LVB_LEN))) {
+			if (!dlm_lvb_is_empty(mres->lvb) &&
+			    (ml->type == LKM_EXMODE ||
+			     memcmp(mres->lvb, lock->lksb->lvb, DLM_LVB_LEN))) {
 				mlog(ML_ERROR, "mismatched lvbs!\n");
 				__dlm_print_one_lock_resource(lock->lockres);
 				BUG();
@@ -1554,7 +1555,7 @@ static int dlm_process_recovery_data(struct dlm_ctxt *dlm,
 		lksb->flags |= (ml->flags &
 				(DLM_LKSB_PUT_LVB|DLM_LKSB_GET_LVB));
 			
-		if (mres->lvb[0]) {
+		if (!dlm_lvb_is_empty(mres->lvb)) {
 			if (lksb->flags & DLM_LKSB_PUT_LVB) {
 				/* other node was trying to update
 				 * lvb when node died.  recreate the
@@ -1565,8 +1566,9 @@ static int dlm_process_recovery_data(struct dlm_ctxt *dlm,
 				 * most recent valid lvb info */
 				BUG_ON(ml->type != LKM_EXMODE &&
 				       ml->type != LKM_PRMODE);
-				if (res->lvb[0] && (ml->type == LKM_EXMODE ||
-				    memcmp(res->lvb, mres->lvb, DLM_LVB_LEN))) {
+				if (!dlm_lvb_is_empty(res->lvb) &&
+				    (ml->type == LKM_EXMODE ||
+				     memcmp(res->lvb, mres->lvb, DLM_LVB_LEN))) {
 					mlog(ML_ERROR, "received bad lvb!\n");
 					__dlm_print_one_lock_resource(res);
 					BUG();

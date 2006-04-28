@@ -315,6 +315,15 @@ enum dlm_lockres_list {
 	DLM_BLOCKED_LIST
 };
 
+static inline int dlm_lvb_is_empty(char *lvb)
+{
+	int i;
+	for (i=0; i<DLM_LVB_LEN; i++)
+		if (lvb[i])
+			return 0;
+	return 1;
+}
+
 static inline struct list_head *
 dlm_list_idx_to_ptr(struct dlm_lock_resource *res, enum dlm_lockres_list idx)
 {
