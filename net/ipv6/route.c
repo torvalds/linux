@@ -317,7 +317,7 @@ static struct rt6_info *rt6_select(struct rt6_info **head, int oif,
 		  __FUNCTION__, head, head ? *head : NULL, oif);
 
 	for (rt = rt0, metric = rt0->rt6i_metric;
-	     rt && rt->rt6i_metric == metric;
+	     rt && rt->rt6i_metric == metric && (!last || rt != rt0);
 	     rt = rt->u.next) {
 		int m;
 
@@ -343,9 +343,12 @@ static struct rt6_info *rt6_select(struct rt6_info **head, int oif,
 	    (strict & RT6_SELECT_F_REACHABLE) &&
 	    last && last != rt0) {
 		/* no entries matched; do round-robin */
+		static spinlock_t lock = SPIN_LOCK_UNLOCKED;
+		spin_lock(&lock);
 		*head = rt0->u.next;
 		rt0->u.next = last->u.next;
 		last->u.next = rt0;
+		spin_unlock(&lock);
 	}
 
 	RT6_TRACE("%s() => %p, score=%d\n",
