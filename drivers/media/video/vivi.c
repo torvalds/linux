@@ -48,16 +48,6 @@
 
 #include "font.h"
 
-#ifndef kzalloc
-#define kzalloc(size, flags)                            \
-({                                                      \
-	void *__ret = kmalloc(size, flags);             \
-	if (__ret)                                      \
-		memset(__ret, 0, size);                 \
-	__ret;                                          \
-})
-#endif
-
 MODULE_DESCRIPTION("Video Technology Magazine Virtual Video Capture Board");
 MODULE_AUTHOR("Mauro Carvalho Chehab, Ted Walther and John Sokol");
 MODULE_LICENSE("Dual BSD/GPL");
@@ -248,7 +238,8 @@ static u8 bars[8][3] = {
 #define TSTAMP_MAX_Y TSTAMP_MIN_Y+15
 #define TSTAMP_MIN_X 64
 
-void prep_to_addr(struct sg_to_addr to_addr[],struct videobuf_buffer *vb)
+static void prep_to_addr(struct sg_to_addr to_addr[],
+			 struct videobuf_buffer *vb)
 {
 	int i, pos=0;
 
@@ -259,7 +250,7 @@ void prep_to_addr(struct sg_to_addr to_addr[],struct videobuf_buffer *vb)
 	}
 }
 
-inline int get_addr_pos(int pos, int pages, struct sg_to_addr to_addr[])
+static int get_addr_pos(int pos, int pages, struct sg_to_addr to_addr[])
 {
 	int p1=0,p2=pages-1,p3=pages/2;
 
@@ -280,8 +271,8 @@ inline int get_addr_pos(int pos, int pages, struct sg_to_addr to_addr[])
 	return (p1);
 }
 
-void gen_line(struct sg_to_addr to_addr[],int inipos,int pages,int wmax,
-					int hmax, int line, char *timestr)
+static void gen_line(struct sg_to_addr to_addr[],int inipos,int pages,int wmax,
+		     int hmax, int line, char *timestr)
 {
 	int  w,i,j,pos=inipos,pgpos,oldpg,y;
 	char *p,*s,*basep;
@@ -491,7 +482,7 @@ static void vivi_thread_tick(struct vivi_dmaqueue  *dma_q)
 		dprintk(1,"%s: %d buffers handled (should be 1)\n",__FUNCTION__,bc);
 }
 
-void vivi_sleep(struct vivi_dmaqueue  *dma_q)
+static void vivi_sleep(struct vivi_dmaqueue  *dma_q)
 {
 	int timeout;
 	DECLARE_WAITQUEUE(wait, current);
@@ -526,7 +517,7 @@ void vivi_sleep(struct vivi_dmaqueue  *dma_q)
 	try_to_freeze();
 }
 
-int vivi_thread(void *data)
+static int vivi_thread(void *data)
 {
 	struct vivi_dmaqueue  *dma_q=data;
 
@@ -542,7 +533,7 @@ int vivi_thread(void *data)
 	return 0;
 }
 
-int vivi_start_thread(struct vivi_dmaqueue  *dma_q)
+static int vivi_start_thread(struct vivi_dmaqueue  *dma_q)
 {
 	dma_q->frame=0;
 	dma_q->ini_jiffies=jiffies;
@@ -560,7 +551,7 @@ int vivi_start_thread(struct vivi_dmaqueue  *dma_q)
 	return 0;
 }
 
-void vivi_stop_thread(struct vivi_dmaqueue  *dma_q)
+static void vivi_stop_thread(struct vivi_dmaqueue  *dma_q)
 {
 	dprintk(1,"%s\n",__FUNCTION__);
 	/* shutdown control thread */
@@ -666,8 +657,7 @@ buffer_setup(struct videobuf_queue *vq, unsigned int *count, unsigned int *size)
 	return 0;
 }
 
-void
-free_buffer(struct videobuf_queue *vq, struct vivi_buffer *buf)
+static void free_buffer(struct videobuf_queue *vq, struct vivi_buffer *buf)
 {
 	dprintk(1,"%s\n",__FUNCTION__);
 
@@ -791,8 +781,8 @@ static void buffer_release(struct videobuf_queue *vq, struct videobuf_buffer *vb
 	free_buffer(vq,buf);
 }
 
-int vivi_map_sg (void *dev, struct scatterlist *sg, int nents,
-	   int direction)
+static int vivi_map_sg(void *dev, struct scatterlist *sg, int nents,
+		       int direction)
 {
 	int i;
 
@@ -808,15 +798,15 @@ int vivi_map_sg (void *dev, struct scatterlist *sg, int nents,
 	return nents;
 }
 
-int vivi_unmap_sg(void *dev,struct scatterlist *sglist,int nr_pages,
-					int direction)
+static int vivi_unmap_sg(void *dev,struct scatterlist *sglist,int nr_pages,
+			 int direction)
 {
 	dprintk(1,"%s\n",__FUNCTION__);
 	return 0;
 }
 
-int vivi_dma_sync_sg(void *dev,struct scatterlist *sglist,int nr_pages,
-					int direction)
+static int vivi_dma_sync_sg(void *dev,struct scatterlist *sglist, int nr_pages,
+			    int direction)
 {
 //	dprintk(1,"%s\n",__FUNCTION__);
 
@@ -900,7 +890,7 @@ static int res_get(struct vivi_dev *dev, struct vivi_fh *fh)
 	return 1;
 }
 
-static inline int res_locked(struct vivi_dev *dev)
+static int res_locked(struct vivi_dev *dev)
 {
 	return (dev->resources);
 }
