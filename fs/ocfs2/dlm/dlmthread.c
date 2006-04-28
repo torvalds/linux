@@ -39,6 +39,7 @@
 #include <linux/inet.h>
 #include <linux/timer.h>
 #include <linux/kthread.h>
+#include <linux/delay.h>
 
 
 #include "cluster/heartbeat.h"
@@ -165,6 +166,7 @@ again:
 	} else if (ret < 0) {
 		mlog(ML_NOTICE, "lockres %.*s: migrate failed, retrying\n",
 		     lockres->lockname.len, lockres->lockname.name);
+		msleep(100);
 		goto again;
 	}
 
@@ -640,8 +642,9 @@ static int dlm_thread(void *data)
 			 * spinlock and do NOT have the dlm lock.
 			 * safe to reserve/queue asts and run the lists. */
 
-			mlog(0, "calling dlm_shuffle_lists with dlm=%p, "
-			     "res=%p\n", dlm, res);
+			mlog(0, "calling dlm_shuffle_lists with dlm=%s, "
+			     "res=%.*s\n", dlm->name,
+			     res->lockname.len, res->lockname.name);
 
 			/* called while holding lockres lock */
 			dlm_shuffle_lists(dlm, res);
