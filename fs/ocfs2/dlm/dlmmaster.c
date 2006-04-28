@@ -1512,15 +1512,12 @@ way_up_top:
 				mlog_errno(-ENOMEM);
 				goto send_response;
 			}
-			spin_lock(&dlm->spinlock);
-			dlm_init_mle(mle, DLM_MLE_BLOCK, dlm, NULL,
-					 name, namelen);
-			spin_unlock(&dlm->spinlock);
 			goto way_up_top;
 		}
 
 		// mlog(0, "this is second time thru, already allocated, "
 		// "add the block.\n");
+		dlm_init_mle(mle, DLM_MLE_BLOCK, dlm, NULL, name, namelen);
 		set_bit(request->node_idx, mle->maybe_map);
 		list_add(&mle->list, &dlm->master_list);
 		response = DLM_MASTER_RESP_NO;
