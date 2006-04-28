@@ -810,6 +810,9 @@ snd_sf_linear_to_log(unsigned int amount, int offset, int ratio)
 	return v;
 }
 
+EXPORT_SYMBOL(snd_sf_linear_to_log);
+
+
 #define OFFSET_MSEC		653117		/* base = 1000 */
 #define OFFSET_ABSCENT		851781		/* base = 8176 */
 #define OFFSET_SAMPLERATE	1011119		/* base = 44100 */
@@ -1485,4 +1488,3 @@ snd_soundfont_remove_unlocked(struct snd_sf_list *sflist)
 	unlock_preset(sflist);
 	return 0;
 }
-
