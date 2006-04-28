@@ -472,7 +472,7 @@ static int snd_pcm_stream_proc_init(struct snd_pcm_str *pstr)
 	pstr->proc_root = entry;
 
 	if ((entry = snd_info_create_card_entry(pcm->card, "info", pstr->proc_root)) != NULL) {
-		snd_info_set_text_ops(entry, pstr, 256, snd_pcm_stream_proc_info_read);
+		snd_info_set_text_ops(entry, pstr, snd_pcm_stream_proc_info_read);
 		if (snd_info_register(entry) < 0) {
 			snd_info_free_entry(entry);
 			entry = NULL;
@@ -483,9 +483,7 @@ static int snd_pcm_stream_proc_init(struct snd_pcm_str *pstr)
 #ifdef CONFIG_SND_PCM_XRUN_DEBUG
 	if ((entry = snd_info_create_card_entry(pcm->card, "xrun_debug",
 						pstr->proc_root)) != NULL) {
-		entry->c.text.read_size = 64;
 		entry->c.text.read = snd_pcm_xrun_debug_read;
-		entry->c.text.write_size = 64;
 		entry->c.text.write = snd_pcm_xrun_debug_write;
 		entry->mode |= S_IWUSR;
 		entry->private_data = pstr;
@@ -537,7 +535,8 @@ static int snd_pcm_substream_proc_init(struct snd_pcm_substream *substream)
 	substream->proc_root = entry;
 
 	if ((entry = snd_info_create_card_entry(card, "info", substream->proc_root)) != NULL) {
-		snd_info_set_text_ops(entry, substream, 256, snd_pcm_substream_proc_info_read);
+		snd_info_set_text_ops(entry, substream,
+				      snd_pcm_substream_proc_info_read);
 		if (snd_info_register(entry) < 0) {
 			snd_info_free_entry(entry);
 			entry = NULL;
@@ -546,7 +545,8 @@ static int snd_pcm_substream_proc_init(struct snd_pcm_substream *substream)
 	substream->proc_info_entry = entry;
 
 	if ((entry = snd_info_create_card_entry(card, "hw_params", substream->proc_root)) != NULL) {
-		snd_info_set_text_ops(entry, substream, 256, snd_pcm_substream_proc_hw_params_read);
+		snd_info_set_text_ops(entry, substream,
+				      snd_pcm_substream_proc_hw_params_read);
 		if (snd_info_register(entry) < 0) {
 			snd_info_free_entry(entry);
 			entry = NULL;
@@ -555,7 +555,8 @@ static int snd_pcm_substream_proc_init(struct snd_pcm_substream *substream)
 	substream->proc_hw_params_entry = entry;
 
 	if ((entry = snd_info_create_card_entry(card, "sw_params", substream->proc_root)) != NULL) {
-		snd_info_set_text_ops(entry, substream, 256, snd_pcm_substream_proc_sw_params_read);
+		snd_info_set_text_ops(entry, substream,
+				      snd_pcm_substream_proc_sw_params_read);
 		if (snd_info_register(entry) < 0) {
 			snd_info_free_entry(entry);
 			entry = NULL;
@@ -564,7 +565,8 @@ static int snd_pcm_substream_proc_init(struct snd_pcm_substream *substream)
 	substream->proc_sw_params_entry = entry;
 
 	if ((entry = snd_info_create_card_entry(card, "status", substream->proc_root)) != NULL) {
-		snd_info_set_text_ops(entry, substream, 256, snd_pcm_substream_proc_status_read);
+		snd_info_set_text_ops(entry, substream,
+				      snd_pcm_substream_proc_status_read);
 		if (snd_info_register(entry) < 0) {
 			snd_info_free_entry(entry);
 			entry = NULL;
@@ -1062,8 +1064,7 @@ static void snd_pcm_proc_init(void)
 	struct snd_info_entry *entry;
 
 	if ((entry = snd_info_create_module_entry(THIS_MODULE, "pcm", NULL)) != NULL) {
-		snd_info_set_text_ops(entry, NULL, SNDRV_CARDS * SNDRV_PCM_DEVICES * 128,
-				      snd_pcm_proc_read);
+		snd_info_set_text_ops(entry, NULL, snd_pcm_proc_read);
 		if (snd_info_register(entry) < 0) {
 			snd_info_free_entry(entry);
 			entry = NULL;

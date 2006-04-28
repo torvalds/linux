@@ -453,7 +453,7 @@ static void snd_ak4531_proc_init(struct snd_card *card, struct snd_ak4531 *ak453
 	struct snd_info_entry *entry;
 
 	if (! snd_card_proc_new(card, "ak4531", &entry))
-		snd_info_set_text_ops(entry, ak4531, 1024, snd_ak4531_proc_read);
+		snd_info_set_text_ops(entry, ak4531, snd_ak4531_proc_read);
 }
 #endif
 

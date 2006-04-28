@@ -1998,7 +1998,7 @@ int snd_usb_create_mixer(struct snd_usb_audio *chip, int ctrlif)
 		if ((err = snd_audigy2nx_controls_create(mixer)) < 0)
 			goto _error;
 		if (!snd_card_proc_new(chip->card, "audigy2nx", &entry))
-			snd_info_set_text_ops(entry, mixer, 1024,
+			snd_info_set_text_ops(entry, mixer,
 					      snd_audigy2nx_proc_read);
 	}
 

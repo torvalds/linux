@@ -1787,7 +1787,7 @@ static void __devinit snd_rme9652_proc_init(struct snd_rme9652 *rme9652)
 	struct snd_info_entry *entry;
 
 	if (! snd_card_proc_new(rme9652->card, "rme9652", &entry))
-		snd_info_set_text_ops(entry, rme9652, 1024, snd_rme9652_proc_read);
+		snd_info_set_text_ops(entry, rme9652, snd_rme9652_proc_read);
 }
 
 static void snd_rme9652_free_buffers(struct snd_rme9652 *rme9652)

@@ -1992,7 +1992,7 @@ static void __devinit snd_riptide_proc_init(struct snd_riptide *chip)
 	struct snd_info_entry *entry;
 
 	if (!snd_card_proc_new(chip->card, "riptide", &entry))
-		snd_info_set_text_ops(entry, chip, 4096, snd_riptide_proc_read);
+		snd_info_set_text_ops(entry, chip, snd_riptide_proc_read);
 }
 
 static int __devinit snd_riptide_mixer(struct snd_riptide *chip)

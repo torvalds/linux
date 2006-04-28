@@ -1596,7 +1596,7 @@ static void __devinit snd_ice1712_proc_init(struct snd_ice1712 * ice)
 	struct snd_info_entry *entry;
 
 	if (! snd_card_proc_new(ice->card, "ice1712", &entry))
-		snd_info_set_text_ops(entry, ice, 1024, snd_ice1712_proc_read);
+		snd_info_set_text_ops(entry, ice, snd_ice1712_proc_read);
 }
 
 /*

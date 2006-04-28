@@ -2173,7 +2173,7 @@ static void __devinit snd_ali_proc_init(struct snd_ali *codec)
 {
 	struct snd_info_entry *entry;
 	if(!snd_card_proc_new(codec->card, "ali5451", &entry))
-		snd_info_set_text_ops(entry, codec, 1024, snd_ali_proc_read);
+		snd_info_set_text_ops(entry, codec, snd_ali_proc_read);
 }
 
 static int __devinit snd_ali_resources(struct snd_ali *codec)

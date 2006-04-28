@@ -2138,7 +2138,7 @@ static void proc_pcm_format_add(struct snd_usb_stream *stream)
 
 	sprintf(name, "stream%d", stream->pcm_index);
 	if (! snd_card_proc_new(card, name, &entry))
-		snd_info_set_text_ops(entry, stream, 1024, proc_pcm_format_read);
+		snd_info_set_text_ops(entry, stream, proc_pcm_format_read);
 }
 
 #else
@@ -3197,9 +3197,9 @@ static void snd_usb_audio_create_proc(struct snd_usb_audio *chip)
 {
 	struct snd_info_entry *entry;
 	if (! snd_card_proc_new(chip->card, "usbbus", &entry))
-		snd_info_set_text_ops(entry, chip, 1024, proc_audio_usbbus_read);
+		snd_info_set_text_ops(entry, chip, proc_audio_usbbus_read);
 	if (! snd_card_proc_new(chip->card, "usbid", &entry))
-		snd_info_set_text_ops(entry, chip, 1024, proc_audio_usbid_read);
+		snd_info_set_text_ops(entry, chip, proc_audio_usbid_read);
 }
 
 /*

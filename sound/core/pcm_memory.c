@@ -193,9 +193,7 @@ static inline void preallocate_info_init(struct snd_pcm_substream *substream)
 	struct snd_info_entry *entry;
 
 	if ((entry = snd_info_create_card_entry(substream->pcm->card, "prealloc", substream->proc_root)) != NULL) {
-		entry->c.text.read_size = 64;
 		entry->c.text.read = snd_pcm_lib_preallocate_proc_read;
-		entry->c.text.write_size = 64;
 		entry->c.text.write = snd_pcm_lib_preallocate_proc_write;
 		entry->mode |= S_IWUSR;
 		entry->private_data = substream;

@@ -2645,7 +2645,7 @@ static void __devinit snd_intel8x0_proc_init(struct intel8x0 * chip)
 	struct snd_info_entry *entry;
 
 	if (! snd_card_proc_new(chip->card, "intel8x0", &entry))
-		snd_info_set_text_ops(entry, chip, 1024, snd_intel8x0_proc_read);
+		snd_info_set_text_ops(entry, chip, snd_intel8x0_proc_read);
 }
 #else
 #define snd_intel8x0_proc_init(x)

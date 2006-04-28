@@ -3338,7 +3338,7 @@ static void __devinit snd_trident_proc_init(struct snd_trident * trident)
 	if (trident->device == TRIDENT_DEVICE_ID_SI7018)
 		s = "sis7018";
 	if (! snd_card_proc_new(trident->card, s, &entry))
-		snd_info_set_text_ops(entry, trident, 1024, snd_trident_proc_read);
+		snd_info_set_text_ops(entry, trident, snd_trident_proc_read);
 }
 
 static int snd_trident_dev_free(struct snd_device *device)

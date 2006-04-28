@@ -1184,7 +1184,7 @@ static void __devinit snd_cs4281_proc_init(struct cs4281 * chip)
 	struct snd_info_entry *entry;
 
 	if (! snd_card_proc_new(chip->card, "cs4281", &entry))
-		snd_info_set_text_ops(entry, chip, 1024, snd_cs4281_proc_read);
+		snd_info_set_text_ops(entry, chip, snd_cs4281_proc_read);
 	if (! snd_card_proc_new(chip->card, "cs4281_BA0", &entry)) {
 		entry->content = SNDRV_INFO_CONTENT_DATA;
 		entry->private_data = chip;

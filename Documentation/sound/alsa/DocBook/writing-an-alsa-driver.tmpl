@@ -5333,7 +5333,7 @@ struct _snd_pcm_runtime {
       <informalexample>
         <programlisting>
 <![CDATA[
-  snd_info_set_text_ops(entry, chip, read_size, my_proc_read);
+  snd_info_set_text_ops(entry, chip, my_proc_read);
 ]]>
         </programlisting>
       </informalexample>
@@ -5394,24 +5394,7 @@ struct _snd_pcm_runtime {
       <informalexample>
         <programlisting>
 <![CDATA[
-  entry->c.text.write_size = 256;
   entry->c.text.write = my_proc_write;
-]]>
-        </programlisting>
-      </informalexample>
-    </para>
-
-    <para>
-    The buffer size for read is set to 1024 implicitly by
-    <function>snd_info_set_text_ops()</function>.  It should suffice
-    in most cases (the size will be aligned to
-    <constant>PAGE_SIZE</constant> anyway), but if you need to handle
-    very large text files, you can set it explicitly, too.
-
-      <informalexample>
-        <programlisting>
-<![CDATA[
-  entry->c.text.read_size = 65536;
 ]]>
         </programlisting>
       </informalexample>

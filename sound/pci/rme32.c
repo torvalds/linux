@@ -1578,7 +1578,7 @@ static void __devinit snd_rme32_proc_init(struct rme32 * rme32)
 	struct snd_info_entry *entry;
 
 	if (! snd_card_proc_new(rme32->card, "rme32", &entry))
-		snd_info_set_text_ops(entry, rme32, 1024, snd_rme32_proc_read);
+		snd_info_set_text_ops(entry, rme32, snd_rme32_proc_read);
 }
 
 /*

@@ -318,7 +318,7 @@ int snd_hda_codec_proc_new(struct hda_codec *codec)
 	if (err < 0)
 		return err;
 
-	snd_info_set_text_ops(entry, codec, 32 * 1024, print_codec_info);
+	snd_info_set_text_ops(entry, codec, print_codec_info);
 	return 0;
 }
 

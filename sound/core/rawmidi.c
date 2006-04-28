@@ -1561,7 +1561,6 @@ static int snd_rawmidi_dev_register(struct snd_device *device)
 	entry = snd_info_create_card_entry(rmidi->card, name, rmidi->card->proc_root);
 	if (entry) {
 		entry->private_data = rmidi;
-		entry->c.text.read_size = 1024;
 		entry->c.text.read = snd_rawmidi_proc_info_read;
 		if (snd_info_register(entry) < 0) {
 			snd_info_free_entry(entry);

@@ -1117,7 +1117,6 @@ static void __init snd_timer_proc_init(void)
 
 	entry = snd_info_create_module_entry(THIS_MODULE, "timers", NULL);
 	if (entry != NULL) {
-		entry->c.text.read_size = SNDRV_TIMER_DEVICES * 128;
 		entry->c.text.read = snd_timer_proc_read;
 		if (snd_info_register(entry) < 0) {
 			snd_info_free_entry(entry);

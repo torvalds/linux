@@ -555,7 +555,6 @@ static int __init alsa_seq_device_init(void)
 	if (info_entry == NULL)
 		return -ENOMEM;
 	info_entry->content = SNDRV_INFO_CONTENT_TEXT;
-	info_entry->c.text.read_size = 2048;
 	info_entry->c.text.read = snd_seq_device_info;
 	if (snd_info_register(info_entry) < 0) {
 		snd_info_free_entry(info_entry);

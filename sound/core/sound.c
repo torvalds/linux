@@ -392,7 +392,6 @@ int __init snd_minor_info_init(void)
 
 	entry = snd_info_create_module_entry(THIS_MODULE, "devices", NULL);
 	if (entry) {
-		entry->c.text.read_size = PAGE_SIZE;
 		entry->c.text.read = snd_minor_info_read;
 		if (snd_info_register(entry) < 0) {
 			snd_info_free_entry(entry);

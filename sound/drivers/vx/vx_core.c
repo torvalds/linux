@@ -640,7 +640,7 @@ static void vx_proc_init(struct vx_core *chip)
 	struct snd_info_entry *entry;
 
 	if (! snd_card_proc_new(chip->card, "vx-status", &entry))
-		snd_info_set_text_ops(entry, chip, 1024, vx_proc_read);
+		snd_info_set_text_ops(entry, chip, vx_proc_read);
 }
 
 
