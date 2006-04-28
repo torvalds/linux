@@ -27,9 +27,9 @@
 /* buffer for information */
 struct snd_info_buffer {
 	char *buffer;		/* pointer to begin of buffer */
-	char *curr;		/* current position in buffer */
-	unsigned long size;	/* current size */
-	unsigned long len;	/* total length of buffer */
+	unsigned int curr;	/* current position in buffer */
+	unsigned int size;	/* current size */
+	unsigned int len;	/* total length of buffer */
 	int stop;		/* stop flag */
 	int error;		/* error code */
 };
