@@ -139,6 +139,8 @@ int snd_emu10k1_voice_alloc(struct snd_emu10k1 *emu, int type, int number,
 	return result;
 }
 
+EXPORT_SYMBOL(snd_emu10k1_voice_alloc);
+
 int snd_emu10k1_voice_free(struct snd_emu10k1 *emu,
 			   struct snd_emu10k1_voice *pvoice)
 {
@@ -153,3 +155,5 @@ int snd_emu10k1_voice_free(struct snd_emu10k1 *emu,
 	spin_unlock_irqrestore(&emu->voice_lock, flags);
 	return 0;
 }
+
+EXPORT_SYMBOL(snd_emu10k1_voice_free);

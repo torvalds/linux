@@ -1459,16 +1459,3 @@ void snd_emu10k1_resume_regs(struct snd_emu10k1 *emu)
 	}
 }
 #endif
-
-/* memory.c */
-EXPORT_SYMBOL(snd_emu10k1_synth_alloc);
-EXPORT_SYMBOL(snd_emu10k1_synth_free);
-EXPORT_SYMBOL(snd_emu10k1_synth_bzero);
-EXPORT_SYMBOL(snd_emu10k1_synth_copy_from_user);
-EXPORT_SYMBOL(snd_emu10k1_memblk_map);
-/* voice.c */
-EXPORT_SYMBOL(snd_emu10k1_voice_alloc);
-EXPORT_SYMBOL(snd_emu10k1_voice_free);
-/* io.c */
-EXPORT_SYMBOL(snd_emu10k1_ptr_read);
-EXPORT_SYMBOL(snd_emu10k1_ptr_write);
