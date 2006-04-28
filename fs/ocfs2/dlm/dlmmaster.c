@@ -2673,6 +2673,7 @@ static int dlm_add_migration_mle(struct dlm_ctxt *dlm,
 			/* remove it from the list so that only one
 			 * mle will be found */
 			list_del_init(&tmp->list);
+			__dlm_mle_detach_hb_events(dlm, mle);
 		}
 		spin_unlock(&tmp->spinlock);
 	}
@@ -2767,6 +2768,7 @@ top:
 
 		/* remove from the list early.  NOTE: unlinking
 		 * list_head while in list_for_each_safe */
+		__dlm_mle_detach_hb_events(dlm, mle);
 		spin_lock(&mle->spinlock);
 		list_del_init(&mle->list);
 		atomic_set(&mle->woken, 1);
