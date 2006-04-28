@@ -57,12 +57,12 @@ int xfrm_register_type(struct xfrm_type *type, unsigned short family)
 		return -EAFNOSUPPORT;
 	typemap = afinfo->type_map;
 
-	write_lock(&typemap->lock);
+	write_lock_bh(&typemap->lock);
 	if (likely(typemap->map[type->proto] == NULL))
 		typemap->map[type->proto] = type;
 	else
 		err = -EEXIST;
-	write_unlock(&typemap->lock);
+	write_unlock_bh(&typemap->lock);
 	xfrm_policy_put_afinfo(afinfo);
 	return err;
 }
@@ -78,12 +78,12 @@ int xfrm_unregister_type(struct xfrm_type *type, unsigned short family)
 		return -EAFNOSUPPORT;
 	typemap = afinfo->type_map;
 
-	write_lock(&typemap->lock);
+	write_lock_bh(&typemap->lock);
 	if (unlikely(typemap->map[type->proto] != type))
 		err = -ENOENT;
 	else
 		typemap->map[type->proto] = NULL;
-	write_unlock(&typemap->lock);
+	write_unlock_bh(&typemap->lock);
 	xfrm_policy_put_afinfo(afinfo);
 	return err;
 }
