@@ -467,7 +467,7 @@ endchoice
 
 choice
 	depends on EXPERIMENTAL && !X86_PAE
-	prompt "Memory split"
+	prompt "Memory split" if EMBEDDED
 	default VMSPLIT_3G
 	help
 	  Select the desired split between kernel and user memory.
