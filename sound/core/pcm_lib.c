@@ -1163,12 +1163,6 @@ int snd_pcm_hw_constraint_pow2(struct snd_pcm_runtime *runtime,
 
 EXPORT_SYMBOL(snd_pcm_hw_constraint_pow2);
 
-/* To use the same code we have in alsa-lib */
-#define assert(i) snd_assert((i), return -EINVAL)
-#ifndef INT_MIN
-#define INT_MIN ((int)((unsigned int)INT_MAX+1))
-#endif
-
 static void _snd_pcm_hw_param_any(struct snd_pcm_hw_params *params,
 				  snd_pcm_hw_param_t var)
 {
@@ -1228,7 +1222,6 @@ int snd_pcm_hw_param_value(const struct snd_pcm_hw_params *params,
 			*dir = i->openmin;
 		return snd_interval_value(i);
 	}
-	assert(0);
 	return -EINVAL;
 }
 
@@ -1260,10 +1253,8 @@ static int _snd_pcm_hw_param_first(struct snd_pcm_hw_params *params,
 		changed = snd_mask_refine_first(hw_param_mask(params, var));
 	else if (hw_is_interval(var))
 		changed = snd_interval_refine_first(hw_param_interval(params, var));
-	else {
-		assert(0);
+	else
 		return -EINVAL;
-	}
 	if (changed) {
 		params->cmask |= 1 << var;
 		params->rmask |= 1 << var;
@@ -1292,7 +1283,7 @@ int snd_pcm_hw_param_first(struct snd_pcm_substream *pcm,
 		return changed;
 	if (params->rmask) {
 		int err = snd_pcm_hw_refine(pcm, params);
-		assert(err >= 0);
+		snd_assert(err >= 0, return err);
 	}
 	return snd_pcm_hw_param_value(params, var, dir);
 }
@@ -1307,10 +1298,8 @@ static int _snd_pcm_hw_param_last(struct snd_pcm_hw_params *params,
 		changed = snd_mask_refine_last(hw_param_mask(params, var));
 	else if (hw_is_interval(var))
 		changed = snd_interval_refine_last(hw_param_interval(params, var));
-	else {
-		assert(0);
+	else
 		return -EINVAL;
-	}
 	if (changed) {
 		params->cmask |= 1 << var;
 		params->rmask |= 1 << var;
@@ -1339,7 +1328,7 @@ int snd_pcm_hw_param_last(struct snd_pcm_substream *pcm,
 		return changed;
 	if (params->rmask) {
 		int err = snd_pcm_hw_refine(pcm, params);
-		assert(err >= 0);
+		snd_assert(err >= 0, return err);
 	}
 	return snd_pcm_hw_param_value(params, var, dir);
 }
@@ -1356,38 +1345,31 @@ EXPORT_SYMBOL(snd_pcm_hw_param_last);
  * first access, first format, first subformat, min channels,
  * min rate, min period time, max buffer size, min tick time
  */
-int snd_pcm_hw_params_choose(struct snd_pcm_substream *pcm, struct snd_pcm_hw_params *params)
+int snd_pcm_hw_params_choose(struct snd_pcm_substream *pcm,
+			     struct snd_pcm_hw_params *params)
 {
-	int err;
+	static int vars[] = {
+		SNDRV_PCM_HW_PARAM_ACCESS,
+		SNDRV_PCM_HW_PARAM_FORMAT,
+		SNDRV_PCM_HW_PARAM_SUBFORMAT,
+		SNDRV_PCM_HW_PARAM_CHANNELS,
+		SNDRV_PCM_HW_PARAM_RATE,
+		SNDRV_PCM_HW_PARAM_PERIOD_TIME,
+		SNDRV_PCM_HW_PARAM_BUFFER_SIZE,
+		SNDRV_PCM_HW_PARAM_TICK_TIME,
+		-1
+	};
+	int err, *v;
 
-	err = snd_pcm_hw_param_first(pcm, params, SNDRV_PCM_HW_PARAM_ACCESS, NULL);
-	assert(err >= 0);
-
-	err = snd_pcm_hw_param_first(pcm, params, SNDRV_PCM_HW_PARAM_FORMAT, NULL);
-	assert(err >= 0);
-
-	err = snd_pcm_hw_param_first(pcm, params, SNDRV_PCM_HW_PARAM_SUBFORMAT, NULL);
-	assert(err >= 0);
-
-	err = snd_pcm_hw_param_first(pcm, params, SNDRV_PCM_HW_PARAM_CHANNELS, NULL);
-	assert(err >= 0);
-
-	err = snd_pcm_hw_param_first(pcm, params, SNDRV_PCM_HW_PARAM_RATE, NULL);
-	assert(err >= 0);
-
-	err = snd_pcm_hw_param_first(pcm, params, SNDRV_PCM_HW_PARAM_PERIOD_TIME, NULL);
-	assert(err >= 0);
-
-	err = snd_pcm_hw_param_last(pcm, params, SNDRV_PCM_HW_PARAM_BUFFER_SIZE, NULL);
-	assert(err >= 0);
-
-	err = snd_pcm_hw_param_first(pcm, params, SNDRV_PCM_HW_PARAM_TICK_TIME, NULL);
-	assert(err >= 0);
-
+	for (v = vars; *v != -1; v++) {
+		if (*v != SNDRV_PCM_HW_PARAM_BUFFER_SIZE)
+			err = snd_pcm_hw_param_first(pcm, params, *v, NULL);
+		else
+			err = snd_pcm_hw_param_last(pcm, params, *v, NULL);
+		snd_assert(err >= 0, return err);
+	}
 	return 0;
 }
-
-#undef assert
 
 static int snd_pcm_lib_ioctl_reset(struct snd_pcm_substream *substream,
 				   void *arg)
