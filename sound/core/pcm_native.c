@@ -71,8 +71,9 @@ static int snd_pcm_open(struct file *file, struct snd_pcm *pcm, int stream);
  */
 
 DEFINE_RWLOCK(snd_pcm_link_rwlock);
-static DECLARE_RWSEM(snd_pcm_link_rwsem);
+EXPORT_SYMBOL(snd_pcm_link_rwlock);
 
+static DECLARE_RWSEM(snd_pcm_link_rwsem);
 
 static inline mm_segment_t snd_enter_user(void)
 {
@@ -318,6 +319,8 @@ int snd_pcm_hw_refine(struct snd_pcm_substream *substream,
 	params->rmask = 0;
 	return 0;
 }
+
+EXPORT_SYMBOL(snd_pcm_hw_refine);
 
 static int snd_pcm_hw_refine_user(struct snd_pcm_substream *substream,
 				  struct snd_pcm_hw_params __user * _params)
@@ -936,6 +939,8 @@ int snd_pcm_stop(struct snd_pcm_substream *substream, int state)
 	return snd_pcm_action(&snd_pcm_action_stop, substream, state);
 }
 
+EXPORT_SYMBOL(snd_pcm_stop);
+
 /**
  * snd_pcm_drain_done
  * @substream: the PCM substream
@@ -1085,6 +1090,8 @@ int snd_pcm_suspend(struct snd_pcm_substream *substream)
 	return err;
 }
 
+EXPORT_SYMBOL(snd_pcm_suspend);
+
 /**
  * snd_pcm_suspend_all
  * @pcm: the PCM instance
@@ -1113,6 +1120,8 @@ int snd_pcm_suspend_all(struct snd_pcm *pcm)
 	}
 	return 0;
 }
+
+EXPORT_SYMBOL(snd_pcm_suspend_all);
 
 /* resume */
 
@@ -2020,6 +2029,8 @@ void snd_pcm_release_substream(struct snd_pcm_substream *substream)
 	snd_pcm_detach_substream(substream);
 }
 
+EXPORT_SYMBOL(snd_pcm_release_substream);
+
 int snd_pcm_open_substream(struct snd_pcm *pcm, int stream,
 			   struct file *file,
 			   struct snd_pcm_substream **rsubstream)
@@ -2055,6 +2066,8 @@ int snd_pcm_open_substream(struct snd_pcm *pcm, int stream,
 	snd_pcm_release_substream(substream);
 	return err;
 }
+
+EXPORT_SYMBOL(snd_pcm_open_substream);
 
 static int snd_pcm_open_file(struct file *file,
 			     struct snd_pcm *pcm,
@@ -2768,6 +2781,8 @@ int snd_pcm_kernel_ioctl(struct snd_pcm_substream *substream,
 	return result;
 }
 
+EXPORT_SYMBOL(snd_pcm_kernel_ioctl);
+
 static ssize_t snd_pcm_read(struct file *file, char __user *buf, size_t count,
 			    loff_t * offset)
 {
@@ -3169,6 +3184,8 @@ int snd_pcm_lib_mmap_iomem(struct snd_pcm_substream *substream,
 	atomic_inc(&substream->runtime->mmap_count);
 	return 0;
 }
+
+EXPORT_SYMBOL(snd_pcm_lib_mmap_iomem);
 #endif /* SNDRV_PCM_INFO_MMAP */
 
 /*
@@ -3211,6 +3228,8 @@ int snd_pcm_mmap_data(struct snd_pcm_substream *substream, struct file *file,
 	else
 		return snd_pcm_default_mmap(substream, area);
 }
+
+EXPORT_SYMBOL(snd_pcm_mmap_data);
 
 static int snd_pcm_mmap(struct file *file, struct vm_area_struct *area)
 {

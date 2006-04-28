@@ -825,14 +825,6 @@ int snd_interval_ratnum(struct snd_interval *i,
 
 void _snd_pcm_hw_params_any(struct snd_pcm_hw_params *params);
 void _snd_pcm_hw_param_setempty(struct snd_pcm_hw_params *params, snd_pcm_hw_param_t var);
-int snd_pcm_hw_param_near(struct snd_pcm_substream *substream, 
-			  struct snd_pcm_hw_params *params,
-			  snd_pcm_hw_param_t var, 
-			  unsigned int val, int *dir);
-int snd_pcm_hw_param_set(struct snd_pcm_substream *pcm,
-			 struct snd_pcm_hw_params *params,
-			 snd_pcm_hw_param_t var,
-			 unsigned int val, int dir);
 int snd_pcm_hw_params_choose(struct snd_pcm_substream *substream, struct snd_pcm_hw_params *params);
 
 int snd_pcm_hw_refine(struct snd_pcm_substream *substream, struct snd_pcm_hw_params *params);

@@ -22,18 +22,14 @@
  *
  */
 
-extern int snd_pcm_hw_param_mask(struct snd_pcm_substream *pcm, struct snd_pcm_hw_params *params,
-				 snd_pcm_hw_param_t var, const struct snd_mask *val);
-extern unsigned int snd_pcm_hw_param_value_min(const struct snd_pcm_hw_params *params,
-					       snd_pcm_hw_param_t var, int *dir);
-extern unsigned int snd_pcm_hw_param_value_max(const struct snd_pcm_hw_params *params,
-					       snd_pcm_hw_param_t var, int *dir);
-extern int _snd_pcm_hw_param_min(struct snd_pcm_hw_params *params,
-				 snd_pcm_hw_param_t var, unsigned int val, int dir);
-extern int _snd_pcm_hw_param_setinteger(struct snd_pcm_hw_params *params,
-					snd_pcm_hw_param_t var);
-extern int _snd_pcm_hw_param_set(struct snd_pcm_hw_params *params,
-				 snd_pcm_hw_param_t var, unsigned int val, int dir);
+int snd_pcm_hw_param_first(struct snd_pcm_substream *pcm, 
+			   struct snd_pcm_hw_params *params,
+			   snd_pcm_hw_param_t var, int *dir);
+int snd_pcm_hw_param_last(struct snd_pcm_substream *pcm, 
+			  struct snd_pcm_hw_params *params,
+			  snd_pcm_hw_param_t var, int *dir);
+int snd_pcm_hw_param_value(const struct snd_pcm_hw_params *params,
+			   snd_pcm_hw_param_t var, int *dir);
 
 #define SNDRV_MASK_BITS	64	/* we use so far 64bits only */
 #define SNDRV_MASK_SIZE	(SNDRV_MASK_BITS / 32)

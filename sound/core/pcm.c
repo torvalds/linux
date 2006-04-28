@@ -671,6 +671,8 @@ int snd_pcm_new_stream(struct snd_pcm *pcm, int stream, int substream_count)
 	return 0;
 }				
 
+EXPORT_SYMBOL(snd_pcm_new_stream);
+
 /**
  * snd_pcm_new - create a new PCM instance
  * @card: the card instance
@@ -729,6 +731,8 @@ int snd_pcm_new(struct snd_card *card, char *id, int device,
 	*rpcm = pcm;
 	return 0;
 }
+
+EXPORT_SYMBOL(snd_pcm_new);
 
 static void snd_pcm_free_stream(struct snd_pcm_str * pstr)
 {
@@ -1022,6 +1026,8 @@ int snd_pcm_notify(struct snd_pcm_notify *notify, int nfree)
 	return 0;
 }
 
+EXPORT_SYMBOL(snd_pcm_notify);
+
 #ifdef CONFIG_PROC_FS
 /*
  *  Info interface
@@ -1099,33 +1105,3 @@ static void __exit alsa_pcm_exit(void)
 
 module_init(alsa_pcm_init)
 module_exit(alsa_pcm_exit)
-
-EXPORT_SYMBOL(snd_pcm_new);
-EXPORT_SYMBOL(snd_pcm_new_stream);
-EXPORT_SYMBOL(snd_pcm_notify);
-EXPORT_SYMBOL(snd_pcm_open_substream);
-EXPORT_SYMBOL(snd_pcm_release_substream);
-  /* pcm_native.c */
-EXPORT_SYMBOL(snd_pcm_link_rwlock);
-#ifdef CONFIG_PM
-EXPORT_SYMBOL(snd_pcm_suspend);
-EXPORT_SYMBOL(snd_pcm_suspend_all);
-#endif
-EXPORT_SYMBOL(snd_pcm_kernel_ioctl);
-EXPORT_SYMBOL(snd_pcm_mmap_data);
-#if SNDRV_PCM_INFO_MMAP_IOMEM
-EXPORT_SYMBOL(snd_pcm_lib_mmap_iomem);
-#endif
- /* pcm_misc.c */
-EXPORT_SYMBOL(snd_pcm_format_signed);
-EXPORT_SYMBOL(snd_pcm_format_unsigned);
-EXPORT_SYMBOL(snd_pcm_format_linear);
-EXPORT_SYMBOL(snd_pcm_format_little_endian);
-EXPORT_SYMBOL(snd_pcm_format_big_endian);
-EXPORT_SYMBOL(snd_pcm_format_width);
-EXPORT_SYMBOL(snd_pcm_format_physical_width);
-EXPORT_SYMBOL(snd_pcm_format_size);
-EXPORT_SYMBOL(snd_pcm_format_silence_64);
-EXPORT_SYMBOL(snd_pcm_format_set_silence);
-EXPORT_SYMBOL(snd_pcm_build_linear_format);
-EXPORT_SYMBOL(snd_pcm_limit_hw_rates);
