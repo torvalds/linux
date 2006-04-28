@@ -1095,7 +1095,6 @@ static void snd_timer_proc_read(struct snd_info_entry *entry,
 		if (timer->hw.flags & SNDRV_TIMER_HW_SLAVE)
 			snd_iprintf(buffer, " SLAVE");
 		snd_iprintf(buffer, "\n");
-		spin_lock_irqsave(&timer->lock, flags);
 		list_for_each(q, &timer->open_list_head) {
 			ti = list_entry(q, struct snd_timer_instance, open_list);
 			snd_iprintf(buffer, "  Client %s : %s\n",
@@ -1104,7 +1103,6 @@ static void snd_timer_proc_read(struct snd_info_entry *entry,
 						 SNDRV_TIMER_IFLG_RUNNING)
 				    ? "running" : "stopped");
 		}
-		spin_unlock_irqrestore(&timer->lock, flags);
 	}
 	mutex_unlock(&register_mutex);
 }
