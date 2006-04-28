@@ -114,6 +114,7 @@ int snd_iprintf(struct snd_info_buffer *buffer, char *fmt,...)
 	int len, res;
 	int err = 0;
 
+	might_sleep();
 	if (buffer->stop || buffer->error)
 		return 0;
 	len = buffer->len - buffer->size;
