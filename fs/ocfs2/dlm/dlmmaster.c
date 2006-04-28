@@ -619,6 +619,28 @@ static void dlm_lockres_release(struct kref *kref)
 	mlog(0, "destroying lockres %.*s\n", res->lockname.len,
 	     res->lockname.name);
 
+	if (!hlist_unhashed(&res->hash_node) ||
+	    !list_empty(&res->granted) ||
+	    !list_empty(&res->converting) ||
+	    !list_empty(&res->blocked) ||
+	    !list_empty(&res->dirty) ||
+	    !list_empty(&res->recovering) ||
+	    !list_empty(&res->purge)) {
+		mlog(ML_ERROR,
+		     "Going to BUG for resource %.*s."
+		     "  We're on a list! [%c%c%c%c%c%c%c]\n",
+		     res->lockname.len, res->lockname.name,
+		     !hlist_unhashed(&res->hash_node) ? 'H' : ' ',
+		     !list_empty(&res->granted) ? 'G' : ' ',
+		     !list_empty(&res->converting) ? 'C' : ' ',
+		     !list_empty(&res->blocked) ? 'B' : ' ',
+		     !list_empty(&res->dirty) ? 'D' : ' ',
+		     !list_empty(&res->recovering) ? 'R' : ' ',
+		     !list_empty(&res->purge) ? 'P' : ' ');
+
+		dlm_print_one_lock_resource(res);
+	}
+
 	/* By the time we're ready to blow this guy away, we shouldn't
 	 * be on any lists. */
 	BUG_ON(!hlist_unhashed(&res->hash_node));
