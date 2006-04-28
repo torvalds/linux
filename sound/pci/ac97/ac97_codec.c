@@ -253,6 +253,8 @@ void snd_ac97_write(struct snd_ac97 *ac97, unsigned short reg, unsigned short va
 	ac97->bus->ops->write(ac97, reg, value);
 }
 
+EXPORT_SYMBOL(snd_ac97_write);
+
 /**
  * snd_ac97_read - read a value from the given register
  * 
@@ -281,6 +283,8 @@ static inline unsigned short snd_ac97_read_cache(struct snd_ac97 *ac97, unsigned
 	return ac97->regs[reg];
 }
 
+EXPORT_SYMBOL(snd_ac97_read);
+
 /**
  * snd_ac97_write_cache - write a value on the given register and update the cache
  * @ac97: the ac97 instance
@@ -301,6 +305,8 @@ void snd_ac97_write_cache(struct snd_ac97 *ac97, unsigned short reg, unsigned sh
 	set_bit(reg, ac97->reg_accessed);
 	mutex_unlock(&ac97->reg_mutex);
 }
+
+EXPORT_SYMBOL(snd_ac97_write_cache);
 
 /**
  * snd_ac97_update - update the value on the given register
@@ -331,6 +337,8 @@ int snd_ac97_update(struct snd_ac97 *ac97, unsigned short reg, unsigned short va
 	return change;
 }
 
+EXPORT_SYMBOL(snd_ac97_update);
+
 /**
  * snd_ac97_update_bits - update the bits on the given register
  * @ac97: the ac97 instance
@@ -355,6 +363,8 @@ int snd_ac97_update_bits(struct snd_ac97 *ac97, unsigned short reg, unsigned sho
 	mutex_unlock(&ac97->reg_mutex);
 	return change;
 }
+
+EXPORT_SYMBOL(snd_ac97_update_bits);
 
 /* no lock version - see snd_ac97_updat_bits() */
 int snd_ac97_update_bits_nolock(struct snd_ac97 *ac97, unsigned short reg,
@@ -1682,6 +1692,7 @@ const char *snd_ac97_get_short_name(struct snd_ac97 *ac97)
 	return "unknown codec";
 }
 
+EXPORT_SYMBOL(snd_ac97_get_short_name);
 
 /* wait for a while until registers are accessible after RESET
  * return 0 if ok, negative not ready
@@ -1773,6 +1784,8 @@ int snd_ac97_bus(struct snd_card *card, int num, struct snd_ac97_bus_ops *ops,
 	*rbus = bus;
 	return 0;
 }
+
+EXPORT_SYMBOL(snd_ac97_bus);
 
 /* stop no dev release warning */
 static void ac97_device_release(struct device * dev)
@@ -2117,6 +2130,7 @@ int snd_ac97_mixer(struct snd_ac97_bus *bus, struct snd_ac97_template *template,
 	return 0;
 }
 
+EXPORT_SYMBOL(snd_ac97_mixer);
 
 /*
  * Power down the chip.
@@ -2165,6 +2179,8 @@ void snd_ac97_suspend(struct snd_ac97 *ac97)
 		ac97->build_ops->suspend(ac97);
 	snd_ac97_powerdown(ac97);
 }
+
+EXPORT_SYMBOL(snd_ac97_suspend);
 
 /*
  * restore ac97 status
@@ -2267,6 +2283,8 @@ __reset_ready:
 		snd_ac97_restore_iec958(ac97);
 	}
 }
+
+EXPORT_SYMBOL(snd_ac97_resume);
 #endif
 
 
@@ -2590,29 +2608,7 @@ int snd_ac97_tune_hardware(struct snd_ac97 *ac97, struct ac97_quirk *quirk, cons
 	return 0;
 }
 
-
-/*
- *  Exported symbols
- */
-
-EXPORT_SYMBOL(snd_ac97_write);
-EXPORT_SYMBOL(snd_ac97_read);
-EXPORT_SYMBOL(snd_ac97_write_cache);
-EXPORT_SYMBOL(snd_ac97_update);
-EXPORT_SYMBOL(snd_ac97_update_bits);
-EXPORT_SYMBOL(snd_ac97_get_short_name);
-EXPORT_SYMBOL(snd_ac97_bus);
-EXPORT_SYMBOL(snd_ac97_mixer);
-EXPORT_SYMBOL(snd_ac97_pcm_assign);
-EXPORT_SYMBOL(snd_ac97_pcm_open);
-EXPORT_SYMBOL(snd_ac97_pcm_close);
-EXPORT_SYMBOL(snd_ac97_pcm_double_rate_rules);
 EXPORT_SYMBOL(snd_ac97_tune_hardware);
-EXPORT_SYMBOL(snd_ac97_set_rate);
-#ifdef CONFIG_PM
-EXPORT_SYMBOL(snd_ac97_resume);
-EXPORT_SYMBOL(snd_ac97_suspend);
-#endif
 
 /*
  *  INIT part
