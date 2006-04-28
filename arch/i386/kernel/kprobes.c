@@ -242,10 +242,6 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 			kcb->kprobe_status = KPROBE_REENTER;
 			return 1;
 		} else {
-			if (regs->eflags & VM_MASK) {
-			/* We are in virtual-8086 mode. Return 0 */
-				goto no_kprobe;
-			}
 			if (*addr != BREAKPOINT_INSTRUCTION) {
 			/* The breakpoint instruction was removed by
 			 * another cpu right after we hit, no further
@@ -265,11 +261,6 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 
 	p = get_kprobe(addr);
 	if (!p) {
-		if (regs->eflags & VM_MASK) {
-			/* We are in virtual-8086 mode. Return 0 */
-			goto no_kprobe;
-		}
-
 		if (*addr != BREAKPOINT_INSTRUCTION) {
 			/*
 			 * The breakpoint instruction was removed right
