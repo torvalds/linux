@@ -201,7 +201,11 @@ static void eeh_report_failure(struct pci_dev *dev, void *userdata)
 
 static int eeh_reset_device (struct pci_dn *pe_dn, struct pci_bus *bus)
 {
-	int rc;
+	int cnt, rc;
+
+	/* pcibios will clear the counter; save the value */
+	cnt = pe_dn->eeh_freeze_count;
+
 	if (bus)
 		pcibios_remove_pci_devices(bus);
 
@@ -240,6 +244,7 @@ static int eeh_reset_device (struct pci_dn *pe_dn, struct pci_bus *bus)
 		ssleep (5);
 		pcibios_add_pci_devices(bus);
 	}
+	pe_dn->eeh_freeze_count = cnt;
 
 	return 0;
 }
