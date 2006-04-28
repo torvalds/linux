@@ -1640,7 +1640,7 @@ next:
 
 	}
 	kfree(irq_ptr->qdr);
-	kfree(irq_ptr);
+	free_page((unsigned long) irq_ptr);
 }
 
 static void
@@ -2983,7 +2983,7 @@ qdio_allocate(struct qdio_initialize *init_data)
 	qdio_allocate_do_dbf(init_data);
 
 	/* create irq */
-	irq_ptr = kzalloc(sizeof(struct qdio_irq), GFP_KERNEL | GFP_DMA);
+	irq_ptr = (void *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
 
 	QDIO_DBF_TEXT0(0,setup,"irq_ptr:");
 	QDIO_DBF_HEX0(0,setup,&irq_ptr,sizeof(void*));
@@ -2998,7 +2998,7 @@ qdio_allocate(struct qdio_initialize *init_data)
 	/* QDR must be in DMA area since CCW data address is only 32 bit */
 	irq_ptr->qdr=kmalloc(sizeof(struct qdr), GFP_KERNEL | GFP_DMA);
   	if (!(irq_ptr->qdr)) {
-   		kfree(irq_ptr);
+   		free_page((unsigned long) irq_ptr);
     		QDIO_PRINT_ERR("kmalloc of irq_ptr->qdr failed!\n");
 		return -ENOMEM;
        	}
