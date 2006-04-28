@@ -1328,29 +1328,6 @@ static void gfs2_glock_prefetch(struct gfs2_glock *gl, unsigned int state,
 	glops->go_xmote_th(gl, state, flags);
 }
 
-/**
- * gfs2_glock_force_drop - Force a glock to be uncached
- * @gl: the glock
- *
- */
-#if 0
-void gfs2_glock_force_drop(struct gfs2_glock *gl)
-{
-	struct gfs2_holder gh;
-
-	gfs2_holder_init(gl, LM_ST_UNLOCKED, 0, &gh);
-	set_bit(HIF_DEMOTE, &gh.gh_iflags);
-
-	spin_lock(&gl->gl_spin);
-	list_add_tail(&gh.gh_list, &gl->gl_waiters2);
-	run_queue(gl);
-	spin_unlock(&gl->gl_spin);
-
-	wait_for_completion(&gh.gh_wait);
-	gfs2_holder_uninit(&gh);
-}
-#endif  /*  0  */
-
 static void greedy_work(void *data)
 {
 	struct greedy *gr = data;

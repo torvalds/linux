@@ -358,33 +358,6 @@ static int ea_remove_unstuffed(struct gfs2_inode *ip, struct buffer_head *bh,
 	return error;
 }
 
-#if 0
-
-static int gfs2_ea_repack_i(struct gfs2_inode *ip)
-{
-	return -EOPNOTSUPP;
-}
-
-int gfs2_ea_repack(struct gfs2_inode *ip)
-{
-	struct gfs2_holder gh;
-	int error;
-
-	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
-	if (error)
-		return error;
-
-	/* Some sort of permissions checking would be nice */
-
-	error = gfs2_ea_repack_i(ip);
-
-	gfs2_glock_dq_uninit(&gh);
-
-	return error;
-}
-
-#endif  /*  0  */
-
 struct ea_list {
 	struct gfs2_ea_request *ei_er;
 	unsigned int ei_size;

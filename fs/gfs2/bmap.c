@@ -49,37 +49,6 @@ struct strip_mine {
 };
 
 /**
- * @gfs2_unstuffer_sync - Synchronously unstuff a dinode
- * @ip:
- * @dibh:
- * @block:
- * @private:
- *
- * Cheat and use a metadata buffer instead of a data page.
- *
- * Returns: errno
- */
-#if 0
-int gfs2_unstuffer_sync(struct gfs2_inode *ip, struct buffer_head *dibh,
-			uint64_t block, void *private)
-{
-	struct buffer_head *bh;
-	int error;
-
-	bh = gfs2_meta_new(ip->i_gl, block);
-
-	gfs2_buffer_copy_tail(bh, 0, dibh, sizeof(struct gfs2_dinode));
-
-	set_buffer_dirty(bh);
-	error = sync_dirty_buffer(bh);
-
-	brelse(bh);
-
-	return error;
-}
-#endif  /*  0  */
-
-/**
  * gfs2_unstuff_dinode - Unstuff a dinode when the data has grown too big
  * @ip: The GFS2 inode to unstuff
  * @unstuffer: the routine that handles unstuffing a non-zero length file
