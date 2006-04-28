@@ -216,4 +216,14 @@ config DVB_LGDT330X
 	  An ATSC 8VSB and QAM64/256 tuner module. Say Y when you want
 	  to support this frontend.
 
+
+comment "Miscellaneous devices"
+	depends on DVB_CORE
+
+config DVB_LNBP21
+	tristate "LNBP21 SEC controller"
+	depends on DVB_CORE
+	help
+	  An SEC control chip.
+
 endmenu

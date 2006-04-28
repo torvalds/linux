@@ -6,6 +6,7 @@ config DVB_TTUSB_BUDGET
 	select DVB_VES1820
 	select DVB_TDA8083
 	select DVB_STV0299
+	select DVB_LNBP21
 	help
 	  Support for external USB adapters designed by Technotrend and
 	  produced by Hauppauge, shipped under the brand name 'Nova-USB'.

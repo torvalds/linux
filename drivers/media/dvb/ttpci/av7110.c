@@ -2223,7 +2223,7 @@ static int frontend_init(struct av7110 *av7110)
 				av7110->fe->ops->tuner_ops.set_params = alps_bsbe1_tuner_set_params;
 				av7110->fe->tuner_priv = &av7110->i2c_adap;
 
-				if (lnbp21_init(av7110->fe, &av7110->i2c_adap, 0, 0)) {
+				if (lnbp21_attach(av7110->fe, &av7110->i2c_adap, 0, 0)) {
 					printk("dvb-ttpci: LNBP21 not found!\n");
 					if (av7110->fe->ops->release)
 						av7110->fe->ops->release(av7110->fe);

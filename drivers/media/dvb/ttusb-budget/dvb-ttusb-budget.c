@@ -30,6 +30,7 @@
 #include "tda1004x.h"
 #include "stv0299.h"
 #include "tda8083.h"
+#include "lnbp21.h"
 
 #include <linux/dvb/frontend.h>
 #include <linux/dvb/dmx.h>
@@ -485,31 +486,6 @@ static int ttusb_send_diseqc(struct dvb_frontend* fe,
 	return err;
 }
 #endif
-
-static int lnbp21_set_voltage(struct dvb_frontend* fe, fe_sec_voltage_t voltage)
-{
-	struct  ttusb* ttusb = (struct ttusb*)  fe->dvb->priv;
-	int ret;
-	u8 data[1];
-	struct i2c_msg msg = { .addr = 0x08, .flags = 0, .buf = data, .len = sizeof(data) };
-
-	switch(voltage) {
-	case SEC_VOLTAGE_OFF:
-		data[0] = 0x00;
-		break;
-	case SEC_VOLTAGE_13:
-		data[0] = 0x44;
-		break;
-	case SEC_VOLTAGE_18:
-		data[0] = 0x4c;
-		break;
-	default:
-		return -EINVAL;
-	};
-
-	ret = i2c_transfer(&ttusb->i2c_adap, &msg, 1);
-	return (ret != 1) ? -EIO : 0;
-}
 
 static int ttusb_update_lnb(struct ttusb *ttusb)
 {
@@ -1415,7 +1391,7 @@ static void frontend_init(struct ttusb* ttusb)
 
 			if(ttusb->revision == TTUSB_REV_2_2) { // ALPS BSBE1
 				alps_stv0299_config.inittab = alps_bsbe1_inittab;
-				ttusb->fe->ops->set_voltage = lnbp21_set_voltage;
+				lnbp21_attach(ttusb->fe, &ttusb->i2c_adap, 0, 0);
 			} else { // ALPS BSRU6
 				ttusb->fe->ops->set_voltage = ttusb_set_voltage;
 			}

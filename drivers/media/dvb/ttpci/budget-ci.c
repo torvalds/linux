@@ -1043,7 +1043,7 @@ static void frontend_init(struct budget_ci *budget_ci)
 			budget_ci->budget.dvb_frontend->tuner_priv = &budget_ci->budget.i2c_adap;
 
 			budget_ci->budget.dvb_frontend->ops->dishnetwork_send_legacy_command = NULL;
-			if (lnbp21_init(budget_ci->budget.dvb_frontend, &budget_ci->budget.i2c_adap, LNBP21_LLC, 0)) {
+			if (lnbp21_attach(budget_ci->budget.dvb_frontend, &budget_ci->budget.i2c_adap, LNBP21_LLC, 0)) {
 				printk("%s: No LNBP21 found!\n", __FUNCTION__);
 				if (budget_ci->budget.dvb_frontend->ops->release)
 					budget_ci->budget.dvb_frontend->ops->release(budget_ci->budget.dvb_frontend);

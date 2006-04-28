@@ -423,7 +423,7 @@ static void frontend_init(struct budget *budget)
 		budget->dvb_frontend = s5h1420_attach(&s5h1420_config, &budget->i2c_adap);
 		if (budget->dvb_frontend) {
 			budget->dvb_frontend->ops->tuner_ops.set_params = s5h1420_tuner_set_params;
-			if (lnbp21_init(budget->dvb_frontend, &budget->i2c_adap, 0, 0)) {
+			if (lnbp21_attach(budget->dvb_frontend, &budget->i2c_adap, 0, 0)) {
 				printk("%s: No LNBP21 found!\n", __FUNCTION__);
 				goto error_out;
 			}
