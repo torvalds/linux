@@ -115,12 +115,31 @@ static u64 dlm_get_next_mig_cookie(void)
 	return c;
 }
 
+static inline void dlm_set_reco_dead_node(struct dlm_ctxt *dlm,
+					  u8 dead_node)
+{
+	assert_spin_locked(&dlm->spinlock);
+	if (dlm->reco.dead_node != dead_node)
+		mlog(0, "%s: changing dead_node from %u to %u\n",
+		     dlm->name, dlm->reco.dead_node, dead_node);
+	dlm->reco.dead_node = dead_node;
+}
+
+static inline void dlm_set_reco_master(struct dlm_ctxt *dlm,
+				       u8 master)
+{
+	assert_spin_locked(&dlm->spinlock);
+	mlog(0, "%s: changing new_master from %u to %u\n",
+	     dlm->name, dlm->reco.new_master, master);
+	dlm->reco.new_master = master;
+}
+
 static inline void dlm_reset_recovery(struct dlm_ctxt *dlm)
 {
 	spin_lock(&dlm->spinlock);
 	clear_bit(dlm->reco.dead_node, dlm->recovery_map);
-	dlm->reco.dead_node = O2NM_INVALID_NODE_NUM;
-	dlm->reco.new_master = O2NM_INVALID_NODE_NUM;
+	dlm_set_reco_dead_node(dlm, O2NM_INVALID_NODE_NUM);
+	dlm_set_reco_master(dlm, O2NM_INVALID_NODE_NUM);
 	spin_unlock(&dlm->spinlock);
 }
 
@@ -341,7 +360,7 @@ static int dlm_do_recovery(struct dlm_ctxt *dlm)
 		mlog(0, "new master %u died while recovering %u!\n",
 		     dlm->reco.new_master, dlm->reco.dead_node);
 		/* unset the new_master, leave dead_node */
-		dlm->reco.new_master = O2NM_INVALID_NODE_NUM;
+		dlm_set_reco_master(dlm, O2NM_INVALID_NODE_NUM);
 	}
 
 	/* select a target to recover */
@@ -350,14 +369,14 @@ static int dlm_do_recovery(struct dlm_ctxt *dlm)
 
 		bit = find_next_bit (dlm->recovery_map, O2NM_MAX_NODES+1, 0);
 		if (bit >= O2NM_MAX_NODES || bit < 0)
-			dlm->reco.dead_node = O2NM_INVALID_NODE_NUM;
+			dlm_set_reco_dead_node(dlm, O2NM_INVALID_NODE_NUM);
 		else
-			dlm->reco.dead_node = bit;
+			dlm_set_reco_dead_node(dlm, bit);
 	} else if (!test_bit(dlm->reco.dead_node, dlm->recovery_map)) {
 		/* BUG? */
 		mlog(ML_ERROR, "dead_node %u no longer in recovery map!\n",
 		     dlm->reco.dead_node);
-		dlm->reco.dead_node = O2NM_INVALID_NODE_NUM;
+		dlm_set_reco_dead_node(dlm, O2NM_INVALID_NODE_NUM);
 	}
 
 	if (dlm->reco.dead_node == O2NM_INVALID_NODE_NUM) {
@@ -2089,7 +2108,7 @@ again:
 
 			/* set the new_master to this node */
 			spin_lock(&dlm->spinlock);
-			dlm->reco.new_master = dlm->node_num;
+			dlm_set_reco_master(dlm, dlm->node_num);
 			spin_unlock(&dlm->spinlock);
 		}
 
@@ -2254,8 +2273,8 @@ int dlm_begin_reco_handler(struct o2net_msg *msg, u32 len, void *data)
 		     "node %u changing it to %u\n", dlm->name, 
 		     dlm->reco.dead_node, br->node_idx, br->dead_node);
 	}
-	dlm->reco.new_master = br->node_idx;
-	dlm->reco.dead_node = br->dead_node;
+	dlm_set_reco_master(dlm, br->node_idx);
+	dlm_set_reco_dead_node(dlm, br->dead_node);
 	if (!test_bit(br->dead_node, dlm->recovery_map)) {
 		mlog(0, "recovery master %u sees %u as dead, but this "
 		     "node has not yet.  marking %u as dead\n",
