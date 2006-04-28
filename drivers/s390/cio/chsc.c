@@ -635,13 +635,13 @@ __chp_add(struct subchannel_id schid, void *data)
 		if (sch->schib.pmcw.chpid[i] == chp->id) {
 			if (stsch(sch->schid, &sch->schib) != 0) {
 				/* Endgame. */
-				spin_unlock(&sch->lock);
+				spin_unlock_irq(&sch->lock);
 				return -ENXIO;
 			}
 			break;
 		}
 	if (i==8) {
-		spin_unlock(&sch->lock);
+		spin_unlock_irq(&sch->lock);
 		return 0;
 	}
 	sch->lpm = ((sch->schib.pmcw.pim &
