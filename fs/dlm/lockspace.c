@@ -21,6 +21,7 @@
 #include "config.h"
 #include "memory.h"
 #include "lock.h"
+#include "recover.h"
 
 #ifdef CONFIG_DLM_DEBUG
 int dlm_create_debug_file(struct dlm_ls *ls);
@@ -74,6 +75,12 @@ static ssize_t dlm_id_store(struct dlm_ls *ls, const char *buf, size_t len)
 	return len;
 }
 
+static ssize_t dlm_recover_status_show(struct dlm_ls *ls, char *buf)
+{
+	uint32_t status = dlm_recover_status(ls);
+	return sprintf(buf, "%x\n", status);
+}
+
 struct dlm_attr {
 	struct attribute attr;
 	ssize_t (*show)(struct dlm_ls *, char *);
@@ -96,10 +103,16 @@ static struct dlm_attr dlm_attr_id = {
 	.store = dlm_id_store
 };
 
+static struct dlm_attr dlm_attr_recover_status = {
+	.attr  = {.name = "recover_status", .mode = S_IRUGO},
+	.show  = dlm_recover_status_show
+};
+
 static struct attribute *dlm_attrs[] = {
 	&dlm_attr_control.attr,
 	&dlm_attr_event.attr,
 	&dlm_attr_id.attr,
+	&dlm_attr_recover_status.attr,
 	NULL,
 };
 
