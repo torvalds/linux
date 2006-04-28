@@ -977,6 +977,7 @@ static struct stv0297_config dvbc_philips_tdm1316l_config = {
 	.demod_address = 0x1c,
 	.inittab = dvbc_philips_tdm1316l_inittab,
 	.invert = 0,
+	.stop_during_read = 1,
 };
 
 

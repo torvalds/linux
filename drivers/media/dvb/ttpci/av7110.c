@@ -1859,6 +1859,7 @@ static struct stv0297_config nexusca_stv0297_config = {
 	.demod_address = 0x1C,
 	.inittab = nexusca_stv0297_inittab,
 	.invert = 1,
+	.stop_during_read = 1,
 };
 
 

@@ -68,19 +68,25 @@ static int stv0297_readreg(struct stv0297_state *state, u8 reg)
 	int ret;
 	u8 b0[] = { reg };
 	u8 b1[] = { 0 };
-	struct i2c_msg msg[] = { {.addr = state->config->demod_address,.flags = 0,.buf = b0,.len =
-				  1},
-	{.addr = state->config->demod_address,.flags = I2C_M_RD,.buf = b1,.len = 1}
-	};
+	struct i2c_msg msg[] = { {.addr = state->config->demod_address,.flags = 0,.buf = b0,.len = 1},
+				 {.addr = state->config->demod_address,.flags = I2C_M_RD,.buf = b1,.len = 1}
+			       };
 
 	// this device needs a STOP between the register and data
-	if ((ret = i2c_transfer(state->i2c, &msg[0], 1)) != 1) {
-		dprintk("%s: readreg error (reg == 0x%02x, ret == %i)\n", __FUNCTION__, reg, ret);
-		return -1;
-	}
-	if ((ret = i2c_transfer(state->i2c, &msg[1], 1)) != 1) {
-		dprintk("%s: readreg error (reg == 0x%02x, ret == %i)\n", __FUNCTION__, reg, ret);
-		return -1;
+	if (state->config->stop_during_read) {
+		if ((ret = i2c_transfer(state->i2c, &msg[0], 1)) != 1) {
+			dprintk("%s: readreg error (reg == 0x%02x, ret == %i)\n", __FUNCTION__, reg, ret);
+			return -1;
+		}
+		if ((ret = i2c_transfer(state->i2c, &msg[1], 1)) != 1) {
+			dprintk("%s: readreg error (reg == 0x%02x, ret == %i)\n", __FUNCTION__, reg, ret);
+			return -1;
+		}
+	} else {
+		if ((ret = i2c_transfer(state->i2c, msg, 2)) != 2) {
+			dprintk("%s: readreg error (reg == 0x%02x, ret == %i)\n", __FUNCTION__, reg, ret);
+			return -1;
+		}
 	}
 
 	return b1[0];
@@ -107,13 +113,20 @@ static int stv0297_readregs(struct stv0297_state *state, u8 reg1, u8 * b, u8 len
 	};
 
 	// this device needs a STOP between the register and data
-	if ((ret = i2c_transfer(state->i2c, &msg[0], 1)) != 1) {
-		dprintk("%s: readreg error (reg == 0x%02x, ret == %i)\n", __FUNCTION__, reg1, ret);
-		return -1;
-	}
-	if ((ret = i2c_transfer(state->i2c, &msg[1], 1)) != 1) {
-		dprintk("%s: readreg error (reg == 0x%02x, ret == %i)\n", __FUNCTION__, reg1, ret);
-		return -1;
+	if (state->config->stop_during_read) {
+		if ((ret = i2c_transfer(state->i2c, &msg[0], 1)) != 1) {
+			dprintk("%s: readreg error (reg == 0x%02x, ret == %i)\n", __FUNCTION__, reg1, ret);
+			return -1;
+		}
+		if ((ret = i2c_transfer(state->i2c, &msg[1], 1)) != 1) {
+			dprintk("%s: readreg error (reg == 0x%02x, ret == %i)\n", __FUNCTION__, reg1, ret);
+			return -1;
+		}
+	} else {
+		if ((ret = i2c_transfer(state->i2c, msg, 2)) != 2) {
+			dprintk("%s: readreg error (reg == 0x%02x, ret == %i)\n", __FUNCTION__, reg1, ret);
+			return -1;
+		}
 	}
 
 	return 0;
