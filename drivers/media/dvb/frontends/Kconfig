@@ -226,4 +226,10 @@ config DVB_LNBP21
 	help
 	  An SEC control chip.
 
+config DVB_ISL6421
+	tristate "ISL6421 SEC controller"
+	depends on DVB_CORE
+	help
+	  An SEC control chip.
+
 endmenu
