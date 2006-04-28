@@ -197,12 +197,14 @@ static void dlm_update_lvb(struct dlm_ctxt *dlm, struct dlm_lock_resource *res,
 				  lock->ml.node == dlm->node_num ? "master" :
 				  "remote");
 			memcpy(lksb->lvb, res->lvb, DLM_LVB_LEN);
-		} else if (lksb->flags & DLM_LKSB_PUT_LVB) {
-			mlog(0, "setting lvb from lockres for %s node\n",
-				  lock->ml.node == dlm->node_num ? "master" :
-				  "remote");
-			memcpy(res->lvb, lksb->lvb, DLM_LVB_LEN);
 		}
+		/* Do nothing for lvb put requests - they should be done in
+ 		 * place when the lock is downconverted - otherwise we risk
+ 		 * racing gets and puts which could result in old lvb data
+ 		 * being propagated. We leave the put flag set and clear it
+ 		 * here. In the future we might want to clear it at the time
+ 		 * the put is actually done.
+		 */
 		spin_unlock(&res->spinlock);
 	}
 

@@ -214,6 +214,9 @@ grant:
 	if (lock->ml.node == dlm->node_num)
 		mlog(0, "doing in-place convert for nonlocal lock\n");
 	lock->ml.type = type;
+	if (lock->lksb->flags & DLM_LKSB_PUT_LVB)
+		memcpy(res->lvb, lock->lksb->lvb, DLM_LVB_LEN);
+
 	status = DLM_NORMAL;
 	*call_ast = 1;
 	goto unlock_exit;
