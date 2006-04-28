@@ -3822,6 +3822,8 @@ static struct hda_board_config alc260_cfg_tbl[] = {
 	{ .modelname = "basic", .config = ALC260_BASIC },
 	{ .pci_subvendor = 0x104d, .pci_subdevice = 0x81bb,
 	  .config = ALC260_BASIC }, /* Sony VAIO */
+	{ .pci_subvendor = 0x104d, .pci_subdevice = 0x81cd,
+	  .config = ALC260_BASIC }, /* Sony VAIO */
 	{ .pci_subvendor = 0x152d, .pci_subdevice = 0x0729,
 	  .config = ALC260_BASIC }, /* CTL Travel Master U553W */
 	{ .modelname = "hp", .config = ALC260_HP },
