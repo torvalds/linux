@@ -1061,7 +1061,6 @@ static int snd_timer_register_system(void)
 static void snd_timer_proc_read(struct snd_info_entry *entry,
 				struct snd_info_buffer *buffer)
 {
-	unsigned long flags;
 	struct snd_timer *timer;
 	struct snd_timer_instance *ti;
 	struct list_head *p, *q;
