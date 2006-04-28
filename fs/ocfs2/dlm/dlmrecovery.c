@@ -757,6 +757,7 @@ static void dlm_request_all_locks_worker(struct dlm_work_item *item, void *data)
 	struct list_head *iter;
 	int ret;
 	u8 dead_node, reco_master;
+	int skip_all_done = 0;
 
 	dlm = item->dlm;
 	dead_node = item->u.ral.dead_node;
@@ -793,12 +794,18 @@ static void dlm_request_all_locks_worker(struct dlm_work_item *item, void *data)
 	dlm_move_reco_locks_to_list(dlm, &resources, dead_node);
 
 	/* now we can begin blasting lockreses without the dlm lock */
+
+	/* any errors returned will be due to the new_master dying,
+	 * the dlm_reco_thread should detect this */
 	list_for_each(iter, &resources) {
 		res = list_entry (iter, struct dlm_lock_resource, recovering);
 		ret = dlm_send_one_lockres(dlm, res, mres, reco_master,
 				   	DLM_MRES_RECOVERY);
-		if (ret < 0)
+		if (ret < 0) {
 			mlog_errno(ret);
+			skip_all_done = 1;
+			break;
+		}
 	}
 
 	/* move the resources back to the list */
@@ -806,9 +813,12 @@ static void dlm_request_all_locks_worker(struct dlm_work_item *item, void *data)
 	list_splice_init(&resources, &dlm->reco.resources);
 	spin_unlock(&dlm->spinlock);
 
-	ret = dlm_send_all_done_msg(dlm, dead_node, reco_master);
-	if (ret < 0)
-		mlog_errno(ret);
+	if (!skip_all_done) {
+		ret = dlm_send_all_done_msg(dlm, dead_node, reco_master);
+		if (ret < 0) {
+			mlog_errno(ret);
+		}
+	}
 
 	free_page((unsigned long)data);
 }
@@ -828,8 +838,14 @@ static int dlm_send_all_done_msg(struct dlm_ctxt *dlm, u8 dead_node, u8 send_to)
 
 	ret = o2net_send_message(DLM_RECO_DATA_DONE_MSG, dlm->key, &done_msg,
 				 sizeof(done_msg), send_to, &tmpret);
-	/* negative status is ignored by the caller */
-	if (ret >= 0)
+	if (ret < 0) {
+		if (!dlm_is_host_down(ret)) {
+			mlog_errno(ret);
+			mlog(ML_ERROR, "%s: unknown error sending data-done "
+			     "to %u\n", dlm->name, send_to);
+			BUG();
+		}
+	} else
 		ret = tmpret;
 	return ret;
 }
@@ -1109,22 +1125,25 @@ int dlm_send_one_lockres(struct dlm_ctxt *dlm, struct dlm_lock_resource *res,
 			 * we must send it immediately. */
 			ret = dlm_send_mig_lockres_msg(dlm, mres, send_to,
 						       res, total_locks);
-			if (ret < 0) {
-				// TODO
-				mlog(ML_ERROR, "dlm_send_mig_lockres_msg "
-				     "returned %d, TODO\n", ret);
-				BUG();
-			}
+			if (ret < 0)
+				goto error;
 		}
 	}
 	/* flush any remaining locks */
 	ret = dlm_send_mig_lockres_msg(dlm, mres, send_to, res, total_locks);
-	if (ret < 0) {
-		// TODO
-		mlog(ML_ERROR, "dlm_send_mig_lockres_msg returned %d, "
-		     "TODO\n", ret);
+	if (ret < 0)
+		goto error;
+	return ret;
+
+error:
+	mlog(ML_ERROR, "%s: dlm_send_mig_lockres_msg returned %d\n",
+	     dlm->name, ret);
+	if (!dlm_is_host_down(ret))
 		BUG();
-	}
+	mlog(0, "%s: node %u went down while sending %s "
+	     "lockres %.*s\n", dlm->name, send_to,
+	     flags & DLM_MRES_RECOVERY ?  "recovery" : "migration",
+	     res->lockname.len, res->lockname.name);
 	return ret;
 }
 
