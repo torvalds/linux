@@ -158,25 +158,25 @@ static int __init mpc834x_rtc_hookup(void)
 late_initcall(mpc834x_rtc_hookup);
 #endif
 
-void __init platform_init(void)
+/*
+ * Called very early, MMU is off, device-tree isn't unflattened
+ */
+static int __init mpc834x_sys_probe(void)
 {
-	/* setup the PowerPC module struct */
-	ppc_md.setup_arch = mpc834x_sys_setup_arch;
-
-	ppc_md.init_IRQ = mpc834x_sys_init_IRQ;
-	ppc_md.get_irq = ipic_get_irq;
-
-	ppc_md.restart = mpc83xx_restart;
-
-	ppc_md.time_init = mpc83xx_time_init;
-	ppc_md.set_rtc_time = NULL;
-	ppc_md.get_rtc_time = NULL;
-	ppc_md.calibrate_decr = generic_calibrate_decr;
-
-	ppc_md.progress = udbg_progress;
-
-	if (ppc_md.progress)
-		ppc_md.progress("mpc834x_sys_init(): exit", 0);
-
-	return;
+	/* We always match for now, eventually we should look at the flat
+	   dev tree to ensure this is the board we are suppose to run on
+	*/
+	return 1;
 }
+
+define_machine(mpc834x_sys) {
+	.name			= "MPC834x SYS",
+	.probe			= mpc834x_sys_probe,
+	.setup_arch		= mpc834x_sys_setup_arch,
+	.init_IRQ		= mpc834x_sys_init_IRQ,
+	.get_irq		= ipic_get_irq,
+	.restart		= mpc83xx_restart,
+	.time_init		= mpc83xx_time_init,
+	.calibrate_decr		= generic_calibrate_decr,
+	.progress		= udbg_progress,
+};

@@ -1170,12 +1170,6 @@ __syscall_badsys:
 # syscall vector table
 #
 ###############################################################################
-#ifdef CONFIG_MMU
-#define __MMU(X) X
-#else
-#define __MMU(X) sys_ni_syscall
-#endif
-
 	.section .rodata
 ALIGN
 	.globl		sys_call_table
@@ -1305,7 +1299,7 @@ sys_call_table:
 	.long sys_newuname
 	.long sys_ni_syscall	/* old "cacheflush" */
 	.long sys_adjtimex
-	.long __MMU(sys_mprotect) /* 125 */
+	.long sys_mprotect	/* 125 */
 	.long sys_sigprocmask
 	.long sys_ni_syscall	/* old "create_module" */
 	.long sys_init_module
@@ -1324,16 +1318,16 @@ sys_call_table:
 	.long sys_getdents
 	.long sys_select
 	.long sys_flock
-	.long __MMU(sys_msync)
+	.long sys_msync
 	.long sys_readv		/* 145 */
 	.long sys_writev
 	.long sys_getsid
 	.long sys_fdatasync
 	.long sys_sysctl
-	.long __MMU(sys_mlock)		/* 150 */
-	.long __MMU(sys_munlock)
-	.long __MMU(sys_mlockall)
-	.long __MMU(sys_munlockall)
+	.long sys_mlock		/* 150 */
+	.long sys_munlock
+	.long sys_mlockall
+	.long sys_munlockall
 	.long sys_sched_setparam
 	.long sys_sched_getparam   /* 155 */
 	.long sys_sched_setscheduler
@@ -1343,7 +1337,7 @@ sys_call_table:
 	.long sys_sched_get_priority_min  /* 160 */
 	.long sys_sched_rr_get_interval
 	.long sys_nanosleep
-	.long __MMU(sys_mremap)
+	.long sys_mremap
 	.long sys_setresuid16
 	.long sys_getresuid16	/* 165 */
 	.long sys_ni_syscall	/* for vm86 */
@@ -1398,8 +1392,8 @@ sys_call_table:
 	.long sys_setfsuid		/* 215 */
 	.long sys_setfsgid
 	.long sys_pivot_root
-	.long __MMU(sys_mincore)
-	.long __MMU(sys_madvise)
+	.long sys_mincore
+	.long sys_madvise
 	.long sys_getdents64	/* 220 */
 	.long sys_fcntl64
 	.long sys_ni_syscall	/* reserved for TUX */
@@ -1437,7 +1431,7 @@ sys_call_table:
 	.long sys_epoll_create
 	.long sys_epoll_ctl	/* 255 */
 	.long sys_epoll_wait
- 	.long __MMU(sys_remap_file_pages)
+ 	.long sys_remap_file_pages
  	.long sys_set_tid_address
  	.long sys_timer_create
  	.long sys_timer_settime		/* 260 */

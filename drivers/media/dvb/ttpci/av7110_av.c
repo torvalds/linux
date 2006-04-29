@@ -1479,8 +1479,6 @@ int av7110_av_init(struct av7110 *av7110)
 	void (*play[])(u8 *, int, void *) = { play_audio_cb, play_video_cb };
 	int i, ret;
 
-	av7110->vidmode = VIDEO_MODE_PAL;
-
 	for (i = 0; i < 2; i++) {
 		struct ipack *ipack = av7110->ipack + i;
 

@@ -3308,8 +3308,7 @@ e1000_clean(struct net_device *poll_dev, int *budget)
 
 	while (poll_dev != &adapter->polling_netdev[i]) {
 		i++;
-		if (unlikely(i == adapter->num_rx_queues))
-			BUG();
+		BUG_ON(i == adapter->num_rx_queues);
 	}
 
 	if (likely(adapter->num_tx_queues == 1)) {
@@ -3769,6 +3768,7 @@ e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 			ps_page->ps_page[j] = NULL;
 			skb->len += length;
 			skb->data_len += length;
+			skb->truesize += length;
 		}
 
 copydone:

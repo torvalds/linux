@@ -229,8 +229,7 @@ static void node_is_down(struct publication *publ)
 				     publ->node, publ->ref, publ->key);
         assert(p == publ);
 	write_unlock_bh(&tipc_nametbl_lock);
-	if (publ)
-		kfree(publ);
+	kfree(publ);
 }
 
 /**

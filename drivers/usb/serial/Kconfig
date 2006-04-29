@@ -158,6 +158,15 @@ config USB_SERIAL_FTDI_SIO
 	  To compile this driver as a module, choose M here: the
 	  module will be called ftdi_sio.
 
+config USB_SERIAL_FUNSOFT
+	tristate "USB Fundamental Software Dongle Driver"
+	depends on USB_SERIAL
+	---help---
+	  Say Y here if you want to use the Fundamental Software dongle.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called funsoft.
+
 config USB_SERIAL_VISOR
 	tristate "USB Handspring Visor / Palm m50x / Sony Clie Driver"
 	depends on USB_SERIAL

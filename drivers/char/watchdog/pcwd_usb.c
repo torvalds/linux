@@ -705,7 +705,8 @@ err_out_misc_deregister:
 err_out_unregister_reboot:
 	unregister_reboot_notifier(&usb_pcwd_notifier);
 error:
-	usb_pcwd_delete (usb_pcwd);
+	if (usb_pcwd)
+		usb_pcwd_delete(usb_pcwd);
 	usb_pcwd_device = NULL;
 	return retval;
 }

@@ -5,14 +5,6 @@
 # Rewritten to use lists instead of if-statements.
 #
 
-wanpipe-y			:= sdlamain.o sdla_ft1.o
-wanpipe-$(CONFIG_WANPIPE_X25)	+= sdla_x25.o
-wanpipe-$(CONFIG_WANPIPE_FR)	+= sdla_fr.o
-wanpipe-$(CONFIG_WANPIPE_CHDLC)	+= sdla_chdlc.o
-wanpipe-$(CONFIG_WANPIPE_PPP)	+= sdla_ppp.o
-wanpipe-$(CONFIG_WANPIPE_MULTPPP) += wanpipe_multppp.o
-wanpipe-objs			:= $(wanpipe-y)
-
 cyclomx-y                       := cycx_main.o
 cyclomx-$(CONFIG_CYCLOMX_X25)	+= cycx_x25.o
 cyclomx-objs			:= $(cyclomx-y)  
@@ -43,11 +35,6 @@ obj-$(CONFIG_LANMEDIA)		+= lmc/
 
 obj-$(CONFIG_DLCI)		+= dlci.o 
 obj-$(CONFIG_SDLA)		+= sdla.o
-ifeq ($(CONFIG_WANPIPE_MULTPPP),y)
-  obj-$(CONFIG_VENDOR_SANGOMA) += sdladrv.o wanpipe.o syncppp.o	
-else
-  obj-$(CONFIG_VENDOR_SANGOMA) += sdladrv.o wanpipe.o
-endif
 obj-$(CONFIG_CYCLADES_SYNC)	+= cycx_drv.o cyclomx.o
 obj-$(CONFIG_LAPBETHER)		+= lapbether.o
 obj-$(CONFIG_SBNI)		+= sbni.o

@@ -66,7 +66,7 @@ static __inline__ struct tcf_police * tcf_police_lookup(u32 index)
 }
 
 #ifdef CONFIG_NET_CLS_ACT
-static int tcf_generic_walker(struct sk_buff *skb, struct netlink_callback *cb,
+static int tcf_act_police_walker(struct sk_buff *skb, struct netlink_callback *cb,
                               int type, struct tc_action *a)
 {
 	struct tcf_police *p;
@@ -113,7 +113,7 @@ rtattr_failure:
 }
 
 static inline int
-tcf_hash_search(struct tc_action *a, u32 index)
+tcf_act_police_hash_search(struct tc_action *a, u32 index)
 {
 	struct tcf_police *p = tcf_police_lookup(index);
 
@@ -387,9 +387,9 @@ static struct tc_action_ops act_police_ops = {
 	.act		=	tcf_act_police,
 	.dump		=	tcf_act_police_dump,
 	.cleanup	=	tcf_act_police_cleanup,
-	.lookup		=	tcf_hash_search,
+	.lookup		=	tcf_act_police_hash_search,
 	.init		=	tcf_act_police_locate,
-	.walk		=	tcf_generic_walker
+	.walk		=	tcf_act_police_walker
 };
 
 static int __init

@@ -34,7 +34,6 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/fcntl.h>
 #include <linux/string.h>
@@ -510,7 +509,8 @@ static irqreturn_t i365_count_irq(int irq, void *dev, struct pt_regs *regs)
 static u_int __init test_irq(u_short sock, int irq)
 {
     debug(2, "  testing ISA irq %d\n", irq);
-    if (request_irq(irq, i365_count_irq, 0, "scan", i365_count_irq) != 0)
+    if (request_irq(irq, i365_count_irq, SA_PROBEIRQ, "scan",
+			i365_count_irq) != 0)
 	return 1;
     irq_hits = 0; irq_sock = sock;
     msleep(10);
@@ -562,7 +562,7 @@ static u_int __init isa_scan(u_short sock, u_int mask0)
     } else {
 	/* Fallback: just find interrupts that aren't in use */
 	for (i = 0; i < 16; i++)
-	    if ((mask0 & (1 << i)) && (_check_irq(i, 0) == 0))
+	    if ((mask0 & (1 << i)) && (_check_irq(i, SA_PROBEIRQ) == 0))
 		mask1 |= (1 << i);
 	printk("default");
 	/* If scan failed, default to polled status */
@@ -726,7 +726,7 @@ static void __init add_pcic(int ns, int type)
 	u_int cs_mask = mask & ((cs_irq) ? (1<<cs_irq) : ~(1<<12));
 	for (cs_irq = 15; cs_irq > 0; cs_irq--)
 	    if ((cs_mask & (1 << cs_irq)) &&
-		(_check_irq(cs_irq, 0) == 0))
+		(_check_irq(cs_irq, SA_PROBEIRQ) == 0))
 		break;
 	if (cs_irq) {
 	    grab_irq = 1;

@@ -252,6 +252,9 @@ static void __init dump_cpu_info(int cpu)
 			dump_cache("cache", cpu, CACHE_ISIZE(info));
 		}
 	}
+
+	if (arch_is_coherent())
+		printk("Cache coherency enabled\n");
 }
 
 int cpu_architecture(void)
@@ -319,6 +322,12 @@ static void __init setup_processor(void)
 	sprintf(system_utsname.machine, "%s%c", list->arch_name, ENDIANNESS);
 	sprintf(elf_platform, "%s%c", list->elf_name, ENDIANNESS);
 	elf_hwcap = list->elf_hwcap;
+#ifndef CONFIG_ARM_THUMB
+	elf_hwcap &= ~HWCAP_THUMB;
+#endif
+#ifndef CONFIG_VFP
+	elf_hwcap &= ~HWCAP_VFP;
+#endif
 
 	cpu_proc_init();
 }
@@ -398,7 +407,7 @@ static void __init early_initrd(char **p)
 }
 __early_param("initrd=", early_initrd);
 
-static void __init add_memory(unsigned long start, unsigned long size)
+static void __init arm_add_memory(unsigned long start, unsigned long size)
 {
 	/*
 	 * Ensure that start/size are aligned to a page boundary.
@@ -436,7 +445,7 @@ static void __init early_mem(char **p)
 	if (**p == '@')
 		start = memparse(*p + 1, p);
 
-	add_memory(start, size);
+	arm_add_memory(start, size);
 }
 __early_param("mem=", early_mem);
 
@@ -578,7 +587,7 @@ static int __init parse_tag_mem32(const struct tag *tag)
 			tag->u.mem.start, tag->u.mem.size / 1024);
 		return -EINVAL;
 	}
-	add_memory(tag->u.mem.start, tag->u.mem.size);
+	arm_add_memory(tag->u.mem.start, tag->u.mem.size);
 	return 0;
 }
 
@@ -798,7 +807,7 @@ static int __init topology_init(void)
 {
 	int cpu;
 
-	for_each_cpu(cpu)
+	for_each_possible_cpu(cpu)
 		register_cpu(&per_cpu(cpu_data, cpu).cpu, cpu, NULL);
 
 	return 0;

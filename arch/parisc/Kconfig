@@ -138,6 +138,37 @@ config 64BIT
 	  enable this option otherwise. The 64bit kernel is significantly bigger
 	  and slower than the 32bit one.
 
+choice
+	prompt "Kernel page size"
+	default PARISC_PAGE_SIZE_4KB  if !64BIT
+	default PARISC_PAGE_SIZE_4KB  if 64BIT
+#	default PARISC_PAGE_SIZE_16KB if 64BIT
+
+config PARISC_PAGE_SIZE_4KB
+	bool "4KB"
+	help
+	  This lets you select the page size of the kernel.  For best
+	  performance, a page size of 16KB is recommended.  For best
+	  compatibility with 32bit applications, a page size of 4KB should be
+	  selected (the vast majority of 32bit binaries work perfectly fine
+	  with a larger page size).
+
+	  4KB                For best 32bit compatibility
+	  16KB               For best performance
+	  64KB               For best performance, might give more overhead.
+
+	  If you don't know what to do, choose 4KB.
+
+config PARISC_PAGE_SIZE_16KB
+	bool "16KB (EXPERIMENTAL)"
+	depends on PA8X00 && EXPERIMENTAL
+
+config PARISC_PAGE_SIZE_64KB
+	bool "64KB (EXPERIMENTAL)"
+	depends on PA8X00 && EXPERIMENTAL
+
+endchoice
+
 config SMP
 	bool "Symmetric multi-processing support"
 	---help---
@@ -176,6 +207,11 @@ config ARCH_FLATMEM_ENABLE
 config ARCH_DISCONTIGMEM_DEFAULT
 	def_bool y
 	depends on ARCH_DISCONTIGMEM_ENABLE
+
+config NODES_SHIFT
+	int
+	default "3"
+	depends on NEED_MULTIPLE_NODES
 
 source "kernel/Kconfig.preempt"
 source "kernel/Kconfig.hz"

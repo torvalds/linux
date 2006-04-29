@@ -816,6 +816,10 @@ config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
 
+config SCHED_NO_NO_OMIT_FRAME_POINTER
+	bool
+	default y
+
 #
 # Select some configuration options automatically based on user selections.
 #
@@ -1063,6 +1067,7 @@ choice
 config CPU_MIPS32_R1
 	bool "MIPS32 Release 1"
 	depends on SYS_HAS_CPU_MIPS32_R1
+	select CPU_HAS_LLSC
 	select CPU_HAS_PREFETCH
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
@@ -1080,6 +1085,7 @@ config CPU_MIPS32_R1
 config CPU_MIPS32_R2
 	bool "MIPS32 Release 2"
 	depends on SYS_HAS_CPU_MIPS32_R2
+	select CPU_HAS_LLSC
 	select CPU_HAS_PREFETCH
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
@@ -1093,6 +1099,7 @@ config CPU_MIPS32_R2
 config CPU_MIPS64_R1
 	bool "MIPS64 Release 1"
 	depends on SYS_HAS_CPU_MIPS64_R1
+	select CPU_HAS_LLSC
 	select CPU_HAS_PREFETCH
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
@@ -1111,6 +1118,7 @@ config CPU_MIPS64_R1
 config CPU_MIPS64_R2
 	bool "MIPS64 Release 2"
 	depends on SYS_HAS_CPU_MIPS64_R2
+	select CPU_HAS_LLSC
 	select CPU_HAS_PREFETCH
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
@@ -1125,6 +1133,7 @@ config CPU_MIPS64_R2
 config CPU_R3000
 	bool "R3000"
 	depends on SYS_HAS_CPU_R3000
+	select CPU_HAS_WB
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
 	help
@@ -1154,6 +1163,7 @@ config CPU_VR41XX
 config CPU_R4300
 	bool "R4300"
 	depends on SYS_HAS_CPU_R4300
+	select CPU_HAS_LLSC
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
 	help
@@ -1162,6 +1172,7 @@ config CPU_R4300
 config CPU_R4X00
 	bool "R4x00"
 	depends on SYS_HAS_CPU_R4X00
+	select CPU_HAS_LLSC
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
 	help
@@ -1171,6 +1182,7 @@ config CPU_R4X00
 config CPU_TX49XX
 	bool "R49XX"
 	depends on SYS_HAS_CPU_TX49XX
+	select CPU_HAS_LLSC
 	select CPU_HAS_PREFETCH
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
@@ -1178,6 +1190,7 @@ config CPU_TX49XX
 config CPU_R5000
 	bool "R5000"
 	depends on SYS_HAS_CPU_R5000
+	select CPU_HAS_LLSC
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
 	help
@@ -1186,12 +1199,14 @@ config CPU_R5000
 config CPU_R5432
 	bool "R5432"
 	depends on SYS_HAS_CPU_R5432
+	select CPU_HAS_LLSC
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
 
 config CPU_R6000
 	bool "R6000"
 	depends on EXPERIMENTAL
+	select CPU_HAS_LLSC
 	depends on SYS_HAS_CPU_R6000
 	select CPU_SUPPORTS_32BIT_KERNEL
 	help
@@ -1201,6 +1216,7 @@ config CPU_R6000
 config CPU_NEVADA
 	bool "RM52xx"
 	depends on SYS_HAS_CPU_NEVADA
+	select CPU_HAS_LLSC
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
 	help
@@ -1210,6 +1226,7 @@ config CPU_R8000
 	bool "R8000"
 	depends on EXPERIMENTAL
 	depends on SYS_HAS_CPU_R8000
+	select CPU_HAS_LLSC
 	select CPU_HAS_PREFETCH
 	select CPU_SUPPORTS_64BIT_KERNEL
 	help
@@ -1219,6 +1236,7 @@ config CPU_R8000
 config CPU_R10000
 	bool "R10000"
 	depends on SYS_HAS_CPU_R10000
+	select CPU_HAS_LLSC
 	select CPU_HAS_PREFETCH
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
@@ -1229,6 +1247,7 @@ config CPU_R10000
 config CPU_RM7000
 	bool "RM7000"
 	depends on SYS_HAS_CPU_RM7000
+	select CPU_HAS_LLSC
 	select CPU_HAS_PREFETCH
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
@@ -1237,6 +1256,7 @@ config CPU_RM7000
 config CPU_RM9000
 	bool "RM9000"
 	depends on SYS_HAS_CPU_RM9000
+	select CPU_HAS_LLSC
 	select CPU_HAS_PREFETCH
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
@@ -1245,6 +1265,7 @@ config CPU_RM9000
 config CPU_SB1
 	bool "SB1"
 	depends on SYS_HAS_CPU_SB1
+	select CPU_HAS_LLSC
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
@@ -1443,6 +1464,12 @@ choice
 	prompt "MIPS MT options"
 	depends on MIPS_MT
 
+config MIPS_MT_SMTC
+	bool "SMTC: Use all TCs on all VPEs for SMP"
+	select CPU_MIPSR2_IRQ_VI
+	select CPU_MIPSR2_SRS
+	select SMP
+
 config MIPS_MT_SMP
 	bool "Use 1 TC on each available VPE for SMP"
 	select SMP
@@ -1455,6 +1482,11 @@ config MIPS_VPE_LOADER
 	  onto another VPE and running it.
 
 endchoice
+
+config MIPS_MT_FPAFF
+	bool "Dynamic FPU affinity for FP-intensive threads"
+	depends on MIPS_MT
+	default y
 
 config MIPS_VPE_LOADER_TOM
 	bool "Load VPE program into memory hidden from linux"
@@ -1471,6 +1503,16 @@ config MIPS_VPE_APSP_API
 	bool "Enable support for AP/SP API (RTLX)"
 	depends on MIPS_VPE_LOADER
 	help
+
+config MIPS_APSP_KSPD
+	bool "Enable KSPD"
+	depends on MIPS_VPE_APSP_API
+	default y
+	help
+	  KSPD is a kernel daemon that accepts syscall requests from the SP
+	  side, actions them and returns the results. It also handles the
+	  "exit" syscall notifying other kernel modules the SP program is
+	  exiting.  You probably want to say yes here.
 
 config SB1_PASS_1_WORKAROUNDS
 	bool
@@ -1491,38 +1533,15 @@ config 64BIT_PHYS_ADDR
 	bool "Support for 64-bit physical address space"
 	depends on (CPU_R4X00 || CPU_R5000 || CPU_RM7000 || CPU_RM9000 || CPU_R10000 || CPU_SB1 || CPU_MIPS32 || CPU_MIPS64) && 32BIT
 
-config CPU_ADVANCED
-	bool "Override CPU Options"
-	depends on 32BIT
-	help
-	  Saying yes here allows you to select support for various features
-	  your CPU may or may not have.  Most people should say N here.
-
 config CPU_HAS_LLSC
-	bool "ll/sc Instructions available" if CPU_ADVANCED
-	default y if !CPU_ADVANCED && !CPU_R3000 && !CPU_VR41XX && !CPU_TX39XX
-	help
-	  MIPS R4000 series and later provide the Load Linked (ll)
-	  and Store Conditional (sc) instructions. More information is
-	  available at <http://www.go-ecs.com/mips/miptek1.htm>.
-
-	  Say Y here if your CPU has the ll and sc instructions.  Say Y here
-	  for better performance, N if you don't know.  You must say Y here
-	  for multiprocessor machines.
+	bool
 
 config CPU_HAS_WB
-	bool "Writeback Buffer available" if CPU_ADVANCED
-	default y if !CPU_ADVANCED && CPU_R3000 && MACH_DECSTATION
-	help
-	  Say N here for slightly better performance.  You must say Y here for
-	  machines which require flushing of write buffers in software.  Saying
-	  Y is the safe option; N may result in kernel malfunction and crashes.
-
-menu "MIPSR2 Interrupt handling"
-	depends on CPU_MIPSR2 && CPU_ADVANCED
+	bool
 
 config CPU_MIPSR2_IRQ_VI
 	bool "Vectored interrupt mode"
+	depends on CPU_MIPSR2
 	help
 	   Vectored interrupt mode allowing faster dispatching of interrupts.
 	   The board support code needs to be written to take advantage of this
@@ -1532,6 +1551,7 @@ config CPU_MIPSR2_IRQ_VI
 
 config CPU_MIPSR2_IRQ_EI
 	bool "External interrupt controller mode"
+	depends on CPU_MIPSR2
 	help
 	   Extended interrupt mode takes advantage of an external interrupt
 	   controller to allow fast dispatching from many possible interrupt
@@ -1545,7 +1565,6 @@ config CPU_MIPSR2_SRS
 	   Allow the kernel to use shadow register sets for fast interrupts.
 	   Interrupt handlers must be specially written to use shadow sets.
 	   Say N unless you know that shadow register set upport is needed.
-endmenu
 
 config CPU_HAS_SYNC
 	bool
@@ -1590,11 +1609,16 @@ config ARCH_FLATMEM_ENABLE
 	def_bool y
 	depends on !NUMA
 
+config NODES_SHIFT
+	int
+	default "6"
+	depends on NEED_MULTIPLE_NODES
+
 source "mm/Kconfig"
 
 config SMP
 	bool "Multi-Processing support"
-	depends on CPU_RM9000 || ((SIBYTE_BCM1x80 || SIBYTE_BCM1x55 || SIBYTE_SB1250 || QEMU) && !SIBYTE_STANDALONE) || SGI_IP27 || MIPS_MT_SMP
+	depends on CPU_RM9000 || ((SIBYTE_BCM1x80 || SIBYTE_BCM1x55 || SIBYTE_SB1250 || QEMU) && !SIBYTE_STANDALONE) || SGI_IP27 || MIPS_MT_SMP || MIPS_MT_SMTC
 	---help---
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, like most personal computers, say N. If

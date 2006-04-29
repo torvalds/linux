@@ -435,6 +435,11 @@ int fb_prepare_logo(struct fb_info *info, int rotate)
 			depth = info->var.green.length;
 	}
 
+	if (info->fix.visual == FB_VISUAL_STATIC_PSEUDOCOLOR) {
+		/* assume console colormap */
+		depth = 4;
+	}
+
 	if (depth >= 8) {
 		switch (info->fix.visual) {
 		case FB_VISUAL_TRUECOLOR:
@@ -669,13 +674,19 @@ fb_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 		total_size = info->fix.smem_len;
 
 	if (p > total_size)
-		return 0;
+		return -EFBIG;
 
-	if (count >= total_size)
+	if (count > total_size) {
+		err = -EFBIG;
 		count = total_size;
+	}
 
-	if (count + p > total_size)
+	if (count + p > total_size) {
+		if (!err)
+			err = -ENOSPC;
+
 		count = total_size - p;
+	}
 
 	buffer = kmalloc((count > PAGE_SIZE) ? PAGE_SIZE : count,
 			 GFP_KERNEL);
@@ -717,7 +728,7 @@ fb_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 
 	kfree(buffer);
 
-	return (err) ? err : cnt;
+	return (cnt) ? cnt : err;
 }
 
 #ifdef CONFIG_KMOD

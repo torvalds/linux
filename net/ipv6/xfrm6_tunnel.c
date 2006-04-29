@@ -351,7 +351,7 @@ static int xfrm6_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
 	return 0;
 }
 
-static int xfrm6_tunnel_input(struct xfrm_state *x, struct xfrm_decap_state *decap, struct sk_buff *skb)
+static int xfrm6_tunnel_input(struct xfrm_state *x, struct sk_buff *skb)
 {
 	return 0;
 }

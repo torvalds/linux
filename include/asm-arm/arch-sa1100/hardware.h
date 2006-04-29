@@ -14,10 +14,6 @@
 
 #include <linux/config.h>
 
-/* Flushing areas */
-#define FLUSH_BASE_PHYS		0xe0000000	/* SA1100 zero bank */
-#define FLUSH_BASE		0xf5000000
-#define FLUSH_BASE_MINICACHE	0xf5800000
 #define UNCACHEABLE_ADDR	0xfa050000
 
 

@@ -245,7 +245,8 @@ void __init parse_early_param(void);
 #define __cpuexitdata	__exitdata
 #endif
 
-#ifdef CONFIG_MEMORY_HOTPLUG
+#if defined(CONFIG_MEMORY_HOTPLUG) || defined(CONFIG_ACPI_HOTPLUG_MEMORY) \
+	|| defined(CONFIG_ACPI_HOTPLUG_MEMORY_MODULE)
 #define __meminit
 #define __meminitdata
 #define __memexit

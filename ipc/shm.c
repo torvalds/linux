@@ -91,8 +91,8 @@ static inline int shm_addid(struct shmid_kernel *shp)
 static inline void shm_inc (int id) {
 	struct shmid_kernel *shp;
 
-	if(!(shp = shm_lock(id)))
-		BUG();
+	shp = shm_lock(id);
+	BUG_ON(!shp);
 	shp->shm_atim = get_seconds();
 	shp->shm_lprid = current->tgid;
 	shp->shm_nattch++;
@@ -142,8 +142,8 @@ static void shm_close (struct vm_area_struct *shmd)
 
 	mutex_lock(&shm_ids.mutex);
 	/* remove from the list of attaches of the shm segment */
-	if(!(shp = shm_lock(id)))
-		BUG();
+	shp = shm_lock(id);
+	BUG_ON(!shp);
 	shp->shm_lprid = current->tgid;
 	shp->shm_dtim = get_seconds();
 	shp->shm_nattch--;
@@ -162,6 +162,8 @@ static int shm_mmap(struct file * file, struct vm_area_struct * vma)
 	ret = shmem_mmap(file, vma);
 	if (ret == 0) {
 		vma->vm_ops = &shm_vm_ops;
+		if (!(vma->vm_flags & VM_WRITE))
+			vma->vm_flags &= ~VM_MAYWRITE;
 		shm_inc(file->f_dentry->d_inode->i_ino);
 	}
 
@@ -283,8 +285,7 @@ asmlinkage long sys_shmget (key_t key, size_t size, int shmflg)
 		err = -EEXIST;
 	} else {
 		shp = shm_lock(id);
-		if(shp==NULL)
-			BUG();
+		BUG_ON(shp==NULL);
 		if (shp->shm_segsz < size)
 			err = -EINVAL;
 		else if (ipcperms(&shp->shm_perm, shmflg))
@@ -774,8 +775,8 @@ invalid:
 	up_write(&current->mm->mmap_sem);
 
 	mutex_lock(&shm_ids.mutex);
-	if(!(shp = shm_lock(shmid)))
-		BUG();
+	shp = shm_lock(shmid);
+	BUG_ON(!shp);
 	shp->shm_nattch--;
 	if(shp->shm_nattch == 0 &&
 	   shp->shm_perm.mode & SHM_DEST)

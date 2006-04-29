@@ -211,49 +211,20 @@ static int __init iptable_mangle_init(void)
 		return ret;
 
 	/* Register hooks */
-	ret = nf_register_hook(&ipt_ops[0]);
+	ret = nf_register_hooks(ipt_ops, ARRAY_SIZE(ipt_ops));
 	if (ret < 0)
 		goto cleanup_table;
 
-	ret = nf_register_hook(&ipt_ops[1]);
-	if (ret < 0)
-		goto cleanup_hook0;
-
-	ret = nf_register_hook(&ipt_ops[2]);
-	if (ret < 0)
-		goto cleanup_hook1;
-
-	ret = nf_register_hook(&ipt_ops[3]);
-	if (ret < 0)
-		goto cleanup_hook2;
-
-	ret = nf_register_hook(&ipt_ops[4]);
-	if (ret < 0)
-		goto cleanup_hook3;
-
 	return ret;
 
- cleanup_hook3:
-        nf_unregister_hook(&ipt_ops[3]);
- cleanup_hook2:
-        nf_unregister_hook(&ipt_ops[2]);
- cleanup_hook1:
-	nf_unregister_hook(&ipt_ops[1]);
- cleanup_hook0:
-	nf_unregister_hook(&ipt_ops[0]);
  cleanup_table:
 	ipt_unregister_table(&packet_mangler);
-
 	return ret;
 }
 
 static void __exit iptable_mangle_fini(void)
 {
-	unsigned int i;
-
-	for (i = 0; i < sizeof(ipt_ops)/sizeof(struct nf_hook_ops); i++)
-		nf_unregister_hook(&ipt_ops[i]);
-
+	nf_unregister_hooks(ipt_ops, ARRAY_SIZE(ipt_ops));
 	ipt_unregister_table(&packet_mangler);
 }
 

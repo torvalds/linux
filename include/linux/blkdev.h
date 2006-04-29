@@ -17,6 +17,8 @@
 
 #include <asm/scatterlist.h>
 
+struct scsi_ioctl_command;
+
 struct request_queue;
 typedef struct request_queue request_queue_t;
 struct elevator_queue;
@@ -611,6 +613,8 @@ extern void blk_plug_device(request_queue_t *);
 extern int blk_remove_plug(request_queue_t *);
 extern void blk_recount_segments(request_queue_t *, struct bio *);
 extern int scsi_cmd_ioctl(struct file *, struct gendisk *, unsigned int, void __user *);
+extern int sg_scsi_ioctl(struct file *, struct request_queue *,
+		struct gendisk *, struct scsi_ioctl_command __user *);
 extern void blk_start_queue(request_queue_t *q);
 extern void blk_stop_queue(request_queue_t *q);
 extern void blk_sync_queue(struct request_queue *q);

@@ -9,10 +9,6 @@ ip27-init.c:find_lbaord_real. DONE
 in irix?
 6. Investigate why things do not work without the setup_test() call
 being invoked on all nodes in ip27-memory.c.
-7. Too many CLIs in the locore handlers :
-For the low level handlers set up by set_except_vector(),
-__tlb_refill_debug_tramp, __xtlb_refill_debug_tramp and cacheerror,
-investigate whether the code should do CLI, STI or KMODE.
 8. Too many do_page_faults invoked - investigate.
 9. start_thread must turn off UX64 ... and define tlb_refill_debug.
 10. Need a bad pmd table, bad pte table. __bad_pmd_table/__bad_pagetable

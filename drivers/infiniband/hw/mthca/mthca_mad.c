@@ -49,6 +49,30 @@ enum {
 	MTHCA_VENDOR_CLASS2 = 0xa
 };
 
+static int mthca_update_rate(struct mthca_dev *dev, u8 port_num)
+{
+	struct ib_port_attr *tprops = NULL;
+	int                  ret;
+
+	tprops = kmalloc(sizeof *tprops, GFP_KERNEL);
+	if (!tprops)
+		return -ENOMEM;
+
+	ret = ib_query_port(&dev->ib_dev, port_num, tprops);
+	if (ret) {
+		printk(KERN_WARNING "ib_query_port failed (%d) for %s port %d\n",
+		       ret, dev->ib_dev.name, port_num);
+		goto out;
+	}
+
+	dev->rate[port_num - 1] = tprops->active_speed *
+				  ib_width_enum_to_int(tprops->active_width);
+
+out:
+	kfree(tprops);
+	return ret;
+}
+
 static void update_sm_ah(struct mthca_dev *dev,
 			 u8 port_num, u16 lid, u8 sl)
 {
@@ -90,6 +114,7 @@ static void smp_snoop(struct ib_device *ibdev,
 	     mad->mad_hdr.mgmt_class  == IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE) &&
 	    mad->mad_hdr.method     == IB_MGMT_METHOD_SET) {
 		if (mad->mad_hdr.attr_id == IB_SMP_ATTR_PORT_INFO) {
+			mthca_update_rate(to_mdev(ibdev), port_num);
 			update_sm_ah(to_mdev(ibdev), port_num,
 				     be16_to_cpup((__be16 *) (mad->data + 58)),
 				     (*(u8 *) (mad->data + 76)) & 0xf);
@@ -246,6 +271,7 @@ int mthca_create_agents(struct mthca_dev *dev)
 {
 	struct ib_mad_agent *agent;
 	int p, q;
+	int ret;
 
 	spin_lock_init(&dev->sm_lock);
 
@@ -255,10 +281,22 @@ int mthca_create_agents(struct mthca_dev *dev)
 						      q ? IB_QPT_GSI : IB_QPT_SMI,
 						      NULL, 0, send_handler,
 						      NULL, NULL);
-			if (IS_ERR(agent))
+			if (IS_ERR(agent)) {
+				ret = PTR_ERR(agent);
 				goto err;
+			}
 			dev->send_agent[p][q] = agent;
 		}
+
+
+	for (p = 1; p <= dev->limits.num_ports; ++p) {
+		ret = mthca_update_rate(dev, p);
+		if (ret) {
+			mthca_err(dev, "Failed to obtain port %d rate."
+				  " aborting.\n", p);
+			goto err;
+		}
+	}
 
 	return 0;
 
@@ -268,7 +306,7 @@ err:
 			if (dev->send_agent[p][q])
 				ib_unregister_mad_agent(dev->send_agent[p][q]);
 
-	return PTR_ERR(agent);
+	return ret;
 }
 
 void __devexit mthca_free_agents(struct mthca_dev *dev)

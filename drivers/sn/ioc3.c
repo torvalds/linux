@@ -11,6 +11,7 @@
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include <linux/delay.h>
@@ -619,9 +620,9 @@ static int ioc3_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 	pci_set_master(pdev);
 
 #ifdef USE_64BIT_DMA
-        ret = pci_set_dma_mask(pdev, 0xffffffffffffffffULL);
+        ret = pci_set_dma_mask(pdev, DMA_64BIT_MASK);
         if (!ret) {
-                ret = pci_set_consistent_dma_mask(pdev, 0xffffffffffffffffULL);
+                ret = pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK);
                 if (ret < 0) {
                         printk(KERN_WARNING "%s: Unable to obtain 64 bit DMA "
                                "for consistent allocations\n",

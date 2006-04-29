@@ -226,7 +226,7 @@ struct net_device * __init ne_probe(int unit)
 	netdev_boot_setup_check(dev);
 
 #ifdef CONFIG_TOSHIBA_RBTX4938
-	dev->base_addr = 0x07f20280;
+	dev->base_addr = RBTX4938_RTL_8019_BASE;
 	dev->irq = RBTX4938_RTL_8019_IRQ;
 #endif
 	err = do_ne_probe(dev);

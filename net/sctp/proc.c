@@ -69,7 +69,7 @@ fold_field(void *mib[], int nr)
 	unsigned long res = 0;
 	int i;
 
-	for_each_cpu(i) {
+	for_each_possible_cpu(i) {
 		res +=
 		    *((unsigned long *) (((void *) per_cpu_ptr(mib[0], i)) +
 					 sizeof (unsigned long) * nr));

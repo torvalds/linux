@@ -2741,7 +2741,10 @@ int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr* nlh, void *arg)
 	/* Reserve room for dummy headers, this skb can pass
 	   through good chunk of routing engine.
 	 */
-	skb->mac.raw = skb->data;
+	skb->mac.raw = skb->nh.raw = skb->data;
+
+	/* Bugfix: need to give ip_route_input enough of an IP header to not gag. */
+	skb->nh.iph->protocol = IPPROTO_ICMP;
 	skb_reserve(skb, MAX_HEADER + sizeof(struct iphdr));
 
 	if (rta[RTA_SRC - 1])
@@ -3083,7 +3086,7 @@ static int ip_rt_acct_read(char *buffer, char **start, off_t offset,
 		memcpy(dst, src, length);
 
 		/* Add the other cpus in, one int at a time */
-		for_each_cpu(i) {
+		for_each_possible_cpu(i) {
 			unsigned int j;
 
 			src = ((u32 *) IP_RT_ACCT_CPU(i)) + offset;

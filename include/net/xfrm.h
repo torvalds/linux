@@ -143,6 +143,11 @@ struct xfrm_state
 	/* Replay detection state at the time we sent the last notification */
 	struct xfrm_replay_state preplay;
 
+	/* internal flag that only holds state for delayed aevent at the
+	 * moment
+	*/
+	u32			xflags;
+
 	/* Replay detection notification settings */
 	u32			replay_maxage;
 	u32			replay_maxdiff;
@@ -167,6 +172,9 @@ struct xfrm_state
 	 * interpreted by xfrm_type methods. */
 	void			*data;
 };
+
+/* xflags - make enum if more show up */
+#define XFRM_TIME_DEFER	1
 
 enum {
 	XFRM_STATE_VOID,
@@ -242,7 +250,6 @@ extern int xfrm_state_unregister_afinfo(struct xfrm_state_afinfo *afinfo);
 
 extern void xfrm_state_delete_tunnel(struct xfrm_state *x);
 
-struct xfrm_decap_state;
 struct xfrm_type
 {
 	char			*description;
@@ -251,7 +258,7 @@ struct xfrm_type
 
 	int			(*init_state)(struct xfrm_state *x);
 	void			(*destructor)(struct xfrm_state *);
-	int			(*input)(struct xfrm_state *, struct xfrm_decap_state *, struct sk_buff *skb);
+	int			(*input)(struct xfrm_state *, struct sk_buff *skb);
 	int			(*output)(struct xfrm_state *, struct sk_buff *pskb);
 	/* Estimate maximal size of result of transformation of a dgram */
 	u32			(*get_max_size)(struct xfrm_state *, int size);
@@ -606,25 +613,11 @@ static inline void xfrm_dst_destroy(struct xfrm_dst *xdst)
 
 extern void xfrm_dst_ifdown(struct dst_entry *dst, struct net_device *dev);
 
-/* Decapsulation state, used by the input to store data during
- * decapsulation procedure, to be used later (during the policy
- * check
- */
-struct xfrm_decap_state {
-	char	decap_data[20];
-	__u16	decap_type;
-};   
-
-struct sec_decap_state {
-	struct xfrm_state	*xvec;
-	struct xfrm_decap_state decap;
-};
-
 struct sec_path
 {
 	atomic_t		refcnt;
 	int			len;
-	struct sec_decap_state	x[XFRM_MAX_DEPTH];
+	struct xfrm_state	*xvec[XFRM_MAX_DEPTH];
 };
 
 static inline struct sec_path *

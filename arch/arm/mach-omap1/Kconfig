@@ -69,12 +69,6 @@ config MACH_VOICEBLUE
 	  Support for Voiceblue GSM/VoIP gateway. Say Y here if you have
 	  such a board.
 
-config MACH_NETSTAR
-	bool "NetStar"
-	depends on ARCH_OMAP1 && ARCH_OMAP15XX
-	help
-	  Support for NetStar PBX. Say Y here if you have such a board.
-
 config MACH_OMAP_PALMTE
 	bool "Palm Tungsten E"
 	depends on ARCH_OMAP1 && ARCH_OMAP15XX
@@ -84,6 +78,20 @@ config MACH_OMAP_PALMTE
           bootloader; check out http://palmtelinux.sourceforge.net for more
           informations.
           Say Y here if you have such a PDA, say NO otherwise.
+
+config MACH_NOKIA770
+	bool "Nokia 770"
+	depends on ARCH_OMAP1 && ARCH_OMAP16XX
+	help
+	  Support for the Nokia 770 Internet Tablet. Say Y here if you
+	  have such a device.
+
+config MACH_AMS_DELTA
+	bool "Amstrad E3 (Delta)"
+	depends on ARCH_OMAP1 && ARCH_OMAP15XX
+	help
+	  Support for the Amstrad E3 (codename Delta) videophone. Say Y here
+	  if you have such a device.
 
 config MACH_OMAP_GENERIC
 	bool "Generic OMAP board"

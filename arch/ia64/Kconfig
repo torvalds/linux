@@ -260,15 +260,6 @@ config NR_CPUS
 	  than 64 will cause the use of a CPU mask array, causing a small
 	  performance hit.
 
-config IA64_NR_NODES
-	int "Maximum number of NODEs (256-1024)" if (IA64_SGI_SN2 || IA64_GENERIC)
-	range 256 1024
-	depends on IA64_SGI_SN2 || IA64_GENERIC
-	default "256"
-	help
-	  This option specifies the maximum number of nodes in your SSI system.
-	  If in doubt, use the default.
-
 config HOTPLUG_CPU
 	bool "Support for hot-pluggable CPUs (EXPERIMENTAL)"
 	depends on SMP && EXPERIMENTAL
@@ -352,6 +343,16 @@ config NUMA
 	  Access).  This option is for configuring high-end multiprocessor
 	  server systems.  If in doubt, say N.
 
+config NODES_SHIFT
+	int "Max num nodes shift(3-10)"
+	range 3 10
+	default "8"
+	depends on NEED_MULTIPLE_NODES
+	help
+	  This option specifies the maximum number of nodes in your SSI system.
+	  MAX_NUMNODES will be 2^(This value).
+	  If in doubt, use the default.
+
 # VIRTUAL_MEM_MAP and FLAT_NODE_MEM_MAP are functionally equivalent.
 # VIRTUAL_MEM_MAP has been retained for historical reasons.
 config VIRTUAL_MEM_MAP
@@ -411,6 +412,8 @@ config IA64_PALINFO
 
 config SGI_SN
 	def_bool y if (IA64_SGI_SN2 || IA64_GENERIC)
+
+source "drivers/sn/Kconfig"
 
 source "drivers/firmware/Kconfig"
 

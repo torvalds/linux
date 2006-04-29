@@ -231,6 +231,15 @@ config NETFILTER_XT_MATCH_DCCP
 	  If you want to compile it as a module, say M here and read
 	  <file:Documentation/modules.txt>.  If unsure, say `N'.
 
+config NETFILTER_XT_MATCH_ESP
+	tristate '"ESP" match support'
+	depends on NETFILTER_XTABLES
+	help
+	  This match extension allows you to match a range of SPIs
+	  inside ESP header of IPSec packets.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 config NETFILTER_XT_MATCH_HELPER
 	tristate '"helper" match support'
 	depends on NETFILTER_XTABLES
@@ -286,6 +295,16 @@ config NETFILTER_XT_MATCH_POLICY
 	  Policy matching allows you to match packets based on the
 	  IPsec policy that was used during decapsulation/will
 	  be used during encapsulation.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_MATCH_MULTIPORT
+	tristate "Multiple port match support"
+	depends on NETFILTER_XTABLES
+	help
+	  Multiport matching allows you to match TCP or UDP packets based on
+	  a series of source or destination ports: normally a rule can only
+	  match a single range of ports.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 

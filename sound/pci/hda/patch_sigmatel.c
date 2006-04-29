@@ -310,6 +310,9 @@ static struct hda_board_config stac922x_cfg_tbl[] = {
 	  .pci_subdevice = 0x0b0b,
 	  .config = STAC_D945GTP3 },	/* Intel D945PSN - 3 Stack, 9221 A1 */
 	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
+	  .pci_subdevice = 0x0707,
+	  .config = STAC_D945GTP5 },	/* Intel D945PSV - 5 Stack */
+       { .pci_subvendor = PCI_VENDOR_ID_INTEL,
 	  .pci_subdevice = 0x0404,
 	  .config = STAC_D945GTP5 },	/* Intel D945GTP - 5 Stack */
 	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
@@ -534,6 +537,22 @@ static int stac92xx_build_pcms(struct hda_codec *codec)
 	return 0;
 }
 
+static unsigned int stac92xx_get_vref(struct hda_codec *codec, hda_nid_t nid)
+{
+	unsigned int pincap = snd_hda_param_read(codec, nid,
+						 AC_PAR_PIN_CAP);
+	pincap = (pincap & AC_PINCAP_VREF) >> AC_PINCAP_VREF_SHIFT;
+	if (pincap & AC_PINCAP_VREF_100)
+		return AC_PINCTL_VREF_100;
+	if (pincap & AC_PINCAP_VREF_80)
+		return AC_PINCTL_VREF_80;
+	if (pincap & AC_PINCAP_VREF_50)
+		return AC_PINCTL_VREF_50;
+	if (pincap & AC_PINCAP_VREF_GRD)
+		return AC_PINCTL_VREF_GRD;
+	return 0;
+}
+
 static void stac92xx_auto_set_pinctl(struct hda_codec *codec, hda_nid_t nid, int pin_type)
 
 {
@@ -571,9 +590,12 @@ static int stac92xx_io_switch_put(struct snd_kcontrol *kcontrol, struct snd_ctl_
 
 	if (val)
 		stac92xx_auto_set_pinctl(codec, nid, AC_PINCTL_OUT_EN);
-	else
-		stac92xx_auto_set_pinctl(codec, nid, AC_PINCTL_IN_EN);
-
+	else {
+		unsigned int pinctl = AC_PINCTL_IN_EN;
+		if (io_idx) /* set VREF for mic */
+			pinctl |= stac92xx_get_vref(codec, nid);
+		stac92xx_auto_set_pinctl(codec, nid, pinctl);
+	}
         return 1;
 }
 
@@ -767,13 +789,8 @@ static int stac92xx_auto_create_hp_ctls(struct hda_codec *codec, struct auto_pin
 		return 0;
 
 	wid_caps = get_wcaps(codec, pin);
-	if (wid_caps & AC_WCAP_UNSOL_CAP) {
-		/* Enable unsolicited responses on the HP widget */
-		snd_hda_codec_write(codec, pin, 0,
-				AC_VERB_SET_UNSOLICITED_ENABLE,
-				STAC_UNSOL_ENABLE);
+	if (wid_caps & AC_WCAP_UNSOL_CAP)
 		spec->hp_detect = 1;
-	}
 
 	nid = snd_hda_codec_read(codec, pin, 0, AC_VERB_GET_CONNECT_LIST, 0) & 0xff;
 	for (i = 0; i < cfg->line_outs; i++) {
@@ -896,13 +913,8 @@ static int stac9200_auto_create_hp_ctls(struct hda_codec *codec,
 		return 0;
 
 	wid_caps = get_wcaps(codec, pin);
-	if (wid_caps & AC_WCAP_UNSOL_CAP) {
-		/* Enable unsolicited responses on the HP widget */
-		snd_hda_codec_write(codec, pin, 0,
-				AC_VERB_SET_UNSOLICITED_ENABLE,
-				STAC_UNSOL_ENABLE);
+	if (wid_caps & AC_WCAP_UNSOL_CAP)
 		spec->hp_detect = 1;
-	}
 
 	return 0;
 }
@@ -944,6 +956,10 @@ static int stac92xx_init(struct hda_codec *codec)
 
 	/* set up pins */
 	if (spec->hp_detect) {
+		/* Enable unsolicited responses on the HP widget */
+		snd_hda_codec_write(codec, cfg->hp_pin, 0,
+				AC_VERB_SET_UNSOLICITED_ENABLE,
+				STAC_UNSOL_ENABLE);
 		/* fake event to set up pins */
 		codec->patch_ops.unsol_event(codec, STAC_HP_EVENT << 26);
 	} else {
@@ -951,9 +967,13 @@ static int stac92xx_init(struct hda_codec *codec)
 		stac92xx_auto_init_hp_out(codec);
 	}
 	for (i = 0; i < AUTO_PIN_LAST; i++) {
-		if (cfg->input_pins[i])
-			stac92xx_auto_set_pinctl(codec, cfg->input_pins[i],
-						 AC_PINCTL_IN_EN);
+		hda_nid_t nid = cfg->input_pins[i];
+		if (nid) {
+			unsigned int pinctl = AC_PINCTL_IN_EN;
+			if (i == AUTO_PIN_MIC || i == AUTO_PIN_FRONT_MIC)
+				pinctl |= stac92xx_get_vref(codec, nid);
+			stac92xx_auto_set_pinctl(codec, nid, pinctl);
+		}
 	}
 	if (cfg->dig_out_pin)
 		stac92xx_auto_set_pinctl(codec, cfg->dig_out_pin,

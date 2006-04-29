@@ -34,6 +34,7 @@
 #include <linux/mutex.h>
 #include <linux/futex.h>
 #include <linux/compat.h>
+#include <linux/pipe_fs_i.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -55,7 +56,7 @@ static void __unhash_process(struct task_struct *p)
 		detach_pid(p, PIDTYPE_PGID);
 		detach_pid(p, PIDTYPE_SID);
 
-		list_del_init(&p->tasks);
+		list_del_rcu(&p->tasks);
 		__get_cpu_var(process_counts)--;
 	}
 	list_del_rcu(&p->thread_group);
@@ -940,6 +941,9 @@ fastcall NORET_TYPE void do_exit(long code)
 
 	if (tsk->io_context)
 		exit_io_context();
+
+	if (tsk->splice_pipe)
+		__free_pipe_info(tsk->splice_pipe);
 
 	/* PF_DEAD causes final put_task_struct after we schedule. */
 	preempt_disable();

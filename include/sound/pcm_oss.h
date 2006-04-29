@@ -69,8 +69,7 @@ struct snd_pcm_oss_file {
 
 struct snd_pcm_oss_substream {
 	unsigned oss: 1;			/* oss mode */
-	struct snd_pcm_oss_setup *setup;		/* active setup */
-	struct snd_pcm_oss_file *file;
+	struct snd_pcm_oss_setup setup;		/* active setup */
 };
 
 struct snd_pcm_oss_stream {

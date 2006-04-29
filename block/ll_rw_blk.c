@@ -1554,7 +1554,7 @@ void blk_plug_device(request_queue_t *q)
 	 * don't plug a stopped queue, it must be paired with blk_start_queue()
 	 * which will restart the queueing
 	 */
-	if (test_bit(QUEUE_FLAG_STOPPED, &q->queue_flags))
+	if (blk_queue_stopped(q))
 		return;
 
 	if (!test_and_set_bit(QUEUE_FLAG_PLUGGED, &q->queue_flags)) {
@@ -1587,7 +1587,7 @@ EXPORT_SYMBOL(blk_remove_plug);
  */
 void __generic_unplug_device(request_queue_t *q)
 {
-	if (unlikely(test_bit(QUEUE_FLAG_STOPPED, &q->queue_flags)))
+	if (unlikely(blk_queue_stopped(q)))
 		return;
 
 	if (!blk_remove_plug(q))
@@ -1740,7 +1740,7 @@ EXPORT_SYMBOL(blk_run_queue);
 
 /**
  * blk_cleanup_queue: - release a &request_queue_t when it is no longer needed
- * @q:    the request queue to be released
+ * @kobj:    the kobj belonging of the request queue to be released
  *
  * Description:
  *     blk_cleanup_queue is the pair to blk_init_queue() or
@@ -3385,7 +3385,7 @@ static int blk_cpu_notify(struct notifier_block *self, unsigned long action,
 }
 
 
-static struct notifier_block __devinitdata blk_cpu_notifier = {
+static struct notifier_block blk_cpu_notifier = {
 	.notifier_call	= blk_cpu_notify,
 };
 

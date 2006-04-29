@@ -2,7 +2,6 @@
 #define _ASM_X8664_NUMA_H 1
 
 #include <linux/nodemask.h>
-#include <asm/numnodes.h>
 
 struct bootnode {
 	u64 start,end; 
@@ -18,6 +17,8 @@ extern void numa_init_array(void);
 extern int numa_off;
 
 extern void numa_set_node(int cpu, int node);
+extern void srat_reserve_add_area(int nodeid);
+extern int hotadd_percent;
 
 extern unsigned char apicid_to_node[256];
 #ifdef CONFIG_NUMA

@@ -69,6 +69,7 @@ config IP_NF_CONNTRACK_NETLINK
 	tristate 'Connection tracking netlink interface (EXPERIMENTAL)'
 	depends on EXPERIMENTAL && IP_NF_CONNTRACK && NETFILTER_NETLINK
 	depends on IP_NF_CONNTRACK!=y || NETFILTER_NETLINK!=m
+	depends on IP_NF_NAT=n || IP_NF_NAT
 	help
 	  This option enables support for a netlink-based userspace interface
 
@@ -221,16 +222,6 @@ config IP_NF_MATCH_IPRANGE
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
-config IP_NF_MATCH_MULTIPORT
-	tristate "Multiple port match support"
-	depends on IP_NF_IPTABLES
-	help
-	  Multiport matching allows you to match TCP or UDP packets based on
-	  a series of source or destination ports: normally a rule can only
-	  match a single range of ports.
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
 config IP_NF_MATCH_TOS
 	tristate "TOS match support"
 	depends on IP_NF_IPTABLES
@@ -272,12 +263,12 @@ config IP_NF_MATCH_DSCP
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
-config IP_NF_MATCH_AH_ESP
-	tristate "AH/ESP match support"
+config IP_NF_MATCH_AH
+	tristate "AH match support"
 	depends on IP_NF_IPTABLES
 	help
-	  These two match extensions (`ah' and `esp') allow you to match a
-	  range of SPIs inside AH or ESP headers of IPSec packets.
+	  This match extension allows you to match a range of SPIs
+	  inside AH header of IPSec packets.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
@@ -354,7 +345,7 @@ config IP_NF_TARGET_LOG
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 config IP_NF_TARGET_ULOG
-	tristate "ULOG target support (OBSOLETE)"
+	tristate "ULOG target support"
 	depends on IP_NF_IPTABLES
 	---help---
 

@@ -69,7 +69,7 @@ static void crash_save_this_cpu(struct pt_regs *regs, int cpu)
 	 * for the data I pass, and I need tags
 	 * on the data to indicate what information I have
 	 * squirrelled away.  ELF notes happen to provide
-	 * all of that that no need to invent something new.
+	 * all of that, so there is no need to invent something new.
 	 */
 	buf = (u32*)per_cpu_ptr(crash_notes, cpu);
 	if (!buf)

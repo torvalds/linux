@@ -24,6 +24,7 @@
 #include <linux/config.h>	/* CONFIG_ALPHA_LCA etc */
 #include <linux/mc146818rtc.h>
 #include <linux/console.h>
+#include <linux/cpu.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/string.h>
@@ -470,6 +471,22 @@ page_is_ram(unsigned long pfn)
 
 	return 0;
 }
+
+static int __init
+register_cpus(void)
+{
+	int i;
+
+	for_each_possible_cpu(i) {
+		struct cpu *p = kzalloc(sizeof(*p), GFP_KERNEL);
+		if (!p)
+			return -ENOMEM;
+		register_cpu(p, i, NULL);
+	}
+	return 0;
+}
+
+arch_initcall(register_cpus);
 
 void __init
 setup_arch(char **cmdline_p)

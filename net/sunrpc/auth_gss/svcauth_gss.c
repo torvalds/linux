@@ -1122,18 +1122,20 @@ svcauth_gss_release(struct svc_rqst *rqstp)
 					integ_len))
 			BUG();
 		if (resbuf->page_len == 0
-			&& resbuf->tail[0].iov_len + RPC_MAX_AUTH_SIZE
+			&& resbuf->head[0].iov_len + RPC_MAX_AUTH_SIZE
 				< PAGE_SIZE) {
 			BUG_ON(resbuf->tail[0].iov_len);
 			/* Use head for everything */
 			resv = &resbuf->head[0];
 		} else if (resbuf->tail[0].iov_base == NULL) {
-			/* copied from nfsd4_encode_read */
-			svc_take_page(rqstp);
-			resbuf->tail[0].iov_base = page_address(rqstp
-					->rq_respages[rqstp->rq_resused-1]);
-			rqstp->rq_restailpage = rqstp->rq_resused-1;
+			if (resbuf->head[0].iov_len + RPC_MAX_AUTH_SIZE
+					> PAGE_SIZE)
+				goto out_err;
+			resbuf->tail[0].iov_base =
+				resbuf->head[0].iov_base
+				+ resbuf->head[0].iov_len;
 			resbuf->tail[0].iov_len = 0;
+			rqstp->rq_restailpage = 0;
 			resv = &resbuf->tail[0];
 		} else {
 			resv = &resbuf->tail[0];

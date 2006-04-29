@@ -10,10 +10,6 @@
  *	published by the Free Software Foundation; either version 2 of
  *	the License, or (at your option) any later version.
  * =====================================================================
- * ToDo: ...
- * =====================================================================
- * Version: $Id: isocdata.c,v 1.2.2.5 2005/11/13 23:05:19 hjlipp Exp $
- * =====================================================================
  */
 
 #include "gigaset.h"
@@ -87,14 +83,14 @@ static inline int isowbuf_startwrite(struct isowbuf_t *iwb)
 {
 	if (!atomic_dec_and_test(&iwb->writesem)) {
 		atomic_inc(&iwb->writesem);
-		dbg(DEBUG_ISO,
-		    "%s: couldn't acquire iso write semaphore", __func__);
+		gig_dbg(DEBUG_ISO, "%s: couldn't acquire iso write semaphore",
+			__func__);
 		return 0;
 	}
 #ifdef CONFIG_GIGASET_DEBUG
-	dbg(DEBUG_ISO,
-	    "%s: acquired iso write semaphore, data[write]=%02x, nbits=%d",
-	    __func__, iwb->data[atomic_read(&iwb->write)], iwb->wbits);
+	gig_dbg(DEBUG_ISO,
+		"%s: acquired iso write semaphore, data[write]=%02x, nbits=%d",
+		__func__, iwb->data[atomic_read(&iwb->write)], iwb->wbits);
 #endif
 	return 1;
 }
@@ -147,7 +143,7 @@ static inline void isowbuf_putflag(struct isowbuf_t *iwb)
 	/* recover the idle flag byte */
 	write = atomic_read(&iwb->write);
 	iwb->idle = iwb->data[write];
-	dbg(DEBUG_ISO, "idle fill byte %02x", iwb->idle);
+	gig_dbg(DEBUG_ISO, "idle fill byte %02x", iwb->idle);
 	/* mask extraneous bits in buffer */
 	iwb->data[write] &= (1 << iwb->wbits) - 1;
 }
@@ -166,15 +162,14 @@ int gigaset_isowbuf_getbytes(struct isowbuf_t *iwb, int size)
 	read = atomic_read(&iwb->nextread);
 	write = atomic_read(&iwb->write);
 	if (likely(read == write)) {
-		//dbg(DEBUG_STREAM, "%s: send buffer empty", __func__);
 		/* return idle frame */
 		return read < BAS_OUTBUFPAD ?
-		        BAS_OUTBUFSIZE : read - BAS_OUTBUFPAD;
+			BAS_OUTBUFSIZE : read - BAS_OUTBUFPAD;
 	}
 
 	limit = read + size;
-	dbg(DEBUG_STREAM,
-	    "%s: read=%d write=%d limit=%d", __func__, read, write, limit);
+	gig_dbg(DEBUG_STREAM, "%s: read=%d write=%d limit=%d",
+		__func__, read, write, limit);
 #ifdef CONFIG_GIGASET_DEBUG
 	if (unlikely(size < 0 || size > BAS_OUTBUFPAD)) {
 		err("invalid size %d", size);
@@ -196,11 +191,12 @@ int gigaset_isowbuf_getbytes(struct isowbuf_t *iwb, int size)
 				return -EBUSY;
 			/* write position could have changed */
 			if (limit >= (write = atomic_read(&iwb->write))) {
-				pbyte = iwb->data[write]; /* save partial byte */
+				pbyte = iwb->data[write]; /* save
+							     partial byte */
 				limit = write + BAS_OUTBUFPAD;
-				dbg(DEBUG_STREAM,
-				    "%s: filling %d->%d with %02x",
-				    __func__, write, limit, iwb->idle);
+				gig_dbg(DEBUG_STREAM,
+					"%s: filling %d->%d with %02x",
+					__func__, write, limit, iwb->idle);
 				if (write + BAS_OUTBUFPAD < BAS_OUTBUFSIZE)
 					memset(iwb->data + write, iwb->idle,
 					       BAS_OUTBUFPAD);
@@ -211,9 +207,11 @@ int gigaset_isowbuf_getbytes(struct isowbuf_t *iwb, int size)
 					       - write);
 					limit = 0;
 				}
-				dbg(DEBUG_STREAM, "%s: restoring %02x at %d",
-				    __func__, pbyte, limit);
-				iwb->data[limit] = pbyte; /* restore partial byte */
+				gig_dbg(DEBUG_STREAM,
+					"%s: restoring %02x at %d",
+					__func__, pbyte, limit);
+				iwb->data[limit] = pbyte; /* restore
+							     partial byte */
 				atomic_set(&iwb->write, limit);
 			}
 			isowbuf_donewrite(iwb);
@@ -242,19 +240,17 @@ int gigaset_isowbuf_getbytes(struct isowbuf_t *iwb, int size)
  * write hex bytes to syslog for debugging
  */
 static inline void dump_bytes(enum debuglevel level, const char *tag,
-                              unsigned char *bytes, int count)
+			      unsigned char *bytes, int count)
 {
 #ifdef CONFIG_GIGASET_DEBUG
 	unsigned char c;
 	static char dbgline[3 * 32 + 1];
 	static const char hexdigit[] = "0123456789abcdef";
 	int i = 0;
-	IFNULLRET(tag);
-	IFNULLRET(bytes);
 	while (count-- > 0) {
 		if (i > sizeof(dbgline) - 4) {
 			dbgline[i] = '\0';
-			dbg(level, "%s:%s", tag, dbgline);
+			gig_dbg(level, "%s:%s", tag, dbgline);
 			i = 0;
 		}
 		c = *bytes++;
@@ -264,7 +260,7 @@ static inline void dump_bytes(enum debuglevel level, const char *tag,
 		dbgline[i++] = hexdigit[c & 0x0f];
 	}
 	dbgline[i] = '\0';
-	dbg(level, "%s:%s", tag, dbgline);
+	gig_dbg(level, "%s:%s", tag, dbgline);
 #endif
 }
 
@@ -380,7 +376,7 @@ static u16 stufftab[5 * 256] = {
  */
 
 static inline int hdlc_bitstuff_byte(struct isowbuf_t *iwb, unsigned char cin,
-                                     int ones)
+				     int ones)
 {
 	u16 stuff;
 	int shiftinc, newones;
@@ -422,7 +418,7 @@ static inline int hdlc_bitstuff_byte(struct isowbuf_t *iwb, unsigned char cin,
  */
 
 static inline int hdlc_buildframe(struct isowbuf_t *iwb,
-                                  unsigned char *in, int count)
+				  unsigned char *in, int count)
 {
 	int ones;
 	u16 fcs;
@@ -431,8 +427,8 @@ static inline int hdlc_buildframe(struct isowbuf_t *iwb,
 
 	if (isowbuf_freebytes(iwb) < count + count / 5 + 6 ||
 	    !isowbuf_startwrite(iwb)) {
-		dbg(DEBUG_ISO, "%s: %d bytes free -> -EAGAIN",
-		    __func__, isowbuf_freebytes(iwb));
+		gig_dbg(DEBUG_ISO, "%s: %d bytes free -> -EAGAIN",
+			__func__, isowbuf_freebytes(iwb));
 		return -EAGAIN;
 	}
 
@@ -484,11 +480,11 @@ static inline int trans_buildframe(struct isowbuf_t *iwb,
 
 	if (isowbuf_freebytes(iwb) < count ||
 	    !isowbuf_startwrite(iwb)) {
-		dbg(DEBUG_ISO, "can't put %d bytes", count);
+		gig_dbg(DEBUG_ISO, "can't put %d bytes", count);
 		return -EAGAIN;
 	}
 
-	dbg(DEBUG_STREAM, "put %d bytes", count);
+	gig_dbg(DEBUG_STREAM, "put %d bytes", count);
 	write = atomic_read(&iwb->write);
 	do {
 		c = gigaset_invtab[*in++];
@@ -508,11 +504,13 @@ int gigaset_isoc_buildframe(struct bc_state *bcs, unsigned char *in, int len)
 	switch (bcs->proto2) {
 	case ISDN_PROTO_L2_HDLC:
 		result = hdlc_buildframe(bcs->hw.bas->isooutbuf, in, len);
-		dbg(DEBUG_ISO, "%s: %d bytes HDLC -> %d", __func__, len, result);
+		gig_dbg(DEBUG_ISO, "%s: %d bytes HDLC -> %d",
+			__func__, len, result);
 		break;
 	default:			/* assume transparent */
 		result = trans_buildframe(bcs->hw.bas->isooutbuf, in, len);
-		dbg(DEBUG_ISO, "%s: %d bytes trans -> %d", __func__, len, result);
+		gig_dbg(DEBUG_ISO, "%s: %d bytes trans -> %d",
+			__func__, len, result);
 	}
 	return result;
 }
@@ -528,13 +526,13 @@ static inline void hdlc_putbyte(unsigned char c, struct bc_state *bcs)
 		return;
 	}
 	if (unlikely(bcs->skb->len == SBUFSIZE)) {
-		warn("received oversized packet discarded");
+		dev_warn(bcs->cs->dev, "received oversized packet discarded\n");
 		bcs->hw.bas->giants++;
 		dev_kfree_skb_any(bcs->skb);
 		bcs->skb = NULL;
 		return;
 	}
-	*gigaset_skb_put_quick(bcs->skb, 1) = c;
+	*__skb_put(bcs->skb, 1) = c;
 }
 
 /* hdlc_flush
@@ -549,7 +547,7 @@ static inline void hdlc_flush(struct bc_state *bcs)
 		if ((bcs->skb = dev_alloc_skb(SBUFSIZE + HW_HDR_LEN)) != NULL)
 			skb_reserve(bcs->skb, HW_HDR_LEN);
 		else
-			err("could not allocate skb");
+			dev_err(bcs->cs->dev, "could not allocate skb\n");
 	}
 
 	/* reset packet state */
@@ -571,23 +569,25 @@ static inline void hdlc_done(struct bc_state *bcs)
 
 	if ((procskb = bcs->skb) == NULL) {
 		/* previous error */
-		dbg(DEBUG_ISO, "%s: skb=NULL", __func__);
+		gig_dbg(DEBUG_ISO, "%s: skb=NULL", __func__);
 		gigaset_rcv_error(NULL, bcs->cs, bcs);
 	} else if (procskb->len < 2) {
-		notice("received short frame (%d octets)", procskb->len);
+		dev_notice(bcs->cs->dev, "received short frame (%d octets)\n",
+			   procskb->len);
 		bcs->hw.bas->runts++;
 		gigaset_rcv_error(procskb, bcs->cs, bcs);
 	} else if (bcs->fcs != PPP_GOODFCS) {
-		notice("frame check error (0x%04x)", bcs->fcs);
+		dev_notice(bcs->cs->dev, "frame check error (0x%04x)\n",
+			   bcs->fcs);
 		bcs->hw.bas->fcserrs++;
 		gigaset_rcv_error(procskb, bcs->cs, bcs);
 	} else {
 		procskb->len -= 2;		/* subtract FCS */
 		procskb->tail -= 2;
-		dbg(DEBUG_ISO,
-		    "%s: good frame (%d octets)", __func__, procskb->len);
+		gig_dbg(DEBUG_ISO, "%s: good frame (%d octets)",
+			__func__, procskb->len);
 		dump_bytes(DEBUG_STREAM,
-		           "rcv data", procskb->data, procskb->len);
+			   "rcv data", procskb->data, procskb->len);
 		bcs->hw.bas->goodbytes += procskb->len;
 		gigaset_rcv_skb(procskb, bcs->cs, bcs);
 	}
@@ -595,7 +595,7 @@ static inline void hdlc_done(struct bc_state *bcs)
 	if ((bcs->skb = dev_alloc_skb(SBUFSIZE + HW_HDR_LEN)) != NULL)
 		skb_reserve(bcs->skb, HW_HDR_LEN);
 	else
-		err("could not allocate skb");
+		dev_err(bcs->cs->dev, "could not allocate skb\n");
 	bcs->fcs = PPP_INITFCS;
 }
 
@@ -610,14 +610,14 @@ static inline void hdlc_frag(struct bc_state *bcs, unsigned inbits)
 		return;
 	}
 
-	notice("received partial byte (%d bits)", inbits);
+	dev_notice(bcs->cs->dev, "received partial byte (%d bits)\n", inbits);
 	bcs->hw.bas->alignerrs++;
 	gigaset_rcv_error(bcs->skb, bcs->cs, bcs);
 
 	if ((bcs->skb = dev_alloc_skb(SBUFSIZE + HW_HDR_LEN)) != NULL)
 		skb_reserve(bcs->skb, HW_HDR_LEN);
 	else
-		err("could not allocate skb");
+		dev_err(bcs->cs->dev, "could not allocate skb\n");
 	bcs->fcs = PPP_INITFCS;
 }
 
@@ -659,15 +659,11 @@ static unsigned char bitcounts[256] = {
  *	bcs	receiving B channel structure
  */
 static inline void hdlc_unpack(unsigned char *src, unsigned count,
-                               struct bc_state *bcs)
+			       struct bc_state *bcs)
 {
-	struct bas_bc_state *ubc;
+	struct bas_bc_state *ubc = bcs->hw.bas;
 	int inputstate;
 	unsigned seqlen, inbyte, inbits;
-
-	IFNULLRET(bcs);
-	ubc = bcs->hw.bas;
-	IFNULLRET(ubc);
 
 	/* load previous state:
 	 * inputstate = set of flag bits:
@@ -856,7 +852,7 @@ static inline void hdlc_unpack(unsigned char *src, unsigned count,
  *	bcs	receiving B channel structure
  */
 static inline void trans_receive(unsigned char *src, unsigned count,
-                                 struct bc_state *bcs)
+				 struct bc_state *bcs)
 {
 	struct sk_buff *skb;
 	int dobytes;
@@ -870,7 +866,7 @@ static inline void trans_receive(unsigned char *src, unsigned count,
 	if (unlikely((skb = bcs->skb) == NULL)) {
 		bcs->skb = skb = dev_alloc_skb(SBUFSIZE + HW_HDR_LEN);
 		if (!skb) {
-			err("could not allocate skb");
+			dev_err(bcs->cs->dev, "could not allocate skb\n");
 			return;
 		}
 		skb_reserve(skb, HW_HDR_LEN);
@@ -888,7 +884,8 @@ static inline void trans_receive(unsigned char *src, unsigned count,
 			gigaset_rcv_skb(skb, bcs->cs, bcs);
 			bcs->skb = skb = dev_alloc_skb(SBUFSIZE + HW_HDR_LEN);
 			if (!skb) {
-				err("could not allocate skb");
+				dev_err(bcs->cs->dev,
+					"could not allocate skb\n");
 				return;
 			}
 			skb_reserve(bcs->skb, HW_HDR_LEN);
@@ -921,8 +918,8 @@ static void cmd_loop(unsigned char *src, int numbytes, struct inbuf_t *inbuf)
 		case '\r':
 		case '\n':
 			/* end of line */
-			dbg(DEBUG_TRANSCMD, "%s: End of Command (%d Bytes)",
-			    __func__, cbytes);
+			gig_dbg(DEBUG_TRANSCMD, "%s: End of Command (%d Bytes)",
+				__func__, cbytes);
 			cs->cbytes = cbytes;
 			gigaset_handle_modem_response(cs);
 			cbytes = 0;
@@ -932,7 +929,7 @@ static void cmd_loop(unsigned char *src, int numbytes, struct inbuf_t *inbuf)
 			if (cbytes < MAX_RESP_SIZE - 1)
 				cbytes++;
 			else
-				warn("response too large");
+				dev_warn(cs->dev, "response too large\n");
 		}
 	}
 
@@ -951,27 +948,27 @@ void gigaset_isoc_input(struct inbuf_t *inbuf)
 
 	head = atomic_read(&inbuf->head);
 	while (head != (tail = atomic_read(&inbuf->tail))) {
-		dbg(DEBUG_INTR, "buffer state: %u -> %u", head, tail);
+		gig_dbg(DEBUG_INTR, "buffer state: %u -> %u", head, tail);
 		if (head > tail)
 			tail = RBUFSIZE;
 		src = inbuf->data + head;
 		numbytes = tail - head;
-		dbg(DEBUG_INTR, "processing %u bytes", numbytes);
+		gig_dbg(DEBUG_INTR, "processing %u bytes", numbytes);
 
 		if (atomic_read(&cs->mstate) == MS_LOCKED) {
 			gigaset_dbg_buffer(DEBUG_LOCKCMD, "received response",
-			                   numbytes, src, 0);
+					   numbytes, src);
 			gigaset_if_receive(inbuf->cs, src, numbytes);
 		} else {
 			gigaset_dbg_buffer(DEBUG_CMD, "received response",
-			                   numbytes, src, 0);
+					   numbytes, src);
 			cmd_loop(src, numbytes, inbuf);
 		}
 
 		head += numbytes;
 		if (head == RBUFSIZE)
 			head = 0;
-		dbg(DEBUG_INTR, "setting head to %u", head);
+		gig_dbg(DEBUG_INTR, "setting head to %u", head);
 		atomic_set(&inbuf->head, head);
 	}
 }
@@ -992,18 +989,22 @@ void gigaset_isoc_input(struct inbuf_t *inbuf)
  */
 int gigaset_isoc_send_skb(struct bc_state *bcs, struct sk_buff *skb)
 {
-	int len;
+	int len = skb->len;
+	unsigned long flags;
 
-	IFNULLRETVAL(bcs, -EFAULT);
-	IFNULLRETVAL(skb, -EFAULT);
-	len = skb->len;
+	spin_lock_irqsave(&bcs->cs->lock, flags);
+	if (!bcs->cs->connected) {
+		spin_unlock_irqrestore(&bcs->cs->lock, flags);
+		return -ENODEV;
+	}
 
 	skb_queue_tail(&bcs->squeue, skb);
-	dbg(DEBUG_ISO,
-	    "%s: skb queued, qlen=%d", __func__, skb_queue_len(&bcs->squeue));
+	gig_dbg(DEBUG_ISO, "%s: skb queued, qlen=%d",
+		__func__, skb_queue_len(&bcs->squeue));
 
 	/* tasklet submits URB if necessary */
 	tasklet_schedule(&bcs->hw.bas->sent_tasklet);
+	spin_unlock_irqrestore(&bcs->cs->lock, flags);
 
 	return len;	/* ok so far */
 }

@@ -213,7 +213,7 @@ static int setup_new_group_blocks(struct super_block *sb,
 			goto exit_bh;
 		}
 		lock_buffer(bh);
-		memcpy(gdb->b_data, sbi->s_group_desc[i], bh->b_size);
+		memcpy(gdb->b_data, sbi->s_group_desc[i]->b_data, bh->b_size);
 		set_buffer_uptodate(gdb);
 		unlock_buffer(bh);
 		ext3_journal_dirty_metadata(handle, gdb);
@@ -767,6 +767,7 @@ int ext3_group_add(struct super_block *sb, struct ext3_new_group_data *input)
 	if (input->group != sbi->s_groups_count) {
 		ext3_warning(sb, __FUNCTION__,
 			     "multiple resizers run on filesystem!");
+		unlock_super(sb);
 		err = -EBUSY;
 		goto exit_journal;
 	}
@@ -974,6 +975,7 @@ int ext3_group_extend(struct super_block *sb, struct ext3_super_block *es,
 	if (o_blocks_count != le32_to_cpu(es->s_blocks_count)) {
 		ext3_warning(sb, __FUNCTION__,
 			     "multiple resizers run on filesystem!");
+		unlock_super(sb);
 		err = -EBUSY;
 		goto exit_put;
 	}

@@ -824,14 +824,14 @@ static int translate_table(struct ebt_replace *repl,
 	if (udc_cnt) {
 		/* this will get free'd in do_replace()/ebt_register_table()
 		   if an error occurs */
-		newinfo->chainstack = (struct ebt_chainstack **)
-		   vmalloc((highest_possible_processor_id()+1) 
-				   		* sizeof(struct ebt_chainstack));
+		newinfo->chainstack =
+			vmalloc((highest_possible_processor_id()+1)
+				   	* sizeof(*(newinfo->chainstack)));
 		if (!newinfo->chainstack)
 			return -ENOMEM;
-		for_each_cpu(i) {
+		for_each_possible_cpu(i) {
 			newinfo->chainstack[i] =
-			   vmalloc(udc_cnt * sizeof(struct ebt_chainstack));
+			  vmalloc(udc_cnt * sizeof(*(newinfo->chainstack[0])));
 			if (!newinfo->chainstack[i]) {
 				while (i)
 					vfree(newinfo->chainstack[--i]);
@@ -841,8 +841,7 @@ static int translate_table(struct ebt_replace *repl,
 			}
 		}
 
-		cl_s = (struct ebt_cl_stack *)
-		   vmalloc(udc_cnt * sizeof(struct ebt_cl_stack));
+		cl_s = vmalloc(udc_cnt * sizeof(*cl_s));
 		if (!cl_s)
 			return -ENOMEM;
 		i = 0; /* the i'th udc */
@@ -901,7 +900,7 @@ static void get_counters(struct ebt_counter *oldcounters,
 	       sizeof(struct ebt_counter) * nentries);
 
 	/* add other counters to those of cpu 0 */
-	for_each_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		if (cpu == 0)
 			continue;
 		counter_base = COUNTER_BASE(oldcounters, nentries, cpu);
@@ -944,8 +943,7 @@ static int do_replace(void __user *user, unsigned int len)
 
 	countersize = COUNTER_OFFSET(tmp.nentries) * 
 					(highest_possible_processor_id()+1);
-	newinfo = (struct ebt_table_info *)
-	   vmalloc(sizeof(struct ebt_table_info) + countersize);
+	newinfo = vmalloc(sizeof(*newinfo) + countersize);
 	if (!newinfo)
 		return -ENOMEM;
 
@@ -967,8 +965,7 @@ static int do_replace(void __user *user, unsigned int len)
 	/* the user wants counters back
 	   the check on the size is done later, when we have the lock */
 	if (tmp.num_counters) {
-		counterstmp = (struct ebt_counter *)
-		   vmalloc(tmp.num_counters * sizeof(struct ebt_counter));
+		counterstmp = vmalloc(tmp.num_counters * sizeof(*counterstmp));
 		if (!counterstmp) {
 			ret = -ENOMEM;
 			goto free_entries;
@@ -1036,7 +1033,7 @@ static int do_replace(void __user *user, unsigned int len)
 
 	vfree(table->entries);
 	if (table->chainstack) {
-		for_each_cpu(i)
+		for_each_possible_cpu(i)
 			vfree(table->chainstack[i]);
 		vfree(table->chainstack);
 	}
@@ -1054,7 +1051,7 @@ free_counterstmp:
 	vfree(counterstmp);
 	/* can be initialized in translate_table() */
 	if (newinfo->chainstack) {
-		for_each_cpu(i)
+		for_each_possible_cpu(i)
 			vfree(newinfo->chainstack[i]);
 		vfree(newinfo->chainstack);
 	}
@@ -1148,8 +1145,7 @@ int ebt_register_table(struct ebt_table *table)
 
 	countersize = COUNTER_OFFSET(table->table->nentries) *
 					(highest_possible_processor_id()+1);
-	newinfo = (struct ebt_table_info *)
-	   vmalloc(sizeof(struct ebt_table_info) + countersize);
+	newinfo = vmalloc(sizeof(*newinfo) + countersize);
 	ret = -ENOMEM;
 	if (!newinfo)
 		return -ENOMEM;
@@ -1201,7 +1197,7 @@ free_unlock:
 	mutex_unlock(&ebt_mutex);
 free_chainstack:
 	if (newinfo->chainstack) {
-		for_each_cpu(i)
+		for_each_possible_cpu(i)
 			vfree(newinfo->chainstack[i]);
 		vfree(newinfo->chainstack);
 	}
@@ -1224,7 +1220,7 @@ void ebt_unregister_table(struct ebt_table *table)
 	mutex_unlock(&ebt_mutex);
 	vfree(table->private->entries);
 	if (table->private->chainstack) {
-		for_each_cpu(i)
+		for_each_possible_cpu(i)
 			vfree(table->private->chainstack[i]);
 		vfree(table->private->chainstack);
 	}
@@ -1247,8 +1243,7 @@ static int update_counters(void __user *user, unsigned int len)
 	if (hlp.num_counters == 0)
 		return -EINVAL;
 
-	if ( !(tmp = (struct ebt_counter *)
-	   vmalloc(hlp.num_counters * sizeof(struct ebt_counter))) ){
+	if (!(tmp = vmalloc(hlp.num_counters * sizeof(*tmp)))) {
 		MEMPRINT("Update_counters && nomemory\n");
 		return -ENOMEM;
 	}
@@ -1377,8 +1372,7 @@ static int copy_everything_to_user(struct ebt_table *t, void __user *user,
 			BUGPRINT("Num_counters wrong\n");
 			return -EINVAL;
 		}
-		counterstmp = (struct ebt_counter *)
-		   vmalloc(nentries * sizeof(struct ebt_counter));
+		counterstmp = vmalloc(nentries * sizeof(*counterstmp));
 		if (!counterstmp) {
 			MEMPRINT("Couldn't copy counters, out of memory\n");
 			return -ENOMEM;

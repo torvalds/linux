@@ -281,7 +281,7 @@ u32 selinux_socket_getpeer_dgram(struct sk_buff *skb)
 		int i;
 
 		for (i = sp->len-1; i >= 0; i--) {
-			struct xfrm_state *x = sp->x[i].xvec;
+			struct xfrm_state *x = sp->xvec[i];
 			if (selinux_authorizable_xfrm(x)) {
 				struct xfrm_sec_ctx *ctx = x->security;
 				return ctx->ctx_sid;
@@ -314,7 +314,7 @@ int selinux_xfrm_sock_rcv_skb(u32 isec_sid, struct sk_buff *skb)
 		 *  Only need to verify the existence of an authorizable sp.
 		 */
 		for (i = 0; i < sp->len; i++) {
-			struct xfrm_state *x = sp->x[i].xvec;
+			struct xfrm_state *x = sp->xvec[i];
 
 			if (x && selinux_authorizable_xfrm(x))
 				goto accept;

@@ -335,7 +335,7 @@ do { \
 
 
 /* These identify the driver base version and may not be removed. */
-static char version[] __devinitdata =
+static const char version[] __devinitdata =
 KERN_INFO "starfire.c:v1.03 7/26/2000  Written by Donald Becker <becker@scyld.com>\n"
 KERN_INFO " (unofficial 2.2/2.4 kernel port, version " DRV_VERSION ", " DRV_RELDATE ")\n";
 
@@ -2122,8 +2122,7 @@ static void __devexit starfire_remove_one (struct pci_dev *pdev)
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct netdev_private *np = netdev_priv(dev);
 
-	if (!dev)
-		BUG();
+	BUG_ON(!dev);
 
 	unregister_netdev(dev);
 

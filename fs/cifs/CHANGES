@@ -1,7 +1,11 @@
 Version 1.42
 ------------
 Fix slow oplock break when mounted to different servers at the same time and
-the tids match and we try to find matching fid on wrong server.
+the tids match and we try to find matching fid on wrong server. Fix read
+looping when signing required by server (2.6.16 kernel only). Fix readdir
+vs. rename race which could cause each to hang. Return . and .. even
+if server does not.  Allow searches to skip first three entries and
+begin at any location. Fix oops in find_writeable_file.
 
 Version 1.41
 ------------

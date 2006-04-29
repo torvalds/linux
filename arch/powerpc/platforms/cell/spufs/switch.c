@@ -1297,7 +1297,7 @@ static inline void setup_decr(struct spu_state *csa, struct spu *spu)
 		cycles_t resume_time = get_cycles();
 		cycles_t delta_time = resume_time - csa->suspend_time;
 
-		csa->lscsa->decr.slot[0] = delta_time;
+		csa->lscsa->decr.slot[0] -= delta_time;
 	}
 }
 

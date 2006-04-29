@@ -91,4 +91,11 @@ void sa1111_adjust_zones(int node, unsigned long *size, unsigned long *holes);
 
 #endif
 
+/*
+ * Cache flushing area - SA1100 zero bank
+ */
+#define FLUSH_BASE_PHYS		0xe0000000
+#define FLUSH_BASE		0xf5000000
+#define FLUSH_BASE_MINICACHE	0xf5100000
+
 #endif

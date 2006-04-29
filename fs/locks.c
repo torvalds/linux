@@ -2230,7 +2230,12 @@ void steal_locks(fl_owner_t from)
 
 	lock_kernel();
 	j = 0;
-	rcu_read_lock();
+
+	/*
+	 * We are not taking a ref to the file structures, so
+	 * we need to acquire ->file_lock.
+	 */
+	spin_lock(&files->file_lock);
 	fdt = files_fdtable(files);
 	for (;;) {
 		unsigned long set;
@@ -2248,7 +2253,7 @@ void steal_locks(fl_owner_t from)
 			set >>= 1;
 		}
 	}
-	rcu_read_unlock();
+	spin_unlock(&files->file_lock);
 	unlock_kernel();
 }
 EXPORT_SYMBOL(steal_locks);

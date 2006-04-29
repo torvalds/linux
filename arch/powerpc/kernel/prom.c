@@ -62,7 +62,7 @@ static int __initdata dt_root_addr_cells;
 static int __initdata dt_root_size_cells;
 
 #ifdef CONFIG_PPC64
-static int __initdata iommu_is_off;
+int __initdata iommu_is_off;
 int __initdata iommu_force_on;
 unsigned long tce_alloc_start, tce_alloc_end;
 #endif

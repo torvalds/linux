@@ -38,6 +38,7 @@ struct xt_af {
 	struct list_head match;
 	struct list_head target;
 	struct list_head tables;
+	struct mutex compat_mutex;
 };
 
 static struct xt_af *xt;
@@ -272,6 +273,54 @@ int xt_check_match(const struct xt_match *match, unsigned short family,
 }
 EXPORT_SYMBOL_GPL(xt_check_match);
 
+#ifdef CONFIG_COMPAT
+int xt_compat_match(void *match, void **dstptr, int *size, int convert)
+{
+	struct xt_match *m;
+	struct compat_xt_entry_match *pcompat_m;
+	struct xt_entry_match *pm;
+	u_int16_t msize;
+	int off, ret;
+
+	ret = 0;
+	m = ((struct xt_entry_match *)match)->u.kernel.match;
+	off = XT_ALIGN(m->matchsize) - COMPAT_XT_ALIGN(m->matchsize);
+	switch (convert) {
+		case COMPAT_TO_USER:
+			pm = (struct xt_entry_match *)match;
+			msize = pm->u.user.match_size;
+			if (__copy_to_user(*dstptr, pm, msize)) {
+				ret = -EFAULT;
+				break;
+			}
+			msize -= off;
+			if (put_user(msize, (u_int16_t *)*dstptr))
+				ret = -EFAULT;
+			*size -= off;
+			*dstptr += msize;
+			break;
+		case COMPAT_FROM_USER:
+			pcompat_m = (struct compat_xt_entry_match *)match;
+			pm = (struct xt_entry_match *)*dstptr;
+			msize = pcompat_m->u.user.match_size;
+			memcpy(pm, pcompat_m, msize);
+			msize += off;
+			pm->u.user.match_size = msize;
+			*size += off;
+			*dstptr += msize;
+			break;
+		case COMPAT_CALC_SIZE:
+			*size += off;
+			break;
+		default:
+			ret = -ENOPROTOOPT;
+			break;
+	}
+	return ret;
+}
+EXPORT_SYMBOL_GPL(xt_compat_match);
+#endif
+
 int xt_check_target(const struct xt_target *target, unsigned short family,
 		    unsigned int size, const char *table, unsigned int hook_mask,
 		    unsigned short proto, int inv_proto)
@@ -301,6 +350,54 @@ int xt_check_target(const struct xt_target *target, unsigned short family,
 }
 EXPORT_SYMBOL_GPL(xt_check_target);
 
+#ifdef CONFIG_COMPAT
+int xt_compat_target(void *target, void **dstptr, int *size, int convert)
+{
+	struct xt_target *t;
+	struct compat_xt_entry_target *pcompat;
+	struct xt_entry_target *pt;
+	u_int16_t tsize;
+	int off, ret;
+
+	ret = 0;
+	t = ((struct xt_entry_target *)target)->u.kernel.target;
+	off = XT_ALIGN(t->targetsize) - COMPAT_XT_ALIGN(t->targetsize);
+	switch (convert) {
+		case COMPAT_TO_USER:
+			pt = (struct xt_entry_target *)target;
+			tsize = pt->u.user.target_size;
+			if (__copy_to_user(*dstptr, pt, tsize)) {
+				ret = -EFAULT;
+				break;
+			}
+			tsize -= off;
+			if (put_user(tsize, (u_int16_t *)*dstptr))
+				ret = -EFAULT;
+			*size -= off;
+			*dstptr += tsize;
+			break;
+		case COMPAT_FROM_USER:
+			pcompat = (struct compat_xt_entry_target *)target;
+			pt = (struct xt_entry_target *)*dstptr;
+			tsize = pcompat->u.user.target_size;
+			memcpy(pt, pcompat, tsize);
+			tsize += off;
+			pt->u.user.target_size = tsize;
+			*size += off;
+			*dstptr += tsize;
+			break;
+		case COMPAT_CALC_SIZE:
+			*size += off;
+			break;
+		default:
+			ret = -ENOPROTOOPT;
+			break;
+	}
+	return ret;
+}
+EXPORT_SYMBOL_GPL(xt_compat_target);
+#endif
+
 struct xt_table_info *xt_alloc_table_info(unsigned int size)
 {
 	struct xt_table_info *newinfo;
@@ -316,7 +413,7 @@ struct xt_table_info *xt_alloc_table_info(unsigned int size)
 
 	newinfo->size = size;
 
-	for_each_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		if (size <= PAGE_SIZE)
 			newinfo->entries[cpu] = kmalloc_node(size,
 							GFP_KERNEL,
@@ -339,7 +436,7 @@ void xt_free_table_info(struct xt_table_info *info)
 {
 	int cpu;
 
-	for_each_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		if (info->size <= PAGE_SIZE)
 			kfree(info->entries[cpu]);
 		else
@@ -371,6 +468,19 @@ void xt_table_unlock(struct xt_table *table)
 }
 EXPORT_SYMBOL_GPL(xt_table_unlock);
 
+#ifdef CONFIG_COMPAT
+void xt_compat_lock(int af)
+{
+	mutex_lock(&xt[af].compat_mutex);
+}
+EXPORT_SYMBOL_GPL(xt_compat_lock);
+
+void xt_compat_unlock(int af)
+{
+	mutex_unlock(&xt[af].compat_mutex);
+}
+EXPORT_SYMBOL_GPL(xt_compat_unlock);
+#endif
 
 struct xt_table_info *
 xt_replace_table(struct xt_table *table,
@@ -419,6 +529,7 @@ int xt_register_table(struct xt_table *table,
 
 	/* Simplifies replace_table code. */
 	table->private = bootstrap;
+	rwlock_init(&table->lock);
 	if (!xt_replace_table(table, 0, newinfo, &ret))
 		goto unlock;
 
@@ -428,7 +539,6 @@ int xt_register_table(struct xt_table *table,
 	/* save number of initial entries */
 	private->initial_entries = private->number;
 
-	rwlock_init(&table->lock);
 	list_prepend(&xt[table->af].tables, table);
 
 	ret = 0;
@@ -671,6 +781,9 @@ static int __init xt_init(void)
 
 	for (i = 0; i < NPROTO; i++) {
 		mutex_init(&xt[i].mutex);
+#ifdef CONFIG_COMPAT
+		mutex_init(&xt[i].compat_mutex);
+#endif
 		INIT_LIST_HEAD(&xt[i].target);
 		INIT_LIST_HEAD(&xt[i].match);
 		INIT_LIST_HEAD(&xt[i].tables);

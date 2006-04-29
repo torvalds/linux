@@ -39,7 +39,6 @@ EXPORT_SYMBOL(um_virt_to_phys);
 EXPORT_SYMBOL(mode_tt);
 EXPORT_SYMBOL(handle_page_fault);
 EXPORT_SYMBOL(find_iomem);
-EXPORT_SYMBOL(end_iomem);
 
 #ifdef CONFIG_MODE_TT
 EXPORT_SYMBOL(strncpy_from_user_tt);
@@ -89,12 +88,10 @@ EXPORT_SYMBOL(dump_thread);
 EXPORT_SYMBOL(do_gettimeofday);
 EXPORT_SYMBOL(do_settimeofday);
 
-/* This is here because UML expands open to sys_open, not to a system
+/* This is here because UML expands lseek to sys_lseek, not to a system
  * call instruction.
  */
-EXPORT_SYMBOL(sys_open);
 EXPORT_SYMBOL(sys_lseek);
-EXPORT_SYMBOL(sys_read);
 EXPORT_SYMBOL(sys_wait4);
 
 #ifdef CONFIG_SMP

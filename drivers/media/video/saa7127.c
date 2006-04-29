@@ -54,6 +54,7 @@
 #include <linux/i2c.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
+#include <media/saa7127.h>
 
 static int debug = 0;
 static int test_image = 0;
@@ -220,22 +221,6 @@ static struct i2c_reg_value saa7127_init_config_50hz[] = {
 	{ SAA7127_REG_MULTI, 				0xa0 },
 	{ SAA7127_REG_CLOSED_CAPTION, 			0x00 },
 	{ 0, 0 }
-};
-
-/* Enumeration for the Supported input types */
-enum saa7127_input_type {
-	SAA7127_INPUT_TYPE_NORMAL,
-	SAA7127_INPUT_TYPE_TEST_IMAGE
-};
-
-/* Enumeration for the Supported Output signal types */
-enum saa7127_output_type {
-	SAA7127_OUTPUT_TYPE_BOTH,
-	SAA7127_OUTPUT_TYPE_COMPOSITE,
-	SAA7127_OUTPUT_TYPE_SVIDEO,
-	SAA7127_OUTPUT_TYPE_RGB,
-	SAA7127_OUTPUT_TYPE_YUV_C,
-	SAA7127_OUTPUT_TYPE_YUV_V
 };
 
 /*
@@ -561,7 +546,7 @@ static int saa7127_command(struct i2c_client *client,
 {
 	struct saa7127_state *state = i2c_get_clientdata(client);
 	struct v4l2_format *fmt = arg;
-	int *iarg = arg;
+	struct v4l2_routing *route = arg;
 
 	switch (cmd) {
 	case VIDIOC_S_STD:
@@ -573,15 +558,23 @@ static int saa7127_command(struct i2c_client *client,
 		*(v4l2_std_id *)arg = state->std;
 		break;
 
-	case VIDIOC_S_INPUT:
-		if (state->input_type == *iarg)
-			break;
-		return saa7127_set_input_type(client, *iarg);
+	case VIDIOC_INT_G_VIDEO_ROUTING:
+		route->input = state->input_type;
+		route->output = state->output_type;
+		break;
 
-	case VIDIOC_S_OUTPUT:
-		if (state->output_type == *iarg)
-			break;
-		return saa7127_set_output_type(client, *iarg);
+	case VIDIOC_INT_S_VIDEO_ROUTING:
+	{
+		int rc = 0;
+
+		if (state->input_type != route->input) {
+			rc = saa7127_set_input_type(client, route->input);
+		}
+		if (rc == 0 && state->output_type != route->output) {
+			rc = saa7127_set_output_type(client, route->output);
+		}
+		return rc;
+	}
 
 	case VIDIOC_STREAMON:
 	case VIDIOC_STREAMOFF:

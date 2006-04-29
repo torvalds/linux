@@ -197,7 +197,7 @@ u32 vfp_double_normaliseround(int dd, struct vfp_double *vd, u32 fpscr, u32 exce
 			 dd, d, exceptions);
 		vfp_put_double(dd, d);
 	}
-	return exceptions & ~VFP_NAN_FLAG;
+	return exceptions;
 }
 
 /*
@@ -588,6 +588,7 @@ static u32 vfp_double_ftosi(int sd, int unused, int dm, u32 fpscr)
 	struct vfp_double vdm;
 	u32 d, exceptions = 0;
 	int rmode = fpscr & FPSCR_RMODE_MASK;
+	int tm;
 
 	vfp_double_unpack(&vdm, vfp_get_double(dm));
 	vfp_double_dump("VDM", &vdm);
@@ -595,10 +596,14 @@ static u32 vfp_double_ftosi(int sd, int unused, int dm, u32 fpscr)
 	/*
 	 * Do we have denormalised number?
 	 */
-	if (vfp_double_type(&vdm) & VFP_DENORMAL)
+	tm = vfp_double_type(&vdm);
+	if (tm & VFP_DENORMAL)
 		exceptions |= FPSCR_IDC;
 
-	if (vdm.exponent >= 1023 + 32) {
+	if (tm & VFP_NAN) {
+		d = 0;
+		exceptions |= FPSCR_IOC;
+	} else if (vdm.exponent >= 1023 + 32) {
 		d = 0x7fffffff;
 		if (vdm.sign)
 			d = ~d;
@@ -1122,9 +1127,9 @@ u32 vfp_double_cpdo(u32 inst, u32 fpscr)
 {
 	u32 op = inst & FOP_MASK;
 	u32 exceptions = 0;
-	unsigned int dd = vfp_get_sd(inst);
-	unsigned int dn = vfp_get_sn(inst);
-	unsigned int dm = vfp_get_sm(inst);
+	unsigned int dd = vfp_get_dd(inst);
+	unsigned int dn = vfp_get_dn(inst);
+	unsigned int dm = vfp_get_dm(inst);
 	unsigned int vecitr, veclen, vecstride;
 	u32 (*fop)(int, int, s32, u32);
 
@@ -1141,7 +1146,7 @@ u32 vfp_double_cpdo(u32 inst, u32 fpscr)
 	pr_debug("VFP: vecstride=%u veclen=%u\n", vecstride,
 		 (veclen >> FPSCR_LENGTH_BIT) + 1);
 
-	fop = (op == FOP_EXT) ? fop_extfns[dn] : fop_fns[FOP_TO_IDX(op)];
+	fop = (op == FOP_EXT) ? fop_extfns[FEXT_TO_IDX(inst)] : fop_fns[FOP_TO_IDX(op)];
 	if (!fop)
 		goto invalid;
 
@@ -1149,17 +1154,13 @@ u32 vfp_double_cpdo(u32 inst, u32 fpscr)
 		u32 except;
 
 		if (op == FOP_EXT)
-			pr_debug("VFP: itr%d (d%u.%u) = op[%u] (d%u.%u)\n",
+			pr_debug("VFP: itr%d (d%u) = op[%u] (d%u)\n",
 				 vecitr >> FPSCR_LENGTH_BIT,
-				 dd >> 1, dd & 1, dn,
-				 dm >> 1, dm & 1);
+				 dd, dn, dm);
 		else
-			pr_debug("VFP: itr%d (d%u.%u) = (d%u.%u) op[%u] (d%u.%u)\n",
+			pr_debug("VFP: itr%d (d%u) = (d%u) op[%u] (d%u)\n",
 				 vecitr >> FPSCR_LENGTH_BIT,
-				 dd >> 1, dd & 1,
-				 dn >> 1, dn & 1,
-				 FOP_TO_IDX(op),
-				 dm >> 1, dm & 1);
+				 dd, dn, FOP_TO_IDX(op), dm);
 
 		except = fop(dd, dn, dm, fpscr);
 		pr_debug("VFP: itr%d: exceptions=%08x\n",

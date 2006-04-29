@@ -8,7 +8,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (c) 2000-2005 Silicon Graphics, Inc.  All rights reserved.
+ * Copyright (c) 2000-2006 Silicon Graphics, Inc.  All rights reserved.
  */
 
 
@@ -85,6 +85,7 @@
 
 #define  SN_SAL_GET_PROM_FEATURE_SET		   0x02000065
 #define  SN_SAL_SET_OS_FEATURE_SET		   0x02000066
+#define  SN_SAL_INJECT_ERROR			   0x02000067
 
 /*
  * Service-specific constants
@@ -705,10 +706,8 @@ static inline int
 sn_change_memprotect(u64 paddr, u64 len, u64 perms, u64 *nasid_array)
 {
 	struct ia64_sal_retval ret_stuff;
-	int cnodeid;
 	unsigned long irq_flags;
 
-	cnodeid = nasid_to_cnodeid(get_node_number(paddr));
 	local_irq_save(irq_flags);
 	ia64_sal_oemcall_nolock(&ret_stuff, SN_SAL_MEMPROTECT, paddr, len,
 				(u64)nasid_array, perms, 0, 0, 0);
@@ -1140,4 +1139,16 @@ ia64_sn_set_os_feature(int feature)
 	return rv.status;
 }
 
+static inline int
+sn_inject_error(u64 paddr, u64 *data, u64 *ecc)
+{
+	struct ia64_sal_retval ret_stuff;
+	unsigned long irq_flags;
+
+	local_irq_save(irq_flags);
+	ia64_sal_oemcall_nolock(&ret_stuff, SN_SAL_INJECT_ERROR, paddr, (u64)data,
+				(u64)ecc, 0, 0, 0, 0);
+	local_irq_restore(irq_flags);
+	return ret_stuff.status;
+}
 #endif /* _ASM_IA64_SN_SN_SAL_H */

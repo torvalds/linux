@@ -244,7 +244,7 @@ int setup_profiling_timer(unsigned int multiplier)
 		return -EINVAL;
 
 	spin_lock_irqsave(&prof_setup_lock, flags);
-	for_each_cpu(i) {
+	for_each_possible_cpu(i) {
 		load_profile_irq(i, lvl14_resolution / multiplier);
 		prof_multiplier(i) = multiplier;
 	}

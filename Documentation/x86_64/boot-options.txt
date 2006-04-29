@@ -151,6 +151,11 @@ NUMA
 
   numa=fake=X   Fake X nodes and ignore NUMA setup of the actual machine.
 
+  numa=hotadd=percent
+		Only allow hotadd memory to preallocate page structures upto
+		percent of already available memory.
+		numa=hotadd=0 will disable hotadd memory.
+
 ACPI
 
   acpi=off	Don't enable ACPI

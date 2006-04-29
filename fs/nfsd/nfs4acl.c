@@ -710,9 +710,9 @@ calculate_posix_ace_count(struct nfs4_acl *n4acl)
 		/* Also, the remaining entries are for named users and
 		 * groups, and come in threes (mask, allow, deny): */
 		if (n4acl->naces < 7)
-			return -1;
+			return -EINVAL;
 		if ((n4acl->naces - 7) % 3)
-			return -1;
+			return -EINVAL;
 		return 4 + (n4acl->naces - 7)/3;
 	}
 }
@@ -790,7 +790,7 @@ nfs4_acl_split(struct nfs4_acl *acl, struct nfs4_acl *dacl)
 			continue;
 
 		error = nfs4_acl_add_ace(dacl, ace->type, ace->flag,
-				ace->access_mask, ace->whotype, ace->who) == -1;
+				ace->access_mask, ace->whotype, ace->who);
 		if (error < 0)
 			goto out;
 
@@ -866,7 +866,7 @@ nfs4_acl_add_ace(struct nfs4_acl *acl, u32 type, u32 flag, u32 access_mask,
 	struct nfs4_ace *ace;
 
 	if ((ace = kmalloc(sizeof(*ace), GFP_KERNEL)) == NULL)
-		return -1;
+		return -ENOMEM;
 
 	ace->type = type;
 	ace->flag = flag;

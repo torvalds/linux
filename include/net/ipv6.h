@@ -230,7 +230,7 @@ extern int 			ip6_ra_control(struct sock *sk, int sel,
 					       void (*destructor)(struct sock *));
 
 
-extern int			ipv6_parse_hopopts(struct sk_buff *skb, int);
+extern int			ipv6_parse_hopopts(struct sk_buff *skb);
 
 extern struct ipv6_txoptions *  ipv6_dup_options(struct sock *sk, struct ipv6_txoptions *opt);
 extern struct ipv6_txoptions *	ipv6_renew_options(struct sock *sk, struct ipv6_txoptions *opt,

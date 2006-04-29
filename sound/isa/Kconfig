@@ -11,6 +11,15 @@ config SND_CS4231_LIB
         tristate
         select SND_PCM
 
+config SND_ADLIB
+	tristate "AdLib FM card"
+	select SND_OPL3_LIB
+	help
+	  Say Y here to include support for AdLib FM cards.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-adlib.
+
 config SND_AD1816A
 	tristate "Analog Devices SoundPort AD1816A"
 	depends on SND && PNP && ISA
@@ -291,6 +300,20 @@ config SND_OPTI93X
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-opti93x.
+
+config SND_MIRO
+	tristate "Miro miroSOUND PCM1pro/PCM12/PCM20radio driver"
+	depends on SND
+	select SND_OPL4_LIB
+	select SND_CS4231_LIB
+	select SND_MPU401_UART
+	select SND_PCM
+	help
+	  Say 'Y' or 'M' to include support for Miro miroSOUND PCM1 pro, 
+	  miroSOUND PCM12 and miroSOUND PCM20 Radio soundcards.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-miro.
 
 config SND_SB8
 	tristate "Sound Blaster 1.0/2.0/Pro (8-bit)"

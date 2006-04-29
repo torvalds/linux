@@ -1,12 +1,15 @@
 /*
- * ia64/platform/hp/common/hp_acpi.h
+ * (c) Copyright 2003, 2006 Hewlett-Packard Development Company, L.P.
+ *	Alex Williamson <alex.williamson@hp.com>
+ *	Bjorn Helgaas <bjorn.helgaas@hp.com>
  *
- * Copyright (C) 2003 Hewlett-Packard
- * Copyright (C) Alex Williamson
- * Copyright (C) Bjorn Helgaas
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
  *
  * Vendor specific extensions to ACPI.
  */
+
 #ifndef _ASM_IA64_ACPI_EXT_H
 #define _ASM_IA64_ACPI_EXT_H
 

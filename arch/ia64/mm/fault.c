@@ -60,6 +60,9 @@ ia64_do_page_fault (unsigned long address, unsigned long isr, struct pt_regs *re
 	struct siginfo si;
 	unsigned long mask;
 
+	/* mmap_sem is performance critical.... */
+	prefetchw(&mm->mmap_sem);
+
 	/*
 	 * If we're in an interrupt or have no user context, we must not take the fault..
 	 */

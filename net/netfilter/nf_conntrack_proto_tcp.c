@@ -799,8 +799,7 @@ static int tcp_error(struct sk_buff *skb,
 		     unsigned int dataoff,
 		     enum ip_conntrack_info *ctinfo,
 		     int pf,
-		     unsigned int hooknum,
-		     int(*csum)(const struct sk_buff *,unsigned int))
+		     unsigned int hooknum)
 {
 	struct tcphdr _tcph, *th;
 	unsigned int tcplen = skb->len - dataoff;
@@ -830,9 +829,8 @@ static int tcp_error(struct sk_buff *skb,
 	 */
 	/* FIXME: Source route IP option packets --RR */
 	if (((pf == PF_INET && hooknum == NF_IP_PRE_ROUTING) ||
-	     (pf == PF_INET6 && hooknum  == NF_IP6_PRE_ROUTING))
-	    && skb->ip_summed != CHECKSUM_UNNECESSARY
-	    && csum(skb, dataoff)) {
+	     (pf == PF_INET6 && hooknum  == NF_IP6_PRE_ROUTING)) &&
+	    nf_checksum(skb, hooknum, dataoff, IPPROTO_TCP, pf)) {
 		if (LOG_INVALID(IPPROTO_TCP))
 			nf_log_packet(pf, 0, skb, NULL, NULL, NULL,
 				  "nf_ct_tcp: bad TCP checksum ");
@@ -849,44 +847,6 @@ static int tcp_error(struct sk_buff *skb,
 	}
 
 	return NF_ACCEPT;
-}
-
-static int csum4(const struct sk_buff *skb, unsigned int dataoff)
-{
-	return csum_tcpudp_magic(skb->nh.iph->saddr, skb->nh.iph->daddr,
-				 skb->len - dataoff, IPPROTO_TCP,
-			         skb->ip_summed == CHECKSUM_HW ? skb->csum
-			      	 : skb_checksum(skb, dataoff,
-						skb->len - dataoff, 0));
-}
-
-static int csum6(const struct sk_buff *skb, unsigned int dataoff)
-{
-	return csum_ipv6_magic(&skb->nh.ipv6h->saddr, &skb->nh.ipv6h->daddr,
-			       skb->len - dataoff, IPPROTO_TCP,
-			       skb->ip_summed == CHECKSUM_HW
-			       ? csum_sub(skb->csum,
-					  skb_checksum(skb, 0, dataoff, 0))
-			       : skb_checksum(skb, dataoff, skb->len - dataoff,
-					      0));
-}
-
-static int tcp_error4(struct sk_buff *skb,
-		      unsigned int dataoff,
-		      enum ip_conntrack_info *ctinfo,
-		      int pf,
-		      unsigned int hooknum)
-{
-	return tcp_error(skb, dataoff, ctinfo, pf, hooknum, csum4);
-}
-
-static int tcp_error6(struct sk_buff *skb,
-		      unsigned int dataoff,
-		      enum ip_conntrack_info *ctinfo,
-		      int pf,
-		      unsigned int hooknum)
-{
-	return tcp_error(skb, dataoff, ctinfo, pf, hooknum, csum6);
 }
 
 /* Returns verdict for packet, or -1 for invalid. */
@@ -1218,7 +1178,7 @@ struct nf_conntrack_protocol nf_conntrack_protocol_tcp4 =
 	.print_conntrack 	= tcp_print_conntrack,
 	.packet 		= tcp_packet,
 	.new 			= tcp_new,
-	.error			= tcp_error4,
+	.error			= tcp_error,
 #if defined(CONFIG_NF_CT_NETLINK) || \
     defined(CONFIG_NF_CT_NETLINK_MODULE)
 	.to_nfattr		= tcp_to_nfattr,
@@ -1239,7 +1199,7 @@ struct nf_conntrack_protocol nf_conntrack_protocol_tcp6 =
 	.print_conntrack 	= tcp_print_conntrack,
 	.packet 		= tcp_packet,
 	.new 			= tcp_new,
-	.error			= tcp_error6,
+	.error			= tcp_error,
 #if defined(CONFIG_NF_CT_NETLINK) || \
     defined(CONFIG_NF_CT_NETLINK_MODULE)
 	.to_nfattr		= tcp_to_nfattr,

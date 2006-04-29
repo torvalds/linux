@@ -539,8 +539,7 @@ rx_status_loop:
 		unsigned buflen;
 
 		skb = cp->rx_skb[rx_tail].skb;
-		if (!skb)
-			BUG();
+		BUG_ON(!skb);
 
 		desc = &cp->rx_ring[rx_tail];
 		status = le32_to_cpu(desc->opts1);
@@ -723,8 +722,7 @@ static void cp_tx (struct cp_private *cp)
 			break;
 
 		skb = cp->tx_skb[tx_tail].skb;
-		if (!skb)
-			BUG();
+		BUG_ON(!skb);
 
 		pci_unmap_single(cp->pdev, cp->tx_skb[tx_tail].mapping,
 				 cp->tx_skb[tx_tail].len, PCI_DMA_TODEVICE);
@@ -1550,8 +1548,7 @@ static void cp_get_ethtool_stats (struct net_device *dev,
 	tmp_stats[i++] = le16_to_cpu(nic_stats->tx_abort);
 	tmp_stats[i++] = le16_to_cpu(nic_stats->tx_underrun);
 	tmp_stats[i++] = cp->cp_stats.rx_frags;
-	if (i != CP_NUM_STATS)
-		BUG();
+	BUG_ON(i != CP_NUM_STATS);
 
 	pci_free_consistent(cp->pdev, sizeof(*nic_stats), nic_stats, dma);
 }
@@ -1856,8 +1853,7 @@ static void cp_remove_one (struct pci_dev *pdev)
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct cp_private *cp = netdev_priv(dev);
 
-	if (!dev)
-		BUG();
+	BUG_ON(!dev);
 	unregister_netdev(dev);
 	iounmap(cp->regs);
 	if (cp->wol_enabled) pci_set_power_state (pdev, PCI_D0);

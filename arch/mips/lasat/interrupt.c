@@ -27,13 +27,12 @@
 #include <asm/bootinfo.h>
 #include <asm/irq.h>
 #include <asm/lasat/lasatint.h>
+#include <asm/time.h>
 #include <asm/gdb-stub.h>
 
 static volatile int *lasat_int_status = NULL;
 static volatile int *lasat_int_mask = NULL;
 static volatile int lasat_int_mask_shift;
-
-extern asmlinkage void lasatIRQ(void);
 
 void disable_lasat_irq(unsigned int irq_nr)
 {
@@ -109,10 +108,16 @@ static unsigned long get_int_status_200(void)
 	return int_status;
 }
 
-void lasat_hw0_irqdispatch(struct pt_regs *regs)
+asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
 {
 	unsigned long int_status;
+	unsigned int cause = read_c0_cause();
 	int irq;
+
+	if (cause & CAUSEF_IP7) {	/* R4000 count / compare IRQ */
+		ll_timer_interrupt(7, regs);
+		return;
+	}
 
 	int_status = get_int_status();
 
@@ -146,9 +151,6 @@ void __init arch_init_irq(void)
 	default:
 		panic("arch_init_irq: mips_machtype incorrect");
 	}
-
-	/* Now safe to set the exception vector. */
-	set_except_vector(0, lasatIRQ);
 
 	for (i = 0; i <= LASATINT_END; i++) {
 		irq_desc[i].status	= IRQ_DISABLED;

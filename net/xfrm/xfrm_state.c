@@ -805,16 +805,22 @@ void xfrm_replay_notify(struct xfrm_state *x, int event)
 	case XFRM_REPLAY_UPDATE:
 		if (x->replay_maxdiff &&
 		    (x->replay.seq - x->preplay.seq < x->replay_maxdiff) &&
-		    (x->replay.oseq - x->preplay.oseq < x->replay_maxdiff))
-			return;
+		    (x->replay.oseq - x->preplay.oseq < x->replay_maxdiff)) {
+			if (x->xflags & XFRM_TIME_DEFER)
+				event = XFRM_REPLAY_TIMEOUT;
+			else
+				return;
+		}
 
 		break;
 
 	case XFRM_REPLAY_TIMEOUT:
 		if ((x->replay.seq == x->preplay.seq) &&
 		    (x->replay.bitmap == x->preplay.bitmap) &&
-		    (x->replay.oseq == x->preplay.oseq))
+		    (x->replay.oseq == x->preplay.oseq)) {
+			x->xflags |= XFRM_TIME_DEFER;
 			return;
+		}
 
 		break;
 	}
@@ -825,8 +831,10 @@ void xfrm_replay_notify(struct xfrm_state *x, int event)
 	km_state_notify(x, &c);
 
 	if (x->replay_maxage &&
-	    !mod_timer(&x->rtimer, jiffies + x->replay_maxage))
+	    !mod_timer(&x->rtimer, jiffies + x->replay_maxage)) {
 		xfrm_state_hold(x);
+		x->xflags &= ~XFRM_TIME_DEFER;
+	}
 }
 EXPORT_SYMBOL(xfrm_replay_notify);
 
@@ -836,10 +844,15 @@ static void xfrm_replay_timer_handler(unsigned long data)
 
 	spin_lock(&x->lock);
 
-	if (xfrm_aevent_is_on() && x->km.state == XFRM_STATE_VALID)
-		xfrm_replay_notify(x, XFRM_REPLAY_TIMEOUT);
+	if (x->km.state == XFRM_STATE_VALID) {
+		if (xfrm_aevent_is_on())
+			xfrm_replay_notify(x, XFRM_REPLAY_TIMEOUT);
+		else
+			x->xflags |= XFRM_TIME_DEFER;
+	}
 
 	spin_unlock(&x->lock);
+	xfrm_state_put(x);
 }
 
 int xfrm_replay_check(struct xfrm_state *x, u32 seq)

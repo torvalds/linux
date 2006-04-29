@@ -65,7 +65,7 @@ SECTIONS
   .data.cacheline_aligned : AT(ADDR(.data.cacheline_aligned) - LOAD_OFFSET) {
 	*(.data.cacheline_aligned)
   }
-  . = ALIGN(CONFIG_X86_L1_CACHE_BYTES);
+  . = ALIGN(CONFIG_X86_INTERNODE_CACHE_BYTES);
   .data.read_mostly : AT(ADDR(.data.read_mostly) - LOAD_OFFSET) {
   	*(.data.read_mostly)
   }

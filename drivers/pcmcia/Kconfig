@@ -250,7 +250,7 @@ config M32R_CFC_NUM
 
 config PCMCIA_VRC4171
 	tristate "NEC VRC4171 Card Controllers support"
-	depends on VRC4171 && PCMCIA
+	depends on CPU_VR41XX && ISA && PCMCIA
 
 config PCMCIA_VRC4173
 	tristate "NEC VRC4173 CARDU support"
@@ -262,6 +262,13 @@ config OMAP_CF
 	help
 	  Say Y here to support the CompactFlash controller on OMAP.
 	  Note that this doesn't support "True IDE" mode.
+
+config AT91_CF
+	tristate "AT91 CompactFlash Controller"
+	depends on PCMCIA && ARCH_AT91RM9200
+	help
+	  Say Y here to support the CompactFlash controller on AT91 chips.
+	  Or choose M to compile the driver as a module named "at91_cf".
 
 config PCCARD_NONSTATIC
 	tristate

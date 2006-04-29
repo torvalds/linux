@@ -11,6 +11,7 @@
  *     Copyright (c) 2002      Daniele Peri
  *     All Rights Reserved.
  *     Copyright (c) 2002      Jean Tourrilhes
+ *     Copyright (c) 2006      Linus Walleij
  *
  *
  * Based on smc-ircc.c:
@@ -61,6 +62,9 @@
 
 #include <linux/spinlock.h>
 #include <linux/pm.h>
+#ifdef CONFIG_PCI
+#include <linux/pci.h>
+#endif
 
 #include <net/irda/wrapper.h>
 #include <net/irda/irda.h>
@@ -99,6 +103,22 @@ module_param(ircc_transceiver, int, 0);
 MODULE_PARM_DESC(ircc_transceiver, "Transceiver type");
 
 /* Types */
+
+#ifdef CONFIG_PCI
+struct smsc_ircc_subsystem_configuration {
+	unsigned short vendor; /* PCI vendor ID */
+	unsigned short device; /* PCI vendor ID */
+	unsigned short subvendor; /* PCI subsystem vendor ID */
+	unsigned short subdevice; /* PCI sybsystem device ID */
+	unsigned short sir_io; /* I/O port for SIR */
+	unsigned short fir_io; /* I/O port for FIR */
+	unsigned char  fir_irq; /* FIR IRQ */
+	unsigned char  fir_dma; /* FIR DMA */
+	unsigned short cfg_base; /* I/O port for chip configuration */
+	int (*preconfigure)(struct pci_dev *dev, struct smsc_ircc_subsystem_configuration *conf); /* Preconfig function */
+	const char *name;	/* name shown as info */
+};
+#endif
 
 struct smsc_transceiver {
 	char *name;
@@ -202,6 +222,18 @@ static int __init smsc_superio_flat(const struct smsc_chip *chips, unsigned shor
 static int __init smsc_superio_paged(const struct smsc_chip *chips, unsigned short cfg_base, char *type);
 static int __init smsc_superio_fdc(unsigned short cfg_base);
 static int __init smsc_superio_lpc(unsigned short cfg_base);
+#ifdef CONFIG_PCI
+static int __init preconfigure_smsc_chip(struct smsc_ircc_subsystem_configuration *conf);
+static int __init preconfigure_through_82801(struct pci_dev *dev, struct smsc_ircc_subsystem_configuration *conf);
+static void __init preconfigure_ali_port(struct pci_dev *dev,
+					 unsigned short port);
+static int __init preconfigure_through_ali(struct pci_dev *dev, struct smsc_ircc_subsystem_configuration *conf);
+static int __init smsc_ircc_preconfigure_subsystems(unsigned short ircc_cfg,
+						    unsigned short ircc_fir,
+						    unsigned short ircc_sir,
+						    unsigned char ircc_dma,
+						    unsigned char ircc_irq);
+#endif
 
 /* Transceivers specific functions */
 
@@ -352,6 +384,13 @@ static int __init smsc_ircc_init(void)
 		IRDA_ERROR("%s, Can't register driver!\n", driver_name);
 		return ret;
 	}
+
+#ifdef CONFIG_PCI
+	if (smsc_ircc_preconfigure_subsystems(ircc_cfg, ircc_fir, ircc_sir, ircc_dma, ircc_irq) < 0) {
+		/* Ignore errors from preconfiguration */
+		IRDA_ERROR("%s, Preconfiguration failed !\n", driver_name);
+	}
+#endif
 
 	dev_count = 0;
 
@@ -2284,6 +2323,490 @@ static int __init smsc_superio_lpc(unsigned short cfg_base)
 	}
 	return ret;
 }
+
+/*
+ * Look for some specific subsystem setups that need
+ * pre-configuration not properly done by the BIOS (especially laptops)
+ * This code is based in part on smcinit.c, tosh1800-smcinit.c
+ * and tosh2450-smcinit.c. The table lists the device entries
+ * for ISA bridges with an LPC (Low Pin Count) controller which
+ * handles the communication with the SMSC device. After the LPC
+ * controller is initialized through PCI, the SMSC device is initialized
+ * through a dedicated port in the ISA port-mapped I/O area, this latter
+ * area is used to configure the SMSC device with default
+ * SIR and FIR I/O ports, DMA and IRQ. Different vendors have
+ * used different sets of parameters and different control port
+ * addresses making a subsystem device table necessary.
+ */
+#ifdef CONFIG_PCI
+#define PCIID_VENDOR_INTEL 0x8086
+#define PCIID_VENDOR_ALI 0x10b9
+static struct smsc_ircc_subsystem_configuration subsystem_configurations[] __devinitdata = {
+	{
+		.vendor = PCIID_VENDOR_INTEL, /* Intel 82801DBM LPC bridge */
+		.device = 0x24cc,
+		.subvendor = 0x103c,
+		.subdevice = 0x088c,
+		/* Quite certain these are the same for nc8000 as for nc6000 */
+		.sir_io = 0x02f8,
+		.fir_io = 0x0130,
+		.fir_irq = 0x05,
+		.fir_dma = 0x03,
+		.cfg_base = 0x004e,
+		.preconfigure = preconfigure_through_82801,
+		.name = "HP nc8000",
+	},
+	{
+		.vendor = PCIID_VENDOR_INTEL, /* Intel 82801DBM LPC bridge */
+		.device = 0x24cc,
+		.subvendor = 0x103c,
+		.subdevice = 0x0890,
+		.sir_io = 0x02f8,
+		.fir_io = 0x0130,
+		.fir_irq = 0x05,
+		.fir_dma = 0x03,
+		.cfg_base = 0x004e,
+		.preconfigure = preconfigure_through_82801,
+		.name = "HP nc6000",
+	},
+	{
+		/* Intel 82801DB/DBL (ICH4/ICH4-L) LPC Interface Bridge */
+		.vendor = PCIID_VENDOR_INTEL,
+		.device = 0x24c0,
+		.subvendor = 0x1179,
+		.subdevice = 0xffff, /* 0xffff is "any" */
+		.sir_io = 0x03f8,
+		.fir_io = 0x0130,
+		.fir_irq = 0x07,
+		.fir_dma = 0x01,
+		.cfg_base = 0x002e,
+		.preconfigure = preconfigure_through_82801,
+		.name = "Toshiba laptop with Intel 82801DB/DBL LPC bridge",
+	},
+	{
+		.vendor = PCIID_VENDOR_INTEL, /* Intel 82801CAM ISA bridge */
+		.device = 0x248c,
+		.subvendor = 0x1179,
+		.subdevice = 0xffff, /* 0xffff is "any" */
+		.sir_io = 0x03f8,
+		.fir_io = 0x0130,
+		.fir_irq = 0x03,
+		.fir_dma = 0x03,
+		.cfg_base = 0x002e,
+		.preconfigure = preconfigure_through_82801,
+		.name = "Toshiba laptop with Intel 82801CAM ISA bridge",
+	},
+	{
+		/* 82801DBM (ICH4-M) LPC Interface Bridge */
+		.vendor = PCIID_VENDOR_INTEL,
+		.device = 0x24cc,
+		.subvendor = 0x1179,
+		.subdevice = 0xffff, /* 0xffff is "any" */
+		.sir_io = 0x03f8,
+		.fir_io = 0x0130,
+		.fir_irq = 0x03,
+		.fir_dma = 0x03,
+		.cfg_base = 0x002e,
+		.preconfigure = preconfigure_through_82801,
+		.name = "Toshiba laptop with Intel 8281DBM LPC bridge",
+	},
+	{
+		/* ALi M1533/M1535 PCI to ISA Bridge [Aladdin IV/V/V+] */
+		.vendor = PCIID_VENDOR_ALI,
+		.device = 0x1533,
+		.subvendor = 0x1179,
+		.subdevice = 0xffff, /* 0xffff is "any" */
+		.sir_io = 0x02e8,
+		.fir_io = 0x02f8,
+		.fir_irq = 0x07,
+		.fir_dma = 0x03,
+		.cfg_base = 0x002e,
+		.preconfigure = preconfigure_through_ali,
+		.name = "Toshiba laptop with ALi ISA bridge",
+	},
+	{ } // Terminator
+};
+
+
+/*
+ * This sets up the basic SMSC parameters
+ * (FIR port, SIR port, FIR DMA, FIR IRQ)
+ * through the chip configuration port.
+ */
+static int __init preconfigure_smsc_chip(struct
+					 smsc_ircc_subsystem_configuration
+					 *conf)
+{
+	unsigned short iobase = conf->cfg_base;
+	unsigned char tmpbyte;
+
+	outb(LPC47N227_CFGACCESSKEY, iobase); // enter configuration state
+	outb(SMSCSIOFLAT_DEVICEID_REG, iobase); // set for device ID
+	tmpbyte = inb(iobase +1); // Read device ID
+	IRDA_DEBUG(0,
+		   "Detected Chip id: 0x%02x, setting up registers...\n",
+		   tmpbyte);
+
+	/* Disable UART1 and set up SIR I/O port */
+	outb(0x24, iobase);  // select CR24 - UART1 base addr
+	outb(0x00, iobase + 1); // disable UART1
+	outb(SMSCSIOFLAT_UART2BASEADDR_REG, iobase);  // select CR25 - UART2 base addr
+	outb( (conf->sir_io >> 2), iobase + 1); // bits 2-9 of 0x3f8
+	tmpbyte = inb(iobase + 1);
+	if (tmpbyte != (conf->sir_io >> 2) ) {
+		IRDA_WARNING("ERROR: could not configure SIR ioport.\n");
+		IRDA_WARNING("Try to supply ircc_cfg argument.\n");
+		return -ENXIO;
+	}
+
+	/* Set up FIR IRQ channel for UART2 */
+	outb(SMSCSIOFLAT_UARTIRQSELECT_REG, iobase); // select CR28 - UART1,2 IRQ select
+	tmpbyte = inb(iobase + 1);
+	tmpbyte &= SMSCSIOFLAT_UART1IRQSELECT_MASK; // Do not touch the UART1 portion
+	tmpbyte |= (conf->fir_irq & SMSCSIOFLAT_UART2IRQSELECT_MASK);
+	outb(tmpbyte, iobase + 1);
+	tmpbyte = inb(iobase + 1) & SMSCSIOFLAT_UART2IRQSELECT_MASK;
+	if (tmpbyte != conf->fir_irq) {
+		IRDA_WARNING("ERROR: could not configure FIR IRQ channel.\n");
+		return -ENXIO;
+	}
+
+	/* Set up FIR I/O port */
+	outb(SMSCSIOFLAT_FIRBASEADDR_REG, iobase);  // CR2B - SCE (FIR) base addr
+	outb((conf->fir_io >> 3), iobase + 1);
+	tmpbyte = inb(iobase + 1);
+	if (tmpbyte != (conf->fir_io >> 3) ) {
+		IRDA_WARNING("ERROR: could not configure FIR I/O port.\n");
+		return -ENXIO;
+	}
+
+	/* Set up FIR DMA channel */
+	outb(SMSCSIOFLAT_FIRDMASELECT_REG, iobase);  // CR2C - SCE (FIR) DMA select
+	outb((conf->fir_dma & LPC47N227_FIRDMASELECT_MASK), iobase + 1); // DMA
+	tmpbyte = inb(iobase + 1) & LPC47N227_FIRDMASELECT_MASK;
+	if (tmpbyte != (conf->fir_dma & LPC47N227_FIRDMASELECT_MASK)) {
+		IRDA_WARNING("ERROR: could not configure FIR DMA channel.\n");
+		return -ENXIO;
+	}
+
+	outb(SMSCSIOFLAT_UARTMODE0C_REG, iobase);  // CR0C - UART mode
+	tmpbyte = inb(iobase + 1);
+	tmpbyte &= ~SMSCSIOFLAT_UART2MODE_MASK |
+		SMSCSIOFLAT_UART2MODE_VAL_IRDA;
+	outb(tmpbyte, iobase + 1); // enable IrDA (HPSIR) mode, high speed
+
+	outb(LPC47N227_APMBOOTDRIVE_REG, iobase);  // CR07 - Auto Pwr Mgt/boot drive sel
+	tmpbyte = inb(iobase + 1);
+	outb(tmpbyte | LPC47N227_UART2AUTOPWRDOWN_MASK, iobase + 1); // enable UART2 autopower down
+
+	/* This one was not part of tosh1800 */
+	outb(0x0a, iobase);  // CR0a - ecp fifo / ir mux
+	tmpbyte = inb(iobase + 1);
+	outb(tmpbyte | 0x40, iobase + 1); // send active device to ir port
+
+	outb(LPC47N227_UART12POWER_REG, iobase);  // CR02 - UART 1,2 power
+	tmpbyte = inb(iobase + 1);
+	outb(tmpbyte | LPC47N227_UART2POWERDOWN_MASK, iobase + 1); // UART2 power up mode, UART1 power down
+
+	outb(LPC47N227_FDCPOWERVALIDCONF_REG, iobase);  // CR00 - FDC Power/valid config cycle
+	tmpbyte = inb(iobase + 1);
+	outb(tmpbyte | LPC47N227_VALID_MASK, iobase + 1); // valid config cycle done
+
+	outb(LPC47N227_CFGEXITKEY, iobase);  // Exit configuration
+
+	return 0;
+}
+
+/* 82801CAM generic registers */
+#define VID 0x00
+#define DID 0x02
+#define PIRQ_A_D_ROUT 0x60
+#define SIRQ_CNTL 0x64
+#define PIRQ_E_H_ROUT 0x68
+#define PCI_DMA_C 0x90
+/* LPC-specific registers */
+#define COM_DEC 0xe0
+#define GEN1_DEC 0xe4
+#define LPC_EN 0xe6
+#define GEN2_DEC 0xec
+/*
+ * Sets up the I/O range using the 82801CAM ISA bridge, 82801DBM LPC bridge
+ * or Intel 82801DB/DBL (ICH4/ICH4-L) LPC Interface Bridge.
+ * They all work the same way!
+ */
+static int __init preconfigure_through_82801(struct pci_dev *dev,
+					     struct
+					     smsc_ircc_subsystem_configuration
+					     *conf)
+{
+	unsigned short tmpword;
+	unsigned char tmpbyte;
+
+	IRDA_MESSAGE("Setting up Intel 82801 controller and SMSC device\n");
+	/*
+	 * Select the range for the COMA COM port (SIR)
+	 * Register COM_DEC:
+	 * Bit 7: reserved
+	 * Bit 6-4, COMB decode range
+	 * Bit 3: reserved
+	 * Bit 2-0, COMA decode range
+	 *
+	 * Decode ranges:
+	 *   000 = 0x3f8-0x3ff (COM1)
+	 *   001 = 0x2f8-0x2ff (COM2)
+	 *   010 = 0x220-0x227
+	 *   011 = 0x228-0x22f
+	 *   100 = 0x238-0x23f
+	 *   101 = 0x2e8-0x2ef (COM4)
+	 *   110 = 0x338-0x33f
+	 *   111 = 0x3e8-0x3ef (COM3)
+	 */
+	pci_read_config_byte(dev, COM_DEC, &tmpbyte);
+	tmpbyte &= 0xf8; /* mask COMA bits */
+	switch(conf->sir_io) {
+	case 0x3f8:
+		tmpbyte |= 0x00;
+		break;
+	case 0x2f8:
+		tmpbyte |= 0x01;
+		break;
+	case 0x220:
+		tmpbyte |= 0x02;
+		break;
+	case 0x228:
+		tmpbyte |= 0x03;
+		break;
+	case 0x238:
+		tmpbyte |= 0x04;
+		break;
+	case 0x2e8:
+		tmpbyte |= 0x05;
+		break;
+	case 0x338:
+		tmpbyte |= 0x06;
+		break;
+	case 0x3e8:
+		tmpbyte |= 0x07;
+		break;
+	default:
+		tmpbyte |= 0x01; /* COM2 default */
+	}
+	IRDA_DEBUG(1, "COM_DEC (write): 0x%02x\n", tmpbyte);
+	pci_write_config_byte(dev, COM_DEC, tmpbyte);
+
+	/* Enable Low Pin Count interface */
+	pci_read_config_word(dev, LPC_EN, &tmpword);
+	/* These seem to be set up at all times,
+	 * just make sure it is properly set.
+	 */
+	switch(conf->cfg_base) {
+	case 0x04e:
+		tmpword |= 0x2000;
+		break;
+	case 0x02e:
+		tmpword |= 0x1000;
+		break;
+	case 0x062:
+		tmpword |= 0x0800;
+		break;
+	case 0x060:
+		tmpword |= 0x0400;
+		break;
+	default:
+		IRDA_WARNING("Uncommon I/O base address: 0x%04x\n",
+			     conf->cfg_base);
+		break;
+	}
+	tmpword &= 0xfffd; /* disable LPC COMB */
+	tmpword |= 0x0001; /* set bit 0 : enable LPC COMA addr range (GEN2) */
+	IRDA_DEBUG(1, "LPC_EN (write): 0x%04x\n", tmpword);
+	pci_write_config_word(dev, LPC_EN, tmpword);
+
+	/*
+	 * Configure LPC DMA channel
+	 * PCI_DMA_C bits:
+	 * Bit 15-14: DMA channel 7 select
+	 * Bit 13-12: DMA channel 6 select
+	 * Bit 11-10: DMA channel 5 select
+	 * Bit 9-8:   Reserved
+	 * Bit 7-6:   DMA channel 3 select
+	 * Bit 5-4:   DMA channel 2 select
+	 * Bit 3-2:   DMA channel 1 select
+	 * Bit 1-0:   DMA channel 0 select
+	 *  00 = Reserved value
+	 *  01 = PC/PCI DMA
+	 *  10 = Reserved value
+	 *  11 = LPC I/F DMA
+	 */
+	pci_read_config_word(dev, PCI_DMA_C, &tmpword);
+	switch(conf->fir_dma) {
+	case 0x07:
+		tmpword |= 0xc000;
+		break;
+	case 0x06:
+		tmpword |= 0x3000;
+		break;
+	case 0x05:
+		tmpword |= 0x0c00;
+		break;
+	case 0x03:
+		tmpword |= 0x00c0;
+		break;
+	case 0x02:
+		tmpword |= 0x0030;
+		break;
+	case 0x01:
+		tmpword |= 0x000c;
+		break;
+	case 0x00:
+		tmpword |= 0x0003;
+		break;
+	default:
+		break; /* do not change settings */
+	}
+	IRDA_DEBUG(1, "PCI_DMA_C (write): 0x%04x\n", tmpword);
+	pci_write_config_word(dev, PCI_DMA_C, tmpword);
+
+	/*
+	 * GEN2_DEC bits:
+	 * Bit 15-4: Generic I/O range
+	 * Bit 3-1: reserved (read as 0)
+	 * Bit 0: enable GEN2 range on LPC I/F
+	 */
+	tmpword = conf->fir_io & 0xfff8;
+	tmpword |= 0x0001;
+	IRDA_DEBUG(1, "GEN2_DEC (write): 0x%04x\n", tmpword);
+	pci_write_config_word(dev, GEN2_DEC, tmpword);
+
+	/* Pre-configure chip */
+	return preconfigure_smsc_chip(conf);
+}
+
+/*
+ * Pre-configure a certain port on the ALi 1533 bridge.
+ * This is based on reverse-engineering since ALi does not
+ * provide any data sheet for the 1533 chip.
+ */
+static void __init preconfigure_ali_port(struct pci_dev *dev,
+					 unsigned short port)
+{
+	unsigned char reg;
+	/* These bits obviously control the different ports */
+	unsigned char mask;
+	unsigned char tmpbyte;
+
+	switch(port) {
+	case 0x0130:
+	case 0x0178:
+		reg = 0xb0;
+		mask = 0x80;
+		break;
+	case 0x03f8:
+		reg = 0xb4;
+		mask = 0x80;
+		break;
+	case 0x02f8:
+		reg = 0xb4;
+		mask = 0x30;
+		break;
+	case 0x02e8:
+		reg = 0xb4;
+		mask = 0x08;
+		break;
+	default:
+		IRDA_ERROR("Failed to configure unsupported port on ALi 1533 bridge: 0x%04x\n", port);
+		return;
+	}
+
+	pci_read_config_byte(dev, reg, &tmpbyte);
+	/* Turn on the right bits */
+	tmpbyte |= mask;
+	pci_write_config_byte(dev, reg, tmpbyte);
+	IRDA_MESSAGE("Activated ALi 1533 ISA bridge port 0x%04x.\n", port);
+	return;
+}
+
+static int __init preconfigure_through_ali(struct pci_dev *dev,
+					   struct
+					   smsc_ircc_subsystem_configuration
+					   *conf)
+{
+	/* Configure the two ports on the ALi 1533 */
+	preconfigure_ali_port(dev, conf->sir_io);
+	preconfigure_ali_port(dev, conf->fir_io);
+
+	/* Pre-configure chip */
+	return preconfigure_smsc_chip(conf);
+}
+
+static int __init smsc_ircc_preconfigure_subsystems(unsigned short ircc_cfg,
+						    unsigned short ircc_fir,
+						    unsigned short ircc_sir,
+						    unsigned char ircc_dma,
+						    unsigned char ircc_irq)
+{
+	struct pci_dev *dev = NULL;
+	unsigned short ss_vendor = 0x0000;
+	unsigned short ss_device = 0x0000;
+	int ret = 0;
+
+	dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev);
+
+	while (dev != NULL) {
+		struct smsc_ircc_subsystem_configuration *conf;
+
+		/*
+		 * Cache the subsystem vendor/device:
+		 * some manufacturers fail to set this for all components,
+		 * so we save it in case there is just 0x0000 0x0000 on the
+		 * device we want to check.
+		 */
+		if (dev->subsystem_vendor != 0x0000U) {
+			ss_vendor = dev->subsystem_vendor;
+			ss_device = dev->subsystem_device;
+		}
+		conf = subsystem_configurations;
+		for( ; conf->subvendor; conf++) {
+			if(conf->vendor == dev->vendor &&
+			   conf->device == dev->device &&
+			   conf->subvendor == ss_vendor &&
+			   /* Sometimes these are cached values */
+			   (conf->subdevice == ss_device ||
+			    conf->subdevice == 0xffff)) {
+				struct smsc_ircc_subsystem_configuration
+					tmpconf;
+
+				memcpy(&tmpconf, conf,
+				       sizeof(struct smsc_ircc_subsystem_configuration));
+
+				/*
+				 * Override the default values with anything
+				 * passed in as parameter
+				 */
+				if (ircc_cfg != 0)
+					tmpconf.cfg_base = ircc_cfg;
+				if (ircc_fir != 0)
+					tmpconf.fir_io = ircc_fir;
+				if (ircc_sir != 0)
+					tmpconf.sir_io = ircc_sir;
+				if (ircc_dma != 0xff)
+					tmpconf.fir_dma = ircc_dma;
+				if (ircc_irq != 0xff)
+					tmpconf.fir_irq = ircc_irq;
+
+				IRDA_MESSAGE("Detected unconfigured %s SMSC IrDA chip, pre-configuring device.\n", conf->name);
+				if (conf->preconfigure)
+					ret = conf->preconfigure(dev, &tmpconf);
+				else
+					ret = -ENODEV;
+			}
+		}
+		dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev);
+	}
+
+	return ret;
+}
+#endif // CONFIG_PCI
 
 /************************************************
  *

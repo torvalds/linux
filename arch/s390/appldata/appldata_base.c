@@ -652,7 +652,7 @@ appldata_cpu_notify(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block __devinitdata appldata_nb = {
+static struct notifier_block appldata_nb = {
 	.notifier_call = appldata_cpu_notify,
 };
 

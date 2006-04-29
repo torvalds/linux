@@ -230,14 +230,16 @@ tape_3590_read_attmsg(struct tape_device *device)
  * These functions are used to schedule follow-up actions from within an
  * interrupt context (like unsolicited interrupts).
  */
+struct work_handler_data {
+	struct tape_device *device;
+	enum tape_op        op;
+	struct work_struct  work;
+};
+
 static void
 tape_3590_work_handler(void *data)
 {
-	struct {
-		struct tape_device *device;
-		enum tape_op op;
-		struct work_struct work;
-	} *p = data;
+	struct work_handler_data *p = data;
 
 	switch (p->op) {
 	case TO_MSEN:
@@ -257,11 +259,7 @@ tape_3590_work_handler(void *data)
 static int
 tape_3590_schedule_work(struct tape_device *device, enum tape_op op)
 {
-	struct {
-		struct tape_device *device;
-		enum tape_op op;
-		struct work_struct work;
-	} *p;
+	struct work_handler_data *p;
 
 	if ((p = kzalloc(sizeof(*p), GFP_ATOMIC)) == NULL)
 		return -ENOMEM;
@@ -316,7 +314,7 @@ tape_3590_bread(struct tape_device *device, struct request *req)
 
 	rq_for_each_bio(bio, req) {
 		bio_for_each_segment(bv, bio, i) {
-			dst = kmap(bv->bv_page) + bv->bv_offset;
+			dst = page_address(bv->bv_page) + bv->bv_offset;
 			for (off = 0; off < bv->bv_len;
 			     off += TAPEBLOCK_HSEC_SIZE) {
 				ccw->flags = CCW_FLAG_CC;
@@ -1168,6 +1166,7 @@ tape_3590_setup_device(struct tape_device *device)
 static void
 tape_3590_cleanup_device(struct tape_device *device)
 {
+	flush_scheduled_work();
 	tape_std_unassign(device);
 
 	kfree(device->discdata);
@@ -1234,6 +1233,7 @@ static struct tape_discipline tape_discipline_3590 = {
 
 static struct ccw_device_id tape_3590_ids[] = {
 	{CCW_DEVICE_DEVTYPE(0x3590, 0, 0x3590, 0), .driver_info = tape_3590},
+	{CCW_DEVICE_DEVTYPE(0x3592, 0, 0x3592, 0), .driver_info = tape_3592},
 	{ /* end of list */ }
 };
 

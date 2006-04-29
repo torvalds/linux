@@ -7,7 +7,7 @@
 #ifndef __ASM_ARCH_MENELAUS_H
 #define __ASM_ARCH_MENELAUS_H
 
-extern void menelaus_mmc_register(void (*callback)(u8 card_mask),
+extern void menelaus_mmc_register(void (*callback)(unsigned long data, u8 card_mask),
 				  unsigned long data);
 extern void menelaus_mmc_remove(void);
 extern void menelaus_mmc_opendrain(int enable);

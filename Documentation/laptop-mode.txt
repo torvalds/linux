@@ -919,11 +919,11 @@ int main(int argc, char **argv)
     int settle_time = 60;
 
     /* Parse the simple command-line */
-    if (ac == 2)
-	disk = av[1];
-    else if (ac == 4) {
-	settle_time = atoi(av[2]);
-	disk = av[3];
+    if (argc == 2)
+	disk = argv[1];
+    else if (argc == 4) {
+	settle_time = atoi(argv[2]);
+	disk = argv[3];
     } else
 	usage();
 

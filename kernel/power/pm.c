@@ -75,25 +75,6 @@ struct pm_dev *pm_register(pm_dev_t type,
 	return dev;
 }
 
-/**
- *	pm_unregister -  unregister a device with power management
- *	@dev: device to unregister
- *
- *	Remove a device from the power management notification lists. The
- *	dev passed must be a handle previously returned by pm_register.
- */
- 
-void pm_unregister(struct pm_dev *dev)
-{
-	if (dev) {
-		mutex_lock(&pm_devs_lock);
-		list_del(&dev->entry);
-		mutex_unlock(&pm_devs_lock);
-
-		kfree(dev);
-	}
-}
-
 static void __pm_unregister(struct pm_dev *dev)
 {
 	if (dev) {
@@ -258,7 +239,6 @@ int pm_send_all(pm_request_t rqst, void *data)
 }
 
 EXPORT_SYMBOL(pm_register);
-EXPORT_SYMBOL(pm_unregister);
 EXPORT_SYMBOL(pm_unregister_all);
 EXPORT_SYMBOL(pm_send_all);
 EXPORT_SYMBOL(pm_active);

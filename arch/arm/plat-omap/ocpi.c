@@ -62,9 +62,6 @@ int ocpi_enable(void)
 	if (!cpu_is_omap16xx())
 		return -ENODEV;
 
-	/* Make sure there's clock for OCPI */
-	clk_enable(ocpi_ck);
-
 	/* Enable access for OHCI in OCPI */
 	val = omap_readl(OCPI_PROT);
 	val &= ~0xff;

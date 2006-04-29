@@ -865,7 +865,7 @@ void __init eeh_init(void)
  * on the CEC architecture, type of the device, on earlier boot
  * command-line arguments & etc.
  */
-void eeh_add_device_early(struct device_node *dn)
+static void eeh_add_device_early(struct device_node *dn)
 {
 	struct pci_controller *phb;
 	struct eeh_early_enable_info info;
@@ -882,7 +882,6 @@ void eeh_add_device_early(struct device_node *dn)
 	info.buid_lo = BUID_LO(phb->buid);
 	early_enable_eeh(dn, &info);
 }
-EXPORT_SYMBOL_GPL(eeh_add_device_early);
 
 void eeh_add_device_tree_early(struct device_node *dn)
 {
@@ -893,20 +892,6 @@ void eeh_add_device_tree_early(struct device_node *dn)
 }
 EXPORT_SYMBOL_GPL(eeh_add_device_tree_early);
 
-void eeh_add_device_tree_late(struct pci_bus *bus)
-{
-	struct pci_dev *dev;
-
-	list_for_each_entry(dev, &bus->devices, bus_list) {
- 		eeh_add_device_late(dev);
- 		if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE) {
- 			struct pci_bus *subbus = dev->subordinate;
- 			if (subbus)
- 				eeh_add_device_tree_late(subbus);
- 		}
-	}
-}
-
 /**
  * eeh_add_device_late - perform EEH initialization for the indicated pci device
  * @dev: pci device for which to set up EEH
@@ -914,7 +899,7 @@ void eeh_add_device_tree_late(struct pci_bus *bus)
  * This routine must be used to complete EEH initialization for PCI
  * devices that were added after system boot (e.g. hotplug, dlpar).
  */
-void eeh_add_device_late(struct pci_dev *dev)
+static void eeh_add_device_late(struct pci_dev *dev)
 {
 	struct device_node *dn;
 	struct pci_dn *pdn;
@@ -933,16 +918,33 @@ void eeh_add_device_late(struct pci_dev *dev)
 
 	pci_addr_cache_insert_device (dev);
 }
-EXPORT_SYMBOL_GPL(eeh_add_device_late);
+
+void eeh_add_device_tree_late(struct pci_bus *bus)
+{
+	struct pci_dev *dev;
+
+	list_for_each_entry(dev, &bus->devices, bus_list) {
+ 		eeh_add_device_late(dev);
+ 		if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE) {
+ 			struct pci_bus *subbus = dev->subordinate;
+ 			if (subbus)
+ 				eeh_add_device_tree_late(subbus);
+ 		}
+	}
+}
+EXPORT_SYMBOL_GPL(eeh_add_device_tree_late);
 
 /**
  * eeh_remove_device - undo EEH setup for the indicated pci device
  * @dev: pci device to be removed
  *
- * This routine should be when a device is removed from a running
- * system (e.g. by hotplug or dlpar).
+ * This routine should be called when a device is removed from
+ * a running system (e.g. by hotplug or dlpar).  It unregisters
+ * the PCI device from the EEH subsystem.  I/O errors affecting
+ * this device will no longer be detected after this call; thus,
+ * i/o errors affecting this slot may leave this device unusable.
  */
-void eeh_remove_device(struct pci_dev *dev)
+static void eeh_remove_device(struct pci_dev *dev)
 {
 	struct device_node *dn;
 	if (!dev || !eeh_subsystem_enabled)
@@ -955,24 +957,22 @@ void eeh_remove_device(struct pci_dev *dev)
 	pci_addr_cache_remove_device(dev);
 
 	dn = pci_device_to_OF_node(dev);
-	PCI_DN(dn)->pcidev = NULL;
-	pci_dev_put (dev);
+	if (PCI_DN(dn)->pcidev) {
+		PCI_DN(dn)->pcidev = NULL;
+		pci_dev_put (dev);
+	}
 }
-EXPORT_SYMBOL_GPL(eeh_remove_device);
 
 void eeh_remove_bus_device(struct pci_dev *dev)
 {
+	struct pci_bus *bus = dev->subordinate;
+	struct pci_dev *child, *tmp;
+
 	eeh_remove_device(dev);
-	if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE) {
-		struct pci_bus *bus = dev->subordinate;
-		struct list_head *ln;
-		if (!bus)
-			return; 
-		for (ln = bus->devices.next; ln != &bus->devices; ln = ln->next) {
-			struct pci_dev *pdev = pci_dev_b(ln);
-			if (pdev)
-				eeh_remove_bus_device(pdev);
-		}
+
+	if (bus && dev->hdr_type == PCI_HEADER_TYPE_BRIDGE) {
+		list_for_each_entry_safe(child, tmp, &bus->devices, bus_list)
+			 eeh_remove_bus_device(child);
 	}
 }
 EXPORT_SYMBOL_GPL(eeh_remove_bus_device);

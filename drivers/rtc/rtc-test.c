@@ -49,7 +49,6 @@ static int test_rtc_proc(struct device *dev, struct seq_file *seq)
 {
 	struct platform_device *plat_dev = to_platform_device(dev);
 
-	seq_printf(seq, "24hr\t\t: yes\n");
 	seq_printf(seq, "test\t\t: yes\n");
 	seq_printf(seq, "id\t\t: %d\n", plat_dev->id);
 
@@ -120,8 +119,6 @@ static int test_probe(struct platform_device *plat_dev)
 						&test_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc)) {
 		err = PTR_ERR(rtc);
-		dev_err(&plat_dev->dev,
-			"unable to register the class device\n");
 		return err;
 	}
 	device_create_file(&plat_dev->dev, &dev_attr_irq);

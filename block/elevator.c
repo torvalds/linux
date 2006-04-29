@@ -895,10 +895,8 @@ ssize_t elv_iosched_show(request_queue_t *q, char *name)
 EXPORT_SYMBOL(elv_dispatch_sort);
 EXPORT_SYMBOL(elv_add_request);
 EXPORT_SYMBOL(__elv_add_request);
-EXPORT_SYMBOL(elv_requeue_request);
 EXPORT_SYMBOL(elv_next_request);
 EXPORT_SYMBOL(elv_dequeue_request);
 EXPORT_SYMBOL(elv_queue_empty);
-EXPORT_SYMBOL(elv_completed_request);
 EXPORT_SYMBOL(elevator_exit);
 EXPORT_SYMBOL(elevator_init);

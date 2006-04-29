@@ -288,19 +288,6 @@ ip6t_do_table(struct sk_buff **pskb,
 	table_base = (void *)private->entries[smp_processor_id()];
 	e = get_entry(table_base, private->hook_entry[hook]);
 
-#ifdef CONFIG_NETFILTER_DEBUG
-	/* Check noone else using our table */
-	if (((struct ip6t_entry *)table_base)->comefrom != 0xdead57ac
-	    && ((struct ip6t_entry *)table_base)->comefrom != 0xeeeeeeec) {
-		printk("ASSERT: CPU #%u, %s comefrom(%p) = %X\n",
-		       smp_processor_id(),
-		       table->name,
-		       &((struct ip6t_entry *)table_base)->comefrom,
-		       ((struct ip6t_entry *)table_base)->comefrom);
-	}
-	((struct ip6t_entry *)table_base)->comefrom = 0x57acc001;
-#endif
-
 	/* For return from builtin chain */
 	back = get_entry(table_base, private->underflow[hook]);
 
@@ -788,7 +775,7 @@ translate_table(const char *name,
 	}
 
 	/* And one copy for every other CPU */
-	for_each_cpu(i) {
+	for_each_possible_cpu(i) {
 		if (newinfo->entries[i] && newinfo->entries[i] != entry0)
 			memcpy(newinfo->entries[i], entry0, newinfo->size);
 	}
@@ -841,7 +828,7 @@ get_counters(const struct xt_table_info *t,
 			   counters,
 			   &i);
 
-	for_each_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		if (cpu == curcpu)
 			continue;
 		i = 0;

@@ -3,6 +3,7 @@
 # Copyright (c) 2001 by Jaroslav Kysela <perex@suse.cz>
 #
 
+snd-adlib-objs := adlib.o
 snd-als100-objs := als100.o
 snd-azt2320-objs := azt2320.o
 snd-cmi8330-objs := cmi8330.o
@@ -13,6 +14,7 @@ snd-sgalaxy-objs := sgalaxy.o
 snd-sscape-objs := sscape.o
 
 # Toplevel Module Dependency
+obj-$(CONFIG_SND_ADLIB) += snd-adlib.o
 obj-$(CONFIG_SND_ALS100) += snd-als100.o
 obj-$(CONFIG_SND_AZT2320) += snd-azt2320.o
 obj-$(CONFIG_SND_CMI8330) += snd-cmi8330.o

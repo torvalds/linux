@@ -19,7 +19,6 @@
 
 #ifdef __KERNEL__
 #include <sound/driver.h>
-#include <linux/init.h>
 #include <linux/pci.h>
 #include <asm/io.h>
 #include <sound/core.h>
@@ -277,14 +276,14 @@ static void vortex_Vort3D_InitializeSource(a3dsrc_t * a, int en);
 #endif
 
 /* Driver stuff. */
-static int __devinit vortex_gameport_register(vortex_t * card);
+static int vortex_gameport_register(vortex_t * card);
 static void vortex_gameport_unregister(vortex_t * card);
 #ifndef CHIP_AU8820
-static int __devinit vortex_eq_init(vortex_t * vortex);
-static int __devexit vortex_eq_free(vortex_t * vortex);
+static int vortex_eq_init(vortex_t * vortex);
+static int vortex_eq_free(vortex_t * vortex);
 #endif
 /* ALSA stuff. */
-static int __devinit snd_vortex_new_pcm(vortex_t * vortex, int idx, int nr);
-static int __devinit snd_vortex_mixer(vortex_t * vortex);
-static int __devinit snd_vortex_midi(vortex_t * vortex);
+static int snd_vortex_new_pcm(vortex_t * vortex, int idx, int nr);
+static int snd_vortex_mixer(vortex_t * vortex);
+static int snd_vortex_midi(vortex_t * vortex);
 #endif

@@ -757,9 +757,9 @@ tveeprom_detect_client(struct i2c_adapter *adapter,
 static int
 tveeprom_attach_adapter (struct i2c_adapter *adapter)
 {
-	if (adapter->id != I2C_HW_B_BT848)
-		return 0;
-	return i2c_probe(adapter, &addr_data, tveeprom_detect_client);
+	if (adapter->class & I2C_CLASS_TV_ANALOG)
+		return i2c_probe(adapter, &addr_data, tveeprom_detect_client);
+	return 0;
 }
 
 static int

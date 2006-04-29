@@ -180,7 +180,7 @@ static u32 vfp_emulate_instruction(u32 inst, u32 fpscr, struct pt_regs *regs)
 		 * emulate it.
 		 */
 	}
-	return exceptions;
+	return exceptions & ~VFP_NAN_FLAG;
 }
 
 /*

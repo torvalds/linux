@@ -529,7 +529,10 @@ void __init setup_arch(char **cmdline_p)
 
 int __init fpu_disable(char *s)
 {
-	cpu_data[0].options &= ~MIPS_CPU_FPU;
+	int i;
+
+	for (i = 0; i < NR_CPUS; i++)
+		cpu_data[i].options &= ~MIPS_CPU_FPU;
 
 	return 1;
 }

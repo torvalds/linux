@@ -4649,6 +4649,10 @@ vnodeops_t xfs_vnodeops = {
 #ifdef HAVE_SENDFILE
 	.vop_sendfile		= xfs_sendfile,
 #endif
+#ifdef HAVE_SPLICE
+	.vop_splice_read	= xfs_splice_read,
+	.vop_splice_write	= xfs_splice_write,
+#endif
 	.vop_write		= xfs_write,
 	.vop_ioctl		= xfs_ioctl,
 	.vop_getattr		= xfs_getattr,

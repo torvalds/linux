@@ -227,8 +227,8 @@ struct mdp_superblock_1 {
 				 */
 
 	/* These are only valid with feature bit '4' */
-	__u64	reshape_position;	/* next address in array-space for reshape */
 	__u32	new_level;	/* new level we are reshaping to		*/
+	__u64	reshape_position;	/* next address in array-space for reshape */
 	__u32	delta_disks;	/* change in number of raid_disks		*/
 	__u32	new_layout;	/* new layout					*/
 	__u32	new_chunk;	/* new chunk size (bytes)			*/

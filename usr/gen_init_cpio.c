@@ -471,6 +471,7 @@ int main (int argc, char *argv[])
 				"ERROR: incorrect format, could not locate file type line %d: '%s'\n",
 				line_nr, line);
 			ec = -1;
+			break;
 		}
 
 		if ('\n' == *type) {
@@ -506,7 +507,8 @@ int main (int argc, char *argv[])
 				line_nr, line);
 		}
 	}
-	cpio_trailer();
+	if (ec == 0)
+		cpio_trailer();
 
 	exit(ec);
 }

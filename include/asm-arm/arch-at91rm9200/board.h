@@ -38,6 +38,8 @@ extern unsigned long at91_master_clock;
 extern int at91_serial_map[AT91_NR_UART];
 extern int at91_console_port;
 
+#include <linux/mtd/partitions.h>
+
  /* USB Device */
 struct at91_udc_data {
 	u8	vbus_pin;		/* high == host powering us */
@@ -76,5 +78,27 @@ struct at91_usbh_data {
 	u8		ports;		/* number of ports on root hub */
 };
 extern void __init at91_add_device_usbh(struct at91_usbh_data *data);
+
+ /* NAND / SmartMedia */
+struct at91_nand_data {
+	u8		enable_pin;	/* chip enable */
+	u8		det_pin;	/* card detect */
+	u8		rdy_pin;	/* ready/busy */
+	u8		ale;		/* address line number connected to ALE */
+	u8		cle;		/* address line number connected to CLE */
+        struct mtd_partition* (*partition_info)(int, int*);
+};
+extern void __init at91_add_device_nand(struct at91_nand_data *data);
+
+ /* I2C*/
+void __init at91_add_device_i2c(void);
+
+ /* RTC */
+void __init at91_add_device_rtc(void);
+
+ /* LEDs */
+extern u8 at91_leds_cpu;
+extern u8 at91_leds_timer;
+extern void __init at91_init_leds(u8 cpu_led, u8 timer_led);
 
 #endif

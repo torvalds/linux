@@ -411,6 +411,7 @@ AX.25 NETWORK LAYER
 P:	Ralf Baechle
 M:	ralf@linux-mips.org
 L:	linux-hams@vger.kernel.org
+W:	http://www.linux-ax25.org/
 S:	Maintained
 
 BAYCOM/HDLCDRV DRIVERS FOR AX.25
@@ -418,6 +419,14 @@ P:	Thomas Sailer
 M:	t.sailer@alumni.ethz.ch
 L:	linux-hams@vger.kernel.org
 W:	http://www.baycom.org/~tom/ham/ham.html
+S:	Maintained
+
+BCM43XX WIRELESS DRIVER
+P:	Michael Buesch
+M:	mb@bu3sch.de
+P:	Stefano Brivio
+M:	st3@riseup.net
+W:	http://bcm43xx.berlios.de/
 S:	Maintained
 
 BEFS FILE SYSTEM
@@ -1451,6 +1460,19 @@ P:	Juanjo Ciarlante
 M:	jjciarla@raiz.uncu.edu.ar
 S:	Maintained
 
+IPATH DRIVER:
+P:	Bryan O'Sullivan
+M:	support@pathscale.com
+L:	openib-general@openib.org
+S:	Supported
+
+IPMI SUBSYSTEM
+P:	Corey Minyard
+M:	minyard@acm.org
+L:	openipmi-developer@lists.sourceforge.net
+W:	http://openipmi.sourceforge.net/
+S:	Supported
+
 IPX NETWORK LAYER
 P:	Arnaldo Carvalho de Melo
 M:	acme@conectiva.com.br
@@ -1550,9 +1572,7 @@ S:	Maintained
 
 KEXEC
 P:	Eric Biederman
-P:	Randy Dunlap
 M:	ebiederm@xmission.com
-M:	rdunlap@xenotime.net
 W:	http://www.xmission.com/~ebiederm/files/kexec/
 L:	linux-kernel@vger.kernel.org
 L:	fastboot@osdl.org
@@ -1865,6 +1885,7 @@ NETROM NETWORK LAYER
 P:	Ralf Baechle
 M:	ralf@linux-mips.org
 L:	linux-hams@vger.kernel.org
+W:	http://www.linux-ax25.org/
 S:	Maintained
 
 NETWORK BLOCK DEVICE
@@ -2052,8 +2073,12 @@ P:	Matthew Wilcox
 M:	matthew@wil.cx
 P:	Grant Grundler
 M:	grundler@parisc-linux.org
+P:	Kyle McMartin
+M:	kyle@parisc-linux.org
 L:	parisc-linux@parisc-linux.org
 W:	http://www.parisc-linux.org/
+T:	git kernel.org:/pub/scm/linux/kernel/git/kyle/parisc-2.6.git
+T:	cvs cvs.parisc-linux.org:/var/cvs/linux-2.6
 S:	Maintained
 
 PCI ERROR RECOVERY
@@ -2256,6 +2281,7 @@ ROSE NETWORK LAYER
 P:	Ralf Baechle
 M:	ralf@linux-mips.org
 L:	linux-hams@vger.kernel.org
+W:	http://www.linux-ax25.org/
 S:	Maintained
 
 RISCOM8 DRIVER
@@ -3053,13 +3079,6 @@ P:	Jean Delvare
 M:	khali@linux-fr.org
 L:	lm-sensors@lm-sensors.org
 S:	Odd Fixes
-
-WAN ROUTER & SANGOMA WANPIPE DRIVERS & API (X.25, FRAME RELAY, PPP, CISCO HDLC)
-P:	Nenad Corbic
-M:	ncorbic@sangoma.com
-M:	dm@sangoma.com
-W:	http://www.sangoma.com
-S:	Supported
 
 WATCHDOG DEVICE DRIVERS
 P:	Wim Van Sebroeck

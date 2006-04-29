@@ -38,6 +38,7 @@
 #include <linux/kernel.h>
 #include <linux/proc_fs.h>
 #include <linux/timer.h>
+#include <linux/mempool.h>
 
 #include <asm/ccwdev.h>
 #include <asm/io.h>
@@ -80,6 +81,8 @@ static int indicator_used[INDICATORS_PER_CACHELINE];
 static __u32 * volatile indicators;
 static __u32 volatile spare_indicator;
 static atomic_t spare_indicator_usecount;
+#define QDIO_MEMPOOL_SCSSC_ELEMENTS 2
+static mempool_t *qdio_mempool_scssc;
 
 static debug_info_t *qdio_dbf_setup;
 static debug_info_t *qdio_dbf_sbal;
@@ -1637,7 +1640,7 @@ next:
 
 	}
 	kfree(irq_ptr->qdr);
-	kfree(irq_ptr);
+	free_page((unsigned long) irq_ptr);
 }
 
 static void
@@ -2304,7 +2307,7 @@ qdio_get_ssqd_information(struct qdio_irq *irq_ptr)
 
 	QDIO_DBF_TEXT0(0,setup,"getssqd");
 	qdioac = 0;
-	ssqd_area = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
+	ssqd_area = mempool_alloc(qdio_mempool_scssc, GFP_ATOMIC);
 	if (!ssqd_area) {
 	        QDIO_PRINT_WARN("Could not get memory for chsc. Using all " \
 				"SIGAs for sch x%x.\n", irq_ptr->schid.sch_no);
@@ -2364,7 +2367,7 @@ qdio_get_ssqd_information(struct qdio_irq *irq_ptr)
 out:
 	qdio_check_subchannel_qebsm(irq_ptr, qdioac,
 				    ssqd_area->sch_token);
-	free_page ((unsigned long) ssqd_area);
+	mempool_free(ssqd_area, qdio_mempool_scssc);
 	irq_ptr->qdioac = qdioac;
 }
 
@@ -2458,7 +2461,7 @@ tiqdio_set_subchannel_ind(struct qdio_irq *irq_ptr, int reset_to_zero)
 			virt_to_phys((volatile void *)irq_ptr->dev_st_chg_ind);
 	}
 
-	scssc_area = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
+	scssc_area = mempool_alloc(qdio_mempool_scssc, GFP_ATOMIC);
 	if (!scssc_area) {
 		QDIO_PRINT_WARN("No memory for setting indicators on " \
 				"subchannel 0.%x.%x.\n",
@@ -2514,7 +2517,7 @@ tiqdio_set_subchannel_ind(struct qdio_irq *irq_ptr, int reset_to_zero)
 	QDIO_DBF_HEX2(0,setup,&real_addr_dev_st_chg_ind,sizeof(unsigned long));
 	result = 0;
 out:
-	free_page ((unsigned long) scssc_area);
+	mempool_free(scssc_area, qdio_mempool_scssc);
 	return result;
 
 }
@@ -2543,7 +2546,7 @@ tiqdio_set_delay_target(struct qdio_irq *irq_ptr, unsigned long delay_target)
 	if (!irq_ptr->is_thinint_irq)
 		return -ENODEV;
 
-	scsscf_area = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
+	scsscf_area = mempool_alloc(qdio_mempool_scssc, GFP_ATOMIC);
 	if (!scsscf_area) {
 		QDIO_PRINT_WARN("No memory for setting delay target on " \
 				"subchannel 0.%x.%x.\n",
@@ -2581,7 +2584,7 @@ tiqdio_set_delay_target(struct qdio_irq *irq_ptr, unsigned long delay_target)
 	QDIO_DBF_HEX2(0,trace,&delay_target,sizeof(unsigned long));
 	result = 0; /* not critical */
 out:
-	free_page ((unsigned long) scsscf_area);
+	mempool_free(scsscf_area, qdio_mempool_scssc);
 	return result;
 }
 
@@ -2980,7 +2983,7 @@ qdio_allocate(struct qdio_initialize *init_data)
 	qdio_allocate_do_dbf(init_data);
 
 	/* create irq */
-	irq_ptr = kzalloc(sizeof(struct qdio_irq), GFP_KERNEL | GFP_DMA);
+	irq_ptr = (void *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
 
 	QDIO_DBF_TEXT0(0,setup,"irq_ptr:");
 	QDIO_DBF_HEX0(0,setup,&irq_ptr,sizeof(void*));
@@ -2995,7 +2998,7 @@ qdio_allocate(struct qdio_initialize *init_data)
 	/* QDR must be in DMA area since CCW data address is only 32 bit */
 	irq_ptr->qdr=kmalloc(sizeof(struct qdr), GFP_KERNEL | GFP_DMA);
   	if (!(irq_ptr->qdr)) {
-   		kfree(irq_ptr);
+   		free_page((unsigned long) irq_ptr);
     		QDIO_PRINT_ERR("kmalloc of irq_ptr->qdr failed!\n");
 		return -ENOMEM;
        	}
@@ -3780,6 +3783,16 @@ oom:
 	return -ENOMEM;
 }
 
+static void *qdio_mempool_alloc(gfp_t gfp_mask, void *size)
+{
+	return (void *) get_zeroed_page(gfp_mask|GFP_DMA);
+}
+
+static void qdio_mempool_free(void *element, void *size)
+{
+	free_page((unsigned long) element);
+}
+
 static int __init
 init_QDIO(void)
 {
@@ -3809,6 +3822,10 @@ init_QDIO(void)
 
 	qdio_add_procfs_entry();
 
+	qdio_mempool_scssc = mempool_create(QDIO_MEMPOOL_SCSSC_ELEMENTS,
+					    qdio_mempool_alloc,
+					    qdio_mempool_free, NULL);
+
 	if (tiqdio_check_chsc_availability())
 		QDIO_PRINT_ERR("Not all CHSCs supported. Continuing.\n");
 
@@ -3824,6 +3841,7 @@ cleanup_QDIO(void)
 	qdio_remove_procfs_entry();
 	qdio_release_qdio_memory();
 	qdio_unregister_dbf_views();
+	mempool_destroy(qdio_mempool_scssc);
 
   	printk("qdio: %s: module removed\n",version);
 }

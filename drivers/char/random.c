@@ -1584,7 +1584,6 @@ u32 secure_ipv6_port_ephemeral(const __u32 *saddr, const __u32 *daddr, __u16 dpo
 
 	return twothirdsMD4Transform(daddr, hash);
 }
-EXPORT_SYMBOL(secure_ipv6_port_ephemeral);
 #endif
 
 #if defined(CONFIG_IP_DCCP) || defined(CONFIG_IP_DCCP_MODULE)

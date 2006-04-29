@@ -31,7 +31,6 @@
 #include <asm/irq.h>
 #include <asm/hw_irq.h>
 
-
 /*
  * Low-level SAL-based PCI configuration access functions. Note that SAL
  * calls are already serialized (via sal_lock), so we don't need another
@@ -707,7 +706,7 @@ int ia64_pci_legacy_read(struct pci_bus *bus, u16 port, u32 *val, u8 size)
  *
  * Simply writes @size bytes of @val to @port.
  */
-int ia64_pci_legacy_write(struct pci_dev *bus, u16 port, u32 val, u8 size)
+int ia64_pci_legacy_write(struct pci_bus *bus, u16 port, u32 val, u8 size)
 {
 	int ret = size;
 

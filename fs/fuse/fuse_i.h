@@ -1,6 +1,6 @@
 /*
   FUSE: Filesystem in Userspace
-  Copyright (C) 2001-2005  Miklos Szeredi <miklos@szeredi.hu>
+  Copyright (C) 2001-2006  Miklos Szeredi <miklos@szeredi.hu>
 
   This program can be distributed under the terms of the GNU GPL.
   See the file COPYING.
@@ -18,8 +18,8 @@
 /** Max number of pages that can be used in a single read request */
 #define FUSE_MAX_PAGES_PER_REQ 32
 
-/** If more requests are outstanding, then the operation will block */
-#define FUSE_MAX_OUTSTANDING 10
+/** Maximum number of outstanding background requests */
+#define FUSE_MAX_BACKGROUND 10
 
 /** It could be as large as PATH_MAX, but would that have any uses? */
 #define FUSE_NAME_MAX 1024
@@ -131,8 +131,8 @@ struct fuse_conn;
  * A request to the client
  */
 struct fuse_req {
-	/** This can be on either unused_list, pending processing or
-	    io lists in fuse_conn */
+	/** This can be on either pending processing or io lists in
+	    fuse_conn */
 	struct list_head list;
 
 	/** Entry on the background list */
@@ -144,14 +144,11 @@ struct fuse_req {
 	/*
 	 * The following bitfields are either set once before the
 	 * request is queued or setting/clearing them is protected by
-	 * fuse_lock
+	 * fuse_conn->lock
 	 */
 
 	/** True if the request has reply */
 	unsigned isreply:1;
-
-	/** The request is preallocated */
-	unsigned preallocated:1;
 
 	/** The request was interrupted */
 	unsigned interrupted:1;
@@ -161,6 +158,9 @@ struct fuse_req {
 
 	/** Data is being copied to/from the request */
 	unsigned locked:1;
+
+	/** Request is counted as "waiting" */
+	unsigned waiting:1;
 
 	/** State of the request */
 	enum fuse_req_state state;
@@ -213,6 +213,9 @@ struct fuse_req {
  * unmounted.
  */
 struct fuse_conn {
+	/** Lock protecting accessess to  members of this structure */
+	spinlock_t lock;
+
 	/** The user id for this mount */
 	uid_t user_id;
 
@@ -244,18 +247,19 @@ struct fuse_conn {
 	    interrupted request) */
 	struct list_head background;
 
-	/** Controls the maximum number of outstanding requests */
-	struct semaphore outstanding_sem;
+	/** Number of requests currently in the background */
+	unsigned num_background;
 
-	/** This counts the number of outstanding requests if
-	    outstanding_sem would go negative */
-	unsigned outstanding_debt;
+	/** Flag indicating if connection is blocked.  This will be
+	    the case before the INIT reply is received, and if there
+	    are too many outstading backgrounds requests */
+	int blocked;
+
+	/** waitq for blocked connection */
+	wait_queue_head_t blocked_waitq;
 
 	/** RW semaphore for exclusion with fuse_put_super() */
 	struct rw_semaphore sbput_sem;
-
-	/** The list of unused requests */
-	struct list_head unused_list;
 
 	/** The next unique request id */
 	u64 reqctr;
@@ -318,6 +322,9 @@ struct fuse_conn {
 
 	/** kobject */
 	struct kobject kobj;
+
+	/** O_ASYNC requests */
+	struct fasync_struct *fasync;
 };
 
 static inline struct fuse_conn *get_fuse_conn_super(struct super_block *sb)
@@ -347,21 +354,6 @@ static inline u64 get_node_id(struct inode *inode)
 
 /** Device operations */
 extern const struct file_operations fuse_dev_operations;
-
-/**
- * This is the single global spinlock which protects FUSE's structures
- *
- * The following data is protected by this lock:
- *
- *  - the private_data field of the device file
- *  - the s_fs_info field of the super block
- *  - unused_list, pending, processing lists in fuse_conn
- *  - background list in fuse_conn
- *  - the unique request ID counter reqctr in fuse_conn
- *  - the sb (super_block) field in fuse_conn
- *  - the file (device file) field in fuse_conn
- */
-extern spinlock_t fuse_lock;
 
 /**
  * Get a filled in inode
@@ -461,11 +453,11 @@ void fuse_reset_request(struct fuse_req *req);
 /**
  * Reserve a preallocated request
  */
-struct fuse_req *fuse_get_request(struct fuse_conn *fc);
+struct fuse_req *fuse_get_req(struct fuse_conn *fc);
 
 /**
- * Decrement reference count of a request.  If count goes to zero put
- * on unused list (preallocated) or free request (not preallocated).
+ * Decrement reference count of a request.  If count goes to zero free
+ * the request.
  */
 void fuse_put_request(struct fuse_conn *fc, struct fuse_req *req);
 
@@ -487,7 +479,7 @@ void request_send_background(struct fuse_conn *fc, struct fuse_req *req);
 /**
  * Release inodes and file associated with background request
  */
-void fuse_release_background(struct fuse_req *req);
+void fuse_release_background(struct fuse_conn *fc, struct fuse_req *req);
 
 /* Abort all requests */
 void fuse_abort_conn(struct fuse_conn *fc);

@@ -228,7 +228,7 @@ void system_reset_exception(struct pt_regs *regs)
  */
 static inline int check_io_access(struct pt_regs *regs)
 {
-#ifdef CONFIG_PPC_PMAC
+#if defined(CONFIG_PPC_PMAC) && defined(CONFIG_PPC32)
 	unsigned long msr = regs->msr;
 	const struct exception_table_entry *entry;
 	unsigned int *nip = (unsigned int *)regs->nip;
@@ -261,7 +261,7 @@ static inline int check_io_access(struct pt_regs *regs)
 			return 1;
 		}
 	}
-#endif /* CONFIG_PPC_PMAC */
+#endif /* CONFIG_PPC_PMAC && CONFIG_PPC32 */
 	return 0;
 }
 
@@ -308,8 +308,8 @@ platform_machine_check(struct pt_regs *regs)
 
 void machine_check_exception(struct pt_regs *regs)
 {
-#ifdef CONFIG_PPC64
 	int recover = 0;
+	unsigned long reason = get_mc_reason(regs);
 
 	/* See if any machine dependent calls */
 	if (ppc_md.machine_check_exception)
@@ -317,8 +317,6 @@ void machine_check_exception(struct pt_regs *regs)
 
 	if (recover)
 		return;
-#else
-	unsigned long reason = get_mc_reason(regs);
 
 	if (user_mode(regs)) {
 		regs->msr |= MSR_RI;
@@ -462,7 +460,6 @@ void machine_check_exception(struct pt_regs *regs)
 	 * additional info, e.g. bus error registers.
 	 */
 	platform_machine_check(regs);
-#endif /* CONFIG_PPC64 */
 
 	if (debugger_fault_handler(regs))
 		return;

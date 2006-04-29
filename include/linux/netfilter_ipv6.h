@@ -73,6 +73,9 @@ enum nf_ip6_hook_priorities {
 };
 
 #ifdef CONFIG_NETFILTER
+extern unsigned int nf_ip6_checksum(struct sk_buff *skb, unsigned int hook,
+				    unsigned int dataoff, u_int8_t protocol);
+
 extern int ipv6_netfilter_init(void);
 extern void ipv6_netfilter_fini(void);
 #else /* CONFIG_NETFILTER */

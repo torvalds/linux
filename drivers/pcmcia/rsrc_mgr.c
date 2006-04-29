@@ -12,7 +12,6 @@
  * (C) 1999		David A. Hinds
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 
@@ -21,6 +20,8 @@
 #include <pcmcia/cs.h>
 #include "cs_internal.h"
 
+
+#ifdef CONFIG_PCMCIA_IOCTL
 
 #ifdef CONFIG_PCMCIA_PROBE
 
@@ -97,6 +98,8 @@ int pcmcia_adjust_resource_info(adjust_t *adj)
 	return (ret);
 }
 EXPORT_SYMBOL(pcmcia_adjust_resource_info);
+
+#endif
 
 int pcmcia_validate_mem(struct pcmcia_socket *s)
 {

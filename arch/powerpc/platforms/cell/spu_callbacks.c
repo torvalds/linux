@@ -316,17 +316,18 @@ void *spu_syscall_table[] = {
 	[__NR_pselect6]			sys_ni_syscall, /* sys_pselect */
 	[__NR_ppoll]			sys_ni_syscall, /* sys_ppoll */
 	[__NR_unshare]			sys_unshare,
+	[__NR_splice]			sys_splice,
+	[__NR_tee]			sys_tee,
+	[__NR_vmsplice]			sys_vmsplice,
 };
 
 long spu_sys_callback(struct spu_syscall_block *s)
 {
 	long (*syscall)(u64 a1, u64 a2, u64 a3, u64 a4, u64 a5, u64 a6);
 
-	BUILD_BUG_ON(ARRAY_SIZE(spu_syscall_table) != __NR_syscalls);
-
 	syscall = spu_syscall_table[s->nr_ret];
 
-	if (s->nr_ret >= __NR_syscalls) {
+	if (s->nr_ret >= ARRAY_SIZE(spu_syscall_table)) {
 		pr_debug("%s: invalid syscall #%ld", __FUNCTION__, s->nr_ret);
 		return -ENOSYS;
 	}

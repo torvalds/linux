@@ -1859,5 +1859,4 @@ EXPORT_SYMBOL(tcp_proc_unregister);
 #endif
 EXPORT_SYMBOL(sysctl_local_port_range);
 EXPORT_SYMBOL(sysctl_tcp_low_latency);
-EXPORT_SYMBOL(sysctl_tcp_tw_reuse);
 

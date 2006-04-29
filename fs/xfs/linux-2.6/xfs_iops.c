@@ -673,8 +673,7 @@ xfs_vn_setattr(
 	if (ia_valid & ATTR_ATIME) {
 		vattr.va_mask |= XFS_AT_ATIME;
 		vattr.va_atime = attr->ia_atime;
-		if (ia_valid & ATTR_ATIME_SET)
-			inode->i_atime = attr->ia_atime;
+		inode->i_atime = attr->ia_atime;
 	}
 	if (ia_valid & ATTR_MTIME) {
 		vattr.va_mask |= XFS_AT_MTIME;

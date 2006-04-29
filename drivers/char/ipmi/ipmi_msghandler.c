@@ -941,6 +941,7 @@ int ipmi_set_gets_events(ipmi_user_t user, int val)
 			list_del(&msg->link);
 			list_add_tail(&msg->link, &msgs);
 		}
+		intf->waiting_events_count = 0;
 	}
 
 	/* Hold the events lock while doing this to preserve order. */
@@ -2916,6 +2917,7 @@ static int handle_read_event_rsp(ipmi_smi_t          intf,
 
 		copy_event_into_recv_msg(recv_msg, msg);
 		list_add_tail(&(recv_msg->link), &(intf->waiting_events));
+		intf->waiting_events_count++;
 	} else {
 		/* There's too many things in the queue, discard this
 		   message. */

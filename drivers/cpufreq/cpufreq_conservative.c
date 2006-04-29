@@ -176,8 +176,7 @@ static ssize_t store_up_threshold(struct cpufreq_policy *unused,
 	ret = sscanf (buf, "%u", &input);
 
 	mutex_lock(&dbs_mutex);
-	if (ret != 1 || input > 100 || input < 0 ||
-			input <= dbs_tuners_ins.down_threshold) {
+	if (ret != 1 || input > 100 || input <= dbs_tuners_ins.down_threshold) {
 		mutex_unlock(&dbs_mutex);
 		return -EINVAL;
 	}
@@ -196,8 +195,7 @@ static ssize_t store_down_threshold(struct cpufreq_policy *unused,
 	ret = sscanf (buf, "%u", &input);
 
 	mutex_lock(&dbs_mutex);
-	if (ret != 1 || input > 100 || input < 0 ||
-			input >= dbs_tuners_ins.up_threshold) {
+	if (ret != 1 || input > 100 || input >= dbs_tuners_ins.up_threshold) {
 		mutex_unlock(&dbs_mutex);
 		return -EINVAL;
 	}

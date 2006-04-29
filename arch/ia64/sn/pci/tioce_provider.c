@@ -682,9 +682,6 @@ tioce_reserve_m32(struct tioce_kernel *ce_kern, u64 base, u64 limit)
 	int ate_index, last_ate, ps;
 	struct tioce *ce_mmr;
 
-	if (!TIOCE_M32_ADDR(base))
-		return;
-
 	ce_mmr = (struct tioce *)ce_kern->ce_common->ce_pcibus.bs_base;
 	ps = ce_kern->ce_ate3240_pagesize;
 	ate_index = ATE_PAGE(base, ps);
@@ -692,6 +689,9 @@ tioce_reserve_m32(struct tioce_kernel *ce_kern, u64 base, u64 limit)
 
 	if (ate_index < 64)
 		ate_index = 64;
+
+	if (last_ate >= TIOCE_NUM_M3240_ATES)
+		last_ate = TIOCE_NUM_M3240_ATES - 1;
 
 	while (ate_index <= last_ate) {
 		u64 ate;

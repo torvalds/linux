@@ -125,11 +125,11 @@ static void __init com90xx_probe(void)
 	if (!io && !irq && !shmem && !*device && com90xx_skip_probe)
 		return;
 
-	shmems = kzalloc(((0x10000-0xa0000) / 0x800) * sizeof(unsigned long),
+	shmems = kzalloc(((0x100000-0xa0000) / 0x800) * sizeof(unsigned long),
 			 GFP_KERNEL);
 	if (!shmems)
 		return;
-	iomem = kzalloc(((0x10000-0xa0000) / 0x800) * sizeof(void __iomem *),
+	iomem = kzalloc(((0x100000-0xa0000) / 0x800) * sizeof(void __iomem *),
 			 GFP_KERNEL);
 	if (!iomem) {
 		kfree(shmems);

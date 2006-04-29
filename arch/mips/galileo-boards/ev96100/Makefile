@@ -6,4 +6,4 @@
 # Makefile for the Galileo EV96100 board.
 #
 
-obj-y		+= init.o irq.o puts.o reset.o time.o int-handler.o setup.o
+obj-y		+= init.o irq.o puts.o reset.o time.o setup.o

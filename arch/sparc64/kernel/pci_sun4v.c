@@ -1092,7 +1092,7 @@ void sun4v_pci_init(int node, char *model_name)
 		}
 	}
 
-	for_each_cpu(i) {
+	for_each_possible_cpu(i) {
 		unsigned long page = get_zeroed_page(GFP_ATOMIC);
 
 		if (!page)
