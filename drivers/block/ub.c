@@ -1651,14 +1651,10 @@ static void ub_revalidate(struct ub_dev *sc, struct ub_lun *lun)
 static int ub_bd_open(struct inode *inode, struct file *filp)
 {
 	struct gendisk *disk = inode->i_bdev->bd_disk;
-	struct ub_lun *lun;
-	struct ub_dev *sc;
+	struct ub_lun *lun = disk->private_data;
+	struct ub_dev *sc = lun->udev;
 	unsigned long flags;
 	int rc;
-
-	if ((lun = disk->private_data) == NULL)
-		return -ENXIO;
-	sc = lun->udev;
 
 	spin_lock_irqsave(&ub_lock, flags);
 	if (atomic_read(&sc->poison)) {
