@@ -386,6 +386,8 @@
 
 #endif
 
+#ifdef __KERNEL__
+
 /* user-visible error numbers are in the range -1 - -122: see <asm-s390/errno.h> */
 
 #define __syscall_return(type, res)			     \
@@ -540,7 +542,6 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4,    \
 	__syscall_return(type,__res);			     \
 }
 
-#ifdef __KERNEL__
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_OLD_READDIR
 #define __ARCH_WANT_SYS_ALARM
@@ -567,7 +568,6 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4,    \
 #   define __ARCH_WANT_COMPAT_SYS_TIME
 #   define __ARCH_WANT_COMPAT_SYS_RT_SIGSUSPEND
 # endif
-#endif
 
 #ifdef __KERNEL_SYSCALLS__
 
@@ -618,7 +618,7 @@ asmlinkage long sys_rt_sigaction(int sig,
 				struct sigaction __user *oact,
 				size_t sigsetsize);
 
-#endif
+#endif /* __KERNEL_SYSCALLS__ */
 
 /*
  * "Conditional" syscalls
@@ -628,4 +628,5 @@ asmlinkage long sys_rt_sigaction(int sig,
  */
 #define cond_syscall(x) asm(".weak\t" #x "\n\t.set\t" #x ",sys_ni_syscall")
 
+#endif /* __KERNEL__ */
 #endif /* _ASM_S390_UNISTD_H_ */

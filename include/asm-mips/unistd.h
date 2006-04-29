@@ -905,6 +905,8 @@
 #define __NR_N32_Linux			6000
 #define __NR_N32_Linux_syscalls		268
 
+#ifdef __KERNEL__
+
 #ifndef __ASSEMBLY__
 
 /* XXX - _foo needs to be __foo, while __NR_bar could be _NR_bar. */
@@ -1168,8 +1170,6 @@ type name (atype a,btype b,ctype c,dtype d,etype e,ftype f) \
 
 #endif /* (_MIPS_SIM == _MIPS_SIM_NABI32) || (_MIPS_SIM == _MIPS_SIM_ABI64) */
 
-#ifdef __KERNEL__
-
 
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_OLD_READDIR
@@ -1196,7 +1196,6 @@ type name (atype a,btype b,ctype c,dtype d,etype e,ftype f) \
 # ifdef CONFIG_MIPS32_O32
 #  define __ARCH_WANT_COMPAT_SYS_TIME
 # endif
-#endif
 
 #ifdef __KERNEL_SYSCALLS__
 
@@ -1247,4 +1246,5 @@ asmlinkage long sys_rt_sigaction(int sig,
  */
 #define cond_syscall(x) asm(".weak\t" #x "\n" #x "\t=\tsys_ni_syscall")
 
+#endif /* __KERNEL__ */
 #endif /* _ASM_UNISTD_H */

@@ -317,6 +317,7 @@
 #define __NR_ppoll		298
 #define __NR_unshare		299
 
+#ifdef __KERNEL__
 /* WARNING: You MAY NOT add syscall numbers larger than 299, since
  *          all of the syscall tables in the Sparc kernel are
  *          sized to have 299 entries (starting at zero).  Therefore
@@ -453,7 +454,6 @@ errno = -__res; \
 return -1; \
 }
 
-#ifdef __KERNEL__
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_OLD_READDIR
 #define __ARCH_WANT_STAT64
@@ -475,7 +475,6 @@ return -1; \
 #define __ARCH_WANT_SYS_SIGPENDING
 #define __ARCH_WANT_SYS_SIGPROCMASK
 #define __ARCH_WANT_SYS_RT_SIGSUSPEND
-#endif
 
 #ifdef __KERNEL_SYSCALLS__
 
@@ -532,4 +531,5 @@ asmlinkage long sys_rt_sigaction(int sig,
  */
 #define cond_syscall(x) asm(".weak\t" #x "\n\t.set\t" #x ",sys_ni_syscall")
 
+#endif /* __KERNEL__ */
 #endif /* _SPARC_UNISTD_H */
