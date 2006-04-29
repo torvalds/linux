@@ -43,6 +43,7 @@ pci_config_attr(subsystem_vendor, "0x%04x\n");
 pci_config_attr(subsystem_device, "0x%04x\n");
 pci_config_attr(class, "0x%06x\n");
 pci_config_attr(irq, "%u\n");
+pci_config_attr(is_enabled, "%u\n");
 
 static ssize_t local_cpus_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
@@ -90,6 +91,25 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *attr, 
 		       (u8)(pci_dev->class >> 16), (u8)(pci_dev->class >> 8),
 		       (u8)(pci_dev->class));
 }
+static ssize_t
+is_enabled_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+
+	/* this can crash the machine when done on the "wrong" device */
+	if (!capable(CAP_SYS_ADMIN))
+		return count;
+
+	if (*buf == '0')
+		pci_disable_device(pdev);
+
+	if (*buf == '1')
+		pci_enable_device(pdev);
+
+	return count;
+}
+
 
 struct device_attribute pci_dev_attrs[] = {
 	__ATTR_RO(resource),
@@ -101,6 +121,7 @@ struct device_attribute pci_dev_attrs[] = {
 	__ATTR_RO(irq),
 	__ATTR_RO(local_cpus),
 	__ATTR_RO(modalias),
+	__ATTR(enable, 0600, is_enabled_show, is_enabled_store),
 	__ATTR_NULL,
 };
 
