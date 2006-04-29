@@ -362,12 +362,19 @@ s390_revalidate_registers(struct mci *mci)
 	return kill_task;
 }
 
+#define MAX_IPD_COUNT	29
+#define MAX_IPD_TIME	(5 * 60 * 100 * 1000) /* 5 minutes */
+
 /*
  * machine check handler.
  */
 void
 s390_do_machine_check(struct pt_regs *regs)
 {
+	static DEFINE_SPINLOCK(ipd_lock);
+	static unsigned long long last_ipd;
+	static int ipd_count;
+	unsigned long long tmp;
 	struct mci *mci;
 	struct mcck_struct *mcck;
 	int umode;
@@ -404,11 +411,27 @@ s390_do_machine_check(struct pt_regs *regs)
 				s390_handle_damage("processing backup machine "
 						   "check with damage.");
 			}
-			if (!umode)
-				s390_handle_damage("processing backup machine "
-						   "check in kernel mode.");
-			mcck->kill_task = 1;
-			mcck->mcck_code = *(unsigned long long *) mci;
+
+			/*
+			 * Nullifying exigent condition, therefore we might
+			 * retry this instruction.
+			 */
+
+			spin_lock(&ipd_lock);
+
+			tmp = get_clock();
+
+			if (((tmp - last_ipd) >> 12) < MAX_IPD_TIME)
+				ipd_count++;
+			else
+				ipd_count = 1;
+
+			last_ipd = tmp;
+
+			if (ipd_count == MAX_IPD_COUNT)
+				s390_handle_damage("too many ipd retries.");
+
+			spin_unlock(&ipd_lock);
 		}
 		else {
 			/* Processing damage -> stopping machine */

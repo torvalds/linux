@@ -507,13 +507,14 @@ static void ip32_irq0(struct pt_regs *regs)
 	int irq = 0;
 
 	crime_int = crime->istat & crime_mask;
-	irq = ffs(crime_int);
-	crime_int = 1 << (irq - 1);
+	irq = __ffs(crime_int);
+	crime_int = 1 << irq;
 
 	if (crime_int & CRIME_MACEISA_INT_MASK) {
 		unsigned long mace_int = mace->perif.ctrl.istat;
-		irq = ffs(mace_int & maceisa_mask) + 32;
+		irq = __ffs(mace_int & maceisa_mask) + 32;
 	}
+	irq++;
 	DBG("*irq %u*\n", irq);
 	do_IRQ(irq, regs);
 }

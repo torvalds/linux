@@ -136,9 +136,7 @@ xpc_get_rsvd_page_pa(int nasid)
 		}
 
 		if (L1_CACHE_ALIGN(len) > buf_len) {
-			if (buf_base != NULL) {
-				kfree(buf_base);
-			}
+			kfree(buf_base);
 			buf_len = L1_CACHE_ALIGN(len);
 			buf = (u64) xpc_kmalloc_cacheline_aligned(buf_len,
 							GFP_KERNEL, &buf_base);
@@ -159,9 +157,7 @@ xpc_get_rsvd_page_pa(int nasid)
 		}
 	}
 
-	if (buf_base != NULL) {
-		kfree(buf_base);
-	}
+	kfree(buf_base);
 
 	if (status != SALRET_OK) {
 		rp_pa = 0;

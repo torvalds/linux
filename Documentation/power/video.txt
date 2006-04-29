@@ -140,7 +140,7 @@ IBM TP T41p			s3_bios (2), switch to X after resume
 IBM TP T42			s3_bios (2)
 IBM ThinkPad T42p (2373-GTG)	s3_bios (2)
 IBM TP X20			??? (*)
-IBM TP X30			s3_bios (2)
+IBM TP X30			s3_bios, s3_mode (4)
 IBM TP X31 / Type 2672-XXH      none (1), use radeontool (http://fdd.com/software/radeon/) to turn off backlight.
 IBM TP X32			none (1), but backlight is on and video is trashed after long suspend. s3_bios,s3_mode (4) works too. Perhaps that gets better results?
 IBM Thinkpad X40 Type 2371-7JG  s3_bios,s3_mode (4)

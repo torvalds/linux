@@ -16,4 +16,6 @@
 
 #define ARCH_KMALLOC_MINALIGN	8
 
+#define __read_mostly __attribute__((__section__(".data.read_mostly")))
+
 #endif

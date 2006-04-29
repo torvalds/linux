@@ -242,10 +242,6 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 			kcb->kprobe_status = KPROBE_REENTER;
 			return 1;
 		} else {
-			if (regs->eflags & VM_MASK) {
-			/* We are in virtual-8086 mode. Return 0 */
-				goto no_kprobe;
-			}
 			if (*addr != BREAKPOINT_INSTRUCTION) {
 			/* The breakpoint instruction was removed by
 			 * another cpu right after we hit, no further
@@ -265,11 +261,6 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 
 	p = get_kprobe(addr);
 	if (!p) {
-		if (regs->eflags & VM_MASK) {
-			/* We are in virtual-8086 mode. Return 0 */
-			goto no_kprobe;
-		}
-
 		if (*addr != BREAKPOINT_INSTRUCTION) {
 			/*
 			 * The breakpoint instruction was removed right
@@ -452,10 +443,11 @@ static void __kprobes resume_execution(struct kprobe *p,
 		*tos &= ~(TF_MASK | IF_MASK);
 		*tos |= kcb->kprobe_old_eflags;
 		break;
-	case 0xc3:		/* ret/lret */
-	case 0xcb:
-	case 0xc2:
+	case 0xc2:		/* iret/ret/lret */
+	case 0xc3:
 	case 0xca:
+	case 0xcb:
+	case 0xcf:
 	case 0xea:		/* jmp absolute -- eip is correct */
 		/* eip is already adjusted, no more changes required */
 		p->ainsn.boostable = 1;
@@ -463,10 +455,13 @@ static void __kprobes resume_execution(struct kprobe *p,
 	case 0xe8:		/* call relative - Fix return addr */
 		*tos = orig_eip + (*tos - copy_eip);
 		break;
+	case 0x9a:		/* call absolute -- same as call absolute, indirect */
+		*tos = orig_eip + (*tos - copy_eip);
+		goto no_change;
 	case 0xff:
 		if ((p->ainsn.insn[1] & 0x30) == 0x10) {
-			/* call absolute, indirect */
 			/*
+			 * call absolute, indirect
 			 * Fix return addr; eip is correct.
 			 * But this is not boostable
 			 */

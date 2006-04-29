@@ -315,6 +315,11 @@ dasd_increase_state(struct dasd_device *device)
 		rc = dasd_state_basic_to_ready(device);
 
 	if (!rc &&
+	    device->state == DASD_STATE_UNFMT &&
+	    device->target > DASD_STATE_UNFMT)
+		rc = -EPERM;
+
+	if (!rc &&
 	    device->state == DASD_STATE_READY &&
 	    device->target >= DASD_STATE_ONLINE)
 		rc = dasd_state_ready_to_online(device);

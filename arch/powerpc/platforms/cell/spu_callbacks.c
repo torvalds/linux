@@ -318,6 +318,7 @@ void *spu_syscall_table[] = {
 	[__NR_unshare]			sys_unshare,
 	[__NR_splice]			sys_splice,
 	[__NR_tee]			sys_tee,
+	[__NR_vmsplice]			sys_vmsplice,
 };
 
 long spu_sys_callback(struct spu_syscall_block *s)

@@ -346,9 +346,11 @@ extern ia64_mv_dma_supported		swiotlb_dma_supported;
 #endif
 #ifndef platform_pci_legacy_read
 # define platform_pci_legacy_read	ia64_pci_legacy_read
+extern int ia64_pci_legacy_read(struct pci_bus *bus, u16 port, u32 *val, u8 size);
 #endif
 #ifndef platform_pci_legacy_write
 # define platform_pci_legacy_write	ia64_pci_legacy_write
+extern int ia64_pci_legacy_write(struct pci_bus *bus, u16 port, u32 val, u8 size);
 #endif
 #ifndef platform_inb
 # define platform_inb		__ia64_inb

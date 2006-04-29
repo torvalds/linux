@@ -642,7 +642,7 @@ static void __cpuexit cache_remove_dev(struct sys_device * sys_dev)
 	return;
 }
 
-static int __cpuinit cacheinfo_cpu_callback(struct notifier_block *nfb,
+static int cacheinfo_cpu_callback(struct notifier_block *nfb,
 					unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned long)hcpu;
