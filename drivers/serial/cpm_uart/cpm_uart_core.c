@@ -12,7 +12,8 @@
  *
  *  Copyright (C) 2004 Freescale Semiconductor, Inc.
  *            (C) 2004 Intracom, S.A.
- *            (C) 2005 MontaVista Software, Inc. by Vitaly Bordug <vbordug@ru.mvista.com>
+ *            (C) 2005-2006 MontaVista Software, Inc.
+ * 		Vitaly Bordug <vbordug@ru.mvista.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -81,7 +82,7 @@ early_uart_get_pdev(int index)
 }
 
 
-void cpm_uart_count(void)
+static void cpm_uart_count(void)
 {
 	cpm_uart_nr = 0;
 #ifdef CONFIG_SERIAL_CPM_SMC1
@@ -102,6 +103,21 @@ void cpm_uart_count(void)
 #ifdef CONFIG_SERIAL_CPM_SCC4
 	cpm_uart_port_map[cpm_uart_nr++] = UART_SCC4;
 #endif
+}
+
+/* Get UART number by its id */
+static int cpm_uart_id2nr(int id)
+{
+	int i;
+	if (id < UART_NR) {
+		for (i=0; i<UART_NR; i++) {
+			if (cpm_uart_port_map[i] == id)
+				return i;
+		}
+	}
+
+	/* not found or invalid argument */
+	return -1;
 }
 
 /*
@@ -1012,7 +1028,11 @@ int cpm_uart_drv_get_platform_data(struct platform_device *pdev, int is_con)
 	int line;
 	u32 mem, pram;
 
-	for (line=0; line<UART_NR && cpm_uart_port_map[line]!=pdata->fs_no; line++);
+	line = cpm_uart_id2nr(idx);
+	if(line < 0) {
+		printk(KERN_ERR"%s(): port %d is not registered", __FUNCTION__, idx);
+		return -1;
+	}
 
 	pinfo = (struct uart_cpm_port *) &cpm_uart_ports[idx];
 
@@ -1245,8 +1265,7 @@ static int cpm_uart_drv_probe(struct device *dev)
 	}
 
 	pdata = pdev->dev.platform_data;
-	pr_debug("cpm_uart_drv_probe: Adding CPM UART %d\n",
-			cpm_uart_port_map[pdata->fs_no]);
+	pr_debug("cpm_uart_drv_probe: Adding CPM UART %d\n", cpm_uart_id2nr(pdata->fs_no));
 
 	if ((ret = cpm_uart_drv_get_platform_data(pdev, 0)))
 		return ret;
@@ -1265,7 +1284,7 @@ static int cpm_uart_drv_remove(struct device *dev)
 	struct fs_uart_platform_info *pdata = pdev->dev.platform_data;
 
 	pr_debug("cpm_uart_drv_remove: Removing CPM UART %d\n",
-			cpm_uart_port_map[pdata->fs_no]);
+			cpm_uart_id2nr(pdata->fs_no));
 
         uart_remove_one_port(&cpm_reg, &cpm_uart_ports[pdata->fs_no].port);
         return 0;

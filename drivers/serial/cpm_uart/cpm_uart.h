@@ -5,6 +5,13 @@
  *
  *  Copyright (C) 2004 Freescale Semiconductor, Inc.
  *
+ *  2006 (c) MontaVista Software, Inc.
+ * 	Vitaly Bordug <vbordug@ru.mvista.com>
+ *
+ * This file is licensed under the terms of the GNU General Public License
+ * version 2. This program is licensed "as is" without any warranty of any
+ * kind, whether express or implied.
+ *
  */
 #ifndef CPM_UART_H
 #define CPM_UART_H
@@ -101,12 +108,13 @@ static inline unsigned long cpu2cpm_addr(void* addr, struct uart_cpm_port *pinfo
 	int offset;
 	u32 val = (u32)addr;
 	/* sane check */
-	if ((val >= (u32)pinfo->mem_addr) &&
+	if (likely((val >= (u32)pinfo->mem_addr)) &&
 			(val<((u32)pinfo->mem_addr + pinfo->mem_size))) {
 		offset = val - (u32)pinfo->mem_addr;
 		return pinfo->dma_addr+offset;
 	}
-	printk("%s(): address %x to translate out of range!\n", __FUNCTION__, val);
+	/* something nasty happened */
+	BUG();
 	return 0;
 }
 
@@ -115,12 +123,13 @@ static inline void *cpm2cpu_addr(unsigned long addr, struct uart_cpm_port *pinfo
 	int offset;
 	u32 val = addr;
 	/* sane check */
-	if ((val >= pinfo->dma_addr) &&
-			(val<(pinfo->dma_addr + pinfo->mem_size))) {
+	if (likely((val >= pinfo->dma_addr) &&
+			(val<(pinfo->dma_addr + pinfo->mem_size)))) {
 		offset = val - (u32)pinfo->dma_addr;
 		return (void*)(pinfo->mem_addr+offset);
 	}
-	printk("%s(): address %x to translate out of range!\n", __FUNCTION__, val);
+	/* something nasty happened */
+	BUG();
 	return 0;
 }
 
