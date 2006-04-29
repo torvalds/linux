@@ -69,7 +69,7 @@
 #define CPM_CR_INIT_TX		((ushort)0x0002)
 #define CPM_CR_HUNT_MODE	((ushort)0x0003)
 #define CPM_CR_STOP_TX		((ushort)0x0004)
-#define CPM_CR_GRA_STOP_TX      ((ushort)0x0005)
+#define CPM_CR_GRA_STOP_TX	((ushort)0x0005)
 #define CPM_CR_RESTART_TX	((ushort)0x0006)
 #define CPM_CR_SET_GADDR	((ushort)0x0008)
 #define CPM_CR_START_IDMA	((ushort)0x0009)
