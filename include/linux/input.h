@@ -805,6 +805,9 @@ struct ff_effect {
 
 #define FF_MAX		0x7f
 
+#ifdef LINUX_MOD_DEVICETABLE_H
+/* We only want this if mod_devicetable.h has been included -- that's
+   either in kernel space, or in scripts/mod/file2alias.c */
 struct input_device_id {
 
 	kernel_ulong_t flags;
@@ -823,6 +826,7 @@ struct input_device_id {
 
 	kernel_ulong_t driver_info;
 };
+#endif 
 
 /*
  * Structure for hotplug & device<->driver matching.
