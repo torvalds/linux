@@ -446,7 +446,9 @@ config SCSI_DPT_I2O
 
 config SCSI_ADVANSYS
 	tristate "AdvanSys SCSI support"
-	depends on (ISA || EISA || PCI) && SCSI && BROKEN
+	depends on SCSI
+	depends on ISA || EISA || PCI
+	depends on BROKEN || X86_32
 	help
 	  This is a driver for all SCSI host adapters manufactured by
 	  AdvanSys. It is documented in the kernel source in
