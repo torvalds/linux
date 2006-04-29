@@ -17,8 +17,6 @@
 #ifndef LINUX_PCI_H
 #define LINUX_PCI_H
 
-#include <linux/mod_devicetable.h>
-
 /* Include the pci register defines */
 #include <linux/pci_regs.h>
 
@@ -45,6 +43,8 @@
 #define PCIIOC_WRITE_COMBINE	(PCIIOC_BASE | 0x03)	/* Enable/disable write-combining. */
 
 #ifdef __KERNEL__
+
+#include <linux/mod_devicetable.h>
 
 #include <linux/types.h>
 #include <linux/ioport.h>
