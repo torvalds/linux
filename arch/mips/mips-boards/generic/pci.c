@@ -198,6 +198,7 @@ void __init mips_pcibios_init(void)
 	case MIPS_REVISION_CORID_CORE_MSC:
 	case MIPS_REVISION_CORID_CORE_FPGA2:
 	case MIPS_REVISION_CORID_CORE_FPGA3:
+	case MIPS_REVISION_CORID_CORE_24K:
 	case MIPS_REVISION_CORID_CORE_EMUL_MSC:
 		/* Set up resource ranges from the controller's registers.  */
 		MSC_READ(MSC01_PCI_SC2PMBASL, start);

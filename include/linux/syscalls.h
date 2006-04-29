@@ -574,6 +574,9 @@ asmlinkage long sys_splice(int fd_in, loff_t __user *off_in,
 			   int fd_out, loff_t __user *off_out,
 			   size_t len, unsigned int flags);
 
+asmlinkage long sys_vmsplice(int fd, const struct iovec __user *iov,
+			     unsigned long nr_segs, unsigned int flags);
+
 asmlinkage long sys_tee(int fdin, int fdout, size_t len, unsigned int flags);
 
 asmlinkage long sys_sync_file_range(int fd, loff_t offset, loff_t nbytes,

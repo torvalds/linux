@@ -516,3 +516,11 @@ void probe_machine(void)
 
 	printk(KERN_INFO "Using %s machine description\n", ppc_md.name);
 }
+
+int check_legacy_ioport(unsigned long base_port)
+{
+	if (ppc_md.check_legacy_ioport == NULL)
+		return 0;
+	return ppc_md.check_legacy_ioport(base_port);
+}
+EXPORT_SYMBOL(check_legacy_ioport);

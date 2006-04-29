@@ -155,7 +155,7 @@ superio_init(struct pci_dev *pcidev)
 	struct pci_dev *pdev = sio->lio_pdev;
 	u16 word;
 
-        if (sio->suckyio_irq_enabled)                                       
+	if (sio->suckyio_irq_enabled)
 		return;
 
 	BUG_ON(!pdev);
@@ -194,7 +194,7 @@ superio_init(struct pci_dev *pcidev)
 	request_region (sio->acpi_base, 0x1f, "acpi");
 
 	/* Enable the legacy I/O function */
-        pci_read_config_word (pdev, PCI_COMMAND, &word);
+	pci_read_config_word (pdev, PCI_COMMAND, &word);
 	word |= PCI_COMMAND_SERR | PCI_COMMAND_PARITY | PCI_COMMAND_IO;
 	pci_write_config_word (pdev, PCI_COMMAND, word);
 

@@ -2166,7 +2166,7 @@ static void handle_ep_small (struct net2280_ep *ep)
 					ep->stopped = 1;
 					set_halt (ep);
 					mode = 2;
-				} else if (!req && ep->stopped)
+				} else if (!req && !ep->stopped)
 					write_fifo (ep, NULL);
 			}
 		} else {
@@ -2280,9 +2280,7 @@ static void handle_ep_small (struct net2280_ep *ep)
 		/* if we wrote it all, we're usually done */
 		if (req->req.actual == req->req.length) {
 			if (ep->num == 0) {
-				/* wait for control status */
-				if (mode != 2)
-					req = NULL;
+				/* send zlps until the status stage */
 			} else if (!req->req.zero || len != ep->ep.maxpacket)
 				mode = 2;
 		}
@@ -2744,6 +2742,10 @@ static irqreturn_t net2280_irq (int irq, void *_dev, struct pt_regs * r)
 {
 	struct net2280		*dev = _dev;
 
+	/* shared interrupt, not ours */
+	if (!(readl(&dev->regs->irqstat0) & (1 << INTA_ASSERTED)))
+		return IRQ_NONE;
+
 	spin_lock (&dev->lock);
 
 	/* handle disconnect, dma, and more */
@@ -2831,13 +2833,13 @@ static int net2280_probe (struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	/* alloc, and start init */
-	dev = kmalloc (sizeof *dev, SLAB_KERNEL);
+	dev = kzalloc (sizeof *dev, SLAB_KERNEL);
 	if (dev == NULL){
 		retval = -ENOMEM;
 		goto done;
 	}
 
-	memset (dev, 0, sizeof *dev);
+	pci_set_drvdata (pdev, dev);
 	spin_lock_init (&dev->lock);
 	dev->pdev = pdev;
 	dev->gadget.ops = &net2280_ops;
@@ -2950,7 +2952,6 @@ static int net2280_probe (struct pci_dev *pdev, const struct pci_device_id *id)
 	dev->chiprev = get_idx_reg (dev->regs, REG_CHIPREV) & 0xffff;
 
 	/* done */
-	pci_set_drvdata (pdev, dev);
 	INFO (dev, "%s\n", driver_desc);
 	INFO (dev, "irq %s, pci mem %p, chip rev %04x\n",
 			bufp, base, dev->chiprev);

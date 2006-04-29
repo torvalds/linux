@@ -482,7 +482,7 @@ static void threshold_remove_device(unsigned int cpu)
 #endif
 
 /* get notified when a cpu comes on/off */
-static __cpuinit int threshold_cpu_callback(struct notifier_block *nfb,
+static int threshold_cpu_callback(struct notifier_block *nfb,
 					    unsigned long action, void *hcpu)
 {
 	/* cpu was unsigned int to begin with */

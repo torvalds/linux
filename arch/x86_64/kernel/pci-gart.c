@@ -112,10 +112,6 @@ static unsigned long alloc_iommu(int size)
 static void free_iommu(unsigned long offset, int size)
 { 
 	unsigned long flags;
-	if (size == 1) { 
-		clear_bit(offset, iommu_gart_bitmap); 
-		return;
-	}
 	spin_lock_irqsave(&iommu_bitmap_lock, flags);
 	__clear_bit_string(iommu_gart_bitmap, offset, size);
 	spin_unlock_irqrestore(&iommu_bitmap_lock, flags);

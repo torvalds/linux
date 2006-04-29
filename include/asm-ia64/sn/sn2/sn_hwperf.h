@@ -45,8 +45,12 @@ struct sn_hwperf_object_info {
 #define SN_HWPERF_IS_NODE(x)		((x) && strstr((x)->name, "SHub"))
 #define SN_HWPERF_IS_NODE_SHUB2(x)	((x) && strstr((x)->name, "SHub 2."))
 #define SN_HWPERF_IS_IONODE(x)		((x) && strstr((x)->name, "TIO"))
-#define SN_HWPERF_IS_ROUTER(x)		((x) && strstr((x)->name, "Router"))
 #define SN_HWPERF_IS_NL3ROUTER(x)	((x) && strstr((x)->name, "NL3Router"))
+#define SN_HWPERF_IS_NL4ROUTER(x)	((x) && strstr((x)->name, "NL4Router"))
+#define SN_HWPERF_IS_OLDROUTER(x)	((x) && strstr((x)->name, "Router"))
+#define SN_HWPERF_IS_ROUTER(x)		(SN_HWPERF_IS_NL3ROUTER(x) || 		\
+					 	SN_HWPERF_IS_NL4ROUTER(x) || 	\
+					 	SN_HWPERF_IS_OLDROUTER(x))
 #define SN_HWPERF_FOREIGN(x)		((x) && !(x)->sn_hwp_this_part && !(x)->sn_hwp_is_shared)
 #define SN_HWPERF_SAME_OBJTYPE(x,y)	((SN_HWPERF_IS_NODE(x) && SN_HWPERF_IS_NODE(y)) ||\
 					(SN_HWPERF_IS_IONODE(x) && SN_HWPERF_IS_IONODE(y)) ||\

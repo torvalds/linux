@@ -206,7 +206,7 @@ static const struct hc_driver ohci_pci_hc_driver = {
 
 static const struct pci_device_id pci_ids [] = { {
 	/* handle any USB OHCI controller */
-	PCI_DEVICE_CLASS((PCI_CLASS_SERIAL_USB << 8) | 0x10, ~0),
+	PCI_DEVICE_CLASS(PCI_CLASS_SERIAL_USB_OHCI, ~0),
 	.driver_data =	(unsigned long) &ohci_pci_hc_driver,
 	}, { /* end: all zeroes */ }
 };

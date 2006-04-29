@@ -29,6 +29,10 @@
 void ibm440gx_get_clocks(struct ibm44x_clocks*, unsigned int sys_clk,
 	unsigned int ser_clk) __init;
 
+/* common 440GX platform init */
+void ibm440gx_platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
+			    unsigned long r6, unsigned long r7) __init;
+
 /* Enable L2 cache */
 void ibm440gx_l2c_enable(void) __init;
 

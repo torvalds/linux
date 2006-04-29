@@ -615,7 +615,10 @@ LDFLAGS			+= -m $(ld-emul)
 ifdef CONFIG_MIPS
 CHECKFLAGS += $(shell $(CC) $(CFLAGS) -dM -E -xc /dev/null | \
 	egrep -vw '__GNUC_(MAJOR|MINOR|PATCHLEVEL)__' | \
-	sed -e 's/^\#define /-D/' -e 's/ /="/' -e 's/$$/"/')
+	sed -e 's/^\#define /-D/' -e "s/ /='/" -e "s/$$/'/")
+ifdef CONFIG_64BIT
+CHECKFLAGS		+= -m64
+endif
 endif
 
 OBJCOPYFLAGS		+= --remove-section=.reginfo

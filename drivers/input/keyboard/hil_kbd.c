@@ -350,11 +350,11 @@ static int hil_kbd_connect(struct serio *serio, struct serio_driver *drv)
 	return 0;
  bail2:
 	serio_close(serio);
+	serio_set_drvdata(serio, NULL);
  bail1:
 	input_free_device(kbd->dev);
  bail0:
 	kfree(kbd);
-	serio_set_drvdata(serio, NULL);
 	return -EIO;
 }
 

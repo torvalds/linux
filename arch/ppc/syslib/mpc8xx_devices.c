@@ -170,12 +170,18 @@ struct platform_device ppc_sys_platform_devices[] = {
 	[MPC8xx_CPM_SMC1] = {
 		.name = "fsl-cpm-smc",
 		.id	= 1,
-		.num_resources	= 2,
+		.num_resources	= 3,
 		.resource = (struct resource[]) {
 			{
 				.name	= "regs",
-				.start	= 0xa82,
-				.end	= 0xa91,
+				.start	= 0xa80,
+				.end	= 0xa8f,
+				.flags	= IORESOURCE_MEM,
+			},
+			{
+				.name	= "pram",
+				.start	= 0x3e80,
+				.end	= 0x3ebf,
 				.flags	= IORESOURCE_MEM,
 			},
 			{
@@ -189,13 +195,20 @@ struct platform_device ppc_sys_platform_devices[] = {
 	[MPC8xx_CPM_SMC2] = {
 		.name = "fsl-cpm-smc",
 		.id	= 2,
-		.num_resources	= 2,
+		.num_resources	= 3,
 		.resource = (struct resource[]) {
 			{
 				.name	= "regs",
-				.start	= 0xa92,
-				.end	= 0xaa1,
+				.start	= 0xa90,
+				.end	= 0xa9f,
 				.flags	= IORESOURCE_MEM,
+			},
+			{
+ 				.name	= "pram",
+ 				.start	= 0x3f80,
+ 				.end	= 0x3fbf,
+ 				.flags	= IORESOURCE_MEM,
+
 			},
 			{
 				.name	= "interrupt",

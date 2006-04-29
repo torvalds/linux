@@ -3119,7 +3119,7 @@ findFirstRetry:
 				psrch_inf->endOfSearch = FALSE;
 
 			psrch_inf->entries_in_buffer  = le16_to_cpu(parms->SearchCount);
-			psrch_inf->index_of_last_entry = 
+			psrch_inf->index_of_last_entry = 2 /* skip . and .. */ +
 				psrch_inf->entries_in_buffer;
 			*pnetfid = parms->SearchHandle;
 		} else {

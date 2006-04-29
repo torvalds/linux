@@ -178,9 +178,6 @@ static struct {
 	/* allocated slab cache + modules which uses this slab cache */
 	int use;
 
-	/* Initialization */
-	int (*init_conntrack)(struct nf_conn *, u_int32_t);
-
 } nf_ct_cache[NF_CT_F_NUM];
 
 /* protect members of nf_ct_cache except of "use" */
@@ -208,10 +205,8 @@ nf_ct_proto_find_get(u_int16_t l3proto, u_int8_t protocol)
 
 	preempt_disable();
 	p = __nf_ct_proto_find(l3proto, protocol);
-	if (p) {
-		if (!try_module_get(p->me))
-			p = &nf_conntrack_generic_protocol;
-	}
+	if (!try_module_get(p->me))
+		p = &nf_conntrack_generic_protocol;
 	preempt_enable();
 	
 	return p;
@@ -229,10 +224,8 @@ nf_ct_l3proto_find_get(u_int16_t l3proto)
 
 	preempt_disable();
 	p = __nf_ct_l3proto_find(l3proto);
-	if (p) {
-		if (!try_module_get(p->me))
-			p = &nf_conntrack_generic_l3proto;
-	}
+	if (!try_module_get(p->me))
+		p = &nf_conntrack_generic_l3proto;
 	preempt_enable();
 
 	return p;

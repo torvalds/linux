@@ -594,14 +594,6 @@ void ppc64_terminate_msg(unsigned int src, const char *msg)
 	printk("[terminate]%04x %s\n", src, msg);
 }
 
-int check_legacy_ioport(unsigned long base_port)
-{
-	if (ppc_md.check_legacy_ioport == NULL)
-		return 0;
-	return ppc_md.check_legacy_ioport(base_port);
-}
-EXPORT_SYMBOL(check_legacy_ioport);
-
 void cpu_die(void)
 {
 	if (ppc_md.cpu_die)

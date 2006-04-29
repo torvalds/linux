@@ -20,9 +20,18 @@ config TCG_TPM
 	  Note: For more TPM drivers enable CONFIG_PNP, CONFIG_ACPI
 	  and CONFIG_PNPACPI.
 
+config TCG_TIS
+	tristate "TPM Interface Specification 1.2 Interface"
+	depends on TCG_TPM
+	---help---
+	  If you have a TPM security chip that is compliant with the
+	  TCG TIS 1.2 TPM specification say Yes and it will be accessible
+	  from within Linux.  To compile this driver as a module, choose
+	  M here; the module will be called tpm_tis.
+
 config TCG_NSC
 	tristate "National Semiconductor TPM Interface"
-	depends on TCG_TPM
+	depends on TCG_TPM && PNPACPI
 	---help---
 	  If you have a TPM security chip from National Semicondutor 
 	  say Yes and it will be accessible from within Linux.  To 

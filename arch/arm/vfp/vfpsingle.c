@@ -203,7 +203,7 @@ u32 vfp_single_normaliseround(int sd, struct vfp_single *vs, u32 fpscr, u32 exce
 		vfp_put_float(sd, d);
 	}
 
-	return exceptions & ~VFP_NAN_FLAG;
+	return exceptions;
 }
 
 /*

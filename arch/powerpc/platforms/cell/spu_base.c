@@ -306,19 +306,19 @@ spu_request_irqs(struct spu *spu)
 
 	snprintf(spu->irq_c0, sizeof (spu->irq_c0), "spe%02d.0", spu->number);
 	ret = request_irq(irq_base + spu->isrc,
-		 spu_irq_class_0, 0, spu->irq_c0, spu);
+		 spu_irq_class_0, SA_INTERRUPT, spu->irq_c0, spu);
 	if (ret)
 		goto out;
 
 	snprintf(spu->irq_c1, sizeof (spu->irq_c1), "spe%02d.1", spu->number);
 	ret = request_irq(irq_base + IIC_CLASS_STRIDE + spu->isrc,
-		 spu_irq_class_1, 0, spu->irq_c1, spu);
+		 spu_irq_class_1, SA_INTERRUPT, spu->irq_c1, spu);
 	if (ret)
 		goto out1;
 
 	snprintf(spu->irq_c2, sizeof (spu->irq_c2), "spe%02d.2", spu->number);
 	ret = request_irq(irq_base + 2*IIC_CLASS_STRIDE + spu->isrc,
-		 spu_irq_class_2, 0, spu->irq_c2, spu);
+		 spu_irq_class_2, SA_INTERRUPT, spu->irq_c2, spu);
 	if (ret)
 		goto out2;
 	goto out;
@@ -487,10 +487,14 @@ int spu_irq_class_1_bottom(struct spu *spu)
 	ea = spu->dar;
 	dsisr = spu->dsisr;
 	if (dsisr & (MFC_DSISR_PTE_NOT_FOUND | MFC_DSISR_ACCESS_DENIED)) {
+		u64 flags;
+
 		access = (_PAGE_PRESENT | _PAGE_USER);
 		access |= (dsisr & MFC_DSISR_ACCESS_PUT) ? _PAGE_RW : 0UL;
+		local_irq_save(flags);
 		if (hash_page(ea, access, 0x300) != 0)
 			error |= CLASS1_ENABLE_STORAGE_FAULT_INTR;
+		local_irq_restore(flags);
 	}
 	if (error & CLASS1_ENABLE_STORAGE_FAULT_INTR) {
 		if ((ret = spu_handle_mm_fault(spu)) != 0)

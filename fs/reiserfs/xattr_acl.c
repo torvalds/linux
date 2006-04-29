@@ -408,8 +408,9 @@ int reiserfs_cache_default_acl(struct inode *inode)
 		acl = reiserfs_get_acl(inode, ACL_TYPE_DEFAULT);
 		reiserfs_read_unlock_xattrs(inode->i_sb);
 		reiserfs_read_unlock_xattr_i(inode);
-		ret = acl ? 1 : 0;
-		posix_acl_release(acl);
+		ret = (acl && !IS_ERR(acl));
+		if (ret)
+			posix_acl_release(acl);
 	}
 
 	return ret;
