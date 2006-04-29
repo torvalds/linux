@@ -30,10 +30,6 @@ static int set_audclk_freq(struct i2c_client *client, u32 freq)
 	if (freq != 32000 && freq != 44100 && freq != 48000)
 		return -EINVAL;
 
-	/* assert soft reset */
-	if (!state->is_cx25836)
-		cx25840_and_or(client, 0x810, ~0x1, 0x01);
-
 	/* common for all inputs and rates */
 	/* SA_MCLK_SEL=1, SA_MCLK_DIV=0x10 */
 	cx25840_write(client, 0x127, 0x50);
@@ -152,10 +148,6 @@ static int set_audclk_freq(struct i2c_client *client, u32 freq)
 		}
 	}
 
-	/* deassert soft reset */
-	if (!state->is_cx25836)
-		cx25840_and_or(client, 0x810, ~0x1, 0x00);
-
 	state->audclk_freq = freq;
 
 	return 0;
@@ -167,6 +159,10 @@ void cx25840_audio_set_path(struct i2c_client *client)
 
 	/* stop microcontroller */
 	cx25840_and_or(client, 0x803, ~0x10, 0);
+
+	/* assert soft reset */
+	if (!state->is_cx25836)
+		cx25840_and_or(client, 0x810, ~0x1, 0x01);
 
 	/* Mute everything to prevent the PFFT! */
 	cx25840_write(client, 0x8d3, 0x1f);
@@ -184,6 +180,10 @@ void cx25840_audio_set_path(struct i2c_client *client)
 	}
 
 	set_audclk_freq(client, state->audclk_freq);
+
+	/* deassert soft reset */
+	if (!state->is_cx25836)
+		cx25840_and_or(client, 0x810, ~0x1, 0x00);
 
 	if (state->aud_input != CX25840_AUDIO_SERIAL) {
 		/* When the microcontroller detects the
@@ -323,7 +323,11 @@ int cx25840_audio(struct i2c_client *client, unsigned int cmd, void *arg)
 			cx25840_and_or(client, 0x803, ~0x10, 0);
 			cx25840_write(client, 0x8d3, 0x1f);
 		}
+		if (!state->is_cx25836)
+			cx25840_and_or(client, 0x810, ~0x1, 1);
 		retval = set_audclk_freq(client, *(u32 *)arg);
+		if (!state->is_cx25836)
+			cx25840_and_or(client, 0x810, ~0x1, 0);
 		if (state->aud_input != CX25840_AUDIO_SERIAL) {
 			cx25840_and_or(client, 0x803, ~0x10, 0x10);
 		}
