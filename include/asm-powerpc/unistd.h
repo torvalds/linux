@@ -304,10 +304,27 @@
 #define __NR_splice		283
 #define __NR_tee		284
 #define __NR_vmsplice		285
+#define __NR_openat		286
+#define __NR_mkdirat		287
+#define __NR_mknodat		288
+#define __NR_fchownat		289
+#define __NR_futimesat		290
+#ifdef __powerpc64__
+#define __NR_newfstatat		291
+#else
+#define __NR_fstatat64		291
+#endif
+#define __NR_unlinkat		292
+#define __NR_renameat		293
+#define __NR_linkat		294
+#define __NR_symlinkat		295
+#define __NR_readlinkat		296
+#define __NR_fchmodat		297
+#define __NR_faccessat		298
 
 #ifdef __KERNEL__
 
-#define __NR_syscalls		286
+#define __NR_syscalls		299
 
 #define __NR__exit __NR_exit
 #define NR_syscalls	__NR_syscalls
@@ -456,6 +473,7 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5, type6 arg6
 #ifdef CONFIG_PPC64
 #define __ARCH_WANT_COMPAT_SYS_TIME
 #define __ARCH_WANT_COMPAT_SYS_RT_SIGSUSPEND
+#define __ARCH_WANT_SYS_NEWFSTATAT
 #endif
 
 /*

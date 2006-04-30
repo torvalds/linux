@@ -9,6 +9,9 @@
  * 2 of the License, or (at your option) any later version.
  */
 
+/* Check of existence of legacy devices */
+extern int check_legacy_ioport(unsigned long base_port);
+
 #ifndef CONFIG_PPC64
 #include <asm-ppc/io.h>
 #else
@@ -436,9 +439,6 @@ out:
 #define dma_cache_inv(_start,_size)		do { } while (0)
 #define dma_cache_wback(_start,_size)		do { } while (0)
 #define dma_cache_wback_inv(_start,_size)	do { } while (0)
-
-/* Check of existence of legacy devices */
-extern int check_legacy_ioport(unsigned long base_port);
 
 
 /*

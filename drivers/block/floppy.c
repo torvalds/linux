@@ -4301,7 +4301,7 @@ static int __init floppy_init(void)
 	}
 
 	use_virtual_dma = can_use_virtual_dma & 1;
-#if defined(CONFIG_PPC64)
+#if defined(CONFIG_PPC_MERGE)
 	if (check_legacy_ioport(FDC1)) {
 		del_timer(&fd_timeout);
 		err = -ENODEV;
