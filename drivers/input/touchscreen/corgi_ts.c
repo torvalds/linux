@@ -17,7 +17,7 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <asm/irq.h>
+//#include <asm/irq.h>
 
 #include <asm/arch/sharpsl.h>
 #include <asm/arch/hardware.h>
