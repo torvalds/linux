@@ -9404,7 +9404,7 @@ static int tg3_nvram_write_block_buffered(struct tg3 *tp, u32 offset, u32 len,
 
 	        if ((page_off == 0) || (i == 0))
 			nvram_cmd |= NVRAM_CMD_FIRST;
-		else if (page_off == (tp->nvram_pagesize - 4))
+		if (page_off == (tp->nvram_pagesize - 4))
 			nvram_cmd |= NVRAM_CMD_LAST;
 
 		if (i == (len - 4))
