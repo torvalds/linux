@@ -335,7 +335,7 @@ static void toonie_cleanup(struct snd_pmac *chip)
 	chip->mixer_data = NULL;
 }
 
-int snd_pmac_toonie_init(struct snd_pmac *chip)
+int __init snd_pmac_toonie_init(struct snd_pmac *chip)
 {
 	struct pmac_toonie *mix;
 
