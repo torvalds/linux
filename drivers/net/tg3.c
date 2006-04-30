@@ -1030,6 +1030,12 @@ out:
 		tg3_writephy(tp, MII_TG3_DSP_RW_PORT, 0x14e2);
 		tg3_writephy(tp, MII_TG3_AUX_CTRL, 0x0400);
 	}
+	else if (tp->tg3_flags2 & TG3_FLG2_PHY_JITTER_BUG) {
+		tg3_writephy(tp, MII_TG3_AUX_CTRL, 0x0c00);
+		tg3_writephy(tp, MII_TG3_DSP_ADDRESS, 0x000a);
+		tg3_writephy(tp, MII_TG3_DSP_RW_PORT, 0x010b);
+		tg3_writephy(tp, MII_TG3_AUX_CTRL, 0x0400);
+	}
 	/* Set Extended packet length bit (bit 14) on all chips that */
 	/* support jumbo frames */
 	if ((tp->phy_id & PHY_ID_MASK) == PHY_ID_BCM5401) {
@@ -10360,10 +10366,13 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	if (tp->pci_chip_rev_id == CHIPREV_ID_5704_A0)
 		tp->tg3_flags2 |= TG3_FLG2_PHY_5704_A0_BUG;
 
-	if ((tp->tg3_flags2 & TG3_FLG2_5705_PLUS) &&
-	    (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5755) &&
-	    (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5787))
-		tp->tg3_flags2 |= TG3_FLG2_PHY_BER_BUG;
+	if (tp->tg3_flags2 & TG3_FLG2_5705_PLUS) {
+		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5755 ||
+		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787)
+			tp->tg3_flags2 |= TG3_FLG2_PHY_JITTER_BUG;
+		else
+			tp->tg3_flags2 |= TG3_FLG2_PHY_BER_BUG;
+	}
 
 	tp->coalesce_mode = 0;
 	if (GET_CHIP_REV(tp->pci_chip_rev_id) != CHIPREV_5700_AX &&
