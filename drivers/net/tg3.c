@@ -5732,9 +5732,23 @@ static int tg3_set_mac_addr(struct net_device *dev, void *p)
 	if (!netif_running(dev))
 		return 0;
 
-	spin_lock_bh(&tp->lock);
-	__tg3_set_mac_addr(tp);
-	spin_unlock_bh(&tp->lock);
+	if (tp->tg3_flags & TG3_FLAG_ENABLE_ASF) {
+		/* Reset chip so that ASF can re-init any MAC addresses it
+		 * needs.
+		 */
+		tg3_netif_stop(tp);
+		tg3_full_lock(tp, 1);
+
+		tg3_halt(tp, RESET_KIND_SHUTDOWN, 1);
+		tg3_init_hw(tp);
+
+		tg3_netif_start(tp);
+		tg3_full_unlock(tp);
+	} else {
+		spin_lock_bh(&tp->lock);
+		__tg3_set_mac_addr(tp);
+		spin_unlock_bh(&tp->lock);
+	}
 
 	return 0;
 }
