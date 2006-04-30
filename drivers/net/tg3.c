@@ -974,6 +974,8 @@ static int tg3_phy_reset_5703_4_5(struct tg3 *tp)
 	return err;
 }
 
+static void tg3_link_report(struct tg3 *);
+
 /* This will reset the tigon3 PHY if there is no valid
  * link unless the FORCE argument is non-zero.
  */
@@ -986,6 +988,11 @@ static int tg3_phy_reset(struct tg3 *tp)
 	err |= tg3_readphy(tp, MII_BMSR, &phy_status);
 	if (err != 0)
 		return -EBUSY;
+
+	if (netif_running(tp->dev) && netif_carrier_ok(tp->dev)) {
+		netif_carrier_off(tp->dev);
+		tg3_link_report(tp);
+	}
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5703 ||
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5704 ||
