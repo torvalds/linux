@@ -55,6 +55,12 @@ config MTD_NAND_TOTO
 	help
 	  Support for NAND flash on Texas Instruments Toto platform.
 
+config MTD_NAND_TS7250
+	tristate "NAND Flash device on TS-7250 board"
+	depends on MACH_TS72XX && MTD_NAND
+	help
+	  Support for NAND flash on Technologic Systems TS-7250 platform.
+
 config MTD_NAND_IDS
 	tristate
 
