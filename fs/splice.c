@@ -599,8 +599,10 @@ static int pipe_to_file(struct pipe_inode_info *info, struct pipe_buffer *buf,
 			goto find_page;
 
 		page = buf->page;
-		if (add_to_page_cache(page, mapping, index, gfp_mask))
+		if (add_to_page_cache(page, mapping, index, gfp_mask)) {
+			unlock_page(page);
 			goto find_page;
+		}
 
 		if (!(buf->flags & PIPE_BUF_FLAG_LRU))
 			lru_cache_add(page);
