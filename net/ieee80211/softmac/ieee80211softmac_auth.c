@@ -86,6 +86,11 @@ ieee80211softmac_auth_queue(void *data)
 		
 		/* Lock and set flags */
 		spin_lock_irqsave(&mac->lock, flags);
+		if (unlikely(!mac->running)) {
+			/* Prevent reschedule on workqueue flush */
+			spin_unlock_irqrestore(&mac->lock, flags);
+			return;
+		}
 		net->authenticated = 0;
 		net->authenticating = 1;
 		/* add a timeout call so we eventually give up waiting for an auth reply */
@@ -124,6 +129,9 @@ ieee80211softmac_auth_resp(struct net_device *dev, struct ieee80211_auth *auth)
 	unsigned long flags;
 	u8 * data;
 	
+	if (unlikely(!mac->running))
+		return -ENODEV;
+
 	/* Find correct auth queue item */
 	spin_lock_irqsave(&mac->lock, flags);
 	list_for_each(list_ptr, &mac->auth_queue) {
@@ -336,6 +344,9 @@ ieee80211softmac_deauth_resp(struct net_device *dev, struct ieee80211_deauth *de
 	struct ieee80211softmac_network *net = NULL;
 	struct ieee80211softmac_device *mac = ieee80211_priv(dev);
 	
+	if (unlikely(!mac->running))
+		return -ENODEV;
+
 	if (!deauth) {
 		dprintk("deauth without deauth packet. eek!\n");
 		return 0;
