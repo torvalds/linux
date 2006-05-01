@@ -1179,20 +1179,17 @@ static int __init snd_card_miro_aci_detect(struct snd_card *card, struct snd_mir
         /* force ACI into a known state */
 	for (i = 0; i < 3; i++)
 		if (aci_cmd(miro, ACI_ERROR_OP, -1, -1) < 0) {
-			snd_card_free(card);
 			snd_printk(KERN_ERR "can't force aci into known state.\n");
 			return -ENXIO;
 		}
 
 	if ((miro->aci_vendor=aci_cmd(miro, ACI_READ_IDCODE, -1, -1)) < 0 ||
 	    (miro->aci_product=aci_cmd(miro, ACI_READ_IDCODE, -1, -1)) < 0) {
-		snd_card_free(card);
 		snd_printk(KERN_ERR "can't read aci id on 0x%lx.\n", miro->aci_port);
 		return -ENXIO;
 	}
 
 	if ((miro->aci_version=aci_cmd(miro, ACI_READ_VERSION, -1, -1)) < 0) {
-		snd_card_free(card);
 		snd_printk(KERN_ERR "can't read aci version on 0x%lx.\n", 
 			   miro->aci_port);
 		return -ENXIO;

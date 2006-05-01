@@ -315,7 +315,7 @@ static void snd_hammerfall_free_buffer(struct snd_dma_buffer *dmab, struct pci_d
 }
 
 
-static struct pci_device_id snd_rme9652_ids[] = {
+static struct pci_device_id snd_rme9652_ids[] __devinitdata = {
 	{
 		.vendor	   = 0x10ee,
 		.device	   = 0x3fc4,

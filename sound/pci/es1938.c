@@ -242,7 +242,7 @@ struct es1938 {
 
 static irqreturn_t snd_es1938_interrupt(int irq, void *dev_id, struct pt_regs *regs);
 
-static struct pci_device_id snd_es1938_ids[] = {
+static struct pci_device_id snd_es1938_ids[] __devinitdata = {
         { 0x125d, 0x1969, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, },   /* Solo-1 */
 	{ 0, }
 };

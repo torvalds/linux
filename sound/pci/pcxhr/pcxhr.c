@@ -30,7 +30,6 @@
 #include <linux/delay.h>
 #include <linux/moduleparam.h>
 #include <linux/mutex.h>
-#include <linux/dma-mapping.h>
 
 #include <sound/core.h>
 #include <sound/initval.h>
@@ -74,7 +73,7 @@ enum {
 	PCI_ID_LAST
 };
 
-static struct pci_device_id pcxhr_ids[] = {
+static struct pci_device_id pcxhr_ids[] __devinitdata = {
 	{ 0x10b5, 0x9656, 0x1369, 0xb001, 0, 0, PCI_ID_VX882HR, },   /* VX882HR */
 	{ 0x10b5, 0x9656, 0x1369, 0xb101, 0, 0, PCI_ID_PCX882HR, },  /* PCX882HR */
 	{ 0x10b5, 0x9656, 0x1369, 0xb201, 0, 0, PCI_ID_VX881HR, },   /* VX881HR */

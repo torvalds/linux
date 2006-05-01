@@ -104,7 +104,6 @@
 #include <linux/slab.h>
 #include <linux/gameport.h>
 #include <linux/moduleparam.h>
-#include <linux/dma-mapping.h>
 #include <linux/mutex.h>
 
 #include <sound/core.h>
@@ -593,7 +592,7 @@ struct es1968 {
 
 static irqreturn_t snd_es1968_interrupt(int irq, void *dev_id, struct pt_regs *regs);
 
-static struct pci_device_id snd_es1968_ids[] = {
+static struct pci_device_id snd_es1968_ids[] __devinitdata = {
 	/* Maestro 1 */
         { 0x1285, 0x0100, PCI_ANY_ID, PCI_ANY_ID, PCI_CLASS_MULTIMEDIA_AUDIO << 8, 0xffff00, TYPE_MAESTRO },
 	/* Maestro 2 */
