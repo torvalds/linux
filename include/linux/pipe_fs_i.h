@@ -5,8 +5,7 @@
 
 #define PIPE_BUFFERS (16)
 
-#define PIPE_BUF_FLAG_STOLEN	0x01
-#define PIPE_BUF_FLAG_LRU	0x02
+#define PIPE_BUF_FLAG_LRU	0x01
 
 struct pipe_buffer {
 	struct page *page;

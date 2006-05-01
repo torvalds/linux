@@ -78,7 +78,7 @@ static int page_cache_pipe_buf_steal(struct pipe_inode_info *info,
 		return 1;
 	}
 
-	buf->flags |= PIPE_BUF_FLAG_STOLEN | PIPE_BUF_FLAG_LRU;
+	buf->flags |= PIPE_BUF_FLAG_LRU;
 	return 0;
 }
 
@@ -87,7 +87,7 @@ static void page_cache_pipe_buf_release(struct pipe_inode_info *info,
 {
 	page_cache_release(buf->page);
 	buf->page = NULL;
-	buf->flags &= ~(PIPE_BUF_FLAG_STOLEN | PIPE_BUF_FLAG_LRU);
+	buf->flags &= ~PIPE_BUF_FLAG_LRU;
 }
 
 static void *page_cache_pipe_buf_map(struct file *file,
@@ -587,9 +587,10 @@ static int pipe_to_file(struct pipe_inode_info *info, struct pipe_buffer *buf,
 		this_len = PAGE_CACHE_SIZE - offset;
 
 	/*
-	 * Reuse buf page, if SPLICE_F_MOVE is set.
+	 * Reuse buf page, if SPLICE_F_MOVE is set and we are doing a full
+	 * page.
 	 */
-	if (sd->flags & SPLICE_F_MOVE) {
+	if ((sd->flags & SPLICE_F_MOVE) && this_len == PAGE_CACHE_SIZE) {
 		/*
 		 * If steal succeeds, buf->page is now pruned from the vm
 		 * side (LRU and page cache) and we can reuse it. The page
@@ -603,6 +604,8 @@ static int pipe_to_file(struct pipe_inode_info *info, struct pipe_buffer *buf,
 			unlock_page(page);
 			goto find_page;
 		}
+
+		page_cache_get(page);
 
 		if (!(buf->flags & PIPE_BUF_FLAG_LRU))
 			lru_cache_add(page);
@@ -662,7 +665,7 @@ find_page:
 	} else if (ret)
 		goto out;
 
-	if (!(buf->flags & PIPE_BUF_FLAG_STOLEN)) {
+	if (buf->page != page) {
 		char *dst = kmap_atomic(page, KM_USER0);
 
 		memcpy(dst + offset, src + buf->offset, this_len);
@@ -671,22 +674,20 @@ find_page:
 	}
 
 	ret = mapping->a_ops->commit_write(file, page, offset, offset+this_len);
-	if (ret == AOP_TRUNCATED_PAGE) {
+	if (!ret) {
+		/*
+		 * Return the number of bytes written and mark page as
+		 * accessed, we are now done!
+		 */
+		ret = this_len;
+		mark_page_accessed(page);
+		balance_dirty_pages_ratelimited(mapping);
+	} else if (ret == AOP_TRUNCATED_PAGE) {
 		page_cache_release(page);
 		goto find_page;
-	} else if (ret)
-		goto out;
-
-	/*
-	 * Return the number of bytes written.
-	 */
-	ret = this_len;
-	mark_page_accessed(page);
-	balance_dirty_pages_ratelimited(mapping);
+	}
 out:
-	if (!(buf->flags & PIPE_BUF_FLAG_STOLEN))
-		page_cache_release(page);
-
+	page_cache_release(page);
 	unlock_page(page);
 out_nomem:
 	buf->ops->unmap(info, buf);

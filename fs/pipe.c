@@ -99,8 +99,6 @@ static void anon_pipe_buf_release(struct pipe_inode_info *pipe,
 {
 	struct page *page = buf->page;
 
-	buf->flags &= ~PIPE_BUF_FLAG_STOLEN;
-
 	/*
 	 * If nobody else uses this page, and we don't already have a
 	 * temporary page, let's keep track of it as a one-deep
@@ -130,7 +128,6 @@ static int anon_pipe_buf_steal(struct pipe_inode_info *pipe,
 	struct page *page = buf->page;
 
 	if (page_count(page) == 1) {
-		buf->flags |= PIPE_BUF_FLAG_STOLEN;
 		lock_page(page);
 		return 0;
 	}
