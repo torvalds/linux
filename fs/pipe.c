@@ -110,14 +110,14 @@ static void anon_pipe_buf_release(struct pipe_inode_info *pipe,
 		page_cache_release(page);
 }
 
-static void * anon_pipe_buf_map(struct file *file, struct pipe_inode_info *pipe,
-				struct pipe_buffer *buf)
+void *generic_pipe_buf_map(struct pipe_inode_info *pipe,
+			   struct pipe_buffer *buf)
 {
 	return kmap(buf->page);
 }
 
-static void anon_pipe_buf_unmap(struct pipe_inode_info *pipe,
-				struct pipe_buffer *buf)
+void generic_pipe_buf_unmap(struct pipe_inode_info *pipe,
+			    struct pipe_buffer *buf)
 {
 	kunmap(buf->page);
 }
@@ -135,19 +135,24 @@ static int anon_pipe_buf_steal(struct pipe_inode_info *pipe,
 	return 1;
 }
 
-static void anon_pipe_buf_get(struct pipe_inode_info *info,
-			      struct pipe_buffer *buf)
+void generic_pipe_buf_get(struct pipe_inode_info *info, struct pipe_buffer *buf)
 {
 	page_cache_get(buf->page);
 }
 
+int generic_pipe_buf_pin(struct pipe_inode_info *info, struct pipe_buffer *buf)
+{
+	return 0;
+}
+
 static struct pipe_buf_operations anon_pipe_buf_ops = {
 	.can_merge = 1,
-	.map = anon_pipe_buf_map,
-	.unmap = anon_pipe_buf_unmap,
+	.map = generic_pipe_buf_map,
+	.unmap = generic_pipe_buf_unmap,
+	.pin = generic_pipe_buf_pin,
 	.release = anon_pipe_buf_release,
 	.steal = anon_pipe_buf_steal,
-	.get = anon_pipe_buf_get,
+	.get = generic_pipe_buf_get,
 };
 
 static ssize_t
@@ -183,12 +188,14 @@ pipe_readv(struct file *filp, const struct iovec *_iov,
 			if (chars > total_len)
 				chars = total_len;
 
-			addr = ops->map(filp, pipe, buf);
-			if (IS_ERR(addr)) {
+			error = ops->pin(pipe, buf);
+			if (error) {
 				if (!ret)
-					ret = PTR_ERR(addr);
+					error = ret;
 				break;
 			}
+
+			addr = ops->map(pipe, buf);
 			error = pipe_iov_copy_to_user(iov, addr + buf->offset, chars);
 			ops->unmap(pipe, buf);
 			if (unlikely(error)) {
@@ -300,11 +307,11 @@ pipe_writev(struct file *filp, const struct iovec *_iov,
 			void *addr;
 			int error;
 
-			addr = ops->map(filp, pipe, buf);
-			if (IS_ERR(addr)) {
-				error = PTR_ERR(addr);
+			error = ops->pin(pipe, buf);
+			if (error)
 				goto out;
-			}
+
+			addr = ops->map(pipe, buf);
 			error = pipe_iov_copy_from_user(offset + addr, iov,
 							chars);
 			ops->unmap(pipe, buf);

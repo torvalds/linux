@@ -14,10 +14,23 @@ struct pipe_buffer {
 	unsigned int flags;
 };
 
+/*
+ * Note on the nesting of these functions:
+ *
+ * ->pin()
+ *	->steal()
+ *	...
+ *	->map()
+ *	...
+ *	->unmap()
+ *
+ * That is, ->map() must be called on a pinned buffer, same goes for ->steal().
+ */
 struct pipe_buf_operations {
 	int can_merge;
-	void * (*map)(struct file *, struct pipe_inode_info *, struct pipe_buffer *);
+	void * (*map)(struct pipe_inode_info *, struct pipe_buffer *);
 	void (*unmap)(struct pipe_inode_info *, struct pipe_buffer *);
+	int (*pin)(struct pipe_inode_info *, struct pipe_buffer *);
 	void (*release)(struct pipe_inode_info *, struct pipe_buffer *);
 	int (*steal)(struct pipe_inode_info *, struct pipe_buffer *);
 	void (*get)(struct pipe_inode_info *, struct pipe_buffer *);
@@ -49,6 +62,12 @@ void pipe_wait(struct pipe_inode_info *pipe);
 struct pipe_inode_info * alloc_pipe_info(struct inode * inode);
 void free_pipe_info(struct inode * inode);
 void __free_pipe_info(struct pipe_inode_info *);
+
+/* Generic pipe buffer ops functions */
+void *generic_pipe_buf_map(struct pipe_inode_info *, struct pipe_buffer *);
+void generic_pipe_buf_unmap(struct pipe_inode_info *, struct pipe_buffer *);
+void generic_pipe_buf_get(struct pipe_inode_info *, struct pipe_buffer *);
+int generic_pipe_buf_pin(struct pipe_inode_info *, struct pipe_buffer *);
 
 /*
  * splice is tied to pipes as a transport (at least for now), so we'll just

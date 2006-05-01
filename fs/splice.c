@@ -90,9 +90,8 @@ static void page_cache_pipe_buf_release(struct pipe_inode_info *info,
 	buf->flags &= ~PIPE_BUF_FLAG_LRU;
 }
 
-static void *page_cache_pipe_buf_map(struct file *file,
-				     struct pipe_inode_info *info,
-				     struct pipe_buffer *buf)
+static int page_cache_pipe_buf_pin(struct pipe_inode_info *info,
+				   struct pipe_buffer *buf)
 {
 	struct page *page = buf->page;
 	int err;
@@ -118,49 +117,25 @@ static void *page_cache_pipe_buf_map(struct file *file,
 		}
 
 		/*
-		 * Page is ok afterall, fall through to mapping.
+		 * Page is ok afterall, we are done.
 		 */
 		unlock_page(page);
 	}
 
-	return kmap(page);
+	return 0;
 error:
 	unlock_page(page);
-	return ERR_PTR(err);
-}
-
-static void page_cache_pipe_buf_unmap(struct pipe_inode_info *info,
-				      struct pipe_buffer *buf)
-{
-	kunmap(buf->page);
-}
-
-static void *user_page_pipe_buf_map(struct file *file,
-				    struct pipe_inode_info *pipe,
-				    struct pipe_buffer *buf)
-{
-	return kmap(buf->page);
-}
-
-static void user_page_pipe_buf_unmap(struct pipe_inode_info *pipe,
-				     struct pipe_buffer *buf)
-{
-	kunmap(buf->page);
-}
-
-static void page_cache_pipe_buf_get(struct pipe_inode_info *info,
-				    struct pipe_buffer *buf)
-{
-	page_cache_get(buf->page);
+	return err;
 }
 
 static struct pipe_buf_operations page_cache_pipe_buf_ops = {
 	.can_merge = 0,
-	.map = page_cache_pipe_buf_map,
-	.unmap = page_cache_pipe_buf_unmap,
+	.map = generic_pipe_buf_map,
+	.unmap = generic_pipe_buf_unmap,
+	.pin = page_cache_pipe_buf_pin,
 	.release = page_cache_pipe_buf_release,
 	.steal = page_cache_pipe_buf_steal,
-	.get = page_cache_pipe_buf_get,
+	.get = generic_pipe_buf_get,
 };
 
 static int user_page_pipe_buf_steal(struct pipe_inode_info *pipe,
@@ -171,11 +146,12 @@ static int user_page_pipe_buf_steal(struct pipe_inode_info *pipe,
 
 static struct pipe_buf_operations user_page_pipe_buf_ops = {
 	.can_merge = 0,
-	.map = user_page_pipe_buf_map,
-	.unmap = user_page_pipe_buf_unmap,
+	.map = generic_pipe_buf_map,
+	.unmap = generic_pipe_buf_unmap,
+	.pin = generic_pipe_buf_pin,
 	.release = page_cache_pipe_buf_release,
 	.steal = user_page_pipe_buf_steal,
-	.get = page_cache_pipe_buf_get,
+	.get = generic_pipe_buf_get,
 };
 
 /*
@@ -517,26 +493,16 @@ static int pipe_to_sendpage(struct pipe_inode_info *info,
 {
 	struct file *file = sd->file;
 	loff_t pos = sd->pos;
-	ssize_t ret;
-	void *ptr;
-	int more;
+	int ret, more;
 
-	/*
-	 * Sub-optimal, but we are limited by the pipe ->map. We don't
-	 * need a kmap'ed buffer here, we just want to make sure we
-	 * have the page pinned if the pipe page originates from the
-	 * page cache.
-	 */
-	ptr = buf->ops->map(file, info, buf);
-	if (IS_ERR(ptr))
-		return PTR_ERR(ptr);
+	ret = buf->ops->pin(info, buf);
+	if (!ret) {
+		more = (sd->flags & SPLICE_F_MORE) || sd->len < sd->total_len;
 
-	more = (sd->flags & SPLICE_F_MORE) || sd->len < sd->total_len;
+		ret = file->f_op->sendpage(file, buf->page, buf->offset,
+					   sd->len, &pos, more);
+	}
 
-	ret = file->f_op->sendpage(file, buf->page, buf->offset, sd->len,
-				   &pos, more);
-
-	buf->ops->unmap(info, buf);
 	return ret;
 }
 
@@ -569,15 +535,14 @@ static int pipe_to_file(struct pipe_inode_info *info, struct pipe_buffer *buf,
 	unsigned int offset, this_len;
 	struct page *page;
 	pgoff_t index;
-	char *src;
 	int ret;
 
 	/*
 	 * make sure the data in this buffer is uptodate
 	 */
-	src = buf->ops->map(file, info, buf);
-	if (IS_ERR(src))
-		return PTR_ERR(src);
+	ret = buf->ops->pin(info, buf);
+	if (unlikely(ret))
+		return ret;
 
 	index = sd->pos >> PAGE_CACHE_SHIFT;
 	offset = sd->pos & ~PAGE_CACHE_MASK;
@@ -666,11 +631,16 @@ find_page:
 		goto out;
 
 	if (buf->page != page) {
-		char *dst = kmap_atomic(page, KM_USER0);
+		/*
+		 * Careful, ->map() uses KM_USER0!
+		 */
+		char *src = buf->ops->map(info, buf);
+		char *dst = kmap_atomic(page, KM_USER1);
 
 		memcpy(dst + offset, src + buf->offset, this_len);
 		flush_dcache_page(page);
-		kunmap_atomic(dst, KM_USER0);
+		kunmap_atomic(dst, KM_USER1);
+		buf->ops->unmap(info, buf);
 	}
 
 	ret = mapping->a_ops->commit_write(file, page, offset, offset+this_len);
@@ -690,7 +660,6 @@ out:
 	page_cache_release(page);
 	unlock_page(page);
 out_nomem:
-	buf->ops->unmap(info, buf);
 	return ret;
 }
 
