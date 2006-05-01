@@ -520,6 +520,56 @@ void spu_irq_setaffinity(struct spu *spu, int cpu)
 }
 EXPORT_SYMBOL_GPL(spu_irq_setaffinity);
 
+static int __init find_spu_node_id(struct device_node *spe)
+{
+	unsigned int *id;
+	struct device_node *cpu;
+	cpu = spe->parent->parent;
+	id = (unsigned int *)get_property(cpu, "node-id", NULL);
+	return id ? *id : 0;
+}
+
+static int __init cell_spuprop_present(struct device_node *spe,
+					const char *prop)
+{
+	static DEFINE_MUTEX(add_spumem_mutex);
+
+	struct address_prop {
+		unsigned long address;
+		unsigned int len;
+	} __attribute__((packed)) *p;
+	int proplen;
+
+	unsigned long start_pfn, nr_pages;
+	int node_id;
+	struct pglist_data *pgdata;
+	struct zone *zone;
+	int ret;
+
+	p = (void*)get_property(spe, prop, &proplen);
+	WARN_ON(proplen != sizeof (*p));
+
+	start_pfn = p->address >> PAGE_SHIFT;
+	nr_pages = ((unsigned long)p->len + PAGE_SIZE - 1) >> PAGE_SHIFT;
+
+	/*
+	 * XXX need to get the correct NUMA node in here. This may
+	 * be different from the spe::node_id property, e.g. when
+	 * the host firmware is not NUMA aware.
+	 */
+	node_id = 0;
+
+	pgdata = NODE_DATA(node_id);
+	zone = pgdata->node_zones;
+
+	/* XXX rethink locking here */
+	mutex_lock(&add_spumem_mutex);
+	ret = __add_pages(zone, start_pfn, nr_pages);
+	mutex_unlock(&add_spumem_mutex);
+
+	return ret;
+}
+
 static void __iomem * __init map_spe_prop(struct device_node *n,
 						 const char *name)
 {
@@ -530,6 +580,8 @@ static void __iomem * __init map_spe_prop(struct device_node *n,
 
 	void *p;
 	int proplen;
+	void* ret = NULL;
+	int err = 0;
 
 	p = get_property(n, name, &proplen);
 	if (proplen != sizeof (struct address_prop))
@@ -537,7 +589,14 @@ static void __iomem * __init map_spe_prop(struct device_node *n,
 
 	prop = p;
 
-	return ioremap(prop->address, prop->len);
+	err = cell_spuprop_present(n, name);
+	if (err && (err != -EEXIST))
+		goto out;
+
+	ret = ioremap(prop->address, prop->len);
+
+ out:
+	return ret;
 }
 
 static void spu_unmap(struct spu *spu)
@@ -595,17 +654,6 @@ out_unmap:
 	spu_unmap(spu);
 out:
 	return ret;
-}
-
-static int __init find_spu_node_id(struct device_node *spe)
-{
-	unsigned int *id;
-	struct device_node *cpu;
-
-	cpu = spe->parent->parent;
-	id = (unsigned int *)get_property(cpu, "node-id", NULL);
-
-	return id ? *id : 0;
 }
 
 static int __init create_spu(struct device_node *spe)
