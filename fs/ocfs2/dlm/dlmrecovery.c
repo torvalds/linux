@@ -1674,40 +1674,48 @@ static int dlm_process_recovery_data(struct dlm_ctxt *dlm,
 		}
 		lksb->flags |= (ml->flags &
 				(DLM_LKSB_PUT_LVB|DLM_LKSB_GET_LVB));
-			
+
+		if (ml->type == LKM_NLMODE)
+			goto skip_lvb;
+
 		if (!dlm_lvb_is_empty(mres->lvb)) {
 			if (lksb->flags & DLM_LKSB_PUT_LVB) {
 				/* other node was trying to update
 				 * lvb when node died.  recreate the
 				 * lksb with the updated lvb. */
 				memcpy(lksb->lvb, mres->lvb, DLM_LVB_LEN);
+				/* the lock resource lvb update must happen
+				 * NOW, before the spinlock is dropped.
+				 * we no longer wait for the AST to update
+				 * the lvb. */
+				memcpy(res->lvb, mres->lvb, DLM_LVB_LEN);
 			} else {
 				/* otherwise, the node is sending its 
 				 * most recent valid lvb info */
 				BUG_ON(ml->type != LKM_EXMODE &&
 				       ml->type != LKM_PRMODE);
 				if (!dlm_lvb_is_empty(res->lvb) &&
-				    (ml->type == LKM_EXMODE ||
-				     memcmp(res->lvb, mres->lvb, DLM_LVB_LEN))) {
-					int i;
-					mlog(ML_ERROR, "%s:%.*s: received bad "
-					     "lvb! type=%d\n", dlm->name,
-					     res->lockname.len,
-					     res->lockname.name, ml->type);
-					printk("lockres lvb=[");
-					for (i=0; i<DLM_LVB_LEN; i++)
-						printk("%02x", res->lvb[i]);
-					printk("]\nmigrated lvb=[");
-					for (i=0; i<DLM_LVB_LEN; i++)
-						printk("%02x", mres->lvb[i]);
-					printk("]\n");
-					dlm_print_one_lock_resource(res);
-					BUG();
+ 				    (ml->type == LKM_EXMODE ||
+ 				     memcmp(res->lvb, mres->lvb, DLM_LVB_LEN))) {
+ 					int i;
+ 					mlog(ML_ERROR, "%s:%.*s: received bad "
+ 					     "lvb! type=%d\n", dlm->name,
+ 					     res->lockname.len,
+ 					     res->lockname.name, ml->type);
+ 					printk("lockres lvb=[");
+ 					for (i=0; i<DLM_LVB_LEN; i++)
+ 						printk("%02x", res->lvb[i]);
+ 					printk("]\nmigrated lvb=[");
+ 					for (i=0; i<DLM_LVB_LEN; i++)
+ 						printk("%02x", mres->lvb[i]);
+ 					printk("]\n");
+ 					dlm_print_one_lock_resource(res);
+ 					BUG();
 				}
 				memcpy(res->lvb, mres->lvb, DLM_LVB_LEN);
 			}
 		}
-
+skip_lvb:
 
 		/* NOTE:
 		 * wrt lock queue ordering and recovery:
