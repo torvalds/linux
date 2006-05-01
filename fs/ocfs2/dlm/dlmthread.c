@@ -731,7 +731,7 @@ in_progress:
 
 		/* yield and continue right away if there is more work to do */
 		if (!n) {
-			yield();
+			cond_resched();
 			continue;
 		}
 
