@@ -1639,13 +1639,13 @@ again:
 		tmpret = o2net_send_message(DLM_ASSERT_MASTER_MSG, dlm->key,
 					    &assert, sizeof(assert), to, &r);
 		if (tmpret < 0) {
-			mlog(ML_ERROR, "assert_master returned %d!\n", tmpret);
+			mlog(0, "assert_master returned %d!\n", tmpret);
 			if (!dlm_is_host_down(tmpret)) {
-				mlog(ML_ERROR, "unhandled error!\n");
+				mlog(ML_ERROR, "unhandled error=%d!\n", tmpret);
 				BUG();
 			}
 			/* a node died.  finish out the rest of the nodes. */
-			mlog(ML_ERROR, "link to %d went down!\n", to);
+			mlog(0, "link to %d went down!\n", to);
 			/* any nonzero status return will do */
 			ret = tmpret;
 		} else if (r < 0) {
@@ -2029,7 +2029,8 @@ static void dlm_assert_master_worker(struct dlm_work_item *item, void *data)
 				   nodemap, flags);
 	if (ret < 0) {
 		/* no need to restart, we are done */
-		mlog_errno(ret);
+		if (!dlm_is_host_down(ret))
+			mlog_errno(ret);
 	}
 
 	/* Ok, we've asserted ourselves.  Let's let migration start. */
@@ -2808,7 +2809,7 @@ top:
 				 * may result in the mle being unlinked and
 				 * freed, but there may still be a process
 				 * waiting in the dlmlock path which is fine. */
-				mlog(ML_ERROR, "node %u was expected master\n",
+				mlog(0, "node %u was expected master\n",
 				     dead_node);
 				atomic_set(&mle->woken, 1);
 				spin_unlock(&mle->spinlock);
