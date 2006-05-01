@@ -11,4 +11,11 @@ USER_OBJS := clone.o
 include arch/um/scripts/Makefile.rules
 
 # clone.o is in the stub, so it can't be built with profiling
-$(obj)/clone.o : c_flags = -Wp,-MD,$(depfile) $(call unprofile,$(USER_CFLAGS))
+# GCC hardened also auto-enables -fpic, but we need %ebx so it can't work ->
+# disable it
+
+CFLAGS_clone.o := $(CFLAGS_NO_HARDENING)
+
+# since we're setting c_flags we _must_ add $(CFLAGS_$(*F).o).
+
+$(obj)/clone.o : c_flags = -Wp,-MD,$(depfile) $(call unprofile,$(USER_CFLAGS)) $(CFLAGS_$(*F).o)

@@ -21,6 +21,8 @@ USER_OBJS := ptrace_user.o sigcontext.o stub_segv.o
 USER_OBJS += user-offsets.s
 extra-y += user-offsets.s
 
+CFLAGS_stub_segv.o := $(CFLAGS_NO_HARDENING)
+
 extra-$(CONFIG_MODE_TT) += unmap.o
 
 include arch/um/scripts/Makefile.rules
