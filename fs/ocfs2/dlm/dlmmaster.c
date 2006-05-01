@@ -128,11 +128,8 @@ static inline int dlm_mle_equal(struct dlm_ctxt *dlm,
 	return 1;
 }
 
-#if 0
-/* Code here is included but defined out as it aids debugging */
-
 #define dlm_print_nodemap(m)  _dlm_print_nodemap(m,#m)
-void _dlm_print_nodemap(unsigned long *map, const char *mapname)
+static void _dlm_print_nodemap(unsigned long *map, const char *mapname)
 {
 	int i;
 	printk("%s=[ ", mapname);
@@ -142,7 +139,7 @@ void _dlm_print_nodemap(unsigned long *map, const char *mapname)
 	printk("]");
 }
 
-void dlm_print_one_mle(struct dlm_master_list_entry *mle)
+static void dlm_print_one_mle(struct dlm_master_list_entry *mle)
 {
 	int refs;
 	char *type;
@@ -188,6 +185,9 @@ void dlm_print_one_mle(struct dlm_master_list_entry *mle)
 	printk(", ");
 	printk("\n");
 }
+
+#if 0
+/* Code here is included but defined out as it aids debugging */
 
 static void dlm_dump_mles(struct dlm_ctxt *dlm)
 {
@@ -943,7 +943,7 @@ wait:
 			     dlm->name, res->lockname.len, 
 			     res->lockname.name, blocked);
 			dlm_print_one_lock_resource(res);
-			/* dlm_print_one_mle(mle); */
+			dlm_print_one_mle(mle);
 			tries = 0;
 		}
 		goto redo_request;
