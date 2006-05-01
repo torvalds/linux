@@ -279,7 +279,7 @@ time_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
 {
 	struct cpufreq_freqs *freq = data;
 
-	if (val != CPUFREQ_RESUMECHANGE)
+	if (val != CPUFREQ_RESUMECHANGE && val != CPUFREQ_SUSPENDCHANGE)
 		write_seqlock_irq(&xtime_lock);
 	if (!ref_freq) {
 		if (!freq->old){
@@ -312,7 +312,7 @@ time_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
 	}
 
 end:
-	if (val != CPUFREQ_RESUMECHANGE)
+	if (val != CPUFREQ_RESUMECHANGE && val != CPUFREQ_SUSPENDCHANGE)
 		write_sequnlock_irq(&xtime_lock);
 
 	return 0;
