@@ -10,9 +10,12 @@ subarch-obj-$(CONFIG_MODULES) += kernel/module.o
 
 USER_OBJS := bugs.o ptrace_user.o sigcontext.o fault.o stub_segv.o
 
-include arch/um/scripts/Makefile.rules
+USER_OBJS += user-offsets.s
+extra-y += user-offsets.s
 
 extra-$(CONFIG_MODE_TT) += unmap.o
+
+include arch/um/scripts/Makefile.rules
 
 $(obj)/stub_segv.o $(obj)/unmap.o: \
 	_c_flags = $(call unprofile,$(CFLAGS))
