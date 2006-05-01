@@ -484,7 +484,7 @@ int dlm_convert_lock_handler(struct o2net_msg *msg, u32 len, void *data)
 		list_for_each(iter, &res->granted) {
 			lock = list_entry(iter, struct dlm_lock, list);
 			if (lock->ml.node == cnv->node_idx) {
-				mlog(0, "There is something here "
+				mlog(ML_ERROR, "There is something here "
 				     "for node %u, lock->ml.cookie=%llu, "
 				     "cnv->cookie=%llu\n", cnv->node_idx,
 				     lock->ml.cookie, cnv->cookie);
