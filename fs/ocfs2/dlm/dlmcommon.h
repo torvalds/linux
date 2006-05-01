@@ -235,18 +235,26 @@ struct dlm_lock_resource
 	struct qstr lockname;
 	struct kref      refs;
 
-	/* please keep these next 3 in this order
-	 * some funcs want to iterate over all lists */
+	/*
+	 * Please keep granted, converting, and blocked in this order,
+	 * as some funcs want to iterate over all lists.
+	 *
+	 * All four lists are protected by the hash's reference.
+	 */
 	struct list_head granted;
 	struct list_head converting;
 	struct list_head blocked;
+	struct list_head purge;
 
+	/*
+	 * These two lists require you to hold an additional reference
+	 * while they are on the list.
+	 */
 	struct list_head dirty;
 	struct list_head recovering; // dlm_recovery_ctxt.resources list
 
 	/* unused lock resources have their last_used stamped and are
 	 * put on a list for the dlm thread to run. */
-	struct list_head purge;
 	unsigned long    last_used;
 
 	unsigned migration_pending:1;

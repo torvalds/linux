@@ -455,6 +455,8 @@ void __dlm_dirty_lockres(struct dlm_ctxt *dlm, struct dlm_lock_resource *res)
 	/* don't shuffle secondary queues */
 	if ((res->owner == dlm->node_num) &&
 	    !(res->state & DLM_LOCK_RES_DIRTY)) {
+		/* ref for dirty_list */
+		dlm_lockres_get(res);
 		list_add_tail(&res->dirty, &dlm->dirty_list);
 		res->state |= DLM_LOCK_RES_DIRTY;
 	}
@@ -639,6 +641,8 @@ static int dlm_thread(void *data)
 			list_del_init(&res->dirty);
 			spin_unlock(&res->spinlock);
 			spin_unlock(&dlm->spinlock);
+			/* Drop dirty_list ref */
+			dlm_lockres_put(res);
 
 		 	/* lockres can be re-dirtied/re-added to the
 			 * dirty_list in this gap, but that is ok */
@@ -691,6 +695,8 @@ in_progress:
 			/* if the lock was in-progress, stick
 			 * it on the back of the list */
 			if (delay) {
+				/* ref for dirty_list */
+				dlm_lockres_get(res);
 				spin_lock(&res->spinlock);
 				list_add_tail(&res->dirty, &dlm->dirty_list);
 				res->state |= DLM_LOCK_RES_DIRTY;
