@@ -994,12 +994,14 @@ recheck:
 		spin_unlock(&res->spinlock);
 		/* this will cause the master to re-assert across
 		 * the whole cluster, freeing up mles */
-		ret = dlm_do_master_request(mle, res->owner);
-		if (ret < 0) {
-			/* give recovery a chance to run */
-			mlog(ML_ERROR, "link to %u went down?: %d\n", res->owner, ret);
-			msleep(500);
-			goto recheck;
+		if (res->owner != dlm->node_num) {
+			ret = dlm_do_master_request(mle, res->owner);
+			if (ret < 0) {
+				/* give recovery a chance to run */
+				mlog(ML_ERROR, "link to %u went down?: %d\n", res->owner, ret);
+				msleep(500);
+				goto recheck;
+			}
 		}
 		ret = 0;
 		goto leave;
