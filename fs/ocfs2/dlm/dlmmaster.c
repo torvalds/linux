@@ -886,7 +886,7 @@ redo_request:
 		} 
 
 		dlm_kick_recovery_thread(dlm);
-		msleep(100);
+		msleep(1000);
 		dlm_wait_for_recovery(dlm);
 
 		spin_lock(&dlm->spinlock);
