@@ -142,7 +142,7 @@ static int snd_pcm_control_ioctl(struct snd_card *card,
 	return -ENOIOCTLCMD;
 }
 
-#if defined(CONFIG_PROC_FS) && defined(CONFIG_SND_VERBOSE_PROCFS)
+#ifdef CONFIG_SND_VERBOSE_PROCFS
 
 #define STATE(v) [SNDRV_PCM_STATE_##v] = #v
 #define STREAM(v) [SNDRV_PCM_STREAM_##v] = #v
@@ -436,7 +436,7 @@ static void snd_pcm_substream_proc_status_read(struct snd_info_entry *entry,
 	snd_iprintf(buffer, "appl_ptr    : %ld\n", runtime->control->appl_ptr);
 }
 
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_PCM_XRUN_DEBUG
 static void snd_pcm_xrun_debug_read(struct snd_info_entry *entry,
 				    struct snd_info_buffer *buffer)
 {
@@ -480,7 +480,7 @@ static int snd_pcm_stream_proc_init(struct snd_pcm_str *pstr)
 	}
 	pstr->proc_info_entry = entry;
 
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_PCM_XRUN_DEBUG
 	if ((entry = snd_info_create_card_entry(pcm->card, "xrun_debug",
 						pstr->proc_root)) != NULL) {
 		entry->c.text.read_size = 64;
@@ -501,7 +501,7 @@ static int snd_pcm_stream_proc_init(struct snd_pcm_str *pstr)
 
 static int snd_pcm_stream_proc_done(struct snd_pcm_str *pstr)
 {
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_PCM_XRUN_DEBUG
 	if (pstr->proc_xrun_debug_entry) {
 		snd_info_unregister(pstr->proc_xrun_debug_entry);
 		pstr->proc_xrun_debug_entry = NULL;
@@ -599,12 +599,12 @@ static int snd_pcm_substream_proc_done(struct snd_pcm_substream *substream)
 	}
 	return 0;
 }
-#else /* !CONFIG_PROC_FS */
+#else /* !CONFIG_SND_VERBOSE_PROCFS */
 static inline int snd_pcm_stream_proc_init(struct snd_pcm_str *pstr) { return 0; }
 static inline int snd_pcm_stream_proc_done(struct snd_pcm_str *pstr) { return 0; }
 static inline int snd_pcm_substream_proc_init(struct snd_pcm_substream *substream) { return 0; }
 static inline int snd_pcm_substream_proc_done(struct snd_pcm_substream *substream) { return 0; }
-#endif /* CONFIG_PROC_FS */
+#endif /* CONFIG_SND_VERBOSE_PROCFS */
 
 /**
  * snd_pcm_new_stream - create a new PCM stream

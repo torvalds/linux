@@ -1172,7 +1172,7 @@
   }        
 
   /* PCI IDs */
-  static struct pci_device_id snd_mychip_ids[] = {
+  static struct pci_device_id snd_mychip_ids[] __devinitdata = {
           { PCI_VENDOR_ID_FOO, PCI_DEVICE_ID_BAR,
             PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, },
           ....
@@ -1565,7 +1565,7 @@
         <informalexample>
           <programlisting>
 <![CDATA[
-  static struct pci_device_id snd_mychip_ids[] = {
+  static struct pci_device_id snd_mychip_ids[] __devinitdata = {
           { PCI_VENDOR_ID_FOO, PCI_DEVICE_ID_BAR,
             PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, },
           ....

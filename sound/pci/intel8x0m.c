@@ -224,7 +224,7 @@ struct intel8x0m {
 	unsigned int pcm_pos_shift;
 };
 
-static struct pci_device_id snd_intel8x0m_ids[] = {
+static struct pci_device_id snd_intel8x0m_ids[] __devinitdata = {
 	{ 0x8086, 0x2416, PCI_ANY_ID, PCI_ANY_ID, 0, 0, DEVICE_INTEL },	/* 82801AA */
 	{ 0x8086, 0x2426, PCI_ANY_ID, PCI_ANY_ID, 0, 0, DEVICE_INTEL },	/* 82901AB */
 	{ 0x8086, 0x2446, PCI_ANY_ID, PCI_ANY_ID, 0, 0, DEVICE_INTEL },	/* 82801BA */

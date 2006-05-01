@@ -374,12 +374,14 @@ struct snd_pcm_substream {
 	/* -- OSS things -- */
 	struct snd_pcm_oss_substream oss;
 #endif
+#ifdef CONFIG_SND_VERBOSE_PROCFS
 	struct snd_info_entry *proc_root;
 	struct snd_info_entry *proc_info_entry;
 	struct snd_info_entry *proc_hw_params_entry;
 	struct snd_info_entry *proc_sw_params_entry;
 	struct snd_info_entry *proc_status_entry;
 	struct snd_info_entry *proc_prealloc_entry;
+#endif
 	/* misc flags */
 	unsigned int no_mmap_ctrl: 1;
 	unsigned int hw_opened: 1;
@@ -400,11 +402,13 @@ struct snd_pcm_str {
 	struct snd_pcm_oss_stream oss;
 #endif
 	struct snd_pcm_file *files;
+#ifdef CONFIG_SND_VERBOSE_PROCFS
 	struct snd_info_entry *proc_root;
 	struct snd_info_entry *proc_info_entry;
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_PCM_XRUN_DEBUG
 	unsigned int xrun_debug;	/* 0 = disabled, 1 = verbose, 2 = stacktrace */
 	struct snd_info_entry *proc_xrun_debug_entry;
+#endif
 #endif
 };
 

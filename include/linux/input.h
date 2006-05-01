@@ -12,8 +12,6 @@
 #ifdef __KERNEL__
 #include <linux/time.h>
 #include <linux/list.h>
-#include <linux/device.h>
-#include <linux/mod_devicetable.h>
 #else
 #include <sys/time.h>
 #include <sys/ioctl.h>
@@ -58,6 +56,8 @@ struct input_absinfo {
 
 #define EVIOCGVERSION		_IOR('E', 0x01, int)			/* get driver version */
 #define EVIOCGID		_IOR('E', 0x02, struct input_id)	/* get device ID */
+#define EVIOCGREP		_IOR('E', 0x03, int[2])			/* get repeat settings */
+#define EVIOCSREP		_IOW('E', 0x03, int[2])			/* set repeat settings */
 #define EVIOCGKEYCODE		_IOR('E', 0x04, int[2])			/* get keycode */
 #define EVIOCSKEYCODE		_IOW('E', 0x04, int[2])			/* set keycode */
 
@@ -577,15 +577,15 @@ struct input_absinfo {
  * Switch events
  */
 
-#define SW_0		0x00
-#define SW_1		0x01
-#define SW_2		0x02
-#define SW_3		0x03
-#define SW_4		0x04
-#define SW_5		0x05
-#define SW_6		0x06
-#define SW_7		0x07
-#define SW_MAX		0x0f
+#define SW_0			0x00
+#define SW_1			0x01
+#define SW_2			0x02
+#define SW_3			0x03
+#define SW_4			0x04
+#define SW_5			0x05
+#define SW_6			0x06
+#define SW_7			0x07
+#define SW_MAX			0x0f
 
 /*
  * Misc events
@@ -805,56 +805,16 @@ struct ff_effect {
 
 #define FF_MAX		0x7f
 
-#ifdef LINUX_MOD_DEVICETABLE_H
-/* We only want this if mod_devicetable.h has been included -- that's
-   either in kernel space, or in scripts/mod/file2alias.c */
-struct input_device_id {
-
-	kernel_ulong_t flags;
-
-	struct input_id id;
-
-	kernel_ulong_t evbit[EV_MAX/BITS_PER_LONG+1];
-	kernel_ulong_t keybit[KEY_MAX/BITS_PER_LONG+1];
-	kernel_ulong_t relbit[REL_MAX/BITS_PER_LONG+1];
-	kernel_ulong_t absbit[ABS_MAX/BITS_PER_LONG+1];
-	kernel_ulong_t mscbit[MSC_MAX/BITS_PER_LONG+1];
-	kernel_ulong_t ledbit[LED_MAX/BITS_PER_LONG+1];
-	kernel_ulong_t sndbit[SND_MAX/BITS_PER_LONG+1];
-	kernel_ulong_t ffbit[FF_MAX/BITS_PER_LONG+1];
-	kernel_ulong_t swbit[SW_MAX/BITS_PER_LONG+1];
-
-	kernel_ulong_t driver_info;
-};
-#endif 
-
-/*
- * Structure for hotplug & device<->driver matching.
- */
-
-#define INPUT_DEVICE_ID_MATCH_BUS	1
-#define INPUT_DEVICE_ID_MATCH_VENDOR	2
-#define INPUT_DEVICE_ID_MATCH_PRODUCT	4
-#define INPUT_DEVICE_ID_MATCH_VERSION	8
-
-#define INPUT_DEVICE_ID_MATCH_EVBIT	0x010
-#define INPUT_DEVICE_ID_MATCH_KEYBIT	0x020
-#define INPUT_DEVICE_ID_MATCH_RELBIT	0x040
-#define INPUT_DEVICE_ID_MATCH_ABSBIT	0x080
-#define INPUT_DEVICE_ID_MATCH_MSCIT	0x100
-#define INPUT_DEVICE_ID_MATCH_LEDBIT	0x200
-#define INPUT_DEVICE_ID_MATCH_SNDBIT	0x400
-#define INPUT_DEVICE_ID_MATCH_FFBIT	0x800
-#define INPUT_DEVICE_ID_MATCH_SWBIT	0x1000
-
 #ifdef __KERNEL__
 
 /*
  * In-kernel definitions.
  */
 
+#include <linux/device.h>
 #include <linux/fs.h>
 #include <linux/timer.h>
+#include <linux/mod_devicetable.h>
 
 #define NBITS(x) (((x)/BITS_PER_LONG)+1)
 #define BIT(x)	(1UL<<((x)%BITS_PER_LONG))
@@ -955,9 +915,49 @@ struct input_dev {
 };
 #define to_input_dev(d) container_of(d, struct input_dev, cdev)
 
-#define INPUT_DEVICE_ID_MATCH_DEVICE\
+/*
+ * Verify that we are in sync with input_device_id mod_devicetable.h #defines
+ */
+
+#if EV_MAX != INPUT_DEVICE_ID_EV_MAX
+#error "EV_MAX and INPUT_DEVICE_ID_EV_MAX do not match"
+#endif
+
+#if KEY_MAX != INPUT_DEVICE_ID_KEY_MAX
+#error "KEY_MAX and INPUT_DEVICE_ID_KEY_MAX do not match"
+#endif
+
+#if REL_MAX != INPUT_DEVICE_ID_REL_MAX
+#error "REL_MAX and INPUT_DEVICE_ID_REL_MAX do not match"
+#endif
+
+#if ABS_MAX != INPUT_DEVICE_ID_ABS_MAX
+#error "ABS_MAX and INPUT_DEVICE_ID_ABS_MAX do not match"
+#endif
+
+#if MSC_MAX != INPUT_DEVICE_ID_MSC_MAX
+#error "MSC_MAX and INPUT_DEVICE_ID_MSC_MAX do not match"
+#endif
+
+#if LED_MAX != INPUT_DEVICE_ID_LED_MAX
+#error "LED_MAX and INPUT_DEVICE_ID_LED_MAX do not match"
+#endif
+
+#if SND_MAX != INPUT_DEVICE_ID_SND_MAX
+#error "SND_MAX and INPUT_DEVICE_ID_SND_MAX do not match"
+#endif
+
+#if FF_MAX != INPUT_DEVICE_ID_FF_MAX
+#error "FF_MAX and INPUT_DEVICE_ID_FF_MAX do not match"
+#endif
+
+#if SW_MAX != INPUT_DEVICE_ID_SW_MAX
+#error "SW_MAX and INPUT_DEVICE_ID_SW_MAX do not match"
+#endif
+
+#define INPUT_DEVICE_ID_MATCH_DEVICE \
 	(INPUT_DEVICE_ID_MATCH_BUS | INPUT_DEVICE_ID_MATCH_VENDOR | INPUT_DEVICE_ID_MATCH_PRODUCT)
-#define INPUT_DEVICE_ID_MATCH_DEVICE_AND_VERSION\
+#define INPUT_DEVICE_ID_MATCH_DEVICE_AND_VERSION \
 	(INPUT_DEVICE_ID_MATCH_DEVICE | INPUT_DEVICE_ID_MATCH_VERSION)
 
 struct input_handle;
@@ -1020,7 +1020,8 @@ static inline void input_put_device(struct input_dev *dev)
 
 static inline void input_free_device(struct input_dev *dev)
 {
-	input_put_device(dev);
+	if (dev)
+		input_put_device(dev);
 }
 
 int input_register_device(struct input_dev *);
