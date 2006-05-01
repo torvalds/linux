@@ -96,6 +96,7 @@ ieee80211softmac_disassoc(struct ieee80211softmac_device *mac)
 	mac->associated = 0;
 	mac->associnfo.bssvalid = 0;
 	mac->associnfo.associating = 0;
+	ieee80211softmac_init_txrates(mac);
 	ieee80211softmac_call_events_locked(mac, IEEE80211SOFTMAC_EVENT_DISASSOCIATED, NULL);
 	spin_unlock_irqrestore(&mac->lock, flags);
 }
@@ -118,24 +119,15 @@ ieee80211softmac_send_disassoc_req(struct ieee80211softmac_device *mac, u16 reas
 static inline int
 we_support_all_basic_rates(struct ieee80211softmac_device *mac, u8 *from, u8 from_len)
 {
-	int idx, search, found;
-	u8 rate, search_rate;
+	int idx;
+	u8 rate;
 
 	for (idx = 0; idx < (from_len); idx++) {
 		rate = (from)[idx];
 		if (!(rate & IEEE80211_BASIC_RATE_MASK))
 			continue;
-		found = 0;
 		rate &= ~IEEE80211_BASIC_RATE_MASK;
-		for (search = 0; search < mac->ratesinfo.count; search++) {
-			search_rate = mac->ratesinfo.rates[search];
-			search_rate &= ~IEEE80211_BASIC_RATE_MASK;
-			if (rate == search_rate) {
-				found = 1;
-				break;
-			}
-		}
-		if (!found)
+		if (!ieee80211softmac_ratesinfo_rate_supported(&mac->ratesinfo, rate))
 			return 0;
 	}
 	return 1;
@@ -310,6 +302,9 @@ ieee80211softmac_associated(struct ieee80211softmac_device *mac,
 	struct ieee80211softmac_network *net)
 {
 	mac->associnfo.associating = 0;
+	mac->associnfo.supported_rates = net->supported_rates;
+	ieee80211softmac_recalc_txrates(mac);
+
 	mac->associated = 1;
 	if (mac->set_bssid_filter)
 		mac->set_bssid_filter(mac->dev, net->bssid);

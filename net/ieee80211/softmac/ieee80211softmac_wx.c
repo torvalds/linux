@@ -211,8 +211,8 @@ ieee80211softmac_wx_set_rate(struct net_device *net_dev,
 	if (is_ofdm && !(ieee->modulation & IEEE80211_OFDM_MODULATION))
 		goto out_unlock;
 
-	mac->txrates.default_rate = rate;
-	mac->txrates.default_fallback = lower_rate(mac, rate);
+	mac->txrates.user_rate = rate;
+	ieee80211softmac_recalc_txrates(mac);
 	err = 0;
 
 out_unlock:	
