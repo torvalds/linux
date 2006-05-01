@@ -96,6 +96,13 @@ EXPORT_SYMBOL_PROTO(getuid);
 EXPORT_SYMBOL_PROTO(fsync);
 EXPORT_SYMBOL_PROTO(fdatasync);
 
+/* Export symbols used by GCC for the stack protector. */
+extern void __stack_smash_handler(void *) __attribute__((weak));
+EXPORT_SYMBOL(__stack_smash_handler);
+
+extern long __guard __attribute__((weak));
+EXPORT_SYMBOL(__guard);
+
 /*
  * Overrides for Emacs so that we follow Linus's tabbing style.
  * Emacs will notice this stuff at the end of the file and automatically
