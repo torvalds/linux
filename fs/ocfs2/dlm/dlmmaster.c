@@ -709,11 +709,11 @@ struct dlm_lock_resource *dlm_new_lockres(struct dlm_ctxt *dlm,
 {
 	struct dlm_lock_resource *res;
 
-	res = kmalloc(sizeof(struct dlm_lock_resource), GFP_KERNEL);
+	res = kmalloc(sizeof(struct dlm_lock_resource), GFP_NOFS);
 	if (!res)
 		return NULL;
 
-	res->lockname.name = kmalloc(namelen, GFP_KERNEL);
+	res->lockname.name = kmalloc(namelen, GFP_NOFS);
 	if (!res->lockname.name) {
 		kfree(res);
 		return NULL;
@@ -777,7 +777,7 @@ lookup:
 		mlog(0, "allocating a new resource\n");
 		/* nothing found and we need to allocate one. */
 		alloc_mle = (struct dlm_master_list_entry *)
-			kmem_cache_alloc(dlm_mle_cache, GFP_KERNEL);
+			kmem_cache_alloc(dlm_mle_cache, GFP_NOFS);
 		if (!alloc_mle)
 			goto leave;
 		res = dlm_new_lockres(dlm, lockid, namelen);
@@ -1532,7 +1532,7 @@ way_up_top:
 			spin_unlock(&dlm->spinlock);
 
 			mle = (struct dlm_master_list_entry *)
-				kmem_cache_alloc(dlm_mle_cache, GFP_KERNEL);
+				kmem_cache_alloc(dlm_mle_cache, GFP_NOFS);
 			if (!mle) {
 				response = DLM_MASTER_RESP_ERROR;
 				mlog_errno(-ENOMEM);
@@ -1940,7 +1940,7 @@ int dlm_dispatch_assert_master(struct dlm_ctxt *dlm,
 			       int ignore_higher, u8 request_from, u32 flags)
 {
 	struct dlm_work_item *item;
-	item = kcalloc(1, sizeof(*item), GFP_KERNEL);
+	item = kcalloc(1, sizeof(*item), GFP_NOFS);
 	if (!item)
 		return -ENOMEM;
 
@@ -2175,14 +2175,14 @@ int dlm_migrate_lockres(struct dlm_ctxt *dlm, struct dlm_lock_resource *res,
 	 */
 
 	ret = -ENOMEM;
-	mres = (struct dlm_migratable_lockres *) __get_free_page(GFP_KERNEL);
+	mres = (struct dlm_migratable_lockres *) __get_free_page(GFP_NOFS);
 	if (!mres) {
 		mlog_errno(ret);
 		goto leave;
 	}
 
 	mle = (struct dlm_master_list_entry *) kmem_cache_alloc(dlm_mle_cache,
-								GFP_KERNEL);
+								GFP_NOFS);
 	if (!mle) {
 		mlog_errno(ret);
 		goto leave;
@@ -2639,7 +2639,7 @@ int dlm_migrate_request_handler(struct o2net_msg *msg, u32 len, void *data)
 
 	/* preallocate.. if this fails, abort */
 	mle = (struct dlm_master_list_entry *) kmem_cache_alloc(dlm_mle_cache,
-							 GFP_KERNEL);
+							 GFP_NOFS);
 
 	if (!mle) {
 		ret = -ENOMEM;
