@@ -303,11 +303,21 @@ int dlm_domain_fully_joined(struct dlm_ctxt *dlm)
 	return ret;
 }
 
+static void dlm_destroy_dlm_worker(struct dlm_ctxt *dlm)
+{
+	if (dlm->dlm_worker) {
+		flush_workqueue(dlm->dlm_worker);
+		destroy_workqueue(dlm->dlm_worker);
+		dlm->dlm_worker = NULL;
+	}
+}
+
 static void dlm_complete_dlm_shutdown(struct dlm_ctxt *dlm)
 {
 	dlm_unregister_domain_handlers(dlm);
 	dlm_complete_thread(dlm);
 	dlm_complete_recovery_thread(dlm);
+	dlm_destroy_dlm_worker(dlm);
 
 	/* We've left the domain. Now we can take ourselves out of the
 	 * list and allow the kref stuff to help us free the
@@ -1151,6 +1161,13 @@ static int dlm_join_domain(struct dlm_ctxt *dlm)
 		goto bail;
 	}
 
+	dlm->dlm_worker = create_singlethread_workqueue("dlm_wq");
+	if (!dlm->dlm_worker) {
+		status = -ENOMEM;
+		mlog_errno(status);
+		goto bail;
+	}
+
 	do {
 		unsigned int backoff;
 		status = dlm_try_to_join_domain(dlm);
@@ -1191,6 +1208,7 @@ bail:
 		dlm_unregister_domain_handlers(dlm);
 		dlm_complete_thread(dlm);
 		dlm_complete_recovery_thread(dlm);
+		dlm_destroy_dlm_worker(dlm);
 	}
 
 	return status;
@@ -1256,6 +1274,7 @@ static struct dlm_ctxt *dlm_alloc_ctxt(const char *domain,
 
 	dlm->dlm_thread_task = NULL;
 	dlm->dlm_reco_thread_task = NULL;
+	dlm->dlm_worker = NULL;
 	init_waitqueue_head(&dlm->dlm_thread_wq);
 	init_waitqueue_head(&dlm->dlm_reco_thread_wq);
 	init_waitqueue_head(&dlm->reco.event);

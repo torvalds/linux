@@ -1962,7 +1962,7 @@ int dlm_dispatch_assert_master(struct dlm_ctxt *dlm,
 	list_add_tail(&item->list, &dlm->work_list);
 	spin_unlock(&dlm->work_lock);
 
-	schedule_work(&dlm->dispatched_work);
+	queue_work(dlm->dlm_worker, &dlm->dispatched_work);
 	return 0;
 }
 

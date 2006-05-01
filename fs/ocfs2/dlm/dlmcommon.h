@@ -131,6 +131,7 @@ struct dlm_ctxt
 	struct o2hb_callback_func dlm_hb_down;
 	struct task_struct *dlm_thread_task;
 	struct task_struct *dlm_reco_thread_task;
+	struct workqueue_struct *dlm_worker;
 	wait_queue_head_t dlm_thread_wq;
 	wait_queue_head_t dlm_reco_thread_wq;
 	wait_queue_head_t ast_wq;

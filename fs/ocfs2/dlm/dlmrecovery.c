@@ -157,10 +157,19 @@ void dlm_dispatch_work(void *data)
 	struct list_head *iter, *iter2;
 	struct dlm_work_item *item;
 	dlm_workfunc_t *workfunc;
+	int tot=0;
+
+	if (!dlm_joined(dlm))
+		return;
 
 	spin_lock(&dlm->work_lock);
 	list_splice_init(&dlm->work_list, &tmp_list);
 	spin_unlock(&dlm->work_lock);
+
+	list_for_each_safe(iter, iter2, &tmp_list) {
+		tot++;
+	}
+	mlog(0, "%s: work thread has %d work items\n", dlm->name, tot);
 
 	list_for_each_safe(iter, iter2, &tmp_list) {
 		item = list_entry(iter, struct dlm_work_item, list);
@@ -851,7 +860,7 @@ int dlm_request_all_locks_handler(struct o2net_msg *msg, u32 len, void *data)
 	spin_lock(&dlm->work_lock);
 	list_add_tail(&item->list, &dlm->work_list);
 	spin_unlock(&dlm->work_lock);
-	schedule_work(&dlm->dispatched_work);
+	queue_work(dlm->dlm_worker, &dlm->dispatched_work);
 
 	dlm_put(dlm);
 	return 0;
@@ -1401,7 +1410,7 @@ int dlm_mig_lockres_handler(struct o2net_msg *msg, u32 len, void *data)
 	spin_lock(&dlm->work_lock);
 	list_add_tail(&item->list, &dlm->work_list);
 	spin_unlock(&dlm->work_lock);
-	schedule_work(&dlm->dispatched_work);
+	queue_work(dlm->dlm_worker, &dlm->dispatched_work);
 
 leave:
 	dlm_put(dlm);
