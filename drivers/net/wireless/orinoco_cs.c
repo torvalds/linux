@@ -147,14 +147,11 @@ static void orinoco_cs_detach(struct pcmcia_device *link)
 {
 	struct net_device *dev = link->priv;
 
+	if (link->dev_node)
+		unregister_netdev(dev);
+
 	orinoco_cs_release(link);
 
-	DEBUG(0, PFX "detach: link=%p link->dev_node=%p\n", link, link->dev_node);
-	if (link->dev_node) {
-		DEBUG(0, PFX "About to unregister net device %p\n",
-		      dev);
-		unregister_netdev(dev);
-	}
 	free_orinocodev(dev);
 }				/* orinoco_cs_detach */
 
