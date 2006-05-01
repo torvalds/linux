@@ -1061,7 +1061,7 @@ int xfrm_state_register_afinfo(struct xfrm_state_afinfo *afinfo)
 		return -EINVAL;
 	if (unlikely(afinfo->family >= NPROTO))
 		return -EAFNOSUPPORT;
-	write_lock(&xfrm_state_afinfo_lock);
+	write_lock_bh(&xfrm_state_afinfo_lock);
 	if (unlikely(xfrm_state_afinfo[afinfo->family] != NULL))
 		err = -ENOBUFS;
 	else {
@@ -1069,7 +1069,7 @@ int xfrm_state_register_afinfo(struct xfrm_state_afinfo *afinfo)
 		afinfo->state_byspi = xfrm_state_byspi;
 		xfrm_state_afinfo[afinfo->family] = afinfo;
 	}
-	write_unlock(&xfrm_state_afinfo_lock);
+	write_unlock_bh(&xfrm_state_afinfo_lock);
 	return err;
 }
 EXPORT_SYMBOL(xfrm_state_register_afinfo);
@@ -1081,7 +1081,7 @@ int xfrm_state_unregister_afinfo(struct xfrm_state_afinfo *afinfo)
 		return -EINVAL;
 	if (unlikely(afinfo->family >= NPROTO))
 		return -EAFNOSUPPORT;
-	write_lock(&xfrm_state_afinfo_lock);
+	write_lock_bh(&xfrm_state_afinfo_lock);
 	if (likely(xfrm_state_afinfo[afinfo->family] != NULL)) {
 		if (unlikely(xfrm_state_afinfo[afinfo->family] != afinfo))
 			err = -EINVAL;
@@ -1091,7 +1091,7 @@ int xfrm_state_unregister_afinfo(struct xfrm_state_afinfo *afinfo)
 			afinfo->state_bydst = NULL;
 		}
 	}
-	write_unlock(&xfrm_state_afinfo_lock);
+	write_unlock_bh(&xfrm_state_afinfo_lock);
 	return err;
 }
 EXPORT_SYMBOL(xfrm_state_unregister_afinfo);

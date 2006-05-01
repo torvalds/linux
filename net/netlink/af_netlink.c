@@ -61,7 +61,6 @@
 #include <net/scm.h>
 #include <net/netlink.h>
 
-#define Nprintk(a...)
 #define NLGRPSZ(x)	(ALIGN(x, sizeof(unsigned long) * 8) / 8)
 
 struct netlink_sock {
