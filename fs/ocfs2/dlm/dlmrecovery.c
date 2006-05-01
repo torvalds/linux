@@ -1689,8 +1689,19 @@ static int dlm_process_recovery_data(struct dlm_ctxt *dlm,
 				if (!dlm_lvb_is_empty(res->lvb) &&
 				    (ml->type == LKM_EXMODE ||
 				     memcmp(res->lvb, mres->lvb, DLM_LVB_LEN))) {
-					mlog(ML_ERROR, "received bad lvb!\n");
-					__dlm_print_one_lock_resource(res);
+					int i;
+					mlog(ML_ERROR, "%s:%.*s: received bad "
+					     "lvb! type=%d\n", dlm->name,
+					     res->lockname.len,
+					     res->lockname.name, ml->type);
+					printk("lockres lvb=[");
+					for (i=0; i<DLM_LVB_LEN; i++)
+						printk("%02x", res->lvb[i]);
+					printk("]\nmigrated lvb=[");
+					for (i=0; i<DLM_LVB_LEN; i++)
+						printk("%02x", mres->lvb[i]);
+					printk("]\n");
+					dlm_print_one_lock_resource(res);
 					BUG();
 				}
 				memcpy(res->lvb, mres->lvb, DLM_LVB_LEN);
