@@ -487,7 +487,8 @@ int dlm_convert_lock_handler(struct o2net_msg *msg, u32 len, void *data)
 				mlog(ML_ERROR, "There is something here "
 				     "for node %u, lock->ml.cookie=%llu, "
 				     "cnv->cookie=%llu\n", cnv->node_idx,
-				     lock->ml.cookie, cnv->cookie);
+				     (unsigned long long)lock->ml.cookie,
+				     (unsigned long long)cnv->cookie);
 				break;
 			}
 		}
