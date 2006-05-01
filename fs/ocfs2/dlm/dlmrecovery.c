@@ -409,6 +409,13 @@ static int dlm_in_recovery(struct dlm_ctxt *dlm)
 
 void dlm_wait_for_recovery(struct dlm_ctxt *dlm)
 {
+	if (dlm_in_recovery(dlm)) {
+		mlog(ML_NOTICE, "%s: reco thread %d in recovery: "
+		     "state=%d, master=%u, dead=%u\n",
+		     dlm->name, dlm->dlm_reco_thread_task->pid,
+		     dlm->reco.state, dlm->reco.new_master,
+		     dlm->reco.dead_node);
+	}
 	wait_event(dlm->reco.event, !dlm_in_recovery(dlm));
 }
 
