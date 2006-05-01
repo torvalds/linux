@@ -280,6 +280,14 @@ static enum dlm_status dlm_send_remote_lock_request(struct dlm_ctxt *dlm,
 	if (tmpret >= 0) {
 		// successfully sent and received
 		ret = status;  // this is already a dlm_status
+		if (ret == DLM_RECOVERING) {
+			mlog(ML_ERROR, "%s:%.*s: BUG.  this is a stale lockres "
+			     "no longer owned by %u.  that node is coming back "
+			     "up currently.\n", dlm->name, create.namelen,
+			     create.name, res->owner);
+			dlm_print_one_lock_resource(res);
+			BUG();
+		}
 	} else {
 		mlog_errno(tmpret);
 		if (dlm_is_host_down(tmpret)) {
@@ -428,11 +436,16 @@ int dlm_create_lock_handler(struct o2net_msg *msg, u32 len, void *data)
 	if (!dlm_grab(dlm))
 		return DLM_REJECTED;
 
-	mlog_bug_on_msg(!dlm_domain_fully_joined(dlm),
-			"Domain %s not fully joined!\n", dlm->name);
-
 	name = create->name;
 	namelen = create->namelen;
+	status = DLM_RECOVERING;
+	if (!dlm_domain_fully_joined(dlm)) {
+		mlog(ML_ERROR, "Domain %s not fully joined, but node %u is "
+		     "sending a create_lock message for lock %.*s!\n",
+		     dlm->name, create->node_idx, namelen, name);
+		dlm_error(status);
+		goto leave;
+	}
 
 	status = DLM_IVBUFLEN;
 	if (namelen > DLM_LOCKID_NAME_MAX) {
