@@ -16,16 +16,16 @@ subarch-obj-$(CONFIG_MODULES) += kernel/module.o
 
 ldt-y = ../sys-i386/ldt.o
 
-USER_OBJS := ptrace_user.o sigcontext.o stub_segv.o
+USER_OBJS := ptrace_user.o sigcontext.o
 
 USER_OBJS += user-offsets.s
 extra-y += user-offsets.s
 
-CFLAGS_stub_segv.o := $(CFLAGS_NO_HARDENING)
-
 extra-$(CONFIG_MODE_TT) += unmap.o
+
+UNPROFILE_OBJS := stub_segv.o
+CFLAGS_stub_segv.o := $(CFLAGS_NO_HARDENING)
 
 include arch/um/scripts/Makefile.rules
 
-$(obj)/stub_segv.o $(obj)/unmap.o: \
-	_c_flags = $(call unprofile,$(CFLAGS))
+$(obj)/unmap.%: _c_flags = $(call unprofile,$(CFLAGS))
