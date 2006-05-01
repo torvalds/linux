@@ -2050,6 +2050,7 @@ static int dlm_pre_master_reco_lockres(struct dlm_ctxt *dlm,
 				BUG();
 			/* host is down, so answer for that node would be
 			 * DLM_LOCK_RES_OWNER_UNKNOWN.  continue. */
+			ret = 0;
 		}
 
 		if (master != DLM_LOCK_RES_OWNER_UNKNOWN) {
