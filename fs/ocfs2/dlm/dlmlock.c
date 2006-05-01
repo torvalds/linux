@@ -227,14 +227,18 @@ static enum dlm_status dlmlock_remote(struct dlm_ctxt *dlm,
 	res->state &= ~DLM_LOCK_RES_IN_PROGRESS;
 	lock->lock_pending = 0;
 	if (status != DLM_NORMAL) {
-		if (status != DLM_NOTQUEUED)
+		if (status != DLM_NOTQUEUED) {
+			/*
+			 * DO NOT call calc_usage, as this would unhash
+			 * the remote lockres before we ever get to use
+			 * it.  treat as if we never made any change to
+			 * the lockres.
+			 */
+			lockres_changed = 0;
 			dlm_error(status);
+		}
 		dlm_revert_pending_lock(res, lock);
 		dlm_lock_put(lock);
-		/* do NOT call calc_usage, as this would unhash the remote
-		 * lockres before we ever get to use it.  treat as if we
-		 * never made any change to the lockres. */
-		lockres_changed = 0;
 	} else if (dlm_is_recovery_lock(res->lockname.name, 
 					res->lockname.len)) {
 		/* special case for the $RECOVERY lock.

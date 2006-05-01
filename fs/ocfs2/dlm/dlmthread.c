@@ -106,6 +106,20 @@ void __dlm_lockres_calc_usage(struct dlm_ctxt *dlm,
 	assert_spin_locked(&res->spinlock);
 
 	if (__dlm_lockres_unused(res)){
+		/* For now, just keep any resource we master */
+		if (res->owner == dlm->node_num)
+		{
+			if (!list_empty(&res->purge)) {
+				mlog(0, "we master %s:%.*s, but it is on "
+				     "the purge list.  Removing\n",
+				     dlm->name, res->lockname.len,
+				     res->lockname.name);
+				list_del_init(&res->purge);
+				dlm->purge_count--;
+			}
+			return;
+		}
+
 		if (list_empty(&res->purge)) {
 			mlog(0, "putting lockres %.*s from purge list\n",
 			     res->lockname.len, res->lockname.name);
