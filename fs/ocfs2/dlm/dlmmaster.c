@@ -2000,6 +2000,23 @@ static void dlm_assert_master_worker(struct dlm_work_item *item, void *data)
 		}
 	}
 
+	/*
+	 * If we're migrating this lock to someone else, we are no
+	 * longer allowed to assert out own mastery.  OTOH, we need to
+	 * prevent migration from starting while we're still asserting
+	 * our dominance.  The reserved ast delays migration.
+	 */
+	spin_lock(&res->spinlock);
+	if (res->state & DLM_LOCK_RES_MIGRATING) {
+		mlog(0, "Someone asked us to assert mastery, but we're "
+		     "in the middle of migration.  Skipping assert, "
+		     "the new master will handle that.\n");
+		spin_unlock(&res->spinlock);
+		goto put;
+	} else
+		__dlm_lockres_reserve_ast(res);
+	spin_unlock(&res->spinlock);
+
 	/* this call now finishes out the nodemap
 	 * even if one or more nodes die */
 	mlog(0, "worker about to master %.*s here, this=%u\n",
@@ -2012,6 +2029,10 @@ static void dlm_assert_master_worker(struct dlm_work_item *item, void *data)
 		mlog_errno(ret);
 	}
 
+	/* Ok, we've asserted ourselves.  Let's let migration start. */
+	dlm_lockres_release_ast(dlm, res);
+
+put:
 	dlm_lockres_put(res);
 
 	mlog(0, "finished with dlm_assert_master_worker\n");
