@@ -640,13 +640,13 @@ find_page:
 		/*
 		 * Careful, ->map() uses KM_USER0!
 		 */
-		char *src = buf->ops->map(info, buf);
+		char *src = buf->ops->map(info, buf, 1);
 		char *dst = kmap_atomic(page, KM_USER1);
 
 		memcpy(dst + offset, src + buf->offset, this_len);
 		flush_dcache_page(page);
 		kunmap_atomic(dst, KM_USER1);
-		buf->ops->unmap(info, buf);
+		buf->ops->unmap(info, buf, src);
 	}
 
 	ret = mapping->a_ops->commit_write(file, page, offset, offset+this_len);

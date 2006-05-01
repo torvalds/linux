@@ -5,7 +5,8 @@
 
 #define PIPE_BUFFERS (16)
 
-#define PIPE_BUF_FLAG_LRU	0x01
+#define PIPE_BUF_FLAG_LRU	0x01	/* page is on the LRU */
+#define PIPE_BUF_FLAG_ATOMIC	0x02	/* was atomically mapped */
 
 struct pipe_buffer {
 	struct page *page;
@@ -28,8 +29,8 @@ struct pipe_buffer {
  */
 struct pipe_buf_operations {
 	int can_merge;
-	void * (*map)(struct pipe_inode_info *, struct pipe_buffer *);
-	void (*unmap)(struct pipe_inode_info *, struct pipe_buffer *);
+	void * (*map)(struct pipe_inode_info *, struct pipe_buffer *, int);
+	void (*unmap)(struct pipe_inode_info *, struct pipe_buffer *, void *);
 	int (*pin)(struct pipe_inode_info *, struct pipe_buffer *);
 	void (*release)(struct pipe_inode_info *, struct pipe_buffer *);
 	int (*steal)(struct pipe_inode_info *, struct pipe_buffer *);
@@ -64,8 +65,8 @@ void free_pipe_info(struct inode * inode);
 void __free_pipe_info(struct pipe_inode_info *);
 
 /* Generic pipe buffer ops functions */
-void *generic_pipe_buf_map(struct pipe_inode_info *, struct pipe_buffer *);
-void generic_pipe_buf_unmap(struct pipe_inode_info *, struct pipe_buffer *);
+void *generic_pipe_buf_map(struct pipe_inode_info *, struct pipe_buffer *, int);
+void generic_pipe_buf_unmap(struct pipe_inode_info *, struct pipe_buffer *, void *);
 void generic_pipe_buf_get(struct pipe_inode_info *, struct pipe_buffer *);
 int generic_pipe_buf_pin(struct pipe_inode_info *, struct pipe_buffer *);
 
