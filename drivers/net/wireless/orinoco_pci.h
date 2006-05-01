@@ -44,6 +44,7 @@ static inline void orinoco_pci_setup_netdev(struct net_device *dev,
 	       pci_name(pdev), pdev->irq, range_type, start, end);
 }
 
+#ifdef CONFIG_PM
 static int orinoco_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
@@ -121,5 +122,9 @@ static int orinoco_pci_resume(struct pci_dev *pdev)
 
 	return 0;
 }
+#else
+#define orinoco_pci_suspend NULL
+#define orinoco_pci_resume NULL
+#endif
 
 #endif /* _ORINOCO_PCI_H */
