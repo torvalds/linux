@@ -279,6 +279,9 @@ ieee80211softmac_deauth_from_net(struct ieee80211softmac_device *mac,
 	struct list_head *list_ptr;
 	unsigned long flags;
 
+	/* deauthentication implies disassociation */
+	ieee80211softmac_disassoc(mac);
+
 	/* Lock and reset status flags */
 	spin_lock_irqsave(&mac->lock, flags);
 	net->authenticating = 0;

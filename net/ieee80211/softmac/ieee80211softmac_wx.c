@@ -456,7 +456,7 @@ ieee80211softmac_wx_set_mlme(struct net_device *dev,
 		}
 		return ieee80211softmac_deauth_req(mac, net, reason);
 	case IW_MLME_DISASSOC:
-		ieee80211softmac_disassoc(mac, reason);
+		ieee80211softmac_send_disassoc_req(mac, reason);
 		return 0;
 	default:
 		return -EOPNOTSUPP;

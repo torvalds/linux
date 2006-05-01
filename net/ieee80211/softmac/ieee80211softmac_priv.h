@@ -150,7 +150,8 @@ int ieee80211softmac_handle_disassoc(struct net_device * dev,
 int ieee80211softmac_handle_reassoc_req(struct net_device * dev,
 				        struct ieee80211_reassoc_request * reassoc);
 void ieee80211softmac_assoc_timeout(void *d);
-void ieee80211softmac_disassoc(struct ieee80211softmac_device *mac, u16 reason);
+void ieee80211softmac_send_disassoc_req(struct ieee80211softmac_device *mac, u16 reason);
+void ieee80211softmac_disassoc(struct ieee80211softmac_device *mac);
 
 /* some helper functions */
 static inline int ieee80211softmac_scan_handlers_check_self(struct ieee80211softmac_device *sm)
