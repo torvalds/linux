@@ -866,11 +866,10 @@ spectrum_cs_suspend(struct pcmcia_device *link)
 {
 	struct net_device *dev = link->priv;
 	struct orinoco_private *priv = netdev_priv(dev);
-	unsigned long flags;
 	int err = 0;
 
 	/* Mark the device as stopped, to block IO until later */
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock(&priv->lock);
 
 	err = __orinoco_down(dev);
 	if (err)
@@ -880,9 +879,9 @@ spectrum_cs_suspend(struct pcmcia_device *link)
 	netif_device_detach(dev);
 	priv->hw_unavailable++;
 
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock(&priv->lock);
 
-	return 0;
+	return err;
 }
 
 static int
