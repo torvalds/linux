@@ -341,9 +341,6 @@ mptfc_generate_rport_ids(FCDevicePage0_t *pg0, struct fc_rport_identifiers *rid)
 	rid->port_name = ((u64)pg0->WWPN.High) << 32 | (u64)pg0->WWPN.Low;
 	rid->port_id =   pg0->PortIdentifier;
 	rid->roles = FC_RPORT_ROLE_UNKNOWN;
-	rid->roles |= FC_RPORT_ROLE_FCP_TARGET;
-	if (pg0->Protocol & MPI_FC_DEVICE_PAGE0_PROT_FCP_INITIATOR)
-		rid->roles |= FC_RPORT_ROLE_FCP_INITIATOR;
 
 	return 0;
 }
@@ -357,9 +354,14 @@ mptfc_register_dev(MPT_ADAPTER *ioc, int channel, FCDevicePage0_t *pg0)
 	int			new_ri = 1;
 	u64			pn, nn;
 	VirtTarget		*vtarget;
+	u32			roles = FC_RPORT_ROLE_UNKNOWN;
 
 	if (mptfc_generate_rport_ids(pg0, &rport_ids) < 0)
 		return;
+
+	roles |= FC_RPORT_ROLE_FCP_TARGET;
+	if (pg0->Protocol & MPI_FC_DEVICE_PAGE0_PROT_FCP_INITIATOR)
+		roles |= FC_RPORT_ROLE_FCP_INITIATOR;
 
 	/* scan list looking for a match */
 	list_for_each_entry(ri, &ioc->fc_rports, list) {
@@ -400,8 +402,9 @@ mptfc_register_dev(MPT_ADAPTER *ioc, int channel, FCDevicePage0_t *pg0)
 					vtarget->bus_id = pg0->CurrentBus;
 				}
 			}
-			/* once dd_data is filled in, commands will issue to hardware */
 			*((struct mptfc_rport_info **)rport->dd_data) = ri;
+			/* scan will be scheduled once rport becomes a target */
+			fc_remote_port_rolechg(rport,roles);
 
 			pn = (u64)ri->pg0.WWPN.High << 32 | (u64)ri->pg0.WWPN.Low;
 			nn = (u64)ri->pg0.WWNN.High << 32 | (u64)ri->pg0.WWNN.Low;
