@@ -54,6 +54,8 @@
 #include "cluster/masklog.h"
 
 static int dlm_thread(void *data);
+static void dlm_purge_lockres_now(struct dlm_ctxt *dlm,
+				  struct dlm_lock_resource *lockres);
 
 static void dlm_flush_asts(struct dlm_ctxt *dlm);
 
@@ -111,10 +113,23 @@ void __dlm_lockres_calc_usage(struct dlm_ctxt *dlm,
 			res->last_used = jiffies;
 			list_add_tail(&res->purge, &dlm->purge_list);
 			dlm->purge_count++;
+
+			/* if this node is not the owner, there is
+			 * no way to keep track of who the owner could be.
+			 * unhash it to avoid serious problems. */
+			if (res->owner != dlm->node_num) {
+				mlog(0, "%s:%.*s: doing immediate "
+				     "purge of lockres owned by %u\n",
+				     dlm->name, res->lockname.len,
+				     res->lockname.name, res->owner);
+
+				dlm_purge_lockres_now(dlm, res);
+			}
 		}
 	} else if (!list_empty(&res->purge)) {
-		mlog(0, "removing lockres %.*s from purge list\n",
-		     res->lockname.len, res->lockname.name);
+		mlog(0, "removing lockres %.*s from purge list, "
+		     "owner=%u\n", res->lockname.len, res->lockname.name,
+		     res->owner);
 
 		list_del_init(&res->purge);
 		dlm->purge_count--;
@@ -173,6 +188,24 @@ again:
 	spin_lock(&dlm->spinlock);
 
 finish:
+	if (!list_empty(&lockres->purge)) {
+		list_del_init(&lockres->purge);
+		dlm->purge_count--;
+	}
+	__dlm_unhash_lockres(lockres);
+}
+
+/* make an unused lockres go away immediately.
+ * as soon as the dlm spinlock is dropped, this lockres
+ * will not be found. kfree still happens on last put. */
+static void dlm_purge_lockres_now(struct dlm_ctxt *dlm,
+				  struct dlm_lock_resource *lockres)
+{
+	assert_spin_locked(&dlm->spinlock);
+	assert_spin_locked(&lockres->spinlock);
+
+	BUG_ON(!__dlm_lockres_unused(lockres));
+
 	if (!list_empty(&lockres->purge)) {
 		list_del_init(&lockres->purge);
 		dlm->purge_count--;
