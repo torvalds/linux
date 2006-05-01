@@ -899,6 +899,9 @@ redo_request:
 		} else
 			wait_on_recovery = 0;
 		spin_unlock(&dlm->spinlock);
+
+		if (wait_on_recovery)
+			dlm_wait_for_node_recovery(dlm, bit, 10000);
 	}
 
 	/* must wait for lock to be mastered elsewhere */

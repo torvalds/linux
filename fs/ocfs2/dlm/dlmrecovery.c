@@ -343,6 +343,18 @@ int dlm_is_node_dead(struct dlm_ctxt *dlm, u8 node)
 	return dead;
 }
 
+/* returns true if node is no longer in the domain
+ * could be dead or just not joined */
+int dlm_is_node_recovered(struct dlm_ctxt *dlm, u8 node)
+{
+	int recovered;
+	spin_lock(&dlm->spinlock);
+	recovered = !test_bit(node, dlm->recovery_map);
+	spin_unlock(&dlm->spinlock);
+	return recovered;
+}
+
+
 int dlm_wait_for_node_death(struct dlm_ctxt *dlm, u8 node, int timeout)
 {
 	if (timeout) {
@@ -356,6 +368,24 @@ int dlm_wait_for_node_death(struct dlm_ctxt *dlm, u8 node, int timeout)
 		     "of death of node %u\n", dlm->name, node);
 		wait_event(dlm->dlm_reco_thread_wq,
 			   dlm_is_node_dead(dlm, node));
+	}
+	/* for now, return 0 */
+	return 0;
+}
+
+int dlm_wait_for_node_recovery(struct dlm_ctxt *dlm, u8 node, int timeout)
+{
+	if (timeout) {
+		mlog(0, "%s: waiting %dms for notification of "
+		     "recovery of node %u\n", dlm->name, timeout, node);
+		wait_event_timeout(dlm->dlm_reco_thread_wq,
+			   dlm_is_node_recovered(dlm, node),
+			   msecs_to_jiffies(timeout));
+	} else {
+		mlog(0, "%s: waiting indefinitely for notification "
+		     "of recovery of node %u\n", dlm->name, node);
+		wait_event(dlm->dlm_reco_thread_wq,
+			   dlm_is_node_recovered(dlm, node));
 	}
 	/* for now, return 0 */
 	return 0;
