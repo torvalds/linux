@@ -141,7 +141,10 @@ static struct pipe_buf_operations page_cache_pipe_buf_ops = {
 static int user_page_pipe_buf_steal(struct pipe_inode_info *pipe,
 				    struct pipe_buffer *buf)
 {
-	return 1;
+	if (!(buf->flags & PIPE_BUF_FLAG_GIFT))
+		return 1;
+
+	return 0;
 }
 
 static struct pipe_buf_operations user_page_pipe_buf_ops = {
@@ -186,6 +189,9 @@ static ssize_t splice_to_pipe(struct pipe_inode_info *pipe,
 			buf->offset = spd->partial[page_nr].offset;
 			buf->len = spd->partial[page_nr].len;
 			buf->ops = spd->ops;
+			if (spd->flags & SPLICE_F_GIFT)
+				buf->flags |= PIPE_BUF_FLAG_GIFT;
+
 			pipe->nrbufs++;
 			page_nr++;
 			ret += buf->len;
@@ -1073,7 +1079,7 @@ static long do_splice(struct file *in, loff_t __user *off_in,
  */
 static int get_iovec_page_array(const struct iovec __user *iov,
 				unsigned int nr_vecs, struct page **pages,
-				struct partial_page *partial)
+				struct partial_page *partial, int aligned)
 {
 	int buffers = 0, error = 0;
 
@@ -1113,6 +1119,15 @@ static int get_iovec_page_array(const struct iovec __user *iov,
 		 * in the user pages.
 		 */
 		off = (unsigned long) base & ~PAGE_MASK;
+
+		/*
+		 * If asked for alignment, the offset must be zero and the
+		 * length a multiple of the PAGE_SIZE.
+		 */
+		error = -EINVAL;
+		if (aligned && (off || len & ~PAGE_MASK))
+			break;
+
 		npages = (off + len + PAGE_SIZE - 1) >> PAGE_SHIFT;
 		if (npages > PIPE_BUFFERS - buffers)
 			npages = PIPE_BUFFERS - buffers;
@@ -1206,7 +1221,8 @@ static long do_vmsplice(struct file *file, const struct iovec __user *iov,
 	else if (unlikely(!nr_segs))
 		return 0;
 
-	spd.nr_pages = get_iovec_page_array(iov, nr_segs, pages, partial);
+	spd.nr_pages = get_iovec_page_array(iov, nr_segs, pages, partial,
+					    flags & SPLICE_F_GIFT);
 	if (spd.nr_pages <= 0)
 		return spd.nr_pages;
 
@@ -1313,6 +1329,12 @@ static int link_pipe(struct pipe_inode_info *ipipe,
 
 				obuf = opipe->bufs + nbuf;
 				*obuf = *ibuf;
+
+				/*
+				 * Don't inherit the gift flag, we need to
+				 * prevent multiple steals of this page.
+				 */
+				obuf->flags &= ~PIPE_BUF_FLAG_GIFT;
 
 				if (obuf->len > len)
 					obuf->len = len;

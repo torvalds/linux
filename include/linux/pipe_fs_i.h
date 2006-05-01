@@ -7,6 +7,7 @@
 
 #define PIPE_BUF_FLAG_LRU	0x01	/* page is on the LRU */
 #define PIPE_BUF_FLAG_ATOMIC	0x02	/* was atomically mapped */
+#define PIPE_BUF_FLAG_GIFT	0x04	/* page is a gift */
 
 struct pipe_buffer {
 	struct page *page;
@@ -79,6 +80,7 @@ int generic_pipe_buf_pin(struct pipe_inode_info *, struct pipe_buffer *);
 				 /* we may still block on the fd we splice */
 				 /* from/to, of course */
 #define SPLICE_F_MORE	(0x04)	/* expect more data */
+#define SPLICE_F_GIFT	(0x08)	/* pages passed in are a gift */
 
 /*
  * Passed to the actors
