@@ -317,7 +317,7 @@ static enum dlm_status dlm_send_remote_unlock_request(struct dlm_ctxt *dlm,
 	size_t veclen = 1;
 
 	mlog_entry("%.*s\n", res->lockname.len, res->lockname.name);
-			
+
 	if (owner == dlm->node_num) {
 		/* ended up trying to contact ourself.  this means
 		 * that the lockres had been remote but became local
