@@ -18,32 +18,6 @@ struct orinoco_pci_card {
 	void __iomem *attr_io;
 };
 
-/* Set base address or memory range of the network device based on
- * the PCI device it's using.  Specify BAR of the "main" resource.
- * To be used after request_irq().  */
-static inline void orinoco_pci_setup_netdev(struct net_device *dev,
-					    struct pci_dev *pdev, int bar)
-{
-	char *range_type;
-	unsigned long start = pci_resource_start(pdev, bar);
-	unsigned long len = pci_resource_len(pdev, bar);
-	unsigned long flags = pci_resource_flags(pdev, bar);
-	unsigned long end = start + len - 1;
-
-	dev->irq = pdev->irq;
-	if (flags & IORESOURCE_IO) {
-		dev->base_addr = start;
-		range_type = "ports";
-	} else {
-		dev->mem_start = start;
-		dev->mem_end = end;
-		range_type = "memory";
-	}
-
-	printk(KERN_DEBUG PFX "%s: irq %d, %s 0x%lx-0x%lx\n",
-	       pci_name(pdev), pdev->irq, range_type, start, end);
-}
-
 #ifdef CONFIG_PM
 static int orinoco_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 {
