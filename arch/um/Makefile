@@ -96,7 +96,7 @@ PHONY += linux
 all: linux
 
 linux: vmlinux
-	@echo '  SYMLINK $@'
+	@echo '  LINK $@'
 	$(Q)ln -f $< $@
 
 define archhelp
