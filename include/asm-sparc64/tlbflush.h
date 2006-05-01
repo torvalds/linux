@@ -22,8 +22,6 @@ extern void flush_tlb_pending(void);
 /* Local cpu only.  */
 extern void __flush_tlb_all(void);
 
-extern void __flush_tlb_page(unsigned long context, unsigned long page, unsigned long r);
-
 extern void __flush_tlb_kernel_range(unsigned long start, unsigned long end);
 
 #ifndef CONFIG_SMP
