@@ -134,12 +134,18 @@ static inline void dlm_set_reco_master(struct dlm_ctxt *dlm,
 	dlm->reco.new_master = master;
 }
 
-static inline void dlm_reset_recovery(struct dlm_ctxt *dlm)
+static inline void __dlm_reset_recovery(struct dlm_ctxt *dlm)
 {
-	spin_lock(&dlm->spinlock);
+	assert_spin_locked(&dlm->spinlock);
 	clear_bit(dlm->reco.dead_node, dlm->recovery_map);
 	dlm_set_reco_dead_node(dlm, O2NM_INVALID_NODE_NUM);
 	dlm_set_reco_master(dlm, O2NM_INVALID_NODE_NUM);
+}
+
+static inline void dlm_reset_recovery(struct dlm_ctxt *dlm)
+{
+	spin_lock(&dlm->spinlock);
+	__dlm_reset_recovery(dlm);
 	spin_unlock(&dlm->spinlock);
 }
 
@@ -2074,6 +2080,20 @@ static void __dlm_hb_node_down(struct dlm_ctxt *dlm, int idx)
 {
 	assert_spin_locked(&dlm->spinlock);
 
+	if (dlm->reco.new_master == idx) {
+		mlog(0, "%s: recovery master %d just died\n",
+		     dlm->name, idx);
+		if (dlm->reco.state & DLM_RECO_STATE_FINALIZE) {
+			/* finalize1 was reached, so it is safe to clear
+			 * the new_master and dead_node.  that recovery
+			 * is complete. */
+			mlog(0, "%s: dead master %d had reached "
+			     "finalize1 state, clearing\n", dlm->name, idx);
+			dlm->reco.state &= ~DLM_RECO_STATE_FINALIZE;
+			__dlm_reset_recovery(dlm);
+		}
+	}
+
 	/* check to see if the node is already considered dead */
 	if (!test_bit(idx, dlm->live_nodes_map)) {
 		mlog(0, "for domain %s, node %d is already dead. "
@@ -2364,6 +2384,14 @@ retry:
 			 * another ENOMEM */
 			msleep(100);
 			goto retry;
+		} else if (ret == EAGAIN) {
+			mlog(0, "%s: trying to start recovery of node "
+			     "%u, but node %u is waiting for last recovery "
+			     "to complete, backoff for a bit\n", dlm->name,
+			     dead_node, nodenum);
+			/* TODO Look into replacing msleep with cond_resched() */
+			msleep(100);
+			goto retry;
 		}
 	}
 
@@ -2378,6 +2406,17 @@ int dlm_begin_reco_handler(struct o2net_msg *msg, u32 len, void *data)
 	/* ok to return 0, domain has gone away */
 	if (!dlm_grab(dlm))
 		return 0;
+
+	spin_lock(&dlm->spinlock);
+	if (dlm->reco.state & DLM_RECO_STATE_FINALIZE) {
+		mlog(0, "%s: node %u wants to recover node %u (%u:%u) "
+		     "but this node is in finalize state, waiting on finalize2\n",
+		     dlm->name, br->node_idx, br->dead_node,
+		     dlm->reco.dead_node, dlm->reco.new_master);
+		spin_unlock(&dlm->spinlock);
+		return EAGAIN;
+	}
+	spin_unlock(&dlm->spinlock);
 
 	mlog(0, "%s: node %u wants to recover node %u (%u:%u)\n",
 	     dlm->name, br->node_idx, br->dead_node,
@@ -2432,6 +2471,7 @@ int dlm_begin_reco_handler(struct o2net_msg *msg, u32 len, void *data)
 	return 0;
 }
 
+#define DLM_FINALIZE_STAGE2  0x01
 static int dlm_send_finalize_reco_message(struct dlm_ctxt *dlm)
 {
 	int ret = 0;
@@ -2439,25 +2479,31 @@ static int dlm_send_finalize_reco_message(struct dlm_ctxt *dlm)
 	struct dlm_node_iter iter;
 	int nodenum;
 	int status;
+	int stage = 1;
 
-	mlog(0, "finishing recovery for node %s:%u\n",
-	     dlm->name, dlm->reco.dead_node);
+	mlog(0, "finishing recovery for node %s:%u, "
+	     "stage %d\n", dlm->name, dlm->reco.dead_node, stage);
 
 	spin_lock(&dlm->spinlock);
 	dlm_node_iter_init(dlm->domain_map, &iter);
 	spin_unlock(&dlm->spinlock);
 
+stage2:
 	memset(&fr, 0, sizeof(fr));
 	fr.node_idx = dlm->node_num;
 	fr.dead_node = dlm->reco.dead_node;
+	if (stage == 2)
+		fr.flags |= DLM_FINALIZE_STAGE2;
 
 	while ((nodenum = dlm_node_iter_next(&iter)) >= 0) {
 		if (nodenum == dlm->node_num)
 			continue;
 		ret = o2net_send_message(DLM_FINALIZE_RECO_MSG, dlm->key,
 					 &fr, sizeof(fr), nodenum, &status);
-		if (ret >= 0) {
+		if (ret >= 0)
 			ret = status;
+		if (ret < 0) {
+			mlog_errno(ret);
 			if (dlm_is_host_down(ret)) {
 				/* this has no effect on this recovery 
 				 * session, so set the status to zero to 
@@ -2466,11 +2512,14 @@ static int dlm_send_finalize_reco_message(struct dlm_ctxt *dlm)
 				     "node finished recovery.\n", nodenum);
 				ret = 0;
 			}
-		}
-		if (ret < 0) {
-			mlog_errno(ret);
 			break;
 		}
+	}
+	if (stage == 1) {
+		/* reset the node_iter back to the top and send finalize2 */
+		iter.curnode = -1;
+		stage = 2;
+		goto stage2;
 	}
 
 	return ret;
@@ -2480,15 +2529,19 @@ int dlm_finalize_reco_handler(struct o2net_msg *msg, u32 len, void *data)
 {
 	struct dlm_ctxt *dlm = data;
 	struct dlm_finalize_reco *fr = (struct dlm_finalize_reco *)msg->buf;
+	int stage = 1;
 
 	/* ok to return 0, domain has gone away */
 	if (!dlm_grab(dlm))
 		return 0;
 
-	mlog(0, "%s: node %u finalizing recovery of node %u (%u:%u)\n",
-	     dlm->name, fr->node_idx, fr->dead_node,
-	     dlm->reco.dead_node, dlm->reco.new_master);
+	if (fr->flags & DLM_FINALIZE_STAGE2)
+		stage = 2;
 
+	mlog(0, "%s: node %u finalizing recovery stage%d of "
+	     "node %u (%u:%u)\n", dlm->name, fr->node_idx, stage,
+	     fr->dead_node, dlm->reco.dead_node, dlm->reco.new_master);
+ 
 	spin_lock(&dlm->spinlock);
 
 	if (dlm->reco.new_master != fr->node_idx) {
@@ -2504,13 +2557,38 @@ int dlm_finalize_reco_handler(struct o2net_msg *msg, u32 len, void *data)
 		BUG();
 	}
 
-	dlm_finish_local_lockres_recovery(dlm, fr->dead_node, fr->node_idx);
+	switch (stage) {
+		case 1:
+			dlm_finish_local_lockres_recovery(dlm, fr->dead_node, fr->node_idx);
+			if (dlm->reco.state & DLM_RECO_STATE_FINALIZE) {
+				mlog(ML_ERROR, "%s: received finalize1 from "
+				     "new master %u for dead node %u, but "
+				     "this node has already received it!\n",
+				     dlm->name, fr->node_idx, fr->dead_node);
+				dlm_print_reco_node_status(dlm);
+				BUG();
+			}
+			dlm->reco.state |= DLM_RECO_STATE_FINALIZE;
+			spin_unlock(&dlm->spinlock);
+			break;
+		case 2:
+			if (!(dlm->reco.state & DLM_RECO_STATE_FINALIZE)) {
+				mlog(ML_ERROR, "%s: received finalize2 from "
+				     "new master %u for dead node %u, but "
+				     "this node did not have finalize1!\n",
+				     dlm->name, fr->node_idx, fr->dead_node);
+				dlm_print_reco_node_status(dlm);
+				BUG();
+			}
+			dlm->reco.state &= ~DLM_RECO_STATE_FINALIZE;
+			spin_unlock(&dlm->spinlock);
+			dlm_reset_recovery(dlm);
+			dlm_kick_recovery_thread(dlm);
+			break;
+		default:
+			BUG();
+	}
 
-	spin_unlock(&dlm->spinlock);
-
-	dlm_reset_recovery(dlm);
-
-	dlm_kick_recovery_thread(dlm);
 	mlog(0, "%s: recovery done, reco master was %u, dead now %u, master now %u\n",
 	     dlm->name, fr->node_idx, dlm->reco.dead_node, dlm->reco.new_master);
 

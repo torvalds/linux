@@ -71,7 +71,8 @@ static inline int dlm_is_recovery_lock(const char *lock_name, int name_len)
 	return 0;
 }
 
-#define DLM_RECO_STATE_ACTIVE  0x0001
+#define DLM_RECO_STATE_ACTIVE    0x0001
+#define DLM_RECO_STATE_FINALIZE  0x0002
 
 struct dlm_recovery_ctxt
 {
@@ -633,7 +634,8 @@ struct dlm_finalize_reco
 {
 	u8 node_idx;
 	u8 dead_node;
-	__be16 pad1;
+	u8 flags;
+	u8 pad1;
 	__be32 pad2;
 };
 
