@@ -201,6 +201,7 @@ static enum dlm_status dlmlock_remote(struct dlm_ctxt *dlm,
 				      struct dlm_lock *lock, int flags)
 {
 	enum dlm_status status = DLM_DENIED;
+	int lockres_changed = 1;
 
 	mlog_entry("type=%d\n", lock->ml.type);
 	mlog(0, "lockres %.*s, flags = 0x%x\n", res->lockname.len,
@@ -230,6 +231,10 @@ static enum dlm_status dlmlock_remote(struct dlm_ctxt *dlm,
 			dlm_error(status);
 		dlm_revert_pending_lock(res, lock);
 		dlm_lock_put(lock);
+		/* do NOT call calc_usage, as this would unhash the remote
+		 * lockres before we ever get to use it.  treat as if we
+		 * never made any change to the lockres. */
+		lockres_changed = 0;
 	} else if (dlm_is_recovery_lock(res->lockname.name, 
 					res->lockname.len)) {
 		/* special case for the $RECOVERY lock.
@@ -243,7 +248,8 @@ static enum dlm_status dlmlock_remote(struct dlm_ctxt *dlm,
 	}
 	spin_unlock(&res->spinlock);
 
-	dlm_lockres_calc_usage(dlm, res);
+	if (lockres_changed)
+		dlm_lockres_calc_usage(dlm, res);
 
 	wake_up(&res->wq);
 	return status;
