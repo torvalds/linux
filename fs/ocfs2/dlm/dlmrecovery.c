@@ -1758,8 +1758,14 @@ void dlm_move_lockres_to_recovery_list(struct dlm_ctxt *dlm,
 	struct dlm_lock *lock;
 
 	res->state |= DLM_LOCK_RES_RECOVERING;
-	if (!list_empty(&res->recovering))
+	if (!list_empty(&res->recovering)) {
+		mlog(0,
+		     "Recovering res %s:%.*s, is already on recovery list!\n",
+		     dlm->name, res->lockname.len, res->lockname.name);
 		list_del_init(&res->recovering);
+	}
+	/* We need to hold a reference while on the recovery list */
+	dlm_lockres_get(res);
 	list_add_tail(&res->recovering, &dlm->reco.resources);
 
 	/* find any pending locks and put them back on proper list */
@@ -1848,9 +1854,11 @@ static void dlm_finish_local_lockres_recovery(struct dlm_ctxt *dlm,
 			spin_lock(&res->spinlock);
 			dlm_change_lockres_owner(dlm, res, new_master);
 			res->state &= ~DLM_LOCK_RES_RECOVERING;
-			__dlm_dirty_lockres(dlm, res);
+			if (!__dlm_lockres_unused(res))
+				__dlm_dirty_lockres(dlm, res);
 			spin_unlock(&res->spinlock);
 			wake_up(&res->wq);
+			dlm_lockres_put(res);
 		}
 	}
 
@@ -1883,11 +1891,13 @@ static void dlm_finish_local_lockres_recovery(struct dlm_ctxt *dlm,
 					     dlm->name, res->lockname.len,
 					     res->lockname.name, res->owner);
 					list_del_init(&res->recovering);
+					dlm_lockres_put(res);
 				}
 				spin_lock(&res->spinlock);
 				dlm_change_lockres_owner(dlm, res, new_master);
 				res->state &= ~DLM_LOCK_RES_RECOVERING;
-				__dlm_dirty_lockres(dlm, res);
+				if (!__dlm_lockres_unused(res))
+					__dlm_dirty_lockres(dlm, res);
 				spin_unlock(&res->spinlock);
 				wake_up(&res->wq);
 			}

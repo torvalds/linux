@@ -81,7 +81,7 @@ repeat:
 }
 
 
-static int __dlm_lockres_unused(struct dlm_lock_resource *res)
+int __dlm_lockres_unused(struct dlm_lock_resource *res)
 {
 	if (list_empty(&res->granted) &&
 	    list_empty(&res->converting) &&
