@@ -302,6 +302,12 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 		page = find_get_page(mapping, index);
 		if (!page) {
 			/*
+			 * Make sure the read-ahead engine is notified
+			 * about this failure.
+			 */
+			handle_ra_miss(mapping, &in->f_ra, index);
+
+			/*
 			 * page didn't exist, allocate one.
 			 */
 			page = page_cache_alloc_cold(mapping);
