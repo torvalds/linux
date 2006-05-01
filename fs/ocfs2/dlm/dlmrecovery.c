@@ -624,7 +624,6 @@ static int dlm_remaster_locks(struct dlm_ctxt *dlm, u8 dead_node)
 					     "requesting recovery info for "
 					     "node %u\n", ndata->node_num,
 					     dead_node);
-					spin_unlock(&dlm_reco_state_lock);
 					break;
 				case DLM_RECO_NODE_DATA_RECEIVING:
 				case DLM_RECO_NODE_DATA_REQUESTED:
