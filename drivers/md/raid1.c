@@ -753,17 +753,23 @@ static int make_request(request_queue_t *q, struct bio * bio)
 	const int rw = bio_data_dir(bio);
 	int do_barriers;
 
-	if (unlikely(!mddev->barriers_work && bio_barrier(bio))) {
-		bio_endio(bio, bio->bi_size, -EOPNOTSUPP);
-		return 0;
-	}
-
 	/*
 	 * Register the new request and wait if the reconstruction
 	 * thread has put up a bar for new requests.
 	 * Continue immediately if no resync is active currently.
+	 * We test barriers_work *after* md_write_start as md_write_start
+	 * may cause the first superblock write, and that will check out
+	 * if barriers work.
 	 */
+
 	md_write_start(mddev, bio); /* wait on superblock update early */
+
+	if (unlikely(!mddev->barriers_work && bio_barrier(bio))) {
+		if (rw == WRITE)
+			md_write_end(mddev);
+		bio_endio(bio, bio->bi_size, -EOPNOTSUPP);
+		return 0;
+	}
 
 	wait_barrier(conf);
 
