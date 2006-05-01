@@ -299,7 +299,7 @@ static enum dlm_status dlm_send_remote_lock_request(struct dlm_ctxt *dlm,
 	if (tmpret >= 0) {
 		// successfully sent and received
 		ret = status;  // this is already a dlm_status
-		if (ret == DLM_RECOVERING) {
+		if (ret == DLM_REJECTED) {
 			mlog(ML_ERROR, "%s:%.*s: BUG.  this is a stale lockres "
 			     "no longer owned by %u.  that node is coming back "
 			     "up currently.\n", dlm->name, create.namelen,
@@ -457,7 +457,7 @@ int dlm_create_lock_handler(struct o2net_msg *msg, u32 len, void *data)
 
 	name = create->name;
 	namelen = create->namelen;
-	status = DLM_RECOVERING;
+	status = DLM_REJECTED;
 	if (!dlm_domain_fully_joined(dlm)) {
 		mlog(ML_ERROR, "Domain %s not fully joined, but node %u is "
 		     "sending a create_lock message for lock %.*s!\n",
