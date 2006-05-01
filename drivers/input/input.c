@@ -155,6 +155,9 @@ void input_event(struct input_dev *dev, unsigned int type, unsigned int code, in
 			if (code > SND_MAX || !test_bit(code, dev->sndbit))
 				return;
 
+			if (!!test_bit(code, dev->snd) != !!value)
+				change_bit(code, dev->snd);
+
 			if (dev->event) dev->event(dev, type, code, value);
 
 			break;
@@ -286,19 +289,19 @@ static struct input_device_id *input_match_device(struct input_device_id *id, st
 	for (; id->flags || id->driver_info; id++) {
 
 		if (id->flags & INPUT_DEVICE_ID_MATCH_BUS)
-			if (id->id.bustype != dev->id.bustype)
+			if (id->bustype != dev->id.bustype)
 				continue;
 
 		if (id->flags & INPUT_DEVICE_ID_MATCH_VENDOR)
-			if (id->id.vendor != dev->id.vendor)
+			if (id->vendor != dev->id.vendor)
 				continue;
 
 		if (id->flags & INPUT_DEVICE_ID_MATCH_PRODUCT)
-			if (id->id.product != dev->id.product)
+			if (id->product != dev->id.product)
 				continue;
 
 		if (id->flags & INPUT_DEVICE_ID_MATCH_VERSION)
-			if (id->id.version != dev->id.version)
+			if (id->version != dev->id.version)
 				continue;
 
 		MATCH_BIT(evbit,  EV_MAX);
