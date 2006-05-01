@@ -2541,6 +2541,7 @@ stage2:
 				mlog(ML_ERROR, "node %u went down after this "
 				     "node finished recovery.\n", nodenum);
 				ret = 0;
+				continue;
 			}
 			break;
 		}
