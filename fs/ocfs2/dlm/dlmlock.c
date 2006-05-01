@@ -227,7 +227,16 @@ static enum dlm_status dlmlock_remote(struct dlm_ctxt *dlm,
 	res->state &= ~DLM_LOCK_RES_IN_PROGRESS;
 	lock->lock_pending = 0;
 	if (status != DLM_NORMAL) {
-		if (status != DLM_NOTQUEUED) {
+		if (status == DLM_RECOVERING &&
+		    dlm_is_recovery_lock(res->lockname.name,
+					 res->lockname.len)) {
+			/* recovery lock was mastered by dead node.
+			 * we need to have calc_usage shoot down this
+			 * lockres and completely remaster it. */
+			mlog(0, "%s: recovery lock was owned by "
+			     "dead node %u, remaster it now.\n",
+			     dlm->name, res->owner);
+		} else if (status != DLM_NOTQUEUED) {
 			/*
 			 * DO NOT call calc_usage, as this would unhash
 			 * the remote lockres before we ever get to use
@@ -691,18 +700,22 @@ retry_lock:
 			msleep(100);
 			/* no waiting for dlm_reco_thread */
 			if (recovery) {
-				if (status == DLM_RECOVERING) {
-					mlog(0, "%s: got RECOVERING "
-					     "for $REOCVERY lock, master "
-					     "was %u\n", dlm->name, 
-					     res->owner);
-					dlm_wait_for_node_death(dlm, res->owner, 
-							DLM_NODE_DEATH_WAIT_MAX);
-				}
+				if (status != DLM_RECOVERING)
+					goto retry_lock;
+
+				mlog(0, "%s: got RECOVERING "
+				     "for $RECOVERY lock, master "
+				     "was %u\n", dlm->name,
+				     res->owner);
+				/* wait to see the node go down, then
+				 * drop down and allow the lockres to
+				 * get cleaned up.  need to remaster. */
+				dlm_wait_for_node_death(dlm, res->owner,
+						DLM_NODE_DEATH_WAIT_MAX);
 			} else {
 				dlm_wait_for_recovery(dlm);
+				goto retry_lock;
 			}
-			goto retry_lock;
 		}
 
 		if (status != DLM_NORMAL) {

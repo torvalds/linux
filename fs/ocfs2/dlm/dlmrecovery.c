@@ -2314,6 +2314,10 @@ again:
 		mlog(0, "%s: reco master %u is ready to recover %u\n",
 		     dlm->name, dlm->reco.new_master, dlm->reco.dead_node);
 		status = -EEXIST;
+	} else if (ret == DLM_RECOVERING) {
+		mlog(0, "dlm=%s dlmlock says master node died (this=%u)\n",
+		     dlm->name, dlm->node_num);
+		goto again;
 	} else {
 		struct dlm_lock_resource *res;
 
