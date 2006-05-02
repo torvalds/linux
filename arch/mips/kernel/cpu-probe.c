@@ -121,6 +121,7 @@ static inline void check_wait(void)
 	case CPU_24K:
 	case CPU_25KF:
 	case CPU_34K:
+	case CPU_74K:
  	case CPU_PR4450:
 		cpu_wait = r4k_wait;
 		printk(" available.\n");
@@ -592,6 +593,9 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c)
 		break;
 	case PRID_IMP_34K:
 		c->cputype = CPU_34K;
+		break;
+	case PRID_IMP_74K:
+		c->cputype = CPU_74K;
 		break;
 	}
 }
