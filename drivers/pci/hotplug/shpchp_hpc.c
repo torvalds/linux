@@ -91,6 +91,17 @@
 #define ATTN_BUTTON		0x80000000
 
 /*
+ * Controller SERR-INT Register
+ */
+#define GLOBAL_INTR_MASK	(1 << 0)
+#define GLOBAL_SERR_MASK	(1 << 1)
+#define COMMAND_INTR_MASK	(1 << 2)
+#define ARBITER_SERR_MASK	(1 << 3)
+#define COMMAND_DETECTED	(1 << 16)
+#define ARBITER_DETECTED	(1 << 17)
+#define SERR_INTR_RSVDZ_MASK	0xfffc0000
+
+/*
  * Logical Slot Register definitions
  */
 #define SLOT_REG(i)		(SLOT1 + (4 * i))
@@ -1047,7 +1058,8 @@ static irqreturn_t shpc_isr(int IRQ, void *dev_id, struct pt_regs *regs)
 		/* Mask Global Interrupt Mask - see implementation note on p. 139 */
 		/* of SHPC spec rev 1.0*/
 		temp_dword = shpc_readl(ctrl, SERR_INTR_ENABLE);
-		temp_dword |= 0x00000001;
+		temp_dword |= GLOBAL_INTR_MASK;
+		temp_dword &= ~SERR_INTR_RSVDZ_MASK;
 		shpc_writel(ctrl, SERR_INTR_ENABLE, temp_dword);
 
 		intr_loc2 = shpc_readl(ctrl, INTR_LOC);
@@ -1061,7 +1073,7 @@ static irqreturn_t shpc_isr(int IRQ, void *dev_id, struct pt_regs *regs)
 		 * Detect bit in Controller SERR-INT register
 		 */
 		temp_dword = shpc_readl(ctrl, SERR_INTR_ENABLE);
-		temp_dword &= 0xfffdffff;
+		temp_dword &= ~SERR_INTR_RSVDZ_MASK;
 		shpc_writel(ctrl, SERR_INTR_ENABLE, temp_dword);
 		ctrl->cmd_busy = 0;
 		wake_up_interruptible(&ctrl->queue);
@@ -1105,7 +1117,7 @@ static irqreturn_t shpc_isr(int IRQ, void *dev_id, struct pt_regs *regs)
 	if (!shpchp_poll_mode) {
 		/* Unmask Global Interrupt Mask */
 		temp_dword = shpc_readl(ctrl, SERR_INTR_ENABLE);
-		temp_dword &= 0xfffffffe;
+		temp_dword &= ~(GLOBAL_INTR_MASK | SERR_INTR_RSVDZ_MASK);
 		shpc_writel(ctrl, SERR_INTR_ENABLE, temp_dword);
 	}
 	
@@ -1374,7 +1386,9 @@ int shpc_init(struct controller * ctrl, struct pci_dev * pdev)
 	/* Mask Global Interrupt Mask & Command Complete Interrupt Mask */
 	tempdword = shpc_readl(ctrl, SERR_INTR_ENABLE);
 	dbg("%s: SERR_INTR_ENABLE = %x\n", __FUNCTION__, tempdword);
-	tempdword = 0x0003000f;   
+	tempdword |= (GLOBAL_INTR_MASK  | GLOBAL_SERR_MASK |
+		      COMMAND_INTR_MASK | ARBITER_SERR_MASK);
+	tempdword &= ~SERR_INTR_RSVDZ_MASK;
 	shpc_writel(ctrl, SERR_INTR_ENABLE, tempdword);
 	tempdword = shpc_readl(ctrl, SERR_INTR_ENABLE);
 	dbg("%s: SERR_INTR_ENABLE = %x\n", __FUNCTION__, tempdword);
@@ -1452,7 +1466,8 @@ int shpc_init(struct controller * ctrl, struct pci_dev * pdev)
 	if (!shpchp_poll_mode) {
 		/* Unmask all general input interrupts and SERR */
 		tempdword = shpc_readl(ctrl, SERR_INTR_ENABLE);
-		tempdword = 0x0000000a;
+		tempdword &= ~(GLOBAL_INTR_MASK | COMMAND_INTR_MASK |
+			       SERR_INTR_RSVDZ_MASK);
 		shpc_writel(ctrl, SERR_INTR_ENABLE, tempdword);
 		tempdword = shpc_readl(ctrl, SERR_INTR_ENABLE);
 		dbg("%s: SERR_INTR_ENABLE = %x\n", __FUNCTION__, tempdword);
