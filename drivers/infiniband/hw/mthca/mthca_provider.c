@@ -306,7 +306,7 @@ static int mthca_query_gid(struct ib_device *ibdev, u8 port,
 		goto out;
 	}
 
-	memcpy(gid->raw + 8, out_mad->data + (index % 8) * 16, 8);
+	memcpy(gid->raw + 8, out_mad->data + (index % 8) * 8, 8);
 
  out:
 	kfree(in_mad);
