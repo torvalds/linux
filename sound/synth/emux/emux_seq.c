@@ -54,8 +54,7 @@ static struct snd_midi_op emux_ops = {
 #define DEFAULT_MIDI_TYPE	(SNDRV_SEQ_PORT_TYPE_MIDI_GENERIC |\
 				 SNDRV_SEQ_PORT_TYPE_MIDI_GM |\
 				 SNDRV_SEQ_PORT_TYPE_MIDI_GS |\
-				 SNDRV_SEQ_PORT_TYPE_MIDI_XG |\
-				 SNDRV_SEQ_PORT_TYPE_DIRECT_SAMPLE)
+				 SNDRV_SEQ_PORT_TYPE_MIDI_XG)
 
 /*
  * Initialise the EMUX Synth by creating a client and registering
