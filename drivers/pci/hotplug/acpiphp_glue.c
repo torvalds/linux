@@ -287,12 +287,18 @@ static void decode_hpp(struct acpiphp_bridge *bridge)
 	acpi_status status;
 
 	status = acpi_get_hp_params_from_firmware(bridge->pci_bus, &bridge->hpp);
-	if (ACPI_FAILURE(status)) {
+	if (ACPI_FAILURE(status) ||
+	    !bridge->hpp.t0 || (bridge->hpp.t0->revision > 1)) {
 		/* use default numbers */
-		bridge->hpp.cache_line_size = 0x10;
-		bridge->hpp.latency_timer = 0x40;
-		bridge->hpp.enable_serr = 0;
-		bridge->hpp.enable_perr = 0;
+		printk(KERN_WARNING
+		       "%s: Could not get hotplug parameters. Use defaults\n",
+		       __FUNCTION__);
+		bridge->hpp.t0 = &bridge->hpp.type0_data;
+		bridge->hpp.t0->revision = 0;
+		bridge->hpp.t0->cache_line_size = 0x10;
+		bridge->hpp.t0->latency_timer = 0x40;
+		bridge->hpp.t0->enable_serr = 0;
+		bridge->hpp.t0->enable_perr = 0;
 	}
 }
 
@@ -1206,16 +1212,17 @@ static void program_hpp(struct pci_dev *dev, struct acpiphp_bridge *bridge)
 			(dev->hdr_type == PCI_HEADER_TYPE_BRIDGE &&
 			(dev->class >> 8) == PCI_CLASS_BRIDGE_PCI)))
 		return;
+
 	pci_write_config_byte(dev, PCI_CACHE_LINE_SIZE,
-			bridge->hpp.cache_line_size);
+			bridge->hpp.t0->cache_line_size);
 	pci_write_config_byte(dev, PCI_LATENCY_TIMER,
-			bridge->hpp.latency_timer);
+			bridge->hpp.t0->latency_timer);
 	pci_read_config_word(dev, PCI_COMMAND, &pci_cmd);
-	if (bridge->hpp.enable_serr)
+	if (bridge->hpp.t0->enable_serr)
 		pci_cmd |= PCI_COMMAND_SERR;
 	else
 		pci_cmd &= ~PCI_COMMAND_SERR;
-	if (bridge->hpp.enable_perr)
+	if (bridge->hpp.t0->enable_perr)
 		pci_cmd |= PCI_COMMAND_PARITY;
 	else
 		pci_cmd &= ~PCI_COMMAND_PARITY;
@@ -1224,13 +1231,13 @@ static void program_hpp(struct pci_dev *dev, struct acpiphp_bridge *bridge)
 	/* Program bridge control value and child devices */
 	if ((dev->class >> 8) == PCI_CLASS_BRIDGE_PCI) {
 		pci_write_config_byte(dev, PCI_SEC_LATENCY_TIMER,
-				bridge->hpp.latency_timer);
+				bridge->hpp.t0->latency_timer);
 		pci_read_config_word(dev, PCI_BRIDGE_CONTROL, &pci_bctl);
-		if (bridge->hpp.enable_serr)
+		if (bridge->hpp.t0->enable_serr)
 			pci_bctl |= PCI_BRIDGE_CTL_SERR;
 		else
 			pci_bctl &= ~PCI_BRIDGE_CTL_SERR;
-		if (bridge->hpp.enable_perr)
+		if (bridge->hpp.t0->enable_perr)
 			pci_bctl |= PCI_BRIDGE_CTL_PARITY;
 		else
 			pci_bctl &= ~PCI_BRIDGE_CTL_PARITY;

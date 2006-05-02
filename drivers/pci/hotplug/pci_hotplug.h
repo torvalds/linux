@@ -176,11 +176,51 @@ extern int pci_hp_change_slot_info	(struct hotplug_slot *slot,
 					 struct hotplug_slot_info *info);
 extern struct subsystem pci_hotplug_slots_subsys;
 
+/* PCI Setting Record (Type 0) */
+struct hpp_type0 {
+	u32 revision;
+	u8  cache_line_size;
+	u8  latency_timer;
+	u8  enable_serr;
+	u8  enable_perr;
+};
+
+/* PCI-X Setting Record (Type 1) */
+struct hpp_type1 {
+	u32 revision;
+	u8  max_mem_read;
+	u8  avg_max_split;
+	u16 tot_max_split;
+};
+
+/* PCI Express Setting Record (Type 2) */
+struct hpp_type2 {
+	u32 revision;
+	u32 unc_err_mask_and;
+	u32 unc_err_mask_or;
+	u32 unc_err_sever_and;
+	u32 unc_err_sever_or;
+	u32 cor_err_mask_and;
+	u32 cor_err_mask_or;
+	u32 adv_err_cap_and;
+	u32 adv_err_cap_or;
+	u16 pci_exp_devctl_and;
+	u16 pci_exp_devctl_or;
+	u16 pci_exp_lnkctl_and;
+	u16 pci_exp_lnkctl_or;
+	u32 sec_unc_err_sever_and;
+	u32 sec_unc_err_sever_or;
+	u32 sec_unc_err_mask_and;
+	u32 sec_unc_err_mask_or;
+};
+
 struct hotplug_params {
-	u8 cache_line_size;
-	u8 latency_timer;
-	u8 enable_serr;
-	u8 enable_perr;
+	struct hpp_type0 *t0;		/* Type0: NULL if not available */
+	struct hpp_type1 *t1;		/* Type1: NULL if not available */
+	struct hpp_type2 *t2;		/* Type2: NULL if not available */
+	struct hpp_type0 type0_data;
+	struct hpp_type1 type1_data;
+	struct hpp_type2 type2_data;
 };
 
 #ifdef CONFIG_ACPI
