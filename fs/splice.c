@@ -1143,7 +1143,7 @@ static int get_iovec_page_array(const struct iovec __user *iov,
 		 * Fill this contiguous range into the partial page map.
 		 */
 		for (i = 0; i < error; i++) {
-			const int plen = min_t(size_t, len, PAGE_SIZE) - off;
+			const int plen = min_t(size_t, len, PAGE_SIZE - off);
 
 			partial[buffers].offset = off;
 			partial[buffers].len = plen;
