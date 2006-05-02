@@ -78,7 +78,6 @@ static int page_cache_pipe_buf_steal(struct pipe_inode_info *info,
 		return 1;
 	}
 
-	buf->flags |= PIPE_BUF_FLAG_LRU;
 	return 0;
 }
 
@@ -86,8 +85,6 @@ static void page_cache_pipe_buf_release(struct pipe_inode_info *info,
 					struct pipe_buffer *buf)
 {
 	page_cache_release(buf->page);
-	buf->page = NULL;
-	buf->flags &= ~PIPE_BUF_FLAG_LRU;
 }
 
 static int page_cache_pipe_buf_pin(struct pipe_inode_info *info,
@@ -570,22 +567,36 @@ static int pipe_to_file(struct pipe_inode_info *info, struct pipe_buffer *buf,
 	if ((sd->flags & SPLICE_F_MOVE) && this_len == PAGE_CACHE_SIZE) {
 		/*
 		 * If steal succeeds, buf->page is now pruned from the vm
-		 * side (LRU and page cache) and we can reuse it. The page
-		 * will also be looked on successful return.
+		 * side (page cache) and we can reuse it. The page will also
+		 * be locked on successful return.
 		 */
 		if (buf->ops->steal(info, buf))
 			goto find_page;
 
 		page = buf->page;
+		page_cache_get(page);
+
+		/*
+		 * page must be on the LRU for adding to the pagecache.
+		 * Check this without grabbing the zone lock, if it isn't
+		 * the do grab the zone lock, recheck, and add if necessary.
+		 */
+		if (!PageLRU(page)) {
+			struct zone *zone = page_zone(page);
+
+			spin_lock_irq(&zone->lru_lock);
+			if (!PageLRU(page)) {
+				SetPageLRU(page);
+				add_page_to_inactive_list(zone, page);
+			}
+			spin_unlock_irq(&zone->lru_lock);
+		}
+
 		if (add_to_page_cache(page, mapping, index, gfp_mask)) {
+			page_cache_release(page);
 			unlock_page(page);
 			goto find_page;
 		}
-
-		page_cache_get(page);
-
-		if (!(buf->flags & PIPE_BUF_FLAG_LRU))
-			lru_cache_add(page);
 	} else {
 find_page:
 		page = find_lock_page(mapping, index);

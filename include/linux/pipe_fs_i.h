@@ -5,9 +5,8 @@
 
 #define PIPE_BUFFERS (16)
 
-#define PIPE_BUF_FLAG_LRU	0x01	/* page is on the LRU */
-#define PIPE_BUF_FLAG_ATOMIC	0x02	/* was atomically mapped */
-#define PIPE_BUF_FLAG_GIFT	0x04	/* page is a gift */
+#define PIPE_BUF_FLAG_ATOMIC	0x01	/* was atomically mapped */
+#define PIPE_BUF_FLAG_GIFT	0x02	/* page is a gift */
 
 struct pipe_buffer {
 	struct page *page;
