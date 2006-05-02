@@ -78,7 +78,7 @@ static int page_cache_pipe_buf_steal(struct pipe_inode_info *info,
 		return 1;
 	}
 
-	buf->flags |= PIPE_BUF_FLAG_STOLEN | PIPE_BUF_FLAG_LRU;
+	buf->flags |= PIPE_BUF_FLAG_LRU;
 	return 0;
 }
 
@@ -87,12 +87,11 @@ static void page_cache_pipe_buf_release(struct pipe_inode_info *info,
 {
 	page_cache_release(buf->page);
 	buf->page = NULL;
-	buf->flags &= ~(PIPE_BUF_FLAG_STOLEN | PIPE_BUF_FLAG_LRU);
+	buf->flags &= ~PIPE_BUF_FLAG_LRU;
 }
 
-static void *page_cache_pipe_buf_map(struct file *file,
-				     struct pipe_inode_info *info,
-				     struct pipe_buffer *buf)
+static int page_cache_pipe_buf_pin(struct pipe_inode_info *info,
+				   struct pipe_buffer *buf)
 {
 	struct page *page = buf->page;
 	int err;
@@ -118,64 +117,44 @@ static void *page_cache_pipe_buf_map(struct file *file,
 		}
 
 		/*
-		 * Page is ok afterall, fall through to mapping.
+		 * Page is ok afterall, we are done.
 		 */
 		unlock_page(page);
 	}
 
-	return kmap(page);
+	return 0;
 error:
 	unlock_page(page);
-	return ERR_PTR(err);
-}
-
-static void page_cache_pipe_buf_unmap(struct pipe_inode_info *info,
-				      struct pipe_buffer *buf)
-{
-	kunmap(buf->page);
-}
-
-static void *user_page_pipe_buf_map(struct file *file,
-				    struct pipe_inode_info *pipe,
-				    struct pipe_buffer *buf)
-{
-	return kmap(buf->page);
-}
-
-static void user_page_pipe_buf_unmap(struct pipe_inode_info *pipe,
-				     struct pipe_buffer *buf)
-{
-	kunmap(buf->page);
-}
-
-static void page_cache_pipe_buf_get(struct pipe_inode_info *info,
-				    struct pipe_buffer *buf)
-{
-	page_cache_get(buf->page);
+	return err;
 }
 
 static struct pipe_buf_operations page_cache_pipe_buf_ops = {
 	.can_merge = 0,
-	.map = page_cache_pipe_buf_map,
-	.unmap = page_cache_pipe_buf_unmap,
+	.map = generic_pipe_buf_map,
+	.unmap = generic_pipe_buf_unmap,
+	.pin = page_cache_pipe_buf_pin,
 	.release = page_cache_pipe_buf_release,
 	.steal = page_cache_pipe_buf_steal,
-	.get = page_cache_pipe_buf_get,
+	.get = generic_pipe_buf_get,
 };
 
 static int user_page_pipe_buf_steal(struct pipe_inode_info *pipe,
 				    struct pipe_buffer *buf)
 {
-	return 1;
+	if (!(buf->flags & PIPE_BUF_FLAG_GIFT))
+		return 1;
+
+	return 0;
 }
 
 static struct pipe_buf_operations user_page_pipe_buf_ops = {
 	.can_merge = 0,
-	.map = user_page_pipe_buf_map,
-	.unmap = user_page_pipe_buf_unmap,
+	.map = generic_pipe_buf_map,
+	.unmap = generic_pipe_buf_unmap,
+	.pin = generic_pipe_buf_pin,
 	.release = page_cache_pipe_buf_release,
 	.steal = user_page_pipe_buf_steal,
-	.get = page_cache_pipe_buf_get,
+	.get = generic_pipe_buf_get,
 };
 
 /*
@@ -210,6 +189,9 @@ static ssize_t splice_to_pipe(struct pipe_inode_info *pipe,
 			buf->offset = spd->partial[page_nr].offset;
 			buf->len = spd->partial[page_nr].len;
 			buf->ops = spd->ops;
+			if (spd->flags & SPLICE_F_GIFT)
+				buf->flags |= PIPE_BUF_FLAG_GIFT;
+
 			pipe->nrbufs++;
 			page_nr++;
 			ret += buf->len;
@@ -325,6 +307,12 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 		 */
 		page = find_get_page(mapping, index);
 		if (!page) {
+			/*
+			 * Make sure the read-ahead engine is notified
+			 * about this failure.
+			 */
+			handle_ra_miss(mapping, &in->f_ra, index);
+
 			/*
 			 * page didn't exist, allocate one.
 			 */
@@ -517,26 +505,16 @@ static int pipe_to_sendpage(struct pipe_inode_info *info,
 {
 	struct file *file = sd->file;
 	loff_t pos = sd->pos;
-	ssize_t ret;
-	void *ptr;
-	int more;
+	int ret, more;
 
-	/*
-	 * Sub-optimal, but we are limited by the pipe ->map. We don't
-	 * need a kmap'ed buffer here, we just want to make sure we
-	 * have the page pinned if the pipe page originates from the
-	 * page cache.
-	 */
-	ptr = buf->ops->map(file, info, buf);
-	if (IS_ERR(ptr))
-		return PTR_ERR(ptr);
+	ret = buf->ops->pin(info, buf);
+	if (!ret) {
+		more = (sd->flags & SPLICE_F_MORE) || sd->len < sd->total_len;
 
-	more = (sd->flags & SPLICE_F_MORE) || sd->len < sd->total_len;
+		ret = file->f_op->sendpage(file, buf->page, buf->offset,
+					   sd->len, &pos, more);
+	}
 
-	ret = file->f_op->sendpage(file, buf->page, buf->offset, sd->len,
-				   &pos, more);
-
-	buf->ops->unmap(info, buf);
 	return ret;
 }
 
@@ -569,15 +547,14 @@ static int pipe_to_file(struct pipe_inode_info *info, struct pipe_buffer *buf,
 	unsigned int offset, this_len;
 	struct page *page;
 	pgoff_t index;
-	char *src;
 	int ret;
 
 	/*
 	 * make sure the data in this buffer is uptodate
 	 */
-	src = buf->ops->map(file, info, buf);
-	if (IS_ERR(src))
-		return PTR_ERR(src);
+	ret = buf->ops->pin(info, buf);
+	if (unlikely(ret))
+		return ret;
 
 	index = sd->pos >> PAGE_CACHE_SHIFT;
 	offset = sd->pos & ~PAGE_CACHE_MASK;
@@ -587,9 +564,10 @@ static int pipe_to_file(struct pipe_inode_info *info, struct pipe_buffer *buf,
 		this_len = PAGE_CACHE_SIZE - offset;
 
 	/*
-	 * Reuse buf page, if SPLICE_F_MOVE is set.
+	 * Reuse buf page, if SPLICE_F_MOVE is set and we are doing a full
+	 * page.
 	 */
-	if (sd->flags & SPLICE_F_MOVE) {
+	if ((sd->flags & SPLICE_F_MOVE) && this_len == PAGE_CACHE_SIZE) {
 		/*
 		 * If steal succeeds, buf->page is now pruned from the vm
 		 * side (LRU and page cache) and we can reuse it. The page
@@ -599,8 +577,12 @@ static int pipe_to_file(struct pipe_inode_info *info, struct pipe_buffer *buf,
 			goto find_page;
 
 		page = buf->page;
-		if (add_to_page_cache(page, mapping, index, gfp_mask))
+		if (add_to_page_cache(page, mapping, index, gfp_mask)) {
+			unlock_page(page);
 			goto find_page;
+		}
+
+		page_cache_get(page);
 
 		if (!(buf->flags & PIPE_BUF_FLAG_LRU))
 			lru_cache_add(page);
@@ -660,34 +642,36 @@ find_page:
 	} else if (ret)
 		goto out;
 
-	if (!(buf->flags & PIPE_BUF_FLAG_STOLEN)) {
-		char *dst = kmap_atomic(page, KM_USER0);
+	if (buf->page != page) {
+		/*
+		 * Careful, ->map() uses KM_USER0!
+		 */
+		char *src = buf->ops->map(info, buf, 1);
+		char *dst = kmap_atomic(page, KM_USER1);
 
 		memcpy(dst + offset, src + buf->offset, this_len);
 		flush_dcache_page(page);
-		kunmap_atomic(dst, KM_USER0);
+		kunmap_atomic(dst, KM_USER1);
+		buf->ops->unmap(info, buf, src);
 	}
 
 	ret = mapping->a_ops->commit_write(file, page, offset, offset+this_len);
-	if (ret == AOP_TRUNCATED_PAGE) {
+	if (!ret) {
+		/*
+		 * Return the number of bytes written and mark page as
+		 * accessed, we are now done!
+		 */
+		ret = this_len;
+		mark_page_accessed(page);
+		balance_dirty_pages_ratelimited(mapping);
+	} else if (ret == AOP_TRUNCATED_PAGE) {
 		page_cache_release(page);
 		goto find_page;
-	} else if (ret)
-		goto out;
-
-	/*
-	 * Return the number of bytes written.
-	 */
-	ret = this_len;
-	mark_page_accessed(page);
-	balance_dirty_pages_ratelimited(mapping);
+	}
 out:
-	if (!(buf->flags & PIPE_BUF_FLAG_STOLEN))
-		page_cache_release(page);
-
+	page_cache_release(page);
 	unlock_page(page);
 out_nomem:
-	buf->ops->unmap(info, buf);
 	return ret;
 }
 
@@ -1095,7 +1079,7 @@ static long do_splice(struct file *in, loff_t __user *off_in,
  */
 static int get_iovec_page_array(const struct iovec __user *iov,
 				unsigned int nr_vecs, struct page **pages,
-				struct partial_page *partial)
+				struct partial_page *partial, int aligned)
 {
 	int buffers = 0, error = 0;
 
@@ -1135,6 +1119,15 @@ static int get_iovec_page_array(const struct iovec __user *iov,
 		 * in the user pages.
 		 */
 		off = (unsigned long) base & ~PAGE_MASK;
+
+		/*
+		 * If asked for alignment, the offset must be zero and the
+		 * length a multiple of the PAGE_SIZE.
+		 */
+		error = -EINVAL;
+		if (aligned && (off || len & ~PAGE_MASK))
+			break;
+
 		npages = (off + len + PAGE_SIZE - 1) >> PAGE_SHIFT;
 		if (npages > PIPE_BUFFERS - buffers)
 			npages = PIPE_BUFFERS - buffers;
@@ -1228,7 +1221,8 @@ static long do_vmsplice(struct file *file, const struct iovec __user *iov,
 	else if (unlikely(!nr_segs))
 		return 0;
 
-	spd.nr_pages = get_iovec_page_array(iov, nr_segs, pages, partial);
+	spd.nr_pages = get_iovec_page_array(iov, nr_segs, pages, partial,
+					    flags & SPLICE_F_GIFT);
 	if (spd.nr_pages <= 0)
 		return spd.nr_pages;
 
@@ -1335,6 +1329,12 @@ static int link_pipe(struct pipe_inode_info *ipipe,
 
 				obuf = opipe->bufs + nbuf;
 				*obuf = *ibuf;
+
+				/*
+				 * Don't inherit the gift flag, we need to
+				 * prevent multiple steals of this page.
+				 */
+				obuf->flags &= ~PIPE_BUF_FLAG_GIFT;
 
 				if (obuf->len > len)
 					obuf->len = len;
