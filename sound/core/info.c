@@ -267,7 +267,7 @@ static ssize_t snd_info_entry_write(struct file *file, const char __user *buffer
 		buf = data->wbuffer;
 		if (buf == NULL)
 			return -EIO;
-		mutex_unlock(&entry->access);
+		mutex_lock(&entry->access);
 		if (pos + count >= buf->len) {
 			if (resize_info_buffer(buf, pos + count)) {
 				mutex_unlock(&entry->access);
