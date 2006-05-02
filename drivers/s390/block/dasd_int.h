@@ -268,6 +268,16 @@ struct dasd_discipline {
 
 extern struct dasd_discipline *dasd_diag_discipline_pointer;
 
+/*
+ * Unique identifier for dasd device.
+ */
+struct dasd_uid {
+	__u8 alias;
+	char vendor[4];
+	char serial[15];
+	__u16 ssid;
+	__u8 unit_addr;
+};
 
 /*
  * Notification numbers for extended error reporting notifications:
@@ -516,6 +526,8 @@ void dasd_devmap_exit(void);
 struct dasd_device *dasd_create_device(struct ccw_device *);
 void dasd_delete_device(struct dasd_device *);
 
+int dasd_get_uid(struct ccw_device *, struct dasd_uid *);
+int dasd_set_uid(struct ccw_device *, struct dasd_uid *);
 int dasd_get_feature(struct ccw_device *, int);
 int dasd_set_feature(struct ccw_device *, int, int);
 

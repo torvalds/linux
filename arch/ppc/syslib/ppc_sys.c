@@ -109,9 +109,11 @@ ppc_sys_fixup_mem_resource(struct platform_device *pdev, phys_addr_t paddr)
 	int i;
 	for (i = 0; i < pdev->num_resources; i++) {
 		struct resource *r = &pdev->resource[i];
-		if ((r->flags & IORESOURCE_MEM) == IORESOURCE_MEM) {
+		if (((r->flags & IORESOURCE_MEM) == IORESOURCE_MEM) && 
+			((r->flags & PPC_SYS_IORESOURCE_FIXUPPED) != PPC_SYS_IORESOURCE_FIXUPPED)) {
 			r->start += paddr;
 			r->end += paddr;
+			r->flags |= PPC_SYS_IORESOURCE_FIXUPPED;
 		}
 	}
 }

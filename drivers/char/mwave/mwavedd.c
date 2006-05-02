@@ -271,7 +271,7 @@ static int mwave_ioctl(struct inode *inode, struct file *file,
 				ipcnum,
 				pDrvData->IPCs[ipcnum].usIntCount);
 	
-			if (ipcnum > ARRAY_SIZE(pDrvData->IPCs)) {
+			if (ipcnum >= ARRAY_SIZE(pDrvData->IPCs)) {
 				PRINTK_ERROR(KERN_ERR_MWAVE
 						"mwavedd::mwave_ioctl:"
 						" IOCTL_MW_REGISTER_IPC:"

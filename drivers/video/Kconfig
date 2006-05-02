@@ -400,6 +400,8 @@ config FB_ASILIANT
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
+	help
+	  This is the frame buffer device driver for the Asiliant 69030 chipset
 
 config FB_IMSTT
 	bool "IMS Twin Turbo display support"

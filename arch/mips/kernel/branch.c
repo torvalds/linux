@@ -184,7 +184,7 @@ int __compute_return_epc(struct pt_regs *regs)
 		bit = (insn.i_format.rt >> 2);
 		bit += (bit != 0);
 		bit += 23;
-		switch (insn.i_format.rt) {
+		switch (insn.i_format.rt & 3) {
 		case 0:	/* bc1f */
 		case 2:	/* bc1fl */
 			if (~fcr31 & (1 << bit))

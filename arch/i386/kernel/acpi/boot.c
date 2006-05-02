@@ -215,7 +215,7 @@ static int __init acpi_parse_madt(unsigned long phys_addr, unsigned long size)
 {
 	struct acpi_table_madt *madt = NULL;
 
-	if (!phys_addr || !size || !cpu_has_apic)
+	if (!phys_addr || !size)
 		return -EINVAL;
 
 	madt = (struct acpi_table_madt *)__acpi_map_table(phys_addr, size);
@@ -1150,6 +1150,9 @@ int __init acpi_boot_init(void)
 		return 1;
 
 	acpi_table_parse(ACPI_BOOT, acpi_parse_sbf);
+
+	if (!cpu_has_apic)
+		return -ENODEV;
 
 	/*
 	 * set sci_int and PM timer address

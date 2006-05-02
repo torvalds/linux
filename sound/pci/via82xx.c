@@ -123,6 +123,7 @@ module_param(enable, bool, 0444);
 #define VIA_REV_8233A		0x40	/* 1 rec, 1 multi-pb, spdf */
 #define VIA_REV_8235		0x50	/* 2 rec, 4 pb, 1 multi-pb, spdif */
 #define VIA_REV_8237		0x60
+#define VIA_REV_8251		0x70
 
 /*
  *  Direct registers
@@ -395,7 +396,7 @@ struct via82xx {
 #endif
 };
 
-static struct pci_device_id snd_via82xx_ids[] = {
+static struct pci_device_id snd_via82xx_ids[] __devinitdata = {
 	/* 0x1106, 0x3058 */
 	{ PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C686_5, PCI_ANY_ID, PCI_ANY_ID, 0, 0, TYPE_CARD_VIA686, },	/* 686A */
 	/* 0x1106, 0x3059 */
@@ -861,6 +862,11 @@ static snd_pcm_uframes_t snd_via8233_pcm_pointer(struct snd_pcm_substream *subst
 	status = viadev->in_interrupt;
 	if (!status)
 		status = inb(VIADEV_REG(viadev, OFFSET_STATUS));
+
+	/* An apparent bug in the 8251 is worked around by sending a 
+	 * REG_CTRL_START. */
+	if (chip->revision == VIA_REV_8251 && (status & VIA_REG_STAT_EOL))
+		snd_via82xx_pcm_trigger(substream, SNDRV_PCM_TRIGGER_START);
 
 	if (!(status & VIA_REG_STAT_ACTIVE)) {
 		res = 0;
@@ -2313,6 +2319,7 @@ static struct via823x_info via823x_cards[] __devinitdata = {
 	{ VIA_REV_8233A, "VIA 8233A", TYPE_VIA8233A },
 	{ VIA_REV_8235, "VIA 8235", TYPE_VIA8233 },
 	{ VIA_REV_8237, "VIA 8237", TYPE_VIA8233 },
+	{ VIA_REV_8251, "VIA 8251", TYPE_VIA8233 },
 };
 
 /*
@@ -2325,7 +2332,7 @@ struct dxs_whitelist {
 	short action;	/* new dxs_support value */
 };
 
-static int __devinit check_dxs_list(struct pci_dev *pci)
+static int __devinit check_dxs_list(struct pci_dev *pci, int revision)
 {
 	static struct dxs_whitelist whitelist[] = {
 		{ .subvendor = 0x1005, .subdevice = 0x4710, .action = VIA_DXS_ENABLE }, /* Avance Logic Mobo */
@@ -2342,6 +2349,7 @@ static int __devinit check_dxs_list(struct pci_dev *pci)
 		{ .subvendor = 0x1043, .subdevice = 0x810d, .action = VIA_DXS_SRC }, /* ASUS */
 		{ .subvendor = 0x1043, .subdevice = 0x812a, .action = VIA_DXS_SRC    }, /* ASUS A8V Deluxe */ 
 		{ .subvendor = 0x1043, .subdevice = 0x8174, .action = VIA_DXS_SRC    }, /* ASUS */
+		{ .subvendor = 0x1043, .subdevice = 0x81b9, .action = VIA_DXS_SRC    }, /* ASUS A8V-MX */
 		{ .subvendor = 0x1071, .subdevice = 0x8375, .action = VIA_DXS_NO_VRA }, /* Vobis/Yakumo/Mitac notebook */
 		{ .subvendor = 0x1071, .subdevice = 0x8399, .action = VIA_DXS_NO_VRA }, /* Umax AB 595T (VIA K8N800A - VT8237) */
 		{ .subvendor = 0x10cf, .subdevice = 0x118e, .action = VIA_DXS_ENABLE }, /* FSC laptop */
@@ -2405,6 +2413,10 @@ static int __devinit check_dxs_list(struct pci_dev *pci)
 		}
 	}
 
+	/* for newer revision, default to DXS_SRC */
+	if (revision >= VIA_REV_8235)
+		return VIA_DXS_SRC;
+
 	/*
 	 * not detected, try 48k rate only to be sure.
 	 */
@@ -2449,7 +2461,7 @@ static int __devinit snd_via82xx_probe(struct pci_dev *pci,
 		}
 		if (chip_type != TYPE_VIA8233A) {
 			if (dxs_support == VIA_DXS_AUTO)
-				dxs_support = check_dxs_list(pci);
+				dxs_support = check_dxs_list(pci, revision);
 			/* force to use VIA8233 or 8233A model according to
 			 * dxs_support module option
 			 */

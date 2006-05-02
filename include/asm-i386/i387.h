@@ -58,13 +58,13 @@ static inline void __save_init_fpu( struct task_struct *tsk )
 	alternative_input(
 		"fnsave %[fx] ;fwait;" GENERIC_NOP8 GENERIC_NOP4,
 		"fxsave %[fx]\n"
-		"bt $7,%[fsw] ; jc 1f ; fnclex\n1:",
+		"bt $7,%[fsw] ; jnc 1f ; fnclex\n1:",
 		X86_FEATURE_FXSR,
 		[fx] "m" (tsk->thread.i387.fxsave),
 		[fsw] "m" (tsk->thread.i387.fxsave.swd) : "memory");
 	/* AMD K7/K8 CPUs don't save/restore FDP/FIP/FOP unless an exception
 	   is pending.  Clear the x87 state here by setting it to fixed
-   	   values. __per_cpu_offset[0] is a random variable that should be in L1 */
+   	   values. safe_address is a random variable that should be in L1 */
 	alternative_input(
 		GENERIC_NOP8 GENERIC_NOP2,
 		"emms\n\t"	  	/* clear stack tags */

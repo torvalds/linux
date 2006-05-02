@@ -130,7 +130,7 @@ void snd_pcm_playback_silence(struct snd_pcm_substream *substream, snd_pcm_ufram
 static void xrun(struct snd_pcm_substream *substream)
 {
 	snd_pcm_stop(substream, SNDRV_PCM_STATE_XRUN);
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_PCM_XRUN_DEBUG
 	if (substream->pstr->xrun_debug) {
 		snd_printd(KERN_DEBUG "XRUN: pcmC%dD%d%c\n",
 			   substream->pcm->card->number,
@@ -204,7 +204,7 @@ static inline int snd_pcm_update_hw_ptr_interrupt(struct snd_pcm_substream *subs
 	delta = hw_ptr_interrupt - new_hw_ptr;
 	if (delta > 0) {
 		if ((snd_pcm_uframes_t)delta < runtime->buffer_size / 2) {
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_PCM_XRUN_DEBUG
 			if (runtime->periods > 1 && substream->pstr->xrun_debug) {
 				snd_printd(KERN_ERR "Unexpected hw_pointer value [1] (stream = %i, delta: -%ld, max jitter = %ld): wrong interrupt acknowledge?\n", substream->stream, (long) delta, runtime->buffer_size / 2);
 				if (substream->pstr->xrun_debug > 1)
@@ -249,7 +249,7 @@ int snd_pcm_update_hw_ptr(struct snd_pcm_substream *substream)
 	delta = old_hw_ptr - new_hw_ptr;
 	if (delta > 0) {
 		if ((snd_pcm_uframes_t)delta < runtime->buffer_size / 2) {
-#ifdef CONFIG_SND_DEBUG
+#ifdef CONFIG_SND_PCM_XRUN_DEBUG
 			if (runtime->periods > 2 && substream->pstr->xrun_debug) {
 				snd_printd(KERN_ERR "Unexpected hw_pointer value [2] (stream = %i, delta: -%ld, max jitter = %ld): wrong interrupt acknowledge?\n", substream->stream, (long) delta, runtime->buffer_size / 2);
 				if (substream->pstr->xrun_debug > 1)
