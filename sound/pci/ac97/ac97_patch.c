@@ -2048,7 +2048,10 @@ int patch_alc650(struct snd_ac97 * ac97)
 	/* Enable SPDIF-IN only on Rev.E and above */
 	val = snd_ac97_read(ac97, AC97_ALC650_CLOCK);
 	/* SPDIF IN with pin 47 */
-	if (ac97->spec.dev_flags)
+	if (ac97->spec.dev_flags &&
+	    /* ASUS A6KM requires EAPD */
+	    ! (ac97->subsystem_vendor == 0x1043 &&
+	       ac97->subsystem_device == 0x1103))
 		val |= 0x03; /* enable */
 	else
 		val &= ~0x03; /* disable */
