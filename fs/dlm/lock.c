@@ -3278,6 +3278,7 @@ static void purge_queue(struct dlm_rsb *r, struct list_head *queue,
 
 	list_for_each_entry_safe(lkb, safe, queue, lkb_statequeue) {
 		if (test(ls, lkb)) {
+			rsb_set_flag(r, RSB_LOCKS_PURGED);
 			del_lkb(r, lkb);
 			/* this put should free the lkb */
 			if (!dlm_put_lkb(lkb))
@@ -3334,27 +3335,40 @@ int dlm_purge_locks(struct dlm_ls *ls)
 	return 0;
 }
 
-int dlm_grant_after_purge(struct dlm_ls *ls)
+static struct dlm_rsb *find_purged_rsb(struct dlm_ls *ls, int bucket)
+{
+	struct dlm_rsb *r, *r_ret = NULL;
+
+	read_lock(&ls->ls_rsbtbl[bucket].lock);
+	list_for_each_entry(r, &ls->ls_rsbtbl[bucket].list, res_hashchain) {
+		if (!rsb_flag(r, RSB_LOCKS_PURGED))
+			continue;
+		hold_rsb(r);
+		rsb_clear_flag(r, RSB_LOCKS_PURGED);
+		r_ret = r;
+		break;
+	}
+	read_unlock(&ls->ls_rsbtbl[bucket].lock);
+	return r_ret;
+}
+
+void dlm_grant_after_purge(struct dlm_ls *ls)
 {
 	struct dlm_rsb *r;
 	int i;
 
 	for (i = 0; i < ls->ls_rsbtbl_size; i++) {
-		read_lock(&ls->ls_rsbtbl[i].lock);
-		list_for_each_entry(r, &ls->ls_rsbtbl[i].list, res_hashchain) {
-			hold_rsb(r);
-			lock_rsb(r);
-			if (is_master(r)) {
-				grant_pending_locks(r);
-				confirm_master(r, 0);
-			}
-			unlock_rsb(r);
-			put_rsb(r);
+		r = find_purged_rsb(ls, i);
+		if (!r)
+			continue;
+		lock_rsb(r);
+		if (is_master(r)) {
+			grant_pending_locks(r);
+			confirm_master(r, 0);
 		}
-		read_unlock(&ls->ls_rsbtbl[i].lock);
+		unlock_rsb(r);
+		put_rsb(r);
 	}
-
-	return 0;
 }
 
 static struct dlm_lkb *search_remid_list(struct list_head *head, int nodeid,
