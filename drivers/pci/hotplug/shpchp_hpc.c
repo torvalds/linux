@@ -554,10 +554,24 @@ static int hpc_get_adapter_speed(struct slot *slot, enum pci_bus_speed *value)
 	int retval = 0;
 	struct controller *ctrl = slot->ctrl;
 	u32 slot_reg = shpc_readl(ctrl, SLOT_REG(slot->hp_slot));
-	u8 pcix_cap = (slot_reg & PCIX_CAP_MASK_PI2) >> PCIX_CAP_SHIFT;
 	u8 m66_cap  = !!(slot_reg & MHZ66_CAP);
+	u8 pi, pcix_cap;
 
 	DBG_ENTER_ROUTINE 
+
+	if ((retval = hpc_get_prog_int(slot, &pi)))
+		return retval;
+
+	switch (pi) {
+	case 1:
+		pcix_cap = (slot_reg & PCIX_CAP_MASK_PI1) >> PCIX_CAP_SHIFT;
+		break;
+	case 2:
+		pcix_cap = (slot_reg & PCIX_CAP_MASK_PI2) >> PCIX_CAP_SHIFT;
+		break;
+	default:
+		return -ENODEV;
+	}
 
 	dbg("%s: slot_reg = %x, pcix_cap = %x, m66_cap = %x\n",
 	    __FUNCTION__, slot_reg, pcix_cap, m66_cap);
@@ -773,6 +787,7 @@ static void hpc_release_ctlr(struct controller *ctrl)
 	struct php_ctlr_state_s *php_ctlr = ctrl->hpc_ctlr_handle;
 	struct php_ctlr_state_s *p, *p_prev;
 	int i;
+	u32 slot_reg;
 
 	DBG_ENTER_ROUTINE 
 
@@ -782,10 +797,17 @@ static void hpc_release_ctlr(struct controller *ctrl)
 	}
 
 	/*
-	 * Mask all slot event interrupts
+	 * Mask event interrupts and SERRs of all slots
 	 */
-	for (i = 0; i < ctrl->num_slots; i++)
-		shpc_writel(ctrl, SLOT_REG(i), 0xffff3fff);
+	for (i = 0; i < ctrl->num_slots; i++) {
+		slot_reg = shpc_readl(ctrl, SLOT_REG(i));
+		slot_reg |= (PRSNT_CHANGE_INTR_MASK | ISO_PFAULT_INTR_MASK |
+			     BUTTON_PRESS_INTR_MASK | MRL_CHANGE_INTR_MASK |
+			     CON_PFAULT_INTR_MASK   | MRL_CHANGE_SERR_MASK |
+			     CON_PFAULT_SERR_MASK);
+		slot_reg &= ~SLOT_REG_RSVDZ_MASK;
+		shpc_writel(ctrl, SLOT_REG(i), slot_reg);
+	}
 
 	cleanup_slots(ctrl);
 
@@ -1072,7 +1094,7 @@ static irqreturn_t shpc_isr(int IRQ, void *dev_id, struct pt_regs *regs)
 					hp_slot, php_ctlr->callback_instance_id);
 			
 			/* Clear all slot events */
-			temp_dword = 0xe01f3fff;
+			temp_dword &= ~SLOT_REG_RSVDZ_MASK;
 			shpc_writel(ctrl, SLOT_REG(hp_slot), temp_dword);
 
 			intr_loc2 = shpc_readl(ctrl, INTR_LOC);
@@ -1364,8 +1386,12 @@ int shpc_init(struct controller * ctrl, struct pci_dev * pdev)
 		slot_reg = shpc_readl(ctrl, SLOT_REG(hp_slot));
 		dbg("%s: Default Logical Slot Register %d value %x\n", __FUNCTION__,
 			hp_slot, slot_reg);
-		tempdword = 0xffff3fff;  
-		shpc_writel(ctrl, SLOT_REG(hp_slot), tempdword);
+		slot_reg |= (PRSNT_CHANGE_INTR_MASK | ISO_PFAULT_INTR_MASK |
+			     BUTTON_PRESS_INTR_MASK | MRL_CHANGE_INTR_MASK |
+			     CON_PFAULT_INTR_MASK   | MRL_CHANGE_SERR_MASK |
+			     CON_PFAULT_SERR_MASK);
+		slot_reg &= ~SLOT_REG_RSVDZ_MASK;
+		shpc_writel(ctrl, SLOT_REG(hp_slot), slot_reg);
 	}
 	
 	if (shpchp_poll_mode)  {/* Install interrupt polling code */
@@ -1411,12 +1437,17 @@ int shpc_init(struct controller * ctrl, struct pci_dev * pdev)
 
 	ctlr_seq_num++;
 
+	/*
+	 * Unmask all event interrupts of all slots
+	 */
 	for (hp_slot = 0; hp_slot < php_ctlr->num_slots; hp_slot++) {
 		slot_reg = shpc_readl(ctrl, SLOT_REG(hp_slot));
 		dbg("%s: Default Logical Slot Register %d value %x\n", __FUNCTION__,
 			hp_slot, slot_reg);
-		tempdword = 0xe01f3fff;  
-		shpc_writel(ctrl, SLOT_REG(hp_slot), tempdword);
+		slot_reg &= ~(PRSNT_CHANGE_INTR_MASK | ISO_PFAULT_INTR_MASK |
+			      BUTTON_PRESS_INTR_MASK | MRL_CHANGE_INTR_MASK |
+			      CON_PFAULT_INTR_MASK | SLOT_REG_RSVDZ_MASK);
+		shpc_writel(ctrl, SLOT_REG(hp_slot), slot_reg);
 	}
 	if (!shpchp_poll_mode) {
 		/* Unmask all general input interrupts and SERR */
