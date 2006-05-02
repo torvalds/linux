@@ -203,7 +203,9 @@ static int snd_opl3_synth_create_port(struct snd_opl3 * opl3)
 						      SNDRV_SEQ_PORT_CAP_SUBS_WRITE,
 						      SNDRV_SEQ_PORT_TYPE_MIDI_GENERIC |
 						      SNDRV_SEQ_PORT_TYPE_MIDI_GM |
-						      SNDRV_SEQ_PORT_TYPE_DIRECT_SAMPLE,
+						      SNDRV_SEQ_PORT_TYPE_DIRECT_SAMPLE |
+						      SNDRV_SEQ_PORT_TYPE_HARDWARE |
+						      SNDRV_SEQ_PORT_TYPE_SYNTHESIZER,
 						      16, voices,
 						      name);
 	if (opl3->chset->port < 0) {

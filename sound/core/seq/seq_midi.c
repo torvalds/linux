@@ -376,7 +376,9 @@ snd_seq_midisynth_register_port(struct snd_seq_device *dev)
 		if ((port->capability & (SNDRV_SEQ_PORT_CAP_WRITE|SNDRV_SEQ_PORT_CAP_READ)) == (SNDRV_SEQ_PORT_CAP_WRITE|SNDRV_SEQ_PORT_CAP_READ) &&
 		    info->flags & SNDRV_RAWMIDI_INFO_DUPLEX)
 			port->capability |= SNDRV_SEQ_PORT_CAP_DUPLEX;
-		port->type = SNDRV_SEQ_PORT_TYPE_MIDI_GENERIC;
+		port->type = SNDRV_SEQ_PORT_TYPE_MIDI_GENERIC
+			| SNDRV_SEQ_PORT_TYPE_HARDWARE
+			| SNDRV_SEQ_PORT_TYPE_PORT;
 		port->midi_channels = 16;
 		memset(&pcallbacks, 0, sizeof(pcallbacks));
 		pcallbacks.owner = THIS_MODULE;
