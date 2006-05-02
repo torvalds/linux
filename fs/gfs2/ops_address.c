@@ -126,7 +126,7 @@ static int gfs2_writepage(struct page *page, struct writeback_control *wbc)
 
 	/* Is the page fully outside i_size? (truncate in progress) */
         offset = i_size & (PAGE_CACHE_SIZE-1);
-	if (page->index >= end_index+1 || !offset) {
+	if (page->index > end_index || (page->index == end_index && !offset)) {
 		page->mapping->a_ops->invalidatepage(page, 0);
 		unlock_page(page);
 		return 0; /* don't care */
