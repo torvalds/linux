@@ -278,6 +278,7 @@ snd_seq_midisynth_register_port(struct snd_seq_device *dev)
 	struct seq_midisynth *msynth, *ms;
 	struct snd_seq_port_info *port;
 	struct snd_rawmidi_info *info;
+	struct snd_rawmidi *rmidi = dev->private_data;
 	int newclient = 0;
 	unsigned int p, ports;
 	struct snd_seq_port_callback pcallbacks;
@@ -389,6 +390,8 @@ snd_seq_midisynth_register_port(struct snd_seq_device *dev)
 		pcallbacks.unuse = midisynth_unuse;
 		pcallbacks.event_input = event_process_midi;
 		port->kernel = &pcallbacks;
+		if (rmidi->ops && rmidi->ops->get_port_info)
+			rmidi->ops->get_port_info(rmidi, p, port);
 		if (snd_seq_kernel_client_ctl(client->seq_client, SNDRV_SEQ_IOCTL_CREATE_PORT, port)<0)
 			goto __nomem;
 		ms->seq_client = client->seq_client;
