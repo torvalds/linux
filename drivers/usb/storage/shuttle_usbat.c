@@ -893,22 +893,28 @@ static int usbat_identify_device(struct us_data *us,
  * Set the transport function based on the device type
  */
 static int usbat_set_transport(struct us_data *us,
-			       struct usbat_info *info)
+			       struct usbat_info *info,
+			       int devicetype)
 {
-	int rc;
 
-	if (!info->devicetype) {
-		rc = usbat_identify_device(us, info);
-		if (rc != USB_STOR_TRANSPORT_GOOD) {
-			US_DEBUGP("usbat_set_transport: Could not identify device\n");
-			return 1;
-		}
-	}
+	if (!info->devicetype)
+		info->devicetype = devicetype;
 
-	if (usbat_get_device_type(us) == USBAT_DEV_HP8200)
+	if (!info->devicetype)
+		usbat_identify_device(us, info);
+
+	switch (info->devicetype) {
+	default:
+		return USB_STOR_TRANSPORT_ERROR;
+
+	case  USBAT_DEV_HP8200:
 		us->transport = usbat_hp8200e_transport;
-	else if (usbat_get_device_type(us) == USBAT_DEV_FLASH)
+		break;
+
+	case USBAT_DEV_FLASH:
 		us->transport = usbat_flash_transport;
+		break;
+	}
 
 	return 0;
 }
@@ -1316,7 +1322,7 @@ static int usbat_select_and_test_registers(struct us_data *us)
 /*
  * Initialize the USBAT processor and the storage device
  */
-int init_usbat(struct us_data *us)
+static int init_usbat(struct us_data *us, int devicetype)
 {
 	int rc;
 	struct usbat_info *info;
@@ -1398,7 +1404,7 @@ int init_usbat(struct us_data *us)
 	US_DEBUGP("INIT 9\n");
 
 	/* At this point, we need to detect which device we are using */
-	if (usbat_set_transport(us, info))
+	if (usbat_set_transport(us, info, devicetype))
 		return USB_STOR_TRANSPORT_ERROR;
 
 	US_DEBUGP("INIT 10\n");
@@ -1701,6 +1707,22 @@ static int usbat_flash_transport(struct scsi_cmnd * srb, struct us_data *us)
 	return USB_STOR_TRANSPORT_FAILED;
 }
 
+int init_usbat_cd(struct us_data *us)
+{
+	return init_usbat(us, USBAT_DEV_HP8200);
+}
+
+
+int init_usbat_flash(struct us_data *us)
+{
+	return init_usbat(us, USBAT_DEV_FLASH);
+}
+
+int init_usbat_probe(struct us_data *us)
+{
+	return init_usbat(us, 0);
+}
+
 /*
  * Default transport function. Attempts to detect which transport function
  * should be called, makes it the new default, and calls it.
@@ -1714,9 +1736,8 @@ int usbat_transport(struct scsi_cmnd *srb, struct us_data *us)
 {
 	struct usbat_info *info = (struct usbat_info*) (us->extra);
 
-	if (usbat_set_transport(us, info))
+	if (usbat_set_transport(us, info, 0))
 		return USB_STOR_TRANSPORT_ERROR;
 
 	return us->transport(srb, us);	
 }
-
