@@ -529,7 +529,7 @@ static int imxmci_data_done(struct imxmci_host *host, unsigned int stat)
 
 	data_error = imxmci_finish_data(host, stat);
 
-	if (host->req->stop && (data_error == MMC_ERR_NONE)) {
+	if (host->req->stop) {
 		imxmci_stop_clock(host);
 		imxmci_start_cmd(host, host->req->stop, 0);
 	} else {

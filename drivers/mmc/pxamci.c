@@ -291,7 +291,7 @@ static int pxamci_data_done(struct pxamci_host *host, unsigned int stat)
 	pxamci_disable_irq(host, DATA_TRAN_DONE);
 
 	host->data = NULL;
-	if (host->mrq->stop && data->error == MMC_ERR_NONE) {
+	if (host->mrq->stop) {
 		pxamci_stop_clock(host);
 		pxamci_start_cmd(host, host->mrq->stop, 0);
 	} else {
