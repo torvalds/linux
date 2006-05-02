@@ -2235,9 +2235,16 @@ static void
 serial8250_console_write(struct console *co, const char *s, unsigned int count)
 {
 	struct uart_8250_port *up = &serial8250_ports[co->index];
+	unsigned long flags;
 	unsigned int ier;
+	int locked = 1;
 
 	touch_nmi_watchdog();
+
+	if (oops_in_progress) {
+		locked = spin_trylock_irqsave(&up->port.lock, flags);
+	} else
+		spin_lock_irqsave(&up->port.lock, flags);
 
 	/*
 	 *	First save the IER then disable the interrupts
@@ -2257,6 +2264,9 @@ serial8250_console_write(struct console *co, const char *s, unsigned int count)
 	 */
 	wait_for_xmitr(up, BOTH_EMPTY);
 	serial_out(up, UART_IER, ier);
+
+	if (locked)
+		spin_unlock_irqrestore(&up->port.lock, flags);
 }
 
 static int serial8250_console_setup(struct console *co, char *options)
