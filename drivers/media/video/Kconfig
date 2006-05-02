@@ -19,6 +19,7 @@ config VIDEO_ADV_DEBUG
 config VIDEO_VIVI
 	tristate "Virtual Video Driver"
 	depends on VIDEO_V4L2 && !SPARC32 && !SPARC64
+	select VIDEO_BUF
 	default n
 	---help---
 	  Enables a virtual video driver. This device shows a color bar
