@@ -198,7 +198,6 @@ static void pxamci_start_cmd(struct pxamci_host *host, struct mmc_command *cmd, 
 
 static void pxamci_finish_request(struct pxamci_host *host, struct mmc_request *mrq)
 {
-	pr_debug("PXAMCI: request done\n");
 	host->mrq = NULL;
 	host->cmd = NULL;
 	host->data = NULL;
@@ -309,12 +308,10 @@ static irqreturn_t pxamci_irq(int irq, void *devid, struct pt_regs *regs)
 
 	ireg = readl(host->base + MMC_I_REG);
 
-	pr_debug("PXAMCI: irq %08x\n", ireg);
-
 	if (ireg) {
 		unsigned stat = readl(host->base + MMC_STAT);
 
-		pr_debug("PXAMCI: stat %08x\n", stat);
+		pr_debug("PXAMCI: irq %08x stat %08x\n", ireg, stat);
 
 		if (ireg & END_CMD_RES)
 			handled |= pxamci_cmd_done(host, stat);
@@ -368,7 +365,7 @@ static void pxamci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	struct pxamci_host *host = mmc_priv(mmc);
 
-	pr_debug("pxamci_set_ios: clock %u power %u vdd %u.%02u\n",
+	pr_debug("PXAMCI: clock %u power %u vdd %u.%02u\n",
 		 ios->clock, ios->power_mode, ios->vdd / 100,
 		 ios->vdd % 100);
 
@@ -397,7 +394,7 @@ static void pxamci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 			host->cmdat |= CMDAT_INIT;
 	}
 
-	pr_debug("pxamci_set_ios: clkrt = %x cmdat = %x\n",
+	pr_debug("PXAMCI: clkrt = %x cmdat = %x\n",
 		 host->clkrt, host->cmdat);
 }
 
