@@ -8,7 +8,7 @@
  *
  *	Support for enhanced MLS infrastructure.
  *
- * Copyright (C) 2004-2005 Trusted Computer Solutions, Inc.
+ * Copyright (C) 2004-2006 Trusted Computer Solutions, Inc.
  */
 
 #ifndef _SS_MLS_H_
@@ -26,6 +26,8 @@ int mls_context_to_sid(char oldc,
 		       struct context *context,
 		       struct sidtab *s,
 		       u32 def_sid);
+
+int mls_from_string(char *str, struct context *context, gfp_t gfp_mask);
 
 int mls_convert_context(struct policydb *oldp,
 			struct policydb *newp,
