@@ -2174,6 +2174,7 @@ static struct hda_board_config alc880_cfg_tbl[] = {
 
 	{ .modelname = "lg", .config = ALC880_LG },
 	{ .pci_subvendor = 0x1854, .pci_subdevice = 0x003b, .config = ALC880_LG },
+	{ .pci_subvendor = 0x1854, .pci_subdevice = 0x0068, .config = ALC880_LG },
 
 	{ .modelname = "lg-lw", .config = ALC880_LG_LW },
 	{ .pci_subvendor = 0x1854, .pci_subdevice = 0x0018, .config = ALC880_LG_LW },
