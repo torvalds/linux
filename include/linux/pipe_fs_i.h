@@ -69,6 +69,7 @@ void *generic_pipe_buf_map(struct pipe_inode_info *, struct pipe_buffer *, int);
 void generic_pipe_buf_unmap(struct pipe_inode_info *, struct pipe_buffer *, void *);
 void generic_pipe_buf_get(struct pipe_inode_info *, struct pipe_buffer *);
 int generic_pipe_buf_pin(struct pipe_inode_info *, struct pipe_buffer *);
+int generic_pipe_buf_steal(struct pipe_inode_info *, struct pipe_buffer *);
 
 /*
  * splice is tied to pipes as a transport (at least for now), so we'll just

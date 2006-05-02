@@ -184,8 +184,8 @@ void generic_pipe_buf_unmap(struct pipe_inode_info *pipe,
 		kunmap(buf->page);
 }
 
-static int anon_pipe_buf_steal(struct pipe_inode_info *pipe,
-			       struct pipe_buffer *buf)
+int generic_pipe_buf_steal(struct pipe_inode_info *pipe,
+			   struct pipe_buffer *buf)
 {
 	struct page *page = buf->page;
 
@@ -213,7 +213,7 @@ static struct pipe_buf_operations anon_pipe_buf_ops = {
 	.unmap = generic_pipe_buf_unmap,
 	.pin = generic_pipe_buf_pin,
 	.release = anon_pipe_buf_release,
-	.steal = anon_pipe_buf_steal,
+	.steal = generic_pipe_buf_steal,
 	.get = generic_pipe_buf_get,
 };
 

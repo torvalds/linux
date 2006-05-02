@@ -141,7 +141,7 @@ static int user_page_pipe_buf_steal(struct pipe_inode_info *pipe,
 	if (!(buf->flags & PIPE_BUF_FLAG_GIFT))
 		return 1;
 
-	return 0;
+	return generic_pipe_buf_steal(pipe, buf);
 }
 
 static struct pipe_buf_operations user_page_pipe_buf_ops = {
