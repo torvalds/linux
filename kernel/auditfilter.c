@@ -291,7 +291,7 @@ static struct audit_rule *audit_krule_to_rule(struct audit_krule *krule)
 
 	rule = kmalloc(sizeof(*rule), GFP_KERNEL);
 	if (unlikely(!rule))
-		return ERR_PTR(-ENOMEM);
+		return NULL;
 	memset(rule, 0, sizeof(*rule));
 
 	rule->flags = krule->flags | krule->listnr;
@@ -322,7 +322,7 @@ static struct audit_rule_data *audit_krule_to_data(struct audit_krule *krule)
 
 	data = kmalloc(sizeof(*data) + krule->buflen, GFP_KERNEL);
 	if (unlikely(!data))
-		return ERR_PTR(-ENOMEM);
+		return NULL;
 	memset(data, 0, sizeof(*data));
 
 	data->flags = krule->flags | krule->listnr;
