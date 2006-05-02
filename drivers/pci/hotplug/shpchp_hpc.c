@@ -90,6 +90,11 @@
 #define	MRLSENSOR		0x40000000
 #define ATTN_BUTTON		0x80000000
 
+/*
+ * Logical Slot Register definitions
+ */
+#define SLOT_REG(i)		(SLOT1 + (4 * i))
+
 /* Slot Status Field Definitions */
 /* Slot State */
 #define PWR_ONLY		0x0001
@@ -433,7 +438,7 @@ static int hpc_get_attention_status(struct slot *slot, u8 *status)
 		return -1;
 	}
 
-	slot_reg = shpc_readl(ctrl, SLOT1 + 4*(slot->hp_slot));
+	slot_reg = shpc_readl(ctrl, SLOT_REG(slot->hp_slot));
 	slot_status = (u16) slot_reg;
 	atten_led_state = (slot_status & 0x0030) >> 4;
 
@@ -474,7 +479,7 @@ static int hpc_get_power_status(struct slot * slot, u8 *status)
 		return -1;
 	}
 
-	slot_reg = shpc_readl(ctrl, SLOT1 + 4*(slot->hp_slot));
+	slot_reg = shpc_readl(ctrl, SLOT_REG(slot->hp_slot));
 	slot_status = (u16) slot_reg;
 	slot_state = (slot_status & 0x0003);
 
@@ -514,7 +519,7 @@ static int hpc_get_latch_status(struct slot *slot, u8 *status)
 		return -1;
 	}
 
-	slot_reg = shpc_readl(ctrl, SLOT1 + 4*(slot->hp_slot));
+	slot_reg = shpc_readl(ctrl, SLOT_REG(slot->hp_slot));
 	slot_status = (u16)slot_reg;
 
 	*status = ((slot_status & 0x0100) == 0) ? 0 : 1;   /* 0 -> close; 1 -> open */
@@ -538,7 +543,7 @@ static int hpc_get_adapter_status(struct slot *slot, u8 *status)
 		return -1;
 	}
 
-	slot_reg = shpc_readl(ctrl, SLOT1 + 4*(slot->hp_slot));
+	slot_reg = shpc_readl(ctrl, SLOT_REG(slot->hp_slot));
 	slot_status = (u16)slot_reg;
 	card_state = (u8)((slot_status & 0x0C00) >> 10);
 	*status = (card_state != 0x3) ? 1 : 0;
@@ -568,7 +573,7 @@ static int hpc_get_adapter_speed(struct slot *slot, enum pci_bus_speed *value)
 {
 	int retval = 0;
 	struct controller *ctrl = slot->ctrl;
-	u32 slot_reg = shpc_readl(ctrl, SLOT1 + 4 * slot->hp_slot);
+	u32 slot_reg = shpc_readl(ctrl, SLOT_REG(slot->hp_slot));
 	u8 pcix_cap = (slot_reg >> 12) & 7;
 	u8 m66_cap  = (slot_reg >> 9) & 1;
 
@@ -648,7 +653,7 @@ static int hpc_query_power_fault(struct slot * slot)
 		return -1;
 	}
 
-	slot_reg = shpc_readl(ctrl, SLOT1 + 4*(slot->hp_slot));
+	slot_reg = shpc_readl(ctrl, SLOT_REG(slot->hp_slot));
 	slot_status = (u16) slot_reg;
 	pwr_fault_state = (slot_status & 0x0040) >> 7;
 	status = (pwr_fault_state == 1) ? 0 : 1;
@@ -805,7 +810,7 @@ static void hpc_release_ctlr(struct controller *ctrl)
 	 * Mask all slot event interrupts
 	 */
 	for (i = 0; i < ctrl->num_slots; i++)
-		shpc_writel(ctrl, SLOT1 + (4 * i), 0xffff3fff);
+		shpc_writel(ctrl, SLOT_REG(i), 0xffff3fff);
 
 	cleanup_slots(ctrl);
 
@@ -1072,7 +1077,7 @@ static irqreturn_t shpc_isr(int IRQ, void *dev_id, struct pt_regs *regs)
 	for (hp_slot = 0; hp_slot < ctrl->num_slots; hp_slot++) { 
 	/* To find out which slot has interrupt pending */
 		if ((intr_loc >> hp_slot) & 0x01) {
-			temp_dword = shpc_readl(ctrl, SLOT1 + (4*hp_slot));
+			temp_dword = shpc_readl(ctrl, SLOT_REG(hp_slot));
 			dbg("%s: Slot %x with intr, slot register = %x\n",
 				__FUNCTION__, hp_slot, temp_dword);
 			temp_byte = (temp_dword >> 16) & 0xFF;
@@ -1091,7 +1096,7 @@ static irqreturn_t shpc_isr(int IRQ, void *dev_id, struct pt_regs *regs)
 			
 			/* Clear all slot events */
 			temp_dword = 0xe01f3fff;
-			shpc_writel(ctrl, SLOT1 + (4*hp_slot), temp_dword);
+			shpc_writel(ctrl, SLOT_REG(hp_slot), temp_dword);
 
 			intr_loc2 = shpc_readl(ctrl, INTR_LOC);
 			dbg("%s: intr_loc2 = %x\n",__FUNCTION__, intr_loc2); 
@@ -1379,11 +1384,11 @@ int shpc_init(struct controller * ctrl, struct pci_dev * pdev)
 	 * Slot SERR-INT Mask & clear all the existing event if any
 	 */
 	for (hp_slot = 0; hp_slot < php_ctlr->num_slots; hp_slot++) {
-		slot_reg = shpc_readl(ctrl, SLOT1 + 4*hp_slot );
+		slot_reg = shpc_readl(ctrl, SLOT_REG(hp_slot));
 		dbg("%s: Default Logical Slot Register %d value %x\n", __FUNCTION__,
 			hp_slot, slot_reg);
 		tempdword = 0xffff3fff;  
-		shpc_writel(ctrl, SLOT1 + (4*hp_slot), tempdword);
+		shpc_writel(ctrl, SLOT_REG(hp_slot), tempdword);
 	}
 	
 	if (shpchp_poll_mode)  {/* Install interrupt polling code */
@@ -1430,11 +1435,11 @@ int shpc_init(struct controller * ctrl, struct pci_dev * pdev)
 	ctlr_seq_num++;
 
 	for (hp_slot = 0; hp_slot < php_ctlr->num_slots; hp_slot++) {
-		slot_reg = shpc_readl(ctrl, SLOT1 + 4*hp_slot );
+		slot_reg = shpc_readl(ctrl, SLOT_REG(hp_slot));
 		dbg("%s: Default Logical Slot Register %d value %x\n", __FUNCTION__,
 			hp_slot, slot_reg);
 		tempdword = 0xe01f3fff;  
-		shpc_writel(ctrl, SLOT1 + (4*hp_slot), tempdword);
+		shpc_writel(ctrl, SLOT_REG(hp_slot), tempdword);
 	}
 	if (!shpchp_poll_mode) {
 		/* Unmask all general input interrupts and SERR */
