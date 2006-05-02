@@ -60,11 +60,6 @@ extern void bus_unregister(struct bus_type * bus);
 
 extern void bus_rescan_devices(struct bus_type * bus);
 
-extern struct bus_type * get_bus(struct bus_type * bus);
-extern void put_bus(struct bus_type * bus);
-
-extern struct bus_type * find_bus(char * name);
-
 /* iterator helpers for buses */
 
 int bus_for_each_dev(struct bus_type * bus, struct device * start, void * data,
@@ -162,9 +157,6 @@ struct class {
 
 extern int class_register(struct class *);
 extern void class_unregister(struct class *);
-
-extern struct class * class_get(struct class *);
-extern void class_put(struct class *);
 
 
 struct class_attribute {

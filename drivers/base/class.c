@@ -91,14 +91,14 @@ void class_remove_file(struct class * cls, const struct class_attribute * attr)
 		sysfs_remove_file(&cls->subsys.kset.kobj, &attr->attr);
 }
 
-struct class * class_get(struct class * cls)
+static struct class *class_get(struct class *cls)
 {
 	if (cls)
 		return container_of(subsys_get(&cls->subsys), struct class, subsys);
 	return NULL;
 }
 
-void class_put(struct class * cls)
+static void class_put(struct class * cls)
 {
 	if (cls)
 		subsys_put(&cls->subsys);
@@ -894,8 +894,6 @@ EXPORT_SYMBOL_GPL(class_create_file);
 EXPORT_SYMBOL_GPL(class_remove_file);
 EXPORT_SYMBOL_GPL(class_register);
 EXPORT_SYMBOL_GPL(class_unregister);
-EXPORT_SYMBOL_GPL(class_get);
-EXPORT_SYMBOL_GPL(class_put);
 EXPORT_SYMBOL_GPL(class_create);
 EXPORT_SYMBOL_GPL(class_destroy);
 

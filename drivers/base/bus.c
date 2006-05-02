@@ -745,15 +745,9 @@ EXPORT_SYMBOL_GPL(bus_for_each_dev);
 EXPORT_SYMBOL_GPL(bus_find_device);
 EXPORT_SYMBOL_GPL(bus_for_each_drv);
 
-EXPORT_SYMBOL_GPL(bus_add_device);
-EXPORT_SYMBOL_GPL(bus_attach_device);
-EXPORT_SYMBOL_GPL(bus_remove_device);
 EXPORT_SYMBOL_GPL(bus_register);
 EXPORT_SYMBOL_GPL(bus_unregister);
 EXPORT_SYMBOL_GPL(bus_rescan_devices);
-EXPORT_SYMBOL_GPL(get_bus);
-EXPORT_SYMBOL_GPL(put_bus);
-EXPORT_SYMBOL_GPL(find_bus);
 
 EXPORT_SYMBOL_GPL(bus_create_file);
 EXPORT_SYMBOL_GPL(bus_remove_file);

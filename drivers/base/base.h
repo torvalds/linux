@@ -13,6 +13,8 @@ extern int attribute_container_init(void);
 extern int bus_add_device(struct device * dev);
 extern void bus_attach_device(struct device * dev);
 extern void bus_remove_device(struct device * dev);
+extern struct bus_type *get_bus(struct bus_type * bus);
+extern void put_bus(struct bus_type * bus);
 
 extern int bus_add_driver(struct device_driver *);
 extern void bus_remove_driver(struct device_driver *);
