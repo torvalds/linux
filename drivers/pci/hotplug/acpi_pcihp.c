@@ -145,14 +145,27 @@ EXPORT_SYMBOL_GPL(acpi_run_oshp);
 
 /* acpi_get_hp_params_from_firmware
  *
- * @dev - the pci_dev of the newly added device
+ * @bus - the pci_bus of the bus on which the device is newly added
  * @hpp - allocated by the caller
  */
-acpi_status acpi_get_hp_params_from_firmware(struct pci_dev *dev,
+acpi_status acpi_get_hp_params_from_firmware(struct pci_bus *bus,
 		struct hotplug_params *hpp)
 {
 	acpi_status status = AE_NOT_FOUND;
-	struct pci_dev *pdev = dev;
+	acpi_handle handle, phandle;
+	struct pci_bus *pbus = bus;
+	struct pci_dev *pdev;
+
+	do {
+		pdev = pbus->self;
+		if (!pdev) {
+			handle = acpi_get_pci_rootbridge_handle(
+				pci_domain_nr(pbus), pbus->number);
+			break;
+		}
+		handle = DEVICE_ACPI_HANDLE(&(pdev->dev));
+		pbus = pbus->parent;
+	} while (!handle);
 
 	/*
 	 * _HPP settings apply to all child buses, until another _HPP is
@@ -160,15 +173,16 @@ acpi_status acpi_get_hp_params_from_firmware(struct pci_dev *dev,
 	 * look for it in the parent device scope since that would apply to
 	 * this pci dev. If we don't find any _HPP, use hardcoded defaults
 	 */
-	while (pdev && (ACPI_FAILURE(status))) {
-		acpi_handle handle = DEVICE_ACPI_HANDLE(&(pdev->dev));
-		if (!handle)
-			break;
+	while (handle) {
 		status = acpi_run_hpp(handle, hpp);
-		if (!(pdev->bus->parent))
+		if (ACPI_SUCCESS(status))
 			break;
-		/* Check if a parent object supports _HPP */
-		pdev = pdev->bus->parent->self;
+		if (acpi_root_bridge(handle))
+			break;
+		status = acpi_get_parent(handle, &phandle);
+		if (ACPI_FAILURE(status))
+			break;
+		handle = phandle;
 	}
 	return status;
 }

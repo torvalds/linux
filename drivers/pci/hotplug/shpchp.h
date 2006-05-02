@@ -196,7 +196,7 @@ extern void	queue_pushbutton_work(void *data);
 static inline int get_hp_params_from_firmware(struct pci_dev *dev,
 			struct hotplug_params *hpp)
 {
-	if (ACPI_FAILURE(acpi_get_hp_params_from_firmware(dev, hpp)))
+	if (ACPI_FAILURE(acpi_get_hp_params_from_firmware(dev->bus, hpp)))
 			return -ENODEV;
 	return 0;
 }

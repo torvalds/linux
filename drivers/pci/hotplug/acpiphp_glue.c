@@ -286,7 +286,7 @@ static void decode_hpp(struct acpiphp_bridge *bridge)
 {
 	acpi_status status;
 
-	status = acpi_get_hp_params_from_firmware(bridge->pci_dev, &bridge->hpp);
+	status = acpi_get_hp_params_from_firmware(bridge->pci_bus, &bridge->hpp);
 	if (ACPI_FAILURE(status)) {
 		/* use default numbers */
 		bridge->hpp.cache_line_size = 0x10;
@@ -1250,6 +1250,7 @@ static void acpiphp_set_hpp_values(acpi_handle handle, struct pci_bus *bus)
 
 	memset(&bridge, 0, sizeof(bridge));
 	bridge.handle = handle;
+	bridge.pci_bus = bus;
 	bridge.pci_dev = bus->self;
 	decode_hpp(&bridge);
 	list_for_each_entry(dev, &bus->devices, bus_list)
