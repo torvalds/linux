@@ -95,43 +95,40 @@
  */
 #define SLOT_REG(i)		(SLOT1 + (4 * i))
 
-/* Slot Status Field Definitions */
-/* Slot State */
-#define PWR_ONLY		0x0001
-#define ENABLED			0x0002
-#define DISABLED		0x0003
-
-/* Power Indicator State */
-#define PWR_LED_ON		0x0004
-#define PWR_LED_BLINK		0x0008
-#define PWR_LED_OFF		0x000c
-
-/* Attention Indicator State */
-#define ATTEN_LED_ON		0x0010
-#define	ATTEN_LED_BLINK		0x0020
-#define ATTEN_LED_OFF		0x0030
-
-/* Power Fault */
-#define pwr_fault		0x0040
-
-/* Attention Button */
-#define ATTEN_BUTTON		0x0080
-
-/* MRL Sensor */
-#define MRL_SENSOR		0x0100
-
-/* 66 MHz Capable */
-#define IS_66MHZ_CAP		0x0200
-
-/* PRSNT1#/PRSNT2# */
-#define SLOT_EMP		0x0c00
-
-/* PCI-X Capability */
-#define NON_PCIX		0x0000
-#define PCIX_66			0x1000
-#define PCIX_133		0x3000
-#define PCIX_266		0x4000  /* For PI = 2 only */
-#define PCIX_533		0x5000	/* For PI = 2 only */
+#define SLOT_STATE_SHIFT	(0)
+#define SLOT_STATE_MASK		(3 << 0)
+#define SLOT_STATE_PWRONLY	(1)
+#define SLOT_STATE_ENABLED	(2)
+#define SLOT_STATE_DISABLED	(3)
+#define PWR_LED_STATE_SHIFT	(2)
+#define PWR_LED_STATE_MASK	(3 << 2)
+#define ATN_LED_STATE_SHIFT	(4)
+#define ATN_LED_STATE_MASK	(3 << 4)
+#define ATN_LED_STATE_ON	(1)
+#define ATN_LED_STATE_BLINK	(2)
+#define ATN_LED_STATE_OFF	(3)
+#define POWER_FAULT		(1 << 6)
+#define ATN_BUTTON		(1 << 7)
+#define MRL_SENSOR		(1 << 8)
+#define MHZ66_CAP		(1 << 9)
+#define PRSNT_SHIFT		(10)
+#define PRSNT_MASK		(3 << 10)
+#define PCIX_CAP_SHIFT		(12)
+#define PCIX_CAP_MASK_PI1	(3 << 12)
+#define PCIX_CAP_MASK_PI2	(7 << 12)
+#define PRSNT_CHANGE_DETECTED	(1 << 16)
+#define ISO_PFAULT_DETECTED	(1 << 17)
+#define BUTTON_PRESS_DETECTED	(1 << 18)
+#define MRL_CHANGE_DETECTED	(1 << 19)
+#define CON_PFAULT_DETECTED	(1 << 20)
+#define PRSNT_CHANGE_INTR_MASK	(1 << 24)
+#define ISO_PFAULT_INTR_MASK	(1 << 25)
+#define BUTTON_PRESS_INTR_MASK	(1 << 26)
+#define MRL_CHANGE_INTR_MASK	(1 << 27)
+#define CON_PFAULT_INTR_MASK	(1 << 28)
+#define MRL_CHANGE_SERR_MASK	(1 << 29)
+#define CON_PFAULT_SERR_MASK	(1 << 30)
+#define SLOT_REG_RSVDZ_MASK	(1 << 15) | (7 << 21)
 
 /* SHPC 'write' operations/commands */
 
@@ -428,8 +425,7 @@ static int hpc_get_attention_status(struct slot *slot, u8 *status)
 {
 	struct controller *ctrl = slot->ctrl;
 	u32 slot_reg;
-	u16 slot_status;
-	u8 atten_led_state;
+	u8 state;
 	
 	DBG_ENTER_ROUTINE 
 
@@ -439,24 +435,20 @@ static int hpc_get_attention_status(struct slot *slot, u8 *status)
 	}
 
 	slot_reg = shpc_readl(ctrl, SLOT_REG(slot->hp_slot));
-	slot_status = (u16) slot_reg;
-	atten_led_state = (slot_status & 0x0030) >> 4;
+	state = (slot_reg & ATN_LED_STATE_MASK) >> ATN_LED_STATE_SHIFT;
 
-	switch (atten_led_state) {
-	case 0:
-		*status = 0xFF;	/* Reserved */
-		break;
-	case 1:
+	switch (state) {
+	case ATN_LED_STATE_ON:
 		*status = 1;	/* On */
 		break;
-	case 2:
+	case ATN_LED_STATE_BLINK:
 		*status = 2;	/* Blink */
 		break;
-	case 3:
+	case ATN_LED_STATE_OFF:
 		*status = 0;	/* Off */
 		break;
 	default:
-		*status = 0xFF;
+		*status = 0xFF;	/* Reserved */
 		break;
 	}
 
@@ -468,9 +460,7 @@ static int hpc_get_power_status(struct slot * slot, u8 *status)
 {
 	struct controller *ctrl = slot->ctrl;
 	u32 slot_reg;
-	u16 slot_status;
-	u8 slot_state;
-	int	retval = 0;
+	u8 state;
 	
 	DBG_ENTER_ROUTINE 
 
@@ -480,29 +470,25 @@ static int hpc_get_power_status(struct slot * slot, u8 *status)
 	}
 
 	slot_reg = shpc_readl(ctrl, SLOT_REG(slot->hp_slot));
-	slot_status = (u16) slot_reg;
-	slot_state = (slot_status & 0x0003);
+	state = (slot_reg & SLOT_STATE_MASK) >> SLOT_STATE_SHIFT;
 
-	switch (slot_state) {
-	case 0:
-		*status = 0xFF;
-		break;
-	case 1:
+	switch (state) {
+	case SLOT_STATE_PWRONLY:
 		*status = 2;	/* Powered only */
 		break;
-	case 2:
+	case SLOT_STATE_ENABLED:
 		*status = 1;	/* Enabled */
 		break;
-	case 3:
+	case SLOT_STATE_DISABLED:
 		*status = 0;	/* Disabled */
 		break;
 	default:
-		*status = 0xFF;
+		*status = 0xFF;	/* Reserved */
 		break;
 	}
 
 	DBG_LEAVE_ROUTINE 
-	return retval;
+	return 0;
 }
 
 
@@ -510,7 +496,6 @@ static int hpc_get_latch_status(struct slot *slot, u8 *status)
 {
 	struct controller *ctrl = slot->ctrl;
 	u32 slot_reg;
-	u16 slot_status;
 
 	DBG_ENTER_ROUTINE 
 
@@ -520,10 +505,7 @@ static int hpc_get_latch_status(struct slot *slot, u8 *status)
 	}
 
 	slot_reg = shpc_readl(ctrl, SLOT_REG(slot->hp_slot));
-	slot_status = (u16)slot_reg;
-
-	*status = ((slot_status & 0x0100) == 0) ? 0 : 1;   /* 0 -> close; 1 -> open */
-
+	*status = !!(slot_reg & MRL_SENSOR);	/* 0 -> close; 1 -> open */
 
 	DBG_LEAVE_ROUTINE 
 	return 0;
@@ -533,8 +515,7 @@ static int hpc_get_adapter_status(struct slot *slot, u8 *status)
 {
 	struct controller *ctrl = slot->ctrl;
 	u32 slot_reg;
-	u16 slot_status;
-	u8 card_state;
+	u8 state;
 
 	DBG_ENTER_ROUTINE 
 
@@ -544,9 +525,8 @@ static int hpc_get_adapter_status(struct slot *slot, u8 *status)
 	}
 
 	slot_reg = shpc_readl(ctrl, SLOT_REG(slot->hp_slot));
-	slot_status = (u16)slot_reg;
-	card_state = (u8)((slot_status & 0x0C00) >> 10);
-	*status = (card_state != 0x3) ? 1 : 0;
+	state = (slot_reg & PRSNT_MASK) >> PRSNT_SHIFT;
+	*status = (state != 0x3) ? 1 : 0;
 
 	DBG_LEAVE_ROUTINE 
 	return 0;
@@ -574,8 +554,8 @@ static int hpc_get_adapter_speed(struct slot *slot, enum pci_bus_speed *value)
 	int retval = 0;
 	struct controller *ctrl = slot->ctrl;
 	u32 slot_reg = shpc_readl(ctrl, SLOT_REG(slot->hp_slot));
-	u8 pcix_cap = (slot_reg >> 12) & 7;
-	u8 m66_cap  = (slot_reg >> 9) & 1;
+	u8 pcix_cap = (slot_reg & PCIX_CAP_MASK_PI2) >> PCIX_CAP_SHIFT;
+	u8 m66_cap  = !!(slot_reg & MHZ66_CAP);
 
 	DBG_ENTER_ROUTINE 
 
@@ -643,8 +623,6 @@ static int hpc_query_power_fault(struct slot * slot)
 {
 	struct controller *ctrl = slot->ctrl;
 	u32 slot_reg;
-	u16 slot_status;
-	u8 pwr_fault_state, status;
 
 	DBG_ENTER_ROUTINE 
 
@@ -654,13 +632,10 @@ static int hpc_query_power_fault(struct slot * slot)
 	}
 
 	slot_reg = shpc_readl(ctrl, SLOT_REG(slot->hp_slot));
-	slot_status = (u16) slot_reg;
-	pwr_fault_state = (slot_status & 0x0040) >> 7;
-	status = (pwr_fault_state == 1) ? 0 : 1;
 
 	DBG_LEAVE_ROUTINE
 	/* Note: Logic 0 => fault */
-	return status;
+	return !(slot_reg & POWER_FAULT);
 }
 
 static int hpc_set_attention_status(struct slot *slot, u8 value)
@@ -1019,7 +994,6 @@ static irqreturn_t shpc_isr(int IRQ, void *dev_id, struct pt_regs *regs)
 	struct controller *ctrl = NULL;
 	struct php_ctlr_state_s *php_ctlr;
 	u8 schedule_flag = 0;
-	u8 temp_byte;
 	u32 temp_dword, intr_loc, intr_loc2;
 	int hp_slot;
 
@@ -1080,17 +1054,20 @@ static irqreturn_t shpc_isr(int IRQ, void *dev_id, struct pt_regs *regs)
 			temp_dword = shpc_readl(ctrl, SLOT_REG(hp_slot));
 			dbg("%s: Slot %x with intr, slot register = %x\n",
 				__FUNCTION__, hp_slot, temp_dword);
-			temp_byte = (temp_dword >> 16) & 0xFF;
-			if ((php_ctlr->switch_change_callback) && (temp_byte & 0x08))
+			if ((php_ctlr->switch_change_callback) &&
+			    (temp_dword & MRL_CHANGE_DETECTED))
 				schedule_flag += php_ctlr->switch_change_callback(
 					hp_slot, php_ctlr->callback_instance_id);
-			if ((php_ctlr->attention_button_callback) && (temp_byte & 0x04))
+			if ((php_ctlr->attention_button_callback) &&
+			    (temp_dword & BUTTON_PRESS_DETECTED))
 				schedule_flag += php_ctlr->attention_button_callback(
 					hp_slot, php_ctlr->callback_instance_id);
-			if ((php_ctlr->presence_change_callback) && (temp_byte & 0x01))
+			if ((php_ctlr->presence_change_callback) &&
+			    (temp_dword & PRSNT_CHANGE_DETECTED))
 				schedule_flag += php_ctlr->presence_change_callback(
 					hp_slot , php_ctlr->callback_instance_id);
-			if ((php_ctlr->power_fault_callback) && (temp_byte & 0x12))
+			if ((php_ctlr->power_fault_callback) &&
+			    (temp_dword & (ISO_PFAULT_DETECTED | CON_PFAULT_DETECTED)))
 				schedule_flag += php_ctlr->power_fault_callback(
 					hp_slot, php_ctlr->callback_instance_id);
 			
