@@ -51,7 +51,7 @@ struct splice_pipe_desc {
  * addition of remove_mapping(). If success is returned, the caller may
  * attempt to reuse this page for another destination.
  */
-static int page_cache_pipe_buf_steal(struct pipe_inode_info *info,
+static int page_cache_pipe_buf_steal(struct pipe_inode_info *pipe,
 				     struct pipe_buffer *buf)
 {
 	struct page *page = buf->page;
@@ -82,14 +82,14 @@ static int page_cache_pipe_buf_steal(struct pipe_inode_info *info,
 	return 0;
 }
 
-static void page_cache_pipe_buf_release(struct pipe_inode_info *info,
+static void page_cache_pipe_buf_release(struct pipe_inode_info *pipe,
 					struct pipe_buffer *buf)
 {
 	page_cache_release(buf->page);
 	buf->flags &= ~PIPE_BUF_FLAG_LRU;
 }
 
-static int page_cache_pipe_buf_pin(struct pipe_inode_info *info,
+static int page_cache_pipe_buf_pin(struct pipe_inode_info *pipe,
 				   struct pipe_buffer *buf)
 {
 	struct page *page = buf->page;
@@ -500,14 +500,14 @@ EXPORT_SYMBOL(generic_file_splice_read);
  * Send 'sd->len' bytes to socket from 'sd->file' at position 'sd->pos'
  * using sendpage(). Return the number of bytes sent.
  */
-static int pipe_to_sendpage(struct pipe_inode_info *info,
+static int pipe_to_sendpage(struct pipe_inode_info *pipe,
 			    struct pipe_buffer *buf, struct splice_desc *sd)
 {
 	struct file *file = sd->file;
 	loff_t pos = sd->pos;
 	int ret, more;
 
-	ret = buf->ops->pin(info, buf);
+	ret = buf->ops->pin(pipe, buf);
 	if (!ret) {
 		more = (sd->flags & SPLICE_F_MORE) || sd->len < sd->total_len;
 
@@ -538,7 +538,7 @@ static int pipe_to_sendpage(struct pipe_inode_info *info,
  * SPLICE_F_MOVE isn't set, or we cannot move the page, we simply create
  * a new page in the output file page cache and fill/dirty that.
  */
-static int pipe_to_file(struct pipe_inode_info *info, struct pipe_buffer *buf,
+static int pipe_to_file(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 			struct splice_desc *sd)
 {
 	struct file *file = sd->file;
@@ -552,7 +552,7 @@ static int pipe_to_file(struct pipe_inode_info *info, struct pipe_buffer *buf,
 	/*
 	 * make sure the data in this buffer is uptodate
 	 */
-	ret = buf->ops->pin(info, buf);
+	ret = buf->ops->pin(pipe, buf);
 	if (unlikely(ret))
 		return ret;
 
@@ -573,7 +573,7 @@ static int pipe_to_file(struct pipe_inode_info *info, struct pipe_buffer *buf,
 		 * pagecache and we can reuse it. The page will also be
 		 * locked on successful return.
 		 */
-		if (buf->ops->steal(info, buf))
+		if (buf->ops->steal(pipe, buf))
 			goto find_page;
 
 		page = buf->page;
@@ -659,13 +659,13 @@ find_page:
 		/*
 		 * Careful, ->map() uses KM_USER0!
 		 */
-		char *src = buf->ops->map(info, buf, 1);
+		char *src = buf->ops->map(pipe, buf, 1);
 		char *dst = kmap_atomic(page, KM_USER1);
 
 		memcpy(dst + offset, src + buf->offset, this_len);
 		flush_dcache_page(page);
 		kunmap_atomic(dst, KM_USER1);
-		buf->ops->unmap(info, buf, src);
+		buf->ops->unmap(pipe, buf, src);
 	}
 
 	ret = mapping->a_ops->commit_write(file, page, offset, offset+this_len);
