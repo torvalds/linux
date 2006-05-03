@@ -324,6 +324,8 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 					      mapping_gfp_mask(mapping));
 			if (unlikely(error)) {
 				page_cache_release(page);
+				if (error == -EEXIST)
+					continue;
 				break;
 			}
 			/*
