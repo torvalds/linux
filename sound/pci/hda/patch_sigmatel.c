@@ -1262,13 +1262,13 @@ static int vaio_master_sw_put(struct snd_kcontrol *kcontrol,
 	int change;
 
 	change = snd_hda_codec_amp_update(codec, 0x02, 0, HDA_OUTPUT, 0,
-					  0x80, valp[0] & 0x80);
+					  0x80, (valp[0] ? 0 : 0x80));
 	change |= snd_hda_codec_amp_update(codec, 0x02, 1, HDA_OUTPUT, 0,
-					   0x80, valp[1] & 0x80);
+					   0x80, (valp[1] ? 0 : 0x80));
 	snd_hda_codec_amp_update(codec, 0x05, 0, HDA_OUTPUT, 0,
-				 0x80, valp[0] & 0x80);
+				 0x80, (valp[0] ? 0 : 0x80));
 	snd_hda_codec_amp_update(codec, 0x05, 1, HDA_OUTPUT, 0,
-				 0x80, valp[1] & 0x80);
+				 0x80, (valp[1] ? 0 : 0x80));
 	return change;
 }
 
