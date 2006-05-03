@@ -45,6 +45,7 @@ struct dasd_devmap {
         unsigned int devindex;
         unsigned short features;
 	struct dasd_device *device;
+	struct dasd_uid uid;
 };
 
 /*
@@ -716,6 +717,68 @@ dasd_discipline_show(struct device *dev, struct device_attribute *attr, char *bu
 
 static DEVICE_ATTR(discipline, 0444, dasd_discipline_show, NULL);
 
+static ssize_t
+dasd_alias_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct dasd_devmap *devmap;
+	int alias;
+
+	devmap = dasd_find_busid(dev->bus_id);
+	spin_lock(&dasd_devmap_lock);
+	if (!IS_ERR(devmap))
+		alias = devmap->uid.alias;
+	else
+		alias = 0;
+	spin_unlock(&dasd_devmap_lock);
+
+	return sprintf(buf, alias ? "1\n" : "0\n");
+}
+
+static DEVICE_ATTR(alias, 0444, dasd_alias_show, NULL);
+
+static ssize_t
+dasd_vendor_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct dasd_devmap *devmap;
+	char *vendor;
+
+	devmap = dasd_find_busid(dev->bus_id);
+	spin_lock(&dasd_devmap_lock);
+	if (!IS_ERR(devmap) && strlen(devmap->uid.vendor) > 0)
+		vendor = devmap->uid.vendor;
+	else
+		vendor = "";
+	spin_unlock(&dasd_devmap_lock);
+
+	return snprintf(buf, PAGE_SIZE, "%s\n", vendor);
+}
+
+static DEVICE_ATTR(vendor, 0444, dasd_vendor_show, NULL);
+
+#define UID_STRLEN ( /* vendor */ 3 + 1 + /* serial    */ 14 + 1 +\
+		     /* SSID   */ 4 + 1 + /* unit addr */ 2 + 1)
+
+static ssize_t
+dasd_uid_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct dasd_devmap *devmap;
+	char uid[UID_STRLEN];
+
+	devmap = dasd_find_busid(dev->bus_id);
+	spin_lock(&dasd_devmap_lock);
+	if (!IS_ERR(devmap) && strlen(devmap->uid.vendor) > 0)
+		snprintf(uid, sizeof(uid), "%s.%s.%04x.%02x",
+			 devmap->uid.vendor, devmap->uid.serial,
+			 devmap->uid.ssid, devmap->uid.unit_addr);
+	else
+		uid[0] = 0;
+	spin_unlock(&dasd_devmap_lock);
+
+	return snprintf(buf, PAGE_SIZE, "%s\n", uid);
+}
+
+static DEVICE_ATTR(uid, 0444, dasd_uid_show, NULL);
+
 /*
  * extended error-reporting
  */
@@ -759,6 +822,9 @@ static DEVICE_ATTR(eer_enabled, 0644, dasd_eer_show, dasd_eer_store);
 static struct attribute * dasd_attrs[] = {
 	&dev_attr_readonly.attr,
 	&dev_attr_discipline.attr,
+	&dev_attr_alias.attr,
+	&dev_attr_vendor.attr,
+	&dev_attr_uid.attr,
 	&dev_attr_use_diag.attr,
 	&dev_attr_eer_enabled.attr,
 	NULL,
@@ -767,6 +833,42 @@ static struct attribute * dasd_attrs[] = {
 static struct attribute_group dasd_attr_group = {
 	.attrs = dasd_attrs,
 };
+
+
+/*
+ * Return copy of the device unique identifier.
+ */
+int
+dasd_get_uid(struct ccw_device *cdev, struct dasd_uid *uid)
+{
+	struct dasd_devmap *devmap;
+
+	devmap = dasd_find_busid(cdev->dev.bus_id);
+	if (IS_ERR(devmap))
+		return PTR_ERR(devmap);
+	spin_lock(&dasd_devmap_lock);
+	*uid = devmap->uid;
+	spin_unlock(&dasd_devmap_lock);
+	return 0;
+}
+
+/*
+ * Register the given device unique identifier into devmap struct.
+ */
+int
+dasd_set_uid(struct ccw_device *cdev, struct dasd_uid *uid)
+{
+	struct dasd_devmap *devmap;
+
+	devmap = dasd_find_busid(cdev->dev.bus_id);
+	if (IS_ERR(devmap))
+		return PTR_ERR(devmap);
+	spin_lock(&dasd_devmap_lock);
+	devmap->uid = *uid;
+	spin_unlock(&dasd_devmap_lock);
+	return 0;
+}
+EXPORT_SYMBOL(dasd_set_uid);
 
 /*
  * Return value of the specified feature.

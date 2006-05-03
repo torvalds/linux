@@ -33,11 +33,27 @@
 #define ATLAS_RTC_ADR_REG       0x1f000800
 #define ATLAS_RTC_DAT_REG       0x1f000808
 
-
 /*
  * Atlas interrupt controller register base.
  */
 #define ATLAS_ICTRL_REGS_BASE   0x1f000000
+
+/*
+ * Atlas registers are memory mapped on 64-bit aligned boundaries and
+ * only word access are allowed.
+ */
+struct atlas_ictrl_regs {
+	volatile unsigned int intraw;
+	int dummy1;
+	volatile unsigned int intseten;
+	int dummy2;
+	volatile unsigned int intrsten;
+	int dummy3;
+	volatile unsigned int intenable;
+	int dummy4;
+	volatile unsigned int intstatus;
+	int dummy5;
+};
 
 /*
  * Atlas UART register base.

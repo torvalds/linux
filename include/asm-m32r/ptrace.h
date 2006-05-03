@@ -43,6 +43,14 @@
 #define PT_ACC1L	18
 #define PT_ACCH		PT_ACC0H
 #define PT_ACCL		PT_ACC0L
+#elif defined(CONFIG_ISA_M32R2) || defined(CONFIG_ISA_M32R)
+#define PT_ACCH		15
+#define PT_ACCL		16
+#define PT_DUMMY_ACC1H	17
+#define PT_DUMMY_ACC1L	18
+#else
+#error unknown isa conifiguration
+#endif
 #define PT_PSW		19
 #define PT_BPC		20
 #define PT_BBPSW	21
@@ -52,21 +60,6 @@
 #define PT_LR		25
 #define PT_SPI		26
 #define PT_ORIGR0	27
-#elif defined(CONFIG_ISA_M32R2) || defined(CONFIG_ISA_M32R)
-#define PT_ACCH		15
-#define PT_ACCL		16
-#define PT_PSW		17
-#define PT_BPC		18
-#define PT_BBPSW	19
-#define PT_BBPC		20
-#define PT_SPU		21
-#define PT_FP		22
-#define PT_LR		23
-#define PT_SPI		24
-#define PT_ORIGR0	25
-#else
-#error unknown isa conifiguration
-#endif
 
 /* virtual pt_reg entry for gdb */
 #define PT_PC		30
@@ -121,6 +114,8 @@ struct pt_regs {
 #elif defined(CONFIG_ISA_M32R2) || defined(CONFIG_ISA_M32R)
 	unsigned long acch;
 	unsigned long accl;
+	unsigned long dummy_acc1h;
+	unsigned long dummy_acc1l;
 #else
 #error unknown isa configuration
 #endif

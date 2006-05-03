@@ -30,6 +30,7 @@
 #include <linux/mc146818rtc.h>
 
 #include <asm/mipsregs.h>
+#include <asm/mipsmtregs.h>
 #include <asm/ptrace.h>
 #include <asm/hardirq.h>
 #include <asm/irq.h>
@@ -50,16 +51,23 @@ unsigned long cpu_khz;
 static char display_string[] = "        LINUX ON ATLAS       ";
 #endif
 #if defined(CONFIG_MIPS_MALTA)
+#if defined(CONFIG_MIPS_MT_SMTC)
+static char display_string[] = "       SMTC LINUX ON MALTA       ";
+#else
 static char display_string[] = "        LINUX ON MALTA       ";
+#endif /* CONFIG_MIPS_MT_SMTC */
 #endif
 #if defined(CONFIG_MIPS_SEAD)
 static char display_string[] = "        LINUX ON SEAD       ";
 #endif
-static unsigned int display_count = 0;
+static unsigned int display_count;
 #define MAX_DISPLAY_COUNT (sizeof(display_string) - 8)
 
-static unsigned int timer_tick_count=0;
+#define CPUCTR_IMASKBIT (0x100 << MIPSCPU_INT_CPUCTR)
+
+static unsigned int timer_tick_count;
 static int mips_cpu_timer_irq;
+extern void smtc_timer_broadcast(int);
 
 static inline void scroll_display_message(void)
 {
@@ -75,15 +83,55 @@ static void mips_timer_dispatch (struct pt_regs *regs)
 	do_IRQ (mips_cpu_timer_irq, regs);
 }
 
+/*
+ * Redeclare until I get around mopping the timer code insanity on MIPS.
+ */
 extern int null_perf_irq(struct pt_regs *regs);
 
 extern int (*perf_irq)(struct pt_regs *regs);
 
 irqreturn_t mips_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
-	int r2 = cpu_has_mips_r2;
 	int cpu = smp_processor_id();
+	int r2 = cpu_has_mips_r2;
 
+#ifdef CONFIG_MIPS_MT_SMTC
+        /*
+	 *  In an SMTC system, one Count/Compare set exists per VPE.
+	 *  Which TC within a VPE gets the interrupt is essentially
+	 *  random - we only know that it shouldn't be one with
+	 *  IXMT set. Whichever TC gets the interrupt needs to
+	 *  send special interprocessor interrupts to the other
+	 *  TCs to make sure that they schedule, etc.
+	 *
+	 *  That code is specific to the SMTC kernel, not to
+	 *  the a particular platform, so it's invoked from
+	 *  the general MIPS timer_interrupt routine.
+	 */
+
+	/*
+	 * DVPE is necessary so long as cross-VPE interrupts
+	 * are done via read-modify-write of Cause register.
+	 */
+	int vpflags = dvpe();
+	write_c0_compare (read_c0_count() - 1);
+	clear_c0_cause(CPUCTR_IMASKBIT);
+	evpe(vpflags);
+
+	if (cpu_data[cpu].vpe_id == 0) {
+		timer_interrupt(irq, dev_id, regs);
+		scroll_display_message();
+	} else
+		write_c0_compare (read_c0_count() + ( mips_hpt_frequency/HZ));
+	smtc_timer_broadcast(cpu_data[cpu].vpe_id);
+
+	if (cpu != 0)
+		/*
+		 * Other CPUs should do profiling and process accounting
+		 */
+		local_timer_interrupt(irq, dev_id, regs);
+
+#else /* CONFIG_MIPS_MT_SMTC */
 	if (cpu == 0) {
 		/*
 		 * CPU 0 handles the global timer interrupt job and process
@@ -107,12 +155,14 @@ irqreturn_t mips_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		 * More support needs to be added to kernel/time for
 		 * counter/timer interrupts on multiple CPU's
 		 */
-		write_c0_compare (read_c0_count() + (mips_hpt_frequency/HZ));
+		write_c0_compare(read_c0_count() + (mips_hpt_frequency/HZ));
+
 		/*
-		 * other CPUs should do profiling and process accounting
+		 * Other CPUs should do profiling and process accounting
 		 */
-		local_timer_interrupt (irq, dev_id, regs);
+		local_timer_interrupt(irq, dev_id, regs);
 	}
+#endif /* CONFIG_MIPS_MT_SMTC */
 
 out:
 	return IRQ_HANDLED;
@@ -126,7 +176,7 @@ static unsigned int __init estimate_cpu_frequency(void)
 	unsigned int prid = read_c0_prid() & 0xffff00;
 	unsigned int count;
 
-#ifdef CONFIG_MIPS_SEAD
+#if defined(CONFIG_MIPS_SEAD) || defined(CONFIG_MIPS_SIM)
 	/*
 	 * The SEAD board doesn't have a real time clock, so we can't
 	 * really calculate the timer frequency
@@ -211,7 +261,11 @@ void __init mips_timer_setup(struct irqaction *irq)
 
 	/* we are using the cpu counter for timer interrupts */
 	irq->handler = mips_timer_interrupt;	/* we use our own handler */
+#ifdef CONFIG_MIPS_MT_SMTC
+	setup_irq_smtc(mips_cpu_timer_irq, irq, CPUCTR_IMASKBIT);
+#else
 	setup_irq(mips_cpu_timer_irq, irq);
+#endif /* CONFIG_MIPS_MT_SMTC */
 
 #ifdef CONFIG_SMP
 	/* irq_desc(riptor) is a global resource, when the interrupt overlaps

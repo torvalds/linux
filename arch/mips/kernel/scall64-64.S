@@ -460,3 +460,5 @@ sys_call_table:
 	PTR	sys_pselect6			/* 5260 */
 	PTR	sys_ppoll
 	PTR	sys_unshare
+	PTR	sys_splice
+	PTR	sys_sync_file_range

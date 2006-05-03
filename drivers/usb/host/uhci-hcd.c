@@ -858,7 +858,7 @@ static const struct hc_driver uhci_driver = {
 
 static const struct pci_device_id uhci_pci_ids[] = { {
 	/* handle any USB UHCI controller */
-	PCI_DEVICE_CLASS(((PCI_CLASS_SERIAL_USB << 8) | 0x00), ~0),
+	PCI_DEVICE_CLASS(PCI_CLASS_SERIAL_USB_UHCI, ~0),
 	.driver_data =	(unsigned long) &uhci_driver,
 	}, { /* end: all zeroes */ }
 };

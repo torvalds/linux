@@ -28,21 +28,9 @@ extern long __strnlen_user_asm(const char *s);
 /*
  * String functions
  */
-EXPORT_SYMBOL(memchr);
-EXPORT_SYMBOL(memcmp);
 EXPORT_SYMBOL(memset);
 EXPORT_SYMBOL(memcpy);
 EXPORT_SYMBOL(memmove);
-EXPORT_SYMBOL(strcat);
-EXPORT_SYMBOL(strchr);
-#ifdef CONFIG_64BIT
-EXPORT_SYMBOL(strncmp);
-#endif
-EXPORT_SYMBOL(strlen);
-EXPORT_SYMBOL(strncat);
-EXPORT_SYMBOL(strnlen);
-EXPORT_SYMBOL(strrchr);
-EXPORT_SYMBOL(strstr);
 
 EXPORT_SYMBOL(kernel_thread);
 
@@ -61,6 +49,3 @@ EXPORT_SYMBOL(__strnlen_user_asm);
 EXPORT_SYMBOL(csum_partial);
 
 EXPORT_SYMBOL(invalid_pte_table);
-#ifdef CONFIG_GENERIC_IRQ_PROBE
-EXPORT_SYMBOL(probe_irq_mask);
-#endif

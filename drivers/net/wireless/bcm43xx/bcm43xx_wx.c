@@ -962,22 +962,22 @@ static const struct iw_priv_args bcm43xx_priv_wx_args[] = {
 	{
 		.cmd		= PRIV_WX_SET_SHORTPREAMBLE,
 		.set_args	= IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-		.name		= "set_shortpreambl",
+		.name		= "set_shortpreamb",
 	},
 	{
 		.cmd		= PRIV_WX_GET_SHORTPREAMBLE,
 		.get_args	= IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_FIXED | MAX_WX_STRING,
-		.name		= "get_shortpreambl",
+		.name		= "get_shortpreamb",
 	},
 	{
 		.cmd		= PRIV_WX_SET_SWENCRYPTION,
 		.set_args	= IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-		.name		= "set_swencryption",
+		.name		= "set_swencrypt",
 	},
 	{
 		.cmd		= PRIV_WX_GET_SWENCRYPTION,
 		.get_args	= IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_FIXED | MAX_WX_STRING,
-		.name		= "get_swencryption",
+		.name		= "get_swencrypt",
 	},
 	{
 		.cmd		= PRIV_WX_SPROM_WRITE,

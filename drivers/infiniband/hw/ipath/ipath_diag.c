@@ -277,12 +277,13 @@ static int ipath_diag_open(struct inode *in, struct file *fp)
 
 bail:
 	spin_unlock_irqrestore(&ipath_devs_lock, flags);
-	mutex_unlock(&ipath_mutex);
 
 	/* Only expose a way to reset the device if we
 	   make it into diag mode. */
 	if (ret == 0)
 		ipath_expose_reset(&dd->pcidev->dev);
+
+	mutex_unlock(&ipath_mutex);
 
 	return ret;
 }
@@ -364,16 +365,4 @@ static ssize_t ipath_diag_write(struct file *fp, const char __user *data,
 
 bail:
 	return ret;
-}
-
-void ipath_diag_bringup_link(struct ipath_devdata *dd)
-{
-	if (diag_set_link || (dd->ipath_flags & IPATH_LINKACTIVE))
-		return;
-
-	diag_set_link = 1;
-	ipath_cdbg(VERBOSE, "Trying to set to set link active for "
-		   "diag pkt\n");
-	ipath_layer_set_linkstate(dd, IPATH_IB_LINKARM);
-	ipath_layer_set_linkstate(dd, IPATH_IB_LINKACTIVE);
 }

@@ -2723,7 +2723,11 @@ static void __do_SAK(void *arg)
 		}
 		task_lock(p);
 		if (p->files) {
-			rcu_read_lock();
+			/*
+			 * We don't take a ref to the file, so we must
+			 * hold ->file_lock instead.
+			 */
+			spin_lock(&p->files->file_lock);
 			fdt = files_fdtable(p->files);
 			for (i=0; i < fdt->max_fds; i++) {
 				filp = fcheck_files(p->files, i);
@@ -2738,7 +2742,7 @@ static void __do_SAK(void *arg)
 					break;
 				}
 			}
-			rcu_read_unlock();
+			spin_unlock(&p->files->file_lock);
 		}
 		task_unlock(p);
 	} while_each_thread(g, p);

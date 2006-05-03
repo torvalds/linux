@@ -282,7 +282,8 @@ struct ipath_srq {
  */
 struct ipath_qp {
 	struct ib_qp ibqp;
-	struct ipath_qp *next;	/* link list for QPN hash table */
+	struct ipath_qp *next;		/* link list for QPN hash table */
+	struct ipath_qp *timer_next;	/* link list for ipath_ib_timer() */
 	struct list_head piowait;	/* link for wait PIO buf */
 	struct list_head timerwait;	/* link for waiting for timeouts */
 	struct ib_ah_attr remote_ah_attr;
@@ -577,8 +578,6 @@ int ipath_init_qp_table(struct ipath_ibdev *idev, int size);
 
 void ipath_sqerror_qp(struct ipath_qp *qp, struct ib_wc *wc);
 
-void ipath_error_qp(struct ipath_qp *qp);
-
 void ipath_get_credit(struct ipath_qp *qp, u32 aeth);
 
 void ipath_do_rc_send(unsigned long data);
@@ -606,9 +605,6 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 		  int has_grh, void *data, u32 tlen, struct ipath_qp *qp);
 
 void ipath_restart_rc(struct ipath_qp *qp, u32 psn, struct ib_wc *wc);
-
-void ipath_ud_loopback(struct ipath_qp *sqp, struct ipath_sge_state *ss,
-		       u32 length, struct ib_send_wr *wr, struct ib_wc *wc);
 
 int ipath_post_ud_send(struct ipath_qp *qp, struct ib_send_wr *wr);
 

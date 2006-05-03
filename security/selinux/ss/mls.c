@@ -8,7 +8,7 @@
  *
  *	Support for enhanced MLS infrastructure.
  *
- * Copyright (C) 2004-2005 Trusted Computer Solutions, Inc.
+ * Copyright (C) 2004-2006 Trusted Computer Solutions, Inc.
  */
 
 #include <linux/kernel.h>
@@ -264,7 +264,7 @@ int mls_context_to_sid(char oldc,
 
 	if (!selinux_mls_enabled) {
 		if (def_sid != SECSID_NULL && oldc)
-			*scontext += strlen(*scontext);
+			*scontext += strlen(*scontext)+1;
 		return 0;
 	}
 
@@ -381,6 +381,34 @@ int mls_context_to_sid(char oldc,
 	*scontext = ++p;
 	rc = 0;
 out:
+	return rc;
+}
+
+/*
+ * Set the MLS fields in the security context structure
+ * `context' based on the string representation in
+ * the string `str'.  This function will allocate temporary memory with the
+ * given constraints of gfp_mask.
+ */
+int mls_from_string(char *str, struct context *context, gfp_t gfp_mask)
+{
+	char *tmpstr, *freestr;
+	int rc;
+
+	if (!selinux_mls_enabled)
+		return -EINVAL;
+
+	/* we need freestr because mls_context_to_sid will change
+	   the value of tmpstr */
+	tmpstr = freestr = kstrdup(str, gfp_mask);
+	if (!tmpstr) {
+		rc = -ENOMEM;
+	} else {
+		rc = mls_context_to_sid(':', &tmpstr, context,
+		                        NULL, SECSID_NULL);
+		kfree(freestr);
+	}
+
 	return rc;
 }
 

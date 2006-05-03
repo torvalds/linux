@@ -73,7 +73,7 @@
 /* --------------------------------------------------------------------- */
 
 
-static char *mode_option __initdata = NULL;
+static char *mode_option __devinitdata = NULL;
 
 #ifdef MODULE
 
@@ -1545,7 +1545,7 @@ static int __devinit savage_map_mmio (struct fb_info *info)
 	return 0;
 }
 
-static void __devinit savage_unmap_mmio (struct fb_info *info)
+static void savage_unmap_mmio (struct fb_info *info)
 {
 	struct savagefb_par *par = info->par;
 	DBG ("savage_unmap_mmio");
@@ -1597,7 +1597,7 @@ static int __devinit savage_map_video (struct fb_info *info,
 	return 0;
 }
 
-static void __devinit savage_unmap_video (struct fb_info *info)
+static void savage_unmap_video (struct fb_info *info)
 {
 	struct savagefb_par *par = info->par;
 
@@ -1614,7 +1614,7 @@ static void __devinit savage_unmap_video (struct fb_info *info)
 	}
 }
 
-static int __devinit savage_init_hw (struct savagefb_par *par)
+static int savage_init_hw (struct savagefb_par *par)
 {
 	unsigned char config1, m, n, n1, n2, sr8, cr3f, cr66 = 0, tmp;
 

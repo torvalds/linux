@@ -242,28 +242,10 @@ s390_subchannel_remove_chpid(struct device *dev, void *data)
 	if (sch->vpm == mask)
 		goto out_unreg;
 
-	if ((sch->schib.scsw.actl & (SCSW_ACTL_CLEAR_PEND |
-				     SCSW_ACTL_HALT_PEND |
-				     SCSW_ACTL_START_PEND |
-				     SCSW_ACTL_RESUME_PEND)) &&
-	    (sch->schib.pmcw.lpum == mask)) {
-		int cc = cio_cancel(sch);
-		
-		if (cc == -ENODEV)
-			goto out_unreg;
-
-		if (cc == -EINVAL) {
-			cc = cio_clear(sch);
-			if (cc == -ENODEV)
-				goto out_unreg;
-			/* Call handler. */
-			if (sch->driver && sch->driver->termination)
-				sch->driver->termination(&sch->dev);
-			goto out_unlock;
-		}
-	} else if ((sch->schib.scsw.actl & SCSW_ACTL_DEVACT) &&
-		   (sch->schib.scsw.actl & SCSW_ACTL_SCHACT) &&
-		   (sch->schib.pmcw.lpum == mask)) {
+	if ((sch->schib.scsw.actl & SCSW_ACTL_DEVACT) &&
+	    (sch->schib.scsw.actl & SCSW_ACTL_SCHACT) &&
+	    (sch->schib.pmcw.lpum == mask) &&
+	    (sch->vpm == 0)) {
 		int cc;
 
 		cc = cio_clear(sch);
@@ -653,13 +635,13 @@ __chp_add(struct subchannel_id schid, void *data)
 		if (sch->schib.pmcw.chpid[i] == chp->id) {
 			if (stsch(sch->schid, &sch->schib) != 0) {
 				/* Endgame. */
-				spin_unlock(&sch->lock);
+				spin_unlock_irq(&sch->lock);
 				return -ENXIO;
 			}
 			break;
 		}
 	if (i==8) {
-		spin_unlock(&sch->lock);
+		spin_unlock_irq(&sch->lock);
 		return 0;
 	}
 	sch->lpm = ((sch->schib.pmcw.pim &

@@ -37,6 +37,7 @@
  */
 
 #include <linux/pci.h>
+#include <linux/dma-mapping.h>
 #include "drmP.h"
 
 /**********************************************************************/

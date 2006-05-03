@@ -404,9 +404,7 @@ static int initiate_cifs_search(const int xid, struct file *file)
 	if(pTcon == NULL)
 		return -EINVAL;
 
-	mutex_lock(&file->f_dentry->d_sb->s_vfs_rename_mutex);
 	full_path = build_path_from_dentry(file->f_dentry);
-	mutex_unlock(&file->f_dentry->d_sb->s_vfs_rename_mutex);
 
 	if(full_path == NULL) {
 		return -ENOMEM;
@@ -592,6 +590,13 @@ static int find_cifs_entry(const int xid, struct cifsTconInfo *pTcon,
 	first_entry_in_buffer = 
 		cifsFile->srch_inf.index_of_last_entry - 
 			cifsFile->srch_inf.entries_in_buffer;
+
+	/* if first entry in buf is zero then is first buffer
+	in search response data which means it is likely . and ..
+	will be in this buffer, although some servers do not return
+	. and .. for the root of a drive and for those we need
+	to start two entries earlier */
+
 /*	dump_cifs_file_struct(file, "In fce ");*/
 	if(((index_to_find < cifsFile->srch_inf.index_of_last_entry) && 
 	     is_dir_changed(file)) || 
@@ -634,23 +639,14 @@ static int find_cifs_entry(const int xid, struct cifsTconInfo *pTcon,
 		char * end_of_smb = cifsFile->srch_inf.ntwrk_buf_start + 
 			smbCalcSize((struct smb_hdr *)
 				cifsFile->srch_inf.ntwrk_buf_start);
+
+		current_entry = cifsFile->srch_inf.srch_entries_start;
 		first_entry_in_buffer = cifsFile->srch_inf.index_of_last_entry
 					- cifsFile->srch_inf.entries_in_buffer;
 		pos_in_buf = index_to_find - first_entry_in_buffer;
 		cFYI(1,("found entry - pos_in_buf %d",pos_in_buf)); 
-		current_entry = cifsFile->srch_inf.srch_entries_start;
 		for(i=0;(i<(pos_in_buf)) && (current_entry != NULL);i++) {
 			/* go entry by entry figuring out which is first */
-			/* if( . or ..)
-				skip */
-			rc = cifs_entry_is_dot(current_entry,cifsFile);
-			if(rc == 1) /* is . or .. so skip */ {
-				cFYI(1,("Entry is .")); /* BB removeme BB */
-				/* continue; */
-			} else if (rc == 2 ) {
-				cFYI(1,("Entry is ..")); /* BB removeme BB */
-				/* continue; */
-			}
 			current_entry = nxt_dir_entry(current_entry,end_of_smb);
 		}
 		if((current_entry == NULL) && (i < pos_in_buf)) {
@@ -769,6 +765,11 @@ static int cifs_filldir(char *pfindEntry, struct file *file,
 
 	if(file->f_dentry == NULL)
 		return -ENOENT;
+
+	rc = cifs_entry_is_dot(pfindEntry,pCifsF);
+	/* skip . and .. since we added them first */
+	if(rc != 0) 
+		return 0;
 
 	cifs_sb = CIFS_SB(file->f_dentry->d_sb);
 
@@ -898,22 +899,22 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 
 	switch ((int) file->f_pos) {
 	case 0:
-		/*if (filldir(direntry, ".", 1, file->f_pos,
+		if (filldir(direntry, ".", 1, file->f_pos,
 		     file->f_dentry->d_inode->i_ino, DT_DIR) < 0) {
-			cERROR(1, ("Filldir for current dir failed "));
+			cERROR(1, ("Filldir for current dir failed"));
 			rc = -ENOMEM;
 			break;
 		}
-		file->f_pos++; */
+		file->f_pos++;
 	case 1:
-		/* if (filldir(direntry, "..", 2, file->f_pos,
+		if (filldir(direntry, "..", 2, file->f_pos,
 		     file->f_dentry->d_parent->d_inode->i_ino, DT_DIR) < 0) {
 			cERROR(1, ("Filldir for parent dir failed "));
 			rc = -ENOMEM;
 			break;
 		}
-		file->f_pos++; */
-	case 2:
+		file->f_pos++;
+	default:
 		/* 1) If search is active, 
 			is in current search buffer? 
 			if it before then restart search
@@ -927,7 +928,6 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 				return rc;
 			}
 		}
-	default:
 		if(file->private_data == NULL) {
 			rc = -EINVAL;
 			FreeXid(xid);
@@ -946,8 +946,6 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 		} 
 		kfree(cifsFile->search_resume_name);
 		cifsFile->search_resume_name = NULL; */
-
-		/* BB account for . and .. in f_pos as special case */
 
 		rc = find_cifs_entry(xid,pTcon, file,
 				&current_entry,&num_to_fill);
@@ -977,7 +975,8 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 					  num_to_fill, i));
 				break;
 			}
-
+			/* if buggy server returns . and .. late do
+			we want to check for that here? */
 			rc = cifs_filldir(current_entry, file, 
 					filldir, direntry,tmp_buf);
 			file->f_pos++;

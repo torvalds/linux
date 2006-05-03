@@ -793,8 +793,10 @@ static int msix_capability_init(struct pci_dev *dev,
 		if (!entry)
 			break;
 		vector = get_msi_vector(dev);
-		if (vector < 0)
+		if (vector < 0) {
+			kmem_cache_free(msi_cachep, entry);
 			break;
+		}
 
  		j = entries[i].entry;
  		entries[i].vector = vector;

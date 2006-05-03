@@ -1614,6 +1614,7 @@ static int activate_ep_files (struct dev_data *dev)
 				data, &ep_config_operations,
 				&data->dentry);
 		if (!data->inode) {
+			usb_ep_free_request(ep, data->req);
 			kfree (data);
 			goto enomem;
 		}

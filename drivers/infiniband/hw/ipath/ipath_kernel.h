@@ -528,7 +528,6 @@ extern spinlock_t ipath_devs_lock;
 extern struct ipath_devdata *ipath_lookup(int unit);
 
 extern u16 ipath_layer_rcv_opcode;
-extern int ipath_verbs_registered;
 extern int __ipath_layer_intr(struct ipath_devdata *, u32);
 extern int ipath_layer_intr(struct ipath_devdata *, u32);
 extern int __ipath_layer_rcv(struct ipath_devdata *, void *,
@@ -732,7 +731,7 @@ u64 ipath_read_kreg64_port(const struct ipath_devdata *, ipath_kreg,
 static inline u32 ipath_read_ureg32(const struct ipath_devdata *dd,
 				    ipath_ureg regno, int port)
 {
-	if (!dd->ipath_kregbase)
+	if (!dd->ipath_kregbase || !(dd->ipath_flags & IPATH_PRESENT))
 		return 0;
 
 	return readl(regno + (u64 __iomem *)
@@ -763,7 +762,7 @@ static inline void ipath_write_ureg(const struct ipath_devdata *dd,
 static inline u32 ipath_read_kreg32(const struct ipath_devdata *dd,
 				    ipath_kreg regno)
 {
-	if (!dd->ipath_kregbase)
+	if (!dd->ipath_kregbase || !(dd->ipath_flags & IPATH_PRESENT))
 		return -1;
 	return readl((u32 __iomem *) & dd->ipath_kregbase[regno]);
 }
@@ -771,7 +770,7 @@ static inline u32 ipath_read_kreg32(const struct ipath_devdata *dd,
 static inline u64 ipath_read_kreg64(const struct ipath_devdata *dd,
 				    ipath_kreg regno)
 {
-	if (!dd->ipath_kregbase)
+	if (!dd->ipath_kregbase || !(dd->ipath_flags & IPATH_PRESENT))
 		return -1;
 
 	return readq(&dd->ipath_kregbase[regno]);
@@ -787,7 +786,7 @@ static inline void ipath_write_kreg(const struct ipath_devdata *dd,
 static inline u64 ipath_read_creg(const struct ipath_devdata *dd,
 				  ipath_sreg regno)
 {
-	if (!dd->ipath_kregbase)
+	if (!dd->ipath_kregbase || !(dd->ipath_flags & IPATH_PRESENT))
 		return 0;
 
 	return readq(regno + (u64 __iomem *)
@@ -798,7 +797,7 @@ static inline u64 ipath_read_creg(const struct ipath_devdata *dd,
 static inline u32 ipath_read_creg32(const struct ipath_devdata *dd,
 					 ipath_sreg regno)
 {
-	if (!dd->ipath_kregbase)
+	if (!dd->ipath_kregbase || !(dd->ipath_flags & IPATH_PRESENT))
 		return 0;
 	return readl(regno + (u64 __iomem *)
 		     (dd->ipath_cregbase +

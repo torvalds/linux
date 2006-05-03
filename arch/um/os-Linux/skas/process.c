@@ -344,12 +344,12 @@ int copy_context_skas0(unsigned long new_stack, int pid)
 	err = ptrace_setregs(pid, regs);
 	if(err < 0)
 		panic("copy_context_skas0 : PTRACE_SETREGS failed, "
-		      "pid = %d, errno = %d\n", pid, errno);
+		      "pid = %d, errno = %d\n", pid, -err);
 
 	err = ptrace_setfpregs(pid, fp_regs);
 	if(err < 0)
 		panic("copy_context_skas0 : PTRACE_SETFPREGS failed, "
-		      "pid = %d, errno = %d\n", pid, errno);
+		      "pid = %d, errno = %d\n", pid, -err);
 
 	/* set a well known return code for detection of child write failure */
 	child_data->err = 12345678;
@@ -362,7 +362,7 @@ int copy_context_skas0(unsigned long new_stack, int pid)
 	pid = data->err;
 	if(pid < 0)
 		panic("copy_context_skas0 - stub-parent reports error %d\n",
-		      pid);
+		      -pid);
 
 	/* Wait, until child has finished too: read child's result from
 	 * child's stack and check it.
@@ -434,7 +434,7 @@ void new_thread(void *stack, void **switch_buf_ptr, void **fork_buf_ptr,
 		void (*handler)(int))
 {
 	unsigned long flags;
-	sigjmp_buf switch_buf, fork_buf;
+	jmp_buf switch_buf, fork_buf;
 	int enable;
 
 	*switch_buf_ptr = &switch_buf;
@@ -450,7 +450,7 @@ void new_thread(void *stack, void **switch_buf_ptr, void **fork_buf_ptr,
 	 */
 	flags = get_signals();
 	block_signals();
-	if(UML_SIGSETJMP(&fork_buf, enable) == 0)
+	if(UML_SETJMP(&fork_buf, enable) == 0)
 		new_thread_proc(stack, handler);
 
 	remove_sigstack();
@@ -466,35 +466,35 @@ void new_thread(void *stack, void **switch_buf_ptr, void **fork_buf_ptr,
 
 void thread_wait(void *sw, void *fb)
 {
-	sigjmp_buf buf, **switch_buf = sw, *fork_buf;
+	jmp_buf buf, **switch_buf = sw, *fork_buf;
 	int enable;
 
 	*switch_buf = &buf;
 	fork_buf = fb;
-	if(UML_SIGSETJMP(&buf, enable) == 0)
+	if(UML_SETJMP(&buf, enable) == 0)
 		siglongjmp(*fork_buf, INIT_JMP_REMOVE_SIGSTACK);
 }
 
 void switch_threads(void *me, void *next)
 {
-	sigjmp_buf my_buf, **me_ptr = me, *next_buf = next;
+	jmp_buf my_buf, **me_ptr = me, *next_buf = next;
 	int enable;
 
 	*me_ptr = &my_buf;
-	if(UML_SIGSETJMP(&my_buf, enable) == 0)
-		UML_SIGLONGJMP(next_buf, 1);
+	if(UML_SETJMP(&my_buf, enable) == 0)
+		UML_LONGJMP(next_buf, 1);
 }
 
-static sigjmp_buf initial_jmpbuf;
+static jmp_buf initial_jmpbuf;
 
 /* XXX Make these percpu */
 static void (*cb_proc)(void *arg);
 static void *cb_arg;
-static sigjmp_buf *cb_back;
+static jmp_buf *cb_back;
 
 int start_idle_thread(void *stack, void *switch_buf_ptr, void **fork_buf_ptr)
 {
-	sigjmp_buf **switch_buf = switch_buf_ptr;
+	jmp_buf **switch_buf = switch_buf_ptr;
 	int n, enable;
 
 	set_handler(SIGWINCH, (__sighandler_t) sig_handler,
@@ -502,7 +502,7 @@ int start_idle_thread(void *stack, void *switch_buf_ptr, void **fork_buf_ptr)
 		    SIGVTALRM, -1);
 
 	*fork_buf_ptr = &initial_jmpbuf;
-	n = UML_SIGSETJMP(&initial_jmpbuf, enable);
+	n = UML_SETJMP(&initial_jmpbuf, enable);
 	switch(n){
 	case INIT_JMP_NEW_THREAD:
 		new_thread_proc((void *) stack, new_thread_handler);
@@ -512,7 +512,7 @@ int start_idle_thread(void *stack, void *switch_buf_ptr, void **fork_buf_ptr)
 		break;
 	case INIT_JMP_CALLBACK:
 		(*cb_proc)(cb_arg);
-		UML_SIGLONGJMP(cb_back, 1);
+		UML_LONGJMP(cb_back, 1);
 		break;
 	case INIT_JMP_HALT:
 		kmalloc_ok = 0;
@@ -523,12 +523,12 @@ int start_idle_thread(void *stack, void *switch_buf_ptr, void **fork_buf_ptr)
 	default:
 		panic("Bad sigsetjmp return in start_idle_thread - %d\n", n);
 	}
-	UML_SIGLONGJMP(*switch_buf, 1);
+	UML_LONGJMP(*switch_buf, 1);
 }
 
 void initial_thread_cb_skas(void (*proc)(void *), void *arg)
 {
-	sigjmp_buf here;
+	jmp_buf here;
 	int enable;
 
 	cb_proc = proc;
@@ -536,8 +536,8 @@ void initial_thread_cb_skas(void (*proc)(void *), void *arg)
 	cb_back = &here;
 
 	block_signals();
-	if(UML_SIGSETJMP(&here, enable) == 0)
-		UML_SIGLONGJMP(&initial_jmpbuf, INIT_JMP_CALLBACK);
+	if(UML_SETJMP(&here, enable) == 0)
+		UML_LONGJMP(&initial_jmpbuf, INIT_JMP_CALLBACK);
 	unblock_signals();
 
 	cb_proc = NULL;
@@ -548,13 +548,13 @@ void initial_thread_cb_skas(void (*proc)(void *), void *arg)
 void halt_skas(void)
 {
 	block_signals();
-	UML_SIGLONGJMP(&initial_jmpbuf, INIT_JMP_HALT);
+	UML_LONGJMP(&initial_jmpbuf, INIT_JMP_HALT);
 }
 
 void reboot_skas(void)
 {
 	block_signals();
-	UML_SIGLONGJMP(&initial_jmpbuf, INIT_JMP_REBOOT);
+	UML_LONGJMP(&initial_jmpbuf, INIT_JMP_REBOOT);
 }
 
 void switch_mm_skas(struct mm_id *mm_idp)

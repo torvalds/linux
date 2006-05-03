@@ -34,8 +34,9 @@
 #define _IPATH_REGISTERS_H
 
 /*
- * This file should only be included by kernel source, and by the diags.
- * It defines the registers, and their contents, for the InfiniPath HT-400 chip
+ * This file should only be included by kernel source, and by the diags.  It
+ * defines the registers, and their contents, for the InfiniPath HT-400
+ * chip.
  */
 
 /*
@@ -156,8 +157,10 @@
 #define INFINIPATH_IBCC_FLOWCTRLWATERMARK_SHIFT 8
 #define INFINIPATH_IBCC_LINKINITCMD_MASK 0x3ULL
 #define INFINIPATH_IBCC_LINKINITCMD_DISABLE 1
-#define INFINIPATH_IBCC_LINKINITCMD_POLL 2	/* cycle through TS1/TS2 till OK */
-#define INFINIPATH_IBCC_LINKINITCMD_SLEEP 3	/* wait for TS1, then go on */
+/* cycle through TS1/TS2 till OK */
+#define INFINIPATH_IBCC_LINKINITCMD_POLL 2
+/* wait for TS1, then go on */
+#define INFINIPATH_IBCC_LINKINITCMD_SLEEP 3
 #define INFINIPATH_IBCC_LINKINITCMD_SHIFT 16
 #define INFINIPATH_IBCC_LINKCMD_MASK 0x3ULL
 #define INFINIPATH_IBCC_LINKCMD_INIT 1	/* move to 0x11 */
@@ -182,7 +185,8 @@
 #define INFINIPATH_IBCS_LINKSTATE_SHIFT 4
 #define INFINIPATH_IBCS_TXREADY       0x40000000
 #define INFINIPATH_IBCS_TXCREDITOK    0x80000000
-/* link training states (shift by INFINIPATH_IBCS_LINKTRAININGSTATE_SHIFT) */
+/* link training states (shift by
+   INFINIPATH_IBCS_LINKTRAININGSTATE_SHIFT) */
 #define INFINIPATH_IBCS_LT_STATE_DISABLED	0x00
 #define INFINIPATH_IBCS_LT_STATE_LINKUP		0x01
 #define INFINIPATH_IBCS_LT_STATE_POLLACTIVE	0x02
@@ -267,10 +271,12 @@
 /* kr_serdesconfig0 bits */
 #define INFINIPATH_SERDC0_RESET_MASK  0xfULL	/* overal reset bits */
 #define INFINIPATH_SERDC0_RESET_PLL   0x10000000ULL	/* pll reset */
-#define INFINIPATH_SERDC0_TXIDLE      0xF000ULL	/* tx idle enables (per lane) */
-#define INFINIPATH_SERDC0_RXDETECT_EN 0xF0000ULL	/* rx detect enables (per lane) */
-#define INFINIPATH_SERDC0_L1PWR_DN	 0xF0ULL	/* L1 Power down; use with RXDETECT,
-							   Otherwise not used on IB side */
+/* tx idle enables (per lane) */
+#define INFINIPATH_SERDC0_TXIDLE      0xF000ULL
+/* rx detect enables (per lane) */
+#define INFINIPATH_SERDC0_RXDETECT_EN 0xF0000ULL
+/* L1 Power down; use with RXDETECT, Otherwise not used on IB side */
+#define INFINIPATH_SERDC0_L1PWR_DN	 0xF0ULL
 
 /* kr_xgxsconfig bits */
 #define INFINIPATH_XGXS_RESET          0x7ULL
@@ -390,12 +396,13 @@ struct ipath_kregs {
 	ipath_kreg kr_txintmemsize;
 	ipath_kreg kr_xgxsconfig;
 	ipath_kreg kr_ibpllcfg;
-	/* use these two (and the following N ports) only with ipath_k*_kreg64_port();
-	 * not *kreg64() */
+	/* use these two (and the following N ports) only with
+	 * ipath_k*_kreg64_port(); not *kreg64() */
 	ipath_kreg kr_rcvhdraddr;
 	ipath_kreg kr_rcvhdrtailaddr;
 
-	/* remaining registers are not present on all types of infinipath chips  */
+	/* remaining registers are not present on all types of infinipath
+	   chips  */
 	ipath_kreg kr_rcvpktledcnt;
 	ipath_kreg kr_pcierbuftestreg0;
 	ipath_kreg kr_pcierbuftestreg1;

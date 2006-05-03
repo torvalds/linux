@@ -97,7 +97,7 @@ static struct superio_struct {	/* For Super-IO chips autodetection */
 	int io;
 	int irq;
 	int dma;
-} superios[NR_SUPERIOS] __devinitdata = { {0,},};
+} superios[NR_SUPERIOS] = { {0,},};
 
 static int user_specified;
 #if defined(CONFIG_PARPORT_PC_SUPERIO) || \
@@ -1557,7 +1557,7 @@ static int __devinit get_superio_dma (struct parport *p)
 	return PARPORT_DMA_NONE;
 }
 
-static int __devinit get_superio_irq (struct parport *p)
+static int get_superio_irq (struct parport *p)
 {
 	int i=0;
         while( (superios[i].io != p->base) && (i<NR_SUPERIOS))
@@ -1579,7 +1579,7 @@ static int __devinit get_superio_irq (struct parport *p)
  *                         this shall always be the case!)
  *
  */
-static int __devinit parport_SPP_supported(struct parport *pb)
+static int parport_SPP_supported(struct parport *pb)
 {
 	unsigned char r, w;
 
@@ -1660,7 +1660,7 @@ static int __devinit parport_SPP_supported(struct parport *pb)
  * two bits of ECR aren't writable, so we check by writing ECR and
  * reading it back to see if it's what we expect.
  */
-static int __devinit parport_ECR_present(struct parport *pb)
+static int parport_ECR_present(struct parport *pb)
 {
 	struct parport_pc_private *priv = pb->private_data;
 	unsigned char r = 0xc;
@@ -1712,7 +1712,7 @@ static int __devinit parport_ECR_present(struct parport *pb)
  * be misdetected here is rather academic. 
  */
 
-static int __devinit parport_PS2_supported(struct parport *pb)
+static int parport_PS2_supported(struct parport *pb)
 {
 	int ok = 0;
   
@@ -1868,7 +1868,7 @@ static int __devinit parport_ECP_supported(struct parport *pb)
 }
 #endif
 
-static int __devinit parport_ECPPS2_supported(struct parport *pb)
+static int parport_ECPPS2_supported(struct parport *pb)
 {
 	const struct parport_pc_private *priv = pb->private_data;
 	int result;
@@ -1886,7 +1886,7 @@ static int __devinit parport_ECPPS2_supported(struct parport *pb)
 
 /* EPP mode detection  */
 
-static int __devinit parport_EPP_supported(struct parport *pb)
+static int parport_EPP_supported(struct parport *pb)
 {
 	const struct parport_pc_private *priv = pb->private_data;
 
@@ -1931,7 +1931,7 @@ static int __devinit parport_EPP_supported(struct parport *pb)
 	return 1;
 }
 
-static int __devinit parport_ECPEPP_supported(struct parport *pb)
+static int parport_ECPEPP_supported(struct parport *pb)
 {
 	struct parport_pc_private *priv = pb->private_data;
 	int result;
@@ -2073,7 +2073,7 @@ static int __devinit irq_probe_SPP(struct parport *pb)
  * When ECP is available we can autoprobe for IRQs.
  * NOTE: If we can autoprobe it, we can register the IRQ.
  */
-static int __devinit parport_irq_probe(struct parport *pb)
+static int parport_irq_probe(struct parport *pb)
 {
 	struct parport_pc_private *priv = pb->private_data;
 
@@ -2779,7 +2779,7 @@ static struct parport_pc_pci {
 	/* If set, this is called after probing for ports.  If 'failed'
 	 * is non-zero we couldn't use any of the ports. */
 	void (*postinit_hook) (struct pci_dev *pdev, int failed);
-} cards[] __devinitdata = {
+} cards[] = {
 	/* siig_1p_10x */		{ 1, { { 2, 3 }, } },
 	/* siig_2p_10x */		{ 2, { { 2, 3 }, { 4, 5 }, } },
 	/* siig_1p_20x */		{ 1, { { 0, 1 }, } },

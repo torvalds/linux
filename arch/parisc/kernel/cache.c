@@ -4,7 +4,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 1999 Helge Deller (07-13-1999)
+ * Copyright (C) 1999-2006 Helge Deller <deller@gmx.de> (07-13-1999)
  * Copyright (C) 1999 SuSE GmbH Nuernberg
  * Copyright (C) 2000 Philipp Rumpf (prumpf@tux.org)
  *
@@ -358,5 +358,5 @@ void parisc_setup_cache_timing(void)
 	if (!parisc_cache_flush_threshold)
 		parisc_cache_flush_threshold = FLUSH_THRESHOLD;
 
-	printk("Setting cache flush threshold to %x (%d CPUs online)\n", parisc_cache_flush_threshold, num_online_cpus());
+	printk(KERN_INFO "Setting cache flush threshold to %x (%d CPUs online)\n", parisc_cache_flush_threshold, num_online_cpus());
 }

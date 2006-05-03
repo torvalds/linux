@@ -63,7 +63,7 @@ void __kprobes arch_disarm_kprobe(struct kprobe *p)
 	flushi(p->addr);
 }
 
-static inline void save_previous_kprobe(struct kprobe_ctlblk *kcb)
+static void __kprobes save_previous_kprobe(struct kprobe_ctlblk *kcb)
 {
 	kcb->prev_kprobe.kp = kprobe_running();
 	kcb->prev_kprobe.status = kcb->kprobe_status;
@@ -71,7 +71,7 @@ static inline void save_previous_kprobe(struct kprobe_ctlblk *kcb)
 	kcb->prev_kprobe.orig_tstate_pil = kcb->kprobe_orig_tstate_pil;
 }
 
-static inline void restore_previous_kprobe(struct kprobe_ctlblk *kcb)
+static void __kprobes restore_previous_kprobe(struct kprobe_ctlblk *kcb)
 {
 	__get_cpu_var(current_kprobe) = kcb->prev_kprobe.kp;
 	kcb->kprobe_status = kcb->prev_kprobe.status;
@@ -79,7 +79,7 @@ static inline void restore_previous_kprobe(struct kprobe_ctlblk *kcb)
 	kcb->kprobe_orig_tstate_pil = kcb->prev_kprobe.orig_tstate_pil;
 }
 
-static inline void set_current_kprobe(struct kprobe *p, struct pt_regs *regs,
+static void __kprobes set_current_kprobe(struct kprobe *p, struct pt_regs *regs,
 				struct kprobe_ctlblk *kcb)
 {
 	__get_cpu_var(current_kprobe) = p;
@@ -87,7 +87,7 @@ static inline void set_current_kprobe(struct kprobe *p, struct pt_regs *regs,
 	kcb->kprobe_orig_tstate_pil = (regs->tstate & TSTATE_PIL);
 }
 
-static inline void prepare_singlestep(struct kprobe *p, struct pt_regs *regs,
+static void __kprobes prepare_singlestep(struct kprobe *p, struct pt_regs *regs,
 			struct kprobe_ctlblk *kcb)
 {
 	regs->tstate |= TSTATE_PIL;
@@ -273,7 +273,7 @@ static void __kprobes resume_execution(struct kprobe *p,
 			kcb->kprobe_orig_tstate_pil);
 }
 
-static inline int post_kprobe_handler(struct pt_regs *regs)
+static int __kprobes post_kprobe_handler(struct pt_regs *regs)
 {
 	struct kprobe *cur = kprobe_running();
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
@@ -300,7 +300,7 @@ out:
 	return 1;
 }
 
-static inline int kprobe_fault_handler(struct pt_regs *regs, int trapnr)
+static int __kprobes kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 {
 	struct kprobe *cur = kprobe_running();
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();

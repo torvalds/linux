@@ -26,11 +26,35 @@
 #include <asm/irq.h>
 #include <asm/ppc_sys.h>
 #include <asm/ppcboot.h>
+#include <linux/fs_uart_pd.h>
 
 #include "pq2ads_pd.h"
 
 static void init_fcc1_ioports(void);
 static void init_fcc2_ioports(void);
+static void init_scc1_uart_ioports(void);
+static void init_scc4_uart_ioports(void);
+
+static struct fs_uart_platform_info mpc8272_uart_pdata[] = {
+	[fsid_scc1_uart] = {
+		.init_ioports 	= init_scc1_uart_ioports,
+		.fs_no		= fsid_scc1_uart,
+		.brg		= 1,
+		.tx_num_fifo	= 4,
+		.tx_buf_size	= 32,
+		.rx_num_fifo	= 4,
+		.rx_buf_size	= 32,
+	},
+	[fsid_scc4_uart] = {
+		.init_ioports 	= init_scc4_uart_ioports,
+		.fs_no		= fsid_scc4_uart,
+		.brg		= 4,
+		.tx_num_fifo	= 4,
+		.tx_buf_size	= 32,
+		.rx_num_fifo	= 4,
+		.rx_buf_size	= 32,
+	},
+};
 
 static struct fs_mii_bus_info mii_bus_info = {
 	.method                 = fsmii_bitbang,
@@ -201,12 +225,65 @@ static void __init mpc8272ads_fixup_enet_pdata(struct platform_device *pdev,
 	}
 }
 
+static void mpc8272ads_fixup_uart_pdata(struct platform_device *pdev,
+					      int idx)
+{
+	bd_t *bd = (bd_t *) __res;
+	struct fs_uart_platform_info *pinfo;
+	int num = ARRAY_SIZE(mpc8272_uart_pdata);
+	int id = fs_uart_id_scc2fsid(idx);
+
+	/* no need to alter anything if console */
+	if ((id <= num) && (!pdev->dev.platform_data)) {
+		pinfo = &mpc8272_uart_pdata[id];
+		pinfo->uart_clk = bd->bi_intfreq;
+		pdev->dev.platform_data = pinfo;
+	}
+}
+
+static void init_scc1_uart_ioports(void)
+{
+	cpm2_map_t* immap = ioremap(CPM_MAP_ADDR, sizeof(cpm2_map_t));
+
+        /* SCC1 is only on port D */
+	setbits32(&immap->im_ioport.iop_ppard,0x00000003);
+	clrbits32(&immap->im_ioport.iop_psord,0x00000001);
+	setbits32(&immap->im_ioport.iop_psord,0x00000002);
+	clrbits32(&immap->im_ioport.iop_pdird,0x00000001);
+	setbits32(&immap->im_ioport.iop_pdird,0x00000002);
+
+        /* Wire BRG1 to SCC1 */
+	clrbits32(&immap->im_cpmux.cmx_scr,0x00ffffff);
+
+	iounmap(immap);
+}
+
+static void init_scc4_uart_ioports(void)
+{
+	cpm2_map_t* immap = ioremap(CPM_MAP_ADDR, sizeof(cpm2_map_t));
+
+	setbits32(&immap->im_ioport.iop_ppard,0x00000600);
+	clrbits32(&immap->im_ioport.iop_psord,0x00000600);
+	clrbits32(&immap->im_ioport.iop_pdird,0x00000200);
+	setbits32(&immap->im_ioport.iop_pdird,0x00000400);
+
+        /* Wire BRG4 to SCC4 */
+	clrbits32(&immap->im_cpmux.cmx_scr,0x000000ff);
+	setbits32(&immap->im_cpmux.cmx_scr,0x0000001b);
+
+	iounmap(immap);
+}
+
 static int mpc8272ads_platform_notify(struct device *dev)
 {
 	static const struct platform_notify_dev_map dev_map[] = {
 		{
 			.bus_id = "fsl-cpm-fcc",
 			.rtn = mpc8272ads_fixup_enet_pdata
+		},
+		{
+			.bus_id = "fsl-cpm-scc:uart",
+			.rtn = mpc
 		},
 		{
 			.bus_id = NULL
@@ -230,7 +307,44 @@ int __init mpc8272ads_init(void)
 	ppc_sys_device_enable(MPC82xx_CPM_FCC1);
 	ppc_sys_device_enable(MPC82xx_CPM_FCC2);
 
+	/* to be ready for console, let's attach pdata here */
+#ifdef CONFIG_SERIAL_CPM_SCC1
+	ppc_sys_device_setfunc(MPC82xx_CPM_SCC1, PPC_SYS_FUNC_UART);
+	ppc_sys_device_enable(MPC82xx_CPM_SCC1);
+
+#endif
+
+#ifdef CONFIG_SERIAL_CPM_SCC4
+	ppc_sys_device_setfunc(MPC82xx_CPM_SCC4, PPC_SYS_FUNC_UART);
+	ppc_sys_device_enable(MPC82xx_CPM_SCC4);
+#endif
+
+
 	return 0;
+}
+
+/*
+   To prevent confusion, console selection is gross:
+   by 0 assumed SCC1 and by 1 assumed SCC4
+ */
+struct platform_device* early_uart_get_pdev(int index)
+{
+	bd_t *bd = (bd_t *) __res;
+	struct fs_uart_platform_info *pinfo;
+
+	struct platform_device* pdev = NULL;
+	if(index) { /*assume SCC4 here*/
+		pdev = &ppc_sys_platform_devices[MPC82xx_CPM_SCC4];
+		pinfo = &mpc8272<F12>_uart_pdata[1];
+	} else { /*over SCC1*/
+		pdev = &ppc_sys_platform_devices[MPC82xx_CPM_SCC1];
+		pinfo = &mpc8272_uart_pdata[0];
+	}
+
+	pinfo->uart_clk = bd->bi_intfreq;
+	pdev->dev.platform_data = pinfo;
+	ppc_sys_fixup_mem_resource(pdev, IMAP_ADDR);
+	return NULL;
 }
 
 arch_initcall(mpc8272ads_init);

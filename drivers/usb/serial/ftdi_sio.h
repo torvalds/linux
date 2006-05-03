@@ -39,6 +39,9 @@
 /* www.thoughttechnology.com/ TT-USB provide with procomp use ftdi_sio */
 #define FTDI_TTUSB_PID 0xFF20 /* Product Id */
 
+/* iPlus device */
+#define FTDI_IPLUS_PID 0xD070 /* Product Id */
+
 /* www.crystalfontz.com devices - thanx for providing free devices for evaluation ! */
 /* they use the ftdi chipset for the USB interface and the vendor id is the same */
 #define FTDI_XF_632_PID 0xFC08	/* 632: 16x2 Character Display */
@@ -151,6 +154,11 @@
 
 #define ICOM_ID1_VID            0x0C26
 #define ICOM_ID1_PID            0x0004
+
+/*
+ * ASK.fr devices
+ */
+#define FTDI_ASK_RDR400_PID	0xC991	/* ASK RDR 400 series card reader */
 
 /*
  * DSS-20 Sync Station for Sony Ericsson P800
@@ -398,6 +406,11 @@
  */
 #define FTDI_WESTREX_MODEL_777_PID	0xDC00	/* Model 777 */
 #define FTDI_WESTREX_MODEL_8900F_PID	0xDC01	/* Model 8900F */
+
+/*
+ * RR-CirKits LocoBuffer USB (http://www.rr-cirkits.com)
+ */
+#define FTDI_RRCIRKITS_LOCOBUFFER_PID	0xc7d0	/* LocoBuffer USB */
 
 /*
  * Eclo (http://www.eclo.pt/) product IDs.

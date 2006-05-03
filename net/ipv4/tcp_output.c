@@ -465,7 +465,7 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it, 
 	TCP_INC_STATS(TCP_MIB_OUTSEGS);
 
 	err = icsk->icsk_af_ops->queue_xmit(skb, 0);
-	if (unlikely(err <= 0))
+	if (likely(err <= 0))
 		return err;
 
 	tcp_enter_cwr(sk);
@@ -533,6 +533,7 @@ int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len, unsigned int mss
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *buff;
 	int nsize, old_factor;
+	int nlen;
 	u16 flags;
 
 	BUG_ON(len > skb->len);
@@ -551,7 +552,11 @@ int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len, unsigned int mss
 	buff = sk_stream_alloc_skb(sk, nsize, GFP_ATOMIC);
 	if (buff == NULL)
 		return -ENOMEM; /* We'll just try again later. */
+
 	sk_charge_skb(sk, buff);
+	nlen = skb->len - len - nsize;
+	buff->truesize += nlen;
+	skb->truesize -= nlen;
 
 	/* Correct the sequence numbers. */
 	TCP_SKB_CB(buff)->seq = TCP_SKB_CB(skb)->seq + len;
@@ -1037,7 +1042,8 @@ static int tso_fragment(struct sock *sk, struct sk_buff *skb, unsigned int len, 
 	if (unlikely(buff == NULL))
 		return -ENOMEM;
 
-	buff->truesize = nlen;
+	sk_charge_skb(sk, buff);
+	buff->truesize += nlen;
 	skb->truesize -= nlen;
 
 	/* Correct the sequence numbers. */

@@ -91,7 +91,7 @@ static void ixp4xx_config_irq(unsigned irq, enum ixp4xx_irq_type type);
 /*
  * IRQ -> GPIO mapping table
  */
-static char irq2gpio[32] = {
+static signed char irq2gpio[32] = {
 	-1, -1, -1, -1, -1, -1,  0,  1,
 	-1, -1, -1, -1, -1, -1, -1, -1,
 	-1, -1, -1,  2,  3,  4,  5,  6,

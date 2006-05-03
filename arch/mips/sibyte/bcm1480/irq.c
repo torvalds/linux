@@ -187,9 +187,6 @@ static void bcm1480_set_affinity(unsigned int irq, cpumask_t mask)
 #endif
 
 
-/* Defined in arch/mips/sibyte/bcm1480/irq_handler.S */
-extern void bcm1480_irq_handler(void);
-
 /*****************************************************************************/
 
 static unsigned int startup_bcm1480_irq(unsigned int irq)
@@ -422,7 +419,6 @@ void __init arch_init_irq(void)
 #endif
 	/* Enable necessary IPs, disable the rest */
 	change_c0_status(ST0_IM, imask);
-	set_except_vector(0, bcm1480_irq_handler);
 
 #ifdef CONFIG_KGDB
 	if (kgdb_flag) {
@@ -473,3 +469,76 @@ void bcm1480_kgdb_interrupt(struct pt_regs *regs)
 }
 
 #endif 	/* CONFIG_KGDB */
+
+static inline int dclz(unsigned long long x)
+{
+	int lz;
+
+	__asm__ (
+	"	.set	push						\n"
+	"	.set	mips64						\n"
+	"	dclz	%0, %1						\n"
+	"	.set	pop						\n"
+	: "=r" (lz)
+	: "r" (x));
+
+	return lz;
+}
+
+extern void bcm1480_timer_interrupt(struct pt_regs *regs);
+extern void bcm1480_mailbox_interrupt(struct pt_regs *regs);
+extern void bcm1480_kgdb_interrupt(struct pt_regs *regs);
+
+asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+{
+	unsigned int pending;
+
+#ifdef CONFIG_SIBYTE_BCM1480_PROF
+	/* Set compare to count to silence count/compare timer interrupts */
+	write_c0_compare(read_c0_count());
+#endif
+
+	pending = read_c0_cause();
+
+#ifdef CONFIG_SIBYTE_BCM1480_PROF
+	if (pending & CAUSEF_IP7)	/* Cpu performance counter interrupt */
+		sbprof_cpu_intr(exception_epc(regs));
+#endif
+
+	if (pending & CAUSEF_IP4)
+		bcm1480_timer_interrupt(regs);
+
+#ifdef CONFIG_SMP
+	if (pending & CAUSEF_IP3)
+		bcm1480_mailbox_interrupt(regs);
+#endif
+
+#ifdef CONFIG_KGDB
+	if (pending & CAUSEF_IP6)
+		bcm1480_kgdb_interrupt(regs);		/* KGDB (uart 1) */
+#endif
+
+	if (pending & CAUSEF_IP2) {
+		unsigned long long mask_h, mask_l;
+		unsigned long base;
+
+		/*
+		 * Default...we've hit an IP[2] interrupt, which means we've
+		 * got to check the 1480 interrupt registers to figure out what
+		 * to do.  Need to detect which CPU we're on, now that
+		 * smp_affinity is supported.
+		 */
+		base = A_BCM1480_IMR_MAPPER(smp_processor_id());
+		mask_h = __raw_readq(
+			IOADDR(base + R_BCM1480_IMR_INTERRUPT_STATUS_BASE_H));
+		mask_l = __raw_readq(
+			IOADDR(base + R_BCM1480_IMR_INTERRUPT_STATUS_BASE_L));
+
+		if (!mask_h) {
+			if (mask_h ^ 1)
+				do_IRQ(63 - dclz(mask_h), regs);
+			else
+				do_IRQ(127 - dclz(mask_l), regs);
+		}
+	}
+}

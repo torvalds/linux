@@ -305,8 +305,8 @@ static const struct ipath_cregs ipath_pe_cregs = {
  * we'll print them and continue.  We reuse the same message buffer as
  * ipath_handle_errors() to avoid excessive stack usage.
  */
-void ipath_pe_handle_hwerrors(struct ipath_devdata *dd, char *msg,
-	size_t msgl)
+static void ipath_pe_handle_hwerrors(struct ipath_devdata *dd, char *msg,
+				     size_t msgl)
 {
 	ipath_err_t hwerrs;
 	u32 bits, ctrl;
@@ -552,7 +552,7 @@ static int ipath_pe_boardname(struct ipath_devdata *dd, char *name,
  * freeze mode), and enable hardware errors as errors (along with
  * everything else) in errormask
  */
-void ipath_pe_init_hwerrors(struct ipath_devdata *dd)
+static void ipath_pe_init_hwerrors(struct ipath_devdata *dd)
 {
 	ipath_err_t val;
 	u64 extsval;
@@ -577,7 +577,7 @@ void ipath_pe_init_hwerrors(struct ipath_devdata *dd)
  * ipath_pe_bringup_serdes - bring up the serdes
  * @dd: the infinipath device
  */
-int ipath_pe_bringup_serdes(struct ipath_devdata *dd)
+static int ipath_pe_bringup_serdes(struct ipath_devdata *dd)
 {
 	u64 val, tmp, config1;
 	int ret = 0, change = 0;
@@ -694,7 +694,7 @@ int ipath_pe_bringup_serdes(struct ipath_devdata *dd)
  * @dd: the infinipath device
  * Called when driver is being unloaded
  */
-void ipath_pe_quiet_serdes(struct ipath_devdata *dd)
+static void ipath_pe_quiet_serdes(struct ipath_devdata *dd)
 {
 	u64 val = ipath_read_kreg64(dd, dd->ipath_kregs->kr_serdesconfig0);
 
@@ -972,6 +972,8 @@ static int ipath_setup_pe_reset(struct ipath_devdata *dd)
 	/* Use ERROR so it shows up in logs, etc. */
 	ipath_dev_err(dd, "Resetting PE-800 unit %u\n",
 		      dd->ipath_unit);
+	/* keep chip from being accessed in a few places */
+	dd->ipath_flags &= ~(IPATH_INITTED|IPATH_PRESENT);
 	val = dd->ipath_control | INFINIPATH_C_RESET;
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_control, val);
 	mb();
@@ -997,6 +999,8 @@ static int ipath_setup_pe_reset(struct ipath_devdata *dd)
 		if ((r = pci_enable_device(dd->pcidev)))
 			ipath_dev_err(dd, "pci_enable_device failed after "
 				      "reset: %d\n", r);
+		/* whether it worked or not, mark as present, again */
+		dd->ipath_flags |= IPATH_PRESENT;
 		val = ipath_read_kreg64(dd, dd->ipath_kregs->kr_revision);
 		if (val == dd->ipath_revision) {
 			ipath_cdbg(VERBOSE, "Got matching revision "

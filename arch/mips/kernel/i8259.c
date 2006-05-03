@@ -187,6 +187,10 @@ handle_real_irq:
 		outb(cached_21,0x21);
 		outb(0x60+irq,0x20);	/* 'Specific EOI' to master */
 	}
+#ifdef CONFIG_MIPS_MT_SMTC
+        if (irq_hwmask[irq] & ST0_IM)
+        	set_c0_status(irq_hwmask[irq] & ST0_IM);
+#endif /* CONFIG_MIPS_MT_SMTC */
 	spin_unlock_irqrestore(&i8259A_lock, flags);
 	return;
 

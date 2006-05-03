@@ -390,7 +390,8 @@ scdrv_init(void)
 			format_module_id(devnamep, geo_module(geoid),
 					 MODULE_FORMAT_BRIEF);
 			devnamep = devname + strlen(devname);
-			sprintf(devnamep, "#%d", geo_slab(geoid));
+			sprintf(devnamep, "^%d#%d", geo_slot(geoid),
+				geo_slab(geoid));
 
 			/* allocate sysctl device data */
 			scd = kzalloc(sizeof (struct sysctl_data_s),

@@ -525,8 +525,6 @@ static void tx4927_irq_pic_end(unsigned int irq)
  */
 void __init tx4927_irq_init(void)
 {
-	extern asmlinkage void tx4927_irq_handler(void);
-
 	TX4927_IRQ_DPRINTK(TX4927_IRQ_INIT, "-\n");
 
 	TX4927_IRQ_DPRINTK(TX4927_IRQ_INIT, "=Calling tx4927_irq_cp0_init()\n");
@@ -535,16 +533,12 @@ void __init tx4927_irq_init(void)
 	TX4927_IRQ_DPRINTK(TX4927_IRQ_INIT, "=Calling tx4927_irq_pic_init()\n");
 	tx4927_irq_pic_init();
 
-	TX4927_IRQ_DPRINTK(TX4927_IRQ_INIT,
-			   "=Calling set_except_vector(tx4927_irq_handler)\n");
-	set_except_vector(0, tx4927_irq_handler);
-
 	TX4927_IRQ_DPRINTK(TX4927_IRQ_INIT, "+\n");
 
 	return;
 }
 
-int tx4927_irq_nested(void)
+static int tx4927_irq_nested(void)
 {
 	int sw_irq = 0;
 	u32 level2;
@@ -581,4 +575,26 @@ int tx4927_irq_nested(void)
 	TX4927_IRQ_DPRINTK(TX4927_IRQ_NEST1, "+\n");
 
 	return (sw_irq);
+}
+
+asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+{
+	unsigned int pending = read_c0_status() & read_c0_cause();
+
+	if (pending & STATUSF_IP7)			/* cpu timer */
+		do_IRQ(TX4927_IRQ_CPU_TIMER, regs);
+	else if (pending & STATUSF_IP2) {		/* tx4927 pic */
+		unsigned int irq = tx4927_irq_nested();
+
+		if (unlikely(irq == 0)) {
+			spurious_interrupt(regs);
+			return;
+		}
+		do_IRQ(irq, regs);
+	} else if (pending & STATUSF_IP0)		/* user line 0 */
+		do_IRQ(TX4927_IRQ_USER0, regs);
+	else if (pending & STATUSF_IP1)			/* user line 1 */
+		do_IRQ(TX4927_IRQ_USER1, regs);
+	else
+		spurious_interrupt(regs);
 }

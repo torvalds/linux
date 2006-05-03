@@ -232,11 +232,13 @@ static inline void prep_zero_page(struct page *page, int order, gfp_t gfp_flags)
  * zone->lock is already acquired when we use these.
  * So, we don't need atomic page->flags operations here.
  */
-static inline unsigned long page_order(struct page *page) {
+static inline unsigned long page_order(struct page *page)
+{
 	return page_private(page);
 }
 
-static inline void set_page_order(struct page *page, int order) {
+static inline void set_page_order(struct page *page, int order)
+{
 	set_page_private(page, order);
 	__SetPageBuddy(page);
 }
@@ -299,9 +301,9 @@ static inline int page_is_buddy(struct page *page, int order)
 
 	if (PageBuddy(page) && page_order(page) == order) {
 		BUG_ON(page_count(page) != 0);
-               return 1;
+		return 1;
 	}
-       return 0;
+	return 0;
 }
 
 /*
@@ -1960,7 +1962,7 @@ static inline void free_zone_pagesets(int cpu)
 	}
 }
 
-static int __cpuinit pageset_cpuup_callback(struct notifier_block *nfb,
+static int pageset_cpuup_callback(struct notifier_block *nfb,
 		unsigned long action,
 		void *hcpu)
 {

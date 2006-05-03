@@ -1057,7 +1057,6 @@ static void m32r_sio_console_write(struct console *co, const char *s,
 {
 	struct uart_sio_port *up = &m32r_sio_ports[co->index];
 	unsigned int ier;
-	int i;
 
 	/*
 	 *	First save the UER then disable the interrupts

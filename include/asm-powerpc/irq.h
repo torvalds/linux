@@ -54,6 +54,13 @@
  */
 extern unsigned int virt_irq_to_real_map[NR_IRQS];
 
+/* The maximum virtual IRQ number that we support.  This
+ * can be set by the platform and will be reduced by the
+ * value of __irq_offset_value.  It defaults to and is
+ * capped by (NR_IRQS - 1).
+ */
+extern unsigned int virt_irq_max;
+
 /* Create a mapping for a real_irq if it doesn't already exist.
  * Return the virtual irq as a convenience.
  */

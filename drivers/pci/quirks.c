@@ -642,13 +642,15 @@ static void quirk_via_irq(struct pci_dev *dev)
 	new_irq = dev->irq & 0xf;
 	pci_read_config_byte(dev, PCI_INTERRUPT_LINE, &irq);
 	if (new_irq != irq) {
-		printk(KERN_INFO "PCI: Via IRQ fixup for %s, from %d to %d\n",
+		printk(KERN_INFO "PCI: VIA IRQ fixup for %s, from %d to %d\n",
 			pci_name(dev), irq, new_irq);
 		udelay(15);	/* unknown if delay really needed */
 		pci_write_config_byte(dev, PCI_INTERRUPT_LINE, new_irq);
 	}
 }
-DECLARE_PCI_FIXUP_ENABLE(PCI_VENDOR_ID_VIA, PCI_ANY_ID, quirk_via_irq);
+DECLARE_PCI_FIXUP_ENABLE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C686, quirk_via_irq);
+DECLARE_PCI_FIXUP_ENABLE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C686_4, quirk_via_irq);
+DECLARE_PCI_FIXUP_ENABLE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C686_5, quirk_via_irq);
 
 /*
  * VIA VT82C598 has its device ID settable and many BIOSes
@@ -863,6 +865,35 @@ static void __init quirk_eisa_bridge(struct pci_dev *dev)
 	dev->class = PCI_CLASS_BRIDGE_EISA << 8;
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82375,	quirk_eisa_bridge );
+
+/*
+ * On the MSI-K8T-Neo2Fir Board, the internal Soundcard is disabled
+ * when a PCI-Soundcard is added. The BIOS only gives Options
+ * "Disabled" and "AUTO". This Quirk Sets the corresponding
+ * Register-Value to enable the Soundcard.
+ */
+static void __init k8t_sound_hostbridge(struct pci_dev *dev)
+{
+	unsigned char val;
+
+	printk(KERN_INFO "PCI: Quirk-MSI-K8T Soundcard On\n");
+	pci_read_config_byte(dev, 0x50, &val);
+	if (val == 0x88 || val == 0xc8) {
+		pci_write_config_byte(dev, 0x50, val & (~0x40));
+
+		/* Verify the Change for Status output */
+		pci_read_config_byte(dev, 0x50, &val);
+		if (val & 0x40)
+			printk(KERN_INFO "PCI: MSI-K8T soundcard still off\n");
+		else
+			printk(KERN_INFO "PCI: MSI-K8T soundcard on\n");
+	} else {
+		printk(KERN_INFO "PCI: Unexpected Value in PCI-Register: "
+					"no Change!\n");
+	}
+
+}
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8237, k8t_sound_hostbridge);
 
 /*
  * On ASUS P4B boards, the SMBus PCI Device within the ICH2/4 southbridge

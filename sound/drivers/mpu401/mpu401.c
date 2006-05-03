@@ -251,10 +251,8 @@ static int __init alsa_card_mpu401_init(void)
 #endif
 		device = platform_device_register_simple(SND_MPU401_DRIVER,
 							 i, NULL, 0);
-		if (IS_ERR(device)) {
-			err = PTR_ERR(device);
-			goto errout;
-		}
+		if (IS_ERR(device))
+			continue;
 		platform_devices[i] = device;
 		snd_mpu401_devices++;
 	}
@@ -266,14 +264,10 @@ static int __init alsa_card_mpu401_init(void)
 #ifdef MODULE
 		printk(KERN_ERR "MPU-401 device not found or device busy\n");
 #endif
-		err = -ENODEV;
-		goto errout;
+		snd_mpu401_unregister_all();
+		return -ENODEV;
 	}
 	return 0;
-
- errout:
-	snd_mpu401_unregister_all();
-	return err;
 }
 
 static void __exit alsa_card_mpu401_exit(void)

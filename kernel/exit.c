@@ -35,6 +35,7 @@
 #include <linux/futex.h>
 #include <linux/compat.h>
 #include <linux/pipe_fs_i.h>
+#include <linux/audit.h> /* for audit_free() */
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -56,7 +57,7 @@ static void __unhash_process(struct task_struct *p)
 		detach_pid(p, PIDTYPE_PGID);
 		detach_pid(p, PIDTYPE_SID);
 
-		list_del_init(&p->tasks);
+		list_del_rcu(&p->tasks);
 		__get_cpu_var(process_counts)--;
 	}
 	list_del_rcu(&p->thread_group);
@@ -910,6 +911,8 @@ fastcall NORET_TYPE void do_exit(long code)
 	if (unlikely(tsk->compat_robust_list))
 		compat_exit_robust_list(tsk);
 #endif
+	if (unlikely(tsk->audit_context))
+		audit_free(tsk);
 	exit_mm(tsk);
 
 	exit_sem(tsk);

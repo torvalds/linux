@@ -315,10 +315,11 @@ static int raid1_end_write_request(struct bio *bio, unsigned int bytes_done, int
 		if (r1_bio->bios[mirror] == bio)
 			break;
 
-	if (error == -ENOTSUPP && test_bit(R1BIO_Barrier, &r1_bio->state)) {
+	if (error == -EOPNOTSUPP && test_bit(R1BIO_Barrier, &r1_bio->state)) {
 		set_bit(BarriersNotsupp, &conf->mirrors[mirror].rdev->flags);
 		set_bit(R1BIO_BarrierRetry, &r1_bio->state);
 		r1_bio->mddev->barriers_work = 0;
+		/* Don't rdev_dec_pending in this branch - keep it for the retry */
 	} else {
 		/*
 		 * this branch is our 'one mirror IO has finished' event handler:
@@ -365,6 +366,7 @@ static int raid1_end_write_request(struct bio *bio, unsigned int bytes_done, int
 				}
 			}
 		}
+		rdev_dec_pending(conf->mirrors[mirror].rdev, conf->mddev);
 	}
 	/*
 	 *
@@ -374,11 +376,9 @@ static int raid1_end_write_request(struct bio *bio, unsigned int bytes_done, int
 	if (atomic_dec_and_test(&r1_bio->remaining)) {
 		if (test_bit(R1BIO_BarrierRetry, &r1_bio->state)) {
 			reschedule_retry(r1_bio);
-			/* Don't dec_pending yet, we want to hold
-			 * the reference over the retry
-			 */
 			goto out;
 		}
+		/* it really is the end of this request */
 		if (test_bit(R1BIO_BehindIO, &r1_bio->state)) {
 			/* free extra copy of the data pages */
 			int i = bio->bi_vcnt;
@@ -393,8 +393,6 @@ static int raid1_end_write_request(struct bio *bio, unsigned int bytes_done, int
 		md_write_end(r1_bio->mddev);
 		raid_end_bio_io(r1_bio);
 	}
-
-	rdev_dec_pending(conf->mirrors[mirror].rdev, conf->mddev);
  out:
 	if (to_put)
 		bio_put(to_put);
@@ -753,17 +751,23 @@ static int make_request(request_queue_t *q, struct bio * bio)
 	const int rw = bio_data_dir(bio);
 	int do_barriers;
 
-	if (unlikely(!mddev->barriers_work && bio_barrier(bio))) {
-		bio_endio(bio, bio->bi_size, -EOPNOTSUPP);
-		return 0;
-	}
-
 	/*
 	 * Register the new request and wait if the reconstruction
 	 * thread has put up a bar for new requests.
 	 * Continue immediately if no resync is active currently.
+	 * We test barriers_work *after* md_write_start as md_write_start
+	 * may cause the first superblock write, and that will check out
+	 * if barriers work.
 	 */
+
 	md_write_start(mddev, bio); /* wait on superblock update early */
+
+	if (unlikely(!mddev->barriers_work && bio_barrier(bio))) {
+		if (rw == WRITE)
+			md_write_end(mddev);
+		bio_endio(bio, bio->bi_size, -EOPNOTSUPP);
+		return 0;
+	}
 
 	wait_barrier(conf);
 
@@ -1404,10 +1408,11 @@ static void raid1d(mddev_t *mddev)
 			unplug = 1;
 		} else if (test_bit(R1BIO_BarrierRetry, &r1_bio->state)) {
 			/* some requests in the r1bio were BIO_RW_BARRIER
-			 * requests which failed with -ENOTSUPP.  Hohumm..
+			 * requests which failed with -EOPNOTSUPP.  Hohumm..
 			 * Better resubmit without the barrier.
 			 * We know which devices to resubmit for, because
 			 * all others have had their bios[] entry cleared.
+			 * We already have a nr_pending reference on these rdevs.
 			 */
 			int i;
 			clear_bit(R1BIO_BarrierRetry, &r1_bio->state);

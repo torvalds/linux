@@ -138,7 +138,7 @@ void __init rm7k_sc_init(void)
 
 	c->scache.linesz = sc_lsize;
 	c->scache.ways = 4;
-	c->scache.waybit= ffs(scache_size / c->scache.ways) - 1;
+	c->scache.waybit= __ffs(scache_size / c->scache.ways);
 	c->scache.waysize = scache_size / c->scache.ways;
 	c->scache.sets = scache_size / (c->scache.linesz * c->scache.ways);
 	printk(KERN_INFO "Secondary cache size %dK, linesize %d bytes.\n",

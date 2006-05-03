@@ -1,57 +1,58 @@
 #ifndef _AD1889_H_
 #define _AD1889_H_
 
-#define AD_DSWSMC	0x00	/* DMA input wave/syn mixer control */
-#define AD_DSRAMC	0x02	/* DMA output resamp/ADC mixer control */
-#define AD_DSWADA	0x04	/* DMA input wave attenuation */
-#define AD_DSSYDA	0x06	/* DMA input syn attentuation */
-#define AD_DSWAS	0x08	/* wave input sample rate */
-#define AD_DSRES	0x0a	/* resampler output sample rate */
-#define AD_DSCCS	0x0c	/* chip control/status */
+#define AD_DS_WSMC	0x00	/* DMA input wave/syn mixer control */
+#define AD_DS_RAMC	0x02	/* DMA output resamp/ADC mixer control */
+#define AD_DS_WADA	0x04	/* DMA input wave attenuation */
+#define AD_DS_SYDA	0x06	/* DMA input syn attentuation */
+#define AD_DS_WAS	0x08	/* wave input sample rate */
+#define AD_DS_RES	0x0a	/* resampler output sample rate */
+#define AD_DS_CCS	0x0c	/* chip control/status */
 
-#define AD_DMARESBA	0x40	/* RES base addr */
-#define AD_DMARESCA	0x44	/* RES current addr */
-#define AD_DMARESBC	0x48	/* RES base cnt */
-#define AD_DMARESCC	0x4c	/* RES current count */
-#define AD_DMAADCBA	0x50	/* ADC */
-#define AD_DMAADCCA	0x54
-#define AD_DMAADCBC	0x58
-#define AD_DMAADCCC	0x5c
-#define AD_DMASYNBA	0x60	/* SYN */
-#define AD_DMASYNCA	0x64
-#define AD_DMASYNBC	0x68
-#define AD_DMASYNCC	0x6c
-#define AD_DMAWAVBA	0x70	/* WAV */
-#define AD_DMAWAVCA	0x74
-#define AD_DMAWAVBC	0x78
-#define AD_DMAWAVCC	0x7c
-#define AD_DMARESICC	0x80	/* RES interrupt current count */
-#define AD_DMARESIBC	0x84	/* RES interrupt base count */
-#define AD_DMAADCICC	0x88	/* ADC interrupt current count */
-#define AD_DMAADCIBC	0x8c	/* ADC interrupt base count */
-#define AD_DMASYNICC	0x90	/* SYN interrupt current count */
-#define AD_DMASYNIBC	0x94	/* SYN interrupt base count */
-#define AD_DMAWAVICC	0x98	/* WAV interrupt current count */
-#define AD_DMAWAVIBC	0x9c	/* WAV interrupt base count */
-#define AD_DMARESCTRL	0xa0	/* RES PCI control/status */
-#define AD_DMAADCCTRL	0xa8	/* ADC PCI control/status */
-#define AD_DMASYNCTRL	0xb0	/* SYN PCI control/status */
-#define AD_DMAWAVCTRL	0xb8	/* WAV PCI control/status */
-#define AD_DMADISR	0xc0	/* PCI DMA intr status */
-#define AD_DMACHSS	0xc4	/* PCI DMA channel stop status */
+#define AD_DMA_RESBA	0x40	/* RES base addr */
+#define AD_DMA_RESCA	0x44	/* RES current addr */
+#define AD_DMA_RESBC	0x48	/* RES base cnt */
+#define AD_DMA_RESCC	0x4c	/* RES current count */
+#define AD_DMA_ADCBA	0x50	/* ADC */
+#define AD_DMA_ADCCA	0x54
+#define AD_DMA_ADCBC	0x58
+#define AD_DMA_ADCCC	0x5c
+#define AD_DMA_SYNBA	0x60	/* SYN */
+#define AD_DMA_SYNCA	0x64
+#define AD_DMA_SYNBC	0x68
+#define AD_DMA_SYNCC	0x6c
+#define AD_DMA_WAVBA	0x70	/* WAV */
+#define AD_DMA_WAVCA	0x74
+#define AD_DMA_WAVBC	0x78
+#define AD_DMA_WAVCC	0x7c
+#define AD_DMA_RESICC	0x80	/* RES interrupt current count */
+#define AD_DMA_RESIBC	0x84	/* RES interrupt base count */
+#define AD_DMA_ADCICC	0x88	/* ADC interrupt current count */
+#define AD_DMA_ADCIBC	0x8c	/* ADC interrupt base count */
+#define AD_DMA_SYNICC	0x90	/* SYN interrupt current count */
+#define AD_DMA_SYNIBC	0x94	/* SYN interrupt base count */
+#define AD_DMA_WAVICC	0x98	/* WAV interrupt current count */
+#define AD_DMA_WAVIBC	0x9c	/* WAV interrupt base count */
+#define AD_DMA_RESCTRL	0xa0	/* RES PCI control/status */
+#define AD_DMA_ADCCTRL	0xa8	/* ADC PCI control/status */
+#define AD_DMA_SYNCTRL	0xb0	/* SYN PCI control/status */
+#define AD_DMA_WAVCTRL	0xb8	/* WAV PCI control/status */
+#define AD_DMA_DISR	0xc0	/* PCI DMA intr status */
+#define AD_DMA_CHSS	0xc4	/* PCI DMA channel stop status */
 
-#define AD_GPIOIPC	0xc8	/* IO port ctrl */
-#define AD_GPIOOP	0xca	/* IO output status */
-#define AD_GPIOIP	0xcc	/* IO input status */
+#define AD_GPIO_IPC	0xc8	/* IO port ctrl */
+#define AD_GPIO_OP	0xca	/* IO output status */
+#define AD_GPIO_IP	0xcc	/* IO input status */
 
 /* AC97 registers, 0x100 - 0x17f; see ac97.h */
-#define AD_ACIC		0x180	/* AC Link interface ctrl */
+#define AD_AC97_BASE    0x100   /* ac97 base register */
+#define AD_AC97_ACIC	0x180	/* AC Link interface ctrl */
 
 /* OPL3; BAR1 */
-#define AD_OPLM0AS	0x00	/* Music0 address/status */
-#define AD_OPLM0DATA	0x01	/* Music0 data */
-#define AD_OPLM1A	0x02	/* Music1 address */
-#define AD_OPLM1DATA	0x03	/* Music1 data */
+#define AD_OPL_M0AS	0x00	/* Music0 address/status */
+#define AD_OPL_M0DATA	0x01	/* Music0 data */
+#define AD_OPL_M1A	0x02	/* Music1 address */
+#define AD_OPL_M1DATA	0x03	/* Music1 data */
 /* 0x04-0x0f reserved */
 
 /* MIDI; BAR2 */
@@ -59,9 +60,9 @@
 #define AD_MISC		0x01	/* MIDI status/cmd */
 /* 0x02-0xff reserved */
 
-#define AD_DSIOMEMSIZE	512
-#define AD_OPLMEMSIZE	16
-#define AD_MIDIMEMSIZE	16
+#define AD_DS_IOMEMSIZE	512
+#define AD_OPL_MEMSIZE	16
+#define AD_MIDI_MEMSIZE	16
 
 #define AD_WAV_STATE	0
 #define AD_ADC_STATE	1

@@ -14,8 +14,8 @@
 #define BCM43xx_PIO_RXCTL		0x08
 #define BCM43xx_PIO_RXDATA		0x0A
 
-#define BCM43xx_PIO_TXCTL_WRITEHI	(1 << 0)
-#define BCM43xx_PIO_TXCTL_WRITELO	(1 << 1)
+#define BCM43xx_PIO_TXCTL_WRITELO	(1 << 0)
+#define BCM43xx_PIO_TXCTL_WRITEHI	(1 << 1)
 #define BCM43xx_PIO_TXCTL_COMPLETE	(1 << 2)
 #define BCM43xx_PIO_TXCTL_INIT		(1 << 3)
 #define BCM43xx_PIO_TXCTL_SUSPEND	(1 << 7)
@@ -95,6 +95,7 @@ void bcm43xx_pio_write(struct bcm43xx_pioqueue *queue,
 		       u16 offset, u16 value)
 {
 	bcm43xx_write16(queue->bcm, queue->mmio_base + offset, value);
+	mmiowb();
 }
 
 
@@ -106,6 +107,9 @@ int bcm43xx_pio_tx(struct bcm43xx_private *bcm,
 void bcm43xx_pio_handle_xmitstatus(struct bcm43xx_private *bcm,
 				   struct bcm43xx_xmitstatus *status);
 void bcm43xx_pio_rx(struct bcm43xx_pioqueue *queue);
+
+void bcm43xx_pio_tx_suspend(struct bcm43xx_pioqueue *queue);
+void bcm43xx_pio_tx_resume(struct bcm43xx_pioqueue *queue);
 
 #else /* CONFIG_BCM43XX_PIO */
 
@@ -131,6 +135,14 @@ void bcm43xx_pio_handle_xmitstatus(struct bcm43xx_private *bcm,
 }
 static inline
 void bcm43xx_pio_rx(struct bcm43xx_pioqueue *queue)
+{
+}
+static inline
+void bcm43xx_pio_tx_suspend(struct bcm43xx_pioqueue *queue)
+{
+}
+static inline
+void bcm43xx_pio_tx_resume(struct bcm43xx_pioqueue *queue)
 {
 }
 

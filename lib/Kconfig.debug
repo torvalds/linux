@@ -101,7 +101,7 @@ config DEBUG_PREEMPT
 
 config DEBUG_MUTEXES
 	bool "Mutex debugging, deadlock detection"
-	default y
+	default n
 	depends on DEBUG_KERNEL
 	help
 	 This allows mutex semantics violations and mutex related deadlocks

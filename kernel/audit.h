@@ -54,9 +54,11 @@ enum audit_state {
 
 /* Rule lists */
 struct audit_field {
-	u32			type;
-	u32			val;
-	u32			op;
+	u32				type;
+	u32				val;
+	u32				op;
+	char				*se_str;
+	struct selinux_audit_rule	*se_rule;
 };
 
 struct audit_krule {
@@ -86,3 +88,5 @@ extern void		    audit_send_reply(int pid, int seq, int type,
 extern void		    audit_log_lost(const char *message);
 extern void		    audit_panic(const char *message);
 extern struct mutex audit_netlink_mutex;
+
+extern int selinux_audit_rule_update(void);

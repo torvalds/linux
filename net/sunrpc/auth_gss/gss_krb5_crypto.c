@@ -212,7 +212,6 @@ make_checksum(s32 cksumtype, char *header, int hdrlen, struct xdr_buf *body,
 	char                            *cksumname;
 	struct crypto_tfm               *tfm = NULL; /* XXX add to ctx? */
 	struct scatterlist              sg[1];
-	u32                             code = GSS_S_FAILURE;
 
 	switch (cksumtype) {
 		case CKSUMTYPE_RSA_MD5:
@@ -221,13 +220,11 @@ make_checksum(s32 cksumtype, char *header, int hdrlen, struct xdr_buf *body,
 		default:
 			dprintk("RPC:      krb5_make_checksum:"
 				" unsupported checksum %d", cksumtype);
-			goto out;
+			return GSS_S_FAILURE;
 	}
 	if (!(tfm = crypto_alloc_tfm(cksumname, CRYPTO_TFM_REQ_MAY_SLEEP)))
-		goto out;
+		return GSS_S_FAILURE;
 	cksum->len = crypto_tfm_alg_digestsize(tfm);
-	if ((cksum->data = kmalloc(cksum->len, GFP_KERNEL)) == NULL)
-		goto out;
 
 	crypto_digest_init(tfm);
 	sg_set_buf(sg, header, hdrlen);
@@ -235,10 +232,8 @@ make_checksum(s32 cksumtype, char *header, int hdrlen, struct xdr_buf *body,
 	process_xdr_buf(body, body_offset, body->len - body_offset,
 			checksummer, tfm);
 	crypto_digest_final(tfm, cksum->data);
-	code = 0;
-out:
 	crypto_free_tfm(tfm);
-	return code;
+	return 0;
 }
 
 EXPORT_SYMBOL(make_checksum);

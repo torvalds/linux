@@ -228,10 +228,7 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 				goto error1;
 		}
 		/* Make sure class supplied is consistent with RMPP */
-		if (ib_is_mad_class_rmpp(mad_reg_req->mgmt_class)) {
-			if (!rmpp_version)
-				goto error1;
-		} else {
+		if (!ib_is_mad_class_rmpp(mad_reg_req->mgmt_class)) {
 			if (rmpp_version)
 				goto error1;
 		}

@@ -930,6 +930,10 @@ static int __init init_amd(struct cpuinfo_x86 *c)
 	if (c->x86 == 15 && ((level >= 0x0f48 && level < 0x0f50) || level >= 0x0f58))
 		set_bit(X86_FEATURE_REP_GOOD, &c->x86_capability);
 
+	/* Enable workaround for FXSAVE leak */
+	if (c->x86 >= 6)
+		set_bit(X86_FEATURE_FXSAVE_LEAK, &c->x86_capability);
+
 	r = get_model_name(c);
 	if (!r) { 
 		switch (c->x86) { 
@@ -1422,3 +1426,22 @@ struct seq_operations cpuinfo_op = {
 	.show =	show_cpuinfo,
 };
 
+#ifdef CONFIG_INPUT_PCSPKR
+#include <linux/platform_device.h>
+static __init int add_pcspkr(void)
+{
+	struct platform_device *pd;
+	int ret;
+
+	pd = platform_device_alloc("pcspkr", -1);
+	if (!pd)
+		return -ENOMEM;
+
+	ret = platform_device_add(pd);
+	if (ret)
+		platform_device_put(pd);
+
+	return ret;
+}
+device_initcall(add_pcspkr);
+#endif

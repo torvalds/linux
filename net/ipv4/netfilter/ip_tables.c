@@ -956,14 +956,15 @@ struct compat_ipt_standard_target
 	compat_int_t verdict;
 };
 
-#define IPT_ST_OFFSET	(sizeof(struct ipt_standard_target) - \
-				sizeof(struct compat_ipt_standard_target))
-
 struct compat_ipt_standard
 {
 	struct compat_ipt_entry entry;
 	struct compat_ipt_standard_target target;
 };
+
+#define IPT_ST_LEN		XT_ALIGN(sizeof(struct ipt_standard_target))
+#define IPT_ST_COMPAT_LEN	COMPAT_XT_ALIGN(sizeof(struct compat_ipt_standard_target))
+#define IPT_ST_OFFSET		(IPT_ST_LEN - IPT_ST_COMPAT_LEN)
 
 static int compat_ipt_standard_fn(void *target,
 		void **dstptr, int *size, int convert)
@@ -975,35 +976,29 @@ static int compat_ipt_standard_fn(void *target,
 	ret = 0;
 	switch (convert) {
 		case COMPAT_TO_USER:
-			pst = (struct ipt_standard_target *)target;
+			pst = target;
 			memcpy(&compat_st.target, &pst->target,
-					sizeof(struct ipt_entry_target));
+				sizeof(compat_st.target));
 			compat_st.verdict = pst->verdict;
 			if (compat_st.verdict > 0)
 				compat_st.verdict -=
 					compat_calc_jump(compat_st.verdict);
-			compat_st.target.u.user.target_size =
-			sizeof(struct compat_ipt_standard_target);
-			if (__copy_to_user(*dstptr, &compat_st,
-				sizeof(struct compat_ipt_standard_target)))
+			compat_st.target.u.user.target_size = IPT_ST_COMPAT_LEN;
+			if (copy_to_user(*dstptr, &compat_st, IPT_ST_COMPAT_LEN))
 				ret = -EFAULT;
 			*size -= IPT_ST_OFFSET;
-			*dstptr += sizeof(struct compat_ipt_standard_target);
+			*dstptr += IPT_ST_COMPAT_LEN;
 			break;
 		case COMPAT_FROM_USER:
-			pcompat_st =
-				(struct compat_ipt_standard_target *)target;
-			memcpy(&st.target, &pcompat_st->target,
-					sizeof(struct ipt_entry_target));
+			pcompat_st = target;
+			memcpy(&st.target, &pcompat_st->target, IPT_ST_COMPAT_LEN);
 			st.verdict = pcompat_st->verdict;
 			if (st.verdict > 0)
 				st.verdict += compat_calc_jump(st.verdict);
-			st.target.u.user.target_size =
-			sizeof(struct ipt_standard_target);
-			memcpy(*dstptr, &st,
-					sizeof(struct ipt_standard_target));
+			st.target.u.user.target_size = IPT_ST_LEN;
+			memcpy(*dstptr, &st, IPT_ST_LEN);
 			*size += IPT_ST_OFFSET;
-			*dstptr += sizeof(struct ipt_standard_target);
+			*dstptr += IPT_ST_LEN;
 			break;
 		case COMPAT_CALC_SIZE:
 			*size += IPT_ST_OFFSET;
