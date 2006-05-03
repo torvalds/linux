@@ -128,6 +128,16 @@ extern void __chk_io_ptr(void __iomem *);
 # define __attribute_pure__	/* unimplemented */
 #endif
 
+#ifndef noinline
+#define noinline
+#endif
+
+#ifndef __always_inline
+#define __always_inline inline
+#endif
+
+#endif /* __KERNEL__ */
+
 /*
  * From the GCC manual:
  *
@@ -146,13 +156,4 @@ extern void __chk_io_ptr(void __iomem *);
 # define __attribute_const__	/* unimplemented */
 #endif
 
-#ifndef noinline
-#define noinline
-#endif
-
-#ifndef __always_inline
-#define __always_inline inline
-#endif
-
-#endif /* __KERNEL__ */
 #endif /* __LINUX_COMPILER_H */
