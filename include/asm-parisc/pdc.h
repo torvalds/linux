@@ -719,6 +719,7 @@ void setup_pdc(void);		/* in inventory.c */
 int pdc_add_valid(unsigned long address);
 int pdc_chassis_info(struct pdc_chassis_info *chassis_info, void *led_info, unsigned long len);
 int pdc_chassis_disp(unsigned long disp);
+int pdc_chassis_warn(unsigned long *warn);
 int pdc_coproc_cfg(struct pdc_coproc_cfg *pdc_coproc_info);
 int pdc_iodc_read(unsigned long *actcnt, unsigned long hpa, unsigned int index,
 		  void *iodc_data, unsigned int iodc_data_size);

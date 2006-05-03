@@ -11,7 +11,7 @@
  * Copyright 1999 The Puffin Group, (Alex deVries, David Kennedy)
  * Copyright 2003 Grant Grundler <grundler parisc-linux org>
  * Copyright 2003,2004 Ryan Bradetich <rbrad@parisc-linux.org>
- * Copyright 2004 Thibaut VARENE <varenet@parisc-linux.org>
+ * Copyright 2004,2006 Thibaut VARENE <varenet@parisc-linux.org>
  *
  *    This program is free software; you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -252,10 +252,8 @@ int pdc_pat_chassis_send_log(unsigned long state, unsigned long data)
 #endif
 
 /**
- * pdc_chassis_disp - Updates display
+ * pdc_chassis_disp - Updates chassis code
  * @retval: -1 on error, 0 on success
- *
- * Works on old PDC only (E class, others?)
  */
 int pdc_chassis_disp(unsigned long disp)
 {
@@ -263,6 +261,22 @@ int pdc_chassis_disp(unsigned long disp)
 
 	spin_lock_irq(&pdc_lock);
 	retval = mem_pdc_call(PDC_CHASSIS, PDC_CHASSIS_DISP, disp);
+	spin_unlock_irq(&pdc_lock);
+
+	return retval;
+}
+
+/**
+ * pdc_chassis_warn - Fetches chassis warnings
+ * @retval: -1 on error, 0 on success
+ */
+int pdc_chassis_warn(unsigned long *warn)
+{
+	int retval = 0;
+
+	spin_lock_irq(&pdc_lock);
+	retval = mem_pdc_call(PDC_CHASSIS, PDC_CHASSIS_WARN, __pa(pdc_result));
+	*warn = pdc_result[0];
 	spin_unlock_irq(&pdc_lock);
 
 	return retval;
