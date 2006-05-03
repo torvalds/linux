@@ -647,11 +647,24 @@ find_page:
 	}
 
 	ret = mapping->a_ops->prepare_write(file, page, offset, offset+this_len);
-	if (ret == AOP_TRUNCATED_PAGE) {
+	if (unlikely(ret)) {
+		loff_t isize = i_size_read(mapping->host);
+
+		if (ret != AOP_TRUNCATED_PAGE)
+			unlock_page(page);
 		page_cache_release(page);
-		goto find_page;
-	} else if (ret)
+		if (ret == AOP_TRUNCATED_PAGE)
+			goto find_page;
+
+		/*
+		 * prepare_write() may have instantiated a few blocks
+		 * outside i_size.  Trim these off again.
+		 */
+		if (sd->pos + this_len > isize)
+			vmtruncate(mapping->host, isize);
+
 		goto out;
+	}
 
 	if (buf->page != page) {
 		/*
