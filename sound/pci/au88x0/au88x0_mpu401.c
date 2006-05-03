@@ -107,6 +107,9 @@ static int __devinit snd_vortex_midi(vortex_t * vortex)
 	mpu = rmidi->private_data;
 	mpu->cport = (unsigned long)(vortex->mmio + VORTEX_MIDI_CMD);
 #endif
+	/* Overwrite MIDI name */
+	snprintf(rmidi->name, sizeof(rmidi->name), "%s MIDI %d", CARD_NAME_SHORT , vortex->card->number);
+
 	vortex->rmidi = rmidi;
 	return 0;
 }
