@@ -88,7 +88,7 @@ struct iscsi_transport {
 				uint32_t cid);
 	int (*bind_conn) (struct iscsi_cls_session *session,
 			  struct iscsi_cls_conn *cls_conn,
-			  uint32_t transport_fd, int is_leading);
+			  uint64_t transport_eph, int is_leading);
 	int (*start_conn) (struct iscsi_cls_conn *conn);
 	void (*stop_conn) (struct iscsi_cls_conn *conn, int flag);
 	void (*destroy_conn) (struct iscsi_cls_conn *conn);
@@ -119,6 +119,10 @@ struct iscsi_transport {
 	int (*xmit_mgmt_task) (struct iscsi_conn *conn,
 			       struct iscsi_mgmt_task *mtask);
 	void (*session_recovery_timedout) (struct iscsi_cls_session *session);
+	int (*ep_connect) (struct sockaddr *dst_addr, int non_blocking,
+			   uint64_t *ep_handle);
+	int (*ep_poll) (uint64_t ep_handle, int timeout_ms);
+	void (*ep_disconnect) (uint64_t ep_handle);
 };
 
 /*

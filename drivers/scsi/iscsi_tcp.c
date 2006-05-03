@@ -1975,7 +1975,7 @@ iscsi_tcp_conn_destroy(struct iscsi_cls_conn *cls_conn)
 
 static int
 iscsi_tcp_conn_bind(struct iscsi_cls_session *cls_session,
-		    struct iscsi_cls_conn *cls_conn, uint32_t transport_fd,
+		    struct iscsi_cls_conn *cls_conn, uint64_t transport_eph,
 		    int is_leading)
 {
 	struct iscsi_conn *conn = cls_conn->dd_data;
@@ -1985,7 +1985,7 @@ iscsi_tcp_conn_bind(struct iscsi_cls_session *cls_session,
 	int err;
 
 	/* lookup for existing socket */
-	sock = sockfd_lookup(transport_fd, &err);
+	sock = sockfd_lookup((int)transport_eph, &err);
 	if (!sock) {
 		printk(KERN_ERR "iscsi_tcp: sockfd_lookup failed %d\n", err);
 		return -EEXIST;

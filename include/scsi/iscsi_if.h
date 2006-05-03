@@ -43,6 +43,10 @@ enum iscsi_uevent_e {
 	ISCSI_UEVENT_GET_STATS		= UEVENT_BASE + 10,
 	ISCSI_UEVENT_GET_PARAM		= UEVENT_BASE + 11,
 
+	ISCSI_UEVENT_TRANSPORT_EP_CONNECT	= UEVENT_BASE + 12,
+	ISCSI_UEVENT_TRANSPORT_EP_POLL		= UEVENT_BASE + 13,
+	ISCSI_UEVENT_TRANSPORT_EP_DISCONNECT	= UEVENT_BASE + 14,
+
 	/* up events */
 	ISCSI_KEVENT_RECV_PDU		= KEVENT_BASE + 1,
 	ISCSI_KEVENT_CONN_ERROR		= KEVENT_BASE + 2,
@@ -69,7 +73,7 @@ struct iscsi_uevent {
 		struct msg_bind_conn {
 			uint32_t	sid;
 			uint32_t	cid;
-			uint32_t	transport_fd;
+			uint64_t	transport_eph;
 			uint32_t	is_leading;
 		} b_conn;
 		struct msg_destroy_conn {
@@ -102,6 +106,16 @@ struct iscsi_uevent {
 			uint32_t	sid;
 			uint32_t	cid;
 		} get_stats;
+		struct msg_transport_connect {
+			uint32_t	non_blocking;
+		} ep_connect;
+		struct msg_transport_poll {
+			uint64_t	ep_handle;
+			uint32_t	timeout_ms;
+		} ep_poll;
+		struct msg_transport_disconnect {
+			uint64_t	ep_handle;
+		} ep_disconnect;
 	} u;
 	union {
 		/* messages k -> u */
@@ -124,6 +138,9 @@ struct iscsi_uevent {
 			uint32_t	cid;
 			uint32_t	error; /* enum iscsi_err */
 		} connerror;
+		struct msg_transport_connect_ret {
+			uint64_t	handle;
+		} ep_connect_ret;
 	} r;
 } __attribute__ ((aligned (sizeof(uint64_t))));
 

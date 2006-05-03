@@ -929,6 +929,40 @@ iscsi_set_param(struct iscsi_transport *transport, struct iscsi_uevent *ev)
 }
 
 static int
+iscsi_if_transport_ep(struct iscsi_transport *transport,
+		      struct iscsi_uevent *ev, int msg_type)
+{
+	struct sockaddr *dst_addr;
+	int rc = 0;
+
+	switch (msg_type) {
+	case ISCSI_UEVENT_TRANSPORT_EP_CONNECT:
+		if (!transport->ep_connect)
+			return -EINVAL;
+
+		dst_addr = (struct sockaddr *)((char*)ev + sizeof(*ev));
+		rc = transport->ep_connect(dst_addr,
+					   ev->u.ep_connect.non_blocking,
+					   &ev->r.ep_connect_ret.handle);
+		break;
+	case ISCSI_UEVENT_TRANSPORT_EP_POLL:
+		if (!transport->ep_poll)
+			return -EINVAL;
+
+		ev->r.retcode = transport->ep_poll(ev->u.ep_poll.ep_handle,
+						   ev->u.ep_poll.timeout_ms);
+		break;
+	case ISCSI_UEVENT_TRANSPORT_EP_DISCONNECT:
+		if (!transport->ep_disconnect)
+			return -EINVAL;
+
+		transport->ep_disconnect(ev->u.ep_disconnect.ep_handle);
+		break;
+	}
+	return rc;
+}
+
+static int
 iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	int err = 0;
@@ -974,7 +1008,7 @@ iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 		if (session && conn)
 			ev->r.retcode =	transport->bind_conn(session, conn,
-					ev->u.b_conn.transport_fd,
+					ev->u.b_conn.transport_eph,
 					ev->u.b_conn.is_leading);
 		else
 			err = -EINVAL;
@@ -1008,6 +1042,11 @@ iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		break;
 	case ISCSI_UEVENT_GET_STATS:
 		err = iscsi_if_get_stats(transport, nlh);
+		break;
+	case ISCSI_UEVENT_TRANSPORT_EP_CONNECT:
+	case ISCSI_UEVENT_TRANSPORT_EP_POLL:
+	case ISCSI_UEVENT_TRANSPORT_EP_DISCONNECT:
+		err = iscsi_if_transport_ep(transport, ev, nlh->nlmsg_type);
 		break;
 	default:
 		err = -EINVAL;
