@@ -32,7 +32,7 @@
 #include <scsi/iscsi_if.h>
 
 #define ISCSI_SESSION_ATTRS 11
-#define ISCSI_CONN_ATTRS 10
+#define ISCSI_CONN_ATTRS 11
 #define ISCSI_HOST_ATTRS 0
 
 struct iscsi_internal {
@@ -1156,6 +1156,7 @@ iscsi_conn_int_attr(ifmarker, ISCSI_PARAM_IFMARKER_EN, "%d");
 iscsi_conn_int_attr(ofmarker, ISCSI_PARAM_OFMARKER_EN, "%d");
 iscsi_conn_int_attr(persistent_port, ISCSI_PARAM_PERSISTENT_PORT, "%d");
 iscsi_conn_int_attr(port, ISCSI_PARAM_CONN_PORT, "%d");
+iscsi_conn_int_attr(exp_statsn, ISCSI_PARAM_EXP_STATSN, "%u");
 
 #define iscsi_conn_str_attr_show(param)					\
 static ssize_t								\
@@ -1406,6 +1407,7 @@ iscsi_register_transport(struct iscsi_transport *tt)
 	SETUP_CONN_RD_ATTR(ofmarker, ISCSI_OFMARKER_EN);
 	SETUP_CONN_RD_ATTR(address, ISCSI_CONN_ADDRESS);
 	SETUP_CONN_RD_ATTR(port, ISCSI_CONN_PORT);
+	SETUP_CONN_RD_ATTR(exp_statsn, ISCSI_EXP_STATSN);
 
 	if (tt->param_mask & ISCSI_PERSISTENT_ADDRESS)
 		SETUP_CONN_RD_ATTR(persistent_address, ISCSI_PERSISTENT_ADDRESS);

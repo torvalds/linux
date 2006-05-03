@@ -333,15 +333,21 @@ int __iscsi_complete_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 		debug_scsi("immrsp [op 0x%x cid %d itt 0x%x len %d]\n",
 			   opcode, conn->id, mtask->itt, datalen);
 
+		rc = iscsi_check_assign_cmdsn(session,
+					      (struct iscsi_nopin*)hdr);
+		if (rc)
+			goto done;
+
 		switch(opcode) {
+		case ISCSI_OP_LOGOUT_RSP:
+			conn->exp_statsn = be32_to_cpu(hdr->statsn) + 1;
+			/* fall through */
 		case ISCSI_OP_LOGIN_RSP:
 		case ISCSI_OP_TEXT_RSP:
-		case ISCSI_OP_LOGOUT_RSP:
-			rc = iscsi_check_assign_cmdsn(session,
-						 (struct iscsi_nopin*)hdr);
-			if (rc)
-				break;
-
+			/*
+			 * login related PDU's exp_statsn is handled in
+			 * userspace
+			 */
 			rc = iscsi_recv_pdu(conn->cls_conn, hdr, data, datalen);
 			list_del(&mtask->running);
 			if (conn->login_mtask != mtask)
@@ -349,15 +355,12 @@ int __iscsi_complete_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 					    (void*)&mtask, sizeof(void*));
 			break;
 		case ISCSI_OP_SCSI_TMFUNC_RSP:
-			rc = iscsi_check_assign_cmdsn(session,
-						 (struct iscsi_nopin*)hdr);
-			if (rc)
-				break;
-
 			if (datalen) {
 				rc = ISCSI_ERR_PROTO;
 				break;
 			}
+
+			conn->exp_statsn = be32_to_cpu(hdr->statsn) + 1;
 			conn->tmfrsp_pdus_cnt++;
 			if (conn->tmabort_state == TMABORT_INITIAL) {
 				conn->tmabort_state =
@@ -373,10 +376,6 @@ int __iscsi_complete_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 				rc = ISCSI_ERR_PROTO;
 				break;
 			}
-			rc = iscsi_check_assign_cmdsn(session,
-						(struct iscsi_nopin*)hdr);
-			if (rc)
-				break;
 			conn->exp_statsn = be32_to_cpu(hdr->statsn) + 1;
 
 			rc = iscsi_recv_pdu(conn->cls_conn, hdr, data, datalen);
@@ -404,6 +403,7 @@ int __iscsi_complete_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 		case ISCSI_OP_REJECT:
 			/* we need sth like iscsi_reject_rsp()*/
 		case ISCSI_OP_ASYNC_EVENT:
+			conn->exp_statsn = be32_to_cpu(hdr->statsn) + 1;
 			/* we need sth like iscsi_async_event_rsp() */
 			rc = ISCSI_ERR_BAD_OPCODE;
 			break;
@@ -414,6 +414,7 @@ int __iscsi_complete_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 	} else
 		rc = ISCSI_ERR_BAD_ITT;
 
+done:
 	return rc;
 }
 EXPORT_SYMBOL_GPL(__iscsi_complete_pdu);
@@ -730,6 +731,7 @@ iscsi_conn_send_generic(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 	        BUG_ON(conn->c_stage == ISCSI_CONN_INITIAL_STAGE);
 	        BUG_ON(conn->c_stage == ISCSI_CONN_STOPPED);
 
+		nop->exp_statsn = cpu_to_be32(conn->exp_statsn);
 		if (!__kfifo_get(session->mgmtpool.queue,
 				 (void*)&mtask, sizeof(void*))) {
 			spin_unlock_bh(&session->lock);
@@ -738,7 +740,7 @@ iscsi_conn_send_generic(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 	}
 
 	/*
-	 * pre-format CmdSN and ExpStatSN for outgoing PDU.
+	 * pre-format CmdSN for outgoing PDU.
 	 */
 	if (hdr->itt != cpu_to_be32(ISCSI_RESERVED_TAG)) {
 		hdr->itt = mtask->itt | (conn->id << ISCSI_CID_SHIFT) |
@@ -750,8 +752,6 @@ iscsi_conn_send_generic(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 	} else
 		/* do not advance CmdSN */
 		nop->cmdsn = cpu_to_be32(session->cmdsn);
-
-	nop->exp_statsn = cpu_to_be32(conn->exp_statsn);
 
 	if (data_size) {
 		memcpy(mtask->data, data, data_size);
@@ -1647,7 +1647,7 @@ void iscsi_conn_stop(struct iscsi_cls_conn *cls_conn, int flag)
 	case STOP_CONN_RECOVER:
 	case STOP_CONN_TERM:
 		iscsi_start_session_recovery(session, conn, flag);
-		return;
+		break;
 	case STOP_CONN_SUSPEND:
 		if (session->tt->suspend_conn_recv)
 			session->tt->suspend_conn_recv(conn);

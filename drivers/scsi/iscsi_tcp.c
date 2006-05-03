@@ -2298,6 +2298,9 @@ iscsi_conn_set_param(struct iscsi_cls_conn *cls_conn, enum iscsi_param param,
 		BUG_ON(value);
 		session->ofmarker_en = value;
 		break;
+	case ISCSI_PARAM_EXP_STATSN:
+		conn->exp_statsn = value;
+		break;
 	default:
 		break;
 	}
@@ -2381,6 +2384,9 @@ iscsi_conn_get_param(struct iscsi_cls_conn *cls_conn,
 		inet = inet_sk(tcp_conn->sock->sk);
 		*value = be16_to_cpu(inet->dport);
 		mutex_unlock(&conn->xmitmutex);
+	case ISCSI_PARAM_EXP_STATSN:
+		*value = conn->exp_statsn;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -2548,7 +2554,8 @@ static struct iscsi_transport iscsi_tcp_transport = {
 				  ISCSI_DATASEQ_INORDER_EN |
 				  ISCSI_ERL |
 				  ISCSI_CONN_PORT |
-				  ISCSI_CONN_ADDRESS,
+				  ISCSI_CONN_ADDRESS |
+				  ISCSI_EXP_STATSN,
 	.host_template		= &iscsi_sht,
 	.conndata_size		= sizeof(struct iscsi_conn),
 	.max_conn		= 1,
