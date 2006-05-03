@@ -197,7 +197,6 @@ struct ocfs2_super
 	struct ocfs2_node_map recovery_map;
 	struct ocfs2_node_map umount_map;
 
-	u32 num_clusters;
 	u64 root_blkno;
 	u64 system_dir_blkno;
 	u64 bitmap_blkno;
