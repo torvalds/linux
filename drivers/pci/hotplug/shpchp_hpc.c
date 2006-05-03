@@ -798,7 +798,7 @@ static void hpc_release_ctlr(struct controller *ctrl)
 	struct php_ctlr_state_s *php_ctlr = ctrl->hpc_ctlr_handle;
 	struct php_ctlr_state_s *p, *p_prev;
 	int i;
-	u32 slot_reg;
+	u32 slot_reg, serr_int;
 
 	DBG_ENTER_ROUTINE 
 
@@ -821,6 +821,15 @@ static void hpc_release_ctlr(struct controller *ctrl)
 	}
 
 	cleanup_slots(ctrl);
+
+	/*
+	 * Mask SERR and System Interrut generation
+	 */
+	serr_int = shpc_readl(ctrl, SERR_INTR_ENABLE);
+	serr_int |= (GLOBAL_INTR_MASK  | GLOBAL_SERR_MASK |
+		     COMMAND_INTR_MASK | ARBITER_SERR_MASK);
+	serr_int &= ~SERR_INTR_RSVDZ_MASK;
+	shpc_writel(ctrl, SERR_INTR_ENABLE, serr_int);
 
 	if (shpchp_poll_mode) {
 	    del_timer(&php_ctlr->int_poll_timer);
