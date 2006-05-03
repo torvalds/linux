@@ -922,11 +922,8 @@ more:
 
 		rc = iscsi_data_recv(conn);
 		if (rc) {
-			if (rc == -EAGAIN) {
-				rd_desc->count = tcp_conn->in.datalen -
-						tcp_conn->in.ctask->data_count;
+			if (rc == -EAGAIN)
 				goto again;
-			}
 			iscsi_conn_failure(conn, rc);
 			return 0;
 		}
@@ -983,9 +980,14 @@ iscsi_tcp_data_ready(struct sock *sk, int flag)
 
 	read_lock(&sk->sk_callback_lock);
 
-	/* use rd_desc to pass 'conn' to iscsi_tcp_data_recv */
+	/*
+	 * Use rd_desc to pass 'conn' to iscsi_tcp_data_recv.
+	 * We set count to 1 because we want the network layer to
+	 * hand us all the skbs that are available. iscsi_tcp_data_recv
+	 * handled pdus that cross buffers or pdus that still need data.
+	 */
 	rd_desc.arg.data = conn;
-	rd_desc.count = 0;
+	rd_desc.count = 1;
 	tcp_read_sock(sk, &rd_desc, iscsi_tcp_data_recv);
 
 	read_unlock(&sk->sk_callback_lock);
