@@ -216,6 +216,8 @@ static struct php_ctlr_state_s *php_ctlr_list_head;	/* HPC state linked list */
 static int ctlr_seq_num = 0;	/* Controller sequenc # */
 static spinlock_t list_lock;
 
+static atomic_t shpchp_num_controllers = ATOMIC_INIT(0);
+
 static irqreturn_t shpc_isr(int IRQ, void *dev_id, struct pt_regs *regs);
 
 static void start_int_poll_timer(struct php_ctlr_state_s *php_ctlr, int seconds);
@@ -866,6 +868,13 @@ static void hpc_release_ctlr(struct controller *ctrl)
 
 	kfree(php_ctlr);
 
+	/*
+	 * If this is the last controller to be released, destroy the
+	 * shpchpd work queue
+	 */
+	if (atomic_dec_and_test(&shpchp_num_controllers))
+		destroy_workqueue(shpchp_wq);
+
 DBG_LEAVE_ROUTINE
 			  
 }
@@ -1459,6 +1468,16 @@ int shpc_init(struct controller * ctrl, struct pci_dev * pdev)
 	spin_unlock(&list_lock);
 
 	ctlr_seq_num++;
+
+	/*
+	 * If this is the first controller to be initialized,
+	 * initialize the shpchpd work queue
+	 */
+	if (atomic_add_return(1, &shpchp_num_controllers) == 1) {
+		shpchp_wq = create_singlethread_workqueue("shpchpd");
+		if (!shpchp_wq)
+			return -ENOMEM;
+	}
 
 	/*
 	 * Unmask all event interrupts of all slots
