@@ -266,8 +266,8 @@ static void session_recovery_timedout(void *data)
 {
 	struct iscsi_cls_session *session = data;
 
-	dev_printk(KERN_INFO, &session->dev, "session recovery timed out "
-		  "after %d secs\n", session->recovery_tmo);
+	dev_printk(KERN_INFO, &session->dev, "iscsi: session recovery timed "
+		  "out after %d secs\n", session->recovery_tmo);
 
 	if (session->transport->session_recovery_timedout)
 		session->transport->session_recovery_timedout(session);

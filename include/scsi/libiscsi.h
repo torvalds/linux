@@ -41,7 +41,7 @@ struct iscsi_nopin;
 
 /* #define DEBUG_SCSI */
 #ifdef DEBUG_SCSI
-#define debug_scsi(fmt...) printk(KERN_INFO "scsi: " fmt)
+#define debug_scsi(fmt...) printk(KERN_INFO "iscsi: " fmt)
 #else
 #define debug_scsi(fmt...)
 #endif

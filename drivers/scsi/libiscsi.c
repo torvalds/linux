@@ -235,8 +235,8 @@ static int iscsi_scsi_cmd_rsp(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 
 		if (datalen < 2) {
 invalid_datalen:
-			printk(KERN_ERR "Got CHECK_CONDITION but invalid "
-			       "data buffer size of %d\n", datalen);
+			printk(KERN_ERR "iscsi: Got CHECK_CONDITION but "
+			       "invalid data buffer size of %d\n", datalen);
 			sc->result = DID_BAD_TARGET << 16;
 			goto out;
 		}
@@ -441,7 +441,7 @@ int iscsi_verify_itt(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 	if (hdr->itt != cpu_to_be32(ISCSI_RESERVED_TAG)) {
 		if ((hdr->itt & ISCSI_AGE_MASK) !=
 		    (session->age << ISCSI_AGE_SHIFT)) {
-			printk(KERN_ERR "iscsi_tcp: received itt %x expected "
+			printk(KERN_ERR "iscsi: received itt %x expected "
 				"session age (%x)\n", hdr->itt,
 				session->age & ISCSI_AGE_MASK);
 			return ISCSI_ERR_BAD_ITT;
@@ -449,7 +449,7 @@ int iscsi_verify_itt(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 
 		if ((hdr->itt & ISCSI_CID_MASK) !=
 		    (conn->id << ISCSI_CID_SHIFT)) {
-			printk(KERN_ERR "iscsi_tcp: received itt %x, expected "
+			printk(KERN_ERR "iscsi: received itt %x, expected "
 				"CID (%x)\n", hdr->itt, conn->id);
 			return ISCSI_ERR_BAD_ITT;
 		}
@@ -461,14 +461,14 @@ int iscsi_verify_itt(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 		ctask = session->cmds[itt];
 
 		if (!ctask->sc) {
-			printk(KERN_INFO "iscsi_tcp: dropping ctask with "
+			printk(KERN_INFO "iscsi: dropping ctask with "
 			       "itt 0x%x\n", ctask->itt);
 			/* force drop */
 			return ISCSI_ERR_NO_SCSI_CMD;
 		}
 
 		if (ctask->sc->SCp.phase != session->age) {
-			printk(KERN_ERR "iscsi_tcp: ctask's session age %d, "
+			printk(KERN_ERR "iscsi: ctask's session age %d, "
 				"expected %d\n", ctask->sc->SCp.phase,
 				session->age);
 			return ISCSI_ERR_SESSION_FAILED;
@@ -686,7 +686,7 @@ reject:
 
 fault:
 	spin_unlock(&session->lock);
-	printk(KERN_ERR "iscsi_tcp: cmd 0x%x is not queued (%d)\n",
+	printk(KERN_ERR "iscsi: cmd 0x%x is not queued (%d)\n",
 	       sc->cmnd[0], reason);
 	sc->result = (DID_NO_CONNECT << 16);
 	sc->resid = sc->request_bufflen;
@@ -857,7 +857,7 @@ failed:
 
 	spin_lock_bh(&session->lock);
 	if (session->state == ISCSI_STATE_LOGGED_IN)
-		printk(KERN_INFO "host reset succeeded\n");
+		printk(KERN_INFO "iscsi: host reset succeeded\n");
 	else
 		goto failed;
 	spin_unlock_bh(&session->lock);
@@ -1042,8 +1042,8 @@ int iscsi_eh_abort(struct scsi_cmnd *sc)
 
 	/* what should we do here ? */
 	if (conn->ctask == ctask) {
-		printk(KERN_INFO "sc %p itt 0x%x partially sent. Failing "
-		       "abort\n", sc, ctask->itt);
+		printk(KERN_INFO "iscsi: sc %p itt 0x%x partially sent. "
+		       "Failing abort\n", sc, ctask->itt);
 		goto failed;
 	}
 
@@ -1441,8 +1441,9 @@ void iscsi_conn_teardown(struct iscsi_cls_conn *cls_conn)
 		}
 		spin_unlock_irqrestore(session->host->host_lock, flags);
 		msleep_interruptible(500);
-		printk("conn_destroy(): host_busy %d host_failed %d\n",
-			session->host->host_busy, session->host->host_failed);
+		printk(KERN_INFO "iscsi: scsi conn_destroy(): host_busy %d "
+		       "host_failed %d\n", session->host->host_busy,
+		       session->host->host_failed);
 		/*
 		 * force eh_abort() to unblock
 		 */
@@ -1662,7 +1663,7 @@ void iscsi_conn_stop(struct iscsi_cls_conn *cls_conn, int flag)
 		mutex_unlock(&conn->xmitmutex);
 		break;
 	default:
-		printk(KERN_ERR "invalid stop flag %d\n", flag);
+		printk(KERN_ERR "iscsi: invalid stop flag %d\n", flag);
 	}
 }
 EXPORT_SYMBOL_GPL(iscsi_conn_stop);
@@ -1679,7 +1680,7 @@ int iscsi_conn_bind(struct iscsi_cls_session *cls_session,
 		if (tmp == conn) {
 			if (conn->c_stage != ISCSI_CONN_STOPPED ||
 			    conn->stop_stage == STOP_CONN_TERM) {
-				printk(KERN_ERR "iscsi_tcp: can't bind "
+				printk(KERN_ERR "iscsi: can't bind "
 				       "non-stopped connection (%d:%d)\n",
 				       conn->c_stage, conn->stop_stage);
 				spin_unlock_bh(&session->lock);

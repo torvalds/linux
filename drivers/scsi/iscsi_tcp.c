@@ -2585,7 +2585,8 @@ static int __init
 iscsi_tcp_init(void)
 {
 	if (iscsi_max_lun < 1) {
-		printk(KERN_ERR "Invalid max_lun value of %u\n", iscsi_max_lun);
+		printk(KERN_ERR "iscsi_tcp: Invalid max_lun value of %u\n",
+		       iscsi_max_lun);
 		return -EINVAL;
 	}
 	iscsi_tcp_transport.max_lun = iscsi_max_lun;
