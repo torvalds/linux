@@ -1538,10 +1538,11 @@ flush_control_queues(struct iscsi_session *session, struct iscsi_conn *conn)
 	/* handle running */
 	list_for_each_entry_safe(mtask, tmp, &conn->mgmt_run_list, running) {
 		debug_scsi("flushing running mgmt task itt 0x%x\n", mtask->itt);
+		list_del(&mtask->running);
+
 		if (mtask == conn->login_mtask)
 			continue;
-		list_del(&mtask->running);
-		__kfifo_put(session->mgmtpool.queue, (void*)&conn->mtask,
+		__kfifo_put(session->mgmtpool.queue, (void*)&mtask,
 			   sizeof(void*));
 	}
 
@@ -1573,12 +1574,22 @@ static void fail_all_commands(struct iscsi_conn *conn)
 void iscsi_start_session_recovery(struct iscsi_session *session,
 				  struct iscsi_conn *conn, int flag)
 {
+	int old_stop_stage;
+
 	spin_lock_bh(&session->lock);
-	if (conn->stop_stage == STOP_CONN_RECOVER ||
-	    conn->stop_stage == STOP_CONN_TERM) {
+	if (conn->stop_stage == STOP_CONN_TERM) {
 		spin_unlock_bh(&session->lock);
 		return;
 	}
+
+	/*
+	 * When this is called for the in_login state, we only want to clean
+	 * up the login task and connection.
+	 */
+	if (conn->stop_stage != STOP_CONN_RECOVER)
+		session->conn_cnt--;
+
+	old_stop_stage = conn->stop_stage;
 	conn->stop_stage = flag;
 	spin_unlock_bh(&session->lock);
 
@@ -1590,7 +1601,6 @@ void iscsi_start_session_recovery(struct iscsi_session *session,
 	conn->c_stage = ISCSI_CONN_STOPPED;
 	set_bit(ISCSI_SUSPEND_BIT, &conn->suspend_tx);
 
-	session->conn_cnt--;
 	if (session->conn_cnt == 0 || session->leadconn == conn)
 		session->state = ISCSI_STATE_FAILED;
 
@@ -1615,7 +1625,12 @@ void iscsi_start_session_recovery(struct iscsi_session *session,
 		conn->hdrdgst_en = 0;
 		conn->datadgst_en = 0;
 
-		if (session->state == ISCSI_STATE_FAILED)
+		/*
+		 * if this is called from the eh and and from userspace
+		 * then we only need to block once.
+		 */
+		if (session->state == ISCSI_STATE_FAILED &&
+		    old_stop_stage != STOP_CONN_RECOVER)
 			iscsi_block_session(session_to_cls(session));
 	}
 	mutex_unlock(&conn->xmitmutex);
