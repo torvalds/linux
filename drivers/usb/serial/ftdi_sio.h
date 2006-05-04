@@ -426,6 +426,11 @@
 #define PAPOUCH_VID			0x5050	/* Vendor ID */
 #define PAPOUCH_TMU_PID			0x0400	/* TMU USB Thermometer */
 
+/*
+ * ACG Identification Technologies GmbH products (http://www.acg.de/).
+ * Submitted by anton -at- goto10 -dot- org.
+ */
+#define FTDI_ACG_HFDUAL_PID		0xDD20	/* HF Dual ISO Reader (RFID) */
 
 /* Commands */
 #define FTDI_SIO_RESET 		0 /* Reset the port */
