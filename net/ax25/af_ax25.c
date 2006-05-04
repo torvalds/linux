@@ -228,6 +228,8 @@ ax25_cb *ax25_find_cb(ax25_address *src_addr, ax25_address *dest_addr,
 	return NULL;
 }
 
+EXPORT_SYMBOL(ax25_find_cb);
+
 void ax25_send_to_raw(ax25_address *addr, struct sk_buff *skb, int proto)
 {
 	ax25_cb *s;
@@ -424,6 +426,26 @@ static int ax25_ctl_ioctl(const unsigned int cmd, void __user *arg)
 	return 0;
 }
 
+static void ax25_fillin_cb_from_dev(ax25_cb *ax25, ax25_dev *ax25_dev)
+{
+	ax25->rtt     = msecs_to_jiffies(ax25_dev->values[AX25_VALUES_T1]) / 2;
+	ax25->t1      = msecs_to_jiffies(ax25_dev->values[AX25_VALUES_T1]);
+	ax25->t2      = msecs_to_jiffies(ax25_dev->values[AX25_VALUES_T2]);
+	ax25->t3      = msecs_to_jiffies(ax25_dev->values[AX25_VALUES_T3]);
+	ax25->n2      = ax25_dev->values[AX25_VALUES_N2];
+	ax25->paclen  = ax25_dev->values[AX25_VALUES_PACLEN];
+	ax25->idle    = msecs_to_jiffies(ax25_dev->values[AX25_VALUES_IDLE]);
+	ax25->backoff = ax25_dev->values[AX25_VALUES_BACKOFF];
+
+	if (ax25_dev->values[AX25_VALUES_AXDEFMODE]) {
+		ax25->modulus = AX25_EMODULUS;
+		ax25->window  = ax25_dev->values[AX25_VALUES_EWINDOW];
+	} else {
+		ax25->modulus = AX25_MODULUS;
+		ax25->window  = ax25_dev->values[AX25_VALUES_WINDOW];
+	}
+}
+
 /*
  *	Fill in a created AX.25 created control block with the default
  *	values for a particular device.
@@ -433,39 +455,28 @@ void ax25_fillin_cb(ax25_cb *ax25, ax25_dev *ax25_dev)
 	ax25->ax25_dev = ax25_dev;
 
 	if (ax25->ax25_dev != NULL) {
-		ax25->rtt     = ax25_dev->values[AX25_VALUES_T1] / 2;
-		ax25->t1      = ax25_dev->values[AX25_VALUES_T1];
-		ax25->t2      = ax25_dev->values[AX25_VALUES_T2];
-		ax25->t3      = ax25_dev->values[AX25_VALUES_T3];
-		ax25->n2      = ax25_dev->values[AX25_VALUES_N2];
-		ax25->paclen  = ax25_dev->values[AX25_VALUES_PACLEN];
-		ax25->idle    = ax25_dev->values[AX25_VALUES_IDLE];
-		ax25->backoff = ax25_dev->values[AX25_VALUES_BACKOFF];
+		ax25_fillin_cb_from_dev(ax25, ax25_dev);
+		return;
+	}
 
-		if (ax25_dev->values[AX25_VALUES_AXDEFMODE]) {
-			ax25->modulus = AX25_EMODULUS;
-			ax25->window  = ax25_dev->values[AX25_VALUES_EWINDOW];
-		} else {
-			ax25->modulus = AX25_MODULUS;
-			ax25->window  = ax25_dev->values[AX25_VALUES_WINDOW];
-		}
+	/*
+	 * No device, use kernel / AX.25 spec default values
+	 */
+	ax25->rtt     = msecs_to_jiffies(AX25_DEF_T1) / 2;
+	ax25->t1      = msecs_to_jiffies(AX25_DEF_T1);
+	ax25->t2      = msecs_to_jiffies(AX25_DEF_T2);
+	ax25->t3      = msecs_to_jiffies(AX25_DEF_T3);
+	ax25->n2      = AX25_DEF_N2;
+	ax25->paclen  = AX25_DEF_PACLEN;
+	ax25->idle    = msecs_to_jiffies(AX25_DEF_IDLE);
+	ax25->backoff = AX25_DEF_BACKOFF;
+
+	if (AX25_DEF_AXDEFMODE) {
+		ax25->modulus = AX25_EMODULUS;
+		ax25->window  = AX25_DEF_EWINDOW;
 	} else {
-		ax25->rtt     = AX25_DEF_T1 / 2;
-		ax25->t1      = AX25_DEF_T1;
-		ax25->t2      = AX25_DEF_T2;
-		ax25->t3      = AX25_DEF_T3;
-		ax25->n2      = AX25_DEF_N2;
-		ax25->paclen  = AX25_DEF_PACLEN;
-		ax25->idle    = AX25_DEF_IDLE;
-		ax25->backoff = AX25_DEF_BACKOFF;
-
-		if (AX25_DEF_AXDEFMODE) {
-			ax25->modulus = AX25_EMODULUS;
-			ax25->window  = AX25_DEF_EWINDOW;
-		} else {
-			ax25->modulus = AX25_MODULUS;
-			ax25->window  = AX25_DEF_WINDOW;
-		}
+		ax25->modulus = AX25_MODULUS;
+		ax25->window  = AX25_DEF_WINDOW;
 	}
 }
 
@@ -1978,24 +1989,6 @@ static struct packet_type ax25_packet_type = {
 static struct notifier_block ax25_dev_notifier = {
 	.notifier_call =ax25_device_event,
 };
-
-EXPORT_SYMBOL(ax25_hard_header);
-EXPORT_SYMBOL(ax25_rebuild_header);
-EXPORT_SYMBOL(ax25_findbyuid);
-EXPORT_SYMBOL(ax25_find_cb);
-EXPORT_SYMBOL(ax25_linkfail_register);
-EXPORT_SYMBOL(ax25_linkfail_release);
-EXPORT_SYMBOL(ax25_listen_register);
-EXPORT_SYMBOL(ax25_listen_release);
-EXPORT_SYMBOL(ax25_protocol_register);
-EXPORT_SYMBOL(ax25_protocol_release);
-EXPORT_SYMBOL(ax25_send_frame);
-EXPORT_SYMBOL(ax25_uid_policy);
-EXPORT_SYMBOL(ax25cmp);
-EXPORT_SYMBOL(ax2asc);
-EXPORT_SYMBOL(asc2ax);
-EXPORT_SYMBOL(null_ax25_address);
-EXPORT_SYMBOL(ax25_display_timer);
 
 static int __init ax25_init(void)
 {

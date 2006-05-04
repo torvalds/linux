@@ -582,7 +582,6 @@ static int __init setup_adapter(int card_base, int type, int n)
 		INIT_WORK(&priv->rx_work, rx_bh, priv);
 		dev->priv = priv;
 		sprintf(dev->name, "dmascc%i", 2 * n + i);
-		SET_MODULE_OWNER(dev);
 		dev->base_addr = card_base;
 		dev->irq = irq;
 		dev->open = scc_open;

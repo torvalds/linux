@@ -518,11 +518,11 @@ static int rose_create(struct socket *sock, int protocol)
 	init_timer(&rose->timer);
 	init_timer(&rose->idletimer);
 
-	rose->t1   = sysctl_rose_call_request_timeout;
-	rose->t2   = sysctl_rose_reset_request_timeout;
-	rose->t3   = sysctl_rose_clear_request_timeout;
-	rose->hb   = sysctl_rose_ack_hold_back_timeout;
-	rose->idle = sysctl_rose_no_activity_timeout;
+	rose->t1   = msecs_to_jiffies(sysctl_rose_call_request_timeout);
+	rose->t2   = msecs_to_jiffies(sysctl_rose_reset_request_timeout);
+	rose->t3   = msecs_to_jiffies(sysctl_rose_clear_request_timeout);
+	rose->hb   = msecs_to_jiffies(sysctl_rose_ack_hold_back_timeout);
+	rose->idle = msecs_to_jiffies(sysctl_rose_no_activity_timeout);
 
 	rose->state = ROSE_STATE_0;
 
