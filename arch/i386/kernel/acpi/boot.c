@@ -1102,9 +1102,6 @@ int __init acpi_boot_table_init(void)
 	dmi_check_system(acpi_dmi_table);
 #endif
 
-	if (!cpu_has_apic)
-		return -ENODEV;
-
 	/*
 	 * If acpi_disabled, bail out
 	 * One exception: acpi=ht continues far enough to enumerate LAPICs
@@ -1150,9 +1147,6 @@ int __init acpi_boot_init(void)
 		return 1;
 
 	acpi_table_parse(ACPI_BOOT, acpi_parse_sbf);
-
-	if (!cpu_has_apic)
-		return -ENODEV;
 
 	/*
 	 * set sci_int and PM timer address
