@@ -48,8 +48,6 @@ static DEFINE_SPINLOCK(rose_route_list_lock);
 
 struct rose_neigh *rose_loopback_neigh;
 
-static void rose_remove_neigh(struct rose_neigh *);
-
 /*
  *	Add a new route to a node, and in the process add the node and the
  *	neighbour if it is new.
