@@ -68,13 +68,6 @@
 
 #include "buffer_head_io.h"
 
-/*
- * Globals
- */
-static spinlock_t ocfs2_globals_lock = SPIN_LOCK_UNLOCKED;
-
-static u32 osb_id;             /* Keeps track of next available OSB Id */
-
 static kmem_cache_t *ocfs2_inode_cachep = NULL;
 
 kmem_cache_t *ocfs2_lock_cache = NULL;
@@ -799,10 +792,6 @@ static int __init ocfs2_init(void)
 		goto leave;
 	}
 
-	spin_lock(&ocfs2_globals_lock);
-	osb_id = 0;
-	spin_unlock(&ocfs2_globals_lock);
-
 	ocfs2_debugfs_root = debugfs_create_dir("ocfs2", NULL);
 	if (!ocfs2_debugfs_root) {
 		status = -EFAULT;
@@ -1211,8 +1200,6 @@ static int ocfs2_setup_osb_uuid(struct ocfs2_super *osb, const unsigned char *uu
 	if (osb->uuid_str == NULL)
 		return -ENOMEM;
 
-	memcpy(osb->uuid, uuid, OCFS2_VOL_UUID_LEN);
-
 	for (i = 0, ptr = osb->uuid_str; i < OCFS2_VOL_UUID_LEN; i++) {
 		/* print with null */
 		ret = snprintf(ptr, 3, "%02X", uuid[i]);
@@ -1306,13 +1293,6 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	osb->vol_label = kmalloc(OCFS2_MAX_VOL_LABEL_LEN, GFP_KERNEL);
 	if (!osb->vol_label) {
 		mlog(ML_ERROR, "unable to alloc vol label\n");
-		status = -ENOMEM;
-		goto bail;
-	}
-
-	osb->uuid = kmalloc(OCFS2_VOL_UUID_LEN, GFP_KERNEL);
-	if (!osb->uuid) {
-		mlog(ML_ERROR, "unable to alloc uuid\n");
 		status = -ENOMEM;
 		goto bail;
 	}
@@ -1417,7 +1397,7 @@ static int ocfs2_initialize_super(struct super_block *sb,
 		goto bail;
 	}
 
-	memcpy(&uuid_net_key, osb->uuid, sizeof(uuid_net_key));
+	memcpy(&uuid_net_key, di->id2.i_super.s_uuid, sizeof(uuid_net_key));
 	osb->net_key = le32_to_cpu(uuid_net_key);
 
 	strncpy(osb->vol_label, di->id2.i_super.s_label, 63);
@@ -1482,18 +1462,6 @@ static int ocfs2_initialize_super(struct super_block *sb,
 		mlog_errno(status);
 		goto bail;
 	}
-
-	/*  Link this osb onto the global linked list of all osb structures. */
-	/*  The Global Link List is mainted for the whole driver . */
-	spin_lock(&ocfs2_globals_lock);
-	osb->osb_id = osb_id;
-	if (osb_id < OCFS2_MAX_OSB_ID)
-		osb_id++;
-	else {
-		mlog(ML_ERROR, "Too many volumes mounted\n");
-		status = -ENOMEM;
-	}
-	spin_unlock(&ocfs2_globals_lock);
 
 bail:
 	mlog_exit(status);
