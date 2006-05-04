@@ -5545,7 +5545,7 @@ struct _snd_pcm_runtime {
 	  power status.</para></listitem>
         <listitem><para>Call <function>snd_pcm_suspend_all()</function> to suspend the running PCM streams.</para></listitem>
 	<listitem><para>If AC97 codecs are used, call
-	<function>snd_ac97_resume()</function> for each codec.</para></listitem>
+	<function>snd_ac97_suspend()</function> for each codec.</para></listitem>
         <listitem><para>Save the register values if necessary.</para></listitem>
         <listitem><para>Stop the hardware if necessary.</para></listitem>
         <listitem><para>Disable the PCI device by calling
