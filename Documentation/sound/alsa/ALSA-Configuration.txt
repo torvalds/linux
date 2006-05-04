@@ -366,7 +366,9 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Module for C-Media CMI8338 and 8738 PCI sound cards.
 
-    mpu_port	- 0x300,0x310,0x320,0x330, 0 = disable (default)
+    mpu_port	- 0x300,0x310,0x320,0x330 = legacy port,
+		  1 = integrated PCI port,
+		  0 = disable (default)
     fm_port     - 0x388 (default), 0 = disable (default)
     soft_ac3    - Software-conversion of raw SPDIF packets (model 033 only)
                   (default = 1)

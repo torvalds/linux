@@ -2932,7 +2932,7 @@ static int __devinit snd_cmipci_create(struct snd_card *card, struct pci_dev *pc
 	}
 
 	integrated_midi = snd_cmipci_read_b(cm, CM_REG_MPU_PCI) != 0xff;
-	if (integrated_midi)
+	if (integrated_midi && mpu_port[dev] == 1)
 		iomidi = cm->iobase + CM_REG_MPU_PCI;
 	else {
 		iomidi = mpu_port[dev];
