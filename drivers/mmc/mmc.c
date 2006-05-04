@@ -59,13 +59,12 @@ static const unsigned int tacc_mant[] = {
 
 
 /**
- *	mmc_request_done - finish processing an MMC command
- *	@host: MMC host which completed command
- *	@mrq: MMC request which completed
+ *	mmc_request_done - finish processing an MMC request
+ *	@host: MMC host which completed request
+ *	@mrq: MMC request which request
  *
  *	MMC drivers should call this function when they have completed
- *	their processing of a command.  This should be called before the
- *	data part of the command has completed.
+ *	their processing of a request.
  */
 void mmc_request_done(struct mmc_host *host, struct mmc_request *mrq)
 {
