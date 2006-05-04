@@ -195,56 +195,6 @@ void __init imx_set_mmc_info(struct imxmmc_platform_data *info)
 }
 EXPORT_SYMBOL(imx_set_mmc_info);
 
-static struct resource imx_uart1_resources[] = {
-	[0] = {
-		.start	= 0x00206000,
-		.end	= 0x002060FF,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= (UART1_MINT_RX),
-		.end	= (UART1_MINT_RX),
-		.flags	= IORESOURCE_IRQ,
-	},
-	[2] = {
-		.start	= (UART1_MINT_TX),
-		.end	= (UART1_MINT_TX),
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device imx_uart1_device = {
-	.name		= "imx-uart",
-	.id		= 0,
-	.num_resources	= ARRAY_SIZE(imx_uart1_resources),
-	.resource	= imx_uart1_resources,
-};
-
-static struct resource imx_uart2_resources[] = {
-	[0] = {
-		.start	= 0x00207000,
-		.end	= 0x002070FF,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= (UART2_MINT_RX),
-		.end	= (UART2_MINT_RX),
-		.flags	= IORESOURCE_IRQ,
-	},
-	[2] = {
-		.start	= (UART2_MINT_TX),
-		.end	= (UART2_MINT_TX),
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device imx_uart2_device = {
-	.name		= "imx-uart",
-	.id		= 1,
-	.num_resources	= ARRAY_SIZE(imx_uart2_resources),
-	.resource	= imx_uart2_resources,
-};
-
 static struct imxfb_mach_info imx_fb_info;
 
 void __init set_imx_fb_info(struct imxfb_mach_info *hard_imx_fb_info)
@@ -283,8 +233,6 @@ static struct platform_device imxfb_device = {
 static struct platform_device *devices[] __initdata = {
 	&imx_mmc_device,
 	&imxfb_device,
-	&imx_uart1_device,
-	&imx_uart2_device,
 };
 
 static struct map_desc imx_io_desc[] __initdata = {

@@ -410,7 +410,8 @@ type name(void) {							\
   __asm__ __volatile__ (						\
   __syscall(name)							\
 	: "=r" (__res_r0)						\
-	: __SYS_REG_LIST() );						\
+	: __SYS_REG_LIST()						\
+	: "memory" );							\
   __res = __res_r0;							\
   __syscall_return(type,__res);						\
 }
@@ -424,7 +425,8 @@ type name(type1 arg1) { 						\
   __asm__ __volatile__ (						\
   __syscall(name)							\
 	: "=r" (__res_r0)						\
-	: __SYS_REG_LIST( "0" (__r0) ) );				\
+	: __SYS_REG_LIST( "0" (__r0) )					\
+	: "memory" );							\
   __res = __res_r0;							\
   __syscall_return(type,__res);						\
 }
@@ -439,7 +441,8 @@ type name(type1 arg1,type2 arg2) {					\
   __asm__ __volatile__ (						\
   __syscall(name)							\
 	: "=r" (__res_r0)						\
-	: __SYS_REG_LIST( "0" (__r0), "r" (__r1) ) );			\
+	: __SYS_REG_LIST( "0" (__r0), "r" (__r1) )			\
+	: "memory" );							\
   __res = __res_r0;							\
   __syscall_return(type,__res);						\
 }
@@ -456,7 +459,8 @@ type name(type1 arg1,type2 arg2,type3 arg3) {				\
   __asm__ __volatile__ (						\
   __syscall(name)							\
 	: "=r" (__res_r0)						\
-	: __SYS_REG_LIST( "0" (__r0), "r" (__r1), "r" (__r2) ) );	\
+	: __SYS_REG_LIST( "0" (__r0), "r" (__r1), "r" (__r2) )		\
+	: "memory" );							\
   __res = __res_r0;							\
   __syscall_return(type,__res);						\
 }
@@ -474,7 +478,8 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4) {		\
   __asm__ __volatile__ (						\
   __syscall(name)							\
 	: "=r" (__res_r0)						\
-	: __SYS_REG_LIST( "0" (__r0), "r" (__r1), "r" (__r2), "r" (__r3) ) ); \
+	: __SYS_REG_LIST( "0" (__r0), "r" (__r1), "r" (__r2), "r" (__r3) ) \
+	: "memory" );							\
   __res = __res_r0;							\
   __syscall_return(type,__res);						\
 }
@@ -494,7 +499,8 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5) {	\
   __syscall(name)							\
 	: "=r" (__res_r0)						\
 	: __SYS_REG_LIST( "0" (__r0), "r" (__r1), "r" (__r2),		\
-			  "r" (__r3), "r" (__r4) ) );			\
+			  "r" (__r3), "r" (__r4) )			\
+	: "memory" );							\
   __res = __res_r0;							\
   __syscall_return(type,__res);						\
 }
@@ -514,7 +520,8 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5, type6 arg6
   __syscall(name)							\
 	: "=r" (__res_r0)						\
 	: __SYS_REG_LIST( "0" (__r0), "r" (__r1), "r" (__r2),		\
-			  "r" (__r3), "r" (__r4), "r" (__r5) ) );	\
+			  "r" (__r3), "r" (__r4), "r" (__r5) )		\
+	: "memory" );							\
   __res = __res_r0;							\
   __syscall_return(type,__res);						\
 }
