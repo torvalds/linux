@@ -145,14 +145,14 @@ enum {
 #define	AX25_DEF_CONMODE	2			/* Connected mode allowed */
 #define	AX25_DEF_WINDOW		2			/* Window=2 */
 #define	AX25_DEF_EWINDOW	32			/* Module-128 Window=32 */
-#define	AX25_DEF_T1		(10 * HZ)		/* T1=10s */
-#define	AX25_DEF_T2		(3 * HZ)		/* T2=3s  */
-#define	AX25_DEF_T3		(300 * HZ)		/* T3=300s */
+#define	AX25_DEF_T1		10000			/* T1=10s */
+#define	AX25_DEF_T2		3000			/* T2=3s  */
+#define	AX25_DEF_T3		300000			/* T3=300s */
 #define	AX25_DEF_N2		10			/* N2=10 */
-#define AX25_DEF_IDLE		(0 * 60 * HZ)		/* Idle=None */
+#define AX25_DEF_IDLE		0			/* Idle=None */
 #define AX25_DEF_PACLEN		256			/* Paclen=256 */
 #define	AX25_DEF_PROTOCOL	AX25_PROTO_STD_SIMPLEX	/* Standard AX.25 */
-#define AX25_DEF_DS_TIMEOUT	(3 * 60 * HZ)		/* DAMA timeout 3 minutes */
+#define AX25_DEF_DS_TIMEOUT	180000			/* DAMA timeout 3 minutes */
 
 typedef struct ax25_uid_assoc {
 	struct hlist_node	uid_node;
