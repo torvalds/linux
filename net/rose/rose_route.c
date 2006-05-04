@@ -233,11 +233,8 @@ static void rose_remove_neigh(struct rose_neigh *rose_neigh)
 
 	skb_queue_purge(&rose_neigh->queue);
 
-	spin_lock_bh(&rose_neigh_list_lock);
-
 	if ((s = rose_neigh_list) == rose_neigh) {
 		rose_neigh_list = rose_neigh->next;
-		spin_unlock_bh(&rose_neigh_list_lock);
 		kfree(rose_neigh->digipeat);
 		kfree(rose_neigh);
 		return;
@@ -246,7 +243,6 @@ static void rose_remove_neigh(struct rose_neigh *rose_neigh)
 	while (s != NULL && s->next != NULL) {
 		if (s->next == rose_neigh) {
 			s->next = rose_neigh->next;
-			spin_unlock_bh(&rose_neigh_list_lock);
 			kfree(rose_neigh->digipeat);
 			kfree(rose_neigh);
 			return;
@@ -254,7 +250,6 @@ static void rose_remove_neigh(struct rose_neigh *rose_neigh)
 
 		s = s->next;
 	}
-	spin_unlock_bh(&rose_neigh_list_lock);
 }
 
 /*
