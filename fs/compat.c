@@ -1323,7 +1323,7 @@ compat_sys_vmsplice(int fd, const struct compat_iovec __user *iov32,
 {
 	unsigned i;
 	struct iovec *iov;
-	if (nr_segs >= UIO_MAXIOV)
+	if (nr_segs > UIO_MAXIOV)
 		return -EINVAL;
 	iov = compat_alloc_user_space(nr_segs * sizeof(struct iovec));
 	for (i = 0; i < nr_segs; i++) {
