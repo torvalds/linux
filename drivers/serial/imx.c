@@ -45,6 +45,7 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/hardware.h>
+#include <asm/arch/imx-uart.h>
 
 /* We've been assigned a range on the "Low-density serial ports" major */
 #define SERIAL_IMX_MAJOR	204
@@ -73,7 +74,8 @@ struct imx_port {
 	struct uart_port	port;
 	struct timer_list	timer;
 	unsigned int		old_status;
-	int txirq,rxirq,rtsirq;
+	int			txirq,rxirq,rtsirq;
+	int			have_rtscts:1;
 };
 
 /*
@@ -491,8 +493,12 @@ imx_set_termios(struct uart_port *port, struct termios *termios,
 		ucr2 = UCR2_SRST | UCR2_IRTS;
 
 	if (termios->c_cflag & CRTSCTS) {
-		ucr2 &= ~UCR2_IRTS;
-		ucr2 |= UCR2_CTSC;
+		if( sport->have_rtscts ) {
+			ucr2 &= ~UCR2_IRTS;
+			ucr2 |= UCR2_CTSC;
+		} else {
+			termios->c_cflag &= ~CRTSCTS;
+		}
 	}
 
 	if (termios->c_cflag & CSTOPB)
@@ -719,27 +725,6 @@ static void __init imx_init_ports(void)
 		imx_ports[i].timer.function = imx_timeout;
 		imx_ports[i].timer.data     = (unsigned long)&imx_ports[i];
 	}
-
-	imx_gpio_mode(PC9_PF_UART1_CTS);
-	imx_gpio_mode(PC10_PF_UART1_RTS);
-	imx_gpio_mode(PC11_PF_UART1_TXD);
-	imx_gpio_mode(PC12_PF_UART1_RXD);
-	imx_gpio_mode(PB28_PF_UART2_CTS);
-	imx_gpio_mode(PB29_PF_UART2_RTS);
-
-	imx_gpio_mode(PB30_PF_UART2_TXD);
-	imx_gpio_mode(PB31_PF_UART2_RXD);
-
-#if 0 /* We don't need these, on the mx1 the _modem_ side of the uart
-       * is implemented.
-       */
-	imx_gpio_mode(PD7_AF_UART2_DTR);
-	imx_gpio_mode(PD8_AF_UART2_DCD);
-	imx_gpio_mode(PD9_AF_UART2_RI);
-	imx_gpio_mode(PD10_AF_UART2_DSR);
-#endif
-
-
 }
 
 #ifdef CONFIG_SERIAL_IMX_CONSOLE
@@ -932,7 +917,14 @@ static int serial_imx_resume(struct platform_device *dev)
 
 static int serial_imx_probe(struct platform_device *dev)
 {
+	struct imxuart_platform_data *pdata;
+
 	imx_ports[dev->id].port.dev = &dev->dev;
+
+	pdata = (struct imxuart_platform_data *)dev->dev.platform_data;
+	if(pdata && (pdata->flags & IMXUART_HAVE_RTSCTS))
+		imx_ports[dev->id].have_rtscts = 1;
+
 	uart_add_one_port(&imx_reg, &imx_ports[dev->id].port);
 	platform_set_drvdata(dev, &imx_ports[dev->id]);
 	return 0;
