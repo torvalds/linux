@@ -402,9 +402,6 @@ static void mmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	struct mmci_host *host = mmc_priv(mmc);
 	u32 clk = 0, pwr = 0;
 
-	DBG(host, "clock %uHz busmode %u powermode %u Vdd %u\n",
-	    ios->clock, ios->bus_mode, ios->power_mode, ios->vdd);
-
 	if (ios->clock) {
 		if (ios->clock >= host->mclk) {
 			clk = MCI_CLK_BYPASS;

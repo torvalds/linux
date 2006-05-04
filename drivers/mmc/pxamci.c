@@ -365,10 +365,6 @@ static void pxamci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	struct pxamci_host *host = mmc_priv(mmc);
 
-	pr_debug("PXAMCI: clock %u power %u vdd %u.%02u\n",
-		 ios->clock, ios->power_mode, ios->vdd / 100,
-		 ios->vdd % 100);
-
 	if (ios->clock) {
 		unsigned int clk = CLOCKRATE / ios->clock;
 		if (CLOCKRATE / clk > ios->clock)

@@ -807,10 +807,6 @@ static void imxmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	struct imxmci_host *host = mmc_priv(mmc);
 	int prescaler;
 
-	dev_dbg(mmc_dev(host->mmc), "clock %u power %u vdd %u width %u\n",
-		ios->clock, ios->power_mode, ios->vdd,
-		(ios->bus_width==MMC_BUS_WIDTH_4)?4:1);
-
 	if( ios->bus_width==MMC_BUS_WIDTH_4 ) {
 		host->actual_bus_width = MMC_BUS_WIDTH_4;
 		imx_gpio_mode(PB11_PF_SD_DAT3);
