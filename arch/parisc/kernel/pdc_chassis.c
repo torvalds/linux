@@ -19,6 +19,7 @@
  *
  *    TODO: poll chassis warns, trigger (configurable) machine shutdown when
  *    		needed.
+ *    	    Find out how to get Chassis warnings out of PAT boxes?
  */
 
 #undef PDC_CHASSIS_DEBUG
@@ -40,6 +41,7 @@
 #include <asm/pdc.h>
 #include <asm/pdcpat.h>
 
+#define PDC_CHASSIS_VER	"0.05"
 
 #ifdef CONFIG_PDC_CHASSIS
 static unsigned int pdc_chassis_enabled __read_mostly = 1;
@@ -133,29 +135,20 @@ static struct notifier_block pdc_chassis_reboot_block = {
 void __init parisc_pdc_chassis_init(void)
 {
 #ifdef CONFIG_PDC_CHASSIS
-	int handle = 0;
 	if (likely(pdc_chassis_enabled)) {
 		DPRINTK(KERN_DEBUG "%s: parisc_pdc_chassis_init()\n", __FILE__);
 
 		/* Let see if we have something to handle... */
-		/* Check for PDC_PAT */
-		if (is_pdc_pat()) {
-			printk(KERN_INFO "Enabling PDC_PAT chassis codes support.\n");
-			handle = 1;
-		}
-		else {
-			printk(KERN_INFO "Enabling regular chassis codes support.\n");
-			handle = 1;
-		}
+		printk(KERN_INFO "Enabling %s chassis codes support v%s\n",
+				is_pdc_pat() ? "PDC_PAT" : "regular",
+				PDC_CHASSIS_VER);
 
-		if (handle) {
-			/* initialize panic notifier chain */
-			atomic_notifier_chain_register(&panic_notifier_list,
-					&pdc_chassis_panic_block);
+		/* initialize panic notifier chain */
+		atomic_notifier_chain_register(&panic_notifier_list,
+				&pdc_chassis_panic_block);
 
-			/* initialize reboot notifier chain */
-			register_reboot_notifier(&pdc_chassis_reboot_block);
-		}
+		/* initialize reboot notifier chain */
+		register_reboot_notifier(&pdc_chassis_reboot_block);
 	}
 #endif /* CONFIG_PDC_CHASSIS */
 }
@@ -285,7 +278,18 @@ static int pdc_chassis_warn_pread(char *page, char **start, off_t off,
 
 static int __init pdc_chassis_create_procfs(void)
 {
-	printk(KERN_INFO "Enabling PDC chassis warnings support.\n");
+	unsigned long test;
+	int ret;
+
+	ret = pdc_chassis_warn(&test);
+	if ((ret == PDC_BAD_PROC) || (ret == PDC_BAD_OPTION)) {
+		/* seems that some boxes (eg L1000) do not implement this */
+		printk(KERN_INFO "Chassis warnings not supported.\n");
+		return 0;
+	}
+
+	printk(KERN_INFO "Enabling PDC chassis warnings support v%s\n",
+			PDC_CHASSIS_VER);
 	create_proc_read_entry("chassis", 0400, NULL, pdc_chassis_warn_pread,
 				NULL);
 	return 0;
