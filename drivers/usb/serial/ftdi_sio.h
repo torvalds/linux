@@ -32,6 +32,10 @@
 #define FTDI_NF_RIC_PID	0x0001	/* Product Id */
 
 
+/* ACT Solutions HomePro ZWave interface (http://www.act-solutions.com/HomePro.htm) */
+#define FTDI_ACTZWAVE_PID	0xF2D0
+
+
 /* www.irtrans.de device */
 #define FTDI_IRTRANS_PID 0xFC60 /* Product Id */
 
