@@ -1417,7 +1417,7 @@ static int ocfs2_initialize_super(struct super_block *sb,
 		goto bail;
 	}
 
-	memcpy(&uuid_net_key, &osb->uuid[i], sizeof(osb->net_key));
+	memcpy(&uuid_net_key, osb->uuid, sizeof(uuid_net_key));
 	osb->net_key = le32_to_cpu(uuid_net_key);
 
 	strncpy(osb->vol_label, di->id2.i_super.s_label, 63);
