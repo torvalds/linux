@@ -703,6 +703,10 @@ int decode_choice(bitstr_t * bs, field_t * f, char *base, int level)
 		type = get_bits(bs, f->sz);
 	}
 
+	/* Write Type */
+	if (base)
+		*(unsigned *) base = type;
+
 	/* Check Range */
 	if (type >= f->ub) {	/* Newer version? */
 		BYTE_ALIGN(bs);
@@ -711,10 +715,6 @@ int decode_choice(bitstr_t * bs, field_t * f, char *base, int level)
 		bs->cur += len;
 		return H323_ERROR_NONE;
 	}
-
-	/* Write Type */
-	if (base)
-		*(unsigned *) base = type;
 
 	/* Transfer to son level */
 	son = &f->fields[type];
