@@ -56,15 +56,20 @@ static int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 		mdatalen = sizeof(dev);
 		D1(printk(KERN_DEBUG "jffs2_setattr(): Writing %d bytes of kdev_t\n", mdatalen));
 	} else if (S_ISLNK(inode->i_mode)) {
+		down(&f->sem);
 		mdatalen = f->metadata->size;
 		mdata = kmalloc(f->metadata->size, GFP_USER);
-		if (!mdata)
+		if (!mdata) {
+			up(&f->sem);
 			return -ENOMEM;
+		}
 		ret = jffs2_read_dnode(c, f, f->metadata, mdata, 0, mdatalen);
 		if (ret) {
+			up(&f->sem);
 			kfree(mdata);
 			return ret;
 		}
+		up(&f->sem);
 		D1(printk(KERN_DEBUG "jffs2_setattr(): Writing %d bytes of symlink target\n", mdatalen));
 	}
 
