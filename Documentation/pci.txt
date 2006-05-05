@@ -259,7 +259,17 @@ on the bus need to be capable of doing it, so this is something which needs
 to be handled by platform and generic code, not individual drivers.
 
 
-8. Obsolete functions
+8. Vendor and device identifications
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+For the future, let's avoid adding device ids to include/linux/pci_ids.h.
+
+PCI_VENDOR_ID_xxx for vendors, and a hex constant for device ids.
+
+Rationale:  PCI_VENDOR_ID_xxx constants are re-used, but device ids are not.
+    Further, device ids are arbitrary hex numbers, normally used only in a
+    single location, the pci_device_id table.
+
+9. Obsolete functions
 ~~~~~~~~~~~~~~~~~~~~~
 There are several functions which you might come across when trying to
 port an old driver to the new PCI interface.  They are no longer present

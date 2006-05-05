@@ -979,7 +979,8 @@ static void __drain_alien_cache(struct kmem_cache *cachep,
 		 * That way we could avoid the overhead of putting the objects
 		 * into the free lists and getting them back later.
 		 */
-		transfer_objects(rl3->shared, ac, ac->limit);
+		if (rl3->shared)
+			transfer_objects(rl3->shared, ac, ac->limit);
 
 		free_block(cachep, ac->entry, ac->avail, node);
 		ac->avail = 0;
@@ -1036,7 +1037,7 @@ static inline void free_alien_cache(struct array_cache **ac_ptr)
 
 #endif
 
-static int __devinit cpuup_callback(struct notifier_block *nfb,
+static int cpuup_callback(struct notifier_block *nfb,
 				    unsigned long action, void *hcpu)
 {
 	long cpu = (long)hcpu;

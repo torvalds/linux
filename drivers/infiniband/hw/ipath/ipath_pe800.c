@@ -972,6 +972,8 @@ static int ipath_setup_pe_reset(struct ipath_devdata *dd)
 	/* Use ERROR so it shows up in logs, etc. */
 	ipath_dev_err(dd, "Resetting PE-800 unit %u\n",
 		      dd->ipath_unit);
+	/* keep chip from being accessed in a few places */
+	dd->ipath_flags &= ~(IPATH_INITTED|IPATH_PRESENT);
 	val = dd->ipath_control | INFINIPATH_C_RESET;
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_control, val);
 	mb();
@@ -997,6 +999,8 @@ static int ipath_setup_pe_reset(struct ipath_devdata *dd)
 		if ((r = pci_enable_device(dd->pcidev)))
 			ipath_dev_err(dd, "pci_enable_device failed after "
 				      "reset: %d\n", r);
+		/* whether it worked or not, mark as present, again */
+		dd->ipath_flags |= IPATH_PRESENT;
 		val = ipath_read_kreg64(dd, dd->ipath_kregs->kr_revision);
 		if (val == dd->ipath_revision) {
 			ipath_cdbg(VERBOSE, "Got matching revision "

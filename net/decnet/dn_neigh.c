@@ -493,7 +493,6 @@ struct elist_cb_state {
 static void neigh_elist_cb(struct neighbour *neigh, void *_info)
 {
 	struct elist_cb_state *s = _info;
-	struct dn_dev *dn_db;
 	struct dn_neigh *dn;
 
 	if (neigh->dev != s->dev)
@@ -501,10 +500,6 @@ static void neigh_elist_cb(struct neighbour *neigh, void *_info)
 
 	dn = (struct dn_neigh *) neigh;
 	if (!(dn->flags & (DN_NDFLAG_R1|DN_NDFLAG_R2)))
-		return;
-
-	dn_db = (struct dn_dev *) s->dev->dn_ptr;
-	if (dn_db->parms.forwarding == 1 && (dn->flags & DN_NDFLAG_R2))
 		return;
 
 	if (s->t == s->n)

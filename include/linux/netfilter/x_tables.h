@@ -337,6 +337,10 @@ struct compat_xt_entry_match
 			char name[XT_FUNCTION_MAXNAMELEN - 1];
 			u_int8_t revision;
 		} user;
+		struct {
+			u_int16_t match_size;
+			compat_uptr_t match;
+		} kernel;
 		u_int16_t match_size;
 	} u;
 	unsigned char data[0];
@@ -350,6 +354,10 @@ struct compat_xt_entry_target
 			char name[XT_FUNCTION_MAXNAMELEN - 1];
 			u_int8_t revision;
 		} user;
+		struct {
+			u_int16_t target_size;
+			compat_uptr_t target;
+		} kernel;
 		u_int16_t target_size;
 	} u;
 	unsigned char data[0];
@@ -361,7 +369,11 @@ struct compat_xt_entry_target
 
 struct compat_xt_counters
 {
+#if defined(CONFIG_X86_64) || defined(CONFIG_IA64)
 	u_int32_t cnt[4];
+#else
+	u_int64_t cnt[2];
+#endif
 };
 
 struct compat_xt_counters_info

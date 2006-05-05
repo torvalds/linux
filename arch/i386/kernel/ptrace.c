@@ -671,7 +671,7 @@ int do_syscall_trace(struct pt_regs *regs, int entryexit)
 
 	if (unlikely(current->audit_context)) {
 		if (entryexit)
-			audit_syscall_exit(current, AUDITSC_RESULT(regs->eax),
+			audit_syscall_exit(AUDITSC_RESULT(regs->eax),
 						regs->eax);
 		/* Debug traps, when using PTRACE_SINGLESTEP, must be sent only
 		 * on the syscall exit path. Normally, when TIF_SYSCALL_AUDIT is
@@ -720,14 +720,13 @@ int do_syscall_trace(struct pt_regs *regs, int entryexit)
 	ret = is_sysemu;
 out:
 	if (unlikely(current->audit_context) && !entryexit)
-		audit_syscall_entry(current, AUDIT_ARCH_I386, regs->orig_eax,
+		audit_syscall_entry(AUDIT_ARCH_I386, regs->orig_eax,
 				    regs->ebx, regs->ecx, regs->edx, regs->esi);
 	if (ret == 0)
 		return 0;
 
 	regs->orig_eax = -1; /* force skip of syscall restarting */
 	if (unlikely(current->audit_context))
-		audit_syscall_exit(current, AUDITSC_RESULT(regs->eax),
-				regs->eax);
+		audit_syscall_exit(AUDITSC_RESULT(regs->eax), regs->eax);
 	return 1;
 }

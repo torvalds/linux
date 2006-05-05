@@ -246,6 +246,7 @@ class/
 devices/
 firmware/
 net/
+fs/
 
 devices/ contains a filesystem representation of the device tree. It maps
 directly to the internal kernel device tree, which is a hierarchy of
@@ -263,6 +264,10 @@ that point to the device's directory under root/.
 drivers/ contains a directory for each device driver that is loaded
 for devices on that particular bus (this assumes that drivers do not
 span multiple bus types).
+
+fs/ contains a directory for some filesystems.  Currently each
+filesystem wanting to export attributes must create its own hierarchy
+below fs/ (see ./fuse.txt for an example).
 
 
 More information can driver-model specific features can be found in

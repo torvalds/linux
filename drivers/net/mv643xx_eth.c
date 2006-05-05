@@ -1419,6 +1419,8 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	mv643xx_eth_update_pscr(dev, &cmd);
 	mv643xx_set_settings(dev, &cmd);
 
+	SET_MODULE_OWNER(dev);
+	SET_NETDEV_DEV(dev, &pdev->dev);
 	err = register_netdev(dev);
 	if (err)
 		goto out;

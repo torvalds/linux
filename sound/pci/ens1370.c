@@ -446,7 +446,7 @@ struct ensoniq {
 
 static irqreturn_t snd_audiopci_interrupt(int irq, void *dev_id, struct pt_regs *regs);
 
-static struct pci_device_id snd_audiopci_ids[] = {
+static struct pci_device_id snd_audiopci_ids[] __devinitdata = {
 #ifdef CHIP1370
 	{ 0x1274, 0x5000, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, },	/* ES1370 */
 #endif

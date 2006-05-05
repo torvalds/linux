@@ -279,7 +279,7 @@ static void unregister_cpu_online(unsigned int cpu)
 }
 #endif /* CONFIG_HOTPLUG_CPU */
 
-static int __devinit sysfs_cpu_notify(struct notifier_block *self,
+static int sysfs_cpu_notify(struct notifier_block *self,
 				      unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned int)(long)hcpu;
@@ -297,7 +297,7 @@ static int __devinit sysfs_cpu_notify(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block __devinitdata sysfs_cpu_nb = {
+static struct notifier_block sysfs_cpu_nb = {
 	.notifier_call	= sysfs_cpu_notify,
 };
 
@@ -322,12 +322,30 @@ static void register_nodes(void)
 		}
 	}
 }
+
+int sysfs_add_device_to_node(struct sys_device *dev, int nid)
+{
+	struct node *node = &node_devices[nid];
+	return sysfs_create_link(&node->sysdev.kobj, &dev->kobj,
+			kobject_name(&dev->kobj));
+}
+
+void sysfs_remove_device_from_node(struct sys_device *dev, int nid)
+{
+	struct node *node = &node_devices[nid];
+	sysfs_remove_link(&node->sysdev.kobj, kobject_name(&dev->kobj));
+}
+
 #else
 static void register_nodes(void)
 {
 	return;
 }
+
 #endif
+
+EXPORT_SYMBOL_GPL(sysfs_add_device_to_node);
+EXPORT_SYMBOL_GPL(sysfs_remove_device_from_node);
 
 /* Only valid if CPU is present. */
 static ssize_t show_physical_id(struct sys_device *dev, char *buf)

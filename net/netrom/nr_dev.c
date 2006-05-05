@@ -185,7 +185,6 @@ static struct net_device_stats *nr_get_stats(struct net_device *dev)
 
 void nr_setup(struct net_device *dev)
 {
-	SET_MODULE_OWNER(dev);
 	dev->mtu		= NR_MAX_PACKET_SIZE;
 	dev->hard_start_xmit	= nr_xmit;
 	dev->open		= nr_open;

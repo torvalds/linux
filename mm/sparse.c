@@ -32,7 +32,10 @@ static struct mem_section *sparse_index_alloc(int nid)
 	unsigned long array_size = SECTIONS_PER_ROOT *
 				   sizeof(struct mem_section);
 
-	section = alloc_bootmem_node(NODE_DATA(nid), array_size);
+	if (system_state == SYSTEM_RUNNING)
+		section = kmalloc_node(array_size, GFP_KERNEL, nid);
+	else
+		section = alloc_bootmem_node(NODE_DATA(nid), array_size);
 
 	if (section)
 		memset(section, 0, array_size);
@@ -281,9 +284,9 @@ int sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
 
 	ret = sparse_init_one_section(ms, section_nr, memmap);
 
-	if (ret <= 0)
-		__kfree_section_memmap(memmap, nr_pages);
 out:
 	pgdat_resize_unlock(pgdat, &flags);
+	if (ret <= 0)
+		__kfree_section_memmap(memmap, nr_pages);
 	return ret;
 }

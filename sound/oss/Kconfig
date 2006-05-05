@@ -478,6 +478,20 @@ config SOUND_ACI_MIXER
 
 	  This driver is also available as a module and will be called aci.
 
+config SOUND_CS4232
+	tristate "Crystal CS4232 based (PnP) cards"
+	depends on SOUND_OSS
+	help
+	  Say Y here if you have a card based on the Crystal CS4232 chip set,
+	  which uses its own Plug and Play protocol.
+
+	  If you compile the driver into the kernel, you have to add
+	  "cs4232=<io>,<irq>,<dma>,<dma2>,<mpuio>,<mpuirq>" to the kernel
+	  command line.
+
+	  See <file:Documentation/sound/oss/CS4232> for more information on
+	  configuring this card.
+
 config SOUND_VMIDI
 	tristate "Loopback MIDI device support"
 	depends on SOUND_OSS

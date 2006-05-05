@@ -358,8 +358,9 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	} else {
                 regs->gprs[14] = (unsigned long)
 			frame->retcode | PSW_ADDR_AMODE;
-		err |= __put_user(S390_SYSCALL_OPCODE | __NR_rt_sigreturn,
-	                          (u16 __user *)(frame->retcode));
+		if (__put_user(S390_SYSCALL_OPCODE | __NR_rt_sigreturn,
+			       (u16 __user *)(frame->retcode)))
+			goto give_sigsegv;
 	}
 
 	/* Set up backchain. */

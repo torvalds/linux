@@ -57,6 +57,7 @@ static inline int mips_pcibios_iack(void)
 	case MIPS_REVISION_CORID_CORE_MSC:
 	case MIPS_REVISION_CORID_CORE_FPGA2:
 	case MIPS_REVISION_CORID_CORE_FPGA3:
+	case MIPS_REVISION_CORID_CORE_24K:
 	case MIPS_REVISION_CORID_CORE_EMUL_MSC:
 	        MSC_READ(MSC01_PCI_IACK, irq);
 		irq &= 0xff;
@@ -143,6 +144,7 @@ void corehi_irqdispatch(struct pt_regs *regs)
         case MIPS_REVISION_CORID_CORE_MSC:
         case MIPS_REVISION_CORID_CORE_FPGA2:
         case MIPS_REVISION_CORID_CORE_FPGA3:
+        case MIPS_REVISION_CORID_CORE_24K:
         case MIPS_REVISION_CORID_CORE_EMUL_MSC:
                 ll_msc_irq(regs);
                 break;
@@ -309,6 +311,7 @@ void __init arch_init_irq(void)
         case MIPS_REVISION_CORID_CORE_MSC:
         case MIPS_REVISION_CORID_CORE_FPGA2:
         case MIPS_REVISION_CORID_CORE_FPGA3:
+        case MIPS_REVISION_CORID_CORE_24K:
         case MIPS_REVISION_CORID_CORE_EMUL_MSC:
 		if (cpu_has_veic)
 			init_msc_irqs (MSC01E_INT_BASE, msc_eicirqmap, msc_nr_eicirqs);

@@ -187,6 +187,12 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 			brq.cmd.opcode = MMC_WRITE_BLOCK;
 			brq.data.flags |= MMC_DATA_WRITE;
 			brq.data.blocks = 1;
+
+			/*
+			 * Scale up the timeout by the r2w factor
+			 */
+			brq.data.timeout_ns <<= card->csd.r2w_factor;
+			brq.data.timeout_clks <<= card->csd.r2w_factor;
 		}
 
 		if (brq.data.blocks > 1) {

@@ -318,6 +318,20 @@ void *spu_syscall_table[] = {
 	[__NR_unshare]			sys_unshare,
 	[__NR_splice]			sys_splice,
 	[__NR_tee]			sys_tee,
+	[__NR_vmsplice]			sys_vmsplice,
+	[__NR_openat]			sys_openat,
+	[__NR_mkdirat]			sys_mkdirat,
+	[__NR_mknodat]			sys_mknodat,
+	[__NR_fchownat]			sys_fchownat,
+	[__NR_futimesat]		sys_futimesat,
+	[__NR_newfstatat]		sys_newfstatat,
+	[__NR_unlinkat]			sys_unlinkat,
+	[__NR_renameat]			sys_renameat,
+	[__NR_linkat]			sys_linkat,
+	[__NR_symlinkat]		sys_symlinkat,
+	[__NR_readlinkat]		sys_readlinkat,
+	[__NR_fchmodat]			sys_fchmodat,
+	[__NR_faccessat]		sys_faccessat,
 };
 
 long spu_sys_callback(struct spu_syscall_block *s)

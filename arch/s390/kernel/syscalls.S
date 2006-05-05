@@ -312,3 +312,8 @@ SYSCALL(sys_faccessat,sys_faccessat,sys_faccessat_wrapper)	/* 300 */
 SYSCALL(sys_pselect6,sys_pselect6,compat_sys_pselect6_wrapper)
 SYSCALL(sys_ppoll,sys_ppoll,compat_sys_ppoll_wrapper)
 SYSCALL(sys_unshare,sys_unshare,sys_unshare_wrapper)
+SYSCALL(sys_set_robust_list,sys_set_robust_list,compat_sys_set_robust_list_wrapper)
+SYSCALL(sys_get_robust_list,sys_get_robust_list,compat_sys_get_robust_list_wrapper)
+SYSCALL(sys_splice,sys_splice,sys_splice_wrapper)
+SYSCALL(sys_sync_file_range,sys_sync_file_range,sys_sync_file_range_wrapper)
+SYSCALL(sys_tee,sys_tee,sys_tee_wrapper)

@@ -407,6 +407,8 @@ unsigned long find_iomem(char *driver, unsigned long *len_out)
 			*len_out = region->size;
 			return(region->virt);
 		}
+
+		region = region->next;
 	}
 
 	return(0);

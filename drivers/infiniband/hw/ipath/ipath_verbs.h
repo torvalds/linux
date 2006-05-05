@@ -282,7 +282,8 @@ struct ipath_srq {
  */
 struct ipath_qp {
 	struct ib_qp ibqp;
-	struct ipath_qp *next;	/* link list for QPN hash table */
+	struct ipath_qp *next;		/* link list for QPN hash table */
+	struct ipath_qp *timer_next;	/* link list for ipath_ib_timer() */
 	struct list_head piowait;	/* link for wait PIO buf */
 	struct list_head timerwait;	/* link for waiting for timeouts */
 	struct ib_ah_attr remote_ah_attr;

@@ -30,13 +30,66 @@
 #define NUM_LOW_AREAS	(0x100000000UL >> SID_SHIFT)
 #define NUM_HIGH_AREAS	(PGTABLE_RANGE >> HTLB_AREA_SHIFT)
 
+#ifdef CONFIG_PPC_64K_PAGES
+#define HUGEPTE_INDEX_SIZE	(PMD_SHIFT-HPAGE_SHIFT)
+#else
+#define HUGEPTE_INDEX_SIZE	(PUD_SHIFT-HPAGE_SHIFT)
+#endif
+#define PTRS_PER_HUGEPTE	(1 << HUGEPTE_INDEX_SIZE)
+#define HUGEPTE_TABLE_SIZE	(sizeof(pte_t) << HUGEPTE_INDEX_SIZE)
+
+#define HUGEPD_SHIFT		(HPAGE_SHIFT + HUGEPTE_INDEX_SIZE)
+#define HUGEPD_SIZE		(1UL << HUGEPD_SHIFT)
+#define HUGEPD_MASK		(~(HUGEPD_SIZE-1))
+
+#define huge_pgtable_cache	(pgtable_cache[HUGEPTE_CACHE_NUM])
+
+/* Flag to mark huge PD pointers.  This means pmd_bad() and pud_bad()
+ * will choke on pointers to hugepte tables, which is handy for
+ * catching screwups early. */
+#define HUGEPD_OK	0x1
+
+typedef struct { unsigned long pd; } hugepd_t;
+
+#define hugepd_none(hpd)	((hpd).pd == 0)
+
+static inline pte_t *hugepd_page(hugepd_t hpd)
+{
+	BUG_ON(!(hpd.pd & HUGEPD_OK));
+	return (pte_t *)(hpd.pd & ~HUGEPD_OK);
+}
+
+static inline pte_t *hugepte_offset(hugepd_t *hpdp, unsigned long addr)
+{
+	unsigned long idx = ((addr >> HPAGE_SHIFT) & (PTRS_PER_HUGEPTE-1));
+	pte_t *dir = hugepd_page(*hpdp);
+
+	return dir + idx;
+}
+
+static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
+			   unsigned long address)
+{
+	pte_t *new = kmem_cache_alloc(huge_pgtable_cache,
+				      GFP_KERNEL|__GFP_REPEAT);
+
+	if (! new)
+		return -ENOMEM;
+
+	spin_lock(&mm->page_table_lock);
+	if (!hugepd_none(*hpdp))
+		kmem_cache_free(huge_pgtable_cache, new);
+	else
+		hpdp->pd = (unsigned long)new | HUGEPD_OK;
+	spin_unlock(&mm->page_table_lock);
+	return 0;
+}
+
 /* Modelled after find_linux_pte() */
 pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
 {
 	pgd_t *pg;
 	pud_t *pu;
-	pmd_t *pm;
-	pte_t *pt;
 
 	BUG_ON(! in_hugepage_area(mm->context, addr));
 
@@ -46,26 +99,14 @@ pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
 	if (!pgd_none(*pg)) {
 		pu = pud_offset(pg, addr);
 		if (!pud_none(*pu)) {
-			pm = pmd_offset(pu, addr);
 #ifdef CONFIG_PPC_64K_PAGES
-			/* Currently, we use the normal PTE offset within full
-			 * size PTE pages, thus our huge PTEs are scattered in
-			 * the PTE page and we do waste some. We may change
-			 * that in the future, but the current mecanism keeps
-			 * things much simpler
-			 */
-			if (!pmd_none(*pm)) {
-				/* Note: pte_offset_* are all equivalent on
-				 * ppc64 as we don't have HIGHMEM
-				 */
-				pt = pte_offset_kernel(pm, addr);
-				return pt;
-			}
-#else /* CONFIG_PPC_64K_PAGES */
-			/* On 4k pages, we put huge PTEs in the PMD page */
-			pt = (pte_t *)pm;
-			return pt;
-#endif /* CONFIG_PPC_64K_PAGES */
+			pmd_t *pm;
+			pm = pmd_offset(pu, addr);
+			if (!pmd_none(*pm))
+				return hugepte_offset((hugepd_t *)pm, addr);
+#else
+			return hugepte_offset((hugepd_t *)pu, addr);
+#endif
 		}
 	}
 
@@ -76,8 +117,7 @@ pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr)
 {
 	pgd_t *pg;
 	pud_t *pu;
-	pmd_t *pm;
-	pte_t *pt;
+	hugepd_t *hpdp = NULL;
 
 	BUG_ON(! in_hugepage_area(mm->context, addr));
 
@@ -87,23 +127,182 @@ pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr)
 	pu = pud_alloc(mm, pg, addr);
 
 	if (pu) {
-		pm = pmd_alloc(mm, pu, addr);
-		if (pm) {
 #ifdef CONFIG_PPC_64K_PAGES
-			/* See comment in huge_pte_offset. Note that if we ever
-			 * want to put the page size in the PMD, we would have
-			 * to open code our own pte_alloc* function in order
-			 * to populate and set the size atomically
-			 */
-			pt = pte_alloc_map(mm, pm, addr);
-#else /* CONFIG_PPC_64K_PAGES */
-			pt = (pte_t *)pm;
-#endif /* CONFIG_PPC_64K_PAGES */
-			return pt;
-		}
+		pmd_t *pm;
+		pm = pmd_alloc(mm, pu, addr);
+		if (pm)
+			hpdp = (hugepd_t *)pm;
+#else
+		hpdp = (hugepd_t *)pu;
+#endif
 	}
 
-	return NULL;
+	if (! hpdp)
+		return NULL;
+
+	if (hugepd_none(*hpdp) && __hugepte_alloc(mm, hpdp, addr))
+		return NULL;
+
+	return hugepte_offset(hpdp, addr);
+}
+
+static void free_hugepte_range(struct mmu_gather *tlb, hugepd_t *hpdp)
+{
+	pte_t *hugepte = hugepd_page(*hpdp);
+
+	hpdp->pd = 0;
+	tlb->need_flush = 1;
+	pgtable_free_tlb(tlb, pgtable_free_cache(hugepte, HUGEPTE_CACHE_NUM,
+						 HUGEPTE_TABLE_SIZE-1));
+}
+
+#ifdef CONFIG_PPC_64K_PAGES
+static void hugetlb_free_pmd_range(struct mmu_gather *tlb, pud_t *pud,
+				   unsigned long addr, unsigned long end,
+				   unsigned long floor, unsigned long ceiling)
+{
+	pmd_t *pmd;
+	unsigned long next;
+	unsigned long start;
+
+	start = addr;
+	pmd = pmd_offset(pud, addr);
+	do {
+		next = pmd_addr_end(addr, end);
+		if (pmd_none(*pmd))
+			continue;
+		free_hugepte_range(tlb, (hugepd_t *)pmd);
+	} while (pmd++, addr = next, addr != end);
+
+	start &= PUD_MASK;
+	if (start < floor)
+		return;
+	if (ceiling) {
+		ceiling &= PUD_MASK;
+		if (!ceiling)
+			return;
+	}
+	if (end - 1 > ceiling - 1)
+		return;
+
+	pmd = pmd_offset(pud, start);
+	pud_clear(pud);
+	pmd_free_tlb(tlb, pmd);
+}
+#endif
+
+static void hugetlb_free_pud_range(struct mmu_gather *tlb, pgd_t *pgd,
+				   unsigned long addr, unsigned long end,
+				   unsigned long floor, unsigned long ceiling)
+{
+	pud_t *pud;
+	unsigned long next;
+	unsigned long start;
+
+	start = addr;
+	pud = pud_offset(pgd, addr);
+	do {
+		next = pud_addr_end(addr, end);
+#ifdef CONFIG_PPC_64K_PAGES
+		if (pud_none_or_clear_bad(pud))
+			continue;
+		hugetlb_free_pmd_range(tlb, pud, addr, next, floor, ceiling);
+#else
+		if (pud_none(*pud))
+			continue;
+		free_hugepte_range(tlb, (hugepd_t *)pud);
+#endif
+	} while (pud++, addr = next, addr != end);
+
+	start &= PGDIR_MASK;
+	if (start < floor)
+		return;
+	if (ceiling) {
+		ceiling &= PGDIR_MASK;
+		if (!ceiling)
+			return;
+	}
+	if (end - 1 > ceiling - 1)
+		return;
+
+	pud = pud_offset(pgd, start);
+	pgd_clear(pgd);
+	pud_free_tlb(tlb, pud);
+}
+
+/*
+ * This function frees user-level page tables of a process.
+ *
+ * Must be called with pagetable lock held.
+ */
+void hugetlb_free_pgd_range(struct mmu_gather **tlb,
+			    unsigned long addr, unsigned long end,
+			    unsigned long floor, unsigned long ceiling)
+{
+	pgd_t *pgd;
+	unsigned long next;
+	unsigned long start;
+
+	/*
+	 * Comments below take from the normal free_pgd_range().  They
+	 * apply here too.  The tests against HUGEPD_MASK below are
+	 * essential, because we *don't* test for this at the bottom
+	 * level.  Without them we'll attempt to free a hugepte table
+	 * when we unmap just part of it, even if there are other
+	 * active mappings using it.
+	 *
+	 * The next few lines have given us lots of grief...
+	 *
+	 * Why are we testing HUGEPD* at this top level?  Because
+	 * often there will be no work to do at all, and we'd prefer
+	 * not to go all the way down to the bottom just to discover
+	 * that.
+	 *
+	 * Why all these "- 1"s?  Because 0 represents both the bottom
+	 * of the address space and the top of it (using -1 for the
+	 * top wouldn't help much: the masks would do the wrong thing).
+	 * The rule is that addr 0 and floor 0 refer to the bottom of
+	 * the address space, but end 0 and ceiling 0 refer to the top
+	 * Comparisons need to use "end - 1" and "ceiling - 1" (though
+	 * that end 0 case should be mythical).
+	 *
+	 * Wherever addr is brought up or ceiling brought down, we
+	 * must be careful to reject "the opposite 0" before it
+	 * confuses the subsequent tests.  But what about where end is
+	 * brought down by HUGEPD_SIZE below? no, end can't go down to
+	 * 0 there.
+	 *
+	 * Whereas we round start (addr) and ceiling down, by different
+	 * masks at different levels, in order to test whether a table
+	 * now has no other vmas using it, so can be freed, we don't
+	 * bother to round floor or end up - the tests don't need that.
+	 */
+
+	addr &= HUGEPD_MASK;
+	if (addr < floor) {
+		addr += HUGEPD_SIZE;
+		if (!addr)
+			return;
+	}
+	if (ceiling) {
+		ceiling &= HUGEPD_MASK;
+		if (!ceiling)
+			return;
+	}
+	if (end - 1 > ceiling - 1)
+		end -= HUGEPD_SIZE;
+	if (addr > end - 1)
+		return;
+
+	start = addr;
+	pgd = pgd_offset((*tlb)->mm, addr);
+	do {
+		BUG_ON(! in_hugepage_area((*tlb)->mm->context, addr));
+		next = pgd_addr_end(addr, end);
+		if (pgd_none_or_clear_bad(pgd))
+			continue;
+		hugetlb_free_pud_range(*tlb, pgd, addr, next, floor, ceiling);
+	} while (pgd++, addr = next, addr != end);
 }
 
 void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
@@ -841,3 +1040,27 @@ repeat:
  out:
 	return err;
 }
+
+static void zero_ctor(void *addr, kmem_cache_t *cache, unsigned long flags)
+{
+	memset(addr, 0, kmem_cache_size(cache));
+}
+
+static int __init hugetlbpage_init(void)
+{
+	if (!cpu_has_feature(CPU_FTR_16M_PAGE))
+		return -ENODEV;
+
+	huge_pgtable_cache = kmem_cache_create("hugepte_cache",
+					       HUGEPTE_TABLE_SIZE,
+					       HUGEPTE_TABLE_SIZE,
+					       SLAB_HWCACHE_ALIGN |
+					       SLAB_MUST_HWCACHE_ALIGN,
+					       zero_ctor, NULL);
+	if (! huge_pgtable_cache)
+		panic("hugetlbpage_init(): could not create hugepte cache\n");
+
+	return 0;
+}
+
+module_init(hugetlbpage_init);

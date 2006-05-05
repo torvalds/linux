@@ -5,8 +5,9 @@
 
 #define PIPE_BUFFERS (16)
 
-#define PIPE_BUF_FLAG_STOLEN	0x01
-#define PIPE_BUF_FLAG_LRU	0x02
+#define PIPE_BUF_FLAG_LRU	0x01	/* page is on the LRU */
+#define PIPE_BUF_FLAG_ATOMIC	0x02	/* was atomically mapped */
+#define PIPE_BUF_FLAG_GIFT	0x04	/* page is a gift */
 
 struct pipe_buffer {
 	struct page *page;
@@ -15,10 +16,23 @@ struct pipe_buffer {
 	unsigned int flags;
 };
 
+/*
+ * Note on the nesting of these functions:
+ *
+ * ->pin()
+ *	->steal()
+ *	...
+ *	->map()
+ *	...
+ *	->unmap()
+ *
+ * That is, ->map() must be called on a pinned buffer, same goes for ->steal().
+ */
 struct pipe_buf_operations {
 	int can_merge;
-	void * (*map)(struct file *, struct pipe_inode_info *, struct pipe_buffer *);
-	void (*unmap)(struct pipe_inode_info *, struct pipe_buffer *);
+	void * (*map)(struct pipe_inode_info *, struct pipe_buffer *, int);
+	void (*unmap)(struct pipe_inode_info *, struct pipe_buffer *, void *);
+	int (*pin)(struct pipe_inode_info *, struct pipe_buffer *);
 	void (*release)(struct pipe_inode_info *, struct pipe_buffer *);
 	int (*steal)(struct pipe_inode_info *, struct pipe_buffer *);
 	void (*get)(struct pipe_inode_info *, struct pipe_buffer *);
@@ -51,6 +65,13 @@ struct pipe_inode_info * alloc_pipe_info(struct inode * inode);
 void free_pipe_info(struct inode * inode);
 void __free_pipe_info(struct pipe_inode_info *);
 
+/* Generic pipe buffer ops functions */
+void *generic_pipe_buf_map(struct pipe_inode_info *, struct pipe_buffer *, int);
+void generic_pipe_buf_unmap(struct pipe_inode_info *, struct pipe_buffer *, void *);
+void generic_pipe_buf_get(struct pipe_inode_info *, struct pipe_buffer *);
+int generic_pipe_buf_pin(struct pipe_inode_info *, struct pipe_buffer *);
+int generic_pipe_buf_steal(struct pipe_inode_info *, struct pipe_buffer *);
+
 /*
  * splice is tied to pipes as a transport (at least for now), so we'll just
  * add the splice flags here.
@@ -60,5 +81,23 @@ void __free_pipe_info(struct pipe_inode_info *);
 				 /* we may still block on the fd we splice */
 				 /* from/to, of course */
 #define SPLICE_F_MORE	(0x04)	/* expect more data */
+#define SPLICE_F_GIFT	(0x08)	/* pages passed in are a gift */
+
+/*
+ * Passed to the actors
+ */
+struct splice_desc {
+	unsigned int len, total_len;	/* current and remaining length */
+	unsigned int flags;		/* splice flags */
+	struct file *file;		/* file to read/write */
+	loff_t pos;			/* file position */
+};
+
+typedef int (splice_actor)(struct pipe_inode_info *, struct pipe_buffer *,
+			   struct splice_desc *);
+
+extern ssize_t splice_from_pipe(struct pipe_inode_info *, struct file *,
+				loff_t *, size_t, unsigned int,
+				splice_actor *);
 
 #endif

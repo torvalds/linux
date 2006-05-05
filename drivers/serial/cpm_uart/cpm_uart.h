@@ -5,11 +5,20 @@
  *
  *  Copyright (C) 2004 Freescale Semiconductor, Inc.
  *
+ *  2006 (c) MontaVista Software, Inc.
+ * 	Vitaly Bordug <vbordug@ru.mvista.com>
+ *
+ * This file is licensed under the terms of the GNU General Public License
+ * version 2. This program is licensed "as is" without any warranty of any
+ * kind, whether express or implied.
+ *
  */
 #ifndef CPM_UART_H
 #define CPM_UART_H
 
 #include <linux/config.h>
+#include <linux/platform_device.h>
+#include <linux/fs_uart_pd.h>
 
 #if defined(CONFIG_CPM2)
 #include "cpm_uart_cpm2.h"
@@ -26,14 +35,14 @@
 #define FLAG_SMC	0x00000002
 #define FLAG_CONSOLE	0x00000001
 
-#define UART_SMC1	0
-#define UART_SMC2	1
-#define UART_SCC1	2
-#define UART_SCC2	3
-#define UART_SCC3	4
-#define UART_SCC4	5
+#define UART_SMC1	fsid_smc1_uart
+#define UART_SMC2	fsid_smc2_uart
+#define UART_SCC1	fsid_scc1_uart
+#define UART_SCC2	fsid_scc2_uart
+#define UART_SCC3	fsid_scc3_uart
+#define UART_SCC4	fsid_scc4_uart
 
-#define UART_NR	6
+#define UART_NR		fs_uart_nr
 
 #define RX_NUM_FIFO	4
 #define RX_BUF_SIZE	32
@@ -64,6 +73,7 @@ struct uart_cpm_port {
 	uint			 dp_addr;
 	void			*mem_addr;
 	dma_addr_t		 dma_addr;
+	u32			mem_size;
 	/* helpers */
 	int			 baud;
 	int			 bits;
@@ -89,5 +99,39 @@ void scc1_lineif(struct uart_cpm_port *pinfo);
 void scc2_lineif(struct uart_cpm_port *pinfo);
 void scc3_lineif(struct uart_cpm_port *pinfo);
 void scc4_lineif(struct uart_cpm_port *pinfo);
+
+/*
+   virtual to phys transtalion
+*/
+static inline unsigned long cpu2cpm_addr(void* addr, struct uart_cpm_port *pinfo)
+{
+	int offset;
+	u32 val = (u32)addr;
+	/* sane check */
+	if (likely((val >= (u32)pinfo->mem_addr)) &&
+			(val<((u32)pinfo->mem_addr + pinfo->mem_size))) {
+		offset = val - (u32)pinfo->mem_addr;
+		return pinfo->dma_addr+offset;
+	}
+	/* something nasty happened */
+	BUG();
+	return 0;
+}
+
+static inline void *cpm2cpu_addr(unsigned long addr, struct uart_cpm_port *pinfo)
+{
+	int offset;
+	u32 val = addr;
+	/* sane check */
+	if (likely((val >= pinfo->dma_addr) &&
+			(val<(pinfo->dma_addr + pinfo->mem_size)))) {
+		offset = val - (u32)pinfo->dma_addr;
+		return (void*)(pinfo->mem_addr+offset);
+	}
+	/* something nasty happened */
+	BUG();
+	return 0;
+}
+
 
 #endif /* CPM_UART_H */

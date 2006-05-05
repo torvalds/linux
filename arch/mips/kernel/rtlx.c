@@ -398,15 +398,14 @@ ssize_t rtlx_write(int index, void *buffer, size_t count, int user)
 
 static int file_open(struct inode *inode, struct file *filp)
 {
-	int minor = MINOR(inode->i_rdev);
+	int minor = iminor(inode);
 
 	return rtlx_open(minor, (filp->f_flags & O_NONBLOCK) ? 0 : 1);
 }
 
 static int file_release(struct inode *inode, struct file *filp)
 {
-	int minor;
-	minor = MINOR(inode->i_rdev);
+	int minor = iminor(inode);
 
 	return rtlx_release(minor);
 }
@@ -416,7 +415,7 @@ static unsigned int file_poll(struct file *file, poll_table * wait)
 	int minor;
 	unsigned int mask = 0;
 
-	minor = MINOR(file->f_dentry->d_inode->i_rdev);
+	minor = iminor(file->f_dentry->d_inode);
 
 	poll_wait(file, &channel_wqs[minor].rt_queue, wait);
 	poll_wait(file, &channel_wqs[minor].lx_queue, wait);
@@ -438,7 +437,7 @@ static unsigned int file_poll(struct file *file, poll_table * wait)
 static ssize_t file_read(struct file *file, char __user * buffer, size_t count,
 			 loff_t * ppos)
 {
-	int minor = MINOR(file->f_dentry->d_inode->i_rdev);
+	int minor = iminor(file->f_dentry->d_inode);
 
 	/* data available? */
 	if (!rtlx_read_poll(minor, (file->f_flags & O_NONBLOCK) ? 0 : 1)) {
@@ -455,7 +454,7 @@ static ssize_t file_write(struct file *file, const char __user * buffer,
 	struct rtlx_channel *rt;
 	DECLARE_WAITQUEUE(wait, current);
 
-	minor = MINOR(file->f_dentry->d_inode->i_rdev);
+	minor = iminor(file->f_dentry->d_inode);
 	rt = &rtlx->channel[minor];
 
 	/* any space left... */

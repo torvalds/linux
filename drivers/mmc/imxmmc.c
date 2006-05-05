@@ -102,6 +102,7 @@ struct imxmci_host {
 #define IMXMCI_PEND_CPU_DATA_b	5
 #define IMXMCI_PEND_CARD_XCHG_b	6
 #define IMXMCI_PEND_SET_INIT_b	7
+#define IMXMCI_PEND_STARTED_b	8
 
 #define IMXMCI_PEND_IRQ_m	(1 << IMXMCI_PEND_IRQ_b)
 #define IMXMCI_PEND_DMA_END_m	(1 << IMXMCI_PEND_DMA_END_b)
@@ -111,6 +112,7 @@ struct imxmci_host {
 #define IMXMCI_PEND_CPU_DATA_m	(1 << IMXMCI_PEND_CPU_DATA_b)
 #define IMXMCI_PEND_CARD_XCHG_m	(1 << IMXMCI_PEND_CARD_XCHG_b)
 #define IMXMCI_PEND_SET_INIT_m	(1 << IMXMCI_PEND_SET_INIT_b)
+#define IMXMCI_PEND_STARTED_m	(1 << IMXMCI_PEND_STARTED_b)
 
 static void imxmci_stop_clock(struct imxmci_host *host)
 {
@@ -131,23 +133,52 @@ static void imxmci_stop_clock(struct imxmci_host *host)
 	dev_dbg(mmc_dev(host->mmc), "imxmci_stop_clock blocked, no luck\n");
 }
 
-static void imxmci_start_clock(struct imxmci_host *host)
+static int imxmci_start_clock(struct imxmci_host *host)
 {
-	int i = 0;
-	MMC_STR_STP_CLK &= ~STR_STP_CLK_STOP_CLK;
-	while(i < 0x1000) {
-	        if(!(i & 0x7f))
-			MMC_STR_STP_CLK |= STR_STP_CLK_START_CLK;
+	unsigned int trials = 0;
+	unsigned int delay_limit = 128;
+	unsigned long flags;
 
-		if(MMC_STATUS & STATUS_CARD_BUS_CLK_RUN) {
-			/* Check twice before cut */
+	MMC_STR_STP_CLK &= ~STR_STP_CLK_STOP_CLK;
+
+	clear_bit(IMXMCI_PEND_STARTED_b, &host->pending_events);
+
+	/*
+	 * Command start of the clock, this usually succeeds in less
+	 * then 6 delay loops, but during card detection (low clockrate)
+	 * it takes up to 5000 delay loops and sometimes fails for the first time
+	 */
+	MMC_STR_STP_CLK |= STR_STP_CLK_START_CLK;
+
+	do {
+		unsigned int delay = delay_limit;
+
+		while(delay--){
 			if(MMC_STATUS & STATUS_CARD_BUS_CLK_RUN)
-				return;
+				/* Check twice before cut */
+				if(MMC_STATUS & STATUS_CARD_BUS_CLK_RUN)
+					return 0;
+
+			if(test_bit(IMXMCI_PEND_STARTED_b, &host->pending_events))
+				return 0;
 		}
 
-		i++;
-	}
-	dev_dbg(mmc_dev(host->mmc), "imxmci_start_clock blocked, no luck\n");
+		local_irq_save(flags);
+		/*
+		 * Ensure, that request is not doubled under all possible circumstances.
+		 * It is possible, that cock running state is missed, because some other
+		 * IRQ or schedule delays this function execution and the clocks has
+		 * been already stopped by other means (response processing, SDHC HW)
+		 */
+		if(!test_bit(IMXMCI_PEND_STARTED_b, &host->pending_events))
+			MMC_STR_STP_CLK |= STR_STP_CLK_START_CLK;
+		local_irq_restore(flags);
+
+	} while(++trials<256);
+
+	dev_err(mmc_dev(host->mmc), "imxmci_start_clock blocked, no luck\n");
+
+	return -1;
 }
 
 static void imxmci_softreset(void)
@@ -498,7 +529,7 @@ static int imxmci_data_done(struct imxmci_host *host, unsigned int stat)
 
 	data_error = imxmci_finish_data(host, stat);
 
-	if (host->req->stop && (data_error == MMC_ERR_NONE)) {
+	if (host->req->stop) {
 		imxmci_stop_clock(host);
 		imxmci_start_cmd(host, host->req->stop, 0);
 	} else {
@@ -622,6 +653,7 @@ static irqreturn_t imxmci_irq(int irq, void *devid, struct pt_regs *regs)
 	atomic_set(&host->stuck_timeout, 0);
 	host->status_reg = stat;
 	set_bit(IMXMCI_PEND_IRQ_b, &host->pending_events);
+	set_bit(IMXMCI_PEND_STARTED_b, &host->pending_events);
 	tasklet_schedule(&host->tasklet);
 
 	return IRQ_RETVAL(handled);;
@@ -774,10 +806,6 @@ static void imxmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	struct imxmci_host *host = mmc_priv(mmc);
 	int prescaler;
-
-	dev_dbg(mmc_dev(host->mmc), "clock %u power %u vdd %u width %u\n",
-		ios->clock, ios->power_mode, ios->vdd,
-		(ios->bus_width==MMC_BUS_WIDTH_4)?4:1);
 
 	if( ios->bus_width==MMC_BUS_WIDTH_4 ) {
 		host->actual_bus_width = MMC_BUS_WIDTH_4;

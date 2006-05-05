@@ -305,13 +305,10 @@ static struct kobj_type cache_ktype_percpu_entry = {
 
 static void __cpuinit cpu_cache_sysfs_exit(unsigned int cpu)
 {
-	if (all_cpu_cache_info[cpu].cache_leaves) {
-		kfree(all_cpu_cache_info[cpu].cache_leaves);
-		all_cpu_cache_info[cpu].cache_leaves = NULL;
-	}
+	kfree(all_cpu_cache_info[cpu].cache_leaves);
+	all_cpu_cache_info[cpu].cache_leaves = NULL;
 	all_cpu_cache_info[cpu].num_cache_leaves = 0;
 	memset(&all_cpu_cache_info[cpu].kobj, 0, sizeof(struct kobject));
-
 	return;
 }
 
@@ -429,7 +426,7 @@ static int __cpuinit cache_remove_dev(struct sys_device * sys_dev)
  * When a cpu is hot-plugged, do a check and initiate
  * cache kobject if necessary
  */
-static int __cpuinit cache_cpu_callback(struct notifier_block *nfb,
+static int cache_cpu_callback(struct notifier_block *nfb,
 		unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned long)hcpu;

@@ -515,7 +515,7 @@ tipar_init_module(void)
 		err = PTR_ERR(tipar_class);
 		goto out_chrdev;
 	}
-	if (parport_register_driver(&tipar_driver) || tp_count == 0) {
+	if (parport_register_driver(&tipar_driver)) {
 		printk(KERN_ERR "tipar: unable to register with parport\n");
 		err = -EIO;
 		goto out_class;

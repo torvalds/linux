@@ -39,7 +39,6 @@
 #include <linux/interrupt.h>
 #include <linux/compiler.h>
 #include <linux/delay.h>
-#include <linux/dma-mapping.h>
 
 #include <sound/driver.h>
 #include <sound/core.h>
@@ -1052,7 +1051,7 @@ snd_ad1889_remove(struct pci_dev *pci)
 	pci_set_drvdata(pci, NULL);
 }
 
-static struct pci_device_id snd_ad1889_ids[] = {
+static struct pci_device_id snd_ad1889_ids[] __devinitdata = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ANALOG_DEVICES, PCI_DEVICE_ID_AD1889JS) },
 	{ 0, },
 };

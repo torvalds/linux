@@ -90,15 +90,15 @@ void __kprobes arch_remove_kprobe(struct kprobe *p)
 
 static void __kprobes prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
 {
-	kprobe_opcode_t insn = *p->ainsn.insn;
-
 	regs->msr |= MSR_SE;
 
-	/* single step inline if it is a trap variant */
-	if (is_trap(insn))
-		regs->nip = (unsigned long)p->addr;
-	else
-		regs->nip = (unsigned long)p->ainsn.insn;
+	/*
+	 * On powerpc we should single step on the original
+	 * instruction even if the probed insn is a trap
+	 * variant as values in regs could play a part in
+	 * if the trap is taken or not
+	 */
+	regs->nip = (unsigned long)p->ainsn.insn;
 }
 
 static void __kprobes save_previous_kprobe(struct kprobe_ctlblk *kcb)

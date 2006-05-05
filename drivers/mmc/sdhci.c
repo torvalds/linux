@@ -570,10 +570,6 @@ static void sdhci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	spin_lock_irqsave(&host->lock, flags);
 
-	DBG("clock %uHz busmode %u powermode %u cs %u Vdd %u width %u\n",
-	     ios->clock, ios->bus_mode, ios->power_mode, ios->chip_select,
-	     ios->vdd, ios->bus_width);
-
 	/*
 	 * Reset the chip on each power off.
 	 * Should clear out any weird states.
