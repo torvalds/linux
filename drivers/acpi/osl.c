@@ -37,6 +37,7 @@
 #include <linux/delay.h>
 #include <linux/workqueue.h>
 #include <linux/nmi.h>
+#include <linux/kthread.h>
 #include <acpi/acpi.h>
 #include <asm/io.h>
 #include <acpi/acpi_bus.h>
@@ -600,23 +601,41 @@ static void acpi_os_execute_deferred(void *context)
 	return_VOID;
 }
 
-acpi_status
-acpi_os_queue_for_execution(u32 priority,
+static int acpi_os_execute_thread(void *context)
+{
+	struct acpi_os_dpc *dpc = (struct acpi_os_dpc *)context;
+	if (dpc) {
+		dpc->function(dpc->context);
+		kfree(dpc);
+	}
+	do_exit(0);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_os_execute
+ *
+ * PARAMETERS:  Type               - Type of the callback
+ *              Function           - Function to be executed
+ *              Context            - Function parameters
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Depending on type, either queues function for deferred execution or
+ *              immediately executes function on a separate thread.
+ *
+ ******************************************************************************/
+
+acpi_status acpi_os_execute(acpi_execute_type type,
 			    acpi_osd_exec_callback function, void *context)
 {
 	acpi_status status = AE_OK;
 	struct acpi_os_dpc *dpc;
 	struct work_struct *task;
-
-	ACPI_FUNCTION_TRACE("os_queue_for_execution");
-
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-			  "Scheduling function [%p(%p)] for deferred execution.\n",
-			  function, context));
+	struct task_struct *p;
 
 	if (!function)
-		return_ACPI_STATUS(AE_BAD_PARAMETER);
-
+		return AE_BAD_PARAMETER;
 	/*
 	 * Allocate/initialize DPC structure.  Note that this memory will be
 	 * freed by the callee.  The kernel handles the tq_struct list  in a
@@ -627,30 +646,37 @@ acpi_os_queue_for_execution(u32 priority,
 	 * We can save time and code by allocating the DPC and tq_structs
 	 * from the same memory.
 	 */
-
-	dpc =
-	    kmalloc(sizeof(struct acpi_os_dpc) + sizeof(struct work_struct),
-		    GFP_ATOMIC);
+	if (type == OSL_NOTIFY_HANDLER) {
+		dpc = kmalloc(sizeof(struct acpi_os_dpc), GFP_KERNEL);
+	} else {
+		dpc = kmalloc(sizeof(struct acpi_os_dpc) +
+				sizeof(struct work_struct), GFP_ATOMIC);
+	}
 	if (!dpc)
-		return_ACPI_STATUS(AE_NO_MEMORY);
-
+		return AE_NO_MEMORY;
 	dpc->function = function;
 	dpc->context = context;
 
-	task = (void *)(dpc + 1);
-	INIT_WORK(task, acpi_os_execute_deferred, (void *)dpc);
-
-	if (!queue_work(kacpid_wq, task)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Call to queue_work() failed.\n"));
-		kfree(dpc);
-		status = AE_ERROR;
+	if (type == OSL_NOTIFY_HANDLER) {
+		p = kthread_create(acpi_os_execute_thread, dpc, "kacpid_notify");
+		if (!IS_ERR(p)) {
+			wake_up_process(p);
+		} else {
+			status = AE_NO_MEMORY;
+			kfree(dpc);
+		}
+	} else {
+		task = (void *)(dpc + 1);
+		INIT_WORK(task, acpi_os_execute_deferred, (void *)dpc);
+		if (!queue_work(kacpid_wq, task)) {
+			status = AE_ERROR;
+			kfree(dpc);
+		}
 	}
-
-	return_ACPI_STATUS(status);
+	return status;
 }
 
-EXPORT_SYMBOL(acpi_os_queue_for_execution);
+EXPORT_SYMBOL(acpi_os_execute);
 
 void acpi_os_wait_events_complete(void *context)
 {

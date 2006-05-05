@@ -763,8 +763,7 @@ static u32 acpi_ec_gpe_poll_handler(void *data)
 
 	acpi_disable_gpe(NULL, ec->common.gpe_bit, ACPI_ISR);
 
-	status = acpi_os_queue_for_execution(OSD_PRIORITY_GPE,
-					     acpi_ec_gpe_query, ec);
+	status = acpi_os_execute(OSL_EC_POLL_HANDLER, acpi_ec_gpe_query, ec);
 
 	if (status == AE_OK)
 		return ACPI_INTERRUPT_HANDLED;
@@ -799,7 +798,7 @@ static u32 acpi_ec_gpe_intr_handler(void *data)
 
 	if (value & ACPI_EC_FLAG_SCI) {
 		atomic_add(1, &ec->intr.pending_gpe);
-		status = acpi_os_queue_for_execution(OSD_PRIORITY_GPE,
+		status = acpi_os_execute(OSL_EC_BURST_HANDLER,
 						     acpi_ec_gpe_query, ec);
 		return status == AE_OK ?
 		    ACPI_INTERRUPT_HANDLED : ACPI_INTERRUPT_NOT_HANDLED;

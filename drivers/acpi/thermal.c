@@ -684,8 +684,7 @@ static void acpi_thermal_run(unsigned long data)
 {
 	struct acpi_thermal *tz = (struct acpi_thermal *)data;
 	if (!tz->zombie)
-		acpi_os_queue_for_execution(OSD_PRIORITY_GPE,
-					    acpi_thermal_check, (void *)data);
+		acpi_os_execute(OSL_GPE_HANDLER, acpi_thermal_check, (void *)data);
 }
 
 static void acpi_thermal_check(void *data)
