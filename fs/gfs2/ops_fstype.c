@@ -40,6 +40,8 @@
 #define DO 0
 #define UNDO 1
 
+extern struct dentry_operations gfs2_dops;
+
 static struct gfs2_sbd *init_sbd(struct super_block *sb)
 {
 	struct gfs2_sbd *sdp;
@@ -357,6 +359,7 @@ static int init_sb(struct gfs2_sbd *sdp, int silent, int undo)
 		error = -ENOMEM;
 		iput(inode);
 	}
+	sb->s_root->d_op = &gfs2_dops;
 out:
 	gfs2_glock_dq_uninit(&sb_gh);
 	return error;
