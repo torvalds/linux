@@ -2125,7 +2125,7 @@ void gfs2_gl_hash_clear(struct gfs2_sbd *sdp, int wait)
 		mutex_lock(&sdp->sd_invalidate_inodes_mutex);
 		invalidate_inodes(sdp->sd_vfs);
 		mutex_unlock(&sdp->sd_invalidate_inodes_mutex);
-		yield();
+		msleep(10);
 	}
 }
 

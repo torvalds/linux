@@ -211,9 +211,9 @@ static uint64_t log_bmap(struct gfs2_sbd *sdp, unsigned int lbn)
 	int new = 0;
 	uint64_t dbn;
 	int error;
+	int bdy;
 
-	error = gfs2_block_map(sdp->sd_jdesc->jd_inode->u.generic_ip,
-			       lbn, &new, &dbn, NULL);
+	error = gfs2_block_map(sdp->sd_jdesc->jd_inode, lbn, &new, &dbn, &bdy);
 	gfs2_assert_withdraw(sdp, !error && dbn);
 
 	return dbn;

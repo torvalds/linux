@@ -40,8 +40,7 @@ int gfs2_replay_read_block(struct gfs2_jdesc *jd, unsigned int blk,
 	uint32_t extlen;
 	int error;
 
-	error = gfs2_block_map(ip, blk, &new, &dblock,
-			       &extlen);
+	error = gfs2_extent_map(ip->i_vnode, blk, &new, &dblock, &extlen);
 	if (error)
 		return error;
 	if (!dblock) {
@@ -378,10 +377,11 @@ static int clean_journal(struct gfs2_jdesc *jd, struct gfs2_log_header *head)
 	uint32_t hash;
 	struct buffer_head *bh;
 	int error;
-	
+	int boundary;
+
 	lblock = head->lh_blkno;
 	gfs2_replay_incr_blk(sdp, &lblock);
-	error = gfs2_block_map(ip, lblock, &new, &dblock, NULL);
+	error = gfs2_block_map(ip->i_vnode, lblock, &new, &dblock, &boundary);
 	if (error)
 		return error;
 	if (!dblock) {

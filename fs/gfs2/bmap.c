@@ -314,13 +314,17 @@ static void find_metapath(struct gfs2_inode *ip, uint64_t block,
  * metadata tree.
  */
 
-static inline uint64_t *metapointer(struct buffer_head *bh,
-				    unsigned int height, struct metapath *mp)
+static inline u64 *metapointer(struct buffer_head *bh, int *boundary,
+			       unsigned int height, const struct metapath *mp)
 {
 	unsigned int head_size = (height > 0) ?
 		sizeof(struct gfs2_meta_header) : sizeof(struct gfs2_dinode);
-
-	return ((uint64_t *)(bh->b_data + head_size)) + mp->mp_list[height];
+	u64 *ptr;
+	*boundary = 0;
+	ptr = ((u64 *)(bh->b_data + head_size)) + mp->mp_list[height];
+	if (ptr + 1 == (u64*)(bh->b_data + bh->b_size))
+		*boundary = 1;
+	return ptr;
 }
 
 /**
@@ -339,24 +343,24 @@ static inline uint64_t *metapointer(struct buffer_head *bh,
  *
  */
 
-static void lookup_block(struct gfs2_inode *ip, struct buffer_head *bh,
-			 unsigned int height, struct metapath *mp, int create,
-			 int *new, uint64_t *block)
+static int lookup_block(struct gfs2_inode *ip, struct buffer_head *bh,
+			unsigned int height, struct metapath *mp, int create,
+			int *new, uint64_t *block)
 {
-	uint64_t *ptr = metapointer(bh, height, mp);
+	int boundary;
+	uint64_t *ptr = metapointer(bh, &boundary, height, mp);
 
 	if (*ptr) {
 		*block = be64_to_cpu(*ptr);
-		return;
+		return boundary;
 	}
 
 	*block = 0;
 
 	if (!create)
-		return;
+		return 0;
 
-	if (height == ip->i_di.di_height - 1 &&
-	    !gfs2_is_dir(ip))
+	if (height == ip->i_di.di_height - 1 && !gfs2_is_dir(ip))
 		*block = gfs2_alloc_data(ip);
 	else
 		*block = gfs2_alloc_meta(ip);
@@ -367,15 +371,16 @@ static void lookup_block(struct gfs2_inode *ip, struct buffer_head *bh,
 	ip->i_di.di_blocks++;
 
 	*new = 1;
+	return 0;
 }
 
 /**
- * gfs2_block_map - Map a block from an inode to a disk block
- * @ip: The GFS2 inode
+ * gfs2_block_pointers - Map a block from an inode to a disk block
+ * @inode: The inode
  * @lblock: The logical block number
  * @new: Value/Result argument (1 = may create/did create new blocks)
- * @dblock: the disk block number of the start of an extent
- * @extlen: the size of the extent
+ * @boundary: gets set if we've hit a block boundary
+ * @mp: metapath to use
  *
  * Find the block number on the current device which corresponds to an
  * inode's block. If the block had to be created, "new" will be set.
@@ -383,12 +388,14 @@ static void lookup_block(struct gfs2_inode *ip, struct buffer_head *bh,
  * Returns: errno
  */
 
-int gfs2_block_map(struct gfs2_inode *ip, uint64_t lblock, int *new,
-		   uint64_t *dblock, uint32_t *extlen)
+static struct buffer_head *gfs2_block_pointers(struct inode *inode, u64 lblock,
+					       int *new, u64 *dblock,
+					       int *boundary,
+					       struct metapath *mp)
 {
+	struct gfs2_inode *ip = inode->u.generic_ip;
 	struct gfs2_sbd *sdp = ip->i_sbd;
 	struct buffer_head *bh;
-	struct metapath mp;
 	int create = *new;
 	unsigned int bsize;
 	unsigned int height;
@@ -398,13 +405,6 @@ int gfs2_block_map(struct gfs2_inode *ip, uint64_t lblock, int *new,
 
 	*new = 0;
 	*dblock = 0;
-	if (extlen)
-		*extlen = 0;
-
-	if (create)
-		down_write(&ip->i_rw_mutex);
-	else
-		down_read(&ip->i_rw_mutex);
 
 	if (gfs2_assert_warn(sdp, !gfs2_is_stuffed(ip)))
 		goto out;
@@ -421,7 +421,7 @@ int gfs2_block_map(struct gfs2_inode *ip, uint64_t lblock, int *new,
 			goto out;
 	}
 
-	find_metapath(ip, lblock, &mp);
+	find_metapath(ip, lblock, mp);
 	end_of_metadata = ip->i_di.di_height - 1;
 
 	error = gfs2_meta_inode_buffer(ip, &bh);
@@ -429,7 +429,7 @@ int gfs2_block_map(struct gfs2_inode *ip, uint64_t lblock, int *new,
 		goto out;
 
 	for (x = 0; x < end_of_metadata; x++) {
-		lookup_block(ip, bh, x, &mp, create, new, dblock);
+		lookup_block(ip, bh, x, mp, create, new, dblock);
 		brelse(bh);
 		if (!*dblock)
 			goto out;
@@ -439,49 +439,95 @@ int gfs2_block_map(struct gfs2_inode *ip, uint64_t lblock, int *new,
 			goto out;
 	}
 
-	lookup_block(ip, bh, end_of_metadata, &mp, create, new, dblock);
-
-	if (extlen && *dblock) {
-		*extlen = 1;
-
-		if (!*new) {
-			uint64_t tmp_dblock;
-			int tmp_new;
-			unsigned int nptrs;
-
-			nptrs = (end_of_metadata) ? sdp->sd_inptrs :
-						    sdp->sd_diptrs;
-
-			while (++mp.mp_list[end_of_metadata] < nptrs) {
-				lookup_block(ip, bh, end_of_metadata, &mp,
-					     0, &tmp_new, &tmp_dblock);
-
-				if (*dblock + *extlen != tmp_dblock)
-					break;
-
-				(*extlen)++;
-			}
-		}
-	}
-
-	brelse(bh);
-
+	*boundary = lookup_block(ip, bh, end_of_metadata, mp, create, new, dblock);
 	if (*new) {
-		error = gfs2_meta_inode_buffer(ip, &bh);
+		struct buffer_head *dibh;
+		error = gfs2_meta_inode_buffer(ip, &dibh);
 		if (!error) {
-			gfs2_trans_add_bh(ip->i_gl, bh, 1);
-			gfs2_dinode_out(&ip->i_di, bh->b_data);
-			brelse(bh);
+			gfs2_trans_add_bh(ip->i_gl, dibh, 1);
+			gfs2_dinode_out(&ip->i_di, dibh->b_data);
+			brelse(dibh);
 		}
 	}
+	return bh;
+out:
+	return ERR_PTR(error);
+}
 
- out:
+
+static inline void bmap_lock(struct inode *inode, int create)
+{
+	struct gfs2_inode *ip = inode->u.generic_ip;
+	if (create)
+		down_write(&ip->i_rw_mutex);
+	else
+		down_read(&ip->i_rw_mutex);
+}
+
+static inline void bmap_unlock(struct inode *inode, int create)
+{
+	struct gfs2_inode *ip = inode->u.generic_ip;
 	if (create)
 		up_write(&ip->i_rw_mutex);
 	else
 		up_read(&ip->i_rw_mutex);
+}
 
-	return error;
+int gfs2_block_map(struct inode *inode, u64 lblock, int *new, u64 *dblock, int *boundary)
+{
+	struct metapath mp;
+	struct buffer_head *bh;
+	int create = *new;
+
+	bmap_lock(inode, create);
+	bh = gfs2_block_pointers(inode, lblock, new, dblock, boundary, &mp);
+	bmap_unlock(inode, create);
+	if (!bh)
+		return 0;
+	if (IS_ERR(bh))
+		return PTR_ERR(bh);
+	brelse(bh);
+	return 0;
+}
+
+int gfs2_extent_map(struct inode *inode, u64 lblock, int *new, u64 *dblock, unsigned *extlen)
+{
+	struct gfs2_inode *ip = inode->u.generic_ip;
+	struct gfs2_sbd *sdp = ip->i_sbd;
+	struct metapath mp;
+	struct buffer_head *bh;
+	int boundary;
+	int create = *new;
+
+	BUG_ON(!extlen);
+	BUG_ON(!dblock);
+	BUG_ON(!new);
+
+	bmap_lock(inode, create);
+	bh = gfs2_block_pointers(inode, lblock, new, dblock, &boundary, &mp);
+	*extlen = 1;
+
+	if (bh && !IS_ERR(bh) && *dblock && !*new) {
+		u64 tmp_dblock;
+		int tmp_new;
+		unsigned int nptrs;
+		unsigned end_of_metadata = ip->i_di.di_height - 1;
+		
+		nptrs = (end_of_metadata) ? sdp->sd_inptrs : sdp->sd_diptrs;
+		while (++mp.mp_list[end_of_metadata] < nptrs) {
+			lookup_block(ip, bh, end_of_metadata, &mp, 0, &tmp_new, &tmp_dblock);
+			if (*dblock + *extlen != tmp_dblock)
+				break;
+			(*extlen)++;
+		}
+	}
+	bmap_unlock(inode, create);
+	if (!bh)
+		return 0;
+	if (IS_ERR(bh))
+		return PTR_ERR(bh);
+	brelse(bh);
+	return 0;
 }
 
 /**
@@ -1053,7 +1099,7 @@ int gfs2_write_alloc_required(struct gfs2_inode *ip, uint64_t offset,
 	}
 
 	for (; lblock < lblock_stop; lblock += extlen) {
-		error = gfs2_block_map(ip, lblock, &new, &dblock, &extlen);
+		error = gfs2_extent_map(ip->i_vnode, lblock, &new, &dblock, &extlen);
 		if (error)
 			return error;
 

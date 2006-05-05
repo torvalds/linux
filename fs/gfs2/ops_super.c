@@ -92,7 +92,6 @@ static void gfs2_put_super(struct super_block *sb)
 		if (error)
 			gfs2_io_error(sdp);
 	}
-
 	/*  At this point, we're through modifying the disk  */
 
 	/*  Release stuff  */
@@ -125,12 +124,10 @@ static void gfs2_put_super(struct super_block *sb)
 	gfs2_jindex_free(sdp);
 	/*  Take apart glock structures and buffer lists  */
 	gfs2_gl_hash_clear(sdp, WAIT);
-
 	/*  Unmount the locking protocol  */
 	gfs2_lm_unmount(sdp);
 
 	/*  At this point, we're through participating in the lockspace  */
-
 	gfs2_sys_fs_del(sdp);
 	vfree(sdp);
 	sb->s_fs_info = NULL;

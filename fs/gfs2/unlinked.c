@@ -35,11 +35,12 @@ static int munge_ondisk(struct gfs2_sbd *sdp, unsigned int slot,
 	int new = 0;
 	struct buffer_head *bh;
 	int error;
+	int boundary;
 
 	block = slot / sdp->sd_ut_per_block;
 	offset = slot % sdp->sd_ut_per_block;
 
-	error = gfs2_block_map(ip, block, &new, &dblock, NULL);
+	error = gfs2_block_map(ip->i_vnode, block, &new, &dblock, &boundary);
 	if (error)
 		return error;
 	error = gfs2_meta_read(ip->i_gl, dblock, DIO_START | DIO_WAIT, &bh);
@@ -354,7 +355,7 @@ int gfs2_unlinked_init(struct gfs2_sbd *sdp)
 
 		if (!extlen) {
 			int new = 0;
-			error = gfs2_block_map(ip, x, &new, &dblock, &extlen);
+			error = gfs2_extent_map(ip->i_vnode, x, &new, &dblock, &extlen);
 			if (error)
 				goto fail;
 		}

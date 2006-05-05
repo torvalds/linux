@@ -13,6 +13,7 @@
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
 #include <linux/pagemap.h>
+#include <linux/pagevec.h>
 #include <linux/mpage.h>
 #include <linux/fs.h>
 #include <linux/gfs2_ondisk.h>
@@ -47,12 +48,12 @@
 int gfs2_get_block(struct inode *inode, sector_t lblock,
 	           struct buffer_head *bh_result, int create)
 {
-	struct gfs2_inode *ip = inode->u.generic_ip;
 	int new = create;
 	uint64_t dblock;
 	int error;
+	int boundary;
 
-	error = gfs2_block_map(ip, lblock, &new, &dblock, NULL);
+	error = gfs2_block_map(inode, lblock, &new, &dblock, &boundary);
 	if (error)
 		return error;
 
@@ -62,6 +63,8 @@ int gfs2_get_block(struct inode *inode, sector_t lblock,
 	map_bh(bh_result, inode->i_sb, dblock);
 	if (new)
 		set_buffer_new(bh_result);
+	if (boundary)
+		set_buffer_boundary(bh_result);
 
 	return 0;
 }
@@ -83,8 +86,9 @@ static int get_block_noalloc(struct inode *inode, sector_t lblock,
 	int new = 0;
 	uint64_t dblock;
 	int error;
+	int boundary;
 
-	error = gfs2_block_map(ip, lblock, &new, &dblock, NULL);
+	error = gfs2_block_map(inode, lblock, &new, &dblock, &boundary);
 	if (error)
 		return error;
 
@@ -92,6 +96,8 @@ static int get_block_noalloc(struct inode *inode, sector_t lblock,
 		map_bh(bh_result, inode->i_sb, dblock);
 	else if (gfs2_assert_withdraw(ip->i_sbd, !create))
 		error = -EIO;
+	if (boundary)
+		set_buffer_boundary(bh_result);
 
 	return error;
 }
@@ -151,6 +157,19 @@ out_ignore:
 	return 0;
 }
 
+static int zero_readpage(struct page *page)
+{
+	void *kaddr;
+
+	kaddr = kmap_atomic(page, KM_USER0);
+	memset(kaddr, 0, PAGE_CACHE_SIZE);
+	kunmap_atomic(page, KM_USER0);
+
+	SetPageUptodate(page);
+
+	return 0;
+}
+
 /**
  * stuffed_readpage - Fill in a Linux page with stuffed file data
  * @ip: the inode
@@ -165,17 +184,18 @@ static int stuffed_readpage(struct gfs2_inode *ip, struct page *page)
 	void *kaddr;
 	int error;
 
+	/* Only the first page of a stuffed file might contain data */
+	if (unlikely(page->index))
+		return zero_readpage(page);
+
 	error = gfs2_meta_inode_buffer(ip, &dibh);
 	if (error)
 		return error;
 
 	kaddr = kmap_atomic(page, KM_USER0);
-	memcpy((char *)kaddr,
-	       dibh->b_data + sizeof(struct gfs2_dinode),
+	memcpy(kaddr, dibh->b_data + sizeof(struct gfs2_dinode),
 	       ip->i_di.di_size);
-	memset((char *)kaddr + ip->i_di.di_size,
-	       0,
-	       PAGE_CACHE_SIZE - ip->i_di.di_size);
+	memset(kaddr + ip->i_di.di_size, 0, PAGE_CACHE_SIZE - ip->i_di.di_size);
 	kunmap_atomic(page, KM_USER0);
 
 	brelse(dibh);
@@ -185,19 +205,6 @@ static int stuffed_readpage(struct gfs2_inode *ip, struct page *page)
 	return 0;
 }
 
-static int zero_readpage(struct page *page)
-{
-	void *kaddr;
-
-	kaddr = kmap_atomic(page, KM_USER0);
-	memset(kaddr, 0, PAGE_CACHE_SIZE);
-	kunmap_atomic(page, KM_USER0);
-
-	SetPageUptodate(page);
-	unlock_page(page);
-
-	return 0;
-}
 
 /**
  * gfs2_readpage - readpage with locking
@@ -215,19 +222,16 @@ static int gfs2_readpage(struct file *file, struct page *page)
 	struct gfs2_holder gh;
 	int error;
 
-	if (file != &gfs2_internal_file_sentinal) {
+	if (likely(file != &gfs2_internal_file_sentinal)) {
 		gfs2_holder_init(ip->i_gl, LM_ST_SHARED, GL_ATIME|GL_AOP, &gh);
 		error = gfs2_glock_nq_m_atime(1, &gh);
-		if (error)
+		if (unlikely(error))
 			goto out_unlock;
 	}
 
 	if (gfs2_is_stuffed(ip)) {
-		if (!page->index) {
-			error = stuffed_readpage(ip, page);
-			unlock_page(page);
-		} else
-			error = zero_readpage(page);
+		error = stuffed_readpage(ip, page);
+		unlock_page(page);
 	} else
 		error = mpage_readpage(page, gfs2_get_block);
 
@@ -242,6 +246,90 @@ out:
 	return error;
 out_unlock:
 	unlock_page(page);
+	if (file != &gfs2_internal_file_sentinal)
+		gfs2_holder_uninit(&gh);
+	goto out;
+}
+
+#define list_to_page(head) (list_entry((head)->prev, struct page, lru))
+
+/**
+ * gfs2_readpages - Read a bunch of pages at once
+ *
+ * Some notes:
+ * 1. This is only for readahead, so we can simply ignore any things
+ *    which are slightly inconvenient (such as locking conflicts between
+ *    the page lock and the glock) and return having done no I/O. Its
+ *    obviously not something we'd want to do on too regular a basis.
+ *    Any I/O we ignore at this time will be done via readpage later.
+ * 2. We have to handle stuffed files here too.
+ * 3. mpage_readpages() does most of the heavy lifting in the common case.
+ * 4. gfs2_get_block() is relied upon to set BH_Boundary in the right places.
+ * 5. We use LM_FLAG_TRY_1CB here, effectively we then have lock-ahead as
+ *    well as read-ahead.
+ */
+static int gfs2_readpages(struct file *file, struct address_space *mapping,
+			  struct list_head *pages, unsigned nr_pages)
+{
+	struct inode *inode = mapping->host;
+	struct gfs2_inode *ip = inode->u.generic_ip;
+	struct gfs2_sbd *sdp = ip->i_sbd;
+	struct gfs2_holder gh;
+	unsigned page_idx;
+	int ret;
+
+	if (likely(file != &gfs2_internal_file_sentinal)) {
+		gfs2_holder_init(ip->i_gl, LM_ST_SHARED,
+				 LM_FLAG_TRY_1CB|GL_ATIME|GL_AOP, &gh);
+		ret = gfs2_glock_nq_m_atime(1, &gh);
+		if (ret == GLR_TRYFAILED) 
+			goto out_noerror;
+		if (unlikely(ret))
+			goto out_unlock;
+	}
+
+	if (gfs2_is_stuffed(ip)) {
+		struct pagevec lru_pvec;
+		pagevec_init(&lru_pvec, 0);
+		for (page_idx = 0; page_idx < nr_pages; page_idx++) {
+			struct page *page = list_to_page(pages);
+			list_del(&page->lru);
+			if (!add_to_page_cache(page, mapping,
+					       page->index, GFP_KERNEL)) {
+				ret = stuffed_readpage(ip, page);
+				unlock_page(page);
+				if (!pagevec_add(&lru_pvec, page))
+					 __pagevec_lru_add(&lru_pvec);
+			}
+			page_cache_release(page);
+		}
+		pagevec_lru_add(&lru_pvec);
+		ret = 0;
+	} else {
+		/* What we really want to do .... */
+		ret = mpage_readpages(mapping, pages, nr_pages, gfs2_get_block);
+	}
+
+	if (likely(file != &gfs2_internal_file_sentinal)) {
+		gfs2_glock_dq_m(1, &gh);
+		gfs2_holder_uninit(&gh);
+	}
+out:
+	if (unlikely(test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
+		ret = -EIO;
+	return ret;
+out_noerror:
+	ret = 0;
+out_unlock:
+	/* unlock all pages, we can't do any I/O right now */
+	for (page_idx = 0; page_idx < nr_pages; page_idx++) {
+		struct page *page = list_to_page(pages);
+		list_del(&page->lru);
+		unlock_page(page);
+		page_cache_release(page);
+	}
+	if (likely(file != &gfs2_internal_file_sentinal))
+		gfs2_holder_uninit(&gh);
 	goto out;
 }
 
@@ -572,6 +660,7 @@ static ssize_t gfs2_direct_IO(int rw, struct kiocb *iocb,
 struct address_space_operations gfs2_file_aops = {
 	.writepage = gfs2_writepage,
 	.readpage = gfs2_readpage,
+	.readpages = gfs2_readpages,
 	.sync_page = block_sync_page,
 	.prepare_write = gfs2_prepare_write,
 	.commit_write = gfs2_commit_write,

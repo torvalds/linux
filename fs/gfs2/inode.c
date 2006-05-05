@@ -1606,9 +1606,8 @@ int gfs2_glock_nq_atime(struct gfs2_holder *gh)
 	curtime = get_seconds();
 	if (curtime - ip->i_di.di_atime >= quantum) {
 		gfs2_glock_dq(gh);
-		gfs2_holder_reinit(LM_ST_EXCLUSIVE,
-				  gh->gh_flags & ~LM_FLAG_ANY,
-				  gh);
+		gfs2_holder_reinit(LM_ST_EXCLUSIVE, gh->gh_flags & ~LM_FLAG_ANY,
+				   gh);
 		error = gfs2_glock_nq(gh);
 		if (error)
 			return error;

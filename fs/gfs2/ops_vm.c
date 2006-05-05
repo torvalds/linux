@@ -90,8 +90,7 @@ static int alloc_page_backing(struct gfs2_inode *ip, struct page *page)
 	if (error)
 		goto out_gunlock_q;
 
-	gfs2_write_calc_reserv(ip, PAGE_CACHE_SIZE,
-			      &data_blocks, &ind_blocks);
+	gfs2_write_calc_reserv(ip, PAGE_CACHE_SIZE, &data_blocks, &ind_blocks);
 
 	al->al_requested = data_blocks + ind_blocks;
 
@@ -99,8 +98,7 @@ static int alloc_page_backing(struct gfs2_inode *ip, struct page *page)
 	if (error)
 		goto out_gunlock_q;
 
-	error = gfs2_trans_begin(sdp,
-				 al->al_rgd->rd_ri.ri_length +
+	error = gfs2_trans_begin(sdp, al->al_rgd->rd_ri.ri_length +
 				 ind_blocks + RES_DINODE +
 				 RES_STATFS + RES_QUOTA, 0);
 	if (error)
@@ -117,7 +115,7 @@ static int alloc_page_backing(struct gfs2_inode *ip, struct page *page)
 		unsigned int extlen;
 		int new = 1;
 
-		error = gfs2_block_map(ip, lblock, &new, &dblock, &extlen);
+		error = gfs2_extent_map(ip->i_vnode, lblock, &new, &dblock, &extlen);
 		if (error)
 			goto out_trans;
 

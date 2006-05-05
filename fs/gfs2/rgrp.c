@@ -956,8 +956,7 @@ static uint32_t rgblk_search(struct gfs2_rgrpd *rgd, uint32_t goal,
 	   search in the first part of our first-searched bit block.  */
 	for (x = 0; x <= length; x++) {
 		if (bi->bi_clone)
-			blk = gfs2_bitfit(rgd,
-					  bi->bi_clone + bi->bi_offset,
+			blk = gfs2_bitfit(rgd, bi->bi_clone + bi->bi_offset,
 					  bi->bi_len, goal, old_state);
 		else
 			blk = gfs2_bitfit(rgd,
@@ -976,12 +975,10 @@ static uint32_t rgblk_search(struct gfs2_rgrpd *rgd, uint32_t goal,
 		blk = 0;
 
 	gfs2_trans_add_bh(rgd->rd_gl, bi->bi_bh, 1);
-	gfs2_setbit(rgd,
-		    bi->bi_bh->b_data + bi->bi_offset,
+	gfs2_setbit(rgd, bi->bi_bh->b_data + bi->bi_offset,
 		    bi->bi_len, blk, new_state);
 	if (bi->bi_clone)
-		gfs2_setbit(rgd,
-			    bi->bi_clone + bi->bi_offset,
+		gfs2_setbit(rgd, bi->bi_clone + bi->bi_offset,
 			    bi->bi_len, blk, new_state);
 
 	return bi->bi_start * GFS2_NBBY + blk;
@@ -1064,8 +1061,7 @@ uint64_t gfs2_alloc_data(struct gfs2_inode *ip)
 	else
 		goal = rgd->rd_last_alloc_data;
 
-	blk = rgblk_search(rgd, goal,
-			   GFS2_BLKST_FREE, GFS2_BLKST_USED);
+	blk = rgblk_search(rgd, goal, GFS2_BLKST_FREE, GFS2_BLKST_USED);
 	rgd->rd_last_alloc_data = blk;
 
 	block = rgd->rd_ri.ri_data0 + blk;
@@ -1109,8 +1105,7 @@ uint64_t gfs2_alloc_meta(struct gfs2_inode *ip)
 	else
 		goal = rgd->rd_last_alloc_meta;
 
-	blk = rgblk_search(rgd, goal,
-			   GFS2_BLKST_FREE, GFS2_BLKST_USED);
+	blk = rgblk_search(rgd, goal, GFS2_BLKST_FREE, GFS2_BLKST_USED);
 	rgd->rd_last_alloc_meta = blk;
 
 	block = rgd->rd_ri.ri_data0 + blk;

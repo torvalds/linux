@@ -197,8 +197,8 @@ static int gfs2_dir_write_data(struct gfs2_inode *ip, const char *buf,
 
 		if (!extlen) {
 			new = 1;
-			error = gfs2_block_map(ip, lblock, &new, &dblock,
-					       &extlen);
+			error = gfs2_extent_map(ip->i_vnode, lblock, &new,
+						&dblock, &extlen);
 			if (error)
 				goto fail;
 			error = -EIO;
@@ -314,8 +314,8 @@ static int gfs2_dir_read_data(struct gfs2_inode *ip, char *buf,
 
 		if (!extlen) {
 			new = 0;
-			error = gfs2_block_map(ip, lblock, &new, &dblock,
-					       &extlen);
+			error = gfs2_extent_map(ip->i_vnode, lblock, &new,
+						&dblock, &extlen);
 			if (error)
 				goto fail;
 		}
