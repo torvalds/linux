@@ -279,7 +279,7 @@ static inline int sk_unhashed(const struct sock *sk)
 
 static inline int sk_hashed(const struct sock *sk)
 {
-	return sk->sk_node.pprev != NULL;
+	return !sk_unhashed(sk);
 }
 
 static __inline__ void sk_node_init(struct hlist_node *node)

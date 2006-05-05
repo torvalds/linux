@@ -25,6 +25,8 @@
 #include <linux/slab.h>
 #include "edac_mc.h"
 
+static int force_function_unhide;
+
 #define e752x_printk(level, fmt, arg...) \
 	edac_printk(level, "e752x", fmt, ##arg)
 
@@ -782,8 +784,16 @@ static int e752x_probe1(struct pci_dev *pdev, int dev_idx)
 	debugf0("%s(): mci\n", __func__);
 	debugf0("Starting Probe1\n");
 
-	/* enable device 0 function 1 */
+	/* check to see if device 0 function 1 is enabled; if it isn't, we
+	 * assume the BIOS has reserved it for a reason and is expecting
+	 * exclusive access, we take care not to violate that assumption and
+	 * fail the probe. */
 	pci_read_config_byte(pdev, E752X_DEVPRES1, &stat8);
+	if (!force_function_unhide && !(stat8 & (1 << 5))) {
+		printk(KERN_INFO "Contact your BIOS vendor to see if the "
+			"E752x error registers can be safely un-hidden\n");
+		goto fail;
+	}
 	stat8 |= (1 << 5);
 	pci_write_config_byte(pdev, E752X_DEVPRES1, stat8);
 
@@ -1063,3 +1073,8 @@ module_exit(e752x_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Linux Networx (http://lnxi.com) Tom Zimmerman\n");
 MODULE_DESCRIPTION("MC support for Intel e752x memory controllers");
+
+module_param(force_function_unhide, int, 0444);
+MODULE_PARM_DESC(force_function_unhide, "if BIOS sets Dev0:Fun1 up as hidden:"
+" 1=force unhide and hope BIOS doesn't fight driver for Dev0:Fun1 access");
+

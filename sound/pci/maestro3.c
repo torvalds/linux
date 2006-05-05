@@ -41,7 +41,6 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/moduleparam.h>
-#include <linux/dma-mapping.h>
 #include <sound/core.h>
 #include <sound/info.h>
 #include <sound/control.h>
@@ -870,7 +869,7 @@ struct snd_m3 {
 /*
  * pci ids
  */
-static struct pci_device_id snd_m3_ids[] = {
+static struct pci_device_id snd_m3_ids[] __devinitdata = {
 	{PCI_VENDOR_ID_ESS, PCI_DEVICE_ID_ESS_ALLEGRO_1, PCI_ANY_ID, PCI_ANY_ID,
 	 PCI_CLASS_MULTIMEDIA_AUDIO << 8, 0xffff00, 0},
 	{PCI_VENDOR_ID_ESS, PCI_DEVICE_ID_ESS_ALLEGRO, PCI_ANY_ID, PCI_ANY_ID,

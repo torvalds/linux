@@ -49,6 +49,8 @@ static DEFINE_RWLOCK(ax25_uid_lock);
 
 int ax25_uid_policy = 0;
 
+EXPORT_SYMBOL(ax25_uid_policy);
+
 ax25_uid_assoc *ax25_findbyuid(uid_t uid)
 {
 	ax25_uid_assoc *ax25_uid, *res = NULL;
@@ -66,6 +68,8 @@ ax25_uid_assoc *ax25_findbyuid(uid_t uid)
 
 	return res;
 }
+
+EXPORT_SYMBOL(ax25_findbyuid);
 
 int ax25_uid_ioctl(int cmd, struct sockaddr_ax25 *sax)
 {

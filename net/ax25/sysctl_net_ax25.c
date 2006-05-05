@@ -18,14 +18,14 @@ static int min_backoff[1],		max_backoff[] = {2};
 static int min_conmode[1],		max_conmode[] = {2};
 static int min_window[] = {1},		max_window[] = {7};
 static int min_ewindow[] = {1},		max_ewindow[] = {63};
-static int min_t1[] = {1},		max_t1[] = {30 * HZ};
-static int min_t2[] = {1},		max_t2[] = {20 * HZ};
-static int min_t3[1],   		max_t3[] = {3600 * HZ};
-static int min_idle[1],  		max_idle[] = {65535 * HZ};
+static int min_t1[] = {1},		max_t1[] = {30000};
+static int min_t2[] = {1},		max_t2[] = {20000};
+static int min_t3[1],			max_t3[] = {3600000};
+static int min_idle[1],			max_idle[] = {65535000};
 static int min_n2[] = {1},		max_n2[] = {31};
 static int min_paclen[] = {1},		max_paclen[] = {512};
 static int min_proto[1],		max_proto[] = { AX25_PROTO_MAX };
-static int min_ds_timeout[1],   	max_ds_timeout[] = {65535 * HZ};
+static int min_ds_timeout[1],		max_ds_timeout[] = {65535000};
 
 static struct ctl_table_header *ax25_table_header;
 

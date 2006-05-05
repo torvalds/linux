@@ -1104,6 +1104,8 @@ const struct file_operations def_blk_fops = {
 	.readv		= generic_file_readv,
 	.writev		= generic_file_write_nolock,
 	.sendfile	= generic_file_sendfile,
+	.splice_read	= generic_file_splice_read,
+	.splice_write	= generic_file_splice_write,
 };
 
 int ioctl_by_bdev(struct block_device *bdev, unsigned cmd, unsigned long arg)

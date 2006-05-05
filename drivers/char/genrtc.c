@@ -200,13 +200,13 @@ static ssize_t gen_rtc_read(struct file *file, char __user *buf,
 	/* first test allows optimizer to nuke this case for 32-bit machines */
 	if (sizeof (int) != sizeof (long) && count == sizeof (unsigned int)) {
 		unsigned int uidata = data;
-		retval = put_user(uidata, (unsigned long __user *)buf);
+		retval = put_user(uidata, (unsigned int __user *)buf) ?:
+			sizeof(unsigned int);
 	}
 	else {
-		retval = put_user(data, (unsigned long __user *)buf);
+		retval = put_user(data, (unsigned long __user *)buf) ?:
+			sizeof(unsigned long);
 	}
-	if (!retval)
-		retval = sizeof(unsigned long);
  out:
 	current->state = TASK_RUNNING;
 	remove_wait_queue(&gen_rtc_wait, &wait);

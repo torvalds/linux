@@ -194,7 +194,7 @@ static int *of_get_associativity(struct device_node *dev)
 /* Returns nid in the range [0..MAX_NUMNODES-1], or -1 if no useful numa
  * info is found.
  */
-static int of_node_to_nid(struct device_node *device)
+static int of_node_to_nid_single(struct device_node *device)
 {
 	int nid = -1;
 	unsigned int *tmp;
@@ -215,6 +215,28 @@ static int of_node_to_nid(struct device_node *device)
 out:
 	return nid;
 }
+
+/* Walk the device tree upwards, looking for an associativity id */
+int of_node_to_nid(struct device_node *device)
+{
+	struct device_node *tmp;
+	int nid = -1;
+
+	of_node_get(device);
+	while (device) {
+		nid = of_node_to_nid_single(device);
+		if (nid != -1)
+			break;
+
+	        tmp = device;
+		device = of_get_parent(tmp);
+		of_node_put(tmp);
+	}
+	of_node_put(device);
+
+	return nid;
+}
+EXPORT_SYMBOL_GPL(of_node_to_nid);
 
 /*
  * In theory, the "ibm,associativity" property may contain multiple
@@ -300,7 +322,7 @@ static int __cpuinit numa_setup_cpu(unsigned long lcpu)
 		goto out;
 	}
 
-	nid = of_node_to_nid(cpu);
+	nid = of_node_to_nid_single(cpu);
 
 	if (nid < 0 || !node_online(nid))
 		nid = any_online_node(NODE_MASK_ALL);
@@ -393,7 +415,7 @@ static int __init parse_numa_properties(void)
 
 		cpu = find_cpu_node(i);
 		BUG_ON(!cpu);
-		nid = of_node_to_nid(cpu);
+		nid = of_node_to_nid_single(cpu);
 		of_node_put(cpu);
 
 		/*
@@ -437,7 +459,7 @@ new_range:
 		 * have associativity properties.  If none, then
 		 * everything goes to default_nid.
 		 */
-		nid = of_node_to_nid(memory);
+		nid = of_node_to_nid_single(memory);
 		if (nid < 0)
 			nid = default_nid;
 		node_set_online(nid);
@@ -776,7 +798,7 @@ int hot_add_scn_to_nid(unsigned long scn_addr)
 ha_new_range:
 		start = read_n_cells(n_mem_addr_cells, &memcell_buf);
 		size = read_n_cells(n_mem_size_cells, &memcell_buf);
-		nid = of_node_to_nid(memory);
+		nid = of_node_to_nid_single(memory);
 
 		/* Domains not present at boot default to 0 */
 		if (nid < 0 || !node_online(nid))

@@ -653,7 +653,7 @@ asmlinkage void syscall_trace(struct pt_regs *regs, int syscall_exit_p)
 		if (unlikely(tstate & (TSTATE_XCARRY | TSTATE_ICARRY)))
 			result = AUDITSC_FAILURE;
 
-		audit_syscall_exit(current, result, regs->u_regs[UREG_I0]);
+		audit_syscall_exit(result, regs->u_regs[UREG_I0]);
 	}
 
 	if (!(current->ptrace & PT_PTRACED))
@@ -677,8 +677,7 @@ asmlinkage void syscall_trace(struct pt_regs *regs, int syscall_exit_p)
 
 out:
 	if (unlikely(current->audit_context) && !syscall_exit_p)
-		audit_syscall_entry(current,
-				    (test_thread_flag(TIF_32BIT) ?
+		audit_syscall_entry((test_thread_flag(TIF_32BIT) ?
 				     AUDIT_ARCH_SPARC :
 				     AUDIT_ARCH_SPARC64),
 				    regs->u_regs[UREG_G1],

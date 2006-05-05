@@ -426,7 +426,7 @@ static char channel_map_madi_qs[HDSPM_MAX_CHANNELS] = {
 };
 
 
-static struct pci_device_id snd_hdspm_ids[] = {
+static struct pci_device_id snd_hdspm_ids[] __devinitdata = {
 	{
 	 .vendor = PCI_VENDOR_ID_XILINX,
 	 .device = PCI_DEVICE_ID_XILINX_HAMMERFALL_DSP_MADI,

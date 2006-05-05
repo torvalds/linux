@@ -8,11 +8,16 @@ subarch-obj-y = lib/bitops.o kernel/semaphore.o
 subarch-obj-$(CONFIG_HIGHMEM) += mm/highmem.o
 subarch-obj-$(CONFIG_MODULES) += kernel/module.o
 
-USER_OBJS := bugs.o ptrace_user.o sigcontext.o fault.o stub_segv.o
+USER_OBJS := bugs.o ptrace_user.o sigcontext.o fault.o
 
-include arch/um/scripts/Makefile.rules
+USER_OBJS += user-offsets.s
+extra-y += user-offsets.s
 
 extra-$(CONFIG_MODE_TT) += unmap.o
 
-$(obj)/stub_segv.o $(obj)/unmap.o: \
-	_c_flags = $(call unprofile,$(CFLAGS))
+UNPROFILE_OBJS := stub_segv.o
+CFLAGS_stub_segv.o := $(CFLAGS_NO_HARDENING)
+
+include arch/um/scripts/Makefile.rules
+
+$(obj)/unmap.%: _c_flags = $(call unprofile,$(CFLAGS))

@@ -424,7 +424,7 @@ module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable Korg 1212 soundcard.");
 MODULE_AUTHOR("Haroldo Gamal <gamal@alternex.com.br>");
 
-static struct pci_device_id snd_korg1212_ids[] = {
+static struct pci_device_id snd_korg1212_ids[] __devinitdata = {
 	{
 		.vendor	   = 0x10b5,
 		.device	   = 0x906d,

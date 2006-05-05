@@ -1257,7 +1257,7 @@ out_unregister_udp_proto:
 	goto out;
 }
 
-module_init(inet_init);
+fs_initcall(inet_init);
 
 /* ------------------------------------------------------------------------ */
 

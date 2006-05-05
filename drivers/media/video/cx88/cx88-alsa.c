@@ -616,7 +616,7 @@ static struct snd_kcontrol_new snd_cx88_capture_volume = {
  * Only boards with eeprom and byte 1 at eeprom=1 have it
  */
 
-static struct pci_device_id cx88_audio_pci_tbl[] = {
+static struct pci_device_id cx88_audio_pci_tbl[] __devinitdata = {
 	{0x14f1,0x8801,PCI_ANY_ID,PCI_ANY_ID,0,0,0},
 	{0x14f1,0x8811,PCI_ANY_ID,PCI_ANY_ID,0,0,0},
 	{0, }

@@ -28,6 +28,7 @@ struct mmc_csd {
 	unsigned short		cmdclass;
 	unsigned short		tacc_clks;
 	unsigned int		tacc_ns;
+	unsigned int		r2w_factor;
 	unsigned int		max_dtr;
 	unsigned int		read_blkbits;
 	unsigned int		write_blkbits;

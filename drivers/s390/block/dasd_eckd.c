@@ -446,6 +446,39 @@ dasd_eckd_cdl_reclen(int recid)
 	return LABEL_SIZE;
 }
 
+/*
+ * Generate device unique id that specifies the physical device.
+ */
+static int
+dasd_eckd_generate_uid(struct dasd_device *device, struct dasd_uid *uid)
+{
+	struct dasd_eckd_private *private;
+	struct dasd_eckd_confdata *confdata;
+
+	private = (struct dasd_eckd_private *) device->private;
+	if (!private)
+		return -ENODEV;
+	confdata = &private->conf_data;
+	if (!confdata)
+		return -ENODEV;
+
+	memset(uid, 0, sizeof(struct dasd_uid));
+	strncpy(uid->vendor, confdata->ned1.HDA_manufacturer,
+		sizeof(uid->vendor) - 1);
+	EBCASC(uid->vendor, sizeof(uid->vendor) - 1);
+	strncpy(uid->serial, confdata->ned1.HDA_location,
+		sizeof(uid->serial) - 1);
+	EBCASC(uid->serial, sizeof(uid->serial) - 1);
+	uid->ssid = confdata->neq.subsystemID;
+	if (confdata->ned2.sneq.flags == 0x40) {
+		uid->alias = 1;
+		uid->unit_addr = confdata->ned2.sneq.base_unit_addr;
+	} else
+		uid->unit_addr = confdata->ned1.unit_addr;
+
+	return 0;
+}
+
 static int
 dasd_eckd_read_conf(struct dasd_device *device)
 {
@@ -507,11 +540,15 @@ dasd_eckd_read_conf(struct dasd_device *device)
 	return 0;
 }
 
-
+/*
+ * Check device characteristics.
+ * If the device is accessible using ECKD discipline, the device is enabled.
+ */
 static int
 dasd_eckd_check_characteristics(struct dasd_device *device)
 {
 	struct dasd_eckd_private *private;
+	struct dasd_uid uid;
 	void *rdc_data;
 	int rc;
 
@@ -536,6 +573,7 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 
 	/* Read Device Characteristics */
 	rdc_data = (void *) &(private->rdc_data);
+	memset(rdc_data, 0, sizeof(rdc_data));
 	rc = read_dev_chars(device->cdev, &rdc_data, 64);
 	if (rc) {
 		DEV_MESSAGE(KERN_WARNING, device,
@@ -556,8 +594,17 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 
 	/* Read Configuration Data */
 	rc = dasd_eckd_read_conf (device);
-	return rc;
+	if (rc)
+		return rc;
 
+	/* Generate device unique id and register in devmap */
+	rc = dasd_eckd_generate_uid(device, &uid);
+	if (rc)
+		return rc;
+
+	rc = dasd_set_uid(device->cdev, &uid);
+
+	return rc;
 }
 
 static struct dasd_ccw_req *

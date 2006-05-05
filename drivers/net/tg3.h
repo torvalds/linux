@@ -2215,6 +2215,7 @@ struct tg3 {
 #define TG3_FLG2_HW_TSO_2		0x08000000
 #define TG3_FLG2_HW_TSO			(TG3_FLG2_HW_TSO_1 | TG3_FLG2_HW_TSO_2)
 #define TG3_FLG2_1SHOT_MSI		0x10000000
+#define TG3_FLG2_PHY_JITTER_BUG		0x20000000
 
 	u32				split_mode_max_reqs;
 #define SPLIT_MODE_5704_MAX_REQ		3

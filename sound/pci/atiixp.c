@@ -284,7 +284,7 @@ struct atiixp {
 
 /*
  */
-static struct pci_device_id snd_atiixp_ids[] = {
+static struct pci_device_id snd_atiixp_ids[] __devinitdata = {
 	{ 0x1002, 0x4341, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 }, /* SB200 */
 	{ 0x1002, 0x4361, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 }, /* SB300 */
 	{ 0x1002, 0x4370, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 }, /* SB400 */

@@ -720,10 +720,6 @@ static void au1xmmc_set_ios(struct mmc_host* mmc, struct mmc_ios* ios)
 {
 	struct au1xmmc_host *host = mmc_priv(mmc);
 
-	DBG("set_ios (power=%u, clock=%uHz, vdd=%u, mode=%u)\n",
-	      host->id, ios->power_mode, ios->clock, ios->vdd,
-	      ios->bus_mode);
-
 	if (ios->power_mode == MMC_POWER_OFF)
 		au1xmmc_set_power(host, 0);
 	else if (ios->power_mode == MMC_POWER_ON) {

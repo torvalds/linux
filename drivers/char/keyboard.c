@@ -860,9 +860,32 @@ static void k_slock(struct vc_data *vc, unsigned char value, char up_flag, struc
 }
 
 /* by default, 300ms interval for combination release */
-static long brl_timeout = 300;
-MODULE_PARM_DESC(brl_timeout, "Braille keys release delay in ms (0 for combination on first release, < 0 for dead characters)");
-module_param(brl_timeout, long, 0644);
+static unsigned brl_timeout = 300;
+MODULE_PARM_DESC(brl_timeout, "Braille keys release delay in ms (0 for commit on first key release)");
+module_param(brl_timeout, uint, 0644);
+
+static unsigned brl_nbchords = 1;
+MODULE_PARM_DESC(brl_nbchords, "Number of chords that produce a braille pattern (0 for dead chords)");
+module_param(brl_nbchords, uint, 0644);
+
+static void k_brlcommit(struct vc_data *vc, unsigned int pattern, char up_flag, struct pt_regs *regs)
+{
+	static unsigned long chords;
+	static unsigned committed;
+
+	if (!brl_nbchords)
+		k_deadunicode(vc, BRL_UC_ROW | pattern, up_flag, regs);
+	else {
+		committed |= pattern;
+		chords++;
+		if (chords == brl_nbchords) {
+			k_unicode(vc, BRL_UC_ROW | committed, up_flag, regs);
+			chords = 0;
+			committed = 0;
+		}
+	}
+}
+
 static void k_brl(struct vc_data *vc, unsigned char value, char up_flag, struct pt_regs *regs)
 {
 	static unsigned pressed,committing;
@@ -882,11 +905,6 @@ static void k_brl(struct vc_data *vc, unsigned char value, char up_flag, struct 
 	if (value > 8)
 		return;
 
-	if (brl_timeout < 0) {
-		k_deadunicode(vc, BRL_UC_ROW | (1 << (value - 1)), up_flag, regs);
-		return;
-	}
-
 	if (up_flag) {
 		if (brl_timeout) {
 			if (!committing ||
@@ -897,13 +915,13 @@ static void k_brl(struct vc_data *vc, unsigned char value, char up_flag, struct 
 			pressed &= ~(1 << (value - 1));
 			if (!pressed) {
 				if (committing) {
-					k_unicode(vc, BRL_UC_ROW | committing, 0, regs);
+					k_brlcommit(vc, committing, 0, regs);
 					committing = 0;
 				}
 			}
 		} else {
 			if (committing) {
-				k_unicode(vc, BRL_UC_ROW | committing, 0, regs);
+				k_brlcommit(vc, committing, 0, regs);
 				committing = 0;
 			}
 			pressed &= ~(1 << (value - 1));

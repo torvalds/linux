@@ -600,12 +600,12 @@ asmlinkage void syscall_trace_enter(struct pt_regs *regs)
 
 	if (unlikely(current->audit_context)) {
 		if (test_thread_flag(TIF_IA32)) {
-			audit_syscall_entry(current, AUDIT_ARCH_I386,
+			audit_syscall_entry(AUDIT_ARCH_I386,
 					    regs->orig_rax,
 					    regs->rbx, regs->rcx,
 					    regs->rdx, regs->rsi);
 		} else {
-			audit_syscall_entry(current, AUDIT_ARCH_X86_64,
+			audit_syscall_entry(AUDIT_ARCH_X86_64,
 					    regs->orig_rax,
 					    regs->rdi, regs->rsi,
 					    regs->rdx, regs->r10);
@@ -616,7 +616,7 @@ asmlinkage void syscall_trace_enter(struct pt_regs *regs)
 asmlinkage void syscall_trace_leave(struct pt_regs *regs)
 {
 	if (unlikely(current->audit_context))
-		audit_syscall_exit(current, AUDITSC_RESULT(regs->rax), regs->rax);
+		audit_syscall_exit(AUDITSC_RESULT(regs->rax), regs->rax);
 
 	if ((test_thread_flag(TIF_SYSCALL_TRACE)
 	     || test_thread_flag(TIF_SINGLESTEP))

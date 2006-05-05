@@ -425,11 +425,16 @@ static int nr_create(struct socket *sock, int protocol)
 
 	nr_init_timers(sk);
 
-	nr->t1     = sysctl_netrom_transport_timeout;
-	nr->t2     = sysctl_netrom_transport_acknowledge_delay;
-	nr->n2     = sysctl_netrom_transport_maximum_tries;
-	nr->t4     = sysctl_netrom_transport_busy_delay;
-	nr->idle   = sysctl_netrom_transport_no_activity_timeout;
+	nr->t1     =
+		msecs_to_jiffies(sysctl_netrom_transport_timeout);
+	nr->t2     =
+		msecs_to_jiffies(sysctl_netrom_transport_acknowledge_delay);
+	nr->n2     =
+		msecs_to_jiffies(sysctl_netrom_transport_maximum_tries);
+	nr->t4     =
+		msecs_to_jiffies(sysctl_netrom_transport_busy_delay);
+	nr->idle   =
+		msecs_to_jiffies(sysctl_netrom_transport_no_activity_timeout);
 	nr->window = sysctl_netrom_transport_requested_window_size;
 
 	nr->bpqext = 1;

@@ -506,7 +506,7 @@ static int riptide_reset(struct cmdif *cif, struct snd_riptide *chip);
 /*
  */
 
-static struct pci_device_id snd_riptide_ids[] = {
+static struct pci_device_id snd_riptide_ids[] __devinitdata = {
 	{
 	 .vendor = 0x127a,.device = 0x4310,
 	 .subvendor = PCI_ANY_ID,.subdevice = PCI_ANY_ID,
@@ -527,7 +527,7 @@ static struct pci_device_id snd_riptide_ids[] = {
 };
 
 #ifdef SUPPORT_JOYSTICK
-static struct pci_device_id snd_riptide_joystick_ids[] = {
+static struct pci_device_id snd_riptide_joystick_ids[] __devinitdata = {
 	{
 	 .vendor = 0x127a,.device = 0x4312,
 	 .subvendor = PCI_ANY_ID,.subdevice = PCI_ANY_ID,
