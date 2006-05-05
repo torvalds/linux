@@ -132,6 +132,7 @@ struct uhci_qh {
 
 	unsigned int unlink_frame;	/* When the QH was unlinked */
 	int state;			/* QH_STATE_xxx; see above */
+	int type;			/* Queue type (control, bulk, etc) */
 
 	unsigned int initial_toggle:1;	/* Endpoint's current toggle value */
 	unsigned int needs_fixup:1;	/* Must fix the TD toggle values */

@@ -98,6 +98,7 @@ static int uhci_show_urbp(struct urb_priv *urbp, char *buf, int len, int space)
 	char *out = buf;
 	struct uhci_td *td;
 	int i, nactive, ninactive;
+	char *ptype;
 
 	if (len < 200)
 		return 0;
@@ -110,13 +111,14 @@ static int uhci_show_urbp(struct urb_priv *urbp, char *buf, int len, int space)
 			(usb_pipein(urbp->urb->pipe) ? "IN" : "OUT"));
 
 	switch (usb_pipetype(urbp->urb->pipe)) {
-	case PIPE_ISOCHRONOUS: out += sprintf(out, "ISO"); break;
-	case PIPE_INTERRUPT: out += sprintf(out, "INT"); break;
-	case PIPE_BULK: out += sprintf(out, "BLK"); break;
-	case PIPE_CONTROL: out += sprintf(out, "CTL"); break;
+	case PIPE_ISOCHRONOUS: ptype = "ISO"; break;
+	case PIPE_INTERRUPT: ptype = "INT"; break;
+	case PIPE_BULK: ptype = "BLK"; break;
+	default:
+	case PIPE_CONTROL: ptype = "CTL"; break;
 	}
 
-	out += sprintf(out, "%s", (urbp->fsbr ? " FSBR" : ""));
+	out += sprintf(out, "%s%s", ptype, (urbp->fsbr ? " FSBR" : ""));
 
 	if (urbp->urb->status != -EINPROGRESS)
 		out += sprintf(out, " Status=%d", urbp->urb->status);
@@ -147,13 +149,23 @@ static int uhci_show_qh(struct uhci_qh *qh, char *buf, int len, int space)
 	char *out = buf;
 	int i, nurbs;
 	__le32 element = qh_element(qh);
+	char *qtype;
 
 	/* Try to make sure there's enough memory */
 	if (len < 80 * 6)
 		return 0;
 
-	out += sprintf(out, "%*s[%p] link (%08x) element (%08x)\n", space, "",
-			qh, le32_to_cpu(qh->link), le32_to_cpu(element));
+	switch (qh->type) {
+	case USB_ENDPOINT_XFER_ISOC: qtype = "ISO"; break;
+	case USB_ENDPOINT_XFER_INT: qtype = "INT"; break;
+	case USB_ENDPOINT_XFER_BULK: qtype = "BLK"; break;
+	case USB_ENDPOINT_XFER_CONTROL: qtype = "CTL"; break;
+	default: qtype = "Skel" ; break;
+	}
+
+	out += sprintf(out, "%*s[%p] %s QH link (%08x) element (%08x)\n",
+			space, "", qh, qtype,
+			le32_to_cpu(qh->link), le32_to_cpu(element));
 
 	if (element & UHCI_PTR_QH)
 		out += sprintf(out, "%*s  Element points to QH (bug?)\n", space, "");

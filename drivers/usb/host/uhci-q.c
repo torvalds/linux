@@ -179,10 +179,12 @@ static struct uhci_qh *uhci_alloc_qh(struct uhci_hcd *uhci,
 		qh->hep = hep;
 		qh->udev = udev;
 		hep->hcpriv = qh;
+		qh->type = hep->desc.bmAttributes & USB_ENDPOINT_XFERTYPE_MASK;
 
 	} else {		/* Skeleton QH */
 		qh->state = QH_STATE_ACTIVE;
 		qh->udev = NULL;
+		qh->type = -1;
 	}
 	return qh;
 }
@@ -217,8 +219,8 @@ static void uhci_save_toggle(struct uhci_qh *qh, struct urb *urb)
 	qh->element = UHCI_PTR_TERM;
 
 	/* Only bulk and interrupt pipes have to worry about toggles */
-	if (!(usb_pipetype(urb->pipe) == PIPE_BULK ||
-			usb_pipetype(urb->pipe) == PIPE_INTERRUPT))
+	if (!(qh->type == USB_ENDPOINT_XFER_BULK ||
+			qh->type == USB_ENDPOINT_XFER_INT))
 		return;
 
 	/* Find the first active TD; that's the device's toggle state */
@@ -1099,14 +1101,14 @@ static int uhci_urb_enqueue(struct usb_hcd *hcd,
 	}
 	urbp->qh = qh;
 
-	switch (usb_pipetype(urb->pipe)) {
-	case PIPE_CONTROL:
+	switch (qh->type) {
+	case USB_ENDPOINT_XFER_CONTROL:
 		ret = uhci_submit_control(uhci, urb, qh);
 		break;
-	case PIPE_BULK:
+	case USB_ENDPOINT_XFER_BULK:
 		ret = uhci_submit_bulk(uhci, urb, qh);
 		break;
-	case PIPE_INTERRUPT:
+	case USB_ENDPOINT_XFER_INT:
 		if (list_empty(&qh->queue)) {
 			bustime = usb_check_bandwidth(urb->dev, urb);
 			if (bustime < 0)
@@ -1125,7 +1127,7 @@ static int uhci_urb_enqueue(struct usb_hcd *hcd,
 			ret = uhci_submit_interrupt(uhci, urb, qh);
 		}
 		break;
-	case PIPE_ISOCHRONOUS:
+	case USB_ENDPOINT_XFER_ISOC:
 		bustime = usb_check_bandwidth(urb->dev, urb);
 		if (bustime < 0) {
 			ret = bustime;
@@ -1175,7 +1177,7 @@ static int uhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb)
 		goto done;
 
 	/* Remove Isochronous TDs from the frame list ASAP */
-	if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS)
+	if (urbp->qh->type == USB_ENDPOINT_XFER_ISOC)
 		uhci_unlink_isochronous_tds(uhci, urb);
 	uhci_unlink_qh(uhci, urbp->qh);
 
@@ -1195,7 +1197,7 @@ __acquires(uhci->lock)
 	struct urb_priv *urbp = (struct urb_priv *) urb->hcpriv;
 
 	/* Isochronous TDs get unlinked directly from the frame list */
-	if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS)
+	if (qh->type == USB_ENDPOINT_XFER_ISOC)
 		uhci_unlink_isochronous_tds(uhci, urb);
 
 	/* If the URB isn't first on its queue, adjust the link pointer
@@ -1224,13 +1226,13 @@ __acquires(uhci->lock)
 	uhci_dec_fsbr(uhci, urb);	/* Safe since it checks */
 	uhci_free_urb_priv(uhci, urbp);
 
-	switch (usb_pipetype(urb->pipe)) {
-	case PIPE_ISOCHRONOUS:
+	switch (qh->type) {
+	case USB_ENDPOINT_XFER_ISOC:
 		/* Release bandwidth for Interrupt or Isoc. transfers */
 		if (urb->bandwidth)
 			usb_release_bandwidth(urb->dev, urb, 1);
 		break;
-	case PIPE_INTERRUPT:
+	case USB_ENDPOINT_XFER_INT:
 		/* Release bandwidth for Interrupt or Isoc. transfers */
 		/* Make sure we don't release if we have a queued URB */
 		if (list_empty(&qh->queue) && urb->bandwidth)
@@ -1273,14 +1275,14 @@ static void uhci_scan_qh(struct uhci_hcd *uhci, struct uhci_qh *qh,
 		urbp = list_entry(qh->queue.next, struct urb_priv, node);
 		urb = urbp->urb;
 
-		switch (usb_pipetype(urb->pipe)) {
-		case PIPE_CONTROL:
+		switch (qh->type) {
+		case USB_ENDPOINT_XFER_CONTROL:
 			status = uhci_result_control(uhci, urb);
 			break;
-		case PIPE_ISOCHRONOUS:
+		case USB_ENDPOINT_XFER_ISOC:
 			status = uhci_result_isochronous(uhci, urb);
 			break;
-		default:	/* PIPE_BULK or PIPE_INTERRUPT */
+		default:	/* USB_ENDPOINT_XFER_BULK or _INT */
 			status = uhci_result_common(uhci, urb);
 			break;
 		}
