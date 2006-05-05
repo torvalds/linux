@@ -100,12 +100,6 @@ unsigned long SYSRQ_KEY;
 #endif /* CONFIG_MAGIC_SYSRQ */
 
 
-static int ppc64_panic_event(struct notifier_block *, unsigned long, void *);
-static struct notifier_block ppc64_panic_block = {
-	.notifier_call = ppc64_panic_event,
-	.priority = INT_MIN /* may not return; must be done last */
-};
-
 #ifdef CONFIG_SMP
 
 static int smt_enabled_cmdline;
@@ -456,13 +450,6 @@ void __init setup_system(void)
 	DBG(" <- setup_system()\n");
 }
 
-static int ppc64_panic_event(struct notifier_block *this,
-                             unsigned long event, void *ptr)
-{
-	ppc_md.panic((char *)ptr);  /* May not return */
-	return NOTIFY_DONE;
-}
-
 #ifdef CONFIG_IRQSTACKS
 static void __init irqstack_early_init(void)
 {
@@ -517,8 +504,6 @@ static void __init emergency_stack_init(void)
  */
 void __init setup_arch(char **cmdline_p)
 {
-	extern void do_init_bootmem(void);
-
 	ppc64_boot_msg(0x12, "Setup Arch");
 
 	*cmdline_p = cmd_line;
@@ -535,8 +520,7 @@ void __init setup_arch(char **cmdline_p)
 	panic_timeout = 180;
 
 	if (ppc_md.panic)
-		atomic_notifier_chain_register(&panic_notifier_list,
-				&ppc64_panic_block);
+		setup_panic();
 
 	init_mm.start_code = PAGE_OFFSET;
 	init_mm.end_code = (unsigned long) _etext;
