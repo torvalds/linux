@@ -1148,8 +1148,9 @@ static int uhci_urb_enqueue(struct usb_hcd *hcd,
 
 	/* If the new URB is the first and only one on this QH then either
 	 * the QH is new and idle or else it's unlinked and waiting to
-	 * become idle, so we can activate it right away. */
-	if (qh->queue.next == &urbp->node)
+	 * become idle, so we can activate it right away.  But only if the
+	 * queue isn't stopped. */
+	if (qh->queue.next == &urbp->node && !qh->is_stopped)
 		uhci_activate_qh(uhci, qh);
 	goto done;
 
@@ -1293,27 +1294,32 @@ static void uhci_scan_qh(struct uhci_hcd *uhci, struct uhci_qh *qh,
 		if (urb->status == -EINPROGRESS)	/* Not dequeued */
 			urb->status = status;
 		else
-			status = -ECONNRESET;
+			status = ECONNRESET;		/* Not -ECONNRESET */
 		spin_unlock(&urb->lock);
 
 		/* Dequeued but completed URBs can't be given back unless
 		 * the QH is stopped or has finished unlinking. */
-		if (status == -ECONNRESET &&
-				!(qh->is_stopped || QH_FINISHED_UNLINKING(qh)))
-			return;
+		if (status == ECONNRESET) {
+			if (QH_FINISHED_UNLINKING(qh))
+				qh->is_stopped = 1;
+			else if (!qh->is_stopped)
+				return;
+		}
 
 		uhci_giveback_urb(uhci, qh, urb, regs);
-		if (qh->is_stopped)
+		if (status < 0)
 			break;
 	}
 
 	/* If the QH is neither stopped nor finished unlinking (normal case),
 	 * our work here is done. */
- restart:
-	if (!(qh->is_stopped || QH_FINISHED_UNLINKING(qh)))
+	if (QH_FINISHED_UNLINKING(qh))
+		qh->is_stopped = 1;
+	else if (!qh->is_stopped)
 		return;
 
 	/* Otherwise give back each of the dequeued URBs */
+restart:
 	list_for_each_entry(urbp, &qh->queue, node) {
 		urb = urbp->urb;
 		if (urb->status != -EINPROGRESS) {
