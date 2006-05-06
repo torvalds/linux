@@ -287,6 +287,13 @@ cflags-$(CONFIG_MIPS_EV96100)	+= -Iinclude/asm-mips/mach-ev96100
 load-$(CONFIG_MIPS_EV96100)	+= 0xffffffff80100000
 
 #
+# Wind River PPMC Board (4KC + GT64120)
+#
+core-$(CONFIG_WR_PPMC)		+= arch/mips/gt64120/wrppmc/
+cflags-$(CONFIG_WR_PPMC)		+= -Iinclude/asm-mips/mach-wrppmc
+load-$(CONFIG_WR_PPMC)		+= 0xffffffff80100000
+
+#
 # Globespan IVR eval board with QED 5231 CPU
 #
 core-$(CONFIG_ITE_BOARD_GEN)	+= arch/mips/ite-boards/generic/
