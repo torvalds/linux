@@ -275,7 +275,7 @@ int platform_device_add(struct platform_device *pdev)
 	pr_debug("Registering platform device '%s'. Parent at %s\n",
 		 pdev->dev.bus_id, pdev->dev.parent->bus_id);
 
-	ret = device_register(&pdev->dev);
+	ret = device_add(&pdev->dev);
 	if (ret == 0)
 		return ret;
 
