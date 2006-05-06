@@ -60,6 +60,7 @@
 #include <linux/tty.h>
 #include <linux/selinux.h>
 #include <linux/binfmts.h>
+#include <linux/syscalls.h>
 
 #include "audit.h"
 
@@ -156,7 +157,7 @@ struct audit_context {
 	struct audit_aux_data *aux;
 
 				/* Save things to print about task_struct */
-	pid_t		    pid;
+	pid_t		    pid, ppid;
 	uid_t		    uid, euid, suid, fsuid;
 	gid_t		    gid, egid, sgid, fsgid;
 	unsigned long	    personality;
@@ -379,6 +380,7 @@ static inline struct audit_context *audit_get_context(struct task_struct *tsk,
 	}
 
 	context->pid = tsk->pid;
+	context->ppid = sys_getppid();	/* sic.  tsk == current in all cases */
 	context->uid = tsk->uid;
 	context->gid = tsk->gid;
 	context->euid = tsk->euid;
@@ -614,7 +616,7 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 		tty = "(none)";
 	audit_log_format(ab,
 		  " a0=%lx a1=%lx a2=%lx a3=%lx items=%d"
-		  " pid=%d auid=%u uid=%u gid=%u"
+		  " ppid=%d pid=%d auid=%u uid=%u gid=%u"
 		  " euid=%u suid=%u fsuid=%u"
 		  " egid=%u sgid=%u fsgid=%u tty=%s",
 		  context->argv[0],
@@ -622,6 +624,7 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 		  context->argv[2],
 		  context->argv[3],
 		  context->name_count,
+		  context->ppid,
 		  context->pid,
 		  context->loginuid,
 		  context->uid,
