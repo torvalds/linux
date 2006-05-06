@@ -461,10 +461,12 @@ static inline int get_power_status(struct hotplug_slot *bss_hotplug_slot,
 {
 	struct slot *slot = bss_hotplug_slot->private;
 	struct pcibus_info *pcibus_info;
+	u32 power;
 
 	pcibus_info = SN_PCIBUS_BUSSOFT_INFO(slot->pci_bus);
 	mutex_lock(&sn_hotplug_mutex);
-	*value = pcibus_info->pbi_enabled_devices & (1 << slot->device_num);
+	power = pcibus_info->pbi_enabled_devices & (1 << slot->device_num);
+	*value = power ? 1 : 0;
 	mutex_unlock(&sn_hotplug_mutex);
 	return 0;
 }
