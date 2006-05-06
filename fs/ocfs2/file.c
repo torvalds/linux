@@ -1168,6 +1168,22 @@ static ssize_t ocfs2_file_aio_read(struct kiocb *iocb,
 		ocfs2_iocb_set_rw_locked(iocb);
 	}
 
+	/*
+	 * We're fine letting folks race truncates and extending
+	 * writes with read across the cluster, just like they can
+	 * locally. Hence no rw_lock during read.
+	 * 
+	 * Take and drop the meta data lock to update inode fields
+	 * like i_size. This allows the checks down below
+	 * generic_file_aio_read() a chance of actually working. 
+	 */
+	ret = ocfs2_meta_lock(inode, NULL, NULL, 0);
+	if (ret < 0) {
+		mlog_errno(ret);
+		goto bail;
+	}
+	ocfs2_meta_unlock(inode, 0);
+
 	ret = generic_file_aio_read(iocb, buf, count, iocb->ki_pos);
 	if (ret == -EINVAL)
 		mlog(ML_ERROR, "generic_file_aio_read returned -EINVAL\n");
