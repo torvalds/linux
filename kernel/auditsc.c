@@ -188,6 +188,10 @@ static int audit_filter_rules(struct task_struct *tsk,
 		case AUDIT_PID:
 			result = audit_comparator(tsk->pid, f->op, f->val);
 			break;
+		case AUDIT_PPID:
+			if (ctx)
+				result = audit_comparator(ctx->ppid, f->op, f->val);
+			break;
 		case AUDIT_UID:
 			result = audit_comparator(tsk->uid, f->op, f->val);
 			break;

@@ -152,6 +152,7 @@
 #define AUDIT_SE_TYPE	15	/* security label type */
 #define AUDIT_SE_SEN	16	/* security label sensitivity label */
 #define AUDIT_SE_CLR	17	/* security label clearance label */
+#define AUDIT_PPID	18
 
 				/* These are ONLY useful when checking
 				 * at syscall exit time (AUDIT_AT_EXIT). */
