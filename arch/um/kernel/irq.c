@@ -89,16 +89,18 @@ void sigio_handler(int sig, union uml_pt_regs *regs)
 	struct irq_fd *irq_fd;
 	int n;
 
-	if(smp_sigio_handler()) return;
-	while(1){
+	if (smp_sigio_handler())
+		return;
+
+	while (1) {
 		n = os_waiting_for_events(active_fds);
 		if (n <= 0) {
 			if(n == -EINTR) continue;
 			else break;
 		}
 
-		for(irq_fd = active_fds; irq_fd != NULL; irq_fd = irq_fd->next){
-			if(irq_fd->current_events != 0){
+		for (irq_fd = active_fds; irq_fd != NULL; irq_fd = irq_fd->next) {
+			if (irq_fd->current_events != 0) {
 				irq_fd->current_events = 0;
 				do_IRQ(irq_fd->irq, regs);
 			}
@@ -110,18 +112,16 @@ void sigio_handler(int sig, union uml_pt_regs *regs)
 
 static void maybe_sigio_broken(int fd, int type)
 {
-	if(os_isatty(fd)){
-		if((type == IRQ_WRITE) && !pty_output_sigio){
+	if (os_isatty(fd)) {
+		if ((type == IRQ_WRITE) && !pty_output_sigio) {
 			write_sigio_workaround();
 			add_sigio_fd(fd, 0);
-		}
-		else if((type == IRQ_READ) && !pty_close_sigio){
+		} else if ((type == IRQ_READ) && !pty_close_sigio) {
 			write_sigio_workaround();
 			add_sigio_fd(fd, 1);
 		}
 	}
 }
-
 
 int activate_fd(int irq, int fd, int type, void *dev_id)
 {
@@ -132,16 +132,18 @@ int activate_fd(int irq, int fd, int type, void *dev_id)
 
 	pid = os_getpid();
 	err = os_set_fd_async(fd, pid);
-	if(err < 0)
+	if (err < 0)
 		goto out;
 
 	new_fd = um_kmalloc(sizeof(*new_fd));
 	err = -ENOMEM;
-	if(new_fd == NULL)
+	if (new_fd == NULL)
 		goto out;
 
-	if(type == IRQ_READ) events = UM_POLLIN | UM_POLLPRI;
-	else events = UM_POLLOUT;
+	if (type == IRQ_READ)
+		events = UM_POLLIN | UM_POLLPRI;
+	else
+		events = UM_POLLOUT;
 	*new_fd = ((struct irq_fd) { .next  		= NULL,
 				     .id 		= dev_id,
 				     .fd 		= fd,
@@ -165,8 +167,8 @@ int activate_fd(int irq, int fd, int type, void *dev_id)
 	 * a semaphore.
 	 */
 	flags = irq_lock();
-	for(irq_fd = active_fds; irq_fd != NULL; irq_fd = irq_fd->next){
-		if((irq_fd->fd == fd) && (irq_fd->type == type)){
+	for (irq_fd = active_fds; irq_fd != NULL; irq_fd = irq_fd->next) {
+		if ((irq_fd->fd == fd) && (irq_fd->type == type)) {
 			printk("Registering fd %d twice\n", fd);
 			printk("Irqs : %d, %d\n", irq_fd->irq, irq);
 			printk("Ids : 0x%p, 0x%p\n", irq_fd->id, dev_id);
@@ -175,13 +177,13 @@ int activate_fd(int irq, int fd, int type, void *dev_id)
 	}
 
 	/*-------------*/
-	if(type == IRQ_WRITE)
+	if (type == IRQ_WRITE)
 		fd = -1;
 
 	tmp_pfd = NULL;
 	n = 0;
 
-	while(1){
+	while (1) {
 		n = os_create_pollfd(fd, events, tmp_pfd, n);
 		if (n == 0)
 			break;
@@ -198,10 +200,8 @@ int activate_fd(int irq, int fd, int type, void *dev_id)
 		 * then we free the buffer tmp_fds and try again.
 		 */
 		irq_unlock(flags);
-		if (tmp_pfd != NULL) {
-			kfree(tmp_pfd);
-			tmp_pfd = NULL;
-		}
+		kfree(tmp_pfd);
+		tmp_pfd = NULL;
 
 		tmp_pfd = um_kmalloc(n);
 		if (tmp_pfd == NULL)
@@ -249,7 +249,7 @@ static int same_irq_and_dev(struct irq_fd *irq, void *d)
 {
 	struct irq_and_dev *data = d;
 
-	return((irq->irq == data->irq) && (irq->id == data->dev));
+	return ((irq->irq == data->irq) && (irq->id == data->dev));
 }
 
 void free_irq_by_irq_and_dev(unsigned int irq, void *dev)
@@ -262,7 +262,7 @@ void free_irq_by_irq_and_dev(unsigned int irq, void *dev)
 
 static int same_fd(struct irq_fd *irq, void *fd)
 {
-	return(irq->fd == *((int *) fd));
+	return (irq->fd == *((int *)fd));
 }
 
 void free_irq_by_fd(int fd)
@@ -276,16 +276,17 @@ static struct irq_fd *find_irq_by_fd(int fd, int irqnum, int *index_out)
 	int i = 0;
 	int fdi;
 
-	for(irq=active_fds; irq != NULL; irq = irq->next){
-		if((irq->fd == fd) && (irq->irq == irqnum)) break;
+	for (irq = active_fds; irq != NULL; irq = irq->next) {
+		if ((irq->fd == fd) && (irq->irq == irqnum))
+			break;
 		i++;
 	}
-	if(irq == NULL){
+	if (irq == NULL) {
 		printk("find_irq_by_fd doesn't have descriptor %d\n", fd);
 		goto out;
 	}
 	fdi = os_get_pollfd(i);
-	if((fdi != -1) && (fdi != fd)){
+	if ((fdi != -1) && (fdi != fd)) {
 		printk("find_irq_by_fd - mismatch between active_fds and "
 		       "pollfds, fd %d vs %d, need %d\n", irq->fd,
 		       fdi, fd);
@@ -294,7 +295,7 @@ static struct irq_fd *find_irq_by_fd(int fd, int irqnum, int *index_out)
 	}
 	*index_out = i;
  out:
-	return(irq);
+	return irq;
 }
 
 void reactivate_fd(int fd, int irqnum)
@@ -305,7 +306,7 @@ void reactivate_fd(int fd, int irqnum)
 
 	flags = irq_lock();
 	irq = find_irq_by_fd(fd, irqnum, &i);
-	if(irq == NULL){
+	if (irq == NULL) {
 		irq_unlock(flags);
 		return;
 	}
@@ -326,7 +327,7 @@ void deactivate_fd(int fd, int irqnum)
 
 	flags = irq_lock();
 	irq = find_irq_by_fd(fd, irqnum, &i);
-	if(irq == NULL)
+	if (irq == NULL)
 		goto out;
 	os_set_pollfd(i, -1);
  out:
@@ -338,15 +339,15 @@ int deactivate_all_fds(void)
 	struct irq_fd *irq;
 	int err;
 
-	for(irq=active_fds;irq != NULL;irq = irq->next){
+	for (irq = active_fds; irq != NULL; irq = irq->next) {
 		err = os_clear_fd_async(irq->fd);
-		if(err)
-			return(err);
+		if (err)
+			return err;
 	}
 	/* If there is a signal already queued, after unblocking ignore it */
 	os_set_ioignore();
 
-	return(0);
+	return 0;
 }
 
 void forward_interrupts(int pid)
@@ -356,9 +357,9 @@ void forward_interrupts(int pid)
 	int err;
 
 	flags = irq_lock();
-	for(irq=active_fds;irq != NULL;irq = irq->next){
+	for (irq = active_fds; irq != NULL; irq = irq->next) {
 		err = os_set_owner(irq->fd, pid);
-		if(err < 0){
+		if (err < 0) {
 			/* XXX Just remove the irq rather than
 			 * print out an infinite stream of these
 			 */
@@ -379,7 +380,7 @@ void forward_interrupts(int pid)
 unsigned int do_IRQ(int irq, union uml_pt_regs *regs)
 {
        irq_enter();
-       __do_IRQ(irq, (struct pt_regs *) regs);
+       __do_IRQ(irq, (struct pt_regs *)regs);
        irq_exit();
        return 1;
 }
@@ -392,12 +393,12 @@ int um_request_irq(unsigned int irq, int fd, int type,
 	int err;
 
 	err = request_irq(irq, handler, irqflags, devname, dev_id);
-	if(err)
-		return(err);
+	if (err)
+		return err;
 
-	if(fd != -1)
+	if (fd != -1)
 		err = activate_fd(irq, fd, type, dev_id);
-	return(err);
+	return err;
 }
 EXPORT_SYMBOL(um_request_irq);
 EXPORT_SYMBOL(reactivate_fd);
@@ -409,7 +410,7 @@ unsigned long irq_lock(void)
 	unsigned long flags;
 
 	spin_lock_irqsave(&irq_spinlock, flags);
-	return(flags);
+	return flags;
 }
 
 void irq_unlock(unsigned long flags)
@@ -452,7 +453,7 @@ void __init init_IRQ(void)
 	irq_desc[TIMER_IRQ].depth = 1;
 	irq_desc[TIMER_IRQ].handler = &SIGVTALRM_irq_type;
 	enable_irq(TIMER_IRQ);
-	for(i=1;i<NR_IRQS;i++){
+	for (i = 1; i < NR_IRQS; i++) {
 		irq_desc[i].status = IRQ_DISABLED;
 		irq_desc[i].action = NULL;
 		irq_desc[i].depth = 1;
@@ -467,7 +468,7 @@ int init_aio_irq(int irq, char *name, irqreturn_t (*handler)(int, void *,
 	int fds[2], err;
 
 	err = os_pipe(fds, 1, 1);
-	if(err){
+	if (err) {
 		printk("init_aio_irq - os_pipe failed, err = %d\n", -err);
 		goto out;
 	}
@@ -475,7 +476,7 @@ int init_aio_irq(int irq, char *name, irqreturn_t (*handler)(int, void *,
 	err = um_request_irq(irq, fds[0], IRQ_READ, handler,
 			     SA_INTERRUPT | SA_SAMPLE_RANDOM, name,
 			     (void *) (long) fds[0]);
-	if(err){
+	if (err) {
 		printk("init_aio_irq - : um_request_irq failed, err = %d\n",
 		       err);
 		goto out_close;
@@ -488,5 +489,5 @@ int init_aio_irq(int irq, char *name, irqreturn_t (*handler)(int, void *,
 	os_close_file(fds[0]);
 	os_close_file(fds[1]);
  out:
-	return(err);
+	return err;
 }

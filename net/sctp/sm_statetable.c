@@ -366,9 +366,9 @@ const sctp_sm_table_entry_t *sctp_sm_lookup_event(sctp_event_t event_type,
 	/* SCTP_STATE_EMPTY */ \
 	{.fn = sctp_sf_ootb, .name = "sctp_sf_ootb"}, \
 	/* SCTP_STATE_CLOSED */ \
-	{.fn = sctp_sf_bug, .name = "sctp_sf_bug"}, \
+	{.fn = sctp_sf_discard_chunk, .name = "sctp_sf_discard_chunk"}, \
 	/* SCTP_STATE_COOKIE_WAIT */ \
-	{.fn = sctp_sf_bug, .name = "sctp_sf_bug"}, \
+	{.fn = sctp_sf_discard_chunk, .name = "sctp_sf_discard_chunk"}, \
 	/* SCTP_STATE_COOKIE_ECHOED */ \
 	{.fn = sctp_sf_do_ecne, .name = "sctp_sf_do_ecne"}, \
 	/* SCTP_STATE_ESTABLISHED */ \
@@ -380,7 +380,7 @@ const sctp_sm_table_entry_t *sctp_sm_lookup_event(sctp_event_t event_type,
 	/* SCTP_STATE_SHUTDOWN_RECEIVED */ \
 	{.fn = sctp_sf_do_ecne, .name = "sctp_sf_do_ecne"}, \
 	/* SCTP_STATE_SHUTDOWN_ACK_SENT */ \
-	{.fn = sctp_sf_bug, .name = "sctp_sf_bug"}, \
+	{.fn = sctp_sf_discard_chunk, .name = "sctp_sf_discard_chunk"}, \
 } /* TYPE_SCTP_ECN_ECNE */
 
 #define TYPE_SCTP_ECN_CWR { \
@@ -401,7 +401,7 @@ const sctp_sm_table_entry_t *sctp_sm_lookup_event(sctp_event_t event_type,
 	/* SCTP_STATE_SHUTDOWN_RECEIVED */ \
 	{.fn = sctp_sf_discard_chunk, .name = "sctp_sf_discard_chunk"}, \
 	/* SCTP_STATE_SHUTDOWN_ACK_SENT */ \
-	{.fn = sctp_sf_bug, .name = "sctp_sf_bug"}, \
+	{.fn = sctp_sf_discard_chunk, .name = "sctp_sf_discard_chunk"}, \
 } /* TYPE_SCTP_ECN_CWR */
 
 #define TYPE_SCTP_SHUTDOWN_COMPLETE { \
@@ -647,7 +647,7 @@ chunk_event_table_unknown[SCTP_STATE_NUM_STATES] = {
 	/* SCTP_STATE_EMPTY */ \
 	{.fn = sctp_sf_bug, .name = "sctp_sf_bug"}, \
 	/* SCTP_STATE_CLOSED */ \
-	{.fn = sctp_sf_bug, .name = "sctp_sf_bug"}, \
+	{.fn = sctp_sf_error_closed, .name = "sctp_sf_error_closed"}, \
 	/* SCTP_STATE_COOKIE_WAIT */ \
 	{.fn = sctp_sf_do_prm_requestheartbeat,		      \
 	 .name = "sctp_sf_do_prm_requestheartbeat"},          \

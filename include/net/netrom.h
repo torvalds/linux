@@ -42,11 +42,11 @@ enum {
 #define	NR_COND_PEER_RX_BUSY		0x04
 #define	NR_COND_OWN_RX_BUSY		0x08
 
-#define NR_DEFAULT_T1			(120 * HZ)	/* Outstanding frames - 120 seconds */
-#define NR_DEFAULT_T2			(5   * HZ)	/* Response delay     - 5 seconds */
+#define NR_DEFAULT_T1			120000		/* Outstanding frames - 120 seconds */
+#define NR_DEFAULT_T2			5000		/* Response delay     - 5 seconds */
 #define NR_DEFAULT_N2			3		/* Number of Retries - 3 */
-#define	NR_DEFAULT_T4			(180 * HZ)	/* Busy Delay - 180 seconds */
-#define	NR_DEFAULT_IDLE			(0 * 60 * HZ)	/* No Activity Timeout - none */
+#define	NR_DEFAULT_T4			180000		/* Busy Delay - 180 seconds */
+#define	NR_DEFAULT_IDLE			0		/* No Activity Timeout - none */
 #define	NR_DEFAULT_WINDOW		4		/* Default Window Size - 4 */
 #define	NR_DEFAULT_OBS			6		/* Default Obsolescence Count - 6 */
 #define	NR_DEFAULT_QUAL			10		/* Default Neighbour Quality - 10 */

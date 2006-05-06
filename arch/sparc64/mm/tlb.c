@@ -8,6 +8,7 @@
 #include <linux/percpu.h>
 #include <linux/mm.h>
 #include <linux/swap.h>
+#include <linux/preempt.h>
 
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
@@ -24,6 +25,8 @@ void flush_tlb_pending(void)
 {
 	struct mmu_gather *mp = &__get_cpu_var(mmu_gathers);
 
+	preempt_disable();
+
 	if (mp->tlb_nr) {
 		flush_tsb_user(mp);
 
@@ -38,6 +41,8 @@ void flush_tlb_pending(void)
 		}
 		mp->tlb_nr = 0;
 	}
+
+	preempt_enable();
 }
 
 void tlb_batch_add(struct mm_struct *mm, unsigned long vaddr, pte_t *ptep, pte_t orig)

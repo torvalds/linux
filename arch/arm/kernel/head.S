@@ -24,14 +24,6 @@
 #include <asm/thread_info.h>
 #include <asm/system.h>
 
-#define PROCINFO_MMUFLAGS	8
-#define PROCINFO_INITFUNC	12
-
-#define MACHINFO_TYPE		0
-#define MACHINFO_PHYSIO		4
-#define MACHINFO_PGOFFIO	8
-#define MACHINFO_NAME		12
-
 #define KERNEL_RAM_ADDR	(PAGE_OFFSET + TEXT_OFFSET)
 
 /*

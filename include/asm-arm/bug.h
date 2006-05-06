@@ -1,6 +1,7 @@
 #ifndef _ASMARM_BUG_H
 #define _ASMARM_BUG_H
 
+#include <linux/config.h>
 
 #ifdef CONFIG_BUG
 #ifdef CONFIG_DEBUG_BUGVERBOSE

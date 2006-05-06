@@ -711,10 +711,22 @@ static struct attribute_group dev_attr_group = {
  * enters diag mode.  A device reset is quite likely to crash the
  * machine entirely, so we don't want to normally make it
  * available.
+ *
+ * Called with ipath_mutex held.
  */
 int ipath_expose_reset(struct device *dev)
 {
-	return device_create_file(dev, &dev_attr_reset);
+	static int exposed;
+	int ret;
+
+	if (!exposed) {
+		ret = device_create_file(dev, &dev_attr_reset);
+		exposed = 1;
+	}
+	else
+		ret = 0;
+
+	return ret;
 }
 
 int ipath_driver_create_group(struct device_driver *drv)

@@ -267,6 +267,8 @@ int move_addr_to_user(void *kaddr, int klen, void __user *uaddr, int __user *ule
 		return -EINVAL;
 	if(len)
 	{
+		if (audit_sockaddr(klen, kaddr))
+			return -ENOMEM;
 		if(copy_to_user(uaddr,kaddr,len))
 			return -EFAULT;
 	}

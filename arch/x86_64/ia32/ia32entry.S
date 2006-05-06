@@ -695,4 +695,5 @@ ia32_sys_call_table:
 	.quad sys_splice
 	.quad sys_sync_file_range
 	.quad sys_tee
+	.quad compat_sys_vmsplice
 ia32_syscall_end:		

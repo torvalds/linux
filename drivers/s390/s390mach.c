@@ -13,6 +13,7 @@
 #include <linux/sched.h>
 #include <linux/errno.h>
 #include <linux/workqueue.h>
+#include <linux/time.h>
 
 #include <asm/lowcore.h>
 
@@ -363,7 +364,7 @@ s390_revalidate_registers(struct mci *mci)
 }
 
 #define MAX_IPD_COUNT	29
-#define MAX_IPD_TIME	(5 * 60 * 100 * 1000) /* 5 minutes */
+#define MAX_IPD_TIME	(5 * 60 * USEC_PER_SEC) /* 5 minutes */
 
 /*
  * machine check handler.

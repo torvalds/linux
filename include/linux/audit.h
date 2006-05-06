@@ -82,6 +82,7 @@
 #define AUDIT_CONFIG_CHANGE	1305	/* Audit system configuration change */
 #define AUDIT_SOCKADDR		1306	/* sockaddr copied as syscall arg */
 #define AUDIT_CWD		1307	/* Current working directory */
+#define AUDIT_IPC_SET_PERM	1311	/* IPC new permissions record type */
 
 #define AUDIT_AVC		1400	/* SE Linux avc denial or grant */
 #define AUDIT_SELINUX_ERR	1401	/* Internal SE Linux Errors */
@@ -144,6 +145,11 @@
 #define AUDIT_PERS	10
 #define AUDIT_ARCH	11
 #define AUDIT_MSGTYPE	12
+#define AUDIT_SE_USER	13	/* security label user */
+#define AUDIT_SE_ROLE	14	/* security label role */
+#define AUDIT_SE_TYPE	15	/* security label type */
+#define AUDIT_SE_SEN	16	/* security label sensitivity label */
+#define AUDIT_SE_CLR	17	/* security label clearance label */
 
 				/* These are ONLY useful when checking
 				 * at syscall exit time (AUDIT_AT_EXIT). */
@@ -287,10 +293,10 @@ struct netlink_skb_parms;
 				/* Public API */
 extern int  audit_alloc(struct task_struct *task);
 extern void audit_free(struct task_struct *task);
-extern void audit_syscall_entry(struct task_struct *task, int arch,
+extern void audit_syscall_entry(int arch,
 				int major, unsigned long a0, unsigned long a1,
 				unsigned long a2, unsigned long a3);
-extern void audit_syscall_exit(struct task_struct *task, int failed, long return_code);
+extern void audit_syscall_exit(int failed, long return_code);
 extern void audit_getname(const char *name);
 extern void audit_putname(const char *name);
 extern void __audit_inode(const char *name, const struct inode *inode, unsigned flags);
@@ -314,7 +320,8 @@ extern void auditsc_get_stamp(struct audit_context *ctx,
 			      struct timespec *t, unsigned int *serial);
 extern int  audit_set_loginuid(struct task_struct *task, uid_t loginuid);
 extern uid_t audit_get_loginuid(struct audit_context *ctx);
-extern int audit_ipc_perms(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode, struct kern_ipc_perm *ipcp);
+extern int audit_ipc_obj(struct kern_ipc_perm *ipcp);
+extern int audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode, struct kern_ipc_perm *ipcp);
 extern int audit_socketcall(int nargs, unsigned long *args);
 extern int audit_sockaddr(int len, void *addr);
 extern int audit_avc_path(struct dentry *dentry, struct vfsmount *mnt);
@@ -323,8 +330,8 @@ extern int audit_set_macxattr(const char *name);
 #else
 #define audit_alloc(t) ({ 0; })
 #define audit_free(t) do { ; } while (0)
-#define audit_syscall_entry(t,ta,a,b,c,d,e) do { ; } while (0)
-#define audit_syscall_exit(t,f,r) do { ; } while (0)
+#define audit_syscall_entry(ta,a,b,c,d,e) do { ; } while (0)
+#define audit_syscall_exit(f,r) do { ; } while (0)
 #define audit_getname(n) do { ; } while (0)
 #define audit_putname(n) do { ; } while (0)
 #define __audit_inode(n,i,f) do { ; } while (0)
@@ -333,7 +340,8 @@ extern int audit_set_macxattr(const char *name);
 #define audit_inode_child(d,i,p) do { ; } while (0)
 #define auditsc_get_stamp(c,t,s) do { BUG(); } while (0)
 #define audit_get_loginuid(c) ({ -1; })
-#define audit_ipc_perms(q,u,g,m,i) ({ 0; })
+#define audit_ipc_obj(i) ({ 0; })
+#define audit_ipc_set_perm(q,u,g,m,i) ({ 0; })
 #define audit_socketcall(n,a) ({ 0; })
 #define audit_sockaddr(len, addr) ({ 0; })
 #define audit_avc_path(dentry, mnt) ({ 0; })
@@ -366,7 +374,7 @@ extern void		    audit_log_d_path(struct audit_buffer *ab,
 extern int audit_filter_user(struct netlink_skb_parms *cb, int type);
 extern int audit_filter_type(int type);
 extern int  audit_receive_filter(int type, int pid, int uid, int seq,
-				 void *data, size_t datasz, uid_t loginuid);
+			 void *data, size_t datasz, uid_t loginuid, u32 sid);
 #else
 #define audit_log(c,g,t,f,...) do { ; } while (0)
 #define audit_log_start(c,g,t) ({ NULL; })

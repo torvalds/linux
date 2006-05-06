@@ -449,7 +449,6 @@ static void ipath_ib_timer(void *arg)
 {
 	struct ipath_ibdev *dev = (struct ipath_ibdev *) arg;
 	struct ipath_qp *resend = NULL;
-	struct ipath_qp *rnr = NULL;
 	struct list_head *last;
 	struct ipath_qp *qp;
 	unsigned long flags;
@@ -465,32 +464,18 @@ static void ipath_ib_timer(void *arg)
 	last = &dev->pending[dev->pending_index];
 	while (!list_empty(last)) {
 		qp = list_entry(last->next, struct ipath_qp, timerwait);
-		if (last->next == LIST_POISON1 ||
-		    last->next != &qp->timerwait ||
-		    qp->timerwait.prev != last) {
-			INIT_LIST_HEAD(last);
-		} else {
-			list_del(&qp->timerwait);
-			qp->timerwait.prev = (struct list_head *) resend;
-			resend = qp;
-			atomic_inc(&qp->refcount);
-		}
+		list_del(&qp->timerwait);
+		qp->timer_next = resend;
+		resend = qp;
+		atomic_inc(&qp->refcount);
 	}
 	last = &dev->rnrwait;
 	if (!list_empty(last)) {
 		qp = list_entry(last->next, struct ipath_qp, timerwait);
 		if (--qp->s_rnr_timeout == 0) {
 			do {
-				if (last->next == LIST_POISON1 ||
-				    last->next != &qp->timerwait ||
-				    qp->timerwait.prev != last) {
-					INIT_LIST_HEAD(last);
-					break;
-				}
 				list_del(&qp->timerwait);
-				qp->timerwait.prev =
-					(struct list_head *) rnr;
-				rnr = qp;
+				tasklet_hi_schedule(&qp->s_task);
 				if (list_empty(last))
 					break;
 				qp = list_entry(last->next, struct ipath_qp,
@@ -530,8 +515,7 @@ static void ipath_ib_timer(void *arg)
 	spin_unlock_irqrestore(&dev->pending_lock, flags);
 
 	/* XXX What if timer fires again while this is running? */
-	for (qp = resend; qp != NULL;
-	     qp = (struct ipath_qp *) qp->timerwait.prev) {
+	for (qp = resend; qp != NULL; qp = qp->timer_next) {
 		struct ib_wc wc;
 
 		spin_lock_irqsave(&qp->s_lock, flags);
@@ -545,9 +529,6 @@ static void ipath_ib_timer(void *arg)
 		if (atomic_dec_and_test(&qp->refcount))
 			wake_up(&qp->wait);
 	}
-	for (qp = rnr; qp != NULL;
-	     qp = (struct ipath_qp *) qp->timerwait.prev)
-		tasklet_hi_schedule(&qp->s_task);
 }
 
 /**
@@ -556,9 +537,9 @@ static void ipath_ib_timer(void *arg)
  *
  * This is called from ipath_intr() at interrupt level when a PIO buffer is
  * available after ipath_verbs_send() returned an error that no buffers were
- * available.  Return 0 if we consumed all the PIO buffers and we still have
+ * available.  Return 1 if we consumed all the PIO buffers and we still have
  * QPs waiting for buffers (for now, just do a tasklet_hi_schedule and
- * return one).
+ * return zero).
  */
 static int ipath_ib_piobufavail(void *arg)
 {
@@ -579,7 +560,7 @@ static int ipath_ib_piobufavail(void *arg)
 	spin_unlock_irqrestore(&dev->pending_lock, flags);
 
 bail:
-	return 1;
+	return 0;
 }
 
 static int ipath_query_device(struct ib_device *ibdev,
@@ -1159,7 +1140,7 @@ static ssize_t show_stats(struct class_device *cdev, char *buf)
 
 	len = sprintf(buf,
 		      "RC resends  %d\n"
-		      "RC QACKs    %d\n"
+		      "RC no QACK  %d\n"
 		      "RC ACKs     %d\n"
 		      "RC SEQ NAKs %d\n"
 		      "RC RDMA seq %d\n"

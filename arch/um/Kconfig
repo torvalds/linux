@@ -57,20 +57,6 @@ config STATIC_LINK
 	chroot, and you disable CONFIG_MODE_TT, you probably want to say Y
 	here.
 
-config HOST_2G_2G
-	bool "2G/2G host address space split"
-	default n
-	depends on MODE_TT
-	help
-	This is needed when the host on which you run has a 2G/2G memory
-	split, instead of the customary 3G/1G.
-
-	Note that to enable such a host
-	configuration, which makes sense only in some cases, you need special
-	host patches.
-
-	So, if you do not know what to do here, say 'N'.
-
 config KERNEL_HALF_GIGS
 	int "Kernel address space size (in .5G units)"
 	default "1"

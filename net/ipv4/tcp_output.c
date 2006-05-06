@@ -465,7 +465,7 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it, 
 	TCP_INC_STATS(TCP_MIB_OUTSEGS);
 
 	err = icsk->icsk_af_ops->queue_xmit(skb, 0);
-	if (unlikely(err <= 0))
+	if (likely(err <= 0))
 		return err;
 
 	tcp_enter_cwr(sk);
