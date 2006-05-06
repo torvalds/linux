@@ -82,19 +82,19 @@ extern void v4l_printk_ioctl_arg(char *s,unsigned int cmd, void *arg);
 
 /* VIDIOC_INT_G_REGISTER and VIDIOC_INT_S_REGISTER */
 struct v4l2_register {
-	__u32 i2c_id; 		/* I2C driver ID of the I2C chip. 0 for the I2C adapter. */
+	u32 i2c_id; 		/* I2C driver ID of the I2C chip. 0 for the I2C adapter. */
 	unsigned long reg;
-	__u32 val;
+	u32 val;
 };
 
 /* VIDIOC_INT_DECODE_VBI_LINE */
 struct v4l2_decode_vbi_line {
-	__u32 is_second_field;	/* Set to 0 for the first (odd) field,
+	u32 is_second_field;	/* Set to 0 for the first (odd) field,
 				   set to 1 for the second (even) field. */
-	__u8 *p; 			/* Pointer to the sliced VBI data from the decoder.
+	u8 *p; 			/* Pointer to the sliced VBI data from the decoder.
 				   On exit points to the start of the payload. */
-	__u32 line;		/* Line number of the sliced VBI data (1-23) */
-	__u32 type;		/* VBI service type (V4L2_SLICED_*). 0 if no service found */
+	u32 line;		/* Line number of the sliced VBI data (1-23) */
+	u32 type;		/* VBI service type (V4L2_SLICED_*). 0 if no service found */
 };
 
 /* VIDIOC_INT_G_CHIP_IDENT: identifies the actual chip installed on the board */
@@ -193,8 +193,8 @@ enum v4l2_chip_ident {
 /* Routing definition, device dependent. It specifies which inputs (if any)
    should be routed to which outputs (if any). */
 struct v4l2_routing {
-	__u32 input;
-	__u32 output;
+	u32 input;
+	u32 output;
 };
 
 /* These internal commands should be used to define the inputs and outputs
