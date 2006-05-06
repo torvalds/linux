@@ -613,7 +613,8 @@ leave:
 
 /* Some parts of this taken from generic_cont_expand, which turned out
  * to be too fragile to do exactly what we need without us having to
- * worry about recursive locking in ->commit_write(). */
+ * worry about recursive locking in ->prepare_write() and
+ * ->commit_write(). */
 static int ocfs2_write_zero_page(struct inode *inode,
 				 u64 size)
 {
@@ -641,7 +642,7 @@ static int ocfs2_write_zero_page(struct inode *inode,
 		goto out;
 	}
 
-	ret = ocfs2_prepare_write(NULL, page, offset, offset);
+	ret = ocfs2_prepare_write_nolock(inode, page, offset, offset);
 	if (ret < 0) {
 		mlog_errno(ret);
 		goto out_unlock;
@@ -695,12 +696,25 @@ out:
 	return ret;
 }
 
+/* 
+ * A tail_to_skip value > 0 indicates that we're being called from
+ * ocfs2_file_aio_write(). This has the following implications:
+ *
+ * - we don't want to update i_size
+ * - di_bh will be NULL, which is fine because it's only used in the
+ *   case where we want to update i_size.
+ * - ocfs2_zero_extend() will then only be filling the hole created
+ *   between i_size and the start of the write.
+ */
 static int ocfs2_extend_file(struct inode *inode,
 			     struct buffer_head *di_bh,
-			     u64 new_i_size)
+			     u64 new_i_size,
+			     size_t tail_to_skip)
 {
 	int ret = 0;
 	u32 clusters_to_add;
+
+	BUG_ON(!tail_to_skip && !di_bh);
 
 	/* setattr sometimes calls us like this. */
 	if (new_i_size == 0)
@@ -714,26 +728,43 @@ static int ocfs2_extend_file(struct inode *inode,
 		OCFS2_I(inode)->ip_clusters;
 
 	if (clusters_to_add) {
+		/* 
+		 * protect the pages that ocfs2_zero_extend is going to
+		 * be pulling into the page cache.. we do this before the
+		 * metadata extend so that we don't get into the situation
+		 * where we've extended the metadata but can't get the data
+		 * lock to zero.
+		 */
+		ret = ocfs2_data_lock(inode, 1);
+		if (ret < 0) {
+			mlog_errno(ret);
+			goto out;
+		}
+
 		ret = ocfs2_extend_allocation(inode, clusters_to_add);
 		if (ret < 0) {
 			mlog_errno(ret);
-			goto out;
+			goto out_unlock;
 		}
 
-		ret = ocfs2_zero_extend(inode, new_i_size);
+		ret = ocfs2_zero_extend(inode, (u64)new_i_size - tail_to_skip);
 		if (ret < 0) {
 			mlog_errno(ret);
-			goto out;
+			goto out_unlock;
 		}
-	} 
-
-	/* No allocation required, we just use this helper to
-	 * do a trivial update of i_size. */
-	ret = ocfs2_simple_size_update(inode, di_bh, new_i_size);
-	if (ret < 0) {
-		mlog_errno(ret);
-		goto out;
 	}
+
+	if (!tail_to_skip) {
+		/* We're being called from ocfs2_setattr() which wants
+		 * us to update i_size */
+		ret = ocfs2_simple_size_update(inode, di_bh, new_i_size);
+		if (ret < 0)
+			mlog_errno(ret);
+	}
+
+out_unlock:
+	if (clusters_to_add) /* this is the only case in which we lock */
+		ocfs2_data_unlock(inode, 1);
 
 out:
 	return ret;
@@ -793,7 +824,7 @@ int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
 		if (i_size_read(inode) > attr->ia_size)
 			status = ocfs2_truncate_file(inode, bh, attr->ia_size);
 		else
-			status = ocfs2_extend_file(inode, bh, attr->ia_size);
+			status = ocfs2_extend_file(inode, bh, attr->ia_size, 0);
 		if (status < 0) {
 			if (status != -ENOSPC)
 				mlog_errno(status);
@@ -1049,19 +1080,10 @@ static ssize_t ocfs2_file_aio_write(struct kiocb *iocb,
 		if (!clusters)
 			break;
 
-		ret = ocfs2_extend_allocation(inode, clusters);
+		ret = ocfs2_extend_file(inode, NULL, newsize, count);
 		if (ret < 0) {
 			if (ret != -ENOSPC)
 				mlog_errno(ret);
-			goto out;
-		}
-
-		/* Fill any holes which would've been created by this
-		 * write. If we're O_APPEND, this will wind up
-		 * (correctly) being a noop. */
-		ret = ocfs2_zero_extend(inode, (u64) newsize - count);
-		if (ret < 0) {
-			mlog_errno(ret);
 			goto out;
 		}
 		break;
