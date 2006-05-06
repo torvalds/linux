@@ -1370,8 +1370,6 @@ static struct notifier_block nr_dev_notifier = {
 
 static struct net_device **dev_nr;
 
-static char banner[] __initdata = KERN_INFO "G4KLX NET/ROM for Linux. Version 0.7 for AX25.037 Linux 2.4\n";
-
 static int __init nr_proto_init(void)
 {
 	int i;
@@ -1419,7 +1417,6 @@ static int __init nr_proto_init(void)
 	}
 		
 	register_netdevice_notifier(&nr_dev_notifier);
-	printk(banner);
 
 	ax25_protocol_register(AX25_P_NETROM, nr_route_frame);
 	ax25_linkfail_register(nr_link_failed);
