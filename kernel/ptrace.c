@@ -148,12 +148,16 @@ int ptrace_may_attach(struct task_struct *task)
 int ptrace_attach(struct task_struct *task)
 {
 	int retval;
-	task_lock(task);
+
 	retval = -EPERM;
 	if (task->pid <= 1)
-		goto bad;
+		goto out;
 	if (task->tgid == current->tgid)
-		goto bad;
+		goto out;
+
+	write_lock_irq(&tasklist_lock);
+	task_lock(task);
+
 	/* the same process cannot be attached many times */
 	if (task->ptrace & PT_PTRACED)
 		goto bad;
@@ -166,17 +170,15 @@ int ptrace_attach(struct task_struct *task)
 				      ? PT_ATTACHED : 0);
 	if (capable(CAP_SYS_PTRACE))
 		task->ptrace |= PT_PTRACE_CAP;
-	task_unlock(task);
 
-	write_lock_irq(&tasklist_lock);
 	__ptrace_link(task, current);
-	write_unlock_irq(&tasklist_lock);
 
 	force_sig_specific(SIGSTOP, task);
-	return 0;
 
 bad:
+	write_unlock_irq(&tasklist_lock);
 	task_unlock(task);
+out:
 	return retval;
 }
 
@@ -417,21 +419,22 @@ int ptrace_request(struct task_struct *child, long request,
  */
 int ptrace_traceme(void)
 {
-	int ret;
+	int ret = -EPERM;
 
 	/*
 	 * Are we already being traced?
 	 */
-	if (current->ptrace & PT_PTRACED)
-		return -EPERM;
-	ret = security_ptrace(current->parent, current);
-	if (ret)
-		return -EPERM;
-	/*
-	 * Set the ptrace bit in the process ptrace flags.
-	 */
-	current->ptrace |= PT_PTRACED;
-	return 0;
+	task_lock(current);
+	if (!(current->ptrace & PT_PTRACED)) {
+		ret = security_ptrace(current->parent, current);
+		/*
+		 * Set the ptrace bit in the process ptrace flags.
+		 */
+		if (!ret)
+			current->ptrace |= PT_PTRACED;
+	}
+	task_unlock(current);
+	return ret;
 }
 
 /**
