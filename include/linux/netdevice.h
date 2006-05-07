@@ -506,6 +506,8 @@ struct net_device
 
 	/* class/net/name entry */
 	struct class_device	class_dev;
+	/* space for optional statistics and wireless sysfs groups */
+	struct attribute_group  *sysfs_groups[3];
 };
 
 #define	NETDEV_ALIGN		32
