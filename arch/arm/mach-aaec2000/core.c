@@ -20,7 +20,6 @@
 #include <linux/interrupt.h>
 #include <linux/timex.h>
 #include <linux/signal.h>
-#include <linux/amba/bus.h>
 
 #include <asm/hardware.h>
 #include <asm/irq.h>
