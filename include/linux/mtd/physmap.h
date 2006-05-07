@@ -24,22 +24,18 @@
 #include <linux/mtd/map.h>
 #include <linux/mtd/partitions.h>
 
-/*
- * The map_info for physmap.  Board can override size, buswidth, phys,
- * (*set_vpp)(), etc in their initial setup routine.
- */
-extern struct map_info physmap_map;
+struct physmap_flash_data {
+	unsigned int		width;
+	void			(*set_vpp)(struct map_info *, int);
+	unsigned int		nr_parts;
+	struct mtd_partition	*parts;
+};
 
 /*
  * Board needs to specify the exact mapping during their setup time.
  */
-static inline void physmap_configure(unsigned long addr, unsigned long size, int bankwidth, void (*set_vpp)(struct map_info *, int) )
-{
-	physmap_map.phys = addr;
-	physmap_map.size = size;
-	physmap_map.bankwidth = bankwidth;
-	physmap_map.set_vpp = set_vpp;
-}
+void physmap_configure(unsigned long addr, unsigned long size,
+		int bankwidth, void (*set_vpp)(struct map_info *, int) );
 
 #if defined(CONFIG_MTD_PARTITIONS)
 
@@ -58,4 +54,3 @@ void physmap_set_partitions(struct mtd_partition *parts, int num_parts);
 #endif /* defined(CONFIG_MTD) */
 
 #endif /* __LINUX_MTD_PHYSMAP__ */
-
