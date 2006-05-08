@@ -324,16 +324,9 @@ static int DoCMil_is_alias(struct DiskOnChip *doc1, struct DiskOnChip *doc2)
 	return retval;
 }
 
-static const char im_name[] = "DoCMil_init";
-
-/* This routine is made available to other mtd code via
- * inter_module_register.  It must only be accessed through
- * inter_module_get which will bump the use count of this module.  The
- * addresses passed back in mtd are valid as long as the use count of
- * this module is non-zero, i.e. between inter_module_get and
- * inter_module_put.  Keith Owens <kaos@ocs.com.au> 29 Oct 2000.
- */
-static void DoCMil_init(struct mtd_info *mtd)
+/* This routine is found from the docprobe code by symbol_get(),
+ * which will bump the use count of this module. */
+void DoCMil_init(struct mtd_info *mtd)
 {
 	struct DiskOnChip *this = mtd->priv;
 	struct DiskOnChip *old = NULL;
@@ -401,6 +394,7 @@ static void DoCMil_init(struct mtd_info *mtd)
 		return;
 	}
 }
+EXPORT_SYMBOL_GPL(DocMil_init);
 
 static int doc_read (struct mtd_info *mtd, loff_t from, size_t len,
 		     size_t *retlen, u_char *buf)
@@ -856,12 +850,6 @@ int doc_erase (struct mtd_info *mtd, struct erase_info *instr)
  *
  ****************************************************************************/
 
-static int __init init_doc2001(void)
-{
-	inter_module_register(im_name, THIS_MODULE, &DoCMil_init);
-	return 0;
-}
-
 static void __exit cleanup_doc2001(void)
 {
 	struct mtd_info *mtd;
@@ -877,11 +865,9 @@ static void __exit cleanup_doc2001(void)
 		kfree(this->chips);
 		kfree(mtd);
 	}
-	inter_module_unregister(im_name);
 }
 
 module_exit(cleanup_doc2001);
-module_init(init_doc2001);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("David Woodhouse <dwmw2@infradead.org> et al.");

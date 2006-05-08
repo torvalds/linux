@@ -308,11 +308,15 @@ static void __init DoC_Probe(unsigned long physadr)
 		}
 
 		if (im_funcname)
-			initroutine = inter_module_get_request(im_funcname, im_modname);
+			initroutine = symbol_get(im_funcname);
+		if (!initroutine) {
+			request_module(in_modname);
+			initroutine = symbol_get(im_funcname);
+		}
 
 		if (initroutine) {
 			(*initroutine)(mtd);
-			inter_module_put(im_funcname);
+			symbol_put_addr(initroutine);
 			return;
 		}
 		printk(KERN_NOTICE "Cannot find driver for DiskOnChip %s at 0x%lX\n", name, physadr);

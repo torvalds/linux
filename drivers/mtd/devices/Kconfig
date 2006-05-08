@@ -209,7 +209,6 @@ config MTD_DOC2001PLUS
 config MTD_DOCPROBE
 	tristate
 	select MTD_DOCECC
-	select OBSOLETE_INTERMODULE
 
 config MTD_DOCECC
 	tristate
