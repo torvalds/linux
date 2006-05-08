@@ -3327,6 +3327,8 @@ static void __devexit sky2_remove(struct pci_dev *pdev)
 	del_timer_sync(&hw->idle_timer);
 
 	sky2_write32(hw, B0_IMSK, 0);
+	synchronize_irq(hw->pdev->irq);
+
 	dev0 = hw->dev[0];
 	dev1 = hw->dev[1];
 	if (dev1)
