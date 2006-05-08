@@ -487,14 +487,14 @@ static int strrcmp(const char *s, const char *sub)
  *   atsym   =__param*
  *
  * Pattern 2:
- *   Many drivers utilise a *_driver container with references to
+ *   Many drivers utilise a *driver container with references to
  *   add, remove, probe functions etc.
  *   These functions may often be marked __init and we do not want to
  *   warn here.
  *   the pattern is identified by:
  *   tosec   = .init.text | .exit.text | .init.data
  *   fromsec = .data
- *   atsym = *_driver, *_template, *_sht, *_ops, *_probe, *probe_one
+ *   atsym = *driver, *_template, *_sht, *_ops, *_probe, *probe_one
  **/
 static int secref_whitelist(const char *tosec, const char *fromsec,
 			    const char *atsym)
@@ -502,7 +502,7 @@ static int secref_whitelist(const char *tosec, const char *fromsec,
 	int f1 = 1, f2 = 1;
 	const char **s;
 	const char *pat2sym[] = {
-		"_driver",
+		"driver",
 		"_template", /* scsi uses *_template a lot */
 		"_sht",      /* scsi also used *_sht to some extent */
 		"_ops",
@@ -709,10 +709,17 @@ static void check_sec_ref(struct module *mod, const char *modname,
 		for (rela = start; rela < stop; rela++) {
 			Elf_Rela r;
 			const char *secname;
+			unsigned int r_sym;
 			r.r_offset = TO_NATIVE(rela->r_offset);
-			r.r_info   = TO_NATIVE(rela->r_info);
+			if (hdr->e_ident[EI_CLASS] == ELFCLASS64 &&
+			    hdr->e_machine == EM_MIPS) {
+				r_sym = ELF64_MIPS_R_SYM(rela->r_info);
+				r_sym = TO_NATIVE(r_sym);
+			} else {
+				r_sym = ELF_R_SYM(TO_NATIVE(rela->r_info));
+			}
 			r.r_addend = TO_NATIVE(rela->r_addend);
-			sym = elf->symtab_start + ELF_R_SYM(r.r_info);
+			sym = elf->symtab_start + r_sym;
 			/* Skip special sections */
 			if (sym->st_shndx >= SHN_LORESERVE)
 				continue;
