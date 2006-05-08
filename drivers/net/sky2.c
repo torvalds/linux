@@ -1865,35 +1865,28 @@ static inline void sky2_tx_done(struct net_device *dev, u16 last)
 static int sky2_status_intr(struct sky2_hw *hw, int to_do)
 {
 	int work_done = 0;
+	u16 hwidx = sky2_read16(hw, STAT_PUT_IDX);
 
 	rmb();
 
-	for(;;) {
+	while (hw->st_idx != hwidx) {
 		struct sky2_status_le *le  = hw->st_le + hw->st_idx;
 		struct net_device *dev;
 		struct sky2_port *sky2;
 		struct sk_buff *skb;
 		u32 status;
 		u16 length;
-		u8  link, opcode;
-
-		opcode = le->opcode;
-		if (!opcode)
-			break;
-		opcode &= ~HW_OWNER;
 
 		hw->st_idx = RING_NEXT(hw->st_idx, STATUS_RING_SIZE);
-		le->opcode = 0;
 
-		link = le->link;
-		BUG_ON(link >= 2);
-		dev = hw->dev[link];
+		BUG_ON(le->link >= 2);
+		dev = hw->dev[le->link];
 
 		sky2 = netdev_priv(dev);
 		length = le->length;
 		status = le->status;
 
-		switch (opcode) {
+		switch (le->opcode & ~HW_OWNER) {
 		case OP_RXSTAT:
 			skb = sky2_receive(sky2, length, status);
 			if (!skb)
@@ -1944,8 +1937,8 @@ static int sky2_status_intr(struct sky2_hw *hw, int to_do)
 		default:
 			if (net_ratelimit())
 				printk(KERN_WARNING PFX
-				       "unknown status opcode 0x%x\n", opcode);
-			break;
+				       "unknown status opcode 0x%x\n", le->opcode);
+			goto exit_loop;
 		}
 	}
 
