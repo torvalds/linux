@@ -472,6 +472,8 @@ void __kprobes die_nmi(char *str, struct pt_regs *regs)
 		panic("nmi watchdog");
 	printk("console shuts up ...\n");
 	oops_end(flags);
+	nmi_exit();
+	local_irq_enable();
 	do_exit(SIGSEGV);
 }
 
