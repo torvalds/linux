@@ -385,6 +385,7 @@ void out_of_line_bug(void)
 
 static DEFINE_SPINLOCK(die_lock);
 static int die_owner = -1;
+static unsigned int die_nest_count;
 
 unsigned __kprobes long oops_begin(void)
 {
@@ -399,6 +400,7 @@ unsigned __kprobes long oops_begin(void)
 		else
 			spin_lock(&die_lock);
 	}
+	die_nest_count++;
 	die_owner = cpu;
 	console_verbose();
 	bust_spinlocks(1);
@@ -409,7 +411,13 @@ void __kprobes oops_end(unsigned long flags)
 { 
 	die_owner = -1;
 	bust_spinlocks(0);
-	spin_unlock_irqrestore(&die_lock, flags);
+	die_nest_count--;
+	if (die_nest_count)
+		/* We still own the lock */
+		local_irq_restore(flags);
+	else
+		/* Nest count reaches zero, release the lock. */
+		spin_unlock_irqrestore(&die_lock, flags);
 	if (panic_on_oops)
 		panic("Oops");
 }
