@@ -194,25 +194,28 @@ static inline struct mtd_info *cfi_cmdset_unknown(struct map_info *map,
 {
 	struct cfi_private *cfi = map->fldrv_priv;
 	__u16 type = primary?cfi->cfiq->P_ID:cfi->cfiq->A_ID;
-#if defined(CONFIG_MODULES) && defined(HAVE_INTER_MODULE)
+#ifdef CONFIG_MODULES
 	char probename[32];
 	cfi_cmdset_fn_t *probe_function;
 
 	sprintf(probename, "cfi_cmdset_%4.4X", type);
 
-	probe_function = inter_module_get_request(probename, probename);
+	probe_function = (void *)symbol_get(probename);
+	if (!probe_function) {
+		request_module(probename);
+		probe_function = (void *)symbol_get(probename);
+	}
 
 	if (probe_function) {
 		struct mtd_info *mtd;
 
 		mtd = (*probe_function)(map, primary);
 		/* If it was happy, it'll have increased its own use count */
-		inter_module_put(probename);
+		symbol_put_addr(probe_function);
 		return mtd;
 	}
 #endif
-	printk(KERN_NOTICE "Support for command set %04X not present\n",
-	       type);
+	printk(KERN_NOTICE "Support for command set %04X not present\n", type);
 
 	return NULL;
 }
@@ -226,12 +229,8 @@ static struct mtd_info *check_cmd_set(struct map_info *map, int primary)
 		return NULL;
 
 	switch(type){
-		/* Urgh. Ifdefs. The version with weak symbols was
-		 * _much_ nicer. Shame it didn't seem to work on
-		 * anything but x86, really.
-		 * But we can't rely in inter_module_get() because
-		 * that'd mean we depend on link order.
-		 */
+		/* We need these for the !CONFIG_MODULES case,
+		   because symbol_get() doesn't work there */
 #ifdef CONFIG_MTD_CFI_INTELEXT
 	case 0x0001:
 	case 0x0003:
@@ -246,9 +245,9 @@ static struct mtd_info *check_cmd_set(struct map_info *map, int primary)
         case 0x0020:
 		return cfi_cmdset_0020(map, primary);
 #endif
+	default:
+		return cfi_cmdset_unknown(map, primary);
 	}
-
-	return cfi_cmdset_unknown(map, primary);
 }
 
 MODULE_LICENSE("GPL");

@@ -97,7 +97,6 @@ struct amd_flash_private {
 	int interleave;
 	int numchips;
 	unsigned long chipshift;
-//	const char *im_name;
 	struct flchip chips[0];
 };
 
@@ -130,12 +129,6 @@ static struct mtd_chip_driver amd_flash_chipdrv = {
 	.name = "amd_flash",
 	.module = THIS_MODULE
 };
-
-
-
-static const char im_name[] = "amd_flash";
-
-
 
 static inline __u32 wide_read(struct map_info *map, __u32 addr)
 {

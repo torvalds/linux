@@ -331,13 +331,6 @@ read_pri_intelext(struct map_info *map, __u16 adr)
 	return extp;
 }
 
-/* This routine is made available to other mtd code via
- * inter_module_register.  It must only be accessed through
- * inter_module_get which will bump the use count of this module.  The
- * addresses passed back in cfi are valid as long as the use count of
- * this module is non-zero, i.e. between inter_module_get and
- * inter_module_put.  Keith Owens <kaos@ocs.com.au> 29 Oct 2000.
- */
 struct mtd_info *cfi_cmdset_0001(struct map_info *map, int primary)
 {
 	struct cfi_private *cfi = map->fldrv_priv;
@@ -415,6 +408,11 @@ struct mtd_info *cfi_cmdset_0001(struct map_info *map, int primary)
 
 	return cfi_intelext_setup(mtd);
 }
+struct mtd_info *cfi_cmdset_0003(struct map_info *map, int primary) __attribute__((alias("cfi_cmdset_0001")));
+struct mtd_info *cfi_cmdset_0200(struct map_info *map, int primary) __attribute__((alias("cfi_cmdset_0001")));
+EXPORT_SYMBOL_GPL(cfi_cmdset_0001);
+EXPORT_SYMBOL_GPL(cfi_cmdset_0003);
+EXPORT_SYMBOL_GPL(cfi_cmdset_0200);
 
 static struct mtd_info *cfi_intelext_setup(struct mtd_info *mtd)
 {
@@ -2445,28 +2443,8 @@ static void cfi_intelext_destroy(struct mtd_info *mtd)
 	kfree(mtd->eraseregions);
 }
 
-static char im_name_0001[] = "cfi_cmdset_0001";
-static char im_name_0003[] = "cfi_cmdset_0003";
-static char im_name_0200[] = "cfi_cmdset_0200";
-
-static int __init cfi_intelext_init(void)
-{
-	inter_module_register(im_name_0001, THIS_MODULE, &cfi_cmdset_0001);
-	inter_module_register(im_name_0003, THIS_MODULE, &cfi_cmdset_0001);
-	inter_module_register(im_name_0200, THIS_MODULE, &cfi_cmdset_0001);
-	return 0;
-}
-
-static void __exit cfi_intelext_exit(void)
-{
-	inter_module_unregister(im_name_0001);
-	inter_module_unregister(im_name_0003);
-	inter_module_unregister(im_name_0200);
-}
-
-module_init(cfi_intelext_init);
-module_exit(cfi_intelext_exit);
-
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("David Woodhouse <dwmw2@infradead.org> et al.");
 MODULE_DESCRIPTION("MTD chip driver for Intel/Sharp flash chips");
+MODULE_ALIAS("cfi_cmdset_0003");
+MODULE_ALIAS("cfi_cmdset_0200");

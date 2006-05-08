@@ -326,7 +326,7 @@ struct mtd_info *cfi_cmdset_0002(struct map_info *map, int primary)
 
 	return cfi_amdstd_setup(mtd);
 }
-
+EXPORT_SYMBOL(cfi_cmdset_0002);
 
 static struct mtd_info *cfi_amdstd_setup(struct mtd_info *mtd)
 {
@@ -1757,25 +1757,6 @@ static void cfi_amdstd_destroy(struct mtd_info *mtd)
 	kfree(cfi);
 	kfree(mtd->eraseregions);
 }
-
-static char im_name[]="cfi_cmdset_0002";
-
-
-static int __init cfi_amdstd_init(void)
-{
-	inter_module_register(im_name, THIS_MODULE, &cfi_cmdset_0002);
-	return 0;
-}
-
-
-static void __exit cfi_amdstd_exit(void)
-{
-	inter_module_unregister(im_name);
-}
-
-
-module_init(cfi_amdstd_init);
-module_exit(cfi_amdstd_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Crossnet Co. <info@crossnet.co.jp> et al.");

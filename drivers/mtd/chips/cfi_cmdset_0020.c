@@ -1410,20 +1410,4 @@ static void cfi_staa_destroy(struct mtd_info *mtd)
 	kfree(cfi);
 }
 
-static char im_name[]="cfi_cmdset_0020";
-
-static int __init cfi_staa_init(void)
-{
-	inter_module_register(im_name, THIS_MODULE, &cfi_cmdset_0020);
-	return 0;
-}
-
-static void __exit cfi_staa_exit(void)
-{
-	inter_module_unregister(im_name);
-}
-
-module_init(cfi_staa_init);
-module_exit(cfi_staa_exit);
-
 MODULE_LICENSE("GPL");
