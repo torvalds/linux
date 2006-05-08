@@ -709,17 +709,10 @@ static void check_sec_ref(struct module *mod, const char *modname,
 		for (rela = start; rela < stop; rela++) {
 			Elf_Rela r;
 			const char *secname;
-			unsigned int r_sym;
 			r.r_offset = TO_NATIVE(rela->r_offset);
-			if (hdr->e_ident[EI_CLASS] == ELFCLASS64 &&
-			    hdr->e_machine == EM_MIPS) {
-				r_sym = ELF64_MIPS_R_SYM(rela->r_info);
-				r_sym = TO_NATIVE(r_sym);
-			} else {
-				r_sym = ELF_R_SYM(TO_NATIVE(rela->r_info));
-			}
+			r.r_info   = TO_NATIVE(rela->r_info);
 			r.r_addend = TO_NATIVE(rela->r_addend);
-			sym = elf->symtab_start + r_sym;
+			sym = elf->symtab_start + ELF_R_SYM(r.r_info);
 			/* Skip special sections */
 			if (sym->st_shndx >= SHN_LORESERVE)
 				continue;
