@@ -534,8 +534,7 @@ static int simulate_llsc(struct pt_regs *regs, unsigned int opcode)
 
 /*
  * Simulate trapping 'rdhwr' instructions to provide user accessible
- * registers not implemented in hardware.  The only current use of this
- * is the thread area pointer.
+ * registers not implemented in hardware.
  */
 static int simulate_rdhwr(struct pt_regs *regs, unsigned int opcode)
 {
@@ -545,11 +544,31 @@ static int simulate_rdhwr(struct pt_regs *regs, unsigned int opcode)
 		int rd = (opcode & RD) >> 11;
 		int rt = (opcode & RT) >> 16;
 		switch (rd) {
-			case 29:
-				regs->regs[rt] = ti->tp_value;
-				return 0;
+		case 0:		/* CPU number */
+			regs->regs[rt] = smp_processor_id();
+			return 0;
+		case 1:		/* SYNCI length */
+			regs->regs[rt] = min(current_cpu_data.dcache.linesz,
+					     current_cpu_data.icache.linesz);
+			return 0;
+		case 2:		/* Read count register */
+			regs->regs[rt] = read_c0_count();
+			return 0;
+		case 3:		/* Count register resolution */
+			switch (current_cpu_data.cputype) {
+			case CPU_20KC:
+			case CPU_25KF:
+				regs->regs[rt] = 1;
+				break;
 			default:
-				return -1;
+				regs->regs[rt] = 2;
+			}
+			return 0;
+		case 29:
+			regs->regs[rt] = ti->tp_value;
+			return 0;
+		default:
+			return -1;
 		}
 	}
 
