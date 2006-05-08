@@ -1927,7 +1927,8 @@ static int sky2_status_intr(struct sky2_hw *hw, int to_do)
 
 		case OP_TXINDEXLE:
 			/* TX index reports status for both ports */
-			sky2_tx_done(hw->dev[0], status & 0xffff);
+			BUILD_BUG_ON(TX_RING_SIZE > 0x1000);
+			sky2_tx_done(hw->dev[0], status & 0xfff);
 			if (hw->dev[1])
 				sky2_tx_done(hw->dev[1],
 				     ((status >> 24) & 0xff)
