@@ -274,6 +274,11 @@ void *sbus_alloc_consistent(struct sbus_dev *sdev, long len, u32 *dma_addrp)
 	if (mmu_map_dma_area(dma_addrp, va, res->start, len_total) != 0)
 		goto err_noiommu;
 
+	/* Set the resource name, if known. */
+	if (sdev) {
+		res->name = sdev->prom_name;
+	}
+
 	return (void *)res->start;
 
 err_noiommu:
