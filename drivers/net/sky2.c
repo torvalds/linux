@@ -98,6 +98,10 @@ static int disable_msi = 0;
 module_param(disable_msi, int, 0);
 MODULE_PARM_DESC(disable_msi, "Disable Message Signaled Interrupt (MSI)");
 
+static int idle_timeout = 100;
+module_param(idle_timeout, int, 0);
+MODULE_PARM_DESC(idle_timeout, "Idle timeout workaround for lost interrupts (ms)");
+
 static const struct pci_device_id sky2_id_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_SYSKONNECT, 0x9000) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_SYSKONNECT, 0x9E00) },
@@ -2092,12 +2096,13 @@ static void sky2_descriptor_error(struct sky2_hw *hw, unsigned port,
  */
 static void sky2_idle(unsigned long arg)
 {
-	struct net_device *dev = (struct net_device *) arg;
+	struct sky2_hw *hw = (struct sky2_hw *) arg;
+	struct net_device *dev = hw->dev[0];
 
-	local_irq_disable();
 	if (__netif_rx_schedule_prep(dev))
 		__netif_rx_schedule(dev);
-	local_irq_enable();
+
+	mod_timer(&hw->idle_timer, jiffies + msecs_to_jiffies(idle_timeout));
 }
 
 
@@ -2145,8 +2150,6 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 	if (work_done >= work_limit)
 		return 1;
 
-	mod_timer(&hw->idle_timer, jiffies + HZ);
-
 	netif_rx_complete(dev0);
 
 	status = sky2_read32(hw, B0_Y2_SP_LISR);
@@ -2167,8 +2170,6 @@ static irqreturn_t sky2_intr(int irq, void *dev_id, struct pt_regs *regs)
 	prefetch(&hw->st_le[hw->st_idx]);
 	if (likely(__netif_rx_schedule_prep(dev0)))
 		__netif_rx_schedule(dev0);
-	else
-		printk(KERN_DEBUG PFX "irq race detected\n");
 
 	return IRQ_HANDLED;
 }
@@ -3290,7 +3291,10 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 
 	sky2_write32(hw, B0_IMSK, Y2_IS_BASE);
 
-	setup_timer(&hw->idle_timer, sky2_idle, (unsigned long) dev);
+	setup_timer(&hw->idle_timer, sky2_idle, (unsigned long) hw);
+	if (idle_timeout > 0)
+		mod_timer(&hw->idle_timer,
+			  jiffies + msecs_to_jiffies(idle_timeout));
 
 	pci_set_drvdata(pdev, hw);
 
