@@ -2105,45 +2105,42 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 	int work_done = 0;
 	u32 status = sky2_read32(hw, B0_Y2_SP_EISR);
 
-	if (unlikely(status & ~Y2_IS_STAT_BMU)) {
-		if (status & Y2_IS_HW_ERR)
-			sky2_hw_intr(hw);
+	if (status & Y2_IS_HW_ERR)
+		sky2_hw_intr(hw);
 
-		if (status & Y2_IS_IRQ_PHY1)
-			sky2_phy_intr(hw, 0);
+	if (status & Y2_IS_IRQ_PHY1)
+		sky2_phy_intr(hw, 0);
 
-		if (status & Y2_IS_IRQ_PHY2)
-			sky2_phy_intr(hw, 1);
+	if (status & Y2_IS_IRQ_PHY2)
+		sky2_phy_intr(hw, 1);
 
-		if (status & Y2_IS_IRQ_MAC1)
-			sky2_mac_intr(hw, 0);
+	if (status & Y2_IS_IRQ_MAC1)
+		sky2_mac_intr(hw, 0);
 
-		if (status & Y2_IS_IRQ_MAC2)
-			sky2_mac_intr(hw, 1);
+	if (status & Y2_IS_IRQ_MAC2)
+		sky2_mac_intr(hw, 1);
 
-		if (status & Y2_IS_CHK_RX1)
-			sky2_descriptor_error(hw, 0, "receive", Y2_IS_CHK_RX1);
+	if (status & Y2_IS_CHK_RX1)
+		sky2_descriptor_error(hw, 0, "receive", Y2_IS_CHK_RX1);
 
-		if (status & Y2_IS_CHK_RX2)
-			sky2_descriptor_error(hw, 1, "receive", Y2_IS_CHK_RX2);
+	if (status & Y2_IS_CHK_RX2)
+		sky2_descriptor_error(hw, 1, "receive", Y2_IS_CHK_RX2);
 
-		if (status & Y2_IS_CHK_TXA1)
-			sky2_descriptor_error(hw, 0, "transmit", Y2_IS_CHK_TXA1);
+	if (status & Y2_IS_CHK_TXA1)
+		sky2_descriptor_error(hw, 0, "transmit", Y2_IS_CHK_TXA1);
 
-		if (status & Y2_IS_CHK_TXA2)
-			sky2_descriptor_error(hw, 1, "transmit", Y2_IS_CHK_TXA2);
-	}
+	if (status & Y2_IS_CHK_TXA2)
+		sky2_descriptor_error(hw, 1, "transmit", Y2_IS_CHK_TXA2);
 
-	if (status & Y2_IS_STAT_BMU) {
-		work_done = sky2_status_intr(hw, work_limit);
-		*budget -= work_done;
-		dev0->quota -= work_done;
-
-		if (work_done >= work_limit)
-			return 1;
-
+	if (status & Y2_IS_STAT_BMU)
 		sky2_write32(hw, STAT_CTRL, SC_STAT_CLR_IRQ);
-	}
+
+	work_done = sky2_status_intr(hw, work_limit);
+	*budget -= work_done;
+	dev0->quota -= work_done;
+
+	if (work_done >= work_limit)
+		return 1;
 
 	mod_timer(&hw->idle_timer, jiffies + HZ);
 
