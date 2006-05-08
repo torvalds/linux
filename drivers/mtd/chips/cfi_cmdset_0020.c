@@ -162,6 +162,7 @@ struct mtd_info *cfi_cmdset_0020(struct map_info *map, int primary)
 
 	return cfi_staa_setup(map);
 }
+EXPORT_SYMBOL_GPL(cfi_cmdset_0020);
 
 static struct mtd_info *cfi_staa_setup(struct map_info *map)
 {

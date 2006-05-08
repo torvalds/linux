@@ -326,7 +326,7 @@ struct mtd_info *cfi_cmdset_0002(struct map_info *map, int primary)
 
 	return cfi_amdstd_setup(mtd);
 }
-EXPORT_SYMBOL(cfi_cmdset_0002);
+EXPORT_SYMBOL_GPL(cfi_cmdset_0002);
 
 static struct mtd_info *cfi_amdstd_setup(struct mtd_info *mtd)
 {
