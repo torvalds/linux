@@ -231,6 +231,27 @@ static inline int __init doccheck(void __iomem *potential, unsigned long physadr
 
 static int docfound;
 
+#ifdef CONFIG_DOC2000
+extern void DoC2k_init(struct mtd_info *);
+#define doc2k_initfunc (&DoC2k_init)
+#else 
+#define doc2k_initfunc NULL
+#endif
+
+#ifdef CONFIG_DOC2001
+extern void DoCMil_init(struct mtd_info *);
+#define docmil_initfunc (&DoCMil_init)
+#else 
+#define docmil_initfunc NULL
+#endif
+
+#ifdef CONFIG_DOC2001PLUS
+extern void DoCMilPlus_init(struct mtd_info *);
+#define docmplus_initfunc (&DoCMilPlus_init)
+#else 
+#define docmplus_initfunc NULL
+#endif
+
 static void __init DoC_Probe(unsigned long physadr)
 {
 	void __iomem *docptr;
@@ -280,12 +301,14 @@ static void __init DoC_Probe(unsigned long physadr)
 			name="2000 TSOP";
 			im_funcname = "DoC2k_init";
 			im_modname = "doc2000";
+			initroutine = doc2k_initfunc;
 			break;
 
 		case DOC_ChipID_Doc2k:
 			name="2000";
 			im_funcname = "DoC2k_init";
 			im_modname = "doc2000";
+			initroutine = doc2k_initfunc;
 			break;
 
 		case DOC_ChipID_DocMil:
@@ -293,9 +316,11 @@ static void __init DoC_Probe(unsigned long physadr)
 #ifdef DOC_SINGLE_DRIVER
 			im_funcname = "DoC2k_init";
 			im_modname = "doc2000";
+			initroutine = doc2k_initfunc;
 #else
 			im_funcname = "DoCMil_init";
 			im_modname = "doc2001";
+			initroutine = docmil_initfunc;
 #endif /* DOC_SINGLE_DRIVER */
 			break;
 
@@ -304,16 +329,18 @@ static void __init DoC_Probe(unsigned long physadr)
 			name="MillenniumPlus";
 			im_funcname = "DoCMilPlus_init";
 			im_modname = "doc2001plus";
+			initroutine = docmplus_initfunc;
 			break;
 		}
 
-		if (im_funcname)
+#ifdef CONFIG_MODULES
+		if (im_funcname && !initroutine)
 			initroutine = symbol_get(im_funcname);
-		if (!initroutine) {
-			request_module(in_modname);
+		if (im_funcname && !initroutine) {
+			request_module(im_modname);
 			initroutine = symbol_get(im_funcname);
 		}
-
+#endif
 		if (initroutine) {
 			(*initroutine)(mtd);
 			symbol_put_addr(initroutine);
