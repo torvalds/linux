@@ -42,7 +42,7 @@ static FILE *debugfile;
 int cur_line = 1;
 char *cur_filename;
 
-static int flag_debug, flag_dump_defs, flag_warnings;
+static int flag_debug, flag_dump_defs, flag_dump_types, flag_warnings;
 static const char *arch = "";
 static const char *mod_prefix = "";
 
@@ -50,6 +50,7 @@ static int errors;
 static int nsyms;
 
 static struct symbol *expansion_trail;
+static struct symbol *visited_symbols;
 
 static const char *const symbol_type_name[] = {
 	"normal", "typedef", "enum", "struct", "union"
@@ -176,6 +177,7 @@ struct symbol *add_symbol(const char *name, enum symbol_type type,
 	sym->type = type;
 	sym->defn = defn;
 	sym->expansion_trail = NULL;
+	sym->visited = NULL;
 	sym->is_extern = is_extern;
 
 	sym->hash_next = symtab[h];
@@ -236,26 +238,11 @@ static int equal_list(struct string_list *a, struct string_list *b)
 
 static void print_node(FILE * f, struct string_list *list)
 {
-	switch (list->tag) {
-	case SYM_STRUCT:
-		putc('s', f);
-		goto printit;
-	case SYM_UNION:
-		putc('u', f);
-		goto printit;
-	case SYM_ENUM:
-		putc('e', f);
-		goto printit;
-	case SYM_TYPEDEF:
-		putc('t', f);
-		goto printit;
-
-	      printit:
+	if (list->tag != SYM_NORMAL) {
+		putc(symbol_type_name[list->tag][0], f);
 		putc('#', f);
-	case SYM_NORMAL:
-		fputs(list->string, f);
-		break;
 	}
+	fputs(list->string, f);
 }
 
 static void print_list(FILE * f, struct string_list *list)
@@ -287,9 +274,9 @@ static void print_list(FILE * f, struct string_list *list)
 	}
 }
 
-static unsigned long expand_and_crc_list(struct string_list *list,
-					 unsigned long crc)
+static unsigned long expand_and_crc_sym(struct symbol *sym, unsigned long crc)
 {
+	struct string_list *list = sym->defn;
 	struct string_list **e, **b;
 	struct string_list *tmp, **tmp2;
 	int elem = 1;
@@ -332,7 +319,7 @@ static unsigned long expand_and_crc_list(struct string_list *list,
 			} else {
 				subsym->expansion_trail = expansion_trail;
 				expansion_trail = subsym;
-				crc = expand_and_crc_list(subsym->defn, crc);
+				crc = expand_and_crc_sym(subsym, crc);
 			}
 			break;
 
@@ -382,9 +369,19 @@ static unsigned long expand_and_crc_list(struct string_list *list,
 			} else {
 				subsym->expansion_trail = expansion_trail;
 				expansion_trail = subsym;
-				crc = expand_and_crc_list(subsym->defn, crc);
+				crc = expand_and_crc_sym(subsym, crc);
 			}
 			break;
+		}
+	}
+
+	{
+		static struct symbol **end = &visited_symbols;
+
+		if (!sym->visited) {
+			*end = sym;
+			end = &sym->visited;
+			sym->visited = (struct symbol *)-1L;
 		}
 	}
 
@@ -406,7 +403,7 @@ void export_symbol(const char *name)
 
 		expansion_trail = (struct symbol *)-1L;
 
-		crc = expand_and_crc_list(sym->defn, 0xffffffff) ^ 0xffffffff;
+		crc = expand_and_crc_sym(sym, 0xffffffff) ^ 0xffffffff;
 
 		sym = expansion_trail;
 		while (sym != (struct symbol *)-1L) {
@@ -464,6 +461,7 @@ static void genksyms_usage(void)
 
 int main(int argc, char **argv)
 {
+	FILE *dumpfile = NULL;
 	int o;
 
 #ifdef __GNU_LIBRARY__
@@ -473,15 +471,16 @@ int main(int argc, char **argv)
 		{"warnings", 0, 0, 'w'},
 		{"quiet", 0, 0, 'q'},
 		{"dump", 0, 0, 'D'},
+		{"dump-types", 1, 0, 'T'},
 		{"version", 0, 0, 'V'},
 		{"help", 0, 0, 'h'},
 		{0, 0, 0, 0}
 	};
 
-	while ((o = getopt_long(argc, argv, "a:dwqVDk:p:",
+	while ((o = getopt_long(argc, argv, "a:dwqVDT:k:p:",
 				&long_opts[0], NULL)) != EOF)
 #else				/* __GNU_LIBRARY__ */
-	while ((o = getopt(argc, argv, "a:dwqVDk:p:")) != EOF)
+	while ((o = getopt(argc, argv, "a:dwqVDT:k:p:")) != EOF)
 #endif				/* __GNU_LIBRARY__ */
 		switch (o) {
 		case 'a':
@@ -501,6 +500,14 @@ int main(int argc, char **argv)
 			break;
 		case 'D':
 			flag_dump_defs = 1;
+			break;
+		case 'T':
+			flag_dump_types = 1;
+			dumpfile = fopen(optarg, "w");
+			if (!dumpfile) {
+				perror(optarg);
+				return 1;
+			}
 			break;
 		case 'h':
 			genksyms_usage();
@@ -523,6 +530,24 @@ int main(int argc, char **argv)
 	}
 
 	yyparse();
+
+	if (flag_dump_types && visited_symbols) {
+		while (visited_symbols != (struct symbol *)-1L) {
+			struct symbol *sym = visited_symbols;
+
+			if (sym->type != SYM_NORMAL) {
+				putc(symbol_type_name[sym->type][0], dumpfile);
+				putc('#', dumpfile);
+			}
+			fputs(sym->name, dumpfile);
+			putc(' ', dumpfile);
+			print_list(dumpfile, sym->defn);
+			putc('\n', dumpfile);
+
+			visited_symbols = sym->visited;
+			sym->visited = NULL;
+		}
+	}
 
 	if (flag_debug) {
 		fprintf(debugfile, "Hash table occupancy %d/%d = %g\n",
