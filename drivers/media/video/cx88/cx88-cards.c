@@ -1132,6 +1132,22 @@ struct cx88_board cx88_boards[] = {
 		}},
 		.blackbird = 1,
 	},
+	[CX88_BOARD_PIXELVIEW_PLAYTV_P7000] = {
+		/* FIXME: SVideo, Composite and FM inputs are untested */
+		.name           = "PixelView PlayTV P7000",
+		.tuner_type     = TUNER_PHILIPS_FM1216ME_MK3,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.tda9887_conf   = TDA9887_PRESENT | TDA9887_PORT1_ACTIVE |
+				  TDA9887_PORT2_ACTIVE,
+		.input          = {{
+			.type   = CX88_VMUX_TELEVISION,
+			.vmux   = 0,
+			.gpio0  = 0x5da6,
+		}},
+		.blackbird = 1,
+	},
 };
 const unsigned int cx88_bcount = ARRAY_SIZE(cx88_boards);
 
@@ -1361,6 +1377,10 @@ struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x1822,
 		.subdevice = 0x0019,
 		.card      = CX88_BOARD_DNTV_LIVE_DVB_T_PRO,
+	},{
+		.subvendor = 0x1554,
+		.subdevice = 0x4813,
+		.card      = CX88_BOARD_PIXELVIEW_PLAYTV_P7000,
 	},
 };
 const unsigned int cx88_idcount = ARRAY_SIZE(cx88_subids);
