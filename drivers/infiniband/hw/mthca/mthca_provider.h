@@ -139,11 +139,12 @@ struct mthca_ah {
  * a qp may be locked, with the send cq locked first.  No other
  * nesting should be done.
  *
- * Each struct mthca_cq/qp also has an atomic_t ref count.  The
- * pointer from the cq/qp_table to the struct counts as one reference.
- * This reference also is good for access through the consumer API, so
- * modifying the CQ/QP etc doesn't need to take another reference.
- * Access because of a completion being polled does need a reference.
+ * Each struct mthca_cq/qp also has an ref count, protected by the
+ * corresponding table lock.  The pointer from the cq/qp_table to the
+ * struct counts as one reference.  This reference also is good for
+ * access through the consumer API, so modifying the CQ/QP etc doesn't
+ * need to take another reference.  Access to a QP because of a
+ * completion being polled does not need a reference either.
  *
  * Finally, each struct mthca_cq/qp has a wait_queue_head_t for the
  * destroy function to sleep on.
@@ -159,8 +160,9 @@ struct mthca_ah {
  * - decrement ref count; if zero, wake up waiters
  *
  * To destroy a CQ/QP, we can do the following:
- * - lock cq/qp_table, remove pointer, unlock cq/qp_table lock
- * - decrement ref count
+ * - lock cq/qp_table
+ * - remove pointer and decrement ref count
+ * - unlock cq/qp_table lock
  * - wait_event until ref count is zero
  *
  * It is the consumer's responsibilty to make sure that no QP
@@ -197,7 +199,7 @@ struct mthca_cq_resize {
 struct mthca_cq {
 	struct ib_cq		ibcq;
 	spinlock_t		lock;
-	atomic_t		refcount;
+	int			refcount;
 	int			cqn;
 	u32			cons_index;
 	struct mthca_cq_buf	buf;
@@ -217,7 +219,7 @@ struct mthca_cq {
 struct mthca_srq {
 	struct ib_srq		ibsrq;
 	spinlock_t		lock;
-	atomic_t		refcount;
+	int			refcount;
 	int			srqn;
 	int			max;
 	int			max_gs;
@@ -254,7 +256,7 @@ struct mthca_wq {
 
 struct mthca_qp {
 	struct ib_qp           ibqp;
-	atomic_t               refcount;
+	int                    refcount;
 	u32                    qpn;
 	int                    is_direct;
 	u8                     port; /* for SQP and memfree use only */
