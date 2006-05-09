@@ -24,6 +24,17 @@
 #include <linux/acpi.h>
 #include "pci.h"
 
+/* The Mellanox Tavor device gives false positive parity errors
+ * Mark this device with a broken_parity_status, to allow
+ * PCI scanning code to "skip" this now blacklisted device.
+ */
+static void __devinit quirk_mellanox_tavor(struct pci_dev *dev)
+{
+	dev->broken_parity_status = 1;	/* This device gives false positives */
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MELLANOX,PCI_DEVICE_ID_MELLANOX_TAVOR,quirk_mellanox_tavor);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_MELLANOX,PCI_DEVICE_ID_MELLANOX_TAVOR_BRIDGE,quirk_mellanox_tavor);
+
 /* Deal with broken BIOS'es that neglect to enable passive release,
    which can cause problems in combination with the 82441FX/PPro MTRRs */
 static void __devinit quirk_passive_release(struct pci_dev *dev)
