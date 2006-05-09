@@ -20,6 +20,7 @@
 /* This must match what is in arch/ppc/Makefile */
 #define PAGE_OFFSET	CONFIG_KERNEL_START
 #define KERNELBASE	PAGE_OFFSET
+#define is_kernel_addr(x)	((x) >= PAGE_OFFSET)
 
 #ifndef __ASSEMBLY__
 
