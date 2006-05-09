@@ -669,31 +669,22 @@ xfs_mntupdate(
 	xfs_mount_t	*mp = XFS_BHVTOM(bdp);
 	int		error;
 
-	if (args->flags & XFSMNT_BARRIER)
-		mp->m_flags |= XFS_MOUNT_BARRIER;
-	else
-		mp->m_flags &= ~XFS_MOUNT_BARRIER;
-
-	if ((vfsp->vfs_flag & VFS_RDONLY) &&
-	    !(*flags & MS_RDONLY)) {
-		vfsp->vfs_flag &= ~VFS_RDONLY;
-
-		if (args->flags & XFSMNT_BARRIER)
+	if (!(*flags & MS_RDONLY)) {			/* rw/ro -> rw */
+		if (vfsp->vfs_flag & VFS_RDONLY)
+			vfsp->vfs_flag &= ~VFS_RDONLY;
+		if (args->flags & XFSMNT_BARRIER) {
+			mp->m_flags |= XFS_MOUNT_BARRIER;
 			xfs_mountfs_check_barriers(mp);
-	}
-
-	if (!(vfsp->vfs_flag & VFS_RDONLY) &&
-	    (*flags & MS_RDONLY)) {
+		} else {
+			mp->m_flags &= ~XFS_MOUNT_BARRIER;
+		}
+	} else if (!(vfsp->vfs_flag & VFS_RDONLY)) {	/* rw -> ro */
 		VFS_SYNC(vfsp, SYNC_FSDATA|SYNC_BDFLUSH|SYNC_ATTR, NULL, error);
-
 		xfs_quiesce_fs(mp);
-
-		/* Ok now write out an unmount record */
 		xfs_log_unmount_write(mp);
 		xfs_unmountfs_writesb(mp);
 		vfsp->vfs_flag |= VFS_RDONLY;
 	}
-
 	return 0;
 }
 
