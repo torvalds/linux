@@ -517,6 +517,7 @@ static inline void o2hb_prepare_block(struct o2hb_region *reg,
 	hb_block->hb_seq = cpu_to_le64(cputime);
 	hb_block->hb_node = node_num;
 	hb_block->hb_generation = cpu_to_le64(generation);
+	hb_block->hb_dead_ms = cpu_to_le32(o2hb_dead_threshold * O2HB_REGION_TIMEOUT_MS);
 
 	/* This step must always happen last! */
 	hb_block->hb_cksum = cpu_to_le32(o2hb_compute_block_crc_le(reg,
@@ -645,6 +646,8 @@ static int o2hb_check_slot(struct o2hb_region *reg,
 	struct o2nm_node *node;
 	struct o2hb_disk_heartbeat_block *hb_block = reg->hr_tmp_block;
 	u64 cputime;
+	unsigned int dead_ms = o2hb_dead_threshold * O2HB_REGION_TIMEOUT_MS;
+	unsigned int slot_dead_ms;
 
 	memcpy(hb_block, slot->ds_raw_block, reg->hr_block_bytes);
 
@@ -733,6 +736,23 @@ fire_callbacks:
 			      &o2hb_live_slots[slot->ds_node_num]);
 
 		slot->ds_equal_samples = 0;
+
+		/* We want to be sure that all nodes agree on the
+		 * number of milliseconds before a node will be
+		 * considered dead. The self-fencing timeout is
+		 * computed from this value, and a discrepancy might
+		 * result in heartbeat calling a node dead when it
+		 * hasn't self-fenced yet. */
+		slot_dead_ms = le32_to_cpu(hb_block->hb_dead_ms);
+		if (slot_dead_ms && slot_dead_ms != dead_ms) {
+			/* TODO: Perhaps we can fail the region here. */
+			mlog(ML_ERROR, "Node %d on device %s has a dead count "
+			     "of %u ms, but our count is %u ms.\n"
+			     "Please double check your configuration values "
+			     "for 'O2CB_HEARTBEAT_THRESHOLD'\n",
+			     slot->ds_node_num, reg->hr_dev_name, slot_dead_ms,
+			     dead_ms);
+		}
 		goto out;
 	}
 
