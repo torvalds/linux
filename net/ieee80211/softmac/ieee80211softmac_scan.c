@@ -115,7 +115,15 @@ void ieee80211softmac_scan(void *d)
 			// TODO: is this if correct, or should we do this only if scanning from assoc request?
 			if (sm->associnfo.req_essid.len)
 				ieee80211softmac_send_mgt_frame(sm, &sm->associnfo.req_essid, IEEE80211_STYPE_PROBE_REQ, 0);
+
+			spin_lock_irqsave(&sm->lock, flags);
+			if (unlikely(!sm->running)) {
+				/* Prevent reschedule on workqueue flush */
+				spin_unlock_irqrestore(&sm->lock, flags);
+				break;
+			}
 			schedule_delayed_work(&si->softmac_scan, IEEE80211SOFTMAC_PROBE_DELAY);
+			spin_unlock_irqrestore(&sm->lock, flags);
 			return;
 		} else {
 			dprintk(PFX "Not probing Channel %d (not allowed here)\n", si->channels[current_channel_idx].channel);

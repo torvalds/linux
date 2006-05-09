@@ -118,12 +118,14 @@ int bcm43xx_channel_to_freq(struct bcm43xx_private *bcm,
 static inline
 int bcm43xx_is_valid_channel_a(u8 channel)
 {
-	return (channel <= 200);
+	return (channel >= IEEE80211_52GHZ_MIN_CHANNEL
+	       && channel <= IEEE80211_52GHZ_MAX_CHANNEL);
 }
 static inline
 int bcm43xx_is_valid_channel_bg(u8 channel)
 {
-	return (channel >= 1 && channel <= 14);
+	return (channel >= IEEE80211_24GHZ_MIN_CHANNEL
+	       && channel <= IEEE80211_24GHZ_MAX_CHANNEL);
 }
 static inline
 int bcm43xx_is_valid_channel(struct bcm43xx_private *bcm,

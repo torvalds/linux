@@ -12,6 +12,7 @@ struct mii_phy_ops
 	int		(*setup_forced)(struct mii_phy *phy, int speed, int fd);
 	int		(*poll_link)(struct mii_phy *phy);
 	int		(*read_link)(struct mii_phy *phy);
+	int		(*enable_fiber)(struct mii_phy *phy);
 };
 
 /* Structure used to statically define an mii/gii based PHY */
