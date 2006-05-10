@@ -66,11 +66,11 @@ static irqreturn_t aac_sa_intr(int irq, void *dev_id, struct pt_regs *regs)
 			sa_writew(dev, DoorbellClrReg_p, PrintfReady); /* clear PrintfReady */
 			sa_writew(dev, DoorbellReg_s, PrintfDone);
 		} else if (intstat & DOORBELL_1) {	// dev -> Host Normal Command Ready
-			aac_command_normal(&dev->queues->queue[HostNormCmdQueue]);
 			sa_writew(dev, DoorbellClrReg_p, DOORBELL_1);
+			aac_command_normal(&dev->queues->queue[HostNormCmdQueue]);
 		} else if (intstat & DOORBELL_2) {	// dev -> Host Normal Response Ready
-			aac_response_normal(&dev->queues->queue[HostNormRespQueue]);
 			sa_writew(dev, DoorbellClrReg_p, DOORBELL_2);
+			aac_response_normal(&dev->queues->queue[HostNormRespQueue]);
 		} else if (intstat & DOORBELL_3) {	// dev -> Host Normal Command Not Full
 			sa_writew(dev, DoorbellClrReg_p, DOORBELL_3);
 		} else if (intstat & DOORBELL_4) {	// dev -> Host Normal Response Not Full
