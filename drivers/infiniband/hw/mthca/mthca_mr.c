@@ -761,6 +761,7 @@ void mthca_arbel_fmr_unmap(struct mthca_dev *dev, struct mthca_fmr *fmr)
 
 int __devinit mthca_init_mr_table(struct mthca_dev *dev)
 {
+	unsigned long addr;
 	int err, i;
 
 	err = mthca_alloc_init(&dev->mr_table.mpt_alloc,
@@ -796,9 +797,12 @@ int __devinit mthca_init_mr_table(struct mthca_dev *dev)
 			goto err_fmr_mpt;
 		}
 
+		addr = pci_resource_start(dev->pdev, 4) +
+			((pci_resource_len(dev->pdev, 4) - 1) &
+			 dev->mr_table.mpt_base);
+
 		dev->mr_table.tavor_fmr.mpt_base =
-			ioremap(dev->mr_table.mpt_base,
-				(1 << i) * sizeof (struct mthca_mpt_entry));
+			ioremap(addr, (1 << i) * sizeof(struct mthca_mpt_entry));
 
 		if (!dev->mr_table.tavor_fmr.mpt_base) {
 			mthca_warn(dev, "MPT ioremap for FMR failed.\n");
@@ -806,9 +810,12 @@ int __devinit mthca_init_mr_table(struct mthca_dev *dev)
 			goto err_fmr_mpt;
 		}
 
+		addr = pci_resource_start(dev->pdev, 4) +
+			((pci_resource_len(dev->pdev, 4) - 1) &
+			 dev->mr_table.mtt_base);
+
 		dev->mr_table.tavor_fmr.mtt_base =
-			ioremap(dev->mr_table.mtt_base,
-				(1 << i) * MTHCA_MTT_SEG_SIZE);
+			ioremap(addr, (1 << i) * MTHCA_MTT_SEG_SIZE);
 		if (!dev->mr_table.tavor_fmr.mtt_base) {
 			mthca_warn(dev, "MTT ioremap for FMR failed.\n");
 			err = -ENOMEM;
