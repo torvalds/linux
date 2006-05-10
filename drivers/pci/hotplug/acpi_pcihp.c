@@ -25,6 +25,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/pci.h>
@@ -33,9 +34,18 @@
 #include <acpi/actypes.h>
 #include "pci_hotplug.h"
 
+#define MY_NAME	"acpi_pcihp"
+
+#define dbg(fmt, arg...) do { if (debug_acpi) printk(KERN_DEBUG "%s: %s: " fmt , MY_NAME , __FUNCTION__ , ## arg); } while (0)
+#define err(format, arg...) printk(KERN_ERR "%s: " format , MY_NAME , ## arg)
+#define info(format, arg...) printk(KERN_INFO "%s: " format , MY_NAME , ## arg)
+#define warn(format, arg...) printk(KERN_WARNING "%s: " format , MY_NAME , ## arg)
+
 #define	METHOD_NAME__SUN	"_SUN"
 #define	METHOD_NAME__HPP	"_HPP"
 #define	METHOD_NAME_OSHP	"OSHP"
+
+static int debug_acpi;
 
 
 static acpi_status
@@ -130,8 +140,12 @@ acpi_status acpi_run_oshp(acpi_handle handle)
 	/* run OSHP */
 	status = acpi_evaluate_object(handle, METHOD_NAME_OSHP, NULL, NULL);
 	if (ACPI_FAILURE(status))
-		printk(KERN_ERR "%s:%s OSHP fails=0x%x\n", __FUNCTION__,
-			(char *)string.pointer, status);
+		if (status != AE_NOT_FOUND)
+			printk(KERN_ERR "%s:%s OSHP fails=0x%x\n",
+			       __FUNCTION__, (char *)string.pointer, status);
+		else
+			dbg("%s:%s OSHP not found\n",
+			    __FUNCTION__, (char *)string.pointer);
 	else
 		pr_debug("%s:%s OSHP passes\n", __FUNCTION__,
 			(char *)string.pointer);
@@ -223,3 +237,6 @@ int acpi_root_bridge(acpi_handle handle)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(acpi_root_bridge);
+
+module_param(debug_acpi, bool, 0644);
+MODULE_PARM_DESC(debug_acpi, "Debugging mode for ACPI enabled or not");
