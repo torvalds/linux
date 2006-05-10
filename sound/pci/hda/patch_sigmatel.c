@@ -41,6 +41,7 @@
 #define STAC_REF		0
 #define STAC_D945GTP3		1
 #define STAC_D945GTP5		2
+#define STAC_MACMINI		3
 
 struct sigmatel_spec {
 	struct snd_kcontrol_new *mixers[4];
@@ -52,6 +53,7 @@ struct sigmatel_spec {
 	unsigned int mic_switch: 1;
 	unsigned int alt_switch: 1;
 	unsigned int hp_detect: 1;
+	unsigned int gpio_mute: 1;
 
 	/* playback */
 	struct hda_multi_out multiout;
@@ -293,6 +295,7 @@ static unsigned int *stac922x_brd_tbl[] = {
 	ref922x_pin_configs,
 	d945gtp3_pin_configs,
 	d945gtp5_pin_configs,
+	NULL,		/* STAC_MACMINI */
 };
 
 static struct hda_board_config stac922x_cfg_tbl[] = {
@@ -324,6 +327,9 @@ static struct hda_board_config stac922x_cfg_tbl[] = {
 	{ .pci_subvendor = PCI_VENDOR_ID_INTEL,
 	  .pci_subdevice = 0x0417,
 	  .config = STAC_D945GTP5 },	/* Intel D975XBK - 5 Stack */
+	{ .pci_subvendor = 0x8384,
+	  .pci_subdevice = 0x7680,
+	  .config = STAC_MACMINI },	/* Apple Mac Mini (early 2006) */
 	{} /* terminator */
 };
 
@@ -841,6 +847,19 @@ static int stac92xx_auto_create_analog_input_ctls(struct hda_codec *codec, const
 		}
 	}
 
+	if (imux->num_items == 1) {
+		/*
+		 * Set the current input for the muxes.
+		 * The STAC9221 has two input muxes with identical source
+		 * NID lists.  Hopefully this won't get confused.
+		 */
+		for (i = 0; i < spec->num_muxes; i++) {
+			snd_hda_codec_write(codec, spec->mux_nids[i], 0,
+					    AC_VERB_SET_CONNECT_SEL,
+					    imux->items[0].index);
+		}
+	}
+
 	return 0;
 }
 
@@ -946,6 +965,45 @@ static int stac9200_parse_auto_config(struct hda_codec *codec)
 	return 1;
 }
 
+/*
+ * Early 2006 Intel Macintoshes with STAC9220X5 codecs seem to have a
+ * funky external mute control using GPIO pins.
+ */
+
+static void stac922x_gpio_mute(struct hda_codec *codec, int pin, int muted)
+{
+	unsigned int gpiostate, gpiomask, gpiodir;
+
+	gpiostate = snd_hda_codec_read(codec, codec->afg, 0,
+				       AC_VERB_GET_GPIO_DATA, 0);
+
+	if (!muted)
+		gpiostate |= (1 << pin);
+	else
+		gpiostate &= ~(1 << pin);
+
+	gpiomask = snd_hda_codec_read(codec, codec->afg, 0,
+				      AC_VERB_GET_GPIO_MASK, 0);
+	gpiomask |= (1 << pin);
+
+	gpiodir = snd_hda_codec_read(codec, codec->afg, 0,
+				     AC_VERB_GET_GPIO_DIRECTION, 0);
+	gpiodir |= (1 << pin);
+
+	/* AppleHDA seems to do this -- WTF is this verb?? */
+	snd_hda_codec_write(codec, codec->afg, 0, 0x7e7, 0);
+
+	snd_hda_codec_write(codec, codec->afg, 0,
+			    AC_VERB_SET_GPIO_MASK, gpiomask);
+	snd_hda_codec_write(codec, codec->afg, 0,
+			    AC_VERB_SET_GPIO_DIRECTION, gpiodir);
+
+	msleep(1);
+
+	snd_hda_codec_write(codec, codec->afg, 0,
+			    AC_VERB_SET_GPIO_DATA, gpiostate);
+}
+
 static int stac92xx_init(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec = codec->spec;
@@ -981,6 +1039,11 @@ static int stac92xx_init(struct hda_codec *codec)
 	if (cfg->dig_in_pin)
 		stac92xx_auto_set_pinctl(codec, cfg->dig_in_pin,
 					 AC_PINCTL_IN_EN);
+
+	if (spec->gpio_mute) {
+		stac922x_gpio_mute(codec, 0, 0);
+		stac922x_gpio_mute(codec, 1, 0);
+	}
 
 	return 0;
 }
@@ -1132,7 +1195,7 @@ static int patch_stac922x(struct hda_codec *codec)
 	spec->board_config = snd_hda_check_board_config(codec, stac922x_cfg_tbl);
 	if (spec->board_config < 0)
                 snd_printdd(KERN_INFO "hda_codec: Unknown model for STAC922x, using BIOS defaults\n");
-	else {
+	else if (stac922x_brd_tbl[spec->board_config] != NULL) {
 		spec->num_pins = 10;
 		spec->pin_nids = stac922x_pin_nids;
 		spec->pin_configs = stac922x_brd_tbl[spec->board_config];
@@ -1153,6 +1216,9 @@ static int patch_stac922x(struct hda_codec *codec)
 		stac92xx_free(codec);
 		return err;
 	}
+
+	if (spec->board_config == STAC_MACMINI)
+		spec->gpio_mute = 1;
 
 	codec->patch_ops = stac92xx_patch_ops;
 
