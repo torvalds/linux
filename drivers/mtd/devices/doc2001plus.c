@@ -517,7 +517,7 @@ void DoCMilPlus_init(struct mtd_info *mtd)
 		return;
 	}
 }
-EXPORT_SYMBOL_GPL(DocMilPlus_init);
+EXPORT_SYMBOL_GPL(DoCMilPlus_init);
 
 #if 0
 static int doc_dumpblk(struct mtd_info *mtd, loff_t from)
