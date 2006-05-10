@@ -128,6 +128,7 @@ MODULE_DEVICE_TABLE(pci, sky2_id_table);
 /* Avoid conditionals by using array */
 static const unsigned txqaddr[] = { Q_XA1, Q_XA2 };
 static const unsigned rxqaddr[] = { Q_R1, Q_R2 };
+static const u32 portirq_msk[] = { Y2_IS_PORT_1, Y2_IS_PORT_2 };
 
 /* This driver supports yukon2 chipset only */
 static const char *yukon2_name[] = {
@@ -1084,7 +1085,7 @@ static int sky2_up(struct net_device *dev)
 
 	/* Enable interrupts from phy/mac for port */
 	imask = sky2_read32(hw, B0_IMSK);
-	imask |= (port == 0) ? Y2_IS_PORT_1 : Y2_IS_PORT_2;
+	imask |= portirq_msk[port];
 	sky2_write32(hw, B0_IMSK, imask);
 
 	return 0;
@@ -1435,7 +1436,7 @@ static int sky2_down(struct net_device *dev)
 
 	/* Disable port IRQ */
 	imask = sky2_read32(hw, B0_IMSK);
-	imask &= ~(sky2->port == 0) ? Y2_IS_PORT_1 : Y2_IS_PORT_2;
+	imask &= ~portirq_msk[port];
 	sky2_write32(hw, B0_IMSK, imask);
 
 	/* turn off LED's */
