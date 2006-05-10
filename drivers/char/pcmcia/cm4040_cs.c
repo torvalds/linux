@@ -724,16 +724,19 @@ static int __init cm4040_init(void)
 	if (!cmx_class)
 		return -1;
 
-	rc = pcmcia_register_driver(&reader_driver);
-	if (rc < 0)
-		return rc;
-
 	major = register_chrdev(0, DEVICE_NAME, &reader_fops);
 	if (major < 0) {
 		printk(KERN_WARNING MODULE_NAME
 			": could not get major number\n");
 		return -1;
 	}
+
+	rc = pcmcia_register_driver(&reader_driver);
+	if (rc < 0) {
+		unregister_chrdev(major, DEVICE_NAME);
+		return rc;
+	}
+
 	return 0;
 }
 
