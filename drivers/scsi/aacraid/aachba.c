@@ -148,6 +148,8 @@ static int nondasd = -1;
 static int dacmode = -1;
 
 static int commit = -1;
+int startup_timeout = 180;
+int aif_timeout = 120;
 
 module_param(nondasd, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(nondasd, "Control scanning of hba for nondasd devices. 0=off, 1=on");
@@ -155,6 +157,10 @@ module_param(dacmode, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(dacmode, "Control whether dma addressing is using 64 bit DAC. 0=off, 1=on");
 module_param(commit, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(commit, "Control whether a COMMIT_CONFIG is issued to the adapter for foreign arrays.\nThis is typically needed in systems that do not have a BIOS. 0=off, 1=on");
+module_param(startup_timeout, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(startup_timeout, "The duration of time in seconds to wait for adapter to have it's kernel up and\nrunning. This is typically adjusted for large systems that do not have a BIOS.");
+module_param(aif_timeout, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(aif_timeout, "The duration of time in seconds to wait for applications to pick up AIFs before\nderegistering them. This is typically adjusted for heavily burdened systems.");
 
 int numacb = -1;
 module_param(numacb, int, S_IRUGO|S_IWUSR);

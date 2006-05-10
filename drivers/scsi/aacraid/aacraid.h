@@ -1815,3 +1815,5 @@ int aac_probe_container(struct aac_dev *dev, int cid);
 extern int numacb;
 extern int acbsize;
 extern char aac_driver_version[];
+extern int startup_timeout;
+extern int aif_timeout;

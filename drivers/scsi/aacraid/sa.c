@@ -318,13 +318,13 @@ int aac_sa_init(struct aac_dev *dev)
 	 *	Wait for the adapter to be up and running. Wait up to 3 minutes.
 	 */
 	while (!(sa_readl(dev, Mailbox7) & KERNEL_UP_AND_RUNNING)) {
-		if (time_after(jiffies, start+180*HZ)) {
+		if (time_after(jiffies, start+startup_timeout*HZ)) {
 			status = sa_readl(dev, Mailbox7);
 			printk(KERN_WARNING "%s%d: adapter kernel failed to start, init status = %lx.\n", 
 					name, instance, status);
 			goto error_iounmap;
 		}
-		schedule_timeout_uninterruptible(1);
+		msleep(1);
 	}
 
 	if (request_irq(dev->scsi_host_ptr->irq, aac_sa_intr, SA_SHIRQ|SA_INTERRUPT, "aacraid", (void *)dev ) < 0) {

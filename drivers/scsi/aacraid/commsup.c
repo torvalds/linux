@@ -1214,7 +1214,7 @@ int aac_command_thread(void *data)
 						 * since the last read off
 						 * the queue?
 						 */
-						if ((time_now - time_last) > 120) {
+						if ((time_now - time_last) > aif_timeout) {
 							entry = entry->next;
 							aac_close_fib_context(dev, fibctx);
 							continue;
