@@ -453,15 +453,10 @@ static int aac_eh_reset(struct scsi_cmnd* cmd)
 
 	printk(KERN_ERR "%s: Host adapter reset request. SCSI hang ?\n", 
 					AAC_DRIVERNAME);
-
-
-	spin_lock_irq(host->host_lock);
-
 	aac = (struct aac_dev *)host->hostdata;
 	if (aac_adapter_check_health(aac)) {
 		printk(KERN_ERR "%s: Host adapter appears dead\n", 
 				AAC_DRIVERNAME);
-		spin_unlock_irq(host->host_lock);
 		return -ENODEV;
 	}
 	/*
@@ -487,13 +482,10 @@ static int aac_eh_reset(struct scsi_cmnd* cmd)
 		/*
 		 * We can exit If all the commands are complete
 		 */
-		spin_unlock_irq(host->host_lock);
 		if (active == 0)
 			return SUCCESS;
 		ssleep(1);
-		spin_lock_irq(host->host_lock);
 	}
-	spin_unlock_irq(host->host_lock);
 	printk(KERN_ERR "%s: SCSI bus appears hung\n", AAC_DRIVERNAME);
 	return -ETIMEDOUT;
 }
