@@ -151,16 +151,13 @@ SECTIONS
 
   /* This is the MIPS specific mdebug section.  */
   .mdebug : { *(.mdebug) }
-  /* These are needed for ELF backends which have not yet been
-     converted to the new style linker.  */
-  .stab 0 : { *(.stab) }
-  .stabstr 0 : { *(.stabstr) }
+
+  STABS_DEBUG
 
   DWARF_DEBUG
 
   /* These must appear regardless of  .  */
   .gptab.sdata : { *(.gptab.data) *(.gptab.sdata) }
   .gptab.sbss : { *(.gptab.bss) *(.gptab.sbss) }
-  .comment : { *(.comment) }
   .note : { *(.note) }
 }
