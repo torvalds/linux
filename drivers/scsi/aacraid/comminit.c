@@ -159,7 +159,6 @@ static void aac_queue_init(struct aac_dev * dev, struct aac_queue * q, u32 *mem,
 {
 	q->numpending = 0;
 	q->dev = dev;
-	INIT_LIST_HEAD(&q->pendingq);
 	init_waitqueue_head(&q->cmdready);
 	INIT_LIST_HEAD(&q->cmdq);
 	init_waitqueue_head(&q->qfull);

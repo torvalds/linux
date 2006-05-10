@@ -86,7 +86,6 @@ unsigned int aac_response_normal(struct aac_queue * q)
 		 *	the fib timed out.
 		 */
 		if (!(fib->flags & FIB_CONTEXT_FLAG_TIMED_OUT)) {
-			list_del(&fib->queue);
 			dev->queues->queue[AdapNormCmdQueue].numpending--;
 		} else {
 			printk(KERN_WARNING "aacraid: FIB timeout (%x).\n", fib->flags);
@@ -284,7 +283,6 @@ unsigned int aac_intr_normal(struct aac_dev * dev, u32 Index)
 			return 0;
 		}
 
-		list_del(&fib->queue);
 		dev->queues->queue[AdapNormCmdQueue].numpending--;
 
 		if (fast) {
