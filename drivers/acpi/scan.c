@@ -1371,6 +1371,108 @@ static int acpi_bus_scan_fixed(struct acpi_device *root)
 	return_VALUE(result);
 }
 
+
+static struct acpi_device * to_acpi_dev(struct device * dev)
+{
+	return container_of(dev, struct acpi_device, dev);
+}
+
+
+static int root_suspend(struct acpi_device * acpi_dev)
+{
+	struct acpi_device * dev, * next;
+	int result;
+
+	spin_lock(&acpi_device_lock);
+	list_for_each_entry_safe_reverse(dev, next, &acpi_device_list, g_list) {
+		if (dev->driver && dev->driver->ops.suspend) {
+			spin_unlock(&acpi_device_lock);
+
+			/* TBD: What suspend state should be passed
+			 * to device?
+			 */
+			result = dev->driver->ops.suspend(dev, 0);
+			if (result) {
+				printk(KERN_ERR PREFIX "[%s - %s] Suspend failed: %d\n",
+				       acpi_device_name(dev),
+				       acpi_device_bid(dev), result);
+			}
+			spin_lock(&acpi_device_lock);
+		}
+	}
+	spin_unlock(&acpi_device_lock);
+	return 0;
+}
+
+
+static int acpi_device_suspend(struct device * dev, pm_message_t state)
+{
+	struct acpi_device * acpi_dev = to_acpi_dev(dev);
+
+	/*
+	 * For now, we should only register 1 generic device -
+	 * the ACPI root device - and from there, we walk the
+	 * tree of ACPI devices to suspend each one using the
+	 * ACPI driver methods.
+	 */
+	if (acpi_dev->handle == ACPI_ROOT_OBJECT)
+		root_suspend(acpi_dev);
+	return 0;
+}
+
+
+
+static int root_resume(struct acpi_device * acpi_dev)
+{
+	struct acpi_device * dev, * next;
+	int result;
+
+	spin_lock(&acpi_device_lock);
+	list_for_each_entry_safe(dev, next, &acpi_device_list, g_list) {
+		if (dev->driver && dev->driver->ops.resume) {
+			spin_unlock(&acpi_device_lock);
+
+			/* TBD: What suspend state should be passed
+			 * to device?
+			 */
+			result = dev->driver->ops.resume(dev, 0);
+			if (result) {
+				printk(KERN_ERR PREFIX "[%s - %s] resume failed: %d\n",
+				       acpi_device_name(dev),
+				       acpi_device_bid(dev), result);
+			}
+			spin_lock(&acpi_device_lock);
+		}
+	}
+	spin_unlock(&acpi_device_lock);
+	return 0;
+}
+
+
+static int acpi_device_resume(struct device * dev)
+{
+	struct acpi_device * acpi_dev = to_acpi_dev(dev);
+
+	/*
+	 * For now, we should only register 1 generic device -
+	 * the ACPI root device - and from there, we walk the
+	 * tree of ACPI devices to resume each one using the
+	 * ACPI driver methods.
+	 */
+	if (acpi_dev->handle == ACPI_ROOT_OBJECT)
+		root_resume(acpi_dev);
+	return 0;
+}
+
+
+struct bus_type acpi_bus_type = {
+	.name		= "acpi",
+	.suspend	= acpi_device_suspend,
+	.resume		= acpi_device_resume,
+};
+
+
+
 static int __init acpi_scan_init(void)
 {
 	int result;
@@ -1383,6 +1485,12 @@ static int __init acpi_scan_init(void)
 
 	kset_register(&acpi_namespace_kset);
 
+	result = bus_register(&acpi_bus_type);
+	if (result) {
+		/* We don't want to quit even if we failed to add suspend/resume */
+		printk(KERN_ERR PREFIX "Could not register bus type\n");
+	}
+
 	/*
 	 * Create the root device in the bus's device tree
 	 */
@@ -1392,6 +1500,16 @@ static int __init acpi_scan_init(void)
 		goto Done;
 
 	result = acpi_start_single_object(acpi_root);
+	if (result)
+		goto Done;
+
+	acpi_root->dev.bus = &acpi_bus_type;
+	snprintf(acpi_root->dev.bus_id, BUS_ID_SIZE, "%s", acpi_bus_type.name);
+	result = device_register(&acpi_root->dev);
+	if (result) {
+		/* We don't want to quit even if we failed to add suspend/resume */
+		printk(KERN_ERR PREFIX "Could not register device\n");
+	}
 
 	/*
 	 * Enumerate devices in the ACPI namespace.

@@ -26,7 +26,7 @@
 #ifndef __ACPI_BUS_H__
 #define __ACPI_BUS_H__
 
-#include <linux/kobject.h>
+#include <linux/device.h>
 
 #include <acpi/acpi.h>
 
@@ -296,6 +296,7 @@ struct acpi_device {
 	struct acpi_driver *driver;
 	void *driver_data;
 	struct kobject kobj;
+	struct device dev;
 };
 
 #define acpi_driver_data(d)	((d)->driver_data)
