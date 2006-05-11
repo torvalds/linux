@@ -563,11 +563,9 @@ static int acpi_processor_get_psd(struct acpi_processor	*pr)
 	union acpi_object  *psd = NULL;
 	struct acpi_psd_package *pdomain;
 
-	ACPI_FUNCTION_TRACE("acpi_processor_get_psd");
-
 	status = acpi_evaluate_object(pr->handle, "_PSD", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
-		return_VALUE(-ENODEV);
+		return -ENODEV;
 	}
 
 	psd = (union acpi_object *) buffer.pointer;
@@ -610,7 +608,7 @@ static int acpi_processor_get_psd(struct acpi_processor	*pr)
 
 end:
 	acpi_os_free(buffer.pointer);
-	return_VALUE(result);
+	return result;
 }
 
 int acpi_processor_preregister_performance(
@@ -624,8 +622,6 @@ int acpi_processor_preregister_performance(
 	struct acpi_psd_package *pdomain;
 	struct acpi_processor *match_pr;
 	struct acpi_psd_package *match_pdomain;
-
-	ACPI_FUNCTION_TRACE("acpi_processor_preregister_performance");
 
 	down(&performance_sem);
 
@@ -776,7 +772,7 @@ err_ret:
 	}
 
 	up(&performance_sem);
-	return_VALUE(retval);
+	return retval;
 }
 EXPORT_SYMBOL(acpi_processor_preregister_performance);
 
