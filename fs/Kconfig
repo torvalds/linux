@@ -356,6 +356,16 @@ config OCFS2_FS
 	          - POSIX ACLs
 	          - readpages / writepages (not user visible)
 
+config OCFS2_DEBUG_MASKLOG
+	bool "OCFS2 logging support"
+	depends on OCFS2_FS
+	default y
+	help
+	  The ocfs2 filesystem has an extensive logging system.  The system
+	  allows selection of events to log via files in /sys/o2cb/logmask/.
+	  This option will enlarge your kernel, but it allows debugging of
+	  ocfs2 filesystem issues.
+
 config MINIX_FS
 	tristate "Minix fs support"
 	help

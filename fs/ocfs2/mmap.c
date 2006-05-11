@@ -46,12 +46,12 @@ static struct page *ocfs2_nopage(struct vm_area_struct * area,
 				 unsigned long address,
 				 int *type)
 {
-	struct inode *inode = area->vm_file->f_dentry->d_inode;
 	struct page *page = NOPAGE_SIGBUS;
 	sigset_t blocked, oldset;
 	int ret;
 
-	mlog_entry("(inode %lu, address %lu)\n", inode->i_ino, address);
+	mlog_entry("(area=%p, address=%lu, type=%p)\n", area, address,
+		   type);
 
 	/* The best way to deal with signals in this path is
 	 * to block them upfront, rather than allowing the
