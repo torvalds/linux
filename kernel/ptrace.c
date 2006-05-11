@@ -155,8 +155,26 @@ int ptrace_attach(struct task_struct *task)
 	if (task->tgid == current->tgid)
 		goto out;
 
-	write_lock_irq(&tasklist_lock);
+repeat:
+	/*
+	 * Nasty, nasty.
+	 *
+	 * We want to hold both the task-lock and the
+	 * tasklist_lock for writing at the same time.
+	 * But that's against the rules (tasklist_lock
+	 * is taken for reading by interrupts on other
+	 * cpu's that may have task_lock).
+	 */
 	task_lock(task);
+	local_irq_disable();
+	if (!write_trylock(&tasklist_lock)) {
+		local_irq_enable();
+		task_unlock(task);
+		do {
+			cpu_relax();
+		} while (!write_can_lock(&tasklist_lock));
+		goto repeat;
+	}
 
 	/* the same process cannot be attached many times */
 	if (task->ptrace & PT_PTRACED)
