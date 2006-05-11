@@ -8454,6 +8454,9 @@ static int tg3_run_loopback(struct tg3 *tp, int loopback_mode)
 
 	tx_len = 1514;
 	skb = dev_alloc_skb(tx_len);
+	if (!skb)
+		return -ENOMEM;
+
 	tx_data = skb_put(skb, tx_len);
 	memcpy(tx_data, tp->dev->dev_addr, 6);
 	memset(tx_data + 6, 0x0, 8);

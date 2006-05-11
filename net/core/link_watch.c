@@ -170,13 +170,13 @@ void linkwatch_fire_event(struct net_device *dev)
 		spin_unlock_irqrestore(&lweventlist_lock, flags);
 
 		if (!test_and_set_bit(LW_RUNNING, &linkwatch_flags)) {
-			unsigned long thisevent = jiffies;
+			unsigned long delay = linkwatch_nextevent - jiffies;
 
-			if (thisevent >= linkwatch_nextevent) {
+			/* If we wrap around we'll delay it by at most HZ. */
+			if (!delay || delay > HZ)
 				schedule_work(&linkwatch_work);
-			} else {
-				schedule_delayed_work(&linkwatch_work, linkwatch_nextevent - thisevent);
-			}
+			else
+				schedule_delayed_work(&linkwatch_work, delay);
 		}
 	}
 }
