@@ -1636,9 +1636,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     About capture IBL, see the description of snd-vx222 module.
 
-    Note: the driver is build only when CONFIG_ISA is set.
-    
-    Note2: snd-vxp440 driver is merged to snd-vxpocket driver since
+    Note: snd-vxp440 driver is merged to snd-vxpocket driver since
            ALSA 1.0.10.
 
     The power-management is supported.
@@ -1664,8 +1662,6 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
   --------------------
 
     Module for Sound Core PDAudioCF sound card.
-
-    Note: the driver is build only when CONFIG_ISA is set.
 
     The power-management is supported.
 
