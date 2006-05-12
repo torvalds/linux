@@ -13,7 +13,7 @@
  * (C) Copyright 2000 Yggdrasil Computing, Inc. (port of new PCI interface
  *               support from usb-ohci.c by Adam Richter, adam@yggdrasil.com).
  * (C) Copyright 1999 Gregory P. Smith (from usb-ohci.c)
- * (C) Copyright 2004-2005 Alan Stern, stern@rowland.harvard.edu
+ * (C) Copyright 2004-2006 Alan Stern, stern@rowland.harvard.edu
  */
 
 
@@ -1287,6 +1287,11 @@ restart:
  * Check for queues that have made some forward progress.
  * Returns 0 if the queue is not Isochronous, is ACTIVE, and
  * has not advanced since last examined; 1 otherwise.
+ *
+ * Early Intel controllers have a bug which causes qh->element sometimes
+ * not to advance when a TD completes successfully.  The queue remains
+ * stuck on the inactive completed TD.  We detect such cases and advance
+ * the element pointer by hand.
  */
 static int uhci_advance_check(struct uhci_hcd *uhci, struct uhci_qh *qh)
 {
@@ -1327,6 +1332,15 @@ static int uhci_advance_check(struct uhci_hcd *uhci, struct uhci_qh *qh)
 	/* The queue hasn't advanced; check for timeout */
 	if (!qh->wait_expired && time_after(jiffies,
 			qh->advance_jiffies + QH_WAIT_TIMEOUT)) {
+
+		/* Detect the Intel bug and work around it */
+		if (qh->post_td && qh_element(qh) ==
+				cpu_to_le32(qh->post_td->dma_handle)) {
+			qh->element = qh->post_td->link;
+			qh->advance_jiffies = jiffies;
+			return 1;
+		}
+
 		qh->wait_expired = 1;
 
 		/* If the current URB wants FSBR, unlink it temporarily
