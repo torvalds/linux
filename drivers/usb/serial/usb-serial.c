@@ -225,9 +225,9 @@ static int serial_open (struct tty_struct *tty, struct file * filp)
 bailout_module_put:
 	module_put(serial->type->driver.owner);
 bailout_kref_put:
-	kref_put(&serial->kref, destroy_serial);
 	port->open_count = 0;
 	mutex_unlock(&port->mutex);
+	kref_put(&serial->kref, destroy_serial);
 	return retval;
 }
 
