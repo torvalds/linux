@@ -91,6 +91,12 @@
 #define ATTN_BUTTON		0x80000000
 
 /*
+ * Interrupt Locator Register definitions
+ */
+#define CMD_INTR_PENDING	(1 << 0)
+#define SLOT_INTR_PENDING(i)	(1 << (i + 1))
+
+/*
  * Controller SERR-INT Register
  */
 #define GLOBAL_INTR_MASK	(1 << 0)
@@ -218,7 +224,7 @@ static spinlock_t list_lock;
 
 static atomic_t shpchp_num_controllers = ATOMIC_INIT(0);
 
-static irqreturn_t shpc_isr(int IRQ, void *dev_id, struct pt_regs *regs);
+static irqreturn_t shpc_isr(int irq, void *dev_id, struct pt_regs *regs);
 
 static void start_int_poll_timer(struct php_ctlr_state_s *php_ctlr, int seconds);
 static int hpc_check_cmd_status(struct controller *ctrl);
@@ -279,7 +285,7 @@ static void int_poll_timeout(unsigned long lphp_ctlr)
     }
 
     /* Poll for interrupt events.  regs == NULL => polling */
-    shpc_isr( 0, (void *)php_ctlr, NULL );
+    shpc_isr(0, php_ctlr->callback_instance_id, NULL );
 
     init_timer(&php_ctlr->int_poll_timer);
 	if (!shpchp_poll_time)
@@ -875,103 +881,86 @@ static int hpc_set_bus_speed_mode(struct slot * slot, enum pci_bus_speed value)
 	return retval;
 }
 
-static irqreturn_t shpc_isr(int IRQ, void *dev_id, struct pt_regs *regs)
+static irqreturn_t shpc_isr(int irq, void *dev_id, struct pt_regs *regs)
 {
-	struct controller *ctrl = NULL;
-	struct php_ctlr_state_s *php_ctlr;
-	u8 schedule_flag = 0;
-	u32 temp_dword, intr_loc, intr_loc2;
+	struct controller *ctrl = (struct controller *)dev_id;
+	struct php_ctlr_state_s *php_ctlr = ctrl->hpc_ctlr_handle;
+	u32 serr_int, slot_reg, intr_loc, intr_loc2;
 	int hp_slot;
-
-	if (!dev_id)
-		return IRQ_NONE;
-
-	if (!shpchp_poll_mode) { 
-		ctrl = (struct controller *)dev_id;
-		php_ctlr = ctrl->hpc_ctlr_handle;
-	} else { 
-		php_ctlr = (struct php_ctlr_state_s *) dev_id;
-		ctrl = (struct controller *)php_ctlr->callback_instance_id;
-	}
-
-	if (!ctrl)
-		return IRQ_NONE;
-	
-	if (!php_ctlr || !php_ctlr->creg)
-		return IRQ_NONE;
 
 	/* Check to see if it was our interrupt */
 	intr_loc = shpc_readl(ctrl, INTR_LOC);
-
 	if (!intr_loc)
 		return IRQ_NONE;
+
 	dbg("%s: intr_loc = %x\n",__FUNCTION__, intr_loc); 
 
 	if(!shpchp_poll_mode) {
-		/* Mask Global Interrupt Mask - see implementation note on p. 139 */
-		/* of SHPC spec rev 1.0*/
-		temp_dword = shpc_readl(ctrl, SERR_INTR_ENABLE);
-		temp_dword |= GLOBAL_INTR_MASK;
-		temp_dword &= ~SERR_INTR_RSVDZ_MASK;
-		shpc_writel(ctrl, SERR_INTR_ENABLE, temp_dword);
+		/*
+		 * Mask Global Interrupt Mask - see implementation
+		 * note on p. 139 of SHPC spec rev 1.0
+		 */
+		serr_int = shpc_readl(ctrl, SERR_INTR_ENABLE);
+		serr_int |= GLOBAL_INTR_MASK;
+		serr_int &= ~SERR_INTR_RSVDZ_MASK;
+		shpc_writel(ctrl, SERR_INTR_ENABLE, serr_int);
 
 		intr_loc2 = shpc_readl(ctrl, INTR_LOC);
 		dbg("%s: intr_loc2 = %x\n",__FUNCTION__, intr_loc2); 
 	}
 
-	if (intr_loc & 0x0001) {
+	if (intr_loc & CMD_INTR_PENDING) {
 		/* 
 		 * Command Complete Interrupt Pending 
 		 * RO only - clear by writing 1 to the Command Completion
 		 * Detect bit in Controller SERR-INT register
 		 */
-		temp_dword = shpc_readl(ctrl, SERR_INTR_ENABLE);
-		temp_dword &= ~SERR_INTR_RSVDZ_MASK;
-		shpc_writel(ctrl, SERR_INTR_ENABLE, temp_dword);
+		serr_int = shpc_readl(ctrl, SERR_INTR_ENABLE);
+		serr_int &= ~SERR_INTR_RSVDZ_MASK;
+		shpc_writel(ctrl, SERR_INTR_ENABLE, serr_int);
+
 		ctrl->cmd_busy = 0;
 		wake_up_interruptible(&ctrl->queue);
 	}
 
-	if ((intr_loc = (intr_loc >> 1)) == 0)
+	if (!(intr_loc & ~CMD_INTR_PENDING))
 		goto out;
 
 	for (hp_slot = 0; hp_slot < ctrl->num_slots; hp_slot++) { 
-	/* To find out which slot has interrupt pending */
-		if ((intr_loc >> hp_slot) & 0x01) {
-			temp_dword = shpc_readl(ctrl, SLOT_REG(hp_slot));
-			dbg("%s: Slot %x with intr, slot register = %x\n",
-				__FUNCTION__, hp_slot, temp_dword);
-			if ((php_ctlr->switch_change_callback) &&
-			    (temp_dword & MRL_CHANGE_DETECTED))
-				schedule_flag += php_ctlr->switch_change_callback(
-					hp_slot, php_ctlr->callback_instance_id);
-			if ((php_ctlr->attention_button_callback) &&
-			    (temp_dword & BUTTON_PRESS_DETECTED))
-				schedule_flag += php_ctlr->attention_button_callback(
-					hp_slot, php_ctlr->callback_instance_id);
-			if ((php_ctlr->presence_change_callback) &&
-			    (temp_dword & PRSNT_CHANGE_DETECTED))
-				schedule_flag += php_ctlr->presence_change_callback(
-					hp_slot , php_ctlr->callback_instance_id);
-			if ((php_ctlr->power_fault_callback) &&
-			    (temp_dword & (ISO_PFAULT_DETECTED | CON_PFAULT_DETECTED)))
-				schedule_flag += php_ctlr->power_fault_callback(
-					hp_slot, php_ctlr->callback_instance_id);
-			
-			/* Clear all slot events */
-			temp_dword &= ~SLOT_REG_RSVDZ_MASK;
-			shpc_writel(ctrl, SLOT_REG(hp_slot), temp_dword);
+		/* To find out which slot has interrupt pending */
+		if (!(intr_loc & SLOT_INTR_PENDING(hp_slot)))
+			continue;
 
-			intr_loc2 = shpc_readl(ctrl, INTR_LOC);
-			dbg("%s: intr_loc2 = %x\n",__FUNCTION__, intr_loc2); 
-		}
+		slot_reg = shpc_readl(ctrl, SLOT_REG(hp_slot));
+		dbg("%s: Slot %x with intr, slot register = %x\n",
+		    __FUNCTION__, hp_slot, slot_reg);
+
+		if (slot_reg & MRL_CHANGE_DETECTED)
+			php_ctlr->switch_change_callback(
+				hp_slot, php_ctlr->callback_instance_id);
+
+		if (slot_reg & BUTTON_PRESS_DETECTED)
+			php_ctlr->attention_button_callback(
+				hp_slot, php_ctlr->callback_instance_id);
+
+		if (slot_reg & PRSNT_CHANGE_DETECTED)
+			php_ctlr->presence_change_callback(
+				hp_slot , php_ctlr->callback_instance_id);
+
+		if (slot_reg & (ISO_PFAULT_DETECTED | CON_PFAULT_DETECTED))
+			php_ctlr->power_fault_callback(
+				hp_slot, php_ctlr->callback_instance_id);
+
+		/* Clear all slot events */
+		slot_reg &= ~SLOT_REG_RSVDZ_MASK;
+		shpc_writel(ctrl, SLOT_REG(hp_slot), slot_reg);
 	}
  out:
 	if (!shpchp_poll_mode) {
 		/* Unmask Global Interrupt Mask */
-		temp_dword = shpc_readl(ctrl, SERR_INTR_ENABLE);
-		temp_dword &= ~(GLOBAL_INTR_MASK | SERR_INTR_RSVDZ_MASK);
-		shpc_writel(ctrl, SERR_INTR_ENABLE, temp_dword);
+		serr_int = shpc_readl(ctrl, SERR_INTR_ENABLE);
+		serr_int &= ~(GLOBAL_INTR_MASK | SERR_INTR_RSVDZ_MASK);
+		shpc_writel(ctrl, SERR_INTR_ENABLE, serr_int);
 	}
 	
 	return IRQ_HANDLED;
