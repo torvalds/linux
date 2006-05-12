@@ -611,8 +611,10 @@ static int do_gfs2_set_flags(struct file *filp, u32 reqflags, u32 mask)
 
 	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
 	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
-	if (error)
+	if (error) {
+		gfs2_holder_uninit(&gh);
 		return error;
+	}
 
 	flags = ip->i_di.di_flags;
 	new_flags = (flags & ~mask) | (reqflags & mask);
@@ -635,9 +637,14 @@ static int do_gfs2_set_flags(struct file *filp, u32 reqflags, u32 mask)
 		goto out;
 	if (IS_APPEND(inode) && (new_flags & GFS2_DIF_APPENDONLY))
 		goto out;
-	error = gfs2_repermission(inode, MAY_WRITE, NULL);
-	if (error)
+	if (((new_flags ^ flags) & GFS2_DIF_IMMUTABLE) && 
+	    !capable(CAP_LINUX_IMMUTABLE))
 		goto out;
+	if (!IS_IMMUTABLE(inode)) {
+		error = gfs2_repermission(inode, MAY_WRITE, NULL);
+		if (error)
+			goto out;
+	}
 
 	error = gfs2_trans_begin(sdp, RES_DINODE, 0);
 	if (error)
