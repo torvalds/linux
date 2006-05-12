@@ -965,8 +965,11 @@ static int onenand_write_oob(struct mtd_info *mtd, loff_t to, size_t len,
 
 		this->command(mtd, ONENAND_CMD_BUFFERRAM, to, mtd->oobsize);
 
-		this->write_bufferram(mtd, ONENAND_SPARERAM, ffchars, 0, mtd->oobsize);
-		this->write_bufferram(mtd, ONENAND_SPARERAM, buf, column, thislen);
+		/* We send data to spare ram with oobsize
+		 * to prevent byte access */
+		memset(this->page_buf, 0xff, mtd->oobsize);
+		memcpy(this->page_buf + column, buf, thislen);
+		this->write_bufferram(mtd, ONENAND_SPARERAM, this->page_buf, 0, mtd->oobsize);
 
 		this->command(mtd, ONENAND_CMD_PROGOOB, to, mtd->oobsize);
 
