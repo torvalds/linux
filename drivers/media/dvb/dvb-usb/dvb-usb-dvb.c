@@ -121,16 +121,15 @@ int dvb_usb_dvb_init(struct dvb_usb_device *d)
 
 	dvb_net_init(&d->dvb_adap, &d->dvb_net, &d->demux.dmx);
 
-	goto success;
+	d->state |= DVB_USB_STATE_DVB;
+	return 0;
+
 err_dmx_dev:
 	dvb_dmx_release(&d->demux);
 err_dmx:
 	dvb_unregister_adapter(&d->dvb_adap);
 err:
 	return ret;
-success:
-	d->state |= DVB_USB_STATE_DVB;
-	return 0;
 }
 
 int dvb_usb_dvb_exit(struct dvb_usb_device *d)

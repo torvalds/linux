@@ -116,7 +116,7 @@ static int flexcop_dvb_init(struct flexcop_device *fc)
 	dvb_net_init(&fc->dvb_adapter, &fc->dvbnet, &fc->demux.dmx);
 
 	fc->init_state |= FC_STATE_DVB_INIT;
-	goto success;
+	return 0;
 
 err_connect_frontend:
 	fc->demux.dmx.remove_frontend(&fc->demux.dmx,&fc->mem_frontend);
@@ -129,9 +129,6 @@ err_dmx_dev:
 err_dmx:
 	dvb_unregister_adapter(&fc->dvb_adapter);
 	return ret;
-
-success:
-	return 0;
 }
 
 static void flexcop_dvb_exit(struct flexcop_device *fc)
@@ -279,11 +276,10 @@ int flexcop_device_initialize(struct flexcop_device *fc)
 
 	flexcop_device_name(fc,"initialization of","complete");
 
-	ret = 0;
-	goto success;
+	return 0;
+
 error:
 	flexcop_device_exit(fc);
-success:
 	return ret;
 }
 EXPORT_SYMBOL(flexcop_device_initialize);

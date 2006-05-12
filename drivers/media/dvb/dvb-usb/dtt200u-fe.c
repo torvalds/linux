@@ -168,11 +168,9 @@ struct dvb_frontend* dtt200u_fe_attach(struct dvb_usb_device *d)
 	state->frontend.ops = &state->ops;
 	state->frontend.demodulator_priv = state;
 
-	goto success;
+	return &state->frontend;
 error:
 	return NULL;
-success:
-	return &state->frontend;
 }
 
 static struct dvb_frontend_ops dtt200u_fe_ops = {

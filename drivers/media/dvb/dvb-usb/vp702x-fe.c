@@ -293,11 +293,9 @@ struct dvb_frontend * vp702x_fe_attach(struct dvb_usb_device *d)
 	s->lnb_buf[1] = SET_LNB_POWER;
 	s->lnb_buf[3] = 0xff; /* 0=tone burst, 2=data burst, ff=off */
 
-	goto success;
+	return &s->fe;
 error:
 	return NULL;
-success:
-	return &s->fe;
 }
 
 

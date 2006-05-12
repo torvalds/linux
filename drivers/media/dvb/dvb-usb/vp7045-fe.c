@@ -155,11 +155,9 @@ struct dvb_frontend * vp7045_fe_attach(struct dvb_usb_device *d)
 	s->fe.ops = &s->ops;
 	s->fe.demodulator_priv = s;
 
-	goto success;
+	return &s->fe;
 error:
 	return NULL;
-success:
-	return &s->fe;
 }
 
 
