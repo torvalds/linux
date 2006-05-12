@@ -159,6 +159,7 @@ static const struct pci_device_id piix_pci_tbl[] = {
 	{ 0x8086, 0x7111, PCI_ANY_ID, PCI_ANY_ID, 0, 0, piix4_pata },
 	{ 0x8086, 0x24db, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich5_pata },
 	{ 0x8086, 0x25a2, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich5_pata },
+	{ 0x8086, 0x27df, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich5_pata },
 #endif
 
 	/* NOTE: The following PCI ids must be kept in sync with the
