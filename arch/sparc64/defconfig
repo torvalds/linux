@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.17-rc3
-# Mon May  8 15:12:53 2006
+# Fri May 12 12:43:49 2006
 #
 CONFIG_SPARC=y
 CONFIG_SPARC64=y
@@ -1309,6 +1309,7 @@ CONFIG_DEBUG_BUGVERBOSE=y
 # CONFIG_DEBUG_INFO is not set
 CONFIG_DEBUG_FS=y
 # CONFIG_DEBUG_VM is not set
+# CONFIG_UNWIND_INFO is not set
 CONFIG_FORCED_INLINING=y
 # CONFIG_RCU_TORTURE_TEST is not set
 # CONFIG_DEBUG_STACK_USAGE is not set
