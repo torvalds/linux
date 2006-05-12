@@ -168,9 +168,9 @@ struct controller {
  * error Messages
  */
 #define msg_initialization_err	"Initialization failure, error=%d\n"
-#define msg_button_on		"PCI slot #%d - powering on due to button press.\n"
-#define msg_button_off		"PCI slot #%d - powering off due to button press.\n"
-#define msg_button_cancel	"PCI slot #%d - action canceled due to button press.\n"
+#define msg_button_on		"PCI slot #%s - powering on due to button press.\n"
+#define msg_button_off		"PCI slot #%s - powering off due to button press.\n"
+#define msg_button_cancel	"PCI slot #%s - action canceled due to button press.\n"
 
 /* sysfs functions for the hotplug controller info */
 extern void shpchp_create_ctrl_files	(struct controller *ctrl);
