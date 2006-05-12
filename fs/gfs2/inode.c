@@ -319,7 +319,6 @@ static int inode_create(struct gfs2_glock *i_gl, const struct gfs2_inum *inum,
 		if (error)
 			goto fail;
 	}
-	ip->i_iopen_gh.gh_owner = NULL;
 
 	spin_lock(&io_gl->gl_spin);
 	gfs2_glock_hold(i_gl);

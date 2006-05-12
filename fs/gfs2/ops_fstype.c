@@ -468,11 +468,6 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 	gfs2_glock_dq_uninit(&ji_gh);
 	jindex = 0;
 
-	/* Disown my Journal glock */
-
-	sdp->sd_journal_gh.gh_owner = NULL;
-	sdp->sd_jinode_gh.gh_owner = NULL;
-
 	p = kthread_run(gfs2_recoverd, sdp, "gfs2_recoverd");
 	error = IS_ERR(p);
 	if (error) {
