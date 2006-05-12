@@ -204,7 +204,8 @@ struct ieee80211softmac_device {
 	
 	/* couple of flags */
 	u8 scanning:1, /* protects scanning from being done multiple times at once */
-	   associated:1;
+	   associated:1,
+	   running:1;
 	
 	struct ieee80211softmac_scaninfo *scaninfo;
 	struct ieee80211softmac_assoc_info associnfo;

@@ -52,6 +52,7 @@
 #include <linux/mii.h>
 #include <linux/skbuff.h>
 #include <linux/delay.h>
+#include <linux/crc32.h>
 #include <asm/mipsregs.h>
 #include <asm/irq.h>
 #include <asm/io.h>
@@ -2068,23 +2069,6 @@ static void au1000_tx_timeout(struct net_device *dev)
 	au1000_init(dev);
 	dev->trans_start = jiffies;
 	netif_wake_queue(dev);
-}
-
-
-static unsigned const ethernet_polynomial = 0x04c11db7U;
-static inline u32 ether_crc(int length, unsigned char *data)
-{
-    int crc = -1;
-
-    while(--length >= 0) {
-		unsigned char current_octet = *data++;
-		int bit;
-		for (bit = 0; bit < 8; bit++, current_octet >>= 1)
-			crc = (crc << 1) ^
-				((crc < 0) ^ (current_octet & 1) ? 
-				 ethernet_polynomial : 0);
-    }
-    return crc;
 }
 
 static void set_rx_mode(struct net_device *dev)

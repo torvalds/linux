@@ -302,8 +302,10 @@ static irqreturn_t psmouse_interrupt(struct serio *serio,
  * Check if this is a new device announcement (0xAA 0x00)
  */
 	if (unlikely(psmouse->packet[0] == PSMOUSE_RET_BAT && psmouse->pktcnt <= 2)) {
-		if (psmouse->pktcnt == 1)
+		if (psmouse->pktcnt == 1) {
+			psmouse->last = jiffies;
 			goto out;
+		}
 
 		if (psmouse->packet[1] == PSMOUSE_RET_ID) {
 			__psmouse_set_state(psmouse, PSMOUSE_IGNORE);

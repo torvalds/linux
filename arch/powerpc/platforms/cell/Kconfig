@@ -12,7 +12,8 @@ config SPU_FS
 
 config SPUFS_MMAP
 	bool
-	depends on SPU_FS && SPARSEMEM && !PPC_64K_PAGES
+	depends on SPU_FS && SPARSEMEM
+	select MEMORY_HOTPLUG
 	default y
 
 endmenu

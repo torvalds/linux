@@ -58,9 +58,8 @@ struct dentry *debugfs_create_blob(const char *name, mode_t mode,
  */
 
 static inline struct dentry *debugfs_create_file(const char *name, mode_t mode,
-						 struct dentry *parent,
-						 void *data,
-						 struct file_operations *fops)
+					struct dentry *parent, void *data,
+					const struct file_operations *fops)
 {
 	return ERR_PTR(-ENODEV);
 }

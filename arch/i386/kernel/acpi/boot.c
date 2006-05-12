@@ -215,7 +215,7 @@ static int __init acpi_parse_madt(unsigned long phys_addr, unsigned long size)
 {
 	struct acpi_table_madt *madt = NULL;
 
-	if (!phys_addr || !size || !cpu_has_apic)
+	if (!phys_addr || !size)
 		return -EINVAL;
 
 	madt = (struct acpi_table_madt *)__acpi_map_table(phys_addr, size);
@@ -1101,9 +1101,6 @@ int __init acpi_boot_table_init(void)
 #ifdef __i386__
 	dmi_check_system(acpi_dmi_table);
 #endif
-
-	if (!cpu_has_apic)
-		return -ENODEV;
 
 	/*
 	 * If acpi_disabled, bail out

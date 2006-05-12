@@ -1981,15 +1981,17 @@ static int __init cmm_init(void)
 	if (!cmm_class)
 		return -1;
 
-	rc = pcmcia_register_driver(&cm4000_driver);
-	if (rc < 0)
-		return rc;
-
 	major = register_chrdev(0, DEVICE_NAME, &cm4000_fops);
 	if (major < 0) {
 		printk(KERN_WARNING MODULE_NAME
 			": could not get major number\n");
 		return -1;
+	}
+
+	rc = pcmcia_register_driver(&cm4000_driver);
+	if (rc < 0) {
+		unregister_chrdev(major, DEVICE_NAME);
+		return rc;
 	}
 
 	return 0;

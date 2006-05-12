@@ -58,6 +58,7 @@
 #include <linux/security.h>
 #include <linux/list.h>
 #include <linux/tty.h>
+#include <linux/selinux.h>
 
 #include "audit.h"
 
@@ -89,7 +90,7 @@ struct audit_names {
 	uid_t		uid;
 	gid_t		gid;
 	dev_t		rdev;
-	char		*ctx;
+	u32		osid;
 };
 
 struct audit_aux_data {
@@ -106,7 +107,7 @@ struct audit_aux_data_ipcctl {
 	uid_t			uid;
 	gid_t			gid;
 	mode_t			mode;
-	char 			*ctx;
+	u32			osid;
 };
 
 struct audit_aux_data_socketcall {
@@ -167,7 +168,8 @@ static int audit_filter_rules(struct task_struct *tsk,
 			      struct audit_context *ctx,
 			      enum audit_state *state)
 {
-	int i, j;
+	int i, j, need_sid = 1;
+	u32 sid;
 
 	for (i = 0; i < rule->field_count; i++) {
 		struct audit_field *f = &rule->fields[i];
@@ -257,6 +259,27 @@ static int audit_filter_rules(struct task_struct *tsk,
 			if (ctx)
 				result = audit_comparator(ctx->loginuid, f->op, f->val);
 			break;
+		case AUDIT_SE_USER:
+		case AUDIT_SE_ROLE:
+		case AUDIT_SE_TYPE:
+		case AUDIT_SE_SEN:
+		case AUDIT_SE_CLR:
+			/* NOTE: this may return negative values indicating
+			   a temporary error.  We simply treat this as a
+			   match for now to avoid losing information that
+			   may be wanted.   An error message will also be
+			   logged upon error */
+			if (f->se_rule) {
+				if (need_sid) {
+					selinux_task_ctxid(tsk, &sid);
+					need_sid = 0;
+				}
+				result = selinux_audit_rule_match(sid, f->type,
+				                                  f->op,
+				                                  f->se_rule,
+				                                  ctx);
+			}
+			break;
 		case AUDIT_ARG0:
 		case AUDIT_ARG1:
 		case AUDIT_ARG2:
@@ -329,7 +352,6 @@ static enum audit_state audit_filter_syscall(struct task_struct *tsk,
 	return AUDIT_BUILD_CONTEXT;
 }
 
-/* This should be called with task_lock() held. */
 static inline struct audit_context *audit_get_context(struct task_struct *tsk,
 						      int return_valid,
 						      int return_code)
@@ -391,9 +413,6 @@ static inline void audit_free_names(struct audit_context *context)
 #endif
 
 	for (i = 0; i < context->name_count; i++) {
-		char *p = context->names[i].ctx;
-		context->names[i].ctx = NULL;
-		kfree(p);
 		if (context->names[i].name)
 			__putname(context->names[i].name);
 	}
@@ -415,11 +434,6 @@ static inline void audit_free_aux(struct audit_context *context)
 			struct audit_aux_data_path *axi = (void *)aux;
 			dput(axi->dentry);
 			mntput(axi->mnt);
-		}
-		if ( aux->type == AUDIT_IPC ) {
-			struct audit_aux_data_ipcctl *axi = (void *)aux;
-			if (axi->ctx)
-				kfree(axi->ctx);
 		}
 
 		context->aux = aux->next;
@@ -506,7 +520,7 @@ static inline void audit_free_context(struct audit_context *context)
 		printk(KERN_ERR "audit: freed %d contexts\n", count);
 }
 
-static void audit_log_task_context(struct audit_buffer *ab, gfp_t gfp_mask)
+static void audit_log_task_context(struct audit_buffer *ab)
 {
 	char *ctx = NULL;
 	ssize_t len = 0;
@@ -518,7 +532,7 @@ static void audit_log_task_context(struct audit_buffer *ab, gfp_t gfp_mask)
 		return;
 	}
 
-	ctx = kmalloc(len, gfp_mask);
+	ctx = kmalloc(len, GFP_KERNEL);
 	if (!ctx)
 		goto error_path;
 
@@ -536,47 +550,46 @@ error_path:
 	return;
 }
 
-static void audit_log_task_info(struct audit_buffer *ab, gfp_t gfp_mask)
+static void audit_log_task_info(struct audit_buffer *ab, struct task_struct *tsk)
 {
-	char name[sizeof(current->comm)];
-	struct mm_struct *mm = current->mm;
+	char name[sizeof(tsk->comm)];
+	struct mm_struct *mm = tsk->mm;
 	struct vm_area_struct *vma;
 
-	get_task_comm(name, current);
+	/* tsk == current */
+
+	get_task_comm(name, tsk);
 	audit_log_format(ab, " comm=");
 	audit_log_untrustedstring(ab, name);
 
-	if (!mm)
-		return;
-
-	/*
-	 * this is brittle; all callers that pass GFP_ATOMIC will have
-	 * NULL current->mm and we won't get here.
-	 */
-	down_read(&mm->mmap_sem);
-	vma = mm->mmap;
-	while (vma) {
-		if ((vma->vm_flags & VM_EXECUTABLE) &&
-		    vma->vm_file) {
-			audit_log_d_path(ab, "exe=",
-					 vma->vm_file->f_dentry,
-					 vma->vm_file->f_vfsmnt);
-			break;
+	if (mm) {
+		down_read(&mm->mmap_sem);
+		vma = mm->mmap;
+		while (vma) {
+			if ((vma->vm_flags & VM_EXECUTABLE) &&
+			    vma->vm_file) {
+				audit_log_d_path(ab, "exe=",
+						 vma->vm_file->f_dentry,
+						 vma->vm_file->f_vfsmnt);
+				break;
+			}
+			vma = vma->vm_next;
 		}
-		vma = vma->vm_next;
+		up_read(&mm->mmap_sem);
 	}
-	up_read(&mm->mmap_sem);
-	audit_log_task_context(ab, gfp_mask);
+	audit_log_task_context(ab);
 }
 
-static void audit_log_exit(struct audit_context *context, gfp_t gfp_mask)
+static void audit_log_exit(struct audit_context *context, struct task_struct *tsk)
 {
-	int i;
+	int i, call_panic = 0;
 	struct audit_buffer *ab;
 	struct audit_aux_data *aux;
 	const char *tty;
 
-	ab = audit_log_start(context, gfp_mask, AUDIT_SYSCALL);
+	/* tsk == current */
+
+	ab = audit_log_start(context, GFP_KERNEL, AUDIT_SYSCALL);
 	if (!ab)
 		return;		/* audit_panic has been called */
 	audit_log_format(ab, "arch=%x syscall=%d",
@@ -587,8 +600,8 @@ static void audit_log_exit(struct audit_context *context, gfp_t gfp_mask)
 		audit_log_format(ab, " success=%s exit=%ld", 
 				 (context->return_valid==AUDITSC_SUCCESS)?"yes":"no",
 				 context->return_code);
-	if (current->signal->tty && current->signal->tty->name)
-		tty = current->signal->tty->name;
+	if (tsk->signal && tsk->signal->tty && tsk->signal->tty->name)
+		tty = tsk->signal->tty->name;
 	else
 		tty = "(none)";
 	audit_log_format(ab,
@@ -607,12 +620,12 @@ static void audit_log_exit(struct audit_context *context, gfp_t gfp_mask)
 		  context->gid,
 		  context->euid, context->suid, context->fsuid,
 		  context->egid, context->sgid, context->fsgid, tty);
-	audit_log_task_info(ab, gfp_mask);
+	audit_log_task_info(ab, tsk);
 	audit_log_end(ab);
 
 	for (aux = context->aux; aux; aux = aux->next) {
 
-		ab = audit_log_start(context, gfp_mask, aux->type);
+		ab = audit_log_start(context, GFP_KERNEL, aux->type);
 		if (!ab)
 			continue; /* audit_panic has been called */
 
@@ -620,8 +633,39 @@ static void audit_log_exit(struct audit_context *context, gfp_t gfp_mask)
 		case AUDIT_IPC: {
 			struct audit_aux_data_ipcctl *axi = (void *)aux;
 			audit_log_format(ab, 
-					 " qbytes=%lx iuid=%u igid=%u mode=%x obj=%s",
-					 axi->qbytes, axi->uid, axi->gid, axi->mode, axi->ctx);
+				 " qbytes=%lx iuid=%u igid=%u mode=%x",
+				 axi->qbytes, axi->uid, axi->gid, axi->mode);
+			if (axi->osid != 0) {
+				char *ctx = NULL;
+				u32 len;
+				if (selinux_ctxid_to_string(
+						axi->osid, &ctx, &len)) {
+					audit_log_format(ab, " osid=%u",
+							axi->osid);
+					call_panic = 1;
+				} else
+					audit_log_format(ab, " obj=%s", ctx);
+				kfree(ctx);
+			}
+			break; }
+
+		case AUDIT_IPC_SET_PERM: {
+			struct audit_aux_data_ipcctl *axi = (void *)aux;
+			audit_log_format(ab,
+				" new qbytes=%lx new iuid=%u new igid=%u new mode=%x",
+				axi->qbytes, axi->uid, axi->gid, axi->mode);
+			if (axi->osid != 0) {
+				char *ctx = NULL;
+				u32 len;
+				if (selinux_ctxid_to_string(
+						axi->osid, &ctx, &len)) {
+					audit_log_format(ab, " osid=%u",
+							axi->osid);
+					call_panic = 1;
+				} else
+					audit_log_format(ab, " obj=%s", ctx);
+				kfree(ctx);
+			}
 			break; }
 
 		case AUDIT_SOCKETCALL: {
@@ -649,7 +693,7 @@ static void audit_log_exit(struct audit_context *context, gfp_t gfp_mask)
 	}
 
 	if (context->pwd && context->pwdmnt) {
-		ab = audit_log_start(context, gfp_mask, AUDIT_CWD);
+		ab = audit_log_start(context, GFP_KERNEL, AUDIT_CWD);
 		if (ab) {
 			audit_log_d_path(ab, "cwd=", context->pwd, context->pwdmnt);
 			audit_log_end(ab);
@@ -659,7 +703,7 @@ static void audit_log_exit(struct audit_context *context, gfp_t gfp_mask)
 		unsigned long ino  = context->names[i].ino;
 		unsigned long pino = context->names[i].pino;
 
-		ab = audit_log_start(context, gfp_mask, AUDIT_PATH);
+		ab = audit_log_start(context, GFP_KERNEL, AUDIT_PATH);
 		if (!ab)
 			continue; /* audit_panic has been called */
 
@@ -685,32 +729,35 @@ static void audit_log_exit(struct audit_context *context, gfp_t gfp_mask)
 					 context->names[i].gid, 
 					 MAJOR(context->names[i].rdev), 
 					 MINOR(context->names[i].rdev));
-		if (context->names[i].ctx) {
-			audit_log_format(ab, " obj=%s",
-					context->names[i].ctx);
+		if (context->names[i].osid != 0) {
+			char *ctx = NULL;
+			u32 len;
+			if (selinux_ctxid_to_string(
+				context->names[i].osid, &ctx, &len)) {
+				audit_log_format(ab, " osid=%u",
+						context->names[i].osid);
+				call_panic = 2;
+			} else
+				audit_log_format(ab, " obj=%s", ctx);
+			kfree(ctx);
 		}
 
 		audit_log_end(ab);
 	}
+	if (call_panic)
+		audit_panic("error converting sid to string");
 }
 
 /**
  * audit_free - free a per-task audit context
  * @tsk: task whose audit context block to free
  *
- * Called from copy_process and __put_task_struct.
+ * Called from copy_process and do_exit
  */
 void audit_free(struct task_struct *tsk)
 {
 	struct audit_context *context;
 
-	/*
-	 * No need to lock the task - when we execute audit_free()
-	 * then the task has no external references anymore, and
-	 * we are tearing it down. (The locking also confuses
-	 * DEBUG_LOCKDEP - this freeing may occur in softirq
-	 * contexts as well, via RCU.)
-	 */
 	context = audit_get_context(tsk, 0, 0);
 	if (likely(!context))
 		return;
@@ -719,8 +766,9 @@ void audit_free(struct task_struct *tsk)
 	 * function (e.g., exit_group), then free context block. 
 	 * We use GFP_ATOMIC here because we might be doing this 
 	 * in the context of the idle thread */
+	/* that can happen only if we are called from do_exit() */
 	if (context->in_syscall && context->auditable)
-		audit_log_exit(context, GFP_ATOMIC);
+		audit_log_exit(context, tsk);
 
 	audit_free_context(context);
 }
@@ -743,10 +791,11 @@ void audit_free(struct task_struct *tsk)
  * will only be written if another part of the kernel requests that it
  * be written).
  */
-void audit_syscall_entry(struct task_struct *tsk, int arch, int major,
+void audit_syscall_entry(int arch, int major,
 			 unsigned long a1, unsigned long a2,
 			 unsigned long a3, unsigned long a4)
 {
+	struct task_struct *tsk = current;
 	struct audit_context *context = tsk->audit_context;
 	enum audit_state     state;
 
@@ -824,22 +873,18 @@ void audit_syscall_entry(struct task_struct *tsk, int arch, int major,
  * message), then write out the syscall information.  In call cases,
  * free the names stored from getname().
  */
-void audit_syscall_exit(struct task_struct *tsk, int valid, long return_code)
+void audit_syscall_exit(int valid, long return_code)
 {
+	struct task_struct *tsk = current;
 	struct audit_context *context;
 
-	get_task_struct(tsk);
-	task_lock(tsk);
 	context = audit_get_context(tsk, valid, return_code);
-	task_unlock(tsk);
 
-	/* Not having a context here is ok, since the parent may have
-	 * called __put_task_struct. */
 	if (likely(!context))
-		goto out;
+		return;
 
 	if (context->in_syscall && context->auditable)
-		audit_log_exit(context, GFP_KERNEL);
+		audit_log_exit(context, tsk);
 
 	context->in_syscall = 0;
 	context->auditable  = 0;
@@ -854,8 +899,6 @@ void audit_syscall_exit(struct task_struct *tsk, int valid, long return_code)
 		audit_free_aux(context);
 		tsk->audit_context = context;
 	}
- out:
-	put_task_struct(tsk);
 }
 
 /**
@@ -936,40 +979,11 @@ void audit_putname(const char *name)
 #endif
 }
 
-void audit_inode_context(int idx, const struct inode *inode)
+static void audit_inode_context(int idx, const struct inode *inode)
 {
 	struct audit_context *context = current->audit_context;
-	const char *suffix = security_inode_xattr_getsuffix();
-	char *ctx = NULL;
-	int len = 0;
 
-	if (!suffix)
-		goto ret;
-
-	len = security_inode_getsecurity(inode, suffix, NULL, 0, 0);
-	if (len == -EOPNOTSUPP)
-		goto ret;
-	if (len < 0) 
-		goto error_path;
-
-	ctx = kmalloc(len, GFP_KERNEL);
-	if (!ctx) 
-		goto error_path;
-
-	len = security_inode_getsecurity(inode, suffix, ctx, len, 0);
-	if (len < 0)
-		goto error_path;
-
-	kfree(context->names[idx].ctx);
-	context->names[idx].ctx = ctx;
-	goto ret;
-
-error_path:
-	if (ctx)
-		kfree(ctx);
-	audit_panic("error in audit_inode_context");
-ret:
-	return;
+	selinux_get_inode_sid(inode, &context->names[idx].osid);
 }
 
 
@@ -1155,40 +1169,37 @@ uid_t audit_get_loginuid(struct audit_context *ctx)
 	return ctx ? ctx->loginuid : -1;
 }
 
-static char *audit_ipc_context(struct kern_ipc_perm *ipcp)
+/**
+ * audit_ipc_obj - record audit data for ipc object
+ * @ipcp: ipc permissions
+ *
+ * Returns 0 for success or NULL context or < 0 on error.
+ */
+int audit_ipc_obj(struct kern_ipc_perm *ipcp)
 {
+	struct audit_aux_data_ipcctl *ax;
 	struct audit_context *context = current->audit_context;
-	char *ctx = NULL;
-	int len = 0;
 
 	if (likely(!context))
-		return NULL;
+		return 0;
 
-	len = security_ipc_getsecurity(ipcp, NULL, 0);
-	if (len == -EOPNOTSUPP)
-		goto ret;
-	if (len < 0)
-		goto error_path;
+	ax = kmalloc(sizeof(*ax), GFP_ATOMIC);
+	if (!ax)
+		return -ENOMEM;
 
-	ctx = kmalloc(len, GFP_ATOMIC);
-	if (!ctx)
-		goto error_path;
+	ax->uid = ipcp->uid;
+	ax->gid = ipcp->gid;
+	ax->mode = ipcp->mode;
+	selinux_get_ipc_sid(ipcp, &ax->osid);
 
-	len = security_ipc_getsecurity(ipcp, ctx, len);
-	if (len < 0)
-		goto error_path;
-
-	return ctx;
-
-error_path:
-	kfree(ctx);
-	audit_panic("error in audit_ipc_context");
-ret:
-	return NULL;
+	ax->d.type = AUDIT_IPC;
+	ax->d.next = context->aux;
+	context->aux = (void *)ax;
+	return 0;
 }
 
 /**
- * audit_ipc_perms - record audit data for ipc
+ * audit_ipc_set_perm - record audit data for new ipc permissions
  * @qbytes: msgq bytes
  * @uid: msgq user id
  * @gid: msgq group id
@@ -1196,7 +1207,7 @@ ret:
  *
  * Returns 0 for success or NULL context or < 0 on error.
  */
-int audit_ipc_perms(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode, struct kern_ipc_perm *ipcp)
+int audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode, struct kern_ipc_perm *ipcp)
 {
 	struct audit_aux_data_ipcctl *ax;
 	struct audit_context *context = current->audit_context;
@@ -1212,9 +1223,9 @@ int audit_ipc_perms(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode, str
 	ax->uid = uid;
 	ax->gid = gid;
 	ax->mode = mode;
-	ax->ctx = audit_ipc_context(ipcp);
+	selinux_get_ipc_sid(ipcp, &ax->osid);
 
-	ax->d.type = AUDIT_IPC;
+	ax->d.type = AUDIT_IPC_SET_PERM;
 	ax->d.next = context->aux;
 	context->aux = (void *)ax;
 	return 0;

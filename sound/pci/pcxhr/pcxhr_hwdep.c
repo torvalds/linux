@@ -385,8 +385,8 @@ static int pcxhr_hwdep_dsp_load(struct snd_hwdep *hw,
 	fw.size = dsp->length;
 	fw.data = vmalloc(fw.size);
 	if (! fw.data) {
-		snd_printk(KERN_ERR "pcxhr: cannot allocate dsp image (%d bytes)\n",
-			   fw.size);
+		snd_printk(KERN_ERR "pcxhr: cannot allocate dsp image (%lu bytes)\n",
+			   (unsigned long)fw.size);
 		return -ENOMEM;
 	}
 	if (copy_from_user(fw.data, dsp->image, dsp->length)) {

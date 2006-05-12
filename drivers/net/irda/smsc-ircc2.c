@@ -54,6 +54,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/serial_reg.h>
 #include <linux/dma-mapping.h>
+#include <linux/pnp.h>
 #include <linux/platform_device.h>
 
 #include <asm/io.h>
@@ -357,6 +358,16 @@ static inline void register_bank(int iobase, int bank)
         outb(((inb(iobase + IRCC_MASTER) & 0xf0) | (bank & 0x07)),
                iobase + IRCC_MASTER);
 }
+
+#ifdef	CONFIG_PNP
+/* PNP hotplug support */
+static const struct pnp_device_id smsc_ircc_pnp_table[] = {
+	{ .id = "SMCf010", .driver_data = 0 },
+	/* and presumably others */
+	{ }
+};
+MODULE_DEVICE_TABLE(pnp, smsc_ircc_pnp_table);
+#endif
 
 
 /*******************************************************************************
@@ -2072,7 +2083,8 @@ static void smsc_ircc_sir_wait_hw_transmitter_finish(struct smsc_ircc_cb *self)
 
 /* PROBING
  *
- *
+ * REVISIT we can be told about the device by PNP, and should use that info
+ * instead of probing hardware and creating a platform_device ...
  */
 
 static int __init smsc_ircc_look_for_chips(void)

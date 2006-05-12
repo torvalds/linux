@@ -232,7 +232,7 @@ struct rme96 {
 	struct snd_kcontrol   *spdif_ctl;
 };
 
-static struct pci_device_id snd_rme96_ids[] = {
+static struct pci_device_id snd_rme96_ids[] __devinitdata = {
 	{ PCI_VENDOR_ID_XILINX, PCI_DEVICE_ID_RME_DIGI96,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, },
 	{ PCI_VENDOR_ID_XILINX, PCI_DEVICE_ID_RME_DIGI96_8,

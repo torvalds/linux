@@ -95,7 +95,7 @@ struct ether_header {
 	__u8 seq_num;
 	__le32 len;
 	/* MUST be of word size due to PIO write requirements */
-	__u32 csum;
+	__le32 csum;
 	__le16 csum_offset;
 	__le16 flags;
 	__u16 first_2_bytes;

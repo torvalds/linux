@@ -800,7 +800,7 @@ out:
 int avc_ss_reset(u32 seqno)
 {
 	struct avc_callback_node *c;
-	int i, rc = 0;
+	int i, rc = 0, tmprc;
 	unsigned long flag;
 	struct avc_node *node;
 
@@ -813,15 +813,16 @@ int avc_ss_reset(u32 seqno)
 
 	for (c = avc_callbacks; c; c = c->next) {
 		if (c->events & AVC_CALLBACK_RESET) {
-			rc = c->callback(AVC_CALLBACK_RESET,
-					 0, 0, 0, 0, NULL);
-			if (rc)
-				goto out;
+			tmprc = c->callback(AVC_CALLBACK_RESET,
+			                    0, 0, 0, 0, NULL);
+			/* save the first error encountered for the return
+			   value and continue processing the callbacks */
+			if (!rc)
+				rc = tmprc;
 		}
 	}
 
 	avc_latest_notif_update(seqno, 0);
-out:
 	return rc;
 }
 

@@ -246,8 +246,10 @@ int setup_irq(unsigned int irq, struct irqaction * new)
 
 mismatch:
 	spin_unlock_irqrestore(&desc->lock, flags);
-	printk(KERN_ERR "%s: irq handler mismatch\n", __FUNCTION__);
-	dump_stack();
+	if (!(new->flags & SA_PROBEIRQ)) {
+		printk(KERN_ERR "%s: irq handler mismatch\n", __FUNCTION__);
+		dump_stack();
+	}
 	return -EBUSY;
 }
 

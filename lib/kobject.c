@@ -422,7 +422,6 @@ struct kobject *kobject_add_dir(struct kobject *parent, const char *name)
 
 	return k;
 }
-EXPORT_SYMBOL_GPL(kobject_add_dir);
 
 /**
  *	kset_init - initialize a kset for use
@@ -569,7 +568,7 @@ int subsys_create_file(struct subsystem * s, struct subsys_attribute * a)
  *	@s:	subsystem.
  *	@a:	attribute desciptor.
  */
-
+#if 0
 void subsys_remove_file(struct subsystem * s, struct subsys_attribute * a)
 {
 	if (subsys_get(s)) {
@@ -577,6 +576,7 @@ void subsys_remove_file(struct subsystem * s, struct subsys_attribute * a)
 		subsys_put(s);
 	}
 }
+#endif  /*  0  */
 
 EXPORT_SYMBOL(kobject_init);
 EXPORT_SYMBOL(kobject_register);
@@ -588,10 +588,7 @@ EXPORT_SYMBOL(kobject_del);
 
 EXPORT_SYMBOL(kset_register);
 EXPORT_SYMBOL(kset_unregister);
-EXPORT_SYMBOL(kset_find_obj);
 
-EXPORT_SYMBOL(subsystem_init);
 EXPORT_SYMBOL(subsystem_register);
 EXPORT_SYMBOL(subsystem_unregister);
 EXPORT_SYMBOL(subsys_create_file);
-EXPORT_SYMBOL(subsys_remove_file);

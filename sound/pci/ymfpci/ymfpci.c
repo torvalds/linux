@@ -70,7 +70,7 @@ MODULE_PARM_DESC(rear_switch, "Enable shared rear/line-in switch");
 module_param_array(rear_swap, bool, NULL, 0444);
 MODULE_PARM_DESC(rear_swap, "Swap rear channels (must be enabled for correct IEC958 (S/PDIF)) output");
 
-static struct pci_device_id snd_ymfpci_ids[] = {
+static struct pci_device_id snd_ymfpci_ids[] __devinitdata = {
         { 0x1073, 0x0004, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, },   /* YMF724 */
         { 0x1073, 0x000d, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, },   /* YMF724F */
         { 0x1073, 0x000a, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, },   /* YMF740 */

@@ -621,9 +621,6 @@ static void at91_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	struct at91mci_host *host = mmc_priv(mmc);
 	unsigned long at91_master_clock = clk_get_rate(mci_clk);
 
-	DBG("Clock %uHz, busmode %u, powermode %u, Vdd %u\n",
-		ios->clock, ios->bus_mode, ios->power_mode, ios->vdd);
-
 	if (host)
 		host->bus_mode = ios->bus_mode;
 	else

@@ -56,12 +56,12 @@
 #include <linux/mm.h>
 #include <linux/types.h>
 #include <linux/audit.h>
+#include <linux/selinux.h>
 
 #include <net/sock.h>
 #include <net/scm.h>
 #include <net/netlink.h>
 
-#define Nprintk(a...)
 #define NLGRPSZ(x)	(ALIGN(x, sizeof(unsigned long) * 8) / 8)
 
 struct netlink_sock {
@@ -1157,6 +1157,7 @@ static int netlink_sendmsg(struct kiocb *kiocb, struct socket *sock,
 	NETLINK_CB(skb).dst_pid = dst_pid;
 	NETLINK_CB(skb).dst_group = dst_group;
 	NETLINK_CB(skb).loginuid = audit_get_loginuid(current->audit_context);
+	selinux_get_task_sid(current, &(NETLINK_CB(skb).sid));
 	memcpy(NETLINK_CREDS(skb), &siocb->scm->creds, sizeof(struct ucred));
 
 	/* What can I do? Netlink is asynchronous, so that

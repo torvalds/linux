@@ -36,7 +36,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
 #include <linux/moduleparam.h>
-#include <linux/dma-mapping.h>
 #include <sound/core.h>
 #include <sound/initval.h>
 #include <sound/pcm.h>
@@ -1596,7 +1595,7 @@ static void __devexit snd_emu10k1x_remove(struct pci_dev *pci)
 }
 
 // PCI IDs
-static struct pci_device_id snd_emu10k1x_ids[] = {
+static struct pci_device_id snd_emu10k1x_ids[] __devinitdata = {
 	{ 0x1102, 0x0006, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },	/* Dell OEM version (EMU10K1) */
 	{ 0, }
 };

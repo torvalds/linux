@@ -46,8 +46,10 @@
  * This is called from ipath_post_ud_send() to forward a WQE addressed
  * to the same HCA.
  */
-static void ipath_ud_loopback(struct ipath_qp *sqp, struct ipath_sge_state *ss,
-			      u32 length, struct ib_send_wr *wr, struct ib_wc *wc)
+static void ipath_ud_loopback(struct ipath_qp *sqp,
+			      struct ipath_sge_state *ss,
+			      u32 length, struct ib_send_wr *wr,
+			      struct ib_wc *wc)
 {
 	struct ipath_ibdev *dev = to_idev(sqp->ibqp.device);
 	struct ipath_qp *qp;

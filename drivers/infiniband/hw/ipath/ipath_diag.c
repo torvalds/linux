@@ -277,12 +277,13 @@ static int ipath_diag_open(struct inode *in, struct file *fp)
 
 bail:
 	spin_unlock_irqrestore(&ipath_devs_lock, flags);
-	mutex_unlock(&ipath_mutex);
 
 	/* Only expose a way to reset the device if we
 	   make it into diag mode. */
 	if (ret == 0)
 		ipath_expose_reset(&dd->pcidev->dev);
+
+	mutex_unlock(&ipath_mutex);
 
 	return ret;
 }

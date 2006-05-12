@@ -765,7 +765,7 @@ rio_free_tx (struct net_device *dev, int irq)
 			break;
 		skb = np->tx_skbuff[entry];
 		pci_unmap_single (np->pdev,
-				  np->tx_ring[entry].fraginfo & 0xffffffffffff,
+				  np->tx_ring[entry].fraginfo & DMA_48BIT_MASK,
 				  skb->len, PCI_DMA_TODEVICE);
 		if (irq)
 			dev_kfree_skb_irq (skb);
@@ -893,7 +893,7 @@ receive_packet (struct net_device *dev)
 			/* Small skbuffs for short packets */
 			if (pkt_len > copy_thresh) {
 				pci_unmap_single (np->pdev,
-						  desc->fraginfo & 0xffffffffffff,
+						  desc->fraginfo & DMA_48BIT_MASK,
 						  np->rx_buf_sz,
 						  PCI_DMA_FROMDEVICE);
 				skb_put (skb = np->rx_skbuff[entry], pkt_len);
@@ -901,7 +901,7 @@ receive_packet (struct net_device *dev)
 			} else if ((skb = dev_alloc_skb (pkt_len + 2)) != NULL) {
 				pci_dma_sync_single_for_cpu(np->pdev,
 				  			    desc->fraginfo & 
-							    	0xffffffffffff,
+							    	DMA_48BIT_MASK,
 							    np->rx_buf_sz,
 							    PCI_DMA_FROMDEVICE);
 				skb->dev = dev;
@@ -913,7 +913,7 @@ receive_packet (struct net_device *dev)
 				skb_put (skb, pkt_len);
 				pci_dma_sync_single_for_device(np->pdev,
 				  			       desc->fraginfo &
-							       	 0xffffffffffff,
+							       	 DMA_48BIT_MASK,
 							       np->rx_buf_sz,
 							       PCI_DMA_FROMDEVICE);
 			}
@@ -1800,7 +1800,7 @@ rio_close (struct net_device *dev)
 		skb = np->rx_skbuff[i];
 		if (skb) {
 			pci_unmap_single(np->pdev, 
-					 np->rx_ring[i].fraginfo & 0xffffffffffff,
+					 np->rx_ring[i].fraginfo & DMA_48BIT_MASK,
 					 skb->len, PCI_DMA_FROMDEVICE);
 			dev_kfree_skb (skb);
 			np->rx_skbuff[i] = NULL;
@@ -1810,7 +1810,7 @@ rio_close (struct net_device *dev)
 		skb = np->tx_skbuff[i];
 		if (skb) {
 			pci_unmap_single(np->pdev, 
-					 np->tx_ring[i].fraginfo & 0xffffffffffff,
+					 np->tx_ring[i].fraginfo & DMA_48BIT_MASK,
 					 skb->len, PCI_DMA_TODEVICE);
 			dev_kfree_skb (skb);
 			np->tx_skbuff[i] = NULL;

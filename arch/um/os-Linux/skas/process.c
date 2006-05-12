@@ -344,12 +344,12 @@ int copy_context_skas0(unsigned long new_stack, int pid)
 	err = ptrace_setregs(pid, regs);
 	if(err < 0)
 		panic("copy_context_skas0 : PTRACE_SETREGS failed, "
-		      "pid = %d, errno = %d\n", pid, errno);
+		      "pid = %d, errno = %d\n", pid, -err);
 
 	err = ptrace_setfpregs(pid, fp_regs);
 	if(err < 0)
 		panic("copy_context_skas0 : PTRACE_SETFPREGS failed, "
-		      "pid = %d, errno = %d\n", pid, errno);
+		      "pid = %d, errno = %d\n", pid, -err);
 
 	/* set a well known return code for detection of child write failure */
 	child_data->err = 12345678;
@@ -362,7 +362,7 @@ int copy_context_skas0(unsigned long new_stack, int pid)
 	pid = data->err;
 	if(pid < 0)
 		panic("copy_context_skas0 - stub-parent reports error %d\n",
-		      pid);
+		      -pid);
 
 	/* Wait, until child has finished too: read child's result from
 	 * child's stack and check it.

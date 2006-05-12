@@ -968,7 +968,17 @@ int mp_register_gsi(u32 gsi, int triggering, int polarity)
 		 */
 		int irq = gsi;
 		if (gsi < MAX_GSI_NUM) {
-			if (gsi > 15)
+			/*
+			 * Retain the VIA chipset work-around (gsi > 15), but
+			 * avoid a problem where the 8254 timer (IRQ0) is setup
+			 * via an override (so it's not on pin 0 of the ioapic),
+			 * and at the same time, the pin 0 interrupt is a PCI
+			 * type.  The gsi > 15 test could cause these two pins
+			 * to be shared as IRQ0, and they are not shareable.
+			 * So test for this condition, and if necessary, avoid
+			 * the pin collision.
+			 */
+			if (gsi > 15 || (gsi == 0 && !timer_uses_ioapic_pin_0))
 				gsi = pci_irq++;
 			/*
 			 * Don't assign IRQ used by ACPI SCI

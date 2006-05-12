@@ -697,6 +697,38 @@ unsigned find_get_pages(struct address_space *mapping, pgoff_t start,
 	return ret;
 }
 
+/**
+ * find_get_pages_contig - gang contiguous pagecache lookup
+ * @mapping:	The address_space to search
+ * @index:	The starting page index
+ * @nr_pages:	The maximum number of pages
+ * @pages:	Where the resulting pages are placed
+ *
+ * find_get_pages_contig() works exactly like find_get_pages(), except
+ * that the returned number of pages are guaranteed to be contiguous.
+ *
+ * find_get_pages_contig() returns the number of pages which were found.
+ */
+unsigned find_get_pages_contig(struct address_space *mapping, pgoff_t index,
+			       unsigned int nr_pages, struct page **pages)
+{
+	unsigned int i;
+	unsigned int ret;
+
+	read_lock_irq(&mapping->tree_lock);
+	ret = radix_tree_gang_lookup(&mapping->page_tree,
+				(void **)pages, index, nr_pages);
+	for (i = 0; i < ret; i++) {
+		if (pages[i]->mapping == NULL || pages[i]->index != index)
+			break;
+
+		page_cache_get(pages[i]);
+		index++;
+	}
+	read_unlock_irq(&mapping->tree_lock);
+	return i;
+}
+
 /*
  * Like find_get_pages, except we only return pages which are tagged with
  * `tag'.   We update *index to index the next page for the traversal.

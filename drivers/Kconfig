@@ -68,8 +68,6 @@ source "drivers/leds/Kconfig"
 
 source "drivers/infiniband/Kconfig"
 
-source "drivers/sn/Kconfig"
-
 source "drivers/edac/Kconfig"
 
 source "drivers/rtc/Kconfig"

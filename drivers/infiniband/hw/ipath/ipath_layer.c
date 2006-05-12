@@ -46,13 +46,15 @@
 /* Acquire before ipath_devs_lock. */
 static DEFINE_MUTEX(ipath_layer_mutex);
 
+static int ipath_verbs_registered;
+
 u16 ipath_layer_rcv_opcode;
+
 static int (*layer_intr)(void *, u32);
 static int (*layer_rcv)(void *, void *, struct sk_buff *);
 static int (*layer_rcv_lid)(void *, void *);
 static int (*verbs_piobufavail)(void *);
 static void (*verbs_rcv)(void *, void *, void *, u32);
-static int ipath_verbs_registered;
 
 static void *(*layer_add_one)(int, struct ipath_devdata *);
 static void (*layer_remove_one)(void *);
@@ -585,6 +587,8 @@ void ipath_verbs_unregister(void)
 	verbs_piobufavail = NULL;
 	verbs_rcv = NULL;
 	verbs_timer_cb = NULL;
+
+	ipath_verbs_registered = 0;
 
 	mutex_unlock(&ipath_layer_mutex);
 }

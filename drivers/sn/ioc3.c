@@ -678,7 +678,7 @@ static int ioc3_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 	/* Track PCI-device specific data */
 	pci_set_drvdata(pdev, idd);
 	down_write(&ioc3_devices_rwsem);
-	list_add(&idd->list, &ioc3_devices);
+	list_add_tail(&idd->list, &ioc3_devices);
 	idd->id = ioc3_counter++;
 	up_write(&ioc3_devices_rwsem);
 

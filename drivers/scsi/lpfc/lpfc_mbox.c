@@ -200,6 +200,9 @@ lpfc_init_link(struct lpfc_hba * phba,
 		break;
 	}
 
+	/* Enable asynchronous ABTS responses from firmware */
+	mb->un.varInitLnk.link_flags |= FLAGS_IMED_ABORT;
+
 	/* NEW_FEATURE
 	 * Setting up the link speed
 	 */
@@ -288,36 +291,6 @@ lpfc_unreg_did(struct lpfc_hba * phba, uint32_t did, LPFC_MBOXQ_t * pmb)
 	mb->un.varUnregDID.did = did;
 
 	mb->mbxCommand = MBX_UNREG_D_ID;
-	mb->mbxOwner = OWN_HOST;
-	return;
-}
-
-/***********************************************/
-
-/*                  command to write slim      */
-/***********************************************/
-void
-lpfc_set_slim(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb, uint32_t addr,
-	      uint32_t value)
-{
-	MAILBOX_t *mb;
-
-	mb = &pmb->mb;
-	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
-
-	/* addr = 0x090597 is AUTO ABTS disable for ELS commands */
-	/* addr = 0x052198 is DELAYED ABTS enable for ELS commands */
-
-	/*
-	 * Always turn on DELAYED ABTS for ELS timeouts
-	 */
-	if ((addr == 0x052198) && (value == 0))
-		value = 1;
-
-	mb->un.varWords[0] = addr;
-	mb->un.varWords[1] = value;
-
-	mb->mbxCommand = MBX_SET_SLIM;
 	mb->mbxOwner = OWN_HOST;
 	return;
 }
