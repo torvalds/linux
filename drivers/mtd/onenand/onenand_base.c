@@ -234,6 +234,12 @@ static int onenand_command(struct mtd_info *mtd, int cmd, loff_t addr, size_t le
 		/* Write 'DFS, FBA' of Flash */
 		value = onenand_block_address(this, block);
 		this->write_word(value, this->base + ONENAND_REG_START_ADDRESS1);
+
+		if (cmd == ONENAND_CMD_ERASE) {
+			/* Select DataRAM for DDP */
+			value = onenand_bufferram_address(this, block);
+			this->write_word(value, this->base + ONENAND_REG_START_ADDRESS2);
+		}
 	}
 
 	if (page != -1) {
