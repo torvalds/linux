@@ -61,6 +61,7 @@ config VIDEO_CX88_DVB_ALL_FRONTENDS
 	select DVB_LGDT330X
 	select DVB_NXT200X
 	select DVB_CX24123
+	select DVB_ISL6421
 	---help---
 	  This builds cx88-dvb with all currently supported frontend
 	  demodulators.  If you wish to tweak your configuration, and
@@ -139,6 +140,7 @@ config VIDEO_CX88_DVB_CX24123
 	default y
 	depends on VIDEO_CX88_DVB && !VIDEO_CX88_DVB_ALL_FRONTENDS
 	select DVB_CX24123
+	select DVB_ISL6421
 	---help---
 	  This adds DVB-S support for cards based on the
 	  Connexant 2388x chip and the CX24123 demodulator.

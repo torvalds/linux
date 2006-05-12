@@ -28,17 +28,8 @@ struct cx24123_config
 	/* the demodulator's i2c address */
 	u8 demod_address;
 
-	/*
-	   cards like Hauppauge Nova-S Plus/Nova-SE2 use an Intersil ISL6421 chip
-	   for LNB control, while KWorld DVB-S 100 use the LNBDC and LNBTone bits
-	   from register 0x29 of the CX24123 demodulator
-	*/
-	int use_isl6421;
-
 	/* Need to set device param for start_dma */
 	int (*set_ts_params)(struct dvb_frontend* fe, int is_punctured);
-
-	void (*enable_lnb_voltage)(struct dvb_frontend* fe, int on);
 };
 
 extern struct dvb_frontend* cx24123_attach(const struct cx24123_config* config,

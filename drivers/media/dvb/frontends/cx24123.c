@@ -48,7 +48,6 @@ struct cx24123_state
 
 	u32 lastber;
 	u16 snr;
-	u8  lnbreg;
 
 	/* Some PLL specifics for tuning */
 	u32 VCAarg;
@@ -249,29 +248,6 @@ static int cx24123_writereg(struct cx24123_state* state, int reg, int data)
 	return 0;
 }
 
-static int cx24123_writelnbreg(struct cx24123_state* state, int reg, int data)
-{
-	u8 buf[] = { reg, data };
-	/* fixme: put the intersil addr int the config */
-	struct i2c_msg msg = { .addr = 0x08, .flags = 0, .buf = buf, .len = 2 };
-	int err;
-
-	if (debug>1)
-		printk("cx24123: %s:  writeln addr=0x08, reg 0x%02x, value 0x%02x\n",
-						__FUNCTION__,reg, data);
-
-	if ((err = i2c_transfer(state->i2c, &msg, 1)) != 1) {
-		printk("%s: writelnbreg error (err == %i, reg == 0x%02x,"
-			 " data == 0x%02x)\n", __FUNCTION__, err, reg, data);
-		return -EREMOTEIO;
-	}
-
-	/* cache the write, no way to read back */
-	state->lnbreg = data;
-
-	return 0;
-}
-
 static int cx24123_readreg(struct cx24123_state* state, u8 reg)
 {
 	int ret;
@@ -293,11 +269,6 @@ static int cx24123_readreg(struct cx24123_state* state, u8 reg)
 		printk("cx24123: read reg 0x%02x, value 0x%02x\n",reg, ret);
 
 	return b1[0];
-}
-
-static int cx24123_readlnbreg(struct cx24123_state* state, u8 reg)
-{
-	return state->lnbreg;
 }
 
 static int cx24123_set_inversion(struct cx24123_state* state, fe_spectral_inversion_t inversion)
@@ -687,10 +658,6 @@ static int cx24123_initfe(struct dvb_frontend* fe)
 	for (i = 0; i < sizeof(cx24123_regdata) / sizeof(cx24123_regdata[0]); i++)
 		cx24123_writereg(state, cx24123_regdata[i].reg, cx24123_regdata[i].data);
 
-	/* Configure the LNB for 14V */
-	if (state->config->use_isl6421)
-		cx24123_writelnbreg(state, 0x0, 0x2a);
-
 	return 0;
 }
 
@@ -699,50 +666,18 @@ static int cx24123_set_voltage(struct dvb_frontend* fe, fe_sec_voltage_t voltage
 	struct cx24123_state *state = fe->demodulator_priv;
 	u8 val;
 
-	switch (state->config->use_isl6421) {
+	val = cx24123_readreg(state, 0x29) & ~0x40;
 
-	case 1:
-
-		val = cx24123_readlnbreg(state, 0x0);
-
-		switch (voltage) {
-		case SEC_VOLTAGE_13:
-			dprintk("%s:  isl6421 voltage = 13V\n",__FUNCTION__);
-			return cx24123_writelnbreg(state, 0x0, val & 0x32); /* V 13v */
-		case SEC_VOLTAGE_18:
-			dprintk("%s:  isl6421 voltage = 18V\n",__FUNCTION__);
-			return cx24123_writelnbreg(state, 0x0, val | 0x04); /* H 18v */
-		case SEC_VOLTAGE_OFF:
-			dprintk("%s:  isl5421 voltage off\n",__FUNCTION__);
-			return cx24123_writelnbreg(state, 0x0, val & 0x30);
-		default:
-			return -EINVAL;
-		};
-
-	case 0:
-
-		val = cx24123_readreg(state, 0x29);
-
-		switch (voltage) {
-		case SEC_VOLTAGE_13:
-			dprintk("%s: setting voltage 13V\n", __FUNCTION__);
-			if (state->config->enable_lnb_voltage)
-				state->config->enable_lnb_voltage(fe, 1);
-			return cx24123_writereg(state, 0x29, val | 0x80);
-		case SEC_VOLTAGE_18:
-			dprintk("%s: setting voltage 18V\n", __FUNCTION__);
-			if (state->config->enable_lnb_voltage)
-				state->config->enable_lnb_voltage(fe, 1);
-			return cx24123_writereg(state, 0x29, val & 0x7f);
-		case SEC_VOLTAGE_OFF:
-			dprintk("%s: setting voltage off\n", __FUNCTION__);
-			if (state->config->enable_lnb_voltage)
-				state->config->enable_lnb_voltage(fe, 0);
-			return 0;
-		default:
-			return -EINVAL;
-		};
-	}
+	switch (voltage) {
+	case SEC_VOLTAGE_13:
+		dprintk("%s: setting voltage 13V\n", __FUNCTION__);
+		return cx24123_writereg(state, 0x29, val | 0x80);
+	case SEC_VOLTAGE_18:
+		dprintk("%s: setting voltage 18V\n", __FUNCTION__);
+		return cx24123_writereg(state, 0x29, val & 0x7f);
+	default:
+		return -EINVAL;
+	};
 
 	return 0;
 }
@@ -763,27 +698,20 @@ static void cx24123_wait_for_diseqc(struct cx24123_state *state)
 static int cx24123_send_diseqc_msg(struct dvb_frontend* fe, struct dvb_diseqc_master_cmd *cmd)
 {
 	struct cx24123_state *state = fe->demodulator_priv;
-	int i, val;
+	int i, val, tone;
 
 	dprintk("%s:\n",__FUNCTION__);
 
-	/* check if continuous tone has been stopped */
-	if (state->config->use_isl6421)
-		val = cx24123_readlnbreg(state, 0x00) & 0x10;
-	else
-		val = cx24123_readreg(state, 0x29) & 0x10;
-
-
-	if (val) {
-		printk("%s: ERROR: attempt to send diseqc command before tone is off\n", __FUNCTION__);
-		return -ENOTSUPP;
-	}
+	/* stop continuous tone if enabled */
+	tone = cx24123_readreg(state, 0x29);
+	if (tone & 0x10)
+		cx24123_writereg(state, 0x29, tone & ~0x50);
 
 	/* wait for diseqc queue ready */
 	cx24123_wait_for_diseqc(state);
 
 	/* select tone mode */
-	cx24123_writereg(state, 0x2a, cx24123_readreg(state, 0x2a) & 0xf8);
+	cx24123_writereg(state, 0x2a, cx24123_readreg(state, 0x2a) & 0xfb);
 
 	for (i = 0; i < cmd->msg_len; i++)
 		cx24123_writereg(state, 0x2C + i, cmd->msg[i]);
@@ -794,36 +722,33 @@ static int cx24123_send_diseqc_msg(struct dvb_frontend* fe, struct dvb_diseqc_ma
 	/* wait for diseqc message to finish sending */
 	cx24123_wait_for_diseqc(state);
 
+	/* restart continuous tone if enabled */
+	if (tone & 0x10) {
+		cx24123_writereg(state, 0x29, tone & ~0x40);
+	}
+
 	return 0;
 }
 
 static int cx24123_diseqc_send_burst(struct dvb_frontend* fe, fe_sec_mini_cmd_t burst)
 {
 	struct cx24123_state *state = fe->demodulator_priv;
-	int val;
+	int val, tone;
 
 	dprintk("%s:\n", __FUNCTION__);
 
-	/* check if continuous tone has been stoped */
-	if (state->config->use_isl6421)
-		val = cx24123_readlnbreg(state, 0x00) & 0x10;
-	else
-		val = cx24123_readreg(state, 0x29) & 0x10;
+	/* stop continuous tone if enabled */
+	tone = cx24123_readreg(state, 0x29);
+	if (tone & 0x10)
+		cx24123_writereg(state, 0x29, tone & ~0x50);
 
-
-	if (val) {
-		printk("%s: ERROR: attempt to send diseqc command before tone is off\n", __FUNCTION__);
-		return -ENOTSUPP;
-	}
-
+	/* wait for diseqc queue ready */
 	cx24123_wait_for_diseqc(state);
 
 	/* select tone mode */
-	val = cx24123_readreg(state, 0x2a) & 0xf8;
-	cx24123_writereg(state, 0x2a, val | 0x04);
-
+	cx24123_writereg(state, 0x2a, cx24123_readreg(state, 0x2a) | 0x4);
+	msleep(30);
 	val = cx24123_readreg(state, 0x29);
-
 	if (burst == SEC_MINI_A)
 		cx24123_writereg(state, 0x29, ((val & 0x90) | 0x40 | 0x00));
 	else if (burst == SEC_MINI_B)
@@ -832,7 +757,12 @@ static int cx24123_diseqc_send_burst(struct dvb_frontend* fe, fe_sec_mini_cmd_t 
 		return -EINVAL;
 
 	cx24123_wait_for_diseqc(state);
+	cx24123_writereg(state, 0x2a, cx24123_readreg(state, 0x2a) & 0xfb);
 
+	/* restart continuous tone if enabled */
+	if (tone & 0x10) {
+		cx24123_writereg(state, 0x29, tone & ~0x40);
+	}
 	return 0;
 }
 
@@ -973,38 +903,21 @@ static int cx24123_set_tone(struct dvb_frontend* fe, fe_sec_tone_mode_t tone)
 	struct cx24123_state *state = fe->demodulator_priv;
 	u8 val;
 
-	switch (state->config->use_isl6421) {
-	case 1:
+	/* wait for diseqc queue ready */
+	cx24123_wait_for_diseqc(state);
 
-		val = cx24123_readlnbreg(state, 0x0);
+	val = cx24123_readreg(state, 0x29) & ~0x40;
 
-		switch (tone) {
-		case SEC_TONE_ON:
-			dprintk("%s:  isl6421 sec tone on\n",__FUNCTION__);
-			return cx24123_writelnbreg(state, 0x0, val | 0x10);
-		case SEC_TONE_OFF:
-			dprintk("%s:  isl6421 sec tone off\n",__FUNCTION__);
-			return cx24123_writelnbreg(state, 0x0, val & 0x2f);
-		default:
-			printk("%s: CASE reached default with tone=%d\n", __FUNCTION__, tone);
-			return -EINVAL;
-		}
-
-	case 0:
-
-		val = cx24123_readreg(state, 0x29);
-
-		switch (tone) {
-		case SEC_TONE_ON:
-			dprintk("%s: setting tone on\n", __FUNCTION__);
-			return cx24123_writereg(state, 0x29, val | 0x10);
-		case SEC_TONE_OFF:
-			dprintk("%s: setting tone off\n",__FUNCTION__);
-			return cx24123_writereg(state, 0x29, val & 0xef);
-		default:
-			printk("%s: CASE reached default with tone=%d\n", __FUNCTION__, tone);
-			return -EINVAL;
-		}
+	switch (tone) {
+	case SEC_TONE_ON:
+		dprintk("%s: setting tone on\n", __FUNCTION__);
+		return cx24123_writereg(state, 0x29, val | 0x10);
+	case SEC_TONE_OFF:
+		dprintk("%s: setting tone off\n",__FUNCTION__);
+		return cx24123_writereg(state, 0x29, val & 0xef);
+	default:
+		printk("%s: CASE reached default with tone=%d\n", __FUNCTION__, tone);
+		return -EINVAL;
 	}
 
 	return 0;
@@ -1040,7 +953,6 @@ struct dvb_frontend* cx24123_attach(const struct cx24123_config* config,
 	memcpy(&state->ops, &cx24123_ops, sizeof(struct dvb_frontend_ops));
 	state->lastber = 0;
 	state->snr = 0;
-	state->lnbreg = 0;
 	state->VCAarg = 0;
 	state->VGAarg = 0;
 	state->bandselectarg = 0;

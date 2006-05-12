@@ -298,6 +298,7 @@ struct cx88_core {
 	/* config info -- dvb */
 	struct dvb_pll_desc        *pll_desc;
 	unsigned int               pll_addr;
+	int 			   (*prev_set_voltage)(struct dvb_frontend* fe, fe_sec_voltage_t voltage);
 
 	/* state info */
 	struct task_struct         *kthread;

@@ -59,6 +59,7 @@
 #ifdef HAVE_CX24123
 # include "cx24123.h"
 #endif
+#include "isl6421.h"
 
 MODULE_DESCRIPTION("driver for cx2388x based DVB cards");
 MODULE_AUTHOR("Chris Pascoe <c.pascoe@itee.uq.edu.au>");
@@ -479,28 +480,30 @@ static int cx24123_set_ts_param(struct dvb_frontend* fe,
 	return 0;
 }
 
-static void cx24123_enable_lnb_voltage(struct dvb_frontend* fe, int on)
+static int kworld_dvbs_100_set_voltage(struct dvb_frontend* fe, fe_sec_voltage_t voltage)
 {
 	struct cx8802_dev *dev= fe->dvb->priv;
 	struct cx88_core *core = dev->core;
 
-	if (on)
-		cx_write(MO_GP0_IO, 0x000006f9);
-	else
+	if (voltage == SEC_VOLTAGE_OFF) {
 		cx_write(MO_GP0_IO, 0x000006fB);
+	} else {
+		cx_write(MO_GP0_IO, 0x000006f9);
+	}
+
+	if (core->prev_set_voltage)
+		return core->prev_set_voltage(fe, voltage);
+	return 0;
 }
 
 static struct cx24123_config hauppauge_novas_config = {
 	.demod_address		= 0x55,
-	.use_isl6421		= 1,
 	.set_ts_params		= cx24123_set_ts_param,
 };
 
 static struct cx24123_config kworld_dvbs_100_config = {
 	.demod_address		= 0x15,
-	.use_isl6421		= 0,
 	.set_ts_params		= cx24123_set_ts_param,
-	.enable_lnb_voltage	= cx24123_enable_lnb_voltage,
 };
 #endif
 
@@ -710,10 +713,17 @@ static int dvb_register(struct cx8802_dev *dev)
 	case CX88_BOARD_HAUPPAUGE_NOVASE2_S1:
 		dev->dvb.frontend = cx24123_attach(&hauppauge_novas_config,
 			&dev->core->i2c_adap);
+		if (dev->dvb.frontend) {
+			isl6421_attach(dev->dvb.frontend, &dev->core->i2c_adap, 0x08, 0x00, 0x00);
+		}
 		break;
 	case CX88_BOARD_KWORLD_DVBS_100:
 		dev->dvb.frontend = cx24123_attach(&kworld_dvbs_100_config,
 			&dev->core->i2c_adap);
+		if (dev->dvb.frontend) {
+			dev->core->prev_set_voltage = dev->dvb.frontend->ops->set_voltage;
+			dev->dvb.frontend->ops->set_voltage = kworld_dvbs_100_set_voltage;
+		}
 		break;
 #endif
 	default:
