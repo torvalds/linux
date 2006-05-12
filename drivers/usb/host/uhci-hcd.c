@@ -492,7 +492,6 @@ static int uhci_start(struct usb_hcd *hcd)
 
 	spin_lock_init(&uhci->lock);
 
-	INIT_LIST_HEAD(&uhci->td_remove_list);
 	INIT_LIST_HEAD(&uhci->idle_qh_list);
 
 	init_waitqueue_head(&uhci->waitqh);

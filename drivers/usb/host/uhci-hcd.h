@@ -228,7 +228,6 @@ struct uhci_td {
 	dma_addr_t dma_handle;
 
 	struct list_head list;
-	struct list_head remove_list;
 
 	int frame;			/* for iso: what frame? */
 	struct list_head fl_list;
@@ -419,10 +418,6 @@ struct uhci_hcd {
 	unsigned long port_c_suspend;		/* Bit-arrays of ports */
 	unsigned long resuming_ports;
 	unsigned long ports_timeout;		/* Time to stop signalling */
-
-	/* List of TDs that are done, but waiting to be freed (race) */
-	struct list_head td_remove_list;
-	unsigned int td_remove_age;		/* Age in frames */
 
 	struct list_head idle_qh_list;		/* Where the idle QHs live */
 

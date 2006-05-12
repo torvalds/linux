@@ -16,7 +16,6 @@
  * (C) Copyright 2004-2005 Alan Stern, stern@rowland.harvard.edu
  */
 
-static void uhci_free_pending_tds(struct uhci_hcd *uhci);
 
 /*
  * Technically, updating td->status here is a race, but it's not really a
@@ -51,7 +50,6 @@ static struct uhci_td *uhci_alloc_td(struct uhci_hcd *uhci)
 	td->frame = -1;
 
 	INIT_LIST_HEAD(&td->list);
-	INIT_LIST_HEAD(&td->remove_list);
 	INIT_LIST_HEAD(&td->fl_list);
 
 	return td;
@@ -61,8 +59,6 @@ static void uhci_free_td(struct uhci_hcd *uhci, struct uhci_td *td)
 {
 	if (!list_empty(&td->list))
 		dev_warn(uhci_dev(uhci), "td %p still in list!\n", td);
-	if (!list_empty(&td->remove_list))
-		dev_warn(uhci_dev(uhci), "td %p still in remove_list!\n", td);
 	if (!list_empty(&td->fl_list))
 		dev_warn(uhci_dev(uhci), "td %p still in fl_list!\n", td);
 
@@ -75,6 +71,16 @@ static inline void uhci_fill_td(struct uhci_td *td, u32 status,
 	td->status = cpu_to_le32(status);
 	td->token = cpu_to_le32(token);
 	td->buffer = cpu_to_le32(buffer);
+}
+
+static void uhci_add_td_to_urbp(struct uhci_td *td, struct urb_priv *urbp)
+{
+	list_add_tail(&td->list, &urbp->td_list);
+}
+
+static void uhci_remove_td_from_urbp(struct uhci_td *td)
+{
+	list_del_init(&td->list);
 }
 
 /*
@@ -421,21 +427,6 @@ static inline struct urb_priv *uhci_alloc_urb_priv(struct uhci_hcd *uhci,
 	return urbp;
 }
 
-static void uhci_add_td_to_urb(struct urb *urb, struct uhci_td *td)
-{
-	struct urb_priv *urbp = (struct urb_priv *)urb->hcpriv;
-
-	list_add_tail(&td->list, &urbp->td_list);
-}
-
-static void uhci_remove_td_from_urb(struct uhci_td *td)
-{
-	if (list_empty(&td->list))
-		return;
-
-	list_del_init(&td->list);
-}
-
 static void uhci_free_urb_priv(struct uhci_hcd *uhci,
 		struct urb_priv *urbp)
 {
@@ -445,20 +436,9 @@ static void uhci_free_urb_priv(struct uhci_hcd *uhci,
 		dev_warn(uhci_dev(uhci), "urb %p still on QH's list!\n",
 				urbp->urb);
 
-	uhci_get_current_frame_number(uhci);
-	if (uhci->frame_number + uhci->is_stopped != uhci->td_remove_age) {
-		uhci_free_pending_tds(uhci);
-		uhci->td_remove_age = uhci->frame_number;
-	}
-
-	/* Check to see if the remove list is empty. Set the IOC bit */
-	/* to force an interrupt so we can remove the TDs. */
-	if (list_empty(&uhci->td_remove_list))
-		uhci_set_next_interrupt(uhci);
-
 	list_for_each_entry_safe(td, tmp, &urbp->td_list, list) {
-		uhci_remove_td_from_urb(td);
-		list_add(&td->remove_list, &uhci->td_remove_list);
+		uhci_remove_td_from_urbp(td);
+		uhci_free_td(uhci, td);
 	}
 
 	urbp->urb->hcpriv = NULL;
@@ -529,6 +509,7 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb,
 	int len = urb->transfer_buffer_length;
 	dma_addr_t data = urb->transfer_dma;
 	__le32 *plink;
+	struct urb_priv *urbp = urb->hcpriv;
 
 	/* The "pipe" thing contains the destination in bits 8--18 */
 	destination = (urb->pipe & PIPE_DEVEP_MASK) | USB_PID_SETUP;
@@ -542,7 +523,7 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb,
 	 * Build the TD for the control request setup packet
 	 */
 	td = qh->dummy_td;
-	uhci_add_td_to_urb(urb, td);
+	uhci_add_td_to_urbp(td, urbp);
 	uhci_fill_td(td, status, destination | uhci_explen(8),
 			urb->setup_dma);
 	plink = &td->link;
@@ -574,7 +555,7 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb,
 		/* Alternate Data0/1 (start with Data1) */
 		destination ^= TD_TOKEN_TOGGLE;
 	
-		uhci_add_td_to_urb(urb, td);
+		uhci_add_td_to_urbp(td, urbp);
 		uhci_fill_td(td, status, destination | uhci_explen(pktsze),
 				data);
 		plink = &td->link;
@@ -605,7 +586,7 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb,
 
 	status &= ~TD_CTRL_SPD;
 
-	uhci_add_td_to_urb(urb, td);
+	uhci_add_td_to_urbp(td, urbp);
 	uhci_fill_td(td, status | TD_CTRL_IOC,
 			destination | uhci_explen(0), 0);
 	plink = &td->link;
@@ -640,7 +621,7 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb,
 
 nomem:
 	/* Remove the dummy TD from the td_list so it doesn't get freed */
-	uhci_remove_td_from_urb(qh->dummy_td);
+	uhci_remove_td_from_urbp(qh->dummy_td);
 	return -ENOMEM;
 }
 
@@ -656,6 +637,7 @@ static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb,
 	int len = urb->transfer_buffer_length;
 	dma_addr_t data = urb->transfer_dma;
 	__le32 *plink;
+	struct urb_priv *urbp = urb->hcpriv;
 	unsigned int toggle;
 
 	if (len < 0)
@@ -693,7 +675,7 @@ static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb,
 				goto nomem;
 			*plink = cpu_to_le32(td->dma_handle);
 		}
-		uhci_add_td_to_urb(urb, td);
+		uhci_add_td_to_urbp(td, urbp);
 		uhci_fill_td(td, status,
 				destination | uhci_explen(pktsze) |
 					(toggle << TD_TOKEN_TOGGLE_SHIFT),
@@ -721,7 +703,7 @@ static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb,
 			goto nomem;
 		*plink = cpu_to_le32(td->dma_handle);
 
-		uhci_add_td_to_urb(urb, td);
+		uhci_add_td_to_urbp(td, urbp);
 		uhci_fill_td(td, status,
 				destination | uhci_explen(0) |
 					(toggle << TD_TOKEN_TOGGLE_SHIFT),
@@ -758,7 +740,7 @@ static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb,
 
 nomem:
 	/* Remove the dummy TD from the td_list so it doesn't get freed */
-	uhci_remove_td_from_urb(qh->dummy_td);
+	uhci_remove_td_from_urbp(qh->dummy_td);
 	return -ENOMEM;
 }
 
@@ -830,8 +812,8 @@ static int uhci_fixup_short_transfer(struct uhci_hcd *uhci,
 		td = list_entry(tmp, struct uhci_td, list);
 		tmp = tmp->prev;
 
-		uhci_remove_td_from_urb(td);
-		list_add(&td->remove_list, &uhci->td_remove_list);
+		uhci_remove_td_from_urbp(td);
+		uhci_free_td(uhci, td);
 	}
 	return ret;
 }
@@ -885,10 +867,9 @@ static int uhci_result_common(struct uhci_hcd *uhci, struct urb *urb)
 				ret = 1;
 		}
 
-		uhci_remove_td_from_urb(td);
+		uhci_remove_td_from_urbp(td);
 		if (qh->post_td)
-			list_add(&qh->post_td->remove_list,
-					&uhci->td_remove_list);
+			uhci_free_td(uhci, qh->post_td);
 		qh->post_td = td;
 
 		if (ret != 0)
@@ -957,7 +938,7 @@ static int uhci_submit_isochronous(struct uhci_hcd *uhci, struct urb *urb,
 		if (!td)
 			return -ENOMEM;
 
-		uhci_add_td_to_urb(urb, td);
+		uhci_add_td_to_urbp(td, urbp);
 		uhci_fill_td(td, status, destination |
 				uhci_explen(urb->iso_frame_desc[i].length),
 				urb->transfer_dma +
@@ -1267,17 +1248,6 @@ restart:
 		uhci_make_qh_idle(uhci, qh);
 }
 
-static void uhci_free_pending_tds(struct uhci_hcd *uhci)
-{
-	struct uhci_td *td, *tmp;
-
-	list_for_each_entry_safe(td, tmp, &uhci->td_remove_list, remove_list) {
-		list_del_init(&td->remove_list);
-
-		uhci_free_td(uhci, td);
-	}
-}
-
 /*
  * Process events in the schedule, but only in one thread at a time
  */
@@ -1298,9 +1268,6 @@ static void uhci_scan_schedule(struct uhci_hcd *uhci, struct pt_regs *regs)
 	uhci_clear_next_interrupt(uhci);
 	uhci_get_current_frame_number(uhci);
 
-	if (uhci->frame_number + uhci->is_stopped != uhci->td_remove_age)
-		uhci_free_pending_tds(uhci);
-
 	/* Go through all the QH queues and process the URBs in each one */
 	for (i = 0; i < UHCI_NUM_SKELQH - 1; ++i) {
 		uhci->next_qh = list_entry(uhci->skelqh[i]->node.next,
@@ -1316,12 +1283,7 @@ static void uhci_scan_schedule(struct uhci_hcd *uhci, struct pt_regs *regs)
 		goto rescan;
 	uhci->scan_in_progress = 0;
 
-	/* If the controller is stopped, we can finish these off right now */
-	if (uhci->is_stopped)
-		uhci_free_pending_tds(uhci);
-
-	if (list_empty(&uhci->td_remove_list) &&
-			list_empty(&uhci->skel_unlink_qh->node))
+	if (list_empty(&uhci->skel_unlink_qh->node))
 		uhci_clear_next_interrupt(uhci);
 	else
 		uhci_set_next_interrupt(uhci);
