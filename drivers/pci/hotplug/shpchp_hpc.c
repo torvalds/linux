@@ -330,7 +330,6 @@ static inline int shpc_wait_cmd(struct controller *ctrl)
 
 static int shpc_write_cmd(struct slot *slot, u8 t_slot, u8 cmd)
 {
-	struct php_ctlr_state_s *php_ctlr = slot->ctrl->hpc_ctlr_handle;
 	struct controller *ctrl = slot->ctrl;
 	u16 cmd_status;
 	int retval = 0;
@@ -340,12 +339,6 @@ static int shpc_write_cmd(struct slot *slot, u8 t_slot, u8 cmd)
 	DBG_ENTER_ROUTINE 
 
 	mutex_lock(&slot->ctrl->cmd_lock);
-
-	if (!php_ctlr) {
-		err("%s: Invalid HPC controller handle!\n", __FUNCTION__);
-		retval = -EINVAL;
-		goto out;
-	}
 
 	for (i = 0; i < 10; i++) {
 		cmd_status = shpc_readw(ctrl, CMD_STATUS);
@@ -401,11 +394,6 @@ static int hpc_check_cmd_status(struct controller *ctrl)
 	int retval = 0;
 
 	DBG_ENTER_ROUTINE 
-	
-	if (!ctrl->hpc_ctlr_handle) {
-		err("%s: Invalid HPC controller handle!\n", __FUNCTION__);
-		return -1;
-	}
 
 	cmd_status = shpc_readw(ctrl, CMD_STATUS) & 0x000F;
 	
@@ -442,11 +430,6 @@ static int hpc_get_attention_status(struct slot *slot, u8 *status)
 	
 	DBG_ENTER_ROUTINE 
 
-	if (!slot->ctrl->hpc_ctlr_handle) {
-		err("%s: Invalid HPC controller handle!\n", __FUNCTION__);
-		return -1;
-	}
-
 	slot_reg = shpc_readl(ctrl, SLOT_REG(slot->hp_slot));
 	state = (slot_reg & ATN_LED_STATE_MASK) >> ATN_LED_STATE_SHIFT;
 
@@ -476,11 +459,6 @@ static int hpc_get_power_status(struct slot * slot, u8 *status)
 	u8 state;
 	
 	DBG_ENTER_ROUTINE 
-
-	if (!slot->ctrl->hpc_ctlr_handle) {
-		err("%s: Invalid HPC controller handle!\n", __FUNCTION__);
-		return -1;
-	}
 
 	slot_reg = shpc_readl(ctrl, SLOT_REG(slot->hp_slot));
 	state = (slot_reg & SLOT_STATE_MASK) >> SLOT_STATE_SHIFT;
@@ -512,11 +490,6 @@ static int hpc_get_latch_status(struct slot *slot, u8 *status)
 
 	DBG_ENTER_ROUTINE 
 
-	if (!slot->ctrl->hpc_ctlr_handle) {
-		err("%s: Invalid HPC controller handle!\n", __FUNCTION__);
-		return -1;
-	}
-
 	slot_reg = shpc_readl(ctrl, SLOT_REG(slot->hp_slot));
 	*status = !!(slot_reg & MRL_SENSOR);	/* 0 -> close; 1 -> open */
 
@@ -532,11 +505,6 @@ static int hpc_get_adapter_status(struct slot *slot, u8 *status)
 
 	DBG_ENTER_ROUTINE 
 
-	if (!slot->ctrl->hpc_ctlr_handle) {
-		err("%s: Invalid HPC controller handle!\n", __FUNCTION__);
-		return -1;
-	}
-
 	slot_reg = shpc_readl(ctrl, SLOT_REG(slot->hp_slot));
 	state = (slot_reg & PRSNT_MASK) >> PRSNT_SHIFT;
 	*status = (state != 0x3) ? 1 : 0;
@@ -550,11 +518,6 @@ static int hpc_get_prog_int(struct slot *slot, u8 *prog_int)
 	struct controller *ctrl = slot->ctrl;
 
 	DBG_ENTER_ROUTINE 
-	
-	if (!slot->ctrl->hpc_ctlr_handle) {
-		err("%s: Invalid HPC controller handle!\n", __FUNCTION__);
-		return -1;
-	}
 
 	*prog_int = shpc_readb(ctrl, PROG_INTERFACE);
 
@@ -626,11 +589,6 @@ static int hpc_get_mode1_ECC_cap(struct slot *slot, u8 *mode)
 
 	DBG_ENTER_ROUTINE 
 
-	if (!slot->ctrl->hpc_ctlr_handle) {
-		err("%s: Invalid HPC controller handle!\n", __FUNCTION__);
-		return -1;
-	}
-
 	pi = shpc_readb(ctrl, PROG_INTERFACE);
 	sec_bus_status = shpc_readw(ctrl, SEC_BUS_CONFIG);
 
@@ -653,11 +611,6 @@ static int hpc_query_power_fault(struct slot * slot)
 
 	DBG_ENTER_ROUTINE 
 
-	if (!slot->ctrl->hpc_ctlr_handle) {
-		err("%s: Invalid HPC controller handle!\n", __FUNCTION__);
-		return -1;
-	}
-
 	slot_reg = shpc_readl(ctrl, SLOT_REG(slot->hp_slot));
 
 	DBG_LEAVE_ROUTINE
@@ -667,19 +620,7 @@ static int hpc_query_power_fault(struct slot * slot)
 
 static int hpc_set_attention_status(struct slot *slot, u8 value)
 {
-	struct php_ctlr_state_s *php_ctlr = slot->ctrl->hpc_ctlr_handle;
 	u8 slot_cmd = 0;
-	int rc = 0;
-
-	if (!slot->ctrl->hpc_ctlr_handle) {
-		err("%s: Invalid HPC controller handle!\n", __FUNCTION__);
-		return -1;
-	}
-
-	if (slot->hp_slot >= php_ctlr->num_slots) {
-		err("%s: Invalid HPC slot number!\n", __FUNCTION__);
-		return -1;
-	}
 
 	switch (value) {
 		case 0 :	
@@ -695,76 +636,23 @@ static int hpc_set_attention_status(struct slot *slot, u8 value)
 			return -1;
 	}
 
-	shpc_write_cmd(slot, slot->hp_slot, slot_cmd);
-	
-	return rc;
+	return shpc_write_cmd(slot, slot->hp_slot, slot_cmd);
 }
 
 
 static void hpc_set_green_led_on(struct slot *slot)
 {
-	struct php_ctlr_state_s *php_ctlr = slot->ctrl->hpc_ctlr_handle;
-	u8 slot_cmd;
-
-	if (!slot->ctrl->hpc_ctlr_handle) {
-		err("%s: Invalid HPC controller handle!\n", __FUNCTION__);
-		return ;
-	}
-
-	if (slot->hp_slot >= php_ctlr->num_slots) {
-		err("%s: Invalid HPC slot number!\n", __FUNCTION__);
-		return ;
-	}
-
-	slot_cmd = 0x04;
-
-	shpc_write_cmd(slot, slot->hp_slot, slot_cmd);
-
-	return;
+	shpc_write_cmd(slot, slot->hp_slot, 0x04);
 }
 
 static void hpc_set_green_led_off(struct slot *slot)
 {
-	struct php_ctlr_state_s *php_ctlr = slot->ctrl->hpc_ctlr_handle;
-	u8 slot_cmd;
-
-	if (!slot->ctrl->hpc_ctlr_handle) {
-		err("%s: Invalid HPC controller handle!\n", __FUNCTION__);
-		return ;
-	}
-
-	if (slot->hp_slot >= php_ctlr->num_slots) {
-		err("%s: Invalid HPC slot number!\n", __FUNCTION__);
-		return ;
-	}
-
-	slot_cmd = 0x0C;
-
-	shpc_write_cmd(slot, slot->hp_slot, slot_cmd);
-
-	return;
+	shpc_write_cmd(slot, slot->hp_slot, 0x0c);
 }
 
 static void hpc_set_green_led_blink(struct slot *slot)
 {
-	struct php_ctlr_state_s *php_ctlr = slot->ctrl->hpc_ctlr_handle;
-	u8 slot_cmd;
-
-	if (!slot->ctrl->hpc_ctlr_handle) {
-		err("%s: Invalid HPC controller handle!\n", __FUNCTION__);
-		return ;
-	}
-
-	if (slot->hp_slot >= php_ctlr->num_slots) {
-		err("%s: Invalid HPC slot number!\n", __FUNCTION__);
-		return ;
-	}
-
-	slot_cmd = 0x08;
-
-	shpc_write_cmd(slot, slot->hp_slot, slot_cmd);
-
-	return;
+	shpc_write_cmd(slot, slot->hp_slot, 0x08);
 }
 
 int shpc_get_ctlr_slot_config(struct controller *ctrl,
@@ -777,11 +665,6 @@ int shpc_get_ctlr_slot_config(struct controller *ctrl,
 	u32 slot_config;
 
 	DBG_ENTER_ROUTINE 
-
-	if (!ctrl->hpc_ctlr_handle) {
-		err("%s: Invalid HPC controller handle!\n", __FUNCTION__);
-		return -1;
-	}
 
 	slot_config = shpc_readl(ctrl, SLOT_CONFIG);
 	*first_device_num = (slot_config & FIRST_DEV_NUM) >> 8;
@@ -803,11 +686,6 @@ static void hpc_release_ctlr(struct controller *ctrl)
 	u32 slot_reg, serr_int;
 
 	DBG_ENTER_ROUTINE 
-
-	if (!ctrl->hpc_ctlr_handle) {
-		err("%s: Invalid HPC controller handle!\n", __FUNCTION__);
-		return ;
-	}
 
 	/*
 	 * Mask event interrupts and SERRs of all slots
@@ -881,96 +759,53 @@ DBG_LEAVE_ROUTINE
 
 static int hpc_power_on_slot(struct slot * slot)
 {
-	struct php_ctlr_state_s *php_ctlr = slot->ctrl->hpc_ctlr_handle;
-	u8 slot_cmd;
-	int retval = 0;
+	int retval;
 
 	DBG_ENTER_ROUTINE 
 
-	if (!slot->ctrl->hpc_ctlr_handle) {
-		err("%s: Invalid HPC controller handle!\n", __FUNCTION__);
-		return -1;
-	}
-
-	if (slot->hp_slot >= php_ctlr->num_slots) {
-		err("%s: Invalid HPC slot number!\n", __FUNCTION__);
-		return -1;
-	}
-	slot_cmd = 0x01;
-
-	retval = shpc_write_cmd(slot, slot->hp_slot, slot_cmd);
-
+	retval = shpc_write_cmd(slot, slot->hp_slot, 0x01);
 	if (retval) {
 		err("%s: Write command failed!\n", __FUNCTION__);
-		return -1;
+		return retval;
 	}
 
 	DBG_LEAVE_ROUTINE
 
-	return retval;
+	return 0;
 }
 
 static int hpc_slot_enable(struct slot * slot)
 {
-	struct php_ctlr_state_s *php_ctlr = slot->ctrl->hpc_ctlr_handle;
-	u8 slot_cmd;
-	int retval = 0;
+	int retval;
 
 	DBG_ENTER_ROUTINE 
 
-	if (!slot->ctrl->hpc_ctlr_handle) {
-		err("%s: Invalid HPC controller handle!\n", __FUNCTION__);
-		return -1;
-	}
-
-	if (slot->hp_slot >= php_ctlr->num_slots) {
-		err("%s: Invalid HPC slot number!\n", __FUNCTION__);
-		return -1;
-	}
 	/* 3A => Slot - Enable, Power Indicator - Blink, Attention Indicator - Off */
-	slot_cmd = 0x3A;  
-
-	retval = shpc_write_cmd(slot, slot->hp_slot, slot_cmd);
-
+	retval = shpc_write_cmd(slot, slot->hp_slot, 0x3a);
 	if (retval) {
 		err("%s: Write command failed!\n", __FUNCTION__);
-		return -1;
+		return retval;
 	}
 
 	DBG_LEAVE_ROUTINE
-	return retval;
+	return 0;
 }
 
 static int hpc_slot_disable(struct slot * slot)
 {
-	struct php_ctlr_state_s *php_ctlr = slot->ctrl->hpc_ctlr_handle;
-	u8 slot_cmd;
-	int retval = 0;
+	int retval;
 
 	DBG_ENTER_ROUTINE 
 
-	if (!slot->ctrl->hpc_ctlr_handle) {
-		err("%s: Invalid HPC controller handle!\n", __FUNCTION__);
-		return -1;
-	}
-
-	if (slot->hp_slot >= php_ctlr->num_slots) {
-		err("%s: Invalid HPC slot number!\n", __FUNCTION__);
-		return -1;
-	}
-
 	/* 1F => Slot - Disable, Power Indicator - Off, Attention Indicator - On */
-	slot_cmd = 0x1F;
-
-	retval = shpc_write_cmd(slot, slot->hp_slot, slot_cmd);
-
+	retval = shpc_write_cmd(slot, slot->hp_slot, 0x1f);
 	if (retval) {
 		err("%s: Write command failed!\n", __FUNCTION__);
-		return -1;
+		return retval;
 	}
 
 	DBG_LEAVE_ROUTINE
-	return retval;
+	return 0;
 }
 
 static int hpc_set_bus_speed_mode(struct slot * slot, enum pci_bus_speed value)
