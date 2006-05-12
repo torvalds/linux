@@ -759,6 +759,36 @@ out:
 
 #ifdef CONFIG_MTD_ONENAND_VERIFY_WRITE
 /**
+ * onenand_verify_oob - [GENERIC] verify the oob contents after a write
+ * @param mtd		MTD device structure
+ * @param buf		the databuffer to verify
+ * @param to		offset to read from
+ * @param len		number of bytes to read and compare
+ *
+ */
+static int onenand_verify_oob(struct mtd_info *mtd, const u_char *buf, loff_t to, int len)
+{
+	struct onenand_chip *this = mtd->priv;
+	char *readp = this->page_buf;
+	int column = to & (mtd->oobsize - 1);
+	int status, i;
+
+	this->command(mtd, ONENAND_CMD_READOOB, to, mtd->oobsize);
+	onenand_update_bufferram(mtd, to, 0);
+	status = this->wait(mtd, FL_READING);
+	if (status)
+		return status;
+
+	this->read_bufferram(mtd, ONENAND_SPARERAM, readp, column, len);
+
+	for(i = 0; i < len; i++)
+		if (buf[i] != 0xFF && buf[i] != readp[i])
+			return -EBADMSG;
+
+	return 0;
+}
+
+/**
  * onenand_verify_page - [GENERIC] verify the chip contents after a write
  * @param mtd		MTD device structure
  * @param buf		the databuffer to verify
@@ -790,6 +820,7 @@ static int onenand_verify_page(struct mtd_info *mtd, u_char *buf, loff_t addr)
 }
 #else
 #define onenand_verify_page(...)	(0)
+#define onenand_verify_oob(...)		(0)
 #endif
 
 #define NOTALIGNED(x)	((x & (mtd->oobblock - 1)) != 0)
@@ -909,7 +940,7 @@ static int onenand_write_oob(struct mtd_info *mtd, loff_t to, size_t len,
 	size_t *retlen, const u_char *buf)
 {
 	struct onenand_chip *this = mtd->priv;
-	int column, status;
+	int column, ret = 0;
 	int written = 0;
 
 	DEBUG(MTD_DEBUG_LEVEL3, "onenand_write_oob: to = 0x%08x, len = %i\n", (unsigned int) to, (int) len);
@@ -941,9 +972,17 @@ static int onenand_write_oob(struct mtd_info *mtd, loff_t to, size_t len,
 
 		onenand_update_bufferram(mtd, to, 0);
 
-		status = this->wait(mtd, FL_WRITING);
-		if (status)
+		ret = this->wait(mtd, FL_WRITING);
+		if (ret) {
+			DEBUG(MTD_DEBUG_LEVEL0, "onenand_write_oob: write filaed %d\n", ret);
 			goto out;
+		}
+
+		ret = onenand_verify_oob(mtd, buf, to, thislen);
+		if (ret) {
+			DEBUG(MTD_DEBUG_LEVEL0, "onenand_write_oob: verify failed %d\n", ret);
+			goto out;
+		}
 
 		written += thislen;
 
@@ -960,7 +999,7 @@ out:
 
 	*retlen = written;
 
-	return 0;
+	return ret;
 }
 
 /**
