@@ -189,11 +189,15 @@ static int serial_open (struct tty_struct *tty, struct file * filp)
 
 	portNumber = tty->index - serial->minor;
 	port = serial->port[portNumber];
-	if (!port)
-		return -ENODEV;
+	if (!port) {
+		retval = -ENODEV;
+		goto bailout_kref_put;
+	}
 
-	if (mutex_lock_interruptible(&port->mutex))
-		return -ERESTARTSYS;
+	if (mutex_lock_interruptible(&port->mutex)) {
+		retval = -ERESTARTSYS;
+		goto bailout_kref_put;
+	}
 	 
 	++port->open_count;
 
@@ -209,7 +213,7 @@ static int serial_open (struct tty_struct *tty, struct file * filp)
 		 * safe because we are called with BKL held */
 		if (!try_module_get(serial->type->driver.owner)) {
 			retval = -ENODEV;
-			goto bailout_kref_put;
+			goto bailout_mutex_unlock;
 		}
 
 		/* only call the device specific open if this 
@@ -224,9 +228,10 @@ static int serial_open (struct tty_struct *tty, struct file * filp)
 
 bailout_module_put:
 	module_put(serial->type->driver.owner);
-bailout_kref_put:
+bailout_mutex_unlock:
 	port->open_count = 0;
 	mutex_unlock(&port->mutex);
+bailout_kref_put:
 	kref_put(&serial->kref, destroy_serial);
 	return retval;
 }
