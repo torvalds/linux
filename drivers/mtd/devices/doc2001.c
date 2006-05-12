@@ -394,7 +394,7 @@ void DoCMil_init(struct mtd_info *mtd)
 		return;
 	}
 }
-EXPORT_SYMBOL_GPL(DocMil_init);
+EXPORT_SYMBOL_GPL(DoCMil_init);
 
 static int doc_read (struct mtd_info *mtd, loff_t from, size_t len,
 		     size_t *retlen, u_char *buf)
