@@ -211,8 +211,6 @@
 #define SLOT_EVENT_LATCH	0x2
 #define SLOT_SERR_INT_MASK	0x3
 
-static spinlock_t hpc_event_lock;
-
 DEFINE_DBG_BUFFER		/* Debug string buffer for entire HPC defined here */
 static struct php_ctlr_state_s *php_ctlr_list_head;	/* HPC state linked list */
 static int ctlr_seq_num = 0;	/* Controller sequenc # */
@@ -1105,7 +1103,6 @@ int shpc_init(struct controller * ctrl, struct pci_dev * pdev)
 	void *instance_id = ctrl;
 	int rc, num_slots = 0;
 	u8 hp_slot;
-	static int first = 1;
 	u32 shpc_base_offset;
 	u32 tempdword, slot_reg, slot_config;
 	u8 i;
@@ -1165,11 +1162,6 @@ int shpc_init(struct controller * ctrl, struct pci_dev * pdev)
 		ctrl->mmio_base =
 			pci_resource_start(pdev, 0) + shpc_base_offset;
 		ctrl->mmio_size = 0x24 + 0x4 * num_slots;
-	}
-
-	if (first) {
-		spin_lock_init(&hpc_event_lock);
-		first = 0;
 	}
 
 	info("HPC vendor_id %x device_id %x ss_vid %x ss_did %x\n", pdev->vendor, pdev->device, pdev->subsystem_vendor, 
