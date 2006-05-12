@@ -619,134 +619,6 @@ nomem:
 }
 
 /*
- * If control-IN transfer was short, the status packet wasn't sent.
- * This routine changes the element pointer in the QH to point at the
- * status TD.  It's safe to do this even while the QH is live, because
- * the hardware only updates the element pointer following a successful
- * transfer.  The inactive TD for the short packet won't cause an update,
- * so the pointer won't get overwritten.  The next time the controller
- * sees this QH, it will send the status packet.
- */
-static int usb_control_retrigger_status(struct uhci_hcd *uhci, struct urb *urb)
-{
-	struct urb_priv *urbp = (struct urb_priv *)urb->hcpriv;
-	struct uhci_td *td;
-
-	urbp->short_transfer = 1;
-
-	td = list_entry(urbp->td_list.prev, struct uhci_td, list);
-	urbp->qh->element = cpu_to_le32(td->dma_handle);
-
-	return -EINPROGRESS;
-}
-
-
-static int uhci_result_control(struct uhci_hcd *uhci, struct urb *urb)
-{
-	struct list_head *tmp, *head;
-	struct urb_priv *urbp = urb->hcpriv;
-	struct uhci_td *td;
-	unsigned int status;
-	int ret = 0;
-
-	head = &urbp->td_list;
-	if (urbp->short_transfer) {
-		tmp = head->prev;
-		goto status_stage;
-	}
-
-	urb->actual_length = 0;
-
-	tmp = head->next;
-	td = list_entry(tmp, struct uhci_td, list);
-
-	/* The first TD is the SETUP stage, check the status, but skip */
-	/*  the count */
-	status = uhci_status_bits(td_status(td));
-	if (status & TD_CTRL_ACTIVE)
-		return -EINPROGRESS;
-
-	if (status)
-		goto td_error;
-
-	/* The rest of the TDs (but the last) are data */
-	tmp = tmp->next;
-	while (tmp != head && tmp->next != head) {
-		unsigned int ctrlstat;
-
-		td = list_entry(tmp, struct uhci_td, list);
-		tmp = tmp->next;
-
-		ctrlstat = td_status(td);
-		status = uhci_status_bits(ctrlstat);
-		if (status & TD_CTRL_ACTIVE)
-			return -EINPROGRESS;
-
-		urb->actual_length += uhci_actual_length(ctrlstat);
-
-		if (status)
-			goto td_error;
-
-		/* Check to see if we received a short packet */
-		if (uhci_actual_length(ctrlstat) <
-				uhci_expected_length(td_token(td))) {
-			if (urb->transfer_flags & URB_SHORT_NOT_OK) {
-				ret = -EREMOTEIO;
-				goto err;
-			}
-
-			return usb_control_retrigger_status(uhci, urb);
-		}
-	}
-
-status_stage:
-	td = list_entry(tmp, struct uhci_td, list);
-
-	/* Control status stage */
-	status = td_status(td);
-
-#ifdef I_HAVE_BUGGY_APC_BACKUPS
-	/* APC BackUPS Pro kludge */
-	/* It tries to send all of the descriptor instead of the amount */
-	/*  we requested */
-	if (status & TD_CTRL_IOC &&	/* IOC is masked out by uhci_status_bits */
-	    status & TD_CTRL_ACTIVE &&
-	    status & TD_CTRL_NAK)
-		return 0;
-#endif
-
-	status = uhci_status_bits(status);
-	if (status & TD_CTRL_ACTIVE)
-		return -EINPROGRESS;
-
-	if (status)
-		goto td_error;
-
-	return 0;
-
-td_error:
-	ret = uhci_map_status(status, uhci_packetout(td_token(td)));
-
-err:
-	if ((debug == 1 && ret != -EPIPE) || debug > 1) {
-		/* Some debugging code */
-		dev_dbg(uhci_dev(uhci), "%s: failed with status %x\n",
-				__FUNCTION__, status);
-
-		if (errbuf) {
-			/* Print the chain for debugging purposes */
-			uhci_show_qh(urbp->qh, errbuf, ERRBUF_LEN, 0);
-			lprintk(errbuf);
-		}
-	}
-
-	/* Note that the queue has stopped */
-	urbp->qh->element = UHCI_PTR_TERM;
-	urbp->qh->is_stopped = 1;
-	return ret;
-}
-
-/*
  * Common submit for bulk and interrupt
  */
 static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb,
@@ -864,86 +736,6 @@ nomem:
 	return -ENOMEM;
 }
 
-/*
- * Common result for bulk and interrupt
- */
-static int uhci_result_common(struct uhci_hcd *uhci, struct urb *urb)
-{
-	struct urb_priv *urbp = urb->hcpriv;
-	struct uhci_td *td;
-	unsigned int status = 0;
-	int ret = 0;
-
-	urb->actual_length = 0;
-
-	list_for_each_entry(td, &urbp->td_list, list) {
-		unsigned int ctrlstat = td_status(td);
-
-		status = uhci_status_bits(ctrlstat);
-		if (status & TD_CTRL_ACTIVE)
-			return -EINPROGRESS;
-
-		urb->actual_length += uhci_actual_length(ctrlstat);
-
-		if (status)
-			goto td_error;
-
-		if (uhci_actual_length(ctrlstat) <
-				uhci_expected_length(td_token(td))) {
-			if (urb->transfer_flags & URB_SHORT_NOT_OK) {
-				ret = -EREMOTEIO;
-				goto err;
-			}
-
-			/*
-			 * This URB stopped short of its end.  We have to
-			 * fix up the toggles of the following URBs on the
-			 * queue and restart the queue.
-			 *
-			 * Do this only the first time we encounter the
-			 * short URB.
-			 */
-			if (!urbp->short_transfer) {
-				urbp->short_transfer = 1;
-				urbp->qh->initial_toggle =
-						uhci_toggle(td_token(td)) ^ 1;
-				uhci_fixup_toggles(urbp->qh, 1);
-
-				td = list_entry(urbp->td_list.prev,
-						struct uhci_td, list);
-				urbp->qh->element = td->link;
-			}
-			break;
-		}
-	}
-
-	return 0;
-
-td_error:
-	ret = uhci_map_status(status, uhci_packetout(td_token(td)));
-
-	if ((debug == 1 && ret != -EPIPE) || debug > 1) {
-		/* Some debugging code */
-		dev_dbg(uhci_dev(uhci), "%s: failed with status %x\n",
-				__FUNCTION__, status);
-
-		if (debug > 1 && errbuf) {
-			/* Print the chain for debugging purposes */
-			uhci_show_qh(urbp->qh, errbuf, ERRBUF_LEN, 0);
-			lprintk(errbuf);
-		}
-	}
-err:
-
-	/* Note that the queue has stopped and save the next toggle value */
-	urbp->qh->element = UHCI_PTR_TERM;
-	urbp->qh->is_stopped = 1;
-	urbp->qh->needs_fixup = 1;
-	urbp->qh->initial_toggle = uhci_toggle(td_token(td)) ^
-			(ret == -EREMOTEIO);
-	return ret;
-}
-
 static inline int uhci_submit_bulk(struct uhci_hcd *uhci, struct urb *urb,
 		struct uhci_qh *qh)
 {
@@ -969,6 +761,129 @@ static inline int uhci_submit_interrupt(struct uhci_hcd *uhci, struct urb *urb,
 	 */
 	qh->skel = uhci->skelqh[__interval_to_skel(urb->interval)];
 	return uhci_submit_common(uhci, urb, qh);
+}
+
+/*
+ * Fix up the data structures following a short transfer
+ */
+static int uhci_fixup_short_transfer(struct uhci_hcd *uhci,
+		struct uhci_qh *qh, struct urb_priv *urbp,
+		struct uhci_td *short_td)
+{
+	struct uhci_td *td;
+	int ret = 0;
+
+	td = list_entry(urbp->td_list.prev, struct uhci_td, list);
+	if (qh->type == USB_ENDPOINT_XFER_CONTROL) {
+		urbp->short_transfer = 1;
+
+		/* When a control transfer is short, we have to restart
+		 * the queue at the status stage transaction, which is
+		 * the last TD. */
+		qh->element = cpu_to_le32(td->dma_handle);
+		ret = -EINPROGRESS;
+
+	} else if (!urbp->short_transfer) {
+		urbp->short_transfer = 1;
+
+		/* When a bulk/interrupt transfer is short, we have to
+		 * fix up the toggles of the following URBs on the queue
+		 * before restarting the queue at the next URB. */
+		qh->initial_toggle = uhci_toggle(td_token(short_td)) ^ 1;
+		uhci_fixup_toggles(qh, 1);
+
+		qh->element = td->link;
+	}
+
+	return ret;
+}
+
+/*
+ * Common result for control, bulk, and interrupt
+ */
+static int uhci_result_common(struct uhci_hcd *uhci, struct urb *urb)
+{
+	struct urb_priv *urbp = urb->hcpriv;
+	struct uhci_qh *qh = urbp->qh;
+	struct uhci_td *td;
+	struct list_head *tmp;
+	unsigned status;
+	int ret = 0;
+
+	tmp = urbp->td_list.next;
+
+	if (qh->type == USB_ENDPOINT_XFER_CONTROL) {
+		if (urbp->short_transfer)
+			tmp = urbp->td_list.prev;
+		else
+			urb->actual_length = -8;	/* SETUP packet */
+	} else
+		urb->actual_length = 0;
+
+
+	while (tmp != &urbp->td_list) {
+		unsigned int ctrlstat;
+		int len;
+
+		td = list_entry(tmp, struct uhci_td, list);
+		tmp = tmp->next;
+
+		ctrlstat = td_status(td);
+		status = uhci_status_bits(ctrlstat);
+		if (status & TD_CTRL_ACTIVE)
+			return -EINPROGRESS;
+
+		len = uhci_actual_length(ctrlstat);
+		urb->actual_length += len;
+
+		if (status) {
+			ret = uhci_map_status(status,
+					uhci_packetout(td_token(td)));
+			if ((debug == 1 && ret != -EPIPE) || debug > 1) {
+				/* Some debugging code */
+				dev_dbg(uhci_dev(uhci),
+						"%s: failed with status %x\n",
+						__FUNCTION__, status);
+
+				if (debug > 1 && errbuf) {
+					/* Print the chain for debugging */
+					uhci_show_qh(urbp->qh, errbuf,
+							ERRBUF_LEN, 0);
+					lprintk(errbuf);
+				}
+			}
+
+		} else if (len < uhci_expected_length(td_token(td))) {
+
+			/* We received a short packet */
+			if (urb->transfer_flags & URB_SHORT_NOT_OK)
+				ret = -EREMOTEIO;
+			else if (ctrlstat & TD_CTRL_SPD)
+				ret = 1;
+		}
+
+		if (ret != 0)
+			goto err;
+	}
+	return ret;
+
+err:
+	if (ret < 0) {
+		/* In case a control transfer gets an error
+		 * during the setup stage */
+		urb->actual_length = max(urb->actual_length, 0);
+
+		/* Note that the queue has stopped and save
+		 * the next toggle value */
+		qh->element = UHCI_PTR_TERM;
+		qh->is_stopped = 1;
+		qh->needs_fixup = (qh->type != USB_ENDPOINT_XFER_CONTROL);
+		qh->initial_toggle = uhci_toggle(td_token(td)) ^
+				(ret == -EREMOTEIO);
+
+	} else		/* Short packet received */
+		ret = uhci_fixup_short_transfer(uhci, qh, urbp, td);
+	return ret;
 }
 
 /*
@@ -1276,17 +1191,10 @@ static void uhci_scan_qh(struct uhci_hcd *uhci, struct uhci_qh *qh,
 		urbp = list_entry(qh->queue.next, struct urb_priv, node);
 		urb = urbp->urb;
 
-		switch (qh->type) {
-		case USB_ENDPOINT_XFER_CONTROL:
-			status = uhci_result_control(uhci, urb);
-			break;
-		case USB_ENDPOINT_XFER_ISOC:
+		if (qh->type == USB_ENDPOINT_XFER_ISOC)
 			status = uhci_result_isochronous(uhci, urb);
-			break;
-		default:	/* USB_ENDPOINT_XFER_BULK or _INT */
+		else
 			status = uhci_result_common(uhci, urb);
-			break;
-		}
 		if (status == -EINPROGRESS)
 			break;
 
