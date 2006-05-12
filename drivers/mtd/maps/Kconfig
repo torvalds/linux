@@ -561,7 +561,6 @@ config MTD_PCMCIA
 config MTD_PCMCIA_ANONYMOUS
 	bool "Use PCMCIA MTD drivers for anonymous PCMCIA cards"
 	depends on MTD_PCMCIA
-	default N
 	help
 	  If this option is enabled, PCMCIA cards which do not report
 	  anything about themselves are assumed to be MTD cards.
