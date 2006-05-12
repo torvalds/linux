@@ -147,39 +147,37 @@
 #define CON_PFAULT_SERR_MASK	(1 << 30)
 #define SLOT_REG_RSVDZ_MASK	(1 << 15) | (7 << 21)
 
-/* SHPC 'write' operations/commands */
-
-/* Slot operation - 0x00h to 0x3Fh */
-
-#define NO_CHANGE		0x00
-
-/* Slot state - Bits 0 & 1 of controller command register */
-#define SET_SLOT_PWR		0x01	
-#define SET_SLOT_ENABLE		0x02	
-#define SET_SLOT_DISABLE	0x03	
-
-/* Power indicator state - Bits 2 & 3 of controller command register*/
-#define SET_PWR_ON		0x04	
-#define SET_PWR_BLINK		0x08	
-#define SET_PWR_OFF		0x0C	
-
-/* Attention indicator state - Bits 4 & 5 of controller command register*/
-#define SET_ATTN_ON		0x010	
-#define SET_ATTN_BLINK		0x020
-#define SET_ATTN_OFF		0x030	
-
-/* Set bus speed/mode A - 0x40h to 0x47h */
-#define SETA_PCI_33MHZ		0x40
+/*
+ * SHPC Command Code definitnions
+ *
+ *     Slot Operation				00h - 3Fh
+ *     Set Bus Segment Speed/Mode A		40h - 47h
+ *     Power-Only All Slots			48h
+ *     Enable All Slots				49h
+ *     Set Bus Segment Speed/Mode B (PI=2)	50h - 5Fh
+ *     Reserved Command Codes			60h - BFh
+ *     Vendor Specific Commands			C0h - FFh
+ */
+#define SET_SLOT_PWR		0x01	/* Slot Operation */
+#define SET_SLOT_ENABLE		0x02
+#define SET_SLOT_DISABLE	0x03
+#define SET_PWR_ON		0x04
+#define SET_PWR_BLINK		0x08
+#define SET_PWR_OFF		0x0c
+#define SET_ATTN_ON		0x10
+#define SET_ATTN_BLINK		0x20
+#define SET_ATTN_OFF		0x30
+#define SETA_PCI_33MHZ		0x40	/* Set Bus Segment Speed/Mode A */
 #define SETA_PCI_66MHZ		0x41
 #define SETA_PCIX_66MHZ		0x42
 #define SETA_PCIX_100MHZ	0x43
 #define SETA_PCIX_133MHZ	0x44
-#define RESERV_1		0x45
-#define RESERV_2		0x46
-#define RESERV_3		0x47
-
-/* Set bus speed/mode B - 0x50h to 0x5fh */
-#define	SETB_PCI_33MHZ		0x50
+#define SETA_RESERVED1		0x45
+#define SETA_RESERVED2		0x46
+#define SETA_RESERVED3		0x47
+#define SET_PWR_ONLY_ALL	0x48	/* Power-Only All Slots */
+#define SET_ENABLE_ALL		0x49	/* Enable All Slots */
+#define	SETB_PCI_33MHZ		0x50	/* Set Bus Segment Speed/Mode B */
 #define SETB_PCI_66MHZ		0x51
 #define SETB_PCIX_66MHZ_PM	0x52
 #define SETB_PCIX_100MHZ_PM	0x53
@@ -193,23 +191,21 @@
 #define SETB_PCIX_66MHZ_533	0x5b
 #define SETB_PCIX_100MHZ_533	0x5c
 #define SETB_PCIX_133MHZ_533	0x5d
+#define SETB_RESERVED1		0x5e
+#define SETB_RESERVED2		0x5f
 
-
-/* Power-on all slots - 0x48h */
-#define SET_PWR_ON_ALL		0x48
-
-/* Enable all slots	- 0x49h */
-#define SET_ENABLE_ALL		0x49
-
-/*  SHPC controller command error code */
+/*
+ * SHPC controller command error code
+ */
 #define SWITCH_OPEN		0x1
 #define INVALID_CMD		0x2
 #define INVALID_SPEED_MODE	0x4
 
-/* For accessing SHPC Working Register Set */
+/*
+ * For accessing SHPC Working Register Set via PCI Configuration Space
+ */
 #define DWORD_SELECT		0x2
 #define DWORD_DATA		0x4
-#define BASE_OFFSET		0x0
 
 /* Field Offset in Logical Slot Register - byte boundary */
 #define SLOT_EVENT_LATCH	0x2
@@ -630,13 +626,13 @@ static int hpc_set_attention_status(struct slot *slot, u8 value)
 
 	switch (value) {
 		case 0 :	
-			slot_cmd = 0x30;	/* OFF */
+			slot_cmd = SET_ATTN_OFF;	/* OFF */
 			break;
 		case 1:
-			slot_cmd = 0x10;	/* ON */
+			slot_cmd = SET_ATTN_ON;		/* ON */
 			break;
 		case 2:
-			slot_cmd = 0x20;	/* BLINK */
+			slot_cmd = SET_ATTN_BLINK;	/* BLINK */
 			break;
 		default:
 			return -1;
@@ -648,17 +644,17 @@ static int hpc_set_attention_status(struct slot *slot, u8 value)
 
 static void hpc_set_green_led_on(struct slot *slot)
 {
-	shpc_write_cmd(slot, slot->hp_slot, 0x04);
+	shpc_write_cmd(slot, slot->hp_slot, SET_PWR_ON);
 }
 
 static void hpc_set_green_led_off(struct slot *slot)
 {
-	shpc_write_cmd(slot, slot->hp_slot, 0x0c);
+	shpc_write_cmd(slot, slot->hp_slot, SET_PWR_OFF);
 }
 
 static void hpc_set_green_led_blink(struct slot *slot)
 {
-	shpc_write_cmd(slot, slot->hp_slot, 0x08);
+	shpc_write_cmd(slot, slot->hp_slot, SET_PWR_BLINK);
 }
 
 int shpc_get_ctlr_slot_config(struct controller *ctrl,
@@ -769,7 +765,7 @@ static int hpc_power_on_slot(struct slot * slot)
 
 	DBG_ENTER_ROUTINE 
 
-	retval = shpc_write_cmd(slot, slot->hp_slot, 0x01);
+	retval = shpc_write_cmd(slot, slot->hp_slot, SET_SLOT_PWR);
 	if (retval) {
 		err("%s: Write command failed!\n", __FUNCTION__);
 		return retval;
@@ -786,8 +782,9 @@ static int hpc_slot_enable(struct slot * slot)
 
 	DBG_ENTER_ROUTINE 
 
-	/* 3A => Slot - Enable, Power Indicator - Blink, Attention Indicator - Off */
-	retval = shpc_write_cmd(slot, slot->hp_slot, 0x3a);
+	/* Slot - Enable, Power Indicator - Blink, Attention Indicator - Off */
+	retval = shpc_write_cmd(slot, slot->hp_slot,
+			SET_SLOT_ENABLE | SET_PWR_BLINK | SET_ATTN_OFF);
 	if (retval) {
 		err("%s: Write command failed!\n", __FUNCTION__);
 		return retval;
@@ -803,8 +800,9 @@ static int hpc_slot_disable(struct slot * slot)
 
 	DBG_ENTER_ROUTINE 
 
-	/* 1F => Slot - Disable, Power Indicator - Off, Attention Indicator - On */
-	retval = shpc_write_cmd(slot, slot->hp_slot, 0x1f);
+	/* Slot - Disable, Power Indicator - Off, Attention Indicator - On */
+	retval = shpc_write_cmd(slot, slot->hp_slot,
+			SET_SLOT_DISABLE | SET_PWR_OFF | SET_ATTN_ON);
 	if (retval) {
 		err("%s: Write command failed!\n", __FUNCTION__);
 		return retval;
