@@ -34,6 +34,8 @@
  *
  * $Id: cm.c 2821 2005-07-08 17:07:28Z sean.hefty $
  */
+
+#include <linux/completion.h>
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
 #include <linux/idr.h>
@@ -122,7 +124,7 @@ struct cm_id_private {
 	struct rb_node service_node;
 	struct rb_node sidr_id_node;
 	spinlock_t lock;	/* Do not acquire inside cm.lock */
-	wait_queue_head_t wait;
+	struct completion comp;
 	atomic_t refcount;
 
 	struct ib_mad_send_buf *msg;
@@ -159,7 +161,7 @@ static void cm_work_handler(void *data);
 static inline void cm_deref_id(struct cm_id_private *cm_id_priv)
 {
 	if (atomic_dec_and_test(&cm_id_priv->refcount))
-		wake_up(&cm_id_priv->wait);
+		complete(&cm_id_priv->comp);
 }
 
 static int cm_alloc_msg(struct cm_id_private *cm_id_priv,
@@ -559,7 +561,7 @@ struct ib_cm_id *ib_create_cm_id(struct ib_device *device,
 		goto error;
 
 	spin_lock_init(&cm_id_priv->lock);
-	init_waitqueue_head(&cm_id_priv->wait);
+	init_completion(&cm_id_priv->comp);
 	INIT_LIST_HEAD(&cm_id_priv->work_list);
 	atomic_set(&cm_id_priv->work_count, -1);
 	atomic_set(&cm_id_priv->refcount, 1);
@@ -724,8 +726,8 @@ retest:
 	}
 
 	cm_free_id(cm_id->local_id);
-	atomic_dec(&cm_id_priv->refcount);
-	wait_event(cm_id_priv->wait, !atomic_read(&cm_id_priv->refcount));
+	cm_deref_id(cm_id_priv);
+	wait_for_completion(&cm_id_priv->comp);
 	while ((work = cm_dequeue_work(cm_id_priv)) != NULL)
 		cm_free_work(work);
 	if (cm_id_priv->private_data && cm_id_priv->private_data_len)
