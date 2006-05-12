@@ -373,6 +373,17 @@ static int onenand_read_bufferram(struct mtd_info *mtd, int area,
 
 	bufferram += onenand_bufferram_offset(mtd, area);
 
+	if (ONENAND_CHECK_BYTE_ACCESS(count)) {
+		unsigned short word;
+
+		/* Align with word(16-bit) size */
+		count--;
+
+		/* Read word and save byte */
+		word = this->read_word(bufferram + offset + count);
+		buffer[count] = (word & 0xff);
+	}
+
 	memcpy(buffer, bufferram + offset, count);
 
 	return 0;
@@ -400,6 +411,17 @@ static int onenand_sync_read_bufferram(struct mtd_info *mtd, int area,
 
 	this->mmcontrol(mtd, ONENAND_SYS_CFG1_SYNC_READ);
 
+	if (ONENAND_CHECK_BYTE_ACCESS(count)) {
+		unsigned short word;
+
+		/* Align with word(16-bit) size */
+		count--;
+
+		/* Read word and save byte */
+		word = this->read_word(bufferram + offset + count);
+		buffer[count] = (word & 0xff);
+	}
+
 	memcpy(buffer, bufferram + offset, count);
 
 	this->mmcontrol(mtd, 0);
@@ -426,6 +448,22 @@ static int onenand_write_bufferram(struct mtd_info *mtd, int area,
 	bufferram = this->base + area;
 
 	bufferram += onenand_bufferram_offset(mtd, area);
+
+	if (ONENAND_CHECK_BYTE_ACCESS(count)) {
+		unsigned short word;
+		int byte_offset;
+
+		/* Align with word(16-bit) size */
+		count--;
+
+		/* Calculate byte access offset */
+		byte_offset = offset + count;
+
+		/* Read word and save byte */
+		word = this->read_word(bufferram + byte_offset);
+		word = (word & ~0xff) | buffer[count];
+		this->write_word(word, bufferram + byte_offset);
+	}
 
 	memcpy(bufferram + offset, buffer, count);
 
