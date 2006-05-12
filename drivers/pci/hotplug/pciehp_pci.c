@@ -225,6 +225,7 @@ int pciehp_configure_device(struct slot *p_slot)
 		if ((dev->class >> 16) == PCI_BASE_CLASS_DISPLAY) {
 			err("Cannot hot-add display device %s\n",
 					pci_name(dev));
+			pci_dev_put(dev);
 			continue;
 		}
 		if ((dev->hdr_type == PCI_HEADER_TYPE_BRIDGE) ||
@@ -232,6 +233,7 @@ int pciehp_configure_device(struct slot *p_slot)
 			pciehp_add_bridge(dev);
 		}
 		program_fw_provided_values(dev);
+		pci_dev_put(dev);
 	}
 
 	pci_bus_assign_resources(parent);
