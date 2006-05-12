@@ -164,72 +164,62 @@ static unsigned int calc_tree_height(struct gfs2_inode *ip, uint64_t size)
  * @ip: The GFS2 inode
  * @height: The height to build to
  *
- * This routine makes sure that the metadata tree is tall enough to hold
- * "size" bytes of data.
  *
  * Returns: errno
  */
 
-static int build_height(struct gfs2_inode *ip, int height)
+static int build_height(struct inode *inode, unsigned height)
 {
-	struct gfs2_sbd *sdp = ip->i_sbd;
-	struct buffer_head *bh, *dibh;
-	uint64_t block = 0, *bp;
-	unsigned int x;
-	int new_block;
+	struct gfs2_inode *ip = inode->u.generic_ip;
+	unsigned new_height = height - ip->i_di.di_height;
+	struct buffer_head *dibh;
+	struct buffer_head *blocks[GFS2_MAX_META_HEIGHT];
 	int error;
+	u64 *bp;
+	u64 bn;
+	unsigned n;
 
-	while (ip->i_di.di_height < height) {
-		error = gfs2_meta_inode_buffer(ip, &dibh);
-		if (error)
-			return error;
+	if (height <= ip->i_di.di_height)
+		return 0;
 
-		new_block = 0;
-		bp = (uint64_t *)(dibh->b_data + sizeof(struct gfs2_dinode));
-		for (x = 0; x < sdp->sd_diptrs; x++, bp++)
-			if (*bp) {
-				new_block = 1;
-				break;
-			}
+	error = gfs2_meta_inode_buffer(ip, &dibh);
+	if (error)
+		return error;
 
-		if (new_block) {
-			/* Get a new block, fill it with the old direct
-			   pointers, and write it out */
-
-			block = gfs2_alloc_meta(ip);
-
-			bh = gfs2_meta_new(ip->i_gl, block);
-			gfs2_trans_add_bh(ip->i_gl, bh, 1);
-			gfs2_metatype_set(bh,
-					  GFS2_METATYPE_IN,
-					  GFS2_FORMAT_IN);
-			gfs2_buffer_copy_tail(bh,
-					      sizeof(struct gfs2_meta_header),
-					      dibh, sizeof(struct gfs2_dinode));
-
-			brelse(bh);
-		}
-
-		/*  Set up the new direct pointer and write it out to disk  */
-
-		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
-
-		gfs2_buffer_clear_tail(dibh, sizeof(struct gfs2_dinode));
-
-		if (new_block) {
-			*(uint64_t *)(dibh->b_data +
-				      sizeof(struct gfs2_dinode)) =
-				      cpu_to_be64(block);
-			ip->i_di.di_blocks++;
-		}
-
-		ip->i_di.di_height++;
-
-		gfs2_dinode_out(&ip->i_di, dibh->b_data);
-		brelse(dibh);
+	for(n = 0; n < new_height; n++) {
+		bn = gfs2_alloc_meta(ip);
+		blocks[n] = gfs2_meta_new(ip->i_gl, bn);
+		gfs2_trans_add_bh(ip->i_gl, blocks[n], 1);
 	}
-
-	return 0;
+	
+	n = 0;
+	bn = blocks[0]->b_blocknr;
+	if (new_height > 1) {
+		for(; n < new_height-1; n++) {
+			gfs2_metatype_set(blocks[n], GFS2_METATYPE_IN,
+					  GFS2_FORMAT_IN);
+			gfs2_buffer_clear_tail(blocks[n],
+					       sizeof(struct gfs2_meta_header));
+			bp = (u64 *)(blocks[n]->b_data +
+				     sizeof(struct gfs2_meta_header));
+			*bp = cpu_to_be64(blocks[n+1]->b_blocknr);
+			brelse(blocks[n]);
+			blocks[n] = NULL;
+		}
+	}
+	gfs2_metatype_set(blocks[n], GFS2_METATYPE_IN, GFS2_FORMAT_IN);
+	gfs2_buffer_copy_tail(blocks[n], sizeof(struct gfs2_meta_header),
+			      dibh, sizeof(struct gfs2_dinode));
+	brelse(blocks[n]);
+	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
+	gfs2_buffer_clear_tail(dibh, sizeof(struct gfs2_dinode));
+	bp = (u64 *)(dibh->b_data + sizeof(struct gfs2_dinode));
+	*bp = cpu_to_be64(bn);
+	ip->i_di.di_height += new_height;
+	ip->i_di.di_blocks += new_height;
+	gfs2_dinode_out(&ip->i_di, dibh->b_data);
+	brelse(dibh);
+	return error;
 }
 
 /**
@@ -416,7 +406,7 @@ static struct buffer_head *gfs2_block_pointers(struct inode *inode, u64 lblock,
 		if (!create)
 			goto out;
 
-		error = build_height(ip, height);
+		error = build_height(inode, height);
 		if (error)
 			goto out;
 	}
@@ -806,7 +796,7 @@ static int do_grow(struct gfs2_inode *ip, uint64_t size)
 		h = calc_tree_height(ip, size);
 		if (ip->i_di.di_height < h) {
 			down_write(&ip->i_rw_mutex);
-			error = build_height(ip, h);
+			error = build_height(ip->i_vnode, h);
 			up_write(&ip->i_rw_mutex);
 			if (error)
 				goto out_end_trans;
