@@ -84,6 +84,13 @@
 #define CAN_SCHEDULE_FRAMES	1000	/* how far in the future frames
 					 * can be scheduled */
 
+/* When no queues need Full-Speed Bandwidth Reclamation,
+ * delay this long before turning FSBR off */
+#define FSBR_OFF_DELAY		msecs_to_jiffies(400)
+
+/* If a queue hasn't advanced after this much time, assume it is stuck */
+#define QH_WAIT_TIMEOUT		msecs_to_jiffies(200)
+
 
 /*
  *	Queue Headers
@@ -131,6 +138,7 @@ struct uhci_qh {
 	struct uhci_td *dummy_td;	/* Dummy TD to end the queue */
 	struct uhci_td *post_td;	/* Last TD completed */
 
+	unsigned long advance_jiffies;	/* Time of last queue advance */
 	unsigned int unlink_frame;	/* When the QH was unlinked */
 	int state;			/* QH_STATE_xxx; see above */
 	int type;			/* Queue type (control, bulk, etc) */
@@ -138,6 +146,7 @@ struct uhci_qh {
 	unsigned int initial_toggle:1;	/* Endpoint's current toggle value */
 	unsigned int needs_fixup:1;	/* Must fix the TD toggle values */
 	unsigned int is_stopped:1;	/* Queue was stopped by error/unlink */
+	unsigned int wait_expired:1;	/* QH_WAIT_TIMEOUT has expired */
 } __attribute__((aligned(16)));
 
 /*
@@ -397,8 +406,7 @@ struct uhci_hcd {
 	__le32 *frame;
 	void **frame_cpu;		/* CPU's frame list */
 
-	int fsbr;			/* Full-speed bandwidth reclamation */
-	unsigned long fsbrtimeout;	/* FSBR delay */
+	unsigned long fsbr_jiffies;	/* Time when FSBR was last wanted */
 
 	enum uhci_rh_state rh_state;
 	unsigned long auto_stop_time;		/* When to AUTO_STOP */
@@ -413,6 +421,7 @@ struct uhci_hcd {
 	unsigned int working_RD:1;		/* Suspended root hub doesn't
 						   need to be polled */
 	unsigned int is_initialized:1;		/* Data structure is usable */
+	unsigned int fsbr_is_on:1;		/* FSBR is turned on */
 
 	/* Support for port suspend/resume/reset */
 	unsigned long port_c_suspend;		/* Bit-arrays of ports */
@@ -451,7 +460,7 @@ struct urb_priv {
 	struct uhci_qh *qh;		/* QH for this URB */
 	struct list_head td_list;
 
-	unsigned fsbr : 1;		/* URB turned on FSBR */
+	unsigned fsbr:1;		/* URB wants FSBR */
 };
 
 

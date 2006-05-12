@@ -37,6 +37,46 @@ static inline void uhci_clear_next_interrupt(struct uhci_hcd *uhci)
 	uhci->term_td->status &= ~cpu_to_le32(TD_CTRL_IOC);
 }
 
+
+/*
+ * Full-Speed Bandwidth Reclamation (FSBR).
+ * We turn on FSBR whenever a queue that wants it is advancing,
+ * and leave it on for a short time thereafter.
+ */
+static void uhci_fsbr_on(struct uhci_hcd *uhci)
+{
+	uhci->fsbr_is_on = 1;
+	uhci->skel_term_qh->link = cpu_to_le32(
+			uhci->skel_fs_control_qh->dma_handle) | UHCI_PTR_QH;
+}
+
+static void uhci_fsbr_off(struct uhci_hcd *uhci)
+{
+	uhci->fsbr_is_on = 0;
+	uhci->skel_term_qh->link = UHCI_PTR_TERM;
+}
+
+static void uhci_add_fsbr(struct uhci_hcd *uhci, struct urb *urb)
+{
+	struct urb_priv *urbp = urb->hcpriv;
+
+	if (!(urb->transfer_flags & URB_NO_FSBR))
+		urbp->fsbr = 1;
+}
+
+static void uhci_qh_wants_fsbr(struct uhci_hcd *uhci, struct uhci_qh *qh)
+{
+	struct urb_priv *urbp =
+			list_entry(qh->queue.next, struct urb_priv, node);
+
+	if (urbp->fsbr) {
+		uhci->fsbr_jiffies = jiffies;
+		if (!uhci->fsbr_is_on)
+			uhci_fsbr_on(uhci);
+	}
+}
+
+
 static struct uhci_td *uhci_alloc_td(struct uhci_hcd *uhci)
 {
 	dma_addr_t dma_handle;
@@ -331,6 +371,10 @@ static void uhci_activate_qh(struct uhci_hcd *uhci, struct uhci_qh *qh)
 		qh->element = cpu_to_le32(td->dma_handle);
 	}
 
+	/* Treat the queue as if it has just advanced */
+	qh->wait_expired = 0;
+	qh->advance_jiffies = jiffies;
+
 	if (qh->state == QH_STATE_ACTIVE)
 		return;
 	qh->state = QH_STATE_ACTIVE;
@@ -443,28 +487,6 @@ static void uhci_free_urb_priv(struct uhci_hcd *uhci,
 
 	urbp->urb->hcpriv = NULL;
 	kmem_cache_free(uhci_up_cachep, urbp);
-}
-
-static void uhci_inc_fsbr(struct uhci_hcd *uhci, struct urb *urb)
-{
-	struct urb_priv *urbp = (struct urb_priv *)urb->hcpriv;
-
-	if ((!(urb->transfer_flags & URB_NO_FSBR)) && !urbp->fsbr) {
-		urbp->fsbr = 1;
-		if (!uhci->fsbr++ && !uhci->fsbrtimeout)
-			uhci->skel_term_qh->link = cpu_to_le32(uhci->skel_fs_control_qh->dma_handle) | UHCI_PTR_QH;
-	}
-}
-
-static void uhci_dec_fsbr(struct uhci_hcd *uhci, struct urb *urb)
-{
-	struct urb_priv *urbp = (struct urb_priv *)urb->hcpriv;
-
-	if ((!(urb->transfer_flags & URB_NO_FSBR)) && urbp->fsbr) {
-		urbp->fsbr = 0;
-		if (!--uhci->fsbr)
-			uhci->fsbrtimeout = jiffies + FSBR_DELAY;
-	}
 }
 
 /*
@@ -613,7 +635,7 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb,
 		qh->skel = uhci->skel_ls_control_qh;
 	else {
 		qh->skel = uhci->skel_fs_control_qh;
-		uhci_inc_fsbr(uhci, urb);
+		uhci_add_fsbr(uhci, urb);
 	}
 
 	urb->actual_length = -8;	/* Account for the SETUP packet */
@@ -756,7 +778,7 @@ static inline int uhci_submit_bulk(struct uhci_hcd *uhci, struct urb *urb,
 	qh->skel = uhci->skel_bulk_qh;
 	ret = uhci_submit_common(uhci, urb, qh);
 	if (ret == 0)
-		uhci_inc_fsbr(uhci, urb);
+		uhci_add_fsbr(uhci, urb);
 	return ret;
 }
 
@@ -1075,8 +1097,10 @@ static int uhci_urb_enqueue(struct usb_hcd *hcd,
 	 * the QH is new and idle or else it's unlinked and waiting to
 	 * become idle, so we can activate it right away.  But only if the
 	 * queue isn't stopped. */
-	if (qh->queue.next == &urbp->node && !qh->is_stopped)
+	if (qh->queue.next == &urbp->node && !qh->is_stopped) {
 		uhci_activate_qh(uhci, qh);
+		uhci_qh_wants_fsbr(uhci, qh);
+	}
 	goto done;
 
 err_submit_failed:
@@ -1135,7 +1159,6 @@ __acquires(uhci->lock)
 		qh->needs_fixup = 0;
 	}
 
-	uhci_dec_fsbr(uhci, urb);	/* Safe since it checks */
 	uhci_free_urb_priv(uhci, urbp);
 
 	switch (qh->type) {
@@ -1239,6 +1262,18 @@ restart:
 	if (!list_empty(&qh->queue)) {
 		if (qh->needs_fixup)
 			uhci_fixup_toggles(qh, 0);
+
+		/* If the first URB on the queue wants FSBR but its time
+		 * limit has expired, set the next TD to interrupt on
+		 * completion before reactivating the QH. */
+		urbp = list_entry(qh->queue.next, struct urb_priv, node);
+		if (urbp->fsbr && qh->wait_expired) {
+			struct uhci_td *td = list_entry(urbp->td_list.next,
+					struct uhci_td, list);
+
+			td->status |= __cpu_to_le32(TD_CTRL_IOC);
+		}
+
 		uhci_activate_qh(uhci, qh);
 	}
 
@@ -1246,6 +1281,62 @@ restart:
 	 * unlinked. */
 	else if (QH_FINISHED_UNLINKING(qh))
 		uhci_make_qh_idle(uhci, qh);
+}
+
+/*
+ * Check for queues that have made some forward progress.
+ * Returns 0 if the queue is not Isochronous, is ACTIVE, and
+ * has not advanced since last examined; 1 otherwise.
+ */
+static int uhci_advance_check(struct uhci_hcd *uhci, struct uhci_qh *qh)
+{
+	struct urb_priv *urbp = NULL;
+	struct uhci_td *td;
+	int ret = 1;
+	unsigned status;
+
+	if (qh->type == USB_ENDPOINT_XFER_ISOC)
+		return ret;
+
+	/* Treat an UNLINKING queue as though it hasn't advanced.
+	 * This is okay because reactivation will treat it as though
+	 * it has advanced, and if it is going to become IDLE then
+	 * this doesn't matter anyway.  Furthermore it's possible
+	 * for an UNLINKING queue not to have any URBs at all, or
+	 * for its first URB not to have any TDs (if it was dequeued
+	 * just as it completed).  So it's not easy in any case to
+	 * test whether such queues have advanced. */
+	if (qh->state != QH_STATE_ACTIVE) {
+		urbp = NULL;
+		status = 0;
+
+	} else {
+		urbp = list_entry(qh->queue.next, struct urb_priv, node);
+		td = list_entry(urbp->td_list.next, struct uhci_td, list);
+		status = td_status(td);
+		if (!(status & TD_CTRL_ACTIVE)) {
+
+			/* We're okay, the queue has advanced */
+			qh->wait_expired = 0;
+			qh->advance_jiffies = jiffies;
+			return ret;
+		}
+		ret = 0;
+	}
+
+	/* The queue hasn't advanced; check for timeout */
+	if (!qh->wait_expired && time_after(jiffies,
+			qh->advance_jiffies + QH_WAIT_TIMEOUT)) {
+		qh->wait_expired = 1;
+
+		/* If the current URB wants FSBR, unlink it temporarily
+		 * so that we can safely set the next TD to interrupt on
+		 * completion.  That way we'll know as soon as the queue
+		 * starts moving again. */
+		if (urbp && urbp->fsbr && !(status & TD_CTRL_IOC))
+			uhci_unlink_qh(uhci, qh);
+	}
+	return ret;
 }
 
 /*
@@ -1262,7 +1353,7 @@ static void uhci_scan_schedule(struct uhci_hcd *uhci, struct pt_regs *regs)
 		return;
 	}
 	uhci->scan_in_progress = 1;
- rescan:
+rescan:
 	uhci->need_rescan = 0;
 
 	uhci_clear_next_interrupt(uhci);
@@ -1275,7 +1366,12 @@ static void uhci_scan_schedule(struct uhci_hcd *uhci, struct pt_regs *regs)
 		while ((qh = uhci->next_qh) != uhci->skelqh[i]) {
 			uhci->next_qh = list_entry(qh->node.next,
 					struct uhci_qh, node);
-			uhci_scan_qh(uhci, qh, regs);
+
+			if (uhci_advance_check(uhci, qh)) {
+				uhci_scan_qh(uhci, qh, regs);
+				if (qh->state == QH_STATE_ACTIVE)
+					uhci_qh_wants_fsbr(uhci, qh);
+			}
 		}
 	}
 
@@ -1283,20 +1379,12 @@ static void uhci_scan_schedule(struct uhci_hcd *uhci, struct pt_regs *regs)
 		goto rescan;
 	uhci->scan_in_progress = 0;
 
+	if (uhci->fsbr_is_on && time_after(jiffies,
+			uhci->fsbr_jiffies + FSBR_OFF_DELAY))
+		uhci_fsbr_off(uhci);
+
 	if (list_empty(&uhci->skel_unlink_qh->node))
 		uhci_clear_next_interrupt(uhci);
 	else
 		uhci_set_next_interrupt(uhci);
-}
-
-static void check_fsbr(struct uhci_hcd *uhci)
-{
-	/* For now, don't scan URBs for FSBR timeouts.
-	 * Add it back in later... */
-
-	/* Really disable FSBR */
-	if (!uhci->fsbr && uhci->fsbrtimeout && time_after_eq(jiffies, uhci->fsbrtimeout)) {
-		uhci->fsbrtimeout = 0;
-		uhci->skel_term_qh->link = UHCI_PTR_TERM;
-	}
 }

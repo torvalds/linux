@@ -274,7 +274,8 @@ static int uhci_show_root_hub_state(struct uhci_hcd *uhci, char *buf, int len)
 	    default:
 		rh_state = "?";			break;
 	}
-	out += sprintf(out, "Root-hub state: %s\n", rh_state);
+	out += sprintf(out, "Root-hub state: %s   FSBR: %d\n",
+			rh_state, uhci->fsbr_is_on);
 	return out - buf;
 }
 

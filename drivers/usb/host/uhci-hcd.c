@@ -88,15 +88,6 @@ static void suspend_rh(struct uhci_hcd *uhci, enum uhci_rh_state new_state);
 static void wakeup_rh(struct uhci_hcd *uhci);
 static void uhci_get_current_frame_number(struct uhci_hcd *uhci);
 
-/* If a transfer is still active after this much time, turn off FSBR */
-#define IDLE_TIMEOUT	msecs_to_jiffies(50)
-#define FSBR_DELAY	msecs_to_jiffies(50)
-
-/* When we timeout an idle transfer for FSBR, we'll switch it over to */
-/* depth first traversal. We'll do it in groups of this number of TDs */
-/* to make sure it doesn't hog all of the bandwidth */
-#define DEPTH_INTERVAL 5
-
 #include "uhci-debug.c"
 #include "uhci-q.c"
 #include "uhci-hub.c"
@@ -255,6 +246,7 @@ __acquires(uhci->lock)
 	uhci_to_hcd(uhci)->poll_rh = !int_enable;
 
 	uhci_scan_schedule(uhci, NULL);
+	uhci_fsbr_off(uhci);
 }
 
 static void start_rh(struct uhci_hcd *uhci)
@@ -486,9 +478,6 @@ static int uhci_start(struct usb_hcd *hcd)
 	struct dentry *dentry;
 
 	hcd->uses_new_polling = 1;
-
-	uhci->fsbr = 0;
-	uhci->fsbrtimeout = 0;
 
 	spin_lock_init(&uhci->lock);
 

@@ -173,7 +173,6 @@ static int uhci_hub_status_data(struct usb_hcd *hcd, char *buf)
 	uhci_scan_schedule(uhci, NULL);
 	if (uhci->hc_inaccessible)
 		goto done;
-	check_fsbr(uhci);
 	uhci_check_ports(uhci);
 
 	status = get_hub_status_data(uhci, buf);
