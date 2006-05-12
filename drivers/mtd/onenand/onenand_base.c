@@ -237,7 +237,7 @@ static int onenand_command(struct mtd_info *mtd, int cmd, loff_t addr, size_t le
 		value = onenand_block_address(this, block);
 		this->write_word(value, this->base + ONENAND_REG_START_ADDRESS1);
 
-		if (cmd == block_cmd) {
+		if (block_cmd) {
 			/* Select DataRAM for DDP */
 			value = onenand_bufferram_address(this, block);
 			this->write_word(value, this->base + ONENAND_REG_START_ADDRESS2);
