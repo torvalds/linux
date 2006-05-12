@@ -489,7 +489,7 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info * gpe_xrupt_list)
  * RETURN:      None
  *
  * DESCRIPTION: Perform the actual execution of a GPE control method.  This
- *              function is called from an invocation of acpi_os_queue_for_execution
+ *              function is called from an invocation of acpi_os_exece
  *              (and therefore does NOT execute at interrupt level) so that
  *              the control method itself is not executed in the context of
  *              an interrupt handler.
@@ -674,9 +674,9 @@ acpi_ev_gpe_dispatch(struct acpi_gpe_event_info *gpe_event_info, u32 gpe_number)
 		 * Execute the method associated with the GPE
 		 * NOTE: Level-triggered GPEs are cleared after the method completes.
 		 */
-		status = acpi_os_queue_for_execution(OSD_PRIORITY_GPE,
-						     acpi_ev_asynch_execute_gpe_method,
-						     gpe_event_info);
+		status = acpi_os_execute(OSL_GPE_HANDLER,
+					 acpi_ev_asynch_execute_gpe_method,
+					 gpe_event_info);
 		if (ACPI_FAILURE(status)) {
 			ACPI_EXCEPTION((AE_INFO, status,
 					"Unable to queue handler for GPE[%2X] - event disabled",

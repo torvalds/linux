@@ -261,7 +261,8 @@ acpi_ev_execute_reg_method(union acpi_operand_object *region_obj, u32 function)
  *              Function            - Read or Write operation
  *              Address             - Where in the space to read or write
  *              bit_width           - Field width in bits (8, 16, 32, or 64)
- *              Value               - Pointer to in or out value
+ *              Value               - Pointer to in or out value, must be
+ *                                    full 64-bit acpi_integer
  *
  * RETURN:      Status
  *
@@ -274,7 +275,7 @@ acpi_status
 acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
 			       u32 function,
 			       acpi_physical_address address,
-			       u32 bit_width, void *value)
+			       u32 bit_width, acpi_integer * value)
 {
 	acpi_status status;
 	acpi_status status2;
@@ -1007,7 +1008,7 @@ acpi_ev_execute_reg_methods(struct acpi_namespace_node *node,
  *
  * PARAMETERS:  walk_namespace callback
  *
- * DESCRIPTION: Run _REg method for region objects of the requested space_iD
+ * DESCRIPTION: Run _REG method for region objects of the requested space_iD
  *
  ******************************************************************************/
 

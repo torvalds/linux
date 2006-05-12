@@ -196,10 +196,8 @@ acpi_status acpi_tb_validate_rsdt(struct acpi_table_header *table_ptr)
 		ACPI_DUMP_BUFFER(acpi_gbl_RSDP, 20);
 
 		ACPI_ERROR((AE_INFO,
-			    "RSDT/XSDT signature at %X (%p) is invalid",
-			    acpi_gbl_RSDP->rsdt_physical_address,
-			    (void *)(acpi_native_uint) acpi_gbl_RSDP->
-			    rsdt_physical_address));
+			    "RSDT/XSDT signature at %X is invalid",
+			    acpi_gbl_RSDP->rsdt_physical_address));
 
 		if (acpi_gbl_root_table_type == ACPI_TABLE_TYPE_RSDT) {
 			ACPI_ERROR((AE_INFO, "Looking for RSDT"));

@@ -971,7 +971,7 @@ struct acpi_mem_space_context {
  * Definitions for Resource Attributes
  */
 typedef u16 acpi_rs_length;	/* Resource Length field is fixed at 16 bits */
-typedef u32 acpi_rsdesc_size;	/* Max Resource Descriptor size is (length+3) = (64_k-1)+3 */
+typedef u32 acpi_rsdesc_size;	/* Max Resource Descriptor size is (Length+3) = (64_k-1)+3 */
 
 /*
  *  Memory Attributes
@@ -986,8 +986,8 @@ typedef u32 acpi_rsdesc_size;	/* Max Resource Descriptor size is (length+3) = (6
 
 /*
  *  IO Attributes
- *  The ISA Io ranges are:     n000-n0_ffh, n400-n4_ffh, n800-n8_ffh, n_c00-n_cFFh.
- *  The non-ISA Io ranges are: n100-n3_ffh, n500-n7_ffh, n900-n_bFfh, n_cd0-n_fFFh.
+ *  The ISA IO ranges are:     n000-n0_fFh, n400-n4_fFh, n800-n8_fFh, n_c00-n_cFFh.
+ *  The non-ISA IO ranges are: n100-n3_fFh, n500-n7_fFh, n900-n_bFFh, n_cd0-n_fFFh.
  */
 #define ACPI_NON_ISA_ONLY_RANGES        (u8) 0x01
 #define ACPI_ISA_ONLY_RANGES            (u8) 0x02

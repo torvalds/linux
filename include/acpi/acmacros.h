@@ -103,7 +103,7 @@
  * printf() format helpers
  */
 
-/* Split 64-bit integer into two 32-bit values. Use with %8.8X%8.8X */
+/* Split 64-bit integer into two 32-bit values. Use with %8.8_x%8.8_x */
 
 #define ACPI_FORMAT_UINT64(i)           ACPI_HIDWORD(i),ACPI_LODWORD(i)
 
@@ -359,12 +359,12 @@
 
 /* Note: sizeof(acpi_native_uint) evaluates to either 2, 4, or 8 */
 
-#define ACPI_ROUND_DOWN_to_32_bIT(a)        ACPI_ROUND_DOWN(a,4)
-#define ACPI_ROUND_DOWN_to_64_bIT(a)        ACPI_ROUND_DOWN(a,8)
+#define ACPI_ROUND_DOWN_TO_32BIT(a)         ACPI_ROUND_DOWN(a,4)
+#define ACPI_ROUND_DOWN_TO_64BIT(a)         ACPI_ROUND_DOWN(a,8)
 #define ACPI_ROUND_DOWN_TO_NATIVE_WORD(a)   ACPI_ROUND_DOWN(a,sizeof(acpi_native_uint))
 
-#define ACPI_ROUND_UP_to_32_bIT(a)          ACPI_ROUND_UP(a,4)
-#define ACPI_ROUND_UP_to_64_bIT(a)          ACPI_ROUND_UP(a,8)
+#define ACPI_ROUND_UP_TO_32BIT(a)           ACPI_ROUND_UP(a,4)
+#define ACPI_ROUND_UP_TO_64BIT(a)           ACPI_ROUND_UP(a,8)
 #define ACPI_ROUND_UP_TO_NATIVE_WORD(a)     ACPI_ROUND_UP(a,sizeof(acpi_native_uint))
 
 #define ACPI_ROUND_BITS_UP_TO_BYTES(a)      ACPI_DIV_8((a) + 7)

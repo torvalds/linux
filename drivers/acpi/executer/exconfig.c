@@ -298,6 +298,7 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 	struct acpi_table_header *table_ptr = NULL;
 	acpi_physical_address address;
 	struct acpi_table_header table_header;
+	acpi_integer temp;
 	u32 i;
 
 	ACPI_FUNCTION_TRACE(ex_load_op);
@@ -326,7 +327,7 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 
 		address = obj_desc->region.address;
 
-		/* Get the table length from the table header */
+		/* Get part of the table header to get the table length */
 
 		table_header.length = 0;
 		for (i = 0; i < 8; i++) {
@@ -334,11 +335,14 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 			    acpi_ev_address_space_dispatch(obj_desc, ACPI_READ,
 							   (acpi_physical_address)
 							   (i + address), 8,
-							   ((u8 *) &
-							    table_header) + i);
+							   &temp);
 			if (ACPI_FAILURE(status)) {
 				return_ACPI_STATUS(status);
 			}
+
+			/* Get the one valid byte of the returned 64-bit value */
+
+			ACPI_CAST_PTR(u8, &table_header)[i] = (u8) temp;
 		}
 
 		/* Sanity check the table length */
@@ -361,11 +365,14 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 			    acpi_ev_address_space_dispatch(obj_desc, ACPI_READ,
 							   (acpi_physical_address)
 							   (i + address), 8,
-							   ((u8 *) table_ptr +
-							    i));
+							   &temp);
 			if (ACPI_FAILURE(status)) {
 				goto cleanup;
 			}
+
+			/* Get the one valid byte of the returned 64-bit value */
+
+			ACPI_CAST_PTR(u8, table_ptr)[i] = (u8) temp;
 		}
 		break;
 

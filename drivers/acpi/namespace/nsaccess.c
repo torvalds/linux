@@ -157,7 +157,7 @@ acpi_status acpi_ns_root_initialize(void)
 
 #if defined (ACPI_ASL_COMPILER)
 
-				/* save the parameter count for the i_aSL compiler */
+				/* Save the parameter count for the i_aSL compiler */
 
 				new_node->value = obj_desc->method.param_count;
 #else
@@ -311,8 +311,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 	acpi_object_type type_to_check_for;
 	acpi_object_type this_search_type;
 	u32 search_parent_flag = ACPI_NS_SEARCH_PARENT;
-	u32 local_flags = flags & ~(ACPI_NS_ERROR_IF_FOUND |
-				    ACPI_NS_SEARCH_PARENT);
+	u32 local_flags;
 
 	ACPI_FUNCTION_TRACE(ns_lookup);
 
@@ -320,8 +319,9 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	acpi_gbl_ns_lookup_count++;
+	local_flags = flags & ~(ACPI_NS_ERROR_IF_FOUND | ACPI_NS_SEARCH_PARENT);
 	*return_node = ACPI_ENTRY_NOT_FOUND;
+	acpi_gbl_ns_lookup_count++;
 
 	if (!acpi_gbl_root_node) {
 		return_ACPI_STATUS(AE_NO_NAMESPACE);

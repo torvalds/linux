@@ -299,7 +299,7 @@ acpi_ns_search_and_enter(u32 target_name,
 
 	if (!node || !target_name || !return_node) {
 		ACPI_ERROR((AE_INFO,
-			    "Null param: Node %p Name %X ReturnNode %p",
+			    "Null parameter: Node %p Name %X ReturnNode %p",
 			    node, target_name, return_node));
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
@@ -385,6 +385,11 @@ acpi_ns_search_and_enter(u32 target_name,
 	if (!new_node) {
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
+#ifdef ACPI_ASL_COMPILER
+	if (flags & ACPI_NS_EXTERNAL) {
+		new_node->flags |= ANOBJ_IS_EXTERNAL;
+	}
+#endif
 
 	/* Install the new object into the parent's list of children */
 

@@ -54,7 +54,11 @@
 
 struct acpi_external_list {
 	char *path;
+	char *internal_path;
 	struct acpi_external_list *next;
+	u32 value;
+	u16 length;
+	u8 type;
 };
 
 extern struct acpi_external_list *acpi_gbl_external_list;
@@ -108,6 +112,8 @@ struct acpi_dmtable_data {
 
 struct acpi_op_walk_info {
 	u32 level;
+	u32 last_level;
+	u32 count;
 	u32 bit_offset;
 	u32 flags;
 	struct acpi_walk_state *walk_state;
@@ -390,7 +396,7 @@ acpi_dm_vendor_small_descriptor(union aml_resource *resource,
 /*
  * dmutils
  */
-void acpi_dm_add_to_external_list(char *path);
+void acpi_dm_add_to_external_list(char *path, u8 type, u32 value);
 
 /*
  * dmrestag

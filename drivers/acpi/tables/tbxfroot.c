@@ -472,10 +472,10 @@ static u8 *acpi_tb_scan_memory_for_rsdp(u8 * start_address, u32 length)
  *
  * RETURN:      Status, RSDP physical address
  *
- * DESCRIPTION: search lower 1_mbyte of memory for the root system descriptor
+ * DESCRIPTION: Search lower 1_mbyte of memory for the root system descriptor
  *              pointer structure.  If it is found, set *RSDP to point to it.
  *
- *              NOTE1: The RSDp must be either in the first 1_k of the Extended
+ *              NOTE1: The RSDP must be either in the first 1_k of the Extended
  *              BIOS Data Area or between E0000 and FFFFF (From ACPI Spec.)
  *              Only a 32-bit physical address is necessary.
  *
@@ -525,7 +525,7 @@ acpi_tb_find_rsdp(struct acpi_table_desc *table_info, u32 flags)
 
 		if (physical_address > 0x400) {
 			/*
-			 * 1b) Search EBDA paragraphs (EBDa is required to be a
+			 * 1b) Search EBDA paragraphs (EBDA is required to be a
 			 *     minimum of 1_k length)
 			 */
 			status = acpi_os_map_memory((acpi_physical_address)
@@ -550,7 +550,7 @@ acpi_tb_find_rsdp(struct acpi_table_desc *table_info, u32 flags)
 				/* Return the physical address */
 
 				physical_address +=
-				    ACPI_PTR_DIFF(mem_rover, table_ptr);
+				    (u32) ACPI_PTR_DIFF(mem_rover, table_ptr);
 
 				table_info->physical_address =
 				    (acpi_physical_address) physical_address;
@@ -584,9 +584,9 @@ acpi_tb_find_rsdp(struct acpi_table_desc *table_info, u32 flags)
 
 			/* Return the physical address */
 
-			physical_address =
-			    ACPI_HI_RSDP_WINDOW_BASE + ACPI_PTR_DIFF(mem_rover,
-								     table_ptr);
+			physical_address = (u32)
+			    (ACPI_HI_RSDP_WINDOW_BASE +
+			     ACPI_PTR_DIFF(mem_rover, table_ptr));
 
 			table_info->physical_address =
 			    (acpi_physical_address) physical_address;
@@ -607,7 +607,7 @@ acpi_tb_find_rsdp(struct acpi_table_desc *table_info, u32 flags)
 
 		if (physical_address > 0x400) {
 			/*
-			 * 1b) Search EBDA paragraphs (EBDa is required to be a minimum of
+			 * 1b) Search EBDA paragraphs (EBDA is required to be a minimum of
 			 *     1_k length)
 			 */
 			mem_rover =

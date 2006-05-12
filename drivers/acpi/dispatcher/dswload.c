@@ -178,12 +178,12 @@ acpi_ds_load1_begin_op(struct acpi_walk_state * walk_state,
 			 * Target of Scope() not found.  Generate an External for it, and
 			 * insert the name into the namespace.
 			 */
-			acpi_dm_add_to_external_list(path);
+			acpi_dm_add_to_external_list(path, ACPI_TYPE_DEVICE, 0);
 			status =
 			    acpi_ns_lookup(walk_state->scope_info, path,
 					   object_type, ACPI_IMODE_LOAD_PASS1,
 					   ACPI_NS_SEARCH_PARENT, walk_state,
-					   &(node));
+					   &node);
 		}
 #endif
 		if (ACPI_FAILURE(status)) {
@@ -301,10 +301,41 @@ acpi_ds_load1_begin_op(struct acpi_walk_state * walk_state,
 		status =
 		    acpi_ns_lookup(walk_state->scope_info, path, object_type,
 				   ACPI_IMODE_LOAD_PASS1, flags, walk_state,
-				   &(node));
+				   &node);
 		if (ACPI_FAILURE(status)) {
-			ACPI_ERROR_NAMESPACE(path, status);
-			return_ACPI_STATUS(status);
+			if (status == AE_ALREADY_EXISTS) {
+
+				/* The name already exists in this scope */
+
+				if (node->flags & ANOBJ_IS_EXTERNAL) {
+					/*
+					 * Allow one create on an object or segment that was
+					 * previously declared External
+					 */
+					node->flags &= ~ANOBJ_IS_EXTERNAL;
+					node->type = (u8) object_type;
+
+					/* Just retyped a node, probably will need to open a scope */
+
+					if (acpi_ns_opens_scope(object_type)) {
+						status =
+						    acpi_ds_scope_stack_push
+						    (node, object_type,
+						     walk_state);
+						if (ACPI_FAILURE(status)) {
+							return_ACPI_STATUS
+							    (status);
+						}
+					}
+					status = AE_OK;
+				}
+			}
+
+			if (ACPI_FAILURE(status)) {
+
+				ACPI_ERROR_NAMESPACE(path, status);
+				return_ACPI_STATUS(status);
+			}
 		}
 		break;
 	}

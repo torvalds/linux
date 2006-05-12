@@ -207,10 +207,11 @@ struct acpi_namespace_node {
 #define ANOBJ_METHOD_LOCAL              0x08	/* Node is a method local */
 #define ANOBJ_SUBTREE_HAS_INI           0x10	/* Used to optimize device initialization */
 
-#define ANOBJ_METHOD_NO_RETVal          0x10	/* i_aSL only: Method has no return value */
-#define ANOBJ_METHOD_SOME_NO_RETVal     0x20	/* i_aSL only: Method has at least one return value */
-#define ANOBJ_IS_BIT_OFFSet             0x40	/* i_aSL only: Reference is a bit offset */
-#define ANOBJ_IS_REFERENCed             0x80	/* i_aSL only: Object was referenced */
+#define ANOBJ_IS_EXTERNAL               0x08	/* i_aSL only: This object created via External() */
+#define ANOBJ_METHOD_NO_RETVAL          0x10	/* i_aSL only: Method has no return value */
+#define ANOBJ_METHOD_SOME_NO_RETVAL     0x20	/* i_aSL only: Method has at least one return value */
+#define ANOBJ_IS_BIT_OFFSET             0x40	/* i_aSL only: Reference is a bit offset */
+#define ANOBJ_IS_REFERENCED             0x80	/* i_aSL only: Object was referenced */
 
 /*
  * ACPI Table Descriptor.  One per ACPI table
@@ -595,6 +596,9 @@ union acpi_parse_value {
 #define ACPI_DASM_UNICODE               0x03
 #define ACPI_DASM_EISAID                0x04
 #define ACPI_DASM_MATCHOP               0x05
+#define ACPI_DASM_LNOT_PREFIX           0x06
+#define ACPI_DASM_LNOT_SUFFIX           0x07
+#define ACPI_DASM_IGNORE                0x08
 
 /*
  * Generic operation (for example:  If, While, Store)
@@ -613,7 +617,7 @@ struct acpi_parse_obj_named {
 	u32 name;		/* 4-byte name or zero if no name */
 };
 
-/* this version is used by the i_aSL compiler only */
+/* This version is used by the i_aSL compiler only */
 
 #define ACPI_MAX_PARSEOP_NAME   20
 

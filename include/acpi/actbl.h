@@ -206,8 +206,8 @@ struct acpi_common_facs {
 	u32                             V1_pm_tmr_blk;      /* Port address of Power Mgt Timer Ctrl Reg Blk */ \
 	u32                             V1_gpe0_blk;        /* Port addr of General Purpose acpi_event 0 Reg Blk */ \
 	u32                             V1_gpe1_blk;        /* Port addr of General Purpose acpi_event 1 Reg Blk */ \
-	u8                              pm1_evt_len;        /* Byte length of ports at pm1_x_evt_blk */ \
-	u8                              pm1_cnt_len;        /* Byte length of ports at pm1_x_cnt_blk */ \
+	u8                              pm1_evt_len;        /* Byte Length of ports at pm1_x_evt_blk */ \
+	u8                              pm1_cnt_len;        /* Byte Length of ports at pm1_x_cnt_blk */ \
 	u8                              pm2_cnt_len;        /* Byte Length of ports at pm2_cnt_blk */ \
 	u8                              pm_tm_len;          /* Byte Length of ports at pm_tm_blk */ \
 	u8                              gpe0_blk_len;       /* Byte Length of ports at gpe0_blk */ \
@@ -252,7 +252,7 @@ struct fadt_descriptor {
 	u8 S4rtc_sts_valid:1;	/* 16:    Contents of RTC_STS valid after S4 wake (ACPI 3.0) */
 	u8 remote_power_on_capable:1;	/* 17:    System is compatible with remote power on (ACPI 3.0) */
 	u8 force_apic_cluster_model:1;	/* 18:    All local APICs must use cluster model (ACPI 3.0) */
-	u8 force_apic_physical_destination_mode:1;	/* 19:   all local x_aPICs must use physical dest mode (ACPI 3.0) */
+	u8 force_apic_physical_destination_mode:1;	/* 19:   All local x_aPICs must use physical dest mode (ACPI 3.0) */
 	 u8:4;			/* 20-23: Reserved, must be zero */
 	u8 reserved3;		/* 24-31: Reserved, must be zero */
 

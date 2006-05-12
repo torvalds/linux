@@ -191,9 +191,8 @@ acpi_ev_queue_notify_request(struct acpi_namespace_node * node,
 		notify_info->notify.value = (u16) notify_value;
 		notify_info->notify.handler_obj = handler_obj;
 
-		status = acpi_os_queue_for_execution(OSD_PRIORITY_HIGH,
-						     acpi_ev_notify_dispatch,
-						     notify_info);
+		status = acpi_os_execute(OSL_NOTIFY_HANDLER,
+					 acpi_ev_notify_dispatch, notify_info);
 		if (ACPI_FAILURE(status)) {
 			acpi_ut_delete_generic_state(notify_info);
 		}
@@ -346,9 +345,8 @@ static u32 acpi_ev_global_lock_handler(void *context)
 
 		/* Run the Global Lock thread which will signal all waiting threads */
 
-		status = acpi_os_queue_for_execution(OSD_PRIORITY_HIGH,
-						     acpi_ev_global_lock_thread,
-						     context);
+		status = acpi_os_execute(OSL_GLOBAL_LOCK_HANDLER,
+					 acpi_ev_global_lock_thread, context);
 		if (ACPI_FAILURE(status)) {
 			ACPI_EXCEPTION((AE_INFO, status,
 					"Could not queue Global Lock thread"));

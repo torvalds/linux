@@ -451,7 +451,7 @@ acpi_rs_get_list_length(u8 * aml_buffer,
 		 */
 		buffer_size = acpi_gbl_resource_struct_sizes[resource_index] +
 		    extra_struct_bytes;
-		buffer_size = ACPI_ROUND_UP_TO_NATIVE_WORD(buffer_size);
+		buffer_size = (u32) ACPI_ROUND_UP_TO_NATIVE_WORD(buffer_size);
 
 		*size_needed += buffer_size;
 
@@ -579,7 +579,7 @@ acpi_rs_get_pci_routing_table_length(union acpi_operand_object *package_object,
 
 		/* Round up the size since each element must be aligned */
 
-		temp_size_needed = ACPI_ROUND_UP_to_64_bIT(temp_size_needed);
+		temp_size_needed = ACPI_ROUND_UP_TO_64BIT(temp_size_needed);
 
 		/* Point to the next union acpi_operand_object */
 

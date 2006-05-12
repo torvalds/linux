@@ -354,6 +354,7 @@ acpi_rs_get_resource_source(acpi_rs_length resource_length,
 		 * Zero the entire area of the buffer.
 		 */
 		total_length =
+		    (u32)
 		    ACPI_STRLEN(ACPI_CAST_PTR(char, &aml_resource_source[1])) +
 		    1;
 		total_length = (u32) ACPI_ROUND_UP_TO_NATIVE_WORD(total_length);
@@ -528,7 +529,7 @@ acpi_rs_get_crs_method_data(acpi_handle handle, struct acpi_buffer *ret_buffer)
 	 */
 	status = acpi_rs_create_resource_list(obj_desc, ret_buffer);
 
-	/* on exit, we must delete the object returned by evaluate_object */
+	/* On exit, we must delete the object returned by evaluate_object */
 
 	acpi_ut_remove_reference(obj_desc);
 	return_ACPI_STATUS(status);
@@ -578,7 +579,7 @@ acpi_rs_get_prs_method_data(acpi_handle handle, struct acpi_buffer *ret_buffer)
 	 */
 	status = acpi_rs_create_resource_list(obj_desc, ret_buffer);
 
-	/* on exit, we must delete the object returned by evaluate_object */
+	/* On exit, we must delete the object returned by evaluate_object */
 
 	acpi_ut_remove_reference(obj_desc);
 	return_ACPI_STATUS(status);

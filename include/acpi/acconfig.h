@@ -63,7 +63,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20060421
+#define ACPI_CA_VERSION                 0x20060512
 
 /*
  * OS name, used for the _OS object.  The _OS object is essentially obsolete,

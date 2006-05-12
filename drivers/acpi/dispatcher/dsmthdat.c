@@ -336,7 +336,7 @@ acpi_ds_method_data_set_value(u16 opcode,
 	 * Increment ref count so object can't be deleted while installed.
 	 * NOTE: We do not copy the object in order to preserve the call by
 	 * reference semantics of ACPI Control Method invocation.
-	 * (See ACPI specification 2.0_c)
+	 * (See ACPI Specification 2.0_c)
 	 */
 	acpi_ut_add_reference(object);
 
@@ -351,7 +351,7 @@ acpi_ds_method_data_set_value(u16 opcode,
  * FUNCTION:    acpi_ds_method_data_get_value
  *
  * PARAMETERS:  Opcode              - Either AML_LOCAL_OP or AML_ARG_OP
- *              Index               - which local_var or argument to get
+ *              Index               - Which local_var or argument to get
  *              walk_state          - Current walk state object
  *              dest_desc           - Where Arg or Local value is returned
  *
@@ -459,7 +459,7 @@ acpi_ds_method_data_get_value(u16 opcode,
  * FUNCTION:    acpi_ds_method_data_delete_value
  *
  * PARAMETERS:  Opcode              - Either AML_LOCAL_OP or AML_ARG_OP
- *              Index               - which local_var or argument to delete
+ *              Index               - Which local_var or argument to delete
  *              walk_state          - Current walk state object
  *
  * RETURN:      None

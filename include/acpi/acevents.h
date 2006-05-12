@@ -138,7 +138,7 @@ acpi_status
 acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
 			       u32 function,
 			       acpi_physical_address address,
-			       u32 bit_width, void *value);
+			       u32 bit_width, acpi_integer * value);
 
 acpi_status
 acpi_ev_attach_region(union acpi_operand_object *handler_obj,

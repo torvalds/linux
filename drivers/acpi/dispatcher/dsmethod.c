@@ -385,6 +385,7 @@ acpi_ds_restart_control_method(struct acpi_walk_state *walk_state,
 			       union acpi_operand_object *return_desc)
 {
 	acpi_status status;
+	int same_as_implicit_return;
 
 	ACPI_FUNCTION_TRACE_PTR(ds_restart_control_method, walk_state);
 
@@ -401,6 +402,11 @@ acpi_ds_restart_control_method(struct acpi_walk_state *walk_state,
 	/* Did the called method return a value? */
 
 	if (return_desc) {
+
+		/* Is the implicit return object the same as the return desc? */
+
+		same_as_implicit_return =
+		    (walk_state->implicit_return_obj == return_desc);
 
 		/* Are we actually going to use the return value? */
 
@@ -422,18 +428,23 @@ acpi_ds_restart_control_method(struct acpi_walk_state *walk_state,
 		}
 
 		/*
-		 * The following code is the
-		 * optional support for a so-called "implicit return". Some AML code
-		 * assumes that the last value of the method is "implicitly" returned
-		 * to the caller. Just save the last result as the return value.
+		 * The following code is the optional support for the so-called
+		 * "implicit return". Some AML code assumes that the last value of the
+		 * method is "implicitly" returned to the caller, in the absence of an
+		 * explicit return value.
+		 *
+		 * Just save the last result of the method as the return value.
+		 *
 		 * NOTE: this is optional because the ASL language does not actually
 		 * support this behavior.
 		 */
 		else if (!acpi_ds_do_implicit_return
-			 (return_desc, walk_state, FALSE)) {
+			 (return_desc, walk_state, FALSE)
+			 || same_as_implicit_return) {
 			/*
 			 * Delete the return value if it will not be used by the
-			 * calling method
+			 * calling method or remove one reference if the explicit return
+			 * is the same as the implicit return value.
 			 */
 			acpi_ut_remove_reference(return_desc);
 		}

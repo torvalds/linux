@@ -443,7 +443,6 @@ struct acpi_fixed_event_info acpi_gbl_fixed_event_info[ACPI_NUM_FIXED_EVENTS] = 
 /* Region type decoding */
 
 const char *acpi_gbl_region_types[ACPI_NUM_PREDEFINED_REGIONS] = {
-/*! [Begin] no source code translation (keep these ASL Keywords as-is) */
 	"SystemMemory",
 	"SystemIO",
 	"PCI_Config",
@@ -452,7 +451,6 @@ const char *acpi_gbl_region_types[ACPI_NUM_PREDEFINED_REGIONS] = {
 	"CMOS",
 	"PCIBARTarget",
 	"DataTable"
-/*! [End] no source code translation !*/
 };
 
 char *acpi_ut_get_region_name(u8 space_id)
@@ -482,13 +480,11 @@ char *acpi_ut_get_region_name(u8 space_id)
 /* Event type decoding */
 
 static const char *acpi_gbl_event_types[ACPI_NUM_FIXED_EVENTS] = {
-/*! [Begin] no source code translation (keep these strings as-is) */
 	"PM_Timer",
 	"GlobalLock",
 	"PowerButton",
 	"SleepButton",
 	"RealTimeClock",
-/*! [End] no source code translation !*/
 };
 
 char *acpi_ut_get_event_name(u32 event_id)
@@ -526,7 +522,6 @@ static const char acpi_gbl_bad_type[] = "UNDEFINED";
 /* Printable names of the ACPI object types */
 
 static const char *acpi_gbl_ns_type_names[] = {
-/*! [Begin] no source code translation (keep these strings as-is) */
 	/* 00 */ "Untyped",
 	/* 01 */ "Integer",
 	/* 02 */ "String",
@@ -558,7 +553,6 @@ static const char *acpi_gbl_ns_type_names[] = {
 	/* 28 */ "Extra",
 	/* 29 */ "Data",
 	/* 30 */ "Invalid"
-/*! [End] no source code translation !*/
 };
 
 char *acpi_ut_get_type_name(acpi_object_type type)
@@ -641,7 +635,6 @@ char *acpi_ut_get_node_name(void *object)
 /* Printable names of object descriptor types */
 
 static const char *acpi_gbl_desc_type_names[] = {
-/*! [Begin] no source code translation (keep these ASL Keywords as-is) */
 	/* 00 */ "Invalid",
 	/* 01 */ "Cached",
 	/* 02 */ "State-Generic",
@@ -658,7 +651,6 @@ static const char *acpi_gbl_desc_type_names[] = {
 	/* 13 */ "Parser",
 	/* 14 */ "Operand",
 	/* 15 */ "Node"
-/*! [End] no source code translation !*/
 };
 
 char *acpi_ut_get_descriptor_name(void *object)
