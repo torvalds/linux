@@ -581,16 +581,17 @@ static int jffs2_sum_write_data(struct jffs2_sb_info *c, struct jffs2_eraseblock
 	wpage = c->summary->sum_buf;
 
 	while (c->summary->sum_num) {
+		temp = c->summary->sum_list_head;
 
-		switch (je16_to_cpu(c->summary->sum_list_head->u.nodetype)) {
+		switch (je16_to_cpu(temp->u.nodetype)) {
 			case JFFS2_NODETYPE_INODE: {
 				struct jffs2_sum_inode_flash *sino_ptr = wpage;
 
-				sino_ptr->nodetype = c->summary->sum_list_head->i.nodetype;
-				sino_ptr->inode = c->summary->sum_list_head->i.inode;
-				sino_ptr->version = c->summary->sum_list_head->i.version;
-				sino_ptr->offset = c->summary->sum_list_head->i.offset;
-				sino_ptr->totlen = c->summary->sum_list_head->i.totlen;
+				sino_ptr->nodetype = temp->i.nodetype;
+				sino_ptr->inode = temp->i.inode;
+				sino_ptr->version = temp->i.version;
+				sino_ptr->offset = temp->i.offset;
+				sino_ptr->totlen = temp->i.totlen;
 
 				wpage += JFFS2_SUMMARY_INODE_SIZE;
 
@@ -600,19 +601,19 @@ static int jffs2_sum_write_data(struct jffs2_sb_info *c, struct jffs2_eraseblock
 			case JFFS2_NODETYPE_DIRENT: {
 				struct jffs2_sum_dirent_flash *sdrnt_ptr = wpage;
 
-				sdrnt_ptr->nodetype = c->summary->sum_list_head->d.nodetype;
-				sdrnt_ptr->totlen = c->summary->sum_list_head->d.totlen;
-				sdrnt_ptr->offset = c->summary->sum_list_head->d.offset;
-				sdrnt_ptr->pino = c->summary->sum_list_head->d.pino;
-				sdrnt_ptr->version = c->summary->sum_list_head->d.version;
-				sdrnt_ptr->ino = c->summary->sum_list_head->d.ino;
-				sdrnt_ptr->nsize = c->summary->sum_list_head->d.nsize;
-				sdrnt_ptr->type = c->summary->sum_list_head->d.type;
+				sdrnt_ptr->nodetype = temp->d.nodetype;
+				sdrnt_ptr->totlen = temp->d.totlen;
+				sdrnt_ptr->offset = temp->d.offset;
+				sdrnt_ptr->pino = temp->d.pino;
+				sdrnt_ptr->version = temp->d.version;
+				sdrnt_ptr->ino = temp->d.ino;
+				sdrnt_ptr->nsize = temp->d.nsize;
+				sdrnt_ptr->type = temp->d.type;
 
-				memcpy(sdrnt_ptr->name, c->summary->sum_list_head->d.name,
-							c->summary->sum_list_head->d.nsize);
+				memcpy(sdrnt_ptr->name, temp->d.name,
+							temp->d.nsize);
 
-				wpage += JFFS2_SUMMARY_DIRENT_SIZE(c->summary->sum_list_head->d.nsize);
+				wpage += JFFS2_SUMMARY_DIRENT_SIZE(temp->d.nsize);
 
 				break;
 			}
@@ -622,8 +623,7 @@ static int jffs2_sum_write_data(struct jffs2_sb_info *c, struct jffs2_eraseblock
 			}
 		}
 
-		temp = c->summary->sum_list_head;
-		c->summary->sum_list_head = c->summary->sum_list_head->u.next;
+		c->summary->sum_list_head = temp->u.next;
 		kfree(temp);
 
 		c->summary->sum_num--;
