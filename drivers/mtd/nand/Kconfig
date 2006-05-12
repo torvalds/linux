@@ -93,7 +93,7 @@ config MTD_NAND_S3C2410
 	  This enables the NAND flash controller on the S3C2410 and S3C2440
 	  SoCs
 
-	  No board specfic support is done by this driver, each board
+	  No board specific support is done by this driver, each board
 	  must advertise a platform_device for the driver to attach.
 
 config MTD_NAND_S3C2410_DEBUG

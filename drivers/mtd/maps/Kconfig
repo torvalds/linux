@@ -109,7 +109,7 @@ config MTD_TS5500
 	  mtd1 allows you to reprogram your BIOS. BE VERY CAREFUL.
 
 	  Note that jumper 3 ("Write Enable Drive A") must be set
-	  otherwise detection won't succeeed.
+	  otherwise detection won't succeed.
 
 config MTD_SBC_GXX
 	tristate "CFI Flash device mapped on Arcom SBC-GXx boards"
