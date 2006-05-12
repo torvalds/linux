@@ -221,8 +221,7 @@ static spinlock_t list_lock;
 static atomic_t shpchp_num_controllers = ATOMIC_INIT(0);
 
 static irqreturn_t shpc_isr(int irq, void *dev_id, struct pt_regs *regs);
-
-static void start_int_poll_timer(struct php_ctlr_state_s *php_ctlr, int seconds);
+static void start_int_poll_timer(struct php_ctlr_state_s *php_ctlr, int sec);
 static int hpc_check_cmd_status(struct controller *ctrl);
 
 static inline u8 shpc_readb(struct controller *ctrl, int reg)
@@ -268,47 +267,41 @@ static inline int shpc_indirect_read(struct controller *ctrl, int index,
 	return pci_read_config_dword(pdev, cap_offset + DWORD_DATA, value);
 }
 
-/* This is the interrupt polling timeout function. */
+/*
+ * This is the interrupt polling timeout function.
+ */
 static void int_poll_timeout(unsigned long lphp_ctlr)
 {
-    struct php_ctlr_state_s *php_ctlr = (struct php_ctlr_state_s *)lphp_ctlr;
+	struct php_ctlr_state_s *php_ctlr =
+		(struct php_ctlr_state_s *)lphp_ctlr;
 
-    DBG_ENTER_ROUTINE
+	DBG_ENTER_ROUTINE
 
-    if ( !php_ctlr ) {
-		err("%s: Invalid HPC controller handle!\n", __FUNCTION__);
-		return;
-    }
+	/* Poll for interrupt events.  regs == NULL => polling */
+	shpc_isr(0, php_ctlr->callback_instance_id, NULL);
 
-    /* Poll for interrupt events.  regs == NULL => polling */
-    shpc_isr(0, php_ctlr->callback_instance_id, NULL );
-
-    init_timer(&php_ctlr->int_poll_timer);
+	init_timer(&php_ctlr->int_poll_timer);
 	if (!shpchp_poll_time)
-		shpchp_poll_time = 2; /* reset timer to poll in 2 secs if user doesn't specify at module installation*/
+		shpchp_poll_time = 2; /* default polling interval is 2 sec */
 
-    start_int_poll_timer(php_ctlr, shpchp_poll_time);  
-	
-	return;
+	start_int_poll_timer(php_ctlr, shpchp_poll_time);
+
+	DBG_LEAVE_ROUTINE
 }
 
-/* This function starts the interrupt polling timer. */
-static void start_int_poll_timer(struct php_ctlr_state_s *php_ctlr, int seconds)
+/*
+ * This function starts the interrupt polling timer.
+ */
+static void start_int_poll_timer(struct php_ctlr_state_s *php_ctlr, int sec)
 {
-    if (!php_ctlr) {
-		err("%s: Invalid HPC controller handle!\n", __FUNCTION__);
-		return;
-	}
+	/* Clamp to sane value */
+	if ((sec <= 0) || (sec > 60))
+		sec = 2;
 
-    if ( ( seconds <= 0 ) || ( seconds > 60 ) )
-        seconds = 2;            /* Clamp to sane value */
-
-    php_ctlr->int_poll_timer.function = &int_poll_timeout;
-    php_ctlr->int_poll_timer.data = (unsigned long)php_ctlr;    /* Instance data */
-    php_ctlr->int_poll_timer.expires = jiffies + seconds * HZ;
-    add_timer(&php_ctlr->int_poll_timer);
-
-	return;
+	php_ctlr->int_poll_timer.function = &int_poll_timeout;
+	php_ctlr->int_poll_timer.data = (unsigned long)php_ctlr;
+	php_ctlr->int_poll_timer.expires = jiffies + sec * HZ;
+	add_timer(&php_ctlr->int_poll_timer);
 }
 
 static inline int shpc_wait_cmd(struct controller *ctrl)
