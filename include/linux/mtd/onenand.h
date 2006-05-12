@@ -35,6 +35,8 @@ typedef enum {
 	FL_SYNCING,
 	FL_UNLOCKING,
 	FL_LOCKING,
+	FL_RESETING,
+	FL_OTPING,
 	FL_PM_SUSPENDED,
 } onenand_state_t;
 

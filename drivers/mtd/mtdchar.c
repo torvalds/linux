@@ -552,7 +552,7 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 		break;
 	}
 
-#ifdef CONFIG_MTD_OTP
+#if defined(CONFIG_MTD_OTP) || defined(CONFIG_MTD_ONENAND_OTP)
 	case OTPSELECT:
 	{
 		int mode;

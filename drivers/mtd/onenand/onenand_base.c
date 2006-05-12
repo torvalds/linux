@@ -191,7 +191,7 @@ static int onenand_buffer_address(int dataram1, int sectors, int count)
 static int onenand_command(struct mtd_info *mtd, int cmd, loff_t addr, size_t len)
 {
 	struct onenand_chip *this = mtd->priv;
-	int value, readcmd = 0;
+	int value, readcmd = 0, block_cmd = 0;
 	int block, page;
 	/* Now we use page size operation */
 	int sectors = 4, count = 4;
@@ -207,6 +207,8 @@ static int onenand_command(struct mtd_info *mtd, int cmd, loff_t addr, size_t le
 
 	case ONENAND_CMD_ERASE:
 	case ONENAND_CMD_BUFFERRAM:
+	case ONENAND_CMD_OTP_ACCESS:
+		block_cmd = 1;
 		block = (int) (addr >> this->erase_shift);
 		page = -1;
 		break;
@@ -235,7 +237,7 @@ static int onenand_command(struct mtd_info *mtd, int cmd, loff_t addr, size_t le
 		value = onenand_block_address(this, block);
 		this->write_word(value, this->base + ONENAND_REG_START_ADDRESS1);
 
-		if (cmd == ONENAND_CMD_ERASE) {
+		if (cmd == block_cmd) {
 			/* Select DataRAM for DDP */
 			value = onenand_bufferram_address(this, block);
 			this->write_word(value, this->base + ONENAND_REG_START_ADDRESS2);
@@ -1412,6 +1414,304 @@ static int onenand_unlock(struct mtd_info *mtd, loff_t ofs, size_t len)
 	return 0;
 }
 
+#ifdef CONFIG_MTD_ONENAND_OTP
+
+/* Interal OTP operation */
+typedef int (*otp_op_t)(struct mtd_info *mtd, loff_t form, size_t len,
+		size_t *retlen, u_char *buf);
+
+/**
+ * do_otp_read - [DEFAULT] Read OTP block area
+ * @param mtd		MTD device structure
+ * @param from		The offset to read
+ * @param len		number of bytes to read
+ * @param retlen	pointer to variable to store the number of readbytes
+ * @param buf		the databuffer to put/get data
+ *
+ * Read OTP block area.
+ */
+static int do_otp_read(struct mtd_info *mtd, loff_t from, size_t len,
+		size_t *retlen, u_char *buf)
+{
+	struct onenand_chip *this = mtd->priv;
+	int ret;
+
+	/* Enter OTP access mode */
+	this->command(mtd, ONENAND_CMD_OTP_ACCESS, 0, 0);
+	this->wait(mtd, FL_OTPING);
+
+	ret = mtd->read(mtd, from, len, retlen, buf);
+
+	/* Exit OTP access mode */
+	this->command(mtd, ONENAND_CMD_RESET, 0, 0);
+	this->wait(mtd, FL_RESETING);
+
+	return ret;
+}
+
+/**
+ * do_otp_write - [DEFAULT] Write OTP block area
+ * @param mtd		MTD device structure
+ * @param from		The offset to write
+ * @param len		number of bytes to write
+ * @param retlen	pointer to variable to store the number of write bytes
+ * @param buf		the databuffer to put/get data
+ *
+ * Write OTP block area.
+ */
+static int do_otp_write(struct mtd_info *mtd, loff_t from, size_t len,
+		size_t *retlen, u_char *buf)
+{
+	struct onenand_chip *this = mtd->priv;
+	unsigned char *pbuf = buf;
+	int ret;
+
+	/* Force buffer page aligned */
+	if (len < mtd->oobblock) {
+		memcpy(this->page_buf, buf, len);
+		memset(this->page_buf + len, 0xff, mtd->oobblock - len);
+		pbuf = this->page_buf;
+		len = mtd->oobblock;
+	}
+
+	/* Enter OTP access mode */
+	this->command(mtd, ONENAND_CMD_OTP_ACCESS, 0, 0);
+	this->wait(mtd, FL_OTPING);
+
+	ret = mtd->write(mtd, from, len, retlen, pbuf);
+
+	/* Exit OTP access mode */
+	this->command(mtd, ONENAND_CMD_RESET, 0, 0);
+	this->wait(mtd, FL_RESETING);
+
+	return ret;
+}
+
+/**
+ * do_otp_lock - [DEFAULT] Lock OTP block area
+ * @param mtd		MTD device structure
+ * @param from		The offset to lock
+ * @param len		number of bytes to lock
+ * @param retlen	pointer to variable to store the number of lock bytes
+ * @param buf		the databuffer to put/get data
+ *
+ * Lock OTP block area.
+ */
+static int do_otp_lock(struct mtd_info *mtd, loff_t from, size_t len,
+		size_t *retlen, u_char *buf)
+{
+	struct onenand_chip *this = mtd->priv;
+	int ret;
+
+	/* Enter OTP access mode */
+	this->command(mtd, ONENAND_CMD_OTP_ACCESS, 0, 0);
+	this->wait(mtd, FL_OTPING);
+
+	ret = mtd->write_oob(mtd, from, len, retlen, buf);
+
+	/* Exit OTP access mode */
+	this->command(mtd, ONENAND_CMD_RESET, 0, 0);
+	this->wait(mtd, FL_RESETING);
+
+	return ret;
+}
+
+/**
+ * onenand_otp_walk - [DEFAULT] Handle OTP operation
+ * @param mtd		MTD device structure
+ * @param from		The offset to read/write
+ * @param len		number of bytes to read/write
+ * @param retlen	pointer to variable to store the number of read bytes
+ * @param buf		the databuffer to put/get data
+ * @param action	do given action
+ * @param mode		specify user and factory
+ *
+ * Handle OTP operation.
+ */
+static int onenand_otp_walk(struct mtd_info *mtd, loff_t from, size_t len,
+			size_t *retlen, u_char *buf,
+			otp_op_t action, int mode)
+{
+	struct onenand_chip *this = mtd->priv;
+	int otp_pages;
+	int density;
+	int ret = 0;
+
+	*retlen = 0;
+
+	density = this->device_id >> ONENAND_DEVICE_DENSITY_SHIFT;
+	if (density < ONENAND_DEVICE_DENSITY_512Mb)
+		otp_pages = 20;
+	else
+		otp_pages = 10;
+
+	if (mode == MTD_OTP_FACTORY) {
+		from += mtd->oobblock * otp_pages;
+		otp_pages = 64 - otp_pages;
+	}
+
+	/* Check User/Factory boundary */
+	if (((mtd->oobblock * otp_pages) - (from + len)) < 0)
+		return 0;
+
+	while (len > 0 && otp_pages > 0) {
+		if (!action) {	/* OTP Info functions */
+			struct otp_info *otpinfo;
+
+			len -= sizeof(struct otp_info);
+			if (len <= 0)
+				return -ENOSPC;
+
+			otpinfo = (struct otp_info *) buf;
+			otpinfo->start = from;
+			otpinfo->length = mtd->oobblock;
+			otpinfo->locked = 0;
+
+			from += mtd->oobblock;
+			buf += sizeof(struct otp_info);
+			*retlen += sizeof(struct otp_info);
+		} else {
+			size_t tmp_retlen;
+			int size = len;
+
+			ret = action(mtd, from, len, &tmp_retlen, buf);
+
+			buf += size;
+			len -= size;
+			*retlen += size;
+
+			if (ret < 0)
+				return ret;
+		}
+		otp_pages--;
+	}
+
+	return 0;
+}
+
+/**
+ * onenand_get_fact_prot_info - [MTD Interface] Read factory OTP info
+ * @param mtd		MTD device structure
+ * @param buf		the databuffer to put/get data
+ * @param len		number of bytes to read
+ *
+ * Read factory OTP info.
+ */
+static int onenand_get_fact_prot_info(struct mtd_info *mtd,
+			struct otp_info *buf, size_t len)
+{
+	size_t retlen;
+	int ret;
+
+	ret = onenand_otp_walk(mtd, 0, len, &retlen, (u_char *) buf, NULL, MTD_OTP_FACTORY);
+
+	return ret ? : retlen;
+}
+
+/**
+ * onenand_read_fact_prot_reg - [MTD Interface] Read factory OTP area
+ * @param mtd		MTD device structure
+ * @param from		The offset to read
+ * @param len		number of bytes to read
+ * @param retlen	pointer to variable to store the number of read bytes
+ * @param buf		the databuffer to put/get data
+ *
+ * Read factory OTP area.
+ */
+static int onenand_read_fact_prot_reg(struct mtd_info *mtd, loff_t from,
+			size_t len, size_t *retlen, u_char *buf)
+{
+	return onenand_otp_walk(mtd, from, len, retlen, buf, do_otp_read, MTD_OTP_FACTORY);
+}
+
+/**
+ * onenand_get_user_prot_info - [MTD Interface] Read user OTP info
+ * @param mtd		MTD device structure
+ * @param buf		the databuffer to put/get data
+ * @param len		number of bytes to read
+ *
+ * Read user OTP info.
+ */
+static int onenand_get_user_prot_info(struct mtd_info *mtd,
+			struct otp_info *buf, size_t len)
+{
+	size_t retlen;
+	int ret;
+
+	ret = onenand_otp_walk(mtd, 0, len, &retlen, (u_char *) buf, NULL, MTD_OTP_USER);
+
+	return ret ? : retlen;
+}
+
+/**
+ * onenand_read_user_prot_reg - [MTD Interface] Read user OTP area
+ * @param mtd		MTD device structure
+ * @param from		The offset to read
+ * @param len		number of bytes to read
+ * @param retlen	pointer to variable to store the number of read bytes
+ * @param buf		the databuffer to put/get data
+ *
+ * Read user OTP area.
+ */
+static int onenand_read_user_prot_reg(struct mtd_info *mtd, loff_t from,
+			size_t len, size_t *retlen, u_char *buf)
+{
+	return onenand_otp_walk(mtd, from, len, retlen, buf, do_otp_read, MTD_OTP_USER);
+}
+
+/**
+ * onenand_write_user_prot_reg - [MTD Interface] Write user OTP area
+ * @param mtd		MTD device structure
+ * @param from		The offset to write
+ * @param len		number of bytes to write
+ * @param retlen	pointer to variable to store the number of write bytes
+ * @param buf		the databuffer to put/get data
+ *
+ * Write user OTP area.
+ */
+static int onenand_write_user_prot_reg(struct mtd_info *mtd, loff_t from,
+			size_t len, size_t *retlen, u_char *buf)
+{
+	return onenand_otp_walk(mtd, from, len, retlen, buf, do_otp_write, MTD_OTP_USER);
+}
+
+/**
+ * onenand_lock_user_prot_reg - [MTD Interface] Lock user OTP area
+ * @param mtd		MTD device structure
+ * @param from		The offset to lock
+ * @param len		number of bytes to unlock
+ *
+ * Write lock mark on spare area in page 0 in OTP block
+ */
+static int onenand_lock_user_prot_reg(struct mtd_info *mtd, loff_t from,
+			size_t len)
+{
+	unsigned char oob_buf[64];
+	size_t retlen;
+	int ret;
+
+	memset(oob_buf, 0xff, mtd->oobsize);
+	/*
+	 * Note: OTP lock operation
+	 *       OTP block : 0xXXFC
+	 *       1st block : 0xXXF3 (If chip support)
+	 *       Both      : 0xXXF0 (If chip support)
+	 */
+	oob_buf[ONENAND_OTP_LOCK_OFFSET] = 0xFC;
+
+	/*
+	 * Write lock mark to 8th word of sector0 of page0 of the spare0.
+	 * We write 16 bytes spare area instead of 2 bytes.
+	 */
+	from = 0;
+	len = 16;
+
+	ret = onenand_otp_walk(mtd, from, len, &retlen, oob_buf, do_otp_lock, MTD_OTP_USER);
+
+	return ret ? : retlen;
+}
+#endif	/* CONFIG_MTD_ONENAND_OTP */
+
 /**
  * onenand_print_device_info - Print device ID
  * @param device        device ID
@@ -1563,7 +1863,6 @@ static void onenand_resume(struct mtd_info *mtd)
 				"in suspended state\n");
 }
 
-
 /**
  * onenand_scan - [OneNAND Interface] Scan for the OneNAND device
  * @param mtd		MTD device structure
@@ -1655,6 +1954,14 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 	mtd->write_ecc = onenand_write_ecc;
 	mtd->read_oob = onenand_read_oob;
 	mtd->write_oob = onenand_write_oob;
+#ifdef CONFIG_MTD_ONENAND_OTP
+	mtd->get_fact_prot_info = onenand_get_fact_prot_info;
+	mtd->read_fact_prot_reg = onenand_read_fact_prot_reg;
+	mtd->get_user_prot_info = onenand_get_user_prot_info;
+	mtd->read_user_prot_reg = onenand_read_user_prot_reg;
+	mtd->write_user_prot_reg = onenand_write_user_prot_reg;
+	mtd->lock_user_prot_reg = onenand_lock_user_prot_reg;
+#endif
 	mtd->readv = NULL;
 	mtd->readv_ecc = NULL;
 	mtd->writev = onenand_writev;
