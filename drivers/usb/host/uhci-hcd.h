@@ -129,6 +129,7 @@ struct uhci_qh {
 	struct list_head queue;		/* Queue of urbps for this QH */
 	struct uhci_qh *skel;		/* Skeleton for this QH */
 	struct uhci_td *dummy_td;	/* Dummy TD to end the queue */
+	struct uhci_td *post_td;	/* Last TD completed */
 
 	unsigned int unlink_frame;	/* When the QH was unlinked */
 	int state;			/* QH_STATE_xxx; see above */
@@ -136,7 +137,7 @@ struct uhci_qh {
 
 	unsigned int initial_toggle:1;	/* Endpoint's current toggle value */
 	unsigned int needs_fixup:1;	/* Must fix the TD toggle values */
-	unsigned int is_stopped:1;	/* Queue was stopped by an error */
+	unsigned int is_stopped:1;	/* Queue was stopped by error/unlink */
 } __attribute__((aligned(16)));
 
 /*
@@ -456,8 +457,6 @@ struct urb_priv {
 	struct list_head td_list;
 
 	unsigned fsbr : 1;		/* URB turned on FSBR */
-	unsigned short_transfer : 1;	/* URB got a short transfer, no
-					 * need to rescan */
 };
 
 

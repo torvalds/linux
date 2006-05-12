@@ -161,6 +161,7 @@ static struct uhci_qh *uhci_alloc_qh(struct uhci_hcd *uhci,
 	if (!qh)
 		return NULL;
 
+	memset(qh, 0, sizeof(*qh));
 	qh->dma_handle = dma_handle;
 
 	qh->element = UHCI_PTR_TERM;
@@ -183,7 +184,6 @@ static struct uhci_qh *uhci_alloc_qh(struct uhci_hcd *uhci,
 
 	} else {		/* Skeleton QH */
 		qh->state = QH_STATE_ACTIVE;
-		qh->udev = NULL;
 		qh->type = -1;
 	}
 	return qh;
@@ -223,16 +223,10 @@ static void uhci_save_toggle(struct uhci_qh *qh, struct urb *urb)
 			qh->type == USB_ENDPOINT_XFER_INT))
 		return;
 
-	/* Find the first active TD; that's the device's toggle state */
-	list_for_each_entry(td, &urbp->td_list, list) {
-		if (td_status(td) & TD_CTRL_ACTIVE) {
-			qh->needs_fixup = 1;
-			qh->initial_toggle = uhci_toggle(td_token(td));
-			return;
-		}
-	}
-
-	WARN_ON(1);
+	WARN_ON(list_empty(&urbp->td_list));
+	td = list_entry(urbp->td_list.next, struct uhci_td, list);
+	qh->needs_fixup = 1;
+	qh->initial_toggle = uhci_toggle(td_token(td));
 }
 
 /*
@@ -371,6 +365,12 @@ static void uhci_make_qh_idle(struct uhci_hcd *uhci, struct uhci_qh *qh)
 				node);
 	list_move(&qh->node, &uhci->idle_qh_list);
 	qh->state = QH_STATE_IDLE;
+
+	/* Now that the QH is idle, its post_td isn't being used */
+	if (qh->post_td) {
+		uhci_free_td(uhci, qh->post_td);
+		qh->post_td = NULL;
+	}
 
 	/* If anyone is waiting for a QH to become idle, wake them up */
 	if (uhci->num_waiting)
@@ -610,6 +610,8 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb,
 		qh->skel = uhci->skel_fs_control_qh;
 		uhci_inc_fsbr(uhci, urb);
 	}
+
+	urb->actual_length = -8;	/* Account for the SETUP packet */
 	return 0;
 
 nomem:
@@ -767,34 +769,46 @@ static inline int uhci_submit_interrupt(struct uhci_hcd *uhci, struct urb *urb,
  * Fix up the data structures following a short transfer
  */
 static int uhci_fixup_short_transfer(struct uhci_hcd *uhci,
-		struct uhci_qh *qh, struct urb_priv *urbp,
-		struct uhci_td *short_td)
+		struct uhci_qh *qh, struct urb_priv *urbp)
 {
 	struct uhci_td *td;
-	int ret = 0;
+	struct list_head *tmp;
+	int ret;
 
 	td = list_entry(urbp->td_list.prev, struct uhci_td, list);
 	if (qh->type == USB_ENDPOINT_XFER_CONTROL) {
-		urbp->short_transfer = 1;
 
 		/* When a control transfer is short, we have to restart
 		 * the queue at the status stage transaction, which is
 		 * the last TD. */
+		WARN_ON(list_empty(&urbp->td_list));
 		qh->element = cpu_to_le32(td->dma_handle);
+		tmp = td->list.prev;
 		ret = -EINPROGRESS;
 
-	} else if (!urbp->short_transfer) {
-		urbp->short_transfer = 1;
+	} else {
 
 		/* When a bulk/interrupt transfer is short, we have to
 		 * fix up the toggles of the following URBs on the queue
 		 * before restarting the queue at the next URB. */
-		qh->initial_toggle = uhci_toggle(td_token(short_td)) ^ 1;
+		qh->initial_toggle = uhci_toggle(td_token(qh->post_td)) ^ 1;
 		uhci_fixup_toggles(qh, 1);
 
+		if (list_empty(&urbp->td_list))
+			td = qh->post_td;
 		qh->element = td->link;
+		tmp = urbp->td_list.prev;
+		ret = 0;
 	}
 
+	/* Remove all the TDs we skipped over, from tmp back to the start */
+	while (tmp != &urbp->td_list) {
+		td = list_entry(tmp, struct uhci_td, list);
+		tmp = tmp->prev;
+
+		uhci_remove_td_from_urb(td);
+		list_add(&td->remove_list, &uhci->td_remove_list);
+	}
 	return ret;
 }
 
@@ -805,28 +819,13 @@ static int uhci_result_common(struct uhci_hcd *uhci, struct urb *urb)
 {
 	struct urb_priv *urbp = urb->hcpriv;
 	struct uhci_qh *qh = urbp->qh;
-	struct uhci_td *td;
-	struct list_head *tmp;
+	struct uhci_td *td, *tmp;
 	unsigned status;
 	int ret = 0;
 
-	tmp = urbp->td_list.next;
-
-	if (qh->type == USB_ENDPOINT_XFER_CONTROL) {
-		if (urbp->short_transfer)
-			tmp = urbp->td_list.prev;
-		else
-			urb->actual_length = -8;	/* SETUP packet */
-	} else
-		urb->actual_length = 0;
-
-
-	while (tmp != &urbp->td_list) {
+	list_for_each_entry_safe(td, tmp, &urbp->td_list, list) {
 		unsigned int ctrlstat;
 		int len;
-
-		td = list_entry(tmp, struct uhci_td, list);
-		tmp = tmp->next;
 
 		ctrlstat = td_status(td);
 		status = uhci_status_bits(ctrlstat);
@@ -862,6 +861,12 @@ static int uhci_result_common(struct uhci_hcd *uhci, struct urb *urb)
 				ret = 1;
 		}
 
+		uhci_remove_td_from_urb(td);
+		if (qh->post_td)
+			list_add(&qh->post_td->remove_list,
+					&uhci->td_remove_list);
+		qh->post_td = td;
+
 		if (ret != 0)
 			goto err;
 	}
@@ -882,7 +887,7 @@ err:
 				(ret == -EREMOTEIO);
 
 	} else		/* Short packet received */
-		ret = uhci_fixup_short_transfer(uhci, qh, urbp, td);
+		ret = uhci_fixup_short_transfer(uhci, qh, urbp);
 	return ret;
 }
 
@@ -1123,6 +1128,7 @@ __acquires(uhci->lock)
 		struct uhci_td *ptd, *ltd;
 
 		purbp = list_entry(urbp->node.prev, struct urb_priv, node);
+		WARN_ON(list_empty(&purbp->td_list));
 		ptd = list_entry(purbp->td_list.prev, struct uhci_td,
 				list);
 		ltd = list_entry(urbp->td_list.prev, struct uhci_td,
