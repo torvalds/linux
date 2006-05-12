@@ -392,13 +392,16 @@ static int openprom_bsd_ioctl(struct inode * inode, struct file * file,
 			return -ENOMEM;
 		}
 
-		prom_getproperty(op.op_nodeid, str, tmp, len);
+		cnt = prom_getproperty(op.op_nodeid, str, tmp, len);
+		if (cnt <= 0) {
+			error = -EINVAL;
+		} else {
+			tmp[len] = '\0';
 
-		tmp[len] = '\0';
-
-		if (__copy_to_user(argp, &op, sizeof(op)) != 0
-		    || copy_to_user(op.op_buf, tmp, len) != 0)
-			error = -EFAULT;
+			if (__copy_to_user(argp, &op, sizeof(op)) != 0 ||
+			    copy_to_user(op.op_buf, tmp, len) != 0)
+				error = -EFAULT;
+		}
 
 		kfree(tmp);
 		kfree(str);

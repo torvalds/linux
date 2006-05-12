@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.16
-# Sun Apr  2 19:31:04 2006
+# Linux kernel version: 2.6.17-rc3
+# Fri May 12 12:43:49 2006
 #
 CONFIG_SPARC=y
 CONFIG_SPARC64=y
@@ -114,6 +114,7 @@ CONFIG_GENERIC_CALIBRATE_DELAY=y
 CONFIG_HUGETLB_PAGE_SIZE_4MB=y
 # CONFIG_HUGETLB_PAGE_SIZE_512K is not set
 # CONFIG_HUGETLB_PAGE_SIZE_64K is not set
+CONFIG_ARCH_SELECT_MEMORY_MODEL=y
 CONFIG_ARCH_SPARSEMEM_ENABLE=y
 CONFIG_ARCH_SPARSEMEM_DEFAULT=y
 CONFIG_LARGE_ALLOCS=y
@@ -430,7 +431,6 @@ CONFIG_ISCSI_TCP=m
 # CONFIG_SCSI_INIA100 is not set
 # CONFIG_SCSI_SYM53C8XX_2 is not set
 # CONFIG_SCSI_IPR is not set
-# CONFIG_SCSI_QLOGIC_FC is not set
 # CONFIG_SCSI_QLOGIC_1280 is not set
 # CONFIG_SCSI_QLOGICPTI is not set
 # CONFIG_SCSI_QLA_FC is not set
@@ -1042,9 +1042,7 @@ CONFIG_USB_HIDDEV=y
 # CONFIG_USB_ACECAD is not set
 # CONFIG_USB_KBTAB is not set
 # CONFIG_USB_POWERMATE is not set
-# CONFIG_USB_MTOUCH is not set
-# CONFIG_USB_ITMTOUCH is not set
-# CONFIG_USB_EGALAX is not set
+# CONFIG_USB_TOUCHSCREEN is not set
 # CONFIG_USB_YEALINK is not set
 # CONFIG_USB_XPAD is not set
 # CONFIG_USB_ATI_REMOTE is not set
@@ -1113,6 +1111,14 @@ CONFIG_USB_HIDDEV=y
 # LED devices
 #
 # CONFIG_NEW_LEDS is not set
+
+#
+# LED drivers
+#
+
+#
+# LED Triggers
+#
 
 #
 # InfiniBand support
@@ -1303,6 +1309,7 @@ CONFIG_DEBUG_BUGVERBOSE=y
 # CONFIG_DEBUG_INFO is not set
 CONFIG_DEBUG_FS=y
 # CONFIG_DEBUG_VM is not set
+# CONFIG_UNWIND_INFO is not set
 CONFIG_FORCED_INLINING=y
 # CONFIG_RCU_TORTURE_TEST is not set
 # CONFIG_DEBUG_STACK_USAGE is not set
