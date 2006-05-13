@@ -533,6 +533,7 @@ void del_gendisk(struct gendisk *disk)
 
 	devfs_remove_disk(disk);
 
+	kobject_uevent(&disk->kobj, KOBJ_REMOVE);
 	if (disk->holder_dir)
 		kobject_unregister(disk->holder_dir);
 	if (disk->slave_dir)
@@ -545,7 +546,7 @@ void del_gendisk(struct gendisk *disk)
 			kfree(disk_name);
 		}
 		put_device(disk->driverfs_dev);
+		disk->driverfs_dev = NULL;
 	}
-	kobject_uevent(&disk->kobj, KOBJ_REMOVE);
 	kobject_del(&disk->kobj);
 }
