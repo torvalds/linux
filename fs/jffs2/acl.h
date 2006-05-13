@@ -1,12 +1,13 @@
-/*-------------------------------------------------------------------------*
- *  File: fs/jffs2/acl.h
- *  POSIX ACL support on JFFS2 FileSystem
+/*
+ * JFFS2 -- Journalling Flash File System, Version 2.
  *
- *  Implemented by KaiGai Kohei <kaigai@ak.jp.nec.com>
- *  Copyright (C) 2006 NEC Corporation
+ * Copyright (C) 2006  NEC Corporation
  *
- *  For licensing information, see the file 'LICENCE' in the jffs2 directory.
- *-------------------------------------------------------------------------*/
+ * Created by KaiGai Kohei <kaigai@ak.jp.nec.com>
+ *
+ * For licensing information, see the file 'LICENCE' in this directory.
+ *
+ */
 struct jffs2_acl_entry {
 	jint16_t	e_tag;
 	jint16_t	e_perm;

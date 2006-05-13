@@ -1,13 +1,13 @@
-/*-------------------------------------------------------------------------*
- *  File: fs/jffs2/xattr.c
- *  XATTR support on JFFS2 FileSystem
+/*
+ * JFFS2 -- Journalling Flash File System, Version 2.
  *
- *  Implemented by KaiGai Kohei <kaigai@ak.jp.nec.com>
- *  Copyright (C) 2006 NEC Corporation
+ * Copyright (C) 2006  NEC Corporation
  *
- *  For licensing information, see the file 'LICENCE' in the jffs2 directory.
- *-------------------------------------------------------------------------*/
-
+ * Created by KaiGai Kohei <kaigai@ak.jp.nec.com>
+ *
+ * For licensing information, see the file 'LICENCE' in this directory.
+ *
+ */
 #ifndef _JFFS2_FS_XATTR_H_
 #define _JFFS2_FS_XATTR_H_
 
