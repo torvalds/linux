@@ -69,7 +69,8 @@ extern struct jffs2_xattr_datum *jffs2_setup_xattr_datum(struct jffs2_sb_info *c
 extern void jffs2_xattr_delete_inode(struct jffs2_sb_info *c, struct jffs2_inode_cache *ic);
 extern void jffs2_xattr_free_inode(struct jffs2_sb_info *c, struct jffs2_inode_cache *ic);
 
-extern int jffs2_garbage_collect_xattr(struct jffs2_sb_info *c, struct jffs2_inode_cache *ic);
+extern int jffs2_garbage_collect_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datum *xd);
+extern int jffs2_garbage_collect_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_ref *ref);
 extern int jffs2_verify_xattr(struct jffs2_sb_info *c);
 
 extern int do_jffs2_getxattr(struct inode *inode, int xprefix, const char *xname,
@@ -94,7 +95,6 @@ extern ssize_t jffs2_listxattr(struct dentry *, char *, size_t);
 
 #define jffs2_xattr_delete_inode(c, ic)
 #define jffs2_xattr_free_inode(c, ic)
-#define jffs2_garbage_collect_xattr(c, ic)	(1)
 #define jffs2_verify_xattr(c)			(1)
 
 #define jffs2_xattr_handlers	NULL

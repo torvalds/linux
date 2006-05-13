@@ -1170,102 +1170,74 @@ int do_jffs2_setxattr(struct inode *inode, int xprefix, const char *xname,
  *   is used to move xdatum into new node.
  * jffs2_garbage_collect_xattr_ref(c, ref)
  *   is used to move xref into new node.
- * jffs2_garbage_collect_xattr(c, ic)
- *   is used to call appropriate garbage collector function, if argument
- *   pointer (ic) is the reference of xdatum/xref.
  * jffs2_verify_xattr(c)
  *   is used to call do_verify_xattr_datum() before garbage collecting.
  * -------------------------------------------------- */
-static int jffs2_garbage_collect_xattr_datum(struct jffs2_sb_info *c,
-					     struct jffs2_xattr_datum *xd)
+int jffs2_garbage_collect_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datum *xd)
 {
-	/* must be called under down_write(xattr_sem), and called from GC thread */
 	uint32_t phys_ofs, totlen, length, old_ofs;
-	int rc;
+	int rc = -EINVAL;
 
+	down_write(&c->xattr_sem);
 	BUG_ON(!xd->node);
 
 	old_ofs = ref_offset(xd->node);
 	totlen = ref_totlen(c, c->gcblock, xd->node);
 	if (totlen < sizeof(struct jffs2_raw_xattr))
-		return -EINVAL;
+		goto out;
 
 	if (!xd->xname) {
 		rc = load_xattr_datum(c, xd);
 		if (unlikely(rc > 0)) {
 			delete_xattr_datum_node(c, xd);
-			return 0;
+			rc = 0;
+			goto out;
 		} else if (unlikely(rc < 0))
-			return -EINVAL;
+			goto out;
 	}
 	rc = jffs2_reserve_space_gc(c, totlen, &phys_ofs, &length, JFFS2_SUMMARY_XATTR_SIZE);
 	if (rc || length < totlen) {
 		JFFS2_WARNING("jffs2_reserve_space()=%d, request=%u\n", rc, totlen);
-		return rc ? rc : -EBADFD;
+		rc = rc ? rc : -EBADFD;
+		goto out;
 	}
 	rc = save_xattr_datum(c, xd, phys_ofs);
 	if (!rc)
 		dbg_xattr("xdatum (xid=%u, version=%u) GC'ed from %#08x to %08x\n",
 			  xd->xid, xd->version, old_ofs, ref_offset(xd->node));
+ out:
+	up_write(&c->xattr_sem);
 	return rc;
 }
 
 
-static int jffs2_garbage_collect_xattr_ref(struct jffs2_sb_info *c,
-					   struct jffs2_xattr_ref *ref)
+int jffs2_garbage_collect_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_ref *ref)
 {
-	/* must be called under down(alloc_sem) */
 	uint32_t phys_ofs, totlen, length, old_ofs;
-	int rc;
+	int rc = -EINVAL;
 
+	down_write(&c->xattr_sem);
 	BUG_ON(!ref->node);
 
 	old_ofs = ref_offset(ref->node);
 	totlen = ref_totlen(c, c->gcblock, ref->node);
 	if (totlen != sizeof(struct jffs2_raw_xref))
-		return -EINVAL;
+		goto out;
+
 	rc = jffs2_reserve_space_gc(c, totlen, &phys_ofs, &length, JFFS2_SUMMARY_XREF_SIZE);
 	if (rc || length < totlen) {
 		JFFS2_WARNING("%s: jffs2_reserve_space() = %d, request = %u\n",
 			      __FUNCTION__, rc, totlen);
-		return rc ? rc : -EBADFD;
+		rc = rc ? rc : -EBADFD;
+		goto out;
 	}
 	rc = save_xattr_ref(c, ref, phys_ofs);
 	if (!rc)
 		dbg_xattr("xref (ino=%u, xid=%u) GC'ed from %#08x to %08x\n",
 			  ref->ic->ino, ref->xd->xid, old_ofs, ref_offset(ref->node));
+ out:
+	up_write(&c->xattr_sem);
 	return rc;
-}
-
-int jffs2_garbage_collect_xattr(struct jffs2_sb_info *c, struct jffs2_inode_cache *ic)
-{
-	struct jffs2_xattr_datum *xd;
-	struct jffs2_xattr_ref *ref;
-	int ret;
-
-	switch (ic->class) {
-	case RAWNODE_CLASS_XATTR_DATUM:
-		spin_unlock(&c->erase_completion_lock);
-
-		down_write(&c->xattr_sem);
-		xd = (struct jffs2_xattr_datum *)ic;
-		ret = xd ? jffs2_garbage_collect_xattr_datum(c, xd) : 0;
-		up_write(&c->xattr_sem);
-		break;
-	case RAWNODE_CLASS_XATTR_REF:
-		spin_unlock(&c->erase_completion_lock);
-
-		down_write(&c->xattr_sem);
-		ref = (struct jffs2_xattr_ref *)ic;
-		ret = ref ? jffs2_garbage_collect_xattr_ref(c, ref) : 0;
-		up_write(&c->xattr_sem);
-		break;
-	default:
-		/* This node is not xattr_datum/xattr_ref */
-		ret = 1;
-		break;
-	}
-	return ret;
 }
 
 int jffs2_verify_xattr(struct jffs2_sb_info *c)

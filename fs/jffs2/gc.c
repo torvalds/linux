@@ -266,15 +266,22 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 
 	ic = jffs2_raw_ref_to_ic(raw);
 
+#ifdef CONFIG_JFFS2_FS_XATTR
 	/* When 'ic' refers xattr_datum/xattr_ref, this node is GCed as xattr.
-	   We can decide whether this node is inode or xattr by ic->class.
-	   ret = 0 : ic is xattr_datum/xattr_ref, and GC was SUCCESSED.
-	   ret < 0 : ic is xattr_datum/xattr_ref, but GC was FAILED.
-	   ret > 0 : ic is NOT xattr_datum/xattr_ref.
-	*/
-	ret = jffs2_garbage_collect_xattr(c, ic);
-	if (ret <= 0)
+	 * We can decide whether this node is inode or xattr by ic->class.     */
+	if (ic->class == RAWNODE_CLASS_XATTR_DATUM
+	    || ic->class == RAWNODE_CLASS_XATTR_REF) {
+		BUG_ON(raw->next_in_ino != (void *)ic);
+		spin_unlock(&c->erase_completion_lock);
+
+		if (ic->class == RAWNODE_CLASS_XATTR_DATUM) {
+			ret = jffs2_garbage_collect_xattr_datum(c, (struct jffs2_xattr_datum *)ic);
+		} else {
+			ret = jffs2_garbage_collect_xattr_ref(c, (struct jffs2_xattr_ref *)ic);
+		}
 		goto release_sem;
+	}
+#endif
 
 	/* We need to hold the inocache. Either the erase_completion_lock or
 	   the inocache_lock are sufficient; we trade down since the inocache_lock
