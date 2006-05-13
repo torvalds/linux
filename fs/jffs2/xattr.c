@@ -456,7 +456,7 @@ static struct jffs2_xattr_datum *create_xattr_datum(struct jffs2_sb_info *c,
  *   is called to remove xrefs related to obsolete inode when inode is unlinked.
  * jffs2_xattr_free_inode(c, ic)
  *   is called to release xattr related objects when unmounting. 
- * check_xattr_ref_ilist(c, ic)
+ * check_xattr_ref_inode(c, ic)
  *   is used to confirm inode does not have duplicate xattr name/value pair.
  * -------------------------------------------------- */
 static int verify_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_ref *ref)
@@ -549,7 +549,6 @@ static void delete_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_ref *re
 	BUG_ON(!ref->node);
 	delete_xattr_ref_node(c, ref);
 
-	list_del(&ref->ilist);
 	xd = ref->xd;
 	xd->refcnt--;
 	if (!xd->refcnt)
@@ -629,7 +628,8 @@ static struct jffs2_xattr_ref *create_xattr_ref(struct jffs2_sb_info *c, struct 
 	}
 
 	/* Chain to inode */
-	list_add(&ref->ilist, &ic->ilist);
+	ref->next = ic->xref;
+	ic->xref = ref;
 
 	return ref; /* success */
 }
@@ -644,8 +644,11 @@ void jffs2_xattr_delete_inode(struct jffs2_sb_info *c, struct jffs2_inode_cache 
 		return;
 
 	down_write(&c->xattr_sem);
-	list_for_each_entry_safe(ref, _ref, &ic->ilist, ilist)
+	for (ref = ic->xref; ref; ref = _ref) {
+		_ref = ref->next;
 		delete_xattr_ref(c, ref);
+	}
+	ic->xref = NULL;
 	up_write(&c->xattr_sem);
 }
 
@@ -656,8 +659,8 @@ void jffs2_xattr_free_inode(struct jffs2_sb_info *c, struct jffs2_inode_cache *i
 	struct jffs2_xattr_ref *ref, *_ref;
 
 	down_write(&c->xattr_sem);
-	list_for_each_entry_safe(ref, _ref, &ic->ilist, ilist) {
-		list_del(&ref->ilist);
+	for (ref = ic->xref; ref; ref = _ref) {
+		_ref = ref->next;
 		xd = ref->xd;
 		xd->refcnt--;
 		if (!xd->refcnt) {
@@ -666,16 +669,17 @@ void jffs2_xattr_free_inode(struct jffs2_sb_info *c, struct jffs2_inode_cache *i
 		}
 		jffs2_free_xattr_ref(ref);
 	}
+	ic->xref = NULL;
 	up_write(&c->xattr_sem);
 }
 
-static int check_xattr_ref_ilist(struct jffs2_sb_info *c, struct jffs2_inode_cache *ic)
+static int check_xattr_ref_inode(struct jffs2_sb_info *c, struct jffs2_inode_cache *ic)
 {
-	/* success of check_xattr_ref_ilist() means taht inode (ic) dose not have
+	/* success of check_xattr_ref_inode() means taht inode (ic) dose not have
 	 * duplicate name/value pairs. If duplicate name/value pair would be found,
 	 * one will be removed.
 	 */
-	struct jffs2_xattr_ref *ref, *cmp;
+	struct jffs2_xattr_ref *ref, *cmp, **pref;
 	int rc = 0;
 
 	if (likely(ic->flags & INO_FLAGS_XATTR_CHECKED))
@@ -683,22 +687,23 @@ static int check_xattr_ref_ilist(struct jffs2_sb_info *c, struct jffs2_inode_cac
 	down_write(&c->xattr_sem);
  retry:
 	rc = 0;
-	list_for_each_entry(ref, &ic->ilist, ilist) {
+	for (ref=ic->xref, pref=&ic->xref; ref; pref=&ref->next, ref=ref->next) {
 		if (!ref->xd->xname) {
 			rc = load_xattr_datum(c, ref->xd);
 			if (unlikely(rc > 0)) {
+				*pref = ref->next;
 				delete_xattr_ref(c, ref);
 				goto retry;
 			} else if (unlikely(rc < 0))
 				goto out;
 		}
-		cmp = ref;
-		list_for_each_entry_continue(cmp, &ic->ilist, ilist) {
+		for (cmp=ref->next, pref=&ref->next; cmp; pref=&cmp->next, cmp=cmp->next) {
 			if (!cmp->xd->xname) {
 				ref->xd->flags |= JFFS2_XFLAGS_BIND;
 				rc = load_xattr_datum(c, cmp->xd);
 				ref->xd->flags &= ~JFFS2_XFLAGS_BIND;
 				if (unlikely(rc > 0)) {
+					*pref = cmp->next;
 					delete_xattr_ref(c, cmp);
 					goto retry;
 				} else if (unlikely(rc < 0))
@@ -706,6 +711,7 @@ static int check_xattr_ref_ilist(struct jffs2_sb_info *c, struct jffs2_inode_cac
 			}
 			if (ref->xd->xprefix == cmp->xd->xprefix
 			    && !strcmp(ref->xd->xname, cmp->xd->xname)) {
+				*pref = cmp->next;
 				delete_xattr_ref(c, cmp);
 				goto retry;
 			}
@@ -736,8 +742,8 @@ void jffs2_init_xattr_subsystem(struct jffs2_sb_info *c)
 
 	for (i=0; i < XATTRINDEX_HASHSIZE; i++)
 		INIT_LIST_HEAD(&c->xattrindex[i]);
-	INIT_LIST_HEAD(&c->xattr_temp);
 	INIT_LIST_HEAD(&c->xattr_unchecked);
+	c->xref_temp = NULL;
 
 	init_rwsem(&c->xattr_sem);
 	c->xdatum_mem_usage = 0;
@@ -765,8 +771,11 @@ void jffs2_clear_xattr_subsystem(struct jffs2_sb_info *c)
 	struct jffs2_xattr_ref *ref, *_ref;
 	int i;
 
-	list_for_each_entry_safe(ref, _ref, &c->xattr_temp, ilist)
+	for (ref=c->xref_temp; ref; ref = _ref) {
+		_ref = ref->next;
 		jffs2_free_xattr_ref(ref);
+	}
+	c->xref_temp = NULL;
 
 	for (i=0; i < XATTRINDEX_HASHSIZE; i++) {
 		list_for_each_entry_safe(xd, _xd, &c->xattrindex[i], xindex) {
@@ -788,8 +797,8 @@ void jffs2_build_xattr_subsystem(struct jffs2_sb_info *c)
 	BUG_ON(!(c->flags & JFFS2_SB_FLAG_BUILDING));
 
 	/* Phase.1 */
-	list_for_each_entry_safe(ref, _ref, &c->xattr_temp, ilist) {
-		list_del_init(&ref->ilist);
+	for (ref=c->xref_temp; ref; ref=_ref) {
+		_ref = ref->next;
 		/* checking REF_UNCHECKED nodes */
 		if (ref_flags(ref->node) != REF_PRISTINE) {
 			if (verify_xattr_ref(c, ref)) {
@@ -813,9 +822,11 @@ void jffs2_build_xattr_subsystem(struct jffs2_sb_info *c)
 		ref->xd = xd;
 		ref->ic = ic;
 		xd->refcnt++;
-		list_add_tail(&ref->ilist, &ic->ilist);
+		ref->next = ic->xref;
+		ic->xref = ref;
 		xref_count++;
 	}
+	c->xref_temp = NULL;
 	/* After this, ref->xid/ino are NEVER used. */
 
 	/* Phase.2 */
@@ -931,20 +942,20 @@ ssize_t jffs2_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	struct jffs2_inode_info *f = JFFS2_INODE_INFO(inode);
 	struct jffs2_sb_info *c = JFFS2_SB_INFO(inode->i_sb);
 	struct jffs2_inode_cache *ic = f->inocache;
-	struct jffs2_xattr_ref *ref;
+	struct jffs2_xattr_ref *ref, **pref;
 	struct jffs2_xattr_datum *xd;
 	struct xattr_handler *xhandle;
 	ssize_t len, rc;
 	int retry = 0;
 
-	rc = check_xattr_ref_ilist(c, ic);
+	rc = check_xattr_ref_inode(c, ic);
 	if (unlikely(rc))
 		return rc;
 
 	down_read(&c->xattr_sem);
  retry:
 	len = 0;
-	list_for_each_entry(ref, &ic->ilist, ilist) {
+	for (ref=ic->xref, pref=&ic->xref; ref; pref=&ref->next, ref=ref->next) {
 		BUG_ON(ref->ic != ic);
 		xd = ref->xd;
 		if (!xd->xname) {
@@ -957,6 +968,7 @@ ssize_t jffs2_listxattr(struct dentry *dentry, char *buffer, size_t size)
 			} else {
 				rc = load_xattr_datum(c, xd);
 				if (unlikely(rc > 0)) {
+					*pref = ref->next;
 					delete_xattr_ref(c, ref);
 					goto retry;
 				} else if (unlikely(rc < 0))
@@ -992,16 +1004,16 @@ int do_jffs2_getxattr(struct inode *inode, int xprefix, const char *xname,
 	struct jffs2_sb_info *c = JFFS2_SB_INFO(inode->i_sb);
 	struct jffs2_inode_cache *ic = f->inocache;
 	struct jffs2_xattr_datum *xd;
-	struct jffs2_xattr_ref *ref;
+	struct jffs2_xattr_ref *ref, **pref;
 	int rc, retry = 0;
 
-	rc = check_xattr_ref_ilist(c, ic);
+	rc = check_xattr_ref_inode(c, ic);
 	if (unlikely(rc))
 		return rc;
 
 	down_read(&c->xattr_sem);
  retry:
-	list_for_each_entry(ref, &ic->ilist, ilist) {
+	for (ref=ic->xref, pref=&ic->xref; ref; pref=&ref->next, ref=ref->next) {
 		BUG_ON(ref->ic!=ic);
 
 		xd = ref->xd;
@@ -1017,6 +1029,7 @@ int do_jffs2_getxattr(struct inode *inode, int xprefix, const char *xname,
 			} else {
 				rc = load_xattr_datum(c, xd);
 				if (unlikely(rc > 0)) {
+					*pref = ref->next;
 					delete_xattr_ref(c, ref);
 					goto retry;
 				} else if (unlikely(rc < 0)) {
@@ -1053,11 +1066,11 @@ int do_jffs2_setxattr(struct inode *inode, int xprefix, const char *xname,
 	struct jffs2_sb_info *c = JFFS2_SB_INFO(inode->i_sb);
 	struct jffs2_inode_cache *ic = f->inocache;
 	struct jffs2_xattr_datum *xd;
-	struct jffs2_xattr_ref *ref, *newref;
+	struct jffs2_xattr_ref *ref, *newref, **pref;
 	uint32_t phys_ofs, length, request;
 	int rc;
 
-	rc = check_xattr_ref_ilist(c, ic);
+	rc = check_xattr_ref_inode(c, ic);
 	if (unlikely(rc))
 		return rc;
 
@@ -1072,13 +1085,14 @@ int do_jffs2_setxattr(struct inode *inode, int xprefix, const char *xname,
 	/* Find existing xattr */
 	down_write(&c->xattr_sem);
  retry:
-	list_for_each_entry(ref, &ic->ilist, ilist) {
+	for (ref=ic->xref, pref=&ic->xref; ref; pref=&ref->next, ref=ref->next) {
 		xd = ref->xd;
 		if (xd->xprefix != xprefix)
 			continue;
 		if (!xd->xname) {
 			rc = load_xattr_datum(c, xd);
 			if (unlikely(rc > 0)) {
+				*pref = ref->next;
 				delete_xattr_ref(c, ref);
 				goto retry;
 			} else if (unlikely(rc < 0))
@@ -1090,6 +1104,7 @@ int do_jffs2_setxattr(struct inode *inode, int xprefix, const char *xname,
 				goto out;
 			}
 			if (!buffer) {
+				*pref = ref->next;
 				delete_xattr_ref(c, ref);
 				rc = 0;
 				goto out;
@@ -1098,7 +1113,6 @@ int do_jffs2_setxattr(struct inode *inode, int xprefix, const char *xname,
 		}
 	}
 	/* not found */
-	ref = NULL;
 	if (flags & XATTR_REPLACE) {
 		rc = -ENODATA;
 		goto out;
@@ -1130,14 +1144,19 @@ int do_jffs2_setxattr(struct inode *inode, int xprefix, const char *xname,
 		return rc;
 	}
 	down_write(&c->xattr_sem);
+	if (ref)
+		*pref = ref->next;
 	newref = create_xattr_ref(c, ic, xd, phys_ofs);
 	if (IS_ERR(newref)) {
+		if (ref) {
+			ref->next = ic->xref;
+			ic->xref = ref;
+		}
 		rc = PTR_ERR(newref);
 		xd->refcnt--;
 		if (!xd->refcnt)
 			delete_xattr_datum(c, xd);
 	} else if (ref) {
-		/* If replaced xattr_ref exists */
 		delete_xattr_ref(c, ref);
 	}
  out:

@@ -556,7 +556,8 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 				ref->ino = 0xfffffffe;
 				ref->xid = 0xfffffffd;
 				ref->node = raw;
-				list_add_tail(&ref->ilist, &c->xattr_temp);
+				ref->next = c->xref_temp;
+				c->xref_temp = ref;
 
 				raw->__totlen = PAD(sizeof(struct jffs2_raw_xref));
 				raw->flash_offset = ofs | REF_UNCHECKED;

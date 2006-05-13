@@ -259,7 +259,6 @@ struct jffs2_xattr_ref *jffs2_alloc_xattr_ref(void)
 
 	memset(ref, 0, sizeof(struct jffs2_xattr_ref));
 	ref->class = RAWNODE_CLASS_XATTR_REF;
-	INIT_LIST_HEAD(&ref->ilist);
 	return ref;
 }
 

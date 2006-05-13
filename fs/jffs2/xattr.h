@@ -54,7 +54,7 @@ struct jffs2_xattr_ref
 		struct jffs2_xattr_datum *xd;	/* reference to jffs2_xattr_datum */
 		uint32_t xid;			/* only used in sccanning/building */
 	};
-	struct list_head ilist;			/* chained from ic->ilist */
+	struct jffs2_xattr_ref *next;		/* chained from ic->xref_list */
 };
 
 #ifdef CONFIG_JFFS2_FS_XATTR
@@ -86,9 +86,6 @@ extern ssize_t jffs2_listxattr(struct dentry *, char *, size_t);
 #define jffs2_setxattr		generic_setxattr
 #define jffs2_removexattr	generic_removexattr
 
-/*---- Any inline initialize functions ----*/
-#define init_xattr_inode_cache(x) INIT_LIST_HEAD(&((x)->ilist))
-
 #else
 
 #define jffs2_init_xattr_subsystem(c)
@@ -105,8 +102,6 @@ extern ssize_t jffs2_listxattr(struct dentry *, char *, size_t);
 #define jffs2_getxattr		NULL
 #define jffs2_setxattr		NULL
 #define jffs2_removexattr	NULL
-
-#define init_xattr_inode_cache(x)
 
 #endif /* CONFIG_JFFS2_FS_XATTR */
 

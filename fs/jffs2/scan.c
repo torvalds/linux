@@ -408,14 +408,15 @@ static int jffs2_scan_xref_node(struct jffs2_sb_info *c, struct jffs2_eraseblock
 	 * ref->xid is used to store 32bit xid, xd is not used
 	 * ref->ino is used to store 32bit inode-number, ic is not used
 	 * Thoes variables are declared as union, thus using those
-	 * are exclusive. In a similar way, ref->ilist is temporarily
+	 * are exclusive. In a similar way, ref->next is temporarily
 	 * used to chain all xattr_ref object. It's re-chained to
 	 * jffs2_inode_cache in jffs2_build_xattr_subsystem() correctly.
 	 */
 	ref->node = raw;
 	ref->ino = je32_to_cpu(rr->ino);
 	ref->xid = je32_to_cpu(rr->xid);
-	list_add_tail(&ref->ilist, &c->xattr_temp);
+	ref->next = c->xref_temp;
+	c->xref_temp = ref;
 
 	raw->__totlen = PAD(je32_to_cpu(rr->totlen));
 	raw->flash_offset = ofs | REF_PRISTINE;
@@ -888,7 +889,6 @@ struct jffs2_inode_cache *jffs2_scan_make_ino_cache(struct jffs2_sb_info *c, uin
 
 	ic->ino = ino;
 	ic->nodes = (void *)ic;
-	init_xattr_inode_cache(ic);
 	jffs2_add_ino_cache(c, ic);
 	if (ino == 1)
 		ic->nlink = 1;

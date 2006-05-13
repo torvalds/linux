@@ -902,7 +902,6 @@ int jffs2_do_read_inode(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 		f->inocache->ino = f->inocache->nlink = 1;
 		f->inocache->nodes = (struct jffs2_raw_node_ref *)f->inocache;
 		f->inocache->state = INO_STATE_READING;
-		init_xattr_inode_cache(f->inocache);
 		jffs2_add_ino_cache(c, f->inocache);
 	}
 	if (!f->inocache) {

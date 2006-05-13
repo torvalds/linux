@@ -117,7 +117,7 @@ struct jffs2_inode_cache {
 	uint32_t ino;
 	int nlink;
 #ifdef CONFIG_JFFS2_FS_XATTR
-	struct list_head ilist;
+	struct jffs2_xattr_ref *xref;
 #endif
 };
 
