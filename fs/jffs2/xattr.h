@@ -12,6 +12,7 @@
 #define _JFFS2_FS_XATTR_H_
 
 #include <linux/xattr.h>
+#include <linux/list.h>
 
 #define JFFS2_XFLAGS_HOT	(0x01)	/* This datum is HOT */
 #define JFFS2_XFLAGS_BIND	(0x02)	/* This datum is not reclaimed */
