@@ -266,12 +266,16 @@ static int phram_setup(const char *val, struct kernel_param *kp)
 		return 0;
 
 	ret = parse_num32(&start, token[1]);
-	if (ret)
+	if (ret) {
+		kfree(name);
 		parse_err("illegal start address\n");
+	}
 
 	ret = parse_num32(&len, token[2]);
-	if (ret)
+	if (ret) {
+		kfree(name);
 		parse_err("illegal device length\n");
+	}
 
 	register_device(name, start, len);
 
