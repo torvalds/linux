@@ -88,7 +88,7 @@ static void ts7250_hwcontrol(struct mtd_info *mtd, int cmd)
 {
 	unsigned long ctrl = TS72XX_NAND_CONTROL_VIRT_BASE;
 
-	switch(cmd) {
+	switch (cmd) {
 	case NAND_CTL_SETCLE:
 		__raw_writeb(__raw_readb(ctrl) | 0x2, ctrl);
 		break;
@@ -132,8 +132,7 @@ static int __init ts7250_init(void)
 		return -ENXIO;
 
 	/* Allocate memory for MTD device structure and private data */
-	ts7250_mtd = kmalloc(sizeof(struct mtd_info) +
-				sizeof(struct nand_chip), GFP_KERNEL);
+	ts7250_mtd = kmalloc(sizeof(struct mtd_info) + sizeof(struct nand_chip), GFP_KERNEL);
 	if (!ts7250_mtd) {
 		printk("Unable to allocate TS7250 NAND MTD device structure.\n");
 		return -ENOMEM;
@@ -163,11 +162,9 @@ static int __init ts7250_init(void)
 		kfree(ts7250_mtd);
 		return -ENXIO;
 	}
-
 #ifdef CONFIG_MTD_PARTITIONS
 	ts7250_mtd->name = "ts7250-nand";
-	mtd_parts_nb = parse_mtd_partitions(ts7250_mtd, part_probes,
-						&mtd_parts, 0);
+	mtd_parts_nb = parse_mtd_partitions(ts7250_mtd, part_probes, &mtd_parts, 0);
 	if (mtd_parts_nb > 0)
 		part_type = "command line";
 	else
@@ -188,6 +185,7 @@ static int __init ts7250_init(void)
 	/* Return happy */
 	return 0;
 }
+
 module_init(ts7250_init);
 
 /*
@@ -201,6 +199,7 @@ static void __exit ts7250_cleanup(void)
 	/* Free the MTD device structure */
 	kfree(ts7250_mtd);
 }
+
 module_exit(ts7250_cleanup);
 
 MODULE_LICENSE("GPL");

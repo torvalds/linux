@@ -25,7 +25,7 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <asm/io.h>
-#include <asm/arch/hardware.h> /* for CLPS7111_VIRT_BASE */
+#include <asm/arch/hardware.h>	/* for CLPS7111_VIRT_BASE */
 #include <asm/sizes.h>
 #include <asm/hardware/clps7111.h>
 
@@ -54,29 +54,29 @@ static struct mtd_info *ep7312_mtd = NULL;
  */
 
 static unsigned long ep7312_fio_pbase = EP7312_FIO_PBASE;
-static void __iomem * ep7312_pxdr = (void __iomem *) EP7312_PXDR;
-static void __iomem * ep7312_pxddr = (void __iomem *) EP7312_PXDDR;
+static void __iomem *ep7312_pxdr = (void __iomem *)EP7312_PXDR;
+static void __iomem *ep7312_pxddr = (void __iomem *)EP7312_PXDDR;
 
 #ifdef CONFIG_MTD_PARTITIONS
 /*
  * Define static partitions for flash device
  */
 static struct mtd_partition partition_info[] = {
-	{ .name = "EP7312 Nand Flash",
-		  .offset = 0,
-		  .size = 8*1024*1024 }
+	{.name = "EP7312 Nand Flash",
+	 .offset = 0,
+	 .size = 8 * 1024 * 1024}
 };
+
 #define NUM_PARTITIONS 1
 
 #endif
-
 
 /*
  *	hardware specific access to control-lines
  */
 static void ep7312_hwcontrol(struct mtd_info *mtd, int cmd)
 {
-	switch(cmd) {
+	switch (cmd) {
 
 	case NAND_CTL_SETCLE:
 		clps_writeb(clps_readb(ep7312_pxdr) | 0x10, ep7312_pxdr);
@@ -108,6 +108,7 @@ static int ep7312_device_ready(struct mtd_info *mtd)
 {
 	return 1;
 }
+
 #ifdef CONFIG_MTD_PARTITIONS
 const char *part_probes[] = { "cmdlinepart", NULL };
 #endif
@@ -115,18 +116,16 @@ const char *part_probes[] = { "cmdlinepart", NULL };
 /*
  * Main initialization routine
  */
-static int __init ep7312_init (void)
+static int __init ep7312_init(void)
 {
 	struct nand_chip *this;
 	const char *part_type = 0;
 	int mtd_parts_nb = 0;
 	struct mtd_partition *mtd_parts = 0;
-	void __iomem * ep7312_fio_base;
+	void __iomem *ep7312_fio_base;
 
 	/* Allocate memory for MTD device structure and private data */
-	ep7312_mtd = kmalloc(sizeof(struct mtd_info) +
-			     sizeof(struct nand_chip),
-			     GFP_KERNEL);
+	ep7312_mtd = kmalloc(sizeof(struct mtd_info) + sizeof(struct nand_chip), GFP_KERNEL);
 	if (!ep7312_mtd) {
 		printk("Unable to allocate EDB7312 NAND MTD device structure.\n");
 		return -ENOMEM;
@@ -134,18 +133,18 @@ static int __init ep7312_init (void)
 
 	/* map physical adress */
 	ep7312_fio_base = ioremap(ep7312_fio_pbase, SZ_1K);
-	if(!ep7312_fio_base) {
+	if (!ep7312_fio_base) {
 		printk("ioremap EDB7312 NAND flash failed\n");
 		kfree(ep7312_mtd);
 		return -EIO;
 	}
 
 	/* Get pointer to private data */
-	this = (struct nand_chip *) (&ep7312_mtd[1]);
+	this = (struct nand_chip *)(&ep7312_mtd[1]);
 
 	/* Initialize structures */
-	memset((char *) ep7312_mtd, 0, sizeof(struct mtd_info));
-	memset((char *) this, 0, sizeof(struct nand_chip));
+	memset(ep7312_mtd, 0, sizeof(struct mtd_info));
+	memset(this, 0, sizeof(struct nand_chip));
 
 	/* Link the private data with the MTD structure */
 	ep7312_mtd->priv = this;
@@ -165,16 +164,14 @@ static int __init ep7312_init (void)
 	this->chip_delay = 15;
 
 	/* Scan to find existence of the device */
-	if (nand_scan (ep7312_mtd, 1)) {
+	if (nand_scan(ep7312_mtd, 1)) {
 		iounmap((void *)ep7312_fio_base);
-		kfree (ep7312_mtd);
+		kfree(ep7312_mtd);
 		return -ENXIO;
 	}
-
 #ifdef CONFIG_MTD_PARTITIONS
 	ep7312_mtd->name = "edb7312-nand";
-	mtd_parts_nb = parse_mtd_partitions(ep7312_mtd, part_probes,
-					    &mtd_parts, 0);
+	mtd_parts_nb = parse_mtd_partitions(ep7312_mtd, part_probes, &mtd_parts, 0);
 	if (mtd_parts_nb > 0)
 		part_type = "command line";
 	else
@@ -193,24 +190,26 @@ static int __init ep7312_init (void)
 	/* Return happy */
 	return 0;
 }
+
 module_init(ep7312_init);
 
 /*
  * Clean up routine
  */
-static void __exit ep7312_cleanup (void)
+static void __exit ep7312_cleanup(void)
 {
-	struct nand_chip *this = (struct nand_chip *) &ep7312_mtd[1];
+	struct nand_chip *this = (struct nand_chip *)&ep7312_mtd[1];
 
 	/* Release resources, unregister device */
-	nand_release (ap7312_mtd);
+	nand_release(ap7312_mtd);
 
 	/* Free internal data buffer */
-	kfree (this->data_buf);
+	kfree(this->data_buf);
 
 	/* Free the MTD device structure */
-	kfree (ep7312_mtd);
+	kfree(ep7312_mtd);
 }
+
 module_exit(ep7312_cleanup);
 
 MODULE_LICENSE("GPL");

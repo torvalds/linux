@@ -77,10 +77,10 @@ static int hardware_ecc = 0;
  */
 
 static struct nand_oobinfo nand_hw_eccoob = {
-	.useecc		= MTD_NANDECC_AUTOPLACE,
-	.eccbytes	= 3,
-	.eccpos		= {0, 1, 2 },
-	.oobfree	= { {8, 8} }
+	.useecc = MTD_NANDECC_AUTOPLACE,
+	.eccbytes = 3,
+	.eccpos = {0, 1, 2},
+	.oobfree = {{8, 8}}
 };
 
 /* controller and mtd information */
@@ -149,8 +149,7 @@ static int s3c2410_nand_calc_rate(int wanted, unsigned long clk, int max)
 	pr_debug("result %d from %ld, %d\n", result, clk, wanted);
 
 	if (result > max) {
-		printk("%d ns is too big for current clock rate %ld\n",
-		       wanted, clk);
+		printk("%d ns is too big for current clock rate %ld\n", wanted, clk);
 		return -1;
 	}
 
@@ -164,8 +163,7 @@ static int s3c2410_nand_calc_rate(int wanted, unsigned long clk, int max)
 
 /* controller setup */
 
-static int s3c2410_nand_inithw(struct s3c2410_nand_info *info,
-			       struct platform_device *pdev)
+static int s3c2410_nand_inithw(struct s3c2410_nand_info *info, struct platform_device *pdev)
 {
 	struct s3c2410_platform_nand *plat = to_nand_plat(pdev);
 	unsigned long clkrate = clk_get_rate(info->clk);
@@ -177,7 +175,7 @@ static int s3c2410_nand_inithw(struct s3c2410_nand_info *info,
 	clkrate /= 1000;	/* turn clock into kHz for ease of use */
 
 	if (plat != NULL) {
-		tacls  = s3c2410_nand_calc_rate(plat->tacls, clkrate, 4);
+		tacls = s3c2410_nand_calc_rate(plat->tacls, clkrate, 4);
 		twrph0 = s3c2410_nand_calc_rate(plat->twrph0, clkrate, 8);
 		twrph1 = s3c2410_nand_calc_rate(plat->twrph1, clkrate, 8);
 	} else {
@@ -193,19 +191,17 @@ static int s3c2410_nand_inithw(struct s3c2410_nand_info *info,
 	}
 
 	printk(KERN_INFO PFX "Tacls=%d, %dns Twrph0=%d %dns, Twrph1=%d %dns\n",
-	       tacls, to_ns(tacls, clkrate),
-	       twrph0, to_ns(twrph0, clkrate),
-	       twrph1, to_ns(twrph1, clkrate));
+	       tacls, to_ns(tacls, clkrate), twrph0, to_ns(twrph0, clkrate), twrph1, to_ns(twrph1, clkrate));
 
 	if (!info->is_s3c2440) {
-		cfg  = S3C2410_NFCONF_EN;
-		cfg |= S3C2410_NFCONF_TACLS(tacls-1);
-		cfg |= S3C2410_NFCONF_TWRPH0(twrph0-1);
-		cfg |= S3C2410_NFCONF_TWRPH1(twrph1-1);
+		cfg = S3C2410_NFCONF_EN;
+		cfg |= S3C2410_NFCONF_TACLS(tacls - 1);
+		cfg |= S3C2410_NFCONF_TWRPH0(twrph0 - 1);
+		cfg |= S3C2410_NFCONF_TWRPH1(twrph1 - 1);
 	} else {
-		cfg   = S3C2440_NFCONF_TACLS(tacls-1);
-		cfg  |= S3C2440_NFCONF_TWRPH0(twrph0-1);
-		cfg  |= S3C2440_NFCONF_TWRPH1(twrph1-1);
+		cfg = S3C2440_NFCONF_TACLS(tacls - 1);
+		cfg |= S3C2440_NFCONF_TWRPH0(twrph0 - 1);
+		cfg |= S3C2440_NFCONF_TWRPH1(twrph1 - 1);
 	}
 
 	pr_debug(PFX "NF_CONF is 0x%lx\n", cfg);
@@ -229,7 +225,7 @@ static void s3c2410_nand_select_chip(struct mtd_info *mtd, int chip)
 	info = nmtd->info;
 
 	bit = (info->is_s3c2440) ? S3C2440_NFCONT_nFCE : S3C2410_NFCONF_nFCE;
-	reg = info->regs+((info->is_s3c2440) ? S3C2440_NFCONT:S3C2410_NFCONF);
+	reg = info->regs + ((info->is_s3c2440) ? S3C2440_NFCONT : S3C2410_NFCONF);
 
 	cur = readl(reg);
 
@@ -243,7 +239,7 @@ static void s3c2410_nand_select_chip(struct mtd_info *mtd, int chip)
 
 		if (info->platform != NULL) {
 			if (info->platform->select_chip != NULL)
-				(info->platform->select_chip)(nmtd->set, chip);
+				(info->platform->select_chip) (nmtd->set, chip);
 		}
 
 		cur &= ~bit;
@@ -330,22 +326,16 @@ static int s3c2410_nand_devready(struct mtd_info *mtd)
 	return readb(info->regs + S3C2410_NFSTAT) & S3C2410_NFSTAT_BUSY;
 }
 
-
 /* ECC handling functions */
 
-static int s3c2410_nand_correct_data(struct mtd_info *mtd, u_char *dat,
-				     u_char *read_ecc, u_char *calc_ecc)
+static int s3c2410_nand_correct_data(struct mtd_info *mtd, u_char *dat, u_char *read_ecc, u_char *calc_ecc)
 {
-	pr_debug("s3c2410_nand_correct_data(%p,%p,%p,%p)\n",
-		 mtd, dat, read_ecc, calc_ecc);
+	pr_debug("s3c2410_nand_correct_data(%p,%p,%p,%p)\n", mtd, dat, read_ecc, calc_ecc);
 
 	pr_debug("eccs: read %02x,%02x,%02x vs calc %02x,%02x,%02x\n",
-		 read_ecc[0], read_ecc[1], read_ecc[2],
-		 calc_ecc[0], calc_ecc[1], calc_ecc[2]);
+		 read_ecc[0], read_ecc[1], read_ecc[2], calc_ecc[0], calc_ecc[1], calc_ecc[2]);
 
-	if (read_ecc[0] == calc_ecc[0] &&
-	    read_ecc[1] == calc_ecc[1] &&
-	    read_ecc[2] == calc_ecc[2])
+	if (read_ecc[0] == calc_ecc[0] && read_ecc[1] == calc_ecc[1] && read_ecc[2] == calc_ecc[2])
 		return 0;
 
 	/* we curently have no method for correcting the error */
@@ -378,8 +368,7 @@ static void s3c2440_nand_enable_hwecc(struct mtd_info *mtd, int mode)
 	writel(ctrl | S3C2440_NFCONT_INITECC, info->regs + S3C2440_NFCONT);
 }
 
-static int s3c2410_nand_calculate_ecc(struct mtd_info *mtd,
-				      const u_char *dat, u_char *ecc_code)
+static int s3c2410_nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat, u_char *ecc_code)
 {
 	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
 
@@ -387,15 +376,12 @@ static int s3c2410_nand_calculate_ecc(struct mtd_info *mtd,
 	ecc_code[1] = readb(info->regs + S3C2410_NFECC + 1);
 	ecc_code[2] = readb(info->regs + S3C2410_NFECC + 2);
 
-	pr_debug("calculate_ecc: returning ecc %02x,%02x,%02x\n",
-		 ecc_code[0], ecc_code[1], ecc_code[2]);
+	pr_debug("calculate_ecc: returning ecc %02x,%02x,%02x\n", ecc_code[0], ecc_code[1], ecc_code[2]);
 
 	return 0;
 }
 
-
-static int s3c2440_nand_calculate_ecc(struct mtd_info *mtd,
-				      const u_char *dat, u_char *ecc_code)
+static int s3c2440_nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat, u_char *ecc_code)
 {
 	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
 	unsigned long ecc = readl(info->regs + S3C2440_NFMECC0);
@@ -404,12 +390,10 @@ static int s3c2440_nand_calculate_ecc(struct mtd_info *mtd,
 	ecc_code[1] = ecc >> 8;
 	ecc_code[2] = ecc >> 16;
 
-	pr_debug("calculate_ecc: returning ecc %02x,%02x,%02x\n",
-		 ecc_code[0], ecc_code[1], ecc_code[2]);
+	pr_debug("calculate_ecc: returning ecc %02x,%02x,%02x\n", ecc_code[0], ecc_code[1], ecc_code[2]);
 
 	return 0;
 }
-
 
 /* over-ride the standard functions for a little more speed. We can
  * use read/write block to move the data buffers to/from the controller
@@ -421,8 +405,7 @@ static void s3c2410_nand_read_buf(struct mtd_info *mtd, u_char *buf, int len)
 	readsb(this->IO_ADDR_R, buf, len);
 }
 
-static void s3c2410_nand_write_buf(struct mtd_info *mtd,
-				   const u_char *buf, int len)
+static void s3c2410_nand_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
 {
 	struct nand_chip *this = mtd->priv;
 	writesb(this->IO_ADDR_W, buf, len);
@@ -488,9 +471,7 @@ static int s3c2410_nand_add_partition(struct s3c2410_nand_info *info,
 		return add_mtd_device(&mtd->mtd);
 
 	if (set->nr_partitions > 0 && set->partitions != NULL) {
-		return add_mtd_partitions(&mtd->mtd,
-					  set->partitions,
-					  set->nr_partitions);
+		return add_mtd_partitions(&mtd->mtd, set->partitions, set->nr_partitions);
 	}
 
 	return add_mtd_device(&mtd->mtd);
@@ -654,13 +635,11 @@ static int s3c24xx_nand_probe(struct platform_device *pdev, int is_s3c2440)
 	nmtd = info->mtds;
 
 	for (setno = 0; setno < nr_sets; setno++, nmtd++) {
-		pr_debug("initialising set %d (%p, info %p)\n",
-			 setno, nmtd, info);
+		pr_debug("initialising set %d (%p, info %p)\n", setno, nmtd, info);
 
 		s3c2410_nand_init_chip(info, nmtd, sets);
 
-		nmtd->scan_res = nand_scan(&nmtd->mtd,
-					   (sets) ? sets->nr_chips : 1);
+		nmtd->scan_res = nand_scan(&nmtd->mtd, (sets) ? sets->nr_chips : 1);
 
 		if (nmtd->scan_res == 0) {
 			s3c2410_nand_add_partition(info, nmtd, sets);
