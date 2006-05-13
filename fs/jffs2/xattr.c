@@ -438,7 +438,7 @@ static struct jffs2_xattr_datum *create_xattr_datum(struct jffs2_sb_info *c,
 	return xd;
 }
 
-/* -------- xdatum related functions ----------------
+/* -------- xref related functions ------------------
  * verify_xattr_ref(c, ref)
  *   is used to load xref information from medium. Because summary data does not
  *   contain xid/ino, it's necessary to verify once while mounting process.
