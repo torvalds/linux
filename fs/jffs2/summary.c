@@ -508,8 +508,14 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 				xd = jffs2_setup_xattr_datum(c, je32_to_cpu(spx->xid),
 								je32_to_cpu(spx->version));
 				if (IS_ERR(xd)) {
-					JFFS2_NOTICE("allocation of xattr_datum failed\n");
 					jffs2_free_raw_node_ref(raw);
+					if (PTR_ERR(xd) == -EEXIST) {
+						/* a newer version of xd exists */
+						DIRTY_SPACE(je32_to_cpu(spx->totlen));
+						sp += JFFS2_SUMMARY_XATTR_SIZE;
+						break;
+					}
+					JFFS2_NOTICE("allocation of xattr_datum failed\n");
 					kfree(summary);
 					return PTR_ERR(xd);
 				}
