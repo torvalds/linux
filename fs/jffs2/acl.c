@@ -21,12 +21,12 @@
 static size_t jffs2_acl_size(int count)
 {
 	if (count <= 4) {
-		return sizeof(jffs2_acl_header)
-		       + count * sizeof(jffs2_acl_entry_short);
+		return sizeof(struct jffs2_acl_header)
+		       + count * sizeof(struct jffs2_acl_entry_short);
 	} else {
-		return sizeof(jffs2_acl_header)
-		       + 4 * sizeof(jffs2_acl_entry_short)
-		       + (count - 4) * sizeof(jffs2_acl_entry);
+		return sizeof(struct jffs2_acl_header)
+		       + 4 * sizeof(struct jffs2_acl_entry_short)
+		       + (count - 4) * sizeof(struct jffs2_acl_entry);
 	}
 }
 
@@ -34,16 +34,16 @@ static int jffs2_acl_count(size_t size)
 {
 	size_t s;
 
-	size -= sizeof(jffs2_acl_header);
-	s = size - 4 * sizeof(jffs2_acl_entry_short);
+	size -= sizeof(struct jffs2_acl_header);
+	s = size - 4 * sizeof(struct jffs2_acl_entry_short);
 	if (s < 0) {
-		if (size % sizeof(jffs2_acl_entry_short))
+		if (size % sizeof(struct jffs2_acl_entry_short))
 			return -1;
-		return size / sizeof(jffs2_acl_entry_short);
+		return size / sizeof(struct jffs2_acl_entry_short);
 	} else {
-		if (s % sizeof(jffs2_acl_entry))
+		if (s % sizeof(struct jffs2_acl_entry))
 			return -1;
-		return s / sizeof(jffs2_acl_entry) + 4;
+		return s / sizeof(struct jffs2_acl_entry) + 4;
 	}
 }
 
@@ -56,15 +56,15 @@ static struct posix_acl *jffs2_acl_from_medium(const void *value, size_t size)
 
 	if (!value)
 		return NULL;
-	if (size < sizeof(jffs2_acl_header))
+	if (size < sizeof(struct jffs2_acl_header))
 		return ERR_PTR(-EINVAL);
-	ver = je32_to_cpu(((jffs2_acl_header *)value)->a_version);
+	ver = je32_to_cpu(((struct jffs2_acl_header *)value)->a_version);
 	if (ver != JFFS2_ACL_VERSION) {
 		JFFS2_WARNING("Invalid ACL version. (=%u)\n", ver);
 		return ERR_PTR(-EINVAL);
 	}
 
-	value = (char *)value + sizeof(jffs2_acl_header);
+	value = (char *)value + sizeof(struct jffs2_acl_header);
 	count = jffs2_acl_count(size);
 	if (count < 0)
 		return ERR_PTR(-EINVAL);
@@ -76,8 +76,8 @@ static struct posix_acl *jffs2_acl_from_medium(const void *value, size_t size)
 		return ERR_PTR(-ENOMEM);
 
 	for (i=0; i < count; i++) {
-		jffs2_acl_entry *entry = (jffs2_acl_entry *)value;
-		if ((char *)value + sizeof(jffs2_acl_entry_short) > end)
+		struct jffs2_acl_entry *entry = (struct jffs2_acl_entry *)value;
+		if ((char *)value + sizeof(struct jffs2_acl_entry_short) > end)
 			goto fail;
 		acl->a_entries[i].e_tag = je16_to_cpu(entry->e_tag);
 		acl->a_entries[i].e_perm = je16_to_cpu(entry->e_perm);
@@ -86,13 +86,13 @@ static struct posix_acl *jffs2_acl_from_medium(const void *value, size_t size)
 			case ACL_GROUP_OBJ:
 			case ACL_MASK:
 			case ACL_OTHER:
-				value = (char *)value + sizeof(jffs2_acl_entry_short);
+				value = (char *)value + sizeof(struct jffs2_acl_entry_short);
 				acl->a_entries[i].e_id = ACL_UNDEFINED_ID;
 				break;
 
 			case ACL_USER:
 			case ACL_GROUP:
-				value = (char *)value + sizeof(jffs2_acl_entry);
+				value = (char *)value + sizeof(struct jffs2_acl_entry);
 				if ((char *)value > end)
 					goto fail;
 				acl->a_entries[i].e_id = je32_to_cpu(entry->e_id);
@@ -112,34 +112,34 @@ static struct posix_acl *jffs2_acl_from_medium(const void *value, size_t size)
 
 static void *jffs2_acl_to_medium(const struct posix_acl *acl, size_t *size)
 {
-	jffs2_acl_header *jffs2_acl;
+	struct jffs2_acl_header *jffs2_acl;
 	char *e;
 	size_t i;
 
 	*size = jffs2_acl_size(acl->a_count);
-	jffs2_acl = (jffs2_acl_header *)kmalloc(sizeof(jffs2_acl_header)
-						+ acl->a_count * sizeof(jffs2_acl_entry),
-						GFP_KERNEL);
+	jffs2_acl = kmalloc(sizeof(struct jffs2_acl_header)
+			     + acl->a_count * sizeof(struct jffs2_acl_entry),
+			    GFP_KERNEL);
 	if (!jffs2_acl)
 		return ERR_PTR(-ENOMEM);
 	jffs2_acl->a_version = cpu_to_je32(JFFS2_ACL_VERSION);
-	e = (char *)jffs2_acl + sizeof(jffs2_acl_header);
+	e = (char *)jffs2_acl + sizeof(struct jffs2_acl_header);
 	for (i=0; i < acl->a_count; i++) {
-		jffs2_acl_entry *entry = (jffs2_acl_entry *)e;
+		struct jffs2_acl_entry *entry = (struct jffs2_acl_entry *)e;
 		entry->e_tag = cpu_to_je16(acl->a_entries[i].e_tag);
 		entry->e_perm = cpu_to_je16(acl->a_entries[i].e_perm);
 		switch(acl->a_entries[i].e_tag) {
 			case ACL_USER:
 			case ACL_GROUP:
 				entry->e_id = cpu_to_je32(acl->a_entries[i].e_id);
-				e += sizeof(jffs2_acl_entry);
+				e += sizeof(struct jffs2_acl_entry);
 				break;
 
 			case ACL_USER_OBJ:
 			case ACL_GROUP_OBJ:
 			case ACL_MASK:
 			case ACL_OTHER:
-				e += sizeof(jffs2_acl_entry_short);
+				e += sizeof(struct jffs2_acl_entry_short);
 				break;
 
 			default:

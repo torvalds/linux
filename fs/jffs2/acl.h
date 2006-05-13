@@ -7,20 +7,20 @@
  *
  *  For licensing information, see the file 'LICENCE' in the jffs2 directory.
  *-------------------------------------------------------------------------*/
-typedef struct {
+struct jffs2_acl_entry {
 	jint16_t	e_tag;
 	jint16_t	e_perm;
 	jint32_t	e_id;
-} jffs2_acl_entry;
+};
 
-typedef struct {
+struct jffs2_acl_entry_short {
 	jint16_t	e_tag;
 	jint16_t	e_perm;
-} jffs2_acl_entry_short;
+};
 
-typedef struct {
+struct jffs2_acl_header {
 	jint32_t	a_version;
-} jffs2_acl_header;
+};
 
 #ifdef __KERNEL__
 #ifdef CONFIG_JFFS2_FS_POSIX_ACL
