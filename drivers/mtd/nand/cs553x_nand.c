@@ -4,6 +4,7 @@
  * (C) 2005, 2006 Red Hat Inc.
  *
  * Author: David Woodhouse <dwmw2@infradead.org>
+ *	   Tom Sylla <tom.sylla@amd.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -22,6 +23,7 @@
 #include <linux/pci.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
+#include <linux/mtd/nand_ecc.h>
 #include <linux/mtd/partitions.h>
 
 #include <asm/msr.h>
@@ -87,11 +89,34 @@
 #define CS_NAND_ECC_CLRECC	(1<<1)
 #define CS_NAND_ECC_ENECC	(1<<0)
 
+static void cs553x_read_buf(struct mtd_info *mtd, u_char *buf, int len)
+{
+	struct nand_chip *this = mtd->priv;
+
+	while (unlikely(len > 0x800)) {
+		memcpy_fromio(buf, this->IO_ADDR_R, 0x800);
+		buf += 0x800;
+		len -= 0x800;
+	}
+	memcpy_fromio(buf, this->IO_ADDR_R, len);
+}
+
+static void cs553x_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
+{
+	struct nand_chip *this = mtd->priv;
+
+	while (unlikely(len > 0x800)) {
+		memcpy_toio(this->IO_ADDR_R, buf, 0x800);
+		buf += 0x800;
+		len -= 0x800;
+	}
+	memcpy_toio(this->IO_ADDR_R, buf, len);
+}
+
 static unsigned char cs553x_read_byte(struct mtd_info *mtd)
 {
 	struct nand_chip *this = mtd->priv;
-	unsigned char foo = readb(this->IO_ADDR_R);
-	return foo;
+	return readb(this->IO_ADDR_R);
 }
 
 static void cs553x_write_byte(struct mtd_info *mtd, u_char byte)
@@ -110,35 +135,29 @@ static void cs553x_hwcontrol(struct mtd_info *mtd, int cmd)
 {
 	struct nand_chip *this = mtd->priv;
 	void __iomem *mmio_base = this->IO_ADDR_R;
-
-	uint8_t old = readb(mmio_base + MM_NAND_CTL);
+	unsigned char ctl;
 
 	switch(cmd) {
 	case NAND_CTL_SETCLE:
-		old |= CS_NAND_CTL_CLE;
+		ctl = CS_NAND_CTL_CLE;
 		break;
 
 	case NAND_CTL_CLRCLE:
-		old &= ~CS_NAND_CTL_CLE;
+	case NAND_CTL_CLRALE:
+	case NAND_CTL_SETNCE:
+		ctl = 0;
 		break;
 
 	case NAND_CTL_SETALE:
-		old |= CS_NAND_CTL_ALE;
+		ctl = CS_NAND_CTL_ALE;
 		break;
 
-	case NAND_CTL_CLRALE:
-		old &= ~CS_NAND_CTL_ALE;
-		break;
-
-	case NAND_CTL_SETNCE:
-		old &= ~CS_NAND_CTL_CE;
-		break;
-
+	default:
 	case NAND_CTL_CLRNCE:
-		old |= CS_NAND_CTL_CE;
+		ctl = CS_NAND_CTL_CE;
 		break;
 	}
-	writeb(old, mmio_base + MM_NAND_CTL);
+	writeb(ctl, mmio_base + MM_NAND_CTL);
 }
 
 
@@ -149,6 +168,29 @@ static int cs553x_device_ready(struct mtd_info *mtd)
 	unsigned char foo = readb(mmio_base + MM_NAND_STS);
 
 	return (foo & CS_NAND_STS_FLASH_RDY) && !(foo & CS_NAND_CTLR_BUSY); 
+}
+
+
+static void cs_enable_hwecc(struct mtd_info *mtd, int mode)
+{
+	struct nand_chip *this = mtd->priv;
+	void __iomem *mmio_base = this->IO_ADDR_R;
+
+	writeb(0x07, mmio_base + MM_NAND_ECC_CTL);
+}
+
+static int cs_calculate_ecc(struct mtd_info *mtd, const u_char *dat, u_char *ecc_code)
+{
+	uint32_t ecc;
+	struct nand_chip *this = mtd->priv;
+	void __iomem *mmio_base = this->IO_ADDR_R;
+
+	ecc = readl(mmio_base + MM_NAND_STS);
+
+	ecc_code[1] = ecc >> 8;
+	ecc_code[0] = ecc >> 16;
+	ecc_code[2] = ecc >> 24;
+	return 0;
 }
 
 static struct mtd_info *cs553x_mtd[4];
@@ -167,7 +209,7 @@ static int __init cs553x_init_one(int cs, int mmio, unsigned long adr)
 	}
 
 	/* Allocate memory for MTD device structure and private data */
-	new_mtd = kmalloc (sizeof(struct mtd_info) + sizeof (struct nand_chip), GFP_KERNEL);
+	new_mtd = kmalloc(sizeof(struct mtd_info) + sizeof (struct nand_chip), GFP_KERNEL);
 	if (!new_mtd) {
 		printk(KERN_WARNING "Unable to allocate CS553X NAND MTD device structure.\n");
 		err = -ENOMEM;
@@ -178,8 +220,8 @@ static int __init cs553x_init_one(int cs, int mmio, unsigned long adr)
 	this = (struct nand_chip *) (&new_mtd[1]);
 
 	/* Initialize structures */
-	memset((char *) new_mtd, 0, sizeof(struct mtd_info));
-	memset((char *) this, 0, sizeof(struct nand_chip));
+	memset(new_mtd, 0, sizeof(struct mtd_info));
+	memset(this, 0, sizeof(struct nand_chip));
 
 	/* Link the private data with the MTD structure */
 	new_mtd->priv = this;
@@ -196,27 +238,33 @@ static int __init cs553x_init_one(int cs, int mmio, unsigned long adr)
 	this->dev_ready = cs553x_device_ready;
 	this->read_byte = cs553x_read_byte;
 	this->write_byte = cs553x_write_byte;
+	this->read_buf = cs553x_read_buf;
+	this->write_buf = cs553x_write_buf;
 
-	/* 20 us command delay time */
-	this->chip_delay = 20;
-	this->eccmode = NAND_ECC_SOFT;
+	this->chip_delay = 0;
 
+	this->eccmode = NAND_ECC_HW3_256;
+	this->enable_hwecc  = cs_enable_hwecc;
+	this->calculate_ecc = cs_calculate_ecc;
+	this->correct_data  = nand_correct_data;
+	
 	/* Enable the following for a flash based bad block table */
-	//	this->options = NAND_USE_FLASH_BBT;
+	this->options = NAND_USE_FLASH_BBT | NAND_NO_AUTOINCR;
 
 	/* Scan to find existance of the device */
-	if (nand_scan (new_mtd, 1)) {
+	if (nand_scan(new_mtd, 1)) {
 		err = -ENXIO;
 		goto out_ior;
 	}
 
+	new_mtd->owner = THIS_MODULE;
 	cs553x_mtd[cs] = new_mtd;
 	goto out;
 
 out_ior:
 	iounmap((void *)this->IO_ADDR_R);
 out_mtd:
-	kfree (new_mtd);
+	kfree(new_mtd);
 out:
 	return err;
 }
@@ -283,7 +331,7 @@ static void __exit cs553x_cleanup (void)
 		iounmap(mmio_base);
 
 		/* Free the MTD device structure */
-		kfree (mtd);
+		kfree(mtd);
 	}
 }
 module_exit(cs553x_cleanup);
