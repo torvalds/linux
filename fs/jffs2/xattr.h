@@ -38,7 +38,7 @@ struct jffs2_xattr_datum
 	uint32_t value_len;	/* length of xvalue */
 };
 
-struct jffs2_inode_cache;	/* forward refence */
+struct jffs2_inode_cache;
 struct jffs2_xattr_ref
 {
 	void *always_null;
