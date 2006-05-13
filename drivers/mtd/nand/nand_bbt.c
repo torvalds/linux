@@ -60,7 +60,7 @@
 #include <linux/mtd/compatmac.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
-
+#include <linux/vmalloc.h>
 
 /**
  * check_pattern - [GENERIC] check if a pattern is in the buffer
@@ -873,7 +873,7 @@ int nand_scan_bbt (struct mtd_info *mtd, struct nand_bbt_descr *bd)
 	/* Allocate a temporary buffer for one eraseblock incl. oob */
 	len = (1 << this->bbt_erase_shift);
 	len += (len >> this->page_shift) * mtd->oobsize;
-	buf = kmalloc (len, GFP_KERNEL);
+	buf = vmalloc(len);
 	if (!buf) {
 		printk (KERN_ERR "nand_bbt: Out of memory\n");
 		kfree (this->bbt);
@@ -897,7 +897,7 @@ int nand_scan_bbt (struct mtd_info *mtd, struct nand_bbt_descr *bd)
 	if (md)
 		mark_bbt_region (mtd, md);
 
-	kfree (buf);
+	vfree (buf);
 	return res;
 }
 
