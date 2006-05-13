@@ -65,6 +65,18 @@
 
 #define JFFS2_NODETYPE_SUMMARY (JFFS2_FEATURE_RWCOMPAT_DELETE | JFFS2_NODE_ACCURATE | 6)
 
+#define JFFS2_NODETYPE_XATTR (JFFS2_FEATURE_INCOMPAT | JFFS2_NODE_ACCURATE | 8)
+#define JFFS2_NODETYPE_XREF (JFFS2_FEATURE_INCOMPAT | JFFS2_NODE_ACCURATE | 9)
+
+/* XATTR Related */
+#define JFFS2_XPREFIX_USER		1	/* for "user." */
+#define JFFS2_XPREFIX_SECURITY		2	/* for "security." */
+#define JFFS2_XPREFIX_ACL_ACCESS	3	/* for "system.posix_acl_access" */
+#define JFFS2_XPREFIX_ACL_DEFAULT	4	/* for "system.posix_acl_default" */
+#define JFFS2_XPREFIX_TRUSTED		5	/* for "trusted.*" */
+
+#define JFFS2_ACL_VERSION		0x0001
+
 // Maybe later...
 //#define JFFS2_NODETYPE_CHECKPOINT (JFFS2_FEATURE_RWCOMPAT_DELETE | JFFS2_NODE_ACCURATE | 3)
 //#define JFFS2_NODETYPE_OPTIONS (JFFS2_FEATURE_RWCOMPAT_COPY | JFFS2_NODE_ACCURATE | 4)
@@ -151,6 +163,32 @@ struct jffs2_raw_inode
 	uint8_t data[0];
 } __attribute__((packed));
 
+struct jffs2_raw_xattr {
+	jint16_t magic;
+	jint16_t nodetype;	/* = JFFS2_NODETYPE_XATTR */
+	jint32_t totlen;
+	jint32_t hdr_crc;
+	jint32_t xid;		/* XATTR identifier number */
+	jint32_t version;
+	uint8_t xprefix;
+	uint8_t name_len;
+	jint16_t value_len;
+	jint32_t data_crc;
+	jint32_t node_crc;
+	uint8_t data[0];
+} __attribute__((packed));
+
+struct jffs2_raw_xref
+{
+	jint16_t magic;
+	jint16_t nodetype;	/* = JFFS2_NODETYPE_XREF */
+	jint32_t totlen;
+	jint32_t hdr_crc;
+	jint32_t ino;		/* inode number */
+	jint32_t xid;		/* XATTR identifier number */
+	jint32_t node_crc;
+} __attribute__((packed));
+
 struct jffs2_raw_summary
 {
 	jint16_t magic;
@@ -169,6 +207,8 @@ union jffs2_node_union
 {
 	struct jffs2_raw_inode i;
 	struct jffs2_raw_dirent d;
+	struct jffs2_raw_xattr x;
+	struct jffs2_raw_xref r;
 	struct jffs2_raw_summary s;
 	struct jffs2_unknown_node u;
 };

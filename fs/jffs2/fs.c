@@ -185,7 +185,12 @@ static int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 
 int jffs2_setattr(struct dentry *dentry, struct iattr *iattr)
 {
-	return jffs2_do_setattr(dentry->d_inode, iattr);
+	int rc;
+
+	rc = jffs2_do_setattr(dentry->d_inode, iattr);
+	if (!rc && (iattr->ia_valid & ATTR_MODE))
+		rc = jffs2_acl_chmod(dentry->d_inode);
+	return rc;
 }
 
 int jffs2_statfs(struct super_block *sb, struct kstatfs *buf)
@@ -224,6 +229,7 @@ void jffs2_clear_inode (struct inode *inode)
 
 	D1(printk(KERN_DEBUG "jffs2_clear_inode(): ino #%lu mode %o\n", inode->i_ino, inode->i_mode));
 
+	jffs2_xattr_delete_inode(c, f->inocache);
 	jffs2_do_clear_inode(c, f);
 }
 
@@ -497,6 +503,8 @@ int jffs2_do_fill_super(struct super_block *sb, void *data, int silent)
 	}
 	memset(c->inocache_list, 0, INOCACHE_HASHSIZE * sizeof(struct jffs2_inode_cache *));
 
+	jffs2_init_xattr_subsystem(c);
+
 	if ((ret = jffs2_do_mount_fs(c)))
 		goto out_inohash;
 
@@ -531,6 +539,7 @@ int jffs2_do_fill_super(struct super_block *sb, void *data, int silent)
 	else
 		kfree(c->blocks);
  out_inohash:
+	jffs2_clear_xattr_subsystem(c);
 	kfree(c->inocache_list);
  out_wbuf:
 	jffs2_flash_cleanup(c);

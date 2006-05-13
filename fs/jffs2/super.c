@@ -151,7 +151,10 @@ static struct super_block *jffs2_get_sb_mtd(struct file_system_type *fs_type,
 
 	sb->s_op = &jffs2_super_operations;
 	sb->s_flags = flags | MS_NOATIME;
-
+	sb->s_xattr = jffs2_xattr_handlers;
+#ifdef CONFIG_JFFS2_FS_POSIX_ACL
+	sb->s_flags |= MS_POSIXACL;
+#endif
 	ret = jffs2_do_fill_super(sb, data, flags & MS_SILENT ? 1 : 0);
 
 	if (ret) {
@@ -293,6 +296,7 @@ static void jffs2_put_super (struct super_block *sb)
 		kfree(c->blocks);
 	jffs2_flash_cleanup(c);
 	kfree(c->inocache_list);
+	jffs2_clear_xattr_subsystem(c);
 	if (c->mtd->sync)
 		c->mtd->sync(c->mtd);
 

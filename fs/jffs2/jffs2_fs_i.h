@@ -5,6 +5,7 @@
 
 #include <linux/version.h>
 #include <linux/rbtree.h>
+#include <linux/posix_acl.h>
 #include <asm/semaphore.h>
 
 struct jffs2_inode_info {
@@ -44,6 +45,10 @@ struct jffs2_inode_info {
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,2)
 	struct inode vfs_inode;
 #endif
+#endif
+#ifdef CONFIG_JFFS2_FS_POSIX_ACL
+	struct posix_acl *i_acl_access;
+	struct posix_acl *i_acl_default;
 #endif
 };
 

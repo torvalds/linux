@@ -54,7 +54,12 @@ const struct file_operations jffs2_file_operations =
 
 struct inode_operations jffs2_file_inode_operations =
 {
-	.setattr =	jffs2_setattr
+	.permission =	jffs2_permission,
+	.setattr =	jffs2_setattr,
+	.setxattr =	jffs2_setxattr,
+	.getxattr =	jffs2_getxattr,
+	.listxattr =	jffs2_listxattr,
+	.removexattr =	jffs2_removexattr
 };
 
 struct address_space_operations jffs2_file_address_operations =
