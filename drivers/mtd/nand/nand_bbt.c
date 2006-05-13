@@ -981,14 +981,14 @@ static struct nand_bbt_descr largepage_memorybased = {
 };
 
 static struct nand_bbt_descr smallpage_flashbased = {
-	.options = NAND_BBT_SCANEMPTY | NAND_BBT_SCANALLPAGES,
+	.options = NAND_BBT_SCAN2NDPAGE,
 	.offs = 5,
 	.len = 1,
 	.pattern = scan_ff_pattern
 };
 
 static struct nand_bbt_descr largepage_flashbased = {
-	.options = NAND_BBT_SCANEMPTY | NAND_BBT_SCANALLPAGES,
+	.options = NAND_BBT_SCAN2NDPAGE,
 	.offs = 0,
 	.len = 2,
 	.pattern = scan_ff_pattern
