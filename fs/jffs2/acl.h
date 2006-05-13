@@ -23,7 +23,6 @@ struct jffs2_acl_header {
 	jint32_t	a_version;
 };
 
-#ifdef __KERNEL__
 #ifdef CONFIG_JFFS2_FS_POSIX_ACL
 
 #define JFFS2_ACL_NOT_CACHED ((void *)-1)
@@ -44,4 +43,3 @@ extern struct xattr_handler jffs2_acl_default_xattr_handler;
 #define jffs2_clear_acl(inode)
 
 #endif	/* CONFIG_JFFS2_FS_POSIX_ACL */
-#endif	/* __KERNEL__ */
