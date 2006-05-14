@@ -34,7 +34,7 @@ static int debug=0;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
 
-#define dprintk(args...) do { if (debug) printk(KERN_DEBUG "MT2060: " args); printk("\n"); } while (0)
+#define dprintk(args...) do { if (debug) { printk(KERN_DEBUG "MT2060: " args); printk("\n"); } } while (0)
 
 // Reads a single register
 static int mt2060_readreg(struct mt2060_state *state, u8 reg, u8 *val)
