@@ -471,7 +471,6 @@ static int acpi_bus_get_perf_flags(struct acpi_device *device)
    -------------------------------------------------------------------------- */
 
 static LIST_HEAD(acpi_bus_drivers);
-static DECLARE_MUTEX(acpi_bus_drivers_lock);
 
 /**
  * acpi_bus_match - match device IDs to driver's supported IDs
