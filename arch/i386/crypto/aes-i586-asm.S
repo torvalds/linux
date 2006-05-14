@@ -36,16 +36,13 @@
 .file "aes-i586-asm.S"
 .text
 
-// aes_rval aes_enc_blk(const unsigned char in_blk[], unsigned char out_blk[], const aes_ctx cx[1])//
-// aes_rval aes_dec_blk(const unsigned char in_blk[], unsigned char out_blk[], const aes_ctx cx[1])//
-	
 #define tlen 1024   // length of each of 4 'xor' arrays (256 32-bit words)
 
 // offsets to parameters with one register pushed onto stack
 
-#define in_blk    8  // input byte array address parameter
+#define in_blk   16  // input byte array address parameter
 #define out_blk  12  // output byte array address parameter
-#define ctx      16  // AES context structure
+#define ctx       8  // AES context structure
 
 // offsets in context structure
 
@@ -220,6 +217,7 @@
 	do_col (table, r5,r0,r1,r4, r2,r3);		/* idx=r5 */
 
 // AES (Rijndael) Encryption Subroutine
+/* void aes_enc_blk(void *ctx, u8 *out_blk, const u8 *in_blk) */
 
 .global  aes_enc_blk
 
@@ -295,6 +293,7 @@ aes_enc_blk:
 	ret
 
 // AES (Rijndael) Decryption Subroutine
+/* void aes_dec_blk(void *ctx, u8 *out_blk, const u8 *in_blk) */
 
 .global  aes_dec_blk
 

@@ -45,8 +45,8 @@
 #include <linux/crypto.h>
 #include <linux/linkage.h>
 
-asmlinkage void aes_enc_blk(const u8 *src, u8 *dst, void *ctx);
-asmlinkage void aes_dec_blk(const u8 *src, u8 *dst, void *ctx);
+asmlinkage void aes_enc_blk(void *ctx, u8 *dst, const u8 *src);
+asmlinkage void aes_dec_blk(void *ctx, u8 *dst, const u8 *src);
 
 #define AES_MIN_KEY_SIZE	16
 #define AES_MAX_KEY_SIZE	32
@@ -464,16 +464,6 @@ aes_set_key(void *ctx_arg, const u8 *in_key, unsigned int key_len, u32 *flags)
 	return 0;
 }
 
-static inline void aes_encrypt(void *ctx, u8 *dst, const u8 *src)
-{
-	aes_enc_blk(src, dst, ctx);
-}
-static inline void aes_decrypt(void *ctx, u8 *dst, const u8 *src)
-{
-	aes_dec_blk(src, dst, ctx);
-}
-
-
 static struct crypto_alg aes_alg = {
 	.cra_name		=	"aes",
 	.cra_driver_name	=	"aes-i586",
@@ -488,8 +478,8 @@ static struct crypto_alg aes_alg = {
 			.cia_min_keysize	=	AES_MIN_KEY_SIZE,
 			.cia_max_keysize	=	AES_MAX_KEY_SIZE,
 			.cia_setkey	   	= 	aes_set_key,
-			.cia_encrypt	 	=	aes_encrypt,
-			.cia_decrypt	  	=	aes_decrypt
+			.cia_encrypt	 	=	aes_enc_blk,
+			.cia_decrypt	  	=	aes_dec_blk
 		}
 	}
 };
