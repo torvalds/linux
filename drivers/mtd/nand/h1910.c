@@ -135,6 +135,7 @@ static int __init h1910_init(void)
 
 	/* Link the private data with the MTD structure */
 	h1910_nand_mtd->priv = this;
+	h1910_nand_mtd->owner = THIS_MODULE;
 
 	/*
 	 * Enable VPEN

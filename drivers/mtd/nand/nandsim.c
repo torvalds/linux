@@ -1546,6 +1546,8 @@ static int __init ns_init_module(void)
 		chip->options |= NAND_BUSWIDTH_16;
 	}
 
+	nsmtd->owner = THIS_MODULE;
+
 	if ((retval = nand_scan(nsmtd, 1)) != 0) {
 		NS_ERR("can't register NAND Simulator\n");
 		if (retval > 0)

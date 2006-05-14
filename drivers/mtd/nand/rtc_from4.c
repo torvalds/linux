@@ -538,6 +538,7 @@ int __init rtc_from4_init(void)
 
 	/* Link the private data with the MTD structure */
 	rtc_from4_mtd->priv = this;
+	rtc_from4_mtd->owner = THIS_MODULE;
 
 	/* set area 5 as PCMCIA mode to clear the spec of tDH(Data hold time;9ns min) */
 	bcr1 = *SH77X9_BCR1 & ~0x0002;

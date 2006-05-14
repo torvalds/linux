@@ -516,6 +516,7 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 
 	nmtd->info	   = info;
 	nmtd->mtd.priv	   = chip;
+	nmtd->mtd.owner    = THIS_MODULE;
 	nmtd->set	   = set;
 
 	if (hardware_ecc) {

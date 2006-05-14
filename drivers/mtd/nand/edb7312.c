@@ -148,6 +148,7 @@ static int __init ep7312_init(void)
 
 	/* Link the private data with the MTD structure */
 	ep7312_mtd->priv = this;
+	ep7312_mtd->owner = THIS_MODULE;
 
 	/*
 	 * Set GPIO Port B control register so that the pins are configured

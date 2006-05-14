@@ -185,6 +185,7 @@ int __init sharpsl_nand_init(void)
 
 	/* Link the private data with the MTD structure */
 	sharpsl_mtd->priv = this;
+	sharpsl_mtd->owner = THIS_MODULE;
 
 	/*
 	 * PXA initialize

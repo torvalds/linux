@@ -69,6 +69,7 @@
  *
  */
 
+#include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
@@ -2316,17 +2317,28 @@ static void nand_resume(struct mtd_info *mtd)
  * @mtd:	MTD device structure
  * @maxchips:	Number of chips to scan for
  *
- * This fills out all the not initialized function pointers
+ * This fills out all the uninitialized function pointers
  * with the defaults.
  * The flash ID is read and the mtd/chip structures are
  * filled with the appropriate values. Buffers are allocated if
  * they are not provided by the board driver
+ * The mtd->owner field must be set to the module of the caller
  *
  */
 int nand_scan(struct mtd_info *mtd, int maxchips)
 {
 	int i, nand_maf_id, nand_dev_id, busw, maf_id;
 	struct nand_chip *this = mtd->priv;
+
+	/* module_text_address() isn't exported. But if _this_ is a module,
+	   it's a fairly safe bet that its caller is a module too... and
+	   that means the call to module_text_address() gets optimised out
+	   without having to resort to ifdefs */
+	if (!mtd->owner && (THIS_MODULE ||
+	    module_text_address((unsigned long)__builtin_return_address(0)))) {
+		printk(KERN_CRIT "nand_scan() called with NULL mtd->owner!\n");
+		BUG();
+	}
 
 	/* Get buswidth to select the correct functions */
 	busw = this->options & NAND_BUSWIDTH_16;
@@ -2675,8 +2687,6 @@ int nand_scan(struct mtd_info *mtd, int maxchips)
 
 	/* and make the autooob the default one */
 	memcpy(&mtd->oobinfo, this->autooob, sizeof(mtd->oobinfo));
-
-	mtd->owner = THIS_MODULE;
 
 	/* Check, if we should skip the bad block table scan */
 	if (this->options & NAND_SKIP_BBTSCAN)

@@ -147,6 +147,7 @@ static int __init ts7250_init(void)
 
 	/* Link the private data with the MTD structure */
 	ts7250_mtd->priv = this;
+	ts7250_mtd->owner = THIS_MODULE;
 
 	/* insert callbacks */
 	this->IO_ADDR_R = (void *)TS72XX_NAND_DATA_VIRT_BASE;

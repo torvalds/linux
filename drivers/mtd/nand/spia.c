@@ -121,6 +121,7 @@ int __init spia_init(void)
 
 	/* Link the private data with the MTD structure */
 	spia_mtd->priv = this;
+	spia_mtd->owner = THIS_MODULE;
 
 	/*
 	 * Set GPIO Port E control register so that the pins are configured

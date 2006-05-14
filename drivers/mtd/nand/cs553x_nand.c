@@ -223,6 +223,7 @@ static int __init cs553x_init_one(int cs, int mmio, unsigned long adr)
 
 	/* Link the private data with the MTD structure */
 	new_mtd->priv = this;
+	new_mtd->owner = THIS_MODULE;
 
 	/* map physical address */
 	this->IO_ADDR_R = this->IO_ADDR_W = ioremap(adr, 4096);
@@ -255,7 +256,6 @@ static int __init cs553x_init_one(int cs, int mmio, unsigned long adr)
 		goto out_ior;
 	}
 
-	new_mtd->owner = THIS_MODULE;
 	cs553x_mtd[cs] = new_mtd;
 	goto out;
 

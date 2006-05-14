@@ -345,6 +345,7 @@ int __init au1xxx_nand_init(void)
 
 	/* Link the private data with the MTD structure */
 	au1550_mtd->priv = this;
+	au1550_mtd->owner = THIS_MODULE;
 
 	/* disable interrupts */
 	au_writel(au_readl(MEM_STNDCTL) & ~(1 << 8), MEM_STNDCTL);

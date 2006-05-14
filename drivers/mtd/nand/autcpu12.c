@@ -154,6 +154,7 @@ int __init autcpu12_init(void)
 
 	/* Link the private data with the MTD structure */
 	autcpu12_mtd->priv = this;
+	autcpu12_mtd->owner = THIS_MODULE;
 
 	/* Set address of NAND IO lines */
 	this->IO_ADDR_R = autcpu12_fio_base;

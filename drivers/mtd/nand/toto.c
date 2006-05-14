@@ -137,6 +137,7 @@ int __init toto_init(void)
 
 	/* Link the private data with the MTD structure */
 	toto_mtd->priv = this;
+	toto_mtd->owner = THIS_MODULE;
 
 	/* Set address of NAND IO lines */
 	this->IO_ADDR_R = toto_io_base;

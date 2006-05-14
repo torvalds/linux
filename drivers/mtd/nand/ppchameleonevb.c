@@ -221,6 +221,7 @@ static int __init ppchameleonevb_init(void)
 
 	/* Link the private data with the MTD structure */
 	ppchameleon_mtd->priv = this;
+	ppchameleon_mtd->owner = THIS_MODULE;
 
 	/* Initialize GPIOs */
 	/* Pin mapping for NAND chip */
