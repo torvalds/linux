@@ -36,7 +36,6 @@
 
 struct ves1x93_state {
 	struct i2c_adapter* i2c;
-	struct dvb_frontend_ops ops;
 	/* configuration settings */
 	const struct ves1x93_config* config;
 	struct dvb_frontend frontend;
@@ -389,9 +388,9 @@ static int ves1x93_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 {
 	struct ves1x93_state* state = fe->demodulator_priv;
 
-	if (fe->ops->tuner_ops.set_params) {
-		fe->ops->tuner_ops.set_params(fe, p);
-		if (fe->ops->i2c_gate_ctrl) fe->ops->i2c_gate_ctrl(fe, 0);
+	if (fe->ops.tuner_ops.set_params) {
+		fe->ops.tuner_ops.set_params(fe, p);
+		if (fe->ops.i2c_gate_ctrl) fe->ops.i2c_gate_ctrl(fe, 0);
 	}
 	ves1x93_set_inversion (state, p->inversion);
 	ves1x93_set_fec (state, p->u.qpsk.fec_inner);
@@ -463,7 +462,6 @@ struct dvb_frontend* ves1x93_attach(const struct ves1x93_config* config,
 	/* setup the state */
 	state->config = config;
 	state->i2c = i2c;
-	memcpy(&state->ops, &ves1x93_ops, sizeof(struct dvb_frontend_ops));
 	state->inversion = INVERSION_OFF;
 
 	/* check if the demod is there + identify it */
@@ -498,7 +496,7 @@ struct dvb_frontend* ves1x93_attach(const struct ves1x93_config* config,
 	}
 
 	/* create dvb_frontend */
-	state->frontend.ops = &state->ops;
+	memcpy(&state->frontend.ops, &ves1x93_ops, sizeof(struct dvb_frontend_ops));
 	state->frontend.demodulator_priv = state;
 	return &state->frontend;
 

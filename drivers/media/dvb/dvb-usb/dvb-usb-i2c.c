@@ -63,8 +63,8 @@ int dvb_usb_tuner_init_i2c(struct dvb_frontend *fe)
 	deb_pll("pll-buf: %x %x %x %x\n",d->pll_init[0],d->pll_init[1],
 			d->pll_init[2],d->pll_init[3]);
 
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer (&d->i2c_adap, &msg, 1) != 1) {
 		err("tuner i2c write failed for pll_init.");
 		ret = -EREMOTEIO;
@@ -109,8 +109,8 @@ int dvb_usb_tuner_set_params_i2c(struct dvb_frontend *fe, struct dvb_frontend_pa
 	if (d->tuner_pass_ctrl)
 		d->tuner_pass_ctrl(fe,1,d->pll_addr);
 
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer (&d->i2c_adap, &msg, 1) != 1) {
 		err("tuner i2c write failed for pll_set.");
 		ret = -EREMOTEIO;

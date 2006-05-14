@@ -33,7 +33,6 @@
 
 struct nxt6000_state {
 	struct i2c_adapter* i2c;
-	struct dvb_frontend_ops ops;
 	/* configuration settings */
 	const struct nxt6000_config* config;
 	struct dvb_frontend frontend;
@@ -463,9 +462,9 @@ static int nxt6000_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 	struct nxt6000_state* state = fe->demodulator_priv;
 	int result;
 
-	if (fe->ops->tuner_ops.set_params) {
-		fe->ops->tuner_ops.set_params(fe, param);
-		if (fe->ops->i2c_gate_ctrl) fe->ops->i2c_gate_ctrl(fe, 0);
+	if (fe->ops.tuner_ops.set_params) {
+		fe->ops.tuner_ops.set_params(fe, param);
+		if (fe->ops.i2c_gate_ctrl) fe->ops.i2c_gate_ctrl(fe, 0);
 	}
 
 	if ((result = nxt6000_set_bandwidth(state, param->u.ofdm.bandwidth)) < 0)
@@ -552,13 +551,12 @@ struct dvb_frontend* nxt6000_attach(const struct nxt6000_config* config,
 	/* setup the state */
 	state->config = config;
 	state->i2c = i2c;
-	memcpy(&state->ops, &nxt6000_ops, sizeof(struct dvb_frontend_ops));
 
 	/* check if the demod is there */
 	if (nxt6000_readreg(state, OFDM_MSC_REV) != NXT6000ASICDEVICE) goto error;
 
 	/* create dvb_frontend */
-	state->frontend.ops = &state->ops;
+	memcpy(&state->frontend.ops, &nxt6000_ops, sizeof(struct dvb_frontend_ops));
 	state->frontend.demodulator_priv = state;
 	return &state->frontend;
 

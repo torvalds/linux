@@ -360,8 +360,8 @@ static int cxusb_fmd1216me_tuner_attach(struct dvb_usb_device *d)
 	memcpy(d->pll_init, bpll, 4);
 	d->pll_desc = &dvb_pll_fmd1216me;
 
-	d->fe->ops->tuner_ops.init = dvb_usb_tuner_init_i2c;
-	d->fe->ops->tuner_ops.set_params = dvb_usb_tuner_set_params_i2c;
+	d->fe->ops.tuner_ops.init = dvb_usb_tuner_init_i2c;
+	d->fe->ops.tuner_ops.set_params = dvb_usb_tuner_set_params_i2c;
 
 	return 0;
 }
@@ -370,7 +370,7 @@ static int cxusb_dee1601_tuner_attach(struct dvb_usb_device *d)
 {
 	d->pll_addr = 0x61;
 	d->pll_desc = &dvb_pll_thomson_dtt7579;
-	d->fe->ops->tuner_ops.calc_regs = dvb_usb_tuner_calc_regs;
+	d->fe->ops.tuner_ops.calc_regs = dvb_usb_tuner_calc_regs;
 	return 0;
 }
 
@@ -378,7 +378,7 @@ static int cxusb_lgz201_tuner_attach(struct dvb_usb_device *d)
 {
 	d->pll_addr = 0x61;
 	d->pll_desc = &dvb_pll_lg_z201;
-	d->fe->ops->tuner_ops.calc_regs = dvb_usb_tuner_calc_regs;
+	d->fe->ops.tuner_ops.calc_regs = dvb_usb_tuner_calc_regs;
 	return 0;
 }
 
@@ -386,13 +386,13 @@ static int cxusb_dtt7579_tuner_attach(struct dvb_usb_device *d)
 {
 	d->pll_addr = 0x60;
 	d->pll_desc = &dvb_pll_thomson_dtt7579;
-	d->fe->ops->tuner_ops.calc_regs = dvb_usb_tuner_calc_regs;
+	d->fe->ops.tuner_ops.calc_regs = dvb_usb_tuner_calc_regs;
 	return 0;
 }
 
 static int cxusb_lgdt3303_tuner_attach(struct dvb_usb_device *d)
 {
-	d->fe->ops->tuner_ops.set_params = cxusb_lgh064f_tuner_set_params;
+	d->fe->ops.tuner_ops.set_params = cxusb_lgh064f_tuner_set_params;
 	return 0;
 }
 

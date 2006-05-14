@@ -281,8 +281,8 @@ static int alps_bsrv2_tuner_set_params(struct dvb_frontend* fe, struct dvb_front
 	// NOTE: since we're using a prescaler of 2, we set the
 	// divisor frequency to 62.5kHz and divide by 125 above
 
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer (&budget->i2c_adap, &msg, 1) != 1)
 		return -EIO;
 	return 0;
@@ -307,8 +307,8 @@ static int grundig_29504_451_tuner_set_params(struct dvb_frontend* fe, struct dv
 	data[2] = 0x8e;
 	data[3] = 0x00;
 
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer (&budget->i2c_adap, &msg, 1) != 1)
 		return -EIO;
 	return 0;
@@ -327,32 +327,32 @@ static void frontend_init(struct budget_patch* budget)
 		// try the ALPS BSRV2 first of all
 		budget->dvb_frontend = ves1x93_attach(&alps_bsrv2_config, &budget->i2c_adap);
 		if (budget->dvb_frontend) {
-			budget->dvb_frontend->ops->tuner_ops.set_params = alps_bsrv2_tuner_set_params;
-			budget->dvb_frontend->ops->diseqc_send_master_cmd = budget_patch_diseqc_send_master_cmd;
-			budget->dvb_frontend->ops->diseqc_send_burst = budget_patch_diseqc_send_burst;
-			budget->dvb_frontend->ops->set_tone = budget_patch_set_tone;
+			budget->dvb_frontend->ops.tuner_ops.set_params = alps_bsrv2_tuner_set_params;
+			budget->dvb_frontend->ops.diseqc_send_master_cmd = budget_patch_diseqc_send_master_cmd;
+			budget->dvb_frontend->ops.diseqc_send_burst = budget_patch_diseqc_send_burst;
+			budget->dvb_frontend->ops.set_tone = budget_patch_set_tone;
 			break;
 		}
 
 		// try the ALPS BSRU6 now
 		budget->dvb_frontend = stv0299_attach(&alps_bsru6_config, &budget->i2c_adap);
 		if (budget->dvb_frontend) {
-			budget->dvb_frontend->ops->tuner_ops.set_params = alps_bsru6_tuner_set_params;
+			budget->dvb_frontend->ops.tuner_ops.set_params = alps_bsru6_tuner_set_params;
 			budget->dvb_frontend->tuner_priv = &budget->i2c_adap;
 
-			budget->dvb_frontend->ops->diseqc_send_master_cmd = budget_diseqc_send_master_cmd;
-			budget->dvb_frontend->ops->diseqc_send_burst = budget_diseqc_send_burst;
-			budget->dvb_frontend->ops->set_tone = budget_set_tone;
+			budget->dvb_frontend->ops.diseqc_send_master_cmd = budget_diseqc_send_master_cmd;
+			budget->dvb_frontend->ops.diseqc_send_burst = budget_diseqc_send_burst;
+			budget->dvb_frontend->ops.set_tone = budget_set_tone;
 			break;
 		}
 
 		// Try the grundig 29504-451
 		budget->dvb_frontend = tda8083_attach(&grundig_29504_451_config, &budget->i2c_adap);
 		if (budget->dvb_frontend) {
-			budget->dvb_frontend->ops->tuner_ops.set_params = grundig_29504_451_tuner_set_params;
-			budget->dvb_frontend->ops->diseqc_send_master_cmd = budget_diseqc_send_master_cmd;
-			budget->dvb_frontend->ops->diseqc_send_burst = budget_diseqc_send_burst;
-			budget->dvb_frontend->ops->set_tone = budget_set_tone;
+			budget->dvb_frontend->ops.tuner_ops.set_params = grundig_29504_451_tuner_set_params;
+			budget->dvb_frontend->ops.diseqc_send_master_cmd = budget_diseqc_send_master_cmd;
+			budget->dvb_frontend->ops.diseqc_send_burst = budget_diseqc_send_burst;
+			budget->dvb_frontend->ops.set_tone = budget_set_tone;
 			break;
 		}
 		break;
@@ -367,8 +367,8 @@ static void frontend_init(struct budget_patch* budget)
 	} else {
 		if (dvb_register_frontend(&budget->dvb_adapter, budget->dvb_frontend)) {
 			printk("budget-av: Frontend registration failed!\n");
-			if (budget->dvb_frontend->ops->release)
-				budget->dvb_frontend->ops->release(budget->dvb_frontend);
+			if (budget->dvb_frontend->ops.release)
+				budget->dvb_frontend->ops.release(budget->dvb_frontend);
 			budget->dvb_frontend = NULL;
 		}
 	}

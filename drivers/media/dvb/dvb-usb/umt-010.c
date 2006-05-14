@@ -67,7 +67,7 @@ static int umt_tuner_attach (struct dvb_usb_device *d)
 {
 	d->pll_addr = 0x61;
 	d->pll_desc = &dvb_pll_tua6034;
-	d->fe->ops->tuner_ops.calc_regs = dvb_usb_tuner_calc_regs;
+	d->fe->ops.tuner_ops.calc_regs = dvb_usb_tuner_calc_regs;
 	return 0;
 }
 

@@ -55,7 +55,6 @@
 struct nxt200x_state {
 
 	struct i2c_adapter* i2c;
-	struct dvb_frontend_ops ops;
 	const struct nxt200x_config* config;
 	struct dvb_frontend frontend;
 
@@ -548,8 +547,8 @@ static int nxt200x_setup_frontend_parameters (struct dvb_frontend* fe,
 	}
 
 	/* get tuning information */
-	if (fe->ops->tuner_ops.calc_regs) {
-		fe->ops->tuner_ops.calc_regs(fe, p, buf, 5);
+	if (fe->ops.tuner_ops.calc_regs) {
+		fe->ops.tuner_ops.calc_regs(fe, p, buf, 5);
 	}
 
 	/* set additional params */
@@ -1161,7 +1160,6 @@ struct dvb_frontend* nxt200x_attach(const struct nxt200x_config* config,
 	/* setup the state */
 	state->config = config;
 	state->i2c = i2c;
-	memcpy(&state->ops, &nxt200x_ops, sizeof(struct dvb_frontend_ops));
 	state->initialised = 0;
 
 	/* read card id */
@@ -1200,7 +1198,7 @@ struct dvb_frontend* nxt200x_attach(const struct nxt200x_config* config,
 	}
 
 	/* create dvb_frontend */
-	state->frontend.ops = &state->ops;
+	memcpy(&state->frontend.ops, &nxt200x_ops, sizeof(struct dvb_frontend_ops));
 	state->frontend.demodulator_priv = state;
 	return &state->frontend;
 

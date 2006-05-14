@@ -60,7 +60,6 @@ if (debug) printk(KERN_DEBUG "lgdt330x: " args); \
 struct lgdt330x_state
 {
 	struct i2c_adapter* i2c;
-	struct dvb_frontend_ops ops;
 
 	/* Configuration settings */
 	const struct lgdt330x_config* config;
@@ -400,9 +399,9 @@ static int lgdt330x_set_parameters(struct dvb_frontend* fe,
 	}
 
 	/* Tune to the specified frequency */
-	if (fe->ops->tuner_ops.set_params) {
-		fe->ops->tuner_ops.set_params(fe, param);
-		if (fe->ops->i2c_gate_ctrl) fe->ops->i2c_gate_ctrl(fe, 0);
+	if (fe->ops.tuner_ops.set_params) {
+		fe->ops.tuner_ops.set_params(fe, param);
+		if (fe->ops.i2c_gate_ctrl) fe->ops.i2c_gate_ctrl(fe, 0);
 	}
 
 	/* Keep track of the new frequency */
@@ -724,16 +723,19 @@ struct dvb_frontend* lgdt330x_attach(const struct lgdt330x_config* config,
 	/* Setup the state */
 	state->config = config;
 	state->i2c = i2c;
+
+	/* Create dvb_frontend */
 	switch (config->demod_chip) {
 	case LGDT3302:
-		memcpy(&state->ops, &lgdt3302_ops, sizeof(struct dvb_frontend_ops));
+		memcpy(&state->frontend.ops, &lgdt3302_ops, sizeof(struct dvb_frontend_ops));
 		break;
 	case LGDT3303:
-		memcpy(&state->ops, &lgdt3303_ops, sizeof(struct dvb_frontend_ops));
+		memcpy(&state->frontend.ops, &lgdt3303_ops, sizeof(struct dvb_frontend_ops));
 		break;
 	default:
 		goto error;
 	}
+	state->frontend.demodulator_priv = state;
 
 	/* Verify communication with demod chip */
 	if (i2c_read_demod_bytes(state, 2, buf, 1))
@@ -742,9 +744,6 @@ struct dvb_frontend* lgdt330x_attach(const struct lgdt330x_config* config,
 	state->current_frequency = -1;
 	state->current_modulation = -1;
 
-	/* Create dvb_frontend */
-	state->frontend.ops = &state->ops;
-	state->frontend.demodulator_priv = state;
 	return &state->frontend;
 
 error:

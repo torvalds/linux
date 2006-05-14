@@ -1039,8 +1039,8 @@ static int alps_tdmb7_tuner_set_params(struct dvb_frontend* fe, struct dvb_front
 	data[2] = ((div >> 10) & 0x60) | 0x85;
 	data[3] = params->frequency < 592000000 ? 0x40 : 0x80;
 
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&ttusb->i2c_adap, &msg, 1) != 1) return -EIO;
 	return 0;
 }
@@ -1061,8 +1061,8 @@ static int philips_tdm1316l_tuner_init(struct dvb_frontend* fe)
 	struct i2c_msg tuner_msg = { .addr=0x60, .flags=0, .buf=td1316_init, .len=sizeof(td1316_init) };
 
 	// setup PLL configuration
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&ttusb->i2c_adap, &tuner_msg, 1) != 1) return -EIO;
 	msleep(1);
 
@@ -1070,8 +1070,8 @@ static int philips_tdm1316l_tuner_init(struct dvb_frontend* fe)
 	tuner_msg.addr = 0x65;
 	tuner_msg.buf = disable_mc44BC374c;
 	tuner_msg.len = sizeof(disable_mc44BC374c);
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&ttusb->i2c_adap, &tuner_msg, 1) != 1) {
 		i2c_transfer(&ttusb->i2c_adap, &tuner_msg, 1);
 	}
@@ -1139,8 +1139,8 @@ static int philips_tdm1316l_tuner_set_params(struct dvb_frontend* fe, struct dvb
 	tuner_buf[2] = 0xca;
 	tuner_buf[3] = (cp << 5) | (filter << 3) | band;
 
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&ttusb->i2c_adap, &tuner_msg, 1) != 1)
 		return -EIO;
 
@@ -1304,8 +1304,8 @@ static int philips_tsa5059_tuner_set_params(struct dvb_frontend *fe, struct dvb_
 	if (ttusb->revision == TTUSB_REV_2_2)
 		buf[3] |= 0x20;
 
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&ttusb->i2c_adap, &msg, 1) != 1)
 		return -EIO;
 
@@ -1338,8 +1338,8 @@ static int ttusb_novas_grundig_29504_491_tuner_set_params(struct dvb_frontend *f
 	buf[2] = 0x8e;
 	buf[3] = 0x00;
 
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&ttusb->i2c_adap, &msg, 1) != 1)
 		return -EIO;
 
@@ -1365,8 +1365,8 @@ static int alps_tdbe2_tuner_set_params(struct dvb_frontend* fe, struct dvb_front
 	data[2] = 0x85 | ((div >> 10) & 0x60);
 	data[3] = (params->frequency < 174000000 ? 0x88 : params->frequency < 470000000 ? 0x84 : 0x81);
 
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer (&ttusb->i2c_adap, &msg, 1) != 1)
 		return -EIO;
 
@@ -1434,8 +1434,8 @@ static int dvbc_philips_tdm1316l_tuner_set_params(struct dvb_frontend *fe, struc
 	tuner_buf[3] = (cp << 5) | (filter << 3) | band;
 	tuner_buf[4] = 0x80;
 
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&ttusb->i2c_adap, &tuner_msg, 1) != 1) {
 		printk("dvb-ttusb-budget: dvbc_philips_tdm1316l_pll_set Error 1\n");
 		return -EIO;
@@ -1443,8 +1443,8 @@ static int dvbc_philips_tdm1316l_tuner_set_params(struct dvb_frontend *fe, struc
 
 	msleep(50);
 
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&ttusb->i2c_adap, &tuner_msg, 1) != 1) {
 		printk("dvb-ttusb-budget: dvbc_philips_tdm1316l_pll_set Error 2\n");
 		return -EIO;
@@ -1570,13 +1570,13 @@ static void frontend_init(struct ttusb* ttusb)
 		// try the stv0299 based first
 		ttusb->fe = stv0299_attach(&alps_stv0299_config, &ttusb->i2c_adap);
 		if (ttusb->fe != NULL) {
-			ttusb->fe->ops->tuner_ops.set_params = philips_tsa5059_tuner_set_params;
+			ttusb->fe->ops.tuner_ops.set_params = philips_tsa5059_tuner_set_params;
 
 			if(ttusb->revision == TTUSB_REV_2_2) { // ALPS BSBE1
 				alps_stv0299_config.inittab = alps_bsbe1_inittab;
 				lnbp21_attach(ttusb->fe, &ttusb->i2c_adap, 0, 0);
 			} else { // ALPS BSRU6
-				ttusb->fe->ops->set_voltage = ttusb_set_voltage;
+				ttusb->fe->ops.set_voltage = ttusb_set_voltage;
 			}
 			break;
 		}
@@ -1584,8 +1584,8 @@ static void frontend_init(struct ttusb* ttusb)
 		// Grundig 29504-491
 		ttusb->fe = tda8083_attach(&ttusb_novas_grundig_29504_491_config, &ttusb->i2c_adap);
 		if (ttusb->fe != NULL) {
-			ttusb->fe->ops->tuner_ops.set_params = ttusb_novas_grundig_29504_491_tuner_set_params;
-			ttusb->fe->ops->set_voltage = ttusb_set_voltage;
+			ttusb->fe->ops.tuner_ops.set_params = ttusb_novas_grundig_29504_491_tuner_set_params;
+			ttusb->fe->ops.set_voltage = ttusb_set_voltage;
 			break;
 		}
 		break;
@@ -1593,13 +1593,13 @@ static void frontend_init(struct ttusb* ttusb)
 	case 0x1004: // Hauppauge/TT DVB-C budget (ves1820/ALPS TDBE2(sp5659))
 		ttusb->fe = ves1820_attach(&alps_tdbe2_config, &ttusb->i2c_adap, read_pwm(ttusb));
 		if (ttusb->fe != NULL) {
-			ttusb->fe->ops->tuner_ops.set_params = alps_tdbe2_tuner_set_params;
+			ttusb->fe->ops.tuner_ops.set_params = alps_tdbe2_tuner_set_params;
 			break;
 		}
 
 		ttusb->fe = stv0297_attach(&dvbc_philips_tdm1316l_config, &ttusb->i2c_adap);
 		if (ttusb->fe != NULL) {
-			ttusb->fe->ops->tuner_ops.set_params = dvbc_philips_tdm1316l_tuner_set_params;
+			ttusb->fe->ops.tuner_ops.set_params = dvbc_philips_tdm1316l_tuner_set_params;
 			break;
 		}
 		break;
@@ -1608,15 +1608,15 @@ static void frontend_init(struct ttusb* ttusb)
 		// try the ALPS TDMB7 first
 		ttusb->fe = cx22700_attach(&alps_tdmb7_config, &ttusb->i2c_adap);
 		if (ttusb->fe != NULL) {
-			ttusb->fe->ops->tuner_ops.set_params = alps_tdmb7_tuner_set_params;
+			ttusb->fe->ops.tuner_ops.set_params = alps_tdmb7_tuner_set_params;
 			break;
 		}
 
 		// Philips td1316
 		ttusb->fe = tda10046_attach(&philips_tdm1316l_config, &ttusb->i2c_adap);
 		if (ttusb->fe != NULL) {
-			ttusb->fe->ops->tuner_ops.init = philips_tdm1316l_tuner_init;
-			ttusb->fe->ops->tuner_ops.set_params = philips_tdm1316l_tuner_set_params;
+			ttusb->fe->ops.tuner_ops.init = philips_tdm1316l_tuner_init;
+			ttusb->fe->ops.tuner_ops.set_params = philips_tdm1316l_tuner_set_params;
 			break;
 		}
 		break;
@@ -1629,8 +1629,8 @@ static void frontend_init(struct ttusb* ttusb)
 	} else {
 		if (dvb_register_frontend(&ttusb->adapter, ttusb->fe)) {
 			printk("dvb-ttusb-budget: Frontend registration failed!\n");
-			if (ttusb->fe->ops->release)
-				ttusb->fe->ops->release(ttusb->fe);
+			if (ttusb->fe->ops.release)
+				ttusb->fe->ops.release(ttusb->fe);
 			ttusb->fe = NULL;
 		}
 	}

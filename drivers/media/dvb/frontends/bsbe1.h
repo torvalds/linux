@@ -106,8 +106,8 @@ static int alps_bsbe1_tuner_set_params(struct dvb_frontend* fe, struct dvb_front
 	data[2] = 0x80 | ((div & 0x18000) >> 10) | 4;
 	data[3] = (params->frequency > 1530000) ? 0xE0 : 0xE4;
 
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	ret = i2c_transfer(i2c, &msg, 1);
 	return (ret != 1) ? -EIO : 0;
 }

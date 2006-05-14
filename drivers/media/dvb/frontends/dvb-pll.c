@@ -505,8 +505,8 @@ static int dvb_pll_sleep(struct dvb_frontend *fe)
 	buf[2] = priv->pll_desc->entries[i].config;
 	buf[3] = priv->pll_desc->entries[i].cb;
 
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	if ((result = i2c_transfer(priv->i2c, &msg, 1)) != 1) {
 		return result;
 	}
@@ -529,15 +529,15 @@ static int dvb_pll_set_params(struct dvb_frontend *fe, struct dvb_frontend_param
 		return -EINVAL;
 
 	// DVBT bandwidth only just now
-	if (fe->ops->info.type == FE_OFDM) {
+	if (fe->ops.info.type == FE_OFDM) {
 		bandwidth = params->u.ofdm.bandwidth;
 	}
 
 	if ((result = dvb_pll_configure(priv->pll_desc, buf, params->frequency, bandwidth)) != 0)
 		return result;
 
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	if ((result = i2c_transfer(priv->i2c, &msg, 1)) != 1) {
 		return result;
 	}
@@ -567,7 +567,7 @@ static int dvb_pll_calc_regs(struct dvb_frontend *fe, struct dvb_frontend_parame
 		return -EINVAL;
 
 	// DVBT bandwidth only just now
-	if (fe->ops->info.type == FE_OFDM) {
+	if (fe->ops.info.type == FE_OFDM) {
 		bandwidth = params->u.ofdm.bandwidth;
 	}
 
@@ -623,10 +623,10 @@ int dvb_pll_attach(struct dvb_frontend *fe, int pll_addr, struct i2c_adapter *i2
 	priv->i2c = i2c;
 	priv->pll_desc = desc;
 
-	memcpy(&fe->ops->tuner_ops, &dvb_pll_tuner_ops, sizeof(struct dvb_tuner_ops));
-	strncpy(fe->ops->tuner_ops.info.name, desc->name, 128);
-	fe->ops->tuner_ops.info.frequency_min = desc->min;
-	fe->ops->tuner_ops.info.frequency_min = desc->max;
+	memcpy(&fe->ops.tuner_ops, &dvb_pll_tuner_ops, sizeof(struct dvb_tuner_ops));
+	strncpy(fe->ops.tuner_ops.info.name, desc->name, 128);
+	fe->ops.tuner_ops.info.frequency_min = desc->min;
+	fe->ops.tuner_ops.info.frequency_min = desc->max;
 
 	fe->tuner_priv = priv;
 	return 0;

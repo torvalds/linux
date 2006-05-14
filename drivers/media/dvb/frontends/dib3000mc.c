@@ -462,9 +462,9 @@ static int dib3000mc_set_frontend(struct dvb_frontend* fe,
 	int search_state,auto_val;
 	u16 val;
 
-	if (tuner && fe->ops->tuner_ops.set_params) { /* initial call from dvb */
-		fe->ops->tuner_ops.set_params(fe, fep);
-		if (fe->ops->i2c_gate_ctrl) fe->ops->i2c_gate_ctrl(fe, 0);
+	if (tuner && fe->ops.tuner_ops.set_params) { /* initial call from dvb */
+		fe->ops.tuner_ops.set_params(fe, fep);
+		if (fe->ops.i2c_gate_ctrl) fe->ops.i2c_gate_ctrl(fe, 0);
 
 		state->last_tuned_freq = fep->frequency;
 	//	if (!scanboost) {
@@ -837,7 +837,6 @@ struct dvb_frontend* dib3000mc_attach(const struct dib3000_config* config,
 	/* setup the state */
 	state->i2c = i2c;
 	memcpy(&state->config,config,sizeof(struct dib3000_config));
-	memcpy(&state->ops, &dib3000mc_ops, sizeof(struct dvb_frontend_ops));
 
 	/* check for the correct demod */
 	if (rd(DIB3000_REG_MANUFACTOR_ID) != DIB3000_I2C_ID_DIBCOM)
@@ -857,7 +856,7 @@ struct dvb_frontend* dib3000mc_attach(const struct dib3000_config* config,
 	}
 
 	/* create dvb_frontend */
-	state->frontend.ops = &state->ops;
+	memcpy(&state->frontend.ops, &dib3000mc_ops, sizeof(struct dvb_frontend_ops));
 	state->frontend.demodulator_priv = state;
 
 	/* set the xfer operations */
@@ -874,6 +873,7 @@ error:
 	kfree(state);
 	return NULL;
 }
+EXPORT_SYMBOL(dib3000mc_attach);
 
 static struct dvb_frontend_ops dib3000mc_ops = {
 
@@ -912,5 +912,3 @@ static struct dvb_frontend_ops dib3000mc_ops = {
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
-
-EXPORT_SYMBOL(dib3000mc_attach);

@@ -47,7 +47,6 @@ enum tda1004x_demod {
 
 struct tda1004x_state {
 	struct i2c_adapter* i2c;
-	struct dvb_frontend_ops ops;
 	const struct tda1004x_config* config;
 	struct dvb_frontend frontend;
 
@@ -695,9 +694,9 @@ static int tda1004x_set_fe(struct dvb_frontend* fe,
 	}
 
 	// set frequency
-	if (fe->ops->tuner_ops.set_params) {
-		fe->ops->tuner_ops.set_params(fe, fe_params);
-		if (fe->ops->i2c_gate_ctrl) fe->ops->i2c_gate_ctrl(fe, 0);
+	if (fe->ops.tuner_ops.set_params) {
+		fe->ops.tuner_ops.set_params(fe, fe_params);
+		if (fe->ops.i2c_gate_ctrl) fe->ops.i2c_gate_ctrl(fe, 0);
 	}
 
 	// Hardcoded to use auto as much as possible on the TDA10045 as it
@@ -1243,7 +1242,6 @@ struct dvb_frontend* tda10045_attach(const struct tda1004x_config* config,
 	/* setup the state */
 	state->config = config;
 	state->i2c = i2c;
-	memcpy(&state->ops, &tda10045_ops, sizeof(struct dvb_frontend_ops));
 	state->demod_type = TDA1004X_DEMOD_TDA10045;
 
 	/* check if the demod is there */
@@ -1253,7 +1251,7 @@ struct dvb_frontend* tda10045_attach(const struct tda1004x_config* config,
 	}
 
 	/* create dvb_frontend */
-	state->frontend.ops = &state->ops;
+	memcpy(&state->frontend.ops, &tda10045_ops, sizeof(struct dvb_frontend_ops));
 	state->frontend.demodulator_priv = state;
 	return &state->frontend;
 }
@@ -1302,7 +1300,6 @@ struct dvb_frontend* tda10046_attach(const struct tda1004x_config* config,
 	/* setup the state */
 	state->config = config;
 	state->i2c = i2c;
-	memcpy(&state->ops, &tda10046_ops, sizeof(struct dvb_frontend_ops));
 	state->demod_type = TDA1004X_DEMOD_TDA10046;
 
 	/* check if the demod is there */
@@ -1312,7 +1309,7 @@ struct dvb_frontend* tda10046_attach(const struct tda1004x_config* config,
 	}
 
 	/* create dvb_frontend */
-	state->frontend.ops = &state->ops;
+	memcpy(&state->frontend.ops, &tda10046_ops, sizeof(struct dvb_frontend_ops));
 	state->frontend.demodulator_priv = state;
 	return &state->frontend;
 }

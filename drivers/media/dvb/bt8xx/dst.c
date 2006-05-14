@@ -1417,24 +1417,22 @@ struct dst_state *dst_attach(struct dst_state *state, struct dvb_adapter *dvb_ad
 		return NULL;
 	}
 	/* determine settings based on type */
+	/* create dvb_frontend */
 	switch (state->dst_type) {
 	case DST_TYPE_IS_TERR:
-		memcpy(&state->ops, &dst_dvbt_ops, sizeof(struct dvb_frontend_ops));
+		memcpy(&state->frontend.ops, &dst_dvbt_ops, sizeof(struct dvb_frontend_ops));
 		break;
 	case DST_TYPE_IS_CABLE:
-		memcpy(&state->ops, &dst_dvbc_ops, sizeof(struct dvb_frontend_ops));
+		memcpy(&state->frontend.ops, &dst_dvbc_ops, sizeof(struct dvb_frontend_ops));
 		break;
 	case DST_TYPE_IS_SAT:
-		memcpy(&state->ops, &dst_dvbs_ops, sizeof(struct dvb_frontend_ops));
+		memcpy(&state->frontend.ops, &dst_dvbs_ops, sizeof(struct dvb_frontend_ops));
 		break;
 	default:
 		dprintk(verbose, DST_ERROR, 1, "unknown DST type. please report to the LinuxTV.org DVB mailinglist.");
 		kfree(state);
 		return NULL;
 	}
-
-	/* create dvb_frontend */
-	state->frontend.ops = &state->ops;
 	state->frontend.demodulator_priv = state;
 
 	return state;				/*	Manu (DST is a card not a frontend)	*/

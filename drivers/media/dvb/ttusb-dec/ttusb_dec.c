@@ -1657,8 +1657,8 @@ static int ttusb_dec_probe(struct usb_interface *intf,
 	} else {
 		if (dvb_register_frontend(&dec->adapter, dec->fe)) {
 			printk("budget-ci: Frontend registration failed!\n");
-			if (dec->fe->ops->release)
-				dec->fe->ops->release(dec->fe);
+			if (dec->fe->ops.release)
+				dec->fe->ops.release(dec->fe);
 			dec->fe = NULL;
 		}
 	}

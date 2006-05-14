@@ -140,7 +140,7 @@ struct dvb_fe_events {
 };
 
 struct dvb_frontend {
-	struct dvb_frontend_ops* ops;
+	struct dvb_frontend_ops ops;
 	struct dvb_adapter *dvb;
 	void* demodulator_priv;
 	void* tuner_priv;

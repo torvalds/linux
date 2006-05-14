@@ -473,8 +473,8 @@ static int lg_tdtpe001p_tuner_set_params(struct dvb_frontend *fe,
 	msg.buf = buf;
 	msg.len = sizeof(buf);
 
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	ret = i2c_transfer(&pluto->i2c_adap, &msg, 1);
 	if (ret < 0)
 		return ret;
@@ -511,12 +511,12 @@ static int __devinit frontend_init(struct pluto *pluto)
 		dev_err(&pluto->pdev->dev, "could not attach frontend\n");
 		return -ENODEV;
 	}
-	pluto->fe->ops->tuner_ops.set_params = lg_tdtpe001p_tuner_set_params;
+	pluto->fe->ops.tuner_ops.set_params = lg_tdtpe001p_tuner_set_params;
 
 	ret = dvb_register_frontend(&pluto->dvb_adapter, pluto->fe);
 	if (ret < 0) {
-		if (pluto->fe->ops->release)
-			pluto->fe->ops->release(pluto->fe);
+		if (pluto->fe->ops.release)
+			pluto->fe->ops.release(pluto->fe);
 		return ret;
 	}
 

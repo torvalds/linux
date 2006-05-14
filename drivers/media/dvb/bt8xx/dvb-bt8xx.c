@@ -300,8 +300,8 @@ static int microtune_mt7202dtf_tuner_set_params(struct dvb_frontend* fe, struct 
 	data[2] = ((div >> 10) & 0x60) | cfg;
 	data[3] = (cpump << 6) | band_select;
 
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	i2c_transfer(card->i2c_adapter, &msg, 1);
 	return (div * 166666 - 36000000);
 }
@@ -483,8 +483,8 @@ static int vp3021_alps_tded4_tuner_set_params(struct dvb_frontend* fe, struct dv
 	else
 		return -EINVAL;
 
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	i2c_transfer(card->i2c_adapter, &msg, 1);
 	return 0;
 }
@@ -607,9 +607,9 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 						  card->i2c_adapter);
 
 		if (card->fe != NULL) {
-			card->fe->ops->tuner_ops.calc_regs = thomson_dtt7579_tuner_calc_regs;
-			card->fe->ops->info.frequency_min = 174000000;
-			card->fe->ops->info.frequency_max = 862000000;
+			card->fe->ops.tuner_ops.calc_regs = thomson_dtt7579_tuner_calc_regs;
+			card->fe->ops.info.frequency_min = 174000000;
+			card->fe->ops.info.frequency_max = 862000000;
 		}
 		break;
 
@@ -617,7 +617,7 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 		lgdt330x_reset(card);
 		card->fe = lgdt330x_attach(&tdvs_tua6034_config, card->i2c_adapter);
 		if (card->fe != NULL) {
-			card->fe->ops->tuner_ops.set_params = tdvs_tua6034_tuner_set_params;
+			card->fe->ops.tuner_ops.set_params = tdvs_tua6034_tuner_set_params;
 			dprintk ("dvb_bt8xx: lgdt330x detected\n");
 		}
 		break;
@@ -632,7 +632,7 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 		digitv_alps_tded4_reset(card);
 		card->fe = nxt6000_attach(&vp3021_alps_tded4_config, card->i2c_adapter);
 		if (card->fe != NULL) {
-			card->fe->ops->tuner_ops.set_params = vp3021_alps_tded4_tuner_set_params;
+			card->fe->ops.tuner_ops.set_params = vp3021_alps_tded4_tuner_set_params;
 			dprintk ("dvb_bt8xx: an nxt6000 was detected on your digitv card\n");
 			break;
 		}
@@ -642,7 +642,7 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 		card->fe = mt352_attach(&digitv_alps_tded4_config, card->i2c_adapter);
 
 		if (card->fe != NULL) {
-			card->fe->ops->tuner_ops.calc_regs = digitv_alps_tded4_tuner_calc_regs;
+			card->fe->ops.tuner_ops.calc_regs = digitv_alps_tded4_tuner_calc_regs;
 			dprintk ("dvb_bt8xx: an mt352 was detected on your digitv card\n");
 		}
 		break;
@@ -650,16 +650,16 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 	case BTTV_BOARD_AVDVBT_761:
 		card->fe = sp887x_attach(&microtune_mt7202dtf_config, card->i2c_adapter);
 		if (card->fe) {
-			card->fe->ops->tuner_ops.set_params = microtune_mt7202dtf_tuner_set_params;
+			card->fe->ops.tuner_ops.set_params = microtune_mt7202dtf_tuner_set_params;
 		}
 		break;
 
 	case BTTV_BOARD_AVDVBT_771:
 		card->fe = mt352_attach(&advbt771_samsung_tdtc9251dh0_config, card->i2c_adapter);
 		if (card->fe != NULL) {
-			card->fe->ops->tuner_ops.calc_regs = advbt771_samsung_tdtc9251dh0_tuner_calc_regs;
-			card->fe->ops->info.frequency_min = 174000000;
-			card->fe->ops->info.frequency_max = 862000000;
+			card->fe->ops.tuner_ops.calc_regs = advbt771_samsung_tdtc9251dh0_tuner_calc_regs;
+			card->fe->ops.info.frequency_min = 174000000;
+			card->fe->ops.info.frequency_max = 862000000;
 		}
 		break;
 
@@ -687,9 +687,9 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 	case BTTV_BOARD_PINNACLESAT:
 		card->fe = cx24110_attach(&pctvsat_config, card->i2c_adapter);
 		if (card->fe) {
-			card->fe->ops->tuner_ops.init = pinnsat_tuner_init;
-			card->fe->ops->tuner_ops.sleep = pinnsat_tuner_sleep;
-			card->fe->ops->tuner_ops.set_params = cx24108_tuner_set_params;
+			card->fe->ops.tuner_ops.init = pinnsat_tuner_init;
+			card->fe->ops.tuner_ops.sleep = pinnsat_tuner_sleep;
+			card->fe->ops.tuner_ops.set_params = cx24108_tuner_set_params;
 		}
 		break;
 
@@ -707,8 +707,8 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 	else
 		if (dvb_register_frontend(&card->dvb_adapter, card->fe)) {
 			printk("dvb-bt8xx: Frontend registration failed!\n");
-			if (card->fe->ops->release)
-				card->fe->ops->release(card->fe);
+			if (card->fe->ops.release)
+				card->fe->ops.release(card->fe);
 			card->fe = NULL;
 		}
 }

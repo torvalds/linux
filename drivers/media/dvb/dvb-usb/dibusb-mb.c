@@ -20,11 +20,12 @@ static int dibusb_dib3000mb_frontend_attach(struct dvb_usb_device *d)
 	struct dibusb_state *st = d->priv;
 
 	demod_cfg.demod_address = 0x8;
-	d->fe->ops->tuner_ops.init = dvb_usb_tuner_init_i2c;
-	d->fe->ops->tuner_ops.set_params = dvb_usb_tuner_set_params_i2c;
 
-	if ((d->fe = dib3000mb_attach(&demod_cfg,&d->i2c_adap,&st->ops)) == NULL)
+	if ((d->fe = dib3000mb_attach(&demod_cfg,&d->i2c_adap,&st->ops)) == NULL) {
+		d->fe->ops.tuner_ops.init = dvb_usb_tuner_init_i2c;
+		d->fe->ops.tuner_ops.set_params = dvb_usb_tuner_set_params_i2c;
 		return -ENODEV;
+	}
 
 	d->tuner_pass_ctrl = st->ops.tuner_pass_ctrl;
 

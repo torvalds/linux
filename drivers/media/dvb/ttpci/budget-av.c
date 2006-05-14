@@ -541,8 +541,8 @@ static int philips_su1278_ty_ci_tuner_set_params(struct dvb_frontend *fe,
 	else if (params->frequency < 2150000)
 		buf[3] |= 0xC0;
 
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&budget->i2c_adap, &msg, 1) != 1)
 		return -EIO;
 	return 0;
@@ -662,22 +662,22 @@ static int philips_su1278sh2_tua6100_tuner_set_params(struct dvb_frontend *fe,
 	reg0[1] |= 0x03;
 
 	/* already enabled - do not reenable i2c repeater or TX fails */
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	msg.buf = reg0;
 	msg.len = sizeof(reg0);
 	if (i2c_transfer(&budget->i2c_adap, &msg, 1) != 1)
 		return -EIO;
 
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	msg.buf = reg1;
 	msg.len = sizeof(reg1);
 	if (i2c_transfer(&budget->i2c_adap, &msg, 1) != 1)
 		return -EIO;
 
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	msg.buf = reg2;
 	msg.len = sizeof(reg2);
 	if (i2c_transfer(&budget->i2c_adap, &msg, 1) != 1)
@@ -781,8 +781,8 @@ static int philips_cu1216_tuner_set_params(struct dvb_frontend *fe, struct dvb_f
 	buf[3] = (params->frequency < 150000000 ? 0x01 :
 		  params->frequency < 445000000 ? 0x02 : 0x04);
 
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&budget->i2c_adap, &msg, 1) != 1)
 		return -EIO;
 	return 0;
@@ -802,8 +802,8 @@ static int philips_tu1216_tuner_init(struct dvb_frontend *fe)
 	struct i2c_msg tuner_msg = {.addr = 0x60,.flags = 0,.buf = tu1216_init,.len = sizeof(tu1216_init) };
 
 	// setup PLL configuration
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&budget->i2c_adap, &tuner_msg, 1) != 1)
 		return -EIO;
 	msleep(1);
@@ -885,8 +885,8 @@ static int philips_tu1216_tuner_set_params(struct dvb_frontend *fe, struct dvb_f
 	tuner_buf[2] = 0xca;
 	tuner_buf[3] = (cp << 5) | (filter << 3) | band;
 
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&budget->i2c_adap, &tuner_msg, 1) != 1)
 		return -EIO;
 
@@ -971,8 +971,8 @@ static int philips_sd1878_tda8261_tuner_set_params(struct dvb_frontend *fe,
 			params->frequency, 0);
 	if(rc < 0) return rc;
 
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	if(i2c_transfer(&budget->i2c_adap, &tuner_msg, 1) != 1)
 		return -EIO;
 
@@ -1099,13 +1099,13 @@ static void frontend_init(struct budget_av *budget_av)
 			fe = stv0299_attach(&cinergy_1200s_1894_0010_config,
 					     &budget_av->budget.i2c_adap);
 			if (fe) {
-				fe->ops->tuner_ops.set_params = philips_su1278sh2_tua6100_tuner_set_params;
+				fe->ops.tuner_ops.set_params = philips_su1278sh2_tua6100_tuner_set_params;
 			}
 		} else {
 			fe = stv0299_attach(&typhoon_config,
 					     &budget_av->budget.i2c_adap);
 			if (fe) {
-				fe->ops->tuner_ops.set_params = philips_su1278_ty_ci_tuner_set_params;
+				fe->ops.tuner_ops.set_params = philips_su1278_ty_ci_tuner_set_params;
 			}
 		}
 		break;
@@ -1117,7 +1117,7 @@ static void frontend_init(struct budget_av *budget_av)
 		fe = stv0299_attach(&philips_sd1878_config,
 				&budget_av->budget.i2c_adap);
 		if (fe) {
-			fe->ops->tuner_ops.set_params = philips_sd1878_tda8261_tuner_set_params;
+			fe->ops.tuner_ops.set_params = philips_sd1878_tda8261_tuner_set_params;
 		}
 		break;
 
@@ -1126,7 +1126,7 @@ static void frontend_init(struct budget_av *budget_av)
 		fe = stv0299_attach(&typhoon_config,
 				    &budget_av->budget.i2c_adap);
 		if (fe) {
-			fe->ops->tuner_ops.set_params = philips_su1278_ty_ci_tuner_set_params;
+			fe->ops.tuner_ops.set_params = philips_su1278_ty_ci_tuner_set_params;
 		}
 		break;
 
@@ -1134,7 +1134,7 @@ static void frontend_init(struct budget_av *budget_av)
 		fe = stv0299_attach(&cinergy_1200s_config,
 				    &budget_av->budget.i2c_adap);
 		if (fe) {
-			fe->ops->tuner_ops.set_params = philips_su1278_ty_ci_tuner_set_params;
+			fe->ops.tuner_ops.set_params = philips_su1278_ty_ci_tuner_set_params;
 		}
 		break;
 
@@ -1147,9 +1147,9 @@ static void frontend_init(struct budget_av *budget_av)
 				     read_pwm(budget_av));
 		if (fe) {
 			budget_av->tda10021_poclkp = 1;
-			budget_av->tda10021_set_frontend = fe->ops->set_frontend;
-			fe->ops->set_frontend = tda10021_set_frontend;
-			fe->ops->tuner_ops.set_params = philips_cu1216_tuner_set_params;
+			budget_av->tda10021_set_frontend = fe->ops.set_frontend;
+			fe->ops.set_frontend = tda10021_set_frontend;
+			fe->ops.tuner_ops.set_params = philips_cu1216_tuner_set_params;
 		}
 		break;
 
@@ -1160,8 +1160,8 @@ static void frontend_init(struct budget_av *budget_av)
 		fe = tda10046_attach(&philips_tu1216_config,
 				     &budget_av->budget.i2c_adap);
 		if (fe) {
-			fe->ops->tuner_ops.init = philips_tu1216_tuner_init;
-			fe->ops->tuner_ops.set_params = philips_tu1216_tuner_set_params;
+			fe->ops.tuner_ops.init = philips_tu1216_tuner_init;
+			fe->ops.tuner_ops.set_params = philips_tu1216_tuner_set_params;
 		}
 		break;
 	}
@@ -1181,8 +1181,8 @@ static void frontend_init(struct budget_av *budget_av)
 	if (dvb_register_frontend(&budget_av->budget.dvb_adapter,
 				  budget_av->budget.dvb_frontend)) {
 		printk(KERN_ERR "budget-av: Frontend registration failed!\n");
-		if (budget_av->budget.dvb_frontend->ops->release)
-			budget_av->budget.dvb_frontend->ops->release(budget_av->budget.dvb_frontend);
+		if (budget_av->budget.dvb_frontend->ops.release)
+			budget_av->budget.dvb_frontend->ops.release(budget_av->budget.dvb_frontend);
 		budget_av->budget.dvb_frontend = NULL;
 	}
 }

@@ -183,13 +183,13 @@ int dvb_usb_fe_init(struct dvb_usb_device* d)
 
 	/* re-assign sleep and wakeup functions */
 	if (d->fe != NULL) {
-		d->fe_init = d->fe->ops->init;   d->fe->ops->init  = dvb_usb_fe_wakeup;
-		d->fe_sleep = d->fe->ops->sleep; d->fe->ops->sleep = dvb_usb_fe_sleep;
+		d->fe_init = d->fe->ops.init;   d->fe->ops.init  = dvb_usb_fe_wakeup;
+		d->fe_sleep = d->fe->ops.sleep; d->fe->ops.sleep = dvb_usb_fe_sleep;
 
 		if (dvb_register_frontend(&d->dvb_adap, d->fe)) {
 			err("Frontend registration failed.");
-			if (d->fe->ops->release)
-				d->fe->ops->release(d->fe);
+			if (d->fe->ops.release)
+				d->fe->ops.release(d->fe);
 			d->fe = NULL;
 			return -ENODEV;
 		}

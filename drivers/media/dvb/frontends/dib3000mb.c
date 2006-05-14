@@ -60,9 +60,9 @@ static int dib3000mb_set_frontend(struct dvb_frontend* fe,
 	fe_code_rate_t fe_cr = FEC_NONE;
 	int search_state, seq;
 
-	if (tuner && fe->ops->tuner_ops.set_params) {
-		fe->ops->tuner_ops.set_params(fe, fep);
-		if (fe->ops->i2c_gate_ctrl) fe->ops->i2c_gate_ctrl(fe, 0);
+	if (tuner && fe->ops.tuner_ops.set_params) {
+		fe->ops.tuner_ops.set_params(fe, fep);
+		if (fe->ops.i2c_gate_ctrl) fe->ops.i2c_gate_ctrl(fe, 0);
 
 		deb_setf("bandwidth: ");
 		switch (ofdm->bandwidth) {
@@ -705,7 +705,6 @@ struct dvb_frontend* dib3000mb_attach(const struct dib3000_config* config,
 	/* setup the state */
 	state->i2c = i2c;
 	memcpy(&state->config,config,sizeof(struct dib3000_config));
-	memcpy(&state->ops, &dib3000mb_ops, sizeof(struct dvb_frontend_ops));
 
 	/* check for the correct demod */
 	if (rd(DIB3000_REG_MANUFACTOR_ID) != DIB3000_I2C_ID_DIBCOM)
@@ -715,7 +714,7 @@ struct dvb_frontend* dib3000mb_attach(const struct dib3000_config* config,
 		goto error;
 
 	/* create dvb_frontend */
-	state->frontend.ops = &state->ops;
+	memcpy(&state->frontend.ops, &dib3000mb_ops, sizeof(struct dvb_frontend_ops));
 	state->frontend.demodulator_priv = state;
 
 	/* set the xfer operations */

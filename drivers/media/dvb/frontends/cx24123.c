@@ -41,7 +41,6 @@ static int debug;
 struct cx24123_state
 {
 	struct i2c_adapter* i2c;
-	struct dvb_frontend_ops ops;
 	const struct cx24123_config* config;
 
 	struct dvb_frontend frontend;
@@ -429,8 +428,8 @@ static int cx24123_set_symbolrate(struct cx24123_state* state, u32 srate)
 	u8 pll_mult;
 
 	/*  check if symbol rate is within limits */
-	if ((srate > state->ops.info.symbol_rate_max) ||
-	    (srate < state->ops.info.symbol_rate_min))
+	if ((srate > state->frontend.ops.info.symbol_rate_max) ||
+	    (srate < state->frontend.ops.info.symbol_rate_min))
 		return -EOPNOTSUPP;;
 
 	/* choose the sampling rate high enough for the required operation,
@@ -950,7 +949,6 @@ struct dvb_frontend* cx24123_attach(const struct cx24123_config* config,
 	/* setup the state */
 	state->config = config;
 	state->i2c = i2c;
-	memcpy(&state->ops, &cx24123_ops, sizeof(struct dvb_frontend_ops));
 	state->lastber = 0;
 	state->snr = 0;
 	state->VCAarg = 0;
@@ -968,7 +966,7 @@ struct dvb_frontend* cx24123_attach(const struct cx24123_config* config,
 	}
 
 	/* create dvb_frontend */
-	state->frontend.ops = &state->ops;
+	memcpy(&state->frontend.ops, &cx24123_ops, sizeof(struct dvb_frontend_ops));
 	state->frontend.demodulator_priv = state;
 	return &state->frontend;
 

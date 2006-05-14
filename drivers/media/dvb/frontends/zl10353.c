@@ -34,7 +34,6 @@
 struct zl10353_state {
 	struct i2c_adapter *i2c;
 	struct dvb_frontend frontend;
-	struct dvb_frontend_ops ops;
 
 	struct zl10353_config config;
 };
@@ -146,15 +145,15 @@ static int zl10353_set_parameters(struct dvb_frontend *fe,
 	// if there is no attached secondary tuner, we call set_params to program
 	// a potential tuner attached somewhere else
 	if (state->config.no_tuner) {
-		if (fe->ops->tuner_ops.set_params) {
-			fe->ops->tuner_ops.set_params(fe, param);
-			if (fe->ops->i2c_gate_ctrl) fe->ops->i2c_gate_ctrl(fe, 0);
+		if (fe->ops.tuner_ops.set_params) {
+			fe->ops.tuner_ops.set_params(fe, param);
+			if (fe->ops.i2c_gate_ctrl) fe->ops.i2c_gate_ctrl(fe, 0);
 		}
 	}
 
 	// if pllbuf is defined, retrieve the settings
-	if (fe->ops->tuner_ops.calc_regs) {
-		fe->ops->tuner_ops.calc_regs(fe, param, pllbuf+1, 5);
+	if (fe->ops.tuner_ops.calc_regs) {
+		fe->ops.tuner_ops.calc_regs(fe, param, pllbuf+1, 5);
 		pllbuf[1] <<= 1;
 	} else {
 		// fake pllbuf settings
@@ -278,14 +277,13 @@ struct dvb_frontend *zl10353_attach(const struct zl10353_config *config,
 	/* setup the state */
 	state->i2c = i2c;
 	memcpy(&state->config, config, sizeof(struct zl10353_config));
-	memcpy(&state->ops, &zl10353_ops, sizeof(struct dvb_frontend_ops));
 
 	/* check if the demod is there */
 	if (zl10353_read_register(state, CHIP_ID) != ID_ZL10353)
 		goto error;
 
 	/* create dvb_frontend */
-	state->frontend.ops = &state->ops;
+	memcpy(&state->frontend.ops, &zl10353_ops, sizeof(struct dvb_frontend_ops));
 	state->frontend.demodulator_priv = state;
 
 	return &state->frontend;

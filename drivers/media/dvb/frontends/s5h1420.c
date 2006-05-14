@@ -38,7 +38,6 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 struct s5h1420_state {
 	struct i2c_adapter* i2c;
-	struct dvb_frontend_ops ops;
 	const struct s5h1420_config* config;
 	struct dvb_frontend frontend;
 
@@ -595,14 +594,14 @@ static int s5h1420_set_frontend(struct dvb_frontend* fe,
 	    (state->fec_inner == p->u.qpsk.fec_inner) &&
 	    (state->symbol_rate == p->u.qpsk.symbol_rate)) {
 
-		if (fe->ops->tuner_ops.set_params) {
-			fe->ops->tuner_ops.set_params(fe, p);
-			if (fe->ops->i2c_gate_ctrl) fe->ops->i2c_gate_ctrl(fe, 0);
+		if (fe->ops.tuner_ops.set_params) {
+			fe->ops.tuner_ops.set_params(fe, p);
+			if (fe->ops.i2c_gate_ctrl) fe->ops.i2c_gate_ctrl(fe, 0);
 		}
-		if (fe->ops->tuner_ops.get_frequency) {
+		if (fe->ops.tuner_ops.get_frequency) {
 			u32 tmp;
-			fe->ops->tuner_ops.get_frequency(fe, &tmp);
-			if (fe->ops->i2c_gate_ctrl) fe->ops->i2c_gate_ctrl(fe, 0);
+			fe->ops.tuner_ops.get_frequency(fe, &tmp);
+			if (fe->ops.i2c_gate_ctrl) fe->ops.i2c_gate_ctrl(fe, 0);
 			s5h1420_setfreqoffset(state, p->frequency - tmp);
 		} else {
 			s5h1420_setfreqoffset(state, 0);
@@ -652,9 +651,9 @@ static int s5h1420_set_frontend(struct dvb_frontend* fe,
 	s5h1420_writereg(state, 0x05, s5h1420_readreg(state, 0x05) | 1);
 
 	/* set tuner PLL */
-	if (fe->ops->tuner_ops.set_params) {
-		fe->ops->tuner_ops.set_params(fe, p);
-		if (fe->ops->i2c_gate_ctrl) fe->ops->i2c_gate_ctrl(fe, 0);
+	if (fe->ops.tuner_ops.set_params) {
+		fe->ops.tuner_ops.set_params(fe, p);
+		if (fe->ops.i2c_gate_ctrl) fe->ops.i2c_gate_ctrl(fe, 0);
 		s5h1420_setfreqoffset(state, 0);
 	}
 
@@ -766,7 +765,6 @@ struct dvb_frontend* s5h1420_attach(const struct s5h1420_config* config,
 	/* setup the state */
 	state->config = config;
 	state->i2c = i2c;
-	memcpy(&state->ops, &s5h1420_ops, sizeof(struct dvb_frontend_ops));
 	state->postlocked = 0;
 	state->fclk = 88000000;
 	state->tunedfreq = 0;
@@ -779,7 +777,7 @@ struct dvb_frontend* s5h1420_attach(const struct s5h1420_config* config,
 		goto error;
 
 	/* create dvb_frontend */
-	state->frontend.ops = &state->ops;
+	memcpy(&state->frontend.ops, &s5h1420_ops, sizeof(struct dvb_frontend_ops));
 	state->frontend.demodulator_priv = state;
 	return &state->frontend;
 

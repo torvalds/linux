@@ -84,8 +84,6 @@ struct dst_state {
 
 	struct bt878* bt;
 
-	struct dvb_frontend_ops ops;
-
 	/* configuration settings */
 	const struct dst_config* config;
 

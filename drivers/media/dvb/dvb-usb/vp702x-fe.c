@@ -287,7 +287,8 @@ struct dvb_frontend * vp702x_fe_attach(struct dvb_usb_device *d)
 		goto error;
 
 	s->d = d;
-	s->fe.ops = &vp702x_fe_ops;
+
+	memcpy(&s->fe.ops,&vp702x_fe_ops,sizeof(struct dvb_frontend_ops));
 	s->fe.demodulator_priv = s;
 
 	s->lnb_buf[1] = SET_LNB_POWER;

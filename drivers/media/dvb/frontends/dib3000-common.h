@@ -38,8 +38,6 @@
 struct dib3000_state {
 	struct i2c_adapter* i2c;
 
-	struct dvb_frontend_ops ops;
-
 /* configuration settings */
 	struct dib3000_config config;
 

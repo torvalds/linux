@@ -97,11 +97,11 @@ static void lnbp21_release(struct dvb_frontend *fe)
 	lnbp21_set_voltage(fe, SEC_VOLTAGE_OFF);
 
 	/* free data & call next release routine */
-	fe->ops->release = lnbp21->release_chain;
+	fe->ops.release = lnbp21->release_chain;
 	kfree(fe->misc_priv);
 	fe->misc_priv = NULL;
-	if (fe->ops->release)
-		fe->ops->release(fe);
+	if (fe->ops.release)
+		fe->ops.release(fe);
 }
 
 int lnbp21_attach(struct dvb_frontend *fe, struct i2c_adapter *i2c, u8 override_set, u8 override_clear)
@@ -129,12 +129,12 @@ int lnbp21_attach(struct dvb_frontend *fe, struct i2c_adapter *i2c, u8 override_
 	}
 
 	/* install release callback */
-	lnbp21->release_chain = fe->ops->release;
-	fe->ops->release = lnbp21_release;
+	lnbp21->release_chain = fe->ops.release;
+	fe->ops.release = lnbp21_release;
 
 	/* override frontend ops */
-	fe->ops->set_voltage = lnbp21_set_voltage;
-	fe->ops->enable_high_lnb_voltage = lnbp21_enable_high_lnb_voltage;
+	fe->ops.set_voltage = lnbp21_set_voltage;
+	fe->ops.enable_high_lnb_voltage = lnbp21_enable_high_lnb_voltage;
 
 	return 0;
 }

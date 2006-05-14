@@ -32,7 +32,6 @@
 
 struct stv0297_state {
 	struct i2c_adapter *i2c;
-	struct dvb_frontend_ops ops;
 	const struct stv0297_config *config;
 	struct dvb_frontend frontend;
 
@@ -433,9 +432,9 @@ static int stv0297_set_frontend(struct dvb_frontend *fe, struct dvb_frontend_par
 	}
 
 	stv0297_init(fe);
-	if (fe->ops->tuner_ops.set_params) {
-		fe->ops->tuner_ops.set_params(fe, p);
-		if (fe->ops->i2c_gate_ctrl) fe->ops->i2c_gate_ctrl(fe, 0);
+	if (fe->ops.tuner_ops.set_params) {
+		fe->ops.tuner_ops.set_params(fe, p);
+		if (fe->ops.i2c_gate_ctrl) fe->ops.i2c_gate_ctrl(fe, 0);
 	}
 
 	/* clear software interrupts */
@@ -649,7 +648,6 @@ struct dvb_frontend *stv0297_attach(const struct stv0297_config *config,
 	/* setup the state */
 	state->config = config;
 	state->i2c = i2c;
-	memcpy(&state->ops, &stv0297_ops, sizeof(struct dvb_frontend_ops));
 	state->base_freq = 0;
 
 	/* check if the demod is there */
@@ -657,7 +655,7 @@ struct dvb_frontend *stv0297_attach(const struct stv0297_config *config,
 		goto error;
 
 	/* create dvb_frontend */
-	state->frontend.ops = &state->ops;
+	memcpy(&state->frontend.ops, &stv0297_ops, sizeof(struct dvb_frontend_ops));
 	state->frontend.demodulator_priv = state;
 	return &state->frontend;
 

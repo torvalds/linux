@@ -230,8 +230,8 @@ static int philips_fmd1216_pll_init(struct dvb_frontend *fe)
 		  .buf = fmd1216_init, .len = sizeof(fmd1216_init) };
 	int err;
 
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	if ((err = i2c_transfer(&dev->core->i2c_adap, &msg, 1)) != 1) {
 		if (err < 0)
 			return err;
@@ -261,8 +261,8 @@ static int dntv_live_dvbt_pro_tuner_set_params(struct dvb_frontend* fe,
 	dvb_pll_configure(dev->core->pll_desc, buf,
 			  params->frequency,
 			  params->u.ofdm.bandwidth);
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	if ((err = i2c_transfer(&dev->core->i2c_adap, &msg, 1)) != 1) {
 
 		printk(KERN_WARNING "cx88-dvb: %s error "
@@ -300,8 +300,8 @@ static int dvico_hybrid_tuner_set_params(struct dvb_frontend *fe,
 			  params->frequency,
 			  params->u.ofdm.bandwidth);
 
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	if ((err = i2c_transfer(&dev->core->i2c_adap, &msg, 1)) != 1) {
 		printk(KERN_WARNING "cx88-dvb: %s error "
 			   "(addr %02x <- %02x, err = %i)\n",
@@ -375,8 +375,8 @@ static int lgdt3302_tuner_set_params(struct dvb_frontend* fe,
 	dprintk(1, "%s: tuner at 0x%02x bytes: 0x%02x 0x%02x 0x%02x 0x%02x\n",
 			__FUNCTION__, msg.addr, buf[0],buf[1],buf[2],buf[3]);
 
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	if ((err = i2c_transfer(&core->i2c_adap, &msg, 1)) != 1) {
 		printk(KERN_WARNING "cx88-dvb: %s error "
 			   "(addr %02x <- %02x, err = %i)\n",
@@ -586,7 +586,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		dev->dvb.frontend = mt352_attach(&dntv_live_dvbt_pro_config,
 			&((struct vp3054_i2c_state *)dev->card_priv)->adap);
 		if (dev->dvb.frontend != NULL) {
-			dev->dvb.frontend->ops->tuner_ops.set_params = dntv_live_dvbt_pro_tuner_set_params;
+			dev->dvb.frontend->ops.tuner_ops.set_params = dntv_live_dvbt_pro_tuner_set_params;
 		}
 #else
 		printk("%s: built without vp3054 support\n", dev->core->name);
@@ -609,7 +609,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		dev->dvb.frontend = zl10353_attach(&dvico_fusionhdtv_hybrid,
 						   &dev->core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
-			dev->dvb.frontend->ops->tuner_ops.set_params = dvico_hybrid_tuner_set_params;
+			dev->dvb.frontend->ops.tuner_ops.set_params = dvico_hybrid_tuner_set_params;
 		}
 		break;
 #endif
@@ -641,7 +641,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		dev->dvb.frontend = lgdt330x_attach(&fusionhdtv_3_gold,
 						    &dev->core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
-			dev->dvb.frontend->ops->tuner_ops.set_params = lgdt3302_tuner_set_params;
+			dev->dvb.frontend->ops.tuner_ops.set_params = lgdt3302_tuner_set_params;
 		}
 		}
 		break;
@@ -660,7 +660,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		dev->dvb.frontend = lgdt330x_attach(&fusionhdtv_3_gold,
 						    &dev->core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
-			dev->dvb.frontend->ops->tuner_ops.set_params = lgdt3302_tuner_set_params;
+			dev->dvb.frontend->ops.tuner_ops.set_params = lgdt3302_tuner_set_params;
 		}
 		}
 		break;
@@ -677,7 +677,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		dev->dvb.frontend = lgdt330x_attach(&fusionhdtv_5_gold,
 						    &dev->core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
-			dev->dvb.frontend->ops->tuner_ops.set_params = lgdt3303_tuner_set_params;
+			dev->dvb.frontend->ops.tuner_ops.set_params = lgdt3303_tuner_set_params;
 		}
 		}
 		break;
@@ -694,7 +694,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		dev->dvb.frontend = lgdt330x_attach(&pchdtv_hd5500,
 						    &dev->core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
-			dev->dvb.frontend->ops->tuner_ops.set_params = lgdt3303_tuner_set_params;
+			dev->dvb.frontend->ops.tuner_ops.set_params = lgdt3303_tuner_set_params;
 		}
 		}
 		break;
@@ -721,8 +721,8 @@ static int dvb_register(struct cx8802_dev *dev)
 		dev->dvb.frontend = cx24123_attach(&kworld_dvbs_100_config,
 			&dev->core->i2c_adap);
 		if (dev->dvb.frontend) {
-			dev->core->prev_set_voltage = dev->dvb.frontend->ops->set_voltage;
-			dev->dvb.frontend->ops->set_voltage = kworld_dvbs_100_set_voltage;
+			dev->core->prev_set_voltage = dev->dvb.frontend->ops.set_voltage;
+			dev->dvb.frontend->ops.set_voltage = kworld_dvbs_100_set_voltage;
 		}
 		break;
 #endif
@@ -737,8 +737,8 @@ static int dvb_register(struct cx8802_dev *dev)
 	}
 
 	if (dev->core->pll_desc) {
-		dev->dvb.frontend->ops->info.frequency_min = dev->core->pll_desc->min;
-		dev->dvb.frontend->ops->info.frequency_max = dev->core->pll_desc->max;
+		dev->dvb.frontend->ops.info.frequency_min = dev->core->pll_desc->min;
+		dev->dvb.frontend->ops.info.frequency_max = dev->core->pll_desc->max;
 	}
 
 	/* Put the analog decoder in standby to keep it quiet */

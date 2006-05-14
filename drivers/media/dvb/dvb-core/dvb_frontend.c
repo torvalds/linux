@@ -151,8 +151,8 @@ static void dvb_frontend_add_event(struct dvb_frontend *fe, fe_status_t status)
 		sizeof (struct dvb_frontend_parameters));
 
 	if (status & FE_HAS_LOCK)
-		if (fe->ops->get_frontend)
-			fe->ops->get_frontend(fe, &e->parameters);
+		if (fe->ops.get_frontend)
+			fe->ops.get_frontend(fe, &e->parameters);
 
 	events->eventw = wp;
 
@@ -211,14 +211,14 @@ static void dvb_frontend_init(struct dvb_frontend *fe)
 {
 	dprintk ("DVB: initialising frontend %i (%s)...\n",
 		 fe->dvb->num,
-		 fe->ops->info.name);
+		 fe->ops.info.name);
 
-	if (fe->ops->init)
-		fe->ops->init(fe);
-	if (fe->ops->tuner_ops.init) {
-		fe->ops->tuner_ops.init(fe);
-		if (fe->ops->i2c_gate_ctrl)
-			fe->ops->i2c_gate_ctrl(fe, 0);
+	if (fe->ops.init)
+		fe->ops.init(fe);
+	if (fe->ops.tuner_ops.init) {
+		fe->ops.tuner_ops.init(fe);
+		if (fe->ops.i2c_gate_ctrl)
+			fe->ops.i2c_gate_ctrl(fe, 0);
 	}
 }
 
@@ -264,7 +264,7 @@ static int dvb_frontend_swzigzag_autotune(struct dvb_frontend *fe, int check_wra
 	u32 original_frequency = fepriv->parameters.frequency;
 
 	/* are we using autoinversion? */
-	autoinversion = ((!(fe->ops->info.caps & FE_CAN_INVERSION_AUTO)) &&
+	autoinversion = ((!(fe->ops.info.caps & FE_CAN_INVERSION_AUTO)) &&
 			 (fepriv->parameters.inversion == INVERSION_AUTO));
 
 	/* setup parameters correctly */
@@ -334,8 +334,8 @@ static int dvb_frontend_swzigzag_autotune(struct dvb_frontend *fe, int check_wra
 	fepriv->parameters.frequency += fepriv->lnb_drift;
 	if (autoinversion)
 		fepriv->parameters.inversion = fepriv->inversion;
-	if (fe->ops->set_frontend)
-		fe->ops->set_frontend(fe, &fepriv->parameters);
+	if (fe->ops.set_frontend)
+		fe->ops.set_frontend(fe, &fepriv->parameters);
 
 	fepriv->parameters.frequency = original_frequency;
 	fepriv->parameters.inversion = original_inversion;
@@ -359,8 +359,8 @@ static void dvb_frontend_swzigzag(struct dvb_frontend *fe)
 	/* in SCAN mode, we just set the frontend when asked and leave it alone */
 	if (fepriv->tune_mode_flags & FE_TUNE_MODE_ONESHOT) {
 		if (fepriv->state & FESTATE_RETUNE) {
-			if (fe->ops->set_frontend)
-				fe->ops->set_frontend(fe, &fepriv->parameters);
+			if (fe->ops.set_frontend)
+				fe->ops.set_frontend(fe, &fepriv->parameters);
 			fepriv->state = FESTATE_TUNED;
 		}
 		fepriv->delay = 3*HZ;
@@ -372,8 +372,8 @@ static void dvb_frontend_swzigzag(struct dvb_frontend *fe)
 	if (fepriv->state & FESTATE_RETUNE) {
 		s = 0;
 	} else {
-		if (fe->ops->read_status)
-			fe->ops->read_status(fe, &s);
+		if (fe->ops.read_status)
+			fe->ops.read_status(fe, &s);
 		if (s != fepriv->status) {
 			dvb_frontend_add_event(fe, s);
 			fepriv->status = s;
@@ -386,7 +386,7 @@ static void dvb_frontend_swzigzag(struct dvb_frontend *fe)
 		fepriv->state = FESTATE_TUNED;
 
 		/* if we're tuned, then we have determined the correct inversion */
-		if ((!(fe->ops->info.caps & FE_CAN_INVERSION_AUTO)) &&
+		if ((!(fe->ops.info.caps & FE_CAN_INVERSION_AUTO)) &&
 		    (fepriv->parameters.inversion == INVERSION_AUTO)) {
 			fepriv->parameters.inversion = fepriv->inversion;
 		}
@@ -410,7 +410,7 @@ static void dvb_frontend_swzigzag(struct dvb_frontend *fe)
 	/* don't actually do anything if we're in the LOSTLOCK state,
 	 * the frontend is set to FE_CAN_RECOVER, and the max_drift is 0 */
 	if ((fepriv->state & FESTATE_LOSTLOCK) &&
-	    (fe->ops->info.caps & FE_CAN_RECOVER) && (fepriv->max_drift == 0)) {
+	    (fe->ops.info.caps & FE_CAN_RECOVER) && (fepriv->max_drift == 0)) {
 		dvb_frontend_swzigzag_update_delay(fepriv, s & FE_HAS_LOCK);
 		return;
 	}
@@ -545,16 +545,16 @@ static int dvb_frontend_thread(void *data)
 		if (fepriv->reinitialise) {
 			dvb_frontend_init(fe);
 			if (fepriv->tone != -1) {
-				fe->ops->set_tone(fe, fepriv->tone);
+				fe->ops.set_tone(fe, fepriv->tone);
 			}
 			if (fepriv->voltage != -1) {
-				fe->ops->set_voltage(fe, fepriv->voltage);
+				fe->ops.set_voltage(fe, fepriv->voltage);
 			}
 			fepriv->reinitialise = 0;
 		}
 
 		/* do an iteration of the tuning loop */
-		if (fe->ops->tune) {
+		if (fe->ops.tune) {
 			/* have we been asked to retune? */
 			params = NULL;
 			if (fepriv->state & FESTATE_RETUNE) {
@@ -562,7 +562,7 @@ static int dvb_frontend_thread(void *data)
 				fepriv->state = FESTATE_TUNED;
 			}
 
-			fe->ops->tune(fe, params, fepriv->tune_mode_flags, &fepriv->delay, &s);
+			fe->ops.tune(fe, params, fepriv->tune_mode_flags, &fepriv->delay, &s);
 			if (s != fepriv->status) {
 				dvb_frontend_add_event(fe, s);
 				fepriv->status = s;
@@ -574,15 +574,15 @@ static int dvb_frontend_thread(void *data)
 
 	if (dvb_shutdown_timeout) {
 		if (dvb_powerdown_on_sleep)
-			if (fe->ops->set_voltage)
-				fe->ops->set_voltage(fe, SEC_VOLTAGE_OFF);
-		if (fe->ops->tuner_ops.sleep) {
-			fe->ops->tuner_ops.sleep(fe);
-			if (fe->ops->i2c_gate_ctrl)
-				fe->ops->i2c_gate_ctrl(fe, 0);
+			if (fe->ops.set_voltage)
+				fe->ops.set_voltage(fe, SEC_VOLTAGE_OFF);
+		if (fe->ops.tuner_ops.sleep) {
+			fe->ops.tuner_ops.sleep(fe);
+			if (fe->ops.i2c_gate_ctrl)
+				fe->ops.i2c_gate_ctrl(fe, 0);
 		}
-		if (fe->ops->sleep)
-			fe->ops->sleep(fe);
+		if (fe->ops.sleep)
+			fe->ops.sleep(fe);
 	}
 
 	fepriv->thread_pid = 0;
@@ -734,7 +734,7 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 	switch (cmd) {
 	case FE_GET_INFO: {
 		struct dvb_frontend_info* info = parg;
-		memcpy(info, &fe->ops->info, sizeof(struct dvb_frontend_info));
+		memcpy(info, &fe->ops.info, sizeof(struct dvb_frontend_info));
 
 		/* Force the CAN_INVERSION_AUTO bit on. If the frontend doesn't
 		 * do it, it is done for it. */
@@ -754,58 +754,58 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 			break;
 		}
 
-		if (fe->ops->read_status)
-			err = fe->ops->read_status(fe, status);
+		if (fe->ops.read_status)
+			err = fe->ops.read_status(fe, status);
 		break;
 	}
 	case FE_READ_BER:
-		if (fe->ops->read_ber)
-			err = fe->ops->read_ber(fe, (__u32*) parg);
+		if (fe->ops.read_ber)
+			err = fe->ops.read_ber(fe, (__u32*) parg);
 		break;
 
 	case FE_READ_SIGNAL_STRENGTH:
-		if (fe->ops->read_signal_strength)
-			err = fe->ops->read_signal_strength(fe, (__u16*) parg);
+		if (fe->ops.read_signal_strength)
+			err = fe->ops.read_signal_strength(fe, (__u16*) parg);
 		break;
 
 	case FE_READ_SNR:
-		if (fe->ops->read_snr)
-			err = fe->ops->read_snr(fe, (__u16*) parg);
+		if (fe->ops.read_snr)
+			err = fe->ops.read_snr(fe, (__u16*) parg);
 		break;
 
 	case FE_READ_UNCORRECTED_BLOCKS:
-		if (fe->ops->read_ucblocks)
-			err = fe->ops->read_ucblocks(fe, (__u32*) parg);
+		if (fe->ops.read_ucblocks)
+			err = fe->ops.read_ucblocks(fe, (__u32*) parg);
 		break;
 
 
 	case FE_DISEQC_RESET_OVERLOAD:
-		if (fe->ops->diseqc_reset_overload) {
-			err = fe->ops->diseqc_reset_overload(fe);
+		if (fe->ops.diseqc_reset_overload) {
+			err = fe->ops.diseqc_reset_overload(fe);
 			fepriv->state = FESTATE_DISEQC;
 			fepriv->status = 0;
 		}
 		break;
 
 	case FE_DISEQC_SEND_MASTER_CMD:
-		if (fe->ops->diseqc_send_master_cmd) {
-			err = fe->ops->diseqc_send_master_cmd(fe, (struct dvb_diseqc_master_cmd*) parg);
+		if (fe->ops.diseqc_send_master_cmd) {
+			err = fe->ops.diseqc_send_master_cmd(fe, (struct dvb_diseqc_master_cmd*) parg);
 			fepriv->state = FESTATE_DISEQC;
 			fepriv->status = 0;
 		}
 		break;
 
 	case FE_DISEQC_SEND_BURST:
-		if (fe->ops->diseqc_send_burst) {
-			err = fe->ops->diseqc_send_burst(fe, (fe_sec_mini_cmd_t) parg);
+		if (fe->ops.diseqc_send_burst) {
+			err = fe->ops.diseqc_send_burst(fe, (fe_sec_mini_cmd_t) parg);
 			fepriv->state = FESTATE_DISEQC;
 			fepriv->status = 0;
 		}
 		break;
 
 	case FE_SET_TONE:
-		if (fe->ops->set_tone) {
-			err = fe->ops->set_tone(fe, (fe_sec_tone_mode_t) parg);
+		if (fe->ops.set_tone) {
+			err = fe->ops.set_tone(fe, (fe_sec_tone_mode_t) parg);
 			fepriv->tone = (fe_sec_tone_mode_t) parg;
 			fepriv->state = FESTATE_DISEQC;
 			fepriv->status = 0;
@@ -813,8 +813,8 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 		break;
 
 	case FE_SET_VOLTAGE:
-		if (fe->ops->set_voltage) {
-			err = fe->ops->set_voltage(fe, (fe_sec_voltage_t) parg);
+		if (fe->ops.set_voltage) {
+			err = fe->ops.set_voltage(fe, (fe_sec_voltage_t) parg);
 			fepriv->voltage = (fe_sec_voltage_t) parg;
 			fepriv->state = FESTATE_DISEQC;
 			fepriv->status = 0;
@@ -822,11 +822,11 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 		break;
 
 	case FE_DISHNETWORK_SEND_LEGACY_CMD:
-		if (fe->ops->dishnetwork_send_legacy_command) {
-			err = fe->ops->dishnetwork_send_legacy_command(fe, (unsigned long) parg);
+		if (fe->ops.dishnetwork_send_legacy_command) {
+			err = fe->ops.dishnetwork_send_legacy_command(fe, (unsigned long) parg);
 			fepriv->state = FESTATE_DISEQC;
 			fepriv->status = 0;
-		} else if (fe->ops->set_voltage) {
+		} else if (fe->ops.set_voltage) {
 			/*
 			 * NOTE: This is a fallback condition.  Some frontends
 			 * (stv0299 for instance) take longer than 8msec to
@@ -856,7 +856,7 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 			/* before sending a command, initialize by sending
 			 * a 32ms 18V to the switch
 			 */
-			fe->ops->set_voltage(fe, SEC_VOLTAGE_18);
+			fe->ops.set_voltage(fe, SEC_VOLTAGE_18);
 			dvb_frontend_sleep_until(&nexttime, 32000);
 
 			for (i = 0; i < 9; i++) {
@@ -864,7 +864,7 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 					do_gettimeofday(&tv[i + 1]);
 				if ((cmd & 0x01) != last) {
 					/* set voltage to (last ? 13V : 18V) */
-					fe->ops->set_voltage(fe, (last) ? SEC_VOLTAGE_13 : SEC_VOLTAGE_18);
+					fe->ops.set_voltage(fe, (last) ? SEC_VOLTAGE_13 : SEC_VOLTAGE_18);
 					last = (last) ? 0 : 1;
 				}
 				cmd = cmd >> 1;
@@ -884,13 +884,13 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 		break;
 
 	case FE_DISEQC_RECV_SLAVE_REPLY:
-		if (fe->ops->diseqc_recv_slave_reply)
-			err = fe->ops->diseqc_recv_slave_reply(fe, (struct dvb_diseqc_slave_reply*) parg);
+		if (fe->ops.diseqc_recv_slave_reply)
+			err = fe->ops.diseqc_recv_slave_reply(fe, (struct dvb_diseqc_slave_reply*) parg);
 		break;
 
 	case FE_ENABLE_HIGH_LNB_VOLTAGE:
-		if (fe->ops->enable_high_lnb_voltage)
-			err = fe->ops->enable_high_lnb_voltage(fe, (long) parg);
+		if (fe->ops.enable_high_lnb_voltage)
+			err = fe->ops.enable_high_lnb_voltage(fe, (long) parg);
 		break;
 
 	case FE_SET_FRONTEND: {
@@ -908,7 +908,7 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 			fepriv->parameters.inversion = INVERSION_AUTO;
 			fetunesettings.parameters.inversion = INVERSION_AUTO;
 		}
-		if (fe->ops->info.type == FE_OFDM) {
+		if (fe->ops.info.type == FE_OFDM) {
 			/* without hierachical coding code_rate_LP is irrelevant,
 			 * so we tolerate the otherwise invalid FEC_NONE setting */
 			if (fepriv->parameters.u.ofdm.hierarchy_information == HIERARCHY_NONE &&
@@ -917,13 +917,13 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 		}
 
 		/* get frontend-specific tuning settings */
-		if (fe->ops->get_tune_settings && (fe->ops->get_tune_settings(fe, &fetunesettings) == 0)) {
+		if (fe->ops.get_tune_settings && (fe->ops.get_tune_settings(fe, &fetunesettings) == 0)) {
 			fepriv->min_delay = (fetunesettings.min_delay_ms * HZ) / 1000;
 			fepriv->max_drift = fetunesettings.max_drift;
 			fepriv->step_size = fetunesettings.step_size;
 		} else {
 			/* default values */
-			switch(fe->ops->info.type) {
+			switch(fe->ops.info.type) {
 			case FE_QPSK:
 				fepriv->min_delay = HZ/20;
 				fepriv->step_size = fepriv->parameters.u.qpsk.symbol_rate / 16000;
@@ -938,8 +938,8 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 
 			case FE_OFDM:
 				fepriv->min_delay = HZ/20;
-				fepriv->step_size = fe->ops->info.frequency_stepsize * 2;
-				fepriv->max_drift = (fe->ops->info.frequency_stepsize * 2) + 1;
+				fepriv->step_size = fe->ops.info.frequency_stepsize * 2;
+				fepriv->max_drift = (fe->ops.info.frequency_stepsize * 2) + 1;
 				break;
 			case FE_ATSC:
 				printk("dvb-core: FE_ATSC not handled yet.\n");
@@ -962,9 +962,9 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 		break;
 
 	case FE_GET_FRONTEND:
-		if (fe->ops->get_frontend) {
+		if (fe->ops.get_frontend) {
 			memcpy (parg, &fepriv->parameters, sizeof (struct dvb_frontend_parameters));
-			err = fe->ops->get_frontend(fe, (struct dvb_frontend_parameters*) parg);
+			err = fe->ops.get_frontend(fe, (struct dvb_frontend_parameters*) parg);
 		}
 		break;
 
@@ -1077,7 +1077,7 @@ int dvb_register_frontend(struct dvb_adapter* dvb,
 
 	printk ("DVB: registering frontend %i (%s)...\n",
 		fe->dvb->num,
-		fe->ops->info.name);
+		fe->ops.info.name);
 
 	dvb_register_device (fe->dvb, &fepriv->dvbdev, &dvbdev_template,
 			     fe, DVB_DEVICE_FRONTEND);
@@ -1095,15 +1095,15 @@ int dvb_unregister_frontend(struct dvb_frontend* fe)
 	mutex_lock(&frontend_mutex);
 	dvb_unregister_device (fepriv->dvbdev);
 	dvb_frontend_stop (fe);
-	if (fe->ops->tuner_ops.release) {
-		fe->ops->tuner_ops.release(fe);
-		if (fe->ops->i2c_gate_ctrl)
-			fe->ops->i2c_gate_ctrl(fe, 0);
+	if (fe->ops.tuner_ops.release) {
+		fe->ops.tuner_ops.release(fe);
+		if (fe->ops.i2c_gate_ctrl)
+			fe->ops.i2c_gate_ctrl(fe, 0);
 	}
-	if (fe->ops->release)
-		fe->ops->release(fe);
+	if (fe->ops.release)
+		fe->ops.release(fe);
 	else
-		printk("dvb_frontend: Demodulator (%s) does not have a release callback!\n", fe->ops->info.name);
+		printk("dvb_frontend: Demodulator (%s) does not have a release callback!\n", fe->ops.info.name);
 	/* fe is invalid now */
 	kfree(fepriv);
 	mutex_unlock(&frontend_mutex);

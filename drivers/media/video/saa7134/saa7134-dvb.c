@@ -146,13 +146,13 @@ static int mt352_pinnacle_tuner_set_params(struct dvb_frontend* fe,
 	f.tuner     = 0;
 	f.type      = V4L2_TUNER_DIGITAL_TV;
 	f.frequency = params->frequency / 1000 * 16 / 1000;
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	i2c_transfer(&dev->i2c_adap, &msg, 1);
 	saa7134_i2c_call_clients(dev,VIDIOC_S_FREQUENCY,&f);
 	msg.buf = on;
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	i2c_transfer(&dev->i2c_adap, &msg, 1);
 
 	pinnacle_antenna_pwr(dev, antenna_pwr);
@@ -266,8 +266,8 @@ static int philips_tda6651_pll_set(u8 addr, struct dvb_frontend *fe, struct dvb_
 	tuner_buf[2] = 0xca;
 	tuner_buf[3] = (cp << 5) | (filter << 3) | band;
 
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&dev->i2c_adap, &tuner_msg, 1) != 1)
 		return -EIO;
 	msleep(1);
@@ -281,8 +281,8 @@ static int philips_tda6651_pll_init(u8 addr, struct dvb_frontend *fe)
 	struct i2c_msg tuner_msg = {.addr = addr,.flags = 0,.buf = tu1216_init,.len = sizeof(tu1216_init) };
 
 	/* setup PLL configuration */
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&dev->i2c_adap, &tuner_msg, 1) != 1)
 		return -EIO;
 	msleep(1);
@@ -352,8 +352,8 @@ static int philips_europa_tuner_init(struct dvb_frontend *fe)
 	struct i2c_msg init_msg = {.addr = 0x61,.flags = 0,.buf = msg,.len = sizeof(msg) };
 
 	/* setup PLL configuration */
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&dev->i2c_adap, &init_msg, 1) != 1)
 		return -EIO;
 	msleep(1);
@@ -363,8 +363,8 @@ static int philips_europa_tuner_init(struct dvb_frontend *fe)
 	init_msg.len  = 0x02;
 	msg[0] = 0x00;
 	msg[1] = 0x40;
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&dev->i2c_adap, &init_msg, 1) != 1)
 		return -EIO;
 
@@ -391,8 +391,8 @@ static int philips_europa_tuner_sleep(struct dvb_frontend *fe)
 	analog_msg.len  = 0x02;
 	msg[0] = 0x00;
 	msg[1] = 0x14;
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	i2c_transfer(&dev->i2c_adap, &analog_msg, 1);
 	return 0;
 }
@@ -403,7 +403,7 @@ static int philips_europa_demod_sleep(struct dvb_frontend *fe)
 
 	if (dev->original_demod_sleep)
 		dev->original_demod_sleep(fe);
-	fe->ops->i2c_gate_ctrl(fe, 1);
+	fe->ops.i2c_gate_ctrl(fe, 1);
 	return 0;
 }
 
@@ -427,8 +427,8 @@ static int philips_fmd1216_tuner_init(struct dvb_frontend *fe)
 	static u8 fmd1216_init[] = { 0x0b, 0xdc, 0x9c, 0xa0 };
 	struct i2c_msg tuner_msg = {.addr = 0x61,.flags = 0,.buf = fmd1216_init,.len = sizeof(fmd1216_init) };
 
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&dev->i2c_adap, &tuner_msg, 1) != 1)
 		return -EIO;
 	msleep(1);
@@ -443,14 +443,14 @@ static int philips_fmd1216_tuner_sleep(struct dvb_frontend *fe)
 	static u8 fmd1216_init[] = { 0x0b, 0xdc, 0x9c, 0x60 };
 	struct i2c_msg tuner_msg = {.addr = 0x61,.flags = 0,.buf = fmd1216_init,.len = sizeof(fmd1216_init) };
 
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	i2c_transfer(&dev->i2c_adap, &tuner_msg, 1);
 	msleep(1);
 	fmd1216_init[2] = 0x86;
 	fmd1216_init[3] = 0x54;
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	i2c_transfer(&dev->i2c_adap, &tuner_msg, 1);
 	msleep(1);
 	return 0;
@@ -533,8 +533,8 @@ static int philips_fmd1216_tuner_set_params(struct dvb_frontend *fe, struct dvb_
 	tuner_buf[2] = 0x80 | (cp << 6) | (mode  << 3) | 4;
 	tuner_buf[3] = 0x40 | band;
 
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&dev->i2c_adap, &tuner_msg, 1) != 1)
 		return -EIO;
 	return 0;
@@ -646,8 +646,8 @@ static int philips_tda827x_tuner_set_params(struct dvb_frontend *fe, struct dvb_
 	tuner_buf[13] = 0x40;
 
 	tuner_msg.len = 14;
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&dev->i2c_adap, &tuner_msg, 1) != 1)
 		return -EIO;
 
@@ -656,8 +656,8 @@ static int philips_tda827x_tuner_set_params(struct dvb_frontend *fe, struct dvb_
 	tuner_buf[0] = 0x30;
 	tuner_buf[1] = 0x50 + tda827x_dvbt[i].cp;
 	tuner_msg.len = 2;
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	i2c_transfer(&dev->i2c_adap, &tuner_msg, 1);
 
 	return 0;
@@ -669,8 +669,8 @@ static int philips_tda827x_tuner_sleep(struct dvb_frontend *fe)
 	static u8 tda827x_sleep[] = { 0x30, 0xd0};
 	struct i2c_msg tuner_msg = {.addr = 0x60,.flags = 0,.buf = tda827x_sleep,
 				    .len = sizeof(tda827x_sleep) };
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	i2c_transfer(&dev->i2c_adap, &tuner_msg, 1);
 	return 0;
 }
@@ -773,8 +773,8 @@ static int philips_tda827xa_pll_set(u8 addr, struct dvb_frontend *fe, struct dvb
 	tuner_buf[12] = 0x00;
 	tuner_buf[13] = 0x39;  // lpsel
 	msg.len = 14;
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&dev->i2c_adap, &msg, 1) != 1)
 		return -EIO;
 
@@ -782,14 +782,14 @@ static int philips_tda827xa_pll_set(u8 addr, struct dvb_frontend *fe, struct dvb
 	msg.len = 2;
 	reg2[0] = 0x60;
 	reg2[1] = 0x3c;
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	i2c_transfer(&dev->i2c_adap, &msg, 1);
 
 	reg2[0] = 0xa0;
 	reg2[1] = 0x40;
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	i2c_transfer(&dev->i2c_adap, &msg, 1);
 
 	msleep(2);
@@ -797,15 +797,15 @@ static int philips_tda827xa_pll_set(u8 addr, struct dvb_frontend *fe, struct dvb
 	reg2[0] = 0x30;
 	reg2[1] = 0x10 + tda827xa_dvbt[i].scr;
 	msg.len = 2;
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	i2c_transfer(&dev->i2c_adap, &msg, 1);
 
 	msleep(550);
 	reg2[0] = 0x50;
 	reg2[1] = 0x4f + (tda827xa_dvbt[i].gc3 << 4);
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	i2c_transfer(&dev->i2c_adap, &msg, 1);
 
 	return 0;
@@ -818,8 +818,8 @@ static int philips_tda827xa_tuner_sleep(u8 addr, struct dvb_frontend *fe)
 	static u8 tda827xa_sleep[] = { 0x30, 0x90};
 	struct i2c_msg tuner_msg = {.addr = addr,.flags = 0,.buf = tda827xa_sleep,
 				    .len = sizeof(tda827xa_sleep) };
-	if (fe->ops->i2c_gate_ctrl)
-		fe->ops->i2c_gate_ctrl(fe, 1);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 	i2c_transfer(&dev->i2c_adap, &tuner_msg, 1);
 	return 0;
 }
@@ -1015,7 +1015,7 @@ static int dvb_init(struct saa7134_dev *dev)
 		dev->dvb.frontend = mt352_attach(&pinnacle_300i,
 						 &dev->i2c_adap);
 		if (dev->dvb.frontend) {
-			dev->dvb.frontend->ops->tuner_ops.set_params = mt352_pinnacle_tuner_set_params;
+			dev->dvb.frontend->ops.tuner_ops.set_params = mt352_pinnacle_tuner_set_params;
 		}
 		break;
 
@@ -1024,7 +1024,7 @@ static int dvb_init(struct saa7134_dev *dev)
 		dev->dvb.frontend = mt352_attach(&avermedia_777,
 						 &dev->i2c_adap);
 		if (dev->dvb.frontend) {
-			dev->dvb.frontend->ops->tuner_ops.calc_regs = mt352_aver777_tuner_calc_regs;
+			dev->dvb.frontend->ops.tuner_ops.calc_regs = mt352_aver777_tuner_calc_regs;
 		}
 		break;
 #endif
@@ -1033,124 +1033,124 @@ static int dvb_init(struct saa7134_dev *dev)
 		dev->dvb.frontend = tda10046_attach(&medion_cardbus,
 						    &dev->i2c_adap);
 		if (dev->dvb.frontend) {
-			dev->dvb.frontend->ops->tuner_ops.init = philips_fmd1216_tuner_init;
-			dev->dvb.frontend->ops->tuner_ops.sleep = philips_fmd1216_tuner_sleep;
-			dev->dvb.frontend->ops->tuner_ops.set_params = philips_fmd1216_tuner_set_params;
+			dev->dvb.frontend->ops.tuner_ops.init = philips_fmd1216_tuner_init;
+			dev->dvb.frontend->ops.tuner_ops.sleep = philips_fmd1216_tuner_sleep;
+			dev->dvb.frontend->ops.tuner_ops.set_params = philips_fmd1216_tuner_set_params;
 		}
 		break;
 	case SAA7134_BOARD_PHILIPS_TOUGH:
 		dev->dvb.frontend = tda10046_attach(&philips_tu1216_60_config,
 						    &dev->i2c_adap);
 		if (dev->dvb.frontend) {
-			dev->dvb.frontend->ops->tuner_ops.init = philips_tu1216_tuner_60_init;
-			dev->dvb.frontend->ops->tuner_ops.set_params = philips_tu1216_tuner_60_set_params;
+			dev->dvb.frontend->ops.tuner_ops.init = philips_tu1216_tuner_60_init;
+			dev->dvb.frontend->ops.tuner_ops.set_params = philips_tu1216_tuner_60_set_params;
 		}
 		break;
 	case SAA7134_BOARD_FLYDVBTDUO:
 		dev->dvb.frontend = tda10046_attach(&tda827x_lifeview_config,
 						    &dev->i2c_adap);
 		if (dev->dvb.frontend) {
-			dev->dvb.frontend->ops->tuner_ops.init = philips_tda827x_tuner_init;
-			dev->dvb.frontend->ops->tuner_ops.sleep = philips_tda827x_tuner_sleep;
-			dev->dvb.frontend->ops->tuner_ops.set_params = philips_tda827x_tuner_set_params;
+			dev->dvb.frontend->ops.tuner_ops.init = philips_tda827x_tuner_init;
+			dev->dvb.frontend->ops.tuner_ops.sleep = philips_tda827x_tuner_sleep;
+			dev->dvb.frontend->ops.tuner_ops.set_params = philips_tda827x_tuner_set_params;
 		}
 		break;
 	case SAA7134_BOARD_FLYDVBT_DUO_CARDBUS:
 		dev->dvb.frontend = tda10046_attach(&tda827x_lifeview_config,
 						    &dev->i2c_adap);
 		if (dev->dvb.frontend) {
-			dev->dvb.frontend->ops->tuner_ops.init = philips_tda827x_tuner_init;
-			dev->dvb.frontend->ops->tuner_ops.sleep = philips_tda827x_tuner_sleep;
-			dev->dvb.frontend->ops->tuner_ops.set_params = philips_tda827x_tuner_set_params;
+			dev->dvb.frontend->ops.tuner_ops.init = philips_tda827x_tuner_init;
+			dev->dvb.frontend->ops.tuner_ops.sleep = philips_tda827x_tuner_sleep;
+			dev->dvb.frontend->ops.tuner_ops.set_params = philips_tda827x_tuner_set_params;
 		}
 		break;
 	case SAA7134_BOARD_PHILIPS_EUROPA:
 		dev->dvb.frontend = tda10046_attach(&philips_europa_config,
 						    &dev->i2c_adap);
 		if (dev->dvb.frontend) {
-			dev->original_demod_sleep = dev->dvb.frontend->ops->sleep;
-			dev->dvb.frontend->ops->sleep = philips_europa_demod_sleep;
-			dev->dvb.frontend->ops->tuner_ops.init = philips_europa_tuner_init;
-			dev->dvb.frontend->ops->tuner_ops.sleep = philips_europa_tuner_sleep;
-			dev->dvb.frontend->ops->tuner_ops.set_params = philips_td1316_tuner_set_params;
+			dev->original_demod_sleep = dev->dvb.frontend->ops.sleep;
+			dev->dvb.frontend->ops.sleep = philips_europa_demod_sleep;
+			dev->dvb.frontend->ops.tuner_ops.init = philips_europa_tuner_init;
+			dev->dvb.frontend->ops.tuner_ops.sleep = philips_europa_tuner_sleep;
+			dev->dvb.frontend->ops.tuner_ops.set_params = philips_td1316_tuner_set_params;
 		}
 		break;
 	case SAA7134_BOARD_VIDEOMATE_DVBT_300:
 		dev->dvb.frontend = tda10046_attach(&philips_europa_config,
 						    &dev->i2c_adap);
 		if (dev->dvb.frontend) {
-			dev->dvb.frontend->ops->tuner_ops.init = philips_europa_tuner_init;
-			dev->dvb.frontend->ops->tuner_ops.sleep = philips_europa_tuner_sleep;
-			dev->dvb.frontend->ops->tuner_ops.set_params = philips_td1316_tuner_set_params;
+			dev->dvb.frontend->ops.tuner_ops.init = philips_europa_tuner_init;
+			dev->dvb.frontend->ops.tuner_ops.sleep = philips_europa_tuner_sleep;
+			dev->dvb.frontend->ops.tuner_ops.set_params = philips_td1316_tuner_set_params;
 		}
 		break;
 	case SAA7134_BOARD_VIDEOMATE_DVBT_200:
 		dev->dvb.frontend = tda10046_attach(&philips_tu1216_61_config,
 						    &dev->i2c_adap);
 		if (dev->dvb.frontend) {
-			dev->dvb.frontend->ops->tuner_ops.init = philips_tu1216_tuner_61_init;
-			dev->dvb.frontend->ops->tuner_ops.set_params = philips_tu1216_tuner_61_set_params;
+			dev->dvb.frontend->ops.tuner_ops.init = philips_tu1216_tuner_61_init;
+			dev->dvb.frontend->ops.tuner_ops.set_params = philips_tu1216_tuner_61_set_params;
 		}
 		break;
 	case SAA7134_BOARD_PHILIPS_TIGER:
 		dev->dvb.frontend = tda10046_attach(&philips_tiger_config,
 						    &dev->i2c_adap);
 		if (dev->dvb.frontend) {
-			dev->dvb.frontend->ops->tuner_ops.init = philips_tiger_tuner_init;
-			dev->dvb.frontend->ops->tuner_ops.sleep = philips_tiger_tuner_sleep;
-			dev->dvb.frontend->ops->tuner_ops.set_params = philips_tiger_tuner_set_params;
+			dev->dvb.frontend->ops.tuner_ops.init = philips_tiger_tuner_init;
+			dev->dvb.frontend->ops.tuner_ops.sleep = philips_tiger_tuner_sleep;
+			dev->dvb.frontend->ops.tuner_ops.set_params = philips_tiger_tuner_set_params;
 		}
 		break;
 	case SAA7134_BOARD_ASUSTeK_P7131_DUAL:
 		dev->dvb.frontend = tda10046_attach(&philips_tiger_config,
 						    &dev->i2c_adap);
 		if (dev->dvb.frontend) {
-			dev->dvb.frontend->ops->tuner_ops.init = philips_tiger_tuner_init;
-			dev->dvb.frontend->ops->tuner_ops.sleep = philips_tiger_tuner_sleep;
-			dev->dvb.frontend->ops->tuner_ops.set_params = philips_tiger_tuner_set_params;
+			dev->dvb.frontend->ops.tuner_ops.init = philips_tiger_tuner_init;
+			dev->dvb.frontend->ops.tuner_ops.sleep = philips_tiger_tuner_sleep;
+			dev->dvb.frontend->ops.tuner_ops.set_params = philips_tiger_tuner_set_params;
 		}
 		break;
 	case SAA7134_BOARD_FLYDVBT_LR301:
 		dev->dvb.frontend = tda10046_attach(&tda827x_lifeview_config,
 						    &dev->i2c_adap);
 		if (dev->dvb.frontend) {
-			dev->dvb.frontend->ops->tuner_ops.init = philips_tda827x_tuner_init;
-			dev->dvb.frontend->ops->tuner_ops.sleep = philips_tda827x_tuner_sleep;
-			dev->dvb.frontend->ops->tuner_ops.set_params = philips_tda827x_tuner_set_params;
+			dev->dvb.frontend->ops.tuner_ops.init = philips_tda827x_tuner_init;
+			dev->dvb.frontend->ops.tuner_ops.sleep = philips_tda827x_tuner_sleep;
+			dev->dvb.frontend->ops.tuner_ops.set_params = philips_tda827x_tuner_set_params;
 		}
 		break;
 	case SAA7134_BOARD_FLYDVB_TRIO:
 		dev->dvb.frontend = tda10046_attach(&lifeview_trio_config,
 						    &dev->i2c_adap);
 		if (dev->dvb.frontend) {
-			dev->dvb.frontend->ops->tuner_ops.sleep = lifeview_trio_tuner_sleep;
-			dev->dvb.frontend->ops->tuner_ops.set_params = lifeview_trio_tuner_set_params;
+			dev->dvb.frontend->ops.tuner_ops.sleep = lifeview_trio_tuner_sleep;
+			dev->dvb.frontend->ops.tuner_ops.set_params = lifeview_trio_tuner_set_params;
 		}
 		break;
 	case SAA7134_BOARD_ADS_DUO_CARDBUS_PTV331:
 		dev->dvb.frontend = tda10046_attach(&ads_tech_duo_config,
 						    &dev->i2c_adap);
 		if (dev->dvb.frontend) {
-			dev->dvb.frontend->ops->tuner_ops.init = ads_duo_tuner_init;
-			dev->dvb.frontend->ops->tuner_ops.sleep = ads_duo_tuner_sleep;
-			dev->dvb.frontend->ops->tuner_ops.set_params = ads_duo_tuner_set_params;
+			dev->dvb.frontend->ops.tuner_ops.init = ads_duo_tuner_init;
+			dev->dvb.frontend->ops.tuner_ops.sleep = ads_duo_tuner_sleep;
+			dev->dvb.frontend->ops.tuner_ops.set_params = ads_duo_tuner_set_params;
 		}
 		break;
 	case SAA7134_BOARD_TEVION_DVBT_220RF:
 		dev->dvb.frontend = tda10046_attach(&tevion_dvbt220rf_config,
 						    &dev->i2c_adap);
 		if (dev->dvb.frontend) {
-			dev->dvb.frontend->ops->tuner_ops.sleep = tevion_dvb220rf_tuner_sleep;
-			dev->dvb.frontend->ops->tuner_ops.set_params = tevion_dvb220rf_tuner_set_params;
+			dev->dvb.frontend->ops.tuner_ops.sleep = tevion_dvb220rf_tuner_sleep;
+			dev->dvb.frontend->ops.tuner_ops.set_params = tevion_dvb220rf_tuner_set_params;
 		}
 		break;
 	case SAA7134_BOARD_FLYDVBT_HYBRID_CARDBUS:
 		dev->dvb.frontend = tda10046_attach(&ads_tech_duo_config,
 						    &dev->i2c_adap);
 		if (dev->dvb.frontend) {
-			dev->dvb.frontend->ops->tuner_ops.init = ads_duo_tuner_init;
-			dev->dvb.frontend->ops->tuner_ops.sleep = ads_duo_tuner_sleep;
-			dev->dvb.frontend->ops->tuner_ops.set_params = ads_duo_tuner_set_params;
+			dev->dvb.frontend->ops.tuner_ops.init = ads_duo_tuner_init;
+			dev->dvb.frontend->ops.tuner_ops.sleep = ads_duo_tuner_sleep;
+			dev->dvb.frontend->ops.tuner_ops.set_params = ads_duo_tuner_set_params;
 		}
 		break;
 #endif

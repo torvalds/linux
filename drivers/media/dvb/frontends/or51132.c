@@ -54,7 +54,6 @@ static int debug;
 struct or51132_state
 {
 	struct i2c_adapter* i2c;
-	struct dvb_frontend_ops ops;
 
 	/* Configuration settings */
 	const struct or51132_config* config;
@@ -383,9 +382,9 @@ static int or51132_set_parameters(struct dvb_frontend* fe,
 		or51132_setmode(fe);
 	}
 
-	if (fe->ops->tuner_ops.set_params) {
-		fe->ops->tuner_ops.set_params(fe, param);
-		if (fe->ops->i2c_gate_ctrl) fe->ops->i2c_gate_ctrl(fe, 0);
+	if (fe->ops.tuner_ops.set_params) {
+		fe->ops.tuner_ops.set_params(fe, param);
+		if (fe->ops.i2c_gate_ctrl) fe->ops.i2c_gate_ctrl(fe, 0);
 	}
 
 	/* Set to current mode */
@@ -618,12 +617,11 @@ struct dvb_frontend* or51132_attach(const struct or51132_config* config,
 	/* Setup the state */
 	state->config = config;
 	state->i2c = i2c;
-	memcpy(&state->ops, &or51132_ops, sizeof(struct dvb_frontend_ops));
 	state->current_frequency = -1;
 	state->current_modulation = -1;
 
 	/* Create dvb_frontend */
-	state->frontend.ops = &state->ops;
+	memcpy(&state->frontend.ops, &or51132_ops, sizeof(struct dvb_frontend_ops));
 	state->frontend.demodulator_priv = state;
 	return &state->frontend;
 
@@ -636,7 +634,7 @@ static struct dvb_frontend_ops or51132_ops = {
 
 	.info = {
 		.name			= "Oren OR51132 VSB/QAM Frontend",
-		.type 			= FE_ATSC,
+		.type			= FE_ATSC,
 		.frequency_min		= 44000000,
 		.frequency_max		= 958000000,
 		.frequency_stepsize	= 166666,

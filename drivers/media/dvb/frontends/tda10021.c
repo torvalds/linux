@@ -36,7 +36,6 @@
 
 struct tda10021_state {
 	struct i2c_adapter* i2c;
-	struct dvb_frontend_ops ops;
 	/* configuration settings */
 	const struct tda10021_config* config;
 	struct dvb_frontend frontend;
@@ -260,9 +259,9 @@ static int tda10021_set_parameters (struct dvb_frontend *fe,
 
 	//printk("tda10021: set frequency to %d qam=%d symrate=%d\n", p->frequency,qam,p->u.qam.symbol_rate);
 
-	if (fe->ops->tuner_ops.set_params) {
-		fe->ops->tuner_ops.set_params(fe, p);
-		if (fe->ops->i2c_gate_ctrl) fe->ops->i2c_gate_ctrl(fe, 0);
+	if (fe->ops.tuner_ops.set_params) {
+		fe->ops.tuner_ops.set_params(fe, p);
+		if (fe->ops.i2c_gate_ctrl) fe->ops.i2c_gate_ctrl(fe, 0);
 	}
 
 	tda10021_set_symbolrate (state, p->u.qam.symbol_rate);
@@ -421,7 +420,6 @@ struct dvb_frontend* tda10021_attach(const struct tda10021_config* config,
 	/* setup the state */
 	state->config = config;
 	state->i2c = i2c;
-	memcpy(&state->ops, &tda10021_ops, sizeof(struct dvb_frontend_ops));
 	state->pwm = pwm;
 	state->reg0 = tda10021_inittab[0];
 
@@ -429,7 +427,7 @@ struct dvb_frontend* tda10021_attach(const struct tda10021_config* config,
 	if ((tda10021_readreg(state, 0x1a) & 0xf0) != 0x70) goto error;
 
 	/* create dvb_frontend */
-	state->frontend.ops = &state->ops;
+	memcpy(&state->frontend.ops, &tda10021_ops, sizeof(struct dvb_frontend_ops));
 	state->frontend.demodulator_priv = state;
 	return &state->frontend;
 

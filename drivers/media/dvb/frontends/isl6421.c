@@ -99,11 +99,11 @@ static void isl6421_release(struct dvb_frontend *fe)
 	isl6421_set_voltage(fe, SEC_VOLTAGE_OFF);
 
 	/* free data & call next release routine */
-	fe->ops->release = isl6421->release_chain;
+	fe->ops.release = isl6421->release_chain;
 	kfree(fe->misc_priv);
 	fe->misc_priv = NULL;
-	if (fe->ops->release)
-		fe->ops->release(fe);
+	if (fe->ops.release)
+		fe->ops.release(fe);
 }
 
 int isl6421_attach(struct dvb_frontend *fe, struct i2c_adapter *i2c, u8 i2c_addr,
@@ -133,12 +133,12 @@ int isl6421_attach(struct dvb_frontend *fe, struct i2c_adapter *i2c, u8 i2c_addr
 	}
 
 	/* install release callback */
-	isl6421->release_chain = fe->ops->release;
-	fe->ops->release = isl6421_release;
+	isl6421->release_chain = fe->ops.release;
+	fe->ops.release = isl6421_release;
 
 	/* override frontend ops */
-	fe->ops->set_voltage = isl6421_set_voltage;
-	fe->ops->enable_high_lnb_voltage = isl6421_enable_high_lnb_voltage;
+	fe->ops.set_voltage = isl6421_set_voltage;
+	fe->ops.enable_high_lnb_voltage = isl6421_enable_high_lnb_voltage;
 
 	return 0;
 }

@@ -56,7 +56,6 @@
 
 struct stv0299_state {
 	struct i2c_adapter* i2c;
-	struct dvb_frontend_ops ops;
 	const struct stv0299_config* config;
 	struct dvb_frontend frontend;
 
@@ -547,9 +546,9 @@ static int stv0299_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 	if (state->config->invert) invval = (~invval) & 1;
 	stv0299_writeregI(state, 0x0c, (stv0299_readreg(state, 0x0c) & 0xfe) | invval);
 
-	if (fe->ops->tuner_ops.set_params) {
-		fe->ops->tuner_ops.set_params(fe, p);
-		if (fe->ops->i2c_gate_ctrl) fe->ops->i2c_gate_ctrl(fe, 0);
+	if (fe->ops.tuner_ops.set_params) {
+		fe->ops.tuner_ops.set_params(fe, p);
+		if (fe->ops.i2c_gate_ctrl) fe->ops.i2c_gate_ctrl(fe, 0);
 	}
 
 	stv0299_set_FEC (state, p->u.qpsk.fec_inner);
@@ -648,7 +647,6 @@ struct dvb_frontend* stv0299_attach(const struct stv0299_config* config,
 	/* setup the state */
 	state->config = config;
 	state->i2c = i2c;
-	memcpy(&state->ops, &stv0299_ops, sizeof(struct dvb_frontend_ops));
 	state->initialised = 0;
 	state->tuner_frequency = 0;
 	state->symbol_rate = 0;
@@ -665,7 +663,7 @@ struct dvb_frontend* stv0299_attach(const struct stv0299_config* config,
 	if (id != 0xa1 && id != 0x80) goto error;
 
 	/* create dvb_frontend */
-	state->frontend.ops = &state->ops;
+	memcpy(&state->frontend.ops, &stv0299_ops, sizeof(struct dvb_frontend_ops));
 	state->frontend.demodulator_priv = state;
 	return &state->frontend;
 
