@@ -4,7 +4,7 @@
  *  Copyright (C) 2003 Joshua Wise (joshua@joshuawise.com)
  *
  *  Derived from drivers/mtd/nand/edb7312.c
- *       Copyright (C) 2002 Marius Gröger (mag@sysgo.de)
+ *       Copyright (C) 2002 Marius GrÃ¶ger (mag@sysgo.de)
  *       Copyright (c) 2001 Thomas Gleixner (gleixner@autronix.de)
  *
  * $Id: h1910.c,v 1.6 2005/11/07 11:14:30 gleixner Exp $

@@ -4,7 +4,7 @@
  * Copyright (C) 2004 Technologic Systems (support@embeddedARM.com)
  *
  * Derived from drivers/mtd/nand/edb7312.c
- *   Copyright (C) 2004 Marius Gröger (mag@sysgo.de)
+ *   Copyright (C) 2004 Marius GrÃ¶ger (mag@sysgo.de)
  *
  * Derived from drivers/mtd/nand/autcpu12.c
  *   Copyright (c) 2001 Thomas Gleixner (gleixner@autronix.de)

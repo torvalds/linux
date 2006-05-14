@@ -1475,7 +1475,7 @@ static int __xipram do_write_buffer(struct map_info *map, struct flchip *chip,
 	ENABLE_VPP(map);
 	xip_disable(map, chip, cmd_adr);
 
-	/* ง4.8 of the 28FxxxJ3A datasheet says "Any time SR.4 and/or SR.5 is set
+	/* ยง4.8 of the 28FxxxJ3A datasheet says "Any time SR.4 and/or SR.5 is set
 	   [...], the device will not accept any more Write to Buffer commands".
 	   So we must check here and reset those bits if they're set. Otherwise
 	   we're just pissing in the wind */
