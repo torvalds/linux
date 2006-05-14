@@ -359,6 +359,10 @@ static int cxusb_fmd1216me_tuner_attach(struct dvb_usb_device *d)
 	d->pll_addr = 0x61;
 	memcpy(d->pll_init, bpll, 4);
 	d->pll_desc = &dvb_pll_fmd1216me;
+
+	d->fe->ops->tuner_ops.init = dvb_usb_tuner_init_i2c;
+	d->fe->ops->tuner_ops.set_params = dvb_usb_tuner_set_params_i2c;
+
 	return 0;
 }
 
@@ -366,6 +370,7 @@ static int cxusb_dee1601_tuner_attach(struct dvb_usb_device *d)
 {
 	d->pll_addr = 0x61;
 	d->pll_desc = &dvb_pll_thomson_dtt7579;
+	d->fe->ops->tuner_ops.calc_regs = dvb_usb_tuner_calc_regs;
 	return 0;
 }
 
@@ -373,6 +378,7 @@ static int cxusb_lgz201_tuner_attach(struct dvb_usb_device *d)
 {
 	d->pll_addr = 0x61;
 	d->pll_desc = &dvb_pll_lg_z201;
+	d->fe->ops->tuner_ops.calc_regs = dvb_usb_tuner_calc_regs;
 	return 0;
 }
 
@@ -380,6 +386,13 @@ static int cxusb_dtt7579_tuner_attach(struct dvb_usb_device *d)
 {
 	d->pll_addr = 0x60;
 	d->pll_desc = &dvb_pll_thomson_dtt7579;
+	d->fe->ops->tuner_ops.calc_regs = dvb_usb_tuner_calc_regs;
+	return 0;
+}
+
+static int cxusb_lgdt3303_tuner_attach(struct dvb_usb_device *d)
+{
+	d->fe->ops->tuner_ops.set_params = cxusb_lgh064f_tuner_set_params;
 	return 0;
 }
 
@@ -391,11 +404,8 @@ static int cxusb_cx22702_frontend_attach(struct dvb_usb_device *d)
 
 	cxusb_ctrl_msg(d,CMD_DIGITAL, NULL, 0, &b, 1);
 
-	if ((d->fe = cx22702_attach(&cxusb_cx22702_config, &d->i2c_adap)) != NULL) {
-		d->fe->ops->tuner_ops.init = dvb_usb_tuner_init_i2c;
-		d->fe->ops->tuner_ops.set_params = dvb_usb_tuner_set_params_i2c;
+	if ((d->fe = cx22702_attach(&cxusb_cx22702_config, &d->i2c_adap)) != NULL)
 		return 0;
-	}
 
 	return -EIO;
 }
@@ -407,10 +417,8 @@ static int cxusb_lgdt3303_frontend_attach(struct dvb_usb_device *d)
 
 	cxusb_ctrl_msg(d,CMD_DIGITAL, NULL, 0, NULL, 0);
 
-	if ((d->fe = lgdt330x_attach(&cxusb_lgdt3303_config, &d->i2c_adap)) != NULL) {
-		d->fe->ops->tuner_ops.set_params = cxusb_lgh064f_tuner_set_params;
+	if ((d->fe = lgdt330x_attach(&cxusb_lgdt3303_config, &d->i2c_adap)) != NULL)
 		return 0;
-	}
 
 	return -EIO;
 }
@@ -422,10 +430,8 @@ static int cxusb_mt352_frontend_attach(struct dvb_usb_device *d)
 
 	cxusb_ctrl_msg(d,CMD_DIGITAL, NULL, 0, NULL, 0);
 
-	if ((d->fe = mt352_attach(&cxusb_mt352_config, &d->i2c_adap)) != NULL) {
-		d->fe->ops->tuner_ops.calc_regs = dvb_usb_tuner_calc_regs;
+	if ((d->fe = mt352_attach(&cxusb_mt352_config, &d->i2c_adap)) != NULL)
 		return 0;
-	}
 
 	return -EIO;
 }
@@ -437,10 +443,8 @@ static int cxusb_dee1601_frontend_attach(struct dvb_usb_device *d)
 
 	cxusb_ctrl_msg(d,CMD_DIGITAL, NULL, 0, NULL, 0);
 
-	if ((d->fe = mt352_attach(&cxusb_dee1601_config, &d->i2c_adap)) != NULL) {
-		d->fe->ops->tuner_ops.calc_regs = dvb_usb_tuner_calc_regs;
+	if ((d->fe = mt352_attach(&cxusb_dee1601_config, &d->i2c_adap)) != NULL)
 		return 0;
-	}
 
 	return -EIO;
 }
@@ -555,6 +559,7 @@ static struct dvb_usb_properties cxusb_bluebird_lgh064f_properties = {
 	.streaming_ctrl   = cxusb_streaming_ctrl,
 	.power_ctrl       = cxusb_bluebird_power_ctrl,
 	.frontend_attach  = cxusb_lgdt3303_frontend_attach,
+	.tuner_attach     = cxusb_lgdt3303_tuner_attach,
 
 	.i2c_algo         = &cxusb_i2c_algo,
 

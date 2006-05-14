@@ -57,7 +57,6 @@ static int umt_mt352_frontend_attach(struct dvb_usb_device *d)
 	memset(&umt_config,0,sizeof(struct mt352_config));
 	umt_config.demod_init = umt_mt352_demod_init;
 	umt_config.demod_address = 0xf;
-	d->fe->ops->tuner_ops.calc_regs = dvb_usb_tuner_calc_regs;
 
 	d->fe = mt352_attach(&umt_config, &d->i2c_adap);
 
@@ -68,6 +67,7 @@ static int umt_tuner_attach (struct dvb_usb_device *d)
 {
 	d->pll_addr = 0x61;
 	d->pll_desc = &dvb_pll_tua6034;
+	d->fe->ops->tuner_ops.calc_regs = dvb_usb_tuner_calc_regs;
 	return 0;
 }
 
