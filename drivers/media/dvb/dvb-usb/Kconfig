@@ -130,6 +130,15 @@ config DVB_USB_VP702X
 
 	  DVB-S USB2.0 receivers.
 
+config DVB_USB_GP8PSK
+	tristate "GENPIX 8PSK->USB module support"
+	depends on DVB_USB
+	help
+	  Say Y here to support the
+	    GENPIX 8psk module
+
+	  DVB-S USB2.0 receivers.
+
 config DVB_USB_NOVA_T_USB2
 	tristate "Hauppauge WinTV-NOVA-T usb2 DVB-T USB2.0 support"
 	depends on DVB_USB
