@@ -92,36 +92,38 @@ static int gp8psk_load_bcm4500fw(struct dvb_usb_device *d)
 		return ret;
 	}
 
-	if (gp8psk_usb_out_op(d, LOAD_BCM4500,1,0,NULL, 0)) {
-		release_firmware(fw);
-		return -EINVAL;
-	}
+	ret = -EINVAL;
+
+	if (gp8psk_usb_out_op(d, LOAD_BCM4500,1,0,NULL, 0))
+		goto out_rel_fw;
 
 	info("downloaidng bcm4500 firmware from file '%s'",bcm4500_firmware);
 
 	ptr = fw->data;
-	buf = (u8 *) kmalloc(512, GFP_KERNEL | GFP_DMA);
+	buf = kmalloc(512, GFP_KERNEL | GFP_DMA);
 
 	while (ptr[0] != 0xff) {
 		u16 buflen = ptr[0] + 4;
 		if (ptr + buflen >= fw->data + fw->size) {
 			err("failed to load bcm4500 firmware.");
-			release_firmware(fw);
-			kfree(buf);
-			return -EINVAL;
+			goto out_free;
 		}
 		memcpy(buf, ptr, buflen);
 		if (dvb_usb_generic_write(d, buf, buflen)) {
 			err("failed to load bcm4500 firmware.");
-			release_firmware(fw);
-			kfree(buf);
-			return -EIO;
+			goto out_free;
 		}
 		ptr += buflen;
 	}
-	release_firmware(fw);
+
+	ret = 0;
+
+out_free:
 	kfree(buf);
-	return 0;
+out_rel_fw:
+	release_firmware(fw);
+
+	return ret;
 }
 
 static int gp8psk_power_ctrl(struct dvb_usb_device *d, int onoff)
