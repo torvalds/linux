@@ -2312,6 +2312,15 @@ static void nand_resume(struct mtd_info *mtd)
 
 }
 
+/* module_text_address() isn't exported, and it's mostly a pointless
+   test if this is a module _anyway_ -- they'd have to try _really_ hard
+   to call us from in-kernel code if the core NAND support is modular. */
+#ifdef MODULE
+#define caller_is_module() (1)
+#else
+#define caller_is_module() module_text_address((unsigned long)__builtin_return_address(0))
+#endif
+
 /**
  * nand_scan - [NAND Interface] Scan for the NAND device
  * @mtd:	MTD device structure
@@ -2330,12 +2339,8 @@ int nand_scan(struct mtd_info *mtd, int maxchips)
 	int i, nand_maf_id, nand_dev_id, busw, maf_id;
 	struct nand_chip *this = mtd->priv;
 
-	/* module_text_address() isn't exported. But if _this_ is a module,
-	   it's a fairly safe bet that its caller is a module too... and
-	   that means the call to module_text_address() gets optimised out
-	   without having to resort to ifdefs */
-	if (!mtd->owner && (THIS_MODULE ||
-	    module_text_address((unsigned long)__builtin_return_address(0)))) {
+	/* Many callers got this wrong, so check for it for a while... */
+	if (!mtd->owner && caller_is_module()) {
 		printk(KERN_CRIT "nand_scan() called with NULL mtd->owner!\n");
 		BUG();
 	}
