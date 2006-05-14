@@ -257,10 +257,11 @@ enum RTL8169_register_content {
 	RxOK = 0x01,
 
 	/* RxStatusDesc */
-	RxRES = 0x00200000,
-	RxCRC = 0x00080000,
-	RxRUNT = 0x00100000,
-	RxRWT = 0x00400000,
+	RxFOVF	= (1 << 23),
+	RxRWT	= (1 << 22),
+	RxRES	= (1 << 21),
+	RxRUNT	= (1 << 20),
+	RxCRC	= (1 << 19),
 
 	/* ChipCmdBits */
 	CmdReset = 0x10,
@@ -2465,6 +2466,10 @@ rtl8169_rx_interrupt(struct net_device *dev, struct rtl8169_private *tp,
 				tp->stats.rx_length_errors++;
 			if (status & RxCRC)
 				tp->stats.rx_crc_errors++;
+			if (status & RxFOVF) {
+				rtl8169_schedule_work(dev, rtl8169_reset_task);
+				tp->stats.rx_fifo_errors++;
+			}
 			rtl8169_mark_to_asic(desc, tp->rx_buf_sz);
 		} else {
 			struct sk_buff *skb = tp->Rx_skbuff[entry];
