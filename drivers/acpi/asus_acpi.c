@@ -1229,7 +1229,7 @@ static int __init asus_acpi_init(void)
 	if (result < 1) {
 		acpi_bus_unregister_driver(&asus_hotk_driver);
 		remove_proc_entry(PROC_ASUS, acpi_root_dir);
-		return -ENODEV;
+		return result;
 	}
 
 	return 0;
