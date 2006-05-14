@@ -168,7 +168,7 @@ static struct dvb_usb_properties dibusb1_1_properties = {
 
 	.rc_interval      = DEFAULT_RC_INTERVAL,
 	.rc_key_map       = dibusb_rc_keys,
-	.rc_key_map_size  = 63, /* wow, that is ugly ... I want to load it to the driver dynamically */
+	.rc_key_map_size  = 111, /* wow, that is ugly ... I want to load it to the driver dynamically */
 	.rc_query         = dibusb_rc_query,
 
 	.i2c_algo         = &dibusb_i2c_algo,
@@ -246,7 +246,7 @@ static struct dvb_usb_properties dibusb1_1_an2235_properties = {
 
 	.rc_interval      = DEFAULT_RC_INTERVAL,
 	.rc_key_map       = dibusb_rc_keys,
-	.rc_key_map_size  = 63, /* wow, that is ugly ... I want to load it to the driver dynamically */
+	.rc_key_map_size  = 111, /* wow, that is ugly ... I want to load it to the driver dynamically */
 	.rc_query         = dibusb_rc_query,
 
 	.i2c_algo         = &dibusb_i2c_algo,
@@ -303,7 +303,7 @@ static struct dvb_usb_properties dibusb2_0b_properties = {
 
 	.rc_interval      = DEFAULT_RC_INTERVAL,
 	.rc_key_map       = dibusb_rc_keys,
-	.rc_key_map_size  = 63, /* wow, that is ugly ... I want to load it to the driver dynamically */
+	.rc_key_map_size  = 111, /* wow, that is ugly ... I want to load it to the driver dynamically */
 	.rc_query         = dibusb_rc_query,
 
 	.i2c_algo         = &dibusb_i2c_algo,
@@ -354,7 +354,7 @@ static struct dvb_usb_properties artec_t1_usb2_properties = {
 
 	.rc_interval      = DEFAULT_RC_INTERVAL,
 	.rc_key_map       = dibusb_rc_keys,
-	.rc_key_map_size  = 63, /* wow, that is ugly ... I want to load it to the driver dynamically */
+	.rc_key_map_size  = 111, /* wow, that is ugly ... I want to load it to the driver dynamically */
 	.rc_query         = dibusb_rc_query,
 
 	.i2c_algo         = &dibusb_i2c_algo,

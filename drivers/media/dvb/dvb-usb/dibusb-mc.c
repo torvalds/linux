@@ -61,7 +61,7 @@ static struct dvb_usb_properties dibusb_mc_properties = {
 
 	.rc_interval      = DEFAULT_RC_INTERVAL,
 	.rc_key_map       = dibusb_rc_keys,
-	.rc_key_map_size  = 63, /* FIXME */
+	.rc_key_map_size  = 111, /* FIXME */
 	.rc_query         = dibusb_rc_query,
 
 	.i2c_algo         = &dibusb_i2c_algo,
