@@ -771,6 +771,8 @@ static int rtl8169_set_speed_xmii(struct net_device *dev,
 			auto_nego &= ~(PHY_Cap_10_Half | PHY_Cap_100_Half);
 	}
 
+	auto_nego |= ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM;
+
 	tp->phy_auto_nego_reg = auto_nego;
 	tp->phy_1000_ctrl_reg = giga_ctrl;
 
@@ -961,6 +963,11 @@ static void rtl8169_gset_xmii(struct net_device *dev, struct ethtool_cmd *cmd)
 		cmd->speed = SPEED_100;
 	else if (status & _10bps)
 		cmd->speed = SPEED_10;
+
+	if (status & TxFlowCtrl)
+		cmd->advertising |= ADVERTISED_Asym_Pause;
+	if (status & RxFlowCtrl)
+		cmd->advertising |= ADVERTISED_Pause;
 
 	cmd->duplex = ((status & _1000bpsF) || (status & FullDup)) ?
 		      DUPLEX_FULL : DUPLEX_HALF;
