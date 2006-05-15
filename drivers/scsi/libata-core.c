@@ -1001,7 +1001,7 @@ unsigned ata_exec_internal(struct ata_device *dev,
 
 	if (test_and_set_bit(tag, &ap->qactive))
 		BUG();
-	qc = ata_qc_from_tag(ap, tag);
+	qc = __ata_qc_from_tag(ap, tag);
 
 	qc->tag = tag;
 	qc->scsicmd = NULL;
@@ -4042,7 +4042,7 @@ static struct ata_queued_cmd *ata_qc_new(struct ata_port *ap)
 	/* the last tag is reserved for internal command. */
 	for (i = 0; i < ATA_MAX_QUEUE - 1; i++)
 		if (!test_and_set_bit(i, &ap->qactive)) {
-			qc = ata_qc_from_tag(ap, i);
+			qc = __ata_qc_from_tag(ap, i);
 			break;
 		}
 

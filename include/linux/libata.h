@@ -832,11 +832,26 @@ static inline void ata_qc_set_polling(struct ata_queued_cmd *qc)
 	qc->tf.ctl |= ATA_NIEN;
 }
 
-static inline struct ata_queued_cmd *ata_qc_from_tag (struct ata_port *ap,
-						      unsigned int tag)
+static inline struct ata_queued_cmd *__ata_qc_from_tag(struct ata_port *ap,
+						       unsigned int tag)
 {
 	if (likely(ata_tag_valid(tag)))
 		return &ap->qcmd[tag];
+	return NULL;
+}
+
+static inline struct ata_queued_cmd *ata_qc_from_tag(struct ata_port *ap,
+						     unsigned int tag)
+{
+	struct ata_queued_cmd *qc = __ata_qc_from_tag(ap, tag);
+
+	if (unlikely(!qc) || !ap->ops->error_handler)
+		return qc;
+
+	if ((qc->flags & (ATA_QCFLAG_ACTIVE |
+			  ATA_QCFLAG_FAILED)) == ATA_QCFLAG_ACTIVE)
+		return qc;
+
 	return NULL;
 }
 
