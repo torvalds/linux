@@ -108,7 +108,9 @@ enum {
 	LIBATA_MAX_PRD		= ATA_MAX_PRD / 2,
 	ATA_MAX_PORTS		= 8,
 	ATA_DEF_QUEUE		= 1,
-	ATA_MAX_QUEUE		= 1,
+	/* tag ATA_MAX_QUEUE - 1 is reserved for internal commands */
+	ATA_MAX_QUEUE		= 32,
+	ATA_TAG_INTERNAL	= ATA_MAX_QUEUE - 1,
 	ATA_MAX_SECTORS		= 200,	/* FIXME */
 	ATA_MAX_BUS		= 2,
 	ATA_DEF_BUSY_WAIT	= 10000,
@@ -122,6 +124,8 @@ enum {
 	/* struct ata_device stuff */
 	ATA_DFLAG_LBA		= (1 << 0), /* device supports LBA */
 	ATA_DFLAG_LBA48		= (1 << 1), /* device supports LBA48 */
+	ATA_DFLAG_CDB_INTR	= (1 << 2), /* device asserts INTRQ when ready for CDB */
+	ATA_DFLAG_NCQ		= (1 << 3), /* device supports NCQ */
 	ATA_DFLAG_CFG_MASK	= (1 << 8) - 1,
 
 	ATA_DFLAG_PIO		= (1 << 8), /* device currently in PIO mode */
@@ -145,14 +149,19 @@ enum {
 	ATA_FLAG_PIO_DMA	= (1 << 7), /* PIO cmds via DMA */
 	ATA_FLAG_PIO_LBA48	= (1 << 8), /* Host DMA engine is LBA28 only */
 	ATA_FLAG_IRQ_MASK	= (1 << 9), /* Mask IRQ in PIO xfers */
+	ATA_FLAG_PIO_POLLING	= (1 << 10), /* use polling PIO if LLD
+					      * doesn't handle PIO interrupts */
+	ATA_FLAG_NCQ		= (1 << 11), /* host supports NCQ */
 
-	ATA_FLAG_NOINTR		= (1 << 16), /* FIXME: Remove this once
-					      * proper HSM is in place. */
-	ATA_FLAG_DEBUGMSG	= (1 << 17),
-	ATA_FLAG_FLUSH_PORT_TASK = (1 << 18), /* flush port task */
+	ATA_FLAG_DEBUGMSG	= (1 << 14),
+	ATA_FLAG_FLUSH_PORT_TASK = (1 << 15), /* flush port task */
 
-	ATA_FLAG_DISABLED	= (1 << 19), /* port is disabled, ignore it */
-	ATA_FLAG_SUSPENDED	= (1 << 20), /* port is suspended */
+	ATA_FLAG_EH_PENDING	= (1 << 16), /* EH pending */
+	ATA_FLAG_FROZEN		= (1 << 17), /* port is frozen */
+	ATA_FLAG_RECOVERED	= (1 << 18), /* recovery action performed */
+
+	ATA_FLAG_DISABLED	= (1 << 22), /* port is disabled, ignore it */
+	ATA_FLAG_SUSPENDED	= (1 << 23), /* port is suspended (power) */
 
 	/* bits 24:31 of ap->flags are reserved for LLDD specific flags */
 
@@ -162,17 +171,18 @@ enum {
 	ATA_QCFLAG_SINGLE	= (1 << 2), /* no s/g, just a single buffer */
 	ATA_QCFLAG_DMAMAP	= ATA_QCFLAG_SG | ATA_QCFLAG_SINGLE,
 	ATA_QCFLAG_IO		= (1 << 3), /* standard IO command */
-	ATA_QCFLAG_EH_SCHEDULED = (1 << 4), /* EH scheduled */
+	ATA_QCFLAG_RESULT_TF	= (1 << 4), /* result TF requested */
+
+	ATA_QCFLAG_FAILED	= (1 << 16), /* cmd failed and is owned by EH */
+	ATA_QCFLAG_SENSE_VALID	= (1 << 17), /* sense data valid */
+	ATA_QCFLAG_EH_SCHEDULED = (1 << 18), /* EH scheduled (obsolete) */
 
 	/* host set flags */
 	ATA_HOST_SIMPLEX	= (1 << 0),	/* Host is simplex, one DMA channel per host_set only */
 	
 	/* various lengths of time */
-	ATA_TMOUT_PIO		= 30 * HZ,
 	ATA_TMOUT_BOOT		= 30 * HZ,	/* heuristic */
 	ATA_TMOUT_BOOT_QUICK	= 7 * HZ,	/* heuristic */
-	ATA_TMOUT_CDB		= 30 * HZ,
-	ATA_TMOUT_CDB_QUICK	= 5 * HZ,
 	ATA_TMOUT_INTERNAL	= 30 * HZ,
 	ATA_TMOUT_INTERNAL_QUICK = 5 * HZ,
 
@@ -216,19 +226,39 @@ enum {
 	ATA_PORT_PRIMARY	= (1 << 0),
 	ATA_PORT_SECONDARY	= (1 << 1),
 
+	/* ering size */
+	ATA_ERING_SIZE		= 32,
+
+	/* desc_len for ata_eh_info and context */
+	ATA_EH_DESC_LEN		= 80,
+
+	/* reset / recovery action types */
+	ATA_EH_REVALIDATE	= (1 << 0),
+	ATA_EH_SOFTRESET	= (1 << 1),
+	ATA_EH_HARDRESET	= (1 << 2),
+
+	ATA_EH_RESET_MASK	= ATA_EH_SOFTRESET | ATA_EH_HARDRESET,
+
+	/* ata_eh_info->flags */
+	ATA_EHI_DID_RESET	= (1 << 0), /* already reset this port */
+
+	/* max repeat if error condition is still set after ->error_handler */
+	ATA_EH_MAX_REPEAT	= 5,
+
 	/* how hard are we gonna try to probe/recover devices */
 	ATA_PROBE_MAX_TRIES	= 3,
+	ATA_EH_RESET_TRIES	= 3,
+	ATA_EH_DEV_TRIES	= 3,
 };
 
 enum hsm_task_states {
-	HSM_ST_UNKNOWN,
-	HSM_ST_IDLE,
-	HSM_ST_POLL,
-	HSM_ST_TMOUT,
-	HSM_ST,
-	HSM_ST_LAST,
-	HSM_ST_LAST_POLL,
-	HSM_ST_ERR,
+	HSM_ST_UNKNOWN,		/* state unknown */
+	HSM_ST_IDLE,		/* no command on going */
+	HSM_ST,			/* (waiting the device to) transfer data */
+	HSM_ST_LAST,		/* (waiting the device to) complete command */
+	HSM_ST_ERR,		/* error */
+	HSM_ST_FIRST,		/* (waiting the device to)
+				   write CDB or first data block */
 };
 
 enum ata_completion_errors {
@@ -343,7 +373,7 @@ struct ata_queued_cmd {
 	struct scatterlist	*__sg;
 
 	unsigned int		err_mask;
-
+	struct ata_taskfile	result_tf;
 	ata_qc_cb_t		complete_fn;
 
 	void			*private_data;
@@ -355,12 +385,24 @@ struct ata_host_stats {
 	unsigned long		rw_reqbuf;
 };
 
+struct ata_ering_entry {
+	int			is_io;
+	unsigned int		err_mask;
+	u64			timestamp;
+};
+
+struct ata_ering {
+	int			cursor;
+	struct ata_ering_entry	ring[ATA_ERING_SIZE];
+};
+
 struct ata_device {
+	struct ata_port		*ap;
 	u64			n_sectors;	/* size of device, if ATA */
 	unsigned long		flags;		/* ATA_DFLAG_xxx */
 	unsigned int		class;		/* ATA_DEV_xxx */
 	unsigned int		devno;		/* 0 or 1 */
-	u16			*id;		/* IDENTIFY xxx DEVICE data */
+	u16			id[ATA_ID_WORDS]; /* IDENTIFY xxx DEVICE data */
 	u8			pio_mode;
 	u8			dma_mode;
 	u8			xfer_mode;
@@ -380,6 +422,24 @@ struct ata_device {
 	u16			cylinders;	/* Number of cylinders */
 	u16			heads;		/* Number of heads */
 	u16			sectors;	/* Number of sectors per track */
+
+	/* error history */
+	struct ata_ering	ering;
+};
+
+struct ata_eh_info {
+	struct ata_device	*dev;		/* offending device */
+	u32			serror;		/* SError from LLDD */
+	unsigned int		err_mask;	/* port-wide err_mask */
+	unsigned int		action;		/* ATA_EH_* action mask */
+	unsigned int		flags;		/* ATA_EHI_* flags */
+	char			desc[ATA_EH_DESC_LEN];
+	int			desc_len;
+};
+
+struct ata_eh_context {
+	struct ata_eh_info	i;
+	int			tries[ATA_MAX_DEVICES];
 };
 
 struct ata_port {
@@ -406,11 +466,19 @@ struct ata_port {
 	unsigned int		cbl;	/* cable type; ATA_CBL_xxx */
 	unsigned int		sata_spd_limit;	/* SATA PHY speed limit */
 
+	/* record runtime error info, protected by host_set lock */
+	struct ata_eh_info	eh_info;
+	/* EH context owned by EH */
+	struct ata_eh_context	eh_context;
+
 	struct ata_device	device[ATA_MAX_DEVICES];
 
 	struct ata_queued_cmd	qcmd[ATA_MAX_QUEUE];
-	unsigned long		qactive;
+	unsigned long		qc_allocated;
+	unsigned int		qc_active;
+
 	unsigned int		active_tag;
+	u32			sactive;
 
 	struct ata_host_stats	stats;
 	struct ata_host_set	*host_set;
@@ -419,12 +487,13 @@ struct ata_port {
 	struct work_struct	port_task;
 
 	unsigned int		hsm_task_state;
-	unsigned long		pio_task_timeout;
 
 	u32			msg_enable;
 	struct list_head	eh_done_q;
 
 	void			*private_data;
+
+	u8			sector_buf[ATA_SECT_SIZE]; /* owned by EH */
 };
 
 struct ata_port_operations {
@@ -458,7 +527,15 @@ struct ata_port_operations {
 	void (*qc_prep) (struct ata_queued_cmd *qc);
 	unsigned int (*qc_issue) (struct ata_queued_cmd *qc);
 
-	void (*eng_timeout) (struct ata_port *ap);
+	/* Error handlers.  ->error_handler overrides ->eng_timeout and
+	 * indicates that new-style EH is in place.
+	 */
+	void (*eng_timeout) (struct ata_port *ap); /* obsolete */
+
+	void (*freeze) (struct ata_port *ap);
+	void (*thaw) (struct ata_port *ap);
+	void (*error_handler) (struct ata_port *ap);
+	void (*post_internal_cmd) (struct ata_queued_cmd *qc);
 
 	irqreturn_t (*irq_handler)(int, void *, struct pt_regs *);
 	void (*irq_clear) (struct ata_port *);
@@ -504,7 +581,7 @@ extern void ata_port_probe(struct ata_port *);
 extern void __sata_phy_reset(struct ata_port *ap);
 extern void sata_phy_reset(struct ata_port *ap);
 extern void ata_bus_reset(struct ata_port *ap);
-extern int ata_set_sata_spd(struct ata_port *ap);
+extern int sata_set_spd(struct ata_port *ap);
 extern int ata_drive_probe_reset(struct ata_port *ap,
 			ata_probeinit_fn_t probeinit,
 			ata_reset_fn_t softreset, ata_reset_fn_t hardreset,
@@ -513,8 +590,7 @@ extern void ata_std_probeinit(struct ata_port *ap);
 extern int ata_std_softreset(struct ata_port *ap, unsigned int *classes);
 extern int sata_std_hardreset(struct ata_port *ap, unsigned int *class);
 extern void ata_std_postreset(struct ata_port *ap, unsigned int *classes);
-extern int ata_dev_revalidate(struct ata_port *ap, struct ata_device *dev,
-			      int post_reset);
+extern int ata_dev_revalidate(struct ata_device *dev, int post_reset);
 extern void ata_port_disable(struct ata_port *);
 extern void ata_std_ports(struct ata_ioports *ioaddr);
 #ifdef CONFIG_PCI
@@ -530,14 +606,18 @@ extern void ata_host_set_remove(struct ata_host_set *host_set);
 extern int ata_scsi_detect(struct scsi_host_template *sht);
 extern int ata_scsi_ioctl(struct scsi_device *dev, int cmd, void __user *arg);
 extern int ata_scsi_queuecmd(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *));
-extern void ata_eh_qc_complete(struct ata_queued_cmd *qc);
-extern void ata_eh_qc_retry(struct ata_queued_cmd *qc);
 extern int ata_scsi_release(struct Scsi_Host *host);
 extern unsigned int ata_host_intr(struct ata_port *ap, struct ata_queued_cmd *qc);
+extern int sata_scr_valid(struct ata_port *ap);
+extern int sata_scr_read(struct ata_port *ap, int reg, u32 *val);
+extern int sata_scr_write(struct ata_port *ap, int reg, u32 val);
+extern int sata_scr_write_flush(struct ata_port *ap, int reg, u32 val);
+extern int ata_port_online(struct ata_port *ap);
+extern int ata_port_offline(struct ata_port *ap);
 extern int ata_scsi_device_resume(struct scsi_device *);
 extern int ata_scsi_device_suspend(struct scsi_device *, pm_message_t state);
-extern int ata_device_resume(struct ata_port *, struct ata_device *);
-extern int ata_device_suspend(struct ata_port *, struct ata_device *, pm_message_t state);
+extern int ata_device_resume(struct ata_device *);
+extern int ata_device_suspend(struct ata_device *, pm_message_t state);
 extern int ata_ratelimit(void);
 extern unsigned int ata_busy_sleep(struct ata_port *ap,
 				   unsigned long timeout_pat,
@@ -582,16 +662,26 @@ extern void ata_bmdma_start (struct ata_queued_cmd *qc);
 extern void ata_bmdma_stop(struct ata_queued_cmd *qc);
 extern u8   ata_bmdma_status(struct ata_port *ap);
 extern void ata_bmdma_irq_clear(struct ata_port *ap);
-extern void __ata_qc_complete(struct ata_queued_cmd *qc);
-extern void ata_scsi_simulate(struct ata_port *ap, struct ata_device *dev,
-			      struct scsi_cmnd *cmd,
+extern void ata_bmdma_freeze(struct ata_port *ap);
+extern void ata_bmdma_thaw(struct ata_port *ap);
+extern void ata_bmdma_drive_eh(struct ata_port *ap,
+			       ata_reset_fn_t softreset,
+			       ata_reset_fn_t hardreset,
+			       ata_postreset_fn_t postreset);
+extern void ata_bmdma_error_handler(struct ata_port *ap);
+extern void ata_bmdma_post_internal_cmd(struct ata_queued_cmd *qc);
+extern void ata_qc_complete(struct ata_queued_cmd *qc);
+extern int ata_qc_complete_multiple(struct ata_port *ap, u32 qc_active,
+				    void (*finish_qc)(struct ata_queued_cmd *));
+extern void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd,
 			      void (*done)(struct scsi_cmnd *));
 extern int ata_std_bios_param(struct scsi_device *sdev,
 			      struct block_device *bdev,
 			      sector_t capacity, int geom[]);
 extern int ata_scsi_slave_config(struct scsi_device *sdev);
-extern struct ata_device *ata_dev_pair(struct ata_port *ap, 
-				       struct ata_device *adev);
+extern int ata_scsi_change_queue_depth(struct scsi_device *sdev,
+				       int queue_depth);
+extern struct ata_device *ata_dev_pair(struct ata_device *adev);
 
 /*
  * Timing helpers
@@ -641,10 +731,46 @@ extern unsigned long ata_pci_default_filter(const struct ata_port *, struct ata_
  * EH
  */
 extern void ata_eng_timeout(struct ata_port *ap);
+
+extern void ata_port_schedule_eh(struct ata_port *ap);
+extern int ata_port_abort(struct ata_port *ap);
+extern int ata_port_freeze(struct ata_port *ap);
+
+extern void ata_eh_freeze_port(struct ata_port *ap);
+extern void ata_eh_thaw_port(struct ata_port *ap);
+
 extern void ata_eh_qc_complete(struct ata_queued_cmd *qc);
 extern void ata_eh_qc_retry(struct ata_queued_cmd *qc);
 
+extern void ata_do_eh(struct ata_port *ap, ata_reset_fn_t softreset,
+		      ata_reset_fn_t hardreset, ata_postreset_fn_t postreset);
 
+/*
+ * printk helpers
+ */
+#define ata_port_printk(ap, lv, fmt, args...) \
+	printk(lv"ata%u: "fmt, (ap)->id , ##args)
+
+#define ata_dev_printk(dev, lv, fmt, args...) \
+	printk(lv"ata%u.%02u: "fmt, (dev)->ap->id, (dev)->devno , ##args)
+
+/*
+ * ata_eh_info helpers
+ */
+#define ata_ehi_push_desc(ehi, fmt, args...) do { \
+	(ehi)->desc_len += scnprintf((ehi)->desc + (ehi)->desc_len, \
+				     ATA_EH_DESC_LEN - (ehi)->desc_len, \
+				     fmt , ##args); \
+} while (0)
+
+#define ata_ehi_clear_desc(ehi) do { \
+	(ehi)->desc[0] = '\0'; \
+	(ehi)->desc_len = 0; \
+} while (0)
+
+/*
+ * qc helpers
+ */
 static inline int
 ata_sg_is_last(struct scatterlist *sg, struct ata_queued_cmd *qc)
 {
@@ -685,6 +811,11 @@ ata_qc_next_sg(struct scatterlist *sg, struct ata_queued_cmd *qc)
 static inline unsigned int ata_tag_valid(unsigned int tag)
 {
 	return (tag < ATA_MAX_QUEUE) ? 1 : 0;
+}
+
+static inline unsigned int ata_tag_internal(unsigned int tag)
+{
+	return tag == ATA_MAX_QUEUE - 1;
 }
 
 static inline unsigned int ata_class_enabled(unsigned int class)
@@ -795,20 +926,35 @@ static inline void ata_qc_set_polling(struct ata_queued_cmd *qc)
 	qc->tf.ctl |= ATA_NIEN;
 }
 
-static inline struct ata_queued_cmd *ata_qc_from_tag (struct ata_port *ap,
-						      unsigned int tag)
+static inline struct ata_queued_cmd *__ata_qc_from_tag(struct ata_port *ap,
+						       unsigned int tag)
 {
 	if (likely(ata_tag_valid(tag)))
 		return &ap->qcmd[tag];
 	return NULL;
 }
 
-static inline void ata_tf_init(struct ata_port *ap, struct ata_taskfile *tf, unsigned int device)
+static inline struct ata_queued_cmd *ata_qc_from_tag(struct ata_port *ap,
+						     unsigned int tag)
+{
+	struct ata_queued_cmd *qc = __ata_qc_from_tag(ap, tag);
+
+	if (unlikely(!qc) || !ap->ops->error_handler)
+		return qc;
+
+	if ((qc->flags & (ATA_QCFLAG_ACTIVE |
+			  ATA_QCFLAG_FAILED)) == ATA_QCFLAG_ACTIVE)
+		return qc;
+
+	return NULL;
+}
+
+static inline void ata_tf_init(struct ata_device *dev, struct ata_taskfile *tf)
 {
 	memset(tf, 0, sizeof(*tf));
 
-	tf->ctl = ap->ctl;
-	if (device == 0)
+	tf->ctl = dev->ap->ctl;
+	if (dev->devno == 0)
 		tf->device = ATA_DEVICE_OBS;
 	else
 		tf->device = ATA_DEVICE_OBS | ATA_DEV1;
@@ -823,26 +969,11 @@ static inline void ata_qc_reinit(struct ata_queued_cmd *qc)
 	qc->nbytes = qc->curbytes = 0;
 	qc->err_mask = 0;
 
-	ata_tf_init(qc->ap, &qc->tf, qc->dev->devno);
-}
+	ata_tf_init(qc->dev, &qc->tf);
 
-/**
- *	ata_qc_complete - Complete an active ATA command
- *	@qc: Command to complete
- *	@err_mask: ATA Status register contents
- *
- *	Indicate to the mid and upper layers that an ATA
- *	command has completed, with either an ok or not-ok status.
- *
- *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
- */
-static inline void ata_qc_complete(struct ata_queued_cmd *qc)
-{
-	if (unlikely(qc->flags & ATA_QCFLAG_EH_SCHEDULED))
-		return;
-
-	__ata_qc_complete(qc);
+	/* init result_tf such that it indicates normal completion */
+	qc->result_tf.command = ATA_DRDY;
+	qc->result_tf.feature = 0;
 }
 
 /**
@@ -919,28 +1050,6 @@ static inline u8 ata_irq_ack(struct ata_port *ap, unsigned int chk_drq)
 			host_stat, post_stat, status);
 
 	return status;
-}
-
-static inline u32 scr_read(struct ata_port *ap, unsigned int reg)
-{
-	return ap->ops->scr_read(ap, reg);
-}
-
-static inline void scr_write(struct ata_port *ap, unsigned int reg, u32 val)
-{
-	ap->ops->scr_write(ap, reg, val);
-}
-
-static inline void scr_write_flush(struct ata_port *ap, unsigned int reg,
-				   u32 val)
-{
-	ap->ops->scr_write(ap, reg, val);
-	(void) ap->ops->scr_read(ap, reg);
-}
-
-static inline unsigned int sata_dev_present(struct ata_port *ap)
-{
-	return ((scr_read(ap, SCR_STATUS) & 0xf) == 0x3) ? 1 : 0;
 }
 
 static inline int ata_try_flush_cache(const struct ata_device *dev)

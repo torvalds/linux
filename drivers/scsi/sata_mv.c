@@ -87,7 +87,7 @@ enum {
 	MV_FLAG_IRQ_COALESCE	= (1 << 29),  /* IRQ coalescing capability */
 	MV_COMMON_FLAGS		= (ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
 				   ATA_FLAG_SATA_RESET | ATA_FLAG_MMIO |
-				   ATA_FLAG_NO_ATAPI),
+				   ATA_FLAG_PIO_POLLING),
 	MV_6XXX_FLAGS		= MV_FLAG_IRQ_COALESCE,
 
 	CRQB_FLAG_READ		= (1 << 0),
@@ -680,7 +680,7 @@ static void mv_stop_dma(struct ata_port *ap)
 	}
 
 	if (EDMA_EN & reg) {
-		printk(KERN_ERR "ata%u: Unable to stop eDMA\n", ap->id);
+		ata_port_printk(ap, KERN_ERR, "Unable to stop eDMA\n");
 		/* FIXME: Consider doing a reset here to recover */
 	}
 }
@@ -1309,8 +1309,8 @@ static void mv_err_intr(struct ata_port *ap)
 	edma_err_cause = readl(port_mmio + EDMA_ERR_IRQ_CAUSE_OFS);
 
 	if (EDMA_ERR_SERR & edma_err_cause) {
-		serr = scr_read(ap, SCR_ERROR);
-		scr_write_flush(ap, SCR_ERROR, serr);
+		sata_scr_read(ap, SCR_ERROR, &serr);
+		sata_scr_write_flush(ap, SCR_ERROR, serr);
 	}
 	if (EDMA_ERR_SELF_DIS & edma_err_cause) {
 		struct mv_port_priv *pp	= ap->private_data;
@@ -1396,7 +1396,7 @@ static void mv_host_intr(struct ata_host_set *host_set, u32 relevant,
 			}
 		}
 
-		if (ap->flags & (ATA_FLAG_DISABLED | ATA_FLAG_NOINTR))
+		if (ap && (ap->flags & ATA_FLAG_DISABLED))
 			continue;
 
 		err_mask = ac_err_mask(ata_status);
@@ -1417,7 +1417,7 @@ static void mv_host_intr(struct ata_host_set *host_set, u32 relevant,
 				VPRINTK("port %u IRQ found for qc, "
 					"ata_status 0x%x\n", port,ata_status);
 				/* mark qc status appropriately */
-				if (!(qc->tf.ctl & ATA_NIEN)) {
+				if (!(qc->tf.flags & ATA_TFLAG_POLLING)) {
 					qc->err_mask |= err_mask;
 					ata_qc_complete(qc);
 				}
@@ -1934,15 +1934,16 @@ static void __mv_phy_reset(struct ata_port *ap, int can_sleep)
 
 	/* Issue COMRESET via SControl */
 comreset_retry:
-	scr_write_flush(ap, SCR_CONTROL, 0x301);
+	sata_scr_write_flush(ap, SCR_CONTROL, 0x301);
 	__msleep(1, can_sleep);
 
-	scr_write_flush(ap, SCR_CONTROL, 0x300);
+	sata_scr_write_flush(ap, SCR_CONTROL, 0x300);
 	__msleep(20, can_sleep);
 
 	timeout = jiffies + msecs_to_jiffies(200);
 	do {
-		sstatus = scr_read(ap, SCR_STATUS) & 0x3;
+		sata_scr_read(ap, SCR_STATUS, &sstatus);
+		sstatus &= 0x3;
 		if ((sstatus == 3) || (sstatus == 0))
 			break;
 
@@ -1959,11 +1960,12 @@ comreset_retry:
 		"SCtrl 0x%08x\n", mv_scr_read(ap, SCR_STATUS),
 		mv_scr_read(ap, SCR_ERROR), mv_scr_read(ap, SCR_CONTROL));
 
-	if (sata_dev_present(ap)) {
+	if (ata_port_online(ap)) {
 		ata_port_probe(ap);
 	} else {
-		printk(KERN_INFO "ata%u: no device found (phy stat %08x)\n",
-		       ap->id, scr_read(ap, SCR_STATUS));
+		sata_scr_read(ap, SCR_STATUS, &sstatus);
+		ata_port_printk(ap, KERN_INFO,
+				"no device found (phy stat %08x)\n", sstatus);
 		ata_port_disable(ap);
 		return;
 	}
@@ -2021,7 +2023,7 @@ static void mv_eng_timeout(struct ata_port *ap)
 {
 	struct ata_queued_cmd *qc;
 
-	printk(KERN_ERR "ata%u: Entering mv_eng_timeout\n",ap->id);
+	ata_port_printk(ap, KERN_ERR, "Entering mv_eng_timeout\n");
 	DPRINTK("All regs @ start of eng_timeout\n");
 	mv_dump_all_regs(ap->host_set->mmio_base, ap->port_no,
 			 to_pci_dev(ap->host_set->dev));

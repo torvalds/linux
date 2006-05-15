@@ -218,7 +218,7 @@ static const struct ata_port_info pdc_port_info[] = {
 		.sht		= &pdc_sata_sht,
 		.host_flags	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
 				  ATA_FLAG_SRST | ATA_FLAG_MMIO |
-				  ATA_FLAG_NO_ATAPI,
+				  ATA_FLAG_PIO_POLLING,
 		.pio_mask	= 0x1f, /* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
 		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
@@ -833,11 +833,11 @@ static irqreturn_t pdc20621_interrupt (int irq, void *dev_instance, struct pt_re
 		tmp = mask & (1 << i);
 		VPRINTK("seq %u, port_no %u, ap %p, tmp %x\n", i, port_no, ap, tmp);
 		if (tmp && ap &&
-		    !(ap->flags & (ATA_FLAG_DISABLED | ATA_FLAG_NOINTR))) {
+		    !(ap->flags & ATA_FLAG_DISABLED)) {
 			struct ata_queued_cmd *qc;
 
 			qc = ata_qc_from_tag(ap, ap->active_tag);
-			if (qc && (!(qc->tf.ctl & ATA_NIEN)))
+			if (qc && (!(qc->tf.flags & ATA_TFLAG_POLLING)))
 				handled += pdc20621_host_intr(ap, qc, (i > 4),
 							      mmio_base);
 		}
@@ -868,15 +868,16 @@ static void pdc_eng_timeout(struct ata_port *ap)
 	switch (qc->tf.protocol) {
 	case ATA_PROT_DMA:
 	case ATA_PROT_NODATA:
-		printk(KERN_ERR "ata%u: command timeout\n", ap->id);
+		ata_port_printk(ap, KERN_ERR, "command timeout\n");
 		qc->err_mask |= __ac_err_mask(ata_wait_idle(ap));
 		break;
 
 	default:
 		drv_stat = ata_busy_wait(ap, ATA_BUSY | ATA_DRQ, 1000);
 
-		printk(KERN_ERR "ata%u: unknown timeout, cmd 0x%x stat 0x%x\n",
-		       ap->id, qc->tf.command, drv_stat);
+		ata_port_printk(ap, KERN_ERR,
+				"unknown timeout, cmd 0x%x stat 0x%x\n",
+				qc->tf.command, drv_stat);
 
 		qc->err_mask |= ac_err_mask(drv_stat);
 		break;

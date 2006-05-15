@@ -56,6 +56,7 @@ void scsi_eh_wakeup(struct Scsi_Host *shost)
 				printk("Waking error handler thread\n"));
 	}
 }
+EXPORT_SYMBOL_GPL(scsi_eh_wakeup);
 
 /**
  * scsi_eh_scmd_add - add scsi cmd to error handling.
@@ -1517,7 +1518,7 @@ int scsi_error_handler(void *data)
 	 */
 	set_current_state(TASK_INTERRUPTIBLE);
 	while (!kthread_should_stop()) {
-		if (shost->host_failed == 0 ||
+		if ((shost->host_failed == 0 && shost->host_eh_scheduled == 0) ||
 		    shost->host_failed != shost->host_busy) {
 			SCSI_LOG_ERROR_RECOVERY(1,
 				printk("Error handler scsi_eh_%d sleeping\n",

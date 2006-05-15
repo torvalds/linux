@@ -455,13 +455,13 @@ static inline unsigned int adma_intr_pkt(struct ata_host_set *host_set)
 			continue;
 		handled = 1;
 		adma_enter_reg_mode(ap);
-		if (ap->flags & (ATA_FLAG_DISABLED | ATA_FLAG_NOINTR))
+		if (ap->flags & ATA_FLAG_DISABLED)
 			continue;
 		pp = ap->private_data;
 		if (!pp || pp->state != adma_state_pkt)
 			continue;
 		qc = ata_qc_from_tag(ap, ap->active_tag);
-		if (qc && (!(qc->tf.ctl & ATA_NIEN))) {
+		if (qc && (!(qc->tf.flags & ATA_TFLAG_POLLING))) {
 			if ((status & (aPERR | aPSD | aUIRQ)))
 				qc->err_mask |= AC_ERR_OTHER;
 			else if (pp->pkt[0] != cDONE)
@@ -480,13 +480,13 @@ static inline unsigned int adma_intr_mmio(struct ata_host_set *host_set)
 	for (port_no = 0; port_no < host_set->n_ports; ++port_no) {
 		struct ata_port *ap;
 		ap = host_set->ports[port_no];
-		if (ap && (!(ap->flags & (ATA_FLAG_DISABLED | ATA_FLAG_NOINTR)))) {
+		if (ap && (!(ap->flags & ATA_FLAG_DISABLED))) {
 			struct ata_queued_cmd *qc;
 			struct adma_port_priv *pp = ap->private_data;
 			if (!pp || pp->state != adma_state_mmio)
 				continue;
 			qc = ata_qc_from_tag(ap, ap->active_tag);
-			if (qc && (!(qc->tf.ctl & ATA_NIEN))) {
+			if (qc && (!(qc->tf.flags & ATA_TFLAG_POLLING))) {
 
 				/* check main status, clearing INTRQ */
 				u8 status = ata_check_status(ap);

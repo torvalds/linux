@@ -221,14 +221,21 @@ static irqreturn_t vsc_sata_interrupt (int irq, void *dev_instance,
 
 			ap = host_set->ports[i];
 
-			if (ap && !(ap->flags &
-				    (ATA_FLAG_DISABLED|ATA_FLAG_NOINTR))) {
+			if (is_vsc_sata_int_err(i, int_status)) {
+				u32 err_status;
+				printk(KERN_DEBUG "%s: ignoring interrupt(s)\n", __FUNCTION__);
+				err_status = ap ? vsc_sata_scr_read(ap, SCR_ERROR) : 0;
+				vsc_sata_scr_write(ap, SCR_ERROR, err_status);
+				handled++;
+			}
+
+			if (ap && !(ap->flags & ATA_FLAG_DISABLED)) {
 				struct ata_queued_cmd *qc;
 
 				qc = ata_qc_from_tag(ap, ap->active_tag);
-				if (qc && (!(qc->tf.ctl & ATA_NIEN))) {
+				if (qc && (!(qc->tf.flags & ATA_TFLAG_POLLING)))
 					handled += ata_host_intr(ap, qc);
-				} else if (is_vsc_sata_int_err(i, int_status)) {
+				else if (is_vsc_sata_int_err(i, int_status)) {
 					/*
 					 * On some chips (i.e. Intel 31244), an error
 					 * interrupt will sneak in at initialization

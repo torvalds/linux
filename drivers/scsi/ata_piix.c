@@ -243,7 +243,10 @@ static const struct ata_port_operations piix_pata_ops = {
 	.qc_prep		= ata_qc_prep,
 	.qc_issue		= ata_qc_issue_prot,
 
-	.eng_timeout		= ata_eng_timeout,
+	.freeze			= ata_bmdma_freeze,
+	.thaw			= ata_bmdma_thaw,
+	.error_handler		= ata_bmdma_error_handler,
+	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
 
 	.irq_handler		= ata_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
@@ -271,7 +274,10 @@ static const struct ata_port_operations piix_sata_ops = {
 	.qc_prep		= ata_qc_prep,
 	.qc_issue		= ata_qc_issue_prot,
 
-	.eng_timeout		= ata_eng_timeout,
+	.freeze			= ata_bmdma_freeze,
+	.thaw			= ata_bmdma_thaw,
+	.error_handler		= ata_bmdma_error_handler,
+	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
 
 	.irq_handler		= ata_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
@@ -484,7 +490,7 @@ static int piix_pata_probe_reset(struct ata_port *ap, unsigned int *classes)
 	struct pci_dev *pdev = to_pci_dev(ap->host_set->dev);
 
 	if (!pci_test_config_bits(pdev, &piix_enable_bits[ap->hard_port_no])) {
-		printk(KERN_INFO "ata%u: port disabled. ignoring.\n", ap->id);
+		ata_port_printk(ap, KERN_INFO, "port disabled. ignoring.\n");
 		return 0;
 	}
 
@@ -565,7 +571,7 @@ static unsigned int piix_sata_probe (struct ata_port *ap)
 static int piix_sata_probe_reset(struct ata_port *ap, unsigned int *classes)
 {
 	if (!piix_sata_probe(ap)) {
-		printk(KERN_INFO "ata%u: SATA port has no device.\n", ap->id);
+		ata_port_printk(ap, KERN_INFO, "SATA port has no device.\n");
 		return 0;
 	}
 
