@@ -4083,8 +4083,6 @@ void ata_qc_free(struct ata_queued_cmd *qc)
 	qc->flags = 0;
 	tag = qc->tag;
 	if (likely(ata_tag_valid(tag))) {
-		if (tag == ap->active_tag)
-			ap->active_tag = ATA_TAG_POISON;
 		qc->tag = ATA_TAG_POISON;
 		clear_bit(tag, &ap->qactive);
 	}
@@ -4097,6 +4095,9 @@ void __ata_qc_complete(struct ata_queued_cmd *qc)
 
 	if (likely(qc->flags & ATA_QCFLAG_DMAMAP))
 		ata_sg_clean(qc);
+
+	/* command should be marked inactive atomically with qc completion */
+	qc->ap->active_tag = ATA_TAG_POISON;
 
 	/* atapi: mark qc as inactive to prevent the interrupt handler
 	 * from completing the command twice later, before the error handler
