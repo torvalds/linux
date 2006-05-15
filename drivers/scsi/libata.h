@@ -57,6 +57,7 @@ extern int ata_do_reset(struct ata_port *ap, ata_reset_fn_t reset,
 			unsigned int *classes);
 extern void ata_qc_free(struct ata_queued_cmd *qc);
 extern void ata_qc_issue(struct ata_queued_cmd *qc);
+extern void __ata_qc_complete(struct ata_queued_cmd *qc);
 extern int ata_check_atapi_dma(struct ata_queued_cmd *qc);
 extern void ata_dev_select(struct ata_port *ap, unsigned int device,
                            unsigned int wait, unsigned int can_sleep);
@@ -101,5 +102,6 @@ extern void ata_scsi_rbuf_fill(struct ata_scsi_args *args,
 /* libata-eh.c */
 extern enum scsi_eh_timer_return ata_scsi_timed_out(struct scsi_cmnd *cmd);
 extern void ata_scsi_error(struct Scsi_Host *host);
+extern void ata_qc_schedule_eh(struct ata_queued_cmd *qc);
 
 #endif /* __LIBATA_H__ */

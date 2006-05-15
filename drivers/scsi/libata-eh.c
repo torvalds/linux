@@ -210,6 +210,33 @@ void ata_eng_timeout(struct ata_port *ap)
 	DPRINTK("EXIT\n");
 }
 
+/**
+ *	ata_qc_schedule_eh - schedule qc for error handling
+ *	@qc: command to schedule error handling for
+ *
+ *	Schedule error handling for @qc.  EH will kick in as soon as
+ *	other commands are drained.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host_set lock)
+ */
+void ata_qc_schedule_eh(struct ata_queued_cmd *qc)
+{
+	struct ata_port *ap = qc->ap;
+
+	WARN_ON(!ap->ops->error_handler);
+
+	qc->flags |= ATA_QCFLAG_FAILED;
+	qc->ap->flags |= ATA_FLAG_EH_PENDING;
+
+	/* The following will fail if timeout has already expired.
+	 * ata_scsi_error() takes care of such scmds on EH entry.
+	 * Note that ATA_QCFLAG_FAILED is unconditionally set after
+	 * this function completes.
+	 */
+	scsi_req_abort_cmd(qc->scsicmd);
+}
+
 static void ata_eh_scsidone(struct scsi_cmnd *scmd)
 {
 	/* nada */
