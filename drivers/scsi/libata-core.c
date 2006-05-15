@@ -3430,16 +3430,31 @@ skip_map:
  *	LOCKING:
  *	None.  (grabs host lock)
  */
-
 void ata_poll_qc_complete(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	unsigned long flags;
 
 	spin_lock_irqsave(&ap->host_set->lock, flags);
-	ap->flags &= ~ATA_FLAG_NOINTR;
-	ata_irq_on(ap);
-	ata_qc_complete(qc);
+
+	if (ap->ops->error_handler) {
+		/* EH might have kicked in while host_set lock is released */
+		qc = ata_qc_from_tag(ap, qc->tag);
+		if (qc) {
+			if (!(qc->err_mask & AC_ERR_HSM)) {
+				ap->flags &= ~ATA_FLAG_NOINTR;
+				ata_irq_on(ap);
+				ata_qc_complete(qc);
+			} else
+				ata_port_freeze(ap);
+		}
+	} else {
+		/* old EH */
+		ap->flags &= ~ATA_FLAG_NOINTR;
+		ata_irq_on(ap);
+		ata_qc_complete(qc);
+	}
+
 	spin_unlock_irqrestore(&ap->host_set->lock, flags);
 }
 
