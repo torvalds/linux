@@ -700,6 +700,14 @@ static enum {
 	FULL
 } g_cpucache_up;
 
+/*
+ * used by boot code to determine if it can use slab based allocator
+ */
+int slab_is_available(void)
+{
+	return g_cpucache_up == FULL;
+}
+
 static DEFINE_PER_CPU(struct work_struct, reap_work);
 
 static void free_block(struct kmem_cache *cachep, void **objpp, int len,
