@@ -191,7 +191,6 @@ struct ahci_port_priv {
 	dma_addr_t		cmd_slot_dma;
 	void			*cmd_tbl;
 	dma_addr_t		cmd_tbl_dma;
-	struct ahci_sg		*cmd_tbl_sg;
 	void			*rx_fis;
 	dma_addr_t		rx_fis_dma;
 };
@@ -401,8 +400,6 @@ static int ahci_port_start(struct ata_port *ap)
 	 */
 	pp->cmd_tbl = mem;
 	pp->cmd_tbl_dma = mem_dma;
-
-	pp->cmd_tbl_sg = mem + AHCI_CMD_TBL_HDR_SZ;
 
 	ap->private_data = pp;
 
@@ -749,7 +746,7 @@ static unsigned int ahci_fill_sg(struct ata_queued_cmd *qc)
 	/*
 	 * Next, the S/G list.
 	 */
-	ahci_sg = pp->cmd_tbl_sg;
+	ahci_sg = pp->cmd_tbl + AHCI_CMD_TBL_HDR_SZ;
 	ata_for_each_sg(sg, qc) {
 		dma_addr_t addr = sg_dma_address(sg);
 		u32 sg_len = sg_dma_len(sg);
