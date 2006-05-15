@@ -1372,13 +1372,13 @@ static int acpi_bus_scan_fixed(struct acpi_device *root)
 }
 
 
-static struct acpi_device * to_acpi_dev(struct device * dev)
+static inline struct acpi_device * to_acpi_dev(struct device * dev)
 {
 	return container_of(dev, struct acpi_device, dev);
 }
 
 
-static int root_suspend(struct acpi_device * acpi_dev)
+static int root_suspend(struct acpi_device * acpi_dev, pm_message_t state)
 {
 	struct acpi_device * dev, * next;
 	int result;
@@ -1387,10 +1387,6 @@ static int root_suspend(struct acpi_device * acpi_dev)
 	list_for_each_entry_safe_reverse(dev, next, &acpi_device_list, g_list) {
 		if (dev->driver && dev->driver->ops.suspend) {
 			spin_unlock(&acpi_device_lock);
-
-			/* TBD: What suspend state should be passed
-			 * to device?
-			 */
 			result = dev->driver->ops.suspend(dev, 0);
 			if (result) {
 				printk(KERN_ERR PREFIX "[%s - %s] Suspend failed: %d\n",
@@ -1416,7 +1412,7 @@ static int acpi_device_suspend(struct device * dev, pm_message_t state)
 	 * ACPI driver methods.
 	 */
 	if (acpi_dev->handle == ACPI_ROOT_OBJECT)
-		root_suspend(acpi_dev);
+		root_suspend(acpi_dev, state);
 	return 0;
 }
 
@@ -1431,10 +1427,6 @@ static int root_resume(struct acpi_device * acpi_dev)
 	list_for_each_entry_safe(dev, next, &acpi_device_list, g_list) {
 		if (dev->driver && dev->driver->ops.resume) {
 			spin_unlock(&acpi_device_lock);
-
-			/* TBD: What suspend state should be passed
-			 * to device?
-			 */
 			result = dev->driver->ops.resume(dev, 0);
 			if (result) {
 				printk(KERN_ERR PREFIX "[%s - %s] resume failed: %d\n",
