@@ -971,8 +971,8 @@ void dt_vdevices(struct iseries_flat_dt *dt)
 	for (i = 0; i < HVMAXARCHITECTEDVIRTUALDISKS; i++) {
 		snprintf(buf, 32, "viodasd@%08x", reg + i);
 		dt_start_node(dt, buf);
-		dt_prop_str(dt, "device_type", "viodasd");
-		dt_prop_str(dt, "compatible", "");
+		dt_prop_str(dt, "device_type", "block");
+		dt_prop_str(dt, "compatible", "IBM,iSeries-viodasd");
 		dt_prop_u32(dt, "reg", reg + i);
 		dt_prop_u32(dt, "linux,unit_address", i);
 		dt_end_node(dt);
