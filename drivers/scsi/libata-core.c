@@ -4416,6 +4416,7 @@ static inline int ata_should_dma_map(struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 
 	switch (qc->tf.protocol) {
+	case ATA_PROT_NCQ:
 	case ATA_PROT_DMA:
 	case ATA_PROT_ATAPI_DMA:
 		return 1;

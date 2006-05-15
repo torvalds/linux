@@ -1103,7 +1103,36 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc, const u8 *scsicm
 		 */
 		goto nothing_to_do;
 
-	if (dev->flags & ATA_DFLAG_LBA) {
+	if ((dev->flags & (ATA_DFLAG_PIO | ATA_DFLAG_NCQ)) == ATA_DFLAG_NCQ) {
+		/* yay, NCQ */
+		if (!lba_48_ok(block, n_block))
+			goto out_of_range;
+
+		tf->protocol = ATA_PROT_NCQ;
+		tf->flags |= ATA_TFLAG_LBA | ATA_TFLAG_LBA48;
+
+		if (tf->flags & ATA_TFLAG_WRITE)
+			tf->command = ATA_CMD_FPDMA_WRITE;
+		else
+			tf->command = ATA_CMD_FPDMA_READ;
+
+		qc->nsect = n_block;
+
+		tf->nsect = qc->tag << 3;
+		tf->hob_feature = (n_block >> 8) & 0xff;
+		tf->feature = n_block & 0xff;
+
+		tf->hob_lbah = (block >> 40) & 0xff;
+		tf->hob_lbam = (block >> 32) & 0xff;
+		tf->hob_lbal = (block >> 24) & 0xff;
+		tf->lbah = (block >> 16) & 0xff;
+		tf->lbam = (block >> 8) & 0xff;
+		tf->lbal = block & 0xff;
+
+		tf->device = 1 << 6;
+		if (tf->flags & ATA_TFLAG_FUA)
+			tf->device |= 1 << 7;
+	} else if (dev->flags & ATA_DFLAG_LBA) {
 		tf->flags |= ATA_TFLAG_LBA;
 
 		if (lba_28_ok(block, n_block)) {
@@ -1227,6 +1256,39 @@ static void ata_scsi_qc_complete(struct ata_queued_cmd *qc)
 }
 
 /**
+ *	ata_scmd_need_defer - Check whether we need to defer scmd
+ *	@dev: ATA device to which the command is addressed
+ *	@is_io: Is the command IO (and thus possibly NCQ)?
+ *
+ *	NCQ and non-NCQ commands cannot run together.  As upper layer
+ *	only knows the queue depth, we are responsible for maintaining
+ *	exclusion.  This function checks whether a new command can be
+ *	issued to @dev.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host_set lock)
+ *
+ *	RETURNS:
+ *	1 if deferring is needed, 0 otherwise.
+ */
+static int ata_scmd_need_defer(struct ata_device *dev, int is_io)
+{
+	struct ata_port *ap = dev->ap;
+
+	if (!(dev->flags & ATA_DFLAG_NCQ))
+		return 0;
+
+	if (is_io) {
+		if (!ata_tag_valid(ap->active_tag))
+			return 0;
+	} else {
+		if (!ata_tag_valid(ap->active_tag) && !ap->sactive)
+			return 0;
+	}
+	return 1;
+}
+
+/**
  *	ata_scsi_translate - Translate then issue SCSI command to ATA device
  *	@dev: ATA device to which the command is addressed
  *	@cmd: SCSI command to execute
@@ -1259,8 +1321,12 @@ static int ata_scsi_translate(struct ata_device *dev, struct scsi_cmnd *cmd,
 {
 	struct ata_queued_cmd *qc;
 	u8 *scsicmd = cmd->cmnd;
+	int is_io = xlat_func == ata_scsi_rw_xlat;
 
 	VPRINTK("ENTER\n");
+
+	if (unlikely(ata_scmd_need_defer(dev, is_io)))
+		goto defer;
 
 	qc = ata_scsi_qc_new(dev, cmd, done);
 	if (!qc)
@@ -1308,6 +1374,10 @@ err_mem:
 	done(cmd);
 	DPRINTK("EXIT - internal\n");
 	return 0;
+
+defer:
+	DPRINTK("EXIT - defer\n");
+	return SCSI_MLQUEUE_DEVICE_BUSY;
 }
 
 /**
