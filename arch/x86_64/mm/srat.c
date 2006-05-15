@@ -34,7 +34,10 @@ static nodemask_t nodes_found __initdata;
 static struct bootnode nodes[MAX_NUMNODES] __initdata;
 static struct bootnode nodes_add[MAX_NUMNODES] __initdata;
 static int found_add_area __initdata;
-int hotadd_percent __initdata = 10;
+int hotadd_percent __initdata = 0;
+#ifndef RESERVE_HOTADD
+#define hotadd_percent 0	/* Ignore all settings */
+#endif
 static u8 pxm2node[256] = { [0 ... 255] = 0xff };
 
 /* Too small nodes confuse the VM badly. Usually they result
@@ -103,6 +106,7 @@ static __init void bad_srat(void)
 	int i;
 	printk(KERN_ERR "SRAT: SRAT not used.\n");
 	acpi_numa = -1;
+	found_add_area = 0;
 	for (i = 0; i < MAX_LOCAL_APIC; i++)
 		apicid_to_node[i] = NUMA_NO_NODE;
 	for (i = 0; i < MAX_NUMNODES; i++)
@@ -154,7 +158,8 @@ acpi_numa_processor_affinity_init(struct acpi_table_processor_affinity *pa)
 	int pxm, node;
 	if (srat_disabled())
 		return;
-	if (pa->header.length != sizeof(struct acpi_table_processor_affinity)) {		bad_srat();
+	if (pa->header.length != sizeof(struct acpi_table_processor_affinity)) {
+		bad_srat();
 		return;
 	}
 	if (pa->flags.enabled == 0)
@@ -191,15 +196,17 @@ static int hotadd_enough_memory(struct bootnode *nd)
 	allowed = (end_pfn - e820_hole_size(0, end_pfn)) * PAGE_SIZE;
 	allowed = (allowed / 100) * hotadd_percent;
 	if (allocated + mem > allowed) {
+		unsigned long range;
 		/* Give them at least part of their hotadd memory upto hotadd_percent
 		   It would be better to spread the limit out
 		   over multiple hotplug areas, but that is too complicated
 		   right now */
 		if (allocated >= allowed)
 			return 0;
-		pages = (allowed - allocated + mem) / sizeof(struct page);
+		range = allowed - allocated;
+		pages = (range / PAGE_SIZE);
 		mem = pages * sizeof(struct page);
-		nd->end = nd->start + pages*PAGE_SIZE;
+		nd->end = nd->start + range;
 	}
 	/* Not completely fool proof, but a good sanity check */
 	addr = find_e820_area(last_area_end, end_pfn<<PAGE_SHIFT, mem);
