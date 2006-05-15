@@ -939,28 +939,6 @@ static inline u8 ata_irq_ack(struct ata_port *ap, unsigned int chk_drq)
 	return status;
 }
 
-static inline u32 scr_read(struct ata_port *ap, unsigned int reg)
-{
-	return ap->ops->scr_read(ap, reg);
-}
-
-static inline void scr_write(struct ata_port *ap, unsigned int reg, u32 val)
-{
-	ap->ops->scr_write(ap, reg, val);
-}
-
-static inline void scr_write_flush(struct ata_port *ap, unsigned int reg,
-				   u32 val)
-{
-	ap->ops->scr_write(ap, reg, val);
-	(void) ap->ops->scr_read(ap, reg);
-}
-
-static inline unsigned int sata_dev_present(struct ata_port *ap)
-{
-	return ((scr_read(ap, SCR_STATUS) & 0xf) == 0x3) ? 1 : 0;
-}
-
 static inline int ata_try_flush_cache(const struct ata_device *dev)
 {
 	return ata_id_wcache_enabled(dev->id) ||
