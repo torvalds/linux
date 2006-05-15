@@ -391,7 +391,8 @@ static void w1_destroy_master_attributes(struct w1_master *master)
 }
 
 #ifdef CONFIG_HOTPLUG
-static int w1_uevent(struct device *dev, char **envp, int num_envp, char *buffer, int buffer_size)
+static int w1_uevent(struct device *dev, char **envp, int num_envp,
+			char *buffer, int buffer_size)
 {
 	struct w1_master *md = NULL;
 	struct w1_slave *sl = NULL;
@@ -411,23 +412,28 @@ static int w1_uevent(struct device *dev, char **envp, int num_envp, char *buffer
 		return -EINVAL;
 	}
 
-	dev_dbg(dev, "Hotplug event for %s %s, bus_id=%s.\n", event_owner, name, dev->bus_id);
+	dev_dbg(dev, "Hotplug event for %s %s, bus_id=%s.\n",
+			event_owner, name, dev->bus_id);
 
 	if (dev->driver != &w1_slave_driver || !sl)
 		return 0;
 
-	err = add_uevent_var(envp, num_envp, &cur_index, buffer, buffer_size, &cur_len, "W1_FID=%02X", sl->reg_num.family);
+	err = add_uevent_var(envp, num_envp, &cur_index, buffer, buffer_size,
+			&cur_len, "W1_FID=%02X", sl->reg_num.family);
 	if (err)
 		return err;
 
-	err = add_uevent_var(envp, num_envp, &cur_index, buffer, buffer_size, &cur_len, "W1_SLAVE_ID=%024LX", (u64)sl->reg_num.id);
+	err = add_uevent_var(envp, num_envp, &cur_index, buffer, buffer_size,
+			&cur_len, "W1_SLAVE_ID=%024LX",
+			(unsigned long long)sl->reg_num.id);
 	if (err)
 		return err;
 
 	return 0;
 };
 #else
-static int w1_uevent(struct device *dev, char **envp, int num_envp, char *buffer, int buffer_size)
+static int w1_uevent(struct device *dev, char **envp, int num_envp,
+			char *buffer, int buffer_size)
 {
 	return 0;
 }
@@ -451,7 +457,8 @@ static int __w1_attach_slave_device(struct w1_slave *sl)
 		 (unsigned int) sl->reg_num.family,
 		 (unsigned long long) sl->reg_num.id);
 
-	dev_dbg(&sl->dev, "%s: registering %s as %p.\n", __func__, &sl->dev.bus_id[0]);
+	dev_dbg(&sl->dev, "%s: registering %s as %p.\n", __func__,
+		&sl->dev.bus_id[0]);
 
 	err = device_register(&sl->dev);
 	if (err < 0) {
