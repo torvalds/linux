@@ -528,7 +528,7 @@ static int sil24_hardreset(struct ata_port *ap, unsigned int *class)
 	u32 tmp;
 
 	/* sil24 does the right thing(tm) without any protection */
-	ata_set_sata_spd(ap);
+	sata_set_spd(ap);
 
 	tout_msec = 100;
 	if (sata_dev_present(ap))

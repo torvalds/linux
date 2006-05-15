@@ -1465,7 +1465,7 @@ static int ata_bus_probe(struct ata_port *ap)
 		tries[dev->devno] = 0;
 		break;
 	case -EIO:
-		ata_down_sata_spd_limit(ap);
+		sata_down_spd_limit(ap);
 		/* fall through */
 	default:
 		tries[dev->devno]--;
@@ -1640,12 +1640,12 @@ void ata_port_disable(struct ata_port *ap)
 }
 
 /**
- *	ata_down_sata_spd_limit - adjust SATA spd limit downward
+ *	sata_down_spd_limit - adjust SATA spd limit downward
  *	@ap: Port to adjust SATA spd limit for
  *
  *	Adjust SATA spd limit of @ap downward.  Note that this
  *	function only adjusts the limit.  The change must be applied
- *	using ata_set_sata_spd().
+ *	using sata_set_spd().
  *
  *	LOCKING:
  *	Inherited from caller.
@@ -1653,7 +1653,7 @@ void ata_port_disable(struct ata_port *ap)
  *	RETURNS:
  *	0 on success, negative errno on failure
  */
-int ata_down_sata_spd_limit(struct ata_port *ap)
+int sata_down_spd_limit(struct ata_port *ap)
 {
 	u32 spd, mask;
 	int highbit;
@@ -1683,7 +1683,7 @@ int ata_down_sata_spd_limit(struct ata_port *ap)
 	return 0;
 }
 
-static int __ata_set_sata_spd_needed(struct ata_port *ap, u32 *scontrol)
+static int __sata_set_spd_needed(struct ata_port *ap, u32 *scontrol)
 {
 	u32 spd, limit;
 
@@ -1699,7 +1699,7 @@ static int __ata_set_sata_spd_needed(struct ata_port *ap, u32 *scontrol)
 }
 
 /**
- *	ata_set_sata_spd_needed - is SATA spd configuration needed
+ *	sata_set_spd_needed - is SATA spd configuration needed
  *	@ap: Port in question
  *
  *	Test whether the spd limit in SControl matches
@@ -1713,7 +1713,7 @@ static int __ata_set_sata_spd_needed(struct ata_port *ap, u32 *scontrol)
  *	RETURNS:
  *	1 if SATA spd configuration is needed, 0 otherwise.
  */
-int ata_set_sata_spd_needed(struct ata_port *ap)
+int sata_set_spd_needed(struct ata_port *ap)
 {
 	u32 scontrol;
 
@@ -1722,11 +1722,11 @@ int ata_set_sata_spd_needed(struct ata_port *ap)
 
 	scontrol = scr_read(ap, SCR_CONTROL);
 
-	return __ata_set_sata_spd_needed(ap, &scontrol);
+	return __sata_set_spd_needed(ap, &scontrol);
 }
 
 /**
- *	ata_set_sata_spd - set SATA spd according to spd limit
+ *	sata_set_spd - set SATA spd according to spd limit
  *	@ap: Port to set SATA spd for
  *
  *	Set SATA spd of @ap according to sata_spd_limit.
@@ -1738,7 +1738,7 @@ int ata_set_sata_spd_needed(struct ata_port *ap)
  *	0 if spd doesn't need to be changed, 1 if spd has been
  *	changed.  -EOPNOTSUPP if SCR registers are inaccessible.
  */
-int ata_set_sata_spd(struct ata_port *ap)
+int sata_set_spd(struct ata_port *ap)
 {
 	u32 scontrol;
 
@@ -1746,7 +1746,7 @@ int ata_set_sata_spd(struct ata_port *ap)
 		return -EOPNOTSUPP;
 
 	scontrol = scr_read(ap, SCR_CONTROL);
-	if (!__ata_set_sata_spd_needed(ap, &scontrol))
+	if (!__sata_set_spd_needed(ap, &scontrol))
 		return 0;
 
 	scr_write(ap, SCR_CONTROL, scontrol);
@@ -2464,7 +2464,7 @@ int sata_std_hardreset(struct ata_port *ap, unsigned int *class)
 
 	DPRINTK("ENTER\n");
 
-	if (ata_set_sata_spd_needed(ap)) {
+	if (sata_set_spd_needed(ap)) {
 		/* SATA spec says nothing about how to reconfigure
 		 * spd.  To be on the safe side, turn off phy during
 		 * reconfiguration.  This works for at least ICH7 AHCI
@@ -2474,7 +2474,7 @@ int sata_std_hardreset(struct ata_port *ap, unsigned int *class)
 		scontrol = (scontrol & 0x0f0) | 0x302;
 		scr_write_flush(ap, SCR_CONTROL, scontrol);
 
-		ata_set_sata_spd(ap);
+		sata_set_spd(ap);
 	}
 
 	/* issue phy wake/reset */
@@ -2657,7 +2657,7 @@ int ata_drive_probe_reset(struct ata_port *ap, ata_probeinit_fn_t probeinit,
 	if (probeinit)
 		probeinit(ap);
 
-	if (softreset && !ata_set_sata_spd_needed(ap)) {
+	if (softreset && !sata_set_spd_needed(ap)) {
 		rc = ata_do_reset(ap, softreset, postreset, classes);
 		if (rc == 0 && classes[0] != ATA_DEV_UNKNOWN)
 			goto done;
@@ -2677,7 +2677,7 @@ int ata_drive_probe_reset(struct ata_port *ap, ata_probeinit_fn_t probeinit,
 			break;
 		}
 
-		if (ata_down_sata_spd_limit(ap))
+		if (sata_down_spd_limit(ap))
 			goto done;
 
 		printk(KERN_INFO "ata%u: hardreset failed, will retry "
@@ -5113,7 +5113,7 @@ EXPORT_SYMBOL_GPL(ata_bmdma_irq_clear);
 EXPORT_SYMBOL_GPL(ata_bmdma_status);
 EXPORT_SYMBOL_GPL(ata_bmdma_stop);
 EXPORT_SYMBOL_GPL(ata_port_probe);
-EXPORT_SYMBOL_GPL(ata_set_sata_spd);
+EXPORT_SYMBOL_GPL(sata_set_spd);
 EXPORT_SYMBOL_GPL(sata_phy_reset);
 EXPORT_SYMBOL_GPL(__sata_phy_reset);
 EXPORT_SYMBOL_GPL(ata_bus_reset);

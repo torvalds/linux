@@ -51,8 +51,8 @@ extern void ata_port_flush_task(struct ata_port *ap);
 extern unsigned ata_exec_internal(struct ata_port *ap, struct ata_device *dev,
 				  struct ata_taskfile *tf, const u8 *cdb,
 				  int dma_dir, void *buf, unsigned int buflen);
-extern int ata_down_sata_spd_limit(struct ata_port *ap);
-extern int ata_set_sata_spd_needed(struct ata_port *ap);
+extern int sata_down_spd_limit(struct ata_port *ap);
+extern int sata_set_spd_needed(struct ata_port *ap);
 extern int ata_down_xfermask_limit(struct ata_port *ap, struct ata_device *dev,
 				   int force_pio0);
 extern int ata_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev);
