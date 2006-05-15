@@ -1426,20 +1426,7 @@ static int ata_bus_probe(struct ata_port *ap)
 	}
 
 	/* configure transfer mode */
-	if (ap->ops->set_mode) {
-		/* FIXME: make ->set_mode handle no device case and
-		 * return error code and failing device on failure as
-		 * ata_set_mode() does.
-		 */
-		for (i = 0; i < ATA_MAX_DEVICES; i++)
-			if (ata_dev_enabled(&ap->device[i])) {
-				ap->ops->set_mode(ap);
-				break;
-			}
-		rc = 0;
-	} else
-		rc = ata_set_mode(ap, &dev);
-
+	rc = ata_set_mode(ap, &dev);
 	if (rc) {
 		down_xfermask = 1;
 		goto fail;
@@ -1996,6 +1983,20 @@ int ata_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev)
 {
 	struct ata_device *dev;
 	int i, rc = 0, used_dma = 0, found = 0;
+
+	/* has private set_mode? */
+	if (ap->ops->set_mode) {
+		/* FIXME: make ->set_mode handle no device case and
+		 * return error code and failing device on failure.
+		 */
+		for (i = 0; i < ATA_MAX_DEVICES; i++) {
+			if (ata_dev_enabled(&ap->device[i])) {
+				ap->ops->set_mode(ap);
+				break;
+			}
+		}
+		return 0;
+	}
 
 	/* step 1: calculate xfer_mask */
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
