@@ -225,6 +225,9 @@ enum {
 	ATA_PORT_PRIMARY	= (1 << 0),
 	ATA_PORT_SECONDARY	= (1 << 1),
 
+	/* max repeat if error condition is still set after ->error_handler */
+	ATA_EH_MAX_REPEAT	= 5,
+
 	/* how hard are we gonna try to probe/recover devices */
 	ATA_PROBE_MAX_TRIES	= 3,
 };

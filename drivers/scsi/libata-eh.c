@@ -44,6 +44,8 @@
 
 #include "libata.h"
 
+static void __ata_port_freeze(struct ata_port *ap);
+
 /**
  *	ata_scsi_timed_out - SCSI layer time out callback
  *	@cmd: timed out SCSI command
@@ -54,6 +56,8 @@
  *	timed out and EH should be invoked.  Prevent ata_qc_complete()
  *	from finishing it by setting EH_SCHEDULED and return
  *	EH_NOT_HANDLED.
+ *
+ *	TODO: kill this function once old EH is gone.
  *
  *	LOCKING:
  *	Called from timer context
@@ -67,10 +71,16 @@ enum scsi_eh_timer_return ata_scsi_timed_out(struct scsi_cmnd *cmd)
 	struct ata_port *ap = ata_shost_to_port(host);
 	unsigned long flags;
 	struct ata_queued_cmd *qc;
-	enum scsi_eh_timer_return ret = EH_HANDLED;
+	enum scsi_eh_timer_return ret;
 
 	DPRINTK("ENTER\n");
 
+	if (ap->ops->error_handler) {
+		ret = EH_NOT_HANDLED;
+		goto out;
+	}
+
+	ret = EH_HANDLED;
 	spin_lock_irqsave(&ap->host_set->lock, flags);
 	qc = ata_qc_from_tag(ap, ap->active_tag);
 	if (qc) {
@@ -81,6 +91,7 @@ enum scsi_eh_timer_return ata_scsi_timed_out(struct scsi_cmnd *cmd)
 	}
 	spin_unlock_irqrestore(&ap->host_set->lock, flags);
 
+ out:
 	DPRINTK("EXIT, ret=%d\n", ret);
 	return ret;
 }
@@ -100,20 +111,131 @@ enum scsi_eh_timer_return ata_scsi_timed_out(struct scsi_cmnd *cmd)
 void ata_scsi_error(struct Scsi_Host *host)
 {
 	struct ata_port *ap = ata_shost_to_port(host);
+	spinlock_t *hs_lock = &ap->host_set->lock;
+	int i, repeat_cnt = ATA_EH_MAX_REPEAT;
+	unsigned long flags;
 
 	DPRINTK("ENTER\n");
 
-	/* synchronize with IRQ handler and port task */
-	spin_unlock_wait(&ap->host_set->lock);
+	/* synchronize with port task */
 	ata_port_flush_task(ap);
 
-	WARN_ON(ata_qc_from_tag(ap, ap->active_tag) == NULL);
+	/* synchronize with host_set lock and sort out timeouts */
 
-	ap->ops->eng_timeout(ap);
+	/* For new EH, all qcs are finished in one of three ways -
+	 * normal completion, error completion, and SCSI timeout.
+	 * Both cmpletions can race against SCSI timeout.  When normal
+	 * completion wins, the qc never reaches EH.  When error
+	 * completion wins, the qc has ATA_QCFLAG_FAILED set.
+	 *
+	 * When SCSI timeout wins, things are a bit more complex.
+	 * Normal or error completion can occur after the timeout but
+	 * before this point.  In such cases, both types of
+	 * completions are honored.  A scmd is determined to have
+	 * timed out iff its associated qc is active and not failed.
+	 */
+	if (ap->ops->error_handler) {
+		struct scsi_cmnd *scmd, *tmp;
+		int nr_timedout = 0;
 
+		spin_lock_irqsave(hs_lock, flags);
+
+		list_for_each_entry_safe(scmd, tmp, &host->eh_cmd_q, eh_entry) {
+			struct ata_queued_cmd *qc;
+
+			for (i = 0; i < ATA_MAX_QUEUE; i++) {
+				qc = __ata_qc_from_tag(ap, i);
+				if (qc->flags & ATA_QCFLAG_ACTIVE &&
+				    qc->scsicmd == scmd)
+					break;
+			}
+
+			if (i < ATA_MAX_QUEUE) {
+				/* the scmd has an associated qc */
+				if (!(qc->flags & ATA_QCFLAG_FAILED)) {
+					/* which hasn't failed yet, timeout */
+					qc->err_mask |= AC_ERR_TIMEOUT;
+					qc->flags |= ATA_QCFLAG_FAILED;
+					nr_timedout++;
+				}
+			} else {
+				/* Normal completion occurred after
+				 * SCSI timeout but before this point.
+				 * Successfully complete it.
+				 */
+				scmd->retries = scmd->allowed;
+				scsi_eh_finish_cmd(scmd, &ap->eh_done_q);
+			}
+		}
+
+		/* If we have timed out qcs.  They belong to EH from
+		 * this point but the state of the controller is
+		 * unknown.  Freeze the port to make sure the IRQ
+		 * handler doesn't diddle with those qcs.  This must
+		 * be done atomically w.r.t. setting QCFLAG_FAILED.
+		 */
+		if (nr_timedout)
+			__ata_port_freeze(ap);
+
+		spin_unlock_irqrestore(hs_lock, flags);
+	} else
+		spin_unlock_wait(hs_lock);
+
+ repeat:
+	/* invoke error handler */
+	if (ap->ops->error_handler) {
+		/* clear EH pending */
+		spin_lock_irqsave(hs_lock, flags);
+		ap->flags &= ~ATA_FLAG_EH_PENDING;
+		spin_unlock_irqrestore(hs_lock, flags);
+
+		/* invoke EH */
+		ap->ops->error_handler(ap);
+
+		/* Exception might have happend after ->error_handler
+		 * recovered the port but before this point.  Repeat
+		 * EH in such case.
+		 */
+		spin_lock_irqsave(hs_lock, flags);
+
+		if (ap->flags & ATA_FLAG_EH_PENDING) {
+			if (--repeat_cnt) {
+				ata_port_printk(ap, KERN_INFO,
+					"EH pending after completion, "
+					"repeating EH (cnt=%d)\n", repeat_cnt);
+				spin_unlock_irqrestore(hs_lock, flags);
+				goto repeat;
+			}
+			ata_port_printk(ap, KERN_ERR, "EH pending after %d "
+					"tries, giving up\n", ATA_EH_MAX_REPEAT);
+		}
+
+		/* Clear host_eh_scheduled while holding hs_lock such
+		 * that if exception occurs after this point but
+		 * before EH completion, SCSI midlayer will
+		 * re-initiate EH.
+		 */
+		host->host_eh_scheduled = 0;
+
+		spin_unlock_irqrestore(hs_lock, flags);
+	} else {
+		WARN_ON(ata_qc_from_tag(ap, ap->active_tag) == NULL);
+		ap->ops->eng_timeout(ap);
+	}
+
+	/* finish or retry handled scmd's and clean up */
 	WARN_ON(host->host_failed || !list_empty(&host->eh_cmd_q));
 
 	scsi_eh_flush_done_q(&ap->eh_done_q);
+
+	/* clean up */
+	spin_lock_irqsave(hs_lock, flags);
+
+	if (ap->flags & ATA_FLAG_RECOVERED)
+		ata_port_printk(ap, KERN_INFO, "EH complete\n");
+	ap->flags &= ~ATA_FLAG_RECOVERED;
+
+	spin_unlock_irqrestore(hs_lock, flags);
 
 	DPRINTK("EXIT\n");
 }
@@ -132,6 +254,8 @@ void ata_scsi_error(struct Scsi_Host *host)
  *	for some reason (possibly hardware bug, possibly driver bug)
  *	an interrupt was not delivered to the driver, even though the
  *	transaction completed successfully.
+ *
+ *	TODO: kill this function once old EH is gone.
  *
  *	LOCKING:
  *	Inherited from SCSI layer (none, can sleep)
@@ -197,6 +321,8 @@ static void ata_qc_timeout(struct ata_queued_cmd *qc)
  *	for some reason (possibly hardware bug, possibly driver bug)
  *	an interrupt was not delivered to the driver, even though the
  *	transaction completed successfully.
+ *
+ *	TODO: kill this function once old EH is gone.
  *
  *	LOCKING:
  *	Inherited from SCSI layer (none, can sleep)
