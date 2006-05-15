@@ -2585,7 +2585,7 @@ int ata_std_probe_reset(struct ata_port *ap, unsigned int *classes)
 }
 
 int ata_do_reset(struct ata_port *ap, ata_reset_fn_t reset,
-		 ata_postreset_fn_t postreset, unsigned int *classes)
+		 unsigned int *classes)
 {
 	int i, rc;
 
@@ -2608,9 +2608,6 @@ int ata_do_reset(struct ata_port *ap, ata_reset_fn_t reset,
 		for (i = 0; i < ATA_MAX_DEVICES; i++)
 			if (classes[i] == ATA_DEV_UNKNOWN)
 				classes[i] = ATA_DEV_NONE;
-
-	if (postreset)
-		postreset(ap, classes);
 
 	return 0;
 }
@@ -2655,7 +2652,7 @@ int ata_drive_probe_reset(struct ata_port *ap, ata_probeinit_fn_t probeinit,
 		probeinit(ap);
 
 	if (softreset && !sata_set_spd_needed(ap)) {
-		rc = ata_do_reset(ap, softreset, postreset, classes);
+		rc = ata_do_reset(ap, softreset, classes);
 		if (rc == 0 && classes[0] != ATA_DEV_UNKNOWN)
 			goto done;
 		printk(KERN_INFO "ata%u: softreset failed, will try "
@@ -2667,7 +2664,7 @@ int ata_drive_probe_reset(struct ata_port *ap, ata_probeinit_fn_t probeinit,
 		goto done;
 
 	while (1) {
-		rc = ata_do_reset(ap, hardreset, postreset, classes);
+		rc = ata_do_reset(ap, hardreset, classes);
 		if (rc == 0) {
 			if (classes[0] != ATA_DEV_UNKNOWN)
 				goto done;
@@ -2688,12 +2685,16 @@ int ata_drive_probe_reset(struct ata_port *ap, ata_probeinit_fn_t probeinit,
 		       ap->id);
 		ssleep(5);
 
-		rc = ata_do_reset(ap, softreset, postreset, classes);
+		rc = ata_do_reset(ap, softreset, classes);
 	}
 
  done:
-	if (rc == 0 && classes[0] == ATA_DEV_UNKNOWN)
-		rc = -ENODEV;
+	if (rc == 0) {
+		if (postreset)
+			postreset(ap, classes);
+		if (classes[0] == ATA_DEV_UNKNOWN)
+			rc = -ENODEV;
+	}
 	return rc;
 }
 
