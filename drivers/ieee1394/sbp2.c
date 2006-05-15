@@ -156,6 +156,11 @@ MODULE_PARM_DESC(exclusive_login, "Exclusive login to sbp2 device (default = 1)"
  *   Tell sd_mod to correct the last sector number reported by read_capacity.
  *   Avoids access beyond actual disk limits on devices with an off-by-one bug.
  *   Don't use this with devices which don't have this bug.
+ *
+ * - override internal blacklist
+ *   Instead of adding to the built-in blacklist, use only the workarounds
+ *   specified in the module load parameter.
+ *   Useful if a blacklist entry interfered with a non-broken device.
  */
 static int sbp2_default_workarounds;
 module_param_named(workarounds, sbp2_default_workarounds, int, 0644);
@@ -164,6 +169,7 @@ MODULE_PARM_DESC(workarounds, "Work around device bugs (default = 0"
 	", 36 byte inquiry = "    __stringify(SBP2_WORKAROUND_INQUIRY_36)
 	", skip mode page 8 = "   __stringify(SBP2_WORKAROUND_MODE_SENSE_8)
 	", fix capacity = "       __stringify(SBP2_WORKAROUND_FIX_CAPACITY)
+	", override internal blacklist = " __stringify(SBP2_WORKAROUND_OVERRIDE)
 	", or a combination)");
 
 /* legacy parameter */
@@ -1587,17 +1593,18 @@ static void sbp2_parse_unit_directory(struct scsi_id_instance_data *scsi_id,
 		workarounds |= SBP2_WORKAROUND_INQUIRY_36;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(sbp2_workarounds_table); i++) {
-		if (sbp2_workarounds_table[i].firmware_revision &&
-		    sbp2_workarounds_table[i].firmware_revision !=
-		    (firmware_revision & 0xffff00))
-			continue;
-		if (sbp2_workarounds_table[i].model_id &&
-		    sbp2_workarounds_table[i].model_id != ud->model_id)
-			continue;
-		workarounds |= sbp2_workarounds_table[i].workarounds;
-		break;
-	}
+	if (!(workarounds & SBP2_WORKAROUND_OVERRIDE))
+		for (i = 0; i < ARRAY_SIZE(sbp2_workarounds_table); i++) {
+			if (sbp2_workarounds_table[i].firmware_revision &&
+			    sbp2_workarounds_table[i].firmware_revision !=
+			    (firmware_revision & 0xffff00))
+				continue;
+			if (sbp2_workarounds_table[i].model_id &&
+			    sbp2_workarounds_table[i].model_id != ud->model_id)
+				continue;
+			workarounds |= sbp2_workarounds_table[i].workarounds;
+			break;
+		}
 
 	if (workarounds)
 		SBP2_INFO("Workarounds for node " NODE_BUS_FMT ": 0x%x "
