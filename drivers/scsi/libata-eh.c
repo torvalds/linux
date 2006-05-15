@@ -291,6 +291,109 @@ int ata_port_abort(struct ata_port *ap)
 	return nr_aborted;
 }
 
+/**
+ *	__ata_port_freeze - freeze port
+ *	@ap: ATA port to freeze
+ *
+ *	This function is called when HSM violation or some other
+ *	condition disrupts normal operation of the port.  Frozen port
+ *	is not allowed to perform any operation until the port is
+ *	thawed, which usually follows a successful reset.
+ *
+ *	ap->ops->freeze() callback can be used for freezing the port
+ *	hardware-wise (e.g. mask interrupt and stop DMA engine).  If a
+ *	port cannot be frozen hardware-wise, the interrupt handler
+ *	must ack and clear interrupts unconditionally while the port
+ *	is frozen.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host_set lock)
+ */
+static void __ata_port_freeze(struct ata_port *ap)
+{
+	WARN_ON(!ap->ops->error_handler);
+
+	if (ap->ops->freeze)
+		ap->ops->freeze(ap);
+
+	ap->flags |= ATA_FLAG_FROZEN;
+
+	DPRINTK("ata%u port frozen\n", ap->id);
+}
+
+/**
+ *	ata_port_freeze - abort & freeze port
+ *	@ap: ATA port to freeze
+ *
+ *	Abort and freeze @ap.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host_set lock)
+ *
+ *	RETURNS:
+ *	Number of aborted commands.
+ */
+int ata_port_freeze(struct ata_port *ap)
+{
+	int nr_aborted;
+
+	WARN_ON(!ap->ops->error_handler);
+
+	nr_aborted = ata_port_abort(ap);
+	__ata_port_freeze(ap);
+
+	return nr_aborted;
+}
+
+/**
+ *	ata_eh_freeze_port - EH helper to freeze port
+ *	@ap: ATA port to freeze
+ *
+ *	Freeze @ap.
+ *
+ *	LOCKING:
+ *	None.
+ */
+void ata_eh_freeze_port(struct ata_port *ap)
+{
+	unsigned long flags;
+
+	if (!ap->ops->error_handler)
+		return;
+
+	spin_lock_irqsave(&ap->host_set->lock, flags);
+	__ata_port_freeze(ap);
+	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+}
+
+/**
+ *	ata_port_thaw_port - EH helper to thaw port
+ *	@ap: ATA port to thaw
+ *
+ *	Thaw frozen port @ap.
+ *
+ *	LOCKING:
+ *	None.
+ */
+void ata_eh_thaw_port(struct ata_port *ap)
+{
+	unsigned long flags;
+
+	if (!ap->ops->error_handler)
+		return;
+
+	spin_lock_irqsave(&ap->host_set->lock, flags);
+
+	ap->flags &= ~ATA_FLAG_FROZEN;
+
+	if (ap->ops->thaw)
+		ap->ops->thaw(ap);
+
+	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+
+	DPRINTK("ata%u port thawed\n", ap->id);
+}
+
 static void ata_eh_scsidone(struct scsi_cmnd *scmd)
 {
 	/* nada */

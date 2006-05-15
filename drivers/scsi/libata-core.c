@@ -987,6 +987,12 @@ unsigned ata_exec_internal(struct ata_device *dev,
 
 	spin_lock_irqsave(&ap->host_set->lock, flags);
 
+	/* no internal command while frozen */
+	if (ap->flags & ATA_FLAG_FROZEN) {
+		spin_unlock_irqrestore(&ap->host_set->lock, flags);
+		return AC_ERR_SYSTEM;
+	}
+
 	/* initialize internal qc */
 
 	/* XXX: Tag 0 is used for drivers with legacy EH as some
@@ -2565,8 +2571,11 @@ void ata_std_postreset(struct ata_port *ap, unsigned int *classes)
 		sata_scr_write(ap, SCR_ERROR, serror);
 
 	/* re-enable interrupts */
-	if (ap->ioaddr.ctl_addr)	/* FIXME: hack. create a hook instead */
-		ata_irq_on(ap);
+	if (!ap->ops->error_handler) {
+		/* FIXME: hack. create a hook instead */
+		if (ap->ioaddr.ctl_addr)
+			ata_irq_on(ap);
+	}
 
 	/* is double-select really necessary? */
 	if (classes[0] != ATA_DEV_NONE)
@@ -2681,6 +2690,8 @@ int ata_drive_probe_reset(struct ata_port *ap, ata_probeinit_fn_t probeinit,
 {
 	int rc = -EINVAL;
 
+	ata_eh_freeze_port(ap);
+
 	if (probeinit)
 		probeinit(ap);
 
@@ -2725,6 +2736,9 @@ int ata_drive_probe_reset(struct ata_port *ap, ata_probeinit_fn_t probeinit,
 	if (rc == 0) {
 		if (postreset)
 			postreset(ap, classes);
+
+		ata_eh_thaw_port(ap);
+
 		if (classes[0] == ATA_DEV_UNKNOWN)
 			rc = -ENODEV;
 	}
@@ -4039,6 +4053,10 @@ static struct ata_queued_cmd *ata_qc_new(struct ata_port *ap)
 	struct ata_queued_cmd *qc = NULL;
 	unsigned int i;
 
+	/* no command while frozen */
+	if (unlikely(ap->flags & ATA_FLAG_FROZEN))
+		return NULL;
+
 	/* the last tag is reserved for internal command. */
 	for (i = 0; i < ATA_MAX_QUEUE - 1; i++)
 		if (!test_and_set_bit(i, &ap->qactive)) {
@@ -4953,6 +4971,7 @@ int ata_device_add(const struct ata_probe_ent *ent)
 
 		ata_chk_status(ap);
 		host_set->ops->irq_clear(ap);
+		ata_eh_freeze_port(ap);	/* freeze port before requesting IRQ */
 		count++;
 	}
 
@@ -5385,5 +5404,8 @@ EXPORT_SYMBOL_GPL(ata_scsi_device_resume);
 EXPORT_SYMBOL_GPL(ata_eng_timeout);
 EXPORT_SYMBOL_GPL(ata_port_schedule_eh);
 EXPORT_SYMBOL_GPL(ata_port_abort);
+EXPORT_SYMBOL_GPL(ata_port_freeze);
+EXPORT_SYMBOL_GPL(ata_eh_freeze_port);
+EXPORT_SYMBOL_GPL(ata_eh_thaw_port);
 EXPORT_SYMBOL_GPL(ata_eh_qc_complete);
 EXPORT_SYMBOL_GPL(ata_eh_qc_retry);

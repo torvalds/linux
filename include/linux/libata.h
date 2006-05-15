@@ -665,6 +665,10 @@ extern void ata_eng_timeout(struct ata_port *ap);
 
 extern void ata_port_schedule_eh(struct ata_port *ap);
 extern int ata_port_abort(struct ata_port *ap);
+extern int ata_port_freeze(struct ata_port *ap);
+
+extern void ata_eh_freeze_port(struct ata_port *ap);
+extern void ata_eh_thaw_port(struct ata_port *ap);
 
 extern void ata_eh_qc_complete(struct ata_queued_cmd *qc);
 extern void ata_eh_qc_retry(struct ata_queued_cmd *qc);
