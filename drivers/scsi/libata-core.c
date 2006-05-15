@@ -4365,6 +4365,143 @@ irqreturn_t ata_interrupt (int irq, void *dev_instance, struct pt_regs *regs)
 	return IRQ_RETVAL(handled);
 }
 
+/**
+ *	sata_scr_valid - test whether SCRs are accessible
+ *	@ap: ATA port to test SCR accessibility for
+ *
+ *	Test whether SCRs are accessible for @ap.
+ *
+ *	LOCKING:
+ *	None.
+ *
+ *	RETURNS:
+ *	1 if SCRs are accessible, 0 otherwise.
+ */
+int sata_scr_valid(struct ata_port *ap)
+{
+	return ap->cbl == ATA_CBL_SATA && ap->ops->scr_read;
+}
+
+/**
+ *	sata_scr_read - read SCR register of the specified port
+ *	@ap: ATA port to read SCR for
+ *	@reg: SCR to read
+ *	@val: Place to store read value
+ *
+ *	Read SCR register @reg of @ap into *@val.  This function is
+ *	guaranteed to succeed if the cable type of the port is SATA
+ *	and the port implements ->scr_read.
+ *
+ *	LOCKING:
+ *	None.
+ *
+ *	RETURNS:
+ *	0 on success, negative errno on failure.
+ */
+int sata_scr_read(struct ata_port *ap, int reg, u32 *val)
+{
+	if (sata_scr_valid(ap)) {
+		*val = ap->ops->scr_read(ap, reg);
+		return 0;
+	}
+	return -EOPNOTSUPP;
+}
+
+/**
+ *	sata_scr_write - write SCR register of the specified port
+ *	@ap: ATA port to write SCR for
+ *	@reg: SCR to write
+ *	@val: value to write
+ *
+ *	Write @val to SCR register @reg of @ap.  This function is
+ *	guaranteed to succeed if the cable type of the port is SATA
+ *	and the port implements ->scr_read.
+ *
+ *	LOCKING:
+ *	None.
+ *
+ *	RETURNS:
+ *	0 on success, negative errno on failure.
+ */
+int sata_scr_write(struct ata_port *ap, int reg, u32 val)
+{
+	if (sata_scr_valid(ap)) {
+		ap->ops->scr_write(ap, reg, val);
+		return 0;
+	}
+	return -EOPNOTSUPP;
+}
+
+/**
+ *	sata_scr_write_flush - write SCR register of the specified port and flush
+ *	@ap: ATA port to write SCR for
+ *	@reg: SCR to write
+ *	@val: value to write
+ *
+ *	This function is identical to sata_scr_write() except that this
+ *	function performs flush after writing to the register.
+ *
+ *	LOCKING:
+ *	None.
+ *
+ *	RETURNS:
+ *	0 on success, negative errno on failure.
+ */
+int sata_scr_write_flush(struct ata_port *ap, int reg, u32 val)
+{
+	if (sata_scr_valid(ap)) {
+		ap->ops->scr_write(ap, reg, val);
+		ap->ops->scr_read(ap, reg);
+		return 0;
+	}
+	return -EOPNOTSUPP;
+}
+
+/**
+ *	ata_port_online - test whether the given port is online
+ *	@ap: ATA port to test
+ *
+ *	Test whether @ap is online.  Note that this function returns 0
+ *	if online status of @ap cannot be obtained, so
+ *	ata_port_online(ap) != !ata_port_offline(ap).
+ *
+ *	LOCKING:
+ *	None.
+ *
+ *	RETURNS:
+ *	1 if the port online status is available and online.
+ */
+int ata_port_online(struct ata_port *ap)
+{
+	u32 sstatus;
+
+	if (!sata_scr_read(ap, SCR_STATUS, &sstatus) && (sstatus & 0xf) == 0x3)
+		return 1;
+	return 0;
+}
+
+/**
+ *	ata_port_offline - test whether the given port is offline
+ *	@ap: ATA port to test
+ *
+ *	Test whether @ap is offline.  Note that this function returns
+ *	0 if offline status of @ap cannot be obtained, so
+ *	ata_port_online(ap) != !ata_port_offline(ap).
+ *
+ *	LOCKING:
+ *	None.
+ *
+ *	RETURNS:
+ *	1 if the port offline status is available and offline.
+ */
+int ata_port_offline(struct ata_port *ap)
+{
+	u32 sstatus;
+
+	if (!sata_scr_read(ap, SCR_STATUS, &sstatus) && (sstatus & 0xf) != 0x3)
+		return 1;
+	return 0;
+}
 
 /*
  * Execute a 'simple' command, that only consists of the opcode 'cmd' itself,
@@ -5133,6 +5270,12 @@ EXPORT_SYMBOL_GPL(ata_scsi_queuecmd);
 EXPORT_SYMBOL_GPL(ata_scsi_slave_config);
 EXPORT_SYMBOL_GPL(ata_scsi_release);
 EXPORT_SYMBOL_GPL(ata_host_intr);
+EXPORT_SYMBOL_GPL(sata_scr_valid);
+EXPORT_SYMBOL_GPL(sata_scr_read);
+EXPORT_SYMBOL_GPL(sata_scr_write);
+EXPORT_SYMBOL_GPL(sata_scr_write_flush);
+EXPORT_SYMBOL_GPL(ata_port_online);
+EXPORT_SYMBOL_GPL(ata_port_offline);
 EXPORT_SYMBOL_GPL(ata_id_string);
 EXPORT_SYMBOL_GPL(ata_id_c_string);
 EXPORT_SYMBOL_GPL(ata_scsi_simulate);
