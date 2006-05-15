@@ -146,13 +146,16 @@ enum {
 	ATA_FLAG_PIO_LBA48	= (1 << 8), /* Host DMA engine is LBA28 only */
 	ATA_FLAG_IRQ_MASK	= (1 << 9), /* Mask IRQ in PIO xfers */
 
-	ATA_FLAG_NOINTR		= (1 << 16), /* FIXME: Remove this once
+	ATA_FLAG_NOINTR		= (1 << 13), /* FIXME: Remove this once
 					      * proper HSM is in place. */
-	ATA_FLAG_DEBUGMSG	= (1 << 17),
-	ATA_FLAG_FLUSH_PORT_TASK = (1 << 18), /* flush port task */
+	ATA_FLAG_DEBUGMSG	= (1 << 14),
+	ATA_FLAG_FLUSH_PORT_TASK = (1 << 15), /* flush port task */
 
-	ATA_FLAG_DISABLED	= (1 << 19), /* port is disabled, ignore it */
-	ATA_FLAG_SUSPENDED	= (1 << 20), /* port is suspended */
+	ATA_FLAG_EH_PENDING	= (1 << 16), /* EH pending */
+	ATA_FLAG_FROZEN		= (1 << 17), /* port is frozen */
+
+	ATA_FLAG_DISABLED	= (1 << 22), /* port is disabled, ignore it */
+	ATA_FLAG_SUSPENDED	= (1 << 23), /* port is suspended (power) */
 
 	/* bits 24:31 of ap->flags are reserved for LLDD specific flags */
 
@@ -164,7 +167,9 @@ enum {
 	ATA_QCFLAG_IO		= (1 << 3), /* standard IO command */
 	ATA_QCFLAG_RESULT_TF	= (1 << 4), /* result TF requested */
 
-	ATA_QCFLAG_EH_SCHEDULED = (1 << 16), /* EH scheduled */
+	ATA_QCFLAG_FAILED	= (1 << 16), /* cmd failed and is owned by EH */
+	ATA_QCFLAG_SENSE_VALID	= (1 << 17), /* sense data valid */
+	ATA_QCFLAG_EH_SCHEDULED = (1 << 18), /* EH scheduled (obsolete) */
 
 	/* host set flags */
 	ATA_HOST_SIMPLEX	= (1 << 0),	/* Host is simplex, one DMA channel per host_set only */
@@ -463,7 +468,15 @@ struct ata_port_operations {
 	void (*qc_prep) (struct ata_queued_cmd *qc);
 	unsigned int (*qc_issue) (struct ata_queued_cmd *qc);
 
-	void (*eng_timeout) (struct ata_port *ap);
+	/* Error handlers.  ->error_handler overrides ->eng_timeout and
+	 * indicates that new-style EH is in place.
+	 */
+	void (*eng_timeout) (struct ata_port *ap); /* obsolete */
+
+	void (*freeze) (struct ata_port *ap);
+	void (*thaw) (struct ata_port *ap);
+	void (*error_handler) (struct ata_port *ap);
+	void (*post_internal_cmd) (struct ata_queued_cmd *qc);
 
 	irqreturn_t (*irq_handler)(int, void *, struct pt_regs *);
 	void (*irq_clear) (struct ata_port *);
