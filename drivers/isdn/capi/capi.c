@@ -1499,7 +1499,6 @@ static int __init capi_init(void)
 		printk(KERN_ERR "capi20: unable to get major %d\n", capi_major);
 		return major_ret;
 	}
-	capi_major = major_ret;
 	capi_class = class_create(THIS_MODULE, "capi");
 	if (IS_ERR(capi_class)) {
 		unregister_chrdev(capi_major, "capi20");
