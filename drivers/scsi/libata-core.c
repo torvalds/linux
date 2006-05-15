@@ -1251,6 +1251,28 @@ static inline u8 ata_dev_knobble(struct ata_device *dev)
 	return ((dev->ap->cbl == ATA_CBL_SATA) && (!ata_id_is_sata(dev->id)));
 }
 
+static void ata_dev_config_ncq(struct ata_device *dev,
+			       char *desc, size_t desc_sz)
+{
+	struct ata_port *ap = dev->ap;
+	int hdepth = 0, ddepth = ata_id_queue_depth(dev->id);
+
+	if (!ata_id_has_ncq(dev->id)) {
+		desc[0] = '\0';
+		return;
+	}
+
+	if (ap->flags & ATA_FLAG_NCQ) {
+		hdepth = min(ap->host->can_queue, ATA_MAX_QUEUE - 1);
+		dev->flags |= ATA_DFLAG_NCQ;
+	}
+
+	if (hdepth >= ddepth)
+		snprintf(desc, desc_sz, "NCQ (depth %d)", ddepth);
+	else
+		snprintf(desc, desc_sz, "NCQ (depth %d/%d)", hdepth, ddepth);
+}
+
 /**
  *	ata_dev_configure - Configure the specified ATA/ATAPI device
  *	@dev: Target device to configure
@@ -1311,6 +1333,7 @@ static int ata_dev_configure(struct ata_device *dev, int print_info)
 
 		if (ata_id_has_lba(id)) {
 			const char *lba_desc;
+			char ncq_desc[20];
 
 			lba_desc = "LBA";
 			dev->flags |= ATA_DFLAG_LBA;
@@ -1319,14 +1342,17 @@ static int ata_dev_configure(struct ata_device *dev, int print_info)
 				lba_desc = "LBA48";
 			}
 
+			/* config NCQ */
+			ata_dev_config_ncq(dev, ncq_desc, sizeof(ncq_desc));
+
 			/* print device info to dmesg */
 			if (print_info)
 				ata_dev_printk(dev, KERN_INFO, "ATA-%d, "
-					"max %s, %Lu sectors: %s\n",
+					"max %s, %Lu sectors: %s %s\n",
 					ata_id_major_version(id),
 					ata_mode_string(xfer_mask),
 					(unsigned long long)dev->n_sectors,
-					lba_desc);
+					lba_desc, ncq_desc);
 		} else {
 			/* CHS */
 
@@ -5675,6 +5701,7 @@ EXPORT_SYMBOL_GPL(ata_port_queue_task);
 EXPORT_SYMBOL_GPL(ata_scsi_ioctl);
 EXPORT_SYMBOL_GPL(ata_scsi_queuecmd);
 EXPORT_SYMBOL_GPL(ata_scsi_slave_config);
+EXPORT_SYMBOL_GPL(ata_scsi_change_queue_depth);
 EXPORT_SYMBOL_GPL(ata_scsi_release);
 EXPORT_SYMBOL_GPL(ata_host_intr);
 EXPORT_SYMBOL_GPL(sata_scr_valid);
