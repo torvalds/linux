@@ -216,6 +216,8 @@ enum {
 	SGE_DRD			= (1 << 29), /* discard data read (/dev/null)
 						data address ignored */
 
+	SIL24_MAX_CMDS		= 31,
+
 	/* board id */
 	BID_SIL3124		= 0,
 	BID_SIL3132		= 1,
@@ -223,7 +225,8 @@ enum {
 
 	/* host flags */
 	SIL24_COMMON_FLAGS	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
-				  ATA_FLAG_MMIO | ATA_FLAG_PIO_DMA,
+				  ATA_FLAG_MMIO | ATA_FLAG_PIO_DMA |
+				  ATA_FLAG_NCQ,
 	SIL24_FLAG_PCIX_IRQ_WOC	= (1 << 24), /* IRQ loss errata on PCI-X */
 
 	IRQ_STAT_4PORTS		= 0xf,
@@ -355,7 +358,8 @@ static struct scsi_host_template sil24_sht = {
 	.name			= DRV_NAME,
 	.ioctl			= ata_scsi_ioctl,
 	.queuecommand		= ata_scsi_queuecmd,
-	.can_queue		= ATA_DEF_QUEUE,
+	.change_queue_depth	= ata_scsi_change_queue_depth,
+	.can_queue		= SIL24_MAX_CMDS,
 	.this_id		= ATA_SHT_THIS_ID,
 	.sg_tablesize		= LIBATA_MAX_PRD,
 	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
@@ -436,6 +440,13 @@ static struct ata_port_info sil24_port_info[] = {
 		.port_ops	= &sil24_ops,
 	},
 };
+
+static int sil24_tag(int tag)
+{
+	if (unlikely(ata_tag_internal(tag)))
+		return 0;
+	return tag;
+}
 
 static void sil24_dev_config(struct ata_port *ap, struct ata_device *dev)
 {
@@ -649,14 +660,17 @@ static void sil24_qc_prep(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct sil24_port_priv *pp = ap->private_data;
-	union sil24_cmd_block *cb = pp->cmd_block + qc->tag;
+	union sil24_cmd_block *cb;
 	struct sil24_prb *prb;
 	struct sil24_sge *sge;
 	u16 ctrl = 0;
 
+	cb = &pp->cmd_block[sil24_tag(qc->tag)];
+
 	switch (qc->tf.protocol) {
 	case ATA_PROT_PIO:
 	case ATA_PROT_DMA:
+	case ATA_PROT_NCQ:
 	case ATA_PROT_NODATA:
 		prb = &cb->ata.prb;
 		sge = cb->ata.sge;
@@ -694,12 +708,17 @@ static void sil24_qc_prep(struct ata_queued_cmd *qc)
 static unsigned int sil24_qc_issue(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
-	void __iomem *port = (void __iomem *)ap->ioaddr.cmd_addr;
 	struct sil24_port_priv *pp = ap->private_data;
-	dma_addr_t paddr = pp->cmd_block_dma + qc->tag * sizeof(*pp->cmd_block);
+	void __iomem *port = (void __iomem *)ap->ioaddr.cmd_addr;
+	unsigned int tag = sil24_tag(qc->tag);
+	dma_addr_t paddr;
+	void __iomem *activate;
 
-	writel((u32)paddr, port + PORT_CMD_ACTIVATE);
-	writel((u64)paddr >> 32, port + PORT_CMD_ACTIVATE + 4);
+	paddr = pp->cmd_block_dma + tag * sizeof(*pp->cmd_block);
+	activate = port + PORT_CMD_ACTIVATE + tag * 8;
+
+	writel((u32)paddr, activate);
+	writel((u64)paddr >> 32, activate + 4);
 
 	return 0;
 }
@@ -791,9 +810,6 @@ static void sil24_error_intr(struct ata_port *ap)
 		/* record error info */
 		qc = ata_qc_from_tag(ap, ap->active_tag);
 		if (qc) {
-			int tag = qc->tag;
-			if (unlikely(ata_tag_internal(tag)))
-				tag = 0;
 			sil24_update_tf(ap);
 			qc->err_mask |= err_mask;
 		} else
@@ -809,11 +825,17 @@ static void sil24_error_intr(struct ata_port *ap)
 		ata_port_abort(ap);
 }
 
+static void sil24_finish_qc(struct ata_queued_cmd *qc)
+{
+	if (qc->flags & ATA_QCFLAG_RESULT_TF)
+		sil24_update_tf(qc->ap);
+}
+
 static inline void sil24_host_intr(struct ata_port *ap)
 {
 	void __iomem *port = (void __iomem *)ap->ioaddr.cmd_addr;
-	struct ata_queued_cmd *qc;
-	u32 slot_stat;
+	u32 slot_stat, qc_active;
+	int rc;
 
 	slot_stat = readl(port + PORT_SLOT_STAT);
 
@@ -825,18 +847,22 @@ static inline void sil24_host_intr(struct ata_port *ap)
 	if (ap->flags & SIL24_FLAG_PCIX_IRQ_WOC)
 		writel(PORT_IRQ_COMPLETE, port + PORT_IRQ_STAT);
 
-	qc = ata_qc_from_tag(ap, ap->active_tag);
-	if (qc) {
-		if (qc->flags & ATA_QCFLAG_RESULT_TF)
-			sil24_update_tf(ap);
-		ata_qc_complete(qc);
+	qc_active = slot_stat & ~HOST_SSTAT_ATTN;
+	rc = ata_qc_complete_multiple(ap, qc_active, sil24_finish_qc);
+	if (rc > 0)
+		return;
+	if (rc < 0) {
+		struct ata_eh_info *ehi = &ap->eh_info;
+		ehi->err_mask |= AC_ERR_HSM;
+		ehi->action |= ATA_EH_SOFTRESET;
+		ata_port_freeze(ap);
 		return;
 	}
 
 	if (ata_ratelimit())
 		ata_port_printk(ap, KERN_INFO, "spurious interrupt "
-			"(slot_stat 0x%x active_tag %d)\n",
-			slot_stat, ap->active_tag);
+			"(slot_stat 0x%x active_tag %d sactive 0x%x)\n",
+			slot_stat, ap->active_tag, ap->sactive);
 }
 
 static irqreturn_t sil24_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
@@ -903,7 +929,7 @@ static void sil24_post_internal_cmd(struct ata_queued_cmd *qc)
 
 static inline void sil24_cblk_free(struct sil24_port_priv *pp, struct device *dev)
 {
-	const size_t cb_size = sizeof(*pp->cmd_block);
+	const size_t cb_size = sizeof(*pp->cmd_block) * SIL24_MAX_CMDS;
 
 	dma_free_coherent(dev, cb_size, pp->cmd_block, pp->cmd_block_dma);
 }
@@ -913,7 +939,7 @@ static int sil24_port_start(struct ata_port *ap)
 	struct device *dev = ap->host_set->dev;
 	struct sil24_port_priv *pp;
 	union sil24_cmd_block *cb;
-	size_t cb_size = sizeof(*cb);
+	size_t cb_size = sizeof(*cb) * SIL24_MAX_CMDS;
 	dma_addr_t cb_dma;
 	int rc = -ENOMEM;
 
