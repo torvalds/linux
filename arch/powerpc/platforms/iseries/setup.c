@@ -921,13 +921,14 @@ void dt_vdevices(struct iseries_flat_dt *dt)
 	char buf[32];
 
 	dt_start_node(dt, "vdevice");
+	dt_prop_str(dt, "device_type", "vdevice");
+	dt_prop_str(dt, "compatible", "IBM,iSeries-vdevice");
 	dt_prop_u32(dt, "#address-cells", 1);
 	dt_prop_u32(dt, "#size-cells", 0);
 
-	snprintf(buf, sizeof(buf), "viocons@%08x", reg);
+	snprintf(buf, sizeof(buf), "vty@%08x", reg);
 	dt_start_node(dt, buf);
 	dt_prop_str(dt, "device_type", "serial");
-	dt_prop_str(dt, "compatible", "");
 	dt_prop_u32(dt, "reg", reg);
 	dt_end_node(dt);
 	reg++;
