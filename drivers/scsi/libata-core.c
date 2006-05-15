@@ -980,15 +980,39 @@ unsigned ata_exec_internal(struct ata_device *dev,
 	struct ata_port *ap = dev->ap;
 	u8 command = tf->command;
 	struct ata_queued_cmd *qc;
+	unsigned int tag, preempted_tag;
 	DECLARE_COMPLETION(wait);
 	unsigned long flags;
 	unsigned int err_mask;
 
 	spin_lock_irqsave(&ap->host_set->lock, flags);
 
-	qc = ata_qc_new_init(dev);
-	BUG_ON(qc == NULL);
+	/* initialize internal qc */
 
+	/* XXX: Tag 0 is used for drivers with legacy EH as some
+	 * drivers choke if any other tag is given.  This breaks
+	 * ata_tag_internal() test for those drivers.  Don't use new
+	 * EH stuff without converting to it.
+	 */
+	if (ap->ops->error_handler)
+		tag = ATA_TAG_INTERNAL;
+	else
+		tag = 0;
+
+	if (test_and_set_bit(tag, &ap->qactive))
+		BUG();
+	qc = ata_qc_from_tag(ap, tag);
+
+	qc->tag = tag;
+	qc->scsicmd = NULL;
+	qc->ap = ap;
+	qc->dev = dev;
+	ata_qc_reinit(qc);
+
+	preempted_tag = ap->active_tag;
+	ap->active_tag = ATA_TAG_POISON;
+
+	/* prepare & issue qc */
 	qc->tf = *tf;
 	if (cdb)
 		memcpy(qc->cdb, cdb, ATAPI_CDB_LEN);
@@ -1035,6 +1059,7 @@ unsigned ata_exec_internal(struct ata_device *dev,
 	err_mask = qc->err_mask;
 
 	ata_qc_free(qc);
+	ap->active_tag = preempted_tag;
 
 	/* XXX - Some LLDDs (sata_mv) disable port on command failure.
 	 * Until those drivers are fixed, we detect the condition
@@ -4014,7 +4039,8 @@ static struct ata_queued_cmd *ata_qc_new(struct ata_port *ap)
 	struct ata_queued_cmd *qc = NULL;
 	unsigned int i;
 
-	for (i = 0; i < ATA_MAX_QUEUE; i++)
+	/* the last tag is reserved for internal command. */
+	for (i = 0; i < ATA_MAX_QUEUE - 1; i++)
 		if (!test_and_set_bit(i, &ap->qactive)) {
 			qc = ata_qc_from_tag(ap, i);
 			break;

@@ -108,7 +108,9 @@ enum {
 	LIBATA_MAX_PRD		= ATA_MAX_PRD / 2,
 	ATA_MAX_PORTS		= 8,
 	ATA_DEF_QUEUE		= 1,
-	ATA_MAX_QUEUE		= 1,
+	/* tag ATA_MAX_QUEUE - 1 is reserved for internal commands */
+	ATA_MAX_QUEUE		= 2,
+	ATA_TAG_INTERNAL	= ATA_MAX_QUEUE - 1,
 	ATA_MAX_SECTORS		= 200,	/* FIXME */
 	ATA_MAX_BUS		= 2,
 	ATA_DEF_BUSY_WAIT	= 10000,
@@ -715,6 +717,11 @@ ata_qc_next_sg(struct scatterlist *sg, struct ata_queued_cmd *qc)
 static inline unsigned int ata_tag_valid(unsigned int tag)
 {
 	return (tag < ATA_MAX_QUEUE) ? 1 : 0;
+}
+
+static inline unsigned int ata_tag_internal(unsigned int tag)
+{
+	return tag == ATA_MAX_QUEUE - 1;
 }
 
 static inline unsigned int ata_class_enabled(unsigned int class)
