@@ -296,8 +296,14 @@
 #define __NR_pselect6		301
 #define __NR_ppoll		302
 #define __NR_unshare		303
+#define __NR_set_robust_list	304
+#define __NR_get_robust_list	305
+#define __NR_splice		306
+#define __NR_sync_file_range	307
+#define __NR_tee		308
+#define __NR_vmsplice		309
 
-#define NR_syscalls 304
+#define NR_syscalls 310
 
 /* 
  * There are some system calls that are not present on 64 bit, some
