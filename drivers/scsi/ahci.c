@@ -670,7 +670,7 @@ static int ahci_hardreset(struct ata_port *ap, unsigned int *class)
 	rc = sata_std_hardreset(ap, class);
 	ahci_start_engine(ap);
 
-	if (rc == 0)
+	if (rc == 0 && sata_dev_present(ap))
 		*class = ahci_dev_classify(ap);
 	if (*class == ATA_DEV_UNKNOWN)
 		*class = ATA_DEV_NONE;
