@@ -1261,8 +1261,8 @@ static void ata_scsi_translate(struct ata_device *dev, struct scsi_cmnd *cmd,
 	if (cmd->sc_data_direction == DMA_FROM_DEVICE ||
 	    cmd->sc_data_direction == DMA_TO_DEVICE) {
 		if (unlikely(cmd->request_bufflen < 1)) {
-			printk(KERN_WARNING "ata%u(%u): WARNING: zero len r/w req\n",
-			       dev->ap->id, dev->devno);
+			ata_dev_printk(dev, KERN_WARNING,
+				       "WARNING: zero len r/w req\n");
 			goto err_did;
 		}
 
@@ -2200,8 +2200,9 @@ ata_scsi_find_dev(struct ata_port *ap, const struct scsi_device *scsidev)
 
 	if (!atapi_enabled || (ap->flags & ATA_FLAG_NO_ATAPI)) {
 		if (unlikely(dev->class == ATA_DEV_ATAPI)) {
-			printk(KERN_WARNING "ata%u(%u): WARNING: ATAPI is %s, device ignored.\n",
-			       ap->id, dev->devno, atapi_enabled ? "not supported with this driver" : "disabled");
+			ata_dev_printk(dev, KERN_WARNING,
+				"WARNING: ATAPI is %s, device ignored.\n",
+				atapi_enabled ? "not supported with this driver" : "disabled");
 			return NULL;
 		}
 	}

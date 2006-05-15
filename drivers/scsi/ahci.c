@@ -655,8 +655,7 @@ static int ahci_softreset(struct ata_port *ap, unsigned int *class)
  fail_restart:
 	ahci_start_engine(ap);
  fail:
-	printk(KERN_ERR "ata%u: softreset failed (%s)\n",
-	       ap->id, reason);
+	ata_port_printk(ap, KERN_ERR, "softreset failed (%s)\n", reason);
 	return rc;
 }
 
@@ -798,9 +797,8 @@ static void ahci_restart_port(struct ata_port *ap, u32 irq_stat)
 
 	if ((ap->device[0].class != ATA_DEV_ATAPI) ||
 	    ((irq_stat & PORT_IRQ_TF_ERR) == 0))
-		printk(KERN_WARNING "ata%u: port reset, "
+		ata_port_printk(ap, KERN_WARNING, "port reset, "
 		       "p_is %x is %x pis %x cmd %x tf %x ss %x se %x\n",
-			ap->id,
 			irq_stat,
 			readl(mmio + HOST_IRQ_STAT),
 			readl(port_mmio + PORT_IRQ_STAT),
@@ -840,7 +838,7 @@ static void ahci_eng_timeout(struct ata_port *ap)
 	struct ata_queued_cmd *qc;
 	unsigned long flags;
 
-	printk(KERN_WARNING "ata%u: handling error/timeout\n", ap->id);
+	ata_port_printk(ap, KERN_WARNING, "handling error/timeout\n");
 
 	spin_lock_irqsave(&host_set->lock, flags);
 

@@ -680,7 +680,7 @@ static void mv_stop_dma(struct ata_port *ap)
 	}
 
 	if (EDMA_EN & reg) {
-		printk(KERN_ERR "ata%u: Unable to stop eDMA\n", ap->id);
+		ata_port_printk(ap, KERN_ERR, "Unable to stop eDMA\n");
 		/* FIXME: Consider doing a reset here to recover */
 	}
 }
@@ -1964,8 +1964,8 @@ comreset_retry:
 		ata_port_probe(ap);
 	} else {
 		sata_scr_read(ap, SCR_STATUS, &sstatus);
-		printk(KERN_INFO "ata%u: no device found (phy stat %08x)\n",
-		       ap->id, sstatus);
+		ata_port_printk(ap, KERN_INFO,
+				"no device found (phy stat %08x)\n", sstatus);
 		ata_port_disable(ap);
 		return;
 	}
@@ -2023,7 +2023,7 @@ static void mv_eng_timeout(struct ata_port *ap)
 {
 	struct ata_queued_cmd *qc;
 
-	printk(KERN_ERR "ata%u: Entering mv_eng_timeout\n",ap->id);
+	ata_port_printk(ap, KERN_ERR, "Entering mv_eng_timeout\n");
 	DPRINTK("All regs @ start of eng_timeout\n");
 	mv_dump_all_regs(ap->host_set->mmio_base, ap->port_no,
 			 to_pci_dev(ap->host_set->dev));

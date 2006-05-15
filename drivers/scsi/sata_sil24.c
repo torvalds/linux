@@ -516,7 +516,7 @@ static int sil24_softreset(struct ata_port *ap, unsigned int *class)
 	return 0;
 
  err:
-	printk(KERN_ERR "ata%u: softreset failed (%s)\n", ap->id, reason);
+	ata_port_printk(ap, KERN_ERR, "softreset failed (%s)\n", reason);
 	return -EIO;
 }
 
@@ -561,7 +561,7 @@ static int sil24_hardreset(struct ata_port *ap, unsigned int *class)
 	return 0;
 
  err:
-	printk(KERN_ERR "ata%u: hardreset failed (%s)\n", ap->id, reason);
+	ata_port_printk(ap, KERN_ERR, "hardreset failed (%s)\n", reason);
 	return -EIO;
 }
 
@@ -721,7 +721,7 @@ static void sil24_eng_timeout(struct ata_port *ap)
 
 	qc = ata_qc_from_tag(ap, ap->active_tag);
 
-	printk(KERN_ERR "ata%u: command timeout\n", ap->id);
+	ata_port_printk(ap, KERN_ERR, "command timeout\n");
 	qc->err_mask |= AC_ERR_TIMEOUT;
 	ata_eh_qc_complete(qc);
 

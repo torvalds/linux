@@ -412,8 +412,7 @@ static const char *sata_spd_string(unsigned int spd)
 void ata_dev_disable(struct ata_device *dev)
 {
 	if (ata_dev_enabled(dev)) {
-		printk(KERN_WARNING "ata%u: dev %u disabled\n",
-		       dev->ap->id, dev->devno);
+		ata_dev_printk(dev, KERN_WARNING, "disabled\n");
 		dev->class++;
 	}
 }
@@ -1021,8 +1020,9 @@ unsigned ata_exec_internal(struct ata_device *dev,
 		if (qc->flags & ATA_QCFLAG_ACTIVE) {
 			qc->err_mask = AC_ERR_TIMEOUT;
 			ata_qc_complete(qc);
-			printk(KERN_WARNING "ata%u: qc timeout (cmd 0x%x)\n",
-			       ap->id, command);
+
+			ata_dev_printk(dev, KERN_WARNING,
+				       "qc timeout (cmd 0x%x)\n", command);
 		}
 
 		spin_unlock_irqrestore(&ap->host_set->lock, flags);
@@ -1187,8 +1187,8 @@ static int ata_dev_read_id(struct ata_device *dev, unsigned int *p_class,
 	return 0;
 
  err_out:
-	printk(KERN_WARNING "ata%u: dev %u failed to IDENTIFY (%s)\n",
-	       ap->id, dev->devno, reason);
+	ata_dev_printk(dev, KERN_WARNING, "failed to IDENTIFY "
+		       "(%s, err_mask=0x%x)\n", reason, err_mask);
 	return rc;
 }
 
@@ -1228,10 +1228,10 @@ static int ata_dev_configure(struct ata_device *dev, int print_info)
 
 	/* print device capabilities */
 	if (print_info)
-		printk(KERN_DEBUG "ata%u: dev %u cfg 49:%04x 82:%04x 83:%04x "
-		       "84:%04x 85:%04x 86:%04x 87:%04x 88:%04x\n",
-		       ap->id, dev->devno, id[49], id[82], id[83],
-		       id[84], id[85], id[86], id[87], id[88]);
+		ata_dev_printk(dev, KERN_DEBUG, "cfg 49:%04x 82:%04x 83:%04x "
+			       "84:%04x 85:%04x 86:%04x 87:%04x 88:%04x\n",
+			       id[49], id[82], id[83], id[84],
+			       id[85], id[86], id[87], id[88]);
 
 	/* initialize to-be-configured parameters */
 	dev->flags &= ~ATA_DFLAG_CFG_MASK;
@@ -1267,13 +1267,12 @@ static int ata_dev_configure(struct ata_device *dev, int print_info)
 
 			/* print device info to dmesg */
 			if (print_info)
-				printk(KERN_INFO "ata%u: dev %u ATA-%d, "
-				       "max %s, %Lu sectors: %s\n",
-				       ap->id, dev->devno,
-				       ata_id_major_version(id),
-				       ata_mode_string(xfer_mask),
-				       (unsigned long long)dev->n_sectors,
-				       lba_desc);
+				ata_dev_printk(dev, KERN_INFO, "ATA-%d, "
+					"max %s, %Lu sectors: %s\n",
+					ata_id_major_version(id),
+					ata_mode_string(xfer_mask),
+					(unsigned long long)dev->n_sectors,
+					lba_desc);
 		} else {
 			/* CHS */
 
@@ -1291,13 +1290,12 @@ static int ata_dev_configure(struct ata_device *dev, int print_info)
 
 			/* print device info to dmesg */
 			if (print_info)
-				printk(KERN_INFO "ata%u: dev %u ATA-%d, "
-				       "max %s, %Lu sectors: CHS %u/%u/%u\n",
-				       ap->id, dev->devno,
-				       ata_id_major_version(id),
-				       ata_mode_string(xfer_mask),
-				       (unsigned long long)dev->n_sectors,
-				       dev->cylinders, dev->heads, dev->sectors);
+				ata_dev_printk(dev, KERN_INFO, "ATA-%d, "
+					"max %s, %Lu sectors: CHS %u/%u/%u\n",
+					ata_id_major_version(id),
+					ata_mode_string(xfer_mask),
+					(unsigned long long)dev->n_sectors,
+					dev->cylinders, dev->heads, dev->sectors);
 		}
 
 		dev->cdb_len = 16;
@@ -1307,7 +1305,8 @@ static int ata_dev_configure(struct ata_device *dev, int print_info)
 	else if (dev->class == ATA_DEV_ATAPI) {
 		rc = atapi_cdb_len(id);
 		if ((rc < 12) || (rc > ATAPI_CDB_LEN)) {
-			printk(KERN_WARNING "ata%u: unsupported CDB len\n", ap->id);
+			ata_dev_printk(dev, KERN_WARNING,
+				       "unsupported CDB len\n");
 			rc = -EINVAL;
 			goto err_out_nosup;
 		}
@@ -1315,8 +1314,8 @@ static int ata_dev_configure(struct ata_device *dev, int print_info)
 
 		/* print device info to dmesg */
 		if (print_info)
-			printk(KERN_INFO "ata%u: dev %u ATAPI, max %s\n",
-			       ap->id, dev->devno, ata_mode_string(xfer_mask));
+			ata_dev_printk(dev, KERN_INFO, "ATAPI, max %s\n",
+				       ata_mode_string(xfer_mask));
 	}
 
 	ap->host->max_cmd_len = 0;
@@ -1328,8 +1327,8 @@ static int ata_dev_configure(struct ata_device *dev, int print_info)
 	/* limit bridge transfers to udma5, 200 sectors */
 	if (ata_dev_knobble(dev)) {
 		if (print_info)
-			printk(KERN_INFO "ata%u(%u): applying bridge limits\n",
-			       ap->id, dev->devno);
+			ata_dev_printk(dev, KERN_INFO,
+				       "applying bridge limits\n");
 		dev->udma_mask &= ATA_UDMA5;
 		dev->max_sectors = ATA_MAX_SECTORS;
 	}
@@ -1382,7 +1381,8 @@ static int ata_bus_probe(struct ata_port *ap)
 	if (ap->ops->probe_reset) {
 		rc = ap->ops->probe_reset(ap, classes);
 		if (rc) {
-			printk("ata%u: reset failed (errno=%d)\n", ap->id, rc);
+			ata_port_printk(ap, KERN_ERR,
+					"reset failed (errno=%d)\n", rc);
 			return rc;
 		}
 	} else {
@@ -1495,13 +1495,13 @@ static void sata_print_link_status(struct ata_port *ap)
 
 	if (ata_port_online(ap)) {
 		tmp = (sstatus >> 4) & 0xf;
-		printk(KERN_INFO
-		       "ata%u: SATA link up %s (SStatus %X SControl %X)\n",
-		       ap->id, sata_spd_string(tmp), sstatus, scontrol);
+		ata_port_printk(ap, KERN_INFO,
+				"SATA link up %s (SStatus %X SControl %X)\n",
+				sata_spd_string(tmp), sstatus, scontrol);
 	} else {
-		printk(KERN_INFO
-		       "ata%u: SATA link down (SStatus %X SControl %X)\n",
-		       ap->id, sstatus, scontrol);
+		ata_port_printk(ap, KERN_INFO,
+				"SATA link down (SStatus %X SControl %X)\n",
+				sstatus, scontrol);
 	}
 }
 
@@ -1655,8 +1655,8 @@ int sata_down_spd_limit(struct ata_port *ap)
 
 	ap->sata_spd_limit = mask;
 
-	printk(KERN_WARNING "ata%u: limiting SATA link speed to %s\n",
-	       ap->id, sata_spd_string(fls(mask)));
+	ata_port_printk(ap, KERN_WARNING, "limiting SATA link speed to %s\n",
+			sata_spd_string(fls(mask)));
 
 	return 0;
 }
@@ -1896,7 +1896,6 @@ int ata_timing_compute(struct ata_device *adev, unsigned short speed,
  */
 int ata_down_xfermask_limit(struct ata_device *dev, int force_pio0)
 {
-	struct ata_port *ap = dev->ap;
 	unsigned long xfer_mask;
 	int highbit;
 
@@ -1919,8 +1918,8 @@ int ata_down_xfermask_limit(struct ata_device *dev, int force_pio0)
 	ata_unpack_xfermask(xfer_mask, &dev->pio_mask, &dev->mwdma_mask,
 			    &dev->udma_mask);
 
-	printk(KERN_WARNING "ata%u: dev %u limiting speed to %s\n",
-	       ap->id, dev->devno, ata_mode_string(xfer_mask));
+	ata_dev_printk(dev, KERN_WARNING, "limiting speed to %s\n",
+		       ata_mode_string(xfer_mask));
 
 	return 0;
 
@@ -1930,7 +1929,6 @@ int ata_down_xfermask_limit(struct ata_device *dev, int force_pio0)
 
 static int ata_dev_set_mode(struct ata_device *dev)
 {
-	struct ata_port *ap = dev->ap;
 	unsigned int err_mask;
 	int rc;
 
@@ -1940,9 +1938,8 @@ static int ata_dev_set_mode(struct ata_device *dev)
 
 	err_mask = ata_dev_set_xfermode(dev);
 	if (err_mask) {
-		printk(KERN_ERR
-		       "ata%u: failed to set xfermode (err_mask=0x%x)\n",
-		       ap->id, err_mask);
+		ata_dev_printk(dev, KERN_ERR, "failed to set xfermode "
+			       "(err_mask=0x%x)\n", err_mask);
 		return -EIO;
 	}
 
@@ -1953,9 +1950,8 @@ static int ata_dev_set_mode(struct ata_device *dev)
 	DPRINTK("xfer_shift=%u, xfer_mode=0x%x\n",
 		dev->xfer_shift, (int)dev->xfer_mode);
 
-	printk(KERN_INFO "ata%u: dev %u configured for %s\n",
-	       ap->id, dev->devno,
-	       ata_mode_string(ata_xfer_mode2mask(dev->xfer_mode)));
+	ata_dev_printk(dev, KERN_INFO, "configured for %s\n",
+		       ata_mode_string(ata_xfer_mode2mask(dev->xfer_mode)));
 	return 0;
 }
 
@@ -2023,8 +2019,7 @@ int ata_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev)
 			continue;
 
 		if (!dev->pio_mode) {
-			printk(KERN_WARNING "ata%u: dev %u no PIO support\n",
-			       ap->id, dev->devno);
+			ata_dev_printk(dev, KERN_WARNING, "no PIO support\n");
 			rc = -EINVAL;
 			goto out;
 		}
@@ -2123,8 +2118,8 @@ unsigned int ata_busy_sleep (struct ata_port *ap,
 	}
 
 	if (status & ATA_BUSY)
-		printk(KERN_WARNING "ata%u is slow to respond, "
-		       "please be patient\n", ap->id);
+		ata_port_printk(ap, KERN_WARNING,
+				"port is slow to respond, please be patient\n");
 
 	timeout = timer_start + tmout;
 	while ((status & ATA_BUSY) && (time_before(jiffies, timeout))) {
@@ -2133,8 +2128,8 @@ unsigned int ata_busy_sleep (struct ata_port *ap,
 	}
 
 	if (status & ATA_BUSY) {
-		printk(KERN_ERR "ata%u failed to respond (%lu secs)\n",
-		       ap->id, tmout / HZ);
+		ata_port_printk(ap, KERN_ERR, "port failed to respond "
+				"(%lu secs)\n", tmout / HZ);
 		return 1;
 	}
 
@@ -2227,7 +2222,7 @@ static unsigned int ata_bus_softreset(struct ata_port *ap,
 	 * pulldown resistor.
 	 */
 	if (ata_check_status(ap) == 0xFF) {
-		printk(KERN_ERR "ata%u: SRST failed (status 0xFF)\n", ap->id);
+		ata_port_printk(ap, KERN_ERR, "SRST failed (status 0xFF)\n");
 		return AC_ERR_OTHER;
 	}
 
@@ -2321,7 +2316,7 @@ void ata_bus_reset(struct ata_port *ap)
 	return;
 
 err_out:
-	printk(KERN_ERR "ata%u: disabling port\n", ap->id);
+	ata_port_printk(ap, KERN_ERR, "disabling port\n");
 	ap->ops->port_disable(ap);
 
 	DPRINTK("EXIT\n");
@@ -2424,8 +2419,8 @@ int ata_std_softreset(struct ata_port *ap, unsigned int *classes)
 	DPRINTK("about to softreset, devmask=%x\n", devmask);
 	err_mask = ata_bus_softreset(ap, devmask);
 	if (err_mask) {
-		printk(KERN_ERR "ata%u: SRST failed (err_mask=0x%x)\n",
-		       ap->id, err_mask);
+		ata_port_printk(ap, KERN_ERR, "SRST failed (err_mask=0x%x)\n",
+				err_mask);
 		return -EIO;
 	}
 
@@ -2503,8 +2498,8 @@ int sata_std_hardreset(struct ata_port *ap, unsigned int *class)
 	}
 
 	if (ata_busy_sleep(ap, ATA_TMOUT_BOOT_QUICK, ATA_TMOUT_BOOT)) {
-		printk(KERN_ERR
-		       "ata%u: COMRESET failed (device not ready)\n", ap->id);
+		ata_port_printk(ap, KERN_ERR,
+				"COMRESET failed (device not ready)\n");
 		return -EIO;
 	}
 
@@ -2662,8 +2657,8 @@ int ata_drive_probe_reset(struct ata_port *ap, ata_probeinit_fn_t probeinit,
 		rc = ata_do_reset(ap, softreset, classes);
 		if (rc == 0 && classes[0] != ATA_DEV_UNKNOWN)
 			goto done;
-		printk(KERN_INFO "ata%u: softreset failed, will try "
-		       "hardreset in 5 secs\n", ap->id);
+		ata_port_printk(ap, KERN_INFO, "softreset failed, "
+				"will try hardreset in 5 secs\n");
 		ssleep(5);
 	}
 
@@ -2681,15 +2676,15 @@ int ata_drive_probe_reset(struct ata_port *ap, ata_probeinit_fn_t probeinit,
 		if (sata_down_spd_limit(ap))
 			goto done;
 
-		printk(KERN_INFO "ata%u: hardreset failed, will retry "
-		       "in 5 secs\n", ap->id);
+		ata_port_printk(ap, KERN_INFO, "hardreset failed, "
+				"will retry in 5 secs\n");
 		ssleep(5);
 	}
 
 	if (softreset) {
-		printk(KERN_INFO "ata%u: hardreset succeeded without "
-		       "classification, will retry softreset in 5 secs\n",
-		       ap->id);
+		ata_port_printk(ap, KERN_INFO,
+				"hardreset succeeded without classification, "
+				"will retry softreset in 5 secs\n");
 		ssleep(5);
 
 		rc = ata_do_reset(ap, softreset, classes);
@@ -2724,15 +2719,13 @@ int ata_drive_probe_reset(struct ata_port *ap, ata_probeinit_fn_t probeinit,
 static int ata_dev_same_device(struct ata_device *dev, unsigned int new_class,
 			       const u16 *new_id)
 {
-	struct ata_port *ap = dev->ap;
 	const u16 *old_id = dev->id;
 	unsigned char model[2][41], serial[2][21];
 	u64 new_n_sectors;
 
 	if (dev->class != new_class) {
-		printk(KERN_INFO
-		       "ata%u: dev %u class mismatch %d != %d\n",
-		       ap->id, dev->devno, dev->class, new_class);
+		ata_dev_printk(dev, KERN_INFO, "class mismatch %d != %d\n",
+			       dev->class, new_class);
 		return 0;
 	}
 
@@ -2743,24 +2736,22 @@ static int ata_dev_same_device(struct ata_device *dev, unsigned int new_class,
 	new_n_sectors = ata_id_n_sectors(new_id);
 
 	if (strcmp(model[0], model[1])) {
-		printk(KERN_INFO
-		       "ata%u: dev %u model number mismatch '%s' != '%s'\n",
-		       ap->id, dev->devno, model[0], model[1]);
+		ata_dev_printk(dev, KERN_INFO, "model number mismatch "
+			       "'%s' != '%s'\n", model[0], model[1]);
 		return 0;
 	}
 
 	if (strcmp(serial[0], serial[1])) {
-		printk(KERN_INFO
-		       "ata%u: dev %u serial number mismatch '%s' != '%s'\n",
-		       ap->id, dev->devno, serial[0], serial[1]);
+		ata_dev_printk(dev, KERN_INFO, "serial number mismatch "
+			       "'%s' != '%s'\n", serial[0], serial[1]);
 		return 0;
 	}
 
 	if (dev->class == ATA_DEV_ATA && dev->n_sectors != new_n_sectors) {
-		printk(KERN_INFO
-		       "ata%u: dev %u n_sectors mismatch %llu != %llu\n",
-		       ap->id, dev->devno, (unsigned long long)dev->n_sectors,
-		       (unsigned long long)new_n_sectors);
+		ata_dev_printk(dev, KERN_INFO, "n_sectors mismatch "
+			       "%llu != %llu\n",
+			       (unsigned long long)dev->n_sectors,
+			       (unsigned long long)new_n_sectors);
 		return 0;
 	}
 
@@ -2783,9 +2774,8 @@ static int ata_dev_same_device(struct ata_device *dev, unsigned int new_class,
  */
 int ata_dev_revalidate(struct ata_device *dev, int post_reset)
 {
-	struct ata_port *ap = dev->ap;
 	unsigned int class = dev->class;
-	u16 *id = (void *)ap->sector_buf;
+	u16 *id = (void *)dev->ap->sector_buf;
 	int rc;
 
 	if (!ata_dev_enabled(dev)) {
@@ -2812,8 +2802,7 @@ int ata_dev_revalidate(struct ata_device *dev, int post_reset)
 		return 0;
 
  fail:
-	printk(KERN_ERR "ata%u: dev %u revalidation failed (errno=%d)\n",
-	       ap->id, dev->devno, rc);
+	ata_dev_printk(dev, KERN_ERR, "revalidation failed (errno=%d)\n", rc);
 	return rc;
 }
 
@@ -2941,8 +2930,8 @@ static void ata_dev_xfermask(struct ata_device *dev)
 	}
 
 	if (ata_dma_blacklisted(dev))
-		printk(KERN_WARNING "ata%u: dev %u is on DMA blacklist, "
-		       "disabling DMA\n", ap->id, dev->devno);
+		ata_dev_printk(dev, KERN_WARNING,
+			       "device is on DMA blacklist, disabling DMA\n");
 
 	if (hs->flags & ATA_HOST_SIMPLEX) {
 		if (hs->simplex_claimed)
@@ -3733,8 +3722,8 @@ next_sg:
 		unsigned int i;
 
 		if (words) /* warning if bytes > 1 */
-			printk(KERN_WARNING "ata%u: %u bytes trailing data\n",
-			       ap->id, bytes);
+			ata_dev_printk(qc->dev, KERN_WARNING,
+				       "%u bytes trailing data\n", bytes);
 
 		for (i = 0; i < words; i++)
 			ata_data_xfer(ap, (unsigned char*)pad_buf, 2, do_write);
@@ -3817,8 +3806,7 @@ static void atapi_pio_bytes(struct ata_queued_cmd *qc)
 	return;
 
 err_out:
-	printk(KERN_INFO "ata%u: dev %u: ATAPI check failed\n",
-	      ap->id, dev->devno);
+	ata_dev_printk(dev, KERN_INFO, "ATAPI check failed\n");
 	qc->err_mask |= AC_ERR_HSM;
 	ap->hsm_task_state = HSM_ST_ERR;
 }
@@ -3887,8 +3875,7 @@ static void ata_pio_error(struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 
 	if (qc->tf.command != ATA_CMD_PACKET)
-		printk(KERN_WARNING "ata%u: dev %u PIO error\n",
-		       ap->id, qc->dev->devno);
+		ata_dev_printk(qc->dev, KERN_WARNING, "PIO error\n");
 
 	/* make sure qc->err_mask is available to
 	 * know what's wrong and recover
@@ -4314,7 +4301,7 @@ idle_irq:
 #ifdef ATA_IRQ_TRAP
 	if ((ap->stats.idle_irq % 1000) == 0) {
 		ata_irq_ack(ap, 0); /* debug trap */
-		printk(KERN_WARNING "ata%d: irq trap\n", ap->id);
+		ata_port_printk(ap, KERN_WARNING, "irq trap\n");
 		return 1;
 	}
 #endif
@@ -4522,8 +4509,8 @@ static int ata_do_simple_cmd(struct ata_device *dev, u8 cmd)
 
 	err = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0);
 	if (err)
-		printk(KERN_ERR "%s: ata command failed: %d\n",
-				__FUNCTION__, err);
+		ata_dev_printk(dev, KERN_ERR, "%s: ata command failed: %d\n",
+			       __FUNCTION__, err);
 
 	return err;
 }
@@ -4863,15 +4850,14 @@ int ata_device_add(const struct ata_probe_ent *ent)
 				(ap->pio_mask << ATA_SHIFT_PIO);
 
 		/* print per-port info to dmesg */
-		printk(KERN_INFO "ata%u: %cATA max %s cmd 0x%lX ctl 0x%lX "
-				 "bmdma 0x%lX irq %lu\n",
-			ap->id,
-			ap->flags & ATA_FLAG_SATA ? 'S' : 'P',
-			ata_mode_string(xfer_mode_mask),
-	       		ap->ioaddr.cmd_addr,
-	       		ap->ioaddr.ctl_addr,
-	       		ap->ioaddr.bmdma_addr,
-	       		ent->irq);
+		ata_port_printk(ap, KERN_INFO, "%cATA max %s cmd 0x%lX "
+				"ctl 0x%lX bmdma 0x%lX irq %lu\n",
+				ap->flags & ATA_FLAG_SATA ? 'S' : 'P',
+				ata_mode_string(xfer_mode_mask),
+				ap->ioaddr.cmd_addr,
+				ap->ioaddr.ctl_addr,
+				ap->ioaddr.bmdma_addr,
+				ent->irq);
 
 		ata_chk_status(ap);
 		host_set->ops->irq_clear(ap);
@@ -4909,8 +4895,7 @@ int ata_device_add(const struct ata_probe_ent *ent)
 
 		rc = scsi_add_host(ap->host, dev);
 		if (rc) {
-			printk(KERN_ERR "ata%u: scsi_add_host failed\n",
-			       ap->id);
+			ata_port_printk(ap, KERN_ERR, "scsi_add_host failed\n");
 			/* FIXME: do something useful here */
 			/* FIXME: handle unconditional calls to
 			 * scsi_scan_host and ata_host_remove, below,

@@ -167,8 +167,9 @@ static void ata_qc_timeout(struct ata_queued_cmd *qc)
 		/* ack bmdma irq events */
 		ap->ops->irq_clear(ap);
 
-		printk(KERN_ERR "ata%u: command 0x%x timeout, stat 0x%x host_stat 0x%x\n",
-		       ap->id, qc->tf.command, drv_stat, host_stat);
+		ata_dev_printk(qc->dev, KERN_ERR, "command 0x%x timeout, "
+			       "stat 0x%x host_stat 0x%x\n",
+			       qc->tf.command, drv_stat, host_stat);
 
 		/* complete taskfile transaction */
 		qc->err_mask |= ac_err_mask(drv_stat);

@@ -484,7 +484,7 @@ static int piix_pata_probe_reset(struct ata_port *ap, unsigned int *classes)
 	struct pci_dev *pdev = to_pci_dev(ap->host_set->dev);
 
 	if (!pci_test_config_bits(pdev, &piix_enable_bits[ap->hard_port_no])) {
-		printk(KERN_INFO "ata%u: port disabled. ignoring.\n", ap->id);
+		ata_port_printk(ap, KERN_INFO, "port disabled. ignoring.\n");
 		return 0;
 	}
 
@@ -565,7 +565,7 @@ static unsigned int piix_sata_probe (struct ata_port *ap)
 static int piix_sata_probe_reset(struct ata_port *ap, unsigned int *classes)
 {
 	if (!piix_sata_probe(ap)) {
-		printk(KERN_INFO "ata%u: SATA port has no device.\n", ap->id);
+		ata_port_printk(ap, KERN_INFO, "SATA port has no device.\n");
 		return 0;
 	}
 
