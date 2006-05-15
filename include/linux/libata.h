@@ -155,6 +155,7 @@ enum {
 
 	ATA_FLAG_EH_PENDING	= (1 << 16), /* EH pending */
 	ATA_FLAG_FROZEN		= (1 << 17), /* port is frozen */
+	ATA_FLAG_RECOVERED	= (1 << 18), /* recovery action performed */
 
 	ATA_FLAG_DISABLED	= (1 << 22), /* port is disabled, ignore it */
 	ATA_FLAG_SUSPENDED	= (1 << 23), /* port is suspended (power) */
@@ -224,6 +225,13 @@ enum {
 	/* masks for port functions */
 	ATA_PORT_PRIMARY	= (1 << 0),
 	ATA_PORT_SECONDARY	= (1 << 1),
+
+	/* reset / recovery action types */
+	ATA_EH_REVALIDATE	= (1 << 0),
+	ATA_EH_SOFTRESET	= (1 << 1),
+	ATA_EH_HARDRESET	= (1 << 2),
+
+	ATA_EH_RESET_MASK	= ATA_EH_SOFTRESET | ATA_EH_HARDRESET,
 
 	/* max repeat if error condition is still set after ->error_handler */
 	ATA_EH_MAX_REPEAT	= 5,

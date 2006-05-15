@@ -97,6 +97,9 @@ enum {
 	ATA_DRQ			= (1 << 3),	/* data request i/o */
 	ATA_ERR			= (1 << 0),	/* have an error */
 	ATA_SRST		= (1 << 2),	/* software reset */
+	ATA_ICRC		= (1 << 7),	/* interface CRC error */
+	ATA_UNC			= (1 << 6),	/* uncorrectable media error */
+	ATA_IDNF		= (1 << 4),	/* ID not found */
 	ATA_ABORTED		= (1 << 2),	/* command aborted */
 
 	/* ATA command block registers */
@@ -191,6 +194,16 @@ enum {
 	SCR_CONTROL		= 2,
 	SCR_ACTIVE		= 3,
 	SCR_NOTIFICATION	= 4,
+
+	/* SError bits */
+	SERR_DATA_RECOVERED	= (1 << 0), /* recovered data error */
+	SERR_COMM_RECOVERED	= (1 << 1), /* recovered comm failure */
+	SERR_DATA		= (1 << 8), /* unrecovered data error */
+	SERR_PERSISTENT		= (1 << 9), /* persistent data/comm error */
+	SERR_PROTOCOL		= (1 << 10), /* protocol violation */
+	SERR_INTERNAL		= (1 << 11), /* host internal error */
+	SERR_PHYRDY_CHG		= (1 << 16), /* PHY RDY changed */
+	SERR_DEV_XCHG		= (1 << 26), /* device exchanged */
 
 	/* struct ata_taskfile flags */
 	ATA_TFLAG_LBA48		= (1 << 0), /* enable 48-bit LBA and "HOB" */
