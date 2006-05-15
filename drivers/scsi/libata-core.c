@@ -984,6 +984,7 @@ unsigned ata_exec_internal(struct ata_device *dev,
 	DECLARE_COMPLETION(wait);
 	unsigned long flags;
 	unsigned int err_mask;
+	int rc;
 
 	spin_lock_irqsave(&ap->host_set->lock, flags);
 
@@ -1036,26 +1037,41 @@ unsigned ata_exec_internal(struct ata_device *dev,
 
 	spin_unlock_irqrestore(&ap->host_set->lock, flags);
 
-	if (!wait_for_completion_timeout(&wait, ATA_TMOUT_INTERNAL)) {
-		ata_port_flush_task(ap);
+	rc = wait_for_completion_timeout(&wait, ATA_TMOUT_INTERNAL);
 
+	ata_port_flush_task(ap);
+
+	if (!rc) {
 		spin_lock_irqsave(&ap->host_set->lock, flags);
 
 		/* We're racing with irq here.  If we lose, the
 		 * following test prevents us from completing the qc
-		 * again.  If completion irq occurs after here but
-		 * before the caller cleans up, it will result in a
-		 * spurious interrupt.  We can live with that.
+		 * twice.  If we win, the port is frozen and will be
+		 * cleaned up by ->post_internal_cmd().
 		 */
 		if (qc->flags & ATA_QCFLAG_ACTIVE) {
-			qc->err_mask = AC_ERR_TIMEOUT;
-			ata_qc_complete(qc);
+			qc->err_mask |= AC_ERR_TIMEOUT;
+
+			if (ap->ops->error_handler)
+				ata_port_freeze(ap);
+			else
+				ata_qc_complete(qc);
 
 			ata_dev_printk(dev, KERN_WARNING,
 				       "qc timeout (cmd 0x%x)\n", command);
 		}
 
 		spin_unlock_irqrestore(&ap->host_set->lock, flags);
+	}
+
+	/* do post_internal_cmd */
+	if (ap->ops->post_internal_cmd)
+		ap->ops->post_internal_cmd(qc);
+
+	if (qc->flags & ATA_QCFLAG_FAILED && !qc->err_mask) {
+		ata_dev_printk(dev, KERN_WARNING, "zero err_mask for failed "
+			       "internal command, assuming AC_ERR_OTHER\n");
+		qc->err_mask |= AC_ERR_OTHER;
 	}
 
 	/* finish up */
