@@ -260,7 +260,7 @@ irix_sigreturn(struct pt_regs *regs)
 
 		for(i = 0; i < 32; i++)
 			error |= __get_user(fregs[i], &context->fpregs[i]);
-		error |= __get_user(current->thread.fpu.hard.fcr31, &context->fpcsr);
+		error |= __get_user(current->thread.fpu.fcr31, &context->fpcsr);
 	}
 
 	/* XXX do sigstack crapola here... XXX */

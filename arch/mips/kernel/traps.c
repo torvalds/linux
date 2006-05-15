@@ -65,7 +65,7 @@ extern asmlinkage void handle_mcheck(void);
 extern asmlinkage void handle_reserved(void);
 
 extern int fpu_emulator_cop1Handler(struct pt_regs *xcp,
-	struct mips_fpu_soft_struct *ctx);
+	struct mips_fpu_struct *ctx);
 
 void (*board_be_init)(void);
 int (*board_be_handler)(struct pt_regs *regs, int is_fixup);
@@ -600,8 +600,7 @@ asmlinkage void do_fpe(struct pt_regs *regs, unsigned long fcr31)
 		preempt_enable();
 
 		/* Run the emulator */
-		sig = fpu_emulator_cop1Handler (regs,
-			&current->thread.fpu.soft);
+		sig = fpu_emulator_cop1Handler (regs, &current->thread.fpu);
 
 		preempt_disable();
 
@@ -610,7 +609,7 @@ asmlinkage void do_fpe(struct pt_regs *regs, unsigned long fcr31)
 		 * We can't allow the emulated instruction to leave any of
 		 * the cause bit set in $fcr31.
 		 */
-		current->thread.fpu.soft.fcr31 &= ~FPU_CSR_ALL_X;
+		current->thread.fpu.fcr31 &= ~FPU_CSR_ALL_X;
 
 		/* Restore the hardware register state */
 		restore_fp(current);
@@ -755,7 +754,7 @@ asmlinkage void do_cpu(struct pt_regs *regs)
 
 		if (!cpu_has_fpu) {
 			int sig = fpu_emulator_cop1Handler(regs,
-						&current->thread.fpu.soft);
+						&current->thread.fpu);
 			if (sig)
 				force_sig(sig, current);
 #ifdef CONFIG_MIPS_MT_FPAFF
