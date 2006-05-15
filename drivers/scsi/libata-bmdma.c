@@ -726,7 +726,6 @@ void ata_bmdma_drive_eh(struct ata_port *ap, ata_reset_fn_t softreset,
 	/* reset PIO HSM and stop DMA engine */
 	spin_lock_irqsave(&host_set->lock, flags);
 
-	ap->flags &= ~ATA_FLAG_NOINTR;
 	ap->hsm_task_state = HSM_ST_IDLE;
 
 	if (qc && (qc->tf.protocol == ATA_PROT_DMA ||
