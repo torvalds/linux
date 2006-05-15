@@ -1397,9 +1397,11 @@ static int ata_bus_probe(struct ata_port *ap)
 	} else {
 		ap->ops->phy_reset(ap);
 
-		if (!(ap->flags & ATA_FLAG_DISABLED))
-			for (i = 0; i < ATA_MAX_DEVICES; i++)
+		for (i = 0; i < ATA_MAX_DEVICES; i++) {
+			if (!(ap->flags & ATA_FLAG_DISABLED))
 				classes[i] = ap->device[i].class;
+			ap->device[i].class = ATA_DEV_UNKNOWN;
+		}
 
 		ata_port_probe(ap);
 	}
