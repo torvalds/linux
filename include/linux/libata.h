@@ -162,7 +162,9 @@ enum {
 	ATA_QCFLAG_SINGLE	= (1 << 2), /* no s/g, just a single buffer */
 	ATA_QCFLAG_DMAMAP	= ATA_QCFLAG_SG | ATA_QCFLAG_SINGLE,
 	ATA_QCFLAG_IO		= (1 << 3), /* standard IO command */
-	ATA_QCFLAG_EH_SCHEDULED = (1 << 4), /* EH scheduled */
+	ATA_QCFLAG_RESULT_TF	= (1 << 4), /* result TF requested */
+
+	ATA_QCFLAG_EH_SCHEDULED = (1 << 16), /* EH scheduled */
 
 	/* host set flags */
 	ATA_HOST_SIMPLEX	= (1 << 0),	/* Host is simplex, one DMA channel per host_set only */
@@ -343,7 +345,7 @@ struct ata_queued_cmd {
 	struct scatterlist	*__sg;
 
 	unsigned int		err_mask;
-
+	struct ata_taskfile	result_tf;
 	ata_qc_cb_t		complete_fn;
 
 	void			*private_data;
@@ -824,6 +826,10 @@ static inline void ata_qc_reinit(struct ata_queued_cmd *qc)
 	qc->err_mask = 0;
 
 	ata_tf_init(qc->ap, &qc->tf, qc->dev->devno);
+
+	/* init result_tf such that it indicates normal completion */
+	qc->result_tf.command = ATA_DRDY;
+	qc->result_tf.feature = 0;
 }
 
 /**
@@ -839,8 +845,14 @@ static inline void ata_qc_reinit(struct ata_queued_cmd *qc)
  */
 static inline void ata_qc_complete(struct ata_queued_cmd *qc)
 {
+	struct ata_port *ap = qc->ap;
+
 	if (unlikely(qc->flags & ATA_QCFLAG_EH_SCHEDULED))
 		return;
+
+	/* read result TF if failed or requested */
+	if (qc->err_mask || qc->flags & ATA_QCFLAG_RESULT_TF)
+		ap->ops->tf_read(ap, &qc->result_tf);
 
 	__ata_qc_complete(qc);
 }

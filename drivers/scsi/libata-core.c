@@ -955,7 +955,6 @@ void ata_qc_complete_internal(struct ata_queued_cmd *qc)
 {
 	struct completion *waiting = qc->private_data;
 
-	qc->ap->ops->tf_read(qc->ap, &qc->tf);
 	complete(waiting);
 }
 
@@ -997,6 +996,7 @@ unsigned ata_exec_internal(struct ata_port *ap, struct ata_device *dev,
 	qc->tf = *tf;
 	if (cdb)
 		memcpy(qc->cdb, cdb, ATAPI_CDB_LEN);
+	qc->flags |= ATA_QCFLAG_RESULT_TF;
 	qc->dma_dir = dma_dir;
 	if (dma_dir != DMA_NONE) {
 		ata_sg_init_one(qc, buf, buflen);
@@ -1034,7 +1034,7 @@ unsigned ata_exec_internal(struct ata_port *ap, struct ata_device *dev,
 	/* finish up */
 	spin_lock_irqsave(&ap->host_set->lock, flags);
 
-	*tf = qc->tf;
+	*tf = qc->result_tf;
 	err_mask = qc->err_mask;
 
 	ata_qc_free(qc);

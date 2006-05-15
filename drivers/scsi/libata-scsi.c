@@ -537,7 +537,7 @@ void ata_to_sense_error(unsigned id, u8 drv_stat, u8 drv_err, u8 *sk, u8 *asc,
 void ata_gen_ata_desc_sense(struct ata_queued_cmd *qc)
 {
 	struct scsi_cmnd *cmd = qc->scsicmd;
-	struct ata_taskfile *tf = &qc->tf;
+	struct ata_taskfile *tf = &qc->result_tf;
 	unsigned char *sb = cmd->sense_buffer;
 	unsigned char *desc = sb + 8;
 
@@ -608,7 +608,7 @@ void ata_gen_ata_desc_sense(struct ata_queued_cmd *qc)
 void ata_gen_fixed_sense(struct ata_queued_cmd *qc)
 {
 	struct scsi_cmnd *cmd = qc->scsicmd;
-	struct ata_taskfile *tf = &qc->tf;
+	struct ata_taskfile *tf = &qc->result_tf;
 	unsigned char *sb = cmd->sense_buffer;
 
 	memset(sb, 0, SCSI_SENSE_BUFFERSIZE);
@@ -1199,14 +1199,11 @@ static void ata_scsi_qc_complete(struct ata_queued_cmd *qc)
 	 */
 	if (((cdb[0] == ATA_16) || (cdb[0] == ATA_12)) &&
  	    ((cdb[2] & 0x20) || need_sense)) {
-		qc->ap->ops->tf_read(qc->ap, &qc->tf);
  		ata_gen_ata_desc_sense(qc);
 	} else {
 		if (!need_sense) {
 			cmd->result = SAM_STAT_GOOD;
 		} else {
-			qc->ap->ops->tf_read(qc->ap, &qc->tf);
-
 			/* TODO: decide which descriptor format to use
 			 * for 48b LBA devices and call that here
 			 * instead of the fixed desc, which is only
@@ -1217,10 +1214,8 @@ static void ata_scsi_qc_complete(struct ata_queued_cmd *qc)
 		}
 	}
 
-	if (need_sense) {
-		/* The ata_gen_..._sense routines fill in tf */
-		ata_dump_status(qc->ap->id, &qc->tf);
-	}
+	if (need_sense)
+		ata_dump_status(qc->ap->id, &qc->result_tf);
 
 	qc->scsidone(cmd);
 
@@ -2004,7 +1999,6 @@ static void atapi_sense_complete(struct ata_queued_cmd *qc)
 		 * a sense descriptors, since that's only
 		 * correct for ATA, not ATAPI
 		 */
-		qc->ap->ops->tf_read(qc->ap, &qc->tf);
 		ata_gen_ata_desc_sense(qc);
 	}
 
@@ -2080,7 +2074,6 @@ static void atapi_qc_complete(struct ata_queued_cmd *qc)
 		 * a sense descriptors, since that's only
 		 * correct for ATA, not ATAPI
 		 */
-		qc->ap->ops->tf_read(qc->ap, &qc->tf);
 		ata_gen_ata_desc_sense(qc);
 	} else {
 		u8 *scsicmd = cmd->cmnd;
@@ -2360,6 +2353,9 @@ ata_scsi_pass_thru(struct ata_queued_cmd *qc, const u8 *scsicmd)
 	 *       cover scatter/gather case.
 	 */
 	qc->nsect = cmd->bufflen / ATA_SECT_SIZE;
+
+	/* request result TF */
+	qc->flags |= ATA_QCFLAG_RESULT_TF;
 
 	return 0;
 
