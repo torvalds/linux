@@ -62,7 +62,7 @@ static void xfrm4_encap(struct sk_buff *skb)
 	top_iph->frag_off = (flags & XFRM_STATE_NOPMTUDISC) ?
 		0 : (iph->frag_off & htons(IP_DF));
 	if (!top_iph->frag_off)
-		__ip_select_ident(top_iph, dst, 0);
+		__ip_select_ident(top_iph, dst->child, 0);
 
 	top_iph->ttl = dst_metric(dst->child, RTAX_HOPLIMIT);
 

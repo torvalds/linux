@@ -799,10 +799,14 @@ static struct hda_board_config ad1986a_cfg_tbl[] = {
 	{ .modelname = "laptop-eapd",	.config = AD1986A_LAPTOP_EAPD },
 	{ .pci_subvendor = 0x144d, .pci_subdevice = 0xc024,
 	  .config = AD1986A_LAPTOP_EAPD }, /* Samsung R65-T2300 Charis */
+	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x1153,
+	  .config = AD1986A_LAPTOP_EAPD }, /* ASUS M9 */
 	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x1213,
 	  .config = AD1986A_LAPTOP_EAPD }, /* ASUS A6J */
 	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x11f7,
 	  .config = AD1986A_LAPTOP_EAPD }, /* ASUS U5A */
+	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x1297,
+	  .config = AD1986A_LAPTOP_EAPD }, /* ASUS Z62F */
 	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x30af,
 	  .config = AD1986A_LAPTOP_EAPD }, /* HP Compaq Presario B2800 */
 	{}
@@ -1330,12 +1334,8 @@ enum { AD1981_BASIC, AD1981_HP };
 
 static struct hda_board_config ad1981_cfg_tbl[] = {
 	{ .modelname = "hp", .config = AD1981_HP },
-	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x30aa,
-	  .config = AD1981_HP }, /* HP nx6320 */
-	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x309f,
-	  .config = AD1981_HP }, /* HP nx9420 AngelFire */
-	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x30a2,
-	  .config = AD1981_HP }, /* HP nx9420 AngelFire */
+	/* All HP models */
+	{ .pci_subvendor = 0x103c, .config = AD1981_HP },
 	{ .modelname = "basic", .config = AD1981_BASIC },
 	{}
 };
@@ -2623,5 +2623,6 @@ struct hda_codec_preset snd_hda_preset_analog[] = {
 	{ .id = 0x11d41983, .name = "AD1983", .patch = patch_ad1983 },
 	{ .id = 0x11d41986, .name = "AD1986A", .patch = patch_ad1986a },
 	{ .id = 0x11d41988, .name = "AD1988", .patch = patch_ad1988 },
+	{ .id = 0x11d4198b, .name = "AD1988B", .patch = patch_ad1988 },
 	{} /* terminator */
 };

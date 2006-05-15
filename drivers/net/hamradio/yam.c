@@ -1098,7 +1098,6 @@ static void yam_setup(struct net_device *dev)
 
 	dev->base_addr = yp->iobase;
 	dev->irq = yp->irq;
-	SET_MODULE_OWNER(dev);
 
 	dev->open = yam_open;
 	dev->stop = yam_close;

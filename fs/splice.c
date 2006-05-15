@@ -51,7 +51,7 @@ struct splice_pipe_desc {
  * addition of remove_mapping(). If success is returned, the caller may
  * attempt to reuse this page for another destination.
  */
-static int page_cache_pipe_buf_steal(struct pipe_inode_info *info,
+static int page_cache_pipe_buf_steal(struct pipe_inode_info *pipe,
 				     struct pipe_buffer *buf)
 {
 	struct page *page = buf->page;
@@ -78,21 +78,19 @@ static int page_cache_pipe_buf_steal(struct pipe_inode_info *info,
 		return 1;
 	}
 
-	buf->flags |= PIPE_BUF_FLAG_STOLEN | PIPE_BUF_FLAG_LRU;
+	buf->flags |= PIPE_BUF_FLAG_LRU;
 	return 0;
 }
 
-static void page_cache_pipe_buf_release(struct pipe_inode_info *info,
+static void page_cache_pipe_buf_release(struct pipe_inode_info *pipe,
 					struct pipe_buffer *buf)
 {
 	page_cache_release(buf->page);
-	buf->page = NULL;
-	buf->flags &= ~(PIPE_BUF_FLAG_STOLEN | PIPE_BUF_FLAG_LRU);
+	buf->flags &= ~PIPE_BUF_FLAG_LRU;
 }
 
-static void *page_cache_pipe_buf_map(struct file *file,
-				     struct pipe_inode_info *info,
-				     struct pipe_buffer *buf)
+static int page_cache_pipe_buf_pin(struct pipe_inode_info *pipe,
+				   struct pipe_buffer *buf)
 {
 	struct page *page = buf->page;
 	int err;
@@ -118,64 +116,45 @@ static void *page_cache_pipe_buf_map(struct file *file,
 		}
 
 		/*
-		 * Page is ok afterall, fall through to mapping.
+		 * Page is ok afterall, we are done.
 		 */
 		unlock_page(page);
 	}
 
-	return kmap(page);
+	return 0;
 error:
 	unlock_page(page);
-	return ERR_PTR(err);
-}
-
-static void page_cache_pipe_buf_unmap(struct pipe_inode_info *info,
-				      struct pipe_buffer *buf)
-{
-	kunmap(buf->page);
-}
-
-static void *user_page_pipe_buf_map(struct file *file,
-				    struct pipe_inode_info *pipe,
-				    struct pipe_buffer *buf)
-{
-	return kmap(buf->page);
-}
-
-static void user_page_pipe_buf_unmap(struct pipe_inode_info *pipe,
-				     struct pipe_buffer *buf)
-{
-	kunmap(buf->page);
-}
-
-static void page_cache_pipe_buf_get(struct pipe_inode_info *info,
-				    struct pipe_buffer *buf)
-{
-	page_cache_get(buf->page);
+	return err;
 }
 
 static struct pipe_buf_operations page_cache_pipe_buf_ops = {
 	.can_merge = 0,
-	.map = page_cache_pipe_buf_map,
-	.unmap = page_cache_pipe_buf_unmap,
+	.map = generic_pipe_buf_map,
+	.unmap = generic_pipe_buf_unmap,
+	.pin = page_cache_pipe_buf_pin,
 	.release = page_cache_pipe_buf_release,
 	.steal = page_cache_pipe_buf_steal,
-	.get = page_cache_pipe_buf_get,
+	.get = generic_pipe_buf_get,
 };
 
 static int user_page_pipe_buf_steal(struct pipe_inode_info *pipe,
 				    struct pipe_buffer *buf)
 {
-	return 1;
+	if (!(buf->flags & PIPE_BUF_FLAG_GIFT))
+		return 1;
+
+	buf->flags |= PIPE_BUF_FLAG_LRU;
+	return generic_pipe_buf_steal(pipe, buf);
 }
 
 static struct pipe_buf_operations user_page_pipe_buf_ops = {
 	.can_merge = 0,
-	.map = user_page_pipe_buf_map,
-	.unmap = user_page_pipe_buf_unmap,
+	.map = generic_pipe_buf_map,
+	.unmap = generic_pipe_buf_unmap,
+	.pin = generic_pipe_buf_pin,
 	.release = page_cache_pipe_buf_release,
 	.steal = user_page_pipe_buf_steal,
-	.get = page_cache_pipe_buf_get,
+	.get = generic_pipe_buf_get,
 };
 
 /*
@@ -210,6 +189,9 @@ static ssize_t splice_to_pipe(struct pipe_inode_info *pipe,
 			buf->offset = spd->partial[page_nr].offset;
 			buf->len = spd->partial[page_nr].len;
 			buf->ops = spd->ops;
+			if (spd->flags & SPLICE_F_GIFT)
+				buf->flags |= PIPE_BUF_FLAG_GIFT;
+
 			pipe->nrbufs++;
 			page_nr++;
 			ret += buf->len;
@@ -279,7 +261,7 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 	pgoff_t index, end_index;
 	loff_t isize;
 	size_t total_len;
-	int error;
+	int error, page_nr;
 	struct splice_pipe_desc spd = {
 		.pages = pages,
 		.partial = partial,
@@ -299,15 +281,72 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 	 * read-ahead if this is a non-zero offset (we are likely doing small
 	 * chunk splice and the page is already there) for a single page.
 	 */
-	if (!loff || spd.nr_pages > 1)
-		do_page_cache_readahead(mapping, in, index, spd.nr_pages);
+	if (!loff || nr_pages > 1)
+		page_cache_readahead(mapping, &in->f_ra, in, index, nr_pages);
 
 	/*
 	 * Now fill in the holes:
 	 */
 	error = 0;
 	total_len = 0;
-	for (spd.nr_pages = 0; spd.nr_pages < nr_pages; spd.nr_pages++, index++) {
+
+	/*
+	 * Lookup the (hopefully) full range of pages we need.
+	 */
+	spd.nr_pages = find_get_pages_contig(mapping, index, nr_pages, pages);
+
+	/*
+	 * If find_get_pages_contig() returned fewer pages than we needed,
+	 * allocate the rest.
+	 */
+	index += spd.nr_pages;
+	while (spd.nr_pages < nr_pages) {
+		/*
+		 * Page could be there, find_get_pages_contig() breaks on
+		 * the first hole.
+		 */
+		page = find_get_page(mapping, index);
+		if (!page) {
+			/*
+			 * Make sure the read-ahead engine is notified
+			 * about this failure.
+			 */
+			handle_ra_miss(mapping, &in->f_ra, index);
+
+			/*
+			 * page didn't exist, allocate one.
+			 */
+			page = page_cache_alloc_cold(mapping);
+			if (!page)
+				break;
+
+			error = add_to_page_cache_lru(page, mapping, index,
+					      mapping_gfp_mask(mapping));
+			if (unlikely(error)) {
+				page_cache_release(page);
+				if (error == -EEXIST)
+					continue;
+				break;
+			}
+			/*
+			 * add_to_page_cache() locks the page, unlock it
+			 * to avoid convoluting the logic below even more.
+			 */
+			unlock_page(page);
+		}
+
+		pages[spd.nr_pages++] = page;
+		index++;
+	}
+
+	/*
+	 * Now loop over the map and see if we need to start IO on any
+	 * pages, fill in the partial map, etc.
+	 */
+	index = *ppos >> PAGE_CACHE_SHIFT;
+	nr_pages = spd.nr_pages;
+	spd.nr_pages = 0;
+	for (page_nr = 0; page_nr < nr_pages; page_nr++) {
 		unsigned int this_len;
 
 		if (!len)
@@ -317,28 +356,7 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 		 * this_len is the max we'll use from this page
 		 */
 		this_len = min_t(unsigned long, len, PAGE_CACHE_SIZE - loff);
-find_page:
-		/*
-		 * lookup the page for this index
-		 */
-		page = find_get_page(mapping, index);
-		if (!page) {
-			/*
-			 * page didn't exist, allocate one
-			 */
-			page = page_cache_alloc_cold(mapping);
-			if (!page)
-				break;
-
-			error = add_to_page_cache_lru(page, mapping, index,
-						mapping_gfp_mask(mapping));
-			if (unlikely(error)) {
-				page_cache_release(page);
-				break;
-			}
-
-			goto readpage;
-		}
+		page = pages[page_nr];
 
 		/*
 		 * If the page isn't uptodate, we may need to start io on it
@@ -360,7 +378,6 @@ find_page:
 			 */
 			if (!page->mapping) {
 				unlock_page(page);
-				page_cache_release(page);
 				break;
 			}
 			/*
@@ -371,16 +388,20 @@ find_page:
 				goto fill_it;
 			}
 
-readpage:
 			/*
 			 * need to read in the page
 			 */
 			error = mapping->a_ops->readpage(in, page);
-
 			if (unlikely(error)) {
-				page_cache_release(page);
+				/*
+				 * We really should re-lookup the page here,
+				 * but it complicates things a lot. Instead
+				 * lets just do what we already stored, and
+				 * we'll get it the next time we are called.
+				 */
 				if (error == AOP_TRUNCATED_PAGE)
-					goto find_page;
+					error = 0;
+
 				break;
 			}
 
@@ -389,10 +410,8 @@ readpage:
 			 */
 			isize = i_size_read(mapping->host);
 			end_index = (isize - 1) >> PAGE_CACHE_SHIFT;
-			if (unlikely(!isize || index > end_index)) {
-				page_cache_release(page);
+			if (unlikely(!isize || index > end_index))
 				break;
-			}
 
 			/*
 			 * if this is the last page, see if we need to shrink
@@ -400,26 +419,32 @@ readpage:
 			 */
 			if (end_index == index) {
 				loff = PAGE_CACHE_SIZE - (isize & ~PAGE_CACHE_MASK);
-				if (total_len + loff > isize) {
-					page_cache_release(page);
+				if (total_len + loff > isize)
 					break;
-				}
 				/*
 				 * force quit after adding this page
 				 */
-				nr_pages = spd.nr_pages;
+				len = this_len;
 				this_len = min(this_len, loff);
 				loff = 0;
 			}
 		}
 fill_it:
-		pages[spd.nr_pages] = page;
-		partial[spd.nr_pages].offset = loff;
-		partial[spd.nr_pages].len = this_len;
+		partial[page_nr].offset = loff;
+		partial[page_nr].len = this_len;
 		len -= this_len;
 		total_len += this_len;
 		loff = 0;
+		spd.nr_pages++;
+		index++;
 	}
+
+	/*
+	 * Release any pages at the end, if we quit early. 'i' is how far
+	 * we got, 'nr_pages' is how many pages are in the map.
+	 */
+	while (page_nr < nr_pages)
+		page_cache_release(pages[page_nr++]);
 
 	if (spd.nr_pages)
 		return splice_to_pipe(pipe, &spd);
@@ -477,31 +502,21 @@ EXPORT_SYMBOL(generic_file_splice_read);
  * Send 'sd->len' bytes to socket from 'sd->file' at position 'sd->pos'
  * using sendpage(). Return the number of bytes sent.
  */
-static int pipe_to_sendpage(struct pipe_inode_info *info,
+static int pipe_to_sendpage(struct pipe_inode_info *pipe,
 			    struct pipe_buffer *buf, struct splice_desc *sd)
 {
 	struct file *file = sd->file;
 	loff_t pos = sd->pos;
-	ssize_t ret;
-	void *ptr;
-	int more;
+	int ret, more;
 
-	/*
-	 * Sub-optimal, but we are limited by the pipe ->map. We don't
-	 * need a kmap'ed buffer here, we just want to make sure we
-	 * have the page pinned if the pipe page originates from the
-	 * page cache.
-	 */
-	ptr = buf->ops->map(file, info, buf);
-	if (IS_ERR(ptr))
-		return PTR_ERR(ptr);
+	ret = buf->ops->pin(pipe, buf);
+	if (!ret) {
+		more = (sd->flags & SPLICE_F_MORE) || sd->len < sd->total_len;
 
-	more = (sd->flags & SPLICE_F_MORE) || sd->len < sd->total_len;
+		ret = file->f_op->sendpage(file, buf->page, buf->offset,
+					   sd->len, &pos, more);
+	}
 
-	ret = file->f_op->sendpage(file, buf->page, buf->offset, sd->len,
-				   &pos, more);
-
-	buf->ops->unmap(info, buf);
 	return ret;
 }
 
@@ -525,7 +540,7 @@ static int pipe_to_sendpage(struct pipe_inode_info *info,
  * SPLICE_F_MOVE isn't set, or we cannot move the page, we simply create
  * a new page in the output file page cache and fill/dirty that.
  */
-static int pipe_to_file(struct pipe_inode_info *info, struct pipe_buffer *buf,
+static int pipe_to_file(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 			struct splice_desc *sd)
 {
 	struct file *file = sd->file;
@@ -534,15 +549,14 @@ static int pipe_to_file(struct pipe_inode_info *info, struct pipe_buffer *buf,
 	unsigned int offset, this_len;
 	struct page *page;
 	pgoff_t index;
-	char *src;
 	int ret;
 
 	/*
 	 * make sure the data in this buffer is uptodate
 	 */
-	src = buf->ops->map(file, info, buf);
-	if (IS_ERR(src))
-		return PTR_ERR(src);
+	ret = buf->ops->pin(pipe, buf);
+	if (unlikely(ret))
+		return ret;
 
 	index = sd->pos >> PAGE_CACHE_SHIFT;
 	offset = sd->pos & ~PAGE_CACHE_MASK;
@@ -552,20 +566,25 @@ static int pipe_to_file(struct pipe_inode_info *info, struct pipe_buffer *buf,
 		this_len = PAGE_CACHE_SIZE - offset;
 
 	/*
-	 * Reuse buf page, if SPLICE_F_MOVE is set.
+	 * Reuse buf page, if SPLICE_F_MOVE is set and we are doing a full
+	 * page.
 	 */
-	if (sd->flags & SPLICE_F_MOVE) {
+	if ((sd->flags & SPLICE_F_MOVE) && this_len == PAGE_CACHE_SIZE) {
 		/*
-		 * If steal succeeds, buf->page is now pruned from the vm
-		 * side (LRU and page cache) and we can reuse it. The page
-		 * will also be looked on successful return.
+		 * If steal succeeds, buf->page is now pruned from the
+		 * pagecache and we can reuse it. The page will also be
+		 * locked on successful return.
 		 */
-		if (buf->ops->steal(info, buf))
+		if (buf->ops->steal(pipe, buf))
 			goto find_page;
 
 		page = buf->page;
-		if (add_to_page_cache(page, mapping, index, gfp_mask))
+		if (add_to_page_cache(page, mapping, index, gfp_mask)) {
+			unlock_page(page);
 			goto find_page;
+		}
+
+		page_cache_get(page);
 
 		if (!(buf->flags & PIPE_BUF_FLAG_LRU))
 			lru_cache_add(page);
@@ -619,40 +638,55 @@ find_page:
 	}
 
 	ret = mapping->a_ops->prepare_write(file, page, offset, offset+this_len);
-	if (ret == AOP_TRUNCATED_PAGE) {
-		page_cache_release(page);
-		goto find_page;
-	} else if (ret)
-		goto out;
+	if (unlikely(ret)) {
+		loff_t isize = i_size_read(mapping->host);
 
-	if (!(buf->flags & PIPE_BUF_FLAG_STOLEN)) {
-		char *dst = kmap_atomic(page, KM_USER0);
+		if (ret != AOP_TRUNCATED_PAGE)
+			unlock_page(page);
+		page_cache_release(page);
+		if (ret == AOP_TRUNCATED_PAGE)
+			goto find_page;
+
+		/*
+		 * prepare_write() may have instantiated a few blocks
+		 * outside i_size.  Trim these off again.
+		 */
+		if (sd->pos + this_len > isize)
+			vmtruncate(mapping->host, isize);
+
+		goto out;
+	}
+
+	if (buf->page != page) {
+		/*
+		 * Careful, ->map() uses KM_USER0!
+		 */
+		char *src = buf->ops->map(pipe, buf, 1);
+		char *dst = kmap_atomic(page, KM_USER1);
 
 		memcpy(dst + offset, src + buf->offset, this_len);
 		flush_dcache_page(page);
-		kunmap_atomic(dst, KM_USER0);
+		kunmap_atomic(dst, KM_USER1);
+		buf->ops->unmap(pipe, buf, src);
 	}
 
 	ret = mapping->a_ops->commit_write(file, page, offset, offset+this_len);
-	if (ret == AOP_TRUNCATED_PAGE) {
+	if (!ret) {
+		/*
+		 * Return the number of bytes written and mark page as
+		 * accessed, we are now done!
+		 */
+		ret = this_len;
+		mark_page_accessed(page);
+		balance_dirty_pages_ratelimited(mapping);
+	} else if (ret == AOP_TRUNCATED_PAGE) {
 		page_cache_release(page);
 		goto find_page;
-	} else if (ret)
-		goto out;
-
-	/*
-	 * Return the number of bytes written.
-	 */
-	ret = this_len;
-	mark_page_accessed(page);
-	balance_dirty_pages_ratelimited(mapping);
+	}
 out:
-	if (!(buf->flags & PIPE_BUF_FLAG_STOLEN))
-		page_cache_release(page);
-
+	page_cache_release(page);
 	unlock_page(page);
 out_nomem:
-	buf->ops->unmap(info, buf);
 	return ret;
 }
 
@@ -1060,7 +1094,7 @@ static long do_splice(struct file *in, loff_t __user *off_in,
  */
 static int get_iovec_page_array(const struct iovec __user *iov,
 				unsigned int nr_vecs, struct page **pages,
-				struct partial_page *partial)
+				struct partial_page *partial, int aligned)
 {
 	int buffers = 0, error = 0;
 
@@ -1100,6 +1134,15 @@ static int get_iovec_page_array(const struct iovec __user *iov,
 		 * in the user pages.
 		 */
 		off = (unsigned long) base & ~PAGE_MASK;
+
+		/*
+		 * If asked for alignment, the offset must be zero and the
+		 * length a multiple of the PAGE_SIZE.
+		 */
+		error = -EINVAL;
+		if (aligned && (off || len & ~PAGE_MASK))
+			break;
+
 		npages = (off + len + PAGE_SIZE - 1) >> PAGE_SHIFT;
 		if (npages > PIPE_BUFFERS - buffers)
 			npages = PIPE_BUFFERS - buffers;
@@ -1115,7 +1158,7 @@ static int get_iovec_page_array(const struct iovec __user *iov,
 		 * Fill this contiguous range into the partial page map.
 		 */
 		for (i = 0; i < error; i++) {
-			const int plen = min_t(size_t, len, PAGE_SIZE) - off;
+			const int plen = min_t(size_t, len, PAGE_SIZE - off);
 
 			partial[buffers].offset = off;
 			partial[buffers].len = plen;
@@ -1193,7 +1236,8 @@ static long do_vmsplice(struct file *file, const struct iovec __user *iov,
 	else if (unlikely(!nr_segs))
 		return 0;
 
-	spd.nr_pages = get_iovec_page_array(iov, nr_segs, pages, partial);
+	spd.nr_pages = get_iovec_page_array(iov, nr_segs, pages, partial,
+					    flags & SPLICE_F_GIFT);
 	if (spd.nr_pages <= 0)
 		return spd.nr_pages;
 
@@ -1300,6 +1344,12 @@ static int link_pipe(struct pipe_inode_info *ipipe,
 
 				obuf = opipe->bufs + nbuf;
 				*obuf = *ibuf;
+
+				/*
+				 * Don't inherit the gift flag, we need to
+				 * prevent multiple steals of this page.
+				 */
+				obuf->flags &= ~PIPE_BUF_FLAG_GIFT;
 
 				if (obuf->len > len)
 					obuf->len = len;

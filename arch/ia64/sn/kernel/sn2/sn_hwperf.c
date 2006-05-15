@@ -284,6 +284,8 @@ static int sn_hwperf_get_nearest_node_objdata(struct sn_hwperf_object_info *objb
 	/* find nearest node with cpus and nearest memory */
 	for (router=NULL, j=0; j < op->ports; j++) {
 		dest = sn_hwperf_findobj_id(objbuf, nobj, ptdata[j].conn_id);
+		if (dest && SN_HWPERF_IS_ROUTER(dest))
+			router = dest;
 		if (!dest || SN_HWPERF_FOREIGN(dest) ||
 		    !SN_HWPERF_IS_NODE(dest) || SN_HWPERF_IS_IONODE(dest)) {
 			continue;
@@ -299,8 +301,6 @@ static int sn_hwperf_get_nearest_node_objdata(struct sn_hwperf_object_info *objb
 				*near_mem_node = c;
 			found_mem++;
 		}
-		if (SN_HWPERF_IS_ROUTER(dest))
-			router = dest;
 	}
 
 	if (router && (!found_cpu || !found_mem)) {
@@ -493,7 +493,7 @@ static int sn_topology_show(struct seq_file *s, void *d)
 		 * numalink ports
 		 */
 		sz = obj->ports * sizeof(struct sn_hwperf_port_info);
-		if ((ptdata = vmalloc(sz)) == NULL)
+		if ((ptdata = kmalloc(sz, GFP_KERNEL)) == NULL)
 			return -ENOMEM;
 		e = ia64_sn_hwperf_op(sn_hwperf_master_nasid,
 				      SN_HWPERF_ENUM_PORTS, obj->id, sz,
@@ -541,7 +541,7 @@ static int sn_topology_show(struct seq_file *s, void *d)
 				(SN_HWPERF_IS_NL3ROUTER(obj) ||
 				SN_HWPERF_IS_NL3ROUTER(p)) ?  "LLP3" : "LLP4");
 		}
-		vfree(ptdata);
+		kfree(ptdata);
 	}
 
 	return 0;

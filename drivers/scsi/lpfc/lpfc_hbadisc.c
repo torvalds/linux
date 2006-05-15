@@ -311,8 +311,8 @@ lpfc_workq_post_event(struct lpfc_hba * phba, void *arg1, void *arg2,
 	evtp->evt_arg2  = arg2;
 	evtp->evt       = evt;
 
-	list_add_tail(&evtp->evt_listp, &phba->work_list);
 	spin_lock_irq(phba->host->host_lock);
+	list_add_tail(&evtp->evt_listp, &phba->work_list);
 	if (phba->work_wait)
 		wake_up(phba->work_wait);
 	spin_unlock_irq(phba->host->host_lock);
@@ -1071,10 +1071,6 @@ lpfc_register_remote_port(struct lpfc_hba * phba,
 	/* initialize static port data */
 	rport->maxframe_size = ndlp->nlp_maxframe;
 	rport->supported_classes = ndlp->nlp_class_sup;
-	if ((rport->scsi_target_id != -1) &&
-		(rport->scsi_target_id < MAX_FCP_TARGET)) {
-		ndlp->nlp_sid = rport->scsi_target_id;
-	}
 	rdata = rport->dd_data;
 	rdata->pnode = ndlp;
 
@@ -1087,6 +1083,10 @@ lpfc_register_remote_port(struct lpfc_hba * phba,
 	if (rport_ids.roles !=  FC_RPORT_ROLE_UNKNOWN)
 		fc_remote_port_rolechg(rport, rport_ids.roles);
 
+	if ((rport->scsi_target_id != -1) &&
+		(rport->scsi_target_id < MAX_FCP_TARGET)) {
+		ndlp->nlp_sid = rport->scsi_target_id;
+	}
 
 	return;
 }
@@ -1238,6 +1238,7 @@ lpfc_nlp_list(struct lpfc_hba * phba, struct lpfc_nodelist * nlp, int list)
 						evt_listp);
 
 		}
+		nlp->nlp_flag &= ~NLP_NODEV_REMOVE;
 		nlp->nlp_type |= NLP_FC_NODE;
 		break;
 	case NLP_MAPPED_LIST:
@@ -1258,6 +1259,7 @@ lpfc_nlp_list(struct lpfc_hba * phba, struct lpfc_nodelist * nlp, int list)
 						evt_listp);
 
 		}
+		nlp->nlp_flag &= ~NLP_NODEV_REMOVE;
 		break;
 	case NLP_NPR_LIST:
 		nlp->nlp_flag |= list;
@@ -1402,6 +1404,8 @@ lpfc_check_sli_ndlp(struct lpfc_hba * phba,
 			if (icmd->ulpContext == (volatile ushort)ndlp->nlp_rpi)
 				return 1;
 		case CMD_ELS_REQUEST64_CR:
+			if (icmd->un.elsreq64.remoteID == ndlp->nlp_DID)
+				return 1;
 		case CMD_XMIT_ELS_RSP64_CX:
 			if (iocb->context1 == (uint8_t *) ndlp)
 				return 1;
@@ -1901,10 +1905,8 @@ lpfc_setup_disc_node(struct lpfc_hba * phba, uint32_t did)
 			 */
 			if (ndlp->nlp_flag & NLP_DELAY_TMO)
 				lpfc_cancel_retry_delay_tmo(phba, ndlp);
-		} else {
-			ndlp->nlp_flag &= ~NLP_NPR_2B_DISC;
+		} else
 			ndlp = NULL;
-		}
 	} else {
 		flg = ndlp->nlp_flag & NLP_LIST_MASK;
 		if ((flg == NLP_ADISC_LIST) || (flg == NLP_PLOGI_LIST))

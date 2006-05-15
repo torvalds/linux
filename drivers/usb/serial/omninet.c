@@ -257,14 +257,14 @@ static int omninet_write (struct usb_serial_port *port, const unsigned char *buf
 		return (0);
 	}
 
-	spin_lock(&port->lock);
-	if (port->write_urb_busy) {
-		spin_unlock(&port->lock);
+	spin_lock(&wport->lock);
+	if (wport->write_urb_busy) {
+		spin_unlock(&wport->lock);
 		dbg("%s - already writing", __FUNCTION__);
 		return 0;
 	}
-	port->write_urb_busy = 1;
-	spin_unlock(&port->lock);
+	wport->write_urb_busy = 1;
+	spin_unlock(&wport->lock);
 
 	count = (count > OMNINET_BULKOUTSIZE) ? OMNINET_BULKOUTSIZE : count;
 
@@ -283,7 +283,7 @@ static int omninet_write (struct usb_serial_port *port, const unsigned char *buf
 	wport->write_urb->dev = serial->dev;
 	result = usb_submit_urb(wport->write_urb, GFP_ATOMIC);
 	if (result) {
-		port->write_urb_busy = 0;
+		wport->write_urb_busy = 0;
 		err("%s - failed submitting write urb, error %d", __FUNCTION__, result);
 	} else
 		result = count;

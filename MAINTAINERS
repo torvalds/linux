@@ -1480,10 +1480,11 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 
 IRDA SUBSYSTEM
-P:	Jean Tourrilhes
+P:	Samuel Ortiz
+M:	samuel@sortiz.org
 L:	irda-users@lists.sourceforge.net (subscribers-only)
 W:	http://irda.sourceforge.net/
-S:	Odd Fixes
+S:	Maintained
 
 ISAPNP
 P:	Jaroslav Kysela

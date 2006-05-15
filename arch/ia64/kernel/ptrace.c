@@ -1644,7 +1644,7 @@ syscall_trace_enter (long arg0, long arg1, long arg2, long arg3,
 			arch = AUDIT_ARCH_IA64;
 		}
 
-		audit_syscall_entry(current, arch, syscall, arg0, arg1, arg2, arg3);
+		audit_syscall_entry(arch, syscall, arg0, arg1, arg2, arg3);
 	}
 
 }
@@ -1662,7 +1662,7 @@ syscall_trace_leave (long arg0, long arg1, long arg2, long arg3,
 
 		if (success != AUDITSC_SUCCESS)
 			result = -result;
-		audit_syscall_exit(current, success, result);
+		audit_syscall_exit(success, result);
 	}
 
 	if (test_thread_flag(TIF_SYSCALL_TRACE)

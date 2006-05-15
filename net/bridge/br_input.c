@@ -66,6 +66,7 @@ int br_handle_frame_finish(struct sk_buff *skb)
 	}
 
 	if (is_multicast_ether_addr(dest)) {
+		br->statistics.multicast++;
 		br_flood_forward(br, skb, !passedup);
 		if (!passedup)
 			br_pass_frame_up(br, skb);

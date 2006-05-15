@@ -360,7 +360,7 @@ struct file_operations ax25_route_fops = {
 /*
  *	Find AX.25 route
  *
- *	Only routes with a refernce rout of zero can be destroyed.
+ *	Only routes with a reference count of zero can be destroyed.
  */
 static ax25_route *ax25_get_route(ax25_address *addr, struct net_device *dev)
 {

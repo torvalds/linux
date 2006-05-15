@@ -11,6 +11,7 @@
 #include <linux/socket.h>
 #include <linux/in.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/timer.h>
 #include <linux/string.h>
@@ -32,6 +33,8 @@
  *	SSID of zero.
  */
 ax25_address null_ax25_address = {{0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x00}};
+
+EXPORT_SYMBOL(null_ax25_address);
 
 /*
  *	ax25 -> ascii conversion
@@ -63,6 +66,8 @@ char *ax2asc(char *buf, ax25_address *a)
 	return buf;
 
 }
+
+EXPORT_SYMBOL(ax2asc);
 
 /*
  *	ascii -> ax25 conversion
@@ -97,6 +102,8 @@ void asc2ax(ax25_address *addr, char *callsign)
 	addr->ax25_call[6] &= 0x1E;
 }
 
+EXPORT_SYMBOL(asc2ax);
+
 /*
  *	Compare two ax.25 addresses
  */
@@ -115,6 +122,8 @@ int ax25cmp(ax25_address *a, ax25_address *b)
 
  	return 2;			/* Partial match */
 }
+
+EXPORT_SYMBOL(ax25cmp);
 
 /*
  *	Compare two AX.25 digipeater paths.

@@ -58,7 +58,7 @@ rtc_dev_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	unsigned long data;
 	ssize_t ret;
 
-	if (count < sizeof(unsigned long))
+	if (count != sizeof(unsigned int) && count < sizeof(unsigned long))
 		return -EINVAL;
 
 	add_wait_queue(&rtc->irq_queue, &wait);
@@ -90,11 +90,16 @@ rtc_dev_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	if (ret == 0) {
 		/* Check for any data updates */
 		if (rtc->ops->read_callback)
-			data = rtc->ops->read_callback(rtc->class_dev.dev, data);
+			data = rtc->ops->read_callback(rtc->class_dev.dev,
+						       data);
 
-		ret = put_user(data, (unsigned long __user *)buf);
-		if (ret == 0)
-			ret = sizeof(unsigned long);
+		if (sizeof(int) != sizeof(long) &&
+		    count == sizeof(unsigned int))
+			ret = put_user(data, (unsigned int __user *)buf) ?:
+				sizeof(unsigned int);
+		else
+			ret = put_user(data, (unsigned long __user *)buf) ?:
+				sizeof(unsigned long);
 	}
 	return ret;
 }

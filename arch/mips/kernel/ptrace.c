@@ -483,7 +483,7 @@ static inline int audit_arch(void)
 asmlinkage void do_syscall_trace(struct pt_regs *regs, int entryexit)
 {
 	if (unlikely(current->audit_context) && entryexit)
-		audit_syscall_exit(current, AUDITSC_RESULT(regs->regs[2]),
+		audit_syscall_exit(AUDITSC_RESULT(regs->regs[2]),
 		                   regs->regs[2]);
 
 	if (!(current->ptrace & PT_PTRACED))
@@ -507,7 +507,7 @@ asmlinkage void do_syscall_trace(struct pt_regs *regs, int entryexit)
 	}
  out:
 	if (unlikely(current->audit_context) && !entryexit)
-		audit_syscall_entry(current, audit_arch(), regs->regs[2],
+		audit_syscall_entry(audit_arch(), regs->regs[2],
 				    regs->regs[4], regs->regs[5],
 				    regs->regs[6], regs->regs[7]);
 }

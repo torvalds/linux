@@ -294,15 +294,6 @@ lpfc_config_port_post(struct lpfc_hba * phba)
 		}
 	}
 
-	/* This should turn on DELAYED ABTS for ELS timeouts */
-	lpfc_set_slim(phba, pmb, 0x052198, 0x1);
-	if (lpfc_sli_issue_mbox(phba, pmb, MBX_POLL) != MBX_SUCCESS) {
-		phba->hba_state = LPFC_HBA_ERROR;
-		mempool_free( pmb, phba->mbox_mem_pool);
-		return -EIO;
-	}
-
-
 	lpfc_read_config(phba, pmb);
 	if (lpfc_sli_issue_mbox(phba, pmb, MBX_POLL) != MBX_SUCCESS) {
 		lpfc_printf_log(phba,
@@ -804,7 +795,7 @@ lpfc_get_hba_model_desc(struct lpfc_hba * phba, uint8_t * mdp, uint8_t * descp)
 		int    max_speed;
 		char * ports;
 		char * bus;
-	} m;
+	} m = {"<Unknown>", 0, "", ""};
 
 	pci_read_config_byte(phba->pcidev, PCI_HEADER_TYPE, &hdrtype);
 	ports = (hdrtype == 0x80) ? "2-port " : "";
@@ -1627,7 +1618,7 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 
 	error = lpfc_alloc_sysfs_attr(phba);
 	if (error)
-		goto out_kthread_stop;
+		goto out_remove_host;
 
 	error =	request_irq(phba->pcidev->irq, lpfc_intr_handler, SA_SHIRQ,
 							LPFC_DRIVER_NAME, phba);
@@ -1644,8 +1635,10 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	phba->HCregaddr = phba->ctrl_regs_memmap_p + HC_REG_OFFSET;
 
 	error = lpfc_sli_hba_setup(phba);
-	if (error)
+	if (error) {
+		error = -ENODEV;
 		goto out_free_irq;
+	}
 
 	if (phba->cfg_poll & DISABLE_FCP_RING_INT) {
 		spin_lock_irq(phba->host->host_lock);
@@ -1700,6 +1693,9 @@ out_free_irq:
 	free_irq(phba->pcidev->irq, phba);
 out_free_sysfs_attr:
 	lpfc_free_sysfs_attr(phba);
+out_remove_host:
+	fc_remove_host(phba->host);
+	scsi_remove_host(phba->host);
 out_kthread_stop:
 	kthread_stop(phba->worker_thread);
 out_free_iocbq:
@@ -1721,12 +1717,14 @@ out_iounmap_slim:
 out_idr_remove:
 	idr_remove(&lpfc_hba_index, phba->brd_no);
 out_put_host:
+	phba->host = NULL;
 	scsi_host_put(host);
 out_release_regions:
 	pci_release_regions(pdev);
 out_disable_device:
 	pci_disable_device(pdev);
 out:
+	pci_set_drvdata(pdev, NULL);
 	return error;
 }
 

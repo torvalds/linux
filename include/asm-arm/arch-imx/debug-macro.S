@@ -16,7 +16,7 @@
 		tst	\rx, #1			@ MMU enabled?
 		moveq	\rx, #0x00000000	@ physical
 		movne	\rx, #0xe0000000	@ virtual
-		orr	\rx, \rx, #0x00200000
+		orreq	\rx, \rx, #0x00200000	@ physical
 		orr	\rx, \rx, #0x00006000	@ UART1 offset
 		.endm
 

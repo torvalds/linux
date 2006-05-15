@@ -2051,7 +2051,7 @@ STATIC ASC_DCNT  AscGetMaxDmaCount(ushort);
 #define ADV_VADDR_TO_U32   virt_to_bus
 #define ADV_U32_TO_VADDR   bus_to_virt
 
-#define AdvPortAddr  ulong              /* Virtual memory address size */
+#define AdvPortAddr  void __iomem *     /* Virtual memory address size */
 
 /*
  * Define Adv Library required memory access macros.

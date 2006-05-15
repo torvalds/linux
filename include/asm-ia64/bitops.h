@@ -11,7 +11,6 @@
 
 #include <linux/compiler.h>
 #include <linux/types.h>
-#include <asm/bitops.h>
 #include <asm/intrinsics.h>
 
 /**

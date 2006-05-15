@@ -4,6 +4,9 @@
 
 #include <linux/config.h>
 
+struct sys_device;
+struct device_node;
+
 #ifdef CONFIG_NUMA
 
 #include <asm/mmzone.h>
@@ -26,6 +29,8 @@ static inline int node_to_first_cpu(int node)
 	tmp = node_to_cpumask(node);
 	return first_cpu(tmp);
 }
+
+int of_node_to_nid(struct device_node *device);
 
 #define pcibus_to_node(node)    (-1)
 #define pcibus_to_cpumask(bus)	(cpu_online_map)
@@ -57,9 +62,28 @@ static inline int node_to_first_cpu(int node)
 
 extern void __init dump_numa_cpu_topology(void);
 
+extern int sysfs_add_device_to_node(struct sys_device *dev, int nid);
+extern void sysfs_remove_device_from_node(struct sys_device *dev, int nid);
+
 #else
 
+static inline int of_node_to_nid(struct device_node *device)
+{
+	return 0;
+}
+
 static inline void dump_numa_cpu_topology(void) {}
+
+static inline int sysfs_add_device_to_node(struct sys_device *dev, int nid)
+{
+	return 0;
+}
+
+static inline void sysfs_remove_device_from_node(struct sys_device *dev,
+						int nid)
+{
+}
+
 
 #include <asm-generic/topology.h>
 

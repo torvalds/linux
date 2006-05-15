@@ -95,14 +95,15 @@ struct srp_direct_buf {
 
 /*
  * We need the packed attribute because the SRP spec puts the list of
- * descriptors at an offset of 20, which is not aligned to the size
- * of struct srp_direct_buf.
+ * descriptors at an offset of 20, which is not aligned to the size of
+ * struct srp_direct_buf.  The whole structure must be packed to avoid
+ * having the 20-byte structure padded to 24 bytes on 64-bit architectures.
  */
 struct srp_indirect_buf {
 	struct srp_direct_buf	table_desc;
 	__be32			len;
-	struct srp_direct_buf	desc_list[0] __attribute__((packed));
-};
+	struct srp_direct_buf	desc_list[0];
+} __attribute__((packed));
 
 enum {
 	SRP_MULTICHAN_SINGLE = 0,
@@ -122,6 +123,11 @@ struct srp_login_req {
 	u8	target_port_id[16];
 };
 
+/*
+ * The SRP spec defines the size of the LOGIN_RSP structure to be 52
+ * bytes, so it needs to be packed to avoid having it padded to 56
+ * bytes on 64-bit architectures.
+ */
 struct srp_login_rsp {
 	u8	opcode;
 	u8	reserved1[3];
@@ -132,7 +138,7 @@ struct srp_login_rsp {
 	__be16	buf_fmt;
 	u8	rsp_flags;
 	u8	reserved2[25];
-};
+} __attribute__((packed));
 
 struct srp_login_rej {
 	u8	opcode;
@@ -207,6 +213,11 @@ enum {
 	SRP_RSP_FLAG_DIUNDER  = 1 << 5
 };
 
+/*
+ * The SRP spec defines the size of the RSP structure to be 36 bytes,
+ * so it needs to be packed to avoid having it padded to 40 bytes on
+ * 64-bit architectures.
+ */
 struct srp_rsp {
 	u8	opcode;
 	u8	sol_not;
@@ -221,6 +232,6 @@ struct srp_rsp {
 	__be32	sense_data_len;
 	__be32	resp_data_len;
 	u8	data[0];
-};
+} __attribute__((packed));
 
 #endif /* SCSI_SRP_H */

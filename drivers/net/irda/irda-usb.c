@@ -1778,7 +1778,7 @@ static int irda_usb_probe(struct usb_interface *intf,
 
 	if (self->needspatch) {
 		ret = usb_control_msg (self->usbdev, usb_sndctrlpipe (self->usbdev, 0),
-				       0x02, 0x40, 0, 0, 0, 0, msecs_to_jiffies(500));
+				       0x02, 0x40, 0, 0, NULL, 0, 500);
 		if (ret < 0) {
 			IRDA_DEBUG (0, "usb_control_msg failed %d\n", ret);
 			goto err_out_3;

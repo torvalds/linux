@@ -531,19 +531,12 @@ int ipath_post_rc_send(struct ipath_qp *qp, struct ib_send_wr *wr)
 	}
 	wqe->wr.num_sge = j;
 	qp->s_head = next;
-	/*
-	 * Wake up the send tasklet if the QP is not waiting
-	 * for an RNR timeout.
-	 */
-	next = qp->s_rnr_timeout;
 	spin_unlock_irqrestore(&qp->s_lock, flags);
 
-	if (next == 0) {
-		if (qp->ibqp.qp_type == IB_QPT_UC)
-			ipath_do_uc_send((unsigned long) qp);
-		else
-			ipath_do_rc_send((unsigned long) qp);
-	}
+	if (qp->ibqp.qp_type == IB_QPT_UC)
+		ipath_do_uc_send((unsigned long) qp);
+	else
+		ipath_do_rc_send((unsigned long) qp);
 
 	ret = 0;
 

@@ -7,6 +7,7 @@
 #include <linux/sched.h>
 #include <linux/errno.h>
 #include <asm/processor.h>
+#include <asm/page.h>
 
 #define VERIFY_READ	0
 #define VERIFY_WRITE	1
@@ -179,9 +180,11 @@ do {								\
 #define __put_user_nocheck(x, ptr, size)			\
 ({								\
 	long __pu_err;						\
-	might_sleep();						\
+	__typeof__(*(ptr)) __user *__pu_addr = (ptr);		\
+	if (!is_kernel_addr((unsigned long)__pu_addr))		\
+		might_sleep();					\
 	__chk_user_ptr(ptr);					\
-	__put_user_size((x), (ptr), (size), __pu_err);		\
+	__put_user_size((x), __pu_addr, (size), __pu_err);	\
 	__pu_err;						\
 })
 
@@ -258,9 +261,11 @@ do {								\
 ({								\
 	long __gu_err;						\
 	unsigned long __gu_val;					\
+	const __typeof__(*(ptr)) __user *__gu_addr = (ptr);	\
 	__chk_user_ptr(ptr);					\
-	might_sleep();						\
-	__get_user_size(__gu_val, (ptr), (size), __gu_err);	\
+	if (!is_kernel_addr((unsigned long)__gu_addr))		\
+		might_sleep();					\
+	__get_user_size(__gu_val, __gu_addr, (size), __gu_err);	\
 	(x) = (__typeof__(*(ptr)))__gu_val;			\
 	__gu_err;						\
 })
@@ -270,9 +275,11 @@ do {								\
 ({								\
 	long __gu_err;						\
 	long long __gu_val;					\
+	const __typeof__(*(ptr)) __user *__gu_addr = (ptr);	\
 	__chk_user_ptr(ptr);					\
-	might_sleep();						\
-	__get_user_size(__gu_val, (ptr), (size), __gu_err);	\
+	if (!is_kernel_addr((unsigned long)__gu_addr))		\
+		might_sleep();					\
+	__get_user_size(__gu_val, __gu_addr, (size), __gu_err);	\
 	(x) = (__typeof__(*(ptr)))__gu_val;			\
 	__gu_err;						\
 })

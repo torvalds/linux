@@ -69,12 +69,16 @@ int __add_pages(struct zone *zone, unsigned long phys_start_pfn,
 	for (i = 0; i < nr_pages; i += PAGES_PER_SECTION) {
 		err = __add_section(zone, phys_start_pfn + i);
 
-		if (err)
+		/* We want to keep adding the rest of the
+		 * sections if the first ones already exist
+		 */
+		if (err && (err != -EEXIST))
 			break;
 	}
 
 	return err;
 }
+EXPORT_SYMBOL_GPL(__add_pages);
 
 static void grow_zone_span(struct zone *zone,
 		unsigned long start_pfn, unsigned long end_pfn)

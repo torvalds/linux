@@ -8014,7 +8014,6 @@ static int (*qeth_old_arp_constructor) (struct neighbour *);
 
 static struct neigh_ops arp_direct_ops_template = {
 	.family = AF_INET,
-	.destructor = NULL,
 	.solicit = NULL,
 	.error_report = NULL,
 	.output = dev_queue_xmit,

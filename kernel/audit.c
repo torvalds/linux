@@ -55,6 +55,9 @@
 #include <net/netlink.h>
 #include <linux/skbuff.h>
 #include <linux/netlink.h>
+#include <linux/selinux.h>
+
+#include "audit.h"
 
 /* No auditing will take place until audit_initialized != 0.
  * (Initialization happens after skb_init is called.) */
@@ -227,49 +230,103 @@ void audit_log_lost(const char *message)
 	}
 }
 
-static int audit_set_rate_limit(int limit, uid_t loginuid)
+static int audit_set_rate_limit(int limit, uid_t loginuid, u32 sid)
 {
-	int old		 = audit_rate_limit;
-	audit_rate_limit = limit;
-	audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE, 
+	int old	= audit_rate_limit;
+
+	if (sid) {
+		char *ctx = NULL;
+		u32 len;
+		int rc;
+		if ((rc = selinux_ctxid_to_string(sid, &ctx, &len)))
+			return rc;
+		else
+			audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
+				"audit_rate_limit=%d old=%d by auid=%u subj=%s",
+				limit, old, loginuid, ctx);
+		kfree(ctx);
+	} else
+		audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
 			"audit_rate_limit=%d old=%d by auid=%u",
-			audit_rate_limit, old, loginuid);
+			limit, old, loginuid);
+	audit_rate_limit = limit;
 	return old;
 }
 
-static int audit_set_backlog_limit(int limit, uid_t loginuid)
+static int audit_set_backlog_limit(int limit, uid_t loginuid, u32 sid)
 {
-	int old		 = audit_backlog_limit;
-	audit_backlog_limit = limit;
-	audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
+	int old	= audit_backlog_limit;
+
+	if (sid) {
+		char *ctx = NULL;
+		u32 len;
+		int rc;
+		if ((rc = selinux_ctxid_to_string(sid, &ctx, &len)))
+			return rc;
+		else
+			audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
+			    "audit_backlog_limit=%d old=%d by auid=%u subj=%s",
+				limit, old, loginuid, ctx);
+		kfree(ctx);
+	} else
+		audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
 			"audit_backlog_limit=%d old=%d by auid=%u",
-			audit_backlog_limit, old, loginuid);
+			limit, old, loginuid);
+	audit_backlog_limit = limit;
 	return old;
 }
 
-static int audit_set_enabled(int state, uid_t loginuid)
+static int audit_set_enabled(int state, uid_t loginuid, u32 sid)
 {
-	int old		 = audit_enabled;
+	int old = audit_enabled;
+
 	if (state != 0 && state != 1)
 		return -EINVAL;
-	audit_enabled = state;
-	audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
+
+	if (sid) {
+		char *ctx = NULL;
+		u32 len;
+		int rc;
+		if ((rc = selinux_ctxid_to_string(sid, &ctx, &len)))
+			return rc;
+		else
+			audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
+				"audit_enabled=%d old=%d by auid=%u subj=%s",
+				state, old, loginuid, ctx);
+		kfree(ctx);
+	} else
+		audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
 			"audit_enabled=%d old=%d by auid=%u",
-			audit_enabled, old, loginuid);
+			state, old, loginuid);
+	audit_enabled = state;
 	return old;
 }
 
-static int audit_set_failure(int state, uid_t loginuid)
+static int audit_set_failure(int state, uid_t loginuid, u32 sid)
 {
-	int old		 = audit_failure;
+	int old = audit_failure;
+
 	if (state != AUDIT_FAIL_SILENT
 	    && state != AUDIT_FAIL_PRINTK
 	    && state != AUDIT_FAIL_PANIC)
 		return -EINVAL;
-	audit_failure = state;
-	audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
+
+	if (sid) {
+		char *ctx = NULL;
+		u32 len;
+		int rc;
+		if ((rc = selinux_ctxid_to_string(sid, &ctx, &len)))
+			return rc;
+		else
+			audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
+				"audit_failure=%d old=%d by auid=%u subj=%s",
+				state, old, loginuid, ctx);
+		kfree(ctx);
+	} else
+		audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
 			"audit_failure=%d old=%d by auid=%u",
-			audit_failure, old, loginuid);
+			state, old, loginuid);
+	audit_failure = state;
 	return old;
 }
 
@@ -387,7 +444,7 @@ static int audit_netlink_ok(kernel_cap_t eff_cap, u16 msg_type)
 
 static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
-	u32			uid, pid, seq;
+	u32			uid, pid, seq, sid;
 	void			*data;
 	struct audit_status	*status_get, status_set;
 	int			err;
@@ -413,6 +470,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	pid  = NETLINK_CREDS(skb)->pid;
 	uid  = NETLINK_CREDS(skb)->uid;
 	loginuid = NETLINK_CB(skb).loginuid;
+	sid  = NETLINK_CB(skb).sid;
 	seq  = nlh->nlmsg_seq;
 	data = NLMSG_DATA(nlh);
 
@@ -433,25 +491,43 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 			return -EINVAL;
 		status_get   = (struct audit_status *)data;
 		if (status_get->mask & AUDIT_STATUS_ENABLED) {
-			err = audit_set_enabled(status_get->enabled, loginuid);
+			err = audit_set_enabled(status_get->enabled,
+							loginuid, sid);
 			if (err < 0) return err;
 		}
 		if (status_get->mask & AUDIT_STATUS_FAILURE) {
-			err = audit_set_failure(status_get->failure, loginuid);
+			err = audit_set_failure(status_get->failure,
+							 loginuid, sid);
 			if (err < 0) return err;
 		}
 		if (status_get->mask & AUDIT_STATUS_PID) {
 			int old   = audit_pid;
+			if (sid) {
+				char *ctx = NULL;
+				u32 len;
+				int rc;
+				if ((rc = selinux_ctxid_to_string(
+						sid, &ctx, &len)))
+					return rc;
+				else
+					audit_log(NULL, GFP_KERNEL,
+						AUDIT_CONFIG_CHANGE,
+						"audit_pid=%d old=%d by auid=%u subj=%s",
+						status_get->pid, old,
+						loginuid, ctx);
+				kfree(ctx);
+			} else
+				audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
+					"audit_pid=%d old=%d by auid=%u",
+					  status_get->pid, old, loginuid);
 			audit_pid = status_get->pid;
-			audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
-				"audit_pid=%d old=%d by auid=%u",
-				  audit_pid, old, loginuid);
 		}
 		if (status_get->mask & AUDIT_STATUS_RATE_LIMIT)
-			audit_set_rate_limit(status_get->rate_limit, loginuid);
+			audit_set_rate_limit(status_get->rate_limit,
+							 loginuid, sid);
 		if (status_get->mask & AUDIT_STATUS_BACKLOG_LIMIT)
 			audit_set_backlog_limit(status_get->backlog_limit,
-							loginuid);
+							loginuid, sid);
 		break;
 	case AUDIT_USER:
 	case AUDIT_FIRST_USER_MSG...AUDIT_LAST_USER_MSG:
@@ -465,8 +541,23 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 			ab = audit_log_start(NULL, GFP_KERNEL, msg_type);
 			if (ab) {
 				audit_log_format(ab,
-						 "user pid=%d uid=%u auid=%u msg='%.1024s'",
-						 pid, uid, loginuid, (char *)data);
+						 "user pid=%d uid=%u auid=%u",
+						 pid, uid, loginuid);
+				if (sid) {
+					char *ctx = NULL;
+					u32 len;
+					if (selinux_ctxid_to_string(
+							sid, &ctx, &len)) {
+						audit_log_format(ab, 
+							" ssid=%u", sid);
+						/* Maybe call audit_panic? */
+					} else
+						audit_log_format(ab, 
+							" subj=%s", ctx);
+					kfree(ctx);
+				}
+				audit_log_format(ab, " msg='%.1024s'",
+					 (char *)data);
 				audit_set_pid(ab, pid);
 				audit_log_end(ab);
 			}
@@ -480,7 +571,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	case AUDIT_LIST:
 		err = audit_receive_filter(nlh->nlmsg_type, NETLINK_CB(skb).pid,
 					   uid, seq, data, nlmsg_len(nlh),
-					   loginuid);
+					   loginuid, sid);
 		break;
 	case AUDIT_ADD_RULE:
 	case AUDIT_DEL_RULE:
@@ -490,7 +581,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	case AUDIT_LIST_RULES:
 		err = audit_receive_filter(nlh->nlmsg_type, NETLINK_CB(skb).pid,
 					   uid, seq, data, nlmsg_len(nlh),
-					   loginuid);
+					   loginuid, sid);
 		break;
 	case AUDIT_SIGNAL_INFO:
 		sig_data.uid = audit_sig_uid;
@@ -564,6 +655,11 @@ static int __init audit_init(void)
 	skb_queue_head_init(&audit_skb_queue);
 	audit_initialized = 1;
 	audit_enabled = audit_default;
+
+	/* Register the callback with selinux.  This callback will be invoked
+	 * when a new policy is loaded. */
+	selinux_audit_set_callback(&selinux_audit_rule_update);
+
 	audit_log(NULL, GFP_KERNEL, AUDIT_KERNEL, "initialized");
 	return 0;
 }

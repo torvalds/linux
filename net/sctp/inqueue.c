@@ -149,6 +149,7 @@ struct sctp_chunk *sctp_inq_pop(struct sctp_inq *queue)
 		/* This is the first chunk in the packet.  */
 		chunk->singleton = 1;
 		ch = (sctp_chunkhdr_t *) chunk->skb->data;
+		chunk->data_accepted = 0;
 	}
 
         chunk->chunk_hdr = ch;

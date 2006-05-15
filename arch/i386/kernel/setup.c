@@ -970,8 +970,10 @@ efi_memory_present_wrapper(unsigned long start, unsigned long end, void *arg)
   * not-overlapping, which is the case
   */
 int __init
-e820_all_mapped(unsigned long start, unsigned long end, unsigned type)
+e820_all_mapped(unsigned long s, unsigned long e, unsigned type)
 {
+	u64 start = s;
+	u64 end = e;
 	int i;
 	for (i = 0; i < e820.nr_map; i++) {
 		struct e820entry *ei = &e820.map[i];
@@ -1318,6 +1320,8 @@ legacy_init_iomem_resources(struct resource *code_resource, struct resource *dat
 	probe_roms();
 	for (i = 0; i < e820.nr_map; i++) {
 		struct resource *res;
+		if (e820.map[i].addr + e820.map[i].size > 0x100000000ULL)
+			continue;
 		res = kzalloc(sizeof(struct resource), GFP_ATOMIC);
 		switch (e820.map[i].type) {
 		case E820_RAM:	res->name = "System RAM"; break;

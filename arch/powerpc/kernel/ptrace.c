@@ -538,7 +538,7 @@ void do_syscall_trace_enter(struct pt_regs *regs)
 		do_syscall_trace();
 
 	if (unlikely(current->audit_context))
-		audit_syscall_entry(current,
+		audit_syscall_entry(
 #ifdef CONFIG_PPC32
 				    AUDIT_ARCH_PPC,
 #else
@@ -556,8 +556,7 @@ void do_syscall_trace_leave(struct pt_regs *regs)
 #endif
 
 	if (unlikely(current->audit_context))
-		audit_syscall_exit(current,
-				   (regs->ccr&0x1000)?AUDITSC_FAILURE:AUDITSC_SUCCESS,
+		audit_syscall_exit((regs->ccr&0x1000)?AUDITSC_FAILURE:AUDITSC_SUCCESS,
 				   regs->result);
 
 	if ((test_thread_flag(TIF_SYSCALL_TRACE)

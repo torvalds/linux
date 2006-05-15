@@ -260,6 +260,12 @@ out:
 
 #endif
 
+#ifndef CONFIG_PCI
+
+#define	__io(v)		v
+
+#else
+
 /*
  * IXP4xx does not have a transparent cpu -> PCI I/O translation
  * window.  Instead, it has a set of registers that must be tweaked
@@ -578,6 +584,7 @@ __ixp4xx_iowrite32_rep(void __iomem *addr, const void *vaddr, u32 count)
 
 #define	ioport_map(port, nr)		((void __iomem*)(port + PIO_OFFSET))
 #define	ioport_unmap(addr)
+#endif	// !CONFIG_PCI
 
 #endif	//  __ASM_ARM_ARCH_IO_H
 

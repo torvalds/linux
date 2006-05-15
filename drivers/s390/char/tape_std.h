@@ -153,6 +153,7 @@ enum s390_tape_type {
         tape_3480,
         tape_3490,
         tape_3590,
+        tape_3592,
 };
 
 #endif // _TAPE_STD_H

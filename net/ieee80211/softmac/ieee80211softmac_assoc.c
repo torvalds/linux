@@ -51,11 +51,12 @@ ieee80211softmac_assoc(struct ieee80211softmac_device *mac, struct ieee80211soft
 	spin_lock_irqsave(&mac->lock, flags);
 	mac->associnfo.associating = 1;
 	mac->associated = 0; /* just to make sure */
-	spin_unlock_irqrestore(&mac->lock, flags);
 
 	/* Set a timer for timeout */
 	/* FIXME: make timeout configurable */
-	schedule_delayed_work(&mac->associnfo.timeout, 5 * HZ);
+	if (likely(mac->running))
+		schedule_delayed_work(&mac->associnfo.timeout, 5 * HZ);
+	spin_unlock_irqrestore(&mac->lock, flags);
 }
 
 void
@@ -319,6 +320,9 @@ ieee80211softmac_handle_assoc_response(struct net_device * dev,
 	u16 status = le16_to_cpup(&resp->status);
 	struct ieee80211softmac_network *network = NULL;
 	unsigned long flags;
+
+	if (unlikely(!mac->running))
+		return -ENODEV;
 	
 	spin_lock_irqsave(&mac->lock, flags);
 
@@ -377,10 +381,16 @@ ieee80211softmac_handle_disassoc(struct net_device * dev,
 {
 	struct ieee80211softmac_device *mac = ieee80211_priv(dev);
 	unsigned long flags;
+
+	if (unlikely(!mac->running))
+		return -ENODEV;
+
 	if (memcmp(disassoc->header.addr2, mac->associnfo.bssid, ETH_ALEN))
 		return 0;
+
 	if (memcmp(disassoc->header.addr1, mac->dev->dev_addr, ETH_ALEN))
 		return 0;
+
 	dprintk(KERN_INFO PFX "got disassoc frame\n");
 	netif_carrier_off(dev);
 	spin_lock_irqsave(&mac->lock, flags);
@@ -399,6 +409,9 @@ ieee80211softmac_handle_reassoc_req(struct net_device * dev,
 {
 	struct ieee80211softmac_device *mac = ieee80211_priv(dev);
 	struct ieee80211softmac_network *network;
+
+	if (unlikely(!mac->running))
+		return -ENODEV;
 
 	network = ieee80211softmac_get_network_by_bssid(mac, resp->header.addr3);
 	if (!network) {

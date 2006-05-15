@@ -1168,18 +1168,8 @@ static inline const char *plural(int n)
 static int choose_configuration(struct usb_device *udev)
 {
 	int i;
-	u16 devstatus;
-	int bus_powered;
 	int num_configs;
 	struct usb_host_config *c, *best;
-
-	/* If this fails, assume the device is bus-powered */
-	devstatus = 0;
-	usb_get_status(udev, USB_RECIP_DEVICE, 0, &devstatus);
-	le16_to_cpus(&devstatus);
-	bus_powered = ((devstatus & (1 << USB_DEVICE_SELF_POWERED)) == 0);
-	dev_dbg(&udev->dev, "device is %s-powered\n",
-			bus_powered ? "bus" : "self");
 
 	best = NULL;
 	c = udev->config;
@@ -1197,6 +1187,19 @@ static int choose_configuration(struct usb_device *udev)
 		 * similar errors in their descriptors.  If the next test
 		 * were allowed to execute, such configurations would always
 		 * be rejected and the devices would not work as expected.
+		 * In the meantime, we run the risk of selecting a config
+		 * that requires external power at a time when that power
+		 * isn't available.  It seems to be the lesser of two evils.
+		 *
+		 * Bugzilla #6448 reports a device that appears to crash
+		 * when it receives a GET_DEVICE_STATUS request!  We don't
+		 * have any other way to tell whether a device is self-powered,
+		 * but since we don't use that information anywhere but here,
+		 * the call has been removed.
+		 *
+		 * Maybe the GET_DEVICE_STATUS call and the test below can
+		 * be reinstated when device firmwares become more reliable.
+		 * Don't hold your breath.
 		 */
 #if 0
 		/* Rule out self-powered configs for a bus-powered device */

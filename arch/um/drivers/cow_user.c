@@ -100,7 +100,7 @@ struct cow_header_v3_broken {
 	__u32 alignment;
 	__u32 cow_format;
 	char backing_file[PATH_LEN_V3];
-} __attribute__((packed));
+};
 
 /* COW format definitions - for now, we have only the usual COW bitmap */
 #define COW_BITMAP 0

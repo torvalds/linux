@@ -322,12 +322,30 @@ static void register_nodes(void)
 		}
 	}
 }
+
+int sysfs_add_device_to_node(struct sys_device *dev, int nid)
+{
+	struct node *node = &node_devices[nid];
+	return sysfs_create_link(&node->sysdev.kobj, &dev->kobj,
+			kobject_name(&dev->kobj));
+}
+
+void sysfs_remove_device_from_node(struct sys_device *dev, int nid)
+{
+	struct node *node = &node_devices[nid];
+	sysfs_remove_link(&node->sysdev.kobj, kobject_name(&dev->kobj));
+}
+
 #else
 static void register_nodes(void)
 {
 	return;
 }
+
 #endif
+
+EXPORT_SYMBOL_GPL(sysfs_add_device_to_node);
+EXPORT_SYMBOL_GPL(sysfs_remove_device_from_node);
 
 /* Only valid if CPU is present. */
 static ssize_t show_physical_id(struct sys_device *dev, char *buf)
