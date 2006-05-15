@@ -2528,10 +2528,16 @@ int sata_std_hardreset(struct ata_port *ap, unsigned int *class)
  */
 void ata_std_postreset(struct ata_port *ap, unsigned int *classes)
 {
+	u32 serror;
+
 	DPRINTK("ENTER\n");
 
 	/* print link status */
 	sata_print_link_status(ap);
+
+	/* clear SError */
+	if (sata_scr_read(ap, SCR_ERROR, &serror) == 0)
+		sata_scr_write(ap, SCR_ERROR, serror);
 
 	/* re-enable interrupts */
 	if (ap->ioaddr.ctl_addr)	/* FIXME: hack. create a hook instead */
