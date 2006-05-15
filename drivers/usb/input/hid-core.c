@@ -1797,6 +1797,14 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 			(hid_blacklist[n].idProduct == le16_to_cpu(dev->descriptor.idProduct)))
 				quirks = hid_blacklist[n].quirks;
 
+	/* Many keyboards and mice don't like to be polled for reports,
+	 * so we will always set the HID_QUIRK_NOGET flag for them. */
+	if (interface->desc.bInterfaceSubClass == USB_INTERFACE_SUBCLASS_BOOT) {
+		if (interface->desc.bInterfaceProtocol == USB_INTERFACE_PROTOCOL_KEYBOARD ||
+			interface->desc.bInterfaceProtocol == USB_INTERFACE_PROTOCOL_MOUSE)
+				quirks |= HID_QUIRK_NOGET;
+	}
+
 	if (quirks & HID_QUIRK_IGNORE)
 		return NULL;
 

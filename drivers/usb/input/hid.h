@@ -41,6 +41,14 @@
 #define USB_INTERFACE_CLASS_HID		3
 
 /*
+ * USB HID interface subclass and protocol codes
+ */
+
+#define USB_INTERFACE_SUBCLASS_BOOT	1
+#define USB_INTERFACE_PROTOCOL_KEYBOARD	1
+#define USB_INTERFACE_PROTOCOL_MOUSE	2
+
+/*
  * HID class requests
  */
 
