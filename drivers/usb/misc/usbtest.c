@@ -802,7 +802,9 @@ error:
 
 				if (u == urb || !u->dev)
 					continue;
+				spin_unlock(&ctx->lock);
 				status = usb_unlink_urb (u);
+				spin_lock(&ctx->lock);
 				switch (status) {
 				case -EINPROGRESS:
 				case -EBUSY:
