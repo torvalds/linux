@@ -247,6 +247,8 @@ enum {
 
 	/* how hard are we gonna try to probe/recover devices */
 	ATA_PROBE_MAX_TRIES	= 3,
+	ATA_EH_RESET_TRIES	= 3,
+	ATA_EH_DEV_TRIES	= 3,
 };
 
 enum hsm_task_states {
@@ -726,6 +728,9 @@ extern void ata_eh_thaw_port(struct ata_port *ap);
 
 extern void ata_eh_qc_complete(struct ata_queued_cmd *qc);
 extern void ata_eh_qc_retry(struct ata_queued_cmd *qc);
+
+extern void ata_do_eh(struct ata_port *ap, ata_reset_fn_t softreset,
+		      ata_reset_fn_t hardreset, ata_postreset_fn_t postreset);
 
 /*
  * printk helpers
