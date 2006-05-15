@@ -151,6 +151,11 @@ MODULE_PARM_DESC(exclusive_login, "Exclusive login to sbp2 device (default = 1)"
  * - skip mode page 8
  *   Suppress sending of mode_sense for mode page 8 if the device pretends to
  *   support the SCSI Primary Block commands instead of Reduced Block Commands.
+ *
+ * - fix capacity
+ *   Tell sd_mod to correct the last sector number reported by read_capacity.
+ *   Avoids access beyond actual disk limits on devices with an off-by-one bug.
+ *   Don't use this with devices which don't have this bug.
  */
 static int sbp2_default_workarounds;
 module_param_named(workarounds, sbp2_default_workarounds, int, 0644);
@@ -158,6 +163,7 @@ MODULE_PARM_DESC(workarounds, "Work around device bugs (default = 0"
 	", 128kB max transfer = " __stringify(SBP2_WORKAROUND_128K_MAX_TRANS)
 	", 36 byte inquiry = "    __stringify(SBP2_WORKAROUND_INQUIRY_36)
 	", skip mode page 8 = "   __stringify(SBP2_WORKAROUND_MODE_SENSE_8)
+	", fix capacity = "       __stringify(SBP2_WORKAROUND_FIX_CAPACITY)
 	", or a combination)");
 
 /* legacy parameter */
@@ -291,6 +297,7 @@ static struct hpsb_protocol_driver sbp2_driver = {
  */
 static const struct {
 	u32 firmware_revision;
+	u32 model_id;
 	unsigned workarounds;
 } sbp2_workarounds_table[] = {
 	/* TSB42AA9 */ {
@@ -305,6 +312,31 @@ static const struct {
 	/* Symbios bridge */ {
 		.firmware_revision	= 0xa0b800,
 		.workarounds		= SBP2_WORKAROUND_128K_MAX_TRANS,
+	},
+	/*
+	 * Note about the following Apple iPod blacklist entries:
+	 *
+	 * There are iPods (2nd gen, 3rd gen) with model_id==0.  Since our
+	 * matching logic treats 0 as a wildcard, we cannot match this ID
+	 * without rewriting the matching routine.  Fortunately these iPods
+	 * do not feature the read_capacity bug according to one report.
+	 * Read_capacity behaviour as well as model_id could change due to
+	 * Apple-supplied firmware updates though.
+	 */
+	/* iPod 4th generation */ {
+		.firmware_revision	= 0x0a2700,
+		.model_id		= 0x000021,
+		.workarounds		= SBP2_WORKAROUND_FIX_CAPACITY,
+	},
+	/* iPod mini */ {
+		.firmware_revision	= 0x0a2700,
+		.model_id		= 0x000023,
+		.workarounds		= SBP2_WORKAROUND_FIX_CAPACITY,
+	},
+	/* iPod Photo */ {
+		.firmware_revision	= 0x0a2700,
+		.model_id		= 0x00007e,
+		.workarounds		= SBP2_WORKAROUND_FIX_CAPACITY,
 	}
 };
 
@@ -1556,18 +1588,25 @@ static void sbp2_parse_unit_directory(struct scsi_id_instance_data *scsi_id,
 	}
 
 	for (i = 0; i < ARRAY_SIZE(sbp2_workarounds_table); i++) {
-		if (sbp2_workarounds_table[i].firmware_revision !=
+		if (sbp2_workarounds_table[i].firmware_revision &&
+		    sbp2_workarounds_table[i].firmware_revision !=
 		    (firmware_revision & 0xffff00))
+			continue;
+		if (sbp2_workarounds_table[i].model_id &&
+		    sbp2_workarounds_table[i].model_id != ud->model_id)
 			continue;
 		workarounds |= sbp2_workarounds_table[i].workarounds;
 		break;
 	}
 
 	if (workarounds)
-		SBP2_INFO("Workarounds for node " NODE_BUS_FMT ": "
-			  "0x%x (firmware_revision 0x%x)",
+		SBP2_INFO("Workarounds for node " NODE_BUS_FMT ": 0x%x "
+			  "(firmware_revision 0x%06x, vendor_id 0x%06x,"
+			  " model_id 0x%06x)",
 			  NODE_BUS_ARGS(ud->ne->host, ud->ne->nodeid),
-			  workarounds, firmware_revision);
+			  workarounds, firmware_revision,
+			  ud->vendor_id ? ud->vendor_id : ud->ne->vendor_id,
+			  ud->model_id);
 
 	/* We would need one SCSI host template for each target to adjust
 	 * max_sectors on the fly, therefore warn only. */
@@ -2488,6 +2527,8 @@ static int sbp2scsi_slave_configure(struct scsi_device *sdev)
 	if (sdev->type == TYPE_DISK &&
 	    scsi_id->workarounds & SBP2_WORKAROUND_MODE_SENSE_8)
 		sdev->skip_ms_page_8 = 1;
+	if (scsi_id->workarounds & SBP2_WORKAROUND_FIX_CAPACITY)
+		sdev->fix_capacity = 1;
 	return 0;
 }
 

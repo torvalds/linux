@@ -238,6 +238,7 @@ struct sbp2_status_block {
 #define SBP2_WORKAROUND_128K_MAX_TRANS	0x1
 #define SBP2_WORKAROUND_INQUIRY_36	0x2
 #define SBP2_WORKAROUND_MODE_SENSE_8	0x4
+#define SBP2_WORKAROUND_FIX_CAPACITY	0x8
 
 /* This is the two dma types we use for cmd_dma below */
 enum cmd_dma_types {
