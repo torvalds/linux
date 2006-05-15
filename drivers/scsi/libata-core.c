@@ -2370,8 +2370,7 @@ void ata_std_probeinit(struct ata_port *ap)
 	if ((ap->flags & ATA_FLAG_SATA) && ap->ops->scr_read) {
 		u32 spd;
 
-		/* set cable type and resume link */
-		ap->cbl = ATA_CBL_SATA;
+		/* resume link */
 		sata_phy_resume(ap);
 
 		/* init sata_spd_limit to the current value */
@@ -4586,13 +4585,17 @@ static void ata_host_init(struct ata_port *ap, struct Scsi_Host *host,
 	ap->udma_mask = ent->udma_mask;
 	ap->flags |= ent->host_flags;
 	ap->ops = ent->port_ops;
-	ap->cbl = ATA_CBL_NONE;
 	ap->sata_spd_limit = UINT_MAX;
 	ap->active_tag = ATA_TAG_POISON;
 	ap->last_ctl = 0xFF;
 
 	INIT_WORK(&ap->port_task, NULL, NULL);
 	INIT_LIST_HEAD(&ap->eh_done_q);
+
+	/* set cable type */
+	ap->cbl = ATA_CBL_NONE;
+	if (ap->flags & ATA_FLAG_SATA)
+		ap->cbl = ATA_CBL_SATA;
 
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
 		struct ata_device *dev = &ap->device[i];
