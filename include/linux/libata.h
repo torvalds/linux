@@ -518,8 +518,7 @@ extern void ata_std_probeinit(struct ata_port *ap);
 extern int ata_std_softreset(struct ata_port *ap, unsigned int *classes);
 extern int sata_std_hardreset(struct ata_port *ap, unsigned int *class);
 extern void ata_std_postreset(struct ata_port *ap, unsigned int *classes);
-extern int ata_dev_revalidate(struct ata_port *ap, struct ata_device *dev,
-			      int post_reset);
+extern int ata_dev_revalidate(struct ata_device *dev, int post_reset);
 extern void ata_port_disable(struct ata_port *);
 extern void ata_std_ports(struct ata_ioports *ioaddr);
 #ifdef CONFIG_PCI
@@ -545,8 +544,8 @@ extern int ata_port_online(struct ata_port *ap);
 extern int ata_port_offline(struct ata_port *ap);
 extern int ata_scsi_device_resume(struct scsi_device *);
 extern int ata_scsi_device_suspend(struct scsi_device *, pm_message_t state);
-extern int ata_device_resume(struct ata_port *, struct ata_device *);
-extern int ata_device_suspend(struct ata_port *, struct ata_device *, pm_message_t state);
+extern int ata_device_resume(struct ata_device *);
+extern int ata_device_suspend(struct ata_device *, pm_message_t state);
 extern int ata_ratelimit(void);
 extern unsigned int ata_busy_sleep(struct ata_port *ap,
 				   unsigned long timeout_pat,
@@ -592,15 +591,13 @@ extern void ata_bmdma_stop(struct ata_queued_cmd *qc);
 extern u8   ata_bmdma_status(struct ata_port *ap);
 extern void ata_bmdma_irq_clear(struct ata_port *ap);
 extern void __ata_qc_complete(struct ata_queued_cmd *qc);
-extern void ata_scsi_simulate(struct ata_port *ap, struct ata_device *dev,
-			      struct scsi_cmnd *cmd,
+extern void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd,
 			      void (*done)(struct scsi_cmnd *));
 extern int ata_std_bios_param(struct scsi_device *sdev,
 			      struct block_device *bdev,
 			      sector_t capacity, int geom[]);
 extern int ata_scsi_slave_config(struct scsi_device *sdev);
-extern struct ata_device *ata_dev_pair(struct ata_port *ap, 
-				       struct ata_device *adev);
+extern struct ata_device *ata_dev_pair(struct ata_device *adev);
 
 /*
  * Timing helpers
@@ -812,12 +809,12 @@ static inline struct ata_queued_cmd *ata_qc_from_tag (struct ata_port *ap,
 	return NULL;
 }
 
-static inline void ata_tf_init(struct ata_port *ap, struct ata_taskfile *tf, unsigned int device)
+static inline void ata_tf_init(struct ata_device *dev, struct ata_taskfile *tf)
 {
 	memset(tf, 0, sizeof(*tf));
 
-	tf->ctl = ap->ctl;
-	if (device == 0)
+	tf->ctl = dev->ap->ctl;
+	if (dev->devno == 0)
 		tf->device = ATA_DEVICE_OBS;
 	else
 		tf->device = ATA_DEVICE_OBS | ATA_DEV1;
@@ -832,7 +829,7 @@ static inline void ata_qc_reinit(struct ata_queued_cmd *qc)
 	qc->nbytes = qc->curbytes = 0;
 	qc->err_mask = 0;
 
-	ata_tf_init(qc->ap, &qc->tf, qc->dev->devno);
+	ata_tf_init(qc->dev, &qc->tf);
 
 	/* init result_tf such that it indicates normal completion */
 	qc->result_tf.command = ATA_DRDY;

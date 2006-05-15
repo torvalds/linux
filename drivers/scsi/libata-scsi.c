@@ -302,7 +302,6 @@ int ata_scsi_ioctl(struct scsi_device *scsidev, int cmd, void __user *arg)
 
 /**
  *	ata_scsi_qc_new - acquire new ata_queued_cmd reference
- *	@ap: ATA port to which the new command is attached
  *	@dev: ATA device to which the new command is attached
  *	@cmd: SCSI command that originated this ATA command
  *	@done: SCSI command completion function
@@ -321,14 +320,13 @@ int ata_scsi_ioctl(struct scsi_device *scsidev, int cmd, void __user *arg)
  *	RETURNS:
  *	Command allocated, or %NULL if none available.
  */
-struct ata_queued_cmd *ata_scsi_qc_new(struct ata_port *ap,
-				       struct ata_device *dev,
+struct ata_queued_cmd *ata_scsi_qc_new(struct ata_device *dev,
 				       struct scsi_cmnd *cmd,
 				       void (*done)(struct scsi_cmnd *))
 {
 	struct ata_queued_cmd *qc;
 
-	qc = ata_qc_new_init(ap, dev);
+	qc = ata_qc_new_init(dev);
 	if (qc) {
 		qc->scsicmd = cmd;
 		qc->scsidone = done;
@@ -398,7 +396,7 @@ int ata_scsi_device_resume(struct scsi_device *sdev)
 	struct ata_port *ap = ata_shost_to_port(sdev->host);
 	struct ata_device *dev = &ap->device[sdev->id];
 
-	return ata_device_resume(ap, dev);
+	return ata_device_resume(dev);
 }
 
 int ata_scsi_device_suspend(struct scsi_device *sdev, pm_message_t state)
@@ -406,7 +404,7 @@ int ata_scsi_device_suspend(struct scsi_device *sdev, pm_message_t state)
 	struct ata_port *ap = ata_shost_to_port(sdev->host);
 	struct ata_device *dev = &ap->device[sdev->id];
 
-	return ata_device_suspend(ap, dev, state);
+	return ata_device_suspend(dev, state);
 }
 
 /**
@@ -1224,7 +1222,6 @@ static void ata_scsi_qc_complete(struct ata_queued_cmd *qc)
 
 /**
  *	ata_scsi_translate - Translate then issue SCSI command to ATA device
- *	@ap: ATA port to which the command is addressed
  *	@dev: ATA device to which the command is addressed
  *	@cmd: SCSI command to execute
  *	@done: SCSI command completion function
@@ -1247,17 +1244,16 @@ static void ata_scsi_qc_complete(struct ata_queued_cmd *qc)
  *	spin_lock_irqsave(host_set lock)
  */
 
-static void ata_scsi_translate(struct ata_port *ap, struct ata_device *dev,
-			      struct scsi_cmnd *cmd,
-			      void (*done)(struct scsi_cmnd *),
-			      ata_xlat_func_t xlat_func)
+static void ata_scsi_translate(struct ata_device *dev, struct scsi_cmnd *cmd,
+			       void (*done)(struct scsi_cmnd *),
+			       ata_xlat_func_t xlat_func)
 {
 	struct ata_queued_cmd *qc;
 	u8 *scsicmd = cmd->cmnd;
 
 	VPRINTK("ENTER\n");
 
-	qc = ata_scsi_qc_new(ap, dev, cmd, done);
+	qc = ata_scsi_qc_new(dev, cmd, done);
 	if (!qc)
 		goto err_mem;
 
@@ -1266,7 +1262,7 @@ static void ata_scsi_translate(struct ata_port *ap, struct ata_device *dev,
 	    cmd->sc_data_direction == DMA_TO_DEVICE) {
 		if (unlikely(cmd->request_bufflen < 1)) {
 			printk(KERN_WARNING "ata%u(%u): WARNING: zero len r/w req\n",
-			       ap->id, dev->devno);
+			       dev->ap->id, dev->devno);
 			goto err_did;
 		}
 
@@ -2433,19 +2429,20 @@ static inline void ata_scsi_dump_cdb(struct ata_port *ap,
 #endif
 }
 
-static inline void __ata_scsi_queuecmd(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *),
-				       struct ata_port *ap, struct ata_device *dev)
+static inline void __ata_scsi_queuecmd(struct scsi_cmnd *cmd,
+				       void (*done)(struct scsi_cmnd *),
+				       struct ata_device *dev)
 {
 	if (dev->class == ATA_DEV_ATA) {
 		ata_xlat_func_t xlat_func = ata_get_xlat_func(dev,
 							      cmd->cmnd[0]);
 
 		if (xlat_func)
-			ata_scsi_translate(ap, dev, cmd, done, xlat_func);
+			ata_scsi_translate(dev, cmd, done, xlat_func);
 		else
-			ata_scsi_simulate(ap, dev, cmd, done);
+			ata_scsi_simulate(dev, cmd, done);
 	} else
-		ata_scsi_translate(ap, dev, cmd, done, atapi_xlat);
+		ata_scsi_translate(dev, cmd, done, atapi_xlat);
 }
 
 /**
@@ -2483,7 +2480,7 @@ int ata_scsi_queuecmd(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 
 	dev = ata_scsi_find_dev(ap, scsidev);
 	if (likely(dev))
-		__ata_scsi_queuecmd(cmd, done, ap, dev);
+		__ata_scsi_queuecmd(cmd, done, dev);
 	else {
 		cmd->result = (DID_BAD_TARGET << 16);
 		done(cmd);
@@ -2496,7 +2493,6 @@ int ata_scsi_queuecmd(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 
 /**
  *	ata_scsi_simulate - simulate SCSI command on ATA device
- *	@ap: port the device is connected to
  *	@dev: the target device
  *	@cmd: SCSI command being sent to device.
  *	@done: SCSI command completion function.
@@ -2508,14 +2504,12 @@ int ata_scsi_queuecmd(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
  *	spin_lock_irqsave(host_set lock)
  */
 
-void ata_scsi_simulate(struct ata_port *ap, struct ata_device *dev,
-		      struct scsi_cmnd *cmd,
+void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd,
 		      void (*done)(struct scsi_cmnd *))
 {
 	struct ata_scsi_args args;
 	const u8 *scsicmd = cmd->cmnd;
 
-	args.ap = ap;
 	args.dev = dev;
 	args.id = dev->id;
 	args.cmd = cmd;

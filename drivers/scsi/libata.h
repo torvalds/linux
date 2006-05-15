@@ -32,7 +32,6 @@
 #define DRV_VERSION	"1.30"	/* must be exactly four chars */
 
 struct ata_scsi_args {
-	struct ata_port		*ap;
 	struct ata_device	*dev;
 	u16			*id;
 	struct scsi_cmnd	*cmd;
@@ -43,18 +42,16 @@ struct ata_scsi_args {
 extern int atapi_enabled;
 extern int atapi_dmadir;
 extern int libata_fua;
-extern struct ata_queued_cmd *ata_qc_new_init(struct ata_port *ap,
-				      struct ata_device *dev);
+extern struct ata_queued_cmd *ata_qc_new_init(struct ata_device *dev);
 extern int ata_rwcmd_protocol(struct ata_queued_cmd *qc);
-extern void ata_dev_disable(struct ata_port *ap, struct ata_device *dev);
+extern void ata_dev_disable(struct ata_device *dev);
 extern void ata_port_flush_task(struct ata_port *ap);
-extern unsigned ata_exec_internal(struct ata_port *ap, struct ata_device *dev,
+extern unsigned ata_exec_internal(struct ata_device *dev,
 				  struct ata_taskfile *tf, const u8 *cdb,
 				  int dma_dir, void *buf, unsigned int buflen);
 extern int sata_down_spd_limit(struct ata_port *ap);
 extern int sata_set_spd_needed(struct ata_port *ap);
-extern int ata_down_xfermask_limit(struct ata_port *ap, struct ata_device *dev,
-				   int force_pio0);
+extern int ata_down_xfermask_limit(struct ata_device *dev, int force_pio0);
 extern int ata_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev);
 extern int ata_do_reset(struct ata_port *ap, ata_reset_fn_t reset,
 			unsigned int *classes);

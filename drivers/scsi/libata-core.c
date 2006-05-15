@@ -61,13 +61,10 @@
 
 #include "libata.h"
 
-static unsigned int ata_dev_init_params(struct ata_port *ap,
-					struct ata_device *dev,
-					u16 heads,
-					u16 sectors);
-static unsigned int ata_dev_set_xfermode(struct ata_port *ap,
-					 struct ata_device *dev);
-static void ata_dev_xfermask(struct ata_port *ap, struct ata_device *dev);
+static unsigned int ata_dev_init_params(struct ata_device *dev,
+					u16 heads, u16 sectors);
+static unsigned int ata_dev_set_xfermode(struct ata_device *dev);
+static void ata_dev_xfermask(struct ata_device *dev);
 
 static unsigned int ata_unique_id = 1;
 static struct workqueue_struct *ata_wq;
@@ -412,11 +409,11 @@ static const char *sata_spd_string(unsigned int spd)
 	return spd_str[spd - 1];
 }
 
-void ata_dev_disable(struct ata_port *ap, struct ata_device *dev)
+void ata_dev_disable(struct ata_device *dev)
 {
 	if (ata_dev_enabled(dev)) {
 		printk(KERN_WARNING "ata%u: dev %u disabled\n",
-		       ap->id, dev->devno);
+		       dev->ap->id, dev->devno);
 		dev->class++;
 	}
 }
@@ -960,7 +957,6 @@ void ata_qc_complete_internal(struct ata_queued_cmd *qc)
 
 /**
  *	ata_exec_internal - execute libata internal command
- *	@ap: Port to which the command is sent
  *	@dev: Device to which the command is sent
  *	@tf: Taskfile registers for the command and the result
  *	@cdb: CDB for packet command
@@ -978,10 +974,11 @@ void ata_qc_complete_internal(struct ata_queued_cmd *qc)
  *	None.  Should be called with kernel context, might sleep.
  */
 
-unsigned ata_exec_internal(struct ata_port *ap, struct ata_device *dev,
+unsigned ata_exec_internal(struct ata_device *dev,
 			   struct ata_taskfile *tf, const u8 *cdb,
 			   int dma_dir, void *buf, unsigned int buflen)
 {
+	struct ata_port *ap = dev->ap;
 	u8 command = tf->command;
 	struct ata_queued_cmd *qc;
 	DECLARE_COMPLETION(wait);
@@ -990,7 +987,7 @@ unsigned ata_exec_internal(struct ata_port *ap, struct ata_device *dev,
 
 	spin_lock_irqsave(&ap->host_set->lock, flags);
 
-	qc = ata_qc_new_init(ap, dev);
+	qc = ata_qc_new_init(dev);
 	BUG_ON(qc == NULL);
 
 	qc->tf = *tf;
@@ -1095,7 +1092,6 @@ unsigned int ata_pio_need_iordy(const struct ata_device *adev)
 
 /**
  *	ata_dev_read_id - Read ID data from the specified device
- *	@ap: port on which target device resides
  *	@dev: target device
  *	@p_class: pointer to class of the target device (may be changed)
  *	@post_reset: is this read ID post-reset?
@@ -1112,9 +1108,10 @@ unsigned int ata_pio_need_iordy(const struct ata_device *adev)
  *	RETURNS:
  *	0 on success, -errno otherwise.
  */
-static int ata_dev_read_id(struct ata_port *ap, struct ata_device *dev,
-			   unsigned int *p_class, int post_reset, u16 *id)
+static int ata_dev_read_id(struct ata_device *dev, unsigned int *p_class,
+			   int post_reset, u16 *id)
 {
+	struct ata_port *ap = dev->ap;
 	unsigned int class = *p_class;
 	struct ata_taskfile tf;
 	unsigned int err_mask = 0;
@@ -1126,7 +1123,7 @@ static int ata_dev_read_id(struct ata_port *ap, struct ata_device *dev,
 	ata_dev_select(ap, dev->devno, 1, 1); /* select device 0/1 */
 
  retry:
-	ata_tf_init(ap, &tf, dev->devno);
+	ata_tf_init(dev, &tf);
 
 	switch (class) {
 	case ATA_DEV_ATA:
@@ -1143,7 +1140,7 @@ static int ata_dev_read_id(struct ata_port *ap, struct ata_device *dev,
 
 	tf.protocol = ATA_PROT_PIO;
 
-	err_mask = ata_exec_internal(ap, dev, &tf, NULL, DMA_FROM_DEVICE,
+	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_FROM_DEVICE,
 				     id, sizeof(id[0]) * ATA_ID_WORDS);
 	if (err_mask) {
 		rc = -EIO;
@@ -1170,7 +1167,7 @@ static int ata_dev_read_id(struct ata_port *ap, struct ata_device *dev,
 		 * Some drives were very specific about that exact sequence.
 		 */
 		if (ata_id_major_version(id) < 4 || !ata_id_has_lba(id)) {
-			err_mask = ata_dev_init_params(ap, dev, id[3], id[6]);
+			err_mask = ata_dev_init_params(dev, id[3], id[6]);
 			if (err_mask) {
 				rc = -EIO;
 				reason = "INIT_DEV_PARAMS failed";
@@ -1195,15 +1192,13 @@ static int ata_dev_read_id(struct ata_port *ap, struct ata_device *dev,
 	return rc;
 }
 
-static inline u8 ata_dev_knobble(const struct ata_port *ap,
-				 struct ata_device *dev)
+static inline u8 ata_dev_knobble(struct ata_device *dev)
 {
-	return ((ap->cbl == ATA_CBL_SATA) && (!ata_id_is_sata(dev->id)));
+	return ((dev->ap->cbl == ATA_CBL_SATA) && (!ata_id_is_sata(dev->id)));
 }
 
 /**
  *	ata_dev_configure - Configure the specified ATA/ATAPI device
- *	@ap: Port on which target device resides
  *	@dev: Target device to configure
  *	@print_info: Enable device info printout
  *
@@ -1216,9 +1211,9 @@ static inline u8 ata_dev_knobble(const struct ata_port *ap,
  *	RETURNS:
  *	0 on success, -errno otherwise
  */
-static int ata_dev_configure(struct ata_port *ap, struct ata_device *dev,
-			     int print_info)
+static int ata_dev_configure(struct ata_device *dev, int print_info)
 {
+	struct ata_port *ap = dev->ap;
 	const u16 *id = dev->id;
 	unsigned int xfer_mask;
 	int i, rc;
@@ -1331,7 +1326,7 @@ static int ata_dev_configure(struct ata_port *ap, struct ata_device *dev,
 					      ap->device[i].cdb_len);
 
 	/* limit bridge transfers to udma5, 200 sectors */
-	if (ata_dev_knobble(ap, dev)) {
+	if (ata_dev_knobble(dev)) {
 		if (print_info)
 			printk(KERN_INFO "ata%u(%u): applying bridge limits\n",
 			       ap->id, dev->devno);
@@ -1416,11 +1411,11 @@ static int ata_bus_probe(struct ata_port *ap)
 		if (!ata_dev_enabled(dev))
 			continue;
 
-		rc = ata_dev_read_id(ap, dev, &dev->class, 1, dev->id);
+		rc = ata_dev_read_id(dev, &dev->class, 1, dev->id);
 		if (rc)
 			goto fail;
 
-		rc = ata_dev_configure(ap, dev, 1);
+		rc = ata_dev_configure(dev, 1);
 		if (rc)
 			goto fail;
 	}
@@ -1453,13 +1448,13 @@ static int ata_bus_probe(struct ata_port *ap)
 	default:
 		tries[dev->devno]--;
 		if (down_xfermask &&
-		    ata_down_xfermask_limit(ap, dev, tries[dev->devno] == 1))
+		    ata_down_xfermask_limit(dev, tries[dev->devno] == 1))
 			tries[dev->devno] = 0;
 	}
 
 	if (!tries[dev->devno]) {
-		ata_down_xfermask_limit(ap, dev, 1);
-		ata_dev_disable(ap, dev);
+		ata_down_xfermask_limit(dev, 1);
+		ata_dev_disable(dev);
 	}
 
 	goto retry;
@@ -1586,15 +1581,15 @@ void sata_phy_reset(struct ata_port *ap)
 
 /**
  *	ata_dev_pair		-	return other device on cable
- *	@ap: port
  *	@adev: device
  *
  *	Obtain the other device on the same cable, or if none is
  *	present NULL is returned
  */
 
-struct ata_device *ata_dev_pair(struct ata_port *ap, struct ata_device *adev)
+struct ata_device *ata_dev_pair(struct ata_device *adev)
 {
+	struct ata_port *ap = adev->ap;
 	struct ata_device *pair = &ap->device[1 - adev->devno];
 	if (!ata_dev_enabled(pair))
 		return NULL;
@@ -1886,7 +1881,6 @@ int ata_timing_compute(struct ata_device *adev, unsigned short speed,
 
 /**
  *	ata_down_xfermask_limit - adjust dev xfer masks downward
- *	@ap: Port associated with device @dev
  *	@dev: Device to adjust xfer masks
  *	@force_pio0: Force PIO0
  *
@@ -1900,9 +1894,9 @@ int ata_timing_compute(struct ata_device *adev, unsigned short speed,
  *	RETURNS:
  *	0 on success, negative errno on failure
  */
-int ata_down_xfermask_limit(struct ata_port *ap, struct ata_device *dev,
-			    int force_pio0)
+int ata_down_xfermask_limit(struct ata_device *dev, int force_pio0)
 {
+	struct ata_port *ap = dev->ap;
 	unsigned long xfer_mask;
 	int highbit;
 
@@ -1934,8 +1928,9 @@ int ata_down_xfermask_limit(struct ata_port *ap, struct ata_device *dev,
 	return -EINVAL;
 }
 
-static int ata_dev_set_mode(struct ata_port *ap, struct ata_device *dev)
+static int ata_dev_set_mode(struct ata_device *dev)
 {
+	struct ata_port *ap = dev->ap;
 	unsigned int err_mask;
 	int rc;
 
@@ -1943,7 +1938,7 @@ static int ata_dev_set_mode(struct ata_port *ap, struct ata_device *dev)
 	if (dev->xfer_shift == ATA_SHIFT_PIO)
 		dev->flags |= ATA_DFLAG_PIO;
 
-	err_mask = ata_dev_set_xfermode(ap, dev);
+	err_mask = ata_dev_set_xfermode(dev);
 	if (err_mask) {
 		printk(KERN_ERR
 		       "ata%u: failed to set xfermode (err_mask=0x%x)\n",
@@ -1951,7 +1946,7 @@ static int ata_dev_set_mode(struct ata_port *ap, struct ata_device *dev)
 		return -EIO;
 	}
 
-	rc = ata_dev_revalidate(ap, dev, 0);
+	rc = ata_dev_revalidate(dev, 0);
 	if (rc)
 		return rc;
 
@@ -2007,7 +2002,7 @@ int ata_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev)
 		if (!ata_dev_enabled(dev))
 			continue;
 
-		ata_dev_xfermask(ap, dev);
+		ata_dev_xfermask(dev);
 
 		pio_mask = ata_pack_xfermask(dev->pio_mask, 0, 0);
 		dma_mask = ata_pack_xfermask(0, dev->mwdma_mask, dev->udma_mask);
@@ -2060,7 +2055,7 @@ int ata_set_mode(struct ata_port *ap, struct ata_device **r_failed_dev)
 		if (!ata_dev_enabled(dev))
 			continue;
 
-		rc = ata_dev_set_mode(ap, dev);
+		rc = ata_dev_set_mode(dev);
 		if (rc)
 			goto out;
 	}
@@ -2712,7 +2707,6 @@ int ata_drive_probe_reset(struct ata_port *ap, ata_probeinit_fn_t probeinit,
 
 /**
  *	ata_dev_same_device - Determine whether new ID matches configured device
- *	@ap: port on which the device to compare against resides
  *	@dev: device to compare against
  *	@new_class: class of the new device
  *	@new_id: IDENTIFY page of the new device
@@ -2727,9 +2721,10 @@ int ata_drive_probe_reset(struct ata_port *ap, ata_probeinit_fn_t probeinit,
  *	RETURNS:
  *	1 if @dev matches @new_class and @new_id, 0 otherwise.
  */
-static int ata_dev_same_device(struct ata_port *ap, struct ata_device *dev,
-			       unsigned int new_class, const u16 *new_id)
+static int ata_dev_same_device(struct ata_device *dev, unsigned int new_class,
+			       const u16 *new_id)
 {
+	struct ata_port *ap = dev->ap;
 	const u16 *old_id = dev->id;
 	unsigned char model[2][41], serial[2][21];
 	u64 new_n_sectors;
@@ -2774,7 +2769,6 @@ static int ata_dev_same_device(struct ata_port *ap, struct ata_device *dev,
 
 /**
  *	ata_dev_revalidate - Revalidate ATA device
- *	@ap: port on which the device to revalidate resides
  *	@dev: device to revalidate
  *	@post_reset: is this revalidation after reset?
  *
@@ -2787,9 +2781,9 @@ static int ata_dev_same_device(struct ata_port *ap, struct ata_device *dev,
  *	RETURNS:
  *	0 on success, negative errno otherwise
  */
-int ata_dev_revalidate(struct ata_port *ap, struct ata_device *dev,
-		       int post_reset)
+int ata_dev_revalidate(struct ata_device *dev, int post_reset)
 {
+	struct ata_port *ap = dev->ap;
 	unsigned int class = dev->class;
 	u16 *id = (void *)ap->sector_buf;
 	int rc;
@@ -2800,12 +2794,12 @@ int ata_dev_revalidate(struct ata_port *ap, struct ata_device *dev,
 	}
 
 	/* read ID data */
-	rc = ata_dev_read_id(ap, dev, &class, post_reset, id);
+	rc = ata_dev_read_id(dev, &class, post_reset, id);
 	if (rc)
 		goto fail;
 
 	/* is the device still there? */
-	if (!ata_dev_same_device(ap, dev, class, id)) {
+	if (!ata_dev_same_device(dev, class, id)) {
 		rc = -ENODEV;
 		goto fail;
 	}
@@ -2813,7 +2807,7 @@ int ata_dev_revalidate(struct ata_port *ap, struct ata_device *dev,
 	memcpy(dev->id, id, sizeof(id[0]) * ATA_ID_WORDS);
 
 	/* configure device according to the new ID */
-	rc = ata_dev_configure(ap, dev, 0);
+	rc = ata_dev_configure(dev, 0);
 	if (rc == 0)
 		return 0;
 
@@ -2895,7 +2889,6 @@ static int ata_dma_blacklisted(const struct ata_device *dev)
 
 /**
  *	ata_dev_xfermask - Compute supported xfermask of the given device
- *	@ap: Port on which the device to compute xfermask for resides
  *	@dev: Device to compute xfermask for
  *
  *	Compute supported xfermask of @dev and store it in
@@ -2910,8 +2903,9 @@ static int ata_dma_blacklisted(const struct ata_device *dev)
  *	LOCKING:
  *	None.
  */
-static void ata_dev_xfermask(struct ata_port *ap, struct ata_device *dev)
+static void ata_dev_xfermask(struct ata_device *dev)
 {
+	struct ata_port *ap = dev->ap;
 	struct ata_host_set *hs = ap->host_set;
 	unsigned long xfer_mask;
 	int i;
@@ -2964,7 +2958,6 @@ static void ata_dev_xfermask(struct ata_port *ap, struct ata_device *dev)
 
 /**
  *	ata_dev_set_xfermode - Issue SET FEATURES - XFER MODE command
- *	@ap: Port associated with device @dev
  *	@dev: Device to which command will be sent
  *
  *	Issue SET FEATURES - XFER MODE command to device @dev
@@ -2977,8 +2970,7 @@ static void ata_dev_xfermask(struct ata_port *ap, struct ata_device *dev)
  *	0 on success, AC_ERR_* mask otherwise.
  */
 
-static unsigned int ata_dev_set_xfermode(struct ata_port *ap,
-					 struct ata_device *dev)
+static unsigned int ata_dev_set_xfermode(struct ata_device *dev)
 {
 	struct ata_taskfile tf;
 	unsigned int err_mask;
@@ -2986,14 +2978,14 @@ static unsigned int ata_dev_set_xfermode(struct ata_port *ap,
 	/* set up set-features taskfile */
 	DPRINTK("set features - xfer mode\n");
 
-	ata_tf_init(ap, &tf, dev->devno);
+	ata_tf_init(dev, &tf);
 	tf.command = ATA_CMD_SET_FEATURES;
 	tf.feature = SETFEATURES_XFER;
 	tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
 	tf.protocol = ATA_PROT_NODATA;
 	tf.nsect = dev->xfer_mode;
 
-	err_mask = ata_exec_internal(ap, dev, &tf, NULL, DMA_NONE, NULL, 0);
+	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0);
 
 	DPRINTK("EXIT, err_mask=%x\n", err_mask);
 	return err_mask;
@@ -3001,8 +2993,9 @@ static unsigned int ata_dev_set_xfermode(struct ata_port *ap,
 
 /**
  *	ata_dev_init_params - Issue INIT DEV PARAMS command
- *	@ap: Port associated with device @dev
  *	@dev: Device to which command will be sent
+ *	@heads: Number of heads
+ *	@sectors: Number of sectors
  *
  *	LOCKING:
  *	Kernel thread context (may sleep)
@@ -3010,11 +3003,8 @@ static unsigned int ata_dev_set_xfermode(struct ata_port *ap,
  *	RETURNS:
  *	0 on success, AC_ERR_* mask otherwise.
  */
-
-static unsigned int ata_dev_init_params(struct ata_port *ap,
-					struct ata_device *dev,
-					u16 heads,
-					u16 sectors)
+static unsigned int ata_dev_init_params(struct ata_device *dev,
+					u16 heads, u16 sectors)
 {
 	struct ata_taskfile tf;
 	unsigned int err_mask;
@@ -3026,14 +3016,14 @@ static unsigned int ata_dev_init_params(struct ata_port *ap,
 	/* set up init dev params taskfile */
 	DPRINTK("init dev params \n");
 
-	ata_tf_init(ap, &tf, dev->devno);
+	ata_tf_init(dev, &tf);
 	tf.command = ATA_CMD_INIT_DEV_PARAMS;
 	tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
 	tf.protocol = ATA_PROT_NODATA;
 	tf.nsect = sectors;
 	tf.device |= (heads - 1) & 0x0f; /* max head = num. of heads - 1 */
 
-	err_mask = ata_exec_internal(ap, dev, &tf, NULL, DMA_NONE, NULL, 0);
+	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0);
 
 	DPRINTK("EXIT, err_mask=%x\n", err_mask);
 	return err_mask;
@@ -4045,16 +4035,15 @@ static struct ata_queued_cmd *ata_qc_new(struct ata_port *ap)
 
 /**
  *	ata_qc_new_init - Request an available ATA command, and initialize it
- *	@ap: Port associated with device @dev
  *	@dev: Device from whom we request an available command structure
  *
  *	LOCKING:
  *	None.
  */
 
-struct ata_queued_cmd *ata_qc_new_init(struct ata_port *ap,
-				      struct ata_device *dev)
+struct ata_queued_cmd *ata_qc_new_init(struct ata_device *dev)
 {
+	struct ata_port *ap = dev->ap;
 	struct ata_queued_cmd *qc;
 
 	qc = ata_qc_new(ap);
@@ -4520,19 +4509,18 @@ int ata_port_offline(struct ata_port *ap)
  * Execute a 'simple' command, that only consists of the opcode 'cmd' itself,
  * without filling any other registers
  */
-static int ata_do_simple_cmd(struct ata_port *ap, struct ata_device *dev,
-			     u8 cmd)
+static int ata_do_simple_cmd(struct ata_device *dev, u8 cmd)
 {
 	struct ata_taskfile tf;
 	int err;
 
-	ata_tf_init(ap, &tf, dev->devno);
+	ata_tf_init(dev, &tf);
 
 	tf.command = cmd;
 	tf.flags |= ATA_TFLAG_DEVICE;
 	tf.protocol = ATA_PROT_NODATA;
 
-	err = ata_exec_internal(ap, dev, &tf, NULL, DMA_NONE, NULL, 0);
+	err = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0);
 	if (err)
 		printk(KERN_ERR "%s: ata command failed: %d\n",
 				__FUNCTION__, err);
@@ -4540,7 +4528,7 @@ static int ata_do_simple_cmd(struct ata_port *ap, struct ata_device *dev,
 	return err;
 }
 
-static int ata_flush_cache(struct ata_port *ap, struct ata_device *dev)
+static int ata_flush_cache(struct ata_device *dev)
 {
 	u8 cmd;
 
@@ -4552,22 +4540,21 @@ static int ata_flush_cache(struct ata_port *ap, struct ata_device *dev)
 	else
 		cmd = ATA_CMD_FLUSH;
 
-	return ata_do_simple_cmd(ap, dev, cmd);
+	return ata_do_simple_cmd(dev, cmd);
 }
 
-static int ata_standby_drive(struct ata_port *ap, struct ata_device *dev)
+static int ata_standby_drive(struct ata_device *dev)
 {
-	return ata_do_simple_cmd(ap, dev, ATA_CMD_STANDBYNOW1);
+	return ata_do_simple_cmd(dev, ATA_CMD_STANDBYNOW1);
 }
 
-static int ata_start_drive(struct ata_port *ap, struct ata_device *dev)
+static int ata_start_drive(struct ata_device *dev)
 {
-	return ata_do_simple_cmd(ap, dev, ATA_CMD_IDLEIMMEDIATE);
+	return ata_do_simple_cmd(dev, ATA_CMD_IDLEIMMEDIATE);
 }
 
 /**
  *	ata_device_resume - wakeup a previously suspended devices
- *	@ap: port the device is connected to
  *	@dev: the device to resume
  *
  *	Kick the drive back into action, by sending it an idle immediate
@@ -4575,39 +4562,42 @@ static int ata_start_drive(struct ata_port *ap, struct ata_device *dev)
  *	and host.
  *
  */
-int ata_device_resume(struct ata_port *ap, struct ata_device *dev)
+int ata_device_resume(struct ata_device *dev)
 {
+	struct ata_port *ap = dev->ap;
+
 	if (ap->flags & ATA_FLAG_SUSPENDED) {
 		struct ata_device *failed_dev;
 		ap->flags &= ~ATA_FLAG_SUSPENDED;
 		while (ata_set_mode(ap, &failed_dev))
-			ata_dev_disable(ap, failed_dev);
+			ata_dev_disable(failed_dev);
 	}
 	if (!ata_dev_enabled(dev))
 		return 0;
 	if (dev->class == ATA_DEV_ATA)
-		ata_start_drive(ap, dev);
+		ata_start_drive(dev);
 
 	return 0;
 }
 
 /**
  *	ata_device_suspend - prepare a device for suspend
- *	@ap: port the device is connected to
  *	@dev: the device to suspend
  *
  *	Flush the cache on the drive, if appropriate, then issue a
  *	standbynow command.
  */
-int ata_device_suspend(struct ata_port *ap, struct ata_device *dev, pm_message_t state)
+int ata_device_suspend(struct ata_device *dev, pm_message_t state)
 {
+	struct ata_port *ap = dev->ap;
+
 	if (!ata_dev_enabled(dev))
 		return 0;
 	if (dev->class == ATA_DEV_ATA)
-		ata_flush_cache(ap, dev);
+		ata_flush_cache(dev);
 
 	if (state.event != PM_EVENT_FREEZE)
-		ata_standby_drive(ap, dev);
+		ata_standby_drive(dev);
 	ap->flags |= ATA_FLAG_SUSPENDED;
 	return 0;
 }

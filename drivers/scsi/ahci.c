@@ -597,7 +597,7 @@ static int ahci_softreset(struct ata_port *ap, unsigned int *class)
 	/* restart engine */
 	ahci_start_engine(ap);
 
-	ata_tf_init(ap, &tf, 0);
+	ata_tf_init(ap->device, &tf);
 	fis = pp->cmd_tbl;
 
 	/* issue the first D2H Register FIS */
