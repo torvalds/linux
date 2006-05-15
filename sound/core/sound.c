@@ -81,14 +81,9 @@ extern struct class *sound_class;
  */
 void snd_request_card(int card)
 {
-	int locked;
-
 	if (! current->fs->root)
 		return;
-	read_lock(&snd_card_rwlock);
-	locked = snd_cards_lock & (1 << card);
-	read_unlock(&snd_card_rwlock);
-	if (locked)
+	if (snd_card_locked(card))
 		return;
 	if (card < 0 || card >= cards_limit)
 		return;

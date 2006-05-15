@@ -38,11 +38,11 @@ struct snd_shutdown_f_ops {
 	struct snd_shutdown_f_ops *next;
 };
 
-unsigned int snd_cards_lock = 0;	/* locked for registering/using */
+static unsigned int snd_cards_lock = 0;	/* locked for registering/using */
 struct snd_card *snd_cards[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)] = NULL};
 EXPORT_SYMBOL(snd_cards);
 
-DEFINE_RWLOCK(snd_card_rwlock);
+static DEFINE_MUTEX(snd_card_mutex);
 
 #if defined(CONFIG_SND_MIXER_OSS) || defined(CONFIG_SND_MIXER_OSS_MODULE)
 int (*snd_mixer_oss_notify_callback)(struct snd_card *card, int free_flag);
@@ -112,7 +112,7 @@ struct snd_card *snd_card_new(int idx, const char *xid,
 		strlcpy(card->id, xid, sizeof(card->id));
 	}
 	err = 0;
-	write_lock(&snd_card_rwlock);
+	mutex_lock(&snd_card_mutex);
 	if (idx < 0) {
 		int idx2;
 		for (idx2 = 0; idx2 < SNDRV_CARDS; idx2++)
@@ -130,12 +130,12 @@ struct snd_card *snd_card_new(int idx, const char *xid,
 	else
 		err = -ENODEV;
 	if (idx < 0 || err < 0) {
-		write_unlock(&snd_card_rwlock);
+		mutex_unlock(&snd_card_mutex);
 		snd_printk(KERN_ERR "cannot find the slot for index %d (range 0-%i)\n", idx, snd_ecards_limit - 1);
 		goto __error;
 	}
 	snd_cards_lock |= 1 << idx;		/* lock it */
-	write_unlock(&snd_card_rwlock);
+	mutex_unlock(&snd_card_mutex);
 	card->number = idx;
 	card->module = module;
 	INIT_LIST_HEAD(&card->devices);
@@ -172,6 +172,17 @@ struct snd_card *snd_card_new(int idx, const char *xid,
 }
 
 EXPORT_SYMBOL(snd_card_new);
+
+/* return non-zero if a card is already locked */
+int snd_card_locked(int card)
+{
+	int locked;
+
+	mutex_lock(&snd_card_mutex);
+	locked = snd_cards_lock & (1 << card);
+	mutex_unlock(&snd_card_mutex);
+	return locked;
+}
 
 static loff_t snd_disconnect_llseek(struct file *file, loff_t offset, int orig)
 {
@@ -240,9 +251,9 @@ int snd_card_disconnect(struct snd_card *card)
 	spin_unlock(&card->files_lock);
 
 	/* phase 1: disable fops (user space) operations for ALSA API */
-	write_lock(&snd_card_rwlock);
+	mutex_lock(&snd_card_mutex);
 	snd_cards[card->number] = NULL;
-	write_unlock(&snd_card_rwlock);
+	mutex_unlock(&snd_card_mutex);
 	
 	/* phase 2: replace file->f_op with special dummy operations */
 	
@@ -321,9 +332,9 @@ int snd_card_free(struct snd_card *card)
 
 	if (card == NULL)
 		return -EINVAL;
-	write_lock(&snd_card_rwlock);
+	mutex_lock(&snd_card_mutex);
 	snd_cards[card->number] = NULL;
-	write_unlock(&snd_card_rwlock);
+	mutex_unlock(&snd_card_mutex);
 
 #ifdef CONFIG_PM
 	wake_up(&card->power_sleep);
@@ -359,9 +370,9 @@ int snd_card_free(struct snd_card *card)
 		card->s_f_ops = s_f_ops->next;
 		kfree(s_f_ops);
 	}
-	write_lock(&snd_card_rwlock);
+	mutex_lock(&snd_card_mutex);
 	snd_cards_lock &= ~(1 << card->number);
-	write_unlock(&snd_card_rwlock);
+	mutex_unlock(&snd_card_mutex);
 	kfree(card);
 	return 0;
 }
@@ -497,16 +508,16 @@ int snd_card_register(struct snd_card *card)
 	snd_assert(card != NULL, return -EINVAL);
 	if ((err = snd_device_register_all(card)) < 0)
 		return err;
-	write_lock(&snd_card_rwlock);
+	mutex_lock(&snd_card_mutex);
 	if (snd_cards[card->number]) {
 		/* already registered */
-		write_unlock(&snd_card_rwlock);
+		mutex_unlock(&snd_card_mutex);
 		return 0;
 	}
 	if (card->id[0] == '\0')
 		choose_default_id(card);
 	snd_cards[card->number] = card;
-	write_unlock(&snd_card_rwlock);
+	mutex_unlock(&snd_card_mutex);
 	init_info_for_card(card);
 #if defined(CONFIG_SND_MIXER_OSS) || defined(CONFIG_SND_MIXER_OSS_MODULE)
 	if (snd_mixer_oss_notify_callback)
@@ -527,7 +538,7 @@ static void snd_card_info_read(struct snd_info_entry *entry,
 	struct snd_card *card;
 
 	for (idx = count = 0; idx < SNDRV_CARDS; idx++) {
-		read_lock(&snd_card_rwlock);
+		mutex_lock(&snd_card_mutex);
 		if ((card = snd_cards[idx]) != NULL) {
 			count++;
 			snd_iprintf(buffer, "%2i [%-15s]: %s - %s\n",
@@ -538,7 +549,7 @@ static void snd_card_info_read(struct snd_info_entry *entry,
 			snd_iprintf(buffer, "                      %s\n",
 					card->longname);
 		}
-		read_unlock(&snd_card_rwlock);
+		mutex_unlock(&snd_card_mutex);
 	}
 	if (!count)
 		snd_iprintf(buffer, "--- no soundcards ---\n");
@@ -552,12 +563,12 @@ void snd_card_info_read_oss(struct snd_info_buffer *buffer)
 	struct snd_card *card;
 
 	for (idx = count = 0; idx < SNDRV_CARDS; idx++) {
-		read_lock(&snd_card_rwlock);
+		mutex_lock(&snd_card_mutex);
 		if ((card = snd_cards[idx]) != NULL) {
 			count++;
 			snd_iprintf(buffer, "%s\n", card->longname);
 		}
-		read_unlock(&snd_card_rwlock);
+		mutex_unlock(&snd_card_mutex);
 	}
 	if (!count) {
 		snd_iprintf(buffer, "--- no soundcards ---\n");
@@ -575,11 +586,11 @@ static void snd_card_module_info_read(struct snd_info_entry *entry,
 	struct snd_card *card;
 
 	for (idx = 0; idx < SNDRV_CARDS; idx++) {
-		read_lock(&snd_card_rwlock);
+		mutex_lock(&snd_card_mutex);
 		if ((card = snd_cards[idx]) != NULL)
 			snd_iprintf(buffer, "%2i %s\n",
 				    idx, card->module->name);
-		read_unlock(&snd_card_rwlock);
+		mutex_unlock(&snd_card_mutex);
 	}
 }
 #endif
