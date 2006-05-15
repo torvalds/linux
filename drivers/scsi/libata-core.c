@@ -1494,13 +1494,11 @@ static void sata_print_link_status(struct ata_port *ap)
 {
 	u32 sstatus, scontrol, tmp;
 
-	if (!ap->ops->scr_read)
+	if (sata_scr_read(ap, SCR_STATUS, &sstatus))
 		return;
+	sata_scr_read(ap, SCR_CONTROL, &scontrol);
 
-	sstatus = scr_read(ap, SCR_STATUS);
-	scontrol = scr_read(ap, SCR_CONTROL);
-
-	if (sata_dev_present(ap)) {
+	if (ata_port_online(ap)) {
 		tmp = (sstatus >> 4) & 0xf;
 		printk(KERN_INFO
 		       "ata%u: SATA link up %s (SStatus %X SControl %X)\n",
@@ -1531,17 +1529,18 @@ void __sata_phy_reset(struct ata_port *ap)
 
 	if (ap->flags & ATA_FLAG_SATA_RESET) {
 		/* issue phy wake/reset */
-		scr_write_flush(ap, SCR_CONTROL, 0x301);
+		sata_scr_write_flush(ap, SCR_CONTROL, 0x301);
 		/* Couldn't find anything in SATA I/II specs, but
 		 * AHCI-1.1 10.4.2 says at least 1 ms. */
 		mdelay(1);
 	}
-	scr_write_flush(ap, SCR_CONTROL, 0x300); /* phy wake/clear reset */
+	/* phy wake/clear reset */
+	sata_scr_write_flush(ap, SCR_CONTROL, 0x300);
 
 	/* wait for phy to become ready, if necessary */
 	do {
 		msleep(200);
-		sstatus = scr_read(ap, SCR_STATUS);
+		sata_scr_read(ap, SCR_STATUS, &sstatus);
 		if ((sstatus & 0xf) != 1)
 			break;
 	} while (time_before(jiffies, timeout));
@@ -1550,7 +1549,7 @@ void __sata_phy_reset(struct ata_port *ap)
 	sata_print_link_status(ap);
 
 	/* TODO: phy layer with polling, timeouts, etc. */
-	if (sata_dev_present(ap))
+	if (!ata_port_offline(ap))
 		ata_port_probe(ap);
 	else
 		ata_port_disable(ap);
@@ -1638,11 +1637,12 @@ void ata_port_disable(struct ata_port *ap)
  */
 int sata_down_spd_limit(struct ata_port *ap)
 {
-	u32 spd, mask;
-	int highbit;
+	u32 sstatus, spd, mask;
+	int rc, highbit;
 
-	if (ap->cbl != ATA_CBL_SATA || !ap->ops->scr_read)
-		return -EOPNOTSUPP;
+	rc = sata_scr_read(ap, SCR_STATUS, &sstatus);
+	if (rc)
+		return rc;
 
 	mask = ap->sata_spd_limit;
 	if (mask <= 1)
@@ -1650,7 +1650,7 @@ int sata_down_spd_limit(struct ata_port *ap)
 	highbit = fls(mask) - 1;
 	mask &= ~(1 << highbit);
 
-	spd = (scr_read(ap, SCR_STATUS) >> 4) & 0xf;
+	spd = (sstatus >> 4) & 0xf;
 	if (spd <= 1)
 		return -EINVAL;
 	spd--;
@@ -1700,10 +1700,8 @@ int sata_set_spd_needed(struct ata_port *ap)
 {
 	u32 scontrol;
 
-	if (ap->cbl != ATA_CBL_SATA || !ap->ops->scr_read)
+	if (sata_scr_read(ap, SCR_CONTROL, &scontrol))
 		return 0;
-
-	scontrol = scr_read(ap, SCR_CONTROL);
 
 	return __sata_set_spd_needed(ap, &scontrol);
 }
@@ -1719,20 +1717,22 @@ int sata_set_spd_needed(struct ata_port *ap)
  *
  *	RETURNS:
  *	0 if spd doesn't need to be changed, 1 if spd has been
- *	changed.  -EOPNOTSUPP if SCR registers are inaccessible.
+ *	changed.  Negative errno if SCR registers are inaccessible.
  */
 int sata_set_spd(struct ata_port *ap)
 {
 	u32 scontrol;
+	int rc;
 
-	if (ap->cbl != ATA_CBL_SATA || !ap->ops->scr_read)
-		return -EOPNOTSUPP;
+	if ((rc = sata_scr_read(ap, SCR_CONTROL, &scontrol)))
+		return rc;
 
-	scontrol = scr_read(ap, SCR_CONTROL);
 	if (!__sata_set_spd_needed(ap, &scontrol))
 		return 0;
 
-	scr_write(ap, SCR_CONTROL, scontrol);
+	if ((rc = sata_scr_write(ap, SCR_CONTROL, scontrol)))
+		return rc;
+
 	return 1;
 }
 
@@ -2336,20 +2336,26 @@ static int sata_phy_resume(struct ata_port *ap)
 {
 	unsigned long timeout = jiffies + (HZ * 5);
 	u32 scontrol, sstatus;
+	int rc;
 
-	scontrol = scr_read(ap, SCR_CONTROL);
+	if ((rc = sata_scr_read(ap, SCR_CONTROL, &scontrol)))
+		return rc;
+
 	scontrol = (scontrol & 0x0f0) | 0x300;
-	scr_write_flush(ap, SCR_CONTROL, scontrol);
+
+	if ((rc = sata_scr_write(ap, SCR_CONTROL, scontrol)))
+		return rc;
 
 	/* Wait for phy to become ready, if necessary. */
 	do {
 		msleep(200);
-		sstatus = scr_read(ap, SCR_STATUS);
+		if ((rc = sata_scr_read(ap, SCR_STATUS, &sstatus)))
+			return rc;
 		if ((sstatus & 0xf) != 1)
 			return 0;
 	} while (time_before(jiffies, timeout));
 
-	return -1;
+	return -EBUSY;
 }
 
 /**
@@ -2367,21 +2373,20 @@ static int sata_phy_resume(struct ata_port *ap)
  */
 void ata_std_probeinit(struct ata_port *ap)
 {
-	if ((ap->flags & ATA_FLAG_SATA) && ap->ops->scr_read) {
-		u32 spd;
+	u32 scontrol;
 
-		/* resume link */
-		sata_phy_resume(ap);
+	/* resume link */
+	sata_phy_resume(ap);
 
-		/* init sata_spd_limit to the current value */
-		spd = (scr_read(ap, SCR_CONTROL) & 0xf0) >> 4;
-		if (spd)
-			ap->sata_spd_limit &= (1 << spd) - 1;
-
-		/* wait for device */
-		if (sata_dev_present(ap))
-			ata_busy_sleep(ap, ATA_TMOUT_BOOT_QUICK, ATA_TMOUT_BOOT);
+	/* init sata_spd_limit to the current value */
+	if (sata_scr_read(ap, SCR_CONTROL, &scontrol) == 0) {
+		int spd = (scontrol >> 4) & 0xf;
+		ap->sata_spd_limit &= (1 << spd) - 1;
 	}
+
+	/* wait for device */
+	if (ata_port_online(ap))
+		ata_busy_sleep(ap, ATA_TMOUT_BOOT_QUICK, ATA_TMOUT_BOOT);
 }
 
 /**
@@ -2406,7 +2411,7 @@ int ata_std_softreset(struct ata_port *ap, unsigned int *classes)
 
 	DPRINTK("ENTER\n");
 
-	if (ap->ops->scr_read && !sata_dev_present(ap)) {
+	if (ata_port_offline(ap)) {
 		classes[0] = ATA_DEV_NONE;
 		goto out;
 	}
@@ -2457,6 +2462,7 @@ int ata_std_softreset(struct ata_port *ap, unsigned int *classes)
 int sata_std_hardreset(struct ata_port *ap, unsigned int *class)
 {
 	u32 scontrol;
+	int rc;
 
 	DPRINTK("ENTER\n");
 
@@ -2466,17 +2472,25 @@ int sata_std_hardreset(struct ata_port *ap, unsigned int *class)
 		 * reconfiguration.  This works for at least ICH7 AHCI
 		 * and Sil3124.
 		 */
-		scontrol = scr_read(ap, SCR_CONTROL);
+		if ((rc = sata_scr_read(ap, SCR_CONTROL, &scontrol)))
+			return rc;
+
 		scontrol = (scontrol & 0x0f0) | 0x302;
-		scr_write_flush(ap, SCR_CONTROL, scontrol);
+
+		if ((rc = sata_scr_write(ap, SCR_CONTROL, scontrol)))
+			return rc;
 
 		sata_set_spd(ap);
 	}
 
 	/* issue phy wake/reset */
-	scontrol = scr_read(ap, SCR_CONTROL);
+	if ((rc = sata_scr_read(ap, SCR_CONTROL, &scontrol)))
+		return rc;
+
 	scontrol = (scontrol & 0x0f0) | 0x301;
-	scr_write_flush(ap, SCR_CONTROL, scontrol);
+
+	if ((rc = sata_scr_write_flush(ap, SCR_CONTROL, scontrol)))
+		return rc;
 
 	/* Couldn't find anything in SATA I/II specs, but AHCI-1.1
 	 * 10.4.2 says at least 1 ms.
@@ -2487,7 +2501,7 @@ int sata_std_hardreset(struct ata_port *ap, unsigned int *class)
 	sata_phy_resume(ap);
 
 	/* TODO: phy layer with polling, timeouts, etc. */
-	if (!sata_dev_present(ap)) {
+	if (ata_port_offline(ap)) {
 		*class = ATA_DEV_NONE;
 		DPRINTK("EXIT, link offline\n");
 		return 0;
@@ -2527,8 +2541,7 @@ void ata_std_postreset(struct ata_port *ap, unsigned int *classes)
 	DPRINTK("ENTER\n");
 
 	/* print link status */
-	if (ap->cbl == ATA_CBL_SATA)
-		sata_print_link_status(ap);
+	sata_print_link_status(ap);
 
 	/* re-enable interrupts */
 	if (ap->ioaddr.ctl_addr)	/* FIXME: hack. create a hook instead */
@@ -2575,7 +2588,7 @@ int ata_std_probe_reset(struct ata_port *ap, unsigned int *classes)
 	ata_reset_fn_t hardreset;
 
 	hardreset = NULL;
-	if (ap->cbl == ATA_CBL_SATA && ap->ops->scr_read)
+	if (sata_scr_valid(ap))
 		hardreset = sata_std_hardreset;
 
 	return ata_drive_probe_reset(ap, ata_std_probeinit,

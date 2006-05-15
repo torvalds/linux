@@ -464,7 +464,7 @@ static int sil24_softreset(struct ata_port *ap, unsigned int *class)
 
 	DPRINTK("ENTER\n");
 
-	if (!sata_dev_present(ap)) {
+	if (ata_port_offline(ap)) {
 		DPRINTK("PHY reports no device\n");
 		*class = ATA_DEV_NONE;
 		goto out;
@@ -531,7 +531,7 @@ static int sil24_hardreset(struct ata_port *ap, unsigned int *class)
 	sata_set_spd(ap);
 
 	tout_msec = 100;
-	if (sata_dev_present(ap))
+	if (ata_port_online(ap))
 		tout_msec = 5000;
 
 	writel(PORT_CS_DEV_RST, port + PORT_CTRL_STAT);
@@ -544,7 +544,7 @@ static int sil24_hardreset(struct ata_port *ap, unsigned int *class)
 	msleep(100);
 
 	if (tmp & PORT_CS_DEV_RST) {
-		if (!sata_dev_present(ap))
+		if (ata_port_offline(ap))
 			return 0;
 		reason = "link not ready";
 		goto err;

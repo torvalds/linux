@@ -567,7 +567,7 @@ static int ahci_softreset(struct ata_port *ap, unsigned int *class)
 
 	DPRINTK("ENTER\n");
 
-	if (!sata_dev_present(ap)) {
+	if (ata_port_offline(ap)) {
 		DPRINTK("PHY reports no device\n");
 		*class = ATA_DEV_NONE;
 		return 0;
@@ -640,7 +640,7 @@ static int ahci_softreset(struct ata_port *ap, unsigned int *class)
 	msleep(150);
 
 	*class = ATA_DEV_NONE;
-	if (sata_dev_present(ap)) {
+	if (ata_port_online(ap)) {
 		if (ata_busy_sleep(ap, ATA_TMOUT_BOOT_QUICK, ATA_TMOUT_BOOT)) {
 			rc = -EIO;
 			reason = "device not ready";
@@ -670,7 +670,7 @@ static int ahci_hardreset(struct ata_port *ap, unsigned int *class)
 	rc = sata_std_hardreset(ap, class);
 	ahci_start_engine(ap);
 
-	if (rc == 0 && sata_dev_present(ap))
+	if (rc == 0 && ata_port_online(ap))
 		*class = ahci_dev_classify(ap);
 	if (*class == ATA_DEV_UNKNOWN)
 		*class = ATA_DEV_NONE;

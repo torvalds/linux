@@ -1309,8 +1309,8 @@ static void mv_err_intr(struct ata_port *ap)
 	edma_err_cause = readl(port_mmio + EDMA_ERR_IRQ_CAUSE_OFS);
 
 	if (EDMA_ERR_SERR & edma_err_cause) {
-		serr = scr_read(ap, SCR_ERROR);
-		scr_write_flush(ap, SCR_ERROR, serr);
+		sata_scr_read(ap, SCR_ERROR, &serr);
+		sata_scr_write_flush(ap, SCR_ERROR, serr);
 	}
 	if (EDMA_ERR_SELF_DIS & edma_err_cause) {
 		struct mv_port_priv *pp	= ap->private_data;
@@ -1934,15 +1934,16 @@ static void __mv_phy_reset(struct ata_port *ap, int can_sleep)
 
 	/* Issue COMRESET via SControl */
 comreset_retry:
-	scr_write_flush(ap, SCR_CONTROL, 0x301);
+	sata_scr_write_flush(ap, SCR_CONTROL, 0x301);
 	__msleep(1, can_sleep);
 
-	scr_write_flush(ap, SCR_CONTROL, 0x300);
+	sata_scr_write_flush(ap, SCR_CONTROL, 0x300);
 	__msleep(20, can_sleep);
 
 	timeout = jiffies + msecs_to_jiffies(200);
 	do {
-		sstatus = scr_read(ap, SCR_STATUS) & 0x3;
+		sata_scr_read(ap, SCR_STATUS, &sstatus);
+		sstatus &= 0x3;
 		if ((sstatus == 3) || (sstatus == 0))
 			break;
 
@@ -1959,11 +1960,12 @@ comreset_retry:
 		"SCtrl 0x%08x\n", mv_scr_read(ap, SCR_STATUS),
 		mv_scr_read(ap, SCR_ERROR), mv_scr_read(ap, SCR_CONTROL));
 
-	if (sata_dev_present(ap)) {
+	if (ata_port_online(ap)) {
 		ata_port_probe(ap);
 	} else {
+		sata_scr_read(ap, SCR_STATUS, &sstatus);
 		printk(KERN_INFO "ata%u: no device found (phy stat %08x)\n",
-		       ap->id, scr_read(ap, SCR_STATUS));
+		       ap->id, sstatus);
 		ata_port_disable(ap);
 		return;
 	}
