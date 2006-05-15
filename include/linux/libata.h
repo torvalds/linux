@@ -226,6 +226,9 @@ enum {
 	ATA_PORT_PRIMARY	= (1 << 0),
 	ATA_PORT_SECONDARY	= (1 << 1),
 
+	/* ering size */
+	ATA_ERING_SIZE		= 32,
+
 	/* reset / recovery action types */
 	ATA_EH_REVALIDATE	= (1 << 0),
 	ATA_EH_SOFTRESET	= (1 << 1),
@@ -375,6 +378,17 @@ struct ata_host_stats {
 	unsigned long		rw_reqbuf;
 };
 
+struct ata_ering_entry {
+	int			is_io;
+	unsigned int		err_mask;
+	u64			timestamp;
+};
+
+struct ata_ering {
+	int			cursor;
+	struct ata_ering_entry	ring[ATA_ERING_SIZE];
+};
+
 struct ata_device {
 	struct ata_port		*ap;
 	u64			n_sectors;	/* size of device, if ATA */
@@ -401,6 +415,9 @@ struct ata_device {
 	u16			cylinders;	/* Number of cylinders */
 	u16			heads;		/* Number of heads */
 	u16			sectors;	/* Number of sectors per track */
+
+	/* error history */
+	struct ata_ering	ering;
 };
 
 struct ata_port {

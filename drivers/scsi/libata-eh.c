@@ -46,6 +46,51 @@
 
 static void __ata_port_freeze(struct ata_port *ap);
 
+static void ata_ering_record(struct ata_ering *ering, int is_io,
+			     unsigned int err_mask)
+{
+	struct ata_ering_entry *ent;
+
+	WARN_ON(!err_mask);
+
+	ering->cursor++;
+	ering->cursor %= ATA_ERING_SIZE;
+
+	ent = &ering->ring[ering->cursor];
+	ent->is_io = is_io;
+	ent->err_mask = err_mask;
+	ent->timestamp = get_jiffies_64();
+}
+
+static struct ata_ering_entry * ata_ering_top(struct ata_ering *ering)
+{
+	struct ata_ering_entry *ent = &ering->ring[ering->cursor];
+	if (!ent->err_mask)
+		return NULL;
+	return ent;
+}
+
+static int ata_ering_map(struct ata_ering *ering,
+			 int (*map_fn)(struct ata_ering_entry *, void *),
+			 void *arg)
+{
+	int idx, rc = 0;
+	struct ata_ering_entry *ent;
+
+	idx = ering->cursor;
+	do {
+		ent = &ering->ring[idx];
+		if (!ent->err_mask)
+			break;
+		rc = map_fn(ent, arg);
+		if (rc)
+			break;
+		idx = (idx - 1 + ATA_ERING_SIZE) % ATA_ERING_SIZE;
+	} while (idx != ering->cursor);
+
+	return rc;
+}
+
 /**
  *	ata_scsi_timed_out - SCSI layer time out callback
  *	@cmd: timed out SCSI command
