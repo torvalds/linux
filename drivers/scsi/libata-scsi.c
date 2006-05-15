@@ -748,7 +748,7 @@ static unsigned int ata_scsi_start_stop_xlat(struct ata_queued_cmd *qc,
 		tf->nsect = 1;	/* 1 sector, lba=0 */
 
 		if (qc->dev->flags & ATA_DFLAG_LBA) {
-			qc->tf.flags |= ATA_TFLAG_LBA;
+			tf->flags |= ATA_TFLAG_LBA;
 
 			tf->lbah = 0x0;
 			tf->lbam = 0x0;
