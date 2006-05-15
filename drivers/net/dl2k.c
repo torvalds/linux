@@ -53,6 +53,7 @@
 #define DRV_VERSION	"v1.17b"
 #define DRV_RELDATE	"2006/03/10"
 #include "dl2k.h"
+#include <linux/dma-mapping.h>
 
 static char version[] __devinitdata =
       KERN_INFO DRV_NAME " " DRV_VERSION " " DRV_RELDATE "\n";	
