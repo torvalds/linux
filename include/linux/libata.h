@@ -661,6 +661,14 @@ extern void ata_bmdma_start (struct ata_queued_cmd *qc);
 extern void ata_bmdma_stop(struct ata_queued_cmd *qc);
 extern u8   ata_bmdma_status(struct ata_port *ap);
 extern void ata_bmdma_irq_clear(struct ata_port *ap);
+extern void ata_bmdma_freeze(struct ata_port *ap);
+extern void ata_bmdma_thaw(struct ata_port *ap);
+extern void ata_bmdma_drive_eh(struct ata_port *ap,
+			       ata_reset_fn_t softreset,
+			       ata_reset_fn_t hardreset,
+			       ata_postreset_fn_t postreset);
+extern void ata_bmdma_error_handler(struct ata_port *ap);
+extern void ata_bmdma_post_internal_cmd(struct ata_queued_cmd *qc);
 extern void ata_qc_complete(struct ata_queued_cmd *qc);
 extern void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd,
 			      void (*done)(struct scsi_cmnd *));
