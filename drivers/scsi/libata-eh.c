@@ -350,7 +350,7 @@ static void ata_qc_timeout(struct ata_queued_cmd *qc)
 			       qc->tf.command, drv_stat, host_stat);
 
 		/* complete taskfile transaction */
-		qc->err_mask |= ac_err_mask(drv_stat);
+		qc->err_mask |= AC_ERR_TIMEOUT;
 		break;
 	}
 

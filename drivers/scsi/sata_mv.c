@@ -87,7 +87,7 @@ enum {
 	MV_FLAG_IRQ_COALESCE	= (1 << 29),  /* IRQ coalescing capability */
 	MV_COMMON_FLAGS		= (ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
 				   ATA_FLAG_SATA_RESET | ATA_FLAG_MMIO |
-				   ATA_FLAG_NO_ATAPI),
+				   ATA_FLAG_PIO_POLLING),
 	MV_6XXX_FLAGS		= MV_FLAG_IRQ_COALESCE,
 
 	CRQB_FLAG_READ		= (1 << 0),
@@ -1396,7 +1396,7 @@ static void mv_host_intr(struct ata_host_set *host_set, u32 relevant,
 			}
 		}
 
-		if (ap->flags & (ATA_FLAG_DISABLED | ATA_FLAG_NOINTR))
+		if (ap && (ap->flags & ATA_FLAG_DISABLED))
 			continue;
 
 		err_mask = ac_err_mask(ata_status);
@@ -1417,7 +1417,7 @@ static void mv_host_intr(struct ata_host_set *host_set, u32 relevant,
 				VPRINTK("port %u IRQ found for qc, "
 					"ata_status 0x%x\n", port,ata_status);
 				/* mark qc status appropriately */
-				if (!(qc->tf.ctl & ATA_NIEN)) {
+				if (!(qc->tf.flags & ATA_TFLAG_POLLING)) {
 					qc->err_mask |= err_mask;
 					ata_qc_complete(qc);
 				}

@@ -1345,11 +1345,19 @@ static int ata_dev_configure(struct ata_device *dev, int print_info)
 					dev->cylinders, dev->heads, dev->sectors);
 		}
 
+		if (dev->id[59] & 0x100) {
+			dev->multi_count = dev->id[59] & 0xff;
+			DPRINTK("ata%u: dev %u multi count %u\n",
+				ap->id, dev->devno, dev->multi_count);
+		}
+
 		dev->cdb_len = 16;
 	}
 
 	/* ATAPI-specific feature tests */
 	else if (dev->class == ATA_DEV_ATAPI) {
+		char *cdb_intr_string = "";
+
 		rc = atapi_cdb_len(id);
 		if ((rc < 12) || (rc > ATAPI_CDB_LEN)) {
 			ata_dev_printk(dev, KERN_WARNING,
@@ -1359,10 +1367,16 @@ static int ata_dev_configure(struct ata_device *dev, int print_info)
 		}
 		dev->cdb_len = (unsigned int) rc;
 
+		if (ata_id_cdb_intr(dev->id)) {
+			dev->flags |= ATA_DFLAG_CDB_INTR;
+			cdb_intr_string = ", CDB intr";
+		}
+
 		/* print device info to dmesg */
 		if (print_info)
-			ata_dev_printk(dev, KERN_INFO, "ATAPI, max %s\n",
-				       ata_mode_string(xfer_mask));
+			ata_dev_printk(dev, KERN_INFO, "ATAPI, max %s%s\n",
+				       ata_mode_string(xfer_mask),
+				       cdb_intr_string);
 	}
 
 	ap->host->max_cmd_len = 0;
@@ -3211,6 +3225,15 @@ int ata_check_atapi_dma(struct ata_queued_cmd *qc)
 	if (ap->ops->check_atapi_dma)
 		rc = ap->ops->check_atapi_dma(qc);
 
+	/* We don't support polling DMA.
+	 * Use PIO if the LLDD handles only interrupts in
+	 * the HSM_ST_LAST state and the ATAPI device
+	 * generates CDB interrupts.
+	 */
+	if ((ap->flags & ATA_FLAG_PIO_POLLING) &&
+	    (qc->dev->flags & ATA_DFLAG_CDB_INTR))
+		rc = 1;
+
 	return rc;
 }
 /**
@@ -3458,7 +3481,6 @@ void ata_poll_qc_complete(struct ata_queued_cmd *qc)
 		qc = ata_qc_from_tag(ap, qc->tag);
 		if (qc) {
 			if (!(qc->err_mask & AC_ERR_HSM)) {
-				ap->flags &= ~ATA_FLAG_NOINTR;
 				ata_irq_on(ap);
 				ata_qc_complete(qc);
 			} else
@@ -3466,112 +3488,12 @@ void ata_poll_qc_complete(struct ata_queued_cmd *qc)
 		}
 	} else {
 		/* old EH */
-		ap->flags &= ~ATA_FLAG_NOINTR;
 		ata_irq_on(ap);
 		ata_qc_complete(qc);
 	}
 
 	spin_unlock_irqrestore(&ap->host_set->lock, flags);
 }
-
-/**
- *	ata_pio_poll - poll using PIO, depending on current state
- *	@qc: qc in progress
- *
- *	LOCKING:
- *	None.  (executing in kernel thread context)
- *
- *	RETURNS:
- *	timeout value to use
- */
-static unsigned long ata_pio_poll(struct ata_queued_cmd *qc)
-{
-	struct ata_port *ap = qc->ap;
-	u8 status;
-	unsigned int poll_state = HSM_ST_UNKNOWN;
-	unsigned int reg_state = HSM_ST_UNKNOWN;
-
-	switch (ap->hsm_task_state) {
-	case HSM_ST:
-	case HSM_ST_POLL:
-		poll_state = HSM_ST_POLL;
-		reg_state = HSM_ST;
-		break;
-	case HSM_ST_LAST:
-	case HSM_ST_LAST_POLL:
-		poll_state = HSM_ST_LAST_POLL;
-		reg_state = HSM_ST_LAST;
-		break;
-	default:
-		BUG();
-		break;
-	}
-
-	status = ata_chk_status(ap);
-	if (status & ATA_BUSY) {
-		if (time_after(jiffies, ap->pio_task_timeout)) {
-			qc->err_mask |= AC_ERR_TIMEOUT;
-			ap->hsm_task_state = HSM_ST_TMOUT;
-			return 0;
-		}
-		ap->hsm_task_state = poll_state;
-		return ATA_SHORT_PAUSE;
-	}
-
-	ap->hsm_task_state = reg_state;
-	return 0;
-}
-
-/**
- *	ata_pio_complete - check if drive is busy or idle
- *	@qc: qc to complete
- *
- *	LOCKING:
- *	None.  (executing in kernel thread context)
- *
- *	RETURNS:
- *	Non-zero if qc completed, zero otherwise.
- */
-static int ata_pio_complete(struct ata_queued_cmd *qc)
-{
-	struct ata_port *ap = qc->ap;
-	u8 drv_stat;
-
-	/*
-	 * This is purely heuristic.  This is a fast path.  Sometimes when
-	 * we enter, BSY will be cleared in a chk-status or two.  If not,
-	 * the drive is probably seeking or something.  Snooze for a couple
-	 * msecs, then chk-status again.  If still busy, fall back to
-	 * HSM_ST_POLL state.
-	 */
-	drv_stat = ata_busy_wait(ap, ATA_BUSY, 10);
-	if (drv_stat & ATA_BUSY) {
-		msleep(2);
-		drv_stat = ata_busy_wait(ap, ATA_BUSY, 10);
-		if (drv_stat & ATA_BUSY) {
-			ap->hsm_task_state = HSM_ST_LAST_POLL;
-			ap->pio_task_timeout = jiffies + ATA_TMOUT_PIO;
-			return 0;
-		}
-	}
-
-	drv_stat = ata_wait_idle(ap);
-	if (!ata_ok(drv_stat)) {
-		qc->err_mask |= __ac_err_mask(drv_stat);
-		ap->hsm_task_state = HSM_ST_ERR;
-		return 0;
-	}
-
-	ap->hsm_task_state = HSM_ST_IDLE;
-
-	WARN_ON(qc->err_mask);
-	ata_poll_qc_complete(qc);
-
-	/* another command may start at this point */
-
-	return 1;
-}
-
 
 /**
  *	swap_buf_le16 - swap halves of 16-bit words in place
@@ -3741,7 +3663,23 @@ static void ata_pio_sector(struct ata_queued_cmd *qc)
 	page = nth_page(page, (offset >> PAGE_SHIFT));
 	offset %= PAGE_SIZE;
 
-	buf = kmap(page) + offset;
+	DPRINTK("data %s\n", qc->tf.flags & ATA_TFLAG_WRITE ? "write" : "read");
+
+	if (PageHighMem(page)) {
+		unsigned long flags;
+
+		local_irq_save(flags);
+		buf = kmap_atomic(page, KM_IRQ0);
+
+		/* do the actual data transfer */
+		ata_data_xfer(ap, buf + offset, ATA_SECT_SIZE, do_write);
+
+		kunmap_atomic(buf, KM_IRQ0);
+		local_irq_restore(flags);
+	} else {
+		buf = page_address(page);
+		ata_data_xfer(ap, buf + offset, ATA_SECT_SIZE, do_write);
+	}
 
 	qc->cursect++;
 	qc->cursg_ofs++;
@@ -3750,14 +3688,68 @@ static void ata_pio_sector(struct ata_queued_cmd *qc)
 		qc->cursg++;
 		qc->cursg_ofs = 0;
 	}
+}
 
-	DPRINTK("data %s\n", qc->tf.flags & ATA_TFLAG_WRITE ? "write" : "read");
+/**
+ *	ata_pio_sectors - Transfer one or many 512-byte sectors.
+ *	@qc: Command on going
+ *
+ *	Transfer one or many ATA_SECT_SIZE of data from/to the 
+ *	ATA device for the DRQ request.
+ *
+ *	LOCKING:
+ *	Inherited from caller.
+ */
 
-	/* do the actual data transfer */
-	do_write = (qc->tf.flags & ATA_TFLAG_WRITE);
-	ata_data_xfer(ap, buf, ATA_SECT_SIZE, do_write);
+static void ata_pio_sectors(struct ata_queued_cmd *qc)
+{
+	if (is_multi_taskfile(&qc->tf)) {
+		/* READ/WRITE MULTIPLE */
+		unsigned int nsect;
 
-	kunmap(page);
+		WARN_ON(qc->dev->multi_count == 0);
+
+		nsect = min(qc->nsect - qc->cursect, qc->dev->multi_count);
+		while (nsect--)
+			ata_pio_sector(qc);
+	} else
+		ata_pio_sector(qc);
+}
+
+/**
+ *	atapi_send_cdb - Write CDB bytes to hardware
+ *	@ap: Port to which ATAPI device is attached.
+ *	@qc: Taskfile currently active
+ *
+ *	When device has indicated its readiness to accept
+ *	a CDB, this function is called.  Send the CDB.
+ *
+ *	LOCKING:
+ *	caller.
+ */
+
+static void atapi_send_cdb(struct ata_port *ap, struct ata_queued_cmd *qc)
+{
+	/* send SCSI cdb */
+	DPRINTK("send cdb\n");
+	WARN_ON(qc->dev->cdb_len < 12);
+
+	ata_data_xfer(ap, qc->cdb, qc->dev->cdb_len, 1);
+	ata_altstatus(ap); /* flush */
+
+	switch (qc->tf.protocol) {
+	case ATA_PROT_ATAPI:
+		ap->hsm_task_state = HSM_ST;
+		break;
+	case ATA_PROT_ATAPI_NODATA:
+		ap->hsm_task_state = HSM_ST_LAST;
+		break;
+	case ATA_PROT_ATAPI_DMA:
+		ap->hsm_task_state = HSM_ST_LAST;
+		/* initiate bmdma */
+		ap->ops->bmdma_start(qc);
+		break;
+	}
 }
 
 /**
@@ -3823,7 +3815,23 @@ next_sg:
 	/* don't cross page boundaries */
 	count = min(count, (unsigned int)PAGE_SIZE - offset);
 
-	buf = kmap(page) + offset;
+	DPRINTK("data %s\n", qc->tf.flags & ATA_TFLAG_WRITE ? "write" : "read");
+
+	if (PageHighMem(page)) {
+		unsigned long flags;
+
+		local_irq_save(flags);
+		buf = kmap_atomic(page, KM_IRQ0);
+
+		/* do the actual data transfer */
+		ata_data_xfer(ap, buf + offset, count, do_write);
+
+		kunmap_atomic(buf, KM_IRQ0);
+		local_irq_restore(flags);
+	} else {
+		buf = page_address(page);
+		ata_data_xfer(ap, buf + offset, count, do_write);
+	}
 
 	bytes -= count;
 	qc->curbytes += count;
@@ -3833,13 +3841,6 @@ next_sg:
 		qc->cursg++;
 		qc->cursg_ofs = 0;
 	}
-
-	DPRINTK("data %s\n", qc->tf.flags & ATA_TFLAG_WRITE ? "write" : "read");
-
-	/* do the actual data transfer */
-	ata_data_xfer(ap, buf, count, do_write);
-
-	kunmap(page);
 
 	if (bytes)
 		goto next_sg;
@@ -3877,6 +3878,8 @@ static void atapi_pio_bytes(struct ata_queued_cmd *qc)
 	if (do_write != i_write)
 		goto err_out;
 
+	VPRINTK("ata%u: xfering %d bytes\n", ap->id, bytes);
+
 	__atapi_pio_bytes(qc, bytes);
 
 	return;
@@ -3888,186 +3891,294 @@ err_out:
 }
 
 /**
- *	ata_pio_block - start PIO on a block
- *	@qc: qc to transfer block for
+ *	ata_hsm_ok_in_wq - Check if the qc can be handled in the workqueue.
+ *	@ap: the target ata_port
+ *	@qc: qc on going
  *
- *	LOCKING:
- *	None.  (executing in kernel thread context)
+ *	RETURNS:
+ *	1 if ok in workqueue, 0 otherwise.
  */
-static void ata_pio_block(struct ata_queued_cmd *qc)
+
+static inline int ata_hsm_ok_in_wq(struct ata_port *ap, struct ata_queued_cmd *qc)
 {
-	struct ata_port *ap = qc->ap;
-	u8 status;
+	if (qc->tf.flags & ATA_TFLAG_POLLING)
+		return 1;
 
-	/*
-	 * This is purely heuristic.  This is a fast path.
-	 * Sometimes when we enter, BSY will be cleared in
-	 * a chk-status or two.  If not, the drive is probably seeking
-	 * or something.  Snooze for a couple msecs, then
-	 * chk-status again.  If still busy, fall back to
-	 * HSM_ST_POLL state.
-	 */
-	status = ata_busy_wait(ap, ATA_BUSY, 5);
-	if (status & ATA_BUSY) {
-		msleep(2);
-		status = ata_busy_wait(ap, ATA_BUSY, 10);
-		if (status & ATA_BUSY) {
-			ap->hsm_task_state = HSM_ST_POLL;
-			ap->pio_task_timeout = jiffies + ATA_TMOUT_PIO;
-			return;
-		}
+	if (ap->hsm_task_state == HSM_ST_FIRST) {
+		if (qc->tf.protocol == ATA_PROT_PIO &&
+		    (qc->tf.flags & ATA_TFLAG_WRITE))
+		    return 1;
+
+		if (is_atapi_taskfile(&qc->tf) &&
+		    !(qc->dev->flags & ATA_DFLAG_CDB_INTR))
+			return 1;
 	}
 
-	/* check error */
-	if (status & (ATA_ERR | ATA_DF)) {
-		qc->err_mask |= AC_ERR_DEV;
-		ap->hsm_task_state = HSM_ST_ERR;
-		return;
-	}
-
-	/* transfer data if any */
-	if (is_atapi_taskfile(&qc->tf)) {
-		/* DRQ=0 means no more data to transfer */
-		if ((status & ATA_DRQ) == 0) {
-			ap->hsm_task_state = HSM_ST_LAST;
-			return;
-		}
-
-		atapi_pio_bytes(qc);
-	} else {
-		/* handle BSY=0, DRQ=0 as error */
-		if ((status & ATA_DRQ) == 0) {
-			qc->err_mask |= AC_ERR_HSM;
-			ap->hsm_task_state = HSM_ST_ERR;
-			return;
-		}
-
-		ata_pio_sector(qc);
-	}
+	return 0;
 }
 
-static void ata_pio_error(struct ata_queued_cmd *qc)
+/**
+ *	ata_hsm_move - move the HSM to the next state.
+ *	@ap: the target ata_port
+ *	@qc: qc on going
+ *	@status: current device status
+ *	@in_wq: 1 if called from workqueue, 0 otherwise
+ *
+ *	RETURNS:
+ *	1 when poll next status needed, 0 otherwise.
+ */
+
+static int ata_hsm_move(struct ata_port *ap, struct ata_queued_cmd *qc,
+			 u8 status, int in_wq)
 {
-	struct ata_port *ap = qc->ap;
+	unsigned long flags = 0;
+	int poll_next;
 
-	if (qc->tf.command != ATA_CMD_PACKET)
-		ata_dev_printk(qc->dev, KERN_WARNING, "PIO error\n");
+	WARN_ON((qc->flags & ATA_QCFLAG_ACTIVE) == 0);
 
-	/* make sure qc->err_mask is available to
-	 * know what's wrong and recover
+	/* Make sure ata_qc_issue_prot() does not throw things
+	 * like DMA polling into the workqueue. Notice that
+	 * in_wq is not equivalent to (qc->tf.flags & ATA_TFLAG_POLLING).
 	 */
-	WARN_ON(qc->err_mask == 0);
+	WARN_ON(in_wq != ata_hsm_ok_in_wq(ap, qc));
 
-	ap->hsm_task_state = HSM_ST_IDLE;
+fsm_start:
+	DPRINTK("ata%u: protocol %d task_state %d (dev_stat 0x%X)\n",
+		ap->id, qc->tf.protocol, ap->hsm_task_state, status);
 
-	ata_poll_qc_complete(qc);
+	switch (ap->hsm_task_state) {
+	case HSM_ST_FIRST:
+		/* Send first data block or PACKET CDB */
+
+		/* If polling, we will stay in the work queue after
+		 * sending the data. Otherwise, interrupt handler
+		 * takes over after sending the data.
+		 */
+		poll_next = (qc->tf.flags & ATA_TFLAG_POLLING);
+
+		/* check device status */
+		if (unlikely((status & (ATA_BUSY | ATA_DRQ)) != ATA_DRQ)) {
+			/* Wrong status. Let EH handle this */
+			qc->err_mask |= AC_ERR_HSM;
+			ap->hsm_task_state = HSM_ST_ERR;
+			goto fsm_start;
+		}
+
+		/* Device should not ask for data transfer (DRQ=1)
+		 * when it finds something wrong.
+		 * We ignore DRQ here and stop the HSM by
+		 * changing hsm_task_state to HSM_ST_ERR and
+		 * let the EH abort the command or reset the device.
+		 */
+		if (unlikely(status & (ATA_ERR | ATA_DF))) {
+			printk(KERN_WARNING "ata%d: DRQ=1 with device error, dev_stat 0x%X\n",
+			       ap->id, status);
+			qc->err_mask |= AC_ERR_DEV;
+			ap->hsm_task_state = HSM_ST_ERR;
+			goto fsm_start;
+		}
+
+		/* Send the CDB (atapi) or the first data block (ata pio out).
+		 * During the state transition, interrupt handler shouldn't
+		 * be invoked before the data transfer is complete and
+		 * hsm_task_state is changed. Hence, the following locking.
+		 */
+		if (in_wq)
+			spin_lock_irqsave(&ap->host_set->lock, flags);
+
+		if (qc->tf.protocol == ATA_PROT_PIO) {
+			/* PIO data out protocol.
+			 * send first data block.
+			 */
+
+			/* ata_pio_sectors() might change the state
+			 * to HSM_ST_LAST. so, the state is changed here
+			 * before ata_pio_sectors().
+			 */
+			ap->hsm_task_state = HSM_ST;
+			ata_pio_sectors(qc);
+			ata_altstatus(ap); /* flush */
+		} else
+			/* send CDB */
+			atapi_send_cdb(ap, qc);
+
+		if (in_wq)
+			spin_unlock_irqrestore(&ap->host_set->lock, flags);
+
+		/* if polling, ata_pio_task() handles the rest.
+		 * otherwise, interrupt handler takes over from here.
+		 */
+		break;
+
+	case HSM_ST:
+		/* complete command or read/write the data register */
+		if (qc->tf.protocol == ATA_PROT_ATAPI) {
+			/* ATAPI PIO protocol */
+			if ((status & ATA_DRQ) == 0) {
+				/* no more data to transfer */
+				ap->hsm_task_state = HSM_ST_LAST;
+				goto fsm_start;
+			}
+
+			/* Device should not ask for data transfer (DRQ=1)
+			 * when it finds something wrong.
+			 * We ignore DRQ here and stop the HSM by
+			 * changing hsm_task_state to HSM_ST_ERR and
+			 * let the EH abort the command or reset the device.
+			 */
+			if (unlikely(status & (ATA_ERR | ATA_DF))) {
+				printk(KERN_WARNING "ata%d: DRQ=1 with device error, dev_stat 0x%X\n",
+				       ap->id, status);
+				qc->err_mask |= AC_ERR_DEV;
+				ap->hsm_task_state = HSM_ST_ERR;
+				goto fsm_start;
+			}
+
+			atapi_pio_bytes(qc);
+
+			if (unlikely(ap->hsm_task_state == HSM_ST_ERR))
+				/* bad ireason reported by device */
+				goto fsm_start;
+
+		} else {
+			/* ATA PIO protocol */
+			if (unlikely((status & ATA_DRQ) == 0)) {
+				/* handle BSY=0, DRQ=0 as error */
+				qc->err_mask |= AC_ERR_HSM;
+				ap->hsm_task_state = HSM_ST_ERR;
+				goto fsm_start;
+			}
+
+			/* For PIO reads, some devices may ask for
+			 * data transfer (DRQ=1) alone with ERR=1.
+			 * We respect DRQ here and transfer one
+			 * block of junk data before changing the
+			 * hsm_task_state to HSM_ST_ERR.
+			 *
+			 * For PIO writes, ERR=1 DRQ=1 doesn't make
+			 * sense since the data block has been
+			 * transferred to the device.
+			 */
+			if (unlikely(status & (ATA_ERR | ATA_DF))) {
+				/* data might be corrputed */
+				qc->err_mask |= AC_ERR_DEV;
+
+				if (!(qc->tf.flags & ATA_TFLAG_WRITE)) {
+					ata_pio_sectors(qc);
+					ata_altstatus(ap);
+					status = ata_wait_idle(ap);
+				}
+
+				/* ata_pio_sectors() might change the
+				 * state to HSM_ST_LAST. so, the state
+				 * is changed after ata_pio_sectors().
+				 */
+				ap->hsm_task_state = HSM_ST_ERR;
+				goto fsm_start;
+			}
+
+			ata_pio_sectors(qc);
+
+			if (ap->hsm_task_state == HSM_ST_LAST &&
+			    (!(qc->tf.flags & ATA_TFLAG_WRITE))) {
+				/* all data read */
+				ata_altstatus(ap);
+				status = ata_wait_idle(ap);
+				goto fsm_start;
+			}
+		}
+
+		ata_altstatus(ap); /* flush */
+		poll_next = 1;
+		break;
+
+	case HSM_ST_LAST:
+		if (unlikely(!ata_ok(status))) {
+			qc->err_mask |= __ac_err_mask(status);
+			ap->hsm_task_state = HSM_ST_ERR;
+			goto fsm_start;
+		}
+
+		/* no more data to transfer */
+		DPRINTK("ata%u: dev %u command complete, drv_stat 0x%x\n",
+			ap->id, qc->dev->devno, status);
+
+		WARN_ON(qc->err_mask);
+
+		ap->hsm_task_state = HSM_ST_IDLE;
+
+		/* complete taskfile transaction */
+		if (in_wq)
+			ata_poll_qc_complete(qc);
+		else
+			ata_qc_complete(qc);
+
+		poll_next = 0;
+		break;
+
+	case HSM_ST_ERR:
+		if (qc->tf.command != ATA_CMD_PACKET)
+			printk(KERN_ERR "ata%u: dev %u command error, drv_stat 0x%x\n",
+			       ap->id, qc->dev->devno, status);
+
+		/* make sure qc->err_mask is available to
+		 * know what's wrong and recover
+		 */
+		WARN_ON(qc->err_mask == 0);
+
+		ap->hsm_task_state = HSM_ST_IDLE;
+
+		/* complete taskfile transaction */
+		if (in_wq)
+			ata_poll_qc_complete(qc);
+		else
+			ata_qc_complete(qc);
+
+		poll_next = 0;
+		break;
+	default:
+		poll_next = 0;
+		BUG();
+	}
+
+	return poll_next;
 }
 
 static void ata_pio_task(void *_data)
 {
 	struct ata_queued_cmd *qc = _data;
 	struct ata_port *ap = qc->ap;
-	unsigned long timeout;
-	int qc_completed;
+	u8 status;
+	int poll_next;
 
 fsm_start:
-	timeout = 0;
-	qc_completed = 0;
+	WARN_ON(ap->hsm_task_state == HSM_ST_IDLE);
 
-	switch (ap->hsm_task_state) {
-	case HSM_ST_IDLE:
-		return;
-
-	case HSM_ST:
-		ata_pio_block(qc);
-		break;
-
-	case HSM_ST_LAST:
-		qc_completed = ata_pio_complete(qc);
-		break;
-
-	case HSM_ST_POLL:
-	case HSM_ST_LAST_POLL:
-		timeout = ata_pio_poll(qc);
-		break;
-
-	case HSM_ST_TMOUT:
-	case HSM_ST_ERR:
-		ata_pio_error(qc);
-		return;
+	/*
+	 * This is purely heuristic.  This is a fast path.
+	 * Sometimes when we enter, BSY will be cleared in
+	 * a chk-status or two.  If not, the drive is probably seeking
+	 * or something.  Snooze for a couple msecs, then
+	 * chk-status again.  If still busy, queue delayed work.
+	 */
+	status = ata_busy_wait(ap, ATA_BUSY, 5);
+	if (status & ATA_BUSY) {
+		msleep(2);
+		status = ata_busy_wait(ap, ATA_BUSY, 10);
+		if (status & ATA_BUSY) {
+			ata_port_queue_task(ap, ata_pio_task, qc, ATA_SHORT_PAUSE);
+			return;
+		}
 	}
 
-	if (timeout)
-		ata_port_queue_task(ap, ata_pio_task, qc, timeout);
-	else if (!qc_completed)
+	/* move the HSM */
+	poll_next = ata_hsm_move(ap, qc, status, 1);
+
+	/* another command or interrupt handler
+	 * may be running at this point.
+	 */
+	if (poll_next)
 		goto fsm_start;
-}
-
-/**
- *	atapi_packet_task - Write CDB bytes to hardware
- *	@_data: qc in progress
- *
- *	When device has indicated its readiness to accept
- *	a CDB, this function is called.  Send the CDB.
- *	If DMA is to be performed, exit immediately.
- *	Otherwise, we are in polling mode, so poll
- *	status under operation succeeds or fails.
- *
- *	LOCKING:
- *	Kernel thread context (may sleep)
- */
-static void atapi_packet_task(void *_data)
-{
-	struct ata_queued_cmd *qc = _data;
-	struct ata_port *ap = qc->ap;
-	u8 status;
-
-	/* sleep-wait for BSY to clear */
-	DPRINTK("busy wait\n");
-	if (ata_busy_sleep(ap, ATA_TMOUT_CDB_QUICK, ATA_TMOUT_CDB)) {
-		qc->err_mask |= AC_ERR_TIMEOUT;
-		goto err_out;
-	}
-
-	/* make sure DRQ is set */
-	status = ata_chk_status(ap);
-	if ((status & (ATA_BUSY | ATA_DRQ)) != ATA_DRQ) {
-		qc->err_mask |= AC_ERR_HSM;
-		goto err_out;
-	}
-
-	/* send SCSI cdb */
-	DPRINTK("send cdb\n");
-	WARN_ON(qc->dev->cdb_len < 12);
-
-	if (qc->tf.protocol == ATA_PROT_ATAPI_DMA ||
-	    qc->tf.protocol == ATA_PROT_ATAPI_NODATA) {
-		unsigned long flags;
-
-		/* Once we're done issuing command and kicking bmdma,
-		 * irq handler takes over.  To not lose irq, we need
-		 * to clear NOINTR flag before sending cdb, but
-		 * interrupt handler shouldn't be invoked before we're
-		 * finished.  Hence, the following locking.
-		 */
-		spin_lock_irqsave(&ap->host_set->lock, flags);
-		ap->flags &= ~ATA_FLAG_NOINTR;
-		ata_data_xfer(ap, qc->cdb, qc->dev->cdb_len, 1);
-		if (qc->tf.protocol == ATA_PROT_ATAPI_DMA)
-			ap->ops->bmdma_start(qc);	/* initiate bmdma */
-		spin_unlock_irqrestore(&ap->host_set->lock, flags);
-	} else {
-		ata_data_xfer(ap, qc->cdb, qc->dev->cdb_len, 1);
-
-		/* PIO commands are handled by polling */
-		ap->hsm_task_state = HSM_ST;
-		ata_port_queue_task(ap, ata_pio_task, qc, 0);
-	}
-
-	return;
-
-err_out:
-	ata_poll_qc_complete(qc);
 }
 
 /**
@@ -4322,43 +4433,105 @@ unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 
+	/* Use polling pio if the LLD doesn't handle
+	 * interrupt driven pio and atapi CDB interrupt.
+	 */
+	if (ap->flags & ATA_FLAG_PIO_POLLING) {
+		switch (qc->tf.protocol) {
+		case ATA_PROT_PIO:
+		case ATA_PROT_ATAPI:
+		case ATA_PROT_ATAPI_NODATA:
+			qc->tf.flags |= ATA_TFLAG_POLLING;
+			break;
+		case ATA_PROT_ATAPI_DMA:
+			if (qc->dev->flags & ATA_DFLAG_CDB_INTR)
+				/* see ata_check_atapi_dma() */
+				BUG();
+			break;
+		default:
+			break;
+		}
+	}
+
+	/* select the device */
 	ata_dev_select(ap, qc->dev->devno, 1, 0);
 
+	/* start the command */
 	switch (qc->tf.protocol) {
 	case ATA_PROT_NODATA:
+		if (qc->tf.flags & ATA_TFLAG_POLLING)
+			ata_qc_set_polling(qc);
+
 		ata_tf_to_host(ap, &qc->tf);
+		ap->hsm_task_state = HSM_ST_LAST;
+
+		if (qc->tf.flags & ATA_TFLAG_POLLING)
+			ata_port_queue_task(ap, ata_pio_task, qc, 0);
+
 		break;
 
 	case ATA_PROT_DMA:
+		WARN_ON(qc->tf.flags & ATA_TFLAG_POLLING);
+
 		ap->ops->tf_load(ap, &qc->tf);	 /* load tf registers */
 		ap->ops->bmdma_setup(qc);	    /* set up bmdma */
 		ap->ops->bmdma_start(qc);	    /* initiate bmdma */
+		ap->hsm_task_state = HSM_ST_LAST;
 		break;
 
-	case ATA_PROT_PIO: /* load tf registers, initiate polling pio */
-		ata_qc_set_polling(qc);
+	case ATA_PROT_PIO:
+		if (qc->tf.flags & ATA_TFLAG_POLLING)
+			ata_qc_set_polling(qc);
+
 		ata_tf_to_host(ap, &qc->tf);
-		ap->hsm_task_state = HSM_ST;
-		ata_port_queue_task(ap, ata_pio_task, qc, 0);
+
+		if (qc->tf.flags & ATA_TFLAG_WRITE) {
+			/* PIO data out protocol */
+			ap->hsm_task_state = HSM_ST_FIRST;
+			ata_port_queue_task(ap, ata_pio_task, qc, 0);
+
+			/* always send first data block using
+			 * the ata_pio_task() codepath.
+			 */
+		} else {
+			/* PIO data in protocol */
+			ap->hsm_task_state = HSM_ST;
+
+			if (qc->tf.flags & ATA_TFLAG_POLLING)
+				ata_port_queue_task(ap, ata_pio_task, qc, 0);
+
+			/* if polling, ata_pio_task() handles the rest.
+			 * otherwise, interrupt handler takes over from here.
+			 */
+		}
+
 		break;
 
 	case ATA_PROT_ATAPI:
-		ata_qc_set_polling(qc);
-		ata_tf_to_host(ap, &qc->tf);
-		ata_port_queue_task(ap, atapi_packet_task, qc, 0);
-		break;
-
 	case ATA_PROT_ATAPI_NODATA:
-		ap->flags |= ATA_FLAG_NOINTR;
+		if (qc->tf.flags & ATA_TFLAG_POLLING)
+			ata_qc_set_polling(qc);
+
 		ata_tf_to_host(ap, &qc->tf);
-		ata_port_queue_task(ap, atapi_packet_task, qc, 0);
+
+		ap->hsm_task_state = HSM_ST_FIRST;
+
+		/* send cdb by polling if no cdb interrupt */
+		if ((!(qc->dev->flags & ATA_DFLAG_CDB_INTR)) ||
+		    (qc->tf.flags & ATA_TFLAG_POLLING))
+			ata_port_queue_task(ap, ata_pio_task, qc, 0);
 		break;
 
 	case ATA_PROT_ATAPI_DMA:
-		ap->flags |= ATA_FLAG_NOINTR;
+		WARN_ON(qc->tf.flags & ATA_TFLAG_POLLING);
+
 		ap->ops->tf_load(ap, &qc->tf);	 /* load tf registers */
 		ap->ops->bmdma_setup(qc);	    /* set up bmdma */
-		ata_port_queue_task(ap, atapi_packet_task, qc, 0);
+		ap->hsm_task_state = HSM_ST_FIRST;
+
+		/* send cdb by polling if no cdb interrupt */
+		if (!(qc->dev->flags & ATA_DFLAG_CDB_INTR))
+			ata_port_queue_task(ap, ata_pio_task, qc, 0);
 		break;
 
 	default:
@@ -4388,52 +4561,66 @@ unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 inline unsigned int ata_host_intr (struct ata_port *ap,
 				   struct ata_queued_cmd *qc)
 {
-	u8 status, host_stat;
+	u8 status, host_stat = 0;
 
-	switch (qc->tf.protocol) {
+	VPRINTK("ata%u: protocol %d task_state %d\n",
+		ap->id, qc->tf.protocol, ap->hsm_task_state);
 
-	case ATA_PROT_DMA:
-	case ATA_PROT_ATAPI_DMA:
-	case ATA_PROT_ATAPI:
-		/* check status of DMA engine */
-		host_stat = ap->ops->bmdma_status(ap);
-		VPRINTK("ata%u: host_stat 0x%X\n", ap->id, host_stat);
+	/* Check whether we are expecting interrupt in this state */
+	switch (ap->hsm_task_state) {
+	case HSM_ST_FIRST:
+		/* Some pre-ATAPI-4 devices assert INTRQ
+		 * at this state when ready to receive CDB.
+		 */
 
-		/* if it's not our irq... */
-		if (!(host_stat & ATA_DMA_INTR))
+		/* Check the ATA_DFLAG_CDB_INTR flag is enough here.
+		 * The flag was turned on only for atapi devices.
+		 * No need to check is_atapi_taskfile(&qc->tf) again.
+		 */
+		if (!(qc->dev->flags & ATA_DFLAG_CDB_INTR))
 			goto idle_irq;
-
-		/* before we do anything else, clear DMA-Start bit */
-		ap->ops->bmdma_stop(qc);
-
-		/* fall through */
-
-	case ATA_PROT_ATAPI_NODATA:
-	case ATA_PROT_NODATA:
-		/* check altstatus */
-		status = ata_altstatus(ap);
-		if (status & ATA_BUSY)
-			goto idle_irq;
-
-		/* check main status, clearing INTRQ */
-		status = ata_chk_status(ap);
-		if (unlikely(status & ATA_BUSY))
-			goto idle_irq;
-		DPRINTK("ata%u: protocol %d (dev_stat 0x%X)\n",
-			ap->id, qc->tf.protocol, status);
-
-		/* ack bmdma irq events */
-		ap->ops->irq_clear(ap);
-
-		/* complete taskfile transaction */
-		qc->err_mask |= ac_err_mask(status);
-		ata_qc_complete(qc);
 		break;
+	case HSM_ST_LAST:
+		if (qc->tf.protocol == ATA_PROT_DMA ||
+		    qc->tf.protocol == ATA_PROT_ATAPI_DMA) {
+			/* check status of DMA engine */
+			host_stat = ap->ops->bmdma_status(ap);
+			VPRINTK("ata%u: host_stat 0x%X\n", ap->id, host_stat);
 
+			/* if it's not our irq... */
+			if (!(host_stat & ATA_DMA_INTR))
+				goto idle_irq;
+
+			/* before we do anything else, clear DMA-Start bit */
+			ap->ops->bmdma_stop(qc);
+
+			if (unlikely(host_stat & ATA_DMA_ERR)) {
+				/* error when transfering data to/from memory */
+				qc->err_mask |= AC_ERR_HOST_BUS;
+				ap->hsm_task_state = HSM_ST_ERR;
+			}
+		}
+		break;
+	case HSM_ST:
+		break;
 	default:
 		goto idle_irq;
 	}
 
+	/* check altstatus */
+	status = ata_altstatus(ap);
+	if (status & ATA_BUSY)
+		goto idle_irq;
+
+	/* check main status, clearing INTRQ */
+	status = ata_chk_status(ap);
+	if (unlikely(status & ATA_BUSY))
+		goto idle_irq;
+
+	/* ack bmdma irq events */
+	ap->ops->irq_clear(ap);
+
+	ata_hsm_move(ap, qc, status, 0);
 	return 1;	/* irq handled */
 
 idle_irq:
@@ -4480,11 +4667,11 @@ irqreturn_t ata_interrupt (int irq, void *dev_instance, struct pt_regs *regs)
 
 		ap = host_set->ports[i];
 		if (ap &&
-		    !(ap->flags & (ATA_FLAG_DISABLED | ATA_FLAG_NOINTR))) {
+		    !(ap->flags & ATA_FLAG_DISABLED)) {
 			struct ata_queued_cmd *qc;
 
 			qc = ata_qc_from_tag(ap, ap->active_tag);
-			if (qc && (!(qc->tf.ctl & ATA_NIEN)) &&
+			if (qc && (!(qc->tf.flags & ATA_TFLAG_POLLING)) &&
 			    (qc->flags & ATA_QCFLAG_ACTIVE))
 				handled |= ata_host_intr(ap, qc);
 		}

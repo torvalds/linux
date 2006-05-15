@@ -212,6 +212,7 @@ enum {
 	ATA_TFLAG_WRITE		= (1 << 3), /* data dir: host->dev==1 (write) */
 	ATA_TFLAG_LBA		= (1 << 4), /* enable LBA */
 	ATA_TFLAG_FUA		= (1 << 5), /* enable FUA */
+	ATA_TFLAG_POLLING	= (1 << 6), /* set nIEN to 1 and use polling */
 };
 
 enum ata_tf_protocols {
@@ -285,6 +286,8 @@ struct ata_taskfile {
 	  ((u64) (id)[(n) + 1] << 16) |	\
 	  ((u64) (id)[(n) + 0]) )
 
+#define ata_id_cdb_intr(id)	(((id)[0] & 0x60) == 0x20)
+
 static inline unsigned int ata_id_major_version(const u16 *id)
 {
 	unsigned int mver;
@@ -322,6 +325,15 @@ static inline int is_atapi_taskfile(const struct ata_taskfile *tf)
 	return (tf->protocol == ATA_PROT_ATAPI) ||
 	       (tf->protocol == ATA_PROT_ATAPI_NODATA) ||
 	       (tf->protocol == ATA_PROT_ATAPI_DMA);
+}
+
+static inline int is_multi_taskfile(struct ata_taskfile *tf)
+{
+	return (tf->command == ATA_CMD_READ_MULTI) ||
+	       (tf->command == ATA_CMD_WRITE_MULTI) ||
+	       (tf->command == ATA_CMD_READ_MULTI_EXT) ||
+	       (tf->command == ATA_CMD_WRITE_MULTI_EXT) ||
+	       (tf->command == ATA_CMD_WRITE_MULTI_FUA_EXT);
 }
 
 static inline int ata_ok(u8 status)

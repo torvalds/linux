@@ -124,6 +124,7 @@ enum {
 	/* struct ata_device stuff */
 	ATA_DFLAG_LBA		= (1 << 0), /* device supports LBA */
 	ATA_DFLAG_LBA48		= (1 << 1), /* device supports LBA48 */
+	ATA_DFLAG_CDB_INTR	= (1 << 2), /* device asserts INTRQ when ready for CDB */
 	ATA_DFLAG_CFG_MASK	= (1 << 8) - 1,
 
 	ATA_DFLAG_PIO		= (1 << 8), /* device currently in PIO mode */
@@ -147,9 +148,9 @@ enum {
 	ATA_FLAG_PIO_DMA	= (1 << 7), /* PIO cmds via DMA */
 	ATA_FLAG_PIO_LBA48	= (1 << 8), /* Host DMA engine is LBA28 only */
 	ATA_FLAG_IRQ_MASK	= (1 << 9), /* Mask IRQ in PIO xfers */
+	ATA_FLAG_PIO_POLLING	= (1 << 10), /* use polling PIO if LLD
+					      * doesn't handle PIO interrupts */
 
-	ATA_FLAG_NOINTR		= (1 << 13), /* FIXME: Remove this once
-					      * proper HSM is in place. */
 	ATA_FLAG_DEBUGMSG	= (1 << 14),
 	ATA_FLAG_FLUSH_PORT_TASK = (1 << 15), /* flush port task */
 
@@ -178,11 +179,8 @@ enum {
 	ATA_HOST_SIMPLEX	= (1 << 0),	/* Host is simplex, one DMA channel per host_set only */
 	
 	/* various lengths of time */
-	ATA_TMOUT_PIO		= 30 * HZ,
 	ATA_TMOUT_BOOT		= 30 * HZ,	/* heuristic */
 	ATA_TMOUT_BOOT_QUICK	= 7 * HZ,	/* heuristic */
-	ATA_TMOUT_CDB		= 30 * HZ,
-	ATA_TMOUT_CDB_QUICK	= 5 * HZ,
 	ATA_TMOUT_INTERNAL	= 30 * HZ,
 	ATA_TMOUT_INTERNAL_QUICK = 5 * HZ,
 
@@ -252,14 +250,13 @@ enum {
 };
 
 enum hsm_task_states {
-	HSM_ST_UNKNOWN,
-	HSM_ST_IDLE,
-	HSM_ST_POLL,
-	HSM_ST_TMOUT,
-	HSM_ST,
-	HSM_ST_LAST,
-	HSM_ST_LAST_POLL,
-	HSM_ST_ERR,
+	HSM_ST_UNKNOWN,		/* state unknown */
+	HSM_ST_IDLE,		/* no command on going */
+	HSM_ST,			/* (waiting the device to) transfer data */
+	HSM_ST_LAST,		/* (waiting the device to) complete command */
+	HSM_ST_ERR,		/* error */
+	HSM_ST_FIRST,		/* (waiting the device to)
+				   write CDB or first data block */
 };
 
 enum ata_completion_errors {
@@ -485,7 +482,6 @@ struct ata_port {
 	struct work_struct	port_task;
 
 	unsigned int		hsm_task_state;
-	unsigned long		pio_task_timeout;
 
 	u32			msg_enable;
 	struct list_head	eh_done_q;
