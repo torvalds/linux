@@ -475,7 +475,10 @@ struct ata_port {
 
 	struct ata_queued_cmd	qcmd[ATA_MAX_QUEUE];
 	unsigned long		qc_allocated;
+	unsigned int		qc_active;
+
 	unsigned int		active_tag;
+	u32			sactive;
 
 	struct ata_host_stats	stats;
 	struct ata_host_set	*host_set;
@@ -668,6 +671,8 @@ extern void ata_bmdma_drive_eh(struct ata_port *ap,
 extern void ata_bmdma_error_handler(struct ata_port *ap);
 extern void ata_bmdma_post_internal_cmd(struct ata_queued_cmd *qc);
 extern void ata_qc_complete(struct ata_queued_cmd *qc);
+extern int ata_qc_complete_multiple(struct ata_port *ap, u32 qc_active,
+				    void (*finish_qc)(struct ata_queued_cmd *));
 extern void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd,
 			      void (*done)(struct scsi_cmnd *));
 extern int ata_std_bios_param(struct scsi_device *sdev,

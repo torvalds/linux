@@ -981,6 +981,7 @@ unsigned ata_exec_internal(struct ata_device *dev,
 	u8 command = tf->command;
 	struct ata_queued_cmd *qc;
 	unsigned int tag, preempted_tag;
+	u32 preempted_sactive, preempted_qc_active;
 	DECLARE_COMPLETION(wait);
 	unsigned long flags;
 	unsigned int err_mask;
@@ -1017,7 +1018,11 @@ unsigned ata_exec_internal(struct ata_device *dev,
 	ata_qc_reinit(qc);
 
 	preempted_tag = ap->active_tag;
+	preempted_sactive = ap->sactive;
+	preempted_qc_active = ap->qc_active;
 	ap->active_tag = ATA_TAG_POISON;
+	ap->sactive = 0;
+	ap->qc_active = 0;
 
 	/* prepare & issue qc */
 	qc->tf = *tf;
@@ -1082,6 +1087,8 @@ unsigned ata_exec_internal(struct ata_device *dev,
 
 	ata_qc_free(qc);
 	ap->active_tag = preempted_tag;
+	ap->sactive = preempted_sactive;
+	ap->qc_active = preempted_qc_active;
 
 	/* XXX - Some LLDDs (sata_mv) disable port on command failure.
 	 * Until those drivers are fixed, we detect the condition
@@ -4270,6 +4277,8 @@ void ata_qc_free(struct ata_queued_cmd *qc)
 
 void __ata_qc_complete(struct ata_queued_cmd *qc)
 {
+	struct ata_port *ap = qc->ap;
+
 	WARN_ON(qc == NULL);	/* ata_qc_from_tag _might_ return NULL */
 	WARN_ON(!(qc->flags & ATA_QCFLAG_ACTIVE));
 
@@ -4277,13 +4286,17 @@ void __ata_qc_complete(struct ata_queued_cmd *qc)
 		ata_sg_clean(qc);
 
 	/* command should be marked inactive atomically with qc completion */
-	qc->ap->active_tag = ATA_TAG_POISON;
+	if (qc->tf.protocol == ATA_PROT_NCQ)
+		ap->sactive &= ~(1 << qc->tag);
+	else
+		ap->active_tag = ATA_TAG_POISON;
 
 	/* atapi: mark qc as inactive to prevent the interrupt handler
 	 * from completing the command twice later, before the error handler
 	 * is called. (when rc != 0 and atapi request sense is needed)
 	 */
 	qc->flags &= ~ATA_QCFLAG_ACTIVE;
+	ap->qc_active &= ~(1 << qc->tag);
 
 	/* call completion callback */
 	qc->complete_fn(qc);
@@ -4349,6 +4362,55 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 	}
 }
 
+/**
+ *	ata_qc_complete_multiple - Complete multiple qcs successfully
+ *	@ap: port in question
+ *	@qc_active: new qc_active mask
+ *	@finish_qc: LLDD callback invoked before completing a qc
+ *
+ *	Complete in-flight commands.  This functions is meant to be
+ *	called from low-level driver's interrupt routine to complete
+ *	requests normally.  ap->qc_active and @qc_active is compared
+ *	and commands are completed accordingly.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host_set lock)
+ *
+ *	RETURNS:
+ *	Number of completed commands on success, -errno otherwise.
+ */
+int ata_qc_complete_multiple(struct ata_port *ap, u32 qc_active,
+			     void (*finish_qc)(struct ata_queued_cmd *))
+{
+	int nr_done = 0;
+	u32 done_mask;
+	int i;
+
+	done_mask = ap->qc_active ^ qc_active;
+
+	if (unlikely(done_mask & qc_active)) {
+		ata_port_printk(ap, KERN_ERR, "illegal qc_active transition "
+				"(%08x->%08x)\n", ap->qc_active, qc_active);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < ATA_MAX_QUEUE; i++) {
+		struct ata_queued_cmd *qc;
+
+		if (!(done_mask & (1 << i)))
+			continue;
+
+		if ((qc = ata_qc_from_tag(ap, i))) {
+			if (finish_qc)
+				finish_qc(qc);
+			ata_qc_complete(qc);
+			nr_done++;
+		}
+	}
+
+	return nr_done;
+}
+
 static inline int ata_should_dma_map(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
@@ -4388,8 +4450,22 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 
-	qc->ap->active_tag = qc->tag;
+	/* Make sure only one non-NCQ command is outstanding.  The
+	 * check is skipped for old EH because it reuses active qc to
+	 * request ATAPI sense.
+	 */
+	WARN_ON(ap->ops->error_handler && ata_tag_valid(ap->active_tag));
+
+	if (qc->tf.protocol == ATA_PROT_NCQ) {
+		WARN_ON(ap->sactive & (1 << qc->tag));
+		ap->sactive |= 1 << qc->tag;
+	} else {
+		WARN_ON(ap->sactive);
+		ap->active_tag = qc->tag;
+	}
+
 	qc->flags |= ATA_QCFLAG_ACTIVE;
+	ap->qc_active |= 1 << qc->tag;
 
 	if (ata_should_dma_map(qc)) {
 		if (qc->flags & ATA_QCFLAG_SG) {
@@ -5549,6 +5625,7 @@ EXPORT_SYMBOL_GPL(ata_host_set_remove);
 EXPORT_SYMBOL_GPL(ata_sg_init);
 EXPORT_SYMBOL_GPL(ata_sg_init_one);
 EXPORT_SYMBOL_GPL(ata_qc_complete);
+EXPORT_SYMBOL_GPL(ata_qc_complete_multiple);
 EXPORT_SYMBOL_GPL(ata_qc_issue_prot);
 EXPORT_SYMBOL_GPL(ata_tf_load);
 EXPORT_SYMBOL_GPL(ata_tf_read);
