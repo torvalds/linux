@@ -415,6 +415,7 @@ int ata_scsi_device_suspend(struct scsi_device *sdev, pm_message_t state)
  *	@sk: the sense key we'll fill out
  *	@asc: the additional sense code we'll fill out
  *	@ascq: the additional sense code qualifier we'll fill out
+ *	@verbose: be verbose
  *
  *	Converts an ATA error into a SCSI error.  Fill out pointers to
  *	SK, ASC, and ASCQ bytes for later use in fixed or descriptor
@@ -424,7 +425,7 @@ int ata_scsi_device_suspend(struct scsi_device *sdev, pm_message_t state)
  *	spin_lock_irqsave(host_set lock)
  */
 void ata_to_sense_error(unsigned id, u8 drv_stat, u8 drv_err, u8 *sk, u8 *asc,
-			u8 *ascq)
+			u8 *ascq, int verbose)
 {
 	int i;
 
@@ -489,8 +490,9 @@ void ata_to_sense_error(unsigned id, u8 drv_stat, u8 drv_err, u8 *sk, u8 *asc,
 			}
 		}
 		/* No immediate match */
-		printk(KERN_WARNING "ata%u: no sense translation for "
-		       "error 0x%02x\n", id, drv_err);
+		if (verbose)
+			printk(KERN_WARNING "ata%u: no sense translation for "
+			       "error 0x%02x\n", id, drv_err);
 	}
 
 	/* Fall back to interpreting status bits */
@@ -503,8 +505,9 @@ void ata_to_sense_error(unsigned id, u8 drv_stat, u8 drv_err, u8 *sk, u8 *asc,
 		}
 	}
 	/* No error?  Undecoded? */
-	printk(KERN_WARNING "ata%u: no sense translation for status: 0x%02x\n",
-	       id, drv_stat);
+	if (verbose)
+		printk(KERN_WARNING "ata%u: no sense translation for "
+		       "status: 0x%02x\n", id, drv_stat);
 
 	/* We need a sensible error return here, which is tricky, and one
 	   that won't cause people to do things like return a disk wrongly */
@@ -513,9 +516,10 @@ void ata_to_sense_error(unsigned id, u8 drv_stat, u8 drv_err, u8 *sk, u8 *asc,
 	*ascq = 0x00;
 
  translate_done:
-	printk(KERN_ERR "ata%u: translated ATA stat/err 0x%02x/%02x to "
-	       "SCSI SK/ASC/ASCQ 0x%x/%02x/%02x\n", id, drv_stat, drv_err,
-	       *sk, *asc, *ascq);
+	if (verbose)
+		printk(KERN_ERR "ata%u: translated ATA stat/err 0x%02x/%02x "
+		       "to SCSI SK/ASC/ASCQ 0x%x/%02x/%02x\n",
+		       id, drv_stat, drv_err, *sk, *asc, *ascq);
 	return;
 }
 
@@ -538,6 +542,7 @@ void ata_gen_ata_desc_sense(struct ata_queued_cmd *qc)
 	struct ata_taskfile *tf = &qc->result_tf;
 	unsigned char *sb = cmd->sense_buffer;
 	unsigned char *desc = sb + 8;
+	int verbose = qc->ap->ops->error_handler == NULL;
 
 	memset(sb, 0, SCSI_SENSE_BUFFERSIZE);
 
@@ -550,7 +555,7 @@ void ata_gen_ata_desc_sense(struct ata_queued_cmd *qc)
 	if (qc->err_mask ||
 	    tf->command & (ATA_BUSY | ATA_DF | ATA_ERR | ATA_DRQ)) {
 		ata_to_sense_error(qc->ap->id, tf->command, tf->feature,
-				   &sb[1], &sb[2], &sb[3]);
+				   &sb[1], &sb[2], &sb[3], verbose);
 		sb[1] &= 0x0f;
 	}
 
@@ -608,6 +613,7 @@ void ata_gen_fixed_sense(struct ata_queued_cmd *qc)
 	struct scsi_cmnd *cmd = qc->scsicmd;
 	struct ata_taskfile *tf = &qc->result_tf;
 	unsigned char *sb = cmd->sense_buffer;
+	int verbose = qc->ap->ops->error_handler == NULL;
 
 	memset(sb, 0, SCSI_SENSE_BUFFERSIZE);
 
@@ -620,7 +626,7 @@ void ata_gen_fixed_sense(struct ata_queued_cmd *qc)
 	if (qc->err_mask ||
 	    tf->command & (ATA_BUSY | ATA_DF | ATA_ERR | ATA_DRQ)) {
 		ata_to_sense_error(qc->ap->id, tf->command, tf->feature,
-				   &sb[2], &sb[12], &sb[13]);
+				   &sb[2], &sb[12], &sb[13], verbose);
 		sb[2] &= 0x0f;
 	}
 
@@ -1212,7 +1218,7 @@ static void ata_scsi_qc_complete(struct ata_queued_cmd *qc)
 		}
 	}
 
-	if (need_sense)
+	if (need_sense && !qc->ap->ops->error_handler)
 		ata_dump_status(qc->ap->id, &qc->result_tf);
 
 	qc->scsidone(cmd);
@@ -2060,6 +2066,26 @@ static void atapi_qc_complete(struct ata_queued_cmd *qc)
 
 	VPRINTK("ENTER, err_mask 0x%X\n", err_mask);
 
+	/* handle completion from new EH */
+	if (unlikely(qc->ap->ops->error_handler &&
+		     (err_mask || qc->flags & ATA_QCFLAG_SENSE_VALID))) {
+
+		if (!(qc->flags & ATA_QCFLAG_SENSE_VALID)) {
+			/* FIXME: not quite right; we don't want the
+			 * translation of taskfile registers into a
+			 * sense descriptors, since that's only
+			 * correct for ATA, not ATAPI
+			 */
+			ata_gen_ata_desc_sense(qc);
+		}
+
+		qc->scsicmd->result = SAM_STAT_CHECK_CONDITION;
+		qc->scsidone(cmd);
+		ata_qc_free(qc);
+		return;
+	}
+
+	/* successful completion or old EH failure path */
 	if (unlikely(err_mask & AC_ERR_DEV)) {
 		cmd->result = SAM_STAT_CHECK_CONDITION;
 		atapi_request_sense(qc);
