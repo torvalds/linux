@@ -946,10 +946,10 @@ void dt_vdevices(struct iseries_flat_dt *dt)
 
 		if ((vlan_map & (0x8000 >> i)) == 0)
 			continue;
-		snprintf(buf, 32, "vlan@%08x", reg + i);
+		snprintf(buf, 32, "l-lan@%08x", reg + i);
 		dt_start_node(dt, buf);
-		dt_prop_str(dt, "device_type", "vlan");
-		dt_prop_str(dt, "compatible", "");
+		dt_prop_str(dt, "device_type", "network");
+		dt_prop_str(dt, "compatible", "IBM,iSeries-l-lan");
 		dt_prop_u32(dt, "reg", reg + i);
 		dt_prop_u32(dt, "linux,unit_address", i);
 
@@ -961,6 +961,8 @@ void dt_vdevices(struct iseries_flat_dt *dt)
 		mac_addr[5] = HvLpConfig_getLpIndex_outline();
 		dt_prop(dt, "local-mac-address", (char *)mac_addr, ETH_ALEN);
 		dt_prop(dt, "mac-address", (char *)mac_addr, ETH_ALEN);
+		dt_prop_u32(dt, "max-frame-size", 9000);
+		dt_prop_u32(dt, "address-bits", 48);
 
 		dt_end_node(dt);
 	}
