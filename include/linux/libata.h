@@ -229,12 +229,18 @@ enum {
 	/* ering size */
 	ATA_ERING_SIZE		= 32,
 
+	/* desc_len for ata_eh_info and context */
+	ATA_EH_DESC_LEN		= 80,
+
 	/* reset / recovery action types */
 	ATA_EH_REVALIDATE	= (1 << 0),
 	ATA_EH_SOFTRESET	= (1 << 1),
 	ATA_EH_HARDRESET	= (1 << 2),
 
 	ATA_EH_RESET_MASK	= ATA_EH_SOFTRESET | ATA_EH_HARDRESET,
+
+	/* ata_eh_info->flags */
+	ATA_EHI_DID_RESET	= (1 << 0), /* already reset this port */
 
 	/* max repeat if error condition is still set after ->error_handler */
 	ATA_EH_MAX_REPEAT	= 5,
@@ -420,6 +426,21 @@ struct ata_device {
 	struct ata_ering	ering;
 };
 
+struct ata_eh_info {
+	struct ata_device	*dev;		/* offending device */
+	u32			serror;		/* SError from LLDD */
+	unsigned int		err_mask;	/* port-wide err_mask */
+	unsigned int		action;		/* ATA_EH_* action mask */
+	unsigned int		flags;		/* ATA_EHI_* flags */
+	char			desc[ATA_EH_DESC_LEN];
+	int			desc_len;
+};
+
+struct ata_eh_context {
+	struct ata_eh_info	i;
+	int			tries[ATA_MAX_DEVICES];
+};
+
 struct ata_port {
 	struct Scsi_Host	*host;	/* our co-allocated scsi host */
 	const struct ata_port_operations *ops;
@@ -443,6 +464,11 @@ struct ata_port {
 	unsigned int		udma_mask;
 	unsigned int		cbl;	/* cable type; ATA_CBL_xxx */
 	unsigned int		sata_spd_limit;	/* SATA PHY speed limit */
+
+	/* record runtime error info, protected by host_set lock */
+	struct ata_eh_info	eh_info;
+	/* EH context owned by EH */
+	struct ata_eh_context	eh_context;
 
 	struct ata_device	device[ATA_MAX_DEVICES];
 
@@ -709,6 +735,20 @@ extern void ata_eh_qc_retry(struct ata_queued_cmd *qc);
 
 #define ata_dev_printk(dev, lv, fmt, args...) \
 	printk(lv"ata%u.%02u: "fmt, (dev)->ap->id, (dev)->devno , ##args)
+
+/*
+ * ata_eh_info helpers
+ */
+#define ata_ehi_push_desc(ehi, fmt, args...) do { \
+	(ehi)->desc_len += scnprintf((ehi)->desc + (ehi)->desc_len, \
+				     ATA_EH_DESC_LEN - (ehi)->desc_len, \
+				     fmt , ##args); \
+} while (0)
+
+#define ata_ehi_clear_desc(ehi) do { \
+	(ehi)->desc[0] = '\0'; \
+	(ehi)->desc_len = 0; \
+} while (0)
 
 /*
  * qc helpers

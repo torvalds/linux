@@ -229,9 +229,15 @@ void ata_scsi_error(struct Scsi_Host *host)
  repeat:
 	/* invoke error handler */
 	if (ap->ops->error_handler) {
-		/* clear EH pending */
+		/* fetch & clear EH info */
 		spin_lock_irqsave(hs_lock, flags);
+
+		memset(&ap->eh_context, 0, sizeof(ap->eh_context));
+		ap->eh_context.i = ap->eh_info;
+		memset(&ap->eh_info, 0, sizeof(ap->eh_info));
+
 		ap->flags &= ~ATA_FLAG_EH_PENDING;
+
 		spin_unlock_irqrestore(hs_lock, flags);
 
 		/* invoke EH */
@@ -254,6 +260,9 @@ void ata_scsi_error(struct Scsi_Host *host)
 			ata_port_printk(ap, KERN_ERR, "EH pending after %d "
 					"tries, giving up\n", ATA_EH_MAX_REPEAT);
 		}
+
+		/* this run is complete, make sure EH info is clear */
+		memset(&ap->eh_info, 0, sizeof(ap->eh_info));
 
 		/* Clear host_eh_scheduled while holding hs_lock such
 		 * that if exception occurs after this point but
