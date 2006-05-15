@@ -982,8 +982,8 @@ void dt_vdevices(struct iseries_flat_dt *dt)
 	for (i = 0; i < HVMAXARCHITECTEDVIRTUALCDROMS; i++) {
 		snprintf(buf, 32, "viocd@%08x", reg + i);
 		dt_start_node(dt, buf);
-		dt_prop_str(dt, "device_type", "viocd");
-		dt_prop_str(dt, "compatible", "");
+		dt_prop_str(dt, "device_type", "block");
+		dt_prop_str(dt, "compatible", "IBM,iSeries-viocd");
 		dt_prop_u32(dt, "reg", reg + i);
 		dt_prop_u32(dt, "linux,unit_address", i);
 		dt_end_node(dt);
@@ -992,8 +992,8 @@ void dt_vdevices(struct iseries_flat_dt *dt)
 	for (i = 0; i < HVMAXARCHITECTEDVIRTUALTAPES; i++) {
 		snprintf(buf, 32, "viotape@%08x", reg + i);
 		dt_start_node(dt, buf);
-		dt_prop_str(dt, "device_type", "viotape");
-		dt_prop_str(dt, "compatible", "");
+		dt_prop_str(dt, "device_type", "byte");
+		dt_prop_str(dt, "compatible", "IBM,iSeries-viotape");
 		dt_prop_u32(dt, "reg", reg + i);
 		dt_prop_u32(dt, "linux,unit_address", i);
 		dt_end_node(dt);
