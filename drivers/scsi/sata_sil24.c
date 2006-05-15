@@ -799,17 +799,9 @@ static inline void sil24_host_intr(struct ata_port *ap)
 		if (ap->flags & SIL24_FLAG_PCIX_IRQ_WOC)
 			writel(PORT_IRQ_COMPLETE, port + PORT_IRQ_STAT);
 
-		/*
-		 * !HOST_SSAT_ATTN guarantees successful completion,
-		 * so reading back tf registers is unnecessary for
-		 * most commands.  TODO: read tf registers for
-		 * commands which require these values on successful
-		 * completion (EXECUTE DEVICE DIAGNOSTIC, CHECK POWER,
-		 * DEVICE RESET and READ PORT MULTIPLIER (any more?).
-		 */
-		sil24_update_tf(ap);
-
 		if (qc) {
+			if (qc->flags & ATA_QCFLAG_RESULT_TF)
+				sil24_update_tf(ap);
 			qc->err_mask |= ac_err_mask(pp->tf.command);
 			ata_qc_complete(qc);
 		}
