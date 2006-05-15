@@ -237,6 +237,60 @@ void ata_qc_schedule_eh(struct ata_queued_cmd *qc)
 	scsi_req_abort_cmd(qc->scsicmd);
 }
 
+/**
+ *	ata_port_schedule_eh - schedule error handling without a qc
+ *	@ap: ATA port to schedule EH for
+ *
+ *	Schedule error handling for @ap.  EH will kick in as soon as
+ *	all commands are drained.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host_set lock)
+ */
+void ata_port_schedule_eh(struct ata_port *ap)
+{
+	WARN_ON(!ap->ops->error_handler);
+
+	ap->flags |= ATA_FLAG_EH_PENDING;
+	ata_schedule_scsi_eh(ap->host);
+
+	DPRINTK("port EH scheduled\n");
+}
+
+/**
+ *	ata_port_abort - abort all qc's on the port
+ *	@ap: ATA port to abort qc's for
+ *
+ *	Abort all active qc's of @ap and schedule EH.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host_set lock)
+ *
+ *	RETURNS:
+ *	Number of aborted qc's.
+ */
+int ata_port_abort(struct ata_port *ap)
+{
+	int tag, nr_aborted = 0;
+
+	WARN_ON(!ap->ops->error_handler);
+
+	for (tag = 0; tag < ATA_MAX_QUEUE; tag++) {
+		struct ata_queued_cmd *qc = ata_qc_from_tag(ap, tag);
+
+		if (qc) {
+			qc->flags |= ATA_QCFLAG_FAILED;
+			ata_qc_complete(qc);
+			nr_aborted++;
+		}
+	}
+
+	if (!nr_aborted)
+		ata_port_schedule_eh(ap);
+
+	return nr_aborted;
+}
+
 static void ata_eh_scsidone(struct scsi_cmnd *scmd)
 {
 	/* nada */

@@ -2596,3 +2596,26 @@ void ata_scsi_scan_host(struct ata_port *ap)
 	}
 }
 
+/**
+ *	ata_schedule_scsi_eh - schedule EH for SCSI host
+ *	@shost:	SCSI host to invoke error handling on.
+ *
+ *	Schedule SCSI EH without scmd.  This is a hack.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host_set lock)
+ **/
+void ata_schedule_scsi_eh(struct Scsi_Host *shost)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(shost->host_lock, flags);
+
+	if (scsi_host_set_state(shost, SHOST_RECOVERY) == 0 ||
+	    scsi_host_set_state(shost, SHOST_CANCEL_RECOVERY) == 0) {
+		shost->host_eh_scheduled++;
+		scsi_eh_wakeup(shost);
+	}
+
+	spin_unlock_irqrestore(shost->host_lock, flags);
+}

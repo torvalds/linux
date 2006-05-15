@@ -662,6 +662,10 @@ extern unsigned long ata_pci_default_filter(const struct ata_port *, struct ata_
  * EH
  */
 extern void ata_eng_timeout(struct ata_port *ap);
+
+extern void ata_port_schedule_eh(struct ata_port *ap);
+extern int ata_port_abort(struct ata_port *ap);
+
 extern void ata_eh_qc_complete(struct ata_queued_cmd *qc);
 extern void ata_eh_qc_retry(struct ata_queued_cmd *qc);
 
