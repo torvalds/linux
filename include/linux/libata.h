@@ -650,7 +650,18 @@ extern void ata_eng_timeout(struct ata_port *ap);
 extern void ata_eh_qc_complete(struct ata_queued_cmd *qc);
 extern void ata_eh_qc_retry(struct ata_queued_cmd *qc);
 
+/*
+ * printk helpers
+ */
+#define ata_port_printk(ap, lv, fmt, args...) \
+	printk(lv"ata%u: "fmt, (ap)->id , ##args)
 
+#define ata_dev_printk(dev, lv, fmt, args...) \
+	printk(lv"ata%u.%02u: "fmt, (dev)->ap->id, (dev)->devno , ##args)
+
+/*
+ * qc helpers
+ */
 static inline int
 ata_sg_is_last(struct scatterlist *sg, struct ata_queued_cmd *qc)
 {
