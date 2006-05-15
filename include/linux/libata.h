@@ -358,6 +358,7 @@ struct ata_host_stats {
 };
 
 struct ata_device {
+	struct ata_port		*ap;
 	u64			n_sectors;	/* size of device, if ATA */
 	unsigned long		flags;		/* ATA_DFLAG_xxx */
 	unsigned int		class;		/* ATA_DEV_xxx */

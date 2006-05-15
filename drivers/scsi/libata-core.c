@@ -4749,6 +4749,7 @@ static void ata_host_init(struct ata_port *ap, struct Scsi_Host *host,
 
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
 		struct ata_device *dev = &ap->device[i];
+		dev->ap = ap;
 		dev->devno = i;
 		dev->pio_mask = UINT_MAX;
 		dev->mwdma_mask = UINT_MAX;
