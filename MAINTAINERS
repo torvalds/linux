@@ -1603,6 +1603,11 @@ M:	James.Bottomley@HansenPartnership.com
 L:	linux-scsi@vger.kernel.org
 S:	Maintained
 
+LED SUBSYSTEM
+P:	Richard Purdie
+M:	rpurdie@rpsys.net
+S:	Maintained
+
 LEGO USB Tower driver
 P:	Juergen Stuber
 M:	starblue@users.sourceforge.net
