@@ -1031,6 +1031,9 @@ unsigned ata_exec_internal(struct ata_port *ap, struct ata_device *dev,
 		spin_unlock_irqrestore(&ap->host_set->lock, flags);
 	}
 
+	/* finish up */
+	spin_lock_irqsave(&ap->host_set->lock, flags);
+
 	*tf = qc->tf;
 	err_mask = qc->err_mask;
 
@@ -1051,6 +1054,8 @@ unsigned ata_exec_internal(struct ata_port *ap, struct ata_device *dev,
 		err_mask |= AC_ERR_SYSTEM;
 		ata_port_probe(ap);
 	}
+
+	spin_unlock_irqrestore(&ap->host_set->lock, flags);
 
 	return err_mask;
 }
