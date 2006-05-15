@@ -1099,7 +1099,7 @@ unsigned int ata_pio_need_iordy(const struct ata_device *adev)
  *	@dev: target device
  *	@p_class: pointer to class of the target device (may be changed)
  *	@post_reset: is this read ID post-reset?
- *	@p_id: read IDENTIFY page (newly allocated)
+ *	@id: buffer to read IDENTIFY data into
  *
  *	Read ID data from the specified device.  ATA_CMD_ID_ATA is
  *	performed on ATA devices and ATA_CMD_ID_ATAPI on ATAPI
@@ -1113,25 +1113,17 @@ unsigned int ata_pio_need_iordy(const struct ata_device *adev)
  *	0 on success, -errno otherwise.
  */
 static int ata_dev_read_id(struct ata_port *ap, struct ata_device *dev,
-			   unsigned int *p_class, int post_reset, u16 **p_id)
+			   unsigned int *p_class, int post_reset, u16 *id)
 {
 	unsigned int class = *p_class;
 	struct ata_taskfile tf;
 	unsigned int err_mask = 0;
-	u16 *id;
 	const char *reason;
 	int rc;
 
 	DPRINTK("ENTER, host %u, dev %u\n", ap->id, dev->devno);
 
 	ata_dev_select(ap, dev->devno, 1, 1); /* select device 0/1 */
-
-	id = kmalloc(sizeof(id[0]) * ATA_ID_WORDS, GFP_KERNEL);
-	if (id == NULL) {
-		rc = -ENOMEM;
-		reason = "out of memory";
-		goto err_out;
-	}
 
  retry:
 	ata_tf_init(ap, &tf, dev->devno);
@@ -1194,13 +1186,12 @@ static int ata_dev_read_id(struct ata_port *ap, struct ata_device *dev,
 	}
 
 	*p_class = class;
-	*p_id = id;
+
 	return 0;
 
  err_out:
 	printk(KERN_WARNING "ata%u: dev %u failed to IDENTIFY (%s)\n",
 	       ap->id, dev->devno, reason);
-	kfree(id);
 	return rc;
 }
 
@@ -1425,9 +1416,7 @@ static int ata_bus_probe(struct ata_port *ap)
 		if (!ata_dev_enabled(dev))
 			continue;
 
-		kfree(dev->id);
-		dev->id = NULL;
-		rc = ata_dev_read_id(ap, dev, &dev->class, 1, &dev->id);
+		rc = ata_dev_read_id(ap, dev, &dev->class, 1, dev->id);
 		if (rc)
 			goto fail;
 
@@ -2788,7 +2777,7 @@ int ata_dev_revalidate(struct ata_port *ap, struct ata_device *dev,
 		       int post_reset)
 {
 	unsigned int class = dev->class;
-	u16 *id = NULL;
+	u16 *id = (void *)ap->sector_buf;
 	int rc;
 
 	if (!ata_dev_enabled(dev)) {
@@ -2796,8 +2785,8 @@ int ata_dev_revalidate(struct ata_port *ap, struct ata_device *dev,
 		goto fail;
 	}
 
-	/* allocate & read ID data */
-	rc = ata_dev_read_id(ap, dev, &class, post_reset, &id);
+	/* read ID data */
+	rc = ata_dev_read_id(ap, dev, &class, post_reset, id);
 	if (rc)
 		goto fail;
 
@@ -2807,8 +2796,7 @@ int ata_dev_revalidate(struct ata_port *ap, struct ata_device *dev,
 		goto fail;
 	}
 
-	kfree(dev->id);
-	dev->id = id;
+	memcpy(dev->id, id, sizeof(id[0]) * ATA_ID_WORDS);
 
 	/* configure device according to the new ID */
 	rc = ata_dev_configure(ap, dev, 0);
@@ -2818,7 +2806,6 @@ int ata_dev_revalidate(struct ata_port *ap, struct ata_device *dev,
  fail:
 	printk(KERN_ERR "ata%u: dev %u revalidation failed (errno=%d)\n",
 	       ap->id, dev->devno, rc);
-	kfree(id);
 	return rc;
 }
 
@@ -4873,14 +4860,11 @@ void ata_host_set_remove(struct ata_host_set *host_set)
 int ata_scsi_release(struct Scsi_Host *host)
 {
 	struct ata_port *ap = ata_shost_to_port(host);
-	int i;
 
 	DPRINTK("ENTER\n");
 
 	ap->ops->port_disable(ap);
 	ata_host_remove(ap, 0);
-	for (i = 0; i < ATA_MAX_DEVICES; i++)
-		kfree(ap->device[i].id);
 
 	DPRINTK("EXIT\n");
 	return 1;

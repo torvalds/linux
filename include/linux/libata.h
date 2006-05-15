@@ -360,7 +360,7 @@ struct ata_device {
 	unsigned long		flags;		/* ATA_DFLAG_xxx */
 	unsigned int		class;		/* ATA_DEV_xxx */
 	unsigned int		devno;		/* 0 or 1 */
-	u16			*id;		/* IDENTIFY xxx DEVICE data */
+	u16			id[ATA_ID_WORDS]; /* IDENTIFY xxx DEVICE data */
 	u8			pio_mode;
 	u8			dma_mode;
 	u8			xfer_mode;
@@ -425,6 +425,8 @@ struct ata_port {
 	struct list_head	eh_done_q;
 
 	void			*private_data;
+
+	u8			sector_buf[ATA_SECT_SIZE]; /* owned by EH */
 };
 
 struct ata_port_operations {
