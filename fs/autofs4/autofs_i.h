@@ -74,8 +74,8 @@ struct autofs_wait_queue {
 	struct autofs_wait_queue *next;
 	autofs_wqt_t wait_queue_token;
 	/* We use the following to see what we are waiting for */
-	int hash;
-	int len;
+	unsigned int hash;
+	unsigned int len;
 	char *name;
 	u32 dev;
 	u64 ino;
@@ -85,7 +85,6 @@ struct autofs_wait_queue {
 	pid_t tgid;
 	/* This is for status reporting upon return */
 	int status;
-	atomic_t notify;
 	atomic_t wait_ctr;
 };
 
