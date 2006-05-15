@@ -20,6 +20,7 @@
 #include <linux/device.h>
 #include <linux/sysdev.h>
 #include <linux/timer.h>
+#include <linux/ctype.h>
 #include <linux/leds.h>
 #include "leds.h"
 
@@ -69,11 +70,15 @@ static ssize_t led_delay_on_store(struct class_device *dev, const char *buf,
 	int ret = -EINVAL;
 	char *after;
 	unsigned long state = simple_strtoul(buf, &after, 10);
+	size_t count = after - buf;
 
-	if (after - buf > 0) {
+	if (*after && isspace(*after))
+		count++;
+
+	if (count == size) {
 		timer_data->delay_on = state;
 		mod_timer(&timer_data->timer, jiffies + 1);
-		ret = after - buf;
+		ret = count;
 	}
 
 	return ret;
@@ -97,11 +102,15 @@ static ssize_t led_delay_off_store(struct class_device *dev, const char *buf,
 	int ret = -EINVAL;
 	char *after;
 	unsigned long state = simple_strtoul(buf, &after, 10);
+	size_t count = after - buf;
 
-	if (after - buf > 0) {
+	if (*after && isspace(*after))
+		count++;
+
+	if (count == size) {
 		timer_data->delay_off = state;
 		mod_timer(&timer_data->timer, jiffies + 1);
-		ret = after - buf;
+		ret = count;
 	}
 
 	return ret;
