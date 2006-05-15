@@ -24,6 +24,7 @@
  */
 
 struct v9fs_mux_data;
+struct v9fs_req;
 
 /**
  * v9fs_mux_req_callback - callback function that is called when the
@@ -36,8 +37,7 @@ struct v9fs_mux_data;
  * @rc - response call
  * @err - error code (non-zero if error occured)
  */
-typedef void (*v9fs_mux_req_callback)(void *a, struct v9fs_fcall *tc,
-	struct v9fs_fcall *rc, int err);
+typedef void (*v9fs_mux_req_callback)(struct v9fs_req *req, void *a);
 
 int v9fs_mux_global_init(void);
 void v9fs_mux_global_exit(void);
