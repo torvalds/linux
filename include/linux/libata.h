@@ -474,7 +474,7 @@ struct ata_port {
 	struct ata_device	device[ATA_MAX_DEVICES];
 
 	struct ata_queued_cmd	qcmd[ATA_MAX_QUEUE];
-	unsigned long		qactive;
+	unsigned long		qc_allocated;
 	unsigned int		active_tag;
 
 	struct ata_host_stats	stats;

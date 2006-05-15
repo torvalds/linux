@@ -1006,7 +1006,7 @@ unsigned ata_exec_internal(struct ata_device *dev,
 	else
 		tag = 0;
 
-	if (test_and_set_bit(tag, &ap->qactive))
+	if (test_and_set_bit(tag, &ap->qc_allocated))
 		BUG();
 	qc = __ata_qc_from_tag(ap, tag);
 
@@ -4207,7 +4207,7 @@ static struct ata_queued_cmd *ata_qc_new(struct ata_port *ap)
 
 	/* the last tag is reserved for internal command. */
 	for (i = 0; i < ATA_MAX_QUEUE - 1; i++)
-		if (!test_and_set_bit(i, &ap->qactive)) {
+		if (!test_and_set_bit(i, &ap->qc_allocated)) {
 			qc = __ata_qc_from_tag(ap, i);
 			break;
 		}
@@ -4264,7 +4264,7 @@ void ata_qc_free(struct ata_queued_cmd *qc)
 	tag = qc->tag;
 	if (likely(ata_tag_valid(tag))) {
 		qc->tag = ATA_TAG_POISON;
-		clear_bit(tag, &ap->qactive);
+		clear_bit(tag, &ap->qc_allocated);
 	}
 }
 
