@@ -2200,11 +2200,14 @@ static void drain_cpu_caches(struct kmem_cache *cachep)
 	check_irq_on();
 	for_each_online_node(node) {
 		l3 = cachep->nodelists[node];
-		if (l3) {
+		if (l3 && l3->alien)
+			drain_alien_cache(cachep, l3->alien);
+	}
+
+	for_each_online_node(node) {
+		l3 = cachep->nodelists[node];
+		if (l3)
 			drain_array(cachep, l3, l3->shared, 1, node);
-			if (l3->alien)
-				drain_alien_cache(cachep, l3->alien);
-		}
 	}
 }
 
