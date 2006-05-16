@@ -119,7 +119,7 @@ out:
 	return rc;
 }
 
-static int ipxrtr_delete(long net)
+static int ipxrtr_delete(__u32 net)
 {
 	struct ipx_route *r, *tmp;
 	int rc;
