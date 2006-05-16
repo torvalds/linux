@@ -192,12 +192,21 @@ config MTD_NAND_SHARPSL
 config MTD_NAND_CS553X
 	tristate "NAND support for CS5535/CS5536 (AMD Geode companion chip)"
 	depends on MTD_NAND && X86_PC && PCI
-	
+	help
+	  The CS553x companion chips for the AMD Geode processor
+	  include NAND flash controllers with built-in hardware ECC
+	  capabilities; enabling this option will allow you to use
+	  these. The driver will check the MSRs to verify that the
+	  controller is enabled for NAND, and currently requires that
+	  the controller be in MMIO mode.
+
+	  If you say "m", the module will be called "cs553x_nand.ko".
+
 config MTD_NAND_NANDSIM
 	tristate "Support for NAND Flash Simulator"
 	depends on MTD_NAND && MTD_PARTITIONS
 	help
-	  The simulator may simulate verious NAND flash chips for the
+	  The simulator may simulate various NAND flash chips for the
 	  MTD nand layer.
 
 endmenu
