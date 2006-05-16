@@ -45,8 +45,6 @@ extern unsigned int elf_hwcap;
 
 #endif	/* __ASSEMBLY__ */
 
-#define PROC_INFO_SZ	48
-
 #define HWCAP_SWP	1
 #define HWCAP_HALF	2
 #define HWCAP_THUMB	4

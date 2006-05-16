@@ -311,7 +311,7 @@ void free_thread_info(struct thread_info *thread)
 		struct thread_info_list *th = &get_cpu_var(thread_info_list);
 		if (th->nr < EXTRA_TASK_STRUCT) {
 			unsigned long *p = (unsigned long *)thread;
-			p[0] = th->head;
+			p[0] = (unsigned long)th->head;
 			th->head = p;
 			th->nr += 1;
 			put_cpu_var(thread_info_list);
