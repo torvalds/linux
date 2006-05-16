@@ -347,11 +347,9 @@ static int __init au1xxx_nand_init(void)
 	au1550_mtd->priv = this;
 	au1550_mtd->owner = THIS_MODULE;
 
-	/* disable interrupts */
-	au_writel(au_readl(MEM_STNDCTL) & ~(1 << 8), MEM_STNDCTL);
 
-	/* disable NAND boot */
-	au_writel(au_readl(MEM_STNDCTL) & ~(1 << 0), MEM_STNDCTL);
+	/* MEM_STNDCTL: disable ints, disable nand boot */
+	au_writel(0, MEM_STNDCTL);
 
 #ifdef CONFIG_MIPS_PB1550
 	/* set gpio206 high */
