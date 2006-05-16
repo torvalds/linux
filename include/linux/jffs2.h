@@ -82,15 +82,15 @@
 
 typedef struct {
 	uint32_t v32;
-} jint32_t;
+} __attribute__((packed)) jint32_t;
 
 typedef struct {
 	uint32_t m;
-} jmode_t;
+} __attribute__((packed)) jmode_t;
 
 typedef struct {
 	uint16_t v16;
-} jint16_t;
+} __attribute__((packed)) jint16_t;
 
 struct jffs2_unknown_node
 {
