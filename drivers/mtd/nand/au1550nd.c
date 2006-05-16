@@ -321,7 +321,7 @@ int au1550_device_ready(struct mtd_info *mtd)
 /*
  * Main initialization routine
  */
-int __init au1xxx_nand_init(void)
+static int __init au1xxx_nand_init(void)
 {
 	struct nand_chip *this;
 	u16 boot_swapboot = 0;	/* default value */
@@ -480,7 +480,6 @@ module_init(au1xxx_nand_init);
 /*
  * Clean up routine
  */
-#ifdef MODULE
 static void __exit au1550_cleanup(void)
 {
 	struct nand_chip *this = (struct nand_chip *)&au1550_mtd[1];
@@ -496,7 +495,6 @@ static void __exit au1550_cleanup(void)
 }
 
 module_exit(au1550_cleanup);
-#endif
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Embedded Edge, LLC");

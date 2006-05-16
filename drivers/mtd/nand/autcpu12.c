@@ -124,7 +124,7 @@ int autcpu12_device_ready(struct mtd_info *mtd)
 /*
  * Main initialization routine
  */
-int __init autcpu12_init(void)
+static int __init autcpu12_init(void)
 {
 	struct nand_chip *this;
 	int err = 0;
@@ -203,7 +203,6 @@ module_init(autcpu12_init);
 /*
  * Clean up routine
  */
-#ifdef MODULE
 static void __exit autcpu12_cleanup(void)
 {
 	/* Release resources, unregister device */
@@ -217,7 +216,6 @@ static void __exit autcpu12_cleanup(void)
 }
 
 module_exit(autcpu12_cleanup);
-#endif
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Thomas Gleixner <tglx@linutronix.de>");

@@ -516,7 +516,7 @@ static int rtc_from4_errstat(struct mtd_info *mtd, struct nand_chip *this, int s
 /*
  * Main initialization routine
  */
-int __init rtc_from4_init(void)
+static int __init rtc_from4_init(void)
 {
 	struct nand_chip *this;
 	unsigned short bcr1, bcr2, wcr2;
@@ -637,7 +637,6 @@ module_init(rtc_from4_init);
 /*
  * Clean up routine
  */
-#ifdef MODULE
 static void __exit rtc_from4_cleanup(void)
 {
 	/* Release resource, unregister partitions */
@@ -655,7 +654,6 @@ static void __exit rtc_from4_cleanup(void)
 }
 
 module_exit(rtc_from4_cleanup);
-#endif
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("d.marlin <dmarlin@redhat.com");

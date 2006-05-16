@@ -115,7 +115,7 @@ static void toto_hwcontrol(struct mtd_info *mtd, int cmd)
 /*
  * Main initialization routine
  */
-int __init toto_init(void)
+static int __init toto_init(void)
 {
 	struct nand_chip *this;
 	int err = 0;

@@ -267,7 +267,7 @@ out:
 	return err;
 }
 
-int __init cs553x_init(void)
+static int __init cs553x_init(void)
 {
 	int err = -ENXIO;
 	int i;

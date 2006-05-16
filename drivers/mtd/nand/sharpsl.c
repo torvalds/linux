@@ -155,7 +155,7 @@ const char *part_probes[] = { "cmdlinepart", NULL };
 /*
  * Main initialization routine
  */
-int __init sharpsl_nand_init(void)
+static int __init sharpsl_nand_init(void)
 {
 	struct nand_chip *this;
 	struct mtd_partition *sharpsl_partition_info;
@@ -257,7 +257,6 @@ module_init(sharpsl_nand_init);
 /*
  * Clean up routine
  */
-#ifdef MODULE
 static void __exit sharpsl_nand_cleanup(void)
 {
 	struct nand_chip *this = (struct nand_chip *)&sharpsl_mtd[1];
@@ -272,7 +271,6 @@ static void __exit sharpsl_nand_cleanup(void)
 }
 
 module_exit(sharpsl_nand_cleanup);
-#endif
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Richard Purdie <rpurdie@rpsys.net>");

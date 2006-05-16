@@ -101,7 +101,7 @@ static void spia_hwcontrol(struct mtd_info *mtd, int cmd)
 /*
  * Main initialization routine
  */
-int __init spia_init(void)
+static int __init spia_init(void)
 {
 	struct nand_chip *this;
 
@@ -155,7 +155,6 @@ module_init(spia_init);
 /*
  * Clean up routine
  */
-#ifdef MODULE
 static void __exit spia_cleanup(void)
 {
 	/* Release resources, unregister device */
@@ -166,7 +165,6 @@ static void __exit spia_cleanup(void)
 }
 
 module_exit(spia_cleanup);
-#endif
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Steven J. Hill <sjhill@realitydiluted.com");
