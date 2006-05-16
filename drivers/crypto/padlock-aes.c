@@ -60,15 +60,14 @@
 #define AES_EXTENDED_KEY_SIZE_B	(AES_EXTENDED_KEY_SIZE * sizeof(uint32_t))
 
 struct aes_ctx {
-	uint32_t e_data[AES_EXTENDED_KEY_SIZE];
-	uint32_t d_data[AES_EXTENDED_KEY_SIZE];
 	struct {
 		struct cword encrypt;
 		struct cword decrypt;
 	} cword;
-	uint32_t *E;
-	uint32_t *D;
+	u32 *D;
 	int key_length;
+	u32 E[AES_EXTENDED_KEY_SIZE];
+	u32 d_data[AES_EXTENDED_KEY_SIZE];
 };
 
 /* ====== Key management routines ====== */
@@ -313,8 +312,7 @@ static int aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 	 * itself we must supply the plain key for both encryption
 	 * and decryption.
 	 */
-	ctx->E = ctx->e_data;
-	ctx->D = ctx->e_data;
+	ctx->D = ctx->E;
 
 	E_KEY[0] = le32_to_cpu(key[0]);
 	E_KEY[1] = le32_to_cpu(key[1]);
