@@ -1907,9 +1907,12 @@ uart_set_options(struct uart_port *port, struct console *co,
 static void uart_change_pm(struct uart_state *state, int pm_state)
 {
 	struct uart_port *port = state->port;
-	if (port->ops->pm)
-		port->ops->pm(port, pm_state, state->pm_state);
-	state->pm_state = pm_state;
+
+	if (state->pm_state != pm_state) {
+		if (port->ops->pm)
+			port->ops->pm(port, pm_state, state->pm_state);
+		state->pm_state = pm_state;
+	}
 }
 
 int uart_suspend_port(struct uart_driver *drv, struct uart_port *port)
