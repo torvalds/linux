@@ -354,7 +354,7 @@ int dlm_is_node_dead(struct dlm_ctxt *dlm, u8 node)
 
 /* returns true if node is no longer in the domain
  * could be dead or just not joined */
-int dlm_is_node_recovered(struct dlm_ctxt *dlm, u8 node)
+static int dlm_is_node_recovered(struct dlm_ctxt *dlm, u8 node)
 {
 	int recovered;
 	spin_lock(&dlm->spinlock);
