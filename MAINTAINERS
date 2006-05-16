@@ -1117,6 +1117,12 @@ L:	linux-hams@vger.kernel.org
 W:	http://www.nt.tuwien.ac.at/~kkudielk/Linux/
 S:	Maintained
 
+HIGHPOINT ROCKETRAID 3xxx RAID DRIVER
+P:	HighPoint Linux Team
+M:	linux@highpoint-tech.com
+W:	http://www.highpoint-tech.com
+S:	Supported
+
 HIPPI
 P:	Jes Sorensen
 M:	jes@trained-monkey.org
