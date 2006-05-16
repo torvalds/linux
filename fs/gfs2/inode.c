@@ -297,19 +297,13 @@ static int inode_create(struct gfs2_glock *i_gl, const struct gfs2_inum *inum,
 	if (!ip)
 		return -ENOMEM;
 	memset(ip, 0, sizeof(struct gfs2_inode));
-
 	ip->i_num = *inum;
-
 	atomic_set(&ip->i_count, 1);
-
 	ip->i_vn = i_gl->gl_vn - 1;
-
 	ip->i_gl = i_gl;
 	ip->i_sbd = sdp;
-
 	spin_lock_init(&ip->i_spin);
 	init_rwsem(&ip->i_rw_mutex);
-
 	ip->i_greedy = gfs2_tune_get(sdp, gt_greedy_default);
 
 	if (need_lock) {
@@ -318,27 +312,23 @@ static int inode_create(struct gfs2_glock *i_gl, const struct gfs2_inum *inum,
 					   &ip->i_iopen_gh);
 		if (error)
 			goto fail;
-	}
 
-	spin_lock(&io_gl->gl_spin);
-	gfs2_glock_hold(i_gl);
-	io_gl->gl_object = i_gl;
-	spin_unlock(&io_gl->gl_spin);
+		spin_lock(&io_gl->gl_spin);
+		gfs2_glock_hold(i_gl);
+		io_gl->gl_object = i_gl;
+		spin_unlock(&io_gl->gl_spin);
+	}
 
 	gfs2_glock_hold(i_gl);
 	i_gl->gl_object = ip;
-
 	atomic_inc(&sdp->sd_inode_count);
-
 	*ipp = ip;
-
 	return 0;
 
- fail:
+fail:
 	gfs2_meta_cache_flush(ip);
 	kmem_cache_free(gfs2_inode_cachep, ip);
 	*ipp = NULL;
-
 	return error;
 }
 
