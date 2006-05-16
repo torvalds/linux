@@ -132,9 +132,8 @@ static int mt352_aver777_init(struct dvb_frontend* fe)
 	return 0;
 }
 
-static int mt352_pinnacle_tuner_calc_regs(struct dvb_frontend* fe,
-				       struct dvb_frontend_parameters* params,
-				       u8* pllbuf, int buf_len)
+static int mt352_pinnacle_tuner_set_params(struct dvb_frontend* fe,
+					   struct dvb_frontend_parameters* params)
 {
 	u8 off[] = { 0x00, 0xf1};
 	u8 on[]  = { 0x00, 0x71};
@@ -142,9 +141,6 @@ static int mt352_pinnacle_tuner_calc_regs(struct dvb_frontend* fe,
 
 	struct saa7134_dev *dev = fe->dvb->priv;
 	struct v4l2_frequency f;
-
-	if (buf_len < 5)
-		return -EINVAL;
 
 	/* set frequency (mt2050) */
 	f.tuner     = 0;
@@ -162,13 +158,7 @@ static int mt352_pinnacle_tuner_calc_regs(struct dvb_frontend* fe,
 	pinnacle_antenna_pwr(dev, antenna_pwr);
 
 	/* mt352 setup */
-	mt352_pinnacle_init(fe);
-	pllbuf[0] = 0x61;
-	pllbuf[1] = 0x00;
-	pllbuf[2] = 0x00;
-	pllbuf[3] = 0x80;
-	pllbuf[4] = 0x00;
-	return 5;
+	return mt352_pinnacle_init(fe);
 }
 
 static int mt352_aver777_tuner_calc_regs(struct dvb_frontend *fe, struct dvb_frontend_parameters *params, u8* pllbuf, int buf_len)
@@ -1025,7 +1015,7 @@ static int dvb_init(struct saa7134_dev *dev)
 		dev->dvb.frontend = mt352_attach(&pinnacle_300i,
 						 &dev->i2c_adap);
 		if (dev->dvb.frontend) {
-			dev->dvb.frontend->ops->tuner_ops.calc_regs = mt352_pinnacle_tuner_calc_regs;
+			dev->dvb.frontend->ops->tuner_ops.set_params = mt352_pinnacle_tuner_set_params;
 		}
 		break;
 
