@@ -122,7 +122,7 @@ ENTRY(c_backtrace)
 #define reg   r5
 #define stack r6
 
-.Ldumpstm:	stmfd	sp!, {instr, reg, stack, r7, lr}
+.Ldumpstm:	stmfd	sp!, {instr, reg, stack, r7, r8, lr}
 		mov	stack, r0
 		mov	instr, r1
 		mov	reg, #9
@@ -145,7 +145,7 @@ ENTRY(c_backtrace)
 		adrne	r0, .Lcr
 		blne	printk
 		mov	r0, stack
-		LOADREGS(fd, sp!, {instr, reg, stack, r7, pc})
+		LOADREGS(fd, sp!, {instr, reg, stack, r7, r8, pc})
 
 .Lfp:		.asciz	" r%d = %08X%c"
 .Lcr:		.asciz	"\n"
