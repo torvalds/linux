@@ -639,6 +639,14 @@ static int __init pci_iommu_init(void)
 		return -1;
 	}
 
+	i = 0;
+	for_all_nb(dev)
+		i++;
+	if (i > MAX_NB) {
+		printk(KERN_ERR "PCI-GART: Too many northbridges (%ld). Disabled\n", i);
+		return -1;
+	}
+
 	printk(KERN_INFO "PCI-DMA: using GART IOMMU.\n");
 	aper_size = info.aper_size * 1024 * 1024;	
 	iommu_size = check_iommu_size(info.aper_base, aper_size); 

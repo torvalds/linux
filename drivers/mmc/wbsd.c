@@ -931,10 +931,6 @@ static void wbsd_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	struct wbsd_host *host = mmc_priv(mmc);
 	u8 clk, setup, pwr;
 
-	DBGF("clock %uHz busmode %u powermode %u cs %u Vdd %u width %u\n",
-		ios->clock, ios->bus_mode, ios->power_mode, ios->chip_select,
-		ios->vdd, ios->bus_width);
-
 	spin_lock_bh(&host->lock);
 
 	/*

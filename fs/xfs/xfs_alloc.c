@@ -1942,8 +1942,10 @@ xfs_alloc_fix_freelist(
 		/*
 		 * Allocate as many blocks as possible at once.
 		 */
-		if ((error = xfs_alloc_ag_vextent(&targs)))
+		if ((error = xfs_alloc_ag_vextent(&targs))) {
+			xfs_trans_brelse(tp, agflbp);
 			return error;
+		}
 		/*
 		 * Stop if we run out.  Won't happen if callers are obeying
 		 * the restrictions correctly.  Can happen for free calls
@@ -1960,6 +1962,7 @@ xfs_alloc_fix_freelist(
 				return error;
 		}
 	}
+	xfs_trans_brelse(tp, agflbp);
 	args->agbp = agbp;
 	return 0;
 }

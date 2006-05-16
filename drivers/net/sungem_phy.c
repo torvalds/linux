@@ -329,6 +329,30 @@ static int bcm5421_init(struct mii_phy* phy)
 	return 0;
 }
 
+static int bcm5421_enable_fiber(struct mii_phy* phy)
+{
+	/* enable fiber mode */
+	phy_write(phy, MII_NCONFIG, 0x9020);
+	/* LEDs active in both modes, autosense prio = fiber */
+	phy_write(phy, MII_NCONFIG, 0x945f);
+
+	/* switch off fibre autoneg */
+	phy_write(phy, MII_NCONFIG, 0xfc01);
+	phy_write(phy, 0x0b, 0x0004);
+
+	return 0;
+}
+
+static int bcm5461_enable_fiber(struct mii_phy* phy)
+{
+        phy_write(phy, MII_NCONFIG, 0xfc0c);
+        phy_write(phy, MII_BMCR, 0x4140);
+        phy_write(phy, MII_NCONFIG, 0xfc0b);
+	phy_write(phy, MII_BMCR, 0x0140);
+
+	return 0;
+}
+
 static int bcm54xx_setup_aneg(struct mii_phy *phy, u32 advertise)
 {
 	u16 ctl, adv;
@@ -762,6 +786,7 @@ static struct mii_phy_ops bcm5421_phy_ops = {
 	.setup_forced	= bcm54xx_setup_forced,
 	.poll_link	= genmii_poll_link,
 	.read_link	= bcm54xx_read_link,
+	.enable_fiber   = bcm5421_enable_fiber,
 };
 
 static struct mii_phy_def bcm5421_phy_def = {
@@ -790,6 +815,25 @@ static struct mii_phy_def bcm5421k2_phy_def = {
 	.features	= MII_GBIT_FEATURES,
 	.magic_aneg	= 1,
 	.ops		= &bcm5421k2_phy_ops
+};
+
+static struct mii_phy_ops bcm5461_phy_ops = {
+	.init		= bcm5421_init,
+	.suspend	= generic_suspend,
+	.setup_aneg	= bcm54xx_setup_aneg,
+	.setup_forced	= bcm54xx_setup_forced,
+	.poll_link	= genmii_poll_link,
+	.read_link	= bcm54xx_read_link,
+	.enable_fiber   = bcm5461_enable_fiber,
+};
+
+static struct mii_phy_def bcm5461_phy_def = {
+	.phy_id		= 0x002060c0,
+	.phy_id_mask	= 0xfffffff0,
+	.name		= "BCM5461",
+	.features	= MII_GBIT_FEATURES,
+	.magic_aneg	= 1,
+	.ops		= &bcm5461_phy_ops
 };
 
 /* Broadcom BCM 5462 built-in Vesta */
@@ -857,6 +901,7 @@ static struct mii_phy_def* mii_phy_table[] = {
 	&bcm5411_phy_def,
 	&bcm5421_phy_def,
 	&bcm5421k2_phy_def,
+	&bcm5461_phy_def,
 	&bcm5462V_phy_def,
 	&marvell_phy_def,
 	&genmii_phy_def,

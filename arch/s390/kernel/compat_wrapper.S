@@ -1650,3 +1650,11 @@ sys_tee_wrapper:
 	llgfr	%r4,%r4			# size_t
 	llgfr	%r5,%r5			# unsigned int
 	jg	sys_tee
+
+	.globl compat_sys_vmsplice_wrapper
+compat_sys_vmsplice_wrapper:
+	lgfr	%r2,%r2			# int
+	llgtr	%r3,%r3			# compat_iovec *
+	llgfr	%r4,%r4			# unsigned int
+	llgfr	%r5,%r5			# unsigned int
+	jg	compat_sys_vmsplice

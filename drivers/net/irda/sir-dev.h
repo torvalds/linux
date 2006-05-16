@@ -15,23 +15,14 @@
 #define IRDA_SIR_H
 
 #include <linux/netdevice.h>
+#include <linux/workqueue.h>
 
 #include <net/irda/irda.h>
 #include <net/irda/irda_device.h>		// iobuff_t
 
-/* FIXME: unify irda_request with sir_fsm! */
-
-struct irda_request {
-	struct list_head lh_request;
-	unsigned long pending;
-	void (*func)(void *);
-	void *data;
-	struct timer_list timer;
-};
-
 struct sir_fsm {
 	struct semaphore	sem;
-	struct irda_request	rq;
+	struct work_struct      work;
 	unsigned		state, substate;
 	int			param;
 	int			result;

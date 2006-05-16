@@ -1480,10 +1480,11 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 
 IRDA SUBSYSTEM
-P:	Jean Tourrilhes
+P:	Samuel Ortiz
+M:	samuel@sortiz.org
 L:	irda-users@lists.sourceforge.net (subscribers-only)
 W:	http://irda.sourceforge.net/
-S:	Odd Fixes
+S:	Maintained
 
 ISAPNP
 P:	Jaroslav Kysela
@@ -1602,6 +1603,11 @@ M:	James.Bottomley@HansenPartnership.com
 L:	linux-scsi@vger.kernel.org
 S:	Maintained
 
+LED SUBSYSTEM
+P:	Richard Purdie
+M:	rpurdie@rpsys.net
+S:	Maintained
+
 LEGO USB Tower driver
 P:	Juergen Stuber
 M:	starblue@users.sourceforge.net
@@ -1661,7 +1667,7 @@ S:	Maintained
 
 LINUX FOR POWERPC EMBEDDED PPC8XX
 P:	Marcelo Tosatti
-M:	marcelo.tosatti@cyclades.com
+M:	marcelo@kvack.org
 W:	http://www.penguinppc.org/
 L:	linuxppc-embedded@ozlabs.org
 S:	Maintained

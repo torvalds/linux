@@ -199,10 +199,26 @@ static void sa1100_unmask_irq(unsigned int irq)
 	ICMR |= (1 << irq);
 }
 
+/*
+ * Apart form GPIOs, only the RTC alarm can be a wakeup event.
+ */
+static int sa1100_set_wake(unsigned int irq, unsigned int on)
+{
+	if (irq == IRQ_RTCAlrm) {
+		if (on)
+			PWER |= PWER_RTC;
+		else
+			PWER &= ~PWER_RTC;
+		return 0;
+	}
+	return -EINVAL;
+}
+
 static struct irqchip sa1100_normal_chip = {
 	.ack		= sa1100_mask_irq,
 	.mask		= sa1100_mask_irq,
 	.unmask		= sa1100_unmask_irq,
+	.set_wake	= sa1100_set_wake,
 };
 
 static struct resource irq_resource = {

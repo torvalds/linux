@@ -69,7 +69,7 @@ static const char speedtch_driver_name[] = "speedtch";
 #define RESUBMIT_DELAY		1000	/* milliseconds */
 
 #define DEFAULT_BULK_ALTSETTING	1
-#define DEFAULT_ISOC_ALTSETTING	2
+#define DEFAULT_ISOC_ALTSETTING	3
 #define DEFAULT_DL_512_FIRST	0
 #define DEFAULT_ENABLE_ISOC	0
 #define DEFAULT_SW_BUFFERING	0

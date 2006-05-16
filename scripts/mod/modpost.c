@@ -487,14 +487,14 @@ static int strrcmp(const char *s, const char *sub)
  *   atsym   =__param*
  *
  * Pattern 2:
- *   Many drivers utilise a *_driver container with references to
+ *   Many drivers utilise a *driver container with references to
  *   add, remove, probe functions etc.
  *   These functions may often be marked __init and we do not want to
  *   warn here.
  *   the pattern is identified by:
  *   tosec   = .init.text | .exit.text | .init.data
  *   fromsec = .data
- *   atsym = *_driver, *_template, *_sht, *_ops, *_probe, *probe_one
+ *   atsym = *driver, *_template, *_sht, *_ops, *_probe, *probe_one
  **/
 static int secref_whitelist(const char *tosec, const char *fromsec,
 			    const char *atsym)
@@ -502,7 +502,7 @@ static int secref_whitelist(const char *tosec, const char *fromsec,
 	int f1 = 1, f2 = 1;
 	const char **s;
 	const char *pat2sym[] = {
-		"_driver",
+		"driver",
 		"_template", /* scsi uses *_template a lot */
 		"_sht",      /* scsi also used *_sht to some extent */
 		"_ops",

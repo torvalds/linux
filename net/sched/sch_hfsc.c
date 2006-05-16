@@ -974,10 +974,10 @@ hfsc_adjust_levels(struct hfsc_class *cl)
 	do {
 		level = 0;
 		list_for_each_entry(p, &cl->children, siblings) {
-			if (p->level > level)
-				level = p->level;
+			if (p->level >= level)
+				level = p->level + 1;
 		}
-		cl->level = level + 1;
+		cl->level = level;
 	} while ((cl = cl->cl_parent) != NULL);
 }
 

@@ -56,6 +56,8 @@ static struct {
 	{"DENON", "DRD-25X", "V", BLIST_NOLUN},			/* locks up */
 	{"HITACHI", "DK312C", "CM81", BLIST_NOLUN},	/* responds to all lun */
 	{"HITACHI", "DK314C", "CR21", BLIST_NOLUN},	/* responds to all lun */
+	{"IBM", "2104-DU3", NULL, BLIST_NOLUN},		/* locks up */
+	{"IBM", "2104-TU3", NULL, BLIST_NOLUN},		/* locks up */
 	{"IMS", "CDD521/10", "2.06", BLIST_NOLUN},	/* locks up */
 	{"MAXTOR", "XT-3280", "PR02", BLIST_NOLUN},	/* locks up */
 	{"MAXTOR", "XT-4380S", "B3C", BLIST_NOLUN},	/* locks up */

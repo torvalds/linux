@@ -336,7 +336,7 @@ static ssize_t show_pma_counter(struct ib_port *p, struct port_attribute *attr,
 	switch (width) {
 	case 4:
 		ret = sprintf(buf, "%u\n", (out_mad->data[40 + offset / 8] >>
-					    (offset % 4)) & 0xf);
+					    (4 - (offset % 8))) & 0xf);
 		break;
 	case 8:
 		ret = sprintf(buf, "%u\n", out_mad->data[40 + offset / 8]);

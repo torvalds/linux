@@ -46,4 +46,4 @@ obj-$(CONFIG_MA600_DONGLE)	+= ma600-sir.o
 obj-$(CONFIG_TOIM3232_DONGLE)	+= toim3232-sir.o
 
 # The SIR helper module
-sir-dev-objs := sir_dev.o sir_dongle.o sir_kthread.o
+sir-dev-objs := sir_dev.o sir_dongle.o

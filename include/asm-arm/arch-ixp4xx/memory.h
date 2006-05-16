@@ -14,7 +14,7 @@
  */
 #define PHYS_OFFSET	UL(0x00000000)
 
-#ifndef __ASSEMBLY__
+#if !defined(__ASSEMBLY__) && defined(CONFIG_PCI)
 
 void ixp4xx_adjust_zones(int node, unsigned long *size, unsigned long *holes);
 

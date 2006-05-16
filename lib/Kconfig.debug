@@ -189,7 +189,7 @@ config FRAME_POINTER
 config UNWIND_INFO
 	bool "Compile the kernel with frame unwind information"
 	depends on !IA64
-	depends on !MODULES || !(MIPS || PARISC || PPC || SUPERH || SPARC64 || V850)
+	depends on !MODULES || !(MIPS || PARISC || PPC || SUPERH || V850)
 	help
 	  If you say Y here the resulting kernel image will be slightly larger
 	  but not slower, and it will give very useful debugging information.

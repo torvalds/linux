@@ -13,6 +13,7 @@ usbserial-objs	:= usb-serial.o generic.o bus.o $(usbserial-obj-y)
 
 obj-$(CONFIG_USB_SERIAL_AIRPRIME)		+= airprime.o
 obj-$(CONFIG_USB_SERIAL_ANYDATA)		+= anydata.o
+obj-$(CONFIG_USB_SERIAL_ARK3116)		+= ark3116.o
 obj-$(CONFIG_USB_SERIAL_BELKIN)			+= belkin_sa.o
 obj-$(CONFIG_USB_SERIAL_CP2101)			+= cp2101.o
 obj-$(CONFIG_USB_SERIAL_CYBERJACK)		+= cyberjack.o
