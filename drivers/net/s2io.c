@@ -852,7 +852,7 @@ static int s2io_on_nec_bridge(struct pci_dev *s2io_pdev)
 	return 0;
 }
 
-int bus_speed[8] = {33, 133, 133, 200, 266, 133, 200, 266};
+static int bus_speed[8] = {33, 133, 133, 200, 266, 133, 200, 266};
 /**
  * s2io_print_pci_mode -
  */
