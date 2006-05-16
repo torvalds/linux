@@ -496,9 +496,9 @@ static void tgr192_transform(struct tgr192_ctx *tctx, const u8 * data)
 	tctx->c = c;
 }
 
-static void tgr192_init(void *ctx)
+static void tgr192_init(struct crypto_tfm *tfm)
 {
-	struct tgr192_ctx *tctx = ctx;
+	struct tgr192_ctx *tctx = crypto_tfm_ctx(tfm);
 
 	tctx->a = 0x0123456789abcdefULL;
 	tctx->b = 0xfedcba9876543210ULL;
@@ -510,9 +510,10 @@ static void tgr192_init(void *ctx)
 
 /* Update the message digest with the contents
  * of INBUF with length INLEN. */
-static void tgr192_update(void *ctx, const u8 * inbuf, unsigned int len)
+static void tgr192_update(struct crypto_tfm *tfm, const u8 *inbuf,
+			  unsigned int len)
 {
-	struct tgr192_ctx *tctx = ctx;
+	struct tgr192_ctx *tctx = crypto_tfm_ctx(tfm);
 
 	if (tctx->count == 64) {	/* flush the buffer */
 		tgr192_transform(tctx, tctx->hash);
@@ -526,7 +527,7 @@ static void tgr192_update(void *ctx, const u8 * inbuf, unsigned int len)
 		for (; len && tctx->count < 64; len--) {
 			tctx->hash[tctx->count++] = *inbuf++;
 		}
-		tgr192_update(tctx, NULL, 0);
+		tgr192_update(tfm, NULL, 0);
 		if (!len) {
 			return;
 		}
@@ -548,15 +549,15 @@ static void tgr192_update(void *ctx, const u8 * inbuf, unsigned int len)
 
 
 /* The routine terminates the computation */
-static void tgr192_final(void *ctx, u8 * out)
+static void tgr192_final(struct crypto_tfm *tfm, u8 * out)
 {
-	struct tgr192_ctx *tctx = ctx;
+	struct tgr192_ctx *tctx = crypto_tfm_ctx(tfm);
 	__be64 *dst = (__be64 *)out;
 	__be64 *be64p;
 	__le32 *le32p;
 	u32 t, msb, lsb;
 
-	tgr192_update(tctx, NULL, 0); /* flush */ ;
+	tgr192_update(tfm, NULL, 0); /* flush */ ;
 
 	msb = 0;
 	t = tctx->nblocks;
@@ -584,7 +585,7 @@ static void tgr192_final(void *ctx, u8 * out)
 		while (tctx->count < 64) {
 			tctx->hash[tctx->count++] = 0;
 		}
-		tgr192_update(tctx, NULL, 0); /* flush */ ;
+		tgr192_update(tfm, NULL, 0); /* flush */ ;
 		memset(tctx->hash, 0, 56);    /* fill next block with zeroes */
 	}
 	/* append the 64 bit count */
@@ -600,22 +601,20 @@ static void tgr192_final(void *ctx, u8 * out)
 	dst[2] = be64p[2] = cpu_to_be64(tctx->c);
 }
 
-static void tgr160_final(void *ctx, u8 * out)
+static void tgr160_final(struct crypto_tfm *tfm, u8 * out)
 {
-	struct tgr192_ctx *wctx = ctx;
 	u8 D[64];
 
-	tgr192_final(wctx, D);
+	tgr192_final(tfm, D);
 	memcpy(out, D, TGR160_DIGEST_SIZE);
 	memset(D, 0, TGR192_DIGEST_SIZE);
 }
 
-static void tgr128_final(void *ctx, u8 * out)
+static void tgr128_final(struct crypto_tfm *tfm, u8 * out)
 {
-	struct tgr192_ctx *wctx = ctx;
 	u8 D[64];
 
-	tgr192_final(wctx, D);
+	tgr192_final(tfm, D);
 	memcpy(out, D, TGR128_DIGEST_SIZE);
 	memset(D, 0, TGR192_DIGEST_SIZE);
 }

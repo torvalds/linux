@@ -161,9 +161,9 @@ sha512_transform(u64 *state, u64 *W, const u8 *input)
 }
 
 static void
-sha512_init(void *ctx)
+sha512_init(struct crypto_tfm *tfm)
 {
-        struct sha512_ctx *sctx = ctx;
+	struct sha512_ctx *sctx = crypto_tfm_ctx(tfm);
 	sctx->state[0] = H0;
 	sctx->state[1] = H1;
 	sctx->state[2] = H2;
@@ -176,9 +176,9 @@ sha512_init(void *ctx)
 }
 
 static void
-sha384_init(void *ctx)
+sha384_init(struct crypto_tfm *tfm)
 {
-        struct sha512_ctx *sctx = ctx;
+	struct sha512_ctx *sctx = crypto_tfm_ctx(tfm);
         sctx->state[0] = HP0;
         sctx->state[1] = HP1;
         sctx->state[2] = HP2;
@@ -191,9 +191,9 @@ sha384_init(void *ctx)
 }
 
 static void
-sha512_update(void *ctx, const u8 *data, unsigned int len)
+sha512_update(struct crypto_tfm *tfm, const u8 *data, unsigned int len)
 {
-        struct sha512_ctx *sctx = ctx;
+	struct sha512_ctx *sctx = crypto_tfm_ctx(tfm);
 
 	unsigned int i, index, part_len;
 
@@ -231,9 +231,9 @@ sha512_update(void *ctx, const u8 *data, unsigned int len)
 }
 
 static void
-sha512_final(void *ctx, u8 *hash)
+sha512_final(struct crypto_tfm *tfm, u8 *hash)
 {
-        struct sha512_ctx *sctx = ctx;
+	struct sha512_ctx *sctx = crypto_tfm_ctx(tfm);
         static u8 padding[128] = { 0x80, };
 	__be64 *dst = (__be64 *)hash;
 	__be32 bits[4];
@@ -249,10 +249,10 @@ sha512_final(void *ctx, u8 *hash)
 	/* Pad out to 112 mod 128. */
 	index = (sctx->count[0] >> 3) & 0x7f;
 	pad_len = (index < 112) ? (112 - index) : ((128+112) - index);
-	sha512_update(sctx, padding, pad_len);
+	sha512_update(tfm, padding, pad_len);
 
 	/* Append length (before padding) */
-	sha512_update(sctx, (const u8 *)bits, sizeof(bits));
+	sha512_update(tfm, (const u8 *)bits, sizeof(bits));
 
 	/* Store state in digest */
 	for (i = 0; i < 8; i++)
@@ -262,12 +262,11 @@ sha512_final(void *ctx, u8 *hash)
 	memset(sctx, 0, sizeof(struct sha512_ctx));
 }
 
-static void sha384_final(void *ctx, u8 *hash)
+static void sha384_final(struct crypto_tfm *tfm, u8 *hash)
 {
-        struct sha512_ctx *sctx = ctx;
         u8 D[64];
 
-        sha512_final(sctx, D);
+	sha512_final(tfm, D);
 
         memcpy(hash, D, 48);
         memset(D, 0, 64);

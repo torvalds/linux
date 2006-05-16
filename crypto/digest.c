@@ -20,7 +20,7 @@
 
 static void init(struct crypto_tfm *tfm)
 {
-	tfm->__crt_alg->cra_digest.dia_init(crypto_tfm_ctx(tfm));
+	tfm->__crt_alg->cra_digest.dia_init(tfm);
 }
 
 static void update(struct crypto_tfm *tfm,
@@ -46,16 +46,14 @@ static void update(struct crypto_tfm *tfm,
 				unsigned int bytes =
 					alignmask + 1 - (offset & alignmask);
 				bytes = min(bytes, bytes_from_page);
-				tfm->__crt_alg->cra_digest.dia_update
-						(crypto_tfm_ctx(tfm), p,
-						 bytes);
+				tfm->__crt_alg->cra_digest.dia_update(tfm, p,
+								      bytes);
 				p += bytes;
 				bytes_from_page -= bytes;
 				l -= bytes;
 			}
-			tfm->__crt_alg->cra_digest.dia_update
-					(crypto_tfm_ctx(tfm), p,
-					 bytes_from_page);
+			tfm->__crt_alg->cra_digest.dia_update(tfm, p,
+							      bytes_from_page);
 			crypto_kunmap(src, 0);
 			crypto_yield(tfm);
 			offset = 0;
@@ -83,8 +81,7 @@ static int setkey(struct crypto_tfm *tfm, const u8 *key, unsigned int keylen)
 	u32 flags;
 	if (tfm->__crt_alg->cra_digest.dia_setkey == NULL)
 		return -ENOSYS;
-	return tfm->__crt_alg->cra_digest.dia_setkey(crypto_tfm_ctx(tfm),
-						     key, keylen, &flags);
+	return tfm->__crt_alg->cra_digest.dia_setkey(tfm, key, keylen, &flags);
 }
 
 static void digest(struct crypto_tfm *tfm,

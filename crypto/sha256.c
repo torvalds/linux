@@ -230,9 +230,9 @@ static void sha256_transform(u32 *state, const u8 *input)
 	memset(W, 0, 64 * sizeof(u32));
 }
 
-static void sha256_init(void *ctx)
+static void sha256_init(struct crypto_tfm *tfm)
 {
-	struct sha256_ctx *sctx = ctx;
+	struct sha256_ctx *sctx = crypto_tfm_ctx(tfm);
 	sctx->state[0] = H0;
 	sctx->state[1] = H1;
 	sctx->state[2] = H2;
@@ -244,9 +244,10 @@ static void sha256_init(void *ctx)
 	sctx->count[0] = sctx->count[1] = 0;
 }
 
-static void sha256_update(void *ctx, const u8 *data, unsigned int len)
+static void sha256_update(struct crypto_tfm *tfm, const u8 *data,
+			  unsigned int len)
 {
-	struct sha256_ctx *sctx = ctx;
+	struct sha256_ctx *sctx = crypto_tfm_ctx(tfm);
 	unsigned int i, index, part_len;
 
 	/* Compute number of bytes mod 128 */
@@ -276,9 +277,9 @@ static void sha256_update(void *ctx, const u8 *data, unsigned int len)
 	memcpy(&sctx->buf[index], &data[i], len-i);
 }
 
-static void sha256_final(void* ctx, u8 *out)
+static void sha256_final(struct crypto_tfm *tfm, u8 *out)
 {
-	struct sha256_ctx *sctx = ctx;
+	struct sha256_ctx *sctx = crypto_tfm_ctx(tfm);
 	__be32 *dst = (__be32 *)out;
 	__be32 bits[2];
 	unsigned int index, pad_len;
@@ -292,10 +293,10 @@ static void sha256_final(void* ctx, u8 *out)
 	/* Pad out to 56 mod 64. */
 	index = (sctx->count[0] >> 3) & 0x3f;
 	pad_len = (index < 56) ? (56 - index) : ((64+56) - index);
-	sha256_update(sctx, padding, pad_len);
+	sha256_update(tfm, padding, pad_len);
 
 	/* Append length (before padding) */
-	sha256_update(sctx, (const u8 *)bits, sizeof(bits));
+	sha256_update(tfm, (const u8 *)bits, sizeof(bits));
 
 	/* Store state in digest */
 	for (i = 0; i < 8; i++)

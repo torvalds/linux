@@ -45,8 +45,8 @@
 #include <linux/crypto.h>
 #include <linux/linkage.h>
 
-asmlinkage void aes_enc_blk(void *ctx, u8 *dst, const u8 *src);
-asmlinkage void aes_dec_blk(void *ctx, u8 *dst, const u8 *src);
+asmlinkage void aes_enc_blk(struct crypto_tfm *tfm, u8 *dst, const u8 *src);
+asmlinkage void aes_dec_blk(struct crypto_tfm *tfm, u8 *dst, const u8 *src);
 
 #define AES_MIN_KEY_SIZE	16
 #define AES_MAX_KEY_SIZE	32
@@ -378,12 +378,12 @@ static void gen_tabs(void)
 	k[8*(i)+11] = ss[3];						\
 }
 
-static int
-aes_set_key(void *ctx_arg, const u8 *in_key, unsigned int key_len, u32 *flags)
+static int aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
+		       unsigned int key_len, u32 *flags)
 {
 	int i;
 	u32 ss[8];
-	struct aes_ctx *ctx = ctx_arg;
+	struct aes_ctx *ctx = crypto_tfm_ctx(tfm);
 	const __le32 *key = (const __le32 *)in_key;
 
 	/* encryption schedule */

@@ -40,9 +40,9 @@ struct crypt_s390_sha1_ctx {
 	u8 buffer[2 * SHA1_BLOCK_SIZE];
 };
 
-static void sha1_init(void *ctx_arg) 
+static void sha1_init(struct crypto_tfm *tfm)
 {
-	struct crypt_s390_sha1_ctx *ctx = ctx_arg;
+	struct crypt_s390_sha1_ctx *ctx = crypto_tfm_ctx(tfm);
 	static const u32 initstate[5] = {
 		0x67452301,
 		0xEFCDAB89,
@@ -56,13 +56,13 @@ static void sha1_init(void *ctx_arg)
 	ctx->buf_len = 0;
 }
 
-static void
-sha1_update(void *ctx, const u8 *data, unsigned int len)
+static void sha1_update(struct crypto_tfm *tfm, const u8 *data,
+			unsigned int len)
 {
 	struct crypt_s390_sha1_ctx *sctx;
 	long imd_len;
 
-	sctx = ctx;
+	sctx = crypto_tfm_ctx(tfm);
 	sctx->count += len * 8; //message bit length
 
 	//anything in buffer yet? -> must be completed
@@ -111,10 +111,9 @@ pad_message(struct crypt_s390_sha1_ctx* sctx)
 }
 
 /* Add padding and return the message digest. */
-static void
-sha1_final(void* ctx, u8 *out)
+static void sha1_final(struct crypto_tfm *tfm, u8 *out)
 {
-	struct crypt_s390_sha1_ctx *sctx = ctx;
+	struct crypt_s390_sha1_ctx *sctx = crypto_tfm_ctx(tfm);
 
 	//must perform manual padding
 	pad_message(sctx);
