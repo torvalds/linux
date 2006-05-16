@@ -1169,9 +1169,6 @@ static void ata_eh_autopsy(struct ata_port *ap)
 		/* inherit upper level err_mask */
 		qc->err_mask |= ehc->i.err_mask;
 
-		if (qc->err_mask & AC_ERR_TIMEOUT)
-			action |= ATA_EH_SOFTRESET;
-
 		/* analyze TF */
 		action |= ata_eh_analyze_tf(qc, &qc->result_tf);
 
@@ -1201,9 +1198,14 @@ static void ata_eh_autopsy(struct ata_port *ap)
 	if (failed_dev)
 		action |= ata_eh_speed_down(failed_dev, is_io, all_err_mask);
 
-	if (all_err_mask)
+	/* enforce default EH actions */
+	if (ap->flags & ATA_FLAG_FROZEN ||
+	    all_err_mask & (AC_ERR_HSM | AC_ERR_TIMEOUT))
+		action |= ATA_EH_SOFTRESET;
+	else if (all_err_mask)
 		action |= ATA_EH_REVALIDATE;
 
+	/* record autopsy result */
 	ehc->i.dev = failed_dev;
 	ehc->i.action = action;
 
