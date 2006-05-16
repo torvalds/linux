@@ -173,7 +173,6 @@ sha512_init(void *ctx)
 	sctx->state[6] = H6;
 	sctx->state[7] = H7;
 	sctx->count[0] = sctx->count[1] = sctx->count[2] = sctx->count[3] = 0;
-	memset(sctx->buf, 0, sizeof(sctx->buf));
 }
 
 static void
@@ -189,7 +188,6 @@ sha384_init(void *ctx)
         sctx->state[6] = HP6;
         sctx->state[7] = HP7;
         sctx->count[0] = sctx->count[1] = sctx->count[2] = sctx->count[3] = 0;
-        memset(sctx->buf, 0, sizeof(sctx->buf));
 }
 
 static void

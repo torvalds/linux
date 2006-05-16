@@ -44,7 +44,6 @@ static void sha256_init(void *ctx)
 	sctx->state[6] = 0x1f83d9ab;
 	sctx->state[7] = 0x5be0cd19;
 	sctx->count = 0;
-	memset(sctx->buf, 0, sizeof(sctx->buf));
 }
 
 static void sha256_update(void *ctx, const u8 *data, unsigned int len)

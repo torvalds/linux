@@ -500,7 +500,6 @@ static void tgr192_init(void *ctx)
 {
 	struct tgr192_ctx *tctx = ctx;
 
-	memset (tctx->hash, 0, 64);
 	tctx->a = 0x0123456789abcdefULL;
 	tctx->b = 0xfedcba9876543210ULL;
 	tctx->c = 0xf096a5b4c3b2e187ULL;

@@ -40,19 +40,20 @@ struct crypt_s390_sha1_ctx {
 	u8 buffer[2 * SHA1_BLOCK_SIZE];
 };
 
-static void
-sha1_init(void *ctx)
+static void sha1_init(void *ctx_arg) 
 {
-	static const struct crypt_s390_sha1_ctx initstate = {
-		.state = {
-			0x67452301,
-			0xEFCDAB89,
-			0x98BADCFE,
-			0x10325476,
-			0xC3D2E1F0
-		},
+	struct crypt_s390_sha1_ctx *ctx = ctx_arg;
+	static const u32 initstate[5] = {
+		0x67452301,
+		0xEFCDAB89,
+		0x98BADCFE,
+		0x10325476,
+		0xC3D2E1F0
 	};
-	memcpy(ctx, &initstate, sizeof(initstate));
+
+	ctx->count = 0;
+	memcpy(ctx->state, &initstate, sizeof(initstate));
+	ctx->buf_len = 0;
 }
 
 static void
