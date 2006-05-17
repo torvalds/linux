@@ -400,6 +400,7 @@ int add_mtd_partitions(struct mtd_info *master,
 		slave->mtd.size = parts[i].size;
 		slave->mtd.oobblock = master->oobblock;
 		slave->mtd.oobsize = master->oobsize;
+		slave->mtd.oobavail = master->oobavail;
 		slave->mtd.ecctype = master->ecctype;
 		slave->mtd.eccsize = master->eccsize;
 
