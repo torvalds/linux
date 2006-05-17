@@ -3371,7 +3371,7 @@ qla24xx_nvram_config(scsi_qla_host_t *ha)
 		strcpy(ha->model_number, "QLA2462");
 
 	/* Prepare nodename */
-	if ((icb->firmware_options_1 & BIT_14) == 0) {
+	if ((icb->firmware_options_1 & __constant_cpu_to_le32(BIT_14)) == 0) {
 		/*
 		 * Firmware will apply the following mask if the nodename was
 		 * not provided.
@@ -3387,8 +3387,8 @@ qla24xx_nvram_config(scsi_qla_host_t *ha)
 	ha->flags.enable_target_reset = 1;
 	ha->flags.enable_led_scheme = 0;
 
-	ha->operating_mode =
-	    (icb->firmware_options_2 & (BIT_6 | BIT_5 | BIT_4)) >> 4;
+	ha->operating_mode = (le32_to_cpu(icb->firmware_options_2) &
+	    (BIT_6 | BIT_5 | BIT_4)) >> 4;
 
 	memcpy(ha->fw_seriallink_options24, nv->seriallink_options,
 	    sizeof(ha->fw_seriallink_options24));
