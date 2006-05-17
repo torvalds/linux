@@ -709,8 +709,10 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
   Module snd-hda-intel
   --------------------
 
-    Module for Intel HD Audio (ICH6, ICH6M, ICH7), ATI SB450,
-	       VIA VT8251/VT8237A
+    Module for Intel HD Audio (ICH6, ICH6M, ESB2, ICH7, ICH8),
+		ATI SB450, SB600, RS600,
+		VIA VT8251/VT8237A,
+		SIS966, ULI M5461
 
     model	- force the model name
     position_fix - Fix DMA pointer (0 = auto, 1 = none, 2 = POSBUF, 3 = FIFO size)
