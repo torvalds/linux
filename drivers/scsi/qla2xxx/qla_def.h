@@ -270,6 +270,8 @@ struct device_reg_2xxx {
 #define NVR_SELECT		BIT_1
 #define NVR_CLOCK		BIT_0
 
+#define NVR_WAIT_CNT		20000
+
 	union {
 		struct {
 			uint16_t mailbox0;
