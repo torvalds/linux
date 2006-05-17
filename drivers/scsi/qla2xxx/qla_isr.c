@@ -805,7 +805,7 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 	uint16_t	scsi_status;
 	uint8_t		lscsi_status;
 	int32_t		resid;
-	uint32_t	sense_len, rsp_info_len, resid_len;
+	uint32_t	sense_len, rsp_info_len, resid_len, fw_resid_len;
 	uint8_t		*rsp_info, *sense_data;
 
 	sts = (sts_entry_t *) pkt;
@@ -859,11 +859,12 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 
 	fcport = sp->fcport;
 
-	sense_len = rsp_info_len = resid_len = 0;
+	sense_len = rsp_info_len = resid_len = fw_resid_len = 0;
 	if (IS_QLA24XX(ha) || IS_QLA54XX(ha)) {
 		sense_len = le32_to_cpu(sts24->sense_len);
 		rsp_info_len = le32_to_cpu(sts24->rsp_data_len);
 		resid_len = le32_to_cpu(sts24->rsp_residual_count);
+		fw_resid_len = le32_to_cpu(sts24->residual_len);
 		rsp_info = sts24->data;
 		sense_data = sts24->data;
 		host_to_fcp_swap(sts24->data, sizeof(sts24->data));
@@ -963,14 +964,21 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 
 	case CS_DATA_UNDERRUN:
 		resid = resid_len;
+		/* Use F/W calculated residual length. */
+		if (IS_QLA24XX(ha) || IS_QLA54XX(ha))
+			resid = fw_resid_len;
+
 		if (scsi_status & SS_RESIDUAL_UNDER) {
 			cp->resid = resid;
 			CMD_RESID_LEN(cp) = resid;
 		} else {
 			DEBUG2(printk(KERN_INFO
 			    "scsi(%ld:%d:%d) UNDERRUN status detected "
-			    "0x%x-0x%x.\n", ha->host_no, cp->device->id,
-			    cp->device->lun, comp_status, scsi_status));
+			    "0x%x-0x%x. resid=0x%x fw_resid=0x%x cdb=0x%x "
+			    "os_underflow=0x%x\n", ha->host_no,
+			    cp->device->id, cp->device->lun, comp_status,
+			    scsi_status, resid_len, resid, cp->cmnd[0],
+			    cp->underflow));
 
 		}
 
