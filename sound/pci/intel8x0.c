@@ -66,7 +66,7 @@ MODULE_SUPPORTED_DEVICE("{{Intel,82801AA-ICH},"
 
 static int index = SNDRV_DEFAULT_IDX1;	/* Index 0-MAX */
 static char *id = SNDRV_DEFAULT_STR1;	/* ID for this card */
-static int ac97_clock = 0;
+static int ac97_clock;
 static char *ac97_quirk;
 static int buggy_semaphore;
 static int buggy_irq = -1; /* auto-check */

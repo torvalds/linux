@@ -1106,7 +1106,7 @@ static void snd_timer_proc_read(struct snd_info_entry *entry,
 	mutex_unlock(&register_mutex);
 }
 
-static struct snd_info_entry *snd_timer_proc_entry = NULL;
+static struct snd_info_entry *snd_timer_proc_entry;
 
 static void __init snd_timer_proc_init(void)
 {

@@ -209,7 +209,7 @@ EXPORT_SYMBOL(snd_unregister_oss_device);
 
 #ifdef CONFIG_PROC_FS
 
-static struct snd_info_entry *snd_minor_info_oss_entry = NULL;
+static struct snd_info_entry *snd_minor_info_oss_entry;
 
 static const char *snd_oss_device_type_name(int type)
 {

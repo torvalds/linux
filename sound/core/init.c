@@ -38,8 +38,8 @@ struct snd_shutdown_f_ops {
 	struct snd_shutdown_f_ops *next;
 };
 
-static unsigned int snd_cards_lock = 0;	/* locked for registering/using */
-struct snd_card *snd_cards[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)] = NULL};
+static unsigned int snd_cards_lock;	/* locked for registering/using */
+struct snd_card *snd_cards[SNDRV_CARDS];
 EXPORT_SYMBOL(snd_cards);
 
 static DEFINE_MUTEX(snd_card_mutex);
@@ -529,7 +529,7 @@ int snd_card_register(struct snd_card *card)
 EXPORT_SYMBOL(snd_card_register);
 
 #ifdef CONFIG_PROC_FS
-static struct snd_info_entry *snd_card_info_entry = NULL;
+static struct snd_info_entry *snd_card_info_entry;
 
 static void snd_card_info_read(struct snd_info_entry *entry,
 			       struct snd_info_buffer *buffer)

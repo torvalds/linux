@@ -143,12 +143,12 @@ EXPORT_SYMBOL(snd_iprintf);
 
  */
 
-static struct proc_dir_entry *snd_proc_root = NULL;
-struct snd_info_entry *snd_seq_root = NULL;
+static struct proc_dir_entry *snd_proc_root;
+struct snd_info_entry *snd_seq_root;
 EXPORT_SYMBOL(snd_seq_root);
 
 #ifdef CONFIG_SND_OSSEMUL
-struct snd_info_entry *snd_oss_root = NULL;
+struct snd_info_entry *snd_oss_root;
 #endif
 
 static inline void snd_info_entry_prepare(struct proc_dir_entry *de)
@@ -972,7 +972,7 @@ EXPORT_SYMBOL(snd_info_unregister);
 
  */
 
-static struct snd_info_entry *snd_info_version_entry = NULL;
+static struct snd_info_entry *snd_info_version_entry;
 
 static void snd_info_version_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
 {

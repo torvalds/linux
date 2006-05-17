@@ -59,7 +59,7 @@ MODULE_SUPPORTED_DEVICE("{{Intel,82801AA-ICH},"
 
 static int index = -2; /* Exclude the first card */
 static char *id = SNDRV_DEFAULT_STR1;	/* ID for this card */
-static int ac97_clock = 0;
+static int ac97_clock;
 
 module_param(index, int, 0444);
 MODULE_PARM_DESC(index, "Index value for Intel i8x0 modemcard.");

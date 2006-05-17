@@ -332,7 +332,7 @@ EXPORT_SYMBOL(snd_unregister_device);
  *  INFO PART
  */
 
-static struct snd_info_entry *snd_minor_info_entry = NULL;
+static struct snd_info_entry *snd_minor_info_entry;
 
 static const char *snd_device_type_name(int type)
 {

@@ -112,7 +112,7 @@ MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("SA1100/SA1111 + UDA1341TS driver for ALSA");
 MODULE_SUPPORTED_DEVICE("{{UDA1341,iPAQ H3600 UDA1341TS}}");
 
-static char *id = NULL;	/* ID for this card */
+static char *id;	/* ID for this card */
 
 module_param(id, charp, 0444);
 MODULE_PARM_DESC(id, "ID string for SA1100/SA1111 + UDA1341TS soundcard.");

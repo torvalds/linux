@@ -85,7 +85,7 @@ static int dma8[SNDRV_CARDS] = SNDRV_DEFAULT_DMA;	/* 0,1,3 */
 static int dma16[SNDRV_CARDS] = SNDRV_DEFAULT_DMA;	/* 5,6,7 */
 static int mic_agc[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 1};
 #ifdef CONFIG_SND_SB16_CSP
-static int csp[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 0};
+static int csp[SNDRV_CARDS];
 #endif
 #ifdef SNDRV_SBAWE_EMU8000
 static int seq_ports[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 4};
