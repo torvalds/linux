@@ -577,6 +577,10 @@ qla2x00_wait_for_loop_ready(scsi_qla_host_t *ha)
 	while ((!atomic_read(&ha->loop_down_timer) &&
 	    atomic_read(&ha->loop_state) == LOOP_DOWN) ||
 	    atomic_read(&ha->loop_state) != LOOP_READY) {
+		if (atomic_read(&ha->loop_state) == LOOP_DEAD) {
+			return_status = QLA_FUNCTION_FAILED;
+			break;
+		}
 		msleep(1000);
 		if (time_after_eq(jiffies, loop_timeout)) {
 			return_status = QLA_FUNCTION_FAILED;
