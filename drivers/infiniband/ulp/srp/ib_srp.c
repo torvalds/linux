@@ -1241,7 +1241,7 @@ static int srp_reset_device(struct scsi_cmnd *scmnd)
 	list_for_each_entry_safe(req, tmp, &target->req_queue, list)
 		if (req->scmnd->device == scmnd->device) {
 			req->scmnd->result = DID_RESET << 16;
-			scmnd->scsi_done(scmnd);
+			req->scmnd->scsi_done(req->scmnd);
 			srp_remove_req(target, req);
 		}
 
