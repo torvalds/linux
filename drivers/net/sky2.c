@@ -1020,8 +1020,19 @@ static int sky2_up(struct net_device *dev)
 	struct sky2_hw *hw = sky2->hw;
 	unsigned port = sky2->port;
 	u32 ramsize, rxspace, imask;
-	int err = -ENOMEM;
+	int err;
+	struct net_device *otherdev = hw->dev[sky2->port^1];
 
+	/* Block bringing up both ports at the same time on a dual port card.
+	 * There is an unfixed bug where receiver gets confused and picks up
+	 * packets out of order. Until this is fixed, prevent data corruption.
+	 */
+	if (otherdev && netif_running(otherdev)) {
+		printk(KERN_INFO PFX "dual port support is disabled.\n");
+		return -EBUSY;
+	}
+
+	err = -ENOMEM;
 	if (netif_msg_ifup(sky2))
 		printk(KERN_INFO PFX "%s: enabling interface\n", dev->name);
 

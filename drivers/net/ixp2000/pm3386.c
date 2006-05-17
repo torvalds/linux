@@ -86,45 +86,63 @@ static void pm3386_port_reg_write(int port, int _reg, int spacing, u16 value)
 	pm3386_reg_write(port >> 1, reg, value);
 }
 
+int pm3386_secondary_present(void)
+{
+	return pm3386_reg_read(1, 0) == 0x3386;
+}
 
 void pm3386_reset(void)
 {
 	u8 mac[3][6];
+	int secondary;
+
+	secondary = pm3386_secondary_present();
 
 	/* Save programmed MAC addresses.  */
 	pm3386_get_mac(0, mac[0]);
 	pm3386_get_mac(1, mac[1]);
-	pm3386_get_mac(2, mac[2]);
+	if (secondary)
+		pm3386_get_mac(2, mac[2]);
 
 	/* Assert analog and digital reset.  */
 	pm3386_reg_write(0, 0x002, 0x0060);
-	pm3386_reg_write(1, 0x002, 0x0060);
+	if (secondary)
+		pm3386_reg_write(1, 0x002, 0x0060);
 	mdelay(1);
 
 	/* Deassert analog reset.  */
 	pm3386_reg_write(0, 0x002, 0x0062);
-	pm3386_reg_write(1, 0x002, 0x0062);
+	if (secondary)
+		pm3386_reg_write(1, 0x002, 0x0062);
 	mdelay(10);
 
 	/* Deassert digital reset.  */
 	pm3386_reg_write(0, 0x002, 0x0063);
-	pm3386_reg_write(1, 0x002, 0x0063);
+	if (secondary)
+		pm3386_reg_write(1, 0x002, 0x0063);
 	mdelay(10);
 
 	/* Restore programmed MAC addresses.  */
 	pm3386_set_mac(0, mac[0]);
 	pm3386_set_mac(1, mac[1]);
-	pm3386_set_mac(2, mac[2]);
+	if (secondary)
+		pm3386_set_mac(2, mac[2]);
 
 	/* Disable carrier on all ports.  */
 	pm3386_set_carrier(0, 0);
 	pm3386_set_carrier(1, 0);
-	pm3386_set_carrier(2, 0);
+	if (secondary)
+		pm3386_set_carrier(2, 0);
 }
 
 static u16 swaph(u16 x)
 {
 	return ((x << 8) | (x >> 8)) & 0xffff;
+}
+
+int pm3386_port_count(void)
+{
+	return 2 + pm3386_secondary_present();
 }
 
 void pm3386_init_port(int port)
