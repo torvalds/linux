@@ -3241,14 +3241,9 @@ S: 12725 SW Millikan Way, Suite 400
 S: Beaverton, Oregon 97005
 S: USA
 
-N: Marcelo W. Tosatti
-E: marcelo.tosatti@cyclades.com
-D: Miscellaneous kernel hacker
+N: Marcelo Tosatti
+E: marcelo@kvack.org
 D: v2.4 kernel maintainer
-D: Current pc300/cyclades maintainer
-S: Cyclades Corporation
-S: Av Cristovao Colombo, 462. Floresta.
-S: Porto Alegre
 S: Brazil
 
 N: Stefan Traby

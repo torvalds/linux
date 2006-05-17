@@ -20,7 +20,6 @@
 #include <linux/interrupt.h>
 #include <linux/timex.h>
 #include <linux/signal.h>
-#include <linux/amba/bus.h>
 
 #include <asm/hardware.h>
 #include <asm/irq.h>
@@ -50,12 +49,12 @@
 static struct map_desc standard_io_desc[] __initdata = {
 	{
 		.virtual	= VIO_APB_BASE,
-		.physical	= __phys_to_pfn(PIO_APB_BASE),
+		.pfn		= __phys_to_pfn(PIO_APB_BASE),
 		.length		= IO_APB_LENGTH,
 		.type		= MT_DEVICE
 	}, {
 		.virtual	= VIO_AHB_BASE,
-		.physical	= __phys_to_pfn(PIO_AHB_BASE),
+		.pfn		= __phys_to_pfn(PIO_AHB_BASE),
 		.length		= IO_AHB_LENGTH,
 		.type		= MT_DEVICE
 	}

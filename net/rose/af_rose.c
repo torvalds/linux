@@ -1469,8 +1469,6 @@ static struct notifier_block rose_dev_notifier = {
 
 static struct net_device **dev_rose;
 
-static const char banner[] = KERN_INFO "F6FBB/G4KLX ROSE for Linux. Version 0.62 for AX25.037 Linux 2.4\n";
-
 static int __init rose_proto_init(void)
 {
 	int i;
@@ -1519,7 +1517,6 @@ static int __init rose_proto_init(void)
 
 	sock_register(&rose_family_ops);
 	register_netdevice_notifier(&rose_dev_notifier);
-	printk(banner);
 
 	ax25_protocol_register(AX25_P_ROSE, rose_route_frame);
 	ax25_linkfail_register(rose_link_failed);

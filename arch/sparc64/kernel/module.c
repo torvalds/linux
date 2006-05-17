@@ -143,6 +143,11 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 			location[3] = v >>  0;
 			break;
 
+		case R_SPARC_DISP32:
+			v -= (Elf64_Addr) location;
+			*loc32 = v;
+			break;
+
 		case R_SPARC_WDISP30:
 			v -= (Elf64_Addr) location;
 			*loc32 = (*loc32 & ~0x3fffffff) |

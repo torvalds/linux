@@ -74,6 +74,8 @@ static unsigned int dbs_enable;	/* number of CPUs using this policy */
 static DEFINE_MUTEX (dbs_mutex);
 static DECLARE_WORK	(dbs_work, do_dbs_timer, NULL);
 
+static struct workqueue_struct *dbs_workq;
+
 struct dbs_tuners {
 	unsigned int sampling_rate;
 	unsigned int sampling_down_factor;
@@ -364,23 +366,29 @@ static void do_dbs_timer(void *data)
 	mutex_lock(&dbs_mutex);
 	for_each_online_cpu(i)
 		dbs_check_cpu(i);
-	schedule_delayed_work(&dbs_work,
-			usecs_to_jiffies(dbs_tuners_ins.sampling_rate));
+	queue_delayed_work(dbs_workq, &dbs_work,
+			   usecs_to_jiffies(dbs_tuners_ins.sampling_rate));
 	mutex_unlock(&dbs_mutex);
 }
 
 static inline void dbs_timer_init(void)
 {
 	INIT_WORK(&dbs_work, do_dbs_timer, NULL);
-	schedule_delayed_work(&dbs_work,
-			usecs_to_jiffies(dbs_tuners_ins.sampling_rate));
+	if (!dbs_workq)
+		dbs_workq = create_singlethread_workqueue("ondemand");
+	if (!dbs_workq) {
+		printk(KERN_ERR "ondemand: Cannot initialize kernel thread\n");
+		return;
+	}
+	queue_delayed_work(dbs_workq, &dbs_work,
+			   usecs_to_jiffies(dbs_tuners_ins.sampling_rate));
 	return;
 }
 
 static inline void dbs_timer_exit(void)
 {
-	cancel_delayed_work(&dbs_work);
-	return;
+	if (dbs_workq)
+		cancel_rearming_delayed_workqueue(dbs_workq, &dbs_work);
 }
 
 static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
@@ -489,8 +497,12 @@ static int __init cpufreq_gov_dbs_init(void)
 
 static void __exit cpufreq_gov_dbs_exit(void)
 {
-	/* Make sure that the scheduled work is indeed not running */
-	flush_scheduled_work();
+	/* Make sure that the scheduled work is indeed not running.
+	   Assumes the timer has been cancelled first. */
+	if (dbs_workq) {
+		flush_workqueue(dbs_workq);
+		destroy_workqueue(dbs_workq);
+	}
 
 	cpufreq_unregister_governor(&cpufreq_gov_dbs);
 }

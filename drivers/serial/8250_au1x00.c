@@ -30,13 +30,12 @@
 	{						\
 		.iobase		= _base,		\
 		.membase	= (void __iomem *)_base,\
-		.mapbase	= _base,		\
+		.mapbase	= CPHYSADDR(_base),	\
 		.irq		= _irq,			\
 		.uartclk	= 0,	/* filled */	\
 		.regshift	= 2,			\
 		.iotype		= UPIO_AU,		\
-		.flags		= UPF_SKIP_TEST | 	\
-				  UPF_IOREMAP,		\
+		.flags		= UPF_SKIP_TEST 	\
 	}
 
 static struct plat_serial8250_port au1x00_data[] = {

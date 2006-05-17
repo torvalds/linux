@@ -91,6 +91,7 @@ enum mptsas_hotplug_action {
 	MPTSAS_DEL_DEVICE,
 	MPTSAS_ADD_RAID,
 	MPTSAS_DEL_RAID,
+	MPTSAS_IGNORE_EVENT,
 };
 
 struct mptsas_hotplug_event {
@@ -296,6 +297,26 @@ mptsas_find_portinfo_by_handle(MPT_ADAPTER *ioc, u16 handle)
 			}
  out:
 	return rc;
+}
+
+/*
+ * Returns true if there is a scsi end device
+ */
+static inline int
+mptsas_is_end_device(struct mptsas_devinfo * attached)
+{
+	if ((attached->handle) &&
+	    (attached->device_info &
+	    MPI_SAS_DEVICE_INFO_END_DEVICE) &&
+	    ((attached->device_info &
+	    MPI_SAS_DEVICE_INFO_SSP_TARGET) |
+	    (attached->device_info &
+	    MPI_SAS_DEVICE_INFO_STP_TARGET) |
+	    (attached->device_info &
+	    MPI_SAS_DEVICE_INFO_SATA_DEVICE)))
+		return 1;
+	else
+		return 0;
 }
 
 static int
@@ -872,7 +893,11 @@ mptsas_sas_device_pg0(MPT_ADAPTER *ioc, struct mptsas_devinfo *device_info,
 	SasDevicePage0_t *buffer;
 	dma_addr_t dma_handle;
 	__le64 sas_address;
-	int error;
+	int error=0;
+
+	if (ioc->sas_discovery_runtime &&
+		mptsas_is_end_device(device_info))
+			goto out;
 
 	hdr.PageVersion = MPI_SASDEVICE0_PAGEVERSION;
 	hdr.ExtPageLength = 0;
@@ -1009,7 +1034,11 @@ mptsas_sas_expander_pg1(MPT_ADAPTER *ioc, struct mptsas_phyinfo *phy_info,
 	CONFIGPARMS cfg;
 	SasExpanderPage1_t *buffer;
 	dma_addr_t dma_handle;
-	int error;
+	int error=0;
+
+	if (ioc->sas_discovery_runtime &&
+		mptsas_is_end_device(&phy_info->attached))
+			goto out;
 
 	hdr.PageVersion = MPI_SASEXPANDER0_PAGEVERSION;
 	hdr.ExtPageLength = 0;
@@ -1066,26 +1095,6 @@ mptsas_sas_expander_pg1(MPT_ADAPTER *ioc, struct mptsas_phyinfo *phy_info,
 			    buffer, dma_handle);
  out:
 	return error;
-}
-
-/*
- * Returns true if there is a scsi end device
- */
-static inline int
-mptsas_is_end_device(struct mptsas_devinfo * attached)
-{
-	if ((attached->handle) &&
-	    (attached->device_info &
-	    MPI_SAS_DEVICE_INFO_END_DEVICE) &&
-	    ((attached->device_info &
-	    MPI_SAS_DEVICE_INFO_SSP_TARGET) |
-	    (attached->device_info &
-	    MPI_SAS_DEVICE_INFO_STP_TARGET) |
-	    (attached->device_info &
-	    MPI_SAS_DEVICE_INFO_SATA_DEVICE)))
-		return 1;
-	else
-		return 0;
 }
 
 static void
@@ -1737,6 +1746,9 @@ mptsas_hotplug_work(void *arg)
 		break;
 	case MPTSAS_ADD_DEVICE:
 
+		if (ev->phys_disk_num_valid)
+			mpt_findImVolumes(ioc);
+
 		/*
 		 * Refresh sas device pg0 data
 		 */
@@ -1868,6 +1880,9 @@ mptsas_hotplug_work(void *arg)
 		scsi_device_put(sdev);
 		mpt_findImVolumes(ioc);
 		break;
+	case MPTSAS_IGNORE_EVENT:
+	default:
+		break;
 	}
 
 	kfree(ev);
@@ -1940,7 +1955,8 @@ mptscsih_send_raid_event(MPT_ADAPTER *ioc,
 		EVENT_DATA_RAID *raid_event_data)
 {
 	struct mptsas_hotplug_event *ev;
-	RAID_VOL0_STATUS * volumeStatus;
+	int status = le32_to_cpu(raid_event_data->SettingsStatus);
+	int state = (status >> 8) & 0xff;
 
 	if (ioc->bus_type != SAS)
 		return;
@@ -1955,6 +1971,7 @@ mptscsih_send_raid_event(MPT_ADAPTER *ioc,
 	INIT_WORK(&ev->work, mptsas_hotplug_work, ev);
 	ev->ioc = ioc;
 	ev->id = raid_event_data->VolumeID;
+	ev->event_type = MPTSAS_IGNORE_EVENT;
 
 	switch (raid_event_data->ReasonCode) {
 	case MPI_EVENT_RAID_RC_PHYSDISK_DELETED:
@@ -1966,6 +1983,25 @@ mptscsih_send_raid_event(MPT_ADAPTER *ioc,
 		ev->phys_disk_num = raid_event_data->PhysDiskNum;
 		ev->event_type = MPTSAS_DEL_DEVICE;
 		break;
+	case MPI_EVENT_RAID_RC_PHYSDISK_STATUS_CHANGED:
+		switch (state) {
+		case MPI_PD_STATE_ONLINE:
+			ioc->raid_data.isRaid = 1;
+			ev->phys_disk_num_valid = 1;
+			ev->phys_disk_num = raid_event_data->PhysDiskNum;
+			ev->event_type = MPTSAS_ADD_DEVICE;
+			break;
+		case MPI_PD_STATE_MISSING:
+		case MPI_PD_STATE_NOT_COMPATIBLE:
+		case MPI_PD_STATE_OFFLINE_AT_HOST_REQUEST:
+		case MPI_PD_STATE_FAILED_AT_HOST_REQUEST:
+		case MPI_PD_STATE_OFFLINE_FOR_ANOTHER_REASON:
+			ev->event_type = MPTSAS_DEL_DEVICE;
+			break;
+		default:
+			break;
+		}
+		break;
 	case MPI_EVENT_RAID_RC_VOLUME_DELETED:
 		ev->event_type = MPTSAS_DEL_RAID;
 		break;
@@ -1973,11 +2009,18 @@ mptscsih_send_raid_event(MPT_ADAPTER *ioc,
 		ev->event_type = MPTSAS_ADD_RAID;
 		break;
 	case MPI_EVENT_RAID_RC_VOLUME_STATUS_CHANGED:
-		volumeStatus = (RAID_VOL0_STATUS *) &
-		    raid_event_data->SettingsStatus;
-		ev->event_type = (volumeStatus->State ==
-		    MPI_RAIDVOL0_STATUS_STATE_FAILED) ?
-		    MPTSAS_DEL_RAID : MPTSAS_ADD_RAID;
+		switch (state) {
+		case MPI_RAIDVOL0_STATUS_STATE_FAILED:
+		case MPI_RAIDVOL0_STATUS_STATE_MISSING:
+			ev->event_type = MPTSAS_DEL_RAID;
+			break;
+		case MPI_RAIDVOL0_STATUS_STATE_OPTIMAL:
+		case MPI_RAIDVOL0_STATUS_STATE_DEGRADED:
+			ev->event_type = MPTSAS_ADD_RAID;
+			break;
+		default:
+			break;
+		}
 		break;
 	default:
 		break;

@@ -712,6 +712,7 @@ struct sctp_chunk {
 	__u8 tsn_gap_acked;	/* Is this chunk acked by a GAP ACK? */
 	__s8 fast_retransmit;	 /* Is this chunk fast retransmitted? */
 	__u8 tsn_missing_report; /* Data chunk missing counter. */
+	__u8 data_accepted; 	/* At least 1 chunk in this packet accepted */
 };
 
 void sctp_chunk_hold(struct sctp_chunk *);

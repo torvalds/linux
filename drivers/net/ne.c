@@ -139,8 +139,9 @@ bad_clone_list[] __initdata = {
 
 #if defined(CONFIG_PLAT_MAPPI)
 #  define DCR_VAL 0x4b
-#elif defined(CONFIG_PLAT_OAKS32R)
-#  define DCR_VAL 0x48
+#elif defined(CONFIG_PLAT_OAKS32R)  || \
+   defined(CONFIG_TOSHIBA_RBTX4927) || defined(CONFIG_TOSHIBA_RBTX4938)
+#  define DCR_VAL 0x48		/* 8-bit mode */
 #else
 #  define DCR_VAL 0x49
 #endif
@@ -396,10 +397,22 @@ static int __init ne_probe1(struct net_device *dev, int ioaddr)
 		/* We must set the 8390 for word mode. */
 		outb_p(DCR_VAL, ioaddr + EN0_DCFG);
 		start_page = NESM_START_PG;
-		stop_page = NESM_STOP_PG;
+
+		/*
+		 * Realtek RTL8019AS datasheet says that the PSTOP register
+		 * shouldn't exceed 0x60 in 8-bit mode.
+		 * This chip can be identified by reading the signature from
+		 * the  remote byte count registers (otherwise write-only)...
+		 */
+		if ((DCR_VAL & 0x01) == 0 &&		/* 8-bit mode */
+		    inb(ioaddr + EN0_RCNTLO) == 0x50 &&
+		    inb(ioaddr + EN0_RCNTHI) == 0x70)
+			stop_page = 0x60;
+		else
+			stop_page = NESM_STOP_PG;
 	} else {
 		start_page = NE1SM_START_PG;
-		stop_page = NE1SM_STOP_PG;
+		stop_page  = NE1SM_STOP_PG;
 	}
 
 #if  defined(CONFIG_PLAT_MAPPI) || defined(CONFIG_PLAT_OAKS32R)
@@ -509,15 +522,9 @@ static int __init ne_probe1(struct net_device *dev, int ioaddr)
 	ei_status.name = name;
 	ei_status.tx_start_page = start_page;
 	ei_status.stop_page = stop_page;
-#if defined(CONFIG_TOSHIBA_RBTX4927) || defined(CONFIG_TOSHIBA_RBTX4938)
-	wordlength = 1;
-#endif
 
-#ifdef CONFIG_PLAT_OAKS32R
-	ei_status.word16 = 0;
-#else
-	ei_status.word16 = (wordlength == 2);
-#endif
+	/* Use 16-bit mode only if this wasn't overridden by DCR_VAL */
+	ei_status.word16 = (wordlength == 2 && (DCR_VAL & 0x01));
 
 	ei_status.rx_start_page = start_page + TX_PAGES;
 #ifdef PACKETBUF_MEMSIZE

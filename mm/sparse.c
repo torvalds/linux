@@ -32,7 +32,7 @@ static struct mem_section *sparse_index_alloc(int nid)
 	unsigned long array_size = SECTIONS_PER_ROOT *
 				   sizeof(struct mem_section);
 
-	if (system_state == SYSTEM_RUNNING)
+	if (slab_is_available())
 		section = kmalloc_node(array_size, GFP_KERNEL, nid);
 	else
 		section = alloc_bootmem_node(NODE_DATA(nid), array_size);
