@@ -1938,26 +1938,6 @@ struct sns_cmd_pkt {
 	} p;
 };
 
-struct qla_fw_info {
-	unsigned short addressing;	/* addressing method used to load fw */
-#define FW_INFO_ADDR_NORMAL	0
-#define FW_INFO_ADDR_EXTENDED	1
-#define FW_INFO_ADDR_NOMORE	0xffff
-	unsigned short *fwcode;		/* pointer to FW array */
-	unsigned short *fwlen;		/* number of words in array */
-	unsigned short *fwstart;	/* start address for F/W */
-	unsigned long *lfwstart;	/* start address (long) for F/W */
-};
-
-struct qla_board_info {
-	char *drv_name;
-
-	char isp_name[8];
-	struct qla_fw_info *fw_info;
-	char *fw_fname;
-	struct scsi_host_template *sht;
-};
-
 struct fw_blob {
 	char *name;
 	uint32_t segs[4];
@@ -2305,13 +2285,16 @@ typedef struct scsi_qla_host {
 	mbx_cmd_t 	mc;
 
 	/* Basic firmware related information. */
-	struct qla_board_info	*brd_info;
 	uint16_t	fw_major_version;
 	uint16_t	fw_minor_version;
 	uint16_t	fw_subminor_version;
 	uint16_t	fw_attributes;
 	uint32_t	fw_memory_size;
 	uint32_t	fw_transfer_size;
+	uint32_t	fw_srisc_address;
+#define RISC_START_ADDRESS_2100 0x1000
+#define RISC_START_ADDRESS_2300 0x800
+#define RISC_START_ADDRESS_2400 0x100000
 
 	uint16_t	fw_options[16];		/* slots: 1,2,3,10,11 */
 	uint8_t		fw_seriallink_options[4];

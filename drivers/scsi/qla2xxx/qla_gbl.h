@@ -9,9 +9,6 @@
 
 #include <linux/interrupt.h>
 
-extern void qla2x00_remove_one(struct pci_dev *);
-extern int qla2x00_probe_one(struct pci_dev *, struct qla_board_info *);
-
 /*
  * Global Function Prototypes in qla_init.c source file.
  */

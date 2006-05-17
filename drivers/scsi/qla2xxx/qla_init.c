@@ -383,9 +383,7 @@ qla2x00_isp_firmware(scsi_qla_host_t *ha)
 		qla_printk(KERN_INFO, ha, "RISC CODE NOT loaded\n");
 
 		/* Verify checksum of loaded RISC code. */
-		rval = qla2x00_verify_checksum(ha,
-		    IS_QLA24XX(ha) || IS_QLA54XX(ha) ? RISC_SADDRESS :
-		    *ha->brd_info->fw_info[0].fwstart);
+		rval = qla2x00_verify_checksum(ha, ha->fw_srisc_address);
 	}
 
 	if (rval) {
@@ -3545,135 +3543,6 @@ qla24xx_load_risc_flash(scsi_qla_host_t *ha, uint32_t *srisc_addr)
 	return rval;
 }
 
-#if defined(CONFIG_SCSI_QLA2XXX_EMBEDDED_FIRMWARE)
-
-int
-qla2x00_load_risc(scsi_qla_host_t *ha, uint32_t *srisc_addr)
-{
-	int	rval, num, i;
-	uint32_t cnt;
-	uint16_t *risc_code;
-	uint32_t risc_addr, risc_size;
-	uint16_t *req_ring;
-	struct qla_fw_info *fw_iter;
-
-	rval = QLA_SUCCESS;
-
-	/* Load firmware sequences */
-	fw_iter = ha->brd_info->fw_info;
-	*srisc_addr = *ha->brd_info->fw_info->fwstart;
-	while (fw_iter->addressing != FW_INFO_ADDR_NOMORE) {
-		risc_code = fw_iter->fwcode;
-		risc_size = *fw_iter->fwlen;
-		if (fw_iter->addressing == FW_INFO_ADDR_NORMAL)
-			risc_addr = *fw_iter->fwstart;
-		else
-			risc_addr = *fw_iter->lfwstart;
-
-		num = 0;
-		rval = 0;
-		while (risc_size > 0 && !rval) {
-			cnt = (uint16_t)(ha->fw_transfer_size >> 1);
-			if (cnt > risc_size)
-				cnt = risc_size;
-
-			DEBUG7(printk("scsi(%ld): Loading risc segment@ "
-			    "addr %p, number of bytes 0x%x, offset 0x%lx.\n",
-			    ha->host_no, risc_code, cnt, risc_addr));
-
-			req_ring = (uint16_t *)ha->request_ring;
-			for (i = 0; i < cnt; i++)
-				req_ring[i] = cpu_to_le16(risc_code[i]);
-
-			rval = qla2x00_load_ram(ha, ha->request_dma, risc_addr,
-			    cnt);
-			if (rval) {
-				DEBUG(printk("scsi(%ld): [ERROR] Failed to "
-				    "load segment %d of firmware\n",
-				    ha->host_no, num));
-				qla_printk(KERN_WARNING, ha,
-				    "[ERROR] Failed to load segment %d of "
-				    "firmware\n", num);
-
-				qla2x00_dump_regs(ha);
-				break;
-			}
-
-			risc_code += cnt;
-			risc_addr += cnt;
-			risc_size -= cnt;
-			num++;
-		}
-
-		/* Next firmware sequence */
-		fw_iter++;
-	}
-	return rval;
-}
-
-int
-qla24xx_load_risc(scsi_qla_host_t *ha, uint32_t *srisc_addr)
-{
-	int	rval, num, i;
-	uint32_t cnt;
-	uint32_t *risc_code;
-	uint32_t risc_addr, risc_size;
-	uint32_t *req_ring;
-	struct qla_fw_info *fw_iter;
-
-	rval = QLA_SUCCESS;
-
-	/* Load firmware sequences */
-	fw_iter = ha->brd_info->fw_info;
-	*srisc_addr = *((uint32_t *)fw_iter->lfwstart);
-	while (fw_iter->addressing != FW_INFO_ADDR_NOMORE) {
-		risc_code = (uint32_t *)fw_iter->fwcode;
-		risc_size = *((uint32_t *)fw_iter->fwlen);
-		risc_addr = *((uint32_t *)fw_iter->lfwstart);
-
-		num = 0;
-		rval = 0;
-		while (risc_size > 0 && !rval) {
-			cnt = (uint32_t)(ha->fw_transfer_size >> 2);
-			if (cnt > risc_size)
-				cnt = risc_size;
-
-			DEBUG7(printk("scsi(%ld): Loading risc segment@ "
-			    "addr %p, number of bytes 0x%x, offset 0x%lx.\n",
-			    ha->host_no, risc_code, cnt, risc_addr));
-
-			req_ring = (uint32_t *)ha->request_ring;
-			for (i = 0; i < cnt; i++)
-				req_ring[i] = cpu_to_le32(risc_code[i]);
-
-			rval = qla2x00_load_ram(ha, ha->request_dma, risc_addr,
-			    cnt);
-			if (rval) {
-				DEBUG(printk("scsi(%ld): [ERROR] Failed to "
-				    "load segment %d of firmware\n",
-				    ha->host_no, num));
-				qla_printk(KERN_WARNING, ha,
-				    "[ERROR] Failed to load segment %d of "
-				    "firmware\n", num);
-
-				qla2x00_dump_regs(ha);
-				break;
-			}
-
-			risc_code += cnt;
-			risc_addr += cnt;
-			risc_size -= cnt;
-			num++;
-		}
-
-		/* Next firmware sequence */
-		fw_iter++;
-	}
-	return rval;
-}
-
-#else	/* !defined(CONFIG_SCSI_QLA2XXX_EMBEDDED_FIRMWARE) */
-
 #define QLA_FW_URL "ftp://ftp.qlogic.com/outgoing/linux/firmware/"
 
 int
@@ -3884,4 +3753,3 @@ qla24xx_load_risc(scsi_qla_host_t *ha, uint32_t *srisc_addr)
 fail_fw_integrity:
 	return QLA_FUNCTION_FAILED;
 }
-#endif

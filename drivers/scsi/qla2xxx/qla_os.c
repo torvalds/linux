@@ -54,13 +54,6 @@ module_param(ql2xloginretrycount, int, S_IRUGO|S_IRUSR);
 MODULE_PARM_DESC(ql2xloginretrycount,
 		"Specify an alternate value for the NVRAM login retry count.");
 
-#if defined(CONFIG_SCSI_QLA2XXX_EMBEDDED_FIRMWARE)
-int ql2xfwloadflash;
-module_param(ql2xfwloadflash, int, S_IRUGO|S_IRUSR);
-MODULE_PARM_DESC(ql2xfwloadflash,
-		"Load ISP24xx firmware image from FLASH (onboard memory).");
-#endif
-
 static void qla2x00_free_device(scsi_qla_host_t *);
 
 static void qla2x00_config_dma_addressing(scsi_qla_host_t *ha);
@@ -1150,18 +1143,22 @@ qla2x00_set_isp_flags(scsi_qla_host_t *ha)
 	case PCI_DEVICE_ID_QLOGIC_ISP2100:
 		ha->device_type |= DT_ISP2100;
 		ha->device_type &= ~DT_EXTENDED_IDS;
+		ha->fw_srisc_address = RISC_START_ADDRESS_2100;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP2200:
 		ha->device_type |= DT_ISP2200;
 		ha->device_type &= ~DT_EXTENDED_IDS;
+		ha->fw_srisc_address = RISC_START_ADDRESS_2100;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP2300:
 		ha->device_type |= DT_ISP2300;
 		ha->device_type |= DT_ZIO_SUPPORTED;
+		ha->fw_srisc_address = RISC_START_ADDRESS_2300;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP2312:
 		ha->device_type |= DT_ISP2312;
 		ha->device_type |= DT_ZIO_SUPPORTED;
+		ha->fw_srisc_address = RISC_START_ADDRESS_2300;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP2322:
 		ha->device_type |= DT_ISP2322;
@@ -1169,26 +1166,33 @@ qla2x00_set_isp_flags(scsi_qla_host_t *ha)
 		if (ha->pdev->subsystem_vendor == 0x1028 &&
 		    ha->pdev->subsystem_device == 0x0170)
 			ha->device_type |= DT_OEM_001;
+		ha->fw_srisc_address = RISC_START_ADDRESS_2300;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP6312:
 		ha->device_type |= DT_ISP6312;
+		ha->fw_srisc_address = RISC_START_ADDRESS_2300;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP6322:
 		ha->device_type |= DT_ISP6322;
+		ha->fw_srisc_address = RISC_START_ADDRESS_2300;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP2422:
 		ha->device_type |= DT_ISP2422;
 		ha->device_type |= DT_ZIO_SUPPORTED;
+		ha->fw_srisc_address = RISC_START_ADDRESS_2400;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP2432:
 		ha->device_type |= DT_ISP2432;
 		ha->device_type |= DT_ZIO_SUPPORTED;
+		ha->fw_srisc_address = RISC_START_ADDRESS_2400;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP5422:
 		ha->device_type |= DT_ISP5422;
+		ha->fw_srisc_address = RISC_START_ADDRESS_2400;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP5432:
 		ha->device_type |= DT_ISP5432;
+		ha->fw_srisc_address = RISC_START_ADDRESS_2400;
 		break;
 	}
 }
@@ -1235,7 +1239,7 @@ qla2x00_iospace_config(scsi_qla_host_t *ha)
 		goto iospace_error_exit;
 	}
 
-	if (pci_request_regions(ha->pdev, ha->brd_info->drv_name)) {
+	if (pci_request_regions(ha->pdev, "qla2xxx")) {
 		qla_printk(KERN_WARNING, ha,
 		    "Failed to reserve PIO/MMIO regions (%s)\n",
 		    pci_name(ha->pdev));
@@ -1317,7 +1321,7 @@ qla24xx_disable_intrs(scsi_qla_host_t *ha)
 /*
  * PCI driver interface
  */
-int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
+static int qla2x00_probe_one(struct pci_dev *pdev)
 {
 	int	ret = -ENODEV;
 	device_reg_t __iomem *reg;
@@ -1351,8 +1355,7 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 	ha->pdev = pdev;
 	ha->host = host;
 	ha->host_no = host->host_no;
-	ha->brd_info = brd_info;
-	sprintf(ha->host_str, "%s_%ld", ha->brd_info->drv_name, ha->host_no);
+	sprintf(ha->host_str, "qla2xxx_%ld", ha->host_no);
 
 	/* Set ISP-type information. */
 	qla2x00_set_isp_flags(ha);
@@ -1449,10 +1452,6 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 		ha->isp_ops.nvram_config = qla24xx_nvram_config;
 		ha->isp_ops.update_fw_options = qla24xx_update_fw_options;
 		ha->isp_ops.load_risc = qla24xx_load_risc;
-#if defined(CONFIG_SCSI_QLA2XXX_EMBEDDED_FIRMWARE)
-		if (ql2xfwloadflash)
-			ha->isp_ops.load_risc = qla24xx_load_risc_flash;
-#endif
 		ha->isp_ops.pci_info_str = qla24xx_pci_info_str;
 		ha->isp_ops.fw_version_str = qla24xx_fw_version_str;
 		ha->isp_ops.intr_handler = qla24xx_intr_handler;
@@ -1539,7 +1538,7 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 	host->transportt = qla2xxx_transport_template;
 
 	ret = request_irq(pdev->irq, ha->isp_ops.intr_handler,
-	    SA_INTERRUPT|SA_SHIRQ, ha->brd_info->drv_name, ha);
+	    SA_INTERRUPT|SA_SHIRQ, "qla2xxx", ha);
 	if (ret) {
 		qla_printk(KERN_WARNING, ha,
 		    "Failed to reserve interrupt %d already in use.\n",
@@ -1637,9 +1636,8 @@ probe_disable_device:
 probe_out:
 	return ret;
 }
-EXPORT_SYMBOL_GPL(qla2x00_probe_one);
 
-void qla2x00_remove_one(struct pci_dev *pdev)
+static void qla2x00_remove_one(struct pci_dev *pdev)
 {
 	scsi_qla_host_t *ha;
 
@@ -1657,7 +1655,6 @@ void qla2x00_remove_one(struct pci_dev *pdev)
 
 	pci_set_drvdata(pdev, NULL);
 }
-EXPORT_SYMBOL_GPL(qla2x00_remove_one);
 
 static void
 qla2x00_free_device(scsi_qla_host_t *ha)
@@ -2539,14 +2536,6 @@ qla2x00_down_timeout(struct semaphore *sema, unsigned long timeout)
 	return -ETIMEDOUT;
 }
 
-#if defined(CONFIG_SCSI_QLA2XXX_EMBEDDED_FIRMWARE)
-
-#define qla2x00_release_firmware()	do { } while (0)
-#define qla2x00_pci_module_init()	(0)
-#define qla2x00_pci_module_exit()	do { } while (0)
-
-#else	/* !defined(CONFIG_SCSI_QLA2XXX_EMBEDDED_FIRMWARE) */
-
 /* Firmware interface routines. */
 
 #define FW_BLOBS	5
@@ -2613,10 +2602,6 @@ qla2x00_release_firmware(void)
 	up(&qla_fw_lock);
 }
 
-static struct qla_board_info qla_board_tbl = {
-	.drv_name       = "qla2xxx",
-};
-
 static struct pci_device_id qla2xxx_pci_tbl[] = {
 	{ PCI_VENDOR_ID_QLOGIC, PCI_DEVICE_ID_QLOGIC_ISP2100,
 		PCI_ANY_ID, PCI_ANY_ID, },
@@ -2647,7 +2632,7 @@ MODULE_DEVICE_TABLE(pci, qla2xxx_pci_tbl);
 static int __devinit
 qla2xxx_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
-	return qla2x00_probe_one(pdev, &qla_board_tbl);
+	return qla2x00_probe_one(pdev);
 }
 
 static void __devexit
@@ -2678,8 +2663,6 @@ qla2x00_pci_module_exit(void)
 	pci_unregister_driver(&qla2xxx_pci_driver);
 }
 
-#endif
-
 /**
  * qla2x00_module_init - Module initialization.
  **/
@@ -2699,9 +2682,6 @@ qla2x00_module_init(void)
 
 	/* Derive version string. */
 	strcpy(qla2x00_version_str, QLA2XXX_VERSION);
-#if defined(CONFIG_SCSI_QLA2XXX_EMBEDDED_FIRMWARE)
-	strcat(qla2x00_version_str, "-fw");
-#endif
 #if DEBUG_QLA2100
 	strcat(qla2x00_version_str, "-debug");
 #endif

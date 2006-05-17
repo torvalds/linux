@@ -7,7 +7,6 @@
 #ifndef __QLA_FW_H
 #define __QLA_FW_H
 
-#define RISC_SADDRESS		0x100000
 #define MBS_CHECKSUM_ERROR	0x4010
 
 /*
