@@ -318,7 +318,6 @@ qla2x00_update_login_fcport(scsi_qla_host_t *ha, struct mbx_entry *mbxstat,
 	fcport->flags &= ~FCF_FAILOVER_NEEDED;
 	fcport->iodesc_idx_sent = IODESC_INVALID_INDEX;
 	atomic_set(&fcport->state, FCS_ONLINE);
-	schedule_work(&fcport->rport_add_work);
 }
 
 

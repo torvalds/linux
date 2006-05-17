@@ -844,8 +844,7 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 	cp = sp->cmd;
 	if (cp == NULL) {
 		DEBUG2(printk("scsi(%ld): Command already returned back to OS "
-		    "pkt->handle=%d sp=%p sp->state:%d\n",
-		    ha->host_no, sts->handle, sp, sp->state));
+		    "pkt->handle=%d sp=%p.\n", ha->host_no, sts->handle, sp));
 		qla_printk(KERN_WARNING, ha,
 		    "Command is NULL: already returned to OS (sp=%p)\n", sp);
 
@@ -1189,7 +1188,7 @@ qla2x00_status_cont_entry(scsi_qla_host_t *ha, sts_cont_entry_t *pkt)
 		cp = sp->cmd;
 		if (cp == NULL) {
 			DEBUG2(printk("%s(): Cmd already returned back to OS "
-			    "sp=%p sp->state:%d\n", __func__, sp, sp->state));
+			    "sp=%p.\n", __func__, sp));
 			qla_printk(KERN_INFO, ha,
 			    "cmd is NULL: already returned to OS (sp=%p)\n",
 			    sp);

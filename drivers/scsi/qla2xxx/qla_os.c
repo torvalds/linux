@@ -340,7 +340,6 @@ qla2x00_get_new_sp(scsi_qla_host_t *ha, fc_port_t *fcport,
 	if (!sp)
 		return sp;
 
-	atomic_set(&sp->ref_count, 1);
 	sp->ha = ha;
 	sp->fcport = fcport;
 	sp->cmd = cmd;
@@ -634,9 +633,8 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 		if (sp->cmd != cmd)
 			continue;
 
-		DEBUG2(printk("%s(%ld): aborting sp %p from RISC. pid=%ld "
-		    "sp->state=%x\n", __func__, ha->host_no, sp, serial,
-		    sp->state));
+		DEBUG2(printk("%s(%ld): aborting sp %p from RISC. pid=%ld.\n",
+		    __func__, ha->host_no, sp, serial));
 		DEBUG3(qla2x00_print_scsi_cmd(cmd);)
 
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
@@ -1377,7 +1375,6 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 	spin_lock_init(&ha->hardware_lock);
 
 	ha->prev_topology = 0;
-	ha->ports = MAX_BUSES;
 	ha->init_cb_size = sizeof(init_cb_t);
 	ha->mgmt_svr_loop_id = MANAGEMENT_SERVER;
 	ha->link_data_rate = LDR_UNKNOWN;
@@ -1544,7 +1541,7 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 	host->cmd_per_lun = 3;
 	host->unique_id = ha->instance;
 	host->max_cmd_len = MAX_CMDSZ;
-	host->max_channel = ha->ports - 1;
+	host->max_channel = MAX_BUSES - 1;
 	host->max_lun = MAX_LUNS;
 	host->transportt = qla2xxx_transport_template;
 
@@ -1885,18 +1882,6 @@ qla2x00_mem_alloc(scsi_qla_host_t *ha)
 			continue;
 		}
 
-		ha->rlc_rsp = dma_alloc_coherent(&ha->pdev->dev,
-		    sizeof(rpt_lun_cmd_rsp_t), &ha->rlc_rsp_dma, GFP_KERNEL);
-		if (ha->rlc_rsp == NULL) {
-			qla_printk(KERN_WARNING, ha,
-				"Memory Allocation failed - rlc");
-
-			qla2x00_mem_free(ha);
-			msleep(100);
-
-			continue;
-		}
-
 		snprintf(name, sizeof(name), "qla2xxx_%ld", ha->host_no);
 		ha->s_dma_pool = dma_pool_create(name, &ha->pdev->dev,
 		    DMA_POOL_SIZE, 8, 0);
@@ -2072,11 +2057,6 @@ qla2x00_mem_free(scsi_qla_host_t *ha)
 	if (ha->s_dma_pool)
 		dma_pool_destroy(ha->s_dma_pool);
 
-	if (ha->rlc_rsp)
-		dma_free_coherent(&ha->pdev->dev,
-		    sizeof(rpt_lun_cmd_rsp_t), ha->rlc_rsp,
-		    ha->rlc_rsp_dma);
-
 	if (ha->gid_list)
 		dma_free_coherent(&ha->pdev->dev, GID_LIST_SIZE, ha->gid_list,
 		    ha->gid_list_dma);
@@ -2104,8 +2084,6 @@ qla2x00_mem_free(scsi_qla_host_t *ha)
 
 	ha->s_dma_pool = NULL;
 
-	ha->rlc_rsp = NULL;
-	ha->rlc_rsp_dma = 0;
 	ha->gid_list = NULL;
 	ha->gid_list_dma = 0;
 
@@ -2149,8 +2127,6 @@ qla2x00_mem_free(scsi_qla_host_t *ha)
  *
  * Context:
  *      Kernel context.
- *
- * Note: Sets the ref_count for non Null sp to one.
  */
 static int
 qla2x00_allocate_sp_pool(scsi_qla_host_t *ha)

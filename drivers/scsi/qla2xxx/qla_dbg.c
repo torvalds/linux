@@ -1995,7 +1995,6 @@ qla2x00_print_scsi_cmd(struct scsi_cmnd * cmd)
 		return;
 
 	printk("  sp flags=0x%x\n", sp->flags);
-	printk("  state=%d\n", sp->state);
 }
 
 void

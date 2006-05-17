@@ -189,22 +189,13 @@ typedef struct srb {
 
 	struct scsi_cmnd *cmd;		/* Linux SCSI command pkt */
 
-	struct timer_list timer;	/* Command timer */
-	atomic_t ref_count;	/* Reference count for this structure */
 	uint16_t flags;
-
-	/* Request state */
-	uint16_t state;
 
 	/* Single transfer DMA context */
 	dma_addr_t dma_handle;
 
 	uint32_t request_sense_length;
 	uint8_t *request_sense_ptr;
-
-	/* SRB magic number */
-	uint16_t magic;
-#define SRB_MAGIC       0x10CB
 } srb_t;
 
 /*
@@ -224,21 +215,6 @@ typedef struct srb {
 #define SRB_FO_CANCEL		BIT_9	/* Command don't need to do failover */
 #define SRB_IOCTL		BIT_10	/* IOCTL command. */
 #define SRB_TAPE		BIT_11	/* FCP2 (Tape) command. */
-
-/*
- * SRB state definitions
- */
-#define SRB_FREE_STATE		0	/*   returned back */
-#define SRB_PENDING_STATE	1	/*   queued in LUN Q */
-#define SRB_ACTIVE_STATE	2	/*   in Active Array */
-#define SRB_DONE_STATE		3	/*   queued in Done Queue */
-#define SRB_RETRY_STATE		4	/*   in Retry Queue */
-#define SRB_SUSPENDED_STATE	5	/*   in suspended state */
-#define SRB_NO_QUEUE_STATE	6	/*   is in between states */
-#define SRB_ACTIVE_TIMEOUT_STATE 7	/*   in Active Array but timed out */
-#define SRB_FAILOVER_STATE	8	/*   in Failover Queue */
-#define SRB_SCSI_RETRY_STATE	9	/*   in Scsi Retry Queue */
-
 
 /*
  * ISP I/O Register Set structure definitions.
@@ -1516,62 +1492,6 @@ typedef struct {
 } sw_info_t;
 
 /*
- * Inquiry command structure.
- */
-#define INQ_DATA_SIZE	36
-
-/*
- * Inquiry mailbox IOCB packet definition.
- */
-typedef struct {
-	union {
-		cmd_a64_entry_t cmd;
-		sts_entry_t rsp;
-		struct cmd_type_7 cmd24;
-		struct sts_entry_24xx rsp24;
-	} p;
-	uint8_t inq[INQ_DATA_SIZE];
-} inq_cmd_rsp_t;
-
-/*
- * Report LUN command structure.
- */
-#define CHAR_TO_SHORT(a, b)	(uint16_t)((uint8_t)b << 8 | (uint8_t)a)
-
-typedef struct {
-	uint32_t len;
-	uint32_t rsrv;
-} rpt_hdr_t;
-
-typedef struct {
-	struct {
-		uint8_t b : 6;
-		uint8_t address_method : 2;
-	} msb;
-	uint8_t lsb;
-	uint8_t unused[6];
-} rpt_lun_t;
-
-typedef struct {
-	rpt_hdr_t hdr;
-	rpt_lun_t lst[MAX_LUNS];
-} rpt_lun_lst_t;
-
-/*
- * Report Lun mailbox IOCB packet definition.
- */
-typedef struct {
-	union {
-		cmd_a64_entry_t cmd;
-		sts_entry_t rsp;
-		struct cmd_type_7 cmd24;
-		struct sts_entry_24xx rsp24;
-	} p;
-	rpt_lun_lst_t list;
-} rpt_lun_cmd_rsp_t;
-
-
-/*
  * Fibre channel port type.
  */
  typedef enum {
@@ -1589,7 +1509,6 @@ typedef struct {
 typedef struct fc_port {
 	struct list_head list;
 	struct scsi_qla_host *ha;
-	struct scsi_qla_host *vis_ha;	/* only used when suspending lun */
 
 	uint8_t node_name[WWN_SIZE];
 	uint8_t port_name[WWN_SIZE];
@@ -1610,17 +1529,9 @@ typedef struct fc_port {
 	int login_retry;
 	atomic_t port_down_timer;
 
-	uint8_t device_type;
-	uint8_t unused;
-
-	uint8_t mp_byte;		/* multi-path byte (not used) */
-    	uint8_t cur_path;		/* current path id */
-
 	spinlock_t rport_lock;
 	struct fc_rport *rport, *drport;
 	u32 supported_classes;
-	struct work_struct rport_add_work;
-	struct work_struct rport_del_work;
 } fc_port_t;
 
 /*
@@ -2305,9 +2216,6 @@ typedef struct scsi_qla_host {
 	uint32_t	current_outstanding_cmd;
 	srb_t		*status_srb;	/* Status continuation entry. */
 
-	uint16_t           revision;
-	uint8_t           ports;
-
 	/* ISP configuration data. */
 	uint16_t	loop_id;		/* Host adapter loop id */
 	uint16_t	fb_rev;
@@ -2396,9 +2304,6 @@ typedef struct scsi_qla_host {
 	dma_addr_t	gid_list_dma;
 	struct gid_list_info *gid_list;
 	int		gid_list_info_size;
-
-	dma_addr_t	rlc_rsp_dma;
-	rpt_lun_cmd_rsp_t *rlc_rsp;
 
 	/* Small DMA pool allocations -- maximum 256 bytes in length. */
 #define DMA_POOL_SIZE	256
@@ -2505,8 +2410,6 @@ typedef struct scsi_qla_host {
 	 test_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags) || \
 	 atomic_read(&ha->loop_state) == LOOP_DOWN)
 
-#define TGT_Q(ha, t) (ha->otgt[t])
-
 #define to_qla_host(x)		((scsi_qla_host_t *) (x)->hostdata)
 
 #define qla_printk(level, ha, format, arg...) \
@@ -2539,19 +2442,6 @@ typedef struct scsi_qla_host {
 #define QLA_RSCNS_HANDLED		0x108
 #define QLA_ALREADY_REGISTERED		0x109
 
-/*
-* Stat info for all adpaters
-*/
-struct _qla2x00stats  {
-        unsigned long   mboxtout;            /* mailbox timeouts */
-        unsigned long   mboxerr;             /* mailbox errors */
-        unsigned long   ispAbort;            /* ISP aborts */
-        unsigned long   debugNo;
-        unsigned long   loop_resync;
-        unsigned long   outarray_full;
-        unsigned long   retry_q_cnt;
-};
-
 #define NVRAM_DELAY()		udelay(10)
 
 #define INVALID_HANDLE	(MAX_OUTSTANDING_COMMANDS+1)
@@ -2566,12 +2456,6 @@ struct _qla2x00stats  {
 #include "qla_gbl.h"
 #include "qla_dbg.h"
 #include "qla_inline.h"
-
-/*
-* String arrays
-*/
-#define LINESIZE    256
-#define MAXARGS      26
 
 #define CMD_SP(Cmnd)		((Cmnd)->SCp.ptr)
 #define CMD_COMPL_STATUS(Cmnd)  ((Cmnd)->SCp.this_residual)

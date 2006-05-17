@@ -194,7 +194,6 @@ qla2100_pci_config(scsi_qla_host_t *ha)
 	mwi = 0;
 	if (pci_set_mwi(ha->pdev))
 		mwi = PCI_COMMAND_INVALIDATE;
-	pci_read_config_word(ha->pdev, PCI_REVISION_ID, &ha->revision);
 
 	pci_read_config_word(ha->pdev, PCI_COMMAND, &w);
 	w |= mwi | (PCI_COMMAND_PARITY | PCI_COMMAND_SERR);
@@ -232,7 +231,6 @@ qla2300_pci_config(scsi_qla_host_t *ha)
 	mwi = 0;
 	if (pci_set_mwi(ha->pdev))
 		mwi = PCI_COMMAND_INVALIDATE;
-	pci_read_config_word(ha->pdev, PCI_REVISION_ID, &ha->revision);
 
 	pci_read_config_word(ha->pdev, PCI_COMMAND, &w);
 	w |= mwi | (PCI_COMMAND_PARITY | PCI_COMMAND_SERR);
@@ -320,7 +318,6 @@ qla24xx_pci_config(scsi_qla_host_t *ha)
 	mwi = 0;
 	if (pci_set_mwi(ha->pdev))
 		mwi = PCI_COMMAND_INVALIDATE;
-	pci_read_config_word(ha->pdev, PCI_REVISION_ID, &ha->revision);
 
 	pci_read_config_word(ha->pdev, PCI_COMMAND, &w);
 	w |= mwi | (PCI_COMMAND_PARITY | PCI_COMMAND_SERR);
@@ -1675,14 +1672,6 @@ qla2x00_nvram_config(scsi_qla_host_t *ha)
 }
 
 static void
-qla2x00_rport_add(void *data)
-{
-	fc_port_t *fcport = data;
-
-	qla2x00_reg_remote_port(fcport->ha, fcport);
-}
-
-static void
 qla2x00_rport_del(void *data)
 {
 	fc_port_t *fcport = data;
@@ -1724,8 +1713,6 @@ qla2x00_alloc_fcport(scsi_qla_host_t *ha, gfp_t flags)
 	fcport->flags = FCF_RLC_SUPPORT;
 	fcport->supported_classes = FC_COS_UNSPECIFIED;
 	spin_lock_init(&fcport->rport_lock);
-	INIT_WORK(&fcport->rport_add_work, qla2x00_rport_add, fcport);
-	INIT_WORK(&fcport->rport_del_work, qla2x00_rport_del, fcport);
 
 	return (fcport);
 }
@@ -2047,10 +2034,6 @@ qla2x00_update_fcport(scsi_qla_host_t *ha, fc_port_t *fcport)
 	atomic_set(&fcport->port_down_timer, ha->port_down_retry_count *
 	    PORT_RETRY_TIME);
 	fcport->flags &= ~FCF_LOGIN_NEEDED;
-
-	if (fcport->port_type == FCT_INITIATOR ||
-	    fcport->port_type == FCT_BROADCAST)
-		fcport->device_type = TYPE_PROCESSOR;
 
 	atomic_set(&fcport->state, FCS_ONLINE);
 
