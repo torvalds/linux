@@ -340,7 +340,10 @@ static void srp_disconnect_target(struct srp_target_port *target)
 	/* XXX should send SRP_I_LOGOUT request */
 
 	init_completion(&target->done);
-	ib_send_cm_dreq(target->cm_id, NULL, 0);
+	if (ib_send_cm_dreq(target->cm_id, NULL, 0)) {
+		printk(KERN_DEBUG PFX "Sending CM DREQ failed\n");
+		return;
+	}
 	wait_for_completion(&target->done);
 }
 
