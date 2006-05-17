@@ -236,6 +236,7 @@ static int sky2_set_power_state(struct sky2_hw *hw, pci_power_t state)
 		}
 
 		if (hw->chip_id == CHIP_ID_YUKON_EC_U) {
+			sky2_write16(hw, B0_CTST, Y2_HW_WOL_ON);
 			sky2_pci_write32(hw, PCI_DEV_REG3, 0);
 			reg1 = sky2_pci_read32(hw, PCI_DEV_REG4);
 			reg1 &= P_ASPM_CONTROL_MSK;
@@ -307,7 +308,7 @@ static void sky2_phy_init(struct sky2_hw *hw, unsigned port)
 	u16 ctrl, ct1000, adv, pg, ledctrl, ledover;
 
 	if (sky2->autoneg == AUTONEG_ENABLE &&
-	    (hw->chip_id != CHIP_ID_YUKON_XL || hw->chip_id == CHIP_ID_YUKON_EC_U)) {
+	    !(hw->chip_id == CHIP_ID_YUKON_XL || hw->chip_id == CHIP_ID_YUKON_EC_U)) {
 		u16 ectrl = gm_phy_read(hw, port, PHY_MARV_EXT_CTRL);
 
 		ectrl &= ~(PHY_M_EC_M_DSC_MSK | PHY_M_EC_S_DSC_MSK |
