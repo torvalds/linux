@@ -1919,6 +1919,12 @@ static inline void sky2_tx_done(struct net_device *dev, u16 last)
 	}
 }
 
+/* Is status ring empty or is there more to do? */
+static inline int sky2_more_work(const struct sky2_hw *hw)
+{
+	return (hw->st_idx != sky2_read16(hw, STAT_PUT_IDX));
+}
+
 /* Process status response ring */
 static int sky2_status_intr(struct sky2_hw *hw, int to_do)
 {
@@ -2191,19 +2197,19 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 	if (status & Y2_IS_CHK_TXA2)
 		sky2_descriptor_error(hw, 1, "transmit", Y2_IS_CHK_TXA2);
 
-	if (status & Y2_IS_STAT_BMU)
-		sky2_write32(hw, STAT_CTRL, SC_STAT_CLR_IRQ);
-
 	work_done = sky2_status_intr(hw, work_limit);
 	*budget -= work_done;
 	dev0->quota -= work_done;
 
-	if (work_done >= work_limit)
+	if (status & Y2_IS_STAT_BMU)
+		sky2_write32(hw, STAT_CTRL, SC_STAT_CLR_IRQ);
+
+	if (sky2_more_work(hw))
 		return 1;
 
 	netif_rx_complete(dev0);
 
-	status = sky2_read32(hw, B0_Y2_SP_LISR);
+	sky2_read32(hw, B0_Y2_SP_LISR);
 	return 0;
 }
 
