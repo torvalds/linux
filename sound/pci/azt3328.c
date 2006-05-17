@@ -90,9 +90,11 @@
  * 
  * TODO
  *  - test MPU401 MIDI playback etc.
- *  - power management. See e.g. intel8x0 or cs4281.
- *    This would be nice since the chip runs a bit hot, and it's *required*
- *    anyway for proper ACPI power management.
+ *  - add some power micro-management (disable various units of the card
+ *    as long as they're unused). However this requires I/O ports which I
+ *    haven't figured out yet and which thus might not even exist...
+ *    The standard suspend/resume functionality could probably make use of
+ *    some improvement, too...
  *  - figure out what all unknown port bits are responsible for
  */
 
@@ -214,6 +216,16 @@ struct snd_azf3328 {
 
 	struct pci_dev *pci;
 	int irq;
+
+#ifdef CONFIG_PM
+	/* register value containers for power management
+	 * Note: not always full I/O range preserved (just like Win driver!) */
+	u16 saved_regs_codec [AZF_IO_SIZE_CODEC_PM / 2];
+	u16 saved_regs_io2   [AZF_IO_SIZE_IO2_PM / 2];
+	u16 saved_regs_mpu   [AZF_IO_SIZE_MPU_PM / 2];
+	u16 saved_regs_synth[AZF_IO_SIZE_SYNTH_PM / 2];
+	u16 saved_regs_mixer[AZF_IO_SIZE_MIXER_PM / 2];
+#endif
 };
 
 static const struct pci_device_id snd_azf3328_ids[] __devinitdata = {
@@ -961,6 +973,13 @@ snd_azf3328_playback_trigger(struct snd_pcm_substream *substream, int cmd)
 		chip->is_playing = 1;
 		snd_azf3328_dbgplay("STARTED PLAYBACK\n");
 		break;
+	case SNDRV_PCM_TRIGGER_RESUME:
+		snd_azf3328_dbgplay("RESUME PLAYBACK\n");
+		/* resume playback if we were active */
+		if (chip->is_playing)
+			snd_azf3328_codec_outw(chip, IDX_IO_PLAY_FLAGS,
+				snd_azf3328_codec_inw(chip, IDX_IO_PLAY_FLAGS) | DMA_RESUME);
+		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 		snd_azf3328_dbgplay("STOP PLAYBACK\n");
 
@@ -988,6 +1007,12 @@ snd_azf3328_playback_trigger(struct snd_pcm_substream *substream, int cmd)
 		chip->is_playing = 0;
 		snd_azf3328_dbgplay("STOPPED PLAYBACK\n");
 		break;
+	case SNDRV_PCM_TRIGGER_SUSPEND:
+		snd_azf3328_dbgplay("SUSPEND PLAYBACK\n");
+		/* make sure playback is stopped */
+		snd_azf3328_codec_outw(chip, IDX_IO_PLAY_FLAGS,
+			snd_azf3328_codec_inw(chip, IDX_IO_PLAY_FLAGS) & ~DMA_RESUME);
+		break;
         case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		snd_printk(KERN_ERR "FIXME: SNDRV_PCM_TRIGGER_PAUSE_PUSH NIY!\n");
                 break;
@@ -995,6 +1020,7 @@ snd_azf3328_playback_trigger(struct snd_pcm_substream *substream, int cmd)
 		snd_printk(KERN_ERR "FIXME: SNDRV_PCM_TRIGGER_PAUSE_RELEASE NIY!\n");
                 break;
         default:
+		printk(KERN_ERR "FIXME: unknown trigger mode!\n");
                 return -EINVAL;
 	}
 	
@@ -1068,6 +1094,13 @@ snd_azf3328_capture_trigger(struct snd_pcm_substream *substream, int cmd)
 		chip->is_recording = 1;
 		snd_azf3328_dbgplay("STARTED CAPTURE\n");
 		break;
+	case SNDRV_PCM_TRIGGER_RESUME:
+		snd_azf3328_dbgplay("RESUME CAPTURE\n");
+		/* resume recording if we were active */
+		if (chip->is_recording)
+			snd_azf3328_codec_outw(chip, IDX_IO_REC_FLAGS,
+				snd_azf3328_codec_inw(chip, IDX_IO_REC_FLAGS) | DMA_RESUME);
+		break;
         case SNDRV_PCM_TRIGGER_STOP:
 		snd_azf3328_dbgplay("STOP CAPTURE\n");
 
@@ -1088,6 +1121,12 @@ snd_azf3328_capture_trigger(struct snd_pcm_substream *substream, int cmd)
 		chip->is_recording = 0;
 		snd_azf3328_dbgplay("STOPPED CAPTURE\n");
 		break;
+	case SNDRV_PCM_TRIGGER_SUSPEND:
+		snd_azf3328_dbgplay("SUSPEND CAPTURE\n");
+		/* make sure recording is stopped */
+		snd_azf3328_codec_outw(chip, IDX_IO_REC_FLAGS,
+			snd_azf3328_codec_inw(chip, IDX_IO_REC_FLAGS) & ~DMA_RESUME);
+		break;
         case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		snd_printk(KERN_ERR "FIXME: SNDRV_PCM_TRIGGER_PAUSE_PUSH NIY!\n");
                 break;
@@ -1095,6 +1134,7 @@ snd_azf3328_capture_trigger(struct snd_pcm_substream *substream, int cmd)
 		snd_printk(KERN_ERR "FIXME: SNDRV_PCM_TRIGGER_PAUSE_RELEASE NIY!\n");
                 break;
         default:
+		printk(KERN_ERR "FIXME: unknown trigger mode!\n");
                 return -EINVAL;
 	}
 	
@@ -1766,6 +1806,8 @@ snd_azf3328_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 		goto out_err;
 	}
 
+	card->private_data = chip;
+
 	if ((err = snd_mpu401_uart_new( card, 0, MPU401_HW_MPU401,
 				        chip->mpu_port, 1, pci->irq, 0,
 				        &chip->rmidi)) < 0) {
@@ -1790,6 +1832,8 @@ snd_azf3328_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 			goto out_err;
 		}
 	}
+
+	opl3->private_data = chip;
 
 	sprintf(card->longname, "%s at 0x%lx, irq %i",
 		card->shortname, chip->codec_port, chip->irq);
@@ -1834,11 +1878,80 @@ snd_azf3328_remove(struct pci_dev *pci)
 	snd_azf3328_dbgcallleave();
 }
 
+#ifdef CONFIG_PM
+static int
+snd_azf3328_suspend(struct pci_dev *pci, pm_message_t state)
+{
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct snd_azf3328 *chip = card->private_data;
+	int reg;
+
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
+	
+	snd_pcm_suspend_all(chip->pcm);
+
+	for (reg = 0; reg < AZF_IO_SIZE_MIXER_PM / 2; reg++)
+		chip->saved_regs_mixer[reg] = inw(chip->mixer_port + reg * 2);
+
+	/* make sure to disable master volume etc. to prevent looping sound */
+	snd_azf3328_mixer_set_mute(chip, IDX_MIXER_PLAY_MASTER, 1);
+	snd_azf3328_mixer_set_mute(chip, IDX_MIXER_WAVEOUT, 1);
+	
+	for (reg = 0; reg < AZF_IO_SIZE_CODEC_PM / 2; reg++)
+		chip->saved_regs_codec[reg] = inw(chip->codec_port + reg * 2);
+	for (reg = 0; reg < AZF_IO_SIZE_IO2_PM / 2; reg++)
+		chip->saved_regs_io2[reg] = inw(chip->io2_port + reg * 2);
+	for (reg = 0; reg < AZF_IO_SIZE_MPU_PM / 2; reg++)
+		chip->saved_regs_mpu[reg] = inw(chip->mpu_port + reg * 2);
+	for (reg = 0; reg < AZF_IO_SIZE_SYNTH_PM / 2; reg++)
+		chip->saved_regs_synth[reg] = inw(chip->synth_port + reg * 2);
+
+	pci_set_power_state(pci, PCI_D3hot);
+	pci_disable_device(pci);
+	pci_save_state(pci);
+	return 0;
+}
+
+static int
+snd_azf3328_resume(struct pci_dev *pci)
+{
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct snd_azf3328 *chip = card->private_data;
+	int reg;
+
+	pci_restore_state(pci);
+	pci_enable_device(pci);
+	pci_set_power_state(pci, PCI_D0);
+	pci_set_master(pci);
+
+	for (reg = 0; reg < AZF_IO_SIZE_IO2_PM / 2; reg++)
+		outw(chip->saved_regs_io2[reg], chip->io2_port + reg * 2);
+	for (reg = 0; reg < AZF_IO_SIZE_MPU_PM / 2; reg++)
+		outw(chip->saved_regs_mpu[reg], chip->mpu_port + reg * 2);
+	for (reg = 0; reg < AZF_IO_SIZE_SYNTH_PM / 2; reg++)
+		outw(chip->saved_regs_synth[reg], chip->synth_port + reg * 2);
+	for (reg = 0; reg < AZF_IO_SIZE_MIXER_PM / 2; reg++)
+		outw(chip->saved_regs_mixer[reg], chip->mixer_port + reg * 2);
+	for (reg = 0; reg < AZF_IO_SIZE_CODEC_PM / 2; reg++)
+		outw(chip->saved_regs_codec[reg], chip->codec_port + reg * 2);
+
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
+	return 0;
+}
+#endif
+
+
+
+
 static struct pci_driver driver = {
 	.name = "AZF3328",
 	.id_table = snd_azf3328_ids,
 	.probe = snd_azf3328_probe,
 	.remove = __devexit_p(snd_azf3328_remove),
+#ifdef CONFIG_PM
+	.suspend = snd_azf3328_suspend,
+	.resume = snd_azf3328_resume,
+#endif
 };
 
 static int __init

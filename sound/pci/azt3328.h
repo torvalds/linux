@@ -5,6 +5,9 @@
 
 /*** main I/O area port indices ***/
 /* (only 0x70 of 0x80 bytes saved/restored by Windows driver) */
+#define AZF_IO_SIZE_CODEC	0x80
+#define AZF_IO_SIZE_CODEC_PM	0x70
+
 /* the driver initialisation suggests a layout of 4 main areas:
  * from 0x00 (playback), from 0x20 (recording) and from 0x40 (maybe MPU401??).
  * And another area from 0x60 to 0x6f (DirectX timer, IRQ management,
@@ -107,7 +110,8 @@
   #define IRQ_UNKNOWN2			0x0080 /* probably unused */
 #define IDX_IO_66H		0x66    /* writing 0xffff returns 0x0000 */
 #define IDX_IO_SOME_VALUE	0x68	/* this is set to e.g. 0x3ff or 0x300, and writable; maybe some buffer limit, but I couldn't find out more, PU:0x00ff */
-#define IDX_IO_6AH		0x6A	/* this WORD can be set to have bits 0x0028 activated; actually inhibits PCM playback!!! maybe power management?? */
+#define IDX_IO_6AH		0x6A	/* this WORD can be set to have bits 0x0028 activated (FIXME: correct??); actually inhibits PCM playback!!! maybe power management?? */
+  #define IO_6A_PAUSE_PLAYBACK		0x0200 /* bit 9; sure, this pauses playback, but what the heck is this really about?? */
 #define IDX_IO_6CH		0x6C
 #define IDX_IO_6EH		0x6E	/* writing 0xffff returns 0x83fe */
 /* further I/O indices not saved/restored, so probably not used */
@@ -115,15 +119,25 @@
 
 /*** I/O 2 area port indices ***/
 /* (only 0x06 of 0x08 bytes saved/restored by Windows driver) */ 
+#define AZF_IO_SIZE_IO2		0x08
+#define AZF_IO_SIZE_IO2_PM	0x06
+
 #define IDX_IO2_LEGACY_ADDR	0x04
   #define LEGACY_SOMETHING		0x01 /* OPL3?? */
   #define LEGACY_JOY			0x08
 
+#define AZF_IO_SIZE_MPU		0x04
+#define AZF_IO_SIZE_MPU_PM	0x04
+
+#define AZF_IO_SIZE_SYNTH	0x08
+#define AZF_IO_SIZE_SYNTH_PM	0x06
 
 /*** mixer I/O area port indices ***/
 /* (only 0x22 of 0x40 bytes saved/restored by Windows driver)
- * generally spoken: AC97 register index = AZF3328 mixer reg index + 2
- * (in other words: AZF3328 NOT fully AC97 compliant) */
+ * UNFORTUNATELY azf3328 is NOT truly AC97 compliant: see main file intro */
+#define AZF_IO_SIZE_MIXER	0x40
+#define AZF_IO_SIZE_MIXER_PM	0x22
+
   #define MIXER_VOLUME_RIGHT_MASK	0x001f
   #define MIXER_VOLUME_LEFT_MASK	0x1f00
   #define MIXER_MUTE_MASK		0x8000
