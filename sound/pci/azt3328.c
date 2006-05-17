@@ -39,8 +39,15 @@
  *  for compatibility reasons) has the following features:
  *
  *  - builtin AC97 conformant codec (SNR over 80dB)
- *    (really AC97 compliant?? I really doubt it when looking
- *    at the mixer register layout)
+ *    Note that "conformant" != "compliant"!! this chip's mixer register layout
+ *    *differs* from the standard AC97 layout:
+ *    they chose to not implement the headphone register (which is not a
+ *    problem since it's merely optional), yet when doing this, they committed
+ *    the grave sin of letting other registers follow immediately instead of
+ *    keeping a headphone dummy register, thereby shifting the mixer register
+ *    addresses illegally. So far unfortunately it looks like the very flexible
+ *    ALSA AC97 support is still not enough to easily compensate for such a
+ *    grave layout violation despite all tweaks and quirks mechanisms it offers.
  *  - builtin genuine OPL3
  *  - full duplex 16bit playback/record at independent sampling rate
  *  - MPU401 (+ legacy address support) FIXME: how to enable legacy addr??
@@ -96,6 +103,9 @@
  *    The standard suspend/resume functionality could probably make use of
  *    some improvement, too...
  *  - figure out what all unknown port bits are responsible for
+ *  - figure out some cleverly evil scheme to possibly make ALSA AC97 code
+ *    fully accept our quite incompatible ""AC97"" mixer and thus save some
+ *    code (but I'm not too optimistic that doing this is possible at all)
  */
 
 #include <sound/driver.h>
@@ -526,14 +536,17 @@ snd_azf3328_info_mixer_enum(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_info *uinfo)
 {
 	static const char * const texts1[] = {
-		"ModemOut1", "ModemOut2"
+		"Mic1", "Mic2"
 	};
 	static const char * const texts2[] = {
-		"MonoSelectSource1", "MonoSelectSource2"
+		"Mix", "Mic"
 	};
 	static const char * const texts3[] = {
                 "Mic", "CD", "Video", "Aux",
 		"Line", "Mix", "Mix Mono", "Phone"
+        };
+	static const char * const texts4[] = {
+		"pre 3D", "post 3D"
         };
 	struct azf3328_mixer_reg reg;
 
@@ -545,10 +558,17 @@ snd_azf3328_info_mixer_enum(struct snd_kcontrol *kcontrol,
                 uinfo->value.enumerated.item = reg.enum_c - 1U;
 	if (reg.reg == IDX_MIXER_ADVCTL2)
 	{
-		if (reg.lchan_shift == 8) /* modem out sel */
+		switch(reg.lchan_shift) {
+		case 8: /* modem out sel */
 			strcpy(uinfo->value.enumerated.name, texts1[uinfo->value.enumerated.item]);
-		else /* mono sel source */
+			break;
+		case 9: /* mono sel source */
 			strcpy(uinfo->value.enumerated.name, texts2[uinfo->value.enumerated.item]);
+			break;
+		case 15: /* PCM Out Path */
+			strcpy(uinfo->value.enumerated.name, texts4[uinfo->value.enumerated.item]);
+			break;
+		}
 	}
 	else
         	strcpy(uinfo->value.enumerated.name, texts3[uinfo->value.enumerated.item]
@@ -641,13 +661,14 @@ static const struct snd_kcontrol_new snd_azf3328_mixer_controls[] __devinitdata 
 	AZF3328_MIXER_VOL_MONO("Modem Playback Volume", IDX_MIXER_MODEMOUT, 0x1f, 1),
 	AZF3328_MIXER_SWITCH("Modem Capture Switch", IDX_MIXER_MODEMIN, 15, 1),
 	AZF3328_MIXER_VOL_MONO("Modem Capture Volume", IDX_MIXER_MODEMIN, 0x1f, 1),
-	AZF3328_MIXER_ENUM("Modem Out Select", IDX_MIXER_ADVCTL2, 2, 8),
-	AZF3328_MIXER_ENUM("Mono Select Source", IDX_MIXER_ADVCTL2, 2, 9),
+	AZF3328_MIXER_ENUM("Mic Select", IDX_MIXER_ADVCTL2, 2, 8),
+	AZF3328_MIXER_ENUM("Mono Output Select", IDX_MIXER_ADVCTL2, 2, 9),
+	AZF3328_MIXER_ENUM("PCM", IDX_MIXER_ADVCTL2, 2, 15), /* PCM Out Path, place in front since it controls *both* 3D and Bass/Treble! */
 	AZF3328_MIXER_VOL_SPECIAL("Tone Control - Treble", IDX_MIXER_BASSTREBLE, 0x07, 1, 0),
 	AZF3328_MIXER_VOL_SPECIAL("Tone Control - Bass", IDX_MIXER_BASSTREBLE, 0x07, 9, 0),
 	AZF3328_MIXER_SWITCH("3D Control - Switch", IDX_MIXER_ADVCTL2, 13, 0),
-	AZF3328_MIXER_VOL_SPECIAL("3D Control - Wide", IDX_MIXER_ADVCTL1, 0x07, 1, 0), /* "3D Width" */
-	AZF3328_MIXER_VOL_SPECIAL("3D Control - Space", IDX_MIXER_ADVCTL1, 0x03, 8, 0), /* "Hifi 3D" */
+	AZF3328_MIXER_VOL_SPECIAL("3D Control - Width", IDX_MIXER_ADVCTL1, 0x07, 1, 0), /* "3D Width" */
+	AZF3328_MIXER_VOL_SPECIAL("3D Control - Depth", IDX_MIXER_ADVCTL1, 0x03, 8, 0), /* "Hifi 3D" */
 #if MIXER_TESTING
 	AZF3328_MIXER_SWITCH("0", IDX_MIXER_ADVCTL2, 0, 0),
 	AZF3328_MIXER_SWITCH("1", IDX_MIXER_ADVCTL2, 1, 0),
