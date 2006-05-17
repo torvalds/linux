@@ -276,8 +276,8 @@ concat_writev_ecc(struct mtd_info *mtd, const struct kvec *vecs,
 		return -EINVAL;
 
 	/* Check alignment */
-	if (mtd->writesize > 1)
-		if ((to % mtd->writesize) || (total_len % mtd->writesize))
+	if (mtd->oobblock > 1)
+		if ((to % mtd->oobblock) || (total_len % mtd->oobblock))
 			return -EINVAL;
 
 	/* make a copy of vecs */
