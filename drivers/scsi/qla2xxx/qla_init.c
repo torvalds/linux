@@ -773,16 +773,26 @@ qla24xx_chip_diag(scsi_qla_host_t *ha)
 static void
 qla2x00_alloc_fw_dump(scsi_qla_host_t *ha)
 {
+	uint32_t dump_size = 0;
+
 	ha->fw_dumped = 0;
-	ha->fw_dump24_len = sizeof(struct qla24xx_fw_dump);
-	ha->fw_dump24_len += (ha->fw_memory_size - 0x100000) * sizeof(uint32_t);
-	ha->fw_dump24 = vmalloc(ha->fw_dump24_len);
-	if (ha->fw_dump24)
+	if (IS_QLA2100(ha) || IS_QLA2200(ha)) {
+		dump_size = sizeof(struct qla2100_fw_dump);
+	} else if (IS_QLA23XX(ha)) {
+		dump_size = sizeof(struct qla2300_fw_dump);
+		dump_size += (ha->fw_memory_size - 0x11000) * sizeof(uint16_t);
+        } else if (IS_QLA24XX(ha) || IS_QLA54XX(ha)) {
+		dump_size = sizeof(struct qla24xx_fw_dump);
+		dump_size += (ha->fw_memory_size - 0x100000) * sizeof(uint32_t);
+	}
+
+	ha->fw_dump = vmalloc(dump_size);
+	if (ha->fw_dump)
 		qla_printk(KERN_INFO, ha, "Allocated (%d KB) for firmware "
-		    "dump...\n", ha->fw_dump24_len / 1024);
+		    "dump...\n", dump_size / 1024);
 	else
 		qla_printk(KERN_WARNING, ha, "Unable to allocate (%d KB) for "
-		    "firmware dump!!!\n", ha->fw_dump24_len / 1024);
+		    "firmware dump!!!\n", dump_size / 1024);
 }
 
 /**
@@ -800,12 +810,11 @@ qla2x00_resize_request_q(scsi_qla_host_t *ha)
 	dma_addr_t request_dma;
 	request_t *request_ring;
 
+	qla2x00_alloc_fw_dump(ha);
+
 	/* Valid only on recent ISPs. */
 	if (IS_QLA2100(ha) || IS_QLA2200(ha))
 		return;
-
-	if (IS_QLA24XX(ha) || IS_QLA54XX(ha))
-		qla2x00_alloc_fw_dump(ha);
 
 	/* Retrieve IOCB counts available to the firmware. */
 	rval = qla2x00_get_resource_cnts(ha, NULL, NULL, NULL, &fw_iocb_cnt);

@@ -2304,14 +2304,10 @@ typedef struct scsi_qla_host {
 
 	/* Firmware dump information. */
 	void		*fw_dump;
-	int		fw_dump_order;
+	int		fw_dumped;
 	int		fw_dump_reading;
 	char		*fw_dump_buffer;
 	int		fw_dump_buffer_len;
-
-	int		fw_dumped;
-	void		*fw_dump24;
-	int		fw_dump24_len;
 
 	uint8_t		host_str[16];
 	uint32_t	pci_attr;

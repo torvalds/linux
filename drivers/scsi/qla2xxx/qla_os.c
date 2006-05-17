@@ -2068,15 +2068,10 @@ qla2x00_mem_free(scsi_qla_host_t *ha)
 	}
 	INIT_LIST_HEAD(&ha->fcports);
 
-	if (ha->fw_dump)
-		free_pages((unsigned long)ha->fw_dump, ha->fw_dump_order);
-
-	vfree(ha->fw_dump24);
-
+	vfree(ha->fw_dump);
 	vfree(ha->fw_dump_buffer);
 
 	ha->fw_dump = NULL;
-	ha->fw_dump24 = NULL;
 	ha->fw_dumped = 0;
 	ha->fw_dump_reading = 0;
 	ha->fw_dump_buffer = NULL;
