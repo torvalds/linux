@@ -354,7 +354,6 @@ static void srp_remove_work(void *target_ptr)
 	spin_lock_irq(target->scsi_host->host_lock);
 	if (target->state != SRP_TARGET_DEAD) {
 		spin_unlock_irq(target->scsi_host->host_lock);
-		scsi_host_put(target->scsi_host);
 		return;
 	}
 	target->state = SRP_TARGET_REMOVED;
@@ -367,8 +366,6 @@ static void srp_remove_work(void *target_ptr)
 	scsi_remove_host(target->scsi_host);
 	ib_destroy_cm_id(target->cm_id);
 	srp_free_target_ib(target);
-	scsi_host_put(target->scsi_host);
-	/* And another put to really free the target port... */
 	scsi_host_put(target->scsi_host);
 }
 
