@@ -48,7 +48,6 @@ extern struct call_data_struct *call_data;
 #define SMP_CALL_FUNCTION	0x2
 
 extern cpumask_t phys_cpu_present_map;
-extern cpumask_t cpu_online_map;
 #define cpu_possible_map	phys_cpu_present_map
 
 extern cpumask_t cpu_callout_map;
