@@ -131,12 +131,6 @@ void __init machine_init(unsigned long dt_ptr, unsigned long phys)
 	/* Do some early initialization based on the flat device tree */
 	early_init_devtree(__va(dt_ptr));
 
-	/* Check default command line */
-#ifdef CONFIG_CMDLINE
-	if (cmd_line[0] == 0)
-		strlcpy(cmd_line, CONFIG_CMDLINE, sizeof(cmd_line));
-#endif /* CONFIG_CMDLINE */
-
 	probe_machine();
 
 #ifdef CONFIG_6xx
@@ -235,6 +229,8 @@ arch_initcall(ppc_init);
 /* Warning, IO base is not yet inited */
 void __init setup_arch(char **cmdline_p)
 {
+	*cmdline_p = cmd_line;
+
 	/* so udelay does something sensible, assume <= 1000 bogomips */
 	loops_per_jiffy = 500000000 / HZ;
 
@@ -290,12 +286,6 @@ void __init setup_arch(char **cmdline_p)
 	init_mm.end_code = (unsigned long) _etext;
 	init_mm.end_data = (unsigned long) _edata;
 	init_mm.brk = klimit;
-
-	/* Save unparsed command line copy for /proc/cmdline */
-	strlcpy(saved_command_line, cmd_line, COMMAND_LINE_SIZE);
-	*cmdline_p = cmd_line;
-
-	parse_early_param();
 
 	if (do_early_xmon)
 		debugger(NULL);

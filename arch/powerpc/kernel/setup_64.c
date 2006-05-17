@@ -414,11 +414,6 @@ void __init setup_system(void)
 	 */
 	register_early_udbg_console();
 
-	/* Save unparsed command line copy for /proc/cmdline */
-	strlcpy(saved_command_line, cmd_line, COMMAND_LINE_SIZE);
-
-	parse_early_param();
-
 	if (do_early_xmon)
 		debugger(NULL);
 

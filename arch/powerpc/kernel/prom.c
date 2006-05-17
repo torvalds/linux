@@ -1292,6 +1292,11 @@ void __init early_init_devtree(void *params)
 	lmb_init();
 	of_scan_flat_dt(early_init_dt_scan_root, NULL);
 	of_scan_flat_dt(early_init_dt_scan_memory, NULL);
+
+	/* Save command line for /proc/cmdline and then parse parameters */
+	strlcpy(saved_command_line, cmd_line, COMMAND_LINE_SIZE);
+	parse_early_param();
+
 	lmb_enforce_memory_limit(memory_limit);
 	lmb_analyze();
 
