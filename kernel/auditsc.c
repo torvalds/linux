@@ -648,8 +648,8 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 		case AUDIT_IPC: {
 			struct audit_aux_data_ipcctl *axi = (void *)aux;
 			audit_log_format(ab, 
-				 " qbytes=%lx iuid=%u igid=%u mode=%x",
-				 axi->qbytes, axi->uid, axi->gid, axi->mode);
+				 "ouid=%u ogid=%u mode=%x",
+				 axi->uid, axi->gid, axi->mode);
 			if (axi->osid != 0) {
 				char *ctx = NULL;
 				u32 len;
@@ -667,21 +667,10 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 		case AUDIT_IPC_SET_PERM: {
 			struct audit_aux_data_ipcctl *axi = (void *)aux;
 			audit_log_format(ab,
-				" new qbytes=%lx new iuid=%u new igid=%u new mode=%x",
+				"qbytes=%lx ouid=%u ogid=%u mode=%x",
 				axi->qbytes, axi->uid, axi->gid, axi->mode);
-			if (axi->osid != 0) {
-				char *ctx = NULL;
-				u32 len;
-				if (selinux_ctxid_to_string(
-						axi->osid, &ctx, &len)) {
-					audit_log_format(ab, " osid=%u",
-							axi->osid);
-					call_panic = 1;
-				} else
-					audit_log_format(ab, " obj=%s", ctx);
-				kfree(ctx);
-			}
 			break; }
+
 		case AUDIT_EXECVE: {
 			struct audit_aux_data_execve *axi = (void *)aux;
 			int i;
@@ -1232,7 +1221,7 @@ int audit_ipc_obj(struct kern_ipc_perm *ipcp)
  *
  * Returns 0 for success or NULL context or < 0 on error.
  */
-int audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode, struct kern_ipc_perm *ipcp)
+int audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode)
 {
 	struct audit_aux_data_ipcctl *ax;
 	struct audit_context *context = current->audit_context;
@@ -1248,7 +1237,6 @@ int audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode, 
 	ax->uid = uid;
 	ax->gid = gid;
 	ax->mode = mode;
-	selinux_get_ipc_sid(ipcp, &ax->osid);
 
 	ax->d.type = AUDIT_IPC_SET_PERM;
 	ax->d.next = context->aux;
