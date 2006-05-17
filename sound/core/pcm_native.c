@@ -1469,8 +1469,6 @@ static int snd_pcm_drain(struct snd_pcm_substream *substream)
 		}
 	}
 	up_read(&snd_pcm_link_rwsem);
-	if (! num_drecs)
-		goto _error;
 
 	snd_pcm_stream_lock_irq(substream);
 	/* resume pause */
