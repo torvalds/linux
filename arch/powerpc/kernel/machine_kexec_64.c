@@ -339,3 +339,8 @@ void __init kexec_setup(void)
 {
 	export_htab_values();
 }
+
+int overlaps_crashkernel(unsigned long start, unsigned long size)
+{
+	return (start + size) > crashk_res.start && start <= crashk_res.end;
+}

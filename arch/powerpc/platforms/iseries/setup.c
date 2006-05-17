@@ -90,8 +90,6 @@ extern unsigned long embedded_sysmap_end;
 extern unsigned long iSeries_recal_tb;
 extern unsigned long iSeries_recal_titan;
 
-static unsigned long cmd_mem_limit;
-
 struct MemoryBlock {
 	unsigned long absStart;
 	unsigned long absEnd;
@@ -1026,8 +1024,6 @@ void build_flat_dt(struct iseries_flat_dt *dt, unsigned long phys_mem_size)
 	/* /chosen */
 	dt_start_node(dt, "chosen");
 	dt_prop_str(dt, "bootargs", cmd_line);
-	if (cmd_mem_limit)
-		dt_prop_u64(dt, "linux,memory-limit", cmd_mem_limit);
 	dt_end_node(dt);
 
 	dt_cpus(dt);
@@ -1053,28 +1049,10 @@ void * __init iSeries_early_setup(void)
 
 	iSeries_get_cmdline();
 
-	/* Save unparsed command line copy for /proc/cmdline */
-	strlcpy(saved_command_line, cmd_line, COMMAND_LINE_SIZE);
-
-	/* Parse early parameters, in particular mem=x */
-	parse_early_param();
-
 	build_flat_dt(&iseries_dt, phys_mem_size);
 
 	return (void *) __pa(&iseries_dt);
 }
-
-/*
- * On iSeries we just parse the mem=X option from the command line.
- * On pSeries it's a bit more complicated, see prom_init_mem()
- */
-static int __init early_parsemem(char *p)
-{
-	if (p)
-		cmd_mem_limit = ALIGN(memparse(p, &p), PAGE_SIZE);
-	return 0;
-}
-early_param("mem", early_parsemem);
 
 static void hvputc(char c)
 {

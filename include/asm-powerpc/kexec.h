@@ -31,9 +31,10 @@
 #define KEXEC_ARCH KEXEC_ARCH_PPC
 #endif
 
+#ifndef __ASSEMBLY__
+
 #ifdef CONFIG_KEXEC
 
-#ifndef __ASSEMBLY__
 #ifdef __powerpc64__
 /*
  * This function is responsible for capturing register states if coming
@@ -123,8 +124,16 @@ extern int default_machine_kexec_prepare(struct kimage *image);
 extern void default_machine_crash_shutdown(struct pt_regs *regs);
 
 extern void machine_kexec_simple(struct kimage *image);
+extern int overlaps_crashkernel(unsigned long start, unsigned long size);
 
-#endif /* ! __ASSEMBLY__ */
+#else /* !CONFIG_KEXEC */
+
+static inline int overlaps_crashkernel(unsigned long start, unsigned long size)
+{
+	return 0;
+}
+
 #endif /* CONFIG_KEXEC */
+#endif /* ! __ASSEMBLY__ */
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_KEXEC_H */

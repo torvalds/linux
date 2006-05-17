@@ -347,9 +347,6 @@ void __init setup_system(void)
 {
 	DBG(" -> setup_system()\n");
 
-#ifdef CONFIG_KEXEC
-	kdump_move_device_tree();
-#endif
 	/*
 	 * Unflatten the device-tree passed by prom_init or kexec
 	 */

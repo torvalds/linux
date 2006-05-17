@@ -194,8 +194,6 @@ static int __initdata of_platform;
 
 static char __initdata prom_cmd_line[COMMAND_LINE_SIZE];
 
-static unsigned long __initdata prom_memory_limit;
-
 static unsigned long __initdata alloc_top;
 static unsigned long __initdata alloc_top_high;
 static unsigned long __initdata alloc_bottom;
@@ -593,16 +591,6 @@ static void __init early_cmdline_parse(void)
 			RELOC(iommu_force_on) = 1;
 	}
 #endif
-
-	opt = strstr(RELOC(prom_cmd_line), RELOC("mem="));
-	if (opt) {
-		opt += 4;
-		RELOC(prom_memory_limit) = prom_memparse(opt, (const char **)&opt);
-#ifdef CONFIG_PPC64
-		/* Align to 16 MB == size of ppc64 large page */
-		RELOC(prom_memory_limit) = ALIGN(RELOC(prom_memory_limit), 0x1000000);
-#endif
-	}
 
 #ifdef CONFIG_KEXEC
 	/*
@@ -1115,29 +1103,6 @@ static void __init prom_init_mem(void)
 	}
 
 	/*
-	 * If prom_memory_limit is set we reduce the upper limits *except* for
-	 * alloc_top_high. This must be the real top of RAM so we can put
-	 * TCE's up there.
-	 */
-
-	RELOC(alloc_top_high) = RELOC(ram_top);
-
-	if (RELOC(prom_memory_limit)) {
-		if (RELOC(prom_memory_limit) <= RELOC(alloc_bottom)) {
-			prom_printf("Ignoring mem=%x <= alloc_bottom.\n",
-				RELOC(prom_memory_limit));
-			RELOC(prom_memory_limit) = 0;
-		} else if (RELOC(prom_memory_limit) >= RELOC(ram_top)) {
-			prom_printf("Ignoring mem=%x >= ram_top.\n",
-				RELOC(prom_memory_limit));
-			RELOC(prom_memory_limit) = 0;
-		} else {
-			RELOC(ram_top) = RELOC(prom_memory_limit);
-			RELOC(rmo_top) = min(RELOC(rmo_top), RELOC(prom_memory_limit));
-		}
-	}
-
-	/*
 	 * Setup our top alloc point, that is top of RMO or top of
 	 * segment 0 when running non-LPAR.
 	 * Some RS64 machines have buggy firmware where claims up at
@@ -1149,9 +1114,9 @@ static void __init prom_init_mem(void)
 		RELOC(rmo_top) = RELOC(ram_top);
 	RELOC(rmo_top) = min(0x30000000ul, RELOC(rmo_top));
 	RELOC(alloc_top) = RELOC(rmo_top);
+	RELOC(alloc_top_high) = RELOC(ram_top);
 
 	prom_printf("memory layout at init:\n");
-	prom_printf("  memory_limit : %x (16 MB aligned)\n", RELOC(prom_memory_limit));
 	prom_printf("  alloc_bottom : %x\n", RELOC(alloc_bottom));
 	prom_printf("  alloc_top    : %x\n", RELOC(alloc_top));
 	prom_printf("  alloc_top_hi : %x\n", RELOC(alloc_top_high));
@@ -1348,16 +1313,10 @@ static void __init prom_initialize_tce_table(void)
 
 	reserve_mem(local_alloc_bottom, local_alloc_top - local_alloc_bottom);
 
-	if (RELOC(prom_memory_limit)) {
-		/*
-		 * We align the start to a 16MB boundary so we can map
-		 * the TCE area using large pages if possible.
-		 * The end should be the top of RAM so no need to align it.
-		 */
-		RELOC(prom_tce_alloc_start) = _ALIGN_DOWN(local_alloc_bottom,
-							  0x1000000);
-		RELOC(prom_tce_alloc_end) = local_alloc_top;
-	}
+	/* These are only really needed if there is a memory limit in
+	 * effect, but we don't know so export them always. */
+	RELOC(prom_tce_alloc_start) = local_alloc_bottom;
+	RELOC(prom_tce_alloc_end) = local_alloc_top;
 
 	/* Flag the first invalid entry */
 	prom_debug("ending prom_initialize_tce_table\n");
@@ -2265,10 +2224,6 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	/*
 	 * Fill in some infos for use by the kernel later on
 	 */
-	if (RELOC(prom_memory_limit))
-		prom_setprop(_prom->chosen, "/chosen", "linux,memory-limit",
-			     &RELOC(prom_memory_limit),
-			     sizeof(prom_memory_limit));
 #ifdef CONFIG_PPC64
 	if (RELOC(ppc64_iommu_off))
 		prom_setprop(_prom->chosen, "/chosen", "linux,iommu-off",

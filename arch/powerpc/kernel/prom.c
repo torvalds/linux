@@ -50,6 +50,7 @@
 #include <asm/machdep.h>
 #include <asm/pSeries_reconfig.h>
 #include <asm/pci-bridge.h>
+#include <asm/kexec.h>
 
 #ifdef DEBUG
 #define DBG(fmt...) printk(KERN_ERR fmt)
@@ -836,6 +837,42 @@ static unsigned long __init unflatten_dt_node(unsigned long mem,
 	return mem;
 }
 
+static int __init early_parse_mem(char *p)
+{
+	if (!p)
+		return 1;
+
+	memory_limit = PAGE_ALIGN(memparse(p, &p));
+	DBG("memory limit = 0x%lx\n", memory_limit);
+
+	return 0;
+}
+early_param("mem", early_parse_mem);
+
+/*
+ * The device tree may be allocated below our memory limit, or inside the
+ * crash kernel region for kdump. If so, move it out now.
+ */
+static void move_device_tree(void)
+{
+	unsigned long start, size;
+	void *p;
+
+	DBG("-> move_device_tree\n");
+
+	start = __pa(initial_boot_params);
+	size = initial_boot_params->totalsize;
+
+	if ((memory_limit && (start + size) > memory_limit) ||
+			overlaps_crashkernel(start, size)) {
+		p = __va(lmb_alloc_base(size, PAGE_SIZE, lmb.rmo_size));
+		memcpy(p, initial_boot_params, size);
+		initial_boot_params = (struct boot_param_header *)p;
+		DBG("Moved device tree to 0x%p\n", p);
+	}
+
+	DBG("<- move_device_tree\n");
+}
 
 /**
  * unflattens the device-tree passed by the firmware, creating the
@@ -1070,6 +1107,7 @@ static int __init early_init_dt_scan_chosen(unsigned long node,
 		iommu_force_on = 1;
 #endif
 
+	/* mem=x on the command line is the preferred mechanism */
  	lprop = of_get_flat_dt_prop(node, "linux,memory-limit", NULL);
  	if (lprop)
  		memory_limit = *lprop;
@@ -1122,17 +1160,6 @@ static int __init early_init_dt_scan_chosen(unsigned long node,
 #endif /* CONFIG_CMDLINE */
 
 	DBG("Command line is: %s\n", cmd_line);
-
-	if (strstr(cmd_line, "mem=")) {
-		char *p, *q;
-
-		for (q = cmd_line; (p = strstr(q, "mem=")) != 0; ) {
-			q = p + 4;
-			if (p > cmd_line && p[-1] != ' ')
-				continue;
-			memory_limit = memparse(q, &q);
-		}
-	}
 
 	/* break now */
 	return 1;
@@ -1297,17 +1324,21 @@ void __init early_init_devtree(void *params)
 	strlcpy(saved_command_line, cmd_line, COMMAND_LINE_SIZE);
 	parse_early_param();
 
-	lmb_enforce_memory_limit(memory_limit);
-	lmb_analyze();
-
-	DBG("Phys. mem: %lx\n", lmb_phys_mem_size());
-
 	/* Reserve LMB regions used by kernel, initrd, dt, etc... */
 	lmb_reserve(PHYSICAL_START, __pa(klimit) - PHYSICAL_START);
 #ifdef CONFIG_CRASH_DUMP
 	lmb_reserve(0, KDUMP_RESERVE_LIMIT);
 #endif
 	early_reserve_mem();
+
+	lmb_enforce_memory_limit(memory_limit);
+	lmb_analyze();
+
+	DBG("Phys. mem: %lx\n", lmb_phys_mem_size());
+
+	/* We may need to relocate the flat tree, do it now.
+	 * FIXME .. and the initrd too? */
+	move_device_tree();
 
 	DBG("Scanning CPUs ...\n");
 
@@ -2058,29 +2089,3 @@ int prom_update_property(struct device_node *np,
 	return 0;
 }
 
-#ifdef CONFIG_KEXEC
-/* We may have allocated the flat device tree inside the crash kernel region
- * in prom_init. If so we need to move it out into regular memory. */
-void kdump_move_device_tree(void)
-{
-	unsigned long start, end;
-	struct boot_param_header *new;
-
-	start = __pa((unsigned long)initial_boot_params);
-	end = start + initial_boot_params->totalsize;
-
-	if (end < crashk_res.start || start > crashk_res.end)
-		return;
-
-	new = (struct boot_param_header*)
-		__va(lmb_alloc(initial_boot_params->totalsize, PAGE_SIZE));
-
-	memcpy(new, initial_boot_params, initial_boot_params->totalsize);
-
-	initial_boot_params = new;
-
-	DBG("Flat device tree blob moved to %p\n", initial_boot_params);
-
-	/* XXX should we unreserve the old DT? */
-}
-#endif /* CONFIG_KEXEC */
