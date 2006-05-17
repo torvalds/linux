@@ -251,6 +251,106 @@ concat_write_ecc(struct mtd_info *mtd, loff_t to, size_t len,
 }
 
 static int
+concat_writev_ecc(struct mtd_info *mtd, const struct kvec *vecs,
+		unsigned long count, loff_t to, size_t * retlen,
+		u_char *eccbuf, struct nand_oobinfo *oobsel)
+{
+	struct mtd_concat *concat = CONCAT(mtd);
+	struct kvec *vecs_copy;
+	unsigned long entry_low, entry_high;
+	size_t total_len = 0;
+	int i;
+	int err = -EINVAL;
+
+	if (!(mtd->flags & MTD_WRITEABLE))
+		return -EROFS;
+
+	*retlen = 0;
+
+	/* Calculate total length of data */
+	for (i = 0; i < count; i++)
+		total_len += vecs[i].iov_len;
+
+	/* Do not allow write past end of device */
+	if ((to + total_len) > mtd->size)
+		return -EINVAL;
+
+	/* Check alignment */
+	if (mtd->writesize > 1)
+		if ((to % mtd->writesize) || (total_len % mtd->writesize))
+			return -EINVAL;
+
+	/* make a copy of vecs */
+	vecs_copy = kmalloc(sizeof(struct kvec) * count, GFP_KERNEL);
+	if (!vecs_copy)
+		return -ENOMEM;
+	memcpy(vecs_copy, vecs, sizeof(struct kvec) * count);
+
+	entry_low = 0;
+	for (i = 0; i < concat->num_subdev; i++) {
+		struct mtd_info *subdev = concat->subdev[i];
+		size_t size, wsize, retsize, old_iov_len;
+
+		if (to >= subdev->size) {
+			to -= subdev->size;
+			continue;
+		}
+
+		size = min(total_len, (size_t)(subdev->size - to));
+		wsize = size; /* store for future use */
+
+		entry_high = entry_low;
+		while (entry_high < count) {
+			if (size <= vecs_copy[entry_high].iov_len)
+				break;
+			size -= vecs_copy[entry_high++].iov_len;
+		}
+
+		old_iov_len = vecs_copy[entry_high].iov_len;
+		vecs_copy[entry_high].iov_len = size;
+
+		if (!(subdev->flags & MTD_WRITEABLE))
+			err = -EROFS;
+		else if (eccbuf)
+			err = subdev->writev_ecc(subdev, &vecs_copy[entry_low],
+				entry_high - entry_low + 1, to, &retsize,
+				eccbuf, oobsel);
+		else
+			err = subdev->writev(subdev, &vecs_copy[entry_low],
+				entry_high - entry_low + 1, to, &retsize);
+
+		vecs_copy[entry_high].iov_len = old_iov_len - size;
+		vecs_copy[entry_high].iov_base += size;
+
+		entry_low = entry_high;
+
+		if (err)
+			break;
+
+		*retlen += retsize;
+		total_len -= wsize;
+		if (concat->mtd.type == MTD_NANDFLASH && eccbuf)
+			eccbuf += mtd->oobavail * (wsize / mtd->oobblock);
+
+		if (total_len == 0)
+			break;
+
+		err = -EINVAL;
+		to = 0;
+	}
+
+	kfree(vecs_copy);
+	return err;
+}
+
+static int
+concat_writev(struct mtd_info *mtd, const struct kvec *vecs,
+		unsigned long count, loff_t to, size_t * retlen)
+{
+	return concat_writev_ecc(mtd, vecs, count, to, retlen, NULL, NULL);
+}
+
+static int
 concat_read_oob(struct mtd_info *mtd, loff_t from, size_t len,
 		size_t * retlen, u_char * buf)
 {
@@ -636,6 +736,58 @@ static void concat_resume(struct mtd_info *mtd)
 	}
 }
 
+static int concat_block_isbad(struct mtd_info *mtd, loff_t ofs)
+{
+	struct mtd_concat *concat = CONCAT(mtd);
+	int i, res = 0;
+
+	if (!concat->subdev[0]->block_isbad)
+		return res;
+
+	if (ofs > mtd->size)
+		return -EINVAL;
+
+	for (i = 0; i < concat->num_subdev; i++) {
+		struct mtd_info *subdev = concat->subdev[i];
+
+		if (ofs >= subdev->size) {
+			ofs -= subdev->size;
+			continue;
+		}
+
+		res = subdev->block_isbad(subdev, ofs);
+		break;
+	}
+
+	return res;
+}
+
+static int concat_block_markbad(struct mtd_info *mtd, loff_t ofs)
+{
+	struct mtd_concat *concat = CONCAT(mtd);
+	int i, err = -EINVAL;
+
+	if (!concat->subdev[0]->block_markbad)
+		return 0;
+
+	if (ofs > mtd->size)
+		return -EINVAL;
+
+	for (i = 0; i < concat->num_subdev; i++) {
+		struct mtd_info *subdev = concat->subdev[i];
+
+		if (ofs >= subdev->size) {
+			ofs -= subdev->size;
+			continue;
+		}
+
+		err = subdev->block_markbad(subdev, ofs);
+		break;
+	}
+
+	return err;
+}
+
 /*
  * This function constructs a virtual MTD device by concatenating
  * num_devs MTD devices. A pointer to the new device object is
@@ -685,10 +837,18 @@ struct mtd_info *mtd_concat_create(struct mtd_info *subdev[],	/* subdevices to c
 		concat->mtd.read_ecc = concat_read_ecc;
 	if (subdev[0]->write_ecc)
 		concat->mtd.write_ecc = concat_write_ecc;
+	if (subdev[0]->writev)
+		concat->mtd.writev = concat_writev;
+	if (subdev[0]->writev_ecc)
+		concat->mtd.writev_ecc = concat_writev_ecc;
 	if (subdev[0]->read_oob)
 		concat->mtd.read_oob = concat_read_oob;
 	if (subdev[0]->write_oob)
 		concat->mtd.write_oob = concat_write_oob;
+	if (subdev[0]->block_isbad)
+		concat->mtd.block_isbad = concat_block_isbad;
+	if (subdev[0]->block_markbad)
+		concat->mtd.block_markbad = concat_block_markbad;
 
 	concat->subdev[0] = subdev[0];
 
@@ -734,14 +894,13 @@ struct mtd_info *mtd_concat_create(struct mtd_info *subdev[],	/* subdevices to c
 
 	}
 
+	if(concat->mtd.type == MTD_NANDFLASH)
+		memcpy(&concat->mtd.oobinfo, &subdev[0]->oobinfo,
+			sizeof(struct nand_oobinfo));
+
 	concat->num_subdev = num_devs;
 	concat->mtd.name = name;
 
-	/*
-	 * NOTE: for now, we do not provide any readv()/writev() methods
-	 *       because they are messy to implement and they are not
-	 *       used to a great extent anyway.
-	 */
 	concat->mtd.erase = concat_erase;
 	concat->mtd.read = concat_read;
 	concat->mtd.write = concat_write;
