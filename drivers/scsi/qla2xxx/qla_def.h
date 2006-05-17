@@ -31,6 +31,8 @@
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_transport_fc.h>
 
+#define QLA2XXX_DRIVER_NAME  "qla2xxx"
+
 /*
  * We have MAILBOX_REGISTER_COUNT sized arrays in a few places,
  * but that's fine as we don't look at the last 24 ones for

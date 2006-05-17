@@ -86,7 +86,7 @@ static int qla2x00_change_queue_type(struct scsi_device *, int);
 
 static struct scsi_host_template qla2x00_driver_template = {
 	.module			= THIS_MODULE,
-	.name			= "qla2xxx",
+	.name			= QLA2XXX_DRIVER_NAME,
 	.queuecommand		= qla2x00_queuecommand,
 
 	.eh_abort_handler	= qla2xxx_eh_abort,
@@ -115,7 +115,7 @@ static struct scsi_host_template qla2x00_driver_template = {
 
 static struct scsi_host_template qla24xx_driver_template = {
 	.module			= THIS_MODULE,
-	.name			= "qla2xxx",
+	.name			= QLA2XXX_DRIVER_NAME,
 	.queuecommand		= qla24xx_queuecommand,
 
 	.eh_abort_handler	= qla2xxx_eh_abort,
@@ -1239,7 +1239,7 @@ qla2x00_iospace_config(scsi_qla_host_t *ha)
 		goto iospace_error_exit;
 	}
 
-	if (pci_request_regions(ha->pdev, "qla2xxx")) {
+	if (pci_request_regions(ha->pdev, QLA2XXX_DRIVER_NAME)) {
 		qla_printk(KERN_WARNING, ha,
 		    "Failed to reserve PIO/MMIO regions (%s)\n",
 		    pci_name(ha->pdev));
@@ -1355,7 +1355,7 @@ static int qla2x00_probe_one(struct pci_dev *pdev)
 	ha->pdev = pdev;
 	ha->host = host;
 	ha->host_no = host->host_no;
-	sprintf(ha->host_str, "qla2xxx_%ld", ha->host_no);
+	sprintf(ha->host_str, "%s_%ld", QLA2XXX_DRIVER_NAME, ha->host_no);
 
 	/* Set ISP-type information. */
 	qla2x00_set_isp_flags(ha);
@@ -1538,7 +1538,7 @@ static int qla2x00_probe_one(struct pci_dev *pdev)
 	host->transportt = qla2xxx_transport_template;
 
 	ret = request_irq(pdev->irq, ha->isp_ops.intr_handler,
-	    SA_INTERRUPT|SA_SHIRQ, "qla2xxx", ha);
+	    SA_INTERRUPT|SA_SHIRQ, QLA2XXX_DRIVER_NAME, ha);
 	if (ret) {
 		qla_printk(KERN_WARNING, ha,
 		    "Failed to reserve interrupt %d already in use.\n",
@@ -1868,7 +1868,8 @@ qla2x00_mem_alloc(scsi_qla_host_t *ha)
 			continue;
 		}
 
-		snprintf(name, sizeof(name), "qla2xxx_%ld", ha->host_no);
+		snprintf(name, sizeof(name), "%s_%ld", QLA2XXX_DRIVER_NAME,
+		    ha->host_no);
 		ha->s_dma_pool = dma_pool_create(name, &ha->pdev->dev,
 		    DMA_POOL_SIZE, 8, 0);
 		if (ha->s_dma_pool == NULL) {
@@ -2631,7 +2632,7 @@ qla2xxx_remove_one(struct pci_dev *pdev)
 }
 
 static struct pci_driver qla2xxx_pci_driver = {
-	.name		= "qla2xxx",
+	.name		= QLA2XXX_DRIVER_NAME,
 	.driver		= {
 		.owner		= THIS_MODULE,
 	},
