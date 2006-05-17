@@ -1778,6 +1778,9 @@ qla2x00_configure_loop(scsi_qla_host_t *ha)
 		set_bit(RSCN_UPDATE, &flags);
 		clear_bit(LOCAL_LOOP_UPDATE, &flags);
 
+	} else if (ha->current_topology == ISP_CFG_N) {
+		clear_bit(RSCN_UPDATE, &flags);
+
 	} else if (!ha->flags.online ||
 	    (test_bit(ABORT_ISP_ACTIVE, &flags))) {
 
