@@ -71,12 +71,6 @@ MODULE_PARM_DESC(ql2xfdmienable,
 		"Enables FDMI registratons "
 		"Default is 0 - no FDMI. 1 - perfom FDMI.");
 
-int ql2xprocessrscn;
-module_param(ql2xprocessrscn, int, S_IRUGO|S_IRUSR);
-MODULE_PARM_DESC(ql2xprocessrscn,
-		"Option to enable port RSCN handling via a series of less"
-		"fabric intrusive ADISCs and PLOGIs.");
-
 /*
  * SCSI host template entry points
  */
@@ -1492,7 +1486,6 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 
 	INIT_LIST_HEAD(&ha->list);
 	INIT_LIST_HEAD(&ha->fcports);
-	INIT_LIST_HEAD(&ha->rscn_fcports);
 
 	/*
 	 * These locks are used to prevent more than one CPU
@@ -1669,10 +1662,6 @@ EXPORT_SYMBOL_GPL(qla2x00_remove_one);
 static void
 qla2x00_free_device(scsi_qla_host_t *ha)
 {
-	/* Abort any outstanding IO descriptors. */
-	if (!IS_QLA2100(ha) && !IS_QLA2200(ha))
-		qla2x00_cancel_io_descriptors(ha);
-
 	/* Disable timer */
 	if (ha->timer_active)
 		qla2x00_stop_timer(ha);
@@ -1909,21 +1898,6 @@ qla2x00_mem_alloc(scsi_qla_host_t *ha)
 		}
 		memset(ha->init_cb, 0, ha->init_cb_size);
 
-		/* Get consistent memory allocated for Get Port Database cmd */
-		ha->iodesc_pd = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL,
-		    &ha->iodesc_pd_dma);
-		if (ha->iodesc_pd == NULL) {
-			/* error */
-			qla_printk(KERN_WARNING, ha,
-			    "Memory Allocation failed - iodesc_pd\n");
-
-			qla2x00_mem_free(ha);
-			msleep(100);
-
-			continue;
-		}
-		memset(ha->iodesc_pd, 0, PORT_DATABASE_SIZE);
-
 		/* Allocate ioctl related memory. */
 		if (qla2x00_alloc_ioctl_mem(ha)) {
 			qla_printk(KERN_WARNING, ha,
@@ -2048,9 +2022,6 @@ qla2x00_mem_free(scsi_qla_host_t *ha)
 	if (ha->ms_iocb)
 		dma_pool_free(ha->s_dma_pool, ha->ms_iocb, ha->ms_iocb_dma);
 
-	if (ha->iodesc_pd)
-		dma_pool_free(ha->s_dma_pool, ha->iodesc_pd, ha->iodesc_pd_dma);
-
 	if (ha->init_cb)
 		dma_pool_free(ha->s_dma_pool, ha->init_cb, ha->init_cb_dma);
 
@@ -2077,8 +2048,6 @@ qla2x00_mem_free(scsi_qla_host_t *ha)
 	ha->ct_sns_dma = 0;
 	ha->ms_iocb = NULL;
 	ha->ms_iocb_dma = 0;
-	ha->iodesc_pd = NULL;
-	ha->iodesc_pd_dma = 0;
 	ha->init_cb = NULL;
 	ha->init_cb_dma = 0;
 

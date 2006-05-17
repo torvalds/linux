@@ -64,7 +64,6 @@ extern int qlport_down_retry;
 extern int ql2xplogiabsentdevice;
 extern int ql2xloginretrycount;
 extern int ql2xfdmienable;
-extern int ql2xprocessrscn;
 
 extern void qla2x00_sp_compl(scsi_qla_host_t *, srb_t *);
 
@@ -282,15 +281,6 @@ extern int qla2x00_rsnn_nn(scsi_qla_host_t *);
 extern void *qla2x00_prep_ms_fdmi_iocb(scsi_qla_host_t *, uint32_t, uint32_t);
 extern void *qla24xx_prep_ms_fdmi_iocb(scsi_qla_host_t *, uint32_t, uint32_t);
 extern int qla2x00_fdmi_register(scsi_qla_host_t *);
-
-/*
- * Global Function Prototypes in qla_rscn.c source file.
- */
-extern fc_port_t *qla2x00_alloc_rscn_fcport(scsi_qla_host_t *, gfp_t);
-extern int qla2x00_handle_port_rscn(scsi_qla_host_t *, uint32_t, fc_port_t *,
-    int);
-extern void qla2x00_process_iodesc(scsi_qla_host_t *, struct mbx_entry *);
-extern void qla2x00_cancel_io_descriptors(scsi_qla_host_t *);
 
 /*
  * Global Function Prototypes in qla_xioctl.c source file.

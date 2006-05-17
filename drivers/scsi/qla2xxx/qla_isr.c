@@ -515,47 +515,6 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 
 	case MBA_PORT_UPDATE:		/* Port database update */
 		/*
-		 * If a single remote port just logged into (or logged out of)
-		 * us, create a new entry in our rscn fcports list and handle
-		 * the event like an RSCN.
-		 */
-		if (ql2xprocessrscn &&
-		    !IS_QLA2100(ha) && !IS_QLA2200(ha) && !IS_QLA6312(ha) &&
-		    !IS_QLA6322(ha) && !IS_QLA24XX(ha) && !IS_QLA54XX(ha) &&
-		    ha->flags.init_done && mb[1] != 0xffff &&
-		    ((ha->operating_mode == P2P && mb[1] != 0) ||
-		    (ha->operating_mode != P2P && mb[1] !=
-			SNS_FIRST_LOOP_ID)) && (mb[2] == 6 || mb[2] == 7)) {
-			int rval;
-			fc_port_t *rscn_fcport;
-
-			/* Create new fcport for login. */
-			rscn_fcport = qla2x00_alloc_rscn_fcport(ha, GFP_ATOMIC);
-			if (rscn_fcport) {
-				DEBUG14(printk("scsi(%ld): Port Update -- "
-				    "creating RSCN fcport %p for %x/%x/%x.\n",
-				    ha->host_no, rscn_fcport, mb[1], mb[2],
-				    mb[3]));
-
-				rscn_fcport->loop_id = mb[1];
-				rscn_fcport->d_id.b24 = INVALID_PORT_ID;
-				atomic_set(&rscn_fcport->state,
-				    FCS_DEVICE_LOST);
-				list_add_tail(&rscn_fcport->list,
-				    &ha->rscn_fcports);
-
-				rval = qla2x00_handle_port_rscn(ha, 0,
-				    rscn_fcport, 1);
-				if (rval == QLA_SUCCESS)
-					break;
-			} else {
-				DEBUG14(printk("scsi(%ld): Port Update -- "
-				    "-- unable to allocate RSCN fcport "
-				    "login.\n", ha->host_no));
-			}
-		}
-
-		/*
 		 * If PORT UPDATE is global (recieved LIP_OCCURED/LIP_RESET
 		 * event etc. earlier indicating loop is down) then process
 		 * it.  Otherwise ignore it and Wait for RSCN to come in.
@@ -753,25 +712,6 @@ qla2x00_process_response_queue(struct scsi_qla_host *ha)
 		case MS_IOCB_TYPE:
 			qla2x00_ms_entry(ha, (ms_iocb_entry_t *)pkt);
 			break;
-		case MBX_IOCB_TYPE:
-			if (!IS_QLA2100(ha) && !IS_QLA2200(ha) &&
-			    !IS_QLA6312(ha) && !IS_QLA6322(ha)) {
-				if (pkt->sys_define == SOURCE_ASYNC_IOCB) {
-					qla2x00_process_iodesc(ha,
-					    (struct mbx_entry *)pkt);
-				} else {
-					/* MBX IOCB Type Not Supported. */
-					DEBUG4(printk(KERN_WARNING
-					    "scsi(%ld): Received unknown MBX "
-					    "IOCB response pkt type=%x "
-					    "source=%x entry status=%x.\n",
-					    ha->host_no, pkt->entry_type,
-					    pkt->sys_define,
-					    pkt->entry_status));
-				}
-				break;
-			}
-			/* Fallthrough. */
 		default:
 			/* Type Not Supported. */
 			DEBUG4(printk(KERN_WARNING

@@ -1523,8 +1523,6 @@ typedef struct fc_port {
 
 	unsigned int os_target_id;
 
-	uint16_t iodesc_idx_sent;
-
 	int port_login_retry_count;
 	int login_retry;
 	atomic_t port_down_timer;
@@ -1940,34 +1938,6 @@ struct sns_cmd_pkt {
 	} p;
 };
 
-/* IO descriptors */
-#define MAX_IO_DESCRIPTORS	32
-
-#define ABORT_IOCB_CB		0
-#define ADISC_PORT_IOCB_CB	1
-#define LOGOUT_PORT_IOCB_CB	2
-#define LOGIN_PORT_IOCB_CB	3
-#define LAST_IOCB_CB		4
-
-#define IODESC_INVALID_INDEX	0xFFFF
-#define IODESC_ADISC_NEEDED	0xFFFE
-#define IODESC_LOGIN_NEEDED	0xFFFD
-
-struct io_descriptor {
-	uint16_t used:1;
-	uint16_t idx:11;
-	uint16_t cb_idx:4;
-
-	struct timer_list timer;
-
-	struct scsi_qla_host *ha;
-
-	port_id_t d_id;
-	fc_port_t *remote_fcport;
-
-	uint32_t signature;
-};
-
 struct qla_fw_info {
 	unsigned short addressing;	/* addressing method used to load fw */
 #define FW_INFO_ADDR_NORMAL	0
@@ -2271,10 +2241,6 @@ typedef struct scsi_qla_host {
 
 	/* Fibre Channel Device List. */
 	struct list_head	fcports;
-	struct list_head	rscn_fcports;
-
-	struct io_descriptor	io_descriptors[MAX_IO_DESCRIPTORS];
-	uint16_t		iodesc_signature;
 
 	/* RSCN queue. */
 	uint32_t rscn_queue[MAX_RSCN_COUNT];
@@ -2312,9 +2278,6 @@ typedef struct scsi_qla_host {
 	dma_addr_t	init_cb_dma;
 	init_cb_t	*init_cb;
 	int		init_cb_size;
-
-	dma_addr_t	iodesc_pd_dma;
-	port_database_t *iodesc_pd;
 
 	/* These are used by mailbox operations. */
 	volatile uint16_t mailbox_out[MAILBOX_REGISTER_COUNT];

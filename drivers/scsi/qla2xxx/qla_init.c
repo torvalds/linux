@@ -1708,7 +1708,6 @@ qla2x00_alloc_fcport(scsi_qla_host_t *ha, gfp_t flags)
 	fcport->ha = ha;
 	fcport->port_type = FCT_UNKNOWN;
 	fcport->loop_id = FC_NO_LOOP_ID;
-	fcport->iodesc_idx_sent = IODESC_INVALID_INDEX;
 	atomic_set(&fcport->state, FCS_UNCONFIGURED);
 	fcport->flags = FCF_RLC_SUPPORT;
 	fcport->supported_classes = FC_COS_UNSPECIFIED;
@@ -2563,7 +2562,6 @@ static int
 qla2x00_device_resync(scsi_qla_host_t *ha)
 {
 	int	rval;
-	int	rval2;
 	uint32_t mask;
 	fc_port_t *fcport;
 	uint32_t rscn_entry;
@@ -2619,17 +2617,6 @@ qla2x00_device_resync(scsi_qla_host_t *ha)
 
 		switch (format) {
 		case 0:
-			if (ql2xprocessrscn &&
-			    !IS_QLA2100(ha) && !IS_QLA2200(ha) &&
-			    !IS_QLA6312(ha) && !IS_QLA6322(ha) &&
-			    !IS_QLA24XX(ha) && !IS_QLA54XX(ha) &&
-			    ha->flags.init_done) {
-				/* Handle port RSCN via asyncronous IOCBs */
-				rval2 = qla2x00_handle_port_rscn(ha, rscn_entry,
-				    NULL, 0);
-				if (rval2 == QLA_SUCCESS)
-					continue;
-			}
 			mask = 0xffffff;
 			break;
 		case 1:
@@ -2646,10 +2633,6 @@ qla2x00_device_resync(scsi_qla_host_t *ha)
 		}
 
 		rval = QLA_SUCCESS;
-
-		/* Abort any outstanding IO descriptors. */
-		if (!IS_QLA2100(ha) && !IS_QLA2200(ha))
-			qla2x00_cancel_io_descriptors(ha);
 
 		list_for_each_entry(fcport, &ha->fcports, list) {
 			if ((fcport->flags & FCF_FABRIC_DEVICE) == 0 ||
