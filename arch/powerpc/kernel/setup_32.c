@@ -297,6 +297,9 @@ void __init setup_arch(char **cmdline_p)
 
 	parse_early_param();
 
+	if (do_early_xmon)
+		debugger(NULL);
+
 	/* set up the bootmem stuff with available memory */
 	do_init_bootmem();
 	if ( ppc_md.progress ) ppc_md.progress("setup_arch: bootmem", 0x3eab);

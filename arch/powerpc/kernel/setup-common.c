@@ -443,6 +443,7 @@ void __init smp_setup_cpu_maps(void)
 }
 #endif /* CONFIG_SMP */
 
+int __initdata do_early_xmon;
 #ifdef CONFIG_XMON
 static int __init early_xmon(char *p)
 {
@@ -456,7 +457,7 @@ static int __init early_xmon(char *p)
 			return 0;
 	}
 	xmon_init(1);
-	debugger(NULL);
+	do_early_xmon = 1;
 
 	return 0;
 }

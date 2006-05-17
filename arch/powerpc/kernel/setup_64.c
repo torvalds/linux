@@ -419,6 +419,9 @@ void __init setup_system(void)
 
 	parse_early_param();
 
+	if (do_early_xmon)
+		debugger(NULL);
+
 	check_smt_enabled();
 	smp_setup_cpu_maps();
 
