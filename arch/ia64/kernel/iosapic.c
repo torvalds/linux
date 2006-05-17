@@ -416,7 +416,7 @@ iosapic_end_level_irq (unsigned int irq)
 	ia64_vector vec = irq_to_vector(irq);
 	struct iosapic_rte_info *rte;
 
-	move_irq(irq);
+	move_native_irq(irq);
 	list_for_each_entry(rte, &iosapic_intr_info[vec].rtes, rte_list)
 		iosapic_eoi(rte->addr, vec);
 }
@@ -458,7 +458,7 @@ iosapic_ack_edge_irq (unsigned int irq)
 {
 	irq_desc_t *idesc = irq_descp(irq);
 
-	move_irq(irq);
+	move_native_irq(irq);
 	/*
 	 * Once we have recorded IRQ_PENDING already, we can mask the
 	 * interrupt for real. This prevents IRQ storms from unhandled
