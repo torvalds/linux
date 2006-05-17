@@ -1411,13 +1411,12 @@ config PAGE_SIZE_8KB
 
 config PAGE_SIZE_16KB
 	bool "16kB"
-	depends on EXPERIMENTAL && !CPU_R3000 && !CPU_TX39XX
+	depends on !CPU_R3000 && !CPU_TX39XX
 	help
 	  Using 16kB page size will result in higher performance kernel at
 	  the price of higher memory consumption.  This option is available on
-	  all non-R3000 family processor.  Not that at the time of this
-	  writing this option is still high experimental; there are also
-	  issues with compatibility of user applications.
+	  all non-R3000 family processors.  Note that you will need a suitable
+	  Linux distribution to support this.
 
 config PAGE_SIZE_64KB
 	bool "64kB"
@@ -1426,8 +1425,7 @@ config PAGE_SIZE_64KB
 	  Using 64kB page size will result in higher performance kernel at
 	  the price of higher memory consumption.  This option is available on
 	  all non-R3000 family processor.  Not that at the time of this
-	  writing this option is still high experimental; there are also
-	  issues with compatibility of user applications.
+	  writing this option is still high experimental.
 
 endchoice
 
