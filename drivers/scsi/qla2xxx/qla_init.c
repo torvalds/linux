@@ -1532,6 +1532,12 @@ qla2x00_nvram_config(scsi_qla_host_t *ha)
 	while (cnt--)
 		*dptr1++ = *dptr2++;
 
+	/* Use alternate WWN? */
+	if (nv->host_p[1] & BIT_7) {
+		memcpy(icb->node_name, nv->alternate_node_name, WWN_SIZE);
+		memcpy(icb->port_name, nv->alternate_port_name, WWN_SIZE);
+	}
+
 	/* Prepare nodename */
 	if ((icb->firmware_options[1] & BIT_6) == 0) {
 		/*
@@ -3369,6 +3375,12 @@ qla24xx_nvram_config(scsi_qla_host_t *ha)
 			ha->model_desc = qla2x00_model_name[index * 2 + 1];
 	} else
 		strcpy(ha->model_number, "QLA2462");
+
+	/* Use alternate WWN? */
+	if (nv->host_p & __constant_cpu_to_le32(BIT_15)) {
+		memcpy(icb->node_name, nv->alternate_node_name, WWN_SIZE);
+		memcpy(icb->port_name, nv->alternate_port_name, WWN_SIZE);
+	}
 
 	/* Prepare nodename */
 	if ((icb->firmware_options_1 & __constant_cpu_to_le32(BIT_14)) == 0) {
