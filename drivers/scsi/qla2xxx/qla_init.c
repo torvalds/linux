@@ -3498,6 +3498,88 @@ qla24xx_nvram_config(scsi_qla_host_t *ha)
 	return (rval);
 }
 
+int
+qla24xx_load_risc_flash(scsi_qla_host_t *ha, uint32_t *srisc_addr)
+{
+	int	rval;
+	int	segments, fragment;
+	uint32_t faddr;
+	uint32_t *dcode, dlen;
+	uint32_t risc_addr;
+	uint32_t risc_size;
+	uint32_t i;
+
+	rval = QLA_SUCCESS;
+
+	segments = FA_RISC_CODE_SEGMENTS;
+	faddr = FA_RISC_CODE_ADDR;
+	dcode = (uint32_t *)ha->request_ring;
+	*srisc_addr = 0;
+
+	/* Validate firmware image by checking version. */
+	qla24xx_read_flash_data(ha, dcode, faddr + 4, 4);
+	for (i = 0; i < 4; i++)
+		dcode[i] = be32_to_cpu(dcode[i]);
+	if ((dcode[0] == 0xffffffff && dcode[1] == 0xffffffff &&
+	    dcode[2] == 0xffffffff && dcode[3] == 0xffffffff) ||
+	    (dcode[0] == 0 && dcode[1] == 0 && dcode[2] == 0 &&
+		dcode[3] == 0)) {
+		qla_printk(KERN_WARNING, ha,
+		    "Unable to verify integrity of flash firmware image!\n");
+		qla_printk(KERN_WARNING, ha,
+		    "Firmware data: %08x %08x %08x %08x!\n", dcode[0],
+		    dcode[1], dcode[2], dcode[3]);
+
+		return QLA_FUNCTION_FAILED;
+	}
+
+	while (segments && rval == QLA_SUCCESS) {
+		/* Read segment's load information. */
+		qla24xx_read_flash_data(ha, dcode, faddr, 4);
+
+		risc_addr = be32_to_cpu(dcode[2]);
+		*srisc_addr = *srisc_addr == 0 ? risc_addr : *srisc_addr;
+		risc_size = be32_to_cpu(dcode[3]);
+
+		fragment = 0;
+		while (risc_size > 0 && rval == QLA_SUCCESS) {
+			dlen = (uint32_t)(ha->fw_transfer_size >> 2);
+			if (dlen > risc_size)
+				dlen = risc_size;
+
+			DEBUG7(printk("scsi(%ld): Loading risc segment@ risc "
+			    "addr %x, number of dwords 0x%x, offset 0x%x.\n",
+			    ha->host_no, risc_addr, dlen, faddr));
+
+			qla24xx_read_flash_data(ha, dcode, faddr, dlen);
+			for (i = 0; i < dlen; i++)
+				dcode[i] = swab32(dcode[i]);
+
+			rval = qla2x00_load_ram(ha, ha->request_dma, risc_addr,
+			    dlen);
+			if (rval) {
+				DEBUG(printk("scsi(%ld):[ERROR] Failed to load "
+				    "segment %d of firmware\n", ha->host_no,
+				    fragment));
+				qla_printk(KERN_WARNING, ha,
+				    "[ERROR] Failed to load segment %d of "
+				    "firmware\n", fragment);
+				break;
+			}
+
+			faddr += dlen;
+			risc_addr += dlen;
+			risc_size -= dlen;
+			fragment++;
+		}
+
+		/* Next segment. */
+		segments--;
+	}
+
+	return rval;
+}
+
 #if defined(CONFIG_SCSI_QLA2XXX_EMBEDDED_FIRMWARE)
 
 int
@@ -3625,89 +3707,9 @@ qla24xx_load_risc(scsi_qla_host_t *ha, uint32_t *srisc_addr)
 	return rval;
 }
 
-int
-qla24xx_load_risc_flash(scsi_qla_host_t *ha, uint32_t *srisc_addr)
-{
-	int	rval;
-	int	segments, fragment;
-	uint32_t faddr;
-	uint32_t *dcode, dlen;
-	uint32_t risc_addr;
-	uint32_t risc_size;
-	uint32_t i;
-
-	rval = QLA_SUCCESS;
-
-	segments = FA_RISC_CODE_SEGMENTS;
-	faddr = FA_RISC_CODE_ADDR;
-	dcode = (uint32_t *)ha->request_ring;
-	*srisc_addr = 0;
-
-	/* Validate firmware image by checking version. */
-	qla24xx_read_flash_data(ha, dcode, faddr + 4, 4);
-	for (i = 0; i < 4; i++)
-		dcode[i] = be32_to_cpu(dcode[i]);
-	if ((dcode[0] == 0xffffffff && dcode[1] == 0xffffffff &&
-	    dcode[2] == 0xffffffff && dcode[3] == 0xffffffff) ||
-	    (dcode[0] == 0 && dcode[1] == 0 && dcode[2] == 0 &&
-		dcode[3] == 0)) {
-		qla_printk(KERN_WARNING, ha,
-		    "Unable to verify integrity of flash firmware image!\n");
-		qla_printk(KERN_WARNING, ha,
-		    "Firmware data: %08x %08x %08x %08x!\n", dcode[0],
-		    dcode[1], dcode[2], dcode[3]);
-
-		return QLA_FUNCTION_FAILED;
-	}
-
-	while (segments && rval == QLA_SUCCESS) {
-		/* Read segment's load information. */
-		qla24xx_read_flash_data(ha, dcode, faddr, 4);
-
-		risc_addr = be32_to_cpu(dcode[2]);
-		*srisc_addr = *srisc_addr == 0 ? risc_addr : *srisc_addr;
-		risc_size = be32_to_cpu(dcode[3]);
-
-		fragment = 0;
-		while (risc_size > 0 && rval == QLA_SUCCESS) {
-			dlen = (uint32_t)(ha->fw_transfer_size >> 2);
-			if (dlen > risc_size)
-				dlen = risc_size;
-
-			DEBUG7(printk("scsi(%ld): Loading risc segment@ risc "
-			    "addr %x, number of dwords 0x%x, offset 0x%x.\n",
-			    ha->host_no, risc_addr, dlen, faddr));
-
-			qla24xx_read_flash_data(ha, dcode, faddr, dlen);
-			for (i = 0; i < dlen; i++)
-				dcode[i] = swab32(dcode[i]);
-
-			rval = qla2x00_load_ram(ha, ha->request_dma, risc_addr,
-			    dlen);
-			if (rval) {
-				DEBUG(printk("scsi(%ld):[ERROR] Failed to load "
-				    "segment %d of firmware\n", ha->host_no,
-				    fragment));
-				qla_printk(KERN_WARNING, ha,
-				    "[ERROR] Failed to load segment %d of "
-				    "firmware\n", fragment);
-				break;
-			}
-
-			faddr += dlen;
-			risc_addr += dlen;
-			risc_size -= dlen;
-			fragment++;
-		}
-
-		/* Next segment. */
-		segments--;
-	}
-
-	return rval;
-}
-
 #else	/* !defined(CONFIG_SCSI_QLA2XXX_EMBEDDED_FIRMWARE) */
+
+#define QLA_FW_URL "ftp://ftp.qlogic.com/outgoing/linux/firmware/"
 
 int
 qla2x00_load_risc(scsi_qla_host_t *ha, uint32_t *srisc_addr)
@@ -3722,6 +3724,8 @@ qla2x00_load_risc(scsi_qla_host_t *ha, uint32_t *srisc_addr)
 	blob = qla2x00_request_firmware(ha);
 	if (!blob) {
 		qla_printk(KERN_ERR, ha, "Firmware image unavailable.\n");
+		qla_printk(KERN_ERR, ha, "Firmware images can be retrieved "
+		    "from: " QLA_FW_URL ".\n");
 		return QLA_FUNCTION_FAILED;
 	}
 
@@ -3823,7 +3827,13 @@ qla24xx_load_risc(scsi_qla_host_t *ha, uint32_t *srisc_addr)
 	blob = qla2x00_request_firmware(ha);
 	if (!blob) {
 		qla_printk(KERN_ERR, ha, "Firmware image unavailable.\n");
-		return QLA_FUNCTION_FAILED;
+		qla_printk(KERN_ERR, ha, "Firmware images can be retrieved "
+		    "from: " QLA_FW_URL ".\n");
+
+		/* Try to load RISC code from flash. */
+		qla_printk(KERN_ERR, ha, "Attempting to load (potentially "
+		    "outdated) firmware from flash.\n");
+		return qla24xx_load_risc_flash(ha, srisc_addr);
 	}
 
 	rval = QLA_SUCCESS;
