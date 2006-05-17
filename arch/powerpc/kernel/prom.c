@@ -1326,9 +1326,7 @@ void __init early_init_devtree(void *params)
 
 	/* Reserve LMB regions used by kernel, initrd, dt, etc... */
 	lmb_reserve(PHYSICAL_START, __pa(klimit) - PHYSICAL_START);
-#ifdef CONFIG_CRASH_DUMP
-	lmb_reserve(0, KDUMP_RESERVE_LIMIT);
-#endif
+	reserve_kdump_trampoline();
 	early_reserve_mem();
 
 	lmb_enforce_memory_limit(memory_limit);

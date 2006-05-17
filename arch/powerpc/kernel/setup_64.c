@@ -193,9 +193,7 @@ void __init early_setup(unsigned long dt_ptr)
 	/* Probe the machine type */
 	probe_machine();
 
-#ifdef CONFIG_CRASH_DUMP
-	kdump_setup();
-#endif
+	setup_kdump_trampoline();
 
 	DBG("Found, Initializing memory management...\n");
 
