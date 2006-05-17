@@ -3106,6 +3106,7 @@ static struct hda_verb alc260_init_verbs[] = {
 	{ }
 };
 
+#if 0 /* should be identical with alc260_init_verbs? */
 static struct hda_verb alc260_hp_init_verbs[] = {
 	/* Headphone and output */
 	{0x10, AC_VERB_SET_PIN_WIDGET_CONTROL, 0xc0},
@@ -3152,6 +3153,7 @@ static struct hda_verb alc260_hp_init_verbs[] = {
 	{0x0a, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x01 << 8))},
 	{ }
 };
+#endif
 
 static struct hda_verb alc260_hp_3013_init_verbs[] = {
 	/* Line out and output */
@@ -3867,7 +3869,7 @@ static struct alc_config_preset alc260_presets[] = {
 		.mixers = { alc260_base_output_mixer,
 			    alc260_input_mixer,
 			    alc260_capture_alt_mixer },
-		.init_verbs = { alc260_hp_init_verbs },
+		.init_verbs = { alc260_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc260_dac_nids),
 		.dac_nids = alc260_dac_nids,
 		.num_adc_nids = ARRAY_SIZE(alc260_hp_adc_nids),
