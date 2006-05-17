@@ -335,6 +335,7 @@ static inline void local_r4k___flush_cache_all(void * args)
 	case CPU_R4400MC:
 	case CPU_R10000:
 	case CPU_R12000:
+	case CPU_R14000:
 		r4k_blast_scache();
 	}
 }
@@ -833,6 +834,7 @@ static void __init probe_pcache(void)
 
 	case CPU_R10000:
 	case CPU_R12000:
+	case CPU_R14000:
 		icache_size = 1 << (12 + ((config & R10K_CONF_IC) >> 29));
 		c->icache.linesz = 64;
 		c->icache.ways = 2;
@@ -986,6 +988,7 @@ static void __init probe_pcache(void)
 		c->dcache.flags |= MIPS_CACHE_PINDEX;
 	case CPU_R10000:
 	case CPU_R12000:
+	case CPU_R14000:
 	case CPU_SB1:
 		break;
 	case CPU_24K:
@@ -1113,6 +1116,7 @@ static void __init setup_scache(void)
 
 	case CPU_R10000:
 	case CPU_R12000:
+	case CPU_R14000:
 		scache_size = 0x80000 << ((config & R10K_CONF_SS) >> 16);
 		c->scache.linesz = 64 << ((config >> 13) & 1);
 		c->scache.ways = 2;
