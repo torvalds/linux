@@ -2627,9 +2627,10 @@ static int parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 		if (!csep && altsd->bNumEndpoints >= 2)
 			csep = snd_usb_find_desc(alts->endpoint[1].extra, alts->endpoint[1].extralen, NULL, USB_DT_CS_ENDPOINT);
 		if (!csep || csep[0] < 7 || csep[2] != EP_GENERAL) {
-			snd_printk(KERN_ERR "%d:%u:%d : no or invalid class specific endpoint descriptor\n",
+			snd_printk(KERN_WARN "%d:%u:%d : no or invalid"
+				   " class specific endpoint descriptor\n",
 				   dev->devnum, iface_no, altno);
-			continue;
+			csep = NULL;
 		}
 
 		fp = kmalloc(sizeof(*fp), GFP_KERNEL);
@@ -2648,7 +2649,7 @@ static int parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 		if (snd_usb_get_speed(dev) == USB_SPEED_HIGH)
 			fp->maxpacksize = (((fp->maxpacksize >> 11) & 3) + 1)
 					* (fp->maxpacksize & 0x7ff);
-		fp->attributes = csep[3];
+		fp->attributes = csep ? csep[3] : 0;
 
 		/* some quirks for attributes here */
 
