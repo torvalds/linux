@@ -978,7 +978,6 @@ static int sas_user_scan(struct Scsi_Host *shost, uint channel,
 #define SETUP_TEMPLATE(attrb, field, perm, test)				\
 	i->private_##attrb[count] = class_device_attr_##field;		\
 	i->private_##attrb[count].attr.mode = perm;			\
-	i->private_##attrb[count].store = NULL;				\
 	i->attrb[count] = &i->private_##attrb[count];			\
 	if (test)							\
 		count++
