@@ -1020,19 +1020,26 @@ static int sky2_up(struct net_device *dev)
 	struct sky2_hw *hw = sky2->hw;
 	unsigned port = sky2->port;
 	u32 ramsize, rxspace, imask;
-	int err;
+	int cap, err = -ENOMEM;
 	struct net_device *otherdev = hw->dev[sky2->port^1];
 
-	/* Block bringing up both ports at the same time on a dual port card.
-	 * There is an unfixed bug where receiver gets confused and picks up
-	 * packets out of order. Until this is fixed, prevent data corruption.
+	/*
+ 	 * On dual port PCI-X card, there is an problem where status
+	 * can be received out of order due to split transactions
 	 */
-	if (otherdev && netif_running(otherdev)) {
-		printk(KERN_INFO PFX "dual port support is disabled.\n");
-		return -EBUSY;
-	}
+	if (otherdev && netif_running(otherdev) &&
+ 	    (cap = pci_find_capability(hw->pdev, PCI_CAP_ID_PCIX))) {
+ 		struct sky2_port *osky2 = netdev_priv(otherdev);
+ 		u16 cmd;
 
-	err = -ENOMEM;
+ 		cmd = sky2_pci_read16(hw, cap + PCI_X_CMD);
+ 		cmd &= ~PCI_X_CMD_MAX_SPLIT;
+ 		sky2_pci_write16(hw, cap + PCI_X_CMD, cmd);
+
+ 		sky2->rx_csum = 0;
+ 		osky2->rx_csum = 0;
+ 	}
+
 	if (netif_msg_ifup(sky2))
 		printk(KERN_INFO PFX "%s: enabling interface\n", dev->name);
 
@@ -3078,12 +3085,7 @@ static __devinit struct net_device *sky2_init_netdev(struct sky2_hw *hw,
 	sky2->duplex = -1;
 	sky2->speed = -1;
 	sky2->advertising = sky2_supported_modes(hw);
-
-	/* Receive checksum disabled for Yukon XL
-	 * because of observed problems with incorrect
-	 * values when multiple packets are received in one interrupt
-	 */
-	sky2->rx_csum = (hw->chip_id != CHIP_ID_YUKON_XL);
+	sky2->rx_csum = 1;
 
 	spin_lock_init(&sky2->phy_lock);
 	sky2->tx_pending = TX_DEF_PENDING;
