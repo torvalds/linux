@@ -23,6 +23,20 @@
 #include "sys.h"
 #include "util.h"
 
+static void gfs2_init_inode_once(void *foo, kmem_cache_t *cachep, unsigned long flags)
+{
+	struct gfs2_inode *ip = foo;
+	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
+	    SLAB_CTOR_CONSTRUCTOR) {
+		inode_init_once(&ip->i_inode);
+		atomic_set(&ip->i_count, 0);
+		ip->i_vnode = &ip->i_inode;
+		spin_lock_init(&ip->i_spin);
+		init_rwsem(&ip->i_rw_mutex);
+		memset(ip->i_cache, 0, sizeof(ip->i_cache));
+	}
+}
+
 /**
  * init_gfs2_fs - Register GFS2 as a filesystem
  *
@@ -49,7 +63,9 @@ static int __init init_gfs2_fs(void)
 
 	gfs2_inode_cachep = kmem_cache_create("gfs2_inode",
 					      sizeof(struct gfs2_inode),
-					      0, 0, NULL, NULL);
+					      0, (SLAB_RECLAIM_ACCOUNT|
+					      SLAB_PANIC|SLAB_MEM_SPREAD),
+					      gfs2_init_inode_once, NULL);
 	if (!gfs2_inode_cachep)
 		goto fail;
 

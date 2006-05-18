@@ -183,6 +183,8 @@ struct gfs2_glock {
 	spinlock_t gl_spin;
 
 	unsigned int gl_state;
+	struct task_struct *gl_owner;
+	unsigned long gl_ip;
 	struct list_head gl_holders;
 	struct list_head gl_waiters1;	/* HIF_MUTEX */
 	struct list_head gl_waiters2;	/* HIF_DEMOTE, HIF_GREEDY */
@@ -244,6 +246,7 @@ enum {
 };
 
 struct gfs2_inode {
+	struct inode i_inode;
 	struct gfs2_inum i_num;
 
 	atomic_t i_count;
@@ -269,6 +272,11 @@ struct gfs2_inode {
 
 	struct buffer_head *i_cache[GFS2_MAX_META_HEIGHT];
 };
+
+static inline struct gfs2_inode *GFS2_I(struct inode *inode)
+{
+	return container_of(inode, struct gfs2_inode, i_inode);
+}
 
 enum {
 	GFF_DID_DIRECT_ALLOC	= 0,

@@ -361,7 +361,31 @@ static int gfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
 	return 0;
 }
 
+static struct inode *gfs2_alloc_inode(struct super_block *sb)
+{
+	struct gfs2_sbd *sdp = sb->s_fs_info;
+	struct gfs2_inode *ip;
+
+	ip = kmem_cache_alloc(gfs2_inode_cachep, GFP_KERNEL);
+	if (ip) {
+		ip->i_flags = 0;
+		ip->i_gl = NULL;
+		ip->i_sbd = sdp;
+		ip->i_vnode = &ip->i_inode;
+		ip->i_greedy = gfs2_tune_get(sdp, gt_greedy_default);
+		ip->i_last_pfault = jiffies;
+	}
+	return &ip->i_inode;
+}
+
+static void gfs2_destroy_inode(struct inode *inode)
+{
+	kmem_cache_free(gfs2_inode_cachep, inode);
+}
+
 struct super_operations gfs2_super_ops = {
+	.alloc_inode = gfs2_alloc_inode,
+	.destroy_inode = gfs2_destroy_inode,
 	.write_inode = gfs2_write_inode,
 	.put_super = gfs2_put_super,
 	.write_super = gfs2_write_super,

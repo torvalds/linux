@@ -504,7 +504,7 @@ static int inode_dealloc(struct gfs2_sbd *sdp, struct gfs2_unlinked *ul,
 
 	error = gfs2_glock_nq_num(sdp, ul->ul_ut.ut_inum.no_addr,
 				  &gfs2_inode_glops, LM_ST_EXCLUSIVE,
-				  LM_FLAG_TRY_1CB, &i_gh);
+				  LM_FLAG_TRY_1CB|GL_DUMP, &i_gh);
 	switch(error) {
 	case 0:
 		break;
@@ -724,9 +724,8 @@ struct inode *gfs2_lookupi(struct inode *dir, struct qstr *name, int is_root,
 	if ((name->len == 1 && memcmp(name->name, ".", 1) == 0) ||
 	    (name->len == 2 && memcmp(name->name, "..", 2) == 0 &&
 	     dir == sb->s_root->d_inode)) {
-		gfs2_inode_hold(dip);
-		ipp = dip;
-		goto done;
+		igrab(dir);
+		return dir;
 	}
 
 	error = gfs2_glock_nq_init(dip->i_gl, LM_ST_SHARED, 0, &d_gh);
@@ -734,7 +733,7 @@ struct inode *gfs2_lookupi(struct inode *dir, struct qstr *name, int is_root,
 		return ERR_PTR(error);
 
 	if (!is_root) {
-		error = gfs2_repermission(dip->i_vnode, MAY_EXEC, NULL);
+		error = gfs2_repermission(dir, MAY_EXEC, NULL);
 		if (error)
 			goto out;
 	}
@@ -756,7 +755,6 @@ struct inode *gfs2_lookupi(struct inode *dir, struct qstr *name, int is_root,
 
 out:
 	gfs2_glock_dq_uninit(&d_gh);
-done:
 	if (error == -ENOENT)
 		return NULL;
 	if (error == 0) {
@@ -1058,7 +1056,6 @@ static int make_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
 	int error;
 
 	munge_mode_uid_gid(dip, &mode, &uid, &gid);
-
 	gfs2_alloc_get(dip);
 
 	error = gfs2_quota_lock(dip, uid, gid);
@@ -1069,19 +1066,14 @@ static int make_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
 	if (error)
 		goto out_quota;
 
-	error = gfs2_trans_begin(sdp, RES_DINODE + RES_UNLINKED +
-				 RES_QUOTA, 0);
+	error = gfs2_trans_begin(sdp, RES_DINODE + RES_UNLINKED + RES_QUOTA, 0);
 	if (error)
 		goto out_quota;
 
 	ul->ul_ut.ut_flags = 0;
 	error = gfs2_unlinked_ondisk_munge(sdp, ul);
-
-	init_dinode(dip, gl, &ul->ul_ut.ut_inum,
-		     mode, uid, gid);
-
+	init_dinode(dip, gl, &ul->ul_ut.ut_inum, mode, uid, gid);
 	gfs2_quota_change(dip, +1, uid, gid);
-
 	gfs2_trans_end(sdp);
 
  out_quota:
@@ -1089,7 +1081,6 @@ static int make_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
 
  out:
 	gfs2_alloc_put(dip);
-
 	return error;
 }
 
@@ -1123,8 +1114,7 @@ static int link_dinode(struct gfs2_inode *dip, struct qstr *name,
 		if (error)
 			goto fail_quota_locks;
 
-		error = gfs2_trans_begin(sdp,
-					 sdp->sd_max_dirres +
+		error = gfs2_trans_begin(sdp, sdp->sd_max_dirres +
 					 al->al_rgd->rd_ri.ri_length +
 					 2 * RES_DINODE + RES_UNLINKED +
 					 RES_STATFS + RES_QUOTA, 0);
@@ -1157,19 +1147,18 @@ static int link_dinode(struct gfs2_inode *dip, struct qstr *name,
 
 	return 0;
 
- fail_end_trans:
+fail_end_trans:
 	gfs2_trans_end(sdp);
 
- fail_ipreserv:
+fail_ipreserv:
 	if (dip->i_alloc.al_rgd)
 		gfs2_inplace_release(dip);
 
- fail_quota_locks:
+fail_quota_locks:
 	gfs2_quota_unlock(dip);
 
- fail:
+fail:
 	gfs2_alloc_put(dip);
-
 	return error;
 }
 
@@ -1226,11 +1215,9 @@ struct inode *gfs2_createi(struct gfs2_holder *ghs, struct qstr *name,
 	if (ul->ul_ut.ut_inum.no_addr < dip->i_num.no_addr) {
 		gfs2_glock_dq(ghs);
 
-		error = gfs2_glock_nq_num(sdp,
-					  ul->ul_ut.ut_inum.no_addr,
-					  &gfs2_inode_glops,
-					  LM_ST_EXCLUSIVE, GL_SKIP,
-					  ghs + 1);
+		error = gfs2_glock_nq_num(sdp, ul->ul_ut.ut_inum.no_addr,
+					  &gfs2_inode_glops, LM_ST_EXCLUSIVE,
+					  GL_SKIP, ghs + 1);
 		if (error) {
 			gfs2_unlinked_put(sdp, ul);
 			return ERR_PTR(error);
@@ -1248,11 +1235,9 @@ struct inode *gfs2_createi(struct gfs2_holder *ghs, struct qstr *name,
 		if (error)
 			goto fail_gunlock2;
 	} else {
-		error = gfs2_glock_nq_num(sdp,
-					  ul->ul_ut.ut_inum.no_addr,
-					  &gfs2_inode_glops,
-					  LM_ST_EXCLUSIVE, GL_SKIP,
-					  ghs + 1);
+		error = gfs2_glock_nq_num(sdp, ul->ul_ut.ut_inum.no_addr,
+					  &gfs2_inode_glops, LM_ST_EXCLUSIVE,
+					  GL_SKIP, ghs + 1);
 		if (error)
 			goto fail_gunlock;
 	}
@@ -1285,18 +1270,17 @@ struct inode *gfs2_createi(struct gfs2_holder *ghs, struct qstr *name,
 		return ERR_PTR(-ENOMEM);
 	return inode;
 
- fail_iput:
+fail_iput:
 	gfs2_inode_put(ip);
 
- fail_gunlock2:
+fail_gunlock2:
 	gfs2_glock_dq_uninit(ghs + 1);
 
- fail_gunlock:
+fail_gunlock:
 	gfs2_glock_dq(ghs);
 
- fail:
+fail:
 	gfs2_unlinked_put(sdp, ul);
-
 	return ERR_PTR(error);
 }
 

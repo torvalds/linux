@@ -47,6 +47,7 @@ struct greedy {
 typedef void (*glock_examiner) (struct gfs2_glock * gl);
 
 static int gfs2_dump_lockstate(struct gfs2_sbd *sdp);
+static int dump_glock(struct gfs2_glock *gl);
 
 /**
  * relaxed_state_ok - is a requested lock compatible with the current lock mode?
@@ -290,6 +291,8 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, uint64_t number,
 	spin_lock_init(&gl->gl_spin);
 
 	gl->gl_state = LM_ST_UNLOCKED;
+	gl->gl_owner = NULL;
+	gl->gl_ip = 0;
 	INIT_LIST_HEAD(&gl->gl_holders);
 	INIT_LIST_HEAD(&gl->gl_waiters1);
 	INIT_LIST_HEAD(&gl->gl_waiters2);
@@ -661,8 +664,11 @@ void gfs2_glmutex_lock(struct gfs2_glock *gl)
 	spin_lock(&gl->gl_spin);
 	if (test_and_set_bit(GLF_LOCK, &gl->gl_flags))
 		list_add_tail(&gh.gh_list, &gl->gl_waiters1);
-	else
+	else {
+		gl->gl_owner = current;
+		gl->gl_ip = (unsigned long)__builtin_return_address(0);
 		complete(&gh.gh_wait);
+	}
 	spin_unlock(&gl->gl_spin);
 
 	wait_for_completion(&gh.gh_wait);
@@ -683,6 +689,10 @@ static int gfs2_glmutex_trylock(struct gfs2_glock *gl)
 	spin_lock(&gl->gl_spin);
 	if (test_and_set_bit(GLF_LOCK, &gl->gl_flags))
 		acquired = 0;
+	else {
+		gl->gl_owner = current;
+		gl->gl_ip = (unsigned long)__builtin_return_address(0);
+	}
 	spin_unlock(&gl->gl_spin);
 
 	return acquired;
@@ -698,6 +708,8 @@ void gfs2_glmutex_unlock(struct gfs2_glock *gl)
 {
 	spin_lock(&gl->gl_spin);
 	clear_bit(GLF_LOCK, &gl->gl_flags);
+	gl->gl_owner = NULL;
+	gl->gl_ip = 0;
 	run_queue(gl);
 	BUG_ON(!spin_is_locked(&gl->gl_spin));
 	spin_unlock(&gl->gl_spin);
@@ -1173,7 +1185,7 @@ int gfs2_glock_nq(struct gfs2_holder *gh)
 	struct gfs2_sbd *sdp = gl->gl_sbd;
 	int error = 0;
 
- restart:
+restart:
 	if (unlikely(test_bit(SDF_SHUTDOWN, &sdp->sd_flags))) {
 		set_bit(HIF_ABORTED, &gh->gh_iflags);
 		return -EIO;
@@ -1195,6 +1207,9 @@ int gfs2_glock_nq(struct gfs2_holder *gh)
 	}
 
 	clear_bit(GLF_PREFETCH, &gl->gl_flags);
+
+	if (error == GLR_TRYFAILED && (gh->gh_flags & GL_DUMP))
+		dump_glock(gl);
 
 	return error;
 }
@@ -2212,9 +2227,8 @@ static int dump_glock(struct gfs2_glock *gl)
 
 	spin_lock(&gl->gl_spin);
 
-	printk(KERN_INFO "Glock (%u, %llu)\n",
-		    gl->gl_name.ln_type,
-		    gl->gl_name.ln_number);
+	printk(KERN_INFO "Glock (%u, %llu)\n", gl->gl_name.ln_type,
+	       gl->gl_name.ln_number);
 	printk(KERN_INFO "  gl_flags =");
 	for (x = 0; x < 32; x++)
 		if (test_bit(x, &gl->gl_flags))
@@ -2222,6 +2236,8 @@ static int dump_glock(struct gfs2_glock *gl)
 	printk(" \n");
 	printk(KERN_INFO "  gl_ref = %d\n", atomic_read(&gl->gl_ref.refcount));
 	printk(KERN_INFO "  gl_state = %u\n", gl->gl_state);
+	printk(KERN_INFO "  gl_owner = %s\n", gl->gl_owner->comm);
+	print_symbol(KERN_INFO "  gl_ip = %s\n", gl->gl_ip);
 	printk(KERN_INFO "  req_gh = %s\n", (gl->gl_req_gh) ? "yes" : "no");
 	printk(KERN_INFO "  req_bh = %s\n", (gl->gl_req_bh) ? "yes" : "no");
 	printk(KERN_INFO "  lvb_count = %d\n", atomic_read(&gl->gl_lvb_count));
