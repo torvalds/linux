@@ -548,3 +548,25 @@ int of_pci_address_to_resource(struct device_node *dev, int bar,
 	return __of_address_to_resource(dev, addrp, size, flags, r);
 }
 EXPORT_SYMBOL_GPL(of_pci_address_to_resource);
+
+void of_parse_dma_window(struct device_node *dn, unsigned char *dma_window_prop,
+		unsigned long *busno, unsigned long *phys, unsigned long *size)
+{
+	u32 *dma_window, cells;
+	unsigned char *prop;
+
+	dma_window = (u32 *)dma_window_prop;
+
+	/* busno is always one cell */
+	*busno = *(dma_window++);
+
+	prop = get_property(dn, "ibm,#dma-address-cells", NULL);
+	cells = prop ? *(u32 *)prop : prom_n_addr_cells(dn);
+	*phys = of_read_addr(dma_window, cells);
+
+	dma_window += cells;
+
+	prop = get_property(dn, "ibm,#dma-size-cells", NULL);
+	cells = prop ? *(u32 *)prop : prom_n_size_cells(dn);
+	*size = of_read_addr(dma_window, cells);
+}
