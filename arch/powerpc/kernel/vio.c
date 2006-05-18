@@ -71,7 +71,7 @@ static struct iommu_table *vio_build_iommu_table(struct vio_dev *dev)
 {
 #ifdef CONFIG_PPC_ISERIES
 	if (firmware_has_feature(FW_FEATURE_ISERIES)) {
-		if (strcmp(dev->type, "vlan") == 0)
+		if (strcmp(dev->type, "network") == 0)
 			return &veth_iommu_table;
 		return &vio_iommu_table;
 	} else
