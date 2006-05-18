@@ -1267,6 +1267,11 @@ static void __init early_reserve_mem(void)
 
 	reserve_map = (u64 *)(((unsigned long)initial_boot_params) +
 					initial_boot_params->off_mem_rsvmap);
+
+	/* before we do anything, lets reserve the dt blob */
+	lmb_reserve(__pa((unsigned long)initial_boot_params),
+		    initial_boot_params->totalsize);
+
 #ifdef CONFIG_PPC32
 	/* 
 	 * Handle the case where we might be booting from an old kexec

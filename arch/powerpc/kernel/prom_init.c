@@ -1950,11 +1950,7 @@ static void __init flatten_device_tree(void)
 	/* Version 16 is not backward compatible */
 	hdr->last_comp_version = 0x10;
 
-	/* Reserve the whole thing and copy the reserve map in, we
-	 * also bump mem_reserve_cnt to cause further reservations to
-	 * fail since it's too late.
-	 */
-	reserve_mem(RELOC(dt_header_start), hdr->totalsize);
+	/* Copy the reserve map in */
 	memcpy(rsvmap, RELOC(mem_reserve_map), sizeof(mem_reserve_map));
 
 #ifdef DEBUG_PROM
@@ -1967,6 +1963,9 @@ static void __init flatten_device_tree(void)
 				    RELOC(mem_reserve_map)[i].size);
 	}
 #endif
+	/* Bump mem_reserve_cnt to cause further reservations to fail
+	 * since it's too late.
+	 */
 	RELOC(mem_reserve_cnt) = MEM_RESERVE_MAP_SIZE;
 
 	prom_printf("Device tree strings 0x%x -> 0x%x\n",
