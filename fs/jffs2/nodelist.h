@@ -268,6 +268,17 @@ static inline uint32_t ref_totlen(struct jffs2_sb_info *c,
 
 #define PAD(x) (((x)+3)&~3)
 
+static inline int jffs2_encode_dev(union jffs2_device_node *jdev, dev_t rdev)
+{
+	if (old_valid_dev(rdev)) {
+		jdev->old = cpu_to_je16(old_encode_dev(rdev));
+		return sizeof(jdev->old);
+	} else {
+		jdev->new = cpu_to_je32(new_encode_dev(rdev));
+		return sizeof(jdev->new);
+	}
+}
+
 static inline struct jffs2_inode_cache *jffs2_raw_ref_to_ic(struct jffs2_raw_node_ref *raw)
 {
 	while(raw->next_in_ino) {

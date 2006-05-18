@@ -679,7 +679,7 @@ static int jffs2_garbage_collect_metadata(struct jffs2_sb_info *c, struct jffs2_
 	struct jffs2_full_dnode *new_fn;
 	struct jffs2_raw_inode ri;
 	struct jffs2_node_frag *last_frag;
-	jint16_t dev;
+	union jffs2_device_node dev;
 	char *mdata = NULL, mdatalen = 0;
 	uint32_t alloclen, phys_ofs, ilen;
 	int ret;
@@ -687,11 +687,8 @@ static int jffs2_garbage_collect_metadata(struct jffs2_sb_info *c, struct jffs2_
 	if (S_ISBLK(JFFS2_F_I_MODE(f)) ||
 	    S_ISCHR(JFFS2_F_I_MODE(f)) ) {
 		/* For these, we don't actually need to read the old node */
-		/* FIXME: for minor or major > 255. */
-		dev = cpu_to_je16(((JFFS2_F_I_RDEV_MAJ(f) << 8) |
-			JFFS2_F_I_RDEV_MIN(f)));
+		mdatalen = jffs2_encode_dev(&dev, JFFS2_F_I_RDEV(f));
 		mdata = (char *)&dev;
-		mdatalen = sizeof(dev);
 		D1(printk(KERN_DEBUG "jffs2_garbage_collect_metadata(): Writing %d bytes of kdev_t\n", mdatalen));
 	} else if (S_ISLNK(JFFS2_F_I_MODE(f))) {
 		mdatalen = fn->size;

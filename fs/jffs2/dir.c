@@ -591,12 +591,12 @@ static int jffs2_mknod (struct inode *dir_i, struct dentry *dentry, int mode, de
 	struct jffs2_full_dnode *fn;
 	struct jffs2_full_dirent *fd;
 	int namelen;
-	jint16_t dev;
+	union jffs2_device_node dev;
 	int devlen = 0;
 	uint32_t alloclen, phys_ofs;
 	int ret;
 
-	if (!old_valid_dev(rdev))
+	if (!new_valid_dev(rdev))
 		return -EINVAL;
 
 	ri = jffs2_alloc_raw_inode();
@@ -605,17 +605,15 @@ static int jffs2_mknod (struct inode *dir_i, struct dentry *dentry, int mode, de
 
 	c = JFFS2_SB_INFO(dir_i->i_sb);
 
-	if (S_ISBLK(mode) || S_ISCHR(mode)) {
-		dev = cpu_to_je16(old_encode_dev(rdev));
-		devlen = sizeof(dev);
-	}
+	if (S_ISBLK(mode) || S_ISCHR(mode))
+		devlen = jffs2_encode_dev(&dev, rdev);
 
 	/* Try to reserve enough space for both node and dirent.
 	 * Just the node will do for now, though
 	 */
 	namelen = dentry->d_name.len;
 	ret = jffs2_reserve_space(c, sizeof(*ri) + devlen, &phys_ofs, &alloclen,
-				ALLOC_NORMAL, JFFS2_SUMMARY_INODE_SIZE);
+				  ALLOC_NORMAL, JFFS2_SUMMARY_INODE_SIZE);
 
 	if (ret) {
 		jffs2_free_raw_inode(ri);

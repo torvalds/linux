@@ -173,4 +173,10 @@ union jffs2_node_union
 	struct jffs2_unknown_node u;
 };
 
+/* Data payload for device nodes. */
+union jffs2_device_node {
+	jint16_t old;
+	jint32_t new;
+};
+
 #endif /* __LINUX_JFFS2_H__ */
