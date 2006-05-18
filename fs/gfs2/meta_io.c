@@ -226,8 +226,11 @@ void gfs2_ail1_start_one(struct gfs2_sbd *sdp, struct gfs2_ail *ai)
 			gfs2_assert(sdp, bd->bd_ail == ai);
 
 			if (!buffer_busy(bh)) {
-				if (!buffer_uptodate(bh))
+				if (!buffer_uptodate(bh)) {
+					gfs2_log_unlock(sdp);
 					gfs2_io_error_bh(sdp, bh);
+					gfs2_log_lock(sdp);
+				}
 				list_move(&bd->bd_ail_st_list,
 					  &ai->ai_ail2_list);
 				continue;

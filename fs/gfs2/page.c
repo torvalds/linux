@@ -155,11 +155,9 @@ int gfs2_unstuffer_page(struct gfs2_inode *ip, struct buffer_head *dibh,
 	if (!PageUptodate(page)) {
 		void *kaddr = kmap(page);
 
-		memcpy(kaddr,
-		       dibh->b_data + sizeof(struct gfs2_dinode),
+		memcpy(kaddr, dibh->b_data + sizeof(struct gfs2_dinode),
 		       ip->i_di.di_size);
-		memset(kaddr + ip->i_di.di_size,
-		       0,
+		memset(kaddr + ip->i_di.di_size, 0,
 		       PAGE_CACHE_SIZE - ip->i_di.di_size);
 		kunmap(page);
 

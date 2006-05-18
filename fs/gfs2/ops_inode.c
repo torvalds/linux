@@ -213,8 +213,7 @@ static int gfs2_link(struct dentry *old_dentry, struct inode *dir,
 		if (error)
 			goto out_gunlock_q;
 
-		error = gfs2_trans_begin(sdp,
-					 sdp->sd_max_dirres +
+		error = gfs2_trans_begin(sdp, sdp->sd_max_dirres +
 					 al->al_rgd->rd_ri.ri_length +
 					 2 * RES_DINODE + RES_STATFS +
 					 RES_QUOTA, 0);
@@ -303,7 +302,7 @@ static int gfs2_unlink(struct inode *dir, struct dentry *dentry)
 	if (error)
 		goto out_gunlock;
 
-	error = gfs2_unlinki(dip, &dentry->d_name, ip,ul);
+	error = gfs2_unlinki(dip, &dentry->d_name, ip, ul);
 
 	gfs2_trans_end(sdp);
 

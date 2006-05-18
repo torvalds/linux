@@ -130,11 +130,12 @@ static void enforce_limit(struct gfs2_sbd *sdp)
 	unsigned int tries = 0, min = 0;
 	int error;
 
-	if (atomic_read(&sdp->sd_unlinked_count) >=
-	    gfs2_tune_get(sdp, gt_ilimit)) {
-		tries = gfs2_tune_get(sdp, gt_ilimit_tries);
-		min = gfs2_tune_get(sdp, gt_ilimit_min);
-	}
+	if (atomic_read(&sdp->sd_unlinked_count) <
+	    gfs2_tune_get(sdp, gt_ilimit))
+		return;
+
+	tries = gfs2_tune_get(sdp, gt_ilimit_tries);
+	min = gfs2_tune_get(sdp, gt_ilimit_min);
 
 	while (tries--) {
 		struct gfs2_unlinked *ul = ul_fish(sdp);
@@ -187,7 +188,7 @@ int gfs2_unlinked_get(struct gfs2_sbd *sdp, struct gfs2_unlinked **ul)
 
 	goto fail;
 
- found:
+found:
 	for (b = 0; b < 8; b++)
 		if (!(byte & (1 << b)))
 			break;
@@ -202,7 +203,7 @@ int gfs2_unlinked_get(struct gfs2_sbd *sdp, struct gfs2_unlinked **ul)
 
 	return 0;
 
- fail:
+fail:
 	spin_unlock(&sdp->sd_unlinked_spin);
 	kfree(*ul);
 	return -ENOSPC;
@@ -410,7 +411,7 @@ int gfs2_unlinked_init(struct gfs2_sbd *sdp)
 
 	return 0;
 
- fail:
+fail:
 	gfs2_unlinked_cleanup(sdp);
 	return error;
 }
