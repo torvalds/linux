@@ -21,6 +21,7 @@
 #include <asm/machdep.h>
 #include <asm/cacheflush.h>
 #include <asm/paca.h>
+#include <asm/lmb.h>
 #include <asm/mmu.h>
 #include <asm/sections.h>	/* _end */
 #include <asm/prom.h>
@@ -335,9 +336,102 @@ static void __init export_htab_values(void)
 	of_node_put(node);
 }
 
+static struct property crashk_base_prop = {
+	.name = "linux,crashkernel-base",
+	.length = sizeof(unsigned long),
+	.value = (unsigned char *)&crashk_res.start,
+};
+
+static unsigned long crashk_size;
+
+static struct property crashk_size_prop = {
+	.name = "linux,crashkernel-size",
+	.length = sizeof(unsigned long),
+	.value = (unsigned char *)&crashk_size,
+};
+
+static void __init export_crashk_values(void)
+{
+	struct device_node *node;
+	struct property *prop;
+
+	node = of_find_node_by_path("/chosen");
+	if (!node)
+		return;
+
+	/* There might be existing crash kernel properties, but we can't
+	 * be sure what's in them, so remove them. */
+	prop = of_find_property(node, "linux,crashkernel-base", NULL);
+	if (prop)
+		prom_remove_property(node, prop);
+
+	prop = of_find_property(node, "linux,crashkernel-size", NULL);
+	if (prop)
+		prom_remove_property(node, prop);
+
+	if (crashk_res.start != 0) {
+		prom_add_property(node, &crashk_base_prop);
+		crashk_size = crashk_res.end - crashk_res.start + 1;
+		prom_add_property(node, &crashk_size_prop);
+	}
+
+	of_node_put(node);
+}
+
 void __init kexec_setup(void)
 {
 	export_htab_values();
+	export_crashk_values();
+}
+
+static int __init early_parse_crashk(char *p)
+{
+	unsigned long size;
+
+	if (!p)
+		return 1;
+
+	size = memparse(p, &p);
+
+	if (*p == '@')
+		crashk_res.start = memparse(p + 1, &p);
+	else
+		crashk_res.start = KDUMP_KERNELBASE;
+
+	crashk_res.end = crashk_res.start + size - 1;
+
+	return 0;
+}
+early_param("crashkernel", early_parse_crashk);
+
+void __init reserve_crashkernel(void)
+{
+	unsigned long size;
+
+	if (crashk_res.start == 0)
+		return;
+
+	/* We might have got these values via the command line or the
+	 * device tree, either way sanitise them now. */
+
+	size = crashk_res.end - crashk_res.start + 1;
+
+	if (crashk_res.start != KDUMP_KERNELBASE)
+		printk("Crash kernel location must be 0x%x\n",
+				KDUMP_KERNELBASE);
+
+	crashk_res.start = KDUMP_KERNELBASE;
+	size = PAGE_ALIGN(size);
+	crashk_res.end = crashk_res.start + size - 1;
+
+	/* Crash kernel trumps memory limit */
+	if (memory_limit && memory_limit <= crashk_res.end) {
+		memory_limit = crashk_res.end + 1;
+		printk("Adjusted memory limit for crashkernel, now 0x%lx\n",
+				memory_limit);
+	}
+
+	lmb_reserve(crashk_res.start, size);
 }
 
 int overlaps_crashkernel(unsigned long start, unsigned long size)

@@ -200,11 +200,6 @@ static unsigned long __initdata alloc_bottom;
 static unsigned long __initdata rmo_top;
 static unsigned long __initdata ram_top;
 
-#ifdef CONFIG_KEXEC
-static unsigned long __initdata prom_crashk_base;
-static unsigned long __initdata prom_crashk_size;
-#endif
-
 static struct mem_map_entry __initdata mem_reserve_map[MEM_RESERVE_MAP_SIZE];
 static int __initdata mem_reserve_cnt;
 
@@ -589,35 +584,6 @@ static void __init early_cmdline_parse(void)
 			RELOC(ppc64_iommu_off) = 1;
 		else if (!strncmp(opt, RELOC("force"), 5))
 			RELOC(iommu_force_on) = 1;
-	}
-#endif
-
-#ifdef CONFIG_KEXEC
-	/*
-	 * crashkernel=size@addr specifies the location to reserve for
-	 * crash kernel.
-	 */
-	opt = strstr(RELOC(prom_cmd_line), RELOC("crashkernel="));
-	if (opt) {
-		opt += 12;
-		RELOC(prom_crashk_size) = 
-			prom_memparse(opt, (const char **)&opt);
-
-		if (ALIGN(RELOC(prom_crashk_size), 0x1000000) !=
-			RELOC(prom_crashk_size)) {
-			prom_printf("Warning: crashkernel size is not "
-					"aligned to 16MB\n");
-		}
-
-		/*
-		 * At present, the crash kernel always run at 32MB.
-		 * Just ignore whatever user passed.
-		 */
-		RELOC(prom_crashk_base) = 0x2000000;
-		if (*opt == '@') {
-			prom_printf("Warning: PPC64 kdump kernel always runs "
-					"at 32 MB\n");
-		}
 	}
 #endif
 }
@@ -1122,12 +1088,6 @@ static void __init prom_init_mem(void)
 	prom_printf("  alloc_top_hi : %x\n", RELOC(alloc_top_high));
 	prom_printf("  rmo_top      : %x\n", RELOC(rmo_top));
 	prom_printf("  ram_top      : %x\n", RELOC(ram_top));
-#ifdef CONFIG_KEXEC
-	if (RELOC(prom_crashk_base)) {
-		prom_printf("  crashk_base  : %x\n",  RELOC(prom_crashk_base));
-		prom_printf("  crashk_size  : %x\n", RELOC(prom_crashk_size));
-	}
-#endif
 }
 
 
@@ -2187,10 +2147,6 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	 */
 	prom_init_mem();
 
-#ifdef CONFIG_KEXEC
-	if (RELOC(prom_crashk_base))
-		reserve_mem(RELOC(prom_crashk_base), RELOC(prom_crashk_size));
-#endif
 	/*
 	 * Determine which cpu is actually running right _now_
 	 */
@@ -2243,16 +2199,6 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	}
 #endif
 
-#ifdef CONFIG_KEXEC
-	if (RELOC(prom_crashk_base)) {
-		prom_setprop(_prom->chosen, "/chosen", "linux,crashkernel-base",
-			PTRRELOC(&prom_crashk_base),
-			sizeof(RELOC(prom_crashk_base)));
-		prom_setprop(_prom->chosen, "/chosen", "linux,crashkernel-size",
-			PTRRELOC(&prom_crashk_size),
-			sizeof(RELOC(prom_crashk_size)));
-	}
-#endif
 	/*
 	 * Fixup any known bugs in the device-tree
 	 */

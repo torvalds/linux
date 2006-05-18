@@ -125,6 +125,7 @@ extern void default_machine_crash_shutdown(struct pt_regs *regs);
 
 extern void machine_kexec_simple(struct kimage *image);
 extern int overlaps_crashkernel(unsigned long start, unsigned long size);
+extern void reserve_crashkernel(void);
 
 #else /* !CONFIG_KEXEC */
 
@@ -132,6 +133,8 @@ static inline int overlaps_crashkernel(unsigned long start, unsigned long size)
 {
 	return 0;
 }
+
+static inline void reserve_crashkernel(void) { ; }
 
 #endif /* CONFIG_KEXEC */
 #endif /* ! __ASSEMBLY__ */
