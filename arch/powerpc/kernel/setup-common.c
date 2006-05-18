@@ -524,3 +524,20 @@ int check_legacy_ioport(unsigned long base_port)
 	return ppc_md.check_legacy_ioport(base_port);
 }
 EXPORT_SYMBOL(check_legacy_ioport);
+
+static int ppc_panic_event(struct notifier_block *this,
+                             unsigned long event, void *ptr)
+{
+	ppc_md.panic(ptr);  /* May not return */
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block ppc_panic_block = {
+	.notifier_call = ppc_panic_event,
+	.priority = INT_MIN /* may not return; must be done last */
+};
+
+void __init setup_panic(void)
+{
+	atomic_notifier_chain_register(&panic_notifier_list, &ppc_panic_block);
+}

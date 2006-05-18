@@ -235,8 +235,6 @@ arch_initcall(ppc_init);
 /* Warning, IO base is not yet inited */
 void __init setup_arch(char **cmdline_p)
 {
-	extern void do_init_bootmem(void);
-
 	/* so udelay does something sensible, assume <= 1000 bogomips */
 	loops_per_jiffy = 500000000 / HZ;
 
@@ -284,6 +282,9 @@ void __init setup_arch(char **cmdline_p)
 
 	/* reboot on panic */
 	panic_timeout = 180;
+
+	if (ppc_md.panic)
+		setup_panic();
 
 	init_mm.start_code = PAGE_OFFSET;
 	init_mm.end_code = (unsigned long) _etext;
