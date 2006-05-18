@@ -2627,7 +2627,7 @@ static int parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 		if (!csep && altsd->bNumEndpoints >= 2)
 			csep = snd_usb_find_desc(alts->endpoint[1].extra, alts->endpoint[1].extralen, NULL, USB_DT_CS_ENDPOINT);
 		if (!csep || csep[0] < 7 || csep[2] != EP_GENERAL) {
-			snd_printk(KERN_WARN "%d:%u:%d : no or invalid"
+			snd_printk(KERN_WARNING "%d:%u:%d : no or invalid"
 				   " class specific endpoint descriptor\n",
 				   dev->devnum, iface_no, altno);
 			csep = NULL;
