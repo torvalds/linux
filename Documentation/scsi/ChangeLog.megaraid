@@ -1,3 +1,28 @@
+Release Date	: Mon Apr 11 12:27:22 EST 2006 - Seokmann Ju <sju@lsil.com>
+Current Version : 2.20.4.8 (scsi module), 2.20.2.6 (cmm module)
+Older Version	: 2.20.4.7 (scsi module), 2.20.2.6 (cmm module)
+
+1.	Fixed a bug in megaraid_reset_handler().
+	Customer reported "Unable to handle kernel NULL pointer dereference
+	at virtual address 00000000" when system goes to reset condition
+	for some reason. It happened randomly.
+	Root Cause: in the megaraid_reset_handler(), there is possibility not
+	returning pending packets in the pend_list if there are multiple
+	pending packets.
+	Fix: Made the change in the driver so that it will return all packets
+	in the pend_list.
+
+2.	Added change request.
+	As found in the following URL, rmb() only didn't help the
+	problem. I had to increase the loop counter to 0xFFFFFF. (6 F's)
+	http://marc.theaimsgroup.com/?l=linux-scsi&m=110971060502497&w=2
+
+	I attached a patch for your reference, too.
+	Could you check and get this fix in your driver?
+
+	Best Regards,
+	Jun'ichi Nomura
+
 Release Date	: Fri Nov 11 12:27:22 EST 2005 - Seokmann Ju <sju@lsil.com>
 Current Version : 2.20.4.7 (scsi module), 2.20.2.6 (cmm module)
 Older Version	: 2.20.4.6 (scsi module), 2.20.2.6 (cmm module)

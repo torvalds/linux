@@ -711,7 +711,7 @@ static int ext3_splice_branch(handle_t *handle, struct inode *inode,
 	 * direct blocks blocks
 	 */
 	if (num == 0 && blks > 1) {
-		current_block = le32_to_cpu(where->key + 1);
+		current_block = le32_to_cpu(where->key) + 1;
 		for (i = 1; i < blks; i++)
 			*(where->p + i ) = cpu_to_le32(current_block++);
 	}
@@ -724,7 +724,7 @@ static int ext3_splice_branch(handle_t *handle, struct inode *inode,
 	if (block_i) {
 		block_i->last_alloc_logical_block = block + blks - 1;
 		block_i->last_alloc_physical_block =
-				le32_to_cpu(where[num].key + blks - 1);
+				le32_to_cpu(where[num].key) + blks - 1;
 	}
 
 	/* We are done with atomic stuff, now do the rest of housekeeping */
@@ -814,11 +814,13 @@ int ext3_get_blocks_handle(handle_t *handle, struct inode *inode,
 
 	/* Simplest case - block found, no allocation needed */
 	if (!partial) {
-		first_block = chain[depth - 1].key;
+		first_block = le32_to_cpu(chain[depth - 1].key);
 		clear_buffer_new(bh_result);
 		count++;
 		/*map more blocks*/
 		while (count < maxblocks && count <= blocks_to_boundary) {
+			unsigned long blk;
+
 			if (!verify_chain(chain, partial)) {
 				/*
 				 * Indirect block might be removed by
@@ -831,8 +833,9 @@ int ext3_get_blocks_handle(handle_t *handle, struct inode *inode,
 				count = 0;
 				break;
 			}
-			if (le32_to_cpu(*(chain[depth-1].p+count) ==
-					(first_block + count)))
+			blk = le32_to_cpu(*(chain[depth-1].p + count));
+
+			if (blk == first_block + count)
 				count++;
 			else
 				break;

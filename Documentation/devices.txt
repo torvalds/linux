@@ -1721,11 +1721,6 @@ Your cooperation is appreciated.
 		These devices support the same API as the generic SCSI
 		devices.
 
- 97 block	Packet writing for CD/DVD devices
-		  0 = /dev/pktcdvd0	First packet-writing module
-		  1 = /dev/pktcdvd1	Second packet-writing module
-		    ...
-
  98 char	Control and Measurement Device (comedi)
 		  0 = /dev/comedi0	First comedi device
 		  1 = /dev/comedi1	Second comedi device

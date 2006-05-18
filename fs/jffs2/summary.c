@@ -853,7 +853,7 @@ static int jffs2_sum_write_data(struct jffs2_sb_info *c, struct jffs2_eraseblock
 
 
 	if (ret || (retlen != infosize)) {
-		JFFS2_WARNING("Write of %d bytes at 0x%08x failed. returned %d, retlen %zu\n",
+		JFFS2_WARNING("Write of %u bytes at 0x%08x failed. returned %d, retlen %zd\n",
 			infosize, jeb->offset + c->sector_size - jeb->free_size, ret, retlen);
 
 		c->summary->sum_size = JFFS2_SUMMARY_NOSUM_SIZE;

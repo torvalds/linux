@@ -51,7 +51,7 @@ struct splice_pipe_desc {
  * addition of remove_mapping(). If success is returned, the caller may
  * attempt to reuse this page for another destination.
  */
-static int page_cache_pipe_buf_steal(struct pipe_inode_info *info,
+static int page_cache_pipe_buf_steal(struct pipe_inode_info *pipe,
 				     struct pipe_buffer *buf)
 {
 	struct page *page = buf->page;
@@ -78,16 +78,18 @@ static int page_cache_pipe_buf_steal(struct pipe_inode_info *info,
 		return 1;
 	}
 
+	buf->flags |= PIPE_BUF_FLAG_LRU;
 	return 0;
 }
 
-static void page_cache_pipe_buf_release(struct pipe_inode_info *info,
+static void page_cache_pipe_buf_release(struct pipe_inode_info *pipe,
 					struct pipe_buffer *buf)
 {
 	page_cache_release(buf->page);
+	buf->flags &= ~PIPE_BUF_FLAG_LRU;
 }
 
-static int page_cache_pipe_buf_pin(struct pipe_inode_info *info,
+static int page_cache_pipe_buf_pin(struct pipe_inode_info *pipe,
 				   struct pipe_buffer *buf)
 {
 	struct page *page = buf->page;
@@ -141,6 +143,7 @@ static int user_page_pipe_buf_steal(struct pipe_inode_info *pipe,
 	if (!(buf->flags & PIPE_BUF_FLAG_GIFT))
 		return 1;
 
+	buf->flags |= PIPE_BUF_FLAG_LRU;
 	return generic_pipe_buf_steal(pipe, buf);
 }
 
@@ -321,6 +324,8 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 					      mapping_gfp_mask(mapping));
 			if (unlikely(error)) {
 				page_cache_release(page);
+				if (error == -EEXIST)
+					continue;
 				break;
 			}
 			/*
@@ -497,14 +502,14 @@ EXPORT_SYMBOL(generic_file_splice_read);
  * Send 'sd->len' bytes to socket from 'sd->file' at position 'sd->pos'
  * using sendpage(). Return the number of bytes sent.
  */
-static int pipe_to_sendpage(struct pipe_inode_info *info,
+static int pipe_to_sendpage(struct pipe_inode_info *pipe,
 			    struct pipe_buffer *buf, struct splice_desc *sd)
 {
 	struct file *file = sd->file;
 	loff_t pos = sd->pos;
 	int ret, more;
 
-	ret = buf->ops->pin(info, buf);
+	ret = buf->ops->pin(pipe, buf);
 	if (!ret) {
 		more = (sd->flags & SPLICE_F_MORE) || sd->len < sd->total_len;
 
@@ -535,7 +540,7 @@ static int pipe_to_sendpage(struct pipe_inode_info *info,
  * SPLICE_F_MOVE isn't set, or we cannot move the page, we simply create
  * a new page in the output file page cache and fill/dirty that.
  */
-static int pipe_to_file(struct pipe_inode_info *info, struct pipe_buffer *buf,
+static int pipe_to_file(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 			struct splice_desc *sd)
 {
 	struct file *file = sd->file;
@@ -549,7 +554,7 @@ static int pipe_to_file(struct pipe_inode_info *info, struct pipe_buffer *buf,
 	/*
 	 * make sure the data in this buffer is uptodate
 	 */
-	ret = buf->ops->pin(info, buf);
+	ret = buf->ops->pin(pipe, buf);
 	if (unlikely(ret))
 		return ret;
 
@@ -566,37 +571,23 @@ static int pipe_to_file(struct pipe_inode_info *info, struct pipe_buffer *buf,
 	 */
 	if ((sd->flags & SPLICE_F_MOVE) && this_len == PAGE_CACHE_SIZE) {
 		/*
-		 * If steal succeeds, buf->page is now pruned from the vm
-		 * side (page cache) and we can reuse it. The page will also
-		 * be locked on successful return.
+		 * If steal succeeds, buf->page is now pruned from the
+		 * pagecache and we can reuse it. The page will also be
+		 * locked on successful return.
 		 */
-		if (buf->ops->steal(info, buf))
+		if (buf->ops->steal(pipe, buf))
 			goto find_page;
 
 		page = buf->page;
-		page_cache_get(page);
-
-		/*
-		 * page must be on the LRU for adding to the pagecache.
-		 * Check this without grabbing the zone lock, if it isn't
-		 * the do grab the zone lock, recheck, and add if necessary.
-		 */
-		if (!PageLRU(page)) {
-			struct zone *zone = page_zone(page);
-
-			spin_lock_irq(&zone->lru_lock);
-			if (!PageLRU(page)) {
-				SetPageLRU(page);
-				add_page_to_inactive_list(zone, page);
-			}
-			spin_unlock_irq(&zone->lru_lock);
-		}
-
 		if (add_to_page_cache(page, mapping, index, gfp_mask)) {
-			page_cache_release(page);
 			unlock_page(page);
 			goto find_page;
 		}
+
+		page_cache_get(page);
+
+		if (!(buf->flags & PIPE_BUF_FLAG_LRU))
+			lru_cache_add(page);
 	} else {
 find_page:
 		page = find_lock_page(mapping, index);
@@ -647,23 +638,36 @@ find_page:
 	}
 
 	ret = mapping->a_ops->prepare_write(file, page, offset, offset+this_len);
-	if (ret == AOP_TRUNCATED_PAGE) {
+	if (unlikely(ret)) {
+		loff_t isize = i_size_read(mapping->host);
+
+		if (ret != AOP_TRUNCATED_PAGE)
+			unlock_page(page);
 		page_cache_release(page);
-		goto find_page;
-	} else if (ret)
+		if (ret == AOP_TRUNCATED_PAGE)
+			goto find_page;
+
+		/*
+		 * prepare_write() may have instantiated a few blocks
+		 * outside i_size.  Trim these off again.
+		 */
+		if (sd->pos + this_len > isize)
+			vmtruncate(mapping->host, isize);
+
 		goto out;
+	}
 
 	if (buf->page != page) {
 		/*
 		 * Careful, ->map() uses KM_USER0!
 		 */
-		char *src = buf->ops->map(info, buf, 1);
+		char *src = buf->ops->map(pipe, buf, 1);
 		char *dst = kmap_atomic(page, KM_USER1);
 
 		memcpy(dst + offset, src + buf->offset, this_len);
 		flush_dcache_page(page);
 		kunmap_atomic(dst, KM_USER1);
-		buf->ops->unmap(info, buf, src);
+		buf->ops->unmap(pipe, buf, src);
 	}
 
 	ret = mapping->a_ops->commit_write(file, page, offset, offset+this_len);

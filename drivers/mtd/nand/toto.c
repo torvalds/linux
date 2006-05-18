@@ -48,7 +48,7 @@ static unsigned long toto_io_base = OMAP_FLASH_1_BASE;
 
 #define T_NAND_CTL_CLRALE(iob)  gpiosetout(NAND_ALE, 0)
 #define T_NAND_CTL_SETALE(iob)  gpiosetout(NAND_ALE, NAND_ALE)
-#ifdef CONFIG_NAND_WORKAROUND     /* "some" dev boards busted, blue wired to rts2 :( */
+#ifdef CONFIG_NAND_WORKAROUND	/* "some" dev boards busted, blue wired to rts2 :( */
 #define T_NAND_CTL_CLRCLE(iob)  gpiosetout(NAND_CLE, 0); rts2setout(2, 2)
 #define T_NAND_CTL_SETCLE(iob)  gpiosetout(NAND_CLE, NAND_CLE); rts2setout(2, 0)
 #else
@@ -98,9 +98,8 @@ static struct mtd_partition partition_info32M[] = {
 static void toto_hwcontrol(struct mtd_info *mtd, int cmd)
 {
 
-	udelay(1); /* hopefully enough time for tc make proceding write to clear */
-	switch(cmd){
-
+	udelay(1);		/* hopefully enough time for tc make proceding write to clear */
+	switch (cmd) {
 		case NAND_CTL_SETCLE: T_NAND_CTL_SETCLE(cmd); break;
 		case NAND_CTL_CLRCLE: T_NAND_CTL_CLRCLE(cmd); break;
 
@@ -110,35 +109,35 @@ static void toto_hwcontrol(struct mtd_info *mtd, int cmd)
 		case NAND_CTL_SETNCE: T_NAND_CTL_SETNCE(cmd); break;
 		case NAND_CTL_CLRNCE: T_NAND_CTL_CLRNCE(cmd); break;
 	}
-	udelay(1); /* allow time to ensure gpio state to over take memory write */
+	udelay(1);		/* allow time to ensure gpio state to over take memory write */
 }
 
 /*
  * Main initialization routine
  */
-int __init toto_init (void)
+static int __init toto_init(void)
 {
 	struct nand_chip *this;
 	int err = 0;
 
 	/* Allocate memory for MTD device structure and private data */
-	toto_mtd = kmalloc (sizeof(struct mtd_info) + sizeof (struct nand_chip),
-				GFP_KERNEL);
+	toto_mtd = kmalloc(sizeof(struct mtd_info) + sizeof(struct nand_chip), GFP_KERNEL);
 	if (!toto_mtd) {
-		printk (KERN_WARNING "Unable to allocate toto NAND MTD device structure.\n");
+		printk(KERN_WARNING "Unable to allocate toto NAND MTD device structure.\n");
 		err = -ENOMEM;
 		goto out;
 	}
 
 	/* Get pointer to private data */
-	this = (struct nand_chip *) (&toto_mtd[1]);
+	this = (struct nand_chip *)(&toto_mtd[1]);
 
 	/* Initialize structures */
-	memset((char *) toto_mtd, 0, sizeof(struct mtd_info));
-	memset((char *) this, 0, sizeof(struct nand_chip));
+	memset(toto_mtd, 0, sizeof(struct mtd_info));
+	memset(this, 0, sizeof(struct nand_chip));
 
 	/* Link the private data with the MTD structure */
 	toto_mtd->priv = this;
+	toto_mtd->owner = THIS_MODULE;
 
 	/* Set address of NAND IO lines */
 	this->IO_ADDR_R = toto_io_base;
@@ -149,33 +148,37 @@ int __init toto_init (void)
 	this->chip_delay = 30;
 	this->eccmode = NAND_ECC_SOFT;
 
-        /* Scan to find existance of the device */
-	if (nand_scan (toto_mtd, 1)) {
+	/* Scan to find existance of the device */
+	if (nand_scan(toto_mtd, 1)) {
 		err = -ENXIO;
 		goto out_mtd;
 	}
 
 	/* Register the partitions */
-	switch(toto_mtd->size){
-		case SZ_64M: add_mtd_partitions(toto_mtd, partition_info64M, NUM_PARTITIONS64M); break;
-		case SZ_32M: add_mtd_partitions(toto_mtd, partition_info32M, NUM_PARTITIONS32M); break;
-		default: {
-			printk (KERN_WARNING "Unsupported Nand device\n");
+	switch (toto_mtd->size) {
+	case SZ_64M:
+		add_mtd_partitions(toto_mtd, partition_info64M, NUM_PARTITIONS64M);
+		break;
+	case SZ_32M:
+		add_mtd_partitions(toto_mtd, partition_info32M, NUM_PARTITIONS32M);
+		break;
+	default:{
+			printk(KERN_WARNING "Unsupported Nand device\n");
 			err = -ENXIO;
 			goto out_buf;
 		}
 	}
 
-    	gpioreserve(NAND_MASK);  /* claim our gpios */
-    	archflashwp(0,0);	 /* open up flash for writing */
+	gpioreserve(NAND_MASK);	/* claim our gpios */
+	archflashwp(0, 0);	/* open up flash for writing */
 
 	goto out;
 
-out_buf:
-	kfree (this->data_buf);
-out_mtd:
-	kfree (toto_mtd);
-out:
+ out_buf:
+	kfree(this->data_buf);
+ out_mtd:
+	kfree(toto_mtd);
+ out:
 	return err;
 }
 
@@ -184,20 +187,21 @@ module_init(toto_init);
 /*
  * Clean up routine
  */
-static void __exit toto_cleanup (void)
+static void __exit toto_cleanup(void)
 {
 	/* Release resources, unregister device */
-	nand_release (toto_mtd);
+	nand_release(toto_mtd);
 
 	/* Free the MTD device structure */
-	kfree (toto_mtd);
+	kfree(toto_mtd);
 
 	/* stop flash writes */
-	 archflashwp(0,1);
+	archflashwp(0, 1);
 
 	/* release gpios to system */
-	 gpiorelease(NAND_MASK);
+	gpiorelease(NAND_MASK);
 }
+
 module_exit(toto_cleanup);
 
 MODULE_LICENSE("GPL");

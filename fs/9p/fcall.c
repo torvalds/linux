@@ -98,23 +98,20 @@ v9fs_t_attach(struct v9fs_session_info *v9ses, char *uname, char *aname,
 static void v9fs_t_clunk_cb(void *a, struct v9fs_fcall *tc,
 	struct v9fs_fcall *rc, int err)
 {
-	int fid;
+	int fid, id;
 	struct v9fs_session_info *v9ses;
 
-	if (err)
-		return;
-
+	id = 0;
 	fid = tc->params.tclunk.fid;
+	if (rc)
+		id = rc->id;
+
 	kfree(tc);
-
-	if (!rc)
-		return;
-
-	v9ses = a;
-	if (rc->id == RCLUNK)
-		v9fs_put_idpool(fid, &v9ses->fidpool);
-
 	kfree(rc);
+	if (id == RCLUNK) {
+		v9ses = a;
+		v9fs_put_idpool(fid, &v9ses->fidpool);
+	}
 }
 
 /**

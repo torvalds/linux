@@ -22,7 +22,6 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 #include <asm/io.h>
-#include <asm/mach/flash.h>
 
 struct physmap_flash_info {
 	struct mtd_info		*mtd;

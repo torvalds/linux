@@ -231,21 +231,21 @@ static inline int __init doccheck(void __iomem *potential, unsigned long physadr
 
 static int docfound;
 
-#ifdef CONFIG_DOC2000
+#ifdef CONFIG_MTD_DOC2000
 extern void DoC2k_init(struct mtd_info *);
 #define doc2k_initfunc (&DoC2k_init)
 #else 
 #define doc2k_initfunc NULL
 #endif
 
-#ifdef CONFIG_DOC2001
+#ifdef CONFIG_MTD_DOC2001
 extern void DoCMil_init(struct mtd_info *);
 #define docmil_initfunc (&DoCMil_init)
 #else 
 #define docmil_initfunc NULL
 #endif
 
-#ifdef CONFIG_DOC2001PLUS
+#ifdef CONFIG_MTD_DOC2001PLUS
 extern void DoCMilPlus_init(struct mtd_info *);
 #define docmplus_initfunc (&DoCMilPlus_init)
 #else 

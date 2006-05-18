@@ -39,6 +39,7 @@
 #include <linux/mempolicy.h>
 
 #include <asm/tlbflush.h>
+#include <asm/div64.h>
 #include "internal.h"
 
 /*
@@ -2566,9 +2567,11 @@ void setup_per_zone_pages_min(void)
 	}
 
 	for_each_zone(zone) {
-		unsigned long tmp;
+		u64 tmp;
+
 		spin_lock_irqsave(&zone->lru_lock, flags);
-		tmp = (pages_min * zone->present_pages) / lowmem_pages;
+		tmp = (u64)pages_min * zone->present_pages;
+		do_div(tmp, lowmem_pages);
 		if (is_highmem(zone)) {
 			/*
 			 * __GFP_HIGH and PF_MEMALLOC allocations usually don't
@@ -2595,8 +2598,8 @@ void setup_per_zone_pages_min(void)
 			zone->pages_min = tmp;
 		}
 
-		zone->pages_low   = zone->pages_min + tmp / 4;
-		zone->pages_high  = zone->pages_min + tmp / 2;
+		zone->pages_low   = zone->pages_min + (tmp >> 2);
+		zone->pages_high  = zone->pages_min + (tmp >> 1);
 		spin_unlock_irqrestore(&zone->lru_lock, flags);
 	}
 

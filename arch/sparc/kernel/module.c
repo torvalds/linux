@@ -113,6 +113,7 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 
 		switch (ELF32_R_TYPE(rel[i].r_info)) {
 		case R_SPARC_32:
+		case R_SPARC_UA32:
 			location[0] = v >> 24;
 			location[1] = v >> 16;
 			location[2] = v >>  8;

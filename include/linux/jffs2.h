@@ -94,11 +94,11 @@
 
 typedef struct {
 	uint32_t v32;
-} __attribute__((packed))  jint32_t;
+} __attribute__((packed)) jint32_t;
 
 typedef struct {
 	uint32_t m;
-} __attribute__((packed))  jmode_t;
+} __attribute__((packed)) jmode_t;
 
 typedef struct {
 	uint16_t v16;
@@ -111,7 +111,7 @@ struct jffs2_unknown_node
 	jint16_t nodetype;
 	jint32_t totlen; /* So we can skip over nodes we don't grok */
 	jint32_t hdr_crc;
-} __attribute__((packed));
+};
 
 struct jffs2_raw_dirent
 {
@@ -129,7 +129,7 @@ struct jffs2_raw_dirent
 	jint32_t node_crc;
 	jint32_t name_crc;
 	uint8_t name[0];
-} __attribute__((packed));
+};
 
 /* The JFFS2 raw inode structure: Used for storage on physical media.  */
 /* The uid, gid, atime, mtime and ctime members could be longer, but
@@ -161,7 +161,7 @@ struct jffs2_raw_inode
 	jint32_t data_crc;   /* CRC for the (compressed) data.  */
 	jint32_t node_crc;   /* CRC for the raw inode (excluding data)  */
 	uint8_t data[0];
-} __attribute__((packed));
+};
 
 struct jffs2_raw_xattr {
 	jint16_t magic;
@@ -201,7 +201,7 @@ struct jffs2_raw_summary
 	jint32_t sum_crc;	/* summary information crc */
 	jint32_t node_crc; 	/* node crc */
 	jint32_t sum[0]; 	/* inode summary info */
-} __attribute__((packed));
+};
 
 union jffs2_node_union
 {

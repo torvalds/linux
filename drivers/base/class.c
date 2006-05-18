@@ -456,6 +456,35 @@ static void class_device_remove_attrs(struct class_device * cd)
 	}
 }
 
+static int class_device_add_groups(struct class_device * cd)
+{
+	int i;
+	int error = 0;
+
+	if (cd->groups) {
+		for (i = 0; cd->groups[i]; i++) {
+			error = sysfs_create_group(&cd->kobj, cd->groups[i]);
+			if (error) {
+				while (--i >= 0)
+					sysfs_remove_group(&cd->kobj, cd->groups[i]);
+				goto out;
+			}
+		}
+	}
+out:
+	return error;
+}
+
+static void class_device_remove_groups(struct class_device * cd)
+{
+	int i;
+	if (cd->groups) {
+		for (i = 0; cd->groups[i]; i++) {
+			sysfs_remove_group(&cd->kobj, cd->groups[i]);
+		}
+	}
+}
+
 static ssize_t show_dev(struct class_device *class_dev, char *buf)
 {
 	return print_dev_t(buf, class_dev->devt);
@@ -558,6 +587,8 @@ int class_device_add(struct class_device *class_dev)
 		sysfs_create_link(&class_dev->dev->kobj, &class_dev->kobj,
 				  class_name);
 	}
+
+	class_device_add_groups(class_dev);
 
 	kobject_uevent(&class_dev->kobj, KOBJ_ADD);
 
@@ -672,6 +703,7 @@ void class_device_del(struct class_device *class_dev)
 	if (class_dev->devt_attr)
 		class_device_remove_file(class_dev, class_dev->devt_attr);
 	class_device_remove_attrs(class_dev);
+	class_device_remove_groups(class_dev);
 
 	kobject_uevent(&class_dev->kobj, KOBJ_REMOVE);
 	kobject_del(&class_dev->kobj);

@@ -1,8 +1,8 @@
 /**
  * $Id: phram.c,v 1.16 2005/11/07 11:14:25 gleixner Exp $
  *
- * Copyright (c) ????		Jochen Schäuble <psionic@psionic.de>
- * Copyright (c) 2003-2004	Jörn Engel <joern@wh.fh-wedel.de>
+ * Copyright (c) ????		Jochen SchÃ¤uble <psionic@psionic.de>
+ * Copyright (c) 2003-2004	JÃ¶rn Engel <joern@wh.fh-wedel.de>
  *
  * Usage:
  *
@@ -266,12 +266,16 @@ static int phram_setup(const char *val, struct kernel_param *kp)
 		return 0;
 
 	ret = parse_num32(&start, token[1]);
-	if (ret)
+	if (ret) {
+		kfree(name);
 		parse_err("illegal start address\n");
+	}
 
 	ret = parse_num32(&len, token[2]);
-	if (ret)
+	if (ret) {
+		kfree(name);
 		parse_err("illegal device length\n");
+	}
 
 	register_device(name, start, len);
 
@@ -296,5 +300,5 @@ module_init(init_phram);
 module_exit(cleanup_phram);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Jörn Engel <joern@wh.fh-wedel.de>");
+MODULE_AUTHOR("JÃ¶rn Engel <joern@wh.fh-wedel.de>");
 MODULE_DESCRIPTION("MTD driver for physical RAM");

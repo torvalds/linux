@@ -1189,7 +1189,6 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 	ioc->diagPending = 0;
 	spin_lock_init(&ioc->diagLock);
 	spin_lock_init(&ioc->fc_rescan_work_lock);
-	spin_lock_init(&ioc->fc_rport_lock);
 	spin_lock_init(&ioc->initializing_hba_lock);
 
 	/* Initialize the event logging.
@@ -5736,11 +5735,13 @@ mpt_HardResetHandler(MPT_ADAPTER *ioc, int sleepFlag)
 	return rc;
 }
 
+# define EVENT_DESCR_STR_SZ		100
+
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 static void
 EventDescriptionStr(u8 event, u32 evData0, char *evStr)
 {
-	char *ds;
+	char *ds = NULL;
 
 	switch(event) {
 	case MPI_EVENT_NONE:
@@ -5777,9 +5778,9 @@ EventDescriptionStr(u8 event, u32 evData0, char *evStr)
 		if (evData0 == MPI_EVENT_LOOP_STATE_CHANGE_LIP)
 			ds = "Loop State(LIP) Change";
 		else if (evData0 == MPI_EVENT_LOOP_STATE_CHANGE_LPE)
-			ds = "Loop State(LPE) Change";			/* ??? */
+			ds = "Loop State(LPE) Change";		/* ??? */
 		else
-			ds = "Loop State(LPB) Change";			/* ??? */
+			ds = "Loop State(LPB) Change";		/* ??? */
 		break;
 	case MPI_EVENT_LOGOUT:
 		ds = "Logout";
@@ -5841,27 +5842,32 @@ EventDescriptionStr(u8 event, u32 evData0, char *evStr)
 		break;
 	case MPI_EVENT_SAS_DEVICE_STATUS_CHANGE:
 	{
-		char buf[50];
 		u8 id = (u8)(evData0);
 		u8 ReasonCode = (u8)(evData0 >> 16);
 		switch (ReasonCode) {
 		case MPI_EVENT_SAS_DEV_STAT_RC_ADDED:
-			sprintf(buf,"SAS Device Status Change: Added: id=%d", id);
+			snprintf(evStr, EVENT_DESCR_STR_SZ,
+			    "SAS Device Status Change: Added: id=%d", id);
 			break;
 		case MPI_EVENT_SAS_DEV_STAT_RC_NOT_RESPONDING:
-			sprintf(buf,"SAS Device Status Change: Deleted: id=%d", id);
+			snprintf(evStr, EVENT_DESCR_STR_SZ,
+			    "SAS Device Status Change: Deleted: id=%d", id);
 			break;
 		case MPI_EVENT_SAS_DEV_STAT_RC_SMART_DATA:
-			sprintf(buf,"SAS Device Status Change: SMART Data: id=%d", id);
+			snprintf(evStr, EVENT_DESCR_STR_SZ,
+			    "SAS Device Status Change: SMART Data: id=%d",
+			    id);
 			break;
 		case MPI_EVENT_SAS_DEV_STAT_RC_NO_PERSIST_ADDED:
-			sprintf(buf,"SAS Device Status Change: No Persistancy Added: id=%d", id);
+			snprintf(evStr, EVENT_DESCR_STR_SZ,
+			    "SAS Device Status Change: No Persistancy "
+			    "Added: id=%d", id);
 			break;
 		default:
-			sprintf(buf,"SAS Device Status Change: Unknown: id=%d", id);
-		break;
+			snprintf(evStr, EVENT_DESCR_STR_SZ,
+			    "SAS Device Status Change: Unknown: id=%d", id);
+			break;
 		}
-		ds = buf;
 		break;
 	}
 	case MPI_EVENT_ON_BUS_TIMER_EXPIRED:
@@ -5878,41 +5884,46 @@ EventDescriptionStr(u8 event, u32 evData0, char *evStr)
 		break;
 	case MPI_EVENT_SAS_PHY_LINK_STATUS:
 	{
-		char buf[50];
 		u8 LinkRates = (u8)(evData0 >> 8);
 		u8 PhyNumber = (u8)(evData0);
 		LinkRates = (LinkRates & MPI_EVENT_SAS_PLS_LR_CURRENT_MASK) >>
 			MPI_EVENT_SAS_PLS_LR_CURRENT_SHIFT;
 		switch (LinkRates) {
 		case MPI_EVENT_SAS_PLS_LR_RATE_UNKNOWN:
-			sprintf(buf,"SAS PHY Link Status: Phy=%d:"
+			snprintf(evStr, EVENT_DESCR_STR_SZ,
+			   "SAS PHY Link Status: Phy=%d:"
 			   " Rate Unknown",PhyNumber);
 			break;
 		case MPI_EVENT_SAS_PLS_LR_RATE_PHY_DISABLED:
-			sprintf(buf,"SAS PHY Link Status: Phy=%d:"
+			snprintf(evStr, EVENT_DESCR_STR_SZ,
+			   "SAS PHY Link Status: Phy=%d:"
 			   " Phy Disabled",PhyNumber);
 			break;
 		case MPI_EVENT_SAS_PLS_LR_RATE_FAILED_SPEED_NEGOTIATION:
-			sprintf(buf,"SAS PHY Link Status: Phy=%d:"
+			snprintf(evStr, EVENT_DESCR_STR_SZ,
+			   "SAS PHY Link Status: Phy=%d:"
 			   " Failed Speed Nego",PhyNumber);
 			break;
 		case MPI_EVENT_SAS_PLS_LR_RATE_SATA_OOB_COMPLETE:
-			sprintf(buf,"SAS PHY Link Status: Phy=%d:"
+			snprintf(evStr, EVENT_DESCR_STR_SZ,
+			   "SAS PHY Link Status: Phy=%d:"
 			   " Sata OOB Completed",PhyNumber);
 			break;
 		case MPI_EVENT_SAS_PLS_LR_RATE_1_5:
-			sprintf(buf,"SAS PHY Link Status: Phy=%d:"
+			snprintf(evStr, EVENT_DESCR_STR_SZ,
+			   "SAS PHY Link Status: Phy=%d:"
 			   " Rate 1.5 Gbps",PhyNumber);
 			break;
 		case MPI_EVENT_SAS_PLS_LR_RATE_3_0:
-			sprintf(buf,"SAS PHY Link Status: Phy=%d:"
+			snprintf(evStr, EVENT_DESCR_STR_SZ,
+			   "SAS PHY Link Status: Phy=%d:"
 			   " Rate 3.0 Gpbs",PhyNumber);
 			break;
 		default:
-			sprintf(buf,"SAS PHY Link Status: Phy=%d", PhyNumber);
+			snprintf(evStr, EVENT_DESCR_STR_SZ,
+			   "SAS PHY Link Status: Phy=%d", PhyNumber);
 			break;
 		}
-		ds = buf;
 		break;
 	}
 	case MPI_EVENT_SAS_DISCOVERY_ERROR:
@@ -5921,9 +5932,8 @@ EventDescriptionStr(u8 event, u32 evData0, char *evStr)
 	case MPI_EVENT_IR_RESYNC_UPDATE:
 	{
 		u8 resync_complete = (u8)(evData0 >> 16);
-		char buf[40];
-		sprintf(buf,"IR Resync Update: Complete = %d:",resync_complete);
-		ds = buf;
+		snprintf(evStr, EVENT_DESCR_STR_SZ,
+		    "IR Resync Update: Complete = %d:",resync_complete);
 		break;
 	}
 	case MPI_EVENT_IR2:
@@ -5976,7 +5986,8 @@ EventDescriptionStr(u8 event, u32 evData0, char *evStr)
 		ds = "Unknown";
 		break;
 	}
-	strcpy(evStr,ds);
+	if (ds)
+		strncpy(evStr, ds, EVENT_DESCR_STR_SZ);
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -5998,7 +6009,7 @@ ProcessEventNotification(MPT_ADAPTER *ioc, EventNotificationReply_t *pEventReply
 	int ii;
 	int r = 0;
 	int handlers = 0;
-	char evStr[100];
+	char evStr[EVENT_DESCR_STR_SZ];
 	u8 event;
 
 	/*

@@ -15,10 +15,7 @@
  */
 
 #ifndef __LINUX_MTD_PHYSMAP__
-
-#include <linux/config.h>
-
-#if defined(CONFIG_MTD_PHYSMAP)
+#define __LINUX_MTD_PHYSMAP__
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
@@ -37,7 +34,7 @@ struct physmap_flash_data {
 void physmap_configure(unsigned long addr, unsigned long size,
 		int bankwidth, void (*set_vpp)(struct map_info *, int) );
 
-#if defined(CONFIG_MTD_PARTITIONS)
+#ifdef CONFIG_MTD_PARTITIONS
 
 /*
  * Machines that wish to do flash partition may want to call this function in
@@ -51,6 +48,5 @@ void physmap_configure(unsigned long addr, unsigned long size,
 void physmap_set_partitions(struct mtd_partition *parts, int num_parts);
 
 #endif /* defined(CONFIG_MTD_PARTITIONS) */
-#endif /* defined(CONFIG_MTD) */
 
 #endif /* __LINUX_MTD_PHYSMAP__ */

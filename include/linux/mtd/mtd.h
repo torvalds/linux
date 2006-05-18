@@ -61,7 +61,7 @@ struct mtd_info {
 	u_int32_t flags;
 	u_int32_t size;	 // Total size of the MTD
 
-	/* "Major" erase size for the device. Naïve users may take this
+	/* "Major" erase size for the device. NaÃ¯ve users may take this
 	 * to be the only erase size available, or may use the more detailed
 	 * information below if they desire
 	 */

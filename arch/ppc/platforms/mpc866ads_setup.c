@@ -378,7 +378,7 @@ int __init mpc866ads_init(void)
 	ppc_sys_device_setfunc(MPC8xx_CPM_SMC1, PPC_SYS_FUNC_UART);
 #endif
 
-#ifdef CONFIG_SERIAL_CPM_SMCer
+#ifdef CONFIG_SERIAL_CPM_SMC
 	ppc_sys_device_enable(MPC8xx_CPM_SMC2);
 	ppc_sys_device_setfunc(MPC8xx_CPM_SMC2, PPC_SYS_FUNC_UART);
 #endif

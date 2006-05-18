@@ -222,9 +222,6 @@ int jffs2_scan_medium(struct jffs2_sb_info *c)
 		}
 	}
 
-	if (jffs2_sum_active() && s)
-		kfree(s);
-
 	/* Nextblock dirty is always seen as wasted, because we cannot recycle it now */
 	if (c->nextblock && (c->nextblock->dirty_size)) {
 		c->nextblock->wasted_size += c->nextblock->dirty_size;
@@ -266,6 +263,9 @@ int jffs2_scan_medium(struct jffs2_sb_info *c)
 	else
 		c->mtd->unpoint(c->mtd, flashbuf, 0, c->mtd->size);
 #endif
+	if (s)
+		kfree(s);
+
 	return ret;
 }
 

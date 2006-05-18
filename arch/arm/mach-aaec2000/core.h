@@ -9,6 +9,7 @@
  *
  */
 
+#include <linux/amba/bus.h>
 #include <linux/amba/clcd.h>
 
 struct sys_timer;

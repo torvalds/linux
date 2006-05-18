@@ -310,6 +310,11 @@ retry:
 
 		panic("VFS: Unable to mount root fs on %s", b);
 	}
+
+	printk("No filesystem could mount root, tried: ");
+	for (p = fs_names; *p; p += strlen(p)+1)
+		printk(" %s", p);
+	printk("\n");
 	panic("VFS: Unable to mount root fs on %s", __bdevname(ROOT_DEV, b));
 out:
 	putname(fs_names);

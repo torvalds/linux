@@ -362,6 +362,40 @@ serial_out(struct uart_8250_port *up, int offset, int value)
 #define serial_inp(up, offset)		serial_in(up, offset)
 #define serial_outp(up, offset, value)	serial_out(up, offset, value)
 
+/* Uart divisor latch read */
+static inline int _serial_dl_read(struct uart_8250_port *up)
+{
+	return serial_inp(up, UART_DLL) | serial_inp(up, UART_DLM) << 8;
+}
+
+/* Uart divisor latch write */
+static inline void _serial_dl_write(struct uart_8250_port *up, int value)
+{
+	serial_outp(up, UART_DLL, value & 0xff);
+	serial_outp(up, UART_DLM, value >> 8 & 0xff);
+}
+
+#ifdef CONFIG_SERIAL_8250_AU1X00
+/* Au1x00 haven't got a standard divisor latch */
+static int serial_dl_read(struct uart_8250_port *up)
+{
+	if (up->port.iotype == UPIO_AU)
+		return __raw_readl(up->port.membase + 0x28);
+	else
+		return _serial_dl_read(up);
+}
+
+static void serial_dl_write(struct uart_8250_port *up, int value)
+{
+	if (up->port.iotype == UPIO_AU)
+		__raw_writel(value, up->port.membase + 0x28);
+	else
+		_serial_dl_write(up, value);
+}
+#else
+#define serial_dl_read(up) _serial_dl_read(up)
+#define serial_dl_write(up, value) _serial_dl_write(up, value)
+#endif
 
 /*
  * For the 16C950
@@ -494,7 +528,8 @@ static void disable_rsa(struct uart_8250_port *up)
  */
 static int size_fifo(struct uart_8250_port *up)
 {
-	unsigned char old_fcr, old_mcr, old_dll, old_dlm, old_lcr;
+	unsigned char old_fcr, old_mcr, old_lcr;
+	unsigned short old_dl;
 	int count;
 
 	old_lcr = serial_inp(up, UART_LCR);
@@ -505,10 +540,8 @@ static int size_fifo(struct uart_8250_port *up)
 		    UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT);
 	serial_outp(up, UART_MCR, UART_MCR_LOOP);
 	serial_outp(up, UART_LCR, UART_LCR_DLAB);
-	old_dll = serial_inp(up, UART_DLL);
-	old_dlm = serial_inp(up, UART_DLM);
-	serial_outp(up, UART_DLL, 0x01);
-	serial_outp(up, UART_DLM, 0x00);
+	old_dl = serial_dl_read(up);
+	serial_dl_write(up, 0x0001);
 	serial_outp(up, UART_LCR, 0x03);
 	for (count = 0; count < 256; count++)
 		serial_outp(up, UART_TX, count);
@@ -519,8 +552,7 @@ static int size_fifo(struct uart_8250_port *up)
 	serial_outp(up, UART_FCR, old_fcr);
 	serial_outp(up, UART_MCR, old_mcr);
 	serial_outp(up, UART_LCR, UART_LCR_DLAB);
-	serial_outp(up, UART_DLL, old_dll);
-	serial_outp(up, UART_DLM, old_dlm);
+	serial_dl_write(up, old_dl);
 	serial_outp(up, UART_LCR, old_lcr);
 
 	return count;
@@ -750,8 +782,7 @@ static void autoconfig_16550a(struct uart_8250_port *up)
 
 			serial_outp(up, UART_LCR, 0xE0);
 
-			quot = serial_inp(up, UART_DLM) << 8;
-			quot += serial_inp(up, UART_DLL);
+			quot = serial_dl_read(up);
 			quot <<= 3;
 
 			status1 = serial_in(up, 0x04); /* EXCR1 */
@@ -759,8 +790,7 @@ static void autoconfig_16550a(struct uart_8250_port *up)
 			status1 |= 0x10;  /* 1.625 divisor for baud_base --> 921600 */
 			serial_outp(up, 0x04, status1);
 			
-			serial_outp(up, UART_DLL, quot & 0xff);
-			serial_outp(up, UART_DLM, quot >> 8);
+			serial_dl_write(up, quot);
 
 			serial_outp(up, UART_LCR, 0);
 
@@ -1862,8 +1892,7 @@ serial8250_set_termios(struct uart_port *port, struct termios *termios,
 		serial_outp(up, UART_LCR, cval | UART_LCR_DLAB);/* set DLAB */
 	}
 
-	serial_outp(up, UART_DLL, quot & 0xff);		/* LS of divisor */
-	serial_outp(up, UART_DLM, quot >> 8);		/* MS of divisor */
+	serial_dl_write(up, quot);
 
 	/*
 	 * LCR DLAB must be set to enable 64-byte FIFO mode. If the FCR
@@ -1906,6 +1935,9 @@ static int serial8250_request_std_resource(struct uart_8250_port *up)
 	int ret = 0;
 
 	switch (up->port.iotype) {
+	case UPIO_AU:
+		size = 0x100000;
+		/* fall thru */
 	case UPIO_MEM:
 		if (!up->port.mapbase)
 			break;
@@ -1938,6 +1970,9 @@ static void serial8250_release_std_resource(struct uart_8250_port *up)
 	unsigned int size = 8 << up->port.regshift;
 
 	switch (up->port.iotype) {
+	case UPIO_AU:
+		size = 0x100000;
+		/* fall thru */
 	case UPIO_MEM:
 		if (!up->port.mapbase)
 			break;
@@ -2200,9 +2235,16 @@ static void
 serial8250_console_write(struct console *co, const char *s, unsigned int count)
 {
 	struct uart_8250_port *up = &serial8250_ports[co->index];
+	unsigned long flags;
 	unsigned int ier;
+	int locked = 1;
 
 	touch_nmi_watchdog();
+
+	if (oops_in_progress) {
+		locked = spin_trylock_irqsave(&up->port.lock, flags);
+	} else
+		spin_lock_irqsave(&up->port.lock, flags);
 
 	/*
 	 *	First save the IER then disable the interrupts
@@ -2221,8 +2263,10 @@ serial8250_console_write(struct console *co, const char *s, unsigned int count)
 	 *	and restore the IER
 	 */
 	wait_for_xmitr(up, BOTH_EMPTY);
-	up->ier |= UART_IER_THRI;
-	serial_out(up, UART_IER, ier | UART_IER_THRI);
+	serial_out(up, UART_IER, ier);
+
+	if (locked)
+		spin_unlock_irqrestore(&up->port.lock, flags);
 }
 
 static int serial8250_console_setup(struct console *co, char *options)

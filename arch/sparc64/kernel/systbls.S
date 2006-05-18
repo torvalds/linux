@@ -25,7 +25,7 @@ sys_call_table32:
 /*10*/  .word sys_unlink, sunos_execv, sys_chdir, sys32_chown16, sys32_mknod
 /*15*/	.word sys_chmod, sys32_lchown16, sparc_brk, sys32_perfctr, sys32_lseek
 /*20*/	.word sys_getpid, sys_capget, sys_capset, sys32_setuid16, sys32_getuid16
-/*25*/	.word compat_sys_time, sys_ptrace, sys_alarm, sys32_sigaltstack, sys32_pause
+/*25*/	.word sys32_vmsplice, sys_ptrace, sys_alarm, sys32_sigaltstack, sys32_pause
 /*30*/	.word compat_sys_utime, sys_lchown, sys_fchown, sys32_access, sys32_nice
 	.word sys_chown, sys_sync, sys32_kill, compat_sys_newstat, sys32_sendfile
 /*40*/	.word compat_sys_newlstat, sys_dup, sys_pipe, compat_sys_times, sys_getuid
@@ -94,7 +94,7 @@ sys_call_table:
 /*10*/  .word sys_unlink, sys_nis_syscall, sys_chdir, sys_chown, sys_mknod
 /*15*/	.word sys_chmod, sys_lchown, sparc_brk, sys_perfctr, sys_lseek
 /*20*/	.word sys_getpid, sys_capget, sys_capset, sys_setuid, sys_getuid
-/*25*/	.word sys_nis_syscall, sys_ptrace, sys_alarm, sys_sigaltstack, sys_nis_syscall
+/*25*/	.word sys_vmsplice, sys_ptrace, sys_alarm, sys_sigaltstack, sys_nis_syscall
 /*30*/	.word sys_utime, sys_nis_syscall, sys_nis_syscall, sys_access, sys_nice
 	.word sys_nis_syscall, sys_sync, sys_kill, sys_newstat, sys_sendfile64
 /*40*/	.word sys_newlstat, sys_dup, sys_pipe, sys_times, sys_nis_syscall

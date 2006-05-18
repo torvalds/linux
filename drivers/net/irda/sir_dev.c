@@ -23,6 +23,298 @@
 
 #include "sir-dev.h"
 
+
+static struct workqueue_struct *irda_sir_wq;
+
+/* STATE MACHINE */
+
+/* substate handler of the config-fsm to handle the cases where we want
+ * to wait for transmit completion before changing the port configuration
+ */
+
+static int sirdev_tx_complete_fsm(struct sir_dev *dev)
+{
+	struct sir_fsm *fsm = &dev->fsm;
+	unsigned next_state, delay;
+	unsigned bytes_left;
+
+	do {
+		next_state = fsm->substate;	/* default: stay in current substate */
+		delay = 0;
+
+		switch(fsm->substate) {
+
+		case SIRDEV_STATE_WAIT_XMIT:
+			if (dev->drv->chars_in_buffer)
+				bytes_left = dev->drv->chars_in_buffer(dev);
+			else
+				bytes_left = 0;
+			if (!bytes_left) {
+				next_state = SIRDEV_STATE_WAIT_UNTIL_SENT;
+				break;
+			}
+
+			if (dev->speed > 115200)
+				delay = (bytes_left*8*10000) / (dev->speed/100);
+			else if (dev->speed > 0)
+				delay = (bytes_left*10*10000) / (dev->speed/100);
+			else
+				delay = 0;
+			/* expected delay (usec) until remaining bytes are sent */
+			if (delay < 100) {
+				udelay(delay);
+				delay = 0;
+				break;
+			}
+			/* sleep some longer delay (msec) */
+			delay = (delay+999) / 1000;
+			break;
+
+		case SIRDEV_STATE_WAIT_UNTIL_SENT:
+			/* block until underlaying hardware buffer are empty */
+			if (dev->drv->wait_until_sent)
+				dev->drv->wait_until_sent(dev);
+			next_state = SIRDEV_STATE_TX_DONE;
+			break;
+
+		case SIRDEV_STATE_TX_DONE:
+			return 0;
+
+		default:
+			IRDA_ERROR("%s - undefined state\n", __FUNCTION__);
+			return -EINVAL;
+		}
+		fsm->substate = next_state;
+	} while (delay == 0);
+	return delay;
+}
+
+/*
+ * Function sirdev_config_fsm
+ *
+ * State machine to handle the configuration of the device (and attached dongle, if any).
+ * This handler is scheduled for execution in kIrDAd context, so we can sleep.
+ * however, kIrDAd is shared by all sir_dev devices so we better don't sleep there too
+ * long. Instead, for longer delays we start a timer to reschedule us later.
+ * On entry, fsm->sem is always locked and the netdev xmit queue stopped.
+ * Both must be unlocked/restarted on completion - but only on final exit.
+ */
+
+static void sirdev_config_fsm(void *data)
+{
+	struct sir_dev *dev = data;
+	struct sir_fsm *fsm = &dev->fsm;
+	int next_state;
+	int ret = -1;
+	unsigned delay;
+
+	IRDA_DEBUG(2, "%s(), <%ld>\n", __FUNCTION__, jiffies);
+
+	do {
+		IRDA_DEBUG(3, "%s - state=0x%04x / substate=0x%04x\n",
+			__FUNCTION__, fsm->state, fsm->substate);
+
+		next_state = fsm->state;
+		delay = 0;
+
+		switch(fsm->state) {
+
+		case SIRDEV_STATE_DONGLE_OPEN:
+			if (dev->dongle_drv != NULL) {
+				ret = sirdev_put_dongle(dev);
+				if (ret) {
+					fsm->result = -EINVAL;
+					next_state = SIRDEV_STATE_ERROR;
+					break;
+				}
+			}
+
+			/* Initialize dongle */
+			ret = sirdev_get_dongle(dev, fsm->param);
+			if (ret) {
+				fsm->result = ret;
+				next_state = SIRDEV_STATE_ERROR;
+				break;
+			}
+
+			/* Dongles are powered through the modem control lines which
+			 * were just set during open. Before resetting, let's wait for
+			 * the power to stabilize. This is what some dongle drivers did
+			 * in open before, while others didn't - should be safe anyway.
+			 */
+
+			delay = 50;
+			fsm->substate = SIRDEV_STATE_DONGLE_RESET;
+			next_state = SIRDEV_STATE_DONGLE_RESET;
+
+			fsm->param = 9600;
+
+			break;
+
+		case SIRDEV_STATE_DONGLE_CLOSE:
+			/* shouldn't we just treat this as success=? */
+			if (dev->dongle_drv == NULL) {
+				fsm->result = -EINVAL;
+				next_state = SIRDEV_STATE_ERROR;
+				break;
+			}
+
+			ret = sirdev_put_dongle(dev);
+			if (ret) {
+				fsm->result = ret;
+				next_state = SIRDEV_STATE_ERROR;
+				break;
+			}
+			next_state = SIRDEV_STATE_DONE;
+			break;
+
+		case SIRDEV_STATE_SET_DTR_RTS:
+			ret = sirdev_set_dtr_rts(dev,
+				(fsm->param&0x02) ? TRUE : FALSE,
+				(fsm->param&0x01) ? TRUE : FALSE);
+			next_state = SIRDEV_STATE_DONE;
+			break;
+
+		case SIRDEV_STATE_SET_SPEED:
+			fsm->substate = SIRDEV_STATE_WAIT_XMIT;
+			next_state = SIRDEV_STATE_DONGLE_CHECK;
+			break;
+
+		case SIRDEV_STATE_DONGLE_CHECK:
+			ret = sirdev_tx_complete_fsm(dev);
+			if (ret < 0) {
+				fsm->result = ret;
+				next_state = SIRDEV_STATE_ERROR;
+				break;
+			}
+			if ((delay=ret) != 0)
+				break;
+
+			if (dev->dongle_drv) {
+				fsm->substate = SIRDEV_STATE_DONGLE_RESET;
+				next_state = SIRDEV_STATE_DONGLE_RESET;
+			}
+			else {
+				dev->speed = fsm->param;
+				next_state = SIRDEV_STATE_PORT_SPEED;
+			}
+			break;
+
+		case SIRDEV_STATE_DONGLE_RESET:
+			if (dev->dongle_drv->reset) {
+				ret = dev->dongle_drv->reset(dev);
+				if (ret < 0) {
+					fsm->result = ret;
+					next_state = SIRDEV_STATE_ERROR;
+					break;
+				}
+			}
+			else
+				ret = 0;
+			if ((delay=ret) == 0) {
+				/* set serial port according to dongle default speed */
+				if (dev->drv->set_speed)
+					dev->drv->set_speed(dev, dev->speed);
+				fsm->substate = SIRDEV_STATE_DONGLE_SPEED;
+				next_state = SIRDEV_STATE_DONGLE_SPEED;
+			}
+			break;
+
+		case SIRDEV_STATE_DONGLE_SPEED:
+			if (dev->dongle_drv->reset) {
+				ret = dev->dongle_drv->set_speed(dev, fsm->param);
+				if (ret < 0) {
+					fsm->result = ret;
+					next_state = SIRDEV_STATE_ERROR;
+					break;
+				}
+			}
+			else
+				ret = 0;
+			if ((delay=ret) == 0)
+				next_state = SIRDEV_STATE_PORT_SPEED;
+			break;
+
+		case SIRDEV_STATE_PORT_SPEED:
+			/* Finally we are ready to change the serial port speed */
+			if (dev->drv->set_speed)
+				dev->drv->set_speed(dev, dev->speed);
+			dev->new_speed = 0;
+			next_state = SIRDEV_STATE_DONE;
+			break;
+
+		case SIRDEV_STATE_DONE:
+			/* Signal network layer so it can send more frames */
+			netif_wake_queue(dev->netdev);
+			next_state = SIRDEV_STATE_COMPLETE;
+			break;
+
+		default:
+			IRDA_ERROR("%s - undefined state\n", __FUNCTION__);
+			fsm->result = -EINVAL;
+			/* fall thru */
+
+		case SIRDEV_STATE_ERROR:
+			IRDA_ERROR("%s - error: %d\n", __FUNCTION__, fsm->result);
+
+#if 0	/* don't enable this before we have netdev->tx_timeout to recover */
+			netif_stop_queue(dev->netdev);
+#else
+			netif_wake_queue(dev->netdev);
+#endif
+			/* fall thru */
+
+		case SIRDEV_STATE_COMPLETE:
+			/* config change finished, so we are not busy any longer */
+			sirdev_enable_rx(dev);
+			up(&fsm->sem);
+			return;
+		}
+		fsm->state = next_state;
+	} while(!delay);
+
+	queue_delayed_work(irda_sir_wq, &fsm->work, msecs_to_jiffies(delay));
+}
+
+/* schedule some device configuration task for execution by kIrDAd
+ * on behalf of the above state machine.
+ * can be called from process or interrupt/tasklet context.
+ */
+
+int sirdev_schedule_request(struct sir_dev *dev, int initial_state, unsigned param)
+{
+	struct sir_fsm *fsm = &dev->fsm;
+
+	IRDA_DEBUG(2, "%s - state=0x%04x / param=%u\n", __FUNCTION__, initial_state, param);
+
+	if (down_trylock(&fsm->sem)) {
+		if (in_interrupt()  ||  in_atomic()  ||  irqs_disabled()) {
+			IRDA_DEBUG(1, "%s(), state machine busy!\n", __FUNCTION__);
+			return -EWOULDBLOCK;
+		} else
+			down(&fsm->sem);
+	}
+
+	if (fsm->state == SIRDEV_STATE_DEAD) {
+		/* race with sirdev_close should never happen */
+		IRDA_ERROR("%s(), instance staled!\n", __FUNCTION__);
+		up(&fsm->sem);
+		return -ESTALE;		/* or better EPIPE? */
+	}
+
+	netif_stop_queue(dev->netdev);
+	atomic_set(&dev->enable_rx, 0);
+
+	fsm->state = initial_state;
+	fsm->param = param;
+	fsm->result = 0;
+
+	INIT_WORK(&fsm->work, sirdev_config_fsm, dev);
+	queue_work(irda_sir_wq, &fsm->work);
+	return 0;
+}
+
+
 /***************************************************************************/
 
 void sirdev_enable_rx(struct sir_dev *dev)
@@ -619,10 +911,6 @@ struct sir_dev * sirdev_get_instance(const struct sir_driver *drv, const char *n
 	spin_lock_init(&dev->tx_lock);
 	init_MUTEX(&dev->fsm.sem);
 
-	INIT_LIST_HEAD(&dev->fsm.rq.lh_request);
-	dev->fsm.rq.pending = 0;
-	init_timer(&dev->fsm.rq.timer);
-
 	dev->drv = drv;
 	dev->netdev = ndev;
 
@@ -682,3 +970,22 @@ int sirdev_put_instance(struct sir_dev *dev)
 }
 EXPORT_SYMBOL(sirdev_put_instance);
 
+static int __init sir_wq_init(void)
+{
+	irda_sir_wq = create_singlethread_workqueue("irda_sir_wq");
+	if (!irda_sir_wq)
+		return -ENOMEM;
+	return 0;
+}
+
+static void __exit sir_wq_exit(void)
+{
+	destroy_workqueue(irda_sir_wq);
+}
+
+module_init(sir_wq_init);
+module_exit(sir_wq_exit);
+
+MODULE_AUTHOR("Martin Diehl <info@mdiehl.de>");
+MODULE_DESCRIPTION("IrDA SIR core");
+MODULE_LICENSE("GPL");

@@ -963,7 +963,7 @@ static struct file_operations arp_seq_fops = {
 static int __init atm_clip_init(void)
 {
 	struct proc_dir_entry *p;
-	neigh_table_init(&clip_tbl);
+	neigh_table_init_no_netlink(&clip_tbl);
 
 	clip_tbl_hook = &clip_tbl;
 	register_atm_ioctl(&clip_ioctl_ops);

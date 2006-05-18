@@ -1394,14 +1394,17 @@ int RIOPreemptiveCmd(struct rio_info *p, struct Port *PortP, u8 Cmd)
 		return RIO_FAIL;
 	}
 
-	if (((int) ((char) PortP->InUse) == -1) || !(CmdBlkP = RIOGetCmdBlk())) {
-		rio_dprintk(RIO_DEBUG_CTRL, "Cannot allocate command block for command %d on port %d\n", Cmd, PortP->PortNum);
+	if ((PortP->InUse == (typeof(PortP->InUse))-1) ||
+			!(CmdBlkP = RIOGetCmdBlk())) {
+		rio_dprintk(RIO_DEBUG_CTRL, "Cannot allocate command block "
+			"for command %d on port %d\n", Cmd, PortP->PortNum);
 		return RIO_FAIL;
 	}
 
-	rio_dprintk(RIO_DEBUG_CTRL, "Command blk %p - InUse now %d\n", CmdBlkP, PortP->InUse);
+	rio_dprintk(RIO_DEBUG_CTRL, "Command blk %p - InUse now %d\n",
+			CmdBlkP, PortP->InUse);
 
-	PktCmdP = (struct PktCmd_M *) &CmdBlkP->Packet.data[0];
+	PktCmdP = (struct PktCmd_M *)&CmdBlkP->Packet.data[0];
 
 	CmdBlkP->Packet.src_unit = 0;
 	if (PortP->SecondBlock)
@@ -1425,38 +1428,46 @@ int RIOPreemptiveCmd(struct rio_info *p, struct Port *PortP, u8 Cmd)
 
 	switch (Cmd) {
 	case MEMDUMP:
-		rio_dprintk(RIO_DEBUG_CTRL, "Queue MEMDUMP command blk %p (addr 0x%x)\n", CmdBlkP, (int) SubCmd.Addr);
+		rio_dprintk(RIO_DEBUG_CTRL, "Queue MEMDUMP command blk %p "
+				"(addr 0x%x)\n", CmdBlkP, (int) SubCmd.Addr);
 		PktCmdP->SubCommand = MEMDUMP;
 		PktCmdP->SubAddr = SubCmd.Addr;
 		break;
 	case FCLOSE:
-		rio_dprintk(RIO_DEBUG_CTRL, "Queue FCLOSE command blk %p\n", CmdBlkP);
+		rio_dprintk(RIO_DEBUG_CTRL, "Queue FCLOSE command blk %p\n",
+				CmdBlkP);
 		break;
 	case READ_REGISTER:
-		rio_dprintk(RIO_DEBUG_CTRL, "Queue READ_REGISTER (0x%x) command blk %p\n", (int) SubCmd.Addr, CmdBlkP);
+		rio_dprintk(RIO_DEBUG_CTRL, "Queue READ_REGISTER (0x%x) "
+				"command blk %p\n", (int) SubCmd.Addr, CmdBlkP);
 		PktCmdP->SubCommand = READ_REGISTER;
 		PktCmdP->SubAddr = SubCmd.Addr;
 		break;
 	case RESUME:
-		rio_dprintk(RIO_DEBUG_CTRL, "Queue RESUME command blk %p\n", CmdBlkP);
+		rio_dprintk(RIO_DEBUG_CTRL, "Queue RESUME command blk %p\n",
+				CmdBlkP);
 		break;
 	case RFLUSH:
-		rio_dprintk(RIO_DEBUG_CTRL, "Queue RFLUSH command blk %p\n", CmdBlkP);
+		rio_dprintk(RIO_DEBUG_CTRL, "Queue RFLUSH command blk %p\n",
+				CmdBlkP);
 		CmdBlkP->PostFuncP = RIORFlushEnable;
 		break;
 	case SUSPEND:
-		rio_dprintk(RIO_DEBUG_CTRL, "Queue SUSPEND command blk %p\n", CmdBlkP);
+		rio_dprintk(RIO_DEBUG_CTRL, "Queue SUSPEND command blk %p\n",
+				CmdBlkP);
 		break;
 
 	case MGET:
-		rio_dprintk(RIO_DEBUG_CTRL, "Queue MGET command blk %p\n", CmdBlkP);
+		rio_dprintk(RIO_DEBUG_CTRL, "Queue MGET command blk %p\n",
+				CmdBlkP);
 		break;
 
 	case MSET:
 	case MBIC:
 	case MBIS:
 		CmdBlkP->Packet.data[4] = (char) PortP->ModemLines;
-		rio_dprintk(RIO_DEBUG_CTRL, "Queue MSET/MBIC/MBIS command blk %p\n", CmdBlkP);
+		rio_dprintk(RIO_DEBUG_CTRL, "Queue MSET/MBIC/MBIS command "
+				"blk %p\n", CmdBlkP);
 		break;
 
 	case WFLUSH:
@@ -1465,12 +1476,14 @@ int RIOPreemptiveCmd(struct rio_info *p, struct Port *PortP, u8 Cmd)
 		 ** allowed then we should not bother sending any more to the
 		 ** RTA.
 		 */
-		if ((int) ((char) PortP->WflushFlag) == (int) -1) {
-			rio_dprintk(RIO_DEBUG_CTRL, "Trashed WFLUSH, WflushFlag about to wrap!");
+		if (PortP->WflushFlag == (typeof(PortP->WflushFlag))-1) {
+			rio_dprintk(RIO_DEBUG_CTRL, "Trashed WFLUSH, "
+					"WflushFlag about to wrap!");
 			RIOFreeCmdBlk(CmdBlkP);
 			return (RIO_FAIL);
 		} else {
-			rio_dprintk(RIO_DEBUG_CTRL, "Queue WFLUSH command blk %p\n", CmdBlkP);
+			rio_dprintk(RIO_DEBUG_CTRL, "Queue WFLUSH command "
+					"blk %p\n", CmdBlkP);
 			CmdBlkP->PostFuncP = RIOWFlushMark;
 		}
 		break;

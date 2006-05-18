@@ -60,7 +60,7 @@ static int __init alloc_workspaces(void)
 	return 0;
 }
 
-static void free_workspaces(void)
+static void __exit free_workspaces(void)
 {
 	vfree(def_strm.workspace);
 	vfree(inf_strm.workspace);
@@ -216,7 +216,7 @@ int __init jffs2_zlib_init(void)
     return ret;
 }
 
-void jffs2_zlib_exit(void)
+void __exit jffs2_zlib_exit(void)
 {
     jffs2_unregister_compressor(&jffs2_zlib_comp);
     free_workspaces();

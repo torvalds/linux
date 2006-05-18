@@ -220,12 +220,20 @@ static int jffs2_commit_write (struct file *filp, struct page *pg,
 	D1(printk(KERN_DEBUG "jffs2_commit_write(): ino #%lu, page at 0x%lx, range %d-%d, flags %lx\n",
 		  inode->i_ino, pg->index << PAGE_CACHE_SHIFT, start, end, pg->flags));
 
-	if (!start && end == PAGE_CACHE_SIZE) {
-		/* We need to avoid deadlock with page_cache_read() in
-		   jffs2_garbage_collect_pass(). So we have to mark the
-		   page up to date, to prevent page_cache_read() from
-		   trying to re-lock it. */
-		SetPageUptodate(pg);
+	if (end == PAGE_CACHE_SIZE) {
+		if (!start) {
+			/* We need to avoid deadlock with page_cache_read() in
+			   jffs2_garbage_collect_pass(). So we have to mark the
+			   page up to date, to prevent page_cache_read() from
+			   trying to re-lock it. */
+			SetPageUptodate(pg);
+		} else {
+			/* When writing out the end of a page, write out the 
+			   _whole_ page. This helps to reduce the number of
+			   nodes in files which have many short writes, like
+			   syslog files. */
+			start = aligned_start = 0;
+		}
 	}
 
 	ri = jffs2_alloc_raw_inode();

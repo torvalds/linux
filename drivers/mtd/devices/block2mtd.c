@@ -4,7 +4,7 @@
  * block2mtd.c - create an mtd from a block device
  *
  * Copyright (C) 2001,2002	Simon Evans <spse@secret.org.uk>
- * Copyright (C) 2004-2006	Jörn Engel <joern@wh.fh-wedel.de>
+ * Copyright (C) 2004-2006	JÃ¶rn Engel <joern@wh.fh-wedel.de>
  *
  * Licence: GPL
  */
@@ -429,7 +429,8 @@ static inline void kill_final_newline(char *str)
 
 static int block2mtd_setup(const char *val, struct kernel_param *kp)
 {
-	char buf[80+12], *str=buf; /* 80 for device, 12 for erase size */
+	char buf[80+12]; /* 80 for device, 12 for erase size */
+	char *str = buf;
 	char *token[2];
 	char *name;
 	size_t erase_size = PAGE_SIZE;
@@ -441,7 +442,7 @@ static int block2mtd_setup(const char *val, struct kernel_param *kp)
 	strcpy(str, val);
 	kill_final_newline(str);
 
-	for (i=0; i<2; i++)
+	for (i = 0; i < 2; i++)
 		token[i] = strsep(&str, ",");
 
 	if (str)
@@ -460,8 +461,10 @@ static int block2mtd_setup(const char *val, struct kernel_param *kp)
 
 	if (token[1]) {
 		ret = parse_num(&erase_size, token[1]);
-		if (ret)
+		if (ret) {
+			kfree(name);
 			parse_err("illegal erase size");
+		}
 	}
 
 	add_device(name, erase_size);

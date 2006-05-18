@@ -783,6 +783,70 @@ static struct pci_device_id mptspi_pci_table[] = {
 };
 MODULE_DEVICE_TABLE(pci, mptspi_pci_table);
 
+
+/*
+ * renegotiate for a given target
+ */
+static void
+mptspi_dv_renegotiate_work(void *data)
+{
+	struct work_queue_wrapper *wqw = (struct work_queue_wrapper *)data;
+	struct _MPT_SCSI_HOST *hd = wqw->hd;
+	struct scsi_device *sdev;
+
+	kfree(wqw);
+
+	shost_for_each_device(sdev, hd->ioc->sh)
+		mptspi_dv_device(hd, sdev);
+}
+
+static void
+mptspi_dv_renegotiate(struct _MPT_SCSI_HOST *hd)
+{
+	struct work_queue_wrapper *wqw = kmalloc(sizeof(*wqw), GFP_ATOMIC);
+
+	if (!wqw)
+		return;
+
+	INIT_WORK(&wqw->work, mptspi_dv_renegotiate_work, wqw);
+	wqw->hd = hd;
+
+	schedule_work(&wqw->work);
+}
+
+/*
+ * spi module reset handler
+ */
+static int
+mptspi_ioc_reset(MPT_ADAPTER *ioc, int reset_phase)
+{
+	struct _MPT_SCSI_HOST *hd = (struct _MPT_SCSI_HOST *)ioc->sh->hostdata;
+	int rc;
+
+	rc = mptscsih_ioc_reset(ioc, reset_phase);
+
+	if (reset_phase == MPT_IOC_POST_RESET)
+		mptspi_dv_renegotiate(hd);
+
+	return rc;
+}
+
+/*
+ * spi module resume handler
+ */
+static int
+mptspi_resume(struct pci_dev *pdev)
+{
+	MPT_ADAPTER 	*ioc = pci_get_drvdata(pdev);
+	struct _MPT_SCSI_HOST *hd = (struct _MPT_SCSI_HOST *)ioc->sh->hostdata;
+	int rc;
+
+	rc = mptscsih_resume(pdev);
+	mptspi_dv_renegotiate(hd);
+
+	return rc;
+}
+
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /*
@@ -1032,7 +1096,7 @@ static struct pci_driver mptspi_driver = {
 	.shutdown	= mptscsih_shutdown,
 #ifdef CONFIG_PM
 	.suspend	= mptscsih_suspend,
-	.resume		= mptscsih_resume,
+	.resume		= mptspi_resume,
 #endif
 };
 
@@ -1061,7 +1125,7 @@ mptspi_init(void)
 		  ": Registered for IOC event notifications\n"));
 	}
 
-	if (mpt_reset_register(mptspiDoneCtx, mptscsih_ioc_reset) == 0) {
+	if (mpt_reset_register(mptspiDoneCtx, mptspi_ioc_reset) == 0) {
 		dprintk((KERN_INFO MYNAM
 		  ": Registered for IOC reset notifications\n"));
 	}

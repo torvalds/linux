@@ -433,8 +433,7 @@ struct net_device
 
 	/* register/unregister state machine */
 	enum { NETREG_UNINITIALIZED=0,
-	       NETREG_REGISTERING,	/* called register_netdevice */
-	       NETREG_REGISTERED,	/* completed register todo */
+	       NETREG_REGISTERED,	/* completed register_netdevice */
 	       NETREG_UNREGISTERING,	/* called unregister_netdevice */
 	       NETREG_UNREGISTERED,	/* completed unregister todo */
 	       NETREG_RELEASED,		/* called free_netdev */
@@ -506,6 +505,8 @@ struct net_device
 
 	/* class/net/name entry */
 	struct class_device	class_dev;
+	/* space for optional statistics and wireless sysfs groups */
+	struct attribute_group  *sysfs_groups[3];
 };
 
 #define	NETDEV_ALIGN		32
@@ -829,21 +830,19 @@ static inline void netif_rx_schedule(struct net_device *dev)
 		__netif_rx_schedule(dev);
 }
 
-
-static inline void  __netif_rx_reschedule(struct net_device *dev, int undo)
-{
-	dev->quota += undo;
-	list_add_tail(&dev->poll_list, &__get_cpu_var(softnet_data).poll_list);
-	__raise_softirq_irqoff(NET_RX_SOFTIRQ);
-}
-
-/* Try to reschedule poll. Called by dev->poll() after netif_rx_complete(). */
+/* Try to reschedule poll. Called by dev->poll() after netif_rx_complete().
+ * Do not inline this?
+ */
 static inline int netif_rx_reschedule(struct net_device *dev, int undo)
 {
 	if (netif_rx_schedule_prep(dev)) {
 		unsigned long flags;
+
+		dev->quota += undo;
+
 		local_irq_save(flags);
-		__netif_rx_reschedule(dev, undo);
+		list_add_tail(&dev->poll_list, &__get_cpu_var(softnet_data).poll_list);
+		__raise_softirq_irqoff(NET_RX_SOFTIRQ);
 		local_irq_restore(flags);
 		return 1;
 	}

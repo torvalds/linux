@@ -279,6 +279,7 @@ static inline void sctp_ulpq_store_reasm(struct sctp_ulpq *ulpq,
 static struct sctp_ulpevent *sctp_make_reassembled_event(struct sk_buff_head *queue, struct sk_buff *f_frag, struct sk_buff *l_frag)
 {
 	struct sk_buff *pos;
+	struct sk_buff *new = NULL;
 	struct sctp_ulpevent *event;
 	struct sk_buff *pnext, *last;
 	struct sk_buff *list = skb_shinfo(f_frag)->frag_list;
@@ -297,11 +298,33 @@ static struct sctp_ulpevent *sctp_make_reassembled_event(struct sk_buff_head *qu
 	 */
 	if (last)
 		last->next = pos;
-	else
-		skb_shinfo(f_frag)->frag_list = pos;
+ 	else {
+ 		if (skb_cloned(f_frag)) {
+ 			/* This is a cloned skb, we can't just modify
+ 			 * the frag_list.  We need a new skb to do that.
+ 			 * Instead of calling skb_unshare(), we'll do it
+ 			 * ourselves since we need to delay the free.
+ 			 */
+ 			new = skb_copy(f_frag, GFP_ATOMIC);
+ 			if (!new)
+ 				return NULL;	/* try again later */
+
+ 			new->sk = f_frag->sk;
+
+ 			skb_shinfo(new)->frag_list = pos;
+ 		} else
+ 			skb_shinfo(f_frag)->frag_list = pos;
+ 	}
 
 	/* Remove the first fragment from the reassembly queue.  */
 	__skb_unlink(f_frag, queue);
+
+ 	/* if we did unshare, then free the old skb and re-assign */
+ 	if (new) {
+ 		kfree_skb(f_frag);
+ 		f_frag = new;
+ 	}
+
 	while (pos) {
 
 		pnext = pos->next;

@@ -1805,6 +1805,12 @@ int usb_add_hcd(struct usb_hcd *hcd,
 			USB_SPEED_FULL;
 	hcd->self.root_hub = rhdev;
 
+	/* wakeup flag init defaults to "everything works" for root hubs,
+	 * but drivers can override it in reset() if needed, along with
+	 * recording the overall controller's system wakeup capability.
+	 */
+	device_init_wakeup(&rhdev->dev, 1);
+
 	/* "reset" is misnamed; its role is now one-time init. the controller
 	 * should already have been reset (and boot firmware kicked off etc).
 	 */
@@ -1812,13 +1818,6 @@ int usb_add_hcd(struct usb_hcd *hcd,
 		dev_err(hcd->self.controller, "can't setup\n");
 		goto err_hcd_driver_setup;
 	}
-
-	/* wakeup flag init is in transition; for now we can't rely on PCI to
-	 * initialize these bits properly, so we let reset() override it.
-	 * This init should _precede_ the reset() once PCI behaves.
-	 */
-	device_init_wakeup(&rhdev->dev,
-			device_can_wakeup(hcd->self.controller));
 
 	/* NOTE: root hub and controller capabilities may not be the same */
 	if (device_can_wakeup(hcd->self.controller)

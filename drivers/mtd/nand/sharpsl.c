@@ -46,7 +46,6 @@ static int sharpsl_phys_base = 0x0C000000;
 #define FLCLE		(1 << 1)
 #define FLCE0		(1 << 0)
 
-
 /*
  * MTD structure for SharpSL
  */
@@ -60,27 +59,26 @@ static struct mtd_info *sharpsl_mtd = NULL;
 static int nr_partitions;
 static struct mtd_partition sharpsl_nand_default_partition_info[] = {
 	{
-	.name = "System Area",
-	.offset = 0,
-	.size = 7 * 1024 * 1024,
-	},
+	 .name = "System Area",
+	 .offset = 0,
+	 .size = 7 * 1024 * 1024,
+	 },
 	{
-	.name = "Root Filesystem",
-	.offset = 7 * 1024 * 1024,
-	.size = 30 * 1024 * 1024,
-	},
+	 .name = "Root Filesystem",
+	 .offset = 7 * 1024 * 1024,
+	 .size = 30 * 1024 * 1024,
+	 },
 	{
-	.name = "Home Filesystem",
-	.offset = MTDPART_OFS_APPEND ,
-	.size = MTDPART_SIZ_FULL ,
-	},
+	 .name = "Home Filesystem",
+	 .offset = MTDPART_OFS_APPEND,
+	 .size = MTDPART_SIZ_FULL,
+	 },
 };
 
 /*
  *	hardware specific access to control-lines
  */
-static void
-sharpsl_nand_hwcontrol(struct mtd_info* mtd, int cmd)
+static void sharpsl_nand_hwcontrol(struct mtd_info *mtd, int cmd)
 {
 	switch (cmd) {
 	case NAND_CTL_SETCLE:
@@ -98,10 +96,10 @@ sharpsl_nand_hwcontrol(struct mtd_info* mtd, int cmd)
 		break;
 
 	case NAND_CTL_SETNCE:
-		writeb(readb(FLASHCTL) & ~(FLCE0|FLCE1), FLASHCTL);
+		writeb(readb(FLASHCTL) & ~(FLCE0 | FLCE1), FLASHCTL);
 		break;
 	case NAND_CTL_CLRNCE:
-		writeb(readb(FLASHCTL) | (FLCE0|FLCE1), FLASHCTL);
+		writeb(readb(FLASHCTL) | (FLCE0 | FLCE1), FLASHCTL);
 		break;
 	}
 }
@@ -126,27 +124,23 @@ static struct nand_oobinfo akita_oobinfo = {
 	.useecc = MTD_NANDECC_AUTOPLACE,
 	.eccbytes = 24,
 	.eccpos = {
-		0x5,  0x1,  0x2,  0x3,  0x6,  0x7,  0x15, 0x11,
-		0x12, 0x13, 0x16, 0x17, 0x25, 0x21, 0x22, 0x23,
-		0x26, 0x27, 0x35, 0x31, 0x32, 0x33, 0x36, 0x37},
-	.oobfree = { {0x08, 0x09} }
+		   0x5, 0x1, 0x2, 0x3, 0x6, 0x7, 0x15, 0x11,
+		   0x12, 0x13, 0x16, 0x17, 0x25, 0x21, 0x22, 0x23,
+		   0x26, 0x27, 0x35, 0x31, 0x32, 0x33, 0x36, 0x37},
+	.oobfree = {{0x08, 0x09}}
 };
 
-static int
-sharpsl_nand_dev_ready(struct mtd_info* mtd)
+static int sharpsl_nand_dev_ready(struct mtd_info *mtd)
 {
 	return !((readb(FLASHCTL) & FLRYBY) == 0);
 }
 
-static void
-sharpsl_nand_enable_hwecc(struct mtd_info* mtd, int mode)
+static void sharpsl_nand_enable_hwecc(struct mtd_info *mtd, int mode)
 {
-	writeb(0 ,ECCCLRR);
+	writeb(0, ECCCLRR);
 }
 
-static int
-sharpsl_nand_calculate_ecc(struct mtd_info* mtd, const u_char* dat,
-				u_char* ecc_code)
+static int sharpsl_nand_calculate_ecc(struct mtd_info *mtd, const u_char * dat, u_char * ecc_code)
 {
 	ecc_code[0] = ~readb(ECCLPUB);
 	ecc_code[1] = ~readb(ECCLPLB);
@@ -154,47 +148,44 @@ sharpsl_nand_calculate_ecc(struct mtd_info* mtd, const u_char* dat,
 	return readb(ECCCNTR) != 0;
 }
 
-
 #ifdef CONFIG_MTD_PARTITIONS
 const char *part_probes[] = { "cmdlinepart", NULL };
 #endif
 
-
 /*
  * Main initialization routine
  */
-int __init
-sharpsl_nand_init(void)
+static int __init sharpsl_nand_init(void)
 {
 	struct nand_chip *this;
-	struct mtd_partition* sharpsl_partition_info;
+	struct mtd_partition *sharpsl_partition_info;
 	int err = 0;
 
 	/* Allocate memory for MTD device structure and private data */
-	sharpsl_mtd = kmalloc(sizeof(struct mtd_info) + sizeof(struct nand_chip),
-				GFP_KERNEL);
+	sharpsl_mtd = kmalloc(sizeof(struct mtd_info) + sizeof(struct nand_chip), GFP_KERNEL);
 	if (!sharpsl_mtd) {
-		printk ("Unable to allocate SharpSL NAND MTD device structure.\n");
+		printk("Unable to allocate SharpSL NAND MTD device structure.\n");
 		return -ENOMEM;
 	}
 
 	/* map physical adress */
 	sharpsl_io_base = ioremap(sharpsl_phys_base, 0x1000);
-	if(!sharpsl_io_base){
+	if (!sharpsl_io_base) {
 		printk("ioremap to access Sharp SL NAND chip failed\n");
 		kfree(sharpsl_mtd);
 		return -EIO;
 	}
 
 	/* Get pointer to private data */
-	this = (struct nand_chip *) (&sharpsl_mtd[1]);
+	this = (struct nand_chip *)(&sharpsl_mtd[1]);
 
 	/* Initialize structures */
-	memset((char *) sharpsl_mtd, 0, sizeof(struct mtd_info));
-	memset((char *) this, 0, sizeof(struct nand_chip));
+	memset(sharpsl_mtd, 0, sizeof(struct mtd_info));
+	memset(this, 0, sizeof(struct nand_chip));
 
 	/* Link the private data with the MTD structure */
 	sharpsl_mtd->priv = this;
+	sharpsl_mtd->owner = THIS_MODULE;
 
 	/*
 	 * PXA initialize
@@ -221,7 +212,7 @@ sharpsl_nand_init(void)
 	this->correct_data = nand_correct_data;
 
 	/* Scan to find existence of the device */
-	err=nand_scan(sharpsl_mtd,1);
+	err = nand_scan(sharpsl_mtd, 1);
 	if (err) {
 		iounmap(sharpsl_io_base);
 		kfree(sharpsl_mtd);
@@ -230,24 +221,23 @@ sharpsl_nand_init(void)
 
 	/* Register the partitions */
 	sharpsl_mtd->name = "sharpsl-nand";
-	nr_partitions = parse_mtd_partitions(sharpsl_mtd, part_probes,
-						&sharpsl_partition_info, 0);
+	nr_partitions = parse_mtd_partitions(sharpsl_mtd, part_probes, &sharpsl_partition_info, 0);
 
 	if (nr_partitions <= 0) {
 		nr_partitions = DEFAULT_NUM_PARTITIONS;
 		sharpsl_partition_info = sharpsl_nand_default_partition_info;
 		if (machine_is_poodle()) {
-			sharpsl_partition_info[1].size=22 * 1024 * 1024;
+			sharpsl_partition_info[1].size = 22 * 1024 * 1024;
 		} else if (machine_is_corgi() || machine_is_shepherd()) {
-			sharpsl_partition_info[1].size=25 * 1024 * 1024;
+			sharpsl_partition_info[1].size = 25 * 1024 * 1024;
 		} else if (machine_is_husky()) {
-			sharpsl_partition_info[1].size=53 * 1024 * 1024;
+			sharpsl_partition_info[1].size = 53 * 1024 * 1024;
 		} else if (machine_is_spitz()) {
-			sharpsl_partition_info[1].size=5 * 1024 * 1024;
+			sharpsl_partition_info[1].size = 5 * 1024 * 1024;
 		} else if (machine_is_akita()) {
-			sharpsl_partition_info[1].size=58 * 1024 * 1024;
+			sharpsl_partition_info[1].size = 58 * 1024 * 1024;
 		} else if (machine_is_borzoi()) {
-			sharpsl_partition_info[1].size=32 * 1024 * 1024;
+			sharpsl_partition_info[1].size = 32 * 1024 * 1024;
 		}
 	}
 
@@ -261,15 +251,15 @@ sharpsl_nand_init(void)
 	/* Return happy */
 	return 0;
 }
+
 module_init(sharpsl_nand_init);
 
 /*
  * Clean up routine
  */
-#ifdef MODULE
 static void __exit sharpsl_nand_cleanup(void)
 {
-	struct nand_chip *this = (struct nand_chip *) &sharpsl_mtd[1];
+	struct nand_chip *this = (struct nand_chip *)&sharpsl_mtd[1];
 
 	/* Release resources, unregister device */
 	nand_release(sharpsl_mtd);
@@ -279,8 +269,8 @@ static void __exit sharpsl_nand_cleanup(void)
 	/* Free the MTD device structure */
 	kfree(sharpsl_mtd);
 }
+
 module_exit(sharpsl_nand_cleanup);
-#endif
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Richard Purdie <rpurdie@rpsys.net>");

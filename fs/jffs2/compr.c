@@ -412,7 +412,7 @@ void jffs2_free_comprbuf(unsigned char *comprbuf, unsigned char *orig)
                 kfree(comprbuf);
 }
 
-int jffs2_compressors_init(void)
+int __init jffs2_compressors_init(void)
 {
 /* Registering compressors */
 #ifdef CONFIG_JFFS2_ZLIB
@@ -440,7 +440,7 @@ int jffs2_compressors_init(void)
         return 0;
 }
 
-int jffs2_compressors_exit(void)
+int __exit jffs2_compressors_exit(void)
 {
 /* Unregistering compressors */
 #ifdef CONFIG_JFFS2_RUBIN

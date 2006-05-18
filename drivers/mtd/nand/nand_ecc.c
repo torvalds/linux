@@ -62,7 +62,6 @@ static const u_char nand_ecc_precalc_table[] = {
 	0x00, 0x55, 0x56, 0x03, 0x59, 0x0c, 0x0f, 0x5a, 0x5a, 0x0f, 0x0c, 0x59, 0x03, 0x56, 0x55, 0x00
 };
 
-
 /**
  * nand_trans_result - [GENERIC] create non-inverted ECC
  * @reg2:	line parity reg 2
@@ -71,8 +70,7 @@ static const u_char nand_ecc_precalc_table[] = {
  *
  * Creates non-inverted ECC code from line parity
  */
-static void nand_trans_result(u_char reg2, u_char reg3,
-	u_char *ecc_code)
+static void nand_trans_result(u_char reg2, u_char reg3, u_char *ecc_code)
 {
 	u_char a, b, i, tmp1, tmp2;
 
@@ -82,10 +80,10 @@ static void nand_trans_result(u_char reg2, u_char reg3,
 
 	/* Calculate first ECC byte */
 	for (i = 0; i < 4; i++) {
-		if (reg3 & a)		/* LP15,13,11,9 --> ecc_code[0] */
+		if (reg3 & a)	/* LP15,13,11,9 --> ecc_code[0] */
 			tmp1 |= b;
 		b >>= 1;
-		if (reg2 & a)		/* LP14,12,10,8 --> ecc_code[0] */
+		if (reg2 & a)	/* LP14,12,10,8 --> ecc_code[0] */
 			tmp1 |= b;
 		b >>= 1;
 		a >>= 1;
@@ -94,10 +92,10 @@ static void nand_trans_result(u_char reg2, u_char reg3,
 	/* Calculate second ECC byte */
 	b = 0x80;
 	for (i = 0; i < 4; i++) {
-		if (reg3 & a)		/* LP7,5,3,1 --> ecc_code[1] */
+		if (reg3 & a)	/* LP7,5,3,1 --> ecc_code[1] */
 			tmp2 |= b;
 		b >>= 1;
-		if (reg2 & a)		/* LP6,4,2,0 --> ecc_code[1] */
+		if (reg2 & a)	/* LP6,4,2,0 --> ecc_code[1] */
 			tmp2 |= b;
 		b >>= 1;
 		a >>= 1;
@@ -124,7 +122,7 @@ int nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat, u_char *ecc_code
 	ecc_code[0] = ecc_code[1] = ecc_code[2] = 0;
 
 	/* Build up column parity */
-	for(j = 0; j < 256; j++) {
+	for (j = 0; j < 256; j++) {
 
 		/* Get CP0 - CP5 from table */
 		idx = nand_ecc_precalc_table[dat[j]];
@@ -168,8 +166,7 @@ int nand_correct_data(struct mtd_info *mtd, u_char *dat, u_char *read_ecc, u_cha
 	if ((d1 | d2 | d3) == 0) {
 		/* No errors */
 		return 0;
-	}
-	else {
+	} else {
 		a = (d1 ^ (d1 >> 1)) & 0x55;
 		b = (d2 ^ (d2 >> 1)) & 0x55;
 		c = (d3 ^ (d3 >> 1)) & 0x54;
@@ -179,14 +176,14 @@ int nand_correct_data(struct mtd_info *mtd, u_char *dat, u_char *read_ecc, u_cha
 			c = 0x80;
 			add = 0;
 			a = 0x80;
-			for (i=0; i<4; i++) {
+			for (i = 0; i < 4; i++) {
 				if (d1 & c)
 					add |= a;
 				c >>= 2;
 				a >>= 1;
 			}
 			c = 0x80;
-			for (i=0; i<4; i++) {
+			for (i = 0; i < 4; i++) {
 				if (d2 & c)
 					add |= a;
 				c >>= 2;
@@ -195,7 +192,7 @@ int nand_correct_data(struct mtd_info *mtd, u_char *dat, u_char *read_ecc, u_cha
 			bit = 0;
 			b = 0x04;
 			c = 0x80;
-			for (i=0; i<3; i++) {
+			for (i = 0; i < 3; i++) {
 				if (d3 & c)
 					bit |= b;
 				c >>= 2;
@@ -206,8 +203,7 @@ int nand_correct_data(struct mtd_info *mtd, u_char *dat, u_char *read_ecc, u_cha
 			a ^= (b << bit);
 			dat[add] = a;
 			return 1;
-		}
-		else {
+		} else {
 			i = 0;
 			while (d1) {
 				if (d1 & 0x01)
@@ -230,8 +226,7 @@ int nand_correct_data(struct mtd_info *mtd, u_char *dat, u_char *read_ecc, u_cha
 				read_ecc[1] = calc_ecc[1];
 				read_ecc[2] = calc_ecc[2];
 				return 2;
-			}
-			else {
+			} else {
 				/* Uncorrectable Error */
 				return -1;
 			}

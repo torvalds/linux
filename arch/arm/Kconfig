@@ -150,8 +150,6 @@ config ARCH_IOP3XX
 
 config ARCH_IXP4XX
 	bool "IXP4xx-based"
-	select DMABOUNCE
-	select PCI
 	help
 	  Support for Intel's IXP4XX (XScale) family of processors.
 

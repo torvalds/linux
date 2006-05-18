@@ -438,7 +438,7 @@ static int check_node_data(struct jffs2_sb_info *c, struct jffs2_tmp_dnode_info 
 	if (c->mtd->point) {
 		err = c->mtd->point(c->mtd, ofs, len, &retlen, &buffer);
 		if (!err && retlen < tn->csize) {
-			JFFS2_WARNING("MTD point returned len too short: %u instead of %u.\n", retlen, tn->csize);
+			JFFS2_WARNING("MTD point returned len too short: %zu instead of %u.\n", retlen, tn->csize);
 			c->mtd->unpoint(c->mtd, buffer, ofs, len);
 		} else if (err)
 			JFFS2_WARNING("MTD point failed: error code %d.\n", err);
@@ -461,7 +461,7 @@ static int check_node_data(struct jffs2_sb_info *c, struct jffs2_tmp_dnode_info 
 		}
 
 		if (retlen != len) {
-			JFFS2_ERROR("short read at %#08x: %d instead of %d.\n", ofs, retlen, len);
+			JFFS2_ERROR("short read at %#08x: %zd instead of %d.\n", ofs, retlen, len);
 			err = -EIO;
 			goto free_out;
 		}

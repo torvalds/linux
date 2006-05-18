@@ -7653,21 +7653,23 @@ static int tg3_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		cmd->supported |= (SUPPORTED_1000baseT_Half |
 				   SUPPORTED_1000baseT_Full);
 
-	if (!(tp->tg3_flags2 & TG3_FLG2_ANY_SERDES))
+	if (!(tp->tg3_flags2 & TG3_FLG2_ANY_SERDES)) {
 		cmd->supported |= (SUPPORTED_100baseT_Half |
 				  SUPPORTED_100baseT_Full |
 				  SUPPORTED_10baseT_Half |
 				  SUPPORTED_10baseT_Full |
 				  SUPPORTED_MII);
-	else
+		cmd->port = PORT_TP;
+	} else {
 		cmd->supported |= SUPPORTED_FIBRE;
+		cmd->port = PORT_FIBRE;
+	}
   
 	cmd->advertising = tp->link_config.advertising;
 	if (netif_running(dev)) {
 		cmd->speed = tp->link_config.active_speed;
 		cmd->duplex = tp->link_config.active_duplex;
 	}
-	cmd->port = 0;
 	cmd->phy_address = PHY_ADDR;
 	cmd->transceiver = 0;
 	cmd->autoneg = tp->link_config.autoneg;
@@ -8454,6 +8456,9 @@ static int tg3_run_loopback(struct tg3 *tp, int loopback_mode)
 
 	tx_len = 1514;
 	skb = dev_alloc_skb(tx_len);
+	if (!skb)
+		return -ENOMEM;
+
 	tx_data = skb_put(skb, tx_len);
 	memcpy(tx_data, tp->dev->dev_addr, 6);
 	memset(tx_data + 6, 0x0, 8);
