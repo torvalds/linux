@@ -350,7 +350,6 @@ struct bttv_sub_driver {
 	char                   wanted[BUS_ID_SIZE];
 	int                    (*probe)(struct bttv_sub_device *sub);
 	void                   (*remove)(struct bttv_sub_device *sub);
-	void                   (*gpio_irq)(struct bttv_sub_device *sub);
 };
 #define to_bttv_sub_drv(x) container_of((x), struct bttv_sub_driver, drv)
 
