@@ -45,7 +45,6 @@
 #include <linux/sort.h>
 #include <linux/fs.h>
 #include <linux/gfs2_ondisk.h>
-#include <asm/semaphore.h>
 
 #include "gfs2.h"
 #include "lm_interface.h"

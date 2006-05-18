@@ -22,7 +22,6 @@
 #include <linux/ext2_fs.h>
 #include <linux/crc32.h>
 #include <linux/iflags.h>
-#include <asm/semaphore.h>
 #include <asm/uaccess.h>
 
 #include "gfs2.h"

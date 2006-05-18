@@ -19,7 +19,6 @@
 #include <linux/posix_acl.h>
 #include <linux/gfs2_ondisk.h>
 #include <linux/crc32.h>
-#include <asm/semaphore.h>
 #include <asm/uaccess.h>
 
 #include "gfs2.h"

@@ -15,7 +15,6 @@
 #include <linux/smp_lock.h>
 #include <linux/gfs2_ondisk.h>
 #include <linux/crc32.h>
-#include <asm/semaphore.h>
 
 #include "gfs2.h"
 #include "lm_interface.h"

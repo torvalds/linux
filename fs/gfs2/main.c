@@ -15,7 +15,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/gfs2_ondisk.h>
-#include <asm/semaphore.h>
 
 #include "gfs2.h"
 #include "lm_interface.h"

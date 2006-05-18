@@ -15,7 +15,6 @@
 #include <linux/module.h>
 #include <linux/kobject.h>
 #include <linux/gfs2_ondisk.h>
-#include <asm/semaphore.h>
 #include <asm/uaccess.h>
 
 #include "gfs2.h"

@@ -14,7 +14,6 @@
 #include <linux/buffer_head.h>
 #include <linux/xattr.h>
 #include <linux/gfs2_ondisk.h>
-#include <asm/semaphore.h>
 #include <asm/uaccess.h>
 
 #include "gfs2.h"

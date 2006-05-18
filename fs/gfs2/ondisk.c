@@ -12,7 +12,6 @@
 #include <linux/spinlock.h>
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
-#include <asm/semaphore.h>
 
 #include "gfs2.h"
 #include <linux/gfs2_ondisk.h>

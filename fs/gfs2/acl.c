@@ -14,7 +14,6 @@
 #include <linux/buffer_head.h>
 #include <linux/posix_acl.h>
 #include <linux/posix_acl_xattr.h>
-#include <asm/semaphore.h>
 #include <linux/gfs2_ondisk.h>
 
 #include "gfs2.h"

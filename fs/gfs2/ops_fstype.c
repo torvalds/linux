@@ -16,7 +16,6 @@
 #include <linux/blkdev.h>
 #include <linux/kthread.h>
 #include <linux/gfs2_ondisk.h>
-#include <asm/semaphore.h>
 
 #include "gfs2.h"
 #include "lm_interface.h"
