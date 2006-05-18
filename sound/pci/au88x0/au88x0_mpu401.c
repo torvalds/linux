@@ -70,9 +70,6 @@ static int __devinit snd_vortex_midi(vortex_t * vortex)
 	temp |= (MIDI_CLOCK_DIV << 8) | ((mode >> 24) & 0xff) << 4;
 	hwwrite(vortex->mmio, VORTEX_CTRL2, temp);
 	hwwrite(vortex->mmio, VORTEX_MIDI_CMD, MPU401_RESET);
-	/* Set some kind of mode */
-	if (mode)
-		hwwrite(vortex->mmio, VORTEX_MIDI_CMD, MPU401_ENTER_UART);
 
 	/* Check if anything is OK. */
 	temp = hwread(vortex->mmio, VORTEX_MIDI_DATA);
