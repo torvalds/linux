@@ -3865,10 +3865,16 @@ static void atapi_pio_bytes(struct ata_queued_cmd *qc)
 	unsigned int ireason, bc_lo, bc_hi, bytes;
 	int i_write, do_write = (qc->tf.flags & ATA_TFLAG_WRITE) ? 1 : 0;
 
-	ap->ops->tf_read(ap, &qc->tf);
-	ireason = qc->tf.nsect;
-	bc_lo = qc->tf.lbam;
-	bc_hi = qc->tf.lbah;
+	/* Abuse qc->result_tf for temp storage of intermediate TF
+	 * here to save some kernel stack usage.
+	 * For normal completion, qc->result_tf is not relevant. For
+	 * error, qc->result_tf is later overwritten by ata_qc_complete().
+	 * So, the correctness of qc->result_tf is not affected.
+	 */
+	ap->ops->tf_read(ap, &qc->result_tf);
+	ireason = qc->result_tf.nsect;
+	bc_lo = qc->result_tf.lbam;
+	bc_hi = qc->result_tf.lbah;
 	bytes = (bc_hi << 8) | bc_lo;
 
 	/* shall be cleared to zero, indicating xfer of data */
