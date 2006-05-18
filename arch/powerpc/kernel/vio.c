@@ -77,36 +77,28 @@ static struct iommu_table *vio_build_iommu_table(struct vio_dev *dev)
 	} else
 #endif
 	{
-		unsigned int *dma_window;
-		struct iommu_table *newTceTable;
-		unsigned long offset;
-		int dma_window_property_size;
+		unsigned char *dma_window;
+		struct iommu_table *tbl;
+		unsigned long offset, size;
 
-		dma_window = (unsigned int *)get_property(
-				dev->dev.platform_data, "ibm,my-dma-window",
-				&dma_window_property_size);
+		dma_window = get_property(dev->dev.platform_data,
+				"ibm,my-dma-window", NULL);
 		if (!dma_window)
 			return NULL;
 
-		newTceTable = kmalloc(sizeof(struct iommu_table), GFP_KERNEL);
+		tbl = kmalloc(sizeof(*tbl), GFP_KERNEL);
 
-		/*
-		 * There should be some code to extract the phys-encoded
-		 * offset using prom_n_addr_cells(). However, according to
-		 * a comment on earlier versions, it's always zero, so we
-		 * don't bother
-		 */
-		offset = dma_window[1] >>  PAGE_SHIFT;
+		of_parse_dma_window(dev->dev.platform_data, dma_window,
+				&tbl->it_index, &offset, &size);
 
 		/* TCE table size - measured in tce entries */
-		newTceTable->it_size = dma_window[4] >> PAGE_SHIFT;
+		tbl->it_size = size >> PAGE_SHIFT;
 		/* offset for VIO should always be 0 */
-		newTceTable->it_offset = offset;
-		newTceTable->it_busno = 0;
-		newTceTable->it_index = (unsigned long)dma_window[0];
-		newTceTable->it_type = TCE_VB;
+		tbl->it_offset = offset >> PAGE_SHIFT;
+		tbl->it_busno = 0;
+		tbl->it_type = TCE_VB;
 
-		return iommu_init_table(newTceTable);
+		return iommu_init_table(tbl);
 	}
 }
 

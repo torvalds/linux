@@ -281,30 +281,22 @@ static void iommu_table_setparms(struct pci_controller *phb,
  * iommu_table_setparms_lpar
  *
  * Function: On pSeries LPAR systems, return TCE table info, given a pci bus.
- *
- * ToDo: properly interpret the ibm,dma-window property.  The definition is:
- *	logical-bus-number	(1 word)
- *	phys-address		(#address-cells words)
- *	size			(#cell-size words)
- *
- * Currently we hard code these sizes (more or less).
  */
 static void iommu_table_setparms_lpar(struct pci_controller *phb,
 				      struct device_node *dn,
 				      struct iommu_table *tbl,
-				      unsigned int *dma_window)
+				      unsigned char *dma_window)
 {
-	tbl->it_busno  = PCI_DN(dn)->bussubno;
+	unsigned long offset, size;
 
-	/* TODO: Parse field size properties properly. */
-	tbl->it_size   = (((unsigned long)dma_window[4] << 32) |
-			   (unsigned long)dma_window[5]) >> PAGE_SHIFT;
-	tbl->it_offset = (((unsigned long)dma_window[2] << 32) |
-			   (unsigned long)dma_window[3]) >> PAGE_SHIFT;
+	tbl->it_busno  = PCI_DN(dn)->bussubno;
+	of_parse_dma_window(dn, dma_window, &tbl->it_index, &offset, &size);
+
 	tbl->it_base   = 0;
-	tbl->it_index  = dma_window[0];
 	tbl->it_blocksize  = 16;
 	tbl->it_type = TCE_PCI;
+	tbl->it_offset = offset >> PAGE_SHIFT;
+	tbl->it_size = size >> PAGE_SHIFT;
 }
 
 static void iommu_bus_setup_pSeries(struct pci_bus *bus)
@@ -396,7 +388,7 @@ static void iommu_bus_setup_pSeriesLP(struct pci_bus *bus)
 	struct iommu_table *tbl;
 	struct device_node *dn, *pdn;
 	struct pci_dn *ppci;
-	unsigned int *dma_window = NULL;
+	unsigned char *dma_window = NULL;
 
 	DBG("iommu_bus_setup_pSeriesLP, bus %p, bus->self %p\n", bus, bus->self);
 
@@ -404,7 +396,7 @@ static void iommu_bus_setup_pSeriesLP(struct pci_bus *bus)
 
 	/* Find nearest ibm,dma-window, walking up the device tree */
 	for (pdn = dn; pdn != NULL; pdn = pdn->parent) {
-		dma_window = (unsigned int *)get_property(pdn, "ibm,dma-window", NULL);
+		dma_window = get_property(pdn, "ibm,dma-window", NULL);
 		if (dma_window != NULL)
 			break;
 	}
@@ -498,7 +490,7 @@ static void iommu_dev_setup_pSeriesLP(struct pci_dev *dev)
 {
 	struct device_node *pdn, *dn;
 	struct iommu_table *tbl;
-	int *dma_window = NULL;
+	unsigned char *dma_window = NULL;
 	struct pci_dn *pci;
 
 	DBG("iommu_dev_setup_pSeriesLP, dev %p (%s)\n", dev, pci_name(dev));
@@ -513,8 +505,7 @@ static void iommu_dev_setup_pSeriesLP(struct pci_dev *dev)
 
 	for (pdn = dn; pdn && PCI_DN(pdn) && !PCI_DN(pdn)->iommu_table;
 	     pdn = pdn->parent) {
-		dma_window = (unsigned int *)
-			get_property(pdn, "ibm,dma-window", NULL);
+		dma_window = get_property(pdn, "ibm,dma-window", NULL);
 		if (dma_window)
 			break;
 	}
