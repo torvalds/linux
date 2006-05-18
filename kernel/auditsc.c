@@ -922,11 +922,11 @@ void audit_syscall_exit(int valid, long return_code)
  * Add a name to the list of audit names for this context.
  * Called from fs/namei.c:getname().
  */
-void audit_getname(const char *name)
+void __audit_getname(const char *name)
 {
 	struct audit_context *context = current->audit_context;
 
-	if (!context || IS_ERR(name) || !name)
+	if (IS_ERR(name) || !name)
 		return;
 
 	if (!context->in_syscall) {
@@ -1189,13 +1189,10 @@ uid_t audit_get_loginuid(struct audit_context *ctx)
  *
  * Returns 0 for success or NULL context or < 0 on error.
  */
-int audit_ipc_obj(struct kern_ipc_perm *ipcp)
+int __audit_ipc_obj(struct kern_ipc_perm *ipcp)
 {
 	struct audit_aux_data_ipcctl *ax;
 	struct audit_context *context = current->audit_context;
-
-	if (likely(!context))
-		return 0;
 
 	ax = kmalloc(sizeof(*ax), GFP_ATOMIC);
 	if (!ax)
@@ -1221,13 +1218,10 @@ int audit_ipc_obj(struct kern_ipc_perm *ipcp)
  *
  * Returns 0 for success or NULL context or < 0 on error.
  */
-int audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode)
+int __audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode)
 {
 	struct audit_aux_data_ipcctl *ax;
 	struct audit_context *context = current->audit_context;
-
-	if (likely(!context))
-		return 0;
 
 	ax = kmalloc(sizeof(*ax), GFP_ATOMIC);
 	if (!ax)

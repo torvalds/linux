@@ -301,11 +301,16 @@ extern void audit_syscall_entry(int arch,
 				int major, unsigned long a0, unsigned long a1,
 				unsigned long a2, unsigned long a3);
 extern void audit_syscall_exit(int failed, long return_code);
-extern void audit_getname(const char *name);
+extern void __audit_getname(const char *name);
 extern void audit_putname(const char *name);
 extern void __audit_inode(const char *name, const struct inode *inode, unsigned flags);
 extern void __audit_inode_child(const char *dname, const struct inode *inode,
 				unsigned long pino);
+static inline void audit_getname(const char *name)
+{
+	if (unlikely(current->audit_context))
+		__audit_getname(name);
+}
 static inline void audit_inode(const char *name, const struct inode *inode,
 			       unsigned flags) {
 	if (unlikely(current->audit_context))
@@ -324,13 +329,26 @@ extern void auditsc_get_stamp(struct audit_context *ctx,
 			      struct timespec *t, unsigned int *serial);
 extern int  audit_set_loginuid(struct task_struct *task, uid_t loginuid);
 extern uid_t audit_get_loginuid(struct audit_context *ctx);
-extern int audit_ipc_obj(struct kern_ipc_perm *ipcp);
-extern int audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode);
+extern int __audit_ipc_obj(struct kern_ipc_perm *ipcp);
+extern int __audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode);
 extern int audit_bprm(struct linux_binprm *bprm);
 extern int audit_socketcall(int nargs, unsigned long *args);
 extern int audit_sockaddr(int len, void *addr);
 extern int audit_avc_path(struct dentry *dentry, struct vfsmount *mnt);
 extern int audit_set_macxattr(const char *name);
+
+static inline int audit_ipc_obj(struct kern_ipc_perm *ipcp)
+{
+	if (unlikely(current->audit_context))
+		return __audit_ipc_obj(ipcp);
+	return 0;
+}
+static inline int audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode)
+{
+	if (unlikely(current->audit_context))
+		return __audit_ipc_set_perm(qbytes, uid, gid, mode);
+	return 0;
+}
 #else
 #define audit_alloc(t) ({ 0; })
 #define audit_free(t) do { ; } while (0)
