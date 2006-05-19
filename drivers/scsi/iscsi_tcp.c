@@ -43,11 +43,13 @@
 
 #include "iscsi_tcp.h"
 
+#define ISCSI_TCP_VERSION "1.0-574"
+
 MODULE_AUTHOR("Dmitry Yusupov <dmitry_yus@yahoo.com>, "
 	      "Alex Aizman <itn780@yahoo.com>");
 MODULE_DESCRIPTION("iSCSI/TCP data-path");
 MODULE_LICENSE("GPL");
-MODULE_VERSION("0:4.445");
+MODULE_VERSION(ISCSI_TCP_VERSION);
 /* #define DEBUG_TCP */
 #define DEBUG_ASSERT
 
@@ -2448,8 +2450,8 @@ static void iscsi_tcp_session_destroy(struct iscsi_cls_session *cls_session)
 }
 
 static struct scsi_host_template iscsi_sht = {
-	.name			= "iSCSI Initiator over TCP/IP, v."
-				  ISCSI_VERSION_STR,
+	.name			= "iSCSI Initiator over TCP/IP, v"
+				  ISCSI_TCP_VERSION,
 	.queuecommand           = iscsi_queuecommand,
 	.change_queue_depth	= iscsi_change_queue_depth,
 	.can_queue		= ISCSI_XMIT_CMDS_MAX - 1,
