@@ -128,8 +128,6 @@ struct uhci_qh {
 	__le32 element;			/* Queue element (TD) pointer */
 
 	/* Software fields */
-	dma_addr_t dma_handle;
-
 	struct list_head node;		/* Node in the list of QHs */
 	struct usb_host_endpoint *hep;	/* Endpoint information */
 	struct usb_device *udev;
@@ -138,12 +136,18 @@ struct uhci_qh {
 	struct uhci_td *dummy_td;	/* Dummy TD to end the queue */
 	struct uhci_td *post_td;	/* Last TD completed */
 
+	struct usb_iso_packet_descriptor *iso_packet_desc;
+					/* Next urb->iso_frame_desc entry */
 	unsigned long advance_jiffies;	/* Time of last queue advance */
 	unsigned int unlink_frame;	/* When the QH was unlinked */
 	unsigned int period;		/* For Interrupt and Isochronous QHs */
+	unsigned int iso_frame;		/* Frame # for iso_packet_desc */
+	int iso_status;			/* Status for Isochronous URBs */
 
 	int state;			/* QH_STATE_xxx; see above */
 	int type;			/* Queue type (control, bulk, etc) */
+
+	dma_addr_t dma_handle;
 
 	unsigned int initial_toggle:1;	/* Endpoint's current toggle value */
 	unsigned int needs_fixup:1;	/* Must fix the TD toggle values */
@@ -386,6 +390,8 @@ struct uhci_hcd {
 	unsigned int frame_number;		/* As of last check */
 	unsigned int is_stopped;
 #define UHCI_IS_STOPPED		9999		/* Larger than a frame # */
+	unsigned int last_iso_frame;		/* Frame of last scan */
+	unsigned int cur_iso_frame;		/* Frame for current scan */
 
 	unsigned int scan_in_progress:1;	/* Schedule scan is running */
 	unsigned int need_rescan:1;		/* Redo the schedule scan */

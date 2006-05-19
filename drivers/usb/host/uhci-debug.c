@@ -127,7 +127,8 @@ static int uhci_show_urbp(struct urb_priv *urbp, char *buf, int len, int space)
 
 	i = nactive = ninactive = 0;
 	list_for_each_entry(td, &urbp->td_list, list) {
-		if (++i <= 10 || debug > 2) {
+		if (urbp->qh->type != USB_ENDPOINT_XFER_ISOC &&
+				(++i <= 10 || debug > 2)) {
 			out += sprintf(out, "%*s%d: ", space + 2, "", i);
 			out += uhci_show_td(td, out, len - (out - buf), 0);
 		} else {
@@ -168,8 +169,9 @@ static int uhci_show_qh(struct uhci_qh *qh, char *buf, int len, int space)
 			space, "", qh, qtype,
 			le32_to_cpu(qh->link), le32_to_cpu(element));
 	if (qh->type == USB_ENDPOINT_XFER_ISOC)
-		out += sprintf(out, "%*s    period %d\n",
-				space, "", qh->period);
+		out += sprintf(out, "%*s    period %d frame %x desc [%p]\n",
+				space, "", qh->period, qh->iso_frame,
+				qh->iso_packet_desc);
 
 	if (element & UHCI_PTR_QH)
 		out += sprintf(out, "%*s  Element points to QH (bug?)\n", space, "");
@@ -331,8 +333,10 @@ static int uhci_show_status(struct uhci_hcd *uhci, char *buf, int len)
 	out += sprintf(out, "  sof       =       %02x\n", sof);
 	out += uhci_show_sc(1, portsc1, out, len - (out - buf));
 	out += uhci_show_sc(2, portsc2, out, len - (out - buf));
-	out += sprintf(out, "Most recent frame: %x\n",
-			uhci->frame_number);
+	out += sprintf(out, "Most recent frame: %x (%d)   "
+			"Last ISO frame: %x (%d)\n",
+			uhci->frame_number, uhci->frame_number & 1023,
+			uhci->last_iso_frame, uhci->last_iso_frame & 1023);
 
 	return out - buf;
 }
