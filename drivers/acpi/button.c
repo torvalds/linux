@@ -82,7 +82,6 @@ static struct acpi_driver acpi_button_driver = {
 };
 
 struct acpi_button {
-	acpi_handle handle;
 	struct acpi_device *device;	/* Fixed button kludge */
 	u8 type;
 	unsigned long pushed;
@@ -303,7 +302,6 @@ static int acpi_button_add(struct acpi_device *device)
 	memset(button, 0, sizeof(struct acpi_button));
 
 	button->device = device;
-	button->handle = device->handle;
 	acpi_driver_data(device) = button;
 
 	/*
