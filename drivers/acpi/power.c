@@ -71,6 +71,7 @@ static struct acpi_driver acpi_power_driver = {
 
 struct acpi_power_resource {
 	acpi_handle handle;
+	struct acpi_device * device;
 	acpi_bus_id name;
 	u32 system_level;
 	u32 order;
@@ -203,10 +204,8 @@ static int acpi_power_on(acpi_handle handle)
 		return -ENOEXEC;
 
 	/* Update the power resource's _device_ power state */
-	result = acpi_bus_get_device(resource->handle, &device);
-	if (result)
-		return result;
-	device->power.state = ACPI_STATE_D0;
+	device = resource->device;
+	resource->device->power.state = ACPI_STATE_D0;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Resource [%s] turned on\n",
 			  resource->name));
@@ -253,9 +252,7 @@ static int acpi_power_off_device(acpi_handle handle)
 		return -ENOEXEC;
 
 	/* Update the power resource's _device_ power state */
-	result = acpi_bus_get_device(resource->handle, &device);
-	if (result)
-		return result;
+	device = resource->device;
 	device->power.state = ACPI_STATE_D3;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Resource [%s] turned off\n",
@@ -545,6 +542,7 @@ static int acpi_power_add(struct acpi_device *device)
 	memset(resource, 0, sizeof(struct acpi_power_resource));
 
 	resource->handle = device->handle;
+	resource->device = device;
 	strcpy(resource->name, device->pnp.bus_id);
 	strcpy(acpi_device_name(device), ACPI_POWER_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_POWER_CLASS);
