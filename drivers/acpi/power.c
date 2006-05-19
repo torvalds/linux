@@ -125,7 +125,7 @@ static int acpi_power_get_state(struct acpi_power_resource *resource)
 	if (!resource)
 		return -EINVAL;
 
-	status = acpi_evaluate_integer(resource->handle, "_STA", NULL, &sta);
+	status = acpi_evaluate_integer(resource->device->handle, "_STA", NULL, &sta);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
@@ -193,7 +193,7 @@ static int acpi_power_on(acpi_handle handle)
 		return 0;
 	}
 
-	status = acpi_evaluate_object(resource->handle, "_ON", NULL, NULL);
+	status = acpi_evaluate_object(resource->device->handle, "_ON", NULL, NULL);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
@@ -241,7 +241,7 @@ static int acpi_power_off_device(acpi_handle handle)
 		return 0;
 	}
 
-	status = acpi_evaluate_object(resource->handle, "_OFF", NULL, NULL);
+	status = acpi_evaluate_object(resource->device->handle, "_OFF", NULL, NULL);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
@@ -549,7 +549,7 @@ static int acpi_power_add(struct acpi_device *device)
 	acpi_driver_data(device) = resource;
 
 	/* Evalute the object to get the system level and resource order. */
-	status = acpi_evaluate_object(resource->handle, NULL, NULL, &buffer);
+	status = acpi_evaluate_object(device->handle, NULL, NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
 		result = -ENODEV;
 		goto end;
