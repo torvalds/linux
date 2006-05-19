@@ -138,6 +138,7 @@ int usb_serial_generic_open (struct usb_serial_port *port, struct file *filp)
 
 	return result;
 }
+EXPORT_SYMBOL_GPL(usb_serial_generic_open);
 
 static void generic_cleanup (struct usb_serial_port *port)
 {

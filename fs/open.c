@@ -1124,7 +1124,6 @@ asmlinkage long sys_openat(int dfd, const char __user *filename, int flags,
 	prevent_tail_call(ret);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(sys_openat);
 
 #ifndef __alpha__
 

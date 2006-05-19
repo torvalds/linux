@@ -29,7 +29,7 @@ static const char fmt_ulong[] = "%lu\n";
 
 static inline int dev_isalive(const struct net_device *dev) 
 {
-	return dev->reg_state == NETREG_REGISTERED;
+	return dev->reg_state <= NETREG_REGISTERED;
 }
 
 /* use same locking rules as GIF* ioctl's */
@@ -445,58 +445,33 @@ static struct class net_class = {
 
 void netdev_unregister_sysfs(struct net_device * net)
 {
-	struct class_device * class_dev = &(net->class_dev);
-
-	if (net->get_stats)
-		sysfs_remove_group(&class_dev->kobj, &netstat_group);
-
-#ifdef WIRELESS_EXT
-	if (net->get_wireless_stats || (net->wireless_handlers &&
-			net->wireless_handlers->get_wireless_stats))
-		sysfs_remove_group(&class_dev->kobj, &wireless_group);
-#endif
-	class_device_del(class_dev);
-
+	class_device_del(&(net->class_dev));
 }
 
 /* Create sysfs entries for network device. */
 int netdev_register_sysfs(struct net_device *net)
 {
 	struct class_device *class_dev = &(net->class_dev);
-	int ret;
+	struct attribute_group **groups = net->sysfs_groups;
 
+	class_device_initialize(class_dev);
 	class_dev->class = &net_class;
 	class_dev->class_data = net;
+	class_dev->groups = groups;
 
+	BUILD_BUG_ON(BUS_ID_SIZE < IFNAMSIZ);
 	strlcpy(class_dev->class_id, net->name, BUS_ID_SIZE);
-	if ((ret = class_device_register(class_dev)))
-		goto out;
 
-	if (net->get_stats &&
-	    (ret = sysfs_create_group(&class_dev->kobj, &netstat_group)))
-		goto out_unreg; 
+	if (net->get_stats)
+		*groups++ = &netstat_group;
 
 #ifdef WIRELESS_EXT
-	if (net->get_wireless_stats || (net->wireless_handlers &&
-			net->wireless_handlers->get_wireless_stats)) {
-		ret = sysfs_create_group(&class_dev->kobj, &wireless_group);
-		if (ret)
-			goto out_cleanup;
-	}
-	return 0;
-out_cleanup:
-	if (net->get_stats)
-		sysfs_remove_group(&class_dev->kobj, &netstat_group);
-#else
-	return 0;
+	if (net->get_wireless_stats
+	    || (net->wireless_handlers && net->wireless_handlers->get_wireless_stats))
+		*groups++ = &wireless_group;
 #endif
 
-out_unreg:
-	printk(KERN_WARNING "%s: sysfs attribute registration failed %d\n",
-	       net->name, ret);
-	class_device_unregister(class_dev);
-out:
-	return ret;
+	return class_device_add(class_dev);
 }
 
 int netdev_sysfs_init(void)

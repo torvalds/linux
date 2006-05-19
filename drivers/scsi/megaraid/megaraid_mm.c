@@ -898,10 +898,8 @@ mraid_mm_register_adp(mraid_mmadp_t *lld_adp)
 
 	adapter = kmalloc(sizeof(mraid_mmadp_t), GFP_KERNEL);
 
-	if (!adapter) {
-		rval = -ENOMEM;
-		goto memalloc_error;
-	}
+	if (!adapter)
+		return -ENOMEM;
 
 	memset(adapter, 0, sizeof(mraid_mmadp_t));
 

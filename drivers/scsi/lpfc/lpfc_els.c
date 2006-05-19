@@ -302,10 +302,6 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 	if (lpfc_reg_login(phba, Fabric_DID, (uint8_t *) sp, mbox, 0))
 		goto fail_free_mbox;
 
-	/*
-	 * set_slim mailbox command needs to execute first,
-	 * queue this command to be processed later.
-	 */
 	mbox->mbox_cmpl = lpfc_mbx_cmpl_fabric_reg_login;
 	mbox->context2 = ndlp;
 
@@ -781,25 +777,26 @@ lpfc_cmpl_els_plogi(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 	if (disc && phba->num_disc_nodes) {
 		/* Check to see if there are more PLOGIs to be sent */
 		lpfc_more_plogi(phba);
-	}
 
-	if (phba->num_disc_nodes == 0) {
-		spin_lock_irq(phba->host->host_lock);
-		phba->fc_flag &= ~FC_NDISC_ACTIVE;
-		spin_unlock_irq(phba->host->host_lock);
+		if (phba->num_disc_nodes == 0) {
+			spin_lock_irq(phba->host->host_lock);
+			phba->fc_flag &= ~FC_NDISC_ACTIVE;
+			spin_unlock_irq(phba->host->host_lock);
 
-		lpfc_can_disctmo(phba);
-		if (phba->fc_flag & FC_RSCN_MODE) {
-			/* Check to see if more RSCNs came in while we were
-			 * processing this one.
-			 */
-			if ((phba->fc_rscn_id_cnt == 0) &&
-			    (!(phba->fc_flag & FC_RSCN_DISCOVERY))) {
-				spin_lock_irq(phba->host->host_lock);
-				phba->fc_flag &= ~FC_RSCN_MODE;
-				spin_unlock_irq(phba->host->host_lock);
-			} else {
-				lpfc_els_handle_rscn(phba);
+			lpfc_can_disctmo(phba);
+			if (phba->fc_flag & FC_RSCN_MODE) {
+				/*
+				 * Check to see if more RSCNs came in while
+				 * we were processing this one.
+				 */
+				if ((phba->fc_rscn_id_cnt == 0) &&
+			    	(!(phba->fc_flag & FC_RSCN_DISCOVERY))) {
+					spin_lock_irq(phba->host->host_lock);
+					phba->fc_flag &= ~FC_RSCN_MODE;
+					spin_unlock_irq(phba->host->host_lock);
+				} else {
+					lpfc_els_handle_rscn(phba);
+				}
 			}
 		}
 	}
@@ -1263,7 +1260,7 @@ lpfc_issue_els_logo(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp,
 	psli = &phba->sli;
 	pring = &psli->ring[LPFC_ELS_RING];
 
-	cmdsize = 2 * (sizeof (uint32_t) + sizeof (struct lpfc_name));
+	cmdsize = (2 * sizeof (uint32_t)) + sizeof (struct lpfc_name);
 	elsiocb = lpfc_prep_els_iocb(phba, 1, cmdsize, retry, ndlp,
 						ndlp->nlp_DID, ELS_CMD_LOGO);
 	if (!elsiocb)
@@ -1451,22 +1448,23 @@ lpfc_cancel_retry_delay_tmo(struct lpfc_hba *phba, struct lpfc_nodelist * nlp)
 			 * PLOGIs to be sent
 			 */
 			lpfc_more_plogi(phba);
-		}
 
-		if (phba->num_disc_nodes == 0) {
-			phba->fc_flag &= ~FC_NDISC_ACTIVE;
-			lpfc_can_disctmo(phba);
-			if (phba->fc_flag & FC_RSCN_MODE) {
-				/* Check to see if more RSCNs
-				 * came in while we were
-				 * processing this one.
-				 */
-				if((phba->fc_rscn_id_cnt==0) &&
-				   (!(phba->fc_flag & FC_RSCN_DISCOVERY))) {
-					phba->fc_flag &= ~FC_RSCN_MODE;
-				}
-				else {
-					lpfc_els_handle_rscn(phba);
+			if (phba->num_disc_nodes == 0) {
+				phba->fc_flag &= ~FC_NDISC_ACTIVE;
+				lpfc_can_disctmo(phba);
+				if (phba->fc_flag & FC_RSCN_MODE) {
+					/*
+					 * Check to see if more RSCNs
+					 * came in while we were
+					 * processing this one.
+					 */
+					if((phba->fc_rscn_id_cnt==0) &&
+					 !(phba->fc_flag & FC_RSCN_DISCOVERY)) {
+						phba->fc_flag &= ~FC_RSCN_MODE;
+					}
+					else {
+						lpfc_els_handle_rscn(phba);
+					}
 				}
 			}
 		}
@@ -1872,9 +1870,6 @@ lpfc_cmpl_els_acc(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 	if (mbox) {
 		if ((rspiocb->iocb.ulpStatus == 0)
 		    && (ndlp->nlp_flag & NLP_ACC_REGLOGIN)) {
-			/* set_slim mailbox command needs to execute first,
-			 * queue this command to be processed later.
-			 */
 			lpfc_unreg_rpi(phba, ndlp);
 			mbox->mbox_cmpl = lpfc_mbx_cmpl_reg_login;
 			mbox->context2 = ndlp;
@@ -1920,6 +1915,7 @@ lpfc_els_rsp_acc(struct lpfc_hba * phba, uint32_t flag,
 	uint8_t *pcmd;
 	uint16_t cmdsize;
 	int rc;
+	ELS_PKT *els_pkt_ptr;
 
 	psli = &phba->sli;
 	pring = &psli->ring[LPFC_ELS_RING];	/* ELS ring */
@@ -1957,6 +1953,23 @@ lpfc_els_rsp_acc(struct lpfc_hba * phba, uint32_t flag,
 		*((uint32_t *) (pcmd)) = ELS_CMD_ACC;
 		pcmd += sizeof (uint32_t);
 		memcpy(pcmd, &phba->fc_sparam, sizeof (struct serv_parm));
+		break;
+	case ELS_CMD_PRLO:
+		cmdsize = sizeof (uint32_t) + sizeof (PRLO);
+		elsiocb = lpfc_prep_els_iocb(phba, 0, cmdsize, oldiocb->retry,
+					     ndlp, ndlp->nlp_DID, ELS_CMD_PRLO);
+		if (!elsiocb)
+			return 1;
+
+		icmd = &elsiocb->iocb;
+		icmd->ulpContext = oldcmd->ulpContext; /* Xri */
+		pcmd = (((struct lpfc_dmabuf *) elsiocb->context2)->virt);
+
+		memcpy(pcmd, ((struct lpfc_dmabuf *) oldiocb->context2)->virt,
+		       sizeof (uint32_t) + sizeof (PRLO));
+		*((uint32_t *) (pcmd)) = ELS_CMD_PRLO_ACC;
+		els_pkt_ptr = (ELS_PKT *) pcmd;
+		els_pkt_ptr->un.prlo.acceptRspCode = PRLO_REQ_EXECUTED;
 		break;
 	default:
 		return 1;
@@ -2498,7 +2511,7 @@ lpfc_els_rcv_rscn(struct lpfc_hba * phba,
 	/* If we are about to begin discovery, just ACC the RSCN.
 	 * Discovery processing will satisfy it.
 	 */
-	if (phba->hba_state < LPFC_NS_QRY) {
+	if (phba->hba_state <= LPFC_NS_QRY) {
 		lpfc_els_rsp_acc(phba, ELS_CMD_ACC, cmdiocb, ndlp, NULL,
 								newnode);
 		return 0;

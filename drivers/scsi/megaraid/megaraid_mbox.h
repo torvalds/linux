@@ -21,8 +21,8 @@
 #include "megaraid_ioctl.h"
 
 
-#define MEGARAID_VERSION	"2.20.4.7"
-#define MEGARAID_EXT_VERSION	"(Release Date: Mon Nov 14 12:27:22 EST 2005)"
+#define MEGARAID_VERSION	"2.20.4.8"
+#define MEGARAID_EXT_VERSION	"(Release Date: Mon Apr 11 12:27:22 EST 2006)"
 
 
 /*
@@ -100,6 +100,9 @@
 #define MBOX_BUSY_WAIT		10	// max usec to wait for busy mailbox
 #define MBOX_RESET_WAIT		180	// wait these many seconds in reset
 #define MBOX_RESET_EXT_WAIT	120	// extended wait reset
+#define MBOX_SYNC_WAIT_CNT	0xFFFF	// wait loop index for synchronous mode
+
+#define MBOX_SYNC_DELAY_200	200	// 200 micro-seconds
 
 /*
  * maximum transfer that can happen through the firmware commands issued

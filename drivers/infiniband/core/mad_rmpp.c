@@ -49,7 +49,7 @@ struct mad_rmpp_recv {
 	struct list_head list;
 	struct work_struct timeout_work;
 	struct work_struct cleanup_work;
-	wait_queue_head_t wait;
+	struct completion comp;
 	enum rmpp_state state;
 	spinlock_t lock;
 	atomic_t refcount;
@@ -69,10 +69,16 @@ struct mad_rmpp_recv {
 	u8 method;
 };
 
+static inline void deref_rmpp_recv(struct mad_rmpp_recv *rmpp_recv)
+{
+	if (atomic_dec_and_test(&rmpp_recv->refcount))
+		complete(&rmpp_recv->comp);
+}
+
 static void destroy_rmpp_recv(struct mad_rmpp_recv *rmpp_recv)
 {
-	atomic_dec(&rmpp_recv->refcount);
-	wait_event(rmpp_recv->wait, !atomic_read(&rmpp_recv->refcount));
+	deref_rmpp_recv(rmpp_recv);
+	wait_for_completion(&rmpp_recv->comp);
 	ib_destroy_ah(rmpp_recv->ah);
 	kfree(rmpp_recv);
 }
@@ -253,7 +259,7 @@ create_rmpp_recv(struct ib_mad_agent_private *agent,
 		goto error;
 
 	rmpp_recv->agent = agent;
-	init_waitqueue_head(&rmpp_recv->wait);
+	init_completion(&rmpp_recv->comp);
 	INIT_WORK(&rmpp_recv->timeout_work, recv_timeout_handler, rmpp_recv);
 	INIT_WORK(&rmpp_recv->cleanup_work, recv_cleanup_handler, rmpp_recv);
 	spin_lock_init(&rmpp_recv->lock);
@@ -277,12 +283,6 @@ create_rmpp_recv(struct ib_mad_agent_private *agent,
 
 error:	kfree(rmpp_recv);
 	return NULL;
-}
-
-static inline void deref_rmpp_recv(struct mad_rmpp_recv *rmpp_recv)
-{
-	if (atomic_dec_and_test(&rmpp_recv->refcount))
-		wake_up(&rmpp_recv->wait);
 }
 
 static struct mad_rmpp_recv *

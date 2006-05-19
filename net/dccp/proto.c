@@ -848,6 +848,7 @@ static int dccp_close_state(struct sock *sk)
 void dccp_close(struct sock *sk, long timeout)
 {
 	struct sk_buff *skb;
+	int state;
 
 	lock_sock(sk);
 
@@ -882,6 +883,11 @@ void dccp_close(struct sock *sk, long timeout)
 	sk_stream_wait_close(sk, timeout);
 
 adjudge_to_death:
+	state = sk->sk_state;
+	sock_hold(sk);
+	sock_orphan(sk);
+	atomic_inc(sk->sk_prot->orphan_count);
+
 	/*
 	 * It is the last release_sock in its life. It will remove backlog.
 	 */
@@ -894,8 +900,9 @@ adjudge_to_death:
 	bh_lock_sock(sk);
 	BUG_TRAP(!sock_owned_by_user(sk));
 
-	sock_hold(sk);
-	sock_orphan(sk);
+	/* Have we already been destroyed by a softirq or backlog? */
+	if (state != DCCP_CLOSED && sk->sk_state == DCCP_CLOSED)
+		goto out;
 
 	/*
 	 * The last release_sock may have processed the CLOSE or RESET
@@ -915,12 +922,12 @@ adjudge_to_death:
 #endif
 	}
 
-	atomic_inc(sk->sk_prot->orphan_count);
 	if (sk->sk_state == DCCP_CLOSED)
 		inet_csk_destroy_sock(sk);
 
 	/* Otherwise, socket is reprieved until protocol close. */
 
+out:
 	bh_unlock_sock(sk);
 	local_bh_enable();
 	sock_put(sk);

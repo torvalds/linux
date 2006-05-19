@@ -939,9 +939,9 @@ static int bcm43xx_sprom_extract(struct bcm43xx_private *bcm)
 	return 0;
 }
 
-static void bcm43xx_geo_init(struct bcm43xx_private *bcm)
+static int bcm43xx_geo_init(struct bcm43xx_private *bcm)
 {
-	struct ieee80211_geo geo;
+	struct ieee80211_geo *geo;
 	struct ieee80211_channel *chan;
 	int have_a = 0, have_bg = 0;
 	int i;
@@ -949,7 +949,10 @@ static void bcm43xx_geo_init(struct bcm43xx_private *bcm)
 	struct bcm43xx_phyinfo *phy;
 	const char *iso_country;
 
-	memset(&geo, 0, sizeof(geo));
+	geo = kzalloc(sizeof(*geo), GFP_KERNEL);
+	if (!geo)
+		return -ENOMEM;
+
 	for (i = 0; i < bcm->nr_80211_available; i++) {
 		phy = &(bcm->core_80211_ext[i].phy);
 		switch (phy->type) {
@@ -967,31 +970,36 @@ static void bcm43xx_geo_init(struct bcm43xx_private *bcm)
 	iso_country = bcm43xx_locale_iso(bcm->sprom.locale);
 
  	if (have_a) {
-		for (i = 0, channel = 0; channel < 201; channel++) {
-			chan = &geo.a[i++];
+		for (i = 0, channel = IEEE80211_52GHZ_MIN_CHANNEL;
+		      channel <= IEEE80211_52GHZ_MAX_CHANNEL; channel++) {
+			chan = &geo->a[i++];
 			chan->freq = bcm43xx_channel_to_freq_a(channel);
 			chan->channel = channel;
 		}
-		geo.a_channels = i;
+		geo->a_channels = i;
 	}
 	if (have_bg) {
-		for (i = 0, channel = 1; channel < 15; channel++) {
-			chan = &geo.bg[i++];
+		for (i = 0, channel = IEEE80211_24GHZ_MIN_CHANNEL;
+		      channel <= IEEE80211_24GHZ_MAX_CHANNEL; channel++) {
+			chan = &geo->bg[i++];
 			chan->freq = bcm43xx_channel_to_freq_bg(channel);
 			chan->channel = channel;
 		}
-		geo.bg_channels = i;
+		geo->bg_channels = i;
 	}
-	memcpy(geo.name, iso_country, 2);
+	memcpy(geo->name, iso_country, 2);
 	if (0 /*TODO: Outdoor use only */)
-		geo.name[2] = 'O';
+		geo->name[2] = 'O';
 	else if (0 /*TODO: Indoor use only */)
-		geo.name[2] = 'I';
+		geo->name[2] = 'I';
 	else
-		geo.name[2] = ' ';
-	geo.name[3] = '\0';
+		geo->name[2] = ' ';
+	geo->name[3] = '\0';
 
-	ieee80211_set_geo(bcm->ieee, &geo);
+	ieee80211_set_geo(bcm->ieee, geo);
+	kfree(geo);
+
+	return 0;
 }
 
 /* DummyTransmission function, as documented on 
@@ -3479,15 +3487,16 @@ static int bcm43xx_attach_board(struct bcm43xx_private *bcm)
 			goto err_80211_unwind;
 		bcm43xx_wireless_core_disable(bcm);
 	}
+	err = bcm43xx_geo_init(bcm);
+	if (err)
+		goto err_80211_unwind;
 	bcm43xx_pctl_set_crystal(bcm, 0);
 
 	/* Set the MAC address in the networking subsystem */
-	if (bcm43xx_current_phy(bcm)->type == BCM43xx_PHYTYPE_A)
+	if (is_valid_ether_addr(bcm->sprom.et1macaddr))
 		memcpy(bcm->net_dev->dev_addr, bcm->sprom.et1macaddr, 6);
 	else
 		memcpy(bcm->net_dev->dev_addr, bcm->sprom.il0macaddr, 6);
-
-	bcm43xx_geo_init(bcm);
 
 	snprintf(bcm->nick, IW_ESSID_MAX_SIZE,
 		 "Broadcom %04X", bcm->chip_id);

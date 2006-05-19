@@ -632,7 +632,11 @@ mptscsih_io_done(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *mr)
 
 		case MPI_IOCSTATUS_SCSI_DEVICE_NOT_THERE:	/* 0x0043 */
 			/* Spoof to SCSI Selection Timeout! */
-			sc->result = DID_NO_CONNECT << 16;
+			if (ioc->bus_type != FC)
+				sc->result = DID_NO_CONNECT << 16;
+			/* else fibre, just stall until rescan event */
+			else
+				sc->result = DID_REQUEUE << 16;
 
 			if (hd->sel_timeout[pScsiReq->TargetID] < 0xFFFF)
 				hd->sel_timeout[pScsiReq->TargetID]++;
@@ -877,7 +881,7 @@ mptscsih_search_running_cmds(MPT_SCSI_HOST *hd, VirtDevice *vdevice)
 	struct scsi_cmnd *sc;
 
 	dsprintk((KERN_INFO MYNAM ": search_running target %d lun %d max %d\n",
-			vdevice->target_id, vdevice->lun, max));
+			vdevice->vtarget->target_id, vdevice->lun, max));
 
 	for (ii=0; ii < max; ii++) {
 		if ((sc = hd->ScsiLookup[ii]) != NULL) {
@@ -1645,7 +1649,6 @@ int
 mptscsih_abort(struct scsi_cmnd * SCpnt)
 {
 	MPT_SCSI_HOST	*hd;
-	MPT_ADAPTER	*ioc;
 	MPT_FRAME_HDR	*mf;
 	u32		 ctx2abort;
 	int		 scpnt_idx;
@@ -1663,14 +1666,6 @@ mptscsih_abort(struct scsi_cmnd * SCpnt)
 		return FAILED;
 	}
 
-	ioc = hd->ioc;
-	if (hd->resetPending) {
-		return FAILED;
-	}
-
-	if (hd->timeouts < -1)
-		hd->timeouts++;
-
 	/* Find this command
 	 */
 	if ((scpnt_idx = SCPNT_TO_LOOKUP_IDX(SCpnt)) < 0) {
@@ -1683,6 +1678,13 @@ mptscsih_abort(struct scsi_cmnd * SCpnt)
 			   hd->ioc->name, SCpnt));
 		return SUCCESS;
 	}
+
+	if (hd->resetPending) {
+		return FAILED;
+	}
+
+	if (hd->timeouts < -1)
+		hd->timeouts++;
 
 	printk(KERN_WARNING MYNAM ": %s: attempting task abort! (sc=%p)\n",
 	       hd->ioc->name, SCpnt);
@@ -1703,7 +1705,7 @@ mptscsih_abort(struct scsi_cmnd * SCpnt)
 	vdev = SCpnt->device->hostdata;
 	retval = mptscsih_TMHandler(hd, MPI_SCSITASKMGMT_TASKTYPE_ABORT_TASK,
 		vdev->vtarget->bus_id, vdev->vtarget->target_id, vdev->lun,
-		ctx2abort, mptscsih_get_tm_timeout(ioc));
+		ctx2abort, mptscsih_get_tm_timeout(hd->ioc));
 
 	printk (KERN_WARNING MYNAM ": %s: task abort: %s (sc=%p)\n",
 		hd->ioc->name,
@@ -2521,15 +2523,15 @@ mptscsih_ioc_reset(MPT_ADAPTER *ioc, int reset_phase)
 
 		/* 7. FC: Rescan for blocked rports which might have returned.
 		 */
-		else if (ioc->bus_type == FC) {
-			int work_count;
-			unsigned long flags;
-
+		if (ioc->bus_type == FC) {
 			spin_lock_irqsave(&ioc->fc_rescan_work_lock, flags);
-			work_count = ++ioc->fc_rescan_work_count;
+			if (ioc->fc_rescan_work_q) {
+				if (ioc->fc_rescan_work_count++ == 0) {
+					queue_work(ioc->fc_rescan_work_q,
+						   &ioc->fc_rescan_work);
+				}
+			}
 			spin_unlock_irqrestore(&ioc->fc_rescan_work_lock, flags);
-			if (work_count == 1)
-				schedule_work(&ioc->fc_rescan_work);
 		}
 		dtmprintk((MYIOC_s_WARN_FMT "Post-Reset complete.\n", ioc->name));
 
@@ -2544,7 +2546,6 @@ mptscsih_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply)
 {
 	MPT_SCSI_HOST *hd;
 	u8 event = le32_to_cpu(pEvReply->Event) & 0xFF;
-	int work_count;
 	unsigned long flags;
 
 	devtverboseprintk((MYIOC_s_INFO_FMT "MPT event (=%02Xh) routed to SCSI host driver!\n",
@@ -2569,10 +2570,13 @@ mptscsih_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply)
 
 	case MPI_EVENT_RESCAN:				/* 06 */
 		spin_lock_irqsave(&ioc->fc_rescan_work_lock, flags);
-		work_count = ++ioc->fc_rescan_work_count;
+		if (ioc->fc_rescan_work_q) {
+			if (ioc->fc_rescan_work_count++ == 0) {
+				queue_work(ioc->fc_rescan_work_q,
+					   &ioc->fc_rescan_work);
+			}
+		}
 		spin_unlock_irqrestore(&ioc->fc_rescan_work_lock, flags);
-		if (work_count == 1)
-			schedule_work(&ioc->fc_rescan_work);
 		break;
 
 		/*

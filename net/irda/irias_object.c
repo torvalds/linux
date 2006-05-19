@@ -257,7 +257,6 @@ struct ias_attrib *irias_find_attrib(struct ias_object *obj, char *name)
 	/* Unsafe (locking), attrib might change */
 	return attrib;
 }
-EXPORT_SYMBOL(irias_find_attrib);
 
 /*
  * Function irias_add_attribute (obj, attrib)
@@ -484,7 +483,6 @@ struct ias_value *irias_new_string_value(char *string)
 
 	return value;
 }
-EXPORT_SYMBOL(irias_new_string_value);
 
 /*
  * Function irias_new_octseq_value (octets, len)
@@ -519,7 +517,6 @@ struct ias_value *irias_new_octseq_value(__u8 *octseq , int len)
 	memcpy(value->t.oct_seq, octseq , len);
 	return value;
 }
-EXPORT_SYMBOL(irias_new_octseq_value);
 
 struct ias_value *irias_new_missing_value(void)
 {

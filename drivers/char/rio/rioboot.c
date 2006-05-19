@@ -34,6 +34,7 @@
 #include <linux/slab.h>
 #include <linux/termios.h>
 #include <linux/serial.h>
+#include <linux/vmalloc.h>
 #include <asm/semaphore.h>
 #include <linux/generic_serial.h>
 #include <linux/errno.h>

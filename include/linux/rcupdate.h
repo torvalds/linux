@@ -132,6 +132,7 @@ static inline void rcu_bh_qsctr_inc(int cpu)
 }
 
 extern int rcu_pending(int cpu);
+extern int rcu_needs_cpu(int cpu);
 
 /**
  * rcu_read_lock - mark the beginning of an RCU read-side critical section.

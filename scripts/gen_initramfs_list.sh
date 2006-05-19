@@ -200,7 +200,11 @@ input_file() {
 			print_mtime "$1" >> ${output}
 			cat "$1"         >> ${output}
 		else
-			grep ^file "$1" | cut -d ' ' -f 3
+			cat "$1" | while read type dir file perm ; do
+				if [ "$type" == "file" ]; then
+					echo "$file \\";
+				fi
+			done
 		fi
 	elif [ -d "$1" ]; then
 		dir_filelist "$1"

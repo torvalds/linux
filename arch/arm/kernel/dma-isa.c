@@ -143,12 +143,23 @@ static struct dma_ops isa_dma_ops = {
 	.residue	= isa_get_dma_residue,
 };
 
-static struct resource dma_resources[] = {
-	{ "dma1",		0x0000, 0x000f },
-	{ "dma low page", 	0x0080, 0x008f },
-	{ "dma2",		0x00c0, 0x00df },
-	{ "dma high page",	0x0480, 0x048f }
-};
+static struct resource dma_resources[] = { {
+	.name	= "dma1",
+	.start	= 0x0000,
+	.end	= 0x000f
+}, {
+	.name	= "dma low page",
+	.start	= 0x0080,
+	.end 	= 0x008f
+}, {
+	.name	= "dma2",
+	.start	= 0x00c0,
+	.end	= 0x00df
+}, {
+	.name	= "dma high page",
+	.start	= 0x0480,
+	.end	= 0x048f
+} };
 
 void __init isa_init_dma(dma_t *dma)
 {

@@ -270,7 +270,10 @@ v9fs_create(struct v9fs_session_info *v9ses, u32 pfid, char *name, u32 perm,
 	err = v9fs_t_walk(v9ses, pfid, fid, NULL, &fcall);
 	if (err < 0) {
 		PRINT_FCALL_ERROR("clone error", fcall);
-		goto put_fid;
+		if (fcall && fcall->id == RWALK)
+			goto clunk_fid;
+		else
+			goto put_fid;
 	}
 	kfree(fcall);
 
@@ -322,6 +325,9 @@ v9fs_clone_walk(struct v9fs_session_info *v9ses, u32 fid, struct dentry *dentry)
 		&fcall);
 
 	if (err < 0) {
+		if (fcall && fcall->id == RWALK)
+			goto clunk_fid;
+
 		PRINT_FCALL_ERROR("walk error", fcall);
 		v9fs_put_idpool(nfid, &v9ses->fidpool);
 		goto error;
@@ -640,19 +646,26 @@ static struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 	}
 
 	result = v9fs_t_walk(v9ses, dirfidnum, newfid,
-		(char *)dentry->d_name.name, NULL);
+		(char *)dentry->d_name.name, &fcall);
+
 	if (result < 0) {
-		v9fs_put_idpool(newfid, &v9ses->fidpool);
+		if (fcall && fcall->id == RWALK)
+			v9fs_t_clunk(v9ses, newfid);
+		else
+			v9fs_put_idpool(newfid, &v9ses->fidpool);
+
 		if (result == -ENOENT) {
 			d_add(dentry, NULL);
 			dprintk(DEBUG_VFS,
 				"Return negative dentry %p count %d\n",
 				dentry, atomic_read(&dentry->d_count));
+			kfree(fcall);
 			return NULL;
 		}
 		dprintk(DEBUG_ERROR, "walk error:%d\n", result);
 		goto FreeFcall;
 	}
+	kfree(fcall);
 
 	result = v9fs_t_stat(v9ses, newfid, &fcall);
 	if (result < 0) {

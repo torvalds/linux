@@ -1555,7 +1555,7 @@ static int __init prom_find_machine_type(void)
 			   compat, sizeof(compat)-1);
 	if (len <= 0)
 		return PLATFORM_GENERIC;
-	if (strncmp(compat, RELOC("chrp"), 4))
+	if (strcmp(compat, RELOC("chrp")))
 		return PLATFORM_GENERIC;
 
 	/* Default to pSeries. We need to know if we are running LPAR */

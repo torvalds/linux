@@ -120,6 +120,8 @@ extern char spider_net_driver_name[];
 #define SPIDER_NET_GMRUAFILnR		0x00000500
 #define SPIDER_NET_GMRUA0FIL15R		0x00000578
 
+#define SPIDER_NET_GTTQMSK		0x00000934
+
 /* RX DMA controller registers, all 0x00000a.. are for DMA controller A,
  * 0x00000b.. for DMA controller B, etc. */
 #define SPIDER_NET_GDADCHA		0x00000a00

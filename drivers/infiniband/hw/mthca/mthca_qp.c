@@ -240,7 +240,7 @@ void mthca_qp_event(struct mthca_dev *dev, u32 qpn,
 	spin_lock(&dev->qp_table.lock);
 	qp = mthca_array_get(&dev->qp_table.qp, qpn & (dev->limits.num_qps - 1));
 	if (qp)
-		atomic_inc(&qp->refcount);
+		++qp->refcount;
 	spin_unlock(&dev->qp_table.lock);
 
 	if (!qp) {
@@ -257,8 +257,10 @@ void mthca_qp_event(struct mthca_dev *dev, u32 qpn,
 	if (qp->ibqp.event_handler)
 		qp->ibqp.event_handler(&event, qp->ibqp.qp_context);
 
-	if (atomic_dec_and_test(&qp->refcount))
+	spin_lock(&dev->qp_table.lock);
+	if (!--qp->refcount)
 		wake_up(&qp->wait);
+	spin_unlock(&dev->qp_table.lock);
 }
 
 static int to_mthca_state(enum ib_qp_state ib_state)
@@ -833,10 +835,10 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 	 * entries and reinitialize the QP.
 	 */
 	if (new_state == IB_QPS_RESET && !qp->ibqp.uobject) {
-		mthca_cq_clean(dev, to_mcq(qp->ibqp.send_cq)->cqn, qp->qpn,
+		mthca_cq_clean(dev, to_mcq(qp->ibqp.send_cq), qp->qpn,
 			       qp->ibqp.srq ? to_msrq(qp->ibqp.srq) : NULL);
 		if (qp->ibqp.send_cq != qp->ibqp.recv_cq)
-			mthca_cq_clean(dev, to_mcq(qp->ibqp.recv_cq)->cqn, qp->qpn,
+			mthca_cq_clean(dev, to_mcq(qp->ibqp.recv_cq), qp->qpn,
 				       qp->ibqp.srq ? to_msrq(qp->ibqp.srq) : NULL);
 
 		mthca_wq_init(&qp->sq);
@@ -1096,7 +1098,7 @@ static int mthca_alloc_qp_common(struct mthca_dev *dev,
 	int ret;
 	int i;
 
-	atomic_set(&qp->refcount, 1);
+	qp->refcount = 1;
 	init_waitqueue_head(&qp->wait);
 	qp->state    	 = IB_QPS_RESET;
 	qp->atomic_rd_en = 0;
@@ -1318,6 +1320,17 @@ int mthca_alloc_sqp(struct mthca_dev *dev,
 	return err;
 }
 
+static inline int get_qp_refcount(struct mthca_dev *dev, struct mthca_qp *qp)
+{
+	int c;
+
+	spin_lock_irq(&dev->qp_table.lock);
+	c = qp->refcount;
+	spin_unlock_irq(&dev->qp_table.lock);
+
+	return c;
+}
+
 void mthca_free_qp(struct mthca_dev *dev,
 		   struct mthca_qp *qp)
 {
@@ -1339,14 +1352,14 @@ void mthca_free_qp(struct mthca_dev *dev,
 	spin_lock(&dev->qp_table.lock);
 	mthca_array_clear(&dev->qp_table.qp,
 			  qp->qpn & (dev->limits.num_qps - 1));
+	--qp->refcount;
 	spin_unlock(&dev->qp_table.lock);
 
 	if (send_cq != recv_cq)
 		spin_unlock(&recv_cq->lock);
 	spin_unlock_irq(&send_cq->lock);
 
-	atomic_dec(&qp->refcount);
-	wait_event(qp->wait, !atomic_read(&qp->refcount));
+	wait_event(qp->wait, !get_qp_refcount(dev, qp));
 
 	if (qp->state != IB_QPS_RESET)
 		mthca_MODIFY_QP(dev, qp->state, IB_QPS_RESET, qp->qpn, 0,
@@ -1358,10 +1371,10 @@ void mthca_free_qp(struct mthca_dev *dev,
 	 * unref the mem-free tables and free the QPN in our table.
 	 */
 	if (!qp->ibqp.uobject) {
-		mthca_cq_clean(dev, to_mcq(qp->ibqp.send_cq)->cqn, qp->qpn,
+		mthca_cq_clean(dev, to_mcq(qp->ibqp.send_cq), qp->qpn,
 			       qp->ibqp.srq ? to_msrq(qp->ibqp.srq) : NULL);
 		if (qp->ibqp.send_cq != qp->ibqp.recv_cq)
-			mthca_cq_clean(dev, to_mcq(qp->ibqp.recv_cq)->cqn, qp->qpn,
+			mthca_cq_clean(dev, to_mcq(qp->ibqp.recv_cq), qp->qpn,
 				       qp->ibqp.srq ? to_msrq(qp->ibqp.srq) : NULL);
 
 		mthca_free_memfree(dev, qp);

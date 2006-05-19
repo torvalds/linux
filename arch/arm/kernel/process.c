@@ -264,8 +264,12 @@ void show_fpregs(struct user_fp *regs)
 /*
  * Task structure and kernel stack allocation.
  */
-static unsigned long *thread_info_head;
-static unsigned int nr_thread_info;
+struct thread_info_list {
+	unsigned long *head;
+	unsigned int nr;
+};
+
+static DEFINE_PER_CPU(struct thread_info_list, thread_info_list) = { NULL, 0 };
 
 #define EXTRA_TASK_STRUCT	4
 
@@ -274,12 +278,15 @@ struct thread_info *alloc_thread_info(struct task_struct *task)
 	struct thread_info *thread = NULL;
 
 	if (EXTRA_TASK_STRUCT) {
-		unsigned long *p = thread_info_head;
+		struct thread_info_list *th = &get_cpu_var(thread_info_list);
+		unsigned long *p = th->head;
 
 		if (p) {
-			thread_info_head = (unsigned long *)p[0];
-			nr_thread_info -= 1;
+			th->head = (unsigned long *)p[0];
+			th->nr -= 1;
 		}
+		put_cpu_var(thread_info_list);
+
 		thread = (struct thread_info *)p;
 	}
 
@@ -300,13 +307,19 @@ struct thread_info *alloc_thread_info(struct task_struct *task)
 
 void free_thread_info(struct thread_info *thread)
 {
-	if (EXTRA_TASK_STRUCT && nr_thread_info < EXTRA_TASK_STRUCT) {
-		unsigned long *p = (unsigned long *)thread;
-		p[0] = (unsigned long)thread_info_head;
-		thread_info_head = p;
-		nr_thread_info += 1;
-	} else
-		free_pages((unsigned long)thread, THREAD_SIZE_ORDER);
+	if (EXTRA_TASK_STRUCT) {
+		struct thread_info_list *th = &get_cpu_var(thread_info_list);
+		if (th->nr < EXTRA_TASK_STRUCT) {
+			unsigned long *p = (unsigned long *)thread;
+			p[0] = (unsigned long)th->head;
+			th->head = p;
+			th->nr += 1;
+			put_cpu_var(thread_info_list);
+			return;
+		}
+		put_cpu_var(thread_info_list);
+	}
+	free_pages((unsigned long)thread, THREAD_SIZE_ORDER);
 }
 
 /*

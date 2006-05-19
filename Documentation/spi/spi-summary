@@ -414,7 +414,33 @@ to get the driver-private data allocated for that device.
 The driver will initialize the fields of that spi_master, including the
 bus number (maybe the same as the platform device ID) and three methods
 used to interact with the SPI core and SPI protocol drivers.  It will
-also initialize its own internal state.
+also initialize its own internal state.  (See below about bus numbering
+and those methods.)
+
+After you initialize the spi_master, then use spi_register_master() to
+publish it to the rest of the system.  At that time, device nodes for
+the controller and any predeclared spi devices will be made available,
+and the driver model core will take care of binding them to drivers.
+
+If you need to remove your SPI controller driver, spi_unregister_master()
+will reverse the effect of spi_register_master().
+
+
+BUS NUMBERING
+
+Bus numbering is important, since that's how Linux identifies a given
+SPI bus (shared SCK, MOSI, MISO).  Valid bus numbers start at zero.  On
+SOC systems, the bus numbers should match the numbers defined by the chip
+manufacturer.  For example, hardware controller SPI2 would be bus number 2,
+and spi_board_info for devices connected to it would use that number.
+
+If you don't have such hardware-assigned bus number, and for some reason
+you can't just assign them, then provide a negative bus number.  That will
+then be replaced by a dynamically assigned number. You'd then need to treat
+this as a non-static configuration (see above).
+
+
+SPI MASTER METHODS
 
     master->setup(struct spi_device *spi)
 	This sets up the device clock rate, SPI mode, and word sizes.
@@ -431,6 +457,9 @@ also initialize its own internal state.
 	state it dynamically associates with that device.  If you do that,
 	be sure to provide the cleanup() method to free that state.
 
+
+SPI MESSAGE QUEUE
+
 The bulk of the driver will be managing the I/O queue fed by transfer().
 
 That queue could be purely conceptual.  For example, a driver used only
@@ -440,6 +469,9 @@ But the queue will probably be very real, using message->queue, PIO,
 often DMA (especially if the root filesystem is in SPI flash), and
 execution contexts like IRQ handlers, tasklets, or workqueues (such
 as keventd).  Your driver can be as fancy, or as simple, as you need.
+Such a transfer() method would normally just add the message to a
+queue, and then start some asynchronous transfer engine (unless it's
+already running).
 
 
 THANKS TO

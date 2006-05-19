@@ -1067,16 +1067,29 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes,
 			break;
 		case NOT_READY:
 			/*
-			 * If the device is in the process of becoming ready,
-			 * retry.
+			 * If the device is in the process of becoming
+			 * ready, or has a temporary blockage, retry.
 			 */
-			if (sshdr.asc == 0x04 && sshdr.ascq == 0x01) {
-				scsi_requeue_command(q, cmd);
-				return;
+			if (sshdr.asc == 0x04) {
+				switch (sshdr.ascq) {
+				case 0x01: /* becoming ready */
+				case 0x04: /* format in progress */
+				case 0x05: /* rebuild in progress */
+				case 0x06: /* recalculation in progress */
+				case 0x07: /* operation in progress */
+				case 0x08: /* Long write in progress */
+				case 0x09: /* self test in progress */
+					scsi_requeue_command(q, cmd);
+					return;
+				default:
+					break;
+				}
 			}
-			if (!(req->flags & REQ_QUIET))
+			if (!(req->flags & REQ_QUIET)) {
 				scmd_printk(KERN_INFO, cmd,
-					   "Device not ready.\n");
+					   "Device not ready: ");
+				scsi_print_sense_hdr("", &sshdr);
+			}
 			scsi_end_request(cmd, 0, this_count, 1);
 			return;
 		case VOLUME_OVERFLOW:

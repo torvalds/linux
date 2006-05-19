@@ -71,6 +71,16 @@ config USB_SERIAL_ANYDATA
 	  To compile this driver as a module, choose M here: the
 	  module will be called anydata.
 
+config USB_SERIAL_ARK3116
+	tristate "USB ARK Micro 3116 USB Serial Driver (EXPERIMENTAL)"
+	depends on USB_SERIAL && EXPERIMENTAL
+	help
+	  Say Y here if you want to use a ARK Micro 3116 USB to Serial
+	  device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ark3116
+
 config USB_SERIAL_BELKIN
 	tristate "USB Belkin and Peracom Single Port Serial Driver"
 	depends on USB_SERIAL
