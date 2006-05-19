@@ -65,6 +65,7 @@ static struct acpi_driver acpi_fan_driver = {
 
 struct acpi_fan {
 	acpi_handle handle;
+	struct acpi_device * device;
 };
 
 /* --------------------------------------------------------------------------
@@ -192,6 +193,7 @@ static int acpi_fan_add(struct acpi_device *device)
 	memset(fan, 0, sizeof(struct acpi_fan));
 
 	fan->handle = device->handle;
+	fan->device = device;
 	strcpy(acpi_device_name(device), "Fan");
 	strcpy(acpi_device_class(device), ACPI_FAN_CLASS);
 	acpi_driver_data(device) = fan;
