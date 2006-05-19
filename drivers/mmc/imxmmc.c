@@ -218,8 +218,10 @@ static int imxmci_busy_wait_for_status(struct imxmci_host *host,
 	if(!loops)
 		return 0;
 
-	dev_info(mmc_dev(host->mmc), "busy wait for %d usec in %s, STATUS = 0x%x (0x%x)\n",
-		loops, where, *pstat, stat_mask);
+	/* The busy-wait is expected there for clock <8MHz due to SDHC hardware flaws */
+	if(!(stat_mask & STATUS_END_CMD_RESP) || (host->mmc->ios.clock>=8000000))
+		dev_info(mmc_dev(host->mmc), "busy wait for %d usec in %s, STATUS = 0x%x (0x%x)\n",
+			loops, where, *pstat, stat_mask);
 	return loops;
 }
 
@@ -332,6 +334,9 @@ static void imxmci_start_cmd(struct imxmci_host *host, struct mmc_command *cmd, 
 
 	WARN_ON(host->cmd != NULL);
 	host->cmd = cmd;
+
+	/* Ensure, that clock are stopped else command programming and start fails */
+	imxmci_stop_clock(host);
 
 	if (cmd->flags & MMC_RSP_BUSY)
 		cmdat |= CMD_DAT_CONT_BUSY;
@@ -553,7 +558,7 @@ static int imxmci_cpu_driven_data(struct imxmci_host *host, unsigned int *pstat)
 	int trans_done = 0;
 	unsigned int stat = *pstat;
 
-	if(host->actual_bus_width == MMC_BUS_WIDTH_4)
+	if(host->actual_bus_width != MMC_BUS_WIDTH_4)
 		burst_len = 16;
 	else
 		burst_len = 64;
@@ -591,8 +596,7 @@ static int imxmci_cpu_driven_data(struct imxmci_host *host, unsigned int *pstat)
 			stat = MMC_STATUS;
 
 			/* Flush extra bytes from FIFO */
-			while(flush_len >= 2){
-				flush_len -= 2;
+			while(flush_len && !(stat & STATUS_DATA_TRANS_DONE)){
 				i = MMC_BUFFER_ACCESS;
 				stat = MMC_STATUS;
 				stat &= ~STATUS_CRC_READ_ERR; /* Stupid but required there */
@@ -746,10 +750,6 @@ static void imxmci_tasklet_fnc(unsigned long data)
 			data_dir_mask = STATUS_DATA_TRANS_DONE;
 		}
 
-		imxmci_busy_wait_for_status(host, &stat,
-				data_dir_mask,
-				50, "imxmci_tasklet_fnc data");
-
 		if(stat & data_dir_mask) {
 			clear_bit(IMXMCI_PEND_DMA_END_b, &host->pending_events);
 			imxmci_data_done(host, stat);
@@ -865,7 +865,11 @@ static void imxmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 		imxmci_stop_clock(host);
 		MMC_CLK_RATE = (prescaler<<3) | clk;
-		imxmci_start_clock(host);
+		/*
+		 * Under my understanding, clock should not be started there, because it would
+		 * initiate SDHC sequencer and send last or random command into card
+		 */
+		/*imxmci_start_clock(host);*/
 
 		dev_dbg(mmc_dev(host->mmc), "MMC_CLK_RATE: 0x%08x\n", MMC_CLK_RATE);
 	} else {
