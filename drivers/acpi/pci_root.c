@@ -84,7 +84,7 @@ int acpi_pci_register_driver(struct acpi_pci_driver *driver)
 	list_for_each(entry, &acpi_pci_roots) {
 		struct acpi_pci_root *root;
 		root = list_entry(entry, struct acpi_pci_root, node);
-		driver->add(root->handle);
+		driver->add(root->device->handle);
 		n++;
 	}
 
@@ -111,7 +111,7 @@ void acpi_pci_unregister_driver(struct acpi_pci_driver *driver)
 	list_for_each(entry, &acpi_pci_roots) {
 		struct acpi_pci_root *root;
 		root = list_entry(entry, struct acpi_pci_root, node);
-		driver->remove(root->handle);
+		driver->remove(root->device->handle);
 	}
 }
 
@@ -187,7 +187,7 @@ static int acpi_pci_root_add(struct acpi_device *device)
 	 * -------
 	 * Obtained via _SEG, if exists, otherwise assumed to be zero (0).
 	 */
-	status = acpi_evaluate_integer(root->handle, METHOD_NAME__SEG, NULL,
+	status = acpi_evaluate_integer(device->handle, METHOD_NAME__SEG, NULL,
 				       &value);
 	switch (status) {
 	case AE_OK:
@@ -209,7 +209,7 @@ static int acpi_pci_root_add(struct acpi_device *device)
 	 * ---
 	 * Obtained via _BBN, if exists, otherwise assumed to be zero (0).
 	 */
-	status = acpi_evaluate_integer(root->handle, METHOD_NAME__BBN, NULL,
+	status = acpi_evaluate_integer(device->handle, METHOD_NAME__BBN, NULL,
 				       &value);
 	switch (status) {
 	case AE_OK:
@@ -236,7 +236,7 @@ static int acpi_pci_root_add(struct acpi_device *device)
 				    "Wrong _BBN value, reboot"
 				    " and use option 'pci=noacpi'\n");
 
-			status = try_get_root_bridge_busnr(root->handle, &bus);
+			status = try_get_root_bridge_busnr(device->handle, &bus);
 			if (ACPI_FAILURE(status))
 				break;
 			if (bus != root->id.bus) {
@@ -296,9 +296,9 @@ static int acpi_pci_root_add(struct acpi_device *device)
 	 * -----------------
 	 * Evaluate and parse _PRT, if exists.
 	 */
-	status = acpi_get_handle(root->handle, METHOD_NAME__PRT, &handle);
+	status = acpi_get_handle(device->handle, METHOD_NAME__PRT, &handle);
 	if (ACPI_SUCCESS(status))
-		result = acpi_pci_irq_add_prt(root->handle, root->id.segment,
+		result = acpi_pci_irq_add_prt(device->handle, root->id.segment,
 					      root->id.bus);
 
       end:
