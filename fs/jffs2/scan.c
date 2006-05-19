@@ -365,23 +365,12 @@ static int jffs2_scan_eraseblock (struct jffs2_sb_info *c, struct jffs2_eraseblo
 		}
 
 		kfree(sm);
-
-		ofs = jeb->offset;
-		prevofs = jeb->offset - 1;
 	}
 
 	buf_ofs = jeb->offset;
 
 	if (!buf_size) {
 		buf_len = c->sector_size;
-
-		if (jffs2_sum_active()) {
-			/* must reread because of summary test */
-			err = jffs2_fill_scan_buf(c, buf, buf_ofs, buf_len);
-			if (err)
-				return err;
-		}
-
 	} else {
 		buf_len = EMPTY_SCAN_SIZE(c->sector_size);
 		err = jffs2_fill_scan_buf(c, buf, buf_ofs, buf_len);
