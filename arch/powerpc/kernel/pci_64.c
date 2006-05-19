@@ -886,8 +886,8 @@ int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 	return ret;
 }
 
-#ifdef CONFIG_PPC_MULTIPLATFORM
-static ssize_t pci_show_devspec(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t pci_show_devspec(struct device *dev,
+		struct device_attribute *attr, char *buf)
 {
 	struct pci_dev *pdev;
 	struct device_node *np;
@@ -899,13 +899,10 @@ static ssize_t pci_show_devspec(struct device *dev, struct device_attribute *att
 	return sprintf(buf, "%s", np->full_name);
 }
 static DEVICE_ATTR(devspec, S_IRUGO, pci_show_devspec, NULL);
-#endif /* CONFIG_PPC_MULTIPLATFORM */
 
 void pcibios_add_platform_entries(struct pci_dev *pdev)
 {
-#ifdef CONFIG_PPC_MULTIPLATFORM
 	device_create_file(&pdev->dev, &dev_attr_devspec);
-#endif /* CONFIG_PPC_MULTIPLATFORM */
 }
 
 #ifdef CONFIG_PPC_MULTIPLATFORM
