@@ -109,6 +109,7 @@ struct acpi_battery_trips {
 
 struct acpi_battery {
 	acpi_handle handle;
+	struct acpi_device * device;
 	struct acpi_battery_flags flags;
 	struct acpi_battery_trips trips;
 	unsigned long alarm;
@@ -278,9 +279,7 @@ static int acpi_battery_check(struct acpi_battery *battery)
 	if (!battery)
 		return -EINVAL;
 
-	result = acpi_bus_get_device(battery->handle, &device);
-	if (result)
-		return result;
+	device = battery->device;
 
 	result = acpi_bus_get_status(device);
 	if (result)
@@ -662,8 +661,7 @@ static void acpi_battery_notify(acpi_handle handle, u32 event, void *data)
 	if (!battery)
 		return;
 
-	if (acpi_bus_get_device(handle, &device))
-		return;
+	device = battery->device;
 
 	switch (event) {
 	case ACPI_BATTERY_NOTIFY_STATUS:
@@ -696,6 +694,7 @@ static int acpi_battery_add(struct acpi_device *device)
 	memset(battery, 0, sizeof(struct acpi_battery));
 
 	battery->handle = device->handle;
+	battery->device = device;
 	strcpy(acpi_device_name(device), ACPI_BATTERY_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_BATTERY_CLASS);
 	acpi_driver_data(device) = battery;
