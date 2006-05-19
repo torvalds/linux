@@ -194,7 +194,6 @@ static void uhci_unlink_isochronous_tds(struct uhci_hcd *uhci, struct urb *urb)
 
 	list_for_each_entry(td, &urbp->td_list, list)
 		uhci_remove_td_from_frame_list(uhci, td);
-	wmb();
 }
 
 static struct uhci_qh *uhci_alloc_qh(struct uhci_hcd *uhci,
@@ -253,17 +252,25 @@ static void uhci_free_qh(struct uhci_hcd *uhci, struct uhci_qh *qh)
  * When a queue is stopped and a dequeued URB is given back, adjust
  * the previous TD link (if the URB isn't first on the queue) or
  * save its toggle value (if it is first and is currently executing).
+ *
+ * Returns 0 if the URB should not yet be given back, 1 otherwise.
  */
-static void uhci_cleanup_queue(struct uhci_qh *qh,
+static int uhci_cleanup_queue(struct uhci_hcd *uhci, struct uhci_qh *qh,
 		struct urb *urb)
 {
 	struct urb_priv *urbp = urb->hcpriv;
 	struct uhci_td *td;
+	int ret = 1;
 
 	/* Isochronous pipes don't use toggles and their TD link pointers
-	 * get adjusted during uhci_urb_dequeue(). */
-	if (qh->type == USB_ENDPOINT_XFER_ISOC)
-		return;
+	 * get adjusted during uhci_urb_dequeue().  But since their queues
+	 * cannot truly be stopped, we have to watch out for dequeues
+	 * occurring after the nominal unlink frame. */
+	if (qh->type == USB_ENDPOINT_XFER_ISOC) {
+		ret = (uhci->frame_number + uhci->is_stopped !=
+				qh->unlink_frame);
+		return ret;
+	}
 
 	/* If the URB isn't first on its queue, adjust the link pointer
 	 * of the last TD in the previous URB.  The toggle doesn't need
@@ -279,24 +286,25 @@ static void uhci_cleanup_queue(struct uhci_qh *qh,
 		td = list_entry(urbp->td_list.prev, struct uhci_td,
 				list);
 		ptd->link = td->link;
-		return;
+		return ret;
 	}
 
 	/* If the QH element pointer is UHCI_PTR_TERM then then currently
 	 * executing URB has already been unlinked, so this one isn't it. */
 	if (qh_element(qh) == UHCI_PTR_TERM)
-		return;
+		return ret;
 	qh->element = UHCI_PTR_TERM;
 
 	/* Control pipes have to worry about toggles */
 	if (qh->type == USB_ENDPOINT_XFER_CONTROL)
-		return;
+		return ret;
 
 	/* Save the next toggle value */
 	WARN_ON(list_empty(&urbp->td_list));
 	td = list_entry(urbp->td_list.next, struct uhci_td, list);
 	qh->needs_fixup = 1;
 	qh->initial_toggle = uhci_toggle(td_token(td));
+	return ret;
 }
 
 /*
@@ -953,7 +961,6 @@ static int uhci_submit_isochronous(struct uhci_hcd *uhci, struct urb *urb,
 	} else {
 		/* FIXME: Sanity check */
 	}
-	urb->start_frame &= (UHCI_NUMFRAMES - 1);
 
 	for (i = 0; i < urb->number_of_packets; i++) {
 		td = uhci_alloc_td(uhci);
@@ -1120,16 +1127,26 @@ static int uhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb)
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
 	unsigned long flags;
 	struct urb_priv *urbp;
+	struct uhci_qh *qh;
 
 	spin_lock_irqsave(&uhci->lock, flags);
 	urbp = urb->hcpriv;
 	if (!urbp)			/* URB was never linked! */
 		goto done;
+	qh = urbp->qh;
 
 	/* Remove Isochronous TDs from the frame list ASAP */
-	if (urbp->qh->type == USB_ENDPOINT_XFER_ISOC)
+	if (qh->type == USB_ENDPOINT_XFER_ISOC) {
 		uhci_unlink_isochronous_tds(uhci, urb);
-	uhci_unlink_qh(uhci, urbp->qh);
+		mb();
+
+		/* If the URB has already started, update the QH unlink time */
+		uhci_get_current_frame_number(uhci);
+		if (uhci_frame_before_eq(urb->start_frame, uhci->frame_number))
+			qh->unlink_frame = uhci->frame_number;
+	}
+
+	uhci_unlink_qh(uhci, qh);
 
 done:
 	spin_unlock_irqrestore(&uhci->lock, flags);
@@ -1250,7 +1267,14 @@ restart:
 	list_for_each_entry(urbp, &qh->queue, node) {
 		urb = urbp->urb;
 		if (urb->status != -EINPROGRESS) {
-			uhci_cleanup_queue(qh, urb);
+
+			/* Fix up the TD links and save the toggles for
+			 * non-Isochronous queues.  For Isochronous queues,
+			 * test for too-recent dequeues. */
+			if (!uhci_cleanup_queue(uhci, qh, urb)) {
+				qh->is_stopped = 0;
+				return;
+			}
 			uhci_giveback_urb(uhci, qh, urb, regs);
 			goto restart;
 		}
