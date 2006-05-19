@@ -139,7 +139,7 @@ acpi_battery_get_info(struct acpi_battery *battery,
 
 	/* Evalute _BIF */
 
-	status = acpi_evaluate_object(battery->handle, "_BIF", NULL, &buffer);
+	status = acpi_evaluate_object(battery->device->handle, "_BIF", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _BIF"));
 		return -ENODEV;
@@ -199,7 +199,7 @@ acpi_battery_get_status(struct acpi_battery *battery,
 
 	/* Evalute _BST */
 
-	status = acpi_evaluate_object(battery->handle, "_BST", NULL, &buffer);
+	status = acpi_evaluate_object(battery->device->handle, "_BST", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _BST"));
 		return -ENODEV;
@@ -256,7 +256,7 @@ acpi_battery_set_alarm(struct acpi_battery *battery, unsigned long alarm)
 
 	arg0.integer.value = alarm;
 
-	status = acpi_evaluate_object(battery->handle, "_BTP", &arg_list, NULL);
+	status = acpi_evaluate_object(battery->device->handle, "_BTP", &arg_list, NULL);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
@@ -304,7 +304,7 @@ static int acpi_battery_check(struct acpi_battery *battery)
 
 		/* See if alarms are supported, and if so, set default */
 
-		status = acpi_get_handle(battery->handle, "_BTP", &handle);
+		status = acpi_get_handle(battery->device->handle, "_BTP", &handle);
 		if (ACPI_SUCCESS(status)) {
 			battery->flags.alarm = 1;
 			acpi_battery_set_alarm(battery, battery->trips.warning);
@@ -707,7 +707,7 @@ static int acpi_battery_add(struct acpi_device *device)
 	if (result)
 		goto end;
 
-	status = acpi_install_notify_handler(battery->handle,
+	status = acpi_install_notify_handler(device->handle,
 					     ACPI_DEVICE_NOTIFY,
 					     acpi_battery_notify, battery);
 	if (ACPI_FAILURE(status)) {
@@ -739,7 +739,7 @@ static int acpi_battery_remove(struct acpi_device *device, int type)
 
 	battery = (struct acpi_battery *)acpi_driver_data(device);
 
-	status = acpi_remove_notify_handler(battery->handle,
+	status = acpi_remove_notify_handler(device->handle,
 					    ACPI_DEVICE_NOTIFY,
 					    acpi_battery_notify);
 
