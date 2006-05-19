@@ -163,6 +163,7 @@ struct acpi_thermal_flags {
 
 struct acpi_thermal {
 	acpi_handle handle;
+	struct acpi_device * device;
 	acpi_bus_id name;
 	unsigned long temperature;
 	unsigned long last_temperature;
@@ -453,10 +454,6 @@ static int acpi_thermal_call_usermode(char *path)
 
 static int acpi_thermal_critical(struct acpi_thermal *tz)
 {
-	int result = 0;
-	struct acpi_device *device = NULL;
-
-
 	if (!tz || !tz->trips.critical.flags.valid)
 		return -EINVAL;
 
@@ -466,14 +463,10 @@ static int acpi_thermal_critical(struct acpi_thermal *tz)
 	} else if (tz->trips.critical.flags.enabled)
 		tz->trips.critical.flags.enabled = 0;
 
-	result = acpi_bus_get_device(tz->handle, &device);
-	if (result)
-		return result;
-
 	printk(KERN_EMERG
 	       "Critical temperature reached (%ld C), shutting down.\n",
 	       KELVIN_TO_CELSIUS(tz->temperature));
-	acpi_bus_generate_event(device, ACPI_THERMAL_NOTIFY_CRITICAL,
+	acpi_bus_generate_event(tz->device, ACPI_THERMAL_NOTIFY_CRITICAL,
 				tz->trips.critical.flags.enabled);
 
 	acpi_thermal_call_usermode(ACPI_THERMAL_PATH_POWEROFF);
@@ -483,10 +476,6 @@ static int acpi_thermal_critical(struct acpi_thermal *tz)
 
 static int acpi_thermal_hot(struct acpi_thermal *tz)
 {
-	int result = 0;
-	struct acpi_device *device = NULL;
-
-
 	if (!tz || !tz->trips.hot.flags.valid)
 		return -EINVAL;
 
@@ -496,11 +485,7 @@ static int acpi_thermal_hot(struct acpi_thermal *tz)
 	} else if (tz->trips.hot.flags.enabled)
 		tz->trips.hot.flags.enabled = 0;
 
-	result = acpi_bus_get_device(tz->handle, &device);
-	if (result)
-		return result;
-
-	acpi_bus_generate_event(device, ACPI_THERMAL_NOTIFY_HOT,
+	acpi_bus_generate_event(tz->device, ACPI_THERMAL_NOTIFY_HOT,
 				tz->trips.hot.flags.enabled);
 
 	/* TBD: Call user-mode "sleep(S4)" function */
@@ -1193,8 +1178,7 @@ static void acpi_thermal_notify(acpi_handle handle, u32 event, void *data)
 	if (!tz)
 		return;
 
-	if (acpi_bus_get_device(tz->handle, &device))
-		return;
+	device = tz->device;
 
 	switch (event) {
 	case ACPI_THERMAL_NOTIFY_TEMPERATURE:
@@ -1294,6 +1278,7 @@ static int acpi_thermal_add(struct acpi_device *device)
 	memset(tz, 0, sizeof(struct acpi_thermal));
 
 	tz->handle = device->handle;
+	tz->device = device;
 	strcpy(tz->name, device->pnp.bus_id);
 	strcpy(acpi_device_name(device), ACPI_THERMAL_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_THERMAL_CLASS);
