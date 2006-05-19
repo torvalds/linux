@@ -1242,13 +1242,13 @@ SCTP_STATIC void sctp_close(struct sock *sk, long timeout)
 			if (sctp_state(asoc, CLOSED)) {
 				sctp_unhash_established(asoc);
 				sctp_association_free(asoc);
+				continue;
+			}
+		}
 
-			} else if (sock_flag(sk, SOCK_LINGER) &&
-				   !sk->sk_lingertime)
-				sctp_primitive_ABORT(asoc, NULL);
-			else
-				sctp_primitive_SHUTDOWN(asoc, NULL);
-		} else
+		if (sock_flag(sk, SOCK_LINGER) && !sk->sk_lingertime)
+			sctp_primitive_ABORT(asoc, NULL);
+		else
 			sctp_primitive_SHUTDOWN(asoc, NULL);
 	}
 
