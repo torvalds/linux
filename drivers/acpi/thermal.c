@@ -230,7 +230,7 @@ static int acpi_thermal_get_temperature(struct acpi_thermal *tz)
 	tz->last_temperature = tz->temperature;
 
 	status =
-	    acpi_evaluate_integer(tz->handle, "_TMP", NULL, &tz->temperature);
+	    acpi_evaluate_integer(tz->device->handle, "_TMP", NULL, &tz->temperature);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
@@ -249,7 +249,7 @@ static int acpi_thermal_get_polling_frequency(struct acpi_thermal *tz)
 		return -EINVAL;
 
 	status =
-	    acpi_evaluate_integer(tz->handle, "_TZP", NULL,
+	    acpi_evaluate_integer(tz->device->handle, "_TZP", NULL,
 				  &tz->polling_frequency);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
@@ -286,7 +286,7 @@ static int acpi_thermal_set_cooling_mode(struct acpi_thermal *tz, int mode)
 	if (!tz)
 		return -EINVAL;
 
-	status = acpi_get_handle(tz->handle, "_SCP", &handle);
+	status = acpi_get_handle(tz->device->handle, "_SCP", &handle);
 	if (ACPI_FAILURE(status)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "_SCP not present\n"));
 		return -ENODEV;
@@ -317,7 +317,7 @@ static int acpi_thermal_get_trip_points(struct acpi_thermal *tz)
 
 	/* Critical Shutdown (required) */
 
-	status = acpi_evaluate_integer(tz->handle, "_CRT", NULL,
+	status = acpi_evaluate_integer(tz->device->handle, "_CRT", NULL,
 				       &tz->trips.critical.temperature);
 	if (ACPI_FAILURE(status)) {
 		tz->trips.critical.flags.valid = 0;
@@ -333,7 +333,7 @@ static int acpi_thermal_get_trip_points(struct acpi_thermal *tz)
 	/* Critical Sleep (optional) */
 
 	status =
-	    acpi_evaluate_integer(tz->handle, "_HOT", NULL,
+	    acpi_evaluate_integer(tz->device->handle, "_HOT", NULL,
 				  &tz->trips.hot.temperature);
 	if (ACPI_FAILURE(status)) {
 		tz->trips.hot.flags.valid = 0;
@@ -347,7 +347,7 @@ static int acpi_thermal_get_trip_points(struct acpi_thermal *tz)
 	/* Passive: Processors (optional) */
 
 	status =
-	    acpi_evaluate_integer(tz->handle, "_PSV", NULL,
+	    acpi_evaluate_integer(tz->device->handle, "_PSV", NULL,
 				  &tz->trips.passive.temperature);
 	if (ACPI_FAILURE(status)) {
 		tz->trips.passive.flags.valid = 0;
@@ -356,25 +356,25 @@ static int acpi_thermal_get_trip_points(struct acpi_thermal *tz)
 		tz->trips.passive.flags.valid = 1;
 
 		status =
-		    acpi_evaluate_integer(tz->handle, "_TC1", NULL,
+		    acpi_evaluate_integer(tz->device->handle, "_TC1", NULL,
 					  &tz->trips.passive.tc1);
 		if (ACPI_FAILURE(status))
 			tz->trips.passive.flags.valid = 0;
 
 		status =
-		    acpi_evaluate_integer(tz->handle, "_TC2", NULL,
+		    acpi_evaluate_integer(tz->device->handle, "_TC2", NULL,
 					  &tz->trips.passive.tc2);
 		if (ACPI_FAILURE(status))
 			tz->trips.passive.flags.valid = 0;
 
 		status =
-		    acpi_evaluate_integer(tz->handle, "_TSP", NULL,
+		    acpi_evaluate_integer(tz->device->handle, "_TSP", NULL,
 					  &tz->trips.passive.tsp);
 		if (ACPI_FAILURE(status))
 			tz->trips.passive.flags.valid = 0;
 
 		status =
-		    acpi_evaluate_reference(tz->handle, "_PSL", NULL,
+		    acpi_evaluate_reference(tz->device->handle, "_PSL", NULL,
 					    &tz->trips.passive.devices);
 		if (ACPI_FAILURE(status))
 			tz->trips.passive.flags.valid = 0;
@@ -394,14 +394,14 @@ static int acpi_thermal_get_trip_points(struct acpi_thermal *tz)
 		char name[5] = { '_', 'A', 'C', ('0' + i), '\0' };
 
 		status =
-		    acpi_evaluate_integer(tz->handle, name, NULL,
+		    acpi_evaluate_integer(tz->device->handle, name, NULL,
 					  &tz->trips.active[i].temperature);
 		if (ACPI_FAILURE(status))
 			break;
 
 		name[2] = 'L';
 		status =
-		    acpi_evaluate_reference(tz->handle, name, NULL,
+		    acpi_evaluate_reference(tz->device->handle, name, NULL,
 					    &tz->trips.active[i].devices);
 		if (ACPI_SUCCESS(status)) {
 			tz->trips.active[i].flags.valid = 1;
@@ -425,7 +425,7 @@ static int acpi_thermal_get_devices(struct acpi_thermal *tz)
 		return -EINVAL;
 
 	status =
-	    acpi_evaluate_reference(tz->handle, "_TZD", NULL, &tz->devices);
+	    acpi_evaluate_reference(tz->device->handle, "_TZD", NULL, &tz->devices);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
@@ -1296,7 +1296,7 @@ static int acpi_thermal_add(struct acpi_device *device)
 
 	acpi_thermal_check(tz);
 
-	status = acpi_install_notify_handler(tz->handle,
+	status = acpi_install_notify_handler(device->handle,
 					     ACPI_DEVICE_NOTIFY,
 					     acpi_thermal_notify, tz);
 	if (ACPI_FAILURE(status)) {
@@ -1337,7 +1337,7 @@ static int acpi_thermal_remove(struct acpi_device *device, int type)
 	/* deferred task may reinsert timer */
 	del_timer_sync(&(tz->timer));
 
-	status = acpi_remove_notify_handler(tz->handle,
+	status = acpi_remove_notify_handler(device->handle,
 					    ACPI_DEVICE_NOTIFY,
 					    acpi_thermal_notify);
 
