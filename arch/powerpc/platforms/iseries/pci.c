@@ -191,7 +191,6 @@ void iSeries_pcibios_init(void)
 		for (dn = NULL; (dn = of_get_next_child(node, dn)) != NULL;) {
 			struct pci_dn *pdn;
 			u32 *reg;
-			u32 *lsn;
 
 			reg = (u32 *)get_property(dn, "reg", NULL);
 			if (reg == NULL) {
@@ -203,12 +202,6 @@ void iSeries_pcibios_init(void)
 				printk(KERN_DEBUG "no subbus property!\n");
 				continue;
 			}
-			lsn = (u32 *)get_property(dn,
-					"linux,logical-slot-number", NULL);
-			if (lsn == NULL) {
-				printk(KERN_DEBUG "no logical-slot-number\n");
-				continue;
-			}
 
 			pdn = kzalloc(sizeof(*pdn), GFP_KERNEL);
 			if (pdn == NULL)
@@ -218,7 +211,6 @@ void iSeries_pcibios_init(void)
 			pdn->busno = bus;
 			pdn->devfn = (reg[0] >> 8) & 0xff;
 			pdn->bussubno = *busp;
-			pdn->LogicalSlot = *lsn;
 		}
 	}
 }

@@ -78,10 +78,6 @@ struct pci_dn {
 	struct	iommu_table *iommu_table;	/* for phb's or bridges */
 	struct	pci_dev *pcidev;	/* back-pointer to the pci device */
 	struct	device_node *node;	/* back-pointer to the device_node */
-#ifdef CONFIG_PPC_ISERIES
-	int	Flags;			/* Possible flags(disable/bist)*/
-	u8	LogicalSlot;		/* Hv Slot Index for Tces */
-#endif
 	u32	config_space[16];	/* saved PCI config space */
 };
 

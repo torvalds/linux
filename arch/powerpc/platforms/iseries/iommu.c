@@ -162,10 +162,13 @@ void iommu_devnode_init_iSeries(struct device_node *dn)
 {
 	struct iommu_table *tbl;
 	struct pci_dn *pdn = PCI_DN(dn);
+	u32 *lsn = (u32 *)get_property(dn, "linux,logical-slot-number", NULL);
+
+	BUG_ON(lsn == NULL);
 
 	tbl = kmalloc(sizeof(struct iommu_table), GFP_KERNEL);
 
-	iommu_table_getparms_iSeries(pdn->busno, pdn->LogicalSlot, 0, tbl);
+	iommu_table_getparms_iSeries(pdn->busno, *lsn, 0, tbl);
 
 	/* Look for existing tce table */
 	pdn->iommu_table = iommu_table_find(tbl);
