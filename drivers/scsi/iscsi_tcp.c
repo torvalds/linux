@@ -71,14 +71,6 @@ module_param_named(max_lun, iscsi_max_lun, uint, S_IRUGO);
 static kmem_cache_t *taskcache;
 
 static inline void
-iscsi_buf_init_virt(struct iscsi_buf *ibuf, char *vbuf, int size)
-{
-	sg_init_one(&ibuf->sg, (u8 *)vbuf, size);
-	ibuf->sent = 0;
-	ibuf->use_sendmsg = 0;
-}
-
-static inline void
 iscsi_buf_init_iov(struct iscsi_buf *ibuf, char *vbuf, int size)
 {
 	ibuf->sg.page = virt_to_page(vbuf);
@@ -324,7 +316,7 @@ iscsi_solicit_data_init(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask,
 
 	r2t->sent = 0;
 
-	iscsi_buf_init_virt(&r2t->headbuf, (char*)hdr,
+	iscsi_buf_init_iov(&r2t->headbuf, (char*)hdr,
 			   sizeof(struct iscsi_hdr));
 
 	r2t->dtask = dtask;
@@ -1208,7 +1200,7 @@ iscsi_digest_final_send(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask,
 	if (final)
 		crypto_digest_final(tcp_conn->data_tx_tfm, (u8*)digest);
 
-	iscsi_buf_init_virt(buf, (char*)digest, 4);
+	iscsi_buf_init_iov(buf, (char*)digest, 4);
 	rc = iscsi_sendpage(conn, buf, &tcp_ctask->digest_count, &sent);
 	if (rc) {
 		tcp_ctask->datadigest = *digest;
@@ -1265,7 +1257,7 @@ iscsi_solicit_data_cont(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask,
 	}
 	conn->dataout_pdus_cnt++;
 
-	iscsi_buf_init_virt(&r2t->headbuf, (char*)hdr,
+	iscsi_buf_init_iov(&r2t->headbuf, (char*)hdr,
 			   sizeof(struct iscsi_hdr));
 
 	r2t->dtask = dtask;
@@ -1294,7 +1286,7 @@ iscsi_unsolicit_data_init(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 
 	iscsi_prep_unsolicit_data_pdu(ctask, &dtask->hdr,
 				      tcp_ctask->r2t_data_count);
-	iscsi_buf_init_virt(&tcp_ctask->headbuf, (char*)&dtask->hdr,
+	iscsi_buf_init_iov(&tcp_ctask->headbuf, (char*)&dtask->hdr,
 			   sizeof(struct iscsi_hdr));
 
 	list_add(&dtask->item, &tcp_ctask->dataqueue);
@@ -1361,7 +1353,7 @@ iscsi_tcp_cmd_init(struct iscsi_cmd_task *ctask)
 	} else
 		tcp_ctask->xmstate = XMSTATE_R_HDR;
 
-	iscsi_buf_init_virt(&tcp_ctask->headbuf, (char*)ctask->hdr,
+	iscsi_buf_init_iov(&tcp_ctask->headbuf, (char*)ctask->hdr,
 			    sizeof(struct iscsi_hdr));
 }
 
@@ -1758,7 +1750,7 @@ handle_xmstate_w_pad(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 	int sent;
 
 	tcp_ctask->xmstate &= ~XMSTATE_W_PAD;
-	iscsi_buf_init_virt(&tcp_ctask->sendbuf, (char*)&tcp_ctask->pad,
+	iscsi_buf_init_iov(&tcp_ctask->sendbuf, (char*)&tcp_ctask->pad,
 			    tcp_ctask->pad_count);
 	if (iscsi_sendpage(conn, &tcp_ctask->sendbuf, &tcp_ctask->pad_count,
 			   &sent)) {
@@ -2078,8 +2070,8 @@ iscsi_tcp_mgmt_init(struct iscsi_conn *conn, struct iscsi_mgmt_task *mtask,
 {
 	struct iscsi_tcp_mgmt_task *tcp_mtask = mtask->dd_data;
 
-	iscsi_buf_init_virt(&tcp_mtask->headbuf, (char*)mtask->hdr,
-				    sizeof(struct iscsi_hdr));
+	iscsi_buf_init_iov(&tcp_mtask->headbuf, (char*)mtask->hdr,
+			   sizeof(struct iscsi_hdr));
 	tcp_mtask->xmstate = XMSTATE_IMM_HDR;
 
 	if (mtask->data_count)
