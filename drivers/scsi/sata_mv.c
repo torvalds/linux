@@ -1885,7 +1885,8 @@ static void mv_channel_reset(struct mv_host_priv *hpriv, void __iomem *mmio,
 
 	if (IS_60XX(hpriv)) {
 		u32 ifctl = readl(port_mmio + SATA_INTERFACE_CTL);
-		ifctl |= (1 << 12) | (1 << 7);
+		ifctl |= (1 << 7);		/* enable gen2i speed */
+		ifctl = (ifctl & 0xfff) | 0x9b1000; /* from chip spec */
 		writelfl(ifctl, port_mmio + SATA_INTERFACE_CTL);
 	}
 
@@ -2250,7 +2251,8 @@ static int mv_init_host(struct pci_dev *pdev, struct ata_probe_ent *probe_ent,
 			void __iomem *port_mmio = mv_port_base(mmio, port);
 
 			u32 ifctl = readl(port_mmio + SATA_INTERFACE_CTL);
-			ifctl |= (1 << 12);
+			ifctl |= (1 << 7);		/* enable gen2i speed */
+			ifctl = (ifctl & 0xfff) | 0x9b1000; /* from chip spec */
 			writelfl(ifctl, port_mmio + SATA_INTERFACE_CTL);
 		}
 
@@ -2351,6 +2353,7 @@ static int mv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc) {
 		return rc;
 	}
+	pci_set_master(pdev);
 
 	rc = pci_request_regions(pdev, DRV_NAME);
 	if (rc) {
