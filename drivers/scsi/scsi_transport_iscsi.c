@@ -36,6 +36,7 @@
 #define ISCSI_HOST_ATTRS 0
 
 struct iscsi_internal {
+	int daemon_pid;
 	struct scsi_transport_template t;
 	struct iscsi_transport *iscsi_transport;
 	struct list_head list;
@@ -145,7 +146,6 @@ static DECLARE_TRANSPORT_CLASS(iscsi_connection_class,
 			       NULL);
 
 static struct sock *nls;
-static int daemon_pid;
 static DEFINE_MUTEX(rx_queue_mutex);
 
 struct mempool_zone {
@@ -572,13 +572,13 @@ mempool_zone_get_skb(struct mempool_zone *zone)
 }
 
 static int
-iscsi_unicast_skb(struct mempool_zone *zone, struct sk_buff *skb)
+iscsi_unicast_skb(struct mempool_zone *zone, struct sk_buff *skb, int pid)
 {
 	unsigned long flags;
 	int rc;
 
 	skb_get(skb);
-	rc = netlink_unicast(nls, skb, daemon_pid, MSG_DONTWAIT);
+	rc = netlink_unicast(nls, skb, pid, MSG_DONTWAIT);
 	if (rc < 0) {
 		mempool_free(skb, zone->pool);
 		printk(KERN_ERR "iscsi: can not unicast skb (%d)\n", rc);
@@ -600,8 +600,13 @@ int iscsi_recv_pdu(struct iscsi_cls_conn *conn, struct iscsi_hdr *hdr,
 	struct sk_buff *skb;
 	struct iscsi_uevent *ev;
 	char *pdu;
+	struct iscsi_internal *priv;
 	int len = NLMSG_SPACE(sizeof(*ev) + sizeof(struct iscsi_hdr) +
 			      data_size);
+
+	priv = iscsi_if_transport_lookup(conn->transport);
+	if (!priv)
+		return -EINVAL;
 
 	mempool_zone_complete(conn->z_pdu);
 
@@ -613,7 +618,7 @@ int iscsi_recv_pdu(struct iscsi_cls_conn *conn, struct iscsi_hdr *hdr,
 		return -ENOMEM;
 	}
 
-	nlh = __nlmsg_put(skb, daemon_pid, 0, 0, (len - sizeof(*nlh)), 0);
+	nlh = __nlmsg_put(skb, priv->daemon_pid, 0, 0, (len - sizeof(*nlh)), 0);
 	ev = NLMSG_DATA(nlh);
 	memset(ev, 0, sizeof(*ev));
 	ev->transport_handle = iscsi_handle(conn->transport);
@@ -626,7 +631,7 @@ int iscsi_recv_pdu(struct iscsi_cls_conn *conn, struct iscsi_hdr *hdr,
 	memcpy(pdu, hdr, sizeof(struct iscsi_hdr));
 	memcpy(pdu + sizeof(struct iscsi_hdr), data, data_size);
 
-	return iscsi_unicast_skb(conn->z_pdu, skb);
+	return iscsi_unicast_skb(conn->z_pdu, skb, priv->daemon_pid);
 }
 EXPORT_SYMBOL_GPL(iscsi_recv_pdu);
 
@@ -635,7 +640,12 @@ void iscsi_conn_error(struct iscsi_cls_conn *conn, enum iscsi_err error)
 	struct nlmsghdr	*nlh;
 	struct sk_buff	*skb;
 	struct iscsi_uevent *ev;
+	struct iscsi_internal *priv;
 	int len = NLMSG_SPACE(sizeof(*ev));
+
+	priv = iscsi_if_transport_lookup(conn->transport);
+	if (!priv)
+		return;
 
 	mempool_zone_complete(conn->z_error);
 
@@ -646,7 +656,7 @@ void iscsi_conn_error(struct iscsi_cls_conn *conn, enum iscsi_err error)
 		return;
 	}
 
-	nlh = __nlmsg_put(skb, daemon_pid, 0, 0, (len - sizeof(*nlh)), 0);
+	nlh = __nlmsg_put(skb, priv->daemon_pid, 0, 0, (len - sizeof(*nlh)), 0);
 	ev = NLMSG_DATA(nlh);
 	ev->transport_handle = iscsi_handle(conn->transport);
 	ev->type = ISCSI_KEVENT_CONN_ERROR;
@@ -656,7 +666,7 @@ void iscsi_conn_error(struct iscsi_cls_conn *conn, enum iscsi_err error)
 	ev->r.connerror.cid = conn->cid;
 	ev->r.connerror.sid = iscsi_conn_get_sid(conn);
 
-	iscsi_unicast_skb(conn->z_error, skb);
+	iscsi_unicast_skb(conn->z_error, skb, priv->daemon_pid);
 
 	dev_printk(KERN_INFO, &conn->dev, "iscsi: detected conn error (%d)\n",
 		   error);
@@ -686,7 +696,7 @@ iscsi_if_send_reply(int pid, int seq, int type, int done, int multi,
 	nlh = __nlmsg_put(skb, pid, seq, t, (len - sizeof(*nlh)), 0);
 	nlh->nlmsg_flags = flags;
 	memcpy(NLMSG_DATA(nlh), payload, size);
-	return iscsi_unicast_skb(z_reply, skb);
+	return iscsi_unicast_skb(z_reply, skb, pid);
 }
 
 static int
@@ -698,11 +708,16 @@ iscsi_if_get_stats(struct iscsi_transport *transport, struct nlmsghdr *nlh)
 	struct iscsi_cls_conn *conn;
 	struct nlmsghdr	*nlhstat;
 	struct iscsi_uevent *evstat;
+	struct iscsi_internal *priv;
 	int len = NLMSG_SPACE(sizeof(*ev) +
 			      sizeof(struct iscsi_stats) +
 			      sizeof(struct iscsi_stats_custom) *
 			      ISCSI_STATS_CUSTOM_MAX);
 	int err = 0;
+
+	priv = iscsi_if_transport_lookup(transport);
+	if (!priv)
+		return -EINVAL;
 
 	conn = iscsi_conn_lookup(ev->u.get_stats.sid, ev->u.get_stats.cid);
 	if (!conn)
@@ -720,7 +735,7 @@ iscsi_if_get_stats(struct iscsi_transport *transport, struct nlmsghdr *nlh)
 			return -ENOMEM;
 		}
 
-		nlhstat = __nlmsg_put(skbstat, daemon_pid, 0, 0,
+		nlhstat = __nlmsg_put(skbstat, priv->daemon_pid, 0, 0,
 				      (len - sizeof(*nlhstat)), 0);
 		evstat = NLMSG_DATA(nlhstat);
 		memset(evstat, 0, sizeof(*evstat));
@@ -746,7 +761,7 @@ iscsi_if_get_stats(struct iscsi_transport *transport, struct nlmsghdr *nlh)
 		skb_trim(skbstat, NLMSG_ALIGN(actual_size));
 		nlhstat->nlmsg_len = actual_size;
 
-		err = iscsi_unicast_skb(conn->z_pdu, skbstat);
+		err = iscsi_unicast_skb(conn->z_pdu, skbstat, priv->daemon_pid);
 	} while (err < 0 && err != -ECONNREFUSED);
 
 	return err;
@@ -981,6 +996,8 @@ iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	if (!try_module_get(transport->owner))
 		return -EINVAL;
 
+	priv->daemon_pid = NETLINK_CREDS(skb)->pid;
+
 	switch (nlh->nlmsg_type) {
 	case ISCSI_UEVENT_CREATE_SESSION:
 		err = iscsi_if_create_session(priv, ev);
@@ -1073,7 +1090,6 @@ iscsi_if_rx(struct sock *sk, int len)
 			skb_pull(skb, skb->len);
 			goto free_skb;
 		}
-		daemon_pid = NETLINK_CREDS(skb)->pid;
 
 		while (skb->len >= NLMSG_SPACE(0)) {
 			int err;
