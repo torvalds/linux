@@ -66,6 +66,7 @@ static struct acpi_driver acpi_ac_driver = {
 
 struct acpi_ac {
 	acpi_handle handle;
+	struct acpi_device * device;
 	unsigned long state;
 };
 
@@ -191,9 +192,7 @@ static void acpi_ac_notify(acpi_handle handle, u32 event, void *data)
 	if (!ac)
 		return;
 
-	if (acpi_bus_get_device(ac->handle, &device))
-		return;
-
+	device = ac->device;
 	switch (event) {
 	case ACPI_AC_NOTIFY_STATUS:
 		acpi_ac_get_state(ac);
@@ -224,6 +223,7 @@ static int acpi_ac_add(struct acpi_device *device)
 	memset(ac, 0, sizeof(struct acpi_ac));
 
 	ac->handle = device->handle;
+	ac->device = device;
 	strcpy(acpi_device_name(device), ACPI_AC_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_AC_CLASS);
 	acpi_driver_data(device) = ac;
