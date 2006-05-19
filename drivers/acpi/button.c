@@ -137,7 +137,7 @@ static int acpi_button_state_seq_show(struct seq_file *seq, void *offset)
 	if (!button || !button->device)
 		return 0;
 
-	status = acpi_evaluate_integer(button->handle, "_LID", NULL, &state);
+	status = acpi_evaluate_integer(button->device->handle, "_LID", NULL, &state);
 	if (ACPI_FAILURE(status)) {
 		seq_printf(seq, "state:      unsupported\n");
 	} else {
@@ -282,7 +282,7 @@ static acpi_status acpi_button_notify_fixed(void *data)
 	if (!button)
 		return AE_BAD_PARAMETER;
 
-	acpi_button_notify(button->handle, ACPI_BUTTON_NOTIFY_STATUS, button);
+	acpi_button_notify(button->device->handle, ACPI_BUTTON_NOTIFY_STATUS, button);
 
 	return AE_OK;
 }
@@ -362,7 +362,7 @@ static int acpi_button_add(struct acpi_device *device)
 						     button);
 		break;
 	default:
-		status = acpi_install_notify_handler(button->handle,
+		status = acpi_install_notify_handler(device->handle,
 						     ACPI_DEVICE_NOTIFY,
 						     acpi_button_notify,
 						     button);
@@ -420,7 +420,7 @@ static int acpi_button_remove(struct acpi_device *device, int type)
 						    acpi_button_notify_fixed);
 		break;
 	default:
-		status = acpi_remove_notify_handler(button->handle,
+		status = acpi_remove_notify_handler(device->handle,
 						    ACPI_DEVICE_NOTIFY,
 						    acpi_button_notify);
 		break;
