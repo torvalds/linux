@@ -1229,7 +1229,7 @@ SCTP_STATIC void sctp_close(struct sock *sk, long timeout)
 
 	ep = sctp_sk(sk)->ep;
 
-	/* Walk all associations on a socket, not on an endpoint.  */
+	/* Walk all associations on an endpoint.  */
 	list_for_each_safe(pos, temp, &ep->asocs) {
 		asoc = list_entry(pos, struct sctp_association, asocs);
 
@@ -5318,6 +5318,7 @@ static int sctp_wait_for_sndbuf(struct sctp_association *asoc, long *timeo_p,
 		 */
 		sctp_release_sock(sk);
 		current_timeo = schedule_timeout(current_timeo);
+		BUG_ON(sk != asoc->base.sk);
 		sctp_lock_sock(sk);
 
 		*timeo_p = current_timeo;
@@ -5605,12 +5606,14 @@ static void sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
 	 */
 	newsp->type = type;
 
-	spin_lock_bh(&oldsk->sk_lock.slock);
-	/* Migrate the backlog from oldsk to newsk. */
-	sctp_backlog_migrate(assoc, oldsk, newsk);
-	/* Migrate the association to the new socket. */
+	/* Mark the new socket "in-use" by the user so that any packets
+	 * that may arrive on the association after we've moved it are
+	 * queued to the backlog.  This prevents a potential race between
+	 * backlog processing on the old socket and new-packet processing
+	 * on the new socket.
+	 */
+	sctp_lock_sock(newsk);
 	sctp_assoc_migrate(assoc, newsk);
-	spin_unlock_bh(&oldsk->sk_lock.slock);
 
 	/* If the association on the newsk is already closed before accept()
 	 * is called, set RCV_SHUTDOWN flag.
@@ -5619,6 +5622,7 @@ static void sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
 		newsk->sk_shutdown |= RCV_SHUTDOWN;
 
 	newsk->sk_state = SCTP_SS_ESTABLISHED;
+	sctp_release_sock(newsk);
 }
 
 /* This proto struct describes the ULP interface for SCTP.  */
