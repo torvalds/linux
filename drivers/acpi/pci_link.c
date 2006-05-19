@@ -83,7 +83,6 @@ struct acpi_pci_link_irq {
 struct acpi_pci_link {
 	struct list_head node;
 	struct acpi_device *device;
-	acpi_handle handle;
 	struct acpi_pci_link_irq irq;
 	int refcnt;
 };
@@ -249,8 +248,7 @@ static int acpi_pci_link_get_current(struct acpi_pci_link *link)
 	acpi_status status = AE_OK;
 	int irq = 0;
 
-
-	if (!link || !link->handle)
+	if (!link)
 		return -EINVAL;
 
 	link->irq.active = 0;
@@ -726,7 +724,6 @@ static int acpi_pci_link_add(struct acpi_device *device)
 	memset(link, 0, sizeof(struct acpi_pci_link));
 
 	link->device = device;
-	link->handle = device->handle;
 	strcpy(acpi_device_name(device), ACPI_PCI_LINK_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_PCI_LINK_CLASS);
 	acpi_driver_data(device) = link;
