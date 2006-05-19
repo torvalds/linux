@@ -35,7 +35,6 @@ static inline int scsi_sense_valid(struct scsi_sense_hdr *sshdr)
 }
 
 
-extern void scsi_eh_wakeup(struct Scsi_Host *shost);
 extern void scsi_eh_finish_cmd(struct scsi_cmnd *scmd,
 			       struct list_head *done_q);
 extern void scsi_eh_flush_done_q(struct list_head *done_q);

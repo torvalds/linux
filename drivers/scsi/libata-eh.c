@@ -39,6 +39,7 @@
 #include <scsi/scsi_eh.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_cmnd.h>
+#include "scsi_transport_api.h"
 
 #include <linux/libata.h>
 
@@ -432,7 +433,7 @@ void ata_port_schedule_eh(struct ata_port *ap)
 	WARN_ON(!ap->ops->error_handler);
 
 	ap->flags |= ATA_FLAG_EH_PENDING;
-	ata_schedule_scsi_eh(ap->host);
+	scsi_schedule_eh(ap->host);
 
 	DPRINTK("port EH scheduled\n");
 }
