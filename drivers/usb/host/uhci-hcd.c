@@ -13,7 +13,7 @@
  * (C) Copyright 2000 Yggdrasil Computing, Inc. (port of new PCI interface
  *               support from usb-ohci.c by Adam Richter, adam@yggdrasil.com).
  * (C) Copyright 1999 Gregory P. Smith (from usb-ohci.c)
- * (C) Copyright 2004-2005 Alan Stern, stern@rowland.harvard.edu
+ * (C) Copyright 2004-2006 Alan Stern, stern@rowland.harvard.edu
  *
  * Intel documents this fairly well, and as far as I know there
  * are no royalties or anything like that, but even so there are
@@ -31,7 +31,6 @@
 #include <linux/ioport.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/errno.h>
 #include <linux/unistd.h>
 #include <linux/interrupt.h>
@@ -146,7 +145,8 @@ static void configure_hc(struct uhci_hcd *uhci)
 	outl(uhci->frame_dma_handle, uhci->io_addr + USBFLBASEADD);
 
 	/* Set the current frame number */
-	outw(uhci->frame_number, uhci->io_addr + USBFRNUM);
+	outw(uhci->frame_number & UHCI_MAX_SOF_NUMBER,
+			uhci->io_addr + USBFRNUM);
 
 	/* Mark controller as not halted before we enable interrupts */
 	uhci_to_hcd(uhci)->state = HC_STATE_SUSPENDED;
@@ -239,7 +239,6 @@ __acquires(uhci->lock)
 		dev_warn(uhci_dev(uhci), "Controller not stopped yet!\n");
 
 	uhci_get_current_frame_number(uhci);
-	smp_wmb();
 
 	uhci->rh_state = new_state;
 	uhci->is_stopped = UHCI_IS_STOPPED;
@@ -253,7 +252,6 @@ static void start_rh(struct uhci_hcd *uhci)
 {
 	uhci_to_hcd(uhci)->state = HC_STATE_RUNNING;
 	uhci->is_stopped = 0;
-	smp_wmb();
 
 	/* Mark it configured and running with a 64-byte max packet.
 	 * All interrupts are enabled, even though RESUME won't do anything.
@@ -360,12 +358,21 @@ static irqreturn_t uhci_irq(struct usb_hcd *hcd, struct pt_regs *regs)
 
 /*
  * Store the current frame number in uhci->frame_number if the controller
- * is runnning
+ * is runnning.  Expand from 11 bits (of which we use only 10) to a
+ * full-sized integer.
+ *
+ * Like many other parts of the driver, this code relies on being polled
+ * more than once per second as long as the controller is running.
  */
 static void uhci_get_current_frame_number(struct uhci_hcd *uhci)
 {
-	if (!uhci->is_stopped)
-		uhci->frame_number = inw(uhci->io_addr + USBFRNUM);
+	if (!uhci->is_stopped) {
+		unsigned delta;
+
+		delta = (inw(uhci->io_addr + USBFRNUM) - uhci->frame_number) &
+				(UHCI_NUMFRAMES - 1);
+		uhci->frame_number += delta;
+	}
 }
 
 /*
@@ -798,18 +805,15 @@ done:
 static int uhci_hcd_get_frame_number(struct usb_hcd *hcd)
 {
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
-	unsigned long flags;
-	int is_stopped;
-	int frame_number;
+	unsigned frame_number;
+	unsigned delta;
 
 	/* Minimize latency by avoiding the spinlock */
-	local_irq_save(flags);
-	is_stopped = uhci->is_stopped;
-	smp_rmb();
-	frame_number = (is_stopped ? uhci->frame_number :
-			inw(uhci->io_addr + USBFRNUM));
-	local_irq_restore(flags);
-	return frame_number;
+	frame_number = uhci->frame_number;
+	barrier();
+	delta = (inw(uhci->io_addr + USBFRNUM) - frame_number) &
+			(UHCI_NUMFRAMES - 1);
+	return frame_number + delta;
 }
 
 static const char hcd_name[] = "uhci_hcd";

@@ -448,6 +448,9 @@ static inline struct usb_hcd *uhci_to_hcd(struct uhci_hcd *uhci)
 
 #define uhci_dev(u)	(uhci_to_hcd(u)->self.controller)
 
+/* Utility macro for comparing frame numbers */
+#define uhci_frame_before_eq(f1, f2)	(0 <= (int) ((f2) - (f1)))
+
 
 /*
  *	Private per-URB data

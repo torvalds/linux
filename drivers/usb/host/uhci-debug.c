@@ -289,7 +289,7 @@ static int uhci_show_status(struct uhci_hcd *uhci, char *buf, int len)
 	unsigned short portsc1, portsc2;
 
 	/* Try to make sure there's enough memory */
-	if (len < 80 * 6)
+	if (len < 80 * 9)
 		return 0;
 
 	usbcmd    = inw(io_addr + 0);
@@ -328,6 +328,8 @@ static int uhci_show_status(struct uhci_hcd *uhci, char *buf, int len)
 	out += sprintf(out, "  sof       =       %02x\n", sof);
 	out += uhci_show_sc(1, portsc1, out, len - (out - buf));
 	out += uhci_show_sc(2, portsc2, out, len - (out - buf));
+	out += sprintf(out, "Most recent frame: %x\n",
+			uhci->frame_number);
 
 	return out - buf;
 }
