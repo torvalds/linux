@@ -190,9 +190,6 @@ void iSeries_pcibios_init(void)
 		/* Find and connect the devices. */
 		for (dn = NULL; (dn = of_get_next_child(node, dn)) != NULL;) {
 			struct pci_dn *pdn;
-			u8 irq;
-			int err;
-			u32 *agent;
 			u32 *reg;
 			u32 *lsn;
 
@@ -206,30 +203,10 @@ void iSeries_pcibios_init(void)
 				printk(KERN_DEBUG "no subbus property!\n");
 				continue;
 			}
-			agent = (u32 *)get_property(dn, "linux,agent-id", NULL);
-			if (agent == NULL) {
-				printk(KERN_DEBUG "no agent-id\n");
-				continue;
-			}
 			lsn = (u32 *)get_property(dn,
 					"linux,logical-slot-number", NULL);
 			if (lsn == NULL) {
 				printk(KERN_DEBUG "no logical-slot-number\n");
-				continue;
-			}
-
-			irq = iSeries_allocate_IRQ(bus, 0, *busp);
-			err = HvCallXm_connectBusUnit(bus, *busp, *agent, irq);
-			if (err) {
-				pci_Log_Error("Connect Bus Unit",
-					      bus, *busp, *agent, err);
-				continue;
-			}
-			err = HvCallPci_configStore8(bus, *busp, *agent,
-					PCI_INTERRUPT_LINE, irq);
-			if (err) {
-				pci_Log_Error("PciCfgStore Irq Failed!",
-						bus, *busp, *agent, err);
 				continue;
 			}
 
@@ -241,7 +218,6 @@ void iSeries_pcibios_init(void)
 			pdn->busno = bus;
 			pdn->devfn = (reg[0] >> 8) & 0xff;
 			pdn->bussubno = *busp;
-			pdn->Irq = irq;
 			pdn->LogicalSlot = *lsn;
 		}
 	}
@@ -266,6 +242,34 @@ void __init iSeries_pci_final_fixup(void)
 		       pdev->bus->number, pdev->devfn, node);
 
 		if (node != NULL) {
+			struct pci_dn *pdn = PCI_DN(node);
+			u32 *agent;
+
+			agent = (u32 *)get_property(node, "linux,agent-id",
+					NULL);
+			if ((pdn != NULL) && (agent != NULL)) {
+				u8 irq = iSeries_allocate_IRQ(pdn->busno, 0,
+						pdn->bussubno);
+				int err;
+
+				err = HvCallXm_connectBusUnit(pdn->busno, pdn->bussubno,
+						*agent, irq);
+				if (err)
+					pci_Log_Error("Connect Bus Unit",
+						pdn->busno, pdn->bussubno, *agent, err);
+				else {
+					err = HvCallPci_configStore8(pdn->busno, pdn->bussubno,
+							*agent,
+							PCI_INTERRUPT_LINE,
+							irq);
+					if (err)
+						pci_Log_Error("PciCfgStore Irq Failed!",
+							pdn->busno, pdn->bussubno, *agent, err);
+				}
+				if (!err)
+					pdev->irq = irq;
+			}
+
 			++DeviceCount;
 			pdev->sysdata = (void *)node;
 			PCI_DN(node)->pcidev = pdev;
@@ -275,7 +279,6 @@ void __init iSeries_pci_final_fixup(void)
 		} else
 			printk("PCI: Device Tree not found for 0x%016lX\n",
 					(unsigned long)pdev);
-		pdev->irq = PCI_DN(node)->Irq;
 	}
 	iSeries_activate_IRQs();
 	mf_display_src(0xC9000200);
