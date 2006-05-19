@@ -108,7 +108,6 @@ struct acpi_battery_trips {
 };
 
 struct acpi_battery {
-	acpi_handle handle;
 	struct acpi_device * device;
 	struct acpi_battery_flags flags;
 	struct acpi_battery_trips trips;
@@ -693,7 +692,6 @@ static int acpi_battery_add(struct acpi_device *device)
 		return -ENOMEM;
 	memset(battery, 0, sizeof(struct acpi_battery));
 
-	battery->handle = device->handle;
 	battery->device = device;
 	strcpy(acpi_device_name(device), ACPI_BATTERY_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_BATTERY_CLASS);
