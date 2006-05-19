@@ -59,6 +59,7 @@ static struct acpi_driver acpi_pci_root_driver = {
 struct acpi_pci_root {
 	struct list_head node;
 	acpi_handle handle;
+	struct acpi_device * device;
 	struct acpi_pci_id id;
 	struct pci_bus *bus;
 };
@@ -171,6 +172,7 @@ static int acpi_pci_root_add(struct acpi_device *device)
 	INIT_LIST_HEAD(&root->node);
 
 	root->handle = device->handle;
+	root->device = device;
 	strcpy(acpi_device_name(device), ACPI_PCI_ROOT_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_PCI_ROOT_CLASS);
 	acpi_driver_data(device) = root;
