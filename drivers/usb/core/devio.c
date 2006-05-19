@@ -923,8 +923,8 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 		if ((ep->desc.bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
 				!= USB_ENDPOINT_XFER_CONTROL)
 			return -EINVAL;
-		/* min 8 byte setup packet, max arbitrary */
-		if (uurb->buffer_length < 8 || uurb->buffer_length > PAGE_SIZE)
+		/* min 8 byte setup packet, max 8 byte setup plus an arbitrary data stage */
+		if (uurb->buffer_length < 8 || uurb->buffer_length > (8 + MAX_USBFS_BUFFER_SIZE))
 			return -EINVAL;
 		if (!(dr = kmalloc(sizeof(struct usb_ctrlrequest), GFP_KERNEL)))
 			return -ENOMEM;
