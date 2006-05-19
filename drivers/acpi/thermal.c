@@ -162,7 +162,6 @@ struct acpi_thermal_flags {
 };
 
 struct acpi_thermal {
-	acpi_handle handle;
 	struct acpi_device * device;
 	acpi_bus_id name;
 	unsigned long temperature;
@@ -1277,7 +1276,6 @@ static int acpi_thermal_add(struct acpi_device *device)
 		return -ENOMEM;
 	memset(tz, 0, sizeof(struct acpi_thermal));
 
-	tz->handle = device->handle;
 	tz->device = device;
 	strcpy(tz->name, device->pnp.bus_id);
 	strcpy(acpi_device_name(device), ACPI_THERMAL_DEVICE_NAME);
