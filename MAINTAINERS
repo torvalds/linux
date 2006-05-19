@@ -565,7 +565,7 @@ BROADBAND PROCESSOR ARCHITECTURE
 P:	Arnd Bergmann
 M:	arnd@arndb.de
 L:	linuxppc-dev@ozlabs.org
-W:	http://linuxppc64.org
+W:	http://www.penguinppc.org/ppc64/
 S:	Supported
 
 BTTV VIDEO4LINUX DRIVER
@@ -1716,7 +1716,7 @@ M:	paulus@au.ibm.com
 P:	Anton Blanchard
 M:	anton@samba.org
 M:	anton@au.ibm.com
-W:	http://linuxppc64.org
+W:	http://www.penguinppc.org/ppc64/
 L:	linuxppc-dev@ozlabs.org
 S:	Supported
 
