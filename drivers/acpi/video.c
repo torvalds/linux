@@ -273,7 +273,8 @@ static int
 acpi_video_device_query(struct acpi_video_device *device, unsigned long *state)
 {
 	int status;
-	status = acpi_evaluate_integer(device->handle, "_DGS", NULL, state);
+
+	status = acpi_evaluate_integer(device->dev->handle, "_DGS", NULL, state);
 
 	return status;
 }
@@ -284,8 +285,7 @@ acpi_video_device_get_state(struct acpi_video_device *device,
 {
 	int status;
 
-
-	status = acpi_evaluate_integer(device->handle, "_DCS", NULL, state);
+	status = acpi_evaluate_integer(device->dev->handle, "_DCS", NULL, state);
 
 	return status;
 }
@@ -300,7 +300,7 @@ acpi_video_device_set_state(struct acpi_video_device *device, int state)
 
 
 	arg0.integer.value = state;
-	status = acpi_evaluate_integer(device->handle, "_DSS", &args, &ret);
+	status = acpi_evaluate_integer(device->dev->handle, "_DSS", &args, &ret);
 
 	return status;
 }
@@ -316,7 +316,7 @@ acpi_video_device_lcd_query_levels(struct acpi_video_device *device,
 
 	*levels = NULL;
 
-	status = acpi_evaluate_object(device->handle, "_BCL", NULL, &buffer);
+	status = acpi_evaluate_object(device->dev->handle, "_BCL", NULL, &buffer);
 	if (!ACPI_SUCCESS(status))
 		return status;
 	obj = (union acpi_object *)buffer.pointer;
@@ -345,7 +345,7 @@ acpi_video_device_lcd_set_level(struct acpi_video_device *device, int level)
 
 
 	arg0.integer.value = level;
-	status = acpi_evaluate_object(device->handle, "_BCM", &args, NULL);
+	status = acpi_evaluate_object(device->dev->handle, "_BCM", &args, NULL);
 
 	printk(KERN_DEBUG "set_level status: %x\n", status);
 	return status;
@@ -357,7 +357,7 @@ acpi_video_device_lcd_get_level_current(struct acpi_video_device *device,
 {
 	int status;
 
-	status = acpi_evaluate_integer(device->handle, "_BQC", NULL, level);
+	status = acpi_evaluate_integer(device->dev->handle, "_BQC", NULL, level);
 
 	return status;
 }
@@ -384,7 +384,7 @@ acpi_video_device_EDID(struct acpi_video_device *device,
 	else
 		return -EINVAL;
 
-	status = acpi_evaluate_object(device->handle, "_DDC", &args, &buffer);
+	status = acpi_evaluate_object(device->dev->handle, "_DDC", &args, &buffer);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
@@ -414,7 +414,7 @@ acpi_video_bus_set_POST(struct acpi_video_bus *video, unsigned long option)
 
 	arg0.integer.value = option;
 
-	status = acpi_evaluate_integer(video->handle, "_SPD", &args, &tmp);
+	status = acpi_evaluate_integer(video->device->handle, "_SPD", &args, &tmp);
 	if (ACPI_SUCCESS(status))
 		status = tmp ? (-EINVAL) : (AE_OK);
 
@@ -426,8 +426,7 @@ acpi_video_bus_get_POST(struct acpi_video_bus *video, unsigned long *id)
 {
 	int status;
 
-
-	status = acpi_evaluate_integer(video->handle, "_GPD", NULL, id);
+	status = acpi_evaluate_integer(video->device->handle, "_GPD", NULL, id);
 
 	return status;
 }
@@ -438,7 +437,7 @@ acpi_video_bus_POST_options(struct acpi_video_bus *video,
 {
 	int status;
 
-	status = acpi_evaluate_integer(video->handle, "_VPO", NULL, options);
+	status = acpi_evaluate_integer(video->device->handle, "_VPO", NULL, options);
 	*options &= 3;
 
 	return status;
@@ -479,7 +478,7 @@ acpi_video_bus_DOS(struct acpi_video_bus *video, int bios_flag, int lcd_flag)
 	}
 	arg0.integer.value = (lcd_flag << 2) | bios_flag;
 	video->dos_setting = arg0.integer.value;
-	acpi_evaluate_object(video->handle, "_DOS", &args, NULL);
+	acpi_evaluate_object(video->device->handle, "_DOS", &args, NULL);
 
       Failed:
 	return status;
@@ -507,25 +506,25 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 
 	memset(&device->cap, 0, 4);
 
-	if (ACPI_SUCCESS(acpi_get_handle(device->handle, "_ADR", &h_dummy1))) {
+	if (ACPI_SUCCESS(acpi_get_handle(device->dev->handle, "_ADR", &h_dummy1))) {
 		device->cap._ADR = 1;
 	}
-	if (ACPI_SUCCESS(acpi_get_handle(device->handle, "_BCL", &h_dummy1))) {
+	if (ACPI_SUCCESS(acpi_get_handle(device->dev->handle, "_BCL", &h_dummy1))) {
 		device->cap._BCL = 1;
 	}
-	if (ACPI_SUCCESS(acpi_get_handle(device->handle, "_BCM", &h_dummy1))) {
+	if (ACPI_SUCCESS(acpi_get_handle(device->dev->handle, "_BCM", &h_dummy1))) {
 		device->cap._BCM = 1;
 	}
-	if (ACPI_SUCCESS(acpi_get_handle(device->handle, "_DDC", &h_dummy1))) {
+	if (ACPI_SUCCESS(acpi_get_handle(device->dev->handle, "_DDC", &h_dummy1))) {
 		device->cap._DDC = 1;
 	}
-	if (ACPI_SUCCESS(acpi_get_handle(device->handle, "_DCS", &h_dummy1))) {
+	if (ACPI_SUCCESS(acpi_get_handle(device->dev->handle, "_DCS", &h_dummy1))) {
 		device->cap._DCS = 1;
 	}
-	if (ACPI_SUCCESS(acpi_get_handle(device->handle, "_DGS", &h_dummy1))) {
+	if (ACPI_SUCCESS(acpi_get_handle(device->dev->handle, "_DGS", &h_dummy1))) {
 		device->cap._DGS = 1;
 	}
-	if (ACPI_SUCCESS(acpi_get_handle(device->handle, "_DSS", &h_dummy1))) {
+	if (ACPI_SUCCESS(acpi_get_handle(device->dev->handle, "_DSS", &h_dummy1))) {
 		device->cap._DSS = 1;
 	}
 
@@ -589,22 +588,22 @@ static void acpi_video_bus_find_cap(struct acpi_video_bus *video)
 	acpi_handle h_dummy1;
 
 	memset(&video->cap, 0, 4);
-	if (ACPI_SUCCESS(acpi_get_handle(video->handle, "_DOS", &h_dummy1))) {
+	if (ACPI_SUCCESS(acpi_get_handle(video->device->handle, "_DOS", &h_dummy1))) {
 		video->cap._DOS = 1;
 	}
-	if (ACPI_SUCCESS(acpi_get_handle(video->handle, "_DOD", &h_dummy1))) {
+	if (ACPI_SUCCESS(acpi_get_handle(video->device->handle, "_DOD", &h_dummy1))) {
 		video->cap._DOD = 1;
 	}
-	if (ACPI_SUCCESS(acpi_get_handle(video->handle, "_ROM", &h_dummy1))) {
+	if (ACPI_SUCCESS(acpi_get_handle(video->device->handle, "_ROM", &h_dummy1))) {
 		video->cap._ROM = 1;
 	}
-	if (ACPI_SUCCESS(acpi_get_handle(video->handle, "_GPD", &h_dummy1))) {
+	if (ACPI_SUCCESS(acpi_get_handle(video->device->handle, "_GPD", &h_dummy1))) {
 		video->cap._GPD = 1;
 	}
-	if (ACPI_SUCCESS(acpi_get_handle(video->handle, "_SPD", &h_dummy1))) {
+	if (ACPI_SUCCESS(acpi_get_handle(video->device->handle, "_SPD", &h_dummy1))) {
 		video->cap._SPD = 1;
 	}
-	if (ACPI_SUCCESS(acpi_get_handle(video->handle, "_VPO", &h_dummy1))) {
+	if (ACPI_SUCCESS(acpi_get_handle(video->device->handle, "_VPO", &h_dummy1))) {
 		video->cap._VPO = 1;
 	}
 }
@@ -1299,7 +1298,7 @@ acpi_video_bus_get_one_device(struct acpi_device *device,
 		acpi_video_device_bind(video, data);
 		acpi_video_device_find_cap(data);
 
-		status = acpi_install_notify_handler(data->handle,
+		status = acpi_install_notify_handler(device->handle,
 						     ACPI_DEVICE_NOTIFY,
 						     acpi_video_device_notify,
 						     data);
@@ -1401,8 +1400,7 @@ static int acpi_video_device_enumerate(struct acpi_video_bus *video)
 	union acpi_object *dod = NULL;
 	union acpi_object *obj;
 
-
-	status = acpi_evaluate_object(video->handle, "_DOD", NULL, &buffer);
+	status = acpi_evaluate_object(video->device->handle, "_DOD", NULL, &buffer);
 	if (!ACPI_SUCCESS(status)) {
 		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _DOD"));
 		return status;
@@ -1570,7 +1568,7 @@ static int acpi_video_bus_put_one_device(struct acpi_video_device *device)
 	up(&video->sem);
 	acpi_video_device_remove_fs(device->dev);
 
-	status = acpi_remove_notify_handler(device->handle,
+	status = acpi_remove_notify_handler(device->dev->handle,
 					    ACPI_DEVICE_NOTIFY,
 					    acpi_video_device_notify);
 
@@ -1727,7 +1725,7 @@ static int acpi_video_bus_add(struct acpi_device *device)
 	acpi_video_bus_get_devices(video, device);
 	acpi_video_bus_start_devices(video);
 
-	status = acpi_install_notify_handler(video->handle,
+	status = acpi_install_notify_handler(device->handle,
 					     ACPI_DEVICE_NOTIFY,
 					     acpi_video_bus_notify, video);
 	if (ACPI_FAILURE(status)) {
@@ -1767,7 +1765,7 @@ static int acpi_video_bus_remove(struct acpi_device *device, int type)
 
 	acpi_video_bus_stop_devices(video);
 
-	status = acpi_remove_notify_handler(video->handle,
+	status = acpi_remove_notify_handler(video->device->handle,
 					    ACPI_DEVICE_NOTIFY,
 					    acpi_video_bus_notify);
 
