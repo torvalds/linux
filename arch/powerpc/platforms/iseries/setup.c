@@ -66,6 +66,8 @@
 #include "main_store.h"
 #include "call_sm.h"
 #include "call_hpt.h"
+#include "call_pci.h"
+#include "pci.h"
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -1000,6 +1002,207 @@ void dt_vdevices(struct iseries_flat_dt *dt)
 	dt_end_node(dt);
 }
 
+/*
+ * This assumes that the node slot is always on the primary bus!
+ */
+static void scan_bridge_slot(struct iseries_flat_dt *dt, HvBusNumber bus,
+		struct HvCallPci_BridgeInfo *bridge_info)
+{
+	HvSubBusNumber sub_bus = bridge_info->subBusNumber;
+	u16 vendor_id;
+	u16 device_id;
+	u32 class_id;
+	int err;
+	char buf[32];
+	u32 reg[5];
+	int id_sel = ISERIES_GET_DEVICE_FROM_SUBBUS(sub_bus);
+	int function = ISERIES_GET_FUNCTION_FROM_SUBBUS(sub_bus);
+	HvAgentId eads_id_sel = ISERIES_PCI_AGENTID(id_sel, function);
+
+	/*
+	 * Connect all functions of any device found.
+	 */
+	for (id_sel = 1; id_sel <= bridge_info->maxAgents; id_sel++) {
+		for (function = 0; function < 8; function++) {
+			u8 devfn;
+
+			HvAgentId agent_id = ISERIES_PCI_AGENTID(id_sel,
+					function);
+			err = HvCallXm_connectBusUnit(bus, sub_bus,
+					agent_id, 0);
+			if (err) {
+				if (err != 0x302)
+					printk(KERN_DEBUG
+						"connectBusUnit(%x, %x, %x) "
+						"== %x\n",
+						bus, sub_bus, agent_id, err);
+				continue;
+			}
+
+			err = HvCallPci_configLoad16(bus, sub_bus, agent_id,
+					PCI_VENDOR_ID, &vendor_id);
+			if (err) {
+				printk(KERN_DEBUG
+					"ReadVendor(%x, %x, %x) == %x\n",
+					bus, sub_bus, agent_id, err);
+				continue;
+			}
+			err = HvCallPci_configLoad16(bus, sub_bus, agent_id,
+					PCI_DEVICE_ID, &device_id);
+			if (err) {
+				printk(KERN_DEBUG
+					"ReadDevice(%x, %x, %x) == %x\n",
+					bus, sub_bus, agent_id, err);
+				continue;
+			}
+			err = HvCallPci_configLoad32(bus, sub_bus, agent_id,
+					PCI_CLASS_REVISION , &class_id);
+			if (err) {
+				printk(KERN_DEBUG
+					"ReadClass(%x, %x, %x) == %x\n",
+					bus, sub_bus, agent_id, err);
+				continue;
+			}
+
+			devfn = PCI_DEVFN(ISERIES_ENCODE_DEVICE(eads_id_sel),
+					function);
+			if (function == 0)
+				snprintf(buf, sizeof(buf), "pci@%x",
+						PCI_SLOT(devfn));
+			else
+				snprintf(buf, sizeof(buf), "pci@%x,%d",
+						PCI_SLOT(devfn), function);
+			dt_start_node(dt, buf);
+			reg[0] = (bus << 18) | (devfn << 8);
+			reg[1] = 0;
+			reg[2] = 0;
+			reg[3] = 0;
+			reg[4] = 0;
+			dt_prop_u32_list(dt, "reg", reg, 5);
+			dt_prop_u32(dt, "vendor-id", vendor_id);
+			dt_prop_u32(dt, "device-id", device_id);
+			dt_prop_u32(dt, "class-code", class_id >> 8);
+			dt_prop_u32(dt, "revision-id", class_id & 0xff);
+			dt_prop_u32(dt, "linux,subbus", sub_bus);
+			dt_prop_u32(dt, "linux,agent-id", agent_id);
+			dt_prop_u32(dt, "linux,logical-slot-number",
+					bridge_info->logicalSlotNumber);
+			dt_end_node(dt);
+
+		}
+	}
+}
+
+static void scan_bridge(struct iseries_flat_dt *dt, HvBusNumber bus,
+		HvSubBusNumber sub_bus, int id_sel)
+{
+	struct HvCallPci_BridgeInfo bridge_info;
+	HvAgentId agent_id;
+	int function;
+	int ret;
+
+	/* Note: hvSubBus and irq is always be 0 at this level! */
+	for (function = 0; function < 8; ++function) {
+		agent_id = ISERIES_PCI_AGENTID(id_sel, function);
+		ret = HvCallXm_connectBusUnit(bus, sub_bus, agent_id, 0);
+		if (ret != 0) {
+			if (ret != 0xb)
+				printk(KERN_DEBUG "connectBusUnit(%x, %x, %x) "
+						"== %x\n",
+						bus, sub_bus, agent_id, ret);
+			continue;
+		}
+		printk("found device at bus %d idsel %d func %d (AgentId %x)\n",
+				bus, id_sel, function, agent_id);
+		ret = HvCallPci_getBusUnitInfo(bus, sub_bus, agent_id,
+				iseries_hv_addr(&bridge_info),
+				sizeof(struct HvCallPci_BridgeInfo));
+		if (ret != 0)
+			continue;
+		printk("bridge info: type %x subbus %x "
+			"maxAgents %x maxsubbus %x logslot %x\n",
+			bridge_info.busUnitInfo.deviceType,
+			bridge_info.subBusNumber,
+			bridge_info.maxAgents,
+			bridge_info.maxSubBusNumber,
+			bridge_info.logicalSlotNumber);
+		if (bridge_info.busUnitInfo.deviceType ==
+				HvCallPci_BridgeDevice)
+			scan_bridge_slot(dt, bus, &bridge_info);
+		else
+			printk("PCI: Invalid Bridge Configuration(0x%02X)",
+				bridge_info.busUnitInfo.deviceType);
+	}
+}
+
+static void scan_phb(struct iseries_flat_dt *dt, HvBusNumber bus)
+{
+	struct HvCallPci_DeviceInfo dev_info;
+	const HvSubBusNumber sub_bus = 0;	/* EADs is always 0. */
+	int err;
+	int id_sel;
+	const int max_agents = 8;
+
+	/*
+	 * Probe for EADs Bridges
+	 */
+	for (id_sel = 1; id_sel < max_agents; ++id_sel) {
+		err = HvCallPci_getDeviceInfo(bus, sub_bus, id_sel,
+				iseries_hv_addr(&dev_info),
+				sizeof(struct HvCallPci_DeviceInfo));
+		if (err) {
+			if (err != 0x302)
+				printk(KERN_DEBUG "getDeviceInfo(%x, %x, %x) "
+						"== %x\n",
+						bus, sub_bus, id_sel, err);
+			continue;
+		}
+		if (dev_info.deviceType != HvCallPci_NodeDevice) {
+			printk(KERN_DEBUG "PCI: Invalid System Configuration"
+					"(0x%02X) for bus 0x%02x id 0x%02x.\n",
+					dev_info.deviceType, bus, id_sel);
+			continue;
+		}
+		scan_bridge(dt, bus, sub_bus, id_sel);
+	}
+}
+
+static void dt_pci_devices(struct iseries_flat_dt *dt)
+{
+	HvBusNumber bus;
+	char buf[32];
+	u32 buses[2];
+	int phb_num = 0;
+
+	/* Check all possible buses. */
+	for (bus = 0; bus < 256; bus++) {
+		int err = HvCallXm_testBus(bus);
+
+		if (err) {
+			/*
+			 * Check for Unexpected Return code, a clue that
+			 * something has gone wrong.
+			 */
+			if (err != 0x0301)
+				printk(KERN_ERR "Unexpected Return on Probe"
+						"(0x%02X): 0x%04X", bus, err);
+			continue;
+		}
+		printk("bus %d appears to exist\n", bus);
+		snprintf(buf, 32, "pci@%d", phb_num);
+		dt_start_node(dt, buf);
+		dt_prop_str(dt, "device_type", "pci");
+		dt_prop_str(dt, "compatible", "IBM,iSeries-Logical-PHB");
+		dt_prop_u32(dt, "#address-cells", 3);
+		dt_prop_u32(dt, "#size-cells", 2);
+		buses[0] = buses[1] = bus;
+		dt_prop_u32_list(dt, "bus-range", buses, 2);
+		scan_phb(dt, bus);
+		dt_end_node(dt);
+		phb_num++;
+	}
+}
+
 void build_flat_dt(struct iseries_flat_dt *dt, unsigned long phys_mem_size)
 {
 	u64 tmp[2];
@@ -1029,6 +1232,7 @@ void build_flat_dt(struct iseries_flat_dt *dt, unsigned long phys_mem_size)
 	dt_cpus(dt);
 
 	dt_vdevices(dt);
+	dt_pci_devices(dt);
 
 	dt_end_node(dt);
 
