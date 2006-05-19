@@ -7,7 +7,6 @@ obj-y			:= string.o strcase.o
 obj-$(CONFIG_PPC32)	+= div64.o copy_32.o checksum_32.o
 endif
 
-obj-y			+= bitops.o
 obj-$(CONFIG_PPC64)	+= checksum_64.o copypage_64.o copyuser_64.o \
 			   memcpy_64.o usercopy_64.o mem_64.o string.o \
 			   strcase.o
