@@ -210,7 +210,6 @@ struct iscsi_session {
 						 * - mgmtpool,		   *
 						 * - r2tpool		   */
 	int			state;		/* session state           */
-	int			recovery_failed;
 	struct list_head	item;
 	int			conn_cnt;
 	int			age;		/* counts session re-opens */
@@ -241,8 +240,6 @@ iscsi_session_setup(struct iscsi_transport *, struct scsi_transport_template *,
 		    int, int, uint32_t, uint32_t *);
 extern void iscsi_session_teardown(struct iscsi_cls_session *);
 extern struct iscsi_session *class_to_transport_session(struct iscsi_cls_session *);
-extern void iscsi_start_session_recovery(struct iscsi_session *,
-					struct iscsi_conn *, int);
 extern void iscsi_session_recovery_timedout(struct iscsi_cls_session *);
 
 #define session_to_cls(_sess) \
