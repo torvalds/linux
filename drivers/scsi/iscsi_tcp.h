@@ -118,11 +118,9 @@ struct iscsi_buf {
 struct iscsi_data_task {
 	struct iscsi_data	hdr;			/* PDU */
 	char			hdrext[sizeof(__u32)];	/* Header-Digest */
-	struct list_head	item;			/* data queue item */
 	struct iscsi_buf	digestbuf;		/* digest buffer */
 	uint32_t		digest;			/* data digest */
 };
-#define ISCSI_DTASK_DEFAULT_MAX	ISCSI_SG_TABLESIZE * PAGE_SIZE / 512
 
 struct iscsi_tcp_mgmt_task {
 	struct iscsi_hdr	hdr;
@@ -144,7 +142,7 @@ struct iscsi_r2t_info {
 	int			data_count;	/* DATA-Out payload progress */
 	struct scatterlist	*sg;		/* per-R2T SG list */
 	int			solicit_datasn;
-	struct iscsi_data_task   *dtask;        /* which data task */
+	struct iscsi_data_task   dtask;        /* which data task */
 };
 
 struct iscsi_tcp_cmd_task {
@@ -167,14 +165,13 @@ struct iscsi_tcp_cmd_task {
 	struct iscsi_queue	r2tpool;
 	struct kfifo		*r2tqueue;
 	struct iscsi_r2t_info	**r2ts;
-	struct list_head	dataqueue;		/* Data-Out dataqueue */
-	mempool_t		*datapool;
 	uint32_t		datadigest;		/* for recover digest */
 	int			digest_count;
 	uint32_t		immdigest;		/* for imm data */
 	struct iscsi_buf	immbuf;			/* for imm data digest */
-	struct iscsi_data_task   *dtask;		/* data task in progress*/
-	int			digest_offset;		/* for partial buff digest */
+	struct iscsi_data_task	*dtask;		/* data task in progress*/
+	struct iscsi_data_task	unsol_dtask;	/* unsol data task */
+	int			digest_offset;	/* for partial buff digest */
 };
 
 #endif /* ISCSI_H */
