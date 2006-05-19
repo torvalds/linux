@@ -70,7 +70,6 @@ static struct acpi_driver acpi_power_driver = {
 };
 
 struct acpi_power_resource {
-	acpi_handle handle;
 	struct acpi_device * device;
 	acpi_bus_id name;
 	u32 system_level;
@@ -541,7 +540,6 @@ static int acpi_power_add(struct acpi_device *device)
 		return -ENOMEM;
 	memset(resource, 0, sizeof(struct acpi_power_resource));
 
-	resource->handle = device->handle;
 	resource->device = device;
 	strcpy(resource->name, device->pnp.bus_id);
 	strcpy(acpi_device_name(device), ACPI_POWER_DEVICE_NAME);
