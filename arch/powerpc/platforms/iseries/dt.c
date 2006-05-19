@@ -27,7 +27,6 @@
 #include <asm/machdep.h>
 #include <asm/prom.h>
 #include <asm/lppaca.h>
-#include <asm/page.h>
 #include <asm/cputable.h>
 #include <asm/abs_addr.h>
 #include <asm/system.h>
@@ -51,15 +50,10 @@
 extern char __dt_strings_start[];
 extern char __dt_strings_end[];
 
-struct blob {
-	unsigned char data[PAGE_SIZE * 2];
-	unsigned long next;
-};
-
 struct iseries_flat_dt {
 	struct boot_param_header header;
 	u64 reserve_map[2];
-	struct blob *dt;
+	void *data;
 };
 
 static struct iseries_flat_dt *iseries_dt;
@@ -76,15 +70,12 @@ static struct iseries_flat_dt * __init dt_init(void)
 	dt->header.off_dt_strings = ALIGN(sizeof(*dt), 8);
 	dt->header.off_dt_struct = dt->header.off_dt_strings
 		+ ALIGN(str_len, 8);
-	dt->dt = (struct blob *)((unsigned long)dt + dt->header.off_dt_struct);
-	klimit = ALIGN((unsigned long)(dt->dt) + sizeof(struct blob), 8);
-	dt->header.totalsize = klimit - (unsigned long)dt;
+	dt->data = (void *)((unsigned long)dt + dt->header.off_dt_struct);
 	dt->header.dt_strings_size = str_len;
 
 	/* There is no notion of hardware cpu id on iSeries */
 	dt->header.boot_cpuid_phys = smp_processor_id();
 
-	dt->dt->next = (unsigned long)&dt->dt->data;
 	memcpy((char *)dt + dt->header.off_dt_strings, __dt_strings_start,
 			str_len);
 
@@ -98,54 +89,37 @@ static struct iseries_flat_dt * __init dt_init(void)
 	return dt;
 }
 
-static void __init dt_check_blob(struct blob *b)
-{
-	if (b->next >= (unsigned long)&b->next) {
-		DBG("Ran out of space in flat device tree blob!\n");
-		BUG();
-	}
-}
-
 static void __init dt_push_u32(struct iseries_flat_dt *dt, u32 value)
 {
-	*((u32*)dt->dt->next) = value;
-	dt->dt->next += sizeof(u32);
-
-	dt_check_blob(dt->dt);
+	*((u32 *)dt->data) = value;
+	dt->data += sizeof(u32);
 }
 
 #ifdef notyet
 static void __init dt_push_u64(struct iseries_flat_dt *dt, u64 value)
 {
-	*((u64*)dt->dt->next) = value;
-	dt->dt->next += sizeof(u64);
-
-	dt_check_blob(dt->dt);
+	*((u64 *)dt->data) = value;
+	dt->data += sizeof(u64);
 }
 #endif
 
-static unsigned long __init dt_push_bytes(struct blob *blob, char *data, int len)
+static void __init dt_push_bytes(struct iseries_flat_dt *dt, char *data,
+		int len)
 {
-	unsigned long start = blob->next - (unsigned long)blob->data;
-
-	memcpy((char *)blob->next, data, len);
-	blob->next = _ALIGN(blob->next + len, 4);
-
-	dt_check_blob(blob);
-
-	return start;
+	memcpy(dt->data, data, len);
+	dt->data += ALIGN(len, 4);
 }
 
 static void __init dt_start_node(struct iseries_flat_dt *dt, char *name)
 {
 	dt_push_u32(dt, OF_DT_BEGIN_NODE);
-	dt_push_bytes(dt->dt, name, strlen(name) + 1);
+	dt_push_bytes(dt, name, strlen(name) + 1);
 }
 
 #define dt_end_node(dt) dt_push_u32(dt, OF_DT_END_NODE)
 
 static void __init dt_prop(struct iseries_flat_dt *dt, char *name,
-		char *data, int len)
+		void *data, int len)
 {
 	unsigned long offset;
 
@@ -160,7 +134,7 @@ static void __init dt_prop(struct iseries_flat_dt *dt, char *name,
 	dt_push_u32(dt, (u32)offset);
 
 	/* The actual data. */
-	dt_push_bytes(dt->dt, data, len);
+	dt_push_bytes(dt, data, len);
 }
 
 static void __init dt_prop_str(struct iseries_flat_dt *dt, char *name,
@@ -171,24 +145,24 @@ static void __init dt_prop_str(struct iseries_flat_dt *dt, char *name,
 
 static void __init dt_prop_u32(struct iseries_flat_dt *dt, char *name, u32 data)
 {
-	dt_prop(dt, name, (char *)&data, sizeof(u32));
+	dt_prop(dt, name, &data, sizeof(u32));
 }
 
 static void __init dt_prop_u64(struct iseries_flat_dt *dt, char *name, u64 data)
 {
-	dt_prop(dt, name, (char *)&data, sizeof(u64));
+	dt_prop(dt, name, &data, sizeof(u64));
 }
 
 static void __init dt_prop_u64_list(struct iseries_flat_dt *dt, char *name,
 		u64 *data, int n)
 {
-	dt_prop(dt, name, (char *)data, sizeof(u64) * n);
+	dt_prop(dt, name, data, sizeof(u64) * n);
 }
 
 static void __init dt_prop_u32_list(struct iseries_flat_dt *dt, char *name,
 		u32 *data, int n)
 {
-	dt_prop(dt, name, (char *)data, sizeof(u32) * n);
+	dt_prop(dt, name, data, sizeof(u32) * n);
 }
 
 #ifdef notyet
@@ -595,6 +569,8 @@ static void __init dt_pci_devices(struct iseries_flat_dt *dt)
 static void dt_finish(struct iseries_flat_dt *dt)
 {
 	dt_push_u32(dt, OF_DT_END);
+	dt->header.totalsize = (unsigned long)dt->data - (unsigned long)dt;
+	klimit = ALIGN((unsigned long)dt->data, 8);
 }
 
 void * __init build_flat_dt(unsigned long phys_mem_size)
