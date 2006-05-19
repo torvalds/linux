@@ -498,10 +498,6 @@ static void sctp_cmd_assoc_failed(sctp_cmd_seq_t *commands,
 	sctp_add_cmd_sf(commands, SCTP_CMD_NEW_STATE,
 			SCTP_STATE(SCTP_STATE_CLOSED));
 
-	/* Set sk_err to ECONNRESET on a 1-1 style socket. */
-	if (!sctp_style(asoc->base.sk, UDP))
-		asoc->base.sk->sk_err = ECONNRESET; 
-
 	/* SEND_FAILED sent later when cleaning up the association. */
 	asoc->outqueue.error = error;
 	sctp_add_cmd_sf(commands, SCTP_CMD_DELETE_TCB, SCTP_NULL());
@@ -836,6 +832,15 @@ static void sctp_cmd_del_non_primary(struct sctp_association *asoc)
 	}
 
 	return;
+}
+
+/* Helper function to set sk_err on a 1-1 style socket. */
+static void sctp_cmd_set_sk_err(struct sctp_association *asoc, int error)
+{
+	struct sock *sk = asoc->base.sk;
+
+	if (!sctp_style(sk, UDP))
+		sk->sk_err = error;
 }
 
 /* These three macros allow us to pull the debugging code out of the
@@ -1457,6 +1462,9 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 			error = sctp_outq_uncork(&asoc->outqueue);
 			local_cork = 0;
 			asoc->peer.retran_path = t;
+			break;
+		case SCTP_CMD_SET_SK_ERR:
+			sctp_cmd_set_sk_err(asoc, cmd->obj.error);
 			break;
 		default:
 			printk(KERN_WARNING "Impossible command: %u, %p\n",
