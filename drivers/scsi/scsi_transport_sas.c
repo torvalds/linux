@@ -955,7 +955,8 @@ static int sas_user_scan(struct Scsi_Host *shost, uint channel,
 	list_for_each_entry(rphy, &sas_host->rphy_list, list) {
 		struct sas_phy *parent = dev_to_phy(rphy->dev.parent);
 
-		if (rphy->scsi_target_id == -1)
+		if (rphy->identify.device_type != SAS_END_DEVICE ||
+		    rphy->scsi_target_id == -1)
 			continue;
 
 		if ((channel == SCAN_WILD_CARD || channel == parent->port_identifier) &&
