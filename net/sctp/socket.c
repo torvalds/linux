@@ -1057,6 +1057,7 @@ static int __sctp_connect(struct sock* sk,
 	inet_sk(sk)->dport = htons(asoc->peer.port);
 	af = sctp_get_af_specific(to.sa.sa_family);
 	af->to_sk_daddr(&to, sk);
+	sk->sk_err = 0;
 
 	timeo = sock_sndtimeo(sk, sk->sk_socket->file->f_flags & O_NONBLOCK);
 	err = sctp_wait_for_connect(asoc, &timeo);

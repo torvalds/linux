@@ -412,7 +412,7 @@ struct sock *sctp_err_lookup(int family, struct sk_buff *skb,
 	union sctp_addr daddr;
 	struct sctp_af *af;
 	struct sock *sk = NULL;
-	struct sctp_association *asoc = NULL;
+	struct sctp_association *asoc;
 	struct sctp_transport *transport = NULL;
 
 	*app = NULL; *tpp = NULL;
@@ -490,7 +490,7 @@ void sctp_v4_err(struct sk_buff *skb, __u32 info)
 	int type = skb->h.icmph->type;
 	int code = skb->h.icmph->code;
 	struct sock *sk;
-	struct sctp_association *asoc;
+	struct sctp_association *asoc = NULL;
 	struct sctp_transport *transport;
 	struct inet_sock *inet;
 	char *saveip, *savesctp;
