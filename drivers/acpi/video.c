@@ -118,6 +118,7 @@ struct acpi_video_enumerated_device {
 
 struct acpi_video_bus {
 	acpi_handle handle;
+	struct acpi_device *device;
 	u8 dos_setting;
 	struct acpi_video_enumerated_device *attached_array;
 	u8 attached_count;
@@ -1624,8 +1625,7 @@ static void acpi_video_bus_notify(acpi_handle handle, u32 event, void *data)
 	if (!video)
 		return;
 
-	if (acpi_bus_get_device(handle, &device))
-		return;
+	device = video->device;
 
 	switch (event) {
 	case ACPI_VIDEO_NOTIFY_SWITCH:	/* User request that a switch occur,
@@ -1668,8 +1668,7 @@ static void acpi_video_device_notify(acpi_handle handle, u32 event, void *data)
 	if (!video_device)
 		return;
 
-	if (acpi_bus_get_device(handle, &device))
-		return;
+	device = video_device->dev;
 
 	switch (event) {
 	case ACPI_VIDEO_NOTIFY_SWITCH:	/* change in status (cycle output device) */
@@ -1708,6 +1707,7 @@ static int acpi_video_bus_add(struct acpi_device *device)
 	memset(video, 0, sizeof(struct acpi_video_bus));
 
 	video->handle = device->handle;
+	video->device = device;
 	strcpy(acpi_device_name(device), ACPI_VIDEO_BUS_NAME);
 	strcpy(acpi_device_class(device), ACPI_VIDEO_CLASS);
 	acpi_driver_data(device) = video;
