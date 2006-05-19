@@ -982,7 +982,8 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 			return -EFAULT;
 		}
 		for (totlen = u = 0; u < uurb->number_of_packets; u++) {
-			if (isopkt[u].length > 1023) {
+			/* arbitrary limit, sufficient for USB 2.0 high-bandwidth iso */
+			if (isopkt[u].length > 8192) {
 				kfree(isopkt);
 				return -EINVAL;
 			}
