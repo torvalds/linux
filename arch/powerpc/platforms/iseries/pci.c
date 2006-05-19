@@ -166,12 +166,20 @@ static void pci_Log_Error(char *Error_Text, int Bus, int SubBus,
 void iSeries_pcibios_init(void)
 {
 	struct pci_controller *phb;
-	struct device_node *node;
-	struct device_node *dn;
+	struct device_node *root = of_find_node_by_path("/");
+	struct device_node *node = NULL;
 
-	for_each_node_by_type(node, "pci") {
+	if (root == NULL) {
+		printk(KERN_CRIT "iSeries_pcibios_init: can't find root "
+				"of device tree\n");
+		return;
+	}
+	while ((node = of_get_next_child(root, node)) != NULL) {
 		HvBusNumber bus;
 		u32 *busp;
+
+		if ((node->type == NULL) || (strcmp(node->type, "pci") != 0))
+			continue;
 
 		busp = (u32 *)get_property(node, "bus-range", NULL);
 		if (busp == NULL)
@@ -186,33 +194,11 @@ void iSeries_pcibios_init(void)
 		phb->first_busno = bus;
 		phb->last_busno = bus;
 		phb->ops = &iSeries_pci_ops;
-
-		/* Find and connect the devices. */
-		for (dn = NULL; (dn = of_get_next_child(node, dn)) != NULL;) {
-			struct pci_dn *pdn;
-			u32 *reg;
-
-			reg = (u32 *)get_property(dn, "reg", NULL);
-			if (reg == NULL) {
-				printk(KERN_DEBUG "no reg property!\n");
-				continue;
-			}
-			busp = (u32 *)get_property(dn, "linux,subbus", NULL);
-			if (busp == NULL) {
-				printk(KERN_DEBUG "no subbus property!\n");
-				continue;
-			}
-
-			pdn = kzalloc(sizeof(*pdn), GFP_KERNEL);
-			if (pdn == NULL)
-				return;
-			dn->data = pdn;
-			pdn->node = dn;
-			pdn->busno = bus;
-			pdn->devfn = (reg[0] >> 8) & 0xff;
-			pdn->bussubno = *busp;
-		}
 	}
+
+	of_node_put(root);
+
+	pci_devs_phb_init();
 }
 
 /*

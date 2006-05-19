@@ -1073,7 +1073,7 @@ static void scan_bridge_slot(struct iseries_flat_dt *dt, HvBusNumber bus,
 				snprintf(buf, sizeof(buf), "pci@%x,%d",
 						PCI_SLOT(devfn), function);
 			dt_start_node(dt, buf);
-			reg[0] = (bus << 18) | (devfn << 8);
+			reg[0] = (bus << 16) | (devfn << 8);
 			reg[1] = 0;
 			reg[2] = 0;
 			reg[3] = 0;
