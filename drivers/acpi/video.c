@@ -117,7 +117,6 @@ struct acpi_video_enumerated_device {
 };
 
 struct acpi_video_bus {
-	acpi_handle handle;
 	struct acpi_device *device;
 	u8 dos_setting;
 	struct acpi_video_enumerated_device *attached_array;
@@ -156,7 +155,6 @@ struct acpi_video_device_brightness {
 };
 
 struct acpi_video_device {
-	acpi_handle handle;
 	unsigned long device_id;
 	struct acpi_video_device_flags flags;
 	struct acpi_video_device_cap cap;
@@ -1271,7 +1269,6 @@ acpi_video_bus_get_one_device(struct acpi_device *device,
 
 		memset(data, 0, sizeof(struct acpi_video_device));
 
-		data->handle = device->handle;
 		strcpy(acpi_device_name(device), ACPI_VIDEO_DEVICE_NAME);
 		strcpy(acpi_device_class(device), ACPI_VIDEO_CLASS);
 		acpi_driver_data(device) = data;
@@ -1704,7 +1701,6 @@ static int acpi_video_bus_add(struct acpi_device *device)
 		return -ENOMEM;
 	memset(video, 0, sizeof(struct acpi_video_bus));
 
-	video->handle = device->handle;
 	video->device = device;
 	strcpy(acpi_device_name(device), ACPI_VIDEO_BUS_NAME);
 	strcpy(acpi_device_class(device), ACPI_VIDEO_CLASS);
