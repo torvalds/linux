@@ -80,7 +80,6 @@ struct acpi_memory_info {
 };
 
 struct acpi_memory_device {
-	acpi_handle handle;
 	struct acpi_device * device;
 	unsigned int state;	/* State of the memory device */
 	struct list_head res_list;
@@ -399,7 +398,6 @@ static int acpi_memory_device_add(struct acpi_device *device)
 	memset(mem_device, 0, sizeof(struct acpi_memory_device));
 
 	INIT_LIST_HEAD(&mem_device->res_list);
-	mem_device->device->handle = device->handle;
 	mem_device->device = device;
 	sprintf(acpi_device_name(device), "%s", ACPI_MEMORY_DEVICE_NAME);
 	sprintf(acpi_device_class(device), "%s", ACPI_MEMORY_DEVICE_CLASS);
