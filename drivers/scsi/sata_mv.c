@@ -308,9 +308,6 @@ struct mv_port_priv {
 	dma_addr_t		crpb_dma;
 	struct mv_sg		*sg_tbl;
 	dma_addr_t		sg_tbl_dma;
-
-	unsigned		req_producer;		/* cp of req_in_ptr */
-	unsigned		rsp_consumer;		/* cp of rsp_out_ptr */
 	u32			pp_flags;
 };
 
@@ -943,8 +940,6 @@ static int mv_port_start(struct ata_port *ap)
 	writelfl(pp->crpb_dma & EDMA_RSP_Q_BASE_LO_MASK,
 		 port_mmio + EDMA_RSP_Q_OUT_PTR_OFS);
 
-	pp->req_producer = pp->rsp_consumer = 0;
-
 	/* Don't turn on EDMA here...do it before DMA commands only.  Else
 	 * we'll be unable to send non-data, PIO, etc due to restricted access
 	 * to shadow regs.
@@ -1028,10 +1023,9 @@ static void mv_fill_sg(struct ata_queued_cmd *qc)
 	}
 }
 
-static inline unsigned mv_inc_q_index(unsigned *index)
+static inline unsigned mv_inc_q_index(unsigned index)
 {
-	*index = (*index + 1) & MV_MAX_Q_DEPTH_MASK;
-	return *index;
+	return (index + 1) & MV_MAX_Q_DEPTH_MASK;
 }
 
 static inline void mv_crqb_pack_cmd(u16 *cmdw, u8 data, u8 addr, unsigned last)
@@ -1059,14 +1053,10 @@ static void mv_qc_prep(struct ata_queued_cmd *qc)
 	u16 *cw;
 	struct ata_taskfile *tf;
 	u16 flags = 0;
+	unsigned in_index;
 
  	if (ATA_PROT_DMA != qc->tf.protocol)
 		return;
-
-	/* the req producer index should be the same as we remember it */
-	WARN_ON(((readl(mv_ap_base(qc->ap) + EDMA_REQ_Q_IN_PTR_OFS) >>
-		  EDMA_REQ_Q_PTR_SHIFT) & MV_MAX_Q_DEPTH_MASK) !=
-		pp->req_producer);
 
 	/* Fill in command request block
 	 */
@@ -1075,13 +1065,17 @@ static void mv_qc_prep(struct ata_queued_cmd *qc)
 	WARN_ON(MV_MAX_Q_DEPTH <= qc->tag);
 	flags |= qc->tag << CRQB_TAG_SHIFT;
 
-	pp->crqb[pp->req_producer].sg_addr =
-		cpu_to_le32(pp->sg_tbl_dma & 0xffffffff);
-	pp->crqb[pp->req_producer].sg_addr_hi =
-		cpu_to_le32((pp->sg_tbl_dma >> 16) >> 16);
-	pp->crqb[pp->req_producer].ctrl_flags = cpu_to_le16(flags);
+	/* get current queue index from hardware */
+	in_index = (readl(mv_ap_base(ap) + EDMA_REQ_Q_IN_PTR_OFS)
+			>> EDMA_REQ_Q_PTR_SHIFT) & MV_MAX_Q_DEPTH_MASK;
 
-	cw = &pp->crqb[pp->req_producer].ata_cmd[0];
+	pp->crqb[in_index].sg_addr =
+		cpu_to_le32(pp->sg_tbl_dma & 0xffffffff);
+	pp->crqb[in_index].sg_addr_hi =
+		cpu_to_le32((pp->sg_tbl_dma >> 16) >> 16);
+	pp->crqb[in_index].ctrl_flags = cpu_to_le16(flags);
+
+	cw = &pp->crqb[in_index].ata_cmd[0];
 	tf = &qc->tf;
 
 	/* Sadly, the CRQB cannot accomodate all registers--there are
@@ -1150,15 +1144,11 @@ static void mv_qc_prep_iie(struct ata_queued_cmd *qc)
 	struct mv_port_priv *pp = ap->private_data;
 	struct mv_crqb_iie *crqb;
 	struct ata_taskfile *tf;
+	unsigned in_index;
 	u32 flags = 0;
 
  	if (ATA_PROT_DMA != qc->tf.protocol)
 		return;
-
-	/* the req producer index should be the same as we remember it */
-	WARN_ON(((readl(mv_ap_base(qc->ap) + EDMA_REQ_Q_IN_PTR_OFS) >>
-		  EDMA_REQ_Q_PTR_SHIFT) & MV_MAX_Q_DEPTH_MASK) !=
-		pp->req_producer);
 
 	/* Fill in Gen IIE command request block
 	 */
@@ -1168,7 +1158,11 @@ static void mv_qc_prep_iie(struct ata_queued_cmd *qc)
 	WARN_ON(MV_MAX_Q_DEPTH <= qc->tag);
 	flags |= qc->tag << CRQB_TAG_SHIFT;
 
-	crqb = (struct mv_crqb_iie *) &pp->crqb[pp->req_producer];
+	/* get current queue index from hardware */
+	in_index = (readl(mv_ap_base(ap) + EDMA_REQ_Q_IN_PTR_OFS)
+			>> EDMA_REQ_Q_PTR_SHIFT) & MV_MAX_Q_DEPTH_MASK;
+
+	crqb = (struct mv_crqb_iie *) &pp->crqb[in_index];
 	crqb->addr = cpu_to_le32(pp->sg_tbl_dma & 0xffffffff);
 	crqb->addr_hi = cpu_to_le32((pp->sg_tbl_dma >> 16) >> 16);
 	crqb->flags = cpu_to_le32(flags);
@@ -1216,6 +1210,7 @@ static unsigned int mv_qc_issue(struct ata_queued_cmd *qc)
 {
 	void __iomem *port_mmio = mv_ap_base(qc->ap);
 	struct mv_port_priv *pp = qc->ap->private_data;
+	unsigned in_index;
 	u32 in_ptr;
 
 	if (ATA_PROT_DMA != qc->tf.protocol) {
@@ -1227,23 +1222,20 @@ static unsigned int mv_qc_issue(struct ata_queued_cmd *qc)
 		return ata_qc_issue_prot(qc);
 	}
 
-	in_ptr = readl(port_mmio + EDMA_REQ_Q_IN_PTR_OFS);
+	in_ptr   = readl(port_mmio + EDMA_REQ_Q_IN_PTR_OFS);
+	in_index = (in_ptr >> EDMA_REQ_Q_PTR_SHIFT) & MV_MAX_Q_DEPTH_MASK;
 
-	/* the req producer index should be the same as we remember it */
-	WARN_ON(((in_ptr >> EDMA_REQ_Q_PTR_SHIFT) & MV_MAX_Q_DEPTH_MASK) !=
-		pp->req_producer);
 	/* until we do queuing, the queue should be empty at this point */
-	WARN_ON(((in_ptr >> EDMA_REQ_Q_PTR_SHIFT) & MV_MAX_Q_DEPTH_MASK) !=
-		((readl(port_mmio + EDMA_REQ_Q_OUT_PTR_OFS) >>
-		  EDMA_REQ_Q_PTR_SHIFT) & MV_MAX_Q_DEPTH_MASK));
+	WARN_ON(in_index != ((readl(port_mmio + EDMA_REQ_Q_OUT_PTR_OFS)
+		>> EDMA_REQ_Q_PTR_SHIFT) & MV_MAX_Q_DEPTH_MASK));
 
-	mv_inc_q_index(&pp->req_producer);	/* now incr producer index */
+	in_index = mv_inc_q_index(in_index);	/* now incr producer index */
 
 	mv_start_dma(port_mmio, pp);
 
 	/* and write the request in pointer to kick the EDMA to life */
 	in_ptr &= EDMA_REQ_Q_BASE_LO_MASK;
-	in_ptr |= pp->req_producer << EDMA_REQ_Q_PTR_SHIFT;
+	in_ptr |= in_index << EDMA_REQ_Q_PTR_SHIFT;
 	writelfl(in_ptr, port_mmio + EDMA_REQ_Q_IN_PTR_OFS);
 
 	return 0;
@@ -1266,28 +1258,26 @@ static u8 mv_get_crpb_status(struct ata_port *ap)
 {
 	void __iomem *port_mmio = mv_ap_base(ap);
 	struct mv_port_priv *pp = ap->private_data;
+	unsigned out_index;
 	u32 out_ptr;
 	u8 ata_status;
 
-	out_ptr = readl(port_mmio + EDMA_RSP_Q_OUT_PTR_OFS);
+	out_ptr   = readl(port_mmio + EDMA_RSP_Q_OUT_PTR_OFS);
+	out_index = (out_ptr >> EDMA_RSP_Q_PTR_SHIFT) & MV_MAX_Q_DEPTH_MASK;
 
-	/* the response consumer index should be the same as we remember it */
-	WARN_ON(((out_ptr >> EDMA_RSP_Q_PTR_SHIFT) & MV_MAX_Q_DEPTH_MASK) !=
-		pp->rsp_consumer);
-
-	ata_status = pp->crpb[pp->rsp_consumer].flags >> CRPB_FLAG_STATUS_SHIFT;
+	ata_status = le16_to_cpu(pp->crpb[out_index].flags)
+					>> CRPB_FLAG_STATUS_SHIFT;
 
 	/* increment our consumer index... */
-	pp->rsp_consumer = mv_inc_q_index(&pp->rsp_consumer);
+	out_index = mv_inc_q_index(out_index);
 
 	/* and, until we do NCQ, there should only be 1 CRPB waiting */
-	WARN_ON(((readl(port_mmio + EDMA_RSP_Q_IN_PTR_OFS) >>
-		  EDMA_RSP_Q_PTR_SHIFT) & MV_MAX_Q_DEPTH_MASK) !=
-		pp->rsp_consumer);
+	WARN_ON(out_index != ((readl(port_mmio + EDMA_RSP_Q_IN_PTR_OFS)
+		>> EDMA_RSP_Q_PTR_SHIFT) & MV_MAX_Q_DEPTH_MASK));
 
 	/* write out our inc'd consumer index so EDMA knows we're caught up */
 	out_ptr &= EDMA_RSP_Q_BASE_LO_MASK;
-	out_ptr |= pp->rsp_consumer << EDMA_RSP_Q_PTR_SHIFT;
+	out_ptr |= out_index << EDMA_RSP_Q_PTR_SHIFT;
 	writelfl(out_ptr, port_mmio + EDMA_RSP_Q_OUT_PTR_OFS);
 
 	/* Return ATA status register for completed CRPB */
