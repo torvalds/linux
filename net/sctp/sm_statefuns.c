@@ -1019,6 +1019,12 @@ sctp_disposition_t sctp_sf_backbeat_8_3(const struct sctp_endpoint *ep,
 						  commands);
 
 	hbinfo = (sctp_sender_hb_info_t *) chunk->skb->data;
+	/* Make sure that the length of the parameter is what we expect */
+	if (ntohs(hbinfo->param_hdr.length) !=
+				    sizeof(sctp_sender_hb_info_t)) {
+		return SCTP_DISPOSITION_DISCARD;
+	}
+
 	from_addr = hbinfo->daddr;
 	link = sctp_assoc_lookup_paddr(asoc, &from_addr);
 
