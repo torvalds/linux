@@ -763,6 +763,7 @@ static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb,
 	wmb();
 	qh->dummy_td->status |= __constant_cpu_to_le32(TD_CTRL_ACTIVE);
 	qh->dummy_td = td;
+	qh->period = urb->interval;
 
 	usb_settoggle(urb->dev, usb_pipeendpoint(urb->pipe),
 			usb_pipeout(urb->pipe), toggle);
@@ -790,14 +791,30 @@ static inline int uhci_submit_bulk(struct uhci_hcd *uhci, struct urb *urb,
 	return ret;
 }
 
-static inline int uhci_submit_interrupt(struct uhci_hcd *uhci, struct urb *urb,
+static int uhci_submit_interrupt(struct uhci_hcd *uhci, struct urb *urb,
 		struct uhci_qh *qh)
 {
+	int exponent;
+
 	/* USB 1.1 interrupt transfers only involve one packet per interval.
 	 * Drivers can submit URBs of any length, but longer ones will need
 	 * multiple intervals to complete.
 	 */
-	qh->skel = uhci->skelqh[__interval_to_skel(urb->interval)];
+
+	/* Figure out which power-of-two queue to use */
+	for (exponent = 7; exponent >= 0; --exponent) {
+		if ((1 << exponent) <= urb->interval)
+			break;
+	}
+	if (exponent < 0)
+		return -EINVAL;
+	urb->interval = 1 << exponent;
+
+	if (qh->period == 0)
+		qh->skel = uhci->skelqh[UHCI_SKEL_INDEX(exponent)];
+	else if (qh->period != urb->interval)
+		return -EINVAL;		/* Can't change the period */
+
 	return uhci_submit_common(uhci, urb, qh);
 }
 
@@ -937,30 +954,49 @@ static int uhci_submit_isochronous(struct uhci_hcd *uhci, struct urb *urb,
 	unsigned long destination, status;
 	struct urb_priv *urbp = (struct urb_priv *) urb->hcpriv;
 
-	if (urb->number_of_packets > 900)	/* 900? Why? */
+	/* Values must not be too big (could overflow below) */
+	if (urb->interval >= UHCI_NUMFRAMES ||
+			urb->number_of_packets >= UHCI_NUMFRAMES)
+		return -EFBIG;
+
+	/* Check the period and figure out the starting frame number */
+	uhci_get_current_frame_number(uhci);
+	if (qh->period == 0) {
+		if (urb->transfer_flags & URB_ISO_ASAP) {
+			urb->start_frame = uhci->frame_number + 10;
+		} else {
+			i = urb->start_frame - uhci->frame_number;
+			if (i <= 0 || i >= UHCI_NUMFRAMES)
+				return -EINVAL;
+		}
+	} else if (qh->period != urb->interval) {
+		return -EINVAL;		/* Can't change the period */
+
+	} else {	/* Pick up where the last URB leaves off */
+		if (list_empty(&qh->queue)) {
+			frame = uhci->frame_number + 10;
+		} else {
+			struct urb *lurb;
+
+			lurb = list_entry(qh->queue.prev,
+					struct urb_priv, node)->urb;
+			frame = lurb->start_frame +
+					lurb->number_of_packets *
+					lurb->interval;
+		}
+		if (urb->transfer_flags & URB_ISO_ASAP)
+			urb->start_frame = frame;
+		/* FIXME: Sanity check */
+	}
+
+	/* Make sure we won't have to go too far into the future */
+	if (uhci_frame_before_eq(uhci->frame_number + UHCI_NUMFRAMES,
+			urb->start_frame + urb->number_of_packets *
+				urb->interval))
 		return -EFBIG;
 
 	status = TD_CTRL_ACTIVE | TD_CTRL_IOS;
 	destination = (urb->pipe & PIPE_DEVEP_MASK) | usb_packetid(urb->pipe);
-
-	/* Figure out the starting frame number */
-	if (urb->transfer_flags & URB_ISO_ASAP) {
-		if (list_empty(&qh->queue)) {
-			uhci_get_current_frame_number(uhci);
-			urb->start_frame = (uhci->frame_number + 10);
-
-		} else {		/* Go right after the last one */
-			struct urb *last_urb;
-
-			last_urb = list_entry(qh->queue.prev,
-					struct urb_priv, node)->urb;
-			urb->start_frame = (last_urb->start_frame +
-					last_urb->number_of_packets *
-					last_urb->interval);
-		}
-	} else {
-		/* FIXME: Sanity check */
-	}
 
 	for (i = 0; i < urb->number_of_packets; i++) {
 		td = uhci_alloc_td(uhci);
@@ -978,6 +1014,7 @@ static int uhci_submit_isochronous(struct uhci_hcd *uhci, struct urb *urb,
 	td->status |= __constant_cpu_to_le32(TD_CTRL_IOC);
 
 	qh->skel = uhci->skel_iso_qh;
+	qh->period = urb->interval;
 
 	/* Add the TDs to the frame list */
 	frame = urb->start_frame;
@@ -1206,6 +1243,7 @@ __acquires(uhci->lock)
 		uhci_unlink_qh(uhci, qh);
 
 		/* Bandwidth stuff not yet implemented */
+		qh->period = 0;
 	}
 }
 

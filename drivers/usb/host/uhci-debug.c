@@ -153,7 +153,7 @@ static int uhci_show_qh(struct uhci_qh *qh, char *buf, int len, int space)
 	char *qtype;
 
 	/* Try to make sure there's enough memory */
-	if (len < 80 * 6)
+	if (len < 80 * 7)
 		return 0;
 
 	switch (qh->type) {
@@ -167,6 +167,9 @@ static int uhci_show_qh(struct uhci_qh *qh, char *buf, int len, int space)
 	out += sprintf(out, "%*s[%p] %s QH link (%08x) element (%08x)\n",
 			space, "", qh, qtype,
 			le32_to_cpu(qh->link), le32_to_cpu(element));
+	if (qh->type == USB_ENDPOINT_XFER_ISOC)
+		out += sprintf(out, "%*s    period %d\n",
+				space, "", qh->period);
 
 	if (element & UHCI_PTR_QH)
 		out += sprintf(out, "%*s  Element points to QH (bug?)\n", space, "");

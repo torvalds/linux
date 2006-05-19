@@ -140,6 +140,8 @@ struct uhci_qh {
 
 	unsigned long advance_jiffies;	/* Time of last queue advance */
 	unsigned int unlink_frame;	/* When the QH was unlinked */
+	unsigned int period;		/* For Interrupt and Isochronous QHs */
+
 	int state;			/* QH_STATE_xxx; see above */
 	int type;			/* Queue type (control, bulk, etc) */
 
@@ -315,38 +317,8 @@ static inline u32 td_status(struct uhci_td *td) {
 #define skel_bulk_qh		skelqh[12]
 #define skel_term_qh		skelqh[13]
 
-/*
- * Search tree for determining where <interval> fits in the skelqh[]
- * skeleton.
- *
- * An interrupt request should be placed into the slowest skelqh[]
- * which meets the interval/period/frequency requirement.
- * An interrupt request is allowed to be faster than <interval> but not slower.
- *
- * For a given <interval>, this function returns the appropriate/matching
- * skelqh[] index value.
- */
-static inline int __interval_to_skel(int interval)
-{
-	if (interval < 16) {
-		if (interval < 4) {
-			if (interval < 2)
-				return 9;	/* int1 for 0-1 ms */
-			return 8;		/* int2 for 2-3 ms */
-		}
-		if (interval < 8)
-			return 7;		/* int4 for 4-7 ms */
-		return 6;			/* int8 for 8-15 ms */
-	}
-	if (interval < 64) {
-		if (interval < 32)
-			return 5;		/* int16 for 16-31 ms */
-		return 4;			/* int32 for 32-63 ms */
-	}
-	if (interval < 128)
-		return 3;			/* int64 for 64-127 ms */
-	return 2;				/* int128 for 128-255 ms (Max.) */
-}
+/* Find the skelqh entry corresponding to an interval exponent */
+#define UHCI_SKEL_INDEX(exponent)	(9 - exponent)
 
 
 /*
