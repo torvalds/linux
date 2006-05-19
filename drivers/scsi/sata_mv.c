@@ -50,6 +50,12 @@ enum {
 
 	MV_PCI_REG_BASE		= 0,
 	MV_IRQ_COAL_REG_BASE	= 0x18000,	/* 6xxx part only */
+	MV_IRQ_COAL_CAUSE		= (MV_IRQ_COAL_REG_BASE + 0x08),
+	MV_IRQ_COAL_CAUSE_LO		= (MV_IRQ_COAL_REG_BASE + 0x88),
+	MV_IRQ_COAL_CAUSE_HI		= (MV_IRQ_COAL_REG_BASE + 0x8c),
+	MV_IRQ_COAL_THRESHOLD		= (MV_IRQ_COAL_REG_BASE + 0xcc),
+	MV_IRQ_COAL_TIME_THRESHOLD	= (MV_IRQ_COAL_REG_BASE + 0xd0),
+
 	MV_SATAHC0_REG_BASE	= 0x20000,
 	MV_FLASH_CTL		= 0x1046c,
 	MV_GPIO_PORT_CTL	= 0x104f0,
@@ -1448,6 +1454,7 @@ static irqreturn_t mv_interrupt(int irq, void *dev_instance,
 	struct ata_host_set *host_set = dev_instance;
 	unsigned int hc, handled = 0, n_hcs;
 	void __iomem *mmio = host_set->mmio_base;
+	struct mv_host_priv *hpriv;
 	u32 irq_stat;
 
 	irq_stat = readl(mmio + HC_MAIN_IRQ_CAUSE_OFS);
@@ -1469,6 +1476,17 @@ static irqreturn_t mv_interrupt(int irq, void *dev_instance,
 			handled++;
 		}
 	}
+
+	hpriv = host_set->private_data;
+	if (IS_60XX(hpriv)) {
+		/* deal with the interrupt coalescing bits */
+		if (irq_stat & (TRAN_LO_DONE | TRAN_HI_DONE | PORTS_0_7_COAL_DONE)) {
+			writelfl(0, mmio + MV_IRQ_COAL_CAUSE_LO);
+			writelfl(0, mmio + MV_IRQ_COAL_CAUSE_HI);
+			writelfl(0, mmio + MV_IRQ_COAL_CAUSE);
+		}
+	}
+
 	if (PCI_ERR & irq_stat) {
 		printk(KERN_ERR DRV_NAME ": PCI ERROR; PCI IRQ cause=0x%08x\n",
 		       readl(mmio + PCI_IRQ_CAUSE_OFS));
