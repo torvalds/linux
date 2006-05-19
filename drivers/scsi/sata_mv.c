@@ -1030,8 +1030,9 @@ static inline unsigned mv_inc_q_index(unsigned index)
 
 static inline void mv_crqb_pack_cmd(u16 *cmdw, u8 data, u8 addr, unsigned last)
 {
-	*cmdw = data | (addr << CRQB_CMD_ADDR_SHIFT) | CRQB_CMD_CS |
+	u16 tmp = data | (addr << CRQB_CMD_ADDR_SHIFT) | CRQB_CMD_CS |
 		(last ? CRQB_CMD_LAST : 0);
+	*cmdw = cpu_to_le16(tmp);
 }
 
 /**
