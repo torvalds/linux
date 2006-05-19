@@ -343,7 +343,7 @@ static int qcm_sensor_set_gains(struct uvd *uvd, u16 hue,
 	u16 saturation, u16 value)
 {
 	int ret;
-	u16 r,g,b;
+	u16 r=0,g=0,b=0;
 
 	/* this code is based on qc-usb-messenger */
 	qcm_hsv2rgb(hue, saturation, value, &r, &g, &b);
