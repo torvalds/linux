@@ -50,8 +50,6 @@
  */
 static struct device_node *find_Device_Node(int bus, int devfn);
 
-LIST_HEAD(iSeries_Global_Device_List);
-
 static int Pci_Retry_Max = 3;	/* Only retry 3 times  */
 static int Pci_Error_Flag = 1;	/* Set Retry Error on. */
 
@@ -245,8 +243,6 @@ void iSeries_pcibios_init(void)
 			pdn->bussubno = *busp;
 			pdn->Irq = irq;
 			pdn->LogicalSlot = *lsn;
-			list_add_tail(&pdn->Device_List,
-					&iSeries_Global_Device_List);
 		}
 	}
 }
@@ -338,11 +334,13 @@ EXPORT_SYMBOL(iSeries_memcpy_fromio);
  */
 static struct device_node *find_Device_Node(int bus, int devfn)
 {
-	struct pci_dn *pdn;
+	struct device_node *node;
 
-	list_for_each_entry(pdn, &iSeries_Global_Device_List, Device_List) {
-		if ((bus == pdn->busno) && (devfn == pdn->devfn))
-			return pdn->node;
+	for (node = NULL; (node = of_find_all_nodes(node)); ) {
+		struct pci_dn *pdn = PCI_DN(node);
+
+		if (pdn && (bus == pdn->busno) && (devfn == pdn->devfn))
+			return node;
 	}
 	return NULL;
 }

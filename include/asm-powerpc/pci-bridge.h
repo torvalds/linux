@@ -79,7 +79,6 @@ struct pci_dn {
 	struct	pci_dev *pcidev;	/* back-pointer to the pci device */
 	struct	device_node *node;	/* back-pointer to the device_node */
 #ifdef CONFIG_PPC_ISERIES
-	struct	list_head Device_List;
 	int	Irq;			/* Assigned IRQ */
 	int	Flags;			/* Possible flags(disable/bist)*/
 	u8	LogicalSlot;		/* Hv Slot Index for Tces */

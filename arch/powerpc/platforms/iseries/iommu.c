@@ -32,12 +32,10 @@
 #include <asm/tce.h>
 #include <asm/machdep.h>
 #include <asm/abs_addr.h>
+#include <asm/prom.h>
 #include <asm/pci-bridge.h>
 #include <asm/iseries/hv_call_xm.h>
 #include <asm/iseries/iommu.h>
-
-extern struct list_head iSeries_Global_Device_List;
-
 
 static void tce_build_iSeries(struct iommu_table *tbl, long index, long npages,
 		unsigned long uaddr, enum dma_data_direction direction)
@@ -140,10 +138,15 @@ void iommu_table_getparms_iSeries(unsigned long busno,
  */
 static struct iommu_table *iommu_table_find(struct iommu_table * tbl)
 {
-	struct pci_dn *pdn;
+	struct device_node *node;
 
-	list_for_each_entry(pdn, &iSeries_Global_Device_List, Device_List) {
-		struct iommu_table *it = pdn->iommu_table;
+	for (node = NULL; (node = of_find_all_nodes(node)); ) {
+		struct pci_dn *pdn = PCI_DN(node);
+		struct iommu_table *it;
+
+		if (pdn == NULL)
+			continue;
+		it = pdn->iommu_table;
 		if ((it != NULL) &&
 		    (it->it_type == TCE_PCI) &&
 		    (it->it_offset == tbl->it_offset) &&
