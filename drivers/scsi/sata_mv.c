@@ -1291,6 +1291,7 @@ static u8 mv_get_crpb_status(struct ata_port *ap)
 /**
  *      mv_err_intr - Handle error interrupts on the port
  *      @ap: ATA channel to manipulate
+ *      @reset_allowed: bool: 0 == don't trigger from reset here
  *
  *      In most cases, just clear the interrupt and move on.  However,
  *      some cases require an eDMA reset, which is done right before
@@ -1301,7 +1302,7 @@ static u8 mv_get_crpb_status(struct ata_port *ap)
  *      LOCKING:
  *      Inherited from caller.
  */
-static void mv_err_intr(struct ata_port *ap)
+static void mv_err_intr(struct ata_port *ap, int reset_allowed)
 {
 	void __iomem *port_mmio = mv_ap_base(ap);
 	u32 edma_err_cause, serr = 0;
@@ -1323,9 +1324,8 @@ static void mv_err_intr(struct ata_port *ap)
 	writelfl(0, port_mmio + EDMA_ERR_IRQ_CAUSE_OFS);
 
 	/* check for fatal here and recover if needed */
-	if (EDMA_ERR_FATAL & edma_err_cause) {
+	if (reset_allowed && (EDMA_ERR_FATAL & edma_err_cause))
 		mv_stop_and_reset(ap);
-	}
 }
 
 /**
@@ -1406,7 +1406,7 @@ static void mv_host_intr(struct ata_host_set *host_set, u32 relevant,
 			shift++;	/* skip bit 8 in the HC Main IRQ reg */
 		}
 		if ((PORT0_ERR << shift) & relevant) {
-			mv_err_intr(ap);
+			mv_err_intr(ap, 1);
 			err_mask |= AC_ERR_OTHER;
 			handled = 1;
 		}
@@ -2031,11 +2031,14 @@ static void mv_eng_timeout(struct ata_port *ap)
 	       ap->host_set->mmio_base, ap, qc, qc->scsicmd,
 	       &qc->scsicmd->cmnd);
 
-	mv_err_intr(ap);
+	mv_err_intr(ap, 0);
 	mv_stop_and_reset(ap);
 
-	qc->err_mask |= AC_ERR_TIMEOUT;
-	ata_eh_qc_complete(qc);
+	WARN_ON(!(qc->flags & ATA_QCFLAG_ACTIVE));
+	if (qc->flags & ATA_QCFLAG_ACTIVE) {
+		qc->err_mask |= AC_ERR_TIMEOUT;
+		ata_eh_qc_complete(qc);
+	}
 }
 
 /**
