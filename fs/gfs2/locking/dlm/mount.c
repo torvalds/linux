@@ -143,18 +143,18 @@ static int gdlm_mount(char *table_name, char *host_data,
 	if (error)
 		goto out_free;
 
+	error = gdlm_kobject_setup(ls, fskobj);
+	if (error)
+		goto out_thread;
+
 	error = dlm_new_lockspace(ls->fsname, strlen(ls->fsname),
 				  &ls->dlm_lockspace,
 				  nodir ? DLM_LSFL_NODIR : 0,
 				  GDLM_LVB_SIZE);
 	if (error) {
 		log_error("dlm_new_lockspace error %d", error);
-		goto out_thread;
+		goto out_kobj;
 	}
-
-	error = gdlm_kobject_setup(ls, fskobj);
-	if (error)
-		goto out_dlm;
 
 	lockstruct->ls_jid = ls->jid;
 	lockstruct->ls_first = ls->first;
@@ -164,8 +164,8 @@ static int gdlm_mount(char *table_name, char *host_data,
 	lockstruct->ls_lvb_size = GDLM_LVB_SIZE;
 	return 0;
 
- out_dlm:
-	dlm_release_lockspace(ls->dlm_lockspace, 2);
+ out_kobj:
+	gdlm_kobject_release(ls);
  out_thread:
 	gdlm_release_threads(ls);
  out_free:
