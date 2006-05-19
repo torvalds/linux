@@ -1380,12 +1380,12 @@ static void mv_host_intr(struct ata_host_set *host_set, u32 relevant,
 		struct ata_port *ap = host_set->ports[port];
 		struct mv_port_priv *pp = ap->private_data;
 
-		hard_port = port & MV_PORT_MASK;	/* range 0-3 */
+		hard_port = mv_hardport_from_port(port); /* range 0..3 */
 		handled = 0;	/* ensure ata_status is set if handled++ */
 
 		/* Note that DEV_IRQ might happen spuriously during EDMA,
-		 * and should be ignored in such cases.  We could mask it,
-		 * but it's pretty rare and may not be worth the overhead.
+		 * and should be ignored in such cases.
+		 * The cause of this is still under investigation.
 		 */ 
 		if (pp->pp_flags & MV_PP_FLAG_EDMA_EN) {
 			/* EDMA: check for response queue interrupt */
@@ -1399,6 +1399,11 @@ static void mv_host_intr(struct ata_host_set *host_set, u32 relevant,
 				ata_status = readb((void __iomem *)
 					   ap->ioaddr.status_addr);
 				handled = 1;
+				/* ignore spurious intr if drive still BUSY */
+				if (ata_status & ATA_BUSY) {
+					ata_status = 0;
+					handled = 0;
+				}
 			}
 		}
 
