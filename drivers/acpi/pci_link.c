@@ -175,7 +175,7 @@ static int acpi_pci_link_get_possible(struct acpi_pci_link *link)
 	if (!link)
 		return -EINVAL;
 
-	status = acpi_walk_resources(link->handle, METHOD_NAME__PRS,
+	status = acpi_walk_resources(link->device->handle, METHOD_NAME__PRS,
 				     acpi_pci_link_check_possible, link);
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _PRS"));
@@ -274,7 +274,7 @@ static int acpi_pci_link_get_current(struct acpi_pci_link *link)
 	 * Query and parse _CRS to get the current IRQ assignment. 
 	 */
 
-	status = acpi_walk_resources(link->handle, METHOD_NAME__CRS,
+	status = acpi_walk_resources(link->device->handle, METHOD_NAME__CRS,
 				     acpi_pci_link_check_current, &irq);
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _CRS"));
@@ -360,7 +360,7 @@ static int acpi_pci_link_set(struct acpi_pci_link *link, int irq)
 	resource->end.type = ACPI_RESOURCE_TYPE_END_TAG;
 
 	/* Attempt to set the resource */
-	status = acpi_set_current_resources(link->handle, &buffer);
+	status = acpi_set_current_resources(link->device->handle, &buffer);
 
 	/* check for total failure */
 	if (ACPI_FAILURE(status)) {
@@ -699,7 +699,7 @@ int acpi_pci_link_free_irq(acpi_handle handle)
 			  acpi_device_bid(link->device)));
 
 	if (link->refcnt == 0) {
-		acpi_ut_evaluate_object(link->handle, "_DIS", 0, NULL);
+		acpi_ut_evaluate_object(link->device->handle, "_DIS", 0, NULL);
 	}
 	mutex_unlock(&acpi_link_lock);
 	return (link->irq.active);
@@ -765,7 +765,7 @@ static int acpi_pci_link_add(struct acpi_device *device)
 
       end:
 	/* disable all links -- to be activated on use */
-	acpi_ut_evaluate_object(link->handle, "_DIS", 0, NULL);
+	acpi_ut_evaluate_object(device->handle, "_DIS", 0, NULL);
 	mutex_unlock(&acpi_link_lock);
 
 	if (result)
