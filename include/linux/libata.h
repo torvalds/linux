@@ -1062,7 +1062,7 @@ static inline int ata_try_flush_cache(const struct ata_device *dev)
 
 static inline unsigned int ac_err_mask(u8 status)
 {
-	if (status & ATA_BUSY)
+	if (status & (ATA_BUSY | ATA_DRQ))
 		return AC_ERR_HSM;
 	if (status & (ATA_ERR | ATA_DF))
 		return AC_ERR_DEV;

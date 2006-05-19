@@ -4009,9 +4009,15 @@ fsm_start:
 		poll_next = (qc->tf.flags & ATA_TFLAG_POLLING);
 
 		/* check device status */
-		if (unlikely((status & (ATA_BUSY | ATA_DRQ)) != ATA_DRQ)) {
-			/* Wrong status. Let EH handle this */
-			qc->err_mask |= AC_ERR_HSM;
+		if (unlikely((status & ATA_DRQ) == 0)) {
+			/* handle BSY=0, DRQ=0 as error */
+			if (likely(status & (ATA_ERR | ATA_DF)))
+				/* device stops HSM for abort/error */
+				qc->err_mask |= AC_ERR_DEV;
+			else
+				/* HSM violation. Let EH handle this */
+				qc->err_mask |= AC_ERR_HSM;
+
 			ap->hsm_task_state = HSM_ST_ERR;
 			goto fsm_start;
 		}
@@ -4025,7 +4031,7 @@ fsm_start:
 		if (unlikely(status & (ATA_ERR | ATA_DF))) {
 			printk(KERN_WARNING "ata%d: DRQ=1 with device error, dev_stat 0x%X\n",
 			       ap->id, status);
-			qc->err_mask |= AC_ERR_DEV;
+			qc->err_mask |= AC_ERR_HSM;
 			ap->hsm_task_state = HSM_ST_ERR;
 			goto fsm_start;
 		}
@@ -4067,7 +4073,9 @@ fsm_start:
 		if (qc->tf.protocol == ATA_PROT_ATAPI) {
 			/* ATAPI PIO protocol */
 			if ((status & ATA_DRQ) == 0) {
-				/* no more data to transfer */
+				/* No more data to transfer or device error.
+				 * Device error will be tagged in HSM_ST_LAST.
+				 */
 				ap->hsm_task_state = HSM_ST_LAST;
 				goto fsm_start;
 			}
@@ -4081,7 +4089,7 @@ fsm_start:
 			if (unlikely(status & (ATA_ERR | ATA_DF))) {
 				printk(KERN_WARNING "ata%d: DRQ=1 with device error, dev_stat 0x%X\n",
 				       ap->id, status);
-				qc->err_mask |= AC_ERR_DEV;
+				qc->err_mask |= AC_ERR_HSM;
 				ap->hsm_task_state = HSM_ST_ERR;
 				goto fsm_start;
 			}
@@ -4096,7 +4104,13 @@ fsm_start:
 			/* ATA PIO protocol */
 			if (unlikely((status & ATA_DRQ) == 0)) {
 				/* handle BSY=0, DRQ=0 as error */
-				qc->err_mask |= AC_ERR_HSM;
+				if (likely(status & (ATA_ERR | ATA_DF)))
+					/* device stops HSM for abort/error */
+					qc->err_mask |= AC_ERR_DEV;
+				else
+					/* HSM violation. Let EH handle this */
+					qc->err_mask |= AC_ERR_HSM;
+
 				ap->hsm_task_state = HSM_ST_ERR;
 				goto fsm_start;
 			}
@@ -4120,6 +4134,9 @@ fsm_start:
 					ata_altstatus(ap);
 					status = ata_wait_idle(ap);
 				}
+
+				if (status & (ATA_BUSY | ATA_DRQ))
+					qc->err_mask |= AC_ERR_HSM;
 
 				/* ata_pio_sectors() might change the
 				 * state to HSM_ST_LAST. so, the state
