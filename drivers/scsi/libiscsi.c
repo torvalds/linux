@@ -1258,15 +1258,6 @@ iscsi_session_setup(struct iscsi_transport *iscsit,
 		if (mgmt_task_size)
 			mtask->dd_data = &mtask[1];
 		mtask->itt = ISCSI_MGMT_ITT_OFFSET + cmd_i;
-		mtask->data = kmalloc(DEFAULT_MAX_RECV_DATA_SEGMENT_LENGTH,
-				     GFP_KERNEL);
-		if (!mtask->data) {
-			int j;
-
-			for (j = 0; j < cmd_i; j++)
-				kfree(session->mgmt_cmds[j]->data);
-			goto immdata_alloc_fail;
-		}
 	}
 
 	if (scsi_add_host(shost, NULL))
@@ -1282,9 +1273,6 @@ iscsi_session_setup(struct iscsi_transport *iscsit,
 cls_session_fail:
 	scsi_remove_host(shost);
 add_host_fail:
-	for (cmd_i = 0; cmd_i < session->mgmtpool_max; cmd_i++)
-		kfree(session->mgmt_cmds[cmd_i]->data);
-immdata_alloc_fail:
 	iscsi_pool_free(&session->mgmtpool, (void**)session->mgmt_cmds);
 mgmtpool_alloc_fail:
 	iscsi_pool_free(&session->cmdpool, (void**)session->cmds);
@@ -1305,12 +1293,8 @@ void iscsi_session_teardown(struct iscsi_cls_session *cls_session)
 {
 	struct Scsi_Host *shost = iscsi_session_to_shost(cls_session);
 	struct iscsi_session *session = iscsi_hostdata(shost->hostdata);
-	int cmd_i;
 
 	scsi_remove_host(shost);
-
-	for (cmd_i = 0; cmd_i < session->mgmtpool_max; cmd_i++)
-		kfree(session->mgmt_cmds[cmd_i]->data);
 
 	iscsi_pool_free(&session->mgmtpool, (void**)session->mgmt_cmds);
 	iscsi_pool_free(&session->cmdpool, (void**)session->cmds);
@@ -1331,6 +1315,7 @@ iscsi_conn_setup(struct iscsi_cls_session *cls_session, uint32_t conn_idx)
 	struct iscsi_session *session = class_to_transport_session(cls_session);
 	struct iscsi_conn *conn;
 	struct iscsi_cls_conn *cls_conn;
+	char *data;
 
 	cls_conn = iscsi_create_conn(cls_session, conn_idx);
 	if (!cls_conn)
@@ -1376,12 +1361,20 @@ iscsi_conn_setup(struct iscsi_cls_session *cls_session, uint32_t conn_idx)
 	}
 	spin_unlock_bh(&session->lock);
 
+	data = kmalloc(DEFAULT_MAX_RECV_DATA_SEGMENT_LENGTH, GFP_KERNEL);
+	if (!data)
+		goto login_mtask_data_alloc_fail;
+	conn->login_mtask->data = data;
+
 	init_timer(&conn->tmabort_timer);
 	mutex_init(&conn->xmitmutex);
 	init_waitqueue_head(&conn->ehwait);
 
 	return cls_conn;
 
+login_mtask_data_alloc_fail:
+	__kfifo_put(session->mgmtpool.queue, (void*)&conn->login_mtask,
+		    sizeof(void*));
 login_mtask_alloc_fail:
 	kfifo_free(conn->mgmtqueue);
 mgmtqueue_alloc_fail:
@@ -1451,6 +1444,7 @@ void iscsi_conn_teardown(struct iscsi_cls_conn *cls_conn)
 	}
 
 	spin_lock_bh(&session->lock);
+	kfree(conn->login_mtask->data);
 	__kfifo_put(session->mgmtpool.queue, (void*)&conn->login_mtask,
 		    sizeof(void*));
 	list_del(&conn->item);
