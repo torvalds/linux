@@ -470,7 +470,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Module for multifunction CS5535 companion PCI device
 
-    This module supports multiple cards.
+    The power-management is supported.
 
   Module snd-dt019x
   -----------------
