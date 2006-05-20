@@ -229,7 +229,7 @@ void crypto_free_tfm(struct crypto_tfm *tfm)
 static inline int crypto_set_driver_name(struct crypto_alg *alg)
 {
 	static const char suffix[] = "-generic";
-	char *driver_name = (char *)alg->cra_driver_name;
+	char *driver_name = alg->cra_driver_name;
 	int len;
 
 	if (*driver_name)

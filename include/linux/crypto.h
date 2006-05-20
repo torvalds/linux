@@ -128,8 +128,8 @@ struct crypto_alg {
 
 	int cra_priority;
 
-	const char cra_name[CRYPTO_MAX_ALG_NAME];
-	const char cra_driver_name[CRYPTO_MAX_ALG_NAME];
+	char cra_name[CRYPTO_MAX_ALG_NAME];
+	char cra_driver_name[CRYPTO_MAX_ALG_NAME];
 
 	union {
 		struct cipher_alg cipher;
