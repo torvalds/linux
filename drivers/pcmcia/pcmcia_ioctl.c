@@ -426,7 +426,7 @@ static int ds_open(struct inode *inode, struct file *file)
 
     if (!warning_printed) {
 	    printk(KERN_INFO "pcmcia: Detected deprecated PCMCIA ioctl "
-			"usage.\n");
+			"usage from process: %s.\n", current->comm);
 	    printk(KERN_INFO "pcmcia: This interface will soon be removed from "
 			"the kernel; please expect breakage unless you upgrade "
 			"to new tools.\n");
@@ -601,8 +601,12 @@ static int ds_ioctl(struct inode * inode, struct file * file,
 	    ret = CS_BAD_ARGS;
 	else {
 	    struct pcmcia_device *p_dev = get_pcmcia_device(s, buf->config.Function);
-	    ret = pccard_get_configuration_info(s, p_dev, &buf->config);
-	    pcmcia_put_dev(p_dev);
+	    if (p_dev == NULL)
+		    ret = CS_BAD_ARGS;
+	    else {
+		    ret = pccard_get_configuration_info(s, p_dev, &buf->config);
+		    pcmcia_put_dev(p_dev);
+	    }
 	}
 	break;
     case DS_GET_FIRST_TUPLE:
@@ -632,8 +636,12 @@ static int ds_ioctl(struct inode * inode, struct file * file,
 		    ret = CS_BAD_ARGS;
 	    else {
 		    struct pcmcia_device *p_dev = get_pcmcia_device(s, buf->status.Function);
-		    ret = pccard_get_status(s, p_dev, &buf->status);
-		    pcmcia_put_dev(p_dev);
+		    if (p_dev == NULL)
+			    ret = CS_BAD_ARGS;
+		    else {
+			    ret = pccard_get_status(s, p_dev, &buf->status);
+			    pcmcia_put_dev(p_dev);
+		    }
 	    }
 	    break;
     case DS_VALIDATE_CIS:
@@ -665,9 +673,10 @@ static int ds_ioctl(struct inode * inode, struct file * file,
 	if (!(buf->conf_reg.Function &&
 	     (buf->conf_reg.Function >= s->functions))) {
 		struct pcmcia_device *p_dev = get_pcmcia_device(s, buf->conf_reg.Function);
-		if (p_dev)
+		if (p_dev) {
 			ret = pcmcia_access_configuration_register(p_dev, &buf->conf_reg);
-		pcmcia_put_dev(p_dev);
+			pcmcia_put_dev(p_dev);
+		}
 	}
 	break;
     case DS_GET_FIRST_REGION:

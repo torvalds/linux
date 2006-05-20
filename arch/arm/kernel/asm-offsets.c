@@ -99,6 +99,8 @@ int main(void)
   DEFINE(MACHINFO_NAME,		offsetof(struct machine_desc, name));
   DEFINE(MACHINFO_PHYSIO,	offsetof(struct machine_desc, phys_io));
   DEFINE(MACHINFO_PGOFFIO,	offsetof(struct machine_desc, io_pg_offst));
+  BLANK();
+  DEFINE(PROC_INFO_SZ,		sizeof(struct proc_info_list));
   DEFINE(PROCINFO_INITFUNC,	offsetof(struct proc_info_list, __cpu_flush));
   DEFINE(PROCINFO_MMUFLAGS,	offsetof(struct proc_info_list, __cpu_mmu_flags));
   return 0; 

@@ -211,8 +211,10 @@ void ib_umem_release_on_close(struct ib_device *dev, struct ib_umem *umem)
 	 */
 
 	work = kmalloc(sizeof *work, GFP_KERNEL);
-	if (!work)
+	if (!work) {
+		mmput(mm);
 		return;
+	}
 
 	INIT_WORK(&work->work, ib_umem_account, work);
 	work->mm   = mm;

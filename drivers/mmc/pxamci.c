@@ -119,7 +119,7 @@ static void pxamci_setup_data(struct pxamci_host *host, struct mmc_data *data)
 		nob = 0xffff;
 
 	writel(nob, host->base + MMC_NOB);
-	writel(1 << data->blksz_bits, host->base + MMC_BLKLEN);
+	writel(data->blksz, host->base + MMC_BLKLEN);
 
 	clks = (unsigned long long)data->timeout_ns * CLOCKRATE;
 	do_div(clks, 1000000000UL);
@@ -283,7 +283,7 @@ static int pxamci_data_done(struct pxamci_host *host, unsigned int stat)
 	 * data blocks as being in error.
 	 */
 	if (data->error == MMC_ERR_NONE)
-		data->bytes_xfered = data->blocks << data->blksz_bits;
+		data->bytes_xfered = data->blocks * data->blksz;
 	else
 		data->bytes_xfered = 0;
 

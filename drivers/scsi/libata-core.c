@@ -875,6 +875,9 @@ static unsigned int ata_id_xfermask(const u16 *id)
 /**
  *	ata_port_queue_task - Queue port_task
  *	@ap: The ata_port to queue port_task for
+ *	@fn: workqueue function to be scheduled
+ *	@data: data value to pass to workqueue function
+ *	@delay: delay time for workqueue function
  *
  *	Schedule @fn(@data) for execution after @delay jiffies using
  *	port_task.  There is one port_task per port and it's the
@@ -3091,8 +3094,8 @@ static unsigned int ata_dev_set_xfermode(struct ata_device *dev)
 /**
  *	ata_dev_init_params - Issue INIT DEV PARAMS command
  *	@dev: Device to which command will be sent
- *	@heads: Number of heads
- *	@sectors: Number of sectors
+ *	@heads: Number of heads (taskfile parameter)
+ *	@sectors: Number of sectors (taskfile parameter)
  *
  *	LOCKING:
  *	Kernel thread context (may sleep)
@@ -5007,6 +5010,7 @@ int ata_device_resume(struct ata_device *dev)
 /**
  *	ata_device_suspend - prepare a device for suspend
  *	@dev: the device to suspend
+ *	@state: target power management state
  *
  *	Flush the cache on the drive, if appropriate, then issue a
  *	standbynow command.

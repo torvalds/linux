@@ -705,14 +705,14 @@ EXPORT_SYMBOL(__symbol_put);
 
 void symbol_put_addr(void *addr)
 {
-	unsigned long flags;
+	struct module *modaddr;
 
-	spin_lock_irqsave(&modlist_lock, flags);
-	if (!kernel_text_address((unsigned long)addr))
+	if (core_kernel_text((unsigned long)addr))
+		return;
+
+	if (!(modaddr = module_text_address((unsigned long)addr)))
 		BUG();
-
-	module_put(module_text_address((unsigned long)addr));
-	spin_unlock_irqrestore(&modlist_lock, flags);
+	module_put(modaddr);
 }
 EXPORT_SYMBOL_GPL(symbol_put_addr);
 

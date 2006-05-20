@@ -327,6 +327,7 @@ static int try_to_fill_dentry(struct dentry *dentry, int flags)
 static void *autofs4_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
 	struct autofs_sb_info *sbi = autofs4_sbi(dentry->d_sb);
+	struct autofs_info *ino = autofs4_dentry_ino(dentry);
 	int oz_mode = autofs4_oz_mode(sbi);
 	unsigned int lookup_type;
 	int status;
@@ -340,13 +341,8 @@ static void *autofs4_follow_link(struct dentry *dentry, struct nameidata *nd)
 	if (oz_mode || !lookup_type)
 		goto done;
 
-	/*
-	 * If a request is pending wait for it.
-	 * If it's a mount then it won't be expired till at least
-	 * a liitle later and if it's an expire then we might need
-	 * to mount it again.
-	 */
-	if (autofs4_ispending(dentry)) {
+	/* If an expire request is pending wait for it. */
+	if (ino && (ino->flags & AUTOFS_INF_EXPIRING)) {
 		DPRINTK("waiting for active request %p name=%.*s",
 			dentry, dentry->d_name.len, dentry->d_name.name);
 

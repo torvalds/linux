@@ -149,6 +149,8 @@ static void enp2611_check_link_status(unsigned long __dummy)
 		int status;
 
 		dev = nds[i];
+		if (dev == NULL)
+			continue;
 
 		status = pm3386_is_link_up(i);
 		if (status && !netif_carrier_ok(dev)) {
@@ -191,6 +193,7 @@ static void enp2611_set_port_admin_status(int port, int up)
 
 static int __init enp2611_init_module(void)
 { 
+	int ports;
 	int i;
 
 	if (!machine_is_enp2611())
@@ -199,7 +202,8 @@ static int __init enp2611_init_module(void)
 	caleb_reset();
 	pm3386_reset();
 
-	for (i = 0; i < 3; i++) {
+	ports = pm3386_port_count();
+	for (i = 0; i < ports; i++) {
 		nds[i] = ixpdev_alloc(i, sizeof(struct enp2611_ixpdev_priv));
 		if (nds[i] == NULL) {
 			while (--i >= 0)
@@ -215,9 +219,10 @@ static int __init enp2611_init_module(void)
 
 	ixp2400_msf_init(&enp2611_msf_parameters);
 
-	if (ixpdev_init(3, nds, enp2611_set_port_admin_status)) {
-		for (i = 0; i < 3; i++)
-			free_netdev(nds[i]);
+	if (ixpdev_init(ports, nds, enp2611_set_port_admin_status)) {
+		for (i = 0; i < ports; i++)
+			if (nds[i])
+				free_netdev(nds[i]);
 		return -EINVAL;
 	}
 

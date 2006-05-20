@@ -377,7 +377,7 @@ static int __init sc1200wdt_init(void)
 {
 	int ret;
 
-	printk(banner);
+	printk("%s\n", banner);
 
 	spin_lock_init(&sc1200wdt_lock);
 	sema_init(&open_sem, 1);

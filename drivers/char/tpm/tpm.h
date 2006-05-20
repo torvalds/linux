@@ -140,7 +140,7 @@ extern int tpm_pm_resume(struct device *);
 extern struct dentry ** tpm_bios_log_setup(char *);
 extern void tpm_bios_log_teardown(struct dentry **);
 #else
-static inline struct dentry* tpm_bios_log_setup(char *name)
+static inline struct dentry ** tpm_bios_log_setup(char *name)
 {
 	return NULL;
 }
