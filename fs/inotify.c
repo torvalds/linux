@@ -894,8 +894,7 @@ static int inotify_ignore(struct inotify_device *dev, s32 wd)
 	mutex_lock(&dev->mutex);
 
 	/* make sure that we did not race */
-	watch = idr_find(&dev->idr, wd);
-	if (likely(watch))
+	if (likely(idr_find(&dev->idr, wd) == watch))
 		remove_watch(watch, dev);
 
 	mutex_unlock(&dev->mutex);
