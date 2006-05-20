@@ -95,6 +95,14 @@ config SPI_PXA2XX
 	  The driver can be configured to use any SSP port and additional
 	  documentation can be found a Documentation/spi/pxa2xx.
 
+config SPI_S3C24XX_GPIO
+	tristate "Samsung S3C24XX series SPI by GPIO"
+	depends on SPI_MASTER && ARCH_S3C2410 && SPI_BITBANG && EXPERIMENTAL
+	help
+	  SPI driver for Samsung S3C24XX series ARM SoCs using
+	  GPIO lines to provide the SPI bus. This can be used where
+	  the inbuilt hardware cannot provide the transfer mode, or
+	  where the board is using non hardware connected pins.
 #
 # Add new SPI master controllers in alphabetical order above this line
 #
