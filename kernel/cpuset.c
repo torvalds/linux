@@ -2261,6 +2261,7 @@ int __cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask)
 	if (in_interrupt())
 		return 1;
 	node = z->zone_pgdat->node_id;
+	might_sleep_if(!(gfp_mask & __GFP_HARDWALL));
 	if (node_isset(node, current->mems_allowed))
 		return 1;
 	if (gfp_mask & __GFP_HARDWALL)	/* If hardwall request, stop here */
