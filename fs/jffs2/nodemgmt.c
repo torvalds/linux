@@ -470,6 +470,7 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 	struct jffs2_unknown_node n;
 	int ret, addedsize;
 	size_t retlen;
+	uint32_t freed_len;
 
 	if(!ref) {
 		printk(KERN_NOTICE "EEEEEK. jffs2_mark_node_obsolete called with NULL node\n");
@@ -499,32 +500,34 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 
 	spin_lock(&c->erase_completion_lock);
 
+	freed_len = ref_totlen(c, jeb, ref);
+
 	if (ref_flags(ref) == REF_UNCHECKED) {
-		D1(if (unlikely(jeb->unchecked_size < ref_totlen(c, jeb, ref))) {
+		D1(if (unlikely(jeb->unchecked_size < freed_len)) {
 			printk(KERN_NOTICE "raw unchecked node of size 0x%08x freed from erase block %d at 0x%08x, but unchecked_size was already 0x%08x\n",
-			       ref_totlen(c, jeb, ref), blocknr, ref->flash_offset, jeb->used_size);
+			       freed_len, blocknr, ref->flash_offset, jeb->used_size);
 			BUG();
 		})
-		D1(printk(KERN_DEBUG "Obsoleting previously unchecked node at 0x%08x of len %x: ", ref_offset(ref), ref_totlen(c, jeb, ref)));
-		jeb->unchecked_size -= ref_totlen(c, jeb, ref);
-		c->unchecked_size -= ref_totlen(c, jeb, ref);
+		D1(printk(KERN_DEBUG "Obsoleting previously unchecked node at 0x%08x of len %x: ", ref_offset(ref), freed_len));
+		jeb->unchecked_size -= freed_len;
+		c->unchecked_size -= freed_len;
 	} else {
-		D1(if (unlikely(jeb->used_size < ref_totlen(c, jeb, ref))) {
+		D1(if (unlikely(jeb->used_size < freed_len)) {
 			printk(KERN_NOTICE "raw node of size 0x%08x freed from erase block %d at 0x%08x, but used_size was already 0x%08x\n",
-			       ref_totlen(c, jeb, ref), blocknr, ref->flash_offset, jeb->used_size);
+			       freed_len, blocknr, ref->flash_offset, jeb->used_size);
 			BUG();
 		})
-		D1(printk(KERN_DEBUG "Obsoleting node at 0x%08x of len %#x: ", ref_offset(ref), ref_totlen(c, jeb, ref)));
-		jeb->used_size -= ref_totlen(c, jeb, ref);
-		c->used_size -= ref_totlen(c, jeb, ref);
+		D1(printk(KERN_DEBUG "Obsoleting node at 0x%08x of len %#x: ", ref_offset(ref), freed_len));
+		jeb->used_size -= freed_len;
+		c->used_size -= freed_len;
 	}
 
 	// Take care, that wasted size is taken into concern
-	if ((jeb->dirty_size || ISDIRTY(jeb->wasted_size + ref_totlen(c, jeb, ref))) && jeb != c->nextblock) {
+	if ((jeb->dirty_size || ISDIRTY(jeb->wasted_size + freed_len)) && jeb != c->nextblock) {
 		D1(printk(KERN_DEBUG "Dirtying\n"));
-		addedsize = ref_totlen(c, jeb, ref);
-		jeb->dirty_size += ref_totlen(c, jeb, ref);
-		c->dirty_size += ref_totlen(c, jeb, ref);
+		addedsize = freed_len;
+		jeb->dirty_size += freed_len;
+		c->dirty_size += freed_len;
 
 		/* Convert wasted space to dirty, if not a bad block */
 		if (jeb->wasted_size) {
@@ -545,8 +548,8 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 	} else {
 		D1(printk(KERN_DEBUG "Wasting\n"));
 		addedsize = 0;
-		jeb->wasted_size += ref_totlen(c, jeb, ref);
-		c->wasted_size += ref_totlen(c, jeb, ref);
+		jeb->wasted_size += freed_len;
+		c->wasted_size += freed_len;
 	}
 	ref->flash_offset = ref_offset(ref) | REF_OBSOLETE;
 
@@ -634,8 +637,8 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 		printk(KERN_WARNING "Short read from obsoleted node at 0x%08x: %zd\n", ref_offset(ref), retlen);
 		goto out_erase_sem;
 	}
-	if (PAD(je32_to_cpu(n.totlen)) != PAD(ref_totlen(c, jeb, ref))) {
-		printk(KERN_WARNING "Node totlen on flash (0x%08x) != totlen from node ref (0x%08x)\n", je32_to_cpu(n.totlen), ref_totlen(c, jeb, ref));
+	if (PAD(je32_to_cpu(n.totlen)) != PAD(freed_len)) {
+		printk(KERN_WARNING "Node totlen on flash (0x%08x) != totlen from node ref (0x%08x)\n", je32_to_cpu(n.totlen), freed_len);
 		goto out_erase_sem;
 	}
 	if (!(je16_to_cpu(n.nodetype) & JFFS2_NODE_ACCURATE)) {
