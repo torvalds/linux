@@ -951,7 +951,7 @@ restart:
 		goto got_pg;
 
 	do {
-		if (cpuset_zone_allowed(*z, gfp_mask))
+		if (cpuset_zone_allowed(*z, gfp_mask|__GFP_HARDWALL))
 			wakeup_kswapd(*z, order);
 	} while (*(++z));
 
@@ -970,7 +970,8 @@ restart:
 		alloc_flags |= ALLOC_HARDER;
 	if (gfp_mask & __GFP_HIGH)
 		alloc_flags |= ALLOC_HIGH;
-	alloc_flags |= ALLOC_CPUSET;
+	if (wait)
+		alloc_flags |= ALLOC_CPUSET;
 
 	/*
 	 * Go through the zonelist again. Let __GFP_HIGH and allocations
