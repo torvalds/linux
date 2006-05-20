@@ -97,6 +97,11 @@ struct jffs2_raw_node_ref
 #define ref_obsolete(ref)	(((ref)->flash_offset & 3) == REF_OBSOLETE)
 #define mark_ref_normal(ref)    do { (ref)->flash_offset = ref_offset(ref) | REF_NORMAL; } while(0)
 
+/* NB: REF_PRISTINE for an inode-less node (ref->next_in_ino == NULL) indicates
+   it is an unknown node of type JFFS2_NODETYPE_RWCOMPAT_COPY, so it'll get
+   copied. If you need to do anything different to GC inode-less nodes, then
+   you need to modify gc.c accordingly. */
+
 /* For each inode in the filesystem, we need to keep a record of
    nlink, because it would be a PITA to scan the whole directory tree
    at read_inode() time to calculate it, and to keep sufficient information

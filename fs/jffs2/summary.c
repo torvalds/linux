@@ -760,7 +760,14 @@ static int jffs2_sum_write_data(struct jffs2_sb_info *c, struct jffs2_eraseblock
 			}
 #endif
 			default : {
-				BUG();	/* unknown node in summary information */
+				if ((je16_to_cpu(temp->u.nodetype) & JFFS2_COMPAT_MASK)
+				    == JFFS2_FEATURE_RWCOMPAT_COPY) {
+					dbg_summary("Writing unknown RWCOMPAT_COPY node type %x\n",
+						    je16_to_cpu(temp->u.nodetype));
+					jffs2_sum_disable_collecting(c->summary);
+				} else {
+					BUG();	/* unknown node in summary information */
+				}
 			}
 		}
 

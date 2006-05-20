@@ -851,11 +851,22 @@ scan_more:
 				ofs += PAD(je32_to_cpu(node->totlen));
 				break;
 
-			case JFFS2_FEATURE_RWCOMPAT_COPY:
+			case JFFS2_FEATURE_RWCOMPAT_COPY: {
+				struct jffs2_raw_node_ref *ref;
 				D1(printk(KERN_NOTICE "Unknown but compatible feature node (0x%04x) found at offset 0x%08x\n", je16_to_cpu(node->nodetype), ofs));
-				USED_SPACE(PAD(je32_to_cpu(node->totlen)));
+
+				ref = jffs2_alloc_raw_node_ref();
+				if (!ref)
+					return -ENOMEM;
+				ref->flash_offset = ofs | REF_PRISTINE;
+				ref->next_in_ino = 0;
+				jffs2_link_node_ref(c, jeb, ref, PAD(je32_to_cpu(node->totlen)));
+
+				/* We can't summarise nodes we don't grok */
+				jffs2_sum_disable_collecting(s);
 				ofs += PAD(je32_to_cpu(node->totlen));
 				break;
+				}
 			}
 		}
 	}
