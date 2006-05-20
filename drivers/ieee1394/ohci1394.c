@@ -553,7 +553,7 @@ static void ohci_initialize(struct ti_ohci *ohci)
 	 * register content.
 	 * To actually enable physical responses is the job of our interrupt
 	 * handler which programs the physical request filter. */
-	reg_write(ohci, OHCI1394_PhyUpperBound, 0xffff0000);
+	reg_write(ohci, OHCI1394_PhyUpperBound, 0x01000000);
 
 	DBGMSG("physUpperBoundOffset=%08x",
 	       reg_read(ohci, OHCI1394_PhyUpperBound));

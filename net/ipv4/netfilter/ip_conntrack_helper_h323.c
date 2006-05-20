@@ -162,6 +162,8 @@ static int get_tpkt_data(struct sk_buff **pskb, struct ip_conntrack *ct,
 
 	/* Validate TPKT length */
 	tpktlen = tpkt[2] * 256 + tpkt[3];
+	if (tpktlen < 4)
+		goto clear_out;
 	if (tpktlen > tcpdatalen) {
 		if (tcpdatalen == 4) {	/* Separate TPKT header */
 			/* Netmeeting sends TPKT header and data separately */

@@ -209,4 +209,4 @@ int __init timer_init(void)
 	return(0);
 }
 
-__initcall(timer_init);
+arch_initcall(timer_init);

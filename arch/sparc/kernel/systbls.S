@@ -23,7 +23,7 @@ sys_call_table:
 /*10*/  .long sys_unlink, sunos_execv, sys_chdir, sys_chown16, sys_mknod
 /*15*/	.long sys_chmod, sys_lchown16, sparc_brk, sys_nis_syscall, sys_lseek
 /*20*/	.long sys_getpid, sys_capget, sys_capset, sys_setuid16, sys_getuid16
-/*25*/	.long sys_time, sys_ptrace, sys_alarm, sys_sigaltstack, sys_pause
+/*25*/	.long sys_vmsplice, sys_ptrace, sys_alarm, sys_sigaltstack, sys_pause
 /*30*/	.long sys_utime, sys_lchown, sys_fchown, sys_access, sys_nice
 /*35*/	.long sys_chown, sys_sync, sys_kill, sys_newstat, sys_sendfile
 /*40*/	.long sys_newlstat, sys_dup, sys_pipe, sys_times, sys_getuid

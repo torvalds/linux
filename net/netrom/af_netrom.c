@@ -425,11 +425,16 @@ static int nr_create(struct socket *sock, int protocol)
 
 	nr_init_timers(sk);
 
-	nr->t1     = sysctl_netrom_transport_timeout;
-	nr->t2     = sysctl_netrom_transport_acknowledge_delay;
-	nr->n2     = sysctl_netrom_transport_maximum_tries;
-	nr->t4     = sysctl_netrom_transport_busy_delay;
-	nr->idle   = sysctl_netrom_transport_no_activity_timeout;
+	nr->t1     =
+		msecs_to_jiffies(sysctl_netrom_transport_timeout);
+	nr->t2     =
+		msecs_to_jiffies(sysctl_netrom_transport_acknowledge_delay);
+	nr->n2     =
+		msecs_to_jiffies(sysctl_netrom_transport_maximum_tries);
+	nr->t4     =
+		msecs_to_jiffies(sysctl_netrom_transport_busy_delay);
+	nr->idle   =
+		msecs_to_jiffies(sysctl_netrom_transport_no_activity_timeout);
 	nr->window = sysctl_netrom_transport_requested_window_size;
 
 	nr->bpqext = 1;
@@ -1365,8 +1370,6 @@ static struct notifier_block nr_dev_notifier = {
 
 static struct net_device **dev_nr;
 
-static char banner[] __initdata = KERN_INFO "G4KLX NET/ROM for Linux. Version 0.7 for AX25.037 Linux 2.4\n";
-
 static int __init nr_proto_init(void)
 {
 	int i;
@@ -1414,7 +1417,6 @@ static int __init nr_proto_init(void)
 	}
 		
 	register_netdevice_notifier(&nr_dev_notifier);
-	printk(banner);
 
 	ax25_protocol_register(AX25_P_NETROM, nr_route_frame);
 	ax25_linkfail_register(nr_link_failed);

@@ -238,9 +238,9 @@ void mthca_cq_event(struct mthca_dev *dev, u32 cqn,
 	spin_lock(&dev->cq_table.lock);
 
 	cq = mthca_array_get(&dev->cq_table.cq, cqn & (dev->limits.num_cqs - 1));
-
 	if (cq)
-		atomic_inc(&cq->refcount);
+		++cq->refcount;
+
 	spin_unlock(&dev->cq_table.lock);
 
 	if (!cq) {
@@ -254,8 +254,10 @@ void mthca_cq_event(struct mthca_dev *dev, u32 cqn,
 	if (cq->ibcq.event_handler)
 		cq->ibcq.event_handler(&event, cq->ibcq.cq_context);
 
-	if (atomic_dec_and_test(&cq->refcount))
+	spin_lock(&dev->cq_table.lock);
+	if (!--cq->refcount)
 		wake_up(&cq->wait);
+	spin_unlock(&dev->cq_table.lock);
 }
 
 static inline int is_recv_cqe(struct mthca_cqe *cqe)
@@ -267,22 +269,12 @@ static inline int is_recv_cqe(struct mthca_cqe *cqe)
 		return !(cqe->is_send & 0x80);
 }
 
-void mthca_cq_clean(struct mthca_dev *dev, u32 cqn, u32 qpn,
+void mthca_cq_clean(struct mthca_dev *dev, struct mthca_cq *cq, u32 qpn,
 		    struct mthca_srq *srq)
 {
-	struct mthca_cq *cq;
 	struct mthca_cqe *cqe;
 	u32 prod_index;
 	int nfreed = 0;
-
-	spin_lock_irq(&dev->cq_table.lock);
-	cq = mthca_array_get(&dev->cq_table.cq, cqn & (dev->limits.num_cqs - 1));
-	if (cq)
-		atomic_inc(&cq->refcount);
-	spin_unlock_irq(&dev->cq_table.lock);
-
-	if (!cq)
-		return;
 
 	spin_lock_irq(&cq->lock);
 
@@ -301,7 +293,7 @@ void mthca_cq_clean(struct mthca_dev *dev, u32 cqn, u32 qpn,
 
 	if (0)
 		mthca_dbg(dev, "Cleaning QPN %06x from CQN %06x; ci %d, pi %d\n",
-			  qpn, cqn, cq->cons_index, prod_index);
+			  qpn, cq->cqn, cq->cons_index, prod_index);
 
 	/*
 	 * Now sweep backwards through the CQ, removing CQ entries
@@ -325,8 +317,6 @@ void mthca_cq_clean(struct mthca_dev *dev, u32 cqn, u32 qpn,
 	}
 
 	spin_unlock_irq(&cq->lock);
-	if (atomic_dec_and_test(&cq->refcount))
-		wake_up(&cq->wait);
 }
 
 void mthca_cq_resize_copy_cqes(struct mthca_cq *cq)
@@ -821,7 +811,7 @@ int mthca_init_cq(struct mthca_dev *dev, int nent,
 	}
 
 	spin_lock_init(&cq->lock);
-	atomic_set(&cq->refcount, 1);
+	cq->refcount = 1;
 	init_waitqueue_head(&cq->wait);
 
 	memset(cq_context, 0, sizeof *cq_context);
@@ -896,6 +886,17 @@ err_out:
 	return err;
 }
 
+static inline int get_cq_refcount(struct mthca_dev *dev, struct mthca_cq *cq)
+{
+	int c;
+
+	spin_lock_irq(&dev->cq_table.lock);
+	c = cq->refcount;
+	spin_unlock_irq(&dev->cq_table.lock);
+
+	return c;
+}
+
 void mthca_free_cq(struct mthca_dev *dev,
 		   struct mthca_cq *cq)
 {
@@ -929,6 +930,7 @@ void mthca_free_cq(struct mthca_dev *dev,
 	spin_lock_irq(&dev->cq_table.lock);
 	mthca_array_clear(&dev->cq_table.cq,
 			  cq->cqn & (dev->limits.num_cqs - 1));
+	--cq->refcount;
 	spin_unlock_irq(&dev->cq_table.lock);
 
 	if (dev->mthca_flags & MTHCA_FLAG_MSI_X)
@@ -936,8 +938,7 @@ void mthca_free_cq(struct mthca_dev *dev,
 	else
 		synchronize_irq(dev->pdev->irq);
 
-	atomic_dec(&cq->refcount);
-	wait_event(cq->wait, !atomic_read(&cq->refcount));
+	wait_event(cq->wait, !get_cq_refcount(dev, cq));
 
 	if (cq->is_kernel) {
 		mthca_free_cq_buf(dev, &cq->buf, cq->ibcq.cqe);

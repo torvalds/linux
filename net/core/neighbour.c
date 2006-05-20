@@ -1326,8 +1326,7 @@ void neigh_parms_destroy(struct neigh_parms *parms)
 	kfree(parms);
 }
 
-
-void neigh_table_init(struct neigh_table *tbl)
+void neigh_table_init_no_netlink(struct neigh_table *tbl)
 {
 	unsigned long now = jiffies;
 	unsigned long phsize;
@@ -1383,10 +1382,27 @@ void neigh_table_init(struct neigh_table *tbl)
 
 	tbl->last_flush = now;
 	tbl->last_rand	= now + tbl->parms.reachable_time * 20;
+}
+
+void neigh_table_init(struct neigh_table *tbl)
+{
+	struct neigh_table *tmp;
+
+	neigh_table_init_no_netlink(tbl);
 	write_lock(&neigh_tbl_lock);
+	for (tmp = neigh_tables; tmp; tmp = tmp->next) {
+		if (tmp->family == tbl->family)
+			break;
+	}
 	tbl->next	= neigh_tables;
 	neigh_tables	= tbl;
 	write_unlock(&neigh_tbl_lock);
+
+	if (unlikely(tmp)) {
+		printk(KERN_ERR "NEIGH: Registering multiple tables for "
+		       "family %d\n", tbl->family);
+		dump_stack();
+	}
 }
 
 int neigh_table_clear(struct neigh_table *tbl)
@@ -2657,6 +2673,7 @@ EXPORT_SYMBOL(neigh_rand_reach_time);
 EXPORT_SYMBOL(neigh_resolve_output);
 EXPORT_SYMBOL(neigh_table_clear);
 EXPORT_SYMBOL(neigh_table_init);
+EXPORT_SYMBOL(neigh_table_init_no_netlink);
 EXPORT_SYMBOL(neigh_update);
 EXPORT_SYMBOL(neigh_update_hhs);
 EXPORT_SYMBOL(pneigh_enqueue);

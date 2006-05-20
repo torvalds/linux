@@ -19,6 +19,7 @@
 #include <linux/sysdev.h>
 #include <linux/timer.h>
 #include <linux/err.h>
+#include <linux/ctype.h>
 #include <linux/leds.h>
 #include "leds.h"
 
@@ -43,9 +44,13 @@ static ssize_t led_brightness_store(struct class_device *dev,
 	ssize_t ret = -EINVAL;
 	char *after;
 	unsigned long state = simple_strtoul(buf, &after, 10);
+	size_t count = after - buf;
 
-	if (after - buf > 0) {
-		ret = after - buf;
+	if (*after && isspace(*after))
+		count++;
+
+	if (count == size) {
+		ret = count;
 		led_set_brightness(led_cdev, state);
 	}
 

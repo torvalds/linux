@@ -289,7 +289,7 @@ int xt_compat_match(void *match, void **dstptr, int *size, int convert)
 		case COMPAT_TO_USER:
 			pm = (struct xt_entry_match *)match;
 			msize = pm->u.user.match_size;
-			if (__copy_to_user(*dstptr, pm, msize)) {
+			if (copy_to_user(*dstptr, pm, msize)) {
 				ret = -EFAULT;
 				break;
 			}
@@ -366,7 +366,7 @@ int xt_compat_target(void *target, void **dstptr, int *size, int convert)
 		case COMPAT_TO_USER:
 			pt = (struct xt_entry_target *)target;
 			tsize = pt->u.user.target_size;
-			if (__copy_to_user(*dstptr, pt, tsize)) {
+			if (copy_to_user(*dstptr, pt, tsize)) {
 				ret = -EFAULT;
 				break;
 			}

@@ -2,7 +2,7 @@
  * ip_conntrack_helper_h323_asn1.c - BER and PER decoding library for H.323
  * 			      	     conntrack/NAT module.
  *
- * Copyright (c) 2006 by Jing Min Zhao <zhaojingmin@hotmail.com>
+ * Copyright (c) 2006 by Jing Min Zhao <zhaojingmin@users.sourceforge.net>
  *
  * This source code is licensed under General Public License version 2.
  *
@@ -703,6 +703,10 @@ int decode_choice(bitstr_t * bs, field_t * f, char *base, int level)
 		type = get_bits(bs, f->sz);
 	}
 
+	/* Write Type */
+	if (base)
+		*(unsigned *) base = type;
+
 	/* Check Range */
 	if (type >= f->ub) {	/* Newer version? */
 		BYTE_ALIGN(bs);
@@ -711,10 +715,6 @@ int decode_choice(bitstr_t * bs, field_t * f, char *base, int level)
 		bs->cur += len;
 		return H323_ERROR_NONE;
 	}
-
-	/* Write Type */
-	if (base)
-		*(unsigned *) base = type;
 
 	/* Transfer to son level */
 	son = &f->fields[type];

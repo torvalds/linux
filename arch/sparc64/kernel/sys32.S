@@ -139,6 +139,7 @@ SIGN3(sys32_ioprio_set, sys_ioprio_set, %o0, %o1, %o2)
 SIGN2(sys32_splice, sys_splice, %o0, %o1)
 SIGN2(sys32_sync_file_range, compat_sync_file_range, %o0, %o5)
 SIGN2(sys32_tee, sys_tee, %o0, %o1)
+SIGN1(sys32_vmsplice, compat_sys_vmsplice, %o0)
 
 	.globl		sys32_mmap2
 sys32_mmap2:

@@ -2663,7 +2663,7 @@ xfs_link(
 	 */
 	if (unlikely((tdp->i_d.di_flags & XFS_DIFLAG_PROJINHERIT) &&
 		     (tdp->i_d.di_projid != sip->i_d.di_projid))) {
-		error = XFS_ERROR(EPERM);
+		error = XFS_ERROR(EXDEV);
 		goto error_return;
 	}
 

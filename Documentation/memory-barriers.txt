@@ -1031,7 +1031,7 @@ conflict on any particular lock.
 LOCKS VS MEMORY ACCESSES
 ------------------------
 
-Consider the following: the system has a pair of spinlocks (N) and (Q), and
+Consider the following: the system has a pair of spinlocks (M) and (Q), and
 three CPUs; then should the following sequence of events occur:
 
 	CPU 1				CPU 2
@@ -1678,7 +1678,7 @@ CPU's caches by some other cache event:
 	smp_wmb();
 	<A:modify v=2>	<C:busy>
 			<C:queue v=2>
-	p = &b;		q = p;
+	p = &v;		q = p;
 			<D:request p>
 	<B:modify p=&v>	<D:commit p=&v>
 		  	<D:read p>

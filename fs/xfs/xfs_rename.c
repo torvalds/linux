@@ -316,6 +316,18 @@ xfs_rename(
 		}
 	}
 
+	/*
+	 * If we are using project inheritance, we only allow renames
+	 * into our tree when the project IDs are the same; else the
+	 * tree quota mechanism would be circumvented.
+	 */
+	if (unlikely((target_dp->i_d.di_flags & XFS_DIFLAG_PROJINHERIT) &&
+		     (target_dp->i_d.di_projid != src_ip->i_d.di_projid))) {
+		error = XFS_ERROR(EXDEV);
+		xfs_rename_unlock4(inodes, XFS_ILOCK_SHARED);
+		goto rele_return;
+	}
+
 	new_parent = (src_dp != target_dp);
 	src_is_directory = ((src_ip->i_d.di_mode & S_IFMT) == S_IFDIR);
 

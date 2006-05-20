@@ -173,6 +173,7 @@ int inet6_csk_xmit(struct sk_buff *skb, int ipfragok)
 
 		if (err) {
 			sk->sk_err_soft = -err;
+			kfree_skb(skb);
 			return err;
 		}
 
@@ -181,6 +182,7 @@ int inet6_csk_xmit(struct sk_buff *skb, int ipfragok)
 
 		if ((err = xfrm_lookup(&dst, &fl, sk, 0)) < 0) {
 			sk->sk_route_caps = 0;
+			kfree_skb(skb);
 			return err;
 		}
 

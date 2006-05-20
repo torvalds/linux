@@ -22,8 +22,8 @@
 #ifndef OCFS2_AOPS_H
 #define OCFS2_AOPS_H
 
-int ocfs2_prepare_write(struct file *file, struct page *page,
-			unsigned from, unsigned to);
+int ocfs2_prepare_write_nolock(struct inode *inode, struct page *page,
+			       unsigned from, unsigned to);
 
 struct ocfs2_journal_handle *ocfs2_start_walk_page_trans(struct inode *inode,
 							 struct page *page,

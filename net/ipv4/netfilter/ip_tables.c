@@ -1441,7 +1441,7 @@ static int compat_copy_entry_to_user(struct ipt_entry *e,
 	ret = -EFAULT;
 	origsize = *size;
 	ce = (struct compat_ipt_entry __user *)*dstptr;
-	if (__copy_to_user(ce, e, sizeof(struct ipt_entry)))
+	if (copy_to_user(ce, e, sizeof(struct ipt_entry)))
 		goto out;
 
 	*dstptr += sizeof(struct compat_ipt_entry);
@@ -1459,9 +1459,9 @@ static int compat_copy_entry_to_user(struct ipt_entry *e,
 		goto out;
 	ret = -EFAULT;
 	next_offset = e->next_offset - (origsize - *size);
-	if (__put_user(target_offset, &ce->target_offset))
+	if (put_user(target_offset, &ce->target_offset))
 		goto out;
-	if (__put_user(next_offset, &ce->next_offset))
+	if (put_user(next_offset, &ce->next_offset))
 		goto out;
 	return 0;
 out:

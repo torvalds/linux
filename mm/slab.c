@@ -700,6 +700,14 @@ static enum {
 	FULL
 } g_cpucache_up;
 
+/*
+ * used by boot code to determine if it can use slab based allocator
+ */
+int slab_is_available(void)
+{
+	return g_cpucache_up == FULL;
+}
+
 static DEFINE_PER_CPU(struct work_struct, reap_work);
 
 static void free_block(struct kmem_cache *cachep, void **objpp, int len,
@@ -2192,11 +2200,14 @@ static void drain_cpu_caches(struct kmem_cache *cachep)
 	check_irq_on();
 	for_each_online_node(node) {
 		l3 = cachep->nodelists[node];
-		if (l3) {
+		if (l3 && l3->alien)
+			drain_alien_cache(cachep, l3->alien);
+	}
+
+	for_each_online_node(node) {
+		l3 = cachep->nodelists[node];
+		if (l3)
 			drain_array(cachep, l3, l3->shared, 1, node);
-			if (l3->alien)
-				drain_alien_cache(cachep, l3->alien);
-		}
 	}
 }
 

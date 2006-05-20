@@ -1066,6 +1066,14 @@ static struct dmi_system_id __initdata acpi_dmi_table[] = {
 		     DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 360"),
 		     },
 	 },
+	{
+	 .callback = disable_acpi_pci,
+	 .ident = "HP xw9300",
+	 .matches = {
+		    DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+		    DMI_MATCH(DMI_PRODUCT_NAME, "HP xw9300 Workstation"),
+		    },
+	},
 	{}
 };
 
@@ -1101,9 +1109,6 @@ int __init acpi_boot_table_init(void)
 #ifdef __i386__
 	dmi_check_system(acpi_dmi_table);
 #endif
-
-	if (!cpu_has_apic)
-		return -ENODEV;
 
 	/*
 	 * If acpi_disabled, bail out
@@ -1150,9 +1155,6 @@ int __init acpi_boot_init(void)
 		return 1;
 
 	acpi_table_parse(ACPI_BOOT, acpi_parse_sbf);
-
-	if (!cpu_has_apic)
-		return -ENODEV;
 
 	/*
 	 * set sci_int and PM timer address

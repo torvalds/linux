@@ -101,6 +101,8 @@ static int __init selinux_enabled_setup(char *str)
 	return 1;
 }
 __setup("selinux=", selinux_enabled_setup);
+#else
+int selinux_enabled = 1;
 #endif
 
 /* Original (dummy) security module. */
@@ -4535,6 +4537,7 @@ int selinux_disable(void)
 	printk(KERN_INFO "SELinux:  Disabled at runtime.\n");
 
 	selinux_disabled = 1;
+	selinux_enabled = 0;
 
 	/* Reset security_ops to the secondary module, dummy or capability. */
 	security_ops = secondary_ops;

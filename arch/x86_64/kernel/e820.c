@@ -76,6 +76,12 @@ static inline int bad_addr(unsigned long *addrp, unsigned long size)
 		*addrp = __pa_symbol(&_end);
 		return 1;
 	}
+
+	if (last >= ebda_addr && addr < ebda_addr + ebda_size) {
+		*addrp = ebda_addr + ebda_size;
+		return 1;
+	}
+
 	/* XXX ramdisk image here? */ 
 	return 0;
 } 

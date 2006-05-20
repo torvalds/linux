@@ -1550,7 +1550,6 @@ static unsigned char ax25_nocall[AX25_ADDR_LEN] =
 
 static void scc_net_setup(struct net_device *dev)
 {
-	SET_MODULE_OWNER(dev);
 	dev->tx_queue_len    = 16;	/* should be enough... */
 
 	dev->open            = scc_net_open;

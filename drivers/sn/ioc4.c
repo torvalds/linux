@@ -310,7 +310,7 @@ ioc4_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 	pci_set_drvdata(idd->idd_pdev, idd);
 
 	mutex_lock(&ioc4_mutex);
-	list_add(&idd->idd_list, &ioc4_devices);
+	list_add_tail(&idd->idd_list, &ioc4_devices);
 
 	/* Add this IOC4 to all submodules */
 	list_for_each_entry(is, &ioc4_submodules, is_list) {
