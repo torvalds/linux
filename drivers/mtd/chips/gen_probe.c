@@ -212,10 +212,10 @@ static inline struct mtd_info *cfi_cmdset_unknown(struct map_info *map,
 
 	sprintf(probename, "cfi_cmdset_%4.4X", type);
 
-	probe_function = (void *)symbol_get(probename);
+	probe_function = __symbol_get(probename);
 	if (!probe_function) {
 		request_module(probename);
-		probe_function = (void *)symbol_get(probename);
+		probe_function = __symbol_get(probename);
 	}
 
 	if (probe_function) {
