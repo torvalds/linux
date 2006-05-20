@@ -978,7 +978,7 @@ S:	Maintained
 EXT3 FILE SYSTEM
 P:	Stephen Tweedie, Andrew Morton
 M:	sct@redhat.com, akpm@osdl.org, adilger@clusterfs.com
-L:	ext3-users@redhat.com
+L:	ext2-devel@lists.sourceforge.net
 S:	Maintained
 
 F71805F HARDWARE MONITORING DRIVER
@@ -1538,6 +1538,12 @@ L:	jfs-discussion@lists.sourceforge.net
 W:	http://jfs.sourceforge.net/
 T:	git kernel.org:/pub/scm/linux/kernel/git/shaggy/jfs-2.6.git
 S:	Supported
+
+JOURNALLING LAYER FOR BLOCK DEVICS (JBD)
+P:	Stephen Tweedie, Andrew Morton
+M:	sct@redhat.com, akpm@osdl.org
+L:	ext2-devel@lists.sourceforge.net
+S:	Maintained
 
 KCONFIG
 P:	Roman Zippel
