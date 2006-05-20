@@ -306,11 +306,12 @@ int jffs2_scan_classify_jeb(struct jffs2_sb_info *c, struct jffs2_eraseblock *je
 		return BLK_STATE_ALLDIRTY;
 }
 
+/* Called with 'buf_size == 0' if buf is in fact a pointer _directly_ into
+   the flash, XIP-style */
 static int jffs2_scan_eraseblock (struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb,
-				unsigned char *buf, uint32_t buf_size, struct jffs2_summary *s) {
+				  unsigned char *buf, uint32_t buf_size, struct jffs2_summary *s) {
 	struct jffs2_unknown_node *node;
 	struct jffs2_unknown_node crcnode;
-	struct jffs2_sum_marker *sm;
 	uint32_t ofs, prevofs;
 	uint32_t hdr_crc, buf_ofs, buf_len;
 	int err;
@@ -344,32 +345,69 @@ static int jffs2_scan_eraseblock (struct jffs2_sb_info *c, struct jffs2_eraseblo
 #endif
 
 	if (jffs2_sum_active()) {
-		sm = kmalloc(sizeof(struct jffs2_sum_marker), GFP_KERNEL);
-		if (!sm) {
-			return -ENOMEM;
-		}
-
-		err = jffs2_fill_scan_buf(c, (unsigned char *) sm, jeb->offset + c->sector_size -
-					sizeof(struct jffs2_sum_marker), sizeof(struct jffs2_sum_marker));
-		if (err) {
-			kfree(sm);
-			return err;
-		}
-
-		if (je32_to_cpu(sm->magic) == JFFS2_SUM_MAGIC ) {
-			err = jffs2_sum_scan_sumnode(c, jeb, je32_to_cpu(sm->offset), &pseudo_random);
-			if (err) {
-				kfree(sm);
-				return err;
+		struct jffs2_sum_marker *sm;
+		void *sumptr = NULL;
+		uint32_t sumlen;
+	      
+		if (!buf_size) {
+			/* XIP case. Just look, point at the summary if it's there */
+			sm = (void *)buf + jeb->offset - sizeof(*sm);
+			if (je32_to_cpu(sm->magic) == JFFS2_SUM_MAGIC) {
+				sumptr = buf + je32_to_cpu(sm->offset);
+				sumlen = c->sector_size - je32_to_cpu(sm->offset);
 			}
+		} else {
+			/* If NAND flash, read a whole page of it. Else just the end */
+			if (c->wbuf_pagesize)
+				buf_len = c->wbuf_pagesize;
+			else
+				buf_len = sizeof(*sm);
+
+			/* Read as much as we want into the _end_ of the preallocated buffer */
+			err = jffs2_fill_scan_buf(c, buf + buf_size - buf_len, 
+						  jeb->offset + c->sector_size - buf_len,
+						  buf_len);				
+			if (err)
+				return err;
+
+			sm = (void *)buf + buf_size - sizeof(*sm);
+			if (je32_to_cpu(sm->magic) == JFFS2_SUM_MAGIC) {
+				sumlen = c->sector_size - je32_to_cpu(sm->offset);
+				sumptr = buf + buf_size - sumlen;
+
+				/* Now, make sure the summary itself is available */
+				if (sumlen > buf_size) {
+					/* Need to kmalloc for this. */
+					sumptr = kmalloc(sumlen, GFP_KERNEL);
+					if (!sumptr)
+						return -ENOMEM;
+					memcpy(sumptr + sumlen - buf_len, buf + buf_size - buf_len, buf_len);
+				}
+				if (buf_len < sumlen) {
+					/* Need to read more so that the entire summary node is present */
+					err = jffs2_fill_scan_buf(c, sumptr, 
+								  jeb->offset + c->sector_size - sumlen,
+								  sumlen - buf_len);				
+					if (err)
+						return err;
+				}
+			}
+
 		}
 
-		kfree(sm);
+		if (sumptr) {
+			err = jffs2_sum_scan_sumnode(c, jeb, sumptr, sumlen, &pseudo_random);
+			if (err)
+				return err;
+			if (buf_size && sumlen > buf_size)
+				kfree(sumptr);
+		}
 	}
 
 	buf_ofs = jeb->offset;
 
 	if (!buf_size) {
+		/* This is the XIP case -- we're reading _directly_ from the flash chip */
 		buf_len = c->sector_size;
 	} else {
 		buf_len = EMPTY_SCAN_SIZE(c->sector_size);

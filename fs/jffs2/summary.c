@@ -318,7 +318,6 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 				raw = jffs2_alloc_raw_node_ref();
 				if (!raw) {
 					JFFS2_NOTICE("allocation of node reference failed\n");
-					kfree(summary);
 					return -ENOMEM;
 				}
 
@@ -326,7 +325,6 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 				if (!ic) {
 					JFFS2_NOTICE("scan_make_ino_cache failed\n");
 					jffs2_free_raw_node_ref(raw);
-					kfree(summary);
 					return -ENOMEM;
 				}
 
@@ -358,10 +356,8 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 							jeb->offset + je32_to_cpu(spd->offset));
 
 				fd = jffs2_alloc_full_dirent(spd->nsize+1);
-				if (!fd) {
-					kfree(summary);
+				if (!fd)
 					return -ENOMEM;
-				}
 
 				memcpy(&fd->name, spd->name, spd->nsize);
 				fd->name[spd->nsize] = 0;
@@ -370,7 +366,6 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 				if (!raw) {
 					jffs2_free_full_dirent(fd);
 					JFFS2_NOTICE("allocation of node reference failed\n");
-					kfree(summary);
 					return -ENOMEM;
 				}
 
@@ -378,7 +373,6 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 				if (!ic) {
 					jffs2_free_full_dirent(fd);
 					jffs2_free_raw_node_ref(raw);
-					kfree(summary);
 					return -ENOMEM;
 				}
 
@@ -411,45 +405,28 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 
 			default : {
 				JFFS2_WARNING("Unsupported node type found in summary! Exiting...");
-				kfree(summary);
 				return -EIO;
 			}
 		}
 	}
 
-	kfree(summary);
 	return 0;
 }
 
 /* Process the summary node - called from jffs2_scan_eraseblock() */
-
 int jffs2_sum_scan_sumnode(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb,
-				uint32_t ofs, uint32_t *pseudo_random)
+			   struct jffs2_raw_summary *summary, uint32_t sumsize,
+			   uint32_t *pseudo_random)
 {
 	struct jffs2_unknown_node crcnode;
 	struct jffs2_raw_node_ref *cache_ref;
-	struct jffs2_raw_summary *summary;
-	int ret, sumsize;
+	int ret, ofs;
 	uint32_t crc;
 
-	sumsize = c->sector_size - ofs;
-	ofs += jeb->offset;
+	ofs = jeb->offset + c->sector_size - sumsize;
 
 	dbg_summary("summary found for 0x%08x at 0x%08x (0x%x bytes)\n",
-				jeb->offset, ofs, sumsize);
-
-	summary = kmalloc(sumsize, GFP_KERNEL);
-
-	if (!summary) {
-		return -ENOMEM;
-	}
-
-	ret = jffs2_fill_scan_buf(c, (unsigned char *)summary, ofs, sumsize);
-
-	if (ret) {
-		kfree(summary);
-		return ret;
-	}
+		    jeb->offset, ofs, sumsize);
 
 	/* OK, now check for node validity and CRC */
 	crcnode.magic = cpu_to_je16(JFFS2_MAGIC_BITMASK);
@@ -499,7 +476,6 @@ int jffs2_sum_scan_sumnode(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb
 
 			if (!marker_ref) {
 				JFFS2_NOTICE("Failed to allocate node ref for clean marker\n");
-				kfree(summary);
 				return -ENOMEM;
 			}
 
