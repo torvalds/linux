@@ -19,6 +19,8 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/concat.h>
 
+#include <asm/div64.h>
+
 /*
  * Our storage structure:
  * Subdev points to an array of pointers to struct mtd_info objects
@@ -276,9 +278,11 @@ concat_writev_ecc(struct mtd_info *mtd, const struct kvec *vecs,
 		return -EINVAL;
 
 	/* Check alignment */
-	if (mtd->oobblock > 1)
-		if ((to % mtd->oobblock) || (total_len % mtd->oobblock))
+	if (mtd->oobblock > 1) {
+		loff_t __to = to;
+		if (do_div(__to, mtd->oobblock) || (total_len % mtd->oobblock))
 			return -EINVAL;
+	}
 
 	/* make a copy of vecs */
 	vecs_copy = kmalloc(sizeof(struct kvec) * count, GFP_KERNEL);
