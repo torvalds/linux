@@ -114,6 +114,7 @@
 #define I2C_DRIVERID_RS5C372	84	/* Ricoh RS5C372 RTC		*/
 #define I2C_DRIVERID_BT866	85	/* Conexant bt866 video encoder */
 #define I2C_DRIVERID_KS0127	86	/* Samsung ks0127 video decoder */
+#define I2C_DRIVERID_TLV320AIC23B 87	/* TI TLV320AIC23B audio codec  */
 
 #define I2C_DRIVERID_I2CDEV	900
 #define I2C_DRIVERID_ARP        902    /* SMBus ARP Client              */
