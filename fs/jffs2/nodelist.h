@@ -20,6 +20,8 @@
 #include <linux/jffs2.h>
 #include "jffs2_fs_sb.h"
 #include "jffs2_fs_i.h"
+#include "xattr.h"
+#include "acl.h"
 #include "summary.h"
 
 #ifdef __ECOS
@@ -107,11 +109,16 @@ struct jffs2_inode_cache {
 		temporary lists of dirents, and later must be set to
 		NULL to mark the end of the raw_node_ref->next_in_ino
 		chain. */
+	u8 class;	/* It's used for identification */
+	u8 flags;
+	uint16_t state;
 	struct jffs2_inode_cache *next;
 	struct jffs2_raw_node_ref *nodes;
 	uint32_t ino;
 	int nlink;
-	int state;
+#ifdef CONFIG_JFFS2_FS_XATTR
+	struct jffs2_xattr_ref *xref;
+#endif
 };
 
 /* Inode states for 'state' above. We need the 'GC' state to prevent
@@ -124,6 +131,12 @@ struct jffs2_inode_cache {
 #define INO_STATE_GC		4	/* GCing a 'pristine' node */
 #define INO_STATE_READING	5	/* In read_inode() */
 #define INO_STATE_CLEARING	6	/* In clear_inode() */
+
+#define INO_FLAGS_XATTR_CHECKED	0x01	/* has no duplicate xattr_ref */
+
+#define RAWNODE_CLASS_INODE_CACHE	0
+#define RAWNODE_CLASS_XATTR_DATUM	1
+#define RAWNODE_CLASS_XATTR_REF		2
 
 #define INOCACHE_HASHSIZE 128
 
@@ -385,6 +398,12 @@ struct jffs2_node_frag *jffs2_alloc_node_frag(void);
 void jffs2_free_node_frag(struct jffs2_node_frag *);
 struct jffs2_inode_cache *jffs2_alloc_inode_cache(void);
 void jffs2_free_inode_cache(struct jffs2_inode_cache *);
+#ifdef CONFIG_JFFS2_FS_XATTR
+struct jffs2_xattr_datum *jffs2_alloc_xattr_datum(void);
+void jffs2_free_xattr_datum(struct jffs2_xattr_datum *);
+struct jffs2_xattr_ref *jffs2_alloc_xattr_ref(void);
+void jffs2_free_xattr_ref(struct jffs2_xattr_ref *);
+#endif
 
 /* gc.c */
 int jffs2_garbage_collect_pass(struct jffs2_sb_info *c);

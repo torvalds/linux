@@ -306,6 +306,137 @@ int jffs2_scan_classify_jeb(struct jffs2_sb_info *c, struct jffs2_eraseblock *je
 		return BLK_STATE_ALLDIRTY;
 }
 
+#ifdef CONFIG_JFFS2_FS_XATTR
+static int jffs2_scan_xattr_node(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb,
+				 struct jffs2_raw_xattr *rx, uint32_t ofs,
+				 struct jffs2_summary *s)
+{
+	struct jffs2_xattr_datum *xd;
+	struct jffs2_raw_node_ref *raw;
+	uint32_t totlen, crc;
+
+	crc = crc32(0, rx, sizeof(struct jffs2_raw_xattr) - 4);
+	if (crc != je32_to_cpu(rx->node_crc)) {
+		if (je32_to_cpu(rx->node_crc) != 0xffffffff)
+			JFFS2_WARNING("node CRC failed at %#08x, read=%#08x, calc=%#08x\n",
+				      ofs, je32_to_cpu(rx->node_crc), crc);
+		DIRTY_SPACE(je32_to_cpu(rx->totlen));
+		return 0;
+	}
+
+	totlen = PAD(sizeof(*rx) + rx->name_len + 1 + je16_to_cpu(rx->value_len));
+	if (totlen != je32_to_cpu(rx->totlen)) {
+		JFFS2_WARNING("node length mismatch at %#08x, read=%u, calc=%u\n",
+			      ofs, je32_to_cpu(rx->totlen), totlen);
+		DIRTY_SPACE(je32_to_cpu(rx->totlen));
+		return 0;
+	}
+
+	raw =  jffs2_alloc_raw_node_ref();
+	if (!raw)
+		return -ENOMEM;
+
+	xd = jffs2_setup_xattr_datum(c, je32_to_cpu(rx->xid), je32_to_cpu(rx->version));
+	if (IS_ERR(xd)) {
+		jffs2_free_raw_node_ref(raw);
+		if (PTR_ERR(xd) == -EEXIST) {
+			DIRTY_SPACE(PAD(je32_to_cpu(rx->totlen)));
+			return 0;
+		}
+		return PTR_ERR(xd);
+	}
+	xd->xprefix = rx->xprefix;
+	xd->name_len = rx->name_len;
+	xd->value_len = je16_to_cpu(rx->value_len);
+	xd->data_crc = je32_to_cpu(rx->data_crc);
+	xd->node = raw;
+
+	raw->__totlen = totlen;
+	raw->flash_offset = ofs | REF_PRISTINE;
+	raw->next_phys = NULL;
+	raw->next_in_ino = (void *)xd;
+	if (!jeb->first_node)
+		jeb->first_node = raw;
+	if (jeb->last_node)
+		jeb->last_node->next_phys = raw;
+	jeb->last_node = raw;
+
+	USED_SPACE(PAD(je32_to_cpu(rx->totlen)));
+	if (jffs2_sum_active())
+		jffs2_sum_add_xattr_mem(s, rx, ofs - jeb->offset);
+	dbg_xattr("scaning xdatum at %#08x (xid=%u, version=%u)\n",
+		  ofs, xd->xid, xd->version);
+	return 0;
+}
+
+static int jffs2_scan_xref_node(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb,
+				struct jffs2_raw_xref *rr, uint32_t ofs,
+				struct jffs2_summary *s)
+{
+	struct jffs2_xattr_ref *ref;
+	struct jffs2_raw_node_ref *raw;
+	uint32_t crc;
+
+	crc = crc32(0, rr, sizeof(*rr) - 4);
+	if (crc != je32_to_cpu(rr->node_crc)) {
+		if (je32_to_cpu(rr->node_crc) != 0xffffffff)
+			JFFS2_WARNING("node CRC failed at %#08x, read=%#08x, calc=%#08x\n",
+				      ofs, je32_to_cpu(rr->node_crc), crc);
+		DIRTY_SPACE(PAD(je32_to_cpu(rr->totlen)));
+		return 0;
+	}
+
+	if (PAD(sizeof(struct jffs2_raw_xref)) != je32_to_cpu(rr->totlen)) {
+		JFFS2_WARNING("node length mismatch at %#08x, read=%u, calc=%u\n",
+			      ofs, je32_to_cpu(rr->totlen),
+			      PAD(sizeof(struct jffs2_raw_xref)));
+		DIRTY_SPACE(je32_to_cpu(rr->totlen));
+		return 0;
+	}
+
+	ref = jffs2_alloc_xattr_ref();
+	if (!ref)
+		return -ENOMEM;
+
+	raw =  jffs2_alloc_raw_node_ref();
+	if (!raw) {
+		jffs2_free_xattr_ref(ref);
+		return -ENOMEM;
+	}
+
+	/* BEFORE jffs2_build_xattr_subsystem() called, 
+	 * ref->xid is used to store 32bit xid, xd is not used
+	 * ref->ino is used to store 32bit inode-number, ic is not used
+	 * Thoes variables are declared as union, thus using those
+	 * are exclusive. In a similar way, ref->next is temporarily
+	 * used to chain all xattr_ref object. It's re-chained to
+	 * jffs2_inode_cache in jffs2_build_xattr_subsystem() correctly.
+	 */
+	ref->node = raw;
+	ref->ino = je32_to_cpu(rr->ino);
+	ref->xid = je32_to_cpu(rr->xid);
+	ref->next = c->xref_temp;
+	c->xref_temp = ref;
+
+	raw->__totlen = PAD(je32_to_cpu(rr->totlen));
+	raw->flash_offset = ofs | REF_PRISTINE;
+	raw->next_phys = NULL;
+	raw->next_in_ino = (void *)ref;
+	if (!jeb->first_node)
+		jeb->first_node = raw;
+	if (jeb->last_node)
+		jeb->last_node->next_phys = raw;
+	jeb->last_node = raw;
+
+	USED_SPACE(PAD(je32_to_cpu(rr->totlen)));	
+	if (jffs2_sum_active())
+		jffs2_sum_add_xref_mem(s, rr, ofs - jeb->offset);
+	dbg_xattr("scan xref at %#08x (xid=%u, ino=%u)\n",
+		  ofs, ref->xid, ref->ino);
+	return 0;
+}
+#endif
+
 /* Called with 'buf_size == 0' if buf is in fact a pointer _directly_ into
    the flash, XIP-style */
 static int jffs2_scan_eraseblock (struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb,
@@ -640,6 +771,43 @@ scan_more:
 			if (err) return err;
 			ofs += PAD(je32_to_cpu(node->totlen));
 			break;
+
+#ifdef CONFIG_JFFS2_FS_XATTR
+		case JFFS2_NODETYPE_XATTR:
+			if (buf_ofs + buf_len < ofs + je32_to_cpu(node->totlen)) {
+				buf_len = min_t(uint32_t, buf_size, jeb->offset + c->sector_size - ofs);
+				D1(printk(KERN_DEBUG "Fewer than %d bytes (xattr node)"
+					  " left to end of buf. Reading 0x%x at 0x%08x\n",
+					  je32_to_cpu(node->totlen), buf_len, ofs));
+				err = jffs2_fill_scan_buf(c, buf, ofs, buf_len);
+				if (err)
+					return err;
+				buf_ofs = ofs;
+				node = (void *)buf;
+			}
+			err = jffs2_scan_xattr_node(c, jeb, (void *)node, ofs, s);
+			if (err)
+				return err;
+			ofs += PAD(je32_to_cpu(node->totlen));
+			break;
+		case JFFS2_NODETYPE_XREF:
+			if (buf_ofs + buf_len < ofs + je32_to_cpu(node->totlen)) {
+				buf_len = min_t(uint32_t, buf_size, jeb->offset + c->sector_size - ofs);
+				D1(printk(KERN_DEBUG "Fewer than %d bytes (xref node)"
+					  " left to end of buf. Reading 0x%x at 0x%08x\n",
+					  je32_to_cpu(node->totlen), buf_len, ofs));
+				err = jffs2_fill_scan_buf(c, buf, ofs, buf_len);
+				if (err)
+					return err;
+				buf_ofs = ofs;
+				node = (void *)buf;
+			}
+			err = jffs2_scan_xref_node(c, jeb, (void *)node, ofs, s);
+			if (err)
+				return err;
+			ofs += PAD(je32_to_cpu(node->totlen));
+			break;
+#endif	/* CONFIG_JFFS2_FS_XATTR */
 
 		case JFFS2_NODETYPE_CLEANMARKER:
 			D1(printk(KERN_DEBUG "CLEANMARKER node found at 0x%08x\n", ofs));

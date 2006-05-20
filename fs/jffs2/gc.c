@@ -125,6 +125,7 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 	struct jffs2_eraseblock *jeb;
 	struct jffs2_raw_node_ref *raw;
 	int ret = 0, inum, nlink;
+	int xattr = 0;
 
 	if (down_interruptible(&c->alloc_sem))
 		return -EINTR;
@@ -138,7 +139,7 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 		   the node CRCs etc. Do it now. */
 
 		/* checked_ino is protected by the alloc_sem */
-		if (c->checked_ino > c->highest_ino) {
+		if (c->checked_ino > c->highest_ino && xattr) {
 			printk(KERN_CRIT "Checked all inodes but still 0x%x bytes of unchecked space?\n",
 			       c->unchecked_size);
 			jffs2_dbg_dump_block_lists_nolock(c);
@@ -147,6 +148,9 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 		}
 
 		spin_unlock(&c->erase_completion_lock);
+
+		if (!xattr)
+			xattr = jffs2_verify_xattr(c);
 
 		spin_lock(&c->inocache_lock);
 
@@ -261,6 +265,23 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 	}
 
 	ic = jffs2_raw_ref_to_ic(raw);
+
+#ifdef CONFIG_JFFS2_FS_XATTR
+	/* When 'ic' refers xattr_datum/xattr_ref, this node is GCed as xattr.
+	 * We can decide whether this node is inode or xattr by ic->class.     */
+	if (ic->class == RAWNODE_CLASS_XATTR_DATUM
+	    || ic->class == RAWNODE_CLASS_XATTR_REF) {
+		BUG_ON(raw->next_in_ino != (void *)ic);
+		spin_unlock(&c->erase_completion_lock);
+
+		if (ic->class == RAWNODE_CLASS_XATTR_DATUM) {
+			ret = jffs2_garbage_collect_xattr_datum(c, (struct jffs2_xattr_datum *)ic);
+		} else {
+			ret = jffs2_garbage_collect_xattr_ref(c, (struct jffs2_xattr_ref *)ic);
+		}
+		goto release_sem;
+	}
+#endif
 
 	/* We need to hold the inocache. Either the erase_completion_lock or
 	   the inocache_lock are sufficient; we trade down since the inocache_lock

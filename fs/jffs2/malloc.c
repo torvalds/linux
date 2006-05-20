@@ -26,6 +26,10 @@ static kmem_cache_t *tmp_dnode_info_slab;
 static kmem_cache_t *raw_node_ref_slab;
 static kmem_cache_t *node_frag_slab;
 static kmem_cache_t *inode_cache_slab;
+#ifdef CONFIG_JFFS2_FS_XATTR
+static kmem_cache_t *xattr_datum_cache;
+static kmem_cache_t *xattr_ref_cache;
+#endif
 
 int __init jffs2_create_slab_caches(void)
 {
@@ -68,8 +72,24 @@ int __init jffs2_create_slab_caches(void)
 	inode_cache_slab = kmem_cache_create("jffs2_inode_cache",
 					     sizeof(struct jffs2_inode_cache),
 					     0, 0, NULL, NULL);
-	if (inode_cache_slab)
-		return 0;
+	if (!inode_cache_slab)
+		goto err;
+
+#ifdef CONFIG_JFFS2_FS_XATTR
+	xattr_datum_cache = kmem_cache_create("jffs2_xattr_datum",
+					     sizeof(struct jffs2_xattr_datum),
+					     0, 0, NULL, NULL);
+	if (!xattr_datum_cache)
+		goto err;
+
+	xattr_ref_cache = kmem_cache_create("jffs2_xattr_ref",
+					   sizeof(struct jffs2_xattr_ref),
+					   0, 0, NULL, NULL);
+	if (!xattr_ref_cache)
+		goto err;
+#endif
+
+	return 0;
  err:
 	jffs2_destroy_slab_caches();
 	return -ENOMEM;
@@ -91,6 +111,12 @@ void jffs2_destroy_slab_caches(void)
 		kmem_cache_destroy(node_frag_slab);
 	if(inode_cache_slab)
 		kmem_cache_destroy(inode_cache_slab);
+#ifdef CONFIG_JFFS2_FS_XATTR
+	if (xattr_datum_cache)
+		kmem_cache_destroy(xattr_datum_cache);
+	if (xattr_ref_cache)
+		kmem_cache_destroy(xattr_ref_cache);
+#endif
 }
 
 struct jffs2_full_dirent *jffs2_alloc_full_dirent(int namesize)
@@ -205,3 +231,40 @@ void jffs2_free_inode_cache(struct jffs2_inode_cache *x)
 	dbg_memalloc("%p\n", x);
 	kmem_cache_free(inode_cache_slab, x);
 }
+
+#ifdef CONFIG_JFFS2_FS_XATTR
+struct jffs2_xattr_datum *jffs2_alloc_xattr_datum(void)
+{
+	struct jffs2_xattr_datum *xd;
+	xd = kmem_cache_alloc(xattr_datum_cache, GFP_KERNEL);
+	dbg_memalloc("%p\n", xd);
+
+	memset(xd, 0, sizeof(struct jffs2_xattr_datum));
+	xd->class = RAWNODE_CLASS_XATTR_DATUM;
+	INIT_LIST_HEAD(&xd->xindex);
+	return xd;
+}
+
+void jffs2_free_xattr_datum(struct jffs2_xattr_datum *xd)
+{
+	dbg_memalloc("%p\n", xd);
+	kmem_cache_free(xattr_datum_cache, xd);
+}
+
+struct jffs2_xattr_ref *jffs2_alloc_xattr_ref(void)
+{
+	struct jffs2_xattr_ref *ref;
+	ref = kmem_cache_alloc(xattr_ref_cache, GFP_KERNEL);
+	dbg_memalloc("%p\n", ref);
+
+	memset(ref, 0, sizeof(struct jffs2_xattr_ref));
+	ref->class = RAWNODE_CLASS_XATTR_REF;
+	return ref;
+}
+
+void jffs2_free_xattr_ref(struct jffs2_xattr_ref *ref)
+{
+	dbg_memalloc("%p\n", ref);
+	kmem_cache_free(xattr_ref_cache, ref);
+}
+#endif

@@ -938,6 +938,7 @@ void jffs2_free_ino_caches(struct jffs2_sb_info *c)
 		this = c->inocache_list[i];
 		while (this) {
 			next = this->next;
+			jffs2_xattr_free_inode(c, this);
 			jffs2_free_inode_cache(this);
 			this = next;
 		}
