@@ -1536,6 +1536,16 @@ M:	zippel@linux-m68k.org
 L:	kbuild-devel@lists.sourceforge.net
 S:	Maintained
 
+KDUMP
+P:	Vivek Goyal
+M:	vgoyal@in.ibm.com
+P:	Haren Myneni
+M:	hbabu@us.ibm.com
+L:	fastboot@lists.osdl.org
+L:	linux-kernel@vger.kernel.org
+W:	http://lse.sourceforge.net/kdump/
+S:	Maintained
+
 KERNEL AUTOMOUNTER (AUTOFS)
 P:	H. Peter Anvin
 M:	hpa@zytor.com
