@@ -1046,3 +1046,37 @@ void jffs2_kill_fragtree(struct rb_root *root, struct jffs2_sb_info *c)
 		cond_resched();
 	}
 }
+
+void jffs2_link_node_ref(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb,
+			 struct jffs2_raw_node_ref *ref, uint32_t len)
+{
+	if (!jeb->first_node)
+		jeb->first_node = ref;
+	if (jeb->last_node)
+		jeb->last_node->next_phys = ref;
+	jeb->last_node = ref;
+
+	switch(ref_flags(ref)) {
+	case REF_UNCHECKED:
+		c->unchecked_size += len;
+		jeb->unchecked_size += len;
+		break;
+
+	case REF_NORMAL:
+	case REF_PRISTINE:
+		c->used_size += len;
+		jeb->used_size += len;
+		break;
+
+	case REF_OBSOLETE:
+		c->dirty_size += len;
+		jeb->used_size += len;
+		break;
+	}
+	c->free_size -= len;
+	jeb->free_size -= len;
+
+	/* Set __totlen field... for now */
+	ref->__totlen = len;
+	ref->next_phys = NULL;
+}

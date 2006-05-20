@@ -351,17 +351,11 @@ static int jffs2_scan_xattr_node(struct jffs2_sb_info *c, struct jffs2_erasebloc
 	xd->data_crc = je32_to_cpu(rx->data_crc);
 	xd->node = raw;
 
-	raw->__totlen = totlen;
 	raw->flash_offset = ofs | REF_PRISTINE;
-	raw->next_phys = NULL;
 	raw->next_in_ino = (void *)xd;
-	if (!jeb->first_node)
-		jeb->first_node = raw;
-	if (jeb->last_node)
-		jeb->last_node->next_phys = raw;
-	jeb->last_node = raw;
 
-	USED_SPACE(PAD(je32_to_cpu(rx->totlen)));
+	jffs2_link_node_ref(c, jeb, raw, totlen);
+
 	if (jffs2_sum_active())
 		jffs2_sum_add_xattr_mem(s, rx, ofs - jeb->offset);
 	dbg_xattr("scaning xdatum at %#08x (xid=%u, version=%u)\n",
@@ -418,17 +412,11 @@ static int jffs2_scan_xref_node(struct jffs2_sb_info *c, struct jffs2_eraseblock
 	ref->next = c->xref_temp;
 	c->xref_temp = ref;
 
-	raw->__totlen = PAD(je32_to_cpu(rr->totlen));
 	raw->flash_offset = ofs | REF_PRISTINE;
-	raw->next_phys = NULL;
 	raw->next_in_ino = (void *)ref;
-	if (!jeb->first_node)
-		jeb->first_node = raw;
-	if (jeb->last_node)
-		jeb->last_node->next_phys = raw;
-	jeb->last_node = raw;
 
-	USED_SPACE(PAD(je32_to_cpu(rr->totlen)));	
+	jffs2_link_node_ref(c, jeb, raw, PAD(je32_to_cpu(rr->totlen)));
+
 	if (jffs2_sum_active())
 		jffs2_sum_add_xref_mem(s, rr, ofs - jeb->offset);
 	dbg_xattr("scan xref at %#08x (xid=%u, ino=%u)\n",
@@ -827,12 +815,10 @@ scan_more:
 					return -ENOMEM;
 				}
 				marker_ref->next_in_ino = NULL;
-				marker_ref->next_phys = NULL;
 				marker_ref->flash_offset = ofs | REF_NORMAL;
-				marker_ref->__totlen = c->cleanmarker_size;
-				jeb->first_node = jeb->last_node = marker_ref;
 
-				USED_SPACE(PAD(c->cleanmarker_size));
+				jffs2_link_node_ref(c, jeb, marker_ref, c->cleanmarker_size);
+
 				ofs += PAD(c->cleanmarker_size);
 			}
 			break;
@@ -971,16 +957,11 @@ static int jffs2_scan_inode_node(struct jffs2_sb_info *c, struct jffs2_erasebloc
 	/* Wheee. It worked */
 
 	raw->flash_offset = ofs | REF_UNCHECKED;
-	raw->__totlen = PAD(je32_to_cpu(ri->totlen));
-	raw->next_phys = NULL;
-	raw->next_in_ino = ic->nodes;
 
+	raw->next_in_ino = ic->nodes;
 	ic->nodes = raw;
-	if (!jeb->first_node)
-		jeb->first_node = raw;
-	if (jeb->last_node)
-		jeb->last_node->next_phys = raw;
-	jeb->last_node = raw;
+	
+	jffs2_link_node_ref(c, jeb, raw, PAD(je32_to_cpu(ri->totlen)));
 
 	D1(printk(KERN_DEBUG "Node is ino #%u, version %d. Range 0x%x-0x%x\n",
 		  je32_to_cpu(ri->ino), je32_to_cpu(ri->version),
@@ -988,8 +969,6 @@ static int jffs2_scan_inode_node(struct jffs2_sb_info *c, struct jffs2_erasebloc
 		  je32_to_cpu(ri->offset)+je32_to_cpu(ri->dsize)));
 
 	pseudo_random += je32_to_cpu(ri->version);
-
-	UNCHECKED_SPACE(PAD(je32_to_cpu(ri->totlen)));
 
 	if (jffs2_sum_active()) {
 		jffs2_sum_add_inode_mem(s, ri, ofs - jeb->offset);
@@ -1053,16 +1032,11 @@ static int jffs2_scan_dirent_node(struct jffs2_sb_info *c, struct jffs2_eraseblo
 		return -ENOMEM;
 	}
 
-	raw->__totlen = PAD(je32_to_cpu(rd->totlen));
 	raw->flash_offset = ofs | REF_PRISTINE;
-	raw->next_phys = NULL;
 	raw->next_in_ino = ic->nodes;
 	ic->nodes = raw;
-	if (!jeb->first_node)
-		jeb->first_node = raw;
-	if (jeb->last_node)
-		jeb->last_node->next_phys = raw;
-	jeb->last_node = raw;
+
+	jffs2_link_node_ref(c, jeb, raw, PAD(je32_to_cpu(rd->totlen)));
 
 	fd->raw = raw;
 	fd->next = NULL;
@@ -1070,7 +1044,6 @@ static int jffs2_scan_dirent_node(struct jffs2_sb_info *c, struct jffs2_eraseblo
 	fd->ino = je32_to_cpu(rd->ino);
 	fd->nhash = full_name_hash(fd->name, rd->nsize);
 	fd->type = rd->type;
-	USED_SPACE(PAD(je32_to_cpu(rd->totlen)));
 	jffs2_add_fd_to_list(c, fd, &ic->scan_dents);
 
 	if (jffs2_sum_active()) {

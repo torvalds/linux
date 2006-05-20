@@ -403,21 +403,7 @@ int jffs2_add_physical_node_ref(struct jffs2_sb_info *c, struct jffs2_raw_node_r
 #endif
 	spin_lock(&c->erase_completion_lock);
 
-	if (!jeb->first_node)
-		jeb->first_node = new;
-	if (jeb->last_node)
-		jeb->last_node->next_phys = new;
-	jeb->last_node = new;
-
-	jeb->free_size -= len;
-	c->free_size -= len;
-	if (ref_obsolete(new)) {
-		jeb->dirty_size += len;
-		c->dirty_size += len;
-	} else {
-		jeb->used_size += len;
-		c->used_size += len;
-	}
+	jffs2_link_node_ref(c, jeb, new, len);
 
 	if (!jeb->free_size && !jeb->dirty_size && !ISDIRTY(jeb->wasted_size)) {
 		/* If it lives on the dirty_list, jffs2_reserve_space will put it there */

@@ -373,12 +373,8 @@ static void jffs2_mark_erased_block(struct jffs2_sb_info *c, struct jffs2_eraseb
 				goto filebad;
 		}
 
-		jeb->first_node = jeb->last_node = NULL;
+		/* Everything else got zeroed before the erase */
 		jeb->free_size = c->sector_size;
-		jeb->used_size = 0;
-		jeb->dirty_size = 0;
-		jeb->wasted_size = 0;
-
 	} else {
 
 		struct kvec vecs[1];
@@ -412,17 +408,13 @@ static void jffs2_mark_erased_block(struct jffs2_sb_info *c, struct jffs2_eraseb
 			goto filebad;
 		}
 
+		/* Everything else got zeroed before the erase */
+		jeb->free_size = c->sector_size;
+
 		marker_ref->next_in_ino = NULL;
-		marker_ref->next_phys = NULL;
 		marker_ref->flash_offset = jeb->offset | REF_NORMAL;
-		marker_ref->__totlen = c->cleanmarker_size;
 
-		jeb->first_node = jeb->last_node = marker_ref;
-
-		jeb->free_size = c->sector_size - c->cleanmarker_size;
-		jeb->used_size = c->cleanmarker_size;
-		jeb->dirty_size = 0;
-		jeb->wasted_size = 0;
+		jffs2_link_node_ref(c, jeb, marker_ref, c->cleanmarker_size);
 	}
 
 	spin_lock(&c->erase_completion_lock);
