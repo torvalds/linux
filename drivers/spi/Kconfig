@@ -75,6 +75,18 @@ config SPI_BUTTERFLY
 	  inexpensive battery powered microcontroller evaluation board.
 	  This same cable can be used to flash new firmware.
 
+config SPI_MPC83xx
+	tristate "Freescale MPC83xx SPI controller"
+	depends on SPI_MASTER && PPC_83xx && EXPERIMENTAL
+	select SPI_BITBANG
+	help
+	  This enables using the Freescale MPC83xx SPI controller in master
+	  mode.
+
+	  Note, this driver uniquely supports the SPI controller on the MPC83xx
+	  family of PowerPC processors.  The MPC83xx uses a simple set of shift
+	  registers for data (opposed to the CPM based descriptor model).
+
 config SPI_PXA2XX
 	tristate "PXA2xx SSP SPI master"
 	depends on SPI_MASTER && ARCH_PXA && EXPERIMENTAL
