@@ -335,10 +335,10 @@ static void __init DoC_Probe(unsigned long physadr)
 
 #ifdef CONFIG_MODULES
 		if (im_funcname && !initroutine)
-			initroutine = symbol_get(im_funcname);
+			initroutine = __symbol_get(im_funcname);
 		if (im_funcname && !initroutine) {
 			request_module(im_modname);
-			initroutine = symbol_get(im_funcname);
+			initroutine = __symbol_get(im_funcname);
 		}
 #endif
 		if (initroutine) {
