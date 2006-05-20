@@ -700,6 +700,7 @@ static void check_sec_ref(struct module *mod, const char *modname,
 		const char *name = secstrings + sechdrs[i].sh_name;
 		const char *secname;
 		Elf_Rela r;
+		unsigned int r_sym;
 		/* We want to process only relocation sections and not .init */
 		if (sechdrs[i].sh_type == SHT_RELA) {
 			Elf_Rela *rela;
@@ -711,9 +712,20 @@ static void check_sec_ref(struct module *mod, const char *modname,
 
 			for (rela = start; rela < stop; rela++) {
 				r.r_offset = TO_NATIVE(rela->r_offset);
-				r.r_info   = TO_NATIVE(rela->r_info);
+#if KERNEL_ELFCLASS == ELFCLASS64
+				if (hdr->e_machine == EM_MIPS) {
+					r_sym = ELF64_MIPS_R_SYM(rela->r_info);
+					r_sym = TO_NATIVE(r_sym);
+				} else {
+					r.r_info = TO_NATIVE(rela->r_info);
+					r_sym = ELF_R_SYM(r.r_info);
+				}
+#else
+				r.r_info = TO_NATIVE(rela->r_info);
+				r_sym = ELF_R_SYM(r.r_info);
+#endif
 				r.r_addend = TO_NATIVE(rela->r_addend);
-				sym = elf->symtab_start + ELF_R_SYM(r.r_info);
+				sym = elf->symtab_start + r_sym;
 				/* Skip special sections */
 				if (sym->st_shndx >= SHN_LORESERVE)
 					continue;
@@ -734,9 +746,20 @@ static void check_sec_ref(struct module *mod, const char *modname,
 
 			for (rel = start; rel < stop; rel++) {
 				r.r_offset = TO_NATIVE(rel->r_offset);
-				r.r_info   = TO_NATIVE(rel->r_info);
+#if KERNEL_ELFCLASS == ELFCLASS64
+				if (hdr->e_machine == EM_MIPS) {
+					r_sym = ELF64_MIPS_R_SYM(rel->r_info);
+					r_sym = TO_NATIVE(r_sym);
+				} else {
+					r.r_info = TO_NATIVE(rel->r_info);
+					r_sym = ELF_R_SYM(r.r_info);
+				}
+#else
+				r.r_info = TO_NATIVE(rel->r_info);
+				r_sym = ELF_R_SYM(r.r_info);
+#endif
 				r.r_addend = 0;
-				sym = elf->symtab_start + ELF_R_SYM(r.r_info);
+				sym = elf->symtab_start + r_sym;
 				/* Skip special sections */
 				if (sym->st_shndx >= SHN_LORESERVE)
 					continue;
