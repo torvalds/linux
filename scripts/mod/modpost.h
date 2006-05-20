@@ -21,6 +21,7 @@
 #define ELF_ST_BIND ELF32_ST_BIND
 #define ELF_ST_TYPE ELF32_ST_TYPE
 
+#define Elf_Rel     Elf32_Rel
 #define Elf_Rela    Elf32_Rela
 #define ELF_R_SYM   ELF32_R_SYM
 #define ELF_R_TYPE  ELF32_R_TYPE
@@ -34,6 +35,7 @@
 #define ELF_ST_BIND ELF64_ST_BIND
 #define ELF_ST_TYPE ELF64_ST_TYPE
 
+#define Elf_Rel     Elf64_Rel
 #define Elf_Rela    Elf64_Rela
 #define ELF_R_SYM   ELF64_R_SYM
 #define ELF_R_TYPE  ELF64_R_TYPE
