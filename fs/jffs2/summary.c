@@ -835,18 +835,31 @@ static int jffs2_sum_write_data(struct jffs2_sb_info *c, struct jffs2_eraseblock
 	spin_unlock(&c->erase_completion_lock);
 	ret = jffs2_flash_writev(c, vecs, 2, jeb->offset + c->sector_size -
 				jeb->free_size, &retlen, 0);
-	spin_lock(&c->erase_completion_lock);
-
 
 	if (ret || (retlen != infosize)) {
+		struct jffs2_raw_node_ref *ref;
+
 		JFFS2_WARNING("Write of %u bytes at 0x%08x failed. returned %d, retlen %zd\n",
 			infosize, jeb->offset + c->sector_size - jeb->free_size, ret, retlen);
 
+		/* Waste remaining space */
+		ref = jffs2_alloc_raw_node_ref();
+		if (ref) {
+			spin_lock(&c->erase_completion_lock);
+
+			ref->flash_offset = jeb->offset + c->sector_size - jeb->free_size;
+			ref->flash_offset |= REF_OBSOLETE;
+			ref->next_in_ino = 0;
+
+			jffs2_link_node_ref(c, jeb, ref, c->sector_size - jeb->free_size);
+		}
+
 		c->summary->sum_size = JFFS2_SUMMARY_NOSUM_SIZE;
-		jffs2_scan_dirty_space(c, jeb, infosize);
 
 		return 1;
 	}
+
+	spin_lock(&c->erase_completion_lock);
 
 	return 0;
 }
@@ -890,7 +903,6 @@ int jffs2_sum_write_sumnode(struct jffs2_sb_info *c)
 	/* for ACCT_PARANOIA_CHECK */
 	spin_unlock(&c->erase_completion_lock);
 	summary_ref = jffs2_alloc_raw_node_ref();
-	spin_lock(&c->erase_completion_lock);
 
 	if (!summary_ref) {
 		JFFS2_NOTICE("Failed to allocate node ref for summary\n");
@@ -900,6 +912,7 @@ int jffs2_sum_write_sumnode(struct jffs2_sb_info *c)
 	summary_ref->next_in_ino = NULL;
 	summary_ref->flash_offset = (jeb->offset + c->sector_size - jeb->free_size) | REF_NORMAL;
 
+	spin_lock(&c->erase_completion_lock);
 	jffs2_link_node_ref(c, jeb, summary_ref, infosize);
 
 	return 0;
