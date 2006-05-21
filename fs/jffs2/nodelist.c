@@ -1080,3 +1080,14 @@ void jffs2_link_node_ref(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb,
 	ref->__totlen = len;
 	ref->next_phys = NULL;
 }
+
+int jffs2_scan_dirty_space(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb,
+			   uint32_t size)
+{
+	c->dirty_size += size;
+	c->free_size -= size;
+	jeb->dirty_size += size;
+	jeb->free_size -= size;
+
+	return 0;
+}

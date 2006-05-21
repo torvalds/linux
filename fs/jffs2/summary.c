@@ -380,6 +380,7 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 	struct jffs2_full_dirent *fd;
 	void *sp;
 	int i, ino;
+	int err;
 
 	sp = summary->sum;
 
@@ -494,7 +495,8 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 					jffs2_free_raw_node_ref(raw);
 					if (PTR_ERR(xd) == -EEXIST) {
 						/* a newer version of xd exists */
-						DIRTY_SPACE(je32_to_cpu(spx->totlen));
+						if ((err = jffs2_scan_dirty_space(c, jeb, je32_to_cpu(spx->totlen))))
+							return err;
 						sp += JFFS2_SUMMARY_XATTR_SIZE;
 						break;
 					}
@@ -585,6 +587,7 @@ int jffs2_sum_scan_sumnode(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb
 	struct jffs2_raw_node_ref *cache_ref;
 	int ret, ofs;
 	uint32_t crc;
+	int err;
 
 	ofs = jeb->offset + c->sector_size - sumsize;
 
@@ -629,11 +632,13 @@ int jffs2_sum_scan_sumnode(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb
 		if (je32_to_cpu(summary->cln_mkr) != c->cleanmarker_size) {
 			dbg_summary("CLEANMARKER node has totlen 0x%x != normal 0x%x\n",
 				je32_to_cpu(summary->cln_mkr), c->cleanmarker_size);
-			DIRTY_SPACE(PAD(je32_to_cpu(summary->cln_mkr)));
+			if ((err = jffs2_scan_dirty_space(c, jeb, PAD(je32_to_cpu(summary->cln_mkr)))))
+				return err;
 		} else if (jeb->first_node) {
 			dbg_summary("CLEANMARKER node not first node in block "
 					"(0x%08x)\n", jeb->offset);
-			DIRTY_SPACE(PAD(je32_to_cpu(summary->cln_mkr)));
+			if ((err = jffs2_scan_dirty_space(c, jeb, PAD(je32_to_cpu(summary->cln_mkr)))))
+				return err;
 		} else {
 			struct jffs2_raw_node_ref *marker_ref = jffs2_alloc_raw_node_ref();
 
@@ -650,7 +655,8 @@ int jffs2_sum_scan_sumnode(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb
 	}
 
 	if (je32_to_cpu(summary->padded)) {
-		DIRTY_SPACE(je32_to_cpu(summary->padded));
+		if ((err = jffs2_scan_dirty_space(c, jeb, je32_to_cpu(summary->padded))))
+			return err;
 	}
 
 	ret = jffs2_sum_process_sum_data(c, jeb, summary, pseudo_random);
@@ -823,7 +829,7 @@ static int jffs2_sum_write_data(struct jffs2_sb_info *c, struct jffs2_eraseblock
 			infosize, jeb->offset + c->sector_size - jeb->free_size, ret, retlen);
 
 		c->summary->sum_size = JFFS2_SUMMARY_NOSUM_SIZE;
-		DIRTY_SPACE(infosize);
+		jffs2_scan_dirty_space(c, jeb, infosize);
 
 		return 1;
 	}

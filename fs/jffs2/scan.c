@@ -314,13 +314,15 @@ static int jffs2_scan_xattr_node(struct jffs2_sb_info *c, struct jffs2_erasebloc
 	struct jffs2_xattr_datum *xd;
 	struct jffs2_raw_node_ref *raw;
 	uint32_t totlen, crc;
+	int err;
 
 	crc = crc32(0, rx, sizeof(struct jffs2_raw_xattr) - 4);
 	if (crc != je32_to_cpu(rx->node_crc)) {
 		if (je32_to_cpu(rx->node_crc) != 0xffffffff)
 			JFFS2_WARNING("node CRC failed at %#08x, read=%#08x, calc=%#08x\n",
 				      ofs, je32_to_cpu(rx->node_crc), crc);
-		DIRTY_SPACE(je32_to_cpu(rx->totlen));
+		if ((err = jffs2_scan_dirty_space(c, jeb, je32_to_cpu(rx->totlen))))
+			return err;
 		return 0;
 	}
 
@@ -328,7 +330,8 @@ static int jffs2_scan_xattr_node(struct jffs2_sb_info *c, struct jffs2_erasebloc
 	if (totlen != je32_to_cpu(rx->totlen)) {
 		JFFS2_WARNING("node length mismatch at %#08x, read=%u, calc=%u\n",
 			      ofs, je32_to_cpu(rx->totlen), totlen);
-		DIRTY_SPACE(je32_to_cpu(rx->totlen));
+		if ((err = jffs2_scan_dirty_space(c, jeb, je32_to_cpu(rx->totlen))))
+			return err;
 		return 0;
 	}
 
@@ -340,7 +343,8 @@ static int jffs2_scan_xattr_node(struct jffs2_sb_info *c, struct jffs2_erasebloc
 	if (IS_ERR(xd)) {
 		jffs2_free_raw_node_ref(raw);
 		if (PTR_ERR(xd) == -EEXIST) {
-			DIRTY_SPACE(PAD(je32_to_cpu(rx->totlen)));
+			if ((err = jffs2_scan_dirty_space(c, jeb, PAD(je32_to_cpu(rx->totlen)))))
+				return err;
 			return 0;
 		}
 		return PTR_ERR(xd);
@@ -370,13 +374,15 @@ static int jffs2_scan_xref_node(struct jffs2_sb_info *c, struct jffs2_eraseblock
 	struct jffs2_xattr_ref *ref;
 	struct jffs2_raw_node_ref *raw;
 	uint32_t crc;
+	int err;
 
 	crc = crc32(0, rr, sizeof(*rr) - 4);
 	if (crc != je32_to_cpu(rr->node_crc)) {
 		if (je32_to_cpu(rr->node_crc) != 0xffffffff)
 			JFFS2_WARNING("node CRC failed at %#08x, read=%#08x, calc=%#08x\n",
 				      ofs, je32_to_cpu(rr->node_crc), crc);
-		DIRTY_SPACE(PAD(je32_to_cpu(rr->totlen)));
+		if ((err = jffs2_scan_dirty_space(c, jeb, PAD(je32_to_cpu(rr->totlen)))))
+			return err;
 		return 0;
 	}
 
@@ -384,7 +390,8 @@ static int jffs2_scan_xref_node(struct jffs2_sb_info *c, struct jffs2_eraseblock
 		JFFS2_WARNING("node length mismatch at %#08x, read=%u, calc=%u\n",
 			      ofs, je32_to_cpu(rr->totlen),
 			      PAD(sizeof(struct jffs2_raw_xref)));
-		DIRTY_SPACE(je32_to_cpu(rr->totlen));
+		if ((err = jffs2_scan_dirty_space(c, jeb, je32_to_cpu(rr->totlen))))
+			return err;
 		return 0;
 	}
 
@@ -569,7 +576,8 @@ static int jffs2_scan_eraseblock (struct jffs2_sb_info *c, struct jffs2_eraseblo
 	if (ofs) {
 		D1(printk(KERN_DEBUG "Free space at %08x ends at %08x\n", jeb->offset,
 			  jeb->offset + ofs));
-		DIRTY_SPACE(ofs);
+		if ((err = jffs2_scan_dirty_space(c, jeb, ofs)))
+			return err;
 	}
 
 	/* Now ofs is a complete physical flash offset as it always was... */
@@ -593,7 +601,8 @@ scan_more:
 		}
 		if (ofs == prevofs) {
 			printk(KERN_WARNING "ofs 0x%08x has already been seen. Skipping\n", ofs);
-			DIRTY_SPACE(4);
+			if ((err = jffs2_scan_dirty_space(c, jeb, 4)))
+				return err;
 			ofs += 4;
 			continue;
 		}
@@ -602,7 +611,8 @@ scan_more:
 		if (jeb->offset + c->sector_size < ofs + sizeof(*node)) {
 			D1(printk(KERN_DEBUG "Fewer than %zd bytes left to end of block. (%x+%x<%x+%zx) Not reading\n", sizeof(struct jffs2_unknown_node),
 				  jeb->offset, c->sector_size, ofs, sizeof(*node)));
-			DIRTY_SPACE((jeb->offset + c->sector_size)-ofs);
+			if ((err = jffs2_scan_dirty_space(c, jeb, (jeb->offset + c->sector_size)-ofs)))
+				return err;
 			break;
 		}
 
@@ -632,7 +642,8 @@ scan_more:
 				if (*(uint32_t *)(&buf[inbuf_ofs]) != 0xffffffff) {
 					printk(KERN_WARNING "Empty flash at 0x%08x ends at 0x%08x\n",
 					       empty_start, ofs);
-					DIRTY_SPACE(ofs-empty_start);
+					if ((err = jffs2_scan_dirty_space(c, jeb, ofs-empty_start)))
+						return err;
 					goto scan_more;
 				}
 
@@ -669,20 +680,23 @@ scan_more:
 
 		if (ofs == jeb->offset && je16_to_cpu(node->magic) == KSAMTIB_CIGAM_2SFFJ) {
 			printk(KERN_WARNING "Magic bitmask is backwards at offset 0x%08x. Wrong endian filesystem?\n", ofs);
-			DIRTY_SPACE(4);
+			if ((err = jffs2_scan_dirty_space(c, jeb, 4)))
+				return err;
 			ofs += 4;
 			continue;
 		}
 		if (je16_to_cpu(node->magic) == JFFS2_DIRTY_BITMASK) {
 			D1(printk(KERN_DEBUG "Dirty bitmask at 0x%08x\n", ofs));
-			DIRTY_SPACE(4);
+			if ((err = jffs2_scan_dirty_space(c, jeb, 4)))
+				return err;
 			ofs += 4;
 			continue;
 		}
 		if (je16_to_cpu(node->magic) == JFFS2_OLD_MAGIC_BITMASK) {
 			printk(KERN_WARNING "Old JFFS2 bitmask found at 0x%08x\n", ofs);
 			printk(KERN_WARNING "You cannot use older JFFS2 filesystems with newer kernels\n");
-			DIRTY_SPACE(4);
+			if ((err = jffs2_scan_dirty_space(c, jeb, 4)))
+				return err;
 			ofs += 4;
 			continue;
 		}
@@ -691,7 +705,8 @@ scan_more:
 			noisy_printk(&noise, "jffs2_scan_eraseblock(): Magic bitmask 0x%04x not found at 0x%08x: 0x%04x instead\n",
 				     JFFS2_MAGIC_BITMASK, ofs,
 				     je16_to_cpu(node->magic));
-			DIRTY_SPACE(4);
+			if ((err = jffs2_scan_dirty_space(c, jeb, 4)))
+				return err;
 			ofs += 4;
 			continue;
 		}
@@ -708,7 +723,8 @@ scan_more:
 				     je32_to_cpu(node->totlen),
 				     je32_to_cpu(node->hdr_crc),
 				     hdr_crc);
-			DIRTY_SPACE(4);
+			if ((err = jffs2_scan_dirty_space(c, jeb, 4)))
+				return err;
 			ofs += 4;
 			continue;
 		}
@@ -719,7 +735,8 @@ scan_more:
 			printk(KERN_WARNING "Node at 0x%08x with length 0x%08x would run over the end of the erase block\n",
 			       ofs, je32_to_cpu(node->totlen));
 			printk(KERN_WARNING "Perhaps the file system was created with the wrong erase size?\n");
-			DIRTY_SPACE(4);
+			if ((err = jffs2_scan_dirty_space(c, jeb, 4)))
+				return err;
 			ofs += 4;
 			continue;
 		}
@@ -727,7 +744,8 @@ scan_more:
 		if (!(je16_to_cpu(node->nodetype) & JFFS2_NODE_ACCURATE)) {
 			/* Wheee. This is an obsoleted node */
 			D2(printk(KERN_DEBUG "Node at 0x%08x is obsolete. Skipping\n", ofs));
-			DIRTY_SPACE(PAD(je32_to_cpu(node->totlen)));
+			if ((err = jffs2_scan_dirty_space(c, jeb, PAD(je32_to_cpu(node->totlen)))))
+				return err;
 			ofs += PAD(je32_to_cpu(node->totlen));
 			continue;
 		}
@@ -807,11 +825,13 @@ scan_more:
 			if (je32_to_cpu(node->totlen) != c->cleanmarker_size) {
 				printk(KERN_NOTICE "CLEANMARKER node found at 0x%08x has totlen 0x%x != normal 0x%x\n",
 				       ofs, je32_to_cpu(node->totlen), c->cleanmarker_size);
-				DIRTY_SPACE(PAD(sizeof(struct jffs2_unknown_node)));
+				if ((err = jffs2_scan_dirty_space(c, jeb, PAD(sizeof(struct jffs2_unknown_node)))))
+					return err;
 				ofs += PAD(sizeof(struct jffs2_unknown_node));
 			} else if (jeb->first_node) {
 				printk(KERN_NOTICE "CLEANMARKER node found at 0x%08x, not first node in block (0x%08x)\n", ofs, jeb->offset);
-				DIRTY_SPACE(PAD(sizeof(struct jffs2_unknown_node)));
+				if ((err = jffs2_scan_dirty_space(c, jeb, PAD(sizeof(struct jffs2_unknown_node)))))
+					return err;
 				ofs += PAD(sizeof(struct jffs2_unknown_node));
 			} else {
 				struct jffs2_raw_node_ref *marker_ref = jffs2_alloc_raw_node_ref();
@@ -831,7 +851,8 @@ scan_more:
 		case JFFS2_NODETYPE_PADDING:
 			if (jffs2_sum_active())
 				jffs2_sum_add_padding_mem(s, je32_to_cpu(node->totlen));
-			DIRTY_SPACE(PAD(je32_to_cpu(node->totlen)));
+			if ((err = jffs2_scan_dirty_space(c, jeb, PAD(je32_to_cpu(node->totlen)))))
+				return err;
 			ofs += PAD(je32_to_cpu(node->totlen));
 			break;
 
@@ -842,7 +863,8 @@ scan_more:
 			        c->flags |= JFFS2_SB_FLAG_RO;
 				if (!(jffs2_is_readonly(c)))
 					return -EROFS;
-				DIRTY_SPACE(PAD(je32_to_cpu(node->totlen)));
+				if ((err = jffs2_scan_dirty_space(c, jeb, PAD(je32_to_cpu(node->totlen)))))
+					return err;
 				ofs += PAD(je32_to_cpu(node->totlen));
 				break;
 
@@ -852,7 +874,8 @@ scan_more:
 
 			case JFFS2_FEATURE_RWCOMPAT_DELETE:
 				D1(printk(KERN_NOTICE "Unknown but compatible feature node (0x%04x) found at offset 0x%08x\n", je16_to_cpu(node->nodetype), ofs));
-				DIRTY_SPACE(PAD(je32_to_cpu(node->totlen)));
+				if ((err = jffs2_scan_dirty_space(c, jeb, PAD(je32_to_cpu(node->totlen)))))
+					return err;
 				ofs += PAD(je32_to_cpu(node->totlen));
 				break;
 
@@ -930,6 +953,7 @@ static int jffs2_scan_inode_node(struct jffs2_sb_info *c, struct jffs2_erasebloc
 	struct jffs2_raw_node_ref *raw;
 	struct jffs2_inode_cache *ic;
 	uint32_t ino = je32_to_cpu(ri->ino);
+	int err;
 
 	D1(printk(KERN_DEBUG "jffs2_scan_inode_node(): Node at 0x%08x\n", ofs));
 
@@ -959,7 +983,8 @@ static int jffs2_scan_inode_node(struct jffs2_sb_info *c, struct jffs2_erasebloc
 			printk(KERN_NOTICE "jffs2_scan_inode_node(): CRC failed on node at 0x%08x: Read 0x%08x, calculated 0x%08x\n",
 			       ofs, je32_to_cpu(ri->node_crc), crc);
 			/* We believe totlen because the CRC on the node _header_ was OK, just the node itself failed. */
-			DIRTY_SPACE(PAD(je32_to_cpu(ri->totlen)));
+			if ((err = jffs2_scan_dirty_space(c, jeb, PAD(je32_to_cpu(ri->totlen)))))
+				return err;
 			jffs2_free_raw_node_ref(raw);
 			return 0;
 		}
@@ -1000,6 +1025,7 @@ static int jffs2_scan_dirent_node(struct jffs2_sb_info *c, struct jffs2_eraseblo
 	struct jffs2_full_dirent *fd;
 	struct jffs2_inode_cache *ic;
 	uint32_t crc;
+	int err;
 
 	D1(printk(KERN_DEBUG "jffs2_scan_dirent_node(): Node at 0x%08x\n", ofs));
 
@@ -1011,7 +1037,8 @@ static int jffs2_scan_dirent_node(struct jffs2_sb_info *c, struct jffs2_eraseblo
 		printk(KERN_NOTICE "jffs2_scan_dirent_node(): Node CRC failed on node at 0x%08x: Read 0x%08x, calculated 0x%08x\n",
 		       ofs, je32_to_cpu(rd->node_crc), crc);
 		/* We believe totlen because the CRC on the node _header_ was OK, just the node itself failed. */
-		DIRTY_SPACE(PAD(je32_to_cpu(rd->totlen)));
+		if ((err = jffs2_scan_dirty_space(c, jeb, PAD(je32_to_cpu(rd->totlen)))))
+			return err;
 		return 0;
 	}
 
@@ -1032,7 +1059,8 @@ static int jffs2_scan_dirent_node(struct jffs2_sb_info *c, struct jffs2_eraseblo
 		jffs2_free_full_dirent(fd);
 		/* FIXME: Why do we believe totlen? */
 		/* We believe totlen because the CRC on the node _header_ was OK, just the name failed. */
-		DIRTY_SPACE(PAD(je32_to_cpu(rd->totlen)));
+		if ((err = jffs2_scan_dirty_space(c, jeb, PAD(je32_to_cpu(rd->totlen)))))
+			return err;
 		return 0;
 	}
 	raw = jffs2_alloc_raw_node_ref();

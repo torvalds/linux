@@ -18,23 +18,6 @@
 #include <linux/uio.h>
 #include <linux/jffs2.h>
 
-#define DIRTY_SPACE(x) do { typeof(x) _x = (x); \
-		c->free_size -= _x; c->dirty_size += _x; \
-		jeb->free_size -= _x ; jeb->dirty_size += _x; \
-		}while(0)
-#define USED_SPACE(x) do { typeof(x) _x = (x); \
-		c->free_size -= _x; c->used_size += _x; \
-		jeb->free_size -= _x ; jeb->used_size += _x; \
-		}while(0)
-#define WASTED_SPACE(x) do { typeof(x) _x = (x); \
-		c->free_size -= _x; c->wasted_size += _x; \
-		jeb->free_size -= _x ; jeb->wasted_size += _x; \
-		}while(0)
-#define UNCHECKED_SPACE(x) do { typeof(x) _x = (x); \
-		c->free_size -= _x; c->unchecked_size += _x; \
-		jeb->free_size -= _x ; jeb->unchecked_size += _x; \
-		}while(0)
-
 #define BLK_STATE_ALLFF		0
 #define BLK_STATE_CLEAN		1
 #define BLK_STATE_PARTDIRTY	2
