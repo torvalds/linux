@@ -65,6 +65,25 @@ static inline uint32_t EMPTY_SCAN_SIZE(uint32_t sector_size) {
 		return DEFAULT_EMPTY_SCAN_SIZE;
 }
 
+static int file_dirty(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb)
+{
+	int ret = jffs2_scan_dirty_space(c, jeb, jeb->free_size);
+	if (ret)
+		return ret;
+	/* Turned wasted size into dirty, since we apparently 
+	   think it's recoverable now. */
+	jeb->dirty_size += jeb->wasted_size;
+	c->dirty_size += jeb->wasted_size;
+	c->wasted_size -= jeb->wasted_size;
+	jeb->wasted_size = 0;
+	if (VERYDIRTY(c, jeb->dirty_size)) {
+		list_add(&jeb->list, &c->very_dirty_list);
+	} else {
+		list_add(&jeb->list, &c->dirty_list);
+	}
+	return 0;
+}
+
 int jffs2_scan_medium(struct jffs2_sb_info *c)
 {
 	int i, ret;
@@ -170,34 +189,20 @@ int jffs2_scan_medium(struct jffs2_sb_info *c)
 					(!c->nextblock || c->nextblock->free_size < jeb->free_size)) {
 				/* Better candidate for the next writes to go to */
 				if (c->nextblock) {
-					c->nextblock->dirty_size += c->nextblock->free_size + c->nextblock->wasted_size;
-					c->dirty_size += c->nextblock->free_size + c->nextblock->wasted_size;
-					c->free_size -= c->nextblock->free_size;
-					c->wasted_size -= c->nextblock->wasted_size;
-					c->nextblock->free_size = c->nextblock->wasted_size = 0;
-					if (VERYDIRTY(c, c->nextblock->dirty_size)) {
-						list_add(&c->nextblock->list, &c->very_dirty_list);
-					} else {
-						list_add(&c->nextblock->list, &c->dirty_list);
-					}
+					ret = file_dirty(c, c->nextblock);
+					if (ret)
+						return ret;
 					/* deleting summary information of the old nextblock */
 					jffs2_sum_reset_collected(c->summary);
 				}
-				/* update collected summary infromation for the current nextblock */
+				/* update collected summary information for the current nextblock */
 				jffs2_sum_move_collected(c, s);
 				D1(printk(KERN_DEBUG "jffs2_scan_medium(): new nextblock = 0x%08x\n", jeb->offset));
 				c->nextblock = jeb;
 			} else {
-				jeb->dirty_size += jeb->free_size + jeb->wasted_size;
-				c->dirty_size += jeb->free_size + jeb->wasted_size;
-				c->free_size -= jeb->free_size;
-				c->wasted_size -= jeb->wasted_size;
-				jeb->free_size = jeb->wasted_size = 0;
-				if (VERYDIRTY(c, jeb->dirty_size)) {
-					list_add(&jeb->list, &c->very_dirty_list);
-				} else {
-					list_add(&jeb->list, &c->dirty_list);
-				}
+				ret = file_dirty(c, jeb);
+				if (ret)
+					return ret;
 			}
 			break;
 
