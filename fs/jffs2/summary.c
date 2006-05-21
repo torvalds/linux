@@ -554,9 +554,21 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 			}
 #endif
 			default : {
-printk("nodetype = %#04x\n",je16_to_cpu(((struct jffs2_sum_unknown_flash *)sp)->nodetype));
-				JFFS2_WARNING("Unsupported node type found in summary! Exiting...");
-				return -EIO;
+				uint16_t nodetype = je16_to_cpu(((struct jffs2_sum_unknown_flash *)sp)->nodetype);
+				JFFS2_WARNING("Unsupported node type %x found in summary! Exiting...\n", nodetype);
+				if ((nodetype & JFFS2_COMPAT_MASK) == JFFS2_FEATURE_INCOMPAT)
+					return -EIO;
+
+				/* For compatible node types, just fall back to the full scan */
+				c->wasted_size -= jeb->wasted_size;
+				c->free_size += c->sector_size - jeb->free_size;
+				c->used_size -= jeb->used_size;
+				c->dirty_size -= jeb->dirty_size;
+				jeb->wasted_size = jeb->used_size = jeb->dirty_size = 0;
+				jeb->free_size = c->sector_size;
+
+				jffs2_free_all_node_refs(c, jeb);
+				return -ENOTRECOVERABLE;
 			}
 		}
 	}
@@ -642,8 +654,12 @@ int jffs2_sum_scan_sumnode(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb
 	}
 
 	ret = jffs2_sum_process_sum_data(c, jeb, summary, pseudo_random);
+	/* -ENOTRECOVERABLE isn't a fatal error -- it means we should do a full
+	   scan of this eraseblock. So return zero */
+	if (ret == -ENOTRECOVERABLE)
+		return 0;
 	if (ret)
-		return ret;
+		return ret;		/* real error */
 
 	/* for PARANOIA_CHECK */
 	cache_ref = jffs2_alloc_raw_node_ref();
