@@ -49,6 +49,12 @@ config MTD_NAND_SPIA
 	help
 	  If you had to ask, you don't have one. Say 'N'.
 
+config MTD_NAND_AMS_DELTA
+	tristate "NAND Flash device on Amstrad E3"
+	depends on MACH_AMS_DELTA && MTD_NAND
+	help
+	  Support for NAND flash on Amstrad E3 (Delta).
+
 config MTD_NAND_TOTO
 	tristate "NAND Flash device on TOTO board"
 	depends on ARCH_OMAP && MTD_NAND
