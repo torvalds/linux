@@ -386,7 +386,9 @@ int jffs2_add_physical_node_ref(struct jffs2_sb_info *c, struct jffs2_raw_node_r
 	struct jffs2_eraseblock *jeb;
 
 	jeb = &c->blocks[new->flash_offset / c->sector_size];
+#ifdef TEST_TOTLEN
 	new->__totlen = len;
+#endif
 
 	D1(printk(KERN_DEBUG "jffs2_add_physical_node_ref(): Node at 0x%x(%d), size 0x%x\n", ref_offset(new), ref_flags(new), len));
 #if 1
@@ -679,7 +681,9 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 
 		spin_lock(&c->erase_completion_lock);
 
+#ifdef TEST_TOTLEN
 		ref->__totlen += n->__totlen;
+#endif
 		ref->next_phys = n->next_phys;
                 if (jeb->last_node == n) jeb->last_node = ref;
 		if (jeb->gc_node == n) {
@@ -702,7 +706,9 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 			p = p->next_phys;
 
 		if (ref_obsolete(p) && !ref->next_in_ino) {
+#ifdef TEST_TOTLEN
 			p->__totlen += ref->__totlen;
+#endif
 			if (jeb->last_node == ref) {
 				jeb->last_node = p;
 			}

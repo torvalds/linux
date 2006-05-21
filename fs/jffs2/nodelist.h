@@ -82,7 +82,10 @@ struct jffs2_raw_node_ref
 		word so you know when you've got there :) */
 	struct jffs2_raw_node_ref *next_phys;
 	uint32_t flash_offset;
+#define TEST_TOTLEN
+#ifdef TEST_TOTLEN
 	uint32_t __totlen; /* This may die; use ref_totlen(c, jeb, ) below */
+#endif
 };
 
         /* flash_offset & 3 always has to be zero, because nodes are
@@ -221,57 +224,7 @@ static inline int jffs2_blocks_use_vmalloc(struct jffs2_sb_info *c)
 	return ((c->flash_size / c->sector_size) * sizeof (struct jffs2_eraseblock)) > (128 * 1024);
 }
 
-/* Calculate totlen from surrounding nodes or eraseblock */
-static inline uint32_t __ref_totlen(struct jffs2_sb_info *c,
-				    struct jffs2_eraseblock *jeb,
-				    struct jffs2_raw_node_ref *ref)
-{
-	uint32_t ref_end;
-
-	if (ref->next_phys)
-		ref_end = ref_offset(ref->next_phys);
-	else {
-		if (!jeb)
-			jeb = &c->blocks[ref->flash_offset / c->sector_size];
-
-		/* Last node in block. Use free_space */
-		BUG_ON(ref != jeb->last_node);
-		ref_end = jeb->offset + c->sector_size - jeb->free_size;
-	}
-	return ref_end - ref_offset(ref);
-}
-
-static inline uint32_t ref_totlen(struct jffs2_sb_info *c,
-				  struct jffs2_eraseblock *jeb,
-				  struct jffs2_raw_node_ref *ref)
-{
-	uint32_t ret;
-
-#if CONFIG_JFFS2_FS_DEBUG > 0
-	if (jeb && jeb != &c->blocks[ref->flash_offset / c->sector_size]) {
-		printk(KERN_CRIT "ref_totlen called with wrong block -- at 0x%08x instead of 0x%08x; ref 0x%08x\n",
-		       jeb->offset, c->blocks[ref->flash_offset / c->sector_size].offset, ref_offset(ref));
-		BUG();
-	}
-#endif
-
-#if 1
-	ret = ref->__totlen;
-#else
-	/* This doesn't actually work yet */
-	ret = __ref_totlen(c, jeb, ref);
-	if (ret != ref->__totlen) {
-		printk(KERN_CRIT "Totlen for ref at %p (0x%08x-0x%08x) miscalculated as 0x%x instead of %x\n",
-		       ref, ref_offset(ref), ref_offset(ref)+ref->__totlen,
-		       ret, ref->__totlen);
-		if (!jeb)
-			jeb = &c->blocks[ref->flash_offset / c->sector_size];
-		jffs2_dbg_dump_node_refs_nolock(c, jeb);
-		BUG();
-	}
-#endif
-	return ret;
-}
+#define ref_totlen(a, b, c) __jffs2_ref_totlen((a), (b), (c))
 
 #define ALLOC_NORMAL	0	/* Normal allocation */
 #define ALLOC_DELETION	1	/* Deletion node. Best to allow it */
@@ -355,6 +308,9 @@ void jffs2_truncate_fragtree (struct jffs2_sb_info *c, struct rb_root *list, uin
 int jffs2_add_older_frag_to_fragtree(struct jffs2_sb_info *c, struct jffs2_inode_info *f, struct jffs2_tmp_dnode_info *tn);
 void jffs2_link_node_ref(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb,
 			 struct jffs2_raw_node_ref *ref, uint32_t len);
+extern uint32_t __jffs2_ref_totlen(struct jffs2_sb_info *c,
+				   struct jffs2_eraseblock *jeb,
+				   struct jffs2_raw_node_ref *ref);
 
 /* nodemgmt.c */
 int jffs2_thread_should_wake(struct jffs2_sb_info *c);
