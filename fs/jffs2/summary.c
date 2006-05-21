@@ -411,8 +411,9 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 
 				ino = je32_to_cpu(spi->inode);
 
-				dbg_summary("Inode at 0x%08x\n",
-							jeb->offset + je32_to_cpu(spi->offset));
+				dbg_summary("Inode at 0x%08x-0x%08x\n",
+					    jeb->offset + je32_to_cpu(spi->offset),
+					    jeb->offset + je32_to_cpu(spi->offset) + je32_to_cpu(spu->totlen));
 
 				raw = alloc_ref_at(c, jeb, je32_to_cpu(spi->offset));
 				if (!raw) {
@@ -446,7 +447,9 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 				spd = sp;
 
 				dbg_summary("Dirent at 0x%08x\n",
-							jeb->offset + je32_to_cpu(spd->offset));
+					    jeb->offset + je32_to_cpu(spd->offset),
+					    jeb->offset + je32_to_cpu(spd->offset) + je32_to_cpu(spd->totlen));
+
 
 				fd = jffs2_alloc_full_dirent(spd->nsize+1);
 				if (!fd)
@@ -496,13 +499,13 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 				struct jffs2_sum_xattr_flash *spx;
 
 				spx = (struct jffs2_sum_xattr_flash *)sp;
-				dbg_summary("xattr at %#08x (xid=%u, version=%u)\n", 
+				dbg_summary("xattr at %#08x-%#08x (xid=%u, version=%u)\n", 
 					    jeb->offset + je32_to_cpu(spx->offset),
+					    jeb->offset + je32_to_cpu(spx->offset) + je32_to_cpu(spx->totlen),
 					    je32_to_cpu(spx->xid), je32_to_cpu(spx->version));
 				raw = alloc_ref_at(c, jeb, je32_to_cpu(spx->offset));
 				if (!raw) {
 					JFFS2_NOTICE("allocation of node reference failed\n");
-					kfree(summary);
 					return -ENOMEM;
 				}
 				xd = jffs2_setup_xattr_datum(c, je32_to_cpu(spx->xid),
@@ -517,7 +520,6 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 						break;
 					}
 					JFFS2_NOTICE("allocation of xattr_datum failed\n");
-					kfree(summary);
 					return PTR_ERR(xd);
 				}
 				xd->node = raw;
@@ -537,20 +539,19 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 				struct jffs2_sum_xref_flash *spr;
 
 				spr = (struct jffs2_sum_xref_flash *)sp;
-				dbg_summary("xref at %#08x (xid=%u, ino=%u)\n",
+				dbg_summary("xref at %#08x-%#08x\n",
 					    jeb->offset + je32_to_cpu(spr->offset),
-					    je32_to_cpu(spr->xid), je32_to_cpu(spr->ino));
+					    jeb->offset + je32_to_cpu(spr->offset) + PAD(sizeof(struct jffs2_raw_xref)));
+
 				raw = alloc_ref_at(c, jeb, je32_to_cpu(spr->offset));
 				if (!raw) {
 					JFFS2_NOTICE("allocation of node reference failed\n");
-					kfree(summary);
 					return -ENOMEM;
 				}
 				ref = jffs2_alloc_xattr_ref();
 				if (!ref) {
 					JFFS2_NOTICE("allocation of xattr_datum failed\n");
 					jffs2_free_raw_node_ref(raw);
-					kfree(summary);
 					return -ENOMEM;
 				}
 				ref->ino = 0xfffffffe;
