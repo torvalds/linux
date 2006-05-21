@@ -21,7 +21,7 @@
  */
 
 /*
- *	A bells and whistles driver is available from: 
+ *	A bells and whistles driver is available from:
  *	http://www.kernel.org/pub/linux/kernel/people/wim/pcwd/pcwd_pci/
  *
  *	More info available at http://www.berkprod.com/ or http://www.pcwatchdog.com/
@@ -390,6 +390,24 @@ static int pcipcwd_get_temperature(int *temperature)
 	return 0;
 }
 
+static int pcipcwd_get_timeleft(int *time_left)
+{
+	int msb;
+	int lsb;
+
+	/* Read the time that's left before rebooting */
+	/* Note: if the board is not yet armed then we will read 0xFFFF */
+	send_command(CMD_READ_WATCHDOG_TIMEOUT, &msb, &lsb);
+
+	*time_left = (msb << 8) + lsb;
+
+	if (debug >= VERBOSE)
+		printk(KERN_DEBUG PFX "Time left before next reboot: %d\n",
+		       *time_left);
+
+	return 0;
+}
+
 /*
  *	/dev/watchdog handling
  */
@@ -511,6 +529,16 @@ static int pcipcwd_ioctl(struct inode *inode, struct file *file,
 
 		case WDIOC_GETTIMEOUT:
 			return put_user(heartbeat, p);
+
+		case WDIOC_GETTIMELEFT:
+		{
+			int time_left;
+
+			if (pcipcwd_get_timeleft(&time_left))
+				return -EFAULT;
+
+			return put_user(time_left, p);
+		}
 
 		default:
 			return -ENOIOCTLCMD;

@@ -134,6 +134,15 @@ There is also a get function for getting the pretimeout:
 
 Not all watchdog drivers will support a pretimeout.
 
+Get the number of seconds before reboot:
+
+Some watchdog drivers have the ability to report the remaining time
+before the system will reboot. The WDIOC_GETTIMELEFT is the ioctl
+that returns the number of seconds before reboot.
+
+    ioctl(fd, WDIOC_GETTIMELEFT, &timeleft);
+    printf("The timeout was is %d seconds\n", timeleft);
+
 Environmental monitoring:
 
 All watchdog drivers are required return more information about the system,

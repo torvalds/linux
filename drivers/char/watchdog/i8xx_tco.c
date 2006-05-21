@@ -205,6 +205,23 @@ static int tco_timer_set_heartbeat (int t)
 	return 0;
 }
 
+static int tco_timer_get_timeleft (int *time_left)
+{
+	unsigned char val;
+
+	spin_lock(&tco_lock);
+
+	/* read the TCO Timer */
+	val = inb (TCO1_RLD);
+	val &= 0x3f;
+
+	spin_unlock(&tco_lock);
+
+	*time_left = (int)((val * 6) / 10);
+
+	return 0;
+}
+
 /*
  *	/dev/watchdog handling
  */
@@ -272,6 +289,7 @@ static int i8xx_tco_ioctl (struct inode *inode, struct file *file,
 {
 	int new_options, retval = -EINVAL;
 	int new_heartbeat;
+	int time_left;
 	void __user *argp = (void __user *)arg;
 	int __user *p = argp;
 	static struct watchdog_info ident = {
@@ -320,7 +338,7 @@ static int i8xx_tco_ioctl (struct inode *inode, struct file *file,
 				return -EFAULT;
 
 			if (tco_timer_set_heartbeat(new_heartbeat))
-			    return -EINVAL;
+				return -EINVAL;
 
 			tco_timer_keepalive ();
 			/* Fall */
@@ -328,6 +346,14 @@ static int i8xx_tco_ioctl (struct inode *inode, struct file *file,
 
 		case WDIOC_GETTIMEOUT:
 			return put_user(heartbeat, p);
+
+		case WDIOC_GETTIMELEFT:
+		{
+			if (tco_timer_get_timeleft(&time_left))
+				return -EINVAL;
+
+			return put_user(time_left, p);
+		}
 
 		default:
 			return -ENOIOCTLCMD;

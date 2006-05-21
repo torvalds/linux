@@ -317,6 +317,19 @@ static int usb_pcwd_get_temperature(struct usb_pcwd_private *usb_pcwd, int *temp
 	return 0;
 }
 
+static int usb_pcwd_get_timeleft(struct usb_pcwd_private *usb_pcwd, int *time_left)
+{
+	unsigned char msb, lsb;
+
+	/* Read the time that's left before rebooting */
+	/* Note: if the board is not yet armed then we will read 0xFFFF */
+	usb_pcwd_send_command(usb_pcwd, CMD_READ_WATCHDOG_TIMEOUT, &msb, &lsb);
+
+	*time_left = (msb << 8) + lsb;
+
+	return 0;
+}
+
 /*
  *	/dev/watchdog handling
  */
@@ -421,6 +434,16 @@ static int usb_pcwd_ioctl(struct inode *inode, struct file *file,
 
 		case WDIOC_GETTIMEOUT:
 			return put_user(heartbeat, p);
+
+		case WDIOC_GETTIMELEFT:
+		{
+			int time_left;
+
+			if (usb_pcwd_get_timeleft(usb_pcwd_device, &time_left))
+				return -EFAULT;
+
+			return put_user(time_left, p);
+		}
 
 		default:
 			return -ENOIOCTLCMD;
