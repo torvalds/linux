@@ -58,6 +58,10 @@ static inline void jffs2_init_inode_info(struct jffs2_inode_info *f)
 	f->target = NULL;
 	f->flags = 0;
 	f->usercompr = 0;
+#ifdef CONFIG_JFFS2_FS_POSIX_ACL
+	f->i_acl_access = JFFS2_ACL_NOT_CACHED;
+	f->i_acl_default = JFFS2_ACL_NOT_CACHED;
+#endif
 }
 
 

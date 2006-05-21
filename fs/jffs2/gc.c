@@ -125,6 +125,7 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 	struct jffs2_eraseblock *jeb;
 	struct jffs2_raw_node_ref *raw;
 	int ret = 0, inum, nlink;
+	int xattr = 0;
 
 	if (down_interruptible(&c->alloc_sem))
 		return -EINTR;
@@ -138,7 +139,7 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 		   the node CRCs etc. Do it now. */
 
 		/* checked_ino is protected by the alloc_sem */
-		if (c->checked_ino > c->highest_ino) {
+		if (c->checked_ino > c->highest_ino && xattr) {
 			printk(KERN_CRIT "Checked all inodes but still 0x%x bytes of unchecked space?\n",
 			       c->unchecked_size);
 			jffs2_dbg_dump_block_lists_nolock(c);
@@ -147,6 +148,9 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 		}
 
 		spin_unlock(&c->erase_completion_lock);
+
+		if (!xattr)
+			xattr = jffs2_verify_xattr(c);
 
 		spin_lock(&c->inocache_lock);
 
@@ -252,15 +256,36 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 
 	if (!raw->next_in_ino) {
 		/* Inode-less node. Clean marker, snapshot or something like that */
-		/* FIXME: If it's something that needs to be copied, including something
-		   we don't grok that has JFFS2_NODETYPE_RWCOMPAT_COPY, we should do so */
 		spin_unlock(&c->erase_completion_lock);
-		jffs2_mark_node_obsolete(c, raw);
+		if (ref_flags(raw) == REF_PRISTINE) {
+			/* It's an unknown node with JFFS2_FEATURE_RWCOMPAT_COPY */
+			jffs2_garbage_collect_pristine(c, NULL, raw);
+		} else {
+			/* Just mark it obsolete */
+			jffs2_mark_node_obsolete(c, raw);
+		}
 		up(&c->alloc_sem);
 		goto eraseit_lock;
 	}
 
 	ic = jffs2_raw_ref_to_ic(raw);
+
+#ifdef CONFIG_JFFS2_FS_XATTR
+	/* When 'ic' refers xattr_datum/xattr_ref, this node is GCed as xattr.
+	 * We can decide whether this node is inode or xattr by ic->class.     */
+	if (ic->class == RAWNODE_CLASS_XATTR_DATUM
+	    || ic->class == RAWNODE_CLASS_XATTR_REF) {
+		BUG_ON(raw->next_in_ino != (void *)ic);
+		spin_unlock(&c->erase_completion_lock);
+
+		if (ic->class == RAWNODE_CLASS_XATTR_DATUM) {
+			ret = jffs2_garbage_collect_xattr_datum(c, (struct jffs2_xattr_datum *)ic);
+		} else {
+			ret = jffs2_garbage_collect_xattr_ref(c, (struct jffs2_xattr_ref *)ic);
+		}
+		goto release_sem;
+	}
+#endif
 
 	/* We need to hold the inocache. Either the erase_completion_lock or
 	   the inocache_lock are sufficient; we trade down since the inocache_lock
@@ -512,15 +537,16 @@ static int jffs2_garbage_collect_pristine(struct jffs2_sb_info *c,
 
 	D1(printk(KERN_DEBUG "Going to GC REF_PRISTINE node at 0x%08x\n", ref_offset(raw)));
 
-	rawlen = ref_totlen(c, c->gcblock, raw);
+	alloclen = rawlen = ref_totlen(c, c->gcblock, raw);
 
 	/* Ask for a small amount of space (or the totlen if smaller) because we
 	   don't want to force wastage of the end of a block if splitting would
 	   work. */
-	ret = jffs2_reserve_space_gc(c, min_t(uint32_t, sizeof(struct jffs2_raw_inode) +
-				JFFS2_MIN_DATA_LEN, rawlen), &phys_ofs, &alloclen, rawlen);
-				/* this is not the exact summary size of it,
-					it is only an upper estimation */
+	if (ic && alloclen > sizeof(struct jffs2_raw_inode) + JFFS2_MIN_DATA_LEN)
+		alloclen = sizeof(struct jffs2_raw_inode) + JFFS2_MIN_DATA_LEN;
+
+	ret = jffs2_reserve_space_gc(c, alloclen, &phys_ofs, &alloclen, rawlen);
+	/* 'rawlen' is not the exact summary size; it is only an upper estimation */
 
 	if (ret)
 		return ret;
@@ -584,9 +610,12 @@ static int jffs2_garbage_collect_pristine(struct jffs2_sb_info *c,
 		}
 		break;
 	default:
-		printk(KERN_WARNING "Unknown node type for REF_PRISTINE node at 0x%08x: 0x%04x\n",
-		       ref_offset(raw), je16_to_cpu(node->u.nodetype));
-		goto bail;
+		/* If it's inode-less, we don't _know_ what it is. Just copy it intact */
+		if (ic) {
+			printk(KERN_WARNING "Unknown node type for REF_PRISTINE node at 0x%08x: 0x%04x\n",
+			       ref_offset(raw), je16_to_cpu(node->u.nodetype));
+			goto bail;
+		}
 	}
 
 	nraw = jffs2_alloc_raw_node_ref();
@@ -598,8 +627,6 @@ static int jffs2_garbage_collect_pristine(struct jffs2_sb_info *c,
 	/* OK, all the CRCs are good; this node can just be copied as-is. */
  retry:
 	nraw->flash_offset = phys_ofs;
-	nraw->__totlen = rawlen;
-	nraw->next_phys = NULL;
 
 	ret = jffs2_flash_write(c, phys_ofs, rawlen, &retlen, (char *)node);
 
@@ -611,7 +638,7 @@ static int jffs2_garbage_collect_pristine(struct jffs2_sb_info *c,
 			nraw->next_in_ino = NULL;
 
 			nraw->flash_offset |= REF_OBSOLETE;
-			jffs2_add_physical_node_ref(c, nraw);
+			jffs2_add_physical_node_ref(c, nraw, rawlen);
 			jffs2_mark_node_obsolete(c, nraw);
 		} else {
 			printk(KERN_NOTICE "Not marking the space at 0x%08x as dirty because the flash driver returned retlen zero\n", nraw->flash_offset);
@@ -651,17 +678,18 @@ static int jffs2_garbage_collect_pristine(struct jffs2_sb_info *c,
 		goto out_node;
 	}
 	nraw->flash_offset |= REF_PRISTINE;
-	jffs2_add_physical_node_ref(c, nraw);
+	jffs2_add_physical_node_ref(c, nraw, rawlen);
 
-	/* Link into per-inode list. This is safe because of the ic
-	   state being INO_STATE_GC. Note that if we're doing this
-	   for an inode which is in-core, the 'nraw' pointer is then
-	   going to be fetched from ic->nodes by our caller. */
-	spin_lock(&c->erase_completion_lock);
-        nraw->next_in_ino = ic->nodes;
-        ic->nodes = nraw;
-	spin_unlock(&c->erase_completion_lock);
-
+	if (ic) {
+		/* Link into per-inode list. This is safe because of the ic
+		   state being INO_STATE_GC. Note that if we're doing this
+		   for an inode which is in-core, the 'nraw' pointer is then
+		   going to be fetched from ic->nodes by our caller. */
+		spin_lock(&c->erase_completion_lock);
+		nraw->next_in_ino = ic->nodes;
+		ic->nodes = nraw;
+		spin_unlock(&c->erase_completion_lock);
+	}
 	jffs2_mark_node_obsolete(c, raw);
 	D1(printk(KERN_DEBUG "WHEEE! GC REF_PRISTINE node at 0x%08x succeeded\n", ref_offset(raw)));
 

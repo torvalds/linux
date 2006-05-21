@@ -312,11 +312,9 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 					return;
 
 				raw2->flash_offset = ofs | REF_OBSOLETE;
-				raw2->__totlen = ref_totlen(c, jeb, *first_raw);
-				raw2->next_phys = NULL;
 				raw2->next_in_ino = NULL;
 
-				jffs2_add_physical_node_ref(c, raw2);
+				jffs2_add_physical_node_ref(c, raw2, ref_totlen(c, jeb, *first_raw));
 			}
 			return;
 		}
@@ -483,11 +481,11 @@ static int __jffs2_flush_wbuf(struct jffs2_sb_info *c, int pad)
 		return ret;
 	}
 
-	spin_lock(&c->erase_completion_lock);
-
 	/* Adjust free size of the block if we padded. */
 	if (pad) {
 		struct jffs2_eraseblock *jeb;
+		struct jffs2_raw_node_ref *ref;
+		uint32_t waste = c->wbuf_pagesize - c->wbuf_len;
 
 		jeb = &c->blocks[c->wbuf_ofs / c->sector_size];
 
@@ -497,18 +495,29 @@ static int __jffs2_flush_wbuf(struct jffs2_sb_info *c, int pad)
 		/* wbuf_pagesize - wbuf_len is the amount of space that's to be
 		   padded. If there is less free space in the block than that,
 		   something screwed up */
-		if (jeb->free_size < (c->wbuf_pagesize - c->wbuf_len)) {
+		if (jeb->free_size < waste) {
 			printk(KERN_CRIT "jffs2_flush_wbuf(): Accounting error. wbuf at 0x%08x has 0x%03x bytes, 0x%03x left.\n",
-			       c->wbuf_ofs, c->wbuf_len, c->wbuf_pagesize-c->wbuf_len);
+			       c->wbuf_ofs, c->wbuf_len, waste);
 			printk(KERN_CRIT "jffs2_flush_wbuf(): But free_size for block at 0x%08x is only 0x%08x\n",
 			       jeb->offset, jeb->free_size);
 			BUG();
 		}
-		jeb->free_size -= (c->wbuf_pagesize - c->wbuf_len);
-		c->free_size -= (c->wbuf_pagesize - c->wbuf_len);
-		jeb->wasted_size += (c->wbuf_pagesize - c->wbuf_len);
-		c->wasted_size += (c->wbuf_pagesize - c->wbuf_len);
-	}
+		ref = jffs2_alloc_raw_node_ref();
+		if (!ref)
+			return -ENOMEM;
+		ref->flash_offset = c->wbuf_ofs + c->wbuf_len;
+		ref->flash_offset |= REF_OBSOLETE;
+
+		spin_lock(&c->erase_completion_lock);
+
+		jffs2_link_node_ref(c, jeb, ref, waste);
+		/* FIXME: that made it count as dirty. Convert to wasted */
+		jeb->dirty_size -= waste;
+		c->dirty_size -= waste;
+		jeb->wasted_size += waste;
+		c->wasted_size += waste;
+	} else
+		spin_lock(&c->erase_completion_lock);
 
 	/* Stick any now-obsoleted blocks on the erase_pending_list */
 	jffs2_refile_wbuf_blocks(c);

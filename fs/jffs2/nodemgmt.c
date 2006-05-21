@@ -374,7 +374,6 @@ static int jffs2_do_reserve_space(struct jffs2_sb_info *c, uint32_t minsize, uin
  *	@c: superblock info
  *	@new: new node reference to add
  *	@len: length of this physical node
- *	@dirty: dirty flag for new node
  *
  *	Should only be used to report nodes for which space has been allocated
  *	by jffs2_reserve_space.
@@ -382,13 +381,14 @@ static int jffs2_do_reserve_space(struct jffs2_sb_info *c, uint32_t minsize, uin
  *	Must be called with the alloc_sem held.
  */
 
-int jffs2_add_physical_node_ref(struct jffs2_sb_info *c, struct jffs2_raw_node_ref *new)
+int jffs2_add_physical_node_ref(struct jffs2_sb_info *c, struct jffs2_raw_node_ref *new, uint32_t len)
 {
 	struct jffs2_eraseblock *jeb;
-	uint32_t len;
 
 	jeb = &c->blocks[new->flash_offset / c->sector_size];
-	len = ref_totlen(c, jeb, new);
+#ifdef TEST_TOTLEN
+	new->__totlen = len;
+#endif
 
 	D1(printk(KERN_DEBUG "jffs2_add_physical_node_ref(): Node at 0x%x(%d), size 0x%x\n", ref_offset(new), ref_flags(new), len));
 #if 1
@@ -403,21 +403,7 @@ int jffs2_add_physical_node_ref(struct jffs2_sb_info *c, struct jffs2_raw_node_r
 #endif
 	spin_lock(&c->erase_completion_lock);
 
-	if (!jeb->first_node)
-		jeb->first_node = new;
-	if (jeb->last_node)
-		jeb->last_node->next_phys = new;
-	jeb->last_node = new;
-
-	jeb->free_size -= len;
-	c->free_size -= len;
-	if (ref_obsolete(new)) {
-		jeb->dirty_size += len;
-		c->dirty_size += len;
-	} else {
-		jeb->used_size += len;
-		c->used_size += len;
-	}
+	jffs2_link_node_ref(c, jeb, new, len);
 
 	if (!jeb->free_size && !jeb->dirty_size && !ISDIRTY(jeb->wasted_size)) {
 		/* If it lives on the dirty_list, jffs2_reserve_space will put it there */
@@ -470,6 +456,7 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 	struct jffs2_unknown_node n;
 	int ret, addedsize;
 	size_t retlen;
+	uint32_t freed_len;
 
 	if(!ref) {
 		printk(KERN_NOTICE "EEEEEK. jffs2_mark_node_obsolete called with NULL node\n");
@@ -499,32 +486,34 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 
 	spin_lock(&c->erase_completion_lock);
 
+	freed_len = ref_totlen(c, jeb, ref);
+
 	if (ref_flags(ref) == REF_UNCHECKED) {
-		D1(if (unlikely(jeb->unchecked_size < ref_totlen(c, jeb, ref))) {
+		D1(if (unlikely(jeb->unchecked_size < freed_len)) {
 			printk(KERN_NOTICE "raw unchecked node of size 0x%08x freed from erase block %d at 0x%08x, but unchecked_size was already 0x%08x\n",
-			       ref_totlen(c, jeb, ref), blocknr, ref->flash_offset, jeb->used_size);
+			       freed_len, blocknr, ref->flash_offset, jeb->used_size);
 			BUG();
 		})
-		D1(printk(KERN_DEBUG "Obsoleting previously unchecked node at 0x%08x of len %x: ", ref_offset(ref), ref_totlen(c, jeb, ref)));
-		jeb->unchecked_size -= ref_totlen(c, jeb, ref);
-		c->unchecked_size -= ref_totlen(c, jeb, ref);
+		D1(printk(KERN_DEBUG "Obsoleting previously unchecked node at 0x%08x of len %x: ", ref_offset(ref), freed_len));
+		jeb->unchecked_size -= freed_len;
+		c->unchecked_size -= freed_len;
 	} else {
-		D1(if (unlikely(jeb->used_size < ref_totlen(c, jeb, ref))) {
+		D1(if (unlikely(jeb->used_size < freed_len)) {
 			printk(KERN_NOTICE "raw node of size 0x%08x freed from erase block %d at 0x%08x, but used_size was already 0x%08x\n",
-			       ref_totlen(c, jeb, ref), blocknr, ref->flash_offset, jeb->used_size);
+			       freed_len, blocknr, ref->flash_offset, jeb->used_size);
 			BUG();
 		})
-		D1(printk(KERN_DEBUG "Obsoleting node at 0x%08x of len %#x: ", ref_offset(ref), ref_totlen(c, jeb, ref)));
-		jeb->used_size -= ref_totlen(c, jeb, ref);
-		c->used_size -= ref_totlen(c, jeb, ref);
+		D1(printk(KERN_DEBUG "Obsoleting node at 0x%08x of len %#x: ", ref_offset(ref), freed_len));
+		jeb->used_size -= freed_len;
+		c->used_size -= freed_len;
 	}
 
 	// Take care, that wasted size is taken into concern
-	if ((jeb->dirty_size || ISDIRTY(jeb->wasted_size + ref_totlen(c, jeb, ref))) && jeb != c->nextblock) {
+	if ((jeb->dirty_size || ISDIRTY(jeb->wasted_size + freed_len)) && jeb != c->nextblock) {
 		D1(printk(KERN_DEBUG "Dirtying\n"));
-		addedsize = ref_totlen(c, jeb, ref);
-		jeb->dirty_size += ref_totlen(c, jeb, ref);
-		c->dirty_size += ref_totlen(c, jeb, ref);
+		addedsize = freed_len;
+		jeb->dirty_size += freed_len;
+		c->dirty_size += freed_len;
 
 		/* Convert wasted space to dirty, if not a bad block */
 		if (jeb->wasted_size) {
@@ -545,8 +534,8 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 	} else {
 		D1(printk(KERN_DEBUG "Wasting\n"));
 		addedsize = 0;
-		jeb->wasted_size += ref_totlen(c, jeb, ref);
-		c->wasted_size += ref_totlen(c, jeb, ref);
+		jeb->wasted_size += freed_len;
+		c->wasted_size += freed_len;
 	}
 	ref->flash_offset = ref_offset(ref) | REF_OBSOLETE;
 
@@ -634,8 +623,8 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 		printk(KERN_WARNING "Short read from obsoleted node at 0x%08x: %zd\n", ref_offset(ref), retlen);
 		goto out_erase_sem;
 	}
-	if (PAD(je32_to_cpu(n.totlen)) != PAD(ref_totlen(c, jeb, ref))) {
-		printk(KERN_WARNING "Node totlen on flash (0x%08x) != totlen from node ref (0x%08x)\n", je32_to_cpu(n.totlen), ref_totlen(c, jeb, ref));
+	if (PAD(je32_to_cpu(n.totlen)) != PAD(freed_len)) {
+		printk(KERN_WARNING "Node totlen on flash (0x%08x) != totlen from node ref (0x%08x)\n", je32_to_cpu(n.totlen), freed_len);
 		goto out_erase_sem;
 	}
 	if (!(je16_to_cpu(n.nodetype) & JFFS2_NODE_ACCURATE)) {
@@ -692,7 +681,9 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 
 		spin_lock(&c->erase_completion_lock);
 
+#ifdef TEST_TOTLEN
 		ref->__totlen += n->__totlen;
+#endif
 		ref->next_phys = n->next_phys;
                 if (jeb->last_node == n) jeb->last_node = ref;
 		if (jeb->gc_node == n) {
@@ -715,7 +706,9 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 			p = p->next_phys;
 
 		if (ref_obsolete(p) && !ref->next_in_ino) {
+#ifdef TEST_TOTLEN
 			p->__totlen += ref->__totlen;
+#endif
 			if (jeb->last_node == ref) {
 				jeb->last_node = p;
 			}

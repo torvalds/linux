@@ -938,6 +938,7 @@ void jffs2_free_ino_caches(struct jffs2_sb_info *c)
 		this = c->inocache_list[i];
 		while (this) {
 			next = this->next;
+			jffs2_xattr_free_inode(c, this);
 			jffs2_free_inode_cache(this);
 			this = next;
 		}
@@ -1044,4 +1045,150 @@ void jffs2_kill_fragtree(struct rb_root *root, struct jffs2_sb_info *c)
 
 		cond_resched();
 	}
+}
+
+void jffs2_link_node_ref(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb,
+			 struct jffs2_raw_node_ref *ref, uint32_t len)
+{
+	if (!jeb->first_node)
+		jeb->first_node = ref;
+	if (jeb->last_node) {
+		jeb->last_node->next_phys = ref;
+#ifdef TEST_TOTLEN
+		if (ref_offset(jeb->last_node) + jeb->last_node->__totlen != ref_offset(ref)) {
+			printk(KERN_CRIT "Adding new ref %p at (0x%08x-0x%08x) not immediately after previous (0x%08x-0x%08x)\n",
+			       ref, ref_offset(ref), ref_offset(ref)+ref->__totlen,
+			       ref_offset(jeb->last_node), ref_offset(jeb->last_node)+jeb->last_node->__totlen);
+			WARN_ON(1);
+		}
+#endif
+	}
+	jeb->last_node = ref;
+
+	switch(ref_flags(ref)) {
+	case REF_UNCHECKED:
+		c->unchecked_size += len;
+		jeb->unchecked_size += len;
+		break;
+
+	case REF_NORMAL:
+	case REF_PRISTINE:
+		c->used_size += len;
+		jeb->used_size += len;
+		break;
+
+	case REF_OBSOLETE:
+		c->dirty_size += len;
+		jeb->used_size += len;
+		break;
+	}
+	c->free_size -= len;
+	jeb->free_size -= len;
+
+	ref->next_phys = NULL;
+#ifdef TEST_TOTLEN
+	/* Set (and test) __totlen field... for now */
+	ref->__totlen = len;
+	ref_totlen(c, jeb, ref);
+#endif
+}
+
+/* No locking. Do not use on a live file system */
+int jffs2_scan_dirty_space(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb,
+			   uint32_t size)
+{
+	if (!size)
+		return 0;
+	if (size > c->sector_size - jeb->used_size) {
+		printk(KERN_CRIT "Dirty space 0x%x larger then used_size 0x%x (wasted 0x%x)\n",
+		       size, jeb->used_size, jeb->wasted_size);
+		BUG();
+	}
+	if (jeb->last_node && ref_obsolete(jeb->last_node)) {
+#ifdef TEST_TOTLEN
+		jeb->last_node->__totlen += size;
+#endif
+		c->dirty_size += size;
+		c->free_size -= size;
+		jeb->dirty_size += size;
+		jeb->free_size -= size;
+	} else {
+		struct jffs2_raw_node_ref *ref;
+		ref = jffs2_alloc_raw_node_ref();
+		if (!ref)
+			return -ENOMEM;
+
+		ref->flash_offset = jeb->offset + c->sector_size - jeb->free_size;
+		ref->flash_offset |= REF_OBSOLETE;
+		ref->next_in_ino = 0;
+#ifdef TEST_TOTLEN
+		ref->__totlen = size;
+#endif
+
+		jffs2_link_node_ref(c, jeb, ref, size);
+	}
+
+	return 0;
+}
+
+/* Calculate totlen from surrounding nodes or eraseblock */
+static inline uint32_t __ref_totlen(struct jffs2_sb_info *c,
+				    struct jffs2_eraseblock *jeb,
+				    struct jffs2_raw_node_ref *ref)
+{
+	uint32_t ref_end;
+
+	if (ref->next_phys)
+		ref_end = ref_offset(ref->next_phys);
+	else {
+		if (!jeb)
+			jeb = &c->blocks[ref->flash_offset / c->sector_size];
+
+		/* Last node in block. Use free_space */
+		if (ref != jeb->last_node) {
+			printk(KERN_CRIT "ref %p @0x%08x is not jeb->last_node (%p @0x%08x)\n",
+			       ref, ref_offset(ref), jeb->last_node, jeb->last_node?ref_offset(jeb->last_node):0);
+			BUG();
+		}
+		ref_end = jeb->offset + c->sector_size - jeb->free_size;
+	}
+	return ref_end - ref_offset(ref);
+}
+
+uint32_t __jffs2_ref_totlen(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb,
+			    struct jffs2_raw_node_ref *ref)
+{
+	uint32_t ret;
+
+#if CONFIG_JFFS2_FS_DEBUG > 0
+	if (jeb && jeb != &c->blocks[ref->flash_offset / c->sector_size]) {
+		printk(KERN_CRIT "ref_totlen called with wrong block -- at 0x%08x instead of 0x%08x; ref 0x%08x\n",
+		       jeb->offset, c->blocks[ref->flash_offset / c->sector_size].offset, ref_offset(ref));
+		BUG();
+	}
+#endif
+
+	ret = __ref_totlen(c, jeb, ref);
+#ifdef TEST_TOTLEN
+	if (ret != ref->__totlen) {
+		printk(KERN_CRIT "Totlen for ref at %p (0x%08x-0x%08x) miscalculated as 0x%x instead of %x\n",
+		       ref, ref_offset(ref), ref_offset(ref)+ref->__totlen,
+		       ret, ref->__totlen);
+		if (ref->next_phys) {
+			printk(KERN_CRIT "next_phys %p (0x%08x-0x%08x)\n", ref->next_phys, ref_offset(ref->next_phys),
+			       ref_offset(ref->next_phys)+ref->__totlen);
+		} else 
+			printk(KERN_CRIT "No next_phys. jeb->last_node is %p\n", jeb->last_node);
+
+		printk(KERN_CRIT "jeb->wasted_size %x, dirty_size %x, used_size %x, free_size %x\n", jeb->wasted_size, jeb->dirty_size, jeb->used_size, jeb->free_size);
+		ret = ref->__totlen;
+		if (!jeb)
+			jeb = &c->blocks[ref->flash_offset / c->sector_size];
+#if defined(JFFS2_DBG_DUMPS) || defined(JFFS2_DBG_PARANOIA_CHECKS)
+		__jffs2_dbg_dump_node_refs_nolock(c, jeb);
+#endif
+		WARN_ON(1);
+	}
+#endif /* TEST_TOTLEN */
+	return ret;
 }

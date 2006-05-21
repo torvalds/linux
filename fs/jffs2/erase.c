@@ -30,7 +30,6 @@ static void jffs2_erase_callback(struct erase_info *);
 #endif
 static void jffs2_erase_failed(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb, uint32_t bad_offset);
 static void jffs2_erase_succeeded(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb);
-static void jffs2_free_all_node_refs(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb);
 static void jffs2_mark_erased_block(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb);
 
 static void jffs2_erase_block(struct jffs2_sb_info *c,
@@ -283,7 +282,7 @@ static inline void jffs2_remove_node_refs_from_ino_list(struct jffs2_sb_info *c,
 		jffs2_del_ino_cache(c, ic);
 }
 
-static void jffs2_free_all_node_refs(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb)
+void jffs2_free_all_node_refs(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb)
 {
 	struct jffs2_raw_node_ref *ref;
 	D1(printk(KERN_DEBUG "Freeing all node refs for eraseblock offset 0x%08x\n", jeb->offset));
@@ -373,12 +372,8 @@ static void jffs2_mark_erased_block(struct jffs2_sb_info *c, struct jffs2_eraseb
 				goto filebad;
 		}
 
-		jeb->first_node = jeb->last_node = NULL;
+		/* Everything else got zeroed before the erase */
 		jeb->free_size = c->sector_size;
-		jeb->used_size = 0;
-		jeb->dirty_size = 0;
-		jeb->wasted_size = 0;
-
 	} else {
 
 		struct kvec vecs[1];
@@ -412,17 +407,13 @@ static void jffs2_mark_erased_block(struct jffs2_sb_info *c, struct jffs2_eraseb
 			goto filebad;
 		}
 
+		/* Everything else got zeroed before the erase */
+		jeb->free_size = c->sector_size;
+
 		marker_ref->next_in_ino = NULL;
-		marker_ref->next_phys = NULL;
 		marker_ref->flash_offset = jeb->offset | REF_NORMAL;
-		marker_ref->__totlen = c->cleanmarker_size;
 
-		jeb->first_node = jeb->last_node = marker_ref;
-
-		jeb->free_size = c->sector_size - c->cleanmarker_size;
-		jeb->used_size = c->cleanmarker_size;
-		jeb->dirty_size = 0;
-		jeb->wasted_size = 0;
+		jffs2_link_node_ref(c, jeb, marker_ref, c->cleanmarker_size);
 	}
 
 	spin_lock(&c->erase_completion_lock);
