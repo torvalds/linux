@@ -322,8 +322,6 @@ static int save_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datum *x
 	if (!raw)
 		return -ENOMEM;
 	raw->flash_offset = phys_ofs;
-	raw->__totlen = PAD(totlen);
-	raw->next_phys = NULL;
 	raw->next_in_ino = (void *)xd;
 
 	/* Setup raw-xattr */
@@ -348,17 +346,17 @@ static int save_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datum *x
 		if (length) {
 			raw->flash_offset |= REF_OBSOLETE;
 			raw->next_in_ino = NULL;
-			jffs2_add_physical_node_ref(c, raw);
+			jffs2_add_physical_node_ref(c, raw, PAD(totlen));
 			jffs2_mark_node_obsolete(c, raw);
 		} else {
 			jffs2_free_raw_node_ref(raw);
 		}
 		return rc;
 	}
-	BUG_ON(raw->__totlen < sizeof(struct jffs2_raw_xattr));
+
 	/* success */
 	raw->flash_offset |= REF_PRISTINE;
-	jffs2_add_physical_node_ref(c, raw);
+	jffs2_add_physical_node_ref(c, raw, PAD(totlen));
 	if (xd->node)
 		delete_xattr_datum_node(c, xd);
 	xd->node = raw;
@@ -568,8 +566,6 @@ static int save_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_ref *ref, 
 	if (!raw)
 		return -ENOMEM;
 	raw->flash_offset = phys_ofs;
-	raw->__totlen = PAD(sizeof(rr));
-	raw->next_phys = NULL;
 	raw->next_in_ino = (void *)ref;
 
 	rr.magic = cpu_to_je16(JFFS2_MAGIC_BITMASK);
@@ -589,7 +585,7 @@ static int save_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_ref *ref, 
 		if (length) {
 			raw->flash_offset |= REF_OBSOLETE;
 			raw->next_in_ino = NULL;
-			jffs2_add_physical_node_ref(c, raw);
+			jffs2_add_physical_node_ref(c, raw, PAD(sizeof(rr)));
 			jffs2_mark_node_obsolete(c, raw);
 		} else {
 			jffs2_free_raw_node_ref(raw);
@@ -598,7 +594,7 @@ static int save_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_ref *ref, 
 	}
 	raw->flash_offset |= REF_PRISTINE;
 
-	jffs2_add_physical_node_ref(c, raw);
+	jffs2_add_physical_node_ref(c, raw, PAD(sizeof(rr)));
 	if (ref->node)
 		delete_xattr_ref_node(c, ref);
 	ref->node = raw;

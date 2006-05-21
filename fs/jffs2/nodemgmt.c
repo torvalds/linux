@@ -374,7 +374,6 @@ static int jffs2_do_reserve_space(struct jffs2_sb_info *c, uint32_t minsize, uin
  *	@c: superblock info
  *	@new: new node reference to add
  *	@len: length of this physical node
- *	@dirty: dirty flag for new node
  *
  *	Should only be used to report nodes for which space has been allocated
  *	by jffs2_reserve_space.
@@ -382,13 +381,12 @@ static int jffs2_do_reserve_space(struct jffs2_sb_info *c, uint32_t minsize, uin
  *	Must be called with the alloc_sem held.
  */
 
-int jffs2_add_physical_node_ref(struct jffs2_sb_info *c, struct jffs2_raw_node_ref *new)
+int jffs2_add_physical_node_ref(struct jffs2_sb_info *c, struct jffs2_raw_node_ref *new, uint32_t len)
 {
 	struct jffs2_eraseblock *jeb;
-	uint32_t len;
 
 	jeb = &c->blocks[new->flash_offset / c->sector_size];
-	len = ref_totlen(c, jeb, new);
+	new->__totlen = len;
 
 	D1(printk(KERN_DEBUG "jffs2_add_physical_node_ref(): Node at 0x%x(%d), size 0x%x\n", ref_offset(new), ref_flags(new), len));
 #if 1

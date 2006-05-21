@@ -312,11 +312,9 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 					return;
 
 				raw2->flash_offset = ofs | REF_OBSOLETE;
-				raw2->__totlen = ref_totlen(c, jeb, *first_raw);
-				raw2->next_phys = NULL;
 				raw2->next_in_ino = NULL;
 
-				jffs2_add_physical_node_ref(c, raw2);
+				jffs2_add_physical_node_ref(c, raw2, ref_totlen(c, jeb, *first_raw));
 			}
 			return;
 		}

@@ -627,8 +627,6 @@ static int jffs2_garbage_collect_pristine(struct jffs2_sb_info *c,
 	/* OK, all the CRCs are good; this node can just be copied as-is. */
  retry:
 	nraw->flash_offset = phys_ofs;
-	nraw->__totlen = rawlen;
-	nraw->next_phys = NULL;
 
 	ret = jffs2_flash_write(c, phys_ofs, rawlen, &retlen, (char *)node);
 
@@ -640,7 +638,7 @@ static int jffs2_garbage_collect_pristine(struct jffs2_sb_info *c,
 			nraw->next_in_ino = NULL;
 
 			nraw->flash_offset |= REF_OBSOLETE;
-			jffs2_add_physical_node_ref(c, nraw);
+			jffs2_add_physical_node_ref(c, nraw, rawlen);
 			jffs2_mark_node_obsolete(c, nraw);
 		} else {
 			printk(KERN_NOTICE "Not marking the space at 0x%08x as dirty because the flash driver returned retlen zero\n", nraw->flash_offset);
@@ -680,7 +678,7 @@ static int jffs2_garbage_collect_pristine(struct jffs2_sb_info *c,
 		goto out_node;
 	}
 	nraw->flash_offset |= REF_PRISTINE;
-	jffs2_add_physical_node_ref(c, nraw);
+	jffs2_add_physical_node_ref(c, nraw, rawlen);
 
 	if (ic) {
 		/* Link into per-inode list. This is safe because of the ic
