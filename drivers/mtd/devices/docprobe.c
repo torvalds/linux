@@ -231,26 +231,9 @@ static inline int __init doccheck(void __iomem *potential, unsigned long physadr
 
 static int docfound;
 
-#ifdef CONFIG_MTD_DOC2000
 extern void DoC2k_init(struct mtd_info *);
-#define doc2k_initfunc (&DoC2k_init)
-#else 
-#define doc2k_initfunc NULL
-#endif
-
-#ifdef CONFIG_MTD_DOC2001
 extern void DoCMil_init(struct mtd_info *);
-#define docmil_initfunc (&DoCMil_init)
-#else 
-#define docmil_initfunc NULL
-#endif
-
-#ifdef CONFIG_MTD_DOC2001PLUS
 extern void DoCMilPlus_init(struct mtd_info *);
-#define docmplus_initfunc (&DoCMilPlus_init)
-#else 
-#define docmplus_initfunc NULL
-#endif
 
 static void __init DoC_Probe(unsigned long physadr)
 {
@@ -260,8 +243,6 @@ static void __init DoC_Probe(unsigned long physadr)
 	int ChipID;
 	char namebuf[15];
 	char *name = namebuf;
-	char *im_funcname = NULL;
-	char *im_modname = NULL;
 	void (*initroutine)(struct mtd_info *) = NULL;
 
 	docptr = ioremap(physadr, DOC_IOREMAP_LEN);
@@ -299,48 +280,30 @@ static void __init DoC_Probe(unsigned long physadr)
 		switch(ChipID) {
 		case DOC_ChipID_Doc2kTSOP:
 			name="2000 TSOP";
-			im_funcname = "DoC2k_init";
-			im_modname = "doc2000";
-			initroutine = doc2k_initfunc;
+			initroutine = symbol_request(DoC2k_init);
 			break;
 
 		case DOC_ChipID_Doc2k:
 			name="2000";
-			im_funcname = "DoC2k_init";
-			im_modname = "doc2000";
-			initroutine = doc2k_initfunc;
+			initroutine = symbol_request(DoC2k_init);
 			break;
 
 		case DOC_ChipID_DocMil:
 			name="Millennium";
 #ifdef DOC_SINGLE_DRIVER
-			im_funcname = "DoC2k_init";
-			im_modname = "doc2000";
-			initroutine = doc2k_initfunc;
+			initroutine = symbol_request(DoC2k_init);
 #else
-			im_funcname = "DoCMil_init";
-			im_modname = "doc2001";
-			initroutine = docmil_initfunc;
+			initroutine = symbol_request(DoCMil_init);
 #endif /* DOC_SINGLE_DRIVER */
 			break;
 
 		case DOC_ChipID_DocMilPlus16:
 		case DOC_ChipID_DocMilPlus32:
 			name="MillenniumPlus";
-			im_funcname = "DoCMilPlus_init";
-			im_modname = "doc2001plus";
-			initroutine = docmplus_initfunc;
+			initroutine = symbol_request(DoCMilPlus_init);
 			break;
 		}
 
-#ifdef CONFIG_MODULES
-		if (im_funcname && !initroutine)
-			initroutine = __symbol_get(im_funcname);
-		if (im_funcname && !initroutine) {
-			request_module(im_modname);
-			initroutine = __symbol_get(im_funcname);
-		}
-#endif
 		if (initroutine) {
 			(*initroutine)(mtd);
 			symbol_put_addr(initroutine);
