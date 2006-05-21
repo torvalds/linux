@@ -267,13 +267,13 @@ int crypto_register_alg(struct crypto_alg *alg)
 	down_write(&crypto_alg_sem);
 	
 	list_for_each_entry(q, &crypto_alg_list, cra_list) {
-		if (!strcmp(q->cra_driver_name, alg->cra_driver_name)) {
+		if (q == alg) {
 			ret = -EEXIST;
 			goto out;
 		}
 	}
 	
-	list_add_tail(&alg->cra_list, &crypto_alg_list);
+	list_add(&alg->cra_list, &crypto_alg_list);
 out:	
 	up_write(&crypto_alg_sem);
 	return ret;
