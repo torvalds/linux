@@ -516,10 +516,15 @@ static int jffs2_scan_eraseblock (struct jffs2_sb_info *c, struct jffs2_eraseblo
 
 		if (sumptr) {
 			err = jffs2_sum_scan_sumnode(c, jeb, sumptr, sumlen, &pseudo_random);
-			if (err)
-				return err;
+
 			if (buf_size && sumlen > buf_size)
 				kfree(sumptr);
+			/* If it returns with a real error, bail. 
+			   If it returns positive, that's a block classification
+			   (i.e. BLK_STATE_xxx) so return that too.
+			   If it returns zero, fall through to full scan. */
+			if (err)
+				return err;
 		}
 	}
 
