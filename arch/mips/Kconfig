@@ -530,6 +530,20 @@ config QEMU
 	  simulate actual MIPS hardware platforms.  More information on Qemu
 	  can be found at http://www.linux-mips.org/wiki/Qemu.
 
+config MARKEINS
+	bool "Support for NEC EMMA2RH Mark-eins"
+	select DMA_NONCOHERENT
+	select HW_HAS_PCI
+	select IRQ_CPU
+	select SWAP_IO_SPACE
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_BIG_ENDIAN
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_HAS_CPU_R5000
+	help
+	  This enables support for the R5432-based NEC Mark-eins
+	  boards with R5500 CPU.
+
 config SGI_IP22
 	bool "SGI IP22 (Indy/Indigo2)"
 	select ARC
@@ -967,6 +981,11 @@ config SOC_PNX8550
 
 config SWAP_IO_SPACE
 	bool
+
+config EMMA2RH
+	bool
+	depends on MARKEINS
+	default y
 
 #
 # Unfortunately not all GT64120 systems run the chip at the same clock.

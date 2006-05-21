@@ -465,6 +465,15 @@ libs-$(CONFIG_PNX8550_JBS)	+= arch/mips/philips/pnx8550/jbs/
 #cflags-$(CONFIG_PNX8550_JBS)	+= -Iinclude/asm-mips/mach-pnx8550
 load-$(CONFIG_PNX8550_JBS)	+= 0xffffffff80060000
 
+# NEC EMMA2RH boards
+#
+core-$(CONFIG_EMMA2RH)          += arch/mips/emma2rh/common/
+cflags-$(CONFIG_EMMA2RH)        += -Iinclude/asm-mips/mach-emma2rh
+
+# NEC EMMA2RH Mark-eins
+core-$(CONFIG_MARKEINS)         += arch/mips/emma2rh/markeins/
+load-$(CONFIG_MARKEINS)         += 0xffffffff88100000
+
 #
 # SGI IP22 (Indy/Indigo2)
 #
