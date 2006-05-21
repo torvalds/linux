@@ -316,6 +316,27 @@ config I8XX_TCO
 	  To compile this driver as a module, choose M here: the
 	  module will be called i8xx_tco.
 
+config ITCO_WDT
+	tristate "Intel TCO Timer/Watchdog (EXPERIMENTAL)"
+	depends on WATCHDOG && (X86 || IA64) && PCI && EXPERIMENTAL
+	---help---
+	  Hardware driver for the intel TCO timer based watchdog devices.
+	  These drivers are included in the Intel 82801 I/O Controller
+	  Hub family 'from ICH0 up to ICH7) and in the Intel 6300ESB
+	  controller hub.
+
+	  The TCO (Total Cost of Ownership) timer is a watchdog timer
+	  that will reboot the machine after its second expiration. The
+	  expiration time can be configured with the "heartbeat" parameter.
+
+	  On some motherboards the driver may fail to reset the chipset's
+	  NO_REBOOT flag which prevents the watchdog from rebooting the
+	  machine. If this is the case you will get a kernel message like
+	  "failed to reset NO_REBOOT flag, reboot disabled by hardware".
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called iTCO_wdt.
+
 config SC1200_WDT
 	tristate "National Semiconductor PC87307/PC97307 (ala SC1200) Watchdog"
 	depends on WATCHDOG && X86
