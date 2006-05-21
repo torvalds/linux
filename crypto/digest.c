@@ -70,10 +70,10 @@ static void final(struct crypto_tfm *tfm, u8 *out)
 		unsigned int size = crypto_tfm_alg_digestsize(tfm);
 		u8 buffer[size + alignmask];
 		u8 *dst = (u8 *)ALIGN((unsigned long)buffer, alignmask + 1);
-		tfm->__crt_alg->cra_digest.dia_final(crypto_tfm_ctx(tfm), dst);
+		tfm->__crt_alg->cra_digest.dia_final(tfm, dst);
 		memcpy(out, dst, size);
 	} else
-		tfm->__crt_alg->cra_digest.dia_final(crypto_tfm_ctx(tfm), out);
+		tfm->__crt_alg->cra_digest.dia_final(tfm, out);
 }
 
 static int setkey(struct crypto_tfm *tfm, const u8 *key, unsigned int keylen)

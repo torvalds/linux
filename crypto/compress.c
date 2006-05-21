@@ -44,7 +44,7 @@ int crypto_init_compress_ops(struct crypto_tfm *tfm)
 	int ret = 0;
 	struct compress_tfm *ops = &tfm->crt_compress;
 	
-	ret = tfm->__crt_alg->cra_compress.coa_init(crypto_tfm_ctx(tfm));
+	ret = tfm->__crt_alg->cra_compress.coa_init(tfm);
 	if (ret)
 		goto out;
 
@@ -57,5 +57,5 @@ out:
 
 void crypto_exit_compress_ops(struct crypto_tfm *tfm)
 {
-	tfm->__crt_alg->cra_compress.coa_exit(crypto_tfm_ctx(tfm));
+	tfm->__crt_alg->cra_compress.coa_exit(tfm);
 }
