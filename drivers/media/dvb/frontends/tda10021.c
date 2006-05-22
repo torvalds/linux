@@ -90,6 +90,14 @@ static int tda10021_writereg (struct tda10021_state* state, u8 reg, u8 data)
 	return (ret != 1) ? -EREMOTEIO : 0;
 }
 
+int tda10021_write_byte(struct dvb_frontend* fe, int reg, int data)
+{
+	struct tda10021_state* state = fe->demodulator_priv;
+
+	return tda10021_writereg(state, reg, data);
+}
+EXPORT_SYMBOL(tda10021_write_byte);
+
 static u8 tda10021_readreg (struct tda10021_state* state, u8 reg)
 {
 	u8 b0 [] = { reg };
