@@ -75,8 +75,8 @@
 	and	t0, t0, t1
 	LONG_S	t0, ST_OFF(t3)
 
-	fpu_save_double a0 t1 t0 t2		# c0_status passed in t1
-						# clobbers t0 and t2
+	fpu_save_double a0 t0 t1		# c0_status passed in t0
+						# clobbers t1
 1:
 
 	/*
@@ -129,9 +129,9 @@
  */
 LEAF(_save_fp)
 #ifdef CONFIG_64BIT
-	mfc0	t1, CP0_STATUS
+	mfc0	t0, CP0_STATUS
 #endif
-	fpu_save_double a0 t1 t0 t2		# clobbers t1
+	fpu_save_double a0 t0 t1		# clobbers t1
 	jr	ra
 	END(_save_fp)
 
@@ -139,7 +139,10 @@ LEAF(_save_fp)
  * Restore a thread's fp context.
  */
 LEAF(_restore_fp)
-	fpu_restore_double a0, t1		# clobbers t1
+#ifdef CONFIG_64BIT
+	mfc0	t0, CP0_STATUS
+#endif
+	fpu_restore_double a0 t0 t1		# clobbers t1
 	jr	ra
 	END(_restore_fp)
 
