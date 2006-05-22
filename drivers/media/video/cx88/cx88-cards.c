@@ -1357,6 +1357,10 @@ struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x17de,
 		.subdevice = 0x0841,
 		.card      = CX88_BOARD_KWORLD_MCE200_DELUXE,
+	},{
+		.subvendor = 0x1822,
+		.subdevice = 0x0019,
+		.card      = CX88_BOARD_DNTV_LIVE_DVB_T_PRO,
 	},
 };
 const unsigned int cx88_idcount = ARRAY_SIZE(cx88_subids);
