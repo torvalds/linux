@@ -389,7 +389,7 @@ MODULE_SUPPORTED_DEVICE("{{RME Hammerfall-DSP},"
 
 /* use hotplug firmeare loader? */
 #if defined(CONFIG_FW_LOADER) || defined(CONFIG_FW_LOADER_MODULE)
-#ifndef HDSP_USE_HWDEP_LOADER
+#if !defined(HDSP_USE_HWDEP_LOADER) && !defined(CONFIG_SND_HDSP)
 #define HDSP_FW_LOADER
 #endif
 #endif
