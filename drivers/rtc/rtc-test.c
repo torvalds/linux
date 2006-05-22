@@ -71,7 +71,7 @@ static int test_rtc_ioctl(struct device *dev, unsigned int cmd,
 		return 0;
 
 	default:
-		return -EINVAL;
+		return -ENOIOCTLCMD;
 	}
 }
 

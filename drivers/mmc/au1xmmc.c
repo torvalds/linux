@@ -310,7 +310,7 @@ static void au1xmmc_data_complete(struct au1xmmc_host *host, u32 status)
 		}
 		else
 			data->bytes_xfered =
-				(data->blocks * (1 << data->blksz_bits)) -
+				(data->blocks * data->blksz) -
 				host->pio.len;
 	}
 
@@ -575,7 +575,7 @@ static int
 au1xmmc_prepare_data(struct au1xmmc_host *host, struct mmc_data *data)
 {
 
-	int datalen = data->blocks * (1 << data->blksz_bits);
+	int datalen = data->blocks * data->blksz;
 
 	if (dma != 0)
 		host->flags |= HOST_F_DMA;
@@ -596,7 +596,7 @@ au1xmmc_prepare_data(struct au1xmmc_host *host, struct mmc_data *data)
 	if (host->dma.len == 0)
 		return MMC_ERR_TIMEOUT;
 
-	au_writel((1 << data->blksz_bits) - 1, HOST_BLKSIZE(host));
+	au_writel(data->blksz - 1, HOST_BLKSIZE(host));
 
 	if (host->flags & HOST_F_DMA) {
 		int i;

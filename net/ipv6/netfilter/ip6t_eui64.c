@@ -40,7 +40,7 @@ match(const struct sk_buff *skb,
 
 	memset(eui64, 0, sizeof(eui64));
 
-	if (eth_hdr(skb)->h_proto == ntohs(ETH_P_IPV6)) {
+	if (eth_hdr(skb)->h_proto == htons(ETH_P_IPV6)) {
 		if (skb->nh.ipv6h->version == 0x6) {
 			memcpy(eui64, eth_hdr(skb)->h_source, 3);
 			memcpy(eui64 + 5, eth_hdr(skb)->h_source + 3, 3);

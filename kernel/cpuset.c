@@ -2231,19 +2231,25 @@ static const struct cpuset *nearest_exclusive_ancestor(const struct cpuset *cs)
  * So only GFP_KERNEL allocations, if all nodes in the cpuset are
  * short of memory, might require taking the callback_mutex mutex.
  *
- * The first loop over the zonelist in mm/page_alloc.c:__alloc_pages()
- * calls here with __GFP_HARDWALL always set in gfp_mask, enforcing
- * hardwall cpusets - no allocation on a node outside the cpuset is
- * allowed (unless in interrupt, of course).
+ * The first call here from mm/page_alloc:get_page_from_freelist()
+ * has __GFP_HARDWALL set in gfp_mask, enforcing hardwall cpusets, so
+ * no allocation on a node outside the cpuset is allowed (unless in
+ * interrupt, of course).
  *
- * The second loop doesn't even call here for GFP_ATOMIC requests
- * (if the __alloc_pages() local variable 'wait' is set).  That check
- * and the checks below have the combined affect in the second loop of
- * the __alloc_pages() routine that:
+ * The second pass through get_page_from_freelist() doesn't even call
+ * here for GFP_ATOMIC calls.  For those calls, the __alloc_pages()
+ * variable 'wait' is not set, and the bit ALLOC_CPUSET is not set
+ * in alloc_flags.  That logic and the checks below have the combined
+ * affect that:
  *	in_interrupt - any node ok (current task context irrelevant)
  *	GFP_ATOMIC   - any node ok
  *	GFP_KERNEL   - any node in enclosing mem_exclusive cpuset ok
  *	GFP_USER     - only nodes in current tasks mems allowed ok.
+ *
+ * Rule:
+ *    Don't call cpuset_zone_allowed() if you can't sleep, unless you
+ *    pass in the __GFP_HARDWALL flag set in gfp_flag, which disables
+ *    the code that might scan up ancestor cpusets and sleep.
  **/
 
 int __cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask)
@@ -2255,6 +2261,7 @@ int __cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask)
 	if (in_interrupt())
 		return 1;
 	node = z->zone_pgdat->node_id;
+	might_sleep_if(!(gfp_mask & __GFP_HARDWALL));
 	if (node_isset(node, current->mems_allowed))
 		return 1;
 	if (gfp_mask & __GFP_HARDWALL)	/* If hardwall request, stop here */

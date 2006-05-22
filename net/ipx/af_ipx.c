@@ -944,9 +944,9 @@ out:
 	return rc;
 }
 
-static int ipx_map_frame_type(unsigned char type)
+static __be16 ipx_map_frame_type(unsigned char type)
 {
-	int rc = 0;
+	__be16 rc = 0;
 
 	switch (type) {
 	case IPX_FRAME_ETHERII:	rc = htons(ETH_P_IPX);		break;

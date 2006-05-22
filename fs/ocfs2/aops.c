@@ -276,13 +276,29 @@ static int ocfs2_writepage(struct page *page, struct writeback_control *wbc)
 	return ret;
 }
 
+/* This can also be called from ocfs2_write_zero_page() which has done
+ * it's own cluster locking. */
+int ocfs2_prepare_write_nolock(struct inode *inode, struct page *page,
+			       unsigned from, unsigned to)
+{
+	int ret;
+
+	down_read(&OCFS2_I(inode)->ip_alloc_sem);
+
+	ret = block_prepare_write(page, from, to, ocfs2_get_block);
+
+	up_read(&OCFS2_I(inode)->ip_alloc_sem);
+
+	return ret;
+}
+
 /*
  * ocfs2_prepare_write() can be an outer-most ocfs2 call when it is called
  * from loopback.  It must be able to perform its own locking around
  * ocfs2_get_block().
  */
-int ocfs2_prepare_write(struct file *file, struct page *page,
-			unsigned from, unsigned to)
+static int ocfs2_prepare_write(struct file *file, struct page *page,
+			       unsigned from, unsigned to)
 {
 	struct inode *inode = page->mapping->host;
 	int ret;
@@ -295,11 +311,7 @@ int ocfs2_prepare_write(struct file *file, struct page *page,
 		goto out;
 	}
 
-	down_read(&OCFS2_I(inode)->ip_alloc_sem);
-
-	ret = block_prepare_write(page, from, to, ocfs2_get_block);
-
-	up_read(&OCFS2_I(inode)->ip_alloc_sem);
+	ret = ocfs2_prepare_write_nolock(inode, page, from, to);
 
 	ocfs2_meta_unlock(inode, 0);
 out:
@@ -625,11 +637,31 @@ static ssize_t ocfs2_direct_IO(int rw,
 	int ret;
 
 	mlog_entry_void();
+
+	/*
+	 * We get PR data locks even for O_DIRECT.  This allows
+	 * concurrent O_DIRECT I/O but doesn't let O_DIRECT with
+	 * extending and buffered zeroing writes race.  If they did
+	 * race then the buffered zeroing could be written back after
+	 * the O_DIRECT I/O.  It's one thing to tell people not to mix
+	 * buffered and O_DIRECT writes, but expecting them to
+	 * understand that file extension is also an implicit buffered
+	 * write is too much.  By getting the PR we force writeback of
+	 * the buffered zeroing before proceeding.
+	 */
+	ret = ocfs2_data_lock(inode, 0);
+	if (ret < 0) {
+		mlog_errno(ret);
+		goto out;
+	}
+	ocfs2_data_unlock(inode, 0);
+
 	ret = blockdev_direct_IO_no_locking(rw, iocb, inode,
 					    inode->i_sb->s_bdev, iov, offset,
 					    nr_segs, 
 					    ocfs2_direct_IO_get_blocks,
 					    ocfs2_dio_end_io);
+out:
 	mlog_exit(ret);
 	return ret;
 }

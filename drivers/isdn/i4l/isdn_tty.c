@@ -2880,7 +2880,7 @@ isdn_tty_cmd_ATand(char **p, modem_info * info)
 			p[0]++;
 			i = 0;
 			while (*p[0] && (strchr("0123456789,-*[]?;", *p[0])) &&
-			       (i < ISDN_LMSNLEN))
+			       (i < ISDN_LMSNLEN - 1))
 				m->lmsn[i++] = *p[0]++;
 			m->lmsn[i] = '\0';
 			break;

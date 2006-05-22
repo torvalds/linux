@@ -71,6 +71,7 @@ struct budget_ci {
 	struct tasklet_struct msp430_irq_tasklet;
 	struct tasklet_struct ciintf_irq_tasklet;
 	int slot_status;
+	int ci_irq;
 	struct dvb_ca_en50221 ca;
 	char ir_dev_name[50];
 	u8 tuner_pll_address; /* used for philips_tdm1316l configs */
@@ -276,8 +277,10 @@ static int ciintf_slot_reset(struct dvb_ca_en50221 *ca, int slot)
 	if (slot != 0)
 		return -EINVAL;
 
-	// trigger on RISING edge during reset so we know when READY is re-asserted
-	saa7146_setgpio(saa, 0, SAA7146_GPIO_IRQHI);
+	if (budget_ci->ci_irq) {
+		// trigger on RISING edge during reset so we know when READY is re-asserted
+		saa7146_setgpio(saa, 0, SAA7146_GPIO_IRQHI);
+	}
 	budget_ci->slot_status = SLOTSTATUS_RESET;
 	ttpci_budget_debiwrite(&budget_ci->budget, DEBICICTL, DEBIADDR_CICONTROL, 1, 0, 1, 0);
 	msleep(1);
@@ -370,11 +373,50 @@ static void ciintf_interrupt(unsigned long data)
 	}
 }
 
+static int ciintf_poll_slot_status(struct dvb_ca_en50221 *ca, int slot, int open)
+{
+	struct budget_ci *budget_ci = (struct budget_ci *) ca->data;
+	unsigned int flags;
+
+	// ensure we don't get spurious IRQs during initialisation
+	if (!budget_ci->budget.ci_present)
+		return -EINVAL;
+
+	// read the CAM status
+	flags = ttpci_budget_debiread(&budget_ci->budget, DEBICICTL, DEBIADDR_CICONTROL, 1, 1, 0);
+	if (flags & CICONTROL_CAMDETECT) {
+		// mark it as present if it wasn't before
+		if (budget_ci->slot_status & SLOTSTATUS_NONE) {
+			budget_ci->slot_status = SLOTSTATUS_PRESENT;
+		}
+
+		// during a RESET, we check if we can read from IO memory to see when CAM is ready
+		if (budget_ci->slot_status & SLOTSTATUS_RESET) {
+			if (ciintf_read_attribute_mem(ca, slot, 0) == 0x1d) {
+				budget_ci->slot_status = SLOTSTATUS_READY;
+			}
+		}
+	} else {
+		budget_ci->slot_status = SLOTSTATUS_NONE;
+	}
+
+	if (budget_ci->slot_status != SLOTSTATUS_NONE) {
+		if (budget_ci->slot_status & SLOTSTATUS_READY) {
+			return DVB_CA_EN50221_POLL_CAM_PRESENT | DVB_CA_EN50221_POLL_CAM_READY;
+		}
+		return DVB_CA_EN50221_POLL_CAM_PRESENT;
+	}
+
+	return 0;
+}
+
 static int ciintf_init(struct budget_ci *budget_ci)
 {
 	struct saa7146_dev *saa = budget_ci->budget.dev;
 	int flags;
 	int result;
+	int ci_version;
+	int ca_flags;
 
 	memset(&budget_ci->ca, 0, sizeof(struct dvb_ca_en50221));
 
@@ -382,15 +424,28 @@ static int ciintf_init(struct budget_ci *budget_ci)
 	saa7146_write(saa, MC1, saa7146_read(saa, MC1) | (0x800 << 16) | 0x800);
 
 	// test if it is there
-	if ((ttpci_budget_debiread(&budget_ci->budget, DEBICICTL, DEBIADDR_CIVERSION, 1, 1, 0) & 0xa0) != 0xa0) {
+	ci_version = ttpci_budget_debiread(&budget_ci->budget, DEBICICTL, DEBIADDR_CIVERSION, 1, 1, 0);
+	if ((ci_version & 0xa0) != 0xa0) {
 		result = -ENODEV;
 		goto error;
 	}
+
 	// determine whether a CAM is present or not
 	flags = ttpci_budget_debiread(&budget_ci->budget, DEBICICTL, DEBIADDR_CICONTROL, 1, 1, 0);
 	budget_ci->slot_status = SLOTSTATUS_NONE;
 	if (flags & CICONTROL_CAMDETECT)
 		budget_ci->slot_status = SLOTSTATUS_PRESENT;
+
+	// version 0xa2 of the CI firmware doesn't generate interrupts
+	if (ci_version == 0xa2) {
+		ca_flags = 0;
+		budget_ci->ci_irq = 0;
+	} else {
+		ca_flags = DVB_CA_EN50221_FLAG_IRQ_CAMCHANGE |
+				DVB_CA_EN50221_FLAG_IRQ_FR |
+				DVB_CA_EN50221_FLAG_IRQ_DA;
+		budget_ci->ci_irq = 1;
+	}
 
 	// register CI interface
 	budget_ci->ca.owner = THIS_MODULE;
@@ -401,23 +456,27 @@ static int ciintf_init(struct budget_ci *budget_ci)
 	budget_ci->ca.slot_reset = ciintf_slot_reset;
 	budget_ci->ca.slot_shutdown = ciintf_slot_shutdown;
 	budget_ci->ca.slot_ts_enable = ciintf_slot_ts_enable;
+	budget_ci->ca.poll_slot_status = ciintf_poll_slot_status;
 	budget_ci->ca.data = budget_ci;
 	if ((result = dvb_ca_en50221_init(&budget_ci->budget.dvb_adapter,
 					  &budget_ci->ca,
-					  DVB_CA_EN50221_FLAG_IRQ_CAMCHANGE |
-					  DVB_CA_EN50221_FLAG_IRQ_FR |
-					  DVB_CA_EN50221_FLAG_IRQ_DA, 1)) != 0) {
+					  ca_flags, 1)) != 0) {
 		printk("budget_ci: CI interface detected, but initialisation failed.\n");
 		goto error;
 	}
+
 	// Setup CI slot IRQ
-	tasklet_init(&budget_ci->ciintf_irq_tasklet, ciintf_interrupt, (unsigned long) budget_ci);
-	if (budget_ci->slot_status != SLOTSTATUS_NONE) {
-		saa7146_setgpio(saa, 0, SAA7146_GPIO_IRQLO);
-	} else {
-		saa7146_setgpio(saa, 0, SAA7146_GPIO_IRQHI);
+	if (budget_ci->ci_irq) {
+		tasklet_init(&budget_ci->ciintf_irq_tasklet, ciintf_interrupt, (unsigned long) budget_ci);
+		if (budget_ci->slot_status != SLOTSTATUS_NONE) {
+			saa7146_setgpio(saa, 0, SAA7146_GPIO_IRQLO);
+		} else {
+			saa7146_setgpio(saa, 0, SAA7146_GPIO_IRQHI);
+		}
+		saa7146_write(saa, IER, saa7146_read(saa, IER) | MASK_03);
 	}
-	saa7146_write(saa, IER, saa7146_read(saa, IER) | MASK_03);
+
+	// enable interface
 	ttpci_budget_debiwrite(&budget_ci->budget, DEBICICTL, DEBIADDR_CICONTROL, 1,
 			       CICONTROL_RESET, 1, 0);
 
@@ -426,10 +485,12 @@ static int ciintf_init(struct budget_ci *budget_ci)
 	budget_ci->budget.ci_present = 1;
 
 	// forge a fake CI IRQ so the CAM state is setup correctly
-	flags = DVB_CA_EN50221_CAMCHANGE_REMOVED;
-	if (budget_ci->slot_status != SLOTSTATUS_NONE)
-		flags = DVB_CA_EN50221_CAMCHANGE_INSERTED;
-	dvb_ca_en50221_camchange_irq(&budget_ci->ca, 0, flags);
+	if (budget_ci->ci_irq) {
+		flags = DVB_CA_EN50221_CAMCHANGE_REMOVED;
+		if (budget_ci->slot_status != SLOTSTATUS_NONE)
+			flags = DVB_CA_EN50221_CAMCHANGE_INSERTED;
+		dvb_ca_en50221_camchange_irq(&budget_ci->ca, 0, flags);
+	}
 
 	return 0;
 
@@ -443,9 +504,13 @@ static void ciintf_deinit(struct budget_ci *budget_ci)
 	struct saa7146_dev *saa = budget_ci->budget.dev;
 
 	// disable CI interrupts
-	saa7146_write(saa, IER, saa7146_read(saa, IER) & ~MASK_03);
-	saa7146_setgpio(saa, 0, SAA7146_GPIO_INPUT);
-	tasklet_kill(&budget_ci->ciintf_irq_tasklet);
+	if (budget_ci->ci_irq) {
+		saa7146_write(saa, IER, saa7146_read(saa, IER) & ~MASK_03);
+		saa7146_setgpio(saa, 0, SAA7146_GPIO_INPUT);
+		tasklet_kill(&budget_ci->ciintf_irq_tasklet);
+	}
+
+	// reset interface
 	ttpci_budget_debiwrite(&budget_ci->budget, DEBICICTL, DEBIADDR_CICONTROL, 1, 0, 1, 0);
 	msleep(1);
 	ttpci_budget_debiwrite(&budget_ci->budget, DEBICICTL, DEBIADDR_CICONTROL, 1,
@@ -473,7 +538,7 @@ static void budget_ci_irq(struct saa7146_dev *dev, u32 * isr)
 	if (*isr & MASK_10)
 		ttpci_budget_irq10_handler(dev, isr);
 
-	if ((*isr & MASK_03) && (budget_ci->budget.ci_present))
+	if ((*isr & MASK_03) && (budget_ci->budget.ci_present) && (budget_ci->ci_irq))
 		tasklet_schedule(&budget_ci->ciintf_irq_tasklet);
 }
 

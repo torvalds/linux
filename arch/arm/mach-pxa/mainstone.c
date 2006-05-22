@@ -95,7 +95,10 @@ static void __init mainstone_init_irq(void)
 	for(irq = MAINSTONE_IRQ(0); irq <= MAINSTONE_IRQ(15); irq++) {
 		set_irq_chip(irq, &mainstone_irq_chip);
 		set_irq_handler(irq, do_level_IRQ);
-		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+		if (irq == MAINSTONE_IRQ(10) || irq == MAINSTONE_IRQ(14))
+			set_irq_flags(irq, IRQF_VALID | IRQF_PROBE | IRQF_NOAUTOEN);
+		else
+			set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	}
 	set_irq_flags(MAINSTONE_IRQ(8), 0);
 	set_irq_flags(MAINSTONE_IRQ(12), 0);

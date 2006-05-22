@@ -1730,3 +1730,4 @@ static void __exit sunsu_exit(void)
 
 module_init(sunsu_probe);
 module_exit(sunsu_exit);
+MODULE_LICENSE("GPL");

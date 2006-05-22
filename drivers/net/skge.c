@@ -78,8 +78,7 @@ static const struct pci_device_id skge_id_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_SYSKONNECT, PCI_DEVICE_ID_SYSKONNECT_GE) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_SYSKONNECT, PCI_DEVICE_ID_SYSKONNECT_YU) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_DLINK, PCI_DEVICE_ID_DLINK_DGE510T), },
-	{ PCI_DEVICE(PCI_VENDOR_ID_DLINK, 0x4b00) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_DLINK, 0x4b01) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_DLINK, 0x4b01) },	/* DGE-530T */
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4320) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x5005) }, /* Belkin */
 	{ PCI_DEVICE(PCI_VENDOR_ID_CNET, PCI_DEVICE_ID_CNET_GIGACARD) },
@@ -402,7 +401,7 @@ static int skge_set_ring_param(struct net_device *dev,
 	int err;
 
 	if (p->rx_pending == 0 || p->rx_pending > MAX_RX_RING_SIZE ||
-	    p->tx_pending == 0 || p->tx_pending > MAX_TX_RING_SIZE)
+	    p->tx_pending < MAX_SKB_FRAGS+1 || p->tx_pending > MAX_TX_RING_SIZE)
 		return -EINVAL;
 
 	skge->rx_ring.count = p->rx_pending;
@@ -2717,8 +2716,7 @@ static int skge_poll(struct net_device *dev, int *budget)
 		if (control & BMU_OWN)
 			break;
 
-		skb = skge_rx_get(skge, e, control, rd->status,
-				  le16_to_cpu(rd->csum2));
+		skb = skge_rx_get(skge, e, control, rd->status, rd->csum2);
 		if (likely(skb)) {
 			dev->last_rx = jiffies;
 			netif_receive_skb(skb);

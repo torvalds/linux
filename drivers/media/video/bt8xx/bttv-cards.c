@@ -2991,13 +2991,13 @@ void __devinit bttv_idcard(struct bttv *btv)
 
 	if (UNSET != audiomux[0]) {
 		gpiobits = 0;
-		for (i = 0; i < 5; i++) {
+		for (i = 0; i < 4; i++) {
 			bttv_tvcards[btv->c.type].gpiomux[i] = audiomux[i];
 			gpiobits |= audiomux[i];
 		}
 	} else {
 		gpiobits = audioall;
-		for (i = 0; i < 5; i++) {
+		for (i = 0; i < 4; i++) {
 			bttv_tvcards[btv->c.type].gpiomux[i] = audioall;
 		}
 	}

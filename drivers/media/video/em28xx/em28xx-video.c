@@ -1576,8 +1576,8 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	errCode = em28xx_config(dev);
 	if (errCode) {
 		em28xx_errdev("error configuring device\n");
-		kfree(dev);
 		em28xx_devused&=~(1<<dev->devno);
+		kfree(dev);
 		return -ENOMEM;
 	}
 
@@ -1603,8 +1603,8 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	dev->vdev = video_device_alloc();
 	if (NULL == dev->vdev) {
 		em28xx_errdev("cannot allocate video_device.\n");
-		kfree(dev);
 		em28xx_devused&=~(1<<dev->devno);
+		kfree(dev);
 		return -ENOMEM;
 	}
 
@@ -1612,8 +1612,8 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	if (NULL == dev->vbi_dev) {
 		em28xx_errdev("cannot allocate video_device.\n");
 		kfree(dev->vdev);
-		kfree(dev);
 		em28xx_devused&=~(1<<dev->devno);
+		kfree(dev);
 		return -ENOMEM;
 	}
 
@@ -1650,8 +1650,8 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 		mutex_unlock(&dev->lock);
 		list_del(&dev->devlist);
 		video_device_release(dev->vdev);
-		kfree(dev);
 		em28xx_devused&=~(1<<dev->devno);
+		kfree(dev);
 		return -ENODEV;
 	}
 
@@ -1662,8 +1662,8 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 		list_del(&dev->devlist);
 		video_device_release(dev->vbi_dev);
 		video_device_release(dev->vdev);
-		kfree(dev);
 		em28xx_devused&=~(1<<dev->devno);
+		kfree(dev);
 		return -ENODEV;
 	} else {
 		printk("registered VBI\n");

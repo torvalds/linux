@@ -902,7 +902,10 @@ static int cinergyt2_probe (struct usb_interface *intf,
 		return -ENOMEM;
 	}
 
-	dvb_register_adapter(&cinergyt2->adapter, DRIVER_NAME, THIS_MODULE);
+	if ((err = dvb_register_adapter(&cinergyt2->adapter, DRIVER_NAME, THIS_MODULE)) < 0) {
+		kfree(cinergyt2);
+		return err;
+	}
 
 	cinergyt2->demux.priv = cinergyt2;
 	cinergyt2->demux.filternum = 256;
