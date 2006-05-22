@@ -63,7 +63,7 @@ struct mtd_info_user {
 	uint32_t flags;
 	uint32_t size;	 // Total size of the MTD
 	uint32_t erasesize;
-	uint32_t oobblock;  // Size of OOB blocks (e.g. 512)
+	uint32_t writesize;
 	uint32_t oobsize;   // Amount of OOB data per block (e.g. 16)
 	uint32_t ecctype;
 	uint32_t eccsize;

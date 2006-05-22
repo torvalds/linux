@@ -278,9 +278,9 @@ concat_writev_ecc(struct mtd_info *mtd, const struct kvec *vecs,
 		return -EINVAL;
 
 	/* Check alignment */
-	if (mtd->oobblock > 1) {
+	if (mtd->writesize > 1) {
 		loff_t __to = to;
-		if (do_div(__to, mtd->oobblock) || (total_len % mtd->oobblock))
+		if (do_div(__to, mtd->writesize) || (total_len % mtd->writesize))
 			return -EINVAL;
 	}
 
@@ -334,7 +334,7 @@ concat_writev_ecc(struct mtd_info *mtd, const struct kvec *vecs,
 		*retlen += retsize;
 		total_len -= wsize;
 		if (concat->mtd.type == MTD_NANDFLASH && eccbuf)
-			eccbuf += mtd->oobavail * (wsize / mtd->oobblock);
+			eccbuf += mtd->oobavail * (wsize / mtd->writesize);
 
 		if (total_len == 0)
 			break;
@@ -833,7 +833,7 @@ struct mtd_info *mtd_concat_create(struct mtd_info *subdev[],	/* subdevices to c
 	concat->mtd.flags = subdev[0]->flags;
 	concat->mtd.size = subdev[0]->size;
 	concat->mtd.erasesize = subdev[0]->erasesize;
-	concat->mtd.oobblock = subdev[0]->oobblock;
+	concat->mtd.writesize = subdev[0]->writesize;
 	concat->mtd.oobsize = subdev[0]->oobsize;
 	concat->mtd.ecctype = subdev[0]->ecctype;
 	concat->mtd.eccsize = subdev[0]->eccsize;
@@ -881,7 +881,7 @@ struct mtd_info *mtd_concat_create(struct mtd_info *subdev[],	/* subdevices to c
 				    subdev[i]->flags & MTD_WRITEABLE;
 		}
 		concat->mtd.size += subdev[i]->size;
-		if (concat->mtd.oobblock   !=  subdev[i]->oobblock ||
+		if (concat->mtd.writesize   !=  subdev[i]->writesize ||
 		    concat->mtd.oobsize    !=  subdev[i]->oobsize ||
 		    concat->mtd.ecctype    !=  subdev[i]->ecctype ||
 		    concat->mtd.eccsize    !=  subdev[i]->eccsize ||

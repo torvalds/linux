@@ -66,8 +66,12 @@ struct mtd_info {
 	 * information below if they desire
 	 */
 	u_int32_t erasesize;
+	/* Smallest availlable size for writing to the device.  For NAND,
+	 * this is the page size, for some NOR chips, the size of ECC
+	 * covered blocks.
+	 */
+	u_int32_t writesize;
 
-	u_int32_t oobblock;  // Size of OOB blocks (e.g. 512)
 	u_int32_t oobsize;   // Amount of OOB data per block (e.g. 16)
 	u_int32_t ecctype;
 	u_int32_t eccsize;
@@ -79,7 +83,6 @@ struct mtd_info {
 	 * MTD_PROGRAM_REGIONS flag is set.
 	 * (Maybe we should have an union for those?)
 	 */
-#define MTD_PROGREGION_SIZE(mtd)  (mtd)->oobblock
 #define MTD_PROGREGION_CTRLMODE_VALID(mtd)  (mtd)->oobsize
 #define MTD_PROGREGION_CTRLMODE_INVALID(mtd)  (mtd)->ecctype
 

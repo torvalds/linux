@@ -761,9 +761,9 @@ static void doc2001plus_command(struct mtd_info *mtd, unsigned command, int colu
 	if (command == NAND_CMD_SEQIN) {
 		int readcmd;
 
-		if (column >= mtd->oobblock) {
+		if (column >= mtd->writesize) {
 			/* OOB area */
-			column -= mtd->oobblock;
+			column -= mtd->writesize;
 			readcmd = NAND_CMD_READOOB;
 		} else if (column < 256) {
 			/* First 256 bytes --> READ0 */
@@ -1093,8 +1093,8 @@ static int __init find_media_headers(struct mtd_info *mtd, u_char *buf, const ch
 	size_t retlen;
 
 	for (offs = 0; offs < mtd->size; offs += mtd->erasesize) {
-		ret = mtd->read(mtd, offs, mtd->oobblock, &retlen, buf);
-		if (retlen != mtd->oobblock)
+		ret = mtd->read(mtd, offs, mtd->writesize, &retlen, buf);
+		if (retlen != mtd->writesize)
 			continue;
 		if (ret) {
 			printk(KERN_WARNING "ECC error scanning DOC at 0x%x\n", offs);
@@ -1118,8 +1118,8 @@ static int __init find_media_headers(struct mtd_info *mtd, u_char *buf, const ch
 	/* Only one mediaheader was found.  We want buf to contain a
 	   mediaheader on return, so we'll have to re-read the one we found. */
 	offs = doc->mh0_page << this->page_shift;
-	ret = mtd->read(mtd, offs, mtd->oobblock, &retlen, buf);
-	if (retlen != mtd->oobblock) {
+	ret = mtd->read(mtd, offs, mtd->writesize, &retlen, buf);
+	if (retlen != mtd->writesize) {
 		/* Insanity.  Give up. */
 		printk(KERN_ERR "Read DiskOnChip Media Header once, but can't reread it???\n");
 		return 0;
@@ -1139,7 +1139,7 @@ static inline int __init nftl_partscan(struct mtd_info *mtd, struct mtd_partitio
 	unsigned blocks, maxblocks;
 	int offs, numheaders;
 
-	buf = kmalloc(mtd->oobblock, GFP_KERNEL);
+	buf = kmalloc(mtd->writesize, GFP_KERNEL);
 	if (!buf) {
 		printk(KERN_ERR "DiskOnChip mediaheader kmalloc failed!\n");
 		return 0;
@@ -1247,7 +1247,7 @@ static inline int __init inftl_partscan(struct mtd_info *mtd, struct mtd_partiti
 	if (inftl_bbt_write)
 		end -= (INFTL_BBT_RESERVED_BLOCKS << this->phys_erase_shift);
 
-	buf = kmalloc(mtd->oobblock, GFP_KERNEL);
+	buf = kmalloc(mtd->writesize, GFP_KERNEL);
 	if (!buf) {
 		printk(KERN_ERR "DiskOnChip mediaheader kmalloc failed!\n");
 		return 0;

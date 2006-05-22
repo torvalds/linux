@@ -356,9 +356,9 @@ static void au1550_command(struct mtd_info *mtd, unsigned command, int column, i
 	if (command == NAND_CMD_SEQIN) {
 		int readcmd;
 
-		if (column >= mtd->oobblock) {
+		if (column >= mtd->writesize) {
 			/* OOB area */
-			column -= mtd->oobblock;
+			column -= mtd->writesize;
 			readcmd = NAND_CMD_READOOB;
 		} else if (column < 256) {
 			/* First 256 bytes --> READ0 */

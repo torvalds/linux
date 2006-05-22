@@ -1173,7 +1173,7 @@ int jffs2_nand_flash_setup(struct jffs2_sb_info *c)
 
 	/* Initialise write buffer */
 	init_rwsem(&c->wbuf_sem);
-	c->wbuf_pagesize = c->mtd->oobblock;
+	c->wbuf_pagesize = c->mtd->writesize;
 	c->wbuf_ofs = 0xFFFFFFFF;
 
 	c->wbuf = kmalloc(c->wbuf_pagesize, GFP_KERNEL);
@@ -1266,11 +1266,11 @@ void jffs2_nor_ecc_flash_cleanup(struct jffs2_sb_info *c) {
 
 int jffs2_nor_wbuf_flash_setup(struct jffs2_sb_info *c) {
 	/* Cleanmarker currently occupies a whole programming region */
-	c->cleanmarker_size = MTD_PROGREGION_SIZE(c->mtd);
+	c->cleanmarker_size = c->mtd->writesize;
 
 	/* Initialize write buffer */
 	init_rwsem(&c->wbuf_sem);
-	c->wbuf_pagesize = MTD_PROGREGION_SIZE(c->mtd);
+	c->wbuf_pagesize = c->mtd->writesize;
 	c->wbuf_ofs = 0xFFFFFFFF;
 
 	c->wbuf = kmalloc(c->wbuf_pagesize, GFP_KERNEL);
