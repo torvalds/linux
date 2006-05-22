@@ -3643,6 +3643,8 @@ static void ata_pio_block(struct ata_port *ap)
 
 		ata_pio_sector(qc);
 	}
+
+	ata_altstatus(ap); /* flush */
 }
 
 static void ata_pio_error(struct ata_port *ap)
@@ -3759,11 +3761,14 @@ static void atapi_packet_task(void *_data)
 		spin_lock_irqsave(&ap->host_set->lock, flags);
 		ap->flags &= ~ATA_FLAG_NOINTR;
 		ata_data_xfer(ap, qc->cdb, qc->dev->cdb_len, 1);
+		ata_altstatus(ap); /* flush */
+
 		if (qc->tf.protocol == ATA_PROT_ATAPI_DMA)
 			ap->ops->bmdma_start(qc);	/* initiate bmdma */
 		spin_unlock_irqrestore(&ap->host_set->lock, flags);
 	} else {
 		ata_data_xfer(ap, qc->cdb, qc->dev->cdb_len, 1);
+		ata_altstatus(ap); /* flush */
 
 		/* PIO commands are handled by polling */
 		ap->hsm_task_state = HSM_ST;
