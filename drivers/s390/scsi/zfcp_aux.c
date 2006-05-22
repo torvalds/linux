@@ -1,18 +1,8 @@
 /*
+ * This file is part of the zfcp device driver for
+ * FCP adapters for IBM System z9 and zSeries.
  *
- * linux/drivers/s390/scsi/zfcp_aux.c
- *
- * FCP adapter driver for IBM eServer zSeries
- *
- * (C) Copyright IBM Corp. 2002, 2004
- *
- * Author(s): Martin Peschke <mpeschke@de.ibm.com>
- *            Raimund Schroeder <raimund.schroeder@de.ibm.com>
- *            Aron Zeh
- *            Wolfgang Taphorn
- *            Stefan Bader <stefan.bader@de.ibm.com>
- *            Heiko Carstens <heiko.carstens@de.ibm.com>
- *            Andreas Herrmann <aherrman@de.ibm.com>
+ * (C) Copyright IBM Corp. 2002, 2006
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,6 +17,20 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+/*
+ * Driver authors:
+ *            Martin Peschke (originator of the driver)
+ *            Raimund Schroeder
+ *            Aron Zeh
+ *            Wolfgang Taphorn
+ *            Stefan Bader
+ *            Heiko Carstens (kernel 2.6 port of the driver)
+ *            Andreas Herrmann
+ *            Maxim Shchetynin
+ *            Volker Sameske
+ *            Ralph Wuerthner
  */
 
 #include "zfcp_ext.h"
@@ -75,15 +79,9 @@ static struct miscdevice zfcp_cfdc_misc = {
 /* declare driver module init/cleanup functions */
 module_init(zfcp_module_init);
 
-MODULE_AUTHOR("Heiko Carstens <heiko.carstens@de.ibm.com>, "
-	      "Andreas Herrman <aherrman@de.ibm.com>, "
-	      "Martin Peschke <mpeschke@de.ibm.com>, "
-	      "Raimund Schroeder <raimund.schroeder@de.ibm.com>, "
-	      "Wolfgang Taphorn <taphorn@de.ibm.com>, "
-	      "Aron Zeh <arzeh@de.ibm.com>, "
-	      "IBM Deutschland Entwicklung GmbH");
+MODULE_AUTHOR("IBM Deutschland Entwicklung GmbH - linux390@de.ibm.com");
 MODULE_DESCRIPTION
-    ("FCP (SCSI over Fibre Channel) HBA driver for IBM eServer zSeries");
+    ("FCP (SCSI over Fibre Channel) HBA driver for IBM System z9 and zSeries");
 MODULE_LICENSE("GPL");
 
 module_param(device, charp, 0400);
