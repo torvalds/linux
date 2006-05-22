@@ -198,10 +198,6 @@ static int tvmixer_open(struct inode *inode, struct file *file)
 
 	/* lock bttv in memory while the mixer is in use  */
 	file->private_data = mix;
-#ifndef I2C_PEC
-	if (client->adapter->inc_use)
-		client->adapter->inc_use(client->adapter);
-#endif
 	if (client->adapter->owner)
 		try_module_get(client->adapter->owner);
 	return 0;
@@ -217,10 +213,6 @@ static int tvmixer_release(struct inode *inode, struct file *file)
 		return -ENODEV;
 	}
 
-#ifndef I2C_PEC
-	if (client->adapter->dec_use)
-		client->adapter->dec_use(client->adapter);
-#endif
 	if (client->adapter->owner)
 		module_put(client->adapter->owner);
 	return 0;

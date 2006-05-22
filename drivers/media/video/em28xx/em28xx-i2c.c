@@ -399,17 +399,6 @@ static u32 functionality(struct i2c_adapter *adap)
 	return I2C_FUNC_SMBUS_EMUL;
 }
 
-#ifndef I2C_PEC
-static void inc_use(struct i2c_adapter *adap)
-{
-	MOD_INC_USE_COUNT;
-}
-
-static void dec_use(struct i2c_adapter *adap)
-{
-	MOD_DEC_USE_COUNT;
-}
-#endif
 
 static int em28xx_set_tuner(int check_eeprom, struct i2c_client *client)
 {
@@ -480,12 +469,7 @@ static struct i2c_algorithm em28xx_algo = {
 };
 
 static struct i2c_adapter em28xx_adap_template = {
-#ifdef I2C_PEC
 	.owner = THIS_MODULE,
-#else
-	.inc_use = inc_use,
-	.dec_use = dec_use,
-#endif
 	.class = I2C_CLASS_TV_ANALOG,
 	.name = "em28xx",
 	.id = I2C_HW_B_EM28XX,
