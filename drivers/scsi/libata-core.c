@@ -1498,6 +1498,12 @@ static int ata_bus_probe(struct ata_port *ap)
 		if (classes[i] == ATA_DEV_UNKNOWN)
 			classes[i] = ATA_DEV_NONE;
 
+	/* after the reset the device state is PIO 0 and the controller
+	   state is undefined. Record the mode */
+
+	for (i = 0; i < ATA_MAX_DEVICES; i++)
+		ap->device[i].pio_mode = XFER_PIO_0;
+
 	/* read IDENTIFY page and configure devices */
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
 		dev = &ap->device[i];
