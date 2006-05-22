@@ -151,14 +151,6 @@ set_driver_byte(u32 * result, char status)
 	set_byte(result, status, 3);
 }
 
-/*
- * function:	zfcp_scsi_slave_alloc
- *
- * purpose:
- *
- * returns:
- */
-
 static int
 zfcp_scsi_slave_alloc(struct scsi_device *sdp)
 {
@@ -184,14 +176,6 @@ zfcp_scsi_slave_alloc(struct scsi_device *sdp)
  out:
 	return retval;
 }
-
-/*
- * function:	zfcp_scsi_slave_destroy
- *
- * purpose:
- *
- * returns:
- */
 
 static void
 zfcp_scsi_slave_destroy(struct scsi_device *sdpnt)
@@ -364,15 +348,6 @@ zfcp_scsi_queuecommand(struct scsi_cmnd *scpnt,
 	return zfcp_scsi_command_async(adapter, unit, scpnt, NULL);
 }
 
-/*
- * function:    zfcp_unit_lookup
- *
- * purpose:
- *
- * returns:
- *
- * context:	
- */
 static struct zfcp_unit *
 zfcp_unit_lookup(struct zfcp_adapter *adapter, int channel, scsi_id_t id,
 		 scsi_lun_t lun)
@@ -481,13 +456,6 @@ zfcp_scsi_eh_abort_handler(struct scsi_cmnd *scpnt)
 	return retval;
 }
 
-/*
- * function:	zfcp_scsi_eh_device_reset_handler
- *
- * purpose:
- *
- * returns:
- */
 int
 zfcp_scsi_eh_device_reset_handler(struct scsi_cmnd *scpnt)
 {
@@ -615,13 +583,6 @@ zfcp_scsi_eh_host_reset_handler(struct scsi_cmnd *scpnt)
 	return SUCCESS;
 }
 
-/*
- * function:	
- *
- * purpose:	
- *
- * returns:
- */
 int
 zfcp_adapter_scsi_register(struct zfcp_adapter *adapter)
 {
@@ -668,13 +629,6 @@ zfcp_adapter_scsi_register(struct zfcp_adapter *adapter)
 	return retval;
 }
 
-/*
- * function:	
- *
- * purpose:	
- *
- * returns:
- */
 void
 zfcp_adapter_scsi_unregister(struct zfcp_adapter *adapter)
 {

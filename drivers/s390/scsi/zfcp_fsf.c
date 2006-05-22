@@ -1929,14 +1929,6 @@ skip_fsfstatus:
 	return retval;
 }
 
-/*
- * function:
- *
- * purpose:
- *
- * returns:	address of initiated FSF request
- *		NULL - request could not be initiated
- */
 int
 zfcp_fsf_exchange_config_data(struct zfcp_erp_action *erp_action)
 {
@@ -3656,18 +3648,6 @@ zfcp_fsf_send_fcp_command_task(struct zfcp_adapter *adapter,
 	return retval;
 }
 
-/*
- * function:    zfcp_fsf_send_fcp_command_task_management
- *
- * purpose:
- *
- * returns:
- *
- * FIXME(design): should be watched by a timeout!!!
- * FIXME(design) shouldn't this be modified to return an int
- *               also...don't know how though
- *
- */
 struct zfcp_fsf_req *
 zfcp_fsf_send_fcp_command_task_management(struct zfcp_adapter *adapter,
 					  struct zfcp_unit *unit,
