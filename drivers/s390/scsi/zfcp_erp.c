@@ -275,20 +275,17 @@ zfcp_erp_adisc(struct zfcp_port *port)
 	int retval = 0;
 	struct timer_list *timer;
 
-	send_els = kmalloc(sizeof(struct zfcp_send_els), GFP_ATOMIC);
+	send_els = kzalloc(sizeof(struct zfcp_send_els), GFP_ATOMIC);
 	if (send_els == NULL)
 		goto nomem;
-	memset(send_els, 0, sizeof(*send_els));
 
-	send_els->req = kmalloc(sizeof(struct scatterlist), GFP_ATOMIC);
+	send_els->req = kzalloc(sizeof(struct scatterlist), GFP_ATOMIC);
 	if (send_els->req == NULL)
 		goto nomem;
-	memset(send_els->req, 0, sizeof(*send_els->req));
 
-	send_els->resp = kmalloc(sizeof(struct scatterlist), GFP_ATOMIC);
+	send_els->resp = kzalloc(sizeof(struct scatterlist), GFP_ATOMIC);
 	if (send_els->resp == NULL)
 		goto nomem;
-	memset(send_els->resp, 0, sizeof(*send_els->resp));
 
 	address = (void *) get_zeroed_page(GFP_ATOMIC);
 	if (address == NULL)

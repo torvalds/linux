@@ -289,12 +289,11 @@ zfcp_cfdc_dev_ioctl(struct file *file, unsigned int command,
 		goto out;
 	}
 
-	sg_list = kmalloc(sizeof(struct zfcp_sg_list), GFP_KERNEL);
+	sg_list = kzalloc(sizeof(struct zfcp_sg_list), GFP_KERNEL);
 	if (sg_list == NULL) {
 		retval = -ENOMEM;
 		goto out;
 	}
-	memset(sg_list, 0, sizeof(*sg_list));
 
 	if (command != ZFCP_CFDC_IOC) {
 		ZFCP_LOG_INFO("IOC request code 0x%x invalid\n", command);
@@ -476,14 +475,13 @@ zfcp_sg_list_alloc(struct zfcp_sg_list *sg_list, size_t size)
 	sg_list->count = size >> PAGE_SHIFT;
 	if (size & ~PAGE_MASK)
 		sg_list->count++;
-	sg_list->sg = kmalloc(sg_list->count * sizeof(struct scatterlist),
+	sg_list->sg = kcalloc(sg_list->count, sizeof(struct scatterlist),
 			      GFP_KERNEL);
 	if (sg_list->sg == NULL) {
 		sg_list->count = 0;
 		retval = -ENOMEM;
 		goto out;
 	}
-	memset(sg_list->sg, 0, sg_list->count * sizeof(struct scatterlist));
 
 	for (i = 0, sg = sg_list->sg; i < sg_list->count; i++, sg++) {
 		sg->length = min(size, PAGE_SIZE);
@@ -756,10 +754,9 @@ zfcp_unit_enqueue(struct zfcp_port *port, fcp_lun_t fcp_lun)
 	if (unit)
 		return NULL;
 
-	unit = kmalloc(sizeof (struct zfcp_unit), GFP_KERNEL);
+	unit = kzalloc(sizeof (struct zfcp_unit), GFP_KERNEL);
 	if (!unit)
 		return NULL;
-	memset(unit, 0, sizeof (struct zfcp_unit));
 
 	/* initialise reference count stuff */
 	atomic_set(&unit->refcount, 0);
@@ -927,13 +924,12 @@ zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 	 */
 
 	/* try to allocate new adapter data structure (zeroed) */
-	adapter = kmalloc(sizeof (struct zfcp_adapter), GFP_KERNEL);
+	adapter = kzalloc(sizeof (struct zfcp_adapter), GFP_KERNEL);
 	if (!adapter) {
 		ZFCP_LOG_INFO("error: allocation of base adapter "
 			      "structure failed\n");
 		goto out;
 	}
-	memset(adapter, 0, sizeof (struct zfcp_adapter));
 
 	ccw_device->handler = NULL;
 
@@ -1137,10 +1133,9 @@ zfcp_port_enqueue(struct zfcp_adapter *adapter, wwn_t wwpn, u32 status,
 			return NULL;
 	}
 
-	port = kmalloc(sizeof (struct zfcp_port), GFP_KERNEL);
+	port = kzalloc(sizeof (struct zfcp_port), GFP_KERNEL);
 	if (!port)
 		return NULL;
-	memset(port, 0, sizeof (struct zfcp_port));
 
 	/* initialise reference count stuff */
 	atomic_set(&port->refcount, 0);

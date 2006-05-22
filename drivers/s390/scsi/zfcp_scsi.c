@@ -761,10 +761,9 @@ zfcp_get_fc_host_stats(struct Scsi_Host *shost)
 	if (!fc_stats)
 		return NULL;
 
-	data = kmalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return NULL;
-	memset(data, 0, sizeof(*data));
 
 	ret = zfcp_fsf_exchange_port_data(NULL, adapter, data);
 	if (ret) {
@@ -792,10 +791,9 @@ zfcp_reset_fc_host_stats(struct Scsi_Host *shost)
 	int ret;
 
 	adapter = (struct zfcp_adapter *)shost->hostdata[0];
-	data = kmalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return;
-	memset(data, 0, sizeof(*data));
 
 	ret = zfcp_fsf_exchange_port_data(NULL, adapter, data);
 	if (ret == 0) {
