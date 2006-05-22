@@ -176,6 +176,7 @@ static const struct ata_port_operations sil_ops = {
 	.bmdma_status		= ata_bmdma_status,
 	.qc_prep		= ata_qc_prep,
 	.qc_issue		= ata_qc_issue_prot,
+	.data_xfer		= ata_mmio_data_xfer,
 	.freeze			= sil_freeze,
 	.thaw			= sil_thaw,
 	.error_handler		= ata_bmdma_error_handler,

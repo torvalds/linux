@@ -124,6 +124,7 @@ static const struct ata_port_operations svia_sata_ops = {
 
 	.qc_prep		= ata_qc_prep,
 	.qc_issue		= ata_qc_issue_prot,
+	.data_xfer		= ata_pio_data_xfer,
 
 	.eng_timeout		= ata_eng_timeout,
 

@@ -156,6 +156,7 @@ static const struct ata_port_operations qs_ata_ops = {
 	.phy_reset		= qs_phy_reset,
 	.qc_prep		= qs_qc_prep,
 	.qc_issue		= qs_qc_issue,
+	.data_xfer		= ata_mmio_data_xfer,
 	.eng_timeout		= qs_eng_timeout,
 	.irq_handler		= qs_intr,
 	.irq_clear		= qs_irq_clear,

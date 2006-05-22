@@ -406,6 +406,7 @@ static const struct ata_port_operations mv5_ops = {
 
 	.qc_prep		= mv_qc_prep,
 	.qc_issue		= mv_qc_issue,
+	.data_xfer		= ata_mmio_data_xfer,
 
 	.eng_timeout		= mv_eng_timeout,
 
@@ -433,6 +434,7 @@ static const struct ata_port_operations mv6_ops = {
 
 	.qc_prep		= mv_qc_prep,
 	.qc_issue		= mv_qc_issue,
+	.data_xfer		= ata_mmio_data_xfer,
 
 	.eng_timeout		= mv_eng_timeout,
 

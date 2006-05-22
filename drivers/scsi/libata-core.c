@@ -3527,7 +3527,7 @@ void swap_buf_le16(u16 *buf, unsigned int buf_words)
 
 /**
  *	ata_mmio_data_xfer - Transfer data by MMIO
- *	@ap: port to read/write
+ *	@dev: device for this I/O
  *	@buf: data buffer
  *	@buflen: buffer length
  *	@write_data: read/write
@@ -3538,9 +3538,10 @@ void swap_buf_le16(u16 *buf, unsigned int buf_words)
  *	Inherited from caller.
  */
 
-static void ata_mmio_data_xfer(struct ata_port *ap, unsigned char *buf,
-			       unsigned int buflen, int write_data)
+void ata_mmio_data_xfer(struct ata_device *adev, unsigned char *buf, 
+			unsigned int buflen, int write_data)
 {
+	struct ata_port *ap = adev->ap;
 	unsigned int i;
 	unsigned int words = buflen >> 1;
 	u16 *buf16 = (u16 *) buf;
@@ -3572,7 +3573,7 @@ static void ata_mmio_data_xfer(struct ata_port *ap, unsigned char *buf,
 
 /**
  *	ata_pio_data_xfer - Transfer data by PIO
- *	@ap: port to read/write
+ *	@adev: device to target
  *	@buf: data buffer
  *	@buflen: buffer length
  *	@write_data: read/write
@@ -3583,9 +3584,10 @@ static void ata_mmio_data_xfer(struct ata_port *ap, unsigned char *buf,
  *	Inherited from caller.
  */
 
-static void ata_pio_data_xfer(struct ata_port *ap, unsigned char *buf,
-			      unsigned int buflen, int write_data)
+void ata_pio_data_xfer(struct ata_device *adev, unsigned char *buf, 
+		       unsigned int buflen, int write_data)
 {
+	struct ata_port *ap = adev->ap;
 	unsigned int words = buflen >> 1;
 
 	/* Transfer multiple of 2 bytes */
@@ -3606,39 +3608,6 @@ static void ata_pio_data_xfer(struct ata_port *ap, unsigned char *buf,
 			align_buf[0] = cpu_to_le16(inw(ap->ioaddr.data_addr));
 			memcpy(trailing_buf, align_buf, 1);
 		}
-	}
-}
-
-/**
- *	ata_data_xfer - Transfer data from/to the data register.
- *	@ap: port to read/write
- *	@buf: data buffer
- *	@buflen: buffer length
- *	@do_write: read/write
- *
- *	Transfer data from/to the device data register.
- *
- *	LOCKING:
- *	Inherited from caller.
- */
-
-static void ata_data_xfer(struct ata_port *ap, unsigned char *buf,
-			  unsigned int buflen, int do_write)
-{
-	/* Make the crap hardware pay the costs not the good stuff */
-	if (unlikely(ap->flags & ATA_FLAG_IRQ_MASK)) {
-		unsigned long flags;
-		local_irq_save(flags);
-		if (ap->flags & ATA_FLAG_MMIO)
-			ata_mmio_data_xfer(ap, buf, buflen, do_write);
-		else
-			ata_pio_data_xfer(ap, buf, buflen, do_write);
-		local_irq_restore(flags);
-	} else {
-		if (ap->flags & ATA_FLAG_MMIO)
-			ata_mmio_data_xfer(ap, buf, buflen, do_write);
-		else
-			ata_pio_data_xfer(ap, buf, buflen, do_write);
 	}
 }
 
@@ -3676,17 +3645,18 @@ static void ata_pio_sector(struct ata_queued_cmd *qc)
 	if (PageHighMem(page)) {
 		unsigned long flags;
 
+		/* FIXME: use a bounce buffer */
 		local_irq_save(flags);
 		buf = kmap_atomic(page, KM_IRQ0);
 
 		/* do the actual data transfer */
-		ata_data_xfer(ap, buf + offset, ATA_SECT_SIZE, do_write);
+		ap->ops->data_xfer(qc->dev, buf + offset, ATA_SECT_SIZE, do_write);
 
 		kunmap_atomic(buf, KM_IRQ0);
 		local_irq_restore(flags);
 	} else {
 		buf = page_address(page);
-		ata_data_xfer(ap, buf + offset, ATA_SECT_SIZE, do_write);
+		ap->ops->data_xfer(qc->dev, buf + offset, ATA_SECT_SIZE, do_write);
 	}
 
 	qc->cursect++;
@@ -3742,7 +3712,7 @@ static void atapi_send_cdb(struct ata_port *ap, struct ata_queued_cmd *qc)
 	DPRINTK("send cdb\n");
 	WARN_ON(qc->dev->cdb_len < 12);
 
-	ata_data_xfer(ap, qc->cdb, qc->dev->cdb_len, 1);
+	ap->ops->data_xfer(qc->dev, qc->cdb, qc->dev->cdb_len, 1);
 	ata_altstatus(ap); /* flush */
 
 	switch (qc->tf.protocol) {
@@ -3802,7 +3772,7 @@ next_sg:
 				       "%u bytes trailing data\n", bytes);
 
 		for (i = 0; i < words; i++)
-			ata_data_xfer(ap, (unsigned char*)pad_buf, 2, do_write);
+			ap->ops->data_xfer(qc->dev, (unsigned char*)pad_buf, 2, do_write);
 
 		ap->hsm_task_state = HSM_ST_LAST;
 		return;
@@ -3828,17 +3798,18 @@ next_sg:
 	if (PageHighMem(page)) {
 		unsigned long flags;
 
+		/* FIXME: use bounce buffer */
 		local_irq_save(flags);
 		buf = kmap_atomic(page, KM_IRQ0);
 
 		/* do the actual data transfer */
-		ata_data_xfer(ap, buf + offset, count, do_write);
+		ap->ops->data_xfer(qc->dev,  buf + offset, count, do_write);
 
 		kunmap_atomic(buf, KM_IRQ0);
 		local_irq_restore(flags);
 	} else {
 		buf = page_address(page);
-		ata_data_xfer(ap, buf + offset, count, do_write);
+		ap->ops->data_xfer(qc->dev,  buf + offset, count, do_write);
 	}
 
 	bytes -= count;
@@ -5702,6 +5673,8 @@ EXPORT_SYMBOL_GPL(ata_port_start);
 EXPORT_SYMBOL_GPL(ata_port_stop);
 EXPORT_SYMBOL_GPL(ata_host_stop);
 EXPORT_SYMBOL_GPL(ata_interrupt);
+EXPORT_SYMBOL_GPL(ata_mmio_data_xfer);
+EXPORT_SYMBOL_GPL(ata_pio_data_xfer);
 EXPORT_SYMBOL_GPL(ata_qc_prep);
 EXPORT_SYMBOL_GPL(ata_noop_qc_prep);
 EXPORT_SYMBOL_GPL(ata_bmdma_setup);
