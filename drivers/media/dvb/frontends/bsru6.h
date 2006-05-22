@@ -120,6 +120,8 @@ static int alps_bsru6_tuner_set_params(struct dvb_frontend *fe, struct dvb_front
 	if (params->frequency > 1530000)
 		buf[3] = 0xc0;
 
+	if (fe->ops->i2c_gate_ctrl)
+		fe->ops->i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(i2c, &msg, 1) != 1)
 		return -EIO;
 	return 0;

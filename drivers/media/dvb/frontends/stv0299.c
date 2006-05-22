@@ -604,10 +604,12 @@ static int stv0299_i2c_gate_ctrl(struct dvb_frontend* fe, int enable)
 	struct stv0299_state* state = fe->demodulator_priv;
 
 	if (enable) {
-		return stv0299_writeregI(state, 0x05, 0xb5);
+		stv0299_writeregI(state, 0x05, 0xb5);
 	} else {
-		return stv0299_writeregI(state, 0x05, 0x35);
+		stv0299_writeregI(state, 0x05, 0x35);
 	}
+	udelay(1);
+	return 0;
 }
 
 static int stv0299_get_tune_settings(struct dvb_frontend* fe, struct dvb_frontend_tune_settings* fesettings)

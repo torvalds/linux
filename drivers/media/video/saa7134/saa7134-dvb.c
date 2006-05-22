@@ -150,9 +150,13 @@ static int mt352_pinnacle_tuner_calc_regs(struct dvb_frontend* fe,
 	f.tuner     = 0;
 	f.type      = V4L2_TUNER_DIGITAL_TV;
 	f.frequency = params->frequency / 1000 * 16 / 1000;
+	if (fe->ops->i2c_gate_ctrl)
+		fe->ops->i2c_gate_ctrl(fe, 1);
 	i2c_transfer(&dev->i2c_adap, &msg, 1);
 	saa7134_i2c_call_clients(dev,VIDIOC_S_FREQUENCY,&f);
 	msg.buf = on;
+	if (fe->ops->i2c_gate_ctrl)
+		fe->ops->i2c_gate_ctrl(fe, 1);
 	i2c_transfer(&dev->i2c_adap, &msg, 1);
 
 	pinnacle_antenna_pwr(dev, antenna_pwr);

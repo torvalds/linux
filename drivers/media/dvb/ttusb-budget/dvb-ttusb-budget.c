@@ -1039,6 +1039,8 @@ static int alps_tdmb7_tuner_set_params(struct dvb_frontend* fe, struct dvb_front
 	data[2] = ((div >> 10) & 0x60) | 0x85;
 	data[3] = params->frequency < 592000000 ? 0x40 : 0x80;
 
+	if (fe->ops->i2c_gate_ctrl)
+		fe->ops->i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&ttusb->i2c_adap, &msg, 1) != 1) return -EIO;
 	return 0;
 }
@@ -1059,6 +1061,8 @@ static int philips_tdm1316l_tuner_init(struct dvb_frontend* fe)
 	struct i2c_msg tuner_msg = { .addr=0x60, .flags=0, .buf=td1316_init, .len=sizeof(td1316_init) };
 
 	// setup PLL configuration
+	if (fe->ops->i2c_gate_ctrl)
+		fe->ops->i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&ttusb->i2c_adap, &tuner_msg, 1) != 1) return -EIO;
 	msleep(1);
 
@@ -1066,6 +1070,8 @@ static int philips_tdm1316l_tuner_init(struct dvb_frontend* fe)
 	tuner_msg.addr = 0x65;
 	tuner_msg.buf = disable_mc44BC374c;
 	tuner_msg.len = sizeof(disable_mc44BC374c);
+	if (fe->ops->i2c_gate_ctrl)
+		fe->ops->i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&ttusb->i2c_adap, &tuner_msg, 1) != 1) {
 		i2c_transfer(&ttusb->i2c_adap, &tuner_msg, 1);
 	}
@@ -1133,6 +1139,8 @@ static int philips_tdm1316l_tuner_set_params(struct dvb_frontend* fe, struct dvb
 	tuner_buf[2] = 0xca;
 	tuner_buf[3] = (cp << 5) | (filter << 3) | band;
 
+	if (fe->ops->i2c_gate_ctrl)
+		fe->ops->i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&ttusb->i2c_adap, &tuner_msg, 1) != 1)
 		return -EIO;
 
@@ -1296,6 +1304,8 @@ static int philips_tsa5059_tuner_set_params(struct dvb_frontend *fe, struct dvb_
 	if (ttusb->revision == TTUSB_REV_2_2)
 		buf[3] |= 0x20;
 
+	if (fe->ops->i2c_gate_ctrl)
+		fe->ops->i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&ttusb->i2c_adap, &msg, 1) != 1)
 		return -EIO;
 
@@ -1328,6 +1338,8 @@ static int ttusb_novas_grundig_29504_491_tuner_set_params(struct dvb_frontend *f
 	buf[2] = 0x8e;
 	buf[3] = 0x00;
 
+	if (fe->ops->i2c_gate_ctrl)
+		fe->ops->i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer(&ttusb->i2c_adap, &msg, 1) != 1)
 		return -EIO;
 
@@ -1353,6 +1365,8 @@ static int alps_tdbe2_tuner_set_params(struct dvb_frontend* fe, struct dvb_front
 	data[2] = 0x85 | ((div >> 10) & 0x60);
 	data[3] = (params->frequency < 174000000 ? 0x88 : params->frequency < 470000000 ? 0x84 : 0x81);
 
+	if (fe->ops->i2c_gate_ctrl)
+		fe->ops->i2c_gate_ctrl(fe, 1);
 	if (i2c_transfer (&ttusb->i2c_adap, &msg, 1) != 1)
 		return -EIO;
 

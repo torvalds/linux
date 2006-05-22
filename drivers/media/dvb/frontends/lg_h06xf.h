@@ -29,6 +29,8 @@ static int lg_h06xf_pll_set(struct dvb_frontend* fe, struct i2c_adapter* i2c_ada
 	int err;
 
 	dvb_pll_configure(&dvb_pll_lg_tdvs_h06xf, buf, params->frequency, 0);
+	if (fe->ops->i2c_gate_ctrl)
+		fe->ops->i2c_gate_ctrl(fe, 1);
 	if ((err = i2c_transfer(i2c_adap, &msg, 1)) != 1) {
 		printk(KERN_WARNING "lg_h06xf: %s error "
 			"(addr %02x <- %02x, err = %i)\n",
@@ -45,6 +47,8 @@ static int lg_h06xf_pll_set(struct dvb_frontend* fe, struct i2c_adapter* i2c_ada
 	buf[0] |= 0x18;
 	buf[1] = 0x50;
 	msg.len = 2;
+	if (fe->ops->i2c_gate_ctrl)
+		fe->ops->i2c_gate_ctrl(fe, 1);
 	if ((err = i2c_transfer(i2c_adap, &msg, 1)) != 1) {
 		printk(KERN_WARNING "lg_h06xf: %s error "
 			"(addr %02x <- %02x, err = %i)\n",
