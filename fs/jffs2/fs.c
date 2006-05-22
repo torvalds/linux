@@ -664,13 +664,6 @@ static int jffs2_flash_setup(struct jffs2_sb_info *c) {
 			return ret;
 	}
 
-	/* add setups for other bizarre flashes here... */
-	if (jffs2_nor_ecc(c)) {
-		ret = jffs2_nor_ecc_flash_setup(c);
-		if (ret)
-			return ret;
-	}
-
 	/* and Dataflash */
 	if (jffs2_dataflash(c)) {
 		ret = jffs2_dataflash_setup(c);
@@ -692,11 +685,6 @@ void jffs2_flash_cleanup(struct jffs2_sb_info *c) {
 
 	if (jffs2_cleanmarker_oob(c)) {
 		jffs2_nand_flash_cleanup(c);
-	}
-
-	/* add cleanups for other bizarre flashes here... */
-	if (jffs2_nor_ecc(c)) {
-		jffs2_nor_ecc_flash_cleanup(c);
 	}
 
 	/* and DataFlash */

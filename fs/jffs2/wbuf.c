@@ -637,17 +637,6 @@ int jffs2_flash_writev(struct jffs2_sb_info *c, const struct kvec *invecs, unsig
 		memset(c->wbuf,0xff,c->wbuf_pagesize);
 	}
 
-	/* Fixup the wbuf if we are moving to a new eraseblock.  The checks below
-	   fail for ECC'd NOR because cleanmarker == 16, so a block starts at
-	   xxx0010.  */
-	if (jffs2_nor_ecc(c)) {
-		if (((c->wbuf_ofs % c->sector_size) == 0) && !c->wbuf_len) {
-			c->wbuf_ofs = PAGE_DIV(to);
-			c->wbuf_len = PAGE_MOD(to);
-			memset(c->wbuf,0xff,c->wbuf_pagesize);
-		}
-	}
-
 	/* Sanity checks on target address.
 	   It's permitted to write at PAD(c->wbuf_len+c->wbuf_ofs),
 	   and it's permitted to write at the beginning of a new
@@ -1244,29 +1233,10 @@ void jffs2_dataflash_cleanup(struct jffs2_sb_info *c) {
 	kfree(c->wbuf);
 }
 
-int jffs2_nor_ecc_flash_setup(struct jffs2_sb_info *c) {
-	/* Cleanmarker is actually larger on the flashes */
-	c->cleanmarker_size = 16;
-
-	/* Initialize write buffer */
-	init_rwsem(&c->wbuf_sem);
-	c->wbuf_pagesize = c->mtd->eccsize;
-	c->wbuf_ofs = 0xFFFFFFFF;
-
-	c->wbuf = kmalloc(c->wbuf_pagesize, GFP_KERNEL);
-	if (!c->wbuf)
-		return -ENOMEM;
-
-	return 0;
-}
-
-void jffs2_nor_ecc_flash_cleanup(struct jffs2_sb_info *c) {
-	kfree(c->wbuf);
-}
-
 int jffs2_nor_wbuf_flash_setup(struct jffs2_sb_info *c) {
-	/* Cleanmarker currently occupies a whole programming region */
-	c->cleanmarker_size = c->mtd->writesize;
+	/* Cleanmarker currently occupies whole programming regions,
+	 * either one or 2 for 8Byte STMicro flashes. */
+	c->cleanmarker_size = max(16u, c->mtd->writesize);
 
 	/* Initialize write buffer */
 	init_rwsem(&c->wbuf_sem);
