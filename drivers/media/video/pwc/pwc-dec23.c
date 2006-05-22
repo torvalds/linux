@@ -882,7 +882,7 @@ void pwc_dec23_decompress(const struct pwc_device *pwc,
 
 		}
 #else
-		memcpy(dst, 0, pwc->view.x * pwc->view.y);
+		memset(dst, 0, pwc->view.x * pwc->view.y);
 #endif
 
 	} else {
