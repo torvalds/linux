@@ -1456,6 +1456,20 @@ static int mpeg_do_ioctl(struct inode *inode, struct file *file,
 		blackbird_set_params(dev, f);
 		return 0;
 	}
+	case VIDIOC_S_FREQUENCY:
+	{
+		blackbird_api_cmd(fh->dev, CX2341X_ENC_STOP_CAPTURE, 3, 0,
+				  BLACKBIRD_END_NOW,
+				  BLACKBIRD_MPEG_CAPTURE,
+				  BLACKBIRD_RAW_BITS_NONE);
+
+		cx88_do_ioctl( inode, file, 0, dev->core, cmd, arg, cx88_ioctl_hook );
+
+		blackbird_initialize_codec(dev);
+		cx88_set_scale(dev->core, dev->width, dev->height,
+			       fh->mpegq.field);
+		return 0;
+	}
 
 	default:
 		return cx88_do_ioctl( inode, file, 0, dev->core, cmd, arg, cx88_ioctl_hook );
