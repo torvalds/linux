@@ -265,12 +265,14 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 
 
 	/* ... and get an allocation of space from a shiny new block instead */
-	ret = jffs2_reserve_space_gc(c, end-start, &ofs, &len, JFFS2_SUMMARY_NOSUM_SIZE);
+	ret = jffs2_reserve_space_gc(c, end-start, &len, JFFS2_SUMMARY_NOSUM_SIZE);
 	if (ret) {
 		printk(KERN_WARNING "Failed to allocate space for wbuf recovery. Data loss ensues.\n");
 		kfree(buf);
 		return;
 	}
+	ofs = write_ofs(c);
+
 	if (end-start >= c->wbuf_pagesize) {
 		/* Need to do another write immediately, but it's possible
 		   that this is just because the wbuf itself is completely

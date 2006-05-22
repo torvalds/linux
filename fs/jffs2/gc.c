@@ -545,7 +545,7 @@ static int jffs2_garbage_collect_pristine(struct jffs2_sb_info *c,
 	if (ic && alloclen > sizeof(struct jffs2_raw_inode) + JFFS2_MIN_DATA_LEN)
 		alloclen = sizeof(struct jffs2_raw_inode) + JFFS2_MIN_DATA_LEN;
 
-	ret = jffs2_reserve_space_gc(c, alloclen, &phys_ofs, &alloclen, rawlen);
+	ret = jffs2_reserve_space_gc(c, alloclen, &alloclen, rawlen);
 	/* 'rawlen' is not the exact summary size; it is only an upper estimation */
 
 	if (ret)
@@ -626,13 +626,13 @@ static int jffs2_garbage_collect_pristine(struct jffs2_sb_info *c,
 
 	/* OK, all the CRCs are good; this node can just be copied as-is. */
  retry:
-	nraw->flash_offset = phys_ofs;
+	nraw->flash_offset = phys_ofs = write_ofs(c);
 
 	ret = jffs2_flash_write(c, phys_ofs, rawlen, &retlen, (char *)node);
 
 	if (ret || (retlen != rawlen)) {
 		printk(KERN_NOTICE "Write of %d bytes at 0x%08x failed. returned %d, retlen %zd\n",
-                       rawlen, phys_ofs, ret, retlen);
+                       rawlen, nraw->flash_offset, ret, retlen);
 		if (retlen) {
 			nraw->flash_offset |= REF_OBSOLETE;
 			jffs2_add_physical_node_ref(c, nraw, rawlen, NULL);
@@ -653,7 +653,7 @@ static int jffs2_garbage_collect_pristine(struct jffs2_sb_info *c,
 			jffs2_dbg_acct_sanity_check(c,jeb);
 			jffs2_dbg_acct_paranoia_check(c, jeb);
 
-			ret = jffs2_reserve_space_gc(c, rawlen, &phys_ofs, &dummy, rawlen);
+			ret = jffs2_reserve_space_gc(c, rawlen, &dummy, rawlen);
 						/* this is not the exact summary size of it,
 							it is only an upper estimation */
 
@@ -696,7 +696,7 @@ static int jffs2_garbage_collect_metadata(struct jffs2_sb_info *c, struct jffs2_
 	struct jffs2_node_frag *last_frag;
 	union jffs2_device_node dev;
 	char *mdata = NULL, mdatalen = 0;
-	uint32_t alloclen, phys_ofs, ilen;
+	uint32_t alloclen, ilen;
 	int ret;
 
 	if (S_ISBLK(JFFS2_F_I_MODE(f)) ||
@@ -722,7 +722,7 @@ static int jffs2_garbage_collect_metadata(struct jffs2_sb_info *c, struct jffs2_
 
 	}
 
-	ret = jffs2_reserve_space_gc(c, sizeof(ri) + mdatalen, &phys_ofs, &alloclen,
+	ret = jffs2_reserve_space_gc(c, sizeof(ri) + mdatalen, &alloclen,
 				JFFS2_SUMMARY_INODE_SIZE);
 	if (ret) {
 		printk(KERN_WARNING "jffs2_reserve_space_gc of %zd bytes for garbage_collect_metadata failed: %d\n",
@@ -760,7 +760,7 @@ static int jffs2_garbage_collect_metadata(struct jffs2_sb_info *c, struct jffs2_
 	ri.node_crc = cpu_to_je32(crc32(0, &ri, sizeof(ri)-8));
 	ri.data_crc = cpu_to_je32(crc32(0, mdata, mdatalen));
 
-	new_fn = jffs2_write_dnode(c, f, &ri, mdata, mdatalen, phys_ofs, ALLOC_GC);
+	new_fn = jffs2_write_dnode(c, f, &ri, mdata, mdatalen, ALLOC_GC);
 
 	if (IS_ERR(new_fn)) {
 		printk(KERN_WARNING "Error writing new dnode: %ld\n", PTR_ERR(new_fn));
@@ -781,7 +781,7 @@ static int jffs2_garbage_collect_dirent(struct jffs2_sb_info *c, struct jffs2_er
 {
 	struct jffs2_full_dirent *new_fd;
 	struct jffs2_raw_dirent rd;
-	uint32_t alloclen, phys_ofs;
+	uint32_t alloclen;
 	int ret;
 
 	rd.magic = cpu_to_je16(JFFS2_MAGIC_BITMASK);
@@ -803,14 +803,14 @@ static int jffs2_garbage_collect_dirent(struct jffs2_sb_info *c, struct jffs2_er
 	rd.node_crc = cpu_to_je32(crc32(0, &rd, sizeof(rd)-8));
 	rd.name_crc = cpu_to_je32(crc32(0, fd->name, rd.nsize));
 
-	ret = jffs2_reserve_space_gc(c, sizeof(rd)+rd.nsize, &phys_ofs, &alloclen,
+	ret = jffs2_reserve_space_gc(c, sizeof(rd)+rd.nsize, &alloclen,
 				JFFS2_SUMMARY_DIRENT_SIZE(rd.nsize));
 	if (ret) {
 		printk(KERN_WARNING "jffs2_reserve_space_gc of %zd bytes for garbage_collect_dirent failed: %d\n",
 		       sizeof(rd)+rd.nsize, ret);
 		return ret;
 	}
-	new_fd = jffs2_write_dirent(c, f, &rd, fd->name, rd.nsize, phys_ofs, ALLOC_GC);
+	new_fd = jffs2_write_dirent(c, f, &rd, fd->name, rd.nsize, ALLOC_GC);
 
 	if (IS_ERR(new_fd)) {
 		printk(KERN_WARNING "jffs2_write_dirent in garbage_collect_dirent failed: %ld\n", PTR_ERR(new_fd));
@@ -938,7 +938,7 @@ static int jffs2_garbage_collect_hole(struct jffs2_sb_info *c, struct jffs2_eras
 	struct jffs2_raw_inode ri;
 	struct jffs2_node_frag *frag;
 	struct jffs2_full_dnode *new_fn;
-	uint32_t alloclen, phys_ofs, ilen;
+	uint32_t alloclen, ilen;
 	int ret;
 
 	D1(printk(KERN_DEBUG "Writing replacement hole node for ino #%u from offset 0x%x to 0x%x\n",
@@ -1017,14 +1017,14 @@ static int jffs2_garbage_collect_hole(struct jffs2_sb_info *c, struct jffs2_eras
 	ri.data_crc = cpu_to_je32(0);
 	ri.node_crc = cpu_to_je32(crc32(0, &ri, sizeof(ri)-8));
 
-	ret = jffs2_reserve_space_gc(c, sizeof(ri), &phys_ofs, &alloclen,
-				JFFS2_SUMMARY_INODE_SIZE);
+	ret = jffs2_reserve_space_gc(c, sizeof(ri), &alloclen,
+				     JFFS2_SUMMARY_INODE_SIZE);
 	if (ret) {
 		printk(KERN_WARNING "jffs2_reserve_space_gc of %zd bytes for garbage_collect_hole failed: %d\n",
 		       sizeof(ri), ret);
 		return ret;
 	}
-	new_fn = jffs2_write_dnode(c, f, &ri, NULL, 0, phys_ofs, ALLOC_GC);
+	new_fn = jffs2_write_dnode(c, f, &ri, NULL, 0, ALLOC_GC);
 
 	if (IS_ERR(new_fn)) {
 		printk(KERN_WARNING "Error writing new hole node: %ld\n", PTR_ERR(new_fn));
@@ -1086,7 +1086,7 @@ static int jffs2_garbage_collect_dnode(struct jffs2_sb_info *c, struct jffs2_era
 {
 	struct jffs2_full_dnode *new_fn;
 	struct jffs2_raw_inode ri;
-	uint32_t alloclen, phys_ofs, offset, orig_end, orig_start;
+	uint32_t alloclen, offset, orig_end, orig_start;
 	int ret = 0;
 	unsigned char *comprbuf = NULL, *writebuf;
 	unsigned long pg;
@@ -1243,7 +1243,7 @@ static int jffs2_garbage_collect_dnode(struct jffs2_sb_info *c, struct jffs2_era
 		uint32_t cdatalen;
 		uint16_t comprtype = JFFS2_COMPR_NONE;
 
-		ret = jffs2_reserve_space_gc(c, sizeof(ri) + JFFS2_MIN_DATA_LEN, &phys_ofs,
+		ret = jffs2_reserve_space_gc(c, sizeof(ri) + JFFS2_MIN_DATA_LEN,
 					&alloclen, JFFS2_SUMMARY_INODE_SIZE);
 
 		if (ret) {
@@ -1280,7 +1280,7 @@ static int jffs2_garbage_collect_dnode(struct jffs2_sb_info *c, struct jffs2_era
 		ri.node_crc = cpu_to_je32(crc32(0, &ri, sizeof(ri)-8));
 		ri.data_crc = cpu_to_je32(crc32(0, comprbuf, cdatalen));
 
-		new_fn = jffs2_write_dnode(c, f, &ri, comprbuf, cdatalen, phys_ofs, ALLOC_GC);
+		new_fn = jffs2_write_dnode(c, f, &ri, comprbuf, cdatalen, ALLOC_GC);
 
 		jffs2_free_comprbuf(comprbuf, writebuf);
 

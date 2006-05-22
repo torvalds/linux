@@ -49,9 +49,9 @@
  *   is used to be as a wrapper of do_verify_xattr_datum() and do_load_xattr_datum().
  *   If xd need to call do_verify_xattr_datum() at first, it's called before calling
  *   do_load_xattr_datum(). The meanings of return value is same as do_verify_xattr_datum().
- * save_xattr_datum(c, xd, phys_ofs)
+ * save_xattr_datum(c, xd)
  *   is used to write xdatum to medium. xd->version will be incremented.
- * create_xattr_datum(c, xprefix, xname, xvalue, xsize, phys_ofs)
+ * create_xattr_datum(c, xprefix, xname, xvalue, xsize)
  *   is used to create new xdatum and write to medium.
  * -------------------------------------------------- */
 
@@ -301,7 +301,7 @@ static int load_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datum *x
 	return rc;
 }
 
-static int save_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datum *xd, uint32_t phys_ofs)
+static int save_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datum *xd)
 {
 	/* must be called under down_write(xattr_sem) */
 	struct jffs2_raw_xattr rx;
@@ -309,6 +309,7 @@ static int save_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datum *x
 	struct kvec vecs[2];
 	uint32_t length;
 	int rc, totlen;
+	uint32_t phys_ofs = write_ofs(c);
 
 	BUG_ON(!xd->xname);
 
@@ -369,8 +370,7 @@ static int save_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datum *x
 
 static struct jffs2_xattr_datum *create_xattr_datum(struct jffs2_sb_info *c,
 						    int xprefix, const char *xname,
-						    const char *xvalue, int xsize,
-						    uint32_t phys_ofs)
+						    const char *xvalue, int xsize)
 {
 	/* must be called under down_write(xattr_sem) */
 	struct jffs2_xattr_datum *xd;
@@ -419,7 +419,7 @@ static struct jffs2_xattr_datum *create_xattr_datum(struct jffs2_sb_info *c,
 	xd->value_len = xsize;
 	xd->data_crc = crc32(0, data, xd->name_len + 1 + xd->value_len);
 
-	rc = save_xattr_datum(c, xd, phys_ofs);
+	rc = save_xattr_datum(c, xd);
 	if (rc) {
 		kfree(xd->xname);
 		jffs2_free_xattr_datum(xd);
@@ -446,9 +446,9 @@ static struct jffs2_xattr_datum *create_xattr_datum(struct jffs2_sb_info *c,
  * delete_xattr_ref(c, ref)
  *   is used to delete jffs2_xattr_ref object. If the reference counter of xdatum
  *   is refered by this xref become 0, delete_xattr_datum() is called later.
- * save_xattr_ref(c, ref, phys_ofs)
+ * save_xattr_ref(c, ref)
  *   is used to write xref to medium.
- * create_xattr_ref(c, ic, xd, phys_ofs)
+ * create_xattr_ref(c, ic, xd)
  *   is used to create a new xref and write to medium.
  * jffs2_xattr_delete_inode(c, ic)
  *   is called to remove xrefs related to obsolete inode when inode is unlinked.
@@ -554,12 +554,13 @@ static void delete_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_ref *re
 	jffs2_free_xattr_ref(ref);
 }
 
-static int save_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_ref *ref, uint32_t phys_ofs)
+static int save_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_ref *ref)
 {
 	/* must be called under down_write(xattr_sem) */
 	struct jffs2_raw_node_ref *raw;
 	struct jffs2_raw_xref rr;
 	uint32_t length;
+	uint32_t phys_ofs = write_ofs(c);
 	int ret;
 
 	raw = jffs2_alloc_raw_node_ref();
@@ -604,7 +605,7 @@ static int save_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_ref *ref, 
 }
 
 static struct jffs2_xattr_ref *create_xattr_ref(struct jffs2_sb_info *c, struct jffs2_inode_cache *ic,
-						struct jffs2_xattr_datum *xd, uint32_t phys_ofs)
+						struct jffs2_xattr_datum *xd)
 {
 	/* must be called under down_write(xattr_sem) */
 	struct jffs2_xattr_ref *ref;
@@ -616,7 +617,7 @@ static struct jffs2_xattr_ref *create_xattr_ref(struct jffs2_sb_info *c, struct 
 	ref->ic = ic;
 	ref->xd = xd;
 
-	ret = save_xattr_ref(c, ref, phys_ofs);
+	ret = save_xattr_ref(c, ref);
 	if (ret) {
 		jffs2_free_xattr_ref(ref);
 		return ERR_PTR(ret);
@@ -1062,7 +1063,7 @@ int do_jffs2_setxattr(struct inode *inode, int xprefix, const char *xname,
 	struct jffs2_inode_cache *ic = f->inocache;
 	struct jffs2_xattr_datum *xd;
 	struct jffs2_xattr_ref *ref, *newref, **pref;
-	uint32_t phys_ofs, length, request;
+	uint32_t length, request;
 	int rc;
 
 	rc = check_xattr_ref_inode(c, ic);
@@ -1070,7 +1071,7 @@ int do_jffs2_setxattr(struct inode *inode, int xprefix, const char *xname,
 		return rc;
 
 	request = PAD(sizeof(struct jffs2_raw_xattr) + strlen(xname) + 1 + size);
-	rc = jffs2_reserve_space(c, request, &phys_ofs, &length,
+	rc = jffs2_reserve_space(c, request, &length,
 				 ALLOC_NORMAL, JFFS2_SUMMARY_XATTR_SIZE);
 	if (rc) {
 		JFFS2_WARNING("jffs2_reserve_space()=%d, request=%u\n", rc, request);
@@ -1117,7 +1118,7 @@ int do_jffs2_setxattr(struct inode *inode, int xprefix, const char *xname,
 		goto out;
 	}
  found:
-	xd = create_xattr_datum(c, xprefix, xname, buffer, size, phys_ofs);
+	xd = create_xattr_datum(c, xprefix, xname, buffer, size);
 	if (IS_ERR(xd)) {
 		rc = PTR_ERR(xd);
 		goto out;
@@ -1127,7 +1128,7 @@ int do_jffs2_setxattr(struct inode *inode, int xprefix, const char *xname,
 
 	/* create xattr_ref */
 	request = PAD(sizeof(struct jffs2_raw_xref));
-	rc = jffs2_reserve_space(c, request, &phys_ofs, &length,
+	rc = jffs2_reserve_space(c, request, &length,
 				 ALLOC_NORMAL, JFFS2_SUMMARY_XREF_SIZE);
 	if (rc) {
 		JFFS2_WARNING("jffs2_reserve_space()=%d, request=%u\n", rc, request);
@@ -1141,7 +1142,7 @@ int do_jffs2_setxattr(struct inode *inode, int xprefix, const char *xname,
 	down_write(&c->xattr_sem);
 	if (ref)
 		*pref = ref->next;
-	newref = create_xattr_ref(c, ic, xd, phys_ofs);
+	newref = create_xattr_ref(c, ic, xd);
 	if (IS_ERR(newref)) {
 		if (ref) {
 			ref->next = ic->xref;
@@ -1170,7 +1171,7 @@ int do_jffs2_setxattr(struct inode *inode, int xprefix, const char *xname,
  * -------------------------------------------------- */
 int jffs2_garbage_collect_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datum *xd)
 {
-	uint32_t phys_ofs, totlen, length, old_ofs;
+	uint32_t totlen, length, old_ofs;
 	int rc = -EINVAL;
 
 	down_write(&c->xattr_sem);
@@ -1190,13 +1191,13 @@ int jffs2_garbage_collect_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xatt
 		} else if (unlikely(rc < 0))
 			goto out;
 	}
-	rc = jffs2_reserve_space_gc(c, totlen, &phys_ofs, &length, JFFS2_SUMMARY_XATTR_SIZE);
+	rc = jffs2_reserve_space_gc(c, totlen, &length, JFFS2_SUMMARY_XATTR_SIZE);
 	if (rc || length < totlen) {
 		JFFS2_WARNING("jffs2_reserve_space()=%d, request=%u\n", rc, totlen);
 		rc = rc ? rc : -EBADFD;
 		goto out;
 	}
-	rc = save_xattr_datum(c, xd, phys_ofs);
+	rc = save_xattr_datum(c, xd);
 	if (!rc)
 		dbg_xattr("xdatum (xid=%u, version=%u) GC'ed from %#08x to %08x\n",
 			  xd->xid, xd->version, old_ofs, ref_offset(xd->node));
@@ -1208,7 +1209,7 @@ int jffs2_garbage_collect_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xatt
 
 int jffs2_garbage_collect_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_ref *ref)
 {
-	uint32_t phys_ofs, totlen, length, old_ofs;
+	uint32_t totlen, length, old_ofs;
 	int rc = -EINVAL;
 
 	down_write(&c->xattr_sem);
@@ -1219,14 +1220,14 @@ int jffs2_garbage_collect_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_
 	if (totlen != sizeof(struct jffs2_raw_xref))
 		goto out;
 
-	rc = jffs2_reserve_space_gc(c, totlen, &phys_ofs, &length, JFFS2_SUMMARY_XREF_SIZE);
+	rc = jffs2_reserve_space_gc(c, totlen, &length, JFFS2_SUMMARY_XREF_SIZE);
 	if (rc || length < totlen) {
 		JFFS2_WARNING("%s: jffs2_reserve_space() = %d, request = %u\n",
 			      __FUNCTION__, rc, totlen);
 		rc = rc ? rc : -EBADFD;
 		goto out;
 	}
-	rc = save_xattr_ref(c, ref, phys_ofs);
+	rc = save_xattr_ref(c, ref);
 	if (!rc)
 		dbg_xattr("xref (ino=%u, xid=%u) GC'ed from %#08x to %08x\n",
 			  ref->ic->ino, ref->xd->xid, old_ofs, ref_offset(ref->node));

@@ -37,7 +37,7 @@ static int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 	unsigned char *mdata = NULL;
 	int mdatalen = 0;
 	unsigned int ivalid;
-	uint32_t phys_ofs, alloclen;
+	uint32_t alloclen;
 	int ret;
 	D1(printk(KERN_DEBUG "jffs2_setattr(): ino #%lu\n", inode->i_ino));
 	ret = inode_change_ok(inode, iattr);
@@ -79,8 +79,8 @@ static int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 		return -ENOMEM;
 	}
 
-	ret = jffs2_reserve_space(c, sizeof(*ri) + mdatalen, &phys_ofs, &alloclen,
-				ALLOC_NORMAL, JFFS2_SUMMARY_INODE_SIZE);
+	ret = jffs2_reserve_space(c, sizeof(*ri) + mdatalen, &alloclen,
+				  ALLOC_NORMAL, JFFS2_SUMMARY_INODE_SIZE);
 	if (ret) {
 		jffs2_free_raw_inode(ri);
 		if (S_ISLNK(inode->i_mode & S_IFMT))
@@ -131,7 +131,7 @@ static int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 	else
 		ri->data_crc = cpu_to_je32(0);
 
-	new_metadata = jffs2_write_dnode(c, f, ri, mdata, mdatalen, phys_ofs, ALLOC_NORMAL);
+	new_metadata = jffs2_write_dnode(c, f, ri, mdata, mdatalen, ALLOC_NORMAL);
 	if (S_ISLNK(inode->i_mode))
 		kfree(mdata);
 
