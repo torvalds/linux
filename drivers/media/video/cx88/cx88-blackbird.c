@@ -30,9 +30,10 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/firmware.h>
+#include <media/v4l2-common.h>
+#include <media/cx2341x.h>
 
 #include "cx88.h"
-#include <media/v4l2-common.h>
 
 MODULE_DESCRIPTION("driver for cx2388x/cx23416 based mpeg encoder cards");
 MODULE_AUTHOR("Jelle Foks <jelle@foks.8m.com>, Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
@@ -63,8 +64,6 @@ static LIST_HEAD(cx8802_devlist);
 /* Firmware API commands */
 #define IVTV_API_STD_TIMEOUT 500
 
-#define BLACKBIRD_API_PING               0x80
-#define BLACKBIRD_API_BEGIN_CAPTURE      0x81
 enum blackbird_capture_type {
 	BLACKBIRD_MPEG_CAPTURE,
 	BLACKBIRD_RAW_CAPTURE,
@@ -78,21 +77,14 @@ enum blackbird_capture_bits {
 	BLACKBIRD_RAW_BITS_PASSTHRU_CAPTURE = 0x08,
 	BLACKBIRD_RAW_BITS_TO_HOST_CAPTURE  = 0x10
 };
-#define BLACKBIRD_API_END_CAPTURE        0x82
 enum blackbird_capture_end {
 	BLACKBIRD_END_AT_GOP, /* stop at the end of gop, generate irq */
 	BLACKBIRD_END_NOW, /* stop immediately, no irq */
 };
-#define BLACKBIRD_API_SET_AUDIO_ID       0x89
-#define BLACKBIRD_API_SET_VIDEO_ID       0x8B
-#define BLACKBIRD_API_SET_PCR_ID         0x8D
-#define BLACKBIRD_API_SET_FRAMERATE      0x8F
 enum blackbird_framerate {
 	BLACKBIRD_FRAMERATE_NTSC_30, /* NTSC: 30fps */
 	BLACKBIRD_FRAMERATE_PAL_25   /* PAL: 25fps */
 };
-#define BLACKBIRD_API_SET_RESOLUTION     0x91
-#define BLACKBIRD_API_SET_VIDEO_BITRATE  0x95
 enum blackbird_video_bitrate_type {
 	BLACKBIRD_VIDEO_VBR,
 	BLACKBIRD_VIDEO_CBR
@@ -103,8 +95,6 @@ enum blackbird_mux_rate {
 	 /* dvd mux rate: multiply by 400 to get the actual rate */
 	BLACKBIRD_MUX_RATE_DVD = 25200
 };
-#define BLACKBIRD_API_SET_GOP_STRUCTURE  0x97
-#define BLACKBIRD_API_SET_ASPECT_RATIO   0x99
 enum blackbird_aspect_ratio {
 	BLACKBIRD_ASPECT_RATIO_FORBIDDEN,
 	BLACKBIRD_ASPECT_RATIO_1_1_SQUARE,
@@ -113,7 +103,6 @@ enum blackbird_aspect_ratio {
 	BLACKBIRD_ASPECT_RATIO_221_100,
 	BLACKBIRD_ASPECT_RATIO_RESERVED
 };
-#define BLACKBIRD_API_SET_DNR_MODE       0x9B
 enum blackbird_dnr_bits {
 	BLACKBIRD_DNR_BITS_MANUAL,
 	BLACKBIRD_DNR_BITS_AUTO_SPATIAL,
@@ -127,9 +116,6 @@ enum blackbird_median_filter {
 	BLACKBIRD_MEDIAN_FILTER_HV,
 	BLACKBIRD_MEDIAN_FILTER_DIAGONAL
 };
-#define BLACKBIRD_API_SET_MANUAL_DNR     0x9D
-#define BLACKBIRD_API_SET_DNR_MEDIAN     0x9F
-#define BLACKBIRD_API_SET_SPATIAL_FILTER 0xA1
 enum blackbird_spatial_filter_luma {
 	BLACKBIRD_SPATIAL_FILTER_LUMA_DISABLED,
 	BLACKBIRD_SPATIAL_FILTER_LUMA_1D_HORIZ,
@@ -141,12 +127,10 @@ enum blackbird_spatial_filter_chroma {
 	BLACKBIRD_SPATIAL_FILTER_CHROMA_DISABLED,
 	BLACKBIRD_SPATIAL_FILTER_CHROMA_1D_HORIZ /* default */
 };
-#define BLACKBIRD_API_SET_3_2_PULLDOWN   0xB1
 enum blackbird_pulldown {
 	BLACKBIRD_3_2_PULLDOWN_DISABLED,
 	BLACKBIRD_3_2_PULLDOWN_ENABLED
 };
-#define BLACKBIRD_API_SET_VBI_LINE_NO    0xB7
 enum blackbird_vbi_line_bits {
 	BLACKBIRD_VBI_LINE_BITS_TOP_FIELD,
 	BLACKBIRD_VBI_LINE_BITS_BOT_FIELD = (1 << 31),
@@ -160,7 +144,6 @@ enum blackbird_vbi_slicing {
 	BLACKBIRD_VBI_SLICING_NONE,
 	BLACKBIRD_VBI_SLICING_CLOSED_CAPTION
 };
-#define BLACKBIRD_API_SET_STREAM_TYPE    0xB9
 enum blackbird_stream_type {
 	BLACKBIRD_STREAM_PROGRAM,
 	BLACKBIRD_STREAM_TRANSPORT,
@@ -176,13 +159,11 @@ enum blackbird_stream_type {
 	BLACKBIRD_STREAM_VCD,
 	BLACKBIRD_STREAM_UNKNOWN12 /* svcd/xvcd ? */
 };
-#define BLACKBIRD_API_SET_OUTPUT_PORT    0xBB
 enum blackbird_stream_port {
 	BLACKBIRD_OUTPUT_PORT_MEMORY,
 	BLACKBIRD_OUTPUT_PORT_STREAMING,
 	BLACKBIRD_OUTPUT_PORT_SERIAL
 };
-#define BLACKBIRD_API_SET_AUDIO_PARAMS   0xBD
 enum blackbird_audio_bits_sample_rate {
 	BLACKBIRD_AUDIO_BITS_44100HZ,
 	BLACKBIRD_AUDIO_BITS_48000HZ,
@@ -257,26 +238,20 @@ enum blackbird_audio_bits_original {
 	BLACKBIRD_AUDIO_BITS_COPY,
 	BLACKBIRD_AUDIO_BITS_ORIGINAL = 0x1 << 16,
 };
-#define BLACKBIRD_API_HALT               0xC3
-#define BLACKBIRD_API_GET_VERSION        0xC4
-#define BLACKBIRD_API_SET_GOP_CLOSURE    0xC5
 enum blackbird_gop_closure {
 	BLACKBIRD_GOP_CLOSURE_OFF,
 	BLACKBIRD_GOP_CLOSURE_ON,
 };
-#define BLACKBIRD_API_DATA_XFER_STATUS   0xC6
 enum blackbird_data_xfer_status {
 	BLACKBIRD_MORE_BUFFERS_FOLLOW,
 	BLACKBIRD_LAST_BUFFER,
 };
-#define BLACKBIRD_API_PROGRAM_INDEX_INFO 0xC7
 enum blackbird_picture_mask {
 	BLACKBIRD_PICTURE_MASK_NONE,
 	BLACKBIRD_PICTURE_MASK_I_FRAMES,
 	BLACKBIRD_PICTURE_MASK_I_P_FRAMES = 0x3,
 	BLACKBIRD_PICTURE_MASK_ALL_FRAMES = 0x7,
 };
-#define BLACKBIRD_API_SET_VBI_PARAMS     0xC8
 enum blackbird_vbi_mode_bits {
 	BLACKBIRD_VBI_BITS_SLICED,
 	BLACKBIRD_VBI_BITS_RAW,
@@ -288,33 +263,23 @@ enum blackbird_vbi_insertion_bits {
 	BLACKBIRD_VBI_BITS_SEPARATE_STREAM_USR_DATA = 0x4 << 1,
 	BLACKBIRD_VBI_BITS_SEPARATE_STREAM_PRV_DATA = 0x5 << 1,
 };
-#define BLACKBIRD_API_SET_DMA_BLOCK_SIZE 0xC9
 enum blackbird_dma_unit {
 	BLACKBIRD_DMA_BYTES,
 	BLACKBIRD_DMA_FRAMES,
 };
-#define BLACKBIRD_API_DMA_TRANSFER_INFO  0xCA
-#define BLACKBIRD_API_DMA_TRANSFER_STAT  0xCB
 enum blackbird_dma_transfer_status_bits {
 	BLACKBIRD_DMA_TRANSFER_BITS_DONE = 0x01,
 	BLACKBIRD_DMA_TRANSFER_BITS_ERROR = 0x04,
 	BLACKBIRD_DMA_TRANSFER_BITS_LL_ERROR = 0x10,
 };
-#define BLACKBIRD_API_SET_DMA2HOST_ADDR  0xCC
-#define BLACKBIRD_API_INIT_VIDEO_INPUT   0xCD
-#define BLACKBIRD_API_SET_FRAMESKIP      0xD0
-#define BLACKBIRD_API_PAUSE              0xD2
 enum blackbird_pause {
 	BLACKBIRD_PAUSE_ENCODING,
 	BLACKBIRD_RESUME_ENCODING,
 };
-#define BLACKBIRD_API_REFRESH_INPUT      0xD3
-#define BLACKBIRD_API_SET_COPYRIGHT      0xD4
 enum blackbird_copyright {
 	BLACKBIRD_COPYRIGHT_OFF,
 	BLACKBIRD_COPYRIGHT_ON,
 };
-#define BLACKBIRD_API_SET_NOTIFICATION   0xD5
 enum blackbird_notification_type {
 	BLACKBIRD_NOTIFICATION_REFRESH,
 };
@@ -325,7 +290,6 @@ enum blackbird_notification_status {
 enum blackbird_notification_mailbox {
 	BLACKBIRD_NOTIFICATION_NO_MAILBOX = -1,
 };
-#define BLACKBIRD_API_SET_CAPTURE_LINES  0xD6
 enum blackbird_field1_lines {
 	BLACKBIRD_FIELD1_SAA7114 = 0x00EF, /* 239 */
 	BLACKBIRD_FIELD1_SAA7115 = 0x00F0, /* 240 */
@@ -336,12 +300,10 @@ enum blackbird_field2_lines {
 	BLACKBIRD_FIELD2_SAA7115 = 0x00F0, /* 240 */
 	BLACKBIRD_FIELD2_MICRONAS = 0x0106, /* 262 */
 };
-#define BLACKBIRD_API_SET_CUSTOM_DATA    0xD7
 enum blackbird_custom_data_type {
 	BLACKBIRD_CUSTOM_EXTENSION_USR_DATA,
 	BLACKBIRD_CUSTOM_PRIVATE_PACKET,
 };
-#define BLACKBIRD_API_MUTE_VIDEO         0xD9
 enum blackbird_mute {
 	BLACKBIRD_UNMUTE,
 	BLACKBIRD_MUTE,
@@ -356,7 +318,6 @@ enum blackbird_mute_video_shift {
 	BLACKBIRD_MUTE_VIDEO_U_SHIFT = 16,
 	BLACKBIRD_MUTE_VIDEO_Y_SHIFT = 24,
 };
-#define BLACKBIRD_API_MUTE_AUDIO         0xDA
 
 /* Registers */
 #define IVTV_REG_ENC_SDRAM_REFRESH (0x07F8 /*| IVTV_REG_OFFSET*/)
@@ -792,33 +753,33 @@ static void blackbird_set_default_params(struct cx8802_dev *dev)
 		params->vi_type = V4L2_MPEG_VI_1;
 	else
 		params->vi_type = V4L2_MPEG_VI_2;
-	blackbird_api_cmd(dev, BLACKBIRD_API_SET_STREAM_TYPE, 1, 0, mpeg_stream_types[params->st_type]);
+	blackbird_api_cmd(dev, CX2341X_ENC_SET_STREAM_TYPE, 1, 0, mpeg_stream_types[params->st_type]);
 
 	/* assign framerate */
 	if( params->vi_frame_rate <= 25 )
 	{
 		params->vi_frame_rate = 25;
-		blackbird_api_cmd(dev, BLACKBIRD_API_SET_FRAMERATE, 1, 0, BLACKBIRD_FRAMERATE_PAL_25);
+		blackbird_api_cmd(dev, CX2341X_ENC_SET_FRAME_RATE, 1, 0, BLACKBIRD_FRAMERATE_PAL_25);
 	}
 	else
 	{
 		params->vi_frame_rate = 30;
-		blackbird_api_cmd(dev, BLACKBIRD_API_SET_FRAMERATE, 1, 0, BLACKBIRD_FRAMERATE_NTSC_30);
+		blackbird_api_cmd(dev, CX2341X_ENC_SET_FRAME_RATE, 1, 0, BLACKBIRD_FRAMERATE_NTSC_30);
 	}
 
 	/* assign aspect ratio */
 	if( params->vi_aspect_ratio >= ARRAY_SIZE(mpeg_stream_ratios) )
 		params->vi_aspect_ratio = V4L2_MPEG_ASPECT_4_3;
-	blackbird_api_cmd(dev, BLACKBIRD_API_SET_ASPECT_RATIO, 1, 0, mpeg_stream_ratios[params->vi_aspect_ratio]);
+	blackbird_api_cmd(dev, CX2341X_ENC_SET_ASPECT_RATIO, 1, 0, mpeg_stream_ratios[params->vi_aspect_ratio]);
 
 	/* assign gop properties */
-	blackbird_api_cmd(dev, BLACKBIRD_API_SET_GOP_STRUCTURE, 2, 0, params->vi_frames_per_gop, params->vi_bframes_count+1);
+	blackbird_api_cmd(dev, CX2341X_ENC_SET_GOP_PROPERTIES, 2, 0, params->vi_frames_per_gop, params->vi_bframes_count+1);
 
 	/* assign gop closure */
-	blackbird_api_cmd(dev, BLACKBIRD_API_SET_GOP_CLOSURE, 1, 0, params->closed_gops);
+	blackbird_api_cmd(dev, CX2341X_ENC_SET_GOP_CLOSURE, 1, 0, params->closed_gops);
 
 	/* assign 3 2 pulldown */
-	blackbird_api_cmd(dev, BLACKBIRD_API_SET_3_2_PULLDOWN, 1, 0, params->pulldown);
+	blackbird_api_cmd(dev, CX2341X_ENC_SET_3_2_PULLDOWN, 1, 0, params->pulldown);
 
 	/* make sure the params are within bounds */
 	if( params->st_bitrate.mode >= ARRAY_SIZE(mpeg_video_bitrates) )
@@ -908,7 +869,7 @@ static void blackbird_set_default_params(struct cx8802_dev *dev)
 		params->au_bitrate.target = params->au_bitrate.max = 0;
 		au_params |= 0;
 	}
-	blackbird_api_cmd(dev, BLACKBIRD_API_SET_AUDIO_PARAMS, 1, 0, au_params );
+	blackbird_api_cmd(dev, CX2341X_ENC_SET_AUDIO_PROPERTIES, 1, 0, au_params );
 
 	/* assign bitrates */
 	if( params->vi_bitrate.mode )
@@ -935,7 +896,7 @@ static void blackbird_set_default_params(struct cx8802_dev *dev)
 		params->vi_bitrate.max = params->st_bitrate.max - params->au_bitrate.max;
 		params->vi_bitrate.target = params->st_bitrate.target - params->au_bitrate.target;
 	}
-	blackbird_api_cmd(dev, BLACKBIRD_API_SET_VIDEO_BITRATE, 4, 0,
+	blackbird_api_cmd(dev, CX2341X_ENC_SET_BIT_RATE, 4, 0,
 				mpeg_video_bitrates[params->vi_bitrate.mode],
 				params->vi_bitrate.target * 1000, /* kbps -> bps */
 				params->vi_bitrate.max * 1000 / BLACKBIRD_PEAK_RATE_DIVISOR, /* peak/400 */
@@ -964,7 +925,7 @@ void blackbird_set_params(struct cx8802_dev *dev, struct v4l2_mpeg_compression *
 	{
 		UPDATE_PARAM( st_type );
 		UPDATE_PARAM( vi_type );
-		blackbird_api_cmd(dev, BLACKBIRD_API_SET_STREAM_TYPE, 1, 0, mpeg_stream_types[params->st_type]);
+		blackbird_api_cmd(dev, CX2341X_ENC_SET_STREAM_TYPE, 1, 0, mpeg_stream_types[params->st_type]);
 	}
 
 	/* assign framerate */
@@ -976,9 +937,9 @@ void blackbird_set_params(struct cx8802_dev *dev, struct v4l2_mpeg_compression *
 	{
 		UPDATE_PARAM( vi_frame_rate );
 		if( params->vi_frame_rate == 25 )
-			blackbird_api_cmd(dev, BLACKBIRD_API_SET_FRAMERATE, 1, 0, BLACKBIRD_FRAMERATE_PAL_25);
+			blackbird_api_cmd(dev, CX2341X_ENC_SET_FRAME_RATE, 1, 0, BLACKBIRD_FRAMERATE_PAL_25);
 		else
-			blackbird_api_cmd(dev, BLACKBIRD_API_SET_FRAMERATE, 1, 0, BLACKBIRD_FRAMERATE_NTSC_30);
+			blackbird_api_cmd(dev, CX2341X_ENC_SET_FRAME_RATE, 1, 0, BLACKBIRD_FRAMERATE_NTSC_30);
 	}
 
 	/* assign aspect ratio */
@@ -987,7 +948,7 @@ void blackbird_set_params(struct cx8802_dev *dev, struct v4l2_mpeg_compression *
 	IF_PARAM( vi_aspect_ratio )
 	{
 		UPDATE_PARAM( vi_aspect_ratio );
-		blackbird_api_cmd(dev, BLACKBIRD_API_SET_ASPECT_RATIO, 1, 0, mpeg_stream_ratios[params->vi_aspect_ratio]);
+		blackbird_api_cmd(dev, CX2341X_ENC_SET_ASPECT_RATIO, 1, 0, mpeg_stream_ratios[params->vi_aspect_ratio]);
 	}
 
 	/* assign gop properties */
@@ -995,21 +956,21 @@ void blackbird_set_params(struct cx8802_dev *dev, struct v4l2_mpeg_compression *
 	{
 		UPDATE_PARAM( vi_frames_per_gop );
 		UPDATE_PARAM( vi_bframes_count );
-		blackbird_api_cmd(dev, BLACKBIRD_API_SET_GOP_STRUCTURE, 2, 0, params->vi_frames_per_gop, params->vi_bframes_count+1);
+		blackbird_api_cmd(dev, CX2341X_ENC_SET_GOP_PROPERTIES, 2, 0, params->vi_frames_per_gop, params->vi_bframes_count+1);
 	}
 
 	/* assign gop closure */
 	IF_PARAM( closed_gops )
 	{
 		UPDATE_PARAM( closed_gops );
-		blackbird_api_cmd(dev, BLACKBIRD_API_SET_GOP_CLOSURE, 1, 0, params->closed_gops);
+		blackbird_api_cmd(dev, CX2341X_ENC_SET_GOP_CLOSURE, 1, 0, params->closed_gops);
 	}
 
 	/* assign 3 2 pulldown */
 	IF_PARAM( pulldown )
 	{
 		UPDATE_PARAM( pulldown );
-		blackbird_api_cmd(dev, BLACKBIRD_API_SET_3_2_PULLDOWN, 1, 0, params->pulldown);
+		blackbird_api_cmd(dev, CX2341X_ENC_SET_3_2_PULLDOWN, 1, 0, params->pulldown);
 	}
 
 	/* make sure the params are within bounds */
@@ -1108,7 +1069,7 @@ void blackbird_set_params(struct cx8802_dev *dev, struct v4l2_mpeg_compression *
 		UPDATE_PARAM( au_type );
 		UPDATE_PARAM( au_sample_rate );
 		UPDATE_PARAM( au_bitrate );
-		blackbird_api_cmd(dev, BLACKBIRD_API_SET_AUDIO_PARAMS, 1, 0, au_params );
+		blackbird_api_cmd(dev, CX2341X_ENC_SET_AUDIO_PROPERTIES, 1, 0, au_params );
 	}
 
 	/* assign bitrates */
@@ -1142,7 +1103,7 @@ void blackbird_set_params(struct cx8802_dev *dev, struct v4l2_mpeg_compression *
 	)
 	{
 		UPDATE_PARAM( vi_bitrate );
-		blackbird_api_cmd(dev, BLACKBIRD_API_SET_VIDEO_BITRATE, 4, 0,
+		blackbird_api_cmd(dev, CX2341X_ENC_SET_BIT_RATE, 4, 0,
 				mpeg_video_bitrates[params->vi_bitrate.mode],
 				params->vi_bitrate.target * 1000, /* kbps -> bps */
 				params->vi_bitrate.max * 1000 / BLACKBIRD_PEAK_RATE_DIVISOR, /* peak/400 */
@@ -1169,7 +1130,7 @@ static void blackbird_set_default_dnr_params(struct cx8802_dev *dev)
 		dev->dnr_params.mode = BLACKBIRD_DNR_BITS_MANUAL;
 	if( dev->dnr_params.type > BLACKBIRD_MEDIAN_FILTER_DIAGONAL )
 		dev->dnr_params.type = BLACKBIRD_MEDIAN_FILTER_DISABLED;
-	blackbird_api_cmd(dev, BLACKBIRD_API_SET_DNR_MODE, 2, 0,
+	blackbird_api_cmd(dev, CX2341X_ENC_SET_DNR_FILTER_MODE, 2, 0,
 				dev->dnr_params.mode,
 				dev->dnr_params.type
 			);
@@ -1179,7 +1140,7 @@ static void blackbird_set_default_dnr_params(struct cx8802_dev *dev)
 		dev->dnr_params.spatial = 15;
 	if( dev->dnr_params.temporal > 31 )
 		dev->dnr_params.temporal = 31;
-	blackbird_api_cmd(dev, BLACKBIRD_API_SET_MANUAL_DNR, 2, 0,
+	blackbird_api_cmd(dev, CX2341X_ENC_SET_DNR_FILTER_PROPS, 2, 0,
 				dev->dnr_params.spatial,
 				dev->dnr_params.temporal
 			);
@@ -1199,7 +1160,7 @@ void blackbird_set_dnr_params(struct cx8802_dev *dev, struct blackbird_dnr* dnr_
 	{
 		UPDATE_DNR_PARAM( mode );
 		UPDATE_DNR_PARAM( type );
-		blackbird_api_cmd(dev, BLACKBIRD_API_SET_DNR_MODE, 2, 0, dnr_params->mode, dnr_params->type);
+		blackbird_api_cmd(dev, CX2341X_ENC_SET_DNR_FILTER_MODE, 2, 0, dnr_params->mode, dnr_params->type);
 	}
 
 	/* assign dnr filter props*/
@@ -1211,7 +1172,7 @@ void blackbird_set_dnr_params(struct cx8802_dev *dev, struct blackbird_dnr* dnr_
 	{
 		UPDATE_DNR_PARAM( spatial );
 		UPDATE_DNR_PARAM( temporal );
-		blackbird_api_cmd(dev, BLACKBIRD_API_SET_MANUAL_DNR, 2, 0, dnr_params->spatial, dnr_params->temporal);
+		blackbird_api_cmd(dev, CX2341X_ENC_SET_DNR_FILTER_PROPS, 2, 0, dnr_params->spatial, dnr_params->temporal);
 	}
 }
 
@@ -1219,17 +1180,17 @@ static void blackbird_codec_settings(struct cx8802_dev *dev)
 {
 
 	/* assign output port */
-	blackbird_api_cmd(dev, BLACKBIRD_API_SET_OUTPUT_PORT, 1, 0, BLACKBIRD_OUTPUT_PORT_STREAMING); /* Host */
+	blackbird_api_cmd(dev, CX2341X_ENC_SET_OUTPUT_PORT, 1, 0, BLACKBIRD_OUTPUT_PORT_STREAMING); /* Host */
 
 	/* assign frame size */
-	blackbird_api_cmd(dev, BLACKBIRD_API_SET_RESOLUTION, 2, 0,
+	blackbird_api_cmd(dev, CX2341X_ENC_SET_FRAME_SIZE, 2, 0,
 				dev->height, dev->width);
 
 	/* assign coring levels (luma_h, luma_l, chroma_h, chroma_l) */
-	blackbird_api_cmd(dev, BLACKBIRD_API_SET_DNR_MEDIAN, 4, 0, 0, 255, 0, 255);
+	blackbird_api_cmd(dev, CX2341X_ENC_SET_CORING_LEVELS, 4, 0, 0, 255, 0, 255);
 
 	/* assign spatial filter type: luma_t: horiz_only, chroma_t: horiz_only */
-	blackbird_api_cmd(dev, BLACKBIRD_API_SET_SPATIAL_FILTER, 2, 0,
+	blackbird_api_cmd(dev, CX2341X_ENC_SET_SPATIAL_FILTER_TYPE, 2, 0,
 				BLACKBIRD_SPATIAL_FILTER_LUMA_1D_HORIZ,
 				BLACKBIRD_SPATIAL_FILTER_CHROMA_1D_HORIZ
 			);
@@ -1248,7 +1209,7 @@ static int blackbird_initialize_codec(struct cx8802_dev *dev)
 	int retval;
 
 	dprintk(1,"Initialize codec\n");
-	retval = blackbird_api_cmd(dev, BLACKBIRD_API_PING, 0, 0); /* ping */
+	retval = blackbird_api_cmd(dev, CX2341X_ENC_PING_FW, 0, 0); /* ping */
 	if (retval < 0) {
 		/* ping was not successful, reset and upload firmware */
 		cx_write(MO_SRST_IO, 0); /* SYS_RSTO=0 */
@@ -1263,13 +1224,13 @@ static int blackbird_initialize_codec(struct cx8802_dev *dev)
 		if (dev->mailbox < 0)
 			return -1;
 
-		retval = blackbird_api_cmd(dev, BLACKBIRD_API_PING, 0, 0); /* ping */
+		retval = blackbird_api_cmd(dev, CX2341X_ENC_PING_FW, 0, 0); /* ping */
 		if (retval < 0) {
 			dprintk(0, "ERROR: Firmware ping failed!\n");
 			return -1;
 		}
 
-		retval = blackbird_api_cmd(dev, BLACKBIRD_API_GET_VERSION, 0, 1, &version);
+		retval = blackbird_api_cmd(dev, CX2341X_ENC_GET_VERSION, 0, 1, &version);
 		if (retval < 0) {
 			dprintk(0, "ERROR: Firmware get encoder version failed!\n");
 			return -1;
@@ -1289,35 +1250,35 @@ static int blackbird_initialize_codec(struct cx8802_dev *dev)
 	/* blackbird_api_cmd(dev, IVTV_API_ASSIGN_NUM_VSYNC_LINES, 4, 0, 0xef, 0xef);
 	   blackbird_api_cmd(dev, IVTV_API_ASSIGN_NUM_VSYNC_LINES, 4, 0, 0xf0, 0xf0);
 	   blackbird_api_cmd(dev, IVTV_API_ASSIGN_NUM_VSYNC_LINES, 4, 0, 0x180, 0x180); */
-	blackbird_api_cmd(dev, BLACKBIRD_API_SET_CAPTURE_LINES, 2, 0,
+	blackbird_api_cmd(dev, CX2341X_ENC_SET_NUM_VSYNC_LINES, 2, 0,
 			BLACKBIRD_FIELD1_SAA7115,
 			BLACKBIRD_FIELD2_SAA7115
 		);
 
 	/* blackbird_api_cmd(dev, IVTV_API_ASSIGN_PLACEHOLDER, 12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0); */
-	blackbird_api_cmd(dev, BLACKBIRD_API_SET_CUSTOM_DATA, 12, 0,
+	blackbird_api_cmd(dev, CX2341X_ENC_SET_PLACEHOLDER, 12, 0,
 			BLACKBIRD_CUSTOM_EXTENSION_USR_DATA,
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
 	/* initialize the video input */
-	blackbird_api_cmd(dev, BLACKBIRD_API_INIT_VIDEO_INPUT, 0, 0);
+	blackbird_api_cmd(dev, CX2341X_ENC_INITIALIZE_INPUT, 0, 0);
 
 	msleep(1);
 
-	blackbird_api_cmd(dev, BLACKBIRD_API_MUTE_VIDEO, 1, 0, BLACKBIRD_UNMUTE);
+	blackbird_api_cmd(dev, CX2341X_ENC_MUTE_VIDEO, 1, 0, BLACKBIRD_UNMUTE);
 	msleep(1);
-	blackbird_api_cmd(dev, BLACKBIRD_API_MUTE_AUDIO, 1, 0, BLACKBIRD_UNMUTE);
+	blackbird_api_cmd(dev, CX2341X_ENC_MUTE_AUDIO, 1, 0, BLACKBIRD_UNMUTE);
 	msleep(1);
 
 	/* start capturing to the host interface */
-	/* blackbird_api_cmd(dev, BLACKBIRD_API_BEGIN_CAPTURE, 2, 0, 0, 0x13); */
-	blackbird_api_cmd(dev, BLACKBIRD_API_BEGIN_CAPTURE, 2, 0,
+	/* blackbird_api_cmd(dev, CX2341X_ENC_START_CAPTURE, 2, 0, 0, 0x13); */
+	blackbird_api_cmd(dev, CX2341X_ENC_START_CAPTURE, 2, 0,
 			BLACKBIRD_MPEG_CAPTURE,
 			BLACKBIRD_RAW_BITS_NONE
 		);
 	msleep(10);
 
-	blackbird_api_cmd(dev, BLACKBIRD_API_REFRESH_INPUT, 0,0);
+	blackbird_api_cmd(dev, CX2341X_ENC_REFRESH_INPUT, 0,0);
 	return 0;
 }
 
@@ -1562,8 +1523,8 @@ static int mpeg_release(struct inode *inode, struct file *file)
 {
 	struct cx8802_fh  *fh  = file->private_data;
 
-	/* blackbird_api_cmd(fh->dev, BLACKBIRD_API_END_CAPTURE, 3, 0, BLACKBIRD_END_NOW, 0, 0x13); */
-	blackbird_api_cmd(fh->dev, BLACKBIRD_API_END_CAPTURE, 3, 0,
+	/* blackbird_api_cmd(fh->dev, CX2341X_ENC_STOP_CAPTURE, 3, 0, BLACKBIRD_END_NOW, 0, 0x13); */
+	blackbird_api_cmd(fh->dev, CX2341X_ENC_STOP_CAPTURE, 3, 0,
 			BLACKBIRD_END_NOW,
 			BLACKBIRD_MPEG_CAPTURE,
 			BLACKBIRD_RAW_BITS_NONE
