@@ -1079,7 +1079,7 @@ void jffs2_link_node_ref(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb,
 
 	case REF_OBSOLETE:
 		c->dirty_size += len;
-		jeb->used_size += len;
+		jeb->dirty_size += len;
 		break;
 	}
 	c->free_size -= len;
