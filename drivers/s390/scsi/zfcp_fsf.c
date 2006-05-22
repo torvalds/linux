@@ -1416,7 +1416,8 @@ zfcp_fsf_send_ct(struct zfcp_send_ct *ct, mempool_t *pool,
 
 	/* settings in QTCB */
 	fsf_req->qtcb->header.port_handle = port->handle;
-	fsf_req->qtcb->bottom.support.service_class = adapter->fc_service_class;
+	fsf_req->qtcb->bottom.support.service_class =
+		ZFCP_FC_SERVICE_CLASS_DEFAULT;
 	fsf_req->qtcb->bottom.support.timeout = ct->timeout;
         fsf_req->data = (unsigned long) ct;
 
@@ -1485,18 +1486,10 @@ zfcp_fsf_send_ct_handler(struct zfcp_fsf_req *fsf_req)
 		break;
 
         case FSF_SERVICE_CLASS_NOT_SUPPORTED:
-		if (adapter->fc_service_class <= 3) {
-			ZFCP_LOG_INFO("error: adapter %s does not support fc "
-				      "class %d.\n",
-				      zfcp_get_busid_by_port(port),
-				      adapter->fc_service_class);
-		} else {
-			ZFCP_LOG_INFO("bug: The fibre channel class at the "
-				      "adapter %s is invalid. "
-				      "(debug info %d)\n",
-				      zfcp_get_busid_by_port(port),
-				      adapter->fc_service_class);
-		}
+		ZFCP_LOG_INFO("error: adapter %s does not support fc "
+			      "class %d.\n",
+			      zfcp_get_busid_by_port(port),
+			      ZFCP_FC_SERVICE_CLASS_DEFAULT);
 		/* stop operation for this adapter */
 		debug_text_exception(adapter->erp_dbf, 0, "fsf_s_class_nsup");
 		zfcp_erp_adapter_shutdown(adapter, 0);
@@ -1719,7 +1712,8 @@ zfcp_fsf_send_els(struct zfcp_send_els *els)
 
 	/* settings in QTCB */
 	fsf_req->qtcb->bottom.support.d_id = d_id;
-	fsf_req->qtcb->bottom.support.service_class = adapter->fc_service_class;
+	fsf_req->qtcb->bottom.support.service_class =
+		ZFCP_FC_SERVICE_CLASS_DEFAULT;
 	fsf_req->qtcb->bottom.support.timeout = ZFCP_ELS_TIMEOUT;
 	fsf_req->data = (unsigned long) els;
 
@@ -1789,18 +1783,10 @@ static int zfcp_fsf_send_els_handler(struct zfcp_fsf_req *fsf_req)
 		break;
 
 	case FSF_SERVICE_CLASS_NOT_SUPPORTED:
-		if (adapter->fc_service_class <= 3) {
-			ZFCP_LOG_INFO("error: adapter %s does "
-				      "not support fibrechannel class %d.\n",
-				      zfcp_get_busid_by_adapter(adapter),
-				      adapter->fc_service_class);
-		} else {
-			ZFCP_LOG_INFO("bug: The fibrechannel class at "
-				      "adapter %s is invalid. "
-				      "(debug info %d)\n",
-				      zfcp_get_busid_by_adapter(adapter),
-				      adapter->fc_service_class);
-		}
+		ZFCP_LOG_INFO("error: adapter %s does not support fc "
+			      "class %d.\n",
+			      zfcp_get_busid_by_adapter(adapter),
+			      ZFCP_FC_SERVICE_CLASS_DEFAULT);
 		/* stop operation for this adapter */
 		debug_text_exception(adapter->erp_dbf, 0, "fsf_s_class_nsup");
 		zfcp_erp_adapter_shutdown(adapter, 0);
@@ -2974,8 +2960,8 @@ zfcp_fsf_open_unit(struct zfcp_erp_action *erp_action)
 	erp_action->fsf_req->qtcb->bottom.support.fcp_lun =
 		erp_action->unit->fcp_lun;
 	if (!(erp_action->adapter->connection_features & FSF_FEATURE_NPIV_MODE))
-	erp_action->fsf_req->qtcb->bottom.support.option =
-		FSF_OPEN_LUN_SUPPRESS_BOXING;
+		erp_action->fsf_req->qtcb->bottom.support.option =
+			FSF_OPEN_LUN_SUPPRESS_BOXING;
 	atomic_set_mask(ZFCP_STATUS_COMMON_OPENING, &erp_action->unit->status);
 	erp_action->fsf_req->data = (unsigned long) erp_action->unit;
 	erp_action->fsf_req->erp_action = erp_action;
@@ -3550,7 +3536,7 @@ zfcp_fsf_send_fcp_command_task(struct zfcp_adapter *adapter,
 	}
 
 	/* set FC service class in QTCB (3 per default) */
-	fsf_req->qtcb->bottom.io.service_class = adapter->fc_service_class;
+	fsf_req->qtcb->bottom.io.service_class = ZFCP_FC_SERVICE_CLASS_DEFAULT;
 
 	/* set FCP_LUN in FCP_CMND IU in QTCB */
 	fcp_cmnd_iu->fcp_lun = unit->fcp_lun;
@@ -3689,7 +3675,7 @@ zfcp_fsf_send_fcp_command_task_management(struct zfcp_adapter *adapter,
 	fsf_req->qtcb->header.lun_handle = unit->handle;
 	fsf_req->qtcb->header.port_handle = unit->port->handle;
 	fsf_req->qtcb->bottom.io.data_direction = FSF_DATADIR_CMND;
-	fsf_req->qtcb->bottom.io.service_class = adapter->fc_service_class;
+	fsf_req->qtcb->bottom.io.service_class = ZFCP_FC_SERVICE_CLASS_DEFAULT;
 	fsf_req->qtcb->bottom.io.fcp_cmnd_length =
 		sizeof (struct fcp_cmnd_iu) + sizeof (fcp_dl_t);
 
@@ -3812,18 +3798,10 @@ zfcp_fsf_send_fcp_command_handler(struct zfcp_fsf_req *fsf_req)
 		break;
 
 	case FSF_SERVICE_CLASS_NOT_SUPPORTED:
-		if (fsf_req->adapter->fc_service_class <= 3) {
-			ZFCP_LOG_NORMAL("error: The adapter %s does "
-					"not support fibrechannel class %d.\n",
-					zfcp_get_busid_by_unit(unit),
-					fsf_req->adapter->fc_service_class);
-		} else {
-			ZFCP_LOG_NORMAL("bug: The fibrechannel class at "
-					"adapter %s is invalid. "
-					"(debug info %d)\n",
-					zfcp_get_busid_by_unit(unit),
-					fsf_req->adapter->fc_service_class);
-		}
+		ZFCP_LOG_INFO("error: adapter %s does not support fc "
+			      "class %d.\n",
+			      zfcp_get_busid_by_unit(unit),
+			      ZFCP_FC_SERVICE_CLASS_DEFAULT);
 		/* stop operation for this adapter */
 		debug_text_exception(fsf_req->adapter->erp_dbf, 0,
 				     "fsf_s_class_nsup");

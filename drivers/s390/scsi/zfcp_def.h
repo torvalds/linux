@@ -39,7 +39,6 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_transport.h>
 #include <scsi/scsi_transport_fc.h>
-#include "../../fc4/fc.h"
 #include "zfcp_fsf.h"
 #include <asm/ccwdev.h>
 #include <asm/qdio.h>
@@ -78,13 +77,9 @@ zfcp_address_to_sg(void *address, struct scatterlist *list)
 	list->offset = ((unsigned long) address) & (PAGE_SIZE - 1);
 }
 
+#define REQUEST_LIST_SIZE 128
+
 /********************* SCSI SPECIFIC DEFINES *********************************/
-
-/* 32 bit for SCSI ID and LUN as long as the SCSI stack uses this type */
-typedef u32 scsi_id_t;
-typedef u32 scsi_lun_t;
-
-#define ZFCP_ERP_SCSI_LOW_MEM_TIMEOUT           (100*HZ)
 #define ZFCP_SCSI_ER_TIMEOUT                    (100*HZ)
 
 /********************* CIO/QDIO SPECIFIC DEFINES *****************************/
@@ -222,8 +217,9 @@ struct fcp_rsp_iu {
 #define RSP_CODE_TASKMAN_FAILED	 5
 
 /* see fc-fs */
-#define LS_FAN 0x60000000
-#define LS_RSCN 0x61040000
+#define LS_RSCN  0x61040000
+#define LS_LOGO  0x05000000
+#define LS_PLOGI 0x03000000
 
 struct fcp_rscn_head {
         u8  command;
@@ -251,13 +247,6 @@ struct fcp_rscn_element {
 #define ZFCP_NO_PORTS_PER_AREA    0x100
 #define ZFCP_NO_PORTS_PER_DOMAIN  0x10000
 #define ZFCP_NO_PORTS_PER_FABRIC  0x1000000
-
-struct fcp_fan {
-        u32 command;
-        u32 fport_did;
-        wwn_t fport_wwpn;
-        wwn_t fport_wwname;
-} __attribute__((packed));
 
 /* see fc-ph */
 struct fcp_logo {
@@ -496,9 +485,6 @@ struct zfcp_rc_entry {
 
 #define ZFCP_NAME               "zfcp"
 
-/* read-only LUN sharing switch initial value */
-#define ZFCP_RO_LUN_SHARING_DEFAULTS 0
-
 /* independent log areas */
 #define ZFCP_LOG_AREA_OTHER	0
 #define ZFCP_LOG_AREA_SCSI	1
@@ -597,7 +583,6 @@ do { \
  * and unit
  */
 #define ZFCP_COMMON_FLAGS			0xfff00000
-#define ZFCP_SPECIFIC_FLAGS			0x000fffff
 
 /* common status bits */
 #define ZFCP_STATUS_COMMON_REMOVE		0x80000000
@@ -622,11 +607,6 @@ do { \
 #define ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED	0x00000200
 #define ZFCP_STATUS_ADAPTER_XPORT_OK		0x00000800
 
-#define ZFCP_STATUS_ADAPTER_SCSI_UP			\
-		(ZFCP_STATUS_COMMON_UNBLOCKED |	\
-		 ZFCP_STATUS_ADAPTER_REGISTERED)
-
-
 /* FC-PH/FC-GS well-known address identifiers for generic services */
 #define ZFCP_DID_MANAGEMENT_SERVICE		0xFFFFFA
 #define ZFCP_DID_TIME_SERVICE			0xFFFFFB
@@ -641,7 +621,6 @@ do { \
 #define ZFCP_STATUS_PORT_NO_WWPN		0x00000008
 #define ZFCP_STATUS_PORT_NO_SCSI_ID		0x00000010
 #define ZFCP_STATUS_PORT_INVALID_WWPN		0x00000020
-#define ZFCP_STATUS_PORT_ACCESS_DENIED		0x00000040
 
 /* for ports with well known addresses */
 #define ZFCP_STATUS_PORT_WKA \
@@ -897,15 +876,12 @@ struct zfcp_adapter {
 	wwn_t			peer_wwpn;	   /* P2P peer WWPN */
 	u32			peer_d_id;	   /* P2P peer D_ID */
 	struct ccw_device       *ccw_device;	   /* S/390 ccw device */
-	u8			fc_service_class;
 	u32			hydra_version;	   /* Hydra version */
 	u32			fsf_lic_version;
 	u32			adapter_features;  /* FCP channel features */
 	u32			connection_features; /* host connection features */
         u32			hardware_version;  /* of FCP channel */
 	struct Scsi_Host	*scsi_host;	   /* Pointer to mid-layer */
-	unsigned short          scsi_host_no;      /* Assigned host number */
-	unsigned char		name[9];
 	struct list_head	port_list_head;	   /* remote port list */
 	struct list_head        port_remove_lh;    /* head of ports to be
 						      removed */
@@ -997,7 +973,7 @@ struct zfcp_unit {
 						  refcount drop to zero */
 	struct zfcp_port       *port;	       /* remote port of unit */
 	atomic_t	       status;	       /* status of this logical unit */
-	scsi_lun_t	       scsi_lun;       /* own SCSI LUN */
+	unsigned int	       scsi_lun;       /* own SCSI LUN */
 	fcp_lun_t	       fcp_lun;	       /* own FCP_LUN */
 	u32		       handle;	       /* handle assigned by FSF */
         struct scsi_device     *device;        /* scsi device struct pointer */
@@ -1041,11 +1017,6 @@ struct zfcp_data {
 	struct list_head	adapter_list_head;  /* head of adapter list */
 	struct list_head	adapter_remove_lh;  /* head of adapters to be
 						       removed */
-        rwlock_t                status_read_lock;   /* for status read thread */
-        struct list_head        status_read_receive_head;
-        struct list_head        status_read_send_head;
-        struct semaphore        status_read_sema;
-	wait_queue_head_t	status_read_thread_wqh;
 	u32			adapters;	    /* # of adapters in list */
 	rwlock_t                config_lock;        /* serialises changes
 						       to adapter/port/unit
@@ -1084,18 +1055,12 @@ struct zfcp_fsf_req_pool_element {
 
 /********************** ZFCP SPECIFIC DEFINES ********************************/
 
-#define ZFCP_FSFREQ_CLEANUP_TIMEOUT	HZ/10
-
-#define ZFCP_KNOWN              0x00000001
 #define ZFCP_REQ_AUTO_CLEANUP	0x00000002
 #define ZFCP_WAIT_FOR_SBAL	0x00000004
 #define ZFCP_REQ_NO_QTCB	0x00000008
 
 #define ZFCP_SET                0x00000100
 #define ZFCP_CLEAR              0x00000200
-
-#define ZFCP_INTERRUPTIBLE	1
-#define ZFCP_UNINTERRUPTIBLE	0
 
 #ifndef atomic_test_mask
 #define atomic_test_mask(mask, target) \

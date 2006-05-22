@@ -3407,7 +3407,7 @@ zfcp_erp_adapter_access_changed(struct zfcp_adapter *adapter)
 		return;
 
 	debug_text_event(adapter->erp_dbf, 3, "a_access_recover");
-	debug_event(adapter->erp_dbf, 3, &adapter->name, 8);
+	debug_event(adapter->erp_dbf, 3, zfcp_get_busid_by_adapter(adapter), 8);
 
 	read_lock_irqsave(&zfcp_data.config_lock, flags);
 	if (adapter->nameserver_port)

@@ -35,8 +35,8 @@ static int zfcp_scsi_eh_host_reset_handler(struct scsi_cmnd *);
 static int zfcp_task_management_function(struct zfcp_unit *, u8,
 					 struct scsi_cmnd *);
 
-static struct zfcp_unit *zfcp_unit_lookup(struct zfcp_adapter *, int, scsi_id_t,
-					  scsi_lun_t);
+static struct zfcp_unit *zfcp_unit_lookup(struct zfcp_adapter *, int,
+					  unsigned int, unsigned int);
 
 static struct device_attribute *zfcp_sysfs_sdev_attrs[];
 
@@ -349,8 +349,8 @@ zfcp_scsi_queuecommand(struct scsi_cmnd *scpnt,
 }
 
 static struct zfcp_unit *
-zfcp_unit_lookup(struct zfcp_adapter *adapter, int channel, scsi_id_t id,
-		 scsi_lun_t lun)
+zfcp_unit_lookup(struct zfcp_adapter *adapter, int channel, unsigned int id,
+		 unsigned int lun)
 {
 	struct zfcp_port *port;
 	struct zfcp_unit *unit, *retval = NULL;
@@ -608,10 +608,6 @@ zfcp_adapter_scsi_register(struct zfcp_adapter *adapter)
 	adapter->scsi_host->unique_id = unique_id++;	/* FIXME */
 	adapter->scsi_host->max_cmd_len = ZFCP_MAX_SCSI_CMND_LENGTH;
 	adapter->scsi_host->transportt = zfcp_transport_template;
-	/*
-	 * Reverse mapping of the host number to avoid race condition
-	 */
-	adapter->scsi_host_no = adapter->scsi_host->host_no;
 
 	/*
 	 * save a pointer to our own adapter data structure within
@@ -647,7 +643,6 @@ zfcp_adapter_scsi_unregister(struct zfcp_adapter *adapter)
 	scsi_remove_host(shost);
 	scsi_host_put(shost);
 	adapter->scsi_host = NULL;
-	adapter->scsi_host_no = 0;
 	atomic_clear_mask(ZFCP_STATUS_ADAPTER_REGISTERED, &adapter->status);
 
 	return;

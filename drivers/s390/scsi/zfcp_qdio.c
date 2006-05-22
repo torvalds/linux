@@ -168,7 +168,8 @@ zfcp_qdio_allocate(struct zfcp_adapter *adapter)
 
 	init_data->cdev = adapter->ccw_device;
 	init_data->q_format = QDIO_SCSI_QFMT;
-	memcpy(init_data->adapter_name, &adapter->name, 8);
+	memcpy(init_data->adapter_name, zfcp_get_busid_by_adapter(adapter), 8);
+	ASCEBC(init_data->adapter_name, 8);
 	init_data->qib_param_field_format = 0;
 	init_data->qib_param_field = NULL;
 	init_data->input_slib_elements = NULL;

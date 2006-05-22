@@ -740,7 +740,7 @@ struct zfcp_unit *
 zfcp_unit_enqueue(struct zfcp_port *port, fcp_lun_t fcp_lun)
 {
 	struct zfcp_unit *unit, *tmp_unit;
-	scsi_lun_t scsi_lun;
+	unsigned int scsi_lun;
 	int found;
 
 	/*
@@ -990,12 +990,6 @@ zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 
 	/* intitialise SCSI ER timer */
 	init_timer(&adapter->scsi_er_timer);
-
-	/* set FC service class used per default */
-	adapter->fc_service_class = ZFCP_FC_SERVICE_CLASS_DEFAULT;
-
-	sprintf(adapter->name, "%s", zfcp_get_busid_by_adapter(adapter));
-	ASCEBC(adapter->name, strlen(adapter->name));
 
 	/* mark adapter unusable as long as sysfs registration is not complete */
 	atomic_set_mask(ZFCP_STATUS_COMMON_REMOVE, &adapter->status);
@@ -1347,18 +1341,19 @@ static void
 zfcp_fsf_incoming_els_plogi(struct zfcp_adapter *adapter,
 			    struct fsf_status_read_buffer *status_buffer)
 {
-	logi *els_logi = (logi *) status_buffer->payload;
+	struct fsf_plogi *els_plogi;
 	struct zfcp_port *port;
 	unsigned long flags;
 
+	els_plogi = (struct fsf_plogi *) status_buffer->payload;
 	read_lock_irqsave(&zfcp_data.config_lock, flags);
 	list_for_each_entry(port, &adapter->port_list_head, list) {
-		if (port->wwpn == (*(wwn_t *) & els_logi->nport_wwn))
+		if (port->wwpn == (*(wwn_t *) &els_plogi->serv_param.wwpn))
 			break;
 	}
 	read_unlock_irqrestore(&zfcp_data.config_lock, flags);
 
-	if (!port || (port->wwpn != (*(wwn_t *) & els_logi->nport_wwn))) {
+	if (!port || (port->wwpn != (*(wwn_t *) &els_plogi->serv_param.wwpn))) {
 		ZFCP_LOG_DEBUG("ignored incoming PLOGI for nonexisting port "
 			       "with d_id 0x%08x on adapter %s\n",
 			       status_buffer->d_id,

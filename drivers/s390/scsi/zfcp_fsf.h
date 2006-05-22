@@ -22,8 +22,7 @@
 #ifndef FSF_H
 #define FSF_H
 
-#define FSF_QTCB_VERSION1			0x00000001
-#define FSF_QTCB_CURRENT_VERSION		FSF_QTCB_VERSION1
+#define FSF_QTCB_CURRENT_VERSION		0x00000001
 
 /* FSF commands */
 #define	FSF_QTCB_FCP_CMND			0x00000001
@@ -53,7 +52,7 @@
 #define FSF_CFDC_OPTION_FULL_ACCESS		0x00000002
 #define FSF_CFDC_OPTION_RESTRICTED_ACCESS	0x00000004
 
-/* FSF protocol stati */
+/* FSF protocol states */
 #define FSF_PROT_GOOD				0x00000001
 #define FSF_PROT_QTCB_VERSION_ERROR		0x00000010
 #define FSF_PROT_SEQ_NUMB_ERROR			0x00000020
@@ -65,7 +64,7 @@
 #define FSF_PROT_REEST_QUEUE                    0x00000800
 #define FSF_PROT_ERROR_STATE			0x01000000
 
-/* FSF stati */
+/* FSF states */
 #define FSF_GOOD				0x00000000
 #define FSF_PORT_ALREADY_OPEN			0x00000001
 #define FSF_LUN_ALREADY_OPEN			0x00000002
@@ -257,20 +256,6 @@
 #define FSF_UNIT_ACCESS_OPEN_LUN_ALLOWED	0x01000000
 #define FSF_UNIT_ACCESS_EXCLUSIVE		0x02000000
 #define FSF_UNIT_ACCESS_OUTBOUND_TRANSFER	0x10000000
-
-struct fsf_queue_designator;
-struct fsf_status_read_buffer;
-struct fsf_port_closed_payload;
-struct fsf_bit_error_payload;
-union  fsf_prot_status_qual;
-struct fsf_qual_version_error;
-struct fsf_qual_sequence_error;
-struct fsf_qtcb_prefix;
-struct fsf_qtcb_header;
-struct fsf_qtcb_bottom_config;
-struct fsf_qtcb_bottom_support;
-struct fsf_qtcb_bottom_io;
-union  fsf_qtcb_bottom;
 
 struct fsf_queue_designator {
 	u8  cssid;
