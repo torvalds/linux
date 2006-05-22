@@ -384,7 +384,6 @@ extern int  audit_receive_filter(int type, int pid, int uid, int seq,
 #define audit_log_hex(a,b,l) do { ; } while (0)
 #define audit_log_untrustedstring(a,s) do { ; } while (0)
 #define audit_log_d_path(b,p,d,v) do { ; } while (0)
-#define audit_panic(m) do { ; } while (0)
 #endif
 #endif
 #endif
