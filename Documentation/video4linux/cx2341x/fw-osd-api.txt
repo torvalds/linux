@@ -1,0 +1,342 @@
+OSD firmware API description
+============================
+
+Note: this API is part of the decoder firmware, so it's cx23415 only.
+
+-------------------------------------------------------------------------------
+
+Name 	CX2341X_OSD_GET_FRAMEBUFFER
+Enum 	65/0x41
+Description
+	Return base and length of contiguous OSD memory.
+Result[0]
+	OSD base address
+Result[1]
+	OSD length
+
+-------------------------------------------------------------------------------
+
+Name 	CX2341X_OSD_GET_PIXEL_FORMAT
+Enum 	66/0x42
+Description
+	Query OSD format
+Result[0]
+	0=8bit index, 4=AlphaRGB 8:8:8:8
+
+-------------------------------------------------------------------------------
+
+Name 	CX2341X_OSD_SET_PIXEL_FORMAT
+Enum 	67/0x43
+Description
+	Assign pixel format
+Param[0]
+	0=8bit index, 4=AlphaRGB 8:8:8:8
+
+-------------------------------------------------------------------------------
+
+Name 	CX2341X_OSD_GET_STATE
+Enum 	68/0x44
+Description
+	Query OSD state
+Result[0]
+	Bit  0   0=off, 1=on
+	Bits 1:2 alpha control
+	Bits 3:5 pixel format
+
+-------------------------------------------------------------------------------
+
+Name 	CX2341X_OSD_SET_STATE
+Enum 	69/0x45
+Description
+	OSD switch
+Param[0]
+	0=off, 1=on
+
+-------------------------------------------------------------------------------
+
+Name 	CX2341X_OSD_GET_OSD_COORDS
+Enum 	70/0x46
+Description
+	Retrieve coordinates of OSD area blended with video
+Result[0]
+	OSD buffer address
+Result[1]
+	Stride in pixels
+Result[2]
+	Lines in OSD buffer
+Result[3]
+	Horizontal offset in buffer
+Result[4]
+	Vertical offset in buffer
+
+-------------------------------------------------------------------------------
+
+Name 	CX2341X_OSD_SET_OSD_COORDS
+Enum 	71/0x47
+Description
+	Assign the coordinates of the OSD area to blend with video
+Param[0]
+	buffer address
+Param[1]
+	buffer stride in pixels
+Param[2]
+	lines in buffer
+Param[3]
+	horizontal offset
+Param[4]
+	vertical offset
+
+-------------------------------------------------------------------------------
+
+Name 	CX2341X_OSD_GET_SCREEN_COORDS
+Enum 	72/0x48
+Description
+	Retrieve OSD screen area coordinates
+Result[0]
+	top left horizontal offset
+Result[1]
+	top left vertical offset
+Result[2]
+	bottom right hotizontal offset
+Result[3]
+	bottom right vertical offset
+
+-------------------------------------------------------------------------------
+
+Name 	CX2341X_OSD_SET_SCREEN_COORDS
+Enum 	73/0x49
+Description
+	Assign the coordinates of the screen area to blend with video
+Param[0]
+	top left horizontal offset
+Param[1]
+	top left vertical offset
+Param[2]
+	bottom left horizontal offset
+Param[3]
+	bottom left vertical offset
+
+-------------------------------------------------------------------------------
+
+Name 	CX2341X_OSD_GET_GLOBAL_ALPHA
+Enum 	74/0x4A
+Description
+	Retrieve OSD global alpha
+Result[0]
+	global alpha: 0=off, 1=on
+Result[1]
+	bits 0:7 global alpha
+
+-------------------------------------------------------------------------------
+
+Name 	CX2341X_OSD_SET_GLOBAL_ALPHA
+Enum 	75/0x4B
+Description
+	Update global alpha
+Param[0]
+	global alpha: 0=off, 1=on
+Param[1]
+	global alpha (8 bits)
+Param[2]
+	local alpha: 0=on, 1=off
+
+-------------------------------------------------------------------------------
+
+Name 	CX2341X_OSD_SET_BLEND_COORDS
+Enum 	78/0x4C
+Description
+	Move start of blending area within display buffer
+Param[0]
+	horizontal offset in buffer
+Param[1]
+	vertical offset in buffer
+
+-------------------------------------------------------------------------------
+
+Name 	CX2341X_OSD_GET_FLICKER_STATE
+Enum 	79/0x4F
+Description
+	Retrieve flicker reduction module state
+Result[0]
+	flicker state: 0=off, 1=on
+
+-------------------------------------------------------------------------------
+
+Name 	CX2341X_OSD_SET_FLICKER_STATE
+Enum 	80/0x50
+Description
+	Set flicker reduction module state
+Param[0]
+	State: 0=off, 1=on
+
+-------------------------------------------------------------------------------
+
+Name 	CX2341X_OSD_BLT_COPY
+Enum 	82/0x52
+Description
+	BLT copy
+Param[0]
+'0000'  zero
+'0001' ~destination AND ~source
+'0010' ~destination AND  source
+'0011' ~destination
+'0100'  destination AND ~source
+'0101'                  ~source
+'0110'  destination XOR  source
+'0111' ~destination OR  ~source
+'1000' ~destination AND ~source
+'1001'  destination XNOR source
+'1010'                   source
+'1011' ~destination OR   source
+'1100'  destination
+'1101'  destination OR  ~source
+'1110'  destination OR   source
+'1111'  one
+
+Param[1]
+	Resulting alpha blending
+	    '01' source_alpha
+	    '10' destination_alpha
+	    '11' source_alpha*destination_alpha+1
+		 (zero if both source and destination alpha are zero)
+Param[2]
+	'00' output_pixel = source_pixel
+
+	'01' if source_alpha=0:
+		 output_pixel = destination_pixel
+	     if 256 > source_alpha > 1:
+		 output_pixel = ((source_alpha + 1)*source_pixel +
+				 (255 - source_alpha)*destination_pixel)/256
+
+	'10' if destination_alpha=0:
+		 output_pixel = source_pixel
+	      if 255 > destination_alpha > 0:
+		 output_pixel = ((255 - destination_alpha)*source_pixel +
+				 (destination_alpha + 1)*destination_pixel)/256
+
+	'11' if source_alpha=0:
+		 source_temp = 0
+	     if source_alpha=255:
+		 source_temp = source_pixel*256
+	     if 255 > source_alpha > 0:
+		 source_temp = source_pixel*(source_alpha + 1)
+	     if destination_alpha=0:
+		 destination_temp = 0
+	     if destination_alpha=255:
+		 destination_temp = destination_pixel*256
+	     if 255 > destination_alpha > 0:
+		 destination_temp = destination_pixel*(destination_alpha + 1)
+	     output_pixel = (source_temp + destination_temp)/256
+Param[3]
+	width
+Param[4]
+	height
+Param[5]
+	destination pixel mask
+Param[6]
+	destination rectangle start address
+Param[7]
+	destination stride in dwords
+Param[8]
+	source stride in dwords
+Param[9]
+	source rectangle start address
+
+-------------------------------------------------------------------------------
+
+Name 	CX2341X_OSD_BLT_FILL
+Enum 	83/0x53
+Description
+	BLT fill color
+Param[0]
+	Same as Param[0] on API 0x52
+Param[1]
+	Same as Param[1] on API 0x52
+Param[2]
+	Same as Param[2] on API 0x52
+Param[3]
+	width
+Param[4]
+	height
+Param[5]
+	destination pixel mask
+Param[6]
+	destination rectangle start address
+Param[7]
+	destination stride in dwords
+Param[8]
+	color fill value
+
+-------------------------------------------------------------------------------
+
+Name 	CX2341X_OSD_BLT_TEXT
+Enum 	84/0x54
+Description
+	BLT for 8 bit alpha text source
+Param[0]
+	Same as Param[0] on API 0x52
+Param[1]
+	Same as Param[1] on API 0x52
+Param[2]
+	Same as Param[2] on API 0x52
+Param[3]
+	width
+Param[4]
+	height
+Param[5]
+	destination pixel mask
+Param[6]
+	destination rectangle start address
+Param[7]
+	destination stride in dwords
+Param[8]
+	source stride in dwords
+Param[9]
+	source rectangle start address
+Param[10]
+	color fill value
+
+-------------------------------------------------------------------------------
+
+Name 	CX2341X_OSD_SET_FRAMEBUFFER_WINDOW
+Enum 	86/0x56
+Description
+	Positions the main output window on the screen. The coordinates must be
+	such that the entire window fits on the screen.
+Param[0]
+	window width
+Param[1]
+	window height
+Param[2]
+	top left window corner horizontal offset
+Param[3]
+	top left window corner vertical offset
+
+-------------------------------------------------------------------------------
+
+Name 	CX2341X_OSD_SET_CHROMA_KEY
+Enum 	96/0x60
+Description
+	Chroma key switch and color
+Param[0]
+	state: 0=off, 1=on
+Param[1]
+	color
+
+-------------------------------------------------------------------------------
+
+Name 	CX2341X_OSD_GET_ALPHA_CONTENT_INDEX
+Enum 	97/0x61
+Description
+	Retrieve alpha content index
+Result[0]
+	alpha content index, Range 0:15
+
+-------------------------------------------------------------------------------
+
+Name 	CX2341X_OSD_SET_ALPHA_CONTENT_INDEX
+Enum 	98/0x62
+Description
+	Assign alpha content index
+Param[0]
+	alpha content index, range 0:15
