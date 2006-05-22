@@ -311,8 +311,9 @@ struct gfs2_leaf {
 #define GFS2_EATYPE_UNUSED	0
 #define GFS2_EATYPE_USR		1
 #define GFS2_EATYPE_SYS		2
+#define GFS2_EATYPE_SECURITY	3
 
-#define GFS2_EATYPE_LAST	2
+#define GFS2_EATYPE_LAST	3
 #define GFS2_EATYPE_VALID(x)	((x) <= GFS2_EATYPE_LAST)
 
 #define GFS2_EAFLAG_LAST	0x01	/* last ea in block */

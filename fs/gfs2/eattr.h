@@ -18,9 +18,6 @@ ALIGN(sizeof(struct gfs2_ea_header) + (ea)->ea_name_len + \
       ((GFS2_EA_IS_STUFFED(ea)) ? GFS2_EA_DATA_LEN(ea) : \
                                   (sizeof(uint64_t) * (ea)->ea_num_ptrs)), 8)
 
-#define GFS2_EA_STRLEN(ea) \
-((((ea)->ea_type == GFS2_EATYPE_USR) ? 5 : 7) + (ea)->ea_name_len + 1)
-
 #define GFS2_EA_IS_STUFFED(ea) (!(ea)->ea_num_ptrs)
 #define GFS2_EA_IS_LAST(ea) ((ea)->ea_flags & GFS2_EAFLAG_LAST)
 
@@ -82,5 +79,19 @@ int gfs2_ea_get_copy(struct gfs2_inode *ip,
 		     char *data);
 int gfs2_ea_acl_chmod(struct gfs2_inode *ip, struct gfs2_ea_location *el,
 		      struct iattr *attr, char *data);
+
+static inline unsigned int gfs2_ea_strlen(struct gfs2_ea_header *ea)
+{
+	switch (ea->ea_type) {
+	case GFS2_EATYPE_USR:
+		return (5 + (ea->ea_name_len + 1));
+	case GFS2_EATYPE_SYS:
+		return (7 + (ea->ea_name_len + 1));
+	case GFS2_EATYPE_SECURITY:
+		return (9 + (ea->ea_name_len + 1));
+	default:
+		return (0);
+	}
+}
 
 #endif /* __EATTR_DOT_H__ */

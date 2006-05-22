@@ -23,6 +23,8 @@ unsigned int gfs2_ea_name2type(const char *name, char **truncated_name);
 
 extern struct gfs2_eattr_operations gfs2_system_eaops;
 
+extern struct gfs2_eattr_operations gfs2_security_eaops;
+
 extern struct gfs2_eattr_operations *gfs2_ea_ops[];
 
 #endif /* __EAOPS_DOT_H__ */

@@ -43,6 +43,10 @@ unsigned int gfs2_ea_name2type(const char *name, char **truncated_name)
 		type = GFS2_EATYPE_USR;
 		if (truncated_name)
 			*truncated_name = strchr(name, '.') + 1;
+	} else if (strncmp(name, "security.", 9) == 0) {
+		type = GFS2_EATYPE_SECURITY;
+		if (truncated_name)
+			*truncated_name = strchr(name, '.') + 1;
 	} else {
 		type = GFS2_EATYPE_UNUSED;
 		if (truncated_name)
@@ -166,6 +170,36 @@ static int system_eo_remove(struct gfs2_inode *ip, struct gfs2_ea_request *er)
 	return gfs2_ea_remove_i(ip, er);
 }
 
+static int security_eo_get(struct gfs2_inode *ip, struct gfs2_ea_request *er)
+{
+	struct inode *inode = ip->i_vnode;
+	int error = permission(inode, MAY_READ, NULL);
+	if (error)
+		return error;
+
+	return gfs2_ea_get_i(ip, er);
+}
+
+static int security_eo_set(struct gfs2_inode *ip, struct gfs2_ea_request *er)
+{
+	struct inode *inode = ip->i_vnode;
+	int error = permission(inode, MAY_WRITE, NULL);
+	if (error)
+		return error;
+
+	return gfs2_ea_set_i(ip, er);
+}
+
+static int security_eo_remove(struct gfs2_inode *ip, struct gfs2_ea_request *er)
+{
+	struct inode *inode = ip->i_vnode;
+	int error = permission(inode, MAY_WRITE, NULL);
+	if (error)
+		return error;
+
+	return gfs2_ea_remove_i(ip, er);
+}
+
 static struct gfs2_eattr_operations gfs2_user_eaops = {
 	.eo_get = user_eo_get,
 	.eo_set = user_eo_set,
@@ -178,6 +212,13 @@ struct gfs2_eattr_operations gfs2_system_eaops = {
 	.eo_set = system_eo_set,
 	.eo_remove = system_eo_remove,
 	.eo_name = "system",
+};
+
+struct gfs2_eattr_operations gfs2_security_eaops = {
+	.eo_get = security_eo_get,
+	.eo_set = security_eo_set,
+	.eo_remove = security_eo_remove,
+	.eo_name = "security",
 };
 
 struct gfs2_eattr_operations *gfs2_ea_ops[] = {
