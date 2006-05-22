@@ -1921,7 +1921,7 @@ unsigned int ata_scsiop_mode_sense(struct ata_scsi_args *args, u8 *rbuf,
 		return 0;
 
 	dpofua = 0;
-	if (ata_dev_supports_fua(args->id) && dev->flags & ATA_DFLAG_LBA48 &&
+	if (ata_dev_supports_fua(args->id) && (dev->flags & ATA_DFLAG_LBA48) &&
 	    (!(dev->flags & ATA_DFLAG_PIO) || dev->multi_count))
 		dpofua = 1 << 4;
 
@@ -2408,8 +2408,13 @@ ata_scsi_pass_thru(struct ata_queued_cmd *qc, const u8 *scsicmd)
 {
 	struct ata_taskfile *tf = &(qc->tf);
 	struct scsi_cmnd *cmd = qc->scsicmd;
+	struct ata_device *dev = qc->dev;
 
 	if ((tf->protocol = ata_scsi_map_proto(scsicmd[1])) == ATA_PROT_UNKNOWN)
+		goto invalid_fld;
+		
+	/* We may not issue DMA commands if no DMA mode is set */
+	if (tf->protocol == ATA_PROT_DMA && dev->dma_mode == 0)
 		goto invalid_fld;
 
 	if (scsicmd[1] & 0xe0)
