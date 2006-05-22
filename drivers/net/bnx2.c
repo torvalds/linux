@@ -55,8 +55,8 @@
 
 #define DRV_MODULE_NAME		"bnx2"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"1.4.39"
-#define DRV_MODULE_RELDATE	"March 22, 2006"
+#define DRV_MODULE_VERSION	"1.4.40"
+#define DRV_MODULE_RELDATE	"May 22, 2006"
 
 #define RUN_AT(x) (jiffies + (x))
 
@@ -2945,7 +2945,7 @@ bnx2_nvram_write(struct bnx2 *bp, u32 offset, u8 *data_buf,
 		int buf_size)
 {
 	u32 written, offset32, len32;
-	u8 *buf, start[4], end[4];
+	u8 *buf, start[4], end[4], *flash_buffer = NULL;
 	int rc = 0;
 	int align_start, align_end;
 
@@ -2985,12 +2985,19 @@ bnx2_nvram_write(struct bnx2 *bp, u32 offset, u8 *data_buf,
 		memcpy(buf + align_start, data_buf, buf_size);
 	}
 
+	if (bp->flash_info->buffered == 0) {
+		flash_buffer = kmalloc(264, GFP_KERNEL);
+		if (flash_buffer == NULL) {
+			rc = -ENOMEM;
+			goto nvram_write_end;
+		}
+	}
+
 	written = 0;
 	while ((written < len32) && (rc == 0)) {
 		u32 page_start, page_end, data_start, data_end;
 		u32 addr, cmd_flags;
 		int i;
-		u8 flash_buffer[264];
 
 	        /* Find the page_start addr */
 		page_start = offset32 + written;
@@ -3109,6 +3116,9 @@ bnx2_nvram_write(struct bnx2 *bp, u32 offset, u8 *data_buf,
 	}
 
 nvram_write_end:
+	if (bp->flash_info->buffered == 0)
+		kfree(flash_buffer);
+
 	if (align_start || align_end)
 		kfree(buf);
 	return rc;
