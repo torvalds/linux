@@ -582,7 +582,7 @@ static int dst_ca_release(struct inode *inode, struct file *file)
 
 static ssize_t dst_ca_read(struct file *file, char __user *buffer, size_t length, loff_t *offset)
 {
-	int bytes_read = 0;
+	ssize_t bytes_read = 0;
 
 	dprintk(verbose, DST_CA_DEBUG, 1, " Device read.");
 
