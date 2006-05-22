@@ -661,6 +661,10 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 		spin_lock(&c->erase_completion_lock);
 
 		ic = jffs2_raw_ref_to_ic(ref);
+		/* It seems we should never call jffs2_mark_node_obsolete() for
+		   XATTR nodes.... yet. Make sure we notice if/when we change
+		   that :) */
+		BUG_ON(ic->class != RAWNODE_CLASS_INODE_CACHE);
 		for (p = &ic->nodes; (*p) != ref; p = &((*p)->next_in_ino))
 			;
 

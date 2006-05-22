@@ -230,6 +230,7 @@ static inline void jffs2_remove_node_refs_from_ino_list(struct jffs2_sb_info *c,
 			   at the end of the linked list. Stash it and continue
 			   from the beginning of the list */
 			ic = (struct jffs2_inode_cache *)(*prev);
+			BUG_ON(ic->class != RAWNODE_CLASS_INODE_CACHE);
 			prev = &ic->nodes;
 			continue;
 		}
