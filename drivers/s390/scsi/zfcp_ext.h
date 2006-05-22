@@ -132,8 +132,6 @@ extern int zfcp_scsi_command_async(struct zfcp_adapter *,struct zfcp_unit *,
 				   struct scsi_cmnd *, struct timer_list *);
 extern int zfcp_scsi_command_sync(struct zfcp_unit *, struct scsi_cmnd *,
 				  struct timer_list *);
-extern void zfcp_set_fc_host_attrs(struct zfcp_adapter *);
-extern void zfcp_set_fc_rport_attrs(struct zfcp_port *);
 extern struct scsi_transport_template *zfcp_transport_template;
 extern struct fc_function_template zfcp_transport_functions;
 

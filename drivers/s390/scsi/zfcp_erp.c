@@ -3241,9 +3241,13 @@ zfcp_erp_action_cleanup(int action, struct zfcp_adapter *adapter,
 		break;
 	case ZFCP_ERP_ACTION_REOPEN_PORT_FORCED:
 	case ZFCP_ERP_ACTION_REOPEN_PORT:
+		if (atomic_test_mask(ZFCP_STATUS_PORT_NO_WWPN,
+				     &port->status)) {
+			zfcp_port_put(port);
+			break;
+		}
+
 		if ((result == ZFCP_ERP_SUCCEEDED)
-		    && !atomic_test_mask(ZFCP_STATUS_PORT_NO_WWPN,
-					 &port->status)
 		    && !port->rport) {
 			struct fc_rport_identifiers ids;
 			ids.node_name = port->wwnn;
@@ -3264,9 +3268,23 @@ zfcp_erp_action_cleanup(int action, struct zfcp_adapter *adapter,
 					port->supported_classes;
 			}
 		}
+		if ((result != ZFCP_ERP_SUCCEEDED) && port->rport) {
+			fc_remote_port_delete(port->rport);
+			port->rport = NULL;
+		}
 		zfcp_port_put(port);
 		break;
 	case ZFCP_ERP_ACTION_REOPEN_ADAPTER:
+		if (result != ZFCP_ERP_SUCCEEDED) {
+			struct zfcp_port *port;
+			list_for_each_entry(port, &adapter->port_list_head, list)
+				if (port->rport &&
+				    !atomic_test_mask(ZFCP_STATUS_PORT_WKA,
+						      &port->status)) {
+					fc_remote_port_delete(port->rport);
+					port->rport = NULL;
+				}
+		}
 		zfcp_adapter_put(adapter);
 		break;
 	default:
