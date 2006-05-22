@@ -319,13 +319,7 @@ int em28xx_audio_analog_set(struct em28xx *dev);
 int em28xx_colorlevels_set_default(struct em28xx *dev);
 int em28xx_capture_start(struct em28xx *dev, int start);
 int em28xx_outfmt_set_yuv422(struct em28xx *dev);
-int em28xx_accumulator_set(struct em28xx *dev, u8 xmin, u8 xmax, u8 ymin,
-			   u8 ymax);
-int em28xx_capture_area_set(struct em28xx *dev, u8 hstart, u8 vstart,
-			    u16 width, u16 height);
-int em28xx_scaler_set(struct em28xx *dev, u16 h, u16 v);
 int em28xx_resolution_set(struct em28xx *dev);
-void em28xx_isocIrq(struct urb *urb, struct pt_regs *regs);
 int em28xx_init_isoc(struct em28xx *dev);
 void em28xx_uninit_isoc(struct em28xx *dev);
 int em28xx_set_alternate(struct em28xx *dev);

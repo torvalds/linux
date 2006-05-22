@@ -326,8 +326,4 @@ void em28xx_card_setup(struct em28xx *dev)
 	}
 }
 
-EXPORT_SYMBOL(em28xx_boards);
-EXPORT_SYMBOL(em28xx_bcount);
-EXPORT_SYMBOL(em28xx_id_table);
-
 MODULE_DEVICE_TABLE (usb, em28xx_id_table);

@@ -317,8 +317,8 @@ int em28xx_outfmt_set_yuv422(struct em28xx *dev)
 	return em28xx_write_regs(dev, VINCTRL_REG, "\x11", 1);
 }
 
-int em28xx_accumulator_set(struct em28xx *dev, u8 xmin, u8 xmax, u8 ymin,
-				  u8 ymax)
+static int em28xx_accumulator_set(struct em28xx *dev, u8 xmin, u8 xmax,
+				  u8 ymin, u8 ymax)
 {
 	em28xx_coredbg("em28xx Scale: (%d,%d)-(%d,%d)\n", xmin, ymin, xmax, ymax);
 
@@ -328,7 +328,7 @@ int em28xx_accumulator_set(struct em28xx *dev, u8 xmin, u8 xmax, u8 ymin,
 	return em28xx_write_regs(dev, YMAX_REG, &ymax, 1);
 }
 
-int em28xx_capture_area_set(struct em28xx *dev, u8 hstart, u8 vstart,
+static int em28xx_capture_area_set(struct em28xx *dev, u8 hstart, u8 vstart,
 				   u16 width, u16 height)
 {
 	u8 cwidth = width;
@@ -345,7 +345,7 @@ int em28xx_capture_area_set(struct em28xx *dev, u8 hstart, u8 vstart,
 	return em28xx_write_regs(dev, OFLOW_REG, &overflow, 1);
 }
 
-int em28xx_scaler_set(struct em28xx *dev, u16 h, u16 v)
+static int em28xx_scaler_set(struct em28xx *dev, u16 h, u16 v)
 {
 	u8 mode;
 	/* the em2800 scaler only supports scaling down to 50% */
@@ -534,7 +534,7 @@ static inline void em28xx_isoc_video_copy(struct em28xx *dev,
  * em28xx_isoIrq()
  * handles the incoming isoc urbs and fills the frames from our inqueue
  */
-void em28xx_isocIrq(struct urb *urb, struct pt_regs *regs)
+static void em28xx_isocIrq(struct urb *urb, struct pt_regs *regs)
 {
 	struct em28xx *dev = urb->context;
 	int i, status;
