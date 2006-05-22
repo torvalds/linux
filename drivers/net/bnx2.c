@@ -3061,7 +3061,7 @@ bnx2_nvram_write(struct bnx2 *bp, u32 offset, u8 *data_buf,
 		}
 
 		/* Loop to write the new data from data_start to data_end */
-		for (addr = data_start; addr < data_end; addr += 4, i++) {
+		for (addr = data_start; addr < data_end; addr += 4, i += 4) {
 			if ((addr == page_end - 4) ||
 				((bp->flash_info->buffered) &&
 				 (addr == data_end - 4))) {
