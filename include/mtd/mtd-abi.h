@@ -30,14 +30,13 @@ struct mtd_oob_buf {
 #define MTD_NANDFLASH		4
 #define MTD_DATAFLASH		6
 
-#define MTD_ECC			128	// Device capable of automatic ECC
-#define MTD_PROGRAM_REGIONS	512	// Configurable Programming Regions
 #define MTD_WRITEABLE		0x400	/* Device is writeable */
+#define MTD_BIT_WRITEABLE	0x800	/* Single bits can be flipped */
 
 // Some common devices / combinations of capabilities
 #define MTD_CAP_ROM		0
-#define MTD_CAP_RAM		(MTD_WRITEABLE)
-#define MTD_CAP_NORFLASH	(MTD_WRITEABLE)
+#define MTD_CAP_RAM		(MTD_WRITEABLE | MTD_BIT_WRITEABLE)
+#define MTD_CAP_NORFLASH	(MTD_WRITEABLE | MTD_BIT_WRITEABLE)
 #define MTD_CAP_NANDFLASH	(MTD_WRITEABLE)
 
 
