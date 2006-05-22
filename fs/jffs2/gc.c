@@ -634,11 +634,8 @@ static int jffs2_garbage_collect_pristine(struct jffs2_sb_info *c,
 		printk(KERN_NOTICE "Write of %d bytes at 0x%08x failed. returned %d, retlen %zd\n",
                        rawlen, phys_ofs, ret, retlen);
 		if (retlen) {
-                        /* Doesn't belong to any inode */
-			nraw->next_in_ino = NULL;
-
 			nraw->flash_offset |= REF_OBSOLETE;
-			jffs2_add_physical_node_ref(c, nraw, rawlen);
+			jffs2_add_physical_node_ref(c, nraw, rawlen, NULL);
 			jffs2_mark_node_obsolete(c, nraw);
 		} else {
 			printk(KERN_NOTICE "Not marking the space at 0x%08x as dirty because the flash driver returned retlen zero\n", nraw->flash_offset);
@@ -678,18 +675,8 @@ static int jffs2_garbage_collect_pristine(struct jffs2_sb_info *c,
 		goto out_node;
 	}
 	nraw->flash_offset |= REF_PRISTINE;
-	jffs2_add_physical_node_ref(c, nraw, rawlen);
+	jffs2_add_physical_node_ref(c, nraw, rawlen, ic);
 
-	if (ic) {
-		/* Link into per-inode list. This is safe because of the ic
-		   state being INO_STATE_GC. Note that if we're doing this
-		   for an inode which is in-core, the 'nraw' pointer is then
-		   going to be fetched from ic->nodes by our caller. */
-		spin_lock(&c->erase_completion_lock);
-		nraw->next_in_ino = ic->nodes;
-		ic->nodes = nraw;
-		spin_unlock(&c->erase_completion_lock);
-	}
 	jffs2_mark_node_obsolete(c, raw);
 	D1(printk(KERN_DEBUG "WHEEE! GC REF_PRISTINE node at 0x%08x succeeded\n", ref_offset(raw)));
 

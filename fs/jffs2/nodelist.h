@@ -307,7 +307,8 @@ int jffs2_add_full_dnode_to_inode(struct jffs2_sb_info *c, struct jffs2_inode_in
 void jffs2_truncate_fragtree (struct jffs2_sb_info *c, struct rb_root *list, uint32_t size);
 int jffs2_add_older_frag_to_fragtree(struct jffs2_sb_info *c, struct jffs2_inode_info *f, struct jffs2_tmp_dnode_info *tn);
 void jffs2_link_node_ref(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb,
-			 struct jffs2_raw_node_ref *ref, uint32_t len);
+			 struct jffs2_raw_node_ref *ref, uint32_t len,
+			 struct jffs2_inode_cache *ic);
 extern uint32_t __jffs2_ref_totlen(struct jffs2_sb_info *c,
 				   struct jffs2_eraseblock *jeb,
 				   struct jffs2_raw_node_ref *ref);
@@ -318,7 +319,10 @@ int jffs2_reserve_space(struct jffs2_sb_info *c, uint32_t minsize, uint32_t *ofs
 			uint32_t *len, int prio, uint32_t sumsize);
 int jffs2_reserve_space_gc(struct jffs2_sb_info *c, uint32_t minsize, uint32_t *ofs,
 			uint32_t *len, uint32_t sumsize);
-int jffs2_add_physical_node_ref(struct jffs2_sb_info *c, struct jffs2_raw_node_ref *new, uint32_t len);
+int jffs2_add_physical_node_ref(struct jffs2_sb_info *c, 
+				struct jffs2_raw_node_ref *new,
+				uint32_t len,
+				struct jffs2_inode_cache *ic);
 void jffs2_complete_reservation(struct jffs2_sb_info *c);
 void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref *raw);
 

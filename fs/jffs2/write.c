@@ -122,16 +122,13 @@ struct jffs2_full_dnode *jffs2_write_dnode(struct jffs2_sb_info *c, struct jffs2
 
 		/* Mark the space as dirtied */
 		if (retlen) {
-			/* Doesn't belong to any inode */
-			raw->next_in_ino = NULL;
-
 			/* Don't change raw->size to match retlen. We may have
 			   written the node header already, and only the data will
 			   seem corrupted, in which case the scan would skip over
 			   any node we write before the original intended end of
 			   this node */
 			raw->flash_offset |= REF_OBSOLETE;
-			jffs2_add_physical_node_ref(c, raw, PAD(sizeof(*ri)+datalen));
+			jffs2_add_physical_node_ref(c, raw, PAD(sizeof(*ri)+datalen), NULL);
 			jffs2_mark_node_obsolete(c, raw);
 		} else {
 			printk(KERN_NOTICE "Not marking the space at 0x%08x as dirty because the flash driver returned retlen zero\n", raw->flash_offset);
@@ -189,13 +186,7 @@ struct jffs2_full_dnode *jffs2_write_dnode(struct jffs2_sb_info *c, struct jffs2
 	} else {
 		raw->flash_offset |= REF_NORMAL;
 	}
-	jffs2_add_physical_node_ref(c, raw, PAD(sizeof(*ri)+datalen));
-
-	/* Link into per-inode list */
-	spin_lock(&c->erase_completion_lock);
-	raw->next_in_ino = f->inocache->nodes;
-	f->inocache->nodes = raw;
-	spin_unlock(&c->erase_completion_lock);
+	jffs2_add_physical_node_ref(c, raw, PAD(sizeof(*ri)+datalen), f->inocache);
 
 	D1(printk(KERN_DEBUG "jffs2_write_dnode wrote node at 0x%08x(%d) with dsize 0x%x, csize 0x%x, node_crc 0x%08x, data_crc 0x%08x, totlen 0x%08x\n",
 		  flash_ofs, ref_flags(raw), je32_to_cpu(ri->dsize),
@@ -275,9 +266,8 @@ struct jffs2_full_dirent *jffs2_write_dirent(struct jffs2_sb_info *c, struct jff
 			       sizeof(*rd)+namelen, flash_ofs, ret, retlen);
 		/* Mark the space as dirtied */
 		if (retlen) {
-			raw->next_in_ino = NULL;
 			raw->flash_offset |= REF_OBSOLETE;
-			jffs2_add_physical_node_ref(c, raw, PAD(sizeof(*rd)+namelen));
+			jffs2_add_physical_node_ref(c, raw, PAD(sizeof(*rd)+namelen), NULL);
 			jffs2_mark_node_obsolete(c, raw);
 		} else {
 			printk(KERN_NOTICE "Not marking the space at 0x%08x as dirty because the flash driver returned retlen zero\n", raw->flash_offset);
@@ -323,12 +313,7 @@ struct jffs2_full_dirent *jffs2_write_dirent(struct jffs2_sb_info *c, struct jff
 	}
 	/* Mark the space used */
 	raw->flash_offset |= REF_PRISTINE;
-	jffs2_add_physical_node_ref(c, raw, PAD(sizeof(*rd)+namelen));
-
-	spin_lock(&c->erase_completion_lock);
-	raw->next_in_ino = f->inocache->nodes;
-	f->inocache->nodes = raw;
-	spin_unlock(&c->erase_completion_lock);
+	jffs2_add_physical_node_ref(c, raw, PAD(sizeof(*rd)+namelen), f->inocache);
 
 	if (retried) {
 		jffs2_dbg_acct_sanity_check(c,NULL);

@@ -361,9 +361,9 @@ static int jffs2_scan_xattr_node(struct jffs2_sb_info *c, struct jffs2_erasebloc
 	xd->node = raw;
 
 	raw->flash_offset = ofs | REF_PRISTINE;
-	raw->next_in_ino = (void *)xd;
 
-	jffs2_link_node_ref(c, jeb, raw, totlen);
+	jffs2_link_node_ref(c, jeb, raw, totlen, NULL);
+	/* FIXME */ raw->next_in_ino = (void *)xd;
 
 	if (jffs2_sum_active())
 		jffs2_sum_add_xattr_mem(s, rx, ofs - jeb->offset);
@@ -425,9 +425,9 @@ static int jffs2_scan_xref_node(struct jffs2_sb_info *c, struct jffs2_eraseblock
 	c->xref_temp = ref;
 
 	raw->flash_offset = ofs | REF_PRISTINE;
-	raw->next_in_ino = (void *)ref;
 
-	jffs2_link_node_ref(c, jeb, raw, PAD(je32_to_cpu(rr->totlen)));
+	jffs2_link_node_ref(c, jeb, raw, PAD(je32_to_cpu(rr->totlen)), NULL);
+	/* FIXME */ raw->next_in_ino = (void *)ref;
 
 	if (jffs2_sum_active())
 		jffs2_sum_add_xref_mem(s, rr, ofs - jeb->offset);
@@ -844,10 +844,9 @@ scan_more:
 					printk(KERN_NOTICE "Failed to allocate node ref for clean marker\n");
 					return -ENOMEM;
 				}
-				marker_ref->next_in_ino = NULL;
 				marker_ref->flash_offset = ofs | REF_NORMAL;
 
-				jffs2_link_node_ref(c, jeb, marker_ref, c->cleanmarker_size);
+				jffs2_link_node_ref(c, jeb, marker_ref, c->cleanmarker_size, NULL);
 
 				ofs += PAD(c->cleanmarker_size);
 			}
@@ -892,8 +891,7 @@ scan_more:
 				if (!ref)
 					return -ENOMEM;
 				ref->flash_offset = ofs | REF_PRISTINE;
-				ref->next_in_ino = 0;
-				jffs2_link_node_ref(c, jeb, ref, PAD(je32_to_cpu(node->totlen)));
+				jffs2_link_node_ref(c, jeb, ref, PAD(je32_to_cpu(node->totlen)), NULL);
 
 				/* We can't summarise nodes we don't grok */
 				jffs2_sum_disable_collecting(s);
@@ -1004,10 +1002,7 @@ static int jffs2_scan_inode_node(struct jffs2_sb_info *c, struct jffs2_erasebloc
 
 	raw->flash_offset = ofs | REF_UNCHECKED;
 
-	raw->next_in_ino = ic->nodes;
-	ic->nodes = raw;
-	
-	jffs2_link_node_ref(c, jeb, raw, PAD(je32_to_cpu(ri->totlen)));
+	jffs2_link_node_ref(c, jeb, raw, PAD(je32_to_cpu(ri->totlen)), ic);
 
 	D1(printk(KERN_DEBUG "Node is ino #%u, version %d. Range 0x%x-0x%x\n",
 		  je32_to_cpu(ri->ino), je32_to_cpu(ri->version),
@@ -1082,10 +1077,7 @@ static int jffs2_scan_dirent_node(struct jffs2_sb_info *c, struct jffs2_eraseblo
 	}
 
 	raw->flash_offset = ofs | REF_PRISTINE;
-	raw->next_in_ino = ic->nodes;
-	ic->nodes = raw;
-
-	jffs2_link_node_ref(c, jeb, raw, PAD(je32_to_cpu(rd->totlen)));
+	jffs2_link_node_ref(c, jeb, raw, PAD(je32_to_cpu(rd->totlen)), ic);
 
 	fd->raw = raw;
 	fd->next = NULL;

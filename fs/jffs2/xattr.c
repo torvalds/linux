@@ -322,7 +322,6 @@ static int save_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datum *x
 	if (!raw)
 		return -ENOMEM;
 	raw->flash_offset = phys_ofs;
-	raw->next_in_ino = (void *)xd;
 
 	/* Setup raw-xattr */
 	rx.magic = cpu_to_je16(JFFS2_MAGIC_BITMASK);
@@ -345,8 +344,7 @@ static int save_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datum *x
 		rc = rc ? rc : -EIO;
 		if (length) {
 			raw->flash_offset |= REF_OBSOLETE;
-			raw->next_in_ino = NULL;
-			jffs2_add_physical_node_ref(c, raw, PAD(totlen));
+			jffs2_add_physical_node_ref(c, raw, PAD(totlen), NULL);
 			jffs2_mark_node_obsolete(c, raw);
 		} else {
 			jffs2_free_raw_node_ref(raw);
@@ -356,7 +354,9 @@ static int save_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datum *x
 
 	/* success */
 	raw->flash_offset |= REF_PRISTINE;
-	jffs2_add_physical_node_ref(c, raw, PAD(totlen));
+	jffs2_add_physical_node_ref(c, raw, PAD(totlen), NULL);
+	/* FIXME */ raw->next_in_ino = (void *)xd;
+
 	if (xd->node)
 		delete_xattr_datum_node(c, xd);
 	xd->node = raw;
@@ -566,7 +566,6 @@ static int save_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_ref *ref, 
 	if (!raw)
 		return -ENOMEM;
 	raw->flash_offset = phys_ofs;
-	raw->next_in_ino = (void *)ref;
 
 	rr.magic = cpu_to_je16(JFFS2_MAGIC_BITMASK);
 	rr.nodetype = cpu_to_je16(JFFS2_NODETYPE_XREF);
@@ -584,8 +583,7 @@ static int save_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_ref *ref, 
 		ret = ret ? ret : -EIO;
 		if (length) {
 			raw->flash_offset |= REF_OBSOLETE;
-			raw->next_in_ino = NULL;
-			jffs2_add_physical_node_ref(c, raw, PAD(sizeof(rr)));
+			jffs2_add_physical_node_ref(c, raw, PAD(sizeof(rr)), NULL);
 			jffs2_mark_node_obsolete(c, raw);
 		} else {
 			jffs2_free_raw_node_ref(raw);
@@ -594,7 +592,8 @@ static int save_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_ref *ref, 
 	}
 	raw->flash_offset |= REF_PRISTINE;
 
-	jffs2_add_physical_node_ref(c, raw, PAD(sizeof(rr)));
+	jffs2_add_physical_node_ref(c, raw, PAD(sizeof(rr)), NULL);
+	/* FIXME */ raw->next_in_ino = (void *)ref;
 	if (ref->node)
 		delete_xattr_ref_node(c, ref);
 	ref->node = raw;

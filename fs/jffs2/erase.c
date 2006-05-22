@@ -410,10 +410,9 @@ static void jffs2_mark_erased_block(struct jffs2_sb_info *c, struct jffs2_eraseb
 		/* Everything else got zeroed before the erase */
 		jeb->free_size = c->sector_size;
 
-		marker_ref->next_in_ino = NULL;
 		marker_ref->flash_offset = jeb->offset | REF_NORMAL;
 
-		jffs2_link_node_ref(c, jeb, marker_ref, c->cleanmarker_size);
+		jffs2_link_node_ref(c, jeb, marker_ref, c->cleanmarker_size, NULL);
 	}
 
 	spin_lock(&c->erase_completion_lock);

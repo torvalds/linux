@@ -430,10 +430,7 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 
 				raw->flash_offset |= REF_UNCHECKED;
 
-				raw->next_in_ino = ic->nodes;
-				ic->nodes = raw;
-
-				jffs2_link_node_ref(c, jeb, raw, PAD(je32_to_cpu(spi->totlen)));
+				jffs2_link_node_ref(c, jeb, raw, PAD(je32_to_cpu(spi->totlen)), ic);
 
 				*pseudo_random += je32_to_cpu(spi->version);
 
@@ -473,10 +470,7 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 				}
 
 				raw->flash_offset |= REF_PRISTINE;
-				raw->next_in_ino = ic->nodes;
-				ic->nodes = raw;
-
-				jffs2_link_node_ref(c, jeb, raw, PAD(je32_to_cpu(spd->totlen)));
+				jffs2_link_node_ref(c, jeb, raw, PAD(je32_to_cpu(spd->totlen)), ic);
 
 				fd->raw = raw;
 				fd->next = NULL;
@@ -525,9 +519,9 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 				xd->node = raw;
 
 				raw->flash_offset |= REF_UNCHECKED;
-				raw->next_in_ino = (void *)xd;
 
-				jffs2_link_node_ref(c, jeb, raw, PAD(je32_to_cpu(spx->totlen)));
+				jffs2_link_node_ref(c, jeb, raw, PAD(je32_to_cpu(spx->totlen)), NULL);
+				/* FIXME */ raw->next_in_ino = (void *)xd;
 
 				*pseudo_random += je32_to_cpu(spx->xid);
 				sp += JFFS2_SUMMARY_XATTR_SIZE;
@@ -561,9 +555,9 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 				c->xref_temp = ref;
 
 				raw->flash_offset |= REF_UNCHECKED;
-				raw->next_in_ino = (void *)ref;
 
-				jffs2_link_node_ref(c, jeb, raw, PAD(sizeof(struct jffs2_raw_xref)));
+				jffs2_link_node_ref(c, jeb, raw, PAD(sizeof(struct jffs2_raw_xref)), NULL);
+				/* FIXME */ raw->next_in_ino = (void *)ref;
 
 				*pseudo_random += raw->flash_offset;
 				sp += JFFS2_SUMMARY_XREF_SIZE;
@@ -664,9 +658,8 @@ int jffs2_sum_scan_sumnode(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb
 			}
 
 			marker_ref->flash_offset = jeb->offset | REF_NORMAL;
-			marker_ref->next_in_ino = NULL;
 
-			jffs2_link_node_ref(c, jeb, marker_ref, je32_to_cpu(summary->cln_mkr));
+			jffs2_link_node_ref(c, jeb, marker_ref, je32_to_cpu(summary->cln_mkr), NULL);
 		}
 	}
 
@@ -686,10 +679,9 @@ int jffs2_sum_scan_sumnode(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb
 		return -ENOMEM;
 	}
 
-	cache_ref->next_in_ino = NULL;
 	cache_ref->flash_offset |= REF_NORMAL;
 
-	jffs2_link_node_ref(c, jeb, cache_ref, sumsize);
+	jffs2_link_node_ref(c, jeb, cache_ref, sumsize, NULL);
 
 	if (unlikely(jeb->free_size)) {
 		JFFS2_WARNING("Free size 0x%x bytes in eraseblock @0x%08x with summary?\n",
@@ -849,9 +841,8 @@ static int jffs2_sum_write_data(struct jffs2_sb_info *c, struct jffs2_eraseblock
 
 			ref->flash_offset = jeb->offset + c->sector_size - jeb->free_size;
 			ref->flash_offset |= REF_OBSOLETE;
-			ref->next_in_ino = 0;
 
-			jffs2_link_node_ref(c, jeb, ref, c->sector_size - jeb->free_size);
+			jffs2_link_node_ref(c, jeb, ref, c->sector_size - jeb->free_size, NULL);
 		}
 
 		c->summary->sum_size = JFFS2_SUMMARY_NOSUM_SIZE;
@@ -909,11 +900,10 @@ int jffs2_sum_write_sumnode(struct jffs2_sb_info *c)
 		return -ENOMEM;
 	}
 
-	summary_ref->next_in_ino = NULL;
 	summary_ref->flash_offset = (jeb->offset + c->sector_size - jeb->free_size) | REF_NORMAL;
 
 	spin_lock(&c->erase_completion_lock);
-	jffs2_link_node_ref(c, jeb, summary_ref, infosize);
+	jffs2_link_node_ref(c, jeb, summary_ref, infosize, NULL);
 
 	return 0;
 }

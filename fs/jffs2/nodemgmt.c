@@ -381,7 +381,8 @@ static int jffs2_do_reserve_space(struct jffs2_sb_info *c, uint32_t minsize, uin
  *	Must be called with the alloc_sem held.
  */
 
-int jffs2_add_physical_node_ref(struct jffs2_sb_info *c, struct jffs2_raw_node_ref *new, uint32_t len)
+int jffs2_add_physical_node_ref(struct jffs2_sb_info *c, struct jffs2_raw_node_ref *new,
+				uint32_t len, struct jffs2_inode_cache *ic)
 {
 	struct jffs2_eraseblock *jeb;
 
@@ -403,7 +404,7 @@ int jffs2_add_physical_node_ref(struct jffs2_sb_info *c, struct jffs2_raw_node_r
 #endif
 	spin_lock(&c->erase_completion_lock);
 
-	jffs2_link_node_ref(c, jeb, new, len);
+	jffs2_link_node_ref(c, jeb, new, len, ic);
 
 	if (!jeb->free_size && !jeb->dirty_size && !ISDIRTY(jeb->wasted_size)) {
 		/* If it lives on the dirty_list, jffs2_reserve_space will put it there */
