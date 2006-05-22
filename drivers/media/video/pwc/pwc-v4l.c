@@ -127,7 +127,6 @@ static struct v4l2_queryctrl pwc_controls[] = {
 	    .step    = 1,
 	    .default_value = 0,
 	},
-#if XAWTV_HAS_BEEN_FIXED
 	{
 	    .id      = V4L2_CID_PRIVATE_SAVE_USER,
 	    .type    = V4L2_CTRL_TYPE_BUTTON,
@@ -209,7 +208,6 @@ static struct v4l2_queryctrl pwc_controls[] = {
 	    .step    = 1,
 	    .default_value = 0,
 	},
-#endif
 };
 
 #if CONFIG_PWC_DEBUG
