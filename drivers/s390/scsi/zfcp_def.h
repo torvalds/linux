@@ -52,7 +52,7 @@
 /********************* GENERAL DEFINES *********************************/
 
 /* zfcp version number, it consists of major, minor, and patch-level number */
-#define ZFCP_VERSION		"4.5.0"
+#define ZFCP_VERSION		"4.7.0"
 
 /**
  * zfcp_sg_to_address - determine kernel address from struct scatterlist
