@@ -507,6 +507,7 @@ static int __jffs2_flush_wbuf(struct jffs2_sb_info *c, int pad)
 			return -ENOMEM;
 		ref->flash_offset = c->wbuf_ofs + c->wbuf_len;
 		ref->flash_offset |= REF_OBSOLETE;
+		ref->next_in_ino = NULL;
 
 		spin_lock(&c->erase_completion_lock);
 
