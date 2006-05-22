@@ -395,17 +395,14 @@ static int ea_list_i(struct gfs2_inode *ip, struct buffer_head *bh,
 			l = 9;
 			break;
 		default:
+			/* FIXME: Needs looking at again */
 			break;
 		}
 
-		memcpy(er->er_data + ei->ei_size,
-		       prefix, l);
-		memcpy(er->er_data + ei->ei_size + l,
-		       GFS2_EA2NAME(ea),
+		memcpy(er->er_data + ei->ei_size, prefix, l);
+		memcpy(er->er_data + ei->ei_size + l, GFS2_EA2NAME(ea),
 		       ea->ea_name_len);
-		memcpy(er->er_data + ei->ei_size +
-		       ea_size - 1,
-		       &c, 1);
+		memcpy(er->er_data + ei->ei_size + ea_size - 1, &c, 1);
 	}
 
 	ei->ei_size += ea_size;
