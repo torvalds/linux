@@ -959,6 +959,8 @@ struct zfcp_port {
 	u32		       handle;	       /* handle assigned by FSF */
 	struct zfcp_erp_action erp_action;     /* pending error recovery */
         atomic_t               erp_counter;
+	u32                    maxframe_size;
+	u32                    supported_classes;
 };
 
 /* the struct device sysfs_device must be at the beginning of this structure.

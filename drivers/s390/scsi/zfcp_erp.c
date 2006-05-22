@@ -3257,8 +3257,12 @@ zfcp_erp_action_cleanup(int action, struct zfcp_adapter *adapter,
 						"(adapter %s, wwpn=0x%016Lx)\n",
 						zfcp_get_busid_by_port(port),
 						port->wwpn);
-			else
+			else {
 				scsi_flush_work(adapter->scsi_host);
+				port->rport->maxframe_size = port->maxframe_size;
+				port->rport->supported_classes =
+					port->supported_classes;
+			}
 		}
 		zfcp_port_put(port);
 		break;

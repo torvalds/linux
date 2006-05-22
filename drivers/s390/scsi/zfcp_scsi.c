@@ -805,6 +805,7 @@ struct fc_function_template zfcp_transport_functions = {
 	.show_starget_port_name = 1,
 	.show_starget_node_name = 1,
 	.show_rport_supported_classes = 1,
+	.show_rport_maxframe_size = 1,
 	.show_host_node_name = 1,
 	.show_host_port_name = 1,
 	.show_host_permanent_port_name = 1,

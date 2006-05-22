@@ -1748,4 +1748,25 @@ zfcp_handle_els_rjt(u32 sq, struct zfcp_ls_rjt_par *rjt_par)
 	return ret;
 }
 
+/**
+ * zfcp_plogi_evaluate - evaluate PLOGI playload and copy important fields
+ * into zfcp_port structure
+ * @port: zfcp_port structure
+ * @plogi: plogi payload
+ */
+void
+zfcp_plogi_evaluate(struct zfcp_port *port, struct fsf_plogi *plogi)
+{
+	port->maxframe_size = plogi->serv_param.common_serv_param[7] |
+		((plogi->serv_param.common_serv_param[6] & 0x0F) << 8);
+	if (plogi->serv_param.class1_serv_param[0] & 0x80)
+		port->supported_classes |= FC_COS_CLASS1;
+	if (plogi->serv_param.class2_serv_param[0] & 0x80)
+		port->supported_classes |= FC_COS_CLASS2;
+	if (plogi->serv_param.class3_serv_param[0] & 0x80)
+		port->supported_classes |= FC_COS_CLASS3;
+	if (plogi->serv_param.class4_serv_param[0] & 0x80)
+		port->supported_classes |= FC_COS_CLASS4;
+}
+
 #undef ZFCP_LOG_AREA

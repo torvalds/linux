@@ -115,6 +115,7 @@ extern int  zfcp_nameserver_enqueue(struct zfcp_adapter *);
 extern int  zfcp_ns_gid_pn_request(struct zfcp_erp_action *);
 extern int  zfcp_check_ct_response(struct ct_hdr *);
 extern int  zfcp_handle_els_rjt(u32, struct zfcp_ls_rjt_par *);
+extern void zfcp_plogi_evaluate(struct zfcp_port *, struct fsf_plogi *);
 
 /******************************* SCSI ****************************************/
 extern int  zfcp_adapter_scsi_register(struct zfcp_adapter *);

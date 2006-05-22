@@ -2560,8 +2560,7 @@ zfcp_fsf_open_port_handler(struct zfcp_fsf_req *fsf_req)
 		if (!atomic_test_mask(ZFCP_STATUS_PORT_NO_WWPN, &port->status))
 		{
 			if (fsf_req->qtcb->bottom.support.els1_length <
-			    ((((unsigned long) &plogi->serv_param.wwpn) -
-			      ((unsigned long) plogi)) + sizeof (u64))) {
+			    sizeof (struct fsf_plogi)) {
 				ZFCP_LOG_INFO(
 					"warning: insufficient length of "
 					"PLOGI payload (%i)\n",
@@ -2580,8 +2579,10 @@ zfcp_fsf_open_port_handler(struct zfcp_fsf_req *fsf_req)
 					atomic_clear_mask(
 						ZFCP_STATUS_PORT_DID_DID,
 						&port->status);
-				} else
+				} else {
 					port->wwnn = plogi->serv_param.wwnn;
+					zfcp_plogi_evaluate(port, plogi);
+				}
 			}
 		}
 		break;
