@@ -54,7 +54,6 @@ static LIST_HEAD(cx8802_devlist);
 
 /* ------------------------------------------------------------------ */
 
-#define BLACKBIRD_FIRM_ENC_FILENAME "v4l-cx2341x-enc.fw"
 #define BLACKBIRD_FIRM_IMAGE_SIZE 256*1024
 
 /* defines below are from ivtv-driver.h */
@@ -575,13 +574,13 @@ static int blackbird_load_firmware(struct cx8802_dev *dev)
 	if (retval < 0)
 		dprintk(0, "Error with register_write\n");
 
-	retval = request_firmware(&firmware, BLACKBIRD_FIRM_ENC_FILENAME,
+	retval = request_firmware(&firmware, CX2341X_FIRM_ENC_FILENAME,
 				  &dev->pci->dev);
 
 
 	if (retval != 0) {
 		dprintk(0, "ERROR: Hotplug firmware request failed (%s).\n",
-			BLACKBIRD_FIRM_ENC_FILENAME);
+			CX2341X_FIRM_ENC_FILENAME);
 		dprintk(0, "Please fix your hotplug setup, the board will "
 			"not work without firmware loaded!\n");
 		return -1;
