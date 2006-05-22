@@ -510,18 +510,11 @@ static inline int audit_del_rule(struct audit_entry *entry,
 
 /* List rules using struct audit_rule.  Exists for backward
  * compatibility with userspace. */
-static int audit_list(void *_dest)
+static void audit_list(int pid, int seq, struct sk_buff_head *q)
 {
-	int pid, seq;
-	int *dest = _dest;
+	struct sk_buff *skb;
 	struct audit_entry *entry;
 	int i;
-
-	pid = dest[0];
-	seq = dest[1];
-	kfree(dest);
-
-	mutex_lock(&audit_netlink_mutex);
 
 	/* The *_rcu iterators not needed here because we are
 	   always called with audit_netlink_mutex held. */
@@ -532,30 +525,24 @@ static int audit_list(void *_dest)
 			rule = audit_krule_to_rule(&entry->rule);
 			if (unlikely(!rule))
 				break;
-			audit_send_reply(pid, seq, AUDIT_LIST, 0, 1,
+			skb = audit_make_reply(pid, seq, AUDIT_LIST, 0, 1,
 					 rule, sizeof(*rule));
+			if (skb)
+				skb_queue_tail(q, skb);
 			kfree(rule);
 		}
 	}
-	audit_send_reply(pid, seq, AUDIT_LIST, 1, 1, NULL, 0);
-	
-	mutex_unlock(&audit_netlink_mutex);
-	return 0;
+	skb = audit_make_reply(pid, seq, AUDIT_LIST, 1, 1, NULL, 0);
+	if (skb)
+		skb_queue_tail(q, skb);
 }
 
 /* List rules using struct audit_rule_data. */
-static int audit_list_rules(void *_dest)
+static void audit_list_rules(int pid, int seq, struct sk_buff_head *q)
 {
-	int pid, seq;
-	int *dest = _dest;
+	struct sk_buff *skb;
 	struct audit_entry *e;
 	int i;
-
-	pid = dest[0];
-	seq = dest[1];
-	kfree(dest);
-
-	mutex_lock(&audit_netlink_mutex);
 
 	/* The *_rcu iterators not needed here because we are
 	   always called with audit_netlink_mutex held. */
@@ -566,15 +553,16 @@ static int audit_list_rules(void *_dest)
 			data = audit_krule_to_data(&e->rule);
 			if (unlikely(!data))
 				break;
-			audit_send_reply(pid, seq, AUDIT_LIST_RULES, 0, 1,
+			skb = audit_make_reply(pid, seq, AUDIT_LIST_RULES, 0, 1,
 					 data, sizeof(*data));
+			if (skb)
+				skb_queue_tail(q, skb);
 			kfree(data);
 		}
 	}
-	audit_send_reply(pid, seq, AUDIT_LIST_RULES, 1, 1, NULL, 0);
-
-	mutex_unlock(&audit_netlink_mutex);
-	return 0;
+	skb = audit_make_reply(pid, seq, AUDIT_LIST_RULES, 1, 1, NULL, 0);
+	if (skb)
+		skb_queue_tail(q, skb);
 }
 
 /**
@@ -592,7 +580,7 @@ int audit_receive_filter(int type, int pid, int uid, int seq, void *data,
 			 size_t datasz, uid_t loginuid, u32 sid)
 {
 	struct task_struct *tsk;
-	int *dest;
+	struct audit_netlink_list *dest;
 	int err = 0;
 	struct audit_entry *entry;
 
@@ -605,18 +593,20 @@ int audit_receive_filter(int type, int pid, int uid, int seq, void *data,
 		 * happen if we're actually running in the context of auditctl
 		 * trying to _send_ the stuff */
 		 
-		dest = kmalloc(2 * sizeof(int), GFP_KERNEL);
+		dest = kmalloc(sizeof(struct audit_netlink_list), GFP_KERNEL);
 		if (!dest)
 			return -ENOMEM;
-		dest[0] = pid;
-		dest[1] = seq;
+		dest->pid = pid;
+		skb_queue_head_init(&dest->q);
 
 		if (type == AUDIT_LIST)
-			tsk = kthread_run(audit_list, dest, "audit_list");
+			audit_list(pid, seq, &dest->q);
 		else
-			tsk = kthread_run(audit_list_rules, dest,
-					  "audit_list_rules");
+			audit_list_rules(pid, seq, &dest->q);
+
+		tsk = kthread_run(audit_send_list, dest, "audit_send_list");
 		if (IS_ERR(tsk)) {
+			skb_queue_purge(&dest->q);
 			kfree(dest);
 			err = PTR_ERR(tsk);
 		}

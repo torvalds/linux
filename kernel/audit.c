@@ -366,6 +366,50 @@ static int kauditd_thread(void *dummy)
 	return 0;
 }
 
+int audit_send_list(void *_dest)
+{
+	struct audit_netlink_list *dest = _dest;
+	int pid = dest->pid;
+	struct sk_buff *skb;
+
+	/* wait for parent to finish and send an ACK */
+	mutex_lock(&audit_netlink_mutex);
+	mutex_unlock(&audit_netlink_mutex);
+
+	while ((skb = __skb_dequeue(&dest->q)) != NULL)
+		netlink_unicast(audit_sock, skb, pid, 0);
+
+	kfree(dest);
+
+	return 0;
+}
+
+struct sk_buff *audit_make_reply(int pid, int seq, int type, int done,
+				 int multi, void *payload, int size)
+{
+	struct sk_buff	*skb;
+	struct nlmsghdr	*nlh;
+	int		len = NLMSG_SPACE(size);
+	void		*data;
+	int		flags = multi ? NLM_F_MULTI : 0;
+	int		t     = done  ? NLMSG_DONE  : type;
+
+	skb = alloc_skb(len, GFP_KERNEL);
+	if (!skb)
+		return NULL;
+
+	nlh		 = NLMSG_PUT(skb, pid, seq, t, size);
+	nlh->nlmsg_flags = flags;
+	data		 = NLMSG_DATA(nlh);
+	memcpy(data, payload, size);
+	return skb;
+
+nlmsg_failure:			/* Used by NLMSG_PUT */
+	if (skb)
+		kfree_skb(skb);
+	return NULL;
+}
+
 /**
  * audit_send_reply - send an audit reply message via netlink
  * @pid: process id to send reply to
@@ -383,29 +427,13 @@ void audit_send_reply(int pid, int seq, int type, int done, int multi,
 		      void *payload, int size)
 {
 	struct sk_buff	*skb;
-	struct nlmsghdr	*nlh;
-	int		len = NLMSG_SPACE(size);
-	void		*data;
-	int		flags = multi ? NLM_F_MULTI : 0;
-	int		t     = done  ? NLMSG_DONE  : type;
-
-	skb = alloc_skb(len, GFP_KERNEL);
+	skb = audit_make_reply(pid, seq, type, done, multi, payload, size);
 	if (!skb)
 		return;
-
-	nlh		 = NLMSG_PUT(skb, pid, seq, t, size);
-	nlh->nlmsg_flags = flags;
-	data		 = NLMSG_DATA(nlh);
-	memcpy(data, payload, size);
-
 	/* Ignore failure. It'll only happen if the sender goes away,
 	   because our timeout is set to infinite. */
 	netlink_unicast(audit_sock, skb, pid, 0);
 	return;
-
-nlmsg_failure:			/* Used by NLMSG_PUT */
-	if (skb)
-		kfree_skb(skb);
 }
 
 /*

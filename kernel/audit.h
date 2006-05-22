@@ -22,6 +22,7 @@
 #include <linux/mutex.h>
 #include <linux/fs.h>
 #include <linux/audit.h>
+#include <linux/skbuff.h>
 
 /* 0 = no checking
    1 = put_count checking
@@ -82,11 +83,21 @@ struct audit_entry {
 extern int audit_pid;
 extern int audit_comparator(const u32 left, const u32 op, const u32 right);
 
+extern struct sk_buff *	    audit_make_reply(int pid, int seq, int type,
+					     int done, int multi,
+					     void *payload, int size);
 extern void		    audit_send_reply(int pid, int seq, int type,
 					     int done, int multi,
 					     void *payload, int size);
 extern void		    audit_log_lost(const char *message);
 extern void		    audit_panic(const char *message);
 extern struct mutex audit_netlink_mutex;
+
+struct audit_netlink_list {
+	int pid;
+	struct sk_buff_head q;
+};
+
+int audit_send_list(void *);
 
 extern int selinux_audit_rule_update(void);
