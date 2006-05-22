@@ -202,7 +202,7 @@ int jffs2_sum_scan_sumnode(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb
 #define jffs2_sum_add_dirent_mem(a,b,c)
 #define jffs2_sum_add_xattr_mem(a,b,c)
 #define jffs2_sum_add_xref_mem(a,b,c)
-#define jffs2_sum_scan_sumnode(a,b,c,d) (0)
+#define jffs2_sum_scan_sumnode(a,b,c,d,e) (0)
 
 #endif /* CONFIG_JFFS2_SUMMARY */
 
