@@ -528,7 +528,7 @@ struct kiocb_priv {
 	struct usb_request	*req;
 	struct ep_data		*epdata;
 	void			*buf;
-	char __user		*ubuf;
+	char __user		*ubuf;		/* NULL for writes */
 	unsigned		actual;
 };
 
@@ -566,7 +566,6 @@ static ssize_t ep_aio_read_retry(struct kiocb *iocb)
 		status = priv->actual;
 	kfree(priv->buf);
 	kfree(priv);
-	aio_put_req(iocb);
 	return status;
 }
 
@@ -580,8 +579,8 @@ static void ep_aio_complete(struct usb_ep *ep, struct usb_request *req)
 	spin_lock(&epdata->dev->lock);
 	priv->req = NULL;
 	priv->epdata = NULL;
-	if (NULL == iocb->ki_retry
-			|| unlikely(0 == req->actual)
+	if (priv->ubuf == NULL
+			|| unlikely(req->actual == 0)
 			|| unlikely(kiocbIsCancelled(iocb))) {
 		kfree(req->buf);
 		kfree(priv);
@@ -618,7 +617,7 @@ ep_aio_rwtail(
 	char __user	*ubuf
 )
 {
-	struct kiocb_priv	*priv = (void *) &iocb->private;
+	struct kiocb_priv	*priv;
 	struct usb_request	*req;
 	ssize_t			value;
 
@@ -670,7 +669,7 @@ fail:
 		kfree(priv);
 		put_ep(epdata);
 	} else
-		value = -EIOCBQUEUED;
+		value = (ubuf ? -EIOCBRETRY : -EIOCBQUEUED);
 	return value;
 }
 
