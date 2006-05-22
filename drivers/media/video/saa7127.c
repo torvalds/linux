@@ -142,6 +142,7 @@ struct i2c_reg_value {
 static const struct i2c_reg_value saa7129_init_config_extra[] = {
 	{ SAA7127_REG_OUTPUT_PORT_CONTROL, 		0x38 },
 	{ SAA7127_REG_VTRIG, 				0xfa },
+	{ 0, 0 }
 };
 
 static const struct i2c_reg_value saa7127_init_config_common[] = {

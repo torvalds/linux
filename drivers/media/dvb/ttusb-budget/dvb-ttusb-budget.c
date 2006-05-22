@@ -1507,7 +1507,11 @@ static int ttusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 
 	mutex_unlock(&ttusb->semi2c);
 
-	dvb_register_adapter(&ttusb->adapter, "Technotrend/Hauppauge Nova-USB", THIS_MODULE);
+	if ((result = dvb_register_adapter(&ttusb->adapter, "Technotrend/Hauppauge Nova-USB", THIS_MODULE)) < 0) {
+		ttusb_free_iso_urbs(ttusb);
+		kfree(ttusb);
+		return result;
+	}
 	ttusb->adapter.priv = ttusb;
 
 	/* i2c */

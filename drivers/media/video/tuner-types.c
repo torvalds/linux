@@ -877,8 +877,8 @@ static struct tuner_params tuner_philips_fmd1216me_mk3_params[] = {
 /* ------------ TUNER_LG_TDVS_H062F - INFINEON ATSC ------------ */
 
 static struct tuner_range tuner_tua6034_ntsc_ranges[] = {
-	{ 16 * 160.00 /*MHz*/, 0x8e, 0x01 },
-	{ 16 * 455.00 /*MHz*/, 0x8e, 0x02 },
+	{ 16 * 165.00 /*MHz*/, 0x8e, 0x01 },
+	{ 16 * 450.00 /*MHz*/, 0x8e, 0x02 },
 	{ 16 * 999.99        , 0x8e, 0x04 },
 };
 
