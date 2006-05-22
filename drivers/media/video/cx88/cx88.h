@@ -35,7 +35,7 @@
 
 #include <linux/version.h>
 #include <linux/mutex.h>
-#define CX88_VERSION_CODE KERNEL_VERSION(0,0,5)
+#define CX88_VERSION_CODE KERNEL_VERSION(0,0,6)
 
 #ifndef TRUE
 # define TRUE (1==1)

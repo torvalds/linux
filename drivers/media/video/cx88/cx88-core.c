@@ -677,7 +677,7 @@ static unsigned int inline norm_htotal(struct cx88_tvnorm *norm)
 
 static unsigned int inline norm_vbipack(struct cx88_tvnorm *norm)
 {
-	return (norm->id & V4L2_STD_625_50) ? 511 : 288;
+	return (norm->id & V4L2_STD_625_50) ? 511 : 400;
 }
 
 int cx88_set_scale(struct cx88_core *core, unsigned int width, unsigned int height,
