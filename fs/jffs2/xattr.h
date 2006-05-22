@@ -20,11 +20,11 @@
 struct jffs2_xattr_datum
 {
 	void *always_null;
-	u8 class;
-	u8 flags;
-	u16 xprefix;			/* see JFFS2_XATTR_PREFIX_* */
-
 	struct jffs2_raw_node_ref *node;
+	uint8_t class;
+	uint8_t flags;
+	uint16_t xprefix;			/* see JFFS2_XATTR_PREFIX_* */
+
 	struct list_head xindex;	/* chained from c->xattrindex[n] */
 	uint32_t refcnt;		/* # of xattr_ref refers this */
 	uint32_t xid;
@@ -42,11 +42,11 @@ struct jffs2_inode_cache;
 struct jffs2_xattr_ref
 {
 	void *always_null;
-	u8 class;
-	u8 flags;		/* Currently unused */
+	struct jffs2_raw_node_ref *node;
+	uint8_t class;
+	uint8_t flags;		/* Currently unused */
 	u16 unused;
 
-	struct jffs2_raw_node_ref *node;
 	union {
 		struct jffs2_inode_cache *ic;	/* reference to jffs2_inode_cache */
 		uint32_t ino;			/* only used in scanning/building  */

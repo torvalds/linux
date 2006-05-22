@@ -77,9 +77,9 @@
 struct jffs2_raw_node_ref
 {
 	struct jffs2_raw_node_ref *next_in_ino; /* Points to the next raw_node_ref
-		for this inode. If this is the last, it points to the inode_cache
-		for this inode instead. The inode_cache will have NULL in the first
-		word so you know when you've got there :) */
+		for this object. If this _is_ the last, it points to the inode_cache,
+		xattr_ref or xattr_datum instead. The common part of those structures
+		has NULL in the first word. See jffs2_raw_ref_to_ic() below */
 	struct jffs2_raw_node_ref *next_phys;
 	uint32_t flash_offset;
 #define TEST_TOTLEN
@@ -87,6 +87,18 @@ struct jffs2_raw_node_ref
 	uint32_t __totlen; /* This may die; use ref_totlen(c, jeb, ) below */
 #endif
 };
+
+static inline struct jffs2_inode_cache *jffs2_raw_ref_to_ic(struct jffs2_raw_node_ref *raw)
+{
+	while(raw->next_in_ino) {
+		raw = raw->next_in_ino;
+	}
+
+	/* NB. This can be a jffs2_xattr_datum or jffs2_xattr_ref and
+	   not actually a jffs2_inode_cache. Check ->class */
+	return ((struct jffs2_inode_cache *)raw);
+}
+
 
         /* flash_offset & 3 always has to be zero, because nodes are
 	   always aligned at 4 bytes. So we have a couple of extra bits
@@ -113,20 +125,27 @@ struct jffs2_raw_node_ref
    a pointer to the first physical node which is part of this inode, too.
 */
 struct jffs2_inode_cache {
+	/* First part of structure is shared with other objects which
+	   can terminate the raw node refs' next_in_ino list -- which
+	   currently struct jffs2_xattr_datum and struct jffs2_xattr_ref. */
+
 	struct jffs2_full_dirent *scan_dents; /* Used during scan to hold
 		temporary lists of dirents, and later must be set to
 		NULL to mark the end of the raw_node_ref->next_in_ino
 		chain. */
-	u8 class;	/* It's used for identification */
-	u8 flags;
-	uint16_t state;
-	struct jffs2_inode_cache *next;
 	struct jffs2_raw_node_ref *nodes;
+	uint8_t class;	/* It's used for identification */
+
+	/* end of shared structure */
+
+	uint8_t flags;
+	uint16_t state;
 	uint32_t ino;
-	int nlink;
+	struct jffs2_inode_cache *next;
 #ifdef CONFIG_JFFS2_FS_XATTR
 	struct jffs2_xattr_ref *xref;
 #endif
+	int nlink;
 };
 
 /* Inode states for 'state' above. We need the 'GC' state to prevent
@@ -248,15 +267,6 @@ static inline int jffs2_encode_dev(union jffs2_device_node *jdev, dev_t rdev)
 		jdev->new = cpu_to_je32(new_encode_dev(rdev));
 		return sizeof(jdev->new);
 	}
-}
-
-static inline struct jffs2_inode_cache *jffs2_raw_ref_to_ic(struct jffs2_raw_node_ref *raw)
-{
-	while(raw->next_in_ino) {
-		raw = raw->next_in_ino;
-	}
-
-	return ((struct jffs2_inode_cache *)raw);
 }
 
 static inline struct jffs2_node_frag *frag_first(struct rb_root *root)
