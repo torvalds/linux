@@ -54,7 +54,7 @@ static LIST_HEAD(cx8802_devlist);
 
 /* ------------------------------------------------------------------ */
 
-#define BLACKBIRD_FIRM_ENC_FILENAME "blackbird-fw-enc.bin"
+#define BLACKBIRD_FIRM_ENC_FILENAME "v4l-cx2341x-enc.fw"
 #define BLACKBIRD_FIRM_IMAGE_SIZE 256*1024
 
 /* defines below are from ivtv-driver.h */
