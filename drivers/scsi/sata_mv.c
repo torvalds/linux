@@ -272,33 +272,33 @@ enum chip_type {
 
 /* Command ReQuest Block: 32B */
 struct mv_crqb {
-	u32			sg_addr;
-	u32			sg_addr_hi;
-	u16			ctrl_flags;
-	u16			ata_cmd[11];
+	__le32			sg_addr;
+	__le32			sg_addr_hi;
+	__le16			ctrl_flags;
+	__le16			ata_cmd[11];
 };
 
 struct mv_crqb_iie {
-	u32			addr;
-	u32			addr_hi;
-	u32			flags;
-	u32			len;
-	u32			ata_cmd[4];
+	__le32			addr;
+	__le32			addr_hi;
+	__le32			flags;
+	__le32			len;
+	__le32			ata_cmd[4];
 };
 
 /* Command ResPonse Block: 8B */
 struct mv_crpb {
-	u16			id;
-	u16			flags;
-	u32			tmstmp;
+	__le16			id;
+	__le16			flags;
+	__le32			tmstmp;
 };
 
 /* EDMA Physical Region Descriptor (ePRD); A.K.A. SG */
 struct mv_sg {
-	u32			addr;
-	u32			flags_size;
-	u32			addr_hi;
-	u32			reserved;
+	__le32			addr;
+	__le32			flags_size;
+	__le32			addr_hi;
+	__le32			reserved;
 };
 
 struct mv_port_priv {
@@ -1030,7 +1030,7 @@ static inline unsigned mv_inc_q_index(unsigned index)
 	return (index + 1) & MV_MAX_Q_DEPTH_MASK;
 }
 
-static inline void mv_crqb_pack_cmd(u16 *cmdw, u8 data, u8 addr, unsigned last)
+static inline void mv_crqb_pack_cmd(__le16 *cmdw, u8 data, u8 addr, unsigned last)
 {
 	u16 tmp = data | (addr << CRQB_CMD_ADDR_SHIFT) | CRQB_CMD_CS |
 		(last ? CRQB_CMD_LAST : 0);
@@ -1053,7 +1053,7 @@ static void mv_qc_prep(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct mv_port_priv *pp = ap->private_data;
-	u16 *cw;
+	__le16 *cw;
 	struct ata_taskfile *tf;
 	u16 flags = 0;
 	unsigned in_index;
