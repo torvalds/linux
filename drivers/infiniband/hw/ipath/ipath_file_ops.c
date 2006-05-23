@@ -1224,6 +1224,10 @@ static unsigned int ipath_poll(struct file *fp,
 
 	if (tail == head) {
 		set_bit(IPATH_PORT_WAITING_RCV, &pd->port_flag);
+		if(dd->ipath_rhdrhead_intr_off) /* arm rcv interrupt */
+			(void)ipath_write_ureg(dd, ur_rcvhdrhead,
+					       dd->ipath_rhdrhead_intr_off
+					       | head, pd->port_port);
 		poll_wait(fp, &pd->port_wait, pt);
 
 		if (test_bit(IPATH_PORT_WAITING_RCV, &pd->port_flag)) {
