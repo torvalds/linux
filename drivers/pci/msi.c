@@ -940,14 +940,13 @@ int pci_enable_msi(struct pci_dev* dev)
 	if (!pos)
 		return -EINVAL;
 
-	pci_read_config_word(dev, msi_control_reg(pos), &control);
-	if (control & PCI_MSI_FLAGS_ENABLE)
-		return 0;			/* Already in MSI mode */
-
 	if (!msi_lookup_vector(dev, PCI_CAP_ID_MSI)) {
 		/* Lookup Sucess */
 		unsigned long flags;
 
+		pci_read_config_word(dev, msi_control_reg(pos), &control);
+		if (control & PCI_MSI_FLAGS_ENABLE)
+			return 0;	/* Already in MSI mode */
 		spin_lock_irqsave(&msi_lock, flags);
 		if (!vector_irq[dev->irq]) {
 			msi_desc[dev->irq]->msi_attrib.state = 0;
