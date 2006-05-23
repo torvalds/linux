@@ -338,18 +338,18 @@ static struct class spi_master_class = {
  * spi_alloc_master - allocate SPI master controller
  * @dev: the controller, possibly using the platform_bus
  * @size: how much driver-private data to preallocate; the pointer to this
- * 	memory is in the class_data field of the returned class_device,
+ *	memory is in the class_data field of the returned class_device,
  *	accessible with spi_master_get_devdata().
  *
  * This call is used only by SPI master controller drivers, which are the
  * only ones directly touching chip registers.  It's how they allocate
- * an spi_master structure, prior to calling spi_add_master().
+ * an spi_master structure, prior to calling spi_register_master().
  *
  * This must be called from context that can sleep.  It returns the SPI
  * master structure on success, else NULL.
  *
  * The caller is responsible for assigning the bus number and initializing
- * the master's methods before calling spi_add_master(); and (after errors
+ * the master's methods before calling spi_register_master(); and (after errors
  * adding the device) calling spi_master_put() to prevent a memory leak.
  */
 struct spi_master * __init_or_module

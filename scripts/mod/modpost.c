@@ -697,29 +697,79 @@ static void check_sec_ref(struct module *mod, const char *modname,
 
 	/* Walk through all sections */
 	for (i = 0; i < hdr->e_shnum; i++) {
-		Elf_Rela *rela;
-		Elf_Rela *start = (void *)hdr + sechdrs[i].sh_offset;
-		Elf_Rela *stop  = (void*)start + sechdrs[i].sh_size;
-		const char *name = secstrings + sechdrs[i].sh_name +
-						strlen(".rela");
+		const char *name = secstrings + sechdrs[i].sh_name;
+		const char *secname;
+		Elf_Rela r;
+		unsigned int r_sym;
 		/* We want to process only relocation sections and not .init */
-		if (section_ref_ok(name) || (sechdrs[i].sh_type != SHT_RELA))
-			continue;
-
-		for (rela = start; rela < stop; rela++) {
-			Elf_Rela r;
-			const char *secname;
-			r.r_offset = TO_NATIVE(rela->r_offset);
-			r.r_info   = TO_NATIVE(rela->r_info);
-			r.r_addend = TO_NATIVE(rela->r_addend);
-			sym = elf->symtab_start + ELF_R_SYM(r.r_info);
-			/* Skip special sections */
-			if (sym->st_shndx >= SHN_LORESERVE)
+		if (sechdrs[i].sh_type == SHT_RELA) {
+			Elf_Rela *rela;
+			Elf_Rela *start = (void *)hdr + sechdrs[i].sh_offset;
+			Elf_Rela *stop  = (void*)start + sechdrs[i].sh_size;
+			name += strlen(".rela");
+			if (section_ref_ok(name))
 				continue;
 
-			secname = secstrings + sechdrs[sym->st_shndx].sh_name;
-			if (section(secname))
-				warn_sec_mismatch(modname, name, elf, sym, r);
+			for (rela = start; rela < stop; rela++) {
+				r.r_offset = TO_NATIVE(rela->r_offset);
+#if KERNEL_ELFCLASS == ELFCLASS64
+				if (hdr->e_machine == EM_MIPS) {
+					r_sym = ELF64_MIPS_R_SYM(rela->r_info);
+					r_sym = TO_NATIVE(r_sym);
+				} else {
+					r.r_info = TO_NATIVE(rela->r_info);
+					r_sym = ELF_R_SYM(r.r_info);
+				}
+#else
+				r.r_info = TO_NATIVE(rela->r_info);
+				r_sym = ELF_R_SYM(r.r_info);
+#endif
+				r.r_addend = TO_NATIVE(rela->r_addend);
+				sym = elf->symtab_start + r_sym;
+				/* Skip special sections */
+				if (sym->st_shndx >= SHN_LORESERVE)
+					continue;
+
+				secname = secstrings +
+					sechdrs[sym->st_shndx].sh_name;
+				if (section(secname))
+					warn_sec_mismatch(modname, name,
+							  elf, sym, r);
+			}
+		} else if (sechdrs[i].sh_type == SHT_REL) {
+			Elf_Rel *rel;
+			Elf_Rel *start = (void *)hdr + sechdrs[i].sh_offset;
+			Elf_Rel *stop  = (void*)start + sechdrs[i].sh_size;
+			name += strlen(".rel");
+			if (section_ref_ok(name))
+				continue;
+
+			for (rel = start; rel < stop; rel++) {
+				r.r_offset = TO_NATIVE(rel->r_offset);
+#if KERNEL_ELFCLASS == ELFCLASS64
+				if (hdr->e_machine == EM_MIPS) {
+					r_sym = ELF64_MIPS_R_SYM(rel->r_info);
+					r_sym = TO_NATIVE(r_sym);
+				} else {
+					r.r_info = TO_NATIVE(rel->r_info);
+					r_sym = ELF_R_SYM(r.r_info);
+				}
+#else
+				r.r_info = TO_NATIVE(rel->r_info);
+				r_sym = ELF_R_SYM(r.r_info);
+#endif
+				r.r_addend = 0;
+				sym = elf->symtab_start + r_sym;
+				/* Skip special sections */
+				if (sym->st_shndx >= SHN_LORESERVE)
+					continue;
+
+				secname = secstrings +
+					sechdrs[sym->st_shndx].sh_name;
+				if (section(secname))
+					warn_sec_mismatch(modname, name,
+							  elf, sym, r);
+			}
 		}
 	}
 }

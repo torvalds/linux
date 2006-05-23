@@ -1066,9 +1066,11 @@ exp_pseudoroot(struct auth_domain *clp, struct svc_fh *fhp,
 		rv = nfserr_perm;
 	else if (IS_ERR(exp))
 		rv = nfserrno(PTR_ERR(exp));
-	else
+	else {
 		rv = fh_compose(fhp, exp,
 				fsid_key->ek_dentry, NULL);
+		exp_put(exp);
+	}
 	cache_put(&fsid_key->h, &svc_expkey_cache);
 	return rv;
 }

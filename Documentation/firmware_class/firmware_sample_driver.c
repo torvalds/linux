@@ -5,8 +5,6 @@
  *
  * Sample code on how to use request_firmware() from drivers.
  *
- * Note that register_firmware() is currently useless.
- *
  */
 
 #include <linux/module.h>
@@ -16,11 +14,6 @@
 #include <linux/string.h>
 
 #include "linux/firmware.h"
-
-#define WE_CAN_NEED_FIRMWARE_BEFORE_USERSPACE_IS_AVAILABLE
-#ifdef WE_CAN_NEED_FIRMWARE_BEFORE_USERSPACE_IS_AVAILABLE
-char __init inkernel_firmware[] = "let's say that this is firmware\n";
-#endif
 
 static struct device ghost_device = {
 	.bus_id    = "ghost0",
@@ -104,10 +97,6 @@ static void sample_probe_async(void)
 
 static int sample_init(void)
 {
-#ifdef WE_CAN_NEED_FIRMWARE_BEFORE_USERSPACE_IS_AVAILABLE
-	register_firmware("sample_driver_fw", inkernel_firmware,
-			  sizeof(inkernel_firmware));
-#endif
 	device_initialize(&ghost_device);
 	/* since there is no real hardware insertion I just call the
 	 * sample probe functions here */

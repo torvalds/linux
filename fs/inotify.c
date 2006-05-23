@@ -848,7 +848,11 @@ static int inotify_release(struct inode *ignored, struct file *file)
 		inode = watch->inode;
 		mutex_lock(&inode->inotify_mutex);
 		mutex_lock(&dev->mutex);
-		remove_watch_no_event(watch, dev);
+
+		/* make sure we didn't race with another list removal */
+		if (likely(idr_find(&dev->idr, watch->wd)))
+			remove_watch_no_event(watch, dev);
+
 		mutex_unlock(&dev->mutex);
 		mutex_unlock(&inode->inotify_mutex);
 		put_inotify_watch(watch);
@@ -890,8 +894,7 @@ static int inotify_ignore(struct inotify_device *dev, s32 wd)
 	mutex_lock(&dev->mutex);
 
 	/* make sure that we did not race */
-	watch = idr_find(&dev->idr, wd);
-	if (likely(watch))
+	if (likely(idr_find(&dev->idr, wd) == watch))
 		remove_watch(watch, dev);
 
 	mutex_unlock(&dev->mutex);

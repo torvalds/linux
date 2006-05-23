@@ -259,9 +259,9 @@ sub dibusb {
 }
 
 sub nxt2002 {
-    my $sourcefile = "Broadband4PC_4_2_11.zip";
+    my $sourcefile = "Technisat_DVB-PC_4_4_COMPACT.zip";
     my $url = "http://www.bbti.us/download/windows/$sourcefile";
-    my $hash = "c6d2ea47a8f456d887ada0cfb718ff2a";
+    my $hash = "476befae8c7c1bb9648954060b1eec1f";
     my $outfile = "dvb-fe-nxt2002.fw";
     my $tmpdir = tempdir(DIR => "/tmp", CLEANUP => 1);
 
@@ -269,8 +269,8 @@ sub nxt2002 {
 
     wgetfile($sourcefile, $url);
     unzip($sourcefile, $tmpdir);
-    verify("$tmpdir/SkyNETU.sys", $hash);
-    extract("$tmpdir/SkyNETU.sys", 375832, 5908, $outfile);
+    verify("$tmpdir/SkyNET.sys", $hash);
+    extract("$tmpdir/SkyNET.sys", 331624, 5908, $outfile);
 
     $outfile;
 }

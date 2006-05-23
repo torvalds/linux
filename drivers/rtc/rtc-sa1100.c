@@ -247,7 +247,7 @@ static int sa1100_rtc_ioctl(struct device *dev, unsigned int cmd,
 		rtc_freq = arg;
 		return 0;
 	}
-	return -EINVAL;
+	return -ENOIOCTLCMD;
 }
 
 static int sa1100_rtc_read_time(struct device *dev, struct rtc_time *tm)

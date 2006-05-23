@@ -7,7 +7,7 @@ menu "Radio Adapters"
 
 config RADIO_CADET
 	tristate "ADS Cadet AM/FM Tuner"
-	depends on ISA && VIDEO_DEV
+	depends on ISA && VIDEO_V4L1
 	---help---
 	  Choose Y here if you have one of these AM/FM radio cards, and then
 	  fill in the port address below.
@@ -25,7 +25,7 @@ config RADIO_CADET
 
 config RADIO_RTRACK
 	tristate "AIMSlab RadioTrack (aka RadioReveal) support"
-	depends on ISA && VIDEO_DEV
+	depends on ISA && VIDEO_V4L1
 	---help---
 	  Choose Y here if you have one of these FM radio cards, and then fill
 	  in the port address below.
@@ -59,7 +59,7 @@ config RADIO_RTRACK_PORT
 
 config RADIO_RTRACK2
 	tristate "AIMSlab RadioTrack II support"
-	depends on ISA && VIDEO_DEV
+	depends on ISA && VIDEO_V4L1
 	---help---
 	  Choose Y here if you have this FM radio card, and then fill in the
 	  port address below.
@@ -82,7 +82,7 @@ config RADIO_RTRACK2_PORT
 
 config RADIO_AZTECH
 	tristate "Aztech/Packard Bell Radio"
-	depends on ISA && VIDEO_DEV
+	depends on ISA && VIDEO_V4L1
 	---help---
 	  Choose Y here if you have one of these FM radio cards, and then fill
 	  in the port address below.
@@ -106,7 +106,7 @@ config RADIO_AZTECH_PORT
 
 config RADIO_GEMTEK
 	tristate "GemTek Radio Card support"
-	depends on ISA && VIDEO_DEV
+	depends on ISA && VIDEO_V4L1
 	---help---
 	  Choose Y here if you have this FM radio card, and then fill in the
 	  port address below.
@@ -131,7 +131,7 @@ config RADIO_GEMTEK_PORT
 
 config RADIO_GEMTEK_PCI
 	tristate "GemTek PCI Radio Card support"
-	depends on VIDEO_DEV && PCI
+	depends on VIDEO_V4L1 && PCI
 	---help---
 	  Choose Y here if you have this PCI FM radio card.
 
@@ -145,7 +145,7 @@ config RADIO_GEMTEK_PCI
 
 config RADIO_MAXIRADIO
 	tristate "Guillemot MAXI Radio FM 2000 radio"
-	depends on VIDEO_DEV && PCI
+	depends on VIDEO_V4L1 && PCI
 	---help---
 	  Choose Y here if you have this radio card.  This card may also be
 	  found as Gemtek PCI FM.
@@ -160,7 +160,7 @@ config RADIO_MAXIRADIO
 
 config RADIO_MAESTRO
 	tristate "Maestro on board radio"
-	depends on VIDEO_DEV
+	depends on VIDEO_V4L1
 	---help---
 	  Say Y here to directly support the on-board radio tuner on the
 	  Maestro 2 or 2E sound card.
@@ -175,7 +175,7 @@ config RADIO_MAESTRO
 
 config RADIO_MIROPCM20
 	tristate "miroSOUND PCM20 radio"
-	depends on ISA && VIDEO_DEV && SOUND_ACI_MIXER
+	depends on ISA && VIDEO_V4L1 && SOUND_ACI_MIXER
 	---help---
 	  Choose Y here if you have this FM radio card. You also need to say Y
 	  to "ACI mixer (miroSOUND PCM1-pro/PCM12/PCM20 radio)" (in "Sound")
@@ -208,7 +208,7 @@ config RADIO_MIROPCM20_RDS
 
 config RADIO_SF16FMI
 	tristate "SF16FMI Radio"
-	depends on ISA && VIDEO_DEV
+	depends on ISA && VIDEO_V4L1
 	---help---
 	  Choose Y here if you have one of these FM radio cards.  If you
 	  compile the driver into the kernel and your card is not PnP one, you
@@ -225,7 +225,7 @@ config RADIO_SF16FMI
 
 config RADIO_SF16FMR2
 	tristate "SF16FMR2 Radio"
-	depends on ISA && VIDEO_DEV
+	depends on ISA && VIDEO_V4L1
 	---help---
 	  Choose Y here if you have one of these FM radio cards.
 
@@ -239,7 +239,7 @@ config RADIO_SF16FMR2
 
 config RADIO_TERRATEC
 	tristate "TerraTec ActiveRadio ISA Standalone"
-	depends on ISA && VIDEO_DEV
+	depends on ISA && VIDEO_V4L1
 	---help---
 	  Choose Y here if you have this FM radio card, and then fill in the
 	  port address below. (TODO)
@@ -268,7 +268,7 @@ config RADIO_TERRATEC_PORT
 
 config RADIO_TRUST
 	tristate "Trust FM radio card"
-	depends on ISA && VIDEO_DEV
+	depends on ISA && VIDEO_V4L1
 	help
 	  This is a driver for the Trust FM radio cards. Say Y if you have
 	  such a card and want to use it under Linux.
@@ -286,7 +286,7 @@ config RADIO_TRUST_PORT
 
 config RADIO_TYPHOON
 	tristate "Typhoon Radio (a.k.a. EcoRadio)"
-	depends on ISA && VIDEO_DEV
+	depends on ISA && VIDEO_V4L1
 	---help---
 	  Choose Y here if you have one of these FM radio cards, and then fill
 	  in the port address and the frequency used for muting below.
@@ -330,7 +330,7 @@ config RADIO_TYPHOON_MUTEFREQ
 
 config RADIO_ZOLTRIX
 	tristate "Zoltrix Radio"
-	depends on ISA && VIDEO_DEV
+	depends on ISA && VIDEO_V4L1
 	---help---
 	  Choose Y here if you have one of these FM radio cards, and then fill
 	  in the port address below.

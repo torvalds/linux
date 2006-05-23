@@ -398,7 +398,7 @@ int tty_insert_flip_string_flags(struct tty_struct *tty,
 	while (unlikely(size > copied));
 	return copied;
 }
-EXPORT_SYMBOL_GPL(tty_insert_flip_string_flags);
+EXPORT_SYMBOL(tty_insert_flip_string_flags);
 
 void tty_schedule_flip(struct tty_struct *tty)
 {

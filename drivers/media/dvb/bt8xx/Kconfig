@@ -7,6 +7,7 @@ config DVB_BT8XX
 	select DVB_CX24110
 	select DVB_OR51211
 	select DVB_LGDT330X
+	select DVB_ZL10353
 	select FW_LOADER
 	help
 	  Support for PCI cards based on the Bt8xx PCI bridge. Examples are

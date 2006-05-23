@@ -4054,7 +4054,7 @@ static int st_probe(struct device *dev)
 	}
 
 	sdev_printk(KERN_WARNING, SDp,
-		    "Attached scsi tape %s", tape_name(tpnt));
+		    "Attached scsi tape %s\n", tape_name(tpnt));
 	printk(KERN_WARNING "%s: try direct i/o: %s (alignment %d B)\n",
 	       tape_name(tpnt), tpnt->try_dio ? "yes" : "no",
 	       queue_dma_alignment(SDp->request_queue) + 1);

@@ -3452,7 +3452,12 @@ void end_that_request_last(struct request *req, int uptodate)
 	if (unlikely(laptop_mode) && blk_fs_request(req))
 		laptop_io_completion();
 
-	if (disk && blk_fs_request(req)) {
+	/*
+	 * Account IO completion.  bar_rq isn't accounted as a normal
+	 * IO on queueing nor completion.  Accounting the containing
+	 * request is enough.
+	 */
+	if (disk && blk_fs_request(req) && req != &req->q->bar_rq) {
 		unsigned long duration = jiffies - req->start_time;
 		const int rw = rq_data_dir(req);
 

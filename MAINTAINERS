@@ -40,11 +40,20 @@ trivial patch so apply some common sense.
 	PLEASE document known bugs. If it doesn't work for everything
 	or does something very odd once a month document it.
 
+	PLEASE remember that submissions must be made under the terms
+	of the OSDL certificate of contribution
+	(http://www.osdl.org/newsroom/press_releases/2004/2004_05_24_dco.html)
+	and should include a Signed-off-by: line.
+
 6.	Make sure you have the right to send any changes you make. If you
 	do changes at work you may find your employer owns the patch
 	not you.
 
-7.	Happy hacking.
+7.	When sending security related changes or reports to a maintainer
+	please Cc: security@kernel.org, especially if the maintainer
+	does not respond.
+
+8.	Happy hacking.
 
  		-----------------------------------
 
@@ -969,7 +978,7 @@ S:	Maintained
 EXT3 FILE SYSTEM
 P:	Stephen Tweedie, Andrew Morton
 M:	sct@redhat.com, akpm@osdl.org, adilger@clusterfs.com
-L:	ext3-users@redhat.com
+L:	ext2-devel@lists.sourceforge.net
 S:	Maintained
 
 F71805F HARDWARE MONITORING DRIVER
@@ -1536,10 +1545,26 @@ W:	http://jfs.sourceforge.net/
 T:	git kernel.org:/pub/scm/linux/kernel/git/shaggy/jfs-2.6.git
 S:	Supported
 
+JOURNALLING LAYER FOR BLOCK DEVICS (JBD)
+P:	Stephen Tweedie, Andrew Morton
+M:	sct@redhat.com, akpm@osdl.org
+L:	ext2-devel@lists.sourceforge.net
+S:	Maintained
+
 KCONFIG
 P:	Roman Zippel
 M:	zippel@linux-m68k.org
 L:	kbuild-devel@lists.sourceforge.net
+S:	Maintained
+
+KDUMP
+P:	Vivek Goyal
+M:	vgoyal@in.ibm.com
+P:	Haren Myneni
+M:	hbabu@us.ibm.com
+L:	fastboot@lists.osdl.org
+L:	linux-kernel@vger.kernel.org
+W:	http://lse.sourceforge.net/kdump/
 S:	Maintained
 
 KERNEL AUTOMOUNTER (AUTOFS)

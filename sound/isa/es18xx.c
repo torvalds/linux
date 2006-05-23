@@ -85,6 +85,8 @@
 #include <linux/pnp.h>
 #include <linux/isapnp.h>
 #include <linux/moduleparam.h>
+#include <linux/delay.h>
+
 #include <asm/io.h>
 #include <asm/dma.h>
 #include <sound/core.h>

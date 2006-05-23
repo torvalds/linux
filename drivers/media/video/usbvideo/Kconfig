@@ -3,7 +3,7 @@ config VIDEO_USBVIDEO
 
 config USB_VICAM
 	tristate "USB 3com HomeConnect (aka vicam) support (EXPERIMENTAL)"
-	depends on USB && VIDEO_DEV && EXPERIMENTAL
+	depends on USB && VIDEO_V4L1 && EXPERIMENTAL
 	select VIDEO_USBVIDEO
 	---help---
 	  Say Y here if you have 3com homeconnect camera (vicam).
@@ -13,7 +13,7 @@ config USB_VICAM
 
 config USB_IBMCAM
 	tristate "USB IBM (Xirlink) C-it Camera support"
-	depends on USB && VIDEO_DEV
+	depends on USB && VIDEO_V4L1
 	select VIDEO_USBVIDEO
 	---help---
 	  Say Y here if you want to connect a IBM "C-It" camera, also known as
@@ -28,7 +28,7 @@ config USB_IBMCAM
 
 config USB_KONICAWC
 	tristate "USB Konica Webcam support"
-	depends on USB && VIDEO_DEV
+	depends on USB && VIDEO_V4L1
 	select VIDEO_USBVIDEO
 	---help---
 	  Say Y here if you want support for webcams based on a Konica

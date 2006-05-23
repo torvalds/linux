@@ -42,7 +42,7 @@ static inline void pcibios_penalize_isa_irq(int irq, int active)
 struct pci_dev;
 
 struct pci_iommu_ops {
-	void *(*alloc_consistent)(struct pci_dev *, size_t, dma_addr_t *);
+	void *(*alloc_consistent)(struct pci_dev *, size_t, dma_addr_t *, gfp_t);
 	void (*free_consistent)(struct pci_dev *, size_t, void *, dma_addr_t);
 	dma_addr_t (*map_single)(struct pci_dev *, void *, size_t, int);
 	void (*unmap_single)(struct pci_dev *, dma_addr_t, size_t, int);
@@ -59,7 +59,7 @@ extern struct pci_iommu_ops *pci_iommu_ops;
  */
 static inline void *pci_alloc_consistent(struct pci_dev *hwdev, size_t size, dma_addr_t *dma_handle)
 {
-	return pci_iommu_ops->alloc_consistent(hwdev, size, dma_handle);
+	return pci_iommu_ops->alloc_consistent(hwdev, size, dma_handle, GFP_ATOMIC);
 }
 
 /* Free and unmap a consistent DMA buffer.

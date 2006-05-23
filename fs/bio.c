@@ -1116,6 +1116,9 @@ struct bio_pair *bio_split(struct bio *bi, mempool_t *pool, int first_sectors)
 	bp->bio1.bi_io_vec = &bp->bv1;
 	bp->bio2.bi_io_vec = &bp->bv2;
 
+	bp->bio1.bi_max_vecs = 1;
+	bp->bio2.bi_max_vecs = 1;
+
 	bp->bio1.bi_end_io = bio_pair_end_1;
 	bp->bio2.bi_end_io = bio_pair_end_2;
 

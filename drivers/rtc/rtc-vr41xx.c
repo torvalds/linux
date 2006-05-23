@@ -270,7 +270,7 @@ static int vr41xx_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long 
 		epoch = arg;
 		break;
 	default:
-		return -EINVAL;
+		return -ENOIOCTLCMD;
 	}
 
 	return 0;

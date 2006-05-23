@@ -221,7 +221,7 @@ _decode_session4(struct sk_buff *skb, struct flowi *fl)
 			if (pskb_may_pull(skb, xprth + 4 - skb->data)) {
 				u16 *ipcomp_hdr = (u16 *)xprth;
 
-				fl->fl_ipsec_spi = ntohl(ntohs(ipcomp_hdr[1]));
+				fl->fl_ipsec_spi = htonl(ntohs(ipcomp_hdr[1]));
 			}
 			break;
 		default:
