@@ -55,7 +55,7 @@ static int __init br_init(void)
 
 static void __exit br_deinit(void)
 {
-	llc_sap_close(br_stp_sap);
+	rcu_assign_pointer(br_stp_sap->rcv_func, NULL);
 
 #ifdef CONFIG_BRIDGE_NETFILTER
 	br_netfilter_fini();
@@ -67,6 +67,7 @@ static void __exit br_deinit(void)
 
 	synchronize_net();
 
+	llc_sap_put(br_stp_sap);
 	br_fdb_get_hook = NULL;
 	br_fdb_put_hook = NULL;
 
