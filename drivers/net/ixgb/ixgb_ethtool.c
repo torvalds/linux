@@ -44,6 +44,8 @@ extern void ixgb_free_rx_resources(struct ixgb_adapter *adapter);
 extern void ixgb_free_tx_resources(struct ixgb_adapter *adapter);
 extern void ixgb_update_stats(struct ixgb_adapter *adapter);
 
+#define IXGB_ALL_RAR_ENTRIES 16
+
 struct ixgb_stats {
 	char stat_string[ETH_GSTRING_LEN];
 	int sizeof_stat;
@@ -300,7 +302,7 @@ ixgb_get_regs(struct net_device *netdev,
 	*reg++ = IXGB_READ_REG(hw, RXCSUM);	/*  20 */
 
 	/* there are 16 RAR entries in hardware, we only use 3 */
-	for(i = 0; i < 16; i++) {
+	for(i = 0; i < IXGB_ALL_RAR_ENTRIES; i++) {
 		*reg++ = IXGB_READ_REG_ARRAY(hw, RAL, (i << 1)); /*21,...,51 */
 		*reg++ = IXGB_READ_REG_ARRAY(hw, RAH, (i << 1)); /*22,...,52 */
 	}
