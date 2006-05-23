@@ -134,13 +134,13 @@ static int jffs2_prepare_write (struct file *filp, struct page *pg,
 		struct jffs2_sb_info *c = JFFS2_SB_INFO(inode->i_sb);
 		struct jffs2_raw_inode ri;
 		struct jffs2_full_dnode *fn;
-		uint32_t phys_ofs, alloc_len;
+		uint32_t alloc_len;
 
 		D1(printk(KERN_DEBUG "Writing new hole frag 0x%x-0x%x between current EOF and new page\n",
 			  (unsigned int)inode->i_size, pageofs));
 
-		ret = jffs2_reserve_space(c, sizeof(ri), &phys_ofs, &alloc_len,
-					ALLOC_NORMAL, JFFS2_SUMMARY_INODE_SIZE);
+		ret = jffs2_reserve_space(c, sizeof(ri), &alloc_len,
+					  ALLOC_NORMAL, JFFS2_SUMMARY_INODE_SIZE);
 		if (ret)
 			return ret;
 
@@ -166,7 +166,7 @@ static int jffs2_prepare_write (struct file *filp, struct page *pg,
 		ri.node_crc = cpu_to_je32(crc32(0, &ri, sizeof(ri)-8));
 		ri.data_crc = cpu_to_je32(0);
 
-		fn = jffs2_write_dnode(c, f, &ri, NULL, 0, phys_ofs, ALLOC_NORMAL);
+		fn = jffs2_write_dnode(c, f, &ri, NULL, 0, ALLOC_NORMAL);
 
 		if (IS_ERR(fn)) {
 			ret = PTR_ERR(fn);

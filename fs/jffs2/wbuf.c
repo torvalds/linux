@@ -265,12 +265,14 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 
 
 	/* ... and get an allocation of space from a shiny new block instead */
-	ret = jffs2_reserve_space_gc(c, end-start, &ofs, &len, JFFS2_SUMMARY_NOSUM_SIZE);
+	ret = jffs2_reserve_space_gc(c, end-start, &len, JFFS2_SUMMARY_NOSUM_SIZE);
 	if (ret) {
 		printk(KERN_WARNING "Failed to allocate space for wbuf recovery. Data loss ensues.\n");
 		kfree(buf);
 		return;
 	}
+	ofs = write_ofs(c);
+
 	if (end-start >= c->wbuf_pagesize) {
 		/* Need to do another write immediately, but it's possible
 		   that this is just because the wbuf itself is completely
@@ -312,9 +314,8 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 					return;
 
 				raw2->flash_offset = ofs | REF_OBSOLETE;
-				raw2->next_in_ino = NULL;
 
-				jffs2_add_physical_node_ref(c, raw2, ref_totlen(c, jeb, *first_raw));
+				jffs2_add_physical_node_ref(c, raw2, ref_totlen(c, jeb, *first_raw), NULL);
 			}
 			return;
 		}
@@ -507,11 +508,10 @@ static int __jffs2_flush_wbuf(struct jffs2_sb_info *c, int pad)
 			return -ENOMEM;
 		ref->flash_offset = c->wbuf_ofs + c->wbuf_len;
 		ref->flash_offset |= REF_OBSOLETE;
-		ref->next_in_ino = NULL;
 
 		spin_lock(&c->erase_completion_lock);
 
-		jffs2_link_node_ref(c, jeb, ref, waste);
+		jffs2_link_node_ref(c, jeb, ref, waste, NULL);
 		/* FIXME: that made it count as dirty. Convert to wasted */
 		jeb->dirty_size -= waste;
 		c->dirty_size -= waste;
@@ -647,19 +647,6 @@ int jffs2_flash_writev(struct jffs2_sb_info *c, const struct kvec *invecs,
 		c->wbuf_ofs = PAGE_DIV(to);
 		c->wbuf_len = PAGE_MOD(to);
 		memset(c->wbuf,0xff,c->wbuf_pagesize);
-	}
-
-	/*
-	 * Fixup the wbuf if we are moving to a new eraseblock. The
-	 * checks below fail for ECC'd NOR because cleanmarker == 16,
-	 * so a block starts at xxx0010.
-	 */
-	if (jffs2_nor_ecc(c)) {
-		if (((c->wbuf_ofs % c->sector_size) == 0) && !c->wbuf_len) {
-			c->wbuf_ofs = PAGE_DIV(to);
-			c->wbuf_len = PAGE_MOD(to);
-			memset(c->wbuf,0xff,c->wbuf_pagesize);
-		}
 	}
 
 	/*
@@ -1107,7 +1094,7 @@ int jffs2_nand_flash_setup(struct jffs2_sb_info *c)
 
 	/* Initialise write buffer */
 	init_rwsem(&c->wbuf_sem);
-	c->wbuf_pagesize = c->mtd->oobblock;
+	c->wbuf_pagesize = c->mtd->writesize;
 	c->wbuf_ofs = 0xFFFFFFFF;
 
 	c->wbuf = kmalloc(c->wbuf_pagesize, GFP_KERNEL);
@@ -1178,33 +1165,14 @@ void jffs2_dataflash_cleanup(struct jffs2_sb_info *c) {
 	kfree(c->wbuf);
 }
 
-int jffs2_nor_ecc_flash_setup(struct jffs2_sb_info *c) {
-	/* Cleanmarker is actually larger on the flashes */
-	c->cleanmarker_size = 16;
-
-	/* Initialize write buffer */
-	init_rwsem(&c->wbuf_sem);
-	c->wbuf_pagesize = c->mtd->eccsize;
-	c->wbuf_ofs = 0xFFFFFFFF;
-
-	c->wbuf = kmalloc(c->wbuf_pagesize, GFP_KERNEL);
-	if (!c->wbuf)
-		return -ENOMEM;
-
-	return 0;
-}
-
-void jffs2_nor_ecc_flash_cleanup(struct jffs2_sb_info *c) {
-	kfree(c->wbuf);
-}
-
 int jffs2_nor_wbuf_flash_setup(struct jffs2_sb_info *c) {
-	/* Cleanmarker currently occupies a whole programming region */
-	c->cleanmarker_size = MTD_PROGREGION_SIZE(c->mtd);
+	/* Cleanmarker currently occupies whole programming regions,
+	 * either one or 2 for 8Byte STMicro flashes. */
+	c->cleanmarker_size = max(16u, c->mtd->writesize);
 
 	/* Initialize write buffer */
 	init_rwsem(&c->wbuf_sem);
-	c->wbuf_pagesize = MTD_PROGREGION_SIZE(c->mtd);
+	c->wbuf_pagesize = c->mtd->writesize;
 	c->wbuf_ofs = 0xFFFFFFFF;
 
 	c->wbuf = kmalloc(c->wbuf_pagesize, GFP_KERNEL);

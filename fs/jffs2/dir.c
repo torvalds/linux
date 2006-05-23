@@ -308,7 +308,7 @@ static int jffs2_symlink (struct inode *dir_i, struct dentry *dentry, const char
 	struct jffs2_full_dnode *fn;
 	struct jffs2_full_dirent *fd;
 	int namelen;
-	uint32_t alloclen, phys_ofs;
+	uint32_t alloclen;
 	int ret, targetlen = strlen(target);
 
 	/* FIXME: If you care. We'd need to use frags for the target
@@ -327,8 +327,8 @@ static int jffs2_symlink (struct inode *dir_i, struct dentry *dentry, const char
 	 * Just the node will do for now, though
 	 */
 	namelen = dentry->d_name.len;
-	ret = jffs2_reserve_space(c, sizeof(*ri) + targetlen, &phys_ofs, &alloclen,
-				ALLOC_NORMAL, JFFS2_SUMMARY_INODE_SIZE);
+	ret = jffs2_reserve_space(c, sizeof(*ri) + targetlen, &alloclen,
+				  ALLOC_NORMAL, JFFS2_SUMMARY_INODE_SIZE);
 
 	if (ret) {
 		jffs2_free_raw_inode(ri);
@@ -356,7 +356,7 @@ static int jffs2_symlink (struct inode *dir_i, struct dentry *dentry, const char
 	ri->data_crc = cpu_to_je32(crc32(0, target, targetlen));
 	ri->node_crc = cpu_to_je32(crc32(0, ri, sizeof(*ri)-8));
 
-	fn = jffs2_write_dnode(c, f, ri, target, targetlen, phys_ofs, ALLOC_NORMAL);
+	fn = jffs2_write_dnode(c, f, ri, target, targetlen, ALLOC_NORMAL);
 
 	jffs2_free_raw_inode(ri);
 
@@ -400,8 +400,8 @@ static int jffs2_symlink (struct inode *dir_i, struct dentry *dentry, const char
 		return ret;
 	}
 
-	ret = jffs2_reserve_space(c, sizeof(*rd)+namelen, &phys_ofs, &alloclen,
-				ALLOC_NORMAL, JFFS2_SUMMARY_DIRENT_SIZE(namelen));
+	ret = jffs2_reserve_space(c, sizeof(*rd)+namelen, &alloclen,
+				  ALLOC_NORMAL, JFFS2_SUMMARY_DIRENT_SIZE(namelen));
 	if (ret) {
 		/* Eep. */
 		jffs2_clear_inode(inode);
@@ -433,7 +433,7 @@ static int jffs2_symlink (struct inode *dir_i, struct dentry *dentry, const char
 	rd->node_crc = cpu_to_je32(crc32(0, rd, sizeof(*rd)-8));
 	rd->name_crc = cpu_to_je32(crc32(0, dentry->d_name.name, namelen));
 
-	fd = jffs2_write_dirent(c, dir_f, rd, dentry->d_name.name, namelen, phys_ofs, ALLOC_NORMAL);
+	fd = jffs2_write_dirent(c, dir_f, rd, dentry->d_name.name, namelen, ALLOC_NORMAL);
 
 	if (IS_ERR(fd)) {
 		/* dirent failed to write. Delete the inode normally
@@ -471,7 +471,7 @@ static int jffs2_mkdir (struct inode *dir_i, struct dentry *dentry, int mode)
 	struct jffs2_full_dnode *fn;
 	struct jffs2_full_dirent *fd;
 	int namelen;
-	uint32_t alloclen, phys_ofs;
+	uint32_t alloclen;
 	int ret;
 
 	mode |= S_IFDIR;
@@ -486,8 +486,8 @@ static int jffs2_mkdir (struct inode *dir_i, struct dentry *dentry, int mode)
 	 * Just the node will do for now, though
 	 */
 	namelen = dentry->d_name.len;
-	ret = jffs2_reserve_space(c, sizeof(*ri), &phys_ofs, &alloclen, ALLOC_NORMAL,
-				JFFS2_SUMMARY_INODE_SIZE);
+	ret = jffs2_reserve_space(c, sizeof(*ri), &alloclen, ALLOC_NORMAL,
+				  JFFS2_SUMMARY_INODE_SIZE);
 
 	if (ret) {
 		jffs2_free_raw_inode(ri);
@@ -512,7 +512,7 @@ static int jffs2_mkdir (struct inode *dir_i, struct dentry *dentry, int mode)
 	ri->data_crc = cpu_to_je32(0);
 	ri->node_crc = cpu_to_je32(crc32(0, ri, sizeof(*ri)-8));
 
-	fn = jffs2_write_dnode(c, f, ri, NULL, 0, phys_ofs, ALLOC_NORMAL);
+	fn = jffs2_write_dnode(c, f, ri, NULL, 0, ALLOC_NORMAL);
 
 	jffs2_free_raw_inode(ri);
 
@@ -542,8 +542,8 @@ static int jffs2_mkdir (struct inode *dir_i, struct dentry *dentry, int mode)
 		return ret;
 	}
 
-	ret = jffs2_reserve_space(c, sizeof(*rd)+namelen, &phys_ofs, &alloclen,
-				ALLOC_NORMAL, JFFS2_SUMMARY_DIRENT_SIZE(namelen));
+	ret = jffs2_reserve_space(c, sizeof(*rd)+namelen, &alloclen,
+				  ALLOC_NORMAL, JFFS2_SUMMARY_DIRENT_SIZE(namelen));
 	if (ret) {
 		/* Eep. */
 		jffs2_clear_inode(inode);
@@ -575,7 +575,7 @@ static int jffs2_mkdir (struct inode *dir_i, struct dentry *dentry, int mode)
 	rd->node_crc = cpu_to_je32(crc32(0, rd, sizeof(*rd)-8));
 	rd->name_crc = cpu_to_je32(crc32(0, dentry->d_name.name, namelen));
 
-	fd = jffs2_write_dirent(c, dir_f, rd, dentry->d_name.name, namelen, phys_ofs, ALLOC_NORMAL);
+	fd = jffs2_write_dirent(c, dir_f, rd, dentry->d_name.name, namelen, ALLOC_NORMAL);
 
 	if (IS_ERR(fd)) {
 		/* dirent failed to write. Delete the inode normally
@@ -631,7 +631,7 @@ static int jffs2_mknod (struct inode *dir_i, struct dentry *dentry, int mode, de
 	int namelen;
 	union jffs2_device_node dev;
 	int devlen = 0;
-	uint32_t alloclen, phys_ofs;
+	uint32_t alloclen;
 	int ret;
 
 	if (!new_valid_dev(rdev))
@@ -650,7 +650,7 @@ static int jffs2_mknod (struct inode *dir_i, struct dentry *dentry, int mode, de
 	 * Just the node will do for now, though
 	 */
 	namelen = dentry->d_name.len;
-	ret = jffs2_reserve_space(c, sizeof(*ri) + devlen, &phys_ofs, &alloclen,
+	ret = jffs2_reserve_space(c, sizeof(*ri) + devlen, &alloclen,
 				  ALLOC_NORMAL, JFFS2_SUMMARY_INODE_SIZE);
 
 	if (ret) {
@@ -678,7 +678,7 @@ static int jffs2_mknod (struct inode *dir_i, struct dentry *dentry, int mode, de
 	ri->data_crc = cpu_to_je32(crc32(0, &dev, devlen));
 	ri->node_crc = cpu_to_je32(crc32(0, ri, sizeof(*ri)-8));
 
-	fn = jffs2_write_dnode(c, f, ri, (char *)&dev, devlen, phys_ofs, ALLOC_NORMAL);
+	fn = jffs2_write_dnode(c, f, ri, (char *)&dev, devlen, ALLOC_NORMAL);
 
 	jffs2_free_raw_inode(ri);
 
@@ -708,8 +708,8 @@ static int jffs2_mknod (struct inode *dir_i, struct dentry *dentry, int mode, de
 		return ret;
 	}
 
-	ret = jffs2_reserve_space(c, sizeof(*rd)+namelen, &phys_ofs, &alloclen,
-				ALLOC_NORMAL, JFFS2_SUMMARY_DIRENT_SIZE(namelen));
+	ret = jffs2_reserve_space(c, sizeof(*rd)+namelen, &alloclen,
+				  ALLOC_NORMAL, JFFS2_SUMMARY_DIRENT_SIZE(namelen));
 	if (ret) {
 		/* Eep. */
 		jffs2_clear_inode(inode);
@@ -744,7 +744,7 @@ static int jffs2_mknod (struct inode *dir_i, struct dentry *dentry, int mode, de
 	rd->node_crc = cpu_to_je32(crc32(0, rd, sizeof(*rd)-8));
 	rd->name_crc = cpu_to_je32(crc32(0, dentry->d_name.name, namelen));
 
-	fd = jffs2_write_dirent(c, dir_f, rd, dentry->d_name.name, namelen, phys_ofs, ALLOC_NORMAL);
+	fd = jffs2_write_dirent(c, dir_f, rd, dentry->d_name.name, namelen, ALLOC_NORMAL);
 
 	if (IS_ERR(fd)) {
 		/* dirent failed to write. Delete the inode normally

@@ -238,9 +238,8 @@ static struct mtd_info *cfi_staa_setup(struct map_info *map)
 	mtd->unlock = cfi_staa_unlock;
 	mtd->suspend = cfi_staa_suspend;
 	mtd->resume = cfi_staa_resume;
-	mtd->flags = MTD_CAP_NORFLASH;
-	mtd->flags |= MTD_ECC; /* FIXME: Not all STMicro flashes have this */
-	mtd->eccsize = 8; /* FIXME: Should be 0 for STMicro flashes w/out ECC */
+	mtd->flags = MTD_CAP_NORFLASH & ~MTD_BIT_WRITEABLE;
+	mtd->writesize = 8; /* FIXME: Should be 0 for STMicro flashes w/out ECC */
 	map->fldrv = &cfi_staa_chipdrv;
 	__module_get(THIS_MODULE);
 	mtd->name = map->name;

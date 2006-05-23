@@ -247,15 +247,15 @@ static int read_abs_bbts(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_des
 
 	/* Read the primary version, if available */
 	if (td->options & NAND_BBT_VERSION) {
-		nand_read_raw(mtd, buf, td->pages[0] << this->page_shift, mtd->oobblock, mtd->oobsize);
-		td->version[0] = buf[mtd->oobblock + td->veroffs];
+		nand_read_raw(mtd, buf, td->pages[0] << this->page_shift, mtd->writesize, mtd->oobsize);
+		td->version[0] = buf[mtd->writesize + td->veroffs];
 		printk(KERN_DEBUG "Bad block table at page %d, version 0x%02X\n", td->pages[0], td->version[0]);
 	}
 
 	/* Read the mirror version, if available */
 	if (md && (md->options & NAND_BBT_VERSION)) {
-		nand_read_raw(mtd, buf, md->pages[0] << this->page_shift, mtd->oobblock, mtd->oobsize);
-		md->version[0] = buf[mtd->oobblock + md->veroffs];
+		nand_read_raw(mtd, buf, md->pages[0] << this->page_shift, mtd->writesize, mtd->oobsize);
+		md->version[0] = buf[mtd->writesize + md->veroffs];
 		printk(KERN_DEBUG "Bad block table at page %d, version 0x%02X\n", md->pages[0], md->version[0]);
 	}
 
@@ -298,8 +298,8 @@ static int create_bbt(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_descr 
 		readlen = bd->len;
 	} else {
 		/* Full page content should be read */
-		scanlen = mtd->oobblock + mtd->oobsize;
-		readlen = len * mtd->oobblock;
+		scanlen = mtd->writesize + mtd->oobsize;
+		readlen = len * mtd->writesize;
 		ooblen = len * mtd->oobsize;
 	}
 
@@ -334,7 +334,7 @@ static int create_bbt(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_descr 
 
 				/* Read the full oob until read_oob is fixed to
 				 * handle single byte reads for 16 bit buswidth */
-				ret = mtd->read_oob(mtd, from + j * mtd->oobblock, mtd->oobsize, &retlen, buf);
+				ret = mtd->read_oob(mtd, from + j * mtd->writesize, mtd->oobsize, &retlen, buf);
 				if (ret)
 					return ret;
 
@@ -345,7 +345,7 @@ static int create_bbt(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_descr 
 					break;
 				}
 			} else {
-				if (check_pattern(&buf[j * scanlen], scanlen, mtd->oobblock, bd)) {
+				if (check_pattern(&buf[j * scanlen], scanlen, mtd->writesize, bd)) {
 					this->bbt[i >> 3] |= 0x03 << (i & 0x6);
 					printk(KERN_WARNING "Bad eraseblock %d at 0x%08x\n",
 					       i >> 1, (unsigned int)from);
@@ -381,7 +381,7 @@ static int search_bbt(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_descr 
 	struct nand_chip *this = mtd->priv;
 	int i, chips;
 	int bits, startblock, block, dir;
-	int scanlen = mtd->oobblock + mtd->oobsize;
+	int scanlen = mtd->writesize + mtd->oobsize;
 	int bbtblocks;
 
 	/* Search direction top -> down ? */
@@ -414,11 +414,11 @@ static int search_bbt(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_descr 
 		for (block = 0; block < td->maxblocks; block++) {
 			int actblock = startblock + dir * block;
 			/* Read first page */
-			nand_read_raw(mtd, buf, actblock << this->bbt_erase_shift, mtd->oobblock, mtd->oobsize);
-			if (!check_pattern(buf, scanlen, mtd->oobblock, td)) {
+			nand_read_raw(mtd, buf, actblock << this->bbt_erase_shift, mtd->writesize, mtd->oobsize);
+			if (!check_pattern(buf, scanlen, mtd->writesize, td)) {
 				td->pages[i] = actblock << (this->bbt_erase_shift - this->page_shift);
 				if (td->options & NAND_BBT_VERSION) {
-					td->version[i] = buf[mtd->oobblock + td->veroffs];
+					td->version[i] = buf[mtd->writesize + td->veroffs];
 				}
 				break;
 			}
@@ -586,7 +586,7 @@ static int write_bbt(struct mtd_info *mtd, uint8_t *buf,
 			/* Calc length */
 			len = (size_t) (numblocks >> sft);
 			/* Make it page aligned ! */
-			len = (len + (mtd->oobblock - 1)) & ~(mtd->oobblock - 1);
+			len = (len + (mtd->writesize - 1)) & ~(mtd->writesize - 1);
 			/* Preset the buffer with 0xff */
 			memset(buf, 0xff, len + (len >> this->page_shift) * mtd->oobsize);
 			offs = 0;
@@ -1063,13 +1063,13 @@ int nand_default_bbt(struct mtd_info *mtd)
 			this->bbt_md = &bbt_mirror_descr;
 		}
 		if (!this->badblock_pattern) {
-			this->badblock_pattern = (mtd->oobblock > 512) ? &largepage_flashbased : &smallpage_flashbased;
+			this->badblock_pattern = (mtd->writesize > 512) ? &largepage_flashbased : &smallpage_flashbased;
 		}
 	} else {
 		this->bbt_td = NULL;
 		this->bbt_md = NULL;
 		if (!this->badblock_pattern) {
-			this->badblock_pattern = (mtd->oobblock > 512) ?
+			this->badblock_pattern = (mtd->writesize > 512) ?
 			    &largepage_memorybased : &smallpage_memorybased;
 		}
 	}

@@ -23,13 +23,12 @@
  *	jffs2_reserve_space - request physical space to write nodes to flash
  *	@c: superblock info
  *	@minsize: Minimum acceptable size of allocation
- *	@ofs: Returned value of node offset
  *	@len: Returned value of allocation length
  *	@prio: Allocation type - ALLOC_{NORMAL,DELETION}
  *
  *	Requests a block of physical space on the flash. Returns zero for success
- *	and puts 'ofs' and 'len' into the appriopriate place, or returns -ENOSPC
- *	or other error if appropriate.
+ *	and puts 'len' into the appropriate place, or returns -ENOSPC or other 
+ *	error if appropriate. Doesn't return len since that's 
  *
  *	If it returns zero, jffs2_reserve_space() also downs the per-filesystem
  *	allocation semaphore, to prevent more than one allocation from being
@@ -40,9 +39,9 @@
  */
 
 static int jffs2_do_reserve_space(struct jffs2_sb_info *c,  uint32_t minsize,
-					uint32_t *ofs, uint32_t *len, uint32_t sumsize);
+				  uint32_t *len, uint32_t sumsize);
 
-int jffs2_reserve_space(struct jffs2_sb_info *c, uint32_t minsize, uint32_t *ofs,
+int jffs2_reserve_space(struct jffs2_sb_info *c, uint32_t minsize,
 			uint32_t *len, int prio, uint32_t sumsize)
 {
 	int ret = -EAGAIN;
@@ -132,7 +131,7 @@ int jffs2_reserve_space(struct jffs2_sb_info *c, uint32_t minsize, uint32_t *ofs
 			spin_lock(&c->erase_completion_lock);
 		}
 
-		ret = jffs2_do_reserve_space(c, minsize, ofs, len, sumsize);
+		ret = jffs2_do_reserve_space(c, minsize, len, sumsize);
 		if (ret) {
 			D1(printk(KERN_DEBUG "jffs2_reserve_space: ret is %d\n", ret));
 		}
@@ -143,8 +142,8 @@ int jffs2_reserve_space(struct jffs2_sb_info *c, uint32_t minsize, uint32_t *ofs
 	return ret;
 }
 
-int jffs2_reserve_space_gc(struct jffs2_sb_info *c, uint32_t minsize, uint32_t *ofs,
-			uint32_t *len, uint32_t sumsize)
+int jffs2_reserve_space_gc(struct jffs2_sb_info *c, uint32_t minsize,
+			   uint32_t *len, uint32_t sumsize)
 {
 	int ret = -EAGAIN;
 	minsize = PAD(minsize);
@@ -153,7 +152,7 @@ int jffs2_reserve_space_gc(struct jffs2_sb_info *c, uint32_t minsize, uint32_t *
 
 	spin_lock(&c->erase_completion_lock);
 	while(ret == -EAGAIN) {
-		ret = jffs2_do_reserve_space(c, minsize, ofs, len, sumsize);
+		ret = jffs2_do_reserve_space(c, minsize, len, sumsize);
 		if (ret) {
 		        D1(printk(KERN_DEBUG "jffs2_reserve_space_gc: looping, ret is %d\n", ret));
 		}
@@ -259,10 +258,11 @@ static int jffs2_find_nextblock(struct jffs2_sb_info *c)
 }
 
 /* Called with alloc sem _and_ erase_completion_lock */
-static int jffs2_do_reserve_space(struct jffs2_sb_info *c, uint32_t minsize, uint32_t *ofs, uint32_t *len, uint32_t sumsize)
+static int jffs2_do_reserve_space(struct jffs2_sb_info *c, uint32_t minsize,
+				  uint32_t *len, uint32_t sumsize)
 {
 	struct jffs2_eraseblock *jeb = c->nextblock;
-	uint32_t reserved_size; 			/* for summary information at the end of the jeb */
+	uint32_t reserved_size;				/* for summary information at the end of the jeb */
 	int ret;
 
  restart:
@@ -349,7 +349,6 @@ static int jffs2_do_reserve_space(struct jffs2_sb_info *c, uint32_t minsize, uin
 	}
 	/* OK, jeb (==c->nextblock) is now pointing at a block which definitely has
 	   enough space */
-	*ofs = jeb->offset + (c->sector_size - jeb->free_size);
 	*len = jeb->free_size - reserved_size;
 
 	if (c->cleanmarker_size && jeb->used_size == c->cleanmarker_size &&
@@ -365,7 +364,8 @@ static int jffs2_do_reserve_space(struct jffs2_sb_info *c, uint32_t minsize, uin
 		spin_lock(&c->erase_completion_lock);
 	}
 
-	D1(printk(KERN_DEBUG "jffs2_do_reserve_space(): Giving 0x%x bytes at 0x%x\n", *len, *ofs));
+	D1(printk(KERN_DEBUG "jffs2_do_reserve_space(): Giving 0x%x bytes at 0x%x\n",
+		  *len, jeb->offset + (c->sector_size - jeb->free_size)));
 	return 0;
 }
 
@@ -381,7 +381,8 @@ static int jffs2_do_reserve_space(struct jffs2_sb_info *c, uint32_t minsize, uin
  *	Must be called with the alloc_sem held.
  */
 
-int jffs2_add_physical_node_ref(struct jffs2_sb_info *c, struct jffs2_raw_node_ref *new, uint32_t len)
+int jffs2_add_physical_node_ref(struct jffs2_sb_info *c, struct jffs2_raw_node_ref *new,
+				uint32_t len, struct jffs2_inode_cache *ic)
 {
 	struct jffs2_eraseblock *jeb;
 
@@ -403,7 +404,7 @@ int jffs2_add_physical_node_ref(struct jffs2_sb_info *c, struct jffs2_raw_node_r
 #endif
 	spin_lock(&c->erase_completion_lock);
 
-	jffs2_link_node_ref(c, jeb, new, len);
+	jffs2_link_node_ref(c, jeb, new, len, ic);
 
 	if (!jeb->free_size && !jeb->dirty_size && !ISDIRTY(jeb->wasted_size)) {
 		/* If it lives on the dirty_list, jffs2_reserve_space will put it there */
@@ -660,6 +661,10 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 		spin_lock(&c->erase_completion_lock);
 
 		ic = jffs2_raw_ref_to_ic(ref);
+		/* It seems we should never call jffs2_mark_node_obsolete() for
+		   XATTR nodes.... yet. Make sure we notice if/when we change
+		   that :) */
+		BUG_ON(ic->class != RAWNODE_CLASS_INODE_CACHE);
 		for (p = &ic->nodes; (*p) != ref; p = &((*p)->next_in_ino))
 			;
 

@@ -354,7 +354,7 @@ static inline int onenand_bufferram_offset(struct mtd_info *mtd, int area)
 
 	if (ONENAND_CURRENT_BUFFERRAM(this)) {
 		if (area == ONENAND_DATARAM)
-			return mtd->oobblock;
+			return mtd->writesize;
 		if (area == ONENAND_SPARERAM)
 			return mtd->oobsize;
 	}
@@ -632,14 +632,14 @@ static int onenand_read_ecc(struct mtd_info *mtd, loff_t from, size_t len,
 	/* TODO handling oob */
 
 	while (read < len) {
-		thislen = min_t(int, mtd->oobblock, len - read);
+		thislen = min_t(int, mtd->writesize, len - read);
 
-		column = from & (mtd->oobblock - 1);
-		if (column + thislen > mtd->oobblock)
-			thislen = mtd->oobblock - column;
+		column = from & (mtd->writesize - 1);
+		if (column + thislen > mtd->writesize)
+			thislen = mtd->writesize - column;
 
 		if (!onenand_check_bufferram(mtd, from)) {
-			this->command(mtd, ONENAND_CMD_READ, from, mtd->oobblock);
+			this->command(mtd, ONENAND_CMD_READ, from, mtd->writesize);
 
 			ret = this->wait(mtd, FL_READING);
 			/* First copy data and check return value for ECC handling */
@@ -752,7 +752,7 @@ static int onenand_read_oob(struct mtd_info *mtd, loff_t from, size_t len,
 		/* Read more? */
 		if (read < len) {
 			/* Page size */
-			from += mtd->oobblock;
+			from += mtd->writesize;
 			column = 0;
 		}
 	}
@@ -809,7 +809,7 @@ static int onenand_verify_page(struct mtd_info *mtd, u_char *buf, loff_t addr)
 	void __iomem *dataram0, *dataram1;
 	int ret = 0;
 
-	this->command(mtd, ONENAND_CMD_READ, addr, mtd->oobblock);
+	this->command(mtd, ONENAND_CMD_READ, addr, mtd->writesize);
 
 	ret = this->wait(mtd, FL_READING);
 	if (ret)
@@ -819,9 +819,9 @@ static int onenand_verify_page(struct mtd_info *mtd, u_char *buf, loff_t addr)
 
 	/* Check, if the two dataram areas are same */
 	dataram0 = this->base + ONENAND_DATARAM;
-	dataram1 = dataram0 + mtd->oobblock;
+	dataram1 = dataram0 + mtd->writesize;
 
-	if (memcmp(dataram0, dataram1, mtd->oobblock))
+	if (memcmp(dataram0, dataram1, mtd->writesize))
 		return -EBADMSG;
 
 	return 0;
@@ -831,7 +831,7 @@ static int onenand_verify_page(struct mtd_info *mtd, u_char *buf, loff_t addr)
 #define onenand_verify_oob(...)		(0)
 #endif
 
-#define NOTALIGNED(x)	((x & (mtd->oobblock - 1)) != 0)
+#define NOTALIGNED(x)	((x & (mtd->writesize - 1)) != 0)
 
 /**
  * onenand_write_ecc - [MTD Interface] OneNAND write with ECC
@@ -875,14 +875,14 @@ static int onenand_write_ecc(struct mtd_info *mtd, loff_t to, size_t len,
 
 	/* Loop until all data write */
 	while (written < len) {
-		int thislen = min_t(int, mtd->oobblock, len - written);
+		int thislen = min_t(int, mtd->writesize, len - written);
 
-		this->command(mtd, ONENAND_CMD_BUFFERRAM, to, mtd->oobblock);
+		this->command(mtd, ONENAND_CMD_BUFFERRAM, to, mtd->writesize);
 
 		this->write_bufferram(mtd, ONENAND_DATARAM, buf, 0, thislen);
 		this->write_bufferram(mtd, ONENAND_SPARERAM, ffchars, 0, mtd->oobsize);
 
-		this->command(mtd, ONENAND_CMD_PROG, to, mtd->oobblock);
+		this->command(mtd, ONENAND_CMD_PROG, to, mtd->writesize);
 
 		onenand_update_bufferram(mtd, to, 1);
 
@@ -1070,10 +1070,10 @@ static int onenand_writev_ecc(struct mtd_info *mtd, const struct kvec *vecs,
 		 * If the given tuple is >= pagesize then
 		 * write it out from the iov
 		 */
-		if ((vecs->iov_len - len) >= mtd->oobblock) {
+		if ((vecs->iov_len - len) >= mtd->writesize) {
 			pbuf = vecs->iov_base + len;
 
-			len += mtd->oobblock;
+			len += mtd->writesize;
 
 			/* Check, if we have to switch to the next tuple */
 			if (len >= (int) vecs->iov_len) {
@@ -1083,8 +1083,8 @@ static int onenand_writev_ecc(struct mtd_info *mtd, const struct kvec *vecs,
 			}
 		} else {
 			int cnt = 0, thislen;
-			while (cnt < mtd->oobblock) {
-				thislen = min_t(int, mtd->oobblock - cnt, vecs->iov_len - len);
+			while (cnt < mtd->writesize) {
+				thislen = min_t(int, mtd->writesize - cnt, vecs->iov_len - len);
 				memcpy(this->page_buf + cnt, vecs->iov_base + len, thislen);
 				cnt += thislen;
 				len += thislen;
@@ -1098,12 +1098,12 @@ static int onenand_writev_ecc(struct mtd_info *mtd, const struct kvec *vecs,
 			}
 		}
 
-		this->command(mtd, ONENAND_CMD_BUFFERRAM, to, mtd->oobblock);
+		this->command(mtd, ONENAND_CMD_BUFFERRAM, to, mtd->writesize);
 
-		this->write_bufferram(mtd, ONENAND_DATARAM, pbuf, 0, mtd->oobblock);
+		this->write_bufferram(mtd, ONENAND_DATARAM, pbuf, 0, mtd->writesize);
 		this->write_bufferram(mtd, ONENAND_SPARERAM, ffchars, 0, mtd->oobsize);
 
-		this->command(mtd, ONENAND_CMD_PROG, to, mtd->oobblock);
+		this->command(mtd, ONENAND_CMD_PROG, to, mtd->writesize);
 
 		onenand_update_bufferram(mtd, to, 1);
 
@@ -1121,9 +1121,9 @@ static int onenand_writev_ecc(struct mtd_info *mtd, const struct kvec *vecs,
 			goto out;
 		}
 
-		written += mtd->oobblock;
+		written += mtd->writesize;
 
-		to += mtd->oobblock;
+		to += mtd->writesize;
 	}
 
 out:
@@ -1467,11 +1467,11 @@ static int do_otp_write(struct mtd_info *mtd, loff_t from, size_t len,
 	int ret;
 
 	/* Force buffer page aligned */
-	if (len < mtd->oobblock) {
+	if (len < mtd->writesize) {
 		memcpy(this->page_buf, buf, len);
-		memset(this->page_buf + len, 0xff, mtd->oobblock - len);
+		memset(this->page_buf + len, 0xff, mtd->writesize - len);
 		pbuf = this->page_buf;
-		len = mtd->oobblock;
+		len = mtd->writesize;
 	}
 
 	/* Enter OTP access mode */
@@ -1546,12 +1546,12 @@ static int onenand_otp_walk(struct mtd_info *mtd, loff_t from, size_t len,
 		otp_pages = 10;
 
 	if (mode == MTD_OTP_FACTORY) {
-		from += mtd->oobblock * otp_pages;
+		from += mtd->writesize * otp_pages;
 		otp_pages = 64 - otp_pages;
 	}
 
 	/* Check User/Factory boundary */
-	if (((mtd->oobblock * otp_pages) - (from + len)) < 0)
+	if (((mtd->writesize * otp_pages) - (from + len)) < 0)
 		return 0;
 
 	while (len > 0 && otp_pages > 0) {
@@ -1564,10 +1564,10 @@ static int onenand_otp_walk(struct mtd_info *mtd, loff_t from, size_t len,
 
 			otpinfo = (struct otp_info *) buf;
 			otpinfo->start = from;
-			otpinfo->length = mtd->oobblock;
+			otpinfo->length = mtd->writesize;
 			otpinfo->locked = 0;
 
-			from += mtd->oobblock;
+			from += mtd->writesize;
 			buf += sizeof(struct otp_info);
 			*retlen += sizeof(struct otp_info);
 		} else {
@@ -1811,15 +1811,15 @@ static int onenand_probe(struct mtd_info *mtd)
 
 	/* OneNAND page size & block size */
 	/* The data buffer size is equal to page size */
-	mtd->oobblock = this->read_word(this->base + ONENAND_REG_DATA_BUFFER_SIZE);
-	mtd->oobsize = mtd->oobblock >> 5;
+	mtd->writesize = this->read_word(this->base + ONENAND_REG_DATA_BUFFER_SIZE);
+	mtd->oobsize = mtd->writesize >> 5;
 	/* Pagers per block is always 64 in OneNAND */
-	mtd->erasesize = mtd->oobblock << 6;
+	mtd->erasesize = mtd->writesize << 6;
 
 	this->erase_shift = ffs(mtd->erasesize) - 1;
-	this->page_shift = ffs(mtd->oobblock) - 1;
+	this->page_shift = ffs(mtd->writesize) - 1;
 	this->ppb_shift = (this->erase_shift - this->page_shift);
-	this->page_mask = (mtd->erasesize / mtd->oobblock) - 1;
+	this->page_mask = (mtd->erasesize / mtd->writesize) - 1;
 
 	/* REVIST: Multichip handling */
 
@@ -1909,7 +1909,7 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 	/* Allocate buffers, if necessary */
 	if (!this->page_buf) {
 		size_t len;
-		len = mtd->oobblock + mtd->oobsize;
+		len = mtd->writesize + mtd->oobsize;
 		this->page_buf = kmalloc(len, GFP_KERNEL);
 		if (!this->page_buf) {
 			printk(KERN_ERR "onenand_scan(): Can't allocate page_buf\n");
@@ -1943,7 +1943,7 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 
 	/* Fill in remaining MTD driver data */
 	mtd->type = MTD_NANDFLASH;
-	mtd->flags = MTD_CAP_NANDFLASH | MTD_ECC;
+	mtd->flags = MTD_CAP_NANDFLASH;
 	mtd->ecctype = MTD_ECC_SW;
 	mtd->erase = onenand_erase;
 	mtd->point = NULL;

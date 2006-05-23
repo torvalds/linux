@@ -77,9 +77,9 @@
 struct jffs2_raw_node_ref
 {
 	struct jffs2_raw_node_ref *next_in_ino; /* Points to the next raw_node_ref
-		for this inode. If this is the last, it points to the inode_cache
-		for this inode instead. The inode_cache will have NULL in the first
-		word so you know when you've got there :) */
+		for this object. If this _is_ the last, it points to the inode_cache,
+		xattr_ref or xattr_datum instead. The common part of those structures
+		has NULL in the first word. See jffs2_raw_ref_to_ic() below */
 	struct jffs2_raw_node_ref *next_phys;
 	uint32_t flash_offset;
 #define TEST_TOTLEN
@@ -87,6 +87,18 @@ struct jffs2_raw_node_ref
 	uint32_t __totlen; /* This may die; use ref_totlen(c, jeb, ) below */
 #endif
 };
+
+static inline struct jffs2_inode_cache *jffs2_raw_ref_to_ic(struct jffs2_raw_node_ref *raw)
+{
+	while(raw->next_in_ino) {
+		raw = raw->next_in_ino;
+	}
+
+	/* NB. This can be a jffs2_xattr_datum or jffs2_xattr_ref and
+	   not actually a jffs2_inode_cache. Check ->class */
+	return ((struct jffs2_inode_cache *)raw);
+}
+
 
         /* flash_offset & 3 always has to be zero, because nodes are
 	   always aligned at 4 bytes. So we have a couple of extra bits
@@ -113,20 +125,27 @@ struct jffs2_raw_node_ref
    a pointer to the first physical node which is part of this inode, too.
 */
 struct jffs2_inode_cache {
+	/* First part of structure is shared with other objects which
+	   can terminate the raw node refs' next_in_ino list -- which
+	   currently struct jffs2_xattr_datum and struct jffs2_xattr_ref. */
+
 	struct jffs2_full_dirent *scan_dents; /* Used during scan to hold
 		temporary lists of dirents, and later must be set to
 		NULL to mark the end of the raw_node_ref->next_in_ino
 		chain. */
-	u8 class;	/* It's used for identification */
-	u8 flags;
-	uint16_t state;
-	struct jffs2_inode_cache *next;
 	struct jffs2_raw_node_ref *nodes;
+	uint8_t class;	/* It's used for identification */
+
+	/* end of shared structure */
+
+	uint8_t flags;
+	uint16_t state;
 	uint32_t ino;
-	int nlink;
+	struct jffs2_inode_cache *next;
 #ifdef CONFIG_JFFS2_FS_XATTR
 	struct jffs2_xattr_ref *xref;
 #endif
+	int nlink;
 };
 
 /* Inode states for 'state' above. We need the 'GC' state to prevent
@@ -147,6 +166,8 @@ struct jffs2_inode_cache {
 #define RAWNODE_CLASS_XATTR_REF		2
 
 #define INOCACHE_HASHSIZE 128
+
+#define write_ofs(c) ((c)->nextblock->offset + (c)->sector_size - (c)->nextblock->free_size)
 
 /*
   Larger representation of a raw node, kept in-core only when the
@@ -250,15 +271,6 @@ static inline int jffs2_encode_dev(union jffs2_device_node *jdev, dev_t rdev)
 	}
 }
 
-static inline struct jffs2_inode_cache *jffs2_raw_ref_to_ic(struct jffs2_raw_node_ref *raw)
-{
-	while(raw->next_in_ino) {
-		raw = raw->next_in_ino;
-	}
-
-	return ((struct jffs2_inode_cache *)raw);
-}
-
 static inline struct jffs2_node_frag *frag_first(struct rb_root *root)
 {
 	struct rb_node *node = root->rb_node;
@@ -307,32 +319,43 @@ int jffs2_add_full_dnode_to_inode(struct jffs2_sb_info *c, struct jffs2_inode_in
 void jffs2_truncate_fragtree (struct jffs2_sb_info *c, struct rb_root *list, uint32_t size);
 int jffs2_add_older_frag_to_fragtree(struct jffs2_sb_info *c, struct jffs2_inode_info *f, struct jffs2_tmp_dnode_info *tn);
 void jffs2_link_node_ref(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb,
-			 struct jffs2_raw_node_ref *ref, uint32_t len);
+			 struct jffs2_raw_node_ref *ref, uint32_t len,
+			 struct jffs2_inode_cache *ic);
 extern uint32_t __jffs2_ref_totlen(struct jffs2_sb_info *c,
 				   struct jffs2_eraseblock *jeb,
 				   struct jffs2_raw_node_ref *ref);
 
 /* nodemgmt.c */
 int jffs2_thread_should_wake(struct jffs2_sb_info *c);
-int jffs2_reserve_space(struct jffs2_sb_info *c, uint32_t minsize, uint32_t *ofs,
+int jffs2_reserve_space(struct jffs2_sb_info *c, uint32_t minsize,
 			uint32_t *len, int prio, uint32_t sumsize);
-int jffs2_reserve_space_gc(struct jffs2_sb_info *c, uint32_t minsize, uint32_t *ofs,
+int jffs2_reserve_space_gc(struct jffs2_sb_info *c, uint32_t minsize,
 			uint32_t *len, uint32_t sumsize);
-int jffs2_add_physical_node_ref(struct jffs2_sb_info *c, struct jffs2_raw_node_ref *new, uint32_t len);
+int jffs2_add_physical_node_ref(struct jffs2_sb_info *c, 
+				struct jffs2_raw_node_ref *new,
+				uint32_t len,
+				struct jffs2_inode_cache *ic);
 void jffs2_complete_reservation(struct jffs2_sb_info *c);
 void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref *raw);
 
 /* write.c */
 int jffs2_do_new_inode(struct jffs2_sb_info *c, struct jffs2_inode_info *f, uint32_t mode, struct jffs2_raw_inode *ri);
 
-struct jffs2_full_dnode *jffs2_write_dnode(struct jffs2_sb_info *c, struct jffs2_inode_info *f, struct jffs2_raw_inode *ri, const unsigned char *data, uint32_t datalen, uint32_t flash_ofs, int alloc_mode);
-struct jffs2_full_dirent *jffs2_write_dirent(struct jffs2_sb_info *c, struct jffs2_inode_info *f, struct jffs2_raw_dirent *rd, const unsigned char *name, uint32_t namelen, uint32_t flash_ofs, int alloc_mode);
+struct jffs2_full_dnode *jffs2_write_dnode(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
+					   struct jffs2_raw_inode *ri, const unsigned char *data,
+					   uint32_t datalen, int alloc_mode);
+struct jffs2_full_dirent *jffs2_write_dirent(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
+					     struct jffs2_raw_dirent *rd, const unsigned char *name,
+					     uint32_t namelen, int alloc_mode);
 int jffs2_write_inode_range(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 			    struct jffs2_raw_inode *ri, unsigned char *buf,
 			    uint32_t offset, uint32_t writelen, uint32_t *retlen);
-int jffs2_do_create(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f, struct jffs2_inode_info *f, struct jffs2_raw_inode *ri, const char *name, int namelen);
-int jffs2_do_unlink(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f, const char *name, int namelen, struct jffs2_inode_info *dead_f, uint32_t time);
-int jffs2_do_link (struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f, uint32_t ino, uint8_t type, const char *name, int namelen, uint32_t time);
+int jffs2_do_create(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f, struct jffs2_inode_info *f,
+		    struct jffs2_raw_inode *ri, const char *name, int namelen);
+int jffs2_do_unlink(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f, const char *name,
+		    int namelen, struct jffs2_inode_info *dead_f, uint32_t time);
+int jffs2_do_link(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f, uint32_t ino,
+		   uint8_t type, const char *name, int namelen, uint32_t time);
 
 
 /* readinode.c */

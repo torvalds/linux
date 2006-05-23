@@ -92,11 +92,7 @@ static inline void jffs2_init_inode_info(struct jffs2_inode_info *f)
 #define jffs2_flash_writev(a,b,c,d,e,f) jffs2_flash_direct_writev(a,b,c,d,e)
 #define jffs2_wbuf_timeout NULL
 #define jffs2_wbuf_process NULL
-#define jffs2_nor_ecc(c) (0)
 #define jffs2_dataflash(c) (0)
-#define jffs2_nor_wbuf_flash(c) (0)
-#define jffs2_nor_ecc_flash_setup(c) (0)
-#define jffs2_nor_ecc_flash_cleanup(c) do {} while (0)
 #define jffs2_dataflash_setup(c) (0)
 #define jffs2_dataflash_cleanup(c) do {} while (0)
 #define jffs2_nor_wbuf_flash_setup(c) (0)
@@ -109,9 +105,7 @@ static inline void jffs2_init_inode_info(struct jffs2_inode_info *f)
 #ifdef CONFIG_JFFS2_SUMMARY
 #define jffs2_can_mark_obsolete(c) (0)
 #else
-#define jffs2_can_mark_obsolete(c) \
-  ((c->mtd->type == MTD_NORFLASH && !(c->mtd->flags & (MTD_ECC|MTD_PROGRAM_REGIONS))) || \
-   c->mtd->type == MTD_RAM)
+#define jffs2_can_mark_obsolete(c) (c->mtd->flags & (MTD_BIT_WRITEABLE))
 #endif
 
 #define jffs2_cleanmarker_oob(c) (c->mtd->type == MTD_NANDFLASH)
@@ -135,15 +129,11 @@ int jffs2_flush_wbuf_pad(struct jffs2_sb_info *c);
 int jffs2_nand_flash_setup(struct jffs2_sb_info *c);
 void jffs2_nand_flash_cleanup(struct jffs2_sb_info *c);
 
-#define jffs2_nor_ecc(c) (c->mtd->type == MTD_NORFLASH && (c->mtd->flags & MTD_ECC))
-int jffs2_nor_ecc_flash_setup(struct jffs2_sb_info *c);
-void jffs2_nor_ecc_flash_cleanup(struct jffs2_sb_info *c);
-
 #define jffs2_dataflash(c) (c->mtd->type == MTD_DATAFLASH)
 int jffs2_dataflash_setup(struct jffs2_sb_info *c);
 void jffs2_dataflash_cleanup(struct jffs2_sb_info *c);
 
-#define jffs2_nor_wbuf_flash(c) (c->mtd->type == MTD_NORFLASH && (c->mtd->flags & MTD_PROGRAM_REGIONS))
+#define jffs2_nor_wbuf_flash(c) (c->mtd->type == MTD_NORFLASH && ! (c->mtd->flags & MTD_BIT_WRITEABLE))
 int jffs2_nor_wbuf_flash_setup(struct jffs2_sb_info *c);
 void jffs2_nor_wbuf_flash_cleanup(struct jffs2_sb_info *c);
 

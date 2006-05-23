@@ -230,6 +230,7 @@ static inline void jffs2_remove_node_refs_from_ino_list(struct jffs2_sb_info *c,
 			   at the end of the linked list. Stash it and continue
 			   from the beginning of the list */
 			ic = (struct jffs2_inode_cache *)(*prev);
+			BUG_ON(ic->class != RAWNODE_CLASS_INODE_CACHE);
 			prev = &ic->nodes;
 			continue;
 		}
@@ -410,10 +411,9 @@ static void jffs2_mark_erased_block(struct jffs2_sb_info *c, struct jffs2_eraseb
 		/* Everything else got zeroed before the erase */
 		jeb->free_size = c->sector_size;
 
-		marker_ref->next_in_ino = NULL;
 		marker_ref->flash_offset = jeb->offset | REF_NORMAL;
 
-		jffs2_link_node_ref(c, jeb, marker_ref, c->cleanmarker_size);
+		jffs2_link_node_ref(c, jeb, marker_ref, c->cleanmarker_size, NULL);
 	}
 
 	spin_lock(&c->erase_completion_lock);

@@ -1048,7 +1048,8 @@ void jffs2_kill_fragtree(struct rb_root *root, struct jffs2_sb_info *c)
 }
 
 void jffs2_link_node_ref(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb,
-			 struct jffs2_raw_node_ref *ref, uint32_t len)
+			 struct jffs2_raw_node_ref *ref, uint32_t len,
+			 struct jffs2_inode_cache *ic)
 {
 	if (!jeb->first_node)
 		jeb->first_node = ref;
@@ -1064,6 +1065,13 @@ void jffs2_link_node_ref(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb,
 #endif
 	}
 	jeb->last_node = ref;
+
+	if (ic) {
+		ref->next_in_ino = ic->nodes;
+		ic->nodes = ref;
+	} else {
+		ref->next_in_ino = NULL;
+	}
 
 	switch(ref_flags(ref)) {
 	case REF_UNCHECKED:
@@ -1120,12 +1128,11 @@ int jffs2_scan_dirty_space(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb
 
 		ref->flash_offset = jeb->offset + c->sector_size - jeb->free_size;
 		ref->flash_offset |= REF_OBSOLETE;
-		ref->next_in_ino = 0;
 #ifdef TEST_TOTLEN
 		ref->__totlen = size;
 #endif
 
-		jffs2_link_node_ref(c, jeb, ref, size);
+		jffs2_link_node_ref(c, jeb, ref, size, NULL);
 	}
 
 	return 0;

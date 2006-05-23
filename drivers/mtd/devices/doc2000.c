@@ -579,7 +579,7 @@ void DoC2k_init(struct mtd_info *mtd)
 	mtd->ecctype = MTD_ECC_RS_DiskOnChip;
 	mtd->size = 0;
 	mtd->erasesize = 0;
-	mtd->oobblock = 512;
+	mtd->writesize = 512;
 	mtd->oobsize = 16;
 	mtd->owner = THIS_MODULE;
 	mtd->erase = doc_erase;
