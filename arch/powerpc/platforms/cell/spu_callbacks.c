@@ -258,6 +258,7 @@ void *spu_syscall_table[] = {
 	[__NR_futex]			sys_futex,
 	[__NR_sched_setaffinity]	sys_sched_setaffinity,
 	[__NR_sched_getaffinity]	sys_sched_getaffinity,
+	[224]				sys_ni_syscall,
 	[__NR_tuxcall]			sys_ni_syscall,
 	[226]				sys_ni_syscall,
 	[__NR_io_setup]			sys_io_setup,
