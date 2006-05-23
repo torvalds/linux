@@ -76,7 +76,7 @@ IXGB_PARAM(RxDescriptors, "Number of receive descriptors");
  *  - 2 - Tx only, generate PAUSE frames but ignore them on receive
  *  - 3 - Full Flow Control Support
  *
- * Default Value: Read flow control settings from the EEPROM
+ * Default Value: 2 - Tx only (silicon bug avoidance)
  */
 
 IXGB_PARAM(FlowControl, "Flow Control setting");
@@ -137,7 +137,7 @@ IXGB_PARAM(RxFCLowThresh, "Receive Flow Control Low Threshold");
  *
  * Valid Range: 1 - 65535 
  *
- * Default Value:  256 (0x100)
+ * Default Value:  65535 (0xffff) (we'll send an xon if we recover)
  */
 
 IXGB_PARAM(FCReqTimeout, "Flow Control Request Timeout");
@@ -165,8 +165,6 @@ IXGB_PARAM(IntDelayEnable, "Transmit Interrupt Delay Enable");
 
 #define XSUMRX_DEFAULT		 OPTION_ENABLED
 
-#define FLOW_CONTROL_FULL	   ixgb_fc_full
-#define FLOW_CONTROL_DEFAULT  FLOW_CONTROL_FULL
 #define DEFAULT_FCRTL	  		0x28000
 #define DEFAULT_FCRTH			0x30000
 #define MIN_FCRTL			      0
@@ -174,9 +172,9 @@ IXGB_PARAM(IntDelayEnable, "Transmit Interrupt Delay Enable");
 #define MIN_FCRTH			      8
 #define MAX_FCRTH			0x3FFF0
 
-#define DEFAULT_FCPAUSE		  	0x100	/* this may be too long */
 #define MIN_FCPAUSE			      1
 #define MAX_FCPAUSE			 0xffff
+#define DEFAULT_FCPAUSE		  	 0xFFFF /* this may be too long */
 
 struct ixgb_option {
 	enum { enable_option, range_option, list_option } type;
@@ -336,7 +334,7 @@ ixgb_check_options(struct ixgb_adapter *adapter)
 			.type = list_option,
 			.name = "Flow Control",
 			.err  = "reading default settings from EEPROM",
-			.def  = ixgb_fc_full,
+			.def  = ixgb_fc_tx_pause,
 			.arg  = { .l = { .nr = LIST_LEN(fc_list),
 					 .p = fc_list }}
 		};
@@ -365,8 +363,8 @@ ixgb_check_options(struct ixgb_adapter *adapter)
 		} else {
 			adapter->hw.fc.high_water = opt.def;
 		}
-		if(!(adapter->hw.fc.type & ixgb_fc_rx_pause) )
-			printk (KERN_INFO 
+		if (!(adapter->hw.fc.type & ixgb_fc_tx_pause) )
+			printk (KERN_INFO
 				"Ignoring RxFCHighThresh when no RxFC\n");
 	}
 	{ /* Receive Flow Control Low Threshold */
@@ -385,8 +383,8 @@ ixgb_check_options(struct ixgb_adapter *adapter)
 		} else {
 			adapter->hw.fc.low_water = opt.def;
 		}
-		if(!(adapter->hw.fc.type & ixgb_fc_rx_pause) )
-			printk (KERN_INFO 
+		if (!(adapter->hw.fc.type & ixgb_fc_tx_pause) )
+			printk (KERN_INFO
 				"Ignoring RxFCLowThresh when no RxFC\n");
 	}
 	{ /* Flow Control Pause Time Request*/
@@ -406,12 +404,12 @@ ixgb_check_options(struct ixgb_adapter *adapter)
 		} else {
 			adapter->hw.fc.pause_time = opt.def;
 		}
-		if(!(adapter->hw.fc.type & ixgb_fc_rx_pause) )
-			printk (KERN_INFO 
+		if (!(adapter->hw.fc.type & ixgb_fc_tx_pause) )
+			printk (KERN_INFO
 				"Ignoring FCReqTimeout when no RxFC\n");
 	}
 	/* high low and spacing check for rx flow control thresholds */
-	if (adapter->hw.fc.type & ixgb_fc_rx_pause) {
+	if (adapter->hw.fc.type & ixgb_fc_tx_pause) {
 		/* high must be greater than low */
 		if (adapter->hw.fc.high_water < (adapter->hw.fc.low_water + 8)) {
 			/* set defaults */
