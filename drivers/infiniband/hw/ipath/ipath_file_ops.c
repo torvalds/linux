@@ -139,7 +139,7 @@ static int ipath_get_base_info(struct ipath_portdata *pd,
 	kinfo->spi_piosize = dd->ipath_ibmaxlen;
 	kinfo->spi_mtu = dd->ipath_ibmaxlen;	/* maxlen, not ibmtu */
 	kinfo->spi_port = pd->port_port;
-	kinfo->spi_sw_version = IPATH_USER_SWVERSION;
+	kinfo->spi_sw_version = IPATH_KERN_SWVERSION;
 	kinfo->spi_hw_version = dd->ipath_revision;
 
 	if (copy_to_user(ubase, kinfo, sizeof(*kinfo)))
