@@ -227,6 +227,8 @@ extern int nand_read_raw (struct mtd_info *mtd, uint8_t *buf, loff_t from, size_
 #define NAND_SKIP_BBTSCAN	0x00040000
 
 /* Options set by nand scan */
+/* Nand scan has allocated controller struct */
+#define NAND_CONTROLLER_ALLOC	0x20000000
 /* Nand scan has allocated oob_buf */
 #define NAND_OOBBUF_ALLOC	0x40000000
 /* Nand scan has allocated data_buf */
@@ -294,7 +296,6 @@ struct nand_hw_control {
  * @eccbytes: 		[INTERN] number of ecc bytes per ecc-calculation step
  * @eccsteps:		[INTERN] number of ecc calculation steps per page
  * @chip_delay:		[BOARDSPECIFIC] chip dependent delay for transfering data from array to read regs (tR)
- * @chip_lock:		[INTERN] spinlock used to protect access to this structure and the chip
  * @wq:			[INTERN] wait queue to sleep on if a NAND operation is in progress
  * @state: 		[INTERN] the current state of the NAND device
  * @page_shift:		[INTERN] number of address bits in a page (column address bits)
@@ -317,7 +318,8 @@ struct nand_hw_control {
  * @bbt_td:		[REPLACEABLE] bad block table descriptor for flash lookup
  * @bbt_md:		[REPLACEABLE] bad block table mirror descriptor
  * @badblock_pattern:	[REPLACEABLE] bad block scan pattern used for initial bad block scan
- * @controller:		[OPTIONAL] a pointer to a hardware controller structure which is shared among multiple independend devices
+ * @controller:		[REPLACEABLE] a pointer to a hardware controller structure
+ *			which is shared among multiple independend devices
  * @priv:		[OPTIONAL] pointer to private chip date
  * @errstat:		[OPTIONAL] hardware specific function to perform additional error status checks
  *			(determine if errors are correctable)
@@ -352,7 +354,6 @@ struct nand_chip {
 	int		eccbytes;
 	int		eccsteps;
 	int 		chip_delay;
-	spinlock_t	chip_lock;
 	wait_queue_head_t wq;
 	nand_state_t 	state;
 	int 		page_shift;

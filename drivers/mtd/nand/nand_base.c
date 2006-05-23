@@ -172,20 +172,12 @@ static void nand_release_device(struct mtd_info *mtd)
 	/* De-select the NAND device */
 	this->select_chip(mtd, -1);
 
-	if (this->controller) {
-		/* Release the controller and the chip */
-		spin_lock(&this->controller->lock);
-		this->controller->active = NULL;
-		this->state = FL_READY;
-		wake_up(&this->controller->wq);
-		spin_unlock(&this->controller->lock);
-	} else {
-		/* Release the chip */
-		spin_lock(&this->chip_lock);
-		this->state = FL_READY;
-		wake_up(&this->wq);
-		spin_unlock(&this->chip_lock);
-	}
+	/* Release the controller and the chip */
+	spin_lock(&this->controller->lock);
+	this->controller->active = NULL;
+	this->state = FL_READY;
+	wake_up(&this->controller->wq);
+	spin_unlock(&this->controller->lock);
 }
 
 /**
@@ -765,25 +757,18 @@ static void nand_command_lp(struct mtd_info *mtd, unsigned command, int column, 
  */
 static int nand_get_device(struct nand_chip *this, struct mtd_info *mtd, int new_state)
 {
-	struct nand_chip *active;
-	spinlock_t *lock;
-	wait_queue_head_t *wq;
+	spinlock_t *lock = &this->controller->lock;
+	wait_queue_head_t *wq = &this->controller->wq;
 	DECLARE_WAITQUEUE(wait, current);
-
-	lock = (this->controller) ? &this->controller->lock : &this->chip_lock;
-	wq = (this->controller) ? &this->controller->wq : &this->wq;
  retry:
-	active = this;
 	spin_lock(lock);
 
 	/* Hardware controller shared among independend devices */
-	if (this->controller) {
-		if (this->controller->active)
-			active = this->controller->active;
-		else
-			this->controller->active = this;
-	}
-	if (active == this && this->state == FL_READY) {
+	/* Hardware controller shared among independend devices */
+	if (!this->controller->active)
+		this->controller->active = this;
+
+	if (this->controller->active == this && this->state == FL_READY) {
 		this->state = new_state;
 		spin_unlock(lock);
 		return 0;
@@ -2312,6 +2297,22 @@ static void nand_resume(struct mtd_info *mtd)
 
 }
 
+/*
+ * Free allocated data structures
+ */
+static void nand_free_kmem(struct nand_chip *this)
+{
+	/* Buffer allocated by nand_scan ? */
+	if (this->options & NAND_OOBBUF_ALLOC)
+		kfree(this->oob_buf);
+	/* Buffer allocated by nand_scan ? */
+	if (this->options & NAND_DATABUF_ALLOC)
+		kfree(this->data_buf);
+	/* Controller allocated by nand_scan ? */
+	if (this->options & NAND_CONTROLLER_ALLOC)
+		kfree(this->controller);
+}
+
 /* module_text_address() isn't exported, and it's mostly a pointless
    test if this is a module _anyway_ -- they'd have to try _really_ hard
    to call us from in-kernel code if the core NAND support is modular. */
@@ -2522,9 +2523,8 @@ int nand_scan(struct mtd_info *mtd, int maxchips)
 		len = mtd->oobblock + mtd->oobsize;
 		this->data_buf = kmalloc(len, GFP_KERNEL);
 		if (!this->data_buf) {
-			if (this->options & NAND_OOBBUF_ALLOC)
-				kfree(this->oob_buf);
 			printk(KERN_ERR "nand_scan(): Cannot allocate data_buf\n");
+			nand_free_kmem(this);
 			return -ENOMEM;
 		}
 		this->options |= NAND_DATABUF_ALLOC;
@@ -2657,8 +2657,17 @@ int nand_scan(struct mtd_info *mtd, int maxchips)
 
 	/* Initialize state, waitqueue and spinlock */
 	this->state = FL_READY;
-	init_waitqueue_head(&this->wq);
-	spin_lock_init(&this->chip_lock);
+	if (!this->controller) {
+		this->controller = kzalloc(sizeof(struct nand_hw_control),
+					   GFP_KERNEL);
+		if (!this->controller) {
+			nand_free_kmem(this);
+			return -ENOMEM;
+		}
+		this->options |= NAND_CONTROLLER_ALLOC;
+	}
+	init_waitqueue_head(&this->controller->wq);
+	spin_lock_init(&this->controller->lock);
 
 	/* De-select the device */
 	this->select_chip(mtd, -1);
@@ -2718,12 +2727,8 @@ void nand_release(struct mtd_info *mtd)
 
 	/* Free bad block table memory */
 	kfree(this->bbt);
-	/* Buffer allocated by nand_scan ? */
-	if (this->options & NAND_OOBBUF_ALLOC)
-		kfree(this->oob_buf);
-	/* Buffer allocated by nand_scan ? */
-	if (this->options & NAND_DATABUF_ALLOC)
-		kfree(this->data_buf);
+	/* Free buffers */
+	nand_free_kmem(this);
 }
 
 EXPORT_SYMBOL_GPL(nand_scan);
