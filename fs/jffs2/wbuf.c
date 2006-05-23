@@ -233,10 +233,7 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 		}
 
 		/* Do the read... */
-		if (jffs2_cleanmarker_oob(c))
-			ret = c->mtd->read_ecc(c->mtd, start, c->wbuf_ofs - start, &retlen, buf, NULL, c->oobinfo);
-		else
-			ret = c->mtd->read(c->mtd, start, c->wbuf_ofs - start, &retlen, buf);
+		ret = c->mtd->read(c->mtd, start, c->wbuf_ofs - start, &retlen, buf);
 
 		if (ret == -EBADMSG && retlen == c->wbuf_ofs - start) {
 			/* ECC recovered */
@@ -290,16 +287,13 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 		if (breakme++ == 20) {
 			printk(KERN_NOTICE "Faking write error at 0x%08x\n", ofs);
 			breakme = 0;
-			c->mtd->write_ecc(c->mtd, ofs, towrite, &retlen,
-					  brokenbuf, NULL, c->oobinfo);
+			c->mtd->write(c->mtd, ofs, towrite, &retlen,
+				      brokenbuf);
 			ret = -EIO;
 		} else
 #endif
-		if (jffs2_cleanmarker_oob(c))
-			ret = c->mtd->write_ecc(c->mtd, ofs, towrite, &retlen,
-						rewrite_buf, NULL, c->oobinfo);
-		else
-			ret = c->mtd->write(c->mtd, ofs, towrite, &retlen, rewrite_buf);
+			ret = c->mtd->write(c->mtd, ofs, towrite, &retlen,
+					    rewrite_buf);
 
 		if (ret || retlen != towrite) {
 			/* Argh. We tried. Really we did. */
@@ -457,15 +451,12 @@ static int __jffs2_flush_wbuf(struct jffs2_sb_info *c, int pad)
 	if (breakme++ == 20) {
 		printk(KERN_NOTICE "Faking write error at 0x%08x\n", c->wbuf_ofs);
 		breakme = 0;
-		c->mtd->write_ecc(c->mtd, c->wbuf_ofs, c->wbuf_pagesize,
-					&retlen, brokenbuf, NULL, c->oobinfo);
+		c->mtd->write(c->mtd, c->wbuf_ofs, c->wbuf_pagesize, &retlen,
+			      brokenbuf);
 		ret = -EIO;
 	} else
 #endif
 
-	if (jffs2_cleanmarker_oob(c))
-		ret = c->mtd->write_ecc(c->mtd, c->wbuf_ofs, c->wbuf_pagesize, &retlen, c->wbuf, NULL, c->oobinfo);
-	else
 		ret = c->mtd->write(c->mtd, c->wbuf_ofs, c->wbuf_pagesize, &retlen, c->wbuf);
 
 	if (ret || retlen != c->wbuf_pagesize) {
@@ -800,10 +791,7 @@ int jffs2_flash_read(struct jffs2_sb_info *c, loff_t ofs, size_t len, size_t *re
 
 	/* Read flash */
 	down_read(&c->wbuf_sem);
-	if (jffs2_cleanmarker_oob(c))
-		ret = c->mtd->read_ecc(c->mtd, ofs, len, retlen, buf, NULL, c->oobinfo);
-	else
-		ret = c->mtd->read(c->mtd, ofs, len, retlen, buf);
+	ret = c->mtd->read(c->mtd, ofs, len, retlen, buf);
 
 	if ( (ret == -EBADMSG) && (*retlen == len) ) {
 		printk(KERN_WARNING "mtd->read(0x%zx bytes from 0x%llx) returned ECC error\n",

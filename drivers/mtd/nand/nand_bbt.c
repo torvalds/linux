@@ -156,7 +156,7 @@ static int read_bbt(struct mtd_info *mtd, uint8_t *buf, int page, int num,
 
 	while (totlen) {
 		len = min(totlen, (size_t) (1 << this->bbt_erase_shift));
-		res = mtd->read_ecc(mtd, from, len, &retlen, buf, NULL, this->autooob);
+		res = mtd->read(mtd, from, len, &retlen, buf);
 		if (res < 0) {
 			if (retlen != len) {
 				printk(KERN_INFO "nand_bbt: Error reading bad block table\n");
@@ -471,17 +471,17 @@ static int search_read_bbts(struct mtd_info *mtd, uint8_t * buf, struct nand_bbt
  *
 */
 static int write_bbt(struct mtd_info *mtd, uint8_t *buf,
-		     struct nand_bbt_descr *td, struct nand_bbt_descr *md, int chipsel)
+		     struct nand_bbt_descr *td, struct nand_bbt_descr *md,
+		     int chipsel)
 {
 	struct nand_chip *this = mtd->priv;
-	struct nand_oobinfo oobinfo;
 	struct erase_info einfo;
 	int i, j, res, chip = 0;
 	int bits, startblock, dir, page, offs, numblocks, sft, sftmsk;
-	int nrchips, bbtoffs, pageoffs;
+	int nrchips, bbtoffs, pageoffs, ooboffs;
 	uint8_t msk[4];
 	uint8_t rcode = td->reserved_block_code;
-	size_t retlen, len = 0;
+	size_t retlen, len = 0, ooblen;
 	loff_t to;
 
 	if (!rcode)
@@ -526,12 +526,14 @@ static int write_bbt(struct mtd_info *mtd, uint8_t *buf,
 		for (i = 0; i < td->maxblocks; i++) {
 			int block = startblock + dir * i;
 			/* Check, if the block is bad */
-			switch ((this->bbt[block >> 2] >> (2 * (block & 0x03))) & 0x03) {
+			switch ((this->bbt[block >> 2] >>
+				 (2 * (block & 0x03))) & 0x03) {
 			case 0x01:
 			case 0x03:
 				continue;
 			}
-			page = block << (this->bbt_erase_shift - this->page_shift);
+			page = block <<
+				(this->bbt_erase_shift - this->page_shift);
 			/* Check, if the block is used by the mirror table */
 			if (!md || md->pages[chip] != page)
 				goto write;
@@ -542,11 +544,20 @@ static int write_bbt(struct mtd_info *mtd, uint8_t *buf,
 
 		/* Set up shift count and masks for the flash table */
 		bits = td->options & NAND_BBT_NRBITS_MSK;
+		msk[2] = ~rcode;
 		switch (bits) {
-		case 1: sft = 3; sftmsk = 0x07; msk[0] = 0x00; msk[1] = 0x01; msk[2] = ~rcode; msk[3] = 0x01; break;
-		case 2: sft = 2; sftmsk = 0x06; msk[0] = 0x00; msk[1] = 0x01; msk[2] = ~rcode; msk[3] = 0x03; break;
-		case 4: sft = 1; sftmsk = 0x04; msk[0] = 0x00; msk[1] = 0x0C; msk[2] = ~rcode; msk[3] = 0x0f; break;
-		case 8: sft = 0; sftmsk = 0x00; msk[0] = 0x00; msk[1] = 0x0F; msk[2] = ~rcode; msk[3] = 0xff; break;
+		case 1: sft = 3; sftmsk = 0x07; msk[0] = 0x00; msk[1] = 0x01;
+			msk[3] = 0x01;
+			break;
+		case 2: sft = 2; sftmsk = 0x06; msk[0] = 0x00; msk[1] = 0x01;
+			msk[3] = 0x03;
+			break;
+		case 4: sft = 1; sftmsk = 0x04; msk[0] = 0x00; msk[1] = 0x0C;
+			msk[3] = 0x0f;
+			break;
+		case 8: sft = 0; sftmsk = 0x00; msk[0] = 0x00; msk[1] = 0x0F;
+			msk[3] = 0xff;
+			break;
 		default: return -EINVAL;
 		}
 
@@ -554,48 +565,54 @@ static int write_bbt(struct mtd_info *mtd, uint8_t *buf,
 
 		to = ((loff_t) page) << this->page_shift;
 
-		memcpy(&oobinfo, this->autooob, sizeof(oobinfo));
-		oobinfo.useecc = MTD_NANDECC_PLACEONLY;
-
 		/* Must we save the block contents ? */
 		if (td->options & NAND_BBT_SAVECONTENT) {
 			/* Make it block aligned */
 			to &= ~((loff_t) ((1 << this->bbt_erase_shift) - 1));
 			len = 1 << this->bbt_erase_shift;
-			res = mtd->read_ecc(mtd, to, len, &retlen, buf, &buf[len], &oobinfo);
+			res = mtd->read(mtd, to, len, &retlen, buf);
 			if (res < 0) {
 				if (retlen != len) {
-					printk(KERN_INFO
-					       "nand_bbt: Error reading block for writing the bad block table\n");
+					printk(KERN_INFO "nand_bbt: Error "
+					       "reading block for writing "
+					       "the bad block table\n");
 					return res;
 				}
-				printk(KERN_WARNING "nand_bbt: ECC error while reading block for writing bad block table\n");
+				printk(KERN_WARNING "nand_bbt: ECC error "
+				       "while reading block for writing "
+				       "bad block table\n");
 			}
+			/* Read oob data */
+			ooblen = (len >> this->page_shift) * mtd->oobsize;
+			res = mtd->read_oob(mtd, to + mtd->writesize, ooblen,
+					    &retlen, &buf[len]);
+			if (res < 0 || retlen != ooblen)
+				goto outerr;
+
 			/* Calc the byte offset in the buffer */
 			pageoffs = page - (int)(to >> this->page_shift);
 			offs = pageoffs << this->page_shift;
 			/* Preset the bbt area with 0xff */
 			memset(&buf[offs], 0xff, (size_t) (numblocks >> sft));
-			/* Preset the bbt's oob area with 0xff */
-			memset(&buf[len + pageoffs * mtd->oobsize], 0xff,
-			       ((len >> this->page_shift) - pageoffs) * mtd->oobsize);
-			if (td->options & NAND_BBT_VERSION) {
-				buf[len + (pageoffs * mtd->oobsize) + td->veroffs] = td->version[chip];
-			}
+			ooboffs = len + (pageoffs * mtd->oobsize);
+
 		} else {
 			/* Calc length */
 			len = (size_t) (numblocks >> sft);
 			/* Make it page aligned ! */
-			len = (len + (mtd->writesize - 1)) & ~(mtd->writesize - 1);
+			len = (len + (mtd->writesize - 1)) &
+				~(mtd->writesize - 1);
 			/* Preset the buffer with 0xff */
-			memset(buf, 0xff, len + (len >> this->page_shift) * mtd->oobsize);
+			memset(buf, 0xff, len +
+			       (len >> this->page_shift)* mtd->oobsize);
 			offs = 0;
+			ooboffs = len;
 			/* Pattern is located in oob area of first page */
-			memcpy(&buf[len + td->offs], td->pattern, td->len);
-			if (td->options & NAND_BBT_VERSION) {
-				buf[len + td->veroffs] = td->version[chip];
-			}
+			memcpy(&buf[ooboffs + td->offs], td->pattern, td->len);
 		}
+
+		if (td->options & NAND_BBT_VERSION)
+			buf[ooboffs + td->veroffs] = td->version[chip];
 
 		/* walk through the memory table */
 		for (i = 0; i < numblocks;) {
@@ -604,7 +621,8 @@ static int write_bbt(struct mtd_info *mtd, uint8_t *buf,
 			for (j = 0; j < 4; j++, i++) {
 				int sftcnt = (i << (3 - sft)) & sftmsk;
 				/* Do not store the reserved bbt blocks ! */
-				buf[offs + (i >> sft)] &= ~(msk[dat & 0x03] << sftcnt);
+				buf[offs + (i >> sft)] &=
+					~(msk[dat & 0x03] << sftcnt);
 				dat >>= 2;
 			}
 		}
@@ -614,23 +632,25 @@ static int write_bbt(struct mtd_info *mtd, uint8_t *buf,
 		einfo.addr = (unsigned long)to;
 		einfo.len = 1 << this->bbt_erase_shift;
 		res = nand_erase_nand(mtd, &einfo, 1);
-		if (res < 0) {
-			printk(KERN_WARNING "nand_bbt: Error during block erase: %d\n", res);
-			return res;
-		}
+		if (res < 0)
+			goto outerr;
 
-		res = mtd->write_ecc(mtd, to, len, &retlen, buf, &buf[len], &oobinfo);
-		if (res < 0) {
-			printk(KERN_WARNING "nand_bbt: Error while writing bad block table %d\n", res);
-			return res;
-		}
-		printk(KERN_DEBUG "Bad block table written to 0x%08x, version 0x%02X\n",
-		       (unsigned int)to, td->version[chip]);
+		res = nand_write_raw(mtd, to, len, &retlen, buf, &buf[len]);
+		if (res < 0)
+			goto outerr;
+
+		printk(KERN_DEBUG "Bad block table written to 0x%08x, version "
+		       "0x%02X\n", (unsigned int)to, td->version[chip]);
 
 		/* Mark it as used */
 		td->pages[chip] = page;
 	}
 	return 0;
+
+ outerr:
+	printk(KERN_WARNING
+	       "nand_bbt: Error while writing bad block table %d\n", res);
+	return res;
 }
 
 /**

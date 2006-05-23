@@ -491,8 +491,6 @@ void DoCMilPlus_init(struct mtd_info *mtd)
 	mtd->unpoint = NULL;
 	mtd->read = doc_read;
 	mtd->write = doc_write;
-	mtd->read_ecc = doc_read_ecc;
-	mtd->write_ecc = doc_write_ecc;
 	mtd->read_oob = doc_read_oob;
 	mtd->write_oob = doc_write_oob;
 	mtd->sync = NULL;

@@ -139,16 +139,10 @@ static int nand_verify_buf(struct mtd_info *mtd, const uint8_t *buf, int len);
 
 static int nand_read(struct mtd_info *mtd, loff_t from, size_t len,
 		     size_t *retlen, uint8_t *buf);
-static int nand_read_ecc(struct mtd_info *mtd, loff_t from, size_t len,
-			 size_t *retlen, uint8_t *buf, uint8_t *eccbuf,
-			 struct nand_oobinfo *oobsel);
 static int nand_read_oob(struct mtd_info *mtd, loff_t from, size_t len,
 			 size_t *retlen, uint8_t *buf);
 static int nand_write(struct mtd_info *mtd, loff_t to, size_t len,
 		      size_t *retlen, const uint8_t *buf);
-static int nand_write_ecc(struct mtd_info *mtd, loff_t to, size_t len,
-			  size_t *retlen, const uint8_t *buf, uint8_t *eccbuf,
-			  struct nand_oobinfo *oobsel);
 static int nand_write_oob(struct mtd_info *mtd, loff_t to, size_t len,
 			  size_t *retlen, const uint8_t *buf);
 static int nand_erase(struct mtd_info *mtd, struct erase_info *instr);
@@ -1080,27 +1074,6 @@ static int nand_read(struct mtd_info *mtd, loff_t from, size_t len, size_t *retl
 }
 
 /**
- * nand_read_ecc - [MTD Interface] MTD compability function for nand_do_read_ecc
- * @mtd:	MTD device structure
- * @from:	offset to read from
- * @len:	number of bytes to read
- * @retlen:	pointer to variable to store the number of read bytes
- * @buf:	the databuffer to put data
- * @oob_buf:	filesystem supplied oob data buffer
- * @oobsel:	oob selection structure
- *
- * This function simply calls nand_do_read_ecc with flags = 0xff
- */
-static int nand_read_ecc(struct mtd_info *mtd, loff_t from, size_t len,
-			 size_t *retlen, uint8_t *buf, uint8_t *oob_buf, struct nand_oobinfo *oobsel)
-{
-	/* use userspace supplied oobinfo, if zero */
-	if (oobsel == NULL)
-		oobsel = &mtd->oobinfo;
-	return nand_do_read_ecc(mtd, from, len, retlen, buf, oob_buf, oobsel, 0xff);
-}
-
-/**
  * nand_do_read_ecc - [MTD Interface] Read data with ECC
  * @mtd:	MTD device structure
  * @from:	offset to read from
@@ -1524,6 +1497,55 @@ int nand_read_raw(struct mtd_info *mtd, uint8_t *buf, loff_t from, size_t len, s
 }
 
 /**
+ * nand_write_raw - [GENERIC] Write raw data including oob
+ * @mtd:	MTD device structure
+ * @buf:	source buffer
+ * @to:		offset to write to
+ * @len:	number of bytes to write
+ * @buf:	source buffer
+ * @oob:	oob buffer
+ *
+ * Write raw data including oob
+ */
+int nand_write_raw(struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen,
+		   uint8_t *buf, uint8_t *oob)
+{
+	struct nand_chip *this = mtd->priv;
+	int page = (int)(to >> this->page_shift);
+	int chip = (int)(to >> this->chip_shift);
+	int ret;
+
+	*retlen = 0;
+
+	/* Do not allow writes past end of device */
+	if ((to + len) > mtd->size) {
+		DEBUG(MTD_DEBUG_LEVEL0, "nand_read_raw: Attempt write "
+		      "beyond end of device\n");
+		return -EINVAL;
+	}
+
+	/* Grab the lock and see if the device is available */
+	nand_get_device(this, mtd, FL_WRITING);
+
+	this->select_chip(mtd, chip);
+	this->data_poi = buf;
+
+	while (len != *retlen) {
+		ret = nand_write_page(mtd, this, page, oob, &mtd->oobinfo, 0);
+		if (ret)
+			return ret;
+		page++;
+		*retlen += mtd->writesize;
+		this->data_poi += mtd->writesize;
+		oob += mtd->oobsize;
+	}
+
+	/* Deselect and wake up anyone waiting on the device */
+	nand_release_device(mtd);
+	return 0;
+}
+
+/**
  * nand_prepare_oobbuf - [GENERIC] Prepare the out of band buffer
  * @mtd:	MTD device structure
  * @fsbuf:	buffer given by fs driver
@@ -1585,57 +1607,39 @@ static uint8_t *nand_prepare_oobbuf(struct mtd_info *mtd, uint8_t *fsbuf, struct
 #define NOTALIGNED(x) (x & (mtd->writesize-1)) != 0
 
 /**
- * nand_write - [MTD Interface] compability function for nand_write_ecc
+ * nand_write - [MTD Interface] NAND write with ECC
  * @mtd:	MTD device structure
  * @to:		offset to write to
  * @len:	number of bytes to write
  * @retlen:	pointer to variable to store the number of written bytes
  * @buf:	the data to write
- *
- * This function simply calls nand_write_ecc with oob buffer and oobsel = NULL
- *
-*/
-static int nand_write(struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen, const uint8_t *buf)
-{
-	return (nand_write_ecc(mtd, to, len, retlen, buf, NULL, NULL));
-}
-
-/**
- * nand_write_ecc - [MTD Interface] NAND write with ECC
- * @mtd:	MTD device structure
- * @to:		offset to write to
- * @len:	number of bytes to write
- * @retlen:	pointer to variable to store the number of written bytes
- * @buf:	the data to write
- * @eccbuf:	filesystem supplied oob data buffer
- * @oobsel:	oob selection structure
  *
  * NAND write with ECC
  */
-static int nand_write_ecc(struct mtd_info *mtd, loff_t to, size_t len,
-			  size_t *retlen, const uint8_t *buf, uint8_t *eccbuf,
-			  struct nand_oobinfo *oobsel)
+static int nand_write(struct mtd_info *mtd, loff_t to, size_t len,
+			  size_t *retlen, const uint8_t *buf)
 {
 	int startpage, page, ret = -EIO, oob = 0, written = 0, chipnr;
 	int autoplace = 0, numpages, totalpages;
 	struct nand_chip *this = mtd->priv;
-	uint8_t *oobbuf, *bufstart;
+	uint8_t *oobbuf, *bufstart, *eccbuf = NULL;
 	int ppblock = (1 << (this->phys_erase_shift - this->page_shift));
+	struct nand_oobinfo *oobsel = &mtd->oobinfo;
 
-	DEBUG(MTD_DEBUG_LEVEL3, "nand_write_ecc: to = 0x%08x, len = %i\n", (unsigned int)to, (int)len);
+	DEBUG(MTD_DEBUG_LEVEL3, "nand_write: to = 0x%08x, len = %i\n", (unsigned int)to, (int)len);
 
 	/* Initialize retlen, in case of early exit */
 	*retlen = 0;
 
 	/* Do not allow write past end of device */
 	if ((to + len) > mtd->size) {
-		DEBUG(MTD_DEBUG_LEVEL0, "nand_write_ecc: Attempt to write past end of page\n");
+		DEBUG(MTD_DEBUG_LEVEL0, "nand_write: Attempt to write past end of page\n");
 		return -EINVAL;
 	}
 
 	/* reject writes, which are not page aligned */
 	if (NOTALIGNED(to) || NOTALIGNED(len)) {
-		printk(KERN_NOTICE "nand_write_ecc: Attempt to write not page aligned data\n");
+		printk(KERN_NOTICE "nand_write: Attempt to write not page aligned data\n");
 		return -EINVAL;
 	}
 
@@ -1650,10 +1654,6 @@ static int nand_write_ecc(struct mtd_info *mtd, loff_t to, size_t len,
 	/* Check, if it is write protected */
 	if (nand_check_wp(mtd))
 		goto out;
-
-	/* if oobsel is NULL, use chip defaults */
-	if (oobsel == NULL)
-		oobsel = &mtd->oobinfo;
 
 	/* Autoplace of oob data ? Use the default placement scheme */
 	if (oobsel->useecc == MTD_NANDECC_AUTOPLACE) {
@@ -1689,7 +1689,7 @@ static int nand_write_ecc(struct mtd_info *mtd, loff_t to, size_t len,
 		 */
 		ret = nand_write_page(mtd, this, page, &oobbuf[oob], oobsel, (--numpages > 0));
 		if (ret) {
-			DEBUG(MTD_DEBUG_LEVEL0, "nand_write_ecc: write_page failed %d\n", ret);
+			DEBUG(MTD_DEBUG_LEVEL0, "nand_write: write_page failed %d\n", ret);
 			goto out;
 		}
 		/* Next oob page */
@@ -1712,7 +1712,7 @@ static int nand_write_ecc(struct mtd_info *mtd, loff_t to, size_t len,
 			ret = nand_verify_pages(mtd, this, startpage, page - startpage,
 						oobbuf, oobsel, chipnr, (eccbuf != NULL));
 			if (ret) {
-				DEBUG(MTD_DEBUG_LEVEL0, "nand_write_ecc: verify_pages failed %d\n", ret);
+				DEBUG(MTD_DEBUG_LEVEL0, "nand_write: verify_pages failed %d\n", ret);
 				goto out;
 			}
 			*retlen = written;
@@ -1741,7 +1741,7 @@ static int nand_write_ecc(struct mtd_info *mtd, loff_t to, size_t len,
 	if (!ret)
 		*retlen = written;
 	else
-		DEBUG(MTD_DEBUG_LEVEL0, "nand_write_ecc: verify_pages failed %d\n", ret);
+		DEBUG(MTD_DEBUG_LEVEL0, "nand_write: verify_pages failed %d\n", ret);
 
  out:
 	/* Deselect and wake up anyone waiting on the device */
@@ -2527,8 +2527,6 @@ int nand_scan(struct mtd_info *mtd, int maxchips)
 	mtd->unpoint = NULL;
 	mtd->read = nand_read;
 	mtd->write = nand_write;
-	mtd->read_ecc = nand_read_ecc;
-	mtd->write_ecc = nand_write_ecc;
 	mtd->read_oob = nand_read_oob;
 	mtd->write_oob = nand_write_oob;
 	mtd->sync = nand_sync;

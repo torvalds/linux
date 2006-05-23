@@ -350,21 +350,21 @@ static int check_free_sectors(struct INFTLrecord *inftl, unsigned int address,
 	int len, int check_oob)
 {
 	u8 buf[SECTORSIZE + inftl->mbd.mtd->oobsize];
+	struct mtd_info *mtd = inftl->mbd.mtd;
 	size_t retlen;
 	int i;
 
-	DEBUG(MTD_DEBUG_LEVEL3, "INFTL: check_free_sectors(inftl=%p,"
-		"address=0x%x,len=%d,check_oob=%d)\n", inftl,
-		address, len, check_oob);
-
 	for (i = 0; i < len; i += SECTORSIZE) {
-		if (MTD_READECC(inftl->mbd.mtd, address, SECTORSIZE, &retlen, buf, &buf[SECTORSIZE], &inftl->oobinfo) < 0)
+		if (mtd->read(mtd, address, SECTORSIZE, &retlen, buf))
 			return -1;
 		if (memcmpb(buf, 0xff, SECTORSIZE) != 0)
 			return -1;
 
 		if (check_oob) {
-			if (memcmpb(buf + SECTORSIZE, 0xff, inftl->mbd.mtd->oobsize) != 0)
+			if(mtd->read_oob(mtd, address, mtd->oobsize,
+					 &retlen, &buf[SECTORSIZE]) < 0)
+				return -1;
+			if (memcmpb(buf + SECTORSIZE, 0xff, mtd->oobsize) != 0)
 				return -1;
 		}
 		address += SECTORSIZE;

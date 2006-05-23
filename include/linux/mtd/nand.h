@@ -36,6 +36,9 @@ extern int nand_read_raw (struct mtd_info *mtd, uint8_t *buf, loff_t from,
 			  size_t len, size_t ooblen);
 
 
+extern int nand_write_raw(struct mtd_info *mtd, loff_t to, size_t len,
+			  size_t *retlen, uint8_t *buf, uint8_t *oob);
+
 /* The maximum number of NAND chips in an array */
 #define NAND_MAX_CHIPS		8
 

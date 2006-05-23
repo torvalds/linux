@@ -268,18 +268,22 @@ static int memcmpb(void *a, int c, int n)
 static int check_free_sectors(struct NFTLrecord *nftl, unsigned int address, int len,
 			      int check_oob)
 {
-	int i;
-	size_t retlen;
 	u8 buf[SECTORSIZE + nftl->mbd.mtd->oobsize];
+	struct mtd_info *mtd = nftl->mbd.mtd;
+	size_t retlen;
+	int i;
 
 	for (i = 0; i < len; i += SECTORSIZE) {
-		if (MTD_READECC(nftl->mbd.mtd, address, SECTORSIZE, &retlen, buf, &buf[SECTORSIZE], &nftl->oobinfo) < 0)
+		if (mtd->read(mtd, address, SECTORSIZE, &retlen, buf))
 			return -1;
 		if (memcmpb(buf, 0xff, SECTORSIZE) != 0)
 			return -1;
 
 		if (check_oob) {
-			if (memcmpb(buf + SECTORSIZE, 0xff, nftl->mbd.mtd->oobsize) != 0)
+			if(mtd->read_oob(mtd, address, mtd->oobsize,
+					 &retlen, &buf[SECTORSIZE]) < 0)
+				return -1;
+			if (memcmpb(buf + SECTORSIZE, 0xff, mtd->oobsize) != 0)
 				return -1;
 		}
 		address += SECTORSIZE;
