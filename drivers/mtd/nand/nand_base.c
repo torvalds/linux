@@ -1544,6 +1544,7 @@ int nand_write_raw(struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen,
 	nand_release_device(mtd);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(nand_write_raw);
 
 /**
  * nand_prepare_oobbuf - [GENERIC] Prepare the out of band buffer
