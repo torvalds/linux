@@ -154,7 +154,7 @@ static void pci_arena_free(struct pci_iommu_arena *arena, unsigned long base, un
 		__clear_bit(i, arena->map);
 }
 
-static void *pci_4v_alloc_consistent(struct pci_dev *pdev, size_t size, dma_addr_t *dma_addrp)
+static void *pci_4v_alloc_consistent(struct pci_dev *pdev, size_t size, dma_addr_t *dma_addrp, gfp_t gfp)
 {
 	struct pcidev_cookie *pcp;
 	struct pci_iommu *iommu;
@@ -169,7 +169,7 @@ static void *pci_4v_alloc_consistent(struct pci_dev *pdev, size_t size, dma_addr
 
 	npages = size >> IO_PAGE_SHIFT;
 
-	first_page = __get_free_pages(GFP_ATOMIC, order);
+	first_page = __get_free_pages(gfp, order);
 	if (unlikely(first_page == 0UL))
 		return NULL;
 
