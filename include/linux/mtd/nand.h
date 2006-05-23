@@ -237,7 +237,7 @@ struct nand_ecc_ctrl {
 	int			steps;
 	int			size;
 	int			bytes;
-	int			(*hwctl)(struct mtd_info *mtd, int mode);
+	void			(*hwctl)(struct mtd_info *mtd, int mode);
 	int			(*calculate)(struct mtd_info *mtd,
 					     const uint8_t *dat,
 					     uint8_t *ecc_code);
