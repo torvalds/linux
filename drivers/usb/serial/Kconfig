@@ -417,7 +417,7 @@ config USB_SERIAL_MCT_U232
 	  Magic Control Technology Corp. (U232 is one of the model numbers).
 
 	  This driver also works with Sitecom U232-P25 and D-Link DU-H3SP USB
-	  BAY devices.
+	  BAY, Belkin F5U109, and Belkin F5U409 devices.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called mct_u232.
