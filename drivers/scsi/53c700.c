@@ -376,7 +376,7 @@ NCR_700_detect(struct scsi_host_template *tpnt,
 	dma_sync_single_for_device(hostdata->dev, pScript, sizeof(SCRIPT), DMA_TO_DEVICE);
 	hostdata->state = NCR_700_HOST_FREE;
 	hostdata->cmd = NULL;
-	host->max_id = 7;
+	host->max_id = 8;
 	host->max_lun = NCR_700_MAX_LUNS;
 	BUG_ON(NCR_700_transport_template == NULL);
 	host->transportt = NCR_700_transport_template;

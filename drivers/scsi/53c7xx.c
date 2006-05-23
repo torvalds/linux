@@ -709,7 +709,7 @@ request_synchronous (int host, int target) {
 	printk (KERN_ALERT "target %d is host ID\n", target);
 	return -1;
     } 
-    else if (target > h->max_id) {
+    else if (target >= h->max_id) {
 	printk (KERN_ALERT "target %d exceeds maximum of %d\n", target,
 	    h->max_id);
 	return -1;
@@ -3622,7 +3622,7 @@ NCR53c7xx_queue_command (Scsi_Cmnd *cmd, void (* done)(Scsi_Cmnd *)) {
 #ifdef LINUX_1_2
 	|| cmd->device->id > 7
 #else
-	|| cmd->device->id > host->max_id
+	|| cmd->device->id >= host->max_id
 #endif
 	|| cmd->device->id == host->this_id
 	|| hostdata->state == STATE_DISABLED) {

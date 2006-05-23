@@ -3047,7 +3047,7 @@ flash_ok_885:
 		if (atp_dev.chip_ver == 4)
 			shpnt->max_id = 16;
 		else		
-			shpnt->max_id = 7;
+			shpnt->max_id = 8;
 		shpnt->this_id = host_id;
 		shpnt->unique_id = base_io;
 		shpnt->io_port = base_io;

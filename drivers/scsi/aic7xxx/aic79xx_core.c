@@ -9396,8 +9396,8 @@ ahd_find_tmode_devs(struct ahd_softc *ahd, struct cam_sim *sim, union ccb *ccb,
 	} else {
 		u_int max_id;
 
-		max_id = (ahd->features & AHD_WIDE) ? 15 : 7;
-		if (ccb->ccb_h.target_id > max_id)
+		max_id = (ahd->features & AHD_WIDE) ? 16 : 8;
+		if (ccb->ccb_h.target_id >= max_id)
 			return (CAM_TID_INVALID);
 
 		if (ccb->ccb_h.target_lun >= AHD_NUM_LUNS)
