@@ -951,6 +951,7 @@ static void *ipath_register_ib_device(int unit, struct ipath_devdata *dd)
 	idev->dd = dd;
 
 	strlcpy(dev->name, "ipath%d", IB_DEVICE_NAME_MAX);
+	dev->owner = THIS_MODULE;
 	dev->node_guid = ipath_layer_get_guid(dd);
 	dev->uverbs_abi_ver = IPATH_UVERBS_ABI_VERSION;
 	dev->uverbs_cmd_mask =
