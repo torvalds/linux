@@ -180,6 +180,7 @@ struct ixgb_adapter {
 	uint64_t hw_csum_tx_good;
 	uint64_t hw_csum_tx_error;
 	uint32_t tx_int_delay;
+	uint32_t tx_timeout_count;
 	boolean_t tx_int_delay_enable;
 	boolean_t detect_tx_hung;
 

@@ -78,6 +78,7 @@ static struct ixgb_stats ixgb_gstrings_stats[] = {
 	{"tx_heartbeat_errors", IXGB_STAT(net_stats.tx_heartbeat_errors)},
 	{"tx_window_errors", IXGB_STAT(net_stats.tx_window_errors)},
 	{"tx_deferred_ok", IXGB_STAT(stats.dc)},
+	{"tx_timeout_count", IXGB_STAT(tx_timeout_count) },
 	{"rx_long_length_errors", IXGB_STAT(stats.roc)},
 	{"rx_short_length_errors", IXGB_STAT(stats.ruc)},
 #ifdef NETIF_F_TSO

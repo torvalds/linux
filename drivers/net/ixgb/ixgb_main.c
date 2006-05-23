@@ -428,7 +428,7 @@ ixgb_probe(struct pci_dev *pdev,
 	netdev->change_mtu = &ixgb_change_mtu;
 	ixgb_set_ethtool_ops(netdev);
 	netdev->tx_timeout = &ixgb_tx_timeout;
-	netdev->watchdog_timeo = HZ;
+	netdev->watchdog_timeo = 5 * HZ;
 #ifdef CONFIG_IXGB_NAPI
 	netdev->poll = &ixgb_clean;
 	netdev->weight = 64;
@@ -1509,6 +1509,7 @@ ixgb_tx_timeout_task(struct net_device *netdev)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 
+	adapter->tx_timeout_count++;
 	ixgb_down(adapter, TRUE);
 	ixgb_up(adapter);
 }
@@ -1838,11 +1839,31 @@ ixgb_clean_tx_irq(struct ixgb_adapter *adapter)
 		/* detect a transmit hang in hardware, this serializes the
 		 * check with the clearing of time_stamp and movement of i */
 		adapter->detect_tx_hung = FALSE;
-		if(tx_ring->buffer_info[i].dma &&
-		   time_after(jiffies, tx_ring->buffer_info[i].time_stamp + HZ)
+		if (tx_ring->buffer_info[eop].dma &&
+		   time_after(jiffies, tx_ring->buffer_info[eop].time_stamp + HZ)
 		   && !(IXGB_READ_REG(&adapter->hw, STATUS) &
-			IXGB_STATUS_TXOFF))
+		        IXGB_STATUS_TXOFF)) {
+			/* detected Tx unit hang */
+			DPRINTK(DRV, ERR, "Detected Tx Unit Hang\n"
+					"  TDH                  <%x>\n"
+					"  TDT                  <%x>\n"
+					"  next_to_use          <%x>\n"
+					"  next_to_clean        <%x>\n"
+					"buffer_info[next_to_clean]\n"
+					"  time_stamp           <%lx>\n"
+					"  next_to_watch        <%x>\n"
+					"  jiffies              <%lx>\n"
+					"  next_to_watch.status <%x>\n",
+				IXGB_READ_REG(&adapter->hw, TDH),
+				IXGB_READ_REG(&adapter->hw, TDT),
+				tx_ring->next_to_use,
+				tx_ring->next_to_clean,
+				tx_ring->buffer_info[eop].time_stamp,
+				eop,
+				jiffies,
+				eop_desc->status);
 			netif_stop_queue(netdev);
+		}
 	}
 
 	return cleaned;
