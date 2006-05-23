@@ -2327,6 +2327,23 @@ config S2IO_NAPI
 
 	  If in doubt, say N.
 
+config MYRI10GE
+	tristate "Myricom Myri-10G Ethernet support"
+	depends on PCI
+	select FW_LOADER
+	select CRC32
+	---help---
+	  This driver supports Myricom Myri-10G Dual Protocol interface in
+	  Ethernet mode. If the eeprom on your board is not recent enough,
+	  you will need a newer firmware image.
+	  You may get this image or more information, at:
+
+	  <http://www.myri.com/Myri-10G/>
+
+	  To compile this driver as a module, choose M here and read
+	  <file:Documentation/networking/net-modules.txt>.  The module
+	  will be called myri10ge.
+
 endmenu
 
 source "drivers/net/tokenring/Kconfig"
