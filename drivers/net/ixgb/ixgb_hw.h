@@ -57,6 +57,7 @@ typedef enum {
 typedef enum {
 	ixgb_media_type_unknown = 0,
 	ixgb_media_type_fiber = 1,
+	ixgb_media_type_copper = 2,
 	ixgb_num_media_types
 } ixgb_media_type;
 

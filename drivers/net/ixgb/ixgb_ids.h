@@ -43,6 +43,8 @@
 #define IXGB_SUBDEVICE_ID_A11F      0xA11F   
 #define IXGB_SUBDEVICE_ID_A01F      0xA01F   
 
-#endif /* #ifndef _IXGB_IDS_H_ */
+#define IXGB_DEVICE_ID_82597EX_CX4   0x109E
+#define IXGB_SUBDEVICE_ID_A00C  0xA00C
 
+#endif /* #ifndef _IXGB_IDS_H_ */
 /* End of File */

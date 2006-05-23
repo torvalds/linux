@@ -67,6 +67,8 @@ static char ixgb_copyright[] = "Copyright (c) 1999-2005 Intel Corporation.";
 static struct pci_device_id ixgb_pci_tbl[] = {
 	{INTEL_VENDOR_ID, IXGB_DEVICE_ID_82597EX,
 	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{INTEL_VENDOR_ID, IXGB_DEVICE_ID_82597EX_CX4,
+	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{INTEL_VENDOR_ID, IXGB_DEVICE_ID_82597EX_SR,
 	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{INTEL_VENDOR_ID, IXGB_DEVICE_ID_82597EX_LR,  
@@ -565,8 +567,9 @@ ixgb_sw_init(struct ixgb_adapter *adapter)
 	hw->max_frame_size = netdev->mtu + ENET_HEADER_SIZE + ENET_FCS_LENGTH;
 
 	if((hw->device_id == IXGB_DEVICE_ID_82597EX)
-	   ||(hw->device_id == IXGB_DEVICE_ID_82597EX_LR)
-	   ||(hw->device_id == IXGB_DEVICE_ID_82597EX_SR))
+	   || (hw->device_id == IXGB_DEVICE_ID_82597EX_CX4)
+	   || (hw->device_id == IXGB_DEVICE_ID_82597EX_LR)
+	   || (hw->device_id == IXGB_DEVICE_ID_82597EX_SR))
 			hw->mac_type = ixgb_82597;
 	else {
 		/* should never have loaded on this device */
