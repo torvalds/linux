@@ -149,7 +149,6 @@ enum {
 	ATA_FLAG_NO_ATAPI	= (1 << 6), /* No ATAPI support */
 	ATA_FLAG_PIO_DMA	= (1 << 7), /* PIO cmds via DMA */
 	ATA_FLAG_PIO_LBA48	= (1 << 8), /* Host DMA engine is LBA28 only */
-	ATA_FLAG_IRQ_MASK	= (1 << 9), /* Mask IRQ in PIO xfers */
 	ATA_FLAG_PIO_POLLING	= (1 << 10), /* use polling PIO if LLD
 					      * doesn't handle PIO interrupts */
 	ATA_FLAG_NCQ		= (1 << 11), /* host supports NCQ */
