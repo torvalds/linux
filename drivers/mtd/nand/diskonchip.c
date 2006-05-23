@@ -1513,7 +1513,7 @@ static inline int __init doc2001plus_init(struct mtd_info *mtd)
 	this->hwcontrol = NULL;
 	this->select_chip = doc2001plus_select_chip;
 	this->cmdfunc = doc2001plus_command;
-	this->enable_hwecc = doc2001plus_enable_hwecc;
+	this->ecc.hwctl = doc2001plus_enable_hwecc;
 
 	doc->chips_per_floor = 1;
 	mtd->name = "DiskOnChip Millennium Plus";
