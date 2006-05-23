@@ -1089,9 +1089,7 @@ static void whiteheat_write_callback(struct urb *urb, struct pt_regs *regs)
 		return;
 	}
 
-	usb_serial_port_softint((void *)port);
-
-	schedule_work(&port->work);
+	usb_serial_port_softint(port);
 }
 
 

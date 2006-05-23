@@ -314,7 +314,7 @@ static void pl2303_send(struct usb_serial_port *port)
 		// TODO: reschedule pl2303_send
 	}
 
-	schedule_work(&port->work);
+	usb_serial_port_softint(port);
 }
 
 static int pl2303_write_room(struct usb_serial_port *port)

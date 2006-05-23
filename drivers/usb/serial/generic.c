@@ -299,9 +299,7 @@ void usb_serial_generic_write_bulk_callback (struct urb *urb, struct pt_regs *re
 		return;
 	}
 
-	usb_serial_port_softint((void *)port);
-
-	schedule_work(&port->work);
+	usb_serial_port_softint(port);
 }
 EXPORT_SYMBOL_GPL(usb_serial_generic_write_bulk_callback);
 

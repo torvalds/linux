@@ -531,7 +531,17 @@ exit:
 	return -EINVAL;
 }
 
-void usb_serial_port_softint(void *private)
+/*
+ * We would be calling tty_wakeup here, but unfortunately some line
+ * disciplines have an annoying habit of calling tty->write from
+ * the write wakeup callback (e.g. n_hdlc.c).
+ */
+void usb_serial_port_softint(struct usb_serial_port *port)
+{
+	schedule_work(&port->work);
+}
+
+static void usb_serial_port_work(void *private)
 {
 	struct usb_serial_port *port = private;
 	struct tty_struct *tty;
@@ -794,7 +804,7 @@ int usb_serial_probe(struct usb_interface *interface,
 		port->serial = serial;
 		spin_lock_init(&port->lock);
 		mutex_init(&port->mutex);
-		INIT_WORK(&port->work, usb_serial_port_softint, port);
+		INIT_WORK(&port->work, usb_serial_port_work, port);
 		serial->port[i] = port;
 	}
 

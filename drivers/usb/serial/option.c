@@ -365,8 +365,7 @@ static void option_outdat_callback(struct urb *urb, struct pt_regs *regs)
 
 	port = (struct usb_serial_port *) urb->context;
 
-	if (port->open_count)
-		schedule_work(&port->work);
+	usb_serial_port_softint(port);
 }
 
 static void option_instat_callback(struct urb *urb, struct pt_regs *regs)

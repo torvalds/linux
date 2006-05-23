@@ -870,7 +870,7 @@ static void ipaq_write_bulk_callback(struct urb *urb, struct pt_regs *regs)
 		spin_unlock_irqrestore(&write_list_lock, flags);
 	}
 
-	schedule_work(&port->work);
+	usb_serial_port_softint(port);
 }
 
 static int ipaq_write_room(struct usb_serial_port *port)
