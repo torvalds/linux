@@ -208,13 +208,8 @@ static int part_writev (struct mtd_info *mtd,  const struct kvec *vecs,
 	struct mtd_part *part = PART(mtd);
 	if (!(mtd->flags & MTD_WRITEABLE))
 		return -EROFS;
-	if (part->master->writev_ecc == NULL)
-		return part->master->writev (part->master, vecs, count,
+	return part->master->writev (part->master, vecs, count,
 					to + part->offset, retlen);
-	else
-		return part->master->writev_ecc (part->master, vecs, count,
-					to + part->offset, retlen,
-					NULL, &mtd->oobinfo);
 }
 
 static int part_readv (struct mtd_info *mtd,  struct kvec *vecs,
@@ -228,20 +223,6 @@ static int part_readv (struct mtd_info *mtd,  struct kvec *vecs,
 		return part->master->readv_ecc (part->master, vecs, count,
 					from + part->offset, retlen,
 					NULL, &mtd->oobinfo);
-}
-
-static int part_writev_ecc (struct mtd_info *mtd,  const struct kvec *vecs,
-			 unsigned long count, loff_t to, size_t *retlen,
-			 u_char *eccbuf,  struct nand_oobinfo *oobsel)
-{
-	struct mtd_part *part = PART(mtd);
-	if (!(mtd->flags & MTD_WRITEABLE))
-		return -EROFS;
-	if (oobsel == NULL)
-		oobsel = &mtd->oobinfo;
-	return part->master->writev_ecc (part->master, vecs, count,
-					to + part->offset, retlen,
-					eccbuf, oobsel);
 }
 
 static int part_readv_ecc (struct mtd_info *mtd,  struct kvec *vecs,
@@ -446,8 +427,6 @@ int add_mtd_partitions(struct mtd_info *master,
 			slave->mtd.writev = part_writev;
 		if (master->readv)
 			slave->mtd.readv = part_readv;
-		if (master->writev_ecc)
-			slave->mtd.writev_ecc = part_writev_ecc;
 		if (master->readv_ecc)
 			slave->mtd.readv_ecc = part_readv_ecc;
 		if (master->lock)

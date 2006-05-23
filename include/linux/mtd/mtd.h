@@ -142,8 +142,6 @@ struct mtd_info {
 	int (*readv_ecc) (struct mtd_info *mtd, struct kvec *vecs, unsigned long count, loff_t from,
 		size_t *retlen, u_char *eccbuf, struct nand_oobinfo *oobsel);
 	int (*writev) (struct mtd_info *mtd, const struct kvec *vecs, unsigned long count, loff_t to, size_t *retlen);
-	int (*writev_ecc) (struct mtd_info *mtd, const struct kvec *vecs, unsigned long count, loff_t to,
-		size_t *retlen, u_char *eccbuf, struct nand_oobinfo *oobsel);
 
 	/* Sync */
 	void (*sync) (struct mtd_info *mtd);

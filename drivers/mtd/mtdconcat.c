@@ -253,9 +253,8 @@ concat_write_ecc(struct mtd_info *mtd, loff_t to, size_t len,
 }
 
 static int
-concat_writev_ecc(struct mtd_info *mtd, const struct kvec *vecs,
-		unsigned long count, loff_t to, size_t * retlen,
-		u_char *eccbuf, struct nand_oobinfo *oobsel)
+concat_writev(struct mtd_info *mtd, const struct kvec *vecs,
+		unsigned long count, loff_t to, size_t * retlen)
 {
 	struct mtd_concat *concat = CONCAT(mtd);
 	struct kvec *vecs_copy;
@@ -315,10 +314,6 @@ concat_writev_ecc(struct mtd_info *mtd, const struct kvec *vecs,
 
 		if (!(subdev->flags & MTD_WRITEABLE))
 			err = -EROFS;
-		else if (eccbuf)
-			err = subdev->writev_ecc(subdev, &vecs_copy[entry_low],
-				entry_high - entry_low + 1, to, &retsize,
-				eccbuf, oobsel);
 		else
 			err = subdev->writev(subdev, &vecs_copy[entry_low],
 				entry_high - entry_low + 1, to, &retsize);
@@ -333,8 +328,6 @@ concat_writev_ecc(struct mtd_info *mtd, const struct kvec *vecs,
 
 		*retlen += retsize;
 		total_len -= wsize;
-		if (concat->mtd.type == MTD_NANDFLASH && eccbuf)
-			eccbuf += mtd->oobavail * (wsize / mtd->writesize);
 
 		if (total_len == 0)
 			break;
@@ -345,13 +338,6 @@ concat_writev_ecc(struct mtd_info *mtd, const struct kvec *vecs,
 
 	kfree(vecs_copy);
 	return err;
-}
-
-static int
-concat_writev(struct mtd_info *mtd, const struct kvec *vecs,
-		unsigned long count, loff_t to, size_t * retlen)
-{
-	return concat_writev_ecc(mtd, vecs, count, to, retlen, NULL, NULL);
 }
 
 static int
@@ -843,8 +829,6 @@ struct mtd_info *mtd_concat_create(struct mtd_info *subdev[],	/* subdevices to c
 		concat->mtd.write_ecc = concat_write_ecc;
 	if (subdev[0]->writev)
 		concat->mtd.writev = concat_writev;
-	if (subdev[0]->writev_ecc)
-		concat->mtd.writev_ecc = concat_writev_ecc;
 	if (subdev[0]->read_oob)
 		concat->mtd.read_oob = concat_read_oob;
 	if (subdev[0]->write_oob)
