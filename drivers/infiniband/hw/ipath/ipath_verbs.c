@@ -464,7 +464,7 @@ static void ipath_ib_timer(void *arg)
 	last = &dev->pending[dev->pending_index];
 	while (!list_empty(last)) {
 		qp = list_entry(last->next, struct ipath_qp, timerwait);
-		list_del(&qp->timerwait);
+		list_del_init(&qp->timerwait);
 		qp->timer_next = resend;
 		resend = qp;
 		atomic_inc(&qp->refcount);
@@ -474,7 +474,7 @@ static void ipath_ib_timer(void *arg)
 		qp = list_entry(last->next, struct ipath_qp, timerwait);
 		if (--qp->s_rnr_timeout == 0) {
 			do {
-				list_del(&qp->timerwait);
+				list_del_init(&qp->timerwait);
 				tasklet_hi_schedule(&qp->s_task);
 				if (list_empty(last))
 					break;
@@ -554,7 +554,7 @@ static int ipath_ib_piobufavail(void *arg)
 	while (!list_empty(&dev->piowait)) {
 		qp = list_entry(dev->piowait.next, struct ipath_qp,
 				piowait);
-		list_del(&qp->piowait);
+		list_del_init(&qp->piowait);
 		tasklet_hi_schedule(&qp->s_task);
 	}
 	spin_unlock_irqrestore(&dev->pending_lock, flags);
