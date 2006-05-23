@@ -21,7 +21,7 @@
 #include <linux/mutex.h>
 
 #include <asm/io.h>
-#include "../../../sound/oss/aci.h"
+#include "oss/aci.h"
 #include "miropcm20-rds-core.h"
 
 #define DEBUG 0
