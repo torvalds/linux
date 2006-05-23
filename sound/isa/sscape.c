@@ -897,10 +897,9 @@ static int __devinit create_mpu401(struct snd_card *card, int devnum, unsigned l
 	struct snd_rawmidi *rawmidi;
 	int err;
 
-#define MPU401_SHARE_HARDWARE  1
 	if ((err = snd_mpu401_uart_new(card, devnum,
 	                               MPU401_HW_MPU401,
-	                               port, MPU401_SHARE_HARDWARE,
+	                               port, MPU401_INFO_INTEGRATED,
 	                               irq, SA_INTERRUPT,
 	                               &rawmidi)) == 0) {
 		struct snd_mpu401 *mpu = (struct snd_mpu401 *) rawmidi->private_data;

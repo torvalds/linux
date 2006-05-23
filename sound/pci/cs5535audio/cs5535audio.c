@@ -56,17 +56,16 @@ static struct ac97_quirk ac97_quirks[] __devinitdata = {
 	{}
 };
 
-static int index = SNDRV_DEFAULT_IDX1;
-static char *id = SNDRV_DEFAULT_STR1;
-/* for backward compatibility */
-static int enable; 
+static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;
+static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;
+static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
 
-module_param(index, int, 0444);
+module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for " DRIVER_NAME);
-module_param(id, charp, 0444);
+module_param_array(id, charp, NULL, 0444);
 MODULE_PARM_DESC(id, "ID string for " DRIVER_NAME);
-module_param(enable, bool, 0444);
-MODULE_PARM_DESC(enable, "Enable for " DRIVER_NAME);
+module_param_array(enable, bool, NULL, 0444);
+MODULE_PARM_DESC(enable, "Enable " DRIVER_NAME);
 
 static struct pci_device_id snd_cs5535audio_ids[] __devinitdata = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_CS5535_AUDIO) },
@@ -358,8 +357,12 @@ static int __devinit snd_cs5535audio_probe(struct pci_dev *pci,
 
 	if (dev >= SNDRV_CARDS)
 		return -ENODEV;
+	if (!enable[dev]) {
+		dev++;
+		return -ENOENT;
+	}
 
-	card = snd_card_new(index, id, THIS_MODULE, 0);
+	card = snd_card_new(index[dev], id[dev], THIS_MODULE, 0);
 	if (card == NULL)
 		return -ENOMEM;
 

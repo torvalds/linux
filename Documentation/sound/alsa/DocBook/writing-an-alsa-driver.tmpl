@@ -4215,7 +4215,7 @@ struct _snd_pcm_runtime {
           <programlisting>
 <![CDATA[
   struct snd_rawmidi *rmidi;
-  snd_mpu401_uart_new(card, 0, MPU401_HW_MPU401, port, integrated,
+  snd_mpu401_uart_new(card, 0, MPU401_HW_MPU401, port, info_flags,
                       irq, irq_flags, &rmidi);
 ]]>
           </programlisting>
@@ -4242,14 +4242,35 @@ struct _snd_pcm_runtime {
       </para>
 
       <para>
+	The 5th argument is bitflags for additional information.
         When the i/o port address above is a part of the PCI i/o
       region, the MPU401 i/o port might have been already allocated
-      (reserved) by the driver itself. In such a case, pass non-zero
-      to the 5th argument
-      (<parameter>integrated</parameter>). Otherwise, pass 0 to it,
+      (reserved) by the driver itself. In such a case, pass a bit flag
+      <constant>MPU401_INFO_INTEGRATED</constant>,
       and 
       the mpu401-uart layer will allocate the i/o ports by itself. 
       </para>
+
+	<para>
+	When the controller supports only the input or output MIDI stream,
+	pass <constant>MPU401_INFO_INPUT</constant> or
+	<constant>MPU401_INFO_OUTPUT</constant> bitflag, respectively.
+	Then the rawmidi instance is created as a single stream.
+	</para>
+
+	<para>
+	<constant>MPU401_INFO_MMIO</constant> bitflag is used to change
+	the access method to MMIO (via readb and writeb) instead of
+	iob and outb.  In this case, you have to pass the iomapped address
+	to <function>snd_mpu401_uart_new()</function>.
+	</para>
+
+	<para>
+	When <constant>MPU401_INFO_TX_IRQ</constant> is set, the output
+	stream isn't checked in the default interrupt handler.  The driver
+	needs to call <function>snd_mpu401_uart_interrupt_tx()</function>
+	by itself to start processing the output stream in irq handler.
+	</para>
 
       <para>
         Usually, the port address corresponds to the command port and

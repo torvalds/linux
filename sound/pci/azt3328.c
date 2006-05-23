@@ -1806,8 +1806,8 @@ snd_azf3328_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 	card->private_data = chip;
 
 	if ((err = snd_mpu401_uart_new( card, 0, MPU401_HW_MPU401,
-				        chip->mpu_port, 1, pci->irq, 0,
-				        &chip->rmidi)) < 0) {
+				        chip->mpu_port, MPU401_INFO_INTEGRATED,
+					pci->irq, 0, &chip->rmidi)) < 0) {
 		snd_printk(KERN_ERR "azf3328: no MPU-401 device at 0x%lx?\n", chip->mpu_port);
 		goto out_err;
 	}

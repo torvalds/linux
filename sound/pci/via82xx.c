@@ -1973,7 +1973,7 @@ static int __devinit snd_via686_init_misc(struct via82xx *chip)
 	pci_write_config_byte(chip->pci, VIA_PNP_CONTROL, legacy_cfg);
 	if (chip->mpu_res) {
 		if (snd_mpu401_uart_new(chip->card, 0, MPU401_HW_VIA686A,
-					mpu_port, 1,
+					mpu_port, MPU401_INFO_INTEGRATED,
 					chip->irq, 0, &chip->rmidi) < 0) {
 			printk(KERN_WARNING "unable to initialize MPU-401"
 			       " at 0x%lx, skipping\n", mpu_port);

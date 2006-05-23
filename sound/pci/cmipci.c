@@ -2981,7 +2981,9 @@ static int __devinit snd_cmipci_create(struct snd_card *card, struct pci_dev *pc
 
 	if (iomidi > 0) {
 		if ((err = snd_mpu401_uart_new(card, 0, MPU401_HW_CMIPCI,
-					       iomidi, integrated_midi,
+					       iomidi,
+					       (integrated_midi ?
+						MPU401_INFO_INTEGRATED : 0),
 					       cm->irq, 0, &cm->rmidi)) < 0) {
 			printk(KERN_ERR "cmipci: no UART401 device at 0x%lx\n", iomidi);
 		}

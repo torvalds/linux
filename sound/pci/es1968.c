@@ -2727,7 +2727,8 @@ static int __devinit snd_es1968_probe(struct pci_dev *pci,
 	}
 	if (enable_mpu[dev]) {
 		if ((err = snd_mpu401_uart_new(card, 0, MPU401_HW_MPU401,
-					       chip->io_port + ESM_MPU401_PORT, 1,
+					       chip->io_port + ESM_MPU401_PORT,
+					       MPU401_INFO_INTEGRATED,
 					       chip->irq, 0, &chip->rmidi)) < 0) {
 			printk(KERN_WARNING "es1968: skipping MPU-401 MIDI support..\n");
 		}
