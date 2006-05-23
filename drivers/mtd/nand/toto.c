@@ -146,7 +146,7 @@ static int __init toto_init(void)
 	this->dev_ready = NULL;
 	/* 25 us command delay time */
 	this->chip_delay = 30;
-	this->eccmode = NAND_ECC_SOFT;
+	this->ecc.mode = NAND_ECC_SOFT;
 
 	/* Scan to find existance of the device */
 	if (nand_scan(toto_mtd, 1)) {

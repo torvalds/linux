@@ -201,15 +201,17 @@ static int __init sharpsl_nand_init(void)
 	/* 15 us command delay time */
 	this->chip_delay = 15;
 	/* set eccmode using hardware ECC */
-	this->eccmode = NAND_ECC_HW3_256;
+	this->ecc.mode = NAND_ECC_HW;
+	this->ecc.size = 256;
+	this->ecc.bytes = 3;
 	this->badblock_pattern = &sharpsl_bbt;
 	if (machine_is_akita() || machine_is_borzoi()) {
 		this->badblock_pattern = &sharpsl_akita_bbt;
 		this->autooob = &akita_oobinfo;
 	}
-	this->enable_hwecc = sharpsl_nand_enable_hwecc;
-	this->calculate_ecc = sharpsl_nand_calculate_ecc;
-	this->correct_data = nand_correct_data;
+	this->ecc.hwctl = sharpsl_nand_enable_hwecc;
+	this->ecc.calculate = sharpsl_nand_calculate_ecc;
+	this->ecc.correct = nand_correct_data;
 
 	/* Scan to find existence of the device */
 	err = nand_scan(sharpsl_mtd, 1);

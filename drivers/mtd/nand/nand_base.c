@@ -879,9 +879,9 @@ static int nand_write_page(struct mtd_info *mtd, struct nand_chip *this, int pag
 {
 	int i, status;
 	uint8_t ecc_code[32];
-	int eccmode = oobsel->useecc ? this->eccmode : NAND_ECC_NONE;
+	int eccmode = oobsel->useecc ? this->ecc.mode : NAND_ECC_NONE;
 	int *oob_config = oobsel->eccpos;
-	int datidx = 0, eccidx = 0, eccsteps = this->eccsteps;
+	int datidx = 0, eccidx = 0, eccsteps = this->ecc.steps;
 	int eccbytes = 0;
 
 	/* FIXME: Enable cached programming */
@@ -901,20 +901,20 @@ static int nand_write_page(struct mtd_info *mtd, struct nand_chip *this, int pag
 		/* Software ecc 3/256, write all */
 	case NAND_ECC_SOFT:
 		for (; eccsteps; eccsteps--) {
-			this->calculate_ecc(mtd, &this->data_poi[datidx], ecc_code);
+			this->ecc.calculate(mtd, &this->data_poi[datidx], ecc_code);
 			for (i = 0; i < 3; i++, eccidx++)
 				oob_buf[oob_config[eccidx]] = ecc_code[i];
-			datidx += this->eccsize;
+			datidx += this->ecc.size;
 		}
 		this->write_buf(mtd, this->data_poi, mtd->oobblock);
 		break;
 	default:
-		eccbytes = this->eccbytes;
+		eccbytes = this->ecc.bytes;
 		for (; eccsteps; eccsteps--) {
 			/* enable hardware ecc logic for write */
-			this->enable_hwecc(mtd, NAND_ECC_WRITE);
-			this->write_buf(mtd, &this->data_poi[datidx], this->eccsize);
-			this->calculate_ecc(mtd, &this->data_poi[datidx], ecc_code);
+			this->ecc.hwctl(mtd, NAND_ECC_WRITE);
+			this->write_buf(mtd, &this->data_poi[datidx], this->ecc.size);
+			this->ecc.calculate(mtd, &this->data_poi[datidx], ecc_code);
 			for (i = 0; i < eccbytes; i++, eccidx++)
 				oob_buf[oob_config[eccidx]] = ecc_code[i];
 			/* If the hardware ecc provides syndromes then
@@ -922,7 +922,7 @@ static int nand_write_page(struct mtd_info *mtd, struct nand_chip *this, int pag
 			 * the data bytes (words) */
 			if (this->options & NAND_HWECC_SYNDROME)
 				this->write_buf(mtd, ecc_code, eccbytes);
-			datidx += this->eccsize;
+			datidx += this->ecc.size;
 		}
 		break;
 	}
@@ -1155,7 +1155,7 @@ int nand_do_read_ecc(struct mtd_info *mtd, loff_t from, size_t len,
 	if (oobsel->useecc == MTD_NANDECC_AUTOPLACE)
 		oobsel = this->autooob;
 
-	eccmode = oobsel->useecc ? this->eccmode : NAND_ECC_NONE;
+	eccmode = oobsel->useecc ? this->ecc.mode : NAND_ECC_NONE;
 	oob_config = oobsel->eccpos;
 
 	/* Select the NAND device */
@@ -1170,8 +1170,8 @@ int nand_do_read_ecc(struct mtd_info *mtd, loff_t from, size_t len,
 	col = from & (mtd->oobblock - 1);
 
 	end = mtd->oobblock;
-	ecc = this->eccsize;
-	eccbytes = this->eccbytes;
+	ecc = this->ecc.size;
+	eccbytes = this->ecc.bytes;
 
 	if ((eccmode == NAND_ECC_NONE) || (this->options & NAND_HWECC_SYNDROME))
 		compareecc = 0;
@@ -1216,7 +1216,7 @@ int nand_do_read_ecc(struct mtd_info *mtd, loff_t from, size_t len,
 			oobsel->useecc == MTD_NANDECC_AUTOPL_USR)
 			oob_data = &this->data_buf[end];
 
-		eccsteps = this->eccsteps;
+		eccsteps = this->ecc.steps;
 
 		switch (eccmode) {
 		case NAND_ECC_NONE:{
@@ -1234,12 +1234,12 @@ int nand_do_read_ecc(struct mtd_info *mtd, loff_t from, size_t len,
 		case NAND_ECC_SOFT:	/* Software ECC 3/256: Read in a page + oob data */
 			this->read_buf(mtd, data_poi, end);
 			for (i = 0, datidx = 0; eccsteps; eccsteps--, i += 3, datidx += ecc)
-				this->calculate_ecc(mtd, &data_poi[datidx], &ecc_calc[i]);
+				this->ecc.calculate(mtd, &data_poi[datidx], &ecc_calc[i]);
 			break;
 
 		default:
 			for (i = 0, datidx = 0; eccsteps; eccsteps--, i += eccbytes, datidx += ecc) {
-				this->enable_hwecc(mtd, NAND_ECC_READ);
+				this->ecc.hwctl(mtd, NAND_ECC_READ);
 				this->read_buf(mtd, &data_poi[datidx], ecc);
 
 				/* HW ecc with syndrome calculation must read the
@@ -1247,19 +1247,19 @@ int nand_do_read_ecc(struct mtd_info *mtd, loff_t from, size_t len,
 				if (!compareecc) {
 					/* Some hw ecc generators need to know when the
 					 * syndrome is read from flash */
-					this->enable_hwecc(mtd, NAND_ECC_READSYN);
+					this->ecc.hwctl(mtd, NAND_ECC_READSYN);
 					this->read_buf(mtd, &oob_data[i], eccbytes);
 					/* We calc error correction directly, it checks the hw
 					 * generator for an error, reads back the syndrome and
 					 * does the error correction on the fly */
-					ecc_status = this->correct_data(mtd, &data_poi[datidx], &oob_data[i], &ecc_code[i]);
+					ecc_status = this->ecc.correct(mtd, &data_poi[datidx], &oob_data[i], &ecc_code[i]);
 					if ((ecc_status == -1) || (ecc_status > (flags && 0xff))) {
 						DEBUG(MTD_DEBUG_LEVEL0, "nand_read_ecc: "
 						      "Failed ECC read, page 0x%08x on chip %d\n", page, chipnr);
 						ecc_failed++;
 					}
 				} else {
-					this->calculate_ecc(mtd, &data_poi[datidx], &ecc_calc[i]);
+					this->ecc.calculate(mtd, &data_poi[datidx], &ecc_calc[i]);
 				}
 			}
 			break;
@@ -1277,8 +1277,8 @@ int nand_do_read_ecc(struct mtd_info *mtd, loff_t from, size_t len,
 			ecc_code[j] = oob_data[oob_config[j]];
 
 		/* correct data, if necessary */
-		for (i = 0, j = 0, datidx = 0; i < this->eccsteps; i++, datidx += ecc) {
-			ecc_status = this->correct_data(mtd, &data_poi[datidx], &ecc_code[j], &ecc_calc[j]);
+		for (i = 0, j = 0, datidx = 0; i < this->ecc.steps; i++, datidx += ecc) {
+			ecc_status = this->ecc.correct(mtd, &data_poi[datidx], &ecc_code[j], &ecc_calc[j]);
 
 			/* Get next chunk of ecc bytes */
 			j += eccbytes;
@@ -1315,7 +1315,7 @@ int nand_do_read_ecc(struct mtd_info *mtd, loff_t from, size_t len,
 				break;
 			case MTD_NANDECC_PLACE:
 				/* YAFFS1 legacy mode */
-				oob_data += this->eccsteps * sizeof(int);
+				oob_data += this->ecc.steps * sizeof(int);
 			default:
 				oob_data += mtd->oobsize;
 			}
@@ -2648,99 +2648,49 @@ int nand_scan(struct mtd_info *mtd, int maxchips)
 	 * check ECC mode, default to software if 3byte/512byte hardware ECC is
 	 * selected and we have 256 byte pagesize fallback to software ECC
 	 */
-	this->eccsize = 256;
-	this->eccbytes = 3;
+	switch (this->ecc.mode) {
+	case NAND_ECC_HW:
+	case NAND_ECC_HW_SYNDROME:
+		if (!this->ecc.calculate || !this->ecc.correct ||
+		    !this->ecc.hwctl) {
+			printk(KERN_WARNING "No ECC functions supplied, "
+			       "Hardware ECC not possible\n");
+			BUG();
+		}
+		if (mtd->oobblock >= this->ecc.size)
+			break;
+		printk(KERN_WARNING "%d byte HW ECC not possible on "
+		       "%d byte page size, fallback to SW ECC\n",
+		       this->ecc.size, mtd->oobblock);
+		this->ecc.mode = NAND_ECC_SOFT;
 
-	switch (this->eccmode) {
-	case NAND_ECC_HW12_2048:
-		if (mtd->oobblock < 2048) {
-			printk(KERN_WARNING "2048 byte HW ECC not possible on "
-			       "%d byte page size, fallback to SW ECC\n",
-			       mtd->oobblock);
-			this->eccmode = NAND_ECC_SOFT;
-			this->calculate_ecc = nand_calculate_ecc;
-			this->correct_data = nand_correct_data;
-		} else
-			this->eccsize = 2048;
-		break;
-
-	case NAND_ECC_HW3_512:
-	case NAND_ECC_HW6_512:
-	case NAND_ECC_HW8_512:
-		if (mtd->oobblock == 256) {
-			printk(KERN_WARNING "512 byte HW ECC not possible on "
-			       "256 Byte pagesize, fallback to SW ECC \n");
-			this->eccmode = NAND_ECC_SOFT;
-			this->calculate_ecc = nand_calculate_ecc;
-			this->correct_data = nand_correct_data;
-		} else
-			this->eccsize = 512;	/* set eccsize to 512 */
-		break;
-
-	case NAND_ECC_HW3_256:
+	case NAND_ECC_SOFT:
+		this->ecc.calculate = nand_calculate_ecc;
+		this->ecc.correct = nand_correct_data;
+		this->ecc.size = 256;
+		this->ecc.bytes = 3;
 		break;
 
 	case NAND_ECC_NONE:
 		printk(KERN_WARNING "NAND_ECC_NONE selected by board driver. "
 		       "This is not recommended !!\n");
-		this->eccmode = NAND_ECC_NONE;
+		this->ecc.size = mtd->oobblock;
+		this->ecc.bytes = 0;
 		break;
-
-	case NAND_ECC_SOFT:
-		this->calculate_ecc = nand_calculate_ecc;
-		this->correct_data = nand_correct_data;
-		break;
-
 	default:
 		printk(KERN_WARNING "Invalid NAND_ECC_MODE %d\n",
-		       this->eccmode);
+		       this->ecc.mode);
 		BUG();
 	}
-
-	/*
-	 * Check hardware ecc function availability and adjust number of ecc
-	 * bytes per calculation step
-	 */
-	switch (this->eccmode) {
-	case NAND_ECC_HW12_2048:
-		this->eccbytes += 4;
-	case NAND_ECC_HW8_512:
-		this->eccbytes += 2;
-	case NAND_ECC_HW6_512:
-		this->eccbytes += 3;
-	case NAND_ECC_HW3_512:
-	case NAND_ECC_HW3_256:
-		if (this->calculate_ecc && this->correct_data &&
-		    this->enable_hwecc)
-			break;
-		printk(KERN_WARNING "No ECC functions supplied, "
-		       "Hardware ECC not possible\n");
-		BUG();
-	}
-
-	mtd->eccsize = this->eccsize;
 
 	/*
 	 * Set the number of read / write steps for one page depending on ECC
 	 * mode
 	 */
-	switch (this->eccmode) {
-	case NAND_ECC_HW12_2048:
-		this->eccsteps = mtd->oobblock / 2048;
-		break;
-	case NAND_ECC_HW3_512:
-	case NAND_ECC_HW6_512:
-	case NAND_ECC_HW8_512:
-		this->eccsteps = mtd->oobblock / 512;
-		break;
-	case NAND_ECC_HW3_256:
-	case NAND_ECC_SOFT:
-		this->eccsteps = mtd->oobblock / 256;
-		break;
-
-	case NAND_ECC_NONE:
-		this->eccsteps = 1;
-		break;
+	this->ecc.steps = mtd->oobblock / this->ecc.size;
+	if(this->ecc.steps * this->ecc.size != mtd->oobblock) {
+		printk(KERN_WARNING "Invalid ecc parameters\n");
+		BUG();
 	}
 
 	/* Initialize state, waitqueue and spinlock */

@@ -163,7 +163,7 @@ static int __init autcpu12_init(void)
 	this->dev_ready = autcpu12_device_ready;
 	/* 20 us command delay time */
 	this->chip_delay = 20;
-	this->eccmode = NAND_ECC_SOFT;
+	this->ecc.mode = NAND_ECC_SOFT;
 
 	/* Enable the following for a flash based bad block table */
 	/*

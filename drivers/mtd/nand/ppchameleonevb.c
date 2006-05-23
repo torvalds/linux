@@ -257,7 +257,7 @@ static int __init ppchameleonevb_init(void)
 #endif
 	this->chip_delay = NAND_BIG_DELAY_US;
 	/* ECC mode */
-	this->eccmode = NAND_ECC_SOFT;
+	this->ecc.mode = NAND_ECC_SOFT;
 
 	/* Scan to find existence of the device (it could not be mounted) */
 	if (nand_scan(ppchameleon_mtd, 1)) {
@@ -358,7 +358,7 @@ static int __init ppchameleonevb_init(void)
 	this->chip_delay = NAND_SMALL_DELAY_US;
 
 	/* ECC mode */
-	this->eccmode = NAND_ECC_SOFT;
+	this->ecc.mode = NAND_ECC_SOFT;
 
 	/* Scan to find existence of the device */
 	if (nand_scan(ppchameleonevb_mtd, 1)) {

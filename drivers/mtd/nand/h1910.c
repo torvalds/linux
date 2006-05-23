@@ -149,7 +149,7 @@ static int __init h1910_init(void)
 	this->dev_ready = NULL;	/* unknown whether that was correct or not so we will just do it like this */
 	/* 15 us command delay time */
 	this->chip_delay = 50;
-	this->eccmode = NAND_ECC_SOFT;
+	this->ecc.mode = NAND_ECC_SOFT;
 	this->options = NAND_NO_AUTOINCR;
 
 	/* Scan to find existence of the device */

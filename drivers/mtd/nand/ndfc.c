@@ -168,10 +168,12 @@ static void ndfc_chip_init(struct ndfc_nand_mtd *mtd)
 	chip->read_buf = ndfc_read_buf;
 	chip->write_buf = ndfc_write_buf;
 	chip->verify_buf = ndfc_verify_buf;
-	chip->correct_data  = nand_correct_data;
-	chip->enable_hwecc  = ndfc_enable_hwecc;
-	chip->calculate_ecc = ndfc_calculate_ecc;
-	chip->eccmode = NAND_ECC_HW3_256;
+	chip->ecc.correct = nand_correct_data;
+	chip->ecc.hwctl = ndfc_enable_hwecc;
+	chip->ecc.calculate = ndfc_calculate_ecc;
+	chip->ecc.mode = NAND_ECC_HW;
+	chip->ecc.size = 256;
+	chip->ecc.bytes = 3;
 	chip->autooob = mtd->pl_chip->autooob;
 	mtd->mtd.priv = chip;
 	mtd->mtd.owner = THIS_MODULE;

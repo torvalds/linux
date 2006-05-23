@@ -242,11 +242,13 @@ static int __init cs553x_init_one(int cs, int mmio, unsigned long adr)
 
 	this->chip_delay = 0;
 
-	this->eccmode = NAND_ECC_HW3_256;
-	this->enable_hwecc  = cs_enable_hwecc;
-	this->calculate_ecc = cs_calculate_ecc;
-	this->correct_data  = nand_correct_data;
-	
+	this->ecc.mode = NAND_ECC_HW;
+	this->ecc.size = 256;
+	this->ecc.bytes = 3;
+	this->ecc.hwctl  = cs_enable_hwecc;
+	this->ecc.calculate = cs_calculate_ecc;
+	this->ecc.correct  = nand_correct_data;
+
 	/* Enable the following for a flash based bad block table */
 	this->options = NAND_USE_FLASH_BBT | NAND_NO_AUTOINCR;
 

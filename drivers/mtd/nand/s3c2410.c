@@ -520,18 +520,20 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 	nmtd->set	   = set;
 
 	if (hardware_ecc) {
-		chip->correct_data  = s3c2410_nand_correct_data;
-		chip->enable_hwecc  = s3c2410_nand_enable_hwecc;
-		chip->calculate_ecc = s3c2410_nand_calculate_ecc;
-		chip->eccmode	    = NAND_ECC_HW3_512;
+		chip->ecc.correct   = s3c2410_nand_correct_data;
+		chip->ecc.hwctl	    = s3c2410_nand_enable_hwecc;
+		chip->ecc.calculate = s3c2410_nand_calculate_ecc;
+		chip->ecc.mode	    = NAND_ECC_HW;
+		chip->ecc.size	    = 512;
+		chip->ecc.bytes	    = 3;
 		chip->autooob       = &nand_hw_eccoob;
 
 		if (info->is_s3c2440) {
-			chip->enable_hwecc  = s3c2440_nand_enable_hwecc;
-			chip->calculate_ecc = s3c2440_nand_calculate_ecc;
+			chip->ecc.hwctl     = s3c2440_nand_enable_hwecc;
+			chip->ecc.calculate = s3c2440_nand_calculate_ecc;
 		}
 	} else {
-		chip->eccmode	    = NAND_ECC_SOFT;
+		chip->ecc.mode	    = NAND_ECC_SOFT;
 	}
 }
 

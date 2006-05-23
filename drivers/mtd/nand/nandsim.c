@@ -1523,7 +1523,7 @@ static int __init ns_init_module(void)
 	chip->verify_buf = ns_nand_verify_buf;
 	chip->write_word = ns_nand_write_word;
 	chip->read_word  = ns_nand_read_word;
-	chip->eccmode    = NAND_ECC_SOFT;
+	chip->ecc.mode   = NAND_ECC_SOFT;
 	chip->options   |= NAND_SKIP_BBTSCAN;
 
 	/*

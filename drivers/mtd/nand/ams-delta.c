@@ -192,7 +192,7 @@ static int __init ams_delta_init(void)
 	}
 	/* 25 us command delay time */
 	this->chip_delay = 30;
-	this->eccmode = NAND_ECC_SOFT;
+	this->ecc.mode = NAND_ECC_SOFT;
 
 	/* Set chip enabled, but  */
 	ams_delta_latch2_write(NAND_MASK, AMS_DELTA_LATCH2_NAND_NRE |

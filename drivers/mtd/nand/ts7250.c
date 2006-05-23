@@ -155,7 +155,7 @@ static int __init ts7250_init(void)
 	this->hwcontrol = ts7250_hwcontrol;
 	this->dev_ready = ts7250_device_ready;
 	this->chip_delay = 15;
-	this->eccmode = NAND_ECC_SOFT;
+	this->ecc.mode = NAND_ECC_SOFT;
 
 	printk("Searching for NAND flash...\n");
 	/* Scan to find existence of the device */

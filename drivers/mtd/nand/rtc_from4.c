@@ -570,19 +570,21 @@ static int __init rtc_from4_init(void)
 #ifdef RTC_FROM4_HWECC
 	printk(KERN_INFO "rtc_from4_init: using hardware ECC detection.\n");
 
-	this->eccmode = NAND_ECC_HW8_512;
+	this->ecc.mode = NAND_ECC_HW_SYNDROME;
+	this->ecc.size = 512;
+	this->ecc.bytes = 8;
 	this->options |= NAND_HWECC_SYNDROME;
 	/* return the status of extra status and ECC checks */
 	this->errstat = rtc_from4_errstat;
 	/* set the nand_oobinfo to support FPGA H/W error detection */
 	this->autooob = &rtc_from4_nand_oobinfo;
-	this->enable_hwecc = rtc_from4_enable_hwecc;
-	this->calculate_ecc = rtc_from4_calculate_ecc;
-	this->correct_data = rtc_from4_correct_data;
+	this->ecc.hwctl = rtc_from4_enable_hwecc;
+	this->ecc.calculate = rtc_from4_calculate_ecc;
+	this->ecc.correct = rtc_from4_correct_data;
 #else
 	printk(KERN_INFO "rtc_from4_init: using software ECC detection.\n");
 
-	this->eccmode = NAND_ECC_SOFT;
+	this->ecc.mode = NAND_ECC_SOFT;
 #endif
 
 	/* set the bad block tables to support debugging */

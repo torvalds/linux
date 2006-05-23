@@ -1674,12 +1674,14 @@ static int __init doc_probe(unsigned long physadr)
 	nand->dev_ready		= doc200x_dev_ready;
 	nand->waitfunc		= doc200x_wait;
 	nand->block_bad		= doc200x_block_bad;
-	nand->enable_hwecc	= doc200x_enable_hwecc;
-	nand->calculate_ecc	= doc200x_calculate_ecc;
-	nand->correct_data	= doc200x_correct_data;
+	nand->ecc.hwctl		= doc200x_enable_hwecc;
+	nand->ecc.calculate	= doc200x_calculate_ecc;
+	nand->ecc.correct	= doc200x_correct_data;
 
 	nand->autooob		= &doc200x_oobinfo;
-	nand->eccmode		= NAND_ECC_HW6_512;
+	nand->ecc.mode		= NAND_ECC_HW_SYNDROME;
+	nand->ecc.size		= 512;
+	nand->ecc.bytes		= 6;
 	nand->options		= NAND_USE_FLASH_BBT | NAND_HWECC_SYNDROME;
 
 	doc->physadr		= physadr;

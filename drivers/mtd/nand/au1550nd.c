@@ -578,7 +578,7 @@ static int __init au1xxx_nand_init(void)
 
 	/* 30 us command delay time */
 	this->chip_delay = 30;
-	this->eccmode = NAND_ECC_SOFT;
+	this->ecc.mode = NAND_ECC_SOFT;
 
 	this->options = NAND_NO_AUTOINCR;
 

@@ -113,21 +113,12 @@ extern int nand_read_raw (struct mtd_info *mtd, uint8_t *buf, loff_t from,
 /*
  * Constants for ECC_MODES
  */
-
-/* No ECC. Usage is not recommended ! */
-#define NAND_ECC_NONE		0
-/* Software ECC 3 byte ECC per 256 Byte data */
-#define NAND_ECC_SOFT		1
-/* Hardware ECC 3 byte ECC per 256 Byte data */
-#define NAND_ECC_HW3_256	2
-/* Hardware ECC 3 byte ECC per 512 Byte data */
-#define NAND_ECC_HW3_512	3
-/* Hardware ECC 3 byte ECC per 512 Byte data */
-#define NAND_ECC_HW6_512	4
-/* Hardware ECC 8 byte ECC per 512 Byte data */
-#define NAND_ECC_HW8_512	6
-/* Hardware ECC 12 byte ECC per 2048 Byte data */
-#define NAND_ECC_HW12_2048	7
+typedef enum {
+	NAND_ECC_NONE,
+	NAND_ECC_SOFT,
+	NAND_ECC_HW,
+	NAND_ECC_HW_SYNDROME,
+} nand_ecc_modes_t;
 
 /*
  * Constants for Hardware ECC
@@ -231,6 +222,31 @@ struct nand_hw_control {
 };
 
 /**
+ * struct nand_ecc_ctrl - Control structure for ecc
+ * @mode:	ecc mode
+ * @steps:	number of ecc steps per page
+ * @size:	data bytes per ecc step
+ * @bytes:	ecc bytes per step
+ * @hwctl:	function to control hardware ecc generator. Must only
+ *		be provided if an hardware ECC is available
+ * @calculate:	function for ecc calculation or readback from ecc hardware
+ * @correct:	function for ecc correction, matching to ecc generator (sw/hw)
+ */
+struct nand_ecc_ctrl {
+	nand_ecc_modes_t	mode;
+	int			steps;
+	int			size;
+	int			bytes;
+	int			(*hwctl)(struct mtd_info *mtd, int mode);
+	int			(*calculate)(struct mtd_info *mtd,
+					     const uint8_t *dat,
+					     uint8_t *ecc_code);
+	int			(*correct)(struct mtd_info *mtd, uint8_t *dat,
+					   uint8_t *read_ecc,
+					   uint8_t *calc_ecc);
+};
+
+/**
  * struct nand_chip - NAND Private Flash Chip Data
  * @IO_ADDR_R:		[BOARDSPECIFIC] address to read the 8 I/O lines of the flash device
  * @IO_ADDR_W:		[BOARDSPECIFIC] address to write the 8 I/O lines of the flash device
@@ -250,16 +266,9 @@ struct nand_hw_control {
  *			is read from the chip status register
  * @cmdfunc:		[REPLACEABLE] hardwarespecific function for writing commands to the chip
  * @waitfunc:		[REPLACEABLE] hardwarespecific function for wait on ready
- * @calculate_ecc:	[REPLACEABLE] function for ecc calculation or readback from ecc hardware
- * @correct_data:	[REPLACEABLE] function for ecc correction, matching to ecc generator (sw/hw)
- * @enable_hwecc:	[BOARDSPECIFIC] function to enable (reset) hardware ecc generator. Must only
- *			be provided if a hardware ECC is available
+ * @ecc:		[BOARDSPECIFIC] ecc control ctructure
  * @erase_cmd:		[INTERN] erase command write function, selectable due to AND support
  * @scan_bbt:		[REPLACEABLE] function to scan bad block table
- * @eccmode:		[BOARDSPECIFIC] mode of ecc, see defines
- * @eccsize:		[INTERN] databytes used per ecc-calculation
- * @eccbytes:		[INTERN] number of ecc bytes per ecc-calculation step
- * @eccsteps:		[INTERN] number of ecc calculation steps per page
  * @chip_delay:		[BOARDSPECIFIC] chip dependent delay for transfering data from array to read regs (tR)
  * @wq:			[INTERN] wait queue to sleep on if a NAND operation is in progress
  * @state:		[INTERN] the current state of the NAND device
@@ -309,15 +318,9 @@ struct nand_chip {
 	int		(*dev_ready)(struct mtd_info *mtd);
 	void		(*cmdfunc)(struct mtd_info *mtd, unsigned command, int column, int page_addr);
 	int		(*waitfunc)(struct mtd_info *mtd, struct nand_chip *this, int state);
-	int		(*calculate_ecc)(struct mtd_info *mtd, const uint8_t *dat, uint8_t *ecc_code);
-	int		(*correct_data)(struct mtd_info *mtd, uint8_t *dat, uint8_t *read_ecc, uint8_t *calc_ecc);
-	void		(*enable_hwecc)(struct mtd_info *mtd, int mode);
 	void		(*erase_cmd)(struct mtd_info *mtd, int page);
 	int		(*scan_bbt)(struct mtd_info *mtd);
-	int		eccmode;
-	int		eccsize;
-	int		eccbytes;
-	int		eccsteps;
+	struct nand_ecc_ctrl ecc;
 	int		chip_delay;
 	wait_queue_head_t wq;
 	nand_state_t	state;
