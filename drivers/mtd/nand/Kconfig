@@ -23,6 +23,14 @@ config MTD_NAND_VERIFY_WRITE
 	  device thinks the write was successful, a bit could have been
 	  flipped accidentaly due to device wear or something else.
 
+config MTD_NAND_ECC_SMC
+	bool "NAND ECC Smart Media byte order"
+	depends on MTD_NAND
+	default n
+	help
+	  Software ECC according to the Smart Media Specification.
+	  The original Linux implementation had byte 0 and 1 swapped.
+
 config MTD_NAND_AUTCPU12
 	tristate "SmartMediaCard on autronix autcpu12 board"
 	depends on MTD_NAND && ARCH_AUTCPU12
