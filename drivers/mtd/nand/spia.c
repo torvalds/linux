@@ -82,20 +82,27 @@ static const struct mtd_partition partition_info[] = {
 
 /*
  *	hardware specific access to control-lines
-*/
+ *
+ *	ctrl:
+ *	NAND_CNE: bit 0 -> bit 2
+ *	NAND_CLE: bit 1 -> bit 0
+ *	NAND_ALE: bit 2 -> bit 1
+ */
 static void spia_hwcontrol(struct mtd_info *mtd, int cmd)
 {
-	switch (cmd) {
+	struct nand_chip *chip = mtd->priv;
 
-	case NAND_CTL_SETCLE: (*(volatile unsigned char *) (spia_io_base + spia_pedr)) |=  0x01; break;
-	case NAND_CTL_CLRCLE: (*(volatile unsigned char *) (spia_io_base + spia_pedr)) &= ~0x01; break;
+	if (ctrl & NAND_CTRL_CHANGE) {
+		void __iomem *addr = spia_io_base + spia_pedr;
+		unsigned char bits;
 
-	case NAND_CTL_SETALE: (*(volatile unsigned char *) (spia_io_base + spia_pedr)) |=  0x02; break;
-	case NAND_CTL_CLRALE: (*(volatile unsigned char *) (spia_io_base + spia_pedr)) &= ~0x02; break;
-
-	case NAND_CTL_SETNCE: (*(volatile unsigned char *) (spia_io_base + spia_pedr)) &= ~0x04; break;
-	case NAND_CTL_CLRNCE: (*(volatile unsigned char *) (spia_io_base + spia_pedr)) |=  0x04; break;
+		bits = (ctrl & NAND_CNE) << 2;
+		bits |= (ctrl & NAND_CLE | NAND_ALE) >> 1;
+		writeb((readb(addr) & ~0x7) | bits, addr);
 	}
+
+	if (cmd != NAND_CMD_NONE)
+		writeb(cmd, chip->IO_ADDR_W);
 }
 
 /*
@@ -133,7 +140,7 @@ static int __init spia_init(void)
 	this->IO_ADDR_R = (void __iomem *)spia_fio_base;
 	this->IO_ADDR_W = (void __iomem *)spia_fio_base;
 	/* Set address of hardware control function */
-	this->hwcontrol = spia_hwcontrol;
+	this->cmd_ctrl = spia_hwcontrol;
 	/* 15 us command delay time */
 	this->chip_delay = 15;
 

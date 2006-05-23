@@ -56,36 +56,18 @@ static struct mtd_partition partition_info[] = {
 
 /*
  *	hardware specific access to control-lines
+ *
+ *	NAND_NCE: bit 0 - don't care
+ *	NAND_CLE: bit 1 - address bit 2
+ *	NAND_ALE: bit 2 - address bit 3
  */
-static void h1910_hwcontrol(struct mtd_info *mtd, int cmd)
+static void h1910_hwcontrol(struct mtd_info *mtd, int cmd,
+			    unsigned int ctrl)
 {
-	struct nand_chip *this = (struct nand_chip *)(mtd->priv);
+	struct nand_chip *chip = mtd->priv;
 
-	switch (cmd) {
-
-	case NAND_CTL_SETCLE:
-		this->IO_ADDR_R |= (1 << 2);
-		this->IO_ADDR_W |= (1 << 2);
-		break;
-	case NAND_CTL_CLRCLE:
-		this->IO_ADDR_R &= ~(1 << 2);
-		this->IO_ADDR_W &= ~(1 << 2);
-		break;
-
-	case NAND_CTL_SETALE:
-		this->IO_ADDR_R |= (1 << 3);
-		this->IO_ADDR_W |= (1 << 3);
-		break;
-	case NAND_CTL_CLRALE:
-		this->IO_ADDR_R &= ~(1 << 3);
-		this->IO_ADDR_W &= ~(1 << 3);
-		break;
-
-	case NAND_CTL_SETNCE:
-		break;
-	case NAND_CTL_CLRNCE:
-		break;
-	}
+	if (cmd != NAND_CMD_NONE)
+		writeb(cmd, chip->IO_ADDR_W | ((ctrl & 0x6) << 1));
 }
 
 /*
@@ -145,7 +127,7 @@ static int __init h1910_init(void)
 	/* insert callbacks */
 	this->IO_ADDR_R = nandaddr;
 	this->IO_ADDR_W = nandaddr;
-	this->hwcontrol = h1910_hwcontrol;
+	this->cmd_ctrl = h1910_hwcontrol;
 	this->dev_ready = NULL;	/* unknown whether that was correct or not so we will just do it like this */
 	/* 15 us command delay time */
 	this->chip_delay = 50;

@@ -83,31 +83,29 @@ static struct mtd_partition partition_info128[] = {
 
 /*
  *	hardware specific access to control-lines
+ *
+ *	ctrl:
+ *	NAND_NCE: bit 0 -> bit 2
+ *	NAND_CLE: bit 1 -> bit 1
+ *	NAND_ALE: bit 2 -> bit 0
  */
-static void ts7250_hwcontrol(struct mtd_info *mtd, int cmd)
+static void ts7250_hwcontrol(struct mtd_info *mtd, int cmd, unsigned int ctrl)
 {
-	unsigned long ctrl = TS72XX_NAND_CONTROL_VIRT_BASE;
+	struct nand_chip *chip = mtd->priv;
 
-	switch (cmd) {
-	case NAND_CTL_SETCLE:
-		__raw_writeb(__raw_readb(ctrl) | 0x2, ctrl);
-		break;
-	case NAND_CTL_CLRCLE:
-		__raw_writeb(__raw_readb(ctrl) & ~0x2, ctrl);
-		break;
-	case NAND_CTL_SETALE:
-		__raw_writeb(__raw_readb(ctrl) | 0x1, ctrl);
-		break;
-	case NAND_CTL_CLRALE:
-		__raw_writeb(__raw_readb(ctrl) & ~0x1, ctrl);
-		break;
-	case NAND_CTL_SETNCE:
-		__raw_writeb(__raw_readb(ctrl) | 0x4, ctrl);
-		break;
-	case NAND_CTL_CLRNCE:
-		__raw_writeb(__raw_readb(ctrl) & ~0x4, ctrl);
-		break;
+	if (ctrl & NAND_CTRL_CHANGE) {
+		unsigned long addr = TS72XX_NAND_CONTROL_VIRT_BASE;
+		unsigned char bits;
+
+		bits = (ctrl & NAND_CNE) << 2;
+		bits |= ctrl & NAND_CLE;
+		bits |= (ctrl & NAND_ALE) >> 2;
+
+		__raw_writeb((__raw_readb(addr) & ~0x7) | bits, addr);
 	}
+
+	if (cmd != NAND_CMD_NONE)
+		writeb(cmd, chip->IO_ADDR_W);
 }
 
 /*
@@ -152,7 +150,7 @@ static int __init ts7250_init(void)
 	/* insert callbacks */
 	this->IO_ADDR_R = (void *)TS72XX_NAND_DATA_VIRT_BASE;
 	this->IO_ADDR_W = (void *)TS72XX_NAND_DATA_VIRT_BASE;
-	this->hwcontrol = ts7250_hwcontrol;
+	this->cmd_ctrl = ts7250_hwcontrol;
 	this->dev_ready = ts7250_device_ready;
 	this->chip_delay = 15;
 	this->ecc.mode = NAND_ECC_SOFT;

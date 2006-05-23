@@ -32,31 +32,14 @@
 #include <asm/arch-omap1510/hardware.h>
 #include <asm/arch/gpio.h>
 
+#define CONFIG_NAND_WORKAROUND 1
+
 /*
  * MTD structure for TOTO board
  */
 static struct mtd_info *toto_mtd = NULL;
 
 static unsigned long toto_io_base = OMAP_FLASH_1_BASE;
-
-#define CONFIG_NAND_WORKAROUND 1
-
-#define NAND_NCE 0x4000
-#define NAND_CLE 0x1000
-#define NAND_ALE 0x0002
-#define NAND_MASK (NAND_CLE | NAND_ALE | NAND_NCE)
-
-#define T_NAND_CTL_CLRALE(iob)  gpiosetout(NAND_ALE, 0)
-#define T_NAND_CTL_SETALE(iob)  gpiosetout(NAND_ALE, NAND_ALE)
-#ifdef CONFIG_NAND_WORKAROUND	/* "some" dev boards busted, blue wired to rts2 :( */
-#define T_NAND_CTL_CLRCLE(iob)  gpiosetout(NAND_CLE, 0); rts2setout(2, 2)
-#define T_NAND_CTL_SETCLE(iob)  gpiosetout(NAND_CLE, NAND_CLE); rts2setout(2, 0)
-#else
-#define T_NAND_CTL_CLRCLE(iob)  gpiosetout(NAND_CLE, 0)
-#define T_NAND_CTL_SETCLE(iob)  gpiosetout(NAND_CLE, NAND_CLE)
-#endif
-#define T_NAND_CTL_SETNCE(iob)  gpiosetout(NAND_NCE, 0)
-#define T_NAND_CTL_CLRNCE(iob)  gpiosetout(NAND_NCE, NAND_NCE)
 
 /*
  * Define partitions for flash devices
@@ -91,25 +74,43 @@ static struct mtd_partition partition_info32M[] = {
 
 #define NUM_PARTITIONS32M 3
 #define NUM_PARTITIONS64M 4
+
 /*
  *	hardware specific access to control-lines
-*/
-
-static void toto_hwcontrol(struct mtd_info *mtd, int cmd)
+ *
+ *	ctrl:
+ *	NAND_NCE: bit 0 -> bit 14 (0x4000)
+ *	NAND_CLE: bit 1 -> bit 12 (0x1000)
+ *	NAND_ALE: bit 2 -> bit 1  (0x0002)
+ */
+static void toto_hwcontrol(struct mtd_info *mtd, int cmd,
+			   unsigned int ctrl)
 {
+	struct nand_chip *chip = mtd->priv;
 
-	udelay(1);		/* hopefully enough time for tc make proceding write to clear */
-	switch (cmd) {
-		case NAND_CTL_SETCLE: T_NAND_CTL_SETCLE(cmd); break;
-		case NAND_CTL_CLRCLE: T_NAND_CTL_CLRCLE(cmd); break;
+	if (ctrl & NAND_CTRL_CHANGE) {
+		unsigned long bits;
 
-		case NAND_CTL_SETALE: T_NAND_CTL_SETALE(cmd); break;
-		case NAND_CTL_CLRALE: T_NAND_CTL_CLRALE(cmd); break;
+		/* hopefully enough time for tc make proceding write to clear */
+		udelay(1);
 
-		case NAND_CTL_SETNCE: T_NAND_CTL_SETNCE(cmd); break;
-		case NAND_CTL_CLRNCE: T_NAND_CTL_CLRNCE(cmd); break;
+		bits = (~ctrl & NAND_NCE) << 14;
+		bits |= (ctrl & NAND_CLE) << 12;
+		bits |= (ctrl & NAND_ALE) >> 1;
+
+#warning Wild guess as gpiosetout() is nowhere defined in the kernel source - tglx
+		gpiosetout(0x5002, bits);
+
+#ifdef CONFIG_NAND_WORKAROUND
+		/* "some" dev boards busted, blue wired to rts2 :( */
+		rts2setout(2, (ctrl & NAND_CLE) << 1);
+#endif
+		/* allow time to ensure gpio state to over take memory write */
+		udelay(1);
 	}
-	udelay(1);		/* allow time to ensure gpio state to over take memory write */
+
+	if (cmd != NAND_CMD_NONE)
+		writeb(cmd, chip->IO_ADDR_W);
 }
 
 /*
@@ -142,7 +143,7 @@ static int __init toto_init(void)
 	/* Set address of NAND IO lines */
 	this->IO_ADDR_R = toto_io_base;
 	this->IO_ADDR_W = toto_io_base;
-	this->hwcontrol = toto_hwcontrol;
+	this->cmd_ctrl = toto_hwcontrol;
 	this->dev_ready = NULL;
 	/* 25 us command delay time */
 	this->chip_delay = 30;

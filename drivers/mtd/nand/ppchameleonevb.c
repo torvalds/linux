@@ -108,54 +108,68 @@ extern int parse_cmdline_partitions(struct mtd_info *master, struct mtd_partitio
 /*
  *	hardware specific access to control-lines
  */
-static void ppchameleon_hwcontrol(struct mtd_info *mtdinfo, int cmd)
+static void ppchameleon_hwcontrol(struct mtd_info *mtdinfo, int cmd,
+				  unsigned int ctrl)
 {
-	switch (cmd) {
+	struct nand_chip *chip = mtd->priv;
 
-	case NAND_CTL_SETCLE:
-		MACRO_NAND_CTL_SETCLE((unsigned long)CFG_NAND0_PADDR);
-		break;
-	case NAND_CTL_CLRCLE:
-		MACRO_NAND_CTL_CLRCLE((unsigned long)CFG_NAND0_PADDR);
-		break;
-	case NAND_CTL_SETALE:
-		MACRO_NAND_CTL_SETALE((unsigned long)CFG_NAND0_PADDR);
-		break;
-	case NAND_CTL_CLRALE:
-		MACRO_NAND_CTL_CLRALE((unsigned long)CFG_NAND0_PADDR);
-		break;
-	case NAND_CTL_SETNCE:
-		MACRO_NAND_ENABLE_CE((unsigned long)CFG_NAND0_PADDR);
-		break;
-	case NAND_CTL_CLRNCE:
-		MACRO_NAND_DISABLE_CE((unsigned long)CFG_NAND0_PADDR);
-		break;
+	if (ctrl & NAND_CTRL_CHANGE) {
+#error Missing headerfiles. No way to fix this. -tglx
+		switch (cmd) {
+		case NAND_CTL_SETCLE:
+			MACRO_NAND_CTL_SETCLE((unsigned long)CFG_NAND0_PADDR);
+			break;
+		case NAND_CTL_CLRCLE:
+			MACRO_NAND_CTL_CLRCLE((unsigned long)CFG_NAND0_PADDR);
+			break;
+		case NAND_CTL_SETALE:
+			MACRO_NAND_CTL_SETALE((unsigned long)CFG_NAND0_PADDR);
+			break;
+		case NAND_CTL_CLRALE:
+			MACRO_NAND_CTL_CLRALE((unsigned long)CFG_NAND0_PADDR);
+			break;
+		case NAND_CTL_SETNCE:
+			MACRO_NAND_ENABLE_CE((unsigned long)CFG_NAND0_PADDR);
+			break;
+		case NAND_CTL_CLRNCE:
+			MACRO_NAND_DISABLE_CE((unsigned long)CFG_NAND0_PADDR);
+			break;
+		}
 	}
+	if (cmd != NAND_CMD_NONE)
+		writeb(cmd, chip->IO_ADDR_W);
 }
 
-static void ppchameleonevb_hwcontrol(struct mtd_info *mtdinfo, int cmd)
+static void ppchameleonevb_hwcontrol(struct mtd_info *mtdinfo, int cmd,
+				     unsigned int ctrl)
 {
-	switch (cmd) {
+	struct nand_chip *chip = mtd->priv;
 
-	case NAND_CTL_SETCLE:
-		MACRO_NAND_CTL_SETCLE((unsigned long)CFG_NAND1_PADDR);
-		break;
-	case NAND_CTL_CLRCLE:
-		MACRO_NAND_CTL_CLRCLE((unsigned long)CFG_NAND1_PADDR);
-		break;
-	case NAND_CTL_SETALE:
-		MACRO_NAND_CTL_SETALE((unsigned long)CFG_NAND1_PADDR);
-		break;
-	case NAND_CTL_CLRALE:
-		MACRO_NAND_CTL_CLRALE((unsigned long)CFG_NAND1_PADDR);
-		break;
-	case NAND_CTL_SETNCE:
-		MACRO_NAND_ENABLE_CE((unsigned long)CFG_NAND1_PADDR);
-		break;
-	case NAND_CTL_CLRNCE:
-		MACRO_NAND_DISABLE_CE((unsigned long)CFG_NAND1_PADDR);
-		break;
+	if (ctrl & NAND_CTRL_CHANGE) {
+#error Missing headerfiles. No way to fix this. -tglx
+		switch (cmd) {
+		case NAND_CTL_SETCLE:
+			MACRO_NAND_CTL_SETCLE((unsigned long)CFG_NAND1_PADDR);
+			break;
+		case NAND_CTL_CLRCLE:
+			MACRO_NAND_CTL_CLRCLE((unsigned long)CFG_NAND1_PADDR);
+			break;
+		case NAND_CTL_SETALE:
+			MACRO_NAND_CTL_SETALE((unsigned long)CFG_NAND1_PADDR);
+			break;
+		case NAND_CTL_CLRALE:
+			MACRO_NAND_CTL_CLRALE((unsigned long)CFG_NAND1_PADDR);
+			break;
+		case NAND_CTL_SETNCE:
+			MACRO_NAND_ENABLE_CE((unsigned long)CFG_NAND1_PADDR);
+			break;
+		case NAND_CTL_CLRNCE:
+			MACRO_NAND_DISABLE_CE((unsigned long)CFG_NAND1_PADDR);
+			break;
+		}
 	}
+	if (cmd != NAND_CMD_NONE)
+		writeb(cmd, chip->IO_ADDR_W);
 }
 
 #ifdef USE_READY_BUSY_PIN
@@ -251,7 +265,7 @@ static int __init ppchameleonevb_init(void)
 	/* insert callbacks */
 	this->IO_ADDR_R = ppchameleon_fio_base;
 	this->IO_ADDR_W = ppchameleon_fio_base;
-	this->hwcontrol = ppchameleon_hwcontrol;
+	this->cmd_ctrl = ppchameleon_hwcontrol;
 #ifdef USE_READY_BUSY_PIN
 	this->dev_ready = ppchameleon_device_ready;
 #endif
@@ -351,7 +365,7 @@ static int __init ppchameleonevb_init(void)
 	/* insert callbacks */
 	this->IO_ADDR_R = ppchameleonevb_fio_base;
 	this->IO_ADDR_W = ppchameleonevb_fio_base;
-	this->hwcontrol = ppchameleonevb_hwcontrol;
+	this->cmd_ctrl = ppchameleonevb_hwcontrol;
 #ifdef USE_READY_BUSY_PIN
 	this->dev_ready = ppchameleonevb_device_ready;
 #endif

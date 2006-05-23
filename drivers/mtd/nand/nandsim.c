@@ -1071,68 +1071,6 @@ switch_state(struct nandsim *ns)
 	}
 }
 
-static void
-ns_hwcontrol(struct mtd_info *mtd, int cmd)
-{
-	struct nandsim *ns = (struct nandsim *)((struct nand_chip *)mtd->priv)->priv;
-
-	switch (cmd) {
-
-	/* set CLE line high */
-	case NAND_CTL_SETCLE:
-		NS_DBG("ns_hwcontrol: start command latch cycles\n");
-		ns->lines.cle  = 1;
-		break;
-
-	/* set CLE line low */
-	case NAND_CTL_CLRCLE:
-		NS_DBG("ns_hwcontrol: stop command latch cycles\n");
-		ns->lines.cle  = 0;
-		break;
-
-	/* set ALE line high */
-	case NAND_CTL_SETALE:
-		NS_DBG("ns_hwcontrol: start address latch cycles\n");
-		ns->lines.ale   = 1;
-		break;
-
-	/* set ALE line low */
-	case NAND_CTL_CLRALE:
-		NS_DBG("ns_hwcontrol: stop address latch cycles\n");
-		ns->lines.ale  = 0;
-		break;
-
-	/* set WP line high */
-	case NAND_CTL_SETWP:
-		NS_DBG("ns_hwcontrol: enable write protection\n");
-		ns->lines.wp = 1;
-		break;
-
-	/* set WP line low */
-	case NAND_CTL_CLRWP:
-		NS_DBG("ns_hwcontrol: disable write protection\n");
-		ns->lines.wp = 0;
-		break;
-
-	/* set CE line low */
-	case NAND_CTL_SETNCE:
-		NS_DBG("ns_hwcontrol: enable chip\n");
-		ns->lines.ce = 1;
-		break;
-
-	/* set CE line high */
-	case NAND_CTL_CLRNCE:
-		NS_DBG("ns_hwcontrol: disable chip\n");
-		ns->lines.ce = 0;
-		break;
-
-	default:
-		NS_ERR("hwcontrol: unknown command\n");
-        }
-
-	return;
-}
-
 static u_char
 ns_nand_read_byte(struct mtd_info *mtd)
 {
@@ -1359,6 +1297,18 @@ ns_nand_write_byte(struct mtd_info *mtd, u_char byte)
 	return;
 }
 
+static void ns_hwcontrol(struct mtd_info *mtd, int cmd, unsigned int bitmask)
+{
+	struct nandsim *ns = ((struct nand_chip *)mtd->priv)->priv;
+
+	ns->lines.cle = bitmask & NAND_CLE ? 1 : 0;
+	ns->lines.ale = bitmask & NAND_ALE ? 1 : 0;
+	ns->lines.ce = bitmask & NAND_NCE ? 1 : 0;
+
+	if (cmd != NAND_CMD_NONE)
+		ns_nand_write_byte(mtd, cmd);
+}
+
 static int
 ns_device_ready(struct mtd_info *mtd)
 {
@@ -1514,7 +1464,7 @@ static int __init ns_init_module(void)
 	/*
 	 * Register simulator's callbacks.
 	 */
-	chip->hwcontrol  = ns_hwcontrol;
+	chip->cmd_ctrl	 = ns_hwcontrol;
 	chip->read_byte  = ns_nand_read_byte;
 	chip->dev_ready  = ns_device_ready;
 	chip->write_byte = ns_nand_write_byte;

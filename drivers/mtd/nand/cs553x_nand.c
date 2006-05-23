@@ -131,33 +131,17 @@ static void cs553x_write_byte(struct mtd_info *mtd, u_char byte)
 	writeb(byte, this->IO_ADDR_W + 0x801);
 }
 
-static void cs553x_hwcontrol(struct mtd_info *mtd, int cmd)
+static void cs553x_hwcontrol(struct mtd_info *mtd, int cmd,
+			     unsigned int ctrl)
 {
 	struct nand_chip *this = mtd->priv;
 	void __iomem *mmio_base = this->IO_ADDR_R;
-	unsigned char ctl;
-
-	switch (cmd) {
-	case NAND_CTL_SETCLE:
-		ctl = CS_NAND_CTL_CLE;
-		break;
-
-	case NAND_CTL_CLRCLE:
-	case NAND_CTL_CLRALE:
-	case NAND_CTL_SETNCE:
-		ctl = 0;
-		break;
-
-	case NAND_CTL_SETALE:
-		ctl = CS_NAND_CTL_ALE;
-		break;
-
-	default:
-	case NAND_CTL_CLRNCE:
-		ctl = CS_NAND_CTL_CE;
-		break;
+	if (ctrl & NAND_CTRL_CHANGE) {
+		unsigned char ctl = (ctrl & ~NAND_CTRL_CHANGE ) ^ 0x01;
+		writeb(ctl, mmio_base + MM_NAND_CTL);
 	}
-	writeb(ctl, mmio_base + MM_NAND_CTL);
+	if (cmd != NAND_CMD_NONE)
+		cs553x_write_byte(mtd, cmd);
 }
 
 static int cs553x_device_ready(struct mtd_info *mtd)
@@ -233,7 +217,7 @@ static int __init cs553x_init_one(int cs, int mmio, unsigned long adr)
 		goto out_mtd;
 	}
 
-	this->hwcontrol = cs553x_hwcontrol;
+	this->cmd_ctrl = cs553x_hwcontrol;
 	this->dev_ready = cs553x_device_ready;
 	this->read_byte = cs553x_read_byte;
 	this->write_byte = cs553x_write_byte;

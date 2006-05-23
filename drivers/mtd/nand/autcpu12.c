@@ -4,7 +4,7 @@
  *  Copyright (c) 2002 Thomas Gleixner <tgxl@linutronix.de>
  *
  *  Derived from drivers/mtd/spia.c
- * 	 Copyright (C) 2000 Steven J. Hill (sjhill@realitydiluted.com)
+ *	 Copyright (C) 2000 Steven J. Hill (sjhill@realitydiluted.com)
  *
  * $Id: autcpu12.c,v 1.23 2005/11/07 11:14:30 gleixner Exp $
  *
@@ -42,11 +42,6 @@
  * MTD structure for AUTCPU12 board
  */
 static struct mtd_info *autcpu12_mtd = NULL;
-
-static int autcpu12_io_base = CS89712_VIRT_BASE;
-static int autcpu12_fio_pbase = AUTCPU12_PHYS_SMC;
-static int autcpu12_fio_ctrl = AUTCPU12_SMC_SELECT_OFFSET;
-static int autcpu12_pedr = AUTCPU12_SMC_PORT_OFFSET;
 static void __iomem *autcpu12_fio_base;
 
 /*
@@ -94,31 +89,42 @@ static struct mtd_partition partition_info128k[] = {
 #define NUM_PARTITIONS128K 2
 /*
  *	hardware specific access to control-lines
-*/
-
-static void autcpu12_hwcontrol(struct mtd_info *mtd, int cmd)
+ *
+ *	ALE bit 4 autcpu12_pedr
+ *	CLE bit 5 autcpu12_pedr
+ *	NCE bit 0 fio_ctrl
+ *
+ */
+static void autcpu12_hwcontrol(struct mtd_info *mtd, int cmd,
+			       unsigned int ctrl)
 {
-	switch (cmd) {
+	struct nand_chip *chip = mtd->priv;
 
-		case NAND_CTL_SETCLE: (*(volatile unsigned char *) (autcpu12_io_base + autcpu12_pedr)) |=  AUTCPU12_SMC_CLE; break;
-		case NAND_CTL_CLRCLE: (*(volatile unsigned char *) (autcpu12_io_base + autcpu12_pedr)) &= ~AUTCPU12_SMC_CLE; break;
+	if (ctrl & NAND_CTRL_CHANGE) {
+		void __iomem *addr
+		unsigned char bits;
 
-		case NAND_CTL_SETALE: (*(volatile unsigned char *) (autcpu12_io_base + autcpu12_pedr)) |=  AUTCPU12_SMC_ALE; break;
-		case NAND_CTL_CLRALE: (*(volatile unsigned char *) (autcpu12_io_base + autcpu12_pedr)) &= ~AUTCPU12_SMC_ALE; break;
+		addr = CS89712_VIRT_BASE + AUTCPU12_SMC_PORT_OFFSET;
+		bits = (ctrl & NAND_CLE) << 4;
+		bits |= (ctrl & NAND_ALE) << 2;
+		writeb((readb(addr) & ~0x30) | bits, addr);
 
-		case NAND_CTL_SETNCE: (*(volatile unsigned char *) (autcpu12_fio_base + autcpu12_fio_ctrl)) = 0x01; break;
-		case NAND_CTL_CLRNCE: (*(volatile unsigned char *) (autcpu12_fio_base + autcpu12_fio_ctrl)) = 0x00; break;
+		addr = autcpu12_fio_base + AUTCPU12_SMC_SELECT_OFFSET;
+		writeb((readb(addr) & ~0x1) | (ctrl & NAND_NCE), addr);
 	}
+
+	if (cmd != NAND_CMD_NONE)
+		writeb(cmd, chip->IO_ADDR_W);
 }
 
 /*
-*	read device ready pin
-*/
+ *	read device ready pin
+ */
 int autcpu12_device_ready(struct mtd_info *mtd)
 {
+	void __iomem *addr = CS89712_VIRT_BASE + AUTCPU12_SMC_PORT_OFFSET;
 
-	return ((*(volatile unsigned char *)(autcpu12_io_base + autcpu12_pedr)) & AUTCPU12_SMC_RDY) ? 1 : 0;
-
+	return readb(addr) & AUTCPU12_SMC_RDY;
 }
 
 /*
@@ -130,7 +136,8 @@ static int __init autcpu12_init(void)
 	int err = 0;
 
 	/* Allocate memory for MTD device structure and private data */
-	autcpu12_mtd = kmalloc(sizeof(struct mtd_info) + sizeof(struct nand_chip), GFP_KERNEL);
+	autcpu12_mtd = kmalloc(sizeof(struct mtd_info) + sizeof(struct nand_chip),
+			       GFP_KERNEL);
 	if (!autcpu12_mtd) {
 		printk("Unable to allocate AUTCPU12 NAND MTD device structure.\n");
 		err = -ENOMEM;
@@ -138,7 +145,7 @@ static int __init autcpu12_init(void)
 	}
 
 	/* map physical adress */
-	autcpu12_fio_base = ioremap(autcpu12_fio_pbase, SZ_1K);
+	autcpu12_fio_base = ioremap(AUTCPU12_PHYS_SMC, SZ_1K);
 	if (!autcpu12_fio_base) {
 		printk("Ioremap autcpu12 SmartMedia Card failed\n");
 		err = -EIO;
@@ -159,7 +166,7 @@ static int __init autcpu12_init(void)
 	/* Set address of NAND IO lines */
 	this->IO_ADDR_R = autcpu12_fio_base;
 	this->IO_ADDR_W = autcpu12_fio_base;
-	this->hwcontrol = autcpu12_hwcontrol;
+	this->cmd_ctrl = autcpu12_hwcontrol;
 	this->dev_ready = autcpu12_device_ready;
 	/* 20 us command delay time */
 	this->chip_delay = 20;
@@ -179,10 +186,22 @@ static int __init autcpu12_init(void)
 
 	/* Register the partitions */
 	switch (autcpu12_mtd->size) {
-		case SZ_16M: add_mtd_partitions(autcpu12_mtd, partition_info16k, NUM_PARTITIONS16K); break;
-		case SZ_32M: add_mtd_partitions(autcpu12_mtd, partition_info32k, NUM_PARTITIONS32K); break;
-		case SZ_64M: add_mtd_partitions(autcpu12_mtd, partition_info64k, NUM_PARTITIONS64K); break;
-		case SZ_128M: add_mtd_partitions(autcpu12_mtd, partition_info128k, NUM_PARTITIONS128K); break;
+		case SZ_16M:
+			add_mtd_partitions(autcpu12_mtd, partition_info16k,
+					   NUM_PARTITIONS16K);
+			break;
+		case SZ_32M:
+			add_mtd_partitions(autcpu12_mtd, partition_info32k,
+					   NUM_PARTITIONS32K);
+			break;
+		case SZ_64M:
+			add_mtd_partitions(autcpu12_mtd, partition_info64k,
+					   NUM_PARTITIONS64K);
+			break;
+		case SZ_128M:
+			add_mtd_partitions(autcpu12_mtd, partition_info128k,
+					   NUM_PARTITIONS128K);
+			break;
 		default:
 			printk("Unsupported SmartMedia device\n");
 			err = -ENXIO;
@@ -191,7 +210,7 @@ static int __init autcpu12_init(void)
 	goto out;
 
  out_ior:
-	iounmap((void *)autcpu12_fio_base);
+	iounmap(autcpu12_fio_base);
  out_mtd:
 	kfree(autcpu12_mtd);
  out:
@@ -209,7 +228,7 @@ static void __exit autcpu12_cleanup(void)
 	nand_release(autcpu12_mtd);
 
 	/* unmap physical adress */
-	iounmap((void *)autcpu12_fio_base);
+	iounmap(autcpu12_fio_base);
 
 	/* Free the MTD device structure */
 	kfree(autcpu12_mtd);

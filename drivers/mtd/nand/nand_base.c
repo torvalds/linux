@@ -276,10 +276,10 @@ static void nand_select_chip(struct mtd_info *mtd, int chip)
 	struct nand_chip *this = mtd->priv;
 	switch (chip) {
 	case -1:
-		this->hwcontrol(mtd, NAND_CTL_CLRNCE);
+		this->cmd_ctrl(mtd, NAND_CMD_NONE, 0 | NAND_CTRL_CHANGE);
 		break;
 	case 0:
-		this->hwcontrol(mtd, NAND_CTL_SETNCE);
+		this->cmd_ctrl(mtd, NAND_CMD_NONE, NAND_NCE | NAND_CTRL_CHANGE);
 		break;
 
 	default:
@@ -548,13 +548,12 @@ static void nand_wait_ready(struct mtd_info *mtd)
  * Send command to NAND device. This function is used for small page
  * devices (256/512 Bytes per page)
  */
-static void nand_command(struct mtd_info *mtd, unsigned command, int column,
-			 int page_addr)
+static void nand_command(struct mtd_info *mtd, unsigned int command,
+			 int column, int page_addr)
 {
 	register struct nand_chip *this = mtd->priv;
+	int ctrl = NAND_CTRL_CLE | NAND_CTRL_CHANGE;
 
-	/* Begin command latch cycle */
-	this->hwcontrol(mtd, NAND_CTL_SETCLE);
 	/*
 	 * Write out the command to the device.
 	 */
@@ -572,33 +571,32 @@ static void nand_command(struct mtd_info *mtd, unsigned command, int column,
 			column -= 256;
 			readcmd = NAND_CMD_READ1;
 		}
-		this->write_byte(mtd, readcmd);
+		this->cmd_ctrl(mtd, readcmd, ctrl);
+		ctrl &= ~NAND_CTRL_CHANGE;
 	}
-	this->write_byte(mtd, command);
+	this->cmd_ctrl(mtd, command, ctrl);
 
-	/* Set ALE and clear CLE to start address cycle */
-	this->hwcontrol(mtd, NAND_CTL_CLRCLE);
-
-	if (column != -1 || page_addr != -1) {
-		this->hwcontrol(mtd, NAND_CTL_SETALE);
-
-		/* Serially input address */
-		if (column != -1) {
-			/* Adjust columns for 16 bit buswidth */
-			if (this->options & NAND_BUSWIDTH_16)
-				column >>= 1;
-			this->write_byte(mtd, column);
-		}
-		if (page_addr != -1) {
-			this->write_byte(mtd, (uint8_t)(page_addr & 0xff));
-			this->write_byte(mtd, (uint8_t)((page_addr >> 8) & 0xff));
-			/* One more address cycle for devices > 32MiB */
-			if (this->chipsize > (32 << 20))
-				this->write_byte(mtd, (uint8_t)((page_addr >> 16) & 0x0f));
-		}
-		/* Latch in address */
-		this->hwcontrol(mtd, NAND_CTL_CLRALE);
+	/*
+	 * Address cycle, when necessary
+	 */
+	ctrl = NAND_CTRL_ALE | NAND_CTRL_CHANGE;
+	/* Serially input address */
+	if (column != -1) {
+		/* Adjust columns for 16 bit buswidth */
+		if (this->options & NAND_BUSWIDTH_16)
+			column >>= 1;
+		this->cmd_ctrl(mtd, column, ctrl);
+		ctrl &= ~NAND_CTRL_CHANGE;
 	}
+	if (page_addr != -1) {
+		this->cmd_ctrl(mtd, page_addr, ctrl);
+		ctrl &= ~NAND_CTRL_CHANGE;
+		this->cmd_ctrl(mtd, page_addr >> 8, ctrl);
+		/* One more address cycle for devices > 32MiB */
+		if (this->chipsize > (32 << 20))
+			this->cmd_ctrl(mtd, page_addr >> 16, ctrl);
+	}
+	this->cmd_ctrl(mtd, NAND_CMD_NONE, NAND_NCE | NAND_CTRL_CHANGE);
 
 	/*
 	 * program and erase have their own busy handlers
@@ -611,15 +609,16 @@ static void nand_command(struct mtd_info *mtd, unsigned command, int column,
 	case NAND_CMD_ERASE2:
 	case NAND_CMD_SEQIN:
 	case NAND_CMD_STATUS:
+		this->cmd_ctrl(mtd, NAND_CMD_NONE, NAND_NCE);
 		return;
 
 	case NAND_CMD_RESET:
 		if (this->dev_ready)
 			break;
 		udelay(this->chip_delay);
-		this->hwcontrol(mtd, NAND_CTL_SETCLE);
-		this->write_byte(mtd, NAND_CMD_STATUS);
-		this->hwcontrol(mtd, NAND_CTL_CLRCLE);
+		this->cmd_ctrl(mtd, NAND_CMD_STATUS,
+			       NAND_CTRL_CLE | NAND_CTRL_CHANGE);
+		this->cmd_ctrl(mtd, NAND_CMD_NONE, NAND_NCE);
 		while (!(this->read_byte(mtd) & NAND_STATUS_READY)) ;
 		return;
 
@@ -648,12 +647,13 @@ static void nand_command(struct mtd_info *mtd, unsigned command, int column,
  * @column:	the column address for this command, -1 if none
  * @page_addr:	the page address for this command, -1 if none
  *
- * Send command to NAND device. This is the version for the new large page devices
- * We dont have the separate regions as we have in the small page devices.
- * We must emulate NAND_CMD_READOOB to keep the code compatible.
+ * Send command to NAND device. This is the version for the new large page
+ * devices We dont have the separate regions as we have in the small page
+ * devices.  We must emulate NAND_CMD_READOOB to keep the code compatible.
  *
  */
-static void nand_command_lp(struct mtd_info *mtd, unsigned command, int column, int page_addr)
+static void nand_command_lp(struct mtd_info *mtd, unsigned int command,
+			    int column, int page_addr)
 {
 	register struct nand_chip *this = mtd->priv;
 
@@ -663,34 +663,33 @@ static void nand_command_lp(struct mtd_info *mtd, unsigned command, int column, 
 		command = NAND_CMD_READ0;
 	}
 
-	/* Begin command latch cycle */
-	this->hwcontrol(mtd, NAND_CTL_SETCLE);
-	/* Write out the command to the device. */
-	this->write_byte(mtd, (command & 0xff));
-	/* End command latch cycle */
-	this->hwcontrol(mtd, NAND_CTL_CLRCLE);
+	/* Command latch cycle */
+	this->cmd_ctrl(mtd, command & 0xff,
+		       NAND_NCE | NAND_CLE | NAND_CTRL_CHANGE);
 
 	if (column != -1 || page_addr != -1) {
-		this->hwcontrol(mtd, NAND_CTL_SETALE);
+		int ctrl = NAND_CTRL_CHANGE | NAND_NCE | NAND_ALE;
 
 		/* Serially input address */
 		if (column != -1) {
 			/* Adjust columns for 16 bit buswidth */
 			if (this->options & NAND_BUSWIDTH_16)
 				column >>= 1;
-			this->write_byte(mtd, column & 0xff);
-			this->write_byte(mtd, column >> 8);
+			this->cmd_ctrl(mtd, column, ctrl);
+			ctrl &= ~NAND_CTRL_CHANGE;
+			this->cmd_ctrl(mtd, column >> 8, ctrl);
 		}
 		if (page_addr != -1) {
-			this->write_byte(mtd, (uint8_t)(page_addr & 0xff));
-			this->write_byte(mtd, (uint8_t)((page_addr >> 8) & 0xff));
+			this->cmd_ctrl(mtd, page_addr, ctrl);
+			this->cmd_ctrl(mtd, page_addr >> 8,
+				       NAND_NCE | NAND_ALE);
 			/* One more address cycle for devices > 128MiB */
 			if (this->chipsize > (128 << 20))
-				this->write_byte(mtd, (uint8_t)((page_addr >> 16) & 0xff));
+				this->cmd_ctrl(mtd, page_addr >> 16,
+					       NAND_NCE | NAND_ALE);
 		}
-		/* Latch in address */
-		this->hwcontrol(mtd, NAND_CTL_CLRALE);
 	}
+	this->cmd_ctrl(mtd, NAND_CMD_NONE, NAND_NCE | NAND_CTRL_CHANGE);
 
 	/*
 	 * program and erase have their own busy handlers
@@ -722,20 +721,14 @@ static void nand_command_lp(struct mtd_info *mtd, unsigned command, int column, 
 		if (this->dev_ready)
 			break;
 		udelay(this->chip_delay);
-		this->hwcontrol(mtd, NAND_CTL_SETCLE);
-		this->write_byte(mtd, NAND_CMD_STATUS);
-		this->hwcontrol(mtd, NAND_CTL_CLRCLE);
+		this->cmd_ctrl(mtd, NAND_CMD_STATUS, NAND_NCE | NAND_CLE);
+		this->cmd_ctrl(mtd, NAND_CMD_NONE, NAND_NCE);
 		while (!(this->read_byte(mtd) & NAND_STATUS_READY)) ;
 		return;
 
 	case NAND_CMD_READ0:
-		/* Begin command latch cycle */
-		this->hwcontrol(mtd, NAND_CTL_SETCLE);
-		/* Write out the start read command */
-		this->write_byte(mtd, NAND_CMD_READSTART);
-		/* End command latch cycle */
-		this->hwcontrol(mtd, NAND_CTL_CLRCLE);
-		/* Fall through into ready check */
+		this->cmd_ctrl(mtd, NAND_CMD_READSTART, NAND_NCE | NAND_CLE);
+		this->cmd_ctrl(mtd, NAND_CMD_NONE, NAND_NCE);
 
 		/* This applies to read commands */
 	default:

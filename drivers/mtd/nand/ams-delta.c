@@ -34,13 +34,6 @@ static struct mtd_info *ams_delta_mtd = NULL;
 
 #define NAND_MASK (AMS_DELTA_LATCH2_NAND_NRE | AMS_DELTA_LATCH2_NAND_NWE | AMS_DELTA_LATCH2_NAND_CLE | AMS_DELTA_LATCH2_NAND_ALE | AMS_DELTA_LATCH2_NAND_NCE | AMS_DELTA_LATCH2_NAND_NWP)
 
-#define T_NAND_CTL_CLRALE(iob) ams_delta_latch2_write(AMS_DELTA_LATCH2_NAND_ALE, 0)
-#define T_NAND_CTL_SETALE(iob) ams_delta_latch2_write(AMS_DELTA_LATCH2_NAND_ALE, AMS_DELTA_LATCH2_NAND_ALE)
-#define T_NAND_CTL_CLRCLE(iob) ams_delta_latch2_write(AMS_DELTA_LATCH2_NAND_CLE, 0)
-#define T_NAND_CTL_SETCLE(iob) ams_delta_latch2_write(AMS_DELTA_LATCH2_NAND_CLE, AMS_DELTA_LATCH2_NAND_CLE)
-#define T_NAND_CTL_SETNCE(iob) ams_delta_latch2_write(AMS_DELTA_LATCH2_NAND_NCE, 0)
-#define T_NAND_CTL_CLRNCE(iob) ams_delta_latch2_write(AMS_DELTA_LATCH2_NAND_NCE, AMS_DELTA_LATCH2_NAND_NCE)
-
 /*
  * Define partitions for flash devices
  */
@@ -65,25 +58,6 @@ static struct mtd_partition partition_info[] = {
 	  .offset	= 32 * SZ_1M - 3 * SZ_256K,
 	  .size		=  3 * SZ_256K },
 };
-
-/*
- *	hardware specific access to control-lines
-*/
-
-static void ams_delta_hwcontrol(struct mtd_info *mtd, int cmd)
-{
-	switch (cmd) {
-
-		case NAND_CTL_SETCLE: T_NAND_CTL_SETCLE(cmd); break;
-		case NAND_CTL_CLRCLE: T_NAND_CTL_CLRCLE(cmd); break;
-
-		case NAND_CTL_SETALE: T_NAND_CTL_SETALE(cmd); break;
-		case NAND_CTL_CLRALE: T_NAND_CTL_CLRALE(cmd); break;
-
-		case NAND_CTL_SETNCE: T_NAND_CTL_SETNCE(cmd); break;
-		case NAND_CTL_CLRNCE: T_NAND_CTL_CLRNCE(cmd); break;
-	}
-}
 
 static void ams_delta_write_byte(struct mtd_info *mtd, u_char byte)
 {
@@ -141,6 +115,32 @@ static int ams_delta_verify_buf(struct mtd_info *mtd, const u_char *buf,
 	return 0;
 }
 
+/*
+ * Command control function
+ *
+ * ctrl:
+ * NAND_NCE: bit 0 -> bit 2
+ * NAND_CLE: bit 1 -> bit 7
+ * NAND_ALE: bit 2 -> bit 6
+ */
+static void ams_delta_hwcontrol(struct mtd_info *mtd, int cmd,
+				unsigned int ctrl)
+{
+
+	if (ctrl & NAND_CTRL_CHANGE) {
+		unsigned long bits;
+
+		bits = (~ctrl & NAND_NCE) << 2;
+		bits |= (ctrl & NAND_CLE) << 7;
+		bits |= (ctrl & NAND_ALE) << 6;
+
+		ams_delta_latch2_write(0xC2, bits);
+	}
+
+	if (cmd != NAND_CMD_NONE)
+		ams_delta_write_byte(mtd, cmd);
+}
+
 static int ams_delta_nand_ready(struct mtd_info *mtd)
 {
 	return omap_get_gpio_datain(AMS_DELTA_GPIO_PIN_NAND_RB);
@@ -183,7 +183,7 @@ static int __init ams_delta_init(void)
 	this->write_buf = ams_delta_write_buf;
 	this->read_buf = ams_delta_read_buf;
 	this->verify_buf = ams_delta_verify_buf;
-	this->hwcontrol = ams_delta_hwcontrol;
+	this->cmd_ctrl = ams_delta_hwcontrol;
 	if (!omap_request_gpio(AMS_DELTA_GPIO_PIN_NAND_RB)) {
 		this->dev_ready = ams_delta_nand_ready;
 	} else {
@@ -200,7 +200,7 @@ static int __init ams_delta_init(void)
 					  AMS_DELTA_LATCH2_NAND_NCE |
 					  AMS_DELTA_LATCH2_NAND_NWP);
 
-        /* Scan to find existance of the device */
+	/* Scan to find existance of the device */
 	if (nand_scan(ams_delta_mtd, 1)) {
 		err = -ENXIO;
 		goto out_mtd;

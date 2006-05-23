@@ -269,6 +269,18 @@ static int au_verify_buf16(struct mtd_info *mtd, const u_char *buf, int len)
 	return 0;
 }
 
+/* Select the chip by setting nCE to low */
+#define NAND_CTL_SETNCE		1
+/* Deselect the chip by setting nCE to high */
+#define NAND_CTL_CLRNCE		2
+/* Select the command latch by setting CLE to high */
+#define NAND_CTL_SETCLE		3
+/* Deselect the command latch by setting CLE to low */
+#define NAND_CTL_CLRCLE		4
+/* Select the address latch by setting ALE to high */
+#define NAND_CTL_SETALE		5
+/* Deselect the address latch by setting ALE to low */
+#define NAND_CTL_CLRALE		6
 
 static void au1550_hwcontrol(struct mtd_info *mtd, int cmd)
 {
@@ -349,7 +361,7 @@ static void au1550_command(struct mtd_info *mtd, unsigned command, int column, i
 	ulong flags;
 
 	/* Begin command latch cycle */
-	this->hwcontrol(mtd, NAND_CTL_SETCLE);
+	au1550_hwcontrol(mtd, NAND_CTL_SETCLE);
 	/*
 	 * Write out the command to the device.
 	 */
@@ -372,10 +384,10 @@ static void au1550_command(struct mtd_info *mtd, unsigned command, int column, i
 	this->write_byte(mtd, command);
 
 	/* Set ALE and clear CLE to start address cycle */
-	this->hwcontrol(mtd, NAND_CTL_CLRCLE);
+	au1550_hwcontrol(mtd, NAND_CTL_CLRCLE);
 
 	if (column != -1 || page_addr != -1) {
-		this->hwcontrol(mtd, NAND_CTL_SETALE);
+		au1550_hwcontrol(mtd, NAND_CTL_SETALE);
 
 		/* Serially input address */
 		if (column != -1) {
@@ -400,7 +412,7 @@ static void au1550_command(struct mtd_info *mtd, unsigned command, int column, i
 				 */
 				ce_override = 1;
 				local_irq_save(flags);
-				this->hwcontrol(mtd, NAND_CTL_SETNCE);
+				au1550_hwcontrol(mtd, NAND_CTL_SETNCE);
 			}
 
 			this->write_byte(mtd, (u8)(page_addr >> 8));
@@ -410,7 +422,7 @@ static void au1550_command(struct mtd_info *mtd, unsigned command, int column, i
 				this->write_byte(mtd, (u8)((page_addr >> 16) & 0x0f));
 		}
 		/* Latch in address */
-		this->hwcontrol(mtd, NAND_CTL_CLRALE);
+		au1550_hwcontrol(mtd, NAND_CTL_CLRALE);
 	}
 
 	/*
@@ -443,7 +455,7 @@ static void au1550_command(struct mtd_info *mtd, unsigned command, int column, i
 			udelay(1);
 
 		/* Release -CE and re-enable interrupts. */
-		this->hwcontrol(mtd, NAND_CTL_CLRNCE);
+		au1550_hwcontrol(mtd, NAND_CTL_CLRNCE);
 		local_irq_restore(flags);
 		return;
 	}
@@ -571,7 +583,6 @@ static int __init au1xxx_nand_init(void)
 		nand_width = au_readl(MEM_STCFG3) & (1 << 22);
 
 	/* Set address of hardware control function */
-	this->hwcontrol = au1550_hwcontrol;
 	this->dev_ready = au1550_device_ready;
 	this->select_chip = au1550_select_chip;
 	this->cmdfunc = au1550_command;

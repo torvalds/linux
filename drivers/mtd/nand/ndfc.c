@@ -60,22 +60,17 @@ static void ndfc_select_chip(struct mtd_info *mtd, int chip)
 	writel(ccr, ndfc->ndfcbase + NDFC_CCR);
 }
 
-static void ndfc_hwcontrol(struct mtd_info *mtd, int cmd)
+static void ndfc_hwcontrol(struct mtd_info *mtd, int cmd, unsigned int ctrl)
 {
-	struct ndfc_controller *ndfc = &ndfc_ctrl;
 	struct nand_chip *chip = mtd->priv;
 
-	switch (cmd) {
-	case NAND_CTL_SETCLE:
-		chip->IO_ADDR_W = ndfc->ndfcbase + NDFC_CMD;
-		break;
-	case NAND_CTL_SETALE:
-		chip->IO_ADDR_W = ndfc->ndfcbase + NDFC_ALE;
-		break;
-	default:
-		chip->IO_ADDR_W = ndfc->ndfcbase + NDFC_DATA;
-		break;
-	}
+	if (cmd == NAND_CMD_NONE)
+		return;
+
+	if (ctrl & NAND_CLE)
+		writel(cmd & 0xFF, chip->IO_ADDR_W + NDFC_CMD);
+	else
+		writel(cmd & 0xFF, chip->IO_ADDR_W + NDFC_ALE);
 }
 
 static int ndfc_ready(struct mtd_info *mtd)
@@ -158,7 +153,7 @@ static void ndfc_chip_init(struct ndfc_nand_mtd *mtd)
 
 	chip->IO_ADDR_R = ndfc->ndfcbase + NDFC_DATA;
 	chip->IO_ADDR_W = ndfc->ndfcbase + NDFC_DATA;
-	chip->hwcontrol = ndfc_hwcontrol;
+	chip->cmd_ctrl = ndfc_hwcontrol;
 	chip->dev_ready = ndfc_ready;
 	chip->select_chip = ndfc_select_chip;
 	chip->chip_delay = 50;

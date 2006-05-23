@@ -256,60 +256,36 @@ static void s3c2410_nand_select_chip(struct mtd_info *mtd, int chip)
  *
 */
 
-static void s3c2410_nand_hwcontrol(struct mtd_info *mtd, int cmd)
+static void s3c2410_nand_hwcontrol(struct mtd_info *mtd, int cmd,
+				   unsigend int ctrl)
 {
 	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
 	struct nand_chip *chip = mtd->priv;
 
-	switch (cmd) {
-	case NAND_CTL_SETNCE:
-	case NAND_CTL_CLRNCE:
-		printk(KERN_ERR "%s: called for NCE\n", __FUNCTION__);
-		break;
+	if (cmd == NAND_CMD_NONE)
+		return;
 
-	case NAND_CTL_SETCLE:
-		chip->IO_ADDR_W = info->regs + S3C2410_NFCMD;
-		break;
-
-	case NAND_CTL_SETALE:
-		chip->IO_ADDR_W = info->regs + S3C2410_NFADDR;
-		break;
-
-		/* NAND_CTL_CLRCLE: */
-		/* NAND_CTL_CLRALE: */
-	default:
-		chip->IO_ADDR_W = info->regs + S3C2410_NFDATA;
-		break;
-	}
+	if (cmd & NAND_CLE)
+		writeb(cmd, info->regs + S3C2410_NFCMD);
+	else
+		writeb(cmd, info->regs + S3C2410_NFADDR);
 }
 
 /* command and control functions */
 
-static void s3c2440_nand_hwcontrol(struct mtd_info *mtd, int cmd)
+static void s3c2410_nand_hwcontrol(struct mtd_info *mtd, int cmd,
+				   unsigend int ctrl)
 {
 	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
 	struct nand_chip *chip = mtd->priv;
 
-	switch (cmd) {
-	case NAND_CTL_SETNCE:
-	case NAND_CTL_CLRNCE:
-		printk(KERN_ERR "%s: called for NCE\n", __FUNCTION__);
-		break;
+	if (cmd == NAND_CMD_NONE)
+		return;
 
-	case NAND_CTL_SETCLE:
-		chip->IO_ADDR_W = info->regs + S3C2440_NFCMD;
-		break;
-
-	case NAND_CTL_SETALE:
-		chip->IO_ADDR_W = info->regs + S3C2440_NFADDR;
-		break;
-
-		/* NAND_CTL_CLRCLE: */
-		/* NAND_CTL_CLRALE: */
-	default:
-		chip->IO_ADDR_W = info->regs + S3C2440_NFDATA;
-		break;
-	}
+	if (cmd & NAND_CLE)
+		writeb(cmd, info->regs + S3C2440_NFCMD);
+	else
+		writeb(cmd, info->regs + S3C2440_NFADDR);
 }
 
 /* s3c2410_nand_devready()
@@ -498,7 +474,7 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 
 	chip->IO_ADDR_R	   = info->regs + S3C2410_NFDATA;
 	chip->IO_ADDR_W    = info->regs + S3C2410_NFDATA;
-	chip->hwcontrol    = s3c2410_nand_hwcontrol;
+	chip->cmd_ctrl     = s3c2410_nand_hwcontrol;
 	chip->dev_ready    = s3c2410_nand_devready;
 	chip->write_buf    = s3c2410_nand_write_buf;
 	chip->read_buf     = s3c2410_nand_read_buf;
@@ -511,7 +487,7 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 	if (info->is_s3c2440) {
 		chip->IO_ADDR_R	 = info->regs + S3C2440_NFDATA;
 		chip->IO_ADDR_W  = info->regs + S3C2440_NFDATA;
-		chip->hwcontrol  = s3c2440_nand_hwcontrol;
+		chip->cmd_ctrl   = s3c2440_nand_hwcontrol;
 	}
 
 	nmtd->info	   = info;
