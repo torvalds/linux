@@ -221,6 +221,7 @@ static void e1000_restore_vlan(struct e1000_adapter *adapter);
 static int e1000_suspend(struct pci_dev *pdev, pm_message_t state);
 static int e1000_resume(struct pci_dev *pdev);
 #endif
+static void e1000_shutdown(struct pci_dev *pdev);
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
 /* for netdump / net console */
@@ -236,8 +237,9 @@ static struct pci_driver e1000_driver = {
 	/* Power Managment Hooks */
 #ifdef CONFIG_PM
 	.suspend  = e1000_suspend,
-	.resume   = e1000_resume
+	.resume   = e1000_resume,
 #endif
+	.shutdown = e1000_shutdown
 };
 
 MODULE_AUTHOR("Intel Corporation, <linux.nics@intel.com>");
@@ -4605,6 +4607,12 @@ e1000_resume(struct pci_dev *pdev)
 	return 0;
 }
 #endif
+
+static void e1000_shutdown(struct pci_dev *pdev)
+{
+	e1000_suspend(pdev, PMSG_SUSPEND);
+}
+
 #ifdef CONFIG_NET_POLL_CONTROLLER
 /*
  * Polling 'interrupt' - used by things like netconsole to send skbs
