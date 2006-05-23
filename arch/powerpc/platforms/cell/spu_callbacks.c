@@ -333,6 +333,8 @@ void *spu_syscall_table[] = {
 	[__NR_readlinkat]		sys_readlinkat,
 	[__NR_fchmodat]			sys_fchmodat,
 	[__NR_faccessat]		sys_faccessat,
+	[__NR_get_robust_list]		sys_get_robust_list,
+	[__NR_set_robust_list]		sys_set_robust_list,
 };
 
 long spu_sys_callback(struct spu_syscall_block *s)

@@ -338,6 +338,8 @@ SYSCALL(symlinkat)
 SYSCALL(readlinkat)
 SYSCALL(fchmodat)
 SYSCALL(faccessat)
+COMPAT_SYS(get_robust_list)
+COMPAT_SYS(set_robust_list)
 
 /*
  * please add new calls to arch/powerpc/platforms/cell/spu_callbacks.c
