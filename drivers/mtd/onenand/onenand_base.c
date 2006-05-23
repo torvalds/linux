@@ -1824,8 +1824,6 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 	mtd->write_user_prot_reg = onenand_write_user_prot_reg;
 	mtd->lock_user_prot_reg = onenand_lock_user_prot_reg;
 #endif
-	mtd->readv = NULL;
-	mtd->readv_ecc = NULL;
 	mtd->sync = onenand_sync;
 	mtd->lock = NULL;
 	mtd->unlock = onenand_unlock;

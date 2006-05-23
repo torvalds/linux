@@ -2531,7 +2531,6 @@ int nand_scan(struct mtd_info *mtd, int maxchips)
 	mtd->write_ecc = nand_write_ecc;
 	mtd->read_oob = nand_read_oob;
 	mtd->write_oob = nand_write_oob;
-	mtd->readv = NULL;
 	mtd->sync = nand_sync;
 	mtd->lock = NULL;
 	mtd->unlock = NULL;

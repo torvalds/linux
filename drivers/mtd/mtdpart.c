@@ -212,31 +212,6 @@ static int part_writev (struct mtd_info *mtd,  const struct kvec *vecs,
 					to + part->offset, retlen);
 }
 
-static int part_readv (struct mtd_info *mtd,  struct kvec *vecs,
-			 unsigned long count, loff_t from, size_t *retlen)
-{
-	struct mtd_part *part = PART(mtd);
-	if (part->master->readv_ecc == NULL)
-		return part->master->readv (part->master, vecs, count,
-					from + part->offset, retlen);
-	else
-		return part->master->readv_ecc (part->master, vecs, count,
-					from + part->offset, retlen,
-					NULL, &mtd->oobinfo);
-}
-
-static int part_readv_ecc (struct mtd_info *mtd,  struct kvec *vecs,
-			 unsigned long count, loff_t from, size_t *retlen,
-			 u_char *eccbuf,  struct nand_oobinfo *oobsel)
-{
-	struct mtd_part *part = PART(mtd);
-	if (oobsel == NULL)
-		oobsel = &mtd->oobinfo;
-	return part->master->readv_ecc (part->master, vecs, count,
-					from + part->offset, retlen,
-					eccbuf, oobsel);
-}
-
 static int part_erase (struct mtd_info *mtd, struct erase_info *instr)
 {
 	struct mtd_part *part = PART(mtd);
@@ -425,10 +400,6 @@ int add_mtd_partitions(struct mtd_info *master,
 		}
 		if (master->writev)
 			slave->mtd.writev = part_writev;
-		if (master->readv)
-			slave->mtd.readv = part_readv;
-		if (master->readv_ecc)
-			slave->mtd.readv_ecc = part_readv_ecc;
 		if (master->lock)
 			slave->mtd.lock = part_lock;
 		if (master->unlock)
