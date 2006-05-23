@@ -528,14 +528,15 @@ int decode_seq(bitstr_t * bs, field_t * f, char *base, int level)
 
 			/* Decode */
 			if ((err = (Decoders[son->type]) (bs, son, base,
-							  level + 1)) >
-			    H323_ERROR_STOP)
+							  level + 1)) <
+			    H323_ERROR_NONE)
 				return err;
 
 			bs->cur = beg + len;
 			bs->bit = 0;
 		} else if ((err = (Decoders[son->type]) (bs, son, base,
-							 level + 1)))
+							 level + 1)) <
+			   H323_ERROR_NONE)
 			return err;
 	}
 
@@ -584,8 +585,8 @@ int decode_seq(bitstr_t * bs, field_t * f, char *base, int level)
 		beg = bs->cur;
 
 		if ((err = (Decoders[son->type]) (bs, son, base,
-						  level + 1)) >
-		    H323_ERROR_STOP)
+						  level + 1)) <
+		    H323_ERROR_NONE)
 			return err;
 
 		bs->cur = beg + len;
@@ -660,18 +661,20 @@ int decode_seqof(bitstr_t * bs, field_t * f, char *base, int level)
 							  i <
 							  effective_count ?
 							  base : NULL,
-							  level + 1)) >
-			    H323_ERROR_STOP)
+							  level + 1)) <
+			    H323_ERROR_NONE)
 				return err;
 
 			bs->cur = beg + len;
 			bs->bit = 0;
 		} else
-		    if ((err = (Decoders[son->type]) (bs, son,
-						      i < effective_count ?
-						      base : NULL,
-						      level + 1)))
-			return err;
+			if ((err = (Decoders[son->type]) (bs, son,
+							  i <
+							  effective_count ?
+							  base : NULL,
+							  level + 1)) <
+			    H323_ERROR_NONE)
+				return err;
 
 		if (base)
 			base += son->offset;
@@ -735,13 +738,14 @@ int decode_choice(bitstr_t * bs, field_t * f, char *base, int level)
 		}
 		beg = bs->cur;
 
-		if ((err = (Decoders[son->type]) (bs, son, base, level + 1)) >
-		    H323_ERROR_STOP)
+		if ((err = (Decoders[son->type]) (bs, son, base, level + 1)) <
+		    H323_ERROR_NONE)
 			return err;
 
 		bs->cur = beg + len;
 		bs->bit = 0;
-	} else if ((err = (Decoders[son->type]) (bs, son, base, level + 1)))
+	} else if ((err = (Decoders[son->type]) (bs, son, base, level + 1)) <
+		   H323_ERROR_NONE)
 		return err;
 
 	return H323_ERROR_NONE;
