@@ -2398,13 +2398,14 @@ static int __devinit snd_ice1712_chip_init(struct snd_ice1712 *ice)
 	udelay(200);
 	outb(ICE1712_NATIVE, ICEREG(ice, CONTROL));
 	udelay(200);
-	if (ice->eeprom.subvendor == ICE1712_SUBDEVICE_DMX6FIRE && !ice->dxr_enable) {
-                /* Limit active ADCs and DACs to 6;  */
-                /* Note: DXR extension not supported */
-		pci_write_config_byte(ice->pci, 0x60, 0x2a);
-	} else {
-		pci_write_config_byte(ice->pci, 0x60, ice->eeprom.data[ICE_EEP1_CODEC]);
-	}
+	if (ice->eeprom.subvendor == ICE1712_SUBDEVICE_DMX6FIRE &&
+	    !ice->dxr_enable)
+		/*  Set eeprom value to limit active ADCs and DACs to 6;
+		 *  Also disable AC97 as no hardware in standard 6fire card/box
+		 *  Note: DXR extensions are not currently supported
+		 */
+		ice->eeprom.data[ICE_EEP1_CODEC] = 0x3a;
+	pci_write_config_byte(ice->pci, 0x60, ice->eeprom.data[ICE_EEP1_CODEC]);
 	pci_write_config_byte(ice->pci, 0x61, ice->eeprom.data[ICE_EEP1_ACLINK]);
 	pci_write_config_byte(ice->pci, 0x62, ice->eeprom.data[ICE_EEP1_I2SID]);
 	pci_write_config_byte(ice->pci, 0x63, ice->eeprom.data[ICE_EEP1_SPDIF]);
