@@ -164,6 +164,12 @@ static int nand_verify_pages(struct mtd_info *mtd, struct nand_chip *this,
 static int nand_get_device(struct nand_chip *this, struct mtd_info *mtd,
 			   int new_state);
 
+/*
+ * For devices which display every fart in the system on a seperate LED. Is
+ * compiled away when LED support is disabled.
+ */
+DEFINE_LED_TRIGGER(nand_led_trigger);
+
 /**
  * nand_release_device - [GENERIC] release chip
  * @mtd:	MTD device structure
@@ -475,8 +481,6 @@ static int nand_block_checkbad(struct mtd_info *mtd, loff_t ofs, int getchip,
 	/* Return info from the table */
 	return nand_isbad_bbt(mtd, ofs, allowbbt);
 }
-
-DEFINE_LED_TRIGGER(nand_led_trigger);
 
 /*
  * Wait for the ready pin, after a command
