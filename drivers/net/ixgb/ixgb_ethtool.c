@@ -250,6 +250,19 @@ ixgb_set_tso(struct net_device *netdev, uint32_t data)
 } 
 #endif /* NETIF_F_TSO */
 
+static uint32_t
+ixgb_get_msglevel(struct net_device *netdev)
+{
+	struct ixgb_adapter *adapter = netdev->priv;
+	return adapter->msg_enable;
+}
+
+static void
+ixgb_set_msglevel(struct net_device *netdev, uint32_t data)
+{
+	struct ixgb_adapter *adapter = netdev->priv;
+	adapter->msg_enable = data;
+}
 #define IXGB_GET_STAT(_A_, _R_) _A_->stats._R_
 
 static int 
@@ -709,6 +722,8 @@ static struct ethtool_ops ixgb_ethtool_ops = {
 	.set_tx_csum = ixgb_set_tx_csum,
 	.get_sg	= ethtool_op_get_sg,
 	.set_sg	= ethtool_op_set_sg,
+	.get_msglevel = ixgb_get_msglevel,
+	.set_msglevel = ixgb_set_msglevel,
 #ifdef NETIF_F_TSO
 	.get_tso = ethtool_op_get_tso,
 	.set_tso = ixgb_set_tso,

@@ -150,6 +150,11 @@ MODULE_DESCRIPTION("Intel(R) PRO/10GbE Network Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 
+#define DEFAULT_DEBUG_LEVEL_SHIFT 3
+static int debug = DEFAULT_DEBUG_LEVEL_SHIFT;
+module_param(debug, int, 0);
+MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
+
 /* some defines for controlling descriptor fetches in h/w */
 #define RXDCTL_WTHRESH_DEFAULT 16	/* chip writes back at this many or RXT0 */
 #define RXDCTL_PTHRESH_DEFAULT 0		/* chip considers prefech below
@@ -251,7 +256,7 @@ ixgb_up(struct ixgb_adapter *adapter)
 	if (!pcix)
 	   adapter->have_msi = FALSE;
 	else if((err = pci_enable_msi(adapter->pdev))) {
-		printk (KERN_ERR
+		DPRINTK(PROBE, ERR,
 		 "Unable to allocate MSI interrupt Error: %d\n", err);
 		adapter->have_msi = FALSE;
 		/* proceed to try to request regular interrupt */
@@ -261,8 +266,11 @@ ixgb_up(struct ixgb_adapter *adapter)
 #endif
 	if((err = request_irq(adapter->pdev->irq, &ixgb_intr,
 				  SA_SHIRQ | SA_SAMPLE_RANDOM,
-				  netdev->name, netdev)))
+			          netdev->name, netdev))) {
+		DPRINTK(PROBE, ERR,
+		 "Unable to allocate interrupt Error: %d\n", err);
 		return err;
+	}
 
 	/* disable interrupts and get the hardware into a known state */
 	IXGB_WRITE_REG(&adapter->hw, IMC, 0xffffffff);
@@ -328,7 +336,7 @@ ixgb_reset(struct ixgb_adapter *adapter)
 
 	ixgb_adapter_stop(&adapter->hw);
 	if(!ixgb_init_hw(&adapter->hw))
-		IXGB_DBG("ixgb_init_hw failed.\n");
+		DPRINTK(PROBE, ERR, "ixgb_init_hw failed.\n");
 }
 
 /**
@@ -365,7 +373,8 @@ ixgb_probe(struct pci_dev *pdev,
 	} else {
 		if((err = pci_set_dma_mask(pdev, DMA_32BIT_MASK)) ||
 		   (err = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK))) {
-			IXGB_ERR("No usable DMA configuration, aborting\n");
+			printk(KERN_ERR
+			 "ixgb: No usable DMA configuration, aborting\n");
 			goto err_dma_mask;
 		}
 		pci_using_dac = 0;
@@ -390,6 +399,7 @@ ixgb_probe(struct pci_dev *pdev,
 	adapter->netdev = netdev;
 	adapter->pdev = pdev;
 	adapter->hw.back = adapter;
+	adapter->msg_enable = netif_msg_init(debug, DEFAULT_DEBUG_LEVEL_SHIFT);
 
 	mmio_start = pci_resource_start(pdev, BAR_0);
 	mmio_len = pci_resource_len(pdev, BAR_0);
@@ -430,6 +440,7 @@ ixgb_probe(struct pci_dev *pdev,
 	netdev->poll_controller = ixgb_netpoll;
 #endif
 
+	strcpy(netdev->name, pci_name(pdev));
 	netdev->mem_start = mmio_start;
 	netdev->mem_end = mmio_start + mmio_len;
 	netdev->base_addr = adapter->hw.io_base;
@@ -461,7 +472,7 @@ ixgb_probe(struct pci_dev *pdev,
 	/* make sure the EEPROM is good */
 
 	if(!ixgb_validate_eeprom_checksum(&adapter->hw)) {
-		printk(KERN_ERR "The EEPROM Checksum Is Not Valid\n");
+		DPRINTK(PROBE, ERR, "The EEPROM Checksum Is Not Valid\n");
 		err = -EIO;
 		goto err_eeprom;
 	}
@@ -470,6 +481,7 @@ ixgb_probe(struct pci_dev *pdev,
 	memcpy(netdev->perm_addr, netdev->dev_addr, netdev->addr_len);
 
 	if(!is_valid_ether_addr(netdev->perm_addr)) {
+		DPRINTK(PROBE, ERR, "Invalid MAC Address\n");
 		err = -EIO;
 		goto err_eeprom;
 	}
@@ -483,6 +495,7 @@ ixgb_probe(struct pci_dev *pdev,
 	INIT_WORK(&adapter->tx_timeout_task,
 		  (void (*)(void *))ixgb_tx_timeout_task, netdev);
 
+	strcpy(netdev->name, "eth%d");
 	if((err = register_netdev(netdev)))
 		goto err_register;
 
@@ -491,8 +504,7 @@ ixgb_probe(struct pci_dev *pdev,
 	netif_carrier_off(netdev);
 	netif_stop_queue(netdev);
 
-	printk(KERN_INFO "%s: Intel(R) PRO/10GbE Network Connection\n",
-		   netdev->name);
+	DPRINTK(PROBE, INFO, "Intel(R) PRO/10GbE Network Connection\n");
 	ixgb_check_options(adapter);
 	/* reset the hardware with the new settings */
 
@@ -573,7 +585,7 @@ ixgb_sw_init(struct ixgb_adapter *adapter)
 			hw->mac_type = ixgb_82597;
 	else {
 		/* should never have loaded on this device */
-		printk(KERN_ERR "ixgb: unsupported device id\n");
+		DPRINTK(PROBE, ERR, "unsupported device id\n");
 	}
 
 	/* enable flow control to be programmed */
@@ -671,6 +683,8 @@ ixgb_setup_tx_resources(struct ixgb_adapter *adapter)
 	size = sizeof(struct ixgb_buffer) * txdr->count;
 	txdr->buffer_info = vmalloc(size);
 	if(!txdr->buffer_info) {
+		DPRINTK(PROBE, ERR,
+		 "Unable to allocate transmit descriptor ring memory\n");
 		return -ENOMEM;
 	}
 	memset(txdr->buffer_info, 0, size);
@@ -683,6 +697,8 @@ ixgb_setup_tx_resources(struct ixgb_adapter *adapter)
 	txdr->desc = pci_alloc_consistent(pdev, txdr->size, &txdr->dma);
 	if(!txdr->desc) {
 		vfree(txdr->buffer_info);
+		DPRINTK(PROBE, ERR,
+		 "Unable to allocate transmit descriptor memory\n");
 		return -ENOMEM;
 	}
 	memset(txdr->desc, 0, txdr->size);
@@ -756,6 +772,8 @@ ixgb_setup_rx_resources(struct ixgb_adapter *adapter)
 	size = sizeof(struct ixgb_buffer) * rxdr->count;
 	rxdr->buffer_info = vmalloc(size);
 	if(!rxdr->buffer_info) {
+		DPRINTK(PROBE, ERR,
+		 "Unable to allocate receive descriptor ring\n");
 		return -ENOMEM;
 	}
 	memset(rxdr->buffer_info, 0, size);
@@ -769,6 +787,8 @@ ixgb_setup_rx_resources(struct ixgb_adapter *adapter)
 
 	if(!rxdr->desc) {
 		vfree(rxdr->buffer_info);
+		DPRINTK(PROBE, ERR,
+		 "Unable to allocate receive descriptors\n");
 		return -ENOMEM;
 	}
 	memset(rxdr->desc, 0, rxdr->size);
@@ -1118,8 +1138,8 @@ ixgb_watchdog(unsigned long data)
 
 	if(adapter->hw.link_up) {
 		if(!netif_carrier_ok(netdev)) {
-			printk(KERN_INFO "ixgb: %s NIC Link is Up %d Mbps %s\n",
-				   netdev->name, 10000, "Full Duplex");
+			DPRINTK(LINK, INFO,
+			        "NIC Link is Up 10000 Mbps Full Duplex\n");
 			adapter->link_speed = 10000;
 			adapter->link_duplex = FULL_DUPLEX;
 			netif_carrier_on(netdev);
@@ -1129,9 +1149,7 @@ ixgb_watchdog(unsigned long data)
 		if(netif_carrier_ok(netdev)) {
 			adapter->link_speed = 0;
 			adapter->link_duplex = 0;
-			printk(KERN_INFO
-				   "ixgb: %s NIC Link is Down\n",
-				   netdev->name);
+			DPRINTK(LINK, INFO, "NIC Link is Down\n");
 			netif_carrier_off(netdev);
 			netif_stop_queue(netdev);
 
@@ -1529,7 +1547,7 @@ ixgb_change_mtu(struct net_device *netdev, int new_mtu)
 
 	if((max_frame < IXGB_MIN_ENET_FRAME_SIZE_WITHOUT_FCS + ENET_FCS_LENGTH)
 	   || (max_frame > IXGB_MAX_JUMBO_FRAME_SIZE + ENET_FCS_LENGTH)) {
-		IXGB_ERR("Invalid MTU setting\n");
+		DPRINTK(PROBE, ERR, "Invalid MTU setting %d\n", new_mtu);
 		return -EINVAL;
 	}
 

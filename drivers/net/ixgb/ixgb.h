@@ -84,7 +84,12 @@ struct ixgb_adapter;
 #define IXGB_DBG(args...)
 #endif
 
-#define IXGB_ERR(args...) printk(KERN_ERR "ixgb: " args)
+#define PFX "ixgb: "
+#define DPRINTK(nlevel, klevel, fmt, args...) \
+	(void)((NETIF_MSG_##nlevel & adapter->msg_enable) && \
+	printk(KERN_##klevel PFX "%s: %s: " fmt, adapter->netdev->name, \
+		__FUNCTION__ , ## args))
+
 
 /* TX/RX descriptor defines */
 #define DEFAULT_TXD	 256
@@ -192,6 +197,7 @@ struct ixgb_adapter {
 
 	/* structs defined in ixgb_hw.h */
 	struct ixgb_hw hw;
+	u16 msg_enable;
 	struct ixgb_hw_stats stats;
 #ifdef CONFIG_PCI_MSI
 	boolean_t have_msi;
