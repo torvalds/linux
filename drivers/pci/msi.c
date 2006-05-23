@@ -916,6 +916,7 @@ static int msix_capability_init(struct pci_dev *dev,
  **/
 int pci_enable_msi(struct pci_dev* dev)
 {
+	struct pci_bus *bus;
 	int pos, temp, status = -EINVAL;
 	u16 control;
 
@@ -925,8 +926,9 @@ int pci_enable_msi(struct pci_dev* dev)
 	if (dev->no_msi)
 		return status;
 
-	if (dev->bus->bus_flags & PCI_BUS_FLAGS_NO_MSI)
-		return -EINVAL;
+	for (bus = dev->bus; bus; bus = bus->parent)
+		if (bus->bus_flags & PCI_BUS_FLAGS_NO_MSI)
+			return -EINVAL;
 
 	temp = dev->irq;
 
@@ -1162,6 +1164,7 @@ static int reroute_msix_table(int head, struct msix_entry *entries, int *nvec)
  **/
 int pci_enable_msix(struct pci_dev* dev, struct msix_entry *entries, int nvec)
 {
+	struct pci_bus *bus;
 	int status, pos, nr_entries, free_vectors;
 	int i, j, temp;
 	u16 control;
@@ -1169,6 +1172,13 @@ int pci_enable_msix(struct pci_dev* dev, struct msix_entry *entries, int nvec)
 
 	if (!pci_msi_enable || !dev || !entries)
  		return -EINVAL;
+
+	if (dev->no_msi)
+		return -EINVAL;
+
+	for (bus = dev->bus; bus; bus = bus->parent)
+		if (bus->bus_flags & PCI_BUS_FLAGS_NO_MSI)
+			return -EINVAL;
 
 	status = msi_init();
 	if (status < 0)
