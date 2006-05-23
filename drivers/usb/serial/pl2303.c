@@ -600,7 +600,7 @@ static void pl2303_close (struct usb_serial_port *port, struct file *filp)
 	unsigned int c_cflag;
 	int bps;
 	long timeout;
-	wait_queue_t wait;						\
+	wait_queue_t wait;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
