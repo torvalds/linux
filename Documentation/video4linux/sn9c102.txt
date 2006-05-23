@@ -1,9 +1,9 @@
 
-                         SN9C10x PC Camera Controllers
-                                Driver for Linux
-                         =============================
+			 SN9C10x PC Camera Controllers
+				Driver for Linux
+			 =============================
 
-                               - Documentation -
+			       - Documentation -
 
 
 Index
@@ -176,46 +176,46 @@ Name:           video_nr
 Type:           short array (min = 0, max = 64)
 Syntax:         <-1|n[,...]>
 Description:    Specify V4L2 minor mode number:
-                -1 = use next available
-                 n = use minor number n
-                You can specify up to 64 cameras this way.
-                For example:
-                video_nr=-1,2,-1 would assign minor number 2 to the second
-                recognized camera and use auto for the first one and for every
-                other camera.
+		-1 = use next available
+		 n = use minor number n
+		You can specify up to 64 cameras this way.
+		For example:
+		video_nr=-1,2,-1 would assign minor number 2 to the second
+		recognized camera and use auto for the first one and for every
+		other camera.
 Default:        -1
 -------------------------------------------------------------------------------
 Name:           force_munmap
 Type:           bool array (min = 0, max = 64)
 Syntax:         <0|1[,...]>
 Description:    Force the application to unmap previously mapped buffer memory
-                before calling any VIDIOC_S_CROP or VIDIOC_S_FMT ioctl's. Not
-                all the applications support this feature. This parameter is
-                specific for each detected camera.
-                0 = do not force memory unmapping
-                1 = force memory unmapping (save memory)
+		before calling any VIDIOC_S_CROP or VIDIOC_S_FMT ioctl's. Not
+		all the applications support this feature. This parameter is
+		specific for each detected camera.
+		0 = do not force memory unmapping
+		1 = force memory unmapping (save memory)
 Default:        0
 -------------------------------------------------------------------------------
 Name:           frame_timeout
 Type:           uint array (min = 0, max = 64)
 Syntax:         <n[,...]>
 Description:    Timeout for a video frame in seconds. This parameter is
-                specific for each detected camera. This parameter can be
-                changed at runtime thanks to the /sys filesystem interface.
+		specific for each detected camera. This parameter can be
+		changed at runtime thanks to the /sys filesystem interface.
 Default:        2
 -------------------------------------------------------------------------------
 Name:           debug
 Type:           ushort
 Syntax:         <n>
 Description:    Debugging information level, from 0 to 3:
-                0 = none (use carefully)
-                1 = critical errors
-                2 = significant informations
-                3 = more verbose messages
-                Level 3 is useful for testing only, when only one device
-                is used. It also shows some more informations about the
-                hardware being detected. This parameter can be changed at
-                runtime thanks to the /sys filesystem interface.
+		0 = none (use carefully)
+		1 = critical errors
+		2 = significant informations
+		3 = more verbose messages
+		Level 3 is useful for testing only, when only one device
+		is used. It also shows some more informations about the
+		hardware being detected. This parameter can be changed at
+		runtime thanks to the /sys filesystem interface.
 Default:        2
 -------------------------------------------------------------------------------
 
@@ -280,24 +280,24 @@ Byte #  Value         Description
 0x04    0xC4          Frame synchronisation pattern.
 0x05    0x96          Frame synchronisation pattern.
 0x06    0xXX          Unknown meaning. The exact value depends on the chip;
-                      possible values are 0x00, 0x01 and 0x20.
+		      possible values are 0x00, 0x01 and 0x20.
 0x07    0xXX          Variable value, whose bits are ff00uzzc, where ff is a
-                      frame counter, u is unknown, zz is a size indicator
-                      (00 = VGA, 01 = SIF, 10 = QSIF) and c stands for
-                      "compression enabled" (1 = yes, 0 = no).
+		      frame counter, u is unknown, zz is a size indicator
+		      (00 = VGA, 01 = SIF, 10 = QSIF) and c stands for
+		      "compression enabled" (1 = yes, 0 = no).
 0x08    0xXX          Brightness sum inside Auto-Exposure area (low-byte).
 0x09    0xXX          Brightness sum inside Auto-Exposure area (high-byte).
-                      For a pure white image, this number will be equal to 500
-                      times the area of the specified AE area. For images
-                      that are not pure white, the value scales down according
-                      to relative whiteness.
+		      For a pure white image, this number will be equal to 500
+		      times the area of the specified AE area. For images
+		      that are not pure white, the value scales down according
+		      to relative whiteness.
 0x0A    0xXX          Brightness sum outside Auto-Exposure area (low-byte).
 0x0B    0xXX          Brightness sum outside Auto-Exposure area (high-byte).
-                      For a pure white image, this number will be equal to 125
-                      times the area outside of the specified AE area. For
-                      images that are not pure white, the value scales down
-                      according to relative whiteness.
-                      according to relative whiteness.
+		      For a pure white image, this number will be equal to 125
+		      times the area outside of the specified AE area. For
+		      images that are not pure white, the value scales down
+		      according to relative whiteness.
+		      according to relative whiteness.
 
 The following bytes are used by the SN9C103 bridge only:
 
