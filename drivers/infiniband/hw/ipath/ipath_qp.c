@@ -734,7 +734,7 @@ struct ib_qp *ipath_create_qp(struct ib_pd *ibpd,
 		ipath_reset_qp(qp);
 
 		/* Tell the core driver that the kernel SMA is present. */
-		if (qp->ibqp.qp_type == IB_QPT_SMI)
+		if (init_attr->qp_type == IB_QPT_SMI)
 			ipath_layer_set_verbs_flags(dev->dd,
 						    IPATH_VERBS_KERNEL_SMA);
 		break;
