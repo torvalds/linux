@@ -555,7 +555,7 @@ int decode_seq(bitstr_t * bs, field_t * f, char *base, int level)
 
 	/* Decode the extension components */
 	for (opt = 0; opt < bmp2_len; opt++, i++, son++) {
-		if (son->attr & STOP) {
+		if (i < f->ub && son->attr & STOP) {
 			PRINT("%*.s%s\n", (level + 1) * TAB_SIZE, " ",
 			      son->name);
 			return H323_ERROR_STOP;
