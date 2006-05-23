@@ -10,7 +10,7 @@
  *	http://www.linux-mtd.infradead.org/tech/nand.html
  *
  *  Copyright (C) 2000 Steven J. Hill (sjhill@realitydiluted.com)
- * 		  2002 Thomas Gleixner (tglx@linutronix.de)
+ *		  2002 Thomas Gleixner (tglx@linutronix.de)
  *
  *  02-08-2004  tglx: support for strange chips, which cannot auto increment
  *		pages on read / read_oob
@@ -25,26 +25,30 @@
  *  05-19-2004  tglx: Basic support for Renesas AG-AND chips
  *
  *  09-24-2004  tglx: add support for hardware controllers (e.g. ECC) shared
- *		among multiple independend devices. Suggestions and initial patch
- *		from Ben Dooks <ben-mtd@fluff.org>
+ *		among multiple independend devices. Suggestions and initial
+ *		patch from Ben Dooks <ben-mtd@fluff.org>
  *
- *  12-05-2004	dmarlin: add workaround for Renesas AG-AND chips "disturb" issue.
- *		Basically, any block not rewritten may lose data when surrounding blocks
- *		are rewritten many times.  JFFS2 ensures this doesn't happen for blocks
- *		it uses, but the Bad Block Table(s) may not be rewritten.  To ensure they
- *		do not lose data, force them to be rewritten when some of the surrounding
- *		blocks are erased.  Rather than tracking a specific nearby block (which
- *		could itself go bad), use a page address 'mask' to select several blocks
- *		in the same area, and rewrite the BBT when any of them are erased.
+ *  12-05-2004	dmarlin: add workaround for Renesas AG-AND chips "disturb"
+ *		issue. Basically, any block not rewritten may lose data when
+ *		surrounding blocks are rewritten many times.  JFFS2 ensures
+ *		this doesn't happen for blocks it uses, but the Bad Block
+ *		Table(s) may not be rewritten.  To ensure they do not lose
+ *		data, force them to be rewritten when some of the surrounding
+ *		blocks are erased.  Rather than tracking a specific nearby
+ *		block (which could itself go bad), use a page address 'mask' to
+ *		select several blocks in the same area, and rewrite the BBT
+ *		when any of them are erased.
  *
- *  01-03-2005	dmarlin: added support for the device recovery command sequence for Renesas
- *		AG-AND chips.  If there was a sudden loss of power during an erase operation,
- * 		a "device recovery" operation must be performed when power is restored
- * 		to ensure correct operation.
+ *  01-03-2005	dmarlin: added support for the device recovery command sequence
+ *		for Renesas AG-AND chips.  If there was a sudden loss of power
+ *		during an erase operation, a "device recovery" operation must
+ *		be performed when power is restored to ensure correct
+ *		operation.
  *
- *  01-20-2005	dmarlin: added support for optional hardware specific callback routine to
- *		perform extra error status checks on erase and write failures.  This required
- *		adding a wrapper function for nand_read_ecc.
+ *  01-20-2005	dmarlin: added support for optional hardware specific callback
+ *		routine to perform extra error status checks on erase and write
+ *		failures.  This required adding a wrapper function for
+ *		nand_read_ecc.
  *
  * 08-20-2005	vwool: suspend/resume added
  *
@@ -132,32 +136,43 @@ static void nand_write_buf(struct mtd_info *mtd, const u_char *buf, int len);
 static void nand_read_buf(struct mtd_info *mtd, u_char *buf, int len);
 static int nand_verify_buf(struct mtd_info *mtd, const u_char *buf, int len);
 
-static int nand_read(struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen, u_char *buf);
+static int nand_read(struct mtd_info *mtd, loff_t from, size_t len,
+		     size_t *retlen, u_char *buf);
 static int nand_read_ecc(struct mtd_info *mtd, loff_t from, size_t len,
-			 size_t *retlen, u_char *buf, u_char *eccbuf, struct nand_oobinfo *oobsel);
-static int nand_read_oob(struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen, u_char *buf);
-static int nand_write(struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen, const u_char *buf);
+			 size_t *retlen, u_char *buf, u_char *eccbuf,
+			 struct nand_oobinfo *oobsel);
+static int nand_read_oob(struct mtd_info *mtd, loff_t from, size_t len,
+			 size_t *retlen, u_char *buf);
+static int nand_write(struct mtd_info *mtd, loff_t to, size_t len,
+		      size_t *retlen, const u_char *buf);
 static int nand_write_ecc(struct mtd_info *mtd, loff_t to, size_t len,
-			  size_t *retlen, const u_char *buf, u_char *eccbuf, struct nand_oobinfo *oobsel);
-static int nand_write_oob(struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen, const u_char *buf);
-static int nand_writev(struct mtd_info *mtd, const struct kvec *vecs, unsigned long count, loff_t to, size_t *retlen);
+			  size_t *retlen, const u_char *buf, u_char *eccbuf,
+			  struct nand_oobinfo *oobsel);
+static int nand_write_oob(struct mtd_info *mtd, loff_t to, size_t len,
+			  size_t *retlen, const u_char *buf);
+static int nand_writev(struct mtd_info *mtd, const struct kvec *vecs,
+		       unsigned long count, loff_t to, size_t *retlen);
 static int nand_writev_ecc(struct mtd_info *mtd, const struct kvec *vecs,
-			   unsigned long count, loff_t to, size_t *retlen, u_char *eccbuf,
-			   struct nand_oobinfo *oobsel);
+			   unsigned long count, loff_t to, size_t *retlen,
+			   u_char *eccbuf, struct nand_oobinfo *oobsel);
 static int nand_erase(struct mtd_info *mtd, struct erase_info *instr);
 static void nand_sync(struct mtd_info *mtd);
 
 /* Some internal functions */
-static int nand_write_page(struct mtd_info *mtd, struct nand_chip *this, int page, u_char * oob_buf,
+static int nand_write_page(struct mtd_info *mtd, struct nand_chip *this,
+			   int page, u_char * oob_buf,
 			   struct nand_oobinfo *oobsel, int mode);
 #ifdef CONFIG_MTD_NAND_VERIFY_WRITE
-static int nand_verify_pages(struct mtd_info *mtd, struct nand_chip *this, int page, int numpages,
-			     u_char *oob_buf, struct nand_oobinfo *oobsel, int chipnr, int oobmode);
+static int nand_verify_pages(struct mtd_info *mtd, struct nand_chip *this,
+			     int page, int numpages, u_char *oob_buf,
+			     struct nand_oobinfo *oobsel, int chipnr,
+			     int oobmode);
 #else
 #define nand_verify_pages(...) (0)
 #endif
 
-static int nand_get_device(struct nand_chip *this, struct mtd_info *mtd, int new_state);
+static int nand_get_device(struct nand_chip *this, struct mtd_info *mtd,
+			   int new_state);
 
 /**
  * nand_release_device - [GENERIC] release chip
@@ -424,14 +439,16 @@ static int nand_block_bad(struct mtd_info *mtd, loff_t ofs, int getchip)
 		page = (int)ofs;
 
 	if (this->options & NAND_BUSWIDTH_16) {
-		this->cmdfunc(mtd, NAND_CMD_READOOB, this->badblockpos & 0xFE, page & this->pagemask);
+		this->cmdfunc(mtd, NAND_CMD_READOOB, this->badblockpos & 0xFE,
+			      page & this->pagemask);
 		bad = cpu_to_le16(this->read_word(mtd));
 		if (this->badblockpos & 0x1)
 			bad >>= 8;
 		if ((bad & 0xFF) != 0xff)
 			res = 1;
 	} else {
-		this->cmdfunc(mtd, NAND_CMD_READOOB, this->badblockpos, page & this->pagemask);
+		this->cmdfunc(mtd, NAND_CMD_READOOB, this->badblockpos,
+			      page & this->pagemask);
 		if (this->read_byte(mtd) != 0xff)
 			res = 1;
 	}
@@ -498,7 +515,8 @@ static int nand_check_wp(struct mtd_info *mtd)
  * Check, if the block is bad. Either by reading the bad block table or
  * calling of the scan function.
  */
-static int nand_block_checkbad(struct mtd_info *mtd, loff_t ofs, int getchip, int allowbbt)
+static int nand_block_checkbad(struct mtd_info *mtd, loff_t ofs, int getchip,
+			       int allowbbt)
 {
 	struct nand_chip *this = mtd->priv;
 
@@ -540,7 +558,8 @@ static void nand_wait_ready(struct mtd_info *mtd)
  * Send command to NAND device. This function is used for small page
  * devices (256/512 Bytes per page)
  */
-static void nand_command(struct mtd_info *mtd, unsigned command, int column, int page_addr)
+static void nand_command(struct mtd_info *mtd, unsigned command, int column,
+			 int page_addr)
 {
 	register struct nand_chip *this = mtd->priv;
 
@@ -755,7 +774,8 @@ static void nand_command_lp(struct mtd_info *mtd, unsigned command, int column, 
  *
  * Get the device and lock it for exclusive access
  */
-static int nand_get_device(struct nand_chip *this, struct mtd_info *mtd, int new_state)
+static int
+nand_get_device(struct nand_chip *this, struct mtd_info *mtd, int new_state)
 {
 	spinlock_t *lock = &this->controller->lock;
 	wait_queue_head_t *wq = &this->controller->wq;
@@ -942,7 +962,7 @@ static int nand_write_page(struct mtd_info *mtd, struct nand_chip *this, int pag
  * nand_verify_pages - [GENERIC] verify the chip contents after a write
  * @mtd:	MTD device structure
  * @this:	NAND chip structure
- * @page: 	startpage inside the chip, must be called with (page & this->pagemask)
+ * @page:	startpage inside the chip, must be called with (page & this->pagemask)
  * @numpages:	number of pages to verify
  * @oob_buf:	out of band data buffer
  * @oobsel:	out of band selecttion structre
@@ -2293,8 +2313,8 @@ static void nand_resume(struct mtd_info *mtd)
 	if (this->state == FL_PM_SUSPENDED)
 		nand_release_device(mtd);
 	else
-		printk(KERN_ERR "resume() called for the chip which is not in suspended state\n");
-
+		printk(KERN_ERR "nand_resume() called for a chip which is not "
+		       "in suspended state\n");
 }
 
 /*

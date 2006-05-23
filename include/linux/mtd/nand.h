@@ -11,47 +11,11 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
- *  Info:
- *   Contains standard defines and IDs for NAND flash devices
+ * Info:
+ *	Contains standard defines and IDs for NAND flash devices
  *
- *  Changelog:
- *   01-31-2000 DMW     Created
- *   09-18-2000 SJH     Moved structure out of the Disk-On-Chip drivers
- *			so it can be used by other NAND flash device
- *			drivers. I also changed the copyright since none
- *			of the original contents of this file are specific
- *			to DoC devices. David can whack me with a baseball
- *			bat later if I did something naughty.
- *   10-11-2000 SJH     Added private NAND flash structure for driver
- *   10-24-2000 SJH     Added prototype for 'nand_scan' function
- *   10-29-2001 TG	changed nand_chip structure to support
- *			hardwarespecific function for accessing control lines
- *   02-21-2002 TG	added support for different read/write adress and
- *			ready/busy line access function
- *   02-26-2002 TG	added chip_delay to nand_chip structure to optimize
- *			command delay times for different chips
- *   04-28-2002 TG	OOB config defines moved from nand.c to avoid duplicate
- *			defines in jffs2/wbuf.c
- *   08-07-2002 TG	forced bad block location to byte 5 of OOB, even if
- *			CONFIG_MTD_NAND_ECC_JFFS2 is not set
- *   08-10-2002 TG	extensions to nand_chip structure to support HW-ECC
- *
- *   08-29-2002 tglx 	nand_chip structure: data_poi for selecting
- *			internal / fs-driver buffer
- *			support for 6byte/512byte hardware ECC
- *			read_ecc, write_ecc extended for different oob-layout
- *			oob layout selections: NAND_NONE_OOB, NAND_JFFS2_OOB,
- *			NAND_YAFFS_OOB
- *  11-25-2002 tglx	Added Manufacturer code FUJITSU, NATIONAL
- *			Split manufacturer and device ID structures
- *
- *  02-08-2004 tglx 	added option field to nand structure for chip anomalities
- *  05-25-2004 tglx 	added bad block table support, ST-MICRO manufacturer id
- *			update of nand_chip structure description
- *  01-17-2005 dmarlin	added extended commands for AG-AND device and added option
- * 			for BBT_AUTO_REFRESH.
- *  01-20-2005 dmarlin	added optional pointer to hardware specific callback for
- *			extra error status checks.
+ * Changelog:
+ *	See git changelog.
  */
 #ifndef __LINUX_MTD_NAND_H
 #define __LINUX_MTD_NAND_H
@@ -68,7 +32,8 @@ extern int nand_scan (struct mtd_info *mtd, int max_chips);
 extern void nand_release (struct mtd_info *mtd);
 
 /* Read raw data from the device without ECC */
-extern int nand_read_raw (struct mtd_info *mtd, uint8_t *buf, loff_t from, size_t len, size_t ooblen);
+extern int nand_read_raw (struct mtd_info *mtd, uint8_t *buf, loff_t from,
+			  size_t len, size_t ooblen);
 
 
 /* The maximum number of NAND chips in an array */
@@ -84,7 +49,7 @@ extern int nand_read_raw (struct mtd_info *mtd, uint8_t *buf, loff_t from, size_
  * Constants for hardware specific CLE/ALE/NCE function
 */
 /* Select the chip by setting nCE to low */
-#define NAND_CTL_SETNCE 	1
+#define NAND_CTL_SETNCE		1
 /* Deselect the chip by setting nCE to high */
 #define NAND_CTL_CLRNCE		2
 /* Select the command latch by setting CLE to high */
@@ -285,19 +250,19 @@ struct nand_hw_control {
  *			is read from the chip status register
  * @cmdfunc:		[REPLACEABLE] hardwarespecific function for writing commands to the chip
  * @waitfunc:		[REPLACEABLE] hardwarespecific function for wait on ready
- * @calculate_ecc: 	[REPLACEABLE] function for ecc calculation or readback from ecc hardware
+ * @calculate_ecc:	[REPLACEABLE] function for ecc calculation or readback from ecc hardware
  * @correct_data:	[REPLACEABLE] function for ecc correction, matching to ecc generator (sw/hw)
  * @enable_hwecc:	[BOARDSPECIFIC] function to enable (reset) hardware ecc generator. Must only
  *			be provided if a hardware ECC is available
  * @erase_cmd:		[INTERN] erase command write function, selectable due to AND support
  * @scan_bbt:		[REPLACEABLE] function to scan bad block table
  * @eccmode:		[BOARDSPECIFIC] mode of ecc, see defines
- * @eccsize: 		[INTERN] databytes used per ecc-calculation
- * @eccbytes: 		[INTERN] number of ecc bytes per ecc-calculation step
+ * @eccsize:		[INTERN] databytes used per ecc-calculation
+ * @eccbytes:		[INTERN] number of ecc bytes per ecc-calculation step
  * @eccsteps:		[INTERN] number of ecc calculation steps per page
  * @chip_delay:		[BOARDSPECIFIC] chip dependent delay for transfering data from array to read regs (tR)
  * @wq:			[INTERN] wait queue to sleep on if a NAND operation is in progress
- * @state: 		[INTERN] the current state of the NAND device
+ * @state:		[INTERN] the current state of the NAND device
  * @page_shift:		[INTERN] number of address bits in a page (column address bits)
  * @phys_erase_shift:	[INTERN] number of address bits in a physical eraseblock
  * @bbt_erase_shift:	[INTERN] number of address bits in a bbt entry
@@ -327,7 +292,7 @@ struct nand_hw_control {
 
 struct nand_chip {
 	void  __iomem	*IO_ADDR_R;
-	void  __iomem 	*IO_ADDR_W;
+	void  __iomem	*IO_ADDR_W;
 
 	u_char		(*read_byte)(struct mtd_info *mtd);
 	void		(*write_byte)(struct mtd_info *mtd, u_char byte);
@@ -340,12 +305,12 @@ struct nand_chip {
 	void		(*select_chip)(struct mtd_info *mtd, int chip);
 	int		(*block_bad)(struct mtd_info *mtd, loff_t ofs, int getchip);
 	int		(*block_markbad)(struct mtd_info *mtd, loff_t ofs);
-	void 		(*hwcontrol)(struct mtd_info *mtd, int cmd);
-	int  		(*dev_ready)(struct mtd_info *mtd);
-	void 		(*cmdfunc)(struct mtd_info *mtd, unsigned command, int column, int page_addr);
-	int 		(*waitfunc)(struct mtd_info *mtd, struct nand_chip *this, int state);
+	void		(*hwcontrol)(struct mtd_info *mtd, int cmd);
+	int		(*dev_ready)(struct mtd_info *mtd);
+	void		(*cmdfunc)(struct mtd_info *mtd, unsigned command, int column, int page_addr);
+	int		(*waitfunc)(struct mtd_info *mtd, struct nand_chip *this, int state);
 	int		(*calculate_ecc)(struct mtd_info *mtd, const u_char *dat, u_char *ecc_code);
-	int 		(*correct_data)(struct mtd_info *mtd, u_char *dat, u_char *read_ecc, u_char *calc_ecc);
+	int		(*correct_data)(struct mtd_info *mtd, u_char *dat, u_char *read_ecc, u_char *calc_ecc);
 	void		(*enable_hwecc)(struct mtd_info *mtd, int mode);
 	void		(*erase_cmd)(struct mtd_info *mtd, int page);
 	int		(*scan_bbt)(struct mtd_info *mtd);
@@ -353,14 +318,14 @@ struct nand_chip {
 	int		eccsize;
 	int		eccbytes;
 	int		eccsteps;
-	int 		chip_delay;
+	int		chip_delay;
 	wait_queue_head_t wq;
-	nand_state_t 	state;
-	int 		page_shift;
+	nand_state_t	state;
+	int		page_shift;
 	int		phys_erase_shift;
 	int		bbt_erase_shift;
 	int		chip_shift;
-	u_char 		*data_buf;
+	u_char		*data_buf;
 	u_char		*oob_buf;
 	int		oobdirty;
 	u_char		*data_poi;
@@ -389,19 +354,19 @@ struct nand_chip {
 #define NAND_MFR_NATIONAL	0x8f
 #define NAND_MFR_RENESAS	0x07
 #define NAND_MFR_STMICRO	0x20
-#define NAND_MFR_HYNIX          0xad
+#define NAND_MFR_HYNIX		0xad
 
 /**
  * struct nand_flash_dev - NAND Flash Device ID Structure
  *
- * @name:  	Identify the device type
- * @id:   	device ID code
- * @pagesize:  	Pagesize in bytes. Either 256 or 512 or 0
+ * @name:	Identify the device type
+ * @id:		device ID code
+ * @pagesize:	Pagesize in bytes. Either 256 or 512 or 0
  *		If the pagesize is 0, then the real pagesize
  *		and the eraseize are determined from the
  *		extended id bytes in the chip
- * @erasesize: 	Size of an erase block in the flash device.
- * @chipsize:  	Total chipsize in Mega Bytes
+ * @erasesize:	Size of an erase block in the flash device.
+ * @chipsize:	Total chipsize in Mega Bytes
  * @options:	Bitfield to store chip relevant options
  */
 struct nand_flash_dev {
@@ -416,7 +381,7 @@ struct nand_flash_dev {
 /**
  * struct nand_manufacturers - NAND Flash Manufacturer ID Structure
  * @name:	Manufacturer name
- * @id: 	manufacturer ID code of device.
+ * @id:		manufacturer ID code of device.
 */
 struct nand_manufacturers {
 	int id;
@@ -456,7 +421,7 @@ struct nand_bbt_descr {
 	int	veroffs;
 	uint8_t	version[NAND_MAX_CHIPS];
 	int	len;
-	int 	maxblocks;
+	int	maxblocks;
 	int	reserved_block_code;
 	uint8_t	*pattern;
 };
@@ -501,8 +466,8 @@ extern int nand_default_bbt (struct mtd_info *mtd);
 extern int nand_isbad_bbt (struct mtd_info *mtd, loff_t offs, int allowbbt);
 extern int nand_erase_nand (struct mtd_info *mtd, struct erase_info *instr, int allowbbt);
 extern int nand_do_read_ecc (struct mtd_info *mtd, loff_t from, size_t len,
-                             size_t * retlen, u_char * buf, u_char * oob_buf,
-                             struct nand_oobinfo *oobsel, int flags);
+			     size_t * retlen, u_char * buf, u_char * oob_buf,
+			     struct nand_oobinfo *oobsel, int flags);
 
 /*
 * Constants for oob configuration
@@ -526,7 +491,7 @@ struct platform_nand_chip {
 	int			chip_offset;
 	int			nr_partitions;
 	struct mtd_partition	*partitions;
-	int 			chip_delay;
+	int			chip_delay;
 	unsigned int		options;
 	void			*priv;
 };
@@ -542,8 +507,8 @@ struct platform_nand_chip {
  * All fields are optional and depend on the hardware driver requirements
  */
 struct platform_nand_ctrl {
-	void 		(*hwcontrol)(struct mtd_info *mtd, int cmd);
-	int  		(*dev_ready)(struct mtd_info *mtd);
+	void		(*hwcontrol)(struct mtd_info *mtd, int cmd);
+	int		(*dev_ready)(struct mtd_info *mtd);
 	void		(*select_chip)(struct mtd_info *mtd, int chip);
 	void		*priv;
 };
