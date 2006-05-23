@@ -613,20 +613,30 @@ int jffs2_flush_wbuf_pad(struct jffs2_sb_info *c)
 
 	return ret;
 }
-int jffs2_flash_writev(struct jffs2_sb_info *c, const struct kvec *invecs, unsigned long count, loff_t to, size_t *retlen, uint32_t ino)
-{
-	struct kvec outvecs[3];
-	uint32_t totlen = 0;
-	uint32_t split_ofs = 0;
-	uint32_t old_totlen;
-	int ret, splitvec = -1;
-	int invec, outvec;
-	size_t wbuf_retlen;
-	unsigned char *wbuf_ptr;
-	size_t donelen = 0;
-	uint32_t outvec_to = to;
 
-	/* If not NAND flash, don't bother */
+static size_t jffs2_fill_wbuf(struct jffs2_sb_info *c, const uint8_t *buf,
+			      size_t len)
+{
+	if (len && !c->wbuf_len && (len >= c->wbuf_pagesize))
+		return 0;
+
+	if (len > (c->wbuf_pagesize - c->wbuf_len))
+		len = c->wbuf_pagesize - c->wbuf_len;
+	memcpy(c->wbuf + c->wbuf_len, buf, len);
+	c->wbuf_len += (uint32_t) len;
+	return len;
+}
+
+int jffs2_flash_writev(struct jffs2_sb_info *c, const struct kvec *invecs,
+		       unsigned long count, loff_t to, size_t *retlen,
+		       uint32_t ino)
+{
+	struct jffs2_eraseblock *jeb;
+	size_t wbuf_retlen, donelen = 0;
+	uint32_t outvec_to = to;
+	int ret, invec;
+
+	/* If not writebuffered flash, don't bother */
 	if (!jffs2_is_writebuffered(c))
 		return jffs2_flash_direct_writev(c, invecs, count, to, retlen);
 
@@ -639,9 +649,11 @@ int jffs2_flash_writev(struct jffs2_sb_info *c, const struct kvec *invecs, unsig
 		memset(c->wbuf,0xff,c->wbuf_pagesize);
 	}
 
-	/* Fixup the wbuf if we are moving to a new eraseblock.  The checks below
-	   fail for ECC'd NOR because cleanmarker == 16, so a block starts at
-	   xxx0010.  */
+	/*
+	 * Fixup the wbuf if we are moving to a new eraseblock. The
+	 * checks below fail for ECC'd NOR because cleanmarker == 16,
+	 * so a block starts at xxx0010.
+	 */
 	if (jffs2_nor_ecc(c)) {
 		if (((c->wbuf_ofs % c->sector_size) == 0) && !c->wbuf_len) {
 			c->wbuf_ofs = PAGE_DIV(to);
@@ -650,23 +662,22 @@ int jffs2_flash_writev(struct jffs2_sb_info *c, const struct kvec *invecs, unsig
 		}
 	}
 
-	/* Sanity checks on target address.
-	   It's permitted to write at PAD(c->wbuf_len+c->wbuf_ofs),
-	   and it's permitted to write at the beginning of a new
-	   erase block. Anything else, and you die.
-	   New block starts at xxx000c (0-b = block header)
-	*/
+	/*
+	 * Sanity checks on target address.  It's permitted to write
+	 * at PAD(c->wbuf_len+c->wbuf_ofs), and it's permitted to
+	 * write at the beginning of a new erase block. Anything else,
+	 * and you die.  New block starts at xxx000c (0-b = block
+	 * header)
+	 */
 	if (SECTOR_ADDR(to) != SECTOR_ADDR(c->wbuf_ofs)) {
 		/* It's a write to a new block */
 		if (c->wbuf_len) {
-			D1(printk(KERN_DEBUG "jffs2_flash_writev() to 0x%lx causes flush of wbuf at 0x%08x\n", (unsigned long)to, c->wbuf_ofs));
+			D1(printk(KERN_DEBUG "jffs2_flash_writev() to 0x%lx "
+				  "causes flush of wbuf at 0x%08x\n",
+				  (unsigned long)to, c->wbuf_ofs));
 			ret = __jffs2_flush_wbuf(c, PAD_NOACCOUNT);
-			if (ret) {
-				/* the underlying layer has to check wbuf_len to do the cleanup */
-				D1(printk(KERN_WARNING "jffs2_flush_wbuf() called from jffs2_flash_writev() failed %d\n", ret));
-				*retlen = 0;
-				goto exit;
-			}
+			if (ret)
+				goto outerr;
 		}
 		/* set pointer to new block */
 		c->wbuf_ofs = PAGE_DIV(to);
@@ -675,165 +686,70 @@ int jffs2_flash_writev(struct jffs2_sb_info *c, const struct kvec *invecs, unsig
 
 	if (to != PAD(c->wbuf_ofs + c->wbuf_len)) {
 		/* We're not writing immediately after the writebuffer. Bad. */
-		printk(KERN_CRIT "jffs2_flash_writev(): Non-contiguous write to %08lx\n", (unsigned long)to);
+		printk(KERN_CRIT "jffs2_flash_writev(): Non-contiguous write "
+		       "to %08lx\n", (unsigned long)to);
 		if (c->wbuf_len)
 			printk(KERN_CRIT "wbuf was previously %08x-%08x\n",
-					  c->wbuf_ofs, c->wbuf_ofs+c->wbuf_len);
+			       c->wbuf_ofs, c->wbuf_ofs+c->wbuf_len);
 		BUG();
 	}
 
-	/* Note outvecs[3] above. We know count is never greater than 2 */
-	if (count > 2) {
-		printk(KERN_CRIT "jffs2_flash_writev(): count is %ld\n", count);
-		BUG();
-	}
-
-	invec = 0;
-	outvec = 0;
-
-	/* Fill writebuffer first, if already in use */
-	if (c->wbuf_len) {
-		uint32_t invec_ofs = 0;
-
-		/* adjust alignment offset */
-		if (c->wbuf_len != PAGE_MOD(to)) {
-			c->wbuf_len = PAGE_MOD(to);
-			/* take care of alignment to next page */
-			if (!c->wbuf_len)
-				c->wbuf_len = c->wbuf_pagesize;
-		}
-
-		while(c->wbuf_len < c->wbuf_pagesize) {
-			uint32_t thislen;
-
-			if (invec == count)
-				goto alldone;
-
-			thislen = c->wbuf_pagesize - c->wbuf_len;
-
-			if (thislen >= invecs[invec].iov_len)
-				thislen = invecs[invec].iov_len;
-
-			invec_ofs = thislen;
-
-			memcpy(c->wbuf + c->wbuf_len, invecs[invec].iov_base, thislen);
-			c->wbuf_len += thislen;
-			donelen += thislen;
-			/* Get next invec, if actual did not fill the buffer */
-			if (c->wbuf_len < c->wbuf_pagesize)
-				invec++;
-		}
-
-		/* write buffer is full, flush buffer */
-		ret = __jffs2_flush_wbuf(c, NOPAD);
-		if (ret) {
-			/* the underlying layer has to check wbuf_len to do the cleanup */
-			D1(printk(KERN_WARNING "jffs2_flush_wbuf() called from jffs2_flash_writev() failed %d\n", ret));
-			/* Retlen zero to make sure our caller doesn't mark the space dirty.
-			   We've already done everything that's necessary */
-			*retlen = 0;
-			goto exit;
-		}
-		outvec_to += donelen;
-		c->wbuf_ofs = outvec_to;
-
-		/* All invecs done ? */
-		if (invec == count)
-			goto alldone;
-
-		/* Set up the first outvec, containing the remainder of the
-		   invec we partially used */
-		if (invecs[invec].iov_len > invec_ofs) {
-			outvecs[0].iov_base = invecs[invec].iov_base+invec_ofs;
-			totlen = outvecs[0].iov_len = invecs[invec].iov_len-invec_ofs;
-			if (totlen > c->wbuf_pagesize) {
-				splitvec = outvec;
-				split_ofs = outvecs[0].iov_len - PAGE_MOD(totlen);
-			}
-			outvec++;
-		}
-		invec++;
-	}
-
-	/* OK, now we've flushed the wbuf and the start of the bits
-	   we have been asked to write, now to write the rest.... */
-
-	/* totlen holds the amount of data still to be written */
-	old_totlen = totlen;
-	for ( ; invec < count; invec++,outvec++ ) {
-		outvecs[outvec].iov_base = invecs[invec].iov_base;
-		totlen += outvecs[outvec].iov_len = invecs[invec].iov_len;
-		if (PAGE_DIV(totlen) != PAGE_DIV(old_totlen)) {
-			splitvec = outvec;
-			split_ofs = outvecs[outvec].iov_len - PAGE_MOD(totlen);
-			old_totlen = totlen;
+	/* adjust alignment offset */
+	if (c->wbuf_len != PAGE_MOD(to)) {
+		c->wbuf_len = PAGE_MOD(to);
+		/* take care of alignment to next page */
+		if (!c->wbuf_len) {
+			c->wbuf_len = c->wbuf_pagesize;
+			ret = __jffs2_flush_wbuf(c, NOPAD);
+			if (ret)
+				goto outerr;
 		}
 	}
 
-	/* Now the outvecs array holds all the remaining data to write */
-	/* Up to splitvec,split_ofs is to be written immediately. The rest
-	   goes into the (now-empty) wbuf */
+	for (invec = 0; invec < count; invec++) {
+		int vlen = invecs[invec].iov_len;
+		uint8_t *v = invecs[invec].iov_base;
 
-	if (splitvec != -1) {
-		uint32_t remainder;
+		wbuf_retlen = jffs2_fill_wbuf(c, v, vlen);
 
-		remainder = outvecs[splitvec].iov_len - split_ofs;
-		outvecs[splitvec].iov_len = split_ofs;
-
-		/* We did cross a page boundary, so we write some now */
-		if (jffs2_cleanmarker_oob(c))
-			ret = c->mtd->writev_ecc(c->mtd, outvecs, splitvec+1, outvec_to, &wbuf_retlen, NULL, c->oobinfo);
-		else
-			ret = jffs2_flash_direct_writev(c, outvecs, splitvec+1, outvec_to, &wbuf_retlen);
-
-		if (ret < 0 || wbuf_retlen != PAGE_DIV(totlen)) {
-			/* At this point we have no problem,
-			   c->wbuf is empty. However refile nextblock to avoid
-			   writing again to same address.
-			*/
-			struct jffs2_eraseblock *jeb;
-
-			spin_lock(&c->erase_completion_lock);
-
-			jeb = &c->blocks[outvec_to / c->sector_size];
-			jffs2_block_refile(c, jeb, REFILE_ANYWAY);
-
-			*retlen = 0;
-			spin_unlock(&c->erase_completion_lock);
-			goto exit;
+		if (c->wbuf_len == c->wbuf_pagesize) {
+			ret = __jffs2_flush_wbuf(c, NOPAD);
+			if (ret)
+				goto outerr;
 		}
-
+		vlen -= wbuf_retlen;
+		outvec_to += wbuf_retlen;
 		donelen += wbuf_retlen;
-		c->wbuf_ofs = PAGE_DIV(outvec_to) + PAGE_DIV(totlen);
+		v += wbuf_retlen;
 
-		if (remainder) {
-			outvecs[splitvec].iov_base += split_ofs;
-			outvecs[splitvec].iov_len = remainder;
-		} else {
-			splitvec++;
+		if (vlen >= c->wbuf_pagesize) {
+			ret = c->mtd->write(c->mtd, outvec_to, PAGE_DIV(vlen),
+					    &wbuf_retlen, v);
+			if (ret < 0 || wbuf_retlen != PAGE_DIV(vlen))
+				goto outfile;
+
+			vlen -= wbuf_retlen;
+			outvec_to += wbuf_retlen;
+			c->wbuf_ofs = outvec_to;
+			donelen += wbuf_retlen;
+			v += wbuf_retlen;
 		}
 
-	} else {
-		splitvec = 0;
+		wbuf_retlen = jffs2_fill_wbuf(c, v, vlen);
+		if (c->wbuf_len == c->wbuf_pagesize) {
+			ret = __jffs2_flush_wbuf(c, NOPAD);
+			if (ret)
+				goto outerr;
+		}
+
+		outvec_to += wbuf_retlen;
+		donelen += wbuf_retlen;
 	}
 
-	/* Now splitvec points to the start of the bits we have to copy
-	   into the wbuf */
-	wbuf_ptr = c->wbuf;
-
-	for ( ; splitvec < outvec; splitvec++) {
-		/* Don't copy the wbuf into itself */
-		if (outvecs[splitvec].iov_base == c->wbuf)
-			continue;
-		memcpy(wbuf_ptr, outvecs[splitvec].iov_base, outvecs[splitvec].iov_len);
-		wbuf_ptr += outvecs[splitvec].iov_len;
-		donelen += outvecs[splitvec].iov_len;
-	}
-	c->wbuf_len = wbuf_ptr - c->wbuf;
-
-	/* If there's a remainder in the wbuf and it's a non-GC write,
-	   remember that the wbuf affects this ino */
-alldone:
+	/*
+	 * If there's a remainder in the wbuf and it's a non-GC write,
+	 * remember that the wbuf affects this ino
+	 */
 	*retlen = donelen;
 
 	if (jffs2_sum_active()) {
@@ -846,8 +762,24 @@ alldone:
 		jffs2_wbuf_dirties_inode(c, ino);
 
 	ret = 0;
+	up_write(&c->wbuf_sem);
+	return ret;
 
-exit:
+outfile:
+	/*
+	 * At this point we have no problem, c->wbuf is empty. However
+	 * refile nextblock to avoid writing again to same address.
+	 */
+
+	spin_lock(&c->erase_completion_lock);
+
+	jeb = &c->blocks[outvec_to / c->sector_size];
+	jffs2_block_refile(c, jeb, REFILE_ANYWAY);
+
+	spin_unlock(&c->erase_completion_lock);
+
+outerr:
+	*retlen = 0;
 	up_write(&c->wbuf_sem);
 	return ret;
 }
