@@ -294,14 +294,14 @@ struct nand_chip {
 	void  __iomem	*IO_ADDR_R;
 	void  __iomem	*IO_ADDR_W;
 
-	u_char		(*read_byte)(struct mtd_info *mtd);
-	void		(*write_byte)(struct mtd_info *mtd, u_char byte);
+	uint8_t		(*read_byte)(struct mtd_info *mtd);
+	void		(*write_byte)(struct mtd_info *mtd, uint8_t byte);
 	u16		(*read_word)(struct mtd_info *mtd);
 	void		(*write_word)(struct mtd_info *mtd, u16 word);
 
-	void		(*write_buf)(struct mtd_info *mtd, const u_char *buf, int len);
-	void		(*read_buf)(struct mtd_info *mtd, u_char *buf, int len);
-	int		(*verify_buf)(struct mtd_info *mtd, const u_char *buf, int len);
+	void		(*write_buf)(struct mtd_info *mtd, const uint8_t *buf, int len);
+	void		(*read_buf)(struct mtd_info *mtd, uint8_t *buf, int len);
+	int		(*verify_buf)(struct mtd_info *mtd, const uint8_t *buf, int len);
 	void		(*select_chip)(struct mtd_info *mtd, int chip);
 	int		(*block_bad)(struct mtd_info *mtd, loff_t ofs, int getchip);
 	int		(*block_markbad)(struct mtd_info *mtd, loff_t ofs);
@@ -309,8 +309,8 @@ struct nand_chip {
 	int		(*dev_ready)(struct mtd_info *mtd);
 	void		(*cmdfunc)(struct mtd_info *mtd, unsigned command, int column, int page_addr);
 	int		(*waitfunc)(struct mtd_info *mtd, struct nand_chip *this, int state);
-	int		(*calculate_ecc)(struct mtd_info *mtd, const u_char *dat, u_char *ecc_code);
-	int		(*correct_data)(struct mtd_info *mtd, u_char *dat, u_char *read_ecc, u_char *calc_ecc);
+	int		(*calculate_ecc)(struct mtd_info *mtd, const uint8_t *dat, uint8_t *ecc_code);
+	int		(*correct_data)(struct mtd_info *mtd, uint8_t *dat, uint8_t *read_ecc, uint8_t *calc_ecc);
 	void		(*enable_hwecc)(struct mtd_info *mtd, int mode);
 	void		(*erase_cmd)(struct mtd_info *mtd, int page);
 	int		(*scan_bbt)(struct mtd_info *mtd);
@@ -325,10 +325,10 @@ struct nand_chip {
 	int		phys_erase_shift;
 	int		bbt_erase_shift;
 	int		chip_shift;
-	u_char		*data_buf;
-	u_char		*oob_buf;
+	uint8_t		*data_buf;
+	uint8_t		*oob_buf;
 	int		oobdirty;
-	u_char		*data_poi;
+	uint8_t		*data_poi;
 	unsigned int	options;
 	int		badblockpos;
 	int		numchips;
@@ -466,7 +466,7 @@ extern int nand_default_bbt (struct mtd_info *mtd);
 extern int nand_isbad_bbt (struct mtd_info *mtd, loff_t offs, int allowbbt);
 extern int nand_erase_nand (struct mtd_info *mtd, struct erase_info *instr, int allowbbt);
 extern int nand_do_read_ecc (struct mtd_info *mtd, loff_t from, size_t len,
-			     size_t * retlen, u_char * buf, u_char * oob_buf,
+			     size_t * retlen, uint8_t * buf, uint8_t * oob_buf,
 			     struct nand_oobinfo *oobsel, int flags);
 
 /*

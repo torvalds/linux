@@ -118,7 +118,7 @@ static struct nand_oobinfo nand_oob_64 = {
 };
 
 /* This is used for padding purposes in nand_write_oob */
-static u_char ffchars[] = {
+static uint8_t ffchars[] = {
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
@@ -132,39 +132,39 @@ static u_char ffchars[] = {
 /*
  * NAND low-level MTD interface functions
  */
-static void nand_write_buf(struct mtd_info *mtd, const u_char *buf, int len);
-static void nand_read_buf(struct mtd_info *mtd, u_char *buf, int len);
-static int nand_verify_buf(struct mtd_info *mtd, const u_char *buf, int len);
+static void nand_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len);
+static void nand_read_buf(struct mtd_info *mtd, uint8_t *buf, int len);
+static int nand_verify_buf(struct mtd_info *mtd, const uint8_t *buf, int len);
 
 static int nand_read(struct mtd_info *mtd, loff_t from, size_t len,
-		     size_t *retlen, u_char *buf);
+		     size_t *retlen, uint8_t *buf);
 static int nand_read_ecc(struct mtd_info *mtd, loff_t from, size_t len,
-			 size_t *retlen, u_char *buf, u_char *eccbuf,
+			 size_t *retlen, uint8_t *buf, uint8_t *eccbuf,
 			 struct nand_oobinfo *oobsel);
 static int nand_read_oob(struct mtd_info *mtd, loff_t from, size_t len,
-			 size_t *retlen, u_char *buf);
+			 size_t *retlen, uint8_t *buf);
 static int nand_write(struct mtd_info *mtd, loff_t to, size_t len,
-		      size_t *retlen, const u_char *buf);
+		      size_t *retlen, const uint8_t *buf);
 static int nand_write_ecc(struct mtd_info *mtd, loff_t to, size_t len,
-			  size_t *retlen, const u_char *buf, u_char *eccbuf,
+			  size_t *retlen, const uint8_t *buf, uint8_t *eccbuf,
 			  struct nand_oobinfo *oobsel);
 static int nand_write_oob(struct mtd_info *mtd, loff_t to, size_t len,
-			  size_t *retlen, const u_char *buf);
+			  size_t *retlen, const uint8_t *buf);
 static int nand_writev(struct mtd_info *mtd, const struct kvec *vecs,
 		       unsigned long count, loff_t to, size_t *retlen);
 static int nand_writev_ecc(struct mtd_info *mtd, const struct kvec *vecs,
 			   unsigned long count, loff_t to, size_t *retlen,
-			   u_char *eccbuf, struct nand_oobinfo *oobsel);
+			   uint8_t *eccbuf, struct nand_oobinfo *oobsel);
 static int nand_erase(struct mtd_info *mtd, struct erase_info *instr);
 static void nand_sync(struct mtd_info *mtd);
 
 /* Some internal functions */
 static int nand_write_page(struct mtd_info *mtd, struct nand_chip *this,
-			   int page, u_char * oob_buf,
+			   int page, uint8_t * oob_buf,
 			   struct nand_oobinfo *oobsel, int mode);
 #ifdef CONFIG_MTD_NAND_VERIFY_WRITE
 static int nand_verify_pages(struct mtd_info *mtd, struct nand_chip *this,
-			     int page, int numpages, u_char *oob_buf,
+			     int page, int numpages, uint8_t *oob_buf,
 			     struct nand_oobinfo *oobsel, int chipnr,
 			     int oobmode);
 #else
@@ -201,7 +201,7 @@ static void nand_release_device(struct mtd_info *mtd)
  *
  * Default read function for 8bit buswith
  */
-static u_char nand_read_byte(struct mtd_info *mtd)
+static uint8_t nand_read_byte(struct mtd_info *mtd)
 {
 	struct nand_chip *this = mtd->priv;
 	return readb(this->IO_ADDR_R);
@@ -214,7 +214,7 @@ static u_char nand_read_byte(struct mtd_info *mtd)
  *
  * Default write function for 8it buswith
  */
-static void nand_write_byte(struct mtd_info *mtd, u_char byte)
+static void nand_write_byte(struct mtd_info *mtd, uint8_t byte)
 {
 	struct nand_chip *this = mtd->priv;
 	writeb(byte, this->IO_ADDR_W);
@@ -227,10 +227,10 @@ static void nand_write_byte(struct mtd_info *mtd, u_char byte)
  * Default read function for 16bit buswith with
  * endianess conversion
  */
-static u_char nand_read_byte16(struct mtd_info *mtd)
+static uint8_t nand_read_byte16(struct mtd_info *mtd)
 {
 	struct nand_chip *this = mtd->priv;
-	return (u_char) cpu_to_le16(readw(this->IO_ADDR_R));
+	return (uint8_t) cpu_to_le16(readw(this->IO_ADDR_R));
 }
 
 /**
@@ -241,7 +241,7 @@ static u_char nand_read_byte16(struct mtd_info *mtd)
  * Default write function for 16bit buswith with
  * endianess conversion
  */
-static void nand_write_byte16(struct mtd_info *mtd, u_char byte)
+static void nand_write_byte16(struct mtd_info *mtd, uint8_t byte)
 {
 	struct nand_chip *this = mtd->priv;
 	writew(le16_to_cpu((u16) byte), this->IO_ADDR_W);
@@ -305,7 +305,7 @@ static void nand_select_chip(struct mtd_info *mtd, int chip)
  *
  * Default write function for 8bit buswith
  */
-static void nand_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
+static void nand_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
 {
 	int i;
 	struct nand_chip *this = mtd->priv;
@@ -322,7 +322,7 @@ static void nand_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
  *
  * Default read function for 8bit buswith
  */
-static void nand_read_buf(struct mtd_info *mtd, u_char *buf, int len)
+static void nand_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 {
 	int i;
 	struct nand_chip *this = mtd->priv;
@@ -339,7 +339,7 @@ static void nand_read_buf(struct mtd_info *mtd, u_char *buf, int len)
  *
  * Default verify function for 8bit buswith
  */
-static int nand_verify_buf(struct mtd_info *mtd, const u_char *buf, int len)
+static int nand_verify_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
 {
 	int i;
 	struct nand_chip *this = mtd->priv;
@@ -359,7 +359,7 @@ static int nand_verify_buf(struct mtd_info *mtd, const u_char *buf, int len)
  *
  * Default write function for 16bit buswith
  */
-static void nand_write_buf16(struct mtd_info *mtd, const u_char *buf, int len)
+static void nand_write_buf16(struct mtd_info *mtd, const uint8_t *buf, int len)
 {
 	int i;
 	struct nand_chip *this = mtd->priv;
@@ -379,7 +379,7 @@ static void nand_write_buf16(struct mtd_info *mtd, const u_char *buf, int len)
  *
  * Default read function for 16bit buswith
  */
-static void nand_read_buf16(struct mtd_info *mtd, u_char *buf, int len)
+static void nand_read_buf16(struct mtd_info *mtd, uint8_t *buf, int len)
 {
 	int i;
 	struct nand_chip *this = mtd->priv;
@@ -398,7 +398,7 @@ static void nand_read_buf16(struct mtd_info *mtd, u_char *buf, int len)
  *
  * Default verify function for 16bit buswith
  */
-static int nand_verify_buf16(struct mtd_info *mtd, const u_char *buf, int len)
+static int nand_verify_buf16(struct mtd_info *mtd, const uint8_t *buf, int len)
 {
 	int i;
 	struct nand_chip *this = mtd->priv;
@@ -472,7 +472,7 @@ static int nand_block_bad(struct mtd_info *mtd, loff_t ofs, int getchip)
 static int nand_default_block_markbad(struct mtd_info *mtd, loff_t ofs)
 {
 	struct nand_chip *this = mtd->priv;
-	u_char buf[2] = { 0, 0 };
+	uint8_t buf[2] = { 0, 0 };
 	size_t retlen;
 	int block;
 
@@ -600,11 +600,11 @@ static void nand_command(struct mtd_info *mtd, unsigned command, int column,
 			this->write_byte(mtd, column);
 		}
 		if (page_addr != -1) {
-			this->write_byte(mtd, (unsigned char)(page_addr & 0xff));
-			this->write_byte(mtd, (unsigned char)((page_addr >> 8) & 0xff));
+			this->write_byte(mtd, (uint8_t)(page_addr & 0xff));
+			this->write_byte(mtd, (uint8_t)((page_addr >> 8) & 0xff));
 			/* One more address cycle for devices > 32MiB */
 			if (this->chipsize > (32 << 20))
-				this->write_byte(mtd, (unsigned char)((page_addr >> 16) & 0x0f));
+				this->write_byte(mtd, (uint8_t)((page_addr >> 16) & 0x0f));
 		}
 		/* Latch in address */
 		this->hwcontrol(mtd, NAND_CTL_CLRALE);
@@ -692,11 +692,11 @@ static void nand_command_lp(struct mtd_info *mtd, unsigned command, int column, 
 			this->write_byte(mtd, column >> 8);
 		}
 		if (page_addr != -1) {
-			this->write_byte(mtd, (unsigned char)(page_addr & 0xff));
-			this->write_byte(mtd, (unsigned char)((page_addr >> 8) & 0xff));
+			this->write_byte(mtd, (uint8_t)(page_addr & 0xff));
+			this->write_byte(mtd, (uint8_t)((page_addr >> 8) & 0xff));
 			/* One more address cycle for devices > 128MiB */
 			if (this->chipsize > (128 << 20))
-				this->write_byte(mtd, (unsigned char)((page_addr >> 16) & 0xff));
+				this->write_byte(mtd, (uint8_t)((page_addr >> 16) & 0xff));
 		}
 		/* Latch in address */
 		this->hwcontrol(mtd, NAND_CTL_CLRALE);
@@ -874,10 +874,10 @@ static int nand_wait(struct mtd_info *mtd, struct nand_chip *this, int state)
  * Cached programming is not supported yet.
  */
 static int nand_write_page(struct mtd_info *mtd, struct nand_chip *this, int page,
-			   u_char *oob_buf, struct nand_oobinfo *oobsel, int cached)
+			   uint8_t *oob_buf, struct nand_oobinfo *oobsel, int cached)
 {
 	int i, status;
-	u_char ecc_code[32];
+	uint8_t ecc_code[32];
 	int eccmode = oobsel->useecc ? this->eccmode : NAND_ECC_NONE;
 	int *oob_config = oobsel->eccpos;
 	int datidx = 0, eccidx = 0, eccsteps = this->eccsteps;
@@ -978,12 +978,12 @@ static int nand_write_page(struct mtd_info *mtd, struct nand_chip *this, int pag
  * it early in the page write stage. Better to write no data than invalid data.
  */
 static int nand_verify_pages(struct mtd_info *mtd, struct nand_chip *this, int page, int numpages,
-			     u_char *oob_buf, struct nand_oobinfo *oobsel, int chipnr, int oobmode)
+			     uint8_t *oob_buf, struct nand_oobinfo *oobsel, int chipnr, int oobmode)
 {
 	int i, j, datidx = 0, oobofs = 0, res = -EIO;
 	int eccsteps = this->eccsteps;
 	int hweccbytes;
-	u_char oobdata[64];
+	uint8_t oobdata[64];
 
 	hweccbytes = (this->options & NAND_HWECC_SYNDROME) ? (oobsel->eccbytes / eccsteps) : 0;
 
@@ -1078,7 +1078,7 @@ static int nand_verify_pages(struct mtd_info *mtd, struct nand_chip *this, int p
  * This function simply calls nand_do_read_ecc with oob buffer and oobsel = NULL
  * and flags = 0xff
  */
-static int nand_read(struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen, u_char *buf)
+static int nand_read(struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen, uint8_t *buf)
 {
 	return nand_do_read_ecc(mtd, from, len, retlen, buf, NULL, &mtd->oobinfo, 0xff);
 }
@@ -1096,7 +1096,7 @@ static int nand_read(struct mtd_info *mtd, loff_t from, size_t len, size_t *retl
  * This function simply calls nand_do_read_ecc with flags = 0xff
  */
 static int nand_read_ecc(struct mtd_info *mtd, loff_t from, size_t len,
-			 size_t *retlen, u_char *buf, u_char *oob_buf, struct nand_oobinfo *oobsel)
+			 size_t *retlen, uint8_t *buf, uint8_t *oob_buf, struct nand_oobinfo *oobsel)
 {
 	/* use userspace supplied oobinfo, if zero */
 	if (oobsel == NULL)
@@ -1121,15 +1121,15 @@ static int nand_read_ecc(struct mtd_info *mtd, loff_t from, size_t len,
  * NAND read with ECC
  */
 int nand_do_read_ecc(struct mtd_info *mtd, loff_t from, size_t len,
-		     size_t *retlen, u_char *buf, u_char *oob_buf, struct nand_oobinfo *oobsel, int flags)
+		     size_t *retlen, uint8_t *buf, uint8_t *oob_buf, struct nand_oobinfo *oobsel, int flags)
 {
 
 	int i, j, col, realpage, page, end, ecc, chipnr, sndcmd = 1;
 	int read = 0, oob = 0, ecc_status = 0, ecc_failed = 0;
 	struct nand_chip *this = mtd->priv;
-	u_char *data_poi, *oob_data = oob_buf;
-	u_char ecc_calc[32];
-	u_char ecc_code[32];
+	uint8_t *data_poi, *oob_data = oob_buf;
+	uint8_t ecc_calc[32];
+	uint8_t ecc_code[32];
 	int eccmode, eccsteps;
 	int *oob_config, datidx;
 	int blockcheck = (1 << (this->phys_erase_shift - this->page_shift)) - 1;
@@ -1383,7 +1383,7 @@ int nand_do_read_ecc(struct mtd_info *mtd, loff_t from, size_t len,
  *
  * NAND read out-of-band data from the spare area
  */
-static int nand_read_oob(struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen, u_char *buf)
+static int nand_read_oob(struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen, uint8_t *buf)
 {
 	int i, col, page, chipnr;
 	struct nand_chip *this = mtd->priv;
@@ -1550,7 +1550,7 @@ int nand_read_raw(struct mtd_info *mtd, uint8_t *buf, loff_t from, size_t len, s
  * forces the 0xff fill before using the buffer again.
  *
 */
-static u_char *nand_prepare_oobbuf(struct mtd_info *mtd, u_char *fsbuf, struct nand_oobinfo *oobsel,
+static uint8_t *nand_prepare_oobbuf(struct mtd_info *mtd, uint8_t *fsbuf, struct nand_oobinfo *oobsel,
 				   int autoplace, int numpages)
 {
 	struct nand_chip *this = mtd->priv;
@@ -1599,7 +1599,7 @@ static u_char *nand_prepare_oobbuf(struct mtd_info *mtd, u_char *fsbuf, struct n
  * This function simply calls nand_write_ecc with oob buffer and oobsel = NULL
  *
 */
-static int nand_write(struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen, const u_char *buf)
+static int nand_write(struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen, const uint8_t *buf)
 {
 	return (nand_write_ecc(mtd, to, len, retlen, buf, NULL, NULL));
 }
@@ -1617,13 +1617,13 @@ static int nand_write(struct mtd_info *mtd, loff_t to, size_t len, size_t *retle
  * NAND write with ECC
  */
 static int nand_write_ecc(struct mtd_info *mtd, loff_t to, size_t len,
-			  size_t *retlen, const u_char *buf, u_char *eccbuf,
+			  size_t *retlen, const uint8_t *buf, uint8_t *eccbuf,
 			  struct nand_oobinfo *oobsel)
 {
 	int startpage, page, ret = -EIO, oob = 0, written = 0, chipnr;
 	int autoplace = 0, numpages, totalpages;
 	struct nand_chip *this = mtd->priv;
-	u_char *oobbuf, *bufstart;
+	uint8_t *oobbuf, *bufstart;
 	int ppblock = (1 << (this->phys_erase_shift - this->page_shift));
 
 	DEBUG(MTD_DEBUG_LEVEL3, "nand_write_ecc: to = 0x%08x, len = %i\n", (unsigned int)to, (int)len);
@@ -1680,12 +1680,12 @@ static int nand_write_ecc(struct mtd_info *mtd, loff_t to, size_t len,
 	/* Calc number of pages we can write in one go */
 	numpages = min(ppblock - (startpage & (ppblock - 1)), totalpages);
 	oobbuf = nand_prepare_oobbuf(mtd, eccbuf, oobsel, autoplace, numpages);
-	bufstart = (u_char *) buf;
+	bufstart = (uint8_t *) buf;
 
 	/* Loop until all data is written */
 	while (written < len) {
 
-		this->data_poi = (u_char *) &buf[written];
+		this->data_poi = (uint8_t *) &buf[written];
 		/* Write one page. If this is the last page to write
 		 * or the last page in this block, then use the
 		 * real pageprogram command, else select cached programming
@@ -1764,7 +1764,7 @@ static int nand_write_ecc(struct mtd_info *mtd, loff_t to, size_t len,
  *
  * NAND write out-of-band
  */
-static int nand_write_oob(struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen, const u_char *buf)
+static int nand_write_oob(struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen, const uint8_t *buf)
 {
 	int column, page, status, ret = -EIO, chipnr;
 	struct nand_chip *this = mtd->priv;
@@ -1884,13 +1884,13 @@ static int nand_writev(struct mtd_info *mtd, const struct kvec *vecs, unsigned l
  * NAND write with iovec with ecc
  */
 static int nand_writev_ecc(struct mtd_info *mtd, const struct kvec *vecs, unsigned long count,
-			   loff_t to, size_t *retlen, u_char *eccbuf, struct nand_oobinfo *oobsel)
+			   loff_t to, size_t *retlen, uint8_t *eccbuf, struct nand_oobinfo *oobsel)
 {
 	int i, page, len, total_len, ret = -EIO, written = 0, chipnr;
 	int oob, numpages, autoplace = 0, startpage;
 	struct nand_chip *this = mtd->priv;
 	int ppblock = (1 << (this->phys_erase_shift - this->page_shift));
-	u_char *oobbuf, *bufstart;
+	uint8_t *oobbuf, *bufstart;
 
 	/* Preset written len for early exit */
 	*retlen = 0;
@@ -1959,7 +1959,7 @@ static int nand_writev_ecc(struct mtd_info *mtd, const struct kvec *vecs, unsign
 			/* Do not cross block boundaries */
 			numpages = min(ppblock - (startpage & (ppblock - 1)), numpages);
 			oobbuf = nand_prepare_oobbuf(mtd, NULL, oobsel, autoplace, numpages);
-			bufstart = (u_char *) vecs->iov_base;
+			bufstart = (uint8_t *) vecs->iov_base;
 			bufstart += len;
 			this->data_poi = bufstart;
 			oob = 0;
@@ -1990,7 +1990,7 @@ static int nand_writev_ecc(struct mtd_info *mtd, const struct kvec *vecs, unsign
 			int cnt = 0;
 			while (cnt < mtd->oobblock) {
 				if (vecs->iov_base != NULL && vecs->iov_len)
-					this->data_buf[cnt++] = ((u_char *) vecs->iov_base)[len++];
+					this->data_buf[cnt++] = ((uint8_t *) vecs->iov_base)[len++];
 				/* Check, if we have to switch to the next tuple */
 				if (len >= (int)vecs->iov_len) {
 					vecs++;
