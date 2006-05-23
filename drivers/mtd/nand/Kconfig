@@ -65,7 +65,7 @@ config MTD_NAND_AMS_DELTA
 
 config MTD_NAND_TOTO
 	tristate "NAND Flash device on TOTO board"
-	depends on ARCH_OMAP && MTD_NAND
+	depends on ARCH_OMAP && MTD_NAND && BROKEN
 	help
 	  Support for NAND flash on Texas Instruments Toto platform.
 
@@ -96,7 +96,7 @@ config MTD_NAND_RTC_FROM4
 
 config MTD_NAND_PPCHAMELEONEVB
 	tristate "NAND Flash device on PPChameleonEVB board"
-	depends on PPCHAMELEONEVB && MTD_NAND
+	depends on PPCHAMELEONEVB && MTD_NAND && BROKEN
 	help
 	  This enables the NAND flash driver on the PPChameleon EVB Board.
 
