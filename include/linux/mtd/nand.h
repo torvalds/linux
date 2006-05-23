@@ -510,4 +510,51 @@ extern int nand_do_read_ecc (struct mtd_info *mtd, loff_t from, size_t len,
 #define NAND_SMALL_BADBLOCK_POS		5
 #define NAND_LARGE_BADBLOCK_POS		0
 
+/**
+ * struct platform_nand_chip - chip level device structure
+ *
+ * @nr_chips:		max. number of chips to scan for
+ * @chip_offs:		chip number offset
+ * @nr_partitions:	number of partitions pointed to be partitoons (or zero)
+ * @partitions:		mtd partition list
+ * @chip_delay:		R/B delay value in us
+ * @options:		Option flags, e.g. 16bit buswidth
+ * @priv:		hardware controller specific settings
+ */
+struct platform_nand_chip {
+	int			nr_chips;
+	int			chip_offset;
+	int			nr_partitions;
+	struct mtd_partition	*partitions;
+	int 			chip_delay;
+	unsigned int		options;
+	void			*priv;
+};
+
+/**
+ * struct platform_nand_ctrl - controller level device structure
+ *
+ * @hwcontrol:		platform specific hardware control structure
+ * @dev_ready:		platform specific function to read ready/busy pin
+ * @select_chip:	platform specific chip select function
+ * @priv_data:		private data to transport driver specific settings
+ *
+ * All fields are optional and depend on the hardware driver requirements
+ */
+struct platform_nand_ctrl {
+	void 		(*hwcontrol)(struct mtd_info *mtd, int cmd);
+	int  		(*dev_ready)(struct mtd_info *mtd);
+	void		(*select_chip)(struct mtd_info *mtd, int chip);
+	void		*priv;
+};
+
+/* Some helpers to access the data structures */
+static inline
+struct platform_nand_chip *get_platform_nandchip(struct mtd_info *mtd)
+{
+	struct nand_chip *chip = mtd->priv;
+
+	return chip->priv;
+}
+
 #endif /* __LINUX_MTD_NAND_H */
