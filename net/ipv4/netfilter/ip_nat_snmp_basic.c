@@ -768,6 +768,7 @@ static unsigned char snmp_object_decode(struct asn1_ctx *ctx,
 			len *= sizeof(unsigned long);
 			*obj = kmalloc(sizeof(struct snmp_object) + len, GFP_ATOMIC);
 			if (*obj == NULL) {
+				kfree(lp);
 				kfree(id);
 				if (net_ratelimit())
 					printk("OOM in bsalg (%d)\n", __LINE__);
