@@ -375,7 +375,7 @@ struct e1000_host_mng_dhcp_cookie{
 };
 #endif
 
-int32_t e1000_mng_write_dhcp_info(struct e1000_hw *hw, uint8_t *buffer, 
+int32_t e1000_mng_write_dhcp_info(struct e1000_hw *hw, uint8_t *buffer,
 							uint16_t length);
 boolean_t e1000_check_mng_mode(struct e1000_hw *hw);
 boolean_t e1000_enable_tx_pkt_filtering(struct e1000_hw *hw);
@@ -1802,7 +1802,7 @@ struct e1000_hw {
  *       value2 = [0..64512],    default=4096
  *       value3 = [0..64512],    default=0
  */
-    
+
 #define E1000_PSRCTL_BSIZE0_MASK   0x0000007F
 #define E1000_PSRCTL_BSIZE1_MASK   0x00003F00
 #define E1000_PSRCTL_BSIZE2_MASK   0x003F0000

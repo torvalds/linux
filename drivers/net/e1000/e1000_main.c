@@ -349,7 +349,7 @@ e1000_update_mng_vlan(struct e1000_adapter *adapter)
  * For ASF and Pass Through versions of f/w this means that the
  * driver is no longer loaded. For AMT version (only with 82573) i
  * of the f/w this means that the netowrk i/f is closed.
- * 
+ *
  **/
 
 static void
@@ -381,10 +381,10 @@ e1000_release_hw_control(struct e1000_adapter *adapter)
  * @adapter: address of board private structure
  *
  * e1000_get_hw_control sets {CTRL_EXT|FWSM}:DRV_LOAD bit.
- * For ASF and Pass Through versions of f/w this means that 
- * the driver is loaded. For AMT version (only with 82573) 
+ * For ASF and Pass Through versions of f/w this means that
+ * the driver is loaded. For AMT version (only with 82573)
  * of the f/w this means that the netowrk i/f is open.
- * 
+ *
  **/
 
 static void
@@ -714,8 +714,8 @@ e1000_probe(struct pci_dev *pdev,
 		DPRINTK(PROBE, INFO, "PHY reset is blocked due to SOL/IDER session.\n");
 
 	/* if ksp3, indicate if it's port a being setup */
-	if (pdev->device == E1000_DEV_ID_82546GB_QUAD_COPPER_KSP3 && 
-			e1000_ksp3_port_a == 0) 
+	if (pdev->device == E1000_DEV_ID_82546GB_QUAD_COPPER_KSP3 &&
+			e1000_ksp3_port_a == 0)
 		adapter->ksp3_port_a = 1;
 	e1000_ksp3_port_a++;
 	/* Reset for multiple KP3 adapters */
@@ -743,9 +743,9 @@ e1000_probe(struct pci_dev *pdev,
 	if (pci_using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
 
- 	/* hard_start_xmit is safe against parallel locking */
- 	netdev->features |= NETIF_F_LLTX; 
- 
+	/* hard_start_xmit is safe against parallel locking */
+	netdev->features |= NETIF_F_LLTX;
+
 	adapter->en_mng_pt = e1000_enable_mng_pass_thru(&adapter->hw);
 
 	/* before reading the EEPROM, reset the controller to
@@ -2773,7 +2773,7 @@ e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	unsigned int nr_frags = 0;
 	unsigned int mss = 0;
 	int count = 0;
- 	int tso;
+	int tso;
 	unsigned int f;
 	len -= skb->data_len;
 
@@ -2786,7 +2786,7 @@ e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 #ifdef NETIF_F_TSO
 	mss = skb_shinfo(skb)->tso_size;
-	/* The controller does a simple calculation to 
+	/* The controller does a simple calculation to
 	 * make sure there is enough room in the FIFO before
 	 * initiating the DMA for each buffer.  The calc is:
 	 * 4 = ceil(buffer len/mss).  To make sure we don't
@@ -2809,7 +2809,7 @@ e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 			case e1000_82573:
 				pull_size = min((unsigned int)4, skb->data_len);
 				if (!__pskb_pull_tail(skb, pull_size)) {
-					printk(KERN_ERR 
+					printk(KERN_ERR
 						"__pskb_pull_tail failed.\n");
 					dev_kfree_skb_any(skb);
 					return NETDEV_TX_OK;
@@ -3755,7 +3755,7 @@ e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 		 * throughput, so unsplit small packets and save the alloc/put*/
 		if (l1 && ((length + l1) <= adapter->rx_ps_bsize0)) {
 			u8 *vaddr;
-			/* there is no documentation about how to call 
+			/* there is no documentation about how to call
 			 * kmap_atomic, so we can't hold the mapping
 			 * very long */
 			pci_dma_sync_single_for_cpu(pdev,
