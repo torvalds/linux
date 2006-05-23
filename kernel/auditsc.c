@@ -307,7 +307,6 @@ static int audit_filter_rules(struct task_struct *tsk,
 	}
 	switch (rule->action) {
 	case AUDIT_NEVER:    *state = AUDIT_DISABLED;	    break;
-	case AUDIT_POSSIBLE: *state = AUDIT_BUILD_CONTEXT;  break;
 	case AUDIT_ALWAYS:   *state = AUDIT_RECORD_CONTEXT; break;
 	}
 	return 1;

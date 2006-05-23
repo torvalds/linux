@@ -128,8 +128,11 @@ static inline struct audit_entry *audit_to_entry_common(struct audit_rule *rule)
 #endif
 		;
 	}
-	if (rule->action != AUDIT_NEVER && rule->action != AUDIT_POSSIBLE &&
-	    rule->action != AUDIT_ALWAYS)
+	if (unlikely(rule->action == AUDIT_POSSIBLE)) {
+		printk(KERN_ERR "AUDIT_POSSIBLE is deprecated\n");
+		goto exit_err;
+	}
+	if (rule->action != AUDIT_NEVER && rule->action != AUDIT_ALWAYS)
 		goto exit_err;
 	if (rule->field_count > AUDIT_MAX_FIELDS)
 		goto exit_err;
@@ -734,7 +737,6 @@ static int audit_filter_user_rules(struct netlink_skb_parms *cb,
 	}
 	switch (rule->action) {
 	case AUDIT_NEVER:    *state = AUDIT_DISABLED;	    break;
-	case AUDIT_POSSIBLE: *state = AUDIT_BUILD_CONTEXT;  break;
 	case AUDIT_ALWAYS:   *state = AUDIT_RECORD_CONTEXT; break;
 	}
 	return 1;
