@@ -449,6 +449,9 @@ ixgb_probe(struct pci_dev *pdev,
 #ifdef NETIF_F_TSO
 	netdev->features |= NETIF_F_TSO;
 #endif
+#ifdef NETIF_F_LLTX
+	netdev->features |= NETIF_F_LLTX;
+#endif
 
 	if(pci_using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
@@ -1408,13 +1411,26 @@ ixgb_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		return 0;
 	}
 
+#ifdef NETIF_F_LLTX
+	local_irq_save(flags);
+	if (!spin_trylock(&adapter->tx_lock)) {
+		/* Collision - tell upper layer to requeue */
+		local_irq_restore(flags);
+		return NETDEV_TX_LOCKED;
+	}
+#else
 	spin_lock_irqsave(&adapter->tx_lock, flags);
+#endif
+
 	if(unlikely(IXGB_DESC_UNUSED(&adapter->tx_ring) < DESC_NEEDED)) {
 		netif_stop_queue(netdev);
 		spin_unlock_irqrestore(&adapter->tx_lock, flags);
-		return 1;
+		return NETDEV_TX_BUSY;
 	}
+
+#ifndef NETIF_F_LLTX
 	spin_unlock_irqrestore(&adapter->tx_lock, flags);
+#endif
 
 	if(adapter->vlgrp && vlan_tx_tag_present(skb)) {
 		tx_flags |= IXGB_TX_FLAGS_VLAN;
@@ -1426,6 +1442,9 @@ ixgb_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	tso = ixgb_tso(adapter, skb);
 	if (tso < 0) {
 		dev_kfree_skb_any(skb);
+#ifdef NETIF_F_LLTX
+		spin_unlock_irqrestore(&adapter->tx_lock, flags);
+#endif
 		return NETDEV_TX_OK;
 	}
 
@@ -1439,7 +1458,15 @@ ixgb_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 	netdev->trans_start = jiffies;
 
-	return 0;
+#ifdef NETIF_F_LLTX
+	/* Make sure there is space in the ring for the next send. */
+	if(unlikely(IXGB_DESC_UNUSED(&adapter->tx_ring) < DESC_NEEDED))
+		netif_stop_queue(netdev);
+
+	spin_unlock_irqrestore(&adapter->tx_lock, flags);
+
+#endif
+	return NETDEV_TX_OK;
 }
 
 /**
