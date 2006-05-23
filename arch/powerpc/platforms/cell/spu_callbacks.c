@@ -339,12 +339,12 @@ long spu_sys_callback(struct spu_syscall_block *s)
 {
 	long (*syscall)(u64 a1, u64 a2, u64 a3, u64 a4, u64 a5, u64 a6);
 
-	syscall = spu_syscall_table[s->nr_ret];
-
 	if (s->nr_ret >= ARRAY_SIZE(spu_syscall_table)) {
 		pr_debug("%s: invalid syscall #%ld", __FUNCTION__, s->nr_ret);
 		return -ENOSYS;
 	}
+
+	syscall = spu_syscall_table[s->nr_ret];
 
 #ifdef DEBUG
 	print_symbol(KERN_DEBUG "SPU-syscall %s:", (unsigned long)syscall);
