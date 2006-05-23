@@ -76,6 +76,7 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
+#include <linux/err.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -2333,42 +2334,50 @@ static void nand_free_kmem(struct nand_chip *this)
 		kfree(this->controller);
 }
 
-/* module_text_address() isn't exported, and it's mostly a pointless
-   test if this is a module _anyway_ -- they'd have to try _really_ hard
-   to call us from in-kernel code if the core NAND support is modular. */
-#ifdef MODULE
-#define caller_is_module() (1)
-#else
-#define caller_is_module() module_text_address((unsigned long)__builtin_return_address(0))
-#endif
-
-/**
- * nand_scan - [NAND Interface] Scan for the NAND device
- * @mtd:	MTD device structure
- * @maxchips:	Number of chips to scan for
- *
- * This fills out all the uninitialized function pointers
- * with the defaults.
- * The flash ID is read and the mtd/chip structures are
- * filled with the appropriate values. Buffers are allocated if
- * they are not provided by the board driver
- * The mtd->owner field must be set to the module of the caller
- *
+/*
+ * Allocate buffers and data structures
  */
-int nand_scan(struct mtd_info *mtd, int maxchips)
+static int nand_allocate_kmem(struct mtd_info *mtd, struct nand_chip *this)
 {
-	int i, nand_maf_id, nand_dev_id, busw, maf_id;
-	struct nand_chip *this = mtd->priv;
+	size_t len;
 
-	/* Many callers got this wrong, so check for it for a while... */
-	if (!mtd->owner && caller_is_module()) {
-		printk(KERN_CRIT "nand_scan() called with NULL mtd->owner!\n");
-		BUG();
+	if (!this->oob_buf) {
+		len = mtd->oobsize <<
+			(this->phys_erase_shift - this->page_shift);
+		this->oob_buf = kmalloc(len, GFP_KERNEL);
+		if (!this->oob_buf)
+			goto outerr;
+		this->options |= NAND_OOBBUF_ALLOC;
 	}
 
-	/* Get buswidth to select the correct functions */
-	busw = this->options & NAND_BUSWIDTH_16;
+	if (!this->data_buf) {
+		len = mtd->oobblock + mtd->oobsize;
+		this->data_buf = kmalloc(len, GFP_KERNEL);
+		if (!this->data_buf)
+			goto outerr;
+		this->options |= NAND_DATABUF_ALLOC;
+	}
 
+	if (!this->controller) {
+		this->controller = kzalloc(sizeof(struct nand_hw_control),
+					   GFP_KERNEL);
+		if (!this->controller)
+			goto outerr;
+		this->options |= NAND_CONTROLLER_ALLOC;
+	}
+	return 0;
+
+ outerr:
+	printk(KERN_ERR "nand_scan(): Cannot allocate buffers\n");
+	nand_free_kmem(this);
+	return -ENOMEM;
+}
+
+/*
+ * Set default functions
+ */
+static void nand_set_defaults(struct nand_chip *this, int busw)
+{
 	/* check for proper chip_delay setup, set 20us if not */
 	if (!this->chip_delay)
 		this->chip_delay = 20;
@@ -2403,6 +2412,17 @@ int nand_scan(struct mtd_info *mtd, int maxchips)
 		this->verify_buf = busw ? nand_verify_buf16 : nand_verify_buf;
 	if (!this->scan_bbt)
 		this->scan_bbt = nand_default_bbt;
+}
+
+/*
+ * Get the flash and manufacturer id and lookup if the typ is supported
+ */
+static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
+						  struct nand_chip *this,
+						  int busw, int *maf_id)
+{
+	struct nand_flash_dev *type = NULL;
+	int i, dev_id, maf_idx;
 
 	/* Select the device */
 	this->select_chip(mtd, 0);
@@ -2411,158 +2431,194 @@ int nand_scan(struct mtd_info *mtd, int maxchips)
 	this->cmdfunc(mtd, NAND_CMD_READID, 0x00, -1);
 
 	/* Read manufacturer and device IDs */
-	nand_maf_id = this->read_byte(mtd);
-	nand_dev_id = this->read_byte(mtd);
+	*maf_id = this->read_byte(mtd);
+	dev_id = this->read_byte(mtd);
 
-	/* Print and store flash device information */
+	/* Lookup the flash id */
 	for (i = 0; nand_flash_ids[i].name != NULL; i++) {
-
-		if (nand_dev_id != nand_flash_ids[i].id)
-			continue;
-
-		if (!mtd->name)
-			mtd->name = nand_flash_ids[i].name;
-		this->chipsize = nand_flash_ids[i].chipsize << 20;
-
-		/* New devices have all the information in additional id bytes */
-		if (!nand_flash_ids[i].pagesize) {
-			int extid;
-			/* The 3rd id byte contains non relevant data ATM */
-			extid = this->read_byte(mtd);
-			/* The 4th id byte is the important one */
-			extid = this->read_byte(mtd);
-			/* Calc pagesize */
-			mtd->oobblock = 1024 << (extid & 0x3);
-			extid >>= 2;
-			/* Calc oobsize */
-			mtd->oobsize = (8 << (extid & 0x01)) * (mtd->oobblock >> 9);
-			extid >>= 2;
-			/* Calc blocksize. Blocksize is multiples of 64KiB */
-			mtd->erasesize = (64 * 1024) << (extid & 0x03);
-			extid >>= 2;
-			/* Get buswidth information */
-			busw = (extid & 0x01) ? NAND_BUSWIDTH_16 : 0;
-
-		} else {
-			/* Old devices have this data hardcoded in the
-			 * device id table */
-			mtd->erasesize = nand_flash_ids[i].erasesize;
-			mtd->oobblock = nand_flash_ids[i].pagesize;
-			mtd->oobsize = mtd->oobblock / 32;
-			busw = nand_flash_ids[i].options & NAND_BUSWIDTH_16;
+		if (dev_id == nand_flash_ids[i].id) {
+			type =  &nand_flash_ids[i];
+			break;
 		}
-
-		/* Try to identify manufacturer */
-		for (maf_id = 0; nand_manuf_ids[maf_id].id != 0x0; maf_id++) {
-			if (nand_manuf_ids[maf_id].id == nand_maf_id)
-				break;
-		}
-
-		/* Check, if buswidth is correct. Hardware drivers should set
-		 * this correct ! */
-		if (busw != (this->options & NAND_BUSWIDTH_16)) {
-			printk(KERN_INFO "NAND device: Manufacturer ID:"
-			       " 0x%02x, Chip ID: 0x%02x (%s %s)\n", nand_maf_id, nand_dev_id,
-			       nand_manuf_ids[maf_id].name, mtd->name);
-			printk(KERN_WARNING
-			       "NAND bus width %d instead %d bit\n",
-			       (this->options & NAND_BUSWIDTH_16) ? 16 : 8, busw ? 16 : 8);
-			this->select_chip(mtd, -1);
-			return 1;
-		}
-
-		/* Calculate the address shift from the page size */
-		this->page_shift = ffs(mtd->oobblock) - 1;
-		this->bbt_erase_shift = this->phys_erase_shift = ffs(mtd->erasesize) - 1;
-		this->chip_shift = ffs(this->chipsize) - 1;
-
-		/* Set the bad block position */
-		this->badblockpos = mtd->oobblock > 512 ? NAND_LARGE_BADBLOCK_POS : NAND_SMALL_BADBLOCK_POS;
-
-		/* Get chip options, preserve non chip based options */
-		this->options &= ~NAND_CHIPOPTIONS_MSK;
-		this->options |= nand_flash_ids[i].options & NAND_CHIPOPTIONS_MSK;
-		/* Set this as a default. Board drivers can override it, if necessary */
-		this->options |= NAND_NO_AUTOINCR;
-		/* Check if this is a not a samsung device. Do not clear the options
-		 * for chips which are not having an extended id.
-		 */
-		if (nand_maf_id != NAND_MFR_SAMSUNG && !nand_flash_ids[i].pagesize)
-			this->options &= ~NAND_SAMSUNG_LP_OPTIONS;
-
-		/* Check for AND chips with 4 page planes */
-		if (this->options & NAND_4PAGE_ARRAY)
-			this->erase_cmd = multi_erase_cmd;
-		else
-			this->erase_cmd = single_erase_cmd;
-
-		/* Do not replace user supplied command function ! */
-		if (mtd->oobblock > 512 && this->cmdfunc == nand_command)
-			this->cmdfunc = nand_command_lp;
-
-		printk(KERN_INFO "NAND device: Manufacturer ID:"
-		       " 0x%02x, Chip ID: 0x%02x (%s %s)\n", nand_maf_id, nand_dev_id,
-		       nand_manuf_ids[maf_id].name, nand_flash_ids[i].name);
-		break;
 	}
 
-	if (!nand_flash_ids[i].name) {
+	if (!type)
+		return ERR_PTR(-ENODEV);
+
+	this->chipsize = nand_flash_ids[i].chipsize << 20;
+
+	/* Newer devices have all the information in additional id bytes */
+	if (!nand_flash_ids[i].pagesize) {
+		int extid;
+		/* The 3rd id byte contains non relevant data ATM */
+		extid = this->read_byte(mtd);
+		/* The 4th id byte is the important one */
+		extid = this->read_byte(mtd);
+		/* Calc pagesize */
+		mtd->oobblock = 1024 << (extid & 0x3);
+		extid >>= 2;
+		/* Calc oobsize */
+		mtd->oobsize = (8 << (extid & 0x01)) * (mtd->oobblock >> 9);
+		extid >>= 2;
+		/* Calc blocksize. Blocksize is multiples of 64KiB */
+		mtd->erasesize = (64 * 1024) << (extid & 0x03);
+		extid >>= 2;
+		/* Get buswidth information */
+		busw = (extid & 0x01) ? NAND_BUSWIDTH_16 : 0;
+
+	} else {
+		/*
+		 * Old devices have this data hardcoded in the device id table
+		 */
+		mtd->erasesize = nand_flash_ids[i].erasesize;
+		mtd->oobblock = nand_flash_ids[i].pagesize;
+		mtd->oobsize = mtd->oobblock / 32;
+		busw = nand_flash_ids[i].options & NAND_BUSWIDTH_16;
+	}
+
+	/* Try to identify manufacturer */
+	for (maf_idx = 0; nand_manuf_ids[maf_idx].id != 0x0; maf_id++) {
+		if (nand_manuf_ids[maf_idx].id == *maf_id)
+			break;
+	}
+
+	/*
+	 * Check, if buswidth is correct. Hardware drivers should set
+	 * this correct !
+	 */
+	if (busw != (this->options & NAND_BUSWIDTH_16)) {
+		printk(KERN_INFO "NAND device: Manufacturer ID:"
+		       " 0x%02x, Chip ID: 0x%02x (%s %s)\n", *maf_id,
+		       dev_id, nand_manuf_ids[maf_idx].name, mtd->name);
+		printk(KERN_WARNING "NAND bus width %d instead %d bit\n",
+		       (this->options & NAND_BUSWIDTH_16) ? 16 : 8,
+		       busw ? 16 : 8);
+		return ERR_PTR(-EINVAL);
+	}
+
+	/* Calculate the address shift from the page size */
+	this->page_shift = ffs(mtd->oobblock) - 1;
+	/* Convert chipsize to number of pages per chip -1. */
+	this->pagemask = (this->chipsize >> this->page_shift) - 1;
+
+	this->bbt_erase_shift = this->phys_erase_shift =
+		ffs(mtd->erasesize) - 1;
+	this->chip_shift = ffs(this->chipsize) - 1;
+
+	/* Set the bad block position */
+	this->badblockpos = mtd->oobblock > 512 ?
+		NAND_LARGE_BADBLOCK_POS : NAND_SMALL_BADBLOCK_POS;
+
+	/* Get chip options, preserve non chip based options */
+	this->options &= ~NAND_CHIPOPTIONS_MSK;
+	this->options |= nand_flash_ids[i].options & NAND_CHIPOPTIONS_MSK;
+
+	/*
+	 * Set this as a default. Board drivers can override it, if necessary
+	 */
+	this->options |= NAND_NO_AUTOINCR;
+
+	/* Check if this is a not a samsung device. Do not clear the
+	 * options for chips which are not having an extended id.
+	 */
+	if (*maf_id != NAND_MFR_SAMSUNG && !nand_flash_ids[i].pagesize)
+		this->options &= ~NAND_SAMSUNG_LP_OPTIONS;
+
+	/* Check for AND chips with 4 page planes */
+	if (this->options & NAND_4PAGE_ARRAY)
+		this->erase_cmd = multi_erase_cmd;
+	else
+		this->erase_cmd = single_erase_cmd;
+
+	/* Do not replace user supplied command function ! */
+	if (mtd->oobblock > 512 && this->cmdfunc == nand_command)
+		this->cmdfunc = nand_command_lp;
+
+	printk(KERN_INFO "NAND device: Manufacturer ID:"
+	       " 0x%02x, Chip ID: 0x%02x (%s %s)\n", *maf_id, dev_id,
+	       nand_manuf_ids[maf_idx].name, type->name);
+
+	return type;
+}
+
+/* module_text_address() isn't exported, and it's mostly a pointless
+   test if this is a module _anyway_ -- they'd have to try _really_ hard
+   to call us from in-kernel code if the core NAND support is modular. */
+#ifdef MODULE
+#define caller_is_module() (1)
+#else
+#define caller_is_module() \
+	module_text_address((unsigned long)__builtin_return_address(0))
+#endif
+
+/**
+ * nand_scan - [NAND Interface] Scan for the NAND device
+ * @mtd:	MTD device structure
+ * @maxchips:	Number of chips to scan for
+ *
+ * This fills out all the uninitialized function pointers
+ * with the defaults.
+ * The flash ID is read and the mtd/chip structures are
+ * filled with the appropriate values. Buffers are allocated if
+ * they are not provided by the board driver
+ * The mtd->owner field must be set to the module of the caller
+ *
+ */
+int nand_scan(struct mtd_info *mtd, int maxchips)
+{
+	int i, busw, nand_maf_id;
+	struct nand_chip *this = mtd->priv;
+	struct nand_flash_dev *type;
+
+	/* Many callers got this wrong, so check for it for a while... */
+	if (!mtd->owner && caller_is_module()) {
+		printk(KERN_CRIT "nand_scan() called with NULL mtd->owner!\n");
+		BUG();
+	}
+
+	/* Get buswidth to select the correct functions */
+	busw = this->options & NAND_BUSWIDTH_16;
+	/* Set the default functions */
+	nand_set_defaults(this, busw);
+
+	/* Read the flash type */
+	type = nand_get_flash_type(mtd, this, busw, &nand_maf_id);
+
+	if (IS_ERR(type)) {
 		printk(KERN_WARNING "No NAND device found!!!\n");
 		this->select_chip(mtd, -1);
-		return 1;
+		return PTR_ERR(type);
 	}
 
+	/* Check for a chip array */
 	for (i = 1; i < maxchips; i++) {
 		this->select_chip(mtd, i);
-
 		/* Send the command for reading device ID */
 		this->cmdfunc(mtd, NAND_CMD_READID, 0x00, -1);
-
 		/* Read manufacturer and device IDs */
 		if (nand_maf_id != this->read_byte(mtd) ||
-		    nand_dev_id != this->read_byte(mtd))
+		    type->id != this->read_byte(mtd))
 			break;
 	}
 	if (i > 1)
 		printk(KERN_INFO "%d NAND chips detected\n", i);
 
-	/* Allocate buffers, if necessary */
-	if (!this->oob_buf) {
-		size_t len;
-		len = mtd->oobsize << (this->phys_erase_shift - this->page_shift);
-		this->oob_buf = kmalloc(len, GFP_KERNEL);
-		if (!this->oob_buf) {
-			printk(KERN_ERR "nand_scan(): Cannot allocate oob_buf\n");
-			return -ENOMEM;
-		}
-		this->options |= NAND_OOBBUF_ALLOC;
-	}
-
-	if (!this->data_buf) {
-		size_t len;
-		len = mtd->oobblock + mtd->oobsize;
-		this->data_buf = kmalloc(len, GFP_KERNEL);
-		if (!this->data_buf) {
-			printk(KERN_ERR "nand_scan(): Cannot allocate data_buf\n");
-			nand_free_kmem(this);
-			return -ENOMEM;
-		}
-		this->options |= NAND_DATABUF_ALLOC;
-	}
-
 	/* Store the number of chips and calc total size for mtd */
 	this->numchips = i;
 	mtd->size = i * this->chipsize;
-	/* Convert chipsize to number of pages per chip -1. */
-	this->pagemask = (this->chipsize >> this->page_shift) - 1;
-	/* Preset the internal oob buffer */
-	memset(this->oob_buf, 0xff, mtd->oobsize << (this->phys_erase_shift - this->page_shift));
 
-	/* If no default placement scheme is given, select an
-	 * appropriate one */
+	/* Allocate buffers and data structures */
+	if (nand_allocate_kmem(mtd, this))
+		return -ENOMEM;
+
+	/* Preset the internal oob buffer */
+	memset(this->oob_buf, 0xff,
+	       mtd->oobsize << (this->phys_erase_shift - this->page_shift));
+
+	/*
+	 * If no default placement scheme is given, select an appropriate one
+	 */
 	if (!this->autooob) {
-		/* Select the appropriate default oob placement scheme for
-		 * placement agnostic filesystems */
 		switch (mtd->oobsize) {
 		case 8:
 			this->autooob = &nand_oob_8;
@@ -2574,29 +2630,32 @@ int nand_scan(struct mtd_info *mtd, int maxchips)
 			this->autooob = &nand_oob_64;
 			break;
 		default:
-			printk(KERN_WARNING "No oob scheme defined for oobsize %d\n", mtd->oobsize);
+			printk(KERN_WARNING "No oob scheme defined for "
+			       "oobsize %d\n", mtd->oobsize);
 			BUG();
 		}
 	}
 
-	/* The number of bytes available for the filesystem to place fs dependend
-	 * oob data */
+	/*
+	 * The number of bytes available for the filesystem to place fs
+	 * dependend oob data
+	 */
 	mtd->oobavail = 0;
 	for (i = 0; this->autooob->oobfree[i][1]; i++)
 		mtd->oobavail += this->autooob->oobfree[i][1];
 
 	/*
-	 * check ECC mode, default to software
-	 * if 3byte/512byte hardware ECC is selected and we have 256 byte pagesize
-	 * fallback to software ECC
+	 * check ECC mode, default to software if 3byte/512byte hardware ECC is
+	 * selected and we have 256 byte pagesize fallback to software ECC
 	 */
-	this->eccsize = 256;	/* set default eccsize */
+	this->eccsize = 256;
 	this->eccbytes = 3;
 
 	switch (this->eccmode) {
 	case NAND_ECC_HW12_2048:
 		if (mtd->oobblock < 2048) {
-			printk(KERN_WARNING "2048 byte HW ECC not possible on %d byte page size, fallback to SW ECC\n",
+			printk(KERN_WARNING "2048 byte HW ECC not possible on "
+			       "%d byte page size, fallback to SW ECC\n",
 			       mtd->oobblock);
 			this->eccmode = NAND_ECC_SOFT;
 			this->calculate_ecc = nand_calculate_ecc;
@@ -2609,7 +2668,8 @@ int nand_scan(struct mtd_info *mtd, int maxchips)
 	case NAND_ECC_HW6_512:
 	case NAND_ECC_HW8_512:
 		if (mtd->oobblock == 256) {
-			printk(KERN_WARNING "512 byte HW ECC not possible on 256 Byte pagesize, fallback to SW ECC \n");
+			printk(KERN_WARNING "512 byte HW ECC not possible on "
+			       "256 Byte pagesize, fallback to SW ECC \n");
 			this->eccmode = NAND_ECC_SOFT;
 			this->calculate_ecc = nand_calculate_ecc;
 			this->correct_data = nand_correct_data;
@@ -2621,7 +2681,8 @@ int nand_scan(struct mtd_info *mtd, int maxchips)
 		break;
 
 	case NAND_ECC_NONE:
-		printk(KERN_WARNING "NAND_ECC_NONE selected by board driver. This is not recommended !!\n");
+		printk(KERN_WARNING "NAND_ECC_NONE selected by board driver. "
+		       "This is not recommended !!\n");
 		this->eccmode = NAND_ECC_NONE;
 		break;
 
@@ -2631,12 +2692,14 @@ int nand_scan(struct mtd_info *mtd, int maxchips)
 		break;
 
 	default:
-		printk(KERN_WARNING "Invalid NAND_ECC_MODE %d\n", this->eccmode);
+		printk(KERN_WARNING "Invalid NAND_ECC_MODE %d\n",
+		       this->eccmode);
 		BUG();
 	}
 
-	/* Check hardware ecc function availability and adjust number of ecc bytes per
-	 * calculation step
+	/*
+	 * Check hardware ecc function availability and adjust number of ecc
+	 * bytes per calculation step
 	 */
 	switch (this->eccmode) {
 	case NAND_ECC_HW12_2048:
@@ -2647,15 +2710,20 @@ int nand_scan(struct mtd_info *mtd, int maxchips)
 		this->eccbytes += 3;
 	case NAND_ECC_HW3_512:
 	case NAND_ECC_HW3_256:
-		if (this->calculate_ecc && this->correct_data && this->enable_hwecc)
+		if (this->calculate_ecc && this->correct_data &&
+		    this->enable_hwecc)
 			break;
-		printk(KERN_WARNING "No ECC functions supplied, Hardware ECC not possible\n");
+		printk(KERN_WARNING "No ECC functions supplied, "
+		       "Hardware ECC not possible\n");
 		BUG();
 	}
 
 	mtd->eccsize = this->eccsize;
 
-	/* Set the number of read / write steps for one page to ensure ECC generation */
+	/*
+	 * Set the number of read / write steps for one page depending on ECC
+	 * mode
+	 */
 	switch (this->eccmode) {
 	case NAND_ECC_HW12_2048:
 		this->eccsteps = mtd->oobblock / 2048;
@@ -2677,15 +2745,6 @@ int nand_scan(struct mtd_info *mtd, int maxchips)
 
 	/* Initialize state, waitqueue and spinlock */
 	this->state = FL_READY;
-	if (!this->controller) {
-		this->controller = kzalloc(sizeof(struct nand_hw_control),
-					   GFP_KERNEL);
-		if (!this->controller) {
-			nand_free_kmem(this);
-			return -ENOMEM;
-		}
-		this->options |= NAND_CONTROLLER_ALLOC;
-	}
 	init_waitqueue_head(&this->controller->wq);
 	spin_lock_init(&this->controller->lock);
 
