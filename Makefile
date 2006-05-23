@@ -41,8 +41,9 @@ ifndef KBUILD_VERBOSE
   KBUILD_VERBOSE = 0
 endif
 
-# Call sparse as part of compilation of C files
-# Use 'make C=1' to enable sparse checking
+# Call checker as part of compilation of C files
+# Use 'make C=1' to enable checking (sparse, by default)
+# Override with 'make C=1 CHECK=checker_executable CHECKFLAGS=....'
 
 ifdef C
   ifeq ("$(origin C)", "command line")
@@ -1060,8 +1061,8 @@ help:
 
 	@echo  '  make V=0|1 [targets] 0 => quiet build (default), 1 => verbose build'
 	@echo  '  make O=dir [targets] Locate all output files in "dir", including .config'
-	@echo  '  make C=1   [targets] Check all c source with $$CHECK (sparse)'
-	@echo  '  make C=2   [targets] Force check of all c source with $$CHECK (sparse)'
+	@echo  '  make C=1   [targets] Check all c source with $$CHECK (sparse by default)'
+	@echo  '  make C=2   [targets] Force check of all c source with $$CHECK'
 	@echo  ''
 	@echo  'Execute "make" or "make all" to build all targets marked with [*] '
 	@echo  'For further info see the ./README file'
