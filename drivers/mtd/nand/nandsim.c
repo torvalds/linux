@@ -1327,17 +1327,6 @@ ns_nand_read_word(struct mtd_info *mtd)
 }
 
 static void
-ns_nand_write_word(struct mtd_info *mtd, uint16_t word)
-{
-	struct nand_chip *chip = (struct nand_chip *)mtd->priv;
-
-	NS_DBG("write_word\n");
-
-	chip->write_byte(mtd, word & 0xFF);
-	chip->write_byte(mtd, word >> 8);
-}
-
-static void
 ns_nand_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
 {
         struct nandsim *ns = (struct nandsim *)((struct nand_chip *)mtd->priv)->priv;
@@ -1467,11 +1456,9 @@ static int __init ns_init_module(void)
 	chip->cmd_ctrl	 = ns_hwcontrol;
 	chip->read_byte  = ns_nand_read_byte;
 	chip->dev_ready  = ns_device_ready;
-	chip->write_byte = ns_nand_write_byte;
 	chip->write_buf  = ns_nand_write_buf;
 	chip->read_buf   = ns_nand_read_buf;
 	chip->verify_buf = ns_nand_verify_buf;
-	chip->write_word = ns_nand_write_word;
 	chip->read_word  = ns_nand_read_word;
 	chip->ecc.mode   = NAND_ECC_SOFT;
 	chip->options   |= NAND_SKIP_BBTSCAN;

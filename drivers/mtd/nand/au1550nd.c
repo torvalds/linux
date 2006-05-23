@@ -40,6 +40,7 @@
 static struct mtd_info *au1550_mtd = NULL;
 static void __iomem *p_nand;
 static int nand_width = 1;	/* default x8 */
+static void (*au1550_write_byte)(struct mtd_info *, u_char);
 
 /*
  * Define partitions for flash device
@@ -126,21 +127,6 @@ static u16 au_read_word(struct mtd_info *mtd)
 	u16 ret = readw(this->IO_ADDR_R);
 	au_sync();
 	return ret;
-}
-
-/**
- * au_write_word -  write one word to the chip
- * @mtd:	MTD device structure
- * @word:	data word to write
- *
- *  write function for 16bit buswith without
- * endianess conversion
- */
-static void au_write_word(struct mtd_info *mtd, u16 word)
-{
-	struct nand_chip *this = mtd->priv;
-	writew(word, this->IO_ADDR_W);
-	au_sync();
 }
 
 /**
@@ -379,9 +365,9 @@ static void au1550_command(struct mtd_info *mtd, unsigned command, int column, i
 			column -= 256;
 			readcmd = NAND_CMD_READ1;
 		}
-		this->write_byte(mtd, readcmd);
+		au1550_write_byte(mtd, readcmd);
 	}
-	this->write_byte(mtd, command);
+	au1550_write_byte(mtd, command);
 
 	/* Set ALE and clear CLE to start address cycle */
 	au1550_hwcontrol(mtd, NAND_CTL_CLRCLE);
@@ -394,10 +380,10 @@ static void au1550_command(struct mtd_info *mtd, unsigned command, int column, i
 			/* Adjust columns for 16 bit buswidth */
 			if (this->options & NAND_BUSWIDTH_16)
 				column >>= 1;
-			this->write_byte(mtd, column);
+			au1550_write_byte(mtd, column);
 		}
 		if (page_addr != -1) {
-			this->write_byte(mtd, (u8)(page_addr & 0xff));
+			au1550_write_byte(mtd, (u8)(page_addr & 0xff));
 
 			if (command == NAND_CMD_READ0 ||
 			    command == NAND_CMD_READ1 ||
@@ -415,11 +401,11 @@ static void au1550_command(struct mtd_info *mtd, unsigned command, int column, i
 				au1550_hwcontrol(mtd, NAND_CTL_SETNCE);
 			}
 
-			this->write_byte(mtd, (u8)(page_addr >> 8));
+			au1550_write_byte(mtd, (u8)(page_addr >> 8));
 
 			/* One more address cycle for devices > 32MiB */
 			if (this->chipsize > (32 << 20))
-				this->write_byte(mtd, (u8)((page_addr >> 16) & 0x0f));
+				au1550_write_byte(mtd, (u8)((page_addr >> 16) & 0x0f));
 		}
 		/* Latch in address */
 		au1550_hwcontrol(mtd, NAND_CTL_CLRALE);
@@ -597,8 +583,7 @@ static int __init au1xxx_nand_init(void)
 		this->options |= NAND_BUSWIDTH_16;
 
 	this->read_byte = (!nand_width) ? au_read_byte16 : au_read_byte;
-	this->write_byte = (!nand_width) ? au_write_byte16 : au_write_byte;
-	this->write_word = au_write_word;
+	au1550_write_byte = (!nand_width) ? au_write_byte16 : au_write_byte;
 	this->read_word = au_read_word;
 	this->write_buf = (!nand_width) ? au_write_buf16 : au_write_buf;
 	this->read_buf = (!nand_width) ? au_read_buf16 : au_read_buf;

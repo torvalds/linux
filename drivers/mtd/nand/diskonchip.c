@@ -717,8 +717,12 @@ static void doc200x_hwcontrol(struct mtd_info *mtd, int cmd,
 		/* 11.4.3 -- 4 NOPs after CSDNControl write */
 		DoC_Delay(doc, 4);
 	}
-	if (cmd != NAND_CMD_NONE)
-		this->write_byte(mtd, cmd);
+	if (cmd != NAND_CMD_NONE) {
+		if (DoC_is_2000(doc))
+			doc2000_write_byte(mtd, cmd);
+		else
+			doc2001_write_byte(mtd, cmd);
+	}
 }
 
 static void doc2001plus_command(struct mtd_info *mtd, unsigned command, int column, int page_addr)
@@ -1435,7 +1439,6 @@ static inline int __init doc2000_init(struct mtd_info *mtd)
 	struct nand_chip *this = mtd->priv;
 	struct doc_priv *doc = this->priv;
 
-	this->write_byte = doc2000_write_byte;
 	this->read_byte = doc2000_read_byte;
 	this->write_buf = doc2000_writebuf;
 	this->read_buf = doc2000_readbuf;
@@ -1453,7 +1456,6 @@ static inline int __init doc2001_init(struct mtd_info *mtd)
 	struct nand_chip *this = mtd->priv;
 	struct doc_priv *doc = this->priv;
 
-	this->write_byte = doc2001_write_byte;
 	this->read_byte = doc2001_read_byte;
 	this->write_buf = doc2001_writebuf;
 	this->read_buf = doc2001_readbuf;
@@ -1485,7 +1487,6 @@ static inline int __init doc2001plus_init(struct mtd_info *mtd)
 	struct nand_chip *this = mtd->priv;
 	struct doc_priv *doc = this->priv;
 
-	this->write_byte = NULL;
 	this->read_byte = doc2001plus_read_byte;
 	this->write_buf = doc2001plus_writebuf;
 	this->read_buf = doc2001plus_readbuf;

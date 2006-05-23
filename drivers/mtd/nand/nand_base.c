@@ -198,19 +198,6 @@ static uint8_t nand_read_byte(struct mtd_info *mtd)
 }
 
 /**
- * nand_write_byte - [DEFAULT] write one byte to the chip
- * @mtd:	MTD device structure
- * @byte:	pointer to data byte to write
- *
- * Default write function for 8it buswith
- */
-static void nand_write_byte(struct mtd_info *mtd, uint8_t byte)
-{
-	struct nand_chip *this = mtd->priv;
-	writeb(byte, this->IO_ADDR_W);
-}
-
-/**
  * nand_read_byte16 - [DEFAULT] read one byte endianess aware from the chip
  * @mtd:	MTD device structure
  *
@@ -224,20 +211,6 @@ static uint8_t nand_read_byte16(struct mtd_info *mtd)
 }
 
 /**
- * nand_write_byte16 - [DEFAULT] write one byte endianess aware to the chip
- * @mtd:	MTD device structure
- * @byte:	pointer to data byte to write
- *
- * Default write function for 16bit buswith with
- * endianess conversion
- */
-static void nand_write_byte16(struct mtd_info *mtd, uint8_t byte)
-{
-	struct nand_chip *this = mtd->priv;
-	writew(le16_to_cpu((u16) byte), this->IO_ADDR_W);
-}
-
-/**
  * nand_read_word - [DEFAULT] read one word from the chip
  * @mtd:	MTD device structure
  *
@@ -248,20 +221,6 @@ static u16 nand_read_word(struct mtd_info *mtd)
 {
 	struct nand_chip *this = mtd->priv;
 	return readw(this->IO_ADDR_R);
-}
-
-/**
- * nand_write_word - [DEFAULT] write one word to the chip
- * @mtd:	MTD device structure
- * @word:	data word to write
- *
- * Default write function for 16bit buswith without
- * endianess conversion
- */
-static void nand_write_word(struct mtd_info *mtd, u16 word)
-{
-	struct nand_chip *this = mtd->priv;
-	writew(word, this->IO_ADDR_W);
 }
 
 /**
@@ -2200,12 +2159,8 @@ static void nand_set_defaults(struct nand_chip *this, int busw)
 
 	if (!this->select_chip)
 		this->select_chip = nand_select_chip;
-	if (!this->write_byte)
-		this->write_byte = busw ? nand_write_byte16 : nand_write_byte;
 	if (!this->read_byte)
 		this->read_byte = busw ? nand_read_byte16 : nand_read_byte;
-	if (!this->write_word)
-		this->write_word = nand_write_word;
 	if (!this->read_word)
 		this->read_word = nand_read_word;
 	if (!this->block_bad)

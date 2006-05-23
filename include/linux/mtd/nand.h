@@ -253,9 +253,7 @@ struct nand_ecc_ctrl {
  * @IO_ADDR_R:		[BOARDSPECIFIC] address to read the 8 I/O lines of the flash device
  * @IO_ADDR_W:		[BOARDSPECIFIC] address to write the 8 I/O lines of the flash device
  * @read_byte:		[REPLACEABLE] read one byte from the chip
- * @write_byte:		[REPLACEABLE] write one byte to the chip
  * @read_word:		[REPLACEABLE] read one word from the chip
- * @write_word:		[REPLACEABLE] write one word to the chip
  * @write_buf:		[REPLACEABLE] write data from the buffer to the chip
  * @read_buf:		[REPLACEABLE] read data from the chip into the buffer
  * @verify_buf:		[REPLACEABLE] verify buffer contents against the chip data
@@ -307,10 +305,7 @@ struct nand_chip {
 	void  __iomem	*IO_ADDR_W;
 
 	uint8_t		(*read_byte)(struct mtd_info *mtd);
-	void		(*write_byte)(struct mtd_info *mtd, uint8_t byte);
 	u16		(*read_word)(struct mtd_info *mtd);
-	void		(*write_word)(struct mtd_info *mtd, u16 word);
-
 	void		(*write_buf)(struct mtd_info *mtd, const uint8_t *buf, int len);
 	void		(*read_buf)(struct mtd_info *mtd, uint8_t *buf, int len);
 	int		(*verify_buf)(struct mtd_info *mtd, const uint8_t *buf, int len);

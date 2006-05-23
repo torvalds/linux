@@ -220,7 +220,6 @@ static int __init cs553x_init_one(int cs, int mmio, unsigned long adr)
 	this->cmd_ctrl = cs553x_hwcontrol;
 	this->dev_ready = cs553x_device_ready;
 	this->read_byte = cs553x_read_byte;
-	this->write_byte = cs553x_write_byte;
 	this->read_buf = cs553x_read_buf;
 	this->write_buf = cs553x_write_buf;
 

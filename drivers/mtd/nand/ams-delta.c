@@ -179,7 +179,6 @@ static int __init ams_delta_init(void)
 	this->IO_ADDR_R = (OMAP_MPUIO_BASE + OMAP_MPUIO_INPUT_LATCH);
 	this->IO_ADDR_W = (OMAP_MPUIO_BASE + OMAP_MPUIO_OUTPUT);
 	this->read_byte = ams_delta_read_byte;
-	this->write_byte = ams_delta_write_byte;
 	this->write_buf = ams_delta_write_buf;
 	this->read_buf = ams_delta_read_buf;
 	this->verify_buf = ams_delta_verify_buf;
