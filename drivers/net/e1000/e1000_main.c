@@ -29,45 +29,6 @@
 
 #include "e1000.h"
 
-/* Change Log
- * 7.0.33      3-Feb-2006
- *   o Added another fix for the pass false carrier bit
- * 7.0.32      24-Jan-2006
- *   o Need to rebuild with noew version number for the pass false carrier 
- *     fix in e1000_hw.c
- * 7.0.30      18-Jan-2006
- *   o fixup for tso workaround to disable it for pci-x
- *   o fix mem leak on 82542
- *   o fixes for 10 Mb/s connections and incorrect stats
- * 7.0.28      01/06/2006
- *   o hardware workaround to only set "speed mode" bit for 1G link.
- * 7.0.26      12/23/2005
- *   o wake on lan support modified for device ID 10B5
- *   o fix dhcp + vlan issue not making it to the iAMT firmware
- * 7.0.24      12/9/2005
- *   o New hardware support for the Gigabit NIC embedded in the south bridge
- *   o Fixes to the recycling logic (skb->tail) from IBM LTC
- * 6.3.9	12/16/2005
- *   o incorporate fix for recycled skbs from IBM LTC
- * 6.3.7	11/18/2005
- *   o Honor eeprom setting for enabling/disabling Wake On Lan
- * 6.3.5 	11/17/2005
- *   o Fix memory leak in rx ring handling for PCI Express adapters
- * 6.3.4	11/8/05
- *   o Patch from Jesper Juhl to remove redundant NULL checks for kfree
- * 6.3.2	9/20/05
- *   o Render logic that sets/resets DRV_LOAD as inline functions to 
- *     avoid code replication. If f/w is AMT then set DRV_LOAD only when
- *     network interface is open.
- *   o Handle DRV_LOAD set/reset in cases where AMT uses VLANs.
- *   o Adjust PBA partioning for Jumbo frames using MTU size and not
- *     rx_buffer_len
- * 6.3.1	9/19/05
- *   o Use adapter->tx_timeout_factor in Tx Hung Detect logic 
- *      (e1000_clean_tx_irq)
- *   o Support for 8086:10B5 device (Quad Port)
- */
-
 char e1000_driver_name[] = "e1000";
 static char e1000_driver_string[] = "Intel(R) PRO/1000 Network Driver";
 #ifndef CONFIG_E1000_NAPI
@@ -75,7 +36,7 @@ static char e1000_driver_string[] = "Intel(R) PRO/1000 Network Driver";
 #else
 #define DRIVERNAPI "-NAPI"
 #endif
-#define DRV_VERSION "7.0.38-k2"DRIVERNAPI
+#define DRV_VERSION "7.0.38-k4"DRIVERNAPI
 char e1000_driver_version[] = DRV_VERSION;
 static char e1000_copyright[] = "Copyright (c) 1999-2006 Intel Corporation.";
 
@@ -221,6 +182,7 @@ static void e1000_restore_vlan(struct e1000_adapter *adapter);
 static int e1000_suspend(struct pci_dev *pdev, pm_message_t state);
 static int e1000_resume(struct pci_dev *pdev);
 #endif
+static void e1000_shutdown(struct pci_dev *pdev);
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
 /* for netdump / net console */
@@ -236,8 +198,9 @@ static struct pci_driver e1000_driver = {
 	/* Power Managment Hooks */
 #ifdef CONFIG_PM
 	.suspend  = e1000_suspend,
-	.resume   = e1000_resume
+	.resume   = e1000_resume,
 #endif
+	.shutdown = e1000_shutdown
 };
 
 MODULE_AUTHOR("Intel Corporation, <linux.nics@intel.com>");
@@ -347,7 +310,7 @@ e1000_update_mng_vlan(struct e1000_adapter *adapter)
  * For ASF and Pass Through versions of f/w this means that the
  * driver is no longer loaded. For AMT version (only with 82573) i
  * of the f/w this means that the netowrk i/f is closed.
- * 
+ *
  **/
 
 static void
@@ -379,10 +342,10 @@ e1000_release_hw_control(struct e1000_adapter *adapter)
  * @adapter: address of board private structure
  *
  * e1000_get_hw_control sets {CTRL_EXT|FWSM}:DRV_LOAD bit.
- * For ASF and Pass Through versions of f/w this means that 
- * the driver is loaded. For AMT version (only with 82573) 
+ * For ASF and Pass Through versions of f/w this means that
+ * the driver is loaded. For AMT version (only with 82573)
  * of the f/w this means that the netowrk i/f is open.
- * 
+ *
  **/
 
 static void
@@ -712,8 +675,8 @@ e1000_probe(struct pci_dev *pdev,
 		DPRINTK(PROBE, INFO, "PHY reset is blocked due to SOL/IDER session.\n");
 
 	/* if ksp3, indicate if it's port a being setup */
-	if (pdev->device == E1000_DEV_ID_82546GB_QUAD_COPPER_KSP3 && 
-			e1000_ksp3_port_a == 0) 
+	if (pdev->device == E1000_DEV_ID_82546GB_QUAD_COPPER_KSP3 &&
+			e1000_ksp3_port_a == 0)
 		adapter->ksp3_port_a = 1;
 	e1000_ksp3_port_a++;
 	/* Reset for multiple KP3 adapters */
@@ -741,9 +704,9 @@ e1000_probe(struct pci_dev *pdev,
 	if (pci_using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
 
- 	/* hard_start_xmit is safe against parallel locking */
- 	netdev->features |= NETIF_F_LLTX; 
- 
+	/* hard_start_xmit is safe against parallel locking */
+	netdev->features |= NETIF_F_LLTX;
+
 	adapter->en_mng_pt = e1000_enable_mng_pass_thru(&adapter->hw);
 
 	/* before reading the EEPROM, reset the controller to
@@ -2771,7 +2734,7 @@ e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	unsigned int nr_frags = 0;
 	unsigned int mss = 0;
 	int count = 0;
- 	int tso;
+	int tso;
 	unsigned int f;
 	len -= skb->data_len;
 
@@ -2784,7 +2747,7 @@ e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 #ifdef NETIF_F_TSO
 	mss = skb_shinfo(skb)->tso_size;
-	/* The controller does a simple calculation to 
+	/* The controller does a simple calculation to
 	 * make sure there is enough room in the FIFO before
 	 * initiating the DMA for each buffer.  The calc is:
 	 * 4 = ceil(buffer len/mss).  To make sure we don't
@@ -2807,7 +2770,7 @@ e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 			case e1000_82573:
 				pull_size = min((unsigned int)4, skb->data_len);
 				if (!__pskb_pull_tail(skb, pull_size)) {
-					printk(KERN_ERR 
+					printk(KERN_ERR
 						"__pskb_pull_tail failed.\n");
 					dev_kfree_skb_any(skb);
 					return NETDEV_TX_OK;
@@ -3753,7 +3716,7 @@ e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 		 * throughput, so unsplit small packets and save the alloc/put*/
 		if (l1 && ((length + l1) <= adapter->rx_ps_bsize0)) {
 			u8 *vaddr;
-			/* there is no documentation about how to call 
+			/* there is no documentation about how to call
 			 * kmap_atomic, so we can't hold the mapping
 			 * very long */
 			pci_dma_sync_single_for_cpu(pdev,
@@ -4605,6 +4568,12 @@ e1000_resume(struct pci_dev *pdev)
 	return 0;
 }
 #endif
+
+static void e1000_shutdown(struct pci_dev *pdev)
+{
+	e1000_suspend(pdev, PMSG_SUSPEND);
+}
+
 #ifdef CONFIG_NET_POLL_CONTROLLER
 /*
  * Polling 'interrupt' - used by things like netconsole to send skbs

@@ -765,7 +765,7 @@ e1000_init_hw(struct e1000_hw *hw)
     }
 
     if (hw->mac_type == e1000_82573) {
-        e1000_enable_tx_pkt_filtering(hw); 
+        e1000_enable_tx_pkt_filtering(hw);
     }
 
     switch (hw->mac_type) {
@@ -861,7 +861,7 @@ e1000_adjust_serdes_amplitude(struct e1000_hw *hw)
 
     if(eeprom_data != EEPROM_RESERVED_WORD) {
         /* Adjust SERDES output amplitude only. */
-        eeprom_data &= EEPROM_SERDES_AMPLITUDE_MASK; 
+        eeprom_data &= EEPROM_SERDES_AMPLITUDE_MASK;
         ret_val = e1000_write_phy_reg(hw, M88E1000_PHY_EXT_CTRL, eeprom_data);
         if(ret_val)
             return ret_val;
@@ -1228,7 +1228,7 @@ e1000_copper_link_igp_setup(struct e1000_hw *hw)
 
     if (hw->phy_reset_disable)
         return E1000_SUCCESS;
-    
+
     ret_val = e1000_phy_reset(hw);
     if (ret_val) {
         DEBUGOUT("Error Resetting the PHY\n");
@@ -1370,7 +1370,7 @@ e1000_copper_link_ggp_setup(struct e1000_hw *hw)
     DEBUGFUNC("e1000_copper_link_ggp_setup");
 
     if(!hw->phy_reset_disable) {
-        
+
         /* Enable CRS on TX for half-duplex operation. */
         ret_val = e1000_read_phy_reg(hw, GG82563_PHY_MAC_SPEC_CTRL,
                                      &phy_data);
@@ -1519,7 +1519,7 @@ e1000_copper_link_mgp_setup(struct e1000_hw *hw)
 
     if(hw->phy_reset_disable)
         return E1000_SUCCESS;
-    
+
     /* Enable CRS on TX. This must be set for half-duplex operation. */
     ret_val = e1000_read_phy_reg(hw, M88E1000_PHY_SPEC_CTRL, &phy_data);
     if(ret_val)
@@ -1665,7 +1665,7 @@ e1000_copper_link_autoneg(struct e1000_hw *hw)
 *      collision distance in the Transmit Control Register.
 *   2) Set up flow control on the MAC to that established with
 *      the link partner.
-*   3) Config DSP to improve Gigabit link quality for some PHY revisions.    
+*   3) Config DSP to improve Gigabit link quality for some PHY revisions.
 *
 * hw - Struct containing variables accessed by shared code
 ******************************************************************************/
@@ -1674,7 +1674,7 @@ e1000_copper_link_postconfig(struct e1000_hw *hw)
 {
     int32_t ret_val;
     DEBUGFUNC("e1000_copper_link_postconfig");
-    
+
     if(hw->mac_type >= e1000_82544) {
         e1000_config_collision_dist(hw);
     } else {
@@ -1698,7 +1698,7 @@ e1000_copper_link_postconfig(struct e1000_hw *hw)
             return ret_val;
         }
     }
-                
+
     return E1000_SUCCESS;
 }
 
@@ -1754,11 +1754,11 @@ e1000_setup_copper_link(struct e1000_hw *hw)
     }
 
     if(hw->autoneg) {
-        /* Setup autoneg and flow control advertisement 
-          * and perform autonegotiation */   
+        /* Setup autoneg and flow control advertisement
+          * and perform autonegotiation */
         ret_val = e1000_copper_link_autoneg(hw);
         if(ret_val)
-            return ret_val;           
+            return ret_val;
     } else {
         /* PHY will be set to 10H, 10F, 100H,or 100F
           * depending on value from forced_speed_duplex. */
@@ -1786,7 +1786,7 @@ e1000_setup_copper_link(struct e1000_hw *hw)
             ret_val = e1000_copper_link_postconfig(hw);
             if(ret_val)
                 return ret_val;
-            
+
             DEBUGOUT("Valid link established!!!\n");
             return E1000_SUCCESS;
         }
@@ -1984,7 +1984,7 @@ e1000_phy_setup_autoneg(struct e1000_hw *hw)
 
     DEBUGOUT1("Auto-Neg Advertising %x\n", mii_autoneg_adv_reg);
 
-    ret_val = e1000_write_phy_reg(hw, PHY_1000T_CTRL, mii_1000t_ctrl_reg);    
+    ret_val = e1000_write_phy_reg(hw, PHY_1000T_CTRL, mii_1000t_ctrl_reg);
     if(ret_val)
         return ret_val;
 
@@ -2273,7 +2273,7 @@ e1000_config_mac_to_phy(struct e1000_hw *hw)
 
     DEBUGFUNC("e1000_config_mac_to_phy");
 
-    /* 82544 or newer MAC, Auto Speed Detection takes care of 
+    /* 82544 or newer MAC, Auto Speed Detection takes care of
     * MAC speed/duplex configuration.*/
     if (hw->mac_type >= e1000_82544)
         return E1000_SUCCESS;
@@ -2292,9 +2292,9 @@ e1000_config_mac_to_phy(struct e1000_hw *hw)
     if(ret_val)
         return ret_val;
 
-    if(phy_data & M88E1000_PSSR_DPLX) 
+    if(phy_data & M88E1000_PSSR_DPLX)
         ctrl |= E1000_CTRL_FD;
-    else 
+    else
         ctrl &= ~E1000_CTRL_FD;
 
     e1000_config_collision_dist(hw);
@@ -2493,10 +2493,10 @@ e1000_config_fc_after_link_up(struct e1000_hw *hw)
                  */
                 if(hw->original_fc == e1000_fc_full) {
                     hw->fc = e1000_fc_full;
-                    DEBUGOUT("Flow Control = FULL.\r\n");
+                    DEBUGOUT("Flow Control = FULL.\n");
                 } else {
                     hw->fc = e1000_fc_rx_pause;
-                    DEBUGOUT("Flow Control = RX PAUSE frames only.\r\n");
+                    DEBUGOUT("Flow Control = RX PAUSE frames only.\n");
                 }
             }
             /* For receiving PAUSE frames ONLY.
@@ -2512,7 +2512,7 @@ e1000_config_fc_after_link_up(struct e1000_hw *hw)
                     (mii_nway_lp_ability_reg & NWAY_LPAR_PAUSE) &&
                     (mii_nway_lp_ability_reg & NWAY_LPAR_ASM_DIR)) {
                 hw->fc = e1000_fc_tx_pause;
-                DEBUGOUT("Flow Control = TX PAUSE frames only.\r\n");
+                DEBUGOUT("Flow Control = TX PAUSE frames only.\n");
             }
             /* For transmitting PAUSE frames ONLY.
              *
@@ -2527,7 +2527,7 @@ e1000_config_fc_after_link_up(struct e1000_hw *hw)
                     !(mii_nway_lp_ability_reg & NWAY_LPAR_PAUSE) &&
                     (mii_nway_lp_ability_reg & NWAY_LPAR_ASM_DIR)) {
                 hw->fc = e1000_fc_rx_pause;
-                DEBUGOUT("Flow Control = RX PAUSE frames only.\r\n");
+                DEBUGOUT("Flow Control = RX PAUSE frames only.\n");
             }
             /* Per the IEEE spec, at this point flow control should be
              * disabled.  However, we want to consider that we could
@@ -2553,10 +2553,10 @@ e1000_config_fc_after_link_up(struct e1000_hw *hw)
                      hw->original_fc == e1000_fc_tx_pause) ||
                     hw->fc_strict_ieee) {
                 hw->fc = e1000_fc_none;
-                DEBUGOUT("Flow Control = NONE.\r\n");
+                DEBUGOUT("Flow Control = NONE.\n");
             } else {
                 hw->fc = e1000_fc_rx_pause;
-                DEBUGOUT("Flow Control = RX PAUSE frames only.\r\n");
+                DEBUGOUT("Flow Control = RX PAUSE frames only.\n");
             }
 
             /* Now we need to do one last check...  If we auto-
@@ -2581,7 +2581,7 @@ e1000_config_fc_after_link_up(struct e1000_hw *hw)
                 return ret_val;
             }
         } else {
-            DEBUGOUT("Copper PHY and Auto Neg has not completed.\r\n");
+            DEBUGOUT("Copper PHY and Auto Neg has not completed.\n");
         }
     }
     return E1000_SUCCESS;
@@ -2764,7 +2764,7 @@ e1000_check_for_link(struct e1000_hw *hw)
             hw->autoneg_failed = 1;
             return 0;
         }
-        DEBUGOUT("NOT RXing /C/, disable AutoNeg and force link.\r\n");
+        DEBUGOUT("NOT RXing /C/, disable AutoNeg and force link.\n");
 
         /* Disable auto-negotiation in the TXCW register */
         E1000_WRITE_REG(hw, TXCW, (hw->txcw & ~E1000_TXCW_ANE));
@@ -2789,7 +2789,7 @@ e1000_check_for_link(struct e1000_hw *hw)
     else if(((hw->media_type == e1000_media_type_fiber) ||
              (hw->media_type == e1000_media_type_internal_serdes)) &&
             (ctrl & E1000_CTRL_SLU) && (rxcw & E1000_RXCW_C)) {
-        DEBUGOUT("RXing /C/, enable AutoNeg and stop forcing link.\r\n");
+        DEBUGOUT("RXing /C/, enable AutoNeg and stop forcing link.\n");
         E1000_WRITE_REG(hw, TXCW, hw->txcw);
         E1000_WRITE_REG(hw, CTRL, (ctrl & ~E1000_CTRL_SLU));
 
@@ -2852,13 +2852,13 @@ e1000_get_speed_and_duplex(struct e1000_hw *hw,
 
         if(status & E1000_STATUS_FD) {
             *duplex = FULL_DUPLEX;
-            DEBUGOUT("Full Duplex\r\n");
+            DEBUGOUT("Full Duplex\n");
         } else {
             *duplex = HALF_DUPLEX;
-            DEBUGOUT(" Half Duplex\r\n");
+            DEBUGOUT(" Half Duplex\n");
         }
     } else {
-        DEBUGOUT("1000 Mbs, Full Duplex\r\n");
+        DEBUGOUT("1000 Mbs, Full Duplex\n");
         *speed = SPEED_1000;
         *duplex = FULL_DUPLEX;
     }
@@ -2884,7 +2884,7 @@ e1000_get_speed_and_duplex(struct e1000_hw *hw,
         }
     }
 
-    if ((hw->mac_type == e1000_80003es2lan) && 
+    if ((hw->mac_type == e1000_80003es2lan) &&
         (hw->media_type == e1000_media_type_copper)) {
         if (*speed == SPEED_1000)
             ret_val = e1000_configure_kmrn_for_1000(hw);
@@ -3160,7 +3160,7 @@ e1000_read_phy_reg(struct e1000_hw *hw,
     if (e1000_swfw_sync_acquire(hw, swfw))
         return -E1000_ERR_SWFW_SYNC;
 
-    if((hw->phy_type == e1000_phy_igp || 
+    if((hw->phy_type == e1000_phy_igp ||
         hw->phy_type == e1000_phy_igp_2) &&
        (reg_addr > MAX_PHY_MULTI_PAGE_REG)) {
         ret_val = e1000_write_phy_reg_ex(hw, IGP01E1000_PHY_PAGE_SELECT,
@@ -3299,7 +3299,7 @@ e1000_write_phy_reg(struct e1000_hw *hw,
     if (e1000_swfw_sync_acquire(hw, swfw))
         return -E1000_ERR_SWFW_SYNC;
 
-    if((hw->phy_type == e1000_phy_igp || 
+    if((hw->phy_type == e1000_phy_igp ||
         hw->phy_type == e1000_phy_igp_2) &&
        (reg_addr > MAX_PHY_MULTI_PAGE_REG)) {
         ret_val = e1000_write_phy_reg_ex(hw, IGP01E1000_PHY_PAGE_SELECT,
@@ -3497,22 +3497,22 @@ e1000_phy_hw_reset(struct e1000_hw *hw)
         }
         /* Read the device control register and assert the E1000_CTRL_PHY_RST
          * bit. Then, take it out of reset.
-         * For pre-e1000_82571 hardware, we delay for 10ms between the assert 
+         * For pre-e1000_82571 hardware, we delay for 10ms between the assert
          * and deassert.  For e1000_82571 hardware and later, we instead delay
          * for 50us between and 10ms after the deassertion.
          */
         ctrl = E1000_READ_REG(hw, CTRL);
         E1000_WRITE_REG(hw, CTRL, ctrl | E1000_CTRL_PHY_RST);
         E1000_WRITE_FLUSH(hw);
-        
-        if (hw->mac_type < e1000_82571) 
+
+        if (hw->mac_type < e1000_82571)
             msec_delay(10);
         else
             udelay(100);
-        
+
         E1000_WRITE_REG(hw, CTRL, ctrl);
         E1000_WRITE_FLUSH(hw);
-        
+
         if (hw->mac_type >= e1000_82571)
             msec_delay(10);
         e1000_swfw_sync_release(hw, swfw);
@@ -3816,7 +3816,7 @@ e1000_phy_m88_get_info(struct e1000_hw *hw,
     /* Check polarity status */
     ret_val = e1000_check_polarity(hw, &polarity);
     if(ret_val)
-        return ret_val; 
+        return ret_val;
     phy_info->cable_polarity = polarity;
 
     ret_val = e1000_read_phy_reg(hw, M88E1000_PHY_SPEC_STATUS, &phy_data);
@@ -4541,14 +4541,14 @@ e1000_read_eeprom_eerd(struct e1000_hw *hw,
 
         E1000_WRITE_REG(hw, EERD, eerd);
         error = e1000_poll_eerd_eewr_done(hw, E1000_EEPROM_POLL_READ);
-        
+
         if(error) {
             break;
         }
         data[i] = (E1000_READ_REG(hw, EERD) >> E1000_EEPROM_RW_REG_DATA);
-      
+
     }
-    
+
     return error;
 }
 
@@ -4574,24 +4574,24 @@ e1000_write_eeprom_eewr(struct e1000_hw *hw,
         return -E1000_ERR_SWFW_SYNC;
 
     for (i = 0; i < words; i++) {
-        register_value = (data[i] << E1000_EEPROM_RW_REG_DATA) | 
-                         ((offset+i) << E1000_EEPROM_RW_ADDR_SHIFT) | 
+        register_value = (data[i] << E1000_EEPROM_RW_REG_DATA) |
+                         ((offset+i) << E1000_EEPROM_RW_ADDR_SHIFT) |
                          E1000_EEPROM_RW_REG_START;
 
         error = e1000_poll_eerd_eewr_done(hw, E1000_EEPROM_POLL_WRITE);
         if(error) {
             break;
-        }       
+        }
 
         E1000_WRITE_REG(hw, EEWR, register_value);
-        
+
         error = e1000_poll_eerd_eewr_done(hw, E1000_EEPROM_POLL_WRITE);
-        
+
         if(error) {
             break;
-        }       
+        }
     }
-    
+
     e1000_swfw_sync_release(hw, E1000_SWFW_EEP_SM);
     return error;
 }
@@ -4611,7 +4611,7 @@ e1000_poll_eerd_eewr_done(struct e1000_hw *hw, int eerd)
     for(i = 0; i < attempts; i++) {
         if(eerd == E1000_EEPROM_POLL_READ)
             reg = E1000_READ_REG(hw, EERD);
-        else 
+        else
             reg = E1000_READ_REG(hw, EEWR);
 
         if(reg & E1000_EEPROM_RW_REG_DONE) {
@@ -5136,7 +5136,7 @@ e1000_mc_addr_list_update(struct e1000_hw *hw,
     uint32_t i;
     uint32_t num_rar_entry;
     uint32_t num_mta_entry;
-    
+
     DEBUGFUNC("e1000_mc_addr_list_update");
 
     /* Set the new number of MC addresses that we are being requested to use. */
@@ -6241,7 +6241,7 @@ e1000_check_polarity(struct e1000_hw *hw,
  *                                1 - Downshift ocured.
  *
  * returns: - E1000_ERR_XXX
- *            E1000_SUCCESS 
+ *            E1000_SUCCESS
  *
  * For phy's older then IGP, this function reads the Downshift bit in the Phy
  * Specific Status register.  For IGP phy's, it reads the Downgrade bit in the
@@ -6256,7 +6256,7 @@ e1000_check_downshift(struct e1000_hw *hw)
 
     DEBUGFUNC("e1000_check_downshift");
 
-    if(hw->phy_type == e1000_phy_igp || 
+    if(hw->phy_type == e1000_phy_igp ||
         hw->phy_type == e1000_phy_igp_2) {
         ret_val = e1000_read_phy_reg(hw, IGP01E1000_PHY_LINK_HEALTH,
                                      &phy_data);
@@ -6685,8 +6685,8 @@ e1000_set_d0_lplu_state(struct e1000_hw *hw,
 
 
     } else {
- 
-            phy_data |= IGP02E1000_PM_D0_LPLU;   
+
+            phy_data |= IGP02E1000_PM_D0_LPLU;
             ret_val = e1000_write_phy_reg(hw, IGP02E1000_PHY_POWER_MGMT, phy_data);
             if (ret_val)
                 return ret_val;
@@ -6778,7 +6778,7 @@ int32_t
 e1000_host_if_read_cookie(struct e1000_hw * hw, uint8_t *buffer)
 {
     uint8_t i;
-    uint32_t offset = E1000_MNG_DHCP_COOKIE_OFFSET; 
+    uint32_t offset = E1000_MNG_DHCP_COOKIE_OFFSET;
     uint8_t length = E1000_MNG_DHCP_COOKIE_LENGTH;
 
     length = (length >> 2);
@@ -6797,7 +6797,7 @@ e1000_host_if_read_cookie(struct e1000_hw * hw, uint8_t *buffer)
  * and also checks whether the previous command is completed.
  * It busy waits in case of previous command is not completed.
  *
- * returns: - E1000_ERR_HOST_INTERFACE_COMMAND in case if is not ready or 
+ * returns: - E1000_ERR_HOST_INTERFACE_COMMAND in case if is not ready or
  *            timeout
  *          - E1000_SUCCESS for success.
  ****************************************************************************/
@@ -6821,7 +6821,7 @@ e1000_mng_enable_host_if(struct e1000_hw * hw)
         msec_delay_irq(1);
     }
 
-    if (i == E1000_MNG_DHCP_COMMAND_TIMEOUT) { 
+    if (i == E1000_MNG_DHCP_COMMAND_TIMEOUT) {
         DEBUGOUT("Previous command timeout failed .\n");
         return -E1000_ERR_HOST_INTERFACE_COMMAND;
     }

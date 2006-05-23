@@ -865,15 +865,15 @@ static int
 e1000_intr_test(struct e1000_adapter *adapter, uint64_t *data)
 {
 	struct net_device *netdev = adapter->netdev;
- 	uint32_t mask, i=0, shared_int = TRUE;
- 	uint32_t irq = adapter->pdev->irq;
+	uint32_t mask, i=0, shared_int = TRUE;
+	uint32_t irq = adapter->pdev->irq;
 
 	*data = 0;
 
 	/* Hook up test interrupt handler just for this test */
- 	if (!request_irq(irq, &e1000_test_intr, 0, netdev->name, netdev)) {
- 		shared_int = FALSE;
- 	} else if (request_irq(irq, &e1000_test_intr, SA_SHIRQ,
+	if (!request_irq(irq, &e1000_test_intr, 0, netdev->name, netdev)) {
+		shared_int = FALSE;
+	} else if (request_irq(irq, &e1000_test_intr, SA_SHIRQ,
 			      netdev->name, netdev)){
 		*data = 1;
 		return -1;
@@ -889,22 +889,22 @@ e1000_intr_test(struct e1000_adapter *adapter, uint64_t *data)
 		/* Interrupt to test */
 		mask = 1 << i;
 
- 		if (!shared_int) {
- 			/* Disable the interrupt to be reported in
- 			 * the cause register and then force the same
- 			 * interrupt and see if one gets posted.  If
- 			 * an interrupt was posted to the bus, the
- 			 * test failed.
- 			 */
- 			adapter->test_icr = 0;
- 			E1000_WRITE_REG(&adapter->hw, IMC, mask);
- 			E1000_WRITE_REG(&adapter->hw, ICS, mask);
- 			msec_delay(10);
+		if (!shared_int) {
+			/* Disable the interrupt to be reported in
+			 * the cause register and then force the same
+			 * interrupt and see if one gets posted.  If
+			 * an interrupt was posted to the bus, the
+			 * test failed.
+			 */
+			adapter->test_icr = 0;
+			E1000_WRITE_REG(&adapter->hw, IMC, mask);
+			E1000_WRITE_REG(&adapter->hw, ICS, mask);
+			msec_delay(10);
 
- 			if (adapter->test_icr & mask) {
- 				*data = 3;
- 				break;
- 			}
+			if (adapter->test_icr & mask) {
+				*data = 3;
+				break;
+			}
 		}
 
 		/* Enable the interrupt to be reported in
@@ -923,7 +923,7 @@ e1000_intr_test(struct e1000_adapter *adapter, uint64_t *data)
 			break;
 		}
 
- 		if (!shared_int) {
+		if (!shared_int) {
 			/* Disable the other interrupts to be reported in
 			 * the cause register and then force the other
 			 * interrupts and see if any get posted.  If
