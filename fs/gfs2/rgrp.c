@@ -1165,7 +1165,7 @@ static struct gfs2_rgrpd *rgblk_free(struct gfs2_sbd *sdp, uint64_t bstart,
 	rgd = gfs2_blk2rgrpd(sdp, bstart);
 	if (!rgd) {
 		if (gfs2_consist(sdp))
-			fs_err(sdp, "block = %llu\n", bstart);
+			fs_err(sdp, "block = %llu\n", (unsigned long long)bstart);
 		return NULL;
 	}
 
@@ -1452,7 +1452,7 @@ void gfs2_rlist_add(struct gfs2_sbd *sdp, struct gfs2_rgrp_list *rlist,
 	rgd = gfs2_blk2rgrpd(sdp, block);
 	if (!rgd) {
 		if (gfs2_consist(sdp))
-			fs_err(sdp, "block = %llu\n", block);
+			fs_err(sdp, "block = %llu\n", (unsigned long long)block);
 		return;
 	}
 

@@ -65,7 +65,7 @@ static void stuck_releasepage(struct buffer_head *bh)
 
 	fs_warn(sdp, "stuck in gfs2_releasepage() %p\n", inode);
 	fs_warn(sdp, "blkno = %llu, bh->b_count = %d\n",
-		(uint64_t)bh->b_blocknr, atomic_read(&bh->b_count));
+		(unsigned long long)bh->b_blocknr, atomic_read(&bh->b_count));
 	fs_warn(sdp, "pinned = %u\n", buffer_pinned(bh));
 	fs_warn(sdp, "bh->b_private = %s\n", (bd) ? "!NULL" : "NULL");
 
@@ -75,7 +75,7 @@ static void stuck_releasepage(struct buffer_head *bh)
 	gl = bd->bd_gl;
 
 	fs_warn(sdp, "gl = (%u, %llu)\n", 
-		gl->gl_name.ln_type, gl->gl_name.ln_number);
+		gl->gl_name.ln_type, (unsigned long long)gl->gl_name.ln_number);
 
 	fs_warn(sdp, "bd_list_tr = %s, bd_le.le_list = %s\n",
 		(list_empty(&bd->bd_list_tr)) ? "no" : "yes",
@@ -89,7 +89,8 @@ static void stuck_releasepage(struct buffer_head *bh)
 			return;
 
 		fs_warn(sdp, "ip = %llu %llu\n",
-			ip->i_num.no_formal_ino, ip->i_num.no_addr);
+			(unsigned long long)ip->i_num.no_formal_ino,
+			(unsigned long long)ip->i_num.no_addr);
 		fs_warn(sdp, "ip->i_count = %d, ip->i_vnode = %s\n",
 			atomic_read(&ip->i_count),
 			(ip->i_vnode) ? "!NULL" : "NULL");

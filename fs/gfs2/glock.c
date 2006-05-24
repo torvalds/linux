@@ -2196,7 +2196,8 @@ static int dump_inode(struct gfs2_inode *ip)
 
 	printk(KERN_INFO "  Inode:\n");
 	printk(KERN_INFO "    num = %llu %llu\n",
-		    ip->i_num.no_formal_ino, ip->i_num.no_addr);
+		    (unsigned long long)ip->i_num.no_formal_ino,
+		    (unsigned long long)ip->i_num.no_addr);
 	printk(KERN_INFO "    type = %u\n", IF2DT(ip->i_di.di_mode));
 	printk(KERN_INFO "    i_count = %d\n", atomic_read(&ip->i_count));
 	printk(KERN_INFO "    i_flags =");
@@ -2228,7 +2229,7 @@ static int dump_glock(struct gfs2_glock *gl)
 	spin_lock(&gl->gl_spin);
 
 	printk(KERN_INFO "Glock (%u, %llu)\n", gl->gl_name.ln_type,
-	       gl->gl_name.ln_number);
+	       (unsigned long long)gl->gl_name.ln_number);
 	printk(KERN_INFO "  gl_flags =");
 	for (x = 0; x < 32; x++)
 		if (test_bit(x, &gl->gl_flags))

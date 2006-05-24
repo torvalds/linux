@@ -116,7 +116,8 @@ int gfs2_consist_inode_i(struct gfs2_inode *ip, int cluster_wide,
 		"GFS2: fsid=%s:   inode = %llu %llu\n"
 		"GFS2: fsid=%s:   function = %s, file = %s, line = %u\n",
 		sdp->sd_fsname,
-		sdp->sd_fsname, ip->i_num.no_formal_ino, ip->i_num.no_addr,
+		sdp->sd_fsname, (unsigned long long)ip->i_num.no_formal_ino,
+		(unsigned long long)ip->i_num.no_addr,
 		sdp->sd_fsname, function, file, line);
 	return rv;
 }
@@ -137,7 +138,7 @@ int gfs2_consist_rgrpd_i(struct gfs2_rgrpd *rgd, int cluster_wide,
 		"GFS2: fsid=%s:   RG = %llu\n"
 		"GFS2: fsid=%s:   function = %s, file = %s, line = %u\n",
 		sdp->sd_fsname,
-		sdp->sd_fsname, rgd->rd_ri.ri_addr,
+		sdp->sd_fsname, (unsigned long long)rgd->rd_ri.ri_addr,
 		sdp->sd_fsname, function, file, line);
 	return rv;
 }
@@ -158,7 +159,7 @@ int gfs2_meta_check_ii(struct gfs2_sbd *sdp, struct buffer_head *bh,
 		"GFS2: fsid=%s:   bh = %llu (%s)\n"
 		"GFS2: fsid=%s:   function = %s, file = %s, line = %u\n",
 		sdp->sd_fsname,
-		sdp->sd_fsname, (uint64_t)bh->b_blocknr, type,
+		sdp->sd_fsname, (unsigned long long)bh->b_blocknr, type,
 		sdp->sd_fsname, function, file, line);
 	return (me) ? -1 : -2;
 }
@@ -179,7 +180,7 @@ int gfs2_metatype_check_ii(struct gfs2_sbd *sdp, struct buffer_head *bh,
 		"GFS2: fsid=%s:   bh = %llu (type: exp=%u, found=%u)\n"
 		"GFS2: fsid=%s:   function = %s, file = %s, line = %u\n",
 		sdp->sd_fsname,
-		sdp->sd_fsname, (uint64_t)bh->b_blocknr, type, t,
+		sdp->sd_fsname, (unsigned long long)bh->b_blocknr, type, t,
 		sdp->sd_fsname, function, file, line);
 	return (me) ? -1 : -2;
 }
@@ -217,7 +218,7 @@ int gfs2_io_error_bh_i(struct gfs2_sbd *sdp, struct buffer_head *bh,
 		"GFS2: fsid=%s:   block = %llu\n"
 		"GFS2: fsid=%s:   function = %s, file = %s, line = %u\n",
 		sdp->sd_fsname,
-		sdp->sd_fsname, (uint64_t)bh->b_blocknr,
+		sdp->sd_fsname, (unsigned long long)bh->b_blocknr,
 		sdp->sd_fsname, function, file, line);
 	return rv;
 }

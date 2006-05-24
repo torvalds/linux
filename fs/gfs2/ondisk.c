@@ -50,8 +50,8 @@ void gfs2_inum_out(const struct gfs2_inum *no, char *buf)
 
 static void gfs2_inum_print(struct gfs2_inum *no)
 {
-	pv(no, no_formal_ino, "%llu");
-	pv(no, no_addr, "%llu");
+	printk(KERN_INFO "  no_formal_ino = %llu\n", (unsigned long long)no->no_formal_ino);
+	printk(KERN_INFO "  no_addr = %llu\n", (unsigned long long)no->no_addr);
 }
 
 static void gfs2_meta_header_in(struct gfs2_meta_header *mh, char *buf)
@@ -111,10 +111,10 @@ void gfs2_rindex_in(struct gfs2_rindex *ri, char *buf)
 
 void gfs2_rindex_print(struct gfs2_rindex *ri)
 {
-	pv(ri, ri_addr, "%llu");
+	printk(KERN_INFO "  ri_addr = %llu\n", (unsigned long long)ri->ri_addr);
 	pv(ri, ri_length, "%u");
 
-	pv(ri, ri_data0, "%llu");
+	printk(KERN_INFO "  ri_data0 = %llu\n", (unsigned long long)ri->ri_data0);
 	pv(ri, ri_data, "%u");
 
 	pv(ri, ri_bitbytes, "%u");
@@ -226,16 +226,16 @@ void gfs2_dinode_print(struct gfs2_dinode *di)
 	pv(di, di_uid, "%u");
 	pv(di, di_gid, "%u");
 	pv(di, di_nlink, "%u");
-	pv(di, di_size, "%llu");
-	pv(di, di_blocks, "%llu");
-	pv(di, di_atime, "%lld");
-	pv(di, di_mtime, "%lld");
-	pv(di, di_ctime, "%lld");
+	printk(KERN_INFO "  di_size = %llu\n", (unsigned long long)di->di_size);
+	printk(KERN_INFO "  di_blocks = %llu\n", (unsigned long long)di->di_blocks);
+	printk(KERN_INFO "  di_atime = %lld\n", (long long)di->di_atime);
+	printk(KERN_INFO "  di_mtime = %lld\n", (long long)di->di_mtime);
+	printk(KERN_INFO "  di_ctime = %lld\n", (long long)di->di_ctime);
 	pv(di, di_major, "%u");
 	pv(di, di_minor, "%u");
 
-	pv(di, di_goal_meta, "%llu");
-	pv(di, di_goal_data, "%llu");
+	printk(KERN_INFO "  di_goal_meta = %llu\n", (unsigned long long)di->di_goal_meta);
+	printk(KERN_INFO "  di_goal_data = %llu\n", (unsigned long long)di->di_goal_data);
 
 	pv(di, di_flags, "0x%.8X");
 	pv(di, di_payload_format, "%u");
@@ -244,7 +244,7 @@ void gfs2_dinode_print(struct gfs2_dinode *di)
 	pv(di, di_depth, "%u");
 	pv(di, di_entries, "%u");
 
-	pv(di, di_eattr, "%llu");
+	printk(KERN_INFO "  di_eattr = %llu\n", (unsigned long long)di->di_eattr);
 }
 
 void gfs2_log_header_in(struct gfs2_log_header *lh, char *buf)
