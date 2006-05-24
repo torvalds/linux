@@ -517,7 +517,7 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 
 	// Take care, that wasted size is taken into concern
 	if ((jeb->dirty_size || ISDIRTY(jeb->wasted_size + freed_len)) && jeb != c->nextblock) {
-		D1(printk(KERN_DEBUG "Dirtying\n"));
+		D1(printk("Dirtying\n"));
 		addedsize = freed_len;
 		jeb->dirty_size += freed_len;
 		c->dirty_size += freed_len;
@@ -539,7 +539,7 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 			}
 		}
 	} else {
-		D1(printk(KERN_DEBUG "Wasting\n"));
+		D1(printk("Wasting\n"));
 		addedsize = 0;
 		jeb->wasted_size += freed_len;
 		c->wasted_size += freed_len;
