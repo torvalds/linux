@@ -107,6 +107,7 @@
  *	0.52: 20 Jan 2006: Add MSI/MSIX support.
  *	0.53: 19 Mar 2006: Fix init from low power mode and add hw reset.
  *	0.54: 21 Mar 2006: Fix spin locks for multi irqs and cleanup.
+ *	0.55: 22 Mar 2006: Add flow control (pause frame).
  *
  * Known bugs:
  * We suspect that on some hardware no TX done interrupts are generated.
@@ -118,7 +119,7 @@
  * DEV_NEED_TIMERIRQ will not harm you on sane hardware, only generating a few
  * superfluous timer interrupts from the nic.
  */
-#define FORCEDETH_VERSION		"0.54"
+#define FORCEDETH_VERSION		"0.55"
 #define DRV_NAME			"forcedeth"
 
 #include <linux/module.h>
@@ -163,6 +164,7 @@
 #define DEV_HAS_MSI             0x0040  /* device supports MSI */
 #define DEV_HAS_MSI_X           0x0080  /* device supports MSI-X */
 #define DEV_HAS_POWER_CNTRL     0x0100  /* device supports power savings */
+#define DEV_HAS_PAUSEFRAME_TX   0x0200  /* device supports tx pause frames */
 
 enum {
 	NvRegIrqStatus = 0x000,
@@ -203,6 +205,7 @@ enum {
 	NvRegMSIIrqMask = 0x030,
 #define NVREG_MSI_VECTOR_0_ENABLED 0x01
 	NvRegMisc1 = 0x080,
+#define NVREG_MISC1_PAUSE_TX	0x01
 #define NVREG_MISC1_HD		0x02
 #define NVREG_MISC1_FORCE	0x3b0f3c
 
@@ -214,7 +217,8 @@ enum {
 #define NVREG_XMITSTAT_BUSY	0x01
 
 	NvRegPacketFilterFlags = 0x8c,
-#define NVREG_PFF_ALWAYS	0x7F0008
+#define NVREG_PFF_PAUSE_RX	0x08
+#define NVREG_PFF_ALWAYS	0x7F0000
 #define NVREG_PFF_PROMISC	0x80
 #define NVREG_PFF_MYADDR	0x20
 
@@ -277,6 +281,9 @@ enum {
 #define NVREG_TXRXCTL_VLANINS	0x00080
 	NvRegTxRingPhysAddrHigh = 0x148,
 	NvRegRxRingPhysAddrHigh = 0x14C,
+	NvRegTxPauseFrame = 0x170,
+#define NVREG_TX_PAUSEFRAME_DISABLE	0x1ff0080
+#define NVREG_TX_PAUSEFRAME_ENABLE	0x0c00030
 	NvRegMIIStatus = 0x180,
 #define NVREG_MIISTAT_ERROR		0x0001
 #define NVREG_MIISTAT_LINKCHANGE	0x0008
@@ -506,13 +513,10 @@ typedef union _ring_type {
 #define PHY_1000	0x2
 #define PHY_HALF	0x100
 
-/* FIXME: MII defines that should be added to <linux/mii.h> */
-#define MII_1000BT_CR	0x09
-#define MII_1000BT_SR	0x0a
-#define ADVERTISE_1000FULL	0x0200
-#define ADVERTISE_1000HALF	0x0100
-#define LPA_1000FULL	0x0800
-#define LPA_1000HALF	0x0400
+#define NV_PAUSEFRAME_RX_CAPABLE 0x0001
+#define NV_PAUSEFRAME_TX_CAPABLE 0x0002
+#define NV_PAUSEFRAME_RX_ENABLE  0x0004
+#define NV_PAUSEFRAME_TX_ENABLE  0x0008
 
 /* MSI/MSI-X defines */
 #define NV_MSI_X_MAX_VECTORS  8
@@ -602,6 +606,9 @@ struct fe_priv {
 	/* msi/msi-x fields */
 	u32 msi_flags;
 	struct msix_entry msi_x_entry[NV_MSI_X_MAX_VECTORS];
+
+	/* flow control */
+	u32 pause_flags;
 };
 
 /*
@@ -860,7 +867,7 @@ static int phy_init(struct net_device *dev)
 
 	/* set advertise register */
 	reg = mii_rw(dev, np->phyaddr, MII_ADVERTISE, MII_READ);
-	reg |= (ADVERTISE_10HALF|ADVERTISE_10FULL|ADVERTISE_100HALF|ADVERTISE_100FULL|0x800|0x400);
+	reg |= (ADVERTISE_10HALF|ADVERTISE_10FULL|ADVERTISE_100HALF|ADVERTISE_100FULL|ADVERTISE_PAUSE_ASYM|ADVERTISE_PAUSE_CAP);
 	if (mii_rw(dev, np->phyaddr, MII_ADVERTISE, reg)) {
 		printk(KERN_INFO "%s: phy write to advertise failed.\n", pci_name(np->pci_dev));
 		return PHY_ERROR;
@@ -873,14 +880,14 @@ static int phy_init(struct net_device *dev)
 	mii_status = mii_rw(dev, np->phyaddr, MII_BMSR, MII_READ);
 	if (mii_status & PHY_GIGABIT) {
 		np->gigabit = PHY_GIGABIT;
-		mii_control_1000 = mii_rw(dev, np->phyaddr, MII_1000BT_CR, MII_READ);
+		mii_control_1000 = mii_rw(dev, np->phyaddr, MII_CTRL1000, MII_READ);
 		mii_control_1000 &= ~ADVERTISE_1000HALF;
 		if (phyinterface & PHY_RGMII)
 			mii_control_1000 |= ADVERTISE_1000FULL;
 		else
 			mii_control_1000 &= ~ADVERTISE_1000FULL;
 
-		if (mii_rw(dev, np->phyaddr, MII_1000BT_CR, mii_control_1000)) {
+		if (mii_rw(dev, np->phyaddr, MII_CTRL1000, mii_control_1000)) {
 			printk(KERN_INFO "%s: phy init failed.\n", pci_name(np->pci_dev));
 			return PHY_ERROR;
 		}
@@ -918,6 +925,8 @@ static int phy_init(struct net_device *dev)
 			return PHY_ERROR;
 		}
 	}
+	/* some phys clear out pause advertisment on reset, set it back */
+	mii_rw(dev, np->phyaddr, MII_ADVERTISE, reg);
 
 	/* restart auto negotiation */
 	mii_control = mii_rw(dev, np->phyaddr, MII_BMCR, MII_READ);
@@ -1550,7 +1559,6 @@ static void nv_rx_process(struct net_device *dev)
 	u32 Flags;
 	u32 vlanflags = 0;
 
-
 	for (;;) {
 		struct sk_buff *skb;
 		int len;
@@ -1901,7 +1909,9 @@ static int nv_update_linkspeed(struct net_device *dev)
 {
 	struct fe_priv *np = netdev_priv(dev);
 	u8 __iomem *base = get_hwbase(dev);
-	int adv, lpa;
+	int adv = 0;
+	int lpa = 0;
+	int adv_lpa, adv_pause, lpa_pause;
 	int newls = np->linkspeed;
 	int newdup = np->duplex;
 	int mii_status;
@@ -1954,8 +1964,8 @@ static int nv_update_linkspeed(struct net_device *dev)
 
 	retval = 1;
 	if (np->gigabit == PHY_GIGABIT) {
-		control_1000 = mii_rw(dev, np->phyaddr, MII_1000BT_CR, MII_READ);
-		status_1000 = mii_rw(dev, np->phyaddr, MII_1000BT_SR, MII_READ);
+		control_1000 = mii_rw(dev, np->phyaddr, MII_CTRL1000, MII_READ);
+		status_1000 = mii_rw(dev, np->phyaddr, MII_STAT1000, MII_READ);
 
 		if ((control_1000 & ADVERTISE_1000FULL) &&
 			(status_1000 & LPA_1000FULL)) {
@@ -1973,21 +1983,21 @@ static int nv_update_linkspeed(struct net_device *dev)
 				dev->name, adv, lpa);
 
 	/* FIXME: handle parallel detection properly */
-	lpa = lpa & adv;
-	if (lpa & LPA_100FULL) {
+	adv_lpa = lpa & adv;
+	if (adv_lpa & LPA_100FULL) {
 		newls = NVREG_LINKSPEED_FORCE|NVREG_LINKSPEED_100;
 		newdup = 1;
-	} else if (lpa & LPA_100HALF) {
+	} else if (adv_lpa & LPA_100HALF) {
 		newls = NVREG_LINKSPEED_FORCE|NVREG_LINKSPEED_100;
 		newdup = 0;
-	} else if (lpa & LPA_10FULL) {
+	} else if (adv_lpa & LPA_10FULL) {
 		newls = NVREG_LINKSPEED_FORCE|NVREG_LINKSPEED_10;
 		newdup = 1;
-	} else if (lpa & LPA_10HALF) {
+	} else if (adv_lpa & LPA_10HALF) {
 		newls = NVREG_LINKSPEED_FORCE|NVREG_LINKSPEED_10;
 		newdup = 0;
 	} else {
-		dprintk(KERN_DEBUG "%s: bad ability %04x - falling back to 10HD.\n", dev->name, lpa);
+		dprintk(KERN_DEBUG "%s: bad ability %04x - falling back to 10HD.\n", dev->name, adv_lpa);
 		newls = NVREG_LINKSPEED_FORCE|NVREG_LINKSPEED_10;
 		newdup = 0;
 	}
@@ -2029,6 +2039,56 @@ set_speed:
 	pci_push(base);
 	writel(np->linkspeed, base + NvRegLinkSpeed);
 	pci_push(base);
+
+	/* setup pause frame based on advertisement and link partner */
+	np->pause_flags &= ~(NV_PAUSEFRAME_TX_ENABLE | NV_PAUSEFRAME_RX_ENABLE);
+
+	if (np->duplex != 0) {
+		adv_pause = adv & (ADVERTISE_PAUSE_CAP| ADVERTISE_PAUSE_ASYM);
+		lpa_pause = lpa & (LPA_PAUSE_CAP| LPA_PAUSE_ASYM);
+
+		switch (adv_pause) {
+		case (ADVERTISE_PAUSE_CAP):
+			if (lpa_pause & LPA_PAUSE_CAP) {
+				np->pause_flags |= NV_PAUSEFRAME_TX_ENABLE | NV_PAUSEFRAME_RX_ENABLE;
+			}
+			break;
+		case (ADVERTISE_PAUSE_ASYM):
+			if (lpa_pause == (LPA_PAUSE_CAP| LPA_PAUSE_ASYM))
+			{
+				np->pause_flags |= NV_PAUSEFRAME_TX_ENABLE;
+			}
+			break;
+		case (ADVERTISE_PAUSE_CAP| ADVERTISE_PAUSE_ASYM):
+			if (lpa_pause & LPA_PAUSE_CAP)
+			{
+				np->pause_flags |= NV_PAUSEFRAME_TX_ENABLE | NV_PAUSEFRAME_RX_ENABLE;
+			}
+			if (lpa_pause == LPA_PAUSE_ASYM)
+			{
+				np->pause_flags |= NV_PAUSEFRAME_RX_ENABLE;
+			} 
+			break;
+		}
+	}
+
+	if (np->pause_flags & NV_PAUSEFRAME_RX_CAPABLE) {
+		u32 pff = readl(base + NvRegPacketFilterFlags) & ~NVREG_PFF_PAUSE_RX;
+		if (np->pause_flags & NV_PAUSEFRAME_RX_ENABLE)
+			writel(pff|NVREG_PFF_PAUSE_RX, base + NvRegPacketFilterFlags);
+		else
+			writel(pff, base + NvRegPacketFilterFlags);
+	}
+	if (np->pause_flags & NV_PAUSEFRAME_TX_CAPABLE) {
+		u32 regmisc = readl(base + NvRegMisc1) & ~NVREG_MISC1_PAUSE_TX;
+		if (np->pause_flags & NV_PAUSEFRAME_TX_ENABLE) {
+			writel(NVREG_TX_PAUSEFRAME_ENABLE,  base + NvRegTxPauseFrame);
+			writel(regmisc|NVREG_MISC1_PAUSE_TX, base + NvRegMisc1);
+		} else {
+			writel(NVREG_TX_PAUSEFRAME_DISABLE,  base + NvRegTxPauseFrame);
+			writel(regmisc, base + NvRegMisc1);			
+		}
+	}
 
 	return retval;
 }
@@ -2441,7 +2501,7 @@ static int nv_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 	if (adv & ADVERTISE_100FULL)
 		ecmd->advertising |= ADVERTISED_100baseT_Full;
 	if (np->autoneg && np->gigabit == PHY_GIGABIT) {
-		adv = mii_rw(dev, np->phyaddr, MII_1000BT_CR, MII_READ);
+		adv = mii_rw(dev, np->phyaddr, MII_CTRL1000, MII_READ);
 		if (adv & ADVERTISE_1000FULL)
 			ecmd->advertising |= ADVERTISED_1000baseT_Full;
 	}
@@ -2505,23 +2565,23 @@ static int nv_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 
 		/* advertise only what has been requested */
 		adv = mii_rw(dev, np->phyaddr, MII_ADVERTISE, MII_READ);
-		adv &= ~(ADVERTISE_ALL | ADVERTISE_100BASE4);
+		adv &= ~(ADVERTISE_ALL | ADVERTISE_100BASE4 | ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM);
 		if (ecmd->advertising & ADVERTISED_10baseT_Half)
 			adv |= ADVERTISE_10HALF;
 		if (ecmd->advertising & ADVERTISED_10baseT_Full)
-			adv |= ADVERTISE_10FULL;
+			adv |= ADVERTISE_10FULL | ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM;
 		if (ecmd->advertising & ADVERTISED_100baseT_Half)
 			adv |= ADVERTISE_100HALF;
 		if (ecmd->advertising & ADVERTISED_100baseT_Full)
-			adv |= ADVERTISE_100FULL;
+			adv |= ADVERTISE_100FULL | ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM;
 		mii_rw(dev, np->phyaddr, MII_ADVERTISE, adv);
 
 		if (np->gigabit == PHY_GIGABIT) {
-			adv = mii_rw(dev, np->phyaddr, MII_1000BT_CR, MII_READ);
+			adv = mii_rw(dev, np->phyaddr, MII_CTRL1000, MII_READ);
 			adv &= ~ADVERTISE_1000FULL;
 			if (ecmd->advertising & ADVERTISED_1000baseT_Full)
 				adv |= ADVERTISE_1000FULL;
-			mii_rw(dev, np->phyaddr, MII_1000BT_CR, adv);
+			mii_rw(dev, np->phyaddr, MII_CTRL1000, adv);
 		}
 
 		bmcr = mii_rw(dev, np->phyaddr, MII_BMCR, MII_READ);
@@ -2534,22 +2594,22 @@ static int nv_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 		np->autoneg = 0;
 
 		adv = mii_rw(dev, np->phyaddr, MII_ADVERTISE, MII_READ);
-		adv &= ~(ADVERTISE_ALL | ADVERTISE_100BASE4);
+		adv &= ~(ADVERTISE_ALL | ADVERTISE_100BASE4 | ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM);
 		if (ecmd->speed == SPEED_10 && ecmd->duplex == DUPLEX_HALF)
 			adv |= ADVERTISE_10HALF;
 		if (ecmd->speed == SPEED_10 && ecmd->duplex == DUPLEX_FULL)
-			adv |= ADVERTISE_10FULL;
+			adv |= ADVERTISE_10FULL | ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM;
 		if (ecmd->speed == SPEED_100 && ecmd->duplex == DUPLEX_HALF)
 			adv |= ADVERTISE_100HALF;
 		if (ecmd->speed == SPEED_100 && ecmd->duplex == DUPLEX_FULL)
-			adv |= ADVERTISE_100FULL;
+			adv |= ADVERTISE_100FULL | ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM;
 		mii_rw(dev, np->phyaddr, MII_ADVERTISE, adv);
 		np->fixed_mode = adv;
 
 		if (np->gigabit == PHY_GIGABIT) {
-			adv = mii_rw(dev, np->phyaddr, MII_1000BT_CR, MII_READ);
+			adv = mii_rw(dev, np->phyaddr, MII_CTRL1000, MII_READ);
 			adv &= ~ADVERTISE_1000FULL;
-			mii_rw(dev, np->phyaddr, MII_1000BT_CR, adv);
+			mii_rw(dev, np->phyaddr, MII_CTRL1000, adv);
 		}
 
 		bmcr = mii_rw(dev, np->phyaddr, MII_BMCR, MII_READ);
@@ -2812,6 +2872,9 @@ static int nv_open(struct net_device *dev)
 	writel(0, base + NvRegReceiverControl);
 
 	writel(0, base + NvRegAdapterControl);
+
+	if (np->pause_flags & NV_PAUSEFRAME_TX_CAPABLE)
+		writel(NVREG_TX_PAUSEFRAME_DISABLE,  base + NvRegTxPauseFrame);
 
 	/* 2) initialize descriptor rings */
 	set_bufsize(dev);
@@ -3098,6 +3161,12 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 		np->msi_flags |= NV_MSI_X_CAPABLE;
 	}
 
+	np->pause_flags = NV_PAUSEFRAME_RX_CAPABLE;
+	if (id->driver_data & DEV_HAS_PAUSEFRAME_TX) {
+		np->pause_flags |= NV_PAUSEFRAME_TX_CAPABLE;
+	}
+	
+
 	err = -ENOMEM;
 	np->base = ioremap(addr, np->register_size);
 	if (!np->base)
@@ -3358,11 +3427,11 @@ static struct pci_device_id pci_tbl[] = {
 	},
 	{	/* MCP55 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_14),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_VLAN|DEV_HAS_MSI|DEV_HAS_MSI_X|DEV_HAS_POWER_CNTRL,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_VLAN|DEV_HAS_MSI|DEV_HAS_MSI_X|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX,
 	},
 	{	/* MCP55 Ethernet Controller */
 		PCI_DEVICE(PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NVENET_15),
-		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_VLAN|DEV_HAS_MSI|DEV_HAS_MSI_X|DEV_HAS_POWER_CNTRL,
+		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER|DEV_HAS_LARGEDESC|DEV_HAS_CHECKSUM|DEV_HAS_HIGH_DMA|DEV_HAS_VLAN|DEV_HAS_MSI|DEV_HAS_MSI_X|DEV_HAS_POWER_CNTRL|DEV_HAS_PAUSEFRAME_TX,
 	},
 	{0,},
 };
