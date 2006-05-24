@@ -364,12 +364,23 @@ static void pdc_sata_phy_reset(struct ata_port *ap)
 	sata_phy_reset(ap);
 }
 
+static void pdc_pata_cbl_detect(struct ata_port *ap)
+{
+	u8 tmp;
+	void __iomem *mmio = (void *) ap->ioaddr.cmd_addr + PDC_CTLSTAT + 0x03;
+
+	tmp = readb(mmio);
+
+	if (tmp & 0x01) {
+		ap->cbl = ATA_CBL_PATA40;
+		ap->udma_mask &= ATA_UDMA_MASK_40C;
+	} else
+		ap->cbl = ATA_CBL_PATA80;
+}
+
 static void pdc_pata_phy_reset(struct ata_port *ap)
 {
-	/* FIXME: add cable detect.  Don't assume 40-pin cable */
-	ap->cbl = ATA_CBL_PATA40;
-	ap->udma_mask &= ATA_UDMA_MASK_40C;
-
+	pdc_pata_cbl_detect(ap);
 	pdc_reset_port(ap);
 	ata_port_probe(ap);
 	ata_bus_reset(ap);
