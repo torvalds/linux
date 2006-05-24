@@ -1180,6 +1180,8 @@ static int ipath_pe_early_init(struct ipath_devdata *dd)
 	 */
 	dd->ipath_rhdrhead_intr_off = 1ULL<<32;
 
+	ipath_get_eeprom_info(dd);
+
 	return 0;
 }
 

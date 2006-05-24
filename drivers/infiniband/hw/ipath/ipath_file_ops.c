@@ -139,7 +139,7 @@ static int ipath_get_base_info(struct ipath_portdata *pd,
 	kinfo->spi_piosize = dd->ipath_ibmaxlen;
 	kinfo->spi_mtu = dd->ipath_ibmaxlen;	/* maxlen, not ibmtu */
 	kinfo->spi_port = pd->port_port;
-	kinfo->spi_sw_version = IPATH_USER_SWVERSION;
+	kinfo->spi_sw_version = IPATH_KERN_SWVERSION;
 	kinfo->spi_hw_version = dd->ipath_revision;
 
 	if (copy_to_user(ubase, kinfo, sizeof(*kinfo)))
@@ -1224,6 +1224,10 @@ static unsigned int ipath_poll(struct file *fp,
 
 	if (tail == head) {
 		set_bit(IPATH_PORT_WAITING_RCV, &pd->port_flag);
+		if(dd->ipath_rhdrhead_intr_off) /* arm rcv interrupt */
+			(void)ipath_write_ureg(dd, ur_rcvhdrhead,
+					       dd->ipath_rhdrhead_intr_off
+					       | head, pd->port_port);
 		poll_wait(fp, &pd->port_wait, pt);
 
 		if (test_bit(IPATH_PORT_WAITING_RCV, &pd->port_flag)) {

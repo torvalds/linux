@@ -505,11 +505,10 @@ static u8 flash_csum(struct ipath_flash *ifp, int adjust)
  * ipath_get_guid - get the GUID from the i2c device
  * @dd: the infinipath device
  *
- * When we add the multi-chip support, we will probably have to add
- * the ability to use the number of guids field, and get the guid from
- * the first chip's flash, to use for all of them.
+ * We have the capability to use the ipath_nguid field, and get
+ * the guid from the first chip's flash, to use for all of them.
  */
-void ipath_get_guid(struct ipath_devdata *dd)
+void ipath_get_eeprom_info(struct ipath_devdata *dd)
 {
 	void *buf;
 	struct ipath_flash *ifp;
