@@ -12,7 +12,7 @@
     Copyright (C) 1999 David A. Hinds -- dahinds@users.sourceforge.net
 
     pcnet_cs.c 1.153 2003/11/09 18:53:09
-    
+
     The network driver code is based on Donald Becker's NE2000 code:
 
     Written 1992,1993 by Donald Becker.
@@ -146,7 +146,7 @@ typedef struct hw_info_t {
 #define MII_PHYID_REG2		0x03
 
 static hw_info_t hw_info[] = {
-    { /* Accton EN2212 */ 0x0ff0, 0x00, 0x00, 0xe8, DELAY_OUTPUT }, 
+    { /* Accton EN2212 */ 0x0ff0, 0x00, 0x00, 0xe8, DELAY_OUTPUT },
     { /* Allied Telesis LA-PCM */ 0x0ff0, 0x00, 0x00, 0xf4, 0 },
     { /* APEX MultiCard */ 0x03f4, 0x00, 0x20, 0xe5, 0 },
     { /* ASANTE FriendlyNet */ 0x4910, 0x00, 0x00, 0x94,
@@ -193,7 +193,7 @@ static hw_info_t hw_info[] = {
     { /* NE2000 Compatible */ 0x0ff0, 0x00, 0xa0, 0x0c, 0 },
     { /* Network General Sniffer */ 0x0ff0, 0x00, 0x00, 0x65,
       HAS_MISC_REG | HAS_IBM_MISC },
-    { /* Panasonic VEL211 */ 0x0ff0, 0x00, 0x80, 0x45, 
+    { /* Panasonic VEL211 */ 0x0ff0, 0x00, 0x80, 0x45,
       HAS_MISC_REG | HAS_IBM_MISC },
     { /* PreMax PE-200 */ 0x07f0, 0x00, 0x20, 0xe0, 0 },
     { /* RPTI EP400 */ 0x0110, 0x00, 0x40, 0x95, 0 },
@@ -330,7 +330,7 @@ static hw_info_t *get_hwinfo(struct pcmcia_device *link)
 	for (j = 0; j < 6; j++)
 	    dev->dev_addr[j] = readb(base + (j<<1));
     }
-    
+
     iounmap(virt);
     j = pcmcia_release_window(link->win);
     if (j != CS_SUCCESS)
@@ -490,7 +490,7 @@ static int try_io_port(struct pcmcia_device *link)
 	if (link->io.NumPorts2 > 0) {
 	    /* for master/slave multifunction cards */
 	    link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
-	    link->irq.Attributes = 
+	    link->irq.Attributes =
 		IRQ_TYPE_DYNAMIC_SHARING|IRQ_FIRST_SHARED;
 	}
     } else {
@@ -543,19 +543,19 @@ static int pcnet_config(struct pcmcia_device *link)
 	manfid = le16_to_cpu(buf[0]);
 	prodid = le16_to_cpu(buf[1]);
     }
-    
+
     tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
     tuple.Attributes = 0;
     CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
     while (last_ret == CS_SUCCESS) {
 	cistpl_cftable_entry_t *cfg = &(parse.cftable_entry);
 	cistpl_io_t *io = &(parse.cftable_entry.io);
-	
+
 	if (pcmcia_get_tuple_data(link, &tuple) != 0 ||
 			pcmcia_parse_tuple(link, &tuple, &parse) != 0 ||
 			cfg->index == 0 || cfg->io.nwin == 0)
 		goto next_entry;
-	
+
 	link->conf.ConfigIndex = cfg->index;
 	/* For multifunction cards, by convention, we configure the
 	   network function with window 0, and serial with window 1 */
@@ -584,7 +584,7 @@ static int pcnet_config(struct pcmcia_device *link)
     }
 
     CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
-    
+
     if (link->io.NumPorts2 == 8) {
 	link->conf.Attributes |= CONF_ENABLE_SPKR;
 	link->conf.Status = CCSR_AUDIO_ENA;
@@ -592,7 +592,7 @@ static int pcnet_config(struct pcmcia_device *link)
     if ((manfid == MANFID_IBM) &&
 	(prodid == PRODID_IBM_HOME_AND_AWAY))
 	link->conf.ConfigIndex |= 0x10;
-    
+
     CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
     dev->irq = link->irq.AssignedIRQ;
     dev->base_addr = link->io.BasePort1;
@@ -614,7 +614,7 @@ static int pcnet_config(struct pcmcia_device *link)
 	hw_info = get_ax88190(link);
     if (hw_info == NULL)
 	hw_info = get_hwired(link);
-    
+
     if (hw_info == NULL) {
 	printk(KERN_NOTICE "pcnet_cs: unable to read hardware net"
 	       " address for io base %#3lx\n", dev->base_addr);
@@ -631,7 +631,7 @@ static int pcnet_config(struct pcmcia_device *link)
 	info->flags &= ~USE_BIG_BUF;
     if (!use_big_buf)
 	info->flags &= ~USE_BIG_BUF;
-    
+
     if (info->flags & USE_BIG_BUF) {
 	start_pg = SOCKET_START_PG;
 	stop_pg = SOCKET_STOP_PG;
@@ -929,7 +929,7 @@ static void set_misc_reg(struct net_device *dev)
     kio_addr_t nic_base = dev->base_addr;
     pcnet_dev_t *info = PRIV(dev);
     u_char tmp;
-    
+
     if (info->flags & HAS_MISC_REG) {
 	tmp = inb_p(nic_base + PCNET_MISC) & ~3;
 	if (dev->if_port == 2)
@@ -1022,7 +1022,7 @@ static int pcnet_close(struct net_device *dev)
 
     ei_close(dev);
     free_irq(dev->irq, dev);
-    
+
     link->open--;
     netif_stop_queue(dev);
     del_timer_sync(&info->watchdog);
@@ -1054,12 +1054,12 @@ static void pcnet_reset_8390(struct net_device *dev)
 	udelay(100);
     }
     outb_p(ENISR_RESET, nic_base + EN0_ISR); /* Ack intr. */
-    
+
     if (i == 100)
 	printk(KERN_ERR "%s: pcnet_reset_8390() did not complete.\n",
 	       dev->name);
     set_misc_reg(dev);
-    
+
 } /* pcnet_reset_8390 */
 
 /*====================================================================*/
@@ -1233,7 +1233,7 @@ static void dma_get_8390_hdr(struct net_device *dev,
 	       dev->name, ei_status.dmaing, ei_status.irqlock);
 	return;
     }
-    
+
     ei_status.dmaing |= 0x01;
     outb_p(E8390_NODMA+E8390_PAGE0+E8390_START, nic_base + PCNET_CMD);
     outb_p(sizeof(struct e8390_pkt_hdr), nic_base + EN0_RCNTLO);
@@ -1458,7 +1458,7 @@ static void shmem_get_8390_hdr(struct net_device *dev,
     void __iomem *xfer_start = ei_status.mem + (TX_PAGES<<8)
 				+ (ring_page << 8)
 				- (ei_status.rx_start_page << 8);
-    
+
     copyin(hdr, xfer_start, sizeof(struct e8390_pkt_hdr));
     /* Fix for big endian systems */
     hdr->count = le16_to_cpu(hdr->count);
@@ -1473,7 +1473,7 @@ static void shmem_block_input(struct net_device *dev, int count,
     unsigned long offset = (TX_PAGES<<8) + ring_offset
 				- (ei_status.rx_start_page << 8);
     char *buf = skb->data;
-    
+
     if (offset + count > ei_status.priv) {
 	/* We must wrap the input move. */
 	int semi_count = ei_status.priv - offset;
@@ -1541,7 +1541,7 @@ static int setup_shmem_window(struct pcmcia_device *link, int start_pg,
 	info->base = NULL; link->win = NULL;
 	goto failed;
     }
-    
+
     ei_status.mem = info->base + offset;
     ei_status.priv = req.Size;
     dev->mem_start = (u_long)ei_status.mem;
@@ -1768,7 +1768,7 @@ static struct pcmcia_device_id pcnet_ids[] = {
 	PCMCIA_DEVICE_CIS_PROD_ID12("NDC", "Ethernet", 0x01c43ae1, 0x00b2e941, "NE2K.cis"),
 	PCMCIA_DEVICE_CIS_PROD_ID12("PMX   ", "PE-200", 0x34f3f1c8, 0x10b59f8c, "PE-200.cis"),
 	PCMCIA_DEVICE_CIS_PROD_ID12("TAMARACK", "Ethernet", 0xcf434fba, 0x00b2e941, "tamarack.cis"),
-	PCMCIA_DEVICE_PROD_ID123("Fast Ethernet", "CF Size PC Card", "1.0", 
+	PCMCIA_DEVICE_PROD_ID123("Fast Ethernet", "CF Size PC Card", "1.0",
 		0xb4be14e3, 0x43ac239b, 0x0877b627),
 	PCMCIA_DEVICE_NULL
 };

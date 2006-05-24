@@ -35,17 +35,17 @@ struct mcp_cmd_response {
 	u32 result;
 };
 
-/* 
+/*
  * flags used in mcp_kreq_ether_send_t:
- * 
+ *
  * The SMALL flag is only needed in the first segment. It is raised
  * for packets that are total less or equal 512 bytes.
- * 
+ *
  * The CKSUM flag must be set in all segments.
- * 
+ *
  * The PADDED flags is set if the packet needs to be padded, and it
  * must be set for all segments.
- * 
+ *
  * The  MXGEFW_FLAGS_ALIGN_ODD must be set if the cumulative
  * length of all previous segments was odd.
  */
@@ -111,7 +111,7 @@ enum myri10ge_mcp_cmd_type {
 	MXGEFW_CMD_SET_BIG_BUFFER_SIZE,	/* in bytes, power of 2 */
 	MXGEFW_CMD_SET_SMALL_BUFFER_SIZE,	/* in bytes */
 
-	/* Parameters which refer to lanai SRAM addresses where the 
+	/* Parameters which refer to lanai SRAM addresses where the
 	 * driver must issue PIO writes for various things */
 
 	MXGEFW_CMD_GET_SEND_OFFSET,
@@ -128,7 +128,7 @@ enum myri10ge_mcp_cmd_type {
 
 	/* Parameters which refer to rings stored in the host,
 	 * and whose size is controlled by the host.  Note that
-	 * all must be physically contiguous and must contain 
+	 * all must be physically contiguous and must contain
 	 * a power of 2 number of entries.  */
 
 	MXGEFW_CMD_SET_INTRQ_SIZE,	/* in bytes */

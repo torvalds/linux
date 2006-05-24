@@ -7,17 +7,17 @@
  * the .data section, because some fields needs to be initialized at
  * compile time.
  * The 32bit word at offset MX_HEADER_PTR_OFFSET in the mcp must
- * contains the location of the header. 
- * 
+ * contains the location of the header.
+ *
  * Typically a MCP will start with the following:
  * .text
  * .space 52    ! to help catch MEMORY_INT errors
  * bt start     ! jump to real code
  * nop
  * .long _gen_mcp_header
- * 
+ *
  * The source will have a definition like:
- * 
+ *
  * mcp_gen_header_t gen_mcp_header = {
  * .header_length = sizeof(mcp_gen_header_t),
  * .mcp_type = MCP_TYPE_XXX,
@@ -46,11 +46,11 @@ struct mcp_gen_header {
 	unsigned string_specs_len;
 
 	/* Fields above this comment are guaranteed to be present.
-	 * 
+	 *
 	 * Fields below this comment are extensions added in later versions
 	 * of this struct, drivers should compare the header_length against
 	 * offsetof(field) to check wether a given MCP implements them.
-	 * 
+	 *
 	 * Never remove any field.  Keep everything naturally align.
 	 */
 };
