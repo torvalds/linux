@@ -3798,11 +3798,11 @@ qeth_open(struct net_device *dev)
 		QETH_DBF_TEXT(trace,4,"nomacadr");
 		return -EPERM;
 	}
-	card->dev->flags |= IFF_UP;
-	netif_start_queue(dev);
 	card->data.state = CH_STATE_UP;
 	card->state = CARD_STATE_UP;
-
+	card->dev->flags |= IFF_UP;
+	netif_start_queue(dev);
+	
 	if (!card->lan_online && netif_carrier_ok(dev))
 		netif_carrier_off(dev);
 	return 0;
@@ -3958,7 +3958,7 @@ qeth_prepare_skb(struct qeth_card *card, struct sk_buff **skb,
 #endif
 	*hdr = (struct qeth_hdr *)
 		qeth_push_skb(card, skb, sizeof(struct qeth_hdr));
-	if (hdr == NULL)
+	if (*hdr == NULL)
 		return -EINVAL;
 	return 0;
 }
@@ -4416,6 +4416,8 @@ qeth_send_packet(struct qeth_card *card, struct sk_buff *skb)
 	enum qeth_large_send_types large_send = QETH_LARGE_SEND_NO;
 	struct qeth_eddp_context *ctx = NULL;
 	int tx_bytes = skb->len;
+	unsigned short nr_frags = skb_shinfo(skb)->nr_frags;
+	unsigned short tso_size = skb_shinfo(skb)->tso_size;
 	int rc;
 
 	QETH_DBF_TEXT(trace, 6, "sendpkt");
@@ -4498,16 +4500,16 @@ qeth_send_packet(struct qeth_card *card, struct sk_buff *skb)
 		card->stats.tx_packets++;
 		card->stats.tx_bytes += tx_bytes;
 #ifdef CONFIG_QETH_PERF_STATS
-		if (skb_shinfo(skb)->tso_size &&
+		if (tso_size &&
 		   !(large_send == QETH_LARGE_SEND_NO)) {
-			card->perf_stats.large_send_bytes += skb->len;
+			card->perf_stats.large_send_bytes += tx_bytes;
 			card->perf_stats.large_send_cnt++;
 		}
- 		if (skb_shinfo(skb)->nr_frags > 0){
+ 		if (nr_frags > 0){
 			card->perf_stats.sg_skbs_sent++;
 			/* nr_frags + skb->data */
 			card->perf_stats.sg_frags_sent +=
-				skb_shinfo(skb)->nr_frags + 1;
+				nr_frags + 1;
 		}
 #endif /* CONFIG_QETH_PERF_STATS */
 	}
@@ -6370,6 +6372,9 @@ qeth_netdev_init(struct net_device *dev)
 	if (!(card->info.unique_id & UNIQUE_ID_NOT_BY_CARD))
 		card->dev->dev_id = card->info.unique_id & 0xffff;
 #endif
+	if (card->options.fake_ll && 
+		(qeth_get_netdev_flags(card) & IFF_NOARP))
+			dev->hard_header = qeth_fake_header;
 	dev->hard_header_parse = NULL;
 	dev->set_mac_address = qeth_layer2_set_mac_address;
 	dev->flags |= qeth_get_netdev_flags(card);
@@ -7031,14 +7036,12 @@ qeth_softsetup_ipv6(struct qeth_card *card)
 
 	QETH_DBF_TEXT(trace,3,"softipv6");
 
-	netif_tx_disable(card->dev);
 	rc = qeth_send_startlan(card, QETH_PROT_IPV6);
 	if (rc) {
 		PRINT_ERR("IPv6 startlan failed on %s\n",
 			  QETH_CARD_IFNAME(card));
 		return rc;
 	}
-	netif_wake_queue(card->dev);
 	rc = qeth_query_ipassists(card,QETH_PROT_IPV6);
 	if (rc) {
 		PRINT_ERR("IPv6 query ipassist failed on %s\n",
