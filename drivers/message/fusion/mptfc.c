@@ -678,7 +678,7 @@ mptfc_GetFcPortPage0(MPT_ADAPTER *ioc, int portnum)
 			 */
 			if (pp0dest->PortState == MPI_FCPORTPAGE0_PORTSTATE_UNKNOWN) {
 				if (count-- > 0) {
-					msleep_interruptible(100);
+					msleep(100);
 					goto try_again;
 				}
 				printk(MYIOC_s_INFO_FMT "Firmware discovery not"

@@ -1922,7 +1922,7 @@ mptscsih_tm_wait_for_completion(MPT_SCSI_HOST * hd, ulong timeout )
 			break;
 		}
 		spin_unlock_irqrestore(&hd->ioc->FreeQlock, flags);
-		msleep_interruptible(250);
+		msleep(250);
 	} while (--loop_count);
 
 	return status;

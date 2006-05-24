@@ -2291,7 +2291,7 @@ MakeIocReady(MPT_ADAPTER *ioc, int force, int sleepFlag)
 		}
 
 		if (sleepFlag == CAN_SLEEP) {
-			msleep_interruptible(1);
+			msleep(1);
 		} else {
 			mdelay (1);	/* 1 msec delay */
 		}
@@ -2679,7 +2679,7 @@ SendIocInit(MPT_ADAPTER *ioc, int sleepFlag)
 	state = mpt_GetIocState(ioc, 1);
 	while (state != MPI_IOC_STATE_OPERATIONAL && --cntdn) {
 		if (sleepFlag == CAN_SLEEP) {
-			msleep_interruptible(1);
+			msleep(1);
 		} else {
 			mdelay(1);
 		}
@@ -2931,7 +2931,7 @@ mpt_downloadboot(MPT_ADAPTER *ioc, MpiFwHeader_t *pFwHeader, int sleepFlag)
 
 	/* wait 1 msec */
 	if (sleepFlag == CAN_SLEEP) {
-		msleep_interruptible(1);
+		msleep(1);
 	} else {
 		mdelay (1);
 	}
@@ -2948,7 +2948,7 @@ mpt_downloadboot(MPT_ADAPTER *ioc, MpiFwHeader_t *pFwHeader, int sleepFlag)
 		}
 		/* wait .1 sec */
 		if (sleepFlag == CAN_SLEEP) {
-			msleep_interruptible (100);
+			msleep (100);
 		} else {
 			mdelay (100);
 		}
@@ -3038,7 +3038,7 @@ mpt_downloadboot(MPT_ADAPTER *ioc, MpiFwHeader_t *pFwHeader, int sleepFlag)
 
 		/* wait 1 msec */
 		if (sleepFlag == CAN_SLEEP) {
-			msleep_interruptible (1);
+			msleep (1);
 		} else {
 			mdelay (1);
 		}
@@ -3086,7 +3086,7 @@ mpt_downloadboot(MPT_ADAPTER *ioc, MpiFwHeader_t *pFwHeader, int sleepFlag)
 			return 0;
 		}
 		if (sleepFlag == CAN_SLEEP) {
-			msleep_interruptible (10);
+			msleep (10);
 		} else {
 			mdelay (10);
 		}
@@ -3137,7 +3137,7 @@ KickStart(MPT_ADAPTER *ioc, int force, int sleepFlag)
 		SendIocReset(ioc, MPI_FUNCTION_IOC_MESSAGE_UNIT_RESET, sleepFlag);
 
 		if (sleepFlag == CAN_SLEEP) {
-			msleep_interruptible (1000);
+			msleep (1000);
 		} else {
 			mdelay (1000);
 		}
@@ -3159,7 +3159,7 @@ KickStart(MPT_ADAPTER *ioc, int force, int sleepFlag)
 			return hard_reset_done;
 		}
 		if (sleepFlag == CAN_SLEEP) {
-			msleep_interruptible (10);
+			msleep (10);
 		} else {
 			mdelay (10);
 		}
@@ -3230,7 +3230,7 @@ mpt_diag_reset(MPT_ADAPTER *ioc, int ignore, int sleepFlag)
 
 			/* wait 100 msec */
 			if (sleepFlag == CAN_SLEEP) {
-				msleep_interruptible (100);
+				msleep (100);
 			} else {
 				mdelay (100);
 			}
@@ -3309,7 +3309,7 @@ mpt_diag_reset(MPT_ADAPTER *ioc, int ignore, int sleepFlag)
 
 				/* wait 1 sec */
 				if (sleepFlag == CAN_SLEEP) {
-					msleep_interruptible (1000);
+					msleep (1000);
 				} else {
 					mdelay (1000);
 				}
@@ -3337,7 +3337,7 @@ mpt_diag_reset(MPT_ADAPTER *ioc, int ignore, int sleepFlag)
 
 				/* wait 1 sec */
 				if (sleepFlag == CAN_SLEEP) {
-					msleep_interruptible (1000);
+					msleep (1000);
 				} else {
 					mdelay (1000);
 				}
@@ -3371,7 +3371,7 @@ mpt_diag_reset(MPT_ADAPTER *ioc, int ignore, int sleepFlag)
 
 		/* wait 100 msec */
 		if (sleepFlag == CAN_SLEEP) {
-			msleep_interruptible (100);
+			msleep (100);
 		} else {
 			mdelay (100);
 		}
@@ -3465,7 +3465,7 @@ SendIocReset(MPT_ADAPTER *ioc, u8 reset_type, int sleepFlag)
 		}
 
 		if (sleepFlag == CAN_SLEEP) {
-			msleep_interruptible(1);
+			msleep(1);
 		} else {
 			mdelay (1);	/* 1 msec delay */
 		}
@@ -3905,7 +3905,7 @@ WaitForDoorbellAck(MPT_ADAPTER *ioc, int howlong, int sleepFlag)
 			intstat = CHIPREG_READ32(&ioc->chip->IntStatus);
 			if (! (intstat & MPI_HIS_IOP_DOORBELL_STATUS))
 				break;
-			msleep_interruptible (1);
+			msleep (1);
 			count++;
 		}
 	} else {
@@ -3954,7 +3954,7 @@ WaitForDoorbellInt(MPT_ADAPTER *ioc, int howlong, int sleepFlag)
 			intstat = CHIPREG_READ32(&ioc->chip->IntStatus);
 			if (intstat & MPI_HIS_DOORBELL_INTERRUPT)
 				break;
-			msleep_interruptible(1);
+			msleep(1);
 			count++;
 		}
 	} else {
