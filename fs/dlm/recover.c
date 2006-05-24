@@ -421,7 +421,7 @@ int dlm_recover_master_reply(struct dlm_ls *ls, struct dlm_rcom *rc)
 	r = recover_list_find(ls, rc->rc_id);
 	if (!r) {
 		log_error(ls, "dlm_recover_master_reply no id %llx",
-			  rc->rc_id);
+			  (unsigned long long)rc->rc_id);
 		goto out;
 	}
 

@@ -93,7 +93,8 @@ int gdlm_plock(lm_lockspace_t *lockspace, struct lm_lockname *name,
 	if (!rv) {
 		if (posix_lock_file_wait(file, fl) < 0)
 			log_error("gdlm_plock: vfs lock error %x,%llx",
-				  name->ln_type, name->ln_number);
+				  name->ln_type,
+				  (unsigned long long)name->ln_number);
 	}
 
 	kfree(op);
@@ -113,7 +114,7 @@ int gdlm_punlock(lm_lockspace_t *lockspace, struct lm_lockname *name,
 
 	if (posix_lock_file_wait(file, fl) < 0)
 		log_error("gdlm_punlock: vfs unlock error %x,%llx",
-			  name->ln_type, name->ln_number);
+			  name->ln_type, (unsigned long long)name->ln_number);
 
 	op->info.optype		= GDLM_PLOCK_OP_UNLOCK;
 	op->info.pid		= fl->fl_pid;
@@ -243,7 +244,7 @@ static ssize_t dev_write(struct file *file, const char __user *u, size_t count,
 		wake_up(&recv_wq);
 	else
 		printk(KERN_INFO "gdlm dev_write no op %x %llx\n", info.fsid,
-			info.number);
+			(unsigned long long)info.number);
 	return count;
 }
 

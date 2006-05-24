@@ -35,7 +35,8 @@ static inline void gdlm_bast(void *astarg, int mode)
 
 	if (!mode) {
 		printk(KERN_INFO "lock_dlm: bast mode zero %x,%llx\n",
-			lp->lockname.ln_type, lp->lockname.ln_number);
+			lp->lockname.ln_type,
+			(unsigned long long)lp->lockname.ln_number);
 		return;
 	}
 
@@ -154,7 +155,7 @@ static inline void make_strname(struct lm_lockname *lockname,
 				struct gdlm_strname *str)
 {
 	sprintf(str->name, "%8x%16llx", lockname->ln_type,
-		lockname->ln_number);
+		(unsigned long long)lockname->ln_number);
 	str->namelen = GDLM_STRNAME_BYTES;
 }
 
@@ -197,8 +198,8 @@ void gdlm_delete_lp(struct gdlm_lock *lp)
 		list_del_init(&lp->blist);
 	if (!list_empty(&lp->delay_list))
 		list_del_init(&lp->delay_list);
-	gdlm_assert(!list_empty(&lp->all_list),
-		    "%x,%llx", lp->lockname.ln_type, lp->lockname.ln_number);
+	gdlm_assert(!list_empty(&lp->all_list), "%x,%llx", lp->lockname.ln_type,
+		    (unsigned long long)lp->lockname.ln_number);
 	list_del_init(&lp->all_list);
 	ls->all_locks_count--;
 	spin_unlock(&ls->async_lock);
@@ -253,7 +254,7 @@ unsigned int gdlm_do_lock(struct gdlm_lock *lp)
 	set_bit(LFL_ACTIVE, &lp->flags);
 
 	log_debug("lk %x,%llx id %x %d,%d %x", lp->lockname.ln_type,
-		  lp->lockname.ln_number, lp->lksb.sb_lkid,
+		  (unsigned long long)lp->lockname.ln_number, lp->lksb.sb_lkid,
 		  lp->cur, lp->req, lp->lkf);
 
 	error = dlm_lock(ls->dlm_lockspace, lp->req, &lp->lksb, lp->lkf,
@@ -269,8 +270,8 @@ unsigned int gdlm_do_lock(struct gdlm_lock *lp)
 	if (error) {
 		log_debug("%s: gdlm_lock %x,%llx err=%d cur=%d req=%d lkf=%x "
 			  "flags=%lx", ls->fsname, lp->lockname.ln_type,
-			  lp->lockname.ln_number, error, lp->cur, lp->req,
-			  lp->lkf, lp->flags);
+			  (unsigned long long)lp->lockname.ln_number, error,
+			  lp->cur, lp->req, lp->lkf, lp->flags);
 		return LM_OUT_ERROR;
 	}
 	return LM_OUT_ASYNC;
@@ -289,15 +290,16 @@ static unsigned int gdlm_do_unlock(struct gdlm_lock *lp)
 		lkf = DLM_LKF_VALBLK;
 
 	log_debug("un %x,%llx %x %d %x", lp->lockname.ln_type,
-		  lp->lockname.ln_number, lp->lksb.sb_lkid, lp->cur, lkf);
+		  (unsigned long long)lp->lockname.ln_number,
+		  lp->lksb.sb_lkid, lp->cur, lkf);
 
 	error = dlm_unlock(ls->dlm_lockspace, lp->lksb.sb_lkid, lkf, NULL, lp);
 
 	if (error) {
 		log_debug("%s: gdlm_unlock %x,%llx err=%d cur=%d req=%d lkf=%x "
 			  "flags=%lx", ls->fsname, lp->lockname.ln_type,
-			  lp->lockname.ln_number, error, lp->cur, lp->req,
-			  lp->lkf, lp->flags);
+			  (unsigned long long)lp->lockname.ln_number, error,
+			  lp->cur, lp->req, lp->lkf, lp->flags);
 		return LM_OUT_ERROR;
 	}
 	return LM_OUT_ASYNC;
@@ -338,8 +340,8 @@ void gdlm_cancel(lm_lock_t *lock)
 	if (test_bit(LFL_DLM_CANCEL, &lp->flags))
 		return;
 
-	log_info("gdlm_cancel %x,%llx flags %lx",
-		 lp->lockname.ln_type, lp->lockname.ln_number, lp->flags);
+	log_info("gdlm_cancel %x,%llx flags %lx", lp->lockname.ln_type,
+		 (unsigned long long)lp->lockname.ln_number, lp->flags);
 
 	spin_lock(&ls->async_lock);
 	if (!list_empty(&lp->delay_list)) {
@@ -356,10 +358,10 @@ void gdlm_cancel(lm_lock_t *lock)
 	}
 
 	if (!test_bit(LFL_ACTIVE, &lp->flags) ||
-	    test_bit(LFL_DLM_UNLOCK, &lp->flags))	{
+	    test_bit(LFL_DLM_UNLOCK, &lp->flags)) {
 		log_info("gdlm_cancel skip %x,%llx flags %lx",
-		 	 lp->lockname.ln_type, lp->lockname.ln_number,
-			 lp->flags);
+		 	 lp->lockname.ln_type,
+			 (unsigned long long)lp->lockname.ln_number, lp->flags);
 		return;
 	}
 
@@ -372,7 +374,8 @@ void gdlm_cancel(lm_lock_t *lock)
 			   NULL, lp);
 
 	log_info("gdlm_cancel rv %d %x,%llx flags %lx", error,
-		 lp->lockname.ln_type, lp->lockname.ln_number, lp->flags);
+		 lp->lockname.ln_type,
+		 (unsigned long long)lp->lockname.ln_number, lp->flags);
 
 	if (error == -EBUSY)
 		clear_bit(LFL_DLM_CANCEL, &lp->flags);
@@ -448,8 +451,8 @@ static void unhold_null_lock(struct gdlm_lock *lp)
 {
 	struct gdlm_lock *lpn = lp->hold_null;
 
-	gdlm_assert(lpn, "%x,%llx",
-		    lp->lockname.ln_type, lp->lockname.ln_number);
+	gdlm_assert(lpn, "%x,%llx", lp->lockname.ln_type,
+		    (unsigned long long)lp->lockname.ln_number);
 	lpn->lksb.sb_lvbptr = NULL;
 	lpn->lvb = NULL;
 	set_bit(LFL_UNLOCK_DELETE, &lpn->flags);
