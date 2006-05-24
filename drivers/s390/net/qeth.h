@@ -1099,7 +1099,7 @@ qeth_string_to_ipaddr4(const char *buf, __u8 *addr)
 
 	rc = sscanf(buf, "%d.%d.%d.%d%n", 
 		    &in[0], &in[1], &in[2], &in[3], &count);
-	if (rc != 4  || count) 
+	if (rc != 4  || count<=0)
 		return -EINVAL;
 	for (count = 0; count < 4; count++) {
 		if (in[count] > 255)
