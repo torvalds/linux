@@ -141,13 +141,13 @@ static int rtc_dev_ioctl(struct inode *inode, struct file *file,
 	/* try the driver's ioctl interface */
 	if (ops->ioctl) {
 		err = ops->ioctl(class_dev->dev, cmd, arg);
-		if (err != -EINVAL)
+		if (err != -ENOIOCTLCMD)
 			return err;
 	}
 
 	/* if the driver does not provide the ioctl interface
 	 * or if that particular ioctl was not implemented
-	 * (-EINVAL), we will try to emulate here.
+	 * (-ENOIOCTLCMD), we will try to emulate here.
 	 */
 
 	switch (cmd) {
@@ -233,7 +233,7 @@ static int rtc_dev_ioctl(struct inode *inode, struct file *file,
 		break;
 
 	default:
-		err = -EINVAL;
+		err = -ENOTTY;
 		break;
 	}
 

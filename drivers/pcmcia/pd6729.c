@@ -589,7 +589,7 @@ static int pd6729_check_irq(int irq, int flags)
 	return 0;
 }
 
-static u_int __init pd6729_isa_scan(void)
+static u_int __devinit pd6729_isa_scan(void)
 {
 	u_int mask0, mask = 0;
 	int i;

@@ -672,6 +672,8 @@ void matroxfb_unregister_driver(struct matroxfb_driver* drv);
 
 #define M_SEQ_INDEX	0x1FC4
 #define M_SEQ_DATA	0x1FC5
+#define     M_SEQ1		0x01
+#define        M_SEQ1_SCROFF		0x20
 
 #define M_MISC_REG_READ	0x1FCC
 

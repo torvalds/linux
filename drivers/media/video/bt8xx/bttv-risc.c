@@ -233,7 +233,7 @@ bttv_risc_overlay(struct bttv *btv, struct btcx_riscmem *risc,
 		  const struct bttv_format *fmt, struct bttv_overlay *ov,
 		  int skip_even, int skip_odd)
 {
-	int instructions,rc,line,maxy,start,end,skip,nskips;
+	int dwords,rc,line,maxy,start,end,skip,nskips;
 	struct btcx_skiplist *skips;
 	u32 *rp,ri,ra;
 	u32 addr;
@@ -242,12 +242,12 @@ bttv_risc_overlay(struct bttv *btv, struct btcx_riscmem *risc,
 	if (NULL == (skips = kmalloc(sizeof(*skips) * ov->nclips,GFP_KERNEL)))
 		return -ENOMEM;
 
-	/* estimate risc mem: worst case is (clip+1) * lines instructions
+	/* estimate risc mem: worst case is (1.5*clip+1) * lines instructions
 	   + sync + jump (all 2 dwords) */
-	instructions  = (ov->nclips + 1) *
-		((skip_even || skip_odd) ? ov->w.height>>1 :  ov->w.height);
-	instructions += 2;
-	if ((rc = btcx_riscmem_alloc(btv->c.pci,risc,instructions*8)) < 0) {
+	dwords  = (3 * ov->nclips + 2) *
+		((skip_even || skip_odd) ? (ov->w.height+1)>>1 :  ov->w.height);
+	dwords += 4;
+	if ((rc = btcx_riscmem_alloc(btv->c.pci,risc,dwords*4)) < 0) {
 		kfree(skips);
 		return rc;
 	}
@@ -276,8 +276,6 @@ bttv_risc_overlay(struct bttv *btv, struct btcx_riscmem *risc,
 		if (line > maxy)
 			btcx_calc_skips(line, ov->w.width, &maxy,
 					skips, &nskips, ov->clips, ov->nclips);
-		else
-			nskips = 0;
 
 		/* write out risc code */
 		for (start = 0, skip = 0; start < ov->w.width; start = end) {

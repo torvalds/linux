@@ -62,7 +62,7 @@ int xfrm_parse_spi(struct sk_buff *skb, u8 nexthdr, u32 *spi, u32 *seq)
 	case IPPROTO_COMP:
 		if (!pskb_may_pull(skb, sizeof(struct ip_comp_hdr)))
 			return -EINVAL;
-		*spi = ntohl(ntohs(*(u16*)(skb->h.raw + 2)));
+		*spi = htonl(ntohs(*(u16*)(skb->h.raw + 2)));
 		*seq = 0;
 		return 0;
 	default:

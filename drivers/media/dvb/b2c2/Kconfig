@@ -1,6 +1,6 @@
 config DVB_B2C2_FLEXCOP
 	tristate "Technisat/B2C2 FlexCopII(b) and FlexCopIII adapters"
-	depends on DVB_CORE
+	depends on DVB_CORE && I2C
 	select DVB_STV0299
 	select DVB_MT352
 	select DVB_MT312
@@ -16,7 +16,7 @@ config DVB_B2C2_FLEXCOP
 
 config DVB_B2C2_FLEXCOP_PCI
 	tristate "Technisat/B2C2 Air/Sky/Cable2PC PCI"
-	depends on DVB_B2C2_FLEXCOP && PCI
+	depends on DVB_B2C2_FLEXCOP && PCI && I2C
 	help
 	  Support for the Air/Sky/CableStar2 PCI card (DVB/ATSC) by Technisat/B2C2.
 
@@ -24,7 +24,7 @@ config DVB_B2C2_FLEXCOP_PCI
 
 config DVB_B2C2_FLEXCOP_USB
 	tristate "Technisat/B2C2 Air/Sky/Cable2PC USB"
-	depends on DVB_B2C2_FLEXCOP && USB
+	depends on DVB_B2C2_FLEXCOP && USB && I2C
 	help
 	  Support for the Air/Sky/Cable2PC USB1.1 box (DVB/ATSC) by Technisat/B2C2,
 

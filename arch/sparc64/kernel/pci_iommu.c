@@ -218,7 +218,7 @@ static inline void iommu_free_ctx(struct pci_iommu *iommu, int ctx)
  * DMA for PCI device PDEV.  Return non-NULL cpu-side address if
  * successful and set *DMA_ADDRP to the PCI side dma address.
  */
-static void *pci_4u_alloc_consistent(struct pci_dev *pdev, size_t size, dma_addr_t *dma_addrp)
+static void *pci_4u_alloc_consistent(struct pci_dev *pdev, size_t size, dma_addr_t *dma_addrp, gfp_t gfp)
 {
 	struct pcidev_cookie *pcp;
 	struct pci_iommu *iommu;
@@ -232,7 +232,7 @@ static void *pci_4u_alloc_consistent(struct pci_dev *pdev, size_t size, dma_addr
 	if (order >= 10)
 		return NULL;
 
-	first_page = __get_free_pages(GFP_ATOMIC, order);
+	first_page = __get_free_pages(gfp, order);
 	if (first_page == 0UL)
 		return NULL;
 	memset((char *)first_page, 0, PAGE_SIZE << order);

@@ -2252,7 +2252,7 @@ action_store(mddev_t *mddev, const char *page, size_t len)
 	} else {
 		if (cmd_match(page, "check"))
 			set_bit(MD_RECOVERY_CHECK, &mddev->recovery);
-		else if (cmd_match(page, "repair"))
+		else if (!cmd_match(page, "repair"))
 			return -EINVAL;
 		set_bit(MD_RECOVERY_REQUESTED, &mddev->recovery);
 		set_bit(MD_RECOVERY_SYNC, &mddev->recovery);

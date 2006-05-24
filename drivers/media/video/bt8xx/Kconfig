@@ -1,6 +1,6 @@
 config VIDEO_BT848
 	tristate "BT848 Video For Linux"
-	depends on VIDEO_DEV && PCI && I2C
+	depends on VIDEO_DEV && PCI && I2C && VIDEO_V4L2
 	select I2C_ALGOBIT
 	select FW_LOADER
 	select VIDEO_BTCX

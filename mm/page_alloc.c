@@ -951,7 +951,7 @@ restart:
 		goto got_pg;
 
 	do {
-		if (cpuset_zone_allowed(*z, gfp_mask))
+		if (cpuset_zone_allowed(*z, gfp_mask|__GFP_HARDWALL))
 			wakeup_kswapd(*z, order);
 	} while (*(++z));
 
@@ -970,7 +970,8 @@ restart:
 		alloc_flags |= ALLOC_HARDER;
 	if (gfp_mask & __GFP_HIGH)
 		alloc_flags |= ALLOC_HIGH;
-	alloc_flags |= ALLOC_CPUSET;
+	if (wait)
+		alloc_flags |= ALLOC_CPUSET;
 
 	/*
 	 * Go through the zonelist again. Let __GFP_HIGH and allocations
@@ -2124,14 +2125,22 @@ static void __init alloc_node_mem_map(struct pglist_data *pgdat)
 #ifdef CONFIG_FLAT_NODE_MEM_MAP
 	/* ia64 gets its own node_mem_map, before this, without bootmem */
 	if (!pgdat->node_mem_map) {
-		unsigned long size;
+		unsigned long size, start, end;
 		struct page *map;
 
-		size = (pgdat->node_spanned_pages + 1) * sizeof(struct page);
+		/*
+		 * The zone's endpoints aren't required to be MAX_ORDER
+		 * aligned but the node_mem_map endpoints must be in order
+		 * for the buddy allocator to function correctly.
+		 */
+		start = pgdat->node_start_pfn & ~(MAX_ORDER_NR_PAGES - 1);
+		end = pgdat->node_start_pfn + pgdat->node_spanned_pages;
+		end = ALIGN(end, MAX_ORDER_NR_PAGES);
+		size =  (end - start) * sizeof(struct page);
 		map = alloc_remap(pgdat->node_id, size);
 		if (!map)
 			map = alloc_bootmem_node(pgdat, size);
-		pgdat->node_mem_map = map;
+		pgdat->node_mem_map = map + (pgdat->node_start_pfn - start);
 	}
 #ifdef CONFIG_FLATMEM
 	/*

@@ -208,7 +208,7 @@ static void ipcomp6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	if (type != ICMPV6_DEST_UNREACH && type != ICMPV6_PKT_TOOBIG)
 		return;
 
-	spi = ntohl(ntohs(ipcomph->cpi));
+	spi = htonl(ntohs(ipcomph->cpi));
 	x = xfrm_state_lookup((xfrm_address_t *)&iph->daddr, spi, IPPROTO_COMP, AF_INET6);
 	if (!x)
 		return;
