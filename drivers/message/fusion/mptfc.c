@@ -580,10 +580,10 @@ mptfc_qcmd(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 #ifdef DMPT_DEBUG_FC
 	if (unlikely(err)) {
 		dfcprintk ((MYIOC_s_INFO_FMT
-			"mptfc_qcmd.%d: %d:%d, mptscsih_qcmd returns non-zero.\n",
+			"mptfc_qcmd.%d: %d:%d, mptscsih_qcmd returns non-zero, (%x).\n",
 			((MPT_SCSI_HOST *) SCpnt->device->host->hostdata)->ioc->name,
 			((MPT_SCSI_HOST *) SCpnt->device->host->hostdata)->ioc->sh->host_no,
-			SCpnt->device->id,SCpnt->device->lun));
+			SCpnt->device->id,SCpnt->device->lun,err));
 	}
 #endif
 	return err;
@@ -873,6 +873,31 @@ mptfc_init_host_attr(MPT_ADAPTER *ioc,int portnum)
 }
 
 static void
+mptfc_setup_reset(void *arg)
+{
+	MPT_ADAPTER		*ioc = (MPT_ADAPTER *)arg;
+	u64			pn;
+	struct mptfc_rport_info *ri;
+
+	/* reset about to happen, delete (block) all rports */
+	list_for_each_entry(ri, &ioc->fc_rports, list) {
+		if (ri->flags & MPT_RPORT_INFO_FLAGS_REGISTERED) {
+			ri->flags &= ~MPT_RPORT_INFO_FLAGS_REGISTERED;
+			fc_remote_port_delete(ri->rport);	/* won't sleep */
+			ri->rport = NULL;
+
+			pn = (u64)ri->pg0.WWPN.High << 32 |
+			     (u64)ri->pg0.WWPN.Low;
+			dfcprintk ((MYIOC_s_INFO_FMT
+				"mptfc_setup_reset.%d: %llx deleted\n",
+				ioc->name,
+				ioc->sh->host_no,
+				(unsigned long long)pn));
+		}
+	}
+}
+
+static void
 mptfc_rescan_devices(void *arg)
 {
 	MPT_ADAPTER		*ioc = (MPT_ADAPTER *)arg;
@@ -999,6 +1024,7 @@ mptfc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	spin_lock_init(&ioc->fc_rescan_work_lock);
 	INIT_WORK(&ioc->fc_rescan_work, mptfc_rescan_devices,(void *)ioc);
+	INIT_WORK(&ioc->fc_setup_reset_work, mptfc_setup_reset, (void *)ioc);
 
 	spin_lock_irqsave(&ioc->FreeQlock, flags);
 
@@ -1221,6 +1247,12 @@ mptfc_ioc_reset(MPT_ADAPTER *ioc, int reset_phase)
 		reset_phase==MPT_IOC_PRE_RESET ? "pre" : "post")));
 
 	if (reset_phase == MPT_IOC_SETUP_RESET) {
+		spin_lock_irqsave(&ioc->fc_rescan_work_lock, flags);
+		if (ioc->fc_rescan_work_q) {
+			queue_work(ioc->fc_rescan_work_q,
+				   &ioc->fc_setup_reset_work);
+		}
+		spin_unlock_irqrestore(&ioc->fc_rescan_work_lock, flags);
 	}
 
 	else if (reset_phase == MPT_IOC_PRE_RESET) {

@@ -635,6 +635,7 @@ typedef struct _MPT_ADAPTER
 	int			 num_ports;
 	struct work_struct	 mptscsih_persistTask;
 
+	struct work_struct	 fc_setup_reset_work;
 	struct list_head	 fc_rports;
 	spinlock_t		 fc_rescan_work_lock;
 	int			 fc_rescan_work_count;
