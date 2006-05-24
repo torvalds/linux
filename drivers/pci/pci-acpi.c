@@ -33,13 +33,10 @@ acpi_query_osc (
 	acpi_status		status;
 	struct acpi_object_list	input;
 	union acpi_object 	in_params[4];
-	struct acpi_buffer	output;
-	union acpi_object 	out_obj;	
+	struct acpi_buffer	output = {ACPI_ALLOCATE_BUFFER, NULL};
+	union acpi_object 	*out_obj;
 	u32			osc_dw0;
 
-	/* Setting up output buffer */
-	output.length = sizeof(out_obj) + 3*sizeof(u32);  
-	output.pointer = &out_obj;
 	
 	/* Setting up input parameters */
 	input.count = 4;
@@ -61,12 +58,15 @@ acpi_query_osc (
 			"Evaluate _OSC Set fails. Status = 0x%04x\n", status);
 		return status;
 	}
-	if (out_obj.type != ACPI_TYPE_BUFFER) {
+	out_obj = output.pointer;
+
+	if (out_obj->type != ACPI_TYPE_BUFFER) {
 		printk(KERN_DEBUG  
 			"Evaluate _OSC returns wrong type\n");
-		return AE_TYPE;
+		status = AE_TYPE;
+		goto query_osc_out;
 	}
-	osc_dw0 = *((u32 *) out_obj.buffer.pointer);
+	osc_dw0 = *((u32 *) out_obj->buffer.pointer);
 	if (osc_dw0) {
 		if (osc_dw0 & OSC_REQUEST_ERROR)
 			printk(KERN_DEBUG "_OSC request fails\n"); 
@@ -76,15 +76,21 @@ acpi_query_osc (
 			printk(KERN_DEBUG "_OSC invalid revision\n"); 
 		if (osc_dw0 & OSC_CAPABILITIES_MASK_ERROR) {
 			/* Update Global Control Set */
-			global_ctrlsets = *((u32 *)(out_obj.buffer.pointer+8));
-			return AE_OK;
+			global_ctrlsets = *((u32 *)(out_obj->buffer.pointer+8));
+			status = AE_OK;
+			goto query_osc_out;
 		}
-		return AE_ERROR;
+		status = AE_ERROR;
+		goto query_osc_out;
 	}
 
 	/* Update Global Control Set */
-	global_ctrlsets = *((u32 *)(out_obj.buffer.pointer + 8));
-	return AE_OK;
+	global_ctrlsets = *((u32 *)(out_obj->buffer.pointer + 8));
+	status = AE_OK;
+
+query_osc_out:
+	kfree(output.pointer);
+	return status;
 }
 
 
@@ -96,14 +102,10 @@ acpi_run_osc (
 	acpi_status		status;
 	struct acpi_object_list	input;
 	union acpi_object 	in_params[4];
-	struct acpi_buffer	output;
-	union acpi_object 	out_obj;	
+	struct acpi_buffer	output = {ACPI_ALLOCATE_BUFFER, NULL};
+	union acpi_object 	*out_obj;
 	u32			osc_dw0;
 
-	/* Setting up output buffer */
-	output.length = sizeof(out_obj) + 3*sizeof(u32);  
-	output.pointer = &out_obj;
-	
 	/* Setting up input parameters */
 	input.count = 4;
 	input.pointer = in_params;
@@ -124,12 +126,14 @@ acpi_run_osc (
 			"Evaluate _OSC Set fails. Status = 0x%04x\n", status);
 		return status;
 	}
-	if (out_obj.type != ACPI_TYPE_BUFFER) {
+	out_obj = output.pointer;
+	if (out_obj->type != ACPI_TYPE_BUFFER) {
 		printk(KERN_DEBUG  
 			"Evaluate _OSC returns wrong type\n");
-		return AE_TYPE;
+		status = AE_TYPE;
+		goto run_osc_out;
 	}
-	osc_dw0 = *((u32 *) out_obj.buffer.pointer);
+	osc_dw0 = *((u32 *) out_obj->buffer.pointer);
 	if (osc_dw0) {
 		if (osc_dw0 & OSC_REQUEST_ERROR)
 			printk(KERN_DEBUG "_OSC request fails\n"); 
@@ -139,11 +143,17 @@ acpi_run_osc (
 			printk(KERN_DEBUG "_OSC invalid revision\n"); 
 		if (osc_dw0 & OSC_CAPABILITIES_MASK_ERROR) {
 			printk(KERN_DEBUG "_OSC FW not grant req. control\n");
-			return AE_SUPPORT;
+			status = AE_SUPPORT;
+			goto run_osc_out;
 		}
-		return AE_ERROR;
+		status = AE_ERROR;
+		goto run_osc_out;
 	}
-	return AE_OK;
+	status = AE_OK;
+
+run_osc_out:
+	kfree(output.pointer);
+	return status;
 }
 
 /**

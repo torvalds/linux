@@ -26,10 +26,12 @@ static void __init free(void *where)
 
 /* link hash */
 
+#define N_ALIGN(len) ((((len) + 1) & ~3) + 2)
+
 static __initdata struct hash {
 	int ino, minor, major;
 	struct hash *next;
-	char *name;
+	char name[N_ALIGN(PATH_MAX)];
 } *head[32];
 
 static inline int hash(int major, int minor, int ino)
@@ -57,7 +59,7 @@ static char __init *find_link(int major, int minor, int ino, char *name)
 	q->ino = ino;
 	q->minor = minor;
 	q->major = major;
-	q->name = name;
+	strcpy(q->name, name);
 	q->next = NULL;
 	*p = q;
 	return NULL;
@@ -132,8 +134,6 @@ static inline void eat(unsigned n)
 	this_header += n;
 	count -= n;
 }
-
-#define N_ALIGN(len) ((((len) + 1) & ~3) + 2)
 
 static __initdata char *collected;
 static __initdata int remains;

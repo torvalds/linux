@@ -113,6 +113,7 @@ struct lpfc_nodelist {
 #define NLP_NPR_ADISC      0x2000000	/* Issue ADISC when dq'ed from
 					   NPR list */
 #define NLP_DELAY_REMOVE   0x4000000	/* Defer removal till end of DSM */
+#define NLP_NODEV_REMOVE   0x8000000	/* Defer removal till discovery ends */
 
 /* Defines for list searchs */
 #define NLP_SEARCH_MAPPED    0x1	/* search mapped */

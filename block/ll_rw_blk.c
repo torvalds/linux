@@ -1732,8 +1732,21 @@ void blk_run_queue(struct request_queue *q)
 
 	spin_lock_irqsave(q->queue_lock, flags);
 	blk_remove_plug(q);
-	if (!elv_queue_empty(q))
-		q->request_fn(q);
+
+	/*
+	 * Only recurse once to avoid overrunning the stack, let the unplug
+	 * handling reinvoke the handler shortly if we already got there.
+	 */
+	if (!elv_queue_empty(q)) {
+		if (!test_and_set_bit(QUEUE_FLAG_REENTER, &q->queue_flags)) {
+			q->request_fn(q);
+			clear_bit(QUEUE_FLAG_REENTER, &q->queue_flags);
+		} else {
+			blk_plug_device(q);
+			kblockd_schedule_work(&q->unplug_work);
+		}
+	}
+
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
 EXPORT_SYMBOL(blk_run_queue);
@@ -3439,7 +3452,12 @@ void end_that_request_last(struct request *req, int uptodate)
 	if (unlikely(laptop_mode) && blk_fs_request(req))
 		laptop_io_completion();
 
-	if (disk && blk_fs_request(req)) {
+	/*
+	 * Account IO completion.  bar_rq isn't accounted as a normal
+	 * IO on queueing nor completion.  Accounting the containing
+	 * request is enough.
+	 */
+	if (disk && blk_fs_request(req) && req != &req->q->bar_rq) {
 		unsigned long duration = jiffies - req->start_time;
 		const int rw = rq_data_dir(req);
 

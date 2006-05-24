@@ -643,6 +643,5 @@ static int __init rif_init(void)
 
 module_init(rif_init);
 
-EXPORT_SYMBOL(tr_source_route);
 EXPORT_SYMBOL(tr_type_trans);
 EXPORT_SYMBOL(alloc_trdev);

@@ -317,3 +317,4 @@ SYSCALL(sys_get_robust_list,sys_get_robust_list,compat_sys_get_robust_list_wrapp
 SYSCALL(sys_splice,sys_splice,sys_splice_wrapper)
 SYSCALL(sys_sync_file_range,sys_sync_file_range,sys_sync_file_range_wrapper)
 SYSCALL(sys_tee,sys_tee,sys_tee_wrapper)
+SYSCALL(sys_vmsplice,sys_vmsplice,compat_sys_vmsplice_wrapper)

@@ -151,7 +151,7 @@ static struct pnp_device_id snd_mpu401_pnpids[] = {
 
 MODULE_DEVICE_TABLE(pnp, snd_mpu401_pnpids);
 
-static int __init snd_mpu401_pnp(int dev, struct pnp_dev *device,
+static int __devinit snd_mpu401_pnp(int dev, struct pnp_dev *device,
 				 const struct pnp_device_id *id)
 {
 	if (!pnp_port_valid(device, 0) ||

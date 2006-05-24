@@ -105,20 +105,3 @@
    on the setup, so I think that the choice on what firmware to make
    persistent should be left to userspace.
 
- - Why register_firmware()+__init can be useful:
- 	- For boot devices needing firmware.
-	- To make the transition easier:
-		The firmware can be declared __init and register_firmware()
-		called on module_init. Then the firmware is warranted to be
-		there even if "firmware hotplug userspace" is not there yet or
-		it doesn't yet provide the needed firmware.
-		Once the firmware is widely available in userspace, it can be
-		removed from the kernel. Or made optional (CONFIG_.*_FIRMWARE).
-
-	In either case, if firmware hotplug support is there, it can move the
-	firmware out of kernel memory into the real filesystem for later
-	usage.
-
-	Note: If persistence is implemented on top of initramfs,
-	register_firmware() may not be appropriate.
-

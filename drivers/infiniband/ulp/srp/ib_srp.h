@@ -101,7 +101,7 @@ struct srp_request {
 	 */
 	struct scatterlist	fake_sg;
 	struct completion	done;
-	short			next;
+	short			index;
 	u8			cmd_done;
 	u8			tsk_status;
 };
@@ -133,7 +133,7 @@ struct srp_target_port {
 	unsigned		tx_tail;
 	struct srp_iu	       *tx_ring[SRP_SQ_SIZE + 1];
 
-	int			req_head;
+	struct list_head	free_reqs;
 	struct list_head	req_queue;
 	struct srp_request	req_ring[SRP_SQ_SIZE];
 

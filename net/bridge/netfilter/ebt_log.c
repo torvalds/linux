@@ -168,7 +168,7 @@ static void ebt_log(const struct sk_buff *skb, unsigned int hooknr,
 
 	if (info->bitmask & EBT_LOG_NFLOG)
 		nf_log_packet(PF_BRIDGE, hooknr, skb, in, out, &li,
-		              info->prefix);
+		              "%s", info->prefix);
 	else
 		ebt_log_packet(PF_BRIDGE, hooknr, skb, in, out, &li,
 		               info->prefix);

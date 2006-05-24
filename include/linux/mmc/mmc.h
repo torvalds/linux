@@ -69,6 +69,7 @@ struct mmc_data {
 	unsigned int		timeout_ns;	/* data timeout (in ns, max 80ms) */
 	unsigned int		timeout_clks;	/* data timeout (in clocks) */
 	unsigned int		blksz_bits;	/* data block size */
+	unsigned int		blksz;		/* data block size */
 	unsigned int		blocks;		/* number of blocks */
 	unsigned int		error;		/* data error */
 	unsigned int		flags;

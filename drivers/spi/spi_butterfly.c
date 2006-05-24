@@ -321,6 +321,7 @@ static void butterfly_attach(struct parport *p)
 	 * (firmware resets at45, acts as spi slave) or neither (we ignore
 	 * both, AVR uses AT45).  Here we expect firmware for the first option.
 	 */
+
 	pp->info[0].max_speed_hz = 15 * 1000 * 1000;
 	strcpy(pp->info[0].modalias, "mtd_dataflash");
 	pp->info[0].platform_data = &flash;

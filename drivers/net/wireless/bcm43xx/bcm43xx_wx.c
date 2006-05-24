@@ -182,8 +182,11 @@ static int bcm43xx_wx_set_mode(struct net_device *net_dev,
 		mode = BCM43xx_INITIAL_IWMODE;
 
 	bcm43xx_lock_mmio(bcm, flags);
-	if (bcm->ieee->iw_mode != mode)
-		bcm43xx_set_iwmode(bcm, mode);
+	if (bcm->initialized) {
+		if (bcm->ieee->iw_mode != mode)
+			bcm43xx_set_iwmode(bcm, mode);
+	} else
+		bcm->ieee->iw_mode = mode;
 	bcm43xx_unlock_mmio(bcm, flags);
 
 	return 0;

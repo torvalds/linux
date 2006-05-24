@@ -4,8 +4,11 @@ menu "LED devices"
 config NEW_LEDS
 	bool "LED Support"
 	help
-	  Say Y to enable Linux LED support.  This is not related to standard
-	  keyboard LEDs which are controlled via the input system.
+	  Say Y to enable Linux LED support.  This allows control of supported
+	  LEDs from both userspace and optionally, by kernel events (triggers).
+
+	  This is not related to standard keyboard LEDs which are controlled
+	  via the input system.
 
 config LEDS_CLASS
 	tristate "LED Class Support"

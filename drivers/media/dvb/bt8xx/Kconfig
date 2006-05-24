@@ -1,12 +1,13 @@
 config DVB_BT8XX
 	tristate "BT8xx based PCI cards"
-	depends on DVB_CORE && PCI && VIDEO_BT848
+	depends on DVB_CORE && PCI && I2C && VIDEO_BT848
 	select DVB_MT352
 	select DVB_SP887X
 	select DVB_NXT6000
 	select DVB_CX24110
 	select DVB_OR51211
 	select DVB_LGDT330X
+	select DVB_ZL10353
 	select FW_LOADER
 	help
 	  Support for PCI cards based on the Bt8xx PCI bridge. Examples are

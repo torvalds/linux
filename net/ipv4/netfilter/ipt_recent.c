@@ -821,6 +821,7 @@ checkentry(const char *tablename,
 	/* Create our proc 'status' entry. */
 	curr_table->status_proc = create_proc_entry(curr_table->name, ip_list_perms, proc_net_ipt_recent);
 	if (!curr_table->status_proc) {
+		vfree(hold);
 		printk(KERN_INFO RECENT_NAME ": checkentry: unable to allocate for /proc entry.\n");
 		/* Destroy the created table */
 		spin_lock_bh(&recent_lock);
@@ -845,7 +846,6 @@ checkentry(const char *tablename,
 		spin_unlock_bh(&recent_lock);
 		vfree(curr_table->time_info);
 		vfree(curr_table->hash_table);
-		vfree(hold);
 		vfree(curr_table->table);
 		vfree(curr_table);
 		return 0;

@@ -863,7 +863,7 @@ static int ohci_restart (struct ohci_hcd *ohci)
 		i = ohci->num_ports;
 		while (i--)
 			ohci_writel (ohci, RH_PS_PSS,
-				&ohci->regs->roothub.portstatus [temp]);
+				&ohci->regs->roothub.portstatus [i]);
 		ohci_dbg (ohci, "restart complete\n");
 	}
 	return 0;

@@ -338,18 +338,18 @@ static struct class spi_master_class = {
  * spi_alloc_master - allocate SPI master controller
  * @dev: the controller, possibly using the platform_bus
  * @size: how much driver-private data to preallocate; the pointer to this
- * 	memory is in the class_data field of the returned class_device,
+ *	memory is in the class_data field of the returned class_device,
  *	accessible with spi_master_get_devdata().
  *
  * This call is used only by SPI master controller drivers, which are the
  * only ones directly touching chip registers.  It's how they allocate
- * an spi_master structure, prior to calling spi_add_master().
+ * an spi_master structure, prior to calling spi_register_master().
  *
  * This must be called from context that can sleep.  It returns the SPI
  * master structure on success, else NULL.
  *
  * The caller is responsible for assigning the bus number and initializing
- * the master's methods before calling spi_add_master(); and (after errors
+ * the master's methods before calling spi_register_master(); and (after errors
  * adding the device) calling spi_master_put() to prevent a memory leak.
  */
 struct spi_master * __init_or_module
@@ -395,7 +395,7 @@ EXPORT_SYMBOL_GPL(spi_alloc_master);
 int __init_or_module
 spi_register_master(struct spi_master *master)
 {
-	static atomic_t		dyn_bus_id = ATOMIC_INIT(0);
+	static atomic_t		dyn_bus_id = ATOMIC_INIT((1<<16) - 1);
 	struct device		*dev = master->cdev.dev;
 	int			status = -ENODEV;
 	int			dynamic = 0;
@@ -404,7 +404,7 @@ spi_register_master(struct spi_master *master)
 		return -ENODEV;
 
 	/* convention:  dynamically assigned bus IDs count down from the max */
-	if (master->bus_num == 0) {
+	if (master->bus_num < 0) {
 		master->bus_num = atomic_dec_return(&dyn_bus_id);
 		dynamic = 1;
 	}
@@ -522,7 +522,8 @@ int spi_sync(struct spi_device *spi, struct spi_message *message)
 }
 EXPORT_SYMBOL_GPL(spi_sync);
 
-#define	SPI_BUFSIZ	(SMP_CACHE_BYTES)
+/* portable code must never pass more than 32 bytes */
+#define	SPI_BUFSIZ	max(32,SMP_CACHE_BYTES)
 
 static u8	*buf;
 

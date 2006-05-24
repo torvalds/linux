@@ -199,6 +199,7 @@ extern int class_device_create_file(struct class_device *,
  * @node: for internal use by the driver core only.
  * @kobj: for internal use by the driver core only.
  * @devt_attr: for internal use by the driver core only.
+ * @groups: optional additional groups to be created
  * @dev: if set, a symlink to the struct device is created in the sysfs
  * directory for this struct class device.
  * @class_data: pointer to whatever you want to store here for this struct
@@ -227,6 +228,7 @@ struct class_device {
 	struct device		* dev;		/* not necessary, but nice to have */
 	void			* class_data;	/* class-specific data */
 	struct class_device	*parent;	/* parent of this child device, if there is one */
+	struct attribute_group  ** groups;	/* optional groups */
 
 	void	(*release)(struct class_device *dev);
 	int	(*uevent)(struct class_device *dev, char **envp,

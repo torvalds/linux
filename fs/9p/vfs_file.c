@@ -72,11 +72,17 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 		return -ENOSPC;
 	}
 
-	err = v9fs_t_walk(v9ses, vfid->fid, fid, NULL, NULL);
+	err = v9fs_t_walk(v9ses, vfid->fid, fid, NULL, &fcall);
 	if (err < 0) {
 		dprintk(DEBUG_ERROR, "rewalk didn't work\n");
-		goto put_fid;
+		if (fcall && fcall->id == RWALK)
+			goto clunk_fid;
+		else {
+			v9fs_put_idpool(fid, &v9ses->fidpool);
+			goto free_fcall;
+		}
 	}
+	kfree(fcall);
 
 	/* TODO: do special things for O_EXCL, O_NOFOLLOW, O_SYNC */
 	/* translate open mode appropriately */
@@ -109,8 +115,7 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 clunk_fid:
 	v9fs_t_clunk(v9ses, fid);
 
-put_fid:
-	v9fs_put_idpool(fid, &v9ses->fidpool);
+free_fcall:
 	kfree(fcall);
 
 	return err;

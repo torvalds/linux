@@ -1922,11 +1922,10 @@ nfsd_set_posix_acl(struct svc_fh *fhp, int type, struct posix_acl *acl)
 		value = kmalloc(size, GFP_KERNEL);
 		if (!value)
 			return -ENOMEM;
-		size = posix_acl_to_xattr(acl, value, size);
-		if (size < 0) {
-			error = size;
+		error = posix_acl_to_xattr(acl, value, size);
+		if (error < 0)
 			goto getout;
-		}
+		size = error;
 	} else
 		size = 0;
 

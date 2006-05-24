@@ -89,6 +89,8 @@ ieee80211softmac_clear_pending_work(struct ieee80211softmac_device *sm)
 	ieee80211softmac_wait_for_scan(sm);
 	
 	spin_lock_irqsave(&sm->lock, flags);
+	sm->running = 0;
+
 	/* Free all pending assoc work items */
 	cancel_delayed_work(&sm->associnfo.work);
 	
@@ -204,6 +206,8 @@ void ieee80211softmac_start(struct net_device *dev)
 		assert(0);
 	if (mac->txrates_change)
 		mac->txrates_change(dev, change, &oldrates);
+
+	mac->running = 1;
 }
 EXPORT_SYMBOL_GPL(ieee80211softmac_start);
 

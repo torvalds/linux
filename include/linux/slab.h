@@ -149,6 +149,7 @@ static inline void *kcalloc(size_t n, size_t size, gfp_t flags)
 
 extern void kfree(const void *);
 extern unsigned int ksize(const void *);
+extern int slab_is_available(void);
 
 #ifdef CONFIG_NUMA
 extern void *kmem_cache_alloc_node(kmem_cache_t *, gfp_t flags, int node);

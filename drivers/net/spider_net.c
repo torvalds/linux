@@ -1652,6 +1652,8 @@ spider_net_enable_card(struct spider_net_card *card)
 		{ SPIDER_NET_GFTRESTRT, SPIDER_NET_RESTART_VALUE },
 
 		{ SPIDER_NET_GMRWOLCTRL, 0 },
+		{ SPIDER_NET_GTESTMD, 0x10000000 },
+		{ SPIDER_NET_GTTQMSK, 0x00400040 },
 		{ SPIDER_NET_GTESTMD, 0 },
 
 		{ SPIDER_NET_GMACINTEN, 0 },
@@ -1792,15 +1794,7 @@ spider_net_setup_phy(struct spider_net_card *card)
 	if (phy->def->ops->setup_forced)
 		phy->def->ops->setup_forced(phy, SPEED_1000, DUPLEX_FULL);
 
-	/* the following two writes could be moved to sungem_phy.c */
-	/* enable fiber mode */
-	spider_net_write_phy(card->netdev, 1, MII_NCONFIG, 0x9020);
-	/* LEDs active in both modes, autosense prio = fiber */
-	spider_net_write_phy(card->netdev, 1, MII_NCONFIG, 0x945f);
-
-	/* switch off fibre autoneg */
-	spider_net_write_phy(card->netdev, 1, MII_NCONFIG, 0xfc01);
-	spider_net_write_phy(card->netdev, 1, 0x0b, 0x0004);
+	phy->def->ops->enable_fiber(phy);
 
 	phy->def->ops->read_link(phy);
 	pr_info("Found %s with %i Mbps, %s-duplex.\n", phy->def->name,

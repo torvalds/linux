@@ -662,14 +662,14 @@ static void wbsd_prepare_data(struct wbsd_host *host, struct mmc_data *data)
 	unsigned long dmaflags;
 
 	DBGF("blksz %04x blks %04x flags %08x\n",
-		1 << data->blksz_bits, data->blocks, data->flags);
+		data->blksz, data->blocks, data->flags);
 	DBGF("tsac %d ms nsac %d clk\n",
 		data->timeout_ns / 1000000, data->timeout_clks);
 
 	/*
 	 * Calculate size.
 	 */
-	host->size = data->blocks << data->blksz_bits;
+	host->size = data->blocks * data->blksz;
 
 	/*
 	 * Check timeout values for overflow.
@@ -696,12 +696,12 @@ static void wbsd_prepare_data(struct wbsd_host *host, struct mmc_data *data)
 	 * Two bytes are needed for each data line.
 	 */
 	if (host->bus_width == MMC_BUS_WIDTH_1) {
-		blksize = (1 << data->blksz_bits) + 2;
+		blksize = data->blksz + 2;
 
 		wbsd_write_index(host, WBSD_IDX_PBSMSB, (blksize >> 4) & 0xF0);
 		wbsd_write_index(host, WBSD_IDX_PBSLSB, blksize & 0xFF);
 	} else if (host->bus_width == MMC_BUS_WIDTH_4) {
-		blksize = (1 << data->blksz_bits) + 2 * 4;
+		blksize = data->blksz + 2 * 4;
 
 		wbsd_write_index(host, WBSD_IDX_PBSMSB,
 			((blksize >> 4) & 0xF0) | WBSD_DATA_WIDTH);

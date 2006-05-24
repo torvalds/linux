@@ -52,6 +52,7 @@ struct utimbuf;
 struct mq_attr;
 struct compat_stat;
 struct compat_timeval;
+struct robust_list_head;
 
 #include <linux/types.h>
 #include <linux/aio_abi.h>
@@ -580,5 +581,10 @@ asmlinkage long sys_tee(int fdin, int fdout, size_t len, unsigned int flags);
 
 asmlinkage long sys_sync_file_range(int fd, loff_t offset, loff_t nbytes,
 					unsigned int flags);
+asmlinkage long sys_get_robust_list(int pid,
+				    struct robust_list_head __user **head_ptr,
+				    size_t __user *len_ptr);
+asmlinkage long sys_set_robust_list(struct robust_list_head __user *head,
+				    size_t len);
 
 #endif
