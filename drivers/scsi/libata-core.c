@@ -3612,6 +3612,30 @@ void ata_pio_data_xfer(struct ata_device *adev, unsigned char *buf,
 }
 
 /**
+ *	ata_pio_data_xfer_noirq - Transfer data by PIO
+ *	@adev: device to target
+ *	@buf: data buffer
+ *	@buflen: buffer length
+ *	@write_data: read/write
+ *
+ *	Transfer data from/to the device data register by PIO. Do the 
+ *	transfer with interrupts disabled.
+ *
+ *	LOCKING:
+ *	Inherited from caller.
+ */
+
+void ata_pio_data_xfer_noirq(struct ata_device *adev, unsigned char *buf,
+				    unsigned int buflen, int write_data)
+{
+	unsigned long flags;
+	local_irq_save(flags);
+	ata_pio_data_xfer(adev, buf, buflen, write_data);
+	local_irq_restore(flags);
+}
+
+
+/**
  *	ata_pio_sector - Transfer ATA_SECT_SIZE (512 bytes) of data.
  *	@qc: Command on going
  *
@@ -5675,6 +5699,7 @@ EXPORT_SYMBOL_GPL(ata_host_stop);
 EXPORT_SYMBOL_GPL(ata_interrupt);
 EXPORT_SYMBOL_GPL(ata_mmio_data_xfer);
 EXPORT_SYMBOL_GPL(ata_pio_data_xfer);
+EXPORT_SYMBOL_GPL(ata_pio_data_xfer_noirq);
 EXPORT_SYMBOL_GPL(ata_qc_prep);
 EXPORT_SYMBOL_GPL(ata_noop_qc_prep);
 EXPORT_SYMBOL_GPL(ata_bmdma_setup);

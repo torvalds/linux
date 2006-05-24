@@ -651,6 +651,8 @@ extern void ata_mmio_data_xfer(struct ata_device *adev, unsigned char *buf,
 			       unsigned int buflen, int write_data);
 extern void ata_pio_data_xfer(struct ata_device *adev, unsigned char *buf,
 			      unsigned int buflen, int write_data);
+extern void ata_pio_data_xfer_noirq(struct ata_device *adev, unsigned char *buf,
+			      unsigned int buflen, int write_data);
 extern void ata_qc_prep(struct ata_queued_cmd *qc);
 extern void ata_noop_qc_prep(struct ata_queued_cmd *qc);
 extern unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc);
