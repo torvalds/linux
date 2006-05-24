@@ -84,6 +84,7 @@ static int decode_vps(u8 * dst, u8 * p)
 
 void cx25840_vbi_setup(struct i2c_client *client)
 {
+	struct cx25840_state *state = i2c_get_clientdata(client);
 	v4l2_std_id std = cx25840_get_v4lstd(client);
 
 	if (std & ~V4L2_STD_NTSC) {
@@ -117,6 +118,7 @@ void cx25840_vbi_setup(struct i2c_client *client)
 
 		cx25840_write(client, 0x47e, 0x0a);
 		cx25840_write(client, 0x47f, 0x01);
+		state->vbi_line_offset = 5;
 	} else {
 		/* datasheet startup, step 8d */
 		cx25840_write(client, 0x49f, 0x14);
@@ -140,11 +142,13 @@ void cx25840_vbi_setup(struct i2c_client *client)
 		cx25840_write(client, 0x47d, 0x7c);
 		cx25840_write(client, 0x47e, 0x08);
 		cx25840_write(client, 0x47f, 0x00);
+		state->vbi_line_offset = 8;
 	}
 }
 
 int cx25840_vbi(struct i2c_client *client, unsigned int cmd, void *arg)
 {
+	struct cx25840_state *state = i2c_get_clientdata(client);
 	struct v4l2_format *fmt;
 	struct v4l2_sliced_vbi_format *svbi;
 
@@ -211,7 +215,7 @@ int cx25840_vbi(struct i2c_client *client, unsigned int cmd, void *arg)
 		cx25840_vbi_setup(client);
 
 		/* Sliced VBI */
-		cx25840_write(client, 0x404, 0x36);	/* Ancillery data */
+		cx25840_write(client, 0x404, 0x32);	/* Ancillary data */
 		cx25840_write(client, 0x406, 0x13);
 		cx25840_write(client, 0x47f, vbi_offset);
 
@@ -248,8 +252,18 @@ int cx25840_vbi(struct i2c_client *client, unsigned int cmd, void *arg)
 			}
 		}
 
-		for (x = 1, i = 0x424; i <= 0x434; i++, x++) {
-			cx25840_write(client, i, lcr[6 + x]);
+		if (is_pal) {
+			for (x = 1, i = 0x424; i <= 0x434; i++, x++) {
+				cx25840_write(client, i, lcr[6 + x]);
+			}
+		}
+		else {
+			for (x = 1, i = 0x424; i <= 0x430; i++, x++) {
+				cx25840_write(client, i, lcr[9 + x]);
+			}
+			for (i = 0x431; i <= 0x434; i++) {
+				cx25840_write(client, i, 0);
+			}
 		}
 
 		cx25840_write(client, 0x43c, 0x16);
@@ -257,7 +271,7 @@ int cx25840_vbi(struct i2c_client *client, unsigned int cmd, void *arg)
 		if (is_pal) {
 			cx25840_write(client, 0x474, 0x2a);
 		} else {
-			cx25840_write(client, 0x474, 0x1a + 6);
+			cx25840_write(client, 0x474, 0x22);
 		}
 		break;
 	}
@@ -278,7 +292,7 @@ int cx25840_vbi(struct i2c_client *client, unsigned int cmd, void *arg)
 		id1 = p[-1];
 		id2 = p[0] & 0xf;
 		l = p[2] & 0x3f;
-		l += 5;
+		l += state->vbi_line_offset;
 		p += 4;
 
 		switch (id2) {

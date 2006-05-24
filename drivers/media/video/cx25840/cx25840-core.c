@@ -10,6 +10,9 @@
  *
  * VBI support by Hans Verkuil <hverkuil@xs4all.nl>.
  *
+ * NTSC sliced VBI support by Christopher Neufeld <television@cneufeld.ca>
+ * with additional fixes by Hans Verkuil <hverkuil@xs4all.nl>.
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -982,6 +985,7 @@ static int cx25840_detect_client(struct i2c_adapter *adapter, int address,
 	state->audclk_freq = 48000;
 	state->pvr150_workaround = 0;
 	state->audmode = V4L2_TUNER_MODE_LANG1;
+	state->vbi_line_offset = 8;
 	state->id = id;
 
 	if (state->is_cx25836)
