@@ -47,7 +47,25 @@ config USB_EHCI_ROOT_HUB_TT
 	  controller is needed.  It's safe to say "y" even if your
 	  controller doesn't support this feature.
 
-	  This supports the EHCI implementation from TransDimension Inc.
+	  This supports the EHCI implementation that's originally
+	  from ARC, and has since changed hands a few times.
+
+config USB_EHCI_TT_NEWSCHED
+	bool "Improved Transaction Translator scheduling (EXPERIMENTAL)"
+	depends on USB_EHCI_HCD && EXPERIMENTAL
+	---help---
+	  This changes the periodic scheduling code to fill more of the low
+	  and full speed bandwidth available from the Transaction Translator
+	  (TT) in USB 2.0 hubs.  Without this, only one transfer will be
+	  issued in each microframe, significantly reducing the number of
+	  periodic low/fullspeed transfers possible.
+
+	  If you have multiple periodic low/fullspeed devices connected to a
+	  highspeed USB hub which is connected to a highspeed USB Host
+	  Controller, and some of those devices will not work correctly
+	  (possibly due to "ENOSPC" or "-28" errors), say Y.
+
+	  If unsure, say N.
 
 config USB_ISP116X_HCD
 	tristate "ISP116X HCD support"
