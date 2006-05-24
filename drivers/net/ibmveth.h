@@ -139,7 +139,7 @@ struct ibmveth_adapter {
     spinlock_t stats_lock;
 };
 
-struct ibmveth_buf_desc_fields {	
+struct ibmveth_buf_desc_fields {
     u32 valid : 1;
     u32 toggle : 1;
     u32 reserved : 6;
@@ -148,7 +148,7 @@ struct ibmveth_buf_desc_fields {
 };
 
 union ibmveth_buf_desc {
-    u64 desc;	
+    u64 desc;
     struct ibmveth_buf_desc_fields fields;
 };
 

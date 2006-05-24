@@ -1,4 +1,4 @@
-/* 
+/*
 net-3-driver for the IBM LAN Adapter/A
 
 This is an extension to the Linux operating system, and is covered by the
@@ -11,9 +11,9 @@ This driver is based both on the SK_MCA driver, which is itself based on the
 SK_G16 and 3C523 driver.
 
 paper sources:
-  'PC Hardware: Aufbau, Funktionsweise, Programmierung' by 
+  'PC Hardware: Aufbau, Funktionsweise, Programmierung' by
   Hans-Peter Messmer for the basic Microchannel stuff
-  
+
   'Linux Geraetetreiber' by Allesandro Rubini, Kalle Dalheimer
   for help on Ethernet driver programming
 
@@ -27,14 +27,14 @@ paper sources:
 
 special acknowledgements to:
   - Bob Eager for helping me out with documentation from IBM
-  - Jim Shorney for his endless patience with me while I was using 
+  - Jim Shorney for his endless patience with me while I was using
     him as a beta tester to trace down the address filter bug ;-)
 
   Missing things:
 
   -> set debug level via ioctl instead of compile-time switches
   -> I didn't follow the development of the 2.1.x kernels, so my
-     assumptions about which things changed with which kernel version 
+     assumptions about which things changed with which kernel version
      are probably nonsense
 
 History:
@@ -275,7 +275,7 @@ static void InitDscrs(struct net_device *dev)
 	priv->rrastart = raddr = priv->txbufstart + (TXBUFCNT * PKTSIZE);
 	priv->rdastart = addr = priv->rrastart + (priv->rxbufcnt * sizeof(rra_t));
 	priv->rxbufstart = baddr = priv->rdastart + (priv->rxbufcnt * sizeof(rda_t));
-	
+
 	for (z = 0; z < priv->rxbufcnt; z++) {
 		rra.startlo = baddr;
 		rra.starthi = 0;
@@ -570,7 +570,7 @@ static void irqrx_handler(struct net_device *dev)
 		lrdaaddr = priv->rdastart + (priv->lastrxdescr * sizeof(rda_t));
 		memcpy_fromio(&rda, priv->base + rdaaddr, sizeof(rda_t));
 
-		/* iron out upper word halves of fields we use - SONIC will duplicate 
+		/* iron out upper word halves of fields we use - SONIC will duplicate
 		   bits 0..15 to 16..31 */
 
 		rda.status &= 0xffff;
@@ -836,9 +836,9 @@ static int ibmlana_tx(struct sk_buff *skb, struct net_device *dev)
 	baddr = priv->txbufstart + (priv->nexttxdescr * PKTSIZE);
 	memcpy_toio(priv->base + baddr, skb->data, skb->len);
 
-	/* copy filler into RAM - in case we're filling up... 
+	/* copy filler into RAM - in case we're filling up...
 	   we're filling a bit more than necessary, but that doesn't harm
-	   since the buffer is far larger... 
+	   since the buffer is far larger...
 	   Sorry Linus for the filler string but I couldn't resist ;-) */
 
 	if (tmplen > skb->len) {
@@ -952,7 +952,7 @@ static int ibmlana_probe(struct net_device *dev)
 	priv->realirq = irq;
 	priv->medium = medium;
 	spin_lock_init(&priv->lock);
-		
+
 
 	/* set base + irq for this device (irq not allocated so far) */
 
