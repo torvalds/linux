@@ -528,7 +528,6 @@ static int jffs2_garbage_collect_pristine(struct jffs2_sb_info *c,
 					  struct jffs2_raw_node_ref *raw)
 {
 	union jffs2_node_union *node;
-	struct jffs2_raw_node_ref *nraw;
 	size_t retlen;
 	int ret;
 	uint32_t phys_ofs, alloclen;
@@ -618,30 +617,21 @@ static int jffs2_garbage_collect_pristine(struct jffs2_sb_info *c,
 		}
 	}
 
-	nraw = jffs2_alloc_raw_node_ref();
-	if (!nraw) {
-		ret = -ENOMEM;
-		goto out_node;
-	}
-
 	/* OK, all the CRCs are good; this node can just be copied as-is. */
  retry:
-	nraw->flash_offset = phys_ofs = write_ofs(c);
+	phys_ofs = write_ofs(c);
 
 	ret = jffs2_flash_write(c, phys_ofs, rawlen, &retlen, (char *)node);
 
 	if (ret || (retlen != rawlen)) {
 		printk(KERN_NOTICE "Write of %d bytes at 0x%08x failed. returned %d, retlen %zd\n",
-                       rawlen, nraw->flash_offset, ret, retlen);
+                       rawlen, phys_ofs, ret, retlen);
 		if (retlen) {
-			nraw->flash_offset |= REF_OBSOLETE;
-			jffs2_add_physical_node_ref(c, nraw, rawlen, NULL);
-			jffs2_mark_node_obsolete(c, nraw);
+			jffs2_add_physical_node_ref(c, phys_ofs | REF_OBSOLETE, rawlen, NULL);
 		} else {
-			printk(KERN_NOTICE "Not marking the space at 0x%08x as dirty because the flash driver returned retlen zero\n", nraw->flash_offset);
-                        jffs2_free_raw_node_ref(nraw);
+			printk(KERN_NOTICE "Not marking the space at 0x%08x as dirty because the flash driver returned retlen zero\n", phys_ofs);
 		}
-		if (!retried && (nraw = jffs2_alloc_raw_node_ref())) {
+		if (!retried) {
 			/* Try to reallocate space and retry */
 			uint32_t dummy;
 			struct jffs2_eraseblock *jeb = &c->blocks[phys_ofs / c->sector_size];
@@ -666,16 +656,13 @@ static int jffs2_garbage_collect_pristine(struct jffs2_sb_info *c,
 				goto retry;
 			}
 			D1(printk(KERN_DEBUG "Failed to allocate space to retry failed write: %d!\n", ret));
-			jffs2_free_raw_node_ref(nraw);
 		}
 
-		jffs2_free_raw_node_ref(nraw);
 		if (!ret)
 			ret = -EIO;
 		goto out_node;
 	}
-	nraw->flash_offset |= REF_PRISTINE;
-	jffs2_add_physical_node_ref(c, nraw, rawlen, ic);
+	jffs2_add_physical_node_ref(c, phys_ofs | REF_PRISTINE, rawlen, ic);
 
 	jffs2_mark_node_obsolete(c, raw);
 	D1(printk(KERN_DEBUG "WHEEE! GC REF_PRISTINE node at 0x%08x succeeded\n", ref_offset(raw)));

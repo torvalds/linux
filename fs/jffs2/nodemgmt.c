@@ -137,6 +137,8 @@ int jffs2_reserve_space(struct jffs2_sb_info *c, uint32_t minsize,
 		}
 	}
 	spin_unlock(&c->erase_completion_lock);
+	if (!ret)
+		ret = jffs2_prealloc_raw_node_refs(c, 1);
 	if (ret)
 		up(&c->alloc_sem);
 	return ret;
@@ -158,6 +160,9 @@ int jffs2_reserve_space_gc(struct jffs2_sb_info *c, uint32_t minsize,
 		}
 	}
 	spin_unlock(&c->erase_completion_lock);
+	if (!ret)
+		ret = jffs2_prealloc_raw_node_refs(c, 1);
+
 	return ret;
 }
 
@@ -381,30 +386,30 @@ static int jffs2_do_reserve_space(struct jffs2_sb_info *c, uint32_t minsize,
  *	Must be called with the alloc_sem held.
  */
 
-int jffs2_add_physical_node_ref(struct jffs2_sb_info *c, struct jffs2_raw_node_ref *new,
-				uint32_t len, struct jffs2_inode_cache *ic)
+struct jffs2_raw_node_ref *jffs2_add_physical_node_ref(struct jffs2_sb_info *c,
+						       uint32_t ofs, uint32_t len,
+						       struct jffs2_inode_cache *ic)
 {
 	struct jffs2_eraseblock *jeb;
+	struct jffs2_raw_node_ref *new;
 
-	jeb = &c->blocks[new->flash_offset / c->sector_size];
-#ifdef TEST_TOTLEN
-	new->__totlen = len;
-#endif
+	jeb = &c->blocks[ofs / c->sector_size];
 
-	D1(printk(KERN_DEBUG "jffs2_add_physical_node_ref(): Node at 0x%x(%d), size 0x%x\n", ref_offset(new), ref_flags(new), len));
+	D1(printk(KERN_DEBUG "jffs2_add_physical_node_ref(): Node at 0x%x(%d), size 0x%x\n",
+		  ofs & ~3, ofs & 3, len));
 #if 1
-	/* we could get some obsolete nodes after nextblock was refiled
-	   in wbuf.c */
-	if ((c->nextblock || !ref_obsolete(new))
-	    &&(jeb != c->nextblock || ref_offset(new) != jeb->offset + (c->sector_size - jeb->free_size))) {
+	/* Allow non-obsolete nodes only to be added at the end of c->nextblock, 
+	   if c->nextblock is set. Note that wbuf.c will file obsolete nodes
+	   even after refiling c->nextblock */
+	if ((c->nextblock || ((ofs & 3) != REF_OBSOLETE))
+	    && (jeb != c->nextblock || (ofs & ~3) != jeb->offset + (c->sector_size - jeb->free_size))) {
 		printk(KERN_WARNING "argh. node added in wrong place\n");
-		jffs2_free_raw_node_ref(new);
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 	}
 #endif
 	spin_lock(&c->erase_completion_lock);
 
-	jffs2_link_node_ref(c, jeb, new, len, ic);
+	new = jffs2_link_node_ref(c, jeb, ofs, len, ic);
 
 	if (!jeb->free_size && !jeb->dirty_size && !ISDIRTY(jeb->wasted_size)) {
 		/* If it lives on the dirty_list, jffs2_reserve_space will put it there */
@@ -425,7 +430,7 @@ int jffs2_add_physical_node_ref(struct jffs2_sb_info *c, struct jffs2_raw_node_r
 
 	spin_unlock(&c->erase_completion_lock);
 
-	return 0;
+	return new;
 }
 
 
@@ -697,7 +702,7 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 		}
 		spin_unlock(&c->erase_completion_lock);
 
-		jffs2_free_raw_node_ref(n);
+		__jffs2_free_raw_node_ref(n);
 	}
 
 	/* Also merge with the previous node in the list, if there is one
@@ -722,7 +727,7 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 				jeb->gc_node=p;
 			}
 			p->next_phys = ref->next_phys;
-			jffs2_free_raw_node_ref(ref);
+			__jffs2_free_raw_node_ref(ref);
 		}
 		spin_unlock(&c->erase_completion_lock);
 	}

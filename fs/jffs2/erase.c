@@ -296,7 +296,7 @@ void jffs2_free_all_node_refs(struct jffs2_sb_info *c, struct jffs2_eraseblock *
 			jffs2_remove_node_refs_from_ino_list(c, ref, jeb);
 		/* else it was a non-inode node or already removed, so don't bother */
 
-		jffs2_free_raw_node_ref(ref);
+		__jffs2_free_raw_node_ref(ref);
 	}
 	jeb->last_node = NULL;
 }
@@ -351,7 +351,6 @@ fail:
 
 static void jffs2_mark_erased_block(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb)
 {
-	struct jffs2_raw_node_ref *marker_ref = NULL;
 	size_t retlen;
 	int ret;
 	uint32_t bad_offset;
@@ -384,11 +383,7 @@ static void jffs2_mark_erased_block(struct jffs2_sb_info *c, struct jffs2_eraseb
 			.totlen =	cpu_to_je32(c->cleanmarker_size)
 		};
 
-		marker_ref = jffs2_alloc_raw_node_ref();
-		if (!marker_ref) {
-			printk(KERN_WARNING "Failed to allocate raw node ref for clean marker. Refiling\n");
-			goto refile;
-		}
+		jffs2_prealloc_raw_node_refs(c, 1);
 
 		marker.hdr_crc = cpu_to_je32(crc32(0, &marker, sizeof(struct jffs2_unknown_node)-4));
 
@@ -404,16 +399,13 @@ static void jffs2_mark_erased_block(struct jffs2_sb_info *c, struct jffs2_eraseb
 				printk(KERN_WARNING "Short write to newly-erased block at 0x%08x: Wanted %zd, got %zd\n",
 				       jeb->offset, sizeof(marker), retlen);
 
-			jffs2_free_raw_node_ref(marker_ref);
 			goto filebad;
 		}
 
 		/* Everything else got zeroed before the erase */
 		jeb->free_size = c->sector_size;
-
-		marker_ref->flash_offset = jeb->offset | REF_NORMAL;
-
-		jffs2_link_node_ref(c, jeb, marker_ref, c->cleanmarker_size, NULL);
+		/* FIXME Special case for cleanmarker in empty block */
+		jffs2_link_node_ref(c, jeb, jeb->offset | REF_NORMAL, c->cleanmarker_size, NULL);
 	}
 
 	spin_lock(&c->erase_completion_lock);

@@ -304,8 +304,8 @@ static int load_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datum *x
 static int save_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datum *xd)
 {
 	/* must be called under down_write(xattr_sem) */
-	struct jffs2_raw_xattr rx;
 	struct jffs2_raw_node_ref *raw;
+	struct jffs2_raw_xattr rx;
 	struct kvec vecs[2];
 	uint32_t length;
 	int rc, totlen;
@@ -318,11 +318,6 @@ static int save_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datum *x
 	vecs[1].iov_base = xd->xname;
 	vecs[1].iov_len = xd->name_len + 1 + xd->value_len;
 	totlen = vecs[0].iov_len + vecs[1].iov_len;
-
-	raw = jffs2_alloc_raw_node_ref();
-	if (!raw)
-		return -ENOMEM;
-	raw->flash_offset = phys_ofs;
 
 	/* Setup raw-xattr */
 	rx.magic = cpu_to_je16(JFFS2_MAGIC_BITMASK);
@@ -343,19 +338,14 @@ static int save_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datum *x
 		JFFS2_WARNING("jffs2_flash_writev()=%d, req=%u, wrote=%u, at %#08x\n",
 			      rc, totlen, length, phys_ofs);
 		rc = rc ? rc : -EIO;
-		if (length) {
-			raw->flash_offset |= REF_OBSOLETE;
-			jffs2_add_physical_node_ref(c, raw, PAD(totlen), NULL);
-			jffs2_mark_node_obsolete(c, raw);
-		} else {
-			jffs2_free_raw_node_ref(raw);
-		}
+		if (length)
+			jffs2_add_physical_node_ref(c, phys_ofs | REF_OBSOLETE, PAD(totlen), NULL);
+
 		return rc;
 	}
 
 	/* success */
-	raw->flash_offset |= REF_PRISTINE;
-	jffs2_add_physical_node_ref(c, raw, PAD(totlen), NULL);
+	raw = jffs2_add_physical_node_ref(c, phys_ofs | REF_PRISTINE, PAD(totlen), NULL);
 	/* FIXME */ raw->next_in_ino = (void *)xd;
 
 	if (xd->node)
@@ -563,11 +553,6 @@ static int save_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_ref *ref)
 	uint32_t phys_ofs = write_ofs(c);
 	int ret;
 
-	raw = jffs2_alloc_raw_node_ref();
-	if (!raw)
-		return -ENOMEM;
-	raw->flash_offset = phys_ofs;
-
 	rr.magic = cpu_to_je16(JFFS2_MAGIC_BITMASK);
 	rr.nodetype = cpu_to_je16(JFFS2_NODETYPE_XREF);
 	rr.totlen = cpu_to_je32(PAD(sizeof(rr)));
@@ -582,18 +567,13 @@ static int save_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_ref *ref)
 		JFFS2_WARNING("jffs2_flash_write() returned %d, request=%u, retlen=%u, at %#08x\n",
 			      ret, sizeof(rr), length, phys_ofs);
 		ret = ret ? ret : -EIO;
-		if (length) {
-			raw->flash_offset |= REF_OBSOLETE;
-			jffs2_add_physical_node_ref(c, raw, PAD(sizeof(rr)), NULL);
-			jffs2_mark_node_obsolete(c, raw);
-		} else {
-			jffs2_free_raw_node_ref(raw);
-		}
+		if (length)
+			jffs2_add_physical_node_ref(c, phys_ofs | REF_OBSOLETE, PAD(sizeof(rr)), NULL);
+
 		return ret;
 	}
-	raw->flash_offset |= REF_PRISTINE;
 
-	jffs2_add_physical_node_ref(c, raw, PAD(sizeof(rr)), NULL);
+	raw = jffs2_add_physical_node_ref(c, phys_ofs | REF_PRISTINE, PAD(sizeof(rr)), NULL);
 	/* FIXME */ raw->next_in_ino = (void *)ref;
 	if (ref->node)
 		delete_xattr_ref_node(c, ref);

@@ -179,6 +179,9 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 	unsigned char *buf;
 	uint32_t start, end, ofs, len;
 
+	if (jffs2_prealloc_raw_node_refs(c, c->reserved_refs + 1))
+		return;
+
 	spin_lock(&c->erase_completion_lock);
 
 	jeb = &c->blocks[c->wbuf_ofs / c->sector_size];
@@ -306,17 +309,9 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 			printk(KERN_CRIT "Recovery of wbuf failed due to a second write error\n");
 			kfree(buf);
 
-			if (retlen) {
-				struct jffs2_raw_node_ref *raw2;
+			if (retlen)
+				jffs2_add_physical_node_ref(c, ofs | REF_OBSOLETE, ref_totlen(c, jeb, *first_raw), NULL);
 
-				raw2 = jffs2_alloc_raw_node_ref();
-				if (!raw2)
-					return;
-
-				raw2->flash_offset = ofs | REF_OBSOLETE;
-
-				jffs2_add_physical_node_ref(c, raw2, ref_totlen(c, jeb, *first_raw), NULL);
-			}
 			return;
 		}
 		printk(KERN_NOTICE "Recovery of wbuf succeeded to %08x\n", ofs);
@@ -428,6 +423,9 @@ static int __jffs2_flush_wbuf(struct jffs2_sb_info *c, int pad)
 	if (!c->wbuf_len)	/* already checked c->wbuf above */
 		return 0;
 
+	if (jffs2_prealloc_raw_node_refs(c, c->reserved_refs + 1))
+		return -ENOMEM;
+
 	/* claim remaining space on the page
 	   this happens, if we have a change to a new block,
 	   or if fsync forces us to flush the writebuffer.
@@ -485,7 +483,6 @@ static int __jffs2_flush_wbuf(struct jffs2_sb_info *c, int pad)
 	/* Adjust free size of the block if we padded. */
 	if (pad) {
 		struct jffs2_eraseblock *jeb;
-		struct jffs2_raw_node_ref *ref;
 		uint32_t waste = c->wbuf_pagesize - c->wbuf_len;
 
 		jeb = &c->blocks[c->wbuf_ofs / c->sector_size];
@@ -503,15 +500,10 @@ static int __jffs2_flush_wbuf(struct jffs2_sb_info *c, int pad)
 			       jeb->offset, jeb->free_size);
 			BUG();
 		}
-		ref = jffs2_alloc_raw_node_ref();
-		if (!ref)
-			return -ENOMEM;
-		ref->flash_offset = c->wbuf_ofs + c->wbuf_len;
-		ref->flash_offset |= REF_OBSOLETE;
 
 		spin_lock(&c->erase_completion_lock);
 
-		jffs2_link_node_ref(c, jeb, ref, waste, NULL);
+		jffs2_link_node_ref(c, jeb, (c->wbuf_ofs + c->wbuf_len) | REF_OBSOLETE, waste, NULL);
 		/* FIXME: that made it count as dirty. Convert to wasted */
 		jeb->dirty_size -= waste;
 		c->dirty_size -= waste;

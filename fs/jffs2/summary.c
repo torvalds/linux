@@ -369,22 +369,18 @@ no_mem:
 	return -ENOMEM;
 }
 
-static struct jffs2_raw_node_ref *alloc_ref_at(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb,
-					       uint32_t offset)
+static struct jffs2_raw_node_ref *sum_link_node_ref(struct jffs2_sb_info *c,
+						    struct jffs2_eraseblock *jeb,
+						    uint32_t ofs, uint32_t len,
+						    struct jffs2_inode_cache *ic)
 {
-	struct jffs2_raw_node_ref *ref;
 	/* If there was a gap, mark it dirty */
-	if (offset > c->sector_size - jeb->free_size) {
-		int ret = jffs2_scan_dirty_space(c, jeb, offset - (c->sector_size - jeb->free_size));
-		if (ret)
-			return NULL;
+	if ((ofs & ~3) > c->sector_size - jeb->free_size) {
+		/* Ew. Summary doesn't actually tell us explicitly about dirty space */
+		jffs2_scan_dirty_space(c, jeb, (ofs & ~3) - (c->sector_size - jeb->free_size));
 	}
-	ref = jffs2_alloc_raw_node_ref();
-	if (!ref)
-		return NULL;
 
-	ref->flash_offset = jeb->offset + offset;
-	return ref;
+	return jffs2_link_node_ref(c, jeb, jeb->offset + ofs, len, ic);
 }
 
 /* Process the stored summary information - helper function for jffs2_sum_scan_sumnode() */
@@ -392,7 +388,6 @@ static struct jffs2_raw_node_ref *alloc_ref_at(struct jffs2_sb_info *c, struct j
 static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb,
 				struct jffs2_raw_summary *summary, uint32_t *pseudo_random)
 {
-	struct jffs2_raw_node_ref *raw;
 	struct jffs2_inode_cache *ic;
 	struct jffs2_full_dirent *fd;
 	void *sp;
@@ -403,6 +398,11 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 
 	for (i=0; i<je32_to_cpu(summary->sum_num); i++) {
 		dbg_summary("processing summary index %d\n", i);
+
+		/* Make sure there's a spare ref for dirty space */
+		err = jffs2_prealloc_raw_node_refs(c, 2);
+		if (err)
+			return err;
 
 		switch (je16_to_cpu(((struct jffs2_sum_unknown_flash *)sp)->nodetype)) {
 			case JFFS2_NODETYPE_INODE: {
@@ -415,22 +415,14 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 					    jeb->offset + je32_to_cpu(spi->offset),
 					    jeb->offset + je32_to_cpu(spi->offset) + je32_to_cpu(spu->totlen));
 
-				raw = alloc_ref_at(c, jeb, je32_to_cpu(spi->offset));
-				if (!raw) {
-					JFFS2_NOTICE("allocation of node reference failed\n");
-					return -ENOMEM;
-				}
-
 				ic = jffs2_scan_make_ino_cache(c, ino);
 				if (!ic) {
 					JFFS2_NOTICE("scan_make_ino_cache failed\n");
-					jffs2_free_raw_node_ref(raw);
 					return -ENOMEM;
 				}
 
-				raw->flash_offset |= REF_UNCHECKED;
-
-				jffs2_link_node_ref(c, jeb, raw, PAD(je32_to_cpu(spi->totlen)), ic);
+				sum_link_node_ref(c, jeb, je32_to_cpu(spi->offset) | REF_UNCHECKED,
+						  PAD(je32_to_cpu(spi->totlen)), ic);
 
 				*pseudo_random += je32_to_cpu(spi->version);
 
@@ -455,24 +447,15 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 				memcpy(&fd->name, spd->name, spd->nsize);
 				fd->name[spd->nsize] = 0;
 
-				raw = alloc_ref_at(c, jeb, je32_to_cpu(spd->offset));
-				if (!raw) {
-					jffs2_free_full_dirent(fd);
-					JFFS2_NOTICE("allocation of node reference failed\n");
-					return -ENOMEM;
-				}
-
 				ic = jffs2_scan_make_ino_cache(c, je32_to_cpu(spd->pino));
 				if (!ic) {
 					jffs2_free_full_dirent(fd);
-					jffs2_free_raw_node_ref(raw);
 					return -ENOMEM;
 				}
 
-				raw->flash_offset |= REF_PRISTINE;
-				jffs2_link_node_ref(c, jeb, raw, PAD(je32_to_cpu(spd->totlen)), ic);
+				fd->raw = sum_link_node_ref(c, jeb,  je32_to_cpu(spd->offset) | REF_PRISTINE,
+							    PAD(je32_to_cpu(spd->totlen)), ic);
 
-				fd->raw = raw;
 				fd->next = NULL;
 				fd->version = je32_to_cpu(spd->version);
 				fd->ino = je32_to_cpu(spd->ino);
@@ -497,15 +480,10 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 					    jeb->offset + je32_to_cpu(spx->offset),
 					    jeb->offset + je32_to_cpu(spx->offset) + je32_to_cpu(spx->totlen),
 					    je32_to_cpu(spx->xid), je32_to_cpu(spx->version));
-				raw = alloc_ref_at(c, jeb, je32_to_cpu(spx->offset));
-				if (!raw) {
-					JFFS2_NOTICE("allocation of node reference failed\n");
-					return -ENOMEM;
-				}
+
 				xd = jffs2_setup_xattr_datum(c, je32_to_cpu(spx->xid),
 								je32_to_cpu(spx->version));
 				if (IS_ERR(xd)) {
-					jffs2_free_raw_node_ref(raw);
 					if (PTR_ERR(xd) == -EEXIST) {
 						/* a newer version of xd exists */
 						if ((err = jffs2_scan_dirty_space(c, jeb, je32_to_cpu(spx->totlen))))
@@ -516,12 +494,10 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 					JFFS2_NOTICE("allocation of xattr_datum failed\n");
 					return PTR_ERR(xd);
 				}
-				xd->node = raw;
 
-				raw->flash_offset |= REF_UNCHECKED;
-
-				jffs2_link_node_ref(c, jeb, raw, PAD(je32_to_cpu(spx->totlen)), NULL);
-				/* FIXME */ raw->next_in_ino = (void *)xd;
+				xd->node = sum_link_node_ref(c, jeb, je32_to_cpu(spx->offset) | REF_UNCHECKED,
+							     PAD(je32_to_cpu(spx->totlen)), NULL);
+				/* FIXME */ xd->node->next_in_ino = (void *)xd;
 
 				*pseudo_random += je32_to_cpu(spx->xid);
 				sp += JFFS2_SUMMARY_XATTR_SIZE;
@@ -537,29 +513,21 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 					    jeb->offset + je32_to_cpu(spr->offset),
 					    jeb->offset + je32_to_cpu(spr->offset) + PAD(sizeof(struct jffs2_raw_xref)));
 
-				raw = alloc_ref_at(c, jeb, je32_to_cpu(spr->offset));
-				if (!raw) {
-					JFFS2_NOTICE("allocation of node reference failed\n");
-					return -ENOMEM;
-				}
 				ref = jffs2_alloc_xattr_ref();
 				if (!ref) {
 					JFFS2_NOTICE("allocation of xattr_datum failed\n");
-					jffs2_free_raw_node_ref(raw);
 					return -ENOMEM;
 				}
 				ref->ino = 0xfffffffe;
 				ref->xid = 0xfffffffd;
-				ref->node = raw;
 				ref->next = c->xref_temp;
 				c->xref_temp = ref;
 
-				raw->flash_offset |= REF_UNCHECKED;
+				ref->node = sum_link_node_ref(c, jeb, je32_to_cpu(spr->offset) | REF_UNCHECKED,
+							      PAD(sizeof(struct jffs2_raw_xref)), NULL);
+				/* FIXME */ ref->node->next_in_ino = (void *)ref;
 
-				jffs2_link_node_ref(c, jeb, raw, PAD(sizeof(struct jffs2_raw_xref)), NULL);
-				/* FIXME */ raw->next_in_ino = (void *)ref;
-
-				*pseudo_random += raw->flash_offset;
+				*pseudo_random += ref->node->flash_offset;
 				sp += JFFS2_SUMMARY_XREF_SIZE;
 
 				break;
@@ -584,7 +552,6 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 			}
 		}
 	}
-
 	return 0;
 }
 
@@ -594,7 +561,6 @@ int jffs2_sum_scan_sumnode(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb
 			   uint32_t *pseudo_random)
 {
 	struct jffs2_unknown_node crcnode;
-	struct jffs2_raw_node_ref *cache_ref;
 	int ret, ofs;
 	uint32_t crc;
 	int err;
@@ -650,16 +616,8 @@ int jffs2_sum_scan_sumnode(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb
 			if ((err = jffs2_scan_dirty_space(c, jeb, PAD(je32_to_cpu(summary->cln_mkr)))))
 				return err;
 		} else {
-			struct jffs2_raw_node_ref *marker_ref = jffs2_alloc_raw_node_ref();
-
-			if (!marker_ref) {
-				JFFS2_NOTICE("Failed to allocate node ref for clean marker\n");
-				return -ENOMEM;
-			}
-
-			marker_ref->flash_offset = jeb->offset | REF_NORMAL;
-
-			jffs2_link_node_ref(c, jeb, marker_ref, je32_to_cpu(summary->cln_mkr), NULL);
+			jffs2_link_node_ref(c, jeb, jeb->offset | REF_NORMAL,
+					    je32_to_cpu(summary->cln_mkr), NULL);
 		}
 	}
 
@@ -672,16 +630,11 @@ int jffs2_sum_scan_sumnode(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb
 		return ret;		/* real error */
 
 	/* for PARANOIA_CHECK */
-	cache_ref = alloc_ref_at(c, jeb, ofs);
+	ret = jffs2_prealloc_raw_node_refs(c, 1);
+	if (ret)
+		return ret;
 
-	if (!cache_ref) {
-		JFFS2_NOTICE("Failed to allocate node ref for cache\n");
-		return -ENOMEM;
-	}
-
-	cache_ref->flash_offset |= REF_NORMAL;
-
-	jffs2_link_node_ref(c, jeb, cache_ref, sumsize, NULL);
+	jffs2_link_node_ref(c, jeb, (jeb->offset + ofs) | REF_NORMAL, sumsize, NULL);
 
 	if (unlikely(jeb->free_size)) {
 		JFFS2_WARNING("Free size 0x%x bytes in eraseblock @0x%08x with summary?\n",
@@ -709,6 +662,7 @@ static int jffs2_sum_write_data(struct jffs2_sb_info *c, struct jffs2_eraseblock
 	union jffs2_sum_mem *temp;
 	struct jffs2_sum_marker *sm;
 	struct kvec vecs[2];
+	uint32_t sum_ofs;
 	void *wpage;
 	int ret;
 	size_t retlen;
@@ -821,36 +775,31 @@ static int jffs2_sum_write_data(struct jffs2_sb_info *c, struct jffs2_eraseblock
 	vecs[1].iov_base = c->summary->sum_buf;
 	vecs[1].iov_len = datasize;
 
-	dbg_summary("JFFS2: writing out data to flash to pos : 0x%08x\n",
-			jeb->offset + c->sector_size - jeb->free_size);
+	sum_ofs = jeb->offset + c->sector_size - jeb->free_size;
 
-	spin_unlock(&c->erase_completion_lock);
-	ret = jffs2_flash_writev(c, vecs, 2, jeb->offset + c->sector_size -
-				jeb->free_size, &retlen, 0);
+	dbg_summary("JFFS2: writing out data to flash to pos : 0x%08x\n",
+		    sum_ofs);
+
+	ret = jffs2_flash_writev(c, vecs, 2, sum_ofs, &retlen, 0);
 
 	if (ret || (retlen != infosize)) {
-		struct jffs2_raw_node_ref *ref;
 
 		JFFS2_WARNING("Write of %u bytes at 0x%08x failed. returned %d, retlen %zd\n",
-			infosize, jeb->offset + c->sector_size - jeb->free_size, ret, retlen);
+			      infosize, sum_ofs, ret, retlen);
 
 		/* Waste remaining space */
-		ref = jffs2_alloc_raw_node_ref();
-		if (ref) {
-			spin_lock(&c->erase_completion_lock);
-
-			ref->flash_offset = jeb->offset + c->sector_size - jeb->free_size;
-			ref->flash_offset |= REF_OBSOLETE;
-
-			jffs2_link_node_ref(c, jeb, ref, c->sector_size - jeb->free_size, NULL);
-		}
+		spin_lock(&c->erase_completion_lock);
+		jffs2_link_node_ref(c, jeb, sum_ofs | REF_OBSOLETE, infosize, NULL);
+		spin_unlock(&c->erase_completion_lock);
 
 		c->summary->sum_size = JFFS2_SUMMARY_NOSUM_SIZE;
 
-		return 1;
+		return 0;
 	}
 
 	spin_lock(&c->erase_completion_lock);
+	jffs2_link_node_ref(c, jeb, sum_ofs | REF_NORMAL, infosize, NULL);
+	spin_unlock(&c->erase_completion_lock);
 
 	return 0;
 }
@@ -859,11 +808,14 @@ static int jffs2_sum_write_data(struct jffs2_sb_info *c, struct jffs2_eraseblock
 
 int jffs2_sum_write_sumnode(struct jffs2_sb_info *c)
 {
-	struct jffs2_raw_node_ref *summary_ref;
-	int datasize, infosize, padsize, ret;
+	int datasize, infosize, padsize;
 	struct jffs2_eraseblock *jeb;
+	int ret;
 
 	dbg_summary("called\n");
+
+	spin_unlock(&c->erase_completion_lock);
+	jffs2_prealloc_raw_node_refs(c, 1);
 
 	jeb = c->nextblock;
 
@@ -888,22 +840,6 @@ int jffs2_sum_write_sumnode(struct jffs2_sb_info *c)
 	}
 
 	ret = jffs2_sum_write_data(c, jeb, infosize, datasize, padsize);
-	if (ret)
-		return 0; /* can't write out summary, block is marked as NOSUM_SIZE */
-
-	/* for ACCT_PARANOIA_CHECK */
-	spin_unlock(&c->erase_completion_lock);
-	summary_ref = jffs2_alloc_raw_node_ref();
-
-	if (!summary_ref) {
-		JFFS2_NOTICE("Failed to allocate node ref for summary\n");
-		return -ENOMEM;
-	}
-
-	summary_ref->flash_offset = (jeb->offset + c->sector_size - jeb->free_size) | REF_NORMAL;
-
 	spin_lock(&c->erase_completion_lock);
-	jffs2_link_node_ref(c, jeb, summary_ref, infosize, NULL);
-
-	return 0;
+	return ret;
 }

@@ -190,7 +190,29 @@ void jffs2_free_tmp_dnode_info(struct jffs2_tmp_dnode_info *x)
 	kmem_cache_free(tmp_dnode_info_slab, x);
 }
 
-struct jffs2_raw_node_ref *jffs2_alloc_raw_node_ref(void)
+int jffs2_prealloc_raw_node_refs(struct jffs2_sb_info *c, int nr)
+{
+	struct jffs2_raw_node_ref *p = c->refs;
+
+	dbg_memalloc("%d\n", nr);
+
+	while (nr && p) {
+		p = p->next_in_ino;
+		nr--;
+	}
+	while (nr) {
+		p = __jffs2_alloc_raw_node_ref();
+		if (!p)
+			return -ENOMEM;
+		p->next_in_ino = c->refs;
+		c->refs = p;
+		nr--;
+	}
+	c->reserved_refs = nr;
+	return 0;
+}
+
+struct jffs2_raw_node_ref *__jffs2_alloc_raw_node_ref(void)
 {
 	struct jffs2_raw_node_ref *ret;
 	ret = kmem_cache_alloc(raw_node_ref_slab, GFP_KERNEL);
@@ -198,7 +220,7 @@ struct jffs2_raw_node_ref *jffs2_alloc_raw_node_ref(void)
 	return ret;
 }
 
-void jffs2_free_raw_node_ref(struct jffs2_raw_node_ref *x)
+void __jffs2_free_raw_node_ref(struct jffs2_raw_node_ref *x)
 {
 	dbg_memalloc("%p\n", x);
 	kmem_cache_free(raw_node_ref_slab, x);

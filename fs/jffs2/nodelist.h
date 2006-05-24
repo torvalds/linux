@@ -318,9 +318,10 @@ void jffs2_obsolete_node_frag(struct jffs2_sb_info *c, struct jffs2_node_frag *t
 int jffs2_add_full_dnode_to_inode(struct jffs2_sb_info *c, struct jffs2_inode_info *f, struct jffs2_full_dnode *fn);
 void jffs2_truncate_fragtree (struct jffs2_sb_info *c, struct rb_root *list, uint32_t size);
 int jffs2_add_older_frag_to_fragtree(struct jffs2_sb_info *c, struct jffs2_inode_info *f, struct jffs2_tmp_dnode_info *tn);
-void jffs2_link_node_ref(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb,
-			 struct jffs2_raw_node_ref *ref, uint32_t len,
-			 struct jffs2_inode_cache *ic);
+struct jffs2_raw_node_ref *jffs2_link_node_ref(struct jffs2_sb_info *c,
+					       struct jffs2_eraseblock *jeb,
+					       uint32_t ofs, uint32_t len,
+					       struct jffs2_inode_cache *ic);
 extern uint32_t __jffs2_ref_totlen(struct jffs2_sb_info *c,
 				   struct jffs2_eraseblock *jeb,
 				   struct jffs2_raw_node_ref *ref);
@@ -331,10 +332,9 @@ int jffs2_reserve_space(struct jffs2_sb_info *c, uint32_t minsize,
 			uint32_t *len, int prio, uint32_t sumsize);
 int jffs2_reserve_space_gc(struct jffs2_sb_info *c, uint32_t minsize,
 			uint32_t *len, uint32_t sumsize);
-int jffs2_add_physical_node_ref(struct jffs2_sb_info *c, 
-				struct jffs2_raw_node_ref *new,
-				uint32_t len,
-				struct jffs2_inode_cache *ic);
+struct jffs2_raw_node_ref *jffs2_add_physical_node_ref(struct jffs2_sb_info *c, 
+						       uint32_t ofs, uint32_t len,
+						       struct jffs2_inode_cache *ic);
 void jffs2_complete_reservation(struct jffs2_sb_info *c);
 void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref *raw);
 
@@ -378,8 +378,9 @@ struct jffs2_raw_inode *jffs2_alloc_raw_inode(void);
 void jffs2_free_raw_inode(struct jffs2_raw_inode *);
 struct jffs2_tmp_dnode_info *jffs2_alloc_tmp_dnode_info(void);
 void jffs2_free_tmp_dnode_info(struct jffs2_tmp_dnode_info *);
-struct jffs2_raw_node_ref *jffs2_alloc_raw_node_ref(void);
-void jffs2_free_raw_node_ref(struct jffs2_raw_node_ref *);
+int jffs2_prealloc_raw_node_refs(struct jffs2_sb_info *c, int nr);
+struct jffs2_raw_node_ref *__jffs2_alloc_raw_node_ref(void);
+void __jffs2_free_raw_node_ref(struct jffs2_raw_node_ref *);
 struct jffs2_node_frag *jffs2_alloc_node_frag(void);
 void jffs2_free_node_frag(struct jffs2_node_frag *);
 struct jffs2_inode_cache *jffs2_alloc_inode_cache(void);

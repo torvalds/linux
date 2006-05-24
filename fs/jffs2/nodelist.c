@@ -953,12 +953,18 @@ void jffs2_free_raw_node_refs(struct jffs2_sb_info *c)
 
 	for (i=0; i<c->nr_blocks; i++) {
 		this = c->blocks[i].first_node;
-		while(this) {
+		while (this) {
 			next = this->next_phys;
-			jffs2_free_raw_node_ref(this);
+			__jffs2_free_raw_node_ref(this);
 			this = next;
 		}
 		c->blocks[i].first_node = c->blocks[i].last_node = NULL;
+	}
+	this = c->refs;
+	while (this) {
+		next = this->next_in_ino;
+		__jffs2_free_raw_node_ref(this);
+		this = next;
 	}
 }
 
@@ -1047,10 +1053,27 @@ void jffs2_kill_fragtree(struct rb_root *root, struct jffs2_sb_info *c)
 	}
 }
 
-void jffs2_link_node_ref(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb,
-			 struct jffs2_raw_node_ref *ref, uint32_t len,
-			 struct jffs2_inode_cache *ic)
+struct jffs2_raw_node_ref *jffs2_link_node_ref(struct jffs2_sb_info *c,
+					       struct jffs2_eraseblock *jeb,
+					       uint32_t ofs, uint32_t len,
+					       struct jffs2_inode_cache *ic)
 {
+	struct jffs2_raw_node_ref *ref;
+
+	/* These will be preallocated _very_ shortly. */
+	ref = c->refs;
+	if (!c->refs) {
+		JFFS2_WARNING("Using non-preallocated refs!\n");
+		ref = __jffs2_alloc_raw_node_ref();
+		BUG_ON(!ref);
+		WARN_ON(1);
+	} else {
+		c->refs = ref->next_in_ino;
+	}
+
+	ref->next_phys = NULL;
+	ref->flash_offset = ofs;
+
 	if (!jeb->first_node)
 		jeb->first_node = ref;
 	if (jeb->last_node) {
@@ -1093,15 +1116,15 @@ void jffs2_link_node_ref(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb,
 	c->free_size -= len;
 	jeb->free_size -= len;
 
-	ref->next_phys = NULL;
 #ifdef TEST_TOTLEN
 	/* Set (and test) __totlen field... for now */
 	ref->__totlen = len;
 	ref_totlen(c, jeb, ref);
 #endif
+	return ref;
 }
 
-/* No locking. Do not use on a live file system */
+/* No locking, no reservation of 'ref'. Do not use on a live file system */
 int jffs2_scan_dirty_space(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb,
 			   uint32_t size)
 {
@@ -1121,18 +1144,10 @@ int jffs2_scan_dirty_space(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb
 		jeb->dirty_size += size;
 		jeb->free_size -= size;
 	} else {
-		struct jffs2_raw_node_ref *ref;
-		ref = jffs2_alloc_raw_node_ref();
-		if (!ref)
-			return -ENOMEM;
+		uint32_t ofs = jeb->offset + c->sector_size - jeb->free_size;
+		ofs |= REF_OBSOLETE;
 
-		ref->flash_offset = jeb->offset + c->sector_size - jeb->free_size;
-		ref->flash_offset |= REF_OBSOLETE;
-#ifdef TEST_TOTLEN
-		ref->__totlen = size;
-#endif
-
-		jffs2_link_node_ref(c, jeb, ref, size, NULL);
+		jffs2_link_node_ref(c, jeb, ofs, size, NULL);
 	}
 
 	return 0;
