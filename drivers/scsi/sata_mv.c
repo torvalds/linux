@@ -1377,7 +1377,7 @@ static void mv_host_intr(struct ata_host_set *host_set, u32 relevant,
 		/* Note that DEV_IRQ might happen spuriously during EDMA,
 		 * and should be ignored in such cases.
 		 * The cause of this is still under investigation.
-		 */ 
+		 */
 		if (pp->pp_flags & MV_PP_FLAG_EDMA_EN) {
 			/* EDMA: check for response queue interrupt */
 			if ((CRPB_DMA_DONE << hard_port) & hc_irq_cause) {
