@@ -10,4 +10,13 @@ config DMA_ENGINE
 	  DMA engines offload copy operations from the CPU to dedicated
 	  hardware, allowing the copies to happen asynchronously.
 
+comment "DMA Devices"
+
+config INTEL_IOATDMA
+	tristate "Intel I/OAT DMA support"
+	depends on DMA_ENGINE && PCI
+	default m
+	---help---
+	  Enable support for the Intel(R) I/OAT DMA engine.
+
 endmenu
