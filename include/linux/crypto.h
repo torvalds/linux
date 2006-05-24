@@ -109,8 +109,6 @@ struct digest_alg {
 };
 
 struct compress_alg {
-	int (*coa_init)(struct crypto_tfm *tfm);
-	void (*coa_exit)(struct crypto_tfm *tfm);
 	int (*coa_compress)(struct crypto_tfm *tfm, const u8 *src,
 			    unsigned int slen, u8 *dst, unsigned int *dlen);
 	int (*coa_decompress)(struct crypto_tfm *tfm, const u8 *src,
@@ -138,6 +136,9 @@ struct crypto_alg {
 		struct digest_alg digest;
 		struct compress_alg compress;
 	} cra_u;
+
+	int (*cra_init)(struct crypto_tfm *tfm);
+	void (*cra_exit)(struct crypto_tfm *tfm);
 	
 	struct module *cra_module;
 };

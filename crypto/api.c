@@ -188,13 +188,16 @@ struct crypto_tfm *crypto_alloc_tfm(const char *name, u32 flags)
 	if (crypto_init_flags(tfm, flags))
 		goto out_free_tfm;
 		
-	if (crypto_init_ops(tfm)) {
-		crypto_exit_ops(tfm);
+	if (crypto_init_ops(tfm))
 		goto out_free_tfm;
-	}
+
+	if (alg->cra_init && alg->cra_init(tfm))
+		goto cra_init_failed;
 
 	goto out;
 
+cra_init_failed:
+	crypto_exit_ops(tfm);
 out_free_tfm:
 	kfree(tfm);
 	tfm = NULL;
@@ -215,6 +218,8 @@ void crypto_free_tfm(struct crypto_tfm *tfm)
 	alg = tfm->__crt_alg;
 	size = sizeof(*tfm) + alg->cra_ctxsize;
 
+	if (alg->cra_exit)
+		alg->cra_exit(tfm);
 	crypto_exit_ops(tfm);
 	crypto_alg_put(alg);
 	memset(tfm, 0, size);

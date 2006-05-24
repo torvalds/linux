@@ -41,21 +41,14 @@ int crypto_init_compress_flags(struct crypto_tfm *tfm, u32 flags)
 
 int crypto_init_compress_ops(struct crypto_tfm *tfm)
 {
-	int ret = 0;
 	struct compress_tfm *ops = &tfm->crt_compress;
-	
-	ret = tfm->__crt_alg->cra_compress.coa_init(tfm);
-	if (ret)
-		goto out;
 
 	ops->cot_compress = crypto_compress;
 	ops->cot_decompress = crypto_decompress;
 	
-out:
-	return ret;
+	return 0;
 }
 
 void crypto_exit_compress_ops(struct crypto_tfm *tfm)
 {
-	tfm->__crt_alg->cra_compress.coa_exit(tfm);
 }
