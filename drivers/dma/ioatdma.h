@@ -26,8 +26,7 @@
 #include <linux/init.h>
 #include <linux/dmapool.h>
 #include <linux/cache.h>
-
-#define PCI_DEVICE_ID_INTEL_IOAT	0x1a38
+#include <linux/pci_ids.h>
 
 #define IOAT_LOW_COMPLETION_MASK	0xffffffc0
 
