@@ -169,13 +169,6 @@ static struct fc_function_template mptfc_transport_functions = {
 
 };
 
-/* FIXME! values controlling firmware RESCAN event
- * need to be set low to allow dev_loss_tmo to
- * work as expected.  Currently, firmware doesn't
- * notify driver of RESCAN event until some number
- * of seconds elapse.  This value can be set via
- * lsiutil.
- */
 static void
 mptfc_set_rport_loss_tmo(struct fc_rport *rport, uint32_t timeout)
 {
@@ -700,6 +693,153 @@ mptfc_GetFcPortPage0(MPT_ADAPTER *ioc, int portnum)
 	return rc;
 }
 
+static int
+mptfc_WriteFcPortPage1(MPT_ADAPTER *ioc, int portnum)
+{
+	ConfigPageHeader_t	 hdr;
+	CONFIGPARMS		 cfg;
+	int			 rc;
+
+	if (portnum > 1)
+		return -EINVAL;
+
+	if (!(ioc->fc_data.fc_port_page1[portnum].data))
+		return -EINVAL;
+
+	/* get fcport page 1 header */
+	hdr.PageVersion = 0;
+	hdr.PageLength = 0;
+	hdr.PageNumber = 1;
+	hdr.PageType = MPI_CONFIG_PAGETYPE_FC_PORT;
+	cfg.cfghdr.hdr = &hdr;
+	cfg.physAddr = -1;
+	cfg.action = MPI_CONFIG_ACTION_PAGE_HEADER;
+	cfg.dir = 0;
+	cfg.pageAddr = portnum;
+	cfg.timeout = 0;
+
+	if ((rc = mpt_config(ioc, &cfg)) != 0)
+		return rc;
+
+	if (hdr.PageLength == 0)
+		return -ENODEV;
+
+	if (hdr.PageLength*4 != ioc->fc_data.fc_port_page1[portnum].pg_sz)
+		return -EINVAL;
+
+	cfg.physAddr = ioc->fc_data.fc_port_page1[portnum].dma;
+	cfg.action = MPI_CONFIG_ACTION_PAGE_WRITE_CURRENT;
+	cfg.dir = 1;
+
+	rc = mpt_config(ioc, &cfg);
+
+	return rc;
+}
+
+static int
+mptfc_GetFcPortPage1(MPT_ADAPTER *ioc, int portnum)
+{
+	ConfigPageHeader_t	 hdr;
+	CONFIGPARMS		 cfg;
+	FCPortPage1_t		*page1_alloc;
+	dma_addr_t		 page1_dma;
+	int			 data_sz;
+	int			 rc;
+
+	if (portnum > 1)
+		return -EINVAL;
+
+	/* get fcport page 1 header */
+	hdr.PageVersion = 0;
+	hdr.PageLength = 0;
+	hdr.PageNumber = 1;
+	hdr.PageType = MPI_CONFIG_PAGETYPE_FC_PORT;
+	cfg.cfghdr.hdr = &hdr;
+	cfg.physAddr = -1;
+	cfg.action = MPI_CONFIG_ACTION_PAGE_HEADER;
+	cfg.dir = 0;
+	cfg.pageAddr = portnum;
+	cfg.timeout = 0;
+
+	if ((rc = mpt_config(ioc, &cfg)) != 0)
+		return rc;
+
+	if (hdr.PageLength == 0)
+		return -ENODEV;
+
+start_over:
+
+	if (ioc->fc_data.fc_port_page1[portnum].data == NULL) {
+		data_sz = hdr.PageLength * 4;
+		if (data_sz < sizeof(FCPortPage1_t))
+			data_sz = sizeof(FCPortPage1_t);
+
+		page1_alloc = (FCPortPage1_t *) pci_alloc_consistent(ioc->pcidev,
+						data_sz,
+						&page1_dma);
+		if (!page1_alloc)
+			return -ENOMEM;
+	}
+	else {
+		page1_alloc = ioc->fc_data.fc_port_page1[portnum].data;
+		page1_dma = ioc->fc_data.fc_port_page1[portnum].dma;
+		data_sz = ioc->fc_data.fc_port_page1[portnum].pg_sz;
+		if (hdr.PageLength * 4 > data_sz) {
+			ioc->fc_data.fc_port_page1[portnum].data = NULL;
+			pci_free_consistent(ioc->pcidev, data_sz, (u8 *)
+				page1_alloc, page1_dma);
+			goto start_over;
+		}
+	}
+
+	memset(page1_alloc,0,data_sz);
+
+	cfg.physAddr = page1_dma;
+	cfg.action = MPI_CONFIG_ACTION_PAGE_READ_CURRENT;
+
+	if ((rc = mpt_config(ioc, &cfg)) == 0) {
+		ioc->fc_data.fc_port_page1[portnum].data = page1_alloc;
+		ioc->fc_data.fc_port_page1[portnum].pg_sz = data_sz;
+		ioc->fc_data.fc_port_page1[portnum].dma = page1_dma;
+	}
+	else {
+		ioc->fc_data.fc_port_page1[portnum].data = NULL;
+		pci_free_consistent(ioc->pcidev, data_sz, (u8 *)
+			page1_alloc, page1_dma);
+	}
+
+	return rc;
+}
+
+static void
+mptfc_SetFcPortPage1_defaults(MPT_ADAPTER *ioc)
+{
+	int		ii;
+	FCPortPage1_t	*pp1;
+
+	#define MPTFC_FW_DEVICE_TIMEOUT	(1)
+	#define MPTFC_FW_IO_PEND_TIMEOUT (1)
+	#define ON_FLAGS  (MPI_FCPORTPAGE1_FLAGS_IMMEDIATE_ERROR_REPLY)
+	#define OFF_FLAGS (MPI_FCPORTPAGE1_FLAGS_VERBOSE_RESCAN_EVENTS)
+
+	for (ii=0; ii<ioc->facts.NumberOfPorts; ii++) {
+		if (mptfc_GetFcPortPage1(ioc, ii) != 0)
+			continue;
+		pp1 = ioc->fc_data.fc_port_page1[ii].data;
+		if ((pp1->InitiatorDeviceTimeout == MPTFC_FW_DEVICE_TIMEOUT)
+		 && (pp1->InitiatorIoPendTimeout == MPTFC_FW_IO_PEND_TIMEOUT)
+		 && ((pp1->Flags & ON_FLAGS) == ON_FLAGS)
+		 && ((pp1->Flags & OFF_FLAGS) == 0))
+			continue;
+		pp1->InitiatorDeviceTimeout = MPTFC_FW_DEVICE_TIMEOUT;
+		pp1->InitiatorIoPendTimeout = MPTFC_FW_IO_PEND_TIMEOUT;
+		pp1->Flags &= ~OFF_FLAGS;
+		pp1->Flags |= ON_FLAGS;
+		mptfc_WriteFcPortPage1(ioc, ii);
+	}
+}
+
+
 static void
 mptfc_init_host_attr(MPT_ADAPTER *ioc,int portnum)
 {
@@ -1000,6 +1140,7 @@ mptfc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	for (ii=0; ii < ioc->facts.NumberOfPorts; ii++) {
 		(void) mptfc_GetFcPortPage0(ioc, ii);
 	}
+	mptfc_SetFcPortPage1_defaults(ioc);
 
 	/*
 	 * scan for rports -
@@ -1086,6 +1227,7 @@ mptfc_ioc_reset(MPT_ADAPTER *ioc, int reset_phase)
 	}
 
 	else {	/* MPT_IOC_POST_RESET */
+		mptfc_SetFcPortPage1_defaults(ioc);
 		spin_lock_irqsave(&ioc->fc_rescan_work_lock, flags);
 		if (ioc->fc_rescan_work_q) {
 			if (ioc->fc_rescan_work_count++ == 0) {
@@ -1112,8 +1254,8 @@ mptfc_init(void)
 
 	show_mptmod_ver(my_NAME, my_VERSION);
 
-	/* sanity check module parameter */
-	if (mptfc_dev_loss_tmo == 0)
+	/* sanity check module parameters */
+	if (mptfc_dev_loss_tmo <= 0)
 		mptfc_dev_loss_tmo = MPTFC_DEV_LOSS_TMO;
 
 	mptfc_transport_template =
@@ -1156,6 +1298,7 @@ mptfc_remove(struct pci_dev *pdev)
 	struct mptfc_rport_info	*p, *n;
 	struct workqueue_struct *work_q;
 	unsigned long		flags;
+	int			ii;
 
 	/* destroy workqueue */
 	if ((work_q=ioc->fc_rescan_work_q)) {
@@ -1170,6 +1313,16 @@ mptfc_remove(struct pci_dev *pdev)
 	list_for_each_entry_safe(p, n, &ioc->fc_rports, list) {
 		list_del(&p->list);
 		kfree(p);
+	}
+
+	for (ii=0; ii<ioc->facts.NumberOfPorts; ii++) {
+		if (ioc->fc_data.fc_port_page1[ii].data) {
+			pci_free_consistent(ioc->pcidev,
+				ioc->fc_data.fc_port_page1[ii].pg_sz,
+				(u8 *) ioc->fc_data.fc_port_page1[ii].data,
+				ioc->fc_data.fc_port_page1[ii].dma);
+			ioc->fc_data.fc_port_page1[ii].data = NULL;
+		}
 	}
 
 	mptscsih_remove(pdev);

@@ -487,6 +487,15 @@ typedef	struct _RaidCfgData {
 	int		 isRaid;		/* bit field, 1 if RAID */
 }RaidCfgData;
 
+typedef struct _FcCfgData {
+	/* will ultimately hold fc_port_page0 also */
+	struct {
+		FCPortPage1_t	*data;
+		dma_addr_t	 dma;
+		int		 pg_sz;
+	}			 fc_port_page1[2];
+} FcCfgData;
+
 #define MPT_RPORT_INFO_FLAGS_REGISTERED	0x01	/* rport registered */
 #define MPT_RPORT_INFO_FLAGS_MISSING	0x02	/* missing from DevPage0 scan */
 
@@ -565,6 +574,7 @@ typedef struct _MPT_ADAPTER
 	SpiCfgData		spi_data;	/* Scsi config. data */
 	RaidCfgData		raid_data;	/* Raid config. data */
 	SasCfgData		sas_data;	/* Sas config. data */
+	FcCfgData		fc_data;	/* Fc config. data */
 	MPT_IOCTL		*ioctl;		/* ioctl data pointer */
 	struct proc_dir_entry	*ioc_dentry;
 	struct _MPT_ADAPTER	*alt_ioc;	/* ptr to 929 bound adapter port */
