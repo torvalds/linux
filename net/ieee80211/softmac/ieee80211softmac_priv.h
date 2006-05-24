@@ -116,7 +116,10 @@ ieee80211softmac_get_network_by_essid(struct ieee80211softmac_device *mac,
 	struct ieee80211softmac_essid *essid);
 
 /* Rates related */
+int ieee80211softmac_ratesinfo_rate_supported(struct ieee80211softmac_ratesinfo *ri, u8 rate);
 u8 ieee80211softmac_lower_rate_delta(struct ieee80211softmac_device *mac, u8 rate, int delta);
+void ieee80211softmac_init_txrates(struct ieee80211softmac_device *mac);
+void ieee80211softmac_recalc_txrates(struct ieee80211softmac_device *mac);
 static inline u8 lower_rate(struct ieee80211softmac_device *mac, u8 rate) {
 	return ieee80211softmac_lower_rate_delta(mac, rate, 1);
 }
@@ -150,7 +153,8 @@ int ieee80211softmac_handle_disassoc(struct net_device * dev,
 int ieee80211softmac_handle_reassoc_req(struct net_device * dev,
 				        struct ieee80211_reassoc_request * reassoc);
 void ieee80211softmac_assoc_timeout(void *d);
-void ieee80211softmac_disassoc(struct ieee80211softmac_device *mac, u16 reason);
+void ieee80211softmac_send_disassoc_req(struct ieee80211softmac_device *mac, u16 reason);
+void ieee80211softmac_disassoc(struct ieee80211softmac_device *mac);
 
 /* some helper functions */
 static inline int ieee80211softmac_scan_handlers_check_self(struct ieee80211softmac_device *sm)

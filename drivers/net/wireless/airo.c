@@ -2768,7 +2768,7 @@ static int airo_test_wpa_capable(struct airo_info *ai)
 
 	/* Only firmware versions 5.30.17 or better can do WPA */
 	if ((cap_rid.softVer > 0x530)
-	  || ((cap_rid.softVer == 0x530) && (cap_rid.softSubVer >= 0x17))) {
+	  || ((cap_rid.softVer == 0x530) && (cap_rid.softSubVer >= 17))) {
 		airo_print_info(name, "WPA is supported.");
 		return 1;
 	}

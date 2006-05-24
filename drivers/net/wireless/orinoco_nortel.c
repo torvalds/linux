@@ -206,7 +206,6 @@ static int orinoco_nortel_init_one(struct pci_dev *pdev,
 		err = -EBUSY;
 		goto fail_irq;
 	}
-	orinoco_pci_setup_netdev(dev, pdev, 2);
 
 	err = orinoco_nortel_hw_init(card);
 	if (err) {
@@ -227,6 +226,8 @@ static int orinoco_nortel_init_one(struct pci_dev *pdev,
 	}
 
 	pci_set_drvdata(pdev, dev);
+	printk(KERN_DEBUG "%s: " DRIVER_NAME " at %s\n", dev->name,
+	       pci_name(pdev));
 
 	return 0;
 
@@ -265,7 +266,7 @@ static void __devexit orinoco_nortel_remove_one(struct pci_dev *pdev)
 	iowrite16(0, card->bridge_io + 10);
 
 	unregister_netdev(dev);
-	free_irq(dev->irq, dev);
+	free_irq(pdev->irq, dev);
 	pci_set_drvdata(pdev, NULL);
 	free_orinocodev(dev);
 	pci_iounmap(pdev, priv->hw.iobase);

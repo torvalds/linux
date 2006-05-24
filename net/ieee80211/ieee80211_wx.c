@@ -503,7 +503,7 @@ int ieee80211_wx_get_encode(struct ieee80211_device *ieee,
 	len = sec->key_sizes[key];
 	memcpy(keybuf, sec->keys[key], len);
 
-	erq->length = (len >= 0 ? len : 0);
+	erq->length = len;
 	erq->flags |= IW_ENCODE_ENABLED;
 
 	if (ieee->open_wep)
