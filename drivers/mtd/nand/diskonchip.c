@@ -95,7 +95,8 @@ static u_char empty_write_ecc[6] = { 0x4b, 0x00, 0xe2, 0x0e, 0x93, 0xf7 };
 #define DoC_is_Millennium(doc) ((doc)->ChipID == DOC_ChipID_DocMil)
 #define DoC_is_2000(doc) ((doc)->ChipID == DOC_ChipID_Doc2k)
 
-static void doc200x_hwcontrol(struct mtd_info *mtd, int cmd);
+static void doc200x_hwcontrol(struct mtd_info *mtd, int cmd,
+			      unsigned int bitmask);
 static void doc200x_select_chip(struct mtd_info *mtd, int chip);
 
 static int debug = 0;
@@ -402,12 +403,10 @@ static uint16_t __init doc200x_ident_chip(struct mtd_info *mtd, int nr)
 	uint16_t ret;
 
 	doc200x_select_chip(mtd, nr);
-	doc200x_hwcontrol(mtd, NAND_CTL_SETCLE);
-	this->write_byte(mtd, NAND_CMD_READID);
-	doc200x_hwcontrol(mtd, NAND_CTL_CLRCLE);
-	doc200x_hwcontrol(mtd, NAND_CTL_SETALE);
-	this->write_byte(mtd, 0);
-	doc200x_hwcontrol(mtd, NAND_CTL_CLRALE);
+	doc200x_hwcontrol(mtd, NAND_CMD_READID,
+			  NAND_CTRL_CLE | NAND_CTRL_CHANGE);
+	doc200x_hwcontrol(mtd, 0, NAND_CTRL_ALE | NAND_CTRL_CHANGE);
+	doc200x_hwcontrol(mtd, NAND_CMD_NONE, NAND_NCE | NAND_CTRL_CHANGE);
 
 	/* We cant' use dev_ready here, but at least we wait for the
 	 * command to complete
@@ -425,12 +424,11 @@ static uint16_t __init doc200x_ident_chip(struct mtd_info *mtd, int nr)
 		} ident;
 		void __iomem *docptr = doc->virtadr;
 
-		doc200x_hwcontrol(mtd, NAND_CTL_SETCLE);
-		doc2000_write_byte(mtd, NAND_CMD_READID);
-		doc200x_hwcontrol(mtd, NAND_CTL_CLRCLE);
-		doc200x_hwcontrol(mtd, NAND_CTL_SETALE);
-		doc2000_write_byte(mtd, 0);
-		doc200x_hwcontrol(mtd, NAND_CTL_CLRALE);
+		doc200x_hwcontrol(mtd, NAND_CMD_READID,
+				  NAND_CTRL_CLE | NAND_CTRL_CHANGE);
+		doc200x_hwcontrol(mtd, 0, NAND_CTRL_ALE | NAND_CTRL_CHANGE);
+		doc200x_hwcontrol(mtd, NAND_CMD_NONE,
+				  NAND_NCE | NAND_CTRL_CHANGE);
 
 		udelay(50);
 
@@ -690,54 +688,41 @@ static void doc200x_select_chip(struct mtd_info *mtd, int chip)
 	chip -= (floor * doc->chips_per_floor);
 
 	/* 11.4.4 -- deassert CE before changing chip */
-	doc200x_hwcontrol(mtd, NAND_CTL_CLRNCE);
+	doc200x_hwcontrol(mtd, NAND_CMD_NONE, 0 | NAND_CTRL_CHANGE);
 
 	WriteDOC(floor, docptr, FloorSelect);
 	WriteDOC(chip, docptr, CDSNDeviceSelect);
 
-	doc200x_hwcontrol(mtd, NAND_CTL_SETNCE);
+	doc200x_hwcontrol(mtd, NAND_CMD_NONE, NAND_NCE | NAND_CTRL_CHANGE);
 
 	doc->curchip = chip;
 	doc->curfloor = floor;
 }
 
-static void doc200x_hwcontrol(struct mtd_info *mtd, int cmd)
+#define CDSN_CTRL_MSK (CDSN_CTRL_CE | CDSN_CTRL_CLE | CDSN_CTRL_ALE)
+
+static void doc200x_hwcontrol(struct mtd_info *mtd, int cmd,
+			      unsigned int ctrl)
 {
 	struct nand_chip *this = mtd->priv;
 	struct doc_priv *doc = this->priv;
 	void __iomem *docptr = doc->virtadr;
 
-	switch (cmd) {
-	case NAND_CTL_SETNCE:
-		doc->CDSNControl |= CDSN_CTRL_CE;
-		break;
-	case NAND_CTL_CLRNCE:
-		doc->CDSNControl &= ~CDSN_CTRL_CE;
-		break;
-	case NAND_CTL_SETCLE:
-		doc->CDSNControl |= CDSN_CTRL_CLE;
-		break;
-	case NAND_CTL_CLRCLE:
-		doc->CDSNControl &= ~CDSN_CTRL_CLE;
-		break;
-	case NAND_CTL_SETALE:
-		doc->CDSNControl |= CDSN_CTRL_ALE;
-		break;
-	case NAND_CTL_CLRALE:
-		doc->CDSNControl &= ~CDSN_CTRL_ALE;
-		break;
-	case NAND_CTL_SETWP:
-		doc->CDSNControl |= CDSN_CTRL_WP;
-		break;
-	case NAND_CTL_CLRWP:
-		doc->CDSNControl &= ~CDSN_CTRL_WP;
-		break;
+	if (ctrl & NAND_CTRL_CHANGE) {
+		doc->CDSNControl &= ~CDSN_CTRL_MSK;
+		doc->CDSNControl |= ctrl & CDSN_CTRL_MSK;
+		if (debug)
+			printk("hwcontrol(%d): %02x\n", cmd, doc->CDSNControl);
+		WriteDOC(doc->CDSNControl, docptr, CDSNControl);
+		/* 11.4.3 -- 4 NOPs after CSDNControl write */
+		DoC_Delay(doc, 4);
 	}
-	if (debug)
-		printk("hwcontrol(%d): %02x\n", cmd, doc->CDSNControl);
-	WriteDOC(doc->CDSNControl, docptr, CDSNControl);
-	/* 11.4.3 -- 4 NOPs after CSDNControl write */
-	DoC_Delay(doc, 4);
+	if (cmd != NAND_CMD_NONE) {
+		if (DoC_is_2000(doc))
+			doc2000_write_byte(mtd, cmd);
+		else
+			doc2001_write_byte(mtd, cmd);
+	}
 }
 
 static void doc2001plus_command(struct mtd_info *mtd, unsigned command, int column, int page_addr)
@@ -1454,7 +1439,6 @@ static inline int __init doc2000_init(struct mtd_info *mtd)
 	struct nand_chip *this = mtd->priv;
 	struct doc_priv *doc = this->priv;
 
-	this->write_byte = doc2000_write_byte;
 	this->read_byte = doc2000_read_byte;
 	this->write_buf = doc2000_writebuf;
 	this->read_buf = doc2000_readbuf;
@@ -1472,7 +1456,6 @@ static inline int __init doc2001_init(struct mtd_info *mtd)
 	struct nand_chip *this = mtd->priv;
 	struct doc_priv *doc = this->priv;
 
-	this->write_byte = doc2001_write_byte;
 	this->read_byte = doc2001_read_byte;
 	this->write_buf = doc2001_writebuf;
 	this->read_buf = doc2001_readbuf;
@@ -1504,16 +1487,15 @@ static inline int __init doc2001plus_init(struct mtd_info *mtd)
 	struct nand_chip *this = mtd->priv;
 	struct doc_priv *doc = this->priv;
 
-	this->write_byte = NULL;
 	this->read_byte = doc2001plus_read_byte;
 	this->write_buf = doc2001plus_writebuf;
 	this->read_buf = doc2001plus_readbuf;
 	this->verify_buf = doc2001plus_verifybuf;
 	this->scan_bbt = inftl_scan_bbt;
-	this->hwcontrol = NULL;
+	this->cmd_ctrl = NULL;
 	this->select_chip = doc2001plus_select_chip;
 	this->cmdfunc = doc2001plus_command;
-	this->enable_hwecc = doc2001plus_enable_hwecc;
+	this->ecc.hwctl = doc2001plus_enable_hwecc;
 
 	doc->chips_per_floor = 1;
 	mtd->name = "DiskOnChip Millennium Plus";
@@ -1670,7 +1652,7 @@ static int __init doc_probe(unsigned long physadr)
 
 	nand->priv		= doc;
 	nand->select_chip	= doc200x_select_chip;
-	nand->hwcontrol		= doc200x_hwcontrol;
+	nand->cmd_ctrl		= doc200x_hwcontrol;
 	nand->dev_ready		= doc200x_dev_ready;
 	nand->waitfunc		= doc200x_wait;
 	nand->block_bad		= doc200x_block_bad;

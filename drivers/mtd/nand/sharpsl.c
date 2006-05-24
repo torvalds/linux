@@ -77,31 +77,26 @@ static struct mtd_partition sharpsl_nand_default_partition_info[] = {
 
 /*
  *	hardware specific access to control-lines
+ *	ctrl:
+ *	NAND_CNE: bit 0 -> bit 0 & 4
+ *	NAND_CLE: bit 1 -> bit 1
+ *	NAND_ALE: bit 2 -> bit 2
+ *
  */
-static void sharpsl_nand_hwcontrol(struct mtd_info *mtd, int cmd)
+static void sharpsl_nand_hwcontrol(struct mtd_info *mtd, int cmd,
+				   unsigned int ctrl)
 {
-	switch (cmd) {
-	case NAND_CTL_SETCLE:
-		writeb(readb(FLASHCTL) | FLCLE, FLASHCTL);
-		break;
-	case NAND_CTL_CLRCLE:
-		writeb(readb(FLASHCTL) & ~FLCLE, FLASHCTL);
-		break;
+	struct nand_chip *chip = mtd->priv;
 
-	case NAND_CTL_SETALE:
-		writeb(readb(FLASHCTL) | FLALE, FLASHCTL);
-		break;
-	case NAND_CTL_CLRALE:
-		writeb(readb(FLASHCTL) & ~FLALE, FLASHCTL);
-		break;
+	if (ctrl & NAND_CTRL_CHANGE) {
+		unsigned char bits = ctrl & 0x07;
 
-	case NAND_CTL_SETNCE:
-		writeb(readb(FLASHCTL) & ~(FLCE0 | FLCE1), FLASHCTL);
-		break;
-	case NAND_CTL_CLRNCE:
-		writeb(readb(FLASHCTL) | (FLCE0 | FLCE1), FLASHCTL);
-		break;
+		bits |= (ctrl & 0x01) << 4;
+		writeb((readb(FLASHCTL) & 0x17) | bits, FLASHCTL);
 	}
+
+	if (cmd != NAND_CMD_NONE)
+		writeb(cmd, chip->IO_ADDR_W);
 }
 
 static uint8_t scan_ff_pattern[] = { 0xff, 0xff };
@@ -196,7 +191,7 @@ static int __init sharpsl_nand_init(void)
 	this->IO_ADDR_R = FLASHIO;
 	this->IO_ADDR_W = FLASHIO;
 	/* Set address of hardware control function */
-	this->hwcontrol = sharpsl_nand_hwcontrol;
+	this->cmd_ctrl = sharpsl_nand_hwcontrol;
 	this->dev_ready = sharpsl_nand_dev_ready;
 	/* 15 us command delay time */
 	this->chip_delay = 15;

@@ -208,32 +208,18 @@ static uint8_t revbits[256] = {
  * Address lines (A24-A22), so no action is required here.
  *
  */
-static void rtc_from4_hwcontrol(struct mtd_info *mtd, int cmd)
+static void rtc_from4_hwcontrol(struct mtd_info *mtd, int cmd,
+				unsigned int ctrl)
 {
-	struct nand_chip *this = (struct nand_chip *)(mtd->priv);
+	struct nand_chip *chip = (mtd->priv);
 
-	switch (cmd) {
+	if (cmd == NAND_CMD_NONE)
+		return;
 
-	case NAND_CTL_SETCLE:
-		this->IO_ADDR_W = (void __iomem *)((unsigned long)this->IO_ADDR_W | RTC_FROM4_CLE);
-		break;
-	case NAND_CTL_CLRCLE:
-		this->IO_ADDR_W = (void __iomem *)((unsigned long)this->IO_ADDR_W & ~RTC_FROM4_CLE);
-		break;
-
-	case NAND_CTL_SETALE:
-		this->IO_ADDR_W = (void __iomem *)((unsigned long)this->IO_ADDR_W | RTC_FROM4_ALE);
-		break;
-	case NAND_CTL_CLRALE:
-		this->IO_ADDR_W = (void __iomem *)((unsigned long)this->IO_ADDR_W & ~RTC_FROM4_ALE);
-		break;
-
-	case NAND_CTL_SETNCE:
-		break;
-	case NAND_CTL_CLRNCE:
-		break;
-
-	}
+	if (ctrl & NAND_CLE)
+		writeb(cmd, chip->IO_ADDR_W | RTC_FROM4_CLE);
+	else
+		writeb(cmd, chip->IO_ADDR_W | RTC_FROM4_ALE);
 }
 
 /*
@@ -559,7 +545,7 @@ static int __init rtc_from4_init(void)
 	this->IO_ADDR_R = rtc_from4_fio_base;
 	this->IO_ADDR_W = rtc_from4_fio_base;
 	/* Set address of hardware control function */
-	this->hwcontrol = rtc_from4_hwcontrol;
+	this->cmd_ctrl = rtc_from4_hwcontrol;
 	/* Set address of chip select function */
 	this->select_chip = rtc_from4_nand_select_chip;
 	/* command delay time (in us) */

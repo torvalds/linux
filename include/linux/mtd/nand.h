@@ -36,6 +36,9 @@ extern int nand_read_raw (struct mtd_info *mtd, uint8_t *buf, loff_t from,
 			  size_t len, size_t ooblen);
 
 
+extern int nand_write_raw(struct mtd_info *mtd, loff_t to, size_t len,
+			  size_t *retlen, uint8_t *buf, uint8_t *oob);
+
 /* The maximum number of NAND chips in an array */
 #define NAND_MAX_CHIPS		8
 
@@ -47,23 +50,20 @@ extern int nand_read_raw (struct mtd_info *mtd, uint8_t *buf, loff_t from,
 
 /*
  * Constants for hardware specific CLE/ALE/NCE function
-*/
+ *
+ * These are bits which can be or'ed to set/clear multiple
+ * bits in one go.
+ */
 /* Select the chip by setting nCE to low */
-#define NAND_CTL_SETNCE		1
-/* Deselect the chip by setting nCE to high */
-#define NAND_CTL_CLRNCE		2
+#define NAND_NCE		0x01
 /* Select the command latch by setting CLE to high */
-#define NAND_CTL_SETCLE		3
-/* Deselect the command latch by setting CLE to low */
-#define NAND_CTL_CLRCLE		4
+#define NAND_CLE		0x02
 /* Select the address latch by setting ALE to high */
-#define NAND_CTL_SETALE		5
-/* Deselect the address latch by setting ALE to low */
-#define NAND_CTL_CLRALE		6
-/* Set write protection by setting WP to high. Not used! */
-#define NAND_CTL_SETWP		7
-/* Clear write protection by setting WP to low. Not used! */
-#define NAND_CTL_CLRWP		8
+#define NAND_ALE		0x04
+
+#define NAND_CTRL_CLE		(NAND_NCE | NAND_CLE)
+#define NAND_CTRL_ALE		(NAND_NCE | NAND_ALE)
+#define NAND_CTRL_CHANGE	0x80
 
 /*
  * Standard NAND flash commands
@@ -102,6 +102,8 @@ extern int nand_read_raw (struct mtd_info *mtd, uint8_t *buf, loff_t from,
 #define NAND_CMD_STATUS_ERROR3	0x76
 #define NAND_CMD_STATUS_RESET	0x7f
 #define NAND_CMD_STATUS_CLEAR	0xff
+
+#define NAND_CMD_NONE		-1
 
 /* Status bits */
 #define NAND_STATUS_FAIL	0x01
@@ -237,7 +239,7 @@ struct nand_ecc_ctrl {
 	int			steps;
 	int			size;
 	int			bytes;
-	int			(*hwctl)(struct mtd_info *mtd, int mode);
+	void			(*hwctl)(struct mtd_info *mtd, int mode);
 	int			(*calculate)(struct mtd_info *mtd,
 					     const uint8_t *dat,
 					     uint8_t *ecc_code);
@@ -251,16 +253,15 @@ struct nand_ecc_ctrl {
  * @IO_ADDR_R:		[BOARDSPECIFIC] address to read the 8 I/O lines of the flash device
  * @IO_ADDR_W:		[BOARDSPECIFIC] address to write the 8 I/O lines of the flash device
  * @read_byte:		[REPLACEABLE] read one byte from the chip
- * @write_byte:		[REPLACEABLE] write one byte to the chip
  * @read_word:		[REPLACEABLE] read one word from the chip
- * @write_word:		[REPLACEABLE] write one word to the chip
  * @write_buf:		[REPLACEABLE] write data from the buffer to the chip
  * @read_buf:		[REPLACEABLE] read data from the chip into the buffer
  * @verify_buf:		[REPLACEABLE] verify buffer contents against the chip data
  * @select_chip:	[REPLACEABLE] select chip nr
  * @block_bad:		[REPLACEABLE] check, if the block is bad
  * @block_markbad:	[REPLACEABLE] mark the block bad
- * @hwcontrol:		[BOARDSPECIFIC] hardwarespecific function for accesing control-lines
+ * @cmd_ctrl:		[BOARDSPECIFIC] hardwarespecific funtion for controlling
+ *			ALE/CLE/nCE. Also used to write command and address
  * @dev_ready:		[BOARDSPECIFIC] hardwarespecific function for accesing device ready/busy line
  *			If set to NULL no access to ready/busy is available and the ready/busy information
  *			is read from the chip status register
@@ -304,17 +305,15 @@ struct nand_chip {
 	void  __iomem	*IO_ADDR_W;
 
 	uint8_t		(*read_byte)(struct mtd_info *mtd);
-	void		(*write_byte)(struct mtd_info *mtd, uint8_t byte);
 	u16		(*read_word)(struct mtd_info *mtd);
-	void		(*write_word)(struct mtd_info *mtd, u16 word);
-
 	void		(*write_buf)(struct mtd_info *mtd, const uint8_t *buf, int len);
 	void		(*read_buf)(struct mtd_info *mtd, uint8_t *buf, int len);
 	int		(*verify_buf)(struct mtd_info *mtd, const uint8_t *buf, int len);
 	void		(*select_chip)(struct mtd_info *mtd, int chip);
 	int		(*block_bad)(struct mtd_info *mtd, loff_t ofs, int getchip);
 	int		(*block_markbad)(struct mtd_info *mtd, loff_t ofs);
-	void		(*hwcontrol)(struct mtd_info *mtd, int cmd);
+	void		(*cmd_ctrl)(struct mtd_info *mtd, int dat,
+				    unsigned int ctrl);
 	int		(*dev_ready)(struct mtd_info *mtd);
 	void		(*cmdfunc)(struct mtd_info *mtd, unsigned command, int column, int page_addr);
 	int		(*waitfunc)(struct mtd_info *mtd, struct nand_chip *this, int state);

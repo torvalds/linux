@@ -597,31 +597,28 @@ static void onenand_release_device(struct mtd_info *mtd)
 }
 
 /**
- * onenand_read_ecc - [MTD Interface] Read data with ECC
+ * onenand_read - [MTD Interface] Read data from flash
  * @param mtd		MTD device structure
  * @param from		offset to read from
  * @param len		number of bytes to read
  * @param retlen	pointer to variable to store the number of read bytes
  * @param buf		the databuffer to put data
- * @param oob_buf	filesystem supplied oob data buffer
- * @param oobsel	oob selection structure
  *
- * OneNAND read with ECC
- */
-static int onenand_read_ecc(struct mtd_info *mtd, loff_t from, size_t len,
-	size_t *retlen, u_char *buf,
-	u_char *oob_buf, struct nand_oobinfo *oobsel)
+ * Read with ecc
+*/
+static int onenand_read(struct mtd_info *mtd, loff_t from, size_t len,
+	size_t *retlen, u_char *buf)
 {
 	struct onenand_chip *this = mtd->priv;
 	int read = 0, column;
 	int thislen;
 	int ret = 0;
 
-	DEBUG(MTD_DEBUG_LEVEL3, "onenand_read_ecc: from = 0x%08x, len = %i\n", (unsigned int) from, (int) len);
+	DEBUG(MTD_DEBUG_LEVEL3, "onenand_read: from = 0x%08x, len = %i\n", (unsigned int) from, (int) len);
 
 	/* Do not allow reads past end of device */
 	if ((from + len) > mtd->size) {
-		DEBUG(MTD_DEBUG_LEVEL0, "onenand_read_ecc: Attempt read beyond end of device\n");
+		DEBUG(MTD_DEBUG_LEVEL0, "onenand_read: Attempt read beyond end of device\n");
 		*retlen = 0;
 		return -EINVAL;
 	}
@@ -654,7 +651,7 @@ static int onenand_read_ecc(struct mtd_info *mtd, loff_t from, size_t len,
 			break;
 
 		if (ret) {
-			DEBUG(MTD_DEBUG_LEVEL0, "onenand_read_ecc: read failed = %d\n", ret);
+			DEBUG(MTD_DEBUG_LEVEL0, "onenand_read: read failed = %d\n", ret);
 			goto out;
 		}
 
@@ -673,22 +670,6 @@ out:
 	 */
 	*retlen = read;
 	return ret;
-}
-
-/**
- * onenand_read - [MTD Interface] MTD compability function for onenand_read_ecc
- * @param mtd		MTD device structure
- * @param from		offset to read from
- * @param len		number of bytes to read
- * @param retlen	pointer to variable to store the number of read bytes
- * @param buf		the databuffer to put data
- *
- * This function simply calls onenand_read_ecc with oob buffer and oobsel = NULL
-*/
-static int onenand_read(struct mtd_info *mtd, loff_t from, size_t len,
-	size_t *retlen, u_char *buf)
-{
-	return onenand_read_ecc(mtd, from, len, retlen, buf, NULL, NULL);
 }
 
 /**
@@ -834,39 +815,36 @@ static int onenand_verify_page(struct mtd_info *mtd, u_char *buf, loff_t addr)
 #define NOTALIGNED(x)	((x & (mtd->writesize - 1)) != 0)
 
 /**
- * onenand_write_ecc - [MTD Interface] OneNAND write with ECC
+ * onenand_write - [MTD Interface] write buffer to FLASH
  * @param mtd		MTD device structure
  * @param to		offset to write to
  * @param len		number of bytes to write
  * @param retlen	pointer to variable to store the number of written bytes
  * @param buf		the data to write
- * @param eccbuf	filesystem supplied oob data buffer
- * @param oobsel	oob selection structure
  *
- * OneNAND write with ECC
+ * Write with ECC
  */
-static int onenand_write_ecc(struct mtd_info *mtd, loff_t to, size_t len,
-	size_t *retlen, const u_char *buf,
-	u_char *eccbuf, struct nand_oobinfo *oobsel)
+static int onenand_write(struct mtd_info *mtd, loff_t to, size_t len,
+	size_t *retlen, const u_char *buf)
 {
 	struct onenand_chip *this = mtd->priv;
 	int written = 0;
 	int ret = 0;
 
-	DEBUG(MTD_DEBUG_LEVEL3, "onenand_write_ecc: to = 0x%08x, len = %i\n", (unsigned int) to, (int) len);
+	DEBUG(MTD_DEBUG_LEVEL3, "onenand_write: to = 0x%08x, len = %i\n", (unsigned int) to, (int) len);
 
 	/* Initialize retlen, in case of early exit */
 	*retlen = 0;
 
 	/* Do not allow writes past end of device */
 	if (unlikely((to + len) > mtd->size)) {
-		DEBUG(MTD_DEBUG_LEVEL0, "onenand_write_ecc: Attempt write to past end of device\n");
+		DEBUG(MTD_DEBUG_LEVEL0, "onenand_write: Attempt write to past end of device\n");
 		return -EINVAL;
 	}
 
 	/* Reject writes, which are not page aligned */
         if (unlikely(NOTALIGNED(to)) || unlikely(NOTALIGNED(len))) {
-                DEBUG(MTD_DEBUG_LEVEL0, "onenand_write_ecc: Attempt to write not page aligned data\n");
+                DEBUG(MTD_DEBUG_LEVEL0, "onenand_write: Attempt to write not page aligned data\n");
                 return -EINVAL;
         }
 
@@ -888,7 +866,7 @@ static int onenand_write_ecc(struct mtd_info *mtd, loff_t to, size_t len,
 
 		ret = this->wait(mtd, FL_WRITING);
 		if (ret) {
-			DEBUG(MTD_DEBUG_LEVEL0, "onenand_write_ecc: write filaed %d\n", ret);
+			DEBUG(MTD_DEBUG_LEVEL0, "onenand_write: write filaed %d\n", ret);
 			goto out;
 		}
 
@@ -897,7 +875,7 @@ static int onenand_write_ecc(struct mtd_info *mtd, loff_t to, size_t len,
 		/* Only check verify write turn on */
 		ret = onenand_verify_page(mtd, (u_char *) buf, to);
 		if (ret) {
-			DEBUG(MTD_DEBUG_LEVEL0, "onenand_write_ecc: verify failed %d\n", ret);
+			DEBUG(MTD_DEBUG_LEVEL0, "onenand_write: verify failed %d\n", ret);
 			goto out;
 		}
 
@@ -915,23 +893,6 @@ out:
 	*retlen = written;
 
 	return ret;
-}
-
-/**
- * onenand_write - [MTD Interface] compability function for onenand_write_ecc
- * @param mtd		MTD device structure
- * @param to		offset to write to
- * @param len		number of bytes to write
- * @param retlen	pointer to variable to store the number of written bytes
- * @param buf		the data to write
- *
- * This function simply calls onenand_write_ecc
- * with oob buffer and oobsel = NULL
- */
-static int onenand_write(struct mtd_info *mtd, loff_t to, size_t len,
-	size_t *retlen, const u_char *buf)
-{
-	return onenand_write_ecc(mtd, to, len, retlen, buf, NULL, NULL);
 }
 
 /**
@@ -1011,144 +972,6 @@ out:
 	*retlen = written;
 
 	return ret;
-}
-
-/**
- * onenand_writev_ecc - [MTD Interface] write with iovec with ecc
- * @param mtd		MTD device structure
- * @param vecs		the iovectors to write
- * @param count		number of vectors
- * @param to		offset to write to
- * @param retlen	pointer to variable to store the number of written bytes
- * @param eccbuf	filesystem supplied oob data buffer
- * @param oobsel	oob selection structure
- *
- * OneNAND write with iovec with ecc
- */
-static int onenand_writev_ecc(struct mtd_info *mtd, const struct kvec *vecs,
-	unsigned long count, loff_t to, size_t *retlen,
-	u_char *eccbuf, struct nand_oobinfo *oobsel)
-{
-	struct onenand_chip *this = mtd->priv;
-	unsigned char *pbuf;
-	size_t total_len, len;
-	int i, written = 0;
-	int ret = 0;
-
-	/* Preset written len for early exit */
-	*retlen = 0;
-
-	/* Calculate total length of data */
-	total_len = 0;
-	for (i = 0; i < count; i++)
-		total_len += vecs[i].iov_len;
-
-	DEBUG(MTD_DEBUG_LEVEL3, "onenand_writev_ecc: to = 0x%08x, len = %i, count = %ld\n", (unsigned int) to, (unsigned int) total_len, count);
-
-	/* Do not allow write past end of the device */
-	if (unlikely((to + total_len) > mtd->size)) {
-		DEBUG(MTD_DEBUG_LEVEL0, "onenand_writev_ecc: Attempted write past end of device\n");
-		return -EINVAL;
-	}
-
-	/* Reject writes, which are not page aligned */
-        if (unlikely(NOTALIGNED(to)) || unlikely(NOTALIGNED(total_len))) {
-                DEBUG(MTD_DEBUG_LEVEL0, "onenand_writev_ecc: Attempt to write not page aligned data\n");
-                return -EINVAL;
-        }
-
-	/* Grab the lock and see if the device is available */
-	onenand_get_device(mtd, FL_WRITING);
-
-	/* TODO handling oob */
-
-	/* Loop until all keve's data has been written */
-	len = 0;
-	while (count) {
-		pbuf = this->page_buf;
-		/*
-		 * If the given tuple is >= pagesize then
-		 * write it out from the iov
-		 */
-		if ((vecs->iov_len - len) >= mtd->writesize) {
-			pbuf = vecs->iov_base + len;
-
-			len += mtd->writesize;
-
-			/* Check, if we have to switch to the next tuple */
-			if (len >= (int) vecs->iov_len) {
-				vecs++;
-				len = 0;
-				count--;
-			}
-		} else {
-			int cnt = 0, thislen;
-			while (cnt < mtd->writesize) {
-				thislen = min_t(int, mtd->writesize - cnt, vecs->iov_len - len);
-				memcpy(this->page_buf + cnt, vecs->iov_base + len, thislen);
-				cnt += thislen;
-				len += thislen;
-
-				/* Check, if we have to switch to the next tuple */
-				if (len >= (int) vecs->iov_len) {
-					vecs++;
-					len = 0;
-					count--;
-				}
-			}
-		}
-
-		this->command(mtd, ONENAND_CMD_BUFFERRAM, to, mtd->writesize);
-
-		this->write_bufferram(mtd, ONENAND_DATARAM, pbuf, 0, mtd->writesize);
-		this->write_bufferram(mtd, ONENAND_SPARERAM, ffchars, 0, mtd->oobsize);
-
-		this->command(mtd, ONENAND_CMD_PROG, to, mtd->writesize);
-
-		onenand_update_bufferram(mtd, to, 1);
-
-		ret = this->wait(mtd, FL_WRITING);
-		if (ret) {
-			DEBUG(MTD_DEBUG_LEVEL0, "onenand_writev_ecc: write failed %d\n", ret);
-			goto out;
-		}
-
-
-		/* Only check verify write turn on */
-		ret = onenand_verify_page(mtd, (u_char *) pbuf, to);
-		if (ret) {
-			DEBUG(MTD_DEBUG_LEVEL0, "onenand_writev_ecc: verify failed %d\n", ret);
-			goto out;
-		}
-
-		written += mtd->writesize;
-
-		to += mtd->writesize;
-	}
-
-out:
-	/* Deselect and wakt up anyone waiting on the device */
-	onenand_release_device(mtd);
-
-	*retlen = written;
-
-	return 0;
-}
-
-/**
- * onenand_writev - [MTD Interface] compabilty function for onenand_writev_ecc
- * @param mtd		MTD device structure
- * @param vecs		the iovectors to write
- * @param count		number of vectors
- * @param to		offset to write to
- * @param retlen	pointer to variable to store the number of written bytes
- *
- * OneNAND write with kvec. This just calls the ecc function
- */
-static int onenand_writev(struct mtd_info *mtd, const struct kvec *vecs,
-	unsigned long count, loff_t to, size_t *retlen)
-{
-	return onenand_writev_ecc(mtd, vecs, count, to, retlen, NULL, NULL);
 }
 
 /**
@@ -1950,8 +1773,6 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 	mtd->unpoint = NULL;
 	mtd->read = onenand_read;
 	mtd->write = onenand_write;
-	mtd->read_ecc = onenand_read_ecc;
-	mtd->write_ecc = onenand_write_ecc;
 	mtd->read_oob = onenand_read_oob;
 	mtd->write_oob = onenand_write_oob;
 #ifdef CONFIG_MTD_ONENAND_OTP
@@ -1962,10 +1783,6 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 	mtd->write_user_prot_reg = onenand_write_user_prot_reg;
 	mtd->lock_user_prot_reg = onenand_lock_user_prot_reg;
 #endif
-	mtd->readv = NULL;
-	mtd->readv_ecc = NULL;
-	mtd->writev = onenand_writev;
-	mtd->writev_ecc = onenand_writev_ecc;
 	mtd->sync = onenand_sync;
 	mtd->lock = NULL;
 	mtd->unlock = onenand_unlock;

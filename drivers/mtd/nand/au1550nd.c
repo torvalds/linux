@@ -40,6 +40,7 @@
 static struct mtd_info *au1550_mtd = NULL;
 static void __iomem *p_nand;
 static int nand_width = 1;	/* default x8 */
+static void (*au1550_write_byte)(struct mtd_info *, u_char);
 
 /*
  * Define partitions for flash device
@@ -126,21 +127,6 @@ static u16 au_read_word(struct mtd_info *mtd)
 	u16 ret = readw(this->IO_ADDR_R);
 	au_sync();
 	return ret;
-}
-
-/**
- * au_write_word -  write one word to the chip
- * @mtd:	MTD device structure
- * @word:	data word to write
- *
- *  write function for 16bit buswith without
- * endianess conversion
- */
-static void au_write_word(struct mtd_info *mtd, u16 word)
-{
-	struct nand_chip *this = mtd->priv;
-	writew(word, this->IO_ADDR_W);
-	au_sync();
 }
 
 /**
@@ -269,6 +255,18 @@ static int au_verify_buf16(struct mtd_info *mtd, const u_char *buf, int len)
 	return 0;
 }
 
+/* Select the chip by setting nCE to low */
+#define NAND_CTL_SETNCE		1
+/* Deselect the chip by setting nCE to high */
+#define NAND_CTL_CLRNCE		2
+/* Select the command latch by setting CLE to high */
+#define NAND_CTL_SETCLE		3
+/* Deselect the command latch by setting CLE to low */
+#define NAND_CTL_CLRCLE		4
+/* Select the address latch by setting ALE to high */
+#define NAND_CTL_SETALE		5
+/* Deselect the address latch by setting ALE to low */
+#define NAND_CTL_CLRALE		6
 
 static void au1550_hwcontrol(struct mtd_info *mtd, int cmd)
 {
@@ -349,7 +347,7 @@ static void au1550_command(struct mtd_info *mtd, unsigned command, int column, i
 	ulong flags;
 
 	/* Begin command latch cycle */
-	this->hwcontrol(mtd, NAND_CTL_SETCLE);
+	au1550_hwcontrol(mtd, NAND_CTL_SETCLE);
 	/*
 	 * Write out the command to the device.
 	 */
@@ -367,25 +365,25 @@ static void au1550_command(struct mtd_info *mtd, unsigned command, int column, i
 			column -= 256;
 			readcmd = NAND_CMD_READ1;
 		}
-		this->write_byte(mtd, readcmd);
+		au1550_write_byte(mtd, readcmd);
 	}
-	this->write_byte(mtd, command);
+	au1550_write_byte(mtd, command);
 
 	/* Set ALE and clear CLE to start address cycle */
-	this->hwcontrol(mtd, NAND_CTL_CLRCLE);
+	au1550_hwcontrol(mtd, NAND_CTL_CLRCLE);
 
 	if (column != -1 || page_addr != -1) {
-		this->hwcontrol(mtd, NAND_CTL_SETALE);
+		au1550_hwcontrol(mtd, NAND_CTL_SETALE);
 
 		/* Serially input address */
 		if (column != -1) {
 			/* Adjust columns for 16 bit buswidth */
 			if (this->options & NAND_BUSWIDTH_16)
 				column >>= 1;
-			this->write_byte(mtd, column);
+			au1550_write_byte(mtd, column);
 		}
 		if (page_addr != -1) {
-			this->write_byte(mtd, (u8)(page_addr & 0xff));
+			au1550_write_byte(mtd, (u8)(page_addr & 0xff));
 
 			if (command == NAND_CMD_READ0 ||
 			    command == NAND_CMD_READ1 ||
@@ -400,17 +398,17 @@ static void au1550_command(struct mtd_info *mtd, unsigned command, int column, i
 				 */
 				ce_override = 1;
 				local_irq_save(flags);
-				this->hwcontrol(mtd, NAND_CTL_SETNCE);
+				au1550_hwcontrol(mtd, NAND_CTL_SETNCE);
 			}
 
-			this->write_byte(mtd, (u8)(page_addr >> 8));
+			au1550_write_byte(mtd, (u8)(page_addr >> 8));
 
 			/* One more address cycle for devices > 32MiB */
 			if (this->chipsize > (32 << 20))
-				this->write_byte(mtd, (u8)((page_addr >> 16) & 0x0f));
+				au1550_write_byte(mtd, (u8)((page_addr >> 16) & 0x0f));
 		}
 		/* Latch in address */
-		this->hwcontrol(mtd, NAND_CTL_CLRALE);
+		au1550_hwcontrol(mtd, NAND_CTL_CLRALE);
 	}
 
 	/*
@@ -443,7 +441,7 @@ static void au1550_command(struct mtd_info *mtd, unsigned command, int column, i
 			udelay(1);
 
 		/* Release -CE and re-enable interrupts. */
-		this->hwcontrol(mtd, NAND_CTL_CLRNCE);
+		au1550_hwcontrol(mtd, NAND_CTL_CLRNCE);
 		local_irq_restore(flags);
 		return;
 	}
@@ -571,7 +569,6 @@ static int __init au1xxx_nand_init(void)
 		nand_width = au_readl(MEM_STCFG3) & (1 << 22);
 
 	/* Set address of hardware control function */
-	this->hwcontrol = au1550_hwcontrol;
 	this->dev_ready = au1550_device_ready;
 	this->select_chip = au1550_select_chip;
 	this->cmdfunc = au1550_command;
@@ -586,8 +583,7 @@ static int __init au1xxx_nand_init(void)
 		this->options |= NAND_BUSWIDTH_16;
 
 	this->read_byte = (!nand_width) ? au_read_byte16 : au_read_byte;
-	this->write_byte = (!nand_width) ? au_write_byte16 : au_write_byte;
-	this->write_word = au_write_word;
+	au1550_write_byte = (!nand_width) ? au_write_byte16 : au_write_byte;
 	this->read_word = au_read_word;
 	this->write_buf = (!nand_width) ? au_write_buf16 : au_write_buf;
 	this->read_buf = (!nand_width) ? au_read_buf16 : au_read_buf;

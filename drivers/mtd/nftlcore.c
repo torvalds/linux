@@ -70,8 +70,6 @@ static void nftl_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 	nftl->mbd.devnum = -1;
 	nftl->mbd.blksize = 512;
 	nftl->mbd.tr = tr;
-	memcpy(&nftl->oobinfo, &mtd->oobinfo, sizeof(struct nand_oobinfo));
-	nftl->oobinfo.useecc = MTD_NANDECC_PLACEONLY;
 
         if (NFTL_mount(nftl) < 0) {
 		printk(KERN_WARNING "NFTL: could not mount device\n");
@@ -369,8 +367,11 @@ static u16 NFTL_foldchain (struct NFTLrecord *nftl, unsigned thisVUC, unsigned p
                 }
 		memset(&oob, 0xff, sizeof(struct nftl_oob));
 		oob.b.Status = oob.b.Status1 = SECTOR_USED;
-                MTD_WRITEECC(nftl->mbd.mtd, (nftl->EraseSize * targetEUN) + (block * 512),
-                             512, &retlen, movebuf, (char *)&oob, &nftl->oobinfo);
+
+		nand_write_raw(nftl->mbd.mtd, (nftl->EraseSize * targetEUN) +
+			       (block * 512), 512, &retlen, movebuf,
+			       (char *)&oob);
+
 	}
 
         /* add the header so that it is now a valid chain */
@@ -639,10 +640,10 @@ static int nftl_writeblock(struct mtd_blktrans_dev *mbd, unsigned long block,
 
 	memset(&oob, 0xff, sizeof(struct nftl_oob));
 	oob.b.Status = oob.b.Status1 = SECTOR_USED;
-	MTD_WRITEECC(nftl->mbd.mtd, (writeEUN * nftl->EraseSize) + blockofs,
-		     512, &retlen, (char *)buffer, (char *)&oob, &nftl->oobinfo);
-        /* need to write SECTOR_USED flags since they are not written in mtd_writeecc */
 
+	nand_write_raw(nftl->mbd.mtd, (writeEUN * nftl->EraseSize) +
+		       blockofs, 512, &retlen, (char *)buffer,
+		       (char *)&oob);
 	return 0;
 }
 #endif /* CONFIG_NFTL_RW */

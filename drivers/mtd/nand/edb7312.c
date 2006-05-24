@@ -73,32 +73,26 @@ static struct mtd_partition partition_info[] = {
 
 /*
  *	hardware specific access to control-lines
+ *
+ *	NAND_NCE: bit 0 -> bit 7
+ *	NAND_CLE: bit 1 -> bit 4
+ *	NAND_ALE: bit 2 -> bit 5
  */
-static void ep7312_hwcontrol(struct mtd_info *mtd, int cmd)
+static void ep7312_hwcontrol(struct mtd_info *mtd, int cmd, unsigned int ctrl)
 {
-	switch (cmd) {
+	struct nand_chip *chip = mtd->priv;
 
-	case NAND_CTL_SETCLE:
-		clps_writeb(clps_readb(ep7312_pxdr) | 0x10, ep7312_pxdr);
-		break;
-	case NAND_CTL_CLRCLE:
-		clps_writeb(clps_readb(ep7312_pxdr) & ~0x10, ep7312_pxdr);
-		break;
+	if (ctrl & NAND_CTRL_CHANGE) {
+		unsigned char bits;
 
-	case NAND_CTL_SETALE:
-		clps_writeb(clps_readb(ep7312_pxdr) | 0x20, ep7312_pxdr);
-		break;
-	case NAND_CTL_CLRALE:
-		clps_writeb(clps_readb(ep7312_pxdr) & ~0x20, ep7312_pxdr);
-		break;
+		bits = (ctrl & (NAND_CLE | NAND_ALE)) << 3;
+		bits = (ctrl & NAND_NCE) << 7;
 
-	case NAND_CTL_SETNCE:
-		clps_writeb((clps_readb(ep7312_pxdr) | 0x80) & ~0x40, ep7312_pxdr);
-		break;
-	case NAND_CTL_CLRNCE:
-		clps_writeb((clps_readb(ep7312_pxdr) | 0x80) | 0x40, ep7312_pxdr);
-		break;
+		clps_writeb((clps_readb(ep7312_pxdr)  & 0xB0) | 0x10,
+			    ep7312_pxdr);
 	}
+	if (cmd != NAND_CMD_NONE)
+		writeb(cmd, chip->IO_ADDR_W);
 }
 
 /*
@@ -159,7 +153,7 @@ static int __init ep7312_init(void)
 	/* insert callbacks */
 	this->IO_ADDR_R = ep7312_fio_base;
 	this->IO_ADDR_W = ep7312_fio_base;
-	this->hwcontrol = ep7312_hwcontrol;
+	this->cmd_ctrl = ep7312_hwcontrol;
 	this->dev_ready = ep7312_device_ready;
 	/* 15 us command delay time */
 	this->chip_delay = 15;

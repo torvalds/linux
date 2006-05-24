@@ -59,9 +59,6 @@ static int doc_read_ecc(struct mtd_info *mtd, loff_t from, size_t len,
 			size_t *retlen, u_char *buf, u_char *eccbuf, struct nand_oobinfo *oobsel);
 static int doc_write_ecc(struct mtd_info *mtd, loff_t to, size_t len,
 			 size_t *retlen, const u_char *buf, u_char *eccbuf, struct nand_oobinfo *oobsel);
-static int doc_writev_ecc(struct mtd_info *mtd, const struct kvec *vecs,
-			  unsigned long count, loff_t to, size_t *retlen,
-			  u_char *eccbuf, struct nand_oobinfo *oobsel);
 static int doc_read_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
 			size_t *retlen, u_char *buf);
 static int doc_write_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
@@ -587,9 +584,6 @@ void DoC2k_init(struct mtd_info *mtd)
 	mtd->unpoint = NULL;
 	mtd->read = doc_read;
 	mtd->write = doc_write;
-	mtd->read_ecc = doc_read_ecc;
-	mtd->write_ecc = doc_write_ecc;
-	mtd->writev_ecc = doc_writev_ecc;
 	mtd->read_oob = doc_read_oob;
 	mtd->write_oob = doc_write_oob;
 	mtd->sync = NULL;
@@ -964,66 +958,6 @@ static int doc_write_ecc(struct mtd_info *mtd, loff_t to, size_t len,
 	mutex_unlock(&this->lock);
 	return 0;
 }
-
-static int doc_writev_ecc(struct mtd_info *mtd, const struct kvec *vecs,
-			  unsigned long count, loff_t to, size_t *retlen,
-			  u_char *eccbuf, struct nand_oobinfo *oobsel)
-{
-	static char static_buf[512];
-	static DEFINE_MUTEX(writev_buf_mutex);
-
-	size_t totretlen = 0;
-	size_t thisvecofs = 0;
-	int ret= 0;
-
-	mutex_lock(&writev_buf_mutex);
-
-	while(count) {
-		size_t thislen, thisretlen;
-		unsigned char *buf;
-
-		buf = vecs->iov_base + thisvecofs;
-		thislen = vecs->iov_len - thisvecofs;
-
-
-		if (thislen >= 512) {
-			thislen = thislen & ~(512-1);
-			thisvecofs += thislen;
-		} else {
-			/* Not enough to fill a page. Copy into buf */
-			memcpy(static_buf, buf, thislen);
-			buf = &static_buf[thislen];
-
-			while(count && thislen < 512) {
-				vecs++;
-				count--;
-				thisvecofs = min((512-thislen), vecs->iov_len);
-				memcpy(buf, vecs->iov_base, thisvecofs);
-				thislen += thisvecofs;
-				buf += thisvecofs;
-			}
-			buf = static_buf;
-		}
-		if (count && thisvecofs == vecs->iov_len) {
-			thisvecofs = 0;
-			vecs++;
-			count--;
-		}
-		ret = doc_write_ecc(mtd, to, thislen, &thisretlen, buf, eccbuf, oobsel);
-
-		totretlen += thisretlen;
-
-		if (ret || thisretlen != thislen)
-			break;
-
-		to += thislen;
-	}
-
-	mutex_unlock(&writev_buf_mutex);
-	*retlen = totretlen;
-	return ret;
-}
-
 
 static int doc_read_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
 			size_t * retlen, u_char * buf)
