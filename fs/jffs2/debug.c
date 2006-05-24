@@ -192,13 +192,13 @@ __jffs2_dbg_acct_paranoia_check_nolock(struct jffs2_sb_info *c,
 		else
 			my_dirty_size += totlen;
 
-		if ((!ref2->next_phys) != (ref2 == jeb->last_node)) {
-			JFFS2_ERROR("node_ref for node at %#08x (mem %p) has next_phys at %#08x (mem %p), last_node is at %#08x (mem %p).\n",
-				ref_offset(ref2), ref2, ref_offset(ref2->next_phys), ref2->next_phys,
-				ref_offset(jeb->last_node), jeb->last_node);
+		if ((!ref_next(ref2)) != (ref2 == jeb->last_node)) {
+			JFFS2_ERROR("node_ref for node at %#08x (mem %p) has next at %#08x (mem %p), last_node is at %#08x (mem %p).\n",
+				    ref_offset(ref2), ref2, ref_offset(ref_next(ref2)), ref_next(ref2),
+				    ref_offset(jeb->last_node), jeb->last_node);
 			goto error;
 		}
-		ref2 = ref2->next_phys;
+		ref2 = ref_next(ref2);
 	}
 
 	if (my_used_size != jeb->used_size) {
@@ -268,9 +268,9 @@ __jffs2_dbg_dump_node_refs_nolock(struct jffs2_sb_info *c,
 	}
 
 	printk(JFFS2_DBG);
-	for (ref = jeb->first_node; ; ref = ref->next_phys) {
+	for (ref = jeb->first_node; ; ref = ref_next(ref)) {
 		printk("%#08x(%#x)", ref_offset(ref), ref->__totlen);
-		if (ref->next_phys)
+		if (ref_next(ref))
 			printk("->");
 		else
 			break;

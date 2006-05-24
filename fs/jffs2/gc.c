@@ -239,7 +239,7 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 
 	while(ref_obsolete(raw)) {
 		D1(printk(KERN_DEBUG "Node at 0x%08x is obsolete... skipping\n", ref_offset(raw)));
-		raw = raw->next_phys;
+		raw = ref_next(raw);
 		if (unlikely(!raw)) {
 			printk(KERN_WARNING "eep. End of raw list while still supposedly nodes to GC\n");
 			printk(KERN_WARNING "erase block at 0x%08x. free_size 0x%08x, dirty_size 0x%08x, used_size 0x%08x\n",

@@ -1159,9 +1159,10 @@ static inline uint32_t __ref_totlen(struct jffs2_sb_info *c,
 				    struct jffs2_raw_node_ref *ref)
 {
 	uint32_t ref_end;
+	struct jffs2_raw_node_ref *next_ref = ref_next(ref);
 
-	if (ref->next_phys)
-		ref_end = ref_offset(ref->next_phys);
+	if (next_ref)
+		ref_end = ref_offset(next_ref);
 	else {
 		if (!jeb)
 			jeb = &c->blocks[ref->flash_offset / c->sector_size];
@@ -1196,11 +1197,11 @@ uint32_t __jffs2_ref_totlen(struct jffs2_sb_info *c, struct jffs2_eraseblock *je
 		printk(KERN_CRIT "Totlen for ref at %p (0x%08x-0x%08x) miscalculated as 0x%x instead of %x\n",
 		       ref, ref_offset(ref), ref_offset(ref)+ref->__totlen,
 		       ret, ref->__totlen);
-		if (ref->next_phys) {
-			printk(KERN_CRIT "next_phys %p (0x%08x-0x%08x)\n", ref->next_phys, ref_offset(ref->next_phys),
-			       ref_offset(ref->next_phys)+ref->__totlen);
+		if (ref_next(ref)) {
+			printk(KERN_CRIT "next %p (0x%08x-0x%08x)\n", ref_next(ref), ref_offset(ref_next(ref)),
+			       ref_offset(ref_next(ref))+ref->__totlen);
 		} else 
-			printk(KERN_CRIT "No next_phys. jeb->last_node is %p\n", jeb->last_node);
+			printk(KERN_CRIT "No next ref. jeb->last_node is %p\n", jeb->last_node);
 
 		printk(KERN_CRIT "jeb->wasted_size %x, dirty_size %x, used_size %x, free_size %x\n", jeb->wasted_size, jeb->dirty_size, jeb->used_size, jeb->free_size);
 		ret = ref->__totlen;

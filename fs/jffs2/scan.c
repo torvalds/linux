@@ -295,7 +295,7 @@ int jffs2_fill_scan_buf (struct jffs2_sb_info *c, void *buf,
 int jffs2_scan_classify_jeb(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb)
 {
 	if ((jeb->used_size + jeb->unchecked_size) == PAD(c->cleanmarker_size) && !jeb->dirty_size
-		&& (!jeb->first_node || !jeb->first_node->next_phys) )
+	    && (!jeb->first_node || !ref_next(jeb->first_node)) )
 		return BLK_STATE_CLEANMARKER;
 
 	/* move blocks with max 4 byte dirty space to cleanlist */
@@ -647,7 +647,7 @@ scan_more:
 			/* If we're only checking the beginning of a block with a cleanmarker,
 			   bail now */
 			if (buf_ofs == jeb->offset && jeb->used_size == PAD(c->cleanmarker_size) &&
-			    c->cleanmarker_size && !jeb->dirty_size && !jeb->first_node->next_phys) {
+			    c->cleanmarker_size && !jeb->dirty_size && !ref_next(jeb->first_node)) {
 				D1(printk(KERN_DEBUG "%d bytes at start of block seems clean... assuming all clean\n", EMPTY_SCAN_SIZE(c->sector_size)));
 				return BLK_STATE_CLEANMARKER;
 			}

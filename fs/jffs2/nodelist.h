@@ -88,17 +88,17 @@ struct jffs2_raw_node_ref
 #endif
 };
 
+#define ref_next(r) ((r)->next_phys)
+
 static inline struct jffs2_inode_cache *jffs2_raw_ref_to_ic(struct jffs2_raw_node_ref *raw)
 {
-	while(raw->next_in_ino) {
+	while(raw->next_in_ino)
 		raw = raw->next_in_ino;
-	}
 
 	/* NB. This can be a jffs2_xattr_datum or jffs2_xattr_ref and
 	   not actually a jffs2_inode_cache. Check ->class */
 	return ((struct jffs2_inode_cache *)raw);
 }
-
 
         /* flash_offset & 3 always has to be zero, because nodes are
 	   always aligned at 4 bytes. So we have a couple of extra bits
