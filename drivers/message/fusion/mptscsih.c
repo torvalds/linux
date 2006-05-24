@@ -2521,18 +2521,6 @@ mptscsih_ioc_reset(MPT_ADAPTER *ioc, int reset_phase)
 			hd->cmdPtr = NULL;
 		}
 
-		/* 7. FC: Rescan for blocked rports which might have returned.
-		 */
-		if (ioc->bus_type == FC) {
-			spin_lock_irqsave(&ioc->fc_rescan_work_lock, flags);
-			if (ioc->fc_rescan_work_q) {
-				if (ioc->fc_rescan_work_count++ == 0) {
-					queue_work(ioc->fc_rescan_work_q,
-						   &ioc->fc_rescan_work);
-				}
-			}
-			spin_unlock_irqrestore(&ioc->fc_rescan_work_lock, flags);
-		}
 		dtmprintk((MYIOC_s_WARN_FMT "Post-Reset complete.\n", ioc->name));
 
 	}
@@ -2546,7 +2534,6 @@ mptscsih_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply)
 {
 	MPT_SCSI_HOST *hd;
 	u8 event = le32_to_cpu(pEvReply->Event) & 0xFF;
-	unsigned long flags;
 
 	devtverboseprintk((MYIOC_s_INFO_FMT "MPT event (=%02Xh) routed to SCSI host driver!\n",
 			ioc->name, event));
@@ -2569,14 +2556,6 @@ mptscsih_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply)
 		break;
 
 	case MPI_EVENT_RESCAN:				/* 06 */
-		spin_lock_irqsave(&ioc->fc_rescan_work_lock, flags);
-		if (ioc->fc_rescan_work_q) {
-			if (ioc->fc_rescan_work_count++ == 0) {
-				queue_work(ioc->fc_rescan_work_q,
-					   &ioc->fc_rescan_work);
-			}
-		}
-		spin_unlock_irqrestore(&ioc->fc_rescan_work_lock, flags);
 		break;
 
 		/*

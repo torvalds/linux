@@ -596,6 +596,110 @@ mptfc_qcmd(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 	return err;
 }
 
+/*
+ *	mptfc_GetFcPortPage0 - Fetch FCPort config Page0.
+ *	@ioc: Pointer to MPT_ADAPTER structure
+ *	@portnum: IOC Port number
+ *
+ *	Return: 0 for success
+ *	-ENOMEM if no memory available
+ *		-EPERM if not allowed due to ISR context
+ *		-EAGAIN if no msg frames currently available
+ *		-EFAULT for non-successful reply or no reply (timeout)
+ *		-EINVAL portnum arg out of range (hardwired to two elements)
+ */
+static int
+mptfc_GetFcPortPage0(MPT_ADAPTER *ioc, int portnum)
+{
+	ConfigPageHeader_t	 hdr;
+	CONFIGPARMS		 cfg;
+	FCPortPage0_t		*ppage0_alloc;
+	FCPortPage0_t		*pp0dest;
+	dma_addr_t		 page0_dma;
+	int			 data_sz;
+	int			 copy_sz;
+	int			 rc;
+	int			 count = 400;
+
+	if (portnum > 1)
+		return -EINVAL;
+
+	/* Get FCPort Page 0 header */
+	hdr.PageVersion = 0;
+	hdr.PageLength = 0;
+	hdr.PageNumber = 0;
+	hdr.PageType = MPI_CONFIG_PAGETYPE_FC_PORT;
+	cfg.cfghdr.hdr = &hdr;
+	cfg.physAddr = -1;
+	cfg.action = MPI_CONFIG_ACTION_PAGE_HEADER;
+	cfg.dir = 0;
+	cfg.pageAddr = portnum;
+	cfg.timeout = 0;
+
+	if ((rc = mpt_config(ioc, &cfg)) != 0)
+		return rc;
+
+	if (hdr.PageLength == 0)
+		return 0;
+
+	data_sz = hdr.PageLength * 4;
+	rc = -ENOMEM;
+	ppage0_alloc = (FCPortPage0_t *) pci_alloc_consistent(ioc->pcidev, data_sz, &page0_dma);
+	if (ppage0_alloc) {
+
+ try_again:
+		memset((u8 *)ppage0_alloc, 0, data_sz);
+		cfg.physAddr = page0_dma;
+		cfg.action = MPI_CONFIG_ACTION_PAGE_READ_CURRENT;
+
+		if ((rc = mpt_config(ioc, &cfg)) == 0) {
+			/* save the data */
+			pp0dest = &ioc->fc_port_page0[portnum];
+			copy_sz = min_t(int, sizeof(FCPortPage0_t), data_sz);
+			memcpy(pp0dest, ppage0_alloc, copy_sz);
+
+			/*
+			 *	Normalize endianness of structure data,
+			 *	by byte-swapping all > 1 byte fields!
+			 */
+			pp0dest->Flags = le32_to_cpu(pp0dest->Flags);
+			pp0dest->PortIdentifier = le32_to_cpu(pp0dest->PortIdentifier);
+			pp0dest->WWNN.Low = le32_to_cpu(pp0dest->WWNN.Low);
+			pp0dest->WWNN.High = le32_to_cpu(pp0dest->WWNN.High);
+			pp0dest->WWPN.Low = le32_to_cpu(pp0dest->WWPN.Low);
+			pp0dest->WWPN.High = le32_to_cpu(pp0dest->WWPN.High);
+			pp0dest->SupportedServiceClass = le32_to_cpu(pp0dest->SupportedServiceClass);
+			pp0dest->SupportedSpeeds = le32_to_cpu(pp0dest->SupportedSpeeds);
+			pp0dest->CurrentSpeed = le32_to_cpu(pp0dest->CurrentSpeed);
+			pp0dest->MaxFrameSize = le32_to_cpu(pp0dest->MaxFrameSize);
+			pp0dest->FabricWWNN.Low = le32_to_cpu(pp0dest->FabricWWNN.Low);
+			pp0dest->FabricWWNN.High = le32_to_cpu(pp0dest->FabricWWNN.High);
+			pp0dest->FabricWWPN.Low = le32_to_cpu(pp0dest->FabricWWPN.Low);
+			pp0dest->FabricWWPN.High = le32_to_cpu(pp0dest->FabricWWPN.High);
+			pp0dest->DiscoveredPortsCount = le32_to_cpu(pp0dest->DiscoveredPortsCount);
+			pp0dest->MaxInitiators = le32_to_cpu(pp0dest->MaxInitiators);
+
+			/*
+			 * if still doing discovery,
+			 * hang loose a while until finished
+			 */
+			if (pp0dest->PortState == MPI_FCPORTPAGE0_PORTSTATE_UNKNOWN) {
+				if (count-- > 0) {
+					msleep_interruptible(100);
+					goto try_again;
+				}
+				printk(MYIOC_s_INFO_FMT "Firmware discovery not"
+							" complete.\n",
+						ioc->name);
+			}
+		}
+
+		pci_free_consistent(ioc->pcidev, data_sz, (u8 *) ppage0_alloc, page0_dma);
+	}
+
+	return rc;
+}
+
 static void
 mptfc_init_host_attr(MPT_ADAPTER *ioc,int portnum)
 {
@@ -651,7 +755,7 @@ mptfc_rescan_devices(void *arg)
 		 * will reregister existing rports
 		 */
 		for (ii=0; ii < ioc->facts.NumberOfPorts; ii++) {
-			(void) mptbase_GetFcPortPage0(ioc, ii);
+			(void) mptfc_GetFcPortPage0(ioc, ii);
 			mptfc_init_host_attr(ioc,ii);	/* refresh */
 			mptfc_GetFcDevPage0(ioc,ii,mptfc_register_dev);
 		}
@@ -753,6 +857,7 @@ mptfc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto out_mptfc_probe;
         }
 
+	spin_lock_init(&ioc->fc_rescan_work_lock);
 	INIT_WORK(&ioc->fc_rescan_work, mptfc_rescan_devices,(void *)ioc);
 
 	spin_lock_irqsave(&ioc->FreeQlock, flags);
@@ -889,6 +994,14 @@ mptfc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto out_mptfc_probe;
 
 	/*
+	 *  Pre-fetch FC port WWN and stuff...
+	 *  (FCPortPage0_t stuff)
+	 */
+	for (ii=0; ii < ioc->facts.NumberOfPorts; ii++) {
+		(void) mptfc_GetFcPortPage0(ioc, ii);
+	}
+
+	/*
 	 * scan for rports -
 	 *	by doing it via the workqueue, some locking is eliminated
 	 */
@@ -916,6 +1029,74 @@ static struct pci_driver mptfc_driver = {
 	.resume		= mptscsih_resume,
 #endif
 };
+
+static int
+mptfc_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply)
+{
+	MPT_SCSI_HOST *hd;
+	u8 event = le32_to_cpu(pEvReply->Event) & 0xFF;
+	unsigned long flags;
+	int rc=1;
+
+	devtverboseprintk((MYIOC_s_INFO_FMT "MPT event (=%02Xh) routed to SCSI host driver!\n",
+			ioc->name, event));
+
+	if (ioc->sh == NULL ||
+		((hd = (MPT_SCSI_HOST *)ioc->sh->hostdata) == NULL))
+		return 1;
+
+	switch (event) {
+	case MPI_EVENT_RESCAN:
+		spin_lock_irqsave(&ioc->fc_rescan_work_lock, flags);
+		if (ioc->fc_rescan_work_q) {
+			if (ioc->fc_rescan_work_count++ == 0) {
+				queue_work(ioc->fc_rescan_work_q,
+					   &ioc->fc_rescan_work);
+			}
+		}
+		spin_unlock_irqrestore(&ioc->fc_rescan_work_lock, flags);
+		break;
+	default:
+		rc = mptscsih_event_process(ioc,pEvReply);
+		break;
+	}
+	return rc;
+}
+
+static int
+mptfc_ioc_reset(MPT_ADAPTER *ioc, int reset_phase)
+{
+	int		rc;
+	unsigned long	flags;
+
+	rc = mptscsih_ioc_reset(ioc,reset_phase);
+	if (rc == 0)
+		return rc;
+
+
+	dtmprintk((KERN_WARNING MYNAM
+		": IOC %s_reset routed to FC host driver!\n",
+		reset_phase==MPT_IOC_SETUP_RESET ? "setup" : (
+		reset_phase==MPT_IOC_PRE_RESET ? "pre" : "post")));
+
+	if (reset_phase == MPT_IOC_SETUP_RESET) {
+	}
+
+	else if (reset_phase == MPT_IOC_PRE_RESET) {
+	}
+
+	else {	/* MPT_IOC_POST_RESET */
+		spin_lock_irqsave(&ioc->fc_rescan_work_lock, flags);
+		if (ioc->fc_rescan_work_q) {
+			if (ioc->fc_rescan_work_count++ == 0) {
+				queue_work(ioc->fc_rescan_work_q,
+					   &ioc->fc_rescan_work);
+			}
+		}
+		spin_unlock_irqrestore(&ioc->fc_rescan_work_lock, flags);
+	}
+	return 1;
+}
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /**
@@ -945,12 +1126,12 @@ mptfc_init(void)
 	mptfcTaskCtx = mpt_register(mptscsih_taskmgmt_complete, MPTFC_DRIVER);
 	mptfcInternalCtx = mpt_register(mptscsih_scandv_complete, MPTFC_DRIVER);
 
-	if (mpt_event_register(mptfcDoneCtx, mptscsih_event_process) == 0) {
+	if (mpt_event_register(mptfcDoneCtx, mptfc_event_process) == 0) {
 		devtverboseprintk((KERN_INFO MYNAM
 		  ": Registered for IOC event notifications\n"));
 	}
 
-	if (mpt_reset_register(mptfcDoneCtx, mptscsih_ioc_reset) == 0) {
+	if (mpt_reset_register(mptfcDoneCtx, mptfc_ioc_reset) == 0) {
 		dprintk((KERN_INFO MYNAM
 		  ": Registered for IOC reset notifications\n"));
 	}
