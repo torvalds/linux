@@ -1,0 +1,13 @@
+#
+# DMA engine configuration
+#
+
+menu "DMA Engine support"
+
+config DMA_ENGINE
+	bool "Support for DMA engines"
+	---help---
+	  DMA engines offload copy operations from the CPU to dedicated
+	  hardware, allowing the copies to happen asynchronously.
+
+endmenu
