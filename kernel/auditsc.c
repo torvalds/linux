@@ -3,7 +3,7 @@
  *
  * Copyright 2003-2004 Red Hat Inc., Durham, North Carolina.
  * Copyright 2005 Hewlett-Packard Development Company, L.P.
- * Copyright (C) 2005 IBM Corporation
+ * Copyright (C) 2005, 2006 IBM Corporation
  * All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -29,6 +29,9 @@
  * this file -- see entry.S) is based on a GPL'd patch written by
  * okir@suse.de and Copyright 2003 SuSE Linux AG.
  *
+ * POSIX message queue support added by George Wilson <ltcgcw@us.ibm.com>,
+ * 2006.
+ *
  * The support of additional filter rules compares (>, <, >=, <=) was
  * added by Dustin Kirkland <dustin.kirkland@us.ibm.com>, 2005.
  *
@@ -49,6 +52,7 @@
 #include <linux/module.h>
 #include <linux/mount.h>
 #include <linux/socket.h>
+#include <linux/mqueue.h>
 #include <linux/audit.h>
 #include <linux/personality.h>
 #include <linux/time.h>
@@ -101,6 +105,33 @@ struct audit_aux_data {
 };
 
 #define AUDIT_AUX_IPCPERM	0
+
+struct audit_aux_data_mq_open {
+	struct audit_aux_data	d;
+	int			oflag;
+	mode_t			mode;
+	struct mq_attr		attr;
+};
+
+struct audit_aux_data_mq_sendrecv {
+	struct audit_aux_data	d;
+	mqd_t			mqdes;
+	size_t			msg_len;
+	unsigned int		msg_prio;
+	struct timespec		abs_timeout;
+};
+
+struct audit_aux_data_mq_notify {
+	struct audit_aux_data	d;
+	mqd_t			mqdes;
+	struct sigevent 	notification;
+};
+
+struct audit_aux_data_mq_getsetattr {
+	struct audit_aux_data	d;
+	mqd_t			mqdes;
+	struct mq_attr 		mqstat;
+};
 
 struct audit_aux_data_ipcctl {
 	struct audit_aux_data	d;
@@ -644,6 +675,43 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 			continue; /* audit_panic has been called */
 
 		switch (aux->type) {
+		case AUDIT_MQ_OPEN: {
+			struct audit_aux_data_mq_open *axi = (void *)aux;
+			audit_log_format(ab,
+				"oflag=0x%x mode=%#o mq_flags=0x%lx mq_maxmsg=%ld "
+				"mq_msgsize=%ld mq_curmsgs=%ld",
+				axi->oflag, axi->mode, axi->attr.mq_flags,
+				axi->attr.mq_maxmsg, axi->attr.mq_msgsize,
+				axi->attr.mq_curmsgs);
+			break; }
+
+		case AUDIT_MQ_SENDRECV: {
+			struct audit_aux_data_mq_sendrecv *axi = (void *)aux;
+			audit_log_format(ab,
+				"mqdes=%d msg_len=%zd msg_prio=%u "
+				"abs_timeout_sec=%ld abs_timeout_nsec=%ld",
+				axi->mqdes, axi->msg_len, axi->msg_prio,
+				axi->abs_timeout.tv_sec, axi->abs_timeout.tv_nsec);
+			break; }
+
+		case AUDIT_MQ_NOTIFY: {
+			struct audit_aux_data_mq_notify *axi = (void *)aux;
+			audit_log_format(ab,
+				"mqdes=%d sigev_signo=%d",
+				axi->mqdes,
+				axi->notification.sigev_signo);
+			break; }
+
+		case AUDIT_MQ_GETSETATTR: {
+			struct audit_aux_data_mq_getsetattr *axi = (void *)aux;
+			audit_log_format(ab,
+				"mqdes=%d mq_flags=0x%lx mq_maxmsg=%ld mq_msgsize=%ld "
+				"mq_curmsgs=%ld ",
+				axi->mqdes,
+				axi->mqstat.mq_flags, axi->mqstat.mq_maxmsg,
+				axi->mqstat.mq_msgsize, axi->mqstat.mq_curmsgs);
+			break; }
+
 		case AUDIT_IPC: {
 			struct audit_aux_data_ipcctl *axi = (void *)aux;
 			audit_log_format(ab, 
@@ -1180,6 +1248,210 @@ int audit_set_loginuid(struct task_struct *task, uid_t loginuid)
 uid_t audit_get_loginuid(struct audit_context *ctx)
 {
 	return ctx ? ctx->loginuid : -1;
+}
+
+/**
+ * __audit_mq_open - record audit data for a POSIX MQ open
+ * @oflag: open flag
+ * @mode: mode bits
+ * @u_attr: queue attributes
+ *
+ * Returns 0 for success or NULL context or < 0 on error.
+ */
+int __audit_mq_open(int oflag, mode_t mode, struct mq_attr __user *u_attr)
+{
+	struct audit_aux_data_mq_open *ax;
+	struct audit_context *context = current->audit_context;
+
+	if (!audit_enabled)
+		return 0;
+
+	if (likely(!context))
+		return 0;
+
+	ax = kmalloc(sizeof(*ax), GFP_ATOMIC);
+	if (!ax)
+		return -ENOMEM;
+
+	if (u_attr != NULL) {
+		if (copy_from_user(&ax->attr, u_attr, sizeof(ax->attr))) {
+			kfree(ax);
+			return -EFAULT;
+		}
+	} else
+		memset(&ax->attr, 0, sizeof(ax->attr));
+
+	ax->oflag = oflag;
+	ax->mode = mode;
+
+	ax->d.type = AUDIT_MQ_OPEN;
+	ax->d.next = context->aux;
+	context->aux = (void *)ax;
+	return 0;
+}
+
+/**
+ * __audit_mq_timedsend - record audit data for a POSIX MQ timed send
+ * @mqdes: MQ descriptor
+ * @msg_len: Message length
+ * @msg_prio: Message priority
+ * @abs_timeout: Message timeout in absolute time
+ *
+ * Returns 0 for success or NULL context or < 0 on error.
+ */
+int __audit_mq_timedsend(mqd_t mqdes, size_t msg_len, unsigned int msg_prio,
+			const struct timespec __user *u_abs_timeout)
+{
+	struct audit_aux_data_mq_sendrecv *ax;
+	struct audit_context *context = current->audit_context;
+
+	if (!audit_enabled)
+		return 0;
+
+	if (likely(!context))
+		return 0;
+
+	ax = kmalloc(sizeof(*ax), GFP_ATOMIC);
+	if (!ax)
+		return -ENOMEM;
+
+	if (u_abs_timeout != NULL) {
+		if (copy_from_user(&ax->abs_timeout, u_abs_timeout, sizeof(ax->abs_timeout))) {
+			kfree(ax);
+			return -EFAULT;
+		}
+	} else
+		memset(&ax->abs_timeout, 0, sizeof(ax->abs_timeout));
+
+	ax->mqdes = mqdes;
+	ax->msg_len = msg_len;
+	ax->msg_prio = msg_prio;
+
+	ax->d.type = AUDIT_MQ_SENDRECV;
+	ax->d.next = context->aux;
+	context->aux = (void *)ax;
+	return 0;
+}
+
+/**
+ * __audit_mq_timedreceive - record audit data for a POSIX MQ timed receive
+ * @mqdes: MQ descriptor
+ * @msg_len: Message length
+ * @msg_prio: Message priority
+ * @abs_timeout: Message timeout in absolute time
+ *
+ * Returns 0 for success or NULL context or < 0 on error.
+ */
+int __audit_mq_timedreceive(mqd_t mqdes, size_t msg_len,
+				unsigned int __user *u_msg_prio,
+				const struct timespec __user *u_abs_timeout)
+{
+	struct audit_aux_data_mq_sendrecv *ax;
+	struct audit_context *context = current->audit_context;
+
+	if (!audit_enabled)
+		return 0;
+
+	if (likely(!context))
+		return 0;
+
+	ax = kmalloc(sizeof(*ax), GFP_ATOMIC);
+	if (!ax)
+		return -ENOMEM;
+
+	if (u_msg_prio != NULL) {
+		if (get_user(ax->msg_prio, u_msg_prio)) {
+			kfree(ax);
+			return -EFAULT;
+		}
+	} else
+		ax->msg_prio = 0;
+
+	if (u_abs_timeout != NULL) {
+		if (copy_from_user(&ax->abs_timeout, u_abs_timeout, sizeof(ax->abs_timeout))) {
+			kfree(ax);
+			return -EFAULT;
+		}
+	} else
+		memset(&ax->abs_timeout, 0, sizeof(ax->abs_timeout));
+
+	ax->mqdes = mqdes;
+	ax->msg_len = msg_len;
+
+	ax->d.type = AUDIT_MQ_SENDRECV;
+	ax->d.next = context->aux;
+	context->aux = (void *)ax;
+	return 0;
+}
+
+/**
+ * __audit_mq_notify - record audit data for a POSIX MQ notify
+ * @mqdes: MQ descriptor
+ * @u_notification: Notification event
+ *
+ * Returns 0 for success or NULL context or < 0 on error.
+ */
+
+int __audit_mq_notify(mqd_t mqdes, const struct sigevent __user *u_notification)
+{
+	struct audit_aux_data_mq_notify *ax;
+	struct audit_context *context = current->audit_context;
+
+	if (!audit_enabled)
+		return 0;
+
+	if (likely(!context))
+		return 0;
+
+	ax = kmalloc(sizeof(*ax), GFP_ATOMIC);
+	if (!ax)
+		return -ENOMEM;
+
+	if (u_notification != NULL) {
+		if (copy_from_user(&ax->notification, u_notification, sizeof(ax->notification))) {
+			kfree(ax);
+			return -EFAULT;
+		}
+	} else
+		memset(&ax->notification, 0, sizeof(ax->notification));
+
+	ax->mqdes = mqdes;
+
+	ax->d.type = AUDIT_MQ_NOTIFY;
+	ax->d.next = context->aux;
+	context->aux = (void *)ax;
+	return 0;
+}
+
+/**
+ * __audit_mq_getsetattr - record audit data for a POSIX MQ get/set attribute
+ * @mqdes: MQ descriptor
+ * @mqstat: MQ flags
+ *
+ * Returns 0 for success or NULL context or < 0 on error.
+ */
+int __audit_mq_getsetattr(mqd_t mqdes, struct mq_attr *mqstat)
+{
+	struct audit_aux_data_mq_getsetattr *ax;
+	struct audit_context *context = current->audit_context;
+
+	if (!audit_enabled)
+		return 0;
+
+	if (likely(!context))
+		return 0;
+
+	ax = kmalloc(sizeof(*ax), GFP_ATOMIC);
+	if (!ax)
+		return -ENOMEM;
+
+	ax->mqdes = mqdes;
+	ax->mqstat = *mqstat;
+
+	ax->d.type = AUDIT_MQ_GETSETATTR;
+	ax->d.next = context->aux;
+	context->aux = (void *)ax;
+	return 0;
 }
 
 /**

@@ -85,6 +85,10 @@
 #define AUDIT_CWD		1307	/* Current working directory */
 #define AUDIT_EXECVE		1309	/* execve arguments */
 #define AUDIT_IPC_SET_PERM	1311	/* IPC new permissions record type */
+#define AUDIT_MQ_OPEN		1312	/* POSIX MQ open record type */
+#define AUDIT_MQ_SENDRECV	1313	/* POSIX MQ send/receive record type */
+#define AUDIT_MQ_NOTIFY		1314	/* POSIX MQ notify record type */
+#define AUDIT_MQ_GETSETATTR	1315	/* POSIX MQ get/set attribute record type */
 
 #define AUDIT_AVC		1400	/* SE Linux avc denial or grant */
 #define AUDIT_SELINUX_ERR	1401	/* Internal SE Linux Errors */
@@ -287,6 +291,8 @@ struct audit_context;
 struct inode;
 struct netlink_skb_parms;
 struct linux_binprm;
+struct mq_attr;
+struct mqstat;
 
 #define AUDITSC_INVALID 0
 #define AUDITSC_SUCCESS 1
@@ -336,6 +342,11 @@ extern int audit_socketcall(int nargs, unsigned long *args);
 extern int audit_sockaddr(int len, void *addr);
 extern int audit_avc_path(struct dentry *dentry, struct vfsmount *mnt);
 extern int audit_set_macxattr(const char *name);
+extern int __audit_mq_open(int oflag, mode_t mode, struct mq_attr __user *u_attr);
+extern int __audit_mq_timedsend(mqd_t mqdes, size_t msg_len, unsigned int msg_prio, const struct timespec __user *u_abs_timeout);
+extern int __audit_mq_timedreceive(mqd_t mqdes, size_t msg_len, unsigned int __user *u_msg_prio, const struct timespec __user *u_abs_timeout);
+extern int __audit_mq_notify(mqd_t mqdes, const struct sigevent __user *u_notification);
+extern int __audit_mq_getsetattr(mqd_t mqdes, struct mq_attr *mqstat);
 
 static inline int audit_ipc_obj(struct kern_ipc_perm *ipcp)
 {
@@ -347,6 +358,36 @@ static inline int audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid,
 {
 	if (unlikely(current->audit_context))
 		return __audit_ipc_set_perm(qbytes, uid, gid, mode);
+	return 0;
+}
+static inline int audit_mq_open(int oflag, mode_t mode, struct mq_attr __user *u_attr)
+{
+	if (unlikely(current->audit_context))
+		return __audit_mq_open(oflag, mode, u_attr);
+	return 0;
+}
+static inline int audit_mq_timedsend(mqd_t mqdes, size_t msg_len, unsigned int msg_prio, const struct timespec __user *u_abs_timeout)
+{
+	if (unlikely(current->audit_context))
+		return __audit_mq_timedsend(mqdes, msg_len, msg_prio, u_abs_timeout);
+	return 0;
+}
+static inline int audit_mq_timedreceive(mqd_t mqdes, size_t msg_len, unsigned int __user *u_msg_prio, const struct timespec __user *u_abs_timeout)
+{
+	if (unlikely(current->audit_context))
+		return __audit_mq_timedreceive(mqdes, msg_len, u_msg_prio, u_abs_timeout);
+	return 0;
+}
+static inline int audit_mq_notify(mqd_t mqdes, const struct sigevent __user *u_notification)
+{
+	if (unlikely(current->audit_context))
+		return __audit_mq_notify(mqdes, u_notification);
+	return 0;
+}
+static inline int audit_mq_getsetattr(mqd_t mqdes, struct mq_attr *mqstat)
+{
+	if (unlikely(current->audit_context))
+		return __audit_mq_getsetattr(mqdes, mqstat);
 	return 0;
 }
 #else
@@ -369,6 +410,11 @@ static inline int audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid,
 #define audit_sockaddr(len, addr) ({ 0; })
 #define audit_avc_path(dentry, mnt) ({ 0; })
 #define audit_set_macxattr(n) do { ; } while (0)
+#define audit_mq_open(o,m,a) ({ 0; })
+#define audit_mq_timedsend(d,l,p,t) ({ 0; })
+#define audit_mq_timedreceive(d,l,p,t) ({ 0; })
+#define audit_mq_notify(d,n) ({ 0; })
+#define audit_mq_getsetattr(d,s) ({ 0; })
 #endif
 
 #ifdef CONFIG_AUDIT
