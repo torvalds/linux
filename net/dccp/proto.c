@@ -719,7 +719,7 @@ int dccp_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		}
 		dccp_pr_debug("packet_type=%s\n",
 			      dccp_packet_name(dh->dccph_type));
-		sk_eat_skb(sk, skb);
+		sk_eat_skb(sk, skb, 0);
 verify_sock_status:
 		if (sock_flag(sk, SOCK_DONE)) {
 			len = 0;
@@ -773,7 +773,7 @@ verify_sock_status:
 		}
 	found_fin_ok:
 		if (!(flags & MSG_PEEK))
-			sk_eat_skb(sk, skb);
+			sk_eat_skb(sk, skb, 0);
 		break;
 	} while (1);
 out:

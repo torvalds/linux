@@ -789,7 +789,7 @@ static int llc_ui_recvmsg(struct kiocb *iocb, struct socket *sock,
 			continue;
 
 		if (!(flags & MSG_PEEK)) {
-			sk_eat_skb(sk, skb);
+			sk_eat_skb(sk, skb, 0);
 			*seq = 0;
 		}
 	} while (len > 0);
