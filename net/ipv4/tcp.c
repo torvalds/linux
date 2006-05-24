@@ -263,7 +263,7 @@
 #include <net/tcp.h>
 #include <net/xfrm.h>
 #include <net/ip.h>
-
+#include <net/netdma.h>
 
 #include <asm/uaccess.h>
 #include <asm/ioctls.h>
@@ -1110,6 +1110,7 @@ int tcp_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	int target;		/* Read at least this many bytes */
 	long timeo;
 	struct task_struct *user_recv = NULL;
+	int copied_early = 0;
 
 	lock_sock(sk);
 
@@ -1132,6 +1133,17 @@ int tcp_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	}
 
 	target = sock_rcvlowat(sk, flags & MSG_WAITALL, len);
+
+#ifdef CONFIG_NET_DMA
+	tp->ucopy.dma_chan = NULL;
+	preempt_disable();
+	if ((len > sysctl_tcp_dma_copybreak) && !(flags & MSG_PEEK) &&
+	    !sysctl_tcp_low_latency && __get_cpu_var(softnet_data.net_dma)) {
+		preempt_enable_no_resched();
+		tp->ucopy.pinned_list = dma_pin_iovec_pages(msg->msg_iov, len);
+	} else
+		preempt_enable_no_resched();
+#endif
 
 	do {
 		struct sk_buff *skb;
@@ -1274,6 +1286,10 @@ int tcp_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		} else
 			sk_wait_data(sk, &timeo);
 
+#ifdef CONFIG_NET_DMA
+		tp->ucopy.wakeup = 0;
+#endif
+
 		if (user_recv) {
 			int chunk;
 
@@ -1329,13 +1345,39 @@ do_prequeue:
 		}
 
 		if (!(flags & MSG_TRUNC)) {
-			err = skb_copy_datagram_iovec(skb, offset,
-						      msg->msg_iov, used);
-			if (err) {
-				/* Exception. Bailout! */
-				if (!copied)
-					copied = -EFAULT;
-				break;
+#ifdef CONFIG_NET_DMA
+			if (!tp->ucopy.dma_chan && tp->ucopy.pinned_list)
+				tp->ucopy.dma_chan = get_softnet_dma();
+
+			if (tp->ucopy.dma_chan) {
+				tp->ucopy.dma_cookie = dma_skb_copy_datagram_iovec(
+					tp->ucopy.dma_chan, skb, offset,
+					msg->msg_iov, used,
+					tp->ucopy.pinned_list);
+
+				if (tp->ucopy.dma_cookie < 0) {
+
+					printk(KERN_ALERT "dma_cookie < 0\n");
+
+					/* Exception. Bailout! */
+					if (!copied)
+						copied = -EFAULT;
+					break;
+				}
+				if ((offset + used) == skb->len)
+					copied_early = 1;
+
+			} else
+#endif
+			{
+				err = skb_copy_datagram_iovec(skb, offset,
+						msg->msg_iov, used);
+				if (err) {
+					/* Exception. Bailout! */
+					if (!copied)
+						copied = -EFAULT;
+					break;
+				}
 			}
 		}
 
@@ -1355,15 +1397,19 @@ skip_copy:
 
 		if (skb->h.th->fin)
 			goto found_fin_ok;
-		if (!(flags & MSG_PEEK))
-			sk_eat_skb(sk, skb, 0);
+		if (!(flags & MSG_PEEK)) {
+			sk_eat_skb(sk, skb, copied_early);
+			copied_early = 0;
+		}
 		continue;
 
 	found_fin_ok:
 		/* Process the FIN. */
 		++*seq;
-		if (!(flags & MSG_PEEK))
-			sk_eat_skb(sk, skb, 0);
+		if (!(flags & MSG_PEEK)) {
+			sk_eat_skb(sk, skb, copied_early);
+			copied_early = 0;
+		}
 		break;
 	} while (len > 0);
 
@@ -1385,6 +1431,36 @@ skip_copy:
 		tp->ucopy.task = NULL;
 		tp->ucopy.len = 0;
 	}
+
+#ifdef CONFIG_NET_DMA
+	if (tp->ucopy.dma_chan) {
+		struct sk_buff *skb;
+		dma_cookie_t done, used;
+
+		dma_async_memcpy_issue_pending(tp->ucopy.dma_chan);
+
+		while (dma_async_memcpy_complete(tp->ucopy.dma_chan,
+		                                 tp->ucopy.dma_cookie, &done,
+		                                 &used) == DMA_IN_PROGRESS) {
+			/* do partial cleanup of sk_async_wait_queue */
+			while ((skb = skb_peek(&sk->sk_async_wait_queue)) &&
+			       (dma_async_is_complete(skb->dma_cookie, done,
+			                              used) == DMA_SUCCESS)) {
+				__skb_dequeue(&sk->sk_async_wait_queue);
+				kfree_skb(skb);
+			}
+		}
+
+		/* Safe to free early-copied skbs now */
+		__skb_queue_purge(&sk->sk_async_wait_queue);
+		dma_chan_put(tp->ucopy.dma_chan);
+		tp->ucopy.dma_chan = NULL;
+	}
+	if (tp->ucopy.pinned_list) {
+		dma_unpin_iovec_pages(tp->ucopy.pinned_list);
+		tp->ucopy.pinned_list = NULL;
+	}
+#endif
 
 	/* According to UNIX98, msg_name/msg_namelen are ignored
 	 * on connected socket. I was just happy when found this 8) --ANK
@@ -1658,6 +1734,9 @@ int tcp_disconnect(struct sock *sk, int flags)
 	__skb_queue_purge(&sk->sk_receive_queue);
 	sk_stream_writequeue_purge(sk);
 	__skb_queue_purge(&tp->out_of_order_queue);
+#ifdef CONFIG_NET_DMA
+	__skb_queue_purge(&sk->sk_async_wait_queue);
+#endif
 
 	inet->dport = 0;
 
