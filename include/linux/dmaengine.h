@@ -333,5 +333,27 @@ static inline enum dma_status dma_async_is_complete(dma_cookie_t cookie,
 int dma_async_device_register(struct dma_device *device);
 void dma_async_device_unregister(struct dma_device *device);
 
+/* --- Helper iov-locking functions --- */
+
+struct dma_page_list {
+	char *base_address;
+	int nr_pages;
+	struct page **pages;
+};
+
+struct dma_pinned_list {
+	int nr_iovecs;
+	struct dma_page_list page_list[0];
+};
+
+struct dma_pinned_list *dma_pin_iovec_pages(struct iovec *iov, size_t len);
+void dma_unpin_iovec_pages(struct dma_pinned_list* pinned_list);
+
+dma_cookie_t dma_memcpy_to_iovec(struct dma_chan *chan, struct iovec *iov,
+	struct dma_pinned_list *pinned_list, unsigned char *kdata, size_t len);
+dma_cookie_t dma_memcpy_pg_to_iovec(struct dma_chan *chan, struct iovec *iov,
+	struct dma_pinned_list *pinned_list, struct page *page,
+	unsigned int offset, size_t len);
+
 #endif /* CONFIG_DMA_ENGINE */
 #endif /* DMAENGINE_H */
