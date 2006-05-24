@@ -162,6 +162,8 @@ static void destroy_serial(struct kref *kref)
 		}
 	}
 
+	flush_scheduled_work();		/* port->work */
+
 	usb_put_dev(serial->dev);
 
 	/* free up any memory that we allocated */
