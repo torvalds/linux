@@ -3696,7 +3696,7 @@ static void ata_pio_sector(struct ata_queued_cmd *qc)
  *	ata_pio_sectors - Transfer one or many 512-byte sectors.
  *	@qc: Command on going
  *
- *	Transfer one or many ATA_SECT_SIZE of data from/to the 
+ *	Transfer one or many ATA_SECT_SIZE of data from/to the
  *	ATA device for the DRQ request.
  *
  *	LOCKING:
@@ -3973,6 +3973,8 @@ static void ata_hsm_qc_complete(struct ata_queued_cmd *qc, int in_wq)
 		} else
 			ata_qc_complete(qc);
 	}
+
+	ata_altstatus(ap); /* flush */
 }
 
 /**
