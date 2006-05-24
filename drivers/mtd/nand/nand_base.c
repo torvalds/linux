@@ -538,7 +538,8 @@ static void nand_command(struct mtd_info *mtd, unsigned int command,
 		udelay(chip->chip_delay);
 		chip->cmd_ctrl(mtd, NAND_CMD_STATUS,
 			       NAND_CTRL_CLE | NAND_CTRL_CHANGE);
-		chip->cmd_ctrl(mtd, NAND_CMD_NONE, NAND_NCE);
+		chip->cmd_ctrl(mtd,
+			       NAND_CMD_NONE, NAND_NCE | NAND_CTRL_CHANGE);
 		while (!(chip->read_byte(mtd) & NAND_STATUS_READY)) ;
 		return;
 
@@ -641,14 +642,18 @@ static void nand_command_lp(struct mtd_info *mtd, unsigned int command,
 		if (chip->dev_ready)
 			break;
 		udelay(chip->chip_delay);
-		chip->cmd_ctrl(mtd, NAND_CMD_STATUS, NAND_NCE | NAND_CLE);
-		chip->cmd_ctrl(mtd, NAND_CMD_NONE, NAND_NCE);
+		chip->cmd_ctrl(mtd, NAND_CMD_STATUS,
+			       NAND_NCE | NAND_CLE | NAND_CTRL_CHANGE);
+		chip->cmd_ctrl(mtd, NAND_CMD_NONE,
+			       NAND_NCE | NAND_CTRL_CHANGE);
 		while (!(chip->read_byte(mtd) & NAND_STATUS_READY)) ;
 		return;
 
 	case NAND_CMD_READ0:
-		chip->cmd_ctrl(mtd, NAND_CMD_READSTART, NAND_NCE | NAND_CLE);
-		chip->cmd_ctrl(mtd, NAND_CMD_NONE, NAND_NCE);
+		chip->cmd_ctrl(mtd, NAND_CMD_READSTART,
+			       NAND_NCE | NAND_CLE | NAND_CTRL_CHANGE);
+		chip->cmd_ctrl(mtd, NAND_CMD_NONE,
+			       NAND_NCE | NAND_CTRL_CHANGE);
 
 		/* This applies to read commands */
 	default:
