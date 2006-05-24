@@ -30,6 +30,10 @@
 #include <linux/rtnetlink.h> /* for BUG_TRAP */
 #include <net/tcp.h>
 
+#define NET_DMA_DEFAULT_COPYBREAK 4096
+
+int sysctl_tcp_dma_copybreak = NET_DMA_DEFAULT_COPYBREAK;
+
 /**
  *	dma_skb_copy_datagram_iovec - Copy a datagram to an iovec.
  *	@skb - buffer to copy
