@@ -213,6 +213,10 @@ extern int dir_notify_enable;
 #define FIBMAP	   _IO(0x00,1)	/* bmap access */
 #define FIGETBSZ   _IO(0x00,2)	/* get the block size used for bmap */
 
+#define SYNC_FILE_RANGE_WAIT_BEFORE	1
+#define SYNC_FILE_RANGE_WRITE		2
+#define SYNC_FILE_RANGE_WAIT_AFTER	4
+
 #ifdef __KERNEL__
 
 #include <linux/linkage.h>
@@ -758,9 +762,6 @@ extern int fcntl_setlease(unsigned int fd, struct file *filp, long arg);
 extern int fcntl_getlease(struct file *filp);
 
 /* fs/sync.c */
-#define SYNC_FILE_RANGE_WAIT_BEFORE	1
-#define SYNC_FILE_RANGE_WRITE		2
-#define SYNC_FILE_RANGE_WAIT_AFTER	4
 extern int do_sync_file_range(struct file *file, loff_t offset, loff_t endbyte,
 			unsigned int flags);
 

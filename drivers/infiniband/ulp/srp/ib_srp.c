@@ -340,7 +340,10 @@ static void srp_disconnect_target(struct srp_target_port *target)
 	/* XXX should send SRP_I_LOGOUT request */
 
 	init_completion(&target->done);
-	ib_send_cm_dreq(target->cm_id, NULL, 0);
+	if (ib_send_cm_dreq(target->cm_id, NULL, 0)) {
+		printk(KERN_DEBUG PFX "Sending CM DREQ failed\n");
+		return;
+	}
 	wait_for_completion(&target->done);
 }
 
@@ -351,7 +354,6 @@ static void srp_remove_work(void *target_ptr)
 	spin_lock_irq(target->scsi_host->host_lock);
 	if (target->state != SRP_TARGET_DEAD) {
 		spin_unlock_irq(target->scsi_host->host_lock);
-		scsi_host_put(target->scsi_host);
 		return;
 	}
 	target->state = SRP_TARGET_REMOVED;
@@ -364,8 +366,6 @@ static void srp_remove_work(void *target_ptr)
 	scsi_remove_host(target->scsi_host);
 	ib_destroy_cm_id(target->cm_id);
 	srp_free_target_ib(target);
-	scsi_host_put(target->scsi_host);
-	/* And another put to really free the target port... */
 	scsi_host_put(target->scsi_host);
 }
 
@@ -1241,7 +1241,7 @@ static int srp_reset_device(struct scsi_cmnd *scmnd)
 	list_for_each_entry_safe(req, tmp, &target->req_queue, list)
 		if (req->scmnd->device == scmnd->device) {
 			req->scmnd->result = DID_RESET << 16;
-			scmnd->scsi_done(scmnd);
+			req->scmnd->scsi_done(req->scmnd);
 			srp_remove_req(target, req);
 		}
 

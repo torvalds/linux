@@ -650,7 +650,7 @@ u32 __iomem *ipath_getpiobuf(struct ipath_devdata *, u32 *);
 void ipath_init_pe800_funcs(struct ipath_devdata *);
 /* init HT-400-specific func */
 void ipath_init_ht400_funcs(struct ipath_devdata *);
-void ipath_get_guid(struct ipath_devdata *);
+void ipath_get_eeprom_info(struct ipath_devdata *);
 u64 ipath_snap_cntr(struct ipath_devdata *, ipath_creg);
 
 /*

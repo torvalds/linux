@@ -22,26 +22,26 @@ config DVB
 source "drivers/media/dvb/dvb-core/Kconfig"
 
 comment "Supported SAA7146 based PCI Adapters"
-	depends on DVB_CORE && PCI
+	depends on DVB_CORE && PCI && I2C
 source "drivers/media/dvb/ttpci/Kconfig"
 
 comment "Supported USB Adapters"
-	depends on DVB_CORE && USB
+	depends on DVB_CORE && USB && I2C
 source "drivers/media/dvb/dvb-usb/Kconfig"
 source "drivers/media/dvb/ttusb-budget/Kconfig"
 source "drivers/media/dvb/ttusb-dec/Kconfig"
 source "drivers/media/dvb/cinergyT2/Kconfig"
 
 comment "Supported FlexCopII (B2C2) Adapters"
-	depends on DVB_CORE && (PCI || USB)
+	depends on DVB_CORE && (PCI || USB) && I2C
 source "drivers/media/dvb/b2c2/Kconfig"
 
 comment "Supported BT878 Adapters"
-	depends on DVB_CORE && PCI
+	depends on DVB_CORE && PCI && I2C
 source "drivers/media/dvb/bt8xx/Kconfig"
 
 comment "Supported Pluto2 Adapters"
-	depends on DVB_CORE && PCI
+	depends on DVB_CORE && PCI && I2C
 source "drivers/media/dvb/pluto2/Kconfig"
 
 comment "Supported DVB Frontends"

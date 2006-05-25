@@ -607,7 +607,12 @@ static int ipath_ht_boardname(struct ipath_devdata *dd, char *name,
 	case 4:		/* Ponderosa is one of the bringup boards */
 		n = "Ponderosa";
 		break;
-	case 5:		/* HT-460 original production board */
+	case 5:
+		/*
+		 * HT-460 original production board; two production levels, with
+		 * different serial number ranges.   See ipath_ht_early_init() for
+		 * case where we enable IPATH_GPIO_INTR for later serial # range.
+		 */
 		n = "InfiniPath_HT-460";
 		break;
 	case 6:
@@ -642,7 +647,7 @@ static int ipath_ht_boardname(struct ipath_devdata *dd, char *name,
 	if (n)
 		snprintf(name, namelen, "%s", n);
 
-	if (dd->ipath_majrev != 3 || dd->ipath_minrev != 2) {
+	if (dd->ipath_majrev != 3 || (dd->ipath_minrev < 2 || dd->ipath_minrev > 3)) {
 		/*
 		 * This version of the driver only supports the HT-400
 		 * Rev 3.2
@@ -1520,6 +1525,18 @@ static int ipath_ht_early_init(struct ipath_devdata *dd)
 	 */
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
 			 INFINIPATH_S_ABORT);
+
+	ipath_get_eeprom_info(dd);
+	if(dd->ipath_boardrev == 5 && dd->ipath_serial[0] == '1' &&
+		dd->ipath_serial[1] == '2' && dd->ipath_serial[2] == '8') {
+		/*
+		 * Later production HT-460 has same changes as HT-465, so
+		 * can use GPIO interrupts.  They have serial #'s starting
+		 * with 128, rather than 112.
+		 */
+		dd->ipath_flags |= IPATH_GPIO_INTR;
+		dd->ipath_flags &= ~IPATH_POLL_RX_INTR;
+	}
 	return 0;
 }
 

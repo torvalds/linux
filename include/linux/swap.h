@@ -296,7 +296,7 @@ static inline void disable_swap_token(void)
 #define read_swap_cache_async(swp,vma,addr)	NULL
 #define lookup_swap_cache(swp)			NULL
 #define valid_swaphandles(swp, off)		0
-#define can_share_swap_page(p)			0
+#define can_share_swap_page(p)			(page_mapcount(p) == 1)
 #define move_to_swap_cache(p, swp)		1
 #define move_from_swap_cache(p, i, m)		1
 #define __delete_from_swap_cache(p)		/*NOTHING*/

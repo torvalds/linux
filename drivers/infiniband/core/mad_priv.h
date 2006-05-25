@@ -37,6 +37,7 @@
 #ifndef __IB_MAD_PRIV_H__
 #define __IB_MAD_PRIV_H__
 
+#include <linux/completion.h>
 #include <linux/pci.h>
 #include <linux/kthread.h>
 #include <linux/workqueue.h>
@@ -108,7 +109,7 @@ struct ib_mad_agent_private {
 	struct list_head rmpp_list;
 
 	atomic_t refcount;
-	wait_queue_head_t wait;
+	struct completion comp;
 };
 
 struct ib_mad_snoop_private {
@@ -117,7 +118,7 @@ struct ib_mad_snoop_private {
 	int snoop_index;
 	int mad_snoop_flags;
 	atomic_t refcount;
-	wait_queue_head_t wait;
+	struct completion comp;
 };
 
 struct ib_mad_send_wr_private {

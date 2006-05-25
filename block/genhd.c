@@ -182,7 +182,6 @@ static int exact_lock(dev_t dev, void *data)
  */
 void add_disk(struct gendisk *disk)
 {
-	get_device(disk->driverfs_dev);
 	disk->flags |= GENHD_FL_UP;
 	blk_register_region(MKDEV(disk->major, disk->first_minor),
 			    disk->minors, NULL, exact_match, exact_lock, disk);
@@ -428,7 +427,6 @@ static struct attribute * default_attrs[] = {
 static void disk_release(struct kobject * kobj)
 {
 	struct gendisk *disk = to_disk(kobj);
-	put_device(disk->driverfs_dev);
 	kfree(disk->random);
 	kfree(disk->part);
 	free_disk_stats(disk);

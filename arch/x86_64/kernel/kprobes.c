@@ -514,13 +514,13 @@ static void __kprobes resume_execution(struct kprobe *p,
 		*tos = orig_rip + (*tos - copy_rip);
 		break;
 	case 0xff:
-		if ((*insn & 0x30) == 0x10) {
+		if ((insn[1] & 0x30) == 0x10) {
 			/* call absolute, indirect */
 			/* Fix return addr; rip is correct. */
 			next_rip = regs->rip;
 			*tos = orig_rip + (*tos - copy_rip);
-		} else if (((*insn & 0x31) == 0x20) ||	/* jmp near, absolute indirect */
-			   ((*insn & 0x31) == 0x21)) {	/* jmp far, absolute indirect */
+		} else if (((insn[1] & 0x31) == 0x20) ||	/* jmp near, absolute indirect */
+			   ((insn[1] & 0x31) == 0x21)) {	/* jmp far, absolute indirect */
 			/* rip is correct. */
 			next_rip = regs->rip;
 		}

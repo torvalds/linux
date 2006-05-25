@@ -960,7 +960,7 @@ static struct ac97_mixer_value_list mixer_defaults[] = {
 
 
 /* Installs the AC97 mixer into CARD.  */
-static int __init
+static int __devinit
 nm256_install_mixer (struct nm256_info *card)
 {
     int mixer;
@@ -995,7 +995,7 @@ nm256_install_mixer (struct nm256_info *card)
  * RAM.
  */
 
-static void __init
+static void __devinit
 nm256_peek_for_sig (struct nm256_info *card)
 {
     u32 port1offset 
@@ -1056,7 +1056,7 @@ nm256_install(struct pci_dev *pcidev, enum nm256rev rev, char *verstr)
     card->playing  = 0;
     card->recording = 0;
     card->rev = rev;
-	spin_lock_init(&card->lock);
+    spin_lock_init(&card->lock);
 
     /* Init the memory port info.  */
     for (x = 0; x < 2; x++) {

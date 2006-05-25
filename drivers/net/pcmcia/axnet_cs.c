@@ -1691,17 +1691,6 @@ static void do_set_multicast_list(struct net_device *dev)
 		memset(ei_local->mcfilter, 0xFF, 8);
 	}
 
-	/* 
-	 * DP8390 manuals don't specify any magic sequence for altering
-	 * the multicast regs on an already running card. To be safe, we
-	 * ensure multicast mode is off prior to loading up the new hash
-	 * table. If this proves to be not enough, we can always resort
-	 * to stopping the NIC, loading the table and then restarting.
-	 */
-	 
-	if (netif_running(dev))
-		outb_p(E8390_RXCONFIG, e8390_base + EN0_RXCR);
-
 	outb_p(E8390_NODMA + E8390_PAGE1, e8390_base + E8390_CMD);
 	for(i = 0; i < 8; i++) 
 	{
@@ -1715,6 +1704,8 @@ static void do_set_multicast_list(struct net_device *dev)
   		outb_p(E8390_RXCONFIG | 0x48, e8390_base + EN0_RXCR);
   	else
   		outb_p(E8390_RXCONFIG | 0x40, e8390_base + EN0_RXCR);
+
+	outb_p(E8390_NODMA+E8390_PAGE0+E8390_START, e8390_base+E8390_CMD);
 }
 
 /*

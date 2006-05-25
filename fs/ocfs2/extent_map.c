@@ -569,7 +569,7 @@ static int ocfs2_extent_map_insert(struct inode *inode,
 
 	ret = -ENOMEM;
 	ctxt.new_ent = kmem_cache_alloc(ocfs2_em_ent_cachep,
-					GFP_KERNEL);
+					GFP_NOFS);
 	if (!ctxt.new_ent) {
 		mlog_errno(ret);
 		return ret;
@@ -583,14 +583,14 @@ static int ocfs2_extent_map_insert(struct inode *inode,
 		if (ctxt.need_left && !ctxt.left_ent) {
 			ctxt.left_ent =
 				kmem_cache_alloc(ocfs2_em_ent_cachep,
-						 GFP_KERNEL);
+						 GFP_NOFS);
 			if (!ctxt.left_ent)
 				break;
 		}
 		if (ctxt.need_right && !ctxt.right_ent) {
 			ctxt.right_ent =
 				kmem_cache_alloc(ocfs2_em_ent_cachep,
-						 GFP_KERNEL);
+						 GFP_NOFS);
 			if (!ctxt.right_ent)
 				break;
 		}

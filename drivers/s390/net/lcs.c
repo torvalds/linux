@@ -1348,7 +1348,7 @@ lcs_irq(struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 		index = (struct ccw1 *) __va((addr_t) irb->scsw.cpa) 
 			- channel->ccws;
 		if ((irb->scsw.actl & SCSW_ACTL_SUSPENDED) ||
-		    (irb->scsw.cstat | SCHN_STAT_PCI))
+		    (irb->scsw.cstat & SCHN_STAT_PCI))
 			/* Bloody io subsystem tells us lies about cpa... */
 			index = (index - 1) & (LCS_NUM_BUFFS - 1);
 		while (channel->io_idx != index) {

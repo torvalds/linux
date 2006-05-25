@@ -650,9 +650,11 @@ static int b44_alloc_rx_skb(struct b44 *bp, int src_idx, u32 dest_idx_unmasked)
 
 	/* Hardware bug work-around, the chip is unable to do PCI DMA
 	   to/from anything above 1GB :-( */
-	if (mapping + RX_PKT_BUF_SZ > B44_DMA_MASK) {
+	if (dma_mapping_error(mapping) ||
+		mapping + RX_PKT_BUF_SZ > B44_DMA_MASK) {
 		/* Sigh... */
-		pci_unmap_single(bp->pdev, mapping, RX_PKT_BUF_SZ,PCI_DMA_FROMDEVICE);
+		if (!dma_mapping_error(mapping))
+			pci_unmap_single(bp->pdev, mapping, RX_PKT_BUF_SZ,PCI_DMA_FROMDEVICE);
 		dev_kfree_skb_any(skb);
 		skb = __dev_alloc_skb(RX_PKT_BUF_SZ,GFP_DMA);
 		if (skb == NULL)
@@ -660,8 +662,10 @@ static int b44_alloc_rx_skb(struct b44 *bp, int src_idx, u32 dest_idx_unmasked)
 		mapping = pci_map_single(bp->pdev, skb->data,
 					 RX_PKT_BUF_SZ,
 					 PCI_DMA_FROMDEVICE);
-		if (mapping + RX_PKT_BUF_SZ > B44_DMA_MASK) {
-			pci_unmap_single(bp->pdev, mapping, RX_PKT_BUF_SZ,PCI_DMA_FROMDEVICE);
+		if (dma_mapping_error(mapping) ||
+			mapping + RX_PKT_BUF_SZ > B44_DMA_MASK) {
+			if (!dma_mapping_error(mapping))
+				pci_unmap_single(bp->pdev, mapping, RX_PKT_BUF_SZ,PCI_DMA_FROMDEVICE);
 			dev_kfree_skb_any(skb);
 			return -ENOMEM;
 		}
@@ -967,9 +971,10 @@ static int b44_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	mapping = pci_map_single(bp->pdev, skb->data, len, PCI_DMA_TODEVICE);
-	if (mapping + len > B44_DMA_MASK) {
+	if (dma_mapping_error(mapping) || mapping + len > B44_DMA_MASK) {
 		/* Chip can't handle DMA to/from >1GB, use bounce buffer */
-		pci_unmap_single(bp->pdev, mapping, len, PCI_DMA_TODEVICE);
+		if (!dma_mapping_error(mapping))
+			pci_unmap_single(bp->pdev, mapping, len, PCI_DMA_TODEVICE);
 
 		bounce_skb = __dev_alloc_skb(TX_PKT_BUF_SZ,
 					     GFP_ATOMIC|GFP_DMA);
@@ -978,8 +983,9 @@ static int b44_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		mapping = pci_map_single(bp->pdev, bounce_skb->data,
 					 len, PCI_DMA_TODEVICE);
-		if (mapping + len > B44_DMA_MASK) {
-			pci_unmap_single(bp->pdev, mapping,
+		if (dma_mapping_error(mapping) || mapping + len > B44_DMA_MASK) {
+			if (!dma_mapping_error(mapping))
+				pci_unmap_single(bp->pdev, mapping,
 					 len, PCI_DMA_TODEVICE);
 			dev_kfree_skb_any(bounce_skb);
 			goto err_out;
@@ -1203,7 +1209,8 @@ static int b44_alloc_consistent(struct b44 *bp)
 		                             DMA_TABLE_BYTES,
 		                             DMA_BIDIRECTIONAL);
 
-		if (rx_ring_dma + size > B44_DMA_MASK) {
+		if (dma_mapping_error(rx_ring_dma) ||
+			rx_ring_dma + size > B44_DMA_MASK) {
 			kfree(rx_ring);
 			goto out_err;
 		}
@@ -1229,7 +1236,8 @@ static int b44_alloc_consistent(struct b44 *bp)
 		                             DMA_TABLE_BYTES,
 		                             DMA_TO_DEVICE);
 
-		if (tx_ring_dma + size > B44_DMA_MASK) {
+		if (dma_mapping_error(tx_ring_dma) ||
+			tx_ring_dma + size > B44_DMA_MASK) {
 			kfree(tx_ring);
 			goto out_err;
 		}

@@ -29,12 +29,15 @@ static ssize_t backlight_show_power(struct class_device *cdev, char *buf)
 
 static ssize_t backlight_store_power(struct class_device *cdev, const char *buf, size_t count)
 {
-	int rc = -ENXIO, power;
+	int rc = -ENXIO;
 	char *endp;
 	struct backlight_device *bd = to_backlight_device(cdev);
+	int power = simple_strtoul(buf, &endp, 0);
+	size_t size = endp - buf;
 
-	power = simple_strtoul(buf, &endp, 0);
-	if (*endp && !isspace(*endp))
+	if (*endp && isspace(*endp))
+		size++;
+	if (size != count)
 		return -EINVAL;
 
 	down(&bd->sem);
@@ -65,12 +68,15 @@ static ssize_t backlight_show_brightness(struct class_device *cdev, char *buf)
 
 static ssize_t backlight_store_brightness(struct class_device *cdev, const char *buf, size_t count)
 {
-	int rc = -ENXIO, brightness;
+	int rc = -ENXIO;
 	char *endp;
 	struct backlight_device *bd = to_backlight_device(cdev);
+	int brightness = simple_strtoul(buf, &endp, 0);
+	size_t size = endp - buf;
 
-	brightness = simple_strtoul(buf, &endp, 0);
-	if (*endp && !isspace(*endp))
+	if (*endp && isspace(*endp))
+		size++;
+	if (size != count)
 		return -EINVAL;
 
 	down(&bd->sem);

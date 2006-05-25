@@ -12,9 +12,10 @@ static int
 check_addr(char *name, struct device *hwdev, dma_addr_t bus, size_t size)
 {
         if (hwdev && bus + size > *hwdev->dma_mask) {
-		printk(KERN_ERR
-		    "nommu_%s: overflow %Lx+%lu of device mask %Lx\n",
-	       name, (long long)bus, size, (long long)*hwdev->dma_mask);
+		if (*hwdev->dma_mask >= 0xffffffffULL)
+			printk(KERN_ERR
+			    "nommu_%s: overflow %Lx+%lu of device mask %Lx\n",
+	       			name, (long long)bus, size, (long long)*hwdev->dma_mask);
 		return 0;
 	}
 	return 1;

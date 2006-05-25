@@ -102,6 +102,8 @@ static inline void preempt_conditional_cli(struct pt_regs *regs)
 {
 	if (regs->eflags & X86_EFLAGS_IF)
 		local_irq_disable();
+	/* Make sure to not schedule here because we could be running
+	   on an exception stack. */
 	preempt_enable_no_resched();
 }
 
@@ -483,8 +485,6 @@ static void __kprobes do_trap(int trapnr, int signr, char *str,
 {
 	struct task_struct *tsk = current;
 
-	conditional_sti(regs);
-
 	tsk->thread.error_code = error_code;
 	tsk->thread.trap_no = trapnr;
 
@@ -521,6 +521,7 @@ asmlinkage void do_##name(struct pt_regs * regs, long error_code) \
 	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, signr) \
 							== NOTIFY_STOP) \
 		return; \
+	conditional_sti(regs);						\
 	do_trap(trapnr, signr, str, regs, error_code, NULL); \
 }
 
@@ -535,6 +536,7 @@ asmlinkage void do_##name(struct pt_regs * regs, long error_code) \
 	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, signr) \
 							== NOTIFY_STOP) \
 		return; \
+	conditional_sti(regs);						\
 	do_trap(trapnr, signr, str, regs, error_code, &info); \
 }
 
@@ -548,7 +550,17 @@ DO_ERROR(10, SIGSEGV, "invalid TSS", invalid_TSS)
 DO_ERROR(11, SIGBUS,  "segment not present", segment_not_present)
 DO_ERROR_INFO(17, SIGBUS, "alignment check", alignment_check, BUS_ADRALN, 0)
 DO_ERROR(18, SIGSEGV, "reserved", reserved)
-DO_ERROR(12, SIGBUS,  "stack segment", stack_segment)
+
+/* Runs on IST stack */
+asmlinkage void do_stack_segment(struct pt_regs *regs, long error_code)
+{
+	if (notify_die(DIE_TRAP, "stack segment", regs, error_code,
+			12, SIGBUS) == NOTIFY_STOP)
+		return;
+	preempt_conditional_sti(regs);
+	do_trap(12, SIGBUS, "stack segment", regs, error_code, NULL);
+	preempt_conditional_cli(regs);
+}
 
 asmlinkage void do_double_fault(struct pt_regs * regs, long error_code)
 {
@@ -682,8 +694,9 @@ asmlinkage void __kprobes do_int3(struct pt_regs * regs, long error_code)
 	if (notify_die(DIE_INT3, "int3", regs, error_code, 3, SIGTRAP) == NOTIFY_STOP) {
 		return;
 	}
+	preempt_conditional_sti(regs);
 	do_trap(3, SIGTRAP, "int3", regs, error_code, NULL);
-	return;
+	preempt_conditional_cli(regs);
 }
 
 /* Help handler running on IST stack to switch back to user stack

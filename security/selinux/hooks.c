@@ -3231,7 +3231,7 @@ static int selinux_socket_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
 		goto out;
 
 	/* Handle mapped IPv4 packets arriving via IPv6 sockets */
-	if (family == PF_INET6 && skb->protocol == ntohs(ETH_P_IP))
+	if (family == PF_INET6 && skb->protocol == htons(ETH_P_IP))
 		family = PF_INET;
 
  	read_lock_bh(&sk->sk_callback_lock);

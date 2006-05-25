@@ -710,8 +710,8 @@ static int gigaset_probe(struct usb_interface *interface,
 	retval = -ENODEV; //FIXME
 
 	/* See if the device offered us matches what we can accept */
-	if ((le16_to_cpu(udev->descriptor.idVendor  != USB_M105_VENDOR_ID)) ||
-	    (le16_to_cpu(udev->descriptor.idProduct != USB_M105_PRODUCT_ID)))
+	if ((le16_to_cpu(udev->descriptor.idVendor)  != USB_M105_VENDOR_ID) ||
+	    (le16_to_cpu(udev->descriptor.idProduct) != USB_M105_PRODUCT_ID))
 		return -ENODEV;
 
 	/* this starts to become ascii art... */

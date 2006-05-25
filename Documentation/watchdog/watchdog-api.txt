@@ -36,6 +36,9 @@ timeout or margin.  The simplest way to ping the watchdog is to write
 some data to the device.  So a very simple watchdog daemon would look
 like this:
 
+#include <stdlib.h>
+#include <fcntl.h>
+
 int main(int argc, const char *argv[]) {
 	int fd=open("/dev/watchdog",O_WRONLY);
 	if (fd==-1) {

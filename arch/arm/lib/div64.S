@@ -189,12 +189,12 @@ ENTRY(__do_div64)
 	moveq	pc, lr
 
 	@ Division by 0:
-	str	lr, [sp, #-4]!
+	str	lr, [sp, #-8]!
 	bl	__div0
 
 	@ as wrong as it could be...
 	mov	yl, #0
 	mov	yh, #0
 	mov	xh, #0
-	ldr	pc, [sp], #4
+	ldr	pc, [sp], #8
 

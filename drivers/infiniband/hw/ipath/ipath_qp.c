@@ -375,10 +375,10 @@ static void ipath_error_qp(struct ipath_qp *qp)
 
 	spin_lock(&dev->pending_lock);
 	/* XXX What if its already removed by the timeout code? */
-	if (qp->timerwait.next != LIST_POISON1)
-		list_del(&qp->timerwait);
-	if (qp->piowait.next != LIST_POISON1)
-		list_del(&qp->piowait);
+	if (!list_empty(&qp->timerwait))
+		list_del_init(&qp->timerwait);
+	if (!list_empty(&qp->piowait))
+		list_del_init(&qp->piowait);
 	spin_unlock(&dev->pending_lock);
 
 	wc.status = IB_WC_WR_FLUSH_ERR;
@@ -427,6 +427,7 @@ static void ipath_error_qp(struct ipath_qp *qp)
 int ipath_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		    int attr_mask)
 {
+	struct ipath_ibdev *dev = to_idev(ibqp->device);
 	struct ipath_qp *qp = to_iqp(ibqp);
 	enum ib_qp_state cur_state, new_state;
 	unsigned long flags;
@@ -443,6 +444,19 @@ int ipath_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 				attr_mask))
 		goto inval;
 
+	if (attr_mask & IB_QP_AV)
+		if (attr->ah_attr.dlid == 0 ||
+		    attr->ah_attr.dlid >= IPS_MULTICAST_LID_BASE)
+			goto inval;
+
+	if (attr_mask & IB_QP_PKEY_INDEX)
+		if (attr->pkey_index >= ipath_layer_get_npkeys(dev->dd))
+			goto inval;
+
+	if (attr_mask & IB_QP_MIN_RNR_TIMER)
+		if (attr->min_rnr_timer > 31)
+			goto inval;
+
 	switch (new_state) {
 	case IB_QPS_RESET:
 		ipath_reset_qp(qp);
@@ -457,13 +471,8 @@ int ipath_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 	}
 
-	if (attr_mask & IB_QP_PKEY_INDEX) {
-		struct ipath_ibdev *dev = to_idev(ibqp->device);
-
-		if (attr->pkey_index >= ipath_layer_get_npkeys(dev->dd))
-			goto inval;
+	if (attr_mask & IB_QP_PKEY_INDEX)
 		qp->s_pkey_index = attr->pkey_index;
-	}
 
 	if (attr_mask & IB_QP_DEST_QPN)
 		qp->remote_qpn = attr->dest_qp_num;
@@ -479,12 +488,8 @@ int ipath_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	if (attr_mask & IB_QP_ACCESS_FLAGS)
 		qp->qp_access_flags = attr->qp_access_flags;
 
-	if (attr_mask & IB_QP_AV) {
-		if (attr->ah_attr.dlid == 0 ||
-		    attr->ah_attr.dlid >= IPS_MULTICAST_LID_BASE)
-			goto inval;
+	if (attr_mask & IB_QP_AV)
 		qp->remote_ah_attr = attr->ah_attr;
-	}
 
 	if (attr_mask & IB_QP_PATH_MTU)
 		qp->path_mtu = attr->path_mtu;
@@ -499,11 +504,8 @@ int ipath_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		qp->s_rnr_retry_cnt = qp->s_rnr_retry;
 	}
 
-	if (attr_mask & IB_QP_MIN_RNR_TIMER) {
-		if (attr->min_rnr_timer > 31)
-			goto inval;
+	if (attr_mask & IB_QP_MIN_RNR_TIMER)
 		qp->s_min_rnr_timer = attr->min_rnr_timer;
-	}
 
 	if (attr_mask & IB_QP_QKEY)
 		qp->qkey = attr->qkey;
@@ -710,10 +712,8 @@ struct ib_qp *ipath_create_qp(struct ib_pd *ibpd,
 			     init_attr->qp_type == IB_QPT_RC ?
 			     ipath_do_rc_send : ipath_do_uc_send,
 			     (unsigned long)qp);
-		qp->piowait.next = LIST_POISON1;
-		qp->piowait.prev = LIST_POISON2;
-		qp->timerwait.next = LIST_POISON1;
-		qp->timerwait.prev = LIST_POISON2;
+		INIT_LIST_HEAD(&qp->piowait);
+		INIT_LIST_HEAD(&qp->timerwait);
 		qp->state = IB_QPS_RESET;
 		qp->s_wq = swq;
 		qp->s_size = init_attr->cap.max_send_wr + 1;
@@ -734,7 +734,7 @@ struct ib_qp *ipath_create_qp(struct ib_pd *ibpd,
 		ipath_reset_qp(qp);
 
 		/* Tell the core driver that the kernel SMA is present. */
-		if (qp->ibqp.qp_type == IB_QPT_SMI)
+		if (init_attr->qp_type == IB_QPT_SMI)
 			ipath_layer_set_verbs_flags(dev->dd,
 						    IPATH_VERBS_KERNEL_SMA);
 		break;
@@ -783,10 +783,10 @@ int ipath_destroy_qp(struct ib_qp *ibqp)
 
 	/* Make sure the QP isn't on the timeout list. */
 	spin_lock_irqsave(&dev->pending_lock, flags);
-	if (qp->timerwait.next != LIST_POISON1)
-		list_del(&qp->timerwait);
-	if (qp->piowait.next != LIST_POISON1)
-		list_del(&qp->piowait);
+	if (!list_empty(&qp->timerwait))
+		list_del_init(&qp->timerwait);
+	if (!list_empty(&qp->piowait))
+		list_del_init(&qp->piowait);
 	spin_unlock_irqrestore(&dev->pending_lock, flags);
 
 	/*
@@ -855,10 +855,10 @@ void ipath_sqerror_qp(struct ipath_qp *qp, struct ib_wc *wc)
 
 	spin_lock(&dev->pending_lock);
 	/* XXX What if its already removed by the timeout code? */
-	if (qp->timerwait.next != LIST_POISON1)
-		list_del(&qp->timerwait);
-	if (qp->piowait.next != LIST_POISON1)
-		list_del(&qp->piowait);
+	if (!list_empty(&qp->timerwait))
+		list_del_init(&qp->timerwait);
+	if (!list_empty(&qp->piowait))
+		list_del_init(&qp->piowait);
 	spin_unlock(&dev->pending_lock);
 
 	ipath_cq_enter(to_icq(qp->ibqp.send_cq), wc, 1);

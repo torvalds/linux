@@ -136,9 +136,7 @@ int ipath_lkey_ok(struct ipath_lkey_table *rkt, struct ipath_sge *isge,
 		ret = 1;
 		goto bail;
 	}
-	spin_lock(&rkt->lock);
 	mr = rkt->table[(sge->lkey >> (32 - ib_ipath_lkey_table_size))];
-	spin_unlock(&rkt->lock);
 	if (unlikely(mr == NULL || mr->lkey != sge->lkey)) {
 		ret = 0;
 		goto bail;
@@ -184,8 +182,6 @@ bail:
  * @acc: access flags
  *
  * Return 1 if successful, otherwise 0.
- *
- * The QP r_rq.lock should be held.
  */
 int ipath_rkey_ok(struct ipath_ibdev *dev, struct ipath_sge_state *ss,
 		  u32 len, u64 vaddr, u32 rkey, int acc)
@@ -196,9 +192,7 @@ int ipath_rkey_ok(struct ipath_ibdev *dev, struct ipath_sge_state *ss,
 	size_t off;
 	int ret;
 
-	spin_lock(&rkt->lock);
 	mr = rkt->table[(rkey >> (32 - ib_ipath_lkey_table_size))];
-	spin_unlock(&rkt->lock);
 	if (unlikely(mr == NULL || mr->lkey != rkey)) {
 		ret = 0;
 		goto bail;

@@ -8,21 +8,53 @@ config VIDEO_DEV
 	tristate "Video For Linux"
 	---help---
 	  Support for audio/video capture and overlay devices and FM radio
-	  cards. The exact capabilities of each device vary. User tools for
-	  this are available from
-	  <ftp://ftp.uk.linux.org/pub/linux/video4linux/>.
+	  cards. The exact capabilities of each device vary.
 
 	  This kernel includes support for the new Video for Linux Two API,
 	  (V4L2) as well as the original system. Drivers and applications
 	  need to be rewritten to use V4L2, but drivers for popular cards
 	  and applications for most video capture functions already exist.
 
-	  Documentation for the original API is included in the file
-	  <file:Documentation/video4linux/API.html>.  Documentation for V4L2 is
-	  available on the web at <http://bytesex.org/v4l/>.
+	  Additional info and docs are available on the web at
+	  <http://linuxtv.org>
+
+	  Documentation for V4L2 is also available on the web at
+	  <http://bytesex.org/v4l/>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called videodev.
+
+config VIDEO_V4L1
+	boolean "Enable Video For Linux API 1 (DEPRECATED)"
+	depends on VIDEO_DEV
+	select VIDEO_V4L1_COMPAT
+	default y
+	---help---
+	  Enables a compatibility API used by most V4L2 devices to allow
+	  its usage with legacy applications that supports only V4L1 api.
+
+	  If you are unsure as to whether this is required, answer Y.
+
+config VIDEO_V4L1_COMPAT
+	boolean "Enable Video For Linux API 1 compatible Layer"
+	depends on VIDEO_DEV
+	default y
+	---help---
+	  This api were developed to be used at Kernel 2.2 and 2.4, but
+	  lacks support for several video standards. There are several
+	  drivers at kernel that still depends on it.
+
+	  Documentation for the original API is included in the file
+	  <Documentation/video4linux/API.html>.
+
+	  User tools for this are available from
+	  <ftp://ftp.uk.linux.org/pub/linux/video4linux/>.
+
+	  If you are unsure as to whether this is required, answer Y.
+
+config VIDEO_V4L2
+	tristate
+	default y
 
 source "drivers/media/video/Kconfig"
 
@@ -65,4 +97,3 @@ config USB_DABUSB
 	  module will be called dabusb.
 
 endmenu
-

@@ -106,6 +106,8 @@ struct dvb_frontend_private {
 	unsigned long tune_mode_flags;
 	unsigned int delay;
 	unsigned int reinitialise;
+	int tone;
+	int voltage;
 
 	/* swzigzag values */
 	unsigned int state;
@@ -537,6 +539,12 @@ static int dvb_frontend_thread(void *data)
 
 		if (fepriv->reinitialise) {
 			dvb_frontend_init(fe);
+			if (fepriv->tone != -1) {
+				fe->ops->set_tone(fe, fepriv->tone);
+			}
+			if (fepriv->voltage != -1) {
+				fe->ops->set_voltage(fe, fepriv->voltage);
+			}
 			fepriv->reinitialise = 0;
 		}
 
@@ -788,6 +796,7 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 	case FE_SET_TONE:
 		if (fe->ops->set_tone) {
 			err = fe->ops->set_tone(fe, (fe_sec_tone_mode_t) parg);
+			fepriv->tone = (fe_sec_tone_mode_t) parg;
 			fepriv->state = FESTATE_DISEQC;
 			fepriv->status = 0;
 		}
@@ -796,6 +805,7 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 	case FE_SET_VOLTAGE:
 		if (fe->ops->set_voltage) {
 			err = fe->ops->set_voltage(fe, (fe_sec_voltage_t) parg);
+			fepriv->voltage = (fe_sec_voltage_t) parg;
 			fepriv->state = FESTATE_DISEQC;
 			fepriv->status = 0;
 		}
@@ -995,6 +1005,8 @@ static int dvb_frontend_open(struct inode *inode, struct file *file)
 
 		/* normal tune mode when opened R/W */
 		fepriv->tune_mode_flags &= ~FE_TUNE_MODE_ONESHOT;
+		fepriv->tone = -1;
+		fepriv->voltage = -1;
 	}
 
 	return ret;
