@@ -79,7 +79,7 @@ static ssize_t show_memcpy_count(struct class_device *cd, char *buf)
 	unsigned long count = 0;
 	int i;
 
-	for_each_cpu(i)
+	for_each_possible_cpu(i)
 		count += per_cpu_ptr(chan->local, i)->memcpy_count;
 
 	return sprintf(buf, "%lu\n", count);
@@ -91,7 +91,7 @@ static ssize_t show_bytes_transferred(struct class_device *cd, char *buf)
 	unsigned long count = 0;
 	int i;
 
-	for_each_cpu(i)
+	for_each_possible_cpu(i)
 		count += per_cpu_ptr(chan->local, i)->bytes_transferred;
 
 	return sprintf(buf, "%lu\n", count);
@@ -182,7 +182,7 @@ static void dma_chan_free_rcu(struct rcu_head *rcu)
 	struct dma_chan *chan = container_of(rcu, struct dma_chan, rcu);
 	int bias = 0x7FFFFFFF;
 	int i;
-	for_each_cpu(i)
+	for_each_possible_cpu(i)
 		bias -= local_read(&per_cpu_ptr(chan->local, i)->refcount);
 	atomic_sub(bias, &chan->refcount.refcount);
 	kref_put(&chan->refcount, dma_chan_cleanup);
