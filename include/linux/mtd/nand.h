@@ -159,6 +159,10 @@ typedef enum {
  * bits from adjacent blocks from 'leaking' in altering data.
  * This happens with the Renesas AG-AND chips, possibly others.  */
 #define BBT_AUTO_REFRESH	0x00000080
+/* Chip does not require ready check on read. True
+ * for all large page devices, as they do not support
+ * autoincrement.*/
+#define NAND_NO_READRDY		0x00000100
 
 /* Options valid for Samsung large page devices */
 #define NAND_SAMSUNG_LP_OPTIONS \
