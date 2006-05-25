@@ -64,7 +64,7 @@ struct ib_ucm_device {
 };
 
 struct ib_ucm_file {
-	struct semaphore mutex;
+	struct mutex file_mutex;
 	struct file *filp;
 	struct ib_ucm_device *device;
 
@@ -153,7 +153,7 @@ static void ib_ucm_cleanup_events(struct ib_ucm_context *ctx)
 {
 	struct ib_ucm_event *uevent;
 
-	down(&ctx->file->mutex);
+	mutex_lock(&ctx->file->file_mutex);
 	list_del(&ctx->file_list);
 	while (!list_empty(&ctx->events)) {
 
@@ -168,7 +168,7 @@ static void ib_ucm_cleanup_events(struct ib_ucm_context *ctx)
 
 		kfree(uevent);
 	}
-	up(&ctx->file->mutex);
+	mutex_unlock(&ctx->file->file_mutex);
 }
 
 static struct ib_ucm_context *ib_ucm_ctx_alloc(struct ib_ucm_file *file)
@@ -375,11 +375,11 @@ static int ib_ucm_event_handler(struct ib_cm_id *cm_id,
 	if (result)
 		goto err2;
 
-	down(&ctx->file->mutex);
+	mutex_lock(&ctx->file->file_mutex);
 	list_add_tail(&uevent->file_list, &ctx->file->events);
 	list_add_tail(&uevent->ctx_list, &ctx->events);
 	wake_up_interruptible(&ctx->file->poll_wait);
-	up(&ctx->file->mutex);
+	mutex_unlock(&ctx->file->file_mutex);
 	return 0;
 
 err2:
@@ -405,7 +405,7 @@ static ssize_t ib_ucm_event(struct ib_ucm_file *file,
 	if (copy_from_user(&cmd, inbuf, sizeof(cmd)))
 		return -EFAULT;
 
-	down(&file->mutex);
+	mutex_lock(&file->file_mutex);
 	while (list_empty(&file->events)) {
 
 		if (file->filp->f_flags & O_NONBLOCK) {
@@ -420,9 +420,9 @@ static ssize_t ib_ucm_event(struct ib_ucm_file *file,
 
 		prepare_to_wait(&file->poll_wait, &wait, TASK_INTERRUPTIBLE);
 
-		up(&file->mutex);
+		mutex_unlock(&file->file_mutex);
 		schedule();
-		down(&file->mutex);
+		mutex_lock(&file->file_mutex);
 
 		finish_wait(&file->poll_wait, &wait);
 	}
@@ -482,7 +482,7 @@ static ssize_t ib_ucm_event(struct ib_ucm_file *file,
 	kfree(uevent->info);
 	kfree(uevent);
 done:
-	up(&file->mutex);
+	mutex_unlock(&file->file_mutex);
 	return result;
 }
 
@@ -501,9 +501,9 @@ static ssize_t ib_ucm_create_id(struct ib_ucm_file *file,
 	if (copy_from_user(&cmd, inbuf, sizeof(cmd)))
 		return -EFAULT;
 
-	down(&file->mutex);
+	mutex_lock(&file->file_mutex);
 	ctx = ib_ucm_ctx_alloc(file);
-	up(&file->mutex);
+	mutex_unlock(&file->file_mutex);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -1177,7 +1177,7 @@ static int ib_ucm_open(struct inode *inode, struct file *filp)
 	INIT_LIST_HEAD(&file->ctxs);
 	init_waitqueue_head(&file->poll_wait);
 
-	init_MUTEX(&file->mutex);
+	mutex_init(&file->file_mutex);
 
 	filp->private_data = file;
 	file->filp = filp;
@@ -1191,11 +1191,11 @@ static int ib_ucm_close(struct inode *inode, struct file *filp)
 	struct ib_ucm_file *file = filp->private_data;
 	struct ib_ucm_context *ctx;
 
-	down(&file->mutex);
+	mutex_lock(&file->file_mutex);
 	while (!list_empty(&file->ctxs)) {
 		ctx = list_entry(file->ctxs.next,
 				 struct ib_ucm_context, file_list);
-		up(&file->mutex);
+		mutex_unlock(&file->file_mutex);
 
 		mutex_lock(&ctx_id_mutex);
 		idr_remove(&ctx_id_table, ctx->id);
@@ -1205,9 +1205,9 @@ static int ib_ucm_close(struct inode *inode, struct file *filp)
 		ib_ucm_cleanup_events(ctx);
 		kfree(ctx);
 
-		down(&file->mutex);
+		mutex_lock(&file->file_mutex);
 	}
-	up(&file->mutex);
+	mutex_unlock(&file->file_mutex);
 	kfree(file);
 	return 0;
 }
