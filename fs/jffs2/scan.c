@@ -244,11 +244,8 @@ int jffs2_scan_medium(struct jffs2_sb_info *c)
 
 		D1(printk(KERN_DEBUG "jffs2_scan_medium(): Skipping %d bytes in nextblock to ensure page alignment\n",
 			  skip));
-		c->nextblock->wasted_size += skip;
-		c->wasted_size += skip;
-
-		c->nextblock->free_size -= skip;
-		c->free_size -= skip;
+		jffs2_prealloc_raw_node_refs(c, 1);
+		jffs2_scan_dirty_space(c, c->nextblock, skip);
 	}
 #endif
 	if (c->nr_erasing_blocks) {
