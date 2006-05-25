@@ -79,6 +79,10 @@ static inline int llc_addrany(const struct llc_addr *addr)
 	return llc_mac_null(addr->mac) && !addr->lsap;
 }
 
+static inline int llc_mac_multicast(const u8 *mac)
+{
+	return is_multicast_ether_addr(mac);
+}
 /**
  *	llc_mac_match - determines if two mac addresses are the same
  *	@mac1: First mac address to compare.
