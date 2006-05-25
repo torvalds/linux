@@ -185,15 +185,15 @@ static void renew_lease(const struct nfs_server *server, unsigned long timestamp
 	spin_unlock(&clp->cl_lock);
 }
 
-static void update_changeattr(struct inode *inode, struct nfs4_change_info *cinfo)
+static void update_changeattr(struct inode *dir, struct nfs4_change_info *cinfo)
 {
-	struct nfs_inode *nfsi = NFS_I(inode);
+	struct nfs_inode *nfsi = NFS_I(dir);
 
-	spin_lock(&inode->i_lock);
-	nfsi->cache_validity |= NFS_INO_INVALID_ATTR;
+	spin_lock(&dir->i_lock);
+	nfsi->cache_validity |= NFS_INO_INVALID_ATTR|NFS_INO_REVAL_PAGECACHE|NFS_INO_INVALID_DATA;
 	if (cinfo->before == nfsi->change_attr && cinfo->atomic)
 		nfsi->change_attr = cinfo->after;
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&dir->i_lock);
 }
 
 struct nfs4_opendata {
