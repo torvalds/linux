@@ -244,7 +244,7 @@ int jffs2_scan_medium(struct jffs2_sb_info *c)
 
 		D1(printk(KERN_DEBUG "jffs2_scan_medium(): Skipping %d bytes in nextblock to ensure page alignment\n",
 			  skip));
-		jffs2_prealloc_raw_node_refs(c, 1);
+		jffs2_prealloc_raw_node_refs(c, c->nextblock, 1);
 		jffs2_scan_dirty_space(c, c->nextblock, skip);
 	}
 #endif
@@ -576,7 +576,7 @@ scan_more:
 		jffs2_dbg_acct_paranoia_check_nolock(c, jeb);
 
 		/* Make sure there are node refs available for use */
-		err = jffs2_prealloc_raw_node_refs(c, 2);
+		err = jffs2_prealloc_raw_node_refs(c, jeb, 2);
 		if (err)
 			return err;
 

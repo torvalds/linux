@@ -400,7 +400,7 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 		dbg_summary("processing summary index %d\n", i);
 
 		/* Make sure there's a spare ref for dirty space */
-		err = jffs2_prealloc_raw_node_refs(c, 2);
+		err = jffs2_prealloc_raw_node_refs(c, jeb, 2);
 		if (err)
 			return err;
 
@@ -630,7 +630,7 @@ int jffs2_sum_scan_sumnode(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb
 		return ret;		/* real error */
 
 	/* for PARANOIA_CHECK */
-	ret = jffs2_prealloc_raw_node_refs(c, 2);
+	ret = jffs2_prealloc_raw_node_refs(c, jeb, 2);
 	if (ret)
 		return ret;
 
@@ -815,9 +815,9 @@ int jffs2_sum_write_sumnode(struct jffs2_sb_info *c)
 	dbg_summary("called\n");
 
 	spin_unlock(&c->erase_completion_lock);
-	jffs2_prealloc_raw_node_refs(c, 1);
 
 	jeb = c->nextblock;
+	jffs2_prealloc_raw_node_refs(c, jeb, 1);
 
 	if (!c->summary->sum_num || !c->summary->sum_list_head) {
 		JFFS2_WARNING("Empty summary info!!!\n");

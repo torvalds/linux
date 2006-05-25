@@ -138,7 +138,7 @@ int jffs2_reserve_space(struct jffs2_sb_info *c, uint32_t minsize,
 	}
 	spin_unlock(&c->erase_completion_lock);
 	if (!ret)
-		ret = jffs2_prealloc_raw_node_refs(c, 1);
+		ret = jffs2_prealloc_raw_node_refs(c, c->nextblock, 1);
 	if (ret)
 		up(&c->alloc_sem);
 	return ret;
@@ -161,7 +161,7 @@ int jffs2_reserve_space_gc(struct jffs2_sb_info *c, uint32_t minsize,
 	}
 	spin_unlock(&c->erase_completion_lock);
 	if (!ret)
-		ret = jffs2_prealloc_raw_node_refs(c, 1);
+		ret = jffs2_prealloc_raw_node_refs(c, c->nextblock, 1);
 
 	return ret;
 }

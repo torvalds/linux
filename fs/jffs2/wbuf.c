@@ -179,12 +179,12 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 	unsigned char *buf;
 	uint32_t start, end, ofs, len;
 
-	if (jffs2_prealloc_raw_node_refs(c, c->reserved_refs + 1))
+	jeb = &c->blocks[c->wbuf_ofs / c->sector_size];
+
+	if (jffs2_prealloc_raw_node_refs(c, jeb, c->reserved_refs + 1))
 		return;
 
 	spin_lock(&c->erase_completion_lock);
-
-	jeb = &c->blocks[c->wbuf_ofs / c->sector_size];
 
 	jffs2_block_refile(c, jeb, REFILE_NOTEMPTY);
 
@@ -417,7 +417,7 @@ static int __jffs2_flush_wbuf(struct jffs2_sb_info *c, int pad)
 	if (!c->wbuf_len)	/* already checked c->wbuf above */
 		return 0;
 
-	if (jffs2_prealloc_raw_node_refs(c, c->reserved_refs + 1))
+	if (jffs2_prealloc_raw_node_refs(c, c->nextblock, c->reserved_refs + 1))
 		return -ENOMEM;
 
 	/* claim remaining space on the page

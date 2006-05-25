@@ -378,7 +378,8 @@ struct jffs2_raw_inode *jffs2_alloc_raw_inode(void);
 void jffs2_free_raw_inode(struct jffs2_raw_inode *);
 struct jffs2_tmp_dnode_info *jffs2_alloc_tmp_dnode_info(void);
 void jffs2_free_tmp_dnode_info(struct jffs2_tmp_dnode_info *);
-int jffs2_prealloc_raw_node_refs(struct jffs2_sb_info *c, int nr);
+int jffs2_prealloc_raw_node_refs(struct jffs2_sb_info *c, 
+				 struct jffs2_eraseblock *jeb, int nr);
 struct jffs2_raw_node_ref *__jffs2_alloc_raw_node_ref(void);
 void __jffs2_free_raw_node_ref(struct jffs2_raw_node_ref *);
 struct jffs2_node_frag *jffs2_alloc_node_frag(void);

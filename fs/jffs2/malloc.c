@@ -190,7 +190,8 @@ void jffs2_free_tmp_dnode_info(struct jffs2_tmp_dnode_info *x)
 	kmem_cache_free(tmp_dnode_info_slab, x);
 }
 
-int jffs2_prealloc_raw_node_refs(struct jffs2_sb_info *c, int nr)
+int jffs2_prealloc_raw_node_refs(struct jffs2_sb_info *c,
+				 struct jffs2_eraseblock *jeb, int nr)
 {
 	struct jffs2_raw_node_ref *p = c->refs;
 
