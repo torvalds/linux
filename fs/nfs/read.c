@@ -51,14 +51,11 @@ struct nfs_read_data *nfs_readdata_alloc(unsigned int pagecount)
 	if (p) {
 		memset(p, 0, sizeof(*p));
 		INIT_LIST_HEAD(&p->pages);
-		if (pagecount < NFS_PAGEVEC_SIZE)
-			p->pagevec = &p->page_array[0];
+		if (pagecount <= ARRAY_SIZE(p->page_array))
+			p->pagevec = p->page_array;
 		else {
-			size_t size = ++pagecount * sizeof(struct page *);
-			p->pagevec = kmalloc(size, GFP_NOFS);
-			if (p->pagevec) {
-				memset(p->pagevec, 0, size);
-			} else {
+			p->pagevec = kcalloc(pagecount, sizeof(struct page *), GFP_NOFS);
+			if (!p->pagevec) {
 				mempool_free(p, nfs_rdata_mempool);
 				p = NULL;
 			}

@@ -98,11 +98,10 @@ struct nfs_write_data *nfs_commit_alloc(unsigned int pagecount)
 	if (p) {
 		memset(p, 0, sizeof(*p));
 		INIT_LIST_HEAD(&p->pages);
-		if (pagecount < NFS_PAGEVEC_SIZE)
-			p->pagevec = &p->page_array[0];
+		if (pagecount <= ARRAY_SIZE(p->page_array))
+			p->pagevec = p->page_array;
 		else {
-			size_t size = ++pagecount * sizeof(struct page *);
-			p->pagevec = kzalloc(size, GFP_NOFS);
+			p->pagevec = kcalloc(pagecount, sizeof(struct page *), GFP_NOFS);
 			if (!p->pagevec) {
 				mempool_free(p, nfs_commit_mempool);
 				p = NULL;
@@ -126,14 +125,11 @@ struct nfs_write_data *nfs_writedata_alloc(unsigned int pagecount)
 	if (p) {
 		memset(p, 0, sizeof(*p));
 		INIT_LIST_HEAD(&p->pages);
-		if (pagecount < NFS_PAGEVEC_SIZE)
-			p->pagevec = &p->page_array[0];
+		if (pagecount <= ARRAY_SIZE(p->page_array))
+			p->pagevec = p->page_array;
 		else {
-			size_t size = ++pagecount * sizeof(struct page *);
-			p->pagevec = kmalloc(size, GFP_NOFS);
-			if (p->pagevec) {
-				memset(p->pagevec, 0, size);
-			} else {
+			p->pagevec = kcalloc(pagecount, sizeof(struct page *), GFP_NOFS);
+			if (!p->pagevec) {
 				mempool_free(p, nfs_wdata_mempool);
 				p = NULL;
 			}

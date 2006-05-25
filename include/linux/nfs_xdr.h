@@ -694,7 +694,7 @@ struct nfs_read_data {
 #ifdef CONFIG_NFS_V4
 	unsigned long		timestamp;	/* For lease renewal */
 #endif
-	struct page		*page_array[NFS_PAGEVEC_SIZE + 1];
+	struct page		*page_array[NFS_PAGEVEC_SIZE];
 };
 
 struct nfs_write_data {
@@ -712,7 +712,7 @@ struct nfs_write_data {
 #ifdef CONFIG_NFS_V4
 	unsigned long		timestamp;	/* For lease renewal */
 #endif
-	struct page		*page_array[NFS_PAGEVEC_SIZE + 1];
+	struct page		*page_array[NFS_PAGEVEC_SIZE];
 };
 
 struct nfs_access_entry;
