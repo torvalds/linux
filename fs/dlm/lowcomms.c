@@ -55,9 +55,9 @@
 #include "config.h"
 #include "midcomms.h"
 
-static struct sockaddr_storage *local_addr[DLM_MAX_ADDR_COUNT];
-static int			local_count;
-static int			local_nodeid;
+static struct sockaddr_storage *dlm_local_addr[DLM_MAX_ADDR_COUNT];
+static int			dlm_local_count;
+static int			dlm_local_nodeid;
 
 /* One of these per connected node */
 
@@ -153,14 +153,14 @@ static int nodeid_to_addr(int nodeid, struct sockaddr *retaddr)
 	struct sockaddr_storage addr;
 	int error;
 
-	if (!local_count)
+	if (!dlm_local_count)
 		return -1;
 
 	error = dlm_nodeid_to_addr(nodeid, &addr);
 	if (error)
 		return error;
 
-	if (local_addr[0]->ss_family == AF_INET) {
+	if (dlm_local_addr[0]->ss_family == AF_INET) {
 	        struct sockaddr_in *in4  = (struct sockaddr_in *) &addr;
 		struct sockaddr_in *ret4 = (struct sockaddr_in *) retaddr;
 		ret4->sin_addr.s_addr = in4->sin_addr.s_addr;
@@ -260,21 +260,21 @@ static void make_sockaddr(struct sockaddr_storage *saddr, uint16_t port,
 	struct sockaddr_in *local4_addr;
 	struct sockaddr_in6 *local6_addr;
 
-	if (!local_count)
+	if (!dlm_local_count)
 		return;
 
 	if (!port) {
-		if (local_addr[0]->ss_family == AF_INET) {
-			local4_addr = (struct sockaddr_in *)local_addr[0];
+		if (dlm_local_addr[0]->ss_family == AF_INET) {
+			local4_addr = (struct sockaddr_in *)dlm_local_addr[0];
 			port = be16_to_cpu(local4_addr->sin_port);
 		} else {
-			local6_addr = (struct sockaddr_in6 *)local_addr[0];
+			local6_addr = (struct sockaddr_in6 *)dlm_local_addr[0];
 			port = be16_to_cpu(local6_addr->sin6_port);
 		}
 	}
 
-	saddr->ss_family = local_addr[0]->ss_family;
-	if (local_addr[0]->ss_family == AF_INET) {
+	saddr->ss_family = dlm_local_addr[0]->ss_family;
+	if (dlm_local_addr[0]->ss_family == AF_INET) {
 		struct sockaddr_in *in4_addr = (struct sockaddr_in *)saddr;
 		in4_addr->sin_port = cpu_to_be16(port);
 		memset(&in4_addr->sin_zero, 0, sizeof(in4_addr->sin_zero));
@@ -636,7 +636,7 @@ static void init_local(void)
 	struct sockaddr_storage sas, *addr;
 	int i;
 
-	local_nodeid = dlm_our_nodeid();
+	dlm_local_nodeid = dlm_our_nodeid();
 
 	for (i = 0; i < DLM_MAX_ADDR_COUNT - 1; i++) {
 		if (dlm_our_addr(&sas, i))
@@ -646,7 +646,7 @@ static void init_local(void)
 		if (!addr)
 			break;
 		memcpy(addr, &sas, sizeof(*addr));
-		local_addr[local_count++] = addr;
+		dlm_local_addr[dlm_local_count++] = addr;
 	}
 }
 
@@ -659,15 +659,15 @@ static int init_sock(void)
 	struct sctp_event_subscribe subscribe;
 	int result = -EINVAL, num = 1, i, addr_len;
 
-	if (!local_count) {
+	if (!dlm_local_count) {
 		init_local();
-		if (!local_count) {
+		if (!dlm_local_count) {
 			log_print("no local IP address has been set");
 			goto out;
 		}
 	}
 
-	result = sock_create_kern(local_addr[0]->ss_family, SOCK_SEQPACKET,
+	result = sock_create_kern(dlm_local_addr[0]->ss_family, SOCK_SEQPACKET,
 				  IPPROTO_SCTP, &sock);
 	if (result < 0) {
 		log_print("Can't create comms socket, check SCTP is loaded");
@@ -700,8 +700,8 @@ static int init_sock(void)
 	sctp_con.sock->sk->sk_data_ready = lowcomms_data_ready;
 
 	/* Bind to all interfaces. */
-	for (i = 0; i < local_count; i++) {
-		memcpy(&localaddr, local_addr[i], sizeof(localaddr));
+	for (i = 0; i < dlm_local_count; i++) {
+		memcpy(&localaddr, dlm_local_addr[i], sizeof(localaddr));
 		make_sockaddr(&localaddr, dlm_config.tcp_port, &addr_len);
 
 		result = add_bind_addr(&localaddr, addr_len, num);
@@ -879,7 +879,7 @@ static void initiate_association(int nodeid)
 	cmsg->cmsg_len = CMSG_LEN(sizeof(struct sctp_sndrcvinfo));
 	sinfo = (struct sctp_sndrcvinfo *)CMSG_DATA(cmsg);
 	memset(sinfo, 0x00, sizeof(struct sctp_sndrcvinfo));
-	sinfo->sinfo_ppid = cpu_to_le32(local_nodeid);
+	sinfo->sinfo_ppid = cpu_to_le32(dlm_local_nodeid);
 
 	outmessage.msg_controllen = cmsg->cmsg_len;
 	ret = kernel_sendmsg(sctp_con.sock, &outmessage, iov, 1, 1);
@@ -924,7 +924,7 @@ static int send_to_sock(struct nodeinfo *ni)
 	cmsg->cmsg_len = CMSG_LEN(sizeof(struct sctp_sndrcvinfo));
 	sinfo = (struct sctp_sndrcvinfo *)CMSG_DATA(cmsg);
 	memset(sinfo, 0x00, sizeof(struct sctp_sndrcvinfo));
-	sinfo->sinfo_ppid = cpu_to_le32(local_nodeid);
+	sinfo->sinfo_ppid = cpu_to_le32(dlm_local_nodeid);
 	sinfo->sinfo_assoc_id = ni->assoc_id;
 	outmsg.msg_controllen = cmsg->cmsg_len;
 
@@ -1231,9 +1231,9 @@ void dlm_lowcomms_exit(void)
 {
 	int i;
 
-	for (i = 0; i < local_count; i++)
-		kfree(local_addr[i]);
-	local_count = 0;
-	local_nodeid = 0;
+	for (i = 0; i < dlm_local_count; i++)
+		kfree(dlm_local_addr[i]);
+	dlm_local_count = 0;
+	dlm_local_nodeid = 0;
 }
 
