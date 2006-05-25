@@ -1360,12 +1360,6 @@ static void nfs_wcc_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
 
-	if ((fattr->valid & NFS_ATTR_PRE_CHANGE) != 0
-			&& nfsi->change_attr == fattr->pre_change_attr) {
-		nfsi->change_attr = fattr->change_attr;
-		nfsi->cache_change_attribute = jiffies;
-	}
-
 	/* If we have atomic WCC data, we may update some attributes */
 	if ((fattr->valid & NFS_ATTR_WCC) != 0) {
 		if (timespec_equal(&inode->i_ctime, &fattr->pre_ctime)) {
@@ -1398,9 +1392,6 @@ static int nfs_check_inode_attributes(struct inode *inode, struct nfs_fattr *fat
 	loff_t cur_size, new_isize;
 	int data_unstable;
 
-
-	if ((fattr->valid & NFS_ATTR_FATTR) == 0)
-		return 0;
 
 	/* Has the inode gone and changed behind our back? */
 	if (nfsi->fileid != fattr->fileid
@@ -1524,9 +1515,6 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 	dfprintk(VFS, "NFS: %s(%s/%ld ct=%d info=0x%x)\n",
 			__FUNCTION__, inode->i_sb->s_id, inode->i_ino,
 			atomic_read(&inode->i_count), fattr->valid);
-
-	if ((fattr->valid & NFS_ATTR_FATTR) == 0)
-		return 0;
 
 	if (nfsi->fileid != fattr->fileid)
 		goto out_fileid;

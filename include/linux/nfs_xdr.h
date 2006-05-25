@@ -57,8 +57,7 @@ struct nfs_fattr {
 #define NFS_ATTR_WCC		0x0001		/* pre-op WCC data    */
 #define NFS_ATTR_FATTR		0x0002		/* post-op attributes */
 #define NFS_ATTR_FATTR_V3	0x0004		/* NFSv3 attributes */
-#define NFS_ATTR_FATTR_V4	0x0008
-#define NFS_ATTR_PRE_CHANGE	0x0010
+#define NFS_ATTR_FATTR_V4	0x0008		/* NFSv4 change attribute */
 
 /*
  * Info on the file system

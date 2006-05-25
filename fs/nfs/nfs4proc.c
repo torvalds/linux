@@ -2008,7 +2008,7 @@ static int _nfs4_proc_link(struct inode *inode, struct inode *dir, struct qstr *
 	if (!status) {
 		update_changeattr(dir, &res.cinfo);
 		nfs_post_op_update_inode(dir, res.dir_attr);
-		nfs_refresh_inode(inode, res.fattr);
+		nfs_post_op_update_inode(inode, res.fattr);
 	}
 
 	return status;
