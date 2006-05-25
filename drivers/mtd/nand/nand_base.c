@@ -1270,86 +1270,91 @@ int nand_do_read_ecc(struct mtd_info *mtd, loff_t from, size_t len,
  *
  * NAND read out-of-band data from the spare area
  */
-static int nand_read_oob(struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen, uint8_t *buf)
+static int nand_read_oob(struct mtd_info *mtd, loff_t from, size_t len,
+			 size_t *retlen, uint8_t *buf)
 {
-	int i, col, page, chipnr;
+	int col, page, realpage, chipnr, sndcmd = 1;
 	struct nand_chip *chip = mtd->priv;
-	int blockcheck = (1 << (chip->phys_erase_shift - chip->page_shift)) - 1;
+	int blkcheck = (1 << (chip->phys_erase_shift - chip->page_shift)) - 1;
+	int readlen = len;
 
-	DEBUG(MTD_DEBUG_LEVEL3, "nand_read_oob: from = 0x%08x, len = %i\n", (unsigned int)from, (int)len);
-
-	/* Shift to get page */
-	page = (int)(from >> chip->page_shift);
-	chipnr = (int)(from >> chip->chip_shift);
-
-	/* Mask to get column */
-	col = from & (mtd->oobsize - 1);
+	DEBUG(MTD_DEBUG_LEVEL3, "nand_read_oob: from = 0x%08x, len = %i\n",
+	      (unsigned int)from, (int)len);
 
 	/* Initialize return length value */
 	*retlen = 0;
 
 	/* Do not allow reads past end of device */
 	if ((from + len) > mtd->size) {
-		DEBUG(MTD_DEBUG_LEVEL0, "nand_read_oob: Attempt read beyond end of device\n");
-		*retlen = 0;
+		DEBUG(MTD_DEBUG_LEVEL0, "nand_read_oob: "
+		      "Attempt read beyond end of device\n");
 		return -EINVAL;
 	}
 
-	/* Grab the lock and see if the device is available */
 	nand_get_device(chip, mtd, FL_READING);
 
-	/* Select the NAND device */
+	chipnr = (int)(from >> chip->chip_shift);
 	chip->select_chip(mtd, chipnr);
 
-	/* Send the read command */
-	chip->cmdfunc(mtd, NAND_CMD_READOOB, col, page & chip->pagemask);
-	/*
-	 * Read the data, if we read more than one page
-	 * oob data, let the device transfer the data !
-	 */
-	i = 0;
-	while (i < len) {
-		int thislen = mtd->oobsize - col;
-		thislen = min_t(int, thislen, len);
-		chip->read_buf(mtd, &buf[i], thislen);
-		i += thislen;
+	/* Shift to get page */
+	realpage = (int)(from >> chip->page_shift);
+	page = realpage & chip->pagemask;
 
-		/* Read more ? */
-		if (i < len) {
-			page++;
-			col = 0;
+	/* Mask to get column */
+	col = from & (mtd->oobsize - 1);
 
-			/* Check, if we cross a chip boundary */
-			if (!(page & chip->pagemask)) {
-				chipnr++;
-				chip->select_chip(mtd, -1);
-				chip->select_chip(mtd, chipnr);
-			}
+	while(1) {
+		int bytes = min((int)(mtd->oobsize - col), readlen);
 
-			/* Apply delay or wait for ready/busy pin
-			 * Do this before the AUTOINCR check, so no problems
-			 * arise if a chip which does auto increment
-			 * is marked as NOAUTOINCR by the board driver.
+		if (likely(sndcmd)) {
+			chip->cmdfunc(mtd, NAND_CMD_READOOB, col, page);
+			sndcmd = 0;
+		}
+
+		chip->read_buf(mtd, buf, bytes);
+
+		readlen -= bytes;
+		if (!readlen)
+			break;
+
+		if (!(chip->options & NAND_NO_READRDY)) {
+			/*
+			 * Apply delay or wait for ready/busy pin. Do this
+			 * before the AUTOINCR check, so no problems arise if a
+			 * chip which does auto increment is marked as
+			 * NOAUTOINCR by the board driver.
 			 */
 			if (!chip->dev_ready)
 				udelay(chip->chip_delay);
 			else
 				nand_wait_ready(mtd);
-
-			/* Check, if the chip supports auto page increment
-			 * or if we have hit a block boundary.
-			 */
-			if (!NAND_CANAUTOINCR(chip) || !(page & blockcheck)) {
-				/* For subsequent page reads set offset to 0 */
-				chip->cmdfunc(mtd, NAND_CMD_READOOB, 0x0, page & chip->pagemask);
-			}
 		}
+
+		buf += bytes;
+		bytes = mtd->oobsize;
+		col = 0;
+
+		/* Increment page address */
+		realpage++;
+
+		page = realpage & chip->pagemask;
+		/* Check, if we cross a chip boundary */
+		if (!page) {
+			chipnr++;
+			chip->select_chip(mtd, -1);
+			chip->select_chip(mtd, chipnr);
+		}
+
+		/* Check, if the chip supports auto page increment
+		 * or if we have hit a block boundary.
+		 */
+		if (!NAND_CANAUTOINCR(chip) || !(page & blkcheck))
+			sndcmd = 1;
 	}
 
 	/* Deselect and wake up anyone waiting on the device */
 	nand_release_device(mtd);
 
-	/* Return happy */
 	*retlen = len;
 	return 0;
 }
@@ -1676,6 +1681,7 @@ static int nand_write(struct mtd_info *mtd, loff_t to, size_t len,
 	return ret;
 }
 
+
 /**
  * nand_write_oob - [MTD Interface] NAND write out-of-band
  * @mtd:	MTD device structure
@@ -1686,40 +1692,40 @@ static int nand_write(struct mtd_info *mtd, loff_t to, size_t len,
  *
  * NAND write out-of-band
  */
-static int nand_write_oob(struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen, const uint8_t *buf)
+static int nand_write_oob(struct mtd_info *mtd, loff_t to, size_t len,
+			  size_t *retlen, const uint8_t *buf)
 {
 	int column, page, status, ret = -EIO, chipnr;
 	struct nand_chip *chip = mtd->priv;
 
-	DEBUG(MTD_DEBUG_LEVEL3, "nand_write_oob: to = 0x%08x, len = %i\n", (unsigned int)to, (int)len);
-
-	/* Shift to get page */
-	page = (int)(to >> chip->page_shift);
-	chipnr = (int)(to >> chip->chip_shift);
-
-	/* Mask to get column */
-	column = to & (mtd->oobsize - 1);
+	DEBUG(MTD_DEBUG_LEVEL3, "nand_write_oob: to = 0x%08x, len = %i\n",
+	      (unsigned int)to, (int)len);
 
 	/* Initialize return length value */
 	*retlen = 0;
 
 	/* Do not allow write past end of page */
+	column = to & (mtd->oobsize - 1);
 	if ((column + len) > mtd->oobsize) {
-		DEBUG(MTD_DEBUG_LEVEL0, "nand_write_oob: Attempt to write past end of page\n");
+		DEBUG(MTD_DEBUG_LEVEL0, "nand_write_oob: "
+		      "Attempt to write past end of page\n");
 		return -EINVAL;
 	}
 
-	/* Grab the lock and see if the device is available */
 	nand_get_device(chip, mtd, FL_WRITING);
 
-	/* Select the NAND device */
+	chipnr = (int)(to >> chip->chip_shift);
 	chip->select_chip(mtd, chipnr);
 
-	/* Reset the chip. Some chips (like the Toshiba TC5832DC found
-	   in one of my DiskOnChip 2000 test units) will clear the whole
-	   data page too if we don't do this. I have no clue why, but
-	   I seem to have 'fixed' it in the doc2000 driver in
-	   August 1999.  dwmw2. */
+	/* Shift to get page */
+	page = (int)(to >> chip->page_shift);
+
+	/*
+	 * Reset the chip. Some chips (like the Toshiba TC5832DC found in one
+	 * of my DiskOnChip 2000 test units) will clear the whole data page too
+	 * if we don't do this. I have no clue why, but I seem to have 'fixed'
+	 * it in the doc2000 driver in August 1999.  dwmw2.
+	 */
 	chip->cmdfunc(mtd, NAND_CMD_RESET, -1, -1);
 
 	/* Check, if it is write protected */
@@ -1731,8 +1737,8 @@ static int nand_write_oob(struct mtd_info *mtd, loff_t to, size_t len, size_t *r
 		chip->pagebuf = -1;
 
 	if (NAND_MUST_PAD(chip)) {
-		/* Write out desired data */
-		chip->cmdfunc(mtd, NAND_CMD_SEQIN, mtd->writesize, page & chip->pagemask);
+		chip->cmdfunc(mtd, NAND_CMD_SEQIN, mtd->writesize,
+			      page & chip->pagemask);
 		/* prepad 0xff for partial programming */
 		chip->write_buf(mtd, ffchars, column);
 		/* write data */
@@ -1740,9 +1746,8 @@ static int nand_write_oob(struct mtd_info *mtd, loff_t to, size_t len, size_t *r
 		/* postpad 0xff for partial programming */
 		chip->write_buf(mtd, ffchars, mtd->oobsize - (len + column));
 	} else {
-		/* Write out desired data */
-		chip->cmdfunc(mtd, NAND_CMD_SEQIN, mtd->writesize + column, page & chip->pagemask);
-		/* write data */
+		chip->cmdfunc(mtd, NAND_CMD_SEQIN, mtd->writesize + column,
+			      page & chip->pagemask);
 		chip->write_buf(mtd, buf, len);
 	}
 	/* Send command to program the OOB data */
@@ -1752,11 +1757,11 @@ static int nand_write_oob(struct mtd_info *mtd, loff_t to, size_t len, size_t *r
 
 	/* See if device thinks it succeeded */
 	if (status & NAND_STATUS_FAIL) {
-		DEBUG(MTD_DEBUG_LEVEL0, "nand_write_oob: " "Failed write, page 0x%08x\n", page);
+		DEBUG(MTD_DEBUG_LEVEL0, "nand_write_oob: "
+		      "Failed write, page 0x%08x\n", page);
 		ret = -EIO;
 		goto out;
 	}
-	/* Return happy */
 	*retlen = len;
 
 #ifdef CONFIG_MTD_NAND_VERIFY_WRITE
@@ -1764,7 +1769,8 @@ static int nand_write_oob(struct mtd_info *mtd, loff_t to, size_t len, size_t *r
 	chip->cmdfunc(mtd, NAND_CMD_READOOB, column, page & chip->pagemask);
 
 	if (chip->verify_buf(mtd, buf, len)) {
-		DEBUG(MTD_DEBUG_LEVEL0, "nand_write_oob: " "Failed write verify, page 0x%08x\n", page);
+		DEBUG(MTD_DEBUG_LEVEL0, "nand_write_oob: "
+		      "Failed write verify, page 0x%08x\n", page);
 		ret = -EIO;
 		goto out;
 	}
