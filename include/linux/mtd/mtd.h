@@ -56,6 +56,17 @@ struct mtd_erase_region_info {
 	u_int32_t numblocks;		/* Number of blocks of erasesize in this region */
 };
 
+/**
+ * struct mtd_ecc_stats - error correction status
+ *
+ * @corrected:	number of corrected bits
+ * @failed:	number of uncorrectable errors
+ */
+struct mtd_ecc_stats {
+	unsigned long corrected;
+	unsigned long failed;
+};
+
 struct mtd_info {
 	u_char type;
 	u_int32_t flags;
@@ -152,6 +163,9 @@ struct mtd_info {
 	int (*block_markbad) (struct mtd_info *mtd, loff_t ofs);
 
 	struct notifier_block reboot_notifier;  /* default mode before reboot */
+
+	/* ECC status information */
+	struct mtd_ecc_stats ecc_stats;
 
 	void *priv;
 
