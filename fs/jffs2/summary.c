@@ -630,11 +630,11 @@ int jffs2_sum_scan_sumnode(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb
 		return ret;		/* real error */
 
 	/* for PARANOIA_CHECK */
-	ret = jffs2_prealloc_raw_node_refs(c, 1);
+	ret = jffs2_prealloc_raw_node_refs(c, 2);
 	if (ret)
 		return ret;
 
-	jffs2_link_node_ref(c, jeb, (jeb->offset + ofs) | REF_NORMAL, sumsize, NULL);
+	sum_link_node_ref(c, jeb, ofs | REF_NORMAL, sumsize, NULL);
 
 	if (unlikely(jeb->free_size)) {
 		JFFS2_WARNING("Free size 0x%x bytes in eraseblock @0x%08x with summary?\n",
