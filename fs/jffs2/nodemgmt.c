@@ -618,7 +618,7 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 	/* The erase_free_sem is locked, and has been since before we marked the node obsolete
 	   and potentially put its eraseblock onto the erase_pending_list. Thus, we know that
 	   the block hasn't _already_ been erased, and that 'ref' itself hasn't been freed yet
-	   by jffs2_free_all_node_refs() in erase.c. Which is nice. */
+	   by jffs2_free_jeb_node_refs() in erase.c. Which is nice. */
 
 	D1(printk(KERN_DEBUG "obliterating obsoleted node at 0x%08x\n", ref_offset(ref)));
 	ret = jffs2_flash_read(c, ref_offset(ref), sizeof(n), &retlen, (char *)&n);

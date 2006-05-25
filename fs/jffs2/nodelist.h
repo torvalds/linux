@@ -417,7 +417,7 @@ int jffs2_do_mount_fs(struct jffs2_sb_info *c);
 
 /* erase.c */
 void jffs2_erase_pending_blocks(struct jffs2_sb_info *c, int count);
-void jffs2_free_all_node_refs(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb);
+void jffs2_free_jeb_node_refs(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb);
 
 #ifdef CONFIG_JFFS2_FS_WRITEBUFFER
 /* wbuf.c */

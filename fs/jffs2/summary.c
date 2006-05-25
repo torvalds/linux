@@ -547,7 +547,7 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 				jeb->wasted_size = jeb->used_size = jeb->dirty_size = 0;
 				jeb->free_size = c->sector_size;
 
-				jffs2_free_all_node_refs(c, jeb);
+				jffs2_free_jeb_node_refs(c, jeb);
 				return -ENOTRECOVERABLE;
 			}
 		}

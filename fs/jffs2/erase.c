@@ -135,7 +135,7 @@ void jffs2_erase_pending_blocks(struct jffs2_sb_info *c, int count)
 			c->used_size -= jeb->used_size;
 			c->dirty_size -= jeb->dirty_size;
 			jeb->wasted_size = jeb->used_size = jeb->dirty_size = jeb->free_size = 0;
-			jffs2_free_all_node_refs(c, jeb);
+			jffs2_free_jeb_node_refs(c, jeb);
 			list_add(&jeb->list, &c->erasing_list);
 			spin_unlock(&c->erase_completion_lock);
 
@@ -283,7 +283,7 @@ static inline void jffs2_remove_node_refs_from_ino_list(struct jffs2_sb_info *c,
 		jffs2_del_ino_cache(c, ic);
 }
 
-void jffs2_free_all_node_refs(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb)
+void jffs2_free_jeb_node_refs(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb)
 {
 	struct jffs2_raw_node_ref *ref;
 	D1(printk(KERN_DEBUG "Freeing all node refs for eraseblock offset 0x%08x\n", jeb->offset));
