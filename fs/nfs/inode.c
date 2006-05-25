@@ -1406,18 +1406,12 @@ static int nfs_check_inode_attributes(struct inode *inode, struct nfs_fattr *fat
 	nfs_wcc_update_inode(inode, fattr);
 
 	if ((fattr->valid & NFS_ATTR_FATTR_V4) != 0 &&
-			nfsi->change_attr != fattr->change_attr) {
-		nfsi->cache_validity |= NFS_INO_INVALID_ATTR;
-		if (!data_unstable)
-			nfsi->cache_validity |= NFS_INO_REVAL_PAGECACHE;
-	}
+			nfsi->change_attr != fattr->change_attr)
+		nfsi->cache_validity |= NFS_INO_INVALID_ATTR|NFS_INO_REVAL_PAGECACHE;
 
 	/* Verify a few of the more important attributes */
-	if (!timespec_equal(&inode->i_mtime, &fattr->mtime)) {
-		nfsi->cache_validity |= NFS_INO_INVALID_ATTR;
-		if (!data_unstable)
-			nfsi->cache_validity |= NFS_INO_REVAL_PAGECACHE;
-	}
+	if (!timespec_equal(&inode->i_mtime, &fattr->mtime))
+		nfsi->cache_validity |= NFS_INO_INVALID_ATTR|NFS_INO_REVAL_PAGECACHE;
 
 	cur_size = i_size_read(inode);
  	new_isize = nfs_size_to_loff_t(fattr->size);
@@ -1459,7 +1453,6 @@ int nfs_refresh_inode(struct inode *inode, struct nfs_fattr *fattr)
 	if ((fattr->valid & NFS_ATTR_FATTR) == 0)
 		return 0;
 	spin_lock(&inode->i_lock);
-	nfsi->cache_validity &= ~NFS_INO_REVAL_PAGECACHE;
 	if (time_after(fattr->time_start, nfsi->last_updated))
 		status = nfs_update_inode(inode, fattr);
 	else
@@ -1484,7 +1477,7 @@ int nfs_post_op_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 
 	spin_lock(&inode->i_lock);
 	if (unlikely((fattr->valid & NFS_ATTR_FATTR) == 0)) {
-		nfsi->cache_validity |= NFS_INO_INVALID_ATTR | NFS_INO_INVALID_ACCESS;
+		nfsi->cache_validity |= NFS_INO_INVALID_ACCESS|NFS_INO_INVALID_ATTR|NFS_INO_REVAL_PAGECACHE;
 		goto out;
 	}
 	status = nfs_update_inode(inode, fattr);
@@ -1534,7 +1527,7 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 	/* Are we racing with known updates of the metadata on the server? */
 	data_stable = nfs_verify_change_attribute(inode, fattr->time_start);
 	if (data_stable)
-		nfsi->cache_validity &= ~(NFS_INO_INVALID_ATTR|NFS_INO_INVALID_ATIME);
+		nfsi->cache_validity &= ~(NFS_INO_INVALID_ATTR|NFS_INO_REVAL_PAGECACHE|NFS_INO_INVALID_ATIME);
 
 	/* Do atomic weak cache consistency updates */
 	nfs_wcc_update_inode(inode, fattr);
