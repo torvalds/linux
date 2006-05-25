@@ -1990,6 +1990,26 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter)
 			goto rxdesc_done;
 		}
 
+		/* code added for copybreak, this should improve
+		 * performance for small packets with large amounts
+		 * of reassembly being done in the stack */
+#define IXGB_CB_LENGTH 256
+		if (length < IXGB_CB_LENGTH) {
+			struct sk_buff *new_skb =
+			    dev_alloc_skb(length + NET_IP_ALIGN);
+			if (new_skb) {
+				skb_reserve(new_skb, NET_IP_ALIGN);
+				new_skb->dev = netdev;
+				memcpy(new_skb->data - NET_IP_ALIGN,
+				       skb->data - NET_IP_ALIGN,
+				       length + NET_IP_ALIGN);
+				/* save the skb in buffer_info as good */
+				buffer_info->skb = skb;
+				skb = new_skb;
+			}
+		}
+		/* end copybreak code */
+
 		/* Good Receive */
 		skb_put(skb, length);
 
