@@ -3358,7 +3358,6 @@ error:
 
 static void __exit ib_cm_cleanup(void)
 {
-	flush_workqueue(cm.wq);
 	destroy_workqueue(cm.wq);
 	ib_unregister_client(&cm_client);
 	idr_destroy(&cm.local_id_table);
