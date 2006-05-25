@@ -968,12 +968,14 @@ static int doc200x_calculate_ecc(struct mtd_info *mtd, const u_char *dat, unsign
 	return 0;
 }
 
-static int doc200x_correct_data(struct mtd_info *mtd, u_char *dat, u_char *read_ecc, u_char *calc_ecc)
+static int doc200x_correct_data(struct mtd_info *mtd, u_char *dat,
+				u_char *read_ecc, u_char *isnull)
 {
 	int i, ret = 0;
 	struct nand_chip *this = mtd->priv;
 	struct doc_priv *doc = this->priv;
 	void __iomem *docptr = doc->virtadr;
+	uint8_t calc_ecc[6];
 	volatile u_char dummy;
 	int emptymatch = 1;
 

@@ -479,14 +479,14 @@ struct nand_bbt_descr {
 /* The maximum number of blocks to scan for a bbt */
 #define NAND_BBT_SCAN_MAXBLOCKS	4
 
-extern int nand_scan_bbt (struct mtd_info *mtd, struct nand_bbt_descr *bd);
-extern int nand_update_bbt (struct mtd_info *mtd, loff_t offs);
-extern int nand_default_bbt (struct mtd_info *mtd);
-extern int nand_isbad_bbt (struct mtd_info *mtd, loff_t offs, int allowbbt);
-extern int nand_erase_nand (struct mtd_info *mtd, struct erase_info *instr, int allowbbt);
-extern int nand_do_read_ecc (struct mtd_info *mtd, loff_t from, size_t len,
-			     size_t * retlen, uint8_t * buf, uint8_t * oob_buf,
-			     struct nand_oobinfo *oobsel, int flags);
+extern int nand_scan_bbt(struct mtd_info *mtd, struct nand_bbt_descr *bd);
+extern int nand_update_bbt(struct mtd_info *mtd, loff_t offs);
+extern int nand_default_bbt(struct mtd_info *mtd);
+extern int nand_isbad_bbt(struct mtd_info *mtd, loff_t offs, int allowbbt);
+extern int nand_erase_nand(struct mtd_info *mtd, struct erase_info *instr,
+			   int allowbbt);
+extern int nand_do_read(struct mtd_info *mtd, loff_t from, size_t len,
+			size_t * retlen, uint8_t * buf);
 
 /*
 * Constants for oob configuration

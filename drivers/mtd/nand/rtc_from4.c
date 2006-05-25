@@ -444,7 +444,8 @@ static int rtc_from4_correct_data(struct mtd_info *mtd, const u_char *buf, u_cha
  * note: see pages 34..37 of data sheet for details.
  *
  */
-static int rtc_from4_errstat(struct mtd_info *mtd, struct nand_chip *this, int state, int status, int page)
+static int rtc_from4_errstat(struct mtd_info *mtd, struct nand_chip *this,
+			     int state, int status, int page)
 {
 	int er_stat = 0;
 	int rtn, retlen;
@@ -455,39 +456,50 @@ static int rtc_from4_errstat(struct mtd_info *mtd, struct nand_chip *this, int s
 	this->cmdfunc(mtd, NAND_CMD_STATUS_CLEAR, -1, -1);
 
 	if (state == FL_ERASING) {
+
 		for (i = 0; i < 4; i++) {
-			if (status & 1 << (i + 1)) {
-				this->cmdfunc(mtd, (NAND_CMD_STATUS_ERROR + i + 1), -1, -1);
-				rtn = this->read_byte(mtd);
-				this->cmdfunc(mtd, NAND_CMD_STATUS_RESET, -1, -1);
-				if (!(rtn & ERR_STAT_ECC_AVAILABLE)) {
-					er_stat |= 1 << (i + 1);	/* err_ecc_not_avail */
-				}
-			}
+			if (!(status & 1 << (i + 1)))
+				continue;
+			this->cmdfunc(mtd, (NAND_CMD_STATUS_ERROR + i + 1),
+				      -1, -1);
+			rtn = this->read_byte(mtd);
+			this->cmdfunc(mtd, NAND_CMD_STATUS_RESET, -1, -1);
+
+			/* err_ecc_not_avail */
+			if (!(rtn & ERR_STAT_ECC_AVAILABLE))
+				er_stat |= 1 << (i + 1);
 		}
+
 	} else if (state == FL_WRITING) {
+
+		unsigned long corrected = mtd->ecc_stats.corrected;
+
 		/* single bank write logic */
 		this->cmdfunc(mtd, NAND_CMD_STATUS_ERROR, -1, -1);
 		rtn = this->read_byte(mtd);
 		this->cmdfunc(mtd, NAND_CMD_STATUS_RESET, -1, -1);
+
 		if (!(rtn & ERR_STAT_ECC_AVAILABLE)) {
-			er_stat |= 1 << 1;	/* err_ecc_not_avail */
-		} else {
-			len = mtd->writesize;
-			buf = kmalloc(len, GFP_KERNEL);
-			if (!buf) {
-				printk(KERN_ERR "rtc_from4_errstat: Out of memory!\n");
-				er_stat = 1;	/* if we can't check, assume failed */
-			} else {
-				/* recovery read */
-				/* page read */
-				rtn = nand_do_read_ecc(mtd, page, len, &retlen, buf, NULL, this->autooob, 1);
-				if (rtn) {	/* if read failed or > 1-bit error corrected */
-					er_stat |= 1 << 1;	/* ECC read failed */
-				}
-				kfree(buf);
-			}
+			/* err_ecc_not_avail */
+			er_stat |= 1 << 1;
+			goto out;
 		}
+
+		len = mtd->writesize;
+		buf = kmalloc(len, GFP_KERNEL);
+		if (!buf) {
+			printk(KERN_ERR "rtc_from4_errstat: Out of memory!\n");
+			er_stat = 1;
+			goto out;
+		}
+
+		/* recovery read */
+		rtn = nand_do_read(mtd, page, len, &retlen, buf);
+
+		/* if read failed or > 1-bit error corrected */
+		if (rtn || (mtd->ecc_stats.corrected - corrected) > 1) {
+			er_stat |= 1 << 1;
+		kfree(buf);
 	}
 
 	rtn = status;
