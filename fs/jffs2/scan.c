@@ -379,7 +379,7 @@ static int jffs2_scan_xref_node(struct jffs2_sb_info *c, struct jffs2_eraseblock
 	}
 
 	if (PAD(sizeof(struct jffs2_raw_xref)) != je32_to_cpu(rr->totlen)) {
-		JFFS2_WARNING("node length mismatch at %#08x, read=%u, calc=%u\n",
+		JFFS2_WARNING("node length mismatch at %#08x, read=%u, calc=%zd\n",
 			      ofs, je32_to_cpu(rr->totlen),
 			      PAD(sizeof(struct jffs2_raw_xref)));
 		if ((err = jffs2_scan_dirty_space(c, jeb, je32_to_cpu(rr->totlen))))

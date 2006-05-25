@@ -111,7 +111,7 @@ static void delete_xattr_datum_node(struct jffs2_sb_info *c, struct jffs2_xattr_
 {
 	/* must be called under down_write(xattr_sem) */
 	struct jffs2_raw_xattr rx;
-	uint32_t length;
+	size_t length;
 	int rc;
 
 	if (!xd->node) {
@@ -124,14 +124,14 @@ static void delete_xattr_datum_node(struct jffs2_sb_info *c, struct jffs2_xattr_
 				      sizeof(struct jffs2_unknown_node),
 				      &length, (char *)&rx);
 		if (rc || length != sizeof(struct jffs2_unknown_node)) {
-			JFFS2_ERROR("jffs2_flash_read()=%d, req=%u, read=%u at %#08x\n",
+			JFFS2_ERROR("jffs2_flash_read()=%d, req=%zu, read=%zu at %#08x\n",
 				    rc, sizeof(struct jffs2_unknown_node),
 				    length, ref_offset(xd->node));
 		}
 		rc = jffs2_flash_write(c, ref_offset(xd->node), sizeof(rx),
 				       &length, (char *)&rx);
 		if (rc || length != sizeof(struct jffs2_raw_xattr)) {
-			JFFS2_ERROR("jffs2_flash_write()=%d, req=%u, wrote=%u ar %#08x\n",
+			JFFS2_ERROR("jffs2_flash_write()=%d, req=%zu, wrote=%zu ar %#08x\n",
 				    rc, sizeof(rx), length, ref_offset(xd->node));
 		}
 	}
@@ -169,7 +169,7 @@ static int do_verify_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_dat
 
 	rc = jffs2_flash_read(c, ref_offset(xd->node), sizeof(rx), &readlen, (char *)&rx);
 	if (rc || readlen != sizeof(rx)) {
-		JFFS2_WARNING("jffs2_flash_read()=%d, req=%u, read=%u at %#08x\n",
+		JFFS2_WARNING("jffs2_flash_read()=%d, req=%zu, read=%zu at %#08x\n",
 			      rc, sizeof(rx), readlen, ref_offset(xd->node));
 		return rc ? rc : -EIO;
 	}
@@ -240,7 +240,7 @@ static int do_load_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datum
 			       length, &readlen, data);
 
 	if (ret || length!=readlen) {
-		JFFS2_WARNING("jffs2_flash_read() returned %d, request=%d, readlen=%d, at %#08x\n",
+		JFFS2_WARNING("jffs2_flash_read() returned %d, request=%d, readlen=%zu, at %#08x\n",
 			      ret, length, readlen, ref_offset(xd->node));
 		kfree(data);
 		return ret ? ret : -EIO;
@@ -307,7 +307,7 @@ static int save_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datum *x
 	struct jffs2_raw_node_ref *raw;
 	struct jffs2_raw_xattr rx;
 	struct kvec vecs[2];
-	uint32_t length;
+	size_t length;
 	int rc, totlen;
 	uint32_t phys_ofs = write_ofs(c);
 
@@ -335,7 +335,7 @@ static int save_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datum *x
 
 	rc = jffs2_flash_writev(c, vecs, 2, phys_ofs, &length, 0);
 	if (rc || totlen != length) {
-		JFFS2_WARNING("jffs2_flash_writev()=%d, req=%u, wrote=%u, at %#08x\n",
+		JFFS2_WARNING("jffs2_flash_writev()=%d, req=%u, wrote=%zu, at %#08x\n",
 			      rc, totlen, length, phys_ofs);
 		rc = rc ? rc : -EIO;
 		if (length)
@@ -459,7 +459,7 @@ static int verify_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_ref *ref
 
 	rc = jffs2_flash_read(c, ref_offset(ref->node), sizeof(rr), &readlen, (char *)&rr);
 	if (rc || sizeof(rr) != readlen) {
-		JFFS2_WARNING("jffs2_flash_read()=%d, req=%u, read=%u, at %#08x\n",
+		JFFS2_WARNING("jffs2_flash_read()=%d, req=%zu, read=%zu, at %#08x\n",
 			      rc, sizeof(rr), readlen, ref_offset(ref->node));
 		return rc ? rc : -EIO;
 	}
@@ -475,7 +475,7 @@ static int verify_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_ref *ref
 	    || je16_to_cpu(rr.nodetype) != JFFS2_NODETYPE_XREF
 	    || je32_to_cpu(rr.totlen) != PAD(sizeof(rr))) {
 		JFFS2_ERROR("inconsistent xref at %#08x, magic=%#04x/%#04x, "
-			    "nodetype=%#04x/%#04x, totlen=%u/%u\n",
+			    "nodetype=%#04x/%#04x, totlen=%u/%zu\n",
 			    ref_offset(ref->node), je16_to_cpu(rr.magic), JFFS2_MAGIC_BITMASK,
 			    je16_to_cpu(rr.nodetype), JFFS2_NODETYPE_XREF,
 			    je32_to_cpu(rr.totlen), PAD(sizeof(rr)));
@@ -502,7 +502,7 @@ static int verify_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_ref *ref
 static void delete_xattr_ref_node(struct jffs2_sb_info *c, struct jffs2_xattr_ref *ref)
 {
 	struct jffs2_raw_xref rr;
-	uint32_t length;
+	size_t length;
 	int rc;
 
 	if (jffs2_sum_active()) {
@@ -511,14 +511,14 @@ static void delete_xattr_ref_node(struct jffs2_sb_info *c, struct jffs2_xattr_re
 				      sizeof(struct jffs2_unknown_node),
 				      &length, (char *)&rr);
 		if (rc || length != sizeof(struct jffs2_unknown_node)) {
-			JFFS2_ERROR("jffs2_flash_read()=%d, req=%u, read=%u at %#08x\n",
+			JFFS2_ERROR("jffs2_flash_read()=%d, req=%zu, read=%zu at %#08x\n",
 				    rc, sizeof(struct jffs2_unknown_node),
 				    length, ref_offset(ref->node));
 		}
 		rc = jffs2_flash_write(c, ref_offset(ref->node), sizeof(rr),
 				       &length, (char *)&rr);
 		if (rc || length != sizeof(struct jffs2_raw_xref)) {
-			JFFS2_ERROR("jffs2_flash_write()=%d, req=%u, wrote=%u at %#08x\n",
+			JFFS2_ERROR("jffs2_flash_write()=%d, req=%zu, wrote=%zu at %#08x\n",
 				    rc, sizeof(rr), length, ref_offset(ref->node));
 		}
 	}
@@ -549,7 +549,7 @@ static int save_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_ref *ref)
 	/* must be called under down_write(xattr_sem) */
 	struct jffs2_raw_node_ref *raw;
 	struct jffs2_raw_xref rr;
-	uint32_t length;
+	size_t length;
 	uint32_t phys_ofs = write_ofs(c);
 	int ret;
 
@@ -564,7 +564,7 @@ static int save_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_ref *ref)
 
 	ret = jffs2_flash_write(c, phys_ofs, sizeof(rr), &length, (char *)&rr);
 	if (ret || sizeof(rr) != length) {
-		JFFS2_WARNING("jffs2_flash_write() returned %d, request=%u, retlen=%u, at %#08x\n",
+		JFFS2_WARNING("jffs2_flash_write() returned %d, request=%zu, retlen=%zu, at %#08x\n",
 			      ret, sizeof(rr), length, phys_ofs);
 		ret = ret ? ret : -EIO;
 		if (length)
