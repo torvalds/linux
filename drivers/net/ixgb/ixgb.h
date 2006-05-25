@@ -200,6 +200,7 @@ struct ixgb_adapter {
 	struct ixgb_hw hw;
 	u16 msg_enable;
 	struct ixgb_hw_stats stats;
+	uint32_t alloc_rx_buff_failed;
 #ifdef CONFIG_PCI_MSI
 	boolean_t have_msi;
 #endif

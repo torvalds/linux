@@ -929,17 +929,20 @@ ixgb_unmap_and_free_tx_resource(struct ixgb_adapter *adapter,
 					struct ixgb_buffer *buffer_info)
 {
 	struct pci_dev *pdev = adapter->pdev;
-	if(buffer_info->dma) {
-		pci_unmap_page(pdev,
-			   buffer_info->dma,
-			   buffer_info->length,
-			   PCI_DMA_TODEVICE);
-		buffer_info->dma = 0;
-	}
-	if(buffer_info->skb) {
+
+	if (buffer_info->dma)
+		pci_unmap_page(pdev, buffer_info->dma, buffer_info->length,
+		               PCI_DMA_TODEVICE);
+
+	if (buffer_info->skb)
 		dev_kfree_skb_any(buffer_info->skb);
-		buffer_info->skb = NULL;
-	}
+
+	buffer_info->skb = NULL;
+	buffer_info->dma = 0;
+	buffer_info->time_stamp = 0;
+	/* these fields must always be initialized in tx
+	 * buffer_info->length = 0;
+	 * buffer_info->next_to_watch = 0; */
 }
 
 /**
@@ -1314,6 +1317,7 @@ ixgb_tx_map(struct ixgb_adapter *adapter, struct sk_buff *skb,
 				size,
 				PCI_DMA_TODEVICE);
 		buffer_info->time_stamp = jiffies;
+		buffer_info->next_to_watch = 0;
 
 		len -= size;
 		offset += size;
@@ -1345,6 +1349,7 @@ ixgb_tx_map(struct ixgb_adapter *adapter, struct sk_buff *skb,
 					size,
 					PCI_DMA_TODEVICE);
 			buffer_info->time_stamp = jiffies;
+			buffer_info->next_to_watch = 0;
 
 			len -= size;
 			offset += size;
@@ -1940,6 +1945,7 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter)
 #endif
 		status = rx_desc->status;
 		skb = buffer_info->skb;
+		buffer_info->skb = NULL;
 
 		prefetch(skb->data);
 
@@ -2013,7 +2019,6 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter)
 rxdesc_done:
 		/* clean up descriptor, might be written over by hw */
 		rx_desc->status = 0;
-		buffer_info->skb = NULL;
 
 		/* use prefetched values */
 		rx_desc = next_rxd;
@@ -2053,12 +2058,18 @@ ixgb_alloc_rx_buffers(struct ixgb_adapter *adapter)
 
 	/* leave three descriptors unused */
 	while(--cleancount > 2) {
-		rx_desc = IXGB_RX_DESC(*rx_ring, i);
+		/* recycle! its good for you */
+		if (!(skb = buffer_info->skb))
+			skb = dev_alloc_skb(adapter->rx_buffer_len
+			                    + NET_IP_ALIGN);
+		else {
+			skb_trim(skb, 0);
+			goto map_skb;
+		}
 
-		skb = dev_alloc_skb(adapter->rx_buffer_len + NET_IP_ALIGN);
-
-		if(unlikely(!skb)) {
+		if (unlikely(!skb)) {
 			/* Better luck next round */
+			adapter->alloc_rx_buff_failed++;
 			break;
 		}
 
@@ -2072,33 +2083,36 @@ ixgb_alloc_rx_buffers(struct ixgb_adapter *adapter)
 
 		buffer_info->skb = skb;
 		buffer_info->length = adapter->rx_buffer_len;
-		buffer_info->dma =
-			pci_map_single(pdev,
-				   skb->data,
-				   adapter->rx_buffer_len,
-				   PCI_DMA_FROMDEVICE);
+map_skb:
+		buffer_info->dma = pci_map_single(pdev,
+		                                  skb->data,
+		                                  adapter->rx_buffer_len,
+		                                  PCI_DMA_FROMDEVICE);
 
+		rx_desc = IXGB_RX_DESC(*rx_ring, i);
 		rx_desc->buff_addr = cpu_to_le64(buffer_info->dma);
 		/* guarantee DD bit not set now before h/w gets descriptor
 		 * this is the rest of the workaround for h/w double 
 		 * writeback. */
 		rx_desc->status = 0;
 
-		if((i & ~(num_group_tail_writes- 1)) == i) {
-			/* Force memory writes to complete before letting h/w
-			 * know there are new descriptors to fetch.  (Only
-			 * applicable for weak-ordered memory model archs,
-			 * such as IA-64). */
-			wmb();
-
-			IXGB_WRITE_REG(&adapter->hw, RDT, i);
-		}
 
 		if(++i == rx_ring->count) i = 0;
 		buffer_info = &rx_ring->buffer_info[i];
 	}
 
-	rx_ring->next_to_use = i;
+	if (likely(rx_ring->next_to_use != i)) {
+		rx_ring->next_to_use = i;
+		if (unlikely(i-- == 0))
+			i = (rx_ring->count - 1);
+
+		/* Force memory writes to complete before letting h/w
+		 * know there are new descriptors to fetch.  (Only
+		 * applicable for weak-ordered memory model archs, such
+		 * as IA-64). */
+		wmb();
+		IXGB_WRITE_REG(&adapter->hw, RDT, i);
+	}
 }
 
 /**
