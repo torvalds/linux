@@ -1376,19 +1376,20 @@ int audit_avc_path(struct dentry *dentry, struct vfsmount *mnt)
  * If the audit subsystem is being terminated, record the task (pid)
  * and uid that is doing that.
  */
-void audit_signal_info(int sig, struct task_struct *t)
+void __audit_signal_info(int sig, struct task_struct *t)
 {
 	extern pid_t audit_sig_pid;
 	extern uid_t audit_sig_uid;
+	extern u32 audit_sig_sid;
 
-	if (unlikely(audit_pid && t->tgid == audit_pid)) {
-		if (sig == SIGTERM || sig == SIGHUP) {
-			struct audit_context *ctx = current->audit_context;
-			audit_sig_pid = current->pid;
-			if (ctx)
-				audit_sig_uid = ctx->loginuid;
-			else
-				audit_sig_uid = current->uid;
-		}
+	if (sig == SIGTERM || sig == SIGHUP || sig == SIGUSR1) {
+		struct task_struct *tsk = current;
+		struct audit_context *ctx = tsk->audit_context;
+		audit_sig_pid = tsk->pid;
+		if (ctx)
+			audit_sig_uid = ctx->loginuid;
+		else
+			audit_sig_uid = tsk->uid;
+		selinux_get_task_sid(tsk, &audit_sig_sid);
 	}
 }

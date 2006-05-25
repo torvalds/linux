@@ -101,3 +101,14 @@ struct audit_netlink_list {
 int audit_send_list(void *);
 
 extern int selinux_audit_rule_update(void);
+
+#ifdef CONFIG_AUDITSYSCALL
+extern void __audit_signal_info(int sig, struct task_struct *t);
+static inline void audit_signal_info(int sig, struct task_struct *t)
+{
+	if (unlikely(audit_pid && t->tgid == audit_pid))
+		__audit_signal_info(sig, t);
+}
+#else
+#define audit_signal_info(s,t)
+#endif

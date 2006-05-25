@@ -278,6 +278,7 @@ struct audit_rule {		/* for AUDIT_LIST, AUDIT_ADD, and AUDIT_DEL */
 struct audit_sig_info {
 	uid_t		uid;
 	pid_t		pid;
+	char		ctx[0];
 };
 
 struct audit_buffer;
@@ -328,7 +329,6 @@ extern int audit_bprm(struct linux_binprm *bprm);
 extern int audit_socketcall(int nargs, unsigned long *args);
 extern int audit_sockaddr(int len, void *addr);
 extern int audit_avc_path(struct dentry *dentry, struct vfsmount *mnt);
-extern void audit_signal_info(int sig, struct task_struct *t);
 extern int audit_set_macxattr(const char *name);
 #else
 #define audit_alloc(t) ({ 0; })
@@ -349,7 +349,6 @@ extern int audit_set_macxattr(const char *name);
 #define audit_socketcall(n,a) ({ 0; })
 #define audit_sockaddr(len, addr) ({ 0; })
 #define audit_avc_path(dentry, mnt) ({ 0; })
-#define audit_signal_info(s,t) do { ; } while (0)
 #define audit_set_macxattr(n) do { ; } while (0)
 #endif
 

@@ -89,6 +89,7 @@ static int	audit_backlog_wait_overflow = 0;
 /* The identity of the user shutting down the audit system. */
 uid_t		audit_sig_uid = -1;
 pid_t		audit_sig_pid = -1;
+u32		audit_sig_sid = 0;
 
 /* Records can be lost in several ways:
    0) [suppressed in audit_alloc]
@@ -479,7 +480,9 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	struct audit_buffer	*ab;
 	u16			msg_type = nlh->nlmsg_type;
 	uid_t			loginuid; /* loginuid of sender */
-	struct audit_sig_info   sig_data;
+	struct audit_sig_info   *sig_data;
+	char			*ctx;
+	u32			len;
 
 	err = audit_netlink_ok(NETLINK_CB(skb).eff_cap, msg_type);
 	if (err)
@@ -531,12 +534,9 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		if (status_get->mask & AUDIT_STATUS_PID) {
 			int old   = audit_pid;
 			if (sid) {
-				char *ctx = NULL;
-				u32 len;
-				int rc;
-				if ((rc = selinux_ctxid_to_string(
+				if ((err = selinux_ctxid_to_string(
 						sid, &ctx, &len)))
-					return rc;
+					return err;
 				else
 					audit_log(NULL, GFP_KERNEL,
 						AUDIT_CONFIG_CHANGE,
@@ -572,8 +572,6 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 						 "user pid=%d uid=%u auid=%u",
 						 pid, uid, loginuid);
 				if (sid) {
-					char *ctx = NULL;
-					u32 len;
 					if (selinux_ctxid_to_string(
 							sid, &ctx, &len)) {
 						audit_log_format(ab, 
@@ -612,10 +610,21 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 					   loginuid, sid);
 		break;
 	case AUDIT_SIGNAL_INFO:
-		sig_data.uid = audit_sig_uid;
-		sig_data.pid = audit_sig_pid;
+		err = selinux_ctxid_to_string(audit_sig_sid, &ctx, &len);
+		if (err)
+			return err;
+		sig_data = kmalloc(sizeof(*sig_data) + len, GFP_KERNEL);
+		if (!sig_data) {
+			kfree(ctx);
+			return -ENOMEM;
+		}
+		sig_data->uid = audit_sig_uid;
+		sig_data->pid = audit_sig_pid;
+		memcpy(sig_data->ctx, ctx, len);
+		kfree(ctx);
 		audit_send_reply(NETLINK_CB(skb).pid, seq, AUDIT_SIGNAL_INFO, 
-				0, 0, &sig_data, sizeof(sig_data));
+				0, 0, sig_data, sizeof(*sig_data) + len);
+		kfree(sig_data);
 		break;
 	default:
 		err = -EINVAL;
