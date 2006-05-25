@@ -233,16 +233,23 @@ struct nand_hw_control {
  * @steps:	number of ecc steps per page
  * @size:	data bytes per ecc step
  * @bytes:	ecc bytes per step
+ * @total:	total number of ecc bytes per page
+ * @prepad:	padding information for syndrome based ecc generators
+ * @postpad:	padding information for syndrome based ecc generators
  * @hwctl:	function to control hardware ecc generator. Must only
  *		be provided if an hardware ECC is available
  * @calculate:	function for ecc calculation or readback from ecc hardware
  * @correct:	function for ecc correction, matching to ecc generator (sw/hw)
+ * @write_page:	function to write a page according to the ecc generator requirements
  */
 struct nand_ecc_ctrl {
 	nand_ecc_modes_t	mode;
 	int			steps;
 	int			size;
 	int			bytes;
+	int			total;
+	int			prepad;
+	int			postpad;
 	void			(*hwctl)(struct mtd_info *mtd, int mode);
 	int			(*calculate)(struct mtd_info *mtd,
 					     const uint8_t *dat,
@@ -250,6 +257,12 @@ struct nand_ecc_ctrl {
 	int			(*correct)(struct mtd_info *mtd, uint8_t *dat,
 					   uint8_t *read_ecc,
 					   uint8_t *calc_ecc);
+	int			(*read_page)(struct mtd_info *mtd,
+					     struct nand_chip *chip,
+					     uint8_t *buf);
+	int			(*write_page)(struct mtd_info *mtd,
+					      struct nand_chip *chip,
+					      uint8_t *buf, int cached);
 };
 
 /**
