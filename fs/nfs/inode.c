@@ -1414,9 +1414,8 @@ static int nfs_check_inode_attributes(struct inode *inode, struct nfs_fattr *fat
 	/* Do atomic weak cache consistency updates */
 	nfs_wcc_update_inode(inode, fattr);
 
-	if ((fattr->valid & NFS_ATTR_FATTR_V4) != 0) {
-		if (nfsi->change_attr == fattr->change_attr)
-			goto out;
+	if ((fattr->valid & NFS_ATTR_FATTR_V4) != 0 &&
+			nfsi->change_attr != fattr->change_attr) {
 		nfsi->cache_validity |= NFS_INO_INVALID_ATTR;
 		if (!data_unstable)
 			nfsi->cache_validity |= NFS_INO_REVAL_PAGECACHE;
@@ -1444,7 +1443,6 @@ static int nfs_check_inode_attributes(struct inode *inode, struct nfs_fattr *fat
 	if (inode->i_nlink != fattr->nlink)
 		nfsi->cache_validity |= NFS_INO_INVALID_ATTR;
 
-out:
 	if (!timespec_equal(&inode->i_atime, &fattr->atime))
 		nfsi->cache_validity |= NFS_INO_INVALID_ATIME;
 
@@ -1612,15 +1610,13 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
  		inode->i_blksize = fattr->du.nfs2.blocksize;
  	}
 
-	if ((fattr->valid & NFS_ATTR_FATTR_V4)) {
-		if (nfsi->change_attr != fattr->change_attr) {
-			dprintk("NFS: change_attr change on server for file %s/%ld\n",
-					inode->i_sb->s_id, inode->i_ino);
-			nfsi->change_attr = fattr->change_attr;
-			invalid |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_DATA|NFS_INO_INVALID_ACCESS|NFS_INO_INVALID_ACL;
-			nfsi->cache_change_attribute = jiffies;
-		} else
-			invalid &= ~(NFS_INO_INVALID_ATTR|NFS_INO_INVALID_DATA);
+	if ((fattr->valid & NFS_ATTR_FATTR_V4) != 0 &&
+			nfsi->change_attr != fattr->change_attr) {
+		dprintk("NFS: change_attr change on server for file %s/%ld\n",
+				inode->i_sb->s_id, inode->i_ino);
+		nfsi->change_attr = fattr->change_attr;
+		invalid |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_DATA|NFS_INO_INVALID_ACCESS|NFS_INO_INVALID_ACL;
+		nfsi->cache_change_attribute = jiffies;
 	}
 
 	/* Update attrtimeo value if we're out of the unstable period */
