@@ -293,8 +293,12 @@ static struct platform_driver ndfc_nand_driver = {
 
 static int __init ndfc_nand_init(void)
 {
-	int ret = platform_driver_register(&ndfc_nand_driver);
+	int ret;
 
+	spin_lock_init(&ndfc_ctrl.ndfc_control.lock);
+	init_waitqueue_head(&ndfc_ctrl.ndfc_control.wq);
+
+	ret = platform_driver_register(&ndfc_nand_driver);
 	if (!ret)
 		ret = platform_driver_register(&ndfc_chip_driver);
 	return ret;

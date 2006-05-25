@@ -2125,6 +2125,9 @@ static int nand_allocate_kmem(struct mtd_info *mtd, struct nand_chip *chip)
 					   GFP_KERNEL);
 		if (!chip->controller)
 			goto outerr;
+
+		spin_lock_init(&chip->controller->lock);
+		init_waitqueue_head(&chip->controller->wq);
 		chip->options |= NAND_CONTROLLER_ALLOC;
 	}
 	return 0;
@@ -2451,10 +2454,8 @@ int nand_scan(struct mtd_info *mtd, int maxchips)
 		BUG();
 	}
 
-	/* Initialize state, waitqueue and spinlock */
+	/* Initialize state */
 	chip->state = FL_READY;
-	init_waitqueue_head(&chip->controller->wq);
-	spin_lock_init(&chip->controller->lock);
 
 	/* De-select the device */
 	chip->select_chip(mtd, -1);
