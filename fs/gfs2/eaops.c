@@ -225,5 +225,6 @@ struct gfs2_eattr_operations *gfs2_ea_ops[] = {
 	NULL,
 	&gfs2_user_eaops,
 	&gfs2_system_eaops,
+	&gfs2_security_eaops,
 };
 
