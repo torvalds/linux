@@ -889,7 +889,7 @@ static int nand_verify_pages(struct mtd_info *mtd, struct nand_chip *chip, int p
 			     uint8_t *oob_buf, struct nand_oobinfo *oobsel, int chipnr, int oobmode)
 {
 	int i, j, datidx = 0, oobofs = 0, res = -EIO;
-	int eccsteps = chip->eccsteps;
+	int eccsteps = chip->ecc.steps;
 	int hweccbytes;
 	uint8_t oobdata[64];
 
@@ -962,7 +962,7 @@ static int nand_verify_pages(struct mtd_info *mtd, struct nand_chip *chip, int p
 			return 0;
 
 		/* Check, if the chip supports auto page increment */
-		if (!NAND_CANAUTOINCR(this))
+		if (!NAND_CANAUTOINCR(chip))
 			chip->cmdfunc(mtd, NAND_CMD_READ0, 0x00, page);
 	}
 	/*
@@ -1635,7 +1635,7 @@ static int nand_write(struct mtd_info *mtd, loff_t to, size_t len,
 		if (!(page & (ppblock - 1))) {
 			int ofs;
 			chip->data_poi = bufstart;
-			ret = nand_verify_pages(mtd, this, startpage, page - startpage,
+			ret = nand_verify_pages(mtd, chip, startpage, page - startpage,
 						oobbuf, oobsel, chipnr, (eccbuf != NULL));
 			if (ret) {
 				DEBUG(MTD_DEBUG_LEVEL0, "nand_write: verify_pages failed %d\n", ret);
@@ -1663,7 +1663,7 @@ static int nand_write(struct mtd_info *mtd, loff_t to, size_t len,
 	/* Verify the remaining pages */
  cmp:
 	chip->data_poi = bufstart;
-	ret = nand_verify_pages(mtd, this, startpage, totalpages, oobbuf, oobsel, chipnr, (eccbuf != NULL));
+	ret = nand_verify_pages(mtd, chip, startpage, totalpages, oobbuf, oobsel, chipnr, (eccbuf != NULL));
 	if (!ret)
 		*retlen = written;
 	else
