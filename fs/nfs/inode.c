@@ -1220,7 +1220,7 @@ __nfs_revalidate_inode(struct nfs_server *server, struct inode *inode)
 		status = -ESTALE;
 		/* Do we trust the cached ESTALE? */
 		if (NFS_ATTRTIMEO(inode) != 0) {
-			if (nfsi->cache_validity & (NFS_INO_INVALID_ATTR|NFS_INO_INVALID_DATA|NFS_INO_INVALID_ATIME)) {
+			if (nfsi->cache_validity & (NFS_INO_INVALID_ATTR|NFS_INO_INVALID_ATIME)) {
 				/* no */
 			} else
 				goto out;
@@ -1250,8 +1250,6 @@ __nfs_revalidate_inode(struct nfs_server *server, struct inode *inode)
 		goto out;
 	}
 	spin_unlock(&inode->i_lock);
-
-	nfs_revalidate_mapping(inode, inode->i_mapping);
 
 	if (nfsi->cache_validity & NFS_INO_INVALID_ACL)
 		nfs_zap_acl_cache(inode);
@@ -1287,7 +1285,7 @@ int nfs_attribute_timeout(struct inode *inode)
 int nfs_revalidate_inode(struct nfs_server *server, struct inode *inode)
 {
 	nfs_inc_stats(inode, NFSIOS_INODEREVALIDATE);
-	if (!(NFS_I(inode)->cache_validity & (NFS_INO_INVALID_ATTR|NFS_INO_INVALID_DATA))
+	if (!(NFS_I(inode)->cache_validity & NFS_INO_INVALID_ATTR)
 			&& !nfs_attribute_timeout(inode))
 		return NFS_STALE(inode) ? -ESTALE : 0;
 	return __nfs_revalidate_inode(server, inode);
@@ -1298,9 +1296,16 @@ int nfs_revalidate_inode(struct nfs_server *server, struct inode *inode)
  * @inode - pointer to host inode
  * @mapping - pointer to mapping
  */
-void nfs_revalidate_mapping(struct inode *inode, struct address_space *mapping)
+int nfs_revalidate_mapping(struct inode *inode, struct address_space *mapping)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
+	int ret = 0;
+
+	if (NFS_STALE(inode))
+		ret = -ESTALE;
+	if ((nfsi->cache_validity & NFS_INO_REVAL_PAGECACHE)
+			|| nfs_attribute_timeout(inode))
+		ret = __nfs_revalidate_inode(NFS_SERVER(inode), inode);
 
 	if (nfsi->cache_validity & NFS_INO_INVALID_DATA) {
 		nfs_inc_stats(inode, NFSIOS_DATAINVALIDATE);
@@ -1321,6 +1326,7 @@ void nfs_revalidate_mapping(struct inode *inode, struct address_space *mapping)
 				inode->i_sb->s_id,
 				(long long)NFS_FILEID(inode));
 	}
+	return ret;
 }
 
 /**

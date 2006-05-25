@@ -127,23 +127,6 @@ nfs_file_release(struct inode *inode, struct file *filp)
 }
 
 /**
- * nfs_revalidate_file - Revalidate the page cache & related metadata
- * @inode - pointer to inode struct
- * @file - pointer to file
- */
-static int nfs_revalidate_file(struct inode *inode, struct file *filp)
-{
-	struct nfs_inode *nfsi = NFS_I(inode);
-	int retval = 0;
-
-	if ((nfsi->cache_validity & (NFS_INO_REVAL_PAGECACHE|NFS_INO_INVALID_ATTR))
-			|| nfs_attribute_timeout(inode))
-		retval = __nfs_revalidate_inode(NFS_SERVER(inode), inode);
-	nfs_revalidate_mapping(inode, filp->f_mapping);
-	return 0;
-}
-
-/**
  * nfs_revalidate_size - Revalidate the file size
  * @inode - pointer to inode struct
  * @file - pointer to struct file
@@ -228,7 +211,7 @@ nfs_file_read(struct kiocb *iocb, char __user * buf, size_t count, loff_t pos)
 		dentry->d_parent->d_name.name, dentry->d_name.name,
 		(unsigned long) count, (unsigned long) pos);
 
-	result = nfs_revalidate_file(inode, iocb->ki_filp);
+	result = nfs_revalidate_mapping(inode, iocb->ki_filp->f_mapping);
 	nfs_add_stats(inode, NFSIOS_NORMALREADBYTES, count);
 	if (!result)
 		result = generic_file_aio_read(iocb, buf, count, pos);
@@ -247,7 +230,7 @@ nfs_file_sendfile(struct file *filp, loff_t *ppos, size_t count,
 		dentry->d_parent->d_name.name, dentry->d_name.name,
 		(unsigned long) count, (unsigned long long) *ppos);
 
-	res = nfs_revalidate_file(inode, filp);
+	res = nfs_revalidate_mapping(inode, filp->f_mapping);
 	if (!res)
 		res = generic_file_sendfile(filp, ppos, count, actor, target);
 	return res;
@@ -263,7 +246,7 @@ nfs_file_mmap(struct file * file, struct vm_area_struct * vma)
 	dfprintk(VFS, "nfs: mmap(%s/%s)\n",
 		dentry->d_parent->d_name.name, dentry->d_name.name);
 
-	status = nfs_revalidate_file(inode, file);
+	status = nfs_revalidate_mapping(inode, file->f_mapping);
 	if (!status)
 		status = generic_file_mmap(file, vma);
 	return status;
@@ -373,7 +356,6 @@ nfs_file_write(struct kiocb *iocb, const char __user *buf, size_t count, loff_t 
 		if (result)
 			goto out;
 	}
-	nfs_revalidate_mapping(inode, iocb->ki_filp->f_mapping);
 
 	result = count;
 	if (!count)
