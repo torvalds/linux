@@ -48,6 +48,7 @@ static int __init br_init(void)
 	if (err)
 		goto err_out2;
 
+	br_netlink_init();
 	brioctl_set(br_ioctl_deviceless_stub);
 	br_handle_frame_hook = br_handle_frame;
 
@@ -67,6 +68,7 @@ static void __exit br_deinit(void)
 {
 	rcu_assign_pointer(br_stp_sap->rcv_func, NULL);
 
+	br_netlink_fini();
 	br_netfilter_fini();
 	unregister_netdevice_notifier(&br_device_notifier);
 	brioctl_set(NULL);
