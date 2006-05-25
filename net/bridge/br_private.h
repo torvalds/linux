@@ -192,8 +192,13 @@ extern int br_dev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 extern int br_ioctl_deviceless_stub(unsigned int cmd, void __user *arg);
 
 /* br_netfilter.c */
+#ifdef CONFIG_BRIDGE_NETFILTER
 extern int br_netfilter_init(void);
 extern void br_netfilter_fini(void);
+#else
+#define br_netfilter_init()	(0)
+#define br_netfilter_fini()	do { } while(0)
+#endif
 
 /* br_stp.c */
 extern void br_log_state(const struct net_bridge_port *p);

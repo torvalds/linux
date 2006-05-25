@@ -30,36 +30,44 @@ static struct llc_sap *br_stp_sap;
 
 static int __init br_init(void)
 {
+	int err;
+
 	br_stp_sap = llc_sap_open(LLC_SAP_BSPAN, br_stp_rcv);
 	if (!br_stp_sap) {
 		printk(KERN_ERR "bridge: can't register sap for STP\n");
-		return -EBUSY;
+		return -EADDRINUSE;
 	}
 
 	br_fdb_init();
 
-#ifdef CONFIG_BRIDGE_NETFILTER
-	if (br_netfilter_init())
-		return 1;
-#endif
+	err = br_netfilter_init();
+	if (err)
+		goto err_out1;
+
+	err = register_netdevice_notifier(&br_device_notifier);
+	if (err)
+		goto err_out2;
+
 	brioctl_set(br_ioctl_deviceless_stub);
 	br_handle_frame_hook = br_handle_frame;
 
 	br_fdb_get_hook = br_fdb_get;
 	br_fdb_put_hook = br_fdb_put;
 
-	register_netdevice_notifier(&br_device_notifier);
-
 	return 0;
+
+err_out2:
+	br_netfilter_fini();
+err_out1:
+	llc_sap_put(br_stp_sap);
+	return err;
 }
 
 static void __exit br_deinit(void)
 {
 	rcu_assign_pointer(br_stp_sap->rcv_func, NULL);
 
-#ifdef CONFIG_BRIDGE_NETFILTER
 	br_netfilter_fini();
-#endif
 	unregister_netdevice_notifier(&br_device_notifier);
 	brioctl_set(NULL);
 
