@@ -881,9 +881,9 @@ scan_more:
 		}
 	}
 
-	D1(printk(KERN_DEBUG "Block at 0x%08x: free 0x%08x, dirty 0x%08x, unchecked 0x%08x, used 0x%08x\n", jeb->offset,
-		  jeb->free_size, jeb->dirty_size, jeb->unchecked_size, jeb->used_size));
-
+	D1(printk(KERN_DEBUG "Block at 0x%08x: free 0x%08x, dirty 0x%08x, unchecked 0x%08x, used 0x%08x, wasted 0x%08x\n",
+		  jeb->offset,jeb->free_size, jeb->dirty_size, jeb->unchecked_size, jeb->used_size, jeb->wasted_size));
+	
 	/* mark_node_obsolete can add to wasted !! */
 	if (jeb->wasted_size) {
 		jeb->dirty_size += jeb->wasted_size;

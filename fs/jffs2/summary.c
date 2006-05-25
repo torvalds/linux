@@ -413,7 +413,7 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 
 				dbg_summary("Inode at 0x%08x-0x%08x\n",
 					    jeb->offset + je32_to_cpu(spi->offset),
-					    jeb->offset + je32_to_cpu(spi->offset) + je32_to_cpu(spu->totlen));
+					    jeb->offset + je32_to_cpu(spi->offset) + je32_to_cpu(spi->totlen));
 
 				ic = jffs2_scan_make_ino_cache(c, ino);
 				if (!ic) {
@@ -435,7 +435,7 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 				struct jffs2_sum_dirent_flash *spd;
 				spd = sp;
 
-				dbg_summary("Dirent at 0x%08x\n",
+				dbg_summary("Dirent at 0x%08x-0x%08x\n",
 					    jeb->offset + je32_to_cpu(spd->offset),
 					    jeb->offset + je32_to_cpu(spd->offset) + je32_to_cpu(spd->totlen));
 
