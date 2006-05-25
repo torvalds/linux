@@ -1207,6 +1207,7 @@ __nfs_revalidate_inode(struct nfs_server *server, struct inode *inode)
 	dfprintk(PAGECACHE, "NFS: revalidating (%s/%Ld)\n",
 		inode->i_sb->s_id, (long long)NFS_FILEID(inode));
 
+	nfs_inc_stats(inode, NFSIOS_INODEREVALIDATE);
 	lock_kernel();
 	if (!inode || is_bad_inode(inode))
  		goto out_nowait;
@@ -1284,7 +1285,6 @@ int nfs_attribute_timeout(struct inode *inode)
  */
 int nfs_revalidate_inode(struct nfs_server *server, struct inode *inode)
 {
-	nfs_inc_stats(inode, NFSIOS_INODEREVALIDATE);
 	if (!(NFS_I(inode)->cache_validity & NFS_INO_INVALID_ATTR)
 			&& !nfs_attribute_timeout(inode))
 		return NFS_STALE(inode) ? -ESTALE : 0;
