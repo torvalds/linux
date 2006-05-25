@@ -331,7 +331,6 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size)
 	dev->mtd.writev = default_mtd_writev;
 	dev->mtd.sync = block2mtd_sync;
 	dev->mtd.read = block2mtd_read;
-	dev->mtd.readv = default_mtd_readv;
 	dev->mtd.priv = dev;
 	dev->mtd.owner = THIS_MODULE;
 
