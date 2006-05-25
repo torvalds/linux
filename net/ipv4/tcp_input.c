@@ -3931,8 +3931,6 @@ int tcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 				    tp->rcv_nxt == tp->rcv_wup)
 					tcp_store_ts_recent(tp);
 
-				tcp_rcv_rtt_measure_ts(sk, skb);
-
 				/* We know that such packets are checksummed
 				 * on entry.
 				 */
