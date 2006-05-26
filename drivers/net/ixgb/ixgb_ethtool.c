@@ -254,14 +254,14 @@ ixgb_set_tso(struct net_device *netdev, uint32_t data)
 static uint32_t
 ixgb_get_msglevel(struct net_device *netdev)
 {
-	struct ixgb_adapter *adapter = netdev->priv;
+	struct ixgb_adapter *adapter = netdev_priv(netdev);
 	return adapter->msg_enable;
 }
 
 static void
 ixgb_set_msglevel(struct net_device *netdev, uint32_t data)
 {
-	struct ixgb_adapter *adapter = netdev->priv;
+	struct ixgb_adapter *adapter = netdev_priv(netdev);
 	adapter->msg_enable = data;
 }
 #define IXGB_GET_STAT(_A_, _R_) _A_->stats._R_
