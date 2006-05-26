@@ -137,6 +137,15 @@ config USB_IDMOUSE
 
 	  See also <http://www.fs.tum.de/~echtler/idmouse/>.
 
+config USB_APPLEDISPLAY
+	tristate "Apple Cinema Display support"
+	depends on USB
+	select BACKLIGHT_LCD_SUPPORT
+	select BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to control the backlight of Apple Cinema
+	  Displays over USB. This driver provides a sysfs interface.
+
 source "drivers/usb/misc/sisusbvga/Kconfig"
 
 config USB_LD
