@@ -203,7 +203,7 @@ module_exit(ixgb_exit_module);
  * @adapter: board private structure
  **/
 
-static inline void
+static void
 ixgb_irq_disable(struct ixgb_adapter *adapter)
 {
 	atomic_inc(&adapter->irq_sem);
@@ -217,7 +217,7 @@ ixgb_irq_disable(struct ixgb_adapter *adapter)
  * @adapter: board private structure
  **/
 
-static inline void
+static void
 ixgb_irq_enable(struct ixgb_adapter *adapter)
 {
 	if(atomic_dec_and_test(&adapter->irq_sem)) {
@@ -918,7 +918,7 @@ ixgb_free_tx_resources(struct ixgb_adapter *adapter)
 	adapter->tx_ring.desc = NULL;
 }
 
-static inline void
+static void
 ixgb_unmap_and_free_tx_resource(struct ixgb_adapter *adapter,
 					struct ixgb_buffer *buffer_info)
 {
@@ -1179,7 +1179,7 @@ ixgb_watchdog(unsigned long data)
 #define IXGB_TX_FLAGS_VLAN		0x00000002
 #define IXGB_TX_FLAGS_TSO		0x00000004
 
-static inline int
+static int
 ixgb_tso(struct ixgb_adapter *adapter, struct sk_buff *skb)
 {
 #ifdef NETIF_F_TSO
@@ -1241,7 +1241,7 @@ ixgb_tso(struct ixgb_adapter *adapter, struct sk_buff *skb)
 	return 0;
 }
 
-static inline boolean_t
+static boolean_t
 ixgb_tx_csum(struct ixgb_adapter *adapter, struct sk_buff *skb)
 {
 	struct ixgb_context_desc *context_desc;
@@ -1279,7 +1279,7 @@ ixgb_tx_csum(struct ixgb_adapter *adapter, struct sk_buff *skb)
 #define IXGB_MAX_TXD_PWR	14
 #define IXGB_MAX_DATA_PER_TXD	(1<<IXGB_MAX_TXD_PWR)
 
-static inline int
+static int
 ixgb_tx_map(struct ixgb_adapter *adapter, struct sk_buff *skb,
 	    unsigned int first)
 {
@@ -1346,7 +1346,7 @@ ixgb_tx_map(struct ixgb_adapter *adapter, struct sk_buff *skb,
 	return count;
 }
 
-static inline void
+static void
 ixgb_tx_queue(struct ixgb_adapter *adapter, int count, int vlan_id,int tx_flags)
 {
 	struct ixgb_desc_ring *tx_ring = &adapter->tx_ring;
@@ -1849,7 +1849,7 @@ ixgb_clean_tx_irq(struct ixgb_adapter *adapter)
  * @sk_buff: socket buffer with received data
  **/
 
-static inline void
+static void
 ixgb_rx_checksum(struct ixgb_adapter *adapter,
 		 struct ixgb_rx_desc *rx_desc,
 		 struct sk_buff *skb)
