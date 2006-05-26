@@ -1903,7 +1903,7 @@ struct tvcard bttv_tvcards[] = {
 		.no_tda7432     = 1,
 	},
 	[BTTV_BOARD_OSPREY2x0] = {
-		.name           = "Osprey 210/220",   /* 0x1(A|B)-04C0-C1 */
+		.name           = "Osprey 210/220/230",   /* 0x1(A|B)-04C0-C1 */
 		.video_inputs   = 2,
 		.audio_inputs   = 1,
 		.tuner          = -1,
@@ -3790,6 +3790,7 @@ static void __devinit osprey_eeprom(struct bttv *btv)
 		       break;
 	       case 0x0060:
 	       case 0x0070:
+	       case 0x00A0:
 		       btv->c.type = BTTV_BOARD_OSPREY2x0;
 		       /* enable output on select control lines */
 		       gpio_inout(0xffffff,0x000303);
