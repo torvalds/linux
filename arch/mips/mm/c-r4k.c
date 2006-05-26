@@ -1161,6 +1161,31 @@ static void __init setup_scache(void)
 	c->options |= MIPS_CPU_SUBSET_CACHES;
 }
 
+void au1x00_fixup_config_od(void)
+{
+	/*
+	 * c0_config.od (bit 19) was write only (and read as 0)
+	 * on the early revisions of Alchemy SOCs.  It disables the bus
+	 * transaction overlapping and needs to be set to fix various errata.
+	 */
+	switch (read_c0_prid()) {
+	case 0x00030100: /* Au1000 DA */
+	case 0x00030201: /* Au1000 HA */
+	case 0x00030202: /* Au1000 HB */
+	case 0x01030200: /* Au1500 AB */
+	/*
+	 * Au1100 errata actually keeps silence about this bit, so we set it
+	 * just in case for those revisions that require it to be set according
+	 * to arch/mips/au1000/common/cputable.c
+	 */
+	case 0x02030200: /* Au1100 AB */
+	case 0x02030201: /* Au1100 BA */
+	case 0x02030202: /* Au1100 BC */
+		set_c0_config(1 << 19);
+		break;
+	}
+}
+
 static inline void coherency_setup(void)
 {
 	change_c0_config(CONF_CM_CMASK, CONF_CM_DEFAULT);
@@ -1180,6 +1205,15 @@ static inline void coherency_setup(void)
 	case CPU_R4400SC:
 	case CPU_R4400MC:
 		clear_c0_config(CONF_CU);
+		break;
+	/*
+	 * We need to catch the ealry Alchemy SOCs with
+	 * the write-only co_config.od bit and set it back to one...
+	 */
+	case CPU_AU1000: /* rev. DA, HA, HB */
+	case CPU_AU1100: /* rev. AB, BA, BC ?? */
+	case CPU_AU1500: /* rev. AB */
+		au1x00_fixup_config_od();
 		break;
 	}
 }
