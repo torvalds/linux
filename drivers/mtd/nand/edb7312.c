@@ -198,9 +198,6 @@ static void __exit ep7312_cleanup(void)
 	/* Release resources, unregister device */
 	nand_release(ap7312_mtd);
 
-	/* Free internal data buffer */
-	kfree(this->data_buf);
-
 	/* Free the MTD device structure */
 	kfree(ep7312_mtd);
 }

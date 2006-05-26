@@ -571,7 +571,6 @@ static int __init rtc_from4_init(void)
 	this->ecc.mode = NAND_ECC_HW_SYNDROME;
 	this->ecc.size = 512;
 	this->ecc.bytes = 8;
-	this->options |= NAND_HWECC_SYNDROME;
 	/* return the status of extra status and ECC checks */
 	this->errstat = rtc_from4_errstat;
 	/* set the nand_oobinfo to support FPGA H/W error detection */

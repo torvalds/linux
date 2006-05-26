@@ -175,8 +175,6 @@ static int __init toto_init(void)
 
 	goto out;
 
- out_buf:
-	kfree(this->data_buf);
  out_mtd:
 	kfree(toto_mtd);
  out:
