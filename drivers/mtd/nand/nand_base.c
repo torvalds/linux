@@ -1954,10 +1954,13 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 	if (!type)
 		return ERR_PTR(-ENODEV);
 
-	chip->chipsize = nand_flash_ids[i].chipsize << 20;
+	if (!mtd->name)
+		mtd->name = type->name;
+
+	chip->chipsize = type->chipsize << 20;
 
 	/* Newer devices have all the information in additional id bytes */
-	if (!nand_flash_ids[i].pagesize) {
+	if (!type->pagesize) {
 		int extid;
 		/* The 3rd id byte contains non relevant data ATM */
 		extid = chip->read_byte(mtd);
@@ -1979,10 +1982,10 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 		/*
 		 * Old devices have chip data hardcoded in the device id table
 		 */
-		mtd->erasesize = nand_flash_ids[i].erasesize;
-		mtd->writesize = nand_flash_ids[i].pagesize;
+		mtd->erasesize = type->erasesize;
+		mtd->writesize = type->pagesize;
 		mtd->oobsize = mtd->writesize / 32;
-		busw = nand_flash_ids[i].options & NAND_BUSWIDTH_16;
+		busw = type->options & NAND_BUSWIDTH_16;
 	}
 
 	/* Try to identify manufacturer */
@@ -2020,7 +2023,7 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 
 	/* Get chip options, preserve non chip based options */
 	chip->options &= ~NAND_CHIPOPTIONS_MSK;
-	chip->options |= nand_flash_ids[i].options & NAND_CHIPOPTIONS_MSK;
+	chip->options |= type->options & NAND_CHIPOPTIONS_MSK;
 
 	/*
 	 * Set chip as a default. Board drivers can override it, if necessary
@@ -2030,7 +2033,7 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 	/* Check if chip is a not a samsung device. Do not clear the
 	 * options for chips which are not having an extended id.
 	 */
-	if (*maf_id != NAND_MFR_SAMSUNG && !nand_flash_ids[i].pagesize)
+	if (*maf_id != NAND_MFR_SAMSUNG && !type->pagesize)
 		chip->options &= ~NAND_SAMSUNG_LP_OPTIONS;
 
 	/* Check for AND chips with 4 page planes */
