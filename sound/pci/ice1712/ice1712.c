@@ -61,7 +61,6 @@
 #include <sound/core.h>
 #include <sound/cs8427.h>
 #include <sound/info.h>
-#include <sound/mpu401.h>
 #include <sound/initval.h>
 
 #include <sound/asoundef.h>
@@ -2739,7 +2738,8 @@ static int __devinit snd_ice1712_probe(struct pci_dev *pci,
 	if (! c->no_mpu401) {
 		if ((err = snd_mpu401_uart_new(card, 0, MPU401_HW_ICE1712,
 					       ICEREG(ice, MPU1_CTRL),
-					       MPU401_INFO_INTEGRATED,
+					       (c->mpu401_1_info_flags |
+						MPU401_INFO_INTEGRATED),
 					       ice->irq, 0,
 					       &ice->rmidi[0])) < 0) {
 			snd_card_free(card);
@@ -2755,7 +2755,8 @@ static int __devinit snd_ice1712_probe(struct pci_dev *pci,
 			/*  2nd port used  */
 			if ((err = snd_mpu401_uart_new(card, 1, MPU401_HW_ICE1712,
 						       ICEREG(ice, MPU2_CTRL),
-						       MPU401_INFO_INTEGRATED,
+						       (c->mpu401_2_info_flags |
+							MPU401_INFO_INTEGRATED),
 						       ice->irq, 0,
 						       &ice->rmidi[1])) < 0) {
 				snd_card_free(card);
