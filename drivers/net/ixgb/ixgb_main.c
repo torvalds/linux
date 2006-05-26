@@ -1295,7 +1295,6 @@ ixgb_tx_map(struct ixgb_adapter *adapter, struct sk_buff *skb,
 	struct ixgb_buffer *buffer_info;
 	int len = skb->len;
 	unsigned int offset = 0, size, count = 0, i;
-	unsigned int mss = skb_shinfo(skb)->tso_size;
 
 	unsigned int nr_frags = skb_shinfo(skb)->nr_frags;
 	unsigned int f;
@@ -1307,11 +1306,6 @@ ixgb_tx_map(struct ixgb_adapter *adapter, struct sk_buff *skb,
 	while(len) {
 		buffer_info = &tx_ring->buffer_info[i];
 		size = min(len, IXGB_MAX_JUMBO_FRAME_SIZE);
-		/* Workaround for premature desc write-backs
-		 * in TSO mode.  Append 4-byte sentinel desc */
-		if(unlikely(mss && !nr_frags && size == len && size > 8))
-			size -= 4;
-
 		buffer_info->length = size;
 		buffer_info->dma =
 			pci_map_single(adapter->pdev,
@@ -1337,12 +1331,6 @@ ixgb_tx_map(struct ixgb_adapter *adapter, struct sk_buff *skb,
 		while(len) {
 			buffer_info = &tx_ring->buffer_info[i];
 			size = min(len, IXGB_MAX_JUMBO_FRAME_SIZE);
-			/* Workaround for premature desc write-backs
-			 * in TSO mode.  Append 4-byte sentinel desc */
-			if(unlikely(mss && (f == (nr_frags-1)) && (size == len)
-			            && (size > 8)))
-				size -= 4;
-
 			buffer_info->length = size;
 			buffer_info->dma =
 				pci_map_page(adapter->pdev,
@@ -1421,8 +1409,7 @@ ixgb_tx_queue(struct ixgb_adapter *adapter, int count, int vlan_id,int tx_flags)
 #define TXD_USE_COUNT(S) (((S) >> IXGB_MAX_TXD_PWR) + \
 			 (((S) & (IXGB_MAX_DATA_PER_TXD - 1)) ? 1 : 0))
 #define DESC_NEEDED TXD_USE_COUNT(IXGB_MAX_DATA_PER_TXD) + \
-	MAX_SKB_FRAGS * TXD_USE_COUNT(PAGE_SIZE) + 1 \
-	/* one more for TSO workaround */ + 1
+	MAX_SKB_FRAGS * TXD_USE_COUNT(PAGE_SIZE) + 1
 
 static int
 ixgb_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
