@@ -2314,7 +2314,6 @@ static int ub_probe_lun(struct ub_dev *sc, int lnum)
 		goto err_id;
 
 	lun->udev = sc;
-	list_add(&lun->link, &sc->luns);
 
 	snprintf(lun->name, 16, DRV_NAME "%c(%d.%d.%d)",
 	    lun->id + 'a', sc->dev->bus->busnum, sc->dev->devnum, lun->num);
@@ -2327,7 +2326,6 @@ static int ub_probe_lun(struct ub_dev *sc, int lnum)
 	if ((disk = alloc_disk(UB_PARTS_PER_LUN)) == NULL)
 		goto err_diskalloc;
 
-	lun->disk = disk;
 	sprintf(disk->disk_name, DRV_NAME "%c", lun->id + 'a');
 	sprintf(disk->devfs_name, DEVFS_NAME "/%c", lun->id + 'a');
 	disk->major = UB_MAJOR;
@@ -2349,7 +2347,9 @@ static int ub_probe_lun(struct ub_dev *sc, int lnum)
 	blk_queue_max_sectors(q, UB_MAX_SECTORS);
 	blk_queue_hardsect_size(q, lun->capacity.bsize);
 
+	lun->disk = disk;
 	q->queuedata = lun;
+	list_add(&lun->link, &sc->luns);
 
 	set_capacity(disk, lun->capacity.nsec);
 	if (lun->removable)
@@ -2362,7 +2362,6 @@ static int ub_probe_lun(struct ub_dev *sc, int lnum)
 err_blkqinit:
 	put_disk(disk);
 err_diskalloc:
-	list_del(&lun->link);
 	ub_id_put(lun->id);
 err_id:
 	kfree(lun);
@@ -2375,7 +2374,6 @@ static void ub_disconnect(struct usb_interface *intf)
 	struct ub_dev *sc = usb_get_intfdata(intf);
 	struct list_head *p;
 	struct ub_lun *lun;
-	struct gendisk *disk;
 	unsigned long flags;
 
 	/*
@@ -2431,9 +2429,7 @@ static void ub_disconnect(struct usb_interface *intf)
 	 */
 	list_for_each (p, &sc->luns) {
 		lun = list_entry(p, struct ub_lun, link);
-		disk = lun->disk;
-		if (disk->flags & GENHD_FL_UP)
-			del_gendisk(disk);
+		del_gendisk(lun->disk);
 		/*
 		 * I wish I could do:
 		 *    set_bit(QUEUE_FLAG_DEAD, &q->queue_flags);
