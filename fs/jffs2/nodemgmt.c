@@ -458,14 +458,13 @@ static inline int on_list(struct list_head *obj, struct list_head *head)
 void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref *ref)
 {
 	struct jffs2_eraseblock *jeb;
-	struct jffs2_raw_node_ref *next_ref;
 	int blocknr;
 	struct jffs2_unknown_node n;
 	int ret, addedsize;
 	size_t retlen;
 	uint32_t freed_len;
 
-	if(!ref) {
+	if(unlikely(!ref)) {
 		printk(KERN_NOTICE "EEEEEK. jffs2_mark_node_obsolete called with NULL node\n");
 		return;
 	}
@@ -683,54 +682,6 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 		spin_unlock(&c->erase_completion_lock);
 	}
 
-
-	/* Merge with the next node in the physical list, if there is one
-	   and if it's also obsolete and if it doesn't belong to any inode */
-	next_ref = ref_next(ref);
-
-	if (next_ref && ref_obsolete(next_ref) && !next_ref->next_in_ino) {
-		spin_lock(&c->erase_completion_lock);
-
-#ifdef TEST_TOTLEN
-		ref->__totlen += next_ref->__totlen;
-#endif
-		ref->next_phys = ref_next(next_ref);
-                if (jeb->last_node == next_ref) jeb->last_node = ref;
-		if (jeb->gc_node == next_ref) {
-			/* gc will be happy continuing gc on this node */
-			jeb->gc_node=ref;
-		}
-		spin_unlock(&c->erase_completion_lock);
-
-		__jffs2_free_raw_node_ref(next_ref);
-	}
-
-	/* Also merge with the previous node in the list, if there is one
-	   and that one is obsolete */
-	if (ref != jeb->first_node ) {
-		struct jffs2_raw_node_ref *p = jeb->first_node;
-
-		spin_lock(&c->erase_completion_lock);
-
-		while ((next_ref = ref_next(ref)) != ref)
-			p = next_ref;
-
-		if (ref_obsolete(p) && !ref->next_in_ino) {
-#ifdef TEST_TOTLEN
-			p->__totlen += ref->__totlen;
-#endif
-			if (jeb->last_node == ref) {
-				jeb->last_node = p;
-			}
-			if (jeb->gc_node == ref) {
-				/* gc will be happy continuing gc on this node */
-				jeb->gc_node=p;
-			}
-			p->next_phys = ref_next(ref);
-			__jffs2_free_raw_node_ref(ref);
-		}
-		spin_unlock(&c->erase_completion_lock);
-	}
  out_erase_sem:
 	up(&c->erase_free_sem);
 }

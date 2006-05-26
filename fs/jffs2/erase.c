@@ -285,20 +285,25 @@ static inline void jffs2_remove_node_refs_from_ino_list(struct jffs2_sb_info *c,
 
 void jffs2_free_jeb_node_refs(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb)
 {
-	struct jffs2_raw_node_ref *ref;
+	struct jffs2_raw_node_ref *block, *ref;
 	D1(printk(KERN_DEBUG "Freeing all node refs for eraseblock offset 0x%08x\n", jeb->offset));
-	while(jeb->first_node) {
-		ref = jeb->first_node;
-		jeb->first_node = ref->next_phys;
 
-		/* Remove from the inode-list */
-		if (ref->next_in_ino)
+	block = ref = jeb->first_node;
+
+	while (ref) {
+		if (ref->flash_offset == REF_LINK_NODE) {
+			ref = ref->next_in_ino;
+			jffs2_free_refblock(block);
+			block = ref;
+			continue;
+		}
+		if (ref->flash_offset != REF_EMPTY_NODE && ref->next_in_ino)
 			jffs2_remove_node_refs_from_ino_list(c, ref, jeb);
 		/* else it was a non-inode node or already removed, so don't bother */
 
-		__jffs2_free_raw_node_ref(ref);
+		ref++;
 	}
-	jeb->last_node = NULL;
+	jeb->first_node = jeb->last_node = NULL;
 }
 
 static int jffs2_block_check_erase(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb, uint32_t *bad_offset)

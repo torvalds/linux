@@ -511,7 +511,8 @@ static int jffs2_sum_process_sum_data(struct jffs2_sb_info *c, struct jffs2_eras
 				spr = (struct jffs2_sum_xref_flash *)sp;
 				dbg_summary("xref at %#08x-%#08x\n",
 					    jeb->offset + je32_to_cpu(spr->offset),
-					    jeb->offset + je32_to_cpu(spr->offset) + PAD(sizeof(struct jffs2_raw_xref)));
+					    jeb->offset + je32_to_cpu(spr->offset) + 
+					    (uint32_t)PAD(sizeof(struct jffs2_raw_xref)));
 
 				ref = jffs2_alloc_xattr_ref();
 				if (!ref) {
@@ -787,10 +788,12 @@ static int jffs2_sum_write_data(struct jffs2_sb_info *c, struct jffs2_eraseblock
 		JFFS2_WARNING("Write of %u bytes at 0x%08x failed. returned %d, retlen %zd\n",
 			      infosize, sum_ofs, ret, retlen);
 
-		/* Waste remaining space */
-		spin_lock(&c->erase_completion_lock);
-		jffs2_link_node_ref(c, jeb, sum_ofs | REF_OBSOLETE, infosize, NULL);
-		spin_unlock(&c->erase_completion_lock);
+		if (retlen) {
+			/* Waste remaining space */
+			spin_lock(&c->erase_completion_lock);
+			jffs2_link_node_ref(c, jeb, sum_ofs | REF_OBSOLETE, infosize, NULL);
+			spin_unlock(&c->erase_completion_lock);
+		}
 
 		c->summary->sum_size = JFFS2_SUMMARY_NOSUM_SIZE;
 
@@ -836,6 +839,7 @@ int jffs2_sum_write_sumnode(struct jffs2_sb_info *c)
 		jffs2_sum_disable_collecting(c->summary);
 
 		JFFS2_WARNING("Not enough space for summary, padsize = %d\n", padsize);
+		spin_lock(&c->erase_completion_lock);
 		return 0;
 	}
 

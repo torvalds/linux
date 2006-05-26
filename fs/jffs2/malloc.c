@@ -57,8 +57,8 @@ int __init jffs2_create_slab_caches(void)
 	if (!tmp_dnode_info_slab)
 		goto err;
 
-	raw_node_ref_slab = kmem_cache_create("jffs2_raw_node_ref",
-					      sizeof(struct jffs2_raw_node_ref),
+	raw_node_ref_slab = kmem_cache_create("jffs2_refblock",
+					      sizeof(struct jffs2_raw_node_ref) * (REFS_PER_BLOCK + 1),
 					      0, 0, NULL, NULL);
 	if (!raw_node_ref_slab)
 		goto err;
@@ -190,38 +190,65 @@ void jffs2_free_tmp_dnode_info(struct jffs2_tmp_dnode_info *x)
 	kmem_cache_free(tmp_dnode_info_slab, x);
 }
 
-int jffs2_prealloc_raw_node_refs(struct jffs2_sb_info *c,
-				 struct jffs2_eraseblock *jeb, int nr)
-{
-	struct jffs2_raw_node_ref *p = c->refs;
-
-	dbg_memalloc("%d\n", nr);
-
-	while (nr && p) {
-		p = p->next_in_ino;
-		nr--;
-	}
-	while (nr) {
-		p = __jffs2_alloc_raw_node_ref();
-		if (!p)
-			return -ENOMEM;
-		p->next_in_ino = c->refs;
-		c->refs = p;
-		nr--;
-	}
-	c->reserved_refs = nr;
-	return 0;
-}
-
-struct jffs2_raw_node_ref *__jffs2_alloc_raw_node_ref(void)
+struct jffs2_raw_node_ref *jffs2_alloc_refblock(void)
 {
 	struct jffs2_raw_node_ref *ret;
+
 	ret = kmem_cache_alloc(raw_node_ref_slab, GFP_KERNEL);
-	dbg_memalloc("%p\n", ret);
+	if (ret) {
+		int i = 0;
+		for (i=0; i < REFS_PER_BLOCK; i++) {
+			ret[i].flash_offset = REF_EMPTY_NODE;
+			ret[i].next_in_ino = NULL;
+		}
+		ret[i].flash_offset = REF_LINK_NODE;
+		ret[i].next_in_ino = NULL;
+	}
 	return ret;
 }
 
-void __jffs2_free_raw_node_ref(struct jffs2_raw_node_ref *x)
+int jffs2_prealloc_raw_node_refs(struct jffs2_sb_info *c,
+				 struct jffs2_eraseblock *jeb, int nr)
+{
+	struct jffs2_raw_node_ref **p, *ref;
+	int i = nr;
+
+	dbg_memalloc("%d\n", nr);
+
+	p = &jeb->last_node;
+	ref = *p;
+
+	dbg_memalloc("Reserving %d refs for block @0x%08x\n", nr, jeb->offset);
+
+	/* If jeb->last_node is really a valid node then skip over it */
+	if (ref && ref->flash_offset != REF_EMPTY_NODE)
+		ref++;
+
+	while (i) {
+		if (!ref) {
+			dbg_memalloc("Allocating new refblock linked from %p\n", p);
+			ref = *p = jffs2_alloc_refblock();
+			if (!ref)
+				return -ENOMEM;
+		}
+		if (ref->flash_offset == REF_LINK_NODE) {
+			p = &ref->next_in_ino;
+			ref = *p;
+			continue;
+		}
+		i--;
+		ref++;
+	}
+	jeb->allocated_refs = nr;
+
+	dbg_memalloc("Reserved %d refs for block @0x%08x, last_node is %p (%08x,%p)\n",
+		  nr, jeb->offset, jeb->last_node, jeb->last_node->flash_offset,
+		  jeb->last_node->next_in_ino);
+
+	return 0;
+}
+
+void jffs2_free_refblock(struct jffs2_raw_node_ref *x)
 {
 	dbg_memalloc("%p\n", x);
 	kmem_cache_free(raw_node_ref_slab, x);

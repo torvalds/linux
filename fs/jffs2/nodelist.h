@@ -80,7 +80,6 @@ struct jffs2_raw_node_ref
 		for this object. If this _is_ the last, it points to the inode_cache,
 		xattr_ref or xattr_datum instead. The common part of those structures
 		has NULL in the first word. See jffs2_raw_ref_to_ic() below */
-	struct jffs2_raw_node_ref *next_phys;
 	uint32_t flash_offset;
 #define TEST_TOTLEN
 #ifdef TEST_TOTLEN
@@ -88,7 +87,29 @@ struct jffs2_raw_node_ref
 #endif
 };
 
-#define ref_next(r) ((r)->next_phys)
+#define REF_LINK_NODE ((int32_t)-1)
+#define REF_EMPTY_NODE ((int32_t)-2)
+
+/* Use blocks of about 256 bytes */
+#define REFS_PER_BLOCK ((255/sizeof(struct jffs2_raw_node_ref))-1)
+
+static inline struct jffs2_raw_node_ref *ref_next(struct jffs2_raw_node_ref *ref)
+{
+	ref++;
+
+	/* Link to another block of refs */
+	if (ref->flash_offset == REF_LINK_NODE) {
+		ref = ref->next_in_ino;
+		if (!ref)
+			return ref;
+	}
+
+	/* End of chain */
+	if (ref->flash_offset == REF_EMPTY_NODE)
+		return NULL;
+
+	return ref;
+}
 
 static inline struct jffs2_inode_cache *jffs2_raw_ref_to_ic(struct jffs2_raw_node_ref *raw)
 {
@@ -234,6 +255,7 @@ struct jffs2_eraseblock
 	uint32_t wasted_size;
 	uint32_t free_size;	/* Note that sector_size - free_size
 				   is the address of the first free space */
+	uint32_t allocated_refs;
 	struct jffs2_raw_node_ref *first_node;
 	struct jffs2_raw_node_ref *last_node;
 
@@ -378,10 +400,9 @@ struct jffs2_raw_inode *jffs2_alloc_raw_inode(void);
 void jffs2_free_raw_inode(struct jffs2_raw_inode *);
 struct jffs2_tmp_dnode_info *jffs2_alloc_tmp_dnode_info(void);
 void jffs2_free_tmp_dnode_info(struct jffs2_tmp_dnode_info *);
-int jffs2_prealloc_raw_node_refs(struct jffs2_sb_info *c, 
+int jffs2_prealloc_raw_node_refs(struct jffs2_sb_info *c,
 				 struct jffs2_eraseblock *jeb, int nr);
-struct jffs2_raw_node_ref *__jffs2_alloc_raw_node_ref(void);
-void __jffs2_free_raw_node_ref(struct jffs2_raw_node_ref *);
+void jffs2_free_refblock(struct jffs2_raw_node_ref *);
 struct jffs2_node_frag *jffs2_alloc_node_frag(void);
 void jffs2_free_node_frag(struct jffs2_node_frag *);
 struct jffs2_inode_cache *jffs2_alloc_inode_cache(void);

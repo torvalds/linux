@@ -26,9 +26,6 @@ struct jffs2_inodirty;
 struct jffs2_sb_info {
 	struct mtd_info *mtd;
 
-	struct jffs2_raw_node_ref *refs;
-	int reserved_refs;
-
 	uint32_t highest_ino;
 	uint32_t checked_ino;
 
