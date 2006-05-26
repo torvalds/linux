@@ -872,12 +872,13 @@ static void copy_io(u32 __iomem *piobuf, struct ipath_sge_state *ss,
 		update_sge(ss, len);
 		length -= len;
 	}
+	/* Update address before sending packet. */
+	update_sge(ss, length);
 	/* must flush early everything before trigger word */
 	ipath_flush_wc();
 	__raw_writel(last, piobuf);
 	/* be sure trigger word is written */
 	ipath_flush_wc();
-	update_sge(ss, length);
 }
 
 /**
@@ -943,17 +944,18 @@ int ipath_verbs_send(struct ipath_devdata *dd, u32 hdrwords,
 	if (likely(ss->num_sge == 1 && len <= ss->sge.length &&
 		   !((unsigned long)ss->sge.vaddr & (sizeof(u32) - 1)))) {
 		u32 w;
+		u32 *addr = (u32 *) ss->sge.vaddr;
 
+		/* Update address before sending packet. */
+		update_sge(ss, len);
 		/* Need to round up for the last dword in the packet. */
 		w = (len + 3) >> 2;
-		__iowrite32_copy(piobuf, ss->sge.vaddr, w - 1);
+		__iowrite32_copy(piobuf, addr, w - 1);
 		/* must flush early everything before trigger word */
 		ipath_flush_wc();
-		__raw_writel(((u32 *) ss->sge.vaddr)[w - 1],
-			     piobuf + w - 1);
+		__raw_writel(addr[w - 1], piobuf + w - 1);
 		/* be sure trigger word is written */
 		ipath_flush_wc();
-		update_sge(ss, len);
 		ret = 0;
 		goto bail;
 	}

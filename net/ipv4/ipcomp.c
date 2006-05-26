@@ -210,7 +210,7 @@ static void ipcomp4_err(struct sk_buff *skb, u32 info)
 	    skb->h.icmph->code != ICMP_FRAG_NEEDED)
 		return;
 
-	spi = ntohl(ntohs(ipch->cpi));
+	spi = htonl(ntohs(ipch->cpi));
 	x = xfrm_state_lookup((xfrm_address_t *)&iph->daddr,
 	                      spi, IPPROTO_COMP, AF_INET);
 	if (!x)

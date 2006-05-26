@@ -159,6 +159,7 @@ struct cache_head *sunrpc_cache_update(struct cache_detail *detail,
 		detail->update(tmp, new);
 	tmp->next = *head;
 	*head = tmp;
+	detail->entries++;
 	cache_get(tmp);
 	is_new = cache_fresh_locked(tmp, new->expiry_time);
 	cache_fresh_locked(old, 0);
