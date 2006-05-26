@@ -1176,6 +1176,7 @@ static int choose_configuration(struct usb_device *udev)
 {
 	int i;
 	int num_configs;
+	int insufficient_power = 0;
 	struct usb_host_config *c, *best;
 
 	best = NULL;
@@ -1228,8 +1229,10 @@ static int choose_configuration(struct usb_device *udev)
 		 */
 
 		/* Rule out configs that draw too much bus current */
-		if (c->desc.bMaxPower * 2 > udev->bus_mA)
+		if (c->desc.bMaxPower * 2 > udev->bus_mA) {
+			insufficient_power++;
 			continue;
+		}
 
 		/* If the first config's first interface is COMM/2/0xff
 		 * (MSFT RNDIS), rule it out unless Linux has host-side
@@ -1262,6 +1265,11 @@ static int choose_configuration(struct usb_device *udev)
 		else if (!best)
 			best = c;
 	}
+
+	if (insufficient_power > 0)
+		dev_info(&udev->dev, "rejected %d configuration%s "
+			"due to insufficient available bus power\n",
+			insufficient_power, plural(insufficient_power));
 
 	if (best) {
 		i = best->desc.bConfigurationValue;
