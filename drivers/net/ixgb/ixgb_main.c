@@ -576,9 +576,8 @@ ixgb_sw_init(struct ixgb_adapter *adapter)
 	hw->subsystem_vendor_id = pdev->subsystem_vendor;
 	hw->subsystem_id = pdev->subsystem_device;
 
-	adapter->rx_buffer_len = IXGB_RXBUFFER_2048;
-
 	hw->max_frame_size = netdev->mtu + ENET_HEADER_SIZE + ENET_FCS_LENGTH;
+	adapter->rx_buffer_len = hw->max_frame_size;
 
 	if((hw->device_id == IXGB_DEVICE_ID_82597EX)
 	   || (hw->device_id == IXGB_DEVICE_ID_82597EX_CX4)
@@ -822,21 +821,14 @@ ixgb_setup_rctl(struct ixgb_adapter *adapter)
 
 	rctl |= IXGB_RCTL_SECRC;
 
-	switch (adapter->rx_buffer_len) {
-	case IXGB_RXBUFFER_2048:
-	default:
+	if (adapter->rx_buffer_len <= IXGB_RXBUFFER_2048)
 		rctl |= IXGB_RCTL_BSIZE_2048;
-		break;
-	case IXGB_RXBUFFER_4096:
+	else if (adapter->rx_buffer_len <= IXGB_RXBUFFER_4096)
 		rctl |= IXGB_RCTL_BSIZE_4096;
-		break;
-	case IXGB_RXBUFFER_8192:
+	else if (adapter->rx_buffer_len <= IXGB_RXBUFFER_8192)
 		rctl |= IXGB_RCTL_BSIZE_8192;
-		break;
-	case IXGB_RXBUFFER_16384:
+	else if (adapter->rx_buffer_len <= IXGB_RXBUFFER_16384)
 		rctl |= IXGB_RCTL_BSIZE_16384;
-		break;
-	}
 
 	IXGB_WRITE_REG(&adapter->hw, RCTL, rctl);
 }
@@ -1546,24 +1538,11 @@ ixgb_change_mtu(struct net_device *netdev, int new_mtu)
 		return -EINVAL;
 	}
 
-	if((max_frame <= IXGB_MAX_ENET_FRAME_SIZE_WITHOUT_FCS + ENET_FCS_LENGTH)
-	   || (max_frame <= IXGB_RXBUFFER_2048)) {
-		adapter->rx_buffer_len = IXGB_RXBUFFER_2048;
-
-	} else if(max_frame <= IXGB_RXBUFFER_4096) {
-		adapter->rx_buffer_len = IXGB_RXBUFFER_4096;
-
-	} else if(max_frame <= IXGB_RXBUFFER_8192) {
-		adapter->rx_buffer_len = IXGB_RXBUFFER_8192;
-
-	} else {
-		adapter->rx_buffer_len = IXGB_RXBUFFER_16384;
-	}
+	adapter->rx_buffer_len = max_frame;
 
 	netdev->mtu = new_mtu;
 
-	if(old_max_frame != max_frame && netif_running(netdev)) {
-
+	if ((old_max_frame != max_frame) && netif_running(netdev)) {
 		ixgb_down(adapter, TRUE);
 		ixgb_up(adapter);
 	}
