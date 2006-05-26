@@ -238,6 +238,7 @@ ixgb_up(struct ixgb_adapter *adapter)
 
 	/* hardware has been reset, we need to reload some things */
 
+	ixgb_rar_set(hw, netdev->dev_addr, 0);
 	ixgb_set_multi(netdev);
 
 	ixgb_restore_vlan(adapter);
