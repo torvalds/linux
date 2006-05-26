@@ -19,6 +19,7 @@
 #include <linux/device.h>
 #include <linux/mutex.h>
 #endif
+#include <linux/types.h>
 #include <linux/compiler.h> /* need __user */
 
 
