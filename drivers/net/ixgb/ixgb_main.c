@@ -1800,13 +1800,13 @@ ixgb_clean_tx_irq(struct ixgb_adapter *adapter)
 
 	tx_ring->next_to_clean = i;
 
-	spin_lock(&adapter->tx_lock);
-	if(cleaned && netif_queue_stopped(netdev) && netif_carrier_ok(netdev) &&
-	   (IXGB_DESC_UNUSED(tx_ring) > IXGB_TX_QUEUE_WAKE)) {
-
-		netif_wake_queue(netdev);
+	if (unlikely(netif_queue_stopped(netdev))) {
+		spin_lock(&adapter->tx_lock);
+		if (netif_queue_stopped(netdev) && netif_carrier_ok(netdev) &&
+		    (IXGB_DESC_UNUSED(tx_ring) > IXGB_TX_QUEUE_WAKE))
+			netif_wake_queue(netdev);
+		spin_unlock(&adapter->tx_lock);
 	}
-	spin_unlock(&adapter->tx_lock);
 
 	if(adapter->detect_tx_hung) {
 		/* detect a transmit hang in hardware, this serializes the
