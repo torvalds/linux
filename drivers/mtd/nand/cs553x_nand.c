@@ -31,6 +31,10 @@
 
 #define NR_CS553X_CONTROLLERS	4
 
+#define MSR_DIVIL_GLD_CAP	0x51400000	/* DIVIL capabilitiies */
+#define CAP_CS5535		0x2df000ULL
+#define CAP_CS5536		0x5df500ULL
+
 /* NAND Timing MSRs */
 #define MSR_NANDF_DATA		0x5140001b	/* NAND Flash Data Timing MSR */
 #define MSR_NANDF_CTL		0x5140001c	/* NAND Flash Control Timing */
@@ -252,17 +256,40 @@ out:
 	return err;
 }
 
+static int is_geode(void)
+{
+	/* These are the CPUs which will have a CS553[56] companion chip */
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD &&
+	    boot_cpu_data.x86 == 5 &&
+	    boot_cpu_data.x86_model == 10)
+		return 1; /* Geode LX */
+
+	if ((boot_cpu_data.x86_vendor == X86_VENDOR_NSC ||
+	     boot_cpu_data.x86_vendor == X86_VENDOR_CYRIX) &&
+	    boot_cpu_data.x86 == 5 &&
+	    boot_cpu_data.x86_model == 5)
+		return 1; /* Geode GX (née GX2) */
+
+	return 0;
+}
+
 static int __init cs553x_init(void)
 {
 	int err = -ENXIO;
 	int i;
 	uint64_t val;
 
-	/* Check whether we actually have a CS5535 or CS5536 */
-	if (!pci_find_device(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_CS5536_ISA, NULL) &&
-	    !pci_find_device(PCI_VENDOR_ID_NS,  PCI_DEVICE_ID_NS_CS5535_ISA, NULL))
+	/* If the CPU isn't a Geode GX or LX, abort */
+	if (!is_geode())
 		return -ENXIO;
 
+	/* If it doesn't have the CS553[56], abort */
+	rdmsrl(MSR_DIVIL_GLD_CAP, val);
+	val &= ~0xFFULL;
+	if (val != CAP_CS5535 && val != CAP_CS5536)
+		return -ENXIO;
+
+	/* If it doesn't have the NAND controller enabled, abort */
 	rdmsrl(MSR_DIVIL_BALL_OPTS, val);
 	if (val & 1) {
 		printk(KERN_INFO "CS553x NAND controller: Flash I/O not enabled in MSR_DIVIL_BALL_OPTS.\n");
