@@ -71,7 +71,7 @@
 /*
  * psxface - Parser external interfaces
  */
-acpi_status acpi_ps_execute_method(struct acpi_parameter_info *info);
+acpi_status acpi_ps_execute_method(struct acpi_evaluate_info *info);
 
 /*
  * psargs - Parse AML opcode arguments

@@ -193,8 +193,8 @@ acpi_status acpi_ev_initialize_op_regions(void)
 acpi_status
 acpi_ev_execute_reg_method(union acpi_operand_object *region_obj, u32 function)
 {
-	struct acpi_parameter_info info;
-	union acpi_operand_object *params[3];
+	struct acpi_evaluate_info *info;
+	union acpi_operand_object *args[3];
 	union acpi_operand_object *region_obj2;
 	acpi_status status;
 
@@ -209,47 +209,60 @@ acpi_ev_execute_reg_method(union acpi_operand_object *region_obj, u32 function)
 		return_ACPI_STATUS(AE_OK);
 	}
 
-	/*
-	 * The _REG method has two arguments:
-	 *
-	 * Arg0, Integer: Operation region space ID
-	 *          Same value as region_obj->Region.space_id
-	 * Arg1, Integer: connection status
-	 *          1 for connecting the handler,
-	 *          0 for disconnecting the handler
-	 *          Passed as a parameter
-	 */
-	params[0] = acpi_ut_create_internal_object(ACPI_TYPE_INTEGER);
-	if (!params[0]) {
+	/* Allocate and initialize the evaluation information block */
+
+	info = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_evaluate_info));
+	if (!info) {
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
-	params[1] = acpi_ut_create_internal_object(ACPI_TYPE_INTEGER);
-	if (!params[1]) {
+	info->prefix_node = region_obj2->extra.method_REG;
+	info->pathname = NULL;
+	info->parameters = args;
+	info->parameter_type = ACPI_PARAM_ARGS;
+	info->flags = ACPI_IGNORE_RETURN_VALUE;
+
+	/*
+	 * The _REG method has two arguments:
+	 *
+	 * Arg0 - Integer:
+	 *  Operation region space ID Same value as region_obj->Region.space_id
+	 *
+	 * Arg1 - Integer:
+	 *  connection status 1 for connecting the handler, 0 for disconnecting
+	 *  the handler (Passed as a parameter)
+	 */
+	args[0] = acpi_ut_create_internal_object(ACPI_TYPE_INTEGER);
+	if (!args[0]) {
 		status = AE_NO_MEMORY;
-		goto cleanup;
+		goto cleanup1;
+	}
+
+	args[1] = acpi_ut_create_internal_object(ACPI_TYPE_INTEGER);
+	if (!args[1]) {
+		status = AE_NO_MEMORY;
+		goto cleanup2;
 	}
 
 	/* Setup the parameter objects */
 
-	params[0]->integer.value = region_obj->region.space_id;
-	params[1]->integer.value = function;
-	params[2] = NULL;
-
-	info.node = region_obj2->extra.method_REG;
-	info.parameters = params;
-	info.parameter_type = ACPI_PARAM_ARGS;
+	args[0]->integer.value = region_obj->region.space_id;
+	args[1]->integer.value = function;
+	args[2] = NULL;
 
 	/* Execute the method, no return value */
 
 	ACPI_DEBUG_EXEC(acpi_ut_display_init_pathname
-			(ACPI_TYPE_METHOD, info.node, NULL));
-	status = acpi_ns_evaluate_by_handle(&info);
+			(ACPI_TYPE_METHOD, info->prefix_node, NULL));
 
-	acpi_ut_remove_reference(params[1]);
+	status = acpi_ns_evaluate(info);
+	acpi_ut_remove_reference(args[1]);
 
-      cleanup:
-	acpi_ut_remove_reference(params[0]);
+      cleanup2:
+	acpi_ut_remove_reference(args[0]);
+
+      cleanup1:
+	ACPI_FREE(info);
 	return_ACPI_STATUS(status);
 }
 

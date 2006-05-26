@@ -145,10 +145,10 @@ acpi_ex_setup_region(union acpi_operand_object *obj_desc,
 	 * length of one field datum (access width) must fit within the region.
 	 * (Region length is specified in bytes)
 	 */
-	if (rgn_desc->region.length < (obj_desc->common_field.base_byte_offset +
-				       field_datum_byte_offset +
-				       obj_desc->common_field.
-				       access_byte_width)) {
+	if (rgn_desc->region.length <
+	    (obj_desc->common_field.base_byte_offset +
+	     field_datum_byte_offset +
+	     obj_desc->common_field.access_byte_width)) {
 		if (acpi_gbl_enable_interpreter_slack) {
 			/*
 			 * Slack mode only:  We will go ahead and allow access to this
@@ -811,13 +811,15 @@ acpi_ex_insert_into_field(union acpi_operand_object *obj_desc,
 
 	mask =
 	    ACPI_MASK_BITS_BELOW(obj_desc->common_field.start_field_bit_offset);
-	datum_count =
-	    ACPI_ROUND_UP_TO(obj_desc->common_field.bit_length,
-			     obj_desc->common_field.access_bit_width);
-	field_datum_count =
-	    ACPI_ROUND_UP_TO(obj_desc->common_field.bit_length +
-			     obj_desc->common_field.start_field_bit_offset,
-			     obj_desc->common_field.access_bit_width);
+
+	datum_count = ACPI_ROUND_UP_TO(obj_desc->common_field.bit_length,
+				       obj_desc->common_field.access_bit_width);
+
+	field_datum_count = ACPI_ROUND_UP_TO(obj_desc->common_field.bit_length +
+					     obj_desc->common_field.
+					     start_field_bit_offset,
+					     obj_desc->common_field.
+					     access_bit_width);
 
 	/* Get initial Datum from the input buffer */
 

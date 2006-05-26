@@ -417,7 +417,7 @@ acpi_tb_get_this_table(struct acpi_pointer *address,
  *
  * PARAMETERS:  table_type      - one of the defined table types
  *              Instance        - Which table of this type
- *              table_ptr_loc   - pointer to location to place the pointer for
+ *              return_table    - pointer to location to place the pointer for
  *                                return
  *
  * RETURN:      Status
@@ -428,58 +428,34 @@ acpi_tb_get_this_table(struct acpi_pointer *address,
 
 acpi_status
 acpi_tb_get_table_ptr(acpi_table_type table_type,
-		      u32 instance, struct acpi_table_header **table_ptr_loc)
+		      u32 instance, struct acpi_table_header **return_table)
 {
 	struct acpi_table_desc *table_desc;
 	u32 i;
 
 	ACPI_FUNCTION_TRACE(tb_get_table_ptr);
 
-	if (!acpi_gbl_DSDT) {
-		return_ACPI_STATUS(AE_NO_ACPI_TABLES);
-	}
-
 	if (table_type > ACPI_TABLE_ID_MAX) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	/*
-	 * For all table types (Single/Multiple), the first
-	 * instance is always in the list head.
-	 */
-	if (instance == 1) {
-
-		/* Get the first */
-
-		*table_ptr_loc = NULL;
-		if (acpi_gbl_table_lists[table_type].next) {
-			*table_ptr_loc =
-			    acpi_gbl_table_lists[table_type].next->pointer;
-		}
-		return_ACPI_STATUS(AE_OK);
-	}
-
-	/* Check for instance out of range */
+	/* Check for instance out of range of the current table count */
 
 	if (instance > acpi_gbl_table_lists[table_type].count) {
 		return_ACPI_STATUS(AE_NOT_EXIST);
 	}
 
-	/* Walk the list to get the desired table
-	 * Since the if (Instance == 1) check above checked for the
-	 * first table, setting table_desc equal to the .Next member
-	 * is actually pointing to the second table.  Therefore, we
-	 * need to walk from the 2nd table until we reach the Instance
-	 * that the user is looking for and return its table pointer.
+	/*
+	 * Walk the list to get the desired table
+	 * Note: Instance is one-based
 	 */
 	table_desc = acpi_gbl_table_lists[table_type].next;
-	for (i = 2; i < instance; i++) {
+	for (i = 1; i < instance; i++) {
 		table_desc = table_desc->next;
 	}
 
 	/* We are now pointing to the requested table's descriptor */
 
-	*table_ptr_loc = table_desc->pointer;
-
+	*return_table = table_desc->pointer;
 	return_ACPI_STATUS(AE_OK);
 }

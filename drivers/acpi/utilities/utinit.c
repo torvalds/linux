@@ -228,6 +228,7 @@ void acpi_ut_subsystem_shutdown(void)
 	/* Subsystem appears active, go ahead and shut it down */
 
 	acpi_gbl_shutdown = TRUE;
+	acpi_gbl_startup_flags = 0;
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Shutting down ACPI Subsystem\n"));
 
 	/* Close the acpi_event Handling */
@@ -245,12 +246,5 @@ void acpi_ut_subsystem_shutdown(void)
 	/* Purge the local caches */
 
 	(void)acpi_ut_delete_caches();
-
-	/* Debug only - display leftover memory allocation, if any */
-
-#ifdef ACPI_DBG_TRACK_ALLOCATIONS
-	acpi_ut_dump_allocations(ACPI_UINT32_MAX, NULL);
-#endif
-
 	return_VOID;
 }

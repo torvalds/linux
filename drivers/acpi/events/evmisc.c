@@ -49,12 +49,13 @@
 #define _COMPONENT          ACPI_EVENTS
 ACPI_MODULE_NAME("evmisc")
 
+/* Names for Notify() values, used for debug output */
 #ifdef ACPI_DEBUG_OUTPUT
 static const char *acpi_notify_value_names[] = {
 	"Bus Check",
 	"Device Check",
 	"Device Wake",
-	"Eject request",
+	"Eject Request",
 	"Device Check Light",
 	"Frequency Mismatch",
 	"Bus Mode Mismatch",
@@ -191,8 +192,9 @@ acpi_ev_queue_notify_request(struct acpi_namespace_node * node,
 		notify_info->notify.value = (u16) notify_value;
 		notify_info->notify.handler_obj = handler_obj;
 
-		status = acpi_os_execute(OSL_NOTIFY_HANDLER,
-					 acpi_ev_notify_dispatch, notify_info);
+		status =
+		    acpi_os_execute(OSL_NOTIFY_HANDLER, acpi_ev_notify_dispatch,
+				    notify_info);
 		if (ACPI_FAILURE(status)) {
 			acpi_ut_delete_generic_state(notify_info);
 		}
@@ -345,8 +347,9 @@ static u32 acpi_ev_global_lock_handler(void *context)
 
 		/* Run the Global Lock thread which will signal all waiting threads */
 
-		status = acpi_os_execute(OSL_GLOBAL_LOCK_HANDLER,
-					 acpi_ev_global_lock_thread, context);
+		status =
+		    acpi_os_execute(OSL_GLOBAL_LOCK_HANDLER,
+				    acpi_ev_global_lock_thread, context);
 		if (ACPI_FAILURE(status)) {
 			ACPI_EXCEPTION((AE_INFO, status,
 					"Could not queue Global Lock thread"));
@@ -462,8 +465,9 @@ acpi_status acpi_ev_acquire_global_lock(u16 timeout)
 	 * Acquire the global lock semaphore first.
 	 * Since this wait will block, we must release the interpreter
 	 */
-	status = acpi_ex_system_wait_semaphore(acpi_gbl_global_lock_semaphore,
-					       timeout);
+	status =
+	    acpi_ex_system_wait_semaphore(acpi_gbl_global_lock_semaphore,
+					  timeout);
 	return_ACPI_STATUS(status);
 }
 

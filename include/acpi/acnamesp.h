@@ -173,13 +173,7 @@ acpi_ns_dump_objects(acpi_object_type type,
 /*
  * nseval - Namespace evaluation functions
  */
-acpi_status acpi_ns_evaluate_by_handle(struct acpi_parameter_info *info);
-
-acpi_status
-acpi_ns_evaluate_by_name(char *pathname, struct acpi_parameter_info *info);
-
-acpi_status
-acpi_ns_evaluate_relative(char *pathname, struct acpi_parameter_info *info);
+acpi_status acpi_ns_evaluate(struct acpi_evaluate_info *info);
 
 /*
  * nsnames - Name and Scope manipulation
@@ -202,9 +196,9 @@ u8
 acpi_ns_pattern_match(struct acpi_namespace_node *obj_node, char *search_for);
 
 acpi_status
-acpi_ns_get_node_by_path(char *external_pathname,
-			 struct acpi_namespace_node *in_prefix_node,
-			 u32 flags, struct acpi_namespace_node **out_node);
+acpi_ns_get_node(struct acpi_namespace_node *prefix_node,
+		 char *external_pathname,
+		 u32 flags, struct acpi_namespace_node **out_node);
 
 acpi_size acpi_ns_get_pathname_length(struct acpi_namespace_node *node);
 
@@ -247,10 +241,10 @@ acpi_ns_search_and_enter(u32 entry_name,
 			 u32 flags, struct acpi_namespace_node **ret_node);
 
 acpi_status
-acpi_ns_search_node(u32 entry_name,
-		    struct acpi_namespace_node *node,
-		    acpi_object_type type,
-		    struct acpi_namespace_node **ret_node);
+acpi_ns_search_one_scope(u32 entry_name,
+			 struct acpi_namespace_node *node,
+			 acpi_object_type type,
+			 struct acpi_namespace_node **ret_node);
 
 void
 acpi_ns_install_node(struct acpi_walk_state *walk_state,

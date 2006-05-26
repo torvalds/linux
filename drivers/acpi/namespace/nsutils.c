@@ -142,8 +142,9 @@ acpi_ns_report_method_error(char *module_name,
 	acpi_os_printf("ACPI Error (%s-%04d): ", module_name, line_number);
 
 	if (path) {
-		status = acpi_ns_get_node_by_path(path, prefix_node,
-						  ACPI_NS_NO_UPSEARCH, &node);
+		status =
+		    acpi_ns_get_node(prefix_node, path, ACPI_NS_NO_UPSEARCH,
+				     &node);
 		if (ACPI_FAILURE(status)) {
 			acpi_os_printf("[Could not get node by pathname]");
 		}
@@ -685,13 +686,9 @@ struct acpi_namespace_node *acpi_ns_map_handle_to_node(acpi_handle handle)
 	ACPI_FUNCTION_ENTRY();
 
 	/*
-	 * Simple implementation.
+	 * Simple implementation
 	 */
-	if (!handle) {
-		return (NULL);
-	}
-
-	if (handle == ACPI_ROOT_OBJECT) {
+	if ((!handle) || (handle == ACPI_ROOT_OBJECT)) {
 		return (acpi_gbl_root_node);
 	}
 
@@ -701,7 +698,7 @@ struct acpi_namespace_node *acpi_ns_map_handle_to_node(acpi_handle handle)
 		return (NULL);
 	}
 
-	return ((struct acpi_namespace_node *)handle);
+	return (ACPI_CAST_PTR(struct acpi_namespace_node, handle));
 }
 
 /*******************************************************************************
@@ -811,12 +808,12 @@ u32 acpi_ns_opens_scope(acpi_object_type type)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ns_get_node_by_path
+ * FUNCTION:    acpi_ns_get_node
  *
  * PARAMETERS:  *Pathname   - Name to be found, in external (ASL) format. The
  *                            \ (backslash) and ^ (carat) prefixes, and the
  *                            . (period) to separate segments are supported.
- *              start_node  - Root of subtree to be searched, or NS_ALL for the
+ *              prefix_node  - Root of subtree to be searched, or NS_ALL for the
  *                            root of the name space.  If Name is fully
  *                            qualified (first s8 is '\'), the passed value
  *                            of Scope will not be accessed.
@@ -832,24 +829,29 @@ u32 acpi_ns_opens_scope(acpi_object_type type)
  ******************************************************************************/
 
 acpi_status
-acpi_ns_get_node_by_path(char *pathname,
-			 struct acpi_namespace_node *start_node,
-			 u32 flags, struct acpi_namespace_node **return_node)
+acpi_ns_get_node(struct acpi_namespace_node *prefix_node,
+		 char *pathname,
+		 u32 flags, struct acpi_namespace_node **return_node)
 {
 	union acpi_generic_state scope_info;
 	acpi_status status;
-	char *internal_path = NULL;
+	char *internal_path;
 
-	ACPI_FUNCTION_TRACE_PTR(ns_get_node_by_path, pathname);
+	ACPI_FUNCTION_TRACE_PTR(ns_get_node, pathname);
 
-	if (pathname) {
-
-		/* Convert path to internal representation */
-
-		status = acpi_ns_internalize_name(pathname, &internal_path);
-		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
+	if (!pathname) {
+		*return_node = prefix_node;
+		if (!prefix_node) {
+			*return_node = acpi_gbl_root_node;
 		}
+		return_ACPI_STATUS(AE_OK);
+	}
+
+	/* Convert path to internal representation */
+
+	status = acpi_ns_internalize_name(pathname, &internal_path);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
 	}
 
 	/* Must lock namespace during lookup */
@@ -861,26 +863,23 @@ acpi_ns_get_node_by_path(char *pathname,
 
 	/* Setup lookup scope (search starting point) */
 
-	scope_info.scope.node = start_node;
+	scope_info.scope.node = prefix_node;
 
 	/* Lookup the name in the namespace */
 
-	status = acpi_ns_lookup(&scope_info, internal_path,
-				ACPI_TYPE_ANY, ACPI_IMODE_EXECUTE,
-				(flags | ACPI_NS_DONT_OPEN_SCOPE),
-				NULL, return_node);
+	status = acpi_ns_lookup(&scope_info, internal_path, ACPI_TYPE_ANY,
+				ACPI_IMODE_EXECUTE,
+				(flags | ACPI_NS_DONT_OPEN_SCOPE), NULL,
+				return_node);
 	if (ACPI_FAILURE(status)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "%s, %s\n",
-				  internal_path,
-				  acpi_format_exception(status)));
+				  pathname, acpi_format_exception(status)));
 	}
 
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 
       cleanup:
-	if (internal_path) {
-		ACPI_FREE(internal_path);
-	}
+	ACPI_FREE(internal_path);
 	return_ACPI_STATUS(status);
 }
 

@@ -154,7 +154,16 @@ acpi_status acpi_ns_initialize_devices(void)
 					ACPI_UINT32_MAX, FALSE,
 					acpi_ns_find_ini_methods, &info, NULL);
 	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, status, "During WalkNamespace"));
+		goto error_exit;
+	}
+
+	/* Allocate the evaluation information block */
+
+	info.evaluate_info =
+	    ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_evaluate_info));
+	if (!info.evaluate_info) {
+		status = AE_NO_MEMORY;
+		goto error_exit;
 	}
 
 	/* Walk namespace to execute all _INIs on present devices */
@@ -162,14 +171,20 @@ acpi_status acpi_ns_initialize_devices(void)
 	status = acpi_ns_walk_namespace(ACPI_TYPE_ANY, ACPI_ROOT_OBJECT,
 					ACPI_UINT32_MAX, FALSE,
 					acpi_ns_init_one_device, &info, NULL);
+
+	ACPI_FREE(info.evaluate_info);
 	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, status, "During WalkNamespace"));
+		goto error_exit;
 	}
 
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
 			      "\nExecuted %hd _INI methods requiring %hd _STA executions (examined %hd objects)\n",
 			      info.num_INI, info.num_STA, info.device_count));
 
+	return_ACPI_STATUS(status);
+
+      error_exit:
+	ACPI_EXCEPTION((AE_INFO, status, "During device initialization"));
 	return_ACPI_STATUS(status);
 }
 
@@ -398,9 +413,9 @@ static acpi_status
 acpi_ns_init_one_device(acpi_handle obj_handle,
 			u32 nesting_level, void *context, void **return_value)
 {
-	struct acpi_device_walk_info *info =
+	struct acpi_device_walk_info *walk_info =
 	    ACPI_CAST_PTR(struct acpi_device_walk_info, context);
-	struct acpi_parameter_info pinfo;
+	struct acpi_evaluate_info *info = walk_info->evaluate_info;
 	u32 flags;
 	acpi_status status;
 	struct acpi_namespace_node *device_node;
@@ -460,7 +475,7 @@ acpi_ns_init_one_device(acpi_handle obj_handle,
 	 * other words, the device is present, ..., and functioning)"
 	 */
 	if (flags != ACPI_UINT32_MAX) {
-		info->num_STA++;
+		walk_info->num_STA++;
 	}
 
 	/*
@@ -516,20 +531,16 @@ acpi_ns_init_one_device(acpi_handle obj_handle,
 	ACPI_DEBUG_EXEC(acpi_ut_display_init_pathname
 			(ACPI_TYPE_METHOD, device_node, METHOD_NAME__INI));
 
-	pinfo.node = device_node;
-	pinfo.parameters = NULL;
-	pinfo.parameter_type = ACPI_PARAM_ARGS;
+	info->prefix_node = device_node;
+	info->pathname = METHOD_NAME__INI;
+	info->parameters = NULL;
+	info->parameter_type = ACPI_PARAM_ARGS;
+	info->flags = ACPI_IGNORE_RETURN_VALUE;
 
-	status = acpi_ns_evaluate_relative(METHOD_NAME__INI, &pinfo);
+	status = acpi_ns_evaluate(info);
 	if (ACPI_SUCCESS(status)) {
+		walk_info->num_INI++;
 
-		/* Delete any return object (especially if implicit_return is enabled) */
-
-		if (pinfo.return_object) {
-			acpi_ut_remove_reference(pinfo.return_object);
-		}
-
-		info->num_INI++;
 		if ((acpi_dbg_level <= ACPI_LV_ALL_EXCEPTIONS) &&
 		    (!(acpi_dbg_level & ACPI_LV_INFO))) {
 			ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT, "."));
@@ -540,20 +551,24 @@ acpi_ns_init_one_device(acpi_handle obj_handle,
 
 		/* Ignore error and move on to next device */
 
-		char *scope_name = acpi_ns_get_external_pathname(pinfo.node);
+		char *scope_name =
+		    acpi_ns_get_external_pathname(info->resolved_node);
 
 		ACPI_EXCEPTION((AE_INFO, status, "during %s._INI execution",
 				scope_name));
 		ACPI_FREE(scope_name);
+		status = AE_OK;
 	}
 #endif
 
-	/* If an external initialization handler is present, call it */
-
+	/*
+	 * The _INI method has been run if present; call the Global Initialization
+	 * Handler for this device.
+	 */
 	if (acpi_gbl_init_handler) {
 		status =
-		    acpi_gbl_init_handler(pinfo.node, ACPI_INIT_DEVICE_INI);
+		    acpi_gbl_init_handler(device_node, ACPI_INIT_DEVICE_INI);
 	}
 
-	return_ACPI_STATUS(AE_OK);
+	return_ACPI_STATUS(status);
 }

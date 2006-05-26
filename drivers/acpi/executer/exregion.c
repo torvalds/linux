@@ -477,23 +477,16 @@ acpi_ex_data_table_space_handler(u32 function,
 				 acpi_integer * value,
 				 void *handler_context, void *region_context)
 {
-	acpi_status status = AE_OK;
-	u32 byte_width = ACPI_DIV_8(bit_width);
-	u32 i;
-	char *logical_addr_ptr;
-
 	ACPI_FUNCTION_TRACE(ex_data_table_space_handler);
-
-	logical_addr_ptr = ACPI_PHYSADDR_TO_PTR(address);
 
 	/* Perform the memory read or write */
 
 	switch (function) {
 	case ACPI_READ:
 
-		for (i = 0; i < byte_width; i++) {
-			((char *)value)[i] = logical_addr_ptr[i];
-		}
+		ACPI_MEMCPY(ACPI_CAST_PTR(char, value),
+			    ACPI_PHYSADDR_TO_PTR(address),
+			    ACPI_DIV_8(bit_width));
 		break;
 
 	case ACPI_WRITE:
@@ -502,5 +495,5 @@ acpi_ex_data_table_space_handler(u32 function,
 		return_ACPI_STATUS(AE_SUPPORT);
 	}
 
-	return_ACPI_STATUS(status);
+	return_ACPI_STATUS(AE_OK);
 }

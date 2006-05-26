@@ -445,10 +445,24 @@ acpi_ex_do_math_op(u16 opcode, acpi_integer integer0, acpi_integer integer1)
 
 	case AML_SHIFT_LEFT_OP:	/* shift_left (Operand, shift_count, Result) */
 
+		/*
+		 * We need to check if the shiftcount is larger than the integer bit
+		 * width since the behavior of this is not well-defined in the C language.
+		 */
+		if (integer1 >= acpi_gbl_integer_bit_width) {
+			return (0);
+		}
 		return (integer0 << integer1);
 
 	case AML_SHIFT_RIGHT_OP:	/* shift_right (Operand, shift_count, Result) */
 
+		/*
+		 * We need to check if the shiftcount is larger than the integer bit
+		 * width since the behavior of this is not well-defined in the C language.
+		 */
+		if (integer1 >= acpi_gbl_integer_bit_width) {
+			return (0);
+		}
 		return (integer0 >> integer1);
 
 	case AML_SUBTRACT_OP:	/* Subtract (Integer0, Integer1, Result) */

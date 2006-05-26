@@ -127,8 +127,7 @@ acpi_status
 acpi_get_sleep_type_data(u8 sleep_state, u8 * sleep_type_a, u8 * sleep_type_b)
 {
 	acpi_status status = AE_OK;
-	struct acpi_parameter_info info;
-	char *sleep_state_name;
+	struct acpi_evaluate_info *info;
 
 	ACPI_FUNCTION_TRACE(acpi_get_sleep_type_data);
 
@@ -138,34 +137,39 @@ acpi_get_sleep_type_data(u8 sleep_state, u8 * sleep_type_a, u8 * sleep_type_b)
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	/* Evaluate the namespace object containing the values for this state */
+	/* Allocate the evaluation information block */
 
-	info.parameters = NULL;
-	info.return_object = NULL;
-	sleep_state_name =
+	info = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_evaluate_info));
+	if (!info) {
+		return_ACPI_STATUS(AE_NO_MEMORY);
+	}
+
+	info->pathname =
 	    ACPI_CAST_PTR(char, acpi_gbl_sleep_state_names[sleep_state]);
 
-	status = acpi_ns_evaluate_by_name(sleep_state_name, &info);
+	/* Evaluate the namespace object containing the values for this state */
+
+	status = acpi_ns_evaluate(info);
 	if (ACPI_FAILURE(status)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
 				  "%s while evaluating SleepState [%s]\n",
 				  acpi_format_exception(status),
-				  sleep_state_name));
+				  info->pathname));
 
-		return_ACPI_STATUS(status);
+		goto cleanup;
 	}
 
 	/* Must have a return object */
 
-	if (!info.return_object) {
+	if (!info->return_object) {
 		ACPI_ERROR((AE_INFO, "No Sleep State object returned from [%s]",
-			    sleep_state_name));
+			    info->pathname));
 		status = AE_NOT_EXIST;
 	}
 
 	/* It must be of type Package */
 
-	else if (ACPI_GET_OBJECT_TYPE(info.return_object) != ACPI_TYPE_PACKAGE) {
+	else if (ACPI_GET_OBJECT_TYPE(info->return_object) != ACPI_TYPE_PACKAGE) {
 		ACPI_ERROR((AE_INFO,
 			    "Sleep State return object is not a Package"));
 		status = AE_AML_OPERAND_TYPE;
@@ -178,7 +182,7 @@ acpi_get_sleep_type_data(u8 sleep_state, u8 * sleep_type_a, u8 * sleep_type_b)
 	 * by BIOS vendors seems to be to have 2 or more elements, at least
 	 * one per sleep type (A/B).
 	 */
-	else if (info.return_object->package.count < 2) {
+	else if (info->return_object->package.count < 2) {
 		ACPI_ERROR((AE_INFO,
 			    "Sleep State return package does not have at least two elements"));
 		status = AE_AML_NO_OPERAND;
@@ -186,35 +190,38 @@ acpi_get_sleep_type_data(u8 sleep_state, u8 * sleep_type_a, u8 * sleep_type_b)
 
 	/* The first two elements must both be of type Integer */
 
-	else if ((ACPI_GET_OBJECT_TYPE(info.return_object->package.elements[0])
+	else if ((ACPI_GET_OBJECT_TYPE(info->return_object->package.elements[0])
 		  != ACPI_TYPE_INTEGER) ||
-		 (ACPI_GET_OBJECT_TYPE(info.return_object->package.elements[1])
+		 (ACPI_GET_OBJECT_TYPE(info->return_object->package.elements[1])
 		  != ACPI_TYPE_INTEGER)) {
 		ACPI_ERROR((AE_INFO,
 			    "Sleep State return package elements are not both Integers (%s, %s)",
-			    acpi_ut_get_object_type_name(info.return_object->
+			    acpi_ut_get_object_type_name(info->return_object->
 							 package.elements[0]),
-			    acpi_ut_get_object_type_name(info.return_object->
+			    acpi_ut_get_object_type_name(info->return_object->
 							 package.elements[1])));
 		status = AE_AML_OPERAND_TYPE;
 	} else {
 		/* Valid _Sx_ package size, type, and value */
 
 		*sleep_type_a = (u8)
-		    (info.return_object->package.elements[0])->integer.value;
+		    (info->return_object->package.elements[0])->integer.value;
 		*sleep_type_b = (u8)
-		    (info.return_object->package.elements[1])->integer.value;
+		    (info->return_object->package.elements[1])->integer.value;
 	}
 
 	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status,
 				"While evaluating SleepState [%s], bad Sleep object %p type %s",
-				sleep_state_name, info.return_object,
-				acpi_ut_get_object_type_name(info.
+				info->pathname, info->return_object,
+				acpi_ut_get_object_type_name(info->
 							     return_object)));
 	}
 
-	acpi_ut_remove_reference(info.return_object);
+	acpi_ut_remove_reference(info->return_object);
+
+      cleanup:
+	ACPI_FREE(info);
 	return_ACPI_STATUS(status);
 }
 

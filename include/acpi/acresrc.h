@@ -164,23 +164,26 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 /*
  * rsutils
  */
-acpi_status
-acpi_rs_get_prt_method_data(acpi_handle handle, struct acpi_buffer *ret_buffer);
 
 acpi_status
-acpi_rs_get_crs_method_data(acpi_handle handle, struct acpi_buffer *ret_buffer);
+acpi_rs_get_prt_method_data(struct acpi_namespace_node *node,
+			    struct acpi_buffer *ret_buffer);
 
-#ifdef	ACPI_FUTURE_USAGE
 acpi_status
-acpi_rs_get_prs_method_data(acpi_handle handle, struct acpi_buffer *ret_buffer);
-#endif				/* ACPI_FUTURE_USAGE */
+acpi_rs_get_crs_method_data(struct acpi_namespace_node *node,
+			    struct acpi_buffer *ret_buffer);
+
+acpi_status
+acpi_rs_get_prs_method_data(struct acpi_namespace_node *node,
+			    struct acpi_buffer *ret_buffer);
 
 acpi_status
 acpi_rs_get_method_data(acpi_handle handle,
 			char *path, struct acpi_buffer *ret_buffer);
 
 acpi_status
-acpi_rs_set_srs_method_data(acpi_handle handle, struct acpi_buffer *ret_buffer);
+acpi_rs_set_srs_method_data(struct acpi_namespace_node *node,
+			    struct acpi_buffer *ret_buffer);
 
 /*
  * rscalc

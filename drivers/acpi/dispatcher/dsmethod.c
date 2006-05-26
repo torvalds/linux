@@ -231,7 +231,7 @@ acpi_ds_call_control_method(struct acpi_thread_state *thread,
 	struct acpi_namespace_node *method_node;
 	struct acpi_walk_state *next_walk_state = NULL;
 	union acpi_operand_object *obj_desc;
-	struct acpi_parameter_info info;
+	struct acpi_evaluate_info *info;
 	u32 i;
 
 	ACPI_FUNCTION_TRACE_PTR(ds_call_control_method, this_walk_state);
@@ -319,12 +319,24 @@ acpi_ds_call_control_method(struct acpi_thread_state *thread,
 	 */
 	this_walk_state->operands[this_walk_state->num_operands] = NULL;
 
-	info.parameters = &this_walk_state->operands[0];
-	info.parameter_type = ACPI_PARAM_ARGS;
+	/*
+	 * Allocate and initialize the evaluation information block
+	 * TBD: this is somewhat inefficient, should change interface to
+	 * ds_init_aml_walk. For now, keeps this struct off the CPU stack
+	 */
+	info = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_evaluate_info));
+	if (!info) {
+		return_ACPI_STATUS(AE_NO_MEMORY);
+	}
+
+	info->parameters = &this_walk_state->operands[0];
+	info->parameter_type = ACPI_PARAM_ARGS;
 
 	status = acpi_ds_init_aml_walk(next_walk_state, NULL, method_node,
 				       obj_desc->method.aml_start,
-				       obj_desc->method.aml_length, &info, 3);
+				       obj_desc->method.aml_length, info, 3);
+
+	ACPI_FREE(info);
 	if (ACPI_FAILURE(status)) {
 		goto cleanup;
 	}

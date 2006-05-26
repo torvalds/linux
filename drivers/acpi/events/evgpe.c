@@ -488,9 +488,9 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info * gpe_xrupt_list)
  *
  * RETURN:      None
  *
- * DESCRIPTION: Perform the actual execution of a GPE control method.  This
- *              function is called from an invocation of acpi_os_exece
- *              (and therefore does NOT execute at interrupt level) so that
+ * DESCRIPTION: Perform the actual execution of a GPE control method. This
+ *              function is called from an invocation of acpi_os_execute and
+ *              therefore does NOT execute at interrupt level - so that
  *              the control method itself is not executed in the context of
  *              an interrupt handler.
  *
@@ -502,7 +502,7 @@ static void ACPI_SYSTEM_XFACE acpi_ev_asynch_execute_gpe_method(void *context)
 	u32 gpe_number = 0;
 	acpi_status status;
 	struct acpi_gpe_event_info local_gpe_event_info;
-	struct acpi_parameter_info info;
+	struct acpi_evaluate_info *info;
 
 	ACPI_FUNCTION_TRACE(ev_asynch_execute_gpe_method);
 
@@ -540,16 +540,29 @@ static void ACPI_SYSTEM_XFACE acpi_ev_asynch_execute_gpe_method(void *context)
 	 */
 	if ((local_gpe_event_info.flags & ACPI_GPE_DISPATCH_MASK) ==
 	    ACPI_GPE_DISPATCH_METHOD) {
-		/*
-		 * Invoke the GPE Method (_Lxx, _Exx) i.e., evaluate the _Lxx/_Exx
-		 * control method that corresponds to this GPE
-		 */
-		info.node = local_gpe_event_info.dispatch.method_node;
-		info.parameters =
-		    ACPI_CAST_PTR(union acpi_operand_object *, gpe_event_info);
-		info.parameter_type = ACPI_PARAM_GPE;
 
-		status = acpi_ns_evaluate_by_handle(&info);
+		/* Allocate the evaluation information block */
+
+		info = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_evaluate_info));
+		if (!info) {
+			status = AE_NO_MEMORY;
+		} else {
+			/*
+			 * Invoke the GPE Method (_Lxx, _Exx) i.e., evaluate the _Lxx/_Exx
+			 * control method that corresponds to this GPE
+			 */
+			info->prefix_node =
+			    local_gpe_event_info.dispatch.method_node;
+			info->parameters =
+			    ACPI_CAST_PTR(union acpi_operand_object *,
+					  gpe_event_info);
+			info->parameter_type = ACPI_PARAM_GPE;
+			info->flags = ACPI_IGNORE_RETURN_VALUE;
+
+			status = acpi_ns_evaluate(info);
+			ACPI_FREE(info);
+		}
+
 		if (ACPI_FAILURE(status)) {
 			ACPI_EXCEPTION((AE_INFO, status,
 					"While evaluating method [%4.4s] for GPE[%2X]",

@@ -171,51 +171,61 @@ acpi_evaluate_object(acpi_handle handle,
 {
 	acpi_status status;
 	acpi_status status2;
-	struct acpi_parameter_info info;
+	struct acpi_evaluate_info *info;
 	acpi_size buffer_space_needed;
 	u32 i;
 
 	ACPI_FUNCTION_TRACE(acpi_evaluate_object);
 
-	info.node = handle;
-	info.parameters = NULL;
-	info.return_object = NULL;
-	info.parameter_type = ACPI_PARAM_ARGS;
+	/* Allocate and initialize the evaluation information block */
+
+	info = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_evaluate_info));
+	if (!info) {
+		return_ACPI_STATUS(AE_NO_MEMORY);
+	}
+
+	info->pathname = pathname;
+	info->parameter_type = ACPI_PARAM_ARGS;
+
+	/* Convert and validate the device handle */
+
+	info->prefix_node = acpi_ns_map_handle_to_node(handle);
+	if (!info->prefix_node) {
+		status = AE_BAD_PARAMETER;
+		goto cleanup;
+	}
 
 	/*
-	 * If there are parameters to be passed to the object
-	 * (which must be a control method), the external objects
-	 * must be converted to internal objects
+	 * If there are parameters to be passed to a control method, the external
+	 * objects must all be converted to internal objects
 	 */
 	if (external_params && external_params->count) {
 		/*
 		 * Allocate a new parameter block for the internal objects
 		 * Add 1 to count to allow for null terminated internal list
 		 */
-		info.parameters = ACPI_ALLOCATE_ZEROED(((acpi_size)
-							external_params->count +
-							1) * sizeof(void *));
-		if (!info.parameters) {
-			return_ACPI_STATUS(AE_NO_MEMORY);
+		info->parameters = ACPI_ALLOCATE_ZEROED(((acpi_size)
+							 external_params->
+							 count +
+							 1) * sizeof(void *));
+		if (!info->parameters) {
+			status = AE_NO_MEMORY;
+			goto cleanup;
 		}
 
-		/*
-		 * Convert each external object in the list to an
-		 * internal object
-		 */
+		/* Convert each external object in the list to an internal object */
+
 		for (i = 0; i < external_params->count; i++) {
 			status =
 			    acpi_ut_copy_eobject_to_iobject(&external_params->
 							    pointer[i],
-							    &info.
+							    &info->
 							    parameters[i]);
 			if (ACPI_FAILURE(status)) {
-				acpi_ut_delete_internal_object_list(info.
-								    parameters);
-				return_ACPI_STATUS(status);
+				goto cleanup;
 			}
 		}
-		info.parameters[external_params->count] = NULL;
+		info->parameters[external_params->count] = NULL;
 	}
 
 	/*
@@ -228,12 +238,13 @@ acpi_evaluate_object(acpi_handle handle,
 
 		/* The path is fully qualified, just evaluate by name */
 
-		status = acpi_ns_evaluate_by_name(pathname, &info);
+		info->prefix_node = NULL;
+		status = acpi_ns_evaluate(info);
 	} else if (!handle) {
 		/*
-		 * A handle is optional iff a fully qualified pathname
-		 * is specified.  Since we've already handled fully
-		 * qualified names above, this is an error
+		 * A handle is optional iff a fully qualified pathname is specified.
+		 * Since we've already handled fully qualified names above, this is
+		 * an error
 		 */
 		if (!pathname) {
 			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
@@ -246,22 +257,9 @@ acpi_evaluate_object(acpi_handle handle,
 
 		status = AE_BAD_PARAMETER;
 	} else {
-		/*
-		 * We get here if we have a handle -- and if we have a
-		 * pathname it is relative.  The handle will be validated
-		 * in the lower procedures
-		 */
-		if (!pathname) {
-			/*
-			 * The null pathname case means the handle is for
-			 * the actual object to be evaluated
-			 */
-			status = acpi_ns_evaluate_by_handle(&info);
-		} else {
-			/* Both a Handle and a relative Pathname */
+		/* We have a namespace a node and a possible relative path */
 
-			status = acpi_ns_evaluate_relative(pathname, &info);
-		}
+		status = acpi_ns_evaluate(info);
 	}
 
 	/*
@@ -269,10 +267,10 @@ acpi_evaluate_object(acpi_handle handle,
 	 * copy the return value to an external object.
 	 */
 	if (return_buffer) {
-		if (!info.return_object) {
+		if (!info->return_object) {
 			return_buffer->length = 0;
 		} else {
-			if (ACPI_GET_DESCRIPTOR_TYPE(info.return_object) ==
+			if (ACPI_GET_DESCRIPTOR_TYPE(info->return_object) ==
 			    ACPI_DESC_TYPE_NAMED) {
 				/*
 				 * If we received a NS Node as a return object, this means that
@@ -283,17 +281,16 @@ acpi_evaluate_object(acpi_handle handle,
 				 * support for various types at a later date if necessary.
 				 */
 				status = AE_TYPE;
-				info.return_object = NULL;	/* No need to delete a NS Node */
+				info->return_object = NULL;	/* No need to delete a NS Node */
 				return_buffer->length = 0;
 			}
 
 			if (ACPI_SUCCESS(status)) {
-				/*
-				 * Find out how large a buffer is needed
-				 * to contain the returned object
-				 */
+
+				/* Get the size of the returned object */
+
 				status =
-				    acpi_ut_get_object_size(info.return_object,
+				    acpi_ut_get_object_size(info->return_object,
 							    &buffer_space_needed);
 				if (ACPI_SUCCESS(status)) {
 
@@ -319,7 +316,7 @@ acpi_evaluate_object(acpi_handle handle,
 
 						status =
 						    acpi_ut_copy_iobject_to_eobject
-						    (info.return_object,
+						    (info->return_object,
 						     return_buffer);
 					}
 				}
@@ -327,31 +324,33 @@ acpi_evaluate_object(acpi_handle handle,
 		}
 	}
 
-	if (info.return_object) {
+	if (info->return_object) {
 		/*
-		 * Delete the internal return object.  NOTE: Interpreter
-		 * must be locked to avoid race condition.
+		 * Delete the internal return object. NOTE: Interpreter must be
+		 * locked to avoid race condition.
 		 */
 		status2 = acpi_ex_enter_interpreter();
 		if (ACPI_SUCCESS(status2)) {
-			/*
-			 * Delete the internal return object. (Or at least
-			 * decrement the reference count by one)
-			 */
-			acpi_ut_remove_reference(info.return_object);
+
+			/* Remove one reference on the return object (should delete it) */
+
+			acpi_ut_remove_reference(info->return_object);
 			acpi_ex_exit_interpreter();
 		}
 	}
 
+      cleanup:
+
 	/* Free the input parameter list (if we created one) */
 
-	if (info.parameters) {
+	if (info->parameters) {
 
 		/* Free the allocated parameter block */
 
-		acpi_ut_delete_internal_object_list(info.parameters);
+		acpi_ut_delete_internal_object_list(info->parameters);
 	}
 
+	ACPI_FREE(info);
 	return_ACPI_STATUS(status);
 }
 

@@ -259,10 +259,8 @@ acpi_status acpi_ns_root_initialize(void)
 	/* Save a handle to "_GPE", it is always present */
 
 	if (ACPI_SUCCESS(status)) {
-		status =
-		    acpi_ns_get_node_by_path("\\_GPE", NULL,
-					     ACPI_NS_NO_UPSEARCH,
-					     &acpi_gbl_fadt_gpe_device);
+		status = acpi_ns_get_node(NULL, "\\_GPE", ACPI_NS_NO_UPSEARCH,
+					  &acpi_gbl_fadt_gpe_device);
 	}
 
 	return_ACPI_STATUS(status);

@@ -295,7 +295,7 @@ acpi_ds_exec_begin_op(struct acpi_walk_state *walk_state,
 
 	case AML_CLASS_NAMED_OBJECT:
 
-		if (walk_state->walk_type == ACPI_WALK_METHOD) {
+		if (walk_state->walk_type & ACPI_WALK_METHOD) {
 			/*
 			 * Found a named object declaration during method execution;
 			 * we must enter this object into the namespace.  The created

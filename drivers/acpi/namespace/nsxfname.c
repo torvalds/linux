@@ -112,9 +112,8 @@ acpi_get_handle(acpi_handle parent,
 	/*
 	 *  Find the Node and convert to a handle
 	 */
-	status =
-	    acpi_ns_get_node_by_path(pathname, prefix_node, ACPI_NS_NO_UPSEARCH,
-				     &node);
+	status = acpi_ns_get_node(prefix_node, pathname, ACPI_NS_NO_UPSEARCH,
+				  &node);
 
 	*ret_handle = NULL;
 	if (ACPI_SUCCESS(status)) {

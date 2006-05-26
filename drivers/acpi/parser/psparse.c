@@ -464,6 +464,7 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 
 	thread = acpi_ut_create_thread_state();
 	if (!thread) {
+		acpi_ds_delete_walk_state(walk_state);
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 

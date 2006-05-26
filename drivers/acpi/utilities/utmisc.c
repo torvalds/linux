@@ -601,7 +601,8 @@ acpi_name acpi_ut_repair_name(acpi_name name)
  * FUNCTION:    acpi_ut_strtoul64
  *
  * PARAMETERS:  String          - Null terminated string
- *              Base            - Radix of the string: 10, 16, or ACPI_ANY_BASE
+ *              Base            - Radix of the string: 16 or ACPI_ANY_BASE;
+ *                                ACPI_ANY_BASE means 'in behalf of to_integer'
  *              ret_integer     - Where the converted integer is returned
  *
  * RETURN:      Status and Converted value
@@ -617,16 +618,17 @@ acpi_ut_strtoul64(char *string, u32 base, acpi_integer * ret_integer)
 	u32 this_digit = 0;
 	acpi_integer return_value = 0;
 	acpi_integer quotient;
+	acpi_integer dividend;
+	u32 to_integer_op = (base == ACPI_ANY_BASE);
+	u32 mode32 = (acpi_gbl_integer_byte_width == 4);
+	u8 valid_digits = 0;
+	u8 sign_of0x = 0;
+	u8 term = 0;
 
 	ACPI_FUNCTION_TRACE(ut_stroul64);
 
-	if ((!string) || !(*string)) {
-		goto error_exit;
-	}
-
 	switch (base) {
 	case ACPI_ANY_BASE:
-	case 10:
 	case 16:
 		break;
 
@@ -635,39 +637,45 @@ acpi_ut_strtoul64(char *string, u32 base, acpi_integer * ret_integer)
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
+	if (!string) {
+		goto error_exit;
+	}
+
 	/* Skip over any white space in the buffer */
 
-	while (ACPI_IS_SPACE(*string) || *string == '\t') {
+	while ((*string) && (ACPI_IS_SPACE(*string) || *string == '\t')) {
 		string++;
 	}
 
-	/*
-	 * If the input parameter Base is zero, then we need to
-	 * determine if it is decimal or hexadecimal:
-	 */
-	if (base == 0) {
+	if (to_integer_op) {
+		/*
+		 * Base equal to ACPI_ANY_BASE means 'to_integer operation case'.
+		 * We need to determine if it is decimal or hexadecimal.
+		 */
 		if ((*string == '0') && (ACPI_TOLOWER(*(string + 1)) == 'x')) {
+			sign_of0x = 1;
 			base = 16;
+
+			/* Skip over the leading '0x' */
 			string += 2;
 		} else {
 			base = 10;
 		}
 	}
 
-	/*
-	 * For hexadecimal base, skip over the leading
-	 * 0 or 0x, if they are present.
-	 */
-	if ((base == 16) &&
-	    (*string == '0') && (ACPI_TOLOWER(*(string + 1)) == 'x')) {
-		string += 2;
+	/* Any string left? Check that '0x' is not followed by white space. */
+
+	if (!(*string) || ACPI_IS_SPACE(*string) || *string == '\t') {
+		if (to_integer_op) {
+			goto error_exit;
+		} else {
+			goto all_done;
+		}
 	}
 
-	/* Any string left? */
+	dividend = (mode32) ? ACPI_UINT32_MAX : ACPI_UINT64_MAX;
 
-	if (!(*string)) {
-		goto error_exit;
-	}
+	/* At least one character in the string here */
 
 	/* Main loop: convert the string to a 64-bit integer */
 
@@ -677,14 +685,12 @@ acpi_ut_strtoul64(char *string, u32 base, acpi_integer * ret_integer)
 			/* Convert ASCII 0-9 to Decimal value */
 
 			this_digit = ((u8) * string) - '0';
+		} else if (base == 10) {
+
+			/* Digit is out of range; possible in to_integer case only */
+
+			term = 1;
 		} else {
-			if (base == 10) {
-
-				/* Digit is out of range */
-
-				goto error_exit;
-			}
-
 			this_digit = (u8) ACPI_TOUPPER(*string);
 			if (ACPI_IS_XDIGIT((char)this_digit)) {
 
@@ -692,22 +698,49 @@ acpi_ut_strtoul64(char *string, u32 base, acpi_integer * ret_integer)
 
 				this_digit = this_digit - 'A' + 10;
 			} else {
-				/*
-				 * We allow non-hex chars, just stop now, same as end-of-string.
-				 * See ACPI spec, string-to-integer conversion.
-				 */
+				term = 1;
+			}
+		}
+
+		if (term) {
+			if (to_integer_op) {
+				goto error_exit;
+			} else {
 				break;
 			}
+		} else if ((valid_digits == 0) && (this_digit == 0)
+			   && !sign_of0x) {
+
+			/* Skip zeros */
+			string++;
+			continue;
+		}
+
+		valid_digits++;
+
+		if (sign_of0x
+		    && ((valid_digits > 16)
+			|| ((valid_digits > 8) && mode32))) {
+			/*
+			 * This is to_integer operation case.
+			 * No any restrictions for string-to-integer conversion,
+			 * see ACPI spec.
+			 */
+			goto error_exit;
 		}
 
 		/* Divide the digit into the correct position */
 
 		(void)
-		    acpi_ut_short_divide((ACPI_INTEGER_MAX -
-					  (acpi_integer) this_digit), base,
-					 &quotient, NULL);
+		    acpi_ut_short_divide((dividend - (acpi_integer) this_digit),
+					 base, &quotient, NULL);
+
 		if (return_value > quotient) {
-			goto error_exit;
+			if (to_integer_op) {
+				goto error_exit;
+			} else {
+				break;
+			}
 		}
 
 		return_value *= base;
@@ -716,6 +749,8 @@ acpi_ut_strtoul64(char *string, u32 base, acpi_integer * ret_integer)
 	}
 
 	/* All done, normal exit */
+
+      all_done:
 
 	*ret_integer = return_value;
 	return_ACPI_STATUS(AE_OK);

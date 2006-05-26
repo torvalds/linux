@@ -181,19 +181,26 @@ acpi_ut_evaluate_object(struct acpi_namespace_node *prefix_node,
 			u32 expected_return_btypes,
 			union acpi_operand_object **return_desc)
 {
-	struct acpi_parameter_info info;
+	struct acpi_evaluate_info *info;
 	acpi_status status;
 	u32 return_btype;
 
 	ACPI_FUNCTION_TRACE(ut_evaluate_object);
 
-	info.node = prefix_node;
-	info.parameters = NULL;
-	info.parameter_type = ACPI_PARAM_ARGS;
+	/* Allocate the evaluation information block */
+
+	info = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_evaluate_info));
+	if (!info) {
+		return_ACPI_STATUS(AE_NO_MEMORY);
+	}
+
+	info->prefix_node = prefix_node;
+	info->pathname = path;
+	info->parameter_type = ACPI_PARAM_ARGS;
 
 	/* Evaluate the object/method */
 
-	status = acpi_ns_evaluate_relative(path, &info);
+	status = acpi_ns_evaluate(info);
 	if (ACPI_FAILURE(status)) {
 		if (status == AE_NOT_FOUND) {
 			ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
@@ -205,25 +212,25 @@ acpi_ut_evaluate_object(struct acpi_namespace_node *prefix_node,
 					  prefix_node, path, status);
 		}
 
-		return_ACPI_STATUS(status);
+		goto cleanup;
 	}
 
 	/* Did we get a return object? */
 
-	if (!info.return_object) {
+	if (!info->return_object) {
 		if (expected_return_btypes) {
 			ACPI_ERROR_METHOD("No object was returned from",
 					  prefix_node, path, AE_NOT_EXIST);
 
-			return_ACPI_STATUS(AE_NOT_EXIST);
+			status = AE_NOT_EXIST;
 		}
 
-		return_ACPI_STATUS(AE_OK);
+		goto cleanup;
 	}
 
 	/* Map the return object type to the bitmapped type */
 
-	switch (ACPI_GET_OBJECT_TYPE(info.return_object)) {
+	switch (ACPI_GET_OBJECT_TYPE(info->return_object)) {
 	case ACPI_TYPE_INTEGER:
 		return_btype = ACPI_BTYPE_INTEGER;
 		break;
@@ -251,8 +258,8 @@ acpi_ut_evaluate_object(struct acpi_namespace_node *prefix_node,
 		 * happen frequently if the "implicit return" feature is enabled.
 		 * Just delete the return object and return AE_OK.
 		 */
-		acpi_ut_remove_reference(info.return_object);
-		return_ACPI_STATUS(AE_OK);
+		acpi_ut_remove_reference(info->return_object);
+		goto cleanup;
 	}
 
 	/* Is the return object one of the expected types? */
@@ -264,19 +271,23 @@ acpi_ut_evaluate_object(struct acpi_namespace_node *prefix_node,
 		ACPI_ERROR((AE_INFO,
 			    "Type returned from %s was incorrect: %s, expected Btypes: %X",
 			    path,
-			    acpi_ut_get_object_type_name(info.return_object),
+			    acpi_ut_get_object_type_name(info->return_object),
 			    expected_return_btypes));
 
 		/* On error exit, we must delete the return object */
 
-		acpi_ut_remove_reference(info.return_object);
-		return_ACPI_STATUS(AE_TYPE);
+		acpi_ut_remove_reference(info->return_object);
+		status = AE_TYPE;
+		goto cleanup;
 	}
 
 	/* Object type is OK, return it */
 
-	*return_desc = info.return_object;
-	return_ACPI_STATUS(AE_OK);
+	*return_desc = info->return_object;
+
+      cleanup:
+	ACPI_FREE(info);
+	return_ACPI_STATUS(status);
 }
 
 /*******************************************************************************

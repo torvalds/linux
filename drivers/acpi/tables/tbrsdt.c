@@ -78,7 +78,7 @@ acpi_status acpi_tb_verify_rsdp(struct acpi_pointer *address)
 		 */
 		status = acpi_os_map_memory(address->pointer.physical,
 					    sizeof(struct rsdp_descriptor),
-					    (void *)&rsdp);
+					    ACPI_CAST_PTR(void, &rsdp));
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
 		}
@@ -95,11 +95,16 @@ acpi_status acpi_tb_verify_rsdp(struct acpi_pointer *address)
 		goto cleanup;
 	}
 
-	/* The RSDP supplied is OK */
+	/* RSDP is ok. Init the table info */
 
 	table_info.pointer = ACPI_CAST_PTR(struct acpi_table_header, rsdp);
 	table_info.length = sizeof(struct rsdp_descriptor);
-	table_info.allocation = ACPI_MEM_MAPPED;
+
+	if (address->pointer_type == ACPI_PHYSICAL_POINTER) {
+		table_info.allocation = ACPI_MEM_MAPPED;
+	} else {
+		table_info.allocation = ACPI_MEM_NOT_ALLOCATED;
+	}
 
 	/* Save the table pointers and allocation info */
 

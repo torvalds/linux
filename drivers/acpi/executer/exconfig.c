@@ -214,9 +214,8 @@ acpi_ex_load_table_op(struct acpi_walk_state *walk_state,
 		 * location within the namespace where the table will be loaded.
 		 */
 		status =
-		    acpi_ns_get_node_by_path(operand[3]->string.pointer,
-					     start_node, ACPI_NS_SEARCH_PARENT,
-					     &parent_node);
+		    acpi_ns_get_node(start_node, operand[3]->string.pointer,
+				     ACPI_NS_SEARCH_PARENT, &parent_node);
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
 		}
@@ -237,9 +236,8 @@ acpi_ex_load_table_op(struct acpi_walk_state *walk_state,
 		/* Find the node referenced by the parameter_path_string */
 
 		status =
-		    acpi_ns_get_node_by_path(operand[4]->string.pointer,
-					     start_node, ACPI_NS_SEARCH_PARENT,
-					     &parameter_node);
+		    acpi_ns_get_node(start_node, operand[4]->string.pointer,
+				     ACPI_NS_SEARCH_PARENT, &parameter_node);
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
 		}

@@ -61,24 +61,6 @@ acpi_status acpi_ut_create_caches(void)
 {
 	acpi_status status;
 
-#ifdef ACPI_DBG_TRACK_ALLOCATIONS
-
-	/* Memory allocation lists */
-
-	status = acpi_ut_create_list("Acpi-Global", 0, &acpi_gbl_global_list);
-	if (ACPI_FAILURE(status)) {
-		return (status);
-	}
-
-	status =
-	    acpi_ut_create_list("Acpi-Namespace",
-				sizeof(struct acpi_namespace_node),
-				&acpi_gbl_ns_node_list);
-	if (ACPI_FAILURE(status)) {
-		return (status);
-	}
-#endif
-
 	/* Object Caches, for frequently used objects */
 
 	status =
@@ -125,6 +107,24 @@ acpi_status acpi_ut_create_caches(void)
 		return (status);
 	}
 
+#ifdef ACPI_DBG_TRACK_ALLOCATIONS
+
+	/* Memory allocation lists */
+
+	status = acpi_ut_create_list("Acpi-Global", 0, &acpi_gbl_global_list);
+	if (ACPI_FAILURE(status)) {
+		return (status);
+	}
+
+	status =
+	    acpi_ut_create_list("Acpi-Namespace",
+				sizeof(struct acpi_namespace_node),
+				&acpi_gbl_ns_node_list);
+	if (ACPI_FAILURE(status)) {
+		return (status);
+	}
+#endif
+
 	return (AE_OK);
 }
 
@@ -157,6 +157,21 @@ acpi_status acpi_ut_delete_caches(void)
 
 	(void)acpi_os_delete_cache(acpi_gbl_ps_node_ext_cache);
 	acpi_gbl_ps_node_ext_cache = NULL;
+
+#ifdef ACPI_DBG_TRACK_ALLOCATIONS
+
+	/* Debug only - display leftover memory allocation, if any */
+
+	acpi_ut_dump_allocations(ACPI_UINT32_MAX, NULL);
+
+	/* Free memory lists */
+
+	acpi_os_free(acpi_gbl_global_list);
+	acpi_gbl_global_list = NULL;
+
+	acpi_os_free(acpi_gbl_ns_node_list);
+	acpi_gbl_ns_node_list = NULL;
+#endif
 
 	return (AE_OK);
 }

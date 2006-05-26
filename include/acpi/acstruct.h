@@ -53,17 +53,25 @@
  ****************************************************************************/
 
 /*
- * Walk state - current state of a parse tree walk.  Used for both a leisurely stroll through
- * the tree (for whatever reason), and for control method execution.
+ * Walk state - current state of a parse tree walk.  Used for both a leisurely
+ * stroll through the tree (for whatever reason), and for control method
+ * execution.
  */
 #define ACPI_NEXT_OP_DOWNWARD       1
 #define ACPI_NEXT_OP_UPWARD         2
 
+/*
+ * Groups of definitions for walk_type used for different implementations of
+ * walkers (never simultaneously) - flags for interpreter:
+ */
 #define ACPI_WALK_NON_METHOD        0
-#define ACPI_WALK_METHOD            1
-#define ACPI_WALK_METHOD_RESTART    2
-#define ACPI_WALK_CONST_REQUIRED    3
-#define ACPI_WALK_CONST_OPTIONAL    4
+#define ACPI_WALK_METHOD            0x01
+#define ACPI_WALK_METHOD_RESTART    0x02
+
+/* Flags for i_aSL compiler only */
+
+#define ACPI_WALK_CONST_REQUIRED    0x10
+#define ACPI_WALK_CONST_OPTIONAL    0x20
 
 struct acpi_walk_state {
 	struct acpi_walk_state *next;	/* Next walk_state in list */
@@ -134,32 +142,6 @@ struct acpi_init_walk_info {
 	struct acpi_table_desc *table_desc;
 };
 
-/* Info used by acpi_ns_initialize_devices */
-
-struct acpi_device_walk_info {
-	u16 device_count;
-	u16 num_STA;
-	u16 num_INI;
-	struct acpi_table_desc *table_desc;
-};
-
-/* TBD: [Restructure] Merge with struct above */
-
-struct acpi_walk_info {
-	u32 debug_level;
-	u32 count;
-	acpi_owner_id owner_id;
-	u8 display_type;
-};
-
-/* Display Types */
-
-#define ACPI_DISPLAY_SUMMARY        (u8) 0
-#define ACPI_DISPLAY_OBJECTS        (u8) 1
-#define ACPI_DISPLAY_MASK           (u8) 1
-
-#define ACPI_DISPLAY_SHORT          (u8) 2
-
 struct acpi_get_devices_info {
 	acpi_walk_callback user_function;
 	void *context;
@@ -192,21 +174,57 @@ union acpi_aml_operands {
 	} mid;
 };
 
-/* Internal method parameter list */
-
-struct acpi_parameter_info {
-	struct acpi_namespace_node *node;
+/*
+ * Structure used to pass object evaluation parameters.
+ * Purpose is to reduce CPU stack use.
+ */
+struct acpi_evaluate_info {
+	struct acpi_namespace_node *prefix_node;
+	char *pathname;
 	union acpi_operand_object *obj_desc;
 	union acpi_operand_object **parameters;
+	struct acpi_namespace_node *resolved_node;
 	union acpi_operand_object *return_object;
 	u8 pass_number;
 	u8 parameter_type;
 	u8 return_object_type;
+	u8 flags;
 };
 
 /* Types for parameter_type above */
 
 #define ACPI_PARAM_ARGS                 0
 #define ACPI_PARAM_GPE                  1
+
+/* Values for Flags above */
+
+#define ACPI_IGNORE_RETURN_VALUE        1
+
+/* Info used by acpi_ns_initialize_devices */
+
+struct acpi_device_walk_info {
+	u16 device_count;
+	u16 num_STA;
+	u16 num_INI;
+	struct acpi_table_desc *table_desc;
+	struct acpi_evaluate_info *evaluate_info;
+};
+
+/* TBD: [Restructure] Merge with struct above */
+
+struct acpi_walk_info {
+	u32 debug_level;
+	u32 count;
+	acpi_owner_id owner_id;
+	u8 display_type;
+};
+
+/* Display Types */
+
+#define ACPI_DISPLAY_SUMMARY        (u8) 0
+#define ACPI_DISPLAY_OBJECTS        (u8) 1
+#define ACPI_DISPLAY_MASK           (u8) 1
+
+#define ACPI_DISPLAY_SHORT          (u8) 2
 
 #endif

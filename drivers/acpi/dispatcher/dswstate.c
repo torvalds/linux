@@ -703,7 +703,7 @@ acpi_ds_init_aml_walk(struct acpi_walk_state *walk_state,
 		      struct acpi_namespace_node *method_node,
 		      u8 * aml_start,
 		      u32 aml_length,
-		      struct acpi_parameter_info *info, u8 pass_number)
+		      struct acpi_evaluate_info *info, u8 pass_number)
 {
 	acpi_status status;
 	struct acpi_parse_state *parser_state = &walk_state->parser_state;
@@ -825,9 +825,12 @@ void acpi_ds_delete_walk_state(struct acpi_walk_state *walk_state)
 		return;
 	}
 
+	/* There should not be any open scopes */
+
 	if (walk_state->parser_state.scope) {
 		ACPI_ERROR((AE_INFO, "%p walk still has a scope list",
 			    walk_state));
+		acpi_ps_cleanup_scope(&walk_state->parser_state);
 	}
 
 	/* Always must free any linked control states */

@@ -475,8 +475,9 @@ acpi_ev_initialize_region(union acpi_operand_object *region_obj,
 
 	/* Find any "_REG" method associated with this region definition */
 
-	status = acpi_ns_search_node(*reg_name_ptr, node,
-				     ACPI_TYPE_METHOD, &method_node);
+	status =
+	    acpi_ns_search_one_scope(*reg_name_ptr, node, ACPI_TYPE_METHOD,
+				     &method_node);
 	if (ACPI_SUCCESS(status)) {
 		/*
 		 * The _REG method is optional and there can be only one per region
