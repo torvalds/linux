@@ -247,6 +247,9 @@ ixgb_up(struct ixgb_adapter *adapter)
 	ixgb_configure_rx(adapter);
 	ixgb_alloc_rx_buffers(adapter);
 
+	/* disable interrupts and get the hardware into a known state */
+	IXGB_WRITE_REG(&adapter->hw, IMC, 0xffffffff);
+
 #ifdef CONFIG_PCI_MSI
 	{
 	boolean_t pcix = (IXGB_READ_REG(&adapter->hw, STATUS) & 
@@ -272,9 +275,6 @@ ixgb_up(struct ixgb_adapter *adapter)
 		return err;
 	}
 
-	/* disable interrupts and get the hardware into a known state */
-	IXGB_WRITE_REG(&adapter->hw, IMC, 0xffffffff);
-
 	if((hw->max_frame_size != max_frame) ||
 		(hw->max_frame_size !=
 		(IXGB_READ_REG(hw, MFS) >> IXGB_MFS_SHIFT))) {
@@ -295,11 +295,12 @@ ixgb_up(struct ixgb_adapter *adapter)
 	}
 
 	mod_timer(&adapter->watchdog_timer, jiffies);
-	ixgb_irq_enable(adapter);
 
 #ifdef CONFIG_IXGB_NAPI
 	netif_poll_enable(netdev);
 #endif
+	ixgb_irq_enable(adapter);
+
 	return 0;
 }
 
