@@ -551,7 +551,14 @@ void
 pci_disable_device(struct pci_dev *dev)
 {
 	u16 pci_command;
-	
+
+	if (dev->msi_enabled)
+		disable_msi_mode(dev, pci_find_capability(dev, PCI_CAP_ID_MSI),
+			PCI_CAP_ID_MSI);
+	if (dev->msix_enabled)
+		disable_msi_mode(dev, pci_find_capability(dev, PCI_CAP_ID_MSI),
+			PCI_CAP_ID_MSIX);
+
 	pci_read_config_word(dev, PCI_COMMAND, &pci_command);
 	if (pci_command & PCI_COMMAND_MASTER) {
 		pci_command &= ~PCI_COMMAND_MASTER;

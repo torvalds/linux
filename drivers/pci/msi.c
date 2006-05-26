@@ -453,9 +453,11 @@ static void enable_msi_mode(struct pci_dev *dev, int pos, int type)
 		/* Set enabled bits to single MSI & enable MSI_enable bit */
 		msi_enable(control, 1);
 		pci_write_config_word(dev, msi_control_reg(pos), control);
+		dev->msi_enabled = 1;
 	} else {
 		msix_enable(control);
 		pci_write_config_word(dev, msi_control_reg(pos), control);
+		dev->msix_enabled = 1;
 	}
     	if (pci_find_capability(dev, PCI_CAP_ID_EXP)) {
 		/* PCI Express Endpoint device detected */
@@ -472,9 +474,11 @@ void disable_msi_mode(struct pci_dev *dev, int pos, int type)
 		/* Set enabled bits to single MSI & enable MSI_enable bit */
 		msi_disable(control);
 		pci_write_config_word(dev, msi_control_reg(pos), control);
+		dev->msi_enabled = 0;
 	} else {
 		msix_disable(control);
 		pci_write_config_word(dev, msi_control_reg(pos), control);
+		dev->msix_enabled = 0;
 	}
     	if (pci_find_capability(dev, PCI_CAP_ID_EXP)) {
 		/* PCI Express Endpoint device detected */
@@ -549,7 +553,6 @@ int pci_save_msi_state(struct pci_dev *dev)
 		pci_read_config_dword(dev, pos + PCI_MSI_DATA_32, &cap[i++]);
 	if (control & PCI_MSI_FLAGS_MASKBIT)
 		pci_read_config_dword(dev, pos + PCI_MSI_MASK_BIT, &cap[i++]);
-	disable_msi_mode(dev, pos, PCI_CAP_ID_MSI);
 	save_state->cap_nr = PCI_CAP_ID_MSI;
 	pci_add_saved_cap(dev, save_state);
 	return 0;
@@ -639,7 +642,6 @@ int pci_save_msix_state(struct pci_dev *dev)
 	}
 	dev->irq = temp;
 
-	disable_msi_mode(dev, pos, PCI_CAP_ID_MSIX);
 	save_state->cap_nr = PCI_CAP_ID_MSIX;
 	pci_add_saved_cap(dev, save_state);
 	return 0;
