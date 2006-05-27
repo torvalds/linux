@@ -29,12 +29,12 @@
 LIST_HEAD(crypto_alg_list);
 DECLARE_RWSEM(crypto_alg_sem);
 
-static inline int crypto_alg_get(struct crypto_alg *alg)
+static inline int crypto_mod_get(struct crypto_alg *alg)
 {
 	return try_module_get(alg->cra_module);
 }
 
-static inline void crypto_alg_put(struct crypto_alg *alg)
+static inline void crypto_mod_put(struct crypto_alg *alg)
 {
 	module_put(alg->cra_module);
 }
@@ -57,12 +57,12 @@ static struct crypto_alg *crypto_alg_lookup(const char *name)
 		if (!exact && !(fuzzy && q->cra_priority > best))
 			continue;
 
-		if (unlikely(!crypto_alg_get(q)))
+		if (unlikely(!crypto_mod_get(q)))
 			continue;
 
 		best = q->cra_priority;
 		if (alg)
-			crypto_alg_put(alg);
+			crypto_mod_put(alg);
 		alg = q;
 
 		if (exact)
@@ -202,7 +202,7 @@ out_free_tfm:
 	kfree(tfm);
 	tfm = NULL;
 out_put:
-	crypto_alg_put(alg);
+	crypto_mod_put(alg);
 out:
 	return tfm;
 }
@@ -221,7 +221,7 @@ void crypto_free_tfm(struct crypto_tfm *tfm)
 	if (alg->cra_exit)
 		alg->cra_exit(tfm);
 	crypto_exit_ops(tfm);
-	crypto_alg_put(alg);
+	crypto_mod_put(alg);
 	memset(tfm, 0, size);
 	kfree(tfm);
 }
@@ -305,7 +305,7 @@ int crypto_alg_available(const char *name, u32 flags)
 	struct crypto_alg *alg = crypto_alg_mod_lookup(name);
 	
 	if (alg) {
-		crypto_alg_put(alg);
+		crypto_mod_put(alg);
 		ret = 1;
 	}
 	
