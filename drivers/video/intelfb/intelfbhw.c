@@ -1005,6 +1005,7 @@ intelfbhw_mode_to_hw(struct intelfb_info *dinfo, struct intelfb_hwstate *hw,
 	u32 vsync_start, vsync_end, vblank_start, vblank_end, vtotal, vactive;
 	u32 vsync_pol, hsync_pol;
 	u32 *vs, *vb, *vt, *hs, *hb, *ht, *ss, *pipe_conf;
+	u32 stride_alignment;
 
 	DBG_MSG("intelfbhw_mode_to_hw\n");
 
@@ -1216,9 +1217,11 @@ intelfbhw_mode_to_hw(struct intelfb_info *dinfo, struct intelfb_hwstate *hw,
 	hw->disp_a_base += dinfo->fb.offset << 12;
 
 	/* Check stride alignment. */
-	if (hw->disp_a_stride % STRIDE_ALIGNMENT != 0) {
+	stride_alignment = IS_I9XX(dinfo) ? STRIDE_ALIGNMENT_I9XX :
+					    STRIDE_ALIGNMENT;
+	if (hw->disp_a_stride % stride_alignment != 0) {
 		WRN_MSG("display stride %d has bad alignment %d\n",
-			hw->disp_a_stride, STRIDE_ALIGNMENT);
+			hw->disp_a_stride, stride_alignment);
 		return 1;
 	}
 

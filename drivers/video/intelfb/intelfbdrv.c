@@ -1141,7 +1141,10 @@ update_dinfo(struct intelfb_info *dinfo, struct fb_var_screeninfo *var)
 	}
 
 	/* Make sure the line length is a aligned correctly. */
-	dinfo->pitch = ROUND_UP_TO(dinfo->pitch, STRIDE_ALIGNMENT);
+	if (IS_I9XX(dinfo))
+		dinfo->pitch = ROUND_UP_TO(dinfo->pitch, STRIDE_ALIGNMENT_I9XX);
+	else
+		dinfo->pitch = ROUND_UP_TO(dinfo->pitch, STRIDE_ALIGNMENT);
 
 	if (FIXED_MODE(dinfo))
 		dinfo->pitch = dinfo->initial_pitch;
