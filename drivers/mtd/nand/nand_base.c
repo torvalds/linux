@@ -52,28 +52,33 @@
 #endif
 
 /* Define default oob placement schemes for large and small page devices */
-static struct nand_oobinfo nand_oob_8 = {
-	.useecc = MTD_NANDECC_AUTOPLACE,
+static struct nand_ecclayout nand_oob_8 = {
 	.eccbytes = 3,
 	.eccpos = {0, 1, 2},
-	.oobfree = {{3, 2}, {6, 2}}
+	.oobfree = {
+		{.offset = 3,
+		 .length = 2},
+		{.offset = 6,
+		 .length = 2}}
 };
 
-static struct nand_oobinfo nand_oob_16 = {
-	.useecc = MTD_NANDECC_AUTOPLACE,
+static struct nand_ecclayout nand_oob_16 = {
 	.eccbytes = 6,
 	.eccpos = {0, 1, 2, 3, 6, 7},
-	.oobfree = {{8, 8}}
+	.oobfree = {
+		{.offset = 8,
+		 . length = 8}}
 };
 
-static struct nand_oobinfo nand_oob_64 = {
-	.useecc = MTD_NANDECC_AUTOPLACE,
+static struct nand_ecclayout nand_oob_64 = {
 	.eccbytes = 24,
 	.eccpos = {
 		   40, 41, 42, 43, 44, 45, 46, 47,
 		   48, 49, 50, 51, 52, 53, 54, 55,
 		   56, 57, 58, 59, 60, 61, 62, 63},
-	.oobfree = {{2, 38}}
+	.oobfree = {
+		{.offset = 2,
+		 .length = 38}}
 };
 
 /* This is used for padding purposes in nand_write_oob */
@@ -749,7 +754,7 @@ static int nand_read_page_swecc(struct mtd_info *mtd, struct nand_chip *chip,
 	uint8_t *p = buf;
 	uint8_t *ecc_calc = chip->buffers.ecccalc;
 	uint8_t *ecc_code = chip->buffers.ecccode;
-	int *eccpos = chip->autooob->eccpos;
+	int *eccpos = chip->ecc.layout->eccpos;
 
 	chip->read_buf(mtd, buf, mtd->writesize);
 	chip->read_buf(mtd, chip->oob_poi, mtd->oobsize);
@@ -795,7 +800,7 @@ static int nand_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 	uint8_t *p = buf;
 	uint8_t *ecc_calc = chip->buffers.ecccalc;
 	uint8_t *ecc_code = chip->buffers.ecccode;
-	int *eccpos = chip->autooob->eccpos;
+	int *eccpos = chip->ecc.layout->eccpos;
 
 	for (i = 0; eccsteps; eccsteps--, i += eccbytes, p += eccsize) {
 		chip->ecc.hwctl(mtd, NAND_ECC_READ);
@@ -1198,7 +1203,7 @@ static void nand_write_page_swecc(struct mtd_info *mtd, struct nand_chip *chip,
 	int eccsteps = chip->ecc.steps;
 	uint8_t *ecc_calc = chip->buffers.ecccalc;
 	const uint8_t *p = buf;
-	int *eccpos = chip->autooob->eccpos;
+	int *eccpos = chip->ecc.layout->eccpos;
 
 	if (chip->ecc.mode != NAND_ECC_NONE) {
 		/* Software ecc calculation */
@@ -1227,7 +1232,7 @@ static void nand_write_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 	int eccsteps = chip->ecc.steps;
 	uint8_t *ecc_calc = chip->buffers.ecccalc;
 	const uint8_t *p = buf;
-	int *eccpos = chip->autooob->eccpos;
+	int *eccpos = chip->ecc.layout->eccpos;
 
 	for (i = 0; eccsteps; eccsteps--, i += eccbytes, p += eccsize) {
 		chip->ecc.hwctl(mtd, NAND_ECC_WRITE);
@@ -2124,16 +2129,16 @@ int nand_scan(struct mtd_info *mtd, int maxchips)
 	/*
 	 * If no default placement scheme is given, select an appropriate one
 	 */
-	if (!chip->autooob) {
+	if (!chip->ecc.layout) {
 		switch (mtd->oobsize) {
 		case 8:
-			chip->autooob = &nand_oob_8;
+			chip->ecc.layout = &nand_oob_8;
 			break;
 		case 16:
-			chip->autooob = &nand_oob_16;
+			chip->ecc.layout = &nand_oob_16;
 			break;
 		case 64:
-			chip->autooob = &nand_oob_64;
+			chip->ecc.layout = &nand_oob_64;
 			break;
 		default:
 			printk(KERN_WARNING "No oob scheme defined for "
@@ -2198,6 +2203,15 @@ int nand_scan(struct mtd_info *mtd, int maxchips)
 	}
 
 	/*
+	 * The number of bytes available for a client to place data into
+	 * the out of band area
+	 */
+	chip->ecc.layout->oobavail = 0;
+	for (i = 0; chip->ecc.layout->oobfree[i].length; i++)
+		chip->ecc.layout->oobavail +=
+			chip->ecc.layout->oobfree[i].length;
+
+	/*
 	 * Set the number of read / write steps for one page depending on ECC
 	 * mode
 	 */
@@ -2236,8 +2250,8 @@ int nand_scan(struct mtd_info *mtd, int maxchips)
 	mtd->block_isbad = nand_block_isbad;
 	mtd->block_markbad = nand_block_markbad;
 
-	/* and make the autooob the default one */
-	mtd->oobinfo = chip->autooob;
+	/* propagate ecc.layout to mtd_info */
+	mtd->ecclayout = chip->ecc.layout;
 
 	/* Check, if we should skip the bad block table scan */
 	if (chip->options & NAND_SKIP_BBTSCAN)

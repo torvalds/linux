@@ -77,7 +77,7 @@ struct onenand_bufferram {
  * @param chip_lock	[INTERN] spinlock used to protect access to this structure and the chip
  * @param wq		[INTERN] wait queue to sleep on if a OneNAND operation is in progress
  * @param state		[INTERN] the current state of the OneNAND device
- * @param autooob	[REPLACEABLE] the default (auto)placement scheme
+ * @param ecclayout	[REPLACEABLE] the default ecc placement scheme
  * @param bbm		[REPLACEABLE] pointer to Bad Block Management
  * @param priv		[OPTIONAL] pointer to private chip date
  */
@@ -113,9 +113,9 @@ struct onenand_chip {
 	onenand_state_t		state;
 	unsigned char		*page_buf;
 
-	struct nand_oobinfo	*autooob;
+	struct nand_ecclayout	*ecclayout;
 
-	void 			*bbm;
+	void			*bbm;
 
 	void			*priv;
 };

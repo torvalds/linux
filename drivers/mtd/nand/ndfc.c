@@ -168,7 +168,7 @@ static void ndfc_chip_init(struct ndfc_nand_mtd *mtd)
 	chip->ecc.mode = NAND_ECC_HW;
 	chip->ecc.size = 256;
 	chip->ecc.bytes = 3;
-	chip->autooob = mtd->pl_chip->oobinfo;
+	chip->ecclayout = mtd->pl_chip->ecclayout;
 	mtd->mtd.priv = chip;
 	mtd->mtd.owner = THIS_MODULE;
 }

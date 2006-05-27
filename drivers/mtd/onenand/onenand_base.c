@@ -23,8 +23,7 @@
 /**
  * onenand_oob_64 - oob info for large (2KB) page
  */
-static struct nand_oobinfo onenand_oob_64 = {
-	.useecc		= MTD_NANDECC_AUTOPLACE,
+static struct nand_ecclayout onenand_oob_64 = {
 	.eccbytes	= 20,
 	.eccpos		= {
 		8, 9, 10, 11, 12,
@@ -41,8 +40,7 @@ static struct nand_oobinfo onenand_oob_64 = {
 /**
  * onenand_oob_32 - oob info for middle (1KB) page
  */
-static struct nand_oobinfo onenand_oob_32 = {
-	.useecc		= MTD_NANDECC_AUTOPLACE,
+static struct nand_ecclayout onenand_oob_32 = {
 	.eccbytes	= 10,
 	.eccpos		= {
 		8, 9, 10, 11, 12,
@@ -1747,22 +1745,22 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 
 	switch (mtd->oobsize) {
 	case 64:
-		this->autooob = &onenand_oob_64;
+		this->ecclayout = &onenand_oob_64;
 		break;
 
 	case 32:
-		this->autooob = &onenand_oob_32;
+		this->ecclayout = &onenand_oob_32;
 		break;
 
 	default:
 		printk(KERN_WARNING "No OOB scheme defined for oobsize %d\n",
 			mtd->oobsize);
 		/* To prevent kernel oops */
-		this->autooob = &onenand_oob_32;
+		this->ecclayout = &onenand_oob_32;
 		break;
 	}
 
-	mtd->oobinfo = this->autooob;
+	mtd->ecclayout = this->ecclayout;
 
 	/* Fill in remaining MTD driver data */
 	mtd->type = MTD_NANDFLASH;

@@ -107,7 +107,7 @@ struct jffs2_sb_info {
 	struct rw_semaphore wbuf_sem;	/* Protects the write buffer */
 
 	/* Information about out-of-band area usage... */
-	struct nand_oobinfo *oobinfo;
+	struct nand_ecclayout *ecclayout;
 	uint32_t badblock_pos;
 	uint32_t fsdata_pos;
 	uint32_t fsdata_len;

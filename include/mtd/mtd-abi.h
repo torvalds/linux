@@ -82,12 +82,12 @@ struct otp_info {
 	uint32_t locked;
 };
 
-#define MEMGETINFO              _IOR('M', 1, struct mtd_info_user)
-#define MEMERASE                _IOW('M', 2, struct erase_info_user)
-#define MEMWRITEOOB             _IOWR('M', 3, struct mtd_oob_buf)
-#define MEMREADOOB              _IOWR('M', 4, struct mtd_oob_buf)
-#define MEMLOCK                 _IOW('M', 5, struct erase_info_user)
-#define MEMUNLOCK               _IOW('M', 6, struct erase_info_user)
+#define MEMGETINFO		_IOR('M', 1, struct mtd_info_user)
+#define MEMERASE		_IOW('M', 2, struct erase_info_user)
+#define MEMWRITEOOB		_IOWR('M', 3, struct mtd_oob_buf)
+#define MEMREADOOB		_IOWR('M', 4, struct mtd_oob_buf)
+#define MEMLOCK			_IOW('M', 5, struct erase_info_user)
+#define MEMUNLOCK		_IOW('M', 6, struct erase_info_user)
 #define MEMGETREGIONCOUNT	_IOR('M', 7, int)
 #define MEMGETREGIONINFO	_IOWR('M', 8, struct region_info_user)
 #define MEMSETOOBSEL		_IOW('M', 9, struct nand_oobinfo)
@@ -97,13 +97,35 @@ struct otp_info {
 #define OTPSELECT		_IOR('M', 13, int)
 #define OTPGETREGIONCOUNT	_IOW('M', 14, int)
 #define OTPGETREGIONINFO	_IOW('M', 15, struct otp_info)
-#define OTPLOCK		_IOR('M', 16, struct otp_info)
+#define OTPLOCK			_IOR('M', 16, struct otp_info)
+#define ECCGETLAYOUT		_IOR('M', 17, struct nand_ecclayout)
 
+/*
+ * Obsolete legacy interface. Keep it in order not to break userspace
+ * interfaces
+ */
 struct nand_oobinfo {
 	uint32_t useecc;
 	uint32_t eccbytes;
 	uint32_t oobfree[8][2];
 	uint32_t eccpos[32];
+};
+
+struct nand_oobfree {
+	uint32_t offset;
+	uint32_t length;
+};
+
+#define MTD_MAX_OOBFREE_ENTRIES	8
+/*
+ * ECC layout control structure. Exported to userspace for
+ * diagnosis and to allow creation of raw images
+ */
+struct nand_ecclayout {
+	uint32_t eccbytes;
+	uint32_t eccpos[64];
+	uint32_t oobavail;
+	struct nand_oobfree oobfree[MTD_MAX_OOBFREE_ENTRIES];
 };
 
 #endif /* __MTD_ABI_H__ */

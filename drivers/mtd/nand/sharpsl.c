@@ -115,8 +115,7 @@ static struct nand_bbt_descr sharpsl_akita_bbt = {
 	.pattern = scan_ff_pattern
 };
 
-static struct nand_oobinfo akita_oobinfo = {
-	.useecc = MTD_NANDECC_AUTOPLACE,
+static struct nand_ecclayout akita_oobinfo = {
 	.eccbytes = 24,
 	.eccpos = {
 		   0x5, 0x1, 0x2, 0x3, 0x6, 0x7, 0x15, 0x11,
@@ -202,7 +201,7 @@ static int __init sharpsl_nand_init(void)
 	this->badblock_pattern = &sharpsl_bbt;
 	if (machine_is_akita() || machine_is_borzoi()) {
 		this->badblock_pattern = &sharpsl_akita_bbt;
-		this->autooob = &akita_oobinfo;
+		this->ecc.layout = &akita_oobinfo;
 	}
 	this->ecc.hwctl = sharpsl_nand_enable_hwecc;
 	this->ecc.calculate = sharpsl_nand_calculate_ecc;

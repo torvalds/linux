@@ -76,8 +76,7 @@ static int hardware_ecc = 0;
 /* new oob placement block for use with hardware ecc generation
  */
 
-static struct nand_oobinfo nand_hw_eccoob = {
-	.useecc = MTD_NANDECC_AUTOPLACE,
+static struct nand_ecclayout nand_hw_eccoob = {
 	.eccbytes = 3,
 	.eccpos = {0, 1, 2},
 	.oobfree = {{8, 8}}
@@ -502,7 +501,7 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 		chip->ecc.mode	    = NAND_ECC_HW;
 		chip->ecc.size	    = 512;
 		chip->ecc.bytes	    = 3;
-		chip->autooob       = &nand_hw_eccoob;
+		chip->ecc.layout    = &nand_hw_eccoob;
 
 		if (info->is_s3c2440) {
 			chip->ecc.hwctl     = s3c2440_nand_enable_hwecc;

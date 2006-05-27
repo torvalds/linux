@@ -1140,18 +1140,9 @@ int jffs2_write_nand_badblock(struct jffs2_sb_info *c, struct jffs2_eraseblock *
 	return 1;
 }
 
-#define NAND_JFFS2_OOB16_FSDALEN	8
-
-static struct nand_oobinfo jffs2_oobinfo_docecc = {
-	.useecc = MTD_NANDECC_PLACE,
-	.eccbytes = 6,
-	.eccpos = {0,1,2,3,4,5}
-};
-
-
 static int jffs2_nand_set_oobinfo(struct jffs2_sb_info *c)
 {
-	struct nand_oobinfo *oinfo = c->mtd->oobinfo;
+	struct nand_ecclayout *oinfo = c->mtd->ecclayout;
 
 	/* Do this only, if we have an oob buffer */
 	if (!c->mtd->oobsize)
@@ -1161,33 +1152,23 @@ static int jffs2_nand_set_oobinfo(struct jffs2_sb_info *c)
 	c->cleanmarker_size = 0;
 
 	/* Should we use autoplacement ? */
-	if (oinfo && oinfo->useecc == MTD_NANDECC_AUTOPLACE) {
-		D1(printk(KERN_DEBUG "JFFS2 using autoplace on NAND\n"));
-		/* Get the position of the free bytes */
-		if (!oinfo->oobfree[0][1]) {
-			printk (KERN_WARNING "jffs2_nand_set_oobinfo(): Eeep. Autoplacement selected and no empty space in oob\n");
-			return -ENOSPC;
-		}
-		c->fsdata_pos = oinfo->oobfree[0][0];
-		c->fsdata_len = oinfo->oobfree[0][1];
-		if (c->fsdata_len > 8)
-			c->fsdata_len = 8;
-	} else {
-		/* This is just a legacy fallback and should go away soon */
-		switch(c->mtd->ecctype) {
-		case MTD_ECC_RS_DiskOnChip:
-			printk(KERN_WARNING "JFFS2 using DiskOnChip hardware ECC without autoplacement. Fix it!\n");
-			c->oobinfo = &jffs2_oobinfo_docecc;
-			c->fsdata_pos = 6;
-			c->fsdata_len = NAND_JFFS2_OOB16_FSDALEN;
-			c->badblock_pos = 15;
-			break;
-
-		default:
-			D1(printk(KERN_DEBUG "JFFS2 on NAND. No autoplacment info found\n"));
-			return -EINVAL;
-		}
+	if (!oinfo) {
+		D1(printk(KERN_DEBUG "JFFS2 on NAND. No autoplacment info found\n"));
+		return -EINVAL;
 	}
+
+	D1(printk(KERN_DEBUG "JFFS2 using autoplace on NAND\n"));
+	/* Get the position of the free bytes */
+	if (!oinfo->oobfree[0].length) {
+		printk (KERN_WARNING "jffs2_nand_set_oobinfo(): Eeep."
+			" Autoplacement selected and no empty space in oob\n");
+		return -ENOSPC;
+	}
+	c->fsdata_pos = oinfo->oobfree[0].offset;
+	c->fsdata_len = oinfo->oobfree[0].length;
+	if (c->fsdata_len > 8)
+		c->fsdata_len = 8;
+
 	return 0;
 }
 

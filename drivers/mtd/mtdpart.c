@@ -434,7 +434,7 @@ int add_mtd_partitions(struct mtd_info *master,
 				parts[i].name);
 		}
 
-		slave->mtd.oobinfo = master->oobinfo;
+		slave->mtd.ecclayout = master->ecclayout;
 
 		if(parts[i].mtdp)
 		{	/* store the object pointer (caller may or may not register it */

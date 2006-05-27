@@ -244,6 +244,7 @@ struct nand_ecc_ctrl {
 	int			total;
 	int			prepad;
 	int			postpad;
+	struct nand_ecclayout	*layout;
 	void			(*hwctl)(struct mtd_info *mtd, int mode);
 	int			(*calculate)(struct mtd_info *mtd,
 					     const uint8_t *dat,
@@ -318,7 +319,7 @@ struct nand_buffers {
  * @chipsize:		[INTERN] the size of one chip for multichip arrays
  * @pagemask:		[INTERN] page number mask = number of (pages / chip) - 1
  * @pagebuf:		[INTERN] holds the pagenumber which is currently in data_buf
- * @autooob:		[REPLACEABLE] the default (auto)placement scheme
+ * @ecclayout:		[REPLACEABLE] the default ecc placement scheme
  * @bbt:		[INTERN] bad block table pointer
  * @bbt_td:		[REPLACEABLE] bad block table descriptor for flash lookup
  * @bbt_md:		[REPLACEABLE] bad block table mirror descriptor
@@ -368,7 +369,7 @@ struct nand_chip {
 
 	uint8_t		*oob_poi;
 	struct nand_hw_control  *controller;
-	struct nand_oobinfo	*autooob;
+	struct nand_ecclayout	*ecclayout;
 
 	struct nand_ecc_ctrl ecc;
 	struct nand_buffers buffers;
@@ -522,7 +523,7 @@ extern int nand_do_read(struct mtd_info *mtd, loff_t from, size_t len,
  * @partitions:		mtd partition list
  * @chip_delay:		R/B delay value in us
  * @options:		Option flags, e.g. 16bit buswidth
- * @oobinfo:		oob info structure (ecc placement)
+ * @ecclayout:		ecc layout info structure
  * @priv:		hardware controller specific settings
  */
 struct platform_nand_chip {
@@ -530,7 +531,7 @@ struct platform_nand_chip {
 	int			chip_offset;
 	int			nr_partitions;
 	struct mtd_partition	*partitions;
-	struct nand_oobinfo	*oobinfo;
+	struct nand_ecclayout	*ecclayout;
 	int			chip_delay;
 	unsigned int		options;
 	void			*priv;

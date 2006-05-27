@@ -512,13 +512,35 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 		break;
 	}
 
+	/* Legacy interface */
 	case MEMGETOOBSEL:
 	{
-		if (copy_to_user(argp, mtd->oobinfo,
-				 sizeof(struct nand_oobinfo)))
+		struct nand_oobinfo oi;
+
+		if (!mtd->ecclayout)
+			return -EOPNOTSUPP;
+		if (mtd->ecclayout->eccbytes > ARRAY_SIZE(oi.eccpos))
+			return -EINVAL;
+
+		oi.useecc = MTD_NANDECC_AUTOPLACE;
+		memcpy(&oi.eccpos, mtd->ecclayout->eccpos, sizeof(oi.eccpos));
+		memcpy(&oi.oobfree, mtd->ecclayout->oobfree,
+		       sizeof(oi.oobfree));
+
+		if (copy_to_user(argp, &oi, sizeof(struct nand_oobinfo)))
 			return -EFAULT;
 		break;
 	}
+
+	case ECCGETLAYOUT:
+
+		if (!mtd->ecclayout)
+			return -EOPNOTSUPP;
+
+		if (copy_to_user(argp, &mtd->ecclayout,
+				 sizeof(struct nand_ecclayout)))
+			return -EFAULT;
+		break;
 
 	case MEMGETBADBLOCK:
 	{
