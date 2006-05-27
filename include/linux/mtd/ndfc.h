@@ -56,7 +56,8 @@
 #define NDFC_MAX_BANKS		4
 
 struct ndfc_controller_settings {
-	uint32_t		ccr_settings;
+	uint32_t	ccr_settings;
+	uint64_t	ndfc_erpn;
 };
 
 struct ndfc_chip_settings {

@@ -20,7 +20,6 @@
 #include <linux/mtd/nand_ecc.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/ndfc.h>
-#include <linux/mtd/ubi.h>
 #include <linux/mtd/mtd.h>
 #include <linux/platform_device.h>
 
@@ -169,14 +168,13 @@ static void ndfc_chip_init(struct ndfc_nand_mtd *mtd)
 	chip->ecc.mode = NAND_ECC_HW;
 	chip->ecc.size = 256;
 	chip->ecc.bytes = 3;
-	chip->autooob = mtd->pl_chip->autooob;
+	chip->autooob = mtd->pl_chip->oobinfo;
 	mtd->mtd.priv = chip;
 	mtd->mtd.owner = THIS_MODULE;
 }
 
 static int ndfc_chip_probe(struct platform_device *pdev)
 {
-	int rc;
 	struct platform_nand_chip *nc = pdev->dev.platform_data;
 	struct ndfc_chip_settings *settings = nc->priv;
 	struct ndfc_controller *ndfc = &ndfc_ctrl;
@@ -235,7 +233,7 @@ static int ndfc_nand_probe(struct platform_device *pdev)
 	struct ndfc_controller_settings *settings = nc->priv;
 	struct resource *res = pdev->resource;
 	struct ndfc_controller *ndfc = &ndfc_ctrl;
-	unsigned long long phys = NDFC_PHYSADDR_OFFS | res->start;
+	unsigned long long phys = setting->erpn | res->start;
 
 	ndfc->ndfcbase = ioremap64(phys, res->end - res->start + 1);
 	if (!ndfc->ndfcbase) {

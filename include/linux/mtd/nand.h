@@ -518,10 +518,11 @@ extern int nand_do_read(struct mtd_info *mtd, loff_t from, size_t len,
  *
  * @nr_chips:		max. number of chips to scan for
  * @chip_offs:		chip number offset
- * @nr_partitions:	number of partitions pointed to be partitoons (or zero)
+ * @nr_partitions:	number of partitions pointed to by partitions (or zero)
  * @partitions:		mtd partition list
  * @chip_delay:		R/B delay value in us
  * @options:		Option flags, e.g. 16bit buswidth
+ * @oobinfo:		oob info structure (ecc placement)
  * @priv:		hardware controller specific settings
  */
 struct platform_nand_chip {
@@ -529,6 +530,7 @@ struct platform_nand_chip {
 	int			chip_offset;
 	int			nr_partitions;
 	struct mtd_partition	*partitions;
+	struct nand_oobinfo	*oobinfo;
 	int			chip_delay;
 	unsigned int		options;
 	void			*priv;
