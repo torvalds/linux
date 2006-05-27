@@ -600,23 +600,19 @@ static int calc_vclock3(int index, int m, int n, int p)
 
 static int calc_vclock(int index, int m1, int m2, int n, int p1, int p2, int lvds)
 {
-	int p2_val;
-	switch(index)
-	{
-	case PLLS_I9xx:
-		if (p1 == 0)
-			return 0;
-		if (lvds)
-			p2_val = p2 ? 7 : 14;
-		else
-			p2_val = p2 ? 5 : 10;
-		return ((plls[index].ref_clk * (5 * (m1 + 2) + (m2 + 2)) / (n + 2) /
-			 ((p1)) * (p2_val)));
-	case PLLS_I8xx:
-	default:
-		return ((plls[index].ref_clk * (5 * (m1 + 2) + (m2 + 2)) / (n + 2) /
-			 ((p1+2) * (1 << (p2 + 1)))));
+	struct pll_min_max *pll = &plls[index];
+	u32 m, vco, p;
+
+	m = (5 * (m1 + 2)) + (m2 + 2);
+	n += 2;
+	vco = pll->ref_clk * m / n;
+
+	if (index == PLLS_I8xx) {
+		p = ((p1 + 2) * (1 << (p2 + 1)));
+	} else {
+		p = ((p1) * (p2 ? 5 : 10));
 	}
+	return vco / p;
 }
 
 void
@@ -852,9 +848,11 @@ splitm(int index, unsigned int m, unsigned int *retm1, unsigned int *retm2)
 {
 	int m1, m2;
 	int testm;
+	struct pll_min_max *pll = &plls[index];
+
 	/* no point optimising too much - brute force m */
-	for (m1 = plls[index].min_m1; m1 < plls[index].max_m1+1; m1++) {
-		for (m2 = plls[index].min_m2; m2 < plls[index].max_m2+1; m2++) {
+	for (m1 = pll->min_m1; m1 < pll->max_m1 + 1; m1++) {
+		for (m2 = pll->min_m2; m2 < pll->max_m2 + 1; m2++) {
 			testm = (5 * (m1 + 2)) + (m2 + 2);
 			if (testm == m) {
 				*retm1 = (unsigned int)m1;
@@ -871,6 +869,7 @@ static int
 splitp(int index, unsigned int p, unsigned int *retp1, unsigned int *retp2)
 {
 	int p1, p2;
+	struct pll_min_max *pll = &plls[index];
 
 	if (index == PLLS_I9xx) {
 		p2 = (p % 10) ? 1 : 0;
@@ -882,27 +881,23 @@ splitp(int index, unsigned int p, unsigned int *retp1, unsigned int *retp2)
 		return 0;
 	}
 
-	if (index == PLLS_I8xx) {
-		if (p % 4 == 0)
-			p2 = 1;
-		else
-			p2 = 0;
+	if (p % 4 == 0)
+		p2 = 1;
+	else
+		p2 = 0;
+	p1 = (p / (1 << (p2 + 1))) - 2;
+	if (p % 4 == 0 && p1 < pll->min_p1) {
+		p2 = 0;
 		p1 = (p / (1 << (p2 + 1))) - 2;
-		if (p % 4 == 0 && p1 < plls[index].min_p1) {
-			p2 = 0;
-			p1 = (p / (1 << (p2 + 1))) - 2;
-		}
-		if (p1 < plls[index].min_p1 ||
-		    p1 > plls[index].max_p1 ||
-		    (p1 + 2) * (1 << (p2 + 1)) != p) {
-			return 1;
-		} else {
-			*retp1 = (unsigned int)p1;
-			*retp2 = (unsigned int)p2;
-			return 0;
-		}
 	}
-	return 1;
+	if (p1 < pll->min_p1 || p1 > pll->max_p1 ||
+	    (p1 + 2) * (1 << (p2 + 1)) != p) {
+		return 1;
+	} else {
+		*retp1 = (unsigned int)p1;
+		*retp2 = (unsigned int)p2;
+		return 0;
+	}
 }
 
 static int
@@ -952,7 +947,7 @@ calc_pll_params(int index, int clock, u32 *retm1, u32 *retm2, u32 *retn, u32 *re
 				m = pll->max_m - 1;
 			for (testm = m - 1; testm <= m; testm++) {
 				f_out = calc_vclock3(index, m, n, p);
-				if (splitm(index, m, &m1, &m2)) {
+				if (splitm(index, testm, &m1, &m2)) {
 					WRN_MSG("cannot split m = %d\n", m);
 					n++;
 					continue;
@@ -963,7 +958,7 @@ calc_pll_params(int index, int clock, u32 *retm1, u32 *retm2, u32 *retn, u32 *re
 					f_err = f_out - clock + 1;
 
 				if (f_err < err_best) {
-					m_best = m;
+					m_best = testm;
 					n_best = n;
 					p_best = p;
 					f_best = f_out;
