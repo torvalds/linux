@@ -696,7 +696,7 @@ void RIOPollHostCommands(struct rio_info *p, struct Host *HostP)
 				FreeMe = RIOCommandRup(p, Rup, HostP, PacketP);
 				if (PacketP->data[5] == MEMDUMP) {
 					rio_dprintk(RIO_DEBUG_CMD, "Memdump from 0x%x complete\n", *(unsigned short *) & (PacketP->data[6]));
-					HostP->Copy(&(PacketP->data[8]), p->RIOMemDump, 32);
+					rio_memcpy_fromio(p->RIOMemDump, &(PacketP->data[8]), 32);
 				}
 				rio_spin_lock_irqsave(&UnixRupP->RupLock, flags);
 				break;
