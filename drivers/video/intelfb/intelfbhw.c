@@ -156,6 +156,7 @@ intelfbhw_get_memory(struct pci_dev *pdev, int *aperture_size,
 {
 	struct pci_dev *bridge_dev;
 	u16 tmp;
+	int stolen_overhead;
 
 	if (!pdev || !aperture_size || !stolen_size)
 		return 1;
@@ -170,21 +171,41 @@ intelfbhw_get_memory(struct pci_dev *pdev, int *aperture_size,
 	tmp = 0;
 	pci_read_config_word(bridge_dev, INTEL_GMCH_CTRL, &tmp);
 	switch (pdev->device) {
-	case PCI_DEVICE_ID_INTEL_830M:
-	case PCI_DEVICE_ID_INTEL_845G:
+	case PCI_DEVICE_ID_INTEL_915G:
+	case PCI_DEVICE_ID_INTEL_915GM:
+	case PCI_DEVICE_ID_INTEL_945G:
+	case PCI_DEVICE_ID_INTEL_945GM:
+		/* 915 and 945 chipsets support a 256MB aperture.
+		   Aperture size is determined by inspected the
+		   base address of the aperture. */
+		if (pci_resource_start(pdev, 2) & 0x08000000)
+			*aperture_size = MB(128);
+		else
+			*aperture_size = MB(256);
+		break;
+	default:
 		if ((tmp & INTEL_GMCH_MEM_MASK) == INTEL_GMCH_MEM_64M)
 			*aperture_size = MB(64);
 		else
 			*aperture_size = MB(128);
+		break;
+	}
+
+	/* Stolen memory size is reduced by the GTT and the popup.
+	   GTT is 1K per MB of aperture size, and popup is 4K. */
+	stolen_overhead = (*aperture_size / MB(1)) + 4;
+	switch(pdev->device) {
+	case PCI_DEVICE_ID_INTEL_830M:
+	case PCI_DEVICE_ID_INTEL_845G:
 		switch (tmp & INTEL_830_GMCH_GMS_MASK) {
 		case INTEL_830_GMCH_GMS_STOLEN_512:
-			*stolen_size = KB(512) - KB(132);
+			*stolen_size = KB(512) - KB(stolen_overhead);
 			return 0;
 		case INTEL_830_GMCH_GMS_STOLEN_1024:
-			*stolen_size = MB(1) - KB(132);
+			*stolen_size = MB(1) - KB(stolen_overhead);
 			return 0;
 		case INTEL_830_GMCH_GMS_STOLEN_8192:
-			*stolen_size = MB(8) - KB(132);
+			*stolen_size = MB(8) - KB(stolen_overhead);
 			return 0;
 		case INTEL_830_GMCH_GMS_LOCAL:
 			ERR_MSG("only local memory found\n");
@@ -199,28 +220,27 @@ intelfbhw_get_memory(struct pci_dev *pdev, int *aperture_size,
 		}
 		break;
 	default:
-		*aperture_size = MB(128);
 		switch (tmp & INTEL_855_GMCH_GMS_MASK) {
 		case INTEL_855_GMCH_GMS_STOLEN_1M:
-			*stolen_size = MB(1) - KB(132);
+			*stolen_size = MB(1) - KB(stolen_overhead);
 			return 0;
 		case INTEL_855_GMCH_GMS_STOLEN_4M:
-			*stolen_size = MB(4) - KB(132);
+			*stolen_size = MB(4) - KB(stolen_overhead);
 			return 0;
 		case INTEL_855_GMCH_GMS_STOLEN_8M:
-			*stolen_size = MB(8) - KB(132);
+			*stolen_size = MB(8) - KB(stolen_overhead);
 			return 0;
 		case INTEL_855_GMCH_GMS_STOLEN_16M:
-			*stolen_size = MB(16) - KB(132);
+			*stolen_size = MB(16) - KB(stolen_overhead);
 			return 0;
 		case INTEL_855_GMCH_GMS_STOLEN_32M:
-			*stolen_size = MB(32) - KB(132);
+			*stolen_size = MB(32) - KB(stolen_overhead);
 			return 0;
 		case INTEL_915G_GMCH_GMS_STOLEN_48M:
-			*stolen_size = MB(48) - KB(132);
+			*stolen_size = MB(48) - KB(stolen_overhead);
 			return 0;
 		case INTEL_915G_GMCH_GMS_STOLEN_64M:
-			*stolen_size = MB(64) - KB(132);
+			*stolen_size = MB(64) - KB(stolen_overhead);
 			return 0;
 		case INTEL_855_GMCH_GMS_DISABLED:
 			ERR_MSG("video memory is disabled\n");
