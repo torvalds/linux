@@ -191,10 +191,17 @@ pfn_pte(unsigned long pfn, pgprot_t prot)
 #else
 
 /* Swap entries must have VALID and GLOBAL bits cleared. */
-#define __swp_type(x)		(((x).val >> 8) & 0x1f)
-#define __swp_offset(x)		((x).val >> 13)
+#if defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_CPU_MIPS32)
+#define __swp_type(x)		(((x).val >> 2) & 0x1f)
+#define __swp_offset(x) 	 ((x).val >> 7)
 #define __swp_entry(type,offset)	\
-		((swp_entry_t) { ((type) << 8) | ((offset) << 13) })
+		((swp_entry_t)  { ((type) << 2) | ((offset) << 7) })
+#else
+#define __swp_type(x)		(((x).val >> 8) & 0x1f)
+#define __swp_offset(x) 	 ((x).val >> 13)
+#define __swp_entry(type,offset)	\
+		((swp_entry_t)  { ((type) << 8) | ((offset) << 13) })
+#endif /* defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_CPU_MIPS32) */
 
 /*
  * Bits 0, 1, 2, 7 and 8 are taken, split up the 27 bits of offset
@@ -218,7 +225,12 @@ pfn_pte(unsigned long pfn, pgprot_t prot)
 
 #endif
 
+#if defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_CPU_MIPS32)
+#define __pte_to_swp_entry(pte) ((swp_entry_t) { (pte).pte_high })
+#define __swp_entry_to_pte(x)	((pte_t) { 0, (x).val })
+#else
 #define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val(pte) })
 #define __swp_entry_to_pte(x)	((pte_t) { (x).val })
+#endif
 
 #endif /* _ASM_PGTABLE_32_H */
