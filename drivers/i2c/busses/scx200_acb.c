@@ -491,7 +491,7 @@ static struct pci_device_id divil_pci[] = {
 
 #define MSR_LBAR_SMB		0x5140000B
 
-static int scx200_add_cs553x(void)
+static __init int scx200_add_cs553x(void)
 {
 	u32	low, hi;
 	u32	smb_base;

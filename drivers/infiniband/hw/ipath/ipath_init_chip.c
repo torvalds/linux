@@ -879,7 +879,6 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 
 done:
 	if (!ret) {
-		ipath_get_guid(dd);
 		*dd->ipath_statusp |= IPATH_STATUS_CHIP_PRESENT;
 		if (!dd->ipath_f_intrsetup(dd)) {
 			/* now we can enable all interrupts from the chip */

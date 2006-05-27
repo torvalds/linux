@@ -1905,6 +1905,12 @@ M:	James.Bottomley@HansenPartnership.com
 L:	linux-scsi@vger.kernel.org
 S:	Maintained
 
+NETEM NETWORK EMULATOR
+P:	Stephen Hemminger
+M:	shemminger@osdl.org
+L:	netem@osdl.org
+S:	Maintained
+
 NETFILTER/IPTABLES/IPCHAINS
 P:	Rusty Russell
 P:	Marc Boucher

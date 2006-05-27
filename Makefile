@@ -1,8 +1,8 @@
 VERSION = 2
 PATCHLEVEL = 6
 SUBLEVEL = 17
-EXTRAVERSION =-rc4
-NAME=Sliding Snow Leopard
+EXTRAVERSION =-rc5
+NAME=Lordi Rules
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"

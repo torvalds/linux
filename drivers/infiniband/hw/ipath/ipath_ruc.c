@@ -435,7 +435,7 @@ void ipath_no_bufs_available(struct ipath_qp *qp, struct ipath_ibdev *dev)
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->pending_lock, flags);
-	if (qp->piowait.next == LIST_POISON1)
+	if (list_empty(&qp->piowait))
 		list_add_tail(&qp->piowait, &dev->piowait);
 	spin_unlock_irqrestore(&dev->pending_lock, flags);
 	/*

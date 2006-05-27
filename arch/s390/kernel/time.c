@@ -272,7 +272,7 @@ static inline void stop_hz_timer(void)
 	next = next_timer_interrupt();
 	do {
 		seq = read_seqbegin_irqsave(&xtime_lock, flags);
-		timer = (__u64 next) - (__u64 jiffies) + jiffies_64;
+		timer = ((__u64) next) - ((__u64) jiffies) + jiffies_64;
 	} while (read_seqretry_irqrestore(&xtime_lock, seq, flags));
 	todval = -1ULL;
 	/* Be careful about overflows. */

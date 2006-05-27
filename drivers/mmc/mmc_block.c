@@ -353,7 +353,7 @@ static struct mmc_blk_data *mmc_blk_alloc(struct mmc_card *card)
 			 */
 			printk(KERN_ERR "%s: unable to select block size for "
 				"writing (rb%u wb%u rp%u wp%u)\n",
-				md->disk->disk_name,
+				mmc_card_id(card),
 				1 << card->csd.read_blkbits,
 				1 << card->csd.write_blkbits,
 				card->csd.read_partial,
