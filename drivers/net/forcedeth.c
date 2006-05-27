@@ -458,7 +458,7 @@ typedef union _ring_type {
 
 #define RX_RING		128
 #define TX_RING		256
-/* 
+/*
  * If your nic mysteriously hangs then try to reduce the limits
  * to 1/0: It might be required to set NV_TX_LASTPACKET in the
  * last valid ring entry. But this would be impossible to
@@ -480,7 +480,7 @@ typedef union _ring_type {
 #define POLL_WAIT	(1+HZ/100)
 #define LINK_TIMEOUT	(3*HZ)
 
-/* 
+/*
  * desc_ver values:
  * The nic supports three different descriptor types:
  * - DESC_VER_1: Original
@@ -619,7 +619,7 @@ static int max_interrupt_work = 5;
 
 /*
  * Optimization can be either throuput mode or cpu mode
- * 
+ *
  * Throughput Mode: Every tx and rx packet will generate an interrupt.
  * CPU Mode: Interrupts are controlled by a timer.
  */
@@ -1119,7 +1119,7 @@ static void nv_do_rx_refill(unsigned long data)
 	}
 }
 
-static void nv_init_rx(struct net_device *dev) 
+static void nv_init_rx(struct net_device *dev)
 {
 	struct fe_priv *np = netdev_priv(dev);
 	int i;
@@ -1183,7 +1183,7 @@ static void nv_drain_tx(struct net_device *dev)
 {
 	struct fe_priv *np = netdev_priv(dev);
 	unsigned int i;
-	
+
 	for (i = 0; i < TX_RING; i++) {
 		if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2)
 			np->tx_ring.orig[i].FlagLen = 0;
@@ -1329,7 +1329,7 @@ static int nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	} else {
 		np->tx_ring.ex[start_nr].TxVlan = cpu_to_le32(tx_flags_vlan);
 		np->tx_ring.ex[start_nr].FlagLen |= cpu_to_le32(tx_flags | tx_flags_extra);
-	}	
+	}
 
 	dprintk(KERN_DEBUG "%s: nv_start_xmit: packet %d (entries %d) queued for transmission. tx_flags_extra: %x\n",
 		dev->name, np->next_tx, entries, tx_flags_extra);
@@ -1404,7 +1404,7 @@ static void nv_tx_done(struct net_device *dev)
 				} else {
 					np->stats.tx_packets++;
 					np->stats.tx_bytes += skb->len;
-				}				
+				}
 			}
 		}
 		nv_release_txskb(dev, i);
@@ -1450,7 +1450,7 @@ static void nv_tx_timeout(struct net_device *dev)
 		for (i=0;i<TX_RING;i+= 4) {
 			if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2) {
 				printk(KERN_INFO "%03x: %08x %08x // %08x %08x // %08x %08x // %08x %08x\n",
-				       i, 
+				       i,
 				       le32_to_cpu(np->tx_ring.orig[i].PacketBuffer),
 				       le32_to_cpu(np->tx_ring.orig[i].FlagLen),
 				       le32_to_cpu(np->tx_ring.orig[i+1].PacketBuffer),
@@ -1461,7 +1461,7 @@ static void nv_tx_timeout(struct net_device *dev)
 				       le32_to_cpu(np->tx_ring.orig[i+3].FlagLen));
 			} else {
 				printk(KERN_INFO "%03x: %08x %08x %08x // %08x %08x %08x // %08x %08x %08x // %08x %08x %08x\n",
-				       i, 
+				       i,
 				       le32_to_cpu(np->tx_ring.ex[i].PacketBufferHigh),
 				       le32_to_cpu(np->tx_ring.ex[i].PacketBufferLow),
 				       le32_to_cpu(np->tx_ring.ex[i].FlagLen),
@@ -2067,7 +2067,7 @@ set_speed:
 			if (lpa_pause == LPA_PAUSE_ASYM)
 			{
 				np->pause_flags |= NV_PAUSEFRAME_RX_ENABLE;
-			} 
+			}
 			break;
 		}
 	}
@@ -2086,7 +2086,7 @@ set_speed:
 			writel(regmisc|NVREG_MISC1_PAUSE_TX, base + NvRegMisc1);
 		} else {
 			writel(NVREG_TX_PAUSEFRAME_DISABLE,  base + NvRegTxPauseFrame);
-			writel(regmisc, base + NvRegMisc1);			
+			writel(regmisc, base + NvRegMisc1);
 		}
 	}
 
@@ -2150,7 +2150,7 @@ static irqreturn_t nv_nic_irq(int foo, void *data, struct pt_regs *regs)
 		spin_lock(&np->lock);
 		nv_tx_done(dev);
 		spin_unlock(&np->lock);
-		
+
 		nv_rx_process(dev);
 		if (nv_alloc_rx(dev)) {
 			spin_lock(&np->lock);
@@ -2158,7 +2158,7 @@ static irqreturn_t nv_nic_irq(int foo, void *data, struct pt_regs *regs)
 				mod_timer(&np->oom_kick, jiffies + OOM_REFILL);
 			spin_unlock(&np->lock);
 		}
-		
+
 		if (events & NVREG_IRQ_LINK) {
 			spin_lock(&np->lock);
 			nv_link_irq(dev);
@@ -2223,7 +2223,7 @@ static irqreturn_t nv_nic_irq_tx(int foo, void *data, struct pt_regs *regs)
 		spin_lock_irq(&np->lock);
 		nv_tx_done(dev);
 		spin_unlock_irq(&np->lock);
-		
+
 		if (events & (NVREG_IRQ_TX_ERR)) {
 			dprintk(KERN_DEBUG "%s: received irq with events 0x%x. Probably TX fail.\n",
 						dev->name, events);
@@ -2266,7 +2266,7 @@ static irqreturn_t nv_nic_irq_rx(int foo, void *data, struct pt_regs *regs)
 		dprintk(KERN_DEBUG "%s: rx irq: %08x\n", dev->name, events);
 		if (!(events & np->irqmask))
 			break;
-		
+
 		nv_rx_process(dev);
 		if (nv_alloc_rx(dev)) {
 			spin_lock_irq(&np->lock);
@@ -2274,7 +2274,7 @@ static irqreturn_t nv_nic_irq_rx(int foo, void *data, struct pt_regs *regs)
 				mod_timer(&np->oom_kick, jiffies + OOM_REFILL);
 			spin_unlock_irq(&np->lock);
 		}
-		
+
 		if (i > max_interrupt_work) {
 			spin_lock_irq(&np->lock);
 			/* disable interrupts on the nic */
@@ -2313,7 +2313,7 @@ static irqreturn_t nv_nic_irq_other(int foo, void *data, struct pt_regs *regs)
 		dprintk(KERN_DEBUG "%s: irq: %08x\n", dev->name, events);
 		if (!(events & np->irqmask))
 			break;
-		
+
 		if (events & NVREG_IRQ_LINK) {
 			spin_lock_irq(&np->lock);
 			nv_link_irq(dev);
@@ -2386,7 +2386,7 @@ static void nv_do_nic_poll(unsigned long data)
 	np->nic_poll_irq = 0;
 
 	/* FIXME: Do we need synchronize_irq(dev->irq) here? */
-	
+
 	writel(mask, base + NvRegIrqMask);
 	pci_push(base);
 
@@ -3165,7 +3165,7 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 	if (id->driver_data & DEV_HAS_PAUSEFRAME_TX) {
 		np->pause_flags |= NV_PAUSEFRAME_TX_CAPABLE;
 	}
-	
+
 
 	err = -ENOMEM;
 	np->base = ioremap(addr, np->register_size);
@@ -3313,7 +3313,7 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 		       pci_name(pci_dev));
 		goto out_freering;
 	}
-	
+
 	/* reset it */
 	phy_init(dev);
 
