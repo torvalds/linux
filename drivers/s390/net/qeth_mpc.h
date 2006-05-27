@@ -445,7 +445,7 @@ enum qeth_ipa_arp_return_codes {
 /* Helper functions */
 #define IS_IPA_REPLY(cmd) ((cmd->hdr.initiator == IPA_CMD_INITIATOR_HOST) || \
 			   (cmd->hdr.initiator == IPA_CMD_INITIATOR_OSA_REPLY))
-	
+
 /*****************************************************************************/
 /* END OF   IP Assist related definitions                                    */
 /*****************************************************************************/
@@ -490,7 +490,7 @@ extern unsigned char ULP_ENABLE[];
 /* Layer 2 defintions */
 #define QETH_PROT_LAYER2 0x08
 #define QETH_PROT_TCPIP  0x03
-#define QETH_PROT_OSN2   0x0a     
+#define QETH_PROT_OSN2   0x0a
 #define QETH_ULP_ENABLE_PROT_TYPE(buffer) (buffer+0x50)
 #define QETH_IPA_CMD_PROT_TYPE(buffer) (buffer+0x19)
 

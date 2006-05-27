@@ -20,7 +20,7 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
-
+
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/err.h>
@@ -94,7 +94,7 @@ static DRIVER_ATTR(group, 0200, NULL, group_write);
 
 /* Register-unregister for ctc&lcs */
 int
-register_cu3088_discipline(struct ccwgroup_driver *dcp) 
+register_cu3088_discipline(struct ccwgroup_driver *dcp)
 {
 	int rc;
 
@@ -109,7 +109,7 @@ register_cu3088_discipline(struct ccwgroup_driver *dcp)
 	rc = driver_create_file(&dcp->driver, &driver_attr_group);
 	if (rc)
 		ccwgroup_driver_unregister(dcp);
-		
+
 	return rc;
 
 }
@@ -137,7 +137,7 @@ static int __init
 cu3088_init (void)
 {
 	int rc;
-	
+
 	cu3088_root_dev = s390_root_dev_register("cu3088");
 	if (IS_ERR(cu3088_root_dev))
 		return PTR_ERR(cu3088_root_dev);
