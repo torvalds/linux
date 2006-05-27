@@ -280,7 +280,7 @@ int RIOBootCodeHOST(struct rio_info *p, struct DownLoad *rbp)
 			func_exit();
 			return -ENOMEM;
 		}
-		if (copy_from_user(rbp->DataP, DownCode, rbp->Count)) {
+		if (copy_from_user(DownCode, rbp->DataP, rbp->Count)) {
 			kfree(DownCode);
 			p->RIOError.Error = COPYIN_FAILED;
 			func_exit();
