@@ -1359,6 +1359,10 @@ intelfbhw_program_mode(struct intelfb_info *dinfo,
 	/* Wait for vblank. For now, just wait for a 50Hz cycle (20ms)) */
 	mdelay(20);
 
+	OUTREG(DVOB, INREG(DVOB) & ~PORT_ENABLE);
+	OUTREG(DVOC, INREG(DVOC) & ~PORT_ENABLE);
+	OUTREG(ADPA, INREG(ADPA) & ~ADPA_DAC_ENABLE);
+
 	/* Disable Sync */
 	tmp = INREG(ADPA);
 	tmp &= ~ADPA_DPMS_CONTROL_MASK;
@@ -1374,14 +1378,11 @@ intelfbhw_program_mode(struct intelfb_info *dinfo,
 	OUTREG(dpll_reg, tmp);
 
 	/* Set PLL parameters */
-	OUTREG(dpll_reg, *dpll & ~DPLL_VCO_ENABLE);
 	OUTREG(fp0_reg, *fp0);
 	OUTREG(fp1_reg, *fp1);
 
 	/* Enable PLL */
-	tmp = INREG(dpll_reg);
-	tmp |= DPLL_VCO_ENABLE;
-	OUTREG(dpll_reg, tmp);
+	OUTREG(dpll_reg, *dpll);
 
 	/* Set DVOs B/C */
 	OUTREG(DVOB, hw->dvob);
