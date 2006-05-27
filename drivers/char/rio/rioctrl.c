@@ -1021,7 +1021,7 @@ int riocontrol(struct rio_info *p, dev_t dev, int cmd, unsigned long arg, int su
 		}
 		rio_dprintk(RIO_DEBUG_CTRL, "Request for rup %d from host %d\n", RupReq.RupNum, RupReq.HostNum);
 
-		if (copy_to_user(HostP->UnixRups[RupReq.RupNum].RupP, RupReq.RupP, sizeof(struct RUP))) {
+		if (copy_to_user(RupReq.RupP, HostP->UnixRups[RupReq.RupNum].RupP, sizeof(struct RUP))) {
 			p->RIOError.Error = COPYOUT_FAILED;
 			rio_dprintk(RIO_DEBUG_CTRL, "RIO_HOST_RUP: Bad copy to user space\n");
 			return -EFAULT;
