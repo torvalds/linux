@@ -126,6 +126,18 @@ static int
 
 #define drv_makedev(maj, min) ((((uint) maj & 0xff) << 8) | ((uint) min & 0xff))
 
+static int copy_from_io(void __user *to, void __iomem *from, size_t size)
+{
+	void *buf = kmalloc(size, GFP_KERNEL);
+	int res = -ENOMEM;
+	if (buf) {
+		rio_memcpy_fromio(buf, from, size);
+		res = copy_to_user(to, buf, size);
+		kfree(buf);
+	}
+	return res;
+}
+
 int riocontrol(struct rio_info *p, dev_t dev, int cmd, unsigned long arg, int su)
 {
 	uint Host;		/* leave me unsigned! */
@@ -893,7 +905,7 @@ int riocontrol(struct rio_info *p, dev_t dev, int cmd, unsigned long arg, int su
 			 ** Fetch the parmmap
 			 */
 			rio_dprintk(RIO_DEBUG_CTRL, "RIO_PARMS\n");
-			if (copy_to_user(argp, p->RIOHosts[host].ParmMapP, sizeof(PARM_MAP))) {
+			if (copy_from_io(argp, p->RIOHosts[host].ParmMapP, sizeof(PARM_MAP))) {
 				p->RIOError.Error = COPYOUT_FAILED;
 				rio_dprintk(RIO_DEBUG_CTRL, "RIO_PARMS: Copy out to user space failed\n");
 				return -EFAULT;
@@ -947,7 +959,7 @@ int riocontrol(struct rio_info *p, dev_t dev, int cmd, unsigned long arg, int su
 				rio_dprintk(RIO_DEBUG_CTRL, "RIO_HOST_DPRAM: Bad copy to user space\n");
 				return -EFAULT;
 			}
-		} else if (copy_to_user(HostDpRam.DpRamP, p->RIOHosts[HostDpRam.HostNum].Caddr, sizeof(struct DpRam))) {
+		} else if (copy_from_io(HostDpRam.DpRamP, p->RIOHosts[HostDpRam.HostNum].Caddr, sizeof(struct DpRam))) {
 			p->RIOError.Error = COPYOUT_FAILED;
 			rio_dprintk(RIO_DEBUG_CTRL, "RIO_HOST_DPRAM: Bad copy to user space\n");
 			return -EFAULT;
@@ -1021,7 +1033,7 @@ int riocontrol(struct rio_info *p, dev_t dev, int cmd, unsigned long arg, int su
 		}
 		rio_dprintk(RIO_DEBUG_CTRL, "Request for rup %d from host %d\n", RupReq.RupNum, RupReq.HostNum);
 
-		if (copy_to_user(RupReq.RupP, HostP->UnixRups[RupReq.RupNum].RupP, sizeof(struct RUP))) {
+		if (copy_from_io(RupReq.RupP, HostP->UnixRups[RupReq.RupNum].RupP, sizeof(struct RUP))) {
 			p->RIOError.Error = COPYOUT_FAILED;
 			rio_dprintk(RIO_DEBUG_CTRL, "RIO_HOST_RUP: Bad copy to user space\n");
 			return -EFAULT;
@@ -1058,7 +1070,7 @@ int riocontrol(struct rio_info *p, dev_t dev, int cmd, unsigned long arg, int su
 		}
 		rio_dprintk(RIO_DEBUG_CTRL, "Request for lpb %d from host %d\n", LpbReq.Link, LpbReq.Host);
 
-		if (copy_to_user(LpbReq.LpbP, &HostP->LinkStrP[LpbReq.Link], sizeof(struct LPB))) {
+		if (copy_from_io(LpbReq.LpbP, &HostP->LinkStrP[LpbReq.Link], sizeof(struct LPB))) {
 			rio_dprintk(RIO_DEBUG_CTRL, "RIO_HOST_LPB: Bad copy to user space\n");
 			p->RIOError.Error = COPYOUT_FAILED;
 			return -EFAULT;
