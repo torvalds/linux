@@ -2967,6 +2967,29 @@ static int tg3_setup_phy(struct tg3 *tp, int force_reset)
 	return err;
 }
 
+/* This is called whenever we suspect that the system chipset is re-
+ * ordering the sequence of MMIO to the tx send mailbox. The symptom
+ * is bogus tx completions. We try to recover by setting the
+ * TG3_FLAG_MBOX_WRITE_REORDER flag and resetting the chip later
+ * in the workqueue.
+ */
+static void tg3_tx_recover(struct tg3 *tp)
+{
+	BUG_ON((tp->tg3_flags & TG3_FLAG_MBOX_WRITE_REORDER) ||
+	       tp->write32_tx_mbox == tg3_write_indirect_mbox);
+
+	printk(KERN_WARNING PFX "%s: The system may be re-ordering memory-"
+	       "mapped I/O cycles to the network device, attempting to "
+	       "recover. Please report the problem to the driver maintainer "
+	       "and include system chipset information.\n", tp->dev->name);
+
+	spin_lock(&tp->lock);
+	spin_lock(&tp->tx_lock);
+	tp->tg3_flags |= TG3_FLAG_TX_RECOVERY_PENDING;
+	spin_unlock(&tp->tx_lock);
+	spin_unlock(&tp->lock);
+}
+
 /* Tigon3 never reports partial packet sends.  So we do not
  * need special logic to handle SKBs that have not had all
  * of their frags sent yet, like SunGEM does.
@@ -2979,9 +3002,13 @@ static void tg3_tx(struct tg3 *tp)
 	while (sw_idx != hw_idx) {
 		struct tx_ring_info *ri = &tp->tx_buffers[sw_idx];
 		struct sk_buff *skb = ri->skb;
-		int i;
+		int i, tx_bug = 0;
 
-		BUG_ON(skb == NULL);
+		if (unlikely(skb == NULL)) {
+			tg3_tx_recover(tp);
+			return;
+		}
+
 		pci_unmap_single(tp->pdev,
 				 pci_unmap_addr(ri, mapping),
 				 skb_headlen(skb),
@@ -2992,10 +3019,9 @@ static void tg3_tx(struct tg3 *tp)
 		sw_idx = NEXT_TX(sw_idx);
 
 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-			BUG_ON(sw_idx == hw_idx);
-
 			ri = &tp->tx_buffers[sw_idx];
-			BUG_ON(ri->skb != NULL);
+			if (unlikely(ri->skb != NULL || sw_idx == hw_idx))
+				tx_bug = 1;
 
 			pci_unmap_page(tp->pdev,
 				       pci_unmap_addr(ri, mapping),
@@ -3006,6 +3032,11 @@ static void tg3_tx(struct tg3 *tp)
 		}
 
 		dev_kfree_skb(skb);
+
+		if (unlikely(tx_bug)) {
+			tg3_tx_recover(tp);
+			return;
+		}
 	}
 
 	tp->tx_cons = sw_idx;
@@ -3333,6 +3364,11 @@ static int tg3_poll(struct net_device *netdev, int *budget)
 	/* run TX completion thread */
 	if (sblk->idx[0].tx_consumer != tp->tx_cons) {
 		tg3_tx(tp);
+		if (unlikely(tp->tg3_flags & TG3_FLAG_TX_RECOVERY_PENDING)) {
+			netif_rx_complete(netdev);
+			schedule_work(&tp->reset_task);
+			return 0;
+		}
 	}
 
 	/* run RX thread, within the bounds set by NAPI.
@@ -3580,6 +3616,13 @@ static void tg3_reset_task(void *_data)
 
 	restart_timer = tp->tg3_flags2 & TG3_FLG2_RESTART_TIMER;
 	tp->tg3_flags2 &= ~TG3_FLG2_RESTART_TIMER;
+
+	if (tp->tg3_flags & TG3_FLAG_TX_RECOVERY_PENDING) {
+		tp->write32_tx_mbox = tg3_write32_tx_mbox;
+		tp->write32_rx_mbox = tg3_write_flush_reg32;
+		tp->tg3_flags |= TG3_FLAG_MBOX_WRITE_REORDER;
+		tp->tg3_flags &= ~TG3_FLAG_TX_RECOVERY_PENDING;
+	}
 
 	tg3_halt(tp, RESET_KIND_SHUTDOWN, 0);
 	tg3_init_hw(tp, 1);
