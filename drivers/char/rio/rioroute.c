@@ -307,7 +307,7 @@ int RIORouteRup(struct rio_info *p, unsigned int Rup, struct Host *HostP, struct
 	if (!RIOBootOk(p, HostP, RtaUniq)) {
 		rio_dprintk(RIO_DEBUG_ROUTE, "RTA %x tried to get an ID, but does not belong - FOAD it!\n", RtaUniq);
 		PktReplyP->Command = ROUTE_FOAD;
-		HostP->Copy("RT_FOAD", PktReplyP->CommandText, 7);
+		memcpy(PktReplyP->CommandText, "RT_FOAD", 7);
 		RIOQueueCmdBlk(HostP, Rup, CmdBlkP);
 		return 1;
 	}
@@ -341,7 +341,7 @@ int RIORouteRup(struct rio_info *p, unsigned int Rup, struct Host *HostP, struct
 					HostP->Mapping[ThisUnit].Flags |= MSG_DONE;
 				}
 				PktReplyP->Command = ROUTE_FOAD;
-				HostP->Copy("RT_FOAD", PktReplyP->CommandText, 7);
+				memcpy(PktReplyP->CommandText, "RT_FOAD", 7);
 				RIOQueueCmdBlk(HostP, Rup, CmdBlkP);
 				return 1;
 			}
@@ -367,7 +367,7 @@ int RIORouteRup(struct rio_info *p, unsigned int Rup, struct Host *HostP, struct
 				PktReplyP->IDNum2 = ROUTE_NO_ID;
 				rio_dprintk(RIO_DEBUG_ROUTE, "RTA '%s' has been allocated ID %d\n", HostP->Mapping[ThisUnit].Name, PktReplyP->IDNum);
 			}
-			HostP->Copy("RT_ALLOCAT", PktReplyP->CommandText, 10);
+			memcpy(PktReplyP->CommandText, "RT_ALLOCAT", 10);
 
 			RIOQueueCmdBlk(HostP, Rup, CmdBlkP);
 
@@ -469,7 +469,7 @@ int RIORouteRup(struct rio_info *p, unsigned int Rup, struct Host *HostP, struct
 		}
 
 		PktReplyP->Command = ROUTE_FOAD;
-		HostP->Copy("RT_FOAD", PktReplyP->CommandText, 7);
+		memcpy(PktReplyP->CommandText, "RT_FOAD", 7);
 	} else {
 		/*
 		 ** we did boot it (as an extra), and there may now be a table
@@ -489,7 +489,7 @@ int RIORouteRup(struct rio_info *p, unsigned int Rup, struct Host *HostP, struct
 			}
 		}
 		PktReplyP->Command = ROUTE_USED;
-		HostP->Copy("RT_USED", PktReplyP->CommandText, 7);
+		memcpy(PktReplyP->CommandText, "RT_USED", 7);
 	}
 	RIOQueueCmdBlk(HostP, Rup, CmdBlkP);
 	return 1;
