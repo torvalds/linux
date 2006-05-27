@@ -190,6 +190,10 @@ static struct jffs2_raw_node_ref **jffs2_incore_replace_raw(struct jffs2_sb_info
 
 	switch (je16_to_cpu(node->u.nodetype)) {
 	case JFFS2_NODETYPE_INODE:
+		if (f->metadata && f->metadata->raw == raw) {
+			dbg_noderef("Will replace ->raw in f->metadata at %p\n", f->metadata);
+			return &f->metadata->raw;
+		}
 		frag = jffs2_lookup_node_frag(&f->fragtree, je32_to_cpu(node->i.offset));
 		BUG_ON(!frag);
 		/* Find a frag which refers to the full_dnode we want to modify */
@@ -199,7 +203,6 @@ static struct jffs2_raw_node_ref **jffs2_incore_replace_raw(struct jffs2_sb_info
 		}
 		dbg_noderef("Will replace ->raw in full_dnode at %p\n", frag->node);
 		return &frag->node->raw;
-		break;
 
 	case JFFS2_NODETYPE_DIRENT:
 		for (fd = f->dents; fd; fd = fd->next) {
@@ -209,6 +212,7 @@ static struct jffs2_raw_node_ref **jffs2_incore_replace_raw(struct jffs2_sb_info
 			}
 		}
 		BUG();
+
 	default:
 		dbg_noderef("Don't care about replacing raw for nodetype %x\n",
 			    je16_to_cpu(node->u.nodetype));
