@@ -333,7 +333,7 @@ int RIODelay_ni(struct Port *PortP, int njiffies)
 	return !RIO_FAIL;
 }
 
-void rio_copy_to_card(void __iomem *to, void *from, int len)
+void rio_copy_to_card(void *from, void __iomem *to, int len)
 {
 	rio_memcpy_toio(NULL, to, from, len);
 }

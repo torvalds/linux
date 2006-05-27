@@ -140,7 +140,7 @@ int rio_isr_thread(char *);
 struct rio_info *rio_info_store(int cmd, struct rio_info *p);
 #endif
 
-extern void rio_copy_to_card(void __iomem *to, void *from, int len);
+extern void rio_copy_to_card(void *from, void __iomem *to, int len);
 extern int rio_minor(struct tty_struct *tty);
 extern int rio_ismodem(struct tty_struct *tty);
 
