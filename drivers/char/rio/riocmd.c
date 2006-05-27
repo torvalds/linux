@@ -407,12 +407,12 @@ static int RIOCommandRup(struct rio_info *p, uint Rup, struct Host *HostP, struc
 		} else
 			rio_dprintk(RIO_DEBUG_CMD, "CONTROL information: This is the RUP for link ``%c'' of host ``%s''\n", ('A' + Rup - MAX_RUP), HostP->Name);
 
-		rio_dprintk(RIO_DEBUG_CMD, "PACKET information: Destination 0x%x:0x%x\n", PacketP->dest_unit, PacketP->dest_port);
-		rio_dprintk(RIO_DEBUG_CMD, "PACKET information: Source	  0x%x:0x%x\n", PacketP->src_unit, PacketP->src_port);
-		rio_dprintk(RIO_DEBUG_CMD, "PACKET information: Length	  0x%x (%d)\n", PacketP->len, PacketP->len);
-		rio_dprintk(RIO_DEBUG_CMD, "PACKET information: Control	 0x%x (%d)\n", PacketP->control, PacketP->control);
-		rio_dprintk(RIO_DEBUG_CMD, "PACKET information: Check	   0x%x (%d)\n", PacketP->csum, PacketP->csum);
-		rio_dprintk(RIO_DEBUG_CMD, "COMMAND information: Host Port Number 0x%x, " "Command Code 0x%x\n", PktCmdP->PhbNum, PktCmdP->Command);
+		rio_dprintk(RIO_DEBUG_CMD, "PACKET information: Destination 0x%x:0x%x\n", readb(&PacketP->dest_unit), readb(&PacketP->dest_port));
+		rio_dprintk(RIO_DEBUG_CMD, "PACKET information: Source	  0x%x:0x%x\n", readb(&PacketP->src_unit), readb(&PacketP->src_port));
+		rio_dprintk(RIO_DEBUG_CMD, "PACKET information: Length	  0x%x (%d)\n", readb(&PacketP->len), readb(&PacketP->len));
+		rio_dprintk(RIO_DEBUG_CMD, "PACKET information: Control	 0x%x (%d)\n", readb(&PacketP->control), readb(&PacketP->control));
+		rio_dprintk(RIO_DEBUG_CMD, "PACKET information: Check	   0x%x (%d)\n", readw(&PacketP->csum), readw(&PacketP->csum));
+		rio_dprintk(RIO_DEBUG_CMD, "COMMAND information: Host Port Number 0x%x, " "Command Code 0x%x\n", readb(&PktCmdP->PhbNum), readb(&PktCmdP->Command));
 		return 1;
 	}
 	PortP = p->RIOPortp[SysPort];
@@ -601,7 +601,7 @@ int RIOQueueCmdBlk(struct Host *HostP, uint Rup, struct CmdBlk *CmdBlkP)
 		/*
 		 ** Whammy! blat that pack!
 		 */
-		HostP->Copy(&CmdBlkP->Packet, RIO_PTR(HostP->Caddr, UnixRupP->RupP->txpkt), sizeof(struct PKT));
+		HostP->Copy(&CmdBlkP->Packet, RIO_PTR(HostP->Caddr, readw(&UnixRupP->RupP->txpkt)), sizeof(struct PKT));
 
 		/*
 		 ** place command packet on the pending position.
@@ -694,8 +694,8 @@ void RIOPollHostCommands(struct rio_info *p, struct Host *HostP)
 				 */
 				rio_spin_unlock_irqrestore(&UnixRupP->RupLock, flags);
 				FreeMe = RIOCommandRup(p, Rup, HostP, PacketP);
-				if (PacketP->data[5] == MEMDUMP) {
-					rio_dprintk(RIO_DEBUG_CMD, "Memdump from 0x%x complete\n", *(unsigned short *) & (PacketP->data[6]));
+				if (readb(&PacketP->data[5]) == MEMDUMP) {
+					rio_dprintk(RIO_DEBUG_CMD, "Memdump from 0x%x complete\n", readw(&(PacketP->data[6])));
 					rio_memcpy_fromio(p->RIOMemDump, &(PacketP->data[8]), 32);
 				}
 				rio_spin_lock_irqsave(&UnixRupP->RupLock, flags);
@@ -782,7 +782,7 @@ void RIOPollHostCommands(struct rio_info *p, struct Host *HostP)
 				/*
 				 ** Whammy! blat that pack!
 				 */
-				HostP->Copy(&CmdBlkP->Packet, RIO_PTR(HostP->Caddr, UnixRupP->RupP->txpkt), sizeof(struct PKT));
+				HostP->Copy(&CmdBlkP->Packet, RIO_PTR(HostP->Caddr, readw(&UnixRupP->RupP->txpkt)), sizeof(struct PKT));
 
 				/*
 				 ** remove the command from the rup command queue...

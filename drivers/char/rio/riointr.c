@@ -585,19 +585,19 @@ static void RIOReceive(struct rio_info *p, struct Port *PortP)
 			/*
 			 ** check that it is not a command!
 			 */
-			if (PacketP->len & PKT_CMD_BIT) {
+			if (readb(&PacketP->len) & PKT_CMD_BIT) {
 				rio_dprintk(RIO_DEBUG_INTR, "RIO: unexpected command packet received on PHB\n");
 				/*      rio_dprint(RIO_DEBUG_INTR, (" sysport   = %d\n", p->RIOPortp->PortNum)); */
-				rio_dprintk(RIO_DEBUG_INTR, " dest_unit = %d\n", PacketP->dest_unit);
-				rio_dprintk(RIO_DEBUG_INTR, " dest_port = %d\n", PacketP->dest_port);
-				rio_dprintk(RIO_DEBUG_INTR, " src_unit  = %d\n", PacketP->src_unit);
-				rio_dprintk(RIO_DEBUG_INTR, " src_port  = %d\n", PacketP->src_port);
-				rio_dprintk(RIO_DEBUG_INTR, " len	   = %d\n", PacketP->len);
-				rio_dprintk(RIO_DEBUG_INTR, " control   = %d\n", PacketP->control);
-				rio_dprintk(RIO_DEBUG_INTR, " csum	   = %d\n", PacketP->csum);
+				rio_dprintk(RIO_DEBUG_INTR, " dest_unit = %d\n", readb(&PacketP->dest_unit));
+				rio_dprintk(RIO_DEBUG_INTR, " dest_port = %d\n", readb(&PacketP->dest_port));
+				rio_dprintk(RIO_DEBUG_INTR, " src_unit  = %d\n", readb(&PacketP->src_unit));
+				rio_dprintk(RIO_DEBUG_INTR, " src_port  = %d\n", readb(&PacketP->src_port));
+				rio_dprintk(RIO_DEBUG_INTR, " len	   = %d\n", readb(&PacketP->len));
+				rio_dprintk(RIO_DEBUG_INTR, " control   = %d\n", readb(&PacketP->control));
+				rio_dprintk(RIO_DEBUG_INTR, " csum	   = %d\n", readw(&PacketP->csum));
 				rio_dprintk(RIO_DEBUG_INTR, "	 data bytes: ");
 				for (DataCnt = 0; DataCnt < PKT_MAX_DATA_LEN; DataCnt++)
-					rio_dprintk(RIO_DEBUG_INTR, "%d\n", PacketP->data[DataCnt]);
+					rio_dprintk(RIO_DEBUG_INTR, "%d\n", readb(&PacketP->data[DataCnt]));
 				remove_receive(PortP);
 				put_free_end(PortP->HostP, PacketP);
 				continue;	/* with next packet */
@@ -618,7 +618,7 @@ static void RIOReceive(struct rio_info *p, struct Port *PortP)
 			 ** and available space.
 			 */
 
-			transCount = tty_buffer_request_room(TtyP, PacketP->len & PKT_LEN_MASK);
+			transCount = tty_buffer_request_room(TtyP, readb(&PacketP->len) & PKT_LEN_MASK);
 			rio_dprintk(RIO_DEBUG_REC, "port %d: Copy %d bytes\n", PortP->PortNum, transCount);
 			/*
 			 ** To use the following 'kkprintfs' for debugging - change the '#undef'
@@ -630,12 +630,12 @@ static void RIOReceive(struct rio_info *p, struct Port *PortP)
 			tty_prepare_flip_string(TtyP, &buf, transCount);
 			rio_memcpy_fromio(buf, ptr, transCount);
 			PortP->RxDataStart += transCount;
-			PacketP->len -= transCount;
+			writeb(readb(&PacketP->len)-transCount, &PacketP->len);
 			copied += transCount;
 
 
 
-			if (PacketP->len == 0) {
+			if (readb(&PacketP->len) == 0) {
 				/*
 				 ** If we have emptied the packet, then we can
 				 ** free it, and reset the start pointer for

@@ -546,11 +546,11 @@ int RIODeleteRta(struct rio_info *p, struct Map *MapP)
 								 ** accessed from the driver.
 								 */
 								Pkt = (struct PKT __iomem *) RIO_PTR(HostP->Caddr, readw(&*TxPktP));
-								rio_dprintk(RIO_DEBUG_TABLE, "Tx packet (%x) destination: Old %x:%x New %x:%x\n", *TxPktP, Pkt->dest_unit, Pkt->dest_port, dest_unit, dest_port);
+								rio_dprintk(RIO_DEBUG_TABLE, "Tx packet (%x) destination: Old %x:%x New %x:%x\n", readw(TxPktP), readb(&Pkt->dest_unit), readb(&Pkt->dest_port), dest_unit, dest_port);
 								writew(dest_unit, &Pkt->dest_unit);
 								writew(dest_port, &Pkt->dest_port);
 							}
-							rio_dprintk(RIO_DEBUG_TABLE, "Port %d phb destination: Old %x:%x New %x:%x\n", port, PortP->PhbP->destination & 0xff, (PortP->PhbP->destination >> 8) & 0xff, dest_unit, dest_port);
+							rio_dprintk(RIO_DEBUG_TABLE, "Port %d phb destination: Old %x:%x New %x:%x\n", port, readb(&PortP->PhbP->destination) & 0xff, (readb(&PortP->PhbP->destination) >> 8) & 0xff, dest_unit, dest_port);
 							writew(dest_unit + (dest_port << 8), &PortP->PhbP->destination);
 						}
 						rio_spin_unlock_irqrestore(&PortP->portSem, sem_flags);
