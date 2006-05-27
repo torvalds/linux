@@ -71,7 +71,7 @@
 #include "cmdblk.h"
 #include "route.h"
 
-static int RIOBootComplete(struct rio_info *p, struct Host *HostP, unsigned int Rup, struct PktCmd *PktCmdP);
+static int RIOBootComplete(struct rio_info *p, struct Host *HostP, unsigned int Rup, struct PktCmd __iomem *PktCmdP);
 
 static const unsigned char RIOAtVec2Ctrl[] = {
 	/* 0 */ INTERRUPT_DISABLE,
@@ -204,13 +204,13 @@ void rio_start_card_running(struct Host *HostP)
 int RIOBootCodeHOST(struct rio_info *p, struct DownLoad *rbp)
 {
 	struct Host *HostP;
-	u8 *Cad;
-	PARM_MAP *ParmMapP;
+	u8 __iomem *Cad;
+	PARM_MAP __iomem *ParmMapP;
 	int RupN;
 	int PortN;
 	unsigned int host;
-	u8 *StartP;
-	u8 *DestP;
+	u8 __iomem *StartP;
+	u8 __iomem *DestP;
 	int wait_count;
 	u16 OldParmMap;
 	u16 offset;		/* It is very important that this is a u16 */
@@ -262,7 +262,7 @@ int RIOBootCodeHOST(struct rio_info *p, struct DownLoad *rbp)
 		 ** Ensure that the host really is stopped.
 		 ** Disable it's external bus & twang its reset line.
 		 */
-		RIOHostReset(HostP->Type, (struct DpRam *) HostP->CardP, HostP->Slot);
+		RIOHostReset(HostP->Type, HostP->CardP, HostP->Slot);
 
 		/*
 		 ** Copy the data directly from user space to the SRAM.
@@ -366,7 +366,7 @@ int RIOBootCodeHOST(struct rio_info *p, struct DownLoad *rbp)
 		 ** a short branch to 0x7FF8, where a long branch is coded.
 		 */
 
-		DestP = (u8 *) &Cad[0x7FF8];	/* <<<---- READ THE ABOVE COMMENTS */
+		DestP = &Cad[0x7FF8];	/* <<<---- READ THE ABOVE COMMENTS */
 
 #define	NFIX(N)	(0x60 | (N))	/* .O  = (~(.O + N))<<4 */
 #define	PFIX(N)	(0x20 | (N))	/* .O  =   (.O + N)<<4  */
@@ -438,7 +438,7 @@ int RIOBootCodeHOST(struct rio_info *p, struct DownLoad *rbp)
 			rio_dprintk(RIO_DEBUG_BOOT, "RIO Mesg Run Fail\n");
 			HostP->Flags &= ~RUN_STATE;
 			HostP->Flags |= RC_STUFFED;
-			RIOHostReset( HostP->Type, (struct DpRam *)HostP->CardP, HostP->Slot );
+			RIOHostReset( HostP->Type, HostP->CardP, HostP->Slot );
 			continue;
 		}
 
@@ -453,9 +453,9 @@ int RIOBootCodeHOST(struct rio_info *p, struct DownLoad *rbp)
 		/*
 		 ** Grab a 32 bit pointer to the parmmap structure
 		 */
-		ParmMapP = (PARM_MAP *) RIO_PTR(Cad, readw(&HostP->__ParmMapR));
+		ParmMapP = (PARM_MAP __iomem *) RIO_PTR(Cad, readw(&HostP->__ParmMapR));
 		rio_dprintk(RIO_DEBUG_BOOT, "ParmMapP : %p\n", ParmMapP);
-		ParmMapP = (PARM_MAP *) ((unsigned long) Cad + readw(&HostP->__ParmMapR));
+		ParmMapP = (PARM_MAP __iomem *)(Cad + readw(&HostP->__ParmMapR));
 		rio_dprintk(RIO_DEBUG_BOOT, "ParmMapP : %p\n", ParmMapP);
 
 		/*
@@ -468,7 +468,7 @@ int RIOBootCodeHOST(struct rio_info *p, struct DownLoad *rbp)
 			rio_dprintk(RIO_DEBUG_BOOT, "Links = 0x%x\n", readw(&ParmMapP->links));
 			HostP->Flags &= ~RUN_STATE;
 			HostP->Flags |= RC_STUFFED;
-			RIOHostReset( HostP->Type, (struct DpRam *)HostP->CardP, HostP->Slot );
+			RIOHostReset( HostP->Type, HostP->CardP, HostP->Slot );
 			continue;
 		}
 
@@ -491,7 +491,7 @@ int RIOBootCodeHOST(struct rio_info *p, struct DownLoad *rbp)
 			rio_dprintk(RIO_DEBUG_BOOT, "Timedout waiting for init_done\n");
 			HostP->Flags &= ~RUN_STATE;
 			HostP->Flags |= RC_STUFFED;
-			RIOHostReset( HostP->Type, (struct DpRam *)HostP->CardP, HostP->Slot );
+			RIOHostReset( HostP->Type, HostP->CardP, HostP->Slot );
 			continue;
 		}
 
@@ -512,10 +512,10 @@ int RIOBootCodeHOST(struct rio_info *p, struct DownLoad *rbp)
 		 ** 32 bit pointers for the driver in ioremap space.
 		 */
 		HostP->ParmMapP = ParmMapP;
-		HostP->PhbP = (struct PHB *) RIO_PTR(Cad, readw(&ParmMapP->phb_ptr));
-		HostP->RupP = (struct RUP *) RIO_PTR(Cad, readw(&ParmMapP->rups));
-		HostP->PhbNumP = (unsigned short *) RIO_PTR(Cad, readw(&ParmMapP->phb_num_ptr));
-		HostP->LinkStrP = (struct LPB *) RIO_PTR(Cad, readw(&ParmMapP->link_str_ptr));
+		HostP->PhbP = (struct PHB __iomem *) RIO_PTR(Cad, readw(&ParmMapP->phb_ptr));
+		HostP->RupP = (struct RUP __iomem *) RIO_PTR(Cad, readw(&ParmMapP->rups));
+		HostP->PhbNumP = (unsigned short __iomem *) RIO_PTR(Cad, readw(&ParmMapP->phb_num_ptr));
+		HostP->LinkStrP = (struct LPB __iomem *) RIO_PTR(Cad, readw(&ParmMapP->link_str_ptr));
 
 		/*
 		 ** point the UnixRups at the real Rups
@@ -540,7 +540,7 @@ int RIOBootCodeHOST(struct rio_info *p, struct DownLoad *rbp)
 		for (PortN = p->RIOFirstPortsMapped; PortN < p->RIOLastPortsMapped + PORTS_PER_RTA; PortN++) {
 			if (p->RIOPortp[PortN]->HostP == HostP) {
 				struct Port *PortP = p->RIOPortp[PortN];
-				struct PHB *PhbP;
+				struct PHB __iomem *PhbP;
 				/* int oldspl; */
 
 				if (!PortP->Mapped)
@@ -551,12 +551,12 @@ int RIOBootCodeHOST(struct rio_info *p, struct DownLoad *rbp)
 
 				PortP->PhbP = PhbP;
 
-				PortP->TxAdd = (u16 *) RIO_PTR(Cad, readw(&PhbP->tx_add));
-				PortP->TxStart = (u16 *) RIO_PTR(Cad, readw(&PhbP->tx_start));
-				PortP->TxEnd = (u16 *) RIO_PTR(Cad, readw(&PhbP->tx_end));
-				PortP->RxRemove = (u16 *) RIO_PTR(Cad, readw(&PhbP->rx_remove));
-				PortP->RxStart = (u16 *) RIO_PTR(Cad, readw(&PhbP->rx_start));
-				PortP->RxEnd = (u16 *) RIO_PTR(Cad, readw(&PhbP->rx_end));
+				PortP->TxAdd = (u16 __iomem *) RIO_PTR(Cad, readw(&PhbP->tx_add));
+				PortP->TxStart = (u16 __iomem *) RIO_PTR(Cad, readw(&PhbP->tx_start));
+				PortP->TxEnd = (u16 __iomem *) RIO_PTR(Cad, readw(&PhbP->tx_end));
+				PortP->RxRemove = (u16 __iomem *) RIO_PTR(Cad, readw(&PhbP->rx_remove));
+				PortP->RxStart = (u16 __iomem *) RIO_PTR(Cad, readw(&PhbP->rx_start));
+				PortP->RxEnd = (u16 __iomem *) RIO_PTR(Cad, readw(&PhbP->rx_end));
 
 				rio_spin_unlock_irqrestore(&PortP->portSem, flags);
 				/*
@@ -601,9 +601,9 @@ int RIOBootCodeHOST(struct rio_info *p, struct DownLoad *rbp)
  *	return 1. If we havent, then return 0.
  */
 
-int RIOBootRup(struct rio_info *p, unsigned int Rup, struct Host *HostP, struct PKT *PacketP)
+int RIOBootRup(struct rio_info *p, unsigned int Rup, struct Host *HostP, struct PKT __iomem *PacketP)
 {
-	struct PktCmd *PktCmdP = (struct PktCmd *) PacketP->data;
+	struct PktCmd __iomem *PktCmdP = (struct PktCmd __iomem *) PacketP->data;
 	struct PktCmd_M *PktReplyP;
 	struct CmdBlk *CmdBlkP;
 	unsigned int sequence;
@@ -722,7 +722,7 @@ int RIOBootRup(struct rio_info *p, unsigned int Rup, struct Host *HostP, struct 
  *	RtaUniq is the booted RTA.
  */
 
-static int RIOBootComplete(struct rio_info *p, struct Host *HostP, unsigned int Rup, struct PktCmd *PktCmdP)
+static int RIOBootComplete(struct rio_info *p, struct Host *HostP, unsigned int Rup, struct PktCmd __iomem *PktCmdP)
 {
 	struct Map *MapP = NULL;
 	struct Map *MapP2 = NULL;

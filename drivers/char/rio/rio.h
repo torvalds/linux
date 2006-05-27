@@ -129,8 +129,8 @@
 **	RIO_OBJ takes hostp->Caddr and a UNIX pointer to an object and
 **	returns the offset into the DP RAM area.
 */
-#define	RIO_PTR(C,O) (((unsigned char *)(C))+(0xFFFF&(O)))
-#define	RIO_OFF(C,O) ((long)(O)-(long)(C))
+#define	RIO_PTR(C,O) (((unsigned char __iomem *)(C))+(0xFFFF&(O)))
+#define	RIO_OFF(C,O) ((unsigned char __iomem *)(O)-(unsigned char __iomem *)(C))
 
 /*
 **	How to convert from various different device number formats:

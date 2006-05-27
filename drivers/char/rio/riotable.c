@@ -534,8 +534,8 @@ int RIODeleteRta(struct rio_info *p, struct Map *MapP)
 						if (PortP->SecondBlock) {
 							u16 dest_unit = HostMapP->ID;
 							u16 dest_port = port - SysPort;
-							u16 *TxPktP;
-							struct PKT *Pkt;
+							u16 __iomem *TxPktP;
+							struct PKT __iomem *Pkt;
 
 							for (TxPktP = PortP->TxStart; TxPktP <= PortP->TxEnd; TxPktP++) {
 								/*
@@ -545,7 +545,7 @@ int RIODeleteRta(struct rio_info *p, struct Map *MapP)
 								 ** a 32 bit pointer so it can be
 								 ** accessed from the driver.
 								 */
-								Pkt = (struct PKT *) RIO_PTR(HostP->Caddr, readw(&*TxPktP));
+								Pkt = (struct PKT __iomem *) RIO_PTR(HostP->Caddr, readw(&*TxPktP));
 								rio_dprintk(RIO_DEBUG_TABLE, "Tx packet (%x) destination: Old %x:%x New %x:%x\n", *TxPktP, Pkt->dest_unit, Pkt->dest_port, dest_unit, dest_port);
 								writew(dest_unit, &Pkt->dest_unit);
 								writew(dest_port, &Pkt->dest_port);
@@ -781,13 +781,13 @@ int RIOReMapPorts(struct rio_info *p, struct Host *HostP, struct Map *HostMapP)
 		 ** unless the host has been booted
 		 */
 		if ((HostP->Flags & RUN_STATE) == RC_RUNNING) {
-			struct PHB *PhbP = PortP->PhbP = &HostP->PhbP[HostPort];
-			PortP->TxAdd = (u16 *) RIO_PTR(HostP->Caddr, readw(&PhbP->tx_add));
-			PortP->TxStart = (u16 *) RIO_PTR(HostP->Caddr, readw(&PhbP->tx_start));
-			PortP->TxEnd = (u16 *) RIO_PTR(HostP->Caddr, readw(&PhbP->tx_end));
-			PortP->RxRemove = (u16 *) RIO_PTR(HostP->Caddr, readw(&PhbP->rx_remove));
-			PortP->RxStart = (u16 *) RIO_PTR(HostP->Caddr, readw(&PhbP->rx_start));
-			PortP->RxEnd = (u16 *) RIO_PTR(HostP->Caddr, readw(&PhbP->rx_end));
+			struct PHB __iomem *PhbP = PortP->PhbP = &HostP->PhbP[HostPort];
+			PortP->TxAdd = (u16 __iomem *) RIO_PTR(HostP->Caddr, readw(&PhbP->tx_add));
+			PortP->TxStart = (u16 __iomem *) RIO_PTR(HostP->Caddr, readw(&PhbP->tx_start));
+			PortP->TxEnd = (u16 __iomem *) RIO_PTR(HostP->Caddr, readw(&PhbP->tx_end));
+			PortP->RxRemove = (u16 __iomem *) RIO_PTR(HostP->Caddr, readw(&PhbP->rx_remove));
+			PortP->RxStart = (u16 __iomem *) RIO_PTR(HostP->Caddr, readw(&PhbP->rx_start));
+			PortP->RxEnd = (u16 __iomem *) RIO_PTR(HostP->Caddr, readw(&PhbP->rx_end));
 		} else
 			PortP->PhbP = NULL;
 

@@ -102,7 +102,7 @@ void RIOTxEnable(char *en)
 	struct rio_info *p;
 	struct tty_struct *tty;
 	int c;
-	struct PKT *PacketP;
+	struct PKT __iomem *PacketP;
 	unsigned long flags;
 
 	PortP = (struct Port *) en;
@@ -144,7 +144,7 @@ void RIOTxEnable(char *en)
 		if (c == 0)
 			break;
 
-		rio_memcpy_toio(PortP->HostP->Caddr, (caddr_t) PacketP->data, PortP->gs.xmit_buf + PortP->gs.xmit_tail, c);
+		rio_memcpy_toio(PortP->HostP->Caddr, PacketP->data, PortP->gs.xmit_buf + PortP->gs.xmit_tail, c);
 		/*    udelay (1); */
 
 		writeb(c, &(PacketP->len));
@@ -219,7 +219,7 @@ void RIOServiceHost(struct rio_info *p, struct Host *HostP, int From)
 		for (port = p->RIOFirstPortsBooted; port < p->RIOLastPortsBooted + PORTS_PER_RTA; port++) {
 			struct Port *PortP = p->RIOPortp[port];
 			struct tty_struct *ttyP;
-			struct PKT *PacketP;
+			struct PKT __iomem *PacketP;
 
 			/*
 			 ** not mapped in - most of the RIOPortp[] information
@@ -298,7 +298,7 @@ void RIOServiceHost(struct rio_info *p, struct Host *HostP, int From)
 		for (port = p->RIOFirstPortsBooted; port < p->RIOLastPortsBooted + PORTS_PER_RTA; port++) {
 			struct Port *PortP = p->RIOPortp[port];
 			struct tty_struct *ttyP;
-			struct PKT *PacketP;
+			struct PKT __iomem *PacketP;
 
 			/*
 			 ** not mapped in - most of the RIOPortp[] information
@@ -427,13 +427,13 @@ void RIOServiceHost(struct rio_info *p, struct Host *HostP, int From)
 
 				while (PortP->WflushFlag && can_add_transmit(&PacketP, PortP) && (PortP->InUse == NOT_INUSE)) {
 					int p;
-					struct PktCmd *PktCmdP;
+					struct PktCmd __iomem *PktCmdP;
 
 					rio_dprintk(RIO_DEBUG_INTR, "Add WFLUSH marker to data queue\n");
 					/*
 					 ** make it look just like a WFLUSH command
 					 */
-					PktCmdP = (struct PktCmd *) &PacketP->data[0];
+					PktCmdP = (struct PktCmd __iomem *) &PacketP->data[0];
 
 					writeb(WFLUSH, &PktCmdP->Command);
 
@@ -525,9 +525,9 @@ static void RIOReceive(struct rio_info *p, struct Port *PortP)
 {
 	struct tty_struct *TtyP;
 	unsigned short transCount;
-	struct PKT *PacketP;
+	struct PKT __iomem *PacketP;
 	register unsigned int DataCnt;
-	unsigned char *ptr;
+	unsigned char __iomem *ptr;
 	unsigned char *buf;
 	int copied = 0;
 
@@ -625,7 +625,7 @@ static void RIOReceive(struct rio_info *p, struct Port *PortP)
 			 ** to '#define', (this is the only place ___DEBUG_IT___ occurs in the
 			 ** driver).
 			 */
-			ptr = (unsigned char *) PacketP->data + PortP->RxDataStart;
+			ptr = (unsigned char __iomem *) PacketP->data + PortP->RxDataStart;
 
 			tty_prepare_flip_string(TtyP, &buf, transCount);
 			rio_memcpy_fromio(buf, ptr, transCount);
