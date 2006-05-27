@@ -512,16 +512,10 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 		break;
 	}
 
-	case MEMSETOOBSEL:
-	{
-		if (copy_from_user(&mtd->oobinfo, argp, sizeof(struct nand_oobinfo)))
-			return -EFAULT;
-		break;
-	}
-
 	case MEMGETOOBSEL:
 	{
-		if (copy_to_user(argp, &(mtd->oobinfo), sizeof(struct nand_oobinfo)))
+		if (copy_to_user(argp, mtd->oobinfo,
+				 sizeof(struct nand_oobinfo)))
 			return -EFAULT;
 		break;
 	}

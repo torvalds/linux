@@ -316,7 +316,6 @@ int add_mtd_partitions(struct mtd_info *master,
 		slave->mtd.size = parts[i].size;
 		slave->mtd.writesize = master->writesize;
 		slave->mtd.oobsize = master->oobsize;
-		slave->mtd.oobavail = master->oobavail;
 		slave->mtd.ecctype = master->ecctype;
 		slave->mtd.eccsize = master->eccsize;
 
@@ -435,8 +434,7 @@ int add_mtd_partitions(struct mtd_info *master,
 				parts[i].name);
 		}
 
-		/* copy oobinfo from master */
-		memcpy(&slave->mtd.oobinfo, &master->oobinfo, sizeof(slave->mtd.oobinfo));
+		slave->mtd.oobinfo = master->oobinfo;
 
 		if(parts[i].mtdp)
 		{	/* store the object pointer (caller may or may not register it */

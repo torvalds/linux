@@ -2143,14 +2143,6 @@ int nand_scan(struct mtd_info *mtd, int maxchips)
 	}
 
 	/*
-	 * The number of bytes available for the filesystem to place fs
-	 * dependend oob data
-	 */
-	mtd->oobavail = 0;
-	for (i = 0; chip->autooob->oobfree[i][1]; i++)
-		mtd->oobavail += chip->autooob->oobfree[i][1];
-
-	/*
 	 * check ECC mode, default to software if 3byte/512byte hardware ECC is
 	 * selected and we have 256 byte pagesize fallback to software ECC
 	 */
@@ -2245,7 +2237,7 @@ int nand_scan(struct mtd_info *mtd, int maxchips)
 	mtd->block_markbad = nand_block_markbad;
 
 	/* and make the autooob the default one */
-	memcpy(&mtd->oobinfo, chip->autooob, sizeof(mtd->oobinfo));
+	mtd->oobinfo = chip->autooob;
 
 	/* Check, if we should skip the bad block table scan */
 	if (chip->options & NAND_SKIP_BBTSCAN)

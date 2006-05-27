@@ -101,9 +101,8 @@ struct mtd_info {
 	char *name;
 	int index;
 
-	// oobinfo is a nand_oobinfo structure, which can be set by iotcl (MEMSETOOBINFO)
-	struct nand_oobinfo oobinfo;
-	u_int32_t oobavail;  // Number of bytes in OOB area available for fs
+	/* oobinfo structure pointer - read only ! */
+	struct nand_oobinfo *oobinfo;
 
 	/* Data for variable erase regions. If numeraseregions is zero,
 	 * it means that the whole device has erasesize as given above.

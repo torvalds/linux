@@ -766,9 +766,7 @@ struct mtd_info *mtd_concat_create(struct mtd_info *subdev[],	/* subdevices to c
 
 	}
 
-	if(concat->mtd.type == MTD_NANDFLASH)
-		memcpy(&concat->mtd.oobinfo, &subdev[0]->oobinfo,
-			sizeof(struct nand_oobinfo));
+	concat->mtd.oobinfo = subdev[0]->oobinfo;
 
 	concat->num_subdev = num_devs;
 	concat->mtd.name = name;

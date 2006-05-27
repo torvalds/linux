@@ -1762,7 +1762,7 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 		break;
 	}
 
-	memcpy(&mtd->oobinfo, this->autooob, sizeof(mtd->oobinfo));
+	mtd->oobinfo = this->autooob;
 
 	/* Fill in remaining MTD driver data */
 	mtd->type = MTD_NANDFLASH;
