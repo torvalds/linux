@@ -1139,7 +1139,7 @@ int jffs2_scan_dirty_space(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb
 		BUG();
 	}
 	/* REF_EMPTY_NODE is !obsolete, so that works OK */
-	if (ref_obsolete(jeb->last_node)) {
+	if (jeb->last_node && ref_obsolete(jeb->last_node)) {
 #ifdef TEST_TOTLEN
 		jeb->last_node->__totlen += size;
 #endif
