@@ -1050,11 +1050,7 @@ struct cx88_board cx88_boards[] = {
 		.dvb            = 1,
 	},
 	[CX88_BOARD_KWORLD_HARDWARE_MPEG_TV_XPERT] = {
-		/* FIXME: Standard video using the cx88 broadcast decoder is
-		 * working, but blackbird isn't working yet, audio is only
-		 * working correctly for television mode. S-Video and Composite
-		 * are working for video-only, so I have them disabled for now.
-		 */
+		/* FIXME: Audio not working for s-video / composite inputs. */
 		.name           = "KWorld HardwareMpegTV XPert",
 		.tuner_type     = TUNER_PHILIPS_TDA8290,
 		.radio_type     = UNSET,
@@ -1065,6 +1061,14 @@ struct cx88_board cx88_boards[] = {
 			.vmux   = 0,
 			.gpio0  = 0x3de2,
 			.gpio2  = 0x00ff,
+		},{
+			.type   = CX88_VMUX_COMPOSITE1,
+			.vmux   = 1,
+			.gpio0  = 0x3de6,
+		},{
+			.type   = CX88_VMUX_SVIDEO,
+			.vmux   = 2,
+			.gpio0  = 0x3de6,
 		}},
 		.radio = {
 			.type   = CX88_RADIO,
