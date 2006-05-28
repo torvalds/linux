@@ -71,7 +71,7 @@ static int erase_write (struct mtd_info *mtd, unsigned long pos,
 	set_current_state(TASK_INTERRUPTIBLE);
 	add_wait_queue(&wait_q, &wait);
 
-	ret = MTD_ERASE(mtd, &erase);
+	ret = mtd->erase(mtd, &erase);
 	if (ret) {
 		set_current_state(TASK_RUNNING);
 		remove_wait_queue(&wait_q, &wait);
@@ -88,7 +88,7 @@ static int erase_write (struct mtd_info *mtd, unsigned long pos,
 	 * Next, writhe data to flash.
 	 */
 
-	ret = MTD_WRITE (mtd, pos, len, &retlen, buf);
+	ret = mtd->write(mtd, pos, len, &retlen, buf);
 	if (ret)
 		return ret;
 	if (retlen != len)
@@ -138,7 +138,7 @@ static int do_cached_write (struct mtdblk_dev *mtdblk, unsigned long pos,
 		mtd->name, pos, len);
 
 	if (!sect_size)
-		return MTD_WRITE (mtd, pos, len, &retlen, buf);
+		return mtd->write(mtd, pos, len, &retlen, buf);
 
 	while (len > 0) {
 		unsigned long sect_start = (pos/sect_size)*sect_size;
@@ -170,7 +170,8 @@ static int do_cached_write (struct mtdblk_dev *mtdblk, unsigned long pos,
 			    mtdblk->cache_offset != sect_start) {
 				/* fill the cache with the current sector */
 				mtdblk->cache_state = STATE_EMPTY;
-				ret = MTD_READ(mtd, sect_start, sect_size, &retlen, mtdblk->cache_data);
+				ret = mtd->read(mtd, sect_start, sect_size,
+						&retlen, mtdblk->cache_data);
 				if (ret)
 					return ret;
 				if (retlen != sect_size)
@@ -207,7 +208,7 @@ static int do_cached_read (struct mtdblk_dev *mtdblk, unsigned long pos,
 			mtd->name, pos, len);
 
 	if (!sect_size)
-		return MTD_READ (mtd, pos, len, &retlen, buf);
+		return mtd->read(mtd, pos, len, &retlen, buf);
 
 	while (len > 0) {
 		unsigned long sect_start = (pos/sect_size)*sect_size;
@@ -226,7 +227,7 @@ static int do_cached_read (struct mtdblk_dev *mtdblk, unsigned long pos,
 		    mtdblk->cache_offset == sect_start) {
 			memcpy (buf, mtdblk->cache_data + offset, size);
 		} else {
-			ret = MTD_READ (mtd, pos, size, &retlen, buf);
+			ret = mtd->read(mtd, pos, size, &retlen, buf);
 			if (ret)
 				return ret;
 			if (retlen != size)

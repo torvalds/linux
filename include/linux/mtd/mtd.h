@@ -199,20 +199,6 @@ int default_mtd_writev(struct mtd_info *mtd, const struct kvec *vecs,
 int default_mtd_readv(struct mtd_info *mtd, struct kvec *vecs,
 		      unsigned long count, loff_t from, size_t *retlen);
 
-#define MTD_ERASE(mtd, args...) (*(mtd->erase))(mtd, args)
-#define MTD_POINT(mtd, a,b,c,d) (*(mtd->point))(mtd, a,b,c, (u_char **)(d))
-#define MTD_UNPOINT(mtd, arg) (*(mtd->unpoint))(mtd, (u_char *)arg)
-#define MTD_READ(mtd, args...) (*(mtd->read))(mtd, args)
-#define MTD_WRITE(mtd, args...) (*(mtd->write))(mtd, args)
-#define MTD_READV(mtd, args...) (*(mtd->readv))(mtd, args)
-#define MTD_WRITEV(mtd, args...) (*(mtd->writev))(mtd, args)
-#define MTD_READECC(mtd, args...) (*(mtd->read_ecc))(mtd, args)
-#define MTD_WRITEECC(mtd, args...) (*(mtd->write_ecc))(mtd, args)
-#define MTD_READOOB(mtd, args...) (*(mtd->read_oob))(mtd, args)
-#define MTD_WRITEOOB(mtd, args...) (*(mtd->write_oob))(mtd, args)
-#define MTD_SYNC(mtd) do { if (mtd->sync) (*(mtd->sync))(mtd);  } while (0)
-
-
 #ifdef CONFIG_MTD_PARTITIONS
 void mtd_erase_callback(struct erase_info *instr);
 #else
@@ -233,7 +219,7 @@ static inline void mtd_erase_callback(struct erase_info *instr)
 
 #ifdef CONFIG_MTD_DEBUG
 #define DEBUG(n, args...)				\
- 	do {						\
+	do {						\
 		if (n <= CONFIG_MTD_DEBUG_VERBOSE)	\
 			printk(KERN_INFO args);		\
 	} while(0)

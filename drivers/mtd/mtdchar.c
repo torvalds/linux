@@ -194,7 +194,7 @@ static ssize_t mtd_read(struct file *file, char __user *buf, size_t count,loff_t
 			ret = mtd->read_user_prot_reg(mtd, *ppos, len, &retlen, kbuf);
 			break;
 		default:
-			ret = MTD_READ(mtd, *ppos, len, &retlen, kbuf);
+			ret = mtd->read(mtd, *ppos, len, &retlen, kbuf);
 		}
 		/* Nand returns -EBADMSG on ecc errors, but it returns
 		 * the data. For our userspace tools it is important
@@ -205,7 +205,7 @@ static ssize_t mtd_read(struct file *file, char __user *buf, size_t count,loff_t
 		if (!ret || (ret == -EBADMSG)) {
 			*ppos += retlen;
 			if (copy_to_user(buf, kbuf, retlen)) {
-			        kfree(kbuf);
+				kfree(kbuf);
 				return -EFAULT;
 			}
 			else
