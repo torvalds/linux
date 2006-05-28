@@ -204,8 +204,7 @@ struct xfrm_type;
 struct xfrm_dst;
 struct xfrm_policy_afinfo {
 	unsigned short		family;
-	rwlock_t		lock;
-	struct xfrm_type_map	*type_map;
+	struct xfrm_type	*type_map[256];
 	struct dst_ops		*dst_ops;
 	void			(*garbage_collect)(void);
 	int			(*dst_lookup)(struct xfrm_dst **dst, struct flowi *fl);
@@ -232,7 +231,6 @@ extern int __xfrm_state_delete(struct xfrm_state *x);
 
 struct xfrm_state_afinfo {
 	unsigned short		family;
-	rwlock_t		lock;
 	struct list_head	*state_bydst;
 	struct list_head	*state_byspi;
 	int			(*init_flags)(struct xfrm_state *x);
@@ -262,11 +260,6 @@ struct xfrm_type
 	int			(*output)(struct xfrm_state *, struct sk_buff *pskb);
 	/* Estimate maximal size of result of transformation of a dgram */
 	u32			(*get_max_size)(struct xfrm_state *, int size);
-};
-
-struct xfrm_type_map {
-	rwlock_t		lock;
-	struct xfrm_type	*map[256];
 };
 
 extern int xfrm_register_type(struct xfrm_type *type, unsigned short family);
