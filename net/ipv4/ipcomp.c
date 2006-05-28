@@ -45,7 +45,6 @@ static LIST_HEAD(ipcomp_tfms_list);
 static int ipcomp_decompress(struct xfrm_state *x, struct sk_buff *skb)
 {
 	int err, plen, dlen;
-	struct iphdr *iph;
 	struct ipcomp_data *ipcd = x->data;
 	u8 *start, *scratch;
 	struct crypto_tfm *tfm;
@@ -74,8 +73,6 @@ static int ipcomp_decompress(struct xfrm_state *x, struct sk_buff *skb)
 		
 	skb_put(skb, dlen - plen);
 	memcpy(skb->data, scratch, dlen);
-	iph = skb->nh.iph;
-	iph->tot_len = htons(dlen + iph->ihl * 4);
 out:	
 	put_cpu();
 	return err;
@@ -83,14 +80,9 @@ out:
 
 static int ipcomp_input(struct xfrm_state *x, struct sk_buff *skb)
 {
-	u8 nexthdr;
 	int err = 0;
 	struct iphdr *iph;
-	union {
-		struct iphdr	iph;
-		char 		buf[60];
-	} tmp_iph;
-
+	struct ip_comp_hdr *ipch;
 
 	if ((skb_is_nonlinear(skb) || skb_cloned(skb)) &&
 	    skb_linearize(skb, GFP_ATOMIC) != 0) {
@@ -102,15 +94,10 @@ static int ipcomp_input(struct xfrm_state *x, struct sk_buff *skb)
 
 	/* Remove ipcomp header and decompress original payload */	
 	iph = skb->nh.iph;
-	memcpy(&tmp_iph, iph, iph->ihl * 4);
-	nexthdr = *(u8 *)skb->data;
-	skb_pull(skb, sizeof(struct ip_comp_hdr));
-	skb->nh.raw += sizeof(struct ip_comp_hdr);
-	memcpy(skb->nh.raw, &tmp_iph, tmp_iph.iph.ihl * 4);
-	iph = skb->nh.iph;
-	iph->tot_len = htons(ntohs(iph->tot_len) - sizeof(struct ip_comp_hdr));
-	iph->protocol = nexthdr;
-	skb->h.raw = skb->data;
+	ipch = (void *)skb->data;
+	iph->protocol = ipch->nexthdr;
+	skb->h.raw = skb->nh.raw + sizeof(*ipch);
+	__skb_pull(skb, sizeof(*ipch));
 	err = ipcomp_decompress(x, skb);
 
 out:	

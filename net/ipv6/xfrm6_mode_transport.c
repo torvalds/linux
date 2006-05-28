@@ -42,8 +42,23 @@ static int xfrm6_transport_output(struct sk_buff *skb)
 	return 0;
 }
 
+/* Remove encapsulation header.
+ *
+ * The IP header will be moved over the top of the encapsulation header.
+ *
+ * On entry, skb->h shall point to where the IP header should be and skb->nh
+ * shall be set to where the IP header currently is.  skb->data shall point
+ * to the start of the payload.
+ */
 static int xfrm6_transport_input(struct xfrm_state *x, struct sk_buff *skb)
 {
+	int ihl = skb->data - skb->h.raw;
+
+	if (skb->h.raw != skb->nh.raw)
+		skb->nh.raw = memmove(skb->h.raw, skb->nh.raw, ihl);
+	skb->nh.ipv6h->payload_len = htons(skb->len + ihl -
+					   sizeof(struct ipv6hdr));
+	skb->h.raw = skb->data;
 	return 0;
 }
 
