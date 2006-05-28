@@ -77,6 +77,8 @@ static void xfrm_state_gc_destroy(struct xfrm_state *x)
 	kfree(x->ealg);
 	kfree(x->calg);
 	kfree(x->encap);
+	if (x->mode)
+		xfrm_put_mode(x->mode);
 	if (x->type) {
 		x->type->destructor(x);
 		xfrm_put_type(x->type);
@@ -1191,6 +1193,10 @@ int xfrm_init_state(struct xfrm_state *x)
 
 	err = x->type->init_state(x);
 	if (err)
+		goto error;
+
+	x->mode = xfrm_get_mode(x->props.mode, family);
+	if (x->mode == NULL)
 		goto error;
 
 	x->km.state = XFRM_STATE_VALID;

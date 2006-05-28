@@ -414,6 +414,24 @@ config INET_TUNNEL
 	tristate
 	default n
 
+config INET_XFRM_MODE_TRANSPORT
+	tristate "IP: IPsec transport mode"
+	default y
+	select XFRM
+	---help---
+	  Support for IPsec transport mode.
+
+	  If unsure, say Y.
+
+config INET_XFRM_MODE_TUNNEL
+	tristate "IP: IPsec tunnel mode"
+	default y
+	select XFRM
+	---help---
+	  Support for IPsec tunnel mode.
+
+	  If unsure, say Y.
+
 config INET_DIAG
 	tristate "INET: socket monitoring interface"
 	default y

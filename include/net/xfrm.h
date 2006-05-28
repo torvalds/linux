@@ -20,6 +20,8 @@
 #include <net/ip6_fib.h>
 
 #define XFRM_ALIGN8(len)	(((len) + 7) & ~7)
+#define MODULE_ALIAS_XFRM_MODE(family, encap) \
+	MODULE_ALIAS("xfrm-mode-" __stringify(family) "-" __stringify(encap))
 
 extern struct sock *xfrm_nl;
 extern u32 sysctl_xfrm_aevent_etime;
@@ -164,6 +166,7 @@ struct xfrm_state
 	/* Reference to data common to all the instances of this
 	 * transformer. */
 	struct xfrm_type	*type;
+	struct xfrm_mode	*mode;
 
 	/* Security context */
 	struct xfrm_sec_ctx	*security;
@@ -205,6 +208,7 @@ struct xfrm_dst;
 struct xfrm_policy_afinfo {
 	unsigned short		family;
 	struct xfrm_type	*type_map[256];
+	struct xfrm_mode	*mode_map[XFRM_MODE_MAX];
 	struct dst_ops		*dst_ops;
 	void			(*garbage_collect)(void);
 	int			(*dst_lookup)(struct xfrm_dst **dst, struct flowi *fl);
@@ -266,6 +270,19 @@ extern int xfrm_register_type(struct xfrm_type *type, unsigned short family);
 extern int xfrm_unregister_type(struct xfrm_type *type, unsigned short family);
 extern struct xfrm_type *xfrm_get_type(u8 proto, unsigned short family);
 extern void xfrm_put_type(struct xfrm_type *type);
+
+struct xfrm_mode {
+	int (*input)(struct xfrm_state *x, struct sk_buff *skb);
+	int (*output)(struct sk_buff *skb);
+
+	struct module *owner;
+	unsigned int encap;
+};
+
+extern int xfrm_register_mode(struct xfrm_mode *mode, int family);
+extern int xfrm_unregister_mode(struct xfrm_mode *mode, int family);
+extern struct xfrm_mode *xfrm_get_mode(unsigned int encap, int family);
+extern void xfrm_put_mode(struct xfrm_mode *mode);
 
 struct xfrm_tmpl
 {
