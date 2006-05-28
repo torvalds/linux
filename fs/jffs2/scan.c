@@ -67,8 +67,11 @@ static inline uint32_t EMPTY_SCAN_SIZE(uint32_t sector_size) {
 
 static int file_dirty(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb)
 {
-	int ret = jffs2_scan_dirty_space(c, jeb, jeb->free_size);
-	if (ret)
+	int ret;
+
+	if ((ret = jffs2_prealloc_raw_node_refs(c, jeb, 1)))
+		return ret;
+	if ((ret = jffs2_scan_dirty_space(c, jeb, jeb->free_size)))
 		return ret;
 	/* Turned wasted size into dirty, since we apparently 
 	   think it's recoverable now. */
@@ -559,6 +562,8 @@ static int jffs2_scan_eraseblock (struct jffs2_sb_info *c, struct jffs2_eraseblo
 	if (ofs) {
 		D1(printk(KERN_DEBUG "Free space at %08x ends at %08x\n", jeb->offset,
 			  jeb->offset + ofs));
+		if ((err = jffs2_prealloc_raw_node_refs(c, jeb, 1)))
+			return err;
 		if ((err = jffs2_scan_dirty_space(c, jeb, ofs)))
 			return err;
 	}
