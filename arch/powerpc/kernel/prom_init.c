@@ -2057,10 +2057,45 @@ static void __init flatten_device_tree(void)
 
 }
 
-
-static void __init fixup_device_tree(void)
+#ifdef CONFIG_PPC_MAPLE
+/* PIBS Version 1.05.0000 04/26/2005 has an incorrect /ht/isa/ranges property.
+ * The values are bad, and it doesn't even have the right number of cells. */
+static void __init fixup_device_tree_maple(void)
 {
+	phandle isa;
+	u32 isa_ranges[6];
+
+	isa = call_prom("finddevice", 1, 1, ADDR("/ht@0/isa@4"));
+	if (!PHANDLE_VALID(isa))
+		return;
+
+	if (prom_getprop(isa, "ranges", isa_ranges, sizeof(isa_ranges))
+		== PROM_ERROR)
+		return;
+
+	if (isa_ranges[0] != 0x1 ||
+		isa_ranges[1] != 0xf4000000 ||
+		isa_ranges[2] != 0x00010000)
+		return;
+
+	prom_printf("fixing up bogus ISA range on Maple...\n");
+
+	isa_ranges[0] = 0x1;
+	isa_ranges[1] = 0x0;
+	isa_ranges[2] = 0x01002000; /* IO space; PCI device = 4 */
+	isa_ranges[3] = 0x0;
+	isa_ranges[4] = 0x0;
+	isa_ranges[5] = 0x00010000;
+	prom_setprop(isa, "/ht@0/isa@4", "ranges",
+			isa_ranges, sizeof(isa_ranges));
+}
+#else
+#define fixup_device_tree_maple()
+#endif
+
 #if defined(CONFIG_PPC64) && defined(CONFIG_PPC_PMAC)
+static void __init fixup_device_tree_pmac(void)
+{
 	phandle u3, i2c, mpic;
 	u32 u3_rev;
 	u32 interrupts[2];
@@ -2097,9 +2132,16 @@ static void __init fixup_device_tree(void)
 	parent = (u32)mpic;
 	prom_setprop(i2c, "/u3@0,f8000000/i2c@f8001000", "interrupt-parent",
 		     &parent, sizeof(parent));
-#endif
 }
+#else
+#define fixup_device_tree_pmac()
+#endif
 
+static void __init fixup_device_tree(void)
+{
+	fixup_device_tree_maple();
+	fixup_device_tree_pmac();
+}
 
 static void __init prom_find_boot_cpu(void)
 {
