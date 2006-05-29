@@ -533,6 +533,7 @@ static int dvb_register(struct cx8802_dev *dev)
 			dvb_pll_attach(dev->dvb.frontend, 0x60, &dev->core->i2c_adap, &dvb_pll_thomson_dtt7579);
 		}
 		break;
+	case CX88_BOARD_WINFAST_DTV2000H:
 	case CX88_BOARD_HAUPPAUGE_HVR1100:
 	case CX88_BOARD_HAUPPAUGE_HVR1100LP:
 		dev->dvb.frontend = cx22702_attach(&hauppauge_hvr1100_config,

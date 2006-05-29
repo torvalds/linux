@@ -1175,6 +1175,24 @@ struct cx88_board cx88_boards[] = {
 			 .gpio0 = 0x074a,
 		},
 	},
+	[CX88_BOARD_WINFAST_DTV2000H] = {
+		/* video inputs and radio still in testing */
+		.name           = "WinFast DTV2000 H",
+		.tuner_type     = TUNER_PHILIPS_FMD1216ME_MK3,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.tda9887_conf   = TDA9887_PRESENT,
+		.input          = {{
+			.type   = CX88_VMUX_TELEVISION,
+			.vmux   = 0,
+			.gpio0  = 0x00017304,
+			.gpio1  = 0x00008203,
+			.gpio2  = 0x00017304,
+			.gpio3  = 0x02000000,
+		}},
+		.dvb            = 1,
+	},
 };
 const unsigned int cx88_bcount = ARRAY_SIZE(cx88_boards);
 
@@ -1412,6 +1430,10 @@ struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x14f1,
 		.subdevice = 0x0842,
 		.card      = CX88_BOARD_NPGTECH_REALTV,
+	},{
+		.subvendor = 0x107d,
+		.subdevice = 0x665e,
+		.card      = CX88_BOARD_WINFAST_DTV2000H,
 	},
 };
 const unsigned int cx88_idcount = ARRAY_SIZE(cx88_subids);
