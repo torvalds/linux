@@ -53,7 +53,9 @@
 #include <asm/mach-types.h>
 #include <asm/unaligned.h>
 #include <asm/hardware.h>
+#ifdef CONFIG_ARCH_PXA
 #include <asm/arch/pxa-regs.h>
+#endif
 
 #include <linux/usb_ch9.h>
 #include <linux/usb_gadget.h>
@@ -2575,10 +2577,12 @@ static int __exit pxa2xx_udc_remove(struct platform_device *pdev)
 		free_irq(IRQ_USB, dev);
 		dev->got_irq = 0;
 	}
+#ifdef CONFIG_ARCH_LUBBOCK
 	if (machine_is_lubbock()) {
 		free_irq(LUBBOCK_USB_DISC_IRQ, dev);
 		free_irq(LUBBOCK_USB_IRQ, dev);
 	}
+#endif
 	platform_set_drvdata(pdev, NULL);
 	the_controller = NULL;
 	return 0;
