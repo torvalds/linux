@@ -59,10 +59,10 @@ static int doc_read_ecc(struct mtd_info *mtd, loff_t from, size_t len,
 			size_t *retlen, u_char *buf, u_char *eccbuf, struct nand_oobinfo *oobsel);
 static int doc_write_ecc(struct mtd_info *mtd, loff_t to, size_t len,
 			 size_t *retlen, const u_char *buf, u_char *eccbuf, struct nand_oobinfo *oobsel);
-static int doc_read_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
-			size_t *retlen, u_char *buf);
-static int doc_write_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
-			 size_t *retlen, const u_char *buf);
+static int doc_read_oob(struct mtd_info *mtd, loff_t ofs,
+			struct mtd_oob_ops *ops);
+static int doc_write_oob(struct mtd_info *mtd, loff_t ofs,
+			 struct mtd_oob_ops *ops);
 static int doc_write_oob_nolock(struct mtd_info *mtd, loff_t ofs, size_t len,
 			 size_t *retlen, const u_char *buf);
 static int doc_erase (struct mtd_info *mtd, struct erase_info *instr);
@@ -959,12 +959,18 @@ static int doc_write_ecc(struct mtd_info *mtd, loff_t to, size_t len,
 	return 0;
 }
 
-static int doc_read_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
-			size_t * retlen, u_char * buf)
+static int doc_read_oob(struct mtd_info *mtd, loff_t ofs,
+			struct mtd_oob_ops *ops)
 {
 	struct DiskOnChip *this = mtd->priv;
 	int len256 = 0, ret;
 	struct Nand *mychip;
+	uint8_t *buf = ops->oobbuf;
+	size_t len = ops->len;
+
+	BUG_ON(ops->mode != MTD_OOB_PLACE);
+
+	ofs += ops->ooboffs;
 
 	mutex_lock(&this->lock);
 
@@ -1005,7 +1011,7 @@ static int doc_read_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
 
 	DoC_ReadBuf(this, &buf[len256], len - len256);
 
-	*retlen = len;
+	ops->retlen = len;
 	/* Reading the full OOB data drops us off of the end of the page,
          * causing the flash device to go into busy mode, so we need
          * to wait until ready 11.4.1 and Toshiba TC58256FT docs */
@@ -1120,17 +1126,20 @@ static int doc_write_oob_nolock(struct mtd_info *mtd, loff_t ofs, size_t len,
 
 }
 
-static int doc_write_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
- 			 size_t * retlen, const u_char * buf)
+static int doc_write_oob(struct mtd_info *mtd, loff_t ofs,
+			 struct mtd_oob_ops *ops)
 {
- 	struct DiskOnChip *this = mtd->priv;
- 	int ret;
+	struct DiskOnChip *this = mtd->priv;
+	int ret;
 
- 	mutex_lock(&this->lock);
- 	ret = doc_write_oob_nolock(mtd, ofs, len, retlen, buf);
+	BUG_ON(ops->mode != MTD_OOB_PLACE);
 
- 	mutex_unlock(&this->lock);
- 	return ret;
+	mutex_lock(&this->lock);
+	ret = doc_write_oob_nolock(mtd, ofs + ops->ooboffs, ops->len,
+				   &ops->retlen, ops->oobbuf);
+
+	mutex_unlock(&this->lock);
+	return ret;
 }
 
 static int doc_erase(struct mtd_info *mtd, struct erase_info *instr)

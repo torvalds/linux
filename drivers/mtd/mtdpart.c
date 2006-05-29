@@ -78,16 +78,16 @@ static void part_unpoint (struct mtd_info *mtd, u_char *addr, loff_t from, size_
 	part->master->unpoint (part->master, addr, from + part->offset, len);
 }
 
-static int part_read_oob (struct mtd_info *mtd, loff_t from, size_t len,
-			size_t *retlen, u_char *buf)
+static int part_read_oob(struct mtd_info *mtd, loff_t from,
+			 struct mtd_oob_ops *ops)
 {
 	struct mtd_part *part = PART(mtd);
+
 	if (from >= mtd->size)
-		len = 0;
-	else if (from + len > mtd->size)
-		len = mtd->size - from;
-	return part->master->read_oob (part->master, from + part->offset,
-					len, retlen, buf);
+		return -EINVAL;
+	if (from + ops->len > mtd->size)
+		return -EINVAL;
+	return part->master->read_oob(part->master, from + part->offset, ops);
 }
 
 static int part_read_user_prot_reg (struct mtd_info *mtd, loff_t from, size_t len,
@@ -134,18 +134,19 @@ static int part_write (struct mtd_info *mtd, loff_t to, size_t len,
 				    len, retlen, buf);
 }
 
-static int part_write_oob (struct mtd_info *mtd, loff_t to, size_t len,
-			size_t *retlen, const u_char *buf)
+static int part_write_oob(struct mtd_info *mtd, loff_t to,
+			 struct mtd_oob_ops *ops)
 {
 	struct mtd_part *part = PART(mtd);
+
 	if (!(mtd->flags & MTD_WRITEABLE))
 		return -EROFS;
+
 	if (to >= mtd->size)
-		len = 0;
-	else if (to + len > mtd->size)
-		len = mtd->size - to;
-	return part->master->write_oob (part->master, to + part->offset,
-					len, retlen, buf);
+		return -EINVAL;
+	if (to + ops->len > mtd->size)
+		return -EINVAL;
+	return part->master->write_oob(part->master, to + part->offset, ops);
 }
 
 static int part_write_user_prot_reg (struct mtd_info *mtd, loff_t from, size_t len,

@@ -47,10 +47,10 @@ static int doc_read_ecc(struct mtd_info *mtd, loff_t from, size_t len,
 static int doc_write_ecc(struct mtd_info *mtd, loff_t to, size_t len,
 		size_t *retlen, const u_char *buf, u_char *eccbuf,
 		struct nand_oobinfo *oobsel);
-static int doc_read_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
-		size_t *retlen, u_char *buf);
-static int doc_write_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
-		size_t *retlen, const u_char *buf);
+static int doc_read_oob(struct mtd_info *mtd, loff_t ofs,
+			struct mtd_oob_ops *ops);
+static int doc_write_oob(struct mtd_info *mtd, loff_t ofs,
+			 struct mtd_oob_ops *ops);
 static int doc_erase (struct mtd_info *mtd, struct erase_info *instr);
 
 static struct mtd_info *docmilpluslist = NULL;
@@ -868,14 +868,20 @@ static int doc_write_ecc(struct mtd_info *mtd, loff_t to, size_t len,
 	return ret;
 }
 
-static int doc_read_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
-			size_t *retlen, u_char *buf)
+static int doc_read_oob(struct mtd_info *mtd, loff_t ofs,
+			struct mtd_oob_ops *ops)
 {
 	loff_t fofs, base;
 	struct DiskOnChip *this = mtd->priv;
 	void __iomem * docptr = this->virtadr;
 	struct Nand *mychip = &this->chips[ofs >> this->chipshift];
 	size_t i, size, got, want;
+	uint8_t *buf = ops->oobbuf;
+	size_t len = ops->len;
+
+	BUG_ON(ops->mode != MTD_OOB_PLACE);
+
+	ofs += ops->ooboffs;
 
 	DoC_CheckASIC(docptr);
 
@@ -941,12 +947,12 @@ static int doc_read_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
 	/* Disable flash internally */
 	WriteDOC(0, docptr, Mplus_FlashSelect);
 
-	*retlen = len;
+	ops->retlen = len;
 	return 0;
 }
 
-static int doc_write_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
-			 size_t *retlen, const u_char *buf)
+static int doc_write_oob(struct mtd_info *mtd, loff_t ofs,
+			 struct mtd_oob_ops *ops)
 {
 	volatile char dummy;
 	loff_t fofs, base;
@@ -955,6 +961,12 @@ static int doc_write_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
 	struct Nand *mychip = &this->chips[ofs >> this->chipshift];
 	size_t i, size, got, want;
 	int ret = 0;
+	uint8_t *buf = ops->oobbuf;
+	size_t len = ops->len;
+
+	BUG_ON(ops->mode != MTD_OOB_PLACE);
+
+	ofs += ops->ooboffs;
 
 	DoC_CheckASIC(docptr);
 
@@ -1030,7 +1042,7 @@ static int doc_write_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
 			printk("MTD: Error 0x%x programming oob at 0x%x\n",
 				dummy, (int)ofs);
 			/* FIXME: implement Bad Block Replacement */
-			*retlen = 0;
+			ops->retlen = 0;
 			ret = -EIO;
 		}
 		dummy = ReadDOC(docptr, Mplus_LastDataRead);
@@ -1043,7 +1055,7 @@ static int doc_write_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
 	/* Disable flash internally */
 	WriteDOC(0, docptr, Mplus_FlashSelect);
 
-	*retlen = len;
+	ops->retlen = len;
 	return ret;
 }
 

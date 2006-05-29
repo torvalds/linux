@@ -231,101 +231,85 @@ concat_writev(struct mtd_info *mtd, const struct kvec *vecs,
 }
 
 static int
-concat_read_oob(struct mtd_info *mtd, loff_t from, size_t len,
-		size_t * retlen, u_char * buf)
+concat_read_oob(struct mtd_info *mtd, loff_t from, struct mtd_oob_ops *ops)
 {
 	struct mtd_concat *concat = CONCAT(mtd);
-	int err = -EINVAL;
-	int i;
+	struct mtd_oob_ops devops = *ops;
+	int i, err;
 
-	*retlen = 0;
+	ops->retlen = 0;
 
 	for (i = 0; i < concat->num_subdev; i++) {
 		struct mtd_info *subdev = concat->subdev[i];
-		size_t size, retsize;
 
 		if (from >= subdev->size) {
-			/* Not destined for this subdev */
-			size = 0;
 			from -= subdev->size;
 			continue;
 		}
-		if (from + len > subdev->size)
-			/* First part goes into this subdev */
-			size = subdev->size - from;
-		else
-			/* Entire transaction goes into this subdev */
-			size = len;
 
-		if (subdev->read_oob)
-			err = subdev->read_oob(subdev, from, size,
-					       &retsize, buf);
-		else
-			err = -EINVAL;
+		/* partial read ? */
+		if (from + devops.len > subdev->size)
+			devops.len = subdev->size - from;
 
+		err = subdev->read_oob(subdev, from, &devops);
+		ops->retlen += devops.retlen;
 		if (err)
-			break;
+			return err;
 
-		*retlen += retsize;
-		len -= size;
-		if (len == 0)
-			break;
+		devops.len = ops->len - ops->retlen;
+		if (!devops.len)
+			return 0;
 
-		err = -EINVAL;
-		buf += size;
+		if (devops.datbuf)
+			devops.datbuf += devops.retlen;
+		if (devops.oobbuf)
+			devops.oobbuf += devops.ooblen;
+
 		from = 0;
 	}
-	return err;
+	return -EINVAL;
 }
 
 static int
-concat_write_oob(struct mtd_info *mtd, loff_t to, size_t len,
-		 size_t * retlen, const u_char * buf)
+concat_write_oob(struct mtd_info *mtd, loff_t to, struct mtd_oob_ops *ops)
 {
 	struct mtd_concat *concat = CONCAT(mtd);
-	int err = -EINVAL;
-	int i;
+	struct mtd_oob_ops devops = *ops;
+	int i, err;
 
 	if (!(mtd->flags & MTD_WRITEABLE))
 		return -EROFS;
 
-	*retlen = 0;
+	ops->retlen = 0;
 
 	for (i = 0; i < concat->num_subdev; i++) {
 		struct mtd_info *subdev = concat->subdev[i];
-		size_t size, retsize;
 
 		if (to >= subdev->size) {
-			size = 0;
 			to -= subdev->size;
 			continue;
 		}
-		if (to + len > subdev->size)
-			size = subdev->size - to;
-		else
-			size = len;
 
-		if (!(subdev->flags & MTD_WRITEABLE))
-			err = -EROFS;
-		else if (subdev->write_oob)
-			err = subdev->write_oob(subdev, to, size, &retsize,
-						buf);
-		else
-			err = -EINVAL;
+		/* partial write ? */
+		if (to + devops.len > subdev->size)
+			devops.len = subdev->size - to;
 
+		err = subdev->write_oob(subdev, to, &devops);
+		ops->retlen += devops.retlen;
 		if (err)
-			break;
+			return err;
 
-		*retlen += retsize;
-		len -= size;
-		if (len == 0)
-			break;
+		devops.len = ops->len - ops->retlen;
+		if (!devops.len)
+			return 0;
 
-		err = -EINVAL;
-		buf += size;
+		if (devops.datbuf)
+			devops.datbuf += devops.retlen;
+		if (devops.oobbuf)
+			devops.oobbuf += devops.ooblen;
 		to = 0;
 	}
-	return err;
+	return -EINVAL;
 }
 
 static void concat_erase_callback(struct erase_info *instr)

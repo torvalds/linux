@@ -31,14 +31,6 @@ extern int nand_scan (struct mtd_info *mtd, int max_chips);
 /* Free resources held by the NAND device */
 extern void nand_release (struct mtd_info *mtd);
 
-/* Read raw data from the device without ECC */
-extern int nand_read_raw (struct mtd_info *mtd, uint8_t *buf, loff_t from,
-			  size_t len, size_t ooblen);
-
-
-extern int nand_write_raw(struct mtd_info *mtd, loff_t to, size_t len,
-			  size_t *retlen, const uint8_t *buf, uint8_t *oob);
-
 /* The maximum number of NAND chips in an array */
 #define NAND_MAX_CHIPS		8
 
@@ -374,6 +366,8 @@ struct nand_chip {
 	struct nand_ecc_ctrl ecc;
 	struct nand_buffers buffers;
 	struct nand_hw_control hwcontrol;
+
+	struct mtd_oob_ops ops;
 
 	uint8_t		*bbt;
 	struct nand_bbt_descr	*bbt_td;

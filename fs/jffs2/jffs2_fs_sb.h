@@ -100,6 +100,7 @@ struct jffs2_sb_info {
 #ifdef CONFIG_JFFS2_FS_WRITEBUFFER
 	/* Write-behind buffer for NAND flash */
 	unsigned char *wbuf;
+	unsigned char *oobbuf;
 	uint32_t wbuf_ofs;
 	uint32_t wbuf_len;
 	struct jffs2_inodirty *wbuf_inodes;

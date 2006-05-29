@@ -134,6 +134,69 @@ static void nftl_remove_dev(struct mtd_blktrans_dev *dev)
 	kfree(nftl);
 }
 
+/*
+ * Read oob data from flash
+ */
+int nftl_read_oob(struct mtd_info *mtd, loff_t offs, size_t len,
+		  size_t *retlen, uint8_t *buf)
+{
+	struct mtd_oob_ops ops;
+	int res;
+
+	ops.mode = MTD_OOB_PLACE;
+	ops.ooboffs = offs & (mtd->writesize - 1);
+	ops.ooblen = len;
+	ops.oobbuf = buf;
+	ops.datbuf = NULL;
+	ops.len = len;
+
+	res = mtd->read_oob(mtd, offs & ~(mtd->writesize - 1), &ops);
+	*retlen = ops.retlen;
+	return res;
+}
+
+/*
+ * Write oob data to flash
+ */
+int nftl_write_oob(struct mtd_info *mtd, loff_t offs, size_t len,
+		   size_t *retlen, uint8_t *buf)
+{
+	struct mtd_oob_ops ops;
+	int res;
+
+	ops.mode = MTD_OOB_PLACE;
+	ops.ooboffs = offs & (mtd->writesize - 1);
+	ops.ooblen = len;
+	ops.oobbuf = buf;
+	ops.datbuf = NULL;
+	ops.len = len;
+
+	res = mtd->write_oob(mtd, offs & ~(mtd->writesize - 1), &ops);
+	*retlen = ops.retlen;
+	return res;
+}
+
+/*
+ * Write data and oob to flash
+ */
+static int nftl_write(struct mtd_info *mtd, loff_t offs, size_t len,
+		      size_t *retlen, uint8_t *buf, uint8_t *oob)
+{
+	struct mtd_oob_ops ops;
+	int res;
+
+	ops.mode = MTD_OOB_PLACE;
+	ops.ooboffs = offs;
+	ops.ooblen = mtd->oobsize;
+	ops.oobbuf = oob;
+	ops.datbuf = buf;
+	ops.len = len;
+
+	res = mtd->write_oob(mtd, offs & ~(mtd->writesize - 1), &ops);
+	*retlen = ops.retlen;
+	return res;
+}
+
 #ifdef CONFIG_NFTL_RW
 
 /* Actual NFTL access routines */
@@ -216,7 +279,7 @@ static u16 NFTL_foldchain (struct NFTLrecord *nftl, unsigned thisVUC, unsigned p
 
 		targetEUN = thisEUN;
 		for (block = 0; block < nftl->EraseSize / 512; block ++) {
-			mtd->read_oob(mtd, (thisEUN * nftl->EraseSize) +
+			nftl_read_oob(mtd, (thisEUN * nftl->EraseSize) +
 				      (block * 512), 16 , &retlen,
 				      (char *)&oob);
 			if (block == 2) {
@@ -333,7 +396,7 @@ static u16 NFTL_foldchain (struct NFTLrecord *nftl, unsigned thisVUC, unsigned p
                longer one */
 		oob.u.c.FoldMark = oob.u.c.FoldMark1 = cpu_to_le16(FOLD_MARK_IN_PROGRESS);
 		oob.u.c.unused = 0xffffffff;
-		mtd->write_oob(mtd, (nftl->EraseSize * targetEUN) + 2 * 512 + 8,
+		nftl_write_oob(mtd, (nftl->EraseSize * targetEUN) + 2 * 512 + 8,
 			       8, &retlen, (char *)&oob.u);
 	}
 
@@ -369,17 +432,15 @@ static u16 NFTL_foldchain (struct NFTLrecord *nftl, unsigned thisVUC, unsigned p
 		memset(&oob, 0xff, sizeof(struct nftl_oob));
 		oob.b.Status = oob.b.Status1 = SECTOR_USED;
 
-		nand_write_raw(nftl->mbd.mtd, (nftl->EraseSize * targetEUN) +
-			       (block * 512), 512, &retlen, movebuf,
-			       (char *)&oob);
-
+		nftl_write(nftl->mbd.mtd, (nftl->EraseSize * targetEUN) +
+			   (block * 512), 512, &retlen, movebuf, (char *)&oob);
 	}
 
 	/* add the header so that it is now a valid chain */
 	oob.u.a.VirtUnitNum = oob.u.a.SpareVirtUnitNum = cpu_to_le16(thisVUC);
 	oob.u.a.ReplUnitNum = oob.u.a.SpareReplUnitNum = 0xffff;
 
-	mtd->write_oob(mtd, (nftl->EraseSize * targetEUN) + 8,
+	nftl_write_oob(mtd, (nftl->EraseSize * targetEUN) + 8,
 		       8, &retlen, (char *)&oob.u);
 
 	/* OK. We've moved the whole lot into the new block. Now we have to free the original blocks. */
@@ -499,7 +560,7 @@ static inline u16 NFTL_findwriteunit(struct NFTLrecord *nftl, unsigned block)
 
 			lastEUN = writeEUN;
 
-			mtd->read_oob(mtd,
+			nftl_read_oob(mtd,
 				      (writeEUN * nftl->EraseSize) + blockofs,
 				      8, &retlen, (char *)&bci);
 
@@ -588,12 +649,12 @@ static inline u16 NFTL_findwriteunit(struct NFTLrecord *nftl, unsigned block)
 		nftl->ReplUnitTable[writeEUN] = BLOCK_NIL;
 
 		/* ... and on the flash itself */
-		mtd->read_oob(mtd, writeEUN * nftl->EraseSize + 8, 8,
+		nftl_read_oob(mtd, writeEUN * nftl->EraseSize + 8, 8,
 			      &retlen, (char *)&oob.u);
 
 		oob.u.a.VirtUnitNum = oob.u.a.SpareVirtUnitNum = cpu_to_le16(thisVUC);
 
-		mtd->write_oob(mtd, writeEUN * nftl->EraseSize + 8, 8,
+		nftl_write_oob(mtd, writeEUN * nftl->EraseSize + 8, 8,
 			       &retlen, (char *)&oob.u);
 
 		/* we link the new block to the chain only after the
@@ -603,13 +664,13 @@ static inline u16 NFTL_findwriteunit(struct NFTLrecord *nftl, unsigned block)
 			/* Both in our cache... */
 			nftl->ReplUnitTable[lastEUN] = writeEUN;
 			/* ... and on the flash itself */
-			mtd->read_oob(mtd, (lastEUN * nftl->EraseSize) + 8,
+			nftl_read_oob(mtd, (lastEUN * nftl->EraseSize) + 8,
 				      8, &retlen, (char *)&oob.u);
 
 			oob.u.a.ReplUnitNum = oob.u.a.SpareReplUnitNum
 				= cpu_to_le16(writeEUN);
 
-			mtd->write_oob(mtd, (lastEUN * nftl->EraseSize) + 8,
+			nftl_write_oob(mtd, (lastEUN * nftl->EraseSize) + 8,
 				       8, &retlen, (char *)&oob.u);
 		}
 
@@ -643,9 +704,8 @@ static int nftl_writeblock(struct mtd_blktrans_dev *mbd, unsigned long block,
 	memset(&oob, 0xff, sizeof(struct nftl_oob));
 	oob.b.Status = oob.b.Status1 = SECTOR_USED;
 
-	nand_write_raw(nftl->mbd.mtd, (writeEUN * nftl->EraseSize) +
-		       blockofs, 512, &retlen, (char *)buffer,
-		       (char *)&oob);
+	nftl_write(nftl->mbd.mtd, (writeEUN * nftl->EraseSize) + blockofs,
+		   512, &retlen, (char *)buffer, (char *)&oob);
 	return 0;
 }
 #endif /* CONFIG_NFTL_RW */
@@ -667,7 +727,7 @@ static int nftl_readblock(struct mtd_blktrans_dev *mbd, unsigned long block,
 
 	if (thisEUN != BLOCK_NIL) {
 		while (thisEUN < nftl->nb_blocks) {
-			if (mtd->read_oob(mtd, (thisEUN * nftl->EraseSize) +
+			if (nftl_read_oob(mtd, (thisEUN * nftl->EraseSize) +
 					  blockofs, 8, &retlen,
 					  (char *)&bci) < 0)
 				status = SECTOR_IGNORE;

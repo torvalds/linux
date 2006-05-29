@@ -955,158 +955,159 @@ exit:
 	return ret;
 }
 
+#define NR_OOB_SCAN_PAGES	4
+
 /*
- *	Check, if the out of band area is empty
+ * Check, if the out of band area is empty
  */
-int jffs2_check_oob_empty( struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb, int mode)
+int jffs2_check_oob_empty(struct jffs2_sb_info *c,
+			  struct jffs2_eraseblock *jeb, int mode)
 {
-	unsigned char *buf;
-	int 	ret = 0;
-	int	i,len,page;
-	size_t  retlen;
-	int	oob_size;
+	int i, page, ret;
+	int oobsize = c->mtd->oobsize;
+	struct mtd_oob_ops ops;
 
-	/* allocate a buffer for all oob data in this sector */
-	oob_size = c->mtd->oobsize;
-	len = 4 * oob_size;
-	buf = kmalloc(len, GFP_KERNEL);
-	if (!buf) {
-		printk(KERN_NOTICE "jffs2_check_oob_empty(): allocation of temporary data buffer for oob check failed\n");
-		return -ENOMEM;
-	}
-	/*
-	 * if mode = 0, we scan for a total empty oob area, else we have
-	 * to take care of the cleanmarker in the first page of the block
-	*/
-	ret = jffs2_flash_read_oob(c, jeb->offset, len , &retlen, buf);
+	ops.len = NR_OOB_SCAN_PAGES * oobsize;
+	ops.ooblen = oobsize;
+	ops.oobbuf = c->oobbuf;
+	ops.ooboffs = 0;
+	ops.datbuf = NULL;
+	ops.mode = MTD_OOB_PLACE;
+
+	ret = c->mtd->read_oob(c->mtd, jeb->offset, &ops);
 	if (ret) {
-		D1(printk(KERN_WARNING "jffs2_check_oob_empty(): Read OOB failed %d for block at %08x\n", ret, jeb->offset));
-		goto out;
+		D1(printk(KERN_WARNING "jffs2_check_oob_empty(): Read OOB "
+			  "failed %d for block at %08x\n", ret, jeb->offset));
+		return ret;
 	}
 
-	if (retlen < len) {
-		D1(printk(KERN_WARNING "jffs2_check_oob_empty(): Read OOB return short read "
-			  "(%zd bytes not %d) for block at %08x\n", retlen, len, jeb->offset));
-		ret = -EIO;
-		goto out;
+	if (ops.retlen < ops.len) {
+		D1(printk(KERN_WARNING "jffs2_check_oob_empty(): Read OOB "
+			  "returned short read (%zd bytes not %d) for block "
+			  "at %08x\n", ops.retlen, ops.len, jeb->offset));
+		return -EIO;
 	}
 
 	/* Special check for first page */
-	for(i = 0; i < oob_size ; i++) {
+	for(i = 0; i < oobsize ; i++) {
 		/* Yeah, we know about the cleanmarker. */
 		if (mode && i >= c->fsdata_pos &&
 		    i < c->fsdata_pos + c->fsdata_len)
 			continue;
 
-		if (buf[i] != 0xFF) {
-			D2(printk(KERN_DEBUG "Found %02x at %x in OOB for %08x\n",
-				  buf[i], i, jeb->offset));
-			ret = 1;
-			goto out;
+		if (ops.oobbuf[i] != 0xFF) {
+			D2(printk(KERN_DEBUG "Found %02x at %x in OOB for "
+				  "%08x\n", ops.oobbuf[i], i, jeb->offset));
+			return 1;
 		}
 	}
 
 	/* we know, we are aligned :) */
-	for (page = oob_size; page < len; page += sizeof(long)) {
-		unsigned long dat = *(unsigned long *)(&buf[page]);
-		if(dat != -1) {
-			ret = 1;
-			goto out;
-		}
+	for (page = oobsize; page < ops.len; page += sizeof(long)) {
+		long dat = *(long *)(&ops.oobbuf[page]);
+		if(dat != -1)
+			return 1;
 	}
-
-out:
-	kfree(buf);
-
-	return ret;
+	return 0;
 }
 
 /*
-*	Scan for a valid cleanmarker and for bad blocks
-*	For virtual blocks (concatenated physical blocks) check the cleanmarker
-*	only in the first page of the first physical block, but scan for bad blocks in all
-*	physical blocks
-*/
-int jffs2_check_nand_cleanmarker (struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb)
+ * Scan for a valid cleanmarker and for bad blocks
+ */
+int jffs2_check_nand_cleanmarker (struct jffs2_sb_info *c,
+				  struct jffs2_eraseblock *jeb)
 {
 	struct jffs2_unknown_node n;
-	unsigned char buf[2 * NAND_MAX_OOBSIZE];
-	unsigned char *p;
-	int ret, i, cnt, retval = 0;
-	size_t retlen, offset;
-	int oob_size;
+	struct mtd_oob_ops ops;
+	int oobsize = c->mtd->oobsize;
+	unsigned char *p,*b;
+	int i, ret;
+	size_t offset = jeb->offset;
 
-	offset = jeb->offset;
-	oob_size = c->mtd->oobsize;
-
-	/* Loop through the physical blocks */
-	for (cnt = 0; cnt < (c->sector_size / c->mtd->erasesize); cnt++) {
-		/* Check first if the block is bad. */
-		if (c->mtd->block_isbad (c->mtd, offset)) {
-			D1 (printk (KERN_WARNING "jffs2_check_nand_cleanmarker(): Bad block at %08x\n", jeb->offset));
-			return 2;
-		}
-		/*
-		   *    We read oob data from page 0 and 1 of the block.
-		   *    page 0 contains cleanmarker and badblock info
-		   *    page 1 contains failure count of this block
-		 */
-		ret = c->mtd->read_oob (c->mtd, offset, oob_size << 1, &retlen, buf);
-
-		if (ret) {
-			D1 (printk (KERN_WARNING "jffs2_check_nand_cleanmarker(): Read OOB failed %d for block at %08x\n", ret, jeb->offset));
-			return ret;
-		}
-		if (retlen < (oob_size << 1)) {
-			D1 (printk (KERN_WARNING "jffs2_check_nand_cleanmarker(): Read OOB return short read (%zd bytes not %d) for block at %08x\n", retlen, oob_size << 1, jeb->offset));
-			return -EIO;
-		}
-
-		/* Check cleanmarker only on the first physical block */
-		if (!cnt) {
-			n.magic = cpu_to_je16 (JFFS2_MAGIC_BITMASK);
-			n.nodetype = cpu_to_je16 (JFFS2_NODETYPE_CLEANMARKER);
-			n.totlen = cpu_to_je32 (8);
-			p = (unsigned char *) &n;
-
-			for (i = 0; i < c->fsdata_len; i++) {
-				if (buf[c->fsdata_pos + i] != p[i]) {
-					retval = 1;
-				}
-			}
-			D1(if (retval == 1) {
-				printk(KERN_WARNING "jffs2_check_nand_cleanmarker(): Cleanmarker node not detected in block at %08x\n", jeb->offset);
-				printk(KERN_WARNING "OOB at %08zx was ", offset);
-				for (i=0; i < oob_size; i++) {
-					printk("%02x ", buf[i]);
-				}
-				printk("\n");
-			})
-		}
-		offset += c->mtd->erasesize;
+	/* Check first if the block is bad. */
+	if (c->mtd->block_isbad(c->mtd, offset)) {
+		D1 (printk(KERN_WARNING "jffs2_check_nand_cleanmarker()"
+			   ": Bad block at %08x\n", jeb->offset));
+		return 2;
 	}
-	return retval;
+
+	ops.len = oobsize;
+	ops.ooblen = oobsize;
+	ops.oobbuf = c->oobbuf;
+	ops.ooboffs = 0;
+	ops.datbuf = NULL;
+	ops.mode = MTD_OOB_PLACE;
+
+	ret = c->mtd->read_oob(c->mtd, offset, &ops);
+	if (ret) {
+		D1 (printk(KERN_WARNING "jffs2_check_nand_cleanmarker(): "
+			   "Read OOB failed %d for block at %08x\n",
+			   ret, jeb->offset));
+		return ret;
+	}
+
+	if (ops.retlen < ops.len) {
+		D1 (printk (KERN_WARNING "jffs2_check_nand_cleanmarker(): "
+			    "Read OOB return short read (%zd bytes not %d) "
+			    "for block at %08x\n", ops.retlen, ops.len,
+			    jeb->offset));
+		return -EIO;
+	}
+
+	n.magic = cpu_to_je16 (JFFS2_MAGIC_BITMASK);
+	n.nodetype = cpu_to_je16 (JFFS2_NODETYPE_CLEANMARKER);
+	n.totlen = cpu_to_je32 (8);
+	p = (unsigned char *) &n;
+	b = c->oobbuf + c->fsdata_pos;
+
+	for (i = c->fsdata_len; i; i--) {
+		if (*b++ != *p++)
+			ret = 1;
+	}
+
+	D1(if (ret == 1) {
+		printk(KERN_WARNING "jffs2_check_nand_cleanmarker(): "
+		       "Cleanmarker node not detected in block at %08x\n",
+		       offset);
+		printk(KERN_WARNING "OOB at %08zx was ", offset);
+		for (i=0; i < oobsize; i++)
+			printk("%02x ", c->oobbuf[i]);
+		printk("\n");
+	});
+	return ret;
 }
 
-int jffs2_write_nand_cleanmarker(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb)
+int jffs2_write_nand_cleanmarker(struct jffs2_sb_info *c,
+				 struct jffs2_eraseblock *jeb)
 {
-	struct 	jffs2_unknown_node n;
-	int 	ret;
-	size_t 	retlen;
+	struct jffs2_unknown_node n;
+	int	ret;
+	struct mtd_oob_ops ops;
 
 	n.magic = cpu_to_je16(JFFS2_MAGIC_BITMASK);
 	n.nodetype = cpu_to_je16(JFFS2_NODETYPE_CLEANMARKER);
 	n.totlen = cpu_to_je32(8);
 
-	ret = jffs2_flash_write_oob(c, jeb->offset + c->fsdata_pos, c->fsdata_len, &retlen, (unsigned char *)&n);
+	ops.len = c->fsdata_len;
+	ops.ooblen = c->fsdata_len;;
+	ops.oobbuf = (uint8_t *)&n;
+	ops.ooboffs = c->fsdata_pos;
+	ops.datbuf = NULL;
+	ops.mode = MTD_OOB_PLACE;
+
+	ret = c->mtd->write_oob(c->mtd, jeb->offset, &ops);
 
 	if (ret) {
-		D1(printk(KERN_WARNING "jffs2_write_nand_cleanmarker(): Write failed for block at %08x: error %d\n", jeb->offset, ret));
+		D1(printk(KERN_WARNING "jffs2_write_nand_cleanmarker(): "
+			  "Write failed for block at %08x: error %d\n",
+			  jeb->offset, ret));
 		return ret;
 	}
-	if (retlen != c->fsdata_len) {
-		D1(printk(KERN_WARNING "jffs2_write_nand_cleanmarker(): Short write for block at %08x: %zd not %d\n", jeb->offset, retlen, c->fsdata_len));
-		return ret;
+	if (ops.retlen != ops.len) {
+		D1(printk(KERN_WARNING "jffs2_write_nand_cleanmarker(): "
+			  "Short write for block at %08x: %zd not %d\n",
+			  jeb->offset, ops.retlen, ops.len));
+		return -EIO;
 	}
 	return 0;
 }
@@ -1185,6 +1186,10 @@ int jffs2_nand_flash_setup(struct jffs2_sb_info *c)
 	if (!c->wbuf)
 		return -ENOMEM;
 
+	c->oobbuf = kmalloc(NR_OOB_SCAN_PAGES * c->mtd->oobsize, GFP_KERNEL);
+	if (!c->oobbuf)
+		return -ENOMEM;
+
 	res = jffs2_nand_set_oobinfo(c);
 
 #ifdef BREAKME
@@ -1202,6 +1207,7 @@ int jffs2_nand_flash_setup(struct jffs2_sb_info *c)
 void jffs2_nand_flash_cleanup(struct jffs2_sb_info *c)
 {
 	kfree(c->wbuf);
+	kfree(c->oobbuf);
 }
 
 int jffs2_dataflash_setup(struct jffs2_sb_info *c) {

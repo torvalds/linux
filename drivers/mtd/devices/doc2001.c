@@ -43,10 +43,10 @@ static int doc_read_ecc(struct mtd_info *mtd, loff_t from, size_t len,
 static int doc_write_ecc(struct mtd_info *mtd, loff_t to, size_t len,
 			 size_t *retlen, const u_char *buf, u_char *eccbuf,
 			 struct nand_oobinfo *oobsel);
-static int doc_read_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
-			size_t *retlen, u_char *buf);
-static int doc_write_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
-			 size_t *retlen, const u_char *buf);
+static int doc_read_oob(struct mtd_info *mtd, loff_t ofs,
+			struct mtd_oob_ops *ops);
+static int doc_write_oob(struct mtd_info *mtd, loff_t ofs,
+			 struct mtd_oob_ops *ops);
 static int doc_erase (struct mtd_info *mtd, struct erase_info *instr);
 
 static struct mtd_info *docmillist = NULL;
@@ -662,8 +662,8 @@ static int doc_write_ecc (struct mtd_info *mtd, loff_t to, size_t len,
 	return ret;
 }
 
-static int doc_read_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
-			size_t *retlen, u_char *buf)
+static int doc_read_oob(struct mtd_info *mtd, loff_t ofs,
+			struct mtd_oob_ops *ops)
 {
 #ifndef USE_MEMCPY
 	int i;
@@ -672,6 +672,12 @@ static int doc_read_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
 	struct DiskOnChip *this = mtd->priv;
 	void __iomem *docptr = this->virtadr;
 	struct Nand *mychip = &this->chips[ofs >> this->chipshift];
+	uint8_t *buf = ops->oobbuf;
+	size_t len = ops->len;
+
+	BUG_ON(ops->mode != MTD_OOB_PLACE);
+
+	ofs += ops->ooboffs;
 
 	/* Find the chip which is to be used and select it */
 	if (this->curfloor != mychip->floor) {
@@ -708,13 +714,13 @@ static int doc_read_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
 #endif
 	buf[len - 1] = ReadDOC(docptr, LastDataRead);
 
-	*retlen = len;
+	ops->retlen = len;
 
 	return 0;
 }
 
-static int doc_write_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
-			 size_t *retlen, const u_char *buf)
+static int doc_write_oob(struct mtd_info *mtd, loff_t ofs,
+			 struct mtd_oob_ops *ops)
 {
 #ifndef USE_MEMCPY
 	int i;
@@ -724,6 +730,12 @@ static int doc_write_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
 	struct DiskOnChip *this = mtd->priv;
 	void __iomem *docptr = this->virtadr;
 	struct Nand *mychip = &this->chips[ofs >> this->chipshift];
+	uint8_t *buf = ops->oobbuf;
+	size_t len = ops->len;
+
+	BUG_ON(ops->mode != MTD_OOB_PLACE);
+
+	ofs += ops->ooboffs;
 
 	/* Find the chip which is to be used and select it */
 	if (this->curfloor != mychip->floor) {
@@ -775,12 +787,12 @@ static int doc_write_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
 	if (ReadDOC(docptr, Mil_CDSN_IO) & 1) {
 		printk("Error programming oob data\n");
 		/* FIXME: implement Bad Block Replacement (in nftl.c ??) */
-		*retlen = 0;
+		ops->retlen = 0;
 		ret = -EIO;
 	}
 	dummy = ReadDOC(docptr, LastDataRead);
 
-	*retlen = len;
+	ops->retlen = len;
 
 	return ret;
 }

@@ -33,6 +33,11 @@
 
 char nftlmountrev[]="$Revision: 1.41 $";
 
+extern int nftl_read_oob(struct mtd_info *mtd, loff_t offs, size_t len,
+			 size_t *retlen, uint8_t *buf);
+extern int nftl_write_oob(struct mtd_info *mtd, loff_t offs, size_t len,
+			  size_t *retlen, uint8_t *buf);
+
 /* find_boot_record: Find the NFTL Media Header and its Spare copy which contains the
  *	various device information of the NFTL partition and Bad Unit Table. Update
  *	the ReplUnitTable[] table accroding to the Bad Unit Table. ReplUnitTable[]
@@ -92,7 +97,7 @@ static int find_boot_record(struct NFTLrecord *nftl)
 		}
 
 		/* To be safer with BIOS, also use erase mark as discriminant */
-		if ((ret = mtd->read_oob(mtd, block * nftl->EraseSize +
+		if ((ret = nftl_read_oob(mtd, block * nftl->EraseSize +
 					 SECTORSIZE + 8, 8, &retlen,
 					 (char *)&h1) < 0)) {
 			printk(KERN_WARNING "ANAND header found at 0x%x in mtd%d, but OOB data read failed (err %d)\n",
@@ -283,7 +288,7 @@ static int check_free_sectors(struct NFTLrecord *nftl, unsigned int address, int
 			return -1;
 
 		if (check_oob) {
-			if(mtd->read_oob(mtd, address, mtd->oobsize,
+			if(nftl_read_oob(mtd, address, mtd->oobsize,
 					 &retlen, &buf[SECTORSIZE]) < 0)
 				return -1;
 			if (memcmpb(buf + SECTORSIZE, 0xff, mtd->oobsize) != 0)
@@ -311,7 +316,7 @@ int NFTL_formatblock(struct NFTLrecord *nftl, int block)
 	struct mtd_info *mtd = nftl->mbd.mtd;
 
 	/* Read the Unit Control Information #1 for Wear-Leveling */
-	if (mtd->read_oob(mtd, block * nftl->EraseSize + SECTORSIZE + 8,
+	if (nftl_read_oob(mtd, block * nftl->EraseSize + SECTORSIZE + 8,
 			  8, &retlen, (char *)&uci) < 0)
 		goto default_uci1;
 
@@ -351,7 +356,7 @@ int NFTL_formatblock(struct NFTLrecord *nftl, int block)
 			goto fail;
 
 		uci.WearInfo = le32_to_cpu(nb_erases);
-		if (mtd->write_oob(mtd, block * nftl->EraseSize + SECTORSIZE +
+		if (nftl_write_oob(mtd, block * nftl->EraseSize + SECTORSIZE +
 				   8, 8, &retlen, (char *)&uci) < 0)
 			goto fail;
 		return 0;
@@ -383,7 +388,7 @@ static void check_sectors_in_chain(struct NFTLrecord *nftl, unsigned int first_b
 	block = first_block;
 	for (;;) {
 		for (i = 0; i < sectors_per_block; i++) {
-			if (mtd->read_oob(mtd,
+			if (nftl_read_oob(mtd,
 					  block * nftl->EraseSize + i * SECTORSIZE,
 					  8, &retlen, (char *)&bci) < 0)
 				status = SECTOR_IGNORE;
@@ -404,7 +409,7 @@ static void check_sectors_in_chain(struct NFTLrecord *nftl, unsigned int first_b
 					/* sector not free actually : mark it as SECTOR_IGNORE  */
 					bci.Status = SECTOR_IGNORE;
 					bci.Status1 = SECTOR_IGNORE;
-					mtd->write_oob(mtd, block *
+					nftl_write_oob(mtd, block *
 						       nftl->EraseSize +
 						       i * SECTORSIZE, 8,
 						       &retlen, (char *)&bci);
@@ -498,7 +503,7 @@ static int check_and_mark_free_block(struct NFTLrecord *nftl, int block)
 	size_t retlen;
 
 	/* check erase mark. */
-	if (mtd->read_oob(mtd, block * nftl->EraseSize + SECTORSIZE + 8, 8,
+	if (nftl_read_oob(mtd, block * nftl->EraseSize + SECTORSIZE + 8, 8,
 			  &retlen, (char *)&h1) < 0)
 		return -1;
 
@@ -513,7 +518,7 @@ static int check_and_mark_free_block(struct NFTLrecord *nftl, int block)
 		h1.EraseMark = cpu_to_le16(ERASE_MARK);
 		h1.EraseMark1 = cpu_to_le16(ERASE_MARK);
 		h1.WearInfo = cpu_to_le32(0);
-		if (mtd->write_oob(mtd,
+		if (nftl_write_oob(mtd,
 				   block * nftl->EraseSize + SECTORSIZE + 8, 8,
 				   &retlen, (char *)&h1) < 0)
 			return -1;
@@ -526,7 +531,7 @@ static int check_and_mark_free_block(struct NFTLrecord *nftl, int block)
 						SECTORSIZE, 0) != 0)
 				return -1;
 
-			if (mtd->read_oob(mtd, block * nftl->EraseSize + i,
+			if (nftl_read_oob(mtd, block * nftl->EraseSize + i,
 					  16, &retlen, buf) < 0)
 				return -1;
 			if (i == SECTORSIZE) {
@@ -557,7 +562,7 @@ static int get_fold_mark(struct NFTLrecord *nftl, unsigned int block)
 	struct nftl_uci2 uci;
 	size_t retlen;
 
-	if (mtd->read_oob(mtd, block * nftl->EraseSize + 2 * SECTORSIZE + 8,
+	if (nftl_read_oob(mtd, block * nftl->EraseSize + 2 * SECTORSIZE + 8,
 			  8, &retlen, (char *)&uci) < 0)
 		return 0;
 
@@ -597,10 +602,10 @@ int NFTL_mount(struct NFTLrecord *s)
 
 			for (;;) {
 				/* read the block header. If error, we format the chain */
-				if (mtd->read_oob(mtd,
+				if (nftl_read_oob(mtd,
 						  block * s->EraseSize + 8, 8,
 						  &retlen, (char *)&h0) < 0 ||
-				    mtd->read_oob(mtd,
+				    nftl_read_oob(mtd,
 						  block * s->EraseSize +
 						  SECTORSIZE + 8, 8,
 						  &retlen, (char *)&h1) < 0) {

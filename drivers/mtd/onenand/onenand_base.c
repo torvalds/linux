@@ -671,7 +671,7 @@ out:
 }
 
 /**
- * onenand_read_oob - [MTD Interface] OneNAND read out-of-band
+ * onenand_do_read_oob - [MTD Interface] OneNAND read out-of-band
  * @param mtd		MTD device structure
  * @param from		offset to read from
  * @param len		number of bytes to read
@@ -680,8 +680,8 @@ out:
  *
  * OneNAND read out-of-band data from the spare area
  */
-static int onenand_read_oob(struct mtd_info *mtd, loff_t from, size_t len,
-	size_t *retlen, u_char *buf)
+int onenand_do_read_oob(struct mtd_info *mtd, loff_t from, size_t len,
+			size_t *retlen, u_char *buf)
 {
 	struct onenand_chip *this = mtd->priv;
 	int read = 0, thislen, column;
@@ -742,6 +742,21 @@ out:
 
 	*retlen = read;
 	return ret;
+}
+
+/**
+ * onenand_read_oob - [MTD Interface] NAND write data and/or out-of-band
+ * @mtd:	MTD device structure
+ * @from:	offset to read from
+ * @ops:	oob operation description structure
+ */
+static int onenand_read_oob(struct mtd_info *mtd, loff_t from,
+			    struct mtd_oob_ops *ops)
+{
+	BUG_ON(ops->mode != MTD_OOB_PLACE);
+
+	return onenand_do_read_oob(mtd, from + ops->ooboffs, ops->len,
+				   &ops->retlen, ops->oobbuf);
 }
 
 #ifdef CONFIG_MTD_ONENAND_VERIFY_WRITE
@@ -894,7 +909,7 @@ out:
 }
 
 /**
- * onenand_write_oob - [MTD Interface] OneNAND write out-of-band
+ * onenand_do_write_oob - [Internal] OneNAND write out-of-band
  * @param mtd		MTD device structure
  * @param to		offset to write to
  * @param len		number of bytes to write
@@ -903,8 +918,8 @@ out:
  *
  * OneNAND write out-of-band
  */
-static int onenand_write_oob(struct mtd_info *mtd, loff_t to, size_t len,
-	size_t *retlen, const u_char *buf)
+static int onenand_do_write_oob(struct mtd_info *mtd, loff_t to, size_t len,
+				size_t *retlen, const u_char *buf)
 {
 	struct onenand_chip *this = mtd->priv;
 	int column, ret = 0;
@@ -970,6 +985,21 @@ out:
 	*retlen = written;
 
 	return ret;
+}
+
+/**
+ * onenand_write_oob - [MTD Interface] NAND write data and/or out-of-band
+ * @mtd:	MTD device structure
+ * @from:	offset to read from
+ * @ops:	oob operation description structure
+ */
+static int onenand_write_oob(struct mtd_info *mtd, loff_t to,
+			     struct mtd_oob_ops *ops)
+{
+	BUG_ON(ops->mode != MTD_OOB_PLACE);
+
+	return onenand_do_write_oob(mtd, to + ops->ooboffs, ops->len,
+				    &ops->retlen, ops->oobbuf);
 }
 
 /**
@@ -1138,7 +1168,7 @@ static int onenand_default_block_markbad(struct mtd_info *mtd, loff_t ofs)
 
         /* We write two bytes, so we dont have to mess with 16 bit access */
         ofs += mtd->oobsize + (bbm->badblockpos & ~0x01);
-        return mtd->write_oob(mtd, ofs , 2, &retlen, buf);
+        return onenand_do_write_oob(mtd, ofs , 2, &retlen, buf);
 }
 
 /**
@@ -1328,7 +1358,7 @@ static int do_otp_lock(struct mtd_info *mtd, loff_t from, size_t len,
 	this->command(mtd, ONENAND_CMD_OTP_ACCESS, 0, 0);
 	this->wait(mtd, FL_OTPING);
 
-	ret = mtd->write_oob(mtd, from, len, retlen, buf);
+	ret = onenand_do_write_oob(mtd, from, len, retlen, buf);
 
 	/* Exit OTP access mode */
 	this->command(mtd, ONENAND_CMD_RESET, 0, 0);

@@ -17,6 +17,9 @@
 #include <linux/mtd/onenand.h>
 #include <linux/mtd/compatmac.h>
 
+extern int onenand_do_read_oob(struct mtd_info *mtd, loff_t from, size_t len,
+			       size_t *retlen, u_char *buf);
+
 /**
  * check_short_pattern - [GENERIC] check if a pattern is in the buffer
  * @param buf		the buffer to search
@@ -87,8 +90,8 @@ static int create_bbt(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_descr 
 
 			/* No need to read pages fully,
 			 * just read required OOB bytes */
-			ret = mtd->read_oob(mtd, from + j * mtd->writesize + bd->offs,
-						readlen, &retlen, &buf[0]);
+			ret = onenand_do_read_oob(mtd, from + j * mtd->writesize + bd->offs,
+						  readlen, &retlen, &buf[0]);
 
 			if (ret)
 				return ret;

@@ -67,6 +67,50 @@ struct mtd_ecc_stats {
 	unsigned long failed;
 };
 
+/*
+ * oob operation modes
+ *
+ * MTD_OOB_PLACE:	oob data are placed at the given offset
+ * MTD_OOB_AUTO:	oob data are automatically placed at the free areas
+ *			which are defined by the ecclayout
+ * MTD_OOB_RAW:		mode to read raw data+oob in one chunk. The oob data
+ *			is inserted into the data. Thats a raw image of the
+ *			flash contents.
+ */
+typedef enum {
+	MTD_OOB_PLACE,
+	MTD_OOB_AUTO,
+	MTD_OOB_RAW,
+} mtd_oob_mode_t;
+
+/**
+ * struct mtd_oob_ops - oob operation operands
+ * @mode:	operation mode
+ *
+ * @len:	number of bytes to write/read. When a data buffer is given
+ *		(datbuf != NULL) this is the number of data bytes. When
+ +		no data buffer is available this is the number of oob bytes.
+ *
+ * @retlen:	number of bytes written/read. When a data buffer is given
+ *		(datbuf != NULL) this is the number of data bytes. When
+ +		no data buffer is available this is the number of oob bytes.
+ *
+ * @ooblen:	number of oob bytes per page
+ * @ooboffs:	offset of oob data in the oob area (only relevant when
+ *		mode = MTD_OOB_PLACE)
+ * @datbuf:	data buffer - if NULL only oob data are read/written
+ * @oobbuf:	oob data buffer
+ */
+struct mtd_oob_ops {
+	mtd_oob_mode_t	mode;
+	size_t		len;
+	size_t		retlen;
+	size_t		ooblen;
+	uint32_t	ooboffs;
+	uint8_t		*datbuf;
+	uint8_t		*oobbuf;
+};
+
 struct mtd_info {
 	u_char type;
 	u_int32_t flags;
@@ -125,8 +169,10 @@ struct mtd_info {
 	int (*read) (struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen, u_char *buf);
 	int (*write) (struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen, const u_char *buf);
 
-	int (*read_oob) (struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen, u_char *buf);
-	int (*write_oob) (struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen, const u_char *buf);
+	int (*read_oob) (struct mtd_info *mtd, loff_t from,
+			 struct mtd_oob_ops *ops);
+	int (*write_oob) (struct mtd_info *mtd, loff_t to,
+			 struct mtd_oob_ops *ops);
 
 	/*
 	 * Methods to access the protection register area, present in some

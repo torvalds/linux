@@ -408,8 +408,7 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 	case MEMWRITEOOB:
 	{
 		struct mtd_oob_buf buf;
-		void *databuf;
-		ssize_t retlen;
+		struct mtd_oob_ops ops;
 
 		if(!(file->f_mode & 2))
 			return -EPERM;
@@ -417,7 +416,7 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 		if (copy_from_user(&buf, argp, sizeof(struct mtd_oob_buf)))
 			return -EFAULT;
 
-		if (buf.length > 0x4096)
+		if (buf.length > 4096)
 			return -EINVAL;
 
 		if (!mtd->write_oob)
@@ -429,21 +428,32 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 		if (ret)
 			return ret;
 
-		databuf = kmalloc(buf.length, GFP_KERNEL);
-		if (!databuf)
+		ops.len = buf.length;
+		ops.ooblen = mtd->oobsize;
+		ops.ooboffs = buf.start & (mtd->oobsize - 1);
+		ops.datbuf = NULL;
+		ops.mode = MTD_OOB_PLACE;
+
+		if (ops.ooboffs && ops.len > (ops.ooblen - ops.ooboffs))
+			return -EINVAL;
+
+		ops.oobbuf = kmalloc(buf.length, GFP_KERNEL);
+		if (!ops.oobbuf)
 			return -ENOMEM;
 
-		if (copy_from_user(databuf, buf.ptr, buf.length)) {
-			kfree(databuf);
+		if (copy_from_user(ops.oobbuf, buf.ptr, buf.length)) {
+			kfree(ops.oobbuf);
 			return -EFAULT;
 		}
 
-		ret = (mtd->write_oob)(mtd, buf.start, buf.length, &retlen, databuf);
+		buf.start &= ~(mtd->oobsize - 1);
+		ret = mtd->write_oob(mtd, buf.start, &ops);
 
-		if (copy_to_user(argp + sizeof(uint32_t), &retlen, sizeof(uint32_t)))
+		if (copy_to_user(argp + sizeof(uint32_t), &ops.retlen,
+				 sizeof(uint32_t)))
 			ret = -EFAULT;
 
-		kfree(databuf);
+		kfree(ops.oobbuf);
 		break;
 
 	}
@@ -451,13 +461,12 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 	case MEMREADOOB:
 	{
 		struct mtd_oob_buf buf;
-		void *databuf;
-		ssize_t retlen;
+		struct mtd_oob_ops ops;
 
 		if (copy_from_user(&buf, argp, sizeof(struct mtd_oob_buf)))
 			return -EFAULT;
 
-		if (buf.length > 0x4096)
+		if (buf.length > 4096)
 			return -EINVAL;
 
 		if (!mtd->read_oob)
@@ -465,22 +474,32 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 		else
 			ret = access_ok(VERIFY_WRITE, buf.ptr,
 					buf.length) ? 0 : -EFAULT;
-
 		if (ret)
 			return ret;
 
-		databuf = kmalloc(buf.length, GFP_KERNEL);
-		if (!databuf)
+		ops.len = buf.length;
+		ops.ooblen = mtd->oobsize;
+		ops.ooboffs = buf.start & (mtd->oobsize - 1);
+		ops.datbuf = NULL;
+		ops.mode = MTD_OOB_PLACE;
+
+		if (ops.ooboffs && ops.len > (ops.ooblen - ops.ooboffs))
+			return -EINVAL;
+
+		ops.oobbuf = kmalloc(buf.length, GFP_KERNEL);
+		if (!ops.oobbuf)
 			return -ENOMEM;
 
-		ret = (mtd->read_oob)(mtd, buf.start, buf.length, &retlen, databuf);
+		buf.start &= ~(mtd->oobsize - 1);
+		ret = mtd->read_oob(mtd, buf.start, &ops);
 
-		if (put_user(retlen, (uint32_t __user *)argp))
+		if (put_user(ops.retlen, (uint32_t __user *)argp))
 			ret = -EFAULT;
-		else if (retlen && copy_to_user(buf.ptr, databuf, retlen))
+		else if (ops.retlen && copy_to_user(buf.ptr, ops.oobbuf,
+						    ops.retlen))
 			ret = -EFAULT;
 
-		kfree(databuf);
+		kfree(ops.oobbuf);
 		break;
 	}
 

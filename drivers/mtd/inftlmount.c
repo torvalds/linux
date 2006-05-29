@@ -43,6 +43,11 @@
 
 char inftlmountrev[]="$Revision: 1.18 $";
 
+extern int inftl_read_oob(struct mtd_info *mtd, loff_t offs, size_t len,
+			  size_t *retlen, uint8_t *buf);
+extern int inftl_write_oob(struct mtd_info *mtd, loff_t offs, size_t len,
+			   size_t *retlen, uint8_t *buf);
+
 /*
  * find_boot_record: Find the INFTL Media Header and its Spare copy which
  *	contains the various device information of the INFTL partition and
@@ -107,9 +112,9 @@ static int find_boot_record(struct INFTLrecord *inftl)
 		}
 
 		/* To be safer with BIOS, also use erase mark as discriminant */
-		if ((ret = mtd->read_oob(mtd, block * inftl->EraseSize +
-					 SECTORSIZE + 8, 8, &retlen,
-					 (char *)&h1) < 0)) {
+		if ((ret = inftl_read_oob(mtd, block * inftl->EraseSize +
+					  SECTORSIZE + 8, 8, &retlen,
+					  (char *)&h1) < 0)) {
 			printk(KERN_WARNING "INFTL: ANAND header found at "
 				"0x%x in mtd%d, but OOB data read failed "
 				"(err %d)\n", block * inftl->EraseSize,
@@ -363,8 +368,8 @@ static int check_free_sectors(struct INFTLrecord *inftl, unsigned int address,
 			return -1;
 
 		if (check_oob) {
-			if(mtd->read_oob(mtd, address, mtd->oobsize,
-					 &retlen, &buf[SECTORSIZE]) < 0)
+			if(inftl_read_oob(mtd, address, mtd->oobsize,
+					  &retlen, &buf[SECTORSIZE]) < 0)
 				return -1;
 			if (memcmpb(buf + SECTORSIZE, 0xff, mtd->oobsize) != 0)
 				return -1;
@@ -433,7 +438,7 @@ int INFTL_formatblock(struct INFTLrecord *inftl, int block)
 	uci.Reserved[2] = 0;
 	uci.Reserved[3] = 0;
 	instr->addr = block * inftl->EraseSize + SECTORSIZE * 2;
-	if (mtd->write_oob(mtd, instr->addr + 8, 8, &retlen, (char *)&uci) < 0)
+	if (inftl_write_oob(mtd, instr->addr + 8, 8, &retlen, (char *)&uci) < 0)
 		goto fail;
 	return 0;
 fail:
@@ -611,11 +616,11 @@ int INFTL_mount(struct INFTLrecord *s)
 				break;
 			}
 
-			if (mtd->read_oob(mtd, block * s->EraseSize + 8,
-					  8, &retlen, (char *)&h0) < 0 ||
-			    mtd->read_oob(mtd, block * s->EraseSize +
-					  2 * SECTORSIZE + 8, 8, &retlen,
-					  (char *)&h1) < 0) {
+			if (inftl_read_oob(mtd, block * s->EraseSize + 8,
+					   8, &retlen, (char *)&h0) < 0 ||
+			    inftl_read_oob(mtd, block * s->EraseSize +
+					   2 * SECTORSIZE + 8, 8, &retlen,
+					   (char *)&h1) < 0) {
 				/* Should never happen? */
 				do_format_chain++;
 				break;
