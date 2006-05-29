@@ -191,12 +191,13 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		ir_type = IR_TYPE_RC5;
 		ir->sampling = 1;
 		break;
+	case CX88_BOARD_WINFAST_DTV2000H:
 	case CX88_BOARD_WINFAST2000XP_EXPERT:
 		ir_codes = ir_codes_winfast;
 		ir->gpio_addr = MO_GP0_IO;
 		ir->mask_keycode = 0x8f8;
 		ir->mask_keyup = 0x100;
-		ir->polling = 1; /* ms */
+		ir->polling = 50; /* ms */
 		break;
 	case CX88_BOARD_IODATA_GVBCTV7E:
 		ir_codes = ir_codes_iodata_bctv7e;
