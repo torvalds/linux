@@ -49,24 +49,18 @@ static struct mtd_notifier notifier = {
 };
 
 /*
- * We use file->private_data to store a pointer to the MTDdevice.
- * Since alighment is at least 32 bits, we have 2 bits free for OTP
- * modes as well.
+ * Data structure to hold the pointer to the mtd device as well
+ * as mode information ofr various use cases.
  */
-
-#define TO_MTD(file) (struct mtd_info *)((long)((file)->private_data) & ~3L)
-
-#define MTD_MODE_OTP_FACT	1
-#define MTD_MODE_OTP_USER	2
-#define MTD_MODE(file)		((long)((file)->private_data) & 3)
-
-#define SET_MTD_MODE(file, mode) \
-	do { long __p = (long)((file)->private_data); \
-	     (file)->private_data = (void *)((__p & ~3L) | mode); } while (0)
+struct mtd_file_info {
+	struct mtd_info *mtd;
+	enum mtd_file_modes mode;
+};
 
 static loff_t mtd_lseek (struct file *file, loff_t offset, int orig)
 {
-	struct mtd_info *mtd = TO_MTD(file);
+	struct mtd_file_info *mfi = file->private_data;
+	struct mtd_info *mtd = mfi->mtd;
 
 	switch (orig) {
 	case 0:
@@ -97,6 +91,7 @@ static int mtd_open(struct inode *inode, struct file *file)
 	int minor = iminor(inode);
 	int devnum = minor >> 1;
 	struct mtd_info *mtd;
+	struct mtd_file_info *mfi;
 
 	DEBUG(MTD_DEBUG_LEVEL0, "MTD_open\n");
 
@@ -117,13 +112,19 @@ static int mtd_open(struct inode *inode, struct file *file)
 		return -ENODEV;
 	}
 
-	file->private_data = mtd;
-
 	/* You can't open it RW if it's not a writeable device */
 	if ((file->f_mode & 2) && !(mtd->flags & MTD_WRITEABLE)) {
 		put_mtd_device(mtd);
 		return -EACCES;
 	}
+
+	mfi = kzalloc(sizeof(*mfi), GFP_KERNEL);
+	if (!mfi) {
+		put_mtd_device(mtd);
+		return -ENOMEM;
+	}
+	mfi->mtd = mtd;
+	file->private_data = mfi;
 
 	return 0;
 } /* mtd_open */
@@ -132,16 +133,17 @@ static int mtd_open(struct inode *inode, struct file *file)
 
 static int mtd_close(struct inode *inode, struct file *file)
 {
-	struct mtd_info *mtd;
+	struct mtd_file_info *mfi = file->private_data;
+	struct mtd_info *mtd = mfi->mtd;
 
 	DEBUG(MTD_DEBUG_LEVEL0, "MTD_close\n");
-
-	mtd = TO_MTD(file);
 
 	if (mtd->sync)
 		mtd->sync(mtd);
 
 	put_mtd_device(mtd);
+	file->private_data = NULL;
+	kfree(mfi);
 
 	return 0;
 } /* mtd_close */
@@ -153,7 +155,8 @@ static int mtd_close(struct inode *inode, struct file *file)
 
 static ssize_t mtd_read(struct file *file, char __user *buf, size_t count,loff_t *ppos)
 {
-	struct mtd_info *mtd = TO_MTD(file);
+	struct mtd_file_info *mfi = file->private_data;
+	struct mtd_info *mtd = mfi->mtd;
 	size_t retlen=0;
 	size_t total_retlen=0;
 	int ret=0;
@@ -186,13 +189,26 @@ static ssize_t mtd_read(struct file *file, char __user *buf, size_t count,loff_t
 		else
 			len = count;
 
-		switch (MTD_MODE(file)) {
-		case MTD_MODE_OTP_FACT:
+		switch (mfi->mode) {
+		case MTD_MODE_OTP_FACTORY:
 			ret = mtd->read_fact_prot_reg(mtd, *ppos, len, &retlen, kbuf);
 			break;
 		case MTD_MODE_OTP_USER:
 			ret = mtd->read_user_prot_reg(mtd, *ppos, len, &retlen, kbuf);
 			break;
+		case MTD_MODE_RAW:
+		{
+			struct mtd_oob_ops ops;
+
+			ops.mode = MTD_OOB_RAW;
+			ops.datbuf = kbuf;
+			ops.oobbuf = NULL;
+			ops.len = len;
+
+			ret = mtd->read_oob(mtd, *ppos, &ops);
+			retlen = ops.retlen;
+			break;
+		}
 		default:
 			ret = mtd->read(mtd, *ppos, len, &retlen, kbuf);
 		}
@@ -232,7 +248,8 @@ static ssize_t mtd_read(struct file *file, char __user *buf, size_t count,loff_t
 
 static ssize_t mtd_write(struct file *file, const char __user *buf, size_t count,loff_t *ppos)
 {
-	struct mtd_info *mtd = TO_MTD(file);
+	struct mtd_file_info *mfi = file->private_data;
+	struct mtd_info *mtd = mfi->mtd;
 	char *kbuf;
 	size_t retlen;
 	size_t total_retlen=0;
@@ -270,8 +287,8 @@ static ssize_t mtd_write(struct file *file, const char __user *buf, size_t count
 			return -EFAULT;
 		}
 
-		switch (MTD_MODE(file)) {
-		case MTD_MODE_OTP_FACT:
+		switch (mfi->mode) {
+		case MTD_MODE_OTP_FACTORY:
 			ret = -EROFS;
 			break;
 		case MTD_MODE_OTP_USER:
@@ -281,6 +298,21 @@ static ssize_t mtd_write(struct file *file, const char __user *buf, size_t count
 			}
 			ret = mtd->write_user_prot_reg(mtd, *ppos, len, &retlen, kbuf);
 			break;
+
+		case MTD_MODE_RAW:
+		{
+			struct mtd_oob_ops ops;
+
+			ops.mode = MTD_OOB_RAW;
+			ops.datbuf = kbuf;
+			ops.oobbuf = NULL;
+			ops.len = len;
+
+			ret = mtd->write_oob(mtd, *ppos, &ops);
+			retlen = ops.retlen;
+			break;
+		}
+
 		default:
 			ret = (*(mtd->write))(mtd, *ppos, len, &retlen, kbuf);
 		}
@@ -310,10 +342,41 @@ static void mtdchar_erase_callback (struct erase_info *instr)
 	wake_up((wait_queue_head_t *)instr->priv);
 }
 
+#if defined(CONFIG_MTD_OTP) || defined(CONFIG_MTD_ONENAND_OTP)
+static int otp_select_filemode(struct mtd_file_info *mfi, int mode)
+{
+	struct mtd_info *mtd = mfi->mtd;
+	int ret = 0;
+
+	switch (mode) {
+	case MTD_OTP_FACTORY:
+		if (!mtd->read_fact_prot_reg)
+			ret = -EOPNOTSUPP;
+		else
+			mfi->mode = MTD_MODE_OTP_FACTORY;
+		break;
+	case MTD_OTP_USER:
+		if (!mtd->read_fact_prot_reg)
+			ret = -EOPNOTSUPP;
+		else
+			mfi->mode = MTD_MODE_OTP_USER;
+		break;
+	default:
+		ret = -EINVAL;
+	case MTD_OTP_OFF:
+		break;
+	}
+	return ret;
+}
+#else
+# define otp_select_filemode(f,m)	-EOPNOTSUPP
+#endif
+
 static int mtd_ioctl(struct inode *inode, struct file *file,
 		     u_int cmd, u_long arg)
 {
-	struct mtd_info *mtd = TO_MTD(file);
+	struct mtd_file_info *mfi = file->private_data;
+	struct mtd_info *mtd = mfi->mtd;
 	void __user *argp = (void __user *)arg;
 	int ret = 0;
 	u_long size;
@@ -554,16 +617,6 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 		break;
 	}
 
-	case ECCGETLAYOUT:
-
-		if (!mtd->ecclayout)
-			return -EOPNOTSUPP;
-
-		if (copy_to_user(argp, &mtd->ecclayout,
-				 sizeof(struct nand_ecclayout)))
-			return -EFAULT;
-		break;
-
 	case MEMGETBADBLOCK:
 	{
 		loff_t offs;
@@ -596,25 +649,11 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 		int mode;
 		if (copy_from_user(&mode, argp, sizeof(int)))
 			return -EFAULT;
-		SET_MTD_MODE(file, 0);
-		switch (mode) {
-		case MTD_OTP_FACTORY:
-			if (!mtd->read_fact_prot_reg)
-				ret = -EOPNOTSUPP;
-			else
-				SET_MTD_MODE(file, MTD_MODE_OTP_FACT);
-			break;
-		case MTD_OTP_USER:
-			if (!mtd->read_fact_prot_reg)
-				ret = -EOPNOTSUPP;
-			else
-				SET_MTD_MODE(file, MTD_MODE_OTP_USER);
-			break;
-		default:
-			ret = -EINVAL;
-		case MTD_OTP_OFF:
-			break;
-		}
+
+		mfi->mode = MTD_MODE_NORMAL;
+
+		ret = otp_select_filemode(mfi, mode);
+
 		file->f_pos = 0;
 		break;
 	}
@@ -626,14 +665,16 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 		if (!buf)
 			return -ENOMEM;
 		ret = -EOPNOTSUPP;
-		switch (MTD_MODE(file)) {
-		case MTD_MODE_OTP_FACT:
+		switch (mfi->mode) {
+		case MTD_MODE_OTP_FACTORY:
 			if (mtd->get_fact_prot_info)
 				ret = mtd->get_fact_prot_info(mtd, buf, 4096);
 			break;
 		case MTD_MODE_OTP_USER:
 			if (mtd->get_user_prot_info)
 				ret = mtd->get_user_prot_info(mtd, buf, 4096);
+			break;
+		default:
 			break;
 		}
 		if (ret >= 0) {
@@ -653,7 +694,7 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 	{
 		struct otp_info info;
 
-		if (MTD_MODE(file) != MTD_MODE_OTP_USER)
+		if (mfi->mode != MTD_MODE_OTP_USER)
 			return -EINVAL;
 		if (copy_from_user(&info, argp, sizeof(info)))
 			return -EFAULT;
@@ -663,6 +704,49 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 		break;
 	}
 #endif
+
+	case ECCGETLAYOUT:
+	{
+		if (!mtd->ecclayout)
+			return -EOPNOTSUPP;
+
+		if (copy_to_user(argp, &mtd->ecclayout,
+				 sizeof(struct nand_ecclayout)))
+			return -EFAULT;
+		break;
+	}
+
+	case ECCGETSTATS:
+	{
+		if (copy_to_user(argp, &mtd->ecc_stats,
+				 sizeof(struct mtd_ecc_stats)))
+			return -EFAULT;
+		break;
+	}
+
+	case MTDFILEMODE:
+	{
+		mfi->mode = 0;
+
+		switch(arg) {
+		case MTD_MODE_OTP_FACTORY:
+		case MTD_MODE_OTP_USER:
+			ret = otp_select_filemode(mfi, arg);
+			break;
+
+		case MTD_MODE_RAW:
+			if (!mtd->read_oob || !mtd->write_oob)
+				return -EOPNOTSUPP;
+			mfi->mode = arg;
+
+		case MTD_MODE_NORMAL:
+			break;
+		default:
+			ret = -EINVAL;
+		}
+		file->f_pos = 0;
+		break;
+	}
 
 	default:
 		ret = -ENOTTY;

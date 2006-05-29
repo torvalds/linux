@@ -56,7 +56,7 @@ concat_read(struct mtd_info *mtd, loff_t from, size_t len,
 	    size_t * retlen, u_char * buf)
 {
 	struct mtd_concat *concat = CONCAT(mtd);
-	int ret = 0, err = -EINVAL;
+	int ret = 0, err;
 	int i;
 
 	*retlen = 0;
@@ -80,28 +80,29 @@ concat_read(struct mtd_info *mtd, loff_t from, size_t len,
 
 		err = subdev->read(subdev, from, size, &retsize, buf);
 
-		if (err && (err != -EBADMSG) && (err != -EUCLEAN))
-			break;
-
 		/* Save information about bitflips! */
-		if (err) {
-			if (err == -EBADMSG)
+		if (unlikely(err)) {
+			if (err == -EBADMSG) {
+				mtd->ecc_stats.failed++;
 				ret = err;
-			else if (!ret)
-				ret = err;
-			err = 0;
+			} else if (err == -EUCLEAN) {
+				mtd->ecc_stats.corrected++;
+				/* Do not overwrite -EBADMSG !! */
+				if (!ret)
+					ret = err;
+			} else
+				return err;
 		}
 
 		*retlen += retsize;
 		len -= size;
 		if (len == 0)
-			break;
+			return ret;
 
-		err = -EINVAL;
 		buf += size;
 		from = 0;
 	}
-	return err ? err : ret;
+	return -EINVAL;
 }
 
 static int
@@ -244,7 +245,7 @@ concat_read_oob(struct mtd_info *mtd, loff_t from, struct mtd_oob_ops *ops)
 {
 	struct mtd_concat *concat = CONCAT(mtd);
 	struct mtd_oob_ops devops = *ops;
-	int i, err;
+	int i, err, ret = 0;
 
 	ops->retlen = 0;
 
@@ -262,12 +263,24 @@ concat_read_oob(struct mtd_info *mtd, loff_t from, struct mtd_oob_ops *ops)
 
 		err = subdev->read_oob(subdev, from, &devops);
 		ops->retlen += devops.retlen;
-		if (err)
-			return err;
+
+		/* Save information about bitflips! */
+		if (unlikely(err)) {
+			if (err == -EBADMSG) {
+				mtd->ecc_stats.failed++;
+				ret = err;
+			} else if (err == -EUCLEAN) {
+				mtd->ecc_stats.corrected++;
+				/* Do not overwrite -EBADMSG !! */
+				if (!ret)
+					ret = err;
+			} else
+				return err;
+		}
 
 		devops.len = ops->len - ops->retlen;
 		if (!devops.len)
-			return 0;
+			return ret;
 
 		if (devops.datbuf)
 			devops.datbuf += devops.retlen;
@@ -655,6 +668,8 @@ static int concat_block_markbad(struct mtd_info *mtd, loff_t ofs)
 		}
 
 		err = subdev->block_markbad(subdev, ofs);
+		if (!err)
+			mtd->ecc_stats.badblocks++;
 		break;
 	}
 
@@ -717,6 +732,8 @@ struct mtd_info *mtd_concat_create(struct mtd_info *subdev[],	/* subdevices to c
 	if (subdev[0]->block_markbad)
 		concat->mtd.block_markbad = concat_block_markbad;
 
+	concat->mtd.ecc_stats.badblocks = subdev[0]->ecc_stats.badblocks;
+
 	concat->subdev[0] = subdev[0];
 
 	for (i = 1; i < num_devs; i++) {
@@ -744,6 +761,8 @@ struct mtd_info *mtd_concat_create(struct mtd_info *subdev[],	/* subdevices to c
 				    subdev[i]->flags & MTD_WRITEABLE;
 		}
 		concat->mtd.size += subdev[i]->size;
+		concat->mtd.ecc_stats.badblocks +=
+			subdev[i]->ecc_stats.badblocks;
 		if (concat->mtd.writesize   !=  subdev[i]->writesize ||
 		    concat->mtd.oobsize    !=  subdev[i]->oobsize ||
 		    concat->mtd.ecctype    !=  subdev[i]->ecctype ||

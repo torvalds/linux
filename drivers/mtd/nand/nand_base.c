@@ -347,7 +347,7 @@ static int nand_default_block_markbad(struct mtd_info *mtd, loff_t ofs)
 {
 	struct nand_chip *chip = mtd->priv;
 	uint8_t buf[2] = { 0, 0 };
-	int block;
+	int block, ret;
 
 	/* Get block number */
 	block = ((int)ofs) >> chip->bbt_erase_shift;
@@ -356,16 +356,22 @@ static int nand_default_block_markbad(struct mtd_info *mtd, loff_t ofs)
 
 	/* Do we have a flash based bad block table ? */
 	if (chip->options & NAND_USE_FLASH_BBT)
-		return nand_update_bbt(mtd, ofs);
+		ret = nand_update_bbt(mtd, ofs);
+	else {
+		/* We write two bytes, so we dont have to mess with 16 bit
+		 * access
+		 */
+		ofs += mtd->oobsize;
+		chip->ops.len = 2;
+		chip->ops.datbuf = NULL;
+		chip->ops.oobbuf = buf;
+		chip->ops.ooboffs = chip->badblockpos & ~0x01;
 
-	/* We write two bytes, so we dont have to mess with 16 bit access */
-	ofs += mtd->oobsize;
-	chip->ops.len = 2;
-	chip->ops.datbuf = NULL;
-	chip->ops.oobbuf = buf;
-	chip->ops.ooboffs = chip->badblockpos & ~0x01;
-
-	return nand_do_write_oob(mtd, ofs, &chip->ops);
+		ret = nand_do_write_oob(mtd, ofs, &chip->ops);
+	}
+	if (!ret)
+		mtd->ecc_stats.badblocks++;
+	return ret;
 }
 
 /**

@@ -51,12 +51,21 @@ static int part_read (struct mtd_info *mtd, loff_t from, size_t len,
 			size_t *retlen, u_char *buf)
 {
 	struct mtd_part *part = PART(mtd);
+	int res;
+
 	if (from >= mtd->size)
 		len = 0;
 	else if (from + len > mtd->size)
 		len = mtd->size - from;
-	return part->master->read (part->master, from + part->offset,
+	res = part->master->read (part->master, from + part->offset,
 				   len, retlen, buf);
+	if (unlikely(res)) {
+		if (res == -EUCLEAN)
+			mtd->ecc_stats.corrected++;
+		if (res == -EBADMSG)
+			mtd->ecc_stats.failed++;
+	}
+	return res;
 }
 
 static int part_point (struct mtd_info *mtd, loff_t from, size_t len,
@@ -82,12 +91,21 @@ static int part_read_oob(struct mtd_info *mtd, loff_t from,
 			 struct mtd_oob_ops *ops)
 {
 	struct mtd_part *part = PART(mtd);
+	int res;
 
 	if (from >= mtd->size)
 		return -EINVAL;
 	if (from + ops->len > mtd->size)
 		return -EINVAL;
-	return part->master->read_oob(part->master, from + part->offset, ops);
+	res = part->master->read_oob(part->master, from + part->offset, ops);
+
+	if (unlikely(res)) {
+		if (res == -EUCLEAN)
+			mtd->ecc_stats.corrected++;
+		if (res == -EBADMSG)
+			mtd->ecc_stats.failed++;
+	}
+	return res;
 }
 
 static int part_read_user_prot_reg (struct mtd_info *mtd, loff_t from, size_t len,
@@ -246,12 +264,17 @@ static int part_block_isbad (struct mtd_info *mtd, loff_t ofs)
 static int part_block_markbad (struct mtd_info *mtd, loff_t ofs)
 {
 	struct mtd_part *part = PART(mtd);
+	int res;
+
 	if (!(mtd->flags & MTD_WRITEABLE))
 		return -EROFS;
 	if (ofs >= mtd->size)
 		return -EINVAL;
 	ofs += part->offset;
-	return part->master->block_markbad(part->master, ofs);
+	res = part->master->block_markbad(part->master, ofs);
+	if (!res)
+		mtd->ecc_stats.badblocks++;
+	return res;
 }
 
 /*
@@ -436,6 +459,16 @@ int add_mtd_partitions(struct mtd_info *master,
 		}
 
 		slave->mtd.ecclayout = master->ecclayout;
+		if (master->block_isbad) {
+			uint32_t offs = 0;
+
+			while(offs < slave->mtd.size) {
+				if (master->block_isbad(master,
+							offs + slave->offset))
+					slave->mtd.ecc_stats.badblocks++;
+				offs += slave->mtd.erasesize;
+			}
+		}
 
 		if(parts[i].mtdp)
 		{	/* store the object pointer (caller may or may not register it */

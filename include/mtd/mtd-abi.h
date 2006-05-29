@@ -99,6 +99,8 @@ struct otp_info {
 #define OTPGETREGIONINFO	_IOW('M', 15, struct otp_info)
 #define OTPLOCK			_IOR('M', 16, struct otp_info)
 #define ECCGETLAYOUT		_IOR('M', 17, struct nand_ecclayout)
+#define ECCGETSTATS		_IOR('M', 18, struct mtd_ecc_stats)
+#define MTDFILEMODE		_IO('M', 19)
 
 /*
  * Obsolete legacy interface. Keep it in order not to break userspace
@@ -126,6 +128,31 @@ struct nand_ecclayout {
 	uint32_t eccpos[64];
 	uint32_t oobavail;
 	struct nand_oobfree oobfree[MTD_MAX_OOBFREE_ENTRIES];
+};
+
+/**
+ * struct mtd_ecc_stats - error correction status
+ *
+ * @corrected:	number of corrected bits
+ * @failed:	number of uncorrectable errors
+ * @badblocks:	number of bad blocks in this partition
+ * @bbtblocks:	number of blocks reserved for bad block tables
+ */
+struct mtd_ecc_stats {
+	uint32_t corrected;
+	uint32_t failed;
+	uint32_t badblocks;
+	uint32_t bbtblocks;
+};
+
+/*
+ * Read/write file modes for access to MTD
+ */
+enum mtd_file_modes {
+	MTD_MODE_NORMAL = MTD_OTP_OFF,
+	MTD_MODE_OTP_FACTORY = MTD_OTP_FACTORY,
+	MTD_MODE_OTP_USER = MTD_OTP_USER,
+	MTD_MODE_RAW,
 };
 
 #endif /* __MTD_ABI_H__ */

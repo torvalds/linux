@@ -176,6 +176,7 @@ static int read_bbt(struct mtd_info *mtd, uint8_t *buf, int page, int num,
 					printk(KERN_DEBUG "nand_read_bbt: Reserved block at 0x%08x\n",
 					       ((offs << 2) + (act >> 1)) << this->bbt_erase_shift);
 					this->bbt[offs + (act >> 3)] |= 0x2 << (act & 0x06);
+					mtd->ecc_stats.bbtblocks++;
 					continue;
 				}
 				/* Leave it for now, if its matured we can move this
@@ -187,6 +188,7 @@ static int read_bbt(struct mtd_info *mtd, uint8_t *buf, int page, int num,
 					this->bbt[offs + (act >> 3)] |= 0x3 << (act & 0x06);
 				else
 					this->bbt[offs + (act >> 3)] |= 0x1 << (act & 0x06);
+				mtd->ecc_stats.badblocks++;
 			}
 		}
 		totlen -= len;
@@ -431,6 +433,7 @@ static int create_bbt(struct mtd_info *mtd, uint8_t *buf,
 			this->bbt[i >> 3] |= 0x03 << (i & 0x6);
 			printk(KERN_WARNING "Bad eraseblock %d at 0x%08x\n",
 			       i >> 1, (unsigned int)from);
+			mtd->ecc_stats.badblocks++;
 		}
 
 		i += 2;

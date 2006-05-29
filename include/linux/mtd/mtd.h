@@ -56,17 +56,6 @@ struct mtd_erase_region_info {
 	u_int32_t numblocks;		/* Number of blocks of erasesize in this region */
 };
 
-/**
- * struct mtd_ecc_stats - error correction status
- *
- * @corrected:	number of corrected bits
- * @failed:	number of uncorrectable errors
- */
-struct mtd_ecc_stats {
-	unsigned long corrected;
-	unsigned long failed;
-};
-
 /*
  * oob operation modes
  *
