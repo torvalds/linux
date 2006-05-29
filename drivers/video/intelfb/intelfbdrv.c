@@ -132,6 +132,7 @@
 
 #include "intelfb.h"
 #include "intelfbhw.h"
+#include "../edid.h"
 
 static void __devinit get_initial_mode(struct intelfb_info *dinfo);
 static void update_dinfo(struct intelfb_info *dinfo,
@@ -1031,13 +1032,42 @@ intelfb_init_var(struct intelfb_info *dinfo)
 		       sizeof(struct fb_var_screeninfo));
 		msrc = 5;
 	} else {
-		if (mode) {
-			msrc = fb_find_mode(var, dinfo->info, mode,
-					    vesa_modes, VESA_MODEDB_SIZE,
-					    NULL, 0);
-			if (msrc)
-				msrc |= 8;
+		const u8 *edid_s = fb_firmware_edid(&dinfo->pdev->dev);
+		u8 *edid_d = NULL;
+
+		if (edid_s) {
+			edid_d = kmalloc(128, GFP_KERNEL);
+
+			if (edid_d) {
+				memcpy(edid_d, edid_s, 128);
+				fb_edid_to_monspecs(edid_d,
+						    &dinfo->info->monspecs);
+				kfree(edid_d);
+			}
 		}
+
+		if (mode) {
+			printk("intelfb: Looking for mode in private "
+			       "database\n");
+			msrc = fb_find_mode(var, dinfo->info, mode,
+					    dinfo->info->monspecs.modedb,
+					    dinfo->info->monspecs.modedb_len,
+					    NULL, 0);
+
+			if (msrc && msrc > 1) {
+				printk("intelfb: No mode in private database, "
+				       "intelfb: looking for mode in global "
+				       "database ");
+				msrc = fb_find_mode(var, dinfo->info, mode,
+						    vesa_modes,
+						    VESA_MODEDB_SIZE, NULL, 0);
+
+				if (msrc)
+					msrc |= 8;
+			}
+
+		}
+
 		if (!msrc) {
 			msrc = fb_find_mode(var, dinfo->info, PREFERRED_MODE,
 					    vesa_modes, VESA_MODEDB_SIZE,
