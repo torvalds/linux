@@ -354,7 +354,8 @@ static struct mt312_config skystar23_samsung_tbdu18132_config = {
 	.demod_address = 0x0e,
 };
 
-int alps_tdee4_stv0297_tuner_set_params (struct dvb_frontend* fe, struct dvb_frontend_parameters *fep)
+static int alps_tdee4_stv0297_tuner_set_params(struct dvb_frontend* fe,
+					       struct dvb_frontend_parameters *fep)
 {
 	struct flexcop_device *fc = fe->dvb->priv;
 	u8 buf[4];
