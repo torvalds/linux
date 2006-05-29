@@ -5185,6 +5185,7 @@ static void ata_host_init(struct ata_port *ap, struct Scsi_Host *host,
 	ap->sata_spd_limit = UINT_MAX;
 	ap->active_tag = ATA_TAG_POISON;
 	ap->last_ctl = 0xFF;
+	ap->msg_enable = ATA_MSG_DRV;
 
 	INIT_WORK(&ap->port_task, NULL, NULL);
 	INIT_LIST_HEAD(&ap->eh_done_q);
