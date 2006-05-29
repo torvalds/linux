@@ -1,4 +1,4 @@
-/* 
+/*
  * IUCV network driver
  *
  * Copyright (C) 2001 IBM Deutschland Entwicklung GmbH, IBM Corporation
@@ -28,7 +28,7 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
-
+
 /* #define DEBUG */
 
 #include <linux/module.h>
@@ -81,7 +81,7 @@ iucv_bus_match (struct device *dev, struct device_driver *drv)
 struct bus_type iucv_bus = {
 	.name = "iucv",
 	.match = iucv_bus_match,
-};	
+};
 
 struct device *iucv_root;
 
@@ -297,7 +297,7 @@ MODULE_LICENSE("GPL");
 /*
  * Debugging stuff
  *******************************************************************************/
-
+
 
 #ifdef DEBUG
 static int debuglevel = 0;
@@ -344,7 +344,7 @@ do { \
 /*
  * Internal functions
  *******************************************************************************/
-
+
 /**
  * print start banner
  */
@@ -810,7 +810,7 @@ iucv_register_program (__u8 pgmname[16],
 			sizeof (new_handler->id.userid));
 		EBC_TOUPPER (new_handler->id.userid,
 			     sizeof (new_handler->id.userid));
-		
+
 		if (pgmmask) {
 			memcpy (new_handler->id.mask, pgmmask,
 				sizeof (new_handler->id.mask));
@@ -1229,7 +1229,7 @@ iucv_purge (__u16 pathid, __u32 msgid, __u32 srccls, __u32 *audit)
 		/* parm->ipaudit has only 3 bytes */
 		*audit >>= 8;
 	}
-	
+
 	release_param(parm);
 
 	iucv_debug(1, "b2f0_result = %ld", b2f0_result);
@@ -2330,14 +2330,14 @@ iucv_do_int(iucv_GeneralInterrupt * int_buf)
 					temp_buff1[j] &= (h->id.mask)[j];
 					temp_buff2[j] &= (h->id.mask)[j];
 				}
-				
+
 				iucv_dumpit("temp_buff1:",
 					    temp_buff1, sizeof(temp_buff1));
 				iucv_dumpit("temp_buff2",
 					    temp_buff2, sizeof(temp_buff2));
-				
+
 				if (!memcmp (temp_buff1, temp_buff2, 24)) {
-					
+
 					iucv_debug(2,
 						   "found a matching handler");
 					break;
@@ -2368,7 +2368,7 @@ iucv_do_int(iucv_GeneralInterrupt * int_buf)
 			} else
 				iucv_sever(int_buf->ippathid, no_listener);
 			break;
-			
+
 		case 0x02:		/*connection complete */
 			if (messagesDisabled) {
 			    iucv_setmask(~0);
@@ -2387,7 +2387,7 @@ iucv_do_int(iucv_GeneralInterrupt * int_buf)
 			} else
 				iucv_sever(int_buf->ippathid, no_listener);
 			break;
-			
+
 		case 0x03:		/* connection severed */
 			if (messagesDisabled) {
 			    iucv_setmask(~0);
@@ -2398,13 +2398,13 @@ iucv_do_int(iucv_GeneralInterrupt * int_buf)
 					interrupt->ConnectionSevered(
 						(iucv_ConnectionSevered *)int_buf,
 						h->pgm_data);
-				
+
 				else
 					iucv_sever (int_buf->ippathid, no_listener);
 			} else
 				iucv_sever(int_buf->ippathid, no_listener);
 			break;
-			
+
 		case 0x04:		/* connection quiesced */
 			if (messagesDisabled) {
 			    iucv_setmask(~0);
@@ -2420,7 +2420,7 @@ iucv_do_int(iucv_GeneralInterrupt * int_buf)
 						   "ConnectionQuiesced not called");
 			}
 			break;
-			
+
 		case 0x05:		/* connection resumed */
 			if (messagesDisabled) {
 			    iucv_setmask(~0);
@@ -2436,7 +2436,7 @@ iucv_do_int(iucv_GeneralInterrupt * int_buf)
 						   "ConnectionResumed not called");
 			}
 			break;
-			
+
 		case 0x06:		/* priority message complete */
 		case 0x07:		/* nonpriority message complete */
 			if (h) {
@@ -2449,7 +2449,7 @@ iucv_do_int(iucv_GeneralInterrupt * int_buf)
 						   "MessageComplete not called");
 			}
 			break;
-			
+
 		case 0x08:		/* priority message pending  */
 		case 0x09:		/* nonpriority message pending  */
 			if (h) {
@@ -2467,7 +2467,7 @@ iucv_do_int(iucv_GeneralInterrupt * int_buf)
 			       __FUNCTION__);
 			break;
 	}			/* end switch */
-	
+
 	iucv_debug(2, "exiting pathid %d, type %02X",
 		 int_buf->ippathid, int_buf->iptype);
 

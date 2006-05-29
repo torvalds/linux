@@ -213,7 +213,7 @@ int cpm_uart_allocbuf(struct uart_cpm_port *pinfo, unsigned int is_con)
 	    L1_CACHE_ALIGN(pinfo->tx_nrfifos * pinfo->tx_fifosize);
 	if (is_con) {
 		mem_addr = alloc_bootmem(memsz);
-		dma_addr = mem_addr;
+		dma_addr = virt_to_bus(mem_addr);
 	}
 	else
 		mem_addr = dma_alloc_coherent(NULL, memsz, &dma_addr,

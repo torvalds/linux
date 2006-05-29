@@ -1164,14 +1164,16 @@ static int __init cpm_uart_console_setup(struct console *co, char *options)
 	struct fs_uart_platform_info *pdata;
 	struct platform_device* pdev = early_uart_get_pdev(co->index);
 
-	port =
-	    (struct uart_port *)&cpm_uart_ports[cpm_uart_port_map[co->index]];
-	pinfo = (struct uart_cpm_port *)port;
 	if (!pdev) {
 		pr_info("cpm_uart: console: compat mode\n");
 		/* compatibility - will be cleaned up */
 		cpm_uart_init_portdesc();
+	}
 
+	port =
+	    (struct uart_port *)&cpm_uart_ports[cpm_uart_port_map[co->index]];
+	pinfo = (struct uart_cpm_port *)port;
+	if (!pdev) {
 		if (pinfo->set_lineif)
 			pinfo->set_lineif(pinfo);
 	} else {

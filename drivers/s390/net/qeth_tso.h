@@ -117,11 +117,11 @@ __qeth_fill_buffer_frag(struct sk_buff *skb, struct qdio_buffer *buffer,
 	int fragno;
 	unsigned long addr;
 	int element, cnt, dlen;
-	
+
 	fragno = skb_shinfo(skb)->nr_frags;
 	element = *next_element_to_fill;
 	dlen = 0;
-	
+
 	if (is_tso)
 		buffer->element[element].flags =
 			SBAL_FLAGS_MIDDLE_FRAG;

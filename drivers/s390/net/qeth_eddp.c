@@ -81,7 +81,7 @@ void
 qeth_eddp_buf_release_contexts(struct qeth_qdio_out_buffer *buf)
 {
 	struct qeth_eddp_context_reference *ref;
-	
+
 	QETH_DBF_TEXT(trace, 6, "eddprctx");
 	while (!list_empty(&buf->ctx_list)){
 		ref = list_entry(buf->ctx_list.next,
@@ -135,7 +135,7 @@ qeth_eddp_fill_buffer(struct qeth_qdio_out_q *queue,
 					   "buffer!\n");
 				goto out;
 			}
-		}		
+		}
 		/* check if the whole next skb fits into current buffer */
 		if ((QETH_MAX_BUFFER_ELEMENTS(queue->card) -
 					buf->next_element_to_fill)
@@ -148,7 +148,7 @@ qeth_eddp_fill_buffer(struct qeth_qdio_out_q *queue,
 			 * and increment ctx's refcnt */
 			must_refcnt = 1;
 			continue;
-		}	
+		}
 		if (must_refcnt){
 			must_refcnt = 0;
 			if (qeth_eddp_buf_ref_context(buf, ctx)){
@@ -266,7 +266,7 @@ qeth_eddp_copy_data_tcp(char *dst, struct qeth_eddp_data *eddp, int len,
 	int left_in_frag;
 	int copy_len;
 	u8 *src;
-	
+
 	QETH_DBF_TEXT(trace, 5, "eddpcdtc");
 	if (skb_shinfo(eddp->skb)->nr_frags == 0) {
 		memcpy(dst, eddp->skb->data + eddp->skb_offset, len);
@@ -408,7 +408,7 @@ __qeth_eddp_fill_context_tcp(struct qeth_eddp_context *ctx,
 	struct tcphdr *tcph;
 	int data_len;
 	u32 hcsum;
-	
+
 	QETH_DBF_TEXT(trace, 5, "eddpftcp");
 	eddp->skb_offset = sizeof(struct qeth_hdr) + eddp->nhl + eddp->thl;
        if (eddp->qh.hdr.l2.id == QETH_HEADER_TYPE_LAYER2) {
@@ -465,13 +465,13 @@ __qeth_eddp_fill_context_tcp(struct qeth_eddp_context *ctx,
 		eddp->th.tcp.h.seq += data_len;
 	}
 }
-			   
+
 static inline int
 qeth_eddp_fill_context_tcp(struct qeth_eddp_context *ctx,
 			   struct sk_buff *skb, struct qeth_hdr *qhdr)
 {
 	struct qeth_eddp_data *eddp = NULL;
-	
+
 	QETH_DBF_TEXT(trace, 5, "eddpficx");
 	/* create our segmentation headers and copy original headers */
 	if (skb->protocol == ETH_P_IP)
@@ -512,7 +512,7 @@ qeth_eddp_calc_num_pages(struct qeth_eddp_context *ctx, struct sk_buff *skb,
 			 int hdr_len)
 {
 	int skbs_per_page;
-	
+
 	QETH_DBF_TEXT(trace, 5, "eddpcanp");
 	/* can we put multiple skbs in one page? */
 	skbs_per_page = PAGE_SIZE / (skb_shinfo(skb)->tso_size + hdr_len);
@@ -588,7 +588,7 @@ qeth_eddp_create_context_tcp(struct qeth_card *card, struct sk_buff *skb,
 			     struct qeth_hdr *qhdr)
 {
 	struct qeth_eddp_context *ctx = NULL;
-	
+
 	QETH_DBF_TEXT(trace, 5, "creddpct");
 	if (skb->protocol == ETH_P_IP)
 		ctx = qeth_eddp_create_context_generic(card, skb,

@@ -36,7 +36,7 @@ qeth_procfile_seq_start(struct seq_file *s, loff_t *offset)
 {
 	struct device *dev = NULL;
 	loff_t nr = 0;
-	
+
 	down_read(&qeth_ccwgroup_driver.driver.bus->subsys.rwsem);
 	if (*offset == 0)
 		return SEQ_START_TOKEN;
@@ -60,8 +60,8 @@ static void *
 qeth_procfile_seq_next(struct seq_file *s, void *it, loff_t *offset)
 {
 	struct device *prev, *next;
-	
-	if (it == SEQ_START_TOKEN) 
+
+	if (it == SEQ_START_TOKEN)
 		prev = NULL;
 	else
 		prev = (struct device *) it;
@@ -180,7 +180,7 @@ qeth_perf_procfile_seq_show(struct seq_file *s, void *it)
 	struct device *device;
 	struct qeth_card *card;
 
-	
+
 	if (it == SEQ_START_TOKEN)
 		return 0;
 
