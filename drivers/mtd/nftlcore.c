@@ -422,7 +422,7 @@ static u16 NFTL_foldchain (struct NFTLrecord *nftl, unsigned thisVUC, unsigned p
 
 		ret = mtd->read(mtd, (nftl->EraseSize * BlockMap[block]) + (block * 512),
 				512, &retlen, movebuf);
-		if (ret < 0) {
+		if (ret < 0 && ret != -EUCLEAN) {
 			ret = mtd->read(mtd, (nftl->EraseSize * BlockMap[block])
 					+ (block * 512), 512, &retlen,
 					movebuf);
@@ -768,7 +768,9 @@ static int nftl_readblock(struct mtd_blktrans_dev *mbd, unsigned long block,
 	} else {
 		loff_t ptr = (lastgoodEUN * nftl->EraseSize) + blockofs;
 		size_t retlen;
-		if (mtd->read(mtd, ptr, 512, &retlen, buffer))
+		int res = mtd->read(mtd, ptr, 512, &retlen, buffer);
+
+		if (res < 0 && res != -EUCLEAN)
 			return -EIO;
 	}
 	return 0;

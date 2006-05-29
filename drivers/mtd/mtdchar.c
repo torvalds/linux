@@ -199,10 +199,13 @@ static ssize_t mtd_read(struct file *file, char __user *buf, size_t count,loff_t
 		/* Nand returns -EBADMSG on ecc errors, but it returns
 		 * the data. For our userspace tools it is important
 		 * to dump areas with ecc errors !
+		 * For kernel internal usage it also might return -EUCLEAN
+		 * to signal the caller that a bitflip has occured and has
+		 * been corrected by the ECC algorithm.
 		 * Userspace software which accesses NAND this way
 		 * must be aware of the fact that it deals with NAND
 		 */
-		if (!ret || (ret == -EBADMSG)) {
+		if (!ret || (ret == -EUCLEAN) || (ret == -EBADMSG)) {
 			*ppos += retlen;
 			if (copy_to_user(buf, kbuf, retlen)) {
 				kfree(kbuf);

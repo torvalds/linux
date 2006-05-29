@@ -296,10 +296,11 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 		/* Do the read... */
 		ret = c->mtd->read(c->mtd, start, c->wbuf_ofs - start, &retlen, buf);
 
-		if (ret == -EBADMSG && retlen == c->wbuf_ofs - start) {
-			/* ECC recovered */
+		/* ECC recovered ? */
+		if ((ret == -EUCLEAN || ret == -EBADMSG) &&
+		    (retlen == c->wbuf_ofs - start))
 			ret = 0;
-		}
+
 		if (ret || retlen != c->wbuf_ofs - start) {
 			printk(KERN_CRIT "Old data are already lost in wbuf recovery. Data loss ensues.\n");
 
@@ -908,20 +909,21 @@ int jffs2_flash_read(struct jffs2_sb_info *c, loff_t ofs, size_t len, size_t *re
 	down_read(&c->wbuf_sem);
 	ret = c->mtd->read(c->mtd, ofs, len, retlen, buf);
 
-	if ( (ret == -EBADMSG) && (*retlen == len) ) {
-		printk(KERN_WARNING "mtd->read(0x%zx bytes from 0x%llx) returned ECC error\n",
-		       len, ofs);
+	if ( (ret == -EBADMSG || ret == -EUCLEAN) && (*retlen == len) ) {
+		if (ret == -EBADMSG)
+			printk(KERN_WARNING "mtd->read(0x%zx bytes from 0x%llx)"
+			       " returned ECC error\n", len, ofs);
 		/*
-		 * We have the raw data without ECC correction in the buffer, maybe
-		 * we are lucky and all data or parts are correct. We check the node.
-		 * If data are corrupted node check will sort it out.
-		 * We keep this block, it will fail on write or erase and the we
-		 * mark it bad. Or should we do that now? But we should give him a chance.
-		 * Maybe we had a system crash or power loss before the ecc write or
-		 * a erase was completed.
+		 * We have the raw data without ECC correction in the buffer,
+		 * maybe we are lucky and all data or parts are correct. We
+		 * check the node.  If data are corrupted node check will sort
+		 * it out.  We keep this block, it will fail on write or erase
+		 * and the we mark it bad. Or should we do that now? But we
+		 * should give him a chance.  Maybe we had a system crash or
+		 * power loss before the ecc write or a erase was completed.
 		 * So we return success. :)
 		 */
-	 	ret = 0;
+		ret = 0;
 	}
 
 	/* if no writebuffer available or write buffer empty, return */
@@ -943,7 +945,7 @@ int jffs2_flash_read(struct jffs2_sb_info *c, loff_t ofs, size_t len, size_t *re
 		orbf = (c->wbuf_ofs - ofs);	/* offset in read buffer */
 		if (orbf > len)			/* is write beyond write buffer ? */
 			goto exit;
-		lwbf = len - orbf; 		/* number of bytes to copy */
+		lwbf = len - orbf;		/* number of bytes to copy */
 		if (lwbf > c->wbuf_len)
 			lwbf = c->wbuf_len;
 	}

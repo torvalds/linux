@@ -355,7 +355,7 @@ static u16 INFTL_foldchain(struct INFTLrecord *inftl, unsigned thisVUC, unsigned
 		ret = mtd->read(mtd, (inftl->EraseSize * BlockMap[block]) +
 				(block * SECTORSIZE), SECTORSIZE, &retlen,
 				movebuf);
-		if (ret < 0) {
+		if (ret < 0 && ret != -EUCLEAN) {
 			ret = mtd->read(mtd,
 					(inftl->EraseSize * BlockMap[block]) +
 					(block * SECTORSIZE), SECTORSIZE,
@@ -922,7 +922,10 @@ foundit:
 	} else {
 		size_t retlen;
 		loff_t ptr = (thisEUN * inftl->EraseSize) + blockofs;
-		if (mtd->read(mtd, ptr, SECTORSIZE, &retlen, buffer))
+		int ret = mtd->read(mtd, ptr, SECTORSIZE, &retlen, buffer);
+
+		/* Handle corrected bit flips gracefully */
+		if (ret < 0 && ret != -EUCLEAN)
 			return -EIO;
 	}
 	return 0;

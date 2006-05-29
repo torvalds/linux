@@ -56,7 +56,7 @@ concat_read(struct mtd_info *mtd, loff_t from, size_t len,
 	    size_t * retlen, u_char * buf)
 {
 	struct mtd_concat *concat = CONCAT(mtd);
-	int err = -EINVAL;
+	int ret = 0, err = -EINVAL;
 	int i;
 
 	*retlen = 0;
@@ -80,8 +80,17 @@ concat_read(struct mtd_info *mtd, loff_t from, size_t len,
 
 		err = subdev->read(subdev, from, size, &retsize, buf);
 
-		if (err)
+		if (err && (err != -EBADMSG) && (err != -EUCLEAN))
 			break;
+
+		/* Save information about bitflips! */
+		if (err) {
+			if (err == -EBADMSG)
+				ret = err;
+			else if (!ret)
+				ret = err;
+			err = 0;
+		}
 
 		*retlen += retsize;
 		len -= size;
@@ -92,7 +101,7 @@ concat_read(struct mtd_info *mtd, loff_t from, size_t len,
 		buf += size;
 		from = 0;
 	}
-	return err;
+	return err ? err : ret;
 }
 
 static int
