@@ -60,7 +60,7 @@
 #include <linux/usb_ch9.h>
 #include <linux/usb_gadget.h>
 
-#include <asm/arch/udc.h>
+#include <asm/arch/hardware/intel_udc.h>
 
 
 /*
@@ -547,6 +547,7 @@ write_ep0_fifo (struct pxa2xx_ep *ep, struct pxa2xx_request *req)
 		count = req->req.length;
 		done (ep, req, 0);
 		ep0_idle(ep->dev);
+#ifndef CONFIG_ARCH_IXP4XX
 #if 1
 		/* This seems to get rid of lost status irqs in some cases:
 		 * host responds quickly, or next request involves config
@@ -566,6 +567,7 @@ write_ep0_fifo (struct pxa2xx_ep *ep, struct pxa2xx_request *req)
 				udelay(1);
 			} while (count);
 		}
+#endif
 #endif
 	} else if (ep->dev->req_pending)
 		ep0start(ep->dev, 0, "IN");
@@ -2429,6 +2431,7 @@ static struct pxa2xx_udc memory = {
 #define PXA210_B1		0x00000123
 #define PXA210_B0		0x00000122
 #define IXP425_A0		0x000001c1
+#define IXP465_AD		0x00000200
 
 /*
  * 	probe - binds to the platform device
@@ -2465,6 +2468,8 @@ static int __init pxa2xx_udc_probe(struct platform_device *pdev)
 		break;
 #elif	defined(CONFIG_ARCH_IXP4XX)
 	case IXP425_A0:
+	case IXP465_AD:
+		dev->has_cfr = 1;
 		out_dma = 0;
 		break;
 #endif
