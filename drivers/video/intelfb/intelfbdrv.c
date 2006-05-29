@@ -1059,8 +1059,7 @@ intelfb_init_var(struct intelfb_info *dinfo)
 				       "intelfb: looking for mode in global "
 				       "database ");
 				msrc = fb_find_mode(var, dinfo->info, mode,
-						    vesa_modes,
-						    VESA_MODEDB_SIZE, NULL, 0);
+						    NULL, 0, NULL, 0);
 
 				if (msrc)
 					msrc |= 8;
@@ -1070,8 +1069,7 @@ intelfb_init_var(struct intelfb_info *dinfo)
 
 		if (!msrc) {
 			msrc = fb_find_mode(var, dinfo->info, PREFERRED_MODE,
-					    vesa_modes, VESA_MODEDB_SIZE,
-					    NULL, 0);
+					    NULL, 0, NULL, 0);
 		}
 	}
 
