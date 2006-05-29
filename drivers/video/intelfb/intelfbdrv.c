@@ -264,7 +264,7 @@ MODULE_PARM_DESC(mode,
 
 #ifndef MODULE
 #define OPT_EQUAL(opt, name) (!strncmp(opt, name, strlen(name)))
-#define OPT_INTVAL(opt, name) simple_strtoul(opt + strlen(name), NULL, 0)
+#define OPT_INTVAL(opt, name) simple_strtoul(opt + strlen(name) + 1, NULL, 0)
 #define OPT_STRVAL(opt, name) (opt + strlen(name))
 
 static __inline__ char *
