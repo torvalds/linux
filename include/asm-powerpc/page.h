@@ -192,6 +192,9 @@ extern void copy_user_page(void *to, void *from, unsigned long vaddr,
 		struct page *p);
 extern int page_is_ram(unsigned long pfn);
 
+struct vm_area_struct;
+extern const char *arch_vma_name(struct vm_area_struct *vma);
+
 #include <asm-generic/memory_model.h>
 #endif /* __ASSEMBLY__ */
 

@@ -757,10 +757,10 @@ static int handle_rt_signal(unsigned long sig, struct k_sigaction *ka,
 
 	/* Save user registers on the stack */
 	frame = &rt_sf->uc.uc_mcontext;
-	if (vdso32_rt_sigtramp && current->thread.vdso_base) {
+	if (vdso32_rt_sigtramp && current->mm->context.vdso_base) {
 		if (save_user_regs(regs, frame, 0))
 			goto badframe;
-		regs->link = current->thread.vdso_base + vdso32_rt_sigtramp;
+		regs->link = current->mm->context.vdso_base + vdso32_rt_sigtramp;
 	} else {
 		if (save_user_regs(regs, frame, __NR_rt_sigreturn))
 			goto badframe;
@@ -1029,10 +1029,10 @@ static int handle_signal(unsigned long sig, struct k_sigaction *ka,
 	    || __put_user(sig, &sc->signal))
 		goto badframe;
 
-	if (vdso32_sigtramp && current->thread.vdso_base) {
+	if (vdso32_sigtramp && current->mm->context.vdso_base) {
 		if (save_user_regs(regs, &frame->mctx, 0))
 			goto badframe;
-		regs->link = current->thread.vdso_base + vdso32_sigtramp;
+		regs->link = current->mm->context.vdso_base + vdso32_sigtramp;
 	} else {
 		if (save_user_regs(regs, &frame->mctx, __NR_sigreturn))
 			goto badframe;

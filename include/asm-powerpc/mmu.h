@@ -360,6 +360,7 @@ typedef struct {
 #ifdef CONFIG_HUGETLB_PAGE
 	u16 low_htlb_areas, high_htlb_areas;
 #endif
+	unsigned long vdso_base;
 } mm_context_t;
 
 

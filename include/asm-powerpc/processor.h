@@ -153,7 +153,6 @@ struct thread_struct {
 	unsigned long	start_tb;	/* Start purr when proc switched in */
 	unsigned long	accum_tb;	/* Total accumilated purr for process */
 #endif
-	unsigned long	vdso_base;	/* base of the vDSO library */
 	unsigned long	dabr;		/* Data address breakpoint register */
 #ifdef CONFIG_ALTIVEC
 	/* Complete AltiVec register set */
