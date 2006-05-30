@@ -91,20 +91,24 @@ int cpufreq_frequency_table_target(struct cpufreq_policy *policy,
 				   unsigned int relation,
 				   unsigned int *index)
 {
-	struct cpufreq_frequency_table optimal = { .index = ~0, };
-	struct cpufreq_frequency_table suboptimal = { .index = ~0, };
+	struct cpufreq_frequency_table optimal = {
+		.index = ~0,
+		.frequency = 0,
+	};
+	struct cpufreq_frequency_table suboptimal = {
+		.index = ~0,
+		.frequency = 0,
+	};
 	unsigned int i;
 
 	dprintk("request for target %u kHz (relation: %u) for cpu %u\n", target_freq, relation, policy->cpu);
 
 	switch (relation) {
 	case CPUFREQ_RELATION_H:
-		optimal.frequency = 0;
 		suboptimal.frequency = ~0;
 		break;
 	case CPUFREQ_RELATION_L:
 		optimal.frequency = ~0;
-		suboptimal.frequency = 0;
 		break;
 	}
 
