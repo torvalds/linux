@@ -407,6 +407,8 @@ nfattr_failure:
 
 static int ctnetlink_done(struct netlink_callback *cb)
 {
+	if (cb->args[1])
+		nf_ct_put((struct nf_conn *)cb->args[1]);
 	DEBUGP("entered %s\n", __FUNCTION__);
 	return 0;
 }
@@ -416,10 +418,9 @@ static int ctnetlink_done(struct netlink_callback *cb)
 static int
 ctnetlink_dump_table(struct sk_buff *skb, struct netlink_callback *cb)
 {
-	struct nf_conn *ct = NULL;
+	struct nf_conn *ct, *last;
 	struct nf_conntrack_tuple_hash *h;
 	struct list_head *i;
-	u_int32_t *id = (u_int32_t *) &cb->args[1];
 	struct nfgenmsg *nfmsg = NLMSG_DATA(cb->nlh);
 	u_int8_t l3proto = nfmsg->nfgen_family;
 
@@ -427,7 +428,9 @@ ctnetlink_dump_table(struct sk_buff *skb, struct netlink_callback *cb)
 			cb->args[0], *id);
 
 	read_lock_bh(&nf_conntrack_lock);
-	for (; cb->args[0] < nf_conntrack_htable_size; cb->args[0]++, *id = 0) {
+	for (; cb->args[0] < nf_conntrack_htable_size; cb->args[0]++) {
+restart:
+		last = (struct nf_conn *)cb->args[1];
 		list_for_each_prev(i, &nf_conntrack_hash[cb->args[0]]) {
 			h = (struct nf_conntrack_tuple_hash *) i;
 			if (DIRECTION(h) != IP_CT_DIR_ORIGINAL)
@@ -438,17 +441,30 @@ ctnetlink_dump_table(struct sk_buff *skb, struct netlink_callback *cb)
 			 * then dump everything. */
 			if (l3proto && L3PROTO(ct) != l3proto)
 				continue;
-			if (ct->id <= *id)
-				continue;
+			if (last != NULL) {
+				if (ct == last) {
+					nf_ct_put(last);
+					cb->args[1] = 0;
+					last = NULL;
+				} else
+					continue;
+			}
 			if (ctnetlink_fill_info(skb, NETLINK_CB(cb->skb).pid,
 		                        	cb->nlh->nlmsg_seq,
 						IPCTNL_MSG_CT_NEW,
-						1, ct) < 0)
+						1, ct) < 0) {
+				nf_conntrack_get(&ct->ct_general);
+				cb->args[1] = (unsigned long)ct;
 				goto out;
-			*id = ct->id;
+			}
+		}
+		if (last != NULL) {
+			nf_ct_put(last);
+			cb->args[1] = 0;
+			goto restart;
 		}
 	}
-out:	
+out:
 	read_unlock_bh(&nf_conntrack_lock);
 
 	DEBUGP("leaving, last bucket=%lu id=%u\n", cb->args[0], *id);

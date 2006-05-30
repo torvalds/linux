@@ -399,38 +399,54 @@ nfattr_failure:
 static int ctnetlink_done(struct netlink_callback *cb)
 {
 	DEBUGP("entered %s\n", __FUNCTION__);
+	if (cb->args[1])
+		ip_conntrack_put((struct ip_conntrack *)cb->args[1]);
 	return 0;
 }
 
 static int
 ctnetlink_dump_table(struct sk_buff *skb, struct netlink_callback *cb)
 {
-	struct ip_conntrack *ct = NULL;
+	struct ip_conntrack *ct, *last;
 	struct ip_conntrack_tuple_hash *h;
 	struct list_head *i;
-	u_int32_t *id = (u_int32_t *) &cb->args[1];
 
 	DEBUGP("entered %s, last bucket=%lu id=%u\n", __FUNCTION__, 
 			cb->args[0], *id);
 
 	read_lock_bh(&ip_conntrack_lock);
-	for (; cb->args[0] < ip_conntrack_htable_size; cb->args[0]++, *id = 0) {
+	for (; cb->args[0] < ip_conntrack_htable_size; cb->args[0]++) {
+restart:
+		last = (struct ip_conntrack *)cb->args[1];
 		list_for_each_prev(i, &ip_conntrack_hash[cb->args[0]]) {
 			h = (struct ip_conntrack_tuple_hash *) i;
 			if (DIRECTION(h) != IP_CT_DIR_ORIGINAL)
 				continue;
 			ct = tuplehash_to_ctrack(h);
-			if (ct->id <= *id)
-				continue;
+			if (last != NULL) {
+				if (ct == last) {
+					ip_conntrack_put(last);
+					cb->args[1] = 0;
+					last = NULL;
+				} else
+					continue;
+			}
 			if (ctnetlink_fill_info(skb, NETLINK_CB(cb->skb).pid,
 		                        	cb->nlh->nlmsg_seq,
 						IPCTNL_MSG_CT_NEW,
-						1, ct) < 0)
+						1, ct) < 0) {
+				nf_conntrack_get(&ct->ct_general);
+				cb->args[1] = (unsigned long)ct;
 				goto out;
-			*id = ct->id;
+			}
+		}
+		if (last != NULL) {
+			ip_conntrack_put(last);
+			cb->args[1] = 0;
+			goto restart;
 		}
 	}
-out:	
+out:
 	read_unlock_bh(&ip_conntrack_lock);
 
 	DEBUGP("leaving, last bucket=%lu id=%u\n", cb->args[0], *id);
