@@ -1903,7 +1903,7 @@ sba_common_init(struct sba_device *sba_dev)
 	 * (bit #61, big endian), we have to flush and sync every time
 	 * IO-PDIR is changed in Ike/Astro.
 	 */
-	if (boot_cpu_data.pdc.capabilities & PDC_MODEL_IOPDIR_FDC) {
+	if (ioc_needs_fdc) {
 		printk(KERN_INFO MODULE_NAME " FDC/SYNC required.\n");
 	} else {
 		printk(KERN_INFO MODULE_NAME " IOC has cache coherent PDIR.\n");
