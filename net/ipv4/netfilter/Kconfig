@@ -191,6 +191,18 @@ config IP_NF_H323
 	  If you want to compile it as a module, say 'M' here and read
 	  Documentation/modules.txt.  If unsure, say 'N'.
 
+config IP_NF_SIP
+	tristate "SIP protocol support (EXPERIMENTAL)"
+	depends on IP_NF_CONNTRACK && EXPERIMENTAL
+	help
+	  SIP is an application-layer control protocol that can establish,
+	  modify, and terminate multimedia sessions (conferences) such as
+	  Internet telephony calls. With the ip_conntrack_sip and
+	  the ip_nat_sip modules you can support the protocol on a connection
+	  tracking/NATing firewall.
+
+	  To compile it as a module, choose M here.  If unsure, say Y.
+
 config IP_NF_QUEUE
 	tristate "IP Userspace queueing via NETLINK (OBSOLETE)"
 	help
@@ -502,6 +514,12 @@ config IP_NF_NAT_H323
 	depends on IP_NF_IPTABLES!=n && IP_NF_CONNTRACK!=n && IP_NF_NAT!=n
 	default IP_NF_NAT if IP_NF_H323=y
 	default m if IP_NF_H323=m
+
+config IP_NF_NAT_SIP
+	tristate
+	depends on IP_NF_IPTABLES!=n && IP_NF_CONNTRACK!=n && IP_NF_NAT!=n
+	default IP_NF_NAT if IP_NF_SIP=y
+	default m if IP_NF_SIP=m
 
 # mangle + specific targets
 config IP_NF_MANGLE
