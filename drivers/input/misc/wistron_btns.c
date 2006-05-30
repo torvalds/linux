@@ -318,6 +318,16 @@ static struct key_entry keymap_acer_travelmate_240[] = {
 	{ KE_END, 0 }
 };
 
+static struct key_entry keymap_aopen_1559as[] = {
+	{ KE_KEY,  0x01, KEY_HELP },
+	{ KE_KEY,  0x06, KEY_PROG3 },
+	{ KE_KEY,  0x11, KEY_PROG1 },
+	{ KE_KEY,  0x12, KEY_PROG2 },
+	{ KE_WIFI, 0x30, 0 },
+	{ KE_KEY,  0x31, KEY_MAIL },
+	{ KE_KEY,  0x36, KEY_WWW },
+};
+
 /*
  * If your machine is not here (which is currently rather likely), please send
  * a list of buttons and their key codes (reported when loading this module
@@ -368,6 +378,15 @@ static struct dmi_system_id dmi_ids[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 240"),
 		},
 		.driver_data = keymap_acer_travelmate_240
+	},
+        {
+		.callback = dmi_matched,
+		.ident = "AOpen 1559AS",
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "E2U"),
+			DMI_MATCH(DMI_BOARD_NAME, "E2U"),
+		},
+		.driver_data = keymap_aopen_1559as
 	},
 	{ NULL, }
 };
