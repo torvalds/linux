@@ -1130,6 +1130,12 @@ void __ip_ct_refresh_acct(struct ip_conntrack *ct,
 
 	write_lock_bh(&ip_conntrack_lock);
 
+	/* Only update if this is not a fixed timeout */
+	if (test_bit(IPS_FIXED_TIMEOUT_BIT, &ct->status)) {
+		write_unlock_bh(&ip_conntrack_lock);
+		return;
+	}
+
 	/* If not in hash table, timer will not be active yet */
 	if (!is_confirmed(ct)) {
 		ct->timeout.expires = extra_jiffies;
