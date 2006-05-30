@@ -345,6 +345,8 @@ struct input_absinfo {
 #define KEY_SAVE		234
 #define KEY_DOCUMENTS		235
 
+#define KEY_BATTERY		236
+
 #define KEY_UNKNOWN		240
 
 #define BTN_MISC		0x100
