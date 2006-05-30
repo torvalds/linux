@@ -2490,7 +2490,7 @@ CIFSSpnegoSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 						} /* else no more room so create dummy domain string */
 						else {
 							if(ses->serverDomain)
-	`							kfree(ses->serverDomain);
+								kfree(ses->serverDomain);
 							ses->serverDomain =
 							    kzalloc(2,GFP_KERNEL);
 						}
@@ -2528,7 +2528,7 @@ CIFSSpnegoSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 
 						len = strnlen(bcc_ptr, 1024);
 						if(ses->serverDomain)
-							kfree(ses->severDomain);
+							kfree(ses->serverDomain);
 						ses->serverDomain = kzalloc(len + 1, GFP_KERNEL);
 						strncpy(ses->serverDomain, bcc_ptr, len);
 						bcc_ptr += len;
@@ -3174,7 +3174,7 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
   the end since (at least) WIN2K and Windows XP have a major bug in not null
   terminating last Unicode string in response  */
 					if(ses->serverOS)
-						kfree(serverOS);
+						kfree(ses->serverOS);
 					ses->serverOS =
 					    kzalloc(2 * (len + 1), GFP_KERNEL);
 					cifs_strfromUCS_le(ses->serverOS,

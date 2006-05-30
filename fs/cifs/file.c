@@ -905,8 +905,8 @@ static ssize_t cifs_write(struct file *file, const char *write_data,
 					break;
 			}
 			if(experimEnabled || (pTcon->ses->server &&
-				(pTcon->ses->server->secMode & 
-				(SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED)
+				((pTcon->ses->server->secMode & 
+				(SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED))
 				== 0))) {
 				struct kvec iov[2];
 				unsigned int len;
