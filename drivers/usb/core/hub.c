@@ -1241,7 +1241,7 @@ static int choose_configuration(struct usb_device *udev)
 				&& desc->bInterfaceClass == USB_CLASS_COMM
 				&& desc->bInterfaceSubClass == 2
 				&& desc->bInterfaceProtocol == 0xff) {
-#ifndef CONFIG_USB_NET_RNDIS
+#ifndef CONFIG_USB_NET_RNDIS_HOST
 			continue;
 #else
 			best = c;
