@@ -28,9 +28,6 @@
 #include <linux/jhash.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
-#include <linux/tcp.h>
-#include <linux/udp.h>
-#include <linux/sctp.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/list.h>
@@ -381,49 +378,6 @@ static inline void rateinfo_recalc(struct dsthash_ent *dh, unsigned long now)
 		dh->rateinfo.credit = dh->rateinfo.credit_cap;
 }
 
-static inline int get_ports(const struct sk_buff *skb, int offset, 
-			    u16 ports[2])
-{
-	union {
-		struct tcphdr th;
-		struct udphdr uh;
-		sctp_sctphdr_t sctph;
-	} hdr_u, *ptr_u;
-
-	/* Must not be a fragment. */
-	if (offset)
-		return 1;
-
-	/* Must be big enough to read ports (both UDP and TCP have
-	   them at the start). */
-	ptr_u = skb_header_pointer(skb, skb->nh.iph->ihl*4, 8, &hdr_u); 
-	if (!ptr_u)
-		return 1;
-
-	switch (skb->nh.iph->protocol) {
-		case IPPROTO_TCP:
-			ports[0] = ptr_u->th.source;
-			ports[1] = ptr_u->th.dest;
-			break;
-		case IPPROTO_UDP:
-			ports[0] = ptr_u->uh.source;
-			ports[1] = ptr_u->uh.dest;
-			break;
-		case IPPROTO_SCTP:
-			ports[0] = ptr_u->sctph.source;
-			ports[1] = ptr_u->sctph.dest;
-			break;
-		default:
-			/* all other protocols don't supprot per-port hash
-			 * buckets */
-			ports[0] = ports[1] = 0;
-			break;
-	}
-
-	return 0;
-}
-
-
 static int
 hashlimit_match(const struct sk_buff *skb,
 		const struct net_device *in,
@@ -449,8 +403,22 @@ hashlimit_match(const struct sk_buff *skb,
 		dst.src_ip = skb->nh.iph->saddr;
 	if (hinfo->cfg.mode & IPT_HASHLIMIT_HASH_DPT
 	    ||hinfo->cfg.mode & IPT_HASHLIMIT_HASH_SPT) {
-		u_int16_t ports[2];
-		if (get_ports(skb, offset, ports)) {
+		u_int16_t _ports[2], *ports;
+
+		switch (skb->nh.iph->protocol) {
+		case IPPROTO_TCP:
+		case IPPROTO_UDP:
+		case IPPROTO_SCTP:
+		case IPPROTO_DCCP:
+			ports = skb_header_pointer(skb, skb->nh.iph->ihl*4,
+						   sizeof(_ports), &_ports);
+			break;
+		default:
+			_ports[0] = _ports[1] = 0;
+			ports = _ports;
+			break;
+		}
+		if (!ports) {
 			/* We've been asked to examine this packet, and we
 		 	  can't.  Hence, no choice but to drop. */
 			*hotdrop = 1;
