@@ -3282,7 +3282,8 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 		bcc_ptr++; /* align */
 	}
 
-	if(ses->server->secMode & (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED))
+	if(ses->server->secMode & 
+			(SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED))
 		smb_buffer->Flags2 |= SMBFLG2_SECURITY_SIGNATURE;
 
 	if (ses->capabilities & CAP_STATUS32) {
@@ -3294,8 +3295,10 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 	if (ses->capabilities & CAP_UNICODE) {
 		smb_buffer->Flags2 |= SMBFLG2_UNICODE;
 		length =
-		    cifs_strtoUCS((__le16 *) bcc_ptr, tree, 100, nls_codepage);
-		bcc_ptr += 2 * length;	/* convert num of 16 bit words to bytes */
+		    cifs_strtoUCS((__le16 *) bcc_ptr, tree, 
+			6 /* max utf8 char length in bytes */ * 
+			(/* server len*/ + 256 /* share len */), nls_codepage);
+		bcc_ptr += 2 * length;	/* convert num 16 bit words to bytes */
 		bcc_ptr += 2;	/* skip trailing null */
 	} else {		/* ASCII */
 		strcpy(bcc_ptr, tree);

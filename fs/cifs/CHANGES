@@ -1,7 +1,9 @@
 Version 1.43
 ------------
 POSIX locking to servers which support CIFS POSIX Extensions
-(disabled by default controlled by proc/fs/cifs/Experimental)
+(disabled by default controlled by proc/fs/cifs/Experimental).
+Handle conversion of long share names (especially Asian languages)
+to Unicode during mount. 
 
 Version 1.42
 ------------
