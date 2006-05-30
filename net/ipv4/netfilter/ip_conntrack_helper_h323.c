@@ -40,12 +40,11 @@ static int gkrouted_only = 1;
 module_param(gkrouted_only, int, 0600);
 MODULE_PARM_DESC(gkrouted_only, "only accept calls from gatekeeper");
 
-static char *internal_net = NULL;
-static u_int32_t internal_net_addr = 0;
-static u_int32_t internal_net_mask = 0;
-module_param(internal_net, charp, 0600);
-MODULE_PARM_DESC(internal_net, "specify your internal network using format "
-		 "address/mask. this is used by call forwarding support");
+static int callforward_filter = 1;
+module_param(callforward_filter, bool, 0600);
+MODULE_PARM_DESC(callforward_filter, "only create call forwarding expectations "
+		                     "if both endpoints are on different sides "
+				     "(determined by routing information)");
 
 /* Hooks for NAT */
 int (*set_h245_addr_hook) (struct sk_buff ** pskb,
@@ -721,12 +720,28 @@ static int expect_callforwarding(struct sk_buff **pskb,
 
 	/* If the calling party is on the same side of the forward-to party,
 	 * we don't need to track the second call */
-	if (internal_net &&
-	    ((ip & internal_net_mask) == internal_net_addr) ==
-	    ((ct->tuplehash[!dir].tuple.src.ip & internal_net_mask) ==
-	     internal_net_addr)) {
-		DEBUGP("ip_ct_q931: Call Forwarding not tracked\n");
-		return 0;
+	if (callforward_filter) {
+		struct rtable *rt1, *rt2;
+		struct flowi fl1 = {
+			.fl4_dst = ip,
+		};
+		struct flowi fl2 = {
+			.fl4_dst = ct->tuplehash[!dir].tuple.src.ip,
+		};
+
+		if (ip_route_output_key(&rt1, &fl1) == 0) {
+			if (ip_route_output_key(&rt2, &fl2) == 0) {
+				if (rt1->rt_gateway == rt2->rt_gateway &&
+				    rt1->u.dst.dev  == rt2->u.dst.dev)
+					ret = 1;
+				dst_release(&rt2->u.dst);
+			}
+			dst_release(&rt1->u.dst);
+		}
+		if (ret) {
+			DEBUGP("ip_ct_q931: Call Forwarding not tracked\n");
+			return 0;
+		}
 	}
 
 	/* Create expect for the second call leg */
@@ -1762,7 +1777,6 @@ static void fini(void)
 static int __init init(void)
 {
 	int ret;
-	char *p;
 
 	h323_buffer = kmalloc(65536, GFP_KERNEL);
 	if (!h323_buffer)
@@ -1772,23 +1786,6 @@ static int __init init(void)
 		fini();
 		return ret;
 	}
-
-	if (internal_net) {
-		if ((p = strchr(internal_net, '/')))
-			*p++ = 0;
-		if (isdigit(internal_net[0])) {
-			internal_net_addr = in_aton(internal_net);
-			if (p && isdigit(p[0]))
-				internal_net_mask = in_aton(p);
-			else
-				internal_net_mask = 0xffffffff;
-			internal_net_addr &= internal_net_mask;
-		}
-		DEBUGP("ip_ct_h323: internal_net = %u.%u.%u.%u/%u.%u.%u.%u\n",
-		       NIPQUAD(internal_net_addr),
-		       NIPQUAD(internal_net_mask));
-	}
-
 	DEBUGP("ip_ct_h323: init success\n");
 	return 0;
 }
