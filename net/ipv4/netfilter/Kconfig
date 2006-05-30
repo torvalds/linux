@@ -183,10 +183,10 @@ config IP_NF_H323
 	  With this module you can support H.323 on a connection tracking/NAT
 	  firewall.
 
-	  This module supports RAS, Fast-start, H.245 tunnelling, RTP/RTCP
-	  and T.120 based data and applications including audio, video, FAX,
-	  chat, whiteboard, file transfer, etc. For more information, please
-	  see http://nath323.sourceforge.net/.
+	  This module supports RAS, Fast Start, H.245 Tunnelling, Call
+	  Forwarding, RTP/RTCP and T.120 based audio, video, fax, chat,
+	  whiteboard, file transfer, etc. For more information, please
+	  visit http://nath323.sourceforge.net/.
 
 	  If you want to compile it as a module, say 'M' here and read
 	  Documentation/modules.txt.  If unsure, say 'N'.

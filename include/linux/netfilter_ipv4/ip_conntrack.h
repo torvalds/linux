@@ -154,6 +154,7 @@ struct ip_conntrack_expect
 	unsigned int flags;
 
 #ifdef CONFIG_IP_NF_NAT_NEEDED
+	u_int32_t saved_ip;
 	/* This is the original per-proto part, used to map the
 	 * expected connection the way the recipient expects. */
 	union ip_conntrack_manip_proto saved_proto;
