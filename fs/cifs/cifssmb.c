@@ -1409,10 +1409,10 @@ CIFSSMBPosixLock(const int xid, struct cifsTconInfo *tcon,
 
 	parm_data->lock_type = cpu_to_le16(lock_type);
 	if(waitFlag)
-		parm_data->lock_flags = 1;
+		parm_data->lock_flags = cpu_to_le16(1);
 	parm_data->pid = cpu_to_le32(current->tgid);
 	parm_data->start = cpu_to_le64(pLockData->fl_start);
-	parm_data->length = len;  /* normalize negative numbers */
+	parm_data->length = cpu_to_le64(len);  /* normalize negative numbers */
 
 	pSMB->DataOffset = cpu_to_le16(offset);
 	pSMB->Fid = smb_file_id;
