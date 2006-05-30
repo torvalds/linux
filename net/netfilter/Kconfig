@@ -329,6 +329,16 @@ config NETFILTER_XT_MATCH_PKTTYPE
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config NETFILTER_XT_MATCH_QUOTA
+	tristate '"quota" match support'
+	depends on NETFILTER_XTABLES
+	help
+	  This option adds a `quota' match, which allows to match on a
+	  byte counter.
+
+	  If you want to compile it as a module, say M here and read
+	  <file:Documentation/modules.txt>.  If unsure, say `N'.
+
 config NETFILTER_XT_MATCH_REALM
 	tristate  '"realm" match support'
 	depends on NETFILTER_XTABLES
