@@ -51,7 +51,7 @@ int cpufreq_frequency_table_verify(struct cpufreq_policy *policy,
 				   struct cpufreq_frequency_table *table)
 {
 	unsigned int next_larger = ~0;
-	unsigned int i = 0;
+	unsigned int i;
 	unsigned int count = 0;
 
 	dprintk("request for verification of policy (%u - %u kHz) for cpu %u\n", policy->min, policy->max, policy->cpu);
