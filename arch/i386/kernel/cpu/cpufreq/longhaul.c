@@ -679,7 +679,7 @@ static int __init longhaul_init(void)
 
 static void __exit longhaul_exit(void)
 {
-	int i=0;
+	int i;
 
 	for (i=0; i < numscales; i++) {
 		if (clock_ratio[i] == maxmult) {
