@@ -40,15 +40,13 @@ static struct mtd_info *map_rom_probe(struct map_info *map)
 	map->fldrv = &maprom_chipdrv;
 	mtd->priv = map;
 	mtd->name = map->name;
-	mtd->type = MTD_ROM;
+	mtd->type = MTD_GENERIC_TYPE;
 	mtd->size = map->size;
 	mtd->read = maprom_read;
 	mtd->write = maprom_write;
 	mtd->sync = maprom_nop;
 	mtd->flags = MTD_CAP_ROM;
-	mtd->erasesize = 131072;
- 	while(mtd->size & (mtd->erasesize - 1))
-		mtd->erasesize >>= 1;
+	mtd->erasesize = map->size;
 
 	__module_get(THIS_MODULE);
 	return mtd;
