@@ -20,7 +20,7 @@
  *  of the "BIOS and Kernel Developer's Guide for the AMD Athlon 64 and AMD
  *  Opteron Processors" available for download from www.amd.com
  *
- *  Tables for specific CPUs can be infrerred from
+ *  Tables for specific CPUs can be inferred from
  *     http://www.amd.com/us-en/assets/content_type/white_papers_and_tech_docs/30430.pdf
  */
 
@@ -896,7 +896,7 @@ static int transition_frequency(struct powernow_k8_data *data, unsigned int inde
 	for_each_cpu_mask(i, cpu_core_map[data->cpu]) {
 		freqs.cpu = i;
 		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
-        }
+	}
 	return res;
 }
 
