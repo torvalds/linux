@@ -84,6 +84,8 @@ static inline int cifs_get_disposition(unsigned int flags)
 		return FILE_OVERWRITE_IF;
 	else if ((flags & O_CREAT) == O_CREAT)
 		return FILE_OPEN_IF;
+	else if ((flags & O_TRUNC) == O_TRUNC)
+		return FILE_OVERWRITE;
 	else
 		return FILE_OPEN;
 }
