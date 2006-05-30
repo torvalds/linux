@@ -561,6 +561,9 @@ void of_parse_dma_window(struct device_node *dn, unsigned char *dma_window_prop,
 	*busno = *(dma_window++);
 
 	prop = get_property(dn, "ibm,#dma-address-cells", NULL);
+	if (!prop)
+		prop = get_property(dn, "#address-cells", NULL);
+
 	cells = prop ? *(u32 *)prop : prom_n_addr_cells(dn);
 	*phys = of_read_addr(dma_window, cells);
 
