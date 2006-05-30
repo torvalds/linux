@@ -117,8 +117,7 @@ static void nforce2_write_pll(int pll)
 	int temp;
 
 	/* Set the pll addr. to 0x00 */
-	temp = 0x00;
-	pci_write_config_dword(nforce2_chipset_dev, NFORCE2_PLLADR, temp);
+	pci_write_config_dword(nforce2_chipset_dev, NFORCE2_PLLADR, 0);
 
 	/* Now write the value in all 64 registers */
 	for (temp = 0; temp <= 0x3f; temp++)
