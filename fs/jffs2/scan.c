@@ -463,7 +463,7 @@ static int jffs2_scan_eraseblock (struct jffs2_sb_info *c, struct jffs2_eraseblo
 	      
 		if (!buf_size) {
 			/* XIP case. Just look, point at the summary if it's there */
-			sm = (void *)buf + jeb->offset - sizeof(*sm);
+			sm = (void *)buf + c->sector_size - sizeof(*sm);
 			if (je32_to_cpu(sm->magic) == JFFS2_SUM_MAGIC) {
 				sumptr = buf + je32_to_cpu(sm->offset);
 				sumlen = c->sector_size - je32_to_cpu(sm->offset);
