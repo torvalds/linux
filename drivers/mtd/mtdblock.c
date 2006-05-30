@@ -289,7 +289,7 @@ static int mtdblock_open(struct mtd_blktrans_dev *mbd)
 
 	mutex_init(&mtdblk->cache_mutex);
 	mtdblk->cache_state = STATE_EMPTY;
-	if (mtdblk->mtd->type != MTD_RAM && mtdblk->mtd->erasesize) {
+	if ( !(mtdblk->mtd->flags & MTD_NO_ERASE) && mtdblk->mtd->erasesize) {
 		mtdblk->cache_size = mtdblk->mtd->erasesize;
 		mtdblk->cache_data = NULL;
 	}

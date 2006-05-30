@@ -775,7 +775,7 @@ static int __init init_pmc551(void)
                 mtd->write 	= pmc551_write;
                 mtd->point 	= pmc551_point;
                 mtd->unpoint 	= pmc551_unpoint;
-                mtd->type 	= MTD_RAM;
+                mtd->type	= MTD_GENERIC_TYPE;
                 mtd->name 	= "PMC551 RAM board";
                 mtd->erasesize 	= 0x10000;
 		mtd->owner = THIS_MODULE;

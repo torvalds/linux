@@ -324,7 +324,7 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size)
 
 	dev->mtd.size = dev->blkdev->bd_inode->i_size & PAGE_MASK;
 	dev->mtd.erasesize = erase_size;
-	dev->mtd.type = MTD_RAM;
+	dev->mtd.type = MTD_GENERIC_TYPE;
 	dev->mtd.flags = MTD_CAP_RAM;
 	dev->mtd.erase = block2mtd_erase;
 	dev->mtd.write = block2mtd_write;

@@ -24,7 +24,6 @@ struct mtd_oob_buf {
 };
 
 #define MTD_ABSENT		0
-#define MTD_RAM			1
 #define MTD_NORFLASH		3
 #define MTD_NANDFLASH		4
 #define MTD_DATAFLASH		6
@@ -32,10 +31,11 @@ struct mtd_oob_buf {
 
 #define MTD_WRITEABLE		0x400	/* Device is writeable */
 #define MTD_BIT_WRITEABLE	0x800	/* Single bits can be flipped */
+#define MTD_NO_ERASE		0x1000	/* No erase necessary */
 
 // Some common devices / combinations of capabilities
 #define MTD_CAP_ROM		0
-#define MTD_CAP_RAM		(MTD_WRITEABLE | MTD_BIT_WRITEABLE)
+#define MTD_CAP_RAM		(MTD_WRITEABLE | MTD_BIT_WRITEABLE | MTD_NO_ERASE)
 #define MTD_CAP_NORFLASH	(MTD_WRITEABLE | MTD_BIT_WRITEABLE)
 #define MTD_CAP_NANDFLASH	(MTD_WRITEABLE)
 
