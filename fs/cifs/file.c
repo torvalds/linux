@@ -656,7 +656,7 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 			else
 				posix_lock_type = CIFS_WRLCK;
 			rc = CIFSSMBPosixLock(xid, pTcon, netfid, 1 /* get */,
-					length,	pfLock->fl_start,
+					length,	pfLock,
 					posix_lock_type, wait_flag);
 			FreeXid(xid);
 			return rc;
@@ -704,7 +704,7 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 			return -EOPNOTSUPP;
 		}
 		rc = CIFSSMBPosixLock(xid, pTcon, netfid, 0 /* set */,
-				      length, pfLock->fl_start,
+				      length, pfLock,
 				      posix_lock_type, wait_flag);
 	} else
 		rc = CIFSSMBLock(xid, pTcon, netfid, length, pfLock->fl_start,
