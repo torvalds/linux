@@ -1113,7 +1113,14 @@ static int __init init(void)
 
 	kfree(xbuf);
 	kfree(tvmem);
-	return 0;
+
+	/* We intentionaly return -EAGAIN to prevent keeping
+	 * the module. It does all its work from init()
+	 * and doesn't offer any runtime functionality 
+	 * => we don't need it in the memory, do we?
+	 *                                        -- mludvig
+	 */
+	return -EAGAIN;
 }
 
 /*
