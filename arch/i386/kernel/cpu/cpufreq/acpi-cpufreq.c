@@ -104,7 +104,7 @@ acpi_processor_set_performance (
 {
 	u16			port = 0;
 	u8			bit_width = 0;
-	int			ret = 0;
+	int			ret;
 	u32			value = 0;
 	int			i = 0;
 	struct cpufreq_freqs    cpufreq_freqs;
@@ -195,7 +195,6 @@ acpi_processor_set_performance (
 			udelay(10);
 		}
 	} else {
-		i = 0;
 		value = (u32) data->acpi_data.states[state].status;
 	}
 
