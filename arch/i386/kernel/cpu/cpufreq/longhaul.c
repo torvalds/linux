@@ -77,13 +77,17 @@ static char speedbuffer[8];
 
 static char *print_speed(int speed)
 {
-	if (speed > 1000) {
-		if (speed%1000 == 0)
-			sprintf (speedbuffer, "%dGHz", speed/1000);
-		else
-			sprintf (speedbuffer, "%d.%dGHz", speed/1000, (speed%1000)/100);
-	} else
-		sprintf (speedbuffer, "%dMHz", speed);
+	if (speed < 1000) {
+		snprintf(speedbuffer, sizeof(speedbuffer),"%dMHz", speed);
+		return speedbuffer;
+	}
+
+	if (speed%1000 == 0)
+		snprintf(speedbuffer, sizeof(speedbuffer),
+			"%dGHz", speed/1000);
+	else
+		snprintf(speedbuffer, sizeof(speedbuffer),
+			"%d.%dGHz", speed/1000, (speed%1000)/100);
 
 	return speedbuffer;
 }
