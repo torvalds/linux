@@ -552,8 +552,10 @@ static int iscsi_data_xmit(struct iscsi_conn *conn)
         if (unlikely(__kfifo_len(conn->immqueue))) {
 	        while (__kfifo_get(conn->immqueue, (void*)&conn->mtask,
 			           sizeof(void*))) {
+			spin_lock_bh(&conn->session->lock);
 			list_add_tail(&conn->mtask->running,
 				      &conn->mgmt_run_list);
+			spin_unlock_bh(&conn->session->lock);
 		        if (tt->xmit_mgmt_task(conn, conn->mtask))
 			        goto again;
 	        }
@@ -568,8 +570,10 @@ static int iscsi_data_xmit(struct iscsi_conn *conn)
 		 * iscsi tcp may readd the task to the xmitqueue to send
 		 * write data
 		 */
+		spin_lock_bh(&conn->session->lock);
 		if (list_empty(&conn->ctask->running))
 			list_add_tail(&conn->ctask->running, &conn->run_list);
+		spin_unlock_bh(&conn->session->lock);
 		if (tt->xmit_cmd_task(conn, conn->ctask))
 			goto again;
 	}
@@ -580,8 +584,10 @@ static int iscsi_data_xmit(struct iscsi_conn *conn)
         if (unlikely(__kfifo_len(conn->mgmtqueue))) {
 	        while (__kfifo_get(conn->mgmtqueue, (void*)&conn->mtask,
 			           sizeof(void*))) {
+			spin_lock_bh(&conn->session->lock);
 			list_add_tail(&conn->mtask->running,
 				      &conn->mgmt_run_list);
+			spin_unlock_bh(&conn->session->lock);
 		        if (tt->xmit_mgmt_task(conn, conn->mtask))
 			        goto again;
 	        }
