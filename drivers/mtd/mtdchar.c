@@ -380,6 +380,7 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 	void __user *argp = (void __user *)arg;
 	int ret = 0;
 	u_long size;
+	struct mtd_info_user info;
 
 	DEBUG(MTD_DEBUG_LEVEL0, "MTD_ioctl\n");
 
@@ -415,7 +416,15 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 	}
 
 	case MEMGETINFO:
-		if (copy_to_user(argp, mtd, sizeof(struct mtd_info_user)))
+		info.type	= mtd->type;
+		info.flags	= mtd->flags;
+		info.size	= mtd->size;
+		info.erasesize	= mtd->erasesize;
+		info.writesize	= mtd->writesize;
+		info.oobsize	= mtd->oobsize;
+		info.ecctype	= mtd->ecctype;
+		info.eccsize	= mtd->eccsize;
+		if (copy_to_user(argp, &info, sizeof(struct mtd_info_user)))
 			return -EFAULT;
 		break;
 
