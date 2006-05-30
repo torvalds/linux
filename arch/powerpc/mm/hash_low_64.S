@@ -136,6 +136,7 @@ _GLOBAL(__hash_page_4K)
 	and	r0,r0,r4		/* _PAGE_RW & _PAGE_DIRTY ->r0 bit 30*/
 	andc	r0,r30,r0		/* r0 = pte & ~r0 */
 	rlwimi	r3,r0,32-1,31,31	/* Insert result into PP lsb */
+	ori	r3,r3,HPTE_R_C		/* Always add "C" bit for perf. */
 
 	/* We eventually do the icache sync here (maybe inline that
 	 * code rather than call a C function...) 
@@ -400,6 +401,7 @@ _GLOBAL(__hash_page_4K)
 	and	r0,r0,r4		/* _PAGE_RW & _PAGE_DIRTY ->r0 bit 30*/
 	andc	r0,r30,r0		/* r0 = pte & ~r0 */
 	rlwimi	r3,r0,32-1,31,31	/* Insert result into PP lsb */
+	ori	r3,r3,HPTE_R_C		/* Always add "C" bit for perf. */
 
 	/* We eventually do the icache sync here (maybe inline that
 	 * code rather than call a C function...)
@@ -671,6 +673,7 @@ _GLOBAL(__hash_page_64K)
 	and	r0,r0,r4		/* _PAGE_RW & _PAGE_DIRTY ->r0 bit 30*/
 	andc	r0,r30,r0		/* r0 = pte & ~r0 */
 	rlwimi	r3,r0,32-1,31,31	/* Insert result into PP lsb */
+	ori	r3,r3,HPTE_R_C		/* Always add "C" bit for perf. */
 
 	/* We eventually do the icache sync here (maybe inline that
 	 * code rather than call a C function...)

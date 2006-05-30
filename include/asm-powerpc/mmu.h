@@ -96,6 +96,8 @@ extern char initial_stab[];
 #define HPTE_R_FLAGS		ASM_CONST(0x00000000000003ff)
 #define HPTE_R_PP		ASM_CONST(0x0000000000000003)
 #define HPTE_R_N		ASM_CONST(0x0000000000000004)
+#define HPTE_R_C		ASM_CONST(0x0000000000000080)
+#define HPTE_R_R		ASM_CONST(0x0000000000000100)
 
 /* Values for PP (assumes Ks=0, Kp=1) */
 /* pp0 will always be 0 for linux     */
