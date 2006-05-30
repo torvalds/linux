@@ -375,6 +375,12 @@ config NETFILTER_XT_MATCH_STATE
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config NETFILTER_XT_MATCH_STATISTIC
+	tristate '"statistic" match support'
+	depends on NETFILTER_XTABLES
+	help
+	  statistic module
+
 config NETFILTER_XT_MATCH_STRING
 	tristate  '"string" match support'
 	depends on NETFILTER_XTABLES
