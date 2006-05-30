@@ -452,23 +452,23 @@ static int powernow_decode_bios (int maxfid, int startvid)
 
 			pst = (struct pst_s *) p;
 
-			for (i = 0 ; i <psb->numpst; i++) {
+			for (j=0; j<psb->numpst; j++) {
 				pst = (struct pst_s *) p;
 				number_scales = pst->numpstates;
 
 				if ((etuple == pst->cpuid) && check_fsb(pst->fsbspeed) &&
 				    (maxfid==pst->maxfid) && (startvid==pst->startvid))
 				{
-					dprintk ("PST:%d (@%p)\n", i, pst);
+					dprintk ("PST:%d (@%p)\n", j, pst);
 					dprintk (" cpuid: 0x%x  fsb: %d  maxFID: 0x%x  startvid: 0x%x\n",
 						 pst->cpuid, pst->fsbspeed, pst->maxfid, pst->startvid);
 
 					ret = get_ranges ((char *) pst + sizeof (struct pst_s));
 					return ret;
-
 				} else {
+					unsigned int k;
 					p = (char *) pst + sizeof (struct pst_s);
-					for (j=0 ; j < number_scales; j++)
+					for (k=0; k<number_scales; k++)
 						p+=2;
 				}
 			}
