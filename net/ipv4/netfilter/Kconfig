@@ -142,6 +142,8 @@ config IP_NF_TFTP
 config IP_NF_AMANDA
 	tristate "Amanda backup protocol support"
 	depends on IP_NF_CONNTRACK
+	select TEXTSEARCH
+	select TEXTSEARCH_KMP
 	help
 	  If you are running the Amanda backup package <http://www.amanda.org/>
 	  on this machine or machines that will be MASQUERADED through this
