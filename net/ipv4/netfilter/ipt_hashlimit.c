@@ -561,7 +561,7 @@ static void
 hashlimit_destroy(const struct xt_match *match, void *matchinfo,
 		  unsigned int matchsize)
 {
-	struct ipt_hashlimit_info *r = (struct ipt_hashlimit_info *) matchinfo;
+	struct ipt_hashlimit_info *r = matchinfo;
 
 	htable_put(r->hinfo);
 }
