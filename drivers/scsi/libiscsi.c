@@ -985,7 +985,7 @@ iscsi_remove_##tasktype(struct kfifo *fifo, uint32_t itt)		\
 									\
 		if (task->itt == itt) {					\
 			debug_scsi("matched task\n");			\
-			break;						\
+			return task;					\
 		}							\
 									\
 		__kfifo_put(fifo, (void*)&task, sizeof(void*));		\
