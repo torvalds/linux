@@ -933,10 +933,8 @@ static int powernowk8_target(struct cpufreq_policy *pol, unsigned targfreq, unsi
 	dprintk("targ: cpu %d, %d kHz, min %d, max %d, relation %d\n",
 		pol->cpu, targfreq, pol->min, pol->max, relation);
 
-	if (query_current_values_with_pending_wait(data)) {
-		ret = -EIO;
+	if (query_current_values_with_pending_wait(data))
 		goto err_out;
-	}
 
 	dprintk("targ: curr fid 0x%x, vid 0x%x\n",
 		data->currfid, data->currvid);
