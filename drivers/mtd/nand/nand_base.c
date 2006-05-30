@@ -912,7 +912,7 @@ static uint8_t *nand_transfer_oob(struct nand_chip *chip, uint8_t *oob,
 		size_t bytes;
 
 		for(; free->length && len; free++, len -= bytes) {
-			bytes = min(len, free->length);
+			bytes = min_t(size_t, len, free->length);
 
 			memcpy(oob, chip->oob_poi + free->offset, bytes);
 			oob += bytes;
@@ -1100,8 +1100,8 @@ static int nand_do_read_oob(struct mtd_info *mtd, loff_t from,
 	int direct, bytes, readlen = ops->len;
 	uint8_t *bufpoi, *buf = ops->oobbuf;
 
-	DEBUG(MTD_DEBUG_LEVEL3, "nand_read_oob: from = 0x%08x, len = %i\n",
-	      (unsigned int)from, (int)len);
+	DEBUG(MTD_DEBUG_LEVEL3, "nand_read_oob: from = 0x%08Lx, len = %i\n",
+	      (unsigned long long)from, readlen);
 
 	chipnr = (int)(from >> chip->chip_shift);
 	chip->select_chip(mtd, chipnr);
@@ -1414,7 +1414,7 @@ static uint8_t *nand_fill_oob(struct nand_chip *chip, uint8_t *oob,
 		size_t bytes;
 
 		for(; free->length && len; free++, len -= bytes) {
-			bytes = min(len, free->length);
+			bytes = min_t(size_t, len, free->length);
 			memcpy(chip->oob_poi + free->offset, oob, bytes);
 			oob += bytes;
 		}
