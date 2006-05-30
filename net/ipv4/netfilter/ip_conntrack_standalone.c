@@ -417,7 +417,7 @@ static unsigned int ip_conntrack_help(unsigned int hooknum,
 
 	/* This is where we call the helper: as the packet goes out. */
 	ct = ip_conntrack_get(*pskb, &ctinfo);
-	if (ct && ct->helper) {
+	if (ct && ct->helper && ctinfo != IP_CT_RELATED + IP_CT_IS_REPLY) {
 		unsigned int ret;
 		ret = ct->helper->help(pskb, ct, ctinfo);
 		if (ret != NF_ACCEPT)
