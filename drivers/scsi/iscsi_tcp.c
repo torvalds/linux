@@ -1955,30 +1955,28 @@ iscsi_tcp_conn_bind(struct iscsi_cls_session *cls_session,
 	if (err)
 		return err;
 
-	if (conn->stop_stage != STOP_CONN_SUSPEND) {
-		/* bind iSCSI connection and socket */
-		tcp_conn->sock = sock;
+	/* bind iSCSI connection and socket */
+	tcp_conn->sock = sock;
 
-		/* setup Socket parameters */
-		sk = sock->sk;
-		sk->sk_reuse = 1;
-		sk->sk_sndtimeo = 15 * HZ; /* FIXME: make it configurable */
-		sk->sk_allocation = GFP_ATOMIC;
+	/* setup Socket parameters */
+	sk = sock->sk;
+	sk->sk_reuse = 1;
+	sk->sk_sndtimeo = 15 * HZ; /* FIXME: make it configurable */
+	sk->sk_allocation = GFP_ATOMIC;
 
-		/* FIXME: disable Nagle's algorithm */
+	/* FIXME: disable Nagle's algorithm */
 
-		/*
-		 * Intercept TCP callbacks for sendfile like receive
-		 * processing.
-		 */
-		conn->recv_lock = &sk->sk_callback_lock;
-		iscsi_conn_set_callbacks(conn);
-		tcp_conn->sendpage = tcp_conn->sock->ops->sendpage;
-		/*
-		 * set receive state machine into initial state
-		 */
-		tcp_conn->in_progress = IN_PROGRESS_WAIT_HEADER;
-	}
+	/*
+	 * Intercept TCP callbacks for sendfile like receive
+	 * processing.
+	 */
+	conn->recv_lock = &sk->sk_callback_lock;
+	iscsi_conn_set_callbacks(conn);
+	tcp_conn->sendpage = tcp_conn->sock->ops->sendpage;
+	/*
+	 * set receive state machine into initial state
+	 */
+	tcp_conn->in_progress = IN_PROGRESS_WAIT_HEADER;
 
 	return 0;
 }

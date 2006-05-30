@@ -492,7 +492,7 @@ void iscsi_conn_failure(struct iscsi_conn *conn, enum iscsi_err err)
 		return;
 	}
 
-	if (session->conn_cnt == 1 || session->leadconn == conn)
+	if (conn->stop_stage == 0)
 		session->state = ISCSI_STATE_FAILED;
 	spin_unlock_irqrestore(&session->lock, flags);
 	set_bit(ISCSI_SUSPEND_BIT, &conn->suspend_tx);
@@ -652,7 +652,7 @@ int iscsi_queuecommand(struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
 		 */
 		if (session->state == ISCSI_STATE_IN_RECOVERY) {
 			reason = FAILURE_SESSION_IN_RECOVERY;
-			goto fault;
+			goto reject;
 		}
 
 		if (session->state == ISCSI_STATE_RECOVERY_FAILED)
@@ -1411,8 +1411,8 @@ void iscsi_conn_teardown(struct iscsi_cls_conn *cls_conn)
 	struct iscsi_session *session = conn->session;
 	unsigned long flags;
 
-	mutex_lock(&conn->xmitmutex);
 	set_bit(ISCSI_SUSPEND_BIT, &conn->suspend_tx);
+	mutex_lock(&conn->xmitmutex);
 	if (conn->c_stage == ISCSI_CONN_INITIAL_STAGE) {
 		if (session->tt->suspend_conn_recv)
 			session->tt->suspend_conn_recv(conn);
@@ -1498,7 +1498,6 @@ int iscsi_conn_start(struct iscsi_cls_conn *cls_conn)
 		 * unblock eh_abort() if it is blocked. re-try all
 		 * commands after successful recovery
 		 */
-		session->conn_cnt++;
 		conn->stop_stage = 0;
 		conn->tmabort_state = TMABORT_INITIAL;
 		session->age++;
@@ -1508,13 +1507,7 @@ int iscsi_conn_start(struct iscsi_cls_conn *cls_conn)
 		wake_up(&conn->ehwait);
 		return 0;
 	case STOP_CONN_TERM:
-		session->conn_cnt++;
 		conn->stop_stage = 0;
-		break;
-	case STOP_CONN_SUSPEND:
-		conn->stop_stage = 0;
-		clear_bit(ISCSI_SUSPEND_BIT, &conn->suspend_rx);
-		clear_bit(ISCSI_SUSPEND_BIT, &conn->suspend_tx);
 		break;
 	default:
 		break;
@@ -1589,28 +1582,24 @@ static void iscsi_start_session_recovery(struct iscsi_session *session,
 
 	/*
 	 * When this is called for the in_login state, we only want to clean
-	 * up the login task and connection.
+	 * up the login task and connection. We do not need to block and set
+	 * the recovery state again
 	 */
-	if (conn->stop_stage != STOP_CONN_RECOVER)
-		session->conn_cnt--;
+	if (flag == STOP_CONN_TERM)
+		session->state = ISCSI_STATE_TERMINATE;
+	else if (conn->stop_stage != STOP_CONN_RECOVER)
+		session->state = ISCSI_STATE_IN_RECOVERY;
 
 	old_stop_stage = conn->stop_stage;
 	conn->stop_stage = flag;
+	conn->c_stage = ISCSI_CONN_STOPPED;
+	set_bit(ISCSI_SUSPEND_BIT, &conn->suspend_tx);
 	spin_unlock_bh(&session->lock);
 
 	if (session->tt->suspend_conn_recv)
 		session->tt->suspend_conn_recv(conn);
 
 	mutex_lock(&conn->xmitmutex);
-	spin_lock_bh(&session->lock);
-	conn->c_stage = ISCSI_CONN_STOPPED;
-	set_bit(ISCSI_SUSPEND_BIT, &conn->suspend_tx);
-
-	if (session->conn_cnt == 0 || session->leadconn == conn)
-		session->state = ISCSI_STATE_IN_RECOVERY;
-
-	spin_unlock_bh(&session->lock);
-
 	/*
 	 * for connection level recovery we should not calculate
 	 * header digest. conn->hdr_size used for optimization
@@ -1620,13 +1609,11 @@ static void iscsi_start_session_recovery(struct iscsi_session *session,
 	if (flag == STOP_CONN_RECOVER) {
 		conn->hdrdgst_en = 0;
 		conn->datadgst_en = 0;
-		/*
-		 * if this is called from the eh and and from userspace
-		 * then we only need to block once.
-		 */
 		if (session->state == ISCSI_STATE_IN_RECOVERY &&
-		    old_stop_stage != STOP_CONN_RECOVER)
+		    old_stop_stage != STOP_CONN_RECOVER) {
+			debug_scsi("blocking session\n");
 			iscsi_block_session(session_to_cls(session));
+		}
 	}
 
 	session->tt->terminate_conn(conn);
@@ -1650,20 +1637,6 @@ void iscsi_conn_stop(struct iscsi_cls_conn *cls_conn, int flag)
 	case STOP_CONN_RECOVER:
 	case STOP_CONN_TERM:
 		iscsi_start_session_recovery(session, conn, flag);
-		break;
-	case STOP_CONN_SUSPEND:
-		if (session->tt->suspend_conn_recv)
-			session->tt->suspend_conn_recv(conn);
-
-		mutex_lock(&conn->xmitmutex);
-		spin_lock_bh(&session->lock);
-
-		conn->stop_stage = flag;
-		conn->c_stage = ISCSI_CONN_STOPPED;
-		set_bit(ISCSI_SUSPEND_BIT, &conn->suspend_tx);
-
-		spin_unlock_bh(&session->lock);
-		mutex_unlock(&conn->xmitmutex);
 		break;
 	default:
 		printk(KERN_ERR "iscsi: invalid stop flag %d\n", flag);

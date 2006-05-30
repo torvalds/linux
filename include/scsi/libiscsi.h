@@ -211,7 +211,6 @@ struct iscsi_session {
 						 * - r2tpool		   */
 	int			state;		/* session state           */
 	struct list_head	item;
-	int			conn_cnt;
 	int			age;		/* counts session re-opens */
 
 	struct list_head	connections;	/* list of connections */
