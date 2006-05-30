@@ -293,6 +293,7 @@ static inline int is_dying(struct ip_conntrack *ct)
 }
 
 extern unsigned int ip_conntrack_htable_size;
+extern int ip_conntrack_checksum;
  
 #define CONNTRACK_STAT_INC(count) (__get_cpu_var(ip_conntrack_stat).count++)
 

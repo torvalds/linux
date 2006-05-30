@@ -564,6 +564,8 @@ extern unsigned int ip_ct_generic_timeout;
 static int log_invalid_proto_min = 0;
 static int log_invalid_proto_max = 255;
 
+int ip_conntrack_checksum = 1;
+
 static struct ctl_table_header *ip_ct_sysctl_header;
 
 static ctl_table ip_ct_sysctl_table[] = {
@@ -589,6 +591,14 @@ static ctl_table ip_ct_sysctl_table[] = {
 		.data		= &ip_conntrack_htable_size,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0444,
+		.proc_handler	= &proc_dointvec,
+	},
+	{
+		.ctl_name	= NET_IPV4_NF_CONNTRACK_CHECKSUM,
+		.procname	= "ip_conntrack_checksum",
+		.data		= &ip_conntrack_checksum,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
 	},
 	{
@@ -946,6 +956,7 @@ EXPORT_SYMBOL_GPL(__ip_conntrack_helper_find_byname);
 EXPORT_SYMBOL_GPL(ip_conntrack_proto_find_get);
 EXPORT_SYMBOL_GPL(ip_conntrack_proto_put);
 EXPORT_SYMBOL_GPL(__ip_conntrack_proto_find);
+EXPORT_SYMBOL_GPL(ip_conntrack_checksum);
 #if defined(CONFIG_IP_NF_CONNTRACK_NETLINK) || \
     defined(CONFIG_IP_NF_CONNTRACK_NETLINK_MODULE)
 EXPORT_SYMBOL_GPL(ip_ct_port_tuple_to_nfattr);

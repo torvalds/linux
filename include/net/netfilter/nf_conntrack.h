@@ -285,6 +285,7 @@ static inline int nf_ct_is_dying(struct nf_conn *ct)
 }
 
 extern unsigned int nf_conntrack_htable_size;
+extern int nf_conntrack_checksum;
 
 #define NF_CT_STAT_INC(count) (__get_cpu_var(nf_conntrack_stat).count++)
 
