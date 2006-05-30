@@ -564,7 +564,6 @@ int jffs2_sum_scan_sumnode(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb
 	struct jffs2_unknown_node crcnode;
 	int ret, ofs;
 	uint32_t crc;
-	int err;
 
 	ofs = c->sector_size - sumsize;
 
@@ -606,16 +605,20 @@ int jffs2_sum_scan_sumnode(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb
 
 		dbg_summary("Summary : CLEANMARKER node \n");
 
+		ret = jffs2_prealloc_raw_node_refs(c, jeb, 1);
+		if (ret)
+			return ret;
+
 		if (je32_to_cpu(summary->cln_mkr) != c->cleanmarker_size) {
 			dbg_summary("CLEANMARKER node has totlen 0x%x != normal 0x%x\n",
 				je32_to_cpu(summary->cln_mkr), c->cleanmarker_size);
-			if ((err = jffs2_scan_dirty_space(c, jeb, PAD(je32_to_cpu(summary->cln_mkr)))))
-				return err;
+			if ((ret = jffs2_scan_dirty_space(c, jeb, PAD(je32_to_cpu(summary->cln_mkr)))))
+				return ret;
 		} else if (jeb->first_node) {
 			dbg_summary("CLEANMARKER node not first node in block "
 					"(0x%08x)\n", jeb->offset);
-			if ((err = jffs2_scan_dirty_space(c, jeb, PAD(je32_to_cpu(summary->cln_mkr)))))
-				return err;
+			if ((ret = jffs2_scan_dirty_space(c, jeb, PAD(je32_to_cpu(summary->cln_mkr)))))
+				return ret;
 		} else {
 			jffs2_link_node_ref(c, jeb, jeb->offset | REF_NORMAL,
 					    je32_to_cpu(summary->cln_mkr), NULL);
