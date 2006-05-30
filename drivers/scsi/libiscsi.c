@@ -513,10 +513,11 @@ EXPORT_SYMBOL_GPL(iscsi_conn_failure);
 static int iscsi_data_xmit(struct iscsi_conn *conn)
 {
 	struct iscsi_transport *tt;
+	int rc = 0;
 
 	if (unlikely(conn->suspend_tx)) {
 		debug_scsi("conn %d Tx suspended!\n", conn->id);
-		return 0;
+		return -ENODATA;
 	}
 	tt = conn->session->tt;
 
@@ -536,13 +537,15 @@ static int iscsi_data_xmit(struct iscsi_conn *conn)
 	BUG_ON(conn->ctask && conn->mtask);
 
 	if (conn->ctask) {
-		if (tt->xmit_cmd_task(conn, conn->ctask))
+		rc = tt->xmit_cmd_task(conn, conn->ctask);
+		if (rc)
 			goto again;
 		/* done with this in-progress ctask */
 		conn->ctask = NULL;
 	}
 	if (conn->mtask) {
-	        if (tt->xmit_mgmt_task(conn, conn->mtask))
+		rc = tt->xmit_mgmt_task(conn, conn->mtask);
+	        if (rc)
 		        goto again;
 		/* done with this in-progress mtask */
 		conn->mtask = NULL;
@@ -556,7 +559,8 @@ static int iscsi_data_xmit(struct iscsi_conn *conn)
 			list_add_tail(&conn->mtask->running,
 				      &conn->mgmt_run_list);
 			spin_unlock_bh(&conn->session->lock);
-		        if (tt->xmit_mgmt_task(conn, conn->mtask))
+			rc = tt->xmit_mgmt_task(conn, conn->mtask);
+		        if (rc)
 			        goto again;
 	        }
 		/* done with this mtask */
@@ -574,7 +578,8 @@ static int iscsi_data_xmit(struct iscsi_conn *conn)
 		if (list_empty(&conn->ctask->running))
 			list_add_tail(&conn->ctask->running, &conn->run_list);
 		spin_unlock_bh(&conn->session->lock);
-		if (tt->xmit_cmd_task(conn, conn->ctask))
+		rc = tt->xmit_cmd_task(conn, conn->ctask);
+		if (rc)
 			goto again;
 	}
 	/* done with this ctask */
@@ -588,32 +593,34 @@ static int iscsi_data_xmit(struct iscsi_conn *conn)
 			list_add_tail(&conn->mtask->running,
 				      &conn->mgmt_run_list);
 			spin_unlock_bh(&conn->session->lock);
-		        if (tt->xmit_mgmt_task(conn, conn->mtask))
+		        rc = tt->xmit_mgmt_task(conn, conn->mtask);
+			if (rc)
 			        goto again;
 	        }
 		/* done with this mtask */
 		conn->mtask = NULL;
 	}
 
-	return 0;
+	return -ENODATA;
 
 again:
 	if (unlikely(conn->suspend_tx))
-		return 0;
+		return -ENODATA;
 
-	return -EAGAIN;
+	return rc;
 }
 
 static void iscsi_xmitworker(void *data)
 {
 	struct iscsi_conn *conn = data;
-
+	int rc;
 	/*
 	 * serialize Xmit worker on a per-connection basis.
 	 */
 	mutex_lock(&conn->xmitmutex);
-	if (iscsi_data_xmit(conn))
-		scsi_queue_work(conn->session->host, &conn->xmitwork);
+	do {
+		rc = iscsi_data_xmit(conn);
+	} while (rc >= 0 || rc == -EAGAIN);
 	mutex_unlock(&conn->xmitmutex);
 }
 

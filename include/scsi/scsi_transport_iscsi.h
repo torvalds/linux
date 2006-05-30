@@ -57,8 +57,12 @@ struct iscsi_mgmt_task;
  *			Called from queuecommand with session lock held.
  * @init_mgmt_task:	Initialize a iscsi_mgmt_task and any internal structs.
  *			Called from iscsi_conn_send_generic with xmitmutex.
- * @xmit_cmd_task:	requests LLD to transfer cmd task
- * @xmit_mgmt_task:	requests LLD to transfer mgmt task
+ * @xmit_cmd_task:	Requests LLD to transfer cmd task. Returns 0 or the
+ *			the number of bytes transferred on success, and -Exyz
+ *			value on error.
+ * @xmit_mgmt_task:	Requests LLD to transfer mgmt task. Returns 0 or the
+ *			the number of bytes transferred on success, and -Exyz
+ *			value on error.
  * @cleanup_cmd_task:	requests LLD to fail cmd task. Called with xmitmutex
  *			and session->lock after the connection has been
  *			suspended and terminated during recovery. If called
