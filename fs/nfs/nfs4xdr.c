@@ -3350,8 +3350,7 @@ static int decode_getacl(struct xdr_stream *xdr, struct rpc_rqst *req,
 					attrlen, recvd);
 			return -EINVAL;
 		}
-		if (attrlen <= *acl_len)
-			xdr_read_pages(xdr, attrlen);
+		xdr_read_pages(xdr, attrlen);
 		*acl_len = attrlen;
 	} else
 		status = -EOPNOTSUPP;
