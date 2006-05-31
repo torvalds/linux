@@ -5153,9 +5153,18 @@ static void ata_host_remove(struct ata_port *ap, unsigned int do_unregister)
 void ata_dev_init(struct ata_device *dev)
 {
 	struct ata_port *ap = dev->ap;
+	unsigned long flags;
 
-	memset((void *)dev, 0, sizeof(*dev));
-	dev->devno = dev - ap->device;
+	/* High bits of dev->flags are used to record warm plug
+	 * requests which occur asynchronously.  Synchronize using
+	 * host_set lock.
+	 */
+	spin_lock_irqsave(&ap->host_set->lock, flags);
+	dev->flags &= ~ATA_DFLAG_INIT_MASK;
+	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+
+	memset((void *)dev + ATA_DEVICE_CLEAR_OFFSET, 0,
+	       sizeof(*dev) - ATA_DEVICE_CLEAR_OFFSET);
 	dev->pio_mask = UINT_MAX;
 	dev->mwdma_mask = UINT_MAX;
 	dev->udma_mask = UINT_MAX;
@@ -5218,6 +5227,7 @@ static void ata_host_init(struct ata_port *ap, struct Scsi_Host *host,
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
 		struct ata_device *dev = &ap->device[i];
 		dev->ap = ap;
+		dev->devno = i;
 		ata_dev_init(dev);
 	}
 

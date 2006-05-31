@@ -130,6 +130,7 @@ enum {
 	ATA_DFLAG_CFG_MASK	= (1 << 8) - 1,
 
 	ATA_DFLAG_PIO		= (1 << 8), /* device currently in PIO mode */
+	ATA_DFLAG_INIT_MASK	= (1 << 16) - 1,
 
 	ATA_DFLAG_DETACH	= (1 << 16),
 	ATA_DFLAG_DETACHED	= (1 << 17),
@@ -410,10 +411,11 @@ struct ata_ering {
 
 struct ata_device {
 	struct ata_port		*ap;
-	u64			n_sectors;	/* size of device, if ATA */
-	unsigned long		flags;		/* ATA_DFLAG_xxx */
-	unsigned int		class;		/* ATA_DEV_xxx */
 	unsigned int		devno;		/* 0 or 1 */
+	unsigned long		flags;		/* ATA_DFLAG_xxx */
+	/* n_sector is used as CLEAR_OFFSET, read comment above CLEAR_OFFSET */
+	u64			n_sectors;	/* size of device, if ATA */
+	unsigned int		class;		/* ATA_DEV_xxx */
 	u16			id[ATA_ID_WORDS]; /* IDENTIFY xxx DEVICE data */
 	u8			pio_mode;
 	u8			dma_mode;
@@ -438,6 +440,11 @@ struct ata_device {
 	/* error history */
 	struct ata_ering	ering;
 };
+
+/* Offset into struct ata_device.  Fields above it are maintained
+ * acress device init.  Fields below are zeroed.
+ */
+#define ATA_DEVICE_CLEAR_OFFSET		offsetof(struct ata_device, n_sectors)
 
 struct ata_eh_info {
 	struct ata_device	*dev;		/* offending device */
