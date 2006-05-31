@@ -399,7 +399,7 @@ void ata_dump_status(unsigned id, struct ata_taskfile *tf)
 int ata_scsi_device_resume(struct scsi_device *sdev)
 {
 	struct ata_port *ap = ata_shost_to_port(sdev->host);
-	struct ata_device *dev = &ap->device[sdev->id];
+	struct ata_device *dev = __ata_scsi_find_dev(ap, sdev);
 
 	return ata_device_resume(dev);
 }
@@ -407,7 +407,7 @@ int ata_scsi_device_resume(struct scsi_device *sdev)
 int ata_scsi_device_suspend(struct scsi_device *sdev, pm_message_t state)
 {
 	struct ata_port *ap = ata_shost_to_port(sdev->host);
-	struct ata_device *dev = &ap->device[sdev->id];
+	struct ata_device *dev = __ata_scsi_find_dev(ap, sdev);
 
 	return ata_device_suspend(dev, state);
 }
@@ -713,19 +713,15 @@ static void ata_scsi_dev_config(struct scsi_device *sdev,
 
 int ata_scsi_slave_config(struct scsi_device *sdev)
 {
+	struct ata_port *ap = ata_shost_to_port(sdev->host);
+	struct ata_device *dev = __ata_scsi_find_dev(ap, sdev);
+
 	ata_scsi_sdev_config(sdev);
 
 	blk_queue_max_phys_segments(sdev->request_queue, LIBATA_MAX_PRD);
 
-	if (sdev->id < ATA_MAX_DEVICES) {
-		struct ata_port *ap;
-		struct ata_device *dev;
-
-		ap = ata_shost_to_port(sdev->host);
-		dev = &ap->device[sdev->id];
-
+	if (dev)
 		ata_scsi_dev_config(sdev, dev);
-	}
 
 	return 0;	/* scsi layer doesn't check return value, sigh */
 }
