@@ -355,8 +355,6 @@ static inline void bootmem_init(void)
 	}
 #endif
 
-	memory_present(0, first_usable_pfn, max_low_pfn);
-
 	/* Initialize the boot-time allocator with low memory only.  */
 	bootmap_size = init_bootmem(first_usable_pfn, max_low_pfn);
 
@@ -410,6 +408,7 @@ static inline void bootmem_init(void)
 
 		/* Register lowmem ranges */
 		free_bootmem(PFN_PHYS(curr_pfn), PFN_PHYS(size));
+		memory_present(0, curr_pfn, curr_pfn + size - 1);
 	}
 
 	/* Reserve the bootmap memory.  */
