@@ -5142,6 +5142,26 @@ static void ata_host_remove(struct ata_port *ap, unsigned int do_unregister)
 }
 
 /**
+ *	ata_dev_init - Initialize an ata_device structure
+ *	@dev: Device structure to initialize
+ *
+ *	Initialize @dev in preparation for probing.
+ *
+ *	LOCKING:
+ *	Inherited from caller.
+ */
+void ata_dev_init(struct ata_device *dev)
+{
+	struct ata_port *ap = dev->ap;
+
+	memset((void *)dev, 0, sizeof(*dev));
+	dev->devno = dev - ap->device;
+	dev->pio_mask = UINT_MAX;
+	dev->mwdma_mask = UINT_MAX;
+	dev->udma_mask = UINT_MAX;
+}
+
+/**
  *	ata_host_init - Initialize an ata_port structure
  *	@ap: Structure to initialize
  *	@host: associated SCSI mid-layer structure
@@ -5155,7 +5175,6 @@ static void ata_host_remove(struct ata_port *ap, unsigned int do_unregister)
  *	LOCKING:
  *	Inherited from caller.
  */
-
 static void ata_host_init(struct ata_port *ap, struct Scsi_Host *host,
 			  struct ata_host_set *host_set,
 			  const struct ata_probe_ent *ent, unsigned int port_no)
@@ -5199,10 +5218,7 @@ static void ata_host_init(struct ata_port *ap, struct Scsi_Host *host,
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
 		struct ata_device *dev = &ap->device[i];
 		dev->ap = ap;
-		dev->devno = i;
-		dev->pio_mask = UINT_MAX;
-		dev->mwdma_mask = UINT_MAX;
-		dev->udma_mask = UINT_MAX;
+		ata_dev_init(dev);
 	}
 
 #ifdef ATA_IRQ_TRAP
