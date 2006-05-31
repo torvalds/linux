@@ -131,6 +131,9 @@ enum {
 
 	ATA_DFLAG_PIO		= (1 << 8), /* device currently in PIO mode */
 
+	ATA_DFLAG_DETACH	= (1 << 16),
+	ATA_DFLAG_DETACHED	= (1 << 17),
+
 	ATA_DEV_UNKNOWN		= 0,	/* unknown device */
 	ATA_DEV_ATA		= 1,	/* ATA device */
 	ATA_DEV_ATA_UNSUP	= 2,	/* ATA device (unsupported) */
@@ -152,6 +155,9 @@ enum {
 	ATA_FLAG_PIO_POLLING	= (1 << 9), /* use polling PIO if LLD
 					     * doesn't handle PIO interrupts */
 	ATA_FLAG_NCQ		= (1 << 10), /* host supports NCQ */
+	ATA_FLAG_HRST_TO_RESUME	= (1 << 11), /* hardreset to resume phy */
+	ATA_FLAG_SKIP_D2H_BSY	= (1 << 12), /* can't wait for the first D2H
+					      * Register FIS clearing BSY */
 
 	ATA_FLAG_DEBUGMSG	= (1 << 13),
 	ATA_FLAG_FLUSH_PORT_TASK = (1 << 14), /* flush port task */
@@ -160,6 +166,9 @@ enum {
 	ATA_FLAG_EH_IN_PROGRESS	= (1 << 16), /* EH in progress */
 	ATA_FLAG_FROZEN		= (1 << 17), /* port is frozen */
 	ATA_FLAG_RECOVERED	= (1 << 18), /* recovery action performed */
+	ATA_FLAG_LOADING	= (1 << 19), /* boot/loading probe */
+	ATA_FLAG_UNLOADING	= (1 << 20), /* module is unloading */
+	ATA_FLAG_SCSI_HOTPLUG	= (1 << 21), /* SCSI hotplug scheduled */
 
 	ATA_FLAG_DISABLED	= (1 << 22), /* port is disabled, ignore it */
 	ATA_FLAG_SUSPENDED	= (1 << 23), /* port is suspended (power) */
@@ -241,7 +250,9 @@ enum {
 	ATA_EH_RESET_MASK	= ATA_EH_SOFTRESET | ATA_EH_HARDRESET,
 
 	/* ata_eh_info->flags */
-	ATA_EHI_DID_RESET	= (1 << 0), /* already reset this port */
+	ATA_EHI_HOTPLUGGED	= (1 << 0),  /* could have been hotplugged */
+
+	ATA_EHI_DID_RESET	= (1 << 16), /* already reset this port */
 
 	/* max repeat if error condition is still set after ->error_handler */
 	ATA_EH_MAX_REPEAT	= 5,
@@ -434,6 +445,10 @@ struct ata_eh_info {
 	unsigned int		err_mask;	/* port-wide err_mask */
 	unsigned int		action;		/* ATA_EH_* action mask */
 	unsigned int		flags;		/* ATA_EHI_* flags */
+
+	unsigned long		hotplug_timestamp;
+	unsigned int		probe_mask;
+
 	char			desc[ATA_EH_DESC_LEN];
 	int			desc_len;
 };
@@ -441,6 +456,8 @@ struct ata_eh_info {
 struct ata_eh_context {
 	struct ata_eh_info	i;
 	int			tries[ATA_MAX_DEVICES];
+	unsigned int		classes[ATA_MAX_DEVICES];
+	unsigned int		did_probe_mask;
 };
 
 struct ata_port {
