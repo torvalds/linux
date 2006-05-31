@@ -5189,6 +5189,7 @@ static void ata_host_init(struct ata_port *ap, struct Scsi_Host *host,
 
 	INIT_WORK(&ap->port_task, NULL, NULL);
 	INIT_LIST_HEAD(&ap->eh_done_q);
+	init_waitqueue_head(&ap->eh_wait_q);
 
 	/* set cable type */
 	ap->cbl = ATA_CBL_NONE;

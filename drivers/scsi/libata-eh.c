@@ -237,6 +237,7 @@ void ata_scsi_error(struct Scsi_Host *host)
 		ap->eh_context.i = ap->eh_info;
 		memset(&ap->eh_info, 0, sizeof(ap->eh_info));
 
+		ap->flags |= ATA_FLAG_EH_IN_PROGRESS;
 		ap->flags &= ~ATA_FLAG_EH_PENDING;
 
 		spin_unlock_irqrestore(hs_lock, flags);
@@ -290,9 +291,46 @@ void ata_scsi_error(struct Scsi_Host *host)
 		ata_port_printk(ap, KERN_INFO, "EH complete\n");
 	ap->flags &= ~ATA_FLAG_RECOVERED;
 
+	/* tell wait_eh that we're done */
+	ap->flags &= ~ATA_FLAG_EH_IN_PROGRESS;
+	wake_up_all(&ap->eh_wait_q);
+
 	spin_unlock_irqrestore(hs_lock, flags);
 
 	DPRINTK("EXIT\n");
+}
+
+/**
+ *	ata_port_wait_eh - Wait for the currently pending EH to complete
+ *	@ap: Port to wait EH for
+ *
+ *	Wait until the currently pending EH is complete.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep).
+ */
+void ata_port_wait_eh(struct ata_port *ap)
+{
+	unsigned long flags;
+	DEFINE_WAIT(wait);
+
+ retry:
+	spin_lock_irqsave(&ap->host_set->lock, flags);
+
+	while (ap->flags & (ATA_FLAG_EH_PENDING | ATA_FLAG_EH_IN_PROGRESS)) {
+		prepare_to_wait(&ap->eh_wait_q, &wait, TASK_UNINTERRUPTIBLE);
+		spin_unlock_irqrestore(&ap->host_set->lock, flags);
+		schedule();
+		spin_lock_irqsave(&ap->host_set->lock, flags);
+	}
+
+	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+
+	/* make sure SCSI EH is complete */
+	if (scsi_host_in_recovery(ap->host)) {
+		msleep(10);
+		goto retry;
+	}
 }
 
 /**

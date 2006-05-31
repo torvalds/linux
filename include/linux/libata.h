@@ -157,6 +157,7 @@ enum {
 	ATA_FLAG_FLUSH_PORT_TASK = (1 << 14), /* flush port task */
 
 	ATA_FLAG_EH_PENDING	= (1 << 15), /* EH pending */
+	ATA_FLAG_EH_IN_PROGRESS	= (1 << 16), /* EH in progress */
 	ATA_FLAG_FROZEN		= (1 << 17), /* port is frozen */
 	ATA_FLAG_RECOVERED	= (1 << 18), /* recovery action performed */
 
@@ -490,6 +491,7 @@ struct ata_port {
 
 	u32			msg_enable;
 	struct list_head	eh_done_q;
+	wait_queue_head_t	eh_wait_q;
 
 	void			*private_data;
 
