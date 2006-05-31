@@ -61,6 +61,7 @@
 #define FLUSH_LOWPRI		8	/* low priority background flush */
 #define FLUSH_HIGHPRI		16	/* high priority memory reclaim flush */
 #define FLUSH_NOCOMMIT		32	/* Don't send the NFSv3/v4 COMMIT */
+#define FLUSH_INVALIDATE	64	/* Invalidate the page cache */
 
 #ifdef __KERNEL__
 

@@ -303,7 +303,11 @@ static int nfs_commit_write(struct file *file, struct page *page, unsigned offse
 
 static void nfs_invalidate_page(struct page *page, unsigned long offset)
 {
-	/* FIXME: we really should cancel any unstarted writes on this page */
+	struct inode *inode = page->mapping->host;
+
+	/* Cancel any unstarted writes on this page */
+	if (offset == 0)
+		nfs_sync_inode_wait(inode, page->index, 1, FLUSH_INVALIDATE);
 }
 
 static int nfs_release_page(struct page *page, gfp_t gfp)
