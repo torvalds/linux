@@ -456,6 +456,7 @@ hrtimer_start(struct hrtimer *timer, ktime_t tim, const enum hrtimer_mode mode)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(hrtimer_start);
 
 /**
  * hrtimer_try_to_cancel - try to deactivate a timer
@@ -484,6 +485,7 @@ int hrtimer_try_to_cancel(struct hrtimer *timer)
 	return ret;
 
 }
+EXPORT_SYMBOL_GPL(hrtimer_try_to_cancel);
 
 /**
  * hrtimer_cancel - cancel a timer and wait for the handler to finish.
@@ -504,6 +506,7 @@ int hrtimer_cancel(struct hrtimer *timer)
 		cpu_relax();
 	}
 }
+EXPORT_SYMBOL_GPL(hrtimer_cancel);
 
 /**
  * hrtimer_get_remaining - get remaining time for the timer
@@ -522,6 +525,7 @@ ktime_t hrtimer_get_remaining(const struct hrtimer *timer)
 
 	return rem;
 }
+EXPORT_SYMBOL_GPL(hrtimer_get_remaining);
 
 #ifdef CONFIG_NO_IDLE_HZ
 /**
@@ -580,6 +584,7 @@ void hrtimer_init(struct hrtimer *timer, clockid_t clock_id,
 	timer->base = &bases[clock_id];
 	timer->node.rb_parent = HRTIMER_INACTIVE;
 }
+EXPORT_SYMBOL_GPL(hrtimer_init);
 
 /**
  * hrtimer_get_res - get the timer resolution for a clock
@@ -599,6 +604,7 @@ int hrtimer_get_res(const clockid_t which_clock, struct timespec *tp)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(hrtimer_get_res);
 
 /*
  * Expire the per base hrtimer-queue:
