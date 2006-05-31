@@ -159,7 +159,8 @@ enum {
 	PORT_IRQ_SDB_NOTIFY	= (1 << 11), /* SDB notify received */
 
 	DEF_PORT_IRQ		= PORT_IRQ_COMPLETE | PORT_IRQ_ERROR |
-				  PORT_IRQ_DEV_XCHG | PORT_IRQ_UNK_FIS,
+				  PORT_IRQ_PHYRDY_CHG | PORT_IRQ_DEV_XCHG |
+				  PORT_IRQ_UNK_FIS,
 
 	/* bits[27:16] are unmasked (raw) */
 	PORT_IRQ_RAW_SHIFT	= 16,
@@ -228,7 +229,7 @@ enum {
 	/* host flags */
 	SIL24_COMMON_FLAGS	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
 				  ATA_FLAG_MMIO | ATA_FLAG_PIO_DMA |
-				  ATA_FLAG_NCQ,
+				  ATA_FLAG_NCQ | ATA_FLAG_SKIP_D2H_BSY,
 	SIL24_FLAG_PCIX_IRQ_WOC	= (1 << 24), /* IRQ loss errata on PCI-X */
 
 	IRQ_STAT_4PORTS		= 0xf,
@@ -325,7 +326,6 @@ static u8 sil24_check_status(struct ata_port *ap);
 static u32 sil24_scr_read(struct ata_port *ap, unsigned sc_reg);
 static void sil24_scr_write(struct ata_port *ap, unsigned sc_reg, u32 val);
 static void sil24_tf_read(struct ata_port *ap, struct ata_taskfile *tf);
-static int sil24_probe_reset(struct ata_port *ap, unsigned int *classes);
 static void sil24_qc_prep(struct ata_queued_cmd *qc);
 static unsigned int sil24_qc_issue(struct ata_queued_cmd *qc);
 static void sil24_irq_clear(struct ata_port *ap);
@@ -384,8 +384,6 @@ static const struct ata_port_operations sil24_ops = {
 	.dev_select		= ata_noop_dev_select,
 
 	.tf_read		= sil24_tf_read,
-
-	.probe_reset		= sil24_probe_reset,
 
 	.qc_prep		= sil24_qc_prep,
 	.qc_issue		= sil24_qc_issue,
@@ -635,13 +633,6 @@ static int sil24_hardreset(struct ata_port *ap, unsigned int *class)
 	return -EIO;
 }
 
-static int sil24_probe_reset(struct ata_port *ap, unsigned int *classes)
-{
-	return ata_drive_probe_reset(ap, ata_std_probeinit,
-				     sil24_softreset, sil24_hardreset,
-				     ata_std_postreset, classes);
-}
-
 static inline void sil24_fill_sg(struct ata_queued_cmd *qc,
 				 struct sil24_sge *sge)
 {
@@ -772,13 +763,11 @@ static void sil24_error_intr(struct ata_port *ap)
 
 	ata_ehi_push_desc(ehi, "irq_stat 0x%08x", irq_stat);
 
-	if (irq_stat & PORT_IRQ_DEV_XCHG) {
-		ehi->err_mask |= AC_ERR_ATA_BUS;
-		/* sil24 doesn't recover very well from phy
-		 * disconnection with a softreset.  Force hardreset.
-		 */
-		ehi->action |= ATA_EH_HARDRESET;
-		ata_ehi_push_desc(ehi, ", device_exchanged");
+	if (irq_stat & (PORT_IRQ_PHYRDY_CHG | PORT_IRQ_DEV_XCHG)) {
+		ata_ehi_hotplugged(ehi);
+		ata_ehi_push_desc(ehi, ", %s",
+			       irq_stat & PORT_IRQ_PHYRDY_CHG ?
+			       "PHY RDY changed" : "device exchanged");
 		freeze = 1;
 	}
 
