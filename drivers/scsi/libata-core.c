@@ -61,6 +61,11 @@
 
 #include "libata.h"
 
+/* debounce timing parameters in msecs { interval, duration, timeout } */
+const unsigned long sata_deb_timing_boot[]		= {   5,  100, 2000 };
+const unsigned long sata_deb_timing_eh[]		= {  25,  500, 2000 };
+const unsigned long sata_deb_timing_before_fsrst[]	= { 100, 2000, 5000 };
+
 static unsigned int ata_dev_init_params(struct ata_device *dev,
 					u16 heads, u16 sectors);
 static unsigned int ata_dev_set_xfermode(struct ata_device *dev);
@@ -2427,10 +2432,81 @@ err_out:
 	DPRINTK("EXIT\n");
 }
 
-static int sata_phy_resume(struct ata_port *ap)
+/**
+ *	sata_phy_debounce - debounce SATA phy status
+ *	@ap: ATA port to debounce SATA phy status for
+ *	@params: timing parameters { interval, duratinon, timeout } in msec
+ *
+ *	Make sure SStatus of @ap reaches stable state, determined by
+ *	holding the same value where DET is not 1 for @duration polled
+ *	every @interval, before @timeout.  Timeout constraints the
+ *	beginning of the stable state.  Because, after hot unplugging,
+ *	DET gets stuck at 1 on some controllers, this functions waits
+ *	until timeout then returns 0 if DET is stable at 1.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep)
+ *
+ *	RETURNS:
+ *	0 on success, -errno on failure.
+ */
+int sata_phy_debounce(struct ata_port *ap, const unsigned long *params)
 {
-	unsigned long timeout = jiffies + (HZ * 5);
-	u32 scontrol, sstatus;
+	unsigned long interval_msec = params[0];
+	unsigned long duration = params[1] * HZ / 1000;
+	unsigned long timeout = jiffies + params[2] * HZ / 1000;
+	unsigned long last_jiffies;
+	u32 last, cur;
+	int rc;
+
+	if ((rc = sata_scr_read(ap, SCR_STATUS, &cur)))
+		return rc;
+	cur &= 0xf;
+
+	last = cur;
+	last_jiffies = jiffies;
+
+	while (1) {
+		msleep(interval_msec);
+		if ((rc = sata_scr_read(ap, SCR_STATUS, &cur)))
+			return rc;
+		cur &= 0xf;
+
+		/* DET stable? */
+		if (cur == last) {
+			if (cur == 1 && time_before(jiffies, timeout))
+				continue;
+			if (time_after(jiffies, last_jiffies + duration))
+				return 0;
+			continue;
+		}
+
+		/* unstable, start over */
+		last = cur;
+		last_jiffies = jiffies;
+
+		/* check timeout */
+		if (time_after(jiffies, timeout))
+			return -EBUSY;
+	}
+}
+
+/**
+ *	sata_phy_resume - resume SATA phy
+ *	@ap: ATA port to resume SATA phy for
+ *	@params: timing parameters { interval, duratinon, timeout } in msec
+ *
+ *	Resume SATA phy of @ap and debounce it.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep)
+ *
+ *	RETURNS:
+ *	0 on success, -errno on failure.
+ */
+int sata_phy_resume(struct ata_port *ap, const unsigned long *params)
+{
+	u32 scontrol;
 	int rc;
 
 	if ((rc = sata_scr_read(ap, SCR_CONTROL, &scontrol)))
@@ -2441,16 +2517,12 @@ static int sata_phy_resume(struct ata_port *ap)
 	if ((rc = sata_scr_write(ap, SCR_CONTROL, scontrol)))
 		return rc;
 
-	/* Wait for phy to become ready, if necessary. */
-	do {
-		msleep(200);
-		if ((rc = sata_scr_read(ap, SCR_STATUS, &sstatus)))
-			return rc;
-		if ((sstatus & 0xf) != 1)
-			return 0;
-	} while (time_before(jiffies, timeout));
+	/* Some PHYs react badly if SStatus is pounded immediately
+	 * after resuming.  Delay 200ms before debouncing.
+	 */
+	msleep(200);
 
-	return -EBUSY;
+	return sata_phy_debounce(ap, params);
 }
 
 /**
@@ -2468,8 +2540,10 @@ static int sata_phy_resume(struct ata_port *ap)
  */
 void ata_std_probeinit(struct ata_port *ap)
 {
+	static const unsigned long deb_timing[] = { 5, 100, 5000 };
+
 	/* resume link */
-	sata_phy_resume(ap);
+	sata_phy_resume(ap, deb_timing);
 
 	/* wait for device */
 	if (ata_port_online(ap))
@@ -2585,7 +2659,7 @@ int sata_std_hardreset(struct ata_port *ap, unsigned int *class)
 	msleep(1);
 
 	/* bring phy back */
-	sata_phy_resume(ap);
+	sata_phy_resume(ap, sata_deb_timing_eh);
 
 	/* TODO: phy layer with polling, timeouts, etc. */
 	if (ata_port_offline(ap)) {
@@ -5718,6 +5792,9 @@ u32 ata_wait_register(void __iomem *reg, u32 mask, u32 val,
  * Do not depend on ABI/API stability.
  */
 
+EXPORT_SYMBOL_GPL(sata_deb_timing_boot);
+EXPORT_SYMBOL_GPL(sata_deb_timing_eh);
+EXPORT_SYMBOL_GPL(sata_deb_timing_before_fsrst);
 EXPORT_SYMBOL_GPL(ata_std_bios_param);
 EXPORT_SYMBOL_GPL(ata_std_ports);
 EXPORT_SYMBOL_GPL(ata_device_add);
@@ -5757,6 +5834,8 @@ EXPORT_SYMBOL_GPL(ata_bmdma_error_handler);
 EXPORT_SYMBOL_GPL(ata_bmdma_post_internal_cmd);
 EXPORT_SYMBOL_GPL(ata_port_probe);
 EXPORT_SYMBOL_GPL(sata_set_spd);
+EXPORT_SYMBOL_GPL(sata_phy_debounce);
+EXPORT_SYMBOL_GPL(sata_phy_resume);
 EXPORT_SYMBOL_GPL(sata_phy_reset);
 EXPORT_SYMBOL_GPL(__sata_phy_reset);
 EXPORT_SYMBOL_GPL(ata_bus_reset);

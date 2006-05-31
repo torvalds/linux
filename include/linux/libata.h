@@ -607,11 +607,17 @@ struct ata_timing {
 
 #define FIT(v,vmin,vmax)	max_t(short,min_t(short,v,vmax),vmin)
 
+extern const unsigned long sata_deb_timing_boot[];
+extern const unsigned long sata_deb_timing_eh[];
+extern const unsigned long sata_deb_timing_before_fsrst[];
+
 extern void ata_port_probe(struct ata_port *);
 extern void __sata_phy_reset(struct ata_port *ap);
 extern void sata_phy_reset(struct ata_port *ap);
 extern void ata_bus_reset(struct ata_port *ap);
 extern int sata_set_spd(struct ata_port *ap);
+extern int sata_phy_debounce(struct ata_port *ap, const unsigned long *param);
+extern int sata_phy_resume(struct ata_port *ap, const unsigned long *param);
 extern int ata_drive_probe_reset(struct ata_port *ap,
 			ata_probeinit_fn_t probeinit,
 			ata_reset_fn_t softreset, ata_reset_fn_t hardreset,
