@@ -167,7 +167,7 @@ cifs_symlink(struct inode *inode, struct dentry *direntry, const char *symname)
 		return -ENOMEM;
 	}
 
-	cFYI(1, ("Full path: %s ", full_path));
+	cFYI(1, ("Full path: %s", full_path));
 	cFYI(1, ("symname is %s", symname));
 
 	/* BB what if DFS and this volume is on different share? BB */
@@ -186,8 +186,7 @@ cifs_symlink(struct inode *inode, struct dentry *direntry, const char *symname)
 						 inode->i_sb,xid);
 
 		if (rc != 0) {
-			cFYI(1,
-			     ("Create symlink worked but get_inode_info failed with rc = %d ",
+			cFYI(1, ("Create symlink ok, getinodeinfo fail rc = %d",
 			      rc));
 		} else {
 			if (pTcon->nocase)
@@ -289,7 +288,7 @@ cifs_readlink(struct dentry *direntry, char __user *pBuffer, int buflen)
 					else {
 						cFYI(1,("num referral: %d",num_referrals));
 						if(referrals) {
-							cFYI(1,("referral string: %s ",referrals));
+							cFYI(1,("referral string: %s",referrals));
 							strncpy(tmpbuffer, referrals, len-1);                            
 						}
 					}

@@ -654,8 +654,7 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 
 	if (in_buf->smb_buf_length > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE - 4) {
 		up(&ses->server->tcpSem);
-		cERROR(1,
-		       ("Illegal length, greater than maximum frame, %d ",
+		cERROR(1, ("Illegal length, greater than maximum frame, %d",
 			in_buf->smb_buf_length));
 		DeleteMidQEntry(midQ);
 		/* If not lock req, update # of requests on wire to server */

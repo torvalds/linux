@@ -2239,7 +2239,7 @@ CIFSSMBQueryReparseLinkInfo(const int xid, struct cifsTconInfo *tcon,
 			}
 			symlinkinfo[buflen] = 0; /* just in case so the caller
 					does not go off the end of the buffer */
-			cFYI(1,("readlink result - %s ",symlinkinfo));
+			cFYI(1,("readlink result - %s",symlinkinfo));
 		}
 	}
 qreparse_out:

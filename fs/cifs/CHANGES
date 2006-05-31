@@ -3,7 +3,10 @@ Version 1.43
 POSIX locking to servers which support CIFS POSIX Extensions
 (disabled by default controlled by proc/fs/cifs/Experimental).
 Handle conversion of long share names (especially Asian languages)
-to Unicode during mount. 
+to Unicode during mount. Fix memory leak in sess struct on reconnect.
+Fix rare oops after acpi suspend.  Fix O_TRUNC opens to overwrite on
+cifs open which helps rare case when setpathinfo fails or server does
+not support it. 
 
 Version 1.42
 ------------

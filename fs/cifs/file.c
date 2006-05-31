@@ -201,7 +201,7 @@ int cifs_open(struct inode *inode, struct file *file)
 		} else {
 			if (file->f_flags & O_EXCL)
 				cERROR(1, ("could not find file instance for "
-					   "new file %p ", file));
+					   "new file %p", file));
 		}
 	}
 
@@ -272,7 +272,7 @@ int cifs_open(struct inode *inode, struct file *file)
 				& CIFS_MOUNT_MAP_SPECIAL_CHR);
 	}
 	if (rc) {
-		cFYI(1, ("cifs_open returned 0x%x ", rc));
+		cFYI(1, ("cifs_open returned 0x%x", rc));
 		goto out;
 	}
 	file->private_data =
@@ -409,8 +409,8 @@ static int cifs_reopen_file(struct inode *inode, struct file *file,
 				CIFS_MOUNT_MAP_SPECIAL_CHR);
 	if (rc) {
 		up(&pCifsFile->fh_sem);
-		cFYI(1, ("cifs_open returned 0x%x ", rc));
-		cFYI(1, ("oplock: %d ", oplock));
+		cFYI(1, ("cifs_open returned 0x%x", rc));
+		cFYI(1, ("oplock: %d", oplock));
 	} else {
 		pCifsFile->netfid = netfid;
 		pCifsFile->invalidHandle = FALSE;
@@ -531,7 +531,7 @@ int cifs_closedir(struct inode *inode, struct file *file)
 	    (struct cifsFileInfo *)file->private_data;
 	char *ptmp;
 
-	cFYI(1, ("Closedir inode = 0x%p with ", inode));
+	cFYI(1, ("Closedir inode = 0x%p", inode));
 
 	xid = GetXid();
 
@@ -605,7 +605,7 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 	}
 	if (pfLock->fl_flags & FL_ACCESS)
 		cFYI(1, ("Process suspended by mandatory locking - "
-			 "not implemented yet "));
+			 "not implemented yet"));
 	if (pfLock->fl_flags & FL_LEASE)
 		cFYI(1, ("Lease on file - not implemented yet"));
 	if (pfLock->fl_flags & 
@@ -1377,7 +1377,7 @@ int cifs_fsync(struct file *file, struct dentry *dentry, int datasync)
 
 	xid = GetXid();
 
-	cFYI(1, ("Sync file - name: %s datasync: 0x%x ", 
+	cFYI(1, ("Sync file - name: %s datasync: 0x%x", 
 		dentry->d_name.name, datasync));
 	
 	rc = filemap_fdatawrite(inode->i_mapping);
@@ -1406,7 +1406,7 @@ int cifs_fsync(struct file *file, struct dentry *dentry, int datasync)
 /*	fill in rpages then 
 	result = cifs_pagein_inode(inode, index, rpages); */ /* BB finish */
 
-/*	cFYI(1, ("rpages is %d for sync page of Index %ld ", rpages, index));
+/*	cFYI(1, ("rpages is %d for sync page of Index %ld", rpages, index));
 
 #if 0
 	if (rc < 0)
@@ -1838,7 +1838,7 @@ static int cifs_readpage_worker(struct file *file, struct page *page,
 	if (rc < 0)
 		goto io_error;
 	else
-		cFYI(1, ("Bytes read %d ",rc));
+		cFYI(1, ("Bytes read %d",rc));
                                                                                                                            
 	file->f_dentry->d_inode->i_atime =
 		current_fs_time(file->f_dentry->d_inode->i_sb);

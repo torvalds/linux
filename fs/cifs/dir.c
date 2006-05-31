@@ -191,7 +191,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
 	} 
 	if (rc) {
-		cFYI(1, ("cifs_create returned 0x%x ", rc));
+		cFYI(1, ("cifs_create returned 0x%x", rc));
 	} else {
 		/* If Open reported that we actually created a file
 		then we now have to set the mode if possible */
