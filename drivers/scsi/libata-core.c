@@ -2466,16 +2466,8 @@ static int sata_phy_resume(struct ata_port *ap)
  */
 void ata_std_probeinit(struct ata_port *ap)
 {
-	u32 scontrol;
-
 	/* resume link */
 	sata_phy_resume(ap);
-
-	/* init sata_spd_limit to the current value */
-	if (sata_scr_read(ap, SCR_CONTROL, &scontrol) == 0) {
-		int spd = (scontrol >> 4) & 0xf;
-		ap->sata_spd_limit &= (1 << spd) - 1;
-	}
 
 	/* wait for device */
 	if (ata_port_online(ap))
@@ -5155,6 +5147,9 @@ void ata_dev_init(struct ata_device *dev)
 	struct ata_port *ap = dev->ap;
 	unsigned long flags;
 
+	/* SATA spd limit is bound to the first device */
+	ap->sata_spd_limit = ap->hw_sata_spd_limit;
+
 	/* High bits of dev->flags are used to record warm plug
 	 * requests which occur asynchronously.  Synchronize using
 	 * host_set lock.
@@ -5210,7 +5205,7 @@ static void ata_host_init(struct ata_port *ap, struct Scsi_Host *host,
 	ap->udma_mask = ent->udma_mask;
 	ap->flags |= ent->host_flags;
 	ap->ops = ent->port_ops;
-	ap->sata_spd_limit = UINT_MAX;
+	ap->hw_sata_spd_limit = UINT_MAX;
 	ap->active_tag = ATA_TAG_POISON;
 	ap->last_ctl = 0xFF;
 	ap->msg_enable = ATA_MSG_DRV;
@@ -5375,9 +5370,17 @@ int ata_device_add(const struct ata_probe_ent *ent)
 	DPRINTK("probe begin\n");
 	for (i = 0; i < count; i++) {
 		struct ata_port *ap;
+		u32 scontrol;
 		int rc;
 
 		ap = host_set->ports[i];
+
+		/* init sata_spd_limit to the current value */
+		if (sata_scr_read(ap, SCR_CONTROL, &scontrol) == 0) {
+			int spd = (scontrol >> 4) & 0xf;
+			ap->hw_sata_spd_limit &= (1 << spd) - 1;
+		}
+		ap->sata_spd_limit = ap->hw_sata_spd_limit;
 
 		DPRINTK("ata%u: bus probe begin\n", ap->id);
 		rc = ata_bus_probe(ap);
