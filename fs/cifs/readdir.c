@@ -31,8 +31,8 @@
 #include "cifs_fs_sb.h"
 #include "cifsfs.h"
 
-/* BB fixme - add debug wrappers around this function to disable it fixme BB */
-/* static void dump_cifs_file_struct(struct file *file, char *label)
+#ifdef CONFIG_CIFS_DEBUG2
+static void dump_cifs_file_struct(struct file *file, char *label)
 {
 	struct cifsFileInfo * cf;
 
@@ -53,7 +53,8 @@
 		}
 		
 	}
-} */
+}
+#endif /* DEBUG2 */
 
 /* Returns one if new inode created (which therefore needs to be hashed) */
 /* Might check in the future if inode number changed so we can rehash inode */
@@ -597,7 +598,9 @@ static int find_cifs_entry(const int xid, struct cifsTconInfo *pTcon,
 	. and .. for the root of a drive and for those we need
 	to start two entries earlier */
 
-/*	dump_cifs_file_struct(file, "In fce ");*/
+#ifdef CONFIG_CIFS_DEBUG2
+	dump_cifs_file_struct(file, "In fce ");
+#endif
 	if(((index_to_find < cifsFile->srch_inf.index_of_last_entry) && 
 	     is_dir_changed(file)) || 
 	   (index_to_find < first_entry_in_buffer)) {
@@ -980,9 +983,10 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 			rc = cifs_filldir(current_entry, file, 
 					filldir, direntry,tmp_buf);
 			file->f_pos++;
-			if(file->f_pos == cifsFile->srch_inf.index_of_last_entry) {
+			if(file->f_pos == 
+				cifsFile->srch_inf.index_of_last_entry) {
 				cFYI(1,("last entry in buf at pos %lld %s",
-					file->f_pos,tmp_buf)); /* BB removeme BB */
+					file->f_pos,tmp_buf));
 				cifs_save_resume_key(current_entry,cifsFile);
 				break;
 			} else 

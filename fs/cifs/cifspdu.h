@@ -16,7 +16,7 @@
  *
  *   You should have received a copy of the GNU Lesser General Public License
  *   along with this library; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA 
+ *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #ifndef _CIFSPDU_H
@@ -24,8 +24,14 @@
 
 #include <net/sock.h>
 
+#ifdef CONFIG_CIFS_WEAK_PW_HASH
+#define LANMAN_PROT 0
+#define CIFS_PROT   1
+#else
 #define CIFS_PROT   0
-#define BAD_PROT    CIFS_PROT+1
+#endif
+#define POSIX_PROT  CIFS_PROT+1
+#define BAD_PROT 0xFFFF
 
 /* SMB command codes */
 /* Some commands have minimal (wct=0,bcc=0), or uninteresting, responses
@@ -400,6 +406,25 @@ typedef struct negotiate_req {
 	unsigned char DialectsArray[1];
 } __attribute__((packed)) NEGOTIATE_REQ;
 
+/* Dialect index is 13 for LANMAN */
+
+typedef struct lanman_neg_rsp {
+	struct smb_hdr hdr;	/* wct = 13 */
+	__le16 DialectIndex;
+	__le16 SecurityMode;
+	__le16 MaxBufSize;
+	__le16 MaxMpxCount;
+	__le16 MaxNumberVcs;
+	__le16 RawMode;
+	__le32 SessionKey;
+	__le32 ServerTime;
+	__le16 ServerTimeZone;
+	__le16 EncryptionKeyLength;
+	__le16 Reserved;
+	__u16  ByteCount;
+	unsigned char EncryptionKey[1];
+} __attribute__((packed)) LANMAN_NEG_RSP;
+
 typedef struct negotiate_rsp {
 	struct smb_hdr hdr;	/* wct = 17 */
 	__le16 DialectIndex;
@@ -520,8 +545,8 @@ typedef union smb_com_session_setup_andx {
 		__le16 MaxMpxCount;
 		__le16 VcNumber;
 		__u32 SessionKey;
-		__le16 PassswordLength;
-		__u32 Reserved;
+		__le16 PasswordLength;
+		__u32 Reserved; /* encrypt key len and offset */
 		__le16 ByteCount;
 		unsigned char AccountPassword[1];	/* followed by */
 		/* STRING AccountName */
@@ -1844,13 +1869,13 @@ typedef struct {
 typedef struct {
 	__le32 DeviceType;
 	__le32 DeviceCharacteristics;
-} __attribute__((packed)) FILE_SYSTEM_DEVICE_INFO;	/* device info, level 0x104 */
+} __attribute__((packed)) FILE_SYSTEM_DEVICE_INFO; /* device info level 0x104 */
 
 typedef struct {
 	__le32 Attributes;
 	__le32 MaxPathNameComponentLength;
 	__le32 FileSystemNameLen;
-	char FileSystemName[52]; /* do not really need to save this - so potentially get only subset of name */
+	char FileSystemName[52]; /* do not have to save this - get subset? */
 } __attribute__((packed)) FILE_SYSTEM_ATTRIBUTE_INFO;
 
 /******************************************************************************/

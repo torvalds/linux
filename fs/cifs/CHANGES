@@ -1,3 +1,8 @@
+Version 1.44
+------------
+Rewritten sessionsetup support, including support for legacy SMB
+session setup needed for OS/2 and older servers such as Windows 95 and 98.
+
 Version 1.43
 ------------
 POSIX locking to servers which support CIFS POSIX Extensions

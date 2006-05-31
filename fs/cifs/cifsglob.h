@@ -88,7 +88,8 @@ enum statusEnum {
 };
 
 enum securityEnum {
-	NTLM = 0,		/* Legacy NTLM012 auth with NTLM hash */
+	LANMAN = 0,             /* Legacy LANMAN auth */
+	NTLM,			/* Legacy NTLM012 auth with NTLM hash */
 	NTLMv2,			/* Legacy NTLM auth with NTLMv2 hash */
 	RawNTLMSSP,		/* NTLMSSP without SPNEGO */
 	NTLMSSP,		/* NTLMSSP via SPNEGO */
@@ -179,7 +180,9 @@ struct cifsUidInfo {
 struct cifsSesInfo {
 	struct list_head cifsSessionList;
 	struct semaphore sesSem;
+#if 0
 	struct cifsUidInfo *uidInfo;	/* pointer to user info */
+#endif
 	struct TCP_Server_Info *server;	/* pointer to server info */
 	atomic_t inUse; /* # of mounts (tree connections) on this ses */
 	enum statusEnum status;
@@ -194,7 +197,7 @@ struct cifsSesInfo {
 	char serverName[SERVER_NAME_LEN_WITH_NULL * 2];	/* BB make bigger for 
 				TCP names - will ipv6 and sctp addresses fit? */
 	char userName[MAX_USERNAME_SIZE + 1];
-	char domainName[MAX_USERNAME_SIZE + 1];
+	char * domainName;
 	char * password;
 };
 /* session flags */
@@ -391,9 +394,9 @@ struct mid_q_entry {
 	struct smb_hdr *resp_buf;	/* response buffer */
 	int midState;	/* wish this were enum but can not pass to wait_event */
 	__u8 command;	/* smb command code */
-	unsigned multiPart:1;	/* multiple responses to one SMB request */
 	unsigned largeBuf:1;    /* if valid response, is pointer to large buf */
-	unsigned multiResp:1;   /* multiple trans2 responses for one request  */
+	unsigned multiRsp:1;   /* multiple trans2 responses for one request  */
+	unsigned multiEnd:1; /* both received */
 };
 
 struct oplock_q_entry {
@@ -430,15 +433,35 @@ struct dir_notify_req {
 #define   CIFS_LARGE_BUFFER     2
 #define   CIFS_IOVEC            4    /* array of response buffers */
 
-/* Type of session setup needed */
-#define   CIFS_PLAINTEXT	0
-#define   CIFS_LANMAN		1
-#define   CIFS_NTLM		2
-#define   CIFS_NTLMSSP_NEG	3
-#define   CIFS_NTLMSSP_AUTH	4
-#define   CIFS_SPNEGO_INIT	5
-#define   CIFS_SPNEGO_TARG	6
+/* Security Flags: indicate type of session setup needed */
+#define   CIFSSEC_MAY_SIGN	0x00001
+#define   CIFSSEC_MAY_NTLM	0x00002
+#define   CIFSSEC_MAY_NTLMV2	0x00004
+#define   CIFSSEC_MAY_KRB5	0x00008
+#ifdef CONFIG_CIFS_WEAK_PW_HASH
+#define   CIFSSEC_MAY_LANMAN	0x00010
+#define   CIFSSEC_MAY_PLNTXT	0x00020
+#endif /* weak passwords */
+#define   CIFSSEC_MAY_SEAL	0x00040 /* not supported yet */
 
+#define   CIFSSEC_MUST_SIGN	0x01001
+/* note that only one of the following can be set so the
+result of setting MUST flags more than once will be to
+require use of the stronger protocol */
+#define   CIFSSEC_MUST_NTLM	0x02002
+#define   CIFSSEC_MUST_NTLMV2	0x04004
+#define   CIFSSEC_MUST_KRB5	0x08008
+#ifdef CONFIG_CIFS_WEAK_PW_HASH
+#define   CIFSSEC_MUST_LANMAN	0x10010
+#define   CIFSSEC_MUST_PLNTXT	0x20020
+#define   CIFSSEC_MASK          0x37037 /* current flags supported if weak */
+#else	  
+#define	  CIFSSEC_MASK          0x07007 /* flags supported if no weak config */
+#endif /* WEAK_PW_HASH */
+#define   CIFSSEC_MUST_SEAL	0x40040 /* not supported yet */
+
+#define   CIFSSEC_DEF  CIFSSEC_MAY_SIGN | CIFSSEC_MAY_NTLM | CIFSSEC_MAY_NTLMV2
+#define   CIFSSEC_MAX  CIFSSEC_MUST_SIGN | CIFSSEC_MUST_NTLMV2
 /*
  *****************************************************************
  * All constants go here
@@ -540,8 +563,8 @@ GLOBAL_EXTERN unsigned int experimEnabled;
 GLOBAL_EXTERN unsigned int lookupCacheEnabled;
 GLOBAL_EXTERN unsigned int extended_security;	/* if on, session setup sent 
 				with more secure ntlmssp2 challenge/resp */
-GLOBAL_EXTERN unsigned int ntlmv2_support;  /* better optional password hash */
 GLOBAL_EXTERN unsigned int sign_CIFS_PDUs;  /* enable smb packet signing */
+GLOBAL_EXTERN unsigned int secFlags;
 GLOBAL_EXTERN unsigned int linuxExtEnabled;/*enable Linux/Unix CIFS extensions*/
 GLOBAL_EXTERN unsigned int CIFSMaxBufSize;  /* max size not including hdr */
 GLOBAL_EXTERN unsigned int cifs_min_rcv;    /* min size of big ntwrk buf pool */

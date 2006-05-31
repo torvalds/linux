@@ -101,6 +101,7 @@ sesInfoFree(struct cifsSesInfo *buf_to_free)
 	kfree(buf_to_free->serverDomain);
 	kfree(buf_to_free->serverNOS);
 	kfree(buf_to_free->password);
+	kfree(buf_to_free->domainName);
 	kfree(buf_to_free);
 }
 
@@ -499,11 +500,12 @@ is_valid_oplock_break(struct smb_hdr *buf, struct TCP_Server_Info *srv)
 		if(pSMBr->ByteCount > sizeof(struct file_notify_information)) {
 			data_offset = le32_to_cpu(pSMBr->DataOffset);
 
-			pnotify = (struct file_notify_information *)((char *)&pSMBr->hdr.Protocol
-				+ data_offset);
-			cFYI(1,("dnotify on %s with action: 0x%x",pnotify->FileName,
+			pnotify = (struct file_notify_information *)
+				((char *)&pSMBr->hdr.Protocol + data_offset);
+			cFYI(1,("dnotify on %s Action: 0x%x",pnotify->FileName,
 				pnotify->Action));  /* BB removeme BB */
-	             /*   cifs_dump_mem("Received notify Data is: ",buf,sizeof(struct smb_hdr)+60); */
+	             /*   cifs_dump_mem("Rcvd notify Data: ",buf,
+				sizeof(struct smb_hdr)+60); */
 			return TRUE;
 		}
 		if(pSMBr->hdr.Status.CifsError) {

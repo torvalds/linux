@@ -39,7 +39,7 @@ cifs_dump_mem(char *label, void *data, int length)
 	char *charptr = data;
 	char buf[10], line[80];
 
-	printk(KERN_DEBUG "%s: dump of %d bytes of data at 0x%p\n\n", 
+	printk(KERN_DEBUG "%s: dump of %d bytes of data at 0x%p\n", 
 		label, length, data);
 	for (i = 0; i < length; i += 16) {
 		line[0] = 0;
@@ -57,6 +57,57 @@ cifs_dump_mem(char *label, void *data, int length)
 	}
 }
 
+#ifdef CONFIG_CIFS_DEBUG2
+void cifs_dump_detail(struct smb_hdr * smb)
+{
+	cERROR(1,("Cmd: %d Err: 0x%x Flags: 0x%x Flgs2: 0x%x Mid: %d Pid: %d",
+		  smb->Command, smb->Status.CifsError,
+		  smb->Flags, smb->Flags2, smb->Mid, smb->Pid));
+	cERROR(1,("smb buf %p len %d", smb, smbCalcSize_LE(smb)));
+}
+
+
+void cifs_dump_mids(struct TCP_Server_Info * server)
+{
+	struct list_head *tmp;
+	struct mid_q_entry * mid_entry;
+
+	if(server == NULL)
+		return;
+
+	cERROR(1,("Dump pending requests:"));
+	spin_lock(&GlobalMid_Lock);
+	list_for_each(tmp, &server->pending_mid_q) {
+		mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
+		if(mid_entry) {
+			cERROR(1,("State: %d Cmd: %d Pid: %d Tsk: %p Mid %d",
+				mid_entry->midState,
+				(int)mid_entry->command,
+				mid_entry->pid,
+				mid_entry->tsk,
+				mid_entry->mid));
+#ifdef CONFIG_CIFS_STATS2
+			cERROR(1,("IsLarge: %d buf: %p time rcv: %ld now: %ld",
+				mid_entry->largeBuf,
+				mid_entry->resp_buf,
+				mid_entry->when_received,
+				jiffies));
+#endif /* STATS2 */
+			cERROR(1,("IsMult: %d IsEnd: %d", mid_entry->multiRsp,
+				  mid_entry->multiEnd));
+			if(mid_entry->resp_buf) {
+				cifs_dump_detail(mid_entry->resp_buf);
+				cifs_dump_mem("existing buf: ",
+					mid_entry->resp_buf,
+					62 /* fixme */);
+			}
+			
+		}
+	}
+	spin_unlock(&GlobalMid_Lock);
+}
+#endif /* CONFIG_CIFS_DEBUG2 */
+
 #ifdef CONFIG_PROC_FS
 static int
 cifs_debug_data_read(char *buf, char **beginBuffer, off_t offset,
@@ -73,7 +124,6 @@ cifs_debug_data_read(char *buf, char **beginBuffer, off_t offset,
 
 	*beginBuffer = buf + offset;
 
-	
 	length =
 	    sprintf(buf,
 		    "Display Internal CIFS Data Structures for Debugging\n"
@@ -397,10 +447,10 @@ static read_proc_t multiuser_mount_read;
 static write_proc_t multiuser_mount_write;
 static read_proc_t extended_security_read;
 static write_proc_t extended_security_write;
-static read_proc_t ntlmv2_enabled_read;
+/* static read_proc_t ntlmv2_enabled_read;
 static write_proc_t ntlmv2_enabled_write;
 static read_proc_t packet_signing_enabled_read;
-static write_proc_t packet_signing_enabled_write;
+static write_proc_t packet_signing_enabled_write;*/
 static read_proc_t experimEnabled_read;
 static write_proc_t experimEnabled_write;
 static read_proc_t linuxExtensionsEnabled_read;
@@ -469,7 +519,7 @@ cifs_proc_init(void)
 	if (pde)
 		pde->write_proc = lookupFlag_write;
 
-	pde =
+/*	pde =
 	    create_proc_read_entry("NTLMV2Enabled", 0, proc_fs_cifs,
 				ntlmv2_enabled_read, NULL);
 	if (pde)
@@ -479,7 +529,7 @@ cifs_proc_init(void)
 	    create_proc_read_entry("PacketSigningEnabled", 0, proc_fs_cifs,
 				packet_signing_enabled_read, NULL);
 	if (pde)
-		pde->write_proc = packet_signing_enabled_write;
+		pde->write_proc = packet_signing_enabled_write;*/
 }
 
 void
@@ -496,9 +546,9 @@ cifs_proc_clean(void)
 #endif
 	remove_proc_entry("MultiuserMount", proc_fs_cifs);
 	remove_proc_entry("OplockEnabled", proc_fs_cifs);
-	remove_proc_entry("NTLMV2Enabled",proc_fs_cifs);
+/*	remove_proc_entry("NTLMV2Enabled",proc_fs_cifs); */
 	remove_proc_entry("ExtendedSecurity",proc_fs_cifs);
-	remove_proc_entry("PacketSigningEnabled",proc_fs_cifs);
+/*	remove_proc_entry("PacketSigningEnabled",proc_fs_cifs); */
 	remove_proc_entry("LinuxExtensionsEnabled",proc_fs_cifs);
 	remove_proc_entry("Experimental",proc_fs_cifs);
 	remove_proc_entry("LookupCacheEnabled",proc_fs_cifs);
@@ -787,7 +837,7 @@ extended_security_read(char *page, char **start, off_t off,
 {
 	int len;
 
-	len = sprintf(page, "%d\n", extended_security);
+	len = sprintf(page, "0x%x\n", extended_security);
 
 	len -= off;
 	*start = page + off;
@@ -808,19 +858,25 @@ extended_security_write(struct file *file, const char __user *buffer,
 {
 	char c;
 	int rc;
+	cERROR(1,("size %ld",count)); /* BB removeme BB */
+	if((count < 2) || (count > 8))
+		return -EINVAL;
 
 	rc = get_user(c, buffer);
+
+/* BB fixme need to parse more characters in order to handle CIFSSEC flags */ 
+
 	if (rc)
 		return rc;
 	if (c == '0' || c == 'n' || c == 'N')
-		extended_security = 0;
+		extended_security = CIFSSEC_DEF; /* default */
 	else if (c == '1' || c == 'y' || c == 'Y')
-		extended_security = 1;
+		extended_security = CIFSSEC_MAX;
 
 	return count;
 }
 
-static int
+/* static int
 ntlmv2_enabled_read(char *page, char **start, off_t off,
 		       int count, int *eof, void *data)
 {
@@ -855,6 +911,8 @@ ntlmv2_enabled_write(struct file *file, const char __user *buffer,
 		ntlmv2_support = 0;
 	else if (c == '1' || c == 'y' || c == 'Y')
 		ntlmv2_support = 1;
+	else if (c == '2')
+		ntlmv2_support = 2;
 
 	return count;
 }
@@ -898,7 +956,7 @@ packet_signing_enabled_write(struct file *file, const char __user *buffer,
 		sign_CIFS_PDUs = 2;
 
 	return count;
-}
+} */
 
 
 #endif

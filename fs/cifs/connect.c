@@ -49,8 +49,6 @@
 
 static DECLARE_COMPLETION(cifsd_complete);
 
-extern void SMBencrypt(unsigned char *passwd, unsigned char *c8,
-		       unsigned char *p24);
 extern void SMBNTencrypt(unsigned char *passwd, unsigned char *c8,
 			 unsigned char *p24);
 
@@ -585,9 +583,11 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 						/* merge response - fix up 1st*/
 						if(coalesce_t2(smb_buffer, 
 							mid_entry->resp_buf)) {
+							mid_entry->multiRsp = 1;
 							break;
 						} else {
 							/* all parts received */
+							mid_entry->multiEnd = 1;
 							goto multi_t2_fnd; 
 						}
 					} else {
@@ -632,9 +632,14 @@ multi_t2_fnd:
 			wake_up_process(task_to_wake);
 		} else if ((is_valid_oplock_break(smb_buffer, server) == FALSE)
 		    && (isMultiRsp == FALSE)) {                          
-			cERROR(1, ("No task to wake, unknown frame rcvd!"));
+			cERROR(1, ("No task to wake, unknown frame rcvd! NumMids %d", midCount.counter));
 			cifs_dump_mem("Received Data is: ",(char *)smb_buffer,
 				      sizeof(struct smb_hdr));
+#ifdef CONFIG_CIFS_DEBUG2
+			cifs_dump_detail(smb_buffer);
+			cifs_dump_mids(server);
+#endif /* CIFS_DEBUG2 */
+			
 		}
 	} /* end while !EXITING */
 
@@ -976,7 +981,7 @@ cifs_parse_mount_options(char *options, const char *devname,struct smb_vol *vol)
 			}
 			/* BB are there cases in which a comma can be valid in
 			a domain name and need special handling? */
-			if (strnlen(value, 65) < 65) {
+			if (strnlen(value, 256) < 256) {
 				vol->domainname = value;
 				cFYI(1, ("Domain name set"));
 			} else {
@@ -1762,9 +1767,14 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			if (volume_info.username)
 				strncpy(pSesInfo->userName,
 					volume_info.username,MAX_USERNAME_SIZE);
-			if (volume_info.domainname)
-				strncpy(pSesInfo->domainName,
-					volume_info.domainname,MAX_USERNAME_SIZE);
+			if (volume_info.domainname) {
+				int len = strlen(volume_info.domainname);
+				pSesInfo->domainName = 
+					kmalloc(len + 1, GFP_KERNEL);
+				if(pSesInfo->domainName)
+					strcpy(pSesInfo->domainName,
+						volume_info.domainname);
+			}
 			pSesInfo->linux_uid = volume_info.linux_uid;
 			down(&pSesInfo->sesSem);
 			rc = cifs_setup_session(xid,pSesInfo, cifs_sb->local_nls);
@@ -2054,7 +2064,7 @@ CIFSSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 			bcc_ptr++;
 		}
 		if(user == NULL)
-			bytes_returned = 0; /* skill null user */
+			bytes_returned = 0; /* skip null user */
 	        else
 			bytes_returned =
 			        cifs_strtoUCS((__le16 *) bcc_ptr, user, 100,
@@ -2635,8 +2645,8 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 	    /* NTLMSSP_NEGOTIATE_ALWAYS_SIGN | */ NTLMSSP_NEGOTIATE_128;
 	if(sign_CIFS_PDUs)
 		negotiate_flags |= NTLMSSP_NEGOTIATE_SIGN;
-	if(ntlmv2_support)
-		negotiate_flags |= NTLMSSP_NEGOTIATE_NTLMV2;
+/*	if(ntlmv2_support)
+		negotiate_flags |= NTLMSSP_NEGOTIATE_NTLMV2;*/
 	/* setup pointers to domain name and workstation name */
 	bcc_ptr += SecurityBlobLength;
 
@@ -3429,7 +3439,10 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 			}
 			/* else do not bother copying these informational fields */
 		}
-		tcon->Flags = le16_to_cpu(pSMBr->OptionalSupport);
+		if(smb_buffer_response->WordCount == 3)
+			tcon->Flags = le16_to_cpu(pSMBr->OptionalSupport);
+		else
+			tcon->Flags = 0;
 		cFYI(1, ("Tcon flags: 0x%x ", tcon->Flags));
 	} else if ((rc == 0) && tcon == NULL) {
         /* all we need to save for IPC$ connection */
@@ -3528,8 +3541,8 @@ int cifs_setup_session(unsigned int xid, struct cifsSesInfo *pSesInfo,
 			pSesInfo->server->timeZone));
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 		if(experimEnabled > 1)
-			rc = CIFS_SessSetup(xid, pSesInfo, CIFS_NTLM /* type */,
-					    &ntlmv2_flag, nls_info);	
+			rc = CIFS_SessSetup(xid, pSesInfo,
+					    first_time, nls_info);
 		else
 #endif
 		if (extended_security

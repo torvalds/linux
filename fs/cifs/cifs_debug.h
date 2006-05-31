@@ -24,6 +24,10 @@
 #define _H_CIFS_DEBUG
 
 void cifs_dump_mem(char *label, void *data, int length);
+#ifdef CONFIG_CIFS_DEBUG2
+void cifs_dump_detail(struct smb_hdr *);
+void cifs_dump_mids(struct TCP_Server_Info *);
+#endif
 extern int traceSMB;		/* flag which enables the function below */
 void dump_smb(struct smb_hdr *, int);
 #define CIFS_INFO	0x01

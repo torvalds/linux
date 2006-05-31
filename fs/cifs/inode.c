@@ -1121,7 +1121,7 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 
 	xid = GetXid();
 
-	cFYI(1, ("In cifs_setattr, name = %s attrs->iavalid 0x%x",
+	cFYI(1, ("setattr on file %s attrs->iavalid 0x%x",
 		 direntry->d_name.name, attrs->ia_valid));
 
 	cifs_sb = CIFS_SB(direntry->d_inode->i_sb);
@@ -1157,6 +1157,7 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 		   when the local oplock break takes longer to flush
 		   writebehind data than the SMB timeout for the SetPathInfo
 		   request would allow */
+
 		open_file = find_writable_file(cifsInode);
 		if (open_file) {
 			__u16 nfid = open_file->netfid;

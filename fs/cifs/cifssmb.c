@@ -44,8 +44,11 @@ static struct {
 	int index;
 	char *name;
 } protocols[] = {
+#ifdef CONFIG_CIFS_WEAK_PW_HASH
+	{LANMAN_PROT, "\2LM1.2X002"},
+#endif /* weak password hashing for legacy clients */
 	{CIFS_PROT, "\2NT LM 0.12"}, 
-	{CIFS_PROT, "\2POSIX 2"},
+	{POSIX_PROT, "\2POSIX 2"},
 	{BAD_PROT, "\2"}
 };
 #else
@@ -53,10 +56,28 @@ static struct {
 	int index;
 	char *name;
 } protocols[] = {
+#ifdef CONFIG_CIFS_WEAK_PW_HASH
+	{LANMAN_PROT, "\2LM1.2X002"},
+#endif /* weak password hashing for legacy clients */
 	{CIFS_PROT, "\2NT LM 0.12"}, 
 	{BAD_PROT, "\2"}
 };
 #endif
+
+/* define the number of elements in the cifs dialect array */
+#ifdef CONFIG_CIFS_POSIX
+#ifdef CONFIG_CIFS_WEAK_PW_HASH
+#define CIFS_NUM_PROT 3
+#else
+#define CIFS_NUM_PROT 2
+#endif /* CIFS_WEAK_PW_HASH */
+#else /* not posix */
+#ifdef CONFIG_CIFS_WEAK_PW_HASH
+#define CIFS_NUM_PROT 2
+#else
+#define CIFS_NUM_PROT 1
+#endif /* CONFIG_CIFS_WEAK_PW_HASH */
+#endif /* CIFS_POSIX */
 
 
 /* Mark as invalid, all open files on tree connections since they
@@ -322,7 +343,8 @@ smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
     /* potential retries of smb operations it turns out we can determine */
     /* from the mid flags when the request buffer can be resent without  */
     /* having to use a second distinct buffer for the response */
-	*response_buf = *request_buf; 
+	if(response_buf)
+		*response_buf = *request_buf; 
 
 	header_assemble((struct smb_hdr *) *request_buf, smb_command, tcon,
 			wct /*wct */ );
@@ -373,6 +395,7 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 	NEGOTIATE_RSP *pSMBr;
 	int rc = 0;
 	int bytes_returned;
+	int i;
 	struct TCP_Server_Info * server;
 	u16 count;
 
@@ -388,19 +411,71 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 		return rc;
 	pSMB->hdr.Mid = GetNextMid(server);
 	pSMB->hdr.Flags2 |= SMBFLG2_UNICODE;
-	if (extended_security)
-		pSMB->hdr.Flags2 |= SMBFLG2_EXT_SEC;
-
-	count = strlen(protocols[0].name) + 1;
-	strncpy(pSMB->DialectsArray, protocols[0].name, 30);	
-    /* null guaranteed to be at end of source and target buffers anyway */
-
+/*	if (extended_security)
+		pSMB->hdr.Flags2 |= SMBFLG2_EXT_SEC;*/
+	
+	count = 0;
+	for(i=0;i<CIFS_NUM_PROT;i++) {
+		strncpy(pSMB->DialectsArray+count, protocols[i].name, 16);
+		count += strlen(protocols[i].name) + 1;
+		/* null at end of source and target buffers anyway */
+	}
 	pSMB->hdr.smb_buf_length += count;
 	pSMB->ByteCount = cpu_to_le16(count);
 
 	rc = SendReceive(xid, ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	if (rc == 0) {
+		cFYI(1,("Dialect: %d", pSMBr->DialectIndex));
+		/* Check wct = 1 error case */
+		if((pSMBr->hdr.WordCount < 13)  
+			|| (pSMBr->DialectIndex == BAD_PROT)) {
+			/* core returns wct = 1, but we do not ask for
+			core - otherwise it just comes when dialect
+			index is -1 indicating we could not negotiate
+			a common dialect */
+			rc = -EOPNOTSUPP;
+			goto neg_err_exit;
+		} else if((pSMBr->hdr.WordCount == 13) && 
+			(pSMBr->DialectIndex == LANMAN_PROT)) {
+			struct lanman_neg_rsp * rsp = 
+				(struct lanman_neg_rsp *)pSMBr;
+
+
+			/* BB Mark ses struct as negotiated lanman level BB */
+			server->secType = LANMAN;
+			server->secMode = (__u8)le16_to_cpu(rsp->SecurityMode);
+			server->maxReq = le16_to_cpu(rsp->MaxMpxCount);
+			server->maxBuf = min((__u32)le16_to_cpu(rsp->MaxBufSize),
+				(__u32)CIFSMaxBufSize + MAX_CIFS_HDR_SIZE);
+
+			/* BB what do we do with raw mode? BB */
+			server->timeZone = le16_to_cpu(rsp->ServerTimeZone);
+			/* Do we have to set signing flags? no signing
+			was available LANMAN - default should be ok */
+
+			/* BB FIXME set default dummy capabilities since
+			they are not returned by the server in this dialect */
+
+			/* get server time for time conversions and add
+			code to use it and timezone since this is not UTC */	
+
+			if (rsp->EncryptionKeyLength == CIFS_CRYPTO_KEY_SIZE) {
+				memcpy(server->cryptKey, rsp->EncryptionKey,
+					CIFS_CRYPTO_KEY_SIZE);
+			} else {
+				rc = -EIO;
+				goto neg_err_exit;
+			}
+
+			cFYI(1,("LANMAN negotiated")); /* BB removeme BB */
+			goto neg_err_exit;
+		} else if(pSMBr->hdr.WordCount != 17) {
+			/* unknown wct */
+			rc = -EOPNOTSUPP;
+			goto neg_err_exit;
+		}
+
 		server->secMode = pSMBr->SecurityMode;
 		if((server->secMode & SECMODE_USER) == 0)
 			cFYI(1,("share mode security"));
@@ -479,7 +554,7 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 		}
 				
 	}
-	
+neg_err_exit:	
 	cifs_buf_release(pSMB);
 	return rc;
 }

@@ -225,6 +225,8 @@ int CalcNTLMv2_partial_mac_key(struct cifsSesInfo * ses, struct nls_table * nls_
 	user_name_len = strlen(ses->userName);
 	if(user_name_len > MAX_USERNAME_SIZE)
 		return -EINVAL;
+	if(ses->domainName == NULL)
+		return -EINVAL; /* BB should we use CIFS_LINUX_DOM */
 	dom_name_len = strlen(ses->domainName);
 	if(dom_name_len > MAX_USERNAME_SIZE)
 		return -EINVAL;
