@@ -1167,8 +1167,8 @@ unsigned int ata_pio_need_iordy(const struct ata_device *adev)
  *	RETURNS:
  *	0 on success, -errno otherwise.
  */
-static int ata_dev_read_id(struct ata_device *dev, unsigned int *p_class,
-			   int post_reset, u16 *id)
+int ata_dev_read_id(struct ata_device *dev, unsigned int *p_class,
+		    int post_reset, u16 *id)
 {
 	struct ata_port *ap = dev->ap;
 	unsigned int class = *p_class;
@@ -1292,7 +1292,7 @@ static void ata_dev_config_ncq(struct ata_device *dev,
  *	RETURNS:
  *	0 on success, -errno otherwise
  */
-static int ata_dev_configure(struct ata_device *dev, int print_info)
+int ata_dev_configure(struct ata_device *dev, int print_info)
 {
 	struct ata_port *ap = dev->ap;
 	const u16 *id = dev->id;
