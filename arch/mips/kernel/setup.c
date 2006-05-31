@@ -246,7 +246,7 @@ static inline int parse_rd_cmdline(unsigned long* rd_start, unsigned long* rd_en
 #ifdef CONFIG_64BIT
 	/* HACK: Guess if the sign extension was forgotten */
 	if (start > 0x0000000080000000 && start < 0x00000000ffffffff)
-		start |= 0xffffffff00000000;
+		start |= 0xffffffff00000000UL;
 #endif
 
 	end = start + size;
