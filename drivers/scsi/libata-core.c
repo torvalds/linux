@@ -4140,9 +4140,8 @@ static void ata_hsm_qc_complete(struct ata_queued_cmd *qc, int in_wq)
  *	RETURNS:
  *	1 when poll next status needed, 0 otherwise.
  */
-
-static int ata_hsm_move(struct ata_port *ap, struct ata_queued_cmd *qc,
-			 u8 status, int in_wq)
+int ata_hsm_move(struct ata_port *ap, struct ata_queued_cmd *qc,
+		 u8 status, int in_wq)
 {
 	unsigned long flags = 0;
 	int poll_next;
@@ -5885,6 +5884,7 @@ EXPORT_SYMBOL_GPL(ata_device_add);
 EXPORT_SYMBOL_GPL(ata_host_set_remove);
 EXPORT_SYMBOL_GPL(ata_sg_init);
 EXPORT_SYMBOL_GPL(ata_sg_init_one);
+EXPORT_SYMBOL_GPL(ata_hsm_move);
 EXPORT_SYMBOL_GPL(ata_qc_complete);
 EXPORT_SYMBOL_GPL(ata_qc_complete_multiple);
 EXPORT_SYMBOL_GPL(ata_qc_issue_prot);
