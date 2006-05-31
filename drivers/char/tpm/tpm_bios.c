@@ -284,53 +284,13 @@ static int get_event_name(char *dest, struct tcpa_event *event,
 
 static int tpm_binary_bios_measurements_show(struct seq_file *m, void *v)
 {
+	struct tcpa_event *event = v;
+	char *data = v;
+	int i;
 
-	char *eventname;
-	char data[4];
-	u32 help;
-	int i, len;
-	struct tcpa_event *event = (struct tcpa_event *) v;
-	unsigned char *event_entry =
-	    (unsigned char *) (v + sizeof(struct tcpa_event));
-
-	eventname = kmalloc(MAX_TEXT_EVENT, GFP_KERNEL);
-	if (!eventname) {
-		printk(KERN_ERR "%s: ERROR - No Memory for event name\n ",
-		       __func__);
-		return -ENOMEM;
-	}
-
-	/* 1st: PCR used is in little-endian format (4 bytes) */
-	help = le32_to_cpu(event->pcr_index);
-	memcpy(data, &help, 4);
-	for (i = 0; i < 4; i++)
+	for (i = 0; i < sizeof(struct tcpa_event) + event->event_size; i++)
 		seq_putc(m, data[i]);
 
-	/* 2nd: SHA1 (20 bytes) */
-	for (i = 0; i < 20; i++)
-		seq_putc(m, event->pcr_value[i]);
-
-	/* 3rd: event type identifier (4 bytes) */
-	help = le32_to_cpu(event->event_type);
-	memcpy(data, &help, 4);
-	for (i = 0; i < 4; i++)
-		seq_putc(m, data[i]);
-
-	len = 0;
-
-	len += get_event_name(eventname, event, event_entry);
-
-	/* 4th:  filename <= 255 + \'0' delimiter */
-	if (len > TCG_EVENT_NAME_LEN_MAX)
-		len = TCG_EVENT_NAME_LEN_MAX;
-
-	for (i = 0; i < len; i++)
-		seq_putc(m, eventname[i]);
-
-	/* 5th: delimiter */
-	seq_putc(m, '\0');
-
-	kfree(eventname);
 	return 0;
 }
 
