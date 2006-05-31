@@ -56,7 +56,7 @@ enum {
 	SIL_FLAG_MOD15WRITE	= (1 << 30),
 
 	SIL_DFL_HOST_FLAGS	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
-				  ATA_FLAG_MMIO,
+				  ATA_FLAG_MMIO | ATA_FLAG_HRST_TO_RESUME,
 
 	/*
 	 * Controller IDs
@@ -186,7 +186,6 @@ static const struct ata_port_operations sil_ops = {
 	.check_status		= ata_check_status,
 	.exec_command		= ata_exec_command,
 	.dev_select		= ata_std_dev_select,
-	.probe_reset		= ata_std_probe_reset,
 	.post_set_mode		= sil_post_set_mode,
 	.bmdma_setup            = ata_bmdma_setup,
 	.bmdma_start            = ata_bmdma_start,
@@ -344,6 +343,11 @@ static void sil_host_intr(struct ata_port *ap, u32 bmdma2)
 	struct ata_queued_cmd *qc = ata_qc_from_tag(ap, ap->active_tag);
 	u8 status;
 
+	if (unlikely(bmdma2 & SIL_DMA_SATA_IRQ)) {
+		ata_ehi_hotplugged(&ap->eh_info);
+		goto freeze;
+	}
+
 	if (unlikely(!qc || qc->tf.ctl & ATA_NIEN))
 		goto freeze;
 
@@ -415,7 +419,7 @@ static irqreturn_t sil_interrupt(int irq, void *dev_instance,
 		if (unlikely(!ap || ap->flags & ATA_FLAG_DISABLED))
 			continue;
 
-		if (!(bmdma2 & SIL_DMA_COMPLETE))
+		if (!(bmdma2 & (SIL_DMA_COMPLETE | SIL_DMA_SATA_IRQ)))
 			continue;
 
 		sil_host_intr(ap, bmdma2);
@@ -432,6 +436,9 @@ static void sil_freeze(struct ata_port *ap)
 	void __iomem *mmio_base = ap->host_set->mmio_base;
 	u32 tmp;
 
+	/* global IRQ mask doesn't block SATA IRQ, turn off explicitly */
+	writel(0, mmio_base + sil_port[ap->port_no].sien);
+
 	/* plug IRQ */
 	tmp = readl(mmio_base + SIL_SYSCFG);
 	tmp |= SIL_MASK_IDE0_INT << ap->port_no;
@@ -447,6 +454,9 @@ static void sil_thaw(struct ata_port *ap)
 	/* clear IRQ */
 	ata_chk_status(ap);
 	ata_bmdma_irq_clear(ap);
+
+	/* turn on SATA IRQ */
+	writel(SIL_SIEN_N, mmio_base + sil_port[ap->port_no].sien);
 
 	/* turn on IRQ */
 	tmp = readl(mmio_base + SIL_SYSCFG);
@@ -620,11 +630,6 @@ static int sil_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 			writel(tmp | SIL_INTR_STEERING,
 			       mmio_base + sil_port[2].bmdma);
 	}
-
-	/* mask all SATA phy-related interrupts */
-	/* TODO: unmask bit 6 (SError N bit) for hotplug */
-	for (i = 0; i < probe_ent->n_ports; i++)
-		writel(0, mmio_base + sil_port[i].sien);
 
 	pci_set_master(pdev);
 
