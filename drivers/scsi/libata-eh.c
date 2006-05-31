@@ -667,6 +667,34 @@ void ata_eh_qc_retry(struct ata_queued_cmd *qc)
 }
 
 /**
+ *	ata_eh_detach_dev - detach ATA device
+ *	@dev: ATA device to detach
+ *
+ *	Detach @dev.
+ *
+ *	LOCKING:
+ *	None.
+ */
+static void ata_eh_detach_dev(struct ata_device *dev)
+{
+	struct ata_port *ap = dev->ap;
+	unsigned long flags;
+
+	ata_dev_disable(dev);
+
+	spin_lock_irqsave(&ap->host_set->lock, flags);
+
+	dev->flags &= ~ATA_DFLAG_DETACH;
+
+	if (ata_scsi_offline_dev(dev)) {
+		dev->flags |= ATA_DFLAG_DETACHED;
+		ap->flags |= ATA_FLAG_SCSI_HOTPLUG;
+	}
+
+	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+}
+
+/**
  *	ata_eh_about_to_do - about to perform eh_action
  *	@ap: target ATA port
  *	@action: action about to be performed
