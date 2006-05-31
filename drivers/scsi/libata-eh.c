@@ -1287,7 +1287,7 @@ static int ata_eh_reset(struct ata_port *ap, ata_reset_fn_t softreset,
 	unsigned int classes[ATA_MAX_DEVICES];
 	int tries = ATA_EH_RESET_TRIES;
 	ata_reset_fn_t reset;
-	int rc;
+	int i, rc;
 
 	if (softreset && (!hardreset || (!sata_set_spd_needed(ap) &&
 					 !(ehc->i.action & ATA_EH_HARDRESET))))
@@ -1319,6 +1319,12 @@ static int ata_eh_reset(struct ata_port *ap, ata_reset_fn_t softreset,
 	}
 
 	if (rc == 0) {
+		/* After the reset, the device state is PIO 0 and the
+		 * controller state is undefined.  Record the mode.
+		 */
+		for (i = 0; i < ATA_MAX_DEVICES; i++)
+			ap->device[i].pio_mode = XFER_PIO_0;
+
 		if (postreset)
 			postreset(ap, classes);
 
