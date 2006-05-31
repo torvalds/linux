@@ -35,7 +35,6 @@ static int nr_msix_devices;
 
 #ifndef CONFIG_X86_IO_APIC
 int vector_irq[NR_VECTORS] = { [0 ... NR_VECTORS - 1] = -1};
-u8 irq_vector[NR_IRQ_VECTORS];
 #endif
 
 static struct msi_ops *msi_ops;
@@ -382,10 +381,6 @@ static int msi_init(void)
 		printk(KERN_WARNING "PCI: MSI cache init failed\n");
 		return status;
 	}
-
-#ifndef CONFIG_X86_IO_APIC
-	irq_vector[0] = FIRST_DEVICE_VECTOR;
-#endif
 
 	if (last_alloc_vector < 0) {
 		pci_msi_enable = 0;

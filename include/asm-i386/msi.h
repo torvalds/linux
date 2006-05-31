@@ -9,7 +9,7 @@
 #include <asm/desc.h>
 #include <mach_apic.h>
 
-#define LAST_DEVICE_VECTOR		232
+#define LAST_DEVICE_VECTOR	(FIRST_SYSTEM_VECTOR - 1)
 #define MSI_TARGET_CPU_SHIFT	12
 
 extern struct msi_ops msi_apic_ops;
