@@ -82,10 +82,11 @@ extern void paging_init(void);
 #define pmd_page(pmd)		(pfn_to_page(pmd_phys(pmd) >> PAGE_SHIFT))
 #define pmd_page_kernel(pmd)	pmd_val(pmd)
 
-#define pte_none(pte)		(!(pte_val(pte) & ~_PAGE_GLOBAL))
-#define pte_present(pte)	(pte_val(pte) & _PAGE_PRESENT)
-
 #if defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_CPU_MIPS32_R1)
+
+#define pte_none(pte)		(!(((pte).pte_low | (pte).pte_high) & ~_PAGE_GLOBAL))
+#define pte_present(pte)	((pte).pte_low & _PAGE_PRESENT)
+
 static inline void set_pte(pte_t *ptep, pte_t pte)
 {
 	ptep->pte_high = pte.pte_high;
@@ -93,27 +94,35 @@ static inline void set_pte(pte_t *ptep, pte_t pte)
 	ptep->pte_low = pte.pte_low;
 	//printk("pte_high %x pte_low %x\n", ptep->pte_high, ptep->pte_low);
 
-	if (pte_val(pte) & _PAGE_GLOBAL) {
+	if (pte.pte_low & _PAGE_GLOBAL) {
 		pte_t *buddy = ptep_buddy(ptep);
 		/*
 		 * Make sure the buddy is global too (if it's !none,
 		 * it better already be global)
 		 */
-		if (pte_none(*buddy))
-			buddy->pte_low |= _PAGE_GLOBAL;
+		if (pte_none(*buddy)) {
+			buddy->pte_low  |= _PAGE_GLOBAL;
+			buddy->pte_high |= _PAGE_GLOBAL;
+		}
 	}
 }
 #define set_pte_at(mm,addr,ptep,pteval) set_pte(ptep,pteval)
 
 static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
+	pte_t null = __pte(0);
+
 	/* Preserve global status for the pair */
-	if (pte_val(*ptep_buddy(ptep)) & _PAGE_GLOBAL)
-		set_pte_at(mm, addr, ptep, __pte(_PAGE_GLOBAL));
-	else
-		set_pte_at(mm, addr, ptep, __pte(0));
+	if (ptep_buddy(ptep)->pte_low & _PAGE_GLOBAL)
+		null.pte_low = null.pte_high = _PAGE_GLOBAL;
+
+	set_pte_at(mm, addr, ptep, null);
 }
 #else
+
+#define pte_none(pte)		(!(pte_val(pte) & ~_PAGE_GLOBAL))
+#define pte_present(pte)	(pte_val(pte) & _PAGE_PRESENT)
+
 /*
  * Certain architectures need to do special things when pte's
  * within a page table are directly modified.  Thus, the following
@@ -174,75 +183,76 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
  */
 static inline int pte_user(pte_t pte)	{ BUG(); return 0; }
 #if defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_CPU_MIPS32_R1)
-static inline int pte_read(pte_t pte)	{ return (pte).pte_low & _PAGE_READ; }
-static inline int pte_write(pte_t pte)	{ return (pte).pte_low & _PAGE_WRITE; }
-static inline int pte_dirty(pte_t pte)	{ return (pte).pte_low & _PAGE_MODIFIED; }
-static inline int pte_young(pte_t pte)	{ return (pte).pte_low & _PAGE_ACCESSED; }
-static inline int pte_file(pte_t pte)	{ return (pte).pte_low & _PAGE_FILE; }
+static inline int pte_read(pte_t pte)	{ return pte.pte_low & _PAGE_READ; }
+static inline int pte_write(pte_t pte)	{ return pte.pte_low & _PAGE_WRITE; }
+static inline int pte_dirty(pte_t pte)	{ return pte.pte_low & _PAGE_MODIFIED; }
+static inline int pte_young(pte_t pte)	{ return pte.pte_low & _PAGE_ACCESSED; }
+static inline int pte_file(pte_t pte)	{ return pte.pte_low & _PAGE_FILE; }
+
 static inline pte_t pte_wrprotect(pte_t pte)
 {
-	(pte).pte_low &= ~(_PAGE_WRITE | _PAGE_SILENT_WRITE);
-	(pte).pte_high &= ~_PAGE_SILENT_WRITE;
+	pte.pte_low  &= ~(_PAGE_WRITE | _PAGE_SILENT_WRITE);
+	pte.pte_high &= ~_PAGE_SILENT_WRITE;
 	return pte;
 }
 
 static inline pte_t pte_rdprotect(pte_t pte)
 {
-	(pte).pte_low &= ~(_PAGE_READ | _PAGE_SILENT_READ);
-	(pte).pte_high &= ~_PAGE_SILENT_READ;
+	pte.pte_low  &= ~(_PAGE_READ | _PAGE_SILENT_READ);
+	pte.pte_high &= ~_PAGE_SILENT_READ;
 	return pte;
 }
 
 static inline pte_t pte_mkclean(pte_t pte)
 {
-	(pte).pte_low &= ~(_PAGE_MODIFIED|_PAGE_SILENT_WRITE);
-	(pte).pte_high &= ~_PAGE_SILENT_WRITE;
+	pte.pte_low  &= ~(_PAGE_MODIFIED | _PAGE_SILENT_WRITE);
+	pte.pte_high &= ~_PAGE_SILENT_WRITE;
 	return pte;
 }
 
 static inline pte_t pte_mkold(pte_t pte)
 {
-	(pte).pte_low &= ~(_PAGE_ACCESSED|_PAGE_SILENT_READ);
-	(pte).pte_high &= ~_PAGE_SILENT_READ;
+	pte.pte_low  &= ~(_PAGE_ACCESSED | _PAGE_SILENT_READ);
+	pte.pte_high &= ~_PAGE_SILENT_READ;
 	return pte;
 }
 
 static inline pte_t pte_mkwrite(pte_t pte)
 {
-	(pte).pte_low |= _PAGE_WRITE;
-	if ((pte).pte_low & _PAGE_MODIFIED) {
-		(pte).pte_low |= _PAGE_SILENT_WRITE;
-		(pte).pte_high |= _PAGE_SILENT_WRITE;
+	pte.pte_low |= _PAGE_WRITE;
+	if (pte.pte_low & _PAGE_MODIFIED) {
+		pte.pte_low  |= _PAGE_SILENT_WRITE;
+		pte.pte_high |= _PAGE_SILENT_WRITE;
 	}
 	return pte;
 }
 
 static inline pte_t pte_mkread(pte_t pte)
 {
-	(pte).pte_low |= _PAGE_READ;
-	if ((pte).pte_low & _PAGE_ACCESSED) {
-		(pte).pte_low |= _PAGE_SILENT_READ;
-		(pte).pte_high |= _PAGE_SILENT_READ;
+	pte.pte_low |= _PAGE_READ;
+	if (pte.pte_low & _PAGE_ACCESSED) {
+		pte.pte_low  |= _PAGE_SILENT_READ;
+		pte.pte_high |= _PAGE_SILENT_READ;
 	}
 	return pte;
 }
 
 static inline pte_t pte_mkdirty(pte_t pte)
 {
-	(pte).pte_low |= _PAGE_MODIFIED;
-	if ((pte).pte_low & _PAGE_WRITE) {
-		(pte).pte_low |= _PAGE_SILENT_WRITE;
-		(pte).pte_high |= _PAGE_SILENT_WRITE;
+	pte.pte_low |= _PAGE_MODIFIED;
+	if (pte.pte_low & _PAGE_WRITE) {
+		pte.pte_low  |= _PAGE_SILENT_WRITE;
+		pte.pte_high |= _PAGE_SILENT_WRITE;
 	}
 	return pte;
 }
 
 static inline pte_t pte_mkyoung(pte_t pte)
 {
-	(pte).pte_low |= _PAGE_ACCESSED;
-	if ((pte).pte_low & _PAGE_READ)
-		(pte).pte_low |= _PAGE_SILENT_READ;
-		(pte).pte_high |= _PAGE_SILENT_READ;
+	pte.pte_low |= _PAGE_ACCESSED;
+	if (pte.pte_low & _PAGE_READ)
+		pte.pte_low  |= _PAGE_SILENT_READ;
+		pte.pte_high |= _PAGE_SILENT_READ;
 	return pte;
 }
 #else
