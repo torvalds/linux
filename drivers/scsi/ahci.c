@@ -1389,21 +1389,17 @@ static void ahci_remove_one (struct pci_dev *pdev)
 	struct device *dev = pci_dev_to_dev(pdev);
 	struct ata_host_set *host_set = dev_get_drvdata(dev);
 	struct ahci_host_priv *hpriv = host_set->private_data;
-	struct ata_port *ap;
 	unsigned int i;
 	int have_msi;
 
-	for (i = 0; i < host_set->n_ports; i++) {
-		ap = host_set->ports[i];
-
-		scsi_remove_host(ap->host);
-	}
+	for (i = 0; i < host_set->n_ports; i++)
+		ata_port_detach(host_set->ports[i]);
 
 	have_msi = hpriv->flags & AHCI_FLAG_MSI;
 	free_irq(host_set->irq, host_set);
 
 	for (i = 0; i < host_set->n_ports; i++) {
-		ap = host_set->ports[i];
+		struct ata_port *ap = host_set->ports[i];
 
 		ata_scsi_release(ap->host);
 		scsi_host_put(ap->host);

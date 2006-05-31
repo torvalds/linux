@@ -46,6 +46,7 @@
 #include "libata.h"
 
 static void __ata_port_freeze(struct ata_port *ap);
+static void ata_eh_finish(struct ata_port *ap);
 
 static void ata_ering_record(struct ata_ering *ering, int is_io,
 			     unsigned int err_mask)
@@ -242,8 +243,11 @@ void ata_scsi_error(struct Scsi_Host *host)
 
 		spin_unlock_irqrestore(hs_lock, flags);
 
-		/* invoke EH */
-		ap->ops->error_handler(ap);
+		/* invoke EH.  if unloading, just finish failed qcs */
+		if (!(ap->flags & ATA_FLAG_UNLOADING))
+			ap->ops->error_handler(ap);
+		else
+			ata_eh_finish(ap);
 
 		/* Exception might have happend after ->error_handler
 		 * recovered the port but before this point.  Repeat

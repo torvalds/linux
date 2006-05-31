@@ -5610,6 +5610,63 @@ err_free_ret:
 }
 
 /**
+ *	ata_port_detach - Detach ATA port in prepration of device removal
+ *	@ap: ATA port to be detached
+ *
+ *	Detach all ATA devices and the associated SCSI devices of @ap;
+ *	then, remove the associated SCSI host.  @ap is guaranteed to
+ *	be quiescent on return from this function.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep).
+ */
+void ata_port_detach(struct ata_port *ap)
+{
+	unsigned long flags;
+	int i;
+
+	if (!ap->ops->error_handler)
+		return;
+
+	/* tell EH we're leaving & flush EH */
+	spin_lock_irqsave(&ap->host_set->lock, flags);
+	ap->flags |= ATA_FLAG_UNLOADING;
+	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+
+	ata_port_wait_eh(ap);
+
+	/* EH is now guaranteed to see UNLOADING, so no new device
+	 * will be attached.  Disable all existing devices.
+	 */
+	spin_lock_irqsave(&ap->host_set->lock, flags);
+
+	for (i = 0; i < ATA_MAX_DEVICES; i++)
+		ata_dev_disable(&ap->device[i]);
+
+	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+
+	/* Final freeze & EH.  All in-flight commands are aborted.  EH
+	 * will be skipped and retrials will be terminated with bad
+	 * target.
+	 */
+	spin_lock_irqsave(&ap->host_set->lock, flags);
+	ata_port_freeze(ap);	/* won't be thawed */
+	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+
+	ata_port_wait_eh(ap);
+
+	/* Flush hotplug task.  The sequence is similar to
+	 * ata_port_flush_task().
+	 */
+	flush_workqueue(ata_aux_wq);
+	cancel_delayed_work(&ap->hotplug_task);
+	flush_workqueue(ata_aux_wq);
+
+	/* remove the associated SCSI host */
+	scsi_remove_host(ap->host);
+}
+
+/**
  *	ata_host_set_remove - PCI layer callback for device removal
  *	@host_set: ATA host set that was removed
  *
@@ -5622,18 +5679,15 @@ err_free_ret:
 
 void ata_host_set_remove(struct ata_host_set *host_set)
 {
-	struct ata_port *ap;
 	unsigned int i;
 
-	for (i = 0; i < host_set->n_ports; i++) {
-		ap = host_set->ports[i];
-		scsi_remove_host(ap->host);
-	}
+	for (i = 0; i < host_set->n_ports; i++)
+		ata_port_detach(host_set->ports[i]);
 
 	free_irq(host_set->irq, host_set);
 
 	for (i = 0; i < host_set->n_ports; i++) {
-		ap = host_set->ports[i];
+		struct ata_port *ap = host_set->ports[i];
 
 		ata_scsi_release(ap->host);
 
@@ -5901,6 +5955,7 @@ EXPORT_SYMBOL_GPL(sata_deb_timing_before_fsrst);
 EXPORT_SYMBOL_GPL(ata_std_bios_param);
 EXPORT_SYMBOL_GPL(ata_std_ports);
 EXPORT_SYMBOL_GPL(ata_device_add);
+EXPORT_SYMBOL_GPL(ata_port_detach);
 EXPORT_SYMBOL_GPL(ata_host_set_remove);
 EXPORT_SYMBOL_GPL(ata_sg_init);
 EXPORT_SYMBOL_GPL(ata_sg_init_one);
