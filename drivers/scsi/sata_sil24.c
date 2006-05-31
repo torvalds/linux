@@ -912,7 +912,8 @@ static void sil24_error_handler(struct ata_port *ap)
 	}
 
 	/* perform recovery */
-	ata_do_eh(ap, sil24_softreset, sil24_hardreset, ata_std_postreset);
+	ata_do_eh(ap, ata_std_prereset, sil24_softreset, sil24_hardreset,
+		  ata_std_postreset);
 }
 
 static void sil24_post_internal_cmd(struct ata_queued_cmd *qc)

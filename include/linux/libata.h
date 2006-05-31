@@ -262,6 +262,15 @@ enum {
 	ATA_PROBE_MAX_TRIES	= 3,
 	ATA_EH_RESET_TRIES	= 3,
 	ATA_EH_DEV_TRIES	= 3,
+
+	/* Drive spinup time (time from power-on to the first D2H FIS)
+	 * in msecs - 8s currently.  Failing to get ready in this time
+	 * isn't critical.  It will result in reset failure for
+	 * controllers which can't wait for the first D2H FIS.  libata
+	 * will retry, so it just has to be long enough to spin up
+	 * most devices.
+	 */
+	ATA_SPINUP_WAIT		= 8000,
 };
 
 enum hsm_task_states {
@@ -294,9 +303,10 @@ struct ata_queued_cmd;
 
 /* typedefs */
 typedef void (*ata_qc_cb_t) (struct ata_queued_cmd *qc);
-typedef void (*ata_probeinit_fn_t)(struct ata_port *);
-typedef int (*ata_reset_fn_t)(struct ata_port *, unsigned int *);
-typedef void (*ata_postreset_fn_t)(struct ata_port *ap, unsigned int *);
+typedef void (*ata_probeinit_fn_t)(struct ata_port *ap);
+typedef int (*ata_prereset_fn_t)(struct ata_port *ap);
+typedef int (*ata_reset_fn_t)(struct ata_port *ap, unsigned int *classes);
+typedef void (*ata_postreset_fn_t)(struct ata_port *ap, unsigned int *classes);
 
 struct ata_ioports {
 	unsigned long		cmd_addr;
@@ -623,6 +633,7 @@ extern int ata_drive_probe_reset(struct ata_port *ap,
 			ata_reset_fn_t softreset, ata_reset_fn_t hardreset,
 			ata_postreset_fn_t postreset, unsigned int *classes);
 extern void ata_std_probeinit(struct ata_port *ap);
+extern int ata_std_prereset(struct ata_port *ap);
 extern int ata_std_softreset(struct ata_port *ap, unsigned int *classes);
 extern int sata_std_hardreset(struct ata_port *ap, unsigned int *class);
 extern void ata_std_postreset(struct ata_port *ap, unsigned int *classes);
@@ -706,7 +717,7 @@ extern u8   ata_bmdma_status(struct ata_port *ap);
 extern void ata_bmdma_irq_clear(struct ata_port *ap);
 extern void ata_bmdma_freeze(struct ata_port *ap);
 extern void ata_bmdma_thaw(struct ata_port *ap);
-extern void ata_bmdma_drive_eh(struct ata_port *ap,
+extern void ata_bmdma_drive_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
 			       ata_reset_fn_t softreset,
 			       ata_reset_fn_t hardreset,
 			       ata_postreset_fn_t postreset);
@@ -784,8 +795,9 @@ extern void ata_eh_thaw_port(struct ata_port *ap);
 extern void ata_eh_qc_complete(struct ata_queued_cmd *qc);
 extern void ata_eh_qc_retry(struct ata_queued_cmd *qc);
 
-extern void ata_do_eh(struct ata_port *ap, ata_reset_fn_t softreset,
-		      ata_reset_fn_t hardreset, ata_postreset_fn_t postreset);
+extern void ata_do_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
+		      ata_reset_fn_t softreset, ata_reset_fn_t hardreset,
+		      ata_postreset_fn_t postreset);
 
 /*
  * printk helpers

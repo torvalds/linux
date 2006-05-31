@@ -1026,7 +1026,8 @@ static void ahci_error_handler(struct ata_port *ap)
 	}
 
 	/* perform recovery */
-	ata_do_eh(ap, ahci_softreset, ahci_hardreset, ahci_postreset);
+	ata_do_eh(ap, ata_std_prereset, ahci_softreset, ahci_hardreset,
+		  ahci_postreset);
 }
 
 static void ahci_post_internal_cmd(struct ata_queued_cmd *qc)

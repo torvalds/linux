@@ -695,6 +695,7 @@ void ata_bmdma_thaw(struct ata_port *ap)
 /**
  *	ata_bmdma_drive_eh - Perform EH with given methods for BMDMA controller
  *	@ap: port to handle error for
+ *	@prereset: prereset method (can be NULL)
  *	@softreset: softreset method (can be NULL)
  *	@hardreset: hardreset method (can be NULL)
  *	@postreset: postreset method (can be NULL)
@@ -710,8 +711,9 @@ void ata_bmdma_thaw(struct ata_port *ap)
  *	LOCKING:
  *	Kernel thread context (may sleep)
  */
-void ata_bmdma_drive_eh(struct ata_port *ap, ata_reset_fn_t softreset,
-			ata_reset_fn_t hardreset, ata_postreset_fn_t postreset)
+void ata_bmdma_drive_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
+			ata_reset_fn_t softreset, ata_reset_fn_t hardreset,
+			ata_postreset_fn_t postreset)
 {
 	struct ata_host_set *host_set = ap->host_set;
 	struct ata_eh_context *ehc = &ap->eh_context;
@@ -759,7 +761,7 @@ void ata_bmdma_drive_eh(struct ata_port *ap, ata_reset_fn_t softreset,
 		ata_eh_thaw_port(ap);
 
 	/* PIO and DMA engines have been stopped, perform recovery */
-	ata_do_eh(ap, softreset, hardreset, postreset);
+	ata_do_eh(ap, prereset, softreset, hardreset, postreset);
 }
 
 /**
@@ -779,7 +781,8 @@ void ata_bmdma_error_handler(struct ata_port *ap)
 	if (sata_scr_valid(ap))
 		hardreset = sata_std_hardreset;
 
-	ata_bmdma_drive_eh(ap, ata_std_softreset, hardreset, ata_std_postreset);
+	ata_bmdma_drive_eh(ap, ata_std_prereset, ata_std_softreset, hardreset,
+			   ata_std_postreset);
 }
 
 /**

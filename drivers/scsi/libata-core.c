@@ -2525,6 +2525,90 @@ int sata_phy_resume(struct ata_port *ap, const unsigned long *params)
 	return sata_phy_debounce(ap, params);
 }
 
+static void ata_wait_spinup(struct ata_port *ap)
+{
+	struct ata_eh_context *ehc = &ap->eh_context;
+	unsigned long end, secs;
+	int rc;
+
+	/* first, debounce phy if SATA */
+	if (ap->cbl == ATA_CBL_SATA) {
+		rc = sata_phy_debounce(ap, sata_deb_timing_eh);
+
+		/* if debounced successfully and offline, no need to wait */
+		if ((rc == 0 || rc == -EOPNOTSUPP) && ata_port_offline(ap))
+			return;
+	}
+
+	/* okay, let's give the drive time to spin up */
+	end = ehc->i.hotplug_timestamp + ATA_SPINUP_WAIT * HZ / 1000;
+	secs = ((end - jiffies) + HZ - 1) / HZ;
+
+	if (time_after(jiffies, end))
+		return;
+
+	if (secs > 5)
+		ata_port_printk(ap, KERN_INFO, "waiting for device to spin up "
+				"(%lu secs)\n", secs);
+
+	schedule_timeout_uninterruptible(end - jiffies);
+}
+
+/**
+ *	ata_std_prereset - prepare for reset
+ *	@ap: ATA port to be reset
+ *
+ *	@ap is about to be reset.  Initialize it.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep)
+ *
+ *	RETURNS:
+ *	0 on success, -errno otherwise.
+ */
+int ata_std_prereset(struct ata_port *ap)
+{
+	struct ata_eh_context *ehc = &ap->eh_context;
+	const unsigned long *timing;
+	int rc;
+
+	/* hotplug? */
+	if (ehc->i.flags & ATA_EHI_HOTPLUGGED) {
+		if (ap->flags & ATA_FLAG_HRST_TO_RESUME)
+			ehc->i.action |= ATA_EH_HARDRESET;
+		if (ap->flags & ATA_FLAG_SKIP_D2H_BSY)
+			ata_wait_spinup(ap);
+	}
+
+	/* if we're about to do hardreset, nothing more to do */
+	if (ehc->i.action & ATA_EH_HARDRESET)
+		return 0;
+
+	/* if SATA, resume phy */
+	if (ap->cbl == ATA_CBL_SATA) {
+		if (ap->flags & ATA_FLAG_LOADING)
+			timing = sata_deb_timing_boot;
+		else
+			timing = sata_deb_timing_eh;
+
+		rc = sata_phy_resume(ap, timing);
+		if (rc && rc != -EOPNOTSUPP) {
+			/* phy resume failed */
+			ata_port_printk(ap, KERN_WARNING, "failed to resume "
+					"link for reset (errno=%d)\n", rc);
+			return rc;
+		}
+	}
+
+	/* Wait for !BSY if the controller can wait for the first D2H
+	 * Reg FIS and we don't know that no device is attached.
+	 */
+	if (!(ap->flags & ATA_FLAG_SKIP_D2H_BSY) && !ata_port_offline(ap))
+		ata_busy_sleep(ap, ATA_TMOUT_BOOT_QUICK, ATA_TMOUT_BOOT);
+
+	return 0;
+}
+
 /**
  *	ata_std_probeinit - initialize probing
  *	@ap: port to be probed
@@ -5840,6 +5924,7 @@ EXPORT_SYMBOL_GPL(sata_phy_reset);
 EXPORT_SYMBOL_GPL(__sata_phy_reset);
 EXPORT_SYMBOL_GPL(ata_bus_reset);
 EXPORT_SYMBOL_GPL(ata_std_probeinit);
+EXPORT_SYMBOL_GPL(ata_std_prereset);
 EXPORT_SYMBOL_GPL(ata_std_softreset);
 EXPORT_SYMBOL_GPL(sata_std_hardreset);
 EXPORT_SYMBOL_GPL(ata_std_postreset);

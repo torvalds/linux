@@ -1318,20 +1318,58 @@ static void ata_eh_report(struct ata_port *ap)
 	}
 }
 
-static int ata_eh_reset(struct ata_port *ap, ata_reset_fn_t softreset,
+static int ata_eh_reset(struct ata_port *ap,
+			ata_prereset_fn_t prereset, ata_reset_fn_t softreset,
 			ata_reset_fn_t hardreset, ata_postreset_fn_t postreset)
 {
 	struct ata_eh_context *ehc = &ap->eh_context;
 	unsigned int classes[ATA_MAX_DEVICES];
 	int tries = ATA_EH_RESET_TRIES;
+	unsigned int action;
 	ata_reset_fn_t reset;
 	int i, rc;
 
+	/* Determine which reset to use and record in ehc->i.action.
+	 * prereset() may examine and modify it.
+	 */
+	action = ehc->i.action;
+	ehc->i.action &= ~ATA_EH_RESET_MASK;
 	if (softreset && (!hardreset || (!sata_set_spd_needed(ap) &&
-					 !(ehc->i.action & ATA_EH_HARDRESET))))
-		reset = softreset;
+					 !(action & ATA_EH_HARDRESET))))
+		ehc->i.action |= ATA_EH_SOFTRESET;
 	else
+		ehc->i.action |= ATA_EH_HARDRESET;
+
+	if (prereset) {
+		rc = prereset(ap);
+		if (rc) {
+			ata_port_printk(ap, KERN_ERR,
+					"prereset failed (errno=%d)\n", rc);
+			return rc;
+		}
+	}
+
+	/* prereset() might have modified ehc->i.action */
+	if (ehc->i.action & ATA_EH_HARDRESET)
 		reset = hardreset;
+	else if (ehc->i.action & ATA_EH_SOFTRESET)
+		reset = softreset;
+	else {
+		/* prereset told us not to reset, bang classes and return */
+		for (i = 0; i < ATA_MAX_DEVICES; i++)
+			classes[i] = ATA_DEV_NONE;
+		return 0;
+	}
+
+	/* did prereset() screw up?  if so, fix up to avoid oopsing */
+	if (!reset) {
+		ata_port_printk(ap, KERN_ERR, "BUG: prereset() requested "
+				"invalid reset type\n");
+		if (softreset)
+			reset = softreset;
+		else
+			reset = hardreset;
+	}
 
  retry:
 	ata_port_printk(ap, KERN_INFO, "%s resetting port\n",
@@ -1424,6 +1462,7 @@ static int ata_port_nr_enabled(struct ata_port *ap)
 /**
  *	ata_eh_recover - recover host port after error
  *	@ap: host port to recover
+ *	@prereset: prereset method (can be NULL)
  *	@softreset: softreset method (can be NULL)
  *	@hardreset: hardreset method (can be NULL)
  *	@postreset: postreset method (can be NULL)
@@ -1440,8 +1479,8 @@ static int ata_port_nr_enabled(struct ata_port *ap)
  *	RETURNS:
  *	0 on success, -errno on failure.
  */
-static int ata_eh_recover(struct ata_port *ap, ata_reset_fn_t softreset,
-			  ata_reset_fn_t hardreset,
+static int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
+			  ata_reset_fn_t softreset, ata_reset_fn_t hardreset,
 			  ata_postreset_fn_t postreset)
 {
 	struct ata_eh_context *ehc = &ap->eh_context;
@@ -1469,7 +1508,8 @@ static int ata_eh_recover(struct ata_port *ap, ata_reset_fn_t softreset,
 	if (ehc->i.action & ATA_EH_RESET_MASK) {
 		ata_eh_freeze_port(ap);
 
-		rc = ata_eh_reset(ap, softreset, hardreset, postreset);
+		rc = ata_eh_reset(ap, prereset, softreset, hardreset,
+				  postreset);
 		if (rc) {
 			ata_port_printk(ap, KERN_ERR,
 					"reset failed, giving up\n");
@@ -1586,6 +1626,7 @@ static void ata_eh_finish(struct ata_port *ap)
 /**
  *	ata_do_eh - do standard error handling
  *	@ap: host port to handle error for
+ *	@prereset: prereset method (can be NULL)
  *	@softreset: softreset method (can be NULL)
  *	@hardreset: hardreset method (can be NULL)
  *	@postreset: postreset method (can be NULL)
@@ -1595,11 +1636,12 @@ static void ata_eh_finish(struct ata_port *ap)
  *	LOCKING:
  *	Kernel thread context (may sleep).
  */
-void ata_do_eh(struct ata_port *ap, ata_reset_fn_t softreset,
-	       ata_reset_fn_t hardreset, ata_postreset_fn_t postreset)
+void ata_do_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
+	       ata_reset_fn_t softreset, ata_reset_fn_t hardreset,
+	       ata_postreset_fn_t postreset)
 {
 	ata_eh_autopsy(ap);
 	ata_eh_report(ap);
-	ata_eh_recover(ap, softreset, hardreset, postreset);
+	ata_eh_recover(ap, prereset, softreset, hardreset, postreset);
 	ata_eh_finish(ap);
 }
