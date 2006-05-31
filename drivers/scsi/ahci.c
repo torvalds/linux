@@ -136,6 +136,7 @@ enum {
 	PORT_IRQ_FREEZE		= PORT_IRQ_HBUS_ERR |
 				  PORT_IRQ_IF_ERR |
 				  PORT_IRQ_CONNECT |
+				  PORT_IRQ_PHYRDY |
 				  PORT_IRQ_UNK_FIS,
 	PORT_IRQ_ERROR		= PORT_IRQ_FREEZE |
 				  PORT_IRQ_TF_ERR |
@@ -200,7 +201,6 @@ static void ahci_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val);
 static int ahci_init_one (struct pci_dev *pdev, const struct pci_device_id *ent);
 static unsigned int ahci_qc_issue(struct ata_queued_cmd *qc);
 static irqreturn_t ahci_interrupt (int irq, void *dev_instance, struct pt_regs *regs);
-static int ahci_probe_reset(struct ata_port *ap, unsigned int *classes);
 static void ahci_irq_clear(struct ata_port *ap);
 static int ahci_port_start(struct ata_port *ap);
 static void ahci_port_stop(struct ata_port *ap);
@@ -241,8 +241,6 @@ static const struct ata_port_operations ahci_ops = {
 
 	.tf_read		= ahci_tf_read,
 
-	.probe_reset		= ahci_probe_reset,
-
 	.qc_prep		= ahci_qc_prep,
 	.qc_issue		= ahci_qc_issue,
 
@@ -267,7 +265,8 @@ static const struct ata_port_info ahci_port_info[] = {
 	{
 		.sht		= &ahci_sht,
 		.host_flags	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
-				  ATA_FLAG_MMIO | ATA_FLAG_PIO_DMA,
+				  ATA_FLAG_MMIO | ATA_FLAG_PIO_DMA |
+				  ATA_FLAG_SKIP_D2H_BSY,
 		.pio_mask	= 0x1f, /* pio0-4 */
 		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
 		.port_ops	= &ahci_ops,
@@ -277,6 +276,7 @@ static const struct ata_port_info ahci_port_info[] = {
 		.sht		= &ahci_sht,
 		.host_flags	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
 				  ATA_FLAG_MMIO | ATA_FLAG_PIO_DMA |
+				  ATA_FLAG_SKIP_D2H_BSY |
 				  AHCI_FLAG_RESET_NEEDS_CLO,
 		.pio_mask	= 0x1f, /* pio0-4 */
 		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
@@ -569,6 +569,17 @@ static int ahci_clo(struct ata_port *ap)
 	return 0;
 }
 
+static int ahci_prereset(struct ata_port *ap)
+{
+	if ((ap->flags & AHCI_FLAG_RESET_NEEDS_CLO) &&
+	    (ata_busy_wait(ap, ATA_BUSY, 1000) & ATA_BUSY)) {
+		/* ATA_BUSY hasn't cleared, so send a CLO */
+		ahci_clo(ap);
+	}
+
+	return ata_std_prereset(ap);
+}
+
 static int ahci_softreset(struct ata_port *ap, unsigned int *class)
 {
 	struct ahci_port_priv *pp = ap->private_data;
@@ -678,12 +689,22 @@ static int ahci_softreset(struct ata_port *ap, unsigned int *class)
 
 static int ahci_hardreset(struct ata_port *ap, unsigned int *class)
 {
+	struct ahci_port_priv *pp = ap->private_data;
+	u8 *d2h_fis = pp->rx_fis + RX_FIS_D2H_REG;
+	struct ata_taskfile tf;
 	int rc;
 
 	DPRINTK("ENTER\n");
 
 	ahci_stop_engine(ap);
+
+	/* clear D2H reception area to properly wait for D2H FIS */
+	ata_tf_init(ap->device, &tf);
+	tf.command = 0xff;
+	ata_tf_to_fis(&tf, d2h_fis, 0);
+
 	rc = sata_std_hardreset(ap, class);
+
 	ahci_start_engine(ap);
 
 	if (rc == 0 && ata_port_online(ap))
@@ -712,19 +733,6 @@ static void ahci_postreset(struct ata_port *ap, unsigned int *class)
 		writel(new_tmp, port_mmio + PORT_CMD);
 		readl(port_mmio + PORT_CMD); /* flush */
 	}
-}
-
-static int ahci_probe_reset(struct ata_port *ap, unsigned int *classes)
-{
-	if ((ap->flags & AHCI_FLAG_RESET_NEEDS_CLO) &&
-	    (ata_busy_wait(ap, ATA_BUSY, 1000) & ATA_BUSY)) {
-		/* ATA_BUSY hasn't cleared, so send a CLO */
-		ahci_clo(ap);
-	}
-
-	return ata_drive_probe_reset(ap, ata_std_probeinit,
-				     ahci_softreset, ahci_hardreset,
-				     ahci_postreset, classes);
 }
 
 static u8 ahci_check_status(struct ata_port *ap)
@@ -839,8 +847,7 @@ static void ahci_error_intr(struct ata_port *ap, u32 irq_stat)
 	}
 
 	if (irq_stat & (PORT_IRQ_CONNECT | PORT_IRQ_PHYRDY)) {
-		err_mask |= AC_ERR_ATA_BUS;
-		action |= ATA_EH_SOFTRESET;
+		ata_ehi_hotplugged(ehi);
 		ata_ehi_push_desc(ehi, ", %s", irq_stat & PORT_IRQ_CONNECT ?
 			"connection status changed" : "PHY RDY changed");
 	}
@@ -1027,7 +1034,7 @@ static void ahci_error_handler(struct ata_port *ap)
 	}
 
 	/* perform recovery */
-	ata_do_eh(ap, ata_std_prereset, ahci_softreset, ahci_hardreset,
+	ata_do_eh(ap, ahci_prereset, ahci_softreset, ahci_hardreset,
 		  ahci_postreset);
 }
 
