@@ -57,6 +57,8 @@ static struct ata_device * __ata_scsi_find_dev(struct ata_port *ap,
 					const struct scsi_device *scsidev);
 static struct ata_device * ata_scsi_find_dev(struct ata_port *ap,
 					    const struct scsi_device *scsidev);
+static int ata_scsi_user_scan(struct Scsi_Host *shost, unsigned int channel,
+			      unsigned int id, unsigned int lun);
 
 
 #define RW_RECOVERY_MPAGE 0x1
@@ -724,6 +726,40 @@ int ata_scsi_slave_config(struct scsi_device *sdev)
 		ata_scsi_dev_config(sdev, dev);
 
 	return 0;	/* scsi layer doesn't check return value, sigh */
+}
+
+/**
+ *	ata_scsi_slave_destroy - SCSI device is about to be destroyed
+ *	@sdev: SCSI device to be destroyed
+ *
+ *	@sdev is about to be destroyed for hot/warm unplugging.  If
+ *	this unplugging was initiated by libata as indicated by NULL
+ *	dev->sdev, this function doesn't have to do anything.
+ *	Otherwise, SCSI layer initiated warm-unplug is in progress.
+ *	Clear dev->sdev, schedule the device for ATA detach and invoke
+ *	EH.
+ *
+ *	LOCKING:
+ *	Defined by SCSI layer.  We don't really care.
+ */
+void ata_scsi_slave_destroy(struct scsi_device *sdev)
+{
+	struct ata_port *ap = ata_shost_to_port(sdev->host);
+	unsigned long flags;
+	struct ata_device *dev;
+
+	if (!ap->ops->error_handler)
+		return;
+
+	spin_lock_irqsave(&ap->host_set->lock, flags);
+	dev = __ata_scsi_find_dev(ap, sdev);
+	if (dev && dev->sdev) {
+		/* SCSI device already in CANCEL state, no need to offline it */
+		dev->sdev = NULL;
+		dev->flags |= ATA_DFLAG_DETACH;
+		ata_port_schedule_eh(ap);
+	}
+	spin_unlock_irqrestore(&ap->host_set->lock, flags);
 }
 
 /**
@@ -2901,4 +2937,57 @@ void ata_scsi_hotplug(void *data)
 	}
 
 	DPRINTK("EXIT\n");
+}
+
+/**
+ *	ata_scsi_user_scan - indication for user-initiated bus scan
+ *	@shost: SCSI host to scan
+ *	@channel: Channel to scan
+ *	@id: ID to scan
+ *	@lun: LUN to scan
+ *
+ *	This function is called when user explicitly requests bus
+ *	scan.  Set probe pending flag and invoke EH.
+ *
+ *	LOCKING:
+ *	SCSI layer (we don't care)
+ *
+ *	RETURNS:
+ *	Zero.
+ */
+static int ata_scsi_user_scan(struct Scsi_Host *shost, unsigned int channel,
+			      unsigned int id, unsigned int lun)
+{
+	struct ata_port *ap = ata_shost_to_port(shost);
+	unsigned long flags;
+	int rc = 0;
+
+	if (!ap->ops->error_handler)
+		return -EOPNOTSUPP;
+
+	if ((channel != SCAN_WILD_CARD && channel != 0) ||
+	    (lun != SCAN_WILD_CARD && lun != 0))
+		return -EINVAL;
+
+	spin_lock_irqsave(&ap->host_set->lock, flags);
+
+	if (id == SCAN_WILD_CARD) {
+		ap->eh_info.probe_mask |= (1 << ATA_MAX_DEVICES) - 1;
+		ap->eh_info.action |= ATA_EH_SOFTRESET;
+	} else {
+		struct ata_device *dev = ata_find_dev(ap, id);
+
+		if (dev) {
+			ap->eh_info.probe_mask |= 1 << dev->devno;
+			ap->eh_info.action |= ATA_EH_SOFTRESET;
+		} else
+			rc = -EINVAL;
+	}
+
+	if (rc == 0)
+		ata_port_schedule_eh(ap);
+
+	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+
+	return rc;
 }
