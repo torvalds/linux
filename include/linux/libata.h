@@ -149,14 +149,14 @@ enum {
 	ATA_FLAG_NO_ATAPI	= (1 << 6), /* No ATAPI support */
 	ATA_FLAG_PIO_DMA	= (1 << 7), /* PIO cmds via DMA */
 	ATA_FLAG_PIO_LBA48	= (1 << 8), /* Host DMA engine is LBA28 only */
-	ATA_FLAG_PIO_POLLING	= (1 << 10), /* use polling PIO if LLD
-					      * doesn't handle PIO interrupts */
-	ATA_FLAG_NCQ		= (1 << 11), /* host supports NCQ */
+	ATA_FLAG_PIO_POLLING	= (1 << 9), /* use polling PIO if LLD
+					     * doesn't handle PIO interrupts */
+	ATA_FLAG_NCQ		= (1 << 10), /* host supports NCQ */
 
-	ATA_FLAG_DEBUGMSG	= (1 << 14),
-	ATA_FLAG_FLUSH_PORT_TASK = (1 << 15), /* flush port task */
+	ATA_FLAG_DEBUGMSG	= (1 << 13),
+	ATA_FLAG_FLUSH_PORT_TASK = (1 << 14), /* flush port task */
 
-	ATA_FLAG_EH_PENDING	= (1 << 16), /* EH pending */
+	ATA_FLAG_EH_PENDING	= (1 << 15), /* EH pending */
 	ATA_FLAG_FROZEN		= (1 << 17), /* port is frozen */
 	ATA_FLAG_RECOVERED	= (1 << 18), /* recovery action performed */
 
