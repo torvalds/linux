@@ -591,7 +591,7 @@ static int sil24_hardreset(struct ata_port *ap, unsigned int *class)
 {
 	void __iomem *port = (void __iomem *)ap->ioaddr.cmd_addr;
 	const char *reason;
-	int tout_msec;
+	int tout_msec, rc;
 	u32 tmp;
 
 	/* sil24 does the right thing(tm) without any protection */
@@ -605,10 +605,14 @@ static int sil24_hardreset(struct ata_port *ap, unsigned int *class)
 	tmp = ata_wait_register(port + PORT_CTRL_STAT,
 				PORT_CS_DEV_RST, PORT_CS_DEV_RST, 10, tout_msec);
 
-	/* SStatus oscillates between zero and valid status for short
-	 * duration after DEV_RST, give it time to settle.
+	/* SStatus oscillates between zero and valid status after
+	 * DEV_RST, debounce it.
 	 */
-	msleep(100);
+	rc = sata_phy_debounce(ap, sata_deb_timing_before_fsrst);
+	if (rc) {
+		reason = "PHY debouncing failed";
+		goto err;
+	}
 
 	if (tmp & PORT_CS_DEV_RST) {
 		if (ata_port_offline(ap))
@@ -617,15 +621,13 @@ static int sil24_hardreset(struct ata_port *ap, unsigned int *class)
 		goto err;
 	}
 
-	if (ata_busy_sleep(ap, ATA_TMOUT_BOOT_QUICK, ATA_TMOUT_BOOT)) {
-		reason = "device not ready";
-		goto err;
-	}
-
-	/* sil24 doesn't report device class code after hardreset,
-	 * leave *class alone.
+	/* Sil24 doesn't store signature FIS after hardreset, so we
+	 * can't wait for BSY to clear.  Some devices take a long time
+	 * to get ready and those devices will choke if we don't wait
+	 * for BSY clearance here.  Tell libata to perform follow-up
+	 * softreset.
 	 */
-	return 0;
+	return -EAGAIN;
 
  err:
 	ata_port_printk(ap, KERN_ERR, "hardreset failed (%s)\n", reason);
