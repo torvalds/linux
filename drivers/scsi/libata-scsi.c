@@ -2743,16 +2743,22 @@ void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd,
 
 void ata_scsi_scan_host(struct ata_port *ap)
 {
-	struct ata_device *dev;
 	unsigned int i;
 
 	if (ap->flags & ATA_FLAG_DISABLED)
 		return;
 
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
-		dev = &ap->device[i];
+		struct ata_device *dev = &ap->device[i];
+		struct scsi_device *sdev;
 
-		if (ata_dev_enabled(dev))
-			scsi_scan_target(&ap->host->shost_gendev, 0, i, 0, 0);
+		if (!ata_dev_enabled(dev) || dev->sdev)
+			continue;
+
+		sdev = __scsi_add_device(ap->host, 0, i, 0, NULL);
+		if (!IS_ERR(sdev)) {
+			dev->sdev = sdev;
+			scsi_device_put(sdev);
+		}
 	}
 }
