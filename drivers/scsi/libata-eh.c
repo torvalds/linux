@@ -287,9 +287,13 @@ void ata_scsi_error(struct Scsi_Host *host)
 	/* clean up */
 	spin_lock_irqsave(hs_lock, flags);
 
+	if (ap->flags & ATA_FLAG_SCSI_HOTPLUG)
+		queue_work(ata_aux_wq, &ap->hotplug_task);
+
 	if (ap->flags & ATA_FLAG_RECOVERED)
 		ata_port_printk(ap, KERN_INFO, "EH complete\n");
-	ap->flags &= ~ATA_FLAG_RECOVERED;
+
+	ap->flags &= ~(ATA_FLAG_SCSI_HOTPLUG | ATA_FLAG_RECOVERED);
 
 	/* tell wait_eh that we're done */
 	ap->flags &= ~ATA_FLAG_EH_IN_PROGRESS;

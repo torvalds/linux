@@ -2786,3 +2786,119 @@ int ata_scsi_offline_dev(struct ata_device *dev)
 	}
 	return 0;
 }
+
+/**
+ *	ata_scsi_remove_dev - remove attached SCSI device
+ *	@dev: ATA device to remove attached SCSI device for
+ *
+ *	This function is called from ata_eh_scsi_hotplug() and
+ *	responsible for removing the SCSI device attached to @dev.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep).
+ */
+static void ata_scsi_remove_dev(struct ata_device *dev)
+{
+	struct ata_port *ap = dev->ap;
+	struct scsi_device *sdev;
+	unsigned long flags;
+
+	/* Alas, we need to grab scan_mutex to ensure SCSI device
+	 * state doesn't change underneath us and thus
+	 * scsi_device_get() always succeeds.  The mutex locking can
+	 * be removed if there is __scsi_device_get() interface which
+	 * increments reference counts regardless of device state.
+	 */
+	mutex_lock(&ap->host->scan_mutex);
+	spin_lock_irqsave(&ap->host_set->lock, flags);
+
+	/* clearing dev->sdev is protected by host_set lock */
+	sdev = dev->sdev;
+	dev->sdev = NULL;
+
+	if (sdev) {
+		/* If user initiated unplug races with us, sdev can go
+		 * away underneath us after the host_set lock and
+		 * scan_mutex are released.  Hold onto it.
+		 */
+		if (scsi_device_get(sdev) == 0) {
+			/* The following ensures the attached sdev is
+			 * offline on return from ata_scsi_offline_dev()
+			 * regardless it wins or loses the race
+			 * against this function.
+			 */
+			scsi_device_set_state(sdev, SDEV_OFFLINE);
+		} else {
+			WARN_ON(1);
+			sdev = NULL;
+		}
+	}
+
+	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+	mutex_unlock(&ap->host->scan_mutex);
+
+	if (sdev) {
+		ata_dev_printk(dev, KERN_INFO, "detaching (SCSI %s)\n",
+			       sdev->sdev_gendev.bus_id);
+
+		scsi_remove_device(sdev);
+		scsi_device_put(sdev);
+	}
+}
+
+/**
+ *	ata_scsi_hotplug - SCSI part of hotplug
+ *	@data: Pointer to ATA port to perform SCSI hotplug on
+ *
+ *	Perform SCSI part of hotplug.  It's executed from a separate
+ *	workqueue after EH completes.  This is necessary because SCSI
+ *	hot plugging requires working EH and hot unplugging is
+ *	synchronized with hot plugging with a mutex.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep).
+ */
+void ata_scsi_hotplug(void *data)
+{
+	struct ata_port *ap = data;
+	int i;
+
+	if (ap->flags & ATA_FLAG_UNLOADING) {
+		DPRINTK("ENTER/EXIT - unloading\n");
+		return;
+	}
+
+	DPRINTK("ENTER\n");
+
+	/* unplug detached devices */
+	for (i = 0; i < ATA_MAX_DEVICES; i++) {
+		struct ata_device *dev = &ap->device[i];
+		unsigned long flags;
+
+		if (!(dev->flags & ATA_DFLAG_DETACHED))
+			continue;
+
+		spin_lock_irqsave(&ap->host_set->lock, flags);
+		dev->flags &= ~ATA_DFLAG_DETACHED;
+		spin_unlock_irqrestore(&ap->host_set->lock, flags);
+
+		ata_scsi_remove_dev(dev);
+	}
+
+	/* scan for new ones */
+	ata_scsi_scan_host(ap);
+
+	/* If we scanned while EH was in progress, scan would have
+	 * failed silently.  Requeue if there are enabled but
+	 * unattached devices.
+	 */
+	for (i = 0; i < ATA_MAX_DEVICES; i++) {
+		struct ata_device *dev = &ap->device[i];
+		if (ata_dev_enabled(dev) && !dev->sdev) {
+			queue_delayed_work(ata_aux_wq, &ap->hotplug_task, HZ);
+			break;
+		}
+	}
+
+	DPRINTK("EXIT\n");
+}

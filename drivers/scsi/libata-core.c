@@ -5370,6 +5370,7 @@ static void ata_host_init(struct ata_port *ap, struct Scsi_Host *host,
 	ap->msg_enable = ATA_MSG_DRV;
 
 	INIT_WORK(&ap->port_task, NULL, NULL);
+	INIT_WORK(&ap->hotplug_task, ata_scsi_hotplug, ap);
 	INIT_LIST_HEAD(&ap->eh_done_q);
 	init_waitqueue_head(&ap->eh_wait_q);
 

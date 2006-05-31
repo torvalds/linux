@@ -521,7 +521,7 @@ struct ata_port {
 	struct ata_host_set	*host_set;
 	struct device 		*dev;
 
-	struct work_struct	port_task;
+	struct work_struct	port_task, hotplug_task;
 
 	unsigned int		hsm_task_state;
 
