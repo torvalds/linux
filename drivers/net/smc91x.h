@@ -1216,7 +1216,7 @@ static const char * chip_ids[ 16 ] =  {
 		if (SMC_CAN_USE_32BIT) {				\
 			void *__ptr = (p);				\
 			int __len = (l);				\
-			void *__ioaddr = ioaddr;			\
+			void __iomem *__ioaddr = ioaddr;		\
 			if (__len >= 2 && (unsigned long)__ptr & 2) {	\
 				__len -= 2;				\
 				SMC_outw(*(u16 *)__ptr, ioaddr, DATA_REG); \
@@ -1240,7 +1240,7 @@ static const char * chip_ids[ 16 ] =  {
 		if (SMC_CAN_USE_32BIT) {				\
 			void *__ptr = (p);				\
 			int __len = (l);				\
-			void *__ioaddr = ioaddr;			\
+			void __iomem *__ioaddr = ioaddr;		\
 			if ((unsigned long)__ptr & 2) {			\
 				/*					\
 				 * We want 32bit alignment here.	\
