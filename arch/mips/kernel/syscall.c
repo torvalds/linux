@@ -276,8 +276,7 @@ void sys_set_thread_area(unsigned long addr)
 
 asmlinkage int _sys_sysmips(int cmd, long arg1, int arg2, int arg3)
 {
-	int	tmp, len;
-	char	__user *name;
+	int	tmp;
 
 	switch(cmd) {
 	case MIPS_ATOMIC_SET:

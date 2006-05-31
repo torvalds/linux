@@ -419,17 +419,20 @@ static inline void bootmem_init(void)
 #ifdef CONFIG_BLK_DEV_INITRD
 	initrd_below_start_ok = 1;
 	if (initrd_start) {
-		unsigned long initrd_size = ((unsigned char *)initrd_end) - ((unsigned char *)initrd_start);
+		unsigned long initrd_size = ((unsigned char *)initrd_end) -
+			((unsigned char *)initrd_start);
+		const int width = sizeof(long) * 2;
+
 		printk("Initial ramdisk at: 0x%p (%lu bytes)\n",
 		       (void *)initrd_start, initrd_size);
 
 		if (CPHYSADDR(initrd_end) > PFN_PHYS(max_low_pfn)) {
 			printk("initrd extends beyond end of memory "
 			       "(0x%0*Lx > 0x%0*Lx)\ndisabling initrd\n",
-			       sizeof(long) * 2,
-			       (unsigned long long)CPHYSADDR(initrd_end),
-			       sizeof(long) * 2,
-			       (unsigned long long)PFN_PHYS(max_low_pfn));
+			       width,
+			       (unsigned long long) CPHYSADDR(initrd_end),
+			       width,
+			       (unsigned long long) PFN_PHYS(max_low_pfn));
 			initrd_start = initrd_end = 0;
 			initrd_reserve_bootmem = 0;
 		}
