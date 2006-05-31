@@ -111,6 +111,8 @@ static void sil_dev_config(struct ata_port *ap, struct ata_device *dev);
 static u32 sil_scr_read (struct ata_port *ap, unsigned int sc_reg);
 static void sil_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val);
 static void sil_post_set_mode (struct ata_port *ap);
+static irqreturn_t sil_interrupt(int irq, void *dev_instance,
+				 struct pt_regs *regs);
 static void sil_freeze(struct ata_port *ap);
 static void sil_thaw(struct ata_port *ap);
 
@@ -196,7 +198,7 @@ static const struct ata_port_operations sil_ops = {
 	.thaw			= sil_thaw,
 	.error_handler		= ata_bmdma_error_handler,
 	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
-	.irq_handler		= ata_interrupt,
+	.irq_handler		= sil_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
 	.scr_read		= sil_scr_read,
 	.scr_write		= sil_scr_write,
@@ -334,6 +336,94 @@ static void sil_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val)
 	void *mmio = (void __iomem *) sil_scr_addr(ap, sc_reg);
 	if (mmio)
 		writel(val, mmio);
+}
+
+static void sil_host_intr(struct ata_port *ap, u32 bmdma2)
+{
+	struct ata_queued_cmd *qc = ata_qc_from_tag(ap, ap->active_tag);
+	u8 status;
+
+	if (unlikely(!qc || qc->tf.ctl & ATA_NIEN))
+		goto freeze;
+
+	/* Check whether we are expecting interrupt in this state */
+	switch (ap->hsm_task_state) {
+	case HSM_ST_FIRST:
+		/* Some pre-ATAPI-4 devices assert INTRQ
+		 * at this state when ready to receive CDB.
+		 */
+
+		/* Check the ATA_DFLAG_CDB_INTR flag is enough here.
+		 * The flag was turned on only for atapi devices.
+		 * No need to check is_atapi_taskfile(&qc->tf) again.
+		 */
+		if (!(qc->dev->flags & ATA_DFLAG_CDB_INTR))
+			goto err_hsm;
+		break;
+	case HSM_ST_LAST:
+		if (qc->tf.protocol == ATA_PROT_DMA ||
+		    qc->tf.protocol == ATA_PROT_ATAPI_DMA) {
+			/* clear DMA-Start bit */
+			ap->ops->bmdma_stop(qc);
+
+			if (bmdma2 & SIL_DMA_ERROR) {
+				qc->err_mask |= AC_ERR_HOST_BUS;
+				ap->hsm_task_state = HSM_ST_ERR;
+			}
+		}
+		break;
+	case HSM_ST:
+		break;
+	default:
+		goto err_hsm;
+	}
+
+	/* check main status, clearing INTRQ */
+	status = ata_chk_status(ap);
+	if (unlikely(status & ATA_BUSY))
+		goto err_hsm;
+
+	/* ack bmdma irq events */
+	ata_bmdma_irq_clear(ap);
+
+	/* kick HSM in the ass */
+	ata_hsm_move(ap, qc, status, 0);
+
+	return;
+
+ err_hsm:
+	qc->err_mask |= AC_ERR_HSM;
+ freeze:
+	ata_port_freeze(ap);
+}
+
+static irqreturn_t sil_interrupt(int irq, void *dev_instance,
+				 struct pt_regs *regs)
+{
+	struct ata_host_set *host_set = dev_instance;
+	void __iomem *mmio_base = host_set->mmio_base;
+	int handled = 0;
+	int i;
+
+	spin_lock(&host_set->lock);
+
+	for (i = 0; i < host_set->n_ports; i++) {
+		struct ata_port *ap = host_set->ports[i];
+		u32 bmdma2 = readl(mmio_base + sil_port[ap->port_no].bmdma2);
+
+		if (unlikely(!ap || ap->flags & ATA_FLAG_DISABLED))
+			continue;
+
+		if (!(bmdma2 & SIL_DMA_COMPLETE))
+			continue;
+
+		sil_host_intr(ap, bmdma2);
+		handled = 1;
+	}
+
+	spin_unlock(&host_set->lock);
+
+	return IRQ_RETVAL(handled);
 }
 
 static void sil_freeze(struct ata_port *ap)
