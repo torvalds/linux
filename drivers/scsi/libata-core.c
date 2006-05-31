@@ -5419,7 +5419,7 @@ static struct ata_port * ata_host_add(const struct ata_probe_ent *ent,
 
 	DPRINTK("ENTER\n");
 
-	if (!ent->port_ops->probe_reset &&
+	if (!ent->port_ops->probe_reset && !ent->port_ops->error_handler &&
 	    !(ent->host_flags & (ATA_FLAG_SATA_RESET | ATA_FLAG_SRST))) {
 		printk(KERN_ERR "ata%u: no reset mechanism available\n",
 		       port_no);
@@ -5465,7 +5465,6 @@ err_out:
  *	RETURNS:
  *	Number of ports registered.  Zero on error (no ports registered).
  */
-
 int ata_device_add(const struct ata_probe_ent *ent)
 {
 	unsigned int count = 0, i;
@@ -5542,19 +5541,6 @@ int ata_device_add(const struct ata_probe_ent *ent)
 		}
 		ap->sata_spd_limit = ap->hw_sata_spd_limit;
 
-		DPRINTK("ata%u: bus probe begin\n", ap->id);
-		rc = ata_bus_probe(ap);
-		DPRINTK("ata%u: bus probe end\n", ap->id);
-
-		if (rc) {
-			/* FIXME: do something useful here?
-			 * Current libata behavior will
-			 * tear down everything when
-			 * the module is removed
-			 * or the h/w is unplugged.
-			 */
-		}
-
 		rc = scsi_add_host(ap->host, dev);
 		if (rc) {
 			ata_port_printk(ap, KERN_ERR, "scsi_add_host failed\n");
@@ -5563,6 +5549,39 @@ int ata_device_add(const struct ata_probe_ent *ent)
 			 * scsi_scan_host and ata_host_remove, below,
 			 * at the very least
 			 */
+		}
+
+		if (!ap->ops->probe_reset) {
+			unsigned long flags;
+
+			ata_port_probe(ap);
+
+			/* kick EH for boot probing */
+			spin_lock_irqsave(&ap->host_set->lock, flags);
+
+			ap->eh_info.probe_mask = (1 << ATA_MAX_DEVICES) - 1;
+			ap->eh_info.action |= ATA_EH_SOFTRESET;
+
+			ap->flags |= ATA_FLAG_LOADING;
+			ata_port_schedule_eh(ap);
+
+			spin_unlock_irqrestore(&ap->host_set->lock, flags);
+
+			/* wait for EH to finish */
+			ata_port_wait_eh(ap);
+		} else {
+			DPRINTK("ata%u: bus probe begin\n", ap->id);
+			rc = ata_bus_probe(ap);
+			DPRINTK("ata%u: bus probe end\n", ap->id);
+
+			if (rc) {
+				/* FIXME: do something useful here?
+				 * Current libata behavior will
+				 * tear down everything when
+				 * the module is removed
+				 * or the h/w is unplugged.
+				 */
+			}
 		}
 	}
 

@@ -287,11 +287,14 @@ void ata_scsi_error(struct Scsi_Host *host)
 	/* clean up */
 	spin_lock_irqsave(hs_lock, flags);
 
-	if (ap->flags & ATA_FLAG_SCSI_HOTPLUG)
-		queue_work(ata_aux_wq, &ap->hotplug_task);
-
-	if (ap->flags & ATA_FLAG_RECOVERED)
-		ata_port_printk(ap, KERN_INFO, "EH complete\n");
+	if (ap->flags & ATA_FLAG_LOADING) {
+		ap->flags &= ~ATA_FLAG_LOADING;
+	} else {
+		if (ap->flags & ATA_FLAG_SCSI_HOTPLUG)
+			queue_work(ata_aux_wq, &ap->hotplug_task);
+		if (ap->flags & ATA_FLAG_RECOVERED)
+			ata_port_printk(ap, KERN_INFO, "EH complete\n");
+	}
 
 	ap->flags &= ~(ATA_FLAG_SCSI_HOTPLUG | ATA_FLAG_RECOVERED);
 
@@ -1367,6 +1370,7 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 	struct ata_eh_context *ehc = &ap->eh_context;
 	unsigned int *classes = ehc->classes;
 	int tries = ATA_EH_RESET_TRIES;
+	int verbose = !(ap->flags & ATA_FLAG_LOADING);
 	unsigned int action;
 	ata_reset_fn_t reset;
 	int i, did_followup_srst, rc;
@@ -1414,8 +1418,10 @@ static int ata_eh_reset(struct ata_port *ap, int classify,
 	}
 
  retry:
-	ata_port_printk(ap, KERN_INFO, "%s resetting port\n",
-			reset == softreset ? "soft" : "hard");
+	/* shut up during boot probing */
+	if (verbose)
+		ata_port_printk(ap, KERN_INFO, "%s resetting port\n",
+				reset == softreset ? "soft" : "hard");
 
 	/* reset */
 	ata_eh_about_to_do(ap, ATA_EH_RESET_MASK);
@@ -1799,8 +1805,11 @@ void ata_do_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
 	       ata_reset_fn_t softreset, ata_reset_fn_t hardreset,
 	       ata_postreset_fn_t postreset)
 {
-	ata_eh_autopsy(ap);
-	ata_eh_report(ap);
+	if (!(ap->flags & ATA_FLAG_LOADING)) {
+		ata_eh_autopsy(ap);
+		ata_eh_report(ap);
+	}
+
 	ata_eh_recover(ap, prereset, softreset, hardreset, postreset);
 	ata_eh_finish(ap);
 }
