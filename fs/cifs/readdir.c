@@ -21,6 +21,7 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #include <linux/fs.h>
+#include <linux/pagemap.h>
 #include <linux/stat.h>
 #include <linux/smp_lock.h>
 #include "cifspdu.h"
@@ -216,11 +217,13 @@ static void fill_in_inode(struct inode *tmp_inode,
 		else
 			tmp_inode->i_fop = &cifs_file_ops;
 
-		tmp_inode->i_data.a_ops = &cifs_addr_ops;
 		if((cifs_sb->tcon) && (cifs_sb->tcon->ses) &&
 		   (cifs_sb->tcon->ses->server->maxBuf <
-			4096 + MAX_CIFS_HDR_SIZE))
-			tmp_inode->i_data.a_ops->readpages = NULL;
+			PAGE_CACHE_SIZE + MAX_CIFS_HDR_SIZE))
+			tmp_inode->i_data.a_ops = &cifs_addr_ops_smallbuf;
+		else
+			tmp_inode->i_data.a_ops = &cifs_addr_ops;
+
 		if(isNewInode)
 			return; /* No sense invalidating pages for new inode
 				   since have not started caching readahead file
@@ -339,11 +342,12 @@ static void unix_fill_in_inode(struct inode *tmp_inode,
 		else
 			tmp_inode->i_fop = &cifs_file_ops;
 
-		tmp_inode->i_data.a_ops = &cifs_addr_ops;
 		if((cifs_sb->tcon) && (cifs_sb->tcon->ses) &&
 		   (cifs_sb->tcon->ses->server->maxBuf < 
-			4096 + MAX_CIFS_HDR_SIZE))
-			tmp_inode->i_data.a_ops->readpages = NULL;
+			PAGE_CACHE_SIZE + MAX_CIFS_HDR_SIZE))
+			tmp_inode->i_data.a_ops = &cifs_addr_ops_smallbuf;
+		else
+			tmp_inode->i_data.a_ops = &cifs_addr_ops;
 
 		if(isNewInode)
 			return; /* No sense invalidating pages for new inode since we

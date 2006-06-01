@@ -33,6 +33,7 @@
 #endif
 
 extern struct address_space_operations cifs_addr_ops;
+extern struct address_space_operations cifs_addr_ops_smallbuf;
 
 /* Functions related to super block operations */
 extern struct super_operations cifs_super_ops;

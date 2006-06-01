@@ -1959,3 +1959,19 @@ struct address_space_operations cifs_addr_ops = {
 	/* .sync_page = cifs_sync_page, */
 	/* .direct_IO = */
 };
+
+/*
+ * cifs_readpages requires the server to support a buffer large enough to
+ * contain the header plus one complete page of data.  Otherwise, we need
+ * to leave cifs_readpages out of the address space operations.
+ */
+struct address_space_operations cifs_addr_ops_smallbuf = {
+	.readpage = cifs_readpage,
+	.writepage = cifs_writepage,
+	.writepages = cifs_writepages,
+	.prepare_write = cifs_prepare_write,
+	.commit_write = cifs_commit_write,
+	.set_page_dirty = __set_page_dirty_nobuffers,
+	/* .sync_page = cifs_sync_page, */
+	/* .direct_IO = */
+};
