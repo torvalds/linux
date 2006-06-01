@@ -133,6 +133,7 @@ struct cfq_data {
 	mempool_t *crq_pool;
 
 	int rq_in_driver;
+	int hw_tag;
 
 	/*
 	 * schedule slice state info
@@ -664,6 +665,15 @@ static void cfq_activate_request(request_queue_t *q, struct request *rq)
 	struct cfq_data *cfqd = q->elevator->elevator_data;
 
 	cfqd->rq_in_driver++;
+
+	/*
+	 * If the depth is larger 1, it really could be queueing. But lets
+	 * make the mark a little higher - idling could still be good for
+	 * low queueing, and a low queueing number could also just indicate
+	 * a SCSI mid layer like behaviour where limit+1 is often seen.
+	 */
+	if (!cfqd->hw_tag && cfqd->rq_in_driver > 4)
+		cfqd->hw_tag = 1;
 }
 
 static void cfq_deactivate_request(request_queue_t *q, struct request *rq)
@@ -1465,7 +1475,8 @@ retry:
 		 * set ->slice_left to allow preemption for a new process
 		 */
 		cfqq->slice_left = 2 * cfqd->cfq_slice_idle;
-		cfq_mark_cfqq_idle_window(cfqq);
+		if (!cfqd->hw_tag)
+			cfq_mark_cfqq_idle_window(cfqq);
 		cfq_mark_cfqq_prio_changed(cfqq);
 		cfq_init_prio_data(cfqq);
 	}
@@ -1656,7 +1667,7 @@ cfq_update_idle_window(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 {
 	int enable_idle = cfq_cfqq_idle_window(cfqq);
 
-	if (!cic->ioc->task || !cfqd->cfq_slice_idle)
+	if (!cic->ioc->task || !cfqd->cfq_slice_idle || cfqd->hw_tag)
 		enable_idle = 0;
 	else if (sample_valid(cic->ttime_samples)) {
 		if (cic->ttime_mean > cfqd->cfq_slice_idle)
