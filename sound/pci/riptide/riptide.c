@@ -1836,11 +1836,11 @@ static int snd_riptide_free(struct snd_riptide *chip)
 		UNSET_GRESET(cif->hwport);
 		kfree(chip->cif);
 	}
+	if (chip->irq >= 0)
+		free_irq(chip->irq, chip);
 	if (chip->fw_entry)
 		release_firmware(chip->fw_entry);
 	release_and_free_resource(chip->res_port);
-	if (chip->irq >= 0)
-		free_irq(chip->irq, chip);
 	kfree(chip);
 	return 0;
 }
