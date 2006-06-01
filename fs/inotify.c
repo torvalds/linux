@@ -207,7 +207,7 @@ static struct inotify_watch *inode_find_handle(struct inode *inode,
 }
 
 /*
- * remove_watch_no_event - remove_watch() without the IN_IGNORED event.
+ * remove_watch_no_event - remove watch without the IN_IGNORED event.
  *
  * Callers must hold both inode->inotify_mutex and ih->mutex.
  */
@@ -223,17 +223,22 @@ static void remove_watch_no_event(struct inotify_watch *watch,
 	idr_remove(&ih->idr, watch->wd);
 }
 
-/*
- * remove_watch - Remove a watch from both the handle and the inode.  Sends
- * the IN_IGNORED event signifying that the inode is no longer watched.
+/**
+ * inotify_remove_watch_locked - Remove a watch from both the handle and the
+ * inode.  Sends the IN_IGNORED event signifying that the inode is no longer
+ * watched.  May be invoked from a caller's event handler.
+ * @ih: inotify handle associated with watch
+ * @watch: watch to remove
  *
  * Callers must hold both inode->inotify_mutex and ih->mutex.
  */
-static void remove_watch(struct inotify_watch *watch, struct inotify_handle *ih)
+void inotify_remove_watch_locked(struct inotify_handle *ih,
+				 struct inotify_watch *watch)
 {
 	remove_watch_no_event(watch, ih);
 	ih->in_ops->handle_event(watch, watch->wd, IN_IGNORED, 0, NULL, NULL);
 }
+EXPORT_SYMBOL_GPL(inotify_remove_watch_locked);
 
 /* Kernel API for producing events */
 
@@ -378,7 +383,7 @@ void inotify_unmount_inodes(struct list_head *list)
 
 		need_iput_tmp = need_iput;
 		need_iput = NULL;
-		/* In case the remove_watch() drops a reference. */
+		/* In case inotify_remove_watch_locked() drops a reference. */
 		if (inode != need_iput_tmp)
 			__iget(inode);
 		else
@@ -411,7 +416,7 @@ void inotify_unmount_inodes(struct list_head *list)
 			mutex_lock(&ih->mutex);
 			ih->in_ops->handle_event(watch, watch->wd, IN_UNMOUNT, 0,
 						 NULL, NULL);
-			remove_watch(watch, ih);
+			inotify_remove_watch_locked(ih, watch);
 			mutex_unlock(&ih->mutex);
 		}
 		mutex_unlock(&inode->inotify_mutex);
@@ -434,7 +439,7 @@ void inotify_inode_is_dead(struct inode *inode)
 	list_for_each_entry_safe(watch, next, &inode->inotify_watches, i_list) {
 		struct inotify_handle *ih = watch->ih;
 		mutex_lock(&ih->mutex);
-		remove_watch(watch, ih);
+		inotify_remove_watch_locked(ih, watch);
 		mutex_unlock(&ih->mutex);
 	}
 	mutex_unlock(&inode->inotify_mutex);
@@ -687,7 +692,7 @@ int inotify_rm_wd(struct inotify_handle *ih, u32 wd)
 
 	/* make sure that we did not race */
 	if (likely(idr_find(&ih->idr, wd) == watch))
-		remove_watch(watch, ih);
+		inotify_remove_watch_locked(ih, watch);
 
 	mutex_unlock(&ih->mutex);
 	mutex_unlock(&inode->inotify_mutex);

@@ -122,6 +122,8 @@ extern __s32 inotify_add_watch(struct inotify_handle *, struct inotify_watch *,
 			       struct inode *, __u32);
 extern int inotify_rm_watch(struct inotify_handle *, struct inotify_watch *);
 extern int inotify_rm_wd(struct inotify_handle *, __u32);
+extern void inotify_remove_watch_locked(struct inotify_handle *,
+					struct inotify_watch *);
 extern void get_inotify_watch(struct inotify_watch *);
 extern void put_inotify_watch(struct inotify_watch *);
 
@@ -203,6 +205,11 @@ static inline int inotify_rm_watch(struct inotify_handle *ih,
 static inline int inotify_rm_wd(struct inotify_handle *ih, __u32 wd)
 {
 	return -EOPNOTSUPP;
+}
+
+static inline void inotify_remove_watch_locked(struct inotify_handle *ih,
+					       struct inotify_watch *watch)
+{
 }
 
 static inline void get_inotify_watch(struct inotify_watch *watch)
