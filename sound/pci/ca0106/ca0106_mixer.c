@@ -70,8 +70,11 @@
 #include <sound/pcm.h>
 #include <sound/ac97_codec.h>
 #include <sound/info.h>
+#include <sound/tlv.h>
 
 #include "ca0106.h"
+
+static DECLARE_TLV_DB_SCALE(snd_ca0106_db_scale, -5150, 75, 1);
 
 static int snd_ca0106_shared_spdif_info(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_info *uinfo)
@@ -472,6 +475,7 @@ static int snd_ca0106_i2c_volume_put(struct snd_kcontrol *kcontrol,
 	.info =	 snd_ca0106_volume_info,			\
 	.get =   snd_ca0106_volume_get,				\
 	.put =   snd_ca0106_volume_put,				\
+	.tlv =	 snd_ca0106_db_scale,				\
 	.private_value = ((chid) << 8) | (reg)			\
 }
 
