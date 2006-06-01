@@ -468,6 +468,19 @@ struct inotify_handle *inotify_init(const struct inotify_operations *ops)
 EXPORT_SYMBOL_GPL(inotify_init);
 
 /**
+ * inotify_init_watch - initialize an inotify watch
+ * @watch: watch to initialize
+ */
+void inotify_init_watch(struct inotify_watch *watch)
+{
+	INIT_LIST_HEAD(&watch->h_list);
+	INIT_LIST_HEAD(&watch->i_list);
+	atomic_set(&watch->count, 0);
+	get_inotify_watch(watch); /* initial get */
+}
+EXPORT_SYMBOL_GPL(inotify_init_watch);
+
+/**
  * inotify_destroy - clean up and destroy an inotify instance
  * @ih: inotify handle
  */
@@ -513,6 +526,37 @@ void inotify_destroy(struct inotify_handle *ih)
 	put_inotify_handle(ih);
 }
 EXPORT_SYMBOL_GPL(inotify_destroy);
+
+/**
+ * inotify_find_watch - find an existing watch for an (ih,inode) pair
+ * @ih: inotify handle
+ * @inode: inode to watch
+ * @watchp: pointer to existing inotify_watch
+ *
+ * Caller must pin given inode (via nameidata).
+ */
+s32 inotify_find_watch(struct inotify_handle *ih, struct inode *inode,
+		       struct inotify_watch **watchp)
+{
+	struct inotify_watch *old;
+	int ret = -ENOENT;
+
+	mutex_lock(&inode->inotify_mutex);
+	mutex_lock(&ih->mutex);
+
+	old = inode_find_handle(inode, ih);
+	if (unlikely(old)) {
+		get_inotify_watch(old); /* caller must put watch */
+		*watchp = old;
+		ret = old->wd;
+	}
+
+	mutex_unlock(&ih->mutex);
+	mutex_unlock(&inode->inotify_mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(inotify_find_watch);
 
 /**
  * inotify_find_update_watch - find and update the mask of an existing watch
@@ -593,10 +637,6 @@ s32 inotify_add_watch(struct inotify_handle *ih, struct inotify_watch *watch,
 		goto out;
 	ret = watch->wd;
 
-	atomic_set(&watch->count, 0);
-	INIT_LIST_HEAD(&watch->h_list);
-	INIT_LIST_HEAD(&watch->i_list);
-
 	/* save a reference to handle and bump the count to make it official */
 	get_inotify_handle(ih);
 	watch->ih = ih;
@@ -606,8 +646,6 @@ s32 inotify_add_watch(struct inotify_handle *ih, struct inotify_watch *watch,
 	 * official.  We hold a reference to nameidata, which makes this safe.
 	 */
 	watch->inode = igrab(inode);
-
-	get_inotify_watch(watch); /* initial get */
 
 	if (!inotify_inode_watched(inode))
 		set_dentry_child_flags(inode, 1);
@@ -658,6 +696,20 @@ int inotify_rm_wd(struct inotify_handle *ih, u32 wd)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(inotify_rm_wd);
+
+/**
+ * inotify_rm_watch - remove a watch from an inotify instance
+ * @ih: inotify handle
+ * @watch: watch to remove
+ *
+ * Can sleep.
+ */
+int inotify_rm_watch(struct inotify_handle *ih,
+		     struct inotify_watch *watch)
+{
+	return inotify_rm_wd(ih, watch->wd);
+}
+EXPORT_SYMBOL_GPL(inotify_rm_watch);
 
 /*
  * inotify_setup - core initialization function

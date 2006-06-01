@@ -112,11 +112,15 @@ extern u32 inotify_get_cookie(void);
 /* Kernel Consumer API */
 
 extern struct inotify_handle *inotify_init(const struct inotify_operations *);
+extern void inotify_init_watch(struct inotify_watch *);
 extern void inotify_destroy(struct inotify_handle *);
+extern __s32 inotify_find_watch(struct inotify_handle *, struct inode *,
+				struct inotify_watch **);
 extern __s32 inotify_find_update_watch(struct inotify_handle *, struct inode *,
 				       u32);
 extern __s32 inotify_add_watch(struct inotify_handle *, struct inotify_watch *,
 			       struct inode *, __u32);
+extern int inotify_rm_watch(struct inotify_handle *, struct inotify_watch *);
 extern int inotify_rm_wd(struct inotify_handle *, __u32);
 extern void get_inotify_watch(struct inotify_watch *);
 extern void put_inotify_watch(struct inotify_watch *);
@@ -163,8 +167,18 @@ static inline struct inotify_handle *inotify_init(const struct inotify_operation
 	return ERR_PTR(-EOPNOTSUPP);
 }
 
+static inline void inotify_init_watch(struct inotify_watch *watch)
+{
+}
+
 static inline void inotify_destroy(struct inotify_handle *ih)
 {
+}
+
+static inline __s32 inotify_find_watch(struct inotify_handle *ih, struct inode *inode,
+				       struct inotify_watch **watchp)
+{
+	return -EOPNOTSUPP;
 }
 
 static inline __s32 inotify_find_update_watch(struct inotify_handle *ih,
@@ -176,6 +190,12 @@ static inline __s32 inotify_find_update_watch(struct inotify_handle *ih,
 static inline __s32 inotify_add_watch(struct inotify_handle *ih,
 				      struct inotify_watch *watch,
 				      struct inode *inode, __u32 mask)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int inotify_rm_watch(struct inotify_handle *ih,
+				   struct inotify_watch *watch)
 {
 	return -EOPNOTSUPP;
 }

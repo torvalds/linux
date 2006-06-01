@@ -380,6 +380,7 @@ static int create_watch(struct inotify_device *dev, struct inode *inode,
 
 	atomic_inc(&dev->user->inotify_watches);
 
+	inotify_init_watch(&watch->wdata);
 	ret = inotify_add_watch(dev->ih, &watch->wdata, inode, mask);
 	if (ret < 0)
 		free_inotify_user_watch(&watch->wdata);
