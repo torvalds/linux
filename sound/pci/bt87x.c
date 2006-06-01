@@ -781,10 +781,12 @@ static struct pci_device_id snd_bt87x_ids[] __devinitdata = {
 	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_879, 0x0070, 0x13eb, 32000),
 	/* Viewcast Osprey 200 */
 	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0x0070, 0xff01, 44100),
-	/* AVerMedia Studio No. 103, 203, ...? */
-	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0x1461, 0x0003, 48000),
 	/* Leadtek Winfast tv 2000xp delux */
 	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0x107d, 0x6606, 32000),
+	/* Voodoo TV 200 */
+	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0x121a, 0x3000, 32000),
+	/* AVerMedia Studio No. 103, 203, ...? */
+	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0x1461, 0x0003, 48000),
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, snd_bt87x_ids);
