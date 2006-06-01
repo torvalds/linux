@@ -703,16 +703,19 @@ void usb_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 	 * device reset. */
   Handle_Errors:
 
-	/* Let the SCSI layer know we are doing a reset, set the
-	 * RESETTING bit, and clear the ABORTING bit so that the reset
-	 * may proceed. */
+	/* Set the RESETTING bit, and clear the ABORTING bit so that
+	 * the reset may proceed. */
 	scsi_lock(us_to_host(us));
-	usb_stor_report_bus_reset(us);
 	set_bit(US_FLIDX_RESETTING, &us->flags);
 	clear_bit(US_FLIDX_ABORTING, &us->flags);
 	scsi_unlock(us_to_host(us));
 
+	/* We must release the device lock because the pre_reset routine
+	 * will want to acquire it. */
+	mutex_unlock(&us->dev_mutex);
 	result = usb_stor_port_reset(us);
+	mutex_lock(&us->dev_mutex);
+
 	if (result < 0) {
 		scsi_lock(us_to_host(us));
 		usb_stor_report_device_reset(us);
@@ -1196,31 +1199,30 @@ int usb_stor_Bulk_reset(struct us_data *us)
 				 0, us->ifnum, NULL, 0);
 }
 
-/* Issue a USB port reset to the device.  But don't do anything if
- * there's more than one interface in the device, so that other users
- * are not affected. */
+/* Issue a USB port reset to the device.  The caller must not hold
+ * us->dev_mutex.
+ */
 int usb_stor_port_reset(struct us_data *us)
 {
-	int result, rc;
+	int result, rc_lock;
 
-	if (test_bit(US_FLIDX_DISCONNECTING, &us->flags)) {
-		result = -EIO;
-		US_DEBUGP("No reset during disconnect\n");
-	} else if (us->pusb_dev->actconfig->desc.bNumInterfaces != 1) {
-		result = -EBUSY;
-		US_DEBUGP("Refusing to reset a multi-interface device\n");
-	} else {
-		result = rc =
-			usb_lock_device_for_reset(us->pusb_dev, us->pusb_intf);
-		if (result < 0) {
-			US_DEBUGP("unable to lock device for reset: %d\n",
-					result);
+	result = rc_lock =
+		usb_lock_device_for_reset(us->pusb_dev, us->pusb_intf);
+	if (result < 0)
+		US_DEBUGP("unable to lock device for reset: %d\n", result);
+	else {
+		/* Were we disconnected while waiting for the lock? */
+		if (test_bit(US_FLIDX_DISCONNECTING, &us->flags)) {
+			result = -EIO;
+			US_DEBUGP("No reset during disconnect\n");
 		} else {
-			result = usb_reset_device(us->pusb_dev);
-			if (rc)
-				usb_unlock_device(us->pusb_dev);
-			US_DEBUGP("usb_reset_device returns %d\n", result);
+			result = usb_reset_composite_device(
+					us->pusb_dev, us->pusb_intf);
+			US_DEBUGP("usb_reset_composite_device returns %d\n",
+					result);
 		}
+		if (rc_lock)
+			usb_unlock_device(us->pusb_dev);
 	}
 	return result;
 }

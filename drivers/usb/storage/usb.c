@@ -221,6 +221,37 @@ static int storage_resume(struct usb_interface *iface)
 #endif /* CONFIG_PM */
 
 /*
+ * The next two routines get called just before and just after
+ * a USB port reset, whether from this driver or a different one.
+ */
+
+static void storage_pre_reset(struct usb_interface *iface)
+{
+	struct us_data *us = usb_get_intfdata(iface);
+
+	US_DEBUGP("%s\n", __FUNCTION__);
+
+	/* Make sure no command runs during the reset */
+	mutex_lock(&us->dev_mutex);
+}
+
+static void storage_post_reset(struct usb_interface *iface)
+{
+	struct us_data *us = usb_get_intfdata(iface);
+
+	US_DEBUGP("%s\n", __FUNCTION__);
+
+	/* Report the reset to the SCSI core */
+	scsi_lock(us_to_host(us));
+	usb_stor_report_bus_reset(us);
+	scsi_unlock(us_to_host(us));
+
+	/* FIXME: Notify the subdrivers that they need to reinitialize
+	 * the device */
+	mutex_unlock(&us->dev_mutex);
+}
+
+/*
  * fill_inquiry_response takes an unsigned char array (which must
  * be at least 36 characters) and populates the vendor name,
  * product name, and revision fields. Then the array is copied
@@ -1002,6 +1033,8 @@ static struct usb_driver usb_storage_driver = {
 	.suspend =	storage_suspend,
 	.resume =	storage_resume,
 #endif
+	.pre_reset =	storage_pre_reset,
+	.post_reset =	storage_post_reset,
 	.id_table =	storage_usb_ids,
 };
 
