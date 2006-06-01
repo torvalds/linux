@@ -1051,7 +1051,7 @@ static void srat_detect_node(void)
 	   for now. */
 	node = apicid_to_node[hard_smp_processor_id()];
 	if (node == NUMA_NO_NODE)
-		node = 0;
+		node = first_node(node_online_map);
 	numa_set_node(cpu, node);
 
 	if (acpi_numa > 0)

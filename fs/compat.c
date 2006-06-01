@@ -2030,109 +2030,115 @@ union compat_nfsctl_res {
 	struct knfsd_fh		cr32_getfs;
 };
 
-static int compat_nfs_svc_trans(struct nfsctl_arg *karg, struct compat_nfsctl_arg __user *arg)
+static int compat_nfs_svc_trans(struct nfsctl_arg *karg,
+				struct compat_nfsctl_arg __user *arg)
 {
-	int err;
-
-	err = access_ok(VERIFY_READ, &arg->ca32_svc, sizeof(arg->ca32_svc));
-	err |= get_user(karg->ca_version, &arg->ca32_version);
-	err |= __get_user(karg->ca_svc.svc_port, &arg->ca32_svc.svc32_port);
-	err |= __get_user(karg->ca_svc.svc_nthreads, &arg->ca32_svc.svc32_nthreads);
-	return (err) ? -EFAULT : 0;
+	if (!access_ok(VERIFY_READ, &arg->ca32_svc, sizeof(arg->ca32_svc)) ||
+		get_user(karg->ca_version, &arg->ca32_version) ||
+		__get_user(karg->ca_svc.svc_port, &arg->ca32_svc.svc32_port) ||
+		__get_user(karg->ca_svc.svc_nthreads,
+				&arg->ca32_svc.svc32_nthreads))
+		return -EFAULT;
+	return 0;
 }
 
-static int compat_nfs_clnt_trans(struct nfsctl_arg *karg, struct compat_nfsctl_arg __user *arg)
+static int compat_nfs_clnt_trans(struct nfsctl_arg *karg,
+				struct compat_nfsctl_arg __user *arg)
 {
-	int err;
+	if (!access_ok(VERIFY_READ, &arg->ca32_client,
+			sizeof(arg->ca32_client)) ||
+		get_user(karg->ca_version, &arg->ca32_version) ||
+		__copy_from_user(&karg->ca_client.cl_ident[0],
+				&arg->ca32_client.cl32_ident[0],
+				NFSCLNT_IDMAX) ||
+		__get_user(karg->ca_client.cl_naddr,
+				&arg->ca32_client.cl32_naddr) ||
+		__copy_from_user(&karg->ca_client.cl_addrlist[0],
+				&arg->ca32_client.cl32_addrlist[0],
+				(sizeof(struct in_addr) * NFSCLNT_ADDRMAX)) ||
+		__get_user(karg->ca_client.cl_fhkeytype,
+				&arg->ca32_client.cl32_fhkeytype) ||
+		__get_user(karg->ca_client.cl_fhkeylen,
+				&arg->ca32_client.cl32_fhkeylen) ||
+		__copy_from_user(&karg->ca_client.cl_fhkey[0],
+				&arg->ca32_client.cl32_fhkey[0],
+				NFSCLNT_KEYMAX))
+		return -EFAULT;
 
-	err = access_ok(VERIFY_READ, &arg->ca32_client, sizeof(arg->ca32_client));
-	err |= get_user(karg->ca_version, &arg->ca32_version);
-	err |= __copy_from_user(&karg->ca_client.cl_ident[0],
-			  &arg->ca32_client.cl32_ident[0],
-			  NFSCLNT_IDMAX);
-	err |= __get_user(karg->ca_client.cl_naddr, &arg->ca32_client.cl32_naddr);
-	err |= __copy_from_user(&karg->ca_client.cl_addrlist[0],
-			  &arg->ca32_client.cl32_addrlist[0],
-			  (sizeof(struct in_addr) * NFSCLNT_ADDRMAX));
-	err |= __get_user(karg->ca_client.cl_fhkeytype,
-		      &arg->ca32_client.cl32_fhkeytype);
-	err |= __get_user(karg->ca_client.cl_fhkeylen,
-		      &arg->ca32_client.cl32_fhkeylen);
-	err |= __copy_from_user(&karg->ca_client.cl_fhkey[0],
-			  &arg->ca32_client.cl32_fhkey[0],
-			  NFSCLNT_KEYMAX);
-
-	return (err) ? -EFAULT : 0;
+	return 0;
 }
 
-static int compat_nfs_exp_trans(struct nfsctl_arg *karg, struct compat_nfsctl_arg __user *arg)
+static int compat_nfs_exp_trans(struct nfsctl_arg *karg,
+				struct compat_nfsctl_arg __user *arg)
 {
-	int err;
-
-	err = access_ok(VERIFY_READ, &arg->ca32_export, sizeof(arg->ca32_export));
-	err |= get_user(karg->ca_version, &arg->ca32_version);
-	err |= __copy_from_user(&karg->ca_export.ex_client[0],
-			  &arg->ca32_export.ex32_client[0],
-			  NFSCLNT_IDMAX);
-	err |= __copy_from_user(&karg->ca_export.ex_path[0],
-			  &arg->ca32_export.ex32_path[0],
-			  NFS_MAXPATHLEN);
-	err |= __get_user(karg->ca_export.ex_dev,
-		      &arg->ca32_export.ex32_dev);
-	err |= __get_user(karg->ca_export.ex_ino,
-		      &arg->ca32_export.ex32_ino);
-	err |= __get_user(karg->ca_export.ex_flags,
-		      &arg->ca32_export.ex32_flags);
-	err |= __get_user(karg->ca_export.ex_anon_uid,
-		      &arg->ca32_export.ex32_anon_uid);
-	err |= __get_user(karg->ca_export.ex_anon_gid,
-		      &arg->ca32_export.ex32_anon_gid);
+	if (!access_ok(VERIFY_READ, &arg->ca32_export,
+				sizeof(arg->ca32_export)) ||
+		get_user(karg->ca_version, &arg->ca32_version) ||
+		__copy_from_user(&karg->ca_export.ex_client[0],
+				&arg->ca32_export.ex32_client[0],
+				NFSCLNT_IDMAX) ||
+		__copy_from_user(&karg->ca_export.ex_path[0],
+				&arg->ca32_export.ex32_path[0],
+				NFS_MAXPATHLEN) ||
+		__get_user(karg->ca_export.ex_dev,
+				&arg->ca32_export.ex32_dev) ||
+		__get_user(karg->ca_export.ex_ino,
+				&arg->ca32_export.ex32_ino) ||
+		__get_user(karg->ca_export.ex_flags,
+				&arg->ca32_export.ex32_flags) ||
+		__get_user(karg->ca_export.ex_anon_uid,
+				&arg->ca32_export.ex32_anon_uid) ||
+		__get_user(karg->ca_export.ex_anon_gid,
+				&arg->ca32_export.ex32_anon_gid))
+		return -EFAULT;
 	SET_UID(karg->ca_export.ex_anon_uid, karg->ca_export.ex_anon_uid);
 	SET_GID(karg->ca_export.ex_anon_gid, karg->ca_export.ex_anon_gid);
 
-	return (err) ? -EFAULT : 0;
+	return 0;
 }
 
-static int compat_nfs_getfd_trans(struct nfsctl_arg *karg, struct compat_nfsctl_arg __user *arg)
+static int compat_nfs_getfd_trans(struct nfsctl_arg *karg,
+				struct compat_nfsctl_arg __user *arg)
 {
-	int err;
+	if (!access_ok(VERIFY_READ, &arg->ca32_getfd,
+			sizeof(arg->ca32_getfd)) ||
+		get_user(karg->ca_version, &arg->ca32_version) ||
+		__copy_from_user(&karg->ca_getfd.gd_addr,
+				&arg->ca32_getfd.gd32_addr,
+				(sizeof(struct sockaddr))) ||
+		__copy_from_user(&karg->ca_getfd.gd_path,
+				&arg->ca32_getfd.gd32_path,
+				(NFS_MAXPATHLEN+1)) ||
+		__get_user(karg->ca_getfd.gd_version,
+				&arg->ca32_getfd.gd32_version))
+		return -EFAULT;
 
-	err = access_ok(VERIFY_READ, &arg->ca32_getfd, sizeof(arg->ca32_getfd));
-	err |= get_user(karg->ca_version, &arg->ca32_version);
-	err |= __copy_from_user(&karg->ca_getfd.gd_addr,
-			  &arg->ca32_getfd.gd32_addr,
-			  (sizeof(struct sockaddr)));
-	err |= __copy_from_user(&karg->ca_getfd.gd_path,
-			  &arg->ca32_getfd.gd32_path,
-			  (NFS_MAXPATHLEN+1));
-	err |= __get_user(karg->ca_getfd.gd_version,
-		      &arg->ca32_getfd.gd32_version);
-
-	return (err) ? -EFAULT : 0;
+	return 0;
 }
 
-static int compat_nfs_getfs_trans(struct nfsctl_arg *karg, struct compat_nfsctl_arg __user *arg)
+static int compat_nfs_getfs_trans(struct nfsctl_arg *karg,
+				struct compat_nfsctl_arg __user *arg)
 {
-	int err;
+	if (!access_ok(VERIFY_READ,&arg->ca32_getfs,sizeof(arg->ca32_getfs)) ||
+		get_user(karg->ca_version, &arg->ca32_version) ||
+		__copy_from_user(&karg->ca_getfs.gd_addr,
+				&arg->ca32_getfs.gd32_addr,
+				(sizeof(struct sockaddr))) ||
+		__copy_from_user(&karg->ca_getfs.gd_path,
+				&arg->ca32_getfs.gd32_path,
+				(NFS_MAXPATHLEN+1)) ||
+		__get_user(karg->ca_getfs.gd_maxlen,
+				&arg->ca32_getfs.gd32_maxlen))
+		return -EFAULT;
 
-	err = access_ok(VERIFY_READ, &arg->ca32_getfs, sizeof(arg->ca32_getfs));
-	err |= get_user(karg->ca_version, &arg->ca32_version);
-	err |= __copy_from_user(&karg->ca_getfs.gd_addr,
-			  &arg->ca32_getfs.gd32_addr,
-			  (sizeof(struct sockaddr)));
-	err |= __copy_from_user(&karg->ca_getfs.gd_path,
-			  &arg->ca32_getfs.gd32_path,
-			  (NFS_MAXPATHLEN+1));
-	err |= __get_user(karg->ca_getfs.gd_maxlen,
-		      &arg->ca32_getfs.gd32_maxlen);
-
-	return (err) ? -EFAULT : 0;
+	return 0;
 }
 
 /* This really doesn't need translations, we are only passing
  * back a union which contains opaque nfs file handle data.
  */
-static int compat_nfs_getfh_res_trans(union nfsctl_res *kres, union compat_nfsctl_res __user *res)
+static int compat_nfs_getfh_res_trans(union nfsctl_res *kres,
+				union compat_nfsctl_res __user *res)
 {
 	int err;
 
@@ -2141,8 +2147,9 @@ static int compat_nfs_getfh_res_trans(union nfsctl_res *kres, union compat_nfsct
 	return (err) ? -EFAULT : 0;
 }
 
-asmlinkage long compat_sys_nfsservctl(int cmd, struct compat_nfsctl_arg __user *arg,
-					union compat_nfsctl_res __user *res)
+asmlinkage long compat_sys_nfsservctl(int cmd,
+				struct compat_nfsctl_arg __user *arg,
+				union compat_nfsctl_res __user *res)
 {
 	struct nfsctl_arg *karg;
 	union nfsctl_res *kres;

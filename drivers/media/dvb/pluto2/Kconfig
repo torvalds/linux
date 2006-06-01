@@ -1,7 +1,6 @@
 config DVB_PLUTO2
 	tristate "Pluto2 cards"
-	depends on DVB_CORE && PCI
-	select I2C
+	depends on DVB_CORE && PCI && I2C
 	select I2C_ALGOBIT
 	select DVB_TDA1004X
 	help

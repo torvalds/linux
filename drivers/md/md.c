@@ -167,6 +167,15 @@ void md_new_event(mddev_t *mddev)
 }
 EXPORT_SYMBOL_GPL(md_new_event);
 
+/* Alternate version that can be called from interrupts
+ * when calling sysfs_notify isn't needed.
+ */
+void md_new_event_inintr(mddev_t *mddev)
+{
+	atomic_inc(&md_event_count);
+	wake_up(&md_event_waiters);
+}
+
 /*
  * Enables to iterate over all existing md arrays
  * all_mddevs_lock protects this list.
@@ -2252,7 +2261,7 @@ action_store(mddev_t *mddev, const char *page, size_t len)
 	} else {
 		if (cmd_match(page, "check"))
 			set_bit(MD_RECOVERY_CHECK, &mddev->recovery);
-		else if (cmd_match(page, "repair"))
+		else if (!cmd_match(page, "repair"))
 			return -EINVAL;
 		set_bit(MD_RECOVERY_REQUESTED, &mddev->recovery);
 		set_bit(MD_RECOVERY_SYNC, &mddev->recovery);
@@ -4149,7 +4158,7 @@ void md_error(mddev_t *mddev, mdk_rdev_t *rdev)
 	set_bit(MD_RECOVERY_INTR, &mddev->recovery);
 	set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 	md_wakeup_thread(mddev->thread);
-	md_new_event(mddev);
+	md_new_event_inintr(mddev);
 }
 
 /* seq_file implementation /proc/mdstat */
@@ -5028,8 +5037,10 @@ static int md_notify_reboot(struct notifier_block *this,
 		printk(KERN_INFO "md: stopping all md devices.\n");
 
 		ITERATE_MDDEV(mddev,tmp)
-			if (mddev_trylock(mddev))
+			if (mddev_trylock(mddev)) {
 				do_md_stop (mddev, 1);
+				mddev_unlock(mddev);
+			}
 		/*
 		 * certain more exotic SCSI devices are known to be
 		 * volatile wrt too early system reboots. While the

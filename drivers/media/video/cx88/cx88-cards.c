@@ -564,7 +564,7 @@ struct cx88_board cx88_boards[] = {
 	},
 	[CX88_BOARD_PCHDTV_HD3000] = {
 		.name           = "pcHDTV HD3000 HDTV",
-		.tuner_type     = TUNER_THOMSON_DTT7610,
+		.tuner_type     = TUNER_THOMSON_DTT761X,
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,

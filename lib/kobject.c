@@ -198,14 +198,14 @@ int kobject_add(struct kobject * kobj)
 
 		/* be noisy on error issues */
 		if (error == -EEXIST)
-			printk("kobject_add failed for %s with -EEXIST, "
+			pr_debug("kobject_add failed for %s with -EEXIST, "
 			       "don't try to register things with the "
 			       "same name in the same directory.\n",
 			       kobject_name(kobj));
 		else
-			printk("kobject_add failed for %s (%d)\n",
+			pr_debug("kobject_add failed for %s (%d)\n",
 			       kobject_name(kobj), error);
-		dump_stack();
+		/* dump_stack(); */
 	}
 
 	return error;

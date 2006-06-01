@@ -30,7 +30,7 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
-
+
 #undef DEBUG
 
 #include <linux/module.h>
@@ -65,7 +65,7 @@ MODULE_AUTHOR
     ("(C) 2001 IBM Corporation by Fritz Elfert (felfert@millenux.com)");
 MODULE_DESCRIPTION ("Linux for S/390 IUCV network driver");
 
-
+
 #define PRINTK_HEADER " iucv: "       /* for debugging */
 
 static struct device_driver netiucv_driver = {
@@ -202,7 +202,7 @@ netiucv_printname(char *name)
 	*p = '\0';
 	return tmp;
 }
-
+
 /**
  * States of the interface statemachine.
  */
@@ -244,7 +244,7 @@ static const char *dev_event_names[] = {
 	"Connection up",
 	"Connection down",
 };
-
+
 /**
  * Events of the connection statemachine
  */
@@ -364,7 +364,7 @@ static const char *conn_state_names[] = {
 	"Connect error",
 };
 
-
+
 /**
  * Debug Facility Stuff
  */
@@ -516,7 +516,7 @@ static void
 fsm_action_nop(fsm_instance *fi, int event, void *arg)
 {
 }
-
+
 /**
  * Actions of the connection statemachine
  *****************************************************************************/
@@ -993,7 +993,7 @@ static const fsm_node conn_fsm[] = {
 
 static const int CONN_FSM_LEN = sizeof(conn_fsm) / sizeof(fsm_node);
 
-
+
 /**
  * Actions for interface - statemachine.
  *****************************************************************************/
@@ -1182,7 +1182,7 @@ netiucv_transmit_skb(struct iucv_connection *conn, struct sk_buff *skb) {
 
 		fsm_newstate(conn->fsm, CONN_STATE_TX);
 		conn->prof.send_stamp = xtime;
-		
+
 		rc = iucv_send(conn->pathid, NULL, 0, 0, 1 /* single_flag */,
 			0, nskb->data, nskb->len);
 			       /* Shut up, gcc! nskb is always below 2G. */
@@ -1220,7 +1220,7 @@ netiucv_transmit_skb(struct iucv_connection *conn, struct sk_buff *skb) {
 
 	return rc;
 }
-
+
 /**
  * Interface API for upper network layers
  *****************************************************************************/
@@ -1291,7 +1291,7 @@ static int netiucv_tx(struct sk_buff *skb, struct net_device *dev)
 
 	/**
 	 * If connection is not running, try to restart it
-	 * and throw away packet. 
+	 * and throw away packet.
 	 */
 	if (fsm_getstate(privptr->fsm) != DEV_STATE_RUNNING) {
 		fsm_event(privptr->fsm, DEV_EVENT_START, dev);
@@ -1538,7 +1538,7 @@ static ssize_t
 maxcq_write (struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct netiucv_priv *priv = dev->driver_data;
-	
+
 	IUCV_DBF_TEXT(trace, 4, __FUNCTION__);
 	priv->conn->prof.maxcqueue = 0;
 	return count;
@@ -1559,7 +1559,7 @@ static ssize_t
 sdoio_write (struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct netiucv_priv *priv = dev->driver_data;
-	
+
 	IUCV_DBF_TEXT(trace, 4, __FUNCTION__);
 	priv->conn->prof.doios_single = 0;
 	return count;
@@ -1580,7 +1580,7 @@ static ssize_t
 mdoio_write (struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct netiucv_priv *priv = dev->driver_data;
-	
+
 	IUCV_DBF_TEXT(trace, 5, __FUNCTION__);
 	priv->conn->prof.doios_multi = 0;
 	return count;
@@ -1601,7 +1601,7 @@ static ssize_t
 txlen_write (struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct netiucv_priv *priv = dev->driver_data;
-	
+
 	IUCV_DBF_TEXT(trace, 4, __FUNCTION__);
 	priv->conn->prof.txlen = 0;
 	return count;
@@ -1622,7 +1622,7 @@ static ssize_t
 txtime_write (struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct netiucv_priv *priv = dev->driver_data;
-	
+
 	IUCV_DBF_TEXT(trace, 4, __FUNCTION__);
 	priv->conn->prof.tx_time = 0;
 	return count;
@@ -2000,7 +2000,7 @@ conn_write(struct device_driver *drv, const char *buf, size_t count)
 	}
 
 	PRINT_INFO("%s: '%s'\n", dev->name, netiucv_printname(username));
-	
+
 	return count;
 
 out_free_ndev:
@@ -2099,7 +2099,7 @@ static int __init
 netiucv_init(void)
 {
 	int ret;
-	
+
 	ret = iucv_register_dbf_views();
 	if (ret) {
 		PRINT_WARN("netiucv_init failed, "
@@ -2128,7 +2128,7 @@ netiucv_init(void)
 	}
 	return ret;
 }
-	
+
 module_init(netiucv_init);
 module_exit(netiucv_exit);
 MODULE_LICENSE("GPL");

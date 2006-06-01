@@ -463,11 +463,23 @@ static int pmac_pm_finish(suspend_state_t state)
 	return 0;
 }
 
+static int pmac_pm_valid(suspend_state_t state)
+{
+	switch (state) {
+	case PM_SUSPEND_DISK:
+		return 1;
+	/* can't do any other states via generic mechanism yet */
+	default:
+		return 0;
+	}
+}
+
 static struct pm_ops pmac_pm_ops = {
 	.pm_disk_mode	= PM_DISK_SHUTDOWN,
 	.prepare	= pmac_pm_prepare,
 	.enter		= pmac_pm_enter,
 	.finish		= pmac_pm_finish,
+	.valid		= pmac_pm_valid,
 };
 
 #endif /* CONFIG_SOFTWARE_SUSPEND */

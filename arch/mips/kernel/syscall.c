@@ -280,27 +280,6 @@ asmlinkage int _sys_sysmips(int cmd, long arg1, int arg2, int arg3)
 	char	__user *name;
 
 	switch(cmd) {
-	case SETNAME: {
-		char nodename[__NEW_UTS_LEN + 1];
-
-		if (!capable(CAP_SYS_ADMIN))
-			return -EPERM;
-
-		name = (char __user *) arg1;
-
-		len = strncpy_from_user(nodename, name, __NEW_UTS_LEN);
-		if (len < 0)
-			return -EFAULT;
-
-		down_write(&uts_sem);
-		strncpy(system_utsname.nodename, nodename, len);
-		nodename[__NEW_UTS_LEN] = '\0';
-		strlcpy(system_utsname.nodename, nodename,
-		        sizeof(system_utsname.nodename));
-		up_write(&uts_sem);
-		return 0;
-	}
-
 	case MIPS_ATOMIC_SET:
 		printk(KERN_CRIT "How did I get here?\n");
 		return -EINVAL;
@@ -313,9 +292,6 @@ asmlinkage int _sys_sysmips(int cmd, long arg1, int arg2, int arg3)
 	case FLUSH_CACHE:
 		__flush_cache_all();
 		return 0;
-
-	case MIPS_RDNVRAM:
-		return -EIO;
 	}
 
 	return -EINVAL;

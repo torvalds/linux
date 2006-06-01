@@ -102,7 +102,7 @@ find_exported_dentry(struct super_block *sb, void *obj, void *parent,
 		if (acceptable(context, result))
 			return result;
 		if (S_ISDIR(result->d_inode->i_mode)) {
-			/* there is no other dentry, so fail */
+			err = -EACCES;
 			goto err_result;
 		}
 

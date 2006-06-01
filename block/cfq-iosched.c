@@ -33,7 +33,7 @@ static int cfq_slice_idle = HZ / 70;
 
 #define CFQ_KEY_ASYNC		(0)
 
-static DEFINE_RWLOCK(cfq_exit_lock);
+static DEFINE_SPINLOCK(cfq_exit_lock);
 
 /*
  * for the hash of cfqq inside the cfqd
@@ -1284,7 +1284,7 @@ static void cfq_exit_io_context(struct io_context *ioc)
 	/*
 	 * put the reference this task is holding to the various queues
 	 */
-	read_lock_irqsave(&cfq_exit_lock, flags);
+	spin_lock_irqsave(&cfq_exit_lock, flags);
 
 	n = rb_first(&ioc->cic_root);
 	while (n != NULL) {
@@ -1294,7 +1294,7 @@ static void cfq_exit_io_context(struct io_context *ioc)
 		n = rb_next(n);
 	}
 
-	read_unlock_irqrestore(&cfq_exit_lock, flags);
+	spin_unlock_irqrestore(&cfq_exit_lock, flags);
 }
 
 static struct cfq_io_context *
@@ -1400,17 +1400,17 @@ static int cfq_ioc_set_ioprio(struct io_context *ioc, unsigned int ioprio)
 	struct cfq_io_context *cic;
 	struct rb_node *n;
 
-	write_lock(&cfq_exit_lock);
+	spin_lock(&cfq_exit_lock);
 
 	n = rb_first(&ioc->cic_root);
 	while (n != NULL) {
 		cic = rb_entry(n, struct cfq_io_context, rb_node);
- 
+
 		changed_ioprio(cic);
 		n = rb_next(n);
 	}
 
-	write_unlock(&cfq_exit_lock);
+	spin_unlock(&cfq_exit_lock);
 
 	return 0;
 }
@@ -1475,9 +1475,10 @@ out:
 static void
 cfq_drop_dead_cic(struct io_context *ioc, struct cfq_io_context *cic)
 {
-	read_lock(&cfq_exit_lock);
+	spin_lock(&cfq_exit_lock);
 	rb_erase(&cic->rb_node, &ioc->cic_root);
-	read_unlock(&cfq_exit_lock);
+	list_del_init(&cic->queue_list);
+	spin_unlock(&cfq_exit_lock);
 	kmem_cache_free(cfq_ioc_pool, cic);
 	atomic_dec(&ioc_count);
 }
@@ -1545,11 +1546,11 @@ restart:
 			BUG();
 	}
 
-	read_lock(&cfq_exit_lock);
+	spin_lock(&cfq_exit_lock);
 	rb_link_node(&cic->rb_node, parent, p);
 	rb_insert_color(&cic->rb_node, &ioc->cic_root);
 	list_add(&cic->queue_list, &cfqd->cic_list);
-	read_unlock(&cfq_exit_lock);
+	spin_unlock(&cfq_exit_lock);
 }
 
 /*
@@ -2187,7 +2188,7 @@ static void cfq_exit_queue(elevator_t *e)
 
 	cfq_shutdown_timer_wq(cfqd);
 
-	write_lock(&cfq_exit_lock);
+	spin_lock(&cfq_exit_lock);
 	spin_lock_irq(q->queue_lock);
 
 	if (cfqd->active_queue)
@@ -2210,7 +2211,7 @@ static void cfq_exit_queue(elevator_t *e)
 	}
 
 	spin_unlock_irq(q->queue_lock);
-	write_unlock(&cfq_exit_lock);
+	spin_unlock(&cfq_exit_lock);
 
 	cfq_shutdown_timer_wq(cfqd);
 

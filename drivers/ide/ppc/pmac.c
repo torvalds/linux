@@ -553,6 +553,8 @@ pmac_ide_init_hwif_ports(hw_regs_t *hw,
 
 	if (irq != NULL)
 		*irq = pmac_ide[ix].irq;
+
+	hw->dev = &pmac_ide[ix].mdev->ofdev.dev;
 }
 
 #define PMAC_IDE_REG(x) ((void __iomem *)(IDE_DATA_REG+(x)))

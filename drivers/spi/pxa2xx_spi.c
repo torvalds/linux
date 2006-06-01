@@ -363,25 +363,30 @@ static void unmap_dma_buffers(struct driver_data *drv_data)
 }
 
 /* caller already set message->status; dma and pio irqs are blocked */
-static void giveback(struct spi_message *message, struct driver_data *drv_data)
+static void giveback(struct driver_data *drv_data)
 {
 	struct spi_transfer* last_transfer;
+	unsigned long flags;
+	struct spi_message *msg;
 
-	last_transfer = list_entry(message->transfers.prev,
+	spin_lock_irqsave(&drv_data->lock, flags);
+	msg = drv_data->cur_msg;
+	drv_data->cur_msg = NULL;
+	drv_data->cur_transfer = NULL;
+	drv_data->cur_chip = NULL;
+	queue_work(drv_data->workqueue, &drv_data->pump_messages);
+	spin_unlock_irqrestore(&drv_data->lock, flags);
+
+	last_transfer = list_entry(msg->transfers.prev,
 					struct spi_transfer,
 					transfer_list);
 
 	if (!last_transfer->cs_change)
 		drv_data->cs_control(PXA2XX_CS_DEASSERT);
 
-	message->state = NULL;
-	if (message->complete)
-		message->complete(message->context);
-
-	drv_data->cur_msg = NULL;
-	drv_data->cur_transfer = NULL;
-	drv_data->cur_chip = NULL;
-	queue_work(drv_data->workqueue, &drv_data->pump_messages);
+	msg->state = NULL;
+	if (msg->complete)
+		msg->complete(msg->context);
 }
 
 static int wait_ssp_rx_stall(void *ioaddr)
@@ -415,10 +420,11 @@ static void dma_handler(int channel, void *data, struct pt_regs *regs)
 	if (irq_status & DCSR_BUSERR) {
 
 		/* Disable interrupts, clear status and reset DMA */
+		write_SSCR0(read_SSCR0(reg) & ~SSCR0_SSE, reg);
+		write_SSCR1(read_SSCR1(reg) & ~drv_data->dma_cr1, reg);
 		if (drv_data->ssp_type != PXA25x_SSP)
 			write_SSTO(0, reg);
 		write_SSSR(drv_data->clear_sr, reg);
-		write_SSCR1(read_SSCR1(reg) & ~drv_data->dma_cr1, reg);
 		DCSR(drv_data->rx_channel) = RESET_DMA_CHANNEL;
 		DCSR(drv_data->tx_channel) = RESET_DMA_CHANNEL;
 
@@ -454,8 +460,8 @@ static void dma_handler(int channel, void *data, struct pt_regs *regs)
 				"dma_handler: ssp rx stall failed\n");
 
 		/* Clear and disable interrupts on SSP and DMA channels*/
-		write_SSSR(drv_data->clear_sr, reg);
 		write_SSCR1(read_SSCR1(reg) & ~drv_data->dma_cr1, reg);
+		write_SSSR(drv_data->clear_sr, reg);
 		DCSR(drv_data->tx_channel) = RESET_DMA_CHANNEL;
 		DCSR(drv_data->rx_channel) = RESET_DMA_CHANNEL;
 		if (wait_dma_channel_stop(drv_data->rx_channel) == 0)
@@ -497,10 +503,11 @@ static irqreturn_t dma_transfer(struct driver_data *drv_data)
 	irq_status = read_SSSR(reg) & drv_data->mask_sr;
 	if (irq_status & SSSR_ROR) {
 		/* Clear and disable interrupts on SSP and DMA channels*/
+		write_SSCR0(read_SSCR0(reg) & ~SSCR0_SSE, reg);
+		write_SSCR1(read_SSCR1(reg) & ~drv_data->dma_cr1, reg);
 		if (drv_data->ssp_type != PXA25x_SSP)
 			write_SSTO(0, reg);
 		write_SSSR(drv_data->clear_sr, reg);
-		write_SSCR1(read_SSCR1(reg) & ~drv_data->dma_cr1, reg);
 		DCSR(drv_data->tx_channel) = RESET_DMA_CHANNEL;
 		DCSR(drv_data->rx_channel) = RESET_DMA_CHANNEL;
 		unmap_dma_buffers(drv_data);
@@ -526,10 +533,10 @@ static irqreturn_t dma_transfer(struct driver_data *drv_data)
 	if (irq_status & SSSR_TINT || drv_data->rx == drv_data->rx_end) {
 
 		/* Clear and disable interrupts on SSP and DMA channels*/
+		write_SSCR1(read_SSCR1(reg) & ~drv_data->dma_cr1, reg);
 		if (drv_data->ssp_type != PXA25x_SSP)
 			write_SSTO(0, reg);
 		write_SSSR(drv_data->clear_sr, reg);
-		write_SSCR1(read_SSCR1(reg) & ~drv_data->dma_cr1, reg);
 		DCSR(drv_data->tx_channel) = RESET_DMA_CHANNEL;
 		DCSR(drv_data->rx_channel) = RESET_DMA_CHANNEL;
 
@@ -572,25 +579,29 @@ static irqreturn_t dma_transfer(struct driver_data *drv_data)
 
 static irqreturn_t interrupt_transfer(struct driver_data *drv_data)
 {
-	u32 irq_status;
 	struct spi_message *msg = drv_data->cur_msg;
 	void *reg = drv_data->ioaddr;
-	irqreturn_t handled = IRQ_NONE;
 	unsigned long limit = loops_per_jiffy << 1;
+	u32 irq_status;
+	u32 irq_mask = (read_SSCR1(reg) & SSCR1_TIE) ?
+			drv_data->mask_sr : drv_data->mask_sr & ~SSSR_TFS;
 
-	while ((irq_status = (read_SSSR(reg) & drv_data->mask_sr))) {
+	while ((irq_status = read_SSSR(reg) & irq_mask)) {
 
 		if (irq_status & SSSR_ROR) {
 
 			/* Clear and disable interrupts */
+			write_SSCR0(read_SSCR0(reg) & ~SSCR0_SSE, reg);
+			write_SSCR1(read_SSCR1(reg) & ~drv_data->int_cr1, reg);
 			if (drv_data->ssp_type != PXA25x_SSP)
 				write_SSTO(0, reg);
 			write_SSSR(drv_data->clear_sr, reg);
-			write_SSCR1(read_SSCR1(reg) & ~drv_data->int_cr1, reg);
 
 			if (flush(drv_data) == 0)
 				dev_err(&drv_data->pdev->dev,
 					"interrupt_transfer: flush fail\n");
+
+			/* Stop the SSP */
 
 			dev_warn(&drv_data->pdev->dev,
 					"interrupt_transfer: fifo overun\n");
@@ -613,6 +624,7 @@ static irqreturn_t interrupt_transfer(struct driver_data *drv_data)
 		if (drv_data->tx == drv_data->tx_end) {
 			/* Disable tx interrupt */
 			write_SSCR1(read_SSCR1(reg) & ~SSCR1_TIE, reg);
+			irq_mask = drv_data->mask_sr & ~SSSR_TFS;
 
 			/* PXA25x_SSP has no timeout, read trailing bytes */
 			if (drv_data->ssp_type == PXA25x_SSP) {
@@ -630,10 +642,10 @@ static irqreturn_t interrupt_transfer(struct driver_data *drv_data)
 				|| (drv_data->rx == drv_data->rx_end)) {
 
 			/* Clear timeout */
+			write_SSCR1(read_SSCR1(reg) & ~drv_data->int_cr1, reg);
 			if (drv_data->ssp_type != PXA25x_SSP)
 				write_SSTO(0, reg);
 			write_SSSR(drv_data->clear_sr, reg);
-			write_SSCR1(read_SSCR1(reg) & ~drv_data->int_cr1, reg);
 
 			/* Update total byte transfered */
 			msg->actual_length += drv_data->len;
@@ -648,24 +660,29 @@ static irqreturn_t interrupt_transfer(struct driver_data *drv_data)
 
 			/* Schedule transfer tasklet */
 			tasklet_schedule(&drv_data->pump_transfers);
-
-			return IRQ_HANDLED;
 		}
-
-		/* We did something */
-		handled = IRQ_HANDLED;
 	}
 
-	return handled;
+	/* We did something */
+	return IRQ_HANDLED;
 }
 
 static irqreturn_t ssp_int(int irq, void *dev_id, struct pt_regs *regs)
 {
 	struct driver_data *drv_data = (struct driver_data *)dev_id;
+	void *reg = drv_data->ioaddr;
 
 	if (!drv_data->cur_msg) {
+
+		write_SSCR0(read_SSCR0(reg) & ~SSCR0_SSE, reg);
+		write_SSCR1(read_SSCR1(reg) & ~drv_data->int_cr1, reg);
+		if (drv_data->ssp_type != PXA25x_SSP)
+			write_SSTO(0, reg);
+		write_SSSR(drv_data->clear_sr, reg);
+
 		dev_err(&drv_data->pdev->dev, "bad message state "
-				"in interrupt handler\n");
+				"in interrupt handler");
+
 		/* Never fail */
 		return IRQ_HANDLED;
 	}
@@ -694,14 +711,14 @@ static void pump_transfers(unsigned long data)
 	/* Handle for abort */
 	if (message->state == ERROR_STATE) {
 		message->status = -EIO;
-		giveback(message, drv_data);
+		giveback(drv_data);
 		return;
 	}
 
 	/* Handle end of message */
 	if (message->state == DONE_STATE) {
 		message->status = 0;
-		giveback(message, drv_data);
+		giveback(drv_data);
 		return;
 	}
 
@@ -718,7 +735,7 @@ static void pump_transfers(unsigned long data)
 	if (flush(drv_data) == 0) {
 		dev_err(&drv_data->pdev->dev, "pump_transfers: flush failed\n");
 		message->status = -EIO;
-		giveback(message, drv_data);
+		giveback(drv_data);
 		return;
 	}
 	drv_data->n_bytes = chip->n_bytes;
@@ -782,7 +799,7 @@ static void pump_transfers(unsigned long data)
 
 		cr0 = clk_div
 			| SSCR0_Motorola
-			| SSCR0_DataSize(bits & 0x0f)
+			| SSCR0_DataSize(bits > 16 ? bits - 16 : bits)
 			| SSCR0_SSE
 			| (bits > 16 ? SSCR0_EDSS : 0);
 
@@ -890,8 +907,6 @@ static void pump_messages(void *data)
 	drv_data->cur_msg = list_entry(drv_data->queue.next,
 					struct spi_message, queue);
 	list_del_init(&drv_data->cur_msg->queue);
-	drv_data->busy = 1;
-	spin_unlock_irqrestore(&drv_data->lock, flags);
 
 	/* Initial message state*/
 	drv_data->cur_msg->state = START_STATE;
@@ -905,6 +920,9 @@ static void pump_messages(void *data)
 
 	/* Mark as busy and launch transfers */
 	tasklet_schedule(&drv_data->pump_transfers);
+
+	drv_data->busy = 1;
+	spin_unlock_irqrestore(&drv_data->lock, flags);
 }
 
 static int transfer(struct spi_device *spi, struct spi_message *msg)
@@ -958,7 +976,7 @@ static int setup(struct spi_device *spi)
 
 		chip->cs_control = null_cs_control;
 		chip->enable_dma = 0;
-		chip->timeout = 5;
+		chip->timeout = SSP_TIMEOUT(1000);
 		chip->threshold = SSCR1_RxTresh(1) | SSCR1_TxTresh(1);
 		chip->dma_burst_size = drv_data->master_info->enable_dma ?
 					DCMD_BURST8 : 0;
@@ -971,7 +989,7 @@ static int setup(struct spi_device *spi)
 		if (chip_info->cs_control)
 			chip->cs_control = chip_info->cs_control;
 
-		chip->timeout = (chip_info->timeout_microsecs * 10000) / 2712;
+		chip->timeout = SSP_TIMEOUT(chip_info->timeout_microsecs);
 
 		chip->threshold = SSCR1_RxTresh(chip_info->rx_threshold)
 					| SSCR1_TxTresh(chip_info->tx_threshold);
@@ -1013,7 +1031,8 @@ static int setup(struct spi_device *spi)
 
 	chip->cr0 = clk_div
 			| SSCR0_Motorola
-			| SSCR0_DataSize(spi->bits_per_word & 0x0f)
+			| SSCR0_DataSize(spi->bits_per_word > 16 ?
+				spi->bits_per_word - 16 : spi->bits_per_word)
 			| SSCR0_SSE
 			| (spi->bits_per_word > 16 ? SSCR0_EDSS : 0);
 	chip->cr1 |= (((spi->mode & SPI_CPHA) != 0) << 4)
@@ -1196,7 +1215,7 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 		goto out_error_master_alloc;
 	}
 
-	drv_data->ioaddr = (void *)io_p2v(memory_resource->start);
+	drv_data->ioaddr = (void *)io_p2v((unsigned long)(memory_resource->start));
 	drv_data->ssdr_physical = memory_resource->start + 0x00000010;
 	if (platform_info->ssp_type == PXA25x_SSP) {
 		drv_data->int_cr1 = SSCR1_TIE | SSCR1_RIE;
@@ -1218,7 +1237,7 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 		goto out_error_master_alloc;
 	}
 
-	status = request_irq(irq, ssp_int, SA_INTERRUPT, dev->bus_id, drv_data);
+	status = request_irq(irq, ssp_int, 0, dev->bus_id, drv_data);
 	if (status < 0) {
 		dev_err(&pdev->dev, "can not get IRQ\n");
 		goto out_error_master_alloc;

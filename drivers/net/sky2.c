@@ -51,7 +51,7 @@
 #include "sky2.h"
 
 #define DRV_NAME		"sky2"
-#define DRV_VERSION		"1.3"
+#define DRV_VERSION		"1.4"
 #define PFX			DRV_NAME " "
 
 /*
@@ -105,6 +105,7 @@ MODULE_PARM_DESC(idle_timeout, "Idle timeout workaround for lost interrupts (ms)
 static const struct pci_device_id sky2_id_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_SYSKONNECT, 0x9000) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_SYSKONNECT, 0x9E00) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_DLINK, 0x4b00) },	/* DGE-560T */
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4340) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4341) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4342) },
@@ -235,6 +236,7 @@ static int sky2_set_power_state(struct sky2_hw *hw, pci_power_t state)
 		}
 
 		if (hw->chip_id == CHIP_ID_YUKON_EC_U) {
+			sky2_write16(hw, B0_CTST, Y2_HW_WOL_ON);
 			sky2_pci_write32(hw, PCI_DEV_REG3, 0);
 			reg1 = sky2_pci_read32(hw, PCI_DEV_REG4);
 			reg1 &= P_ASPM_CONTROL_MSK;
@@ -306,7 +308,7 @@ static void sky2_phy_init(struct sky2_hw *hw, unsigned port)
 	u16 ctrl, ct1000, adv, pg, ledctrl, ledover;
 
 	if (sky2->autoneg == AUTONEG_ENABLE &&
-	    (hw->chip_id != CHIP_ID_YUKON_XL || hw->chip_id == CHIP_ID_YUKON_EC_U)) {
+	    !(hw->chip_id == CHIP_ID_YUKON_XL || hw->chip_id == CHIP_ID_YUKON_EC_U)) {
 		u16 ectrl = gm_phy_read(hw, port, PHY_MARV_EXT_CTRL);
 
 		ectrl &= ~(PHY_M_EC_M_DSC_MSK | PHY_M_EC_S_DSC_MSK |
@@ -977,6 +979,7 @@ static int sky2_rx_start(struct sky2_port *sky2)
 	struct sky2_hw *hw = sky2->hw;
 	unsigned rxq = rxqaddr[sky2->port];
 	int i;
+	unsigned thresh;
 
 	sky2->rx_put = sky2->rx_next = 0;
 	sky2_qset(hw, rxq);
@@ -1001,9 +1004,21 @@ static int sky2_rx_start(struct sky2_port *sky2)
 		sky2_rx_add(sky2, re->mapaddr);
 	}
 
- 	/* Truncate oversize frames */
- 	sky2_write16(hw, SK_REG(sky2->port, RX_GMF_TR_THR), sky2->rx_bufsize - 8);
- 	sky2_write32(hw, SK_REG(sky2->port, RX_GMF_CTRL_T), RX_TRUNC_ON);
+
+	/*
+	 * The receiver hangs if it receives frames larger than the
+	 * packet buffer. As a workaround, truncate oversize frames, but
+	 * the register is limited to 9 bits, so if you do frames > 2052
+	 * you better get the MTU right!
+	 */
+	thresh = (sky2->rx_bufsize - 8) / sizeof(u32);
+	if (thresh > 0x1ff)
+		sky2_write32(hw, SK_REG(sky2->port, RX_GMF_CTRL_T), RX_TRUNC_OFF);
+	else {
+		sky2_write16(hw, SK_REG(sky2->port, RX_GMF_TR_THR), thresh);
+		sky2_write32(hw, SK_REG(sky2->port, RX_GMF_CTRL_T), RX_TRUNC_ON);
+	}
+
 
 	/* Tell chip about available buffers */
 	sky2_write16(hw, Y2_QADDR(rxq, PREF_UNIT_PUT_IDX), sky2->rx_put);
@@ -1020,19 +1035,26 @@ static int sky2_up(struct net_device *dev)
 	struct sky2_hw *hw = sky2->hw;
 	unsigned port = sky2->port;
 	u32 ramsize, rxspace, imask;
-	int err;
+	int cap, err = -ENOMEM;
 	struct net_device *otherdev = hw->dev[sky2->port^1];
 
-	/* Block bringing up both ports at the same time on a dual port card.
-	 * There is an unfixed bug where receiver gets confused and picks up
-	 * packets out of order. Until this is fixed, prevent data corruption.
+	/*
+ 	 * On dual port PCI-X card, there is an problem where status
+	 * can be received out of order due to split transactions
 	 */
-	if (otherdev && netif_running(otherdev)) {
-		printk(KERN_INFO PFX "dual port support is disabled.\n");
-		return -EBUSY;
-	}
+	if (otherdev && netif_running(otherdev) &&
+ 	    (cap = pci_find_capability(hw->pdev, PCI_CAP_ID_PCIX))) {
+ 		struct sky2_port *osky2 = netdev_priv(otherdev);
+ 		u16 cmd;
 
-	err = -ENOMEM;
+ 		cmd = sky2_pci_read16(hw, cap + PCI_X_CMD);
+ 		cmd &= ~PCI_X_CMD_MAX_SPLIT;
+ 		sky2_pci_write16(hw, cap + PCI_X_CMD, cmd);
+
+ 		sky2->rx_csum = 0;
+ 		osky2->rx_csum = 0;
+ 	}
+
 	if (netif_msg_ifup(sky2))
 		printk(KERN_INFO PFX "%s: enabling interface\n", dev->name);
 
@@ -1910,6 +1932,12 @@ static inline void sky2_tx_done(struct net_device *dev, u16 last)
 	}
 }
 
+/* Is status ring empty or is there more to do? */
+static inline int sky2_more_work(const struct sky2_hw *hw)
+{
+	return (hw->st_idx != sky2_read16(hw, STAT_PUT_IDX));
+}
+
 /* Process status response ring */
 static int sky2_status_intr(struct sky2_hw *hw, int to_do)
 {
@@ -2182,19 +2210,19 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 	if (status & Y2_IS_CHK_TXA2)
 		sky2_descriptor_error(hw, 1, "transmit", Y2_IS_CHK_TXA2);
 
-	if (status & Y2_IS_STAT_BMU)
-		sky2_write32(hw, STAT_CTRL, SC_STAT_CLR_IRQ);
-
 	work_done = sky2_status_intr(hw, work_limit);
 	*budget -= work_done;
 	dev0->quota -= work_done;
 
-	if (work_done >= work_limit)
+	if (status & Y2_IS_STAT_BMU)
+		sky2_write32(hw, STAT_CTRL, SC_STAT_CLR_IRQ);
+
+	if (sky2_more_work(hw))
 		return 1;
 
 	netif_rx_complete(dev0);
 
-	status = sky2_read32(hw, B0_Y2_SP_LISR);
+	sky2_read32(hw, B0_Y2_SP_LISR);
 	return 0;
 }
 
@@ -3078,12 +3106,7 @@ static __devinit struct net_device *sky2_init_netdev(struct sky2_hw *hw,
 	sky2->duplex = -1;
 	sky2->speed = -1;
 	sky2->advertising = sky2_supported_modes(hw);
-
-	/* Receive checksum disabled for Yukon XL
-	 * because of observed problems with incorrect
-	 * values when multiple packets are received in one interrupt
-	 */
-	sky2->rx_csum = (hw->chip_id != CHIP_ID_YUKON_XL);
+	sky2->rx_csum = 1;
 
 	spin_lock_init(&sky2->phy_lock);
 	sky2->tx_pending = TX_DEF_PENDING;

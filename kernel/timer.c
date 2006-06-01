@@ -541,6 +541,22 @@ found:
 	}
 	spin_unlock(&base->lock);
 
+	/*
+	 * It can happen that other CPUs service timer IRQs and increment
+	 * jiffies, but we have not yet got a local timer tick to process
+	 * the timer wheels.  In that case, the expiry time can be before
+	 * jiffies, but since the high-resolution timer here is relative to
+	 * jiffies, the default expression when high-resolution timers are
+	 * not active,
+	 *
+	 *   time_before(MAX_JIFFY_OFFSET + jiffies, expires)
+	 *
+	 * would falsely evaluate to true.  If that is the case, just
+	 * return jiffies so that we can immediately fire the local timer
+	 */
+	if (time_before(expires, jiffies))
+		return jiffies;
+
 	if (time_before(hr_expires, expires))
 		return hr_expires;
 

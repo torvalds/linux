@@ -321,7 +321,7 @@ static int
 nfulnl_set_flags(struct nfulnl_instance *inst, u_int16_t flags)
 {
 	spin_lock_bh(&inst->lock);
-	inst->flags = ntohs(flags);
+	inst->flags = flags;
 	spin_unlock_bh(&inst->lock);
 
 	return 0;
@@ -902,7 +902,7 @@ nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 	if (nfula[NFULA_CFG_FLAGS-1]) {
 		u_int16_t flags =
 			*(u_int16_t *)NFA_DATA(nfula[NFULA_CFG_FLAGS-1]);
-		nfulnl_set_flags(inst, ntohl(flags));
+		nfulnl_set_flags(inst, ntohs(flags));
 	}
 
 out_put:

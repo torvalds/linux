@@ -951,6 +951,7 @@ static void mmc_read_scrs(struct mmc_host *host)
 		data.timeout_ns = card->csd.tacc_ns * 10;
 		data.timeout_clks = card->csd.tacc_clks * 10;
 		data.blksz_bits = 3;
+		data.blksz = 1 << 3;
 		data.blocks = 1;
 		data.flags = MMC_DATA_READ;
 		data.sg = &sg;

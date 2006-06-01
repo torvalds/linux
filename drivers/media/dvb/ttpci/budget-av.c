@@ -1190,8 +1190,6 @@ static int budget_av_attach(struct saa7146_dev *dev, struct saa7146_pci_extensio
 						SAA7146_HPS_SYNC_PORT_A);
 
 		saa7113_setinput(budget_av, 0);
-	} else {
-		ciintf_init(budget_av);
 	}
 
 	/* fixme: find some sane values here... */
@@ -1210,6 +1208,10 @@ static int budget_av_attach(struct saa7146_dev *dev, struct saa7146_pci_extensio
 
 	budget_av->budget.dvb_adapter.priv = budget_av;
 	frontend_init(budget_av);
+
+	if (!budget_av->has_saa7113) {
+		ciintf_init(budget_av);
+	}
 
 	return 0;
 }

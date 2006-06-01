@@ -93,9 +93,11 @@ int __init mps_oem_check(struct mp_config_table *mpc, char *oem, char *productid
 	int i;
 	for (i = 0; apic_probe[i]; ++i) { 
 		if (apic_probe[i]->mps_oem_check(mpc,oem,productid)) { 
-			genapic = apic_probe[i];
-			printk(KERN_INFO "Switched to APIC driver `%s'.\n", 
-			       genapic->name);
+			if (!cmdline_apic) {
+				genapic = apic_probe[i];
+				printk(KERN_INFO "Switched to APIC driver `%s'.\n",
+				       genapic->name);
+			}
 			return 1;
 		} 
 	} 
@@ -107,9 +109,11 @@ int __init acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 	int i;
 	for (i = 0; apic_probe[i]; ++i) { 
 		if (apic_probe[i]->acpi_madt_oem_check(oem_id, oem_table_id)) { 
-			genapic = apic_probe[i];
-			printk(KERN_INFO "Switched to APIC driver `%s'.\n", 
-			       genapic->name);
+			if (!cmdline_apic) {
+				genapic = apic_probe[i];
+				printk(KERN_INFO "Switched to APIC driver `%s'.\n",
+				       genapic->name);
+			}
 			return 1;
 		} 
 	} 

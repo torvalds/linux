@@ -785,7 +785,7 @@ qeth_dev_large_send_store(struct device *dev, struct device_attribute *attr, con
 	}
 	if (card->options.large_send == type)
 		return count;
-	if ((rc = qeth_set_large_send(card, type)))	
+	if ((rc = qeth_set_large_send(card, type)))
 		return rc;
 	return count;
 }
@@ -1682,7 +1682,7 @@ qeth_create_device_attributes(struct device *dev)
 	if (card->info.type == QETH_CARD_TYPE_OSN)
 		return sysfs_create_group(&dev->kobj,
 					  &qeth_osn_device_attr_group);
-   	
+
 	if ((ret = sysfs_create_group(&dev->kobj, &qeth_device_attr_group)))
 		return ret;
 	if ((ret = sysfs_create_group(&dev->kobj, &qeth_device_ipato_group))){
@@ -1713,7 +1713,7 @@ qeth_remove_device_attributes(struct device *dev)
 	if (card->info.type == QETH_CARD_TYPE_OSN)
 		return sysfs_remove_group(&dev->kobj,
 					  &qeth_osn_device_attr_group);
-		      
+
 	sysfs_remove_group(&dev->kobj, &qeth_device_attr_group);
 	sysfs_remove_group(&dev->kobj, &qeth_device_ipato_group);
 	sysfs_remove_group(&dev->kobj, &qeth_device_vipa_group);

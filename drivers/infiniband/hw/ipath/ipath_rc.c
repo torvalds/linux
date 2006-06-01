@@ -57,7 +57,7 @@ static void ipath_init_restart(struct ipath_qp *qp, struct ipath_swqe *wqe)
 	qp->s_len = wqe->length - len;
 	dev = to_idev(qp->ibqp.device);
 	spin_lock(&dev->pending_lock);
-	if (qp->timerwait.next == LIST_POISON1)
+	if (list_empty(&qp->timerwait))
 		list_add_tail(&qp->timerwait,
 			      &dev->pending[dev->pending_index]);
 	spin_unlock(&dev->pending_lock);
@@ -356,7 +356,7 @@ static inline int ipath_make_rc_req(struct ipath_qp *qp,
 		if ((int)(qp->s_psn - qp->s_next_psn) > 0)
 			qp->s_next_psn = qp->s_psn;
 		spin_lock(&dev->pending_lock);
-		if (qp->timerwait.next == LIST_POISON1)
+		if (list_empty(&qp->timerwait))
 			list_add_tail(&qp->timerwait,
 				      &dev->pending[dev->pending_index]);
 		spin_unlock(&dev->pending_lock);
@@ -726,8 +726,8 @@ void ipath_restart_rc(struct ipath_qp *qp, u32 psn, struct ib_wc *wc)
 	 */
 	dev = to_idev(qp->ibqp.device);
 	spin_lock(&dev->pending_lock);
-	if (qp->timerwait.next != LIST_POISON1)
-		list_del(&qp->timerwait);
+	if (!list_empty(&qp->timerwait))
+		list_del_init(&qp->timerwait);
 	spin_unlock(&dev->pending_lock);
 
 	if (wqe->wr.opcode == IB_WR_RDMA_READ)
@@ -886,8 +886,8 @@ static int do_rc_ack(struct ipath_qp *qp, u32 aeth, u32 psn, int opcode)
 	 * just won't find anything to restart if we ACK everything.
 	 */
 	spin_lock(&dev->pending_lock);
-	if (qp->timerwait.next != LIST_POISON1)
-		list_del(&qp->timerwait);
+	if (!list_empty(&qp->timerwait))
+		list_del_init(&qp->timerwait);
 	spin_unlock(&dev->pending_lock);
 
 	/*
@@ -1194,8 +1194,7 @@ static inline void ipath_rc_rcv_resp(struct ipath_ibdev *dev,
 		     IB_WR_RDMA_READ))
 		goto ack_done;
 	spin_lock(&dev->pending_lock);
-	if (qp->s_rnr_timeout == 0 &&
-	    qp->timerwait.next != LIST_POISON1)
+	if (qp->s_rnr_timeout == 0 && !list_empty(&qp->timerwait))
 		list_move_tail(&qp->timerwait,
 			       &dev->pending[dev->pending_index]);
 	spin_unlock(&dev->pending_lock);

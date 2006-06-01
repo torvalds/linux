@@ -3271,6 +3271,9 @@ static int bcm43xx_init_board(struct bcm43xx_private *bcm)
 	bcm43xx_sysfs_register(bcm);
 	//FIXME: check for bcm43xx_sysfs_register failure. This function is a bit messy regarding unwinding, though...
 
+	/*FIXME: This should be handled by softmac instead. */
+	schedule_work(&bcm->softmac->associnfo.work);
+
 	assert(err == 0);
 out:
 	return err;
@@ -3946,9 +3949,6 @@ static int bcm43xx_resume(struct pci_dev *pdev)
 
 	netif_device_attach(net_dev);
 	
-	/*FIXME: This should be handled by softmac instead. */
-	schedule_work(&bcm->softmac->associnfo.work);
-
 	dprintk(KERN_INFO PFX "Device resumed.\n");
 
 	return 0;

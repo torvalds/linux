@@ -36,12 +36,9 @@
 
 
 /*
- * This code has been tested on an ads7846 / N770 device.
+ * This code has been heavily tested on a Nokia 770, and lightly
+ * tested on other ads7846 devices (OSK/Mistral, Lubbock).
  * Support for ads7843 and ads7845 has only been stubbed in.
- *
- * Not yet done:  How accurate are the temperature and voltage
- * readings? (System-specific calibration should support
- * accuracy of 0.3 degrees C; otherwise it's 2.0 degrees.)
  *
  * IRQ handling needs a workaround because of a shortcoming in handling
  * edge triggered IRQs on some platforms like the OMAP1/2. These
@@ -248,10 +245,13 @@ static int ads7846_read12_ser(struct device *dev, unsigned command)
 
 	if (req->msg.status)
 		status = req->msg.status;
-	sample = be16_to_cpu(req->sample);
-	sample = sample >> 4;
-	kfree(req);
 
+	/* on-wire is a must-ignore bit, a BE12 value, then padding */
+	sample = be16_to_cpu(req->sample);
+	sample = sample >> 3;
+	sample &= 0x0fff;
+
+	kfree(req);
 	return status ? status : sample;
 }
 
@@ -336,13 +336,13 @@ static void ads7846_rx(void *ads)
 	u16			x, y, z1, z2;
 	unsigned long		flags;
 
-	/* adjust:  12 bit samples (left aligned), built from
-	 * two 8 bit values writen msb-first.
+	/* adjust:  on-wire is a must-ignore bit, a BE12 value, then padding;
+	 * built from two 8 bit values written msb-first.
 	 */
-	x = be16_to_cpu(ts->tc.x) >> 4;
-	y = be16_to_cpu(ts->tc.y) >> 4;
-	z1 = be16_to_cpu(ts->tc.z1) >> 4;
-	z2 = be16_to_cpu(ts->tc.z2) >> 4;
+	x = (be16_to_cpu(ts->tc.x) >> 3) & 0x0fff;
+	y = (be16_to_cpu(ts->tc.y) >> 3) & 0x0fff;
+	z1 = (be16_to_cpu(ts->tc.z1) >> 3) & 0x0fff;
+	z2 = (be16_to_cpu(ts->tc.z2) >> 3) & 0x0fff;
 
 	/* range filtering */
 	if (x == MAX_12BIT)
@@ -420,7 +420,7 @@ static void ads7846_debounce(void *ads)
 
 	m = &ts->msg[ts->msg_idx];
 	t = list_entry(m->transfers.prev, struct spi_transfer, transfer_list);
-	val = (*(u16 *)t->rx_buf) >> 3;
+	val = (be16_to_cpu(*(__be16 *)t->rx_buf) >> 3) & 0x0fff;
 	if (!ts->read_cnt || (abs(ts->last_read - val) > ts->debounce_tol)) {
 		/* Repeat it, if this was the first read or the read
 		 * wasn't consistent enough. */
@@ -469,7 +469,7 @@ static void ads7846_timer(unsigned long handle)
 	spin_lock_irq(&ts->lock);
 
 	if (unlikely(ts->msg_idx && !ts->pendown)) {
-		/* measurment cycle ended */
+		/* measurement cycle ended */
 		if (!device_suspended(&ts->spi->dev)) {
 			ts->irq_disabled = 0;
 			enable_irq(ts->spi->irq);
@@ -495,11 +495,10 @@ static irqreturn_t ads7846_irq(int irq, void *handle, struct pt_regs *regs)
 	spin_lock_irqsave(&ts->lock, flags);
 	if (likely(ts->get_pendown_state())) {
 		if (!ts->irq_disabled) {
-			/* REVISIT irq logic for many ARM chips has cloned a
-			 * bug wherein disabling an irq in its handler won't
-			 * work;(it's disabled lazily, and too late to work.
-			 * until all their irq logic is fixed, we must shadow
-			 * that state here.
+			/* The ARM do_simple_IRQ() dispatcher doesn't act
+			 * like the other dispatchers:  it will report IRQs
+			 * even after they've been disabled.  We work around
+			 * that here.  (The "generic irq" framework may help...)
 			 */
 			ts->irq_disabled = 1;
 			disable_irq(ts->spi->irq);
@@ -609,16 +608,20 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 		return -EINVAL;
 	}
 
+	/* REVISIT when the irq can be triggered active-low, or if for some
+	 * reason the touchscreen isn't hooked up, we don't need to access
+	 * the pendown state.
+	 */
 	if (pdata->get_pendown_state == NULL) {
 		dev_dbg(&spi->dev, "no get_pendown_state function?\n");
 		return -EINVAL;
 	}
 
-	/* We'd set the wordsize to 12 bits ... except that some controllers
-	 * will then treat the 8 bit command words as 12 bits (and drop the
-	 * four MSBs of the 12 bit result).  Result: inputs must be shifted
-	 * to discard the four garbage LSBs.
+	/* We'd set TX wordsize 8 bits and RX wordsize to 13 bits ... except
+	 * that even if the hardware can do that, the SPI controller driver
+	 * may not.  So we stick to very-portable 8 bit words, both RX and TX.
 	 */
+	spi->bits_per_word = 8;
 
 	ts = kzalloc(sizeof(struct ads7846), GFP_KERNEL);
 	input_dev = input_allocate_device();
@@ -772,7 +775,7 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 
 	if (request_irq(spi->irq, ads7846_irq,
 			SA_SAMPLE_RANDOM | SA_TRIGGER_FALLING,
-			spi->dev.bus_id, ts)) {
+			spi->dev.driver->name, ts)) {
 		dev_dbg(&spi->dev, "irq %d busy?\n", spi->irq);
 		err = -EBUSY;
 		goto err_free_mem;
