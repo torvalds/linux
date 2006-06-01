@@ -944,21 +944,28 @@ static void hid_reset(void *_hid)
 	dev_dbg(&hid->intf->dev, "resetting device\n");
 	rc = rc_lock = usb_lock_device_for_reset(hid->dev, hid->intf);
 	if (rc_lock >= 0) {
-		rc = usb_reset_device(hid->dev);
+		rc = usb_reset_composite_device(hid->dev, hid->intf);
 		if (rc_lock)
 			usb_unlock_device(hid->dev);
 	}
 	clear_bit(HID_RESET_PENDING, &hid->iofl);
 
-	if (rc == 0) {
-		hid->retry_delay = 0;
-		if (hid_start_in(hid))
+	switch (rc) {
+	case 0:
+		if (!test_bit(HID_IN_RUNNING, &hid->iofl))
 			hid_io_error(hid);
-	} else if (!(rc == -ENODEV || rc == -EHOSTUNREACH || rc == -EINTR))
+		break;
+	default:
 		err("can't reset device, %s-%s/input%d, status %d",
 				hid->dev->bus->bus_name,
 				hid->dev->devpath,
 				hid->ifnum, rc);
+		/* FALLTHROUGH */
+	case -EHOSTUNREACH:
+	case -ENODEV:
+	case -EINTR:
+		break;
+	}
 }
 
 /* Main I/O error handler */
@@ -2063,9 +2070,27 @@ static int hid_resume(struct usb_interface *intf)
 	int status;
 
 	clear_bit(HID_SUSPENDED, &hid->iofl);
+	hid->retry_delay = 0;
 	status = hid_start_in(hid);
 	dev_dbg(&intf->dev, "resume status %d\n", status);
 	return status;
+}
+
+/* Treat USB reset pretty much the same as suspend/resume */
+static void hid_pre_reset(struct usb_interface *intf)
+{
+	/* FIXME: What if the interface is already suspended? */
+	hid_suspend(intf, PMSG_ON);
+}
+
+static void hid_post_reset(struct usb_interface *intf)
+{
+	struct usb_device *dev = interface_to_usbdev (intf);
+
+	hid_set_idle(dev, intf->cur_altsetting->desc.bInterfaceNumber, 0, 0);
+	/* FIXME: Any more reinitialization needed? */
+
+	hid_resume(intf);
 }
 
 static struct usb_device_id hid_usb_ids [] = {
@@ -2082,6 +2107,8 @@ static struct usb_driver hid_driver = {
 	.disconnect =	hid_disconnect,
 	.suspend =	hid_suspend,
 	.resume =	hid_resume,
+	.pre_reset =	hid_pre_reset,
+	.post_reset =	hid_post_reset,
 	.id_table =	hid_usb_ids,
 };
 
