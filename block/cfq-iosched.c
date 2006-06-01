@@ -1747,14 +1747,24 @@ cfq_crq_enqueued(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 
 	cfqq->next_crq = cfq_choose_req(cfqd, cfqq->next_crq, crq);
 
+	cic = crq->io_context;
+
 	/*
 	 * we never wait for an async request and we don't allow preemption
 	 * of an async request. so just return early
 	 */
-	if (!cfq_crq_is_sync(crq))
+	if (!cfq_crq_is_sync(crq)) {
+		/*
+		 * sync process issued an async request, if it's waiting
+		 * then expire it and kick rq handling.
+		 */
+		if (cic == cfqd->active_cic &&
+		    del_timer(&cfqd->idle_slice_timer)) {
+			cfq_slice_expired(cfqd, 0);
+			cfq_start_queueing(cfqd, cfqq);
+		}
 		return;
-
-	cic = crq->io_context;
+	}
 
 	cfq_update_io_thinktime(cfqd, cic);
 	cfq_update_io_seektime(cfqd, cic, crq);
