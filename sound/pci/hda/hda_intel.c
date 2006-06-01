@@ -1402,10 +1402,10 @@ static int azx_free(struct azx *chip)
 		msleep(1);
 	}
 
-	if (chip->remap_addr)
-		iounmap(chip->remap_addr);
 	if (chip->irq >= 0)
 		free_irq(chip->irq, (void*)chip);
+	if (chip->remap_addr)
+		iounmap(chip->remap_addr);
 
 	if (chip->bdl.area)
 		snd_dma_free_pages(&chip->bdl);
