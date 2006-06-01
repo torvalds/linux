@@ -78,7 +78,7 @@ ieee80211softmac_notify_callback(void *d)
 	struct ieee80211softmac_event event = *(struct ieee80211softmac_event*) d;
 	kfree(d);
 	
-	event.fun(event.mac->dev, event.context);
+	event.fun(event.mac->dev, event.event_type, event.context);
 }
 
 int
@@ -167,6 +167,9 @@ ieee80211softmac_call_events_locked(struct ieee80211softmac_device *mac, int eve
 			if ((eventptr->event_type == event || eventptr->event_type == -1)
 				&& (eventptr->event_context == NULL || eventptr->event_context == event_ctx)) {
 				list_del(&eventptr->list);
+				/* User may have subscribed to ANY event, so
+				 * we tell them which event triggered it. */
+				eventptr->event_type = event;
 				schedule_work(&eventptr->work);
 			}
 		}
