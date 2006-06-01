@@ -501,10 +501,13 @@ static void cfq_resort_rr_list(struct cfq_queue *cfqq, int preempted)
 
 	/*
 	 * if queue was preempted, just add to front to be fair. busy_rr
-	 * isn't sorted.
+	 * isn't sorted, but insert at the back for fairness.
 	 */
 	if (preempted || list == &cfqd->busy_rr) {
-		list_add(&cfqq->cfq_list, list);
+		if (preempted)
+			list = list->prev;
+
+		list_add_tail(&cfqq->cfq_list, list);
 		return;
 	}
 
