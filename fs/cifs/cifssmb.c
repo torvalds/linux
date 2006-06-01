@@ -436,9 +436,9 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 			a common dialect */
 			rc = -EOPNOTSUPP;
 			goto neg_err_exit;
-		} else if((pSMBr->hdr.WordCount == 13) && 
-			(pSMBr->DialectIndex == LANMAN_PROT)) {
-#ifdef CONFIG_CIFS_WEAK_PW_HASH
+#ifdef CONFIG_CIFS_WEAK_PW_HASH 
+                } else if((pSMBr->hdr.WordCount == 13)
+				&& (pSMBr->DialectIndex == LANMAN_PROT)) {
 			struct lanman_neg_rsp * rsp = 
 				(struct lanman_neg_rsp *)pSMBr;
 
@@ -477,8 +477,9 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 
 			cFYI(1,("LANMAN negotiated")); /* BB removeme BB */
 #else /* weak security disabled */
-			cERROR(1,("mount failed, cifs module not built with "
-				"CIFS_WEAK_PW_HASH support"));
+		} else if(pSMBr->hdr.WordCount == 13)
+			cERROR(1,("mount failed, cifs module not built "
+				"with CIFS_WEAK_PW_HASH support"));
 			rc = -EOPNOTSUPP;
 #endif /* WEAK_PW_HASH */
 			goto neg_err_exit;
