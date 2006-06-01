@@ -283,8 +283,18 @@ static int aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 	return 0;
 }
 
-extern void aes_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in);
-extern void aes_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in);
+asmlinkage void aes_enc_blk(struct crypto_tfm *tfm, u8 *out, const u8 *in);
+asmlinkage void aes_dec_blk(struct crypto_tfm *tfm, u8 *out, const u8 *in);
+
+static void aes_encrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
+{
+	aes_enc_blk(tfm, dst, src);
+}
+
+static void aes_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
+{
+	aes_dec_blk(tfm, dst, src);
+}
 
 static struct crypto_alg aes_alg = {
 	.cra_name		=	"aes",

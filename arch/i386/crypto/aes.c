@@ -464,6 +464,16 @@ static int aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 	return 0;
 }
 
+static void aes_encrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
+{
+	aes_enc_blk(tfm, dst, src);
+}
+
+static void aes_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
+{
+	aes_dec_blk(tfm, dst, src);
+}
+
 static struct crypto_alg aes_alg = {
 	.cra_name		=	"aes",
 	.cra_driver_name	=	"aes-i586",
@@ -478,8 +488,8 @@ static struct crypto_alg aes_alg = {
 			.cia_min_keysize	=	AES_MIN_KEY_SIZE,
 			.cia_max_keysize	=	AES_MAX_KEY_SIZE,
 			.cia_setkey	   	= 	aes_set_key,
-			.cia_encrypt	 	=	aes_enc_blk,
-			.cia_decrypt	  	=	aes_dec_blk
+			.cia_encrypt	 	=	aes_encrypt,
+			.cia_decrypt	  	=	aes_decrypt
 		}
 	}
 };

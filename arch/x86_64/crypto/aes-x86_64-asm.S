@@ -151,9 +151,9 @@ FUNC:	movq	r1,r2;			\
 #define decrypt_final(TAB,OFFSET) \
 	round(TAB,OFFSET,R2,R1,R4,R3,R6,R5,R7,R10,R5,R6,R3,R4)
 
-/* void aes_encrypt(stuct crypto_tfm *tfm, u8 *out, const u8 *in) */
+/* void aes_enc_blk(stuct crypto_tfm *tfm, u8 *out, const u8 *in) */
 
-	entry(aes_encrypt,0,enc128,enc192)
+	entry(aes_enc_blk,0,enc128,enc192)
 	encrypt_round(aes_ft_tab,-96)
 	encrypt_round(aes_ft_tab,-80)
 enc192:	encrypt_round(aes_ft_tab,-64)
@@ -170,9 +170,9 @@ enc128:	encrypt_round(aes_ft_tab,-32)
 	encrypt_final(aes_fl_tab,112)
 	return
 
-/* void aes_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in) */
+/* void aes_dec_blk(struct crypto_tfm *tfm, u8 *out, const u8 *in) */
 
-	entry(aes_decrypt,240,dec128,dec192)
+	entry(aes_dec_blk,240,dec128,dec192)
 	decrypt_round(aes_it_tab,-96)
 	decrypt_round(aes_it_tab,-80)
 dec192:	decrypt_round(aes_it_tab,-64)
