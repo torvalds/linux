@@ -3007,9 +3007,9 @@ static int config_descriptors_changed(struct usb_device *udev)
  * usb_reset_device - perform a USB port reset to reinitialize a device
  * @udev: device to reset (not in SUSPENDED or NOTATTACHED state)
  *
- * WARNING - don't reset any device unless drivers for all of its
- * interfaces are expecting that reset!  Maybe some driver->reset()
- * method should eventually help ensure sufficient cooperation.
+ * WARNING - don't use this routine to reset a composite device
+ * (one with multiple interfaces owned by separate drivers)!
+ * Use usb_reset_composite_device() instead.
  *
  * Do a port reset, reassign the device's address, and establish its
  * former operating configuration.  If the reset fails, or the device's
@@ -3124,4 +3124,82 @@ done:
 re_enumerate:
 	hub_port_logical_disconnect(parent_hub, port1);
 	return -ENODEV;
+}
+
+/**
+ * usb_reset_composite_device - warn interface drivers and perform a USB port reset
+ * @udev: device to reset (not in SUSPENDED or NOTATTACHED state)
+ * @iface: interface bound to the driver making the request (optional)
+ *
+ * Warns all drivers bound to registered interfaces (using their pre_reset
+ * method), performs the port reset, and then lets the drivers know that
+ * the reset is over (using their post_reset method).
+ *
+ * Return value is the same as for usb_reset_device().
+ *
+ * The caller must own the device lock.  For example, it's safe to use
+ * this from a driver probe() routine after downloading new firmware.
+ * For calls that might not occur during probe(), drivers should lock
+ * the device using usb_lock_device_for_reset().
+ *
+ * The interface locks are acquired during the pre_reset stage and released
+ * during the post_reset stage.  However if iface is not NULL and is
+ * currently being probed, we assume that the caller already owns its
+ * lock.
+ */
+int usb_reset_composite_device(struct usb_device *udev,
+		struct usb_interface *iface)
+{
+	int ret;
+	struct usb_host_config *config = udev->actconfig;
+
+	if (udev->state == USB_STATE_NOTATTACHED ||
+			udev->state == USB_STATE_SUSPENDED) {
+		dev_dbg(&udev->dev, "device reset not allowed in state %d\n",
+				udev->state);
+		return -EINVAL;
+	}
+
+	if (iface && iface->condition != USB_INTERFACE_BINDING)
+		iface = NULL;
+
+	if (config) {
+		int i;
+		struct usb_interface *cintf;
+		struct usb_driver *drv;
+
+		for (i = 0; i < config->desc.bNumInterfaces; ++i) {
+			cintf = config->interface[i];
+			if (cintf != iface)
+				down(&cintf->dev.sem);
+			if (device_is_registered(&cintf->dev) &&
+					cintf->dev.driver) {
+				drv = to_usb_driver(cintf->dev.driver);
+				if (drv->pre_reset)
+					(drv->pre_reset)(cintf);
+			}
+		}
+	}
+
+	ret = usb_reset_device(udev);
+
+	if (config) {
+		int i;
+		struct usb_interface *cintf;
+		struct usb_driver *drv;
+
+		for (i = config->desc.bNumInterfaces - 1; i >= 0; --i) {
+			cintf = config->interface[i];
+			if (device_is_registered(&cintf->dev) &&
+					cintf->dev.driver) {
+				drv = to_usb_driver(cintf->dev.driver);
+				if (drv->post_reset)
+					(drv->post_reset)(cintf);
+			}
+			if (cintf != iface)
+				up(&cintf->dev.sem);
+		}
+	}
+
+	return ret;
 }

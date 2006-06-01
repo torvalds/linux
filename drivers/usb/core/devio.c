@@ -823,8 +823,7 @@ static int proc_connectinfo(struct dev_state *ps, void __user *arg)
 
 static int proc_resetdevice(struct dev_state *ps)
 {
-	return usb_reset_device(ps->dev);
-
+	return usb_reset_composite_device(ps->dev, NULL);
 }
 
 static int proc_setintf(struct dev_state *ps, void __user *arg)

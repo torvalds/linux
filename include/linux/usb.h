@@ -386,6 +386,8 @@ extern int usb_lock_device_for_reset(struct usb_device *udev,
 
 /* USB port reset for device reinitialization */
 extern int usb_reset_device(struct usb_device *dev);
+extern int usb_reset_composite_device(struct usb_device *dev,
+		struct usb_interface *iface);
 
 extern struct usb_device *usb_find_device(u16 vendor_id, u16 product_id);
 
@@ -554,6 +556,10 @@ struct usb_dynids {
  *	do (or don't) show up otherwise in the filesystem.
  * @suspend: Called when the device is going to be suspended by the system.
  * @resume: Called when the device is being resumed by the system.
+ * @pre_reset: Called by usb_reset_composite_device() when the device
+ *	is about to be reset.
+ * @post_reset: Called by usb_reset_composite_device() after the device
+ *	has been reset.
  * @id_table: USB drivers use ID table to support hotplugging.
  *	Export this with MODULE_DEVICE_TABLE(usb,...).  This must be set
  *	or your driver's probe function will never get called.
@@ -591,6 +597,9 @@ struct usb_driver {
 
 	int (*suspend) (struct usb_interface *intf, pm_message_t message);
 	int (*resume) (struct usb_interface *intf);
+
+	void (*pre_reset) (struct usb_interface *intf);
+	void (*post_reset) (struct usb_interface *intf);
 
 	const struct usb_device_id *id_table;
 
