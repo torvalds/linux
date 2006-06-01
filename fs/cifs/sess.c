@@ -29,6 +29,7 @@
 #include "ntlmssp.h"
 #include "nterr.h"
 #include <linux/ctype.h>
+#include <linux/utsname.h>
 
 extern void SMBencrypt(unsigned char *passwd, unsigned char *c8,
                        unsigned char *p24);
