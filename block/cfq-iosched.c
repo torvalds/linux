@@ -2193,10 +2193,9 @@ static void cfq_idle_class_timer(unsigned long data)
 	 * race with a non-idle queue, reset timer
 	 */
 	end = cfqd->last_end_request + CFQ_IDLE_GRACE;
-	if (!time_after_eq(jiffies, end)) {
-		cfqd->idle_class_timer.expires = end;
-		add_timer(&cfqd->idle_class_timer);
-	} else
+	if (!time_after_eq(jiffies, end))
+		mod_timer(&cfqd->idle_class_timer, end);
+	else
 		cfq_schedule_dispatch(cfqd);
 
 	spin_unlock_irqrestore(cfqd->queue->queue_lock, flags);
