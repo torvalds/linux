@@ -62,7 +62,6 @@ static int nfs_update_inode(struct inode *, struct nfs_fattr *);
 static struct inode *nfs_alloc_inode(struct super_block *sb);
 static void nfs_destroy_inode(struct inode *);
 static int nfs_write_inode(struct inode *,int);
-static void nfs_delete_inode(struct inode *);
 static void nfs_clear_inode(struct inode *);
 static void nfs_umount_begin(struct super_block *);
 static int  nfs_statfs(struct super_block *, struct kstatfs *);
@@ -76,7 +75,6 @@ static struct super_operations nfs_sops = {
 	.alloc_inode	= nfs_alloc_inode,
 	.destroy_inode	= nfs_destroy_inode,
 	.write_inode	= nfs_write_inode,
-	.delete_inode	= nfs_delete_inode,
 	.statfs		= nfs_statfs,
 	.clear_inode	= nfs_clear_inode,
 	.umount_begin	= nfs_umount_begin,
@@ -147,30 +145,15 @@ nfs_write_inode(struct inode *inode, int sync)
 }
 
 static void
-nfs_delete_inode(struct inode * inode)
-{
-	dprintk("NFS: delete_inode(%s/%ld)\n", inode->i_sb->s_id, inode->i_ino);
-
-	truncate_inode_pages(&inode->i_data, 0);
-
-	nfs_wb_all(inode);
-	/*
-	 * The following should never happen...
-	 */
-	if (nfs_have_writebacks(inode)) {
-		printk(KERN_ERR "nfs_delete_inode: inode %ld has pending RPC requests\n", inode->i_ino);
-	}
-
-	clear_inode(inode);
-}
-
-static void
 nfs_clear_inode(struct inode *inode)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
 	struct rpc_cred *cred;
 
-	nfs_wb_all(inode);
+	/*
+	 * The following should never happen...
+	 */
+	BUG_ON(nfs_have_writebacks(inode));
 	BUG_ON (!list_empty(&nfsi->open_files));
 	nfs_zap_acl_cache(inode);
 	cred = nfsi->cache_access.cred;
@@ -1821,7 +1804,6 @@ static struct super_operations nfs4_sops = {
 	.alloc_inode	= nfs_alloc_inode,
 	.destroy_inode	= nfs_destroy_inode,
 	.write_inode	= nfs_write_inode,
-	.delete_inode	= nfs_delete_inode,
 	.statfs		= nfs_statfs,
 	.clear_inode	= nfs4_clear_inode,
 	.umount_begin	= nfs_umount_begin,
