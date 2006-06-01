@@ -525,15 +525,16 @@ static int hub_port_disable(struct usb_hub *hub, int port1, int set_state)
 
 
 /* caller has locked the hub device */
-static void hub_pre_reset(struct usb_hub *hub, int disable_ports)
+static void hub_pre_reset(struct usb_interface *intf)
 {
+	struct usb_hub *hub = usb_get_intfdata(intf);
 	struct usb_device *hdev = hub->hdev;
 	int port1;
 
 	for (port1 = 1; port1 <= hdev->maxchild; ++port1) {
 		if (hdev->children[port1 - 1]) {
 			usb_disconnect(&hdev->children[port1 - 1]);
-			if (disable_ports)
+			if (hub->error == 0)
 				hub_port_disable(hub, port1, 0);
 		}
 	}
@@ -541,8 +542,10 @@ static void hub_pre_reset(struct usb_hub *hub, int disable_ports)
 }
 
 /* caller has locked the hub device */
-static void hub_post_reset(struct usb_hub *hub)
+static void hub_post_reset(struct usb_interface *intf)
 {
+	struct usb_hub *hub = usb_get_intfdata(intf);
+
 	hub_activate(hub);
 	hub_power_on(hub);
 }
@@ -802,14 +805,15 @@ static void hub_disconnect(struct usb_interface *intf)
 	struct usb_hub *hub = usb_get_intfdata (intf);
 	struct usb_device *hdev;
 
+	/* Disconnect all children and quiesce the hub */
+	hub->error = 0;
+	hub_pre_reset(intf);
+
 	usb_set_intfdata (intf, NULL);
 	hdev = hub->hdev;
 
 	if (hdev->speed == USB_SPEED_HIGH)
 		highspeed_hubs--;
-
-	/* Disconnect all children and quiesce the hub */
-	hub_pre_reset(hub, 1);
 
 	usb_free_urb(hub->urb);
 	hub->urb = NULL;
@@ -2747,7 +2751,8 @@ static void hub_events(void)
 
 		/* If the hub has died, clean up after it */
 		if (hdev->state == USB_STATE_NOTATTACHED) {
-			hub_pre_reset(hub, 0);
+			hub->error = -ENODEV;
+			hub_pre_reset(intf);
 			goto loop;
 		}
 
@@ -2759,7 +2764,7 @@ static void hub_events(void)
 			dev_dbg (hub_dev, "resetting for error %d\n",
 				hub->error);
 
-			ret = usb_reset_device(hdev);
+			ret = usb_reset_composite_device(hdev, intf);
 			if (ret) {
 				dev_dbg (hub_dev,
 					"error resetting hub: %d\n", ret);
@@ -2928,6 +2933,8 @@ static struct usb_driver hub_driver = {
 	.disconnect =	hub_disconnect,
 	.suspend =	hub_suspend,
 	.resume =	hub_resume,
+	.pre_reset =	hub_pre_reset,
+	.post_reset =	hub_post_reset,
 	.ioctl =	hub_ioctl,
 	.id_table =	hub_id_table,
 };
@@ -3033,7 +3040,6 @@ int usb_reset_device(struct usb_device *udev)
 	struct usb_device		*parent_hdev = udev->parent;
 	struct usb_hub			*parent_hub;
 	struct usb_device_descriptor	descriptor = udev->descriptor;
-	struct usb_hub			*hub = NULL;
 	int 				i, ret = 0;
 	int				port1 = udev->portnum;
 
@@ -3050,14 +3056,6 @@ int usb_reset_device(struct usb_device *udev)
 		return -EISDIR;
 	}
 	parent_hub = hdev_to_hub(parent_hdev);
-
-	/* If we're resetting an active hub, take some special actions */
-	if (udev->actconfig && udev->actconfig->desc.bNumInterfaces > 0 &&
-			udev->actconfig->interface[0]->dev.driver ==
-				&hub_driver.driver &&
-			(hub = hdev_to_hub(udev)) != NULL) {
-		hub_pre_reset(hub, 0);
-	}
 
 	set_bit(port1, parent_hub->busy_bits);
 	for (i = 0; i < SET_CONFIG_TRIES; ++i) {
@@ -3117,8 +3115,6 @@ int usb_reset_device(struct usb_device *udev)
 	}
 
 done:
-	if (hub)
-		hub_post_reset(hub);
 	return 0;
  
 re_enumerate:
