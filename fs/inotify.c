@@ -232,7 +232,7 @@ static void remove_watch_no_event(struct inotify_watch *watch,
 static void remove_watch(struct inotify_watch *watch, struct inotify_handle *ih)
 {
 	remove_watch_no_event(watch, ih);
-	ih->in_ops->handle_event(watch, watch->wd, IN_IGNORED, 0, NULL);
+	ih->in_ops->handle_event(watch, watch->wd, IN_IGNORED, 0, NULL, NULL);
 }
 
 /* Kernel API for producing events */
@@ -275,9 +275,10 @@ void inotify_d_move(struct dentry *entry)
  * @mask: event mask describing this event
  * @cookie: cookie for synchronization, or zero
  * @name: filename, if any
+ * @n_inode: inode associated with name
  */
 void inotify_inode_queue_event(struct inode *inode, u32 mask, u32 cookie,
-			       const char *name)
+			       const char *name, struct inode *n_inode)
 {
 	struct inotify_watch *watch, *next;
 
@@ -292,7 +293,8 @@ void inotify_inode_queue_event(struct inode *inode, u32 mask, u32 cookie,
 			mutex_lock(&ih->mutex);
 			if (watch_mask & IN_ONESHOT)
 				remove_watch_no_event(watch, ih);
-			ih->in_ops->handle_event(watch, watch->wd, mask, cookie, name);
+			ih->in_ops->handle_event(watch, watch->wd, mask, cookie,
+						 name, n_inode);
 			mutex_unlock(&ih->mutex);
 		}
 	}
@@ -323,7 +325,8 @@ void inotify_dentry_parent_queue_event(struct dentry *dentry, u32 mask,
 	if (inotify_inode_watched(inode)) {
 		dget(parent);
 		spin_unlock(&dentry->d_lock);
-		inotify_inode_queue_event(inode, mask, cookie, name);
+		inotify_inode_queue_event(inode, mask, cookie, name,
+					  dentry->d_inode);
 		dput(parent);
 	} else
 		spin_unlock(&dentry->d_lock);
@@ -407,7 +410,7 @@ void inotify_unmount_inodes(struct list_head *list)
 			struct inotify_handle *ih= watch->ih;
 			mutex_lock(&ih->mutex);
 			ih->in_ops->handle_event(watch, watch->wd, IN_UNMOUNT, 0,
-						 NULL);
+						 NULL, NULL);
 			remove_watch(watch, ih);
 			mutex_unlock(&ih->mutex);
 		}

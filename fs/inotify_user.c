@@ -253,7 +253,8 @@ inotify_dev_get_event(struct inotify_device *dev)
  * Can sleep (calls kernel_event()).
  */
 static void inotify_dev_queue_event(struct inotify_watch *w, u32 wd, u32 mask,
-				    u32 cookie, const char *name)
+				    u32 cookie, const char *name,
+				    struct inode *ignored)
 {
 	struct inotify_user_watch *watch;
 	struct inotify_device *dev;

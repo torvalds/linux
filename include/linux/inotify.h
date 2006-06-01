@@ -91,7 +91,7 @@ struct inotify_watch {
 
 struct inotify_operations {
 	void (*handle_event)(struct inotify_watch *, u32, u32, u32,
-			     const char *);
+			     const char *, struct inode *);
 	void (*destroy_watch)(struct inotify_watch *);
 };
 
@@ -102,7 +102,7 @@ struct inotify_operations {
 extern void inotify_d_instantiate(struct dentry *, struct inode *);
 extern void inotify_d_move(struct dentry *);
 extern void inotify_inode_queue_event(struct inode *, __u32, __u32,
-				      const char *);
+				      const char *, struct inode *);
 extern void inotify_dentry_parent_queue_event(struct dentry *, __u32, __u32,
 					      const char *);
 extern void inotify_unmount_inodes(struct list_head *);
@@ -134,7 +134,8 @@ static inline void inotify_d_move(struct dentry *dentry)
 
 static inline void inotify_inode_queue_event(struct inode *inode,
 					     __u32 mask, __u32 cookie,
-					     const char *filename)
+					     const char *filename,
+					     struct inode *n_inode)
 {
 }
 
