@@ -1368,6 +1368,8 @@ static struct hda_board_config ad1981_cfg_tbl[] = {
 	{ .modelname = "hp", .config = AD1981_HP },
 	/* All HP models */
 	{ .pci_subvendor = 0x103c, .config = AD1981_HP },
+	{ .pci_subvendor = 0x30b0, .pci_subdevice = 0x103c,
+	  .config = AD1981_HP }, /* HP nx6320 (reversed SSID, H/W bug) */
 	{ .modelname = "thinkpad", .config = AD1981_THINKPAD },
 	/* Lenovo Thinkpad T60/X60/Z6xx */
 	{ .pci_subvendor = 0x17aa, .config = AD1981_THINKPAD },
