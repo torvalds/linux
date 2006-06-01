@@ -879,6 +879,13 @@ static struct cfq_queue *cfq_set_active_queue(struct cfq_data *cfqd)
 		cfqq = list_entry_cfqq(cfqd->cur_rr.next);
 
 	/*
+	 * If no new queues are available, check if the busy list has some
+	 * before falling back to idle io.
+	 */
+	if (!cfqq && !list_empty(&cfqd->busy_rr))
+		cfqq = list_entry_cfqq(cfqd->busy_rr.next);
+
+	/*
 	 * if we have idle queues and no rt or be queues had pending
 	 * requests, either allow immediate service if the grace period
 	 * has passed or arm the idle grace timer
