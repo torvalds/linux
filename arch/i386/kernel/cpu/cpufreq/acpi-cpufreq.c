@@ -443,14 +443,15 @@ static struct freq_attr* acpi_cpufreq_attr[] = {
 };
 
 static struct cpufreq_driver acpi_cpufreq_driver = {
-	.verify 	= acpi_cpufreq_verify,
-	.target 	= acpi_cpufreq_target,
-	.init		= acpi_cpufreq_cpu_init,
-	.exit		= acpi_cpufreq_cpu_exit,
-	.resume		= acpi_cpufreq_resume,
-	.name		= "acpi-cpufreq",
-	.owner		= THIS_MODULE,
-	.attr           = acpi_cpufreq_attr,
+	.verify	= acpi_cpufreq_verify,
+	.target	= acpi_cpufreq_target,
+	.init	= acpi_cpufreq_cpu_init,
+	.exit	= acpi_cpufreq_cpu_exit,
+	.resume	= acpi_cpufreq_resume,
+	.name	= "acpi-cpufreq",
+	.owner	= THIS_MODULE,
+	.attr	= acpi_cpufreq_attr,
+	.flags	= CPUFREQ_STICKY,
 };
 
 
