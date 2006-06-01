@@ -268,26 +268,27 @@ ieee80211softmac_reassoc_req(struct ieee80211_reassoc_request **pkt,
 static u32
 ieee80211softmac_auth(struct ieee80211_auth **pkt, 
 	struct ieee80211softmac_device *mac, struct ieee80211softmac_network *net,
-	u16 transaction, u16 status)
+	u16 transaction, u16 status, int *encrypt_mpdu)
 {
 	u8 *data;
+	int auth_mode = mac->ieee->sec.auth_mode;
+	int is_shared_response = (auth_mode == WLAN_AUTH_SHARED_KEY
+		&& transaction == IEEE80211SOFTMAC_AUTH_SHARED_RESPONSE);
+
 	/* Allocate Packet */
 	(*pkt) = (struct ieee80211_auth *)ieee80211softmac_alloc_mgt(
 		2 +		/* Auth Algorithm */
 		2 +		/* Auth Transaction Seq */
 		2 +		/* Status Code */
 		 /* Challenge Text IE */
-		mac->ieee->open_wep ? 0 : 
-		1 + 1 + WLAN_AUTH_CHALLENGE_LEN
-	);	
+		is_shared_response ? 0 : 1 + 1 + net->challenge_len
+	);
 	if (unlikely((*pkt) == NULL))
 		return 0;
 	ieee80211softmac_hdr_3addr(mac, &((*pkt)->header), IEEE80211_STYPE_AUTH, net->bssid, net->bssid);
 		
 	/* Algorithm */
-	(*pkt)->algorithm = mac->ieee->open_wep ? 
-		cpu_to_le16(WLAN_AUTH_OPEN) :
-		cpu_to_le16(WLAN_AUTH_SHARED_KEY);
+	(*pkt)->algorithm = cpu_to_le16(auth_mode);
 	/* Transaction */
 	(*pkt)->transaction = cpu_to_le16(transaction);
 	/* Status */
@@ -295,18 +296,20 @@ ieee80211softmac_auth(struct ieee80211_auth **pkt,
 	
 	data = (u8 *)(*pkt)->info_element;
 	/* Challenge Text */
-	if(!mac->ieee->open_wep){
+	if (is_shared_response) {
 		*data = MFIE_TYPE_CHALLENGE;
 		data++;
 		
 		/* Copy the challenge in */
-		// *data = challenge length
-		// data += sizeof(u16);
-		// memcpy(data, challenge, challenge length);
-		// data += challenge length;
-		
-		/* Add the full size to the packet length */
-	}
+		*data = net->challenge_len;
+		data++;
+		memcpy(data, net->challenge, net->challenge_len);
+		data += net->challenge_len;
+
+		/* Make sure this frame gets encrypted with the shared key */
+		*encrypt_mpdu = 1;
+	} else
+		*encrypt_mpdu = 0;
 
 	/* Return the packet size */
 	return (data - (u8 *)(*pkt));
@@ -396,6 +399,7 @@ ieee80211softmac_send_mgt_frame(struct ieee80211softmac_device *mac,
 {
 	void *pkt = NULL;
 	u32 pkt_size = 0;
+	int encrypt_mpdu = 0;
 
 	switch(type) {
 	case IEEE80211_STYPE_ASSOC_REQ:
@@ -405,7 +409,7 @@ ieee80211softmac_send_mgt_frame(struct ieee80211softmac_device *mac,
 		pkt_size = ieee80211softmac_reassoc_req((struct ieee80211_reassoc_request **)(&pkt), mac, (struct ieee80211softmac_network *)ptrarg);
 		break;
 	case IEEE80211_STYPE_AUTH:
-		pkt_size = ieee80211softmac_auth((struct ieee80211_auth **)(&pkt), mac, (struct ieee80211softmac_network *)ptrarg, (u16)(arg & 0xFFFF), (u16) (arg >> 16));
+		pkt_size = ieee80211softmac_auth((struct ieee80211_auth **)(&pkt), mac, (struct ieee80211softmac_network *)ptrarg, (u16)(arg & 0xFFFF), (u16) (arg >> 16), &encrypt_mpdu);
 		break;
 	case IEEE80211_STYPE_DISASSOC:
 	case IEEE80211_STYPE_DEAUTH:
@@ -434,7 +438,8 @@ ieee80211softmac_send_mgt_frame(struct ieee80211softmac_device *mac,
 	 * or get rid of it alltogether?
 	 * Does this work for you now?
 	 */
-	ieee80211_tx_frame(mac->ieee, (struct ieee80211_hdr *)pkt, pkt_size);
+	ieee80211_tx_frame(mac->ieee, (struct ieee80211_hdr *)pkt,
+		IEEE80211_3ADDR_LEN, pkt_size, encrypt_mpdu);
 
 	kfree(pkt);
 	return 0;

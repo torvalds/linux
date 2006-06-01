@@ -555,7 +555,8 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 /* Incoming 802.11 strucure is converted to a TXB
  * a block of 802.11 fragment packets (stored as skbs) */
 int ieee80211_tx_frame(struct ieee80211_device *ieee,
-		       struct ieee80211_hdr *frame, int len)
+		       struct ieee80211_hdr *frame, int hdr_len, int total_len,
+		       int encrypt_mpdu)
 {
 	struct ieee80211_txb *txb = NULL;
 	unsigned long flags;
@@ -565,6 +566,9 @@ int ieee80211_tx_frame(struct ieee80211_device *ieee,
 
 	spin_lock_irqsave(&ieee->lock, flags);
 
+	if (encrypt_mpdu && !ieee->sec.encrypt)
+		encrypt_mpdu = 0;
+
 	/* If there is no driver handler to take the TXB, dont' bother
 	 * creating it... */
 	if (!ieee->hard_start_xmit) {
@@ -572,31 +576,40 @@ int ieee80211_tx_frame(struct ieee80211_device *ieee,
 		goto success;
 	}
 
-	if (unlikely(len < 24)) {
+	if (unlikely(total_len < 24)) {
 		printk(KERN_WARNING "%s: skb too small (%d).\n",
-		       ieee->dev->name, len);
+		       ieee->dev->name, total_len);
 		goto success;
 	}
+
+	if (encrypt_mpdu)
+		frame->frame_ctl |= cpu_to_le16(IEEE80211_FCTL_PROTECTED);
 
 	/* When we allocate the TXB we allocate enough space for the reserve
 	 * and full fragment bytes (bytes_per_frag doesn't include prefix,
 	 * postfix, header, FCS, etc.) */
-	txb = ieee80211_alloc_txb(1, len, ieee->tx_headroom, GFP_ATOMIC);
+	txb = ieee80211_alloc_txb(1, total_len, ieee->tx_headroom, GFP_ATOMIC);
 	if (unlikely(!txb)) {
 		printk(KERN_WARNING "%s: Could not allocate TXB\n",
 		       ieee->dev->name);
 		goto failed;
 	}
 	txb->encrypted = 0;
-	txb->payload_size = len;
+	txb->payload_size = total_len;
 
 	skb_frag = txb->fragments[0];
 
-	memcpy(skb_put(skb_frag, len), frame, len);
+	memcpy(skb_put(skb_frag, total_len), frame, total_len);
 
 	if (ieee->config &
 	    (CFG_IEEE80211_COMPUTE_FCS | CFG_IEEE80211_RESERVE_FCS))
 		skb_put(skb_frag, 4);
+
+	/* To avoid overcomplicating things, we do the corner-case frame
+	 * encryption in software. The only real situation where encryption is
+	 * needed here is during software-based shared key authentication. */
+	if (encrypt_mpdu)
+		ieee80211_encrypt_fragment(ieee, skb_frag, hdr_len);
 
       success:
 	spin_unlock_irqrestore(&ieee->lock, flags);

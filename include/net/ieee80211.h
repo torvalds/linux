@@ -1247,7 +1247,8 @@ extern int ieee80211_set_encryption(struct ieee80211_device *ieee);
 extern int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev);
 extern void ieee80211_txb_free(struct ieee80211_txb *);
 extern int ieee80211_tx_frame(struct ieee80211_device *ieee,
-			      struct ieee80211_hdr *frame, int len);
+			      struct ieee80211_hdr *frame, int hdr_len,
+			      int total_len, int encrypt_mpdu);
 
 /* ieee80211_rx.c */
 extern int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
