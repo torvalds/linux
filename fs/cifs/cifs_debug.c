@@ -508,7 +508,7 @@ cifs_proc_init(void)
 		pde->write_proc = multiuser_mount_write;
 
 	pde =
-	    create_proc_read_entry("ExtendedSecurity", 0, proc_fs_cifs,
+	    create_proc_read_entry("SecurityFlags", 0, proc_fs_cifs,
 				extended_security_read, NULL);
 	if (pde)
 		pde->write_proc = extended_security_write;
@@ -547,7 +547,7 @@ cifs_proc_clean(void)
 	remove_proc_entry("MultiuserMount", proc_fs_cifs);
 	remove_proc_entry("OplockEnabled", proc_fs_cifs);
 /*	remove_proc_entry("NTLMV2Enabled",proc_fs_cifs); */
-	remove_proc_entry("ExtendedSecurity",proc_fs_cifs);
+	remove_proc_entry("SecurityFlags",proc_fs_cifs);
 /*	remove_proc_entry("PacketSigningEnabled",proc_fs_cifs); */
 	remove_proc_entry("LinuxExtensionsEnabled",proc_fs_cifs);
 	remove_proc_entry("Experimental",proc_fs_cifs);

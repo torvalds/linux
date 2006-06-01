@@ -438,12 +438,19 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 			goto neg_err_exit;
 		} else if((pSMBr->hdr.WordCount == 13) && 
 			(pSMBr->DialectIndex == LANMAN_PROT)) {
+#ifdef CONFIG_CIFS_WEAK_PW_HASH
 			struct lanman_neg_rsp * rsp = 
 				(struct lanman_neg_rsp *)pSMBr;
 
-
-			/* BB Mark ses struct as negotiated lanman level BB */
-			server->secType = LANMAN;
+			if((extended_security & CIFSSEC_MAY_LANMAN) || 
+				(extended_security & CIFSSEC_MAY_PLNTXT))
+				server->secType = LANMAN;
+			else {
+				cERROR(1, ("mount failed weak security disabled"
+					" in /proc/fs/cifs/SecurityFlags"));
+				rc = -EOPNOTSUPP;
+				goto neg_err_exit;
+			}	
 			server->secMode = (__u8)le16_to_cpu(rsp->SecurityMode);
 			server->maxReq = le16_to_cpu(rsp->MaxMpxCount);
 			server->maxBuf = min((__u32)le16_to_cpu(rsp->MaxBufSize),
@@ -469,6 +476,11 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 			}
 
 			cFYI(1,("LANMAN negotiated")); /* BB removeme BB */
+#else /* weak security disabled */
+			cERROR(1,("mount failed, cifs module not built with "
+				"CIFS_WEAK_PW_HASH support"));
+			rc = -EOPNOTSUPP;
+#endif /* WEAK_PW_HASH */
 			goto neg_err_exit;
 		} else if(pSMBr->hdr.WordCount != 17) {
 			/* unknown wct */
@@ -479,8 +491,13 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 		server->secMode = pSMBr->SecurityMode;
 		if((server->secMode & SECMODE_USER) == 0)
 			cFYI(1,("share mode security"));
-		server->secType = NTLM; /* BB override default for
-					   NTLMv2 or kerberos v5 */
+		
+		if(extended_security & CIFSSEC_MUST_NTLMV2)
+			server->secType = NTLMv2;
+		else
+			server->secType = NTLM;
+		/* else krb5 ... */
+
 		/* one byte - no need to convert this or EncryptionKeyLen
 		   from little endian */
 		server->maxReq = le16_to_cpu(pSMBr->MaxMpxCount);

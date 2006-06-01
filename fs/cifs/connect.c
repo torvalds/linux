@@ -1990,7 +1990,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 
 static int
 CIFSSessSetup(unsigned int xid, struct cifsSesInfo *ses,
-	      char session_key[CIFS_SESSION_KEY_SIZE],
+	      char session_key[CIFS_SESS_KEY_SIZE],
 	      const struct nls_table *nls_codepage)
 {
 	struct smb_hdr *smb_buffer;
@@ -2048,15 +2048,15 @@ CIFSSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 	pSMB->req_no_secext.Capabilities = cpu_to_le32(capabilities);
 
 	pSMB->req_no_secext.CaseInsensitivePasswordLength = 
-		cpu_to_le16(CIFS_SESSION_KEY_SIZE);
+		cpu_to_le16(CIFS_SESS_KEY_SIZE);
 
 	pSMB->req_no_secext.CaseSensitivePasswordLength =
-	    cpu_to_le16(CIFS_SESSION_KEY_SIZE);
+	    cpu_to_le16(CIFS_SESS_KEY_SIZE);
 	bcc_ptr = pByteArea(smb_buffer);
-	memcpy(bcc_ptr, (char *) session_key, CIFS_SESSION_KEY_SIZE);
-	bcc_ptr += CIFS_SESSION_KEY_SIZE;
-	memcpy(bcc_ptr, (char *) session_key, CIFS_SESSION_KEY_SIZE);
-	bcc_ptr += CIFS_SESSION_KEY_SIZE;
+	memcpy(bcc_ptr, (char *) session_key, CIFS_SESS_KEY_SIZE);
+	bcc_ptr += CIFS_SESS_KEY_SIZE;
+	memcpy(bcc_ptr, (char *) session_key, CIFS_SESS_KEY_SIZE);
+	bcc_ptr += CIFS_SESS_KEY_SIZE;
 
 	if (ses->capabilities & CAP_UNICODE) {
 		if ((long) bcc_ptr % 2) { /* must be word aligned for Unicode */
@@ -3004,14 +3004,14 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 	SecurityBlob->LmChallengeResponse.Buffer = 0;
 
 	SecurityBlob->NtChallengeResponse.Length =
-	    cpu_to_le16(CIFS_SESSION_KEY_SIZE);
+	    cpu_to_le16(CIFS_SESS_KEY_SIZE);
 	SecurityBlob->NtChallengeResponse.MaximumLength =
-	    cpu_to_le16(CIFS_SESSION_KEY_SIZE);
-	memcpy(bcc_ptr, ntlm_session_key, CIFS_SESSION_KEY_SIZE);
+	    cpu_to_le16(CIFS_SESS_KEY_SIZE);
+	memcpy(bcc_ptr, ntlm_session_key, CIFS_SESS_KEY_SIZE);
 	SecurityBlob->NtChallengeResponse.Buffer =
 	    cpu_to_le32(SecurityBlobLength);
-	SecurityBlobLength += CIFS_SESSION_KEY_SIZE;
-	bcc_ptr += CIFS_SESSION_KEY_SIZE;
+	SecurityBlobLength += CIFS_SESS_KEY_SIZE;
+	bcc_ptr += CIFS_SESS_KEY_SIZE;
 
 	if (ses->capabilities & CAP_UNICODE) {
 		if (domain == NULL) {
@@ -3350,22 +3350,33 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 	bcc_ptr = &pSMB->Password[0];
 	if((ses->server->secMode) & SECMODE_USER) {
 		pSMB->PasswordLength = cpu_to_le16(1);	/* minimum */
+		*bcc_ptr = 0; /* password is null byte */
 		bcc_ptr++;              /* skip password */
+		/* already aligned so no need to do it below */
 	} else {
-		pSMB->PasswordLength = cpu_to_le16(CIFS_SESSION_KEY_SIZE);
+		pSMB->PasswordLength = cpu_to_le16(CIFS_SESS_KEY_SIZE);
 		/* BB FIXME add code to fail this if NTLMv2 or Kerberos
 		   specified as required (when that support is added to
 		   the vfs in the future) as only NTLM or the much
-		   weaker LANMAN (which we do not send) is accepted
+		   weaker LANMAN (which we do not send by default) is accepted
 		   by Samba (not sure whether other servers allow
 		   NTLMv2 password here) */
+#ifdef CONFIG_CIFS_WEAK_PW_HASH
+		if((extended_security & CIFSSEC_MAY_LANMAN) && 
+			(ses->server->secType == LANMAN))
+			calc_lanman_hash(ses, bcc_ptr);
+		else
+#endif /* CIFS_WEAK_PW_HASH */
 		SMBNTencrypt(ses->password,
 			     ses->server->cryptKey,
 			     bcc_ptr);
 
-		bcc_ptr += CIFS_SESSION_KEY_SIZE;
-		*bcc_ptr = 0;
-		bcc_ptr++; /* align */
+		bcc_ptr += CIFS_SESS_KEY_SIZE;
+		if(ses->capabilities & CAP_UNICODE) {
+			/* must align unicode strings */
+			*bcc_ptr = 0; /* null byte password */
+			bcc_ptr++;
+		}
 	}
 
 	if(ses->server->secMode & 
@@ -3507,7 +3518,7 @@ int cifs_setup_session(unsigned int xid, struct cifsSesInfo *pSesInfo,
 					   struct nls_table * nls_info)
 {
 	int rc = 0;
-	char ntlm_session_key[CIFS_SESSION_KEY_SIZE];
+	char ntlm_session_key[CIFS_SESS_KEY_SIZE];
 	int ntlmv2_flag = FALSE;
 	int first_time = 0;
 

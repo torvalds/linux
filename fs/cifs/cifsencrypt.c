@@ -26,6 +26,7 @@
 #include "md5.h"
 #include "cifs_unicode.h"
 #include "cifsproto.h"
+#include <linux/ctype.h>
 
 /* Calculate and return the CIFS signature based on the mac key and the smb pdu */
 /* the 16 byte signature must be allocated by the caller  */
@@ -35,6 +36,8 @@
 
 extern void mdfour(unsigned char *out, unsigned char *in, int n);
 extern void E_md4hash(const unsigned char *passwd, unsigned char *p16);
+extern void SMBencrypt(unsigned char *passwd, unsigned char *c8,
+                       unsigned char *p24);
 	
 static int cifs_calculate_signature(const struct smb_hdr * cifs_pdu, 
 				    const char * key, char * signature)
@@ -45,7 +48,7 @@ static int cifs_calculate_signature(const struct smb_hdr * cifs_pdu,
 		return -EINVAL;
 
 	MD5Init(&context);
-	MD5Update(&context,key,CIFS_SESSION_KEY_SIZE+16);
+	MD5Update(&context,key,CIFS_SESS_KEY_SIZE+16);
 	MD5Update(&context,cifs_pdu->Protocol,cifs_pdu->smb_buf_length);
 	MD5Final(signature,&context);
 	return 0;
@@ -90,7 +93,7 @@ static int cifs_calc_signature2(const struct kvec * iov, int n_vec,
 		return -EINVAL;
 
 	MD5Init(&context);
-	MD5Update(&context,key,CIFS_SESSION_KEY_SIZE+16);
+	MD5Update(&context,key,CIFS_SESS_KEY_SIZE+16);
 	for(i=0;i<n_vec;i++) {
 		if(iov[i].iov_base == NULL) {
 			cERROR(1,("null iovec entry"));
@@ -204,7 +207,7 @@ int cifs_calculate_mac_key(char * key, const char * rn, const char * password)
 
 	E_md4hash(password, temp_key);
 	mdfour(key,temp_key,16);
-	memcpy(key+16,rn, CIFS_SESSION_KEY_SIZE);
+	memcpy(key+16,rn, CIFS_SESS_KEY_SIZE);
 	return 0;
 }
 
@@ -261,6 +264,37 @@ int CalcNTLMv2_partial_mac_key(struct cifsSesInfo * ses, struct nls_table * nls_
 	kfree(unicode_buf);
 	return 0;
 }
+
+#ifdef CONFIG_CIFS_WEAK_PW_HASH
+void calc_lanman_hash(struct cifsSesInfo * ses, char * lnm_session_key)
+{
+	int i;
+	char password_with_pad[CIFS_ENCPWD_SIZE];
+
+	memset(password_with_pad, 0, CIFS_ENCPWD_SIZE);
+	strncpy(password_with_pad, ses->password, CIFS_ENCPWD_SIZE);
+
+	/* calculate old style session key */
+	/* calling toupper is less broken than repeatedly
+	calling nls_toupper would be since that will never
+	work for UTF8, but neither handles multibyte code pages
+	but the only alternative would be converting to UCS-16 (Unicode)
+	(using a routine something like UniStrupr) then
+	uppercasing and then converting back from Unicode - which
+	would only worth doing it if we knew it were utf8. Basically
+	utf8 and other multibyte codepages each need their own strupper
+	function since a byte at a time will ont work. */
+
+	for(i = 0; i < CIFS_ENCPWD_SIZE; i++) {
+		password_with_pad[i] = toupper(password_with_pad[i]);
+	}
+
+	SMBencrypt(password_with_pad, ses->server->cryptKey, lnm_session_key);
+	/* clear password before we return/free memory */
+	memset(password_with_pad, 0, CIFS_ENCPWD_SIZE);
+}
+#endif /* CIFS_WEAK_PW_HASH */
+
 void CalcNTLMv2_response(const struct cifsSesInfo * ses,char * v2_session_response)
 {
 	struct HMACMD5Context context;

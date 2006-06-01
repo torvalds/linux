@@ -116,7 +116,8 @@
 /*
  * Size of the session key (crypto key encrypted with the password
  */
-#define CIFS_SESSION_KEY_SIZE (24)
+#define CIFS_SESS_KEY_SIZE (24)
+#define V2_SESS_KEY_SIZE (86)
 
 /*
  * Maximum user name length

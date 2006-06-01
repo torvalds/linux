@@ -28,11 +28,7 @@
 #include "cifs_debug.h"
 #include "ntlmssp.h"
 #include "nterr.h"
-#include <linux/ctype.h>
 #include <linux/utsname.h>
-
-extern void SMBencrypt(unsigned char *passwd, unsigned char *c8,
-                       unsigned char *p24);
 
 extern void SMBNTencrypt(unsigned char *passwd, unsigned char *c8,
                          unsigned char *p24);
@@ -80,7 +76,7 @@ static __u32 cifs_ssetup_hdr(struct cifsSesInfo *ses, SESSION_SETUP_ANDX *pSMB)
 	return capabilities;
 }
 
-void unicode_ssetup_strings(char ** pbcc_area, struct cifsSesInfo *ses,
+static void unicode_ssetup_strings(char ** pbcc_area, struct cifsSesInfo *ses,
 			    const struct nls_table * nls_cp)
 {
 	char * bcc_ptr = *pbcc_area;
@@ -130,7 +126,7 @@ void unicode_ssetup_strings(char ** pbcc_area, struct cifsSesInfo *ses,
 	*pbcc_area = bcc_ptr;
 }
 
-void ascii_ssetup_strings(char ** pbcc_area, struct cifsSesInfo *ses,
+static void ascii_ssetup_strings(char ** pbcc_area, struct cifsSesInfo *ses,
 			  const struct nls_table * nls_cp)
 {
 	char * bcc_ptr = *pbcc_area;
@@ -173,7 +169,7 @@ void ascii_ssetup_strings(char ** pbcc_area, struct cifsSesInfo *ses,
         *pbcc_area = bcc_ptr;
 }
 
-int decode_unicode_ssetup(char ** pbcc_area, int bleft, struct cifsSesInfo *ses,
+static int decode_unicode_ssetup(char ** pbcc_area, int bleft, struct cifsSesInfo *ses,
                             const struct nls_table * nls_cp)
 {
 	int rc = 0;
@@ -255,7 +251,7 @@ int decode_unicode_ssetup(char ** pbcc_area, int bleft, struct cifsSesInfo *ses,
 	return rc;
 }
 
-int decode_ascii_ssetup(char ** pbcc_area, int bleft, struct cifsSesInfo *ses,
+static int decode_ascii_ssetup(char ** pbcc_area, int bleft, struct cifsSesInfo *ses,
                             const struct nls_table * nls_cp)
 {
 	int rc = 0;
@@ -317,7 +313,6 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 {
 	int rc = 0;
 	int wct;
-	int i;
 	struct smb_hdr *smb_buf;
 	char *bcc_ptr;
 	SESSION_SETUP_ANDX *pSMB;
@@ -343,7 +338,7 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 		return -EOPNOTSUPP;
 #endif
 		wct = 10; /* lanman 2 style sessionsetup */
-	} else if(type == NTLM) /* NTLMv2 may retry NTLM */
+	} else if((type == NTLM) || (type == NTLMv2)) /* NTLMv2 may retry NTLM */
 		wct = 13; /* old style NTLM sessionsetup */
 	else /* same size for negotiate or auth, NTLMSSP or extended security */
 		wct = 12;
@@ -360,41 +355,22 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 
 	if(type == LANMAN) {
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
-		char lnm_session_key[CIFS_SESSION_KEY_SIZE];
-		char password_with_pad[CIFS_ENCPWD_SIZE];
+		char lnm_session_key[CIFS_SESS_KEY_SIZE];
 
 		/* no capabilities flags in old lanman negotiation */
 
-		pSMB->old_req.PasswordLength = CIFS_SESSION_KEY_SIZE; 
+		pSMB->old_req.PasswordLength = CIFS_SESS_KEY_SIZE; 
 		/* BB calculate hash with password */
 		/* and copy into bcc */
 
-		memset(password_with_pad, 0, CIFS_ENCPWD_SIZE);
-		strncpy(password_with_pad, ses->password, CIFS_ENCPWD_SIZE);
-
-		/* calculate old style session key */
-		/* toupper may be less broken then repeatedly calling
-		nls_toupper would be, but neither handles multibyte code pages
-		but the only alternative would be converting to UCS-16 (Unicode)
-		uppercasing and converting back which is only worth doing if
-		we knew it were utf8. utf8 code page needs its own
-		toupper and tolower and strnicmp functions */
-		
-		for(i = 0; i< CIFS_ENCPWD_SIZE; i++) {
-			password_with_pad[i] = toupper(password_with_pad[i]);
-		}
-
-		SMBencrypt(password_with_pad, ses->server->cryptKey,
-			   lnm_session_key);
+		calc_lanman_hash(ses, lnm_session_key);
 
 #ifdef CONFIG_CIFS_DEBUG2
 		cifs_dump_mem("cryptkey: ",ses->server->cryptKey,
-			CIFS_SESSION_KEY_SIZE);
+			CIFS_SESS_KEY_SIZE);
 #endif
-		/* clear password before we return/free memory */
-		memset(password_with_pad, 0, CIFS_ENCPWD_SIZE);
-		memcpy(bcc_ptr, (char *)lnm_session_key, CIFS_SESSION_KEY_SIZE);
-		bcc_ptr += CIFS_SESSION_KEY_SIZE;
+		memcpy(bcc_ptr, (char *)lnm_session_key, CIFS_SESS_KEY_SIZE);
+		bcc_ptr += CIFS_SESS_KEY_SIZE;
 
 		/* can not sign if LANMAN negotiated so no need
 		to calculate signing key? but what if server
@@ -406,13 +382,13 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 		ascii_ssetup_strings(&bcc_ptr, ses, nls_cp);
 #endif    
 	} else if (type == NTLM) {
-		char ntlm_session_key[CIFS_SESSION_KEY_SIZE];
+		char ntlm_session_key[CIFS_SESS_KEY_SIZE];
 
 		pSMB->req_no_secext.Capabilities = cpu_to_le32(capabilities);
 		pSMB->req_no_secext.CaseInsensitivePasswordLength =
-			cpu_to_le16(CIFS_SESSION_KEY_SIZE);
+			cpu_to_le16(CIFS_SESS_KEY_SIZE);
 		pSMB->req_no_secext.CaseSensitivePasswordLength =
-			cpu_to_le16(CIFS_SESSION_KEY_SIZE);
+			cpu_to_le16(CIFS_SESS_KEY_SIZE);
 	
 		/* calculate session key */
 		SMBNTencrypt(ses->password, ses->server->cryptKey,
@@ -420,15 +396,48 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 
 		if(first_time) /* should this be moved into common code 
 				  with similar ntlmv2 path? */
-			cifs_calculate_mac_key(
-				ses->server->mac_signing_key,
+			cifs_calculate_mac_key( ses->server->mac_signing_key,
 				ntlm_session_key, ses->password);
 		/* copy session key */
 
-		memcpy(bcc_ptr, (char *)ntlm_session_key,CIFS_SESSION_KEY_SIZE);
-		bcc_ptr += CIFS_SESSION_KEY_SIZE;
-		memcpy(bcc_ptr, (char *)ntlm_session_key,CIFS_SESSION_KEY_SIZE);
-		bcc_ptr += CIFS_SESSION_KEY_SIZE;
+		memcpy(bcc_ptr, (char *)ntlm_session_key,CIFS_SESS_KEY_SIZE);
+		bcc_ptr += CIFS_SESS_KEY_SIZE;
+		memcpy(bcc_ptr, (char *)ntlm_session_key,CIFS_SESS_KEY_SIZE);
+		bcc_ptr += CIFS_SESS_KEY_SIZE;
+		if(ses->capabilities & CAP_UNICODE)
+			unicode_ssetup_strings(&bcc_ptr, ses, nls_cp);
+		else
+			ascii_ssetup_strings(&bcc_ptr, ses, nls_cp);
+	} else if (type == NTLMv2) {
+		char * v2_sess_key = kmalloc(V2_SESS_KEY_SIZE, GFP_KERNEL);
+
+		if(v2_sess_key == NULL) {
+			cifs_small_buf_release(smb_buf);
+			return -ENOMEM;
+		}
+
+		pSMB->req_no_secext.Capabilities = cpu_to_le32(capabilities);
+
+		/* LM2 password would be here if we supported it */
+		pSMB->req_no_secext.CaseInsensitivePasswordLength = 0;
+		/*	cpu_to_le16(LM2_SESS_KEY_SIZE); */
+
+		pSMB->req_no_secext.CaseSensitivePasswordLength =
+			cpu_to_le16(V2_SESS_KEY_SIZE);
+
+		/* calculate session key */
+		CalcNTLMv2_response(ses, v2_sess_key);
+		if(first_time) /* should this be moved into common code
+			          with similar ntlmv2 path? */
+		/*   cifs_calculate_ntlmv2_mac_key(ses->server->mac_signing_key,
+				response BB FIXME, v2_sess_key); */
+
+		/* copy session key */
+
+	/*	memcpy(bcc_ptr, (char *)ntlm_session_key,LM2_SESS_KEY_SIZE);
+		bcc_ptr += LM2_SESS_KEY_SIZE; */
+		memcpy(bcc_ptr, (char *)v2_sess_key, V2_SESS_KEY_SIZE);
+		bcc_ptr += V2_SESS_KEY_SIZE;
 		if(ses->capabilities & CAP_UNICODE)
 			unicode_ssetup_strings(&bcc_ptr, ses, nls_cp);
 		else
