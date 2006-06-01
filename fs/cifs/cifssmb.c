@@ -477,7 +477,7 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 
 			cFYI(1,("LANMAN negotiated")); /* BB removeme BB */
 #else /* weak security disabled */
-		} else if(pSMBr->hdr.WordCount == 13)
+		} else if(pSMBr->hdr.WordCount == 13) {
 			cERROR(1,("mount failed, cifs module not built "
 				"with CIFS_WEAK_PW_HASH support"));
 			rc = -EOPNOTSUPP;
