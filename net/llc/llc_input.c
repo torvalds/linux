@@ -176,7 +176,6 @@ int llc_rcv(struct sk_buff *skb, struct net_device *dev,
  		struct sk_buff *cskb = skb_clone(skb, GFP_ATOMIC);
  		if (cskb)
  			rcv(cskb, dev, pt, orig_dev);
-		rcv(skb, dev, pt, orig_dev);
 	}
 	dest = llc_pdu_type(skb);
 	if (unlikely(!dest || !llc_type_handlers[dest - 1]))
