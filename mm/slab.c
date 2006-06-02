@@ -207,11 +207,6 @@ typedef unsigned int kmem_bufctl_t;
 #define	BUFCTL_ACTIVE	(((kmem_bufctl_t)(~0U))-2)
 #define	SLAB_LIMIT	(((kmem_bufctl_t)(~0U))-3)
 
-/* Max number of objs-per-slab for caches which use off-slab slabs.
- * Needed to avoid a possible looping condition in cache_grow().
- */
-static unsigned long offslab_limit;
-
 /*
  * struct slab
  *
@@ -1356,12 +1351,6 @@ void __init kmem_cache_init(void)
 					NULL, NULL);
 		}
 
-		/* Inc off-slab bufctl limit until the ceiling is hit. */
-		if (!(OFF_SLAB(sizes->cs_cachep))) {
-			offslab_limit = sizes->cs_size - sizeof(struct slab);
-			offslab_limit /= sizeof(kmem_bufctl_t);
-		}
-
 		sizes->cs_dmacachep = kmem_cache_create(names->name_dma,
 					sizes->cs_size,
 					ARCH_KMALLOC_MINALIGN,
@@ -1780,6 +1769,7 @@ static void set_up_list3s(struct kmem_cache *cachep, int index)
 static size_t calculate_slab_order(struct kmem_cache *cachep,
 			size_t size, size_t align, unsigned long flags)
 {
+	unsigned long offslab_limit;
 	size_t left_over = 0;
 	int gfporder;
 
@@ -1791,9 +1781,18 @@ static size_t calculate_slab_order(struct kmem_cache *cachep,
 		if (!num)
 			continue;
 
-		/* More than offslab_limit objects will cause problems */
-		if ((flags & CFLGS_OFF_SLAB) && num > offslab_limit)
-			break;
+		if (flags & CFLGS_OFF_SLAB) {
+			/*
+			 * Max number of objs-per-slab for caches which
+			 * use off-slab slabs. Needed to avoid a possible
+			 * looping condition in cache_grow().
+			 */
+			offslab_limit = size - sizeof(struct slab);
+			offslab_limit /= sizeof(kmem_bufctl_t);
+
+ 			if (num > offslab_limit)
+				break;
+		}
 
 		/* Found something acceptable - save it away */
 		cachep->num = num;
