@@ -1083,6 +1083,7 @@ static inline int audit_add_rule(struct audit_entry *entry,
 
 	if (entry->rule.flags & AUDIT_FILTER_PREPEND) {
 		list_add_rcu(&entry->list, list);
+		entry->rule.flags &= ~AUDIT_FILTER_PREPEND;
 	} else {
 		list_add_tail_rcu(&entry->list, list);
 	}
