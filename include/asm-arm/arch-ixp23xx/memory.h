@@ -49,7 +49,7 @@ static inline int __ixp23xx_arch_is_coherent(void)
 {
 	extern unsigned int processor_id;
 
-	if (((processor_id & 15) >= 2) || machine_is_roadrunner())
+	if (((processor_id & 15) >= 4) || machine_is_roadrunner())
 		return 1;
 
 	return 0;
