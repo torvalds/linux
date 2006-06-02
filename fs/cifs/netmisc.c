@@ -88,7 +88,7 @@ static const struct smb_to_posix_error mapping_table_ERRSRV[] = {
 	{ERRbadtype, -EREMOTE},
 	{ERRaccess, -EACCES},
 	{ERRinvtid, -ENXIO},
-	{ERRinvnetname, -ENODEV},
+	{ERRinvnetname, -ENXIO},
 	{ERRinvdevice, -ENXIO},
 	{ERRqfull, -ENOSPC},
 	{ERRqtoobig, -ENOSPC},
