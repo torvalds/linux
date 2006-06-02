@@ -440,7 +440,7 @@ int __init jffs2_compressors_init(void)
         return 0;
 }
 
-int __exit jffs2_compressors_exit(void)
+int jffs2_compressors_exit(void)
 {
 /* Unregistering compressors */
 #ifdef CONFIG_JFFS2_RUBIN
