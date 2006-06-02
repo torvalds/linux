@@ -1,5 +1,5 @@
 /*
-  Option Card (PCMCIA to) USB to Serial Driver
+  USB Driver for GSM modems
 
   Copyright (C) 2005  Matthias Urlichs <smurf@smurf.noris.de>
 
@@ -28,15 +28,34 @@
   2005-09-10  v0.4.3 added HUAWEI E600 card and Audiovox AirCard
   2005-09-20  v0.4.4 increased recv buffer size: the card sometimes
                      wants to send >2000 bytes.
-  2006-04-10  v0.4.2 fixed two array overrun errors :-/
+  2006-04-10  v0.5   fixed two array overrun errors :-/
+  2006-04-21  v0.5.1 added support for Sierra Wireless MC8755
+  2006-05-15  v0.6   re-enable multi-port support
+  2006-06-01  v0.6.1 add COBRA
+  2006-06-01  v0.6.2 add backwards-compatibility stuff
+  2006-06-01  v0.6.3 add Novatel Wireless
+  2006-06-01  v0.7   Option => GSM
 
   Work sponsored by: Sigos GmbH, Germany <info@sigos.de>
 
+  This driver exists because the "normal" serial driver doesn't work too well
+  with GSM modems. Issues:
+  - data loss -- one single Receive URB is not nearly enough
+  - nonstandard flow (Option devices) and multiplex (Sierra) control
+  - controlling the baud rate doesn't make sense
+
+  This driver is named "option" because the most common device it's
+  used for is a PC-Card (with an internal OHCI-USB interface, behind
+  which the GSM interface sits), made by Option Inc.
+
+  Some of the "one port" devices actually exhibit multiple USB instances
+  on the USB bus. This is not a bug, these ports are used for different
+  device features.
 */
 
-#define DRIVER_VERSION "v0.4"
+#define DRIVER_VERSION "v0.7.0"
 #define DRIVER_AUTHOR "Matthias Urlichs <smurf@smurf.noris.de>"
-#define DRIVER_DESC "Option Card (PC-Card to) USB to Serial Driver"
+#define DRIVER_DESC "USB Driver for GSM modems"
 
 #include <linux/config.h>
 #include <linux/kernel.h>
@@ -74,22 +93,45 @@ static int  option_tiocmset(struct usb_serial_port *port, struct file *file,
 static int  option_send_setup(struct usb_serial_port *port);
 
 /* Vendor and product IDs */
-#define OPTION_VENDOR_ID			0x0AF0
-#define HUAWEI_VENDOR_ID			0x12D1
-#define AUDIOVOX_VENDOR_ID			0x0F3D
+#define OPTION_VENDOR_ID                0x0AF0
+#define HUAWEI_VENDOR_ID                0x12D1
+#define AUDIOVOX_VENDOR_ID              0x0F3D
+#define SIERRAWIRELESS_VENDOR_ID        0x1199
+#define NOVATELWIRELESS_VENDOR_ID       0x1410
 
-#define OPTION_PRODUCT_OLD		0x5000
-#define OPTION_PRODUCT_FUSION	0x6000
-#define OPTION_PRODUCT_FUSION2	0x6300
-#define HUAWEI_PRODUCT_E600     0x1001
-#define AUDIOVOX_PRODUCT_AIRCARD 0x0112
+#define OPTION_PRODUCT_OLD              0x5000
+#define OPTION_PRODUCT_FUSION           0x6000
+#define OPTION_PRODUCT_FUSION2          0x6300
+#define OPTION_PRODUCT_COBRA            0x6500
+#define HUAWEI_PRODUCT_E600             0x1001
+#define AUDIOVOX_PRODUCT_AIRCARD        0x0112
+#define SIERRAWIRELESS_PRODUCT_MC8755   0x6802
+#define NOVATELWIRELESS_PRODUCT_U740    0x1400
 
 static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_OLD) },
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_FUSION) },
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_FUSION2) },
+	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_COBRA) },
 	{ USB_DEVICE(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_E600) },
 	{ USB_DEVICE(AUDIOVOX_VENDOR_ID, AUDIOVOX_PRODUCT_AIRCARD) },
+	{ USB_DEVICE(SIERRAWIRELESS_VENDOR_ID, SIERRAWIRELESS_PRODUCT_MC8755) },
+	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID,NOVATELWIRELESS_PRODUCT_U740) },
+	{ } /* Terminating entry */
+};
+
+static struct usb_device_id option_ids1[] = {
+	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_OLD) },
+	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_FUSION) },
+	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_FUSION2) },
+	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_COBRA) },
+	{ USB_DEVICE(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_E600) },
+	{ USB_DEVICE(AUDIOVOX_VENDOR_ID, AUDIOVOX_PRODUCT_AIRCARD) },
+	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID,NOVATELWIRELESS_PRODUCT_U740) },
+	{ } /* Terminating entry */
+};
+static struct usb_device_id option_ids3[] = {
+	{ USB_DEVICE(SIERRAWIRELESS_VENDOR_ID, SIERRAWIRELESS_PRODUCT_MC8755) },
 	{ } /* Terminating entry */
 };
 
@@ -111,12 +153,39 @@ static struct usb_serial_driver option_3port_device = {
 		.owner =	THIS_MODULE,
 		.name =		"option",
 	},
-	.description       = "Option 3G data card",
-	.id_table          = option_ids,
+	.description       = "GSM modem (3-port)",
+	.id_table          = option_ids3,
 	.num_interrupt_in  = NUM_DONT_CARE,
 	.num_bulk_in       = NUM_DONT_CARE,
 	.num_bulk_out      = NUM_DONT_CARE,
-	.num_ports         = 1, /* 3, but the card reports its ports separately */
+	.num_ports         = 3,
+	.open              = option_open,
+	.close             = option_close,
+	.write             = option_write,
+	.write_room        = option_write_room,
+	.chars_in_buffer   = option_chars_in_buffer,
+	.throttle          = option_rx_throttle,
+	.unthrottle        = option_rx_unthrottle,
+	.set_termios       = option_set_termios,
+	.break_ctl         = option_break_ctl,
+	.tiocmget          = option_tiocmget,
+	.tiocmset          = option_tiocmset,
+	.attach            = option_startup,
+	.shutdown          = option_shutdown,
+	.read_int_callback = option_instat_callback,
+};
+
+static struct usb_serial_driver option_1port_device = {
+	.driver = {
+		.owner =	THIS_MODULE,
+		.name =		"option",
+	},
+	.description       = "GSM modem (1-port)",
+	.id_table          = option_ids1,
+	.num_interrupt_in  = NUM_DONT_CARE,
+	.num_bulk_in       = NUM_DONT_CARE,
+	.num_bulk_out      = NUM_DONT_CARE,
+	.num_ports         = 1,
 	.open              = option_open,
 	.close             = option_close,
 	.write             = option_write,
@@ -170,6 +239,9 @@ struct option_port_private {
 static int __init option_init(void)
 {
 	int retval;
+	retval = usb_serial_register(&option_1port_device);
+	if (retval)
+		goto failed_1port_device_register;
 	retval = usb_serial_register(&option_3port_device);
 	if (retval)
 		goto failed_3port_device_register;
@@ -184,6 +256,8 @@ static int __init option_init(void)
 failed_driver_register:
 	usb_serial_deregister (&option_3port_device);
 failed_3port_device_register:
+	usb_serial_deregister (&option_1port_device);
+failed_1port_device_register:
 	return retval;
 }
 
@@ -191,6 +265,7 @@ static void __exit option_exit(void)
 {
 	usb_deregister (&option_driver);
 	usb_serial_deregister (&option_3port_device);
+	usb_serial_deregister (&option_1port_device);
 }
 
 module_init(option_init);
@@ -572,27 +647,30 @@ static struct urb *option_setup_urb(struct usb_serial *serial, int endpoint,
 /* Setup urbs */
 static void option_setup_urbs(struct usb_serial *serial)
 {
-	int j;
+	int i,j;
 	struct usb_serial_port *port;
 	struct option_port_private *portdata;
 
 	dbg("%s", __FUNCTION__);
 
-	port = serial->port[0];
-	portdata = usb_get_serial_port_data(port);
+
+	for (i = 0; i < serial->num_ports; i++) {
+		port = serial->port[i];
+		portdata = usb_get_serial_port_data(port);
 
 	/* Do indat endpoints first */
-	for (j = 0; j < N_IN_URB; ++j) {
-		portdata->in_urbs[j] = option_setup_urb (serial,
-                  port->bulk_in_endpointAddress, USB_DIR_IN, port,
-                  portdata->in_buffer[j], IN_BUFLEN, option_indat_callback);
-	}
+		for (j = 0; j < N_IN_URB; ++j) {
+			portdata->in_urbs[j] = option_setup_urb (serial,
+                  	port->bulk_in_endpointAddress, USB_DIR_IN, port,
+                  	portdata->in_buffer[j], IN_BUFLEN, option_indat_callback);
+		}
 
-	/* outdat endpoints */
-	for (j = 0; j < N_OUT_URB; ++j) {
-		portdata->out_urbs[j] = option_setup_urb (serial,
-                  port->bulk_out_endpointAddress, USB_DIR_OUT, port,
-                  portdata->out_buffer[j], OUT_BUFLEN, option_outdat_callback);
+		/* outdat endpoints */
+		for (j = 0; j < N_OUT_URB; ++j) {
+			portdata->out_urbs[j] = option_setup_urb (serial,
+                  	port->bulk_out_endpointAddress, USB_DIR_OUT, port,
+                  	portdata->out_buffer[j], OUT_BUFLEN, option_outdat_callback);
+		}
 	}
 }
 
