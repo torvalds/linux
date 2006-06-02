@@ -271,8 +271,17 @@ void calc_lanman_hash(struct cifsSesInfo * ses, char * lnm_session_key)
 	int i;
 	char password_with_pad[CIFS_ENCPWD_SIZE];
 
+	if(ses->server == NULL)
+		return;
+
 	memset(password_with_pad, 0, CIFS_ENCPWD_SIZE);
 	strncpy(password_with_pad, ses->password, CIFS_ENCPWD_SIZE);
+
+	if((ses->server->secMode & SECMODE_PW_ENCRYPT) == 0)
+		if(extended_security & CIFSSEC_MAY_PLNTXT) {
+			memcpy(lnm_session_key, password_with_pad, CIFS_ENCPWD_SIZE); 
+			return;
+		}
 
 	/* calculate old style session key */
 	/* calling toupper is less broken than repeatedly

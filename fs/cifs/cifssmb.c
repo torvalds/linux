@@ -492,6 +492,13 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 		server->secMode = pSMBr->SecurityMode;
 		if((server->secMode & SECMODE_USER) == 0)
 			cFYI(1,("share mode security"));
+
+		if((server->secMode & SECMODE_PW_ENCRYPT) == 0)
+#ifdef CONFIG_CIFS_WEAK_PW_HASH
+			if ((extended_security & CIFSSEC_MAY_PLNTXT) == 0)
+#endif /* CIFS_WEAK_PW_HASH */
+				cERROR(1,("Server requests plain text password"
+					" but client support disabled"));
 		
 		if(extended_security & CIFSSEC_MUST_NTLMV2)
 			server->secType = NTLMv2;

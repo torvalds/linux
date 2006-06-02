@@ -445,8 +445,8 @@ static read_proc_t traceSMB_read;
 static write_proc_t traceSMB_write;
 static read_proc_t multiuser_mount_read;
 static write_proc_t multiuser_mount_write;
-static read_proc_t extended_security_read;
-static write_proc_t extended_security_write;
+static read_proc_t security_flags_read;
+static write_proc_t security_flags_write;
 /* static read_proc_t ntlmv2_enabled_read;
 static write_proc_t ntlmv2_enabled_write;
 static read_proc_t packet_signing_enabled_read;
@@ -509,9 +509,9 @@ cifs_proc_init(void)
 
 	pde =
 	    create_proc_read_entry("SecurityFlags", 0, proc_fs_cifs,
-				extended_security_read, NULL);
+				security_flags_read, NULL);
 	if (pde)
-		pde->write_proc = extended_security_write;
+		pde->write_proc = security_flags_write;
 
 	pde =
 	create_proc_read_entry("LookupCacheEnabled", 0, proc_fs_cifs,
@@ -832,7 +832,7 @@ multiuser_mount_write(struct file *file, const char __user *buffer,
 }
 
 static int
-extended_security_read(char *page, char **start, off_t off,
+security_flags_read(char *page, char **start, off_t off,
 		       int count, int *eof, void *data)
 {
 	int len;
@@ -853,26 +853,50 @@ extended_security_read(char *page, char **start, off_t off,
 	return len;
 }
 static int
-extended_security_write(struct file *file, const char __user *buffer,
+security_flags_write(struct file *file, const char __user *buffer,
 			unsigned long count, void *data)
 {
+	unsigned int flags;
+	char flags_string[12];
 	char c;
-	int rc;
+
 	cERROR(1,("size %ld",count)); /* BB removeme BB */
-	if((count < 2) || (count > 8))
+
+	if((count < 1) || (count > 11))
 		return -EINVAL;
 
-	rc = get_user(c, buffer);
+	memset(flags_string, 0, 12);
 
-/* BB fixme need to parse more characters in order to handle CIFSSEC flags */ 
+	if(copy_from_user(flags_string, buffer, count))
+		return -EFAULT;
 
-	if (rc)
-		return rc;
-	if (c == '0' || c == 'n' || c == 'N')
-		extended_security = CIFSSEC_DEF; /* default */
-	else if (c == '1' || c == 'y' || c == 'Y')
-		extended_security = CIFSSEC_MAX;
+	if(count < 3) {
+		/* single char or single char followed by null */
+		c = flags_string[0];
+		if (c == '0' || c == 'n' || c == 'N')
+			extended_security = CIFSSEC_DEF; /* default */
+		else if (c == '1' || c == 'y' || c == 'Y')
+			extended_security = CIFSSEC_MAX;
+		return count;
+	}
+	/* else we have a number */
 
+	flags = simple_strtoul(flags_string, NULL, 0);
+
+	cERROR(1,("sec flags 0x%x", flags));  /* BB FIXME make cFYI */
+
+	if(flags <= 0)  {
+		cERROR(1,("invalid security flags %s",flags_string));
+		return -EINVAL;
+	}
+
+	if((flags & CIFSSEC_MASK) != CIFSSEC_MASK) {
+		cERROR(1,("attempt to set unsupported security flags 0x%d",
+			flags & ~CIFSSEC_MASK));
+		return -EINVAL;
+	}
+	/* flags look ok - update the global security flags for cifs module */
+	extended_security = flags;
 	return count;
 }
 
