@@ -340,7 +340,7 @@ endchoice
 
 config PPC_PSERIES
 	depends on PPC_MULTIPLATFORM && PPC64
-	bool "  IBM pSeries & new (POWER5-based) iSeries"
+	bool "IBM pSeries & new (POWER5-based) iSeries"
 	select PPC_I8259
 	select PPC_RTAS
 	select RTAS_ERROR_LOGGING
@@ -348,7 +348,7 @@ config PPC_PSERIES
 	default y
 
 config PPC_CHRP
-	bool "  Common Hardware Reference Platform (CHRP) based machines"
+	bool "Common Hardware Reference Platform (CHRP) based machines"
 	depends on PPC_MULTIPLATFORM && PPC32
 	select PPC_I8259
 	select PPC_INDIRECT_PCI
@@ -358,7 +358,7 @@ config PPC_CHRP
 	default y
 
 config PPC_PMAC
-	bool "  Apple PowerMac based machines"
+	bool "Apple PowerMac based machines"
 	depends on PPC_MULTIPLATFORM
 	select PPC_INDIRECT_PCI if PPC32
 	select PPC_MPC106 if PPC32
@@ -374,7 +374,7 @@ config PPC_PMAC64
 	default y
 
 config PPC_PREP
-	bool "  PowerPC Reference Platform (PReP) based machines"
+	bool "PowerPC Reference Platform (PReP) based machines"
 	depends on PPC_MULTIPLATFORM && PPC32 && BROKEN
 	select PPC_I8259
 	select PPC_INDIRECT_PCI
@@ -383,7 +383,7 @@ config PPC_PREP
 
 config PPC_MAPLE
 	depends on PPC_MULTIPLATFORM && PPC64
-	bool "  Maple 970FX Evaluation Board"
+	bool "Maple 970FX Evaluation Board"
 	select U3_DART
 	select MPIC_BROKEN_U3
 	select GENERIC_TBSYNC
@@ -395,7 +395,7 @@ config PPC_MAPLE
 	  For more informations, refer to <http://www.970eval.com>
 
 config PPC_CELL
-	bool "  Cell Broadband Processor Architecture"
+	bool "Cell Broadband Processor Architecture"
 	depends on PPC_MULTIPLATFORM && PPC64
 	select PPC_RTAS
 	select MMIO_NVRAM
@@ -831,12 +831,12 @@ config PCI_8260
 	default y
 
 config 8260_PCI9
-	bool "  Enable workaround for MPC826x erratum PCI 9"
+	bool "Enable workaround for MPC826x erratum PCI 9"
 	depends on PCI_8260 && !ADS8272
 	default y
 
 choice
-	prompt "  IDMA channel for PCI 9 workaround"
+	prompt "IDMA channel for PCI 9 workaround"
 	depends on 8260_PCI9
 
 config 8260_PCI9_IDMA1
