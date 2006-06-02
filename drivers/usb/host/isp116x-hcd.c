@@ -781,7 +781,7 @@ static int isp116x_urb_enqueue(struct usb_hcd *hcd,
 		if (ep->branch < PERIODIC_SIZE)
 			break;
 
-		ret = ep->branch = balance(isp116x, ep->period, ep->load);
+		ep->branch = ret = balance(isp116x, ep->period, ep->load);
 		if (ret < 0)
 			goto fail;
 		ret = 0;
