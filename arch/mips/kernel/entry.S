@@ -87,7 +87,7 @@ FEXPORT(restore_all)			# restore full frame
 	ori	v1, v0, TCSTATUS_IXMT
 	mtc0	v1, CP0_TCSTATUS
 	andi	v0, TCSTATUS_IXMT
-	ehb
+	_ehb
 	mfc0	t0, CP0_TCCONTEXT
 	DMT	9				# dmt t1
 	jal	mips_ihb
@@ -95,7 +95,7 @@ FEXPORT(restore_all)			# restore full frame
 	andi	t3, t0, 0xff00
 	or	t2, t2, t3
 	mtc0	t2, CP0_STATUS
-	ehb
+	_ehb
 	andi	t1, t1, VPECONTROL_TE
 	beqz	t1, 1f
 	EMT
@@ -105,7 +105,7 @@ FEXPORT(restore_all)			# restore full frame
 	xori	v1, v1, TCSTATUS_IXMT
 	or	v1, v0, v1
 	mtc0	v1, CP0_TCSTATUS
-	ehb
+	_ehb
 	xor	t0, t0, t3
 	mtc0	t0, CP0_TCCONTEXT
 #endif /* CONFIG_MIPS_MT_SMTC */

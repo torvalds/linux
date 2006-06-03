@@ -1459,7 +1459,8 @@ static inline void __emt(unsigned int previous)
 static inline void __ehb(void)
 {
 	__asm__ __volatile__(
-	"	ehb							\n");
+	"	.set	mips32r2					\n"
+	"	ehb							\n"		"	.set	mips0						\n");
 }
 
 /*

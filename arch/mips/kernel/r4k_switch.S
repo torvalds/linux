@@ -94,7 +94,7 @@
 	ori	t1, t2, TCSTATUS_IXMT
 	mtc0	t1, CP0_TCSTATUS
 	andi	t2, t2, TCSTATUS_IXMT
-	ehb
+	_ehb
 	DMT	8				# dmt	t0
 	move	t1,ra
 	jal	mips_ihb
@@ -109,7 +109,7 @@
 	or	a2, t1
 	mtc0	a2, CP0_STATUS
 #ifdef CONFIG_MIPS_MT_SMTC
-	ehb
+	_ehb
 	andi	t0, t0, VPECONTROL_TE
 	beqz	t0, 1f
 	emt
@@ -118,7 +118,7 @@
 	xori	t1, t1, TCSTATUS_IXMT
 	or	t1, t1, t2
 	mtc0	t1, CP0_TCSTATUS
-	ehb
+	_ehb
 #endif /* CONFIG_MIPS_MT_SMTC */
 	move	v0, a0
 	jr	ra

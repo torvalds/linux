@@ -26,14 +26,14 @@
 	ori	\reg, \reg, TCSTATUS_IXMT
 	xori	\reg, \reg, TCSTATUS_IXMT
 	mtc0	\reg, CP0_TCSTATUS
-	ehb
+	_ehb
 	.endm
 
 	.macro	local_irq_disable reg=t0
 	mfc0	\reg, CP0_TCSTATUS
 	ori	\reg, \reg, TCSTATUS_IXMT
 	mtc0	\reg, CP0_TCSTATUS
-	ehb
+	_ehb
 	.endm
 #else
 	.macro	local_irq_enable reg=t0
