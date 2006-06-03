@@ -16,10 +16,6 @@
 #include <linux/platform_device.h>
 #include <asm/mach-au1x00/au1000.h>
 
-#ifndef CONFIG_SOC_AU1200
-#error "this Alchemy chip doesn't have EHCI"
-#else				/* Au1200 */
-
 #define USB_HOST_CONFIG   (USB_MSR_BASE + USB_MSR_MCFG)
 #define USB_MCFG_PFEN     (1<<31)
 #define USB_MCFG_RDCOMB   (1<<30)
