@@ -2730,7 +2730,7 @@ static int edge_startup (struct usb_serial *serial)
 	struct edgeport_serial *edge_serial;
 	struct edgeport_port *edge_port;
 	struct usb_device *dev;
-	int i;
+	int i, j;
 
 	dev = serial->dev;
 
@@ -2794,6 +2794,10 @@ static int edge_startup (struct usb_serial *serial)
 		edge_port = kmalloc (sizeof(struct edgeport_port), GFP_KERNEL);
 		if (edge_port == NULL) {
 			dev_err(&serial->dev->dev, "%s - Out of memory\n", __FUNCTION__);
+			for (j = 0; j < i; ++j) {
+				kfree (usb_get_serial_port_data(serial->port[j]));
+				usb_set_serial_port_data(serial->port[j],  NULL);
+			}
 			usb_set_serial_data(serial, NULL);
 			kfree(edge_serial);
 			return -ENOMEM;
