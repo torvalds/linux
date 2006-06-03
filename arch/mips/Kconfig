@@ -1495,6 +1495,8 @@ config CPU_HAS_PREFETCH
 
 config MIPS_MT
 	bool "Enable MIPS MT"
+	depends on CPU_MIPS32_R2
+	#depends on CPU_MIPS64_R2		# later ...
 
 choice
 	prompt "MIPS MT options"
