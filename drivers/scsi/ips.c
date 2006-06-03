@@ -4364,7 +4364,7 @@ ips_rdcap(ips_ha_t * ha, ips_scb_t * scb)
 
 	METHOD_TRACE("ips_rdcap", 1);
 
-	if (scb->scsi_cmd->bufflen < 8)
+	if (scb->scsi_cmd->request_bufflen < 8)
 		return (0);
 
 	cap.lba =

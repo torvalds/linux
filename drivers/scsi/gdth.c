@@ -2542,7 +2542,7 @@ static void gdth_copy_internal_data(int hanum,Scsi_Cmnd *scp,
     gdth_ha_str *ha;
     char *address;
 
-    cpcount = count<=(ushort)scp->bufflen ? count:(ushort)scp->bufflen;
+    cpcount = count<=(ushort)scp->request_bufflen ? count:(ushort)scp->request_bufflen;
     ha = HADATA(gdth_ctr_tab[hanum]);
 
     if (scp->use_sg) {

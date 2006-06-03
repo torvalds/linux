@@ -473,7 +473,7 @@ go_42:
 			 */
 			if (workreq->use_sg) {
 				pci_unmap_sg(dev->pdev,
-					(struct scatterlist *)workreq->buffer,
+					(struct scatterlist *)workreq->request_buffer,
 					workreq->use_sg,
 					workreq->sc_data_direction);
 			} else if (workreq->request_bufflen &&
