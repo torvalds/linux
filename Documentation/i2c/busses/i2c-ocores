@@ -1,0 +1,51 @@
+Kernel driver i2c-ocores
+
+Supported adapters:
+  * OpenCores.org I2C controller by Richard Herveille (see datasheet link)
+    Datasheet: http://www.opencores.org/projects.cgi/web/i2c/overview
+
+Author: Peter Korsgaard <jacmet@sunsite.dk>
+
+Description
+-----------
+
+i2c-ocores is an i2c bus driver for the OpenCores.org I2C controller
+IP core by Richard Herveille.
+
+Usage
+-----
+
+i2c-ocores uses the platform bus, so you need to provide a struct
+platform_device with the base address and interrupt number. The
+dev.platform_data of the device should also point to a struct
+ocores_i2c_platform_data (see linux/i2c-ocores.h) describing the
+distance between registers and the input clock speed.
+
+E.G. something like:
+
+static struct resource ocores_resources[] = {
+	[0] = {
+		.start	= MYI2C_BASEADDR,
+		.end	= MYI2C_BASEADDR + 8,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= MYI2C_IRQ,
+		.end	= MYI2C_IRQ,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct ocores_i2c_platform_data myi2c_data = {
+	.regstep	= 2,		/* two bytes between registers */
+	.clock_khz	= 50000,	/* input clock of 50MHz */
+};
+
+static struct platform_device myi2c = {
+	.name			= "ocores-i2c",
+	.dev = {
+		.platform_data	= &myi2c_data,
+	},
+	.num_resources		= ARRAY_SIZE(ocores_resources),
+	.resource		= ocores_resources,
+};
