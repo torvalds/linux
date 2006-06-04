@@ -2528,12 +2528,6 @@ M:	thomas@winischhofer.net
 W:	http://www.winischhofer.at/linuxsisusbvga.shtml
 S:	Maintained
 
-SMSC47M1 HARDWARE MONITOR DRIVER
-P:	Jean Delvare
-M:	khali@linux-fr.org
-L:	lm-sensors@lm-sensors.org
-S:	Odd Fixes
-
 SMB FILESYSTEM
 P:	Urban Widmark
 M:	urban@teststation.com
@@ -3145,12 +3139,6 @@ M:	drzeus-wbsd@drzeus.cx
 L:	wbsd-devel@list.drzeus.cx
 W:	http://projects.drzeus.cx/wbsd
 S:	Maintained
-
-W83L785TS HARDWARE MONITOR DRIVER
-P:	Jean Delvare
-M:	khali@linux-fr.org
-L:	lm-sensors@lm-sensors.org
-S:	Odd Fixes
 
 WATCHDOG DEVICE DRIVERS
 P:	Wim Van Sebroeck
