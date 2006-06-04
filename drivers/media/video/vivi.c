@@ -48,24 +48,15 @@
 
 #include "font.h"
 
-MODULE_DESCRIPTION("Video Technology Magazine Virtual Video Capture Board");
-MODULE_AUTHOR("Mauro Carvalho Chehab, Ted Walther and John Sokol");
-MODULE_LICENSE("Dual BSD/GPL");
-
 #define VIVI_MAJOR_VERSION 0
 #define VIVI_MINOR_VERSION 4
 #define VIVI_RELEASE 0
 #define VIVI_VERSION KERNEL_VERSION(VIVI_MAJOR_VERSION, VIVI_MINOR_VERSION, VIVI_RELEASE)
 
-static int video_nr = -1;        /* /dev/videoN, -1 for autodetect */
-module_param(video_nr, int, 0);
-
-static int debug = 0;
-module_param(debug, int, 0);
-
-static unsigned int vid_limit = 16;
-module_param(vid_limit,int,0644);
-MODULE_PARM_DESC(vid_limit,"capture memory limit in megabytes");
+/* Declare static vars that will be used as parameters */
+static unsigned int vid_limit = 16;	/* Video memory limit, in Mb */
+static struct video_device vivi;	/* Video device */
+static int video_nr = -1;		/* /dev/videoN, -1 for autodetect */
 
 /* supported controls */
 static struct v4l2_queryctrl vivi_qctrl[] = {
@@ -119,10 +110,10 @@ static struct v4l2_queryctrl vivi_qctrl[] = {
 
 static int qctl_regs[ARRAY_SIZE(vivi_qctrl)];
 
-#define dprintk(level,fmt, arg...)			     \
-	do { 						     \
-		if (debug >= (level))			     \
-			printk(KERN_DEBUG "vivi: " fmt , ## arg);    \
+#define dprintk(level,fmt, arg...)					\
+	do {								\
+		if (vivi.debug >= (level))				\
+			printk(KERN_DEBUG "vivi: " fmt , ## arg);	\
 	} while (0)
 
 /* ------------------------------------------------------------------
@@ -180,7 +171,7 @@ struct vivi_dev {
 
 	/* various device info */
 	unsigned int               resources;
-	struct video_device        video_dev;
+	struct video_device        vfd;
 
 	struct vivi_dmaqueue       vidq;
 
@@ -830,7 +821,80 @@ static struct videobuf_queue_ops vivi_video_qops = {
 	IOCTL handling
    ------------------------------------------------------------------*/
 
-static int vivi_try_fmt(struct vivi_dev *dev, struct vivi_fh *fh,
+
+static int res_get(struct vivi_dev *dev, struct vivi_fh *fh)
+{
+	/* is it free? */
+	down(&dev->lock);
+	if (dev->resources) {
+		/* no, someone else uses it */
+		up(&dev->lock);
+		return 0;
+	}
+	/* it's free, grab it */
+	dev->resources =1;
+	dprintk(1,"res: get\n");
+	up(&dev->lock);
+	return 1;
+}
+
+static int res_locked(struct vivi_dev *dev)
+{
+	return (dev->resources);
+}
+
+static void res_free(struct vivi_dev *dev, struct vivi_fh *fh)
+{
+	down(&dev->lock);
+	dev->resources = 0;
+	dprintk(1,"res: put\n");
+	up(&dev->lock);
+}
+
+/* ------------------------------------------------------------------
+	IOCTL vidioc handling
+   ------------------------------------------------------------------*/
+static int vidioc_querycap (struct file *file, void  *priv,
+					struct v4l2_capability *cap)
+{
+	strcpy(cap->driver, "vivi");
+	strcpy(cap->card, "vivi");
+	cap->version = VIVI_VERSION;
+	cap->capabilities =	V4L2_CAP_VIDEO_CAPTURE |
+				V4L2_CAP_STREAMING     |
+				V4L2_CAP_READWRITE;
+	return 0;
+}
+
+static int vidioc_enum_fmt_cap (struct file *file, void  *priv,
+					struct v4l2_fmtdesc *f)
+{
+	if (f->index > 0)
+		return -EINVAL;
+
+	strlcpy(f->description,format.name,sizeof(f->description));
+	f->pixelformat = format.fourcc;
+	return 0;
+}
+
+static int vidioc_g_fmt_cap (struct file *file, void *priv,
+					struct v4l2_format *f)
+{
+	struct vivi_fh  *fh=priv;
+
+	f->fmt.pix.width        = fh->width;
+	f->fmt.pix.height       = fh->height;
+	f->fmt.pix.field        = fh->vb_vidq.field;
+	f->fmt.pix.pixelformat  = fh->fmt->fourcc;
+	f->fmt.pix.bytesperline =
+		(f->fmt.pix.width * fh->fmt->depth) >> 3;
+	f->fmt.pix.sizeimage =
+		f->fmt.pix.height * f->fmt.pix.bytesperline;
+
+	return (0);
+}
+
+static int vidioc_try_fmt_cap (struct file *file, void *priv,
 			struct v4l2_format *f)
 {
 	struct vivi_fmt *fmt;
@@ -838,7 +902,8 @@ static int vivi_try_fmt(struct vivi_dev *dev, struct vivi_fh *fh,
 	unsigned int maxw, maxh;
 
 	if (format.fourcc != f->fmt.pix.pixelformat) {
-		dprintk(1,"Fourcc format invalid.\n");
+		dprintk(1,"Fourcc format (0x%08x) invalid. Driver accepts "
+			"only 0x%08x\n",f->fmt.pix.pixelformat,format.fourcc);
 		return -EINVAL;
 	}
 	fmt=&format;
@@ -874,356 +939,196 @@ static int vivi_try_fmt(struct vivi_dev *dev, struct vivi_fh *fh,
 	return 0;
 }
 
-static int res_get(struct vivi_dev *dev, struct vivi_fh *fh)
+/*FIXME: This seems to be generic enough to be at videodev2 */
+static int vidioc_s_fmt_cap (struct file *file, void *priv,
+					struct v4l2_format *f)
 {
-	/* is it free? */
-	down(&dev->lock);
-	if (dev->resources) {
-		/* no, someone else uses it */
-		up(&dev->lock);
-		return 0;
-	}
-	/* it's free, grab it */
-	dev->resources =1;
-	dprintk(1,"res: get\n");
-	up(&dev->lock);
-	return 1;
+	struct vivi_fh  *fh=priv;
+	int ret = vidioc_try_fmt_cap(file,fh,f);
+	if (ret < 0)
+		return (ret);
+
+	fh->fmt           = &format;
+	fh->width         = f->fmt.pix.width;
+	fh->height        = f->fmt.pix.height;
+	fh->vb_vidq.field = f->fmt.pix.field;
+	fh->type          = f->type;
+
+	return (0);
 }
 
-static int res_locked(struct vivi_dev *dev)
+static int vidioc_reqbufs (struct file *file, void *priv, struct v4l2_requestbuffers *p)
 {
-	return (dev->resources);
+	struct vivi_fh  *fh=priv;
+
+	return (videobuf_reqbufs(&fh->vb_vidq, p));
 }
 
-static void res_free(struct vivi_dev *dev, struct vivi_fh *fh)
+static int vidioc_querybuf (struct file *file, void *priv, struct v4l2_buffer *p)
 {
-	down(&dev->lock);
-	dev->resources = 0;
-	dprintk(1,"res: put\n");
-	up(&dev->lock);
+	struct vivi_fh  *fh=priv;
+
+	return (videobuf_querybuf(&fh->vb_vidq, p));
 }
 
-static int vivi_do_ioctl(struct inode *inode, struct file *file, unsigned int cmd, void *arg)
+static int vidioc_qbuf (struct file *file, void *priv, struct v4l2_buffer *p)
 {
-	struct vivi_fh  *fh     = file->private_data;
-	struct vivi_dev *dev    = fh->dev;
-	int ret=0;
+	struct vivi_fh  *fh=priv;
 
-	if (debug) {
-		if (_IOC_DIR(cmd) & _IOC_WRITE)
-			v4l_printk_ioctl_arg("vivi(w)",cmd, arg);
-		else if (!_IOC_DIR(cmd) & _IOC_READ) {
-			v4l_print_ioctl("vivi", cmd);
-		}
-	}
+	return (videobuf_qbuf(&fh->vb_vidq, p));
+}
 
-	switch(cmd) {
-	/* --- capabilities ------------------------------------------ */
-	case VIDIOC_QUERYCAP:
-	{
-		struct v4l2_capability *cap = (struct v4l2_capability*)arg;
+static int vidioc_dqbuf (struct file *file, void *priv, struct v4l2_buffer *p)
+{
+	struct vivi_fh  *fh=priv;
 
-		memset(cap, 0, sizeof(*cap));
+	return (videobuf_dqbuf(&fh->vb_vidq, p,
+				file->f_flags & O_NONBLOCK));
+}
 
-		strcpy(cap->driver, "vivi");
-		strcpy(cap->card, "vivi");
-		cap->version = VIVI_VERSION;
-		cap->capabilities =
-					V4L2_CAP_VIDEO_CAPTURE |
-					V4L2_CAP_STREAMING     |
-					V4L2_CAP_READWRITE;
-		break;
-	}
-	/* --- capture ioctls ---------------------------------------- */
-	case VIDIOC_ENUM_FMT:
-	{
-		struct v4l2_fmtdesc *f = arg;
-		enum v4l2_buf_type type;
-		unsigned int index;
-
-		index = f->index;
-		type  = f->type;
-
-		if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) {
-			ret=-EINVAL;
-			break;
-		}
-
-		switch (type) {
-		case V4L2_BUF_TYPE_VIDEO_CAPTURE:
-			if (index > 0){
-				ret=-EINVAL;
-				break;
-			}
-			memset(f,0,sizeof(*f));
-
-			f->index = index;
-			f->type  = type;
-			strlcpy(f->description,format.name,sizeof(f->description));
-			f->pixelformat = format.fourcc;
-			break;
-		default:
-			ret=-EINVAL;
-		}
-		break;
-	}
-	case VIDIOC_G_FMT:
-	{
-		struct v4l2_format *f = (struct v4l2_format *)arg;
-
-		if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) {
-			ret=-EINVAL;
-			break;
-		}
-
-		memset(&f->fmt.pix,0,sizeof(f->fmt.pix));
-		f->fmt.pix.width        = fh->width;
-		f->fmt.pix.height       = fh->height;
-		f->fmt.pix.field        = fh->vb_vidq.field;
-		f->fmt.pix.pixelformat  = fh->fmt->fourcc;
-		f->fmt.pix.bytesperline =
-			(f->fmt.pix.width * fh->fmt->depth) >> 3;
-		f->fmt.pix.sizeimage =
-			f->fmt.pix.height * f->fmt.pix.bytesperline;
-		break;
-	}
-	case VIDIOC_S_FMT:
-	{
-		struct v4l2_format *f = arg;
-
-		if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) {
-			dprintk(1,"Only capture supported.\n");
-			ret=-EINVAL;
-			break;
-		}
-
-		ret = vivi_try_fmt(dev,fh,f);
-		if (ret < 0)
-			break;
-
-		fh->fmt           = &format;
-		fh->width         = f->fmt.pix.width;
-		fh->height        = f->fmt.pix.height;
-		fh->vb_vidq.field = f->fmt.pix.field;
-		fh->type          = f->type;
-
-		break;
-	}
-	case VIDIOC_TRY_FMT:
-	{
-		struct v4l2_format *f = arg;
-		if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) {
-			ret=-EINVAL;
-			break;
-		}
-
-		ret=vivi_try_fmt(dev,fh,f);
-		break;
-	}
-	case VIDIOC_REQBUFS:
-		if (fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) {
-			ret=-EINVAL;
-			break;
-		}
-		ret=videobuf_reqbufs(&fh->vb_vidq, arg);
-		break;
-	case VIDIOC_QUERYBUF:
-		if (fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) {
-			ret=-EINVAL;
-			break;
-		}
-		ret=videobuf_querybuf(&fh->vb_vidq, arg);
-		break;
-	case VIDIOC_QBUF:
-		if (fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) {
-			ret=-EINVAL;
-			break;
-		}
-		ret=videobuf_qbuf(&fh->vb_vidq, arg);
-		break;
-	case VIDIOC_DQBUF:
-		if (fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) {
-			ret=-EINVAL;
-			break;
-		}
-		ret=videobuf_dqbuf(&fh->vb_vidq, arg,
-					file->f_flags & O_NONBLOCK);
-		break;
 #ifdef HAVE_V4L1
-	/* --- streaming capture ------------------------------------- */
-	case VIDIOCGMBUF:
-	{
-		struct video_mbuf *mbuf = arg;
-		struct videobuf_queue *q=&fh->vb_vidq;
-		struct v4l2_requestbuffers req;
-		unsigned int i;
+static int vidiocgmbuf (struct file *file, void *priv, struct video_mbuf *mbuf)
+{
+	struct vivi_fh  *fh=priv;
+	struct videobuf_queue *q=&fh->vb_vidq;
+	struct v4l2_requestbuffers req;
+	unsigned int i, ret;
 
-		memset(&req,0,sizeof(req));
-		req.type   = q->type;
-		req.count  = 8;
-		req.memory = V4L2_MEMORY_MMAP;
-		ret = videobuf_reqbufs(q,&req);
-		if (ret < 0)
-			break;
-		memset(mbuf,0,sizeof(*mbuf));
-		mbuf->frames = req.count;
-		mbuf->size   = 0;
-		for (i = 0; i < mbuf->frames; i++) {
-			mbuf->offsets[i]  = q->bufs[i]->boff;
-			mbuf->size       += q->bufs[i]->bsize;
-		}
-		break;
+	req.type   = q->type;
+	req.count  = 8;
+	req.memory = V4L2_MEMORY_MMAP;
+	ret = videobuf_reqbufs(q,&req);
+	if (ret < 0)
+		return (ret);
+	memset(mbuf,0,sizeof(*mbuf));
+	mbuf->frames = req.count;
+	mbuf->size   = 0;
+	for (i = 0; i < mbuf->frames; i++) {
+		mbuf->offsets[i]  = q->bufs[i]->boff;
+		mbuf->size       += q->bufs[i]->bsize;
 	}
+	return (0);
+}
 #endif
-	case VIDIOC_STREAMON:
+
+int vidioc_streamon (struct file *file, void *priv, enum v4l2_buf_type i)
+{
+	struct vivi_fh  *fh=priv;
+	struct vivi_dev *dev    = fh->dev;
+
+	if (fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+	if (i != fh->type)
+		return -EINVAL;
+
+	if (!res_get(dev,fh))
+		return -EBUSY;
+	return (videobuf_streamon(&fh->vb_vidq));
+}
+
+int vidioc_streamoff (struct file *file, void *priv, enum v4l2_buf_type i)
+{
+	struct vivi_fh  *fh=priv;
+	struct vivi_dev *dev    = fh->dev;
+
+	if (fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+	if (i != fh->type)
+		return -EINVAL;
+
+	videobuf_streamoff(&fh->vb_vidq);
+	res_free(dev,fh);
+
+	return (0);
+}
+
+static struct v4l2_tvnorm tvnorms[] = {
 	{
-		if (fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-			return -EINVAL;
-		if (!res_get(dev,fh))
-			return -EBUSY;
-		ret=videobuf_streamon(&fh->vb_vidq);
-		break;
+		.name      = "NTSC-M",
+		.id        = V4L2_STD_NTSC_M,
 	}
-	case VIDIOC_STREAMOFF:
-	{
-		if (fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) {
-			ret=-EINVAL;
-			break;
-		}
-		ret = videobuf_streamoff(&fh->vb_vidq);
-		if (ret < 0)
-			break;
-		res_free(dev,fh);
-		break;
-	}
-	/* ---------- tv norms ---------- */
-	case VIDIOC_ENUMSTD:
-	{
-		struct v4l2_standard *e = arg;
+};
 
-		if (e->index>0) {
-			ret=-EINVAL;
-			break;
-		}
-		ret = v4l2_video_std_construct(e, V4L2_STD_NTSC_M, "NTSC-M");
+static int vidioc_s_std (struct file *file, void *priv, v4l2_std_id a)
+{
 
-		/* Allows vivi to use different fps from video std */
-		e->frameperiod.numerator = WAKE_NUMERATOR;
-		e->frameperiod.denominator = WAKE_DENOMINATOR;
+	return 0;
+}
 
-		break;
-	}
-	case VIDIOC_G_STD:
-	{
-		v4l2_std_id *id = arg;
+/* only one input in this sample driver */
+static int vidioc_enum_input (struct file *file, void *priv,
+				struct v4l2_input *inp)
+{
+	if (inp->index != 0)
+		return -EINVAL;
 
-		*id = V4L2_STD_NTSC_M;
-		break;
-	}
-	case VIDIOC_S_STD:
-	{
-		break;
-	}
-	/* ------ input switching ---------- */
-	case VIDIOC_ENUMINPUT:
-	{ /* only one input in this sample driver */
-		struct v4l2_input *inp = arg;
+	inp->type = V4L2_INPUT_TYPE_CAMERA;
+	inp->std = V4L2_STD_NTSC_M;
+	strcpy(inp->name,"Camera");
 
-		if (inp->index != 0) {
-			ret=-EINVAL;
-			break;
-		}
-		memset(inp, 0, sizeof(*inp));
+	return (0);
+}
 
-		inp->index = 0;
-		inp->type = V4L2_INPUT_TYPE_CAMERA;
-		inp->std = V4L2_STD_NTSC_M;
-		strcpy(inp->name,"Camera");
-		break;
-	}
-	case VIDIOC_G_INPUT:
-	{
-		unsigned int *i = arg;
+static int vidioc_g_input (struct file *file, void *priv, unsigned int *i)
+{
+	*i = 0;
 
-		*i = 0;
-		break;
-	}
-	case VIDIOC_S_INPUT:
-	{
-		unsigned int *i = arg;
+	return (0);
+}
+static int vidioc_s_input (struct file *file, void *priv, unsigned int i)
+{
+	if (i > 0)
+		return -EINVAL;
 
-		if (*i > 0)
-			ret=-EINVAL;
-		break;
-	}
+	return (0);
+}
 
 	/* --- controls ---------------------------------------------- */
-	case VIDIOC_QUERYCTRL:
-	{
-		struct v4l2_queryctrl *qc = arg;
-		int i;
+static int vidioc_queryctrl (struct file *file, void *priv,
+				struct v4l2_queryctrl *qc)
+{
+	int i;
 
-		for (i = 0; i < ARRAY_SIZE(vivi_qctrl); i++)
-			if (qc->id && qc->id == vivi_qctrl[i].id) {
-				memcpy(qc, &(vivi_qctrl[i]),
-					sizeof(*qc));
-				break;
-			}
+	for (i = 0; i < ARRAY_SIZE(vivi_qctrl); i++)
+		if (qc->id && qc->id == vivi_qctrl[i].id) {
+			memcpy(qc, &(vivi_qctrl[i]),
+				sizeof(*qc));
+			return (0);
+		}
 
-		ret=-EINVAL;
-		break;
-	}
-	case VIDIOC_G_CTRL:
-	{
-		struct v4l2_control *ctrl = arg;
-		int i;
-
-		for (i = 0; i < ARRAY_SIZE(vivi_qctrl); i++)
-			if (ctrl->id == vivi_qctrl[i].id) {
-				ctrl->value=qctl_regs[i];
-				break;
-			}
-
-		ret=-EINVAL;
-		break;
-	}
-	case VIDIOC_S_CTRL:
-	{
-		struct v4l2_control *ctrl = arg;
-		int i;
-		for (i = 0; i < ARRAY_SIZE(vivi_qctrl); i++)
-			if (ctrl->id == vivi_qctrl[i].id) {
-				if (ctrl->value <
-					vivi_qctrl[i].minimum
-					|| ctrl->value >
-					vivi_qctrl[i].maximum) {
-						ret=-ERANGE;
-						break;
-					}
-				qctl_regs[i]=ctrl->value;
-				break;
-			}
-		ret=-EINVAL;
-		break;
-	}
-	default:
-		ret=v4l_compat_translate_ioctl(inode,file,cmd,arg,vivi_do_ioctl);
-	}
-
-	if (debug) {
-		if (ret<0) {
-			v4l_print_ioctl("vivi(err)", cmd);
-			dprintk(1,"errcode=%d\n",ret);
-		} else if (_IOC_DIR(cmd) & _IOC_READ)
-			v4l_printk_ioctl_arg("vivi(r)",cmd, arg);
-	}
-
-	return ret;
+	return -EINVAL;
 }
 
-static int vivi_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
+static int vidioc_g_ctrl (struct file *file, void *priv,
+				struct v4l2_control *ctrl)
 {
-	return video_usercopy(inode, file, cmd, arg, vivi_do_ioctl);
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(vivi_qctrl); i++)
+		if (ctrl->id == vivi_qctrl[i].id) {
+			ctrl->value=qctl_regs[i];
+			return (0);
+		}
+
+	return -EINVAL;
+}
+static int vidioc_s_ctrl (struct file *file, void *priv,
+				struct v4l2_control *ctrl)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(vivi_qctrl); i++)
+		if (ctrl->id == vivi_qctrl[i].id) {
+			if (ctrl->value <
+				vivi_qctrl[i].minimum
+				|| ctrl->value >
+				vivi_qctrl[i].maximum) {
+					return (-ERANGE);
+				}
+			qctl_regs[i]=ctrl->value;
+			return (0);
+		}
+	return -EINVAL;
 }
 
 /* ------------------------------------------------------------------
@@ -1245,13 +1150,14 @@ static int vivi_open(struct inode *inode, struct file *file)
 
 	list_for_each(list,&vivi_devlist) {
 		h = list_entry(list, struct vivi_dev, vivi_devlist);
-		if (h->video_dev.minor == minor) {
+		if (h->vfd.minor == minor) {
 			dev  = h;
 			type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 		}
 	}
 	if (NULL == dev)
 		return -ENODEV;
+
 
 
 	/* If more than one user, mutex should be added */
@@ -1269,6 +1175,7 @@ static int vivi_open(struct inode *inode, struct file *file)
 
 	file->private_data = fh;
 	fh->dev      = dev;
+
 	fh->type     = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	fh->fmt      = &format;
 	fh->width    = 640;
@@ -1304,7 +1211,7 @@ static int vivi_open(struct inode *inode, struct file *file)
 static ssize_t
 vivi_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
 {
-	struct vivi_fh *fh = file->private_data;
+	struct vivi_fh        *fh = file->private_data;
 
 	if (fh->type==V4L2_BUF_TYPE_VIDEO_CAPTURE) {
 		if (res_locked(fh->dev))
@@ -1318,8 +1225,8 @@ vivi_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
 static unsigned int
 vivi_poll(struct file *file, struct poll_table_struct *wait)
 {
-	struct vivi_fh *fh = file->private_data;
-	struct vivi_buffer *buf;
+	struct vivi_fh        *fh = file->private_data;
+	struct vivi_buffer    *buf;
 
 	dprintk(1,"%s\n",__FUNCTION__);
 
@@ -1348,8 +1255,8 @@ vivi_poll(struct file *file, struct poll_table_struct *wait)
 
 static int vivi_release(struct inode *inode, struct file *file)
 {
-	struct vivi_fh  *fh     = file->private_data;
-	struct vivi_dev *dev    = fh->dev;
+	struct vivi_fh         *fh = file->private_data;
+	struct vivi_dev *dev       = fh->dev;
 	struct vivi_dmaqueue *vidq = &dev->vidq;
 
 	int minor = iminor(inode);
@@ -1369,7 +1276,7 @@ static int vivi_release(struct inode *inode, struct file *file)
 static int
 vivi_mmap(struct file *file, struct vm_area_struct * vma)
 {
-	struct vivi_fh *fh = file->private_data;
+	struct vivi_fh        *fh = file->private_data;
 	int ret;
 
 	dprintk (1,"mmap called, vma=0x%08lx\n",(unsigned long)vma);
@@ -1390,20 +1297,44 @@ static struct file_operations vivi_fops = {
 	.release        = vivi_release,
 	.read           = vivi_read,
 	.poll		= vivi_poll,
-	.ioctl          = vivi_ioctl,
+	.ioctl          = video_ioctl2, /* V4L2 ioctl handler */
 	.mmap		= vivi_mmap,
 	.llseek         = no_llseek,
 };
 
 static struct video_device vivi = {
-	.name		= "VTM Virtual Video Capture Board",
+	.name		= "vivi",
 	.type		= VID_TYPE_CAPTURE,
 	.hardware	= 0,
 	.fops           = &vivi_fops,
 	.minor		= -1,
 //	.release	= video_device_release,
+
+	.vidioc_querycap      = vidioc_querycap,
+	.vidioc_enum_fmt_cap  = vidioc_enum_fmt_cap,
+	.vidioc_g_fmt_cap     = vidioc_g_fmt_cap,
+	.vidioc_try_fmt_cap   = vidioc_try_fmt_cap,
+	.vidioc_s_fmt_cap     = vidioc_s_fmt_cap,
+	.vidioc_reqbufs       = vidioc_reqbufs,
+	.vidioc_querybuf      = vidioc_querybuf,
+	.vidioc_qbuf          = vidioc_qbuf,
+	.vidioc_dqbuf         = vidioc_dqbuf,
+	.vidioc_s_std         = vidioc_s_std,
+	.vidioc_enum_input    = vidioc_enum_input,
+	.vidioc_g_input       = vidioc_g_input,
+	.vidioc_s_input       = vidioc_s_input,
+	.vidioc_queryctrl     = vidioc_queryctrl,
+	.vidioc_g_ctrl        = vidioc_g_ctrl,
+	.vidioc_s_ctrl        = vidioc_s_ctrl,
+	.vidioc_streamon      = vidioc_streamon,
+	.vidioc_streamoff     = vidioc_streamoff,
+#ifdef HAVE_V4L1
+	.vidiocgmbuf          = vidiocgmbuf,
+#endif
+	.tvnorms              = tvnorms,
+	.tvnormsize           = ARRAY_SIZE(tvnorms),
 };
-/* ------------------------------------------------------------------
+/* -----------------------------------------------------------------
 	Initialization and module stuff
    ------------------------------------------------------------------*/
 
@@ -1447,3 +1378,16 @@ static void __exit vivi_exit(void)
 
 module_init(vivi_init);
 module_exit(vivi_exit);
+
+MODULE_DESCRIPTION("Video Technology Magazine Virtual Video Capture Board");
+MODULE_AUTHOR("Mauro Carvalho Chehab, Ted Walther and John Sokol");
+MODULE_LICENSE("Dual BSD/GPL");
+
+module_param(video_nr, int, 0);
+
+module_param_named(debug,vivi.debug, int, 0644);
+MODULE_PARM_DESC(debug,"activates debug info");
+
+module_param(vid_limit,int,0644);
+MODULE_PARM_DESC(vid_limit,"capture memory limit in megabytes");
+
