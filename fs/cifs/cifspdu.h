@@ -426,6 +426,10 @@ typedef struct lanman_neg_rsp {
 	unsigned char EncryptionKey[1];
 } __attribute__((packed)) LANMAN_NEG_RSP;
 
+#define READ_RAW_ENABLE 1
+#define WRITE_RAW_ENABLE 2
+#define RAW_ENABLE (READ_RAW_ENABLE | WRITE_RAW_ENABLE)
+
 typedef struct negotiate_rsp {
 	struct smb_hdr hdr;	/* wct = 17 */
 	__le16 DialectIndex;

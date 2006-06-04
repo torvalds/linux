@@ -411,8 +411,8 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 		return rc;
 	pSMB->hdr.Mid = GetNextMid(server);
 	pSMB->hdr.Flags2 |= SMBFLG2_UNICODE;
-/*	if (extended_security)
-		pSMB->hdr.Flags2 |= SMBFLG2_EXT_SEC;*/
+	if((extended_security & CIFSSEC_MUST_KRB5) == CIFSSEC_MUST_KRB5)
+		pSMB->hdr.Flags2 |= SMBFLG2_EXT_SEC;
 	
 	count = 0;
 	for(i=0;i<CIFS_NUM_PROT;i++) {
@@ -425,162 +425,171 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 
 	rc = SendReceive(xid, ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
-	if (rc == 0) {
-		cFYI(1,("Dialect: %d", pSMBr->DialectIndex));
-		/* Check wct = 1 error case */
-		if((pSMBr->hdr.WordCount < 13)  
-			|| (pSMBr->DialectIndex == BAD_PROT)) {
-			/* core returns wct = 1, but we do not ask for
-			core - otherwise it just comes when dialect
-			index is -1 indicating we could not negotiate
-			a common dialect */
+	if (rc != 0) 
+		goto neg_err_exit;
+
+	cFYI(1,("Dialect: %d", pSMBr->DialectIndex));
+	/* Check wct = 1 error case */
+	if((pSMBr->hdr.WordCount < 13) || (pSMBr->DialectIndex == BAD_PROT)) {
+		/* core returns wct = 1, but we do not ask for core - otherwise
+		small wct just comes when dialect index is -1 indicating we 
+		could not negotiate a common dialect */
+		rc = -EOPNOTSUPP;
+		goto neg_err_exit;
+#ifdef CONFIG_CIFS_WEAK_PW_HASH 
+	} else if((pSMBr->hdr.WordCount == 13)
+			&& (pSMBr->DialectIndex == LANMAN_PROT)) {
+		struct lanman_neg_rsp * rsp = (struct lanman_neg_rsp *)pSMBr;
+
+		if((extended_security & CIFSSEC_MAY_LANMAN) || 
+			(extended_security & CIFSSEC_MAY_PLNTXT))
+			server->secType = LANMAN;
+		else {
+			cERROR(1, ("mount failed weak security disabled"
+				   " in /proc/fs/cifs/SecurityFlags"));
 			rc = -EOPNOTSUPP;
 			goto neg_err_exit;
-#ifdef CONFIG_CIFS_WEAK_PW_HASH 
-                } else if((pSMBr->hdr.WordCount == 13)
-				&& (pSMBr->DialectIndex == LANMAN_PROT)) {
-			struct lanman_neg_rsp * rsp = 
-				(struct lanman_neg_rsp *)pSMBr;
-
-			if((extended_security & CIFSSEC_MAY_LANMAN) || 
-				(extended_security & CIFSSEC_MAY_PLNTXT))
-				server->secType = LANMAN;
-			else {
-				cERROR(1, ("mount failed weak security disabled"
-					" in /proc/fs/cifs/SecurityFlags"));
-				rc = -EOPNOTSUPP;
-				goto neg_err_exit;
-			}	
-			server->secMode = (__u8)le16_to_cpu(rsp->SecurityMode);
-			server->maxReq = le16_to_cpu(rsp->MaxMpxCount);
-			server->maxBuf = min((__u32)le16_to_cpu(rsp->MaxBufSize),
+		}	
+		server->secMode = (__u8)le16_to_cpu(rsp->SecurityMode);
+		server->maxReq = le16_to_cpu(rsp->MaxMpxCount);
+		server->maxBuf = min((__u32)le16_to_cpu(rsp->MaxBufSize),
 				(__u32)CIFSMaxBufSize + MAX_CIFS_HDR_SIZE);
+		GETU32(server->sessid) = le32_to_cpu(rsp->SessionKey);
+		/* even though we do not use raw we might as well set this
+		accurately, in case we ever find a need for it */
+		if((le16_to_cpu(rsp->RawMode) & RAW_ENABLE) == RAW_ENABLE) {
+			server->maxRw = 0xFF00;
+			server->capabilities = CAP_MPX_MODE | CAP_RAW_MODE;
+		} else {
+			server->maxRw = 0;/* we do not need to use raw anyway */
+			server->capabilities = CAP_MPX_MODE;
+		}
+		server->timeZone = le16_to_cpu(rsp->ServerTimeZone);
 
-			/* BB what do we do with raw mode? BB */
-			server->timeZone = le16_to_cpu(rsp->ServerTimeZone);
-			/* Do we have to set signing flags? no signing
-			was available LANMAN - default should be ok */
+		/* BB get server time for time conversions and add
+		code to use it and timezone since this is not UTC */	
 
-			/* BB FIXME set default dummy capabilities since
-			they are not returned by the server in this dialect */
+		if (rsp->EncryptionKeyLength == CIFS_CRYPTO_KEY_SIZE) {
+			memcpy(server->cryptKey, rsp->EncryptionKey,
+				CIFS_CRYPTO_KEY_SIZE);
+		} else if (server->secMode & SECMODE_PW_ENCRYPT) {
+			rc = -EIO; /* need cryptkey unless plain text */
+			goto neg_err_exit;
+		}
 
-			/* get server time for time conversions and add
-			code to use it and timezone since this is not UTC */	
-
-			if (rsp->EncryptionKeyLength == CIFS_CRYPTO_KEY_SIZE) {
-				memcpy(server->cryptKey, rsp->EncryptionKey,
-					CIFS_CRYPTO_KEY_SIZE);
-			} else {
-				rc = -EIO;
-				goto neg_err_exit;
-			}
-
-			cFYI(1,("LANMAN negotiated")); /* BB removeme BB */
+		cFYI(1,("LANMAN negotiated"));
+		/* we will not end up setting signing flags - as no signing
+		was in LANMAN and server did not return the flags on */
+		goto signing_check;
 #else /* weak security disabled */
-		} else if(pSMBr->hdr.WordCount == 13) {
-			cERROR(1,("mount failed, cifs module not built "
-				"with CIFS_WEAK_PW_HASH support"));
+	} else if(pSMBr->hdr.WordCount == 13) {
+		cERROR(1,("mount failed, cifs module not built "
+			  "with CIFS_WEAK_PW_HASH support"));
 			rc = -EOPNOTSUPP;
 #endif /* WEAK_PW_HASH */
-			goto neg_err_exit;
-		} else if(pSMBr->hdr.WordCount != 17) {
-			/* unknown wct */
-			rc = -EOPNOTSUPP;
-			goto neg_err_exit;
-		}
+		goto neg_err_exit;
+	} else if(pSMBr->hdr.WordCount != 17) {
+		/* unknown wct */
+		rc = -EOPNOTSUPP;
+		goto neg_err_exit;
+	}
+	/* else wct == 17 NTLM */
+	server->secMode = pSMBr->SecurityMode;
+	if((server->secMode & SECMODE_USER) == 0)
+		cFYI(1,("share mode security"));
 
-		server->secMode = pSMBr->SecurityMode;
-		if((server->secMode & SECMODE_USER) == 0)
-			cFYI(1,("share mode security"));
-
-		if((server->secMode & SECMODE_PW_ENCRYPT) == 0)
+	if((server->secMode & SECMODE_PW_ENCRYPT) == 0)
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
-			if ((extended_security & CIFSSEC_MAY_PLNTXT) == 0)
+		if ((extended_security & CIFSSEC_MAY_PLNTXT) == 0)
 #endif /* CIFS_WEAK_PW_HASH */
-				cERROR(1,("Server requests plain text password"
-					" but client support disabled"));
+			cERROR(1,("Server requests plain text password"
+				  " but client support disabled"));
 		
-		if(extended_security & CIFSSEC_MUST_NTLMV2)
-			server->secType = NTLMv2;
-		else
-			server->secType = NTLM;
-		/* else krb5 ... */
+	if(extended_security & CIFSSEC_MUST_NTLMV2)
+		server->secType = NTLMv2;
+	else
+		server->secType = NTLM;
+	/* else krb5 ... */
 
-		/* one byte - no need to convert this or EncryptionKeyLen
-		   from little endian */
-		server->maxReq = le16_to_cpu(pSMBr->MaxMpxCount);
-		/* probably no need to store and check maxvcs */
-		server->maxBuf =
-			min(le32_to_cpu(pSMBr->MaxBufferSize),
+	/* one byte, so no need to convert this or EncryptionKeyLen from
+	   little endian */
+	server->maxReq = le16_to_cpu(pSMBr->MaxMpxCount);
+	/* probably no need to store and check maxvcs */
+	server->maxBuf = min(le32_to_cpu(pSMBr->MaxBufferSize),
 			(__u32) CIFSMaxBufSize + MAX_CIFS_HDR_SIZE);
-		server->maxRw = le32_to_cpu(pSMBr->MaxRawSize);
-		cFYI(0, ("Max buf = %d", ses->server->maxBuf));
-		GETU32(ses->server->sessid) = le32_to_cpu(pSMBr->SessionKey);
-		server->capabilities = le32_to_cpu(pSMBr->Capabilities);
-		server->timeZone = le16_to_cpu(pSMBr->ServerTimeZone);	
-        /* BB with UTC do we ever need to be using srvr timezone? */
-		if (pSMBr->EncryptionKeyLength == CIFS_CRYPTO_KEY_SIZE) {
-			memcpy(server->cryptKey, pSMBr->u.EncryptionKey,
-			       CIFS_CRYPTO_KEY_SIZE);
-		} else if ((pSMBr->hdr.Flags2 & SMBFLG2_EXT_SEC)
-			   && (pSMBr->EncryptionKeyLength == 0)) {
-			/* decode security blob */
-		} else
+	server->maxRw = le32_to_cpu(pSMBr->MaxRawSize);
+	cFYI(0, ("Max buf = %d", ses->server->maxBuf));
+	GETU32(ses->server->sessid) = le32_to_cpu(pSMBr->SessionKey);
+	server->capabilities = le32_to_cpu(pSMBr->Capabilities);
+	server->timeZone = le16_to_cpu(pSMBr->ServerTimeZone);	
+	if (pSMBr->EncryptionKeyLength == CIFS_CRYPTO_KEY_SIZE) {
+		memcpy(server->cryptKey, pSMBr->u.EncryptionKey,
+		       CIFS_CRYPTO_KEY_SIZE);
+	} else if ((pSMBr->hdr.Flags2 & SMBFLG2_EXT_SEC)
+			&& (pSMBr->EncryptionKeyLength == 0)) {
+		/* decode security blob */
+	} else if (server->secMode & SECMODE_PW_ENCRYPT) {
+		rc = -EIO; /* no crypt key only if plain text pwd */
+		goto neg_err_exit;
+	}
+
+	/* BB might be helpful to save off the domain of server here */
+
+	if ((pSMBr->hdr.Flags2 & SMBFLG2_EXT_SEC) && 
+		(server->capabilities & CAP_EXTENDED_SECURITY)) {
+		count = pSMBr->ByteCount;
+		if (count < 16)
 			rc = -EIO;
-
-		/* BB might be helpful to save off the domain of server here */
-
-		if ((pSMBr->hdr.Flags2 & SMBFLG2_EXT_SEC) && 
-			(server->capabilities & CAP_EXTENDED_SECURITY)) {
-			count = pSMBr->ByteCount;
-			if (count < 16)
-				rc = -EIO;
-			else if (count == 16) {
-				server->secType = RawNTLMSSP;
-				if (server->socketUseCount.counter > 1) {
-					if (memcmp
-						(server->server_GUID,
-						pSMBr->u.extended_response.
-						GUID, 16) != 0) {
-						cFYI(1, ("server UID changed"));
-						memcpy(server->
-							server_GUID,
-							pSMBr->u.
-							extended_response.
-							GUID, 16);
-					}
-				} else
+		else if (count == 16) {
+			server->secType = RawNTLMSSP;
+			if (server->socketUseCount.counter > 1) {
+				if (memcmp(server->server_GUID,
+					   pSMBr->u.extended_response.
+					   GUID, 16) != 0) {
+					cFYI(1, ("server UID changed"));
 					memcpy(server->server_GUID,
-					       pSMBr->u.extended_response.
-					       GUID, 16);
-			} else {
-				rc = decode_negTokenInit(pSMBr->u.
-							 extended_response.
-							 SecurityBlob,
-							 count - 16,
-							 &server->secType);
-				if(rc == 1) {
-				/* BB Need to fill struct for sessetup here */
-					rc = -EOPNOTSUPP;
-				} else {
-					rc = -EINVAL;
+						pSMBr->u.extended_response.GUID,
+						16);
 				}
+			} else
+				memcpy(server->server_GUID,
+				       pSMBr->u.extended_response.GUID, 16);
+		} else {
+			rc = decode_negTokenInit(pSMBr->u.extended_response.
+						 SecurityBlob,
+						 count - 16,
+						 &server->secType);
+			if(rc == 1) {
+			/* BB Need to fill struct for sessetup here */
+				rc = -EOPNOTSUPP;
+			} else {
+				rc = -EINVAL;
 			}
-		} else
-			server->capabilities &= ~CAP_EXTENDED_SECURITY;
-		if(sign_CIFS_PDUs == FALSE) {        
-			if(server->secMode & SECMODE_SIGN_REQUIRED)
-				cERROR(1,
-				 ("Server requires /proc/fs/cifs/PacketSigningEnabled"));
-			server->secMode &= ~(SECMODE_SIGN_ENABLED | SECMODE_SIGN_REQUIRED);
-		} else if(sign_CIFS_PDUs == 1) {
-			if((server->secMode & SECMODE_SIGN_REQUIRED) == 0)
-				server->secMode &= ~(SECMODE_SIGN_ENABLED | SECMODE_SIGN_REQUIRED);
 		}
-				
+	} else
+		server->capabilities &= ~CAP_EXTENDED_SECURITY;
+
+signing_check:
+	if(sign_CIFS_PDUs == FALSE) {        
+		if(server->secMode & SECMODE_SIGN_REQUIRED)
+			cERROR(1,("Server requires "
+				 "/proc/fs/cifs/PacketSigningEnabled to be on"));
+		server->secMode &= 
+			~(SECMODE_SIGN_ENABLED | SECMODE_SIGN_REQUIRED);
+	} else if(sign_CIFS_PDUs == 1) {
+		if((server->secMode & SECMODE_SIGN_REQUIRED) == 0)
+			server->secMode &= 
+				~(SECMODE_SIGN_ENABLED | SECMODE_SIGN_REQUIRED);
+	} else if(sign_CIFS_PDUs == 2) {
+		if((server->secMode & 
+			(SECMODE_SIGN_ENABLED | SECMODE_SIGN_REQUIRED)) == 0) {
+			cERROR(1,("signing required but server lacks support"));
+		}
 	}
 neg_err_exit:	
 	cifs_buf_release(pSMB);
+
+	cFYI(1,("negprot rc %d",rc));
 	return rc;
 }
 

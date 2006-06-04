@@ -212,12 +212,12 @@ struct cifsTconInfo {
 	struct list_head openFileList;
 	struct semaphore tconSem;
 	struct cifsSesInfo *ses;	/* pointer to session associated with */
-	char treeName[MAX_TREE_SIZE + 1]; /* UNC name of resource (in ASCII not UTF) */
+	char treeName[MAX_TREE_SIZE + 1]; /* UNC name of resource in ASCII */
 	char *nativeFileSystem;
 	__u16 tid;		/* The 2 byte tree id */
 	__u16 Flags;		/* optional support bits */
 	enum statusEnum tidStatus;
-	atomic_t useCount;	/* how many mounts (explicit or implicit) to this share */
+	atomic_t useCount;	/* how many explicit/implicit mounts to share */
 #ifdef CONFIG_CIFS_STATS
 	atomic_t num_smbs_sent;
 	atomic_t num_writes;
@@ -257,7 +257,7 @@ struct cifsTconInfo {
 	spinlock_t stat_lock;
 #endif /* CONFIG_CIFS_STATS */
 	FILE_SYSTEM_DEVICE_INFO fsDevInfo;
-	FILE_SYSTEM_ATTRIBUTE_INFO fsAttrInfo;	/* ok if file system name truncated */
+	FILE_SYSTEM_ATTRIBUTE_INFO fsAttrInfo; /* ok if fs name truncated */
 	FILE_SYSTEM_UNIX_INFO fsUnixInfo;
 	unsigned retry:1;
 	unsigned nocase:1;
@@ -308,7 +308,6 @@ struct cifsFileInfo {
 	atomic_t wrtPending;   /* handle in use - defer close */
 	struct semaphore fh_sem; /* prevents reopen race after dead ses*/
 	char * search_resume_name; /* BB removeme BB */
-	unsigned int resume_name_length; /* BB removeme - field renamed and moved BB */
 	struct cifs_search_info srch_inf;
 };
 
@@ -523,16 +522,16 @@ GLOBAL_EXTERN rwlock_t GlobalSMBSeslock;  /* protects list inserts on 3 above */
 GLOBAL_EXTERN struct list_head GlobalOplock_Q;
 
 GLOBAL_EXTERN struct list_head GlobalDnotifyReqList; /* Outstanding dir notify requests */
-GLOBAL_EXTERN struct list_head GlobalDnotifyRsp_Q; /* Dir notify response queue */
+GLOBAL_EXTERN struct list_head GlobalDnotifyRsp_Q;/* DirNotify response queue */
 
 /*
  * Global transaction id (XID) information
  */
 GLOBAL_EXTERN unsigned int GlobalCurrentXid;	/* protected by GlobalMid_Sem */
-GLOBAL_EXTERN unsigned int GlobalTotalActiveXid;	/* prot by GlobalMid_Sem */
+GLOBAL_EXTERN unsigned int GlobalTotalActiveXid; /* prot by GlobalMid_Sem */
 GLOBAL_EXTERN unsigned int GlobalMaxActiveXid;	/* prot by GlobalMid_Sem */
-GLOBAL_EXTERN spinlock_t GlobalMid_Lock;  /* protects above and list operations */
-					/* on midQ entries */
+GLOBAL_EXTERN spinlock_t GlobalMid_Lock;  /* protects above & list operations */
+					  /* on midQ entries */
 GLOBAL_EXTERN char Local_System_Name[15];
 
 /*
@@ -554,7 +553,7 @@ GLOBAL_EXTERN atomic_t smBufAllocCount;
 GLOBAL_EXTERN atomic_t midCount;
 
 /* Misc globals */
-GLOBAL_EXTERN unsigned int multiuser_mount;	/* if enabled allows new sessions
+GLOBAL_EXTERN unsigned int multiuser_mount; /* if enabled allows new sessions
 				to be established on existing mount if we
 				have the uid/password or Kerberos credential 
 				or equivalent for current user */

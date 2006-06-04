@@ -323,7 +323,8 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 	enum securityEnum type;
 	__u16 action;
 	int bytes_remaining;
-	
+
+	cFYI(1,("new sess setup"));
 	if(ses == NULL)
 		return -EINVAL;
 
