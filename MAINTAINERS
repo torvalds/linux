@@ -181,6 +181,12 @@ M:	bcrl@kvack.org
 L:	linux-aio@kvack.org
 S:	Supported
 
+ABIT UGURU HARDWARE MONITOR DRIVER
+P:	Hans de Goede
+M:	j.w.r.degoede@hhs.nl
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+
 ACENIC DRIVER
 P:	Jes Sorensen
 M:	jes@trained-monkey.org

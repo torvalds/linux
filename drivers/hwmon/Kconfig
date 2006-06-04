@@ -27,6 +27,18 @@ config HWMON_VID
 	tristate
 	default n
 
+config SENSORS_ABITUGURU
+	tristate "Abit uGuru"
+	depends on HWMON && EXPERIMENTAL
+	help
+	  If you say yes here you get support for the Abit uGuru chips
+	  sensor part. The voltage and frequency control parts of the Abit
+	  uGuru are not supported. The Abit uGuru chip can be found on Abit
+	  uGuru featuring motherboards (most modern Abit motherboards).
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called abituguru.
+
 config SENSORS_ADM1021
 	tristate "Analog Devices ADM1021 and compatibles"
 	depends on HWMON && I2C
