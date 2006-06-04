@@ -411,7 +411,7 @@ static unsigned int at91_mci_send_command(struct at91mci_host *host, struct mmc_
 	}
 
 	if (data) {
-		block_length = 1 << data->blksz_bits;
+		block_length = data->blksz;
 		blocks = data->blocks;
 
 		/* always set data start - also set direction flag for read */
