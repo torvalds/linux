@@ -36,6 +36,10 @@
 #define ABIT_UGURU_SENSOR_BANK1			0x21 /* 16x volt and temp */
 #define ABIT_UGURU_FAN_PWM			0x24 /* 3x 5 bytes */
 #define ABIT_UGURU_SENSOR_BANK2			0x26 /* fans */
+/* max nr of sensors in bank1, a bank1 sensor can be in, temp or nc */
+#define ABIT_UGURU_MAX_BANK1_SENSORS		16
+/* Warning if you increase one of the 2 MAX defines below to 10 or higher you
+   should adjust the belonging _NAMES_LENGTH macro for the 2 digit number! */
 /* max nr of sensors in bank2, currently mb's with max 6 fans are known */
 #define ABIT_UGURU_MAX_BANK2_SENSORS		6
 /* max nr of pwm outputs, currently mb's with max 5 pwm outputs are known */
@@ -74,10 +78,33 @@
 /* Maximum 3 retries on timedout reads/writes, delay 200 ms before retrying */
 #define ABIT_UGURU_MAX_RETRIES			3
 #define ABIT_UGURU_RETRY_DELAY			(HZ/5)
-/* Maximum 2 timeouts in abituguru_update_device, iow 3 in a row is a error */
+/* Maximum 2 timeouts in abituguru_update_device, iow 3 in a row is an error */
 #define ABIT_UGURU_MAX_TIMEOUTS			2
+/* utility macros */
+#define ABIT_UGURU_NAME				"abituguru"
+#define ABIT_UGURU_DEBUG(level, format, arg...)				\
+	if (level <= verbose)						\
+		printk(KERN_DEBUG ABIT_UGURU_NAME ": "	format , ## arg)
+/* Macros to help calculate the sysfs_names array length */
+/* sum of strlen of: in??_input\0, in??_{min,max}\0, in??_{min,max}_alarm\0,
+   in??_{min,max}_alarm_enable\0, in??_beep\0, in??_shutdown\0 */
+#define ABITUGURU_IN_NAMES_LENGTH	(11 + 2 * 9 + 2 * 15 + 2 * 22 + 10 + 14)
+/* sum of strlen of: temp??_input\0, temp??_max\0, temp??_crit\0,
+   temp??_alarm\0, temp??_alarm_enable\0, temp??_beep\0, temp??_shutdown\0 */
+#define ABITUGURU_TEMP_NAMES_LENGTH	(13 + 11 + 12 + 13 + 20 + 12 + 16)
+/* sum of strlen of: fan?_input\0, fan?_min\0, fan?_alarm\0,
+   fan?_alarm_enable\0, fan?_beep\0, fan?_shutdown\0 */
+#define ABITUGURU_FAN_NAMES_LENGTH	(11 + 9 + 11 + 18 + 10 + 14)
+/* sum of strlen of: pwm?_enable\0, pwm?_auto_channels_temp\0,
+   pwm?_auto_point{1,2}_pwm\0, pwm?_auto_point{1,2}_temp\0 */
+#define ABITUGURU_PWM_NAMES_LENGTH	(12 + 24 + 2 * 21 + 2 * 22)
+/* IN_NAMES_LENGTH > TEMP_NAMES_LENGTH so assume all bank1 sensors are in */
+#define ABITUGURU_SYSFS_NAMES_LENGTH	( \
+	ABIT_UGURU_MAX_BANK1_SENSORS * ABITUGURU_IN_NAMES_LENGTH + \
+	ABIT_UGURU_MAX_BANK2_SENSORS * ABITUGURU_FAN_NAMES_LENGTH + \
+	ABIT_UGURU_MAX_PWMS * ABITUGURU_PWM_NAMES_LENGTH)
 
-/* All the variables below are named identical to the oguru and oguru2 programs
+/* All the macros below are named identical to the oguru and oguru2 programs
    reverse engineered by Olle Sandberg, hence the names might not be 100%
    logical. I could come up with better names, but I prefer keeping the names
    identical so that this driver can be compared with his work more easily. */
@@ -93,11 +120,6 @@
 #define ABIT_UGURU_STATUS_READ			0x01 /* Ready to be read */
 #define ABIT_UGURU_STATUS_INPUT			0x08 /* More input */
 #define ABIT_UGURU_STATUS_READY			0x09 /* Ready to be written */
-/* utility macros */
-#define ABIT_UGURU_NAME				"abituguru"
-#define ABIT_UGURU_DEBUG(level, format, arg...)				\
-	if (level <= verbose)						\
-		printk(KERN_DEBUG ABIT_UGURU_NAME ": "	format , ## arg)
 
 /* Constants */
 /* in (Volt) sensors go up to 3494 mV, temp to 255000 millidegrees Celsius */
@@ -156,24 +178,23 @@ struct abituguru_data {
 	   of a sensor is a volt or a temp sensor, for bank2 and the pwms its
 	   easier todo things the same way.  For in sensors we have 9 (temp 7)
 	   sysfs entries per sensor, for bank2 and pwms 6. */
-	struct sensor_device_attribute_2 sysfs_attr[16 * 9 +
+	struct sensor_device_attribute_2 sysfs_attr[
+		ABIT_UGURU_MAX_BANK1_SENSORS * 9 +
 		ABIT_UGURU_MAX_BANK2_SENSORS * 6 + ABIT_UGURU_MAX_PWMS * 6];
-	/* Buffer to store the dynamically generated sysfs names, we need 2120
-	   bytes for bank1 (worst case scenario of 16 in sensors), 444 bytes
-	   for fan1-6 and 738 bytes for pwm1-6 + some room to spare in case I
-	   miscounted :) */
-	char bank1_names[3400];
+	/* Buffer to store the dynamically generated sysfs names */
+	char sysfs_names[ABITUGURU_SYSFS_NAMES_LENGTH];
 
 	/* Bank 1 data */
-	u8 bank1_sensors[2];	/* number of [0] in, [1] temp sensors */
-	u8 bank1_address[2][16];/* addresses of [0] in, [1] temp sensors */
-	u8 bank1_value[16];
-	/* This array holds 16 x 3 entries for all the bank 1 sensor settings
+	/* number of and addresses of [0] in, [1] temp sensors */
+	u8 bank1_sensors[2];
+	u8 bank1_address[2][ABIT_UGURU_MAX_BANK1_SENSORS];
+	u8 bank1_value[ABIT_UGURU_MAX_BANK1_SENSORS];
+	/* This array holds 3 entries per sensor for the bank 1 sensor settings
 	   (flags, min, max for voltage / flags, warn, shutdown for temp). */
-	u8 bank1_settings[16][3];
+	u8 bank1_settings[ABIT_UGURU_MAX_BANK1_SENSORS][3];
 	/* Maximum value for each sensor used for scaling in mV/millidegrees
 	   Celsius. */
-	int bank1_max_value[16];
+	int bank1_max_value[ABIT_UGURU_MAX_BANK1_SENSORS];
 
 	/* Bank 2 data, ABIT_UGURU_MAX_BANK2_SENSORS entries for bank2 */
 	u8 bank2_sensors; /* actual number of bank2 sensors found */
@@ -379,7 +400,7 @@ abituguru_detect_bank1_sensor_type(struct abituguru_data *data,
 	/* First read the sensor and the current settings */
 	if (abituguru_read(data, ABIT_UGURU_SENSOR_BANK1, sensor_addr, &val,
 			1, ABIT_UGURU_MAX_RETRIES) != 1)
-		return -EIO;
+		return -ENODEV;
 
 	/* Test val is sane / usable for sensor type detection. */
 	if ((val < 10u) || (val > 240u)) {
@@ -401,7 +422,7 @@ abituguru_detect_bank1_sensor_type(struct abituguru_data *data,
 	buf[2] = 250;
 	if (abituguru_write(data, ABIT_UGURU_SENSOR_BANK1 + 2, sensor_addr,
 			buf, 3) != 3)
-		return -EIO;
+		return -ENODEV;
 	/* Now we need 20 ms to give the uguru time to read the sensors
 	   and raise a voltage alarm */
 	set_current_state(TASK_UNINTERRUPTIBLE);
@@ -409,19 +430,19 @@ abituguru_detect_bank1_sensor_type(struct abituguru_data *data,
 	/* Check for alarm and check the alarm is a volt low alarm. */
 	if (abituguru_read(data, ABIT_UGURU_ALARM_BANK, 0, buf, 3,
 			ABIT_UGURU_MAX_RETRIES) != 3)
-		return -EIO;
+		return -ENODEV;
 	if (buf[sensor_addr/8] & (0x01 << (sensor_addr % 8))) {
 		if (abituguru_read(data, ABIT_UGURU_SENSOR_BANK1 + 1,
 				sensor_addr, buf, 3,
 				ABIT_UGURU_MAX_RETRIES) != 3)
-			return -EIO;
+			return -ENODEV;
 		if (buf[0] & ABIT_UGURU_VOLT_LOW_ALARM_FLAG) {
 			/* Restore original settings */
 			if (abituguru_write(data, ABIT_UGURU_SENSOR_BANK1 + 2,
 					sensor_addr,
 					data->bank1_settings[sensor_addr],
 					3) != 3)
-				return -EIO;
+				return -ENODEV;
 			ABIT_UGURU_DEBUG(2, "  found volt sensor\n");
 			return ABIT_UGURU_IN_SENSOR;
 		} else
@@ -439,7 +460,7 @@ abituguru_detect_bank1_sensor_type(struct abituguru_data *data,
 	buf[2] = 10;
 	if (abituguru_write(data, ABIT_UGURU_SENSOR_BANK1 + 2, sensor_addr,
 			buf, 3) != 3)
-		return -EIO;
+		return -ENODEV;
 	/* Now we need 50 ms to give the uguru time to read the sensors
 	   and raise a temp alarm */
 	set_current_state(TASK_UNINTERRUPTIBLE);
@@ -447,12 +468,12 @@ abituguru_detect_bank1_sensor_type(struct abituguru_data *data,
 	/* Check for alarm and check the alarm is a temp high alarm. */
 	if (abituguru_read(data, ABIT_UGURU_ALARM_BANK, 0, buf, 3,
 			ABIT_UGURU_MAX_RETRIES) != 3)
-		return -EIO;
+		return -ENODEV;
 	if (buf[sensor_addr/8] & (0x01 << (sensor_addr % 8))) {
 		if (abituguru_read(data, ABIT_UGURU_SENSOR_BANK1 + 1,
 				sensor_addr, buf, 3,
 				ABIT_UGURU_MAX_RETRIES) != 3)
-			return -EIO;
+			return -ENODEV;
 		if (buf[0] & ABIT_UGURU_TEMP_HIGH_ALARM_FLAG) {
 			ret = ABIT_UGURU_TEMP_SENSOR;
 			ABIT_UGURU_DEBUG(2, "  found temp sensor\n");
@@ -466,7 +487,7 @@ abituguru_detect_bank1_sensor_type(struct abituguru_data *data,
 	/* Restore original settings */
 	if (abituguru_write(data, ABIT_UGURU_SENSOR_BANK1 + 2, sensor_addr,
 			data->bank1_settings[sensor_addr], 3) != 3)
-		return -EIO;
+		return -ENODEV;
 
 	return ret;
 }
@@ -1061,21 +1082,21 @@ static const struct sensor_device_attribute_2 abituguru_sysfs_pwm_templ[6] = {
 		store_pwm_setting, 4, 0),
 };
 
-static const struct sensor_device_attribute_2 abituguru_sysfs_attr[] = {
+static struct sensor_device_attribute_2 abituguru_sysfs_attr[] = {
 	SENSOR_ATTR_2(name, 0444, show_name, NULL, 0, 0),
 };
 
 static int __devinit abituguru_probe(struct platform_device *pdev)
 {
 	struct abituguru_data *data;
-	int i, j, res;
+	int i, j, used, sysfs_names_free, sysfs_attr_i, res = -ENODEV;
 	char *sysfs_filename;
-	int sysfs_attr_i = 0;
 
 	/* El weirdo probe order, to keep the sysfs order identical to the
 	   BIOS and window-appliction listing order. */
-	const u8 probe_order[16] = { 0x00, 0x01, 0x03, 0x04, 0x0A, 0x08, 0x0E,
-		0x02, 0x09, 0x06, 0x05, 0x0B, 0x0F, 0x0D, 0x07, 0x0C };
+	const u8 probe_order[ABIT_UGURU_MAX_BANK1_SENSORS] = {
+		0x00, 0x01, 0x03, 0x04, 0x0A, 0x08, 0x0E, 0x02,
+		0x09, 0x06, 0x05, 0x0B, 0x0F, 0x0D, 0x07, 0x0C };
 
 	if (!(data = kzalloc(sizeof(struct abituguru_data), GFP_KERNEL)))
 		return -ENOMEM;
@@ -1092,24 +1113,18 @@ static int __devinit abituguru_probe(struct platform_device *pdev)
 	   - testread / see if one really is there.
 	   - make an in memory copy of all the uguru settings for future use. */
 	if (abituguru_read(data, ABIT_UGURU_ALARM_BANK, 0,
-			data->alarms, 3, ABIT_UGURU_MAX_RETRIES) != 3) {
-		kfree(data);
-		return -ENODEV;
-	}
+			data->alarms, 3, ABIT_UGURU_MAX_RETRIES) != 3)
+		goto abituguru_probe_error;
 
-	for (i = 0; i < 16; i++) {
+	for (i = 0; i < ABIT_UGURU_MAX_BANK1_SENSORS; i++) {
 		if (abituguru_read(data, ABIT_UGURU_SENSOR_BANK1, i,
 				&data->bank1_value[i], 1,
-				ABIT_UGURU_MAX_RETRIES) != 1) {
-			kfree(data);
-			return -ENODEV;
-		}
+				ABIT_UGURU_MAX_RETRIES) != 1)
+			goto abituguru_probe_error;
 		if (abituguru_read(data, ABIT_UGURU_SENSOR_BANK1+1, i,
 				data->bank1_settings[i], 3,
-				ABIT_UGURU_MAX_RETRIES) != 3) {
-			kfree(data);
-			return -ENODEV;
-		}
+				ABIT_UGURU_MAX_RETRIES) != 3)
+			goto abituguru_probe_error;
 	}
 	/* Note: We don't know how many bank2 sensors / pwms there really are,
 	   but in order to "detect" this we need to read the maximum amount
@@ -1119,48 +1134,45 @@ static int __devinit abituguru_probe(struct platform_device *pdev)
 	for (i = 0; i < ABIT_UGURU_MAX_BANK2_SENSORS; i++) {
 		if (abituguru_read(data, ABIT_UGURU_SENSOR_BANK2, i,
 				&data->bank2_value[i], 1,
-				ABIT_UGURU_MAX_RETRIES) != 1) {
-			kfree(data);
-			return -ENODEV;
-		}
+				ABIT_UGURU_MAX_RETRIES) != 1)
+			goto abituguru_probe_error;
 		if (abituguru_read(data, ABIT_UGURU_SENSOR_BANK2+1, i,
 				data->bank2_settings[i], 2,
-				ABIT_UGURU_MAX_RETRIES) != 2) {
-			kfree(data);
-			return -ENODEV;
-		}
+				ABIT_UGURU_MAX_RETRIES) != 2)
+			goto abituguru_probe_error;
 	}
 	for (i = 0; i < ABIT_UGURU_MAX_PWMS; i++) {
 		if (abituguru_read(data, ABIT_UGURU_FAN_PWM, i,
 				data->pwm_settings[i], 5,
-				ABIT_UGURU_MAX_RETRIES) != 5) {
-			kfree(data);
-			return -ENODEV;
-		}
+				ABIT_UGURU_MAX_RETRIES) != 5)
+			goto abituguru_probe_error;
 	}
 	data->last_updated = jiffies;
 
 	/* Detect sensor types and fill the sysfs attr for bank1 */
-	sysfs_filename = data->bank1_names;
-	for (i = 0; i < 16; i++) {
+	sysfs_attr_i = 0;
+	sysfs_filename = data->sysfs_names;
+	sysfs_names_free = ABITUGURU_SYSFS_NAMES_LENGTH;
+	for (i = 0; i < ABIT_UGURU_MAX_BANK1_SENSORS; i++) {
 		res = abituguru_detect_bank1_sensor_type(data, probe_order[i]);
-		if (res < 0) {
-			kfree(data);
-			return -ENODEV;
-		}
+		if (res < 0)
+			goto abituguru_probe_error;
 		if (res == ABIT_UGURU_NC)
 			continue;
 
+		/* res 1 (temp) sensors have 7 sysfs entries, 0 (in) 9 */
 		for (j = 0; j < (res ? 7 : 9); j++) {
-			const char *name_templ = abituguru_sysfs_bank1_templ[
-				res][j].dev_attr.attr.name;
+			used = snprintf(sysfs_filename, sysfs_names_free,
+				abituguru_sysfs_bank1_templ[res][j].dev_attr.
+				attr.name, data->bank1_sensors[res] + res)
+				+ 1;
 			data->sysfs_attr[sysfs_attr_i] =
 				abituguru_sysfs_bank1_templ[res][j];
 			data->sysfs_attr[sysfs_attr_i].dev_attr.attr.name =
 				sysfs_filename;
-			sysfs_filename += sprintf(sysfs_filename, name_templ,
-				data->bank1_sensors[res] + res) + 1;
 			data->sysfs_attr[sysfs_attr_i].index = probe_order[i];
+			sysfs_filename += used;
+			sysfs_names_free -= used;
 			sysfs_attr_i++;
 		}
 		data->bank1_max_value[probe_order[i]] =
@@ -1172,52 +1184,65 @@ static int __devinit abituguru_probe(struct platform_device *pdev)
 	/* Detect number of sensors and fill the sysfs attr for bank2 (fans) */
 	abituguru_detect_no_bank2_sensors(data);
 	for (i = 0; i < data->bank2_sensors; i++) {
-		for (j = 0; j < 6; j++) {
-			const char *name_templ = abituguru_sysfs_fan_templ[j].
-				dev_attr.attr.name;
+		for (j = 0; j < ARRAY_SIZE(abituguru_sysfs_fan_templ); j++) {
+			used = snprintf(sysfs_filename, sysfs_names_free,
+				abituguru_sysfs_fan_templ[j].dev_attr.attr.name,
+				i + 1) + 1;
 			data->sysfs_attr[sysfs_attr_i] =
 				abituguru_sysfs_fan_templ[j];
 			data->sysfs_attr[sysfs_attr_i].dev_attr.attr.name =
 				sysfs_filename;
-			sysfs_filename += sprintf(sysfs_filename, name_templ,
-				i + 1) + 1;
 			data->sysfs_attr[sysfs_attr_i].index = i;
+			sysfs_filename += used;
+			sysfs_names_free -= used;
 			sysfs_attr_i++;
 		}
 	}
 	/* Detect number of sensors and fill the sysfs attr for pwms */
 	abituguru_detect_no_pwms(data);
 	for (i = 0; i < data->pwms; i++) {
-		for (j = 0; j < 6; j++) {
-			const char *name_templ = abituguru_sysfs_pwm_templ[j].
-				dev_attr.attr.name;
+		for (j = 0; j < ARRAY_SIZE(abituguru_sysfs_pwm_templ); j++) {
+			used = snprintf(sysfs_filename, sysfs_names_free,
+				abituguru_sysfs_pwm_templ[j].dev_attr.attr.name,
+				i + 1) + 1;
 			data->sysfs_attr[sysfs_attr_i] =
 				abituguru_sysfs_pwm_templ[j];
 			data->sysfs_attr[sysfs_attr_i].dev_attr.attr.name =
 				sysfs_filename;
-			sysfs_filename += sprintf(sysfs_filename, name_templ,
-				i + 1) + 1;
 			data->sysfs_attr[sysfs_attr_i].index = i;
+			sysfs_filename += used;
+			sysfs_names_free -= used;
 			sysfs_attr_i++;
 		}
 	}
-	/* Last add any "generic" entries to sysfs */
-	for (i = 0; i < ARRAY_SIZE(abituguru_sysfs_attr); i++) {
-		data->sysfs_attr[sysfs_attr_i] = abituguru_sysfs_attr[i];
-		sysfs_attr_i++;
+	/* Fail safe check, this should never happen! */
+	if (sysfs_names_free < 0) {
+		printk(KERN_ERR ABIT_UGURU_NAME ": Fatal error ran out of "
+		       "space for sysfs attr names. This should never "
+		       "happen please report to the abituguru maintainer "
+		       "(see MAINTAINERS)\n");
+		res = -ENAMETOOLONG;
+		goto abituguru_probe_error;
 	}
 	printk(KERN_INFO ABIT_UGURU_NAME ": found Abit uGuru\n");
 
 	/* Register sysfs hooks */
 	data->class_dev = hwmon_device_register(&pdev->dev);
 	if (IS_ERR(data->class_dev)) {
-		kfree(data);
-		return PTR_ERR(data->class_dev);
+		res = PTR_ERR(data->class_dev);
+		goto abituguru_probe_error;
 	}
 	for (i = 0; i < sysfs_attr_i; i++)
 		device_create_file(&pdev->dev, &data->sysfs_attr[i].dev_attr);
+	for (i = 0; i < ARRAY_SIZE(abituguru_sysfs_attr); i++)
+		device_create_file(&pdev->dev,
+			&abituguru_sysfs_attr[i].dev_attr);
 
 	return 0;
+
+abituguru_probe_error:
+	kfree(data);
+	return res;
 }
 
 static int __devexit abituguru_remove(struct platform_device *pdev)
@@ -1244,7 +1269,7 @@ static struct abituguru_data *abituguru_update_device(struct device *dev)
 		if ((err = abituguru_read(data, ABIT_UGURU_ALARM_BANK, 0,
 				data->alarms, 3, 0)) != 3)
 			goto LEAVE_UPDATE;
-		for (i = 0; i < 16; i++) {
+		for (i = 0; i < ABIT_UGURU_MAX_BANK1_SENSORS; i++) {
 			if ((err = abituguru_read(data,
 					ABIT_UGURU_SENSOR_BANK1, i,
 					&data->bank1_value[i], 1, 0)) != 1)
