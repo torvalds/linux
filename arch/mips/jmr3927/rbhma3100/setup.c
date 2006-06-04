@@ -82,17 +82,54 @@ struct {
     struct resource sio0;
     struct resource sio1;
 } jmr3927_resources = {
-    { "RAM0",           0,         0x01FFFFFF,  IORESOURCE_MEM },
-    { "RAM1",          0x02000000, 0x03FFFFFF,  IORESOURCE_MEM },
-    { "PCIMEM",        0x08000000, 0x07FFFFFF,  IORESOURCE_MEM },
-    { "IOB",           0x10000000, 0x13FFFFFF                  },
-    { "IOC",           0x14000000, 0x14FFFFFF                  },
-    { "PCIIO",         0x15000000, 0x15FFFFFF                  },
-    { "JMY1394",       0x1D000000, 0x1D3FFFFF                  },
-    { "ROM1",          0x1E000000, 0x1E3FFFFF                  },
-    { "ROM0",          0x1FC00000, 0x1FFFFFFF                  },
-    { "SIO0",          0xFFFEF300, 0xFFFEF3FF                  },
-    { "SIO1",          0xFFFEF400, 0xFFFEF4FF                  },
+	{
+		.start	= 0,
+		.end	= 0x01FFFFFF,
+		.name	= "RAM0",
+		.flags = IORESOURCE_MEM
+	}, {
+		.start	= 0x02000000,
+		.end	= 0x03FFFFFF,
+		.name	= "RAM1",
+		.flags = IORESOURCE_MEM
+	}, {
+		.start	= 0x08000000,
+		.end	= 0x07FFFFFF,
+		.name	= "PCIMEM",
+		.flags = IORESOURCE_MEM
+	}, {
+		.start	= 0x10000000,
+		.end	= 0x13FFFFFF,
+		.name	= "IOB"
+	}, {
+		.start	= 0x14000000,
+		.end	= 0x14FFFFFF,
+		.name	= "IOC"
+	}, {
+		.start	= 0x15000000,
+		.end	= 0x15FFFFFF,
+		.name	= "PCIIO"
+	}, {
+		.start	= 0x1D000000,
+		.end	= 0x1D3FFFFF,
+		.name	= "JMY1394"
+	}, {
+		.start	= 0x1E000000,
+		.end	= 0x1E3FFFFF,
+		.name	= "ROM1"
+	}, {
+		.start	= 0x1FC00000,
+		.end	= 0x1FFFFFFF,
+		.name	= "ROM0"
+	}, {
+		.start	= 0xFFFEF300,
+		.end	= 0xFFFEF3FF,
+		.name	= "SIO0"
+	}, {
+		.start	= 0xFFFEF400,
+		.end	= 0xFFFEF4FF,
+		.name	= "SIO1"
+	},
 };
 
 /* don't enable - see errata */

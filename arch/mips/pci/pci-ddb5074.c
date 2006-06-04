@@ -8,17 +8,17 @@
 #include <asm/ddb5xxx/ddb5xxx.h>
 
 static struct resource extpci_io_resource = {
-	"pci IO space",
-	0x1000,			/* leave some room for ISA bus */
-	DDB_PCI_IO_SIZE - 1,
-	IORESOURCE_IO
+	.start	= 0x1000,		/* leave some room for ISA bus */
+	.end	= DDB_PCI_IO_SIZE - 1,
+	.name	= "pci IO space",
+	.flags	= IORESOURCE_IO
 };
 
 static struct resource extpci_mem_resource = {
-	"pci memory space",
-	DDB_PCI_MEM_BASE + 0x00100000,	/* leave 1 MB for RTC */
-	DDB_PCI_MEM_BASE + DDB_PCI_MEM_SIZE - 1,
-	IORESOURCE_MEM
+	.start	= DDB_PCI_MEM_BASE + 0x00100000,	/* leave 1 MB for RTC */
+	.end	= DDB_PCI_MEM_BASE + DDB_PCI_MEM_SIZE - 1,
+	.name	= "pci memory space",
+	.flags	= IORESOURCE_MEM
 };
 
 extern struct pci_ops ddb5476_ext_pci_ops;

@@ -58,10 +58,27 @@ extern void prom_printf(char *fmt, ...);
 extern char *prom_getcmdline(void);
 
 struct resource standard_io_resources[] = {
-	{"dma1", 0x00, 0x1f, IORESOURCE_BUSY},
-	{"timer", 0x40, 0x5f, IORESOURCE_BUSY},
-	{"dma page reg", 0x80, 0x8f, IORESOURCE_BUSY},
-	{"dma2", 0xc0, 0xdf, IORESOURCE_BUSY},
+	{
+		.start	= .0x00,
+		.end	= 0x1f,
+		.name	= "dma1",
+		.flags	= IORESOURCE_BUSY
+	}, {
+		.start	= 0x40,
+		.end	= 0x5f,
+		.name	= "timer",
+		.flags	= IORESOURCE_BUSY
+	}, {
+		.start	= 0x80,
+		.end	= 0x8f,
+		.name	= "dma page reg",
+		.flags	= IORESOURCE_BUSY
+	}, {
+		.start	= 0xc0,
+		.end	= 0xdf,
+		.name	= "dma2",
+		.flags	= IORESOURCE_BUSY
+	},
 };
 
 #define STANDARD_IO_RESOURCES (sizeof(standard_io_resources)/sizeof(struct resource))

@@ -109,17 +109,42 @@ static struct {
 	struct resource dma2;
 } ddb5476_ioport = {
 	{
-	"dma1", 0x00, 0x1f, IORESOURCE_BUSY}, {
-	"timer", 0x40, 0x5f, IORESOURCE_BUSY}, {
-	"rtc", 0x70, 0x7f, IORESOURCE_BUSY}, {
-	"dma page reg", 0x80, 0x8f, IORESOURCE_BUSY}, {
-	"dma2", 0xc0, 0xdf, IORESOURCE_BUSY}
+		.start	= 0x00,
+		.end	= 0x1f,
+		.name	= "dma1",
+		.flags	= IORESOURCE_BUSY
+	}, {
+		.start	= 0x40,
+		.end	= 0x5f,
+		.name	= "timer",
+		.flags	= IORESOURCE_BUSY
+	}, {
+		.start	= 0x70,
+		.end	= 0x7f,
+		.name	= "rtc",
+		.flags	= IORESOURCE_BUSY
+	}, {
+		.start	= 0x80,
+		.end	= 0x8f,
+		.name	= "dma page reg",
+		.flags	= IORESOURCE_BUSY
+	}, {
+		.start	= 0xc0,
+		.end	= 0xdf,
+		.name	= "dma2",
+		.flags	= IORESOURCE_BUSY
+	}
 };
 
 static struct {
 	struct resource nile4;
 } ddb5476_iomem = {
-	{ "Nile 4", DDB_BASE, DDB_BASE + DDB_SIZE - 1, IORESOURCE_BUSY}
+	{
+		.start	= DDB_BASE,
+		.end	= DDB_BASE + DDB_SIZE - 1,
+		.name	= "Nile 4",
+		.flags	= IORESOURCE_BUSY
+	}
 };
 
 
