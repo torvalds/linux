@@ -529,9 +529,8 @@ abituguru_detect_no_bank2_sensors(struct abituguru_data *data)
 		   -0x08 enable beep
 		   -0x01 enable alarm
 		   All other bits should be 0, but on some motherboards
-		   0x40 (bit 6) is also high, at least for fan1 */
-		if ((!i && (data->bank2_settings[i][0] & ~0xC9)) ||
-		     (i && (data->bank2_settings[i][0] & ~0x89))) {
+		   0x40 (bit 6) is also high for some of the fans?? */
+		if (data->bank2_settings[i][0] & ~0xC9) {
 			ABIT_UGURU_DEBUG(2, "  bank2 sensor %d does not seem "
 				"to be a fan sensor: settings[0] = %02X\n",
 				i, (unsigned int)data->bank2_settings[i][0]);
