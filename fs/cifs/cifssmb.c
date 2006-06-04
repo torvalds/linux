@@ -504,7 +504,7 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 #endif /* CIFS_WEAK_PW_HASH */
 			cERROR(1,("Server requests plain text password"
 				  " but client support disabled"));
-		
+
 	if(extended_security & CIFSSEC_MUST_NTLMV2)
 		server->secType = NTLMv2;
 	else

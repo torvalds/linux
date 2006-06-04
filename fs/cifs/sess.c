@@ -339,9 +339,10 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 		return -EOPNOTSUPP;
 #endif
 		wct = 10; /* lanman 2 style sessionsetup */
-	} else if((type == NTLM) || (type == NTLMv2)) /* NTLMv2 may retry NTLM */
+	} else if((type == NTLM) || (type == NTLMv2)) { 
+		/* For NTLMv2 failures eventually may need to retry NTLM */
 		wct = 13; /* old style NTLM sessionsetup */
-	else /* same size for negotiate or auth, NTLMSSP or extended security */
+	} else /* same size for negotiate or auth, NTLMSSP or extended security */
 		wct = 12;
 
 	rc = small_smb_init_no_tc(SMB_COM_SESSION_SETUP_ANDX, wct, ses,

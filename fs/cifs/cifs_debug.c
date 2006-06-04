@@ -860,8 +860,6 @@ security_flags_write(struct file *file, const char __user *buffer,
 	char flags_string[12];
 	char c;
 
-	cERROR(1,("size %ld",count)); /* BB removeme BB */
-
 	if((count < 1) || (count > 11))
 		return -EINVAL;
 
@@ -883,14 +881,14 @@ security_flags_write(struct file *file, const char __user *buffer,
 
 	flags = simple_strtoul(flags_string, NULL, 0);
 
-	cERROR(1,("sec flags 0x%x", flags));  /* BB FIXME make cFYI */
+	cFYI(1,("sec flags 0x%x", flags));
 
 	if(flags <= 0)  {
 		cERROR(1,("invalid security flags %s",flags_string));
 		return -EINVAL;
 	}
 
-	if((flags & CIFSSEC_MASK) != CIFSSEC_MASK) {
+	if(flags & ~CIFSSEC_MASK) {
 		cERROR(1,("attempt to set unsupported security flags 0x%d",
 			flags & ~CIFSSEC_MASK));
 		return -EINVAL;
