@@ -536,6 +536,7 @@ config PMC_YOSEMITE
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_HIGHMEM
+	select SYS_SUPPORTS_SMP
 	help
 	  Yosemite is an evaluation board for the RM9000x2 processor
 	  manufactured by PMC-Sierra.
@@ -590,6 +591,7 @@ config SGI_IP22
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
+	select SYS_SUPPORTS_SMP
 	help
 	  This are the SGI Indy, Challenge S and Indigo2, as well as certain
 	  OEM variants like the Tandem CMN B006S. To compile a Linux kernel
@@ -1678,8 +1680,8 @@ source "mm/Kconfig"
 
 config SMP
 	bool "Multi-Processing support"
-	depends on CPU_RM9000 || ((SIBYTE_BCM1x80 || SIBYTE_BCM1x55 || SIBYTE_SB1250 || QEMU) && !SIBYTE_STANDALONE) || SGI_IP27 || MIPS_MT_SMP || MIPS_MT_SMTC
-	---help---
+	depends on SYS_SUPPORTS_SMP
+	help
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, like most personal computers, say N. If
 	  you have a system with more than one CPU, say Y.
@@ -1697,6 +1699,9 @@ config SMP
 	  available at <http://www.tldp.org/docs.html#howto>.
 
 	  If you don't know what to do here, say N.
+
+config SYS_SUPPORTS_SMP
+	bool
 
 config NR_CPUS
 	int "Maximum number of CPUs (2-64)"
