@@ -41,7 +41,7 @@
 #define HDAPS_PORT_STATE	0x1611	/* device state */
 #define HDAPS_PORT_YPOS		0x1612	/* y-axis position */
 #define	HDAPS_PORT_XPOS		0x1614	/* x-axis position */
-#define HDAPS_PORT_TEMP1	0x1616	/* device temperature, in celcius */
+#define HDAPS_PORT_TEMP1	0x1616	/* device temperature, in Celsius */
 #define HDAPS_PORT_YVAR		0x1617	/* y-axis variance (what is this?) */
 #define HDAPS_PORT_XVAR		0x1619	/* x-axis variance (what is this?) */
 #define HDAPS_PORT_TEMP2	0x161b	/* device temperature (again?) */
