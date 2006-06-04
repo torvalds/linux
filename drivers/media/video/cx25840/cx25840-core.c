@@ -46,7 +46,7 @@ MODULE_LICENSE("GPL");
 static unsigned short normal_i2c[] = { 0x88 >> 1, I2C_CLIENT_END };
 
 
-static int cx25840_debug;
+int cx25840_debug;
 
 module_param_named(debug,cx25840_debug, int, 0644);
 
@@ -251,17 +251,7 @@ static void input_change(struct i2c_client *client)
 	cx25840_and_or(client, 0x401, ~0x60, 0);
 	cx25840_and_or(client, 0x401, ~0x60, 0x60);
 
-	/* Note: perhaps V4L2_STD_PAL_M should be handled as V4L2_STD_NTSC
-	   instead of V4L2_STD_PAL. Someone needs to test this. */
-	if (std & V4L2_STD_PAL) {
-		/* Follow tuner change procedure for PAL */
-		cx25840_write(client, 0x808, 0xff);
-		cx25840_write(client, 0x80b, 0x10);
-	} else if (std & V4L2_STD_SECAM) {
-		/* Select autodetect for SECAM */
-		cx25840_write(client, 0x808, 0xff);
-		cx25840_write(client, 0x80b, 0x10);
-	} else if (std & V4L2_STD_NTSC) {
+	if (std & V4L2_STD_525_60) {
 		/* Certain Hauppauge PVR150 models have a hardware bug
 		   that causes audio to drop out. For these models the
 		   audio standard must be set explicitly.
@@ -280,6 +270,14 @@ static void input_change(struct i2c_client *client)
 			cx25840_write(client, 0x808, hw_fix ? 0x1f : 0xf6);
 		}
 		cx25840_write(client, 0x80b, 0x00);
+	} else if (std & V4L2_STD_PAL) {
+		/* Follow tuner change procedure for PAL */
+		cx25840_write(client, 0x808, 0xff);
+		cx25840_write(client, 0x80b, 0x10);
+	} else if (std & V4L2_STD_SECAM) {
+		/* Select autodetect for SECAM */
+		cx25840_write(client, 0x808, 0xff);
+		cx25840_write(client, 0x80b, 0x10);
 	}
 
 	if (cx25840_read(client, 0x803) & 0x10) {
@@ -386,6 +384,8 @@ static int set_v4lstd(struct i2c_client *client, v4l2_std_id std)
 			fmt=0xc;
 		}
 	}
+
+	v4l_dbg(1, cx25840_debug, client, "changing video std to fmt %i\n",fmt);
 
 	/* Follow step 9 of section 3.16 in the cx25840 datasheet.
 	   Without this PAL may display a vertical ghosting effect.

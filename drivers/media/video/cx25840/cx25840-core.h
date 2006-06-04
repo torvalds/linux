@@ -24,6 +24,8 @@
 #include <linux/videodev2.h>
 #include <linux/i2c.h>
 
+extern int cx25840_debug;
+
 /* ENABLE_PVR150_WORKAROUND activates a workaround for a hardware bug that is
    present in Hauppauge PVR-150 (and possibly PVR-500) cards that have
    certain NTSC tuners (tveeprom tuner model numbers 85, 99 and 112). The
