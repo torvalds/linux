@@ -25,6 +25,7 @@
 #include <linux/videodev2.h>
 #include <linux/kdev_t.h>
 
+#include <media/v4l2-common.h>
 #include <media/tuner.h>
 #include <media/tveeprom.h>
 #include <media/video-buf.h>

@@ -1,29 +1,23 @@
-#ifndef __LINUX_VIDEODEV2_H
-#define __LINUX_VIDEODEV2_H
 /*
  *	Video for Linux Two
  *
- *	Header file for v4l or V4L2 drivers and applications, for
- *	Linux kernels 2.2.x or 2.4.x.
+ *	Header file for v4l or V4L2 drivers and applications
+ * with public API.
+ * All kernel-specific stuff were moved to media/v4l2-dev.h, so
+ * no #if __KERNEL tests are allowed here
  *
- *	See http://bytesex.org/v4l/ for API specs and other
- *	v4l2 documentation.
+ *	See http://linuxtv.org for more info
  *
  *	Author: Bill Dirks <bdirks@pacbell.net>
  *		Justin Schoeman
  *		et al.
  */
-#ifdef __KERNEL__
+#ifndef __LINUX_VIDEODEV2_H
+#define __LINUX_VIDEODEV2_H
 #include <linux/time.h> /* need struct timeval */
-#include <linux/poll.h>
-#include <linux/device.h>
-#include <linux/mutex.h>
-#endif
 #include <linux/types.h>
 #include <linux/compiler.h> /* need __user */
 
-
-#define OBSOLETE_OWNER 1 /* It will be removed for 2.6.17 */
 #define HAVE_V4L2 1
 
 /*
@@ -47,71 +41,6 @@
 #define VID_TYPE_MPEG_ENCODER	2048	/* Can encode MPEG streams */
 #define VID_TYPE_MJPEG_DECODER	4096	/* Can decode MJPEG streams */
 #define VID_TYPE_MJPEG_ENCODER	8192	/* Can encode MJPEG streams */
-
-#ifdef __KERNEL__
-
-/* Minor device allocation */
-#define MINOR_VFL_TYPE_GRABBER_MIN   0
-#define MINOR_VFL_TYPE_GRABBER_MAX  63
-#define MINOR_VFL_TYPE_RADIO_MIN    64
-#define MINOR_VFL_TYPE_RADIO_MAX   127
-#define MINOR_VFL_TYPE_VTX_MIN     192
-#define MINOR_VFL_TYPE_VTX_MAX     223
-#define MINOR_VFL_TYPE_VBI_MIN     224
-#define MINOR_VFL_TYPE_VBI_MAX     255
-
-#define VFL_TYPE_GRABBER	0
-#define VFL_TYPE_VBI		1
-#define VFL_TYPE_RADIO		2
-#define VFL_TYPE_VTX		3
-
-struct video_device
-{
-	/* device info */
-	struct device *dev;
-	char name[32];
-	int type;       /* v4l1 */
-	int type2;      /* v4l2 */
-	int hardware;
-	int minor;
-
-	/* device ops + callbacks */
-	const struct file_operations *fops;
-	void (*release)(struct video_device *vfd);
-
-
-#if OBSOLETE_OWNER /* to be removed in 2.6.15 */
-	/* obsolete -- fops->owner is used instead */
-	struct module *owner;
-	/* dev->driver_data will be used instead some day.
-	 * Use the video_{get|set}_drvdata() helper functions,
-	 * so the switch over will be transparent for you.
-	 * Or use {pci|usb}_{get|set}_drvdata() directly. */
-	void *priv;
-#endif
-
-	/* for videodev.c intenal usage -- please don't touch */
-	int users;                     /* video_exclusive_{open|close} ... */
-	struct mutex lock;             /* ... helper function uses these   */
-	char devfs_name[64];           /* devfs */
-	struct class_device class_dev; /* sysfs */
-};
-
-#define VIDEO_MAJOR	81
-
-extern int video_register_device(struct video_device *, int type, int nr);
-extern void video_unregister_device(struct video_device *);
-extern int video_usercopy(struct inode *inode, struct file *file,
-			  unsigned int cmd, unsigned long arg,
-			  int (*func)(struct inode *inode, struct file *file,
-				      unsigned int cmd, void *arg));
-
-/* helper functions to alloc / release struct video_device, the
-   later can be used for video_device->release() */
-struct video_device *video_device_alloc(void);
-void video_device_release(struct video_device *vfd);
-
-#endif
 
 /*
  *	M I S C E L L A N E O U S
@@ -1098,6 +1027,7 @@ struct v4l2_streamparm
 #endif
 #define VIDIOC_LOG_STATUS       _IO   ('V', 70)
 
+#ifdef __OLD_VIDIOC_
 /* for compatibility, will go away some day */
 #define VIDIOC_OVERLAY_OLD     	_IOWR ('V', 14, int)
 #define VIDIOC_S_PARM_OLD      	_IOW  ('V', 22, struct v4l2_streamparm)
@@ -1105,57 +1035,10 @@ struct v4l2_streamparm
 #define VIDIOC_G_AUDIO_OLD     	_IOWR ('V', 33, struct v4l2_audio)
 #define VIDIOC_G_AUDOUT_OLD    	_IOWR ('V', 49, struct v4l2_audioout)
 #define VIDIOC_CROPCAP_OLD     	_IOR  ('V', 58, struct v4l2_cropcap)
+#endif
 
 #define BASE_VIDIOC_PRIVATE	192		/* 192-255 are private */
 
-
-#ifdef __KERNEL__
-/*
- *
- *	V 4 L 2   D R I V E R   H E L P E R   A P I
- *
- *	Some commonly needed functions for drivers (v4l2-common.o module)
- */
-#include <linux/fs.h>
-
-/*  Video standard functions  */
-extern unsigned int v4l2_video_std_fps(struct v4l2_standard *vs);
-extern int v4l2_video_std_construct(struct v4l2_standard *vs,
-				    int id, char *name);
-
-/* prority handling */
-struct v4l2_prio_state {
-	atomic_t prios[4];
-};
-int v4l2_prio_init(struct v4l2_prio_state *global);
-int v4l2_prio_change(struct v4l2_prio_state *global, enum v4l2_priority *local,
-		     enum v4l2_priority new);
-int v4l2_prio_open(struct v4l2_prio_state *global, enum v4l2_priority *local);
-int v4l2_prio_close(struct v4l2_prio_state *global, enum v4l2_priority *local);
-enum v4l2_priority v4l2_prio_max(struct v4l2_prio_state *global);
-int v4l2_prio_check(struct v4l2_prio_state *global, enum v4l2_priority *local);
-
-/* names for fancy debug output */
-extern char *v4l2_field_names[];
-extern char *v4l2_type_names[];
-
-/*  Compatibility layer interface  --  v4l1-compat module */
-typedef int (*v4l2_kioctl)(struct inode *inode, struct file *file,
-			   unsigned int cmd, void *arg);
-
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-int v4l_compat_translate_ioctl(struct inode *inode, struct file *file,
-			       int cmd, void *arg, v4l2_kioctl driver_ioctl);
-#else
-#define v4l_compat_translate_ioctl(inode,file,cmd,arg,ioctl) -EINVAL
-#endif
-
-/* 32 Bits compatibility layer for 64 bits processors */
-extern long v4l_compat_ioctl32(struct file *file, unsigned int cmd,
-				unsigned long arg);
-
-
-#endif /* __KERNEL__ */
 #endif /* __LINUX_VIDEODEV2_H */
 
 /*

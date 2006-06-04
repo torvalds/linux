@@ -1,48 +1,27 @@
+/*
+ *	Video for Linux version 1 - OBSOLETE
+ *
+ *	Header file for v4l1 drivers and applications, for
+ *	Linux kernels 2.2.x or 2.4.x.
+ *
+ *	Provides header for legacy drivers and applications
+ *
+ *	See http://linuxtv.org for more info
+ *
+ */
 #ifndef __LINUX_VIDEODEV_H
 #define __LINUX_VIDEODEV_H
 
 #include <linux/types.h>
+#include <linux/poll.h>
+#include <linux/fs.h>
+#include <linux/device.h>
+#include <linux/mutex.h>
+#include <linux/compiler.h> /* need __user */
 
 #define HAVE_V4L1 1
 
 #include <linux/videodev2.h>
-
-#ifdef __KERNEL__
-
-#include <linux/mm.h>
-
-extern struct video_device* video_devdata(struct file*);
-
-#define to_video_device(cd) container_of(cd, struct video_device, class_dev)
-static inline void
-video_device_create_file(struct video_device *vfd,
-			 struct class_device_attribute *attr)
-{
-	class_device_create_file(&vfd->class_dev, attr);
-}
-static inline void
-video_device_remove_file(struct video_device *vfd,
-			 struct class_device_attribute *attr)
-{
-	class_device_remove_file(&vfd->class_dev, attr);
-}
-
-#if OBSOLETE_OWNER /* to be removed in 2.6.15 */
-/* helper functions to access driver private data. */
-static inline void *video_get_drvdata(struct video_device *dev)
-{
-	return dev->priv;
-}
-
-static inline void video_set_drvdata(struct video_device *dev, void *data)
-{
-	dev->priv = data;
-}
-#endif
-
-extern int video_exclusive_open(struct inode *inode, struct file *file);
-extern int video_exclusive_release(struct inode *inode, struct file *file);
-#endif /* __KERNEL__ */
 
 struct video_capability
 {
@@ -363,6 +342,11 @@ struct video_code
 #define VID_HARDWARE_SAA7114H   37
 #define VID_HARDWARE_SN9C102	38
 #define VID_HARDWARE_ARV	39
+
+#ifdef __KERNEL__
+#include <media/v4l2-dev.h>
+#endif /* __KERNEL__ */
+
 #endif /* __LINUX_VIDEODEV_H */
 
 /*

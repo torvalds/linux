@@ -26,7 +26,13 @@
 #ifndef V4L2_COMMON_H_
 #define V4L2_COMMON_H_
 
+#include <media/v4l2-dev.h>
+
 /* v4l debugging and diagnostics */
+
+/* Debug bitmask flags to be used on V4L2 */
+#define V4L2_DEBUG_IOCTL     0x01
+#define V4L2_DEBUG_IOCTL_ARG 0x02
 
 /* Common printk constucts for v4l-i2c drivers. These macros create a unique
    prefix consisting of the driver name, the adapter number and the i2c

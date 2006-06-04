@@ -59,6 +59,7 @@
 #include <asm/io.h>
 #include <asm/div64.h>
 #include <linux/video_decoder.h>
+#define __OLD_VIDIOC_ /* To allow fixing old calls*/
 #include <media/v4l2-common.h>
 
 #ifdef CONFIG_KMOD
@@ -424,7 +425,9 @@ void v4l_printk_ioctl_arg(char *s,unsigned int cmd, void *arg)
 	case TUNER_SET_TYPE_ADDR:
 	case TUNER_SET_STANDBY:
 	case TDA9887_SET_CONFIG:
+#ifdef __OLD_VIDIOC_
 	case VIDIOC_OVERLAY_OLD:
+#endif
 	case VIDIOC_STREAMOFF:
 	case VIDIOC_G_OUTPUT:
 	case VIDIOC_S_OUTPUT:
@@ -440,7 +443,9 @@ void v4l_printk_ioctl_arg(char *s,unsigned int cmd, void *arg)
 	case VIDIOC_G_AUDIO:
 	case VIDIOC_S_AUDIO:
 	case VIDIOC_ENUMAUDIO:
+#ifdef __OLD_VIDIOC_
 	case VIDIOC_G_AUDIO_OLD:
+#endif
 	{
 		struct v4l2_audio *p=arg;
 
@@ -451,7 +456,9 @@ void v4l_printk_ioctl_arg(char *s,unsigned int cmd, void *arg)
 	case VIDIOC_G_AUDOUT:
 	case VIDIOC_S_AUDOUT:
 	case VIDIOC_ENUMAUDOUT:
+#ifdef __OLD_VIDIOC_
 	case VIDIOC_G_AUDOUT_OLD:
+#endif
 	{
 		struct v4l2_audioout *p=arg;
 		printk ("%s: index=%d, name=%s, capability=%d, mode=%d\n", s,
@@ -496,7 +503,9 @@ void v4l_printk_ioctl_arg(char *s,unsigned int cmd, void *arg)
 	}
 	case VIDIOC_G_CTRL:
 	case VIDIOC_S_CTRL:
+#ifdef __OLD_VIDIOC_
 	case VIDIOC_S_CTRL_OLD:
+#endif
 	{
 		struct v4l2_control *p=arg;
 		printk ("%s: id=%d, value=%d\n", s, p->id, p->value);
@@ -511,7 +520,9 @@ void v4l_printk_ioctl_arg(char *s,unsigned int cmd, void *arg)
 		break;
 	}
 	case VIDIOC_CROPCAP:
+#ifdef __OLD_VIDIOC_
 	case VIDIOC_CROPCAP_OLD:
+#endif
 	{
 		struct v4l2_cropcap *p=arg;
 		/*FIXME: Should also show rect structs */
@@ -703,7 +714,9 @@ void v4l_printk_ioctl_arg(char *s,unsigned int cmd, void *arg)
 	}
 	case VIDIOC_G_PARM:
 	case VIDIOC_S_PARM:
+#ifdef __OLD_VIDIOC_
 	case VIDIOC_S_PARM_OLD:
+#endif
 	{
 		struct v4l2_streamparm *p=arg;
 		printk ("%s: type=%d\n", s, p->type);
