@@ -503,12 +503,18 @@ config I2C_PCA_ISA
 	tristate "PCA9564 on an ISA bus"
 	depends on I2C
 	select I2C_ALGOPCA
+	default n
 	help
 	  This driver supports ISA boards using the Philips PCA 9564
 	  Parallel bus to I2C bus controller
 	  
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-pca-isa.
+
+	  This device is almost undetectable and using this driver on a
+	  system which doesn't have this device will result in long
+	  delays when I2C/SMBus chip drivers are loaded (e.g. at boot
+	  time).  If unsure, say N.
 
 config I2C_MV64XXX
 	tristate "Marvell mv64xxx I2C Controller"
