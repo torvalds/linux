@@ -707,22 +707,11 @@ set_card_type(struct pcmcia_device *link, const void *s)
  * Returns: true if this is a CE2
  */
 static int
-has_ce2_string(struct pcmcia_device * link)
+has_ce2_string(struct pcmcia_device * p_dev)
 {
-    tuple_t tuple;
-    cisparse_t parse;
-    u_char buf[256];
-
-    tuple.Attributes = 0;
-    tuple.TupleData = buf;
-    tuple.TupleDataMax = 254;
-    tuple.TupleOffset = 0;
-    tuple.DesiredTuple = CISTPL_VERS_1;
-    if (!first_tuple(link, &tuple, &parse) && parse.version_1.ns > 2) {
-	if (strstr(parse.version_1.str + parse.version_1.ofs[2], "CE2"))
-	    return 1;
-    }
-    return 0;
+	if (p_dev->prod_id[2] && strstr(p_dev->prod_id[2], "CE2"))
+		return 1;
+	return 0;
 }
 
 /****************

@@ -69,25 +69,21 @@ do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
 static void ixj_get_serial(struct pcmcia_device * link, IXJ * j)
 {
-	tuple_t tuple;
-	u_short buf[128];
 	char *str;
-	int last_ret, last_fn, i, place;
+	int i, place;
 	DEBUG(0, "ixj_get_serial(0x%p)\n", link);
-	tuple.TupleData = (cisdata_t *) buf;
-	tuple.TupleOffset = 0;
-	tuple.TupleDataMax = 80;
-	tuple.Attributes = 0;
-	tuple.DesiredTuple = CISTPL_VERS_1;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
-	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
-	str = (char *) buf;
-	printk("PCMCIA Version %d.%d\n", str[0], str[1]);
-	str += 2;
+
+	str = link->prod_id[0];
+	if (!str)
+		goto cs_failed;
 	printk("%s", str);
-	str = str + strlen(str) + 1;
+	str = link->prod_id[1];
+	if (!str)
+		goto cs_failed;
 	printk(" %s", str);
-	str = str + strlen(str) + 1;
+	str = link->prod_id[2];
+	if (!str)
+		goto cs_failed;
 	place = 1;
 	for (i = strlen(str) - 1; i >= 0; i--) {
 		switch (str[i]) {
@@ -122,7 +118,9 @@ static void ixj_get_serial(struct pcmcia_device * link, IXJ * j)
 		}
 		place = place * 0x10;
 	}
-	str = str + strlen(str) + 1;
+	str = link->prod_id[3];
+	if (!str)
+		goto cs_failed;
 	printk(" version %s\n", str);
       cs_failed:
 	return;

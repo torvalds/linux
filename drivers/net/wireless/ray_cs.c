@@ -433,16 +433,11 @@ static int ray_config(struct pcmcia_device *link)
 
     /* Determine card type and firmware version */
     buf[0] = buf[MAX_TUPLE_SIZE - 1] = 0;
-    tuple.DesiredTuple = CISTPL_VERS_1;
-    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
-    tuple.TupleData = buf;
-    tuple.TupleDataMax = MAX_TUPLE_SIZE;
-    tuple.TupleOffset = 2;
-    CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
-
-    for (i=0; i<tuple.TupleDataLen - 4; i++) 
-        if (buf[i] == 0) buf[i] = ' ';
-    printk(KERN_INFO "ray_cs Detected: %s\n",buf);
+    printk(KERN_INFO "ray_cs Detected: %s%s%s%s\n",
+	   link->prod_id[0] ? link->prod_id[0] : " ",
+	   link->prod_id[1] ? link->prod_id[1] : " ",
+	   link->prod_id[2] ? link->prod_id[2] : " ",
+	   link->prod_id[3] ? link->prod_id[3] : " ");
 
     /* Now allocate an interrupt line.  Note that this does not
        actually assign a handler to the interrupt.

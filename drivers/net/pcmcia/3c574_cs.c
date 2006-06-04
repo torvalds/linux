@@ -397,12 +397,9 @@ static int tc574_config(struct pcmcia_device *link)
 			goto failed;
 		}
 	}
-	tuple.DesiredTuple = CISTPL_VERS_1;
-	if (pcmcia_get_first_tuple(link, &tuple) == CS_SUCCESS &&
-		pcmcia_get_tuple_data(link, &tuple) == CS_SUCCESS &&
-		pcmcia_parse_tuple(link, &tuple, &parse) == CS_SUCCESS) {
-		cardname = parse.version_1.str + parse.version_1.ofs[1];
-	} else
+	if (link->prod_id[1])
+		cardname = link->prod_id[1];
+	else
 		cardname = "3Com 3c574";
 
 	{

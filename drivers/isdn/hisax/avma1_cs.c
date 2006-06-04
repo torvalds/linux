@@ -239,18 +239,10 @@ static int avma1cs_config(struct pcmcia_device *link)
     }
 
     do {
-
-	tuple.Attributes = 0;
-	tuple.TupleData = buf;
-	tuple.TupleDataMax = 254;
-	tuple.TupleOffset = 0;
-	tuple.DesiredTuple = CISTPL_VERS_1;
-
 	devname[0] = 0;
-	if( !first_tuple(link, &tuple, &parse) && parse.version_1.ns > 1 ) {
-	    strlcpy(devname,parse.version_1.str + parse.version_1.ofs[1], 
-			sizeof(devname));
-	}
+	if (link->prod_id[1])
+		strlcpy(devname, link->prod_id[1], sizeof(devname));
+
 	/*
          * find IO port
          */
