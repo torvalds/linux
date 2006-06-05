@@ -300,25 +300,20 @@ int br_add_bridge(const char *name)
 	rtnl_lock();
 	if (strchr(dev->name, '%')) {
 		ret = dev_alloc_name(dev, dev->name);
-		if (ret < 0)
-			goto err1;
+		if (ret < 0) {
+			free_netdev(dev);
+			goto out;
+		}
 	}
 
 	ret = register_netdevice(dev);
 	if (ret)
-		goto err2;
+		goto out;
 
 	ret = br_sysfs_addbr(dev);
 	if (ret)
-		goto err3;
-	rtnl_unlock();
-	return 0;
-
- err3:
-	unregister_netdev(dev);
- err2:
-	free_netdev(dev);
- err1:
+		unregister_netdevice(dev);
+ out:
 	rtnl_unlock();
 	return ret;
 }
