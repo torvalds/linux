@@ -1,5 +1,5 @@
 /*
- * (C) 2004  Sebastian Witt <se.witt@gmx.net>
+ * (C) 2004-2006  Sebastian Witt <se.witt@gmx.net>
  *
  *  Licensed under the terms of the GNU GPL License version 2.
  *  Based upon reverse engineered information
@@ -90,7 +90,7 @@ static int nforce2_calc_pll(unsigned int fsb)
 
 	/* Try to calculate multiplier and divider up to 4 times */
 	while (((mul == 0) || (div == 0)) && (tried <= 3)) {
-		for (xdiv = 1; xdiv <= 0x80; xdiv++)
+		for (xdiv = 2; xdiv <= 0x80; xdiv++)
 			for (xmul = 1; xmul <= 0xfe; xmul++)
 				if (nforce2_calc_fsb(NFORCE2_PLL(xmul, xdiv)) ==
 				    fsb + tried) {
