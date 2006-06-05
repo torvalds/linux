@@ -348,17 +348,31 @@ static struct audit_entry *audit_rule_to_entry(struct audit_rule *rule)
 		f->val = rule->values[i];
 
 		err = -EINVAL;
-		if (f->type & AUDIT_UNUSED_BITS)
-			goto exit_free;
-
 		switch(f->type) {
-		case AUDIT_SE_USER:
-		case AUDIT_SE_ROLE:
-		case AUDIT_SE_TYPE:
-		case AUDIT_SE_SEN:
-		case AUDIT_SE_CLR:
-		case AUDIT_WATCH:
+		default:
 			goto exit_free;
+		case AUDIT_PID:
+		case AUDIT_UID:
+		case AUDIT_EUID:
+		case AUDIT_SUID:
+		case AUDIT_FSUID:
+		case AUDIT_GID:
+		case AUDIT_EGID:
+		case AUDIT_SGID:
+		case AUDIT_FSGID:
+		case AUDIT_LOGINUID:
+		case AUDIT_PERS:
+		case AUDIT_ARCH:
+		case AUDIT_MSGTYPE:
+		case AUDIT_DEVMAJOR:
+		case AUDIT_DEVMINOR:
+		case AUDIT_EXIT:
+		case AUDIT_SUCCESS:
+		case AUDIT_ARG0:
+		case AUDIT_ARG1:
+		case AUDIT_ARG2:
+		case AUDIT_ARG3:
+			break;
 		case AUDIT_INODE:
 			err = audit_to_inode(&entry->rule, f);
 			if (err)
@@ -432,6 +446,29 @@ static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 		f->se_str = NULL;
 		f->se_rule = NULL;
 		switch(f->type) {
+		case AUDIT_PID:
+		case AUDIT_UID:
+		case AUDIT_EUID:
+		case AUDIT_SUID:
+		case AUDIT_FSUID:
+		case AUDIT_GID:
+		case AUDIT_EGID:
+		case AUDIT_SGID:
+		case AUDIT_FSGID:
+		case AUDIT_LOGINUID:
+		case AUDIT_PERS:
+		case AUDIT_ARCH:
+		case AUDIT_MSGTYPE:
+		case AUDIT_PPID:
+		case AUDIT_DEVMAJOR:
+		case AUDIT_DEVMINOR:
+		case AUDIT_EXIT:
+		case AUDIT_SUCCESS:
+		case AUDIT_ARG0:
+		case AUDIT_ARG1:
+		case AUDIT_ARG2:
+		case AUDIT_ARG3:
+			break;
 		case AUDIT_SE_USER:
 		case AUDIT_SE_ROLE:
 		case AUDIT_SE_TYPE:
@@ -474,6 +511,8 @@ static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 			if (err)
 				goto exit_free;
 			break;
+		default:
+			goto exit_free;
 		}
 	}
 
