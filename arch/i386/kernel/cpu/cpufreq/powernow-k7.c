@@ -581,10 +581,7 @@ static int __init powernow_cpu_init (struct cpufreq_policy *policy)
 
 	rdmsrl (MSR_K7_FID_VID_STATUS, fidvidstatus.val);
 
-	/* recalibrate cpu_khz */
-	result = recalibrate_cpu_khz();
-	if (result)
-		return result;
+	recalibrate_cpu_khz();
 
 	fsb = (10 * cpu_khz) / fid_codes[fidvidstatus.bits.CFID];
 	if (!fsb) {
