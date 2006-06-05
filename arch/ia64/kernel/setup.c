@@ -509,19 +509,13 @@ show_cpuinfo (struct seq_file *m, void *v)
 		{ 1UL << 1, "spontaneous deferral"},
 		{ 1UL << 2, "16-byte atomic ops" }
 	};
-	char family[32], features[128], *cp, sep;
+	char features[128], *cp, sep;
 	struct cpuinfo_ia64 *c = v;
 	unsigned long mask;
 	unsigned long proc_freq;
 	int i;
 
 	mask = c->features;
-
-	switch (c->family) {
-	      case 0x07:	memcpy(family, "Itanium", 8); break;
-	      case 0x1f:	memcpy(family, "Itanium 2", 10); break;
-	      default:		sprintf(family, "%u", c->family); break;
-	}
 
 	/* build the feature string: */
 	memcpy(features, " standard", 10);
@@ -553,8 +547,9 @@ show_cpuinfo (struct seq_file *m, void *v)
 		   "processor  : %d\n"
 		   "vendor     : %s\n"
 		   "arch       : IA-64\n"
-		   "family     : %s\n"
+		   "family     : %u\n"
 		   "model      : %u\n"
+		   "model name : %s\n"
 		   "revision   : %u\n"
 		   "archrev    : %u\n"
 		   "features   :%s\n"	/* don't change this---it _is_ right! */
@@ -563,7 +558,8 @@ show_cpuinfo (struct seq_file *m, void *v)
 		   "cpu MHz    : %lu.%06lu\n"
 		   "itc MHz    : %lu.%06lu\n"
 		   "BogoMIPS   : %lu.%02lu\n",
-		   cpunum, c->vendor, family, c->model, c->revision, c->archrev,
+		   cpunum, c->vendor, c->family, c->model,
+		   c->model_name, c->revision, c->archrev,
 		   features, c->ppn, c->number,
 		   proc_freq / 1000, proc_freq % 1000,
 		   c->itc_freq / 1000000, c->itc_freq % 1000000,
@@ -611,6 +607,31 @@ struct seq_operations cpuinfo_op = {
 	.show =		show_cpuinfo
 };
 
+static char brandname[128];
+
+static char * __cpuinit
+get_model_name(__u8 family, __u8 model)
+{
+	char brand[128];
+
+	if (ia64_pal_get_brand_info(brand)) {
+		if (family == 0x7)
+			memcpy(brand, "Merced", 7);
+		else if (family == 0x1f) switch (model) {
+			case 0: memcpy(brand, "McKinley", 9); break;
+			case 1: memcpy(brand, "Madison", 8); break;
+			case 2: memcpy(brand, "Madison up to 9M cache", 23); break;
+		} else
+			memcpy(brand, "Unknown", 8);
+	}
+	if (brandname[0] == '\0')
+		return strcpy(brandname, brand);
+	else if (strcmp(brandname, brand) == 0)
+		return brandname;
+	else
+		return kstrdup(brand, GFP_KERNEL);
+}
+
 static void __cpuinit
 identify_cpu (struct cpuinfo_ia64 *c)
 {
@@ -640,7 +661,6 @@ identify_cpu (struct cpuinfo_ia64 *c)
 	pal_status_t status;
 	unsigned long impl_va_msb = 50, phys_addr_size = 44;	/* Itanium defaults */
 	int i;
-
 	for (i = 0; i < 5; ++i)
 		cpuid.bits[i] = ia64_get_cpuid(i);
 
@@ -663,6 +683,7 @@ identify_cpu (struct cpuinfo_ia64 *c)
 	c->family = cpuid.field.family;
 	c->archrev = cpuid.field.archrev;
 	c->features = cpuid.field.features;
+	c->model_name = get_model_name(c->family, c->model);
 
 	status = ia64_pal_vm_summary(&vm1, &vm2);
 	if (status == PAL_STATUS_SUCCESS) {
