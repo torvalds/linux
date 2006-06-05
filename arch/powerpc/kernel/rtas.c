@@ -370,24 +370,36 @@ int rtas_call(int token, int nargs, int nret, int *outputs, ...)
 	return ret;
 }
 
-/* Given an RTAS status code of 990n compute the hinted delay of 10^n
- * (last digit) milliseconds.  For now we bound at n=5 (100 sec).
+/* For RTAS_BUSY (-2), delay for 1 millisecond.  For an extended busy status
+ * code of 990n, perform the hinted delay of 10^n (last digit) milliseconds.
  */
-unsigned int rtas_extended_busy_delay_time(int status)
+unsigned int rtas_busy_delay_time(int status)
 {
-	int order = status - 9900;
-	unsigned long ms;
+	int order;
+	unsigned int ms = 0;
 
-	if (order < 0)
-		order = 0;	/* RTC depends on this for -2 clock busy */
-	else if (order > 5)
-		order = 5;	/* bound */
+	if (status == RTAS_BUSY) {
+		ms = 1;
+	} else if (status >= 9900 && status <= 9905) {
+		order = status - 9900;
+		for (ms = 1; order > 0; order--)
+			ms *= 10;
+	}
 
-	/* Use microseconds for reasonable accuracy */
-	for (ms = 1; order > 0; order--)
-		ms *= 10;
+	return ms;
+}
 
-	return ms; 
+/* For an RTAS busy status code, perform the hinted delay. */
+unsigned int rtas_busy_delay(int status)
+{
+	unsigned int ms;
+
+	might_sleep();
+	ms = rtas_busy_delay_time(status);
+	if (ms)
+		msleep(ms);
+
+	return ms;
 }
 
 int rtas_error_rc(int rtas_rc)
@@ -438,22 +450,14 @@ int rtas_get_power_level(int powerdomain, int *level)
 int rtas_set_power_level(int powerdomain, int level, int *setlevel)
 {
 	int token = rtas_token("set-power-level");
-	unsigned int wait_time;
 	int rc;
 
 	if (token == RTAS_UNKNOWN_SERVICE)
 		return -ENOENT;
 
-	while (1) {
+	do {
 		rc = rtas_call(token, 2, 2, setlevel, powerdomain, level);
-		if (rc == RTAS_BUSY)
-			udelay(1);
-		else if (rtas_is_extended_busy(rc)) {
-			wait_time = rtas_extended_busy_delay_time(rc);
-			udelay(wait_time * 1000);
-		} else
-			break;
-	}
+	} while (rtas_busy_delay(rc));
 
 	if (rc < 0)
 		return rtas_error_rc(rc);
@@ -463,22 +467,14 @@ int rtas_set_power_level(int powerdomain, int level, int *setlevel)
 int rtas_get_sensor(int sensor, int index, int *state)
 {
 	int token = rtas_token("get-sensor-state");
-	unsigned int wait_time;
 	int rc;
 
 	if (token == RTAS_UNKNOWN_SERVICE)
 		return -ENOENT;
 
-	while (1) {
+	do {
 		rc = rtas_call(token, 2, 2, state, sensor, index);
-		if (rc == RTAS_BUSY)
-			udelay(1);
-		else if (rtas_is_extended_busy(rc)) {
-			wait_time = rtas_extended_busy_delay_time(rc);
-			udelay(wait_time * 1000);
-		} else
-			break;
-	}
+	} while (rtas_busy_delay(rc));
 
 	if (rc < 0)
 		return rtas_error_rc(rc);
@@ -488,23 +484,14 @@ int rtas_get_sensor(int sensor, int index, int *state)
 int rtas_set_indicator(int indicator, int index, int new_value)
 {
 	int token = rtas_token("set-indicator");
-	unsigned int wait_time;
 	int rc;
 
 	if (token == RTAS_UNKNOWN_SERVICE)
 		return -ENOENT;
 
-	while (1) {
+	do {
 		rc = rtas_call(token, 3, 1, NULL, indicator, index, new_value);
-		if (rc == RTAS_BUSY)
-			udelay(1);
-		else if (rtas_is_extended_busy(rc)) {
-			wait_time = rtas_extended_busy_delay_time(rc);
-			udelay(wait_time * 1000);
-		}
-		else
-			break;
-	}
+	} while (rtas_busy_delay(rc));
 
 	if (rc < 0)
 		return rtas_error_rc(rc);
@@ -555,13 +542,11 @@ void rtas_os_term(char *str)
 	do {
 		status = rtas_call(rtas_token("ibm,os-term"), 1, 1, NULL,
 				   __pa(rtas_os_term_buf));
+	} while (rtas_busy_delay(status));
 
-		if (status == RTAS_BUSY)
-			udelay(1);
-		else if (status != 0)
-			printk(KERN_EMERG "ibm,os-term call failed %d\n",
+	if (status != 0)
+		printk(KERN_EMERG "ibm,os-term call failed %d\n",
 			       status);
-	} while (status == RTAS_BUSY);
 }
 
 static int ibm_suspend_me_token = RTAS_UNKNOWN_SERVICE;
@@ -789,7 +774,7 @@ EXPORT_SYMBOL(rtas_token);
 EXPORT_SYMBOL(rtas_call);
 EXPORT_SYMBOL(rtas_data_buf);
 EXPORT_SYMBOL(rtas_data_buf_lock);
-EXPORT_SYMBOL(rtas_extended_busy_delay_time);
+EXPORT_SYMBOL(rtas_busy_delay_time);
 EXPORT_SYMBOL(rtas_get_sensor);
 EXPORT_SYMBOL(rtas_get_power_level);
 EXPORT_SYMBOL(rtas_set_power_level);
