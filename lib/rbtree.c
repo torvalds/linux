@@ -170,7 +170,7 @@ static void __rb_erase_color(struct rb_node *node, struct rb_node *parent,
 					__rb_rotate_right(other, root);
 					other = parent->rb_right;
 				}
-				rb_set_colour(other, rb_colour(parent));
+				rb_set_color(other, rb_color(parent));
 				rb_set_black(parent);
 				if (other->rb_right)
 					rb_set_black(other->rb_right);
@@ -207,7 +207,7 @@ static void __rb_erase_color(struct rb_node *node, struct rb_node *parent,
 					__rb_rotate_left(other, root);
 					other = parent->rb_left;
 				}
-				rb_set_colour(other, rb_colour(parent));
+				rb_set_color(other, rb_color(parent));
 				rb_set_black(parent);
 				if (other->rb_left)
 					rb_set_black(other->rb_left);
@@ -239,7 +239,7 @@ void rb_erase(struct rb_node *node, struct rb_root *root)
 			node = left;
 		child = node->rb_right;
 		parent = rb_parent(node);
-		color = rb_colour(node);
+		color = rb_color(node);
 
 		if (child)
 			rb_set_parent(child, parent);
@@ -249,7 +249,7 @@ void rb_erase(struct rb_node *node, struct rb_root *root)
 		} else
 			parent->rb_left = child;
 
-		node->rb_parent_colour = old->rb_parent_colour;
+		node->rb_parent_color = old->rb_parent_color;
 		node->rb_right = old->rb_right;
 		node->rb_left = old->rb_left;
 
@@ -269,7 +269,7 @@ void rb_erase(struct rb_node *node, struct rb_root *root)
 	}
 
 	parent = rb_parent(node);
-	color = rb_colour(node);
+	color = rb_color(node);
 
 	if (child)
 		rb_set_parent(child, parent);
