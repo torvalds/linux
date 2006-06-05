@@ -49,6 +49,8 @@ struct ocfs2_alloc_context {
 	u16    ac_chain;
 	int    ac_allow_chain_relink;
 	group_search_t *ac_group_search;
+
+	u64    ac_last_group;
 };
 
 void ocfs2_free_alloc_context(struct ocfs2_alloc_context *ac);

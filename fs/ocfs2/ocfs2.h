@@ -236,6 +236,7 @@ struct ocfs2_super
 
 	enum ocfs2_local_alloc_state local_alloc_state;
 	struct buffer_head *local_alloc_bh;
+	u64 la_last_gd;
 
 	/* Next two fields are for local node slot recovery during
 	 * mount. */

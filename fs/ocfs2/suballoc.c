@@ -70,12 +70,6 @@ static int ocfs2_block_group_search(struct inode *inode,
 				    struct buffer_head *group_bh,
 				    u32 bits_wanted, u32 min_bits,
 				    u16 *bit_off, u16 *bits_found);
-static int ocfs2_search_chain(struct ocfs2_alloc_context *ac,
-			      u32 bits_wanted,
-			      u32 min_bits,
-			      u16 *bit_off,
-			      unsigned int *num_bits,
-			      u64 *bg_blkno);
 static int ocfs2_claim_suballoc_bits(struct ocfs2_super *osb,
 				     struct ocfs2_alloc_context *ac,
 				     u32 bits_wanted,
@@ -1030,12 +1024,103 @@ static int ocfs2_block_group_search(struct inode *inode,
 	return ret;
 }
 
+static int ocfs2_alloc_dinode_update_counts(struct inode *inode,
+				       struct ocfs2_journal_handle *handle,
+				       struct buffer_head *di_bh,
+				       u32 num_bits,
+				       u16 chain)
+{
+	int ret;
+	u32 tmp_used;
+	struct ocfs2_dinode *di = (struct ocfs2_dinode *) di_bh->b_data;
+	struct ocfs2_chain_list *cl = (struct ocfs2_chain_list *) &di->id2.i_chain;
+
+	ret = ocfs2_journal_access(handle, inode, di_bh,
+				   OCFS2_JOURNAL_ACCESS_WRITE);
+	if (ret < 0) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	tmp_used = le32_to_cpu(di->id1.bitmap1.i_used);
+	di->id1.bitmap1.i_used = cpu_to_le32(num_bits + tmp_used);
+	le32_add_cpu(&cl->cl_recs[chain].c_free, -num_bits);
+
+	ret = ocfs2_journal_dirty(handle, di_bh);
+	if (ret < 0)
+		mlog_errno(ret);
+
+out:
+	return ret;
+}
+
+static int ocfs2_search_one_group(struct ocfs2_alloc_context *ac,
+				  u32 bits_wanted,
+				  u32 min_bits,
+				  u16 *bit_off,
+				  unsigned int *num_bits,
+				  u64 gd_blkno,
+				  u16 *bits_left)
+{
+	int ret;
+	u16 found;
+	struct buffer_head *group_bh = NULL;
+	struct ocfs2_group_desc *gd;
+	struct inode *alloc_inode = ac->ac_inode;
+	struct ocfs2_journal_handle *handle = ac->ac_handle;
+
+	ret = ocfs2_read_block(OCFS2_SB(alloc_inode->i_sb), gd_blkno,
+			       &group_bh, OCFS2_BH_CACHED, alloc_inode);
+	if (ret < 0) {
+		mlog_errno(ret);
+		return ret;
+	}
+
+	gd = (struct ocfs2_group_desc *) group_bh->b_data;
+	if (!OCFS2_IS_VALID_GROUP_DESC(gd)) {
+		OCFS2_RO_ON_INVALID_GROUP_DESC(alloc_inode->i_sb, gd);
+		ret = -EIO;
+		goto out;
+	}
+
+	ret = ac->ac_group_search(alloc_inode, group_bh, bits_wanted, min_bits,
+				  bit_off, &found);
+	if (ret < 0) {
+		if (ret != -ENOSPC)
+			mlog_errno(ret);
+		goto out;
+	}
+
+	*num_bits = found;
+
+	ret = ocfs2_alloc_dinode_update_counts(alloc_inode, handle, ac->ac_bh,
+					       *num_bits,
+					       le16_to_cpu(gd->bg_chain));
+	if (ret < 0) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	ret = ocfs2_block_group_set_bits(handle, alloc_inode, gd, group_bh,
+					 *bit_off, *num_bits);
+	if (ret < 0)
+		mlog_errno(ret);
+
+	*bits_left = le16_to_cpu(gd->bg_free_bits_count);
+
+out:
+	brelse(group_bh);
+
+	return ret;
+}
+
 static int ocfs2_search_chain(struct ocfs2_alloc_context *ac,
 			      u32 bits_wanted,
 			      u32 min_bits,
 			      u16 *bit_off,
 			      unsigned int *num_bits,
-			      u64 *bg_blkno)
+			      u64 *bg_blkno,
+			      u16 *bits_left)
 {
 	int status;
 	u16 chain, tmp_bits;
@@ -1173,6 +1258,7 @@ static int ocfs2_search_chain(struct ocfs2_alloc_context *ac,
 	     (unsigned long long)fe->i_blkno);
 
 	*bg_blkno = le64_to_cpu(bg->bg_blkno);
+	*bits_left = le16_to_cpu(bg->bg_free_bits_count);
 bail:
 	if (group_bh)
 		brelse(group_bh);
@@ -1194,6 +1280,8 @@ static int ocfs2_claim_suballoc_bits(struct ocfs2_super *osb,
 {
 	int status;
 	u16 victim, i;
+	u16 bits_left = 0;
+	u64 hint_blkno = ac->ac_last_group;
 	struct ocfs2_chain_list *cl;
 	struct ocfs2_dinode *fe;
 
@@ -1220,6 +1308,28 @@ static int ocfs2_claim_suballoc_bits(struct ocfs2_super *osb,
 		goto bail;
 	}
 
+	if (hint_blkno) {
+		/* Attempt to short-circuit the usual search mechanism
+		 * by jumping straight to the most recently used
+		 * allocation group. This helps us mantain some
+		 * contiguousness across allocations. */
+		status = ocfs2_search_one_group(ac, bits_wanted, min_bits,
+						bit_off, num_bits,
+						hint_blkno, &bits_left);
+		if (!status) {
+			/* Be careful to update *bg_blkno here as the
+			 * caller is expecting it to be filled in, and
+			 * ocfs2_search_one_group() won't do that for
+			 * us. */
+			*bg_blkno = hint_blkno;
+			goto set_hint;
+		}
+		if (status < 0 && status != -ENOSPC) {
+			mlog_errno(status);
+			goto bail;
+		}
+	}
+
 	cl = (struct ocfs2_chain_list *) &fe->id2.i_chain;
 
 	victim = ocfs2_find_victim_chain(cl);
@@ -1227,9 +1337,9 @@ static int ocfs2_claim_suballoc_bits(struct ocfs2_super *osb,
 	ac->ac_allow_chain_relink = 1;
 
 	status = ocfs2_search_chain(ac, bits_wanted, min_bits, bit_off,
-				    num_bits, bg_blkno);
+				    num_bits, bg_blkno, &bits_left);
 	if (!status)
-		goto bail;
+		goto set_hint;
 	if (status < 0 && status != -ENOSPC) {
 		mlog_errno(status);
 		goto bail;
@@ -1251,8 +1361,8 @@ static int ocfs2_claim_suballoc_bits(struct ocfs2_super *osb,
 
 		ac->ac_chain = i;
 		status = ocfs2_search_chain(ac, bits_wanted, min_bits,
-					    bit_off, num_bits,
-					    bg_blkno);
+					    bit_off, num_bits, bg_blkno,
+					    &bits_left);
 		if (!status)
 			break;
 		if (status < 0 && status != -ENOSPC) {
@@ -1260,8 +1370,19 @@ static int ocfs2_claim_suballoc_bits(struct ocfs2_super *osb,
 			goto bail;
 		}
 	}
-bail:
 
+set_hint:
+	if (status != -ENOSPC) {
+		/* If the next search of this group is not likely to
+		 * yield a suitable extent, then we reset the last
+		 * group hint so as to not waste a disk read */
+		if (bits_left < min_bits)
+			ac->ac_last_group = 0;
+		else
+			ac->ac_last_group = *bg_blkno;
+	}
+
+bail:
 	mlog_exit(status);
 	return status;
 }
@@ -1415,7 +1536,7 @@ int ocfs2_claim_clusters(struct ocfs2_super *osb,
 {
 	int status;
 	unsigned int bits_wanted = ac->ac_bits_wanted - ac->ac_bits_given;
-	u64 bg_blkno;
+	u64 bg_blkno = 0;
 	u16 bg_bit_off;
 
 	mlog_entry_void();
