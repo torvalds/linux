@@ -1663,6 +1663,8 @@ static void blk_unplug_timeout(unsigned long data)
  **/
 void blk_start_queue(request_queue_t *q)
 {
+	WARN_ON(!irqs_disabled());
+
 	clear_bit(QUEUE_FLAG_STOPPED, &q->queue_flags);
 
 	/*
@@ -1878,7 +1880,8 @@ EXPORT_SYMBOL(blk_alloc_queue_node);
  *    get dealt with eventually.
  *
  *    The queue spin lock must be held while manipulating the requests on the
- *    request queue.
+ *    request queue; this lock will be taken also from interrupt context, so irq
+ *    disabling is needed for it.
  *
  *    Function returns a pointer to the initialized request queue, or NULL if
  *    it didn't succeed.
