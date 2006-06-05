@@ -1318,6 +1318,7 @@ getorigdst(struct sock *sk, int optval, void __user *user, int *len)
 			.tuple.dst.u.tcp.port;
 		sin.sin_addr.s_addr = ct->tuplehash[IP_CT_DIR_ORIGINAL]
 			.tuple.dst.ip;
+		memset(sin.sin_zero, 0, sizeof(sin.sin_zero));
 
 		DEBUGP("SO_ORIGINAL_DST: %u.%u.%u.%u %u\n",
 		       NIPQUAD(sin.sin_addr.s_addr), ntohs(sin.sin_port));

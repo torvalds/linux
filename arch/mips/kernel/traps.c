@@ -902,6 +902,7 @@ static inline void parity_protection_init(void)
 {
 	switch (current_cpu_data.cputype) {
 	case CPU_24K:
+	case CPU_34K:
 	case CPU_5KC:
 		write_c0_ecc(0x80000000);
 		back_to_back_c0_hazard();

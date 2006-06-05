@@ -405,7 +405,7 @@ static int s3c24xx_spi_remove(struct platform_device *dev)
 
 static int s3c24xx_spi_suspend(struct platform_device *pdev, pm_message_t msg)
 {
-	struct s3c24xx_spi *hw = platform_get_drvdata(dev);
+	struct s3c24xx_spi *hw = platform_get_drvdata(pdev);
 
 	clk_disable(hw->clk);
 	return 0;
@@ -413,7 +413,7 @@ static int s3c24xx_spi_suspend(struct platform_device *pdev, pm_message_t msg)
 
 static int s3c24xx_spi_resume(struct platform_device *pdev)
 {
-	struct s3c24xx_spi *hw = platform_get_drvdata(dev);
+	struct s3c24xx_spi *hw = platform_get_drvdata(pdev);
 
 	clk_enable(hw->clk);
 	return 0;

@@ -91,8 +91,8 @@ static void grow_zone_span(struct zone *zone,
 	if (start_pfn < zone->zone_start_pfn)
 		zone->zone_start_pfn = start_pfn;
 
-	if (end_pfn > old_zone_end_pfn)
-		zone->spanned_pages = end_pfn - zone->zone_start_pfn;
+	zone->spanned_pages = max(old_zone_end_pfn, end_pfn) -
+				zone->zone_start_pfn;
 
 	zone_span_writeunlock(zone);
 }
@@ -106,8 +106,8 @@ static void grow_pgdat_span(struct pglist_data *pgdat,
 	if (start_pfn < pgdat->node_start_pfn)
 		pgdat->node_start_pfn = start_pfn;
 
-	if (end_pfn > old_pgdat_end_pfn)
-		pgdat->node_spanned_pages = end_pfn - pgdat->node_start_pfn;
+	pgdat->node_spanned_pages = max(old_pgdat_end_pfn, end_pfn) -
+					pgdat->node_start_pfn;
 }
 
 int online_pages(unsigned long pfn, unsigned long nr_pages)

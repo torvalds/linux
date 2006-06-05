@@ -280,10 +280,13 @@ static int inline rt6_check_neigh(struct rt6_info *rt)
 {
 	struct neighbour *neigh = rt->rt6i_nexthop;
 	int m = 0;
-	if (neigh) {
+	if (rt->rt6i_flags & RTF_NONEXTHOP ||
+	    !(rt->rt6i_flags & RTF_GATEWAY))
+		m = 1;
+	else if (neigh) {
 		read_lock_bh(&neigh->lock);
 		if (neigh->nud_state & NUD_VALID)
-			m = 1;
+			m = 2;
 		read_unlock_bh(&neigh->lock);
 	}
 	return m;
@@ -292,15 +295,18 @@ static int inline rt6_check_neigh(struct rt6_info *rt)
 static int rt6_score_route(struct rt6_info *rt, int oif,
 			   int strict)
 {
-	int m = rt6_check_dev(rt, oif);
+	int m, n;
+		
+	m = rt6_check_dev(rt, oif);
 	if (!m && (strict & RT6_SELECT_F_IFACE))
 		return -1;
 #ifdef CONFIG_IPV6_ROUTER_PREF
 	m |= IPV6_DECODE_PREF(IPV6_EXTRACT_PREF(rt->rt6i_flags)) << 2;
 #endif
-	if (rt6_check_neigh(rt))
+	n = rt6_check_neigh(rt);
+	if (n > 1)
 		m |= 16;
-	else if (strict & RT6_SELECT_F_REACHABLE)
+	else if (!n && strict & RT6_SELECT_F_REACHABLE)
 		return -1;
 	return m;
 }

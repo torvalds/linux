@@ -279,11 +279,11 @@ static int mpc8272ads_platform_notify(struct device *dev)
 	static const struct platform_notify_dev_map dev_map[] = {
 		{
 			.bus_id = "fsl-cpm-fcc",
-			.rtn = mpc8272ads_fixup_enet_pdata
+			.rtn = mpc8272ads_fixup_enet_pdata,
 		},
 		{
 			.bus_id = "fsl-cpm-scc:uart",
-			.rtn = mpc
+			.rtn = mpc8272ads_fixup_uart_pdata,
 		},
 		{
 			.bus_id = NULL
@@ -335,15 +335,15 @@ struct platform_device* early_uart_get_pdev(int index)
 	struct platform_device* pdev = NULL;
 	if(index) { /*assume SCC4 here*/
 		pdev = &ppc_sys_platform_devices[MPC82xx_CPM_SCC4];
-		pinfo = &mpc8272<F12>_uart_pdata[1];
+		pinfo = &mpc8272_uart_pdata[fsid_scc4_uart];
 	} else { /*over SCC1*/
 		pdev = &ppc_sys_platform_devices[MPC82xx_CPM_SCC1];
-		pinfo = &mpc8272_uart_pdata[0];
+		pinfo = &mpc8272_uart_pdata[fsid_scc1_uart];
 	}
 
 	pinfo->uart_clk = bd->bi_intfreq;
 	pdev->dev.platform_data = pinfo;
-	ppc_sys_fixup_mem_resource(pdev, IMAP_ADDR);
+	ppc_sys_fixup_mem_resource(pdev, CPM_MAP_ADDR);
 	return NULL;
 }
 

@@ -457,10 +457,6 @@ static int __devinit tpm_tis_pnp_init(struct pnp_dev *pnp_dev,
 	}
 
 	vendor = ioread32(chip->vendor.iobase + TPM_DID_VID(0));
-	if ((vendor & 0xFFFF) == 0xFFFF) {
-		rc = -ENODEV;
-		goto out_err;
-	}
 
 	/* Default timeouts */
 	chip->vendor.timeout_a = msecs_to_jiffies(TIS_SHORT_TIMEOUT);

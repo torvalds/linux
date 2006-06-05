@@ -399,8 +399,10 @@ int __init acpi_scan_nodes(unsigned long start, unsigned long end)
 	/* First clean up the node list */
 	for (i = 0; i < MAX_NUMNODES; i++) {
  		cutoff_node(i, start, end);
-		if ((nodes[i].end - nodes[i].start) < NODE_MIN_SIZE)
+		if ((nodes[i].end - nodes[i].start) < NODE_MIN_SIZE) {
 			unparse_node(i);
+			node_set_offline(i);
+		}
 	}
 
 	if (acpi_numa <= 0)

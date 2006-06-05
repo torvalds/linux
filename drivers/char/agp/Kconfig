@@ -86,7 +86,7 @@ config AGP_NVIDIA
 
 config AGP_SIS
 	tristate "SiS chipset support"
-	depends on AGP && X86_32
+	depends on AGP
 	help
 	  This option gives you AGP support for the GLX component of
 	  X on Silicon Integrated Systems [SiS] chipsets.
