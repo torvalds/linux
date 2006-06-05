@@ -498,11 +498,21 @@ static inline u32 bcm43xx_interrupt_disable(struct bcm43xx_private *bcm, u32 mas
 	return old_mask;
 }
 
+/* Synchronize IRQ top- and bottom-half.
+ * IRQs must be masked before calling this.
+ * This must not be called with the irq_lock held.
+ */
+static void bcm43xx_synchronize_irq(struct bcm43xx_private *bcm)
+{
+	synchronize_irq(bcm->irq);
+	tasklet_disable(&bcm->isr_tasklet);
+}
+
 /* Make sure we don't receive more data from the device. */
 static int bcm43xx_disable_interrupts_sync(struct bcm43xx_private *bcm, u32 *oldstate)
 {
-	u32 old;
 	unsigned long flags;
+	u32 old;
 
 	bcm43xx_lock_irqonly(bcm, flags);
 	if (unlikely(bcm43xx_status(bcm) != BCM43xx_STAT_INITIALIZED)) {
@@ -510,8 +520,9 @@ static int bcm43xx_disable_interrupts_sync(struct bcm43xx_private *bcm, u32 *old
 		return -EBUSY;
 	}
 	old = bcm43xx_interrupt_disable(bcm, BCM43xx_IRQ_ALL);
-	tasklet_disable(&bcm->isr_tasklet);
 	bcm43xx_unlock_irqonly(bcm, flags);
+	bcm43xx_synchronize_irq(bcm);
+
 	if (oldstate)
 		*oldstate = old;
 
@@ -3108,13 +3119,9 @@ static void bcm43xx_periodic_every15sec(struct bcm43xx_private *bcm)
 	//TODO for APHY (temperature?)
 }
 
-static void bcm43xx_periodic_work_handler(void *d)
+static void do_periodic_work(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_private *bcm = d;
-	unsigned long flags;
 	unsigned int state;
-
-	bcm43xx_lock_irqsafe(bcm, flags);
 
 	state = bcm->periodic_state;
 	if (state % 8 == 0)
@@ -3123,13 +3130,79 @@ static void bcm43xx_periodic_work_handler(void *d)
 		bcm43xx_periodic_every60sec(bcm);
 	if (state % 2 == 0)
 		bcm43xx_periodic_every30sec(bcm);
-	bcm43xx_periodic_every15sec(bcm);
+	if (state % 1 == 0)
+		bcm43xx_periodic_every15sec(bcm);
 	bcm->periodic_state = state + 1;
 
 	schedule_delayed_work(&bcm->periodic_work, HZ * 15);
+}
 
-	mmiowb();
-	bcm43xx_unlock_irqsafe(bcm, flags);
+/* Estimate a "Badness" value based on the periodic work
+ * state-machine state. "Badness" is worse (bigger), if the
+ * periodic work will take longer.
+ */
+static int estimate_periodic_work_badness(unsigned int state)
+{
+	int badness = 0;
+
+	if (state % 8 == 0) /* every 120 sec */
+		badness += 10;
+	if (state % 4 == 0) /* every 60 sec */
+		badness += 5;
+	if (state % 2 == 0) /* every 30 sec */
+		badness += 1;
+	if (state % 1 == 0) /* every 15 sec */
+		badness += 1;
+
+#define BADNESS_LIMIT	4
+	return badness;
+}
+
+static void bcm43xx_periodic_work_handler(void *d)
+{
+	struct bcm43xx_private *bcm = d;
+	unsigned long flags;
+	u32 savedirqs = 0;
+	int badness;
+
+	badness = estimate_periodic_work_badness(bcm->periodic_state);
+	if (badness > BADNESS_LIMIT) {
+		/* Periodic work will take a long time, so we want it to
+		 * be preemtible.
+		 */
+		bcm43xx_lock_irqonly(bcm, flags);
+		netif_stop_queue(bcm->net_dev);
+		if (bcm43xx_using_pio(bcm))
+			bcm43xx_pio_freeze_txqueues(bcm);
+		savedirqs = bcm43xx_interrupt_disable(bcm, BCM43xx_IRQ_ALL);
+		bcm43xx_unlock_irqonly(bcm, flags);
+		bcm43xx_lock_noirq(bcm);
+		bcm43xx_synchronize_irq(bcm);
+	} else {
+		/* Periodic work should take short time, so we want low
+		 * locking overhead.
+		 */
+		bcm43xx_lock_irqsafe(bcm, flags);
+	}
+
+	do_periodic_work(bcm);
+
+	if (badness > BADNESS_LIMIT) {
+		bcm43xx_lock_irqonly(bcm, flags);
+		if (likely(bcm43xx_status(bcm) == BCM43xx_STAT_INITIALIZED)) {
+			tasklet_enable(&bcm->isr_tasklet);
+			bcm43xx_interrupt_enable(bcm, savedirqs);
+			if (bcm43xx_using_pio(bcm))
+				bcm43xx_pio_thaw_txqueues(bcm);
+		}
+		netif_wake_queue(bcm->net_dev);
+		mmiowb();
+		bcm43xx_unlock_irqonly(bcm, flags);
+		bcm43xx_unlock_noirq(bcm);
+	} else {
+		mmiowb();
+		bcm43xx_unlock_irqsafe(bcm, flags);
+	}
 }
 
 static void bcm43xx_periodic_tasks_delete(struct bcm43xx_private *bcm)
@@ -3670,9 +3743,11 @@ static int bcm43xx_net_open(struct net_device *net_dev)
 static int bcm43xx_net_stop(struct net_device *net_dev)
 {
 	struct bcm43xx_private *bcm = bcm43xx_priv(net_dev);
+	int err;
 
 	ieee80211softmac_stop(net_dev);
-	bcm43xx_disable_interrupts_sync(bcm, NULL);
+	err = bcm43xx_disable_interrupts_sync(bcm, NULL);
+	assert(!err);
 	bcm43xx_free_board(bcm);
 
 	return 0;

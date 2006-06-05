@@ -1410,7 +1410,10 @@ static inline
 u16 bcm43xx_phy_lo_g_deviation_subval(struct bcm43xx_private *bcm, u16 control)
 {
 	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
+	u16 ret;
+	unsigned long flags;
 
+	local_irq_save(flags);
 	if (phy->connected) {
 		bcm43xx_phy_write(bcm, 0x15, 0xE300);
 		control <<= 8;
@@ -1430,8 +1433,10 @@ u16 bcm43xx_phy_lo_g_deviation_subval(struct bcm43xx_private *bcm, u16 control)
 		bcm43xx_phy_write(bcm, 0x0015, control | 0xFFE0);
 		udelay(8);
 	}
+	ret = bcm43xx_phy_read(bcm, 0x002D);
+	local_irq_restore(flags);
 
-	return bcm43xx_phy_read(bcm, 0x002D);
+	return ret;
 }
 
 static u32 bcm43xx_phy_lo_g_singledeviation(struct bcm43xx_private *bcm, u16 control)
