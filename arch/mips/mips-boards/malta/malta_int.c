@@ -212,23 +212,23 @@ static inline unsigned int irq_ffs(unsigned int pending)
 	unsigned int a0 = 7;
 	unsigned int t0;
 
-	t0 = s0 & 0xf000;
+	t0 = pending & 0xf000;
 	t0 = t0 < 1;
 	t0 = t0 << 2;
 	a0 = a0 - t0;
-	s0 = s0 << t0;
+	pending = pending << t0;
 
-	t0 = s0 & 0xc000;
+	t0 = pending & 0xc000;
 	t0 = t0 < 1;
 	t0 = t0 << 1;
 	a0 = a0 - t0;
-	s0 = s0 << t0;
+	pending = pending << t0;
 
-	t0 = s0 & 0x8000;
+	t0 = pending & 0x8000;
 	t0 = t0 < 1;
 	//t0 = t0 << 2;
 	a0 = a0 - t0;
-	//s0 = s0 << t0;
+	//pending = pending << t0;
 
 	return a0;
 #endif
