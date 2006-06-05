@@ -110,17 +110,23 @@ static void finish_reset(struct uhci_hcd *uhci)
 	uhci->is_stopped = UHCI_IS_STOPPED;
 	uhci_to_hcd(uhci)->state = HC_STATE_HALT;
 	uhci_to_hcd(uhci)->poll_rh = 0;
+
+	uhci->dead = 0;		/* Full reset resurrects the controller */
 }
 
 /*
  * Last rites for a defunct/nonfunctional controller
  * or one we don't want to use any more.
  */
-static void hc_died(struct uhci_hcd *uhci)
+static void uhci_hc_died(struct uhci_hcd *uhci)
 {
+	uhci_get_current_frame_number(uhci);
 	uhci_reset_hc(to_pci_dev(uhci_dev(uhci)), uhci->io_addr);
 	finish_reset(uhci);
-	uhci->hc_inaccessible = 1;
+	uhci->dead = 1;
+
+	/* The current frame may already be partway finished */
+	++uhci->frame_number;
 }
 
 /*
@@ -234,7 +240,7 @@ __acquires(uhci->lock)
 		spin_unlock_irq(&uhci->lock);
 		msleep(1);
 		spin_lock_irq(&uhci->lock);
-		if (uhci->hc_inaccessible)	/* Died */
+		if (uhci->dead)
 			return;
 	}
 	if (!(inw(uhci->io_addr + USBSTS) & USBSTS_HCH))
@@ -287,7 +293,7 @@ __acquires(uhci->lock)
 		spin_unlock_irq(&uhci->lock);
 		msleep(20);
 		spin_lock_irq(&uhci->lock);
-		if (uhci->hc_inaccessible)	/* Died */
+		if (uhci->dead)
 			return;
 
 		/* End Global Resume and wait for EOP to be sent */
@@ -339,7 +345,7 @@ static irqreturn_t uhci_irq(struct usb_hcd *hcd, struct pt_regs *regs)
 							errbuf, ERRBUF_LEN);
 					lprintk(errbuf);
 				}
-				hc_died(uhci);
+				uhci_hc_died(uhci);
 
 				/* Force a callback in case there are
 				 * pending unlinks */
@@ -462,7 +468,7 @@ static void uhci_shutdown(struct pci_dev *pdev)
 {
 	struct usb_hcd *hcd = (struct usb_hcd *) pci_get_drvdata(pdev);
 
-	hc_died(hcd_to_uhci(hcd));
+	uhci_hc_died(hcd_to_uhci(hcd));
 }
 
 /*
@@ -664,8 +670,8 @@ static void uhci_stop(struct usb_hcd *hcd)
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
 
 	spin_lock_irq(&uhci->lock);
-	if (!uhci->hc_inaccessible)
-		hc_died(uhci);
+	if (test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags) && !uhci->dead)
+		uhci_hc_died(uhci);
 	uhci_scan_schedule(uhci, NULL);
 	spin_unlock_irq(&uhci->lock);
 
@@ -681,7 +687,7 @@ static int uhci_rh_suspend(struct usb_hcd *hcd)
 	spin_lock_irq(&uhci->lock);
 	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags))
 		rc = -ESHUTDOWN;
-	else if (!uhci->hc_inaccessible)
+	else if (!uhci->dead)
 		suspend_rh(uhci, UHCI_RH_SUSPENDED);
 	spin_unlock_irq(&uhci->lock);
 	return rc;
@@ -696,7 +702,7 @@ static int uhci_rh_resume(struct usb_hcd *hcd)
 	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags)) {
 		dev_warn(&hcd->self.root_hub->dev, "HC isn't running!\n");
 		rc = -ESHUTDOWN;
-	} else if (!uhci->hc_inaccessible)
+	} else if (!uhci->dead)
 		wakeup_rh(uhci);
 	spin_unlock_irq(&uhci->lock);
 	return rc;
@@ -710,8 +716,8 @@ static int uhci_suspend(struct usb_hcd *hcd, pm_message_t message)
 	dev_dbg(uhci_dev(uhci), "%s\n", __FUNCTION__);
 
 	spin_lock_irq(&uhci->lock);
-	if (uhci->hc_inaccessible)	/* Dead or already suspended */
-		goto done;
+	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags) || uhci->dead)
+		goto done_okay;		/* Already suspended or dead */
 
 	if (uhci->rh_state > UHCI_RH_SUSPENDED) {
 		dev_warn(uhci_dev(uhci), "Root hub isn't suspended!\n");
@@ -724,12 +730,12 @@ static int uhci_suspend(struct usb_hcd *hcd, pm_message_t message)
 	 */
 	pci_write_config_word(to_pci_dev(uhci_dev(uhci)), USBLEGSUP, 0);
 	mb();
-	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
-	uhci->hc_inaccessible = 1;
 	hcd->poll_rh = 0;
 
 	/* FIXME: Enable non-PME# remote wakeup? */
 
+done_okay:
+	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 done:
 	spin_unlock_irq(&uhci->lock);
 	return rc;
@@ -742,25 +748,22 @@ static int uhci_resume(struct usb_hcd *hcd)
 	dev_dbg(uhci_dev(uhci), "%s\n", __FUNCTION__);
 
 	/* Since we aren't in D3 any more, it's safe to set this flag
-	 * even if the controller was dead.  It might not even be dead
-	 * any more, if the firmware or quirks code has reset it.
+	 * even if the controller was dead.
 	 */
 	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 	mb();
-
-	if (uhci->rh_state == UHCI_RH_RESET)	/* Dead */
-		return 0;
 
 	spin_lock_irq(&uhci->lock);
 
 	/* FIXME: Disable non-PME# remote wakeup? */
 
-	uhci->hc_inaccessible = 0;
-
-	/* The BIOS may have changed the controller settings during a
-	 * system wakeup.  Check it and reconfigure to avoid problems.
+	/* The firmware or a boot kernel may have changed the controller
+	 * settings during a system wakeup.  Check it and reconfigure
+	 * to avoid problems.
 	 */
 	check_and_reset_hc(uhci);
+
+	/* If the controller was dead before, it's back alive now */
 	configure_hc(uhci);
 
 	if (uhci->rh_state == UHCI_RH_RESET) {

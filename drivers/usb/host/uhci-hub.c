@@ -171,7 +171,7 @@ static int uhci_hub_status_data(struct usb_hcd *hcd, char *buf)
 	spin_lock_irqsave(&uhci->lock, flags);
 
 	uhci_scan_schedule(uhci, NULL);
-	if (uhci->hc_inaccessible)
+	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags) || uhci->dead)
 		goto done;
 	uhci_check_ports(uhci);
 
@@ -227,7 +227,7 @@ static int uhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 	u16 wPortChange, wPortStatus;
 	unsigned long flags;
 
-	if (uhci->hc_inaccessible)
+	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags) || uhci->dead)
 		return -ETIMEDOUT;
 
 	spin_lock_irqsave(&uhci->lock, flags);
