@@ -306,6 +306,8 @@ void calc_lanman_hash(struct cifsSesInfo * ses, char * lnm_session_key)
 
 void CalcNTLMv2_response(const struct cifsSesInfo * ses,char * v2_session_response)
 {
+	/* BB FIXME  -  update struct ntlmv2_response and change calling convention
+	   of this function */ 
 	struct HMACMD5Context context;
 	memcpy(v2_session_response + 8, ses->server->cryptKey,8);
 	/* gen_blob(v2_session_response + 16); */

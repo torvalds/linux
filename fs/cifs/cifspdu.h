@@ -117,7 +117,6 @@
  * Size of the session key (crypto key encrypted with the password
  */
 #define CIFS_SESS_KEY_SIZE (24)
-#define V2_SESS_KEY_SIZE (86)
 
 /*
  * Maximum user name length
@@ -539,7 +538,7 @@ typedef union smb_com_session_setup_andx {
 /*      unsigned char  * NativeOS;      */
 /*	unsigned char  * NativeLanMan;  */
 /*      unsigned char  * PrimaryDomain; */
-	} __attribute__((packed)) resp;			/* NTLM response format (with or without extended security */
+	} __attribute__((packed)) resp;	/* NTLM response with or without extended sec*/
 
 	struct {		/* request format */
 		struct smb_hdr hdr;	/* wct = 10 */
@@ -573,6 +572,26 @@ typedef union smb_com_session_setup_andx {
 	} __attribute__((packed)) old_resp; /* pre-NTLM (LANMAN2.1) response */
 } __attribute__((packed)) SESSION_SETUP_ANDX;
 
+/* format of NLTMv2 Response ie "case sensitive password" hash when NTLMv2 */
+
+struct ntlmssp2_name {
+	__le16 type;
+	__le16 length;
+/*	char   name[length]; */
+} __attribute__((packed));
+
+struct ntlmv2_resp {
+	char ntlmv2_hash[CIFS_ENCPWD_SIZE];
+	__le32 blob_sign;
+	__u32  reserved;
+	__le64  time;
+	__u64  client_chal; /* random */
+	__u32  reserved2;
+	struct ntlmssp2_name names[1];
+	/* array of name entries could follow ending in minimum 4 byte struct */
+} __attribute__((packed));
+
+
 #define CIFS_NETWORK_OPSYS "CIFS VFS Client for Linux"
 
 /* Capabilities bits (for NTLM SessSetup request) */
@@ -603,7 +622,9 @@ typedef struct smb_com_tconx_req {
 } __attribute__((packed)) TCONX_REQ;
 
 typedef struct smb_com_tconx_rsp {
-	struct smb_hdr hdr;	/* wct = 3 *//* note that Win2000 has sent wct=7 in some cases on responses. Four unspecified words followed OptionalSupport */
+	struct smb_hdr hdr;	/* wct = 3 note that Win2000 has sent wct = 7
+				 in some cases on responses. Four unspecified
+				 words followed OptionalSupport */
 	__u8 AndXCommand;
 	__u8 AndXReserved;
 	__le16 AndXOffset;

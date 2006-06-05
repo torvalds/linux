@@ -411,7 +411,11 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 		else
 			ascii_ssetup_strings(&bcc_ptr, ses, nls_cp);
 	} else if (type == NTLMv2) {
-		char * v2_sess_key = kmalloc(V2_SESS_KEY_SIZE, GFP_KERNEL);
+		char * v2_sess_key = kmalloc(sizeof(struct ntlmv2_resp),
+						GFP_KERNEL);
+
+		/* BB FIXME change all users of v2_sess_key to
+		   struct ntlmv2_resp */
 
 		if(v2_sess_key == NULL) {
 			cifs_small_buf_release(smb_buf);
@@ -425,7 +429,7 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 		/*	cpu_to_le16(LM2_SESS_KEY_SIZE); */
 
 		pSMB->req_no_secext.CaseSensitivePasswordLength =
-			cpu_to_le16(V2_SESS_KEY_SIZE);
+			cpu_to_le16(sizeof(struct ntlmv2_resp));
 
 		/* calculate session key */
 		CalcNTLMv2_response(ses, v2_sess_key);
@@ -438,8 +442,9 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 
 	/*	memcpy(bcc_ptr, (char *)ntlm_session_key,LM2_SESS_KEY_SIZE);
 		bcc_ptr += LM2_SESS_KEY_SIZE; */
-		memcpy(bcc_ptr, (char *)v2_sess_key, V2_SESS_KEY_SIZE);
-		bcc_ptr += V2_SESS_KEY_SIZE;
+		memcpy(bcc_ptr, (char *)v2_sess_key, sizeof(struct ntlmv2_resp));
+		bcc_ptr += sizeof(struct ntlmv2_resp);
+		kfree(v2_sess_key);
 		if(ses->capabilities & CAP_UNICODE)
 			unicode_ssetup_strings(&bcc_ptr, ses, nls_cp);
 		else
