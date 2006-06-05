@@ -287,6 +287,7 @@ extern int cifs_verify_signature(struct smb_hdr *, const char * mac_key,
 extern int cifs_calculate_mac_key(char * key,const char * rn,const char * pass);
 extern int CalcNTLMv2_partial_mac_key(struct cifsSesInfo *, struct nls_table *);
 extern void CalcNTLMv2_response(const struct cifsSesInfo *,char * );
+extern void setup_ntlmv2_rsp(const struct cifsSesInfo *, char *);
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
 extern void calc_lanman_hash(struct cifsSesInfo * ses, char * lnm_session_key);
 #endif /* CIFS_WEAK_PW_HASH */

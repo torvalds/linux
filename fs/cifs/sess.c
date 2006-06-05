@@ -411,8 +411,8 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 		else
 			ascii_ssetup_strings(&bcc_ptr, ses, nls_cp);
 	} else if (type == NTLMv2) {
-		char * v2_sess_key = kmalloc(sizeof(struct ntlmv2_resp),
-						GFP_KERNEL);
+		char * v2_sess_key = 
+			kmalloc(sizeof(struct ntlmv2_resp), GFP_KERNEL);
 
 		/* BB FIXME change all users of v2_sess_key to
 		   struct ntlmv2_resp */
@@ -432,7 +432,7 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 			cpu_to_le16(sizeof(struct ntlmv2_resp));
 
 		/* calculate session key */
-		CalcNTLMv2_response(ses, v2_sess_key);
+		setup_ntlmv2_rsp(ses, v2_sess_key);
 		if(first_time) /* should this be moved into common code
 			          with similar ntlmv2 path? */
 		/*   cifs_calculate_ntlmv2_mac_key(ses->server->mac_signing_key,

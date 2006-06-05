@@ -582,7 +582,7 @@ struct ntlmssp2_name {
 
 struct ntlmv2_resp {
 	char ntlmv2_hash[CIFS_ENCPWD_SIZE];
-	__le32 blob_sign;
+	__le32 blob_signature;
 	__u32  reserved;
 	__le64  time;
 	__u64  client_chal; /* random */

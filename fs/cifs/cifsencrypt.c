@@ -27,6 +27,7 @@
 #include "cifs_unicode.h"
 #include "cifsproto.h"
 #include <linux/ctype.h>
+#include <linux/random.h>
 
 /* Calculate and return the CIFS signature based on the mac key and the smb pdu */
 /* the 16 byte signature must be allocated by the caller  */
@@ -304,10 +305,22 @@ void calc_lanman_hash(struct cifsSesInfo * ses, char * lnm_session_key)
 }
 #endif /* CIFS_WEAK_PW_HASH */
 
+void setup_ntlmv2_rsp(const struct cifsSesInfo * ses, char * resp_buf)
+{
+	struct ntlmv2_resp * buf = (struct ntlmv2_resp *)resp_buf;
+
+	buf->blob_signature = cpu_to_le32(0x00000101);
+	buf->reserved = 0;
+	buf->time = cpu_to_le64(cifs_UnixTimeToNT(CURRENT_TIME));
+	get_random_bytes(&buf->client_chal, sizeof(buf->client_chal)); 
+	buf->reserved2 = 0;
+	buf->names[0].type = 0;
+	buf->names[0].length = 0;
+	/* calculate buf->ntlmv2_hash */
+}
+
 void CalcNTLMv2_response(const struct cifsSesInfo * ses,char * v2_session_response)
 {
-	/* BB FIXME  -  update struct ntlmv2_response and change calling convention
-	   of this function */ 
 	struct HMACMD5Context context;
 	memcpy(v2_session_response + 8, ses->server->cryptKey,8);
 	/* gen_blob(v2_session_response + 16); */
