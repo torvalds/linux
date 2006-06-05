@@ -2146,6 +2146,13 @@ out:
 	return err;
 }
 
+#ifdef CONFIG_BCM947XX
+static struct pci_device_id bcm43xx_47xx_ids[] = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, 0x4324) },
+	{ 0 }
+};
+#endif
+
 static int bcm43xx_initialize_irq(struct bcm43xx_private *bcm)
 {
 	int res;
@@ -2155,11 +2162,15 @@ static int bcm43xx_initialize_irq(struct bcm43xx_private *bcm)
 	bcm->irq = bcm->pci_dev->irq;
 #ifdef CONFIG_BCM947XX
 	if (bcm->pci_dev->bus->number == 0) {
-		struct pci_dev *d = NULL;
-		/* FIXME: we will probably need more device IDs here... */
-		d = pci_find_device(PCI_VENDOR_ID_BROADCOM, 0x4324, NULL);
-		if (d != NULL) {
-			bcm->irq = d->irq;
+		struct pci_dev *d;
+		struct pci_device_id *id;
+		for (id = bcm43xx_47xx_ids; id->vendor; id++) {
+			d = pci_get_device(id->vendor, id->device, NULL);
+			if (d != NULL) {
+				bcm->irq = d->irq;
+				pci_dev_put(d);
+				break;
+			}
 		}
 	}
 #endif
