@@ -1890,6 +1890,32 @@ config PM
 	bool "Power Management support (EXPERIMENTAL)"
 	depends on EXPERIMENTAL && SOC_AU1X00
 
+config APM
+        tristate "Advanced Power Management Emulation"
+	depends on PM
+        ---help---
+	  APM is a BIOS specification for saving power using several different
+	  techniques. This is mostly useful for battery powered systems with
+	  APM compliant BIOSes. If you say Y here, the system time will be
+	  reset after a RESUME operation, the /proc/apm device will provide
+	  battery status information, and user-space programs will receive
+	  notification of APM "events" (e.g. battery status change).
+
+	  In order to use APM, you will need supporting software. For location
+	  and more information, read <file:Documentation/pm.txt> and the
+	  Battery Powered Linux mini-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>.
+
+	  This driver does not spin down disk drives (see the hdparm(8)
+	  manpage ("man 8 hdparm") for that), and it doesn't turn off
+	  VESA-compliant "green" monitors.
+
+	  Generally, if you don't have a battery in your machine, there isn't
+	  much point in using this driver and you should say N. If you get
+	  random kernel OOPSes or reboots that don't seem to be related to
+	  anything, try disabling/enabling this option (or disabling/enabling
+	  APM in your BIOS).
+
 endmenu
 
 source "net/Kconfig"
