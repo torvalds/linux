@@ -41,6 +41,7 @@
 
 #include <linux/pci.h>
 #include <linux/videodev.h>
+#include <media/v4l2-common.h>
 
 /* version 0.75      Sun Feb  4 22:51:27 EET 2001 */
 #define DRIVER_VERSION	"0.75"

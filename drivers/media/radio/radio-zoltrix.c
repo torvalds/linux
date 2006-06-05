@@ -33,6 +33,7 @@
 #include <asm/io.h>		/* outb, outb_p                   */
 #include <asm/uaccess.h>	/* copy to/from user              */
 #include <linux/videodev.h>	/* kernel radio structs           */
+#include <media/v4l2-common.h>
 #include <linux/config.h>	/* CONFIG_RADIO_ZOLTRIX_PORT      */
 
 #ifndef CONFIG_RADIO_ZOLTRIX_PORT

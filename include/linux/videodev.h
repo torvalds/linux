@@ -12,13 +12,6 @@
 #ifndef __LINUX_VIDEODEV_H
 #define __LINUX_VIDEODEV_H
 
-#include <linux/types.h>
-#include <linux/poll.h>
-#include <linux/fs.h>
-#include <linux/device.h>
-#include <linux/mutex.h>
-#include <linux/compiler.h> /* need __user */
-
 #define HAVE_V4L1 1
 
 #include <linux/videodev2.h>
@@ -342,10 +335,6 @@ struct video_code
 #define VID_HARDWARE_SAA7114H   37
 #define VID_HARDWARE_SN9C102	38
 #define VID_HARDWARE_ARV	39
-
-#ifdef __KERNEL__
-#include <media/v4l2-dev.h>
-#endif /* __KERNEL__ */
 
 #endif /* __LINUX_VIDEODEV_H */
 

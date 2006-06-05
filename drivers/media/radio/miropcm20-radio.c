@@ -22,6 +22,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/videodev.h>
+#include <media/v4l2-common.h>
 #include "oss/aci.h"
 #include "miropcm20-rds-core.h"
 

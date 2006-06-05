@@ -42,6 +42,7 @@
 #include <asm/uaccess.h>
 #include <linux/vmalloc.h>
 #include <linux/videodev.h>
+#include <media/v4l2-common.h>
 
 #include "saa7146.h"
 #include "saa7146reg.h"

@@ -40,8 +40,6 @@
 #define VFL_TYPE_RADIO		2
 #define VFL_TYPE_VTX		3
 
-	const struct file_operations *fops;
-
 /*  Video standard functions  */
 extern unsigned int v4l2_video_std_fps(struct v4l2_standard *vs);
 extern int v4l2_video_std_construct(struct v4l2_standard *vs,
@@ -92,7 +90,7 @@ struct v4l2_tvnorm {
 struct video_device
 {
 	/* device ops */
-	struct file_operations *fops;
+	const struct file_operations *fops;
 
 	/* device info */
 	struct device *dev;
@@ -297,7 +295,7 @@ struct video_device
 	int (*vidioc_log_status)       (struct file *file, void *fh);
 
 
-#if OBSOLETE_OWNER /* to be removed soon */
+#ifdef OBSOLETE_OWNER /* to be removed soon */
 /* obsolete -- fops->owner is used instead */
 struct module *owner;
 /* dev->driver_data will be used instead some day.
@@ -351,7 +349,7 @@ video_device_remove_file(struct video_device *vfd,
 	class_device_remove_file(&vfd->class_dev, attr);
 }
 
-#if OBSOLETE_OWNER /* to be removed soon */
+#ifdef OBSOLETE_OWNER /* to be removed soon */
 /* helper functions to access driver private data. */
 static inline void *video_get_drvdata(struct video_device *dev)
 {

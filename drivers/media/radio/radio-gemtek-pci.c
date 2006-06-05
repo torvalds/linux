@@ -44,6 +44,7 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/videodev.h>
+#include <media/v4l2-common.h>
 #include <linux/errno.h>
 
 #include <asm/io.h>

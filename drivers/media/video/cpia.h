@@ -45,6 +45,7 @@
 
 #include <asm/uaccess.h>
 #include <linux/videodev.h>
+#include <media/v4l2-common.h>
 #include <linux/list.h>
 #include <linux/smp_lock.h>
 #include <linux/mutex.h>

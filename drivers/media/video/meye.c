@@ -32,6 +32,7 @@
 #include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/videodev.h>
+#include <media/v4l2-common.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <linux/delay.h>

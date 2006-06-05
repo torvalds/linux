@@ -73,6 +73,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 #include <linux/parport.h>
 #include <linux/sched.h>
 #include <linux/videodev.h>
+#include <media/v4l2-common.h>
 #include <linux/mutex.h>
 #include <asm/uaccess.h>
 

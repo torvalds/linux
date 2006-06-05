@@ -24,7 +24,6 @@
  * Common stuff for both V4L1 and V4L2
  * Moved from videodev.h
  */
-
 #define VIDEO_MAX_FRAME               32
 
 #define VID_TYPE_CAPTURE	1	/* Can capture */
@@ -200,7 +199,6 @@ struct v4l2_capability
 /*
  *	V I D E O   I M A G E   F O R M A T
  */
-
 struct v4l2_pix_format
 {
 	__u32         		width;
@@ -213,7 +211,7 @@ struct v4l2_pix_format
 	__u32			priv;		/* private data, depends on pixelformat */
 };
 
-/*           Pixel format    FOURCC                  depth  Description   */
+/*      Pixel format         FOURCC                        depth  Description  */
 #define V4L2_PIX_FMT_RGB332  v4l2_fourcc('R','G','B','1') /*  8  RGB-3-3-2     */
 #define V4L2_PIX_FMT_RGB555  v4l2_fourcc('R','G','B','O') /* 16  RGB-5-5-5     */
 #define V4L2_PIX_FMT_RGB565  v4l2_fourcc('R','G','B','P') /* 16  RGB-5-6-5     */
@@ -273,7 +271,6 @@ struct v4l2_fmtdesc
 
 #define V4L2_FMT_FLAG_COMPRESSED 0x0001
 
-
 /*
  *	T I M E C O D E
  */
@@ -303,7 +300,6 @@ struct v4l2_timecode
 #define V4L2_TC_USERBITS_8BITCHARS	0x0008
 /* The above is based on SMPTE timecodes */
 
-
 /*
  *	M P E G   C O M P R E S S I O N   P A R A M E T E R S
  *
@@ -311,8 +307,6 @@ struct v4l2_timecode
  *  ###          there will be some incompatible changes.
  *
  */
-
-
 enum v4l2_bitrate_mode {
 	V4L2_BITRATE_NONE = 0,	/* not specified */
 	V4L2_BITRATE_CBR,	/* constant bitrate */
@@ -421,7 +415,6 @@ struct v4l2_jpegcompression
 					* allways use APP0 */
 };
 
-
 /*
  *	M E M O R Y - M A P P I N G   B U F F E R S
  */
@@ -503,7 +496,6 @@ struct v4l2_window
 	void			__user *bitmap;
 };
 
-
 /*
  *	C A P T U R E   P A R A M E T E R S
  */
@@ -516,6 +508,7 @@ struct v4l2_captureparm
 	__u32              readbuffers;   /*  # of buffers for read */
 	__u32		   reserved[4];
 };
+
 /*  Flags for 'capability' and 'capturemode' fields */
 #define V4L2_MODE_HIGHQUALITY	0x0001	/*  High quality imaging mode */
 #define V4L2_CAP_TIMEPERFRAME	0x1000	/*  timeperframe field is supported */
@@ -533,7 +526,6 @@ struct v4l2_outputparm
 /*
  *	I N P U T   I M A G E   C R O P P I N G
  */
-
 struct v4l2_cropcap {
 	enum v4l2_buf_type      type;
 	struct v4l2_rect        bounds;
@@ -640,7 +632,6 @@ struct v4l2_standard
 	__u32		     reserved[4];
 };
 
-
 /*
  *	V I D E O   I N P U T S
  */
@@ -655,6 +646,7 @@ struct v4l2_input
 	__u32	     status;
 	__u32	     reserved[4];
 };
+
 /*  Values for the 'type' field */
 #define V4L2_INPUT_TYPE_TUNER		1
 #define V4L2_INPUT_TYPE_CAMERA		2
@@ -834,6 +826,7 @@ struct v4l2_audio
 	__u32	mode;
 	__u32	reserved[2];
 };
+
 /*  Flags for the 'capability' field */
 #define V4L2_AUDCAP_STEREO		0x00001
 #define V4L2_AUDCAP_AVL			0x00002
@@ -857,7 +850,6 @@ struct v4l2_audioout
  */
 
 /* Raw VBI */
-
 struct v4l2_vbi_format
 {
 	__u32	sampling_rate;		/* in 1 Hz */
@@ -963,8 +955,6 @@ struct v4l2_streamparm
 		__u8	raw_data[200];  /* user-defined */
 	} parm;
 };
-
-
 
 /*
  *	I O C T L   C O D E S   F O R   V I D E O   D E V I C E S

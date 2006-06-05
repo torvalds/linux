@@ -26,7 +26,7 @@
 #include <linux/mutex.h>
 #include <linux/pci.h>
 #include <linux/videodev.h>
-
+#include <media/v4l2-common.h>
 
 #define DRIVER_VERSION	"0.05"
 

@@ -22,6 +22,7 @@
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <linux/videodev.h>
+#include <media/v4l2-common.h>
 #include <linux/config.h>	/* CONFIG_RADIO_TRUST_PORT 	*/
 
 /* acceptable ports: 0x350 (JP3 shorted), 0x358 (JP3 open) */
