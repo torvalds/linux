@@ -124,8 +124,9 @@ static void hc_died(struct uhci_hcd *uhci)
 }
 
 /*
- * Initialize a controller that was newly discovered or has just been
- * resumed.  In either case we can't be sure of its previous state.
+ * Initialize a controller that was newly discovered or has lost power
+ * or otherwise been reset while it was suspended.  In none of these cases
+ * can we be sure of its previous state.
  */
 static void check_and_reset_hc(struct uhci_hcd *uhci)
 {
@@ -198,7 +199,8 @@ __acquires(uhci->lock)
 	int int_enable;
 
 	auto_stop = (new_state == UHCI_RH_AUTO_STOPPED);
-	dev_dbg(uhci_dev(uhci), "%s%s\n", __FUNCTION__,
+	dev_dbg(&uhci_to_hcd(uhci)->self.root_hub->dev,
+			"%s%s\n", __FUNCTION__,
 			(auto_stop ? " (auto-stop)" : ""));
 
 	/* If we get a suspend request when we're already auto-stopped
@@ -236,7 +238,8 @@ __acquires(uhci->lock)
 			return;
 	}
 	if (!(inw(uhci->io_addr + USBSTS) & USBSTS_HCH))
-		dev_warn(uhci_dev(uhci), "Controller not stopped yet!\n");
+		dev_warn(&uhci_to_hcd(uhci)->self.root_hub->dev,
+			"Controller not stopped yet!\n");
 
 	uhci_get_current_frame_number(uhci);
 
@@ -268,7 +271,8 @@ static void wakeup_rh(struct uhci_hcd *uhci)
 __releases(uhci->lock)
 __acquires(uhci->lock)
 {
-	dev_dbg(uhci_dev(uhci), "%s%s\n", __FUNCTION__,
+	dev_dbg(&uhci_to_hcd(uhci)->self.root_hub->dev,
+			"%s%s\n", __FUNCTION__,
 			uhci->rh_state == UHCI_RH_AUTO_STOPPED ?
 				" (auto-start)" : "");
 
@@ -406,7 +410,7 @@ static void release_uhci(struct uhci_hcd *uhci)
 			uhci->frame, uhci->frame_dma_handle);
 }
 
-static int uhci_reset(struct usb_hcd *hcd)
+static int uhci_init(struct usb_hcd *hcd)
 {
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
 	unsigned io_size = (unsigned) hcd->rsrc_len;
@@ -672,12 +676,15 @@ static void uhci_stop(struct usb_hcd *hcd)
 static int uhci_rh_suspend(struct usb_hcd *hcd)
 {
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
+	int rc = 0;
 
 	spin_lock_irq(&uhci->lock);
-	if (!uhci->hc_inaccessible)		/* Not dead */
+	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags))
+		rc = -ESHUTDOWN;
+	else if (!uhci->hc_inaccessible)
 		suspend_rh(uhci, UHCI_RH_SUSPENDED);
 	spin_unlock_irq(&uhci->lock);
-	return 0;
+	return rc;
 }
 
 static int uhci_rh_resume(struct usb_hcd *hcd)
@@ -686,13 +693,10 @@ static int uhci_rh_resume(struct usb_hcd *hcd)
 	int rc = 0;
 
 	spin_lock_irq(&uhci->lock);
-	if (uhci->hc_inaccessible) {
-		if (uhci->rh_state == UHCI_RH_SUSPENDED) {
-			dev_warn(uhci_dev(uhci), "HC isn't running!\n");
-			rc = -ENODEV;
-		}
-		/* Otherwise the HC is dead */
-	} else
+	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags)) {
+		dev_warn(&hcd->self.root_hub->dev, "HC isn't running!\n");
+		rc = -ESHUTDOWN;
+	} else if (!uhci->hc_inaccessible)
 		wakeup_rh(uhci);
 	spin_unlock_irq(&uhci->lock);
 	return rc;
@@ -746,6 +750,7 @@ static int uhci_resume(struct usb_hcd *hcd)
 
 	if (uhci->rh_state == UHCI_RH_RESET)	/* Dead */
 		return 0;
+
 	spin_lock_irq(&uhci->lock);
 
 	/* FIXME: Disable non-PME# remote wakeup? */
@@ -828,7 +833,7 @@ static const struct hc_driver uhci_driver = {
 	.flags =		HCD_USB11,
 
 	/* Basic lifecycle operations */
-	.reset =		uhci_reset,
+	.reset =		uhci_init,
 	.start =		uhci_start,
 #ifdef CONFIG_PM
 	.suspend =		uhci_suspend,

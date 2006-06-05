@@ -910,7 +910,7 @@ static int uhci_result_common(struct uhci_hcd *uhci, struct urb *urb)
 					uhci_packetout(td_token(td)));
 			if ((debug == 1 && ret != -EPIPE) || debug > 1) {
 				/* Some debugging code */
-				dev_dbg(uhci_dev(uhci),
+				dev_dbg(&urb->dev->dev,
 						"%s: failed with status %x\n",
 						__FUNCTION__, status);
 
