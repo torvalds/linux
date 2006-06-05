@@ -64,16 +64,30 @@ static void uhci_add_fsbr(struct uhci_hcd *uhci, struct urb *urb)
 		urbp->fsbr = 1;
 }
 
-static void uhci_qh_wants_fsbr(struct uhci_hcd *uhci, struct uhci_qh *qh)
+static void uhci_urbp_wants_fsbr(struct uhci_hcd *uhci, struct urb_priv *urbp)
 {
-	struct urb_priv *urbp =
-			list_entry(qh->queue.next, struct urb_priv, node);
-
 	if (urbp->fsbr) {
-		uhci->fsbr_jiffies = jiffies;
+		uhci->fsbr_is_wanted = 1;
 		if (!uhci->fsbr_is_on)
 			uhci_fsbr_on(uhci);
+		else if (uhci->fsbr_expiring) {
+			uhci->fsbr_expiring = 0;
+			del_timer(&uhci->fsbr_timer);
+		}
 	}
+}
+
+static void uhci_fsbr_timeout(unsigned long _uhci)
+{
+	struct uhci_hcd *uhci = (struct uhci_hcd *) _uhci;
+	unsigned long flags;
+
+	spin_lock_irqsave(&uhci->lock, flags);
+	if (uhci->fsbr_expiring) {
+		uhci->fsbr_expiring = 0;
+		uhci_fsbr_off(uhci);
+	}
+	spin_unlock_irqrestore(&uhci->lock, flags);
 }
 
 
@@ -287,7 +301,7 @@ static int uhci_cleanup_queue(struct uhci_hcd *uhci, struct uhci_qh *qh,
 	if (qh->type == USB_ENDPOINT_XFER_ISOC) {
 		ret = (uhci->frame_number + uhci->is_stopped !=
 				qh->unlink_frame);
-		return ret;
+		goto done;
 	}
 
 	/* If the URB isn't first on its queue, adjust the link pointer
@@ -304,24 +318,26 @@ static int uhci_cleanup_queue(struct uhci_hcd *uhci, struct uhci_qh *qh,
 		td = list_entry(urbp->td_list.prev, struct uhci_td,
 				list);
 		ptd->link = td->link;
-		return ret;
+		goto done;
 	}
 
 	/* If the QH element pointer is UHCI_PTR_TERM then then currently
 	 * executing URB has already been unlinked, so this one isn't it. */
 	if (qh_element(qh) == UHCI_PTR_TERM)
-		return ret;
+		goto done;
 	qh->element = UHCI_PTR_TERM;
 
 	/* Control pipes have to worry about toggles */
 	if (qh->type == USB_ENDPOINT_XFER_CONTROL)
-		return ret;
+		goto done;
 
 	/* Save the next toggle value */
 	WARN_ON(list_empty(&urbp->td_list));
 	td = list_entry(urbp->td_list.next, struct uhci_td, list);
 	qh->needs_fixup = 1;
 	qh->initial_toggle = uhci_toggle(td_token(td));
+
+done:
 	return ret;
 }
 
@@ -1175,7 +1191,7 @@ static int uhci_urb_enqueue(struct usb_hcd *hcd,
 	 * queue isn't stopped. */
 	if (qh->queue.next == &urbp->node && !qh->is_stopped) {
 		uhci_activate_qh(uhci, qh);
-		uhci_qh_wants_fsbr(uhci, qh);
+		uhci_urbp_wants_fsbr(uhci, urbp);
 	}
 	goto done;
 
@@ -1404,7 +1420,7 @@ static int uhci_advance_check(struct uhci_hcd *uhci, struct uhci_qh *qh)
 	unsigned status;
 
 	if (qh->type == USB_ENDPOINT_XFER_ISOC)
-		return ret;
+		goto done;
 
 	/* Treat an UNLINKING queue as though it hasn't advanced.
 	 * This is okay because reactivation will treat it as though
@@ -1427,21 +1443,24 @@ static int uhci_advance_check(struct uhci_hcd *uhci, struct uhci_qh *qh)
 			/* We're okay, the queue has advanced */
 			qh->wait_expired = 0;
 			qh->advance_jiffies = jiffies;
-			return ret;
+			goto done;
 		}
 		ret = 0;
 	}
 
 	/* The queue hasn't advanced; check for timeout */
-	if (!qh->wait_expired && time_after(jiffies,
-			qh->advance_jiffies + QH_WAIT_TIMEOUT)) {
+	if (qh->wait_expired)
+		goto done;
+
+	if (time_after(jiffies, qh->advance_jiffies + QH_WAIT_TIMEOUT)) {
 
 		/* Detect the Intel bug and work around it */
 		if (qh->post_td && qh_element(qh) ==
 				cpu_to_le32(qh->post_td->dma_handle)) {
 			qh->element = qh->post_td->link;
 			qh->advance_jiffies = jiffies;
-			return 1;
+			ret = 1;
+			goto done;
 		}
 
 		qh->wait_expired = 1;
@@ -1452,7 +1471,14 @@ static int uhci_advance_check(struct uhci_hcd *uhci, struct uhci_qh *qh)
 		 * starts moving again. */
 		if (urbp && urbp->fsbr && !(status & TD_CTRL_IOC))
 			uhci_unlink_qh(uhci, qh);
+
+	} else {
+		/* Unmoving but not-yet-expired queues keep FSBR alive */
+		if (urbp)
+			uhci_urbp_wants_fsbr(uhci, urbp);
 	}
+
+done:
 	return ret;
 }
 
@@ -1472,6 +1498,7 @@ static void uhci_scan_schedule(struct uhci_hcd *uhci, struct pt_regs *regs)
 	uhci->scan_in_progress = 1;
 rescan:
 	uhci->need_rescan = 0;
+	uhci->fsbr_is_wanted = 0;
 
 	uhci_clear_next_interrupt(uhci);
 	uhci_get_current_frame_number(uhci);
@@ -1487,8 +1514,10 @@ rescan:
 
 			if (uhci_advance_check(uhci, qh)) {
 				uhci_scan_qh(uhci, qh, regs);
-				if (qh->state == QH_STATE_ACTIVE)
-					uhci_qh_wants_fsbr(uhci, qh);
+				if (qh->state == QH_STATE_ACTIVE) {
+					uhci_urbp_wants_fsbr(uhci,
+	list_entry(qh->queue.next, struct urb_priv, node));
+				}
 			}
 		}
 	}
@@ -1498,9 +1527,11 @@ rescan:
 		goto rescan;
 	uhci->scan_in_progress = 0;
 
-	if (uhci->fsbr_is_on && time_after(jiffies,
-			uhci->fsbr_jiffies + FSBR_OFF_DELAY))
-		uhci_fsbr_off(uhci);
+	if (uhci->fsbr_is_on && !uhci->fsbr_is_wanted &&
+			!uhci->fsbr_expiring) {
+		uhci->fsbr_expiring = 1;
+		mod_timer(&uhci->fsbr_timer, jiffies + FSBR_OFF_DELAY);
+	}
 
 	if (list_empty(&uhci->skel_unlink_qh->node))
 		uhci_clear_next_interrupt(uhci);

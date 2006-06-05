@@ -86,7 +86,7 @@
 
 /* When no queues need Full-Speed Bandwidth Reclamation,
  * delay this long before turning FSBR off */
-#define FSBR_OFF_DELAY		msecs_to_jiffies(400)
+#define FSBR_OFF_DELAY		msecs_to_jiffies(10)
 
 /* If a queue hasn't advanced after this much time, assume it is stuck */
 #define QH_WAIT_TIMEOUT		msecs_to_jiffies(200)
@@ -382,8 +382,6 @@ struct uhci_hcd {
 	__le32 *frame;
 	void **frame_cpu;		/* CPU's frame list */
 
-	unsigned long fsbr_jiffies;	/* Time when FSBR was last wanted */
-
 	enum uhci_rh_state rh_state;
 	unsigned long auto_stop_time;		/* When to AUTO_STOP */
 
@@ -400,6 +398,10 @@ struct uhci_hcd {
 						   need to be polled */
 	unsigned int is_initialized:1;		/* Data structure is usable */
 	unsigned int fsbr_is_on:1;		/* FSBR is turned on */
+	unsigned int fsbr_is_wanted:1;		/* Does any URB want FSBR? */
+	unsigned int fsbr_expiring:1;		/* FSBR is timing out */
+
+	struct timer_list fsbr_timer;		/* For turning off FBSR */
 
 	/* Support for port suspend/resume/reset */
 	unsigned long port_c_suspend;		/* Bit-arrays of ports */

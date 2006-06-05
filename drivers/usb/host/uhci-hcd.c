@@ -497,9 +497,9 @@ static int uhci_start(struct usb_hcd *hcd)
 	hcd->uses_new_polling = 1;
 
 	spin_lock_init(&uhci->lock);
-
+	setup_timer(&uhci->fsbr_timer, uhci_fsbr_timeout,
+			(unsigned long) uhci);
 	INIT_LIST_HEAD(&uhci->idle_qh_list);
-
 	init_waitqueue_head(&uhci->waitqh);
 
 	if (DEBUG_CONFIGURED) {
@@ -675,6 +675,7 @@ static void uhci_stop(struct usb_hcd *hcd)
 	uhci_scan_schedule(uhci, NULL);
 	spin_unlock_irq(&uhci->lock);
 
+	del_timer_sync(&uhci->fsbr_timer);
 	release_uhci(uhci);
 }
 
