@@ -262,7 +262,7 @@ static void tx_tasklet(unsigned long d)
 	int err;
 	u16 txctl;
 
-	bcm43xx_lock_mmio(bcm, flags);
+	bcm43xx_lock_irqonly(bcm, flags);
 
 	txctl = bcm43xx_pio_read(queue, BCM43xx_PIO_TXCTL);
 	if (txctl & BCM43xx_PIO_TXCTL_SUSPEND)
@@ -298,7 +298,7 @@ static void tx_tasklet(unsigned long d)
 		continue;
 	}
 out_unlock:
-	bcm43xx_unlock_mmio(bcm, flags);
+	bcm43xx_unlock_irqonly(bcm, flags);
 }
 
 static void setup_txqueues(struct bcm43xx_pioqueue *queue)
@@ -374,7 +374,6 @@ static void cancel_transfers(struct bcm43xx_pioqueue *queue)
 	struct bcm43xx_pio_txpacket *packet, *tmp_packet;
 
 	netif_tx_disable(queue->bcm->net_dev);
-	assert(queue->bcm->shutting_down);
 	tasklet_disable(&queue->txtask);
 
 	list_for_each_entry_safe(packet, tmp_packet, &queue->txrunning, list)

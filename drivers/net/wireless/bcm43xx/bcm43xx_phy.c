@@ -1648,7 +1648,7 @@ void bcm43xx_phy_set_baseband_attenuation(struct bcm43xx_private *bcm,
 void bcm43xx_phy_lo_g_measure(struct bcm43xx_private *bcm)
 {
 	static const u8 pairorder[10] = { 3, 1, 5, 7, 9, 2, 0, 4, 6, 8 };
-	const int is_initializing = bcm43xx_is_initializing(bcm);
+	const int is_initializing = (bcm43xx_status(bcm) == BCM43xx_STAT_INITIALIZING);
 	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
 	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
 	u16 h, i, oldi = 0, j;
