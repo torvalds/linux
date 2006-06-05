@@ -6,7 +6,7 @@
  * Changelog:
  *  05-01-2000	SJH	Created
  *  05-13-2000	SJH	Filled in function bodies
- *  07-26-2000	SJH	Removed hard coded buad rate
+ *  07-26-2000	SJH	Removed hard coded baud rate
  */
 
 #include <asm/hardware.h>
