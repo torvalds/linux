@@ -305,8 +305,44 @@ void calc_lanman_hash(struct cifsSesInfo * ses, char * lnm_session_key)
 }
 #endif /* CIFS_WEAK_PW_HASH */
 
+static int calc_ntlmv2_hash(const struct cifsSesInfo *ses, 
+			    char * ntv2_hash)
+{
+	int rc = 0;
+	int len;
+	char nt_hash[16];
+	struct HMACMD5Context * pctxt;
+
+	pctxt = kmalloc(sizeof(struct HMACMD5Context), GFP_KERNEL);
+
+	if(pctxt == NULL)
+		return -ENOMEM;
+
+	/* calculate md4 hash of password */
+	E_md4hash(ses->password, nt_hash);
+
+	/* convERT Domainname to unicode and uppercase */
+	hmac_md5_init_limK_to_64(nt_hash, 16, pctxt);
+
+	/* convert ses->userName to unicode and uppercase */
+
+	/* len = ... */  /* BB FIXME BB */
+
+	/* hmac_md5_update(user, len, pctxt); */
+
+	/* convert ses->domainName to unicode and uppercase */
+
+	/* len = ... */  /* BB FIXME BB */
+	/* hmac_md5_update(domain, len, pctxt); */
+
+	hmac_md5_final(ntv2_hash, pctxt);
+
+	return rc;
+}
+
 void setup_ntlmv2_rsp(const struct cifsSesInfo * ses, char * resp_buf)
 {
+	int rc;
 	struct ntlmv2_resp * buf = (struct ntlmv2_resp *)resp_buf;
 
 	buf->blob_signature = cpu_to_le32(0x00000101);
@@ -316,7 +352,11 @@ void setup_ntlmv2_rsp(const struct cifsSesInfo * ses, char * resp_buf)
 	buf->reserved2 = 0;
 	buf->names[0].type = 0;
 	buf->names[0].length = 0;
+
 	/* calculate buf->ntlmv2_hash */
+	rc = calc_ntlmv2_hash(ses,buf->ntlmv2_hash);
+	if(rc)
+		cERROR(1,("could not get v2 hash rc %d",rc));
 }
 
 void CalcNTLMv2_response(const struct cifsSesInfo * ses,char * v2_session_response)

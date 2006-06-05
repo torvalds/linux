@@ -889,7 +889,7 @@ security_flags_write(struct file *file, const char __user *buffer,
 	}
 
 	if(flags & ~CIFSSEC_MASK) {
-		cERROR(1,("attempt to set unsupported security flags 0x%d",
+		cERROR(1,("attempt to set unsupported security flags 0x%x",
 			flags & ~CIFSSEC_MASK));
 		return -EINVAL;
 	}
