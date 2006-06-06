@@ -536,11 +536,12 @@ void iommu_unmap_single(struct iommu_table *tbl, dma_addr_t dma_handle,
  * to the dma address (mapping) of the first page.
  */
 void *iommu_alloc_coherent(struct iommu_table *tbl, size_t size,
-		dma_addr_t *dma_handle, unsigned long mask, gfp_t flag)
+		dma_addr_t *dma_handle, unsigned long mask, gfp_t flag, int node)
 {
 	void *ret = NULL;
 	dma_addr_t mapping;
 	unsigned int npages, order;
+	struct page *page;
 
 	size = PAGE_ALIGN(size);
 	npages = size >> PAGE_SHIFT;
@@ -560,9 +561,10 @@ void *iommu_alloc_coherent(struct iommu_table *tbl, size_t size,
 		return NULL;
 
 	/* Alloc enough pages (and possibly more) */
-	ret = (void *)__get_free_pages(flag, order);
-	if (!ret)
+	page = alloc_pages_node(flag, order, node);
+	if (!page)
 		return NULL;
+	ret = page_address(page);
 	memset(ret, 0, size);
 
 	/* Set up tces to cover the allocated range */
@@ -570,9 +572,9 @@ void *iommu_alloc_coherent(struct iommu_table *tbl, size_t size,
 			      mask >> PAGE_SHIFT, order);
 	if (mapping == DMA_ERROR_CODE) {
 		free_pages((unsigned long)ret, order);
-		ret = NULL;
-	} else
-		*dma_handle = mapping;
+		return NULL;
+	}
+	*dma_handle = mapping;
 	return ret;
 }
 

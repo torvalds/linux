@@ -86,7 +86,8 @@ static void *pci_iommu_alloc_coherent(struct device *hwdev, size_t size,
 			   dma_addr_t *dma_handle, gfp_t flag)
 {
 	return iommu_alloc_coherent(device_to_table(hwdev), size, dma_handle,
-			device_to_mask(hwdev), flag);
+			device_to_mask(hwdev), flag,
+			pcibus_to_node(to_pci_dev(hwdev)->bus));
 }
 
 static void pci_iommu_free_coherent(struct device *hwdev, size_t size,
