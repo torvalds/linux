@@ -68,7 +68,9 @@ static void printl(const char *fmt, ...)
 		now.tv_usec += 1000000;
 	}
 
-	len = sprintf(tbuf, "%lu.%06lu ", now.tv_sec, now.tv_usec);
+	len = sprintf(tbuf, "%lu.%06lu ",
+		      (unsigned long) now.tv_sec,
+		      (unsigned long) now.tv_usec);
 	len += vscnprintf(tbuf+len, sizeof(tbuf)-len, fmt, args);
 	va_end(args);
 
