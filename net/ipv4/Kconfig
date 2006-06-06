@@ -550,6 +550,16 @@ config TCP_CONG_SCALABLE
 	properties, though is known to have fairness issues.
 	See http://www-lce.eng.cam.ac.uk/~ctk21/scalable/
 
+config TCP_CONG_LP
+	tristate "TCP Low Priority"
+	depends on EXPERIMENTAL
+	default n
+	---help---
+	TCP Low Priority (TCP-LP), a distributed algorithm whose goal is
+	to utiliza only the excess network bandwidth as compared to the
+	``fair share`` of bandwidth as targeted by TCP.
+	See http://www-ece.rice.edu/networks/TCP-LP/
+
 endmenu
 
 config TCP_CONG_BIC
