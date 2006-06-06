@@ -572,6 +572,16 @@ config TCP_CONG_VENO
 	loss packets.
 	See http://www.ntu.edu.sg/home5/ZHOU0022/papers/CPFu03a.pdf
 
+config TCP_CONG_COMPOUND
+	tristate "TCP Compound"
+	depends on EXPERIMENTAL
+	default n
+	---help---
+	TCP Compound is a sender-side only change to TCP that uses
+	a mixed Reno/Vegas approach to calculate the cwnd.
+	For further details look here:
+	  ftp://ftp.research.microsoft.com/pub/tr/TR-2005-86.pdf
+
 endmenu
 
 config TCP_CONG_BIC
