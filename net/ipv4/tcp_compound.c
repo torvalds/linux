@@ -419,7 +419,6 @@ static struct tcp_congestion_ops tcp_compound = {
 	.init		= tcp_compound_init,
 	.ssthresh	= tcp_reno_ssthresh,
 	.cong_avoid	= tcp_compound_cong_avoid,
-	.min_cwnd	= tcp_reno_min_cwnd,
 	.rtt_sample	= tcp_compound_rtt_calc,
 	.set_state	= tcp_compound_state,
 	.cwnd_event	= tcp_compound_cwnd_event,

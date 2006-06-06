@@ -38,7 +38,7 @@ int tcp_register_congestion_control(struct tcp_congestion_ops *ca)
 	int ret = 0;
 
 	/* all algorithms must implement ssthresh and cong_avoid ops */
-	if (!ca->ssthresh || !ca->cong_avoid || !ca->min_cwnd) {
+	if (!ca->ssthresh || !ca->cong_avoid) {
 		printk(KERN_ERR "TCP %s does not implement required ops\n",
 		       ca->name);
 		return -EINVAL;
@@ -251,8 +251,8 @@ u32 tcp_reno_ssthresh(struct sock *sk)
 }
 EXPORT_SYMBOL_GPL(tcp_reno_ssthresh);
 
-/* Lower bound on congestion window. */
-u32 tcp_reno_min_cwnd(struct sock *sk)
+/* Lower bound on congestion window with halving. */
+u32 tcp_reno_min_cwnd(const struct sock *sk)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
 	return tp->snd_ssthresh/2;

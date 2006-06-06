@@ -199,17 +199,10 @@ static u32 tcp_veno_ssthresh(struct sock *sk)
 		return max(tp->snd_cwnd >> 1U, 2U);
 }
 
-static u32 tcp_veno_min_cwnd(struct sock * sk)
-{
-	const struct tcp_sock *tp = tcp_sk(sk);
-	return tp->snd_ssthresh;
-}
-
 static struct tcp_congestion_ops tcp_veno = {
 	.init		= tcp_veno_init,
 	.ssthresh	= tcp_veno_ssthresh,
 	.cong_avoid	= tcp_veno_cong_avoid,
-	.min_cwnd 	= tcp_veno_min_cwnd,
 	.rtt_sample	= tcp_veno_rtt_calc,
 	.set_state	= tcp_veno_state,
 	.cwnd_event	= tcp_veno_cwnd_event,

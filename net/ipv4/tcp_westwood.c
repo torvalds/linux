@@ -162,12 +162,6 @@ static inline u32 westwood_acked_count(struct sock *sk)
 	return w->cumul_ack;
 }
 
-static inline u32 westwood_bw_rttmin(const struct sock *sk)
-{
-	const struct tcp_sock *tp = tcp_sk(sk);
-	const struct westwood *w = inet_csk_ca(sk);
-	return max_t(u32, (w->bw_est * w->rtt_min) / tp->mss_cache, 2);
-}
 
 /*
  * TCP Westwood
@@ -175,9 +169,11 @@ static inline u32 westwood_bw_rttmin(const struct sock *sk)
  * in packets we use mss_cache). Rttmin is guaranteed to be >= 2
  * so avoids ever returning 0.
  */
-static u32 tcp_westwood_cwnd_min(struct sock *sk)
+static u32 tcp_westwood_bw_rttmin(const struct sock *sk)
 {
-	return westwood_bw_rttmin(sk);
+	const struct tcp_sock *tp = tcp_sk(sk);
+	const struct westwood *w = inet_csk_ca(sk);
+	return max_t(u32, (w->bw_est * w->rtt_min) / tp->mss_cache, 2);
 }
 
 static void tcp_westwood_event(struct sock *sk, enum tcp_ca_event event)
@@ -191,11 +187,11 @@ static void tcp_westwood_event(struct sock *sk, enum tcp_ca_event event)
 		break;
 
 	case CA_EVENT_COMPLETE_CWR:
-		tp->snd_cwnd = tp->snd_ssthresh = westwood_bw_rttmin(sk);
+		tp->snd_cwnd = tp->snd_ssthresh = tcp_westwood_bw_rttmin(sk);
 		break;
 
 	case CA_EVENT_FRTO:
-		tp->snd_ssthresh = westwood_bw_rttmin(sk);
+		tp->snd_ssthresh = tcp_westwood_bw_rttmin(sk);
 		break;
 
 	case CA_EVENT_SLOW_ACK:
@@ -235,7 +231,7 @@ static struct tcp_congestion_ops tcp_westwood = {
 	.init		= tcp_westwood_init,
 	.ssthresh	= tcp_reno_ssthresh,
 	.cong_avoid	= tcp_reno_cong_avoid,
-	.min_cwnd	= tcp_westwood_cwnd_min,
+	.min_cwnd	= tcp_westwood_bw_rttmin,
 	.cwnd_event	= tcp_westwood_event,
 	.get_info	= tcp_westwood_info,
 	.pkts_acked	= tcp_westwood_pkts_acked,

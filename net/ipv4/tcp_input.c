@@ -1689,17 +1689,26 @@ static inline void tcp_moderate_cwnd(struct tcp_sock *tp)
 	tp->snd_cwnd_stamp = tcp_time_stamp;
 }
 
+/* Lower bound on congestion window is slow start threshold
+ * unless congestion avoidance choice decides to overide it.
+ */
+static inline u32 tcp_cwnd_min(const struct sock *sk)
+{
+	const struct tcp_congestion_ops *ca_ops = inet_csk(sk)->icsk_ca_ops;
+
+	return ca_ops->min_cwnd ? ca_ops->min_cwnd(sk) : tcp_sk(sk)->snd_ssthresh;
+}
+
 /* Decrease cwnd each second ack. */
 static void tcp_cwnd_down(struct sock *sk)
 {
-	const struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 	int decr = tp->snd_cwnd_cnt + 1;
 
 	tp->snd_cwnd_cnt = decr&1;
 	decr >>= 1;
 
-	if (decr && tp->snd_cwnd > icsk->icsk_ca_ops->min_cwnd(sk))
+	if (decr && tp->snd_cwnd > tcp_cwnd_min(sk))
 		tp->snd_cwnd -= decr;
 
 	tp->snd_cwnd = min(tp->snd_cwnd, tcp_packets_in_flight(tp)+1);
