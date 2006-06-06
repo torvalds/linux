@@ -50,6 +50,7 @@
 #define DEFAULT_TX_RING_SIZE	128
 #define DEFAULT_RX_RING_SIZE	512
 #define MAX_TX_RING_SIZE	1024
+#define TX_LOW_WATER		(MAX_SKB_FRAGS + 1)
 #define MAX_RX_RING_SIZE	4096
 #define RX_COPY_THRESHOLD	128
 #define RX_BUF_SIZE		1536
@@ -401,7 +402,7 @@ static int skge_set_ring_param(struct net_device *dev,
 	int err;
 
 	if (p->rx_pending == 0 || p->rx_pending > MAX_RX_RING_SIZE ||
-	    p->tx_pending < MAX_SKB_FRAGS+1 || p->tx_pending > MAX_TX_RING_SIZE)
+	    p->tx_pending < TX_LOW_WATER || p->tx_pending > MAX_TX_RING_SIZE)
 		return -EINVAL;
 
 	skge->rx_ring.count = p->rx_pending;
@@ -2394,7 +2395,7 @@ static int skge_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 		       dev->name, e - ring->start, skb->len);
 
 	ring->to_use = e->next;
-	if (skge_avail(&skge->tx_ring) <= MAX_SKB_FRAGS + 1) {
+	if (skge_avail(&skge->tx_ring) <= TX_LOW_WATER) {
 		pr_debug("%s: transmit queue full\n", dev->name);
 		netif_stop_queue(dev);
 	}
@@ -2689,7 +2690,7 @@ static void skge_tx_done(struct skge_port *skge)
 
 	skge_write8(skge->hw, Q_ADDR(txqaddr[skge->port], Q_CSR), CSR_IRQ_CL_F);
 
-	if (skge_avail(&skge->tx_ring) > MAX_SKB_FRAGS + 1)
+	if (skge_avail(&skge->tx_ring) > TX_LOW_WATER)
 		netif_wake_queue(skge->netdev);
 
 	spin_unlock(&skge->tx_lock);
