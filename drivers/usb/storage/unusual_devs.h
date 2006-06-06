@@ -216,13 +216,6 @@ UNUSUAL_DEV(  0x04a4, 0x0004, 0x0001, 0x0001,
 		"DVD-CAM DZ-MV100A Camcorder",
 		US_SC_SCSI, US_PR_CB, NULL, US_FL_SINGLE_LUN),
 
-/* Reported by Andreas Bockhold <andreas@bockionline.de> */
-UNUSUAL_DEV(  0x04b0, 0x0405, 0x0100, 0x0100,
-		"NIKON",
-		"NIKON DSC D70",
-		US_SC_DEVICE, US_PR_DEVICE, NULL,
-		US_FL_FIX_CAPACITY),
-
 /* Patch for Nikon coolpix 2000
  * Submitted by Fabien Cosse <fabien.cosse@wanadoo.fr>*/
 UNUSUAL_DEV(  0x04b0, 0x0301, 0x0010, 0x0010,
@@ -230,6 +223,20 @@ UNUSUAL_DEV(  0x04b0, 0x0301, 0x0010, 0x0010,
 		"NIKON DSC E2000",
 		US_SC_DEVICE, US_PR_DEVICE,NULL,
 		US_FL_NOT_LOCKABLE ),
+
+/* Reported by Andreas Bockhold <andreas@bockionline.de> */
+UNUSUAL_DEV(  0x04b0, 0x0405, 0x0100, 0x0100,
+		"NIKON",
+		"NIKON DSC D70",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY),
+
+/* Reported by Jamie Kitson <jamie@staberinde.fsnet.co.uk> */
+UNUSUAL_DEV(  0x04b0, 0x040d, 0x0100, 0x0100,
+		"NIKON",
+		"NIKON DSC D70s",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY),
 
 /* BENQ DC5330
  * Reported by Manuel Fombuena <mfombuena@ya.com> and
