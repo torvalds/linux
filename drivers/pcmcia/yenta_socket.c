@@ -1006,7 +1006,7 @@ static void yenta_config_init(struct yenta_socket *socket)
 }
 
 /**
- * yenta_fixup_parent_subordinate - Fix subordinate bus# of the parent bridge
+ * yenta_fixup_parent_bridge - Fix subordinate bus# of the parent bridge
  * @cardbus_bridge: The PCI bus which the CardBus bridge bridges to
  *
  * Checks if devices on the bus which the CardBus bridge bridges to would be
