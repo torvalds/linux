@@ -114,7 +114,7 @@ struct cx88_board cx88_boards[] = {
 		.radio = {
 			 .type  = CX88_RADIO,
 			 .gpio0 = 0xff10,
-		 },
+		},
 	},
 	[CX88_BOARD_ATI_WONDER_PRO] = {
 		.name           = "ATI TV Wonder Pro",
@@ -267,7 +267,7 @@ struct cx88_board cx88_boards[] = {
 			.gpio1  = 0x00007004,
 			.gpio2  = 0x0035d700,
 			.gpio3  = 0x02000000,
-		 },
+		},
 	},
 	[CX88_BOARD_LEADTEK_PVR2000] = {
 		// gpio values for PAL version from regspy by DScaler
@@ -413,7 +413,7 @@ struct cx88_board cx88_boards[] = {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0x000027df,
-		 },{
+		},{
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x000027df,
@@ -536,7 +536,7 @@ struct cx88_board cx88_boards[] = {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0x000027df,
-		 },{
+		},{
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x000027df,
