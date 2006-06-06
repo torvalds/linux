@@ -84,6 +84,8 @@ static inline int cifs_get_disposition(unsigned int flags)
 		return FILE_OVERWRITE_IF;
 	else if ((flags & O_CREAT) == O_CREAT)
 		return FILE_OPEN_IF;
+	else if ((flags & O_TRUNC) == O_TRUNC)
+		return FILE_OVERWRITE;
 	else
 		return FILE_OPEN;
 }
@@ -656,7 +658,7 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 			else
 				posix_lock_type = CIFS_WRLCK;
 			rc = CIFSSMBPosixLock(xid, pTcon, netfid, 1 /* get */,
-					length,	pfLock->fl_start,
+					length,	pfLock,
 					posix_lock_type, wait_flag);
 			FreeXid(xid);
 			return rc;
@@ -704,7 +706,7 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 			return -EOPNOTSUPP;
 		}
 		rc = CIFSSMBPosixLock(xid, pTcon, netfid, 0 /* set */,
-				      length, pfLock->fl_start,
+				      length, pfLock,
 				      posix_lock_type, wait_flag);
 	} else
 		rc = CIFSSMBLock(xid, pTcon, netfid, length, pfLock->fl_start,
@@ -904,8 +906,10 @@ static ssize_t cifs_write(struct file *file, const char *write_data,
 				if (rc != 0)
 					break;
 			}
-			if(experimEnabled || (pTcon->ses->server->secMode & 
-			 (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED)) == 0) {
+			if(experimEnabled || (pTcon->ses->server &&
+				((pTcon->ses->server->secMode & 
+				(SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED))
+				== 0))) {
 				struct kvec iov[2];
 				unsigned int len;
 

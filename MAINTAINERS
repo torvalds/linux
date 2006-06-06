@@ -565,7 +565,19 @@ BROADBAND PROCESSOR ARCHITECTURE
 P:	Arnd Bergmann
 M:	arnd@arndb.de
 L:	linuxppc-dev@ozlabs.org
-W:	http://linuxppc64.org
+W:	http://www.penguinppc.org/ppc64/
+S:	Supported
+
+BROADCOM BNX2 GIGABIT ETHERNET DRIVER
+P:	Michael Chan
+M:	mchan@broadcom.com
+L:	netdev@vger.kernel.org
+S:	Supported
+
+BROADCOM TG3 GIGABIT ETHERNET DRIVER
+P:	Michael Chan
+M:	mchan@broadcom.com
+L:	netdev@vger.kernel.org
 S:	Supported
 
 BTTV VIDEO4LINUX DRIVER
@@ -1734,7 +1746,7 @@ M:	paulus@au.ibm.com
 P:	Anton Blanchard
 M:	anton@samba.org
 M:	anton@au.ibm.com
-W:	http://linuxppc64.org
+W:	http://www.penguinppc.org/ppc64/
 L:	linuxppc-dev@ozlabs.org
 S:	Supported
 
@@ -1895,6 +1907,11 @@ L:	linux-kernel@vger.kernel.org
 W:	http://www.atnf.csiro.au/~rgooch/linux/kernel-patches.html
 S:	Maintained
 
+MULTIMEDIA CARD SUBSYSTEM
+P:	Russell King
+M:	rmk+mmc@arm.linux.org.uk
+S:	Maintained
+
 MULTISOUND SOUND DRIVER
 P:	Andrew Veliath
 M:	andrewtv@usa.net
@@ -1915,6 +1932,12 @@ NCR DUAL 700 SCSI DRIVER (MICROCHANNEL)
 P:	James E.J. Bottomley
 M:	James.Bottomley@HansenPartnership.com
 L:	linux-scsi@vger.kernel.org
+S:	Maintained
+
+NETEM NETWORK EMULATOR
+P:	Stephen Hemminger
+M:	shemminger@osdl.org
+L:	netem@osdl.org
 S:	Maintained
 
 NETFILTER/IPTABLES/IPCHAINS

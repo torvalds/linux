@@ -376,7 +376,7 @@ struct qeth_hdr_osn {
 	__u8 reserved3[18];
 	__u32 ccid;
 } __attribute__ ((packed));
-					    
+
 struct qeth_hdr {
 	union {
 		struct qeth_hdr_layer2 l2;
@@ -825,7 +825,7 @@ struct qeth_card {
 	int use_hard_stop;
 	int (*orig_hard_header)(struct sk_buff *,struct net_device *,
 				unsigned short,void *,void *,unsigned);
-	struct qeth_osn_info osn_info; 
+	struct qeth_osn_info osn_info;
 };
 
 struct qeth_card_list_struct {
@@ -944,7 +944,7 @@ qeth_get_netdev_flags(struct qeth_card *card)
 		return 0;
 	switch (card->info.type) {
 	case QETH_CARD_TYPE_IQD:
-	case QETH_CARD_TYPE_OSN:	
+	case QETH_CARD_TYPE_OSN:
 		return IFF_NOARP;
 #ifdef CONFIG_QETH_IPV6
 	default:
@@ -981,7 +981,7 @@ static inline int
 qeth_get_max_mtu_for_card(int cardtype)
 {
 	switch (cardtype) {
-		
+
 	case QETH_CARD_TYPE_UNKNOWN:
 	case QETH_CARD_TYPE_OSAE:
 	case QETH_CARD_TYPE_OSN:
@@ -1097,9 +1097,9 @@ qeth_string_to_ipaddr4(const char *buf, __u8 *addr)
 	int count = 0, rc = 0;
 	int in[4];
 
-	rc = sscanf(buf, "%d.%d.%d.%d%n", 
+	rc = sscanf(buf, "%d.%d.%d.%d%n",
 		    &in[0], &in[1], &in[2], &in[3], &count);
-	if (rc != 4  || count) 
+	if (rc != 4  || count<=0)
 		return -EINVAL;
 	for (count = 0; count < 4; count++) {
 		if (in[count] > 255)
@@ -1131,7 +1131,7 @@ qeth_string_to_ipaddr6(const char *buf, __u8 *addr)
 
 	cnt = out = found = save_cnt = num2 = 0;
         end = start = (char *) buf;
-	in = (__u16 *) addr;	
+	in = (__u16 *) addr;
 	memset(in, 0, 16);
         while (end) {
                 end = strchr(end,':');
@@ -1139,7 +1139,7 @@ qeth_string_to_ipaddr6(const char *buf, __u8 *addr)
                         end = (char *)buf + (strlen(buf));
                         out = 1;
                 }
-                if ((end - start)) { 
+                if ((end - start)) {
                         memset(num, 0, 5);
                         memcpy(num, start, end - start);
 			if (!qeth_isxdigit(num))
@@ -1241,5 +1241,5 @@ qeth_osn_register(unsigned char *read_dev_no,
 
 extern void
 qeth_osn_deregister(struct net_device *);
-		
+
 #endif /* __QETH_H__ */

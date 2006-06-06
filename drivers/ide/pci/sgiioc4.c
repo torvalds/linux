@@ -345,17 +345,17 @@ sgiioc4_resetproc(ide_drive_t * drive)
 static u8
 sgiioc4_INB(unsigned long port)
 {
-	u8 reg = (u8) inb(port);
+	u8 reg = (u8) readb((void __iomem *) port);
 
 	if ((port & 0xFFF) == 0x11C) {	/* Status register of IOC4 */
 		if (reg & 0x51) {	/* Not busy...check for interrupt */
 			unsigned long other_ir = port - 0x110;
-			unsigned int intr_reg = (u32) inl(other_ir);
+			unsigned int intr_reg = (u32) readl((void __iomem *) other_ir);
 
 			/* Clear the Interrupt, Error bits on the IOC4 */
 			if (intr_reg & 0x03) {
-				outl(0x03, other_ir);
-				intr_reg = (u32) inl(other_ir);
+				writel(0x03, (void __iomem *) other_ir);
+				intr_reg = (u32) readl((void __iomem *) other_ir);
 			}
 		}
 	}
@@ -606,6 +606,12 @@ ide_init_sgiioc4(ide_hwif_t * hwif)
 	hwif->ide_dma_host_off = &sgiioc4_ide_dma_host_off;
 	hwif->ide_dma_lostirq = &sgiioc4_ide_dma_lostirq;
 	hwif->ide_dma_timeout = &__ide_dma_timeout;
+
+	/*
+	 * The IOC4 uses MMIO rather than Port IO.
+	 * It also needs special workarounds for INB.
+	 */
+	default_hwif_mmiops(hwif);
 	hwif->INB = &sgiioc4_INB;
 }
 
@@ -743,6 +749,6 @@ ioc4_ide_exit(void)
 module_init(ioc4_ide_init);
 module_exit(ioc4_ide_exit);
 
-MODULE_AUTHOR("Aniket Malatpure - Silicon Graphics Inc. (SGI)");
+MODULE_AUTHOR("Aniket Malatpure/Jeremy Higdon");
 MODULE_DESCRIPTION("IDE PCI driver module for SGI IOC4 Base-IO Card");
 MODULE_LICENSE("GPL");

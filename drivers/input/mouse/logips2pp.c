@@ -19,6 +19,7 @@
 #define PS2PP_KIND_WHEEL	1
 #define PS2PP_KIND_MX		2
 #define PS2PP_KIND_TP3		3
+#define PS2PP_KIND_TRACKMAN	4
 
 /* Logitech mouse features */
 #define PS2PP_WHEEL		0x01
@@ -223,6 +224,7 @@ static struct ps2pp_info *get_model_info(unsigned char model)
 		{ 73,	0,			PS2PP_SIDE_BTN },
 		{ 75,	PS2PP_KIND_WHEEL,	PS2PP_WHEEL },
 		{ 76,	PS2PP_KIND_WHEEL,	PS2PP_WHEEL },
+		{ 79,	PS2PP_KIND_TRACKMAN,	PS2PP_WHEEL },		/* TrackMan with wheel */
 		{ 80,	PS2PP_KIND_WHEEL,	PS2PP_SIDE_BTN | PS2PP_WHEEL },
 		{ 81,	PS2PP_KIND_WHEEL,	PS2PP_WHEEL },
 		{ 83,	PS2PP_KIND_WHEEL,	PS2PP_WHEEL },
@@ -296,6 +298,10 @@ static void ps2pp_set_model_properties(struct psmouse *psmouse, struct ps2pp_inf
 
 		case PS2PP_KIND_TP3:
 			psmouse->name = "TouchPad 3";
+			break;
+
+		case PS2PP_KIND_TRACKMAN:
+			psmouse->name = "TrackMan";
 			break;
 
 		default:

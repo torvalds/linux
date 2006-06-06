@@ -4422,6 +4422,7 @@ void selinux_complete_init(void)
 
 	/* Set up any superblocks initialized prior to the policy load. */
 	printk(KERN_INFO "SELinux:  Setting up existing superblocks.\n");
+	spin_lock(&sb_lock);
 	spin_lock(&sb_security_lock);
 next_sb:
 	if (!list_empty(&superblock_security_head)) {
@@ -4430,19 +4431,20 @@ next_sb:
 				           struct superblock_security_struct,
 				           list);
 		struct super_block *sb = sbsec->sb;
-		spin_lock(&sb_lock);
 		sb->s_count++;
-		spin_unlock(&sb_lock);
 		spin_unlock(&sb_security_lock);
+		spin_unlock(&sb_lock);
 		down_read(&sb->s_umount);
 		if (sb->s_root)
 			superblock_doinit(sb, NULL);
 		drop_super(sb);
+		spin_lock(&sb_lock);
 		spin_lock(&sb_security_lock);
 		list_del_init(&sbsec->list);
 		goto next_sb;
 	}
 	spin_unlock(&sb_security_lock);
+	spin_unlock(&sb_lock);
 }
 
 /* SELinux requires early initialization in order to label

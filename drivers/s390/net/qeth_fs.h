@@ -42,7 +42,7 @@ qeth_create_device_attributes_osn(struct device *dev);
 
 extern void
 qeth_remove_device_attributes_osn(struct device *dev);
-		    
+
 extern int
 qeth_create_driver_attributes(void);
 

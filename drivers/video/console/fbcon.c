@@ -2631,7 +2631,7 @@ static int fbcon_scrolldelta(struct vc_data *vc, int lines)
 					scr_memcpyw((u16 *) q, (u16 *) p,
 						    vc->vc_size_row);
 				}
-				softback_in = p;
+				softback_in = softback_curr = p;
 				update_region(vc, vc->vc_origin,
 					      logo_lines * vc->vc_cols);
 			}

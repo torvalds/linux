@@ -291,7 +291,7 @@
 #define ST0_DL			(_ULCAST_(1) << 24)
 
 /*
- * Enable the MIPS DSP ASE
+ * Enable the MIPS MDMX and DSP ASEs
  */
 #define ST0_MX			0x01000000
 

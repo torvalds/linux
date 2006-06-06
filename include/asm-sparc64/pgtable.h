@@ -689,6 +689,23 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *p
 #define pte_clear(mm,addr,ptep)		\
 	set_pte_at((mm), (addr), (ptep), __pte(0UL))
 
+#ifdef DCACHE_ALIASING_POSSIBLE
+#define __HAVE_ARCH_MOVE_PTE
+#define move_pte(pte, prot, old_addr, new_addr)				\
+({									\
+ 	pte_t newpte = (pte);						\
+	if (tlb_type != hypervisor && pte_present(pte)) {		\
+		unsigned long this_pfn = pte_pfn(pte);			\
+									\
+		if (pfn_valid(this_pfn) &&				\
+		    (((old_addr) ^ (new_addr)) & (1 << 13)))		\
+			flush_dcache_page_all(current->mm,		\
+					      pfn_to_page(this_pfn));	\
+	}								\
+	newpte;								\
+})
+#endif
+
 extern pgd_t swapper_pg_dir[2048];
 extern pmd_t swapper_low_pmd_dir[2048];
 
