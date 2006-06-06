@@ -3362,6 +3362,14 @@ static int __devinit skge_probe(struct pci_dev *pdev,
 	if ((dev = skge_devinit(hw, 0, using_dac)) == NULL)
 		goto err_out_led_off;
 
+	if (!is_valid_ether_addr(dev->dev_addr)) {
+		printk(KERN_ERR PFX "%s: bad (zero?) ethernet address in rom\n",
+		       pci_name(pdev));
+		err = -EIO;
+		goto err_out_free_netdev;
+	}
+
+
 	err = register_netdev(dev);
 	if (err) {
 		printk(KERN_ERR PFX "%s: cannot register net device\n",
