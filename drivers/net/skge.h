@@ -2388,6 +2388,7 @@ struct skge_ring {
 struct skge_hw {
 	void __iomem  	     *regs;
 	struct pci_dev	     *pdev;
+	spinlock_t	     hw_lock;
 	u32		     intr_mask;
 	struct net_device    *dev[2];
 
