@@ -158,7 +158,7 @@ struct gfs2_holder {
 	unsigned gh_flags;
 
 	int gh_error;
-	unsigned long gh_iflags;
+	unsigned gh_iflags;
 	struct completion gh_wait;
 	unsigned long gh_ip;
 };
@@ -217,25 +217,21 @@ struct gfs2_glock {
 struct gfs2_alloc {
 	/* Quota stuff */
 
-	unsigned int al_qd_num;
 	struct gfs2_quota_data *al_qd[4];
 	struct gfs2_holder al_qd_ghs[4];
+	unsigned int al_qd_num;
 
-	/* Filled in by the caller to gfs2_inplace_reserve() */
-
-	uint32_t al_requested;
+	u32 al_requested; /* Filled in by caller of gfs2_inplace_reserve() */
+	u32 al_alloced; /* Filled in by gfs2_alloc_*() */
 
 	/* Filled in by gfs2_inplace_reserve() */
 
-	char *al_file;
 	unsigned int al_line;
+	char *al_file;
 	struct gfs2_holder al_ri_gh;
 	struct gfs2_holder al_rgd_gh;
 	struct gfs2_rgrpd *al_rgd;
 
-	/* Filled in by gfs2_alloc_*() */
-
-	uint32_t al_alloced;
 };
 
 enum {
