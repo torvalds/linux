@@ -2399,9 +2399,8 @@ struct skge_hw {
 	u32	     	     ram_size;
 	u32	     	     ram_offset;
 	u16		     phy_addr;
-
-	struct tasklet_struct ext_tasklet;
-	spinlock_t	     phy_lock;
+	struct work_struct   phy_work;
+	struct mutex	     phy_mutex;
 };
 
 enum {
