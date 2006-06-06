@@ -37,9 +37,9 @@
  * Port request block (PRB) 32 bytes
  */
 struct sil24_prb {
-	u16	ctrl;
-	u16	prot;
-	u32	rx_cnt;
+	__le16	ctrl;
+	__le16	prot;
+	__le32	rx_cnt;
 	u8	fis[6 * 4];
 };
 
@@ -47,17 +47,17 @@ struct sil24_prb {
  * Scatter gather entry (SGE) 16 bytes
  */
 struct sil24_sge {
-	u64	addr;
-	u32	cnt;
-	u32	flags;
+	__le64	addr;
+	__le32	cnt;
+	__le32	flags;
 };
 
 /*
  * Port multiplier
  */
 struct sil24_port_multiplier {
-	u32	diag;
-	u32	sactive;
+	__le32	diag;
+	__le32	sactive;
 };
 
 enum {
