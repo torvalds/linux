@@ -2048,7 +2048,7 @@ zoran_do_ioctl (struct inode *inode,
 		dprintk(3, KERN_DEBUG "%s: VIDIOCGCAP\n", ZR_DEVNAME(zr));
 
 		memset(vcap, 0, sizeof(struct video_capability));
-		strncpy(vcap->name, ZR_DEVNAME(zr), sizeof(vcap->name));
+		strncpy(vcap->name, ZR_DEVNAME(zr), sizeof(vcap->name)-1);
 		vcap->type = ZORAN_VID_TYPE;
 
 		vcap->channels = zr->card.inputs;
@@ -2690,8 +2690,8 @@ zoran_do_ioctl (struct inode *inode,
 		dprintk(3, KERN_DEBUG "%s: VIDIOC_QUERYCAP\n", ZR_DEVNAME(zr));
 
 		memset(cap, 0, sizeof(*cap));
-		strncpy(cap->card, ZR_DEVNAME(zr), sizeof(cap->card));
-		strncpy(cap->driver, "zoran", sizeof(cap->driver));
+		strncpy(cap->card, ZR_DEVNAME(zr), sizeof(cap->card)-1);
+		strncpy(cap->driver, "zoran", sizeof(cap->driver)-1);
 		snprintf(cap->bus_info, sizeof(cap->bus_info), "PCI:%s",
 			 pci_name(zr->pci_dev));
 		cap->version =
@@ -2743,7 +2743,7 @@ zoran_do_ioctl (struct inode *inode,
 		memset(fmt, 0, sizeof(*fmt));
 		fmt->index = index;
 		fmt->type = type;
-		strncpy(fmt->description, zoran_formats[i].name, 31);
+		strncpy(fmt->description, zoran_formats[i].name, sizeof(fmt->description)-1);
 		fmt->pixelformat = zoran_formats[i].fourcc;
 		if (zoran_formats[i].flags & ZORAN_FORMAT_COMPRESSED)
 			fmt->flags |= V4L2_FMT_FLAG_COMPRESSED;
@@ -3567,16 +3567,16 @@ zoran_do_ioctl (struct inode *inode,
 
 		switch (ctrl->id) {
 		case V4L2_CID_BRIGHTNESS:
-			strncpy(ctrl->name, "Brightness", 31);
+			strncpy(ctrl->name, "Brightness", sizeof(ctrl->name)-1);
 			break;
 		case V4L2_CID_CONTRAST:
-			strncpy(ctrl->name, "Contrast", 31);
+			strncpy(ctrl->name, "Contrast", sizeof(ctrl->name)-1);
 			break;
 		case V4L2_CID_SATURATION:
-			strncpy(ctrl->name, "Saturation", 31);
+			strncpy(ctrl->name, "Saturation", sizeof(ctrl->name)-1);
 			break;
 		case V4L2_CID_HUE:
-			strncpy(ctrl->name, "Hue", 31);
+			strncpy(ctrl->name, "Hue", sizeof(ctrl->name)-1);
 			break;
 		}
 
@@ -3694,7 +3694,7 @@ zoran_do_ioctl (struct inode *inode,
 					&caps);
 			if (caps.flags & VIDEO_DECODER_AUTO) {
 				std->id = V4L2_STD_ALL;
-				strncpy(std->name, "Autodetect", 31);
+				strncpy(std->name, "Autodetect", sizeof(std->name)-1);
 				return 0;
 			} else
 				return -EINVAL;
@@ -3702,21 +3702,21 @@ zoran_do_ioctl (struct inode *inode,
 		switch (std->index) {
 		case 0:
 			std->id = V4L2_STD_PAL;
-			strncpy(std->name, "PAL", 31);
+			strncpy(std->name, "PAL", sizeof(std->name)-1);
 			std->frameperiod.numerator = 1;
 			std->frameperiod.denominator = 25;
 			std->framelines = zr->card.tvn[0]->Ht;
 			break;
 		case 1:
 			std->id = V4L2_STD_NTSC;
-			strncpy(std->name, "NTSC", 31);
+			strncpy(std->name, "NTSC", sizeof(std->name)-1);
 			std->frameperiod.numerator = 1001;
 			std->frameperiod.denominator = 30000;
 			std->framelines = zr->card.tvn[1]->Ht;
 			break;
 		case 2:
 			std->id = V4L2_STD_SECAM;
-			strncpy(std->name, "SECAM", 31);
+			strncpy(std->name, "SECAM", sizeof(std->name)-1);
 			std->frameperiod.numerator = 1;
 			std->frameperiod.denominator = 25;
 			std->framelines = zr->card.tvn[2]->Ht;
@@ -3872,7 +3872,7 @@ zoran_do_ioctl (struct inode *inode,
 		memset(outp, 0, sizeof(*outp));
 		outp->index = 0;
 		outp->type = V4L2_OUTPUT_TYPE_ANALOGVGAOVERLAY;
-		strncpy(outp->name, "Autodetect", 31);
+		strncpy(outp->name, "Autodetect", sizeof(outp->name)-1);
 
 		return 0;
 	}
