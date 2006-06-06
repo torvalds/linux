@@ -374,8 +374,8 @@ static int ea_list_i(struct gfs2_inode *ip, struct buffer_head *bh,
 		return 0;
 
 	if (er->er_data_len) {
-		char *prefix;
-		unsigned int l;
+		char *prefix = NULL;
+		unsigned int l = 0;
 		char c = 0;
 
 		if (ei->ei_size + ea_size > er->er_data_len)
@@ -394,10 +394,9 @@ static int ea_list_i(struct gfs2_inode *ip, struct buffer_head *bh,
 			prefix = "security.";
 			l = 9;
 			break;
-		default:
-			/* FIXME: Needs looking at again */
-			break;
 		}
+
+		BUG_ON(l == 0);
 
 		memcpy(er->er_data + ei->ei_size, prefix, l);
 		memcpy(er->er_data + ei->ei_size + l, GFS2_EA2NAME(ea),
