@@ -52,8 +52,6 @@
 
 #define TCP_COMPOUND_ALPHA          3U
 #define TCP_COMPOUND_BETA           1U
-#define TCP_COMPOUND_KAPPA_POW      3
-#define TCP_COMPOUND_KAPPA_NSQRT    2
 #define TCP_COMPOUND_GAMMA         30
 #define TCP_COMPOUND_ZETA           1
 
@@ -155,6 +153,58 @@ static void tcp_compound_state(struct sock *sk, u8 ca_state)
 	else
 		vegas_disable(sk);
 }
+
+
+/* 64bit divisor, dividend and result. dynamic precision */
+static inline u64 div64_64(u64 dividend, u64 divisor)
+{
+	u32 d = divisor;
+
+	if (divisor > 0xffffffffULL) {
+		unsigned int shift = fls(divisor >> 32);
+
+		d = divisor >> shift;
+		dividend >>= shift;
+	}
+
+	/* avoid 64 bit division if possible */
+	if (dividend >> 32)
+		do_div(dividend, d);
+	else
+		dividend = (u32) dividend / d;
+
+	return dividend;
+}
+
+/* calculate the quartic root of "a" using Newton-Raphson */
+static u32 qroot(u64 a)
+{
+	u32 x, x1;
+
+	/* Initial estimate is based on:
+	 * qrt(x) = exp(log(x) / 4)
+	 */
+	x = 1u << (fls64(a) >> 2);
+
+	/*
+	 * Iteration based on:
+	 *                         3
+	 * x    = ( 3 * x  +  a / x  ) / 4
+	 *  k+1          k         k
+	 */
+	do {
+		u64 x3 = x;
+
+		x1 = x;
+		x3 *= x;
+		x3 *= x;
+
+		x = (3 * x + (u32) div64_64(a, x3)) / 4;
+	} while (abs(x1 - x) > 1);
+
+	return x;
+}
+
 
 /*
  * If the connection is idle and we are restarting,
@@ -304,29 +354,21 @@ static void tcp_compound_cong_avoid(struct sock *sk, u32 ack,
 			dwnd = vegas->dwnd;
 
 			if (diff < (TCP_COMPOUND_GAMMA << V_PARAM_SHIFT)) {
-				u32 i, j, x, x2;
 				u64 v;
+				u32 x;
 
-				v = 1;
-
-				for (i = 0; i < TCP_COMPOUND_KAPPA_POW; i++)
-					v *= old_wnd;
-
-				for (i = 0; i < TCP_COMPOUND_KAPPA_NSQRT; i++) {
-					x = 1;
-					for (j = 0; j < 200; j++) {
-						x2 = (x + v / x) / 2;
-
-						if (x2 == x || !x2)
-							break;
-
-						x = x2;
-					}
-					v = x;
-				}
-
-				x = (u32) v >> TCP_COMPOUND_ALPHA;
-
+				/*
+				 * The TCP Compound paper describes the choice
+				 * of "k" determines the agressiveness,
+				 * ie. slope of the response function.
+				 *
+				 * For same value as HSTCP would be 0.8
+				 * but for computaional reasons, both the
+				 * original authors and this implementation
+				 * use 0.75.
+				 */
+				v = old_wnd;
+				x = qroot(v * v * v) >> TCP_COMPOUND_ALPHA;
 				if (x > 1)
 					dwnd = x - 1;
 				else
