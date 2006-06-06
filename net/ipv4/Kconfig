@@ -560,6 +560,18 @@ config TCP_CONG_LP
 	``fair share`` of bandwidth as targeted by TCP.
 	See http://www-ece.rice.edu/networks/TCP-LP/
 
+config TCP_CONG_VENO
+	tristate "TCP Veno"
+	depends on EXPERIMENTAL
+	default n
+	---help---
+	TCP Veno is a sender-side only enhancement of TCP to obtain better
+	throughput over wireless networks. TCP Veno makes use of state
+	distinguishing to circumvent the difficult judgment of the packet loss
+	type. TCP Veno cuts down less congestion window in response to random
+	loss packets.
+	See http://www.ntu.edu.sg/home5/ZHOU0022/papers/CPFu03a.pdf
+
 endmenu
 
 config TCP_CONG_BIC
