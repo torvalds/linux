@@ -2205,7 +2205,6 @@ static int snd_pcm_release(struct inode *inode, struct file *file)
 	pcm_file = file->private_data;
 	substream = pcm_file->substream;
 	snd_assert(substream != NULL, return -ENXIO);
-	snd_assert(!atomic_read(&substream->mmap_count), );
 	pcm = substream->pcm;
 	fasync_helper(-1, file, 0, &substream->runtime->fasync);
 	mutex_lock(&pcm->open_mutex);
