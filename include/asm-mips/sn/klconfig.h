@@ -69,13 +69,6 @@ typedef s32 klconf_off_t;
 /*
  * Some IMPORTANT OFFSETS. These are the offsets on all NODES.
  */
-#if 0
-#define RAMBASE                 0
-#define ARCSSPB_OFF             0x1000 /* shift it to sys/arcs/spb.h */
-
-#define OFF_HWGRAPH 		0
-#endif
-
 #define	MAX_MODULE_ID		255
 #define SIZE_PAD		4096 /* 4k padding for structures */
 /*
@@ -164,10 +157,6 @@ typedef struct kl_config_hdr {
 
 
 #define KL_CONFIG_HDR(_nasid) 	((kl_config_hdr_t *)(KLCONFIG_ADDR(_nasid)))
-#if 0
-#define KL_CONFIG_MALLOC_HDR(_nasid) \
-                                (KL_CONFIG_HDR(_nasid)->ch_malloc_hdr)
-#endif
 #define KL_CONFIG_INFO_OFFSET(_nasid)					\
         (KL_CONFIG_HDR(_nasid)->ch_board_info)
 #define KL_CONFIG_INFO_SET_OFFSET(_nasid, _off)				\
@@ -600,18 +589,6 @@ typedef struct klport_s {
 	unsigned char	port_flag;
 	klconf_off_t	port_offset;
 } klport_t;
-
-#if 0
-/*
- * This is very similar to the klport_s but instead of having a componant
- * offset it has a board offset.
- */
-typedef struct klxbow_port_s {
-	nasid_t		port_nasid;
-	unsigned char	port_flag;
-	klconf_off_t	board_offset;
-} klxbow_port_t;
-#endif
 
 typedef struct klcpu_s {                          /* CPU */
 	klinfo_t 	cpu_info;
