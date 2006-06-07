@@ -805,9 +805,11 @@ void __kprobes program_check_exception(struct pt_regs *regs)
 
 void alignment_exception(struct pt_regs *regs)
 {
-	int fixed;
+	int fixed = 0;
 
-	fixed = fix_alignment(regs);
+	/* we don't implement logging of alignment exceptions */
+	if (!(current->thread.align_ctl & PR_UNALIGN_SIGBUS))
+		fixed = fix_alignment(regs);
 
 	if (fixed == 1) {
 		regs->nip += 4;	/* skip over emulated instruction */

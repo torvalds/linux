@@ -752,6 +752,17 @@ int get_endian(struct task_struct *tsk, unsigned long adr)
 	return put_user(val, (unsigned int __user *)adr);
 }
 
+int set_unalign_ctl(struct task_struct *tsk, unsigned int val)
+{
+	tsk->thread.align_ctl = val;
+	return 0;
+}
+
+int get_unalign_ctl(struct task_struct *tsk, unsigned long adr)
+{
+	return put_user(tsk->thread.align_ctl, (unsigned int __user *)adr);
+}
+
 #define TRUNC_PTR(x)	((typeof(x))(((unsigned long)(x)) & 0xffffffff))
 
 int sys_clone(unsigned long clone_flags, unsigned long usp,
