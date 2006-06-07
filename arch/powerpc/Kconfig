@@ -853,6 +853,8 @@ config 8260_PCI9_IDMA4
 
 endchoice
 
+source "drivers/pci/pcie/Kconfig"
+
 source "drivers/pci/Kconfig"
 
 source "drivers/pcmcia/Kconfig"

@@ -388,7 +388,7 @@ struct pci_dev *of_create_pci_dev(struct device_node *node,
 
 	dev->current_state = 4;		/* unknown power state */
 
-	if (!strcmp(type, "pci")) {
+	if (!strcmp(type, "pci") || !strcmp(type, "pciex")) {
 		/* a PCI-PCI bridge */
 		dev->hdr_type = PCI_HEADER_TYPE_BRIDGE;
 		dev->rom_base_reg = PCI_ROM_ADDRESS1;

@@ -313,7 +313,9 @@ unsigned long __init find_and_init_phbs(void)
 	for (node = of_get_next_child(root, NULL);
 	     node != NULL;
 	     node = of_get_next_child(root, node)) {
-		if (node->type == NULL || strcmp(node->type, "pci") != 0)
+
+		if (node->type == NULL || (strcmp(node->type, "pci") != 0 &&
+					   strcmp(node->type, "pciex") != 0))
 			continue;
 
 		phb = pcibios_alloc_controller(node);
