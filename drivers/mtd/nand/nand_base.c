@@ -883,7 +883,7 @@ static int nand_read_page_syndrome(struct mtd_info *mtd, struct nand_chip *chip,
 	}
 
 	/* Calculate remaining oob bytes */
-	i = oob - chip->oob_poi;
+	i = mtd->oobsize - (oob - chip->oob_poi);
 	if (i)
 		chip->read_buf(mtd, oob, i);
 
@@ -1334,7 +1334,7 @@ static void nand_write_page_syndrome(struct mtd_info *mtd,
 	}
 
 	/* Calculate remaining oob bytes */
-	i = oob - chip->oob_poi;
+	i = mtd->oobsize - (oob - chip->oob_poi);
 	if (i)
 		chip->write_buf(mtd, oob, i);
 }
