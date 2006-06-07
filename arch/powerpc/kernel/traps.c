@@ -658,7 +658,7 @@ static int emulate_instruction(struct pt_regs *regs)
 	u32 instword;
 	u32 rd;
 
-	if (!user_mode(regs))
+	if (!user_mode(regs) || (regs->msr & MSR_LE))
 		return -EINVAL;
 	CHECK_FULL_REGS(regs);
 

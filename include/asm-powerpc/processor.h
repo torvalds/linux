@@ -211,6 +211,12 @@ unsigned long get_wchan(struct task_struct *p);
 extern int get_fpexc_mode(struct task_struct *tsk, unsigned long adr);
 extern int set_fpexc_mode(struct task_struct *tsk, unsigned int val);
 
+#define GET_ENDIAN(tsk, adr) get_endian((tsk), (adr))
+#define SET_ENDIAN(tsk, val) set_endian((tsk), (val))
+
+extern int get_endian(struct task_struct *tsk, unsigned long adr);
+extern int set_endian(struct task_struct *tsk, unsigned int val);
+
 static inline unsigned int __unpack_fe01(unsigned long msr_bits)
 {
 	return ((msr_bits & MSR_FE0) >> 10) | ((msr_bits & MSR_FE1) >> 8);

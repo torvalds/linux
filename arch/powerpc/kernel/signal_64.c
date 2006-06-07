@@ -141,9 +141,7 @@ static long restore_sigcontext(struct pt_regs *regs, sigset_t *set, int sig,
 	unsigned long err = 0;
 	unsigned long save_r13 = 0;
 	elf_greg_t *gregs = (elf_greg_t *)regs;
-#ifdef CONFIG_ALTIVEC
 	unsigned long msr;
-#endif
 	int i;
 
 	/* If this is not a signal return, we preserve the TLS in r13 */
@@ -154,7 +152,12 @@ static long restore_sigcontext(struct pt_regs *regs, sigset_t *set, int sig,
 	err |= __copy_from_user(regs, &sc->gp_regs,
 				PT_MSR*sizeof(unsigned long));
 
-	/* skip MSR and SOFTE */
+	/* get MSR separately, transfer the LE bit if doing signal return */
+	err |= __get_user(msr, &sc->gp_regs[PT_MSR]);
+	if (sig)
+		regs->msr = (regs->msr & ~MSR_LE) | (msr & MSR_LE);
+
+	/* skip SOFTE */
 	for (i = PT_MSR+1; i <= PT_RESULT; i++) {
 		if (i == PT_SOFTE)
 			continue;
@@ -179,7 +182,6 @@ static long restore_sigcontext(struct pt_regs *regs, sigset_t *set, int sig,
 
 #ifdef CONFIG_ALTIVEC
 	err |= __get_user(v_regs, &sc->v_regs);
-	err |= __get_user(msr, &sc->gp_regs[PT_MSR]);
 	if (err)
 		return err;
 	/* Copy 33 vec registers (vr0..31 and vscr) from the stack */
@@ -410,6 +412,8 @@ static int setup_rt_frame(int signr, struct k_sigaction *ka, siginfo_t *info,
 
 	/* Set up "regs" so we "return" to the signal handler. */
 	err |= get_user(regs->nip, &funct_desc_ptr->entry);
+	/* enter the signal handler in big-endian mode */
+	regs->msr &= ~MSR_LE;
 	regs->gpr[1] = newsp;
 	err |= get_user(regs->gpr[2], &funct_desc_ptr->toc);
 	regs->gpr[3] = signr;
