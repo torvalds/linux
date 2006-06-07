@@ -555,6 +555,7 @@ config SGI_IP22
 	select HW_HAS_EISA
 	select IP22_CPU_SCACHE
 	select IRQ_CPU
+	select NO_ISA if ISA
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_R4X00
 	select SYS_HAS_CPU_R5000
@@ -1708,6 +1709,9 @@ source "drivers/pci/Kconfig"
 # users to choose the right thing ...
 #
 config ISA
+	bool
+
+config NO_ISA
 	bool
 
 config EISA
