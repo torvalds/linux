@@ -822,6 +822,7 @@ static void __init prom_send_capabilities(void)
 		/* try calling the ibm,client-architecture-support method */
 		if (call_prom_ret("call-method", 3, 2, &ret,
 				  ADDR("ibm,client-architecture-support"),
+				  root,
 				  ADDR(ibm_architecture_vec)) == 0) {
 			/* the call exists... */
 			if (ret)
