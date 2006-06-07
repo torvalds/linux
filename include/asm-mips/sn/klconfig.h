@@ -64,11 +64,7 @@
 
 #define KLCFGINFO_MAGIC	0xbeedbabe
 
-#ifdef FRUTEST
-typedef u64 klconf_off_t;
-#else
 typedef s32 klconf_off_t;
-#endif
 
 /*
  * Some IMPORTANT OFFSETS. These are the offsets on all NODES.
@@ -474,14 +470,6 @@ typedef struct lboard_s {
 #define KLCF_NUM_COMPS(_brd)	((_brd)->brd_numcompts)
 #define KLCF_MODULE_ID(_brd)	((_brd)->brd_module)
 
-#ifdef FRUTEST
-
-#define KLCF_NEXT(_brd) 		((_brd)->brd_next ? (lboard_t *)((_brd)->brd_next):  NULL)
-#define KLCF_COMP(_brd, _ndx)   	(klinfo_t *)((_brd)->brd_compts[(_ndx)])
-#define KLCF_COMP_ERROR(_brd, _comp)   	(_brd = _brd , (_comp)->errinfo)
-
-#else
-
 #define KLCF_NEXT(_brd) 	\
         ((_brd)->brd_next ? 	\
 	 (lboard_t *)(NODE_OFFSET_TO_K1(NASID_GET(_brd), (_brd)->brd_next)):\
@@ -492,8 +480,6 @@ typedef struct lboard_s {
 
 #define KLCF_COMP_ERROR(_brd, _comp)	\
                (NODE_OFFSET_TO_K1(NASID_GET(_brd), (_comp)->errinfo))
-
-#endif
 
 #define KLCF_COMP_TYPE(_comp)	((_comp)->struct_type)
 #define KLCF_BRIDGE_W_ID(_comp)	((_comp)->physid)	/* Widget ID */
