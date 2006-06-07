@@ -248,14 +248,6 @@
  * for _x.
  */
 
-#ifdef _STANDALONE
-
-/* DO NOT USE THESE DIRECTLY IN THE KERNEL. SEE BELOW. */
-#define LOCAL_HUB(_x)		(HUBREG_CAST (IALIAS_BASE + (_x)))
-#define REMOTE_HUB(_n, _x)	(HUBREG_CAST (NODE_SWIN_BASE(_n, 1) +	\
-					      0x800000 + (_x)))
-#endif /* _STANDALONE */
-
 /*
  * WARNING:
  *	When certain Hub chip workaround are defined, it's not sufficient
@@ -321,20 +313,6 @@
 #define ARCS_SPB_ADDR(nasid)						\
 	PHYS_TO_K0(NODE_OFFSET(nasid) | ARCS_SPB_OFFSET)
 #define ARCS_SPB_SIZE		0x0400
-
-#ifdef _STANDALONE
-
-#define ARCS_TVECTOR_OFFSET	0x2800
-#define ARCS_PVECTOR_OFFSET	0x2c00
-
-/*
- * These addresses are used by the master CPU to install the transfer
- * and private vectors.  All others use the SPB to find them.
- */
-#define TVADDR	(NODE_CAC_BASE(get_nasid()) + ARCS_TVECTOR_OFFSET)
-#define PVADDR	(NODE_CAC_BASE(get_nasid()) + ARCS_PVECTOR_OFFSET)
-
-#endif /* _STANDALONE */
 
 #define KLDIR_OFFSET		0x2000
 #define KLDIR_ADDR(nasid)						\
