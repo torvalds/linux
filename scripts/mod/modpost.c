@@ -821,6 +821,7 @@ static int init_section_ref_ok(const char *name)
 		".pci_fixup_final",
 		".pdr",
 		"__param",
+		".smp_locks",
 		NULL
 	};
 	/* Start of section names */
@@ -892,6 +893,7 @@ static int exit_section_ref_ok(const char *name)
 		".exitcall.exit",
 		".eh_frame",
 		".stab",
+		".smp_locks",
 		NULL
 	};
 	/* Start of section names */
