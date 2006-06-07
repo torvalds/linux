@@ -1010,7 +1010,7 @@ set_ether_config (struct eth_dev *dev, gfp_t gfp_flags)
 		result = usb_ep_enable (dev->out_ep, dev->out);
 		if (result != 0) {
 			DEBUG (dev, "enable %s --> %d\n", 
-				dev->in_ep->name, result);
+				dev->out_ep->name, result);
 			goto done;
 		}
 	}
