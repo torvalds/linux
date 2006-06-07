@@ -2607,15 +2607,15 @@ static void get_manufacturing_desc (struct edgeport_serial *edge_serial)
 		dbg("  BoardRev:       %d", edge_serial->manuf_descriptor.BoardRev);
 		dbg("  NumPorts:       %d", edge_serial->manuf_descriptor.NumPorts);
 		dbg("  DescDate:       %d/%d/%d", edge_serial->manuf_descriptor.DescDate[0], edge_serial->manuf_descriptor.DescDate[1], edge_serial->manuf_descriptor.DescDate[2]+1900);
-		unicode_to_ascii(string, 30,
+		unicode_to_ascii(string, sizeof(string),
 		    edge_serial->manuf_descriptor.SerialNumber,
 		    edge_serial->manuf_descriptor.SerNumLength/2);
 		dbg("  SerialNumber: %s", string);
-		unicode_to_ascii(string, 30,
+		unicode_to_ascii(string, sizeof(string),
 		    edge_serial->manuf_descriptor.AssemblyNumber,
 		    edge_serial->manuf_descriptor.AssemblyNumLength/2);
 		dbg("  AssemblyNumber: %s", string);
-		unicode_to_ascii(string, 30,
+		unicode_to_ascii(string, sizeof(string),
 		    edge_serial->manuf_descriptor.OemAssyNumber,
 		    edge_serial->manuf_descriptor.OemAssyNumLength/2);
 		dbg("  OemAssyNumber:  %s", string);
