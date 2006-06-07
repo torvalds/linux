@@ -83,6 +83,8 @@ cflags-y			+= -msoft-float
 LDFLAGS_vmlinux			+= -G 0 -static -n -nostdlib
 MODFLAGS			+= -mlong-calls
 
+cflags-y += -ffreestanding
+
 #
 # We explicitly add the endianness specifier if needed, this allows
 # to compile kernels with a toolchain for the other endianness. We
