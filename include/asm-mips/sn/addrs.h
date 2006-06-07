@@ -27,13 +27,8 @@
 
 #ifndef __ASSEMBLY__
 
-#if defined(CONFIG_SGI_IO)	/* FIXME */
-#define PS_UINT_CAST		(__psunsigned_t)
-#define UINT64_CAST		(__uint64_t)
-#else	/* CONFIG_SGI_IO */
 #define PS_UINT_CAST		(unsigned long)
 #define UINT64_CAST		(unsigned long)
-#endif	/* CONFIG_SGI_IO */
 
 #define HUBREG_CAST		(volatile hubreg_t *)
 
