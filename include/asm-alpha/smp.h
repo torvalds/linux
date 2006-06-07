@@ -45,10 +45,8 @@ extern struct cpuinfo_alpha cpu_data[NR_CPUS];
 #define hard_smp_processor_id()	__hard_smp_processor_id()
 #define raw_smp_processor_id()	(current_thread_info()->cpu)
 
-extern cpumask_t cpu_present_mask;
-extern cpumask_t cpu_online_map;
 extern int smp_num_cpus;
-#define cpu_possible_map	cpu_present_mask
+#define cpu_possible_map	cpu_present_map
 
 int smp_call_function_on_cpu(void (*func) (void *info), void *info,int retry, int wait, cpumask_t cpu);
 

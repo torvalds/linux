@@ -1080,8 +1080,8 @@ static int fastcall do_path_lookup(int dfd, const char *name,
 	nd->flags = flags;
 	nd->depth = 0;
 
-	read_lock(&current->fs->lock);
 	if (*name=='/') {
+		read_lock(&current->fs->lock);
 		if (current->fs->altroot && !(nd->flags & LOOKUP_NOALT)) {
 			nd->mnt = mntget(current->fs->altrootmnt);
 			nd->dentry = dget(current->fs->altroot);
@@ -1092,33 +1092,35 @@ static int fastcall do_path_lookup(int dfd, const char *name,
 		}
 		nd->mnt = mntget(current->fs->rootmnt);
 		nd->dentry = dget(current->fs->root);
+		read_unlock(&current->fs->lock);
 	} else if (dfd == AT_FDCWD) {
+		read_lock(&current->fs->lock);
 		nd->mnt = mntget(current->fs->pwdmnt);
 		nd->dentry = dget(current->fs->pwd);
+		read_unlock(&current->fs->lock);
 	} else {
 		struct dentry *dentry;
 
 		file = fget_light(dfd, &fput_needed);
 		retval = -EBADF;
 		if (!file)
-			goto unlock_fail;
+			goto out_fail;
 
 		dentry = file->f_dentry;
 
 		retval = -ENOTDIR;
 		if (!S_ISDIR(dentry->d_inode->i_mode))
-			goto fput_unlock_fail;
+			goto fput_fail;
 
 		retval = file_permission(file, MAY_EXEC);
 		if (retval)
-			goto fput_unlock_fail;
+			goto fput_fail;
 
 		nd->mnt = mntget(file->f_vfsmnt);
 		nd->dentry = dget(dentry);
 
 		fput_light(file, fput_needed);
 	}
-	read_unlock(&current->fs->lock);
 	current->total_link_count = 0;
 	retval = link_path_walk(name, nd);
 out:
@@ -1127,13 +1129,12 @@ out:
 				nd->dentry->d_inode))
 		audit_inode(name, nd->dentry->d_inode, flags);
 	}
+out_fail:
 	return retval;
 
-fput_unlock_fail:
+fput_fail:
 	fput_light(file, fput_needed);
-unlock_fail:
-	read_unlock(&current->fs->lock);
-	return retval;
+	goto out_fail;
 }
 
 int fastcall path_lookup(const char *name, unsigned int flags,

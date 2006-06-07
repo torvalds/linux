@@ -11,6 +11,6 @@
 
 struct m48t86_ops
 {
-	void (*writeb)(unsigned char value, unsigned long addr);
-	unsigned char (*readb)(unsigned long addr);
+	void (*writebyte)(unsigned char value, unsigned long addr);
+	unsigned char (*readbyte)(unsigned long addr);
 };
