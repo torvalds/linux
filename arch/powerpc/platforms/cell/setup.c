@@ -125,14 +125,13 @@ static void __init cell_init_early(void)
 
 static int __init cell_probe(void)
 {
-	/* XXX This is temporary, the Cell maintainer will come up with
-	 * more appropriate detection logic
-	 */
 	unsigned long root = of_get_flat_dt_root();
-	if (!of_flat_dt_is_compatible(root, "IBM,CPBW-1.0"))
-		return 0;
 
-	return 1;
+	if (of_flat_dt_is_compatible(root, "IBM,CBEA") ||
+	    of_flat_dt_is_compatible(root, "IBM,CPBW-1.0"))
+		return 1;
+
+	return 0;
 }
 
 /*

@@ -1623,6 +1623,15 @@ static int __init prom_find_machine_type(void)
 			if (strstr(p, RELOC("Power Macintosh")) ||
 			    strstr(p, RELOC("MacRISC")))
 				return PLATFORM_POWERMAC;
+#ifdef CONFIG_PPC64
+			/* We must make sure we don't detect the IBM Cell
+			 * blades as pSeries due to some firmware issues,
+			 * so we do it here.
+			 */
+			if (strstr(p, RELOC("IBM,CBEA")) ||
+			    strstr(p, RELOC("IBM,CPBW-1.0")))
+				return PLATFORM_GENERIC;
+#endif /* CONFIG_PPC64 */
 			i += sl + 1;
 		}
 	}
