@@ -178,11 +178,14 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 		FreeXid(xid);
 		return -ENOMEM;
 	}
-
-	rc = CIFSSMBOpen(xid, pTcon, full_path, disposition,
+	if (cifs_sb->tcon->ses->capabilities & CAP_NT_SMBS) 
+		rc = CIFSSMBOpen(xid, pTcon, full_path, disposition,
 			 desiredAccess, CREATE_NOT_DIR,
 			 &fileHandle, &oplock, buf, cifs_sb->local_nls,
 			 cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+	else
+		rc = -EIO; /* no NT SMB support fall into legacy open below */
+
 	if(rc == -EIO) {
 		/* old server, retry the open legacy style */
 		rc = SMBLegacyOpen(xid, pTcon, full_path, disposition,
@@ -369,6 +372,10 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode,
 					 cifs_sb->mnt_cifs_flags & 
 					    CIFS_MOUNT_MAP_SPECIAL_CHR);
 
+			/* BB FIXME - add handling for backlevel servers
+			   which need legacy open and check for all
+			   calls to SMBOpen for fallback to 
+			   SMBLeagcyOpen */
 			if(!rc) {
 				/* BB Do not bother to decode buf since no
 				   local inode yet to put timestamps in,

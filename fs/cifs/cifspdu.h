@@ -1374,6 +1374,9 @@ struct smb_t2_rsp {
 #define SMB_FILE_MAXIMUM_INFO           0x40d
 
 /* Find File infolevels */
+#define SMB_FIND_FILE_INFO_STANDARD       0x001
+#define SMB_FIND_FILE_QUERY_EA_SIZE       0x002
+#define SMB_FIND_FILE_QUERY_EAS_FROM_LIST 0x003
 #define SMB_FIND_FILE_DIRECTORY_INFO      0x101
 #define SMB_FIND_FILE_FULL_DIRECTORY_INFO 0x102
 #define SMB_FIND_FILE_NAMES_INFO          0x103
@@ -1998,7 +2001,8 @@ typedef struct {
 
 struct file_allocation_info {
 	__le64 AllocationSize; /* Note old Samba srvr rounds this up too much */
-} __attribute__((packed));	/* size used on disk, level 0x103 for set, 0x105 for query */
+} __attribute__((packed));	/* size used on disk, for level 0x103 for set,
+				   0x105 for query */
 
 struct file_end_of_file_info {
 	__le64 FileSize;		/* offset to end of file */
@@ -2105,7 +2109,7 @@ typedef struct {
 	__le32 ExtFileAttributes;
 	__le32 FileNameLength;
 	char FileName[1];
-} __attribute__((packed)) FILE_DIRECTORY_INFO;   /* level 0x101 FF response data area */
+} __attribute__((packed)) FILE_DIRECTORY_INFO;   /* level 0x101 FF resp data */
 
 typedef struct {
 	__le32 NextEntryOffset;
@@ -2120,7 +2124,7 @@ typedef struct {
 	__le32 FileNameLength;
 	__le32 EaSize; /* length of the xattrs */
 	char FileName[1];
-} __attribute__((packed)) FILE_FULL_DIRECTORY_INFO;   /* level 0x102 FF response data area */
+} __attribute__((packed)) FILE_FULL_DIRECTORY_INFO; /* level 0x102 rsp data */
 
 typedef struct {
 	__le32 NextEntryOffset;
@@ -2137,7 +2141,7 @@ typedef struct {
 	__le32 Reserved;
 	__u64 UniqueId; /* inode num - le since Samba puts ino in low 32 bit*/
 	char FileName[1];
-} __attribute__((packed)) SEARCH_ID_FULL_DIR_INFO;   /* level 0x105 FF response data area */
+} __attribute__((packed)) SEARCH_ID_FULL_DIR_INFO; /* level 0x105 FF rsp data */
 
 typedef struct {
 	__le32 NextEntryOffset;
@@ -2155,7 +2159,22 @@ typedef struct {
 	__u8   Reserved;
 	__u8   ShortName[12];
 	char FileName[1];
-} __attribute__((packed)) FILE_BOTH_DIRECTORY_INFO;   /* level 0x104 FF response data area */
+} __attribute__((packed)) FILE_BOTH_DIRECTORY_INFO; /* level 0x104 FFrsp data */
+
+typedef struct {
+	__u32  ResumeKey;
+	__le16 CreationDate; /* SMB Date */
+	__le16 CreationTime; /* SMB Time */
+	__le16 LastAccessDate;
+	__le16 LastAccessTime;
+	__le16 LastWriteDate;
+	__le16 LastWriteTime;
+	__le32 DataSize; /* File Size (EOF) */
+	__le32 AllocationSize;
+	__le16 Attributes; /* verify not u32 */
+	__u8   FileNameLength;
+	char FileName[1];
+} __attribute__((packed)) FIND_FILE_STANDARD_INFO; /* level 0x1 FF resp data */
 
 
 struct win_dev {

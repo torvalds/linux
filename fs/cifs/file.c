@@ -260,10 +260,15 @@ int cifs_open(struct inode *inode, struct file *file)
 		rc = -ENOMEM;
 		goto out;
 	}
-	rc = CIFSSMBOpen(xid, pTcon, full_path, disposition, desiredAccess,
-			 CREATE_NOT_DIR, &netfid, &oplock, buf,
+
+	if (cifs_sb->tcon->ses->capabilities & CAP_NT_SMBS)
+		rc = CIFSSMBOpen(xid, pTcon, full_path, disposition, 
+			 desiredAccess, CREATE_NOT_DIR, &netfid, &oplock, buf,
 			 cifs_sb->local_nls, cifs_sb->mnt_cifs_flags
 				 & CIFS_MOUNT_MAP_SPECIAL_CHR);
+	else
+		rc = -EIO; /* no NT SMB support fall into legacy open below */
+
 	if (rc == -EIO) {
 		/* Old server, try legacy style OpenX */
 		rc = SMBLegacyOpen(xid, pTcon, full_path, disposition,
