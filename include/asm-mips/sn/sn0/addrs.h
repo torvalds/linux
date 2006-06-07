@@ -143,12 +143,7 @@
 #define SN0_WIDGET_BASE(_nasid, _wid)	(NODE_SWIN_BASE((_nasid), (_wid)))
 
 /* Turn on sable logging for the processors whose bits are set. */
-#ifdef SABLE
-#define SABLE_LOG_TRIGGER(_map)	\
-		*((volatile hubreg_t *)(IO_BASE + 0x17ffff0)) = (_map)
-#else
 #define SABLE_LOG_TRIGGER(_map)
-#endif /* SABLE */
 
 #ifndef __ASSEMBLY__
 #define KERN_NMI_ADDR(nasid, slice)					\

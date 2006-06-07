@@ -13,8 +13,6 @@
 
 #include <linux/config.h>
 
-#ifndef SABLE
-
 #ifndef SN0XXL  /* 128 cpu SMP max */
 /*
  * This is the maximum number of nodes that can be part of a kernel.
@@ -53,15 +51,6 @@
  * partitions the system can support.
  */
 #define MAX_PARTITIONS		MAX_REGIONS
-
-
-#else
-
-#define MAX_COMPACT_NODES	4
-#define MAX_NASIDS		4
-#define MAXCPUS			8
-
-#endif
 
 #define NASID_MASK_BYTES	((MAX_NASIDS + 7) / 8)
 

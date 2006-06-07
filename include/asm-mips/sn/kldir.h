@@ -141,7 +141,7 @@
  */
 #define SYMMON_STACK_SIZE		0x8000
 
-#if defined (PROM) || defined (SABLE)
+#if defined (PROM)
 
 /*
  * These defines are prom version dependent.  No code other than the IP27
@@ -178,7 +178,7 @@
 #define IP27_FREEMEM_COUNT		1
 #define IP27_FREEMEM_STRIDE		0
 
-#endif /* PROM || SABLE*/
+#endif /* PROM */
 /*
  * There will be only one of these in a partition so the IO6 must set it up.
  */
