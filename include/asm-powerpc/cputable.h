@@ -69,6 +69,13 @@ struct cpu_spec {
 	/* Processor specific oprofile operations */
 	enum powerpc_oprofile_type oprofile_type;
 
+	/* Bit locations inside the mmcra change */
+	unsigned long	oprofile_mmcra_sihv;
+	unsigned long	oprofile_mmcra_sipr;
+
+	/* Bits to clear during an oprofile exception */
+	unsigned long	oprofile_mmcra_clear;
+
 	/* Name of processor class, for the ELF AT_PLATFORM entry */
 	char		*platform;
 };
@@ -117,7 +124,6 @@ extern void do_cpu_ftr_fixups(unsigned long offset);
 #define CPU_FTR_SMT			ASM_CONST(0x0000010000000000)
 #define CPU_FTR_COHERENT_ICACHE		ASM_CONST(0x0000020000000000)
 #define CPU_FTR_LOCKLESS_TLBIE		ASM_CONST(0x0000040000000000)
-#define CPU_FTR_MMCRA_SIHV		ASM_CONST(0x0000080000000000)
 #define CPU_FTR_CI_LARGE_PAGE		ASM_CONST(0x0000100000000000)
 #define CPU_FTR_PAUSE_ZERO		ASM_CONST(0x0000200000000000)
 #define CPU_FTR_PURR			ASM_CONST(0x0000400000000000)
@@ -134,7 +140,6 @@ extern void do_cpu_ftr_fixups(unsigned long offset);
 #define CPU_FTR_SMT			ASM_CONST(0x0)
 #define CPU_FTR_COHERENT_ICACHE		ASM_CONST(0x0)
 #define CPU_FTR_LOCKLESS_TLBIE		ASM_CONST(0x0)
-#define CPU_FTR_MMCRA_SIHV		ASM_CONST(0x0)
 #define CPU_FTR_CI_LARGE_PAGE		ASM_CONST(0x0)
 #define CPU_FTR_PURR			ASM_CONST(0x0)
 #endif
@@ -320,7 +325,7 @@ extern void do_cpu_ftr_fixups(unsigned long offset);
 	    CPU_FTR_HPTE_TABLE | CPU_FTR_PPCAS_ARCH_V2 | \
 	    CPU_FTR_MMCRA | CPU_FTR_SMT | \
 	    CPU_FTR_COHERENT_ICACHE | CPU_FTR_LOCKLESS_TLBIE | \
-	    CPU_FTR_MMCRA_SIHV | CPU_FTR_PURR)
+	    CPU_FTR_PURR)
 #define CPU_FTRS_POWER6 (CPU_FTR_SPLIT_ID_CACHE | CPU_FTR_USE_TB | \
 	    CPU_FTR_HPTE_TABLE | CPU_FTR_PPCAS_ARCH_V2 | \
 	    CPU_FTR_MMCRA | CPU_FTR_SMT | \

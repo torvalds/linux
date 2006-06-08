@@ -237,6 +237,11 @@ struct cpu_spec	cpu_specs[] = {
 		.num_pmcs		= 6,
 		.oprofile_cpu_type	= "ppc64/power5",
 		.oprofile_type		= PPC_OPROFILE_POWER4,
+		/* SIHV / SIPR bits are implemented on POWER4+ (GQ)
+		 * and above but only works on POWER5 and above
+		 */
+		.oprofile_mmcra_sihv	= MMCRA_SIHV,
+		.oprofile_mmcra_sipr	= MMCRA_SIPR,
 		.platform		= "power5",
 	},
 	{	/* Power5 GS */
@@ -250,6 +255,8 @@ struct cpu_spec	cpu_specs[] = {
 		.num_pmcs		= 6,
 		.oprofile_cpu_type	= "ppc64/power5+",
 		.oprofile_type		= PPC_OPROFILE_POWER4,
+		.oprofile_mmcra_sihv	= MMCRA_SIHV,
+		.oprofile_mmcra_sipr	= MMCRA_SIPR,
 		.platform		= "power5+",
 	},
 	{	/* Power6 */
@@ -260,9 +267,13 @@ struct cpu_spec	cpu_specs[] = {
 		.cpu_user_features	= COMMON_USER_POWER6,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
-		.num_pmcs		= 6,
+		.num_pmcs		= 8,
 		.oprofile_cpu_type	= "ppc64/power6",
 		.oprofile_type		= PPC_OPROFILE_POWER4,
+ 		.oprofile_mmcra_sihv	= POWER6_MMCRA_SIHV,
+ 		.oprofile_mmcra_sipr	= POWER6_MMCRA_SIPR,
+ 		.oprofile_mmcra_clear	= POWER6_MMCRA_THRM |
+ 			POWER6_MMCRA_OTHER,
 		.platform		= "power6",
 	},
 	{	/* Cell Broadband Engine */
