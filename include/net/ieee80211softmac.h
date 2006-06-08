@@ -310,7 +310,7 @@ extern void ieee80211softmac_stop(struct net_device *dev);
  *	- context set to the context data you want passed
  * The return value is 0, or an error.
  */
-typedef void (*notify_function_ptr)(struct net_device *dev, void *context);
+typedef void (*notify_function_ptr)(struct net_device *dev, int event_type, void *context);
 
 #define ieee80211softmac_notify(dev, event, fun, context) ieee80211softmac_notify_gfp(dev, event, fun, context, GFP_KERNEL);
 #define ieee80211softmac_notify_atomic(dev, event, fun, context) ieee80211softmac_notify_gfp(dev, event, fun, context, GFP_ATOMIC);

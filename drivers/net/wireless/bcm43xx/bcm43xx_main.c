@@ -3555,7 +3555,7 @@ static void bcm43xx_ieee80211_set_security(struct net_device *net_dev,
 	unsigned long flags;
 	int keyidx;
 	
-	dprintk(KERN_INFO PFX "set security called\n");
+	dprintk(KERN_INFO PFX "set security called");
 
 	bcm43xx_lock_mmio(bcm, flags);
 
@@ -3568,24 +3568,25 @@ static void bcm43xx_ieee80211_set_security(struct net_device *net_dev,
 	
 	if (sec->flags & SEC_ACTIVE_KEY) {
 		secinfo->active_key = sec->active_key;
-		dprintk(KERN_INFO PFX "   .active_key = %d\n", sec->active_key);
+		dprintk(", .active_key = %d", sec->active_key);
 	}
 	if (sec->flags & SEC_UNICAST_GROUP) {
 		secinfo->unicast_uses_group = sec->unicast_uses_group;
-		dprintk(KERN_INFO PFX "   .unicast_uses_group = %d\n", sec->unicast_uses_group);
+		dprintk(", .unicast_uses_group = %d", sec->unicast_uses_group);
 	}
 	if (sec->flags & SEC_LEVEL) {
 		secinfo->level = sec->level;
-		dprintk(KERN_INFO PFX "   .level = %d\n", sec->level);
+		dprintk(", .level = %d", sec->level);
 	}
 	if (sec->flags & SEC_ENABLED) {
 		secinfo->enabled = sec->enabled;
-		dprintk(KERN_INFO PFX "   .enabled = %d\n", sec->enabled);
+		dprintk(", .enabled = %d", sec->enabled);
 	}
 	if (sec->flags & SEC_ENCRYPT) {
 		secinfo->encrypt = sec->encrypt;
-		dprintk(KERN_INFO PFX "   .encrypt = %d\n", sec->encrypt);
+		dprintk(", .encrypt = %d", sec->encrypt);
 	}
+	dprintk("\n");
 	if (bcm->initialized && !bcm->ieee->host_encrypt) {
 		if (secinfo->enabled) {
 			/* upload WEP keys to hardware */

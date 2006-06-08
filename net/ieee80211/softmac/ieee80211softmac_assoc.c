@@ -164,10 +164,26 @@ network_matches_request(struct ieee80211softmac_device *mac, struct ieee80211_ne
 }
 
 static void
-ieee80211softmac_assoc_notify(struct net_device *dev, void *context)
+ieee80211softmac_assoc_notify_scan(struct net_device *dev, int event_type, void *context)
 {
 	struct ieee80211softmac_device *mac = ieee80211_priv(dev);
 	ieee80211softmac_assoc_work((void*)mac);
+}
+
+static void
+ieee80211softmac_assoc_notify_auth(struct net_device *dev, int event_type, void *context)
+{
+	struct ieee80211softmac_device *mac = ieee80211_priv(dev);
+
+	switch (event_type) {
+	case IEEE80211SOFTMAC_EVENT_AUTHENTICATED:
+		ieee80211softmac_assoc_work((void*)mac);
+		break;
+	case IEEE80211SOFTMAC_EVENT_AUTH_FAILED:
+	case IEEE80211SOFTMAC_EVENT_AUTH_TIMEOUT:
+		ieee80211softmac_disassoc(mac);
+		break;
+	}
 }
 
 /* This function is called to handle userspace requests (asynchronously) */
@@ -249,7 +265,7 @@ ieee80211softmac_assoc_work(void *d)
 			 * Maybe we can hope to have more memory after scanning finishes ;)
 			 */
 			dprintk(KERN_INFO PFX "Associate: Scanning for networks first.\n");
-			ieee80211softmac_notify(mac->dev, IEEE80211SOFTMAC_EVENT_SCAN_FINISHED, ieee80211softmac_assoc_notify, NULL);
+			ieee80211softmac_notify(mac->dev, IEEE80211SOFTMAC_EVENT_SCAN_FINISHED, ieee80211softmac_assoc_notify_scan, NULL);
 			if (ieee80211softmac_start_scan(mac))
 				dprintk(KERN_INFO PFX "Associate: failed to initiate scan. Is device up?\n");
 			return;
@@ -284,7 +300,7 @@ ieee80211softmac_assoc_work(void *d)
 		 * otherwise adding the notification would be racy. */
 		if (!ieee80211softmac_auth_req(mac, found)) {
 			dprintk(KERN_INFO PFX "cannot associate without being authenticated, requested authentication\n");
-			ieee80211softmac_notify_internal(mac, IEEE80211SOFTMAC_EVENT_ANY, found, ieee80211softmac_assoc_notify, NULL, GFP_KERNEL);
+			ieee80211softmac_notify_internal(mac, IEEE80211SOFTMAC_EVENT_ANY, found, ieee80211softmac_assoc_notify_auth, NULL, GFP_KERNEL);
 		} else {
 			printkl(KERN_WARNING PFX "Not authenticated, but requesting authentication failed. Giving up to associate\n");
 			ieee80211softmac_call_events(mac, IEEE80211SOFTMAC_EVENT_ASSOCIATE_FAILED, found);
