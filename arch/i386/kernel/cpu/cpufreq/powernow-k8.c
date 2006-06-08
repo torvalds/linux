@@ -885,8 +885,8 @@ static int fill_powernow_table_fidvid(struct powernow_k8_data *data, struct cpuf
 		u32 vid;
 
 		if (data->exttype) {
-			fid = data->acpi_data.states[i].status & FID_MASK;
-			vid = (data->acpi_data.states[i].status >> VID_SHIFT) & VID_MASK;
+			fid = data->acpi_data.states[i].status & EXT_FID_MASK;
+			vid = (data->acpi_data.states[i].status >> VID_SHIFT) & EXT_VID_MASK;
 		} else {
 			fid = data->acpi_data.states[i].control & FID_MASK;
 			vid = (data->acpi_data.states[i].control >> VID_SHIFT) & VID_MASK;
