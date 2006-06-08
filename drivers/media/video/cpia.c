@@ -47,13 +47,6 @@
 
 #include "cpia.h"
 
-#ifdef CONFIG_VIDEO_CPIA_PP
-extern int cpia_pp_init(void);
-#endif
-#ifdef CONFIG_VIDEO_CPIA_USB
-extern int cpia_usb_init(void);
-#endif
-
 static int video_nr = -1;
 
 #ifdef MODULE
@@ -4045,13 +4038,6 @@ static int __init cpia_init(void)
 
 #ifdef CONFIG_PROC_FS
 	proc_cpia_create();
-#endif
-
-#ifdef CONFIG_VIDEO_CPIA_PP
-	cpia_pp_init();
-#endif
-#ifdef CONFIG_VIDEO_CPIA_USB
-	cpia_usb_init();
 #endif
 
 	return 0;
