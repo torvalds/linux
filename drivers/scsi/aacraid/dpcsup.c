@@ -85,9 +85,9 @@ unsigned int aac_response_normal(struct aac_queue * q)
 		 *	continue. The caller has already been notified that
 		 *	the fib timed out.
 		 */
-		if (!(fib->flags & FIB_CONTEXT_FLAG_TIMED_OUT)) {
+		if (!(fib->flags & FIB_CONTEXT_FLAG_TIMED_OUT))
 			dev->queues->queue[AdapNormCmdQueue].numpending--;
-		} else {
+		else {
 			printk(KERN_WARNING "aacraid: FIB timeout (%x).\n", fib->flags);
 			printk(KERN_DEBUG"aacraid: hwfib=%p fib index=%i fib=%p\n",hwfib, hwfib->header.SenderData,fib);
 			continue;

@@ -12,7 +12,7 @@
 
 #ifndef AAC_DRIVER_BUILD
 # define AAC_DRIVER_BUILD 2409
-# define AAC_DRIVER_BRANCH "-mh1"
+# define AAC_DRIVER_BRANCH "-mh2"
 #endif
 #define MAXIMUM_NUM_CONTAINERS	32
 
@@ -821,10 +821,6 @@ struct fib {
 	fib_callback 		callback;
 	void 			*callback_data;
 	u32			flags; // u32 dmb was ulong
-	/*
-	 *	The following is used to put this fib context onto the 
-	 *	Outstanding I/O queue.
-	 */
 	/*
 	 *	And for the internal issue/reply queues (we may be able
 	 *	to merge these two)
