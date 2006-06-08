@@ -74,7 +74,7 @@ static void cx88_ir_handle_key(struct cx88_IR *ir)
 
 	/* read gpio value */
 	gpio = cx_read(ir->gpio_addr);
-	if (core->board == CX88_BOARD_NPGTECH_REALTV) {
+	if (core->board == CX88_BOARD_NPGTECH_REALTV_TOP10FM) {
 		/* This board apparently uses a combination of 2 GPIO
 		   to represent the keys. Additionally, the second GPIO
 		   can be used for parity.
@@ -248,7 +248,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		ir_type = IR_TYPE_PD;
 		ir->sampling = 0xff00; /* address */
 		break;
-	case CX88_BOARD_NPGTECH_REALTV:
+	case CX88_BOARD_NPGTECH_REALTV_TOP10FM:
 		ir_codes = ir_codes_npgtech;
 		ir->gpio_addr = MO_GP0_IO;
 		ir->mask_keycode = 0xfa;

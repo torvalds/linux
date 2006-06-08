@@ -193,7 +193,7 @@ extern struct sram_channel cx88_sram_channels[];
 #define CX88_BOARD_PCHDTV_HD5500           47
 #define CX88_BOARD_KWORLD_MCE200_DELUXE    48
 #define CX88_BOARD_PIXELVIEW_PLAYTV_P7000  49
-#define CX88_BOARD_NPGTECH_REALTV          50
+#define CX88_BOARD_NPGTECH_REALTV_TOP10FM  50
 #define CX88_BOARD_WINFAST_DTV2000H        51
 
 enum cx88_itype {

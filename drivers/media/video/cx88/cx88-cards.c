@@ -1152,9 +1152,9 @@ struct cx88_board cx88_boards[] = {
 		}},
 		.blackbird = 1,
 	},
-	[CX88_BOARD_NPGTECH_REALTV] = {
-		.name           = "NPG Tech Real TV",
-		.tuner_type     = TUNER_LG_PAL_NEW_TAPC,
+	[CX88_BOARD_NPGTECH_REALTV_TOP10FM] = {
+		.name           = "NPG Tech Real TV FM Top 10",
+		.tuner_type     = TUNER_TNF_5335MF, /* Actually a TNF9535 */
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
@@ -1169,6 +1169,7 @@ struct cx88_board cx88_boards[] = {
 		},{
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
+			.gpio0	= 0x078b,
 		}},
 		.radio = {
 			 .type  = CX88_RADIO,
@@ -1429,7 +1430,7 @@ struct cx88_subid cx88_subids[] = {
 	},{
 		.subvendor = 0x14f1,
 		.subdevice = 0x0842,
-		.card      = CX88_BOARD_NPGTECH_REALTV,
+		.card      = CX88_BOARD_NPGTECH_REALTV_TOP10FM,
 	},{
 		.subvendor = 0x107d,
 		.subdevice = 0x665e,
