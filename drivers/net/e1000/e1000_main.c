@@ -3494,7 +3494,7 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 	buffer_info = &rx_ring->buffer_info[i];
 
 	while (rx_desc->status & E1000_RXD_STAT_DD) {
-		struct sk_buff *skb, *next_skb;
+		struct sk_buff *skb;
 		u8 status;
 #ifdef CONFIG_E1000_NAPI
 		if (*work_done >= work_to_do)
@@ -3512,8 +3512,6 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 		prefetch(next_rxd);
 
 		next_buffer = &rx_ring->buffer_info[i];
-		next_skb = next_buffer->skb;
-		prefetch(next_skb->data - NET_IP_ALIGN);
 
 		cleaned = TRUE;
 		cleaned_count++;
@@ -3644,7 +3642,7 @@ e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 	struct e1000_buffer *buffer_info, *next_buffer;
 	struct e1000_ps_page *ps_page;
 	struct e1000_ps_page_dma *ps_page_dma;
-	struct sk_buff *skb, *next_skb;
+	struct sk_buff *skb;
 	unsigned int i, j;
 	uint32_t length, staterr;
 	int cleaned_count = 0;
@@ -3674,8 +3672,6 @@ e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 		prefetch(next_rxd);
 
 		next_buffer = &rx_ring->buffer_info[i];
-		next_skb = next_buffer->skb;
-		prefetch(next_skb->data - NET_IP_ALIGN);
 
 		cleaned = TRUE;
 		cleaned_count++;
