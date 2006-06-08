@@ -388,7 +388,7 @@ ieee80211softmac_wx_set_genie(struct net_device *dev,
 		memcpy(mac->wpa.IE, extra, wrqu->data.length);
 		dprintk(KERN_INFO PFX "generic IE set to ");
 		for (i=0;i<wrqu->data.length;i++)
-			dprintk("%.2x", mac->wpa.IE[i]);
+			dprintk("%.2x", (u8)mac->wpa.IE[i]);
 		dprintk("\n");
 		mac->wpa.IElen = wrqu->data.length;
 	} else {
