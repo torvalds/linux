@@ -432,7 +432,7 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 			cpu_to_le16(sizeof(struct ntlmv2_resp));
 
 		/* calculate session key */
-		setup_ntlmv2_rsp(ses, v2_sess_key);
+		setup_ntlmv2_rsp(ses, v2_sess_key, nls_cp);
 		if(first_time) /* should this be moved into common code
 			          with similar ntlmv2 path? */
 		/*   cifs_calculate_ntlmv2_mac_key(ses->server->mac_signing_key,

@@ -212,7 +212,8 @@ int cifs_calculate_mac_key(char * key, const char * rn, const char * password)
 	return 0;
 }
 
-int CalcNTLMv2_partial_mac_key(struct cifsSesInfo * ses, struct nls_table * nls_info)
+int CalcNTLMv2_partial_mac_key(struct cifsSesInfo * ses, 
+				const struct nls_table * nls_info)
 {
 	char temp_hash[16];
 	struct HMACMD5Context ctx;
@@ -305,13 +306,15 @@ void calc_lanman_hash(struct cifsSesInfo * ses, char * lnm_session_key)
 }
 #endif /* CIFS_WEAK_PW_HASH */
 
-static int calc_ntlmv2_hash(const struct cifsSesInfo *ses, 
-			    char * ntv2_hash)
+static int calc_ntlmv2_hash(struct cifsSesInfo *ses, 
+			    const struct nls_table * nls_cp)
 {
 	int rc = 0;
 	int len;
 	char nt_hash[16];
 	struct HMACMD5Context * pctxt;
+	wchar_t * user;
+	wchar_t * domain;
 
 	pctxt = kmalloc(sizeof(struct HMACMD5Context), GFP_KERNEL);
 
@@ -321,26 +324,44 @@ static int calc_ntlmv2_hash(const struct cifsSesInfo *ses,
 	/* calculate md4 hash of password */
 	E_md4hash(ses->password, nt_hash);
 
-	/* convERT Domainname to unicode and uppercase */
+	/* convert Domainname to unicode and uppercase */
 	hmac_md5_init_limK_to_64(nt_hash, 16, pctxt);
 
 	/* convert ses->userName to unicode and uppercase */
-
-	/* len = ... */  /* BB FIXME BB */
-
-	/* hmac_md5_update(user, len, pctxt); */
+	len = strlen(ses->userName);
+	user = kmalloc(2 + (len * 2), GFP_KERNEL);
+	if(user == NULL)
+		goto calc_exit_2;
+	len = cifs_strtoUCS(user, ses->userName, len, nls_cp);
+	UniStrupr(user);
+	hmac_md5_update((char *)user, 2*len, pctxt);
 
 	/* convert ses->domainName to unicode and uppercase */
+	if(ses->domainName) {
+		len = strlen(ses->domainName);
 
-	/* len = ... */  /* BB FIXME BB */
-	/* hmac_md5_update(domain, len, pctxt); */
+        	domain = kmalloc(2 + (len * 2), GFP_KERNEL);
+		if(domain == NULL)
+			goto calc_exit_1;
+		len = cifs_strtoUCS(domain, ses->domainName, len, nls_cp);
+		UniStrupr(domain);
 
-	hmac_md5_final(ntv2_hash, pctxt);
+		hmac_md5_update((char *)domain, 2*len, pctxt);
+	
+		kfree(domain);
+	}
+calc_exit_1:
+	kfree(user);
+calc_exit_2:
+	/* BB FIXME what about bytes 24 through 40 of the signing key? 
+	   compare with the NTLM example */
+	hmac_md5_final(ses->server->mac_signing_key, pctxt);
 
 	return rc;
 }
 
-void setup_ntlmv2_rsp(const struct cifsSesInfo * ses, char * resp_buf)
+void setup_ntlmv2_rsp(struct cifsSesInfo * ses, char * resp_buf, 
+		      const struct nls_table * nls_cp)
 {
 	int rc;
 	struct ntlmv2_resp * buf = (struct ntlmv2_resp *)resp_buf;
@@ -348,27 +369,28 @@ void setup_ntlmv2_rsp(const struct cifsSesInfo * ses, char * resp_buf)
 	buf->blob_signature = cpu_to_le32(0x00000101);
 	buf->reserved = 0;
 	buf->time = cpu_to_le64(cifs_UnixTimeToNT(CURRENT_TIME));
-	get_random_bytes(&buf->client_chal, sizeof(buf->client_chal)); 
+	get_random_bytes(&buf->client_chal, sizeof(buf->client_chal));
 	buf->reserved2 = 0;
 	buf->names[0].type = 0;
 	buf->names[0].length = 0;
 
 	/* calculate buf->ntlmv2_hash */
-	rc = calc_ntlmv2_hash(ses,buf->ntlmv2_hash);
+	rc = calc_ntlmv2_hash(ses, nls_cp);
 	if(rc)
 		cERROR(1,("could not get v2 hash rc %d",rc));
+	CalcNTLMv2_response(ses, resp_buf);
 }
 
-void CalcNTLMv2_response(const struct cifsSesInfo * ses,char * v2_session_response)
+void CalcNTLMv2_response(const struct cifsSesInfo * ses, char * v2_session_response)
 {
 	struct HMACMD5Context context;
+	/* rest of v2 struct already generated */
 	memcpy(v2_session_response + 8, ses->server->cryptKey,8);
-	/* gen_blob(v2_session_response + 16); */
 	hmac_md5_init_limK_to_64(ses->server->mac_signing_key, 16, &context);
 
-	hmac_md5_update(ses->server->cryptKey,8,&context);
-/*	hmac_md5_update(v2_session_response+16)client thing,8,&context); */ /* BB fix */
+	hmac_md5_update(v2_session_response+8, 
+			sizeof(struct ntlmv2_resp) - 8, &context);
 
 	hmac_md5_final(v2_session_response,&context);
-	cifs_dump_mem("v2_sess_rsp: ", v2_session_response, 32); /* BB removeme BB */
+/*	cifs_dump_mem("v2_sess_rsp: ", v2_session_response, 32); */
 }

@@ -285,9 +285,11 @@ extern int cifs_sign_smb2(struct kvec *iov, int n_vec, struct TCP_Server_Info *,
 extern int cifs_verify_signature(struct smb_hdr *, const char * mac_key,
 	__u32 expected_sequence_number);
 extern int cifs_calculate_mac_key(char * key,const char * rn,const char * pass);
-extern int CalcNTLMv2_partial_mac_key(struct cifsSesInfo *, struct nls_table *);
-extern void CalcNTLMv2_response(const struct cifsSesInfo *,char * );
-extern void setup_ntlmv2_rsp(const struct cifsSesInfo *, char *);
+extern int CalcNTLMv2_partial_mac_key(struct cifsSesInfo *, 
+			const struct nls_table *);
+extern void CalcNTLMv2_response(const struct cifsSesInfo *, char * );
+extern void setup_ntlmv2_rsp(struct cifsSesInfo *, char *, 
+			     const struct nls_table *);
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
 extern void calc_lanman_hash(struct cifsSesInfo * ses, char * lnm_session_key);
 #endif /* CIFS_WEAK_PW_HASH */

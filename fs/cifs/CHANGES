@@ -5,7 +5,9 @@ session setup needed for OS/2 and older servers such as Windows 95 and 98.
 Fix oops on ls to OS/2 servers.  Add support for level 1 FindFirst
 so we can do search (ls etc.) to OS/2.  Do not send NTCreateX
 or recent levels of FindFirst unless server says it supports NT SMBs
-(instead use legacy equivalents from LANMAN dialect).
+(instead use legacy equivalents from LANMAN dialect). Fix to allow
+NTLMv2 authentication support (now can use stronger password hashing
+on mount if corresponding /proc/fs/cifs/SecurityFlags is set (0x4004)
 
 Version 1.43
 ------------
