@@ -795,9 +795,6 @@ acpi_status acpi_os_wait_semaphore(acpi_handle handle, u32 units, u16 timeout)
 	ACPI_DEBUG_PRINT((ACPI_DB_MUTEX, "Waiting for semaphore[%p|%d|%d]\n",
 			  handle, units, timeout));
 
-	if (in_atomic())
-		timeout = 0;
-
 	switch (timeout) {
 		/*
 		 * No Wait:

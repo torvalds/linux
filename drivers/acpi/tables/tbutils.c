@@ -160,12 +160,8 @@ acpi_tb_validate_table_header(struct acpi_table_header *table_header)
 
 	ACPI_MOVE_32_TO_32(&signature, table_header->signature);
 	if (!acpi_ut_valid_acpi_name(signature)) {
-		ACPI_ERROR((AE_INFO,
-			    "Table signature at %p [%p] has invalid characters",
-			    table_header, &signature));
-
-		ACPI_WARNING((AE_INFO, "Invalid table signature found: [%4.4s]",
-			      ACPI_CAST_PTR(char, &signature)));
+		ACPI_ERROR((AE_INFO, "Invalid table signature 0x%8.8X",
+			    signature));
 
 		ACPI_DUMP_BUFFER(table_header,
 				 sizeof(struct acpi_table_header));
@@ -176,12 +172,9 @@ acpi_tb_validate_table_header(struct acpi_table_header *table_header)
 
 	if (table_header->length < sizeof(struct acpi_table_header)) {
 		ACPI_ERROR((AE_INFO,
-			    "Invalid length in table header %p name %4.4s",
-			    table_header, (char *)&signature));
-
-		ACPI_WARNING((AE_INFO,
-			      "Invalid table header length (0x%X) found",
-			      (u32) table_header->length));
+			    "Invalid length 0x%X in table with signature %4.4s",
+			    (u32) table_header->length,
+			    ACPI_CAST_PTR(char, &signature)));
 
 		ACPI_DUMP_BUFFER(table_header,
 				 sizeof(struct acpi_table_header));

@@ -691,7 +691,7 @@ char *acpi_ut_get_descriptor_name(void *object)
 char *acpi_ut_get_mutex_name(u32 mutex_id)
 {
 
-	if (mutex_id > MAX_MUTEX) {
+	if (mutex_id > ACPI_MAX_MUTEX) {
 		return ("Invalid Mutex ID");
 	}
 
@@ -760,7 +760,7 @@ void acpi_ut_init_globals(void)
 
 	/* Mutex locked flags */
 
-	for (i = 0; i < NUM_MUTEX; i++) {
+	for (i = 0; i < ACPI_NUM_MUTEX; i++) {
 		acpi_gbl_mutex_info[i].mutex = NULL;
 		acpi_gbl_mutex_info[i].thread_id = ACPI_MUTEX_NOT_ACQUIRED;
 		acpi_gbl_mutex_info[i].use_count = 0;

@@ -557,9 +557,12 @@ acpi_ns_init_one_device(acpi_handle obj_handle,
 		ACPI_EXCEPTION((AE_INFO, status, "during %s._INI execution",
 				scope_name));
 		ACPI_FREE(scope_name);
-		status = AE_OK;
 	}
 #endif
+
+	/* Ignore errors from above */
+
+	status = AE_OK;
 
 	/*
 	 * The _INI method has been run if present; call the Global Initialization

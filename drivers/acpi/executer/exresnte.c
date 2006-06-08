@@ -114,10 +114,11 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 
 	/*
 	 * Several object types require no further processing:
-	 * 1) Devices rarely have an attached object, return the Node
+	 * 1) Device/Thermal objects don't have a "real" subobject, return the Node
 	 * 2) Method locals and arguments have a pseudo-Node
 	 */
-	if (entry_type == ACPI_TYPE_DEVICE ||
+	if ((entry_type == ACPI_TYPE_DEVICE) ||
+	    (entry_type == ACPI_TYPE_THERMAL) ||
 	    (node->flags & (ANOBJ_METHOD_ARG | ANOBJ_METHOD_LOCAL))) {
 		return_ACPI_STATUS(AE_OK);
 	}
@@ -216,7 +217,6 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 	case ACPI_TYPE_METHOD:
 	case ACPI_TYPE_POWER:
 	case ACPI_TYPE_PROCESSOR:
-	case ACPI_TYPE_THERMAL:
 	case ACPI_TYPE_EVENT:
 	case ACPI_TYPE_REGION:
 

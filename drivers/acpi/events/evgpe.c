@@ -382,6 +382,7 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info * gpe_xrupt_list)
 	u32 status_reg;
 	u32 enable_reg;
 	acpi_cpu_flags flags;
+	acpi_cpu_flags hw_flags;
 	acpi_native_uint i;
 	acpi_native_uint j;
 
@@ -393,9 +394,12 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info * gpe_xrupt_list)
 		return (int_status);
 	}
 
-	/* Examine all GPE blocks attached to this interrupt level */
+	/* We need to hold the GPE lock now, hardware lock in the loop */
 
 	flags = acpi_os_acquire_lock(acpi_gbl_gpe_lock);
+
+	/* Examine all GPE blocks attached to this interrupt level */
+
 	gpe_block = gpe_xrupt_list->gpe_block_list_head;
 	while (gpe_block) {
 		/*
@@ -409,6 +413,8 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info * gpe_xrupt_list)
 
 			gpe_register_info = &gpe_block->register_info[i];
 
+			hw_flags = acpi_os_acquire_lock(acpi_gbl_hardware_lock);
+
 			/* Read the Status Register */
 
 			status =
@@ -417,6 +423,8 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info * gpe_xrupt_list)
 						   &gpe_register_info->
 						   status_address);
 			if (ACPI_FAILURE(status)) {
+				acpi_os_release_lock(acpi_gbl_hardware_lock,
+						     hw_flags);
 				goto unlock_and_exit;
 			}
 
@@ -427,6 +435,8 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info * gpe_xrupt_list)
 						   &enable_reg,
 						   &gpe_register_info->
 						   enable_address);
+			acpi_os_release_lock(acpi_gbl_hardware_lock, hw_flags);
+
 			if (ACPI_FAILURE(status)) {
 				goto unlock_and_exit;
 			}
@@ -499,7 +509,6 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info * gpe_xrupt_list)
 static void ACPI_SYSTEM_XFACE acpi_ev_asynch_execute_gpe_method(void *context)
 {
 	struct acpi_gpe_event_info *gpe_event_info = (void *)context;
-	u32 gpe_number = 0;
 	acpi_status status;
 	struct acpi_gpe_event_info local_gpe_event_info;
 	struct acpi_evaluate_info *info;
@@ -565,10 +574,10 @@ static void ACPI_SYSTEM_XFACE acpi_ev_asynch_execute_gpe_method(void *context)
 
 		if (ACPI_FAILURE(status)) {
 			ACPI_EXCEPTION((AE_INFO, status,
-					"While evaluating method [%4.4s] for GPE[%2X]",
+					"While evaluating GPE method [%4.4s]",
 					acpi_ut_get_node_name
 					(local_gpe_event_info.dispatch.
-					 method_node), gpe_number));
+					 method_node)));
 		}
 	}
 

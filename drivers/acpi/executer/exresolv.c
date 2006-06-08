@@ -257,10 +257,24 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 
 		case AML_INT_NAMEPATH_OP:	/* Reference to a named object */
 
-			/* Get the object pointed to by the namespace node */
+			/* Dereference the name */
 
-			*stack_ptr = (stack_desc->reference.node)->object;
-			acpi_ut_add_reference(*stack_ptr);
+			if ((stack_desc->reference.node->type ==
+			     ACPI_TYPE_DEVICE)
+			    || (stack_desc->reference.node->type ==
+				ACPI_TYPE_THERMAL)) {
+
+				/* These node types do not have 'real' subobjects */
+
+				*stack_ptr = (void *)stack_desc->reference.node;
+			} else {
+				/* Get the object pointed to by the namespace node */
+
+				*stack_ptr =
+				    (stack_desc->reference.node)->object;
+				acpi_ut_add_reference(*stack_ptr);
+			}
+
 			acpi_ut_remove_reference(stack_desc);
 			break;
 

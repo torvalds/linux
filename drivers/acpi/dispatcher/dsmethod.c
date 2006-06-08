@@ -507,7 +507,7 @@ acpi_ds_terminate_control_method(union acpi_operand_object *method_desc,
 	 * If this is the last thread executing the method,
 	 * we have additional cleanup to perform
 	 */
-	status = acpi_ut_acquire_mutex(ACPI_MTX_PARSER);
+	status = acpi_ut_acquire_mutex(ACPI_MTX_CONTROL_METHOD);
 	if (ACPI_FAILURE(status)) {
 		return_VOID;
 	}
@@ -600,7 +600,7 @@ acpi_ds_terminate_control_method(union acpi_operand_object *method_desc,
 	}
 
       exit:
-	(void)acpi_ut_release_mutex(ACPI_MTX_PARSER);
+	(void)acpi_ut_release_mutex(ACPI_MTX_CONTROL_METHOD);
 	return_VOID;
 }
 

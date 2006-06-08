@@ -785,6 +785,7 @@ acpi_ex_insert_into_field(union acpi_operand_object *obj_desc,
 {
 	acpi_status status;
 	acpi_integer mask;
+	acpi_integer width_mask;
 	acpi_integer merged_datum;
 	acpi_integer raw_datum = 0;
 	u32 field_offset = 0;
@@ -809,8 +810,11 @@ acpi_ex_insert_into_field(union acpi_operand_object *obj_desc,
 
 	/* Compute the number of datums (access width data items) */
 
+	width_mask =
+	    ACPI_MASK_BITS_ABOVE(obj_desc->common_field.access_bit_width);
 	mask =
-	    ACPI_MASK_BITS_BELOW(obj_desc->common_field.start_field_bit_offset);
+	    width_mask & ACPI_MASK_BITS_BELOW(obj_desc->common_field.
+					      start_field_bit_offset);
 
 	datum_count = ACPI_ROUND_UP_TO(obj_desc->common_field.bit_length,
 				       obj_desc->common_field.access_bit_width);
@@ -850,7 +854,7 @@ acpi_ex_insert_into_field(union acpi_operand_object *obj_desc,
 		merged_datum = raw_datum >>
 		    (obj_desc->common_field.access_bit_width -
 		     obj_desc->common_field.start_field_bit_offset);
-		mask = ACPI_INTEGER_MAX;
+		mask = width_mask;
 
 		if (i == datum_count) {
 			break;

@@ -61,10 +61,13 @@ ACPI_MODULE_NAME("hwregs")
  * DESCRIPTION: Clears all fixed and general purpose status bits
  *              THIS FUNCTION MUST BE CALLED WITH INTERRUPTS DISABLED
  *
+ * NOTE: TBD: Flags parameter is obsolete, to be removed
+ *
  ******************************************************************************/
 acpi_status acpi_hw_clear_acpi_status(u32 flags)
 {
 	acpi_status status;
+	acpi_cpu_flags lock_flags = 0;
 
 	ACPI_FUNCTION_TRACE(hw_clear_acpi_status);
 
@@ -72,12 +75,7 @@ acpi_status acpi_hw_clear_acpi_status(u32 flags)
 			  ACPI_BITMASK_ALL_FIXED_STATUS,
 			  (u16) acpi_gbl_FADT->xpm1a_evt_blk.address));
 
-	if (flags & ACPI_MTX_LOCK) {
-		status = acpi_ut_acquire_mutex(ACPI_MTX_HARDWARE);
-		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
-		}
-	}
+	lock_flags = acpi_os_acquire_lock(acpi_gbl_hardware_lock);
 
 	status = acpi_hw_register_write(ACPI_MTX_DO_NOT_LOCK,
 					ACPI_REGISTER_PM1_STATUS,
@@ -102,9 +100,7 @@ acpi_status acpi_hw_clear_acpi_status(u32 flags)
 	status = acpi_ev_walk_gpe_list(acpi_hw_clear_gpe_block);
 
       unlock_and_exit:
-	if (flags & ACPI_MTX_LOCK) {
-		(void)acpi_ut_release_mutex(ACPI_MTX_HARDWARE);
-	}
+	acpi_os_release_lock(acpi_gbl_hardware_lock, lock_flags);
 	return_ACPI_STATUS(status);
 }
 
@@ -264,6 +260,8 @@ struct acpi_bit_register_info *acpi_hw_get_bit_register_info(u32 register_id)
  *
  * DESCRIPTION: ACPI bit_register read function.
  *
+ * NOTE: TBD: Flags parameter is obsolete, to be removed
+ *
  ******************************************************************************/
 
 acpi_status acpi_get_register(u32 register_id, u32 * return_value, u32 flags)
@@ -281,22 +279,11 @@ acpi_status acpi_get_register(u32 register_id, u32 * return_value, u32 flags)
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	if (flags & ACPI_MTX_LOCK) {
-		status = acpi_ut_acquire_mutex(ACPI_MTX_HARDWARE);
-		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
-		}
-	}
-
 	/* Read from the register */
 
-	status = acpi_hw_register_read(ACPI_MTX_DO_NOT_LOCK,
+	status = acpi_hw_register_read(ACPI_MTX_LOCK,
 				       bit_reg_info->parent_register,
 				       &register_value);
-
-	if (flags & ACPI_MTX_LOCK) {
-		(void)acpi_ut_release_mutex(ACPI_MTX_HARDWARE);
-	}
 
 	if (ACPI_SUCCESS(status)) {
 
@@ -331,12 +318,15 @@ ACPI_EXPORT_SYMBOL(acpi_get_register)
  *
  * DESCRIPTION: ACPI Bit Register write function.
  *
+ * NOTE: TBD: Flags parameter is obsolete, to be removed
+ *
  ******************************************************************************/
 acpi_status acpi_set_register(u32 register_id, u32 value, u32 flags)
 {
 	u32 register_value = 0;
 	struct acpi_bit_register_info *bit_reg_info;
 	acpi_status status;
+	acpi_cpu_flags lock_flags;
 
 	ACPI_FUNCTION_TRACE_U32(acpi_set_register, register_id);
 
@@ -349,12 +339,7 @@ acpi_status acpi_set_register(u32 register_id, u32 value, u32 flags)
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	if (flags & ACPI_MTX_LOCK) {
-		status = acpi_ut_acquire_mutex(ACPI_MTX_HARDWARE);
-		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
-		}
-	}
+	lock_flags = acpi_os_acquire_lock(acpi_gbl_hardware_lock);
 
 	/* Always do a register read first so we can insert the new bits  */
 
@@ -462,9 +447,7 @@ acpi_status acpi_set_register(u32 register_id, u32 value, u32 flags)
 
       unlock_and_exit:
 
-	if (flags & ACPI_MTX_LOCK) {
-		(void)acpi_ut_release_mutex(ACPI_MTX_HARDWARE);
-	}
+	acpi_os_release_lock(acpi_gbl_hardware_lock, lock_flags);
 
 	/* Normalize the value that was read */
 
@@ -500,14 +483,12 @@ acpi_hw_register_read(u8 use_lock, u32 register_id, u32 * return_value)
 	u32 value1 = 0;
 	u32 value2 = 0;
 	acpi_status status;
+	acpi_cpu_flags lock_flags = 0;
 
 	ACPI_FUNCTION_TRACE(hw_register_read);
 
 	if (ACPI_MTX_LOCK == use_lock) {
-		status = acpi_ut_acquire_mutex(ACPI_MTX_HARDWARE);
-		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
-		}
+		lock_flags = acpi_os_acquire_lock(acpi_gbl_hardware_lock);
 	}
 
 	switch (register_id) {
@@ -585,7 +566,7 @@ acpi_hw_register_read(u8 use_lock, u32 register_id, u32 * return_value)
 
       unlock_and_exit:
 	if (ACPI_MTX_LOCK == use_lock) {
-		(void)acpi_ut_release_mutex(ACPI_MTX_HARDWARE);
+		acpi_os_release_lock(acpi_gbl_hardware_lock, lock_flags);
 	}
 
 	if (ACPI_SUCCESS(status)) {
@@ -613,14 +594,12 @@ acpi_hw_register_read(u8 use_lock, u32 register_id, u32 * return_value)
 acpi_status acpi_hw_register_write(u8 use_lock, u32 register_id, u32 value)
 {
 	acpi_status status;
+	acpi_cpu_flags lock_flags = 0;
 
 	ACPI_FUNCTION_TRACE(hw_register_write);
 
 	if (ACPI_MTX_LOCK == use_lock) {
-		status = acpi_ut_acquire_mutex(ACPI_MTX_HARDWARE);
-		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
-		}
+		lock_flags = acpi_os_acquire_lock(acpi_gbl_hardware_lock);
 	}
 
 	switch (register_id) {
@@ -710,7 +689,7 @@ acpi_status acpi_hw_register_write(u8 use_lock, u32 register_id, u32 value)
 
       unlock_and_exit:
 	if (ACPI_MTX_LOCK == use_lock) {
-		(void)acpi_ut_release_mutex(ACPI_MTX_HARDWARE);
+		acpi_os_release_lock(acpi_gbl_hardware_lock, lock_flags);
 	}
 
 	return_ACPI_STATUS(status);

@@ -186,7 +186,7 @@ extern struct acpi_table_support acpi_gbl_table_data[ACPI_TABLE_ID_MAX + 1];
  * actual OS mutex handles, indexed by the local ACPI_MUTEX_HANDLEs.
  * (The table maps local handles to the real OS handles)
  */
-ACPI_EXTERN struct acpi_mutex_info acpi_gbl_mutex_info[NUM_MUTEX];
+ACPI_EXTERN struct acpi_mutex_info acpi_gbl_mutex_info[ACPI_NUM_MUTEX];
 
 /*****************************************************************************
  *
@@ -314,7 +314,11 @@ ACPI_EXTERN struct acpi_fixed_event_handler
 ACPI_EXTERN struct acpi_gpe_xrupt_info *acpi_gbl_gpe_xrupt_list_head;
 ACPI_EXTERN struct acpi_gpe_block_info
     *acpi_gbl_gpe_fadt_blocks[ACPI_MAX_GPE_BLOCKS];
+
+/* Spinlocks */
+
 ACPI_EXTERN acpi_handle acpi_gbl_gpe_lock;
+ACPI_EXTERN acpi_handle acpi_gbl_hardware_lock;
 
 /*****************************************************************************
  *

@@ -89,7 +89,7 @@ acpi_status acpi_ex_enter_interpreter(void)
 
 	ACPI_FUNCTION_TRACE(ex_enter_interpreter);
 
-	status = acpi_ut_acquire_mutex(ACPI_MTX_EXECUTE);
+	status = acpi_ut_acquire_mutex(ACPI_MTX_INTERPRETER);
 	if (ACPI_FAILURE(status)) {
 		ACPI_ERROR((AE_INFO, "Could not acquire interpreter mutex"));
 	}
@@ -125,7 +125,7 @@ void acpi_ex_exit_interpreter(void)
 
 	ACPI_FUNCTION_TRACE(ex_exit_interpreter);
 
-	status = acpi_ut_release_mutex(ACPI_MTX_EXECUTE);
+	status = acpi_ut_release_mutex(ACPI_MTX_INTERPRETER);
 	if (ACPI_FAILURE(status)) {
 		ACPI_ERROR((AE_INFO, "Could not release interpreter mutex"));
 	}

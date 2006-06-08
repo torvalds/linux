@@ -322,8 +322,9 @@ acpi_status acpi_ex_opcode_1A_1T_1R(struct acpi_walk_state *walk_state)
 
 			/* Since the bit position is one-based, subtract from 33 (65) */
 
-			return_desc->integer.value = temp32 == 0 ? 0 :
-			    (ACPI_INTEGER_BIT_SIZE + 1) - temp32;
+			return_desc->integer.value =
+			    temp32 ==
+			    0 ? 0 : (ACPI_INTEGER_BIT_SIZE + 1) - temp32;
 			break;
 
 		case AML_FROM_BCD_OP:	/* from_bcd (BCDValue, Result) */
@@ -698,6 +699,7 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 		if (ACPI_FAILURE(status)) {
 			goto cleanup;
 		}
+
 		/* Allocate a descriptor to hold the type. */
 
 		return_desc = acpi_ut_create_internal_object(ACPI_TYPE_INTEGER);
@@ -967,7 +969,6 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 						acpi_ut_add_reference
 						    (return_desc);
 					}
-
 					break;
 
 				default:
@@ -987,7 +988,6 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 
 				if (ACPI_GET_DESCRIPTOR_TYPE(return_desc) ==
 				    ACPI_DESC_TYPE_NAMED) {
-
 					return_desc =
 					    acpi_ns_get_attached_object((struct
 									 acpi_namespace_node
@@ -1002,7 +1002,7 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 
 			default:
 				ACPI_ERROR((AE_INFO,
-					    "Unknown opcode in ref(%p) - %X",
+					    "Unknown opcode in reference(%p) - %X",
 					    operand[0],
 					    operand[0]->reference.opcode));
 
