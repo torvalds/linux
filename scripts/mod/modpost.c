@@ -822,6 +822,7 @@ static int init_section_ref_ok(const char *name)
 		".pdr",
 		"__param",
 		".smp_locks",
+		".plt",  /* seen on ARCH=um build on x86_64. Harmless */
 		NULL
 	};
 	/* Start of section names */
@@ -894,6 +895,7 @@ static int exit_section_ref_ok(const char *name)
 		".eh_frame",
 		".stab",
 		".smp_locks",
+		".plt",  /* seen on ARCH=um build on x86_64. Harmless */
 		NULL
 	};
 	/* Start of section names */
