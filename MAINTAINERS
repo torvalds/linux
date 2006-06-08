@@ -568,6 +568,18 @@ L:	linuxppc-dev@ozlabs.org
 W:	http://www.penguinppc.org/ppc64/
 S:	Supported
 
+BROADCOM BNX2 GIGABIT ETHERNET DRIVER
+P:	Michael Chan
+M:	mchan@broadcom.com
+L:	netdev@vger.kernel.org
+S:	Supported
+
+BROADCOM TG3 GIGABIT ETHERNET DRIVER
+P:	Michael Chan
+M:	mchan@broadcom.com
+L:	netdev@vger.kernel.org
+S:	Supported
+
 BTTV VIDEO4LINUX DRIVER
 P:	Mauro Carvalho Chehab
 M:	mchehab@infradead.org
@@ -1881,6 +1893,11 @@ P:	Richard Gooch
 M:	rgooch@atnf.csiro.au
 L:	linux-kernel@vger.kernel.org
 W:	http://www.atnf.csiro.au/~rgooch/linux/kernel-patches.html
+S:	Maintained
+
+MULTIMEDIA CARD SUBSYSTEM
+P:	Russell King
+M:	rmk+mmc@arm.linux.org.uk
 S:	Maintained
 
 MULTISOUND SOUND DRIVER

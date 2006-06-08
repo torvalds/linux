@@ -51,6 +51,7 @@
 #define PRID_IMP_R4300		0x0b00
 #define PRID_IMP_VR41XX		0x0c00
 #define PRID_IMP_R12000		0x0e00
+#define PRID_IMP_R14000		0x0f00
 #define PRID_IMP_R8000		0x1000
 #define PRID_IMP_PR4450		0x1200
 #define PRID_IMP_R4600		0x2000
@@ -87,6 +88,7 @@
 #define PRID_IMP_24K		0x9300
 #define PRID_IMP_34K		0x9500
 #define PRID_IMP_24KE		0x9600
+#define PRID_IMP_74K		0x9700
 
 /*
  * These are the PRID's for when 23:16 == PRID_COMP_SIBYTE
@@ -196,7 +198,9 @@
 #define CPU_34K			60
 #define CPU_PR4450		61
 #define CPU_SB1A		62
-#define CPU_LAST		62
+#define CPU_74K			63
+#define CPU_R14000		64
+#define CPU_LAST		64
 
 /*
  * ISA Level encodings

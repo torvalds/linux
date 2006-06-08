@@ -1605,6 +1605,21 @@ mpt_resume(struct pci_dev *pdev)
 }
 #endif
 
+static int
+mpt_signal_reset(int index, MPT_ADAPTER *ioc, int reset_phase)
+{
+	if ((MptDriverClass[index] == MPTSPI_DRIVER &&
+	     ioc->bus_type != SPI) ||
+	    (MptDriverClass[index] == MPTFC_DRIVER &&
+	     ioc->bus_type != FC) ||
+	    (MptDriverClass[index] == MPTSAS_DRIVER &&
+	     ioc->bus_type != SAS))
+		/* make sure we only call the relevant reset handler
+		 * for the bus */
+		return 0;
+	return (MptResetHandlers[index])(ioc, reset_phase);
+}
+
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /*
  *	mpt_do_ioc_recovery - Initialize or recover MPT adapter.
@@ -1885,14 +1900,14 @@ mpt_do_ioc_recovery(MPT_ADAPTER *ioc, u32 reason, int sleepFlag)
 			if ((ret == 0) && MptResetHandlers[ii]) {
 				dprintk((MYIOC_s_INFO_FMT "Calling IOC post_reset handler #%d\n",
 						ioc->name, ii));
-				rc += (*(MptResetHandlers[ii]))(ioc, MPT_IOC_POST_RESET);
+				rc += mpt_signal_reset(ii, ioc, MPT_IOC_POST_RESET);
 				handlers++;
 			}
 
 			if (alt_ioc_ready && MptResetHandlers[ii]) {
 				drsprintk((MYIOC_s_INFO_FMT "Calling alt-%s post_reset handler #%d\n",
 						ioc->name, ioc->alt_ioc->name, ii));
-				rc += (*(MptResetHandlers[ii]))(ioc->alt_ioc, MPT_IOC_POST_RESET);
+				rc += mpt_signal_reset(ii, ioc->alt_ioc, MPT_IOC_POST_RESET);
 				handlers++;
 			}
 		}
@@ -3267,11 +3282,11 @@ mpt_diag_reset(MPT_ADAPTER *ioc, int ignore, int sleepFlag)
 				if (MptResetHandlers[ii]) {
 					dprintk((MYIOC_s_INFO_FMT "Calling IOC pre_reset handler #%d\n",
 							ioc->name, ii));
-					r += (*(MptResetHandlers[ii]))(ioc, MPT_IOC_PRE_RESET);
+					r += mpt_signal_reset(ii, ioc, MPT_IOC_PRE_RESET);
 					if (ioc->alt_ioc) {
 						dprintk((MYIOC_s_INFO_FMT "Calling alt-%s pre_reset handler #%d\n",
 								ioc->name, ioc->alt_ioc->name, ii));
-						r += (*(MptResetHandlers[ii]))(ioc->alt_ioc, MPT_IOC_PRE_RESET);
+						r += mpt_signal_reset(ii, ioc->alt_ioc, MPT_IOC_PRE_RESET);
 					}
 				}
 			}
@@ -5706,11 +5721,11 @@ mpt_HardResetHandler(MPT_ADAPTER *ioc, int sleepFlag)
 			if (MptResetHandlers[ii]) {
 				dtmprintk((MYIOC_s_INFO_FMT "Calling IOC reset_setup handler #%d\n",
 						ioc->name, ii));
-				r += (*(MptResetHandlers[ii]))(ioc, MPT_IOC_SETUP_RESET);
+				r += mpt_signal_reset(ii, ioc, MPT_IOC_SETUP_RESET);
 				if (ioc->alt_ioc) {
 					dtmprintk((MYIOC_s_INFO_FMT "Calling alt-%s setup reset handler #%d\n",
 							ioc->name, ioc->alt_ioc->name, ii));
-					r += (*(MptResetHandlers[ii]))(ioc->alt_ioc, MPT_IOC_SETUP_RESET);
+					r += mpt_signal_reset(ii, ioc->alt_ioc, MPT_IOC_SETUP_RESET);
 				}
 			}
 		}

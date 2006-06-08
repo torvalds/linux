@@ -861,6 +861,9 @@ static int __pppoe_xmit(struct sock *sk, struct sk_buff *skb)
 		 * give dev_queue_xmit something it can free.
 		 */
 		skb2 = skb_clone(skb, GFP_ATOMIC);
+
+		if (skb2 == NULL)
+			goto abort;
 	}
 
 	ph = (struct pppoe_hdr *) skb_push(skb2, sizeof(struct pppoe_hdr));

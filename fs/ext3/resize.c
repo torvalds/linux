@@ -767,7 +767,6 @@ int ext3_group_add(struct super_block *sb, struct ext3_new_group_data *input)
 	if (input->group != sbi->s_groups_count) {
 		ext3_warning(sb, __FUNCTION__,
 			     "multiple resizers run on filesystem!");
-		unlock_super(sb);
 		err = -EBUSY;
 		goto exit_journal;
 	}

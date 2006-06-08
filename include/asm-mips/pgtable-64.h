@@ -224,15 +224,12 @@ static inline pte_t mk_swap_pte(unsigned long type, unsigned long offset)
 #define __swp_entry_to_pte(x)	((pte_t) { (x).val })
 
 /*
- * Bits 0, 1, 2, 7 and 8 are taken, split up the 32 bits of offset
- * into this range:
+ * Bits 0, 4, 6, and 7 are taken. Let's leave bits 1, 2, 3, and 5 alone to
+ * make things easier, and only use the upper 56 bits for the page offset...
  */
-#define PTE_FILE_MAX_BITS	32
+#define PTE_FILE_MAX_BITS	56
 
-#define pte_to_pgoff(_pte) \
-	((((_pte).pte >> 3) & 0x1f ) + (((_pte).pte >> 9) << 6 ))
-
-#define pgoff_to_pte(off) \
-	((pte_t) { (((off) & 0x1f) << 3) + (((off) >> 6) << 9) + _PAGE_FILE })
+#define pte_to_pgoff(_pte)	((_pte).pte >> 8)
+#define pgoff_to_pte(off)	((pte_t) { ((off) << 8) | _PAGE_FILE })
 
 #endif /* _ASM_PGTABLE_64_H */

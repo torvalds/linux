@@ -299,9 +299,9 @@ static void spitzkbd_hinge_timer(unsigned long data)
 	if (hinge_count >= HINGE_STABLE_COUNT) {
 		spin_lock_irqsave(&spitzkbd_data->lock, flags);
 
-		input_report_switch(spitzkbd_data->input, SW_0, ((GPLR(SPITZ_GPIO_SWA) & GPIO_bit(SPITZ_GPIO_SWA)) != 0));
-		input_report_switch(spitzkbd_data->input, SW_1, ((GPLR(SPITZ_GPIO_SWB) & GPIO_bit(SPITZ_GPIO_SWB)) != 0));
-		input_report_switch(spitzkbd_data->input, SW_2, ((GPLR(SPITZ_GPIO_AK_INT) & GPIO_bit(SPITZ_GPIO_AK_INT)) != 0));
+		input_report_switch(spitzkbd_data->input, SW_LID, ((GPLR(SPITZ_GPIO_SWA) & GPIO_bit(SPITZ_GPIO_SWA)) != 0));
+		input_report_switch(spitzkbd_data->input, SW_TABLET_MODE, ((GPLR(SPITZ_GPIO_SWB) & GPIO_bit(SPITZ_GPIO_SWB)) != 0));
+		input_report_switch(spitzkbd_data->input, SW_HEADPHONE_INSERT, ((GPLR(SPITZ_GPIO_AK_INT) & GPIO_bit(SPITZ_GPIO_AK_INT)) != 0));
 		input_sync(spitzkbd_data->input);
 
 		spin_unlock_irqrestore(&spitzkbd_data->lock, flags);
@@ -398,9 +398,9 @@ static int __init spitzkbd_probe(struct platform_device *dev)
 	for (i = 0; i < ARRAY_SIZE(spitzkbd_keycode); i++)
 		set_bit(spitzkbd->keycode[i], input_dev->keybit);
 	clear_bit(0, input_dev->keybit);
-	set_bit(SW_0, input_dev->swbit);
-	set_bit(SW_1, input_dev->swbit);
-	set_bit(SW_2, input_dev->swbit);
+	set_bit(SW_LID, input_dev->swbit);
+	set_bit(SW_TABLET_MODE, input_dev->swbit);
+	set_bit(SW_HEADPHONE_INSERT, input_dev->swbit);
 
 	input_register_device(input_dev);
 

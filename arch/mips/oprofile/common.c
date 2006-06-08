@@ -14,8 +14,8 @@
 
 #include "op_impl.h"
 
-extern struct op_mips_model op_model_mipsxx __attribute__((weak));
-extern struct op_mips_model op_model_rm9000 __attribute__((weak));
+extern struct op_mips_model op_model_mipsxx_ops __attribute__((weak));
+extern struct op_mips_model op_model_rm9000_ops __attribute__((weak));
 
 static struct op_mips_model *model;
 
@@ -80,13 +80,14 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 	case CPU_24K:
 	case CPU_25KF:
 	case CPU_34K:
+	case CPU_74K:
 	case CPU_SB1:
 	case CPU_SB1A:
-		lmodel = &op_model_mipsxx;
+		lmodel = &op_model_mipsxx_ops;
 		break;
 
 	case CPU_RM9000:
-		lmodel = &op_model_rm9000;
+		lmodel = &op_model_rm9000_ops;
 		break;
 	};
 

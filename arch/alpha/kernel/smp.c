@@ -68,7 +68,6 @@ enum ipi_message_type {
 static int smp_secondary_alive __initdata = 0;
 
 /* Which cpus ids came online.  */
-cpumask_t cpu_present_mask;
 cpumask_t cpu_online_map;
 
 EXPORT_SYMBOL(cpu_online_map);
@@ -439,7 +438,7 @@ setup_smp(void)
 			if ((cpu->flags & 0x1cc) == 0x1cc) {
 				smp_num_probed++;
 				/* Assume here that "whami" == index */
-				cpu_set(i, cpu_present_mask);
+				cpu_set(i, cpu_present_map);
 				cpu->pal_revision = boot_cpu_palrev;
 			}
 
@@ -450,11 +449,10 @@ setup_smp(void)
 		}
 	} else {
 		smp_num_probed = 1;
-		cpu_set(boot_cpuid, cpu_present_mask);
 	}
 
-	printk(KERN_INFO "SMP: %d CPUs probed -- cpu_present_mask = %lx\n",
-	       smp_num_probed, cpu_possible_map.bits[0]);
+	printk(KERN_INFO "SMP: %d CPUs probed -- cpu_present_map = %lx\n",
+	       smp_num_probed, cpu_present_map.bits[0]);
 }
 
 /*
@@ -473,7 +471,7 @@ smp_prepare_cpus(unsigned int max_cpus)
 
 	/* Nothing to do on a UP box, or when told not to.  */
 	if (smp_num_probed == 1 || max_cpus == 0) {
-		cpu_present_mask = cpumask_of_cpu(boot_cpuid);
+		cpu_present_map = cpumask_of_cpu(boot_cpuid);
 		printk(KERN_INFO "SMP mode deactivated.\n");
 		return;
 	}
@@ -486,10 +484,6 @@ smp_prepare_cpus(unsigned int max_cpus)
 void __devinit
 smp_prepare_boot_cpu(void)
 {
-	/*
-	 * Mark the boot cpu (current cpu) as online
-	 */ 
-	cpu_set(smp_processor_id(), cpu_online_map);
 }
 
 int __devinit
