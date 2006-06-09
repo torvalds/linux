@@ -2995,7 +2995,7 @@ static inline void security_xfrm_state_free(struct xfrm_state *x)
 {
 }
 
-static inline int security_xfrm_state_delete(struct xfrm_policy *xp)
+static inline int security_xfrm_state_delete(struct xfrm_state *x)
 {
 	return 0;
 }

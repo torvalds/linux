@@ -427,7 +427,7 @@ static int xfrm_del_sa(struct sk_buff *skb, struct nlmsghdr *nlh, void **xfrma)
 	if (x == NULL)
 		return -ESRCH;
 
-	if (err = security_xfrm_state_delete(x))
+	if ((err = security_xfrm_state_delete(x)) != 0)
 		goto out;
 
 	if (xfrm_state_kern(x)) {
@@ -1057,7 +1057,7 @@ static int xfrm_get_policy(struct sk_buff *skb, struct nlmsghdr *nlh, void **xfr
 					      MSG_DONTWAIT);
 		}
 	} else {
-		if (err = security_xfrm_policy_delete(xp))
+		if ((err = security_xfrm_policy_delete(xp)) != 0)
 			goto out;
 		c.data.byid = p->index;
 		c.event = nlh->nlmsg_type;
