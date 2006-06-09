@@ -888,7 +888,10 @@ nfs_fhget(struct super_block *sb, struct nfs_fh *fh, struct nfs_fattr *fattr)
 				set_bit(NFS_INO_ADVISE_RDPLUS, &NFS_FLAGS(inode));
 			/* Deal with crossing mountpoints */
 			if (!nfs_fsid_equal(&NFS_SB(sb)->fsid, &fattr->fsid)) {
-				inode->i_op = &nfs_mountpoint_inode_operations;
+				if (fattr->valid & NFS_ATTR_FATTR_V4_REFERRAL)
+					inode->i_op = &nfs_referral_inode_operations;
+				else
+					inode->i_op = &nfs_mountpoint_inode_operations;
 				inode->i_fop = NULL;
 			}
 		} else if (S_ISLNK(inode->i_mode))

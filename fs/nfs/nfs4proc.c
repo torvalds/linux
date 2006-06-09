@@ -1462,6 +1462,50 @@ out:
 	return nfs4_map_errors(status);
 }
 
+/*
+ * Get locations and (maybe) other attributes of a referral.
+ * Note that we'll actually follow the referral later when
+ * we detect fsid mismatch in inode revalidation
+ */
+static int nfs4_get_referral(struct inode *dir, struct qstr *name, struct nfs_fattr *fattr, struct nfs_fh *fhandle)
+{
+	int status = -ENOMEM;
+	struct page *page = NULL;
+	struct nfs4_fs_locations *locations = NULL;
+	struct dentry dentry = {};
+
+	page = alloc_page(GFP_KERNEL);
+	if (page == NULL)
+		goto out;
+	locations = kmalloc(sizeof(struct nfs4_fs_locations), GFP_KERNEL);
+	if (locations == NULL)
+		goto out;
+
+	dentry.d_name.name = name->name;
+	dentry.d_name.len = name->len;
+	status = nfs4_proc_fs_locations(dir, &dentry, locations, page);
+	if (status != 0)
+		goto out;
+	/* Make sure server returned a different fsid for the referral */
+	if (nfs_fsid_equal(&NFS_SERVER(dir)->fsid, &locations->fattr.fsid)) {
+		dprintk("%s: server did not return a different fsid for a referral at %s\n", __FUNCTION__, name->name);
+		status = -EIO;
+		goto out;
+	}
+
+	memcpy(fattr, &locations->fattr, sizeof(struct nfs_fattr));
+	fattr->valid |= NFS_ATTR_FATTR_V4_REFERRAL;
+	if (!fattr->mode)
+		fattr->mode = S_IFDIR;
+	memset(fhandle, 0, sizeof(struct nfs_fh));
+out:
+	if (page)
+		__free_page(page);
+	if (locations)
+		kfree(locations);
+	return status;
+}
+
 static int _nfs4_proc_getattr(struct nfs_server *server, struct nfs_fh *fhandle, struct nfs_fattr *fattr)
 {
 	struct nfs4_getattr_arg args = {
@@ -1566,6 +1610,8 @@ static int _nfs4_proc_lookup(struct inode *dir, struct qstr *name,
 	
 	dprintk("NFS call  lookup %s\n", name->name);
 	status = rpc_call_sync(NFS_CLIENT(dir), &msg, 0);
+	if (status == -NFS4ERR_MOVED)
+		status = nfs4_get_referral(dir, name, fattr, fhandle);
 	dprintk("NFS reply lookup: %d\n", status);
 	return status;
 }

@@ -58,7 +58,10 @@ static void * nfs_follow_mountpoint(struct dentry *dentry, struct nameidata *nd)
 	if (err != 0)
 		goto out_err;
 
-	mnt = nfs_do_submount(nd->mnt, nd->dentry, &fh, &fattr);
+	if (fattr.valid & NFS_ATTR_FATTR_V4_REFERRAL)
+		mnt = nfs_do_refmount(nd->mnt, nd->dentry);
+	else
+		mnt = nfs_do_submount(nd->mnt, nd->dentry, &fh, &fattr);
 	err = PTR_ERR(mnt);
 	if (IS_ERR(mnt))
 		goto out_err;
@@ -92,6 +95,10 @@ out_follow:
 struct inode_operations nfs_mountpoint_inode_operations = {
 	.follow_link	= nfs_follow_mountpoint,
 	.getattr	= nfs_getattr,
+};
+
+struct inode_operations nfs_referral_inode_operations = {
+	.follow_link	= nfs_follow_mountpoint,
 };
 
 static void nfs_expire_automounts(void *data)

@@ -409,6 +409,7 @@ extern void nfs_unregister_sysctl(void);
  */
 extern struct list_head nfs_automount_list;
 extern struct inode_operations nfs_mountpoint_inode_operations;
+extern struct inode_operations nfs_referral_inode_operations;
 extern int nfs_mountpoint_expiry_timeout;
 extern void nfs_release_automount_timer(void);
 
