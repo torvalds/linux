@@ -2078,6 +2078,8 @@ static struct rpc_clnt *nfs4_create_client(struct nfs_server *server,
 					__FUNCTION__, err);
 			goto out_fail;
 		}
+		/* Bind to a reserved port! */
+		xprt->resvport = 1;
 		clnt = rpc_create_client(xprt, server->hostname, &nfs_program,
 				server->rpc_ops->version, flavor);
 		if (IS_ERR(clnt)) {
