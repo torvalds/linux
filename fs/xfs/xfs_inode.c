@@ -1250,8 +1250,8 @@ xfs_ialloc(
 	 */
 	xfs_trans_log_inode(tp, ip, flags);
 
-	/* now that we have an i_mode  we can set Linux inode ops (& unlock) */
-	VFS_INIT_VNODE(XFS_MTOVFS(tp->t_mountp), vp, XFS_ITOBHV(ip), 1);
+	/* now that we have an i_mode we can setup inode ops and unlock */
+	bhv_vfs_init_vnode(XFS_MTOVFS(tp->t_mountp), vp, XFS_ITOBHV(ip), 1);
 
 	*ipp = ip;
 	return 0;

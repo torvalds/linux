@@ -498,9 +498,8 @@ xfs_log_mount(xfs_mount_t	*mp,
 	 * just worked.
 	 */
 	if (!(mp->m_flags & XFS_MOUNT_NORECOVERY)) {
-		int	error;
-		vfs_t	*vfsp = XFS_MTOVFS(mp);
-		int	readonly = (vfsp->vfs_flag & VFS_RDONLY);
+		bhv_vfs_t	*vfsp = XFS_MTOVFS(mp);
+		int		error, readonly = (vfsp->vfs_flag & VFS_RDONLY);
 
 		if (readonly)
 			vfsp->vfs_flag &= ~VFS_RDONLY;
@@ -816,7 +815,7 @@ xfs_log_need_covered(xfs_mount_t *mp)
 	SPLDECL(s);
 	int		needed = 0, gen;
 	xlog_t		*log = mp->m_log;
-	vfs_t		*vfsp = XFS_MTOVFS(mp);
+	bhv_vfs_t	*vfsp = XFS_MTOVFS(mp);
 
 	if (fs_frozen(vfsp) || XFS_FORCED_SHUTDOWN(mp) ||
 	    (vfsp->vfs_flag & VFS_RDONLY))

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2005 Silicon Graphics, Inc.
+ * Copyright (c) 2000-2006 Silicon Graphics, Inc.
  * All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -21,42 +21,42 @@
 #include <linux/vfs.h>
 #include "xfs_fs.h"
 
+struct bhv_vfs;
 struct fid;
-struct vfs;
 struct cred;
 struct vnode;
-struct kstatfs;
+struct statfs;
 struct seq_file;
 struct super_block;
 struct xfs_mount_args;
 
 typedef struct kstatfs xfs_statfs_t;
 
-typedef struct vfs_sync_work {
+typedef struct bhv_vfs_sync_work {
 	struct list_head	w_list;
-	struct vfs		*w_vfs;
+	struct bhv_vfs		*w_vfs;
 	void			*w_data;	/* syncer routine argument */
-	void			(*w_syncer)(struct vfs *, void *);
-} vfs_sync_work_t;
+	void			(*w_syncer)(struct bhv_vfs *, void *);
+} bhv_vfs_sync_work_t;
 
-typedef struct vfs {
+typedef struct bhv_vfs {
 	u_int			vfs_flag;	/* flags */
 	xfs_fsid_t		vfs_fsid;	/* file system ID */
 	xfs_fsid_t		*vfs_altfsid;	/* An ID fixed for life of FS */
 	bhv_head_t		vfs_bh;		/* head of vfs behavior chain */
 	struct super_block	*vfs_super;	/* generic superblock pointer */
 	struct task_struct	*vfs_sync_task;	/* generalised sync thread */
-	vfs_sync_work_t		vfs_sync_work;	/* work item for VFS_SYNC */
+	bhv_vfs_sync_work_t	vfs_sync_work;	/* work item for VFS_SYNC */
 	struct list_head	vfs_sync_list;	/* sync thread work item list */
 	spinlock_t		vfs_sync_lock;	/* work item list lock */
-	int 			vfs_sync_seq;	/* sync thread generation no. */
+	int			vfs_sync_seq;	/* sync thread generation no. */
 	wait_queue_head_t	vfs_wait_single_sync_task;
-} vfs_t;
+} bhv_vfs_t;
 
 #define vfs_fbhv		vfs_bh.bh_first	/* 1st on vfs behavior chain */
 
-#define bhvtovfs(bdp)		( (struct vfs *)BHV_VOBJ(bdp) )
-#define bhvtovfsops(bdp)	( (struct vfsops *)BHV_OPS(bdp) )
+#define bhvtovfs(bdp)		( (struct bhv_vfs *)BHV_VOBJ(bdp) )
+#define bhvtovfsops(bdp)	( (struct bhv_vfsops *)BHV_OPS(bdp) )
 #define VFS_BHVHEAD(vfs)	( &(vfs)->vfs_bh )
 #define VFS_REMOVEBHV(vfs, bdp)	( bhv_remove(VFS_BHVHEAD(vfs), bdp) )
 
@@ -71,7 +71,7 @@ typedef enum {
 	VFS_BHV_QM,		/* quota manager */
 	VFS_BHV_IO,		/* IO path */
 	VFS_BHV_END		/* housekeeping end-of-range */
-} vfs_bhv_t;
+} bhv_vfs_type_t;
 
 #define VFS_POSITION_XFS	(BHV_POSITION_BASE)
 #define VFS_POSITION_DM		(VFS_POSITION_BASE+10)
@@ -81,8 +81,9 @@ typedef enum {
 #define VFS_RDONLY		0x0001	/* read-only vfs */
 #define VFS_GRPID		0x0002	/* group-ID assigned from directory */
 #define VFS_DMI			0x0004	/* filesystem has the DMI enabled */
-#define VFS_32BITINODES		0x0008	/* do not use inums above 32 bits */
-#define VFS_END			0x0008	/* max flag */
+#define VFS_UMOUNT		0x0008	/* unmount in progress */
+#define VFS_32BITINODES		0x0010	/* do not use inums above 32 bits */
+#define VFS_END			0x0010	/* max flag */
 
 #define SYNC_ATTR		0x0001	/* sync attributes */
 #define SYNC_CLOSE		0x0002	/* close file system down */
@@ -92,7 +93,7 @@ typedef enum {
 #define SYNC_FSDATA		0x0020	/* flush fs data (e.g. superblocks) */
 #define SYNC_REFCACHE		0x0040  /* prune some of the nfs ref cache */
 #define SYNC_REMOUNT		0x0080  /* remount readonly, no dummy LRs */
-#define SYNC_QUIESCE		0x0100  /* quiesce filesystem for a snapshot */
+#define SYNC_QUIESCE		0x0100  /* quiesce fileystem for a snapshot */
 
 #define SHUTDOWN_META_IO_ERROR	0x0001	/* write attempt to metadata failed */
 #define SHUTDOWN_LOG_IO_ERROR	0x0002	/* write attempt to the log failed */
@@ -120,7 +121,7 @@ typedef void	(*vfs_init_vnode_t)(bhv_desc_t *,
 typedef void	(*vfs_force_shutdown_t)(bhv_desc_t *, int, char *, int);
 typedef void	(*vfs_freeze_t)(bhv_desc_t *);
 
-typedef struct vfsops {
+typedef struct bhv_vfsops {
 	bhv_position_t		vf_position;	/* behavior chain position */
 	vfs_mount_t		vfs_mount;	/* mount file system */
 	vfs_parseargs_t		vfs_parseargs;	/* parse mount options */
@@ -136,44 +137,44 @@ typedef struct vfsops {
 	vfs_init_vnode_t	vfs_init_vnode;	/* initialize a new vnode */
 	vfs_force_shutdown_t	vfs_force_shutdown;	/* crash and burn */
 	vfs_freeze_t		vfs_freeze;	/* freeze fs for snapshot */
-} vfsops_t;
+} bhv_vfsops_t;
 
 /*
  * VFS's.  Operates on vfs structure pointers (starts at bhv head).
  */
 #define VHEAD(v)			((v)->vfs_fbhv)
-#define VFS_MOUNT(v, ma,cr, rv)		((rv) = vfs_mount(VHEAD(v), ma,cr))
-#define VFS_PARSEARGS(v, o,ma,f, rv)	((rv) = vfs_parseargs(VHEAD(v), o,ma,f))
-#define VFS_SHOWARGS(v, m, rv)		((rv) = vfs_showargs(VHEAD(v), m))
-#define VFS_UNMOUNT(v, f, cr, rv)	((rv) = vfs_unmount(VHEAD(v), f,cr))
-#define VFS_MNTUPDATE(v, fl, args, rv)	((rv) = vfs_mntupdate(VHEAD(v), fl, args))
-#define VFS_ROOT(v, vpp, rv)		((rv) = vfs_root(VHEAD(v), vpp))
-#define VFS_STATVFS(v, sp,vp, rv)	((rv) = vfs_statvfs(VHEAD(v), sp,vp))
-#define VFS_SYNC(v, flag,cr, rv)	((rv) = vfs_sync(VHEAD(v), flag,cr))
-#define VFS_VGET(v, vpp,fidp, rv)	((rv) = vfs_vget(VHEAD(v), vpp,fidp))
-#define VFS_DMAPIOPS(v, p, rv)		((rv) = vfs_dmapiops(VHEAD(v), p))
-#define VFS_QUOTACTL(v, c,id,p, rv)	((rv) = vfs_quotactl(VHEAD(v), c,id,p))
-#define VFS_INIT_VNODE(v, vp,b,ul)	( vfs_init_vnode(VHEAD(v), vp,b,ul) )
-#define VFS_FORCE_SHUTDOWN(v, fl,f,l)	( vfs_force_shutdown(VHEAD(v), fl,f,l) )
-#define VFS_FREEZE(v)			( vfs_freeze(VHEAD(v)) )
+#define bhv_vfs_mount(v, ma,cr)		vfs_mount(VHEAD(v), ma,cr)
+#define bhv_vfs_parseargs(v, o,ma,f)	vfs_parseargs(VHEAD(v), o,ma,f)
+#define bhv_vfs_showargs(v, m)		vfs_showargs(VHEAD(v), m)
+#define bhv_vfs_unmount(v, f,cr)	vfs_unmount(VHEAD(v), f,cr)
+#define bhv_vfs_mntupdate(v, fl,args)	vfs_mntupdate(VHEAD(v), fl,args)
+#define bhv_vfs_root(v, vpp)		vfs_root(VHEAD(v), vpp)
+#define bhv_vfs_statvfs(v, sp,vp)	vfs_statvfs(VHEAD(v), sp,vp)
+#define bhv_vfs_sync(v, flag,cr)	vfs_sync(VHEAD(v), flag,cr)
+#define bhv_vfs_vget(v, vpp,fidp)	vfs_vget(VHEAD(v), vpp,fidp)
+#define bhv_vfs_dmapiops(v, p)		vfs_dmapiops(VHEAD(v), p)
+#define bhv_vfs_quotactl(v, c,id,p)	vfs_quotactl(VHEAD(v), c,id,p)
+#define bhv_vfs_init_vnode(v, vp,b,ul)	vfs_init_vnode(VHEAD(v), vp,b,ul)
+#define bhv_vfs_force_shutdown(v,u,f,l)	vfs_force_shutdown(VHEAD(v), u,f,l)
+#define bhv_vfs_freeze(v)		vfs_freeze(VHEAD(v))
 
 /*
  * PVFS's.  Operates on behavior descriptor pointers.
  */
-#define PVFS_MOUNT(b, ma,cr, rv)	((rv) = vfs_mount(b, ma,cr))
-#define PVFS_PARSEARGS(b, o,ma,f, rv)	((rv) = vfs_parseargs(b, o,ma,f))
-#define PVFS_SHOWARGS(b, m, rv)		((rv) = vfs_showargs(b, m))
-#define PVFS_UNMOUNT(b, f,cr, rv)	((rv) = vfs_unmount(b, f,cr))
-#define PVFS_MNTUPDATE(b, fl, args, rv)	((rv) = vfs_mntupdate(b, fl, args))
-#define PVFS_ROOT(b, vpp, rv)		((rv) = vfs_root(b, vpp))
-#define PVFS_STATVFS(b, sp,vp, rv)	((rv) = vfs_statvfs(b, sp,vp))
-#define PVFS_SYNC(b, flag,cr, rv)	((rv) = vfs_sync(b, flag,cr))
-#define PVFS_VGET(b, vpp,fidp, rv)	((rv) = vfs_vget(b, vpp,fidp))
-#define PVFS_DMAPIOPS(b, p, rv)		((rv) = vfs_dmapiops(b, p))
-#define PVFS_QUOTACTL(b, c,id,p, rv)	((rv) = vfs_quotactl(b, c,id,p))
-#define PVFS_INIT_VNODE(b, vp,b2,ul)	( vfs_init_vnode(b, vp,b2,ul) )
-#define PVFS_FORCE_SHUTDOWN(b, fl,f,l)	( vfs_force_shutdown(b, fl,f,l) )
-#define PVFS_FREEZE(b)			( vfs_freeze(b) )
+#define bhv_next_vfs_mount(b, ma,cr)		vfs_mount(b, ma,cr)
+#define bhv_next_vfs_parseargs(b, o,ma,f)	vfs_parseargs(b, o,ma,f)
+#define bhv_next_vfs_showargs(b, m)		vfs_showargs(b, m)
+#define bhv_next_vfs_unmount(b, f,cr)		vfs_unmount(b, f,cr)
+#define bhv_next_vfs_mntupdate(b, fl,args)	vfs_mntupdate(b, fl, args)
+#define bhv_next_vfs_root(b, vpp)		vfs_root(b, vpp)
+#define bhv_next_vfs_statvfs(b, sp,vp)		vfs_statvfs(b, sp,vp)
+#define bhv_next_vfs_sync(b, flag,cr)		vfs_sync(b, flag,cr)
+#define bhv_next_vfs_vget(b, vpp,fidp)		vfs_vget(b, vpp,fidp)
+#define bhv_next_vfs_dmapiops(b, p)		vfs_dmapiops(b, p)
+#define bhv_next_vfs_quotactl(b, c,id,p)	vfs_quotactl(b, c,id,p)
+#define bhv_next_vfs_init_vnode(b, vp,b2,ul)	vfs_init_vnode(b, vp,b2,ul)
+#define bhv_next_force_shutdown(b, fl,f,l)	vfs_force_shutdown(b, fl,f,l)
+#define bhv_next_vfs_freeze(b)			vfs_freeze(b)
 
 extern int vfs_mount(bhv_desc_t *, struct xfs_mount_args *, struct cred *);
 extern int vfs_parseargs(bhv_desc_t *, char *, struct xfs_mount_args *, int);
@@ -190,25 +191,26 @@ extern void vfs_init_vnode(bhv_desc_t *, struct vnode *, bhv_desc_t *, int);
 extern void vfs_force_shutdown(bhv_desc_t *, int, char *, int);
 extern void vfs_freeze(bhv_desc_t *);
 
-typedef struct bhv_vfsops {
-	struct vfsops		bhv_common;
+typedef struct bhv_module_vfsops {
+	struct bhv_vfsops	bhv_common;
 	void *			bhv_custom;
-} bhv_vfsops_t;
+} bhv_module_vfsops_t;
 
-#define vfs_bhv_lookup(v, id)	( bhv_lookup_range(&(v)->vfs_bh, (id), (id)) )
-#define vfs_bhv_custom(b)	( ((bhv_vfsops_t *)BHV_OPS(b))->bhv_custom )
-#define vfs_bhv_set_custom(b,o)	( (b)->bhv_custom = (void *)(o))
-#define vfs_bhv_clr_custom(b)	( (b)->bhv_custom = NULL )
+#define vfs_bhv_lookup(v, id)	(bhv_lookup_range(&(v)->vfs_bh, (id), (id)))
+#define vfs_bhv_custom(b)	(((bhv_module_vfsops_t*)BHV_OPS(b))->bhv_custom)
+#define vfs_bhv_set_custom(b,o)	((b)->bhv_custom = (void *)(o))
+#define vfs_bhv_clr_custom(b)	((b)->bhv_custom = NULL)
 
-extern vfs_t *vfs_allocate(struct super_block *);
-extern vfs_t *vfs_from_sb(struct super_block *);
-extern void vfs_deallocate(vfs_t *);
-extern void vfs_insertops(vfs_t *, bhv_vfsops_t *);
-extern void vfs_insertbhv(vfs_t *, bhv_desc_t *, vfsops_t *, void *);
+extern bhv_vfs_t *vfs_allocate(struct super_block *);
+extern bhv_vfs_t *vfs_from_sb(struct super_block *);
+extern void vfs_deallocate(bhv_vfs_t *);
+extern void vfs_insertbhv(bhv_vfs_t *, bhv_desc_t *, bhv_vfsops_t *, void *);
 
-extern void bhv_insert_all_vfsops(struct vfs *);
-extern void bhv_remove_all_vfsops(struct vfs *, int);
-extern void bhv_remove_vfsops(struct vfs *, int);
+extern void vfs_insertops(bhv_vfs_t *, bhv_module_vfsops_t *);
+
+extern void bhv_insert_all_vfsops(struct bhv_vfs *);
+extern void bhv_remove_all_vfsops(struct bhv_vfs *, int);
+extern void bhv_remove_vfsops(struct bhv_vfs *, int);
 
 #define fs_frozen(vfsp)		((vfsp)->vfs_super->s_frozen)
 #define fs_check_frozen(vfsp, level) \

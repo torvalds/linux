@@ -59,7 +59,7 @@ xfs_size_fn(
 
 STATIC int
 xfs_ioinit(
-	struct vfs		*vfsp,
+	struct bhv_vfs		*vfsp,
 	struct xfs_mount_args	*mntargs,
 	int			flags)
 {

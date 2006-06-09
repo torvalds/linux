@@ -574,7 +574,7 @@ xfs_fs_goingdown(
 {
 	switch (inflags) {
 	case XFS_FSOP_GOING_FLAGS_DEFAULT: {
-		struct vfs *vfsp = XFS_MTOVFS(mp);
+		struct bhv_vfs *vfsp = XFS_MTOVFS(mp);
 		struct super_block *sb = freeze_bdev(vfsp->vfs_super->s_bdev);
 
 		if (sb && !IS_ERR(sb)) {

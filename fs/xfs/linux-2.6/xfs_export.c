@@ -97,7 +97,7 @@ xfs_fs_encode_fh(
 	int			len;
 	int			is64 = 0;
 #if XFS_BIG_INUMS
-	vfs_t			*vfs = vfs_from_sb(inode->i_sb);
+	bhv_vfs_t		*vfs = vfs_from_sb(inode->i_sb);
 
 	if (!(vfs->vfs_flag & VFS_32BITINODES)) {
 		/* filesystem may contain 64bit inode numbers */
@@ -139,10 +139,10 @@ xfs_fs_get_dentry(
 	vnode_t			*vp;
 	struct inode		*inode;
 	struct dentry		*result;
-	vfs_t			*vfsp = vfs_from_sb(sb);
+	bhv_vfs_t		*vfsp = vfs_from_sb(sb);
 	int			error;
 
-	VFS_VGET(vfsp, &vp, (fid_t *)data, error);
+	error = bhv_vfs_vget(vfsp, &vp, (fid_t *)data);
 	if (error || vp == NULL)
 		return ERR_PTR(-ESTALE) ;
 

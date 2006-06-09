@@ -67,7 +67,7 @@ vn_ioerror(
 	int		l)
 {
 	if (unlikely(error == -ENODEV))
-		VFS_FORCE_SHUTDOWN(vp->v_vfsp, SHUTDOWN_DEVICE_REQ, f, l);
+		bhv_vfs_force_shutdown(vp->v_vfsp, SHUTDOWN_DEVICE_REQ, f, l);
 }
 
 struct vnode *

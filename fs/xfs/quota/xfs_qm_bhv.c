@@ -129,7 +129,7 @@ xfs_qm_parseargs(
 		return XFS_ERROR(EINVAL);
 	}
 
-	PVFS_PARSEARGS(BHV_NEXT(bhv), options, args, update, error);
+	error = bhv_next_vfs_parseargs(BHV_NEXT(bhv), options, args, update);
 	if (!error && !referenced)
 		bhv_remove_vfsops(bhvtovfs(bhv), VFS_POSITION_QM);
 	return error;
@@ -140,9 +140,8 @@ xfs_qm_showargs(
 	struct bhv_desc		*bhv,
 	struct seq_file		*m)
 {
-	struct vfs		*vfsp = bhvtovfs(bhv);
+	struct bhv_vfs		*vfsp = bhvtovfs(bhv);
 	struct xfs_mount	*mp = XFS_VFSTOM(vfsp);
-	int			error;
 
 	if (mp->m_qflags & XFS_UQUOTA_ACCT) {
 		(mp->m_qflags & XFS_UQUOTA_ENFD) ?
@@ -165,8 +164,7 @@ xfs_qm_showargs(
 	if (!(mp->m_qflags & XFS_ALL_QUOTA_ACCT))
 		seq_puts(m, "," MNTOPT_NOQUOTA);
 
-	PVFS_SHOWARGS(BHV_NEXT(bhv), m, error);
-	return error;
+	return bhv_next_vfs_showargs(BHV_NEXT(bhv), m);
 }
 
 STATIC int
@@ -175,14 +173,12 @@ xfs_qm_mount(
 	struct xfs_mount_args	*args,
 	struct cred		*cr)
 {
-	struct vfs		*vfsp = bhvtovfs(bhv);
+	struct bhv_vfs		*vfsp = bhvtovfs(bhv);
 	struct xfs_mount	*mp = XFS_VFSTOM(vfsp);
-	int			error;
 
 	if (args->flags & (XFSMNT_UQUOTA | XFSMNT_GQUOTA | XFSMNT_PQUOTA))
 		xfs_qm_mount_quotainit(mp, args->flags);
-	PVFS_MOUNT(BHV_NEXT(bhv), args, cr, error);
-	return error;
+	return bhv_next_vfs_mount(BHV_NEXT(bhv), args, cr);
 }
 
 /*
@@ -205,7 +201,7 @@ xfs_qm_statvfs(
 	__uint64_t		limit;
 	int			error;
 
-	error = PVFS_STATVFS(BHV_NEXT(bhv), statp, vnode);
+	error = bhv_next_vfs_statvfs(BHV_NEXT(bhv), statp, vnode);
 	if (error || !vnode)
 		return error;
 
@@ -246,7 +242,7 @@ xfs_qm_syncall(
 	int			flags,
 	cred_t			*credp)
 {
-	struct vfs		*vfsp = bhvtovfs(bhv);
+	struct bhv_vfs		*vfsp = bhvtovfs(bhv);
 	struct xfs_mount	*mp = XFS_VFSTOM(vfsp);
 	int			error;
 
@@ -265,8 +261,7 @@ xfs_qm_syncall(
 			}
 		}
 	}
-	PVFS_SYNC(BHV_NEXT(bhv), flags, credp, error);
-	return error;
+	return bhv_next_vfs_sync(BHV_NEXT(bhv), flags, credp);
 }
 
 STATIC int
@@ -401,7 +396,7 @@ STATIC struct xfs_qmops xfs_qmcore_xfs = {
 	.xfs_dqtrxops		= &xfs_trans_dquot_ops,
 };
 
-struct bhv_vfsops xfs_qmops = { {
+struct bhv_module_vfsops xfs_qmops = { {
 	BHV_IDENTITY_INIT(VFS_BHV_QM, VFS_POSITION_QM),
 	.vfs_parseargs		= xfs_qm_parseargs,
 	.vfs_showargs		= xfs_qm_showargs,

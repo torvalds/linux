@@ -509,7 +509,6 @@ extern struct kmem_zone	*xfs_chashlist_zone;
 extern struct kmem_zone	*xfs_ifork_zone;
 extern struct kmem_zone	*xfs_inode_zone;
 extern struct kmem_zone	*xfs_ili_zone;
-extern struct vnodeops	xfs_vnodeops;
 
 #endif	/* __KERNEL__ */
 

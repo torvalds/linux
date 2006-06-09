@@ -91,8 +91,8 @@ xfs_qm_quotactl(
 	xfs_caddr_t	addr)
 {
 	xfs_mount_t	*mp;
+	bhv_vfs_t	*vfsp;
 	int		error;
-	struct vfs	*vfsp;
 
 	vfsp = bhvtovfs(bdp);
 	mp = XFS_VFSTOM(vfsp);

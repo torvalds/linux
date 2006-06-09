@@ -68,7 +68,7 @@ typedef enum vflags {
  */
 typedef struct vnode {
 	vflags_t	v_flag;			/* vnode flags (see above) */
-	struct vfs	*v_vfsp;		/* ptr to containing VFS */
+	struct bhv_vfs	*v_vfsp;		/* ptr to containing VFS */
 	vnumber_t	v_number;		/* in-core vnode number */
 	vn_bhv_head_t	v_bh;			/* behavior head */
 	spinlock_t	v_lock;			/* VN_LOCK/VN_UNLOCK */
@@ -503,7 +503,7 @@ extern vnode_t	*vn_initialize(struct inode *);
  * vnode_map structures _must_ match vn_epoch and vnode structure sizes.
  */
 typedef struct vnode_map {
-	vfs_t		*v_vfsp;
+	bhv_vfs_t	*v_vfsp;
 	vnumber_t	v_number;		/* in-core vnode number */
 	xfs_ino_t	v_ino;			/* inode #	*/
 } vmap_t;

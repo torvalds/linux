@@ -196,7 +196,7 @@ xfs_mount_free(
 		kmem_free(mp->m_logname, strlen(mp->m_logname) + 1);
 
 	if (remove_bhv) {
-		struct vfs	*vfsp = XFS_MTOVFS(mp);
+		struct bhv_vfs	*vfsp = XFS_MTOVFS(mp);
 
 		bhv_remove_all_vfsops(vfsp, 0);
 		VFS_REMOVEBHV(vfsp, &mp->m_bhv);
@@ -337,7 +337,7 @@ xfs_mount_validate_sb(
 
 xfs_agnumber_t
 xfs_initialize_perag(
-	struct vfs	*vfs,
+	bhv_vfs_t	*vfs,
 	xfs_mount_t	*mp,
 	xfs_agnumber_t	agcount)
 {
@@ -651,7 +651,7 @@ xfs_mount_common(xfs_mount_t *mp, xfs_sb_t *sbp)
  */
 int
 xfs_mountfs(
-	vfs_t		*vfsp,
+	bhv_vfs_t	*vfsp,
 	xfs_mount_t	*mp,
 	int		mfsi_flags)
 {
@@ -1095,7 +1095,7 @@ xfs_mountfs(
 int
 xfs_unmountfs(xfs_mount_t *mp, struct cred *cr)
 {
-	struct vfs	*vfsp = XFS_MTOVFS(mp);
+	struct bhv_vfs	*vfsp = XFS_MTOVFS(mp);
 #if defined(DEBUG) || defined(INDUCE_IO_ERROR)
 	int64_t		fsid;
 #endif

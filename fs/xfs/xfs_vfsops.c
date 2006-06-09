@@ -212,7 +212,7 @@ xfs_cleanup(void)
  */
 STATIC int
 xfs_start_flags(
-	struct vfs		*vfs,
+	struct bhv_vfs		*vfs,
 	struct xfs_mount_args	*ap,
 	struct xfs_mount	*mp)
 {
@@ -337,7 +337,7 @@ xfs_start_flags(
  */
 STATIC int
 xfs_finish_flags(
-	struct vfs		*vfs,
+	struct bhv_vfs		*vfs,
 	struct xfs_mount_args	*ap,
 	struct xfs_mount	*mp)
 {
@@ -423,7 +423,7 @@ xfs_mount(
 	struct xfs_mount_args	*args,
 	cred_t			*credp)
 {
-	struct vfs		*vfsp = bhvtovfs(bhvp);
+	struct bhv_vfs		*vfsp = bhvtovfs(bhvp);
 	struct bhv_desc		*p;
 	struct xfs_mount	*mp = XFS_BHVTOM(bhvp);
 	struct block_device	*ddev, *logdev, *rtdev;
@@ -552,7 +552,7 @@ xfs_unmount(
 	int		flags,
 	cred_t		*credp)
 {
-	struct vfs	*vfsp = bhvtovfs(bdp);
+	bhv_vfs_t	*vfsp = bhvtovfs(bdp);
 	xfs_mount_t	*mp = XFS_BHVTOM(bdp);
 	xfs_inode_t	*rip;
 	vnode_t		*rvp;
@@ -665,9 +665,8 @@ xfs_mntupdate(
 	int				*flags,
 	struct xfs_mount_args		*args)
 {
-	struct vfs	*vfsp = bhvtovfs(bdp);
+	bhv_vfs_t	*vfsp = bhvtovfs(bdp);
 	xfs_mount_t	*mp = XFS_BHVTOM(bdp);
-	int		error;
 
 	if (!(*flags & MS_RDONLY)) {			/* rw/ro -> rw */
 		if (vfsp->vfs_flag & VFS_RDONLY)
@@ -679,7 +678,7 @@ xfs_mntupdate(
 			mp->m_flags &= ~XFS_MOUNT_BARRIER;
 		}
 	} else if (!(vfsp->vfs_flag & VFS_RDONLY)) {	/* rw -> ro */
-		VFS_SYNC(vfsp, SYNC_FSDATA|SYNC_BDFLUSH|SYNC_ATTR, NULL, error);
+		bhv_vfs_sync(vfsp, SYNC_FSDATA|SYNC_BDFLUSH|SYNC_ATTR, NULL);
 		xfs_quiesce_fs(mp);
 		xfs_log_unmount_write(mp);
 		xfs_unmountfs_writesb(mp);
@@ -900,7 +899,7 @@ xfs_sync(
 /*
  * xfs sync routine for internal use
  *
- * This routine supports all of the flags defined for the generic VFS_SYNC
+ * This routine supports all of the flags defined for the generic vfs_sync
  * interface as explained above under xfs_sync.  In the interests of not
  * changing interfaces within the 6.5 family, additional internally-
  * required functions are specified within a separate xflags parameter,
@@ -1421,7 +1420,7 @@ xfs_sync_inodes(
 /*
  * xfs sync routine for internal use
  *
- * This routine supports all of the flags defined for the generic VFS_SYNC
+ * This routine supports all of the flags defined for the generic vfs_sync
  * interface as explained above under xfs_sync.  In the interests of not
  * changing interfaces within the 6.5 family, additional internally-
  * required functions are specified within a separate xflags parameter,
@@ -1686,7 +1685,7 @@ xfs_parseargs(
 	struct xfs_mount_args	*args,
 	int			update)
 {
-	struct vfs		*vfsp = bhvtovfs(bhv);
+	bhv_vfs_t		*vfsp = bhvtovfs(bhv);
 	char			*this_char, *value, *eov;
 	int			dsunit, dswidth, vol_dsunit, vol_dswidth;
 	int			iosize;
@@ -1924,7 +1923,7 @@ xfs_showargs(
 	};
 	struct proc_xfs_info	*xfs_infop;
 	struct xfs_mount	*mp = XFS_BHVTOM(bhv);
-	struct vfs		*vfsp = XFS_MTOVFS(mp);
+	struct bhv_vfs		*vfsp = XFS_MTOVFS(mp);
 
 	for (xfs_infop = xfs_info; xfs_infop->flag; xfs_infop++) {
 		if (mp->m_flags & xfs_infop->flag)
@@ -1984,7 +1983,7 @@ xfs_freeze(
 }
 
 
-vfsops_t xfs_vfsops = {
+bhv_vfsops_t xfs_vfsops = {
 	BHV_IDENTITY_INIT(VFS_BHV_XFS,VFS_POSITION_XFS),
 	.vfs_parseargs		= xfs_parseargs,
 	.vfs_showargs		= xfs_showargs,
