@@ -114,6 +114,10 @@ struct nf_conn
 	u_int32_t mark;
 #endif
 
+#ifdef CONFIG_NF_CONNTRACK_SECMARK
+	u_int32_t secmark;
+#endif
+
 	/* Storage reserved for other modules: */
 	union nf_conntrack_proto proto;
 

@@ -213,6 +213,11 @@ static int ct_seq_show(struct seq_file *s, void *v)
 		return -ENOSPC;
 #endif
 
+#ifdef CONFIG_NF_CONNTRACK_SECMARK
+	if (seq_printf(s, "secmark=%u ", conntrack->secmark))
+		return -ENOSPC;
+#endif
+
 	if (seq_printf(s, "use=%u\n", atomic_read(&conntrack->ct_general.use)))
 		return -ENOSPC;
 	
