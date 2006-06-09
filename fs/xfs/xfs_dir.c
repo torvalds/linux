@@ -638,8 +638,8 @@ xfs_dir_leaf_removename(xfs_da_args_t *args, int *count, int *totallen)
 	retval = xfs_dir_leaf_lookup_int(bp, args, &index);
 	if (retval == EEXIST) {
 		(void)xfs_dir_leaf_remove(args->trans, bp, index);
-		*count = INT_GET(leaf->hdr.count, ARCH_CONVERT);
-		*totallen = INT_GET(leaf->hdr.namebytes, ARCH_CONVERT);
+		*count = be16_to_cpu(leaf->hdr.count);
+		*totallen = be16_to_cpu(leaf->hdr.namebytes);
 		retval = 0;
 	}
 	xfs_da_buf_done(bp);
@@ -925,7 +925,7 @@ xfs_dir_node_getdents(xfs_trans_t *trans, xfs_inode_t *dp, uio_t *uio,
 			bp = NULL;
 		}
 		if (bp &&
-		    cookhash > INT_GET(leaf->entries[INT_GET(leaf->hdr.count, ARCH_CONVERT) - 1].hashval, ARCH_CONVERT)) {
+		    cookhash > INT_GET(leaf->entries[be16_to_cpu(leaf->hdr.count) - 1].hashval, ARCH_CONVERT)) {
 			xfs_dir_trace_g_dub("node: leaf hash too small",
 						   dp, uio, bno);
 			xfs_da_brelse(trans, bp);
@@ -1142,7 +1142,7 @@ void
 xfs_dir_trace_g_dul(char *where, xfs_inode_t *dp, uio_t *uio,
 			xfs_dir_leafblock_t *leaf)
 {
-	int	last = INT_GET(leaf->hdr.count, ARCH_CONVERT) - 1;
+	int	last = be16_to_cpu(leaf->hdr.count) - 1;
 
 	xfs_dir_trace_enter(XFS_DIR_KTRACE_G_DUL, where,
 		     (void *)dp, (void *)dp->i_mount,
@@ -1150,8 +1150,7 @@ xfs_dir_trace_g_dul(char *where, xfs_inode_t *dp, uio_t *uio,
 		     (void *)((unsigned long)(uio->uio_offset & 0xFFFFFFFF)),
 		     (void *)(unsigned long)uio->uio_resid,
 		     (void *)(unsigned long)be32_to_cpu(leaf->hdr.info.forw),
-		     (void *)(unsigned long)
-			INT_GET(leaf->hdr.count, ARCH_CONVERT),
+		     (void *)(unsigned long)be16_to_cpu(leaf->hdr.count),
 		     (void *)(unsigned long)
 			INT_GET(leaf->entries[0].hashval, ARCH_CONVERT),
 		     (void *)(unsigned long)

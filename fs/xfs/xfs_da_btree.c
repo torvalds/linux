@@ -1786,7 +1786,7 @@ xfs_da_swap_lastblock(xfs_da_args_t *args, xfs_dablk_t *dead_blknop,
 		dead_leaf = (xfs_dir_leafblock_t *)dead_info;
 		dead_level = 0;
 		dead_hash =
-			INT_GET(dead_leaf->entries[INT_GET(dead_leaf->hdr.count, ARCH_CONVERT) - 1].hashval, ARCH_CONVERT);
+			INT_GET(dead_leaf->entries[be16_to_cpu(dead_leaf->hdr.count) - 1].hashval, ARCH_CONVERT);
 	} else if (be16_to_cpu(dead_info->magic) == XFS_DIR2_LEAFN_MAGIC) {
 		ASSERT(XFS_DIR_IS_V2(mp));
 		dead_leaf2 = (xfs_dir2_leaf_t *)dead_info;

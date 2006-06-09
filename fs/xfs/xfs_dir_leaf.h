@@ -68,17 +68,17 @@ struct xfs_trans;
 #define XFS_DIR_LEAF_MAPSIZE	3	/* how many freespace slots */
 
 typedef struct xfs_dir_leaf_map {	/* RLE map of free bytes */
-	__uint16_t	base;	 	/* base of free region */
-	__uint16_t	size; 		/* run length of free region */
+	__be16		base;	 	/* base of free region */
+	__be16		size; 		/* run length of free region */
 } xfs_dir_leaf_map_t;
 
 typedef struct xfs_dir_leaf_hdr {	/* constant-structure header block */
 	xfs_da_blkinfo_t info;		/* block type, links, etc. */
-	__uint16_t	count;		/* count of active leaf_entry's */
-	__uint16_t	namebytes;	/* num bytes of name strings stored */
-	__uint16_t	firstused;	/* first used byte in name area */
-	__uint8_t	holes;		/* != 0 if blk needs compaction */
-	__uint8_t	pad1;
+	__be16		count;		/* count of active leaf_entry's */
+	__be16		namebytes;	/* num bytes of name strings stored */
+	__be16		firstused;	/* first used byte in name area */
+	__u8		holes;		/* != 0 if blk needs compaction */
+	__u8		pad1;
 	xfs_dir_leaf_map_t freemap[XFS_DIR_LEAF_MAPSIZE];
 } xfs_dir_leaf_hdr_t;
 
