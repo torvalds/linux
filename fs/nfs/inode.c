@@ -1717,14 +1717,13 @@ struct nfs_clone_mount {
 };
 
 static struct super_block *nfs_clone_generic_sb(struct nfs_clone_mount *data,
-		struct super_block *(*clone_client)(struct nfs_server *, struct nfs_clone_mount *))
+		struct super_block *(*fill_sb)(struct nfs_server *, struct nfs_clone_mount *),
+		struct nfs_server *(*fill_server)(struct super_block *, struct nfs_clone_mount *))
 {
 	struct nfs_server *server;
 	struct nfs_server *parent = NFS_SB(data->sb);
 	struct super_block *sb = ERR_PTR(-EINVAL);
 	void *err = ERR_PTR(-ENOMEM);
-	struct inode *root_inode;
-	struct nfs_fsinfo fsinfo;
 	int len;
 
 	server = kmalloc(sizeof(struct nfs_server), GFP_KERNEL);
@@ -1736,53 +1735,17 @@ static struct super_block *nfs_clone_generic_sb(struct nfs_clone_mount *data,
 	if (server->hostname == NULL)
 		goto free_server;
 	memcpy(server->hostname, parent->hostname, len);
-	server->fsid = data->fattr->fsid;
-	nfs_copy_fh(&server->fh, data->fh);
 	if (rpciod_up() != 0)
 		goto free_hostname;
 
-	sb = clone_client(server, data);
+	sb = fill_sb(server, data);
 	if (IS_ERR((err = sb)) || sb->s_root)
 		goto kill_rpciod;
 
-	sb->s_op = data->sb->s_op;
-	sb->s_blocksize = data->sb->s_blocksize;
-	sb->s_blocksize_bits = data->sb->s_blocksize_bits;
-	sb->s_maxbytes = data->sb->s_maxbytes;
-
-	server->client_sys = server->client_acl = ERR_PTR(-EINVAL);
-	err = ERR_PTR(-ENOMEM);
-	server->io_stats = nfs_alloc_iostats();
-	if (server->io_stats == NULL)
+	server = fill_server(sb, data);
+	if (IS_ERR((err = server)))
 		goto out_deactivate;
-
-	server->client = rpc_clone_client(parent->client);
-	if (IS_ERR((err = server->client)))
-		goto out_deactivate;
-	if (!IS_ERR(parent->client_sys)) {
-		server->client_sys = rpc_clone_client(parent->client_sys);
-		if (IS_ERR((err = server->client_sys)))
-			goto out_deactivate;
-	}
-	if (!IS_ERR(parent->client_acl)) {
-		server->client_acl = rpc_clone_client(parent->client_acl);
-		if (IS_ERR((err = server->client_acl)))
-			goto out_deactivate;
-	}
-	root_inode = nfs_fhget(sb, data->fh, data->fattr);
-	if (!root_inode)
-		goto out_deactivate;
-	sb->s_root = d_alloc_root(root_inode);
-	if (!sb->s_root)
-		goto out_put_root;
-	fsinfo.fattr = data->fattr;
-	if (NFS_PROTO(root_inode)->fsinfo(server, data->fh, &fsinfo) == 0)
-		nfs_super_set_maxbytes(sb, fsinfo.maxfilesize);
-	sb->s_root->d_op = server->rpc_ops->dentry_ops;
-	sb->s_flags |= MS_ACTIVE;
 	return sb;
-out_put_root:
-	iput(root_inode);
 out_deactivate:
 	up_write(&sb->s_umount);
 	deactivate_super(sb);
@@ -1955,21 +1918,73 @@ static struct file_system_type nfs_fs_type = {
 	.fs_flags	= FS_ODD_RENAME|FS_REVAL_DOT|FS_BINARY_MOUNTDATA,
 };
 
-static struct super_block *nfs_clone_client(struct nfs_server *server, struct nfs_clone_mount *data)
+static struct super_block *nfs_clone_sb(struct nfs_server *server, struct nfs_clone_mount *data)
 {
 	struct super_block *sb;
 
+	server->fsid = data->fattr->fsid;
+	nfs_copy_fh(&server->fh, data->fh);
 	sb = sget(&nfs_fs_type, nfs_compare_super, nfs_set_super, server);
 	if (!IS_ERR(sb) && sb->s_root == NULL && !(server->flags & NFS_MOUNT_NONLM))
 		lockd_up();
 	return sb;
 }
 
+static struct nfs_server *nfs_clone_server(struct super_block *sb, struct nfs_clone_mount *data)
+{
+	struct nfs_server *server = NFS_SB(sb);
+	struct nfs_server *parent = NFS_SB(data->sb);
+	struct inode *root_inode;
+	struct nfs_fsinfo fsinfo;
+	void *err = ERR_PTR(-ENOMEM);
+
+	sb->s_op = data->sb->s_op;
+	sb->s_blocksize = data->sb->s_blocksize;
+	sb->s_blocksize_bits = data->sb->s_blocksize_bits;
+	sb->s_maxbytes = data->sb->s_maxbytes;
+
+	server->client_sys = server->client_acl = ERR_PTR(-EINVAL);
+	server->io_stats = nfs_alloc_iostats();
+	if (server->io_stats == NULL)
+		goto out;
+
+	server->client = rpc_clone_client(parent->client);
+	if (IS_ERR((err = server->client)))
+		goto out;
+
+	if (!IS_ERR(parent->client_sys)) {
+		server->client_sys = rpc_clone_client(parent->client_sys);
+		if (IS_ERR((err = server->client_sys)))
+			goto out;
+	}
+	if (!IS_ERR(parent->client_acl)) {
+		server->client_acl = rpc_clone_client(parent->client_acl);
+		if (IS_ERR((err = server->client_acl)))
+			goto out;
+	}
+	root_inode = nfs_fhget(sb, data->fh, data->fattr);
+	if (!root_inode)
+		goto out;
+	sb->s_root = d_alloc_root(root_inode);
+	if (!sb->s_root)
+		goto out_put_root;
+	fsinfo.fattr = data->fattr;
+	if (NFS_PROTO(root_inode)->fsinfo(server, data->fh, &fsinfo) == 0)
+		nfs_super_set_maxbytes(sb, fsinfo.maxfilesize);
+	sb->s_root->d_op = server->rpc_ops->dentry_ops;
+	sb->s_flags |= MS_ACTIVE;
+	return server;
+out_put_root:
+	iput(root_inode);
+out:
+	return err;
+}
+
 static struct super_block *nfs_clone_nfs_sb(struct file_system_type *fs_type,
 		int flags, const char *dev_name, void *raw_data)
 {
 	struct nfs_clone_mount *data = raw_data;
-	return nfs_clone_generic_sb(data, nfs_clone_client);
+	return nfs_clone_generic_sb(data, nfs_clone_sb, nfs_clone_server);
 }
 
 static struct file_system_type clone_nfs_fs_type = {
@@ -2371,12 +2386,14 @@ static inline char *nfs4_dup_path(const struct dentry *dentry)
 	return path;
 }
 
-static struct super_block *nfs4_clone_client(struct nfs_server *server, struct nfs_clone_mount *data)
+static struct super_block *nfs4_clone_sb(struct nfs_server *server, struct nfs_clone_mount *data)
 {
 	const struct dentry *dentry = data->dentry;
 	struct nfs4_client *clp = server->nfs4_state;
 	struct super_block *sb;
 
+	server->fsid = data->fattr->fsid;
+	nfs_copy_fh(&server->fh, data->fh);
 	server->mnt_path = nfs4_dup_path(dentry);
 	if (IS_ERR(server->mnt_path)) {
 		sb = (struct super_block *)server->mnt_path;
@@ -2403,12 +2420,12 @@ static struct super_block *nfs_clone_nfs4_sb(struct file_system_type *fs_type,
 		int flags, const char *dev_name, void *raw_data)
 {
 	struct nfs_clone_mount *data = raw_data;
-	return nfs_clone_generic_sb(data, nfs4_clone_client);
+	return nfs_clone_generic_sb(data, nfs4_clone_sb, nfs_clone_server);
 }
 
 static struct file_system_type clone_nfs4_fs_type = {
 	.owner		= THIS_MODULE,
-	.name		= "nfs",
+	.name		= "nfs4",
 	.get_sb		= nfs_clone_nfs4_sb,
 	.kill_sb	= nfs4_kill_super,
 	.fs_flags	= FS_ODD_RENAME|FS_REVAL_DOT|FS_BINARY_MOUNTDATA,
