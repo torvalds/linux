@@ -89,9 +89,9 @@ static int physmap_flash_probe(struct platform_device *dev)
 	if (physmap_data == NULL)
 		return -ENODEV;
 
-       	printk(KERN_NOTICE "physmap platform flash device: %.8lx at %.8lx\n",
-		dev->resource->end - dev->resource->start + 1,
-		dev->resource->start);
+       	printk(KERN_NOTICE "physmap platform flash device: %.8llx at %.8llx\n",
+	    (unsigned long long)dev->resource->end - dev->resource->start + 1,
+	    (unsigned long long)dev->resource->start);
 
 	info = kmalloc(sizeof(struct physmap_flash_info), GFP_KERNEL);
 	if (info == NULL) {
