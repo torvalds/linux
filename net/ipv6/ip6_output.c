@@ -459,6 +459,7 @@ static void ip6_copy_metadata(struct sk_buff *to, struct sk_buff *from)
 	nf_bridge_get(to->nf_bridge);
 #endif
 #endif
+	skb_copy_secmark(to, from);
 }
 
 int ip6_find_1stfragopt(struct sk_buff *skb, u8 **nexthdr)
