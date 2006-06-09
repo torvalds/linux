@@ -387,18 +387,12 @@ int selinux_xfrm_postroute_last(u32 isec_sid, struct sk_buff *skb)
 			struct xfrm_state *x = dst_test->xfrm;
 
 			if (x && selinux_authorizable_xfrm(x))
-				goto accept;
+				goto out;
 		}
 	}
 
 	rc = avc_has_perm(isec_sid, SECINITSID_UNLABELED, SECCLASS_ASSOCIATION,
 			  ASSOCIATION__SENDTO, NULL);
-	if (rc)
-		goto drop;
-
-accept:
-	return NF_ACCEPT;
-
-drop:
-	return NF_DROP;
+out:
+	return rc;
 }
