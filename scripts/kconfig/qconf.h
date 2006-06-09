@@ -36,7 +36,7 @@ class ConfigView : public QVBox {
 	Q_OBJECT
 	typedef class QVBox Parent;
 public:
-	ConfigView(QWidget* parent, ConfigMainWindow* cview, ConfigSettings* configSettings);
+	ConfigView(QWidget* parent, ConfigSettings* configSettings);
 	~ConfigView(void);
 	static void updateList(ConfigItem* item);
 	static void updateListAll(void);
@@ -53,14 +53,14 @@ enum colIdx {
 	promptColIdx, nameColIdx, noColIdx, modColIdx, yesColIdx, dataColIdx, colNr
 };
 enum listMode {
-	singleMode, menuMode, symbolMode, fullMode
+	singleMode, menuMode, symbolMode, fullMode, listMode
 };
 
 class ConfigList : public QListView {
 	Q_OBJECT
 	typedef class QListView Parent;
 public:
-	ConfigList(ConfigView* p, ConfigMainWindow* cview, ConfigSettings *configSettings);
+	ConfigList(ConfigView* p, ConfigSettings *configSettings);
 	void reinit(void);
 	ConfigView* parent(void) const
 	{
@@ -68,8 +68,6 @@ public:
 	}
 
 protected:
-	ConfigMainWindow* cview;
-
 	void keyPressEvent(QKeyEvent *e);
 	void contentsMousePressEvent(QMouseEvent *e);
 	void contentsMouseReleaseEvent(QMouseEvent *e);
@@ -84,6 +82,7 @@ public slots:
 	void changeValue(ConfigItem* item);
 	void updateSelection(void);
 signals:
+	void menuChanged(struct menu *menu);
 	void menuSelected(struct menu *menu);
 	void parentSelected(void);
 	void gotFocus(void);
@@ -208,9 +207,7 @@ class ConfigLineEdit : public QLineEdit {
 	Q_OBJECT
 	typedef class QLineEdit Parent;
 public:
-	ConfigLineEdit(ConfigView* parent)
-	: Parent(parent)
-	{ }
+	ConfigLineEdit(ConfigView* parent);
 	ConfigView* parent(void) const
 	{
 		return (ConfigView*)Parent::parent();
@@ -220,6 +217,47 @@ public:
 
 public:
 	ConfigItem *item;
+};
+
+class ConfigInfoView : public QTextBrowser {
+	Q_OBJECT
+	typedef class QTextBrowser Parent;
+public:
+	ConfigInfoView(QWidget* parent, const char *name = 0);
+	bool showDebug(void) const { return _showDebug; }
+
+public slots:
+	void setInfo(struct menu *menu);
+	void setSource(const QString& name);
+	void setShowDebug(bool);
+
+signals:
+	void showDebugChanged(bool);
+
+protected:
+	void menuInfo(void);
+	QString debug_info(struct symbol *sym);
+	static QString print_filter(const QString &str);
+	static void expr_print_help(void *data, const char *str);
+
+	struct menu *menu;
+	bool _showDebug;
+};
+
+class ConfigSearchWindow : public QDialog {
+	Q_OBJECT
+	typedef class QDialog Parent;
+public:
+	ConfigSearchWindow(QWidget* parent);
+public slots:
+	void search(void);
+protected:
+	QLineEdit* editField;
+	QPushButton* searchButton;
+	ConfigView* list;
+	ConfigInfoView* info;
+
+	struct symbol **result;
 };
 
 class ConfigMainWindow : public QMainWindow {
@@ -234,11 +272,11 @@ public slots:
 	void loadConfig(void);
 	void saveConfig(void);
 	void saveConfigAs(void);
+	void searchConfig(void);
 	void showSingleView(void);
 	void showSplitView(void);
 	void showFullView(void);
 	void setShowAll(bool);
-	void setShowDebug(bool);
 	void setShowRange(bool);
 	void setShowName(bool);
 	void setShowData(bool);
@@ -249,15 +287,14 @@ public slots:
 protected:
 	void closeEvent(QCloseEvent *e);
 
+	ConfigSearchWindow *searchWindow;
 	ConfigView *menuView;
 	ConfigList *menuList;
 	ConfigView *configView;
 	ConfigList *configList;
-	QTextView *helpText;
+	ConfigInfoView *helpText;
 	QToolBar *toolBar;
 	QAction *backAction;
 	QSplitter* split1;
 	QSplitter* split2;
-
-	bool showDebug;
 };
