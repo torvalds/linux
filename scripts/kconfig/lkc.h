@@ -40,6 +40,10 @@ extern "C" {
 
 #define TF_COMMAND	0x0001
 #define TF_PARAM	0x0002
+#define TF_OPTION	0x0004
+
+#define T_OPT_MODULES		1
+#define T_OPT_DEFCONFIG_LIST	2
 
 struct kconf_id {
 	int name;
@@ -78,6 +82,7 @@ struct property *menu_add_prop(enum prop_type type, char *prompt, struct expr *e
 struct property *menu_add_prompt(enum prop_type type, char *prompt, struct expr *dep);
 void menu_add_expr(enum prop_type type, struct expr *expr, struct expr *dep);
 void menu_add_symbol(enum prop_type type, struct symbol *sym, struct expr *dep);
+void menu_add_option(int token, char *arg);
 void menu_finalize(struct menu *parent);
 void menu_set_type(int type);
 
