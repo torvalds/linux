@@ -800,16 +800,12 @@ struct super_block *get_sb_single(struct file_system_type *fs_type,
 EXPORT_SYMBOL(get_sb_single);
 
 struct vfsmount *
-do_kern_mount(const char *fstype, int flags, const char *name, void *data)
+vfs_kern_mount(struct file_system_type *type, int flags, const char *name, void *data)
 {
-	struct file_system_type *type = get_fs_type(fstype);
 	struct super_block *sb = ERR_PTR(-ENOMEM);
 	struct vfsmount *mnt;
 	int error;
 	char *secdata = NULL;
-
-	if (!type)
-		return ERR_PTR(-ENODEV);
 
 	mnt = alloc_vfsmnt(name);
 	if (!mnt)
@@ -841,7 +837,6 @@ do_kern_mount(const char *fstype, int flags, const char *name, void *data)
 	mnt->mnt_parent = mnt;
 	up_write(&sb->s_umount);
 	free_secdata(secdata);
-	put_filesystem(type);
 	return mnt;
 out_sb:
 	up_write(&sb->s_umount);
@@ -852,8 +847,21 @@ out_free_secdata:
 out_mnt:
 	free_vfsmnt(mnt);
 out:
-	put_filesystem(type);
 	return (struct vfsmount *)sb;
+}
+
+EXPORT_SYMBOL_GPL(vfs_kern_mount);
+
+struct vfsmount *
+do_kern_mount(const char *fstype, int flags, const char *name, void *data)
+{
+	struct file_system_type *type = get_fs_type(fstype);
+	struct vfsmount *mnt;
+	if (!type)
+		return ERR_PTR(-ENODEV);
+	mnt = vfs_kern_mount(type, flags, name, data);
+	put_filesystem(type);
+	return mnt;
 }
 
 EXPORT_SYMBOL_GPL(do_kern_mount);

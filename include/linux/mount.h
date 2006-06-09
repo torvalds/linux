@@ -73,6 +73,11 @@ extern struct vfsmount *alloc_vfsmnt(const char *name);
 extern struct vfsmount *do_kern_mount(const char *fstype, int flags,
 				      const char *name, void *data);
 
+struct file_system_type;
+extern struct vfsmount *vfs_kern_mount(struct file_system_type *type,
+				      int flags, const char *name,
+				      void *data);
+
 struct nameidata;
 
 extern int do_add_mount(struct vfsmount *newmnt, struct nameidata *nd,
