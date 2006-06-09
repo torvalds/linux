@@ -23,42 +23,6 @@
 #include <linux/mm.h>
 
 /*
- * Process flags handling
- */
-
-#define PFLAGS_TEST_NOIO()              (current->flags & PF_NOIO)
-#define PFLAGS_TEST_FSTRANS()           (current->flags & PF_FSTRANS)
-
-#define PFLAGS_SET_NOIO() do {		\
-	current->flags |= PF_NOIO;	\
-} while (0)
-
-#define PFLAGS_CLEAR_NOIO() do {	\
-	current->flags &= ~PF_NOIO;	\
-} while (0)
-
-/* these could be nested, so we save state */
-#define PFLAGS_SET_FSTRANS(STATEP) do {	\
-	*(STATEP) = current->flags;	\
-	current->flags |= PF_FSTRANS;	\
-} while (0)
-
-#define PFLAGS_CLEAR_FSTRANS(STATEP) do { \
-	*(STATEP) = current->flags;	\
-	current->flags &= ~PF_FSTRANS;	\
-} while (0)
-
-/* Restore the PF_FSTRANS state to what was saved in STATEP */
-#define PFLAGS_RESTORE_FSTRANS(STATEP) do {     		\
-	current->flags = ((current->flags & ~PF_FSTRANS) |	\
-			  (*(STATEP) & PF_FSTRANS));		\
-} while (0)
-
-#define PFLAGS_DUP(OSTATEP, NSTATEP) do { \
-	*(NSTATEP) = *(OSTATEP);	\
-} while (0)
-
-/*
  * General memory allocation interfaces
  */
 
@@ -83,7 +47,7 @@ kmem_flags_convert(unsigned int __nocast flags)
 		lflags = GFP_ATOMIC | __GFP_NOWARN;
 	} else {
 		lflags = GFP_KERNEL | __GFP_NOWARN;
-		if (PFLAGS_TEST_FSTRANS() || (flags & KM_NOFS))
+		if ((current->flags & PF_FSTRANS) || (flags & KM_NOFS))
 			lflags &= ~__GFP_FS;
 	}
 	return lflags;

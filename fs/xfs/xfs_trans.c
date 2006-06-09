@@ -303,7 +303,7 @@ xfs_trans_dup(
 	tp->t_blk_res = tp->t_blk_res_used;
 	ntp->t_rtx_res = tp->t_rtx_res - tp->t_rtx_res_used;
 	tp->t_rtx_res = tp->t_rtx_res_used;
-	PFLAGS_DUP(&tp->t_pflags, &ntp->t_pflags);
+	ntp->t_pflags = tp->t_pflags;
 
 	XFS_TRANS_DUP_DQINFO(tp->t_mountp, tp, ntp);
 
@@ -335,14 +335,11 @@ xfs_trans_reserve(
 	uint		logcount)
 {
 	int		log_flags;
-	int		error;
-	int	rsvd;
-
-	error = 0;
-	rsvd = (tp->t_flags & XFS_TRANS_RESERVE) != 0;
+	int		error = 0;
+	int		rsvd = (tp->t_flags & XFS_TRANS_RESERVE) != 0;
 
 	/* Mark this thread as being in a transaction */
-        PFLAGS_SET_FSTRANS(&tp->t_pflags);
+	current_set_flags_nested(&tp->t_pflags, PF_FSTRANS);
 
 	/*
 	 * Attempt to reserve the needed disk blocks by decrementing
@@ -353,7 +350,7 @@ xfs_trans_reserve(
 		error = xfs_mod_incore_sb(tp->t_mountp, XFS_SBS_FDBLOCKS,
 					  -blocks, rsvd);
 		if (error != 0) {
-                        PFLAGS_RESTORE_FSTRANS(&tp->t_pflags);
+			current_restore_flags_nested(&tp->t_pflags, PF_FSTRANS);
 			return (XFS_ERROR(ENOSPC));
 		}
 		tp->t_blk_res += blocks;
@@ -426,9 +423,9 @@ undo_blocks:
 		tp->t_blk_res = 0;
 	}
 
-        PFLAGS_RESTORE_FSTRANS(&tp->t_pflags);
+	current_restore_flags_nested(&tp->t_pflags, PF_FSTRANS);
 
-	return (error);
+	return error;
 }
 
 
@@ -819,7 +816,7 @@ shut_us_down:
 			if (commit_lsn == -1 && !shutdown)
 				shutdown = XFS_ERROR(EIO);
 		}
-                PFLAGS_RESTORE_FSTRANS(&tp->t_pflags);
+		current_restore_flags_nested(&tp->t_pflags, PF_FSTRANS);
 		xfs_trans_free_items(tp, shutdown? XFS_TRANS_ABORT : 0);
 		xfs_trans_free_busy(tp);
 		xfs_trans_free(tp);
@@ -884,7 +881,7 @@ shut_us_down:
 	 * had pinned, clean up, free trans structure, and return error.
 	 */
 	if (error || commit_lsn == -1) {
-                PFLAGS_RESTORE_FSTRANS(&tp->t_pflags);
+		current_restore_flags_nested(&tp->t_pflags, PF_FSTRANS);
 		xfs_trans_uncommit(tp, flags|XFS_TRANS_ABORT);
 		return XFS_ERROR(EIO);
 	}
@@ -926,7 +923,7 @@ shut_us_down:
 	/*
 	 * Mark this thread as no longer being in a transaction
 	 */
-	PFLAGS_RESTORE_FSTRANS(&tp->t_pflags);
+	current_restore_flags_nested(&tp->t_pflags, PF_FSTRANS);
 
 	/*
 	 * Once all the items of the transaction have been copied
@@ -1182,7 +1179,7 @@ xfs_trans_cancel(
 	}
 
 	/* mark this thread as no longer being in a transaction */
-        PFLAGS_RESTORE_FSTRANS(&tp->t_pflags);
+	current_restore_flags_nested(&tp->t_pflags, PF_FSTRANS);
 
 	xfs_trans_free_items(tp, flags);
 	xfs_trans_free_busy(tp);

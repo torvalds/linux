@@ -1126,7 +1126,7 @@ xfs_vm_writepage(
 	 * then mark the page dirty again and leave the page
 	 * as is.
 	 */
-	if (PFLAGS_TEST_FSTRANS() && need_trans)
+	if (current_test_flags(PF_FSTRANS) && need_trans)
 		goto out_fail;
 
 	/*
@@ -1203,7 +1203,7 @@ xfs_vm_releasepage(
 	/* If we are already inside a transaction or the thread cannot
 	 * do I/O, we cannot release this page.
 	 */
-	if (PFLAGS_TEST_FSTRANS())
+	if (current_test_flags(PF_FSTRANS))
 		return 0;
 
 	/*

@@ -136,13 +136,19 @@ BUFFER_FNS(PrivateStart, unwritten);
 #define xfs_rotorstep		xfs_params.rotorstep.val
 #define xfs_inherit_nodefrag	xfs_params.inherit_nodfrg.val
 
-#ifndef raw_smp_processor_id
-#define raw_smp_processor_id()	smp_processor_id()
-#endif
-#define current_cpu()		raw_smp_processor_id()
+#define current_cpu()		(raw_smp_processor_id())
 #define current_pid()		(current->pid)
 #define current_fsuid(cred)	(current->fsuid)
 #define current_fsgid(cred)	(current->fsgid)
+#define current_set_flags(f)	(current->flags |= (f))
+#define current_test_flags(f)	(current->flags & (f))
+#define current_clear_flags(f)	(current->flags & ~(f))
+#define current_set_flags_nested(sp, f)		\
+		(*(sp) = current->flags, current->flags |= (f))
+#define current_clear_flags_nested(sp, f)	\
+		(*(sp) = current->flags, current->flags &= ~(f))
+#define current_restore_flags_nested(sp, f)	\
+		(current->flags = ((current->flags & ~(f)) | (*(sp) & (f))))
 
 #define NBPP		PAGE_SIZE
 #define DPPSHFT		(PAGE_SHIFT - 9)
