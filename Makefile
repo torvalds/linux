@@ -418,7 +418,7 @@ ifeq ($(KBUILD_EXTMOD),)
 # Carefully list dependencies so we do not try to build scripts twice
 # in parrallel
 PHONY += scripts
-scripts: scripts_basic include/config/MARKER
+scripts: scripts_basic include/config/auto.conf
 	$(Q)$(MAKE) $(build)=$(@)
 
 # Objects we will link into vmlinux / subdirs we need to visit
@@ -787,7 +787,7 @@ endif
 prepare2: prepare3 outputmakefile
 
 prepare1: prepare2 include/linux/version.h include/asm \
-                   include/config/MARKER
+                   include/config/auto.conf
 ifneq ($(KBUILD_MODULES),)
 	$(Q)mkdir -p $(MODVERDIR)
 	$(Q)rm -f $(MODVERDIR)/*
@@ -814,13 +814,6 @@ include/asm:
 	@echo '  SYMLINK $@ -> include/asm-$(ARCH)'
 	$(Q)if [ ! -d include ]; then mkdir -p include; fi;
 	@ln -fsn asm-$(ARCH) $@
-
-# 	Split autoconf.h into include/linux/config/*
-
-include/config/MARKER: scripts/basic/split-include include/config/auto.conf
-	@echo '  SPLIT   include/linux/autoconf.h -> include/config/*'
-	@scripts/basic/split-include include/linux/autoconf.h include/config
-	@touch $@
 
 # Generate some files
 # ---------------------------------------------------------------------------

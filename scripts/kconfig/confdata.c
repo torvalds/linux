@@ -5,6 +5,7 @@
 
 #include <sys/stat.h>
 #include <ctype.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -520,6 +521,119 @@ int conf_write(const char *name)
 	return 0;
 }
 
+int conf_split_config(void)
+{
+	char *name, path[128];
+	char *s, *d, c;
+	struct symbol *sym;
+	struct stat sb;
+	int res, i, fd;
+
+	name = getenv("KCONFIG_AUTOCONFIG");
+	if (!name)
+		name = "include/config/auto.conf";
+	conf_read_simple(name, S_DEF_AUTO);
+
+	if (chdir("include/config"))
+		return 1;
+
+	res = 0;
+	for_all_symbols(i, sym) {
+		sym_calc_value(sym);
+		if ((sym->flags & SYMBOL_AUTO) || !sym->name)
+			continue;
+		if (sym->flags & SYMBOL_WRITE) {
+			if (sym->flags & SYMBOL_DEF_AUTO) {
+				/*
+				 * symbol has old and new value,
+				 * so compare them...
+				 */
+				switch (sym->type) {
+				case S_BOOLEAN:
+				case S_TRISTATE:
+					if (sym_get_tristate_value(sym) ==
+					    sym->def[S_DEF_AUTO].tri)
+						continue;
+					break;
+				case S_STRING:
+				case S_HEX:
+				case S_INT:
+					if (!strcmp(sym_get_string_value(sym),
+						    sym->def[S_DEF_AUTO].val))
+						continue;
+					break;
+				default:
+					break;
+				}
+			} else {
+				/*
+				 * If there is no old value, only 'no' (unset)
+				 * is allowed as new value.
+				 */
+				switch (sym->type) {
+				case S_BOOLEAN:
+				case S_TRISTATE:
+					if (sym_get_tristate_value(sym) == no)
+						continue;
+					break;
+				default:
+					break;
+				}
+			}
+		} else if (!(sym->flags & SYMBOL_DEF_AUTO))
+			/* There is neither an old nor a new value. */
+			continue;
+		/* else
+		 *	There is an old value, but no new value ('no' (unset)
+		 *	isn't saved in auto.conf, so the old value is always
+		 *	different from 'no').
+		 */
+
+		/* Replace all '_' and append ".h" */
+		s = sym->name;
+		d = path;
+		while ((c = *s++)) {
+			c = tolower(c);
+			*d++ = (c == '_') ? '/' : c;
+		}
+		strcpy(d, ".h");
+
+		/* Assume directory path already exists. */
+		fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+		if (fd == -1) {
+			if (errno != ENOENT) {
+				res = 1;
+				break;
+			}
+			/*
+			 * Create directory components,
+			 * unless they exist already.
+			 */
+			d = path;
+			while ((d = strchr(d, '/'))) {
+				*d = 0;
+				if (stat(path, &sb) && mkdir(path, 0755)) {
+					res = 1;
+					goto out;
+				}
+				*d++ = '/';
+			}
+			/* Try it again. */
+			fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+			if (fd == -1) {
+				res = 1;
+				break;
+			}
+		}
+		close(fd);
+	}
+out:
+	if (chdir("../.."))
+		return 1;
+
+	return res;
+}
+
 int conf_write_autoconf(void)
 {
 	struct symbol *sym;
@@ -529,7 +643,12 @@ int conf_write_autoconf(void)
 	time_t now;
 	int i, l;
 
+	sym_clear_all_valid();
+
 	file_write_dep("include/config/auto.conf.cmd");
+
+	if (conf_split_config())
+		return 1;
 
 	out = fopen(".tmpconfig", "w");
 	if (!out)
@@ -557,8 +676,6 @@ int conf_write_autoconf(void)
 		       " */\n"
 		       "#define AUTOCONF_INCLUDED\n",
 		       sym_get_string_value(sym), ctime(&now));
-
-	sym_clear_all_valid();
 
 	for_all_symbols(i, sym) {
 		sym_calc_value(sym);

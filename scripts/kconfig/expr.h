@@ -65,6 +65,7 @@ enum symbol_type {
 
 enum {
 	S_DEF_USER,		/* main user value */
+	S_DEF_AUTO,
 };
 
 struct symbol {
@@ -97,7 +98,7 @@ struct symbol {
 #define SYMBOL_WARNED		0x8000
 #define SYMBOL_DEF		0x10000
 #define SYMBOL_DEF_USER		0x10000
-#define SYMBOL_DEF2		0x20000
+#define SYMBOL_DEF_AUTO		0x20000
 #define SYMBOL_DEF3		0x40000
 #define SYMBOL_DEF4		0x80000
 
