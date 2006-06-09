@@ -236,6 +236,7 @@ nfs_get_root(struct super_block *sb, struct nfs_fh *rootfh, struct nfs_fsinfo *f
 		return ERR_PTR(error);
 	}
 
+	server->fsid = fsinfo->fattr->fsid;
 	return nfs_fhget(sb, rootfh, fsinfo->fattr);
 }
 
@@ -1493,6 +1494,7 @@ out:
  */
 static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 {
+	struct nfs_server *server;
 	struct nfs_inode *nfsi = NFS_I(inode);
 	loff_t cur_isize, new_isize;
 	unsigned int	invalid = 0;
@@ -1510,6 +1512,12 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 	 */
 	if ((inode->i_mode & S_IFMT) != (fattr->mode & S_IFMT))
 		goto out_changed;
+
+	server = NFS_SERVER(inode);
+	/* Update the fsid if and only if this is the root directory */
+	if (inode == inode->i_sb->s_root->d_inode
+			&& !nfs_fsid_equal(&server->fsid, &fattr->fsid))
+		server->fsid = fattr->fsid;
 
 	/*
 	 * Update the read time so we don't revalidate too often.

@@ -166,7 +166,8 @@ xdr_decode_fattr(u32 *p, struct nfs_fattr *fattr)
 	if (MAJOR(fattr->rdev) != major || MINOR(fattr->rdev) != minor)
 		fattr->rdev = 0;
 
-	p = xdr_decode_hyper(p, &fattr->fsid_u.nfs3);
+	p = xdr_decode_hyper(p, &fattr->fsid.major);
+	fattr->fsid.minor = 0;
 	p = xdr_decode_hyper(p, &fattr->fileid);
 	p = xdr_decode_time3(p, &fattr->atime);
 	p = xdr_decode_time3(p, &fattr->mtime);

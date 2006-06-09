@@ -2217,7 +2217,7 @@ static int decode_attr_symlink_support(struct xdr_stream *xdr, uint32_t *bitmap,
 	return 0;
 }
 
-static int decode_attr_fsid(struct xdr_stream *xdr, uint32_t *bitmap, struct nfs4_fsid *fsid)
+static int decode_attr_fsid(struct xdr_stream *xdr, uint32_t *bitmap, struct nfs_fsid *fsid)
 {
 	uint32_t *p;
 
@@ -2863,7 +2863,7 @@ static int decode_getfattr(struct xdr_stream *xdr, struct nfs_fattr *fattr, cons
 		goto xdr_error;
 	if ((status = decode_attr_size(xdr, bitmap, &fattr->size)) != 0)
 		goto xdr_error;
-	if ((status = decode_attr_fsid(xdr, bitmap, &fattr->fsid_u.nfs4)) != 0)
+	if ((status = decode_attr_fsid(xdr, bitmap, &fattr->fsid)) != 0)
 		goto xdr_error;
 	if ((status = decode_attr_fileid(xdr, bitmap, &fattr->fileid)) != 0)
 		goto xdr_error;

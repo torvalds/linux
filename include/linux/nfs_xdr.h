@@ -14,10 +14,18 @@
 #define NFS_DEF_FILE_IO_SIZE	(4096U)
 #define NFS_MIN_FILE_IO_SIZE	(1024U)
 
-struct nfs4_fsid {
-	__u64 major;
-	__u64 minor;
+struct nfs_fsid {
+	uint64_t		major;
+	uint64_t		minor;
 };
+
+/*
+ * Helper for checking equality between 2 fsids.
+ */
+static inline int nfs_fsid_equal(const struct nfs_fsid *a, const struct nfs_fsid *b)
+{
+	return a->major == b->major && a->minor == b->minor;
+}
 
 struct nfs_fattr {
 	unsigned short		valid;		/* which fields are valid */
@@ -40,10 +48,7 @@ struct nfs_fattr {
 		} nfs3;
 	} du;
 	dev_t			rdev;
-	union {
-		__u64		nfs3;		/* also nfs2 */
-		struct nfs4_fsid nfs4;
-	} fsid_u;
+	struct nfs_fsid		fsid;
 	__u64			fileid;
 	struct timespec		atime;
 	struct timespec		mtime;

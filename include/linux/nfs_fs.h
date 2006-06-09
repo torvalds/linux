@@ -16,8 +16,6 @@
 #include <linux/rwsem.h>
 #include <linux/wait.h>
 
-#include <linux/nfs_fs_sb.h>
-
 #include <linux/sunrpc/debug.h>
 #include <linux/sunrpc/auth.h>
 #include <linux/sunrpc/clnt.h>
@@ -27,6 +25,9 @@
 #include <linux/nfs3.h>
 #include <linux/nfs4.h>
 #include <linux/nfs_xdr.h>
+
+#include <linux/nfs_fs_sb.h>
+
 #include <linux/rwsem.h>
 #include <linux/mempool.h>
 
