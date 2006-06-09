@@ -542,14 +542,13 @@ xfs_reserve_blocks(
 }
 
 void
-xfs_fs_log_dummy(xfs_mount_t *mp)
+xfs_fs_log_dummy(
+	xfs_mount_t	*mp)
 {
-	xfs_trans_t *tp;
-	xfs_inode_t *ip;
-
+	xfs_trans_t	*tp;
+	xfs_inode_t	*ip;
 
 	tp = _xfs_trans_alloc(mp, XFS_TRANS_DUMMY1);
-	atomic_inc(&mp->m_active_trans);
 	if (xfs_trans_reserve(tp, 0, XFS_ICHANGE_LOG_RES(mp), 0, 0, 0)) {
 		xfs_trans_cancel(tp, 0);
 		return;
