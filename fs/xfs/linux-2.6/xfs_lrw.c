@@ -510,7 +510,6 @@ xfs_zero_eof(
 	xfs_fileoff_t	end_zero_fsb;
 	xfs_fileoff_t	zero_count_fsb;
 	xfs_fileoff_t	last_fsb;
-	xfs_extlen_t	buf_len_fsb;
 	xfs_mount_t	*mp = io->io_mount;
 	int		nimaps;
 	int		error = 0;
@@ -579,16 +578,7 @@ xfs_zero_eof(
 		}
 
 		/*
-		 * There are blocks in the range requested.
-		 * Zero them a single write at a time.  We actually
-		 * don't zero the entire range returned if it is
-		 * too big and simply loop around to get the rest.
-		 * That is not the most efficient thing to do, but it
-		 * is simple and this path should not be exercised often.
-		 */
-		buf_len_fsb = XFS_FILBLKS_MIN(imap.br_blockcount,
-					      mp->m_writeio_blocks << 8);
-		/*
+		 * There are blocks we need to zero.
 		 * Drop the inode lock while we're doing the I/O.
 		 * We'll still have the iolock to protect us.
 		 */
@@ -596,14 +586,13 @@ xfs_zero_eof(
 
 		error = xfs_iozero(ip,
 				   XFS_FSB_TO_B(mp, start_zero_fsb),
-				   XFS_FSB_TO_B(mp, buf_len_fsb),
+				   XFS_FSB_TO_B(mp, imap.br_blockcount),
 				   end_size);
-
 		if (error) {
 			goto out_lock;
 		}
 
-		start_zero_fsb = imap.br_startoff + buf_len_fsb;
+		start_zero_fsb = imap.br_startoff + imap.br_blockcount;
 		ASSERT(start_zero_fsb <= (end_zero_fsb + 1));
 
 		XFS_ILOCK(mp, io, XFS_ILOCK_EXCL|XFS_EXTSIZE_RD);
