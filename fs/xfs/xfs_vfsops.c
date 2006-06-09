@@ -800,7 +800,7 @@ xfs_root(
 STATIC int
 xfs_statvfs(
 	bhv_desc_t	*bdp,
-	xfs_statfs_t	*statp,
+	bhv_statvfs_t	*statp,
 	bhv_vnode_t	*vp)
 {
 	__uint64_t	fakeinos;

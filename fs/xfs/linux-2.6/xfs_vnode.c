@@ -111,7 +111,7 @@ vn_initialize(
 void
 vn_revalidate_core(
 	bhv_vnode_t	*vp,
-	vattr_t		*vap)
+	bhv_vattr_t	*vap)
 {
 	struct inode	*inode = vn_to_inode(vp);
 
@@ -147,7 +147,7 @@ vn_revalidate_core(
 int
 __vn_revalidate(
 	bhv_vnode_t	*vp,
-	struct vattr	*vattr)
+	bhv_vattr_t	*vattr)
 {
 	int		error;
 
@@ -165,7 +165,7 @@ int
 vn_revalidate(
 	bhv_vnode_t	*vp)
 {
-	vattr_t		vattr;
+	bhv_vattr_t	vattr;
 
 	return __vn_revalidate(vp, &vattr);
 }

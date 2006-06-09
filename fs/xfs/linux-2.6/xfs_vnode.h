@@ -20,29 +20,29 @@
 
 struct uio;
 struct file;
-struct vattr;
+struct bhv_vfs;
+struct bhv_vattr;
 struct xfs_iomap;
 struct attrlist_cursor_kern;
 
-typedef xfs_ino_t vnumber_t;
-typedef struct dentry vname_t;
-typedef bhv_head_t vn_bhv_head_t;
+typedef struct dentry	bhv_vname_t;
+typedef __u64		bhv_vnumber_t;
 
-typedef enum vflags {
+typedef enum bhv_vflags {
 	VMODIFIED	= 0x08,	/* XFS inode state possibly differs */
 				/* to the Linux inode state. */
 	VTRUNCATED	= 0x40,	/* truncated down so flush-on-close */
-} vflags_t;
+} bhv_vflags_t;
 
 /*
  * MP locking protocols:
  *	v_flag, v_vfsp				VN_LOCK/VN_UNLOCK
  */
 typedef struct bhv_vnode {
-	vflags_t	v_flag;			/* vnode flags (see above) */
-	struct bhv_vfs	*v_vfsp;		/* ptr to containing VFS */
-	vnumber_t	v_number;		/* in-core vnode number */
-	vn_bhv_head_t	v_bh;			/* behavior head */
+	bhv_vflags_t	v_flag;			/* vnode flags (see above) */
+	bhv_vfs_t	*v_vfsp;		/* ptr to containing VFS */
+	bhv_vnumber_t	v_number;		/* in-core vnode number */
+	bhv_head_t	v_bh;			/* behavior head */
 	spinlock_t	v_lock;			/* VN_LOCK/VN_UNLOCK */
 	atomic_t	v_iocount;		/* outstanding I/O count */
 #ifdef XFS_VNODE_TRACE
@@ -103,14 +103,14 @@ static inline struct inode *vn_to_inode(struct bhv_vnode *vnode)
 /*
  * Values for the vop_rwlock/rwunlock flags parameter.
  */
-typedef enum vrwlock {
+typedef enum bhv_vrwlock {
 	VRWLOCK_NONE,
 	VRWLOCK_READ,
 	VRWLOCK_WRITE,
 	VRWLOCK_WRITE_DIRECT,
 	VRWLOCK_TRY_READ,
 	VRWLOCK_TRY_WRITE
-} vrwlock_t;
+} bhv_vrwlock_t;
 
 /*
  * Return values for bhv_vop_inactive.  A return value of
@@ -123,13 +123,13 @@ typedef enum vrwlock {
 /*
  * Values for the cmd code given to vop_vnode_change.
  */
-typedef enum vchange {
+typedef enum bhv_vchange {
 	VCHANGE_FLAGS_FRLOCKS		= 0,
 	VCHANGE_FLAGS_ENF_LOCKING	= 1,
 	VCHANGE_FLAGS_TRUNCATED		= 2,
 	VCHANGE_FLAGS_PAGE_DIRTY	= 3,
 	VCHANGE_FLAGS_IOEXCL_COUNT	= 4
-} vchange_t;
+} bhv_vchange_t;
 
 typedef enum { L_FALSE, L_TRUE } lastclose_t;
 
@@ -152,26 +152,26 @@ typedef ssize_t (*vop_splice_write_t)(bhv_desc_t *, struct pipe_inode_info *,
 				struct cred *);
 typedef int	(*vop_ioctl_t)(bhv_desc_t *, struct inode *, struct file *,
 				int, unsigned int, void __user *);
-typedef int	(*vop_getattr_t)(bhv_desc_t *, struct vattr *, int,
+typedef int	(*vop_getattr_t)(bhv_desc_t *, struct bhv_vattr *, int,
 				struct cred *);
-typedef int	(*vop_setattr_t)(bhv_desc_t *, struct vattr *, int,
+typedef int	(*vop_setattr_t)(bhv_desc_t *, struct bhv_vattr *, int,
 				struct cred *);
 typedef int	(*vop_access_t)(bhv_desc_t *, int, struct cred *);
-typedef int	(*vop_lookup_t)(bhv_desc_t *, vname_t *, bhv_vnode_t **,
+typedef int	(*vop_lookup_t)(bhv_desc_t *, bhv_vname_t *, bhv_vnode_t **,
 				int, bhv_vnode_t *, struct cred *);
-typedef int	(*vop_create_t)(bhv_desc_t *, vname_t *, struct vattr *,
+typedef int	(*vop_create_t)(bhv_desc_t *, bhv_vname_t *, struct bhv_vattr *,
 				bhv_vnode_t **, struct cred *);
-typedef int	(*vop_remove_t)(bhv_desc_t *, vname_t *, struct cred *);
-typedef int	(*vop_link_t)(bhv_desc_t *, bhv_vnode_t *, vname_t *,
+typedef int	(*vop_remove_t)(bhv_desc_t *, bhv_vname_t *, struct cred *);
+typedef int	(*vop_link_t)(bhv_desc_t *, bhv_vnode_t *, bhv_vname_t *,
 				struct cred *);
-typedef int	(*vop_rename_t)(bhv_desc_t *, vname_t *, bhv_vnode_t *,
-				vname_t *, struct cred *);
-typedef int	(*vop_mkdir_t)(bhv_desc_t *, vname_t *, struct vattr *,
+typedef int	(*vop_rename_t)(bhv_desc_t *, bhv_vname_t *, bhv_vnode_t *,
+				bhv_vname_t *, struct cred *);
+typedef int	(*vop_mkdir_t)(bhv_desc_t *, bhv_vname_t *, struct bhv_vattr *,
 				bhv_vnode_t **, struct cred *);
-typedef int	(*vop_rmdir_t)(bhv_desc_t *, vname_t *, struct cred *);
+typedef int	(*vop_rmdir_t)(bhv_desc_t *, bhv_vname_t *, struct cred *);
 typedef int	(*vop_readdir_t)(bhv_desc_t *, struct uio *, struct cred *,
 				int *);
-typedef int	(*vop_symlink_t)(bhv_desc_t *, vname_t *, struct vattr *,
+typedef int	(*vop_symlink_t)(bhv_desc_t *, bhv_vname_t *, struct bhv_vattr*,
 				char *, bhv_vnode_t **, struct cred *);
 typedef int	(*vop_readlink_t)(bhv_desc_t *, struct uio *, int,
 				struct cred *);
@@ -180,8 +180,8 @@ typedef int	(*vop_fsync_t)(bhv_desc_t *, int, struct cred *,
 typedef int	(*vop_inactive_t)(bhv_desc_t *, struct cred *);
 typedef int	(*vop_fid2_t)(bhv_desc_t *, struct fid *);
 typedef int	(*vop_release_t)(bhv_desc_t *);
-typedef int	(*vop_rwlock_t)(bhv_desc_t *, vrwlock_t);
-typedef void	(*vop_rwunlock_t)(bhv_desc_t *, vrwlock_t);
+typedef int	(*vop_rwlock_t)(bhv_desc_t *, bhv_vrwlock_t);
+typedef void	(*vop_rwunlock_t)(bhv_desc_t *, bhv_vrwlock_t);
 typedef int	(*vop_bmap_t)(bhv_desc_t *, xfs_off_t, ssize_t, int,
 				struct xfs_iomap *, int *);
 typedef int	(*vop_reclaim_t)(bhv_desc_t *);
@@ -194,7 +194,7 @@ typedef	int	(*vop_attr_remove_t)(bhv_desc_t *, const char *,
 typedef	int	(*vop_attr_list_t)(bhv_desc_t *, char *, int, int,
 				struct attrlist_cursor_kern *, struct cred *);
 typedef void	(*vop_link_removed_t)(bhv_desc_t *, bhv_vnode_t *, int);
-typedef void	(*vop_vnode_change_t)(bhv_desc_t *, vchange_t, __psint_t);
+typedef void	(*vop_vnode_change_t)(bhv_desc_t *, bhv_vchange_t, __psint_t);
 typedef void	(*vop_ptossvp_t)(bhv_desc_t *, xfs_off_t, xfs_off_t, int);
 typedef void	(*vop_pflushinvalvp_t)(bhv_desc_t *, xfs_off_t, xfs_off_t, int);
 typedef int	(*vop_pflushvp_t)(bhv_desc_t *, xfs_off_t, xfs_off_t,
@@ -346,7 +346,7 @@ typedef struct bhv_vnodeops {
  * Vnode attributes.  va_mask indicates those attributes the caller
  * wants to set or extract.
  */
-typedef struct vattr {
+typedef struct bhv_vattr {
 	int		va_mask;	/* bit-mask of attributes present */
 	mode_t		va_mode;	/* file access mode and type */
 	xfs_nlink_t	va_nlink;	/* number of references to file */
@@ -366,7 +366,7 @@ typedef struct vattr {
 	u_long		va_nextents;	/* number of extents in file */
 	u_long		va_anextents;	/* number of attr extents in file */
 	prid_t		va_projid;	/* project id */
-} vattr_t;
+} bhv_vattr_t;
 
 /*
  * setattr or getattr attributes
@@ -442,8 +442,8 @@ typedef struct vattr {
 extern void	vn_init(void);
 extern bhv_vnode_t	*vn_initialize(struct inode *);
 extern int	vn_revalidate(struct bhv_vnode *);
-extern int	__vn_revalidate(struct bhv_vnode *, vattr_t *);
-extern void	vn_revalidate_core(struct bhv_vnode *, vattr_t *);
+extern int	__vn_revalidate(struct bhv_vnode *, bhv_vattr_t *);
+extern void	vn_revalidate_core(struct bhv_vnode *, bhv_vattr_t *);
 
 extern void	vn_iowait(struct bhv_vnode *vp);
 extern void	vn_iowake(struct bhv_vnode *vp);

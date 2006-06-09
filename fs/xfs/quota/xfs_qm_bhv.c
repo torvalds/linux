@@ -191,7 +191,7 @@ xfs_qm_mount(
 STATIC int
 xfs_qm_statvfs(
 	struct bhv_desc		*bhv,
-	xfs_statfs_t		*statp,
+	bhv_statvfs_t		*statp,
 	struct bhv_vnode	*vnode)
 {
 	xfs_mount_t		*mp;

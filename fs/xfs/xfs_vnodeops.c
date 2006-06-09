@@ -117,7 +117,7 @@ xfs_close(
 STATIC int
 xfs_getattr(
 	bhv_desc_t	*bdp,
-	vattr_t		*vap,
+	bhv_vattr_t	*vap,
 	int		flags,
 	cred_t		*credp)
 {
@@ -250,7 +250,7 @@ xfs_getattr(
 int
 xfs_setattr(
 	bhv_desc_t		*bdp,
-	vattr_t			*vap,
+	bhv_vattr_t		*vap,
 	int			flags,
 	cred_t			*credp)
 {
@@ -1815,7 +1815,7 @@ xfs_inactive(
 STATIC int
 xfs_lookup(
 	bhv_desc_t		*dir_bdp,
-	vname_t			*dentry,
+	bhv_vname_t		*dentry,
 	bhv_vnode_t		**vpp,
 	int			flags,
 	bhv_vnode_t		*rdir,
@@ -1852,8 +1852,8 @@ xfs_lookup(
 STATIC int
 xfs_create(
 	bhv_desc_t		*dir_bdp,
-	vname_t			*dentry,
-	vattr_t			*vap,
+	bhv_vname_t		*dentry,
+	bhv_vattr_t		*vap,
 	bhv_vnode_t		**vpp,
 	cred_t			*credp)
 {
@@ -2127,7 +2127,7 @@ int xfs_rm_attempts;
 STATIC int
 xfs_lock_dir_and_entry(
 	xfs_inode_t	*dp,
-	vname_t		*dentry,
+	bhv_vname_t	*dentry,
 	xfs_inode_t	*ip)	/* inode of entry 'name' */
 {
 	int		attempts;
@@ -2341,7 +2341,7 @@ int remove_which_error_return = 0;
 STATIC int
 xfs_remove(
 	bhv_desc_t		*dir_bdp,
-	vname_t			*dentry,
+	bhv_vname_t		*dentry,
 	cred_t			*credp)
 {
 	bhv_vnode_t		*dir_vp;
@@ -2585,7 +2585,7 @@ STATIC int
 xfs_link(
 	bhv_desc_t		*target_dir_bdp,
 	bhv_vnode_t		*src_vp,
-	vname_t			*dentry,
+	bhv_vname_t		*dentry,
 	cred_t			*credp)
 {
 	xfs_inode_t		*tdp, *sip;
@@ -2754,8 +2754,8 @@ std_return:
 STATIC int
 xfs_mkdir(
 	bhv_desc_t		*dir_bdp,
-	vname_t			*dentry,
-	vattr_t			*vap,
+	bhv_vname_t		*dentry,
+	bhv_vattr_t		*vap,
 	bhv_vnode_t		**vpp,
 	cred_t			*credp)
 {
@@ -2989,7 +2989,7 @@ std_return:
 STATIC int
 xfs_rmdir(
 	bhv_desc_t		*dir_bdp,
-	vname_t			*dentry,
+	bhv_vname_t		*dentry,
 	cred_t			*credp)
 {
 	char			*name = VNAME(dentry);
@@ -3268,8 +3268,8 @@ xfs_readdir(
 STATIC int
 xfs_symlink(
 	bhv_desc_t		*dir_bdp,
-	vname_t			*dentry,
-	vattr_t			*vap,
+	bhv_vname_t		*dentry,
+	bhv_vattr_t		*vap,
 	char			*target_path,
 	bhv_vnode_t		**vpp,
 	cred_t			*credp)
@@ -3626,7 +3626,7 @@ xfs_fid2(
 int
 xfs_rwlock(
 	bhv_desc_t	*bdp,
-	vrwlock_t	locktype)
+	bhv_vrwlock_t	locktype)
 {
 	xfs_inode_t	*ip;
 	bhv_vnode_t	*vp;
@@ -3657,7 +3657,7 @@ xfs_rwlock(
 void
 xfs_rwunlock(
 	bhv_desc_t	*bdp,
-	vrwlock_t	locktype)
+	bhv_vrwlock_t	locktype)
 {
 	xfs_inode_t     *ip;
 	bhv_vnode_t	*vp;
@@ -4502,7 +4502,7 @@ xfs_change_file_space(
 	xfs_off_t	startoffset;
 	xfs_off_t	llen;
 	xfs_trans_t	*tp;
-	vattr_t		va;
+	bhv_vattr_t	va;
 	bhv_vnode_t	*vp;
 
 	vp = BHV_TO_VNODE(bdp);

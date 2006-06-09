@@ -23,14 +23,14 @@
 
 struct bhv_vfs;
 struct bhv_vnode;
+
 struct fid;
 struct cred;
-struct statfs;
 struct seq_file;
 struct super_block;
 struct xfs_mount_args;
 
-typedef struct kstatfs xfs_statfs_t;
+typedef struct kstatfs	bhv_statvfs_t;
 
 typedef struct bhv_vfs_sync_work {
 	struct list_head	w_list;
@@ -109,7 +109,7 @@ typedef int	(*vfs_unmount_t)(bhv_desc_t *, int, struct cred *);
 typedef int	(*vfs_mntupdate_t)(bhv_desc_t *, int *,
 				struct xfs_mount_args *);
 typedef int	(*vfs_root_t)(bhv_desc_t *, struct bhv_vnode **);
-typedef int	(*vfs_statvfs_t)(bhv_desc_t *, xfs_statfs_t *,
+typedef int	(*vfs_statvfs_t)(bhv_desc_t *, bhv_statvfs_t *,
 				struct bhv_vnode *);
 typedef int	(*vfs_sync_t)(bhv_desc_t *, int, struct cred *);
 typedef int	(*vfs_vget_t)(bhv_desc_t *, struct bhv_vnode **, struct fid *);
@@ -181,7 +181,7 @@ extern int vfs_showargs(bhv_desc_t *, struct seq_file *);
 extern int vfs_unmount(bhv_desc_t *, int, struct cred *);
 extern int vfs_mntupdate(bhv_desc_t *, int *, struct xfs_mount_args *);
 extern int vfs_root(bhv_desc_t *, struct bhv_vnode **);
-extern int vfs_statvfs(bhv_desc_t *, xfs_statfs_t *, struct bhv_vnode *);
+extern int vfs_statvfs(bhv_desc_t *, bhv_statvfs_t *, struct bhv_vnode *);
 extern int vfs_sync(bhv_desc_t *, int, struct cred *);
 extern int vfs_vget(bhv_desc_t *, struct bhv_vnode **, struct fid *);
 extern int vfs_dmapiops(bhv_desc_t *, caddr_t);

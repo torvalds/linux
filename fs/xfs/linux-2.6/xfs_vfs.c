@@ -117,7 +117,7 @@ vfs_root(
 int
 vfs_statvfs(
 	struct bhv_desc		*bdp,
-	xfs_statfs_t		*sp,
+	bhv_statvfs_t		*statp,
 	struct bhv_vnode	*vp)
 {
 	struct bhv_desc		*next = bdp;
@@ -125,7 +125,7 @@ vfs_statvfs(
 	ASSERT(next);
 	while (! (bhvtovfsops(next))->vfs_statvfs)
 		next = BHV_NEXT(next);
-	return ((*bhvtovfsops(next)->vfs_statvfs)(next, sp, vp));
+	return ((*bhvtovfsops(next)->vfs_statvfs)(next, statp, vp));
 }
 
 int

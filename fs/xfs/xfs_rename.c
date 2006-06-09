@@ -87,8 +87,8 @@ STATIC int
 xfs_lock_for_rename(
 	xfs_inode_t	*dp1,	/* old (source) directory inode */
 	xfs_inode_t	*dp2,	/* new (target) directory inode */
-	vname_t		*vname1,/* old entry name */
-	vname_t		*vname2,/* new entry name */
+	bhv_vname_t	*vname1,/* old entry name */
+	bhv_vname_t	*vname2,/* new entry name */
 	xfs_inode_t	**ipp1,	/* inode of old entry */
 	xfs_inode_t	**ipp2,	/* inode of new entry, if it
 				   already exists, NULL otherwise. */
@@ -225,9 +225,9 @@ xfs_lock_for_rename(
 int
 xfs_rename(
 	bhv_desc_t	*src_dir_bdp,
-	vname_t		*src_vname,
+	bhv_vname_t	*src_vname,
 	bhv_vnode_t	*target_dir_vp,
-	vname_t		*target_vname,
+	bhv_vname_t	*target_vname,
 	cred_t		*credp)
 {
 	xfs_trans_t	*tp;

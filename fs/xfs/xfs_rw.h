@@ -87,9 +87,10 @@ extern void xfs_ioerror_alert(char *func, struct xfs_mount *mp,
 /*
  * Prototypes for functions in xfs_vnodeops.c.
  */
-extern int xfs_rwlock(bhv_desc_t *bdp, vrwlock_t write_lock);
-extern void xfs_rwunlock(bhv_desc_t *bdp, vrwlock_t write_lock);
-extern int xfs_setattr(bhv_desc_t *bdp, vattr_t *vap, int flags, cred_t *credp);
+extern int xfs_rwlock(bhv_desc_t *bdp, bhv_vrwlock_t write_lock);
+extern void xfs_rwunlock(bhv_desc_t *bdp, bhv_vrwlock_t write_lock);
+extern int xfs_setattr(bhv_desc_t *, bhv_vattr_t *vap, int flags,
+		       cred_t *credp);
 extern int xfs_change_file_space(bhv_desc_t *bdp, int cmd, xfs_flock64_t *bf,
 				 xfs_off_t offset, cred_t *credp, int flags);
 extern int xfs_set_dmattrs(bhv_desc_t *bdp, u_int evmask, u_int16_t state,

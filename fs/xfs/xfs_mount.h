@@ -81,7 +81,7 @@ extern struct bhv_vnodeops xfs_vnodeops;
  */
 
 typedef int	(*xfs_send_data_t)(int, struct bhv_vnode *,
-			xfs_off_t, size_t, int, vrwlock_t *);
+			xfs_off_t, size_t, int, bhv_vrwlock_t *);
 typedef int	(*xfs_send_mmap_t)(struct vm_area_struct *, uint);
 typedef int	(*xfs_send_destroy_t)(struct bhv_vnode *, dm_right_t);
 typedef int	(*xfs_send_namesp_t)(dm_eventtype_t, struct bhv_vfs *,

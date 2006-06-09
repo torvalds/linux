@@ -1157,7 +1157,7 @@ xfs_ioc_xattr(
 	void			__user *arg)
 {
 	struct fsxattr		fa;
-	struct vattr		*vattr;
+	struct bhv_vattr	*vattr;
 	int			error = 0;
 	int			attr_flags;
 	unsigned int		flags;

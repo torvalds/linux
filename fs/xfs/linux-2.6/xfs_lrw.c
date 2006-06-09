@@ -258,7 +258,7 @@ xfs_read(
 
 	if (DM_EVENT_ENABLED(vp->v_vfsp, ip, DM_EVENT_READ) &&
 	    !(ioflags & IO_INVIS)) {
-		vrwlock_t locktype = VRWLOCK_READ;
+		bhv_vrwlock_t locktype = VRWLOCK_READ;
 		int dmflags = FILP_DELAY_FLAG(file) | DM_SEM_FLAG_RD(ioflags);
 
 		ret = -XFS_SEND_DATA(mp, DM_EVENT_READ,
@@ -313,7 +313,7 @@ xfs_sendfile(
 
 	if (DM_EVENT_ENABLED(BHV_TO_VNODE(bdp)->v_vfsp, ip, DM_EVENT_READ) &&
 	    (!(ioflags & IO_INVIS))) {
-		vrwlock_t locktype = VRWLOCK_READ;
+		bhv_vrwlock_t locktype = VRWLOCK_READ;
 		int error;
 
 		error = XFS_SEND_DATA(mp, DM_EVENT_READ, BHV_TO_VNODE(bdp),
@@ -357,7 +357,7 @@ xfs_splice_read(
 
 	if (DM_EVENT_ENABLED(BHV_TO_VNODE(bdp)->v_vfsp, ip, DM_EVENT_READ) &&
 	    (!(ioflags & IO_INVIS))) {
-		vrwlock_t locktype = VRWLOCK_READ;
+		bhv_vrwlock_t locktype = VRWLOCK_READ;
 		int error;
 
 		error = XFS_SEND_DATA(mp, DM_EVENT_READ, BHV_TO_VNODE(bdp),
@@ -401,7 +401,7 @@ xfs_splice_write(
 
 	if (DM_EVENT_ENABLED(BHV_TO_VNODE(bdp)->v_vfsp, ip, DM_EVENT_WRITE) &&
 	    (!(ioflags & IO_INVIS))) {
-		vrwlock_t locktype = VRWLOCK_WRITE;
+		bhv_vrwlock_t locktype = VRWLOCK_WRITE;
 		int error;
 
 		error = XFS_SEND_DATA(mp, DM_EVENT_WRITE, BHV_TO_VNODE(bdp),
@@ -630,7 +630,7 @@ xfs_write(
 	unsigned long		seg;
 	int			iolock;
 	int			eventsent = 0;
-	vrwlock_t		locktype;
+	bhv_vrwlock_t		locktype;
 	size_t			ocount = 0, count;
 	loff_t			pos;
 	int			need_i_mutex = 1, need_flush = 0;

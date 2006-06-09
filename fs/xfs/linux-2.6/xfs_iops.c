@@ -200,7 +200,7 @@ xfs_ichgtime_fast(
 STATIC void
 xfs_validate_fields(
 	struct inode	*ip,
-	struct vattr	*vattr)
+	bhv_vattr_t	*vattr)
 {
 	vattr->va_mask = XFS_AT_NLINK|XFS_AT_SIZE|XFS_AT_NBLOCKS;
 	if (!bhv_vop_getattr(vn_from_inode(ip), vattr, ATTR_LAZY, NULL)) {
@@ -290,7 +290,7 @@ xfs_vn_mknod(
 	dev_t		rdev)
 {
 	struct inode	*ip;
-	vattr_t		vattr = { 0 };
+	bhv_vattr_t	vattr = { 0 };
 	bhv_vnode_t	*vp = NULL, *dvp = vn_from_inode(dir);
 	xfs_acl_t	*default_acl = NULL;
 	attrexists_t	test_default_acl = _ACL_DEFAULT_EXISTS;
@@ -417,7 +417,7 @@ xfs_vn_link(
 	struct inode	*ip;	/* inode of guy being linked to */
 	bhv_vnode_t	*tdvp;	/* target directory for new name/link */
 	bhv_vnode_t	*vp;	/* vp of name being linked */
-	vattr_t		vattr;
+	bhv_vattr_t	vattr;
 	int		error;
 
 	ip = old_dentry->d_inode;	/* inode being linked to */
@@ -444,7 +444,7 @@ xfs_vn_unlink(
 {
 	struct inode	*inode;
 	bhv_vnode_t	*dvp;	/* directory containing name to remove */
-	vattr_t		vattr;
+	bhv_vattr_t	vattr;
 	int		error;
 
 	inode = dentry->d_inode;
@@ -465,7 +465,7 @@ xfs_vn_symlink(
 	const char	*symname)
 {
 	struct inode	*ip;
-	vattr_t		va = { 0 };
+	bhv_vattr_t	va = { 0 };
 	bhv_vnode_t	*dvp;	/* directory containing name of symlink */
 	bhv_vnode_t	*cvp;	/* used to lookup symlink to put in dentry */
 	int		error;
@@ -499,7 +499,7 @@ xfs_vn_rmdir(
 {
 	struct inode	*inode = dentry->d_inode;
 	bhv_vnode_t	*dvp = vn_from_inode(dir);
-	vattr_t		vattr;
+	bhv_vattr_t	vattr;
 	int		error;
 
 	error = bhv_vop_rmdir(dvp, dentry, NULL);
@@ -520,7 +520,7 @@ xfs_vn_rename(
 	struct inode	*new_inode = ndentry->d_inode;
 	bhv_vnode_t	*fvp;	/* from directory */
 	bhv_vnode_t	*tvp;	/* target directory */
-	vattr_t		vattr;
+	bhv_vattr_t	vattr;
 	int		error;
 
 	fvp = vn_from_inode(odir);
@@ -643,7 +643,7 @@ xfs_vn_setattr(
 	struct inode	*inode = dentry->d_inode;
 	unsigned int	ia_valid = attr->ia_valid;
 	bhv_vnode_t	*vp = vn_from_inode(inode);
-	vattr_t		vattr = { 0 };
+	bhv_vattr_t	vattr = { 0 };
 	int		flags = 0;
 	int		error;
 

@@ -51,7 +51,7 @@
  */
 int
 xfs_get_dir_entry(
-	vname_t		*dentry,
+	bhv_vname_t	*dentry,
 	xfs_inode_t	**ipp)
 {
 	bhv_vnode_t	*vp;
@@ -69,7 +69,7 @@ int
 xfs_dir_lookup_int(
 	bhv_desc_t	*dir_bdp,
 	uint		lock_mode,
-	vname_t		*dentry,
+	bhv_vname_t	*dentry,
 	xfs_ino_t	*inum,
 	xfs_inode_t	**ipp)
 {

@@ -241,7 +241,7 @@ xfs_acl_vget(
 			goto out;
 		}
 		if (kind == _ACL_TYPE_ACCESS) {
-			vattr_t	va;
+			bhv_vattr_t	va;
 
 			va.va_mask = XFS_AT_MODE;
 			error = bhv_vop_getattr(vp, &va, 0, sys_cred);
@@ -373,7 +373,7 @@ xfs_acl_allow_set(
 	bhv_vnode_t	*vp,
 	int		kind)
 {
-	vattr_t		va;
+	bhv_vattr_t	va;
 	int		error;
 
 	if (vp->v_inode.i_flags & (S_IMMUTABLE|S_APPEND))
@@ -666,7 +666,7 @@ xfs_acl_vtoacl(
 	xfs_acl_t	*access_acl,
 	xfs_acl_t	*default_acl)
 {
-	vattr_t		va;
+	bhv_vattr_t	va;
 	int		error = 0;
 
 	if (access_acl) {
@@ -702,7 +702,7 @@ xfs_acl_vtoacl(
 int
 xfs_acl_inherit(
 	bhv_vnode_t	*vp,
-	vattr_t		*vap,
+	bhv_vattr_t	*vap,
 	xfs_acl_t	*pdaclp)
 {
 	xfs_acl_t	*cacl;
@@ -761,7 +761,7 @@ xfs_acl_setmode(
 	xfs_acl_t	*acl,
 	int		*basicperms)
 {
-	vattr_t		va;
+	bhv_vattr_t	va;
 	xfs_acl_entry_t	*ap;
 	xfs_acl_entry_t	*gap = NULL;
 	int		i, error, nomask = 1;
