@@ -4,6 +4,7 @@
 #
 
 obj-$(CONFIG_USB_AUERSWALD)	+= auerswald.o
+obj-$(CONFIG_USB_CY7C63)	+= cy7c63.o
 obj-$(CONFIG_USB_CYTHERM)	+= cytherm.o
 obj-$(CONFIG_USB_EMI26)		+= emi26.o
 obj-$(CONFIG_USB_EMI62)		+= emi62.o

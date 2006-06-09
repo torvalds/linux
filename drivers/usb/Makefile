@@ -48,6 +48,7 @@ obj-$(CONFIG_USB_MICROTEK)	+= image/
 obj-$(CONFIG_USB_SERIAL)	+= serial/
 
 obj-$(CONFIG_USB_AUERSWALD)	+= misc/
+obj-$(CONFIG_USB_CY7C63)	+= misc/
 obj-$(CONFIG_USB_CYTHERM)	+= misc/
 obj-$(CONFIG_USB_EMI26)		+= misc/
 obj-$(CONFIG_USB_EMI62)		+= misc/
