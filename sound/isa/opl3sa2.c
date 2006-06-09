@@ -221,7 +221,7 @@ static void snd_opl3sa2_write(struct snd_opl3sa2 *chip, unsigned char reg, unsig
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 }
 
-static int __init snd_opl3sa2_detect(struct snd_opl3sa2 *chip)
+static int __devinit snd_opl3sa2_detect(struct snd_opl3sa2 *chip)
 {
 	struct snd_card *card;
 	unsigned long port;
@@ -489,7 +489,7 @@ static void snd_opl3sa2_master_free(struct snd_kcontrol *kcontrol)
 	chip->master_volume = NULL;
 }
 
-static int __init snd_opl3sa2_mixer(struct snd_opl3sa2 *chip)
+static int __devinit snd_opl3sa2_mixer(struct snd_opl3sa2 *chip)
 {
 	struct snd_card *card = chip->card;
 	struct snd_ctl_elem_id id1, id2;
@@ -583,8 +583,8 @@ static int snd_opl3sa2_resume(struct snd_card *card)
 #endif /* CONFIG_PM */
 
 #ifdef CONFIG_PNP
-static int __init snd_opl3sa2_pnp(int dev, struct snd_opl3sa2 *chip,
-				  struct pnp_dev *pdev)
+static int __devinit snd_opl3sa2_pnp(int dev, struct snd_opl3sa2 *chip,
+				     struct pnp_dev *pdev)
 {
 	struct pnp_resource_table * cfg;
 	int err;
@@ -862,7 +862,7 @@ static struct pnp_card_driver opl3sa2_pnpc_driver = {
 };
 #endif /* CONFIG_PNP */
 
-static int __init snd_opl3sa2_nonpnp_probe(struct platform_device *pdev)
+static int __devinit snd_opl3sa2_nonpnp_probe(struct platform_device *pdev)
 {
 	struct snd_card *card;
 	int err;
