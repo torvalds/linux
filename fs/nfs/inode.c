@@ -221,6 +221,14 @@ nfs_block_size(unsigned long bsize, unsigned char *nrbitsp)
 	return nfs_block_bits(bsize, nrbitsp);
 }
 
+static inline void
+nfs_super_set_maxbytes(struct super_block *sb, __u64 maxfilesize)
+{
+	sb->s_maxbytes = (loff_t)maxfilesize;
+	if (sb->s_maxbytes > MAX_LFS_FILESIZE || sb->s_maxbytes <= 0)
+		sb->s_maxbytes = MAX_LFS_FILESIZE;
+}
+
 /*
  * Obtain the root inode of the file system.
  */
@@ -331,9 +339,7 @@ nfs_sb_init(struct super_block *sb, rpc_authflavor_t authflavor)
 	}
 	server->backing_dev_info.ra_pages = server->rpages * NFS_MAX_READAHEAD;
 
-	sb->s_maxbytes = fsinfo.maxfilesize;
-	if (sb->s_maxbytes > MAX_LFS_FILESIZE) 
-		sb->s_maxbytes = MAX_LFS_FILESIZE; 
+	nfs_super_set_maxbytes(sb, fsinfo.maxfilesize);
 
 	server->client->cl_intr = (server->flags & NFS_MOUNT_INTR) ? 1 : 0;
 	server->client->cl_softrtry = (server->flags & NFS_MOUNT_SOFT) ? 1 : 0;
@@ -877,6 +883,11 @@ nfs_fhget(struct super_block *sb, struct nfs_fh *fh, struct nfs_fattr *fattr)
 			if (nfs_server_capable(inode, NFS_CAP_READDIRPLUS)
 			    && fattr->size <= NFS_LIMIT_READDIRPLUS)
 				set_bit(NFS_INO_ADVISE_RDPLUS, &NFS_FLAGS(inode));
+			/* Deal with crossing mountpoints */
+			if (!nfs_fsid_equal(&NFS_SB(sb)->fsid, &fattr->fsid)) {
+				inode->i_op = &nfs_mountpoint_inode_operations;
+				inode->i_fop = NULL;
+			}
 		} else if (S_ISLNK(inode->i_mode))
 			inode->i_op = &nfs_symlink_inode_operations;
 		else
@@ -1650,6 +1661,141 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
  * File system information
  */
 
+/*
+ * nfs_path - reconstruct the path given an arbitrary dentry
+ * @base - arbitrary string to prepend to the path
+ * @dentry - pointer to dentry
+ * @buffer - result buffer
+ * @buflen - length of buffer
+ *
+ * Helper function for constructing the path from the
+ * root dentry to an arbitrary hashed dentry.
+ *
+ * This is mainly for use in figuring out the path on the
+ * server side when automounting on top of an existing partition.
+ */
+static char *nfs_path(const char *base, const struct dentry *dentry,
+		      char *buffer, ssize_t buflen)
+{
+	char *end = buffer+buflen;
+	int namelen;
+
+	*--end = '\0';
+	buflen--;
+	spin_lock(&dcache_lock);
+	while (!IS_ROOT(dentry)) {
+		namelen = dentry->d_name.len;
+		buflen -= namelen + 1;
+		if (buflen < 0)
+			goto Elong;
+		end -= namelen;
+		memcpy(end, dentry->d_name.name, namelen);
+		*--end = '/';
+		dentry = dentry->d_parent;
+	}
+	spin_unlock(&dcache_lock);
+	namelen = strlen(base);
+	/* Strip off excess slashes in base string */
+	while (namelen > 0 && base[namelen - 1] == '/')
+		namelen--;
+	buflen -= namelen;
+	if (buflen < 0)
+		goto Elong;
+	end -= namelen;
+	memcpy(end, base, namelen);
+	return end;
+Elong:
+	return ERR_PTR(-ENAMETOOLONG);
+}
+
+struct nfs_clone_mount {
+	const struct super_block *sb;
+	const struct dentry *dentry;
+	struct nfs_fh *fh;
+	struct nfs_fattr *fattr;
+};
+
+static struct super_block *nfs_clone_generic_sb(struct nfs_clone_mount *data,
+		struct super_block *(*clone_client)(struct nfs_server *, struct nfs_clone_mount *))
+{
+	struct nfs_server *server;
+	struct nfs_server *parent = NFS_SB(data->sb);
+	struct super_block *sb = ERR_PTR(-EINVAL);
+	void *err = ERR_PTR(-ENOMEM);
+	struct inode *root_inode;
+	struct nfs_fsinfo fsinfo;
+	int len;
+
+	server = kmalloc(sizeof(struct nfs_server), GFP_KERNEL);
+	if (server == NULL)
+		goto out_err;
+	memcpy(server, parent, sizeof(*server));
+	len = strlen(parent->hostname) + 1;
+	server->hostname = kmalloc(len, GFP_KERNEL);
+	if (server->hostname == NULL)
+		goto free_server;
+	memcpy(server->hostname, parent->hostname, len);
+	server->fsid = data->fattr->fsid;
+	nfs_copy_fh(&server->fh, data->fh);
+	if (rpciod_up() != 0)
+		goto free_hostname;
+
+	sb = clone_client(server, data);
+	if (IS_ERR((err = sb)) || sb->s_root)
+		goto kill_rpciod;
+
+	sb->s_op = data->sb->s_op;
+	sb->s_blocksize = data->sb->s_blocksize;
+	sb->s_blocksize_bits = data->sb->s_blocksize_bits;
+	sb->s_maxbytes = data->sb->s_maxbytes;
+
+	server->client_sys = server->client_acl = ERR_PTR(-EINVAL);
+	err = ERR_PTR(-ENOMEM);
+	server->io_stats = nfs_alloc_iostats();
+	if (server->io_stats == NULL)
+		goto out_deactivate;
+
+	server->client = rpc_clone_client(parent->client);
+	if (IS_ERR((err = server->client)))
+		goto out_deactivate;
+	if (!IS_ERR(parent->client_sys)) {
+		server->client_sys = rpc_clone_client(parent->client_sys);
+		if (IS_ERR((err = server->client_sys)))
+			goto out_deactivate;
+	}
+	if (!IS_ERR(parent->client_acl)) {
+		server->client_acl = rpc_clone_client(parent->client_acl);
+		if (IS_ERR((err = server->client_acl)))
+			goto out_deactivate;
+	}
+	root_inode = nfs_fhget(sb, data->fh, data->fattr);
+	if (!root_inode)
+		goto out_deactivate;
+	sb->s_root = d_alloc_root(root_inode);
+	if (!sb->s_root)
+		goto out_put_root;
+	fsinfo.fattr = data->fattr;
+	if (NFS_PROTO(root_inode)->fsinfo(server, data->fh, &fsinfo) == 0)
+		nfs_super_set_maxbytes(sb, fsinfo.maxfilesize);
+	sb->s_root->d_op = server->rpc_ops->dentry_ops;
+	sb->s_flags |= MS_ACTIVE;
+	return sb;
+out_put_root:
+	iput(root_inode);
+out_deactivate:
+	up_write(&sb->s_umount);
+	deactivate_super(sb);
+	return (struct super_block *)err;
+kill_rpciod:
+	rpciod_down();
+free_hostname:
+	kfree(server->hostname);
+free_server:
+	kfree(server);
+out_err:
+	return (struct super_block *)err;
+}
+
 static int nfs_set_super(struct super_block *s, void *data)
 {
 	s->s_fs_info = data;
@@ -1803,6 +1949,31 @@ static struct file_system_type nfs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "nfs",
 	.get_sb		= nfs_get_sb,
+	.kill_sb	= nfs_kill_super,
+	.fs_flags	= FS_ODD_RENAME|FS_REVAL_DOT|FS_BINARY_MOUNTDATA,
+};
+
+static struct super_block *nfs_clone_client(struct nfs_server *server, struct nfs_clone_mount *data)
+{
+	struct super_block *sb;
+
+	sb = sget(&nfs_fs_type, nfs_compare_super, nfs_set_super, server);
+	if (!IS_ERR(sb) && sb->s_root == NULL && !(server->flags & NFS_MOUNT_NONLM))
+		lockd_up();
+	return sb;
+}
+
+static struct super_block *nfs_clone_nfs_sb(struct file_system_type *fs_type,
+		int flags, const char *dev_name, void *raw_data)
+{
+	struct nfs_clone_mount *data = raw_data;
+	return nfs_clone_generic_sb(data, nfs_clone_client);
+}
+
+static struct file_system_type clone_nfs_fs_type = {
+	.owner		= THIS_MODULE,
+	.name		= "nfs",
+	.get_sb		= nfs_clone_nfs_sb,
 	.kill_sb	= nfs_kill_super,
 	.fs_flags	= FS_ODD_RENAME|FS_REVAL_DOT|FS_BINARY_MOUNTDATA,
 };
@@ -2156,6 +2327,75 @@ static int param_set_idmap_timeout(const char *val, struct kernel_param *kp)
 module_param_call(idmap_cache_timeout, param_set_idmap_timeout, param_get_int,
 		 &nfs_idmap_cache_timeout, 0644);
 
+/* Constructs the SERVER-side path */
+static inline char *nfs4_path(const struct dentry *dentry, char *buffer, ssize_t buflen)
+{
+	return nfs_path(NFS_SB(dentry->d_sb)->mnt_path, dentry, buffer, buflen);
+}
+
+static inline char *nfs4_dup_path(const struct dentry *dentry)
+{
+	char *page = (char *) __get_free_page(GFP_USER);
+	char *path;
+
+	path = nfs4_path(dentry, page, PAGE_SIZE);
+	if (!IS_ERR(path)) {
+		int len = PAGE_SIZE + page - path;
+		char *tmp = path;
+
+		path = kmalloc(len, GFP_KERNEL);
+		if (path)
+			memcpy(path, tmp, len);
+		else
+			path = ERR_PTR(-ENOMEM);
+	}
+	free_page((unsigned long)page);
+	return path;
+}
+
+static struct super_block *nfs4_clone_client(struct nfs_server *server, struct nfs_clone_mount *data)
+{
+	const struct dentry *dentry = data->dentry;
+	struct nfs4_client *clp = server->nfs4_state;
+	struct super_block *sb;
+
+	server->mnt_path = nfs4_dup_path(dentry);
+	if (IS_ERR(server->mnt_path)) {
+		sb = (struct super_block *)server->mnt_path;
+		goto err;
+	}
+	sb = sget(&nfs4_fs_type, nfs4_compare_super, nfs_set_super, server);
+	if (IS_ERR(sb) || sb->s_root)
+		goto free_path;
+	nfs4_server_capabilities(server, &server->fh);
+
+	down_write(&clp->cl_sem);
+	atomic_inc(&clp->cl_count);
+	list_add_tail(&server->nfs4_siblings, &clp->cl_superblocks);
+	up_write(&clp->cl_sem);
+	return sb;
+free_path:
+	kfree(server->mnt_path);
+err:
+	server->mnt_path = NULL;
+	return sb;
+}
+
+static struct super_block *nfs_clone_nfs4_sb(struct file_system_type *fs_type,
+		int flags, const char *dev_name, void *raw_data)
+{
+	struct nfs_clone_mount *data = raw_data;
+	return nfs_clone_generic_sb(data, nfs4_clone_client);
+}
+
+static struct file_system_type clone_nfs4_fs_type = {
+	.owner		= THIS_MODULE,
+	.name		= "nfs",
+	.get_sb		= nfs_clone_nfs4_sb,
+	.kill_sb	= nfs4_kill_super,
+	.fs_flags	= FS_ODD_RENAME|FS_REVAL_DOT|FS_BINARY_MOUNTDATA,
+};
+
 #define nfs4_init_once(nfsi) \
 	do { \
 		INIT_LIST_HEAD(&(nfsi)->open_states); \
@@ -2183,11 +2423,68 @@ static inline void unregister_nfs4fs(void)
 	nfs_unregister_sysctl();
 }
 #else
+#define nfs4_clone_client(a,b) ERR_PTR(-EINVAL)
 #define nfs4_init_once(nfsi) \
 	do { } while (0)
 #define register_nfs4fs() (0)
 #define unregister_nfs4fs()
 #endif
+
+static inline char *nfs_devname(const struct vfsmount *mnt_parent,
+			 const struct dentry *dentry,
+			 char *buffer, ssize_t buflen)
+{
+	return nfs_path(mnt_parent->mnt_devname, dentry, buffer, buflen);
+}
+
+/**
+ * nfs_do_submount - set up mountpoint when crossing a filesystem boundary
+ * @mnt_parent - mountpoint of parent directory
+ * @dentry - parent directory
+ * @fh - filehandle for new root dentry
+ * @fattr - attributes for new root inode
+ *
+ */
+struct vfsmount *nfs_do_submount(const struct vfsmount *mnt_parent,
+		const struct dentry *dentry, struct nfs_fh *fh,
+		struct nfs_fattr *fattr)
+{
+	struct nfs_clone_mount mountdata = {
+		.sb = mnt_parent->mnt_sb,
+		.dentry = dentry,
+		.fh = fh,
+		.fattr = fattr,
+	};
+	struct vfsmount *mnt = ERR_PTR(-ENOMEM);
+	char *page = (char *) __get_free_page(GFP_USER);
+	char *devname;
+
+	dprintk("%s: submounting on %s/%s\n", __FUNCTION__,
+			dentry->d_parent->d_name.name,
+			dentry->d_name.name);
+	if (page == NULL)
+		goto out;
+	devname = nfs_devname(mnt_parent, dentry, page, PAGE_SIZE);
+	mnt = (struct vfsmount *)devname;
+	if (IS_ERR(devname))
+		goto free_page;
+	switch (NFS_SB(mnt_parent->mnt_sb)->rpc_ops->version) {
+		case 2:
+		case 3:
+			mnt = vfs_kern_mount(&clone_nfs_fs_type, 0, devname, &mountdata);
+			break;
+		case 4:
+			mnt = vfs_kern_mount(&clone_nfs4_fs_type, 0, devname, &mountdata);
+			break;
+		default:
+			BUG();
+	}
+free_page:
+	free_page((unsigned long)page);
+out:
+	dprintk("%s: done\n", __FUNCTION__);
+	return mnt;
+}
 
 extern int nfs_init_nfspagecache(void);
 extern void nfs_destroy_nfspagecache(void);

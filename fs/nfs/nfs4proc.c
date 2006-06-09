@@ -1331,7 +1331,7 @@ static int _nfs4_server_capabilities(struct nfs_server *server, struct nfs_fh *f
 	return status;
 }
 
-static int nfs4_server_capabilities(struct nfs_server *server, struct nfs_fh *fhandle)
+int nfs4_server_capabilities(struct nfs_server *server, struct nfs_fh *fhandle)
 {
 	struct nfs4_exception exception = { };
 	int err;
