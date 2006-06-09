@@ -253,11 +253,12 @@ static int v9fs_show_options(struct seq_file *m, struct vfsmount *mnt)
 }
 
 static void
-v9fs_umount_begin(struct super_block *sb)
+v9fs_umount_begin(struct vfsmount *vfsmnt, int flags)
 {
-	struct v9fs_session_info *v9ses = sb->s_fs_info;
+	struct v9fs_session_info *v9ses = vfsmnt->mnt_sb->s_fs_info;
 
-	v9fs_session_cancel(v9ses);
+	if (flags & MNT_FORCE)
+		v9fs_session_cancel(v9ses);
 }
 
 static struct super_operations v9fs_super_ops = {

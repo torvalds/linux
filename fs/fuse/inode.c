@@ -195,9 +195,10 @@ struct inode *fuse_iget(struct super_block *sb, unsigned long nodeid,
 	return inode;
 }
 
-static void fuse_umount_begin(struct super_block *sb)
+static void fuse_umount_begin(struct vfsmount *vfsmnt, int flags)
 {
-	fuse_abort_conn(get_fuse_conn_super(sb));
+	if (flags & MNT_FORCE)
+		fuse_abort_conn(get_fuse_conn_super(vfsmnt->mnt_sb));
 }
 
 static void fuse_put_super(struct super_block *sb)

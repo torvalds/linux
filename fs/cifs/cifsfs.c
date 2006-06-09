@@ -402,12 +402,14 @@ static struct quotactl_ops cifs_quotactl_ops = {
 #endif
 
 #ifdef CONFIG_CIFS_EXPERIMENTAL
-static void cifs_umount_begin(struct super_block * sblock)
+static void cifs_umount_begin(struct vfsmount * vfsmnt, int flags)
 {
 	struct cifs_sb_info *cifs_sb;
 	struct cifsTconInfo * tcon;
 
-	cifs_sb = CIFS_SB(sblock);
+	if (!(flags & MNT_FORCE))
+		return;
+	cifs_sb = CIFS_SB(vfsmnt->mnt_sb);
 	if(cifs_sb == NULL)
 		return;
 

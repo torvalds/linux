@@ -63,7 +63,7 @@ static struct inode *nfs_alloc_inode(struct super_block *sb);
 static void nfs_destroy_inode(struct inode *);
 static int nfs_write_inode(struct inode *,int);
 static void nfs_clear_inode(struct inode *);
-static void nfs_umount_begin(struct super_block *);
+static void nfs_umount_begin(struct vfsmount *, int);
 static int  nfs_statfs(struct super_block *, struct kstatfs *);
 static int  nfs_show_options(struct seq_file *, struct vfsmount *);
 static int  nfs_show_stats(struct seq_file *, struct vfsmount *);
@@ -162,15 +162,19 @@ nfs_clear_inode(struct inode *inode)
 	BUG_ON(atomic_read(&nfsi->data_updates) != 0);
 }
 
-void
-nfs_umount_begin(struct super_block *sb)
+static void nfs_umount_begin(struct vfsmount *vfsmnt, int flags)
 {
-	struct rpc_clnt	*rpc = NFS_SB(sb)->client;
+	struct nfs_server *server;
+	struct rpc_clnt	*rpc;
 
+	if (!(flags & MNT_FORCE))
+		return;
 	/* -EIO all pending I/O */
+	server = NFS_SB(vfsmnt->mnt_sb);
+	rpc = server->client;
 	if (!IS_ERR(rpc))
 		rpc_killall_tasks(rpc);
-	rpc = NFS_SB(sb)->client_acl;
+	rpc = server->client_acl;
 	if (!IS_ERR(rpc))
 		rpc_killall_tasks(rpc);
 }

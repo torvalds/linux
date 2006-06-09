@@ -576,8 +576,8 @@ static int do_umount(struct vfsmount *mnt, int flags)
 	 */
 
 	lock_kernel();
-	if ((flags & MNT_FORCE) && sb->s_op->umount_begin)
-		sb->s_op->umount_begin(sb);
+	if (sb->s_op->umount_begin)
+		sb->s_op->umount_begin(mnt, flags);
 	unlock_kernel();
 
 	/*
