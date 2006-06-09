@@ -1654,10 +1654,10 @@ xfs_vget(
 #define MNTOPT_NOATTR2	"noattr2"	/* do not use attr2 attribute format */
 
 STATIC unsigned long
-suffix_strtoul(const char *cp, char **endp, unsigned int base)
+suffix_strtoul(char *s, char **endp, unsigned int base)
 {
 	int	last, shift_left_factor = 0;
-	char	*value = (char *)cp;
+	char	*value = s;
 
 	last = strlen(value) - 1;
 	if (value[last] == 'K' || value[last] == 'k') {
@@ -1673,7 +1673,7 @@ suffix_strtoul(const char *cp, char **endp, unsigned int base)
 		value[last] = '\0';
 	}
 
-	return simple_strtoul(cp, endp, base) << shift_left_factor;
+	return simple_strtoul((const char *)s, endp, base) << shift_left_factor;
 }
 
 STATIC int
