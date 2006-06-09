@@ -378,7 +378,7 @@ out:
 	return res;
 }
 
-int nfs_init_nfspagecache(void)
+int __init nfs_init_nfspagecache(void)
 {
 	nfs_page_cachep = kmem_cache_create("nfs_page",
 					    sizeof(struct nfs_page),
@@ -390,7 +390,7 @@ int nfs_init_nfspagecache(void)
 	return 0;
 }
 
-void nfs_destroy_nfspagecache(void)
+void __exit nfs_destroy_nfspagecache(void)
 {
 	if (kmem_cache_destroy(nfs_page_cachep))
 		printk(KERN_INFO "nfs_page: not all structures were freed\n");

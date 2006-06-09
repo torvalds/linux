@@ -65,8 +65,6 @@ static int nfs4_async_handle_error(struct rpc_task *, const struct nfs_server *)
 static int _nfs4_proc_access(struct inode *inode, struct nfs_access_entry *entry);
 static int nfs4_handle_exception(const struct nfs_server *server, int errorcode, struct nfs4_exception *exception);
 static int nfs4_wait_clnt_recover(struct rpc_clnt *clnt, struct nfs4_client *clp);
-extern u32 *nfs4_decode_dirent(u32 *p, struct nfs_entry *entry, int plus);
-extern struct rpc_procinfo nfs4_procedures[];
 
 /* Prevent leaks of NFSv4 errors into userland */
 int nfs4_map_errors(int err)

@@ -27,8 +27,6 @@
 #define NFSDBG_FACILITY		NFSDBG_XDR
 /* #define NFS_PARANOIA 1 */
 
-extern int			nfs_stat_to_errno(int stat);
-
 /* Mapping from NFS error code to "errno" error code. */
 #define errno_NFSERR_IO		EIO
 

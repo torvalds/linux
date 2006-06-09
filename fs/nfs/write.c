@@ -1529,7 +1529,7 @@ int nfs_sync_inode_wait(struct inode *inode, unsigned long idx_start,
 	return ret;
 }
 
-int nfs_init_writepagecache(void)
+int __init nfs_init_writepagecache(void)
 {
 	nfs_wdata_cachep = kmem_cache_create("nfs_write_data",
 					     sizeof(struct nfs_write_data),
@@ -1551,7 +1551,7 @@ int nfs_init_writepagecache(void)
 	return 0;
 }
 
-void nfs_destroy_writepagecache(void)
+void __exit nfs_destroy_writepagecache(void)
 {
 	mempool_destroy(nfs_commit_mempool);
 	mempool_destroy(nfs_wdata_mempool);

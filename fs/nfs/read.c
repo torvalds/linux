@@ -694,7 +694,7 @@ int nfs_readpages(struct file *filp, struct address_space *mapping,
 	return ret;
 }
 
-int nfs_init_readpagecache(void)
+int __init nfs_init_readpagecache(void)
 {
 	nfs_rdata_cachep = kmem_cache_create("nfs_read_data",
 					     sizeof(struct nfs_read_data),
@@ -711,7 +711,7 @@ int nfs_init_readpagecache(void)
 	return 0;
 }
 
-void nfs_destroy_readpagecache(void)
+void __exit nfs_destroy_readpagecache(void)
 {
 	mempool_destroy(nfs_rdata_mempool);
 	if (kmem_cache_destroy(nfs_rdata_cachep))

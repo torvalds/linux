@@ -15,13 +15,62 @@
 #include <linux/string.h>
 #include <linux/sunrpc/clnt.h>
 #include <linux/vfs.h>
+#include "internal.h"
 
 #define NFSDBG_FACILITY		NFSDBG_VFS
 
-LIST_HEAD(nfs_automount_list);
 static void nfs_expire_automounts(void *list);
+
+LIST_HEAD(nfs_automount_list);
 static DECLARE_WORK(nfs_automount_task, nfs_expire_automounts, &nfs_automount_list);
 int nfs_mountpoint_expiry_timeout = 500 * HZ;
+
+/*
+ * nfs_path - reconstruct the path given an arbitrary dentry
+ * @base - arbitrary string to prepend to the path
+ * @dentry - pointer to dentry
+ * @buffer - result buffer
+ * @buflen - length of buffer
+ *
+ * Helper function for constructing the path from the
+ * root dentry to an arbitrary hashed dentry.
+ *
+ * This is mainly for use in figuring out the path on the
+ * server side when automounting on top of an existing partition.
+ */
+char *nfs_path(const char *base, const struct dentry *dentry,
+	       char *buffer, ssize_t buflen)
+{
+	char *end = buffer+buflen;
+	int namelen;
+
+	*--end = '\0';
+	buflen--;
+	spin_lock(&dcache_lock);
+	while (!IS_ROOT(dentry)) {
+		namelen = dentry->d_name.len;
+		buflen -= namelen + 1;
+		if (buflen < 0)
+			goto Elong;
+		end -= namelen;
+		memcpy(end, dentry->d_name.name, namelen);
+		*--end = '/';
+		dentry = dentry->d_parent;
+	}
+	spin_unlock(&dcache_lock);
+	namelen = strlen(base);
+	/* Strip off excess slashes in base string */
+	while (namelen > 0 && base[namelen - 1] == '/')
+		namelen--;
+	buflen -= namelen;
+	if (buflen < 0)
+		goto Elong;
+	end -= namelen;
+	memcpy(end, base, namelen);
+	return end;
+Elong:
+	return ERR_PTR(-ENAMETOOLONG);
+}
 
 /*
  * nfs_follow_mountpoint - handle crossing a mountpoint on the server
@@ -116,4 +165,65 @@ void nfs_release_automount_timer(void)
 		cancel_delayed_work(&nfs_automount_task);
 		flush_scheduled_work();
 	}
+}
+
+/*
+ * Clone a mountpoint of the appropriate type
+ */
+static struct vfsmount *nfs_do_clone_mount(struct nfs_server *server, char *devname,
+					   struct nfs_clone_mount *mountdata)
+{
+#ifdef CONFIG_NFS_V4
+	struct vfsmount *mnt = NULL;
+	switch (server->rpc_ops->version) {
+		case 2:
+		case 3:
+			mnt = vfs_kern_mount(&clone_nfs_fs_type, 0, devname, mountdata);
+			break;
+		case 4:
+			mnt = vfs_kern_mount(&clone_nfs4_fs_type, 0, devname, mountdata);
+	}
+	return mnt;
+#else
+	return vfs_kern_mount(&clone_nfs_fs_type, 0, devname, mountdata);
+#endif
+}
+
+/**
+ * nfs_do_submount - set up mountpoint when crossing a filesystem boundary
+ * @mnt_parent - mountpoint of parent directory
+ * @dentry - parent directory
+ * @fh - filehandle for new root dentry
+ * @fattr - attributes for new root inode
+ *
+ */
+struct vfsmount *nfs_do_submount(const struct vfsmount *mnt_parent,
+		const struct dentry *dentry, struct nfs_fh *fh,
+		struct nfs_fattr *fattr)
+{
+	struct nfs_clone_mount mountdata = {
+		.sb = mnt_parent->mnt_sb,
+		.dentry = dentry,
+		.fh = fh,
+		.fattr = fattr,
+	};
+	struct vfsmount *mnt = ERR_PTR(-ENOMEM);
+	char *page = (char *) __get_free_page(GFP_USER);
+	char *devname;
+
+	dprintk("%s: submounting on %s/%s\n", __FUNCTION__,
+			dentry->d_parent->d_name.name,
+			dentry->d_name.name);
+	if (page == NULL)
+		goto out;
+	devname = nfs_devname(mnt_parent, dentry, page, PAGE_SIZE);
+	mnt = (struct vfsmount *)devname;
+	if (IS_ERR(devname))
+		goto free_page;
+	mnt = nfs_do_clone_mount(NFS_SB(mnt_parent->mnt_sb), devname, &mountdata);
+free_page:
+	free_page((unsigned long)page);
+out:
+	dprintk("%s: done\n", __FUNCTION__);
+	return mnt;
 }
