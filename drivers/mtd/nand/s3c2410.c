@@ -256,7 +256,7 @@ static void s3c2410_nand_select_chip(struct mtd_info *mtd, int chip)
 */
 
 static void s3c2410_nand_hwcontrol(struct mtd_info *mtd, int cmd,
-				   unsigend int ctrl)
+				   unsigned int ctrl)
 {
 	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
 	struct nand_chip *chip = mtd->priv;
@@ -264,7 +264,7 @@ static void s3c2410_nand_hwcontrol(struct mtd_info *mtd, int cmd,
 	if (cmd == NAND_CMD_NONE)
 		return;
 
-	if (cmd & NAND_CLE)
+	if (ctrl & NAND_CLE)
 		writeb(cmd, info->regs + S3C2410_NFCMD);
 	else
 		writeb(cmd, info->regs + S3C2410_NFADDR);
@@ -272,8 +272,8 @@ static void s3c2410_nand_hwcontrol(struct mtd_info *mtd, int cmd,
 
 /* command and control functions */
 
-static void s3c2410_nand_hwcontrol(struct mtd_info *mtd, int cmd,
-				   unsigend int ctrl)
+static void s3c2440_nand_hwcontrol(struct mtd_info *mtd, int cmd,
+				   unsigned int ctrl)
 {
 	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
 	struct nand_chip *chip = mtd->priv;
@@ -281,7 +281,7 @@ static void s3c2410_nand_hwcontrol(struct mtd_info *mtd, int cmd,
 	if (cmd == NAND_CMD_NONE)
 		return;
 
-	if (cmd & NAND_CLE)
+	if (ctrl & NAND_CLE)
 		writeb(cmd, info->regs + S3C2440_NFCMD);
 	else
 		writeb(cmd, info->regs + S3C2440_NFADDR);
