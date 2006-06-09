@@ -668,10 +668,10 @@ xfs_write(
 	io = &xip->i_iocore;
 	mp = io->io_mount;
 
+	vfs_wait_for_freeze(vp->v_vfsp, SB_FREEZE_WRITE);
+
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;
-
-	fs_check_frozen(vp->v_vfsp, SB_FREEZE_WRITE);
 
 	if (ioflags & IO_ISDIRECT) {
 		xfs_buftarg_t	*target =

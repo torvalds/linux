@@ -817,7 +817,7 @@ xfs_log_need_covered(xfs_mount_t *mp)
 	xlog_t		*log = mp->m_log;
 	bhv_vfs_t	*vfsp = XFS_MTOVFS(mp);
 
-	if (fs_frozen(vfsp) || XFS_FORCED_SHUTDOWN(mp) ||
+	if (vfs_test_for_freeze(vfsp) || XFS_FORCED_SHUTDOWN(mp) ||
 	    (vfsp->vfs_flag & VFS_RDONLY))
 		return 0;
 

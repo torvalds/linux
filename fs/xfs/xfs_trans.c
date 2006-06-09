@@ -236,11 +236,8 @@ xfs_trans_alloc(
 	xfs_mount_t	*mp,
 	uint		type)
 {
-	fs_check_frozen(XFS_MTOVFS(mp), SB_FREEZE_TRANS);
-	atomic_inc(&mp->m_active_trans);
-
-	return (_xfs_trans_alloc(mp, type));
-
+	vfs_wait_for_freeze(XFS_MTOVFS(mp), SB_FREEZE_TRANS);
+	return _xfs_trans_alloc(mp, type);
 }
 
 xfs_trans_t *
@@ -250,12 +247,9 @@ _xfs_trans_alloc(
 {
 	xfs_trans_t	*tp;
 
-	ASSERT(xfs_trans_zone != NULL);
-	tp = kmem_zone_zalloc(xfs_trans_zone, KM_SLEEP);
+	atomic_inc(&mp->m_active_trans);
 
-	/*
-	 * Initialize the transaction structure.
-	 */
+	tp = kmem_zone_zalloc(xfs_trans_zone, KM_SLEEP);
 	tp->t_magic = XFS_TRANS_MAGIC;
 	tp->t_type = type;
 	tp->t_mountp = mp;
@@ -263,8 +257,7 @@ _xfs_trans_alloc(
 	tp->t_busy_free = XFS_LBC_NUM_SLOTS;
 	XFS_LIC_INIT(&(tp->t_items));
 	XFS_LBC_INIT(&(tp->t_busy));
-
-	return (tp);
+	return tp;
 }
 
 /*
