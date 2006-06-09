@@ -4191,7 +4191,7 @@ static int bond_init(struct net_device *bond_dev, struct bond_params *params)
 	 */
 	bond_dev->features |= NETIF_F_VLAN_CHALLENGED;
 
-	/* don't acquire bond device's xmit_lock when 
+	/* don't acquire bond device's netif_tx_lock when
 	 * transmitting */
 	bond_dev->features |= NETIF_F_LLTX;
 

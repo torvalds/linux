@@ -2009,7 +2009,7 @@ bnx2_poll(struct net_device *dev, int *budget)
 	return 1;
 }
 
-/* Called with rtnl_lock from vlan functions and also dev->xmit_lock
+/* Called with rtnl_lock from vlan functions and also netif_tx_lock
  * from set_multicast.
  */
 static void
@@ -4252,7 +4252,7 @@ bnx2_vlan_rx_kill_vid(struct net_device *dev, uint16_t vid)
 }
 #endif
 
-/* Called with dev->xmit_lock.
+/* Called with netif_tx_lock.
  * hard_start_xmit is pseudo-lockless - a lock is only required when
  * the tx queue is full. This way, we get the benefit of lockless
  * operations most of the time without the complexities to handle

@@ -1833,7 +1833,9 @@ static int __orinoco_program_rids(struct net_device *dev)
 	/* Set promiscuity / multicast*/
 	priv->promiscuous = 0;
 	priv->mc_count = 0;
-	__orinoco_set_multicast_list(dev); /* FIXME: what about the xmit_lock */
+
+	/* FIXME: what about netif_tx_lock */
+	__orinoco_set_multicast_list(dev);
 
 	return 0;
 }

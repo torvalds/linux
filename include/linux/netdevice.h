@@ -407,7 +407,7 @@ struct net_device
  * One part is mostly used on xmit path (device)
  */
 	/* hard_start_xmit synchronizer */
-	spinlock_t		xmit_lock ____cacheline_aligned_in_smp;
+	spinlock_t		_xmit_lock ____cacheline_aligned_in_smp;
 	/* cpu id of processor entered to hard_start_xmit or -1,
 	   if nobody entered there.
 	 */
@@ -893,11 +893,43 @@ static inline void __netif_rx_complete(struct net_device *dev)
 	clear_bit(__LINK_STATE_RX_SCHED, &dev->state);
 }
 
+static inline void netif_tx_lock(struct net_device *dev)
+{
+	spin_lock(&dev->_xmit_lock);
+	dev->xmit_lock_owner = smp_processor_id();
+}
+
+static inline void netif_tx_lock_bh(struct net_device *dev)
+{
+	spin_lock_bh(&dev->_xmit_lock);
+	dev->xmit_lock_owner = smp_processor_id();
+}
+
+static inline int netif_tx_trylock(struct net_device *dev)
+{
+	int err = spin_trylock(&dev->_xmit_lock);
+	if (!err)
+		dev->xmit_lock_owner = smp_processor_id();
+	return err;
+}
+
+static inline void netif_tx_unlock(struct net_device *dev)
+{
+	dev->xmit_lock_owner = -1;
+	spin_unlock(&dev->_xmit_lock);
+}
+
+static inline void netif_tx_unlock_bh(struct net_device *dev)
+{
+	dev->xmit_lock_owner = -1;
+	spin_unlock_bh(&dev->_xmit_lock);
+}
+
 static inline void netif_tx_disable(struct net_device *dev)
 {
-	spin_lock_bh(&dev->xmit_lock);
+	netif_tx_lock_bh(dev);
 	netif_stop_queue(dev);
-	spin_unlock_bh(&dev->xmit_lock);
+	netif_tx_unlock_bh(dev);
 }
 
 /* These functions live elsewhere (drivers/net/net_init.c, but related) */

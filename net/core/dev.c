@@ -1282,15 +1282,13 @@ int __skb_linearize(struct sk_buff *skb, gfp_t gfp_mask)
 
 #define HARD_TX_LOCK(dev, cpu) {			\
 	if ((dev->features & NETIF_F_LLTX) == 0) {	\
-		spin_lock(&dev->xmit_lock);		\
-		dev->xmit_lock_owner = cpu;		\
+		netif_tx_lock(dev);			\
 	}						\
 }
 
 #define HARD_TX_UNLOCK(dev) {				\
 	if ((dev->features & NETIF_F_LLTX) == 0) {	\
-		dev->xmit_lock_owner = -1;		\
-		spin_unlock(&dev->xmit_lock);		\
+		netif_tx_unlock(dev);			\
 	}						\
 }
 
@@ -1389,8 +1387,8 @@ int dev_queue_xmit(struct sk_buff *skb)
 	/* The device has no queue. Common case for software devices:
 	   loopback, all the sorts of tunnels...
 
-	   Really, it is unlikely that xmit_lock protection is necessary here.
-	   (f.e. loopback and IP tunnels are clean ignoring statistics
+	   Really, it is unlikely that netif_tx_lock protection is necessary
+	   here.  (f.e. loopback and IP tunnels are clean ignoring statistics
 	   counters.)
 	   However, it is possible, that they rely on protection
 	   made by us here.
@@ -2805,7 +2803,7 @@ int register_netdevice(struct net_device *dev)
 	BUG_ON(dev->reg_state != NETREG_UNINITIALIZED);
 
 	spin_lock_init(&dev->queue_lock);
-	spin_lock_init(&dev->xmit_lock);
+	spin_lock_init(&dev->_xmit_lock);
 	dev->xmit_lock_owner = -1;
 #ifdef CONFIG_NET_CLS_ACT
 	spin_lock_init(&dev->ingress_lock);
