@@ -41,11 +41,6 @@
 #include "xfs_error.h"
 #include "xfs_btree.h"
 
-#ifndef HAVE_USERACC
-#define useracc(ubuffer, size, flags, foo) (0)
-#define unuseracc(ubuffer, size, flags)
-#endif
-
 STATIC int
 xfs_bulkstat_one_iget(
 	xfs_mount_t	*mp,		/* mount point for filesystem */
@@ -335,15 +330,6 @@ xfs_bulkstat(
 		(XFS_INODE_CLUSTER_SIZE(mp) >> mp->m_sb.sb_inodelog);
 	nimask = ~(nicluster - 1);
 	nbcluster = nicluster >> mp->m_sb.sb_inopblog;
-	/*
-	 * Lock down the user's buffer. If a buffer was not sent, as in the case
-	 * disk quota code calls here, we skip this.
-	 */
-	if (ubuffer &&
-	    (error = useracc(ubuffer, ubcount * statstruct_size,
-			(B_READ|B_PHYS), NULL))) {
-		return error;
-	}
 	/*
 	 * Allocate a page-sized buffer for inode btree records.
 	 * We could try allocating something smaller, but for normal
@@ -650,8 +636,6 @@ xfs_bulkstat(
 	 * Done, we're either out of filesystem or space to put the data.
 	 */
 	kmem_free(irbuf, NBPC);
-	if (ubuffer)
-		unuseracc(ubuffer, ubcount * statstruct_size, (B_READ|B_PHYS));
 	*ubcountp = ubelem;
 	if (agno >= mp->m_sb.sb_agcount) {
 		/*

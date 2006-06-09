@@ -1905,9 +1905,7 @@ xfs_qm_quotacheck(
 		 */
 		if ((error = xfs_bulkstat(mp, &lastino, &count,
 				     xfs_qm_dqusage_adjust, NULL,
-				     structsz, NULL,
-				     BULKSTAT_FG_IGET|BULKSTAT_FG_VFSLOCKED,
-				     &done)))
+				     structsz, NULL, BULKSTAT_FG_IGET, &done)))
 			break;
 
 	} while (! done);
