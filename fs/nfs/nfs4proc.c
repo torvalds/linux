@@ -3575,8 +3575,8 @@ int nfs4_proc_fs_locations(struct inode *dir, struct dentry *dentry,
 {
 	struct nfs_server *server = NFS_SERVER(dir);
 	u32 bitmask[2] = {
-		[0] = server->attr_bitmask[0] | FATTR4_WORD0_FS_LOCATIONS,
-		[1] = server->attr_bitmask[1],
+		[0] = FATTR4_WORD0_FSID | FATTR4_WORD0_FS_LOCATIONS,
+		[1] = FATTR4_WORD1_MOUNTED_ON_FILEID,
 	};
 	struct nfs4_fs_locations_arg args = {
 		.dir_fh = NFS_FH(dir),
