@@ -1157,6 +1157,18 @@ out_unlock:
 	return error;
 }
 
+STATIC int
+xfs_vm_writepages(
+	struct address_space	*mapping,
+	struct writeback_control *wbc)
+{
+	struct vnode		*vp = vn_from_inode(mapping->host);
+
+	if (VN_TRUNC(vp))
+		VUNTRUNCATE(vp);
+	return generic_writepages(mapping, wbc);
+}
+
 /*
  * Called to move a page into cleanable state - and from there
  * to be released. Possibly the page is already clean. We always
@@ -1451,6 +1463,7 @@ struct address_space_operations xfs_address_space_operations = {
 	.readpage		= xfs_vm_readpage,
 	.readpages		= xfs_vm_readpages,
 	.writepage		= xfs_vm_writepage,
+	.writepages		= xfs_vm_writepages,
 	.sync_page		= block_sync_page,
 	.releasepage		= xfs_vm_releasepage,
 	.invalidatepage		= xfs_vm_invalidatepage,

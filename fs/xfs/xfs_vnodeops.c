@@ -16,8 +16,6 @@
  * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#include <linux/capability.h>
-
 #include "xfs.h"
 #include "xfs_fs.h"
 #include "xfs_types.h"
@@ -58,32 +56,14 @@
 #include "xfs_log_priv.h"
 #include "xfs_mac.h"
 
-
-/*
- * The maximum pathlen is 1024 bytes. Since the minimum file system
- * blocksize is 512 bytes, we can get a max of 2 extents back from
- * bmapi.
- */
-#define SYMLINK_MAPS 2
-
-/*
- * For xfs, we check that the file isn't too big to be opened by this kernel.
- * No other open action is required for regular files.  Devices are handled
- * through the specfs file system, pipes through fifofs.  Device and
- * fifo vnodes are "wrapped" by specfs and fifofs vnodes, respectively,
- * when a new vnode is first looked up or created.
- */
 STATIC int
 xfs_open(
 	bhv_desc_t	*bdp,
 	cred_t		*credp)
 {
 	int		mode;
-	vnode_t		*vp;
-	xfs_inode_t	*ip;
-
-	vp = BHV_TO_VNODE(bdp);
-	ip = XFS_BHVTOI(bdp);
+	vnode_t		*vp = BHV_TO_VNODE(bdp);
+	xfs_inode_t	*ip = XFS_BHVTOI(bdp);
 
 	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
 		return XFS_ERROR(EIO);
@@ -101,6 +81,36 @@ xfs_open(
 	return 0;
 }
 
+STATIC int
+xfs_close(
+	bhv_desc_t	*bdp,
+	int		flags,
+	lastclose_t	lastclose,
+	cred_t		*credp)
+{
+	vnode_t		*vp = BHV_TO_VNODE(bdp);
+	xfs_inode_t	*ip = XFS_BHVTOI(bdp);
+	int		error = 0;
+
+	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
+		return XFS_ERROR(EIO);
+
+	if (lastclose != L_TRUE || !VN_ISREG(vp))
+		return 0;
+
+	/*
+	 * If we previously truncated this file and removed old data in
+	 * the process, we want to initiate "early" writeout on the last
+	 * close.  This is an attempt to combat the notorious NULL files
+	 * problem which is particularly noticable from a truncate down,
+	 * buffered (re-)write (delalloc), followed by a crash.  What we
+	 * are effectively doing here is significantly reducing the time
+	 * window where we'd otherwise be exposed to that problem.
+	 */
+	if (VUNTRUNCATE(vp) && VN_DIRTY(vp) && ip->i_delayed_blks > 0)
+		VOP_FLUSH_PAGES(vp, 0, -1, XFS_B_ASYNC, FI_NONE, error);
+	return error;
+}
 
 /*
  * xfs_getattr
@@ -665,9 +675,17 @@ xfs_setattr(
 					    ((ip->i_d.di_nlink != 0 ||
 					      !(mp->m_flags & XFS_MOUNT_WSYNC))
 					     ? 1 : 0));
-			if (code) {
+			if (code)
 				goto abort_return;
-			}
+			/*
+			 * Truncated "down", so we're removing references
+			 * to old data here - if we now delay flushing for
+			 * a long time, we expose ourselves unduly to the
+			 * notorious NULL files problem.  So, we mark this
+			 * vnode and flush it when the file is closed, and
+			 * do not wait the usual (long) time for writeout.
+			 */
+			VTRUNCATE(vp);
 		}
 		/*
 		 * Have to do this even if the file's size doesn't change.
@@ -935,6 +953,13 @@ xfs_access(
 	return error;
 }
 
+
+/*
+ * The maximum pathlen is 1024 bytes. Since the minimum file system
+ * blocksize is 512 bytes, we can get a max of 2 extents back from
+ * bmapi.
+ */
+#define SYMLINK_MAPS 2
 
 /*
  * xfs_readlink
@@ -1470,9 +1495,6 @@ xfs_inactive_symlink_local(
 	return 0;
 }
 
-/*
- *
- */
 STATIC int
 xfs_inactive_attrs(
 	xfs_inode_t	*ip,
@@ -1531,10 +1553,10 @@ xfs_release(
 
 	vp = BHV_TO_VNODE(bdp);
 	ip = XFS_BHVTOI(bdp);
+	mp = ip->i_mount;
 
-	if (!VN_ISREG(vp) || (ip->i_d.di_mode == 0)) {
+	if (!VN_ISREG(vp) || (ip->i_d.di_mode == 0))
 		return 0;
-	}
 
 	/* If this is a read-only mount, don't do this (would generate I/O) */
 	if (vp->v_vfsp->vfs_flag & VFS_RDONLY)
@@ -1545,8 +1567,6 @@ xfs_release(
 	if (ip->i_refcache)
 		return 0;
 #endif
-
-	mp = ip->i_mount;
 
 	if (ip->i_d.di_nlink != 0) {
 		if ((((ip->i_d.di_mode & S_IFMT) == S_IFREG) &&
@@ -3745,7 +3765,6 @@ xfs_inode_flush(
 	return error;
 }
 
-
 int
 xfs_set_dmattrs (
 	bhv_desc_t	*bdp,
@@ -3786,10 +3805,6 @@ xfs_set_dmattrs (
 	return error;
 }
 
-
-/*
- * xfs_reclaim
- */
 STATIC int
 xfs_reclaim(
 	bhv_desc_t	*bdp)
@@ -4645,6 +4660,7 @@ xfs_change_file_space(
 vnodeops_t xfs_vnodeops = {
 	BHV_IDENTITY_INIT(VN_BHV_XFS,VNODE_POSITION_XFS),
 	.vop_open		= xfs_open,
+	.vop_close		= xfs_close,
 	.vop_read		= xfs_read,
 #ifdef HAVE_SENDFILE
 	.vop_sendfile		= xfs_sendfile,

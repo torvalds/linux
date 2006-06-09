@@ -56,12 +56,18 @@ typedef xfs_ino_t vnumber_t;
 typedef struct dentry vname_t;
 typedef bhv_head_t vn_bhv_head_t;
 
+typedef enum vflags {
+	VMODIFIED	= 0x08,	/* XFS inode state possibly differs */
+				/* to the Linux inode state. */
+	VTRUNCATED	= 0x40,	/* truncated down so flush-on-close */
+} vflags_t;
+
 /*
  * MP locking protocols:
  *	v_flag, v_vfsp				VN_LOCK/VN_UNLOCK
  */
 typedef struct vnode {
-	__u32		v_flag;			/* vnode flags (see below) */
+	vflags_t	v_flag;			/* vnode flags (see above) */
 	struct vfs	*v_vfsp;		/* ptr to containing VFS */
 	vnumber_t	v_number;		/* in-core vnode number */
 	vn_bhv_head_t	v_bh;			/* behavior head */
@@ -126,12 +132,6 @@ static inline struct inode *vn_to_inode(struct vnode *vnode)
 }
 
 /*
- * Vnode flags.
- */
-#define VMODIFIED	       0x8	/* XFS inode state possibly differs */
-					/* to the Linux inode state.	*/
-
-/*
  * Values for the VOP_RWLOCK and VOP_RWUNLOCK flags parameter.
  */
 typedef enum vrwlock {
@@ -162,8 +162,10 @@ typedef enum vchange {
 	VCHANGE_FLAGS_IOEXCL_COUNT	= 4
 } vchange_t;
 
+typedef enum { L_FALSE, L_TRUE } lastclose_t;
 
 typedef int	(*vop_open_t)(bhv_desc_t *, struct cred *);
+typedef int	(*vop_close_t)(bhv_desc_t *, int, lastclose_t, struct cred *);
 typedef ssize_t (*vop_read_t)(bhv_desc_t *, struct kiocb *,
 				const struct iovec *, unsigned int,
 				loff_t *, int, struct cred *);
@@ -234,6 +236,7 @@ typedef int	(*vop_iflush_t)(bhv_desc_t *, int);
 typedef struct vnodeops {
 	bhv_position_t  vn_position;    /* position within behavior chain */
 	vop_open_t		vop_open;
+	vop_close_t		vop_close;
 	vop_read_t		vop_read;
 	vop_write_t		vop_write;
 	vop_sendfile_t		vop_sendfile;
@@ -278,6 +281,10 @@ typedef struct vnodeops {
  */
 #define _VOP_(op, vp)	(*((vnodeops_t *)(vp)->v_fops)->op)
 
+#define VOP_OPEN(vp, cr, rv)						\
+	rv = _VOP_(vop_open, vp)((vp)->v_fbhv, cr)
+#define VOP_CLOSE(vp, f, last, cr, rv)					\
+	rv = _VOP_(vop_close, vp)((vp)->v_fbhv, f, last, cr)
 #define VOP_READ(vp,file,iov,segs,offset,ioflags,cr,rv)			\
 	rv = _VOP_(vop_read, vp)((vp)->v_fbhv,file,iov,segs,offset,ioflags,cr)
 #define VOP_WRITE(vp,file,iov,segs,offset,ioflags,cr,rv)		\
@@ -290,8 +297,6 @@ typedef struct vnodeops {
 	rv = _VOP_(vop_splice_write, vp)((vp)->v_fbhv,f,o,pipe,cnt,fl,iofl,cr)
 #define VOP_BMAP(vp,of,sz,rw,b,n,rv)					\
 	rv = _VOP_(vop_bmap, vp)((vp)->v_fbhv,of,sz,rw,b,n)
-#define VOP_OPEN(vp, cr, rv)						\
-	rv = _VOP_(vop_open, vp)((vp)->v_fbhv, cr)
 #define VOP_GETATTR(vp, vap, f, cr, rv)					\
 	rv = _VOP_(vop_getattr, vp)((vp)->v_fbhv, vap, f, cr)
 #define	VOP_SETATTR(vp, vap, f, cr, rv)					\
@@ -556,8 +561,6 @@ static inline struct vnode *vn_grab(struct vnode *vp)
  */
 #define VN_LOCK(vp)		mutex_spinlock(&(vp)->v_lock)
 #define VN_UNLOCK(vp, s)	mutex_spinunlock(&(vp)->v_lock, s)
-#define VN_FLAGSET(vp,b)	vn_flagset(vp,b)
-#define VN_FLAGCLR(vp,b)	vn_flagclr(vp,b)
 
 static __inline__ void vn_flagset(struct vnode *vp, uint flag)
 {
@@ -566,12 +569,21 @@ static __inline__ void vn_flagset(struct vnode *vp, uint flag)
 	spin_unlock(&vp->v_lock);
 }
 
-static __inline__ void vn_flagclr(struct vnode *vp, uint flag)
+static __inline__ uint vn_flagclr(struct vnode *vp, uint flag)
 {
+	uint	cleared;
+
 	spin_lock(&vp->v_lock);
+	cleared = (vp->v_flag & flag);
 	vp->v_flag &= ~flag;
 	spin_unlock(&vp->v_lock);
+	return cleared;
 }
+
+#define VMODIFY(vp)	vn_flagset(vp, VMODIFIED)
+#define VUNMODIFY(vp)	vn_flagclr(vp, VMODIFIED)
+#define VTRUNCATE(vp)	vn_flagset(vp, VTRUNCATED)
+#define VUNTRUNCATE(vp)	vn_flagclr(vp, VTRUNCATED)
 
 /*
  * Dealing with bad inodes
@@ -612,8 +624,7 @@ static inline void vn_atime_to_time_t(struct vnode *vp, time_t *tt)
 #define VN_CACHED(vp)	(vn_to_inode(vp)->i_mapping->nrpages)
 #define VN_DIRTY(vp)	mapping_tagged(vn_to_inode(vp)->i_mapping, \
 					PAGECACHE_TAG_DIRTY)
-#define VMODIFY(vp)	VN_FLAGSET(vp, VMODIFIED)
-#define VUNMODIFY(vp)	VN_FLAGCLR(vp, VMODIFIED)
+#define VN_TRUNC(vp)	((vp)->v_flag & VTRUNCATED)
 
 /*
  * Flags to VOP_SETATTR/VOP_GETATTR.

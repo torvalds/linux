@@ -324,6 +324,17 @@ xfs_file_open(
 }
 
 STATIC int
+xfs_file_close(
+	struct file	*filp)
+{
+	vnode_t		*vp = vn_from_inode(filp->f_dentry->d_inode);
+	int		error;
+
+	VOP_CLOSE(vp, 0, file_count(filp) > 1 ? L_FALSE : L_TRUE, NULL, error);
+	return -error;
+}
+
+STATIC int
 xfs_file_release(
 	struct inode	*inode,
 	struct file	*filp)
@@ -349,6 +360,8 @@ xfs_file_fsync(
 
 	if (datasync)
 		flags |= FSYNC_DATA;
+	if (VN_TRUNC(vp))
+		VUNTRUNCATE(vp);
 	VOP_FSYNC(vp, flags, NULL, (xfs_off_t)0, (xfs_off_t)-1, error);
 	return -error;
 }
@@ -578,6 +591,7 @@ const struct file_operations xfs_file_operations = {
 #endif
 	.mmap		= xfs_file_mmap,
 	.open		= xfs_file_open,
+	.flush		= xfs_file_close,
 	.release	= xfs_file_release,
 	.fsync		= xfs_file_fsync,
 #ifdef HAVE_FOP_OPEN_EXEC
@@ -602,6 +616,7 @@ const struct file_operations xfs_invis_file_operations = {
 #endif
 	.mmap		= xfs_file_mmap,
 	.open		= xfs_file_open,
+	.flush		= xfs_file_close,
 	.release	= xfs_file_release,
 	.fsync		= xfs_file_fsync,
 };
