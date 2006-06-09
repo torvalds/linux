@@ -104,6 +104,7 @@ const char *str_get(struct gstr *gs);
 /* symbol.c */
 void sym_init(void);
 void sym_clear_all_valid(void);
+void sym_set_all_changed(void);
 void sym_set_changed(struct symbol *sym);
 struct symbol *sym_check_deps(struct symbol *sym);
 struct property *prop_alloc(enum prop_type type, struct symbol *sym);

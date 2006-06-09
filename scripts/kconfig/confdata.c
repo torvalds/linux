@@ -25,15 +25,6 @@ const char conf_def_filename[] = ".config";
 
 const char conf_defname[] = "arch/$ARCH/defconfig";
 
-const char *conf_confnames[] = {
-	".config",
-	"/lib/modules/$UNAME_RELEASE/.config",
-	"/etc/kernel-config",
-	"/boot/config-$UNAME_RELEASE",
-	conf_defname,
-	NULL,
-};
-
 static void conf_warning(const char *fmt, ...)
 {
 	va_list ap;
@@ -98,16 +89,21 @@ int conf_read_simple(const char *name, int def)
 	if (name) {
 		in = zconf_fopen(name);
 	} else {
-		const char **names = conf_confnames;
-		name = *names++;
-		if (!name)
-			return 1;
+		struct property *prop;
+
+		name = conf_def_filename;
 		in = zconf_fopen(name);
 		if (in)
 			goto load;
 		sym_change_count++;
-		while ((name = *names++)) {
-			name = conf_expand_value(name);
+		if (!sym_defconfig_list)
+			return 1;
+
+		for_all_defaults(sym_defconfig_list, prop) {
+			if (expr_calc_value(prop->visible.expr) == no ||
+			    prop->expr->type != E_SYMBOL)
+				continue;
+			name = conf_expand_value(prop->expr->left.sym->name);
 			in = zconf_fopen(name);
 			if (in) {
 				printf(_("#\n"

@@ -31,6 +31,7 @@ struct symbol symbol_yes = {
 };
 
 int sym_change_count;
+struct symbol *sym_defconfig_list;
 struct symbol *modules_sym;
 tristate modules_val;
 
@@ -352,10 +353,13 @@ void sym_calc_value(struct symbol *sym)
 		sym->curr.val = sym_calc_choice(sym);
 	sym_validate_range(sym);
 
-	if (memcmp(&oldval, &sym->curr, sizeof(oldval)))
+	if (memcmp(&oldval, &sym->curr, sizeof(oldval))) {
 		sym_set_changed(sym);
-	if (modules_sym == sym)
-		modules_val = modules_sym->curr.tri;
+		if (modules_sym == sym) {
+			sym_set_all_changed();
+			modules_val = modules_sym->curr.tri;
+		}
+	}
 
 	if (sym_is_choice(sym)) {
 		int flags = sym->flags & (SYMBOL_CHANGED | SYMBOL_WRITE);
@@ -449,11 +453,8 @@ bool sym_set_tristate_value(struct symbol *sym, tristate val)
 	}
 
 	sym->def[S_DEF_USER].tri = val;
-	if (oldval != val) {
+	if (oldval != val)
 		sym_clear_all_valid();
-		if (sym == modules_sym)
-			sym_set_all_changed();
-	}
 
 	return true;
 }

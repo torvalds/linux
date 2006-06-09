@@ -481,7 +481,9 @@ void conf_parse(const char *name)
 
 	sym_init();
 	menu_init();
-	modules_sym = sym_lookup("MODULES", 0);
+	modules_sym = sym_lookup(NULL, 0);
+	modules_sym->type = S_BOOLEAN;
+	modules_sym->flags |= SYMBOL_AUTO;
 	rootmenu.prompt = menu_add_prompt(P_MENU, "Linux Kernel Configuration", NULL);
 
 #if YYDEBUG
@@ -491,6 +493,12 @@ void conf_parse(const char *name)
 	zconfparse();
 	if (zconfnerrs)
 		exit(1);
+	if (!modules_sym->prop) {
+		struct property *prop;
+
+		prop = prop_alloc(P_DEFAULT, modules_sym);
+		prop->expr = expr_alloc_symbol(sym_lookup("MODULES", 0));
+	}
 	menu_finalize(&rootmenu);
 	for_all_symbols(i, sym) {
 		sym_check_deps(sym);
