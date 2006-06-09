@@ -21,8 +21,6 @@ static void conf_warning(const char *fmt, ...)
 static const char *conf_filename;
 static int conf_lineno, conf_warnings, conf_unsaved;
 
-const char conf_def_filename[] = ".config";
-
 const char conf_defname[] = "arch/$ARCH/defconfig";
 
 static void conf_warning(const char *fmt, ...)
@@ -34,6 +32,13 @@ static void conf_warning(const char *fmt, ...)
 	fprintf(stderr, "\n");
 	va_end(ap);
 	conf_warnings++;
+}
+
+const char *conf_get_configname(void)
+{
+	char *name = getenv("KCONFIG_CONFIG");
+
+	return name ? name : ".config";
 }
 
 static char *conf_expand_value(const char *in)
@@ -91,7 +96,7 @@ int conf_read_simple(const char *name, int def)
 	} else {
 		struct property *prop;
 
-		name = conf_def_filename;
+		name = conf_get_configname();
 		in = zconf_fopen(name);
 		if (in)
 			goto load;
@@ -381,7 +386,7 @@ int conf_write(const char *name)
 		if (!stat(name, &st) && S_ISDIR(st.st_mode)) {
 			strcpy(dirname, name);
 			strcat(dirname, "/");
-			basename = conf_def_filename;
+			basename = conf_get_configname();
 		} else if ((slash = strrchr(name, '/'))) {
 			int size = slash - name + 1;
 			memcpy(dirname, name, size);
@@ -389,16 +394,24 @@ int conf_write(const char *name)
 			if (slash[1])
 				basename = slash + 1;
 			else
-				basename = conf_def_filename;
+				basename = conf_get_configname();
 		} else
 			basename = name;
 	} else
-		basename = conf_def_filename;
+		basename = conf_get_configname();
 
-	sprintf(newname, "%s.tmpconfig.%d", dirname, (int)getpid());
-	out = fopen(newname, "w");
+	sprintf(newname, "%s%s", dirname, basename);
+	env = getenv("KCONFIG_OVERWRITECONFIG");
+	if (!env || !*env) {
+		sprintf(tmpname, "%s.tmpconfig.%d", dirname, (int)getpid());
+		out = fopen(tmpname, "w");
+	} else {
+		*tmpname = 0;
+		out = fopen(newname, "w");
+	}
 	if (!out)
 		return 1;
+
 	sym = sym_lookup("KERNELVERSION", 0);
 	sym_calc_value(sym);
 	time(&now);
@@ -498,19 +511,18 @@ int conf_write(const char *name)
 		}
 	}
 	fclose(out);
-	if (!name || basename != conf_def_filename) {
-		if (!name)
-			name = conf_def_filename;
-		sprintf(tmpname, "%s.old", name);
-		rename(name, tmpname);
+
+	if (*tmpname) {
+		strcat(dirname, name ? name : conf_get_configname());
+		strcat(dirname, ".old");
+		rename(newname, dirname);
+		if (rename(tmpname, newname))
+			return 1;
 	}
-	sprintf(tmpname, "%s%s", dirname, basename);
-	if (rename(newname, tmpname))
-		return 1;
 
 	printf(_("#\n"
 		 "# configuration written to %s\n"
-		 "#\n"), tmpname);
+		 "#\n"), newname);
 
 	sym_change_count = 0;
 

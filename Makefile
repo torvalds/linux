@@ -178,6 +178,8 @@ CROSS_COMPILE	?=
 # Architecture as present in compile.h
 UTS_MACHINE := $(ARCH)
 
+KCONFIG_CONFIG	?= .config
+
 # SHELL used by kbuild
 CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 	  else if [ -x /bin/bash ]; then echo /bin/bash; \
@@ -437,13 +439,13 @@ ifeq ($(dot-config),1)
 -include include/config/auto.conf
 
 # To avoid any implicit rule to kick in, define an empty command
-.config include/config/auto.conf.cmd: ;
+$(KCONFIG_CONFIG) include/config/auto.conf.cmd: ;
 
 # If .config is newer than include/config/auto.conf, someone tinkered
 # with it and forgot to run make oldconfig.
 # if auto.conf.cmd is missing then we are probarly in a cleaned tree so
 # we execute the config step to be sure to catch updated Kconfig files
-include/config/auto.conf: .config include/config/auto.conf.cmd
+include/config/auto.conf: $(KCONFIG_CONFIG) include/config/auto.conf.cmd
 	$(Q)$(MAKE) -f $(srctree)/Makefile silentoldconfig
 
 else

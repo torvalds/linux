@@ -64,8 +64,6 @@ int zconf_lineno(void);
 char *zconf_curname(void);
 
 /* confdata.c */
-extern const char conf_def_filename[];
-
 char *conf_get_default_confname(void);
 
 /* kconfig_load.c */
