@@ -2444,6 +2444,20 @@ static struct file_system_type clone_nfs4_fs_type = {
 	.fs_flags	= FS_ODD_RENAME|FS_REVAL_DOT|FS_BINARY_MOUNTDATA,
 };
 
+static struct vfsmount *nfs_do_clone_mount(struct nfs_server *server, char *devname, struct nfs_clone_mount *mountdata)
+{
+	struct vfsmount *mnt = NULL;
+	switch (server->rpc_ops->version) {
+		case 2:
+		case 3:
+			mnt = vfs_kern_mount(&clone_nfs_fs_type, 0, devname, &mountdata);
+			break;
+		case 4:
+			mnt = vfs_kern_mount(&clone_nfs4_fs_type, 0, devname, mountdata);
+	}
+	return mnt;
+}
+
 #define nfs4_init_once(nfsi) \
 	do { \
 		INIT_LIST_HEAD(&(nfsi)->open_states); \
@@ -2477,6 +2491,10 @@ static inline void unregister_nfs4fs(void)
 	do { } while (0)
 #define register_nfs4fs() (0)
 #define unregister_nfs4fs()
+static struct vfsmount *nfs_do_clone_mount(struct nfs_server *server, char *devname, struct nfs_clone_mount *mountdata)
+{
+	return vfs_kern_mount(&clone_nfs_fs_type, 0, devname, &mountdata);
+}
 #endif
 
 static inline char *nfs_devname(const struct vfsmount *mnt_parent,
@@ -2517,17 +2535,7 @@ struct vfsmount *nfs_do_submount(const struct vfsmount *mnt_parent,
 	mnt = (struct vfsmount *)devname;
 	if (IS_ERR(devname))
 		goto free_page;
-	switch (NFS_SB(mnt_parent->mnt_sb)->rpc_ops->version) {
-		case 2:
-		case 3:
-			mnt = vfs_kern_mount(&clone_nfs_fs_type, 0, devname, &mountdata);
-			break;
-		case 4:
-			mnt = vfs_kern_mount(&clone_nfs4_fs_type, 0, devname, &mountdata);
-			break;
-		default:
-			BUG();
-	}
+	mnt = nfs_do_clone_mount(NFS_SB(mnt_parent->mnt_sb), devname, &mountdata);
 free_page:
 	free_page((unsigned long)page);
 out:
@@ -2535,6 +2543,7 @@ out:
 	return mnt;
 }
 
+#ifdef CONFIG_NFS_V4
 /* Check if fs_root is valid */
 static inline char *nfs4_pathname_string(struct nfs4_pathname *pathname, char *buffer, ssize_t buflen)
 {
@@ -2789,6 +2798,12 @@ out:
 	dprintk("%s: done\n", __FUNCTION__);
 	return mnt;
 }
+#else
+struct vfsmount *nfs_do_refmount(const struct vfsmount *mnt_parent, struct dentry *dentry)
+{
+	return ERR_PTR(-ENOENT);
+}
+#endif
 
 extern int nfs_init_nfspagecache(void);
 extern void nfs_destroy_nfspagecache(void);
