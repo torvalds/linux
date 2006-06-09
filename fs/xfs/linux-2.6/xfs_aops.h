@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005 Silicon Graphics, Inc.
+ * Copyright (c) 2005-2006 Silicon Graphics, Inc.
  * All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -43,4 +43,4 @@ typedef struct xfs_ioend {
 extern struct address_space_operations xfs_address_space_operations;
 extern int xfs_get_blocks(struct inode *, sector_t, struct buffer_head *, int);
 
-#endif /* __XFS_IOPS_H__ */
+#endif /* __XFS_AOPS_H__ */
