@@ -199,7 +199,7 @@ static void pci_read_bases(struct pci_dev *dev, unsigned int howmany, int rom)
 				printk(KERN_ERR "PCI: Unable to handle 64-bit BAR for device %s\n", pci_name(dev));
 				res->start = 0;
 				res->flags = 0;
-			} else if (l) {
+			} else if (lhi) {
 				/* 64-bit wide address, treat as disabled */
 				pci_write_config_dword(dev, reg, l & ~(u32)PCI_BASE_ADDRESS_MEM_MASK);
 				pci_write_config_dword(dev, reg+4, 0);
