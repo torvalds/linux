@@ -262,6 +262,7 @@ ipt_recent_checkentry(const char *tablename, const void *ip,
 		    GFP_KERNEL);
 	if (t == NULL)
 		goto out;
+	t->refcnt = 1;
 	strcpy(t->name, info->name);
 	INIT_LIST_HEAD(&t->lru_list);
 	for (i = 0; i < ip_list_hash_size; i++)
