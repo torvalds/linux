@@ -54,7 +54,7 @@ struct nlm_host {
 	u32			h_nsmstate;	/* true remote NSM state */
 	u32			h_pidcount;	/* Pseudopids */
 	atomic_t		h_count;	/* reference count */
-	struct semaphore	h_sema;		/* mutex for pmap binding */
+	struct mutex		h_mutex;	/* mutex for pmap binding */
 	unsigned long		h_nextrebind;	/* next portmap call */
 	unsigned long		h_expires;	/* eligible for GC */
 	struct list_head	h_lockowners;	/* Lockowners for the client */
