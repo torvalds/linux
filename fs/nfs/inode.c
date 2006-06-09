@@ -2027,12 +2027,84 @@ static void nfs4_clear_inode(struct inode *inode)
 }
 
 
+static struct rpc_clnt *nfs4_create_client(struct nfs_server *server,
+	struct rpc_timeout *timeparms, int proto, rpc_authflavor_t flavor)
+{
+	struct nfs4_client *clp;
+	struct rpc_xprt *xprt = NULL;
+	struct rpc_clnt *clnt = NULL;
+	int err = -EIO;
+
+	clp = nfs4_get_client(&server->addr.sin_addr);
+	if (!clp) {
+		dprintk("%s: failed to create NFS4 client.\n", __FUNCTION__);
+		return ERR_PTR(err);
+	}
+
+	/* Now create transport and client */
+	down_write(&clp->cl_sem);
+	if (IS_ERR(clp->cl_rpcclient)) {
+		xprt = xprt_create_proto(proto, &server->addr, timeparms);
+		if (IS_ERR(xprt)) {
+			up_write(&clp->cl_sem);
+			err = PTR_ERR(xprt);
+			dprintk("%s: cannot create RPC transport. Error = %d\n",
+					__FUNCTION__, err);
+			goto out_fail;
+		}
+		clnt = rpc_create_client(xprt, server->hostname, &nfs_program,
+				server->rpc_ops->version, flavor);
+		if (IS_ERR(clnt)) {
+			up_write(&clp->cl_sem);
+			err = PTR_ERR(clnt);
+			dprintk("%s: cannot create RPC client. Error = %d\n",
+					__FUNCTION__, err);
+			goto out_fail;
+		}
+		clnt->cl_intr     = 1;
+		clnt->cl_softrtry = 1;
+		clp->cl_rpcclient = clnt;
+		memcpy(clp->cl_ipaddr, server->ip_addr, sizeof(clp->cl_ipaddr));
+		nfs_idmap_new(clp);
+	}
+	list_add_tail(&server->nfs4_siblings, &clp->cl_superblocks);
+	clnt = rpc_clone_client(clp->cl_rpcclient);
+	if (!IS_ERR(clnt))
+		server->nfs4_state = clp;
+	up_write(&clp->cl_sem);
+	clp = NULL;
+
+	if (IS_ERR(clnt)) {
+		dprintk("%s: cannot create RPC client. Error = %d\n",
+				__FUNCTION__, err);
+		return clnt;
+	}
+
+	if (server->nfs4_state->cl_idmap == NULL) {
+		dprintk("%s: failed to create idmapper.\n", __FUNCTION__);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	if (clnt->cl_auth->au_flavor != flavor) {
+		struct rpc_auth *auth;
+
+		auth = rpcauth_create(flavor, clnt);
+		if (IS_ERR(auth)) {
+			dprintk("%s: couldn't create credcache!\n", __FUNCTION__);
+			return (struct rpc_clnt *)auth;
+		}
+	}
+	return clnt;
+
+ out_fail:
+	if (clp)
+		nfs4_put_client(clp);
+	return ERR_PTR(err);
+}
+
 static int nfs4_fill_super(struct super_block *sb, struct nfs4_mount_data *data, int silent)
 {
 	struct nfs_server *server;
-	struct nfs4_client *clp = NULL;
-	struct rpc_xprt *xprt = NULL;
-	struct rpc_clnt *clnt = NULL;
 	struct rpc_timeout timeparms;
 	rpc_authflavor_t authflavour;
 	int err = -EIO;
@@ -2059,12 +2131,6 @@ static int nfs4_fill_super(struct super_block *sb, struct nfs4_mount_data *data,
 	server->retrans_timeo = timeparms.to_initval;
 	server->retrans_count = timeparms.to_retries;
 
-	clp = nfs4_get_client(&server->addr.sin_addr);
-	if (!clp) {
-		dprintk("%s: failed to create NFS4 client.\n", __FUNCTION__);
-		return -EIO;
-	}
-
 	/* Now create transport and client */
 	authflavour = RPC_AUTH_UNIX;
 	if (data->auth_flavourlen != 0) {
@@ -2080,71 +2146,20 @@ static int nfs4_fill_super(struct super_block *sb, struct nfs4_mount_data *data,
 		}
 	}
 
-	down_write(&clp->cl_sem);
-	if (IS_ERR(clp->cl_rpcclient)) {
-		xprt = xprt_create_proto(data->proto, &server->addr, &timeparms);
-		if (IS_ERR(xprt)) {
-			up_write(&clp->cl_sem);
-			err = PTR_ERR(xprt);
-			dprintk("%s: cannot create RPC transport. Error = %d\n",
-					__FUNCTION__, err);
-			goto out_fail;
-		}
-		clnt = rpc_create_client(xprt, server->hostname, &nfs_program,
-				server->rpc_ops->version, authflavour);
-		if (IS_ERR(clnt)) {
-			up_write(&clp->cl_sem);
-			err = PTR_ERR(clnt);
+	server->client = nfs4_create_client(server, &timeparms, data->proto, authflavour);
+	if (IS_ERR(server->client)) {
+		err = PTR_ERR(server->client);
 			dprintk("%s: cannot create RPC client. Error = %d\n",
 					__FUNCTION__, err);
 			goto out_fail;
-		}
-		clnt->cl_intr     = 1;
-		clnt->cl_softrtry = 1;
-		clp->cl_rpcclient = clnt;
-		memcpy(clp->cl_ipaddr, server->ip_addr, sizeof(clp->cl_ipaddr));
-		nfs_idmap_new(clp);
-	}
-	list_add_tail(&server->nfs4_siblings, &clp->cl_superblocks);
-	clnt = rpc_clone_client(clp->cl_rpcclient);
-	if (!IS_ERR(clnt))
-			server->nfs4_state = clp;
-	up_write(&clp->cl_sem);
-	clp = NULL;
-
-	if (IS_ERR(clnt)) {
-		err = PTR_ERR(clnt);
-		dprintk("%s: cannot create RPC client. Error = %d\n",
-				__FUNCTION__, err);
-		return err;
-	}
-
-	server->client    = clnt;
-
-	if (server->nfs4_state->cl_idmap == NULL) {
-		dprintk("%s: failed to create idmapper.\n", __FUNCTION__);
-		return -ENOMEM;
-	}
-
-	if (clnt->cl_auth->au_flavor != authflavour) {
-		struct rpc_auth *auth;
-
-		auth = rpcauth_create(authflavour, clnt);
-		if (IS_ERR(auth)) {
-			dprintk("%s: couldn't create credcache!\n", __FUNCTION__);
-			return PTR_ERR(auth);
-		}
 	}
 
 	sb->s_time_gran = 1;
 
 	sb->s_op = &nfs4_sops;
 	err = nfs_sb_init(sb, authflavour);
-	if (err == 0)
-		return 0;
-out_fail:
-	if (clp)
-		nfs4_put_client(clp);
+
+ out_fail:
 	return err;
 }
 
