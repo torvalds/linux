@@ -294,6 +294,62 @@ xfs_efi_init(xfs_mount_t	*mp,
 }
 
 /*
+ * Copy an EFI format buffer from the given buf, and into the destination
+ * EFI format structure.
+ * The given buffer can be in 32 bit or 64 bit form (which has different padding),
+ * one of which will be the native format for this kernel.
+ * It will handle the conversion of formats if necessary.
+ */
+int
+xfs_efi_copy_format(xfs_log_iovec_t *buf, xfs_efi_log_format_t *dst_efi_fmt)
+{
+	xfs_efi_log_format_t *src_efi_fmt = (xfs_efi_log_format_t *)buf->i_addr;
+	uint i;
+	uint len = sizeof(xfs_efi_log_format_t) + 
+		(src_efi_fmt->efi_nextents - 1) * sizeof(xfs_extent_t);  
+	uint len32 = sizeof(xfs_efi_log_format_32_t) + 
+		(src_efi_fmt->efi_nextents - 1) * sizeof(xfs_extent_32_t);  
+	uint len64 = sizeof(xfs_efi_log_format_64_t) + 
+		(src_efi_fmt->efi_nextents - 1) * sizeof(xfs_extent_64_t);  
+
+	if (buf->i_len == len) {
+		memcpy((char *)dst_efi_fmt, (char*)src_efi_fmt, len);
+		return 0;
+	} else if (buf->i_len == len32) {
+		xfs_efi_log_format_32_t *src_efi_fmt_32 =
+			(xfs_efi_log_format_32_t *)buf->i_addr;
+
+		dst_efi_fmt->efi_type     = src_efi_fmt_32->efi_type;
+		dst_efi_fmt->efi_size     = src_efi_fmt_32->efi_size;
+		dst_efi_fmt->efi_nextents = src_efi_fmt_32->efi_nextents;
+		dst_efi_fmt->efi_id       = src_efi_fmt_32->efi_id;
+		for (i = 0; i < dst_efi_fmt->efi_nextents; i++) {
+			dst_efi_fmt->efi_extents[i].ext_start =
+				src_efi_fmt_32->efi_extents[i].ext_start;
+			dst_efi_fmt->efi_extents[i].ext_len =
+				src_efi_fmt_32->efi_extents[i].ext_len;
+		}
+		return 0;
+	} else if (buf->i_len == len64) {
+		xfs_efi_log_format_64_t *src_efi_fmt_64 =
+			(xfs_efi_log_format_64_t *)buf->i_addr;
+
+		dst_efi_fmt->efi_type     = src_efi_fmt_64->efi_type;
+		dst_efi_fmt->efi_size     = src_efi_fmt_64->efi_size;
+		dst_efi_fmt->efi_nextents = src_efi_fmt_64->efi_nextents;
+		dst_efi_fmt->efi_id       = src_efi_fmt_64->efi_id;
+		for (i = 0; i < dst_efi_fmt->efi_nextents; i++) {
+			dst_efi_fmt->efi_extents[i].ext_start =
+				src_efi_fmt_64->efi_extents[i].ext_start;
+			dst_efi_fmt->efi_extents[i].ext_len =
+				src_efi_fmt_64->efi_extents[i].ext_len;
+		}
+		return 0;
+	}
+	return EFSCORRUPTED;
+}
+
+/*
  * This is called by the efd item code below to release references to
  * the given efi item.  Each efd calls this with the number of
  * extents that it has logged, and when the sum of these reaches
