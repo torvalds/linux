@@ -679,6 +679,30 @@ struct nfs4_server_caps_res {
 	u32				has_symlinks;
 };
 
+struct nfs_fs_location {
+	unsigned int serverlen;
+	char * server;
+	unsigned int rootpathlen;
+	char * rootpath;
+};
+
+#define NFS_FS_LOCATIONS_MAXENTRIES 10
+struct nfs_fs_locations {
+	struct nfs_fattr fattr;
+	const struct nfs_server *server;
+	unsigned int fs_pathlen;
+	char * fs_path;
+	int nlocations;
+	struct nfs_fs_location locations[NFS_FS_LOCATIONS_MAXENTRIES];
+};
+
+struct nfs4_fs_locations_arg {
+	const struct nfs_fh *dir_fh;
+	const struct qstr *name;
+	struct page *page;
+	const u32 *bitmask;
+};
+
 #endif /* CONFIG_NFS_V4 */
 
 struct nfs_page;

@@ -3570,6 +3570,35 @@ ssize_t nfs4_listxattr(struct dentry *dentry, char *buf, size_t buflen)
 	return len;
 }
 
+int nfs4_proc_fs_locations(struct inode *dir, struct dentry *dentry,
+		struct nfs_fs_locations *fs_locations, struct page *page)
+{
+	struct nfs_server *server = NFS_SERVER(dir);
+	u32 bitmask[2] = {
+		[0] = server->attr_bitmask[0] | FATTR4_WORD0_FS_LOCATIONS,
+		[1] = server->attr_bitmask[1],
+	};
+	struct nfs4_fs_locations_arg args = {
+		.dir_fh = NFS_FH(dir),
+		.name = &dentry->d_name,
+		.page = page,
+		.bitmask = bitmask,
+	};
+	struct rpc_message msg = {
+		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_FS_LOCATIONS],
+		.rpc_argp = &args,
+		.rpc_resp = &fs_locations,
+	};
+	int status;
+
+	dprintk("%s: start\n", __FUNCTION__);
+	fs_locations->fattr.valid = 0;
+	fs_locations->server = server;
+	status = rpc_call_sync(server->client, &msg, 0);
+	dprintk("%s: returned status = %d\n", __FUNCTION__, status);
+	return status;
+}
+
 struct nfs4_state_recovery_ops nfs4_reboot_recovery_ops = {
 	.recover_open	= nfs4_open_reclaim,
 	.recover_lock	= nfs4_lock_reclaim,

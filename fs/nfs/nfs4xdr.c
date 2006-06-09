@@ -411,6 +411,15 @@ static int nfs_stat_to_errno(int);
 #define NFS4_dec_setacl_sz	(compound_decode_hdr_maxsz + \
 				decode_putfh_maxsz + \
 				op_decode_hdr_maxsz + nfs4_fattr_bitmap_maxsz)
+#define NFS4_enc_fs_locations_sz \
+				(compound_encode_hdr_maxsz + \
+				 encode_putfh_maxsz + \
+				 encode_getattr_maxsz)
+#define NFS4_dec_fs_locations_sz \
+				(compound_decode_hdr_maxsz + \
+				 decode_putfh_maxsz + \
+				 op_decode_hdr_maxsz + \
+				 nfs4_fattr_bitmap_maxsz)
 
 static struct {
 	unsigned int	mode;
@@ -2003,6 +2012,38 @@ out:
 }
 
 /*
+ * Encode FS_LOCATIONS request
+ */
+static int nfs4_xdr_enc_fs_locations(struct rpc_rqst *req, uint32_t *p, struct nfs4_fs_locations_arg *args)
+{
+	struct xdr_stream xdr;
+	struct compound_hdr hdr = {
+		.nops = 3,
+	};
+	struct rpc_auth *auth = req->rq_task->tk_auth;
+	int replen;
+	int status;
+
+	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
+	encode_compound_hdr(&xdr, &hdr);
+	if ((status = encode_putfh(&xdr, args->dir_fh)) != 0)
+		goto out;
+	if ((status = encode_lookup(&xdr, args->name)) != 0)
+		goto out;
+	if ((status = encode_getfattr(&xdr, args->bitmask)) != 0)
+		goto out;
+	/* set up reply
+	 *   toplevel_status + taglen + rescount + OP_PUTFH + status
+	 *   + OP_LOOKUP + status + OP_GETATTR + status = 7
+	 */
+	replen = (RPC_REPHDRSIZE + auth->au_rslack + 7) << 2;
+	xdr_inline_pages(&req->rq_rcv_buf, replen, &args->page,
+			0, PAGE_SIZE);
+out:
+	return status;
+}
+
+/*
  * START OF "GENERIC" DECODE ROUTINES.
  *   These may look a little ugly since they are imported from a "generic"
  * set of XDR encode/decode routines which are intended to be shared by
@@ -2036,7 +2077,7 @@ out:
 	} \
 } while (0)
 
-static int decode_opaque_inline(struct xdr_stream *xdr, uint32_t *len, char **string)
+static int decode_opaque_inline(struct xdr_stream *xdr, unsigned int *len, char **string)
 {
 	uint32_t *p;
 
@@ -2087,7 +2128,7 @@ static int decode_op_hdr(struct xdr_stream *xdr, enum nfs_opnum4 expected)
 static int decode_ace(struct xdr_stream *xdr, void *ace, struct nfs4_client *clp)
 {
 	uint32_t *p;
-	uint32_t strlen;
+	unsigned int strlen;
 	char *str;
 
 	READ_BUF(12);
@@ -2334,6 +2375,45 @@ static int decode_attr_files_total(struct xdr_stream *xdr, uint32_t *bitmap, uin
 	}
 	dprintk("%s: files total=%Lu\n", __FUNCTION__, (unsigned long long)*res);
 	return status;
+}
+
+static int decode_attr_fs_locations(struct xdr_stream *xdr, uint32_t *bitmap, struct nfs_fs_locations *res)
+{
+	int n;
+	uint32_t *p;
+	int status = -EIO;
+
+	if (unlikely(bitmap[0] & (FATTR4_WORD0_FS_LOCATIONS -1U)))
+		goto out;
+	status = 0;
+	if (unlikely(!(bitmap[0] & FATTR4_WORD0_FS_LOCATIONS)))
+		goto out;
+	status = decode_opaque_inline(xdr, &res->fs_pathlen, &res->fs_path);
+	if (unlikely(status != 0))
+		goto out;
+	READ_BUF(4);
+	READ32(n);
+	if (n <= 0)
+		goto out_eio;
+	res->nlocations = 0;
+	while (res->nlocations < n) {
+		struct nfs_fs_location *loc = &res->locations[res->nlocations];
+
+		status = decode_opaque_inline(xdr, &loc->serverlen, &loc->server);
+		if (unlikely(status != 0))
+			goto out_eio;
+		status = decode_opaque_inline(xdr, &loc->rootpathlen, &loc->rootpath);
+		if (unlikely(status != 0))
+			goto out_eio;
+		if (res->nlocations < NFS_FS_LOCATIONS_MAXENTRIES)
+			res->nlocations++;
+	}
+out:
+	dprintk("%s: fs_locations done, error = %d\n", __FUNCTION__, status);
+	return status;
+out_eio:
+	status = -EIO;
+	goto out;
 }
 
 static int decode_attr_maxfilesize(struct xdr_stream *xdr, uint32_t *bitmap, uint64_t *res)
@@ -2866,6 +2946,10 @@ static int decode_getfattr(struct xdr_stream *xdr, struct nfs_fattr *fattr, cons
 	if ((status = decode_attr_fsid(xdr, bitmap, &fattr->fsid)) != 0)
 		goto xdr_error;
 	if ((status = decode_attr_fileid(xdr, bitmap, &fattr->fileid)) != 0)
+		goto xdr_error;
+	if ((status = decode_attr_fs_locations(xdr, bitmap, container_of(fattr,
+						struct nfs_fs_locations,
+						fattr))) != 0)
 		goto xdr_error;
 	if ((status = decode_attr_mode(xdr, bitmap, &fattr->mode)) != 0)
 		goto xdr_error;
@@ -4210,6 +4294,29 @@ out:
 	return status;
 }
 
+/*
+ * FS_LOCATIONS request
+ */
+static int nfs4_xdr_dec_fs_locations(struct rpc_rqst *req, uint32_t *p, struct nfs_fs_locations *res)
+{
+	struct xdr_stream xdr;
+	struct compound_hdr hdr;
+	int status;
+
+	xdr_init_decode(&xdr, &req->rq_rcv_buf, p);
+	status = decode_compound_hdr(&xdr, &hdr);
+	if (status != 0)
+		goto out;
+	if ((status = decode_putfh(&xdr)) != 0)
+		goto out;
+	if ((status = decode_lookup(&xdr)) != 0)
+		goto out;
+	xdr_enter_page(&xdr, PAGE_SIZE);
+	status = decode_getfattr(&xdr, &res->fattr, res->server);
+out:
+	return status;
+}
+
 uint32_t *nfs4_decode_dirent(uint32_t *p, struct nfs_entry *entry, int plus)
 {
 	uint32_t bitmap[2] = {0};
@@ -4381,6 +4488,7 @@ struct rpc_procinfo	nfs4_procedures[] = {
   PROC(DELEGRETURN,	enc_delegreturn, dec_delegreturn),
   PROC(GETACL,		enc_getacl,	dec_getacl),
   PROC(SETACL,		enc_setacl,	dec_setacl),
+  PROC(FS_LOCATIONS,	enc_fs_locations, dec_fs_locations),
 };
 
 struct rpc_version		nfs_version4 = {
