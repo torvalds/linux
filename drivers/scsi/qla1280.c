@@ -4239,15 +4239,12 @@ qla1280_get_token(char *str)
 {
 	char *sep;
 	long ret = -1;
-	int i, len;
-
-	len = sizeof(setup_token)/sizeof(struct setup_tokens);
+	int i;
 
 	sep = strchr(str, ':');
 
 	if (sep) {
-		for (i = 0; i < len; i++){
-
+		for (i = 0; i < ARRAY_SIZE(setup_token); i++) {
 			if (!strncmp(setup_token[i].token, str, (sep - str))) {
 				ret =  setup_token[i].val;
 				break;

@@ -3839,7 +3839,7 @@ static int __init st_setup(char *str)
 					break;
 				}
 			}
-			if (i >= sizeof(parms) / sizeof(struct st_dev_parm))
+			if (i >= ARRAY_SIZE(parms))
 				 printk(KERN_WARNING "st: invalid parameter in '%s'\n",
 					stp);
 			stp = strchr(stp, ',');

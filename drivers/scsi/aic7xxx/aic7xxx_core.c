@@ -68,7 +68,7 @@ char *ahc_chip_names[] =
 	"aic7892",
 	"aic7899"
 };
-static const u_int num_chip_names = NUM_ELEMENTS(ahc_chip_names);
+static const u_int num_chip_names = ARRAY_SIZE(ahc_chip_names);
 
 /*
  * Hardware error codes.
@@ -88,7 +88,7 @@ static struct ahc_hard_error_entry ahc_hard_errors[] = {
 	{ PCIERRSTAT,	"PCI Error detected" },
 	{ CIOPARERR,	"CIOBUS Parity Error" },
 };
-static const u_int num_errors = NUM_ELEMENTS(ahc_hard_errors);
+static const u_int num_errors = ARRAY_SIZE(ahc_hard_errors);
 
 static struct ahc_phase_table_entry ahc_phase_table[] =
 {
@@ -108,7 +108,7 @@ static struct ahc_phase_table_entry ahc_phase_table[] =
  * In most cases we only wish to itterate over real phases, so
  * exclude the last element from the count.
  */
-static const u_int num_phases = NUM_ELEMENTS(ahc_phase_table) - 1;
+static const u_int num_phases = ARRAY_SIZE(ahc_phase_table) - 1;
 
 /*
  * Valid SCSIRATE values.  (p. 3-17)
@@ -6367,7 +6367,7 @@ ahc_check_patch(struct ahc_softc *ahc, struct patch **start_patch,
 	struct	patch *last_patch;
 	u_int	num_patches;
 
-	num_patches = sizeof(patches)/sizeof(struct patch);
+	num_patches = ARRAY_SIZE(patches);
 	last_patch = &patches[num_patches];
 	cur_patch = *start_patch;
 

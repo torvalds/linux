@@ -1565,7 +1565,7 @@ aic7xxx_check_patch(struct aic7xxx_host *p,
   struct sequencer_patch *last_patch;
   int num_patches;
 
-  num_patches = sizeof(sequencer_patches)/sizeof(struct sequencer_patch);
+  num_patches = ARRAY_SIZE(sequencer_patches);
   last_patch = &sequencer_patches[num_patches];
   cur_patch = *start_patch;
 

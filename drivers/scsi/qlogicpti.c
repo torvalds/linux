@@ -132,7 +132,7 @@ static const u_char mbox_param[] = {
 	PACKB(0, 0)	/* 0x0042 */
 };
 
-#define MAX_MBOX_COMMAND	(sizeof(mbox_param)/sizeof(u_short))
+#define MAX_MBOX_COMMAND	ARRAY_SIZE(mbox_param)
 
 /* queue length's _must_ be power of two: */
 #define QUEUE_DEPTH(in, out, ql)	((in - out) & (ql))

@@ -175,7 +175,7 @@ static ssize_t sd_store_cache_type(struct class_device *cdev, const char *buf,
 		 * it's not worth the risk */
 		return -EINVAL;
 
-	for (i = 0; i < sizeof(sd_cache_types)/sizeof(sd_cache_types[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(sd_cache_types); i++) {
 		const int len = strlen(sd_cache_types[i]);
 		if (strncmp(sd_cache_types[i], buf, len) == 0 &&
 		    buf[len] == '\n') {

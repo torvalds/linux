@@ -146,7 +146,7 @@ static inline const char *spi_signal_to_string(enum spi_signal_type type)
 {
 	int i;
 
-	for (i = 0; i < sizeof(signal_types)/sizeof(signal_types[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(signal_types); i++) {
 		if (type == signal_types[i].value)
 			return signal_types[i].name;
 	}
@@ -156,7 +156,7 @@ static inline enum spi_signal_type spi_signal_to_value(const char *name)
 {
 	int i, len;
 
-	for (i = 0; i < sizeof(signal_types)/sizeof(signal_types[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(signal_types); i++) {
 		len =  strlen(signal_types[i].name);
 		if (strncmp(name, signal_types[i].name, len) == 0 &&
 		    (name[len] == '\n' || name[len] == '\0'))

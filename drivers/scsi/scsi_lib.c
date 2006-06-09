@@ -30,7 +30,7 @@
 #include "scsi_logging.h"
 
 
-#define SG_MEMPOOL_NR		(sizeof(scsi_sg_pools)/sizeof(struct scsi_host_sg_pool))
+#define SG_MEMPOOL_NR		ARRAY_SIZE(scsi_sg_pools)
 #define SG_MEMPOOL_SIZE		32
 
 struct scsi_host_sg_pool {

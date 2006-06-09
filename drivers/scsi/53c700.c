@@ -316,7 +316,7 @@ NCR_700_detect(struct scsi_host_template *tpnt,
 	BUG_ON(!dma_is_consistent(pScript) && L1_CACHE_BYTES < dma_get_cache_alignment());
 	hostdata->slots = (struct NCR_700_command_slot *)(memory + SLOTS_OFFSET);
 	hostdata->dev = dev;
-		
+
 	pSlots = pScript + SLOTS_OFFSET;
 
 	/* Fill in the missing routines from the host template */
@@ -332,19 +332,18 @@ NCR_700_detect(struct scsi_host_template *tpnt,
 	tpnt->slave_destroy = NCR_700_slave_destroy;
 	tpnt->change_queue_depth = NCR_700_change_queue_depth;
 	tpnt->change_queue_type = NCR_700_change_queue_type;
-	
+
 	if(tpnt->name == NULL)
 		tpnt->name = "53c700";
 	if(tpnt->proc_name == NULL)
 		tpnt->proc_name = "53c700";
-	
 
 	host = scsi_host_alloc(tpnt, 4);
 	if (!host)
 		return NULL;
 	memset(hostdata->slots, 0, sizeof(struct NCR_700_command_slot)
 	       * NCR_700_COMMAND_SLOTS_PER_HOST);
-	for(j = 0; j < NCR_700_COMMAND_SLOTS_PER_HOST; j++) {
+	for (j = 0; j < NCR_700_COMMAND_SLOTS_PER_HOST; j++) {
 		dma_addr_t offset = (dma_addr_t)((unsigned long)&hostdata->slots[j].SG[0]
 					  - (unsigned long)&hostdata->slots[0].SG[0]);
 		hostdata->slots[j].pSG = (struct NCR_700_SG_List *)((unsigned long)(pSlots + offset));
@@ -355,14 +354,12 @@ NCR_700_detect(struct scsi_host_template *tpnt,
 		hostdata->slots[j].state = NCR_700_SLOT_FREE;
 	}
 
-	for(j = 0; j < sizeof(SCRIPT)/sizeof(SCRIPT[0]); j++) {
+	for (j = 0; j < ARRAY_SIZE(SCRIPT); j++)
 		script[j] = bS_to_host(SCRIPT[j]);
-	}
 
 	/* adjust all labels to be bus physical */
-	for(j = 0; j < PATCHES; j++) {
+	for (j = 0; j < PATCHES; j++)
 		script[LABELPATCHES[j]] = bS_to_host(pScript + SCRIPT[LABELPATCHES[j]]);
-	}
 	/* now patch up fixed addresses. */
 	script_patch_32(script, MessageLocation,
 			pScript + MSGOUT_OFFSET);
@@ -385,17 +382,17 @@ NCR_700_detect(struct scsi_host_template *tpnt,
 	host->hostdata[0] = (unsigned long)hostdata;
 	/* kick the chip */
 	NCR_700_writeb(0xff, host, CTEST9_REG);
-	if(hostdata->chip710) 
+	if (hostdata->chip710)
 		hostdata->rev = (NCR_700_readb(host, CTEST8_REG)>>4) & 0x0f;
 	else
 		hostdata->rev = (NCR_700_readb(host, CTEST7_REG)>>4) & 0x0f;
 	hostdata->fast = (NCR_700_readb(host, CTEST9_REG) == 0);
-	if(banner == 0) {
+	if (banner == 0) {
 		printk(KERN_NOTICE "53c700: Version " NCR_700_VERSION " By James.Bottomley@HansenPartnership.com\n");
 		banner = 1;
 	}
 	printk(KERN_NOTICE "scsi%d: %s rev %d %s\n", host->host_no,
-	       hostdata->chip710 ? "53c710" : 
+	       hostdata->chip710 ? "53c710" :
 	       (hostdata->fast ? "53c700-66" : "53c700"),
 	       hostdata->rev, hostdata->differential ?
 	       "(Differential)" : "");

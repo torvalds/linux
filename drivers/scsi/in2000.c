@@ -1809,7 +1809,7 @@ static int in2000_abort(Scsi_Cmnd * cmd)
 
 
 #define MAX_IN2000_HOSTS 3
-#define MAX_SETUP_ARGS (sizeof(setup_args) / sizeof(char *))
+#define MAX_SETUP_ARGS ARRAY_SIZE(setup_args)
 #define SETUP_BUFFER_SIZE 200
 static char setup_buffer[SETUP_BUFFER_SIZE];
 static char setup_used[MAX_SETUP_ARGS];

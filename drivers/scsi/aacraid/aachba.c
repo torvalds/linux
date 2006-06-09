@@ -641,13 +641,13 @@ static void setinqstr(struct aac_dev *dev, void *data, int tindex)
 			cp[sizeof(str->pid)] = c;
 	} else {
 		struct aac_driver_ident *mp = aac_get_driver_ident(dev->cardtype);
-   
-		inqstrcpy (mp->vname, str->vid); 
+
+		inqstrcpy (mp->vname, str->vid);
 		/* last six chars reserved for vol type */
 		inqstrcpy (mp->model, str->pid);
 	}
 
-	if (tindex < (sizeof(container_types)/sizeof(char *))){
+	if (tindex < ARRAY_SIZE(container_types)){
 		char *findit = str->pid;
 
 		for ( ; *findit != ' '; findit++); /* walk till we find a space */
@@ -1576,7 +1576,7 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 		 *	see: <vendor>.c i.e. aac.c
 		 */
 		if (scmd_id(scsicmd) == host->this_id) {
-			setinqstr(dev, (void *) (inq_data.inqd_vid), (sizeof(container_types)/sizeof(char *)));
+			setinqstr(dev, (void *) (inq_data.inqd_vid), ARRAY_SIZE(container_types));
 			inq_data.inqd_pdt = INQD_PDT_PROC;	/* Processor device */
 			aac_internal_transfer(scsicmd, &inq_data, 0, sizeof(inq_data));
 			scsicmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8 | SAM_STAT_GOOD;
@@ -2381,7 +2381,7 @@ static struct aac_srb_status_info srb_status_info[] = {
 	{ SRB_STATUS_SUCCESS,		"Success"},
 	{ SRB_STATUS_ABORTED,		"Aborted Command"},
 	{ SRB_STATUS_ABORT_FAILED,	"Abort Failed"},
-	{ SRB_STATUS_ERROR,		"Error Event"}, 
+	{ SRB_STATUS_ERROR,		"Error Event"},
 	{ SRB_STATUS_BUSY,		"Device Busy"},
 	{ SRB_STATUS_INVALID_REQUEST,	"Invalid Request"},
 	{ SRB_STATUS_INVALID_PATH_ID,	"Invalid Path ID"},
@@ -2400,7 +2400,7 @@ static struct aac_srb_status_info srb_status_info[] = {
 	{ SRB_STATUS_BAD_SRB_BLOCK_LENGTH,"Bad Srb Block Length"},
 	{ SRB_STATUS_REQUEST_FLUSHED,	"Request Flushed"},
 	{ SRB_STATUS_DELAYED_RETRY,	"Delayed Retry"},
-	{ SRB_STATUS_INVALID_LUN,	"Invalid LUN"}, 
+	{ SRB_STATUS_INVALID_LUN,	"Invalid LUN"},
 	{ SRB_STATUS_INVALID_TARGET_ID,	"Invalid TARGET ID"},
 	{ SRB_STATUS_BAD_FUNCTION,	"Bad Function"},
 	{ SRB_STATUS_ERROR_RECOVERY,	"Error Recovery"},
@@ -2415,11 +2415,9 @@ char *aac_get_status_string(u32 status)
 {
 	int i;
 
-	for(i=0; i < (sizeof(srb_status_info)/sizeof(struct aac_srb_status_info)); i++ ){
-		if(srb_status_info[i].status == status){
+	for (i = 0; i < ARRAY_SIZE(srb_status_info); i++)
+		if (srb_status_info[i].status == status)
 			return srb_status_info[i].str;
-		}
-	}
 
 	return "Bad Status Code";
 }

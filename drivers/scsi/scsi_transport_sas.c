@@ -65,7 +65,7 @@ get_sas_##title##_names(u32 table_key, char *buf)		\
 	ssize_t len = 0;					\
 	int i;							\
 								\
-	for (i = 0; i < sizeof(table)/sizeof(table[0]); i++) {	\
+	for (i = 0; i < ARRAY_SIZE(table); i++) {		\
 		if (table[i].value & table_key) {		\
 			len += sprintf(buf + len, "%s%s",	\
 				prefix, table[i].name);		\
@@ -83,7 +83,7 @@ get_sas_##title##_names(u32 table_key, char *buf)		\
 	ssize_t len = 0;					\
 	int i;							\
 								\
-	for (i = 0; i < sizeof(table)/sizeof(table[0]); i++) {	\
+	for (i = 0; i < ARRAY_SIZE(table); i++) {		\
 		if (table[i].value == table_key) {		\
 			len += sprintf(buf + len, "%s",		\
 				table[i].name);			\

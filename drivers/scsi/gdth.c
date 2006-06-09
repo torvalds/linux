@@ -569,8 +569,8 @@ static struct timer_list gdth_timer;
 #endif
 
 #define PTR2USHORT(a)   (ushort)(ulong)(a)
-#define GDTOFFSOF(a,b)  (size_t)&(((a*)0)->b)   
-#define INDEX_OK(i,t)   ((i)<sizeof(t)/sizeof((t)[0]))
+#define GDTOFFSOF(a,b)  (size_t)&(((a*)0)->b)
+#define INDEX_OK(i,t)   ((i)<ARRAY_SIZE(t))
 
 #define NUMDATA(a)      ( (gdth_num_str  *)((a)->hostdata))
 #define HADATA(a)       (&((gdth_ext_str *)((a)->hostdata))->haext)
