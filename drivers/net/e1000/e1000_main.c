@@ -3045,13 +3045,19 @@ void
 e1000_update_stats(struct e1000_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
+	struct pci_dev *pdev = adapter->pdev;
 	unsigned long flags;
 	uint16_t phy_tmp;
 
 #define PHY_IDLE_ERROR_COUNT_MASK 0x00FF
 
-	/* Prevent stats update while adapter is being reset */
+	/*
+	 * Prevent stats update while adapter is being reset, or if the pci
+	 * connection is down.
+	 */
 	if (adapter->link_speed == 0)
+		return;
+	if (pdev->error_state && pdev->error_state != pci_channel_io_normal)
 		return;
 
 	spin_lock_irqsave(&adapter->stats_lock, flags);
