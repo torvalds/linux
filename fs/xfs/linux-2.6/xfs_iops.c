@@ -643,7 +643,7 @@ xfs_vn_getattr(
 		error = vn_revalidate(vp);
 	if (!error)
 		generic_fillattr(inode, stat);
-	return 0;
+	return -error;
 }
 
 STATIC int
