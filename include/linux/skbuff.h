@@ -975,15 +975,16 @@ static inline void skb_reserve(struct sk_buff *skb, int len)
 #define NET_SKB_PAD	16
 #endif
 
-extern int ___pskb_trim(struct sk_buff *skb, unsigned int len, int realloc);
+extern int ___pskb_trim(struct sk_buff *skb, unsigned int len);
 
 static inline void __skb_trim(struct sk_buff *skb, unsigned int len)
 {
-	if (!skb->data_len) {
-		skb->len  = len;
-		skb->tail = skb->data + len;
-	} else
-		___pskb_trim(skb, len, 0);
+	if (unlikely(skb->data_len)) {
+		WARN_ON(1);
+		return;
+	}
+	skb->len  = len;
+	skb->tail = skb->data + len;
 }
 
 /**
@@ -993,6 +994,7 @@ static inline void __skb_trim(struct sk_buff *skb, unsigned int len)
  *
  *	Cut the length of a buffer down by removing data from the tail. If
  *	the buffer is already under the length specified it is not modified.
+ *	The skb must be linear.
  */
 static inline void skb_trim(struct sk_buff *skb, unsigned int len)
 {
@@ -1003,12 +1005,10 @@ static inline void skb_trim(struct sk_buff *skb, unsigned int len)
 
 static inline int __pskb_trim(struct sk_buff *skb, unsigned int len)
 {
-	if (!skb->data_len) {
-		skb->len  = len;
-		skb->tail = skb->data+len;
-		return 0;
-	}
-	return ___pskb_trim(skb, len, 1);
+	if (skb->data_len)
+		return ___pskb_trim(skb, len);
+	__skb_trim(skb, len);
+	return 0;
 }
 
 static inline int pskb_trim(struct sk_buff *skb, unsigned int len)

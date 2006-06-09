@@ -801,12 +801,10 @@ struct sk_buff *skb_pad(struct sk_buff *skb, int pad)
 	return nskb;
 }	
  
-/* Trims skb to length len. It can change skb pointers, if "realloc" is 1.
- * If realloc==0 and trimming is impossible without change of data,
- * it is BUG().
+/* Trims skb to length len. It can change skb pointers.
  */
 
-int ___pskb_trim(struct sk_buff *skb, unsigned int len, int realloc)
+int ___pskb_trim(struct sk_buff *skb, unsigned int len)
 {
 	int offset = skb_headlen(skb);
 	int nfrags = skb_shinfo(skb)->nr_frags;
@@ -816,7 +814,6 @@ int ___pskb_trim(struct sk_buff *skb, unsigned int len, int realloc)
 		int end = offset + skb_shinfo(skb)->frags[i].size;
 		if (end > len) {
 			if (skb_cloned(skb)) {
-				BUG_ON(!realloc);
 				if (pskb_expand_head(skb, 0, 0, GFP_ATOMIC))
 					return -ENOMEM;
 			}
