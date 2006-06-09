@@ -2757,7 +2757,8 @@ xfs_iunpin(
 			if (vp) {
 				struct inode	*inode = vn_to_inode(vp);
 
-				if (!(inode->i_state & I_NEW))
+				if (!(inode->i_state &
+						(I_NEW|I_FREEING|I_CLEAR)))
 					mark_inode_dirty_sync(inode);
 			}
 		}
