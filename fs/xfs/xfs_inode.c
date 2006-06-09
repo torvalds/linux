@@ -4181,7 +4181,7 @@ xfs_iext_direct_to_inline(
 	 */
 	memcpy(ifp->if_u2.if_inline_ext, ifp->if_u1.if_extents,
 		nextents * sizeof(xfs_bmbt_rec_t));
-	kmem_free(ifp->if_u1.if_extents, KM_SLEEP);
+	kmem_free(ifp->if_u1.if_extents, ifp->if_real_bytes);
 	ifp->if_u1.if_extents = ifp->if_u2.if_inline_ext;
 	ifp->if_real_bytes = 0;
 }
