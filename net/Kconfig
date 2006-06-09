@@ -220,7 +220,7 @@ config NET_TCPPROBE
 	depends on INET && EXPERIMENTAL && PROC_FS && KPROBES
 	---help---
 	This module allows for capturing the changes to TCP connection
-	state in response to incoming patckets. It is used for debugging
+	state in response to incoming packets. It is used for debugging
 	TCP congestion avoidance modules. If you don't understand
 	what was just said, you don't need it: say N.
 
