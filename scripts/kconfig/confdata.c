@@ -134,11 +134,11 @@ load:
 		case S_INT:
 		case S_HEX:
 		case S_STRING:
-			if (sym->user.val)
-				free(sym->user.val);
+			if (sym->def[S_DEF_USER].val)
+				free(sym->def[S_DEF_USER].val);
 		default:
-			sym->user.val = NULL;
-			sym->user.tri = no;
+			sym->def[S_DEF_USER].val = NULL;
+			sym->def[S_DEF_USER].tri = no;
 		}
 	}
 
@@ -166,7 +166,7 @@ load:
 			switch (sym->type) {
 			case S_BOOLEAN:
 			case S_TRISTATE:
-				sym->user.tri = no;
+				sym->def[S_DEF_USER].tri = no;
 				sym->flags &= ~SYMBOL_NEW;
 				break;
 			default:
@@ -196,18 +196,18 @@ load:
 			switch (sym->type) {
 			case S_TRISTATE:
 				if (p[0] == 'm') {
-					sym->user.tri = mod;
+					sym->def[S_DEF_USER].tri = mod;
 					sym->flags &= ~SYMBOL_NEW;
 					break;
 				}
 			case S_BOOLEAN:
 				if (p[0] == 'y') {
-					sym->user.tri = yes;
+					sym->def[S_DEF_USER].tri = yes;
 					sym->flags &= ~SYMBOL_NEW;
 					break;
 				}
 				if (p[0] == 'n') {
-					sym->user.tri = no;
+					sym->def[S_DEF_USER].tri = no;
 					sym->flags &= ~SYMBOL_NEW;
 					break;
 				}
@@ -230,7 +230,7 @@ load:
 			case S_INT:
 			case S_HEX:
 				if (sym_string_valid(sym, p)) {
-					sym->user.val = strdup(p);
+					sym->def[S_DEF_USER].val = strdup(p);
 					sym->flags &= ~SYMBOL_NEW;
 				} else {
 					conf_warning("symbol value '%s' invalid for %s", p, sym->name);
@@ -249,24 +249,24 @@ load:
 		}
 		if (sym && sym_is_choice_value(sym)) {
 			struct symbol *cs = prop_get_symbol(sym_get_choice_prop(sym));
-			switch (sym->user.tri) {
+			switch (sym->def[S_DEF_USER].tri) {
 			case no:
 				break;
 			case mod:
-				if (cs->user.tri == yes) {
+				if (cs->def[S_DEF_USER].tri == yes) {
 					conf_warning("%s creates inconsistent choice state", sym->name);
 					cs->flags |= SYMBOL_NEW;
 				}
 				break;
 			case yes:
-				if (cs->user.tri != no) {
+				if (cs->def[S_DEF_USER].tri != no) {
 					conf_warning("%s creates inconsistent choice state", sym->name);
 					cs->flags |= SYMBOL_NEW;
 				} else
-					cs->user.val = sym;
+					cs->def[S_DEF_USER].val = sym;
 				break;
 			}
-			cs->user.tri = E_OR(cs->user.tri, sym->user.tri);
+			cs->def[S_DEF_USER].tri = E_OR(cs->def[S_DEF_USER].tri, sym->def[S_DEF_USER].tri);
 		}
 	}
 	fclose(in);
@@ -297,12 +297,12 @@ int conf_read(const char *name)
 			switch (sym->type) {
 			case S_BOOLEAN:
 			case S_TRISTATE:
-				if (sym->user.tri != sym_get_tristate_value(sym))
+				if (sym->def[S_DEF_USER].tri != sym_get_tristate_value(sym))
 					break;
 				if (!sym_is_choice(sym))
 					goto sym_ok;
 			default:
-				if (!strcmp(sym->curr.val, sym->user.val))
+				if (!strcmp(sym->curr.val, sym->def[S_DEF_USER].val))
 					goto sym_ok;
 				break;
 			}
@@ -319,7 +319,7 @@ int conf_read(const char *name)
 			case S_STRING:
 			case S_INT:
 			case S_HEX:
-				if (!sym_string_within_range(sym, sym->user.val)) {
+				if (!sym_string_within_range(sym, sym->def[S_DEF_USER].val)) {
 					sym->flags |= SYMBOL_NEW;
 					sym->flags &= ~SYMBOL_VALID;
 				}

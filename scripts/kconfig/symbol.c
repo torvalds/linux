@@ -227,7 +227,7 @@ static struct symbol *sym_calc_choice(struct symbol *sym)
 	struct expr *e;
 
 	/* is the user choice visible? */
-	def_sym = sym->user.val;
+	def_sym = sym->def[S_DEF_USER].val;
 	if (def_sym) {
 		sym_calc_visibility(def_sym);
 		if (def_sym->visible != no)
@@ -306,7 +306,7 @@ void sym_calc_value(struct symbol *sym)
 		} else if (E_OR(sym->visible, sym->rev_dep.tri) != no) {
 			sym->flags |= SYMBOL_WRITE;
 			if (sym_has_value(sym))
-				newval.tri = sym->user.tri;
+				newval.tri = sym->def[S_DEF_USER].tri;
 			else if (!sym_is_choice(sym)) {
 				prop = sym_get_default_prop(sym);
 				if (prop)
@@ -329,7 +329,7 @@ void sym_calc_value(struct symbol *sym)
 		if (sym->visible != no) {
 			sym->flags |= SYMBOL_WRITE;
 			if (sym_has_value(sym)) {
-				newval.val = sym->user.val;
+				newval.val = sym->def[S_DEF_USER].val;
 				break;
 			}
 		}
@@ -439,7 +439,7 @@ bool sym_set_tristate_value(struct symbol *sym, tristate val)
 		struct property *prop;
 		struct expr *e;
 
-		cs->user.val = sym;
+		cs->def[S_DEF_USER].val = sym;
 		cs->flags &= ~SYMBOL_NEW;
 		prop = sym_get_choice_prop(cs);
 		for (e = prop->expr; e; e = e->left.expr) {
@@ -448,7 +448,7 @@ bool sym_set_tristate_value(struct symbol *sym, tristate val)
 		}
 	}
 
-	sym->user.tri = val;
+	sym->def[S_DEF_USER].tri = val;
 	if (oldval != val) {
 		sym_clear_all_valid();
 		if (sym == modules_sym)
@@ -596,15 +596,15 @@ bool sym_set_string_value(struct symbol *sym, const char *newval)
 		sym_set_changed(sym);
 	}
 
-	oldval = sym->user.val;
+	oldval = sym->def[S_DEF_USER].val;
 	size = strlen(newval) + 1;
 	if (sym->type == S_HEX && (newval[0] != '0' || (newval[1] != 'x' && newval[1] != 'X'))) {
 		size += 2;
-		sym->user.val = val = malloc(size);
+		sym->def[S_DEF_USER].val = val = malloc(size);
 		*val++ = '0';
 		*val++ = 'x';
 	} else if (!oldval || strcmp(oldval, newval))
-		sym->user.val = val = malloc(size);
+		sym->def[S_DEF_USER].val = val = malloc(size);
 	else
 		return true;
 

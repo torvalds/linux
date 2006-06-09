@@ -63,12 +63,17 @@ enum symbol_type {
 	S_UNKNOWN, S_BOOLEAN, S_TRISTATE, S_INT, S_HEX, S_STRING, S_OTHER
 };
 
+enum {
+	S_DEF_USER,		/* main user value */
+};
+
 struct symbol {
 	struct symbol *next;
 	char *name;
 	char *help;
 	enum symbol_type type;
-	struct symbol_value curr, user;
+	struct symbol_value curr;
+	struct symbol_value def[4];
 	tristate visible;
 	int flags;
 	struct property *prop;
