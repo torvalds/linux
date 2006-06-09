@@ -193,14 +193,14 @@ xlog_header_check_dump(
 {
 	int			b;
 
-	printk("%s:  SB : uuid = ", __FUNCTION__);
+	cmn_err(CE_DEBUG, "%s:  SB : uuid = ", __FUNCTION__);
 	for (b = 0; b < 16; b++)
-		printk("%02x",((unsigned char *)&mp->m_sb.sb_uuid)[b]);
-	printk(", fmt = %d\n", XLOG_FMT);
-	printk("    log : uuid = ");
+		cmn_err(CE_DEBUG, "%02x", ((uchar_t *)&mp->m_sb.sb_uuid)[b]);
+	cmn_err(CE_DEBUG, ", fmt = %d\n", XLOG_FMT);
+	cmn_err(CE_DEBUG, "    log : uuid = ");
 	for (b = 0; b < 16; b++)
-		printk("%02x",((unsigned char *)&head->h_fs_uuid)[b]);
-	printk(", fmt = %d\n", INT_GET(head->h_fmt, ARCH_CONVERT));
+		cmn_err(CE_DEBUG, "%02x",((uchar_t *)&head->h_fs_uuid)[b]);
+	cmn_err(CE_DEBUG, ", fmt = %d\n", INT_GET(head->h_fmt, ARCH_CONVERT));
 }
 #else
 #define xlog_header_check_dump(mp, head)
@@ -3444,13 +3444,13 @@ xlog_unpack_data_checksum(
 	    if (rhead->h_chksum ||
 		((log->l_flags & XLOG_CHKSUM_MISMATCH) == 0)) {
 		    cmn_err(CE_DEBUG,
-			"XFS: LogR chksum mismatch: was (0x%x) is (0x%x)",
+			"XFS: LogR chksum mismatch: was (0x%x) is (0x%x)\n",
 			    INT_GET(rhead->h_chksum, ARCH_CONVERT), chksum);
 		    cmn_err(CE_DEBUG,
 "XFS: Disregard message if filesystem was created with non-DEBUG kernel");
 		    if (XFS_SB_VERSION_HASLOGV2(&log->l_mp->m_sb)) {
 			    cmn_err(CE_DEBUG,
-				"XFS: LogR this is a LogV2 filesystem");
+				"XFS: LogR this is a LogV2 filesystem\n");
 		    }
 		    log->l_flags |= XLOG_CHKSUM_MISMATCH;
 	    }
@@ -3999,7 +3999,7 @@ xlog_recover_finish(
 		log->l_flags &= ~XLOG_RECOVERY_NEEDED;
 	} else {
 		cmn_err(CE_DEBUG,
-			"!Ending clean XFS mount for filesystem: %s",
+			"!Ending clean XFS mount for filesystem: %s\n",
 			log->l_mp->m_fsname);
 	}
 	return 0;

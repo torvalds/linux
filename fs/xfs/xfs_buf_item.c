@@ -1030,9 +1030,9 @@ xfs_buf_iodone_callbacks(
 		if ((XFS_BUF_TARGET(bp) != lasttarg) ||
 		    (time_after(jiffies, (lasttime + 5*HZ)))) {
 			lasttime = jiffies;
-			prdev("XFS write error in file system meta-data "
-			      "block 0x%llx in %s",
-			      XFS_BUF_TARGET(bp),
+			cmn_err(CE_ALERT, "Device %s, XFS metadata write error"
+					" block 0x%llx in %s",
+				XFS_BUFTARG_NAME(XFS_BUF_TARGET(bp)),
 			      (__uint64_t)XFS_BUF_ADDR(bp), mp->m_fsname);
 		}
 		lasttarg = XFS_BUF_TARGET(bp);

@@ -352,8 +352,9 @@ xfs_itobp(
 		if (unlikely(XFS_TEST_ERROR(!di_ok, mp, XFS_ERRTAG_ITOBP_INOTOBP,
 				 XFS_RANDOM_ITOBP_INOTOBP))) {
 #ifdef DEBUG
-			prdev("bad inode magic/vsn daddr %lld #%d (magic=%x)",
-				mp->m_ddev_targp,
+			cmn_err(CE_ALERT, "Device %s - bad inode magic/vsn "
+					  "daddr %lld #%d (magic=%x)",
+				XFS_BUFTARG_NAME(mp->m_ddev_targp),
 				(unsigned long long)imap.im_blkno, i,
 				INT_GET(dip->di_core.di_magic, ARCH_CONVERT));
 #endif

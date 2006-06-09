@@ -1708,42 +1708,48 @@ xfs_parseargs(
 
 		if (!strcmp(this_char, MNTOPT_LOGBUFS)) {
 			if (!value || !*value) {
-				printk("XFS: %s option requires an argument\n",
+				cmn_err(CE_WARN,
+					"XFS: %s option requires an argument",
 					this_char);
 				return EINVAL;
 			}
 			args->logbufs = simple_strtoul(value, &eov, 10);
 		} else if (!strcmp(this_char, MNTOPT_LOGBSIZE)) {
 			if (!value || !*value) {
-				printk("XFS: %s option requires an argument\n",
+				cmn_err(CE_WARN,
+					"XFS: %s option requires an argument",
 					this_char);
 				return EINVAL;
 			}
 			args->logbufsize = suffix_strtoul(value, &eov, 10);
 		} else if (!strcmp(this_char, MNTOPT_LOGDEV)) {
 			if (!value || !*value) {
-				printk("XFS: %s option requires an argument\n",
+				cmn_err(CE_WARN,
+					"XFS: %s option requires an argument",
 					this_char);
 				return EINVAL;
 			}
 			strncpy(args->logname, value, MAXNAMELEN);
 		} else if (!strcmp(this_char, MNTOPT_MTPT)) {
 			if (!value || !*value) {
-				printk("XFS: %s option requires an argument\n",
+				cmn_err(CE_WARN,
+					"XFS: %s option requires an argument",
 					this_char);
 				return EINVAL;
 			}
 			strncpy(args->mtpt, value, MAXNAMELEN);
 		} else if (!strcmp(this_char, MNTOPT_RTDEV)) {
 			if (!value || !*value) {
-				printk("XFS: %s option requires an argument\n",
+				cmn_err(CE_WARN,
+					"XFS: %s option requires an argument",
 					this_char);
 				return EINVAL;
 			}
 			strncpy(args->rtname, value, MAXNAMELEN);
 		} else if (!strcmp(this_char, MNTOPT_BIOSIZE)) {
 			if (!value || !*value) {
-				printk("XFS: %s option requires an argument\n",
+				cmn_err(CE_WARN,
+					"XFS: %s option requires an argument",
 					this_char);
 				return EINVAL;
 			}
@@ -1752,7 +1758,8 @@ xfs_parseargs(
 			args->iosizelog = (uint8_t) iosize;
 		} else if (!strcmp(this_char, MNTOPT_ALLOCSIZE)) {
 			if (!value || !*value) {
-				printk("XFS: %s option requires an argument\n",
+				cmn_err(CE_WARN,
+					"XFS: %s option requires an argument",
 					this_char);
 				return EINVAL;
 			}
@@ -1761,7 +1768,8 @@ xfs_parseargs(
 			args->iosizelog = ffs(iosize) - 1;
 		} else if (!strcmp(this_char, MNTOPT_IHASHSIZE)) {
 			if (!value || !*value) {
-				printk("XFS: %s option requires an argument\n",
+				cmn_err(CE_WARN,
+					"XFS: %s option requires an argument",
 					this_char);
 				return EINVAL;
 			}
@@ -1782,7 +1790,8 @@ xfs_parseargs(
 		} else if (!strcmp(this_char, MNTOPT_INO64)) {
 			args->flags |= XFSMNT_INO64;
 #if !XFS_BIG_INUMS
-			printk("XFS: %s option not allowed on this system\n",
+			cmn_err(CE_WARN,
+				"XFS: %s option not allowed on this system",
 				this_char);
 			return EINVAL;
 #endif
@@ -1792,14 +1801,16 @@ xfs_parseargs(
 			args->flags |= XFSMNT_SWALLOC;
 		} else if (!strcmp(this_char, MNTOPT_SUNIT)) {
 			if (!value || !*value) {
-				printk("XFS: %s option requires an argument\n",
+				cmn_err(CE_WARN,
+					"XFS: %s option requires an argument",
 					this_char);
 				return EINVAL;
 			}
 			dsunit = simple_strtoul(value, &eov, 10);
 		} else if (!strcmp(this_char, MNTOPT_SWIDTH)) {
 			if (!value || !*value) {
-				printk("XFS: %s option requires an argument\n",
+				cmn_err(CE_WARN,
+					"XFS: %s option requires an argument",
 					this_char);
 				return EINVAL;
 			}
@@ -1807,7 +1818,8 @@ xfs_parseargs(
 		} else if (!strcmp(this_char, MNTOPT_64BITINODE)) {
 			args->flags &= ~XFSMNT_32BITINODES;
 #if !XFS_BIG_INUMS
-			printk("XFS: %s option not allowed on this system\n",
+			cmn_err(CE_WARN,
+				"XFS: %s option not allowed on this system",
 				this_char);
 			return EINVAL;
 #endif
@@ -1831,36 +1843,41 @@ xfs_parseargs(
 			args->flags &= ~XFSMNT_ATTR2;
 		} else if (!strcmp(this_char, "osyncisdsync")) {
 			/* no-op, this is now the default */
-printk("XFS: osyncisdsync is now the default, option is deprecated.\n");
+			cmn_err(CE_WARN,
+	"XFS: osyncisdsync is now the default, option is deprecated.");
 		} else if (!strcmp(this_char, "irixsgid")) {
-printk("XFS: irixsgid is now a sysctl(2) variable, option is deprecated.\n");
+			cmn_err(CE_WARN,
+	"XFS: irixsgid is now a sysctl(2) variable, option is deprecated.");
 		} else {
-			printk("XFS: unknown mount option [%s].\n", this_char);
+			cmn_err(CE_WARN,
+				"XFS: unknown mount option [%s].", this_char);
 			return EINVAL;
 		}
 	}
 
 	if (args->flags & XFSMNT_NORECOVERY) {
 		if ((vfsp->vfs_flag & VFS_RDONLY) == 0) {
-			printk("XFS: no-recovery mounts must be read-only.\n");
+			cmn_err(CE_WARN,
+				"XFS: no-recovery mounts must be read-only.");
 			return EINVAL;
 		}
 	}
 
 	if ((args->flags & XFSMNT_NOALIGN) && (dsunit || dswidth)) {
-		printk(
-	"XFS: sunit and swidth options incompatible with the noalign option\n");
+		cmn_err(CE_WARN,
+	"XFS: sunit and swidth options incompatible with the noalign option");
 		return EINVAL;
 	}
 
 	if ((dsunit && !dswidth) || (!dsunit && dswidth)) {
-		printk("XFS: sunit and swidth must be specified together\n");
+		cmn_err(CE_WARN,
+			"XFS: sunit and swidth must be specified together");
 		return EINVAL;
 	}
 
 	if (dsunit && (dswidth % dsunit != 0)) {
-		printk(
-	"XFS: stripe width (%d) must be a multiple of the stripe unit (%d)\n",
+		cmn_err(CE_WARN,
+	"XFS: stripe width (%d) must be a multiple of the stripe unit (%d)",
 			dswidth, dsunit);
 		return EINVAL;
 	}

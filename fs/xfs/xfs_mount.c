@@ -1006,8 +1006,9 @@ xfs_mountfs(
 
 	if (unlikely((rip->i_d.di_mode & S_IFMT) != S_IFDIR)) {
 		cmn_err(CE_WARN, "XFS: corrupted root inode");
-		prdev("Root inode %llu is not a directory",
-		      mp->m_ddev_targp, (unsigned long long)rip->i_ino);
+		cmn_err(CE_WARN, "Device %s - root %llu is not a directory",
+			XFS_BUFTARG_NAME(mp->m_ddev_targp),
+			(unsigned long long)rip->i_ino);
 		xfs_iunlock(rip, XFS_ILOCK_EXCL);
 		XFS_ERROR_REPORT("xfs_mountfs_int(2)", XFS_ERRLEVEL_LOW,
 				 mp);

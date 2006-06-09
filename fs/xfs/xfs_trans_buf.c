@@ -320,7 +320,7 @@ xfs_trans_read_buf(
 			if (xfs_error_target == target) {
 				if (((xfs_req_num++) % xfs_error_mod) == 0) {
 					xfs_buf_relse(bp);
-					printk("Returning error!\n");
+					cmn_err(CE_DEBUG, "Returning error!\n");
 					return XFS_ERROR(EIO);
 				}
 			}
@@ -425,7 +425,7 @@ xfs_trans_read_buf(
 				xfs_force_shutdown(tp->t_mountp,
 						   SHUTDOWN_META_IO_ERROR);
 				xfs_buf_relse(bp);
-				printk("Returning error in trans!\n");
+				cmn_err(CE_DEBUG, "Returning trans error!\n");
 				return XFS_ERROR(EIO);
 			}
 		}

@@ -2404,10 +2404,10 @@ xfs_rtprint_range(
 {
 	xfs_extlen_t	i;		/* block number in the extent */
 
-	printk("%Ld: ", (long long)start);
+	cmn_err(CE_DEBUG, "%Ld: ", (long long)start);
 	for (i = 0; i < len; i++)
-		printk("%d", xfs_rtcheck_bit(mp, tp, start + i, 1));
-	printk("\n");
+		cmn_err(CE_DEBUG, "%d", xfs_rtcheck_bit(mp, tp, start + i, 1));
+	cmn_err(CE_DEBUG, "\n");
 }
 
 /*
@@ -2431,17 +2431,17 @@ xfs_rtprint_summary(
 			(void)xfs_rtget_summary(mp, tp, l, i, &sumbp, &sb, &c);
 			if (c) {
 				if (!p) {
-					printk("%Ld-%Ld:", 1LL << l,
+					cmn_err(CE_DEBUG, "%Ld-%Ld:", 1LL << l,
 						XFS_RTMIN((1LL << l) +
 							  ((1LL << l) - 1LL),
 							 mp->m_sb.sb_rextents));
 					p = 1;
 				}
-				printk(" %Ld:%d", (long long)i, c);
+				cmn_err(CE_DEBUG, " %Ld:%d", (long long)i, c);
 			}
 		}
 		if (p)
-			printk("\n");
+			cmn_err(CE_DEBUG, "\n");
 	}
 	if (sumbp)
 		xfs_trans_brelse(tp, sumbp);
