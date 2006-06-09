@@ -121,6 +121,25 @@ const u32 nfs4_fsinfo_bitmap[2] = { FATTR4_WORD0_MAXFILESIZE
 			0
 };
 
+const u32 nfs4_fs_locations_bitmap[2] = {
+	FATTR4_WORD0_TYPE
+	| FATTR4_WORD0_CHANGE
+	| FATTR4_WORD0_SIZE
+	| FATTR4_WORD0_FSID
+	| FATTR4_WORD0_FILEID
+	| FATTR4_WORD0_FS_LOCATIONS,
+	FATTR4_WORD1_MODE
+	| FATTR4_WORD1_NUMLINKS
+	| FATTR4_WORD1_OWNER
+	| FATTR4_WORD1_OWNER_GROUP
+	| FATTR4_WORD1_RAWDEV
+	| FATTR4_WORD1_SPACE_USED
+	| FATTR4_WORD1_TIME_ACCESS
+	| FATTR4_WORD1_TIME_METADATA
+	| FATTR4_WORD1_TIME_MODIFY
+	| FATTR4_WORD1_MOUNTED_ON_FILEID
+};
+
 static void nfs4_setup_readdir(u64 cookie, u32 *verifier, struct dentry *dentry,
 		struct nfs4_readdir_arg *readdir)
 {
@@ -3594,6 +3613,7 @@ int nfs4_proc_fs_locations(struct inode *dir, struct dentry *dentry,
 	dprintk("%s: start\n", __FUNCTION__);
 	fs_locations->fattr.valid = 0;
 	fs_locations->server = server;
+	fs_locations->nlocations = 0;
 	status = rpc_call_sync(server->client, &msg, 0);
 	dprintk("%s: returned status = %d\n", __FUNCTION__, status);
 	return status;

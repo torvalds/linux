@@ -731,6 +731,13 @@ static int encode_fsinfo(struct xdr_stream *xdr, const u32* bitmask)
 			bitmask[1] & nfs4_fsinfo_bitmap[1]);
 }
 
+static int encode_fs_locations(struct xdr_stream *xdr, const u32* bitmask)
+{
+	return encode_getattr_two(xdr,
+				  bitmask[0] & nfs4_fs_locations_bitmap[0],
+				  bitmask[1] & nfs4_fs_locations_bitmap[1]);
+}
+
 static int encode_getfh(struct xdr_stream *xdr)
 {
 	uint32_t *p;
@@ -2030,10 +2037,10 @@ static int nfs4_xdr_enc_fs_locations(struct rpc_rqst *req, uint32_t *p, struct n
 		goto out;
 	if ((status = encode_lookup(&xdr, args->name)) != 0)
 		goto out;
-	if ((status = encode_getfattr(&xdr, args->bitmask)) != 0)
+	if ((status = encode_fs_locations(&xdr, args->bitmask)) != 0)
 		goto out;
 	/* set up reply
-	 *   toplevel_status + taglen + rescount + OP_PUTFH + status
+	 *   toplevel_status + OP_PUTFH + status
 	 *   + OP_LOOKUP + status + OP_GETATTR + status = 7
 	 */
 	replen = (RPC_REPHDRSIZE + auth->au_rslack + 7) << 2;
