@@ -43,6 +43,7 @@
 #include <asm/uaccess.h>
 #include <asm/semaphore.h>
 #include <asm/cacheflush.h>
+#include <linux/license.h>
 
 #if 0
 #define DEBUGP printk
@@ -1246,16 +1247,6 @@ static void layout_sections(struct module *mod,
 		if (m == 0)
 			mod->init_text_size = mod->init_size;
 	}
-}
-
-static inline int license_is_gpl_compatible(const char *license)
-{
-	return (strcmp(license, "GPL") == 0
-		|| strcmp(license, "GPL v2") == 0
-		|| strcmp(license, "GPL and additional rights") == 0
-		|| strcmp(license, "Dual BSD/GPL") == 0
-		|| strcmp(license, "Dual MIT/GPL") == 0
-		|| strcmp(license, "Dual MPL/GPL") == 0);
 }
 
 static void set_license(struct module *mod, const char *license)

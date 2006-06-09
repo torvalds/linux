@@ -100,6 +100,7 @@ buf_write(struct buffer *buf, const char *s, int len);
 struct module {
 	struct module *next;
 	const char *name;
+	int gpl_compatible;
 	struct symbol *unres;
 	int seen;
 	int skip;

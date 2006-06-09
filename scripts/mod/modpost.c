@@ -13,6 +13,7 @@
 
 #include <ctype.h>
 #include "modpost.h"
+#include "../../include/linux/license.h"
 
 /* Are we using CONFIG_MODVERSIONS? */
 int modversions = 0;
@@ -99,6 +100,7 @@ static struct module *new_module(char *modname)
 
 	/* add to list */
 	mod->name = p;
+	mod->gpl_compatible = -1;
 	mod->next = modules;
 	modules = mod;
 
@@ -493,18 +495,30 @@ static char *next_string(char *string, unsigned long *secsize)
 	return string;
 }
 
-static char *get_modinfo(void *modinfo, unsigned long modinfo_len,
-			 const char *tag)
+static char *get_next_modinfo(void *modinfo, unsigned long modinfo_len,
+			      const char *tag, char *info)
 {
 	char *p;
 	unsigned int taglen = strlen(tag);
 	unsigned long size = modinfo_len;
+
+	if (info) {
+		size -= info - (char *)modinfo;
+		modinfo = next_string(info, &size);
+	}
 
 	for (p = modinfo; p; p = next_string(p, &size)) {
 		if (strncmp(p, tag, taglen) == 0 && p[taglen] == '=')
 			return p + taglen + 1;
 	}
 	return NULL;
+}
+
+static char *get_modinfo(void *modinfo, unsigned long modinfo_len,
+			 const char *tag)
+
+{
+	return get_next_modinfo(modinfo, modinfo_len, tag, NULL);
 }
 
 /**
@@ -981,6 +995,7 @@ static void read_symbols(char *modname)
 {
 	const char *symname;
 	char *version;
+	char *license;
 	struct module *mod;
 	struct elf_info info = { };
 	Elf_Sym *sym;
@@ -994,6 +1009,18 @@ static void read_symbols(char *modname)
 	if (is_vmlinux(modname)) {
 		have_vmlinux = 1;
 		mod->skip = 1;
+	}
+
+	license = get_modinfo(info.modinfo, info.modinfo_len, "license");
+	while (license) {
+		if (license_is_gpl_compatible(license))
+			mod->gpl_compatible = 1;
+		else {
+			mod->gpl_compatible = 0;
+			break;
+		}
+		license = get_next_modinfo(info.modinfo, info.modinfo_len,
+					   "license", license);
 	}
 
 	for (sym = info.symtab_start; sym < info.symtab_stop; sym++) {
@@ -1050,6 +1077,40 @@ void buf_write(struct buffer *buf, const char *s, int len)
 	}
 	strncpy(buf->p + buf->pos, s, len);
 	buf->pos += len;
+}
+
+void check_license(struct module *mod)
+{
+	struct symbol *s, *exp;
+
+	for (s = mod->unres; s; s = s->next) {
+		if (mod->gpl_compatible == 1) {
+			/* GPL-compatible modules may use all symbols */
+			continue;
+		}
+		exp = find_symbol(s->name);
+		if (!exp || exp->module == mod)
+			continue;
+		const char *basename = strrchr(mod->name, '/');
+		if (basename)
+			basename++;
+		switch (exp->export) {
+			case export_gpl:
+				fatal("modpost: GPL-incompatible module %s "
+				      "uses GPL-only symbol '%s'\n",
+				 basename ? basename : mod->name,
+				exp->name);
+				break;
+			case export_gpl_future:
+				warn("modpost: GPL-incompatible module %s "
+				      "uses future GPL-only symbol '%s'\n",
+				      basename ? basename : mod->name,
+				      exp->name);
+				break;
+			case export_plain: /* ignore */ break;
+			case export_unknown: /* ignore */ break;
+		}
+        }
 }
 
 /**
@@ -1323,6 +1384,12 @@ int main(int argc, char **argv)
 
 	while (optind < argc) {
 		read_symbols(argv[optind++]);
+	}
+
+	for (mod = modules; mod; mod = mod->next) {
+		if (mod->skip)
+			continue;
+		check_license(mod);
 	}
 
 	for (mod = modules; mod; mod = mod->next) {
