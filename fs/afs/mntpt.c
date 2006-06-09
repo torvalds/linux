@@ -210,7 +210,7 @@ static struct vfsmount *afs_mntpt_do_automount(struct dentry *mntpt)
 
 	/* try and do the mount */
 	kdebug("--- attempting mount %s -o %s ---", devname, options);
-	mnt = do_kern_mount("afs", 0, devname, options);
+	mnt = vfs_kern_mount(&afs_fs_type, 0, devname, options);
 	kdebug("--- mount result %p ---", mnt);
 
 	free_page((unsigned long) devname);

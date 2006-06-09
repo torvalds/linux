@@ -55,6 +55,7 @@ typedef struct {
 } Node;
 
 static DEFINE_RWLOCK(entries_lock);
+static struct file_system_type bm_fs_type;
 static struct vfsmount *bm_mnt;
 static int entry_count;
 
@@ -638,7 +639,7 @@ static ssize_t bm_register_write(struct file *file, const char __user *buffer,
 	if (!inode)
 		goto out2;
 
-	err = simple_pin_fs("binfmt_misc", &bm_mnt, &entry_count);
+	err = simple_pin_fs(&bm_fs_type, &bm_mnt, &entry_count);
 	if (err) {
 		iput(inode);
 		inode = NULL;

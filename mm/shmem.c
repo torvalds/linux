@@ -2261,7 +2261,7 @@ static int __init init_tmpfs(void)
 #ifdef CONFIG_TMPFS
 	devfs_mk_dir("shm");
 #endif
-	shm_mnt = do_kern_mount(tmpfs_fs_type.name, MS_NOUSER,
+	shm_mnt = vfs_kern_mount(&tmpfs_fs_type, MS_NOUSER,
 				tmpfs_fs_type.name, NULL);
 	if (IS_ERR(shm_mnt)) {
 		error = PTR_ERR(shm_mnt);

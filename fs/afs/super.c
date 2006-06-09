@@ -48,7 +48,7 @@ static void afs_put_super(struct super_block *sb);
 
 static void afs_destroy_inode(struct inode *inode);
 
-static struct file_system_type afs_fs_type = {
+struct file_system_type afs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "afs",
 	.get_sb		= afs_get_sb,
