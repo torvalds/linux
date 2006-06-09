@@ -404,7 +404,7 @@ include $(srctree)/arch/$(ARCH)/Makefile
 export KBUILD_DEFCONFIG
 
 config %config: scripts_basic outputmakefile FORCE
-	$(Q)mkdir -p include/linux
+	$(Q)mkdir -p include/linux include/config
 	$(Q)$(MAKE) $(build)=scripts/kconfig $@
 	$(Q)$(MAKE) -C $(srctree) KBUILD_SRC= .kernelrelease
 
@@ -421,8 +421,6 @@ PHONY += scripts
 scripts: scripts_basic include/config/MARKER
 	$(Q)$(MAKE) $(build)=$(@)
 
-scripts_basic: include/linux/autoconf.h
-
 # Objects we will link into vmlinux / subdirs we need to visit
 init-y		:= init/
 drivers-y	:= drivers/ sound/
@@ -436,25 +434,22 @@ ifeq ($(dot-config),1)
 
 # Read in dependencies to all Kconfig* files, make sure to run
 # oldconfig if changes are detected.
--include .kconfig.d
+-include include/config/auto.conf.cmd
+-include include/config/auto.conf
 
-include .config
-
-# If .config needs to be updated, it will be done via the dependency
-# that autoconf has on .config.
 # To avoid any implicit rule to kick in, define an empty command
-.config .kconfig.d: ;
+.config include/config/auto.conf.cmd: ;
 
-# If .config is newer than include/linux/autoconf.h, someone tinkered
+# If .config is newer than include/config/auto.conf, someone tinkered
 # with it and forgot to run make oldconfig.
-# If kconfig.d is missing then we are probarly in a cleaned tree so
+# if auto.conf.cmd is missing then we are probarly in a cleaned tree so
 # we execute the config step to be sure to catch updated Kconfig files
-include/linux/autoconf.h: .kconfig.d .config
-	$(Q)mkdir -p include/linux
+include/config/auto.conf: .config include/config/auto.conf.cmd
 	$(Q)$(MAKE) -f $(srctree)/Makefile silentoldconfig
+
 else
 # Dummy target needed, because used as prerequisite
-include/linux/autoconf.h: ;
+include/config/auto.conf: ;
 endif
 
 # The all: target is the default when no target is given on the
@@ -779,7 +774,7 @@ PHONY += prepare-all
 prepare3: .kernelrelease
 ifneq ($(KBUILD_SRC),)
 	@echo '  Using $(srctree) as source for kernel'
-	$(Q)if [ -f $(srctree)/.config ]; then \
+	$(Q)if [ -f $(srctree)/.config -o -d $(srctree)/include/config ]; then \
 		echo "  $(srctree) is not clean, please run 'make mrproper'";\
 		echo "  in the '$(srctree)' directory.";\
 		/bin/false; \
@@ -822,7 +817,7 @@ include/asm:
 
 # 	Split autoconf.h into include/linux/config/*
 
-include/config/MARKER: scripts/basic/split-include include/linux/autoconf.h
+include/config/MARKER: scripts/basic/split-include include/config/auto.conf
 	@echo '  SPLIT   include/linux/autoconf.h -> include/config/*'
 	@scripts/basic/split-include include/linux/autoconf.h include/config
 	@touch $@

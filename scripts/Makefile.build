@@ -8,7 +8,7 @@ PHONY := __build
 __build:
 
 # Read .config if it exist, otherwise ignore
--include .config
+-include include/config/auto.conf
 
 include scripts/Kbuild.include
 

@@ -599,7 +599,15 @@ int main(int ac, char **av)
 			input_mode = ask_silent;
 			valid_stdin = 1;
 		}
-	}
+	} else if (sym_change_count) {
+		name = getenv("KCONFIG_NOSILENTUPDATE");
+		if (name && *name) {
+			fprintf(stderr, _("\n*** Kernel configuration requires explicit update.\n\n"));
+			return 1;
+		}
+	} else
+		goto skip_check;
+
 	do {
 		conf_cnt = 0;
 		check_conf(&rootmenu);
@@ -608,5 +616,11 @@ int main(int ac, char **av)
 		fprintf(stderr, _("\n*** Error during writing of the kernel configuration.\n\n"));
 		return 1;
 	}
+skip_check:
+	if (input_mode == ask_silent && conf_write_autoconf()) {
+		fprintf(stderr, _("\n*** Error during writing of the kernel configuration.\n\n"));
+		return 1;
+	}
+
 	return 0;
 }
