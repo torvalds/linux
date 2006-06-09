@@ -23,6 +23,8 @@
 #define MNT_NOATIME	0x08
 #define MNT_NODIRATIME	0x10
 
+#define MNT_SHRINKABLE	0x100
+
 #define MNT_SHARED	0x1000	/* if the vfsmount is a shared mount */
 #define MNT_UNBINDABLE	0x2000	/* if the vfsmount is a unbindable mount */
 #define MNT_PNODE_MASK	0x3000	/* propogation flag mask */
@@ -84,6 +86,7 @@ extern int do_add_mount(struct vfsmount *newmnt, struct nameidata *nd,
 			int mnt_flags, struct list_head *fslist);
 
 extern void mark_mounts_for_expiry(struct list_head *mounts);
+extern void shrink_submounts(struct vfsmount *mountpoint, struct list_head *mounts);
 
 extern spinlock_t vfsmount_lock;
 extern dev_t name_to_dev_t(char *name);
