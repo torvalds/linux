@@ -362,15 +362,10 @@ xfs_vm_nopage(
 {
 	struct inode	*inode = area->vm_file->f_dentry->d_inode;
 	vnode_t		*vp = vn_from_inode(inode);
-	xfs_mount_t	*mp = XFS_VFSTOM(vp->v_vfsp);
-	int		error;
 
 	ASSERT_ALWAYS(vp->v_vfsp->vfs_flag & VFS_DMI);
-
-	error = XFS_SEND_MMAP(mp, area, 0);
-	if (error)
+	if (XFS_SEND_MMAP(XFS_VFSTOM(vp->v_vfsp), area, 0))
 		return NULL;
-
 	return filemap_nopage(area, address, type);
 }
 #endif /* CONFIG_XFS_DMAPI */
@@ -456,23 +451,14 @@ xfs_file_mmap(
 	struct file	*filp,
 	struct vm_area_struct *vma)
 {
-	struct inode	*ip = filp->f_dentry->d_inode;
-	vnode_t		*vp = vn_from_inode(ip);
-	vattr_t		vattr;
-	int		error;
-
 	vma->vm_ops = &xfs_file_vm_ops;
 
 #ifdef CONFIG_XFS_DMAPI
-	if (vp->v_vfsp->vfs_flag & VFS_DMI) {
+	if (vn_from_inode(filp->f_dentry->d_inode)->v_vfsp->vfs_flag & VFS_DMI)
 		vma->vm_ops = &xfs_dmapi_file_vm_ops;
-	}
 #endif /* CONFIG_XFS_DMAPI */
 
-	vattr.va_mask = XFS_AT_UPDATIME;
-	VOP_SETATTR(vp, &vattr, XFS_AT_UPDATIME, NULL, error);
-	if (likely(!error))
-		__vn_revalidate(vp, &vattr);	/* update flags */
+	file_accessed(filp);
 	return 0;
 }
 
