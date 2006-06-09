@@ -168,6 +168,7 @@ static const struct ata_port_operations adma_ata_ops = {
 	.qc_prep		= adma_qc_prep,
 	.qc_issue		= adma_qc_issue,
 	.eng_timeout		= adma_eng_timeout,
+	.data_xfer		= ata_mmio_data_xfer,
 	.irq_handler		= adma_intr,
 	.irq_clear		= adma_irq_clear,
 	.port_start		= adma_port_start,
