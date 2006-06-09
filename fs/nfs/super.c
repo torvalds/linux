@@ -318,6 +318,34 @@ static int nfs_statfs(struct super_block *sb, struct kstatfs *buf)
 
 }
 
+static const char *nfs_pseudoflavour_to_name(rpc_authflavor_t flavour)
+{
+	static struct {
+		rpc_authflavor_t flavour;
+		const char *str;
+	} sec_flavours[] = {
+		{ RPC_AUTH_NULL, "null" },
+		{ RPC_AUTH_UNIX, "sys" },
+		{ RPC_AUTH_GSS_KRB5, "krb5" },
+		{ RPC_AUTH_GSS_KRB5I, "krb5i" },
+		{ RPC_AUTH_GSS_KRB5P, "krb5p" },
+		{ RPC_AUTH_GSS_LKEY, "lkey" },
+		{ RPC_AUTH_GSS_LKEYI, "lkeyi" },
+		{ RPC_AUTH_GSS_LKEYP, "lkeyp" },
+		{ RPC_AUTH_GSS_SPKM, "spkm" },
+		{ RPC_AUTH_GSS_SPKMI, "spkmi" },
+		{ RPC_AUTH_GSS_SPKMP, "spkmp" },
+		{ -1, "unknown" }
+	};
+	int i;
+
+	for (i=0; sec_flavours[i].flavour != -1; i++) {
+		if (sec_flavours[i].flavour == flavour)
+			break;
+	}
+	return sec_flavours[i].str;
+}
+
 /*
  * Describe the mount options in force on this server representation
  */
@@ -371,6 +399,7 @@ static void nfs_show_mount_options(struct seq_file *m, struct nfs_server *nfss, 
 	seq_printf(m, ",proto=%s", proto);
 	seq_printf(m, ",timeo=%lu", 10U * nfss->retrans_timeo / HZ);
 	seq_printf(m, ",retrans=%u", nfss->retrans_count);
+	seq_printf(m, ",sec=%s", nfs_pseudoflavour_to_name(nfss->client->cl_auth->au_flavor));
 }
 
 /*
