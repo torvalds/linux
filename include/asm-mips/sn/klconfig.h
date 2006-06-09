@@ -37,7 +37,7 @@
 //#include <sys/SN/router.h>
 // XXX Stolen from <sys/SN/router.h>:
 #define MAX_ROUTER_PORTS (6)    /* Max. number of ports on a router */
-#include <asm/sn/sn0/sn0_fru.h>
+#include <asm/sn/fru.h>
 //#include <sys/graph.h>
 //#include <sys/xtalk/xbow.h>
 

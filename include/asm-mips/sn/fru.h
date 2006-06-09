@@ -6,10 +6,10 @@
  * Derived from IRIX <sys/SN/SN0/sn0_fru.h>
  *
  * Copyright (C) 1992 - 1997, 1999 Silcon Graphics, Inc.
- * Copyright (C) 1999 Ralf Baechle (ralf@gnu.org)
+ * Copyright (C) 1999, 2006 Ralf Baechle (ralf@linux-mips)
  */
-#ifndef _ASM_SN_SN0_SN0_FRU_H
-#define _ASM_SN_SN0_SN0_FRU_H
+#ifndef __ASM_SN_FRU_H
+#define __ASM_SN_FRU_H
 
 #define MAX_DIMMS			8	 /* max # of dimm banks */
 #define MAX_PCIDEV			8	 /* max # of pci devices on a pci bus */
@@ -41,4 +41,4 @@ typedef struct kf_pci_bus_s {
 	                                /* confidence level that the pci dev is bad */
 } kf_pci_bus_t;
 
-#endif /* _ASM_SN_SN0_SN0_FRU_H */
+#endif /* __ASM_SN_FRU_H */
