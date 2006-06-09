@@ -364,7 +364,8 @@ endif
 # of make so .config is not included in this case either (for *config).
 
 no-dot-config-targets := clean mrproper distclean \
-			 cscope TAGS tags help %docs check%
+			 cscope TAGS tags help %docs check% \
+			 kernelrelease kernelversion
 
 config-targets := 0
 mixed-targets  := 0
@@ -1248,7 +1249,7 @@ namespacecheck:
 endif #ifeq ($(config-targets),1)
 endif #ifeq ($(mixed-targets),1)
 
-PHONY += checkstack
+PHONY += checkstack kernelrelease kernelversion
 checkstack:
 	$(OBJDUMP) -d vmlinux $$(find . -name '*.ko') | \
 	$(PERL) $(src)/scripts/checkstack.pl $(ARCH)
