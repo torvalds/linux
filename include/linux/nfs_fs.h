@@ -317,6 +317,8 @@ extern struct vfsmount *nfs_do_submount(const struct vfsmount *mnt_parent,
 					const struct dentry *dentry,
 					struct nfs_fh *fh,
 					struct nfs_fattr *fattr);
+extern struct vfsmount *nfs_do_refmount(const struct vfsmount *mnt_parent,
+					struct dentry *dentry);
 
 /* linux/net/ipv4/ipconfig.c: trims ip addr off front of name, too. */
 extern u32 root_nfs_parse_addr(char *name); /*__init*/
