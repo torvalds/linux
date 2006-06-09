@@ -2408,8 +2408,10 @@ static int decode_pathname(struct xdr_stream *xdr, struct nfs4_pathname *path)
 
 	READ_BUF(4);
 	READ32(n);
-	if (n <= 0)
+	if (n < 0)
 		goto out_eio;
+	if (n == 0)
+		goto root_path;
 	dprintk("path ");
 	path->ncomponents = 0;
 	while (path->ncomponents < n) {
@@ -2430,6 +2432,13 @@ static int decode_pathname(struct xdr_stream *xdr, struct nfs4_pathname *path)
 out:
 	dprintk("\n");
 	return status;
+root_path:
+/* a root pathname is sent as a zero component4 */
+	path->ncomponents = 1;
+	path->components[0].len=0;
+	path->components[0].data=NULL;
+	dprintk("path /\n");
+	goto out;
 out_eio:
 	dprintk(" status %d", status);
 	status = -EIO;
