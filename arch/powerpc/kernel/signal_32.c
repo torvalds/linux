@@ -803,9 +803,12 @@ static int do_setcontext(struct ucontext __user *ucp, struct pt_regs *regs, int 
 		if (__get_user(cmcp, &ucp->uc_regs))
 			return -EFAULT;
 		mcp = (struct mcontext __user *)(u64)cmcp;
+		/* no need to check access_ok(mcp), since mcp < 4GB */
 	}
 #else
 	if (__get_user(mcp, &ucp->uc_regs))
+		return -EFAULT;
+	if (!access_ok(VERIFY_READ, mcp, sizeof(*mcp)))
 		return -EFAULT;
 #endif
 	restore_sigmask(&set);
@@ -908,13 +911,14 @@ int sys_debug_setcontext(struct ucontext __user *ctx,
 {
 	struct sig_dbg_op op;
 	int i;
+	unsigned char tmp;
 	unsigned long new_msr = regs->msr;
 #if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
 	unsigned long new_dbcr0 = current->thread.dbcr0;
 #endif
 
 	for (i=0; i<ndbg; i++) {
-		if (__copy_from_user(&op, dbg, sizeof(op)))
+		if (copy_from_user(&op, dbg + i, sizeof(op)))
 			return -EFAULT;
 		switch (op.dbg_type) {
 		case SIG_DBG_SINGLE_STEPPING:
@@ -958,6 +962,11 @@ int sys_debug_setcontext(struct ucontext __user *ctx,
 #if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
 	current->thread.dbcr0 = new_dbcr0;
 #endif
+
+	if (!access_ok(VERIFY_READ, ctx, sizeof(*ctx))
+	    || __get_user(tmp, (u8 __user *) ctx)
+	    || __get_user(tmp, (u8 __user *) (ctx + 1) - 1))
+		return -EFAULT;
 
 	/*
 	 * If we get a fault copying the context into the kernel's
