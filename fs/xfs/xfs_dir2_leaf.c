@@ -407,7 +407,7 @@ xfs_dir2_leaf_addname(
 	 * Initialize our new entry (at last).
 	 */
 	dep = (xfs_dir2_data_entry_t *)dup;
-	INT_SET(dep->inumber, ARCH_CONVERT, args->inumber);
+	dep->inumber = cpu_to_be64(args->inumber);
 	dep->namelen = args->namelen;
 	memcpy(dep->name, args->name, dep->namelen);
 	tagp = XFS_DIR2_DATA_ENTRY_TAG_P(dep);
@@ -1098,7 +1098,7 @@ xfs_dir2_leaf_getdents(
 
 		p->cook = XFS_DIR2_BYTE_TO_DATAPTR(mp, curoff + length);
 
-		p->ino = INT_GET(dep->inumber, ARCH_CONVERT);
+		p->ino = be64_to_cpu(dep->inumber);
 #if XFS_BIG_INUMS
 		p->ino += mp->m_inoadd;
 #endif
@@ -1319,7 +1319,7 @@ xfs_dir2_leaf_lookup(
 	/*
 	 * Return the found inode number.
 	 */
-	args->inumber = INT_GET(dep->inumber, ARCH_CONVERT);
+	args->inumber = be64_to_cpu(dep->inumber);
 	xfs_da_brelse(tp, dbp);
 	xfs_da_brelse(tp, lbp);
 	return XFS_ERROR(EEXIST);
@@ -1606,11 +1606,11 @@ xfs_dir2_leaf_replace(
 	dep = (xfs_dir2_data_entry_t *)
 	      ((char *)dbp->data +
 	       XFS_DIR2_DATAPTR_TO_OFF(dp->i_mount, be32_to_cpu(lep->address)));
-	ASSERT(args->inumber != INT_GET(dep->inumber, ARCH_CONVERT));
+	ASSERT(args->inumber != be64_to_cpu(dep->inumber));
 	/*
 	 * Put the new inode number in, log it.
 	 */
-	INT_SET(dep->inumber, ARCH_CONVERT, args->inumber);
+	dep->inumber = cpu_to_be64(args->inumber);
 	tp = args->trans;
 	xfs_dir2_data_log_entry(tp, dbp, dep);
 	xfs_da_buf_done(dbp);

@@ -133,7 +133,7 @@ xfs_dir2_data_check(
 		 */
 		dep = (xfs_dir2_data_entry_t *)p;
 		ASSERT(dep->namelen != 0);
-		ASSERT(xfs_dir_ino_validate(mp, INT_GET(dep->inumber, ARCH_CONVERT)) == 0);
+		ASSERT(xfs_dir_ino_validate(mp, be64_to_cpu(dep->inumber)) == 0);
 		ASSERT(be16_to_cpu(*XFS_DIR2_DATA_ENTRY_TAG_P(dep)) ==
 		       (char *)dep - (char *)d);
 		count++;
