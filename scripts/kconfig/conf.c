@@ -539,6 +539,7 @@ int main(int ac, char **av)
   	name = av[i];
 	if (!name) {
 		printf(_("%s: Kconfig file missing\n"), av[0]);
+		exit(1);
 	}
 	conf_parse(name);
 	//zconfdump(stdout);
