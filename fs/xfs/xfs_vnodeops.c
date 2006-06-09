@@ -347,7 +347,6 @@ xfs_setattr(
 	 */
 	tp = NULL;
 	lock_flags = XFS_ILOCK_EXCL;
-	ASSERT(flags & ATTR_NOLOCK ? flags & ATTR_DMI : 1);
 	if (flags & ATTR_NOLOCK)
 		need_iolock = 0;
 	if (!(mask & XFS_AT_SIZE)) {
@@ -4308,7 +4307,6 @@ xfs_free_file_space(
 			return error;
 	}
 
-	ASSERT(attr_flags & ATTR_NOLOCK ? attr_flags & ATTR_DMI : 1);
 	if (attr_flags & ATTR_NOLOCK)
 		need_iolock = 0;
 	if (need_iolock) {
