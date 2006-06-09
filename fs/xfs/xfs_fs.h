@@ -67,6 +67,7 @@ struct fsxattr {
 #define XFS_XFLAG_NOSYMLINKS	0x00000400	/* disallow symlink creation */
 #define XFS_XFLAG_EXTSIZE	0x00000800	/* extent size allocator hint */
 #define XFS_XFLAG_EXTSZINHERIT	0x00001000	/* inherit inode extent size */
+#define XFS_XFLAG_NODEFRAG	0x00002000  	/* do not defragment */
 #define XFS_XFLAG_HASATTR	0x80000000	/* no DIFLAG for this	*/
 
 /*

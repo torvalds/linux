@@ -134,6 +134,7 @@ BUFFER_FNS(PrivateStart, unwritten);
 #define xfs_buf_age_centisecs	xfs_params.xfs_buf_age.val
 #define xfs_inherit_nosymlinks	xfs_params.inherit_nosym.val
 #define xfs_rotorstep		xfs_params.rotorstep.val
+#define xfs_inherit_nodefrag	xfs_params.inherit_nodfrg.val
 
 #ifndef raw_smp_processor_id
 #define raw_smp_processor_id()	smp_processor_id()

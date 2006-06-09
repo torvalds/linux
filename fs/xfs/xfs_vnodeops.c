@@ -799,6 +799,8 @@ xfs_setattr(
 				di_flags |= XFS_DIFLAG_NODUMP;
 			if (vap->va_xflags & XFS_XFLAG_PROJINHERIT)
 				di_flags |= XFS_DIFLAG_PROJINHERIT;
+			if (vap->va_xflags & XFS_XFLAG_NODEFRAG)
+				di_flags |= XFS_DIFLAG_NODEFRAG;
 			if ((ip->i_d.di_mode & S_IFMT) == S_IFDIR) {
 				if (vap->va_xflags & XFS_XFLAG_RTINHERIT)
 					di_flags |= XFS_DIFLAG_RTINHERIT;
