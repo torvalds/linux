@@ -117,6 +117,7 @@ nlm_lookup_host(int server, struct sockaddr_in *sin,
 	host->h_expires    = jiffies + NLM_HOST_EXPIRE;
 	atomic_set(&host->h_count, 1);
 	init_waitqueue_head(&host->h_gracewait);
+	init_rwsem(&host->h_rwsem);
 	host->h_state      = 0;			/* pseudo NSM state */
 	host->h_nsmstate   = 0;			/* real NSM state */
 	host->h_server	   = server;
