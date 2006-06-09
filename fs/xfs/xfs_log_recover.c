@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2003,2005 Silicon Graphics, Inc.
+ * Copyright (c) 2000-2006 Silicon Graphics, Inc.
  * All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -1889,7 +1889,7 @@ xlog_recover_do_inode_buffer(
 
 		buffer_nextp = (xfs_agino_t *)xfs_buf_offset(bp,
 					      next_unlinked_offset);
-		INT_SET(*buffer_nextp, ARCH_CONVERT, *logged_nextp);
+		*buffer_nextp = *logged_nextp;
 	}
 
 	return 0;
