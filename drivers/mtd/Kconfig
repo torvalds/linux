@@ -86,14 +86,14 @@ config MTD_REDBOOT_DIRECTORY_BLOCK
 	  block and "-2" means the penultimate block.
 
 config MTD_REDBOOT_PARTS_UNALLOCATED
-	bool "  Include unallocated flash regions"
+	bool "Include unallocated flash regions"
 	depends on MTD_REDBOOT_PARTS
 	help
 	  If you need to register each unallocated flash region as a MTD
 	  'partition', enable this option.
 
 config MTD_REDBOOT_PARTS_READONLY
-	bool "  Force read-only for RedBoot system images"
+	bool "Force read-only for RedBoot system images"
 	depends on MTD_REDBOOT_PARTS
 	help
 	  If you need to force read-only for 'RedBoot', 'RedBoot Config' and

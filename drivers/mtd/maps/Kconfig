@@ -212,7 +212,7 @@ config MTD_NETtel
 	  Support for flash chips on NETtel/SecureEdge/SnapGear boards.
 
 config MTD_ALCHEMY
-	tristate '  AMD Alchemy Pb1xxx/Db1xxx/RDK MTD support'
+	tristate "AMD Alchemy Pb1xxx/Db1xxx/RDK MTD support"
 	depends on SOC_AU1X00
 	help
 	  Flash memory access on AMD Alchemy Pb/Db/RDK Reference Boards
