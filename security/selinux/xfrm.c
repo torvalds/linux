@@ -132,10 +132,7 @@ static int selinux_xfrm_sec_ctx_alloc(struct xfrm_sec_ctx **ctxp, struct xfrm_us
 		goto out;
 
 	/*
-	 * Does the subject have permission to set security or permission to
-	 * do the relabel?
-	 * Must be permitted to relabel from default socket type (process type)
-	 * to specified context
+	 * Does the subject have permission to set security context?
 	 */
 	rc = avc_has_perm(tsec->sid, ctx->ctx_sid,
 			  SECCLASS_ASSOCIATION,
@@ -198,6 +195,23 @@ void selinux_xfrm_policy_free(struct xfrm_policy *xp)
 	struct xfrm_sec_ctx *ctx = xp->security;
 	if (ctx)
 		kfree(ctx);
+}
+
+/*
+ * LSM hook implementation that authorizes deletion of labeled policies.
+ */
+int selinux_xfrm_policy_delete(struct xfrm_policy *xp)
+{
+	struct task_security_struct *tsec = current->security;
+	struct xfrm_sec_ctx *ctx = xp->security;
+	int rc = 0;
+
+	if (ctx)
+		rc = avc_has_perm(tsec->sid, ctx->ctx_sid,
+				  SECCLASS_ASSOCIATION,
+				  ASSOCIATION__SETCONTEXT, NULL);
+
+	return rc;
 }
 
 /*
@@ -290,6 +304,23 @@ u32 selinux_socket_getpeer_dgram(struct sk_buff *skb)
 	}
 
 	return SECSID_NULL;
+}
+
+ /*
+  * LSM hook implementation that authorizes deletion of labeled SAs.
+  */
+int selinux_xfrm_state_delete(struct xfrm_state *x)
+{
+	struct task_security_struct *tsec = current->security;
+	struct xfrm_sec_ctx *ctx = x->security;
+	int rc = 0;
+
+	if (ctx)
+		rc = avc_has_perm(tsec->sid, ctx->ctx_sid,
+				  SECCLASS_ASSOCIATION,
+				  ASSOCIATION__SETCONTEXT, NULL);
+
+	return rc;
 }
 
 /*

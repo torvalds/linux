@@ -4374,8 +4374,10 @@ static struct security_operations selinux_ops = {
 	.xfrm_policy_alloc_security =	selinux_xfrm_policy_alloc,
 	.xfrm_policy_clone_security =	selinux_xfrm_policy_clone,
 	.xfrm_policy_free_security =	selinux_xfrm_policy_free,
+	.xfrm_policy_delete_security =	selinux_xfrm_policy_delete,
 	.xfrm_state_alloc_security =	selinux_xfrm_state_alloc,
 	.xfrm_state_free_security =	selinux_xfrm_state_free,
+	.xfrm_state_delete_security =	selinux_xfrm_state_delete,
 	.xfrm_policy_lookup = 		selinux_xfrm_policy_lookup,
 #endif
 };
