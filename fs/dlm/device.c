@@ -2,7 +2,7 @@
 *******************************************************************************
 **
 **  Copyright (C) Sistina Software, Inc.  1997-2003  All rights reserved.
-**  Copyright (C) 2004-2005 Red Hat, Inc.  All rights reserved.
+**  Copyright (C) 2004-2006 Red Hat, Inc.  All rights reserved.
 **
 **  This copyrighted material is made available to anyone wishing to use,
 **  modify, copy, or redistribute it subject to the terms and conditions
@@ -59,6 +59,9 @@ static rwlock_t lockinfo_lock;
 #define LS_FLAG_DELETED   1
 #define LS_FLAG_AUTOFREE  2
 
+/* flags in ls_flags*/
+#define FI_FLAG_OPEN      1
+#define FI_FLAG_COMPAT    2
 
 #define LOCKINFO_MAGIC 0x53595324
 
@@ -117,8 +120,109 @@ struct file_info {
 	wait_queue_head_t   fi_wait;
 	struct user_ls     *fi_ls;
 	atomic_t            fi_refcnt;   /* Number of users */
-	unsigned long       fi_flags;    /* Bit 1 means the device is open */
+	unsigned long       fi_flags;
 };
+
+#ifdef CONFIG_COMPAT
+
+struct dlm_lock_params32 {
+	__u8 mode;
+	__u8 namelen;
+	__u16 flags;
+	__u32 lkid;
+	__u32 parent;
+
+	__u32 castparam;
+	__u32 castaddr;
+	__u32 bastparam;
+	__u32 bastaddr;
+	__u32 lksb;
+
+	char lvb[DLM_USER_LVB_LEN];
+	char name[0];
+};
+
+struct dlm_write_request32 {
+	__u32 version[3];
+	__u8 cmd;
+	__u8 is64bit;
+	__u8 unused[2];
+
+	union  {
+		struct dlm_lock_params32 lock;
+		struct dlm_lspace_params lspace;
+	} i;
+};
+
+struct dlm_lksb32 {
+	__u32 	 sb_status;
+	__u32    sb_lkid;
+	__u8 	 sb_flags;
+	__u32    sb_lvbptr;
+};
+
+struct dlm_lock_result32 {
+	__u32 length;
+	__u32 user_astaddr;
+	__u32 user_astparam;
+	__u32 user_lksb;
+	struct dlm_lksb32 lksb;
+	__u8 bast_mode;
+	__u8 unused[3];
+	/* Offsets may be zero if no data is present */
+	__u32 lvb_offset;
+};
+
+
+static void compat_input(struct dlm_write_request *kparams, struct dlm_write_request32 *k32params)
+{
+
+	kparams->version[0] = k32params->version[0];
+	kparams->version[1] = k32params->version[1];
+	kparams->version[2] = k32params->version[2];
+
+	kparams->cmd = k32params->cmd;
+	kparams->is64bit = k32params->is64bit;
+	if (kparams->cmd == DLM_USER_CREATE_LOCKSPACE ||
+	    kparams->cmd == DLM_USER_REMOVE_LOCKSPACE) {
+
+		kparams->i.lspace.flags = k32params->i.lspace.flags;
+		kparams->i.lspace.minor = k32params->i.lspace.minor;
+		strcpy(kparams->i.lspace.name, k32params->i.lspace.name);
+	}
+	else {
+		kparams->i.lock.mode = k32params->i.lock.mode;
+		kparams->i.lock.namelen = k32params->i.lock.namelen;
+		kparams->i.lock.flags = k32params->i.lock.flags;
+		kparams->i.lock.lkid = k32params->i.lock.lkid;
+		kparams->i.lock.parent = k32params->i.lock.parent;
+		kparams->i.lock.castparam = (void *)(long)k32params->i.lock.castparam;
+		kparams->i.lock.castaddr = (void *)(long)k32params->i.lock.castaddr;
+		kparams->i.lock.bastparam = (void *)(long)k32params->i.lock.bastparam;
+		kparams->i.lock.bastaddr = (void *)(long)k32params->i.lock.bastaddr;
+		kparams->i.lock.lksb = (void *)(long)k32params->i.lock.lksb;
+		memcpy(kparams->i.lock.lvb, k32params->i.lock.lvb, DLM_USER_LVB_LEN);
+		memcpy(kparams->i.lock.name, k32params->i.lock.name, kparams->i.lock.namelen);
+	}
+}
+
+void compat_output(struct dlm_lock_result *res, struct dlm_lock_result32 *res32)
+{
+	res32->length = res->length - (sizeof(struct dlm_lock_result) - sizeof(struct dlm_lock_result32));
+	res32->user_astaddr = (__u32)(long)res->user_astaddr;
+	res32->user_astparam = (__u32)(long)res->user_astparam;
+	res32->user_lksb = (__u32)(long)res->user_lksb;
+	res32->bast_mode = res->bast_mode;
+
+	res32->lvb_offset = res->lvb_offset;
+	res32->length = res->length;
+
+	res32->lksb.sb_status = res->lksb.sb_status;
+	res32->lksb.sb_flags = res->lksb.sb_flags;
+	res32->lksb.sb_lkid = res->lksb.sb_lkid;
+	res32->lksb.sb_lvbptr = (__u32)(long)res->lksb.sb_lvbptr;
+}
+#endif
 
 
 /* get and put ops for file_info.
@@ -364,7 +468,7 @@ static void ast_routine(void *param)
 			li->li_grmode = li->li_rqmode;
 
 		/* Only queue AST if the device is still open */
-		if (test_bit(1, &li->li_file->fi_flags))
+		if (test_bit(FI_FLAG_OPEN, &li->li_file->fi_flags))
 			add_to_astqueue(li, li->li_castaddr, li->li_castparam,
 					lvb_updated);
 
@@ -449,7 +553,7 @@ static int dlm_open(struct inode *inode, struct file *file)
 	f->fi_ls = lsinfo;
 	f->fi_flags = 0;
 	get_file_info(f);
-	set_bit(1, &f->fi_flags);
+	set_bit(FI_FLAG_OPEN, &f->fi_flags);
 
 	file->private_data = f;
 
@@ -494,7 +598,7 @@ static int dlm_close(struct inode *inode, struct file *file)
 		return -ENOENT;
 
 	/* Mark this closed so that ASTs will not be delivered any more */
-	clear_bit(1, &f->fi_flags);
+	clear_bit(FI_FLAG_OPEN, &f->fi_flags);
 
 	/* Block signals while we are doing this */
 	sigfillset(&allsigs);
@@ -643,11 +747,18 @@ static ssize_t dlm_read(struct file *file, char __user *buffer, size_t count,
 {
 	struct file_info *fi = file->private_data;
 	struct ast_info *ast;
+	void *data;
 	int data_size;
+	int struct_size;
 	int offset;
 	DECLARE_WAITQUEUE(wait, current);
+#ifdef CONFIG_COMPAT
+	struct dlm_lock_result32 result32;
 
+	if (count < sizeof(struct dlm_lock_result32))
+#else
 	if (count < sizeof(struct dlm_lock_result))
+#endif
 		return -EINVAL;
 
 	spin_lock(&fi->fi_ast_lock);
@@ -691,11 +802,21 @@ static ssize_t dlm_read(struct file *file, char __user *buffer, size_t count,
 	spin_unlock(&fi->fi_ast_lock);
 
 	/* Work out the size of the returned data */
-	data_size = sizeof(struct dlm_lock_result);
+#ifdef CONFIG_COMPAT
+	if (test_bit(FI_FLAG_COMPAT, &fi->fi_flags)) {
+		data_size = struct_size = sizeof(struct dlm_lock_result32);
+		data = &result32;
+	}
+	else
+#endif
+	{
+		data_size = struct_size = sizeof(struct dlm_lock_result);
+		data = &ast->result;
+	}
 	if (ast->lvb_updated && ast->result.lksb.sb_lvbptr)
 		data_size += DLM_USER_LVB_LEN;
 
-	offset = sizeof(struct dlm_lock_result);
+	offset = struct_size;
 
 	/* Room for the extended data ? */
 	if (count >= data_size) {
@@ -711,8 +832,13 @@ static ssize_t dlm_read(struct file *file, char __user *buffer, size_t count,
 	}
 
 	ast->result.length = data_size;
+
+#ifdef CONFIG_COMPAT
+	compat_output(&ast->result, &result32);
+#endif
+
 	/* Copy the header now it has all the offsets in it */
-	if (copy_to_user(buffer, &ast->result, sizeof(struct dlm_lock_result)))
+	if (copy_to_user(buffer, data, struct_size))
 		offset = -EFAULT;
 
 	/* If we only returned a header and there's more to come then put it
@@ -970,8 +1096,14 @@ static ssize_t dlm_write(struct file *file, const char __user *buffer,
 	sigset_t allsigs;
 	int status;
 
-	/* -1 because lock name is optional */
-	if (count < sizeof(struct dlm_write_request)-1)
+#ifdef CONFIG_COMPAT
+	if (count < sizeof(struct dlm_write_request32))
+#else
+	if (count < sizeof(struct dlm_write_request))
+#endif
+		return -EINVAL;
+
+	if (count > sizeof(struct dlm_write_request) + DLM_RESNAME_MAXLEN)
 		return -EINVAL;
 
 	/* Has the lockspace been deleted */
@@ -990,6 +1122,20 @@ static ssize_t dlm_write(struct file *file, const char __user *buffer,
 	status = -EBADE;
 	if (check_version(kparams))
 		goto out_free;
+
+#ifdef CONFIG_COMPAT
+	if (!kparams->is64bit) {
+		struct dlm_write_request32 *k32params = (struct dlm_write_request32 *)kparams;
+		kparams = kmalloc(count + (sizeof(struct dlm_write_request) - sizeof(struct dlm_write_request32)), GFP_KERNEL);
+		if (!kparams)
+			return -ENOMEM;
+
+		if (fi)
+			set_bit(FI_FLAG_COMPAT, &fi->fi_flags);
+		compat_input(kparams, k32params);
+		kfree(k32params);
+	}
+#endif
 
 	/* Block signals while we are doing this */
 	sigfillset(&allsigs);
