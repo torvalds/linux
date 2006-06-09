@@ -972,7 +972,7 @@ xfs_dir2_leafn_remove(
 			/*
 			 * One less used entry in the free table.
 			 */
-			free->hdr.nused = cpu_to_be32(-1);
+			be32_add(&free->hdr.nused, -1);
 			xfs_dir2_free_log_header(tp, fbp);
 			/*
 			 * If this was the last entry in the table, we can
