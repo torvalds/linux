@@ -219,7 +219,7 @@ extern struct dentry *nfs4_atomic_open(struct inode *, struct dentry *, struct n
 extern int nfs4_open_revalidate(struct inode *, struct dentry *, int, struct nameidata *);
 extern int nfs4_server_capabilities(struct nfs_server *server, struct nfs_fh *fhandle);
 extern int nfs4_proc_fs_locations(struct inode *dir, struct dentry *dentry,
-		struct nfs_fs_locations *fs_locations, struct page *page);
+		struct nfs4_fs_locations *fs_locations, struct page *page);
 
 extern struct nfs4_state_recovery_ops nfs4_reboot_recovery_ops;
 extern struct nfs4_state_recovery_ops nfs4_network_partition_recovery_ops;

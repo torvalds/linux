@@ -2377,7 +2377,43 @@ static int decode_attr_files_total(struct xdr_stream *xdr, uint32_t *bitmap, uin
 	return status;
 }
 
-static int decode_attr_fs_locations(struct xdr_stream *xdr, uint32_t *bitmap, struct nfs_fs_locations *res)
+static int decode_pathname(struct xdr_stream *xdr, struct nfs4_pathname *path)
+{
+	int n;
+	uint32_t *p;
+	int status = 0;
+
+	READ_BUF(4);
+	READ32(n);
+	if (n <= 0)
+		goto out_eio;
+	dprintk("path ");
+	path->ncomponents = 0;
+	while (path->ncomponents < n) {
+		struct nfs4_string *component = &path->components[path->ncomponents];
+		status = decode_opaque_inline(xdr, &component->len, &component->data);
+		if (unlikely(status != 0))
+			goto out_eio;
+		if (path->ncomponents != n)
+			dprintk("/");
+		dprintk("%s", component->data);
+		if (path->ncomponents < NFS4_PATHNAME_MAXCOMPONENTS)
+			path->ncomponents++;
+		else {
+			dprintk("cannot parse %d components in path\n", n);
+			goto out_eio;
+		}
+	}
+out:
+	dprintk("\n");
+	return status;
+out_eio:
+	dprintk(" status %d", status);
+	status = -EIO;
+	goto out;
+}
+
+static int decode_attr_fs_locations(struct xdr_stream *xdr, uint32_t *bitmap, struct nfs4_fs_locations *res)
 {
 	int n;
 	uint32_t *p;
@@ -2388,7 +2424,8 @@ static int decode_attr_fs_locations(struct xdr_stream *xdr, uint32_t *bitmap, st
 	status = 0;
 	if (unlikely(!(bitmap[0] & FATTR4_WORD0_FS_LOCATIONS)))
 		goto out;
-	status = decode_opaque_inline(xdr, &res->fs_pathlen, &res->fs_path);
+	dprintk("%s: fsroot ", __FUNCTION__);
+	status = decode_pathname(xdr, &res->fs_path);
 	if (unlikely(status != 0))
 		goto out;
 	READ_BUF(4);
@@ -2397,15 +2434,40 @@ static int decode_attr_fs_locations(struct xdr_stream *xdr, uint32_t *bitmap, st
 		goto out_eio;
 	res->nlocations = 0;
 	while (res->nlocations < n) {
-		struct nfs_fs_location *loc = &res->locations[res->nlocations];
+		int m;
+		struct nfs4_fs_location *loc = &res->locations[res->nlocations];
 
-		status = decode_opaque_inline(xdr, &loc->serverlen, &loc->server);
+		READ_BUF(4);
+		READ32(m);
+		if (m <= 0)
+			goto out_eio;
+
+		loc->nservers = 0;
+		dprintk("%s: servers ", __FUNCTION__);
+		while (loc->nservers < m) {
+			struct nfs4_string *server = &loc->servers[loc->nservers];
+			status = decode_opaque_inline(xdr, &server->len, &server->data);
+			if (unlikely(status != 0))
+				goto out_eio;
+			dprintk("%s ", server->data);
+			if (loc->nservers < NFS4_FS_LOCATION_MAXSERVERS)
+				loc->nservers++;
+			else {
+				int i;
+				dprintk("%s: using first %d of %d servers returned for location %d\n", __FUNCTION__, NFS4_FS_LOCATION_MAXSERVERS, m, res->nlocations);
+				for (i = loc->nservers; i < m; i++) {
+					int len;
+					char *data;
+					status = decode_opaque_inline(xdr, &len, &data);
+					if (unlikely(status != 0))
+						goto out_eio;
+				}
+			}
+		}
+		status = decode_pathname(xdr, &loc->rootpath);
 		if (unlikely(status != 0))
 			goto out_eio;
-		status = decode_opaque_inline(xdr, &loc->rootpathlen, &loc->rootpath);
-		if (unlikely(status != 0))
-			goto out_eio;
-		if (res->nlocations < NFS_FS_LOCATIONS_MAXENTRIES)
+		if (res->nlocations < NFS4_FS_LOCATIONS_MAXENTRIES)
 			res->nlocations++;
 	}
 out:
@@ -2948,7 +3010,7 @@ static int decode_getfattr(struct xdr_stream *xdr, struct nfs_fattr *fattr, cons
 	if ((status = decode_attr_fileid(xdr, bitmap, &fattr->fileid)) != 0)
 		goto xdr_error;
 	if ((status = decode_attr_fs_locations(xdr, bitmap, container_of(fattr,
-						struct nfs_fs_locations,
+						struct nfs4_fs_locations,
 						fattr))) != 0)
 		goto xdr_error;
 	if ((status = decode_attr_mode(xdr, bitmap, &fattr->mode)) != 0)
@@ -4297,7 +4359,7 @@ out:
 /*
  * FS_LOCATIONS request
  */
-static int nfs4_xdr_dec_fs_locations(struct rpc_rqst *req, uint32_t *p, struct nfs_fs_locations *res)
+static int nfs4_xdr_dec_fs_locations(struct rpc_rqst *req, uint32_t *p, struct nfs4_fs_locations *res)
 {
 	struct xdr_stream xdr;
 	struct compound_hdr hdr;

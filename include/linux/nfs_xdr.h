@@ -679,21 +679,31 @@ struct nfs4_server_caps_res {
 	u32				has_symlinks;
 };
 
-struct nfs_fs_location {
-	unsigned int serverlen;
-	char * server;
-	unsigned int rootpathlen;
-	char * rootpath;
+struct nfs4_string {
+	unsigned int len;
+	char *data;
 };
 
-#define NFS_FS_LOCATIONS_MAXENTRIES 10
-struct nfs_fs_locations {
+#define NFS4_PATHNAME_MAXCOMPONENTS 512
+struct nfs4_pathname {
+	unsigned int ncomponents;
+	struct nfs4_string components[NFS4_PATHNAME_MAXCOMPONENTS];
+};
+
+#define NFS4_FS_LOCATION_MAXSERVERS 10
+struct nfs4_fs_location {
+	unsigned int nservers;
+	struct nfs4_string servers[NFS4_FS_LOCATION_MAXSERVERS];
+	struct nfs4_pathname rootpath;
+};
+
+#define NFS4_FS_LOCATIONS_MAXENTRIES 10
+struct nfs4_fs_locations {
 	struct nfs_fattr fattr;
 	const struct nfs_server *server;
-	unsigned int fs_pathlen;
-	char * fs_path;
+	struct nfs4_pathname fs_path;
 	int nlocations;
-	struct nfs_fs_location locations[NFS_FS_LOCATIONS_MAXENTRIES];
+	struct nfs4_fs_location locations[NFS4_FS_LOCATIONS_MAXENTRIES];
 };
 
 struct nfs4_fs_locations_arg {
