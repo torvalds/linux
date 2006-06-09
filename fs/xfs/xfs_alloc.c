@@ -1862,7 +1862,7 @@ xfs_alloc_fix_freelist(
 		(pag->pagf_longest - delta) :
 		(pag->pagf_flcount > 0 || pag->pagf_longest > 0);
 	if (args->minlen + args->alignment + args->minalignslop - 1 > longest ||
-	    (args->minleft &&
+	    (!(flags & XFS_ALLOC_FLAG_FREEING) &&
 	     (int)(pag->pagf_freeblks + pag->pagf_flcount -
 		   need - args->total) <
 	     (int)args->minleft)) {
@@ -1898,7 +1898,7 @@ xfs_alloc_fix_freelist(
 	longest = (longest > delta) ? (longest - delta) :
 		(be32_to_cpu(agf->agf_flcount) > 0 || longest > 0);
 	if (args->minlen + args->alignment + args->minalignslop - 1 > longest ||
-	     (args->minleft &&
+	     (!(flags & XFS_ALLOC_FLAG_FREEING) &&
 		(int)(be32_to_cpu(agf->agf_freeblks) +
 		   be32_to_cpu(agf->agf_flcount) - need - args->total) <
 	     (int)args->minleft)) {
@@ -1951,8 +1951,14 @@ xfs_alloc_fix_freelist(
 		 * the restrictions correctly.  Can happen for free calls
 		 * on a completely full ag.
 		 */
-		if (targs.agbno == NULLAGBLOCK)
+		if (targs.agbno == NULLAGBLOCK) {
+			if (!(flags & XFS_ALLOC_FLAG_FREEING)) {
+				xfs_trans_brelse(tp, agflbp);
+				args->agbp = NULL;
+				return 0;
+			}
 			break;
+		}
 		/*
 		 * Put each allocated block on the list.
 		 */
@@ -2360,8 +2366,19 @@ xfs_alloc_vextent(
 			if (args->agno == sagno &&
 			    type == XFS_ALLOCTYPE_START_BNO)
 				args->type = XFS_ALLOCTYPE_THIS_AG;
-			if (++(args->agno) == mp->m_sb.sb_agcount)
-				args->agno = 0;
+			/*
+			* For the first allocation, we can try any AG to get
+			* space.  However, if we already have allocated a
+			* block, we don't want to try AGs whose number is below
+			* sagno. Otherwise, we may end up with out-of-order
+			* locking of AGF, which might cause deadlock.
+			*/
+			if (++(args->agno) == mp->m_sb.sb_agcount) {
+				if (args->firstblock != NULLFSBLOCK)
+					args->agno = sagno;
+				else
+					args->agno = 0;
+			}
 			/*
 			 * Reached the starting a.g., must either be done
 			 * or switch to non-trylock mode.
@@ -2443,7 +2460,7 @@ xfs_free_extent(
 	args.minlen = args.minleft = args.minalignslop = 0;
 	down_read(&args.mp->m_peraglock);
 	args.pag = &args.mp->m_perag[args.agno];
-	if ((error = xfs_alloc_fix_freelist(&args, 0)))
+	if ((error = xfs_alloc_fix_freelist(&args, XFS_ALLOC_FLAG_FREEING)))
 		goto error0;
 #ifdef DEBUG
 	ASSERT(args.agbp != NULL);

@@ -1254,6 +1254,26 @@ xfs_mod_sb(xfs_trans_t *tp, __int64_t fields)
 
 	xfs_trans_log_buf(tp, bp, first, last);
 }
+
+/*
+ * In order to avoid ENOSPC-related deadlock caused by
+ * out-of-order locking of AGF buffer (PV 947395), we place
+ * constraints on the relationship among actual allocations for
+ * data blocks, freelist blocks, and potential file data bmap
+ * btree blocks. However, these restrictions may result in no
+ * actual space allocated for a delayed extent, for example, a data
+ * block in a certain AG is allocated but there is no additional
+ * block for the additional bmap btree block due to a split of the
+ * bmap btree of the file. The result of this may lead to an
+ * infinite loop in xfssyncd when the file gets flushed to disk and
+ * all delayed extents need to be actually allocated. To get around
+ * this, we explicitly set aside a few blocks which will not be
+ * reserved in delayed allocation. Considering the minimum number of
+ * needed freelist blocks is 4 fsbs, a potential split of file's bmap
+ * btree requires 1 fsb, so we set the number of set-aside blocks to 8.
+*/
+#define SET_ASIDE_BLOCKS 8
+
 /*
  * xfs_mod_incore_sb_unlocked() is a utility routine common used to apply
  * a delta to a specified field in the in-core superblock.  Simply
@@ -1298,7 +1318,7 @@ xfs_mod_incore_sb_unlocked(xfs_mount_t *mp, xfs_sb_field_t field,
 		return 0;
 	case XFS_SBS_FDBLOCKS:
 
-		lcounter = (long long)mp->m_sb.sb_fdblocks;
+		lcounter = (long long)mp->m_sb.sb_fdblocks - SET_ASIDE_BLOCKS;
 		res_used = (long long)(mp->m_resblks - mp->m_resblks_avail);
 
 		if (delta > 0) {		/* Putting blocks back */
@@ -1332,7 +1352,7 @@ xfs_mod_incore_sb_unlocked(xfs_mount_t *mp, xfs_sb_field_t field,
 			}
 		}
 
-		mp->m_sb.sb_fdblocks = lcounter;
+		mp->m_sb.sb_fdblocks = lcounter + SET_ASIDE_BLOCKS;
 		return 0;
 	case XFS_SBS_FREXTENTS:
 		lcounter = (long long)mp->m_sb.sb_frextents;

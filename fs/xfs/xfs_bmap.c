@@ -2762,6 +2762,7 @@ xfs_bmap_btalloc(
 	args.mp = mp;
 	args.fsbno = ap->rval;
 	args.maxlen = MIN(ap->alen, mp->m_sb.sb_agblocks);
+	args.firstblock = ap->firstblock;
 	blen = 0;
 	if (nullfb) {
 		args.type = XFS_ALLOCTYPE_START_BNO;
@@ -2821,7 +2822,7 @@ xfs_bmap_btalloc(
 		else
 			args.minlen = ap->alen;
 	} else if (ap->low) {
-		args.type = XFS_ALLOCTYPE_FIRST_AG;
+		args.type = XFS_ALLOCTYPE_START_BNO;
 		args.total = args.minlen = ap->minlen;
 	} else {
 		args.type = XFS_ALLOCTYPE_NEAR_BNO;
@@ -3452,6 +3453,7 @@ xfs_bmap_extents_to_btree(
 	XFS_IFORK_FMT_SET(ip, whichfork, XFS_DINODE_FMT_BTREE);
 	args.tp = tp;
 	args.mp = mp;
+	args.firstblock = *firstblock;
 	if (*firstblock == NULLFSBLOCK) {
 		args.type = XFS_ALLOCTYPE_START_BNO;
 		args.fsbno = XFS_INO_TO_FSB(mp, ip->i_ino);
@@ -3587,6 +3589,7 @@ xfs_bmap_local_to_extents(
 
 		args.tp = tp;
 		args.mp = ip->i_mount;
+		args.firstblock = *firstblock;
 		ASSERT((ifp->if_flags &
 			(XFS_IFINLINE|XFS_IFEXTENTS|XFS_IFEXTIREC)) == XFS_IFINLINE);
 		/*
