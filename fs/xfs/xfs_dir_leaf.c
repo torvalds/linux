@@ -652,7 +652,7 @@ xfs_dir_leaf_to_shortform(xfs_da_args_t *iargs)
 	hdr = &leaf->hdr;
 	entry = &leaf->entries[0];
 	for (i = be16_to_cpu(hdr->count)-1; i >= 0; entry++, i--) {
-		namest = XFS_DIR_LEAF_NAMESTRUCT(leaf, INT_GET(entry->nameidx, ARCH_CONVERT));
+		namest = XFS_DIR_LEAF_NAMESTRUCT(leaf, be16_to_cpu(entry->nameidx));
 		if ((entry->namelen == 2) &&
 		    (namest->name[0] == '.') &&
 		    (namest->name[1] == '.')) {
@@ -684,10 +684,10 @@ xfs_dir_leaf_to_shortform(xfs_da_args_t *iargs)
 	for (i = 0; i < be16_to_cpu(hdr->count); entry++, i++) {
 		if (!entry->nameidx)
 			continue;
-		namest = XFS_DIR_LEAF_NAMESTRUCT(leaf, INT_GET(entry->nameidx, ARCH_CONVERT));
+		namest = XFS_DIR_LEAF_NAMESTRUCT(leaf, be16_to_cpu(entry->nameidx));
 		args.name = (char *)(namest->name);
 		args.namelen = entry->namelen;
-		args.hashval = INT_GET(entry->hashval, ARCH_CONVERT);
+		args.hashval = be32_to_cpu(entry->hashval);
 		XFS_DIR_SF_GET_DIRINO(&namest->inumber, &args.inumber);
 		xfs_dir_shortform_addname(&args);
 	}
@@ -742,9 +742,7 @@ xfs_dir_leaf_to_node(xfs_da_args_t *args)
 	node = bp1->data;
 	leaf = bp2->data;
 	ASSERT(be16_to_cpu(leaf->hdr.info.magic) == XFS_DIR_LEAF_MAGIC);
-	node->btree[0].hashval = cpu_to_be32(
-		INT_GET(leaf->entries[
-			be16_to_cpu(leaf->hdr.count)-1].hashval, ARCH_CONVERT));
+	node->btree[0].hashval = leaf->entries[be16_to_cpu(leaf->hdr.count)-1].hashval;
 	xfs_da_buf_done(bp2);
 	node->btree[0].before = cpu_to_be32(blkno);
 	node->hdr.count = cpu_to_be16(1);
@@ -970,8 +968,9 @@ xfs_dir_leaf_add_work(xfs_dabuf_t *bp, xfs_da_args_t *args, int index,
 	ASSERT(be16_to_cpu(map->size) < XFS_LBSIZE(mp));
 
 	be16_add(&map->size, -(XFS_DIR_LEAF_ENTSIZE_BYNAME(args->namelen)));
-	INT_SET(entry->nameidx, ARCH_CONVERT, be16_to_cpu(map->base) + be16_to_cpu(map->size));
-	INT_SET(entry->hashval, ARCH_CONVERT, args->hashval);
+	entry->nameidx = cpu_to_be16(be16_to_cpu(map->base) +
+				     be16_to_cpu(map->size));
+	entry->hashval = cpu_to_be32(args->hashval);
 	entry->namelen = args->namelen;
 	xfs_da_log_buf(args->trans, bp,
 	    XFS_DA_LOGRANGE(leaf, entry, sizeof(*entry)));
@@ -979,7 +978,7 @@ xfs_dir_leaf_add_work(xfs_dabuf_t *bp, xfs_da_args_t *args, int index,
 	/*
 	 * Copy the string and inode number into the new space.
 	 */
-	namest = XFS_DIR_LEAF_NAMESTRUCT(leaf, INT_GET(entry->nameidx, ARCH_CONVERT));
+	namest = XFS_DIR_LEAF_NAMESTRUCT(leaf, be16_to_cpu(entry->nameidx));
 	XFS_DIR_SF_PUT_DIRINO(&args->inumber, &namest->inumber);
 	memcpy(namest->name, args->name, args->namelen);
 	xfs_da_log_buf(args->trans, bp,
@@ -988,7 +987,7 @@ xfs_dir_leaf_add_work(xfs_dabuf_t *bp, xfs_da_args_t *args, int index,
 	/*
 	 * Update the control info for this leaf node
 	 */
-	if (INT_GET(entry->nameidx, ARCH_CONVERT) < be16_to_cpu(hdr->firstused))
+	if (be16_to_cpu(entry->nameidx) < be16_to_cpu(hdr->firstused))
 		hdr->firstused = entry->nameidx;
 	ASSERT(be16_to_cpu(hdr->firstused) >=
 	       ((be16_to_cpu(hdr->count)*sizeof(*entry))+sizeof(*hdr)));
@@ -1198,8 +1197,10 @@ xfs_dir_leaf_rebalance(xfs_da_state_t *state, xfs_da_state_blk_t *blk1,
 	/*
 	 * Copy out last hashval in each block for B-tree code.
 	 */
-	blk1->hashval = INT_GET(leaf1->entries[be16_to_cpu(leaf1->hdr.count)-1].hashval, ARCH_CONVERT);
-	blk2->hashval = INT_GET(leaf2->entries[be16_to_cpu(leaf2->hdr.count)-1].hashval, ARCH_CONVERT);
+	blk1->hashval = be32_to_cpu(leaf1->entries[
+			be16_to_cpu(leaf1->hdr.count)-1].hashval);
+	blk2->hashval = be32_to_cpu(leaf2->entries[
+			be16_to_cpu(leaf2->hdr.count)-1].hashval);
 
 	/*
 	 * Adjust the expected index for insertion.
@@ -1462,8 +1463,8 @@ xfs_dir_leaf_remove(xfs_trans_t *trans, xfs_dabuf_t *bp, int index)
 	ASSERT(be16_to_cpu(hdr->firstused) >=
 	       ((be16_to_cpu(hdr->count)*sizeof(*entry))+sizeof(*hdr)));
 	entry = &leaf->entries[index];
-	ASSERT(INT_GET(entry->nameidx, ARCH_CONVERT) >= be16_to_cpu(hdr->firstused));
-	ASSERT(INT_GET(entry->nameidx, ARCH_CONVERT) < XFS_LBSIZE(mp));
+	ASSERT(be16_to_cpu(entry->nameidx) >= be16_to_cpu(hdr->firstused));
+	ASSERT(be16_to_cpu(entry->nameidx) < XFS_LBSIZE(mp));
 
 	/*
 	 * Scan through free region table:
@@ -1487,9 +1488,11 @@ xfs_dir_leaf_remove(xfs_trans_t *trans, xfs_dabuf_t *bp, int index)
 			be16_add(&map->size, entry_size);
 		}
 
-		if ((be16_to_cpu(map->base) + be16_to_cpu(map->size)) == INT_GET(entry->nameidx, ARCH_CONVERT)) {
+		if ((be16_to_cpu(map->base) + be16_to_cpu(map->size)) ==
+				be16_to_cpu(entry->nameidx)) {
 			before = i;
-		} else if (be16_to_cpu(map->base) == (INT_GET(entry->nameidx, ARCH_CONVERT) + entsize)) {
+		} else if (be16_to_cpu(map->base) ==
+				(be16_to_cpu(entry->nameidx) + entsize)) {
 			after = i;
 		} else if (be16_to_cpu(map->size) < tmp) {
 			tmp = be16_to_cpu(map->size);
@@ -1530,7 +1533,7 @@ xfs_dir_leaf_remove(xfs_trans_t *trans, xfs_dabuf_t *bp, int index)
 	/*
 	 * Did we remove the first entry?
 	 */
-	if (INT_GET(entry->nameidx, ARCH_CONVERT) == be16_to_cpu(hdr->firstused))
+	if (be16_to_cpu(entry->nameidx) == be16_to_cpu(hdr->firstused))
 		smallest = 1;
 	else
 		smallest = 0;
@@ -1538,7 +1541,7 @@ xfs_dir_leaf_remove(xfs_trans_t *trans, xfs_dabuf_t *bp, int index)
 	/*
 	 * Compress the remaining entries and zero out the removed stuff.
 	 */
-	namest = XFS_DIR_LEAF_NAMESTRUCT(leaf, INT_GET(entry->nameidx, ARCH_CONVERT));
+	namest = XFS_DIR_LEAF_NAMESTRUCT(leaf, be16_to_cpu(entry->nameidx));
 	memset((char *)namest, 0, entsize);
 	xfs_da_log_buf(trans, bp, XFS_DA_LOGRANGE(leaf, namest, entsize));
 
@@ -1561,11 +1564,11 @@ xfs_dir_leaf_remove(xfs_trans_t *trans, xfs_dabuf_t *bp, int index)
 		tmp = XFS_LBSIZE(mp);
 		entry = &leaf->entries[0];
 		for (i = be16_to_cpu(hdr->count)-1; i >= 0; entry++, i--) {
-			ASSERT(INT_GET(entry->nameidx, ARCH_CONVERT) >=
+			ASSERT(be16_to_cpu(entry->nameidx) >=
 			       be16_to_cpu(hdr->firstused));
-			ASSERT(INT_GET(entry->nameidx, ARCH_CONVERT) < XFS_LBSIZE(mp));
-			if (INT_GET(entry->nameidx, ARCH_CONVERT) < tmp)
-				tmp = INT_GET(entry->nameidx, ARCH_CONVERT);
+			ASSERT(be16_to_cpu(entry->nameidx) < XFS_LBSIZE(mp));
+			if (be16_to_cpu(entry->nameidx) < tmp)
+				tmp = be16_to_cpu(entry->nameidx);
 		}
 		hdr->firstused = cpu_to_be16(tmp);
 		if (!hdr->firstused)
@@ -1617,7 +1620,8 @@ xfs_dir_leaf_unbalance(xfs_da_state_t *state, xfs_da_state_blk_t *drop_blk,
 	/*
 	 * Save last hashval from dying block for later Btree fixup.
 	 */
-	drop_blk->hashval = INT_GET(drop_leaf->entries[be16_to_cpu(drop_leaf->hdr.count)-1].hashval, ARCH_CONVERT);
+	drop_blk->hashval = be32_to_cpu(drop_leaf->entries[
+			be16_to_cpu(drop_leaf->hdr.count)-1].hashval);
 
 	/*
 	 * Check if we need a temp buffer, or can we do it in place.
@@ -1676,7 +1680,8 @@ xfs_dir_leaf_unbalance(xfs_da_state_t *state, xfs_da_state_blk_t *drop_blk,
 	/*
 	 * Copy out last hashval in each block for B-tree code.
 	 */
-	save_blk->hashval = INT_GET(save_leaf->entries[be16_to_cpu(save_leaf->hdr.count)-1 ].hashval, ARCH_CONVERT);
+	save_blk->hashval = be32_to_cpu(save_leaf->entries[
+			be16_to_cpu(save_leaf->hdr.count)-1].hashval);
 }
 
 /*========================================================================
@@ -1716,30 +1721,32 @@ xfs_dir_leaf_lookup_int(xfs_dabuf_t *bp, xfs_da_args_t *args, int *index)
 	for (entry = &leaf->entries[probe]; span > 4;
 		   entry = &leaf->entries[probe]) {
 		span /= 2;
-		if (INT_GET(entry->hashval, ARCH_CONVERT) < hashval)
+		if (be32_to_cpu(entry->hashval) < hashval)
 			probe += span;
-		else if (INT_GET(entry->hashval, ARCH_CONVERT) > hashval)
+		else if (be32_to_cpu(entry->hashval) > hashval)
 			probe -= span;
 		else
 			break;
 	}
 	ASSERT((probe >= 0) && \
 	       ((!leaf->hdr.count) || (probe < be16_to_cpu(leaf->hdr.count))));
-	ASSERT((span <= 4) || (INT_GET(entry->hashval, ARCH_CONVERT) == hashval));
+	ASSERT((span <= 4) || (be32_to_cpu(entry->hashval) == hashval));
 
 	/*
 	 * Since we may have duplicate hashval's, find the first matching
 	 * hashval in the leaf.
 	 */
-	while ((probe > 0) && (INT_GET(entry->hashval, ARCH_CONVERT) >= hashval)) {
+	while ((probe > 0) && (be32_to_cpu(entry->hashval) >= hashval)) {
 		entry--;
 		probe--;
 	}
-	while ((probe < be16_to_cpu(leaf->hdr.count)) && (INT_GET(entry->hashval, ARCH_CONVERT) < hashval)) {
+	while ((probe < be16_to_cpu(leaf->hdr.count)) &&
+	       (be32_to_cpu(entry->hashval) < hashval)) {
 		entry++;
 		probe++;
 	}
-	if ((probe == be16_to_cpu(leaf->hdr.count)) || (INT_GET(entry->hashval, ARCH_CONVERT) != hashval)) {
+	if ((probe == be16_to_cpu(leaf->hdr.count)) ||
+	    (be32_to_cpu(entry->hashval) != hashval)) {
 		*index = probe;
 		ASSERT(args->oknoent);
 		return XFS_ERROR(ENOENT);
@@ -1748,8 +1755,9 @@ xfs_dir_leaf_lookup_int(xfs_dabuf_t *bp, xfs_da_args_t *args, int *index)
 	/*
 	 * Duplicate keys may be present, so search all of them for a match.
 	 */
-	while ((probe < be16_to_cpu(leaf->hdr.count)) && (INT_GET(entry->hashval, ARCH_CONVERT) == hashval)) {
-		namest = XFS_DIR_LEAF_NAMESTRUCT(leaf, INT_GET(entry->nameidx, ARCH_CONVERT));
+	while ((probe < be16_to_cpu(leaf->hdr.count)) &&
+	       (be32_to_cpu(entry->hashval) == hashval)) {
+		namest = XFS_DIR_LEAF_NAMESTRUCT(leaf, be16_to_cpu(entry->nameidx));
 		if (entry->namelen == args->namelen &&
 		    namest->name[0] == args->name[0] &&
 		    memcmp(args->name, namest->name, args->namelen) == 0) {
@@ -1825,19 +1833,19 @@ xfs_dir_leaf_moveents(xfs_dir_leafblock_t *leaf_s, int start_s,
 	entry_s = &leaf_s->entries[start_s];
 	entry_d = &leaf_d->entries[start_d];
 	for (i = 0; i < count; entry_s++, entry_d++, i++) {
-		ASSERT(INT_GET(entry_s->nameidx, ARCH_CONVERT) >=
+		ASSERT(be16_to_cpu(entry_s->nameidx) >=
 		       be16_to_cpu(hdr_s->firstused));
 		tmp = XFS_DIR_LEAF_ENTSIZE_BYENTRY(entry_s);
 		be16_add(&hdr_d->firstused, -(tmp));
 		entry_d->hashval = entry_s->hashval;
 		entry_d->nameidx = hdr_d->firstused;
 		entry_d->namelen = entry_s->namelen;
-		ASSERT(INT_GET(entry_d->nameidx, ARCH_CONVERT) + tmp <= XFS_LBSIZE(mp));
-		memcpy(XFS_DIR_LEAF_NAMESTRUCT(leaf_d, INT_GET(entry_d->nameidx, ARCH_CONVERT)),
-		       XFS_DIR_LEAF_NAMESTRUCT(leaf_s, INT_GET(entry_s->nameidx, ARCH_CONVERT)), tmp);
-		ASSERT(INT_GET(entry_s->nameidx, ARCH_CONVERT) + tmp <= XFS_LBSIZE(mp));
-		memset((char *)XFS_DIR_LEAF_NAMESTRUCT(leaf_s, INT_GET(entry_s->nameidx, ARCH_CONVERT)),
-		      0, tmp);
+		ASSERT(be16_to_cpu(entry_d->nameidx) + tmp <= XFS_LBSIZE(mp));
+		memcpy(XFS_DIR_LEAF_NAMESTRUCT(leaf_d, be16_to_cpu(entry_d->nameidx)),
+		       XFS_DIR_LEAF_NAMESTRUCT(leaf_s, be16_to_cpu(entry_s->nameidx)), tmp);
+		ASSERT(be16_to_cpu(entry_s->nameidx) + tmp <= XFS_LBSIZE(mp));
+		memset((char *)XFS_DIR_LEAF_NAMESTRUCT(leaf_s,
+					be16_to_cpu(entry_s->nameidx)), 0, tmp);
 		be16_add(&hdr_s->namebytes, -(entry_d->namelen));
 		be16_add(&hdr_d->namebytes, entry_d->namelen);
 		be16_add(&hdr_s->count, -1);
@@ -1900,10 +1908,12 @@ xfs_dir_leaf_order(xfs_dabuf_t *leaf1_bp, xfs_dabuf_t *leaf2_bp)
 	ASSERT((be16_to_cpu(leaf1->hdr.info.magic) == XFS_DIR_LEAF_MAGIC) &&
 	       (be16_to_cpu(leaf2->hdr.info.magic) == XFS_DIR_LEAF_MAGIC));
 	if (leaf1->hdr.count && leaf2->hdr.count &&
-	    ((INT_GET(leaf2->entries[ 0 ].hashval, ARCH_CONVERT) <
-	      INT_GET(leaf1->entries[ 0 ].hashval, ARCH_CONVERT)) ||
-	     (INT_GET(leaf2->entries[be16_to_cpu(leaf2->hdr.count)-1].hashval, ARCH_CONVERT) <
-	      INT_GET(leaf1->entries[be16_to_cpu(leaf1->hdr.count)-1].hashval, ARCH_CONVERT)))) {
+	    ((be32_to_cpu(leaf2->entries[0].hashval) <
+	      be32_to_cpu(leaf1->entries[0 ].hashval)) ||
+	     (be32_to_cpu(leaf2->entries[
+			  be16_to_cpu(leaf2->hdr.count)-1].hashval) <
+	      be32_to_cpu(leaf1->entries[
+			  be16_to_cpu(leaf1->hdr.count)-1].hashval)))) {
 		return 1;
 	}
 	return 0;
@@ -1923,7 +1933,7 @@ xfs_dir_leaf_lasthash(xfs_dabuf_t *bp, int *count)
 		*count = be16_to_cpu(leaf->hdr.count);
 	if (!leaf->hdr.count)
 		return(0);
-	return(INT_GET(leaf->entries[be16_to_cpu(leaf->hdr.count)-1].hashval, ARCH_CONVERT));
+	return be32_to_cpu(leaf->entries[be16_to_cpu(leaf->hdr.count)-1].hashval);
 }
 
 /*
@@ -1972,7 +1982,7 @@ xfs_dir_leaf_getdents_int(
 		     i < be16_to_cpu(leaf->hdr.count); entry++, i++) {
 
 		namest = XFS_DIR_LEAF_NAMESTRUCT(leaf,
-				    INT_GET(entry->nameidx, ARCH_CONVERT));
+				    be16_to_cpu(entry->nameidx));
 
 		if (unlikely(
 		    ((char *)namest < (char *)leaf) ||
@@ -1982,19 +1992,16 @@ xfs_dir_leaf_getdents_int(
 			xfs_dir_trace_g_du("leaf: corrupted", dp, uio);
 			return XFS_ERROR(EFSCORRUPTED);
 		}
-		if (INT_GET(entry->hashval, ARCH_CONVERT) >= cookhash) {
-			if (   entno < want_entno
-			    && INT_GET(entry->hashval, ARCH_CONVERT)
-							== cookhash) {
+		if (be32_to_cpu(entry->hashval) >= cookhash) {
+			if (entno < want_entno &&
+			    be32_to_cpu(entry->hashval) == cookhash) {
 				/*
 				 * Trying to get to a particular offset in a
 				 * run of equal-hashval entries.
 				 */
 				entno++;
-			} else if (   want_entno > 0
-				   && entno == want_entno
-				   && INT_GET(entry->hashval, ARCH_CONVERT)
-							== cookhash) {
+			} else if (want_entno > 0 && entno == want_entno &&
+				   be32_to_cpu(entry->hashval) == cookhash) {
 				break;
 			} else {
 				entno = 0;
@@ -2035,7 +2042,7 @@ xfs_dir_leaf_getdents_int(
 		 * the inode number from this entry.
 		 */
 		namest = XFS_DIR_LEAF_NAMESTRUCT(leaf,
-				    INT_GET(entry->nameidx, ARCH_CONVERT));
+				    be16_to_cpu(entry->nameidx));
 
 		if (unlikely(
 		    ((char *)namest < (char *)leaf) ||
@@ -2050,9 +2057,9 @@ xfs_dir_leaf_getdents_int(
 						   dp, uio, p.cook.o);
 
 		if (i < (be16_to_cpu(leaf->hdr.count) - 1)) {
-			nexthash = INT_GET(entry[1].hashval, ARCH_CONVERT);
+			nexthash = be32_to_cpu(entry[1].hashval);
 
-			if (nexthash == INT_GET(entry->hashval, ARCH_CONVERT))
+			if (nexthash == be32_to_cpu(entry->hashval))
 				nextentno = entno + 1;
 			else
 				nextentno = 0;
@@ -2088,8 +2095,7 @@ xfs_dir_leaf_getdents_int(
 				return XFS_ERROR(EFSCORRUPTED);
 			}
 
-			nexthash = INT_GET(leaf2->entries[0].hashval,
-								ARCH_CONVERT);
+			nexthash = be32_to_cpu(leaf2->entries[0].hashval);
 			nextentno = -1;
 			XFS_PUT_COOKIE(p.cook, mp, thishash, 0, nexthash);
 			xfs_da_brelse(dp->i_transp, bp2);
@@ -2113,9 +2119,9 @@ xfs_dir_leaf_getdents_int(
 		 * that share the same hashval.  Hopefully the buffer
 		 * provided is big enough to handle it (see pv763517).
 		 */
+		thishash = be32_to_cpu(entry->hashval);
 #if (BITS_PER_LONG == 32)
-		if ((thishash = INT_GET(entry->hashval, ARCH_CONVERT))
-								!= lasthash) {
+		if (thishash != lasthash) {
 			XFS_PUT_COOKIE(lastoffset, mp, bno, entno, thishash);
 			lastresid = uio->uio_resid;
 			lasthash = thishash;
@@ -2124,7 +2130,6 @@ xfs_dir_leaf_getdents_int(
 						   dp, uio, p.cook.o);
 		}
 #else
-		thishash = INT_GET(entry->hashval, ARCH_CONVERT);
 		XFS_PUT_COOKIE(lastoffset, mp, bno, entno, thishash);
 		lastresid = uio->uio_resid;
 #endif /* BITS_PER_LONG == 32 */

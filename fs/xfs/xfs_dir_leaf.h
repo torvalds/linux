@@ -83,10 +83,10 @@ typedef struct xfs_dir_leaf_hdr {	/* constant-structure header block */
 } xfs_dir_leaf_hdr_t;
 
 typedef struct xfs_dir_leaf_entry {	/* sorted on key, not name */
-	xfs_dahash_t	hashval;	/* hash value of name */
-	__uint16_t	nameidx;	/* index into buffer of name */
-	__uint8_t	namelen;	/* length of name string */
-	__uint8_t	pad2;
+	__be32		hashval;	/* hash value of name */
+	__be16		nameidx;	/* index into buffer of name */
+	__u8		namelen;	/* length of name string */
+	__u8		pad2;
 } xfs_dir_leaf_entry_t;
 
 typedef struct xfs_dir_leaf_name {

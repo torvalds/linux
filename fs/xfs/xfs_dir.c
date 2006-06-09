@@ -710,7 +710,7 @@ xfs_dir_leaf_replace(xfs_da_args_t *args)
 	if (retval == EEXIST) {
 		leaf = bp->data;
 		entry = &leaf->entries[index];
-		namest = XFS_DIR_LEAF_NAMESTRUCT(leaf, INT_GET(entry->nameidx, ARCH_CONVERT));
+		namest = XFS_DIR_LEAF_NAMESTRUCT(leaf, be16_to_cpu(entry->nameidx));
 		/* XXX - replace assert? */
 		XFS_DIR_SF_PUT_DIRINO(&inum, &namest->inumber);
 		xfs_da_log_buf(args->trans, bp,
@@ -918,14 +918,14 @@ xfs_dir_node_getdents(xfs_trans_t *trans, xfs_inode_t *dp, uio_t *uio,
 			xfs_da_brelse(trans, bp);
 			bp = NULL;
 		}
-		if (bp && INT_GET(leaf->entries[0].hashval, ARCH_CONVERT) > cookhash) {
+		if (bp && be32_to_cpu(leaf->entries[0].hashval) > cookhash) {
 			xfs_dir_trace_g_dub("node: leaf hash too large",
 						   dp, uio, bno);
 			xfs_da_brelse(trans, bp);
 			bp = NULL;
 		}
-		if (bp &&
-		    cookhash > INT_GET(leaf->entries[be16_to_cpu(leaf->hdr.count) - 1].hashval, ARCH_CONVERT)) {
+		if (bp && cookhash > be32_to_cpu(leaf->entries[
+					be16_to_cpu(leaf->hdr.count) - 1].hashval)) {
 			xfs_dir_trace_g_dub("node: leaf hash too small",
 						   dp, uio, bno);
 			xfs_da_brelse(trans, bp);
@@ -1059,7 +1059,7 @@ xfs_dir_node_replace(xfs_da_args_t *args)
 		bp = blk->bp;
 		leaf = bp->data;
 		entry = &leaf->entries[blk->index];
-		namest = XFS_DIR_LEAF_NAMESTRUCT(leaf, INT_GET(entry->nameidx, ARCH_CONVERT));
+		namest = XFS_DIR_LEAF_NAMESTRUCT(leaf, be16_to_cpu(entry->nameidx));
 		/* XXX - replace assert ? */
 		XFS_DIR_SF_PUT_DIRINO(&inum, &namest->inumber);
 		xfs_da_log_buf(args->trans, bp,
@@ -1151,10 +1151,8 @@ xfs_dir_trace_g_dul(char *where, xfs_inode_t *dp, uio_t *uio,
 		     (void *)(unsigned long)uio->uio_resid,
 		     (void *)(unsigned long)be32_to_cpu(leaf->hdr.info.forw),
 		     (void *)(unsigned long)be16_to_cpu(leaf->hdr.count),
-		     (void *)(unsigned long)
-			INT_GET(leaf->entries[0].hashval, ARCH_CONVERT),
-		     (void *)(unsigned long)
-			INT_GET(leaf->entries[last].hashval, ARCH_CONVERT),
+		     (void *)(unsigned long)be32_to_cpu(leaf->entries[0].hashval),
+		     (void *)(unsigned long)be32_to_cpu(leaf->entries[last].hashval),
 		     NULL, NULL, NULL);
 }
 
@@ -1170,8 +1168,7 @@ xfs_dir_trace_g_due(char *where, xfs_inode_t *dp, uio_t *uio,
 		     (void *)((unsigned long)(uio->uio_offset >> 32)),
 		     (void *)((unsigned long)(uio->uio_offset & 0xFFFFFFFF)),
 		     (void *)(unsigned long)uio->uio_resid,
-		     (void *)(unsigned long)
-			INT_GET(entry->hashval, ARCH_CONVERT),
+		     (void *)(unsigned long)be32_to_cpu(entry->hashval),
 		     NULL, NULL, NULL, NULL, NULL, NULL);
 }
 
