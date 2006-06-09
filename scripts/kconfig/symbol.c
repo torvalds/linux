@@ -426,8 +426,8 @@ bool sym_set_tristate_value(struct symbol *sym, tristate val)
 	if (oldval != val && !sym_tristate_within_range(sym, val))
 		return false;
 
-	if (sym->flags & SYMBOL_NEW) {
-		sym->flags &= ~SYMBOL_NEW;
+	if (!(sym->flags & SYMBOL_DEF_USER)) {
+		sym->flags |= SYMBOL_DEF_USER;
 		sym_set_changed(sym);
 	}
 	/*
@@ -440,11 +440,11 @@ bool sym_set_tristate_value(struct symbol *sym, tristate val)
 		struct expr *e;
 
 		cs->def[S_DEF_USER].val = sym;
-		cs->flags &= ~SYMBOL_NEW;
+		cs->flags |= SYMBOL_DEF_USER;
 		prop = sym_get_choice_prop(cs);
 		for (e = prop->expr; e; e = e->left.expr) {
 			if (e->right.sym->visible != no)
-				e->right.sym->flags &= ~SYMBOL_NEW;
+				e->right.sym->flags |= SYMBOL_DEF_USER;
 		}
 	}
 
@@ -591,8 +591,8 @@ bool sym_set_string_value(struct symbol *sym, const char *newval)
 	if (!sym_string_within_range(sym, newval))
 		return false;
 
-	if (sym->flags & SYMBOL_NEW) {
-		sym->flags &= ~SYMBOL_NEW;
+	if (!(sym->flags & SYMBOL_DEF_USER)) {
+		sym->flags |= SYMBOL_DEF_USER;
 		sym_set_changed(sym);
 	}
 
@@ -679,7 +679,6 @@ struct symbol *sym_lookup(const char *name, int isconst)
 	memset(symbol, 0, sizeof(*symbol));
 	symbol->name = new_name;
 	symbol->type = S_UNKNOWN;
-	symbol->flags = SYMBOL_NEW;
 	if (isconst)
 		symbol->flags |= SYMBOL_CONST;
 

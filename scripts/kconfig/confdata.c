@@ -86,13 +86,13 @@ char *conf_get_default_confname(void)
 	return name;
 }
 
-int conf_read_simple(const char *name)
+int conf_read_simple(const char *name, int def)
 {
 	FILE *in = NULL;
 	char line[1024];
 	char *p, *p2;
 	struct symbol *sym;
-	int i;
+	int i, def_flags;
 
 	if (name) {
 		in = zconf_fopen(name);
@@ -125,20 +125,21 @@ load:
 	conf_warnings = 0;
 	conf_unsaved = 0;
 
+	def_flags = SYMBOL_DEF << def;
 	for_all_symbols(i, sym) {
-		sym->flags |= SYMBOL_NEW | SYMBOL_CHANGED;
+		sym->flags |= SYMBOL_CHANGED;
+		sym->flags &= ~(def_flags|SYMBOL_VALID);
 		if (sym_is_choice(sym))
-			sym->flags &= ~SYMBOL_NEW;
-		sym->flags &= ~SYMBOL_VALID;
+			sym->flags |= def_flags;
 		switch (sym->type) {
 		case S_INT:
 		case S_HEX:
 		case S_STRING:
-			if (sym->def[S_DEF_USER].val)
-				free(sym->def[S_DEF_USER].val);
+			if (sym->def[def].val)
+				free(sym->def[def].val);
 		default:
-			sym->def[S_DEF_USER].val = NULL;
-			sym->def[S_DEF_USER].tri = no;
+			sym->def[def].val = NULL;
+			sym->def[def].tri = no;
 		}
 	}
 
@@ -155,19 +156,26 @@ load:
 			*p++ = 0;
 			if (strncmp(p, "is not set", 10))
 				continue;
-			sym = sym_find(line + 9);
-			if (!sym) {
-				conf_warning("trying to assign nonexistent symbol %s", line + 9);
-				break;
-			} else if (!(sym->flags & SYMBOL_NEW)) {
+			if (def == S_DEF_USER) {
+				sym = sym_find(line + 9);
+				if (!sym) {
+					conf_warning("trying to assign nonexistent symbol %s", line + 9);
+					break;
+				}
+			} else {
+				sym = sym_lookup(line + 9, 0);
+				if (sym->type == S_UNKNOWN)
+					sym->type = S_BOOLEAN;
+			}
+			if (sym->flags & def_flags) {
 				conf_warning("trying to reassign symbol %s", sym->name);
 				break;
 			}
 			switch (sym->type) {
 			case S_BOOLEAN:
 			case S_TRISTATE:
-				sym->def[S_DEF_USER].tri = no;
-				sym->flags &= ~SYMBOL_NEW;
+				sym->def[def].tri = no;
+				sym->flags |= def_flags;
 				break;
 			default:
 				;
@@ -185,34 +193,48 @@ load:
 			p2 = strchr(p, '\n');
 			if (p2)
 				*p2 = 0;
-			sym = sym_find(line + 7);
-			if (!sym) {
-				conf_warning("trying to assign nonexistent symbol %s", line + 7);
-				break;
-			} else if (!(sym->flags & SYMBOL_NEW)) {
+			if (def == S_DEF_USER) {
+				sym = sym_find(line + 7);
+				if (!sym) {
+					conf_warning("trying to assign nonexistent symbol %s", line + 7);
+					break;
+				}
+			} else {
+				sym = sym_lookup(line + 7, 0);
+				if (sym->type == S_UNKNOWN)
+					sym->type = S_OTHER;
+			}
+			if (sym->flags & def_flags) {
 				conf_warning("trying to reassign symbol %s", sym->name);
 				break;
 			}
 			switch (sym->type) {
 			case S_TRISTATE:
 				if (p[0] == 'm') {
-					sym->def[S_DEF_USER].tri = mod;
-					sym->flags &= ~SYMBOL_NEW;
+					sym->def[def].tri = mod;
+					sym->flags |= def_flags;
 					break;
 				}
 			case S_BOOLEAN:
 				if (p[0] == 'y') {
-					sym->def[S_DEF_USER].tri = yes;
-					sym->flags &= ~SYMBOL_NEW;
+					sym->def[def].tri = yes;
+					sym->flags |= def_flags;
 					break;
 				}
 				if (p[0] == 'n') {
-					sym->def[S_DEF_USER].tri = no;
-					sym->flags &= ~SYMBOL_NEW;
+					sym->def[def].tri = no;
+					sym->flags |= def_flags;
 					break;
 				}
 				conf_warning("symbol value '%s' invalid for %s", p, sym->name);
 				break;
+			case S_OTHER:
+				if (*p != '"') {
+					for (p2 = p; *p2 && !isspace(*p2); p2++)
+						;
+					sym->type = S_STRING;
+					goto done;
+				}
 			case S_STRING:
 				if (*p++ != '"')
 					break;
@@ -229,9 +251,10 @@ load:
 				}
 			case S_INT:
 			case S_HEX:
+			done:
 				if (sym_string_valid(sym, p)) {
-					sym->def[S_DEF_USER].val = strdup(p);
-					sym->flags &= ~SYMBOL_NEW;
+					sym->def[def].val = strdup(p);
+					sym->flags |= def_flags;
 				} else {
 					conf_warning("symbol value '%s' invalid for %s", p, sym->name);
 					continue;
@@ -249,24 +272,24 @@ load:
 		}
 		if (sym && sym_is_choice_value(sym)) {
 			struct symbol *cs = prop_get_symbol(sym_get_choice_prop(sym));
-			switch (sym->def[S_DEF_USER].tri) {
+			switch (sym->def[def].tri) {
 			case no:
 				break;
 			case mod:
-				if (cs->def[S_DEF_USER].tri == yes) {
+				if (cs->def[def].tri == yes) {
 					conf_warning("%s creates inconsistent choice state", sym->name);
-					cs->flags |= SYMBOL_NEW;
+					cs->flags &= ~def_flags;
 				}
 				break;
 			case yes:
-				if (cs->def[S_DEF_USER].tri != no) {
+				if (cs->def[def].tri != no) {
 					conf_warning("%s creates inconsistent choice state", sym->name);
-					cs->flags |= SYMBOL_NEW;
+					cs->flags &= ~def_flags;
 				} else
-					cs->def[S_DEF_USER].val = sym;
+					cs->def[def].val = sym;
 				break;
 			}
-			cs->def[S_DEF_USER].tri = E_OR(cs->def[S_DEF_USER].tri, sym->def[S_DEF_USER].tri);
+			cs->def[def].tri = E_OR(cs->def[def].tri, sym->def[def].tri);
 		}
 	}
 	fclose(in);
@@ -281,11 +304,11 @@ int conf_read(const char *name)
 	struct symbol *sym;
 	struct property *prop;
 	struct expr *e;
-	int i;
+	int i, flags;
 
 	sym_change_count = 0;
 
-	if (conf_read_simple(name))
+	if (conf_read_simple(name, S_DEF_USER))
 		return 1;
 
 	for_all_symbols(i, sym) {
@@ -314,15 +337,13 @@ int conf_read(const char *name)
 	sym_ok:
 		if (sym_has_value(sym) && !sym_is_choice_value(sym)) {
 			if (sym->visible == no)
-				sym->flags |= SYMBOL_NEW;
+				sym->flags &= ~SYMBOL_DEF_USER;
 			switch (sym->type) {
 			case S_STRING:
 			case S_INT:
 			case S_HEX:
-				if (!sym_string_within_range(sym, sym->def[S_DEF_USER].val)) {
-					sym->flags |= SYMBOL_NEW;
-					sym->flags &= ~SYMBOL_VALID;
-				}
+				if (!sym_string_within_range(sym, sym->def[S_DEF_USER].val))
+					sym->flags &= ~(SYMBOL_VALID|SYMBOL_DEF_USER);
 			default:
 				break;
 			}
@@ -330,9 +351,11 @@ int conf_read(const char *name)
 		if (!sym_is_choice(sym))
 			continue;
 		prop = sym_get_choice_prop(sym);
+		flags = sym->flags;
 		for (e = prop->expr; e; e = e->left.expr)
 			if (e->right.sym->visible != no)
-				sym->flags |= e->right.sym->flags & SYMBOL_NEW;
+				flags &= e->right.sym->flags;
+		sym->flags |= flags & SYMBOL_DEF_USER;
 	}
 
 	sym_change_count += conf_warnings || conf_unsaved;

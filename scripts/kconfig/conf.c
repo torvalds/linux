@@ -573,7 +573,7 @@ int main(int ac, char **av)
 	case set_random:
 		name = getenv("KCONFIG_ALLCONFIG");
 		if (name && !stat(name, &tmpstat)) {
-			conf_read_simple(name);
+			conf_read_simple(name, S_DEF_USER);
 			break;
 		}
 		switch (input_mode) {
@@ -584,9 +584,9 @@ int main(int ac, char **av)
 		default: break;
 		}
 		if (!stat(name, &tmpstat))
-			conf_read_simple(name);
+			conf_read_simple(name, S_DEF_USER);
 		else if (!stat("all.config", &tmpstat))
-			conf_read_simple("all.config");
+			conf_read_simple("all.config", S_DEF_USER);
 		break;
 	default:
 		break;

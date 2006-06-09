@@ -132,8 +132,6 @@ const char *dbg_print_flags(int val)
 		strcat(buf, "write/");
 	if (val & SYMBOL_CHANGED)
 		strcat(buf, "changed/");
-	if (val & SYMBOL_NEW)
-		strcat(buf, "new/");
 	if (val & SYMBOL_AUTO)
 		strcat(buf, "auto/");
 
@@ -1186,9 +1184,7 @@ static gchar **fill_row(struct menu *menu)
 
 	row[COL_OPTION] =
 	    g_strdup_printf("%s %s", menu_get_prompt(menu),
-			    sym ? (sym->
-				   flags & SYMBOL_NEW ? "(NEW)" : "") :
-			    "");
+			    sym && sym_has_value(sym) ? "(NEW)" : "");
 
 	if (show_all && !menu_is_visible(menu))
 		row[COL_COLOR] = g_strdup("DarkGray");

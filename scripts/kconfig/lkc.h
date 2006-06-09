@@ -137,7 +137,7 @@ static inline bool sym_is_optional(struct symbol *sym)
 
 static inline bool sym_has_value(struct symbol *sym)
 {
-	return sym->flags & SYMBOL_NEW ? false : true;
+	return sym->flags & SYMBOL_DEF_USER ? true : false;
 }
 
 #ifdef __cplusplus
