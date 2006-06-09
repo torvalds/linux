@@ -80,6 +80,7 @@ struct ipt_hashlimit_htable {
 	/* used internally */
 	spinlock_t lock;		/* lock for list_head */
 	u_int32_t rnd;			/* random seed for hash */
+	int rnd_initialized;
 	struct timer_list timer;	/* timer for gc */
 	atomic_t count;			/* number entries in table */
 
@@ -134,8 +135,10 @@ __dsthash_alloc_init(struct ipt_hashlimit_htable *ht, struct dsthash_dst *dst)
 
 	/* initialize hash with random val at the time we allocate
 	 * the first hashtable entry */
-	if (!ht->rnd)
+	if (!ht->rnd_initialized) {
 		get_random_bytes(&ht->rnd, 4);
+		ht->rnd_initialized = 1;
+	}
 
 	if (ht->cfg.max &&
 	    atomic_read(&ht->count) >= ht->cfg.max) {
@@ -214,7 +217,7 @@ static int htable_create(struct ipt_hashlimit_info *minfo)
 
 	atomic_set(&hinfo->count, 0);
 	atomic_set(&hinfo->use, 1);
-	hinfo->rnd = 0;
+	hinfo->rnd_initialized = 0;
 	spin_lock_init(&hinfo->lock);
 	hinfo->pde = create_proc_entry(minfo->name, 0, hashlimit_procdir);
 	if (!hinfo->pde) {
