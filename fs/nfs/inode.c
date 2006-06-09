@@ -167,6 +167,7 @@ static void nfs_umount_begin(struct vfsmount *vfsmnt, int flags)
 	struct nfs_server *server;
 	struct rpc_clnt	*rpc;
 
+	shrink_submounts(vfsmnt, &nfs_automount_list);
 	if (!(flags & MNT_FORCE))
 		return;
 	/* -EIO all pending I/O */
@@ -1943,6 +1944,7 @@ static void nfs_kill_super(struct super_block *s)
 	nfs_free_iostats(server->io_stats);
 	kfree(server->hostname);
 	kfree(server);
+	nfs_release_automount_timer();
 }
 
 static struct file_system_type nfs_fs_type = {
@@ -2288,6 +2290,7 @@ static void nfs4_kill_super(struct super_block *sb)
 	nfs_free_iostats(server->io_stats);
 	kfree(server->hostname);
 	kfree(server);
+	nfs_release_automount_timer();
 }
 
 static struct file_system_type nfs4_fs_type = {

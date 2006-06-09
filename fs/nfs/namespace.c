@@ -18,6 +18,11 @@
 
 #define NFSDBG_FACILITY		NFSDBG_VFS
 
+LIST_HEAD(nfs_automount_list);
+static void nfs_expire_automounts(void *list);
+static DECLARE_WORK(nfs_automount_task, nfs_expire_automounts, &nfs_automount_list);
+int nfs_mountpoint_expiry_timeout = 500 * HZ;
+
 /*
  * nfs_follow_mountpoint - handle crossing a mountpoint on the server
  * @dentry - dentry of mountpoint
@@ -59,7 +64,7 @@ static void * nfs_follow_mountpoint(struct dentry *dentry, struct nameidata *nd)
 		goto out_err;
 
 	mntget(mnt);
-	err = do_add_mount(mnt, nd, nd->mnt->mnt_flags, NULL);
+	err = do_add_mount(mnt, nd, nd->mnt->mnt_flags|MNT_SHRINKABLE, &nfs_automount_list);
 	if (err < 0) {
 		mntput(mnt);
 		if (err == -EBUSY)
@@ -70,6 +75,7 @@ static void * nfs_follow_mountpoint(struct dentry *dentry, struct nameidata *nd)
 	dput(nd->dentry);
 	nd->mnt = mnt;
 	nd->dentry = dget(mnt->mnt_root);
+	schedule_delayed_work(&nfs_automount_task, nfs_mountpoint_expiry_timeout);
 out:
 	dprintk("%s: done, returned %d\n", __FUNCTION__, err);
 	return ERR_PTR(err);
@@ -87,3 +93,20 @@ struct inode_operations nfs_mountpoint_inode_operations = {
 	.follow_link	= nfs_follow_mountpoint,
 	.getattr	= nfs_getattr,
 };
+
+static void nfs_expire_automounts(void *data)
+{
+	struct list_head *list = (struct list_head *)data;
+
+	mark_mounts_for_expiry(list);
+	if (!list_empty(list))
+		schedule_delayed_work(&nfs_automount_task, nfs_mountpoint_expiry_timeout);
+}
+
+void nfs_release_automount_timer(void)
+{
+	if (list_empty(&nfs_automount_list)) {
+		cancel_delayed_work(&nfs_automount_task);
+		flush_scheduled_work();
+	}
+}

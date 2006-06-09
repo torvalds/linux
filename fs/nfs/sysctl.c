@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/nfs4.h>
 #include <linux/nfs_idmap.h>
+#include <linux/nfs_fs.h>
 
 #include "callback.h"
 
@@ -46,6 +47,15 @@ static ctl_table nfs_cb_sysctls[] = {
 		.strategy = &sysctl_jiffies,
 	},
 #endif
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "nfs_mountpoint_timeout",
+		.data		= &nfs_mountpoint_expiry_timeout,
+		.maxlen		= sizeof(nfs_mountpoint_expiry_timeout),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_jiffies,
+		.strategy	= &sysctl_jiffies,
+	},
 	{ .ctl_name = 0 }
 };
 
