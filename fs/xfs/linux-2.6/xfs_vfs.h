@@ -94,6 +94,13 @@ typedef enum {
 #define SYNC_REMOUNT		0x0080  /* remount readonly, no dummy LRs */
 #define SYNC_QUIESCE		0x0100  /* quiesce filesystem for a snapshot */
 
+#define SHUTDOWN_META_IO_ERROR	0x0001	/* write attempt to metadata failed */
+#define SHUTDOWN_LOG_IO_ERROR	0x0002	/* write attempt to the log failed */
+#define SHUTDOWN_FORCE_UMOUNT	0x0004	/* shutdown from a forced unmount */
+#define SHUTDOWN_CORRUPT_INCORE	0x0008	/* corrupt in-memory data structures */
+#define SHUTDOWN_REMOTE_REQ	0x0010	/* shutdown came from remote cell */
+#define SHUTDOWN_DEVICE_REQ	0x0020	/* failed all paths to the device */
+
 typedef int	(*vfs_mount_t)(bhv_desc_t *,
 				struct xfs_mount_args *, struct cred *);
 typedef int	(*vfs_parseargs_t)(bhv_desc_t *, char *,

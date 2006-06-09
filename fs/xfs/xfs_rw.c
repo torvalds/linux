@@ -109,12 +109,12 @@ xfs_do_force_shutdown(
 	xfs_mount_t	*mp;
 
 	mp = XFS_BHVTOM(bdp);
-	logerror = flags & XFS_LOG_IO_ERROR;
+	logerror = flags & SHUTDOWN_LOG_IO_ERROR;
 
-	if (!(flags & XFS_FORCE_UMOUNT)) {
-		cmn_err(CE_NOTE,
-		"xfs_force_shutdown(%s,0x%x) called from line %d of file %s.  Return address = 0x%p",
-			mp->m_fsname,flags,lnnum,fname,__return_address);
+	if (!(flags & SHUTDOWN_FORCE_UMOUNT)) {
+		cmn_err(CE_NOTE, "xfs_force_shutdown(%s,0x%x) called from "
+				 "line %d of file %s.  Return address = 0x%p",
+			mp->m_fsname, flags, lnnum, fname, __return_address);
 	}
 	/*
 	 * No need to duplicate efforts.
@@ -125,33 +125,37 @@ xfs_do_force_shutdown(
 	/*
 	 * This flags XFS_MOUNT_FS_SHUTDOWN, makes sure that we don't
 	 * queue up anybody new on the log reservations, and wakes up
-	 * everybody who's sleeping on log reservations and tells
-	 * them the bad news.
+	 * everybody who's sleeping on log reservations to tell them
+	 * the bad news.
 	 */
 	if (xfs_log_force_umount(mp, logerror))
 		return;
 
-	if (flags & XFS_CORRUPT_INCORE) {
+	if (flags & SHUTDOWN_CORRUPT_INCORE) {
 		xfs_cmn_err(XFS_PTAG_SHUTDOWN_CORRUPT, CE_ALERT, mp,
     "Corruption of in-memory data detected.  Shutting down filesystem: %s",
 			mp->m_fsname);
 		if (XFS_ERRLEVEL_HIGH <= xfs_error_level) {
 			xfs_stack_trace();
 		}
-	} else if (!(flags & XFS_FORCE_UMOUNT)) {
+	} else if (!(flags & SHUTDOWN_FORCE_UMOUNT)) {
 		if (logerror) {
 			xfs_cmn_err(XFS_PTAG_SHUTDOWN_LOGERROR, CE_ALERT, mp,
-			"Log I/O Error Detected.  Shutting down filesystem: %s",
+		"Log I/O Error Detected.  Shutting down filesystem: %s",
 				mp->m_fsname);
-		} else if (!(flags & XFS_SHUTDOWN_REMOTE_REQ)) {
+		} else if (flags & SHUTDOWN_DEVICE_REQ) {
 			xfs_cmn_err(XFS_PTAG_SHUTDOWN_IOERROR, CE_ALERT, mp,
-				"I/O Error Detected.  Shutting down filesystem: %s",
+		"All device paths lost.  Shutting down filesystem: %s",
+				mp->m_fsname);
+		} else if (!(flags & SHUTDOWN_REMOTE_REQ)) {
+			xfs_cmn_err(XFS_PTAG_SHUTDOWN_IOERROR, CE_ALERT, mp,
+		"I/O Error Detected.  Shutting down filesystem: %s",
 				mp->m_fsname);
 		}
 	}
-	if (!(flags & XFS_FORCE_UMOUNT)) {
-		cmn_err(CE_ALERT,
-		"Please umount the filesystem, and rectify the problem(s)");
+	if (!(flags & SHUTDOWN_FORCE_UMOUNT)) {
+		cmn_err(CE_ALERT, "Please umount the filesystem, "
+				  "and rectify the problem(s)");
 	}
 }
 
@@ -335,7 +339,7 @@ xfs_bwrite(
 		 * from bwrite and we could be tracing a buffer that has
 		 * been reused.
 		 */
-		xfs_force_shutdown(mp, XFS_METADATA_IO_ERROR);
+		xfs_force_shutdown(mp, SHUTDOWN_META_IO_ERROR);
 	}
 	return (error);
 }

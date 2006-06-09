@@ -30,7 +30,7 @@ typedef void (*xfs_ioend_func_t)(void *);
 typedef struct xfs_ioend {
 	struct xfs_ioend	*io_list;	/* next ioend in chain */
 	unsigned int		io_type;	/* delalloc / unwritten */
-	unsigned int		io_uptodate;	/* I/O status register */
+	int			io_error;	/* I/O error code */
 	atomic_t		io_remaining;	/* hold count */
 	struct vnode		*io_vnode;	/* file being written to */
 	struct buffer_head	*io_buffer_head;/* buffer linked list head */

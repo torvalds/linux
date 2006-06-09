@@ -369,7 +369,7 @@ xfs_trans_read_buf(
 				 */
 				if (tp->t_flags & XFS_TRANS_DIRTY)
 					xfs_force_shutdown(tp->t_mountp,
-							   XFS_METADATA_IO_ERROR);
+							SHUTDOWN_META_IO_ERROR);
 				return error;
 			}
 		}
@@ -414,7 +414,7 @@ xfs_trans_read_buf(
 		xfs_ioerror_alert("xfs_trans_read_buf", mp,
 				  bp, blkno);
 		if (tp->t_flags & XFS_TRANS_DIRTY)
-			xfs_force_shutdown(tp->t_mountp, XFS_METADATA_IO_ERROR);
+			xfs_force_shutdown(tp->t_mountp, SHUTDOWN_META_IO_ERROR);
 		xfs_buf_relse(bp);
 		return error;
 	}
@@ -423,7 +423,7 @@ xfs_trans_read_buf(
 		if (xfs_error_target == target) {
 			if (((xfs_req_num++) % xfs_error_mod) == 0) {
 				xfs_force_shutdown(tp->t_mountp,
-						   XFS_METADATA_IO_ERROR);
+						   SHUTDOWN_META_IO_ERROR);
 				xfs_buf_relse(bp);
 				printk("Returning error in trans!\n");
 				return XFS_ERROR(EIO);

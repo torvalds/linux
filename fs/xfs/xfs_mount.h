@@ -514,15 +514,6 @@ xfs_preferred_iosize(xfs_mount_t *mp)
 	VFS_FORCE_SHUTDOWN((XFS_MTOVFS(m)), f, __FILE__, __LINE__)
 
 /*
- * Flags sent to xfs_force_shutdown.
- */
-#define XFS_METADATA_IO_ERROR	0x1
-#define XFS_LOG_IO_ERROR	0x2
-#define XFS_FORCE_UMOUNT	0x4
-#define XFS_CORRUPT_INCORE	0x8	/* Corrupt in-memory data structures */
-#define XFS_SHUTDOWN_REMOTE_REQ 0x10	/* Shutdown came from remote cell */
-
-/*
  * Flags for xfs_mountfs
  */
 #define XFS_MFSI_SECOND		0x01	/* Secondary mount -- skip stuff */

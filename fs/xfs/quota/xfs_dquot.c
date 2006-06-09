@@ -1261,7 +1261,7 @@ xfs_qm_dqflush(
 
 	if (xfs_qm_dqcheck(&dqp->q_core, be32_to_cpu(ddqp->d_id),
 			   0, XFS_QMOPT_DOWARN, "dqflush (incore copy)")) {
-		xfs_force_shutdown(dqp->q_mount, XFS_CORRUPT_INCORE);
+		xfs_force_shutdown(dqp->q_mount, SHUTDOWN_CORRUPT_INCORE);
 		return XFS_ERROR(EIO);
 	}
 

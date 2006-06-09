@@ -578,17 +578,18 @@ xfs_fs_goingdown(
 		struct super_block *sb = freeze_bdev(vfsp->vfs_super->s_bdev);
 
 		if (sb && !IS_ERR(sb)) {
-			xfs_force_shutdown(mp, XFS_FORCE_UMOUNT);
+			xfs_force_shutdown(mp, SHUTDOWN_FORCE_UMOUNT);
 			thaw_bdev(sb->s_bdev, sb);
 		}
 	
 		break;
 	}
 	case XFS_FSOP_GOING_FLAGS_LOGFLUSH:
-		xfs_force_shutdown(mp, XFS_FORCE_UMOUNT);
+		xfs_force_shutdown(mp, SHUTDOWN_FORCE_UMOUNT);
 		break;
 	case XFS_FSOP_GOING_FLAGS_NOLOGFLUSH:
-		xfs_force_shutdown(mp, XFS_FORCE_UMOUNT|XFS_LOG_IO_ERROR);
+		xfs_force_shutdown(mp,
+				SHUTDOWN_FORCE_UMOUNT | SHUTDOWN_LOG_IO_ERROR);
 		break;
 	default:
 		return XFS_ERROR(EINVAL);

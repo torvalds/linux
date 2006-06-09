@@ -846,7 +846,7 @@ shut_us_down:
 	 */
 	nvec = xfs_trans_count_vecs(tp);
 	if (nvec == 0) {
-		xfs_force_shutdown(mp, XFS_LOG_IO_ERROR);
+		xfs_force_shutdown(mp, SHUTDOWN_LOG_IO_ERROR);
 		goto shut_us_down;
 	} else if (nvec <= XFS_TRANS_LOGVEC_COUNT) {
 		log_vector = log_vector_fast;
@@ -1148,7 +1148,7 @@ xfs_trans_cancel(
 	 */
 	if ((tp->t_flags & XFS_TRANS_DIRTY) && !XFS_FORCED_SHUTDOWN(mp)) {
 		XFS_ERROR_REPORT("xfs_trans_cancel", XFS_ERRLEVEL_LOW, mp);
-		xfs_force_shutdown(mp, XFS_CORRUPT_INCORE);
+		xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
 	}
 #ifdef DEBUG
 	if (!(flags & XFS_TRANS_ABORT)) {

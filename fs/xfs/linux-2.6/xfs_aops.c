@@ -136,9 +136,10 @@ xfs_destroy_ioend(
 
 	for (bh = ioend->io_buffer_head; bh; bh = next) {
 		next = bh->b_private;
-		bh->b_end_io(bh, ioend->io_uptodate);
+		bh->b_end_io(bh, !ioend->io_error);
 	}
-
+	if (unlikely(ioend->io_error))
+		vn_ioerror(ioend->io_vnode, ioend->io_error, __FILE__,__LINE__);
 	vn_iowake(ioend->io_vnode);
 	mempool_free(ioend, xfs_ioend_pool);
 }
@@ -185,7 +186,7 @@ xfs_end_bio_unwritten(
 	size_t			size = ioend->io_size;
 	int			error;
 
-	if (ioend->io_uptodate)
+	if (likely(!ioend->io_error))
 		VOP_BMAP(vp, offset, size, BMAPI_UNWRITTEN, NULL, NULL, error);
 	xfs_destroy_ioend(ioend);
 }
@@ -211,7 +212,7 @@ xfs_alloc_ioend(
 	 * all the I/O from calling the completion routine too early.
 	 */
 	atomic_set(&ioend->io_remaining, 1);
-	ioend->io_uptodate = 1; /* cleared if any I/O fails */
+	ioend->io_error = 0;
 	ioend->io_list = NULL;
 	ioend->io_type = type;
 	ioend->io_vnode = vn_from_inode(inode);
@@ -271,16 +272,14 @@ xfs_end_bio(
 	if (bio->bi_size)
 		return 1;
 
-	ASSERT(ioend);
 	ASSERT(atomic_read(&bio->bi_cnt) >= 1);
+	ioend->io_error = test_bit(BIO_UPTODATE, &bio->bi_flags) ? 0 : error;
 
 	/* Toss bio and pass work off to an xfsdatad thread */
-	if (!test_bit(BIO_UPTODATE, &bio->bi_flags))
-		ioend->io_uptodate = 0;
 	bio->bi_private = NULL;
 	bio->bi_end_io = NULL;
-
 	bio_put(bio);
+
 	xfs_finish_ioend(ioend);
 	return 0;
 }

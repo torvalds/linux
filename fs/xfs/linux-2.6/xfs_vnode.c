@@ -54,6 +54,22 @@ vn_iowake(
 		wake_up(vptosync(vp));
 }
 
+/*
+ * Volume managers supporting multiple paths can send back ENODEV when the
+ * final path disappears.  In this case continuing to fill the page cache
+ * with dirty data which cannot be written out is evil, so prevent that.
+ */
+void
+vn_ioerror(
+	struct vnode	*vp,
+	int		error,
+	char		*f,
+	int		l)
+{
+	if (unlikely(error == -ENODEV))
+		VFS_FORCE_SHUTDOWN(vp->v_vfsp, SHUTDOWN_DEVICE_REQ, f, l);
+}
+
 struct vnode *
 vn_initialize(
 	struct inode	*inode)

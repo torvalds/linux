@@ -282,7 +282,7 @@ xlog_recover_iodone(
 		mp = XFS_BUF_FSPRIVATE(bp, xfs_mount_t *);
 		xfs_ioerror_alert("xlog_recover_iodone",
 				  mp, bp, XFS_BUF_ADDR(bp));
-		xfs_force_shutdown(mp, XFS_METADATA_IO_ERROR);
+		xfs_force_shutdown(mp, SHUTDOWN_META_IO_ERROR);
 	}
 	XFS_BUF_SET_FSPRIVATE(bp, NULL);
 	XFS_BUF_CLR_IODONE_FUNC(bp);

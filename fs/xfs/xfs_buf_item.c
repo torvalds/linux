@@ -1108,7 +1108,7 @@ xfs_buf_error_relse(
 	XFS_BUF_ERROR(bp,0);
 	xfs_buftrace("BUF_ERROR_RELSE", bp);
 	if (! XFS_FORCED_SHUTDOWN(mp))
-		xfs_force_shutdown(mp, XFS_METADATA_IO_ERROR);
+		xfs_force_shutdown(mp, SHUTDOWN_META_IO_ERROR);
 	/*
 	 * We have to unpin the pinned buffers so do the
 	 * callbacks.

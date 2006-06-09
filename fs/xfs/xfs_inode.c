@@ -3206,7 +3206,7 @@ xfs_iflush(
 
 corrupt_out:
 	xfs_buf_relse(bp);
-	xfs_force_shutdown(mp, XFS_CORRUPT_INCORE);
+	xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
 	xfs_iflush_abort(ip);
 	/*
 	 * Unlocks the flush lock
@@ -3228,7 +3228,7 @@ cluster_corrupt_out:
 		xfs_buf_relse(bp);
 	}
 
-	xfs_force_shutdown(mp, XFS_CORRUPT_INCORE);
+	xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
 
 	if(!bufwasdelwri)  {
 		/*

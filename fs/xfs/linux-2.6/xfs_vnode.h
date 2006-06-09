@@ -514,6 +514,8 @@ extern void	vn_revalidate_core(struct vnode *, vattr_t *);
 extern void	vn_iowait(struct vnode *vp);
 extern void	vn_iowake(struct vnode *vp);
 
+extern void	vn_ioerror(struct vnode *vp, int error, char *f, int l);
+
 static inline int vn_count(struct vnode *vp)
 {
 	return atomic_read(&vn_to_inode(vp)->i_count);
