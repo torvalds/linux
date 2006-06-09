@@ -69,6 +69,7 @@ struct recent_table {
 
 static LIST_HEAD(tables);
 static DEFINE_SPINLOCK(recent_lock);
+static DEFINE_MUTEX(recent_mutex);
 
 #ifdef CONFIG_PROC_FS
 static struct proc_dir_entry	*proc_dir;
@@ -249,7 +250,7 @@ ipt_recent_checkentry(const char *tablename, const void *ip,
 	    strnlen(info->name, IPT_RECENT_NAME_LEN) == IPT_RECENT_NAME_LEN)
 		return 0;
 
-	spin_lock_bh(&recent_lock);
+	mutex_lock(&recent_mutex);
 	t = recent_table_lookup(info->name);
 	if (t != NULL) {
 		t->refcnt++;
@@ -258,7 +259,7 @@ ipt_recent_checkentry(const char *tablename, const void *ip,
 	}
 
 	t = kzalloc(sizeof(*t) + sizeof(t->iphash[0]) * ip_list_hash_size,
-		    GFP_ATOMIC);
+		    GFP_KERNEL);
 	if (t == NULL)
 		goto out;
 	strcpy(t->name, info->name);
@@ -274,10 +275,12 @@ ipt_recent_checkentry(const char *tablename, const void *ip,
 	t->proc->proc_fops = &recent_fops;
 	t->proc->data      = t;
 #endif
+	spin_lock_bh(&recent_lock);
 	list_add_tail(&t->list, &tables);
+	spin_unlock_bh(&recent_lock);
 	ret = 1;
 out:
-	spin_unlock_bh(&recent_lock);
+	mutex_unlock(&recent_mutex);
 	return ret;
 }
 
@@ -288,17 +291,19 @@ ipt_recent_destroy(const struct xt_match *match, void *matchinfo,
 	const struct ipt_recent_info *info = matchinfo;
 	struct recent_table *t;
 
-	spin_lock_bh(&recent_lock);
+	mutex_lock(&recent_mutex);
 	t = recent_table_lookup(info->name);
 	if (--t->refcnt == 0) {
+		spin_lock_bh(&recent_lock);
 		list_del(&t->list);
+		spin_unlock_bh(&recent_lock);
 		recent_table_flush(t);
 #ifdef CONFIG_PROC_FS
 		remove_proc_entry(t->name, proc_dir);
 #endif
 		kfree(t);
 	}
-	spin_unlock_bh(&recent_lock);
+	mutex_unlock(&recent_mutex);
 }
 
 #ifdef CONFIG_PROC_FS
