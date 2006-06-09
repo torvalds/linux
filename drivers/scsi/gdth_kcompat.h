@@ -1,5 +1,3 @@
-
-
 #ifndef IRQ_HANDLED
 typedef void irqreturn_t;
 #define IRQ_NONE
@@ -8,6 +6,18 @@ typedef void irqreturn_t;
 
 #ifndef MODULE_LICENSE
 #define MODULE_LICENSE(x)
+#endif
+
+#ifndef __iomem
+#define __iomem
+#endif
+
+#ifndef __attribute_used__
+#define __attribute_used__	__devinitdata
+#endif
+
+#ifndef __user
+#define __user
 #endif
 
 #ifndef SERVICE_ACTION_IN
