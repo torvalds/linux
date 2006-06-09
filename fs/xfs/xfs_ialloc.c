@@ -1174,6 +1174,9 @@ xfs_dilocate(
 	if (agno >= mp->m_sb.sb_agcount || agbno >= mp->m_sb.sb_agblocks ||
 	    ino != XFS_AGINO_TO_INO(mp, agno, agino)) {
 #ifdef DEBUG
+		/* no diagnostics for bulkstat, ino comes from userspace */
+		if (flags & XFS_IMAP_BULKSTAT)
+			return XFS_ERROR(EINVAL);
 		if (agno >= mp->m_sb.sb_agcount) {
 			xfs_fs_cmn_err(CE_ALERT, mp,
 					"xfs_dilocate: agno (%d) >= "

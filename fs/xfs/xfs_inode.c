@@ -256,13 +256,11 @@ xfs_itobp(
 	xfs_daddr_t	bno,
 	uint		imap_flags)
 {
+	xfs_imap_t	imap;
 	xfs_buf_t	*bp;
 	int		error;
-	xfs_imap_t	imap;
-#ifdef __KERNEL__
 	int		i;
 	int		ni;
-#endif
 
 	if (ip->i_blkno == (xfs_daddr_t)0) {
 		/*
@@ -319,7 +317,6 @@ xfs_itobp(
 	 */
 	error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp, imap.im_blkno,
 				   (int)imap.im_len, XFS_BUF_LOCK, &bp);
-
 	if (error) {
 #ifdef DEBUG
 		xfs_fs_cmn_err(CE_ALERT, mp, "xfs_itobp: "
@@ -330,17 +327,21 @@ xfs_itobp(
 #endif /* DEBUG */
 		return error;
 	}
-#ifdef __KERNEL__
+
 	/*
 	 * Validate the magic number and version of every inode in the buffer
 	 * (if DEBUG kernel) or the first inode in the buffer, otherwise.
+	 * No validation is done here in userspace (xfs_repair).
 	 */
-#ifdef DEBUG
+#if !defined(__KERNEL__)
+	ni = 0;
+#elif defined(DEBUG)
 	ni = (imap_flags & XFS_IMAP_BULKSTAT) ? 0 :
 		(BBTOB(imap.im_len) >> mp->m_sb.sb_inodelog);
-#else
+#else	/* usual case */
 	ni = (imap_flags & XFS_IMAP_BULKSTAT) ? 0 : 1;
 #endif
+
 	for (i = 0; i < ni; i++) {
 		int		di_ok;
 		xfs_dinode_t	*dip;
@@ -352,8 +353,10 @@ xfs_itobp(
 		if (unlikely(XFS_TEST_ERROR(!di_ok, mp, XFS_ERRTAG_ITOBP_INOTOBP,
 				 XFS_RANDOM_ITOBP_INOTOBP))) {
 #ifdef DEBUG
-			cmn_err(CE_ALERT, "Device %s - bad inode magic/vsn "
-					  "daddr %lld #%d (magic=%x)",
+			if (!(imap_flags & XFS_IMAP_BULKSTAT))
+				cmn_err(CE_ALERT,
+					"Device %s - bad inode magic/vsn "
+					"daddr %lld #%d (magic=%x)",
 				XFS_BUFTARG_NAME(mp->m_ddev_targp),
 				(unsigned long long)imap.im_blkno, i,
 				INT_GET(dip->di_core.di_magic, ARCH_CONVERT));
@@ -364,7 +367,6 @@ xfs_itobp(
 			return XFS_ERROR(EFSCORRUPTED);
 		}
 	}
-#endif	/* __KERNEL__ */
 
 	xfs_inobp_check(mp, bp);
 
