@@ -49,7 +49,7 @@ struct xfs_iomap;
 #define	XFS_CTRUNC4		14
 #define	XFS_CTRUNC5		15
 #define	XFS_CTRUNC6		16
-#define	XFS_BUNMAPI		17
+#define	XFS_BUNMAP		17
 #define	XFS_INVAL_CACHED	18
 #define	XFS_DIORD_ENTER		19
 #define	XFS_DIOWR_ENTER		20

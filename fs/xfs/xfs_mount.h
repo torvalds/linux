@@ -63,6 +63,8 @@ struct xfs_perag;
 struct xfs_iocore;
 struct xfs_bmbt_irec;
 struct xfs_bmap_free;
+struct xfs_extdelta;
+struct xfs_swapext;
 
 extern struct vfsops xfs_vfsops;
 extern struct vnodeops xfs_vnodeops;
@@ -194,7 +196,12 @@ typedef int		(*xfs_bmapi_t)(struct xfs_trans *, void *,
 				xfs_fileoff_t, xfs_filblks_t, int,
 				xfs_fsblock_t *, xfs_extlen_t,
 				struct xfs_bmbt_irec *, int *,
-				struct xfs_bmap_free *);
+				struct xfs_bmap_free *, struct xfs_extdelta *);
+typedef int		(*xfs_bunmapi_t)(struct xfs_trans *,
+				void *, xfs_fileoff_t,
+				xfs_filblks_t, int, xfs_extnum_t,
+				xfs_fsblock_t *, struct xfs_bmap_free *,
+				struct xfs_extdelta *, int *);
 typedef int		(*xfs_bmap_eof_t)(void *, xfs_fileoff_t, int, int *);
 typedef int		(*xfs_iomap_write_direct_t)(
 				void *, xfs_off_t, size_t, int,
@@ -214,10 +221,13 @@ typedef int		(*xfs_lock_nowait_t)(void *, uint);
 typedef void		(*xfs_unlk_t)(void *, unsigned int);
 typedef xfs_fsize_t	(*xfs_size_t)(void *);
 typedef xfs_fsize_t	(*xfs_iodone_t)(struct vfs *);
+typedef int		(*xfs_swap_extents_t)(void *, void *,
+				struct xfs_swapext*);
 
 typedef struct xfs_ioops {
 	xfs_ioinit_t			xfs_ioinit;
 	xfs_bmapi_t			xfs_bmapi_func;
+	xfs_bunmapi_t			xfs_bunmapi_func;
 	xfs_bmap_eof_t			xfs_bmap_eof_func;
 	xfs_iomap_write_direct_t	xfs_iomap_write_direct;
 	xfs_iomap_write_delay_t		xfs_iomap_write_delay;
@@ -230,13 +240,17 @@ typedef struct xfs_ioops {
 	xfs_unlk_t			xfs_unlock;
 	xfs_size_t			xfs_size_func;
 	xfs_iodone_t			xfs_iodone;
+	xfs_swap_extents_t		xfs_swap_extents_func;
 } xfs_ioops_t;
 
 #define XFS_IOINIT(vfsp, args, flags) \
 	(*(mp)->m_io_ops.xfs_ioinit)(vfsp, args, flags)
-#define XFS_BMAPI(mp, trans,io,bno,len,f,first,tot,mval,nmap,flist)	\
+#define XFS_BMAPI(mp, trans,io,bno,len,f,first,tot,mval,nmap,flist,delta) \
 	(*(mp)->m_io_ops.xfs_bmapi_func) \
-		(trans,(io)->io_obj,bno,len,f,first,tot,mval,nmap,flist)
+		(trans,(io)->io_obj,bno,len,f,first,tot,mval,nmap,flist,delta)
+#define XFS_BUNMAPI(mp, trans,io,bno,len,f,nexts,first,flist,delta,done) \
+	(*(mp)->m_io_ops.xfs_bunmapi_func) \
+		(trans,(io)->io_obj,bno,len,f,nexts,first,flist,delta,done)
 #define XFS_BMAP_EOF(mp, io, endoff, whichfork, eof) \
 	(*(mp)->m_io_ops.xfs_bmap_eof_func) \
 		((io)->io_obj, endoff, whichfork, eof)
@@ -266,6 +280,9 @@ typedef struct xfs_ioops {
 	(*(mp)->m_io_ops.xfs_size_func)((io)->io_obj)
 #define XFS_IODONE(vfsp) \
 	(*(mp)->m_io_ops.xfs_iodone)(vfsp)
+#define XFS_SWAP_EXTENTS(mp, io, tio, sxp) \
+	(*(mp)->m_io_ops.xfs_swap_extents_func) \
+		((io)->io_obj, (tio)->io_obj, sxp)
 
 #ifdef HAVE_PERCPU_SB
 

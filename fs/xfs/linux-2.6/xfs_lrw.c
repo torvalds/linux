@@ -458,7 +458,7 @@ xfs_zero_last_block(
 	last_fsb = XFS_B_TO_FSBT(mp, isize);
 	nimaps = 1;
 	error = XFS_BMAPI(mp, NULL, io, last_fsb, 1, 0, NULL, 0, &imap,
-			  &nimaps, NULL);
+			  &nimaps, NULL, NULL);
 	if (error) {
 		return error;
 	}
@@ -556,7 +556,7 @@ xfs_zero_eof(
 		nimaps = 1;
 		zero_count_fsb = end_zero_fsb - start_zero_fsb + 1;
 		error = XFS_BMAPI(mp, NULL, io, start_zero_fsb, zero_count_fsb,
-				  0, NULL, 0, &imap, &nimaps, NULL);
+				  0, NULL, 0, &imap, &nimaps, NULL, NULL);
 		if (error) {
 			ASSERT(ismrlocked(io->io_lock, MR_UPDATE));
 			ASSERT(ismrlocked(io->io_iolock, MR_UPDATE));

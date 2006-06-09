@@ -141,7 +141,7 @@ xfs_growfs_rt_alloc(
 		cancelflags |= XFS_TRANS_ABORT;
 		error = xfs_bmapi(tp, ip, oblocks, nblocks - oblocks,
 			XFS_BMAPI_WRITE | XFS_BMAPI_METADATA, &firstblock,
-			resblks, &map, &nmap, &flist);
+			resblks, &map, &nmap, &flist, NULL);
 		if (!error && nmap < 1)
 			error = XFS_ERROR(ENOSPC);
 		if (error)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2003,2005 Silicon Graphics, Inc.
+ * Copyright (c) 2000-2006 Silicon Graphics, Inc.
  * All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -1285,7 +1285,7 @@ xfs_isize_check(
 				       (xfs_ufsize_t)XFS_MAXIOFFSET(mp)) -
 			  map_first),
 			 XFS_BMAPI_ENTIRE, NULL, 0, imaps, &nimaps,
-			 NULL))
+			 NULL, NULL))
 	    return;
 	ASSERT(nimaps == 1);
 	ASSERT(imaps[0].br_startblock == HOLESTARTBLOCK);
@@ -1666,12 +1666,13 @@ xfs_itruncate_finish(
 		 * runs.
 		 */
 		XFS_BMAP_INIT(&free_list, &first_block);
-		error = xfs_bunmapi(ntp, ip, first_unmap_block,
-				    unmap_len,
+		error = XFS_BUNMAPI(mp, ntp, &ip->i_iocore,
+				    first_unmap_block, unmap_len,
 				    XFS_BMAPI_AFLAG(fork) |
 				      (sync ? 0 : XFS_BMAPI_ASYNC),
 				    XFS_ITRUNC_MAX_EXTENTS,
-				    &first_block, &free_list, &done);
+				    &first_block, &free_list,
+				    NULL, &done);
 		if (error) {
 			/*
 			 * If the bunmapi call encounters an error,

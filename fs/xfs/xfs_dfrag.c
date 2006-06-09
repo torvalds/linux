@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2002,2005 Silicon Graphics, Inc.
+ * Copyright (c) 2000-2006 Silicon Graphics, Inc.
  * All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -54,24 +54,14 @@ xfs_swapext(
 	xfs_swapext_t	__user *sxu)
 {
 	xfs_swapext_t	*sxp;
-	xfs_inode_t     *ip=NULL, *tip=NULL, *ips[2];
-	xfs_trans_t     *tp;
+	xfs_inode_t     *ip=NULL, *tip=NULL;
 	xfs_mount_t     *mp;
-	xfs_bstat_t	*sbp;
 	struct file	*fp = NULL, *tfp = NULL;
 	vnode_t		*vp, *tvp;
-	static uint	lock_flags = XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL;
-	int		ilf_fields, tilf_fields;
 	int		error = 0;
-	xfs_ifork_t	*tempifp, *ifp, *tifp;
-	__uint64_t	tmp;
-	int		aforkblks = 0;
-	int		taforkblks = 0;
-	char		locked = 0;
 
 	sxp = kmem_alloc(sizeof(xfs_swapext_t), KM_MAYFAIL);
-	tempifp = kmem_alloc(sizeof(xfs_ifork_t), KM_MAYFAIL);
-	if (!sxp || !tempifp) {
+	if (!sxp) {
 		error = XFS_ERROR(ENOMEM);
 		goto error0;
 	}
@@ -118,14 +108,56 @@ xfs_swapext(
 
 	mp = ip->i_mount;
 
-	sbp = &sxp->sx_stat;
-
 	if (XFS_FORCED_SHUTDOWN(mp)) {
 		error =  XFS_ERROR(EIO);
 		goto error0;
 	}
 
-	locked = 1;
+	error = XFS_SWAP_EXTENTS(mp, &ip->i_iocore, &tip->i_iocore, sxp);
+
+ error0:
+	if (fp != NULL)
+		fput(fp);
+	if (tfp != NULL)
+		fput(tfp);
+
+	if (sxp != NULL)
+		kmem_free(sxp, sizeof(xfs_swapext_t));
+
+	return error;
+}
+
+int
+xfs_swap_extents(
+	xfs_inode_t	*ip,
+	xfs_inode_t	*tip,
+	xfs_swapext_t	*sxp)
+{
+	xfs_mount_t	*mp;
+	xfs_inode_t	*ips[2];
+	xfs_trans_t	*tp;
+	xfs_bstat_t	*sbp = &sxp->sx_stat;
+	vnode_t		*vp, *tvp;
+	xfs_ifork_t	*tempifp, *ifp, *tifp;
+	int		ilf_fields, tilf_fields;
+	static uint	lock_flags = XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL;
+	int		error = 0;
+	int		aforkblks = 0;
+	int		taforkblks = 0;
+	__uint64_t	tmp;
+	char		locked = 0;
+
+	mp = ip->i_mount;
+
+	tempifp = kmem_alloc(sizeof(xfs_ifork_t), KM_MAYFAIL);
+	if (!tempifp) {
+		error = XFS_ERROR(ENOMEM);
+		goto error0;
+	}
+
+	sbp = &sxp->sx_stat;
+	vp = XFS_ITOV(ip);
+	tvp = XFS_ITOV(tip);
 
 	/* Lock in i_ino order */
 	if (ip->i_ino < tip->i_ino) {
@@ -137,6 +169,7 @@ xfs_swapext(
 	}
 
 	xfs_lock_inodes(ips, 2, 0, lock_flags);
+	locked = 1;
 
 	/* Check permissions */
 	error = xfs_iaccess(ip, S_IWUSR, NULL);
@@ -360,16 +393,7 @@ xfs_swapext(
 		xfs_iunlock(ip,  lock_flags);
 		xfs_iunlock(tip, lock_flags);
 	}
-
-	if (fp != NULL)
-		fput(fp);
-	if (tfp != NULL)
-		fput(tfp);
-
-	if (sxp != NULL)
-		kmem_free(sxp, sizeof(xfs_swapext_t));
 	if (tempifp != NULL)
 		kmem_free(tempifp, sizeof(xfs_ifork_t));
-
 	return error;
 }

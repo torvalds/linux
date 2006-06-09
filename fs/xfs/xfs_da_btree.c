@@ -1655,7 +1655,7 @@ xfs_da_grow_inode(xfs_da_args_t *args, xfs_dablk_t *new_blkno)
 			XFS_BMAPI_AFLAG(w)|XFS_BMAPI_WRITE|XFS_BMAPI_METADATA|
 			XFS_BMAPI_CONTIG,
 			args->firstblock, args->total, &map, &nmap,
-			args->flist))) {
+			args->flist, NULL))) {
 		return error;
 	}
 	ASSERT(nmap <= 1);
@@ -1676,7 +1676,8 @@ xfs_da_grow_inode(xfs_da_args_t *args, xfs_dablk_t *new_blkno)
 					XFS_BMAPI_AFLAG(w)|XFS_BMAPI_WRITE|
 					XFS_BMAPI_METADATA,
 					args->firstblock, args->total,
-					&mapp[mapi], &nmap, args->flist))) {
+					&mapp[mapi], &nmap, args->flist,
+					NULL))) {
 				kmem_free(mapp, sizeof(*mapp) * count);
 				return error;
 			}
@@ -1961,7 +1962,7 @@ xfs_da_shrink_inode(xfs_da_args_t *args, xfs_dablk_t dead_blkno,
 		 */
 		if ((error = xfs_bunmapi(tp, dp, dead_blkno, count,
 				XFS_BMAPI_AFLAG(w)|XFS_BMAPI_METADATA,
-				0, args->firstblock, args->flist,
+				0, args->firstblock, args->flist, NULL,
 				&done)) == ENOSPC) {
 			if (w != XFS_DATA_FORK)
 				goto done;
@@ -2086,7 +2087,7 @@ xfs_da_do_buf(
 					nfsb,
 					XFS_BMAPI_METADATA |
 						XFS_BMAPI_AFLAG(whichfork),
-					NULL, 0, mapp, &nmap, NULL)))
+					NULL, 0, mapp, &nmap, NULL, NULL)))
 				goto exit0;
 		}
 	} else {
