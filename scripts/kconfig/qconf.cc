@@ -925,6 +925,8 @@ void ConfigInfoView::setShowDebug(bool b)
 		_showDebug = b;
 		if (menu)
 			menuInfo();
+		else if (sym)
+			symbolInfo();
 		emit showDebugChanged(b);
 	}
 }
@@ -943,13 +945,42 @@ void ConfigInfoView::setSource(const QString& name)
 	const char *p = name.latin1();
 
 	menu = NULL;
+	sym = NULL;
 
 	switch (p[0]) {
 	case 'm':
-		if (sscanf(p, "m%p", &menu) == 1)
+		struct menu *m;
+
+		if (sscanf(p, "m%p", &m) == 1 && menu != m) {
+			menu = m;
 			menuInfo();
+		}
+		break;
+	case 's':
+		struct symbol *s;
+
+		if (sscanf(p, "s%p", &s) == 1 && sym != s) {
+			sym = s;
+			symbolInfo();
+		}
 		break;
 	}
+}
+
+void ConfigInfoView::symbolInfo(void)
+{
+	QString str;
+
+	str += "<big>Symbol: <b>";
+	str += print_filter(sym->name);
+	str += "</b></big><br><br>value: ";
+	str += print_filter(sym_get_string_value(sym));
+	str += "<br>visibility: ";
+	str += sym->visible == yes ? "y" : sym->visible == mod ? "m" : "n";
+	str += "<br>";
+	str += debug_info(sym);
+
+	setText(str);
 }
 
 void ConfigInfoView::menuInfo(void)
@@ -965,12 +996,20 @@ void ConfigInfoView::menuInfo(void)
 			head += "</b></big>";
 			if (sym->name) {
 				head += " (";
+				if (showDebug())
+					head += QString().sprintf("<a href=\"s%p\">", sym);
 				head += print_filter(sym->name);
+				if (showDebug())
+					head += "</a>";
 				head += ")";
 			}
 		} else if (sym->name) {
 			head += "<big><b>";
+			if (showDebug())
+				head += QString().sprintf("<a href=\"s%p\">", sym);
 			head += print_filter(sym->name);
+			if (showDebug())
+				head += "</a>";
 			head += "</b></big>";
 		}
 		head += "<br><br>";
@@ -1015,9 +1054,9 @@ QString ConfigInfoView::debug_info(struct symbol *sym)
 		switch (prop->type) {
 		case P_PROMPT:
 		case P_MENU:
-			debug += "prompt: ";
+			debug += QString().sprintf("prompt: <a href=\"m%p\">", prop->menu);
 			debug += print_filter(_(prop->text));
-			debug += "<br>";
+			debug += "</a><br>";
 			break;
 		case P_DEFAULT:
 			debug += "default: ";
@@ -1088,9 +1127,17 @@ QString ConfigInfoView::print_filter(const QString &str)
 	return res;
 }
 
-void ConfigInfoView::expr_print_help(void *data, const char *str)
+void ConfigInfoView::expr_print_help(void *data, struct symbol *sym, const char *str)
 {
-	reinterpret_cast<QString*>(data)->append(print_filter(str));
+	QString* text = reinterpret_cast<QString*>(data);
+	QString str2 = print_filter(str);
+
+	if (sym && sym->name && !(sym->flags & SYMBOL_CONST)) {
+		*text += QString().sprintf("<a href=\"s%p\">", sym);
+		*text += str2;
+		*text += "</a>";
+	} else
+		*text += str2;
 }
 
 QPopupMenu* ConfigInfoView::createPopupMenu(const QPoint& pos)

@@ -260,13 +260,15 @@ signals:
 	void showDebugChanged(bool);
 
 protected:
+	void symbolInfo(void);
 	void menuInfo(void);
 	QString debug_info(struct symbol *sym);
 	static QString print_filter(const QString &str);
-	static void expr_print_help(void *data, const char *str);
+	static void expr_print_help(void *data, struct symbol *sym, const char *str);
 	QPopupMenu* createPopupMenu(const QPoint& pos);
 	void contentsContextMenuEvent(QContextMenuEvent *e);
 
+	struct symbol *sym;
 	struct menu *menu;
 	bool _showDebug;
 };

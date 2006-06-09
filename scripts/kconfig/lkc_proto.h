@@ -39,4 +39,4 @@ P(prop_get_type_name,const char *,(enum prop_type type));
 
 /* expr.c */
 P(expr_compare_type,int,(enum expr_type t1, enum expr_type t2));
-P(expr_print,void,(struct expr *e, void (*fn)(void *, const char *), void *data, int prevtoken));
+P(expr_print,void,(struct expr *e, void (*fn)(void *, struct symbol *, const char *), void *data, int prevtoken));
