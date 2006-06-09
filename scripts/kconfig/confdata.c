@@ -98,20 +98,28 @@ int conf_read_simple(const char *name)
 		in = zconf_fopen(name);
 	} else {
 		const char **names = conf_confnames;
+		name = *names++;
+		if (!name)
+			return 1;
+		in = zconf_fopen(name);
+		if (in)
+			goto load;
+		sym_change_count++;
 		while ((name = *names++)) {
 			name = conf_expand_value(name);
 			in = zconf_fopen(name);
 			if (in) {
 				printf(_("#\n"
-				         "# using defaults found in %s\n"
-				         "#\n"), name);
-				break;
+					 "# using defaults found in %s\n"
+					 "#\n"), name);
+				goto load;
 			}
 		}
 	}
 	if (!in)
 		return 1;
 
+load:
 	conf_filename = name;
 	conf_lineno = 0;
 	conf_warnings = 0;
@@ -275,6 +283,8 @@ int conf_read(const char *name)
 	struct expr *e;
 	int i;
 
+	sym_change_count = 0;
+
 	if (conf_read_simple(name))
 		return 1;
 
@@ -325,7 +335,7 @@ int conf_read(const char *name)
 				sym->flags |= e->right.sym->flags & SYMBOL_NEW;
 	}
 
-	sym_change_count = conf_warnings || conf_unsaved;
+	sym_change_count += conf_warnings || conf_unsaved;
 
 	return 0;
 }
@@ -523,6 +533,10 @@ int conf_write(const char *name)
 	sprintf(tmpname, "%s%s", dirname, basename);
 	if (rename(newname, tmpname))
 		return 1;
+
+	printf(_("#\n"
+		 "# configuration written to %s\n"
+		 "#\n"), tmpname);
 
 	sym_change_count = 0;
 
