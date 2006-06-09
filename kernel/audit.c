@@ -1051,20 +1051,53 @@ void audit_log_hex(struct audit_buffer *ab, const unsigned char *buf,
 	skb_put(skb, len << 1); /* new string is twice the old string */
 }
 
+/*
+ * Format a string of no more than slen characters into the audit buffer,
+ * enclosed in quote marks.
+ */
+static void audit_log_n_string(struct audit_buffer *ab, size_t slen,
+			       const char *string)
+{
+	int avail, new_len;
+	unsigned char *ptr;
+	struct sk_buff *skb;
+
+	BUG_ON(!ab->skb);
+	skb = ab->skb;
+	avail = skb_tailroom(skb);
+	new_len = slen + 3;	/* enclosing quotes + null terminator */
+	if (new_len > avail) {
+		avail = audit_expand(ab, new_len);
+		if (!avail)
+			return;
+	}
+	ptr = skb->tail;
+	*ptr++ = '"';
+	memcpy(ptr, string, slen);
+	ptr += slen;
+	*ptr++ = '"';
+	*ptr = 0;
+	skb_put(skb, slen + 2);	/* don't include null terminator */
+}
+
 /**
- * audit_log_unstrustedstring - log a string that may contain random characters
+ * audit_log_n_unstrustedstring - log a string that may contain random characters
  * @ab: audit_buffer
+ * @len: lenth of string (not including trailing null)
  * @string: string to be logged
  *
  * This code will escape a string that is passed to it if the string
  * contains a control character, unprintable character, double quote mark,
  * or a space. Unescaped strings will start and end with a double quote mark.
  * Strings that are escaped are printed in hex (2 digits per char).
+ *
+ * The caller specifies the number of characters in the string to log, which may
+ * or may not be the entire string.
  */
-const char *audit_log_untrustedstring(struct audit_buffer *ab, const char *string)
+const char *audit_log_n_untrustedstring(struct audit_buffer *ab, size_t len,
+					const char *string)
 {
 	const unsigned char *p = string;
-	size_t len = strlen(string);
 
 	while (*p) {
 		if (*p == '"' || *p < 0x21 || *p > 0x7f) {
@@ -1073,8 +1106,21 @@ const char *audit_log_untrustedstring(struct audit_buffer *ab, const char *strin
 		}
 		p++;
 	}
-	audit_log_format(ab, "\"%s\"", string);
+	audit_log_n_string(ab, len, string);
 	return p + 1;
+}
+
+/**
+ * audit_log_unstrustedstring - log a string that may contain random characters
+ * @ab: audit_buffer
+ * @string: string to be logged
+ *
+ * Same as audit_log_n_unstrustedstring(), except that strlen is used to
+ * determine string length.
+ */
+const char *audit_log_untrustedstring(struct audit_buffer *ab, const char *string)
+{
+	return audit_log_n_untrustedstring(ab, strlen(string), string);
 }
 
 /* This is a helper-function to print the escaped d_path */

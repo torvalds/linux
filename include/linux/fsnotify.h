@@ -67,8 +67,7 @@ static inline void fsnotify_move(struct inode *old_dir, struct inode *new_dir,
 	if (source) {
 		inotify_inode_queue_event(source, IN_MOVE_SELF, 0, NULL, NULL);
 	}
-	audit_inode_child(old_name, source, old_dir->i_ino);
-	audit_inode_child(new_name, target, new_dir->i_ino);
+	audit_inode_child(new_name, source, new_dir->i_ino);
 }
 
 /*

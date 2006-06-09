@@ -82,6 +82,9 @@ extern int audit_enabled;
  * path_lookup. */
 #define AUDIT_NAMES_RESERVED 7
 
+/* Indicates that audit should log the full pathname. */
+#define AUDIT_NAME_FULL -1
+
 /* When fs/namei.c:getname() is called, we store the pointer in name and
  * we don't let putname() free it (instead we free all of the saved
  * pointers at syscall exit time).
@@ -89,8 +92,9 @@ extern int audit_enabled;
  * Further, in fs/namei.c:path_lookup() we store the inode and device. */
 struct audit_names {
 	const char	*name;
+	int		name_len;	/* number of name's characters to log */
+	unsigned	name_put;	/* call __putname() for this name */
 	unsigned long	ino;
-	unsigned long	pino;
 	dev_t		dev;
 	umode_t		mode;
 	uid_t		uid;
@@ -296,12 +300,10 @@ static int audit_filter_rules(struct task_struct *tsk,
 			break;
 		case AUDIT_INODE:
 			if (name)
-				result = (name->ino == f->val ||
-					  name->pino == f->val);
+				result = (name->ino == f->val);
 			else if (ctx) {
 				for (j = 0; j < ctx->name_count; j++) {
-					if (audit_comparator(ctx->names[j].ino, f->op, f->val) ||
-					    audit_comparator(ctx->names[j].pino, f->op, f->val)) {
+					if (audit_comparator(ctx->names[j].ino, f->op, f->val)) {
 						++result;
 						break;
 					}
@@ -311,8 +313,7 @@ static int audit_filter_rules(struct task_struct *tsk,
 		case AUDIT_WATCH:
 			if (name && rule->watch->ino != (unsigned long)-1)
 				result = (name->dev == rule->watch->dev &&
-					  (name->ino == rule->watch->ino ||
-					   name->pino == rule->watch->ino));
+					  name->ino == rule->watch->ino);
 			break;
 		case AUDIT_LOGINUID:
 			result = 0;
@@ -526,7 +527,7 @@ static inline void audit_free_names(struct audit_context *context)
 #endif
 
 	for (i = 0; i < context->name_count; i++) {
-		if (context->names[i].name)
+		if (context->names[i].name && context->names[i].name_put)
 			__putname(context->names[i].name);
 	}
 	context->name_count = 0;
@@ -850,8 +851,7 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 		}
 	}
 	for (i = 0; i < context->name_count; i++) {
-		unsigned long ino  = context->names[i].ino;
-		unsigned long pino = context->names[i].pino;
+		struct audit_names *n = &context->names[i];
 
 		ab = audit_log_start(context, GFP_KERNEL, AUDIT_PATH);
 		if (!ab)
@@ -859,33 +859,47 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 
 		audit_log_format(ab, "item=%d", i);
 
-		audit_log_format(ab, " name=");
-		if (context->names[i].name)
-			audit_log_untrustedstring(ab, context->names[i].name);
-		else
-			audit_log_format(ab, "(null)");
+		if (n->name) {
+			switch(n->name_len) {
+			case AUDIT_NAME_FULL:
+				/* log the full path */
+				audit_log_format(ab, " name=");
+				audit_log_untrustedstring(ab, n->name);
+				break;
+			case 0:
+				/* name was specified as a relative path and the
+				 * directory component is the cwd */
+				audit_log_d_path(ab, " name=", context->pwd,
+						 context->pwdmnt);
+				break;
+			default:
+				/* log the name's directory component */
+				audit_log_format(ab, " name=");
+				audit_log_n_untrustedstring(ab, n->name_len,
+							    n->name);
+			}
+		} else
+			audit_log_format(ab, " name=(null)");
 
-		if (pino != (unsigned long)-1)
-			audit_log_format(ab, " parent=%lu",  pino);
-		if (ino != (unsigned long)-1)
-			audit_log_format(ab, " inode=%lu",  ino);
-		if ((pino != (unsigned long)-1) || (ino != (unsigned long)-1))
-			audit_log_format(ab, " dev=%02x:%02x mode=%#o" 
-					 " ouid=%u ogid=%u rdev=%02x:%02x", 
-					 MAJOR(context->names[i].dev), 
-					 MINOR(context->names[i].dev), 
-					 context->names[i].mode, 
-					 context->names[i].uid, 
-					 context->names[i].gid, 
-					 MAJOR(context->names[i].rdev), 
-					 MINOR(context->names[i].rdev));
-		if (context->names[i].osid != 0) {
+		if (n->ino != (unsigned long)-1) {
+			audit_log_format(ab, " inode=%lu"
+					 " dev=%02x:%02x mode=%#o"
+					 " ouid=%u ogid=%u rdev=%02x:%02x",
+					 n->ino,
+					 MAJOR(n->dev),
+					 MINOR(n->dev),
+					 n->mode,
+					 n->uid,
+					 n->gid,
+					 MAJOR(n->rdev),
+					 MINOR(n->rdev));
+		}
+		if (n->osid != 0) {
 			char *ctx = NULL;
 			u32 len;
 			if (selinux_ctxid_to_string(
-				context->names[i].osid, &ctx, &len)) {
-				audit_log_format(ab, " osid=%u",
-						context->names[i].osid);
+				n->osid, &ctx, &len)) {
+				audit_log_format(ab, " osid=%u", n->osid);
 				call_panic = 2;
 			} else
 				audit_log_format(ab, " obj=%s", ctx);
@@ -1075,6 +1089,8 @@ void __audit_getname(const char *name)
 	}
 	BUG_ON(context->name_count >= AUDIT_NAMES);
 	context->names[context->name_count].name = name;
+	context->names[context->name_count].name_len = AUDIT_NAME_FULL;
+	context->names[context->name_count].name_put = 1;
 	context->names[context->name_count].ino  = (unsigned long)-1;
 	++context->name_count;
 	if (!context->pwd) {
@@ -1141,11 +1157,10 @@ static void audit_inode_context(int idx, const struct inode *inode)
  * audit_inode - store the inode and device from a lookup
  * @name: name being audited
  * @inode: inode being audited
- * @flags: lookup flags (as used in path_lookup())
  *
  * Called from fs/namei.c:path_lookup().
  */
-void __audit_inode(const char *name, const struct inode *inode, unsigned flags)
+void __audit_inode(const char *name, const struct inode *inode)
 {
 	int idx;
 	struct audit_context *context = current->audit_context;
@@ -1171,20 +1186,13 @@ void __audit_inode(const char *name, const struct inode *inode, unsigned flags)
 		++context->ino_count;
 #endif
 	}
+	context->names[idx].ino   = inode->i_ino;
 	context->names[idx].dev	  = inode->i_sb->s_dev;
 	context->names[idx].mode  = inode->i_mode;
 	context->names[idx].uid   = inode->i_uid;
 	context->names[idx].gid   = inode->i_gid;
 	context->names[idx].rdev  = inode->i_rdev;
 	audit_inode_context(idx, inode);
-	if ((flags & LOOKUP_PARENT) && (strcmp(name, "/") != 0) && 
-	    (strcmp(name, ".") != 0)) {
-		context->names[idx].ino   = (unsigned long)-1;
-		context->names[idx].pino  = inode->i_ino;
-	} else {
-		context->names[idx].ino   = inode->i_ino;
-		context->names[idx].pino  = (unsigned long)-1;
-	}
 }
 
 /**
@@ -1206,34 +1214,40 @@ void __audit_inode_child(const char *dname, const struct inode *inode,
 {
 	int idx;
 	struct audit_context *context = current->audit_context;
+	const char *found_name = NULL;
+	int dirlen = 0;
 
 	if (!context->in_syscall)
 		return;
 
 	/* determine matching parent */
 	if (!dname)
-		goto no_match;
+		goto update_context;
 	for (idx = 0; idx < context->name_count; idx++)
-		if (context->names[idx].pino == pino) {
+		if (context->names[idx].ino == pino) {
 			const char *name = context->names[idx].name;
 
 			if (!name)
 				continue;
 
-			if (audit_compare_dname_path(dname, name) == 0)
-				goto update_context;
+			if (audit_compare_dname_path(dname, name, &dirlen) == 0) {
+				context->names[idx].name_len = dirlen;
+				found_name = name;
+				break;
+			}
 		}
 
-no_match:
-	/* catch-all in case match not found */
+update_context:
 	idx = context->name_count++;
-	context->names[idx].name  = NULL;
-	context->names[idx].pino  = pino;
 #if AUDIT_DEBUG
 	context->ino_count++;
 #endif
+	/* Re-use the name belonging to the slot for a matching parent directory.
+	 * All names for this context are relinquished in audit_free_names() */
+	context->names[idx].name = found_name;
+	context->names[idx].name_len = AUDIT_NAME_FULL;
+	context->names[idx].name_put = 0;	/* don't call __putname() */
 
-update_context:
 	if (inode) {
 		context->names[idx].ino   = inode->i_ino;
 		context->names[idx].dev	  = inode->i_sb->s_dev;
@@ -1242,7 +1256,8 @@ update_context:
 		context->names[idx].gid   = inode->i_gid;
 		context->names[idx].rdev  = inode->i_rdev;
 		audit_inode_context(idx, inode);
-	}
+	} else
+		context->names[idx].ino   = (unsigned long)-1;
 }
 
 /**

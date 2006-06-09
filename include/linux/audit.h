@@ -310,7 +310,7 @@ extern void audit_syscall_entry(int arch,
 extern void audit_syscall_exit(int failed, long return_code);
 extern void __audit_getname(const char *name);
 extern void audit_putname(const char *name);
-extern void __audit_inode(const char *name, const struct inode *inode, unsigned flags);
+extern void __audit_inode(const char *name, const struct inode *inode);
 extern void __audit_inode_child(const char *dname, const struct inode *inode,
 				unsigned long pino);
 static inline void audit_getname(const char *name)
@@ -318,10 +318,9 @@ static inline void audit_getname(const char *name)
 	if (unlikely(current->audit_context))
 		__audit_getname(name);
 }
-static inline void audit_inode(const char *name, const struct inode *inode,
-			       unsigned flags) {
+static inline void audit_inode(const char *name, const struct inode *inode) {
 	if (unlikely(current->audit_context))
-		__audit_inode(name, inode, flags);
+		__audit_inode(name, inode);
 }
 static inline void audit_inode_child(const char *dname, 
 				     const struct inode *inode, 
@@ -398,9 +397,9 @@ static inline int audit_mq_getsetattr(mqd_t mqdes, struct mq_attr *mqstat)
 #define audit_syscall_exit(f,r) do { ; } while (0)
 #define audit_getname(n) do { ; } while (0)
 #define audit_putname(n) do { ; } while (0)
-#define __audit_inode(n,i,f) do { ; } while (0)
+#define __audit_inode(n,i) do { ; } while (0)
 #define __audit_inode_child(d,i,p) do { ; } while (0)
-#define audit_inode(n,i,f) do { ; } while (0)
+#define audit_inode(n,i) do { ; } while (0)
 #define audit_inode_child(d,i,p) do { ; } while (0)
 #define auditsc_get_stamp(c,t,s) do { BUG(); } while (0)
 #define audit_get_loginuid(c) ({ -1; })
@@ -435,6 +434,9 @@ extern void		    audit_log_hex(struct audit_buffer *ab,
 					  size_t len);
 extern const char *	    audit_log_untrustedstring(struct audit_buffer *ab,
 						      const char *string);
+extern const char *	    audit_log_n_untrustedstring(struct audit_buffer *ab,
+							size_t n,
+							const char *string);
 extern void		    audit_log_d_path(struct audit_buffer *ab,
 					     const char *prefix,
 					     struct dentry *dentry,
@@ -452,6 +454,7 @@ extern int  audit_receive_filter(int type, int pid, int uid, int seq,
 #define audit_log_end(b) do { ; } while (0)
 #define audit_log_hex(a,b,l) do { ; } while (0)
 #define audit_log_untrustedstring(a,s) do { ; } while (0)
+#define audit_log_n_untrustedstring(a,n,s) do { ; } while (0)
 #define audit_log_d_path(b,p,d,v) do { ; } while (0)
 #endif
 #endif

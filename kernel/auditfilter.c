@@ -787,7 +787,7 @@ static void audit_update_watch(struct audit_parent *parent,
 
 	mutex_lock(&audit_filter_mutex);
 	list_for_each_entry_safe(owatch, nextw, &parent->watches, wlist) {
-		if (audit_compare_dname_path(dname, owatch->path))
+		if (audit_compare_dname_path(dname, owatch->path, NULL))
 			continue;
 
 		/* If the update involves invalidating rules, do the inode-based
@@ -1387,7 +1387,8 @@ int audit_comparator(const u32 left, const u32 op, const u32 right)
 
 /* Compare given dentry name with last component in given path,
  * return of 0 indicates a match. */
-int audit_compare_dname_path(const char *dname, const char *path)
+int audit_compare_dname_path(const char *dname, const char *path,
+			     int *dirlen)
 {
 	int dlen, plen;
 	const char *p;
@@ -1416,6 +1417,9 @@ int audit_compare_dname_path(const char *dname, const char *path)
 			p++;
 	}
 
+	/* return length of path's directory component */
+	if (dirlen)
+		*dirlen = p - path;
 	return strncmp(p, dname, dlen);
 }
 

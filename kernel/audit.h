@@ -104,7 +104,8 @@ static inline int audit_hash_ino(u32 ino)
 }
 
 extern int audit_comparator(const u32 left, const u32 op, const u32 right);
-extern int audit_compare_dname_path(const char *dname, const char *path);
+extern int audit_compare_dname_path(const char *dname, const char *path,
+				    int *dirlen);
 extern struct sk_buff *	    audit_make_reply(int pid, int seq, int type,
 					     int done, int multi,
 					     void *payload, int size);
