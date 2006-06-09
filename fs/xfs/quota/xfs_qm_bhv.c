@@ -192,7 +192,7 @@ STATIC int
 xfs_qm_statvfs(
 	struct bhv_desc		*bhv,
 	xfs_statfs_t		*statp,
-	struct vnode		*vnode)
+	struct bhv_vnode	*vnode)
 {
 	xfs_mount_t		*mp;
 	xfs_inode_t		*ip;

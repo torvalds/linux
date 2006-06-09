@@ -28,7 +28,7 @@ fs_tosspages(
 	xfs_off_t	last,
 	int		fiopt)
 {
-	vnode_t		*vp = BHV_TO_VNODE(bdp);
+	bhv_vnode_t	*vp = BHV_TO_VNODE(bdp);
 	struct inode	*ip = vn_to_inode(vp);
 
 	if (VN_CACHED(vp))
@@ -42,7 +42,7 @@ fs_flushinval_pages(
 	xfs_off_t	last,
 	int		fiopt)
 {
-	vnode_t		*vp = BHV_TO_VNODE(bdp);
+	bhv_vnode_t	*vp = BHV_TO_VNODE(bdp);
 	struct inode	*ip = vn_to_inode(vp);
 
 	if (VN_CACHED(vp)) {
@@ -61,7 +61,7 @@ fs_flush_pages(
 	uint64_t	flags,
 	int		fiopt)
 {
-	vnode_t		*vp = BHV_TO_VNODE(bdp);
+	bhv_vnode_t	*vp = BHV_TO_VNODE(bdp);
 	struct inode	*ip = vn_to_inode(vp);
 
 	if (VN_DIRTY(vp)) {

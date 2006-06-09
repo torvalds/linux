@@ -658,7 +658,7 @@ xfs_mountfs(
 	xfs_buf_t	*bp;
 	xfs_sb_t	*sbp = &(mp->m_sb);
 	xfs_inode_t	*rip;
-	vnode_t		*rvp = NULL;
+	bhv_vnode_t	*rvp = NULL;
 	int		readio_log, writeio_log;
 	xfs_daddr_t	d;
 	__uint64_t	ret64;

@@ -39,15 +39,15 @@
 #include <linux/capability.h>
 #include <linux/posix_acl_xattr.h>
 
-STATIC int	xfs_acl_setmode(vnode_t *, xfs_acl_t *, int *);
+STATIC int	xfs_acl_setmode(bhv_vnode_t *, xfs_acl_t *, int *);
 STATIC void     xfs_acl_filter_mode(mode_t, xfs_acl_t *);
 STATIC void	xfs_acl_get_endian(xfs_acl_t *);
 STATIC int	xfs_acl_access(uid_t, gid_t, xfs_acl_t *, mode_t, cred_t *);
 STATIC int	xfs_acl_invalid(xfs_acl_t *);
 STATIC void	xfs_acl_sync_mode(mode_t, xfs_acl_t *);
-STATIC void	xfs_acl_get_attr(vnode_t *, xfs_acl_t *, int, int, int *);
-STATIC void	xfs_acl_set_attr(vnode_t *, xfs_acl_t *, int, int *);
-STATIC int	xfs_acl_allow_set(vnode_t *, int);
+STATIC void	xfs_acl_get_attr(bhv_vnode_t *, xfs_acl_t *, int, int, int *);
+STATIC void	xfs_acl_set_attr(bhv_vnode_t *, xfs_acl_t *, int, int *);
+STATIC int	xfs_acl_allow_set(bhv_vnode_t *, int);
 
 kmem_zone_t *xfs_acl_zone;
 
@@ -57,7 +57,7 @@ kmem_zone_t *xfs_acl_zone;
  */
 int
 xfs_acl_vhasacl_access(
-	vnode_t		*vp)
+	bhv_vnode_t	*vp)
 {
 	int		error;
 
@@ -70,7 +70,7 @@ xfs_acl_vhasacl_access(
  */
 int
 xfs_acl_vhasacl_default(
-	vnode_t		*vp)
+	bhv_vnode_t	*vp)
 {
 	int		error;
 
@@ -209,7 +209,7 @@ posix_acl_xfs_to_xattr(
 
 int
 xfs_acl_vget(
-	vnode_t		*vp,
+	bhv_vnode_t	*vp,
 	void		*acl,
 	size_t		size,
 	int		kind)
@@ -244,7 +244,7 @@ xfs_acl_vget(
 			vattr_t	va;
 
 			va.va_mask = XFS_AT_MODE;
-			VOP_GETATTR(vp, &va, 0, sys_cred, error);
+			error = bhv_vop_getattr(vp, &va, 0, sys_cred);
 			if (error)
 				goto out;
 			xfs_acl_sync_mode(va.va_mode, xfs_acl);
@@ -260,7 +260,7 @@ out:
 
 int
 xfs_acl_vremove(
-	vnode_t		*vp,
+	bhv_vnode_t	*vp,
 	int		kind)
 {
 	int		error;
@@ -268,9 +268,9 @@ xfs_acl_vremove(
 	VN_HOLD(vp);
 	error = xfs_acl_allow_set(vp, kind);
 	if (!error) {
-		VOP_ATTR_REMOVE(vp, kind == _ACL_TYPE_DEFAULT?
-				SGI_ACL_DEFAULT: SGI_ACL_FILE,
-				ATTR_ROOT, sys_cred, error);
+		error = bhv_vop_attr_remove(vp, kind == _ACL_TYPE_DEFAULT?
+						SGI_ACL_DEFAULT: SGI_ACL_FILE,
+						ATTR_ROOT, sys_cred);
 		if (error == ENOATTR)
 			error = 0;	/* 'scool */
 	}
@@ -280,7 +280,7 @@ xfs_acl_vremove(
 
 int
 xfs_acl_vset(
-	vnode_t			*vp,
+	bhv_vnode_t		*vp,
 	void			*acl,
 	size_t			size,
 	int			kind)
@@ -370,7 +370,7 @@ xfs_acl_iaccess(
 
 STATIC int
 xfs_acl_allow_set(
-	vnode_t		*vp,
+	bhv_vnode_t	*vp,
 	int		kind)
 {
 	vattr_t		va;
@@ -383,7 +383,7 @@ xfs_acl_allow_set(
 	if (vp->v_vfsp->vfs_flag & VFS_RDONLY)
 		return EROFS;
 	va.va_mask = XFS_AT_UID;
-	VOP_GETATTR(vp, &va, 0, NULL, error);
+	error = bhv_vop_getattr(vp, &va, 0, NULL);
 	if (error)
 		return error;
 	if (va.va_uid != current->fsuid && !capable(CAP_FOWNER))
@@ -606,7 +606,7 @@ xfs_acl_get_endian(
  */
 STATIC void
 xfs_acl_get_attr(
-	vnode_t		*vp,
+	bhv_vnode_t	*vp,
 	xfs_acl_t	*aclp,
 	int		kind,
 	int		flags,
@@ -616,9 +616,9 @@ xfs_acl_get_attr(
 
 	ASSERT((flags & ATTR_KERNOVAL) ? (aclp == NULL) : 1);
 	flags |= ATTR_ROOT;
-	VOP_ATTR_GET(vp,
-		kind == _ACL_TYPE_ACCESS ? SGI_ACL_FILE : SGI_ACL_DEFAULT,
-		(char *)aclp, &len, flags, sys_cred, *error);
+	*error = bhv_vop_attr_get(vp, kind == _ACL_TYPE_ACCESS ?
+					SGI_ACL_FILE : SGI_ACL_DEFAULT,
+					(char *)aclp, &len, flags, sys_cred);
 	if (*error || (flags & ATTR_KERNOVAL))
 		return;
 	xfs_acl_get_endian(aclp);
@@ -629,7 +629,7 @@ xfs_acl_get_attr(
  */
 STATIC void
 xfs_acl_set_attr(
-	vnode_t		*vp,
+	bhv_vnode_t	*vp,
 	xfs_acl_t	*aclp,
 	int		kind,
 	int		*error)
@@ -654,15 +654,15 @@ xfs_acl_set_attr(
 		INT_SET(newace->ae_perm, ARCH_CONVERT, ace->ae_perm);
 	}
 	INT_SET(newacl->acl_cnt, ARCH_CONVERT, aclp->acl_cnt);
-	VOP_ATTR_SET(vp,
-		kind == _ACL_TYPE_ACCESS ? SGI_ACL_FILE: SGI_ACL_DEFAULT,
-		(char *)newacl, len, ATTR_ROOT, sys_cred, *error);
+	*error = bhv_vop_attr_set(vp, kind == _ACL_TYPE_ACCESS ?
+				SGI_ACL_FILE: SGI_ACL_DEFAULT,
+				(char *)newacl, len, ATTR_ROOT, sys_cred);
 	_ACL_FREE(newacl);
 }
 
 int
 xfs_acl_vtoacl(
-	vnode_t		*vp,
+	bhv_vnode_t	*vp,
 	xfs_acl_t	*access_acl,
 	xfs_acl_t	*default_acl)
 {
@@ -678,7 +678,7 @@ xfs_acl_vtoacl(
 		if (!error) {
 			/* Got the ACL, need the mode... */
 			va.va_mask = XFS_AT_MODE;
-			VOP_GETATTR(vp, &va, 0, sys_cred, error);
+			error = bhv_vop_getattr(vp, &va, 0, sys_cred);
 		}
 
 		if (error)
@@ -701,7 +701,7 @@ xfs_acl_vtoacl(
  */
 int
 xfs_acl_inherit(
-	vnode_t		*vp,
+	bhv_vnode_t	*vp,
 	vattr_t		*vap,
 	xfs_acl_t	*pdaclp)
 {
@@ -757,7 +757,7 @@ xfs_acl_inherit(
  */
 STATIC int
 xfs_acl_setmode(
-	vnode_t		*vp,
+	bhv_vnode_t	*vp,
 	xfs_acl_t	*acl,
 	int		*basicperms)
 {
@@ -776,7 +776,7 @@ xfs_acl_setmode(
 	 * mode.  The m:: bits take precedence over the g:: bits.
 	 */
 	va.va_mask = XFS_AT_MODE;
-	VOP_GETATTR(vp, &va, 0, sys_cred, error);
+	error = bhv_vop_getattr(vp, &va, 0, sys_cred);
 	if (error)
 		return error;
 
@@ -810,8 +810,7 @@ xfs_acl_setmode(
 	if (gap && nomask)
 		va.va_mode |= gap->ae_perm << 3;
 
-	VOP_SETATTR(vp, &va, 0, sys_cred, error);
-	return error;
+	return bhv_vop_setattr(vp, &va, 0, sys_cred);
 }
 
 /*

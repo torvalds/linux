@@ -1035,7 +1035,7 @@ xfs_qm_dqrele_all_inodes(
 {
 	xfs_inode_t	*ip, *topino;
 	uint		ireclaims;
-	vnode_t		*vp;
+	bhv_vnode_t	*vp;
 	boolean_t	vnode_refd;
 
 	ASSERT(mp->m_quotainfo);

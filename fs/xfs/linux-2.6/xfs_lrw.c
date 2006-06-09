@@ -206,7 +206,7 @@ xfs_read(
 	xfs_fsize_t		n;
 	xfs_inode_t		*ip;
 	xfs_mount_t		*mp;
-	vnode_t			*vp;
+	bhv_vnode_t		*vp;
 	unsigned long		seg;
 
 	ip = XFS_BHVTOI(bdp);
@@ -271,7 +271,7 @@ xfs_read(
 	}
 
 	if (unlikely((ioflags & IO_ISDIRECT) && VN_CACHED(vp)))
-		VOP_FLUSHINVAL_PAGES(vp, ctooff(offtoct(*offset)),
+		bhv_vop_flushinval_pages(vp, ctooff(offtoct(*offset)),
 						-1, FI_REMAPF_LOCKED);
 
 	xfs_rw_enter_trace(XFS_READ_ENTER, &ip->i_iocore,
@@ -499,7 +499,7 @@ xfs_zero_last_block(
 
 int					/* error (positive) */
 xfs_zero_eof(
-	vnode_t		*vp,
+	bhv_vnode_t	*vp,
 	xfs_iocore_t	*io,
 	xfs_off_t	offset,		/* starting I/O offset */
 	xfs_fsize_t	isize,		/* current inode size */
@@ -626,7 +626,7 @@ xfs_write(
 	ssize_t			ret = 0, error = 0;
 	xfs_fsize_t		isize, new_size;
 	xfs_iocore_t		*io;
-	vnode_t			*vp;
+	bhv_vnode_t		*vp;
 	unsigned long		seg;
 	int			iolock;
 	int			eventsent = 0;
@@ -803,7 +803,7 @@ retry:
 		if (need_flush) {
 			xfs_inval_cached_trace(io, pos, -1,
 					ctooff(offtoct(pos)), -1);
-			VOP_FLUSHINVAL_PAGES(vp, ctooff(offtoct(pos)),
+			bhv_vop_flushinval_pages(vp, ctooff(offtoct(pos)),
 					-1, FI_REMAPF_LOCKED);
 		}
 

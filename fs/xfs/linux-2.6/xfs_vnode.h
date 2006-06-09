@@ -14,33 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write the Free Software Foundation,
  * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- *
- * Portions Copyright (c) 1989, 1993
- *	The Regents of the University of California.  All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
  */
 #ifndef __XFS_VNODE_H__
 #define __XFS_VNODE_H__
@@ -50,7 +23,6 @@ struct file;
 struct vattr;
 struct xfs_iomap;
 struct attrlist_cursor_kern;
-
 
 typedef xfs_ino_t vnumber_t;
 typedef struct dentry vname_t;
@@ -66,7 +38,7 @@ typedef enum vflags {
  * MP locking protocols:
  *	v_flag, v_vfsp				VN_LOCK/VN_UNLOCK
  */
-typedef struct vnode {
+typedef struct bhv_vnode {
 	vflags_t	v_flag;			/* vnode flags (see above) */
 	struct bhv_vfs	*v_vfsp;		/* ptr to containing VFS */
 	vnumber_t	v_number;		/* in-core vnode number */
@@ -78,16 +50,13 @@ typedef struct vnode {
 #endif
 	struct inode	v_inode;		/* Linux inode */
 	/* inode MUST be last */
-} vnode_t;
+} bhv_vnode_t;
 
 #define VN_ISLNK(vp)	S_ISLNK((vp)->v_inode.i_mode)
 #define VN_ISREG(vp)	S_ISREG((vp)->v_inode.i_mode)
 #define VN_ISDIR(vp)	S_ISDIR((vp)->v_inode.i_mode)
 #define VN_ISCHR(vp)	S_ISCHR((vp)->v_inode.i_mode)
 #define VN_ISBLK(vp)	S_ISBLK((vp)->v_inode.i_mode)
-
-#define v_fbhv			v_bh.bh_first	       /* first behavior */
-#define v_fops			v_bh.bh_first->bd_ops  /* first behavior ops */
 
 #define VNODE_POSITION_BASE	BHV_POSITION_BASE	/* chain bottom */
 #define VNODE_POSITION_TOP	BHV_POSITION_TOP	/* chain top */
@@ -110,8 +79,8 @@ typedef enum {
 /*
  * Macros for dealing with the behavior descriptor inside of the vnode.
  */
-#define BHV_TO_VNODE(bdp)	((vnode_t *)BHV_VOBJ(bdp))
-#define BHV_TO_VNODE_NULL(bdp)	((vnode_t *)BHV_VOBJNULL(bdp))
+#define BHV_TO_VNODE(bdp)	((bhv_vnode_t *)BHV_VOBJ(bdp))
+#define BHV_TO_VNODE_NULL(bdp)	((bhv_vnode_t *)BHV_VOBJNULL(bdp))
 
 #define VN_BHV_HEAD(vp)			((bhv_head_t *)(&((vp)->v_bh)))
 #define vn_bhv_head_init(bhp,name)	bhv_head_init(bhp,name)
@@ -122,17 +91,17 @@ typedef enum {
 /*
  * Vnode to Linux inode mapping.
  */
-static inline struct vnode *vn_from_inode(struct inode *inode)
+static inline struct bhv_vnode *vn_from_inode(struct inode *inode)
 {
-	return (vnode_t *)list_entry(inode, vnode_t, v_inode);
+	return (bhv_vnode_t *)list_entry(inode, bhv_vnode_t, v_inode);
 }
-static inline struct inode *vn_to_inode(struct vnode *vnode)
+static inline struct inode *vn_to_inode(struct bhv_vnode *vnode)
 {
 	return &vnode->v_inode;
 }
 
 /*
- * Values for the VOP_RWLOCK and VOP_RWUNLOCK flags parameter.
+ * Values for the vop_rwlock/rwunlock flags parameter.
  */
 typedef enum vrwlock {
 	VRWLOCK_NONE,
@@ -144,7 +113,7 @@ typedef enum vrwlock {
 } vrwlock_t;
 
 /*
- * Return values for VOP_INACTIVE.  A return value of
+ * Return values for bhv_vop_inactive.  A return value of
  * VN_INACTIVE_NOCACHE implies that the file system behavior
  * has disassociated its state and bhv_desc_t from the vnode.
  */
@@ -152,7 +121,7 @@ typedef enum vrwlock {
 #define	VN_INACTIVE_NOCACHE	1
 
 /*
- * Values for the cmd code given to VOP_VNODE_CHANGE.
+ * Values for the cmd code given to vop_vnode_change.
  */
 typedef enum vchange {
 	VCHANGE_FLAGS_FRLOCKS		= 0,
@@ -188,22 +157,22 @@ typedef int	(*vop_getattr_t)(bhv_desc_t *, struct vattr *, int,
 typedef int	(*vop_setattr_t)(bhv_desc_t *, struct vattr *, int,
 				struct cred *);
 typedef int	(*vop_access_t)(bhv_desc_t *, int, struct cred *);
-typedef int	(*vop_lookup_t)(bhv_desc_t *, vname_t *, vnode_t **,
-				int, vnode_t *, struct cred *);
+typedef int	(*vop_lookup_t)(bhv_desc_t *, vname_t *, bhv_vnode_t **,
+				int, bhv_vnode_t *, struct cred *);
 typedef int	(*vop_create_t)(bhv_desc_t *, vname_t *, struct vattr *,
-				vnode_t **, struct cred *);
+				bhv_vnode_t **, struct cred *);
 typedef int	(*vop_remove_t)(bhv_desc_t *, vname_t *, struct cred *);
-typedef int	(*vop_link_t)(bhv_desc_t *, vnode_t *, vname_t *,
+typedef int	(*vop_link_t)(bhv_desc_t *, bhv_vnode_t *, vname_t *,
 				struct cred *);
-typedef int	(*vop_rename_t)(bhv_desc_t *, vname_t *, vnode_t *, vname_t *,
-				struct cred *);
+typedef int	(*vop_rename_t)(bhv_desc_t *, vname_t *, bhv_vnode_t *,
+				vname_t *, struct cred *);
 typedef int	(*vop_mkdir_t)(bhv_desc_t *, vname_t *, struct vattr *,
-				vnode_t **, struct cred *);
+				bhv_vnode_t **, struct cred *);
 typedef int	(*vop_rmdir_t)(bhv_desc_t *, vname_t *, struct cred *);
 typedef int	(*vop_readdir_t)(bhv_desc_t *, struct uio *, struct cred *,
 				int *);
 typedef int	(*vop_symlink_t)(bhv_desc_t *, vname_t *, struct vattr *,
-				char *, vnode_t **, struct cred *);
+				char *, bhv_vnode_t **, struct cred *);
 typedef int	(*vop_readlink_t)(bhv_desc_t *, struct uio *, int,
 				struct cred *);
 typedef int	(*vop_fsync_t)(bhv_desc_t *, int, struct cred *,
@@ -224,7 +193,7 @@ typedef	int	(*vop_attr_remove_t)(bhv_desc_t *, const char *,
 				int, struct cred *);
 typedef	int	(*vop_attr_list_t)(bhv_desc_t *, char *, int, int,
 				struct attrlist_cursor_kern *, struct cred *);
-typedef void	(*vop_link_removed_t)(bhv_desc_t *, vnode_t *, int);
+typedef void	(*vop_link_removed_t)(bhv_desc_t *, bhv_vnode_t *, int);
 typedef void	(*vop_vnode_change_t)(bhv_desc_t *, vchange_t, __psint_t);
 typedef void	(*vop_ptossvp_t)(bhv_desc_t *, xfs_off_t, xfs_off_t, int);
 typedef void	(*vop_pflushinvalvp_t)(bhv_desc_t *, xfs_off_t, xfs_off_t, int);
@@ -233,7 +202,7 @@ typedef int	(*vop_pflushvp_t)(bhv_desc_t *, xfs_off_t, xfs_off_t,
 typedef int	(*vop_iflush_t)(bhv_desc_t *, int);
 
 
-typedef struct vnodeops {
+typedef struct bhv_vnodeops {
 	bhv_position_t  vn_position;    /* position within behavior chain */
 	vop_open_t		vop_open;
 	vop_close_t		vop_close;
@@ -274,105 +243,80 @@ typedef struct vnodeops {
 	vop_pflushvp_t		vop_flush_pages;
 	vop_release_t		vop_release;
 	vop_iflush_t		vop_iflush;
-} vnodeops_t;
+} bhv_vnodeops_t;
 
 /*
- * VOP's.
+ * Virtual node operations, operating from head bhv.
  */
-#define _VOP_(op, vp)	(*((vnodeops_t *)(vp)->v_fops)->op)
-
-#define VOP_OPEN(vp, cr, rv)						\
-	rv = _VOP_(vop_open, vp)((vp)->v_fbhv, cr)
-#define VOP_CLOSE(vp, f, last, cr, rv)					\
-	rv = _VOP_(vop_close, vp)((vp)->v_fbhv, f, last, cr)
-#define VOP_READ(vp,file,iov,segs,offset,ioflags,cr,rv)			\
-	rv = _VOP_(vop_read, vp)((vp)->v_fbhv,file,iov,segs,offset,ioflags,cr)
-#define VOP_WRITE(vp,file,iov,segs,offset,ioflags,cr,rv)		\
-	rv = _VOP_(vop_write, vp)((vp)->v_fbhv,file,iov,segs,offset,ioflags,cr)
-#define VOP_SENDFILE(vp,f,off,ioflags,cnt,act,targ,cr,rv)		\
-	rv = _VOP_(vop_sendfile, vp)((vp)->v_fbhv,f,off,ioflags,cnt,act,targ,cr)
-#define VOP_SPLICE_READ(vp,f,o,pipe,cnt,fl,iofl,cr,rv)			\
-	rv = _VOP_(vop_splice_read, vp)((vp)->v_fbhv,f,o,pipe,cnt,fl,iofl,cr)
-#define VOP_SPLICE_WRITE(vp,f,o,pipe,cnt,fl,iofl,cr,rv)			\
-	rv = _VOP_(vop_splice_write, vp)((vp)->v_fbhv,f,o,pipe,cnt,fl,iofl,cr)
-#define VOP_BMAP(vp,of,sz,rw,b,n,rv)					\
-	rv = _VOP_(vop_bmap, vp)((vp)->v_fbhv,of,sz,rw,b,n)
-#define VOP_GETATTR(vp, vap, f, cr, rv)					\
-	rv = _VOP_(vop_getattr, vp)((vp)->v_fbhv, vap, f, cr)
-#define	VOP_SETATTR(vp, vap, f, cr, rv)					\
-	rv = _VOP_(vop_setattr, vp)((vp)->v_fbhv, vap, f, cr)
-#define	VOP_ACCESS(vp, mode, cr, rv)					\
-	rv = _VOP_(vop_access, vp)((vp)->v_fbhv, mode, cr)
-#define	VOP_LOOKUP(vp,d,vpp,f,rdir,cr,rv)				\
-	rv = _VOP_(vop_lookup, vp)((vp)->v_fbhv,d,vpp,f,rdir,cr)
-#define VOP_CREATE(dvp,d,vap,vpp,cr,rv)					\
-	rv = _VOP_(vop_create, dvp)((dvp)->v_fbhv,d,vap,vpp,cr)
-#define VOP_REMOVE(dvp,d,cr,rv)						\
-	rv = _VOP_(vop_remove, dvp)((dvp)->v_fbhv,d,cr)
-#define	VOP_LINK(tdvp,fvp,d,cr,rv)					\
-	rv = _VOP_(vop_link, tdvp)((tdvp)->v_fbhv,fvp,d,cr)
-#define	VOP_RENAME(fvp,fnm,tdvp,tnm,cr,rv)				\
-	rv = _VOP_(vop_rename, fvp)((fvp)->v_fbhv,fnm,tdvp,tnm,cr)
-#define	VOP_MKDIR(dp,d,vap,vpp,cr,rv)					\
-	rv = _VOP_(vop_mkdir, dp)((dp)->v_fbhv,d,vap,vpp,cr)
-#define	VOP_RMDIR(dp,d,cr,rv)	 					\
-	rv = _VOP_(vop_rmdir, dp)((dp)->v_fbhv,d,cr)
-#define	VOP_READDIR(vp,uiop,cr,eofp,rv)					\
-	rv = _VOP_(vop_readdir, vp)((vp)->v_fbhv,uiop,cr,eofp)
-#define	VOP_SYMLINK(dvp,d,vap,tnm,vpp,cr,rv)				\
-	rv = _VOP_(vop_symlink, dvp) ((dvp)->v_fbhv,d,vap,tnm,vpp,cr)
-#define	VOP_READLINK(vp,uiop,fl,cr,rv)					\
-	rv = _VOP_(vop_readlink, vp)((vp)->v_fbhv,uiop,fl,cr)
-#define	VOP_FSYNC(vp,f,cr,b,e,rv)					\
-	rv = _VOP_(vop_fsync, vp)((vp)->v_fbhv,f,cr,b,e)
-#define VOP_INACTIVE(vp, cr, rv)					\
-	rv = _VOP_(vop_inactive, vp)((vp)->v_fbhv, cr)
-#define VOP_RELEASE(vp, rv)						\
-	rv = _VOP_(vop_release, vp)((vp)->v_fbhv)
-#define VOP_FID2(vp, fidp, rv)						\
-	rv = _VOP_(vop_fid2, vp)((vp)->v_fbhv, fidp)
-#define VOP_RWLOCK(vp,i)						\
-	(void)_VOP_(vop_rwlock, vp)((vp)->v_fbhv, i)
-#define VOP_RWLOCK_TRY(vp,i)						\
-	_VOP_(vop_rwlock, vp)((vp)->v_fbhv, i)
-#define VOP_RWUNLOCK(vp,i)						\
-	(void)_VOP_(vop_rwunlock, vp)((vp)->v_fbhv, i)
-#define VOP_FRLOCK(vp,c,fl,flags,offset,fr,rv)				\
-	rv = _VOP_(vop_frlock, vp)((vp)->v_fbhv,c,fl,flags,offset,fr)
-#define VOP_RECLAIM(vp, rv)						\
-	rv = _VOP_(vop_reclaim, vp)((vp)->v_fbhv)
-#define VOP_ATTR_GET(vp, name, val, vallenp, fl, cred, rv)		\
-	rv = _VOP_(vop_attr_get, vp)((vp)->v_fbhv,name,val,vallenp,fl,cred)
-#define	VOP_ATTR_SET(vp, name, val, vallen, fl, cred, rv)		\
-	rv = _VOP_(vop_attr_set, vp)((vp)->v_fbhv,name,val,vallen,fl,cred)
-#define	VOP_ATTR_REMOVE(vp, name, flags, cred, rv)			\
-	rv = _VOP_(vop_attr_remove, vp)((vp)->v_fbhv,name,flags,cred)
-#define	VOP_ATTR_LIST(vp, buf, buflen, fl, cursor, cred, rv)		\
-	rv = _VOP_(vop_attr_list, vp)((vp)->v_fbhv,buf,buflen,fl,cursor,cred)
-#define VOP_LINK_REMOVED(vp, dvp, linkzero)				\
-	(void)_VOP_(vop_link_removed, vp)((vp)->v_fbhv, dvp, linkzero)
-#define VOP_VNODE_CHANGE(vp, cmd, val)					\
-	(void)_VOP_(vop_vnode_change, vp)((vp)->v_fbhv,cmd,val)
-/*
- * These are page cache functions that now go thru VOPs.
- * 'last' parameter is unused and left in for IRIX compatibility
- */
-#define VOP_TOSS_PAGES(vp, first, last, fiopt)				\
-	_VOP_(vop_tosspages, vp)((vp)->v_fbhv,first, last, fiopt)
-/*
- * 'last' parameter is unused and left in for IRIX compatibility
- */
-#define VOP_FLUSHINVAL_PAGES(vp, first, last, fiopt)			\
-	_VOP_(vop_flushinval_pages, vp)((vp)->v_fbhv,first,last,fiopt)
-/*
- * 'last' parameter is unused and left in for IRIX compatibility
- */
-#define VOP_FLUSH_PAGES(vp, first, last, flags, fiopt, rv)		\
-	rv = _VOP_(vop_flush_pages, vp)((vp)->v_fbhv,first,last,flags,fiopt)
-#define VOP_IOCTL(vp, inode, filp, fl, cmd, arg, rv)			\
-	rv = _VOP_(vop_ioctl, vp)((vp)->v_fbhv,inode,filp,fl,cmd,arg)
-#define VOP_IFLUSH(vp, flags, rv)					\
-	rv = _VOP_(vop_iflush, vp)((vp)->v_fbhv, flags)
+#define VNHEAD(vp)	((vp)->v_bh.bh_first)
+#define VOP(op, vp)	(*((bhv_vnodeops_t *)VNHEAD(vp)->bd_ops)->op)
+#define bhv_vop_open(vp, cr)		VOP(vop_open, vp)(VNHEAD(vp),cr)
+#define bhv_vop_close(vp, f,last,cr)	VOP(vop_close, vp)(VNHEAD(vp),f,last,cr)
+#define bhv_vop_read(vp,file,iov,segs,offset,ioflags,cr)		\
+		VOP(vop_read, vp)(VNHEAD(vp),file,iov,segs,offset,ioflags,cr)
+#define bhv_vop_write(vp,file,iov,segs,offset,ioflags,cr)		\
+		VOP(vop_write, vp)(VNHEAD(vp),file,iov,segs,offset,ioflags,cr)
+#define bhv_vop_sendfile(vp,f,off,ioflags,cnt,act,targ,cr)		\
+		VOP(vop_sendfile, vp)(VNHEAD(vp),f,off,ioflags,cnt,act,targ,cr)
+#define bhv_vop_splice_read(vp,f,o,pipe,cnt,fl,iofl,cr)			\
+		VOP(vop_splice_read, vp)(VNHEAD(vp),f,o,pipe,cnt,fl,iofl,cr)
+#define bhv_vop_splice_write(vp,f,o,pipe,cnt,fl,iofl,cr)		\
+		VOP(vop_splice_write, vp)(VNHEAD(vp),f,o,pipe,cnt,fl,iofl,cr)
+#define bhv_vop_bmap(vp,of,sz,rw,b,n)					\
+		VOP(vop_bmap, vp)(VNHEAD(vp),of,sz,rw,b,n)
+#define bhv_vop_getattr(vp, vap,f,cr)					\
+		VOP(vop_getattr, vp)(VNHEAD(vp), vap,f,cr)
+#define	bhv_vop_setattr(vp, vap,f,cr)					\
+		VOP(vop_setattr, vp)(VNHEAD(vp), vap,f,cr)
+#define	bhv_vop_access(vp, mode,cr)	VOP(vop_access, vp)(VNHEAD(vp), mode,cr)
+#define	bhv_vop_lookup(vp,d,vpp,f,rdir,cr)				\
+		VOP(vop_lookup, vp)(VNHEAD(vp),d,vpp,f,rdir,cr)
+#define bhv_vop_create(dvp,d,vap,vpp,cr)				\
+		VOP(vop_create, dvp)(VNHEAD(dvp),d,vap,vpp,cr)
+#define bhv_vop_remove(dvp,d,cr)	VOP(vop_remove, dvp)(VNHEAD(dvp),d,cr)
+#define	bhv_vop_link(dvp,fvp,d,cr)	VOP(vop_link, dvp)(VNHEAD(dvp),fvp,d,cr)
+#define	bhv_vop_rename(fvp,fnm,tdvp,tnm,cr)				\
+		VOP(vop_rename, fvp)(VNHEAD(fvp),fnm,tdvp,tnm,cr)
+#define	bhv_vop_mkdir(dp,d,vap,vpp,cr)					\
+		VOP(vop_mkdir, dp)(VNHEAD(dp),d,vap,vpp,cr)
+#define	bhv_vop_rmdir(dp,d,cr)	 	VOP(vop_rmdir, dp)(VNHEAD(dp),d,cr)
+#define	bhv_vop_readdir(vp,uiop,cr,eofp)				\
+		VOP(vop_readdir, vp)(VNHEAD(vp),uiop,cr,eofp)
+#define	bhv_vop_symlink(dvp,d,vap,tnm,vpp,cr)				\
+		VOP(vop_symlink, dvp)(VNHEAD(dvp),d,vap,tnm,vpp,cr)
+#define	bhv_vop_readlink(vp,uiop,fl,cr)					\
+		VOP(vop_readlink, vp)(VNHEAD(vp),uiop,fl,cr)
+#define	bhv_vop_fsync(vp,f,cr,b,e)	VOP(vop_fsync, vp)(VNHEAD(vp),f,cr,b,e)
+#define bhv_vop_inactive(vp,cr)		VOP(vop_inactive, vp)(VNHEAD(vp),cr)
+#define bhv_vop_release(vp)		VOP(vop_release, vp)(VNHEAD(vp))
+#define bhv_vop_fid2(vp,fidp)		VOP(vop_fid2, vp)(VNHEAD(vp),fidp)
+#define bhv_vop_rwlock(vp,i)		VOP(vop_rwlock, vp)(VNHEAD(vp),i)
+#define bhv_vop_rwlock_try(vp,i)	VOP(vop_rwlock, vp)(VNHEAD(vp),i)
+#define bhv_vop_rwunlock(vp,i)		VOP(vop_rwunlock, vp)(VNHEAD(vp),i)
+#define bhv_vop_frlock(vp,c,fl,flags,offset,fr)				\
+		VOP(vop_frlock, vp)(VNHEAD(vp),c,fl,flags,offset,fr)
+#define bhv_vop_reclaim(vp)		VOP(vop_reclaim, vp)(VNHEAD(vp))
+#define bhv_vop_attr_get(vp, name, val, vallenp, fl, cred)		\
+		VOP(vop_attr_get, vp)(VNHEAD(vp),name,val,vallenp,fl,cred)
+#define	bhv_vop_attr_set(vp, name, val, vallen, fl, cred)		\
+		VOP(vop_attr_set, vp)(VNHEAD(vp),name,val,vallen,fl,cred)
+#define	bhv_vop_attr_remove(vp, name, flags, cred)			\
+		VOP(vop_attr_remove, vp)(VNHEAD(vp),name,flags,cred)
+#define	bhv_vop_attr_list(vp, buf, buflen, fl, cursor, cred)		\
+		VOP(vop_attr_list, vp)(VNHEAD(vp),buf,buflen,fl,cursor,cred)
+#define bhv_vop_link_removed(vp, dvp, linkzero)				\
+		VOP(vop_link_removed, vp)(VNHEAD(vp), dvp, linkzero)
+#define bhv_vop_vnode_change(vp, cmd, val)				\
+		VOP(vop_vnode_change, vp)(VNHEAD(vp), cmd, val)
+#define bhv_vop_toss_pages(vp, first, last, fiopt)			\
+		VOP(vop_tosspages, vp)(VNHEAD(vp), first, last, fiopt)
+#define bhv_vop_flushinval_pages(vp, first, last, fiopt)		\
+		VOP(vop_flushinval_pages, vp)(VNHEAD(vp),first,last,fiopt)
+#define bhv_vop_flush_pages(vp, first, last, flags, fiopt)		\
+		VOP(vop_flush_pages, vp)(VNHEAD(vp),first,last,flags,fiopt)
+#define bhv_vop_ioctl(vp, inode, filp, fl, cmd, arg)			\
+		VOP(vop_ioctl, vp)(VNHEAD(vp),inode,filp,fl,cmd,arg)
+#define bhv_vop_iflush(vp, flags)	VOP(vop_iflush, vp)(VNHEAD(vp), flags)
 
 /*
  * Flags for read/write calls - same values as IRIX
@@ -382,7 +326,7 @@ typedef struct vnodeops {
 #define IO_INVIS	0x00020		/* don't update inode timestamps */
 
 /*
- * Flags for VOP_IFLUSH call
+ * Flags for vop_iflush call
  */
 #define FLUSH_SYNC		1	/* wait for flush to complete	*/
 #define FLUSH_INODE		2	/* flush the inode itself	*/
@@ -390,8 +334,7 @@ typedef struct vnodeops {
 					 * this inode out to disk	*/
 
 /*
- * Flush/Invalidate options for VOP_TOSS_PAGES, VOP_FLUSHINVAL_PAGES and
- *	VOP_FLUSH_PAGES.
+ * Flush/Invalidate options for vop_toss/flush/flushinval_pages.
  */
 #define FI_NONE			0	/* none */
 #define FI_REMAPF		1	/* Do a remapf prior to the operation */
@@ -497,31 +440,17 @@ typedef struct vattr {
 	(VN_ISREG(vp) && ((mode) & (VSGID|(VEXEC>>3))) == VSGID)
 
 extern void	vn_init(void);
-extern vnode_t	*vn_initialize(struct inode *);
+extern bhv_vnode_t	*vn_initialize(struct inode *);
+extern int	vn_revalidate(struct bhv_vnode *);
+extern int	__vn_revalidate(struct bhv_vnode *, vattr_t *);
+extern void	vn_revalidate_core(struct bhv_vnode *, vattr_t *);
 
-/*
- * vnode_map structures _must_ match vn_epoch and vnode structure sizes.
- */
-typedef struct vnode_map {
-	bhv_vfs_t	*v_vfsp;
-	vnumber_t	v_number;		/* in-core vnode number */
-	xfs_ino_t	v_ino;			/* inode #	*/
-} vmap_t;
+extern void	vn_iowait(struct bhv_vnode *vp);
+extern void	vn_iowake(struct bhv_vnode *vp);
 
-#define VMAP(vp, vmap)	{(vmap).v_vfsp	 = (vp)->v_vfsp,	\
-			 (vmap).v_number = (vp)->v_number,	\
-			 (vmap).v_ino	 = (vp)->v_inode.i_ino; }
+extern void	vn_ioerror(struct bhv_vnode *vp, int error, char *f, int l);
 
-extern int	vn_revalidate(struct vnode *);
-extern int	__vn_revalidate(struct vnode *, vattr_t *);
-extern void	vn_revalidate_core(struct vnode *, vattr_t *);
-
-extern void	vn_iowait(struct vnode *vp);
-extern void	vn_iowake(struct vnode *vp);
-
-extern void	vn_ioerror(struct vnode *vp, int error, char *f, int l);
-
-static inline int vn_count(struct vnode *vp)
+static inline int vn_count(struct bhv_vnode *vp)
 {
 	return atomic_read(&vn_to_inode(vp)->i_count);
 }
@@ -529,7 +458,7 @@ static inline int vn_count(struct vnode *vp)
 /*
  * Vnode reference counting functions (and macros for compatibility).
  */
-extern vnode_t	*vn_hold(struct vnode *);
+extern bhv_vnode_t	*vn_hold(struct bhv_vnode *);
 
 #if defined(XFS_VNODE_TRACE)
 #define VN_HOLD(vp)		\
@@ -543,7 +472,7 @@ extern vnode_t	*vn_hold(struct vnode *);
 #define VN_RELE(vp)		(iput(vn_to_inode(vp)))
 #endif
 
-static inline struct vnode *vn_grab(struct vnode *vp)
+static inline struct bhv_vnode *vn_grab(struct bhv_vnode *vp)
 {
 	struct inode *inode = igrab(vn_to_inode(vp));
 	return inode ? vn_from_inode(inode) : NULL;
@@ -562,14 +491,14 @@ static inline struct vnode *vn_grab(struct vnode *vp)
 #define VN_LOCK(vp)		mutex_spinlock(&(vp)->v_lock)
 #define VN_UNLOCK(vp, s)	mutex_spinunlock(&(vp)->v_lock, s)
 
-static __inline__ void vn_flagset(struct vnode *vp, uint flag)
+static __inline__ void vn_flagset(struct bhv_vnode *vp, uint flag)
 {
 	spin_lock(&vp->v_lock);
 	vp->v_flag |= flag;
 	spin_unlock(&vp->v_lock);
 }
 
-static __inline__ uint vn_flagclr(struct vnode *vp, uint flag)
+static __inline__ uint vn_flagclr(struct bhv_vnode *vp, uint flag)
 {
 	uint	cleared;
 
@@ -588,12 +517,12 @@ static __inline__ uint vn_flagclr(struct vnode *vp, uint flag)
 /*
  * Dealing with bad inodes
  */
-static inline void vn_mark_bad(struct vnode *vp)
+static inline void vn_mark_bad(struct bhv_vnode *vp)
 {
 	make_bad_inode(vn_to_inode(vp));
 }
 
-static inline int VN_BAD(struct vnode *vp)
+static inline int VN_BAD(struct bhv_vnode *vp)
 {
 	return is_bad_inode(vn_to_inode(vp));
 }
@@ -601,18 +530,18 @@ static inline int VN_BAD(struct vnode *vp)
 /*
  * Extracting atime values in various formats
  */
-static inline void vn_atime_to_bstime(struct vnode *vp, xfs_bstime_t *bs_atime)
+static inline void vn_atime_to_bstime(bhv_vnode_t *vp, xfs_bstime_t *bs_atime)
 {
 	bs_atime->tv_sec = vp->v_inode.i_atime.tv_sec;
 	bs_atime->tv_nsec = vp->v_inode.i_atime.tv_nsec;
 }
 
-static inline void vn_atime_to_timespec(struct vnode *vp, struct timespec *ts)
+static inline void vn_atime_to_timespec(bhv_vnode_t *vp, struct timespec *ts)
 {
 	*ts = vp->v_inode.i_atime;
 }
 
-static inline void vn_atime_to_time_t(struct vnode *vp, time_t *tt)
+static inline void vn_atime_to_time_t(bhv_vnode_t *vp, time_t *tt)
 {
 	*tt = vp->v_inode.i_atime.tv_sec;
 }
@@ -627,7 +556,7 @@ static inline void vn_atime_to_time_t(struct vnode *vp, time_t *tt)
 #define VN_TRUNC(vp)	((vp)->v_flag & VTRUNCATED)
 
 /*
- * Flags to VOP_SETATTR/VOP_GETATTR.
+ * Flags to vop_setattr/getattr.
  */
 #define	ATTR_UTIME	0x01	/* non-default utime(2) request */
 #define	ATTR_DMI	0x08	/* invocation from a DMI function */
@@ -637,7 +566,7 @@ static inline void vn_atime_to_time_t(struct vnode *vp, time_t *tt)
 #define ATTR_NOSIZETOK	0x400	/* Don't get the SIZE token */
 
 /*
- * Flags to VOP_FSYNC and VOP_RECLAIM.
+ * Flags to vop_fsync/reclaim.
  */
 #define FSYNC_NOWAIT	0	/* asynchronous flush */
 #define FSYNC_WAIT	0x1	/* synchronous fsync or forced reclaim */
@@ -656,11 +585,11 @@ static inline void vn_atime_to_time_t(struct vnode *vp, time_t *tt)
 #define	VNODE_KTRACE_REF	4
 #define	VNODE_KTRACE_RELE	5
 
-extern void vn_trace_entry(struct vnode *, const char *, inst_t *);
-extern void vn_trace_exit(struct vnode *, const char *, inst_t *);
-extern void vn_trace_hold(struct vnode *, char *, int, inst_t *);
-extern void vn_trace_ref(struct vnode *, char *, int, inst_t *);
-extern void vn_trace_rele(struct vnode *, char *, int, inst_t *);
+extern void vn_trace_entry(struct bhv_vnode *, const char *, inst_t *);
+extern void vn_trace_exit(struct bhv_vnode *, const char *, inst_t *);
+extern void vn_trace_hold(struct bhv_vnode *, char *, int, inst_t *);
+extern void vn_trace_ref(struct bhv_vnode *, char *, int, inst_t *);
+extern void vn_trace_rele(struct bhv_vnode *, char *, int, inst_t *);
 
 #define	VN_TRACE(vp)		\
 	vn_trace_ref(vp, __FILE__, __LINE__, (inst_t *)__return_address)

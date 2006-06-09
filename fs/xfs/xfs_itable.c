@@ -51,7 +51,7 @@ xfs_bulkstat_one_iget(
 {
 	xfs_dinode_core_t *dic;		/* dinode core info pointer */
 	xfs_inode_t	*ip;		/* incore inode pointer */
-	vnode_t		*vp;
+	bhv_vnode_t	*vp;
 	int		error;
 
 	error = xfs_iget(mp, NULL, ino, 0, XFS_ILOCK_SHARED, &ip, bno);

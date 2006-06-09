@@ -62,7 +62,7 @@ xfs_open(
 	cred_t		*credp)
 {
 	int		mode;
-	vnode_t		*vp = BHV_TO_VNODE(bdp);
+	bhv_vnode_t	*vp = BHV_TO_VNODE(bdp);
 	xfs_inode_t	*ip = XFS_BHVTOI(bdp);
 
 	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
@@ -88,9 +88,8 @@ xfs_close(
 	lastclose_t	lastclose,
 	cred_t		*credp)
 {
-	vnode_t		*vp = BHV_TO_VNODE(bdp);
+	bhv_vnode_t	*vp = BHV_TO_VNODE(bdp);
 	xfs_inode_t	*ip = XFS_BHVTOI(bdp);
-	int		error = 0;
 
 	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
 		return XFS_ERROR(EIO);
@@ -108,8 +107,8 @@ xfs_close(
 	 * window where we'd otherwise be exposed to that problem.
 	 */
 	if (VUNTRUNCATE(vp) && VN_DIRTY(vp) && ip->i_delayed_blks > 0)
-		VOP_FLUSH_PAGES(vp, 0, -1, XFS_B_ASYNC, FI_NONE, error);
-	return error;
+		return bhv_vop_flush_pages(vp, 0, -1, XFS_B_ASYNC, FI_NONE);
+	return 0;
 }
 
 /*
@@ -124,7 +123,7 @@ xfs_getattr(
 {
 	xfs_inode_t	*ip;
 	xfs_mount_t	*mp;
-	vnode_t		*vp;
+	bhv_vnode_t	*vp;
 
 	vp  = BHV_TO_VNODE(bdp);
 	vn_trace_entry(vp, __FUNCTION__, (inst_t *)__return_address);
@@ -265,7 +264,7 @@ xfs_setattr(
 	uid_t			uid=0, iuid=0;
 	gid_t			gid=0, igid=0;
 	int			timeflags = 0;
-	vnode_t			*vp;
+	bhv_vnode_t		*vp;
 	xfs_prid_t		projid=0, iprojid=0;
 	int			mandlock_before, mandlock_after;
 	struct xfs_dquot	*udqp, *gdqp, *olddquot1, *olddquot2;
@@ -888,7 +887,7 @@ xfs_setattr(
 	 */
 	mandlock_after = MANDLOCK(vp, ip->i_d.di_mode);
 	if (mandlock_before != mandlock_after) {
-		VOP_VNODE_CHANGE(vp, VCHANGE_FLAGS_ENF_LOCKING,
+		bhv_vop_vnode_change(vp, VCHANGE_FLAGS_ENF_LOCKING,
 				 mandlock_after);
 	}
 
@@ -976,7 +975,7 @@ xfs_readlink(
 	int		count;
 	xfs_off_t	offset;
 	int		pathlen;
-	vnode_t		*vp;
+	bhv_vnode_t	*vp;
 	int		error = 0;
 	xfs_mount_t	*mp;
 	int             nmaps;
@@ -1547,7 +1546,7 @@ xfs_release(
 	bhv_desc_t	*bdp)
 {
 	xfs_inode_t	*ip;
-	vnode_t		*vp;
+	bhv_vnode_t	*vp;
 	xfs_mount_t	*mp;
 	int		error;
 
@@ -1600,8 +1599,8 @@ xfs_inactive(
 	cred_t		*credp)
 {
 	xfs_inode_t	*ip;
-	vnode_t		*vp;
-	xfs_bmap_free_t	free_list; 
+	bhv_vnode_t	*vp;
+	xfs_bmap_free_t	free_list;
 	xfs_fsblock_t	first_block;
 	int		committed;
 	xfs_trans_t	*tp;
@@ -1817,16 +1816,16 @@ STATIC int
 xfs_lookup(
 	bhv_desc_t		*dir_bdp,
 	vname_t			*dentry,
-	vnode_t			**vpp,
+	bhv_vnode_t		**vpp,
 	int			flags,
-	vnode_t			*rdir,
+	bhv_vnode_t		*rdir,
 	cred_t			*credp)
 {
 	xfs_inode_t		*dp, *ip;
 	xfs_ino_t		e_inum;
 	int			error;
 	uint			lock_mode;
-	vnode_t			*dir_vp;
+	bhv_vnode_t		*dir_vp;
 
 	dir_vp = BHV_TO_VNODE(dir_bdp);
 	vn_trace_entry(dir_vp, __FUNCTION__, (inst_t *)__return_address);
@@ -1855,13 +1854,13 @@ xfs_create(
 	bhv_desc_t		*dir_bdp,
 	vname_t			*dentry,
 	vattr_t			*vap,
-	vnode_t			**vpp,
+	bhv_vnode_t		**vpp,
 	cred_t			*credp)
 {
 	char			*name = VNAME(dentry);
-	vnode_t			*dir_vp;
+	bhv_vnode_t		*dir_vp;
 	xfs_inode_t		*dp, *ip;
-	vnode_t		        *vp=NULL;
+	bhv_vnode_t	        *vp = NULL;
 	xfs_trans_t		*tp;
 	xfs_mount_t	        *mp;
 	xfs_dev_t		rdev;
@@ -2047,7 +2046,7 @@ xfs_create(
 	 * Propagate the fact that the vnode changed after the
 	 * xfs_inode locks have been released.
 	 */
-	VOP_VNODE_CHANGE(vp, VCHANGE_FLAGS_TRUNCATED, 3);
+	bhv_vop_vnode_change(vp, VCHANGE_FLAGS_TRUNCATED, 3);
 
 	*vpp = vp;
 
@@ -2345,7 +2344,7 @@ xfs_remove(
 	vname_t			*dentry,
 	cred_t			*credp)
 {
-	vnode_t			*dir_vp;
+	bhv_vnode_t		*dir_vp;
 	char			*name = VNAME(dentry);
 	xfs_inode_t             *dp, *ip;
 	xfs_trans_t             *tp = NULL;
@@ -2532,7 +2531,7 @@ xfs_remove(
 	/*
 	 * Let interposed file systems know about removed links.
 	 */
-	VOP_LINK_REMOVED(XFS_ITOV(ip), dir_vp, link_zero);
+	bhv_vop_link_removed(XFS_ITOV(ip), dir_vp, link_zero);
 
 	IRELE(ip);
 
@@ -2585,7 +2584,7 @@ xfs_remove(
 STATIC int
 xfs_link(
 	bhv_desc_t		*target_dir_bdp,
-	vnode_t			*src_vp,
+	bhv_vnode_t		*src_vp,
 	vname_t			*dentry,
 	cred_t			*credp)
 {
@@ -2598,7 +2597,7 @@ xfs_link(
 	xfs_fsblock_t           first_block;
 	int			cancel_flags;
 	int			committed;
-	vnode_t			*target_dir_vp;
+	bhv_vnode_t		*target_dir_vp;
 	int			resblks;
 	char			*target_name = VNAME(dentry);
 	int			target_namelen;
@@ -2757,13 +2756,13 @@ xfs_mkdir(
 	bhv_desc_t		*dir_bdp,
 	vname_t			*dentry,
 	vattr_t			*vap,
-	vnode_t			**vpp,
+	bhv_vnode_t		**vpp,
 	cred_t			*credp)
 {
 	char			*dir_name = VNAME(dentry);
 	xfs_inode_t             *dp;
 	xfs_inode_t		*cdp;	/* inode of created dir */
-	vnode_t			*cvp;	/* vnode of created dir */
+	bhv_vnode_t		*cvp;	/* vnode of created dir */
 	xfs_trans_t		*tp;
 	xfs_mount_t		*mp;
 	int			cancel_flags;
@@ -2771,7 +2770,7 @@ xfs_mkdir(
 	int			committed;
 	xfs_bmap_free_t         free_list;
 	xfs_fsblock_t           first_block;
-	vnode_t			*dir_vp;
+	bhv_vnode_t		*dir_vp;
 	boolean_t		dp_joined_to_trans;
 	boolean_t		created = B_FALSE;
 	int			dm_event_sent = 0;
@@ -3003,7 +3002,7 @@ xfs_rmdir(
 	xfs_fsblock_t           first_block;
 	int			cancel_flags;
 	int			committed;
-	vnode_t			*dir_vp;
+	bhv_vnode_t		*dir_vp;
 	int			dm_di_mode = 0;
 	int			last_cdp_link;
 	int			namelen;
@@ -3202,7 +3201,7 @@ xfs_rmdir(
 	/*
 	 * Let interposed file systems know about removed links.
 	 */
-	VOP_LINK_REMOVED(XFS_ITOV(cdp), dir_vp, last_cdp_link);
+	bhv_vop_link_removed(XFS_ITOV(cdp), dir_vp, last_cdp_link);
 
 	IRELE(cdp);
 
@@ -3272,7 +3271,7 @@ xfs_symlink(
 	vname_t			*dentry,
 	vattr_t			*vap,
 	char			*target_path,
-	vnode_t			**vpp,
+	bhv_vnode_t		**vpp,
 	cred_t			*credp)
 {
 	xfs_trans_t		*tp;
@@ -3284,7 +3283,7 @@ xfs_symlink(
 	xfs_bmap_free_t		free_list;
 	xfs_fsblock_t		first_block;
 	boolean_t		dp_joined_to_trans;
-	vnode_t			*dir_vp;
+	bhv_vnode_t		*dir_vp;
 	uint			cancel_flags;
 	int			committed;
 	xfs_fileoff_t		first_fsb;
@@ -3562,7 +3561,7 @@ std_return:
 	}
 
 	if (!error) {
-		vnode_t *vp;
+		bhv_vnode_t *vp;
 
 		ASSERT(ip);
 		vp = XFS_ITOV(ip);
@@ -3630,7 +3629,7 @@ xfs_rwlock(
 	vrwlock_t	locktype)
 {
 	xfs_inode_t	*ip;
-	vnode_t		*vp;
+	bhv_vnode_t	*vp;
 
 	vp = BHV_TO_VNODE(bdp);
 	if (VN_ISDIR(vp))
@@ -3661,7 +3660,7 @@ xfs_rwunlock(
 	vrwlock_t	locktype)
 {
 	xfs_inode_t     *ip;
-	vnode_t		*vp;
+	bhv_vnode_t	*vp;
 
 	vp = BHV_TO_VNODE(bdp);
 	if (VN_ISDIR(vp))
@@ -3810,7 +3809,7 @@ xfs_reclaim(
 	bhv_desc_t	*bdp)
 {
 	xfs_inode_t	*ip;
-	vnode_t		*vp;
+	bhv_vnode_t	*vp;
 
 	vp = BHV_TO_VNODE(bdp);
 	ip = XFS_BHVTOI(bdp);
@@ -3865,7 +3864,7 @@ xfs_finish_reclaim(
 	int		sync_mode)
 {
 	xfs_ihash_t	*ih = ip->i_hash;
-	vnode_t		*vp = XFS_ITOV_NULL(ip);
+	bhv_vnode_t	*vp = XFS_ITOV_NULL(ip);
 	int		error;
 
 	if (vp && VN_BAD(vp))
@@ -4275,7 +4274,7 @@ xfs_free_file_space(
 	xfs_off_t		len,
 	int			attr_flags)
 {
-	vnode_t			*vp;
+	bhv_vnode_t		*vp;
 	int			committed;
 	int			done;
 	xfs_off_t		end_dmi_offset;
@@ -4341,7 +4340,7 @@ xfs_free_file_space(
 	if (VN_CACHED(vp) != 0) {
 		xfs_inval_cached_trace(&ip->i_iocore, ioffset, -1,
 				ctooff(offtoct(ioffset)), -1);
-		VOP_FLUSHINVAL_PAGES(vp, ctooff(offtoct(ioffset)),
+		bhv_vop_flushinval_pages(vp, ctooff(offtoct(ioffset)),
 				-1, FI_REMAPF_LOCKED);
 	}
 
@@ -4504,7 +4503,7 @@ xfs_change_file_space(
 	xfs_off_t	llen;
 	xfs_trans_t	*tp;
 	vattr_t		va;
-	vnode_t		*vp;
+	bhv_vnode_t	*vp;
 
 	vp = BHV_TO_VNODE(bdp);
 	vn_trace_entry(vp, __FUNCTION__, (inst_t *)__return_address);
@@ -4657,7 +4656,7 @@ xfs_change_file_space(
 	return error;
 }
 
-vnodeops_t xfs_vnodeops = {
+bhv_vnodeops_t xfs_vnodeops = {
 	BHV_IDENTITY_INIT(VN_BHV_XFS,VNODE_POSITION_XFS),
 	.vop_open		= xfs_open,
 	.vop_close		= xfs_close,

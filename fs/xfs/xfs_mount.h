@@ -54,7 +54,7 @@ typedef struct xfs_trans_reservations {
 struct cred;
 struct log;
 struct bhv_vfs;
-struct vnode;
+struct bhv_vnode;
 struct xfs_mount_args;
 struct xfs_ihash;
 struct xfs_chash;
@@ -67,7 +67,7 @@ struct xfs_extdelta;
 struct xfs_swapext;
 
 extern struct bhv_vfsops xfs_vfsops;
-extern struct vnodeops xfs_vnodeops;
+extern struct bhv_vnodeops xfs_vnodeops;
 
 #define	AIL_LOCK_T		lock_t
 #define	AIL_LOCKINIT(x,y)	spinlock_init(x,y)
@@ -80,15 +80,15 @@ extern struct vnodeops xfs_vnodeops;
  * Prototypes and functions for the Data Migration subsystem.
  */
 
-typedef int	(*xfs_send_data_t)(int, struct vnode *,
+typedef int	(*xfs_send_data_t)(int, struct bhv_vnode *,
 			xfs_off_t, size_t, int, vrwlock_t *);
 typedef int	(*xfs_send_mmap_t)(struct vm_area_struct *, uint);
-typedef int	(*xfs_send_destroy_t)(struct vnode *, dm_right_t);
+typedef int	(*xfs_send_destroy_t)(struct bhv_vnode *, dm_right_t);
 typedef int	(*xfs_send_namesp_t)(dm_eventtype_t, struct bhv_vfs *,
-			struct vnode *,
-			dm_right_t, struct vnode *, dm_right_t,
+			struct bhv_vnode *,
+			dm_right_t, struct bhv_vnode *, dm_right_t,
 			char *, char *, mode_t, int, int);
-typedef void	(*xfs_send_unmount_t)(struct bhv_vfs *, struct vnode *,
+typedef void	(*xfs_send_unmount_t)(struct bhv_vfs *, struct bhv_vnode *,
 			dm_right_t, mode_t, int, int);
 
 typedef struct xfs_dmops {

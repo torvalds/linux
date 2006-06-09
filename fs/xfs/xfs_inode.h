@@ -102,9 +102,9 @@ typedef struct xfs_ifork {
 
 #ifdef __KERNEL__
 struct bhv_desc;
+struct bhv_vnode;
 struct cred;
 struct ktrace;
-struct vnode;
 struct xfs_buf;
 struct xfs_bmap_free;
 struct xfs_bmbt_irec;
@@ -400,7 +400,7 @@ void		xfs_chash_init(struct xfs_mount *);
 void		xfs_chash_free(struct xfs_mount *);
 xfs_inode_t	*xfs_inode_incore(struct xfs_mount *, xfs_ino_t,
 				  struct xfs_trans *);
-void            xfs_inode_lock_init(xfs_inode_t *, struct vnode *);
+void            xfs_inode_lock_init(xfs_inode_t *, struct bhv_vnode *);
 int		xfs_iget(struct xfs_mount *, struct xfs_trans *, xfs_ino_t,
 			 uint, uint, xfs_inode_t **, xfs_daddr_t);
 void		xfs_iput(xfs_inode_t *, uint);
@@ -461,7 +461,7 @@ void		xfs_ichgtime(xfs_inode_t *, int);
 xfs_fsize_t	xfs_file_last_byte(xfs_inode_t *);
 void		xfs_lock_inodes(xfs_inode_t **, int, int, uint);
 
-xfs_inode_t	*xfs_vtoi(struct vnode *vp);
+xfs_inode_t	*xfs_vtoi(struct bhv_vnode *vp);
 
 void		xfs_synchronize_atime(xfs_inode_t *);
 

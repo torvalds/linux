@@ -22,9 +22,9 @@
 #include "xfs_fs.h"
 
 struct bhv_vfs;
+struct bhv_vnode;
 struct fid;
 struct cred;
-struct vnode;
 struct statfs;
 struct seq_file;
 struct super_block;
@@ -52,8 +52,6 @@ typedef struct bhv_vfs {
 	int			vfs_sync_seq;	/* sync thread generation no. */
 	wait_queue_head_t	vfs_wait_single_sync_task;
 } bhv_vfs_t;
-
-#define vfs_fbhv		vfs_bh.bh_first	/* 1st on vfs behavior chain */
 
 #define bhvtovfs(bdp)		( (struct bhv_vfs *)BHV_VOBJ(bdp) )
 #define bhvtovfsops(bdp)	( (struct bhv_vfsops *)BHV_OPS(bdp) )
@@ -110,14 +108,15 @@ typedef	int	(*vfs_showargs_t)(bhv_desc_t *, struct seq_file *);
 typedef int	(*vfs_unmount_t)(bhv_desc_t *, int, struct cred *);
 typedef int	(*vfs_mntupdate_t)(bhv_desc_t *, int *,
 				struct xfs_mount_args *);
-typedef int	(*vfs_root_t)(bhv_desc_t *, struct vnode **);
-typedef int	(*vfs_statvfs_t)(bhv_desc_t *, xfs_statfs_t *, struct vnode *);
+typedef int	(*vfs_root_t)(bhv_desc_t *, struct bhv_vnode **);
+typedef int	(*vfs_statvfs_t)(bhv_desc_t *, xfs_statfs_t *,
+				struct bhv_vnode *);
 typedef int	(*vfs_sync_t)(bhv_desc_t *, int, struct cred *);
-typedef int	(*vfs_vget_t)(bhv_desc_t *, struct vnode **, struct fid *);
+typedef int	(*vfs_vget_t)(bhv_desc_t *, struct bhv_vnode **, struct fid *);
 typedef int	(*vfs_dmapiops_t)(bhv_desc_t *, caddr_t);
 typedef int	(*vfs_quotactl_t)(bhv_desc_t *, int, int, caddr_t);
 typedef void	(*vfs_init_vnode_t)(bhv_desc_t *,
-				struct vnode *, bhv_desc_t *, int);
+				struct bhv_vnode *, bhv_desc_t *, int);
 typedef void	(*vfs_force_shutdown_t)(bhv_desc_t *, int, char *, int);
 typedef void	(*vfs_freeze_t)(bhv_desc_t *);
 
@@ -140,26 +139,26 @@ typedef struct bhv_vfsops {
 } bhv_vfsops_t;
 
 /*
- * VFS's.  Operates on vfs structure pointers (starts at bhv head).
+ * Virtual filesystem operations, operating from head bhv.
  */
-#define VHEAD(v)			((v)->vfs_fbhv)
-#define bhv_vfs_mount(v, ma,cr)		vfs_mount(VHEAD(v), ma,cr)
-#define bhv_vfs_parseargs(v, o,ma,f)	vfs_parseargs(VHEAD(v), o,ma,f)
-#define bhv_vfs_showargs(v, m)		vfs_showargs(VHEAD(v), m)
-#define bhv_vfs_unmount(v, f,cr)	vfs_unmount(VHEAD(v), f,cr)
-#define bhv_vfs_mntupdate(v, fl,args)	vfs_mntupdate(VHEAD(v), fl,args)
-#define bhv_vfs_root(v, vpp)		vfs_root(VHEAD(v), vpp)
-#define bhv_vfs_statvfs(v, sp,vp)	vfs_statvfs(VHEAD(v), sp,vp)
-#define bhv_vfs_sync(v, flag,cr)	vfs_sync(VHEAD(v), flag,cr)
-#define bhv_vfs_vget(v, vpp,fidp)	vfs_vget(VHEAD(v), vpp,fidp)
-#define bhv_vfs_dmapiops(v, p)		vfs_dmapiops(VHEAD(v), p)
-#define bhv_vfs_quotactl(v, c,id,p)	vfs_quotactl(VHEAD(v), c,id,p)
-#define bhv_vfs_init_vnode(v, vp,b,ul)	vfs_init_vnode(VHEAD(v), vp,b,ul)
-#define bhv_vfs_force_shutdown(v,u,f,l)	vfs_force_shutdown(VHEAD(v), u,f,l)
-#define bhv_vfs_freeze(v)		vfs_freeze(VHEAD(v))
+#define VFSHEAD(v)			((v)->vfs_bh.bh_first)
+#define bhv_vfs_mount(v, ma,cr)		vfs_mount(VFSHEAD(v), ma,cr)
+#define bhv_vfs_parseargs(v, o,ma,f)	vfs_parseargs(VFSHEAD(v), o,ma,f)
+#define bhv_vfs_showargs(v, m)		vfs_showargs(VFSHEAD(v), m)
+#define bhv_vfs_unmount(v, f,cr)	vfs_unmount(VFSHEAD(v), f,cr)
+#define bhv_vfs_mntupdate(v, fl,args)	vfs_mntupdate(VFSHEAD(v), fl,args)
+#define bhv_vfs_root(v, vpp)		vfs_root(VFSHEAD(v), vpp)
+#define bhv_vfs_statvfs(v, sp,vp)	vfs_statvfs(VFSHEAD(v), sp,vp)
+#define bhv_vfs_sync(v, flag,cr)	vfs_sync(VFSHEAD(v), flag,cr)
+#define bhv_vfs_vget(v, vpp,fidp)	vfs_vget(VFSHEAD(v), vpp,fidp)
+#define bhv_vfs_dmapiops(v, p)		vfs_dmapiops(VFSHEAD(v), p)
+#define bhv_vfs_quotactl(v, c,id,p)	vfs_quotactl(VFSHEAD(v), c,id,p)
+#define bhv_vfs_init_vnode(v, vp,b,ul)	vfs_init_vnode(VFSHEAD(v), vp,b,ul)
+#define bhv_vfs_force_shutdown(v,u,f,l)	vfs_force_shutdown(VFSHEAD(v), u,f,l)
+#define bhv_vfs_freeze(v)		vfs_freeze(VFSHEAD(v))
 
 /*
- * PVFS's.  Operates on behavior descriptor pointers.
+ * Virtual filesystem operations, operating from next bhv.
  */
 #define bhv_next_vfs_mount(b, ma,cr)		vfs_mount(b, ma,cr)
 #define bhv_next_vfs_parseargs(b, o,ma,f)	vfs_parseargs(b, o,ma,f)
@@ -181,13 +180,13 @@ extern int vfs_parseargs(bhv_desc_t *, char *, struct xfs_mount_args *, int);
 extern int vfs_showargs(bhv_desc_t *, struct seq_file *);
 extern int vfs_unmount(bhv_desc_t *, int, struct cred *);
 extern int vfs_mntupdate(bhv_desc_t *, int *, struct xfs_mount_args *);
-extern int vfs_root(bhv_desc_t *, struct vnode **);
-extern int vfs_statvfs(bhv_desc_t *, xfs_statfs_t *, struct vnode *);
+extern int vfs_root(bhv_desc_t *, struct bhv_vnode **);
+extern int vfs_statvfs(bhv_desc_t *, xfs_statfs_t *, struct bhv_vnode *);
 extern int vfs_sync(bhv_desc_t *, int, struct cred *);
-extern int vfs_vget(bhv_desc_t *, struct vnode **, struct fid *);
+extern int vfs_vget(bhv_desc_t *, struct bhv_vnode **, struct fid *);
 extern int vfs_dmapiops(bhv_desc_t *, caddr_t);
 extern int vfs_quotactl(bhv_desc_t *, int, int, caddr_t);
-extern void vfs_init_vnode(bhv_desc_t *, struct vnode *, bhv_desc_t *, int);
+extern void vfs_init_vnode(bhv_desc_t *, struct bhv_vnode *, bhv_desc_t *, int);
 extern void vfs_force_shutdown(bhv_desc_t *, int, char *, int);
 extern void vfs_freeze(bhv_desc_t *);
 

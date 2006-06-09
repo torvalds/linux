@@ -5759,7 +5759,7 @@ xfs_getbmap(
 	__int64_t		fixlen;		/* length for -1 case */
 	int			i;		/* extent number */
 	xfs_inode_t		*ip;		/* xfs incore inode pointer */
-	vnode_t			*vp;		/* corresponding vnode */
+	bhv_vnode_t		*vp;		/* corresponding vnode */
 	int			lock;		/* lock state */
 	xfs_bmbt_irec_t		*map;		/* buffer for user's data */
 	xfs_mount_t		*mp;		/* file system mount point */
@@ -5856,7 +5856,7 @@ xfs_getbmap(
 
 	if (whichfork == XFS_DATA_FORK && ip->i_delayed_blks) {
 		/* xfs_fsize_t last_byte = xfs_file_last_byte(ip); */
-		VOP_FLUSH_PAGES(vp, (xfs_off_t)0, -1, 0, FI_REMAPF, error);
+		error = bhv_vop_flush_pages(vp, (xfs_off_t)0, -1, 0, FI_REMAPF);
 	}
 
 	ASSERT(whichfork == XFS_ATTR_FORK || ip->i_delayed_blks == 0);

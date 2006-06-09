@@ -1086,7 +1086,7 @@ xfs_ialloc(
 {
 	xfs_ino_t	ino;
 	xfs_inode_t	*ip;
-	vnode_t		*vp;
+	bhv_vnode_t	*vp;
 	uint		flags;
 	int		error;
 
@@ -1427,7 +1427,7 @@ xfs_itruncate_start(
 	xfs_fsize_t	last_byte;
 	xfs_off_t	toss_start;
 	xfs_mount_t	*mp;
-	vnode_t		*vp;
+	bhv_vnode_t	*vp;
 
 	ASSERT(ismrlocked(&ip->i_iolock, MR_UPDATE) != 0);
 	ASSERT((new_size == 0) || (new_size <= ip->i_d.di_size));
@@ -1440,9 +1440,9 @@ xfs_itruncate_start(
 	vn_iowait(vp);  /* wait for the completion of any pending DIOs */
 	
 	/*
-	 * Call VOP_TOSS_PAGES() or VOP_FLUSHINVAL_PAGES() to get rid of pages and buffers
+	 * Call toss_pages or flushinval_pages to get rid of pages
 	 * overlapping the region being removed.  We have to use
-	 * the less efficient VOP_FLUSHINVAL_PAGES() in the case that the
+	 * the less efficient flushinval_pages in the case that the
 	 * caller may not be able to finish the truncate without
 	 * dropping the inode's I/O lock.  Make sure
 	 * to catch any pages brought in by buffers overlapping
@@ -1451,10 +1451,10 @@ xfs_itruncate_start(
 	 * so that we don't toss things on the same block as
 	 * new_size but before it.
 	 *
-	 * Before calling VOP_TOSS_PAGES() or VOP_FLUSHINVAL_PAGES(), make sure to
+	 * Before calling toss_page or flushinval_pages, make sure to
 	 * call remapf() over the same region if the file is mapped.
 	 * This frees up mapped file references to the pages in the
-	 * given range and for the VOP_FLUSHINVAL_PAGES() case it ensures
+	 * given range and for the flushinval_pages case it ensures
 	 * that we get the latest mapped changes flushed out.
 	 */
 	toss_start = XFS_B_TO_FSB(mp, (xfs_ufsize_t)new_size);
@@ -1472,9 +1472,9 @@ xfs_itruncate_start(
 			 last_byte);
 	if (last_byte > toss_start) {
 		if (flags & XFS_ITRUNC_DEFINITE) {
-			VOP_TOSS_PAGES(vp, toss_start, -1, FI_REMAPF_LOCKED);
+			bhv_vop_toss_pages(vp, toss_start, -1, FI_REMAPF_LOCKED);
 		} else {
-			VOP_FLUSHINVAL_PAGES(vp, toss_start, -1, FI_REMAPF_LOCKED);
+			bhv_vop_flushinval_pages(vp, toss_start, -1, FI_REMAPF_LOCKED);
 		}
 	}
 
@@ -2752,7 +2752,7 @@ xfs_iunpin(
 		 * the inode to become unpinned.
 		 */
 		if (!(ip->i_flags & (XFS_IRECLAIM|XFS_IRECLAIMABLE))) {
-			vnode_t	*vp = XFS_ITOV_NULL(ip);
+			bhv_vnode_t	*vp = XFS_ITOV_NULL(ip);
 
 			/* make sync come back and flush this inode */
 			if (vp) {
@@ -3512,7 +3512,7 @@ xfs_iflush_all(
 	xfs_mount_t	*mp)
 {
 	xfs_inode_t	*ip;
-	vnode_t		*vp;
+	bhv_vnode_t	*vp;
 
  again:
 	XFS_MOUNT_ILOCK(mp);

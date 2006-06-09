@@ -555,7 +555,7 @@ xfs_unmount(
 	bhv_vfs_t	*vfsp = bhvtovfs(bdp);
 	xfs_mount_t	*mp = XFS_BHVTOM(bdp);
 	xfs_inode_t	*rip;
-	vnode_t		*rvp;
+	bhv_vnode_t	*rvp;
 	int		unmount_event_wanted = 0;
 	int		unmount_event_flags = 0;
 	int		xfs_unmountfs_needed = 0;
@@ -701,7 +701,7 @@ xfs_unmount_flush(
 	xfs_inode_t	*rip = mp->m_rootip;
 	xfs_inode_t	*rbmip;
 	xfs_inode_t	*rsumip = NULL;
-	vnode_t		*rvp = XFS_ITOV(rip);
+	bhv_vnode_t	*rvp = XFS_ITOV(rip);
 	int		error;
 
 	xfs_ilock(rip, XFS_ILOCK_EXCL);
@@ -780,9 +780,9 @@ fscorrupt_out2:
 STATIC int
 xfs_root(
 	bhv_desc_t	*bdp,
-	vnode_t		**vpp)
+	bhv_vnode_t	**vpp)
 {
-	vnode_t		*vp;
+	bhv_vnode_t	*vp;
 
 	vp = XFS_ITOV((XFS_BHVTOM(bdp))->m_rootip);
 	VN_HOLD(vp);
@@ -801,7 +801,7 @@ STATIC int
 xfs_statvfs(
 	bhv_desc_t	*bdp,
 	xfs_statfs_t	*statp,
-	vnode_t		*vp)
+	bhv_vnode_t	*vp)
 {
 	__uint64_t	fakeinos;
 	xfs_extlen_t	lsize;
@@ -916,7 +916,7 @@ xfs_sync_inodes(
 	xfs_inode_t	*ip = NULL;
 	xfs_inode_t	*ip_next;
 	xfs_buf_t	*bp;
-	vnode_t		*vp = NULL;
+	bhv_vnode_t	*vp = NULL;
 	int		error;
 	int		last_error;
 	uint64_t	fflag;
@@ -1155,9 +1155,9 @@ xfs_sync_inodes(
 			xfs_iunlock(ip, XFS_ILOCK_SHARED);
 
 			if (XFS_FORCED_SHUTDOWN(mp)) {
-				VOP_TOSS_PAGES(vp, 0, -1, FI_REMAPF);
+				bhv_vop_toss_pages(vp, 0, -1, FI_REMAPF);
 			} else {
-				VOP_FLUSHINVAL_PAGES(vp, 0, -1, FI_REMAPF);
+				bhv_vop_flushinval_pages(vp, 0, -1, FI_REMAPF);
 			}
 
 			xfs_ilock(ip, XFS_ILOCK_SHARED);
@@ -1177,8 +1177,8 @@ xfs_sync_inodes(
 				 * across calls to the buffer cache.
 				 */
 				xfs_iunlock(ip, XFS_ILOCK_SHARED);
-				VOP_FLUSH_PAGES(vp, (xfs_off_t)0, -1,
-							fflag, FI_NONE, error);
+				error = bhv_vop_flush_pages(vp, (xfs_off_t)0,
+							-1, fflag, FI_NONE);
 				xfs_ilock(ip, XFS_ILOCK_SHARED);
 			}
 
@@ -1230,9 +1230,7 @@ xfs_sync_inodes(
 						 * marker and free it.
 						 */
 						XFS_MOUNT_ILOCK(mp);
-
 						IPOINTER_REMOVE(ip, mp);
-
 						XFS_MOUNT_IUNLOCK(mp);
 
 						ASSERT(!(lock_flags &
@@ -1573,7 +1571,7 @@ xfs_syncsub(
 STATIC int
 xfs_vget(
 	bhv_desc_t	*bdp,
-	vnode_t		**vpp,
+	bhv_vnode_t	**vpp,
 	fid_t		*fidp)
 {
 	xfs_mount_t	*mp = XFS_BHVTOM(bdp);

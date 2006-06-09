@@ -18,8 +18,8 @@
 #ifndef __XFS_LRW_H__
 #define __XFS_LRW_H__
 
-struct vnode;
 struct bhv_desc;
+struct bhv_vnode;
 struct xfs_mount;
 struct xfs_iocore;
 struct xfs_inode;
@@ -82,7 +82,7 @@ extern int xfsbdstrat(struct xfs_mount *, struct xfs_buf *);
 extern int xfs_bdstrat_cb(struct xfs_buf *);
 extern int xfs_dev_is_read_only(struct xfs_mount *, char *);
 
-extern int xfs_zero_eof(struct vnode *, struct xfs_iocore *, xfs_off_t,
+extern int xfs_zero_eof(struct bhv_vnode *, struct xfs_iocore *, xfs_off_t,
 				xfs_fsize_t, xfs_fsize_t);
 extern ssize_t xfs_read(struct bhv_desc *, struct kiocb *,
 				const struct iovec *, unsigned int,

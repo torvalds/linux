@@ -226,7 +226,7 @@ int
 xfs_rename(
 	bhv_desc_t	*src_dir_bdp,
 	vname_t		*src_vname,
-	vnode_t		*target_dir_vp,
+	bhv_vnode_t	*target_dir_vp,
 	vname_t		*target_vname,
 	cred_t		*credp)
 {
@@ -242,7 +242,7 @@ xfs_rename(
 	int		committed;
 	xfs_inode_t	*inodes[4];
 	int		target_ip_dropped = 0;	/* dropped target_ip link? */
-	vnode_t		*src_dir_vp;
+	bhv_vnode_t	*src_dir_vp;
 	int		spaceres;
 	int		target_link_zero = 0;
 	int		num_inodes;
@@ -609,7 +609,7 @@ xfs_rename(
 	 * Let interposed file systems know about removed links.
 	 */
 	if (target_ip_dropped) {
-		VOP_LINK_REMOVED(XFS_ITOV(target_ip), target_dir_vp,
+		bhv_vop_link_removed(XFS_ITOV(target_ip), target_dir_vp,
 					target_link_zero);
 		IRELE(target_ip);
 	}

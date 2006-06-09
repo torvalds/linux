@@ -50,7 +50,7 @@ typedef struct xfs_acl {
 #ifdef CONFIG_XFS_POSIX_ACL
 
 struct vattr;
-struct vnode;
+struct bhv_vnode;
 struct xfs_inode;
 
 extern struct kmem_zone *xfs_acl_zone;
@@ -58,14 +58,14 @@ extern struct kmem_zone *xfs_acl_zone;
 		(zone) = kmem_zone_init(sizeof(xfs_acl_t), (name))
 #define xfs_acl_zone_destroy(zone)	kmem_zone_destroy(zone)
 
-extern int xfs_acl_inherit(struct vnode *, struct vattr *, xfs_acl_t *);
+extern int xfs_acl_inherit(struct bhv_vnode *, struct vattr *, xfs_acl_t *);
 extern int xfs_acl_iaccess(struct xfs_inode *, mode_t, cred_t *);
-extern int xfs_acl_vtoacl(struct vnode *, xfs_acl_t *, xfs_acl_t *);
-extern int xfs_acl_vhasacl_access(struct vnode *);
-extern int xfs_acl_vhasacl_default(struct vnode *);
-extern int xfs_acl_vset(struct vnode *, void *, size_t, int);
-extern int xfs_acl_vget(struct vnode *, void *, size_t, int);
-extern int xfs_acl_vremove(struct vnode *vp, int);
+extern int xfs_acl_vtoacl(struct bhv_vnode *, xfs_acl_t *, xfs_acl_t *);
+extern int xfs_acl_vhasacl_access(struct bhv_vnode *);
+extern int xfs_acl_vhasacl_default(struct bhv_vnode *);
+extern int xfs_acl_vset(struct bhv_vnode *, void *, size_t, int);
+extern int xfs_acl_vget(struct bhv_vnode *, void *, size_t, int);
+extern int xfs_acl_vremove(struct bhv_vnode *, int);
 
 #define _ACL_TYPE_ACCESS	1
 #define _ACL_TYPE_DEFAULT	2

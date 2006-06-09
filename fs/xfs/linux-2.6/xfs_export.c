@@ -136,7 +136,7 @@ xfs_fs_get_dentry(
 	struct super_block	*sb,
 	void			*data)
 {
-	vnode_t			*vp;
+	bhv_vnode_t		*vp;
 	struct inode		*inode;
 	struct dentry		*result;
 	bhv_vfs_t		*vfsp = vfs_from_sb(sb);
@@ -160,12 +160,12 @@ xfs_fs_get_parent(
 	struct dentry		*child)
 {
 	int			error;
-	vnode_t			*vp, *cvp;
+	bhv_vnode_t		*vp, *cvp;
 	struct dentry		*parent;
 
 	cvp = NULL;
 	vp = vn_from_inode(child->d_inode);
-	VOP_LOOKUP(vp, &dotdot, &cvp, 0, NULL, NULL, error);
+	error = bhv_vop_lookup(vp, &dotdot, &cvp, 0, NULL, NULL);
 	if (unlikely(error))
 		return ERR_PTR(-error);
 

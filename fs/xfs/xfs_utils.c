@@ -54,7 +54,7 @@ xfs_get_dir_entry(
 	vname_t		*dentry,
 	xfs_inode_t	**ipp)
 {
-	vnode_t		*vp;
+	bhv_vnode_t	*vp;
 
 	vp = VNAME_TO_VNODE(dentry);
 
@@ -73,7 +73,7 @@ xfs_dir_lookup_int(
 	xfs_ino_t	*inum,
 	xfs_inode_t	**ipp)
 {
-	vnode_t		*dir_vp;
+	bhv_vnode_t	*dir_vp;
 	xfs_inode_t	*dp;
 	int		error;
 

@@ -39,7 +39,7 @@ vn_init(void)
 
 void
 vn_iowait(
-	struct vnode	*vp)
+	bhv_vnode_t	*vp)
 {
 	wait_queue_head_t *wq = vptosync(vp);
 
@@ -48,7 +48,7 @@ vn_iowait(
 
 void
 vn_iowake(
-	struct vnode	*vp)
+	bhv_vnode_t	*vp)
 {
 	if (atomic_dec_and_test(&vp->v_iocount))
 		wake_up(vptosync(vp));
@@ -61,7 +61,7 @@ vn_iowake(
  */
 void
 vn_ioerror(
-	struct vnode	*vp,
+	bhv_vnode_t	*vp,
 	int		error,
 	char		*f,
 	int		l)
@@ -70,11 +70,11 @@ vn_ioerror(
 		bhv_vfs_force_shutdown(vp->v_vfsp, SHUTDOWN_DEVICE_REQ, f, l);
 }
 
-struct vnode *
+bhv_vnode_t *
 vn_initialize(
 	struct inode	*inode)
 {
-	struct vnode	*vp = vn_from_inode(inode);
+	bhv_vnode_t	*vp = vn_from_inode(inode);
 
 	XFS_STATS_INC(vn_active);
 	XFS_STATS_INC(vn_alloc);
@@ -110,7 +110,7 @@ vn_initialize(
  */
 void
 vn_revalidate_core(
-	struct vnode	*vp,
+	bhv_vnode_t	*vp,
 	vattr_t		*vap)
 {
 	struct inode	*inode = vn_to_inode(vp);
@@ -146,14 +146,14 @@ vn_revalidate_core(
  */
 int
 __vn_revalidate(
-	struct vnode	*vp,
+	bhv_vnode_t	*vp,
 	struct vattr	*vattr)
 {
 	int		error;
 
 	vn_trace_entry(vp, __FUNCTION__, (inst_t *)__return_address);
 	vattr->va_mask = XFS_AT_STAT | XFS_AT_XFLAGS;
-	VOP_GETATTR(vp, vattr, 0, NULL, error);
+	error = bhv_vop_getattr(vp, vattr, 0, NULL);
 	if (likely(!error)) {
 		vn_revalidate_core(vp, vattr);
 		VUNMODIFY(vp);
@@ -163,7 +163,7 @@ __vn_revalidate(
 
 int
 vn_revalidate(
-	struct vnode	*vp)
+	bhv_vnode_t	*vp)
 {
 	vattr_t		vattr;
 
@@ -173,9 +173,9 @@ vn_revalidate(
 /*
  * Add a reference to a referenced vnode.
  */
-struct vnode *
+bhv_vnode_t *
 vn_hold(
-	struct vnode	*vp)
+	bhv_vnode_t	*vp)
 {
 	struct inode	*inode;
 
@@ -208,31 +208,31 @@ vn_hold(
  * Vnode tracing code.
  */
 void
-vn_trace_entry(vnode_t *vp, const char *func, inst_t *ra)
+vn_trace_entry(bhv_vnode_t *vp, const char *func, inst_t *ra)
 {
 	KTRACE_ENTER(vp, VNODE_KTRACE_ENTRY, func, 0, ra);
 }
 
 void
-vn_trace_exit(vnode_t *vp, const char *func, inst_t *ra)
+vn_trace_exit(bhv_vnode_t *vp, const char *func, inst_t *ra)
 {
 	KTRACE_ENTER(vp, VNODE_KTRACE_EXIT, func, 0, ra);
 }
 
 void
-vn_trace_hold(vnode_t *vp, char *file, int line, inst_t *ra)
+vn_trace_hold(bhv_vnode_t *vp, char *file, int line, inst_t *ra)
 {
 	KTRACE_ENTER(vp, VNODE_KTRACE_HOLD, file, line, ra);
 }
 
 void
-vn_trace_ref(vnode_t *vp, char *file, int line, inst_t *ra)
+vn_trace_ref(bhv_vnode_t *vp, char *file, int line, inst_t *ra)
 {
 	KTRACE_ENTER(vp, VNODE_KTRACE_REF, file, line, ra);
 }
 
 void
-vn_trace_rele(vnode_t *vp, char *file, int line, inst_t *ra)
+vn_trace_rele(bhv_vnode_t *vp, char *file, int line, inst_t *ra)
 {
 	KTRACE_ENTER(vp, VNODE_KTRACE_RELE, file, line, ra);
 }

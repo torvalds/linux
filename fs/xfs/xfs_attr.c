@@ -2324,56 +2324,56 @@ xfs_attr_trace_enter(int type, char *where,
 
 STATIC int
 posix_acl_access_set(
-	vnode_t	*vp, char *name, void *data, size_t size, int xflags)
+	bhv_vnode_t *vp, char *name, void *data, size_t size, int xflags)
 {
 	return xfs_acl_vset(vp, data, size, _ACL_TYPE_ACCESS);
 }
 
 STATIC int
 posix_acl_access_remove(
-	struct vnode *vp, char *name, int xflags)
+	bhv_vnode_t *vp, char *name, int xflags)
 {
 	return xfs_acl_vremove(vp, _ACL_TYPE_ACCESS);
 }
 
 STATIC int
 posix_acl_access_get(
-	vnode_t *vp, char *name, void *data, size_t size, int xflags)
+	bhv_vnode_t *vp, char *name, void *data, size_t size, int xflags)
 {
 	return xfs_acl_vget(vp, data, size, _ACL_TYPE_ACCESS);
 }
 
 STATIC int
 posix_acl_access_exists(
-	vnode_t *vp)
+	bhv_vnode_t *vp)
 {
 	return xfs_acl_vhasacl_access(vp);
 }
 
 STATIC int
 posix_acl_default_set(
-	vnode_t	*vp, char *name, void *data, size_t size, int xflags)
+	bhv_vnode_t *vp, char *name, void *data, size_t size, int xflags)
 {
 	return xfs_acl_vset(vp, data, size, _ACL_TYPE_DEFAULT);
 }
 
 STATIC int
 posix_acl_default_get(
-	vnode_t *vp, char *name, void *data, size_t size, int xflags)
+	bhv_vnode_t *vp, char *name, void *data, size_t size, int xflags)
 {
 	return xfs_acl_vget(vp, data, size, _ACL_TYPE_DEFAULT);
 }
 
 STATIC int
 posix_acl_default_remove(
-	struct vnode *vp, char *name, int xflags)
+	bhv_vnode_t *vp, char *name, int xflags)
 {
 	return xfs_acl_vremove(vp, _ACL_TYPE_DEFAULT);
 }
 
 STATIC int
 posix_acl_default_exists(
-	vnode_t *vp)
+	bhv_vnode_t *vp)
 {
 	return xfs_acl_vhasacl_default(vp);
 }
@@ -2406,21 +2406,18 @@ STATIC struct attrnames *attr_system_names[] =
 
 STATIC int
 attr_generic_set(
-	struct vnode *vp, char *name, void *data, size_t size, int xflags)
+	bhv_vnode_t *vp, char *name, void *data, size_t size, int xflags)
 {
-	int 	error;
-
-	VOP_ATTR_SET(vp, name, data, size, xflags, NULL, error);
-	return -error;
+	return -bhv_vop_attr_set(vp, name, data, size, xflags, NULL);
 }
 
 STATIC int
 attr_generic_get(
-	struct vnode *vp, char *name, void *data, size_t size, int xflags)
+	bhv_vnode_t *vp, char *name, void *data, size_t size, int xflags)
 {
 	int	error, asize = size;
 
-	VOP_ATTR_GET(vp, name, data, &asize, xflags, NULL, error);
+	error = bhv_vop_attr_get(vp, name, data, &asize, xflags, NULL);
 	if (!error)
 		return asize;
 	return -error;
@@ -2428,12 +2425,9 @@ attr_generic_get(
 
 STATIC int
 attr_generic_remove(
-	struct vnode *vp, char *name, int xflags)
+	bhv_vnode_t *vp, char *name, int xflags)
 {
-	int	error;
-
-	VOP_ATTR_REMOVE(vp, name, xflags, NULL, error);
-	return -error;
+	return -bhv_vop_attr_remove(vp, name, xflags, NULL);
 }
 
 STATIC int
@@ -2461,7 +2455,7 @@ attr_generic_listadd(
 
 STATIC int
 attr_system_list(
-	struct vnode		*vp,
+	bhv_vnode_t		*vp,
 	void			*data,
 	size_t			size,
 	ssize_t			*result)
@@ -2483,12 +2477,12 @@ attr_system_list(
 
 int
 attr_generic_list(
-	struct vnode *vp, void *data, size_t size, int xflags, ssize_t *result)
+	bhv_vnode_t *vp, void *data, size_t size, int xflags, ssize_t *result)
 {
 	attrlist_cursor_kern_t	cursor = { 0 };
 	int			error;
 
-	VOP_ATTR_LIST(vp, data, size, xflags, &cursor, NULL, error);
+	error = bhv_vop_attr_list(vp, data, size, xflags, &cursor, NULL);
 	if (error > 0)
 		return -error;
 	*result = -error;
@@ -2516,7 +2510,7 @@ attr_lookup_namespace(
  */
 STATIC int
 attr_user_capable(
-	struct vnode	*vp,
+	bhv_vnode_t	*vp,
 	cred_t		*cred)
 {
 	struct inode	*inode = vn_to_inode(vp);
@@ -2534,7 +2528,7 @@ attr_user_capable(
 
 STATIC int
 attr_trusted_capable(
-	struct vnode	*vp,
+	bhv_vnode_t	*vp,
 	cred_t		*cred)
 {
 	struct inode	*inode = vn_to_inode(vp);
@@ -2548,7 +2542,7 @@ attr_trusted_capable(
 
 STATIC int
 attr_secure_capable(
-	struct vnode	*vp,
+	bhv_vnode_t	*vp,
 	cred_t		*cred)
 {
 	return -ENOSECURITY;
@@ -2556,7 +2550,7 @@ attr_secure_capable(
 
 STATIC int
 attr_system_set(
-	struct vnode *vp, char *name, void *data, size_t size, int xflags)
+	bhv_vnode_t *vp, char *name, void *data, size_t size, int xflags)
 {
 	attrnames_t	*namesp;
 	int		error;
@@ -2575,7 +2569,7 @@ attr_system_set(
 
 STATIC int
 attr_system_get(
-	struct vnode *vp, char *name, void *data, size_t size, int xflags)
+	bhv_vnode_t *vp, char *name, void *data, size_t size, int xflags)
 {
 	attrnames_t	*namesp;
 
@@ -2587,7 +2581,7 @@ attr_system_get(
 
 STATIC int
 attr_system_remove(
-	struct vnode *vp, char *name, int xflags)
+	bhv_vnode_t *vp, char *name, int xflags)
 {
 	attrnames_t	*namesp;
 

@@ -186,7 +186,7 @@ xfs_ihash_promote(
  */
 STATIC int
 xfs_iget_core(
-	vnode_t		*vp,
+	bhv_vnode_t	*vp,
 	xfs_mount_t	*mp,
 	xfs_trans_t	*tp,
 	xfs_ino_t	ino,
@@ -198,7 +198,7 @@ xfs_iget_core(
 	xfs_ihash_t	*ih;
 	xfs_inode_t	*ip;
 	xfs_inode_t	*iq;
-	vnode_t		*inode_vp;
+	bhv_vnode_t	*inode_vp;
 	ulong		version;
 	int		error;
 	/* REFERENCED */
@@ -489,7 +489,7 @@ xfs_iget(
 	xfs_daddr_t	bno)
 {
 	struct inode	*inode;
-	vnode_t		*vp = NULL;
+	bhv_vnode_t	*vp = NULL;
 	int		error;
 
 	XFS_STATS_INC(xs_ig_attempts);
@@ -543,7 +543,7 @@ retry:
 void
 xfs_inode_lock_init(
 	xfs_inode_t	*ip,
-	vnode_t		*vp)
+	bhv_vnode_t	*vp)
 {
 	mrlock_init(&ip->i_lock, MRLOCK_ALLOW_EQUAL_PRI|MRLOCK_BARRIER,
 		     "xfsino", (long)vp->v_number);
@@ -603,12 +603,10 @@ void
 xfs_iput(xfs_inode_t	*ip,
 	 uint		lock_flags)
 {
-	vnode_t	*vp = XFS_ITOV(ip);
+	bhv_vnode_t	*vp = XFS_ITOV(ip);
 
 	vn_trace_entry(vp, "xfs_iput", (inst_t *)__return_address);
-
 	xfs_iunlock(ip, lock_flags);
-
 	VN_RELE(vp);
 }
 
@@ -619,7 +617,7 @@ void
 xfs_iput_new(xfs_inode_t	*ip,
 	     uint		lock_flags)
 {
-	vnode_t		*vp = XFS_ITOV(ip);
+	bhv_vnode_t	*vp = XFS_ITOV(ip);
 	struct inode	*inode = vn_to_inode(vp);
 
 	vn_trace_entry(vp, "xfs_iput_new", (inst_t *)__return_address);
@@ -645,7 +643,7 @@ xfs_iput_new(xfs_inode_t	*ip,
 void
 xfs_ireclaim(xfs_inode_t *ip)
 {
-	vnode_t		*vp;
+	bhv_vnode_t	*vp;
 
 	/*
 	 * Remove from old hash list and mount list.

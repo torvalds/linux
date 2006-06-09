@@ -151,7 +151,7 @@ xfs_set_inodeops(
 STATIC __inline__ void
 xfs_revalidate_inode(
 	xfs_mount_t		*mp,
-	vnode_t			*vp,
+	bhv_vnode_t		*vp,
 	xfs_inode_t		*ip)
 {
 	struct inode		*inode = vn_to_inode(vp);
@@ -206,7 +206,7 @@ xfs_revalidate_inode(
 void
 xfs_initialize_vnode(
 	bhv_desc_t		*bdp,
-	vnode_t			*vp,
+	bhv_vnode_t		*vp,
 	bhv_desc_t		*inode_bhv,
 	int			unlock)
 {
@@ -336,7 +336,7 @@ STATIC struct inode *
 xfs_fs_alloc_inode(
 	struct super_block	*sb)
 {
-	vnode_t			*vp;
+	bhv_vnode_t		*vp;
 
 	vp = kmem_zone_alloc(xfs_vnode_zone, KM_SLEEP);
 	if (unlikely(!vp))
@@ -359,13 +359,13 @@ xfs_fs_inode_init_once(
 {
 	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
 		      SLAB_CTOR_CONSTRUCTOR)
-		inode_init_once(vn_to_inode((vnode_t *)vnode));
+		inode_init_once(vn_to_inode((bhv_vnode_t *)vnode));
 }
 
 STATIC int
 xfs_init_zones(void)
 {
-	xfs_vnode_zone = kmem_zone_init_flags(sizeof(vnode_t), "xfs_vnode_t",
+	xfs_vnode_zone = kmem_zone_init_flags(sizeof(bhv_vnode_t), "xfs_vnode",
 					KM_ZONE_HWALIGN | KM_ZONE_RECLAIM |
 					KM_ZONE_SPREAD,
 					xfs_fs_inode_init_once);
@@ -409,22 +409,17 @@ xfs_fs_write_inode(
 	struct inode		*inode,
 	int			sync)
 {
-	vnode_t			*vp = vn_from_inode(inode);
+	bhv_vnode_t		*vp = vn_from_inode(inode);
 	int			error = 0, flags = FLUSH_INODE;
 
 	if (vp) {
 		vn_trace_entry(vp, __FUNCTION__, (inst_t *)__return_address);
 		if (sync)
 			flags |= FLUSH_SYNC;
-		VOP_IFLUSH(vp, flags, error);
-		if (error == EAGAIN) {
-			if (sync)
-				VOP_IFLUSH(vp, flags | FLUSH_LOG, error);
-			else
-				error = 0;
-		}
+		error = bhv_vop_iflush(vp, flags);
+		if (error == EAGAIN)
+			error = sync? bhv_vop_iflush(vp, flags | FLUSH_LOG) : 0;
 	}
-
 	return -error;
 }
 
@@ -432,8 +427,7 @@ STATIC void
 xfs_fs_clear_inode(
 	struct inode		*inode)
 {
-	vnode_t			*vp = vn_from_inode(inode);
-	int			error, cache;
+	bhv_vnode_t		*vp = vn_from_inode(inode);
 
 	vn_trace_entry(vp, __FUNCTION__, (inst_t *)__return_address);
 
@@ -446,20 +440,18 @@ xfs_fs_clear_inode(
 	 * This can happen because xfs_iget_core calls xfs_idestroy if we
 	 * find an inode with di_mode == 0 but without IGET_CREATE set.
 	 */
-	if (vp->v_fbhv)
-		VOP_INACTIVE(vp, NULL, cache);
+	if (VNHEAD(vp))
+		bhv_vop_inactive(vp, NULL);
 
 	VN_LOCK(vp);
 	vp->v_flag &= ~VMODIFIED;
 	VN_UNLOCK(vp, 0);
 
-	if (vp->v_fbhv) {
-		VOP_RECLAIM(vp, error);
-		if (error)
-			panic("vn_purge: cannot reclaim");
-	}
+	if (VNHEAD(vp))
+		if (bhv_vop_reclaim(vp))
+			panic("%s: cannot reclaim 0x%p\n", __FUNCTION__, vp);
 
-	ASSERT(vp->v_fbhv == NULL);
+	ASSERT(VNHEAD(vp) == NULL);
 
 #ifdef XFS_VNODE_TRACE
 	ktrace_free(vp->v_trace);
@@ -789,7 +781,7 @@ xfs_fs_fill_super(
 	void			*data,
 	int			silent)
 {
-	vnode_t			*rootvp;
+	struct bhv_vnode	*rootvp;
 	struct bhv_vfs		*vfsp = vfs_allocate(sb);
 	struct xfs_mount_args	*args = xfs_args_allocate(sb, silent);
 	struct kstatfs		statvfs;

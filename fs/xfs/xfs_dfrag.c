@@ -57,7 +57,7 @@ xfs_swapext(
 	xfs_inode_t     *ip=NULL, *tip=NULL;
 	xfs_mount_t     *mp;
 	struct file	*fp = NULL, *tfp = NULL;
-	vnode_t		*vp, *tvp;
+	bhv_vnode_t	*vp, *tvp;
 	int		error = 0;
 
 	sxp = kmem_alloc(sizeof(xfs_swapext_t), KM_MAYFAIL);
@@ -137,7 +137,7 @@ xfs_swap_extents(
 	xfs_inode_t	*ips[2];
 	xfs_trans_t	*tp;
 	xfs_bstat_t	*sbp = &sxp->sx_stat;
-	vnode_t		*vp, *tvp;
+	bhv_vnode_t	*vp, *tvp;
 	xfs_ifork_t	*tempifp, *ifp, *tifp;
 	int		ilf_fields, tilf_fields;
 	static uint	lock_flags = XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL;
@@ -202,7 +202,7 @@ xfs_swap_extents(
 
 	if (VN_CACHED(tvp) != 0) {
 		xfs_inval_cached_trace(&tip->i_iocore, 0, -1, 0, -1);
-		VOP_FLUSHINVAL_PAGES(tvp, 0, -1, FI_REMAPF_LOCKED);
+		bhv_vop_flushinval_pages(tvp, 0, -1, FI_REMAPF_LOCKED);
 	}
 
 	/* Verify O_DIRECT for ftmp */
@@ -247,7 +247,7 @@ xfs_swap_extents(
 	/* We need to fail if the file is memory mapped.  Once we have tossed
 	 * all existing pages, the page fault will have no option
 	 * but to go to the filesystem for pages. By making the page fault call
-	 * VOP_READ (or write in the case of autogrow) they block on the iolock
+	 * vop_read (or write in the case of autogrow) they block on the iolock
 	 * until we have switched the extents.
 	 */
 	if (VN_MAPPED(vp)) {
@@ -266,7 +266,7 @@ xfs_swap_extents(
 	 * fields change.
 	 */
 
-	VOP_TOSS_PAGES(vp, 0, -1, FI_REMAPF);
+	bhv_vop_toss_pages(vp, 0, -1, FI_REMAPF);
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_SWAPEXT);
 	if ((error = xfs_trans_reserve(tp, 0,
