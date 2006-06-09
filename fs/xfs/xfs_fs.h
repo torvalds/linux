@@ -72,9 +72,9 @@ struct fsxattr {
 /*
  * Structure for XFS_IOC_GETBMAP.
  * On input, fill in bmv_offset and bmv_length of the first structure
- * to indicate the area of interest in the file, and bmv_entry with the
- * number of array elements given.  The first structure is updated on
- * return to give the offset and length for the next call.
+ * to indicate the area of interest in the file, and bmv_entries with
+ * the number of array elements given back.  The first structure is
+ * updated on return to give the offset and length for the next call.
  */
 #ifndef HAVE_GETBMAP
 struct getbmap {
