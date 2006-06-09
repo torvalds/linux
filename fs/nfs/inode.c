@@ -2450,7 +2450,7 @@ static struct vfsmount *nfs_do_clone_mount(struct nfs_server *server, char *devn
 	switch (server->rpc_ops->version) {
 		case 2:
 		case 3:
-			mnt = vfs_kern_mount(&clone_nfs_fs_type, 0, devname, &mountdata);
+			mnt = vfs_kern_mount(&clone_nfs_fs_type, 0, devname, mountdata);
 			break;
 		case 4:
 			mnt = vfs_kern_mount(&clone_nfs4_fs_type, 0, devname, mountdata);
@@ -2493,7 +2493,7 @@ static inline void unregister_nfs4fs(void)
 #define unregister_nfs4fs()
 static struct vfsmount *nfs_do_clone_mount(struct nfs_server *server, char *devname, struct nfs_clone_mount *mountdata)
 {
-	return vfs_kern_mount(&clone_nfs_fs_type, 0, devname, &mountdata);
+	return vfs_kern_mount(&clone_nfs_fs_type, 0, devname, mountdata);
 }
 #endif
 
