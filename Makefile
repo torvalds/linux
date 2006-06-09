@@ -309,8 +309,8 @@ CFLAGS 		:= -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 	  	   -fno-strict-aliasing -fno-common
 AFLAGS		:= -D__ASSEMBLY__
 
-# Read KERNELRELEASE from .kernelrelease (if it exists)
-KERNELRELEASE = $(shell cat .kernelrelease 2> /dev/null)
+# Read KERNELRELEASE from include/config/kernel.release (if it exists)
+KERNELRELEASE = $(shell cat include/config/kernel.release 2> /dev/null)
 KERNELVERSION = $(VERSION).$(PATCHLEVEL).$(SUBLEVEL)$(EXTRAVERSION)
 
 export	VERSION PATCHLEVEL SUBLEVEL KERNELRELEASE KERNELVERSION \
@@ -406,7 +406,6 @@ export KBUILD_DEFCONFIG
 config %config: scripts_basic outputmakefile FORCE
 	$(Q)mkdir -p include/linux include/config
 	$(Q)$(MAKE) $(build)=scripts/kconfig $@
-	$(Q)$(MAKE) -C $(srctree) KBUILD_SRC= .kernelrelease
 
 else
 # ===========================================================================
@@ -714,7 +713,7 @@ $(vmlinux-dirs): prepare scripts
 	$(Q)$(MAKE) $(build)=$@
 
 # Build the kernel release string
-# The KERNELRELEASE is stored in a file named .kernelrelease
+# The KERNELRELEASE is stored in a file named include/config/kernel.release
 # to be used when executing for example make install or make modules_install
 #
 # Take the contents of any files called localversion* and the config
@@ -748,9 +747,9 @@ endif
 
 localver-full = $(localver)$(localver-auto)
 
-# Store (new) KERNELRELASE string in .kernelrelease
+# Store (new) KERNELRELASE string in include/config/kernel.release
 kernelrelease = $(KERNELVERSION)$(localver-full)
-.kernelrelease: FORCE
+include/config/kernel.release: include/config/auto.conf FORCE
 	$(Q)rm -f $@
 	$(Q)echo $(kernelrelease) > $@
 
@@ -771,7 +770,7 @@ PHONY += prepare-all
 # and if so do:
 # 1) Check that make has not been executed in the kernel src $(srctree)
 # 2) Create the include2 directory, used for the second asm symlink
-prepare3: .kernelrelease
+prepare3: include/config/kernel.release
 ifneq ($(KBUILD_SRC),)
 	@echo '  Using $(srctree) as source for kernel'
 	$(Q)if [ -f $(srctree)/.config -o -d $(srctree)/include/config ]; then \
@@ -834,7 +833,7 @@ define filechk_version.h
 	)
 endef
 
-include/linux/version.h: $(srctree)/Makefile .config .kernelrelease FORCE
+include/linux/version.h: $(srctree)/Makefile include/config/kernel.release FORCE
 	$(call filechk,version.h)
 
 # ---------------------------------------------------------------------------
@@ -930,7 +929,7 @@ CLEAN_FILES +=	vmlinux System.map \
 MRPROPER_DIRS  += include/config include2
 MRPROPER_FILES += .config .config.old include/asm .version .old_version \
                   include/linux/autoconf.h include/linux/version.h \
-		  .kernelrelease Module.symvers tags TAGS cscope*
+		  Module.symvers tags TAGS cscope*
 
 # clean - Delete most, but leave enough to build external modules
 #
@@ -1253,8 +1252,8 @@ checkstack:
 	$(PERL) $(src)/scripts/checkstack.pl $(ARCH)
 
 kernelrelease:
-	$(if $(wildcard .kernelrelease), $(Q)echo $(KERNELRELEASE), \
-	$(error kernelrelease not valid - run 'make *config' to update it))
+	$(if $(wildcard include/config/kernel.release), $(Q)echo $(KERNELRELEASE), \
+	$(error kernelrelease not valid - run 'make prepare' to update it))
 kernelversion:
 	@echo $(KERNELVERSION)
 
