@@ -114,12 +114,6 @@ const char *dbg_print_flags(int val)
 
 	bzero(buf, 256);
 
-	if (val & SYMBOL_YES)
-		strcat(buf, "yes/");
-	if (val & SYMBOL_MOD)
-		strcat(buf, "mod/");
-	if (val & SYMBOL_NO)
-		strcat(buf, "no/");
 	if (val & SYMBOL_CONST)
 		strcat(buf, "const/");
 	if (val & SYMBOL_CHECK)

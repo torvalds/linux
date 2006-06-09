@@ -145,7 +145,8 @@ static void __expr_eliminate_eq(enum expr_type type, struct expr **ep1, struct e
 		return;
 	}
 	if (e1->type == E_SYMBOL && e2->type == E_SYMBOL &&
-	    e1->left.sym == e2->left.sym && (e1->left.sym->flags & (SYMBOL_YES|SYMBOL_NO)))
+	    e1->left.sym == e2->left.sym &&
+	    (e1->left.sym == &symbol_yes || e1->left.sym == &symbol_no))
 		return;
 	if (!expr_eq(e1, e2))
 		return;

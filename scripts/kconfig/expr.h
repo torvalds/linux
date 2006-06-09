@@ -78,10 +78,7 @@ struct symbol {
 
 #define for_all_symbols(i, sym) for (i = 0; i < 257; i++) for (sym = symbol_hash[i]; sym; sym = sym->next) if (sym->type != S_OTHER)
 
-#define SYMBOL_YES		0x0001
-#define SYMBOL_MOD		0x0002
-#define SYMBOL_NO		0x0004
-#define SYMBOL_CONST		0x0007
+#define SYMBOL_CONST		0x0001
 #define SYMBOL_CHECK		0x0008
 #define SYMBOL_CHOICE		0x0010
 #define SYMBOL_CHOICEVAL	0x0020
