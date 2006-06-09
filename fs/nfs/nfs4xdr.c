@@ -2326,6 +2326,22 @@ static int decode_attr_fileid(struct xdr_stream *xdr, uint32_t *bitmap, uint64_t
 	return 0;
 }
 
+static int decode_attr_mounted_on_fileid(struct xdr_stream *xdr, uint32_t *bitmap, uint64_t *fileid)
+{
+	uint32_t *p;
+
+	*fileid = 0;
+	if (unlikely(bitmap[1] & (FATTR4_WORD1_MOUNTED_ON_FILEID - 1U)))
+		return -EIO;
+	if (likely(bitmap[1] & FATTR4_WORD1_MOUNTED_ON_FILEID)) {
+		READ_BUF(8);
+		READ64(*fileid);
+		bitmap[1] &= ~FATTR4_WORD1_MOUNTED_ON_FILEID;
+	}
+	dprintk("%s: fileid=%Lu\n", __FUNCTION__, (unsigned long long)*fileid);
+	return 0;
+}
+
 static int decode_attr_files_avail(struct xdr_stream *xdr, uint32_t *bitmap, uint64_t *res)
 {
 	uint32_t *p;
@@ -2983,6 +2999,7 @@ static int decode_getfattr(struct xdr_stream *xdr, struct nfs_fattr *fattr, cons
 		 bitmap[2] = {0},
 		 type;
 	int status, fmode = 0;
+	uint64_t fileid;
 
 	if ((status = decode_op_hdr(xdr, OP_GETATTR)) != 0)
 		goto xdr_error;
@@ -3032,6 +3049,10 @@ static int decode_getfattr(struct xdr_stream *xdr, struct nfs_fattr *fattr, cons
 		goto xdr_error;
 	if ((status = decode_attr_time_modify(xdr, bitmap, &fattr->mtime)) != 0)
 		goto xdr_error;
+	if ((status = decode_attr_mounted_on_fileid(xdr, bitmap, &fileid)) != 0)
+		goto xdr_error;
+	if (fattr->fileid == 0 && fileid != 0)
+		fattr->fileid = fileid;
 	if ((status = verify_attr_len(xdr, savep, attrlen)) == 0)
 		fattr->valid = NFS_ATTR_FATTR | NFS_ATTR_FATTR_V3 | NFS_ATTR_FATTR_V4;
 xdr_error:
