@@ -80,15 +80,12 @@ out:
 
 static int ipcomp_input(struct xfrm_state *x, struct sk_buff *skb)
 {
-	int err = 0;
+	int err = -ENOMEM;
 	struct iphdr *iph;
 	struct ip_comp_hdr *ipch;
 
-	if ((skb_is_nonlinear(skb) || skb_cloned(skb)) &&
-	    skb_linearize(skb, GFP_ATOMIC) != 0) {
-	    	err = -ENOMEM;
+	if (skb_linearize_cow(skb))
 	    	goto out;
-	}
 
 	skb->ip_summed = CHECKSUM_NONE;
 
@@ -158,10 +155,8 @@ static int ipcomp_output(struct xfrm_state *x, struct sk_buff *skb)
 		goto out_ok;
 	}
 
-	if ((skb_is_nonlinear(skb) || skb_cloned(skb)) &&
-	    skb_linearize(skb, GFP_ATOMIC) != 0) {
+	if (skb_linearize_cow(skb))
 		goto out_ok;
-	}
 	
 	err = ipcomp_compress(x, skb);
 	iph = skb->nh.iph;
