@@ -783,7 +783,6 @@ xfs_xlate_dinode_core(
 
 STATIC uint
 _xfs_dic2xflags(
-	xfs_dinode_core_t	*dic,
 	__uint16_t		di_flags)
 {
 	uint			flags = 0;
@@ -826,16 +825,16 @@ xfs_ip2xflags(
 {
 	xfs_dinode_core_t	*dic = &ip->i_d;
 
-	return _xfs_dic2xflags(dic, dic->di_flags) |
-		(XFS_CFORK_Q(dic) ? XFS_XFLAG_HASATTR : 0);
+	return _xfs_dic2xflags(dic->di_flags) |
+				(XFS_CFORK_Q(dic) ? XFS_XFLAG_HASATTR : 0);
 }
 
 uint
 xfs_dic2xflags(
 	xfs_dinode_core_t	*dic)
 {
-	return _xfs_dic2xflags(dic, INT_GET(dic->di_flags, ARCH_CONVERT)) |
-		(XFS_CFORK_Q_DISK(dic) ? XFS_XFLAG_HASATTR : 0);
+	return _xfs_dic2xflags(INT_GET(dic->di_flags, ARCH_CONVERT)) |
+				(XFS_CFORK_Q_DISK(dic) ? XFS_XFLAG_HASATTR : 0);
 }
 
 /*
