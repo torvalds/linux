@@ -505,7 +505,6 @@ xfs_dir2_leafn_lookup_int(
 							XFS_DATA_FORK))) {
 						return error;
 					}
-					curfdb = newfdb;
 					free = curbp->data;
 					ASSERT(be32_to_cpu(free->hdr.magic) ==
 					       XFS_DIR2_FREE_MAGIC);
@@ -527,8 +526,11 @@ xfs_dir2_leafn_lookup_int(
 				if (unlikely(be16_to_cpu(free->bests[fi]) == NULLDATAOFF)) {
 					XFS_ERROR_REPORT("xfs_dir2_leafn_lookup_int",
 							 XFS_ERRLEVEL_LOW, mp);
+					if (curfdb != newfdb)
+						xfs_da_brelse(tp, curbp);
 					return XFS_ERROR(EFSCORRUPTED);
 				}
+				curfdb = newfdb;
 				if (be16_to_cpu(free->bests[fi]) >= length) {
 					*indexp = index;
 					state->extravalid = 1;
