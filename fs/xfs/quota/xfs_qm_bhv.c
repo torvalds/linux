@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2005 Silicon Graphics, Inc.
+ * Copyright (c) 2000-2006 Silicon Graphics, Inc.
  * All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -185,6 +185,61 @@ xfs_qm_mount(
 	return error;
 }
 
+/*
+ * Directory tree accounting is implemented using project quotas, where
+ * the project identifier is inherited from parent directories.
+ * A statvfs (df, etc.) of a directory that is using project quota should
+ * return a statvfs of the project, not the entire filesystem.
+ * This makes such trees appear as if they are filesystems in themselves.
+ */
+STATIC int
+xfs_qm_statvfs(
+	struct bhv_desc		*bhv,
+	xfs_statfs_t		*statp,
+	struct vnode		*vnode)
+{
+	xfs_mount_t		*mp;
+	xfs_inode_t		*ip;
+	xfs_dquot_t		*dqp;
+	xfs_disk_dquot_t	*dp;
+	__uint64_t		limit;
+	int			error;
+
+	error = PVFS_STATVFS(BHV_NEXT(bhv), statp, vnode);
+	if (error || !vnode)
+		return error;
+
+	mp = XFS_BHVTOM(bhv);
+	ip = xfs_vtoi(vnode);
+
+	if (!(ip->i_d.di_flags & XFS_DIFLAG_PROJINHERIT))
+		return 0;
+	if (!(mp->m_qflags & XFS_PQUOTA_ACCT))
+		return 0;
+	if (!(mp->m_qflags & XFS_OQUOTA_ENFD))
+		return 0;
+
+	if (xfs_qm_dqget(mp, NULL, ip->i_d.di_projid, XFS_DQ_PROJ, 0, &dqp))
+		return 0;
+	dp = &dqp->q_core;
+
+	limit = dp->d_blk_softlimit ? dp->d_blk_softlimit : dp->d_blk_hardlimit;
+	if (limit && statp->f_blocks > limit) {
+		statp->f_blocks = limit;
+		statp->f_bfree = (statp->f_blocks > dp->d_bcount) ?
+					(statp->f_blocks - dp->d_bcount) : 0;
+	}
+	limit = dp->d_ino_softlimit ? dp->d_ino_softlimit : dp->d_ino_hardlimit;
+	if (limit && statp->f_files > limit) {
+		statp->f_files = limit;
+		statp->f_ffree = (statp->f_files > dp->d_icount) ?
+					(statp->f_ffree - dp->d_icount) : 0;
+	}
+
+	xfs_qm_dqput(dqp);
+	return 0;
+}
+
 STATIC int
 xfs_qm_syncall(
 	struct bhv_desc		*bhv,
@@ -351,6 +406,7 @@ struct bhv_vfsops xfs_qmops = { {
 	.vfs_parseargs		= xfs_qm_parseargs,
 	.vfs_showargs		= xfs_qm_showargs,
 	.vfs_mount		= xfs_qm_mount,
+	.vfs_statvfs		= xfs_qm_statvfs,
 	.vfs_sync		= xfs_qm_syncall,
 	.vfs_quotactl		= xfs_qm_quotactl, },
 };
