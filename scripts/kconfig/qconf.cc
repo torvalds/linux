@@ -381,6 +381,18 @@ void ConfigList::saveSettings(void)
 	}
 }
 
+ConfigItem* ConfigList::findConfigItem(struct menu *menu)
+{
+	ConfigItem* item = (ConfigItem*)menu->data;
+
+	for (; item; item = item->nextItem) {
+		if (this == item->listView())
+			break;
+	}
+
+	return item;
+}
+
 void ConfigList::updateSelection(void)
 {
 	struct menu *menu;
@@ -524,6 +536,7 @@ void ConfigList::setRootMenu(struct menu *menu)
 	rootEntry = menu;
 	updateListAll();
 	setSelected(currentItem(), hasFocus());
+	ensureItemVisible(currentItem());
 }
 
 void ConfigList::setParentMenu(void)
@@ -766,14 +779,16 @@ skip:
 
 void ConfigList::focusInEvent(QFocusEvent *e)
 {
+	struct menu *menu = NULL;
+
 	Parent::focusInEvent(e);
 
-	QListViewItem* item = currentItem();
-	if (!item)
-		return;
-
-	setSelected(item, TRUE);
-	emit gotFocus();
+	ConfigItem* item = (ConfigItem *)currentItem();
+	if (item) {
+		setSelected(item, TRUE);
+		menu = item->menu;
+	}
+	emit gotFocus(menu);
 }
 
 void ConfigList::contextMenuEvent(QContextMenuEvent *e)
@@ -933,6 +948,8 @@ void ConfigInfoView::setShowDebug(bool b)
 
 void ConfigInfoView::setInfo(struct menu *m)
 {
+	if (menu == m)
+		return;
 	menu = m;
 	if (!menu)
 		clear();
@@ -954,6 +971,7 @@ void ConfigInfoView::setSource(const QString& name)
 		if (sscanf(p, "m%p", &m) == 1 && menu != m) {
 			menu = m;
 			menuInfo();
+			emit menuSelected(menu);
 		}
 		break;
 	case 's':
@@ -1380,10 +1398,14 @@ ConfigMainWindow::ConfigMainWindow(void)
 	connect(menuList, SIGNAL(menuSelected(struct menu *)),
 		SLOT(changeMenu(struct menu *)));
 
-	connect(configList, SIGNAL(gotFocus(void)),
+	connect(configList, SIGNAL(gotFocus(struct menu *)),
+		helpText, SLOT(setInfo(struct menu *)));
+	connect(menuList, SIGNAL(gotFocus(struct menu *)),
+		helpText, SLOT(setInfo(struct menu *)));
+	connect(menuList, SIGNAL(gotFocus(struct menu *)),
 		SLOT(listFocusChanged(void)));
-	connect(menuList, SIGNAL(gotFocus(void)),
-		SLOT(listFocusChanged(void)));
+	connect(helpText, SIGNAL(menuSelected(struct menu *)),
+		SLOT(setMenuLink(struct menu *)));
 
 	QString listMode = configSettings->readEntry("/listMode", "symbol");
 	if (listMode == "single")
@@ -1401,18 +1423,6 @@ ConfigMainWindow::ConfigMainWindow(void)
 	sizes = configSettings->readSizes("/split2", &ok);
 	if (ok)
 		split2->setSizes(sizes);
-}
-
-/*
- * display a new help entry as soon as a new menu entry is selected
- */
-void ConfigMainWindow::setHelp(QListViewItem* item)
-{
-	struct menu* menu = 0;
-
-	if (item)
-		menu = ((ConfigItem*)item)->menu;
-	helpText->setInfo(menu);
 }
 
 void ConfigMainWindow::loadConfig(void)
@@ -1453,15 +1463,60 @@ void ConfigMainWindow::changeMenu(struct menu *menu)
 	backAction->setEnabled(TRUE);
 }
 
+void ConfigMainWindow::setMenuLink(struct menu *menu)
+{
+	struct menu *parent;
+	ConfigList* list = NULL;
+	ConfigItem* item;
+
+	if (!menu_is_visible(menu) && !configView->showAll())
+		return;
+
+	switch (configList->mode) {
+	case singleMode:
+		list = configList;
+		parent = menu_get_parent_menu(menu);
+		if (!parent)
+			return;
+		list->setRootMenu(parent);
+		break;
+	case symbolMode:
+		if (menu->flags & MENU_ROOT) {
+			configList->setRootMenu(menu);
+			configList->clearSelection();
+			list = menuList;
+		} else {
+			list = configList;
+			parent = menu_get_parent_menu(menu->parent);
+			if (!parent)
+				return;
+			item = menuList->findConfigItem(parent);
+			if (item) {
+				menuList->setSelected(item, TRUE);
+				menuList->ensureItemVisible(item);
+			}
+			list->setRootMenu(parent);
+		}
+		break;
+	case fullMode:
+		list = configList;
+		break;
+	}
+
+	if (list) {
+		item = list->findConfigItem(menu);
+		if (item) {
+			list->setSelected(item, TRUE);
+			list->ensureItemVisible(item);
+			list->setFocus();
+		}
+	}
+}
+
 void ConfigMainWindow::listFocusChanged(void)
 {
-	if (menuList->hasFocus()) {
-		if (menuList->mode == menuMode)
-			configList->clearSelection();
-		setHelp(menuList->selectedItem());
-	} else if (configList->hasFocus()) {
-		setHelp(configList->selectedItem());
-	}
+	if (menuList->mode == menuMode)
+		configList->clearSelection();
 }
 
 void ConfigMainWindow::goBack(void)

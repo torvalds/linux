@@ -55,6 +55,7 @@ public:
 	{
 		return (ConfigView*)Parent::parent();
 	}
+	ConfigItem* findConfigItem(struct menu *);
 
 protected:
 	void keyPressEvent(QKeyEvent *e);
@@ -77,7 +78,7 @@ signals:
 	void menuChanged(struct menu *menu);
 	void menuSelected(struct menu *menu);
 	void parentSelected(void);
-	void gotFocus(void);
+	void gotFocus(struct menu *);
 
 public:
 	void updateListAll(void)
@@ -258,6 +259,7 @@ public slots:
 
 signals:
 	void showDebugChanged(bool);
+	void menuSelected(struct menu *);
 
 protected:
 	void symbolInfo(void);
@@ -298,8 +300,8 @@ class ConfigMainWindow : public QMainWindow {
 public:
 	ConfigMainWindow(void);
 public slots:
-	void setHelp(QListViewItem* item);
 	void changeMenu(struct menu *);
+	void setMenuLink(struct menu *);
 	void listFocusChanged(void);
 	void goBack(void);
 	void loadConfig(void);
