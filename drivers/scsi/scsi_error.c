@@ -452,7 +452,6 @@ static int scsi_send_eh_cmnd(struct scsi_cmnd *scmd, int timeout)
 			(sdev->lun << 5 & 0xe0);
 
 	shost->eh_action = &done;
-	scmd->request->rq_status = RQ_SCSI_BUSY;
 
 	spin_lock_irqsave(shost->host_lock, flags);
 	scsi_log_send(scmd);
@@ -461,7 +460,6 @@ static int scsi_send_eh_cmnd(struct scsi_cmnd *scmd, int timeout)
 
 	timeleft = wait_for_completion_timeout(&done, timeout);
 
-	scmd->request->rq_status = RQ_SCSI_DONE;
 	shost->eh_action = NULL;
 
 	scsi_log_completion(scmd, SUCCESS);
@@ -1657,7 +1655,6 @@ scsi_reset_provider(struct scsi_device *dev, int flag)
 
 	scmd->request = &req;
 	memset(&scmd->eh_timeout, 0, sizeof(scmd->eh_timeout));
-	scmd->request->rq_status      	= RQ_SCSI_BUSY;
 
 	memset(&scmd->cmnd, '\0', sizeof(scmd->cmnd));
     
