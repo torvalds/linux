@@ -499,6 +499,19 @@
 #define MMCR0_PMC2_LOADMISSTIME	0x5
 #endif
 
+/*
+ * An mtfsf instruction with the L bit set. On CPUs that support this a
+ * full 64bits of FPSCR is restored and on other CPUs it is ignored.
+ *
+ * Until binutils gets the new form of mtfsf, hardwire the instruction.
+ */
+#ifdef CONFIG_PPC64
+#define MTFSF_L(REG) \
+	.long (0xfc00058e | ((0xff) << 17) | ((REG) << 11) | (1 << 25))
+#else
+#define MTFSF_L(REG)	mtfsf	0xff, (REG)
+#endif
+
 /* Processor Version Register (PVR) field extraction */
 
 #define PVR_VER(pvr)	(((pvr) >>  16) & 0xFFFF)	/* Version field */
