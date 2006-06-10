@@ -97,6 +97,7 @@ static void mon_submit(struct usb_bus *ubus, struct urb *urb)
 	if (mbus->nreaders == 0)
 		goto out_locked;
 
+	mbus->cnt_events++;
 	list_for_each (pos, &mbus->r_list) {
 		r = list_entry(pos, struct mon_reader, r_link);
 		r->rnf_submit(r->r_data, urb);
@@ -152,6 +153,7 @@ static void mon_complete(struct usb_bus *ubus, struct urb *urb)
 	}
 
 	spin_lock_irqsave(&mbus->lock, flags);
+	mbus->cnt_events++;
 	list_for_each (pos, &mbus->r_list) {
 		r = list_entry(pos, struct mon_reader, r_link);
 		r->rnf_complete(r->r_data, urb);
@@ -163,7 +165,6 @@ static void mon_complete(struct usb_bus *ubus, struct urb *urb)
 
 /*
  * Stop monitoring.
- * Obviously this must be well locked, so no need to play with mb's.
  */
 static void mon_stop(struct mon_bus *mbus)
 {

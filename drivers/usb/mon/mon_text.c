@@ -26,10 +26,13 @@
 
 /*
  * This limit exists to prevent OOMs when the user process stops reading.
+ * If usbmon were available to unprivileged processes, it might be open
+ * to a local DoS. But we have to keep to root in order to prevent
+ * password sniffing from HID devices.
  */
-#define EVENT_MAX  25
+#define EVENT_MAX  (2*PAGE_SIZE / sizeof(struct mon_event_text))
 
-#define PRINTF_DFL  130
+#define PRINTF_DFL  160
 
 struct mon_event_text {
 	struct list_head e_link;
@@ -111,7 +114,7 @@ static inline char mon_text_get_data(struct mon_event_text *ep, struct urb *urb,
 	 * number of corner cases, but it seems that the following is
 	 * more or less safe.
 	 *
-	 * We do not even try to look transfer_buffer, because it can
+	 * We do not even try to look at transfer_buffer, because it can
 	 * contain non-NULL garbage in case the upper level promised to
 	 * set DMA for the HCD.
 	 */

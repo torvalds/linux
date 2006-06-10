@@ -27,6 +27,7 @@ struct mon_bus {
 	struct kref ref;		/* Under mon_lock */
 
 	/* Stats */
+	unsigned int cnt_events;
 	unsigned int cnt_text_lost;
 };
 
