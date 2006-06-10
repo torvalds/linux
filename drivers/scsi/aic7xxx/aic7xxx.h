@@ -231,6 +231,7 @@ typedef enum {
 	AHC_TARGETMODE	= 0x20000,	/* Has tested target mode support */
 	AHC_MULTIROLE	= 0x40000,	/* Space for two roles at a time */
 	AHC_REMOVABLE	= 0x80000,	/* Hot-Swap supported */
+	AHC_HVD		= 0x100000,	/* HVD rather than SE */
 	AHC_AIC7770_FE	= AHC_FENONE,
 	/*
 	 * The real 7850 does not support Ultra modes, but there are

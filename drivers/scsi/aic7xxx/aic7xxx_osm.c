@@ -2537,6 +2537,22 @@ static void ahc_linux_set_iu(struct scsi_target *starget, int iu)
 }
 #endif
 
+static void ahc_linux_get_signalling(struct Scsi_Host *shost)
+{
+	struct ahc_softc *ahc = *(struct ahc_softc **)shost->hostdata;
+	u8 mode = ahc_inb(ahc, SBLKCTL);
+
+	if (mode & ENAB40)
+		spi_signalling(shost) = SPI_SIGNAL_LVD;
+	else if (mode & ENAB20)
+		spi_signalling(shost) = 
+			ahc->features & AHC_HVD ?
+			SPI_SIGNAL_HVD :
+			SPI_SIGNAL_SE;
+	else
+		spi_signalling(shost) = SPI_SIGNAL_UNKNOWN;
+}
+
 static struct spi_function_template ahc_linux_transport_functions = {
 	.set_offset	= ahc_linux_set_offset,
 	.show_offset	= 1,
@@ -2552,6 +2568,7 @@ static struct spi_function_template ahc_linux_transport_functions = {
 	.set_qas	= ahc_linux_set_qas,
 	.show_qas	= 1,
 #endif
+	.get_signalling	= ahc_linux_get_signalling,
 };
 
 
