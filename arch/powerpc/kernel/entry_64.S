@@ -57,6 +57,7 @@ system_call_common:
 	beq-	1f
 	ld	r1,PACAKSAVE(r13)
 1:	std	r10,0(r1)
+	crclr	so
 	std	r11,_NIP(r1)
 	std	r12,_MSR(r1)
 	std	r0,GPR0(r1)
@@ -75,7 +76,6 @@ system_call_common:
 	std	r11,GPR11(r1)
 	std	r11,GPR12(r1)
 	std	r9,GPR13(r1)
-	crclr	so
 	mfcr	r9
 	mflr	r10
 	li	r11,0xc01
