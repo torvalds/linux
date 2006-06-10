@@ -114,20 +114,32 @@ out_unlocked:
 
 /*
  */
-static void mon_submit_error(struct usb_bus *ubus, struct urb *urb, int err)
+static void mon_submit_error(struct usb_bus *ubus, struct urb *urb, int error)
 {
 	struct mon_bus *mbus;
+	unsigned long flags;
+	struct list_head *pos;
+	struct mon_reader *r;
 
 	mbus = ubus->mon_bus;
 	if (mbus == NULL)
 		goto out_unlocked;
 
-	/*
-	 * XXX Capture the error code and the 'E' event.
-	 */
+	spin_lock_irqsave(&mbus->lock, flags);
+	if (mbus->nreaders == 0)
+		goto out_locked;
 
+	mbus->cnt_events++;
+	list_for_each (pos, &mbus->r_list) {
+		r = list_entry(pos, struct mon_reader, r_link);
+		r->rnf_error(r->r_data, urb, error);
+	}
+
+	spin_unlock_irqrestore(&mbus->lock, flags);
 	return;
 
+out_locked:
+	spin_unlock_irqrestore(&mbus->lock, flags);
 out_unlocked:
 	return;
 }
