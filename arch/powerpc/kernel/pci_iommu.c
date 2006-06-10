@@ -148,13 +148,17 @@ static int pci_iommu_dma_supported(struct device *dev, u64 mask)
 		return 1;
 }
 
+struct dma_mapping_ops pci_iommu_ops = {
+	.alloc_coherent = pci_iommu_alloc_coherent,
+	.free_coherent = pci_iommu_free_coherent,
+	.map_single = pci_iommu_map_single,
+	.unmap_single = pci_iommu_unmap_single,
+	.map_sg = pci_iommu_map_sg,
+	.unmap_sg = pci_iommu_unmap_sg,
+	.dma_supported = pci_iommu_dma_supported,
+};
+
 void pci_iommu_init(void)
 {
-	pci_dma_ops.alloc_coherent = pci_iommu_alloc_coherent;
-	pci_dma_ops.free_coherent = pci_iommu_free_coherent;
-	pci_dma_ops.map_single = pci_iommu_map_single;
-	pci_dma_ops.unmap_single = pci_iommu_unmap_single;
-	pci_dma_ops.map_sg = pci_iommu_map_sg;
-	pci_dma_ops.unmap_sg = pci_iommu_unmap_sg;
-	pci_dma_ops.dma_supported = pci_iommu_dma_supported;
+	pci_dma_ops = pci_iommu_ops;
 }
