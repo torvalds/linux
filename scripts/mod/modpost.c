@@ -1084,6 +1084,7 @@ void check_license(struct module *mod)
 	struct symbol *s, *exp;
 
 	for (s = mod->unres; s; s = s->next) {
+		const char *basename;
 		if (mod->gpl_compatible == 1) {
 			/* GPL-compatible modules may use all symbols */
 			continue;
@@ -1091,7 +1092,7 @@ void check_license(struct module *mod)
 		exp = find_symbol(s->name);
 		if (!exp || exp->module == mod)
 			continue;
-		const char *basename = strrchr(mod->name, '/');
+		basename = strrchr(mod->name, '/');
 		if (basename)
 			basename++;
 		switch (exp->export) {
