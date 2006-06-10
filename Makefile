@@ -267,10 +267,9 @@ MAKEFLAGS += --include-dir=$(srctree)
 # We need some generic definitions
 include  $(srctree)/scripts/Kbuild.include
 
-# For maximum performance (+ possibly random breakage, uncomment
-# the following)
-
-#MAKEFLAGS += -rR
+# Do not use make's built-in rules and variables
+# This increases performance and avoid hard-to-debug behaviour
+MAKEFLAGS += -rR
 
 # Make variables (CC, etc...)
 
