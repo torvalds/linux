@@ -368,10 +368,11 @@ static void iommu_bus_setup_pSeries(struct pci_bus *bus)
 	pci->phb->dma_window_size = 0x8000000ul;
 	pci->phb->dma_window_base_cur = 0x8000000ul;
 
-	tbl = kmalloc(sizeof(struct iommu_table), GFP_KERNEL);
+	tbl = kmalloc_node(sizeof(struct iommu_table), GFP_KERNEL,
+			   pci->phb->node);
 
 	iommu_table_setparms(pci->phb, dn, tbl);
-	pci->iommu_table = iommu_init_table(tbl);
+	pci->iommu_table = iommu_init_table(tbl, pci->phb->node);
 
 	/* Divide the rest (1.75GB) among the children */
 	pci->phb->dma_window_size = 0x80000000ul;
@@ -414,12 +415,12 @@ static void iommu_bus_setup_pSeriesLP(struct pci_bus *bus)
 
 		ppci->bussubno = bus->number;
 
-		tbl = (struct iommu_table *)kmalloc(sizeof(struct iommu_table),
-						    GFP_KERNEL);
+		tbl = kmalloc_node(sizeof(struct iommu_table), GFP_KERNEL,
+				   ppci->phb->node);
 
 		iommu_table_setparms_lpar(ppci->phb, pdn, tbl, dma_window);
 
-		ppci->iommu_table = iommu_init_table(tbl);
+		ppci->iommu_table = iommu_init_table(tbl, ppci->phb->node);
 	}
 
 	if (pdn != dn)
@@ -442,9 +443,11 @@ static void iommu_dev_setup_pSeries(struct pci_dev *dev)
 	 */
 	if (!dev->bus->self) {
 		DBG(" --> first child, no bridge. Allocating iommu table.\n");
-		tbl = kmalloc(sizeof(struct iommu_table), GFP_KERNEL);
+		tbl = kmalloc_node(sizeof(struct iommu_table), GFP_KERNEL,
+				   PCI_DN(dn)->phb->node);
 		iommu_table_setparms(PCI_DN(dn)->phb, dn, tbl);
-		PCI_DN(mydn)->iommu_table = iommu_init_table(tbl);
+		PCI_DN(dn)->iommu_table = iommu_init_table(tbl,
+						PCI_DN(dn)->phb->node);
 
 		return;
 	}
@@ -526,12 +529,12 @@ static void iommu_dev_setup_pSeriesLP(struct pci_dev *dev)
 		/* iommu_table_setparms_lpar needs bussubno. */
 		pci->bussubno = pci->phb->bus->number;
 
-		tbl = (struct iommu_table *)kmalloc(sizeof(struct iommu_table),
-						    GFP_KERNEL);
+		tbl = kmalloc_node(sizeof(struct iommu_table), GFP_KERNEL,
+				   pci->phb->node);
 
 		iommu_table_setparms_lpar(pci->phb, pdn, tbl, dma_window);
 
-		pci->iommu_table = iommu_init_table(tbl);
+		pci->iommu_table = iommu_init_table(tbl, pci->phb->node);
 	}
 
 	if (pdn != dn)

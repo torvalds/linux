@@ -418,10 +418,11 @@ void iommu_unmap_sg(struct iommu_table *tbl, struct scatterlist *sglist,
  * Build a iommu_table structure.  This contains a bit map which
  * is used to manage allocation of the tce space.
  */
-struct iommu_table *iommu_init_table(struct iommu_table *tbl)
+struct iommu_table *iommu_init_table(struct iommu_table *tbl, int nid)
 {
 	unsigned long sz;
 	static int welcomed = 0;
+	struct page *page;
 
 	/* Set aside 1/4 of the table for large allocations. */
 	tbl->it_halfpoint = tbl->it_size * 3 / 4;
@@ -429,10 +430,10 @@ struct iommu_table *iommu_init_table(struct iommu_table *tbl)
 	/* number of bytes needed for the bitmap */
 	sz = (tbl->it_size + 7) >> 3;
 
-	tbl->it_map = (unsigned long *)__get_free_pages(GFP_ATOMIC, get_order(sz));
-	if (!tbl->it_map)
+	page = alloc_pages_node(nid, GFP_ATOMIC, get_order(sz));
+	if (!page)
 		panic("iommu_init_table: Can't allocate %ld bytes\n", sz);
-
+	tbl->it_map = page_address(page);
 	memset(tbl->it_map, 0, sz);
 
 	tbl->it_hint = 0;

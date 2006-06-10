@@ -173,7 +173,7 @@ void iommu_devnode_init_iSeries(struct device_node *dn)
 	/* Look for existing tce table */
 	pdn->iommu_table = iommu_table_find(tbl);
 	if (pdn->iommu_table == NULL)
-		pdn->iommu_table = iommu_init_table(tbl);
+		pdn->iommu_table = iommu_init_table(tbl, -1);
 	else
 		kfree(tbl);
 }

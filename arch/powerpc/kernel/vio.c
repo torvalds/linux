@@ -60,9 +60,9 @@ static void __init iommu_vio_init(void)
 	vio_iommu_table = veth_iommu_table;
 	vio_iommu_table.it_offset += veth_iommu_table.it_size;
 
-	if (!iommu_init_table(&veth_iommu_table))
+	if (!iommu_init_table(&veth_iommu_table, -1))
 		printk("Virtual Bus VETH TCE table failed.\n");
-	if (!iommu_init_table(&vio_iommu_table))
+	if (!iommu_init_table(&vio_iommu_table, -1))
 		printk("Virtual Bus VIO TCE table failed.\n");
 }
 #endif
@@ -98,7 +98,7 @@ static struct iommu_table *vio_build_iommu_table(struct vio_dev *dev)
 		tbl->it_busno = 0;
 		tbl->it_type = TCE_VB;
 
-		return iommu_init_table(tbl);
+		return iommu_init_table(tbl, -1);
 	}
 }
 
