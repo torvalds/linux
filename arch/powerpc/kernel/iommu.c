@@ -561,7 +561,7 @@ void *iommu_alloc_coherent(struct iommu_table *tbl, size_t size,
 		return NULL;
 
 	/* Alloc enough pages (and possibly more) */
-	page = alloc_pages_node(flag, order, node);
+	page = alloc_pages_node(node, flag, order);
 	if (!page)
 		return NULL;
 	ret = page_address(page);
