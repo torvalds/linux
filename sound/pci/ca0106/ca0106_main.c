@@ -186,8 +186,8 @@ static struct snd_ca0106_details ca0106_chip_details[] = {
 	 /* New Audigy SE. Has a different DAC. */
 	 /* SB0570:
 	  * CTRL:CA0106-DAT
-	  * ADC: WM8768GEDS
-	  * DAC: WM8775EDS
+	  * ADC: WM8775EDS
+	  * DAC: WM8768GEDS
 	  */
 	 { .serial = 0x100a1102,
 	   .name   = "Audigy SE [SB0570]",
@@ -1189,7 +1189,7 @@ static unsigned int spi_dac_init[] = {
 	0x02ff,
 	0x0400,
 	0x0520,
-	0x0600,
+	0x0620, /* Set 24 bit. Was 0x0600 */
 	0x08ff,
 	0x0aff,
 	0x0cff,
