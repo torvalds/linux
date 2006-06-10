@@ -93,8 +93,8 @@
 #define MSR_LE		__MASK(MSR_LE_LG)	/* Little Endian */
 
 #ifdef CONFIG_PPC64
-#define MSR_		MSR_ME | MSR_RI | MSR_IR | MSR_DR | MSR_ISF
-#define MSR_KERNEL      MSR_ | MSR_SF | MSR_HV
+#define MSR_		MSR_ME | MSR_RI | MSR_IR | MSR_DR | MSR_ISF |MSR_HV
+#define MSR_KERNEL      MSR_ | MSR_SF
 
 #define MSR_USER32	MSR_ | MSR_PR | MSR_EE
 #define MSR_USER64	MSR_USER32 | MSR_SF
