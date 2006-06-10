@@ -69,8 +69,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.58"
-#define DRV_MODULE_RELDATE	"May 22, 2006"
+#define DRV_MODULE_VERSION	"3.59"
+#define DRV_MODULE_RELDATE	"June 8, 2006"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -4485,9 +4485,8 @@ static void tg3_disable_nvram_access(struct tg3 *tp)
 /* tp->lock is held. */
 static void tg3_write_sig_pre_reset(struct tg3 *tp, int kind)
 {
-	if (!(tp->tg3_flags2 & TG3_FLG2_SUN_570X))
-		tg3_write_mem(tp, NIC_SRAM_FIRMWARE_MBOX,
-			      NIC_SRAM_FIRMWARE_MBOX_MAGIC1);
+	tg3_write_mem(tp, NIC_SRAM_FIRMWARE_MBOX,
+		      NIC_SRAM_FIRMWARE_MBOX_MAGIC1);
 
 	if (tp->tg3_flags2 & TG3_FLG2_ASF_NEW_HANDSHAKE) {
 		switch (kind) {
@@ -4568,13 +4567,12 @@ static int tg3_chip_reset(struct tg3 *tp)
 	void (*write_op)(struct tg3 *, u32, u32);
 	int i;
 
-	if (!(tp->tg3_flags2 & TG3_FLG2_SUN_570X)) {
-		tg3_nvram_lock(tp);
-		/* No matching tg3_nvram_unlock() after this because
-		 * chip reset below will undo the nvram lock.
-		 */
-		tp->nvram_lock_cnt = 0;
-	}
+	tg3_nvram_lock(tp);
+
+	/* No matching tg3_nvram_unlock() after this because
+	 * chip reset below will undo the nvram lock.
+	 */
+	tp->nvram_lock_cnt = 0;
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752 ||
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5755 ||
@@ -4727,20 +4725,25 @@ static int tg3_chip_reset(struct tg3 *tp)
 		tw32_f(MAC_MODE, 0);
 	udelay(40);
 
-	if (!(tp->tg3_flags2 & TG3_FLG2_SUN_570X)) {
-		/* Wait for firmware initialization to complete. */
-		for (i = 0; i < 100000; i++) {
-			tg3_read_mem(tp, NIC_SRAM_FIRMWARE_MBOX, &val);
-			if (val == ~NIC_SRAM_FIRMWARE_MBOX_MAGIC1)
-				break;
-			udelay(10);
-		}
-		if (i >= 100000) {
-			printk(KERN_ERR PFX "tg3_reset_hw timed out for %s, "
-			       "firmware will not restart magic=%08x\n",
-			       tp->dev->name, val);
-			return -ENODEV;
-		}
+	/* Wait for firmware initialization to complete. */
+	for (i = 0; i < 100000; i++) {
+		tg3_read_mem(tp, NIC_SRAM_FIRMWARE_MBOX, &val);
+		if (val == ~NIC_SRAM_FIRMWARE_MBOX_MAGIC1)
+			break;
+		udelay(10);
+	}
+
+	/* Chip might not be fitted with firmare.  Some Sun onboard
+	 * parts are configured like that.  So don't signal the timeout
+	 * of the above loop as an error, but do report the lack of
+	 * running firmware once.
+	 */
+	if (i >= 100000 &&
+	    !(tp->tg3_flags2 & TG3_FLG2_NO_FWARE_REPORTED)) {
+		tp->tg3_flags2 |= TG3_FLG2_NO_FWARE_REPORTED;
+
+		printk(KERN_INFO PFX "%s: No firmware running.\n",
+		       tp->dev->name);
 	}
 
 	if ((tp->tg3_flags2 & TG3_FLG2_PCI_EXPRESS) &&
@@ -9075,9 +9078,6 @@ static void __devinit tg3_nvram_init(struct tg3 *tp)
 {
 	int j;
 
-	if (tp->tg3_flags2 & TG3_FLG2_SUN_570X)
-		return;
-
 	tw32_f(GRC_EEPROM_ADDR,
 	     (EEPROM_ADDR_FSM_RESET |
 	      (EEPROM_DEFAULT_CLOCK_PERIOD <<
@@ -9209,11 +9209,6 @@ static u32 tg3_nvram_logical_addr(struct tg3 *tp, u32 addr)
 static int tg3_nvram_read(struct tg3 *tp, u32 offset, u32 *val)
 {
 	int ret;
-
-	if (tp->tg3_flags2 & TG3_FLG2_SUN_570X) {
-		printk(KERN_ERR PFX "Attempt to do nvram_read on Sun 570X\n");
-		return -EINVAL;
-	}
 
 	if (!(tp->tg3_flags & TG3_FLAG_NVRAM))
 		return tg3_nvram_read_using_eeprom(tp, offset, val);
@@ -9447,11 +9442,6 @@ static int tg3_nvram_write_block(struct tg3 *tp, u32 offset, u32 len, u8 *buf)
 {
 	int ret;
 
-	if (tp->tg3_flags2 & TG3_FLG2_SUN_570X) {
-		printk(KERN_ERR PFX "Attempt to do nvram_write on Sun 570X\n");
-		return -EINVAL;
-	}
-
 	if (tp->tg3_flags & TG3_FLAG_EEPROM_WRITE_PROT) {
 		tw32_f(GRC_LOCAL_CTRL, tp->grc_local_ctrl &
 		       ~GRC_LCLCTRL_GPIO_OUTPUT1);
@@ -9578,15 +9568,19 @@ static void __devinit tg3_get_eeprom_hw_cfg(struct tg3 *tp)
 	pci_write_config_dword(tp->pdev, TG3PCI_MISC_HOST_CTRL,
 			       tp->misc_host_ctrl);
 
+	/* The memory arbiter has to be enabled in order for SRAM accesses
+	 * to succeed.  Normally on powerup the tg3 chip firmware will make
+	 * sure it is enabled, but other entities such as system netboot
+	 * code might disable it.
+	 */
+	val = tr32(MEMARB_MODE);
+	tw32(MEMARB_MODE, val | MEMARB_MODE_ENABLE);
+
 	tp->phy_id = PHY_ID_INVALID;
 	tp->led_ctrl = LED_CTRL_MODE_PHY_1;
 
-	/* Do not even try poking around in here on Sun parts.  */
-	if (tp->tg3_flags2 & TG3_FLG2_SUN_570X) {
-		/* All SUN chips are built-in LOMs. */
-		tp->tg3_flags |= TG3_FLAG_EEPROM_WRITE_PROT;
-		return;
-	}
+	/* Assume an onboard device by default.  */
+	tp->tg3_flags |= TG3_FLAG_EEPROM_WRITE_PROT;
 
 	tg3_read_mem(tp, NIC_SRAM_DATA_SIG, &val);
 	if (val == NIC_SRAM_DATA_SIG_MAGIC) {
@@ -9686,6 +9680,8 @@ static void __devinit tg3_get_eeprom_hw_cfg(struct tg3 *tp)
 
 		if (nic_cfg & NIC_SRAM_DATA_CFG_EEPROM_WP)
 			tp->tg3_flags |= TG3_FLAG_EEPROM_WRITE_PROT;
+		else
+			tp->tg3_flags &= ~TG3_FLAG_EEPROM_WRITE_PROT;
 
 		if (nic_cfg & NIC_SRAM_DATA_CFG_ASF_ENABLE) {
 			tp->tg3_flags |= TG3_FLAG_ENABLE_ASF;
@@ -9834,16 +9830,8 @@ static void __devinit tg3_read_partno(struct tg3 *tp)
 	int i;
 	u32 magic;
 
-	if (tp->tg3_flags2 & TG3_FLG2_SUN_570X) {
-		/* Sun decided not to put the necessary bits in the
-		 * NVRAM of their onboard tg3 parts :(
-		 */
-		strcpy(tp->board_part_number, "Sun 570X");
-		return;
-	}
-
 	if (tg3_nvram_read_swab(tp, 0x0, &magic))
-		return;
+		goto out_not_found;
 
 	if (magic == TG3_EEPROM_MAGIC) {
 		for (i = 0; i < 256; i += 4) {
@@ -9874,6 +9862,9 @@ static void __devinit tg3_read_partno(struct tg3 *tp)
 					break;
 				msleep(1);
 			}
+			if (!(tmp16 & 0x8000))
+				goto out_not_found;
+
 			pci_read_config_dword(tp->pdev, vpd_cap + PCI_VPD_DATA,
 					      &tmp);
 			tmp = cpu_to_le32(tmp);
@@ -9965,37 +9956,6 @@ static void __devinit tg3_read_fw_ver(struct tg3 *tp)
 	}
 }
 
-#ifdef CONFIG_SPARC64
-static int __devinit tg3_is_sun_570X(struct tg3 *tp)
-{
-	struct pci_dev *pdev = tp->pdev;
-	struct pcidev_cookie *pcp = pdev->sysdata;
-
-	if (pcp != NULL) {
-		int node = pcp->prom_node;
-		u32 venid;
-		int err;
-
-		err = prom_getproperty(node, "subsystem-vendor-id",
-				       (char *) &venid, sizeof(venid));
-		if (err == 0 || err == -1)
-			return 0;
-		if (venid == PCI_VENDOR_ID_SUN)
-			return 1;
-
-		/* TG3 chips onboard the SunBlade-2500 don't have the
-		 * subsystem-vendor-id set to PCI_VENDOR_ID_SUN but they
-		 * are distinguishable from non-Sun variants by being
-		 * named "network" by the firmware.  Non-Sun cards will
-		 * show up as being named "ethernet".
-		 */
-		if (!strcmp(pcp->prom_name, "network"))
-			return 1;
-	}
-	return 0;
-}
-#endif
-
 static int __devinit tg3_get_invariants(struct tg3 *tp)
 {
 	static struct pci_device_id write_reorder_chipsets[] = {
@@ -10011,11 +9971,6 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	u32 val;
 	u16 pci_cmd;
 	int err;
-
-#ifdef CONFIG_SPARC64
-	if (tg3_is_sun_570X(tp))
-		tp->tg3_flags2 |= TG3_FLG2_SUN_570X;
-#endif
 
 	/* Force memory write invalidate off.  If we leave it on,
 	 * then on 5700_BX chips we have to enable a workaround.
@@ -10312,8 +10267,7 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	if (tp->write32 == tg3_write_indirect_reg32 ||
 	    ((tp->tg3_flags & TG3_FLAG_PCIX_MODE) &&
 	     (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5700 ||
-	      GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5701)) ||
-	    (tp->tg3_flags2 & TG3_FLG2_SUN_570X))
+	      GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5701)))
 		tp->tg3_flags |= TG3_FLAG_SRAM_USE_CONFIG;
 
 	/* Get eeprom hw config before calling tg3_set_power_state().
@@ -10594,8 +10548,7 @@ static int __devinit tg3_get_device_address(struct tg3 *tp)
 #endif
 
 	mac_offset = 0x7c;
-	if ((GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5704 &&
-	     !(tp->tg3_flags & TG3_FLG2_SUN_570X)) ||
+	if ((GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5704) ||
 	    (tp->tg3_flags2 & TG3_FLG2_5780_CLASS)) {
 		if (tr32(TG3PCI_DUAL_MAC_CTRL) & DUAL_MAC_CTRL_ID)
 			mac_offset = 0xcc;
@@ -10622,8 +10575,7 @@ static int __devinit tg3_get_device_address(struct tg3 *tp)
 	}
 	if (!addr_ok) {
 		/* Next, try NVRAM. */
-		if (!(tp->tg3_flags & TG3_FLG2_SUN_570X) &&
-		    !tg3_nvram_read(tp, mac_offset + 0, &hi) &&
+		if (!tg3_nvram_read(tp, mac_offset + 0, &hi) &&
 		    !tg3_nvram_read(tp, mac_offset + 4, &lo)) {
 			dev->dev_addr[0] = ((hi >> 16) & 0xff);
 			dev->dev_addr[1] = ((hi >> 24) & 0xff);
